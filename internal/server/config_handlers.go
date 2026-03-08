@@ -286,17 +286,19 @@ var sensitiveKeys = map[string]bool{
 	"totp_secret":    true, // auth: TOTP base32 secret — never expose
 }
 
-// handleVaultStatus returns whether a vault file currently exists on disk.
+// handleVaultStatus returns whether the vault is available.
+// The vault is available when s.Vault != nil (i.e. AURAGO_MASTER_KEY was
+// provided at startup). The vault.bin file is created lazily on the first
+// write, so checking for file existence would yield a false negative on a
+// fresh installation where no secrets have been stored yet.
 func handleVaultStatus(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		vaultPath := filepath.Join(s.Cfg.Directories.DataDir, "vault.bin")
-		_, err := os.Stat(vaultPath)
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]bool{"exists": err == nil})
+		json.NewEncoder(w).Encode(map[string]bool{"exists": s.Vault != nil})
 	}
 }
 
