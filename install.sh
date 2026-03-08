@@ -303,6 +303,16 @@ echo "Follow logs: tail -f $DIR/log/aurago.log"
 STARTSH
 chmod +x "$INSTALL_DIR/start.sh"
 
+# ── update.sh ─────────────────────────────────────────────────────────────
+info "Downloading update.sh ..."
+UPDATE_SH_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/main/update.sh"
+if command -v curl >/dev/null 2>&1; then
+    curl -fsSL "$UPDATE_SH_URL" -o "$INSTALL_DIR/update.sh" 2>/dev/null || warn "Could not download update.sh — download manually later."
+elif command -v wget >/dev/null 2>&1; then
+    wget -q "$UPDATE_SH_URL" -O "$INSTALL_DIR/update.sh" 2>/dev/null || warn "Could not download update.sh — download manually later."
+fi
+[ -f "$INSTALL_DIR/update.sh" ] && chmod +x "$INSTALL_DIR/update.sh" && ok "update.sh installed."
+
 # ── Network binding ───────────────────────────────────────────────────────
 echo ""
 echo -e "${YELLOW}╔══════════════════════════════════════════════════════════════╗${NC}"
@@ -395,8 +405,8 @@ if $BUILD_FROM_SOURCE; then
     echo -e "  ${CYAN}Update later:${NC}  cd $INSTALL_DIR && bash update.sh"
     echo    "               (or rebuild: go build -o bin/aurago_linux ./cmd/aurago)"
 else
-    echo -e "  ${CYAN}Update later:${NC}  curl -fsSL https://raw.githubusercontent.com/${GITHUB_REPO}/main/install.sh | bash"
-    echo    "               (re-running the installer will download the latest release)"
+    echo -e "  ${CYAN}Update later:${NC}  cd $INSTALL_DIR && bash update.sh"
+    echo    "               (downloads latest release and merges your config automatically)"
 fi
 echo ""
 echo -e "${GREEN}Setup complete! Finish configuration in the Web UI.${NC}"

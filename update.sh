@@ -51,7 +51,7 @@ confirm() {
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$DIR"
 
-if [ ! -f "$DIR/go.mod" ] || ! grep -q "aurago" "$DIR/go.mod" 2>/dev/null; then
+if [ ! -f "$DIR/go.mod" ] && [ ! -f "$DIR/bin/aurago_linux" ]; then
     die "Could not find AuraGo installation at $DIR. Is update.sh in the right place?"
 fi
 
@@ -65,10 +65,15 @@ case "$ARCH_RAW" in
 esac
 ok "Architecture: $ARCH_RAW → Go target: $GOARCH"
 
-# ── Verify git repo ────────────────────────────────────────────────────
+# ── Detect install mode ───────────────────────────────────────────────────
+# Binary-only installs (no .git directory) are fully supported.
+BINARY_ONLY=false
 if [ ! -d "$DIR/.git" ]; then
-    die "This directory is not a git repository. Clone from GitHub first:\n  git clone https://github.com/antibyte/AuraGo.git"
+    BINARY_ONLY=true
 fi
+
+GITHUB_REPO="antibyte/AuraGo"
+RELEASE_BASE=""  # set in "Checking for updates" for binary mode
 
 # ── Files & directories that must NEVER be touched ─────────────────────
 # These are backed up before git operations and restored afterwards.
@@ -91,43 +96,54 @@ echo -e "${CYAN}║       AuraGo Updater  v2             ║${NC}"
 echo -e "${CYAN}╚══════════════════════════════════════╝${NC}"
 echo ""
 info "Installation: $DIR"
-info "Remote:       $(git remote get-url origin 2>/dev/null || echo 'unknown')"
+if $BINARY_ONLY; then
+    info "Mode:         Binary-only (no git)"
+else
+    info "Remote:       $(git remote get-url origin 2>/dev/null || echo 'unknown')"
+fi
 echo ""
 
 # ── Check current vs available version ────────────────────────────────
 section "Checking for updates"
-git fetch origin main --quiet
 
-LOCAL_HASH=$(git rev-parse HEAD)
-REMOTE_HASH=$(git rev-parse origin/main)
-
-if [ "$LOCAL_HASH" = "$REMOTE_HASH" ]; then
-    ok "Already up to date! ($(git log --format='%h %s' -1))"
+if $BINARY_ONLY; then
+    RELEASE_TAG=$(curl -fsSL "https://api.github.com/repos/${GITHUB_REPO}/releases/latest" \
+                  | grep -o '"tag_name": *"[^"]*"' | head -1 | cut -d'"' -f4)
+    [ -z "$RELEASE_TAG" ] && die "Could not determine latest release tag from GitHub."
+    info "Latest release available: $RELEASE_TAG"
+    RELEASE_BASE="https://github.com/${GITHUB_REPO}/releases/download/${RELEASE_TAG}"
     echo ""
-    if ! confirm "Force update anyway?"; then
-        info "Nothing to do."
-        exit 0
+    confirm "Proceed with update to $RELEASE_TAG?" || { info "Update cancelled."; exit 0; }
+else
+    git fetch origin main --quiet
+
+    LOCAL_HASH=$(git rev-parse HEAD)
+    REMOTE_HASH=$(git rev-parse origin/main)
+
+    if [ "$LOCAL_HASH" = "$REMOTE_HASH" ]; then
+        ok "Already up to date! ($(git log --format='%h %s' -1))"
+        echo ""
+        if ! confirm "Force update anyway?"; then
+            info "Nothing to do."
+            exit 0
+        fi
     fi
-fi
 
-LOCAL_DATE=$(git log -1 --format='%cd' --date=short)
-REMOTE_DATE=$(git log -1 --format='%cd' --date=short origin/main)
-AHEAD_COUNT=$(git rev-list HEAD..origin/main --count)
-
-info "Local:  $(git log --format='%h  %s  (%cd)' --date=short -1)"
-info "Remote: $(git log --format='%h  %s  (%cd)' --date=short -1 origin/main)"
-echo ""
-info "$AHEAD_COUNT commit(s) available to pull."
-echo ""
-
-# Show changelog
-if [ "$AHEAD_COUNT" -gt 0 ]; then
-    section "Changelog"
-    git log HEAD..origin/main --oneline --no-decorate | head -20
+    AHEAD_COUNT=$(git rev-list HEAD..origin/main --count)
+    info "Local:  $(git log --format='%h  %s  (%cd)' --date=short -1)"
+    info "Remote: $(git log --format='%h  %s  (%cd)' --date=short -1 origin/main)"
     echo ""
-fi
+    info "$AHEAD_COUNT commit(s) available to pull."
+    echo ""
 
-confirm "Proceed with update?" || { info "Update cancelled."; exit 0; }
+    if [ "$AHEAD_COUNT" -gt 0 ]; then
+        section "Changelog"
+        git log HEAD..origin/main --oneline --no-decorate | head -20
+        echo ""
+    fi
+
+    confirm "Proceed with update?" || { info "Update cancelled."; exit 0; }
+fi
 
 # ── Stop running instances BEFORE any file changes ────────────────────
 # This must happen early so the binary file is not locked and lock files
@@ -239,59 +255,110 @@ for d in "${PROTECTED_DIRS[@]}"; do
     fi
 done
 
-# Backup custom prompt files (only untracked / locally modified ones)
+# Backup custom prompt files
 if [ -d "$PROMPTS_DIR" ]; then
     CUSTOM_PROMPTS="$BACKUP_DIR/prompts__custom"
     mkdir -p "$CUSTOM_PROMPTS"
-    # git ls-files --others = untracked (user-created); --modified = locally changed
-    git -C "$DIR" ls-files --others --modified -- "prompts/" | while read -r fp; do
-        rel="${fp#prompts/}"
-        dest_dir="$CUSTOM_PROMPTS/$(dirname "$rel")"
-        mkdir -p "$dest_dir"
-        cp -p "$DIR/$fp" "$dest_dir/"
-    done
-    CUSTOM_COUNT=$(git -C "$DIR" ls-files --others --modified -- "prompts/" | wc -l)
-    ok "Backed up $CUSTOM_COUNT custom/modified prompt file(s)"
-fi
-
-# ── Apply update via git ───────────────────────────────────────────────
-# Stash any local changes to tracked files (avoids merge conflicts)
-STASH_NEEDED=false
-if ! git diff --quiet || ! git diff --cached --quiet; then
-    warn "Local changes detected in tracked files."
-    # Special handling for config.yaml: we always reset it to upstream before pull
-    # because we merge it ourselves from backup later.
-    if git diff --name-only | grep -q "config.yaml"; then
-        info "Resetting config.yaml to upstream state before pull (will merge from backup later)..."
-        git checkout config.yaml
-    fi
-
-    if ! git diff --quiet || ! git diff --cached --quiet; then
-        warn "Stashing other changes temporarily..."
-        if ! git stash push --quiet -m "aurago-update-stash-$(date +%s)"; then
-            warn "Git stash failed (index lock?). Attempting index cleanup..."
-            rm -f "$DIR/.git/index.lock" 2>/dev/null || true
-            git reset --mixed HEAD || true
-            if ! git stash push --quiet -m "aurago-update-stash-$(date +%s)"; then
-                 warn "Stash still failing. Forcing standard backup path..."
-            fi
+    if $BINARY_ONLY; then
+        # Binary install: back up all prompt files (they are always overwritten by update)
+        if command -v rsync >/dev/null 2>&1; then
+            rsync -a "$PROMPTS_DIR/" "$CUSTOM_PROMPTS/"
+        else
+            cp -rp "$PROMPTS_DIR/." "$CUSTOM_PROMPTS/"
         fi
-        STASH_NEEDED=true
+        CUSTOM_COUNT=$(find "$PROMPTS_DIR" -type f | wc -l)
+    else
+        # Git install: back up only untracked/locally modified files
+        git -C "$DIR" ls-files --others --modified -- "prompts/" | while read -r fp; do
+            rel="${fp#prompts/}"
+            dest_dir="$CUSTOM_PROMPTS/$(dirname "$rel")"
+            mkdir -p "$dest_dir"
+            cp -p "$DIR/$fp" "$dest_dir/"
+        done
+        CUSTOM_COUNT=$(git -C "$DIR" ls-files --others --modified -- "prompts/" | wc -l)
     fi
+    ok "Backed up $CUSTOM_COUNT prompt file(s)"
 fi
 
-git pull origin main --ff-only || {
-    warn "Fast-forward failed. Attempting reset to origin/main..."
-    if confirm "Reset local repo to origin/main? (Your user data is backed up and will be restored)"; then
-        git reset --hard origin/main
+# ── Apply update ───────────────────────────────────────────────────────
+STASH_NEEDED=false
+if $BINARY_ONLY; then
+    # Binary-only: download resources.dat and extract
+    info "Downloading resources.dat ..."
+    TMPRES=$(mktemp)
+    if command -v curl >/dev/null 2>&1; then
+        curl -fsSL "${RELEASE_BASE}/resources.dat" -o "$TMPRES"
+    elif command -v wget >/dev/null 2>&1; then
+        wget -q "${RELEASE_BASE}/resources.dat" -O "$TMPRES"
     else
-        die "Update aborted."
+        die "Neither curl nor wget found. Cannot download update."
     fi
-}
+    TMPEXT=$(mktemp -d)
+    tar -xzf "$TMPRES" -C "$TMPEXT"
+    rm -f "$TMPRES"
 
-ok "Code updated to $(git log --format='%h  %s' -1)"
+    # Always overwrite code assets (prompts, ui, agent_workspace)
+    [ -d "$TMPEXT/prompts" ]           && cp -a "$TMPEXT/prompts"           "$DIR/"
+    [ -d "$TMPEXT/agent_workspace" ]   && cp -a "$TMPEXT/agent_workspace"   "$DIR/"
+    [ -d "$TMPEXT/ui" ]                && cp -a "$TMPEXT/ui"                "$DIR/" 2>/dev/null || true
+
+    # Treat the extracted config.yaml as the new template for the merger below
+    if [ -f "$TMPEXT/config.yaml" ]; then
+        cp "$TMPEXT/config.yaml" "$DIR/config.yaml.new_template"
+    fi
+
+    # Update update.sh itself
+    if [ -f "$TMPEXT/update.sh" ]; then
+        cp "$TMPEXT/update.sh" "$DIR/update.sh"
+        chmod +x "$DIR/update.sh"
+        ok "update.sh refreshed"
+    fi
+
+    rm -rf "$TMPEXT"
+    ok "Resources updated from release $RELEASE_TAG"
+else
+    # Git-based: stash, pull, restore
+    if ! git diff --quiet || ! git diff --cached --quiet; then
+        warn "Local changes detected in tracked files."
+        if git diff --name-only | grep -q "config.yaml"; then
+            info "Resetting config.yaml to upstream state before pull (will merge from backup later)..."
+            git checkout config.yaml
+        fi
+        if ! git diff --quiet || ! git diff --cached --quiet; then
+            warn "Stashing other changes temporarily..."
+            if ! git stash push --quiet -m "aurago-update-stash-$(date +%s)"; then
+                warn "Git stash failed (index lock?). Attempting index cleanup..."
+                rm -f "$DIR/.git/index.lock" 2>/dev/null || true
+                git reset --mixed HEAD || true
+                git stash push --quiet -m "aurago-update-stash-$(date +%s)" || warn "Stash still failing."
+            fi
+            STASH_NEEDED=true
+        fi
+    fi
+
+    git pull origin main --ff-only || {
+        warn "Fast-forward failed. Attempting reset to origin/main..."
+        if confirm "Reset local repo to origin/main? (Your user data is backed up and will be restored)"; then
+            git reset --hard origin/main
+        else
+            die "Update aborted."
+        fi
+    }
+    ok "Code updated to $(git log --format='%h  %s' -1)"
+fi
 
 # ── Migrate old prompts location (agent_workspace/prompts → prompts/) ─
+# In binary-only mode the custom prompt backup covers all files; re-apply
+# it now so user customisations are not wiped by the resources.dat extract.
+if $BINARY_ONLY && [ -d "$BACKUP_DIR/prompts__custom" ] && [ "$(ls -A "$BACKUP_DIR/prompts__custom")" ]; then
+    if command -v rsync >/dev/null 2>&1; then
+        rsync -a --quiet "$BACKUP_DIR/prompts__custom/" "$DIR/prompts/"
+    else
+        cp -rp "$BACKUP_DIR/prompts__custom/." "$DIR/prompts/"
+    fi
+    ok "Custom prompt files restored"
+fi
+
 OLD_PROMPTS="$DIR/agent_workspace/prompts"
 if [ -d "$OLD_PROMPTS" ]; then
     section "Migrating prompts directory"
@@ -313,8 +380,8 @@ if [ -d "$OLD_PROMPTS" ]; then
     ok "Migrated and removed agent_workspace/prompts/"
 fi
 
-# Re-apply stash if we stashed
-if $STASH_NEEDED; then
+# Re-apply stash if we stashed (git mode only)
+if ! $BINARY_ONLY && $STASH_NEEDED; then
     info "Re-applying stashed local changes..."
     git stash pop --quiet 2>/dev/null || warn "Could not re-apply stash automatically — check 'git stash list'"
 fi
@@ -370,6 +437,13 @@ section "Merging configuration"
 USER_CONFIG_BAK="$BACKUP_DIR/config.yaml.user"
 # The current config.yaml in $DIR is the new template from GitHub
 CURRENT_TEMPLATE="$DIR/config.yaml"
+
+# In binary-only mode the new template was stored as config.yaml.new_template;
+# switch it in so the merger works against it.
+if $BINARY_ONLY && [ -f "$DIR/config.yaml.new_template" ]; then
+    cp "$DIR/config.yaml.new_template" "$CURRENT_TEMPLATE"
+    rm -f "$DIR/config.yaml.new_template"
+fi
 
 if [ -f "$USER_CONFIG_BAK" ] && [ -f "$CURRENT_TEMPLATE" ]; then
     # Try multiple binary locations for config-merger
@@ -571,5 +645,9 @@ echo -e "${GREEN}╚════════════════════
 echo ""
 info "Backup of your data kept at: $BACKUP_DIR"
 info "To remove backup:            rm -rf $BACKUP_DIR"
-info "Version:                     $(git log --format='%h  %s  (%cd)' --date=short -1)"
+if $BINARY_ONLY; then
+    info "Version:                     $RELEASE_TAG"
+else
+    info "Version:                     $(git log --format='%h  %s  (%cd)' --date=short -1)"
+fi
 echo ""

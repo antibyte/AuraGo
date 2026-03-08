@@ -41,6 +41,9 @@ if exist config_template.yaml (
     copy /Y config.yaml "%TMPRES%\config.yaml" >nul
 )
 
+REM Include update.sh so binary installs self-update
+copy /Y update.sh "%TMPRES%\update.sh" >nul 2>&1
+
 REM Use tar (built into Windows 10+)
 tar -czf "%DEPLOY_DIR%\%RESOURCES%" -C "%TMPRES%" .
 echo     resources.dat created
