@@ -72,7 +72,7 @@ RUN mkdir -p \
 ENV AURAGO_SERVER_HOST=0.0.0.0
 
 COPY docker-entrypoint.sh /app/docker-entrypoint.sh
-COPY config.yaml /app/config.yaml.default
+COPY config_template.yaml /app/config.yaml.default
 # Normalize CRLF -> LF in case the file was committed from a Windows machine.
 RUN sed -i 's/\r$//' /app/docker-entrypoint.sh /app/config.yaml.default
 RUN chmod +x /app/docker-entrypoint.sh

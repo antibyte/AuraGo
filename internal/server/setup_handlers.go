@@ -158,18 +158,31 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 // We check that at least one provider with a non-empty API key (or OAuth)
 // exists and is referenced by the main LLM slot.
 func needsSetup(cfg *config.Config) bool {
+	// If the LLM has a resolved API key, setup is complete.
+	// This covers new-format configs where the key is loaded from vault.
+	if cfg.LLM.APIKey != "" {
+		return false
+	}
+	// If the setup wizard recently saved a key in legacy inline format
+	// (llm.api_key in YAML) and the provider entry hasn't been migrated yet.
+	if cfg.LLM.LegacyAPIKey != "" {
+		return false
+	}
 	if len(cfg.Providers) == 0 {
 		return true
 	}
 	if cfg.LLM.Provider == "" {
 		return true
 	}
-	// Even if "providers" and "llm.provider" are set (e.g. by migration),
-	// require at least one provider to have a usable key or auth.
+	// Walk providers: accept any that has a key, OAuth, or is a key-less
+	// local endpoint (e.g. Ollama) identified by having both URL and model set.
 	for _, p := range cfg.Providers {
 		if p.APIKey != "" || p.AuthType == "oauth2" {
 			return false
 		}
+		if p.BaseURL != "" && p.Model != "" {
+			return false // key-less local provider (Ollama etc.)
+		}
 	}
-	return true // all providers have empty keys → still needs setup
+	return true // all providers lack usable credentials → still needs setup
 }

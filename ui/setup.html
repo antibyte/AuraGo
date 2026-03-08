@@ -524,12 +524,13 @@
                         <div class="field-error" id="err-model">Modellname wird benötigt.</div>
                     </div>
                     <div class="field-group">
-                        <label class="field-label">Sprache</label>
+                        <label class="field-label" id="lang-label">Language / Sprache</label>
                         <select class="field-select" id="system-language">
                             <option value="Deutsch">Deutsch</option>
                             <option value="English">English</option>
-                            <option value="Français">Français</option>
                             <option value="Español">Español</option>
+                            <option value="Français">Français</option>
+                            <option value="Polski">Polski</option>
                         </select>
                     </div>
                 </div>
@@ -1306,6 +1307,21 @@
                 setTimeout(() => toast.remove(), 300);
             }, 4000);
         }
+
+        // ── Browser Language Auto-detection ──────────
+        (function detectAndSetLanguage() {
+            const lang = (navigator.languages && navigator.languages[0]) || navigator.language || 'en';
+            const base = lang.toLowerCase().split('-')[0];
+            const map = {
+                'de': 'Deutsch',
+                'en': 'English',
+                'es': 'Español',
+                'fr': 'Français',
+                'pl': 'Polski',
+            };
+            const sel = document.getElementById('system-language');
+            sel.value = map[base] || 'English';
+        })();
 
         // ── Init ─────────────────────────────────────
         onProviderChange();
