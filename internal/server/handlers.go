@@ -665,22 +665,29 @@ func handleListPersonalities(s *Server) http.HandlerFunc {
 			return
 		}
 
-		personalitiesDir := filepath.Join(s.Cfg.Directories.PromptsDir, "personalities")
-		files, err := os.ReadDir(personalitiesDir)
-		if err != nil {
-			s.Logger.Error("Failed to read personalities directory", "error", err)
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
-			return
+		// Seed with embedded core personalities (always present in binary).
+		profiles := []PersonalityEntry{}
+		seen := map[string]bool{}
+		if embFiles, err := promptsembed.FS.ReadDir("personalities"); err == nil {
+			for _, f := range embFiles {
+				if !f.IsDir() && strings.HasSuffix(f.Name(), ".md") {
+					n := strings.TrimSuffix(f.Name(), ".md")
+					profiles = append(profiles, PersonalityEntry{Name: n, Core: true})
+					seen[n] = true
+				}
+			}
 		}
 
-		var profiles []PersonalityEntry
-		for _, f := range files {
-			if !f.IsDir() && strings.HasSuffix(f.Name(), ".md") {
-				n := strings.TrimSuffix(f.Name(), ".md")
-				profiles = append(profiles, PersonalityEntry{
-					Name: n,
-					Core: isCorePersonality(n),
-				})
+		// Add user-created personalities from disk (not already in embedded set).
+		personalitiesDir := filepath.Join(s.Cfg.Directories.PromptsDir, "personalities")
+		if files, err := os.ReadDir(personalitiesDir); err == nil {
+			for _, f := range files {
+				if !f.IsDir() && strings.HasSuffix(f.Name(), ".md") {
+					n := strings.TrimSuffix(f.Name(), ".md")
+					if !seen[n] {
+						profiles = append(profiles, PersonalityEntry{Name: n, Core: false})
+					}
+				}
 			}
 		}
 
@@ -745,11 +752,13 @@ func handleUpdatePersonality(s *Server) http.HandlerFunc {
 			return
 		}
 
-		// Verify existence
+		// Verify existence — accept personality from disk or from embedded binary.
 		profilePath := filepath.Join(s.Cfg.Directories.PromptsDir, "personalities", req.ID+".md")
 		if _, err := os.Stat(profilePath); os.IsNotExist(err) {
-			http.Error(w, "Personality not found", http.StatusNotFound)
-			return
+			if !isCorePersonality(req.ID) {
+				http.Error(w, "Personality not found", http.StatusNotFound)
+				return
+			}
 		}
 
 		// Update config
@@ -909,9 +918,14 @@ func handleGetPersonalityContent(s *Server) http.HandlerFunc {
 			http.Error(w, "Invalid personality name", http.StatusBadRequest)
 			return
 		}
+		// Try disk first (user override), then fall back to embedded binary.
+		var data []byte
 		profilePath := filepath.Join(s.Cfg.Directories.PromptsDir, "personalities", name+".md")
-		data, err := os.ReadFile(profilePath)
-		if err != nil {
+		if d, err := os.ReadFile(profilePath); err == nil {
+			data = d
+		} else if d, err := promptsembed.FS.ReadFile("personalities/" + name + ".md"); err == nil {
+			data = d
+		} else {
 			http.Error(w, "Personality not found", http.StatusNotFound)
 			return
 		}
