@@ -1,0 +1,11 @@
+{
+  "name": "git_backup_restore",
+  "description": "Backs up or restores the agent workspace using Git. Supports committing current workspace state (backup) or reverting to a previous commit (restore). Useful for versioning agent work.",
+  "executable": "__builtin__",
+  "parameters": {
+    "operation": "'backup' to commit and push current state, 'restore' to revert to a previous commit, 'log' to list recent commits",
+    "message": "Commit message for backup operation",
+    "commit": "Commit hash to restore to (for restore operation)"
+  },
+  "returns": "Status of the git operation and relevant output"
+}

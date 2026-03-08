@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="de" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AuraGo - Invasion Control</title>
+    <link rel="stylesheet" href="/shared.css">
+    <script src="/shared.js"></script>
+    <script>
+        (function () { var t = localStorage.getItem('aurago-theme'); if (t) document.documentElement.setAttribute('data-theme', t); })();
+    </script>
+    <style>
+        :root,
+        [data-theme="dark"] {
+            --bg-tertiary: #334155;
+            --accent-primary: #2dd4bf;
+            --accent-secondary: #0d9488;
+            --accent-success: #10b981;
+            --accent-warning: #f59e0b;
+            --accent-danger: #ef4444;
+            --border-color: #334155;
+            --shadow: 0 4px 20px rgba(0,0,0,0.3);
+            --card-radius: 12px;
+        }
+        [data-theme="light"] {
+            --bg-tertiary: #e2e8f0;
+            --accent-primary: #0f766e;
+            --accent-secondary: #115e59;
+            --accent-success: #059669;
+            --accent-warning: #d97706;
+            --accent-danger: #dc2626;
+            --border-color: #cbd5e1;
+            --shadow: 0 4px 20px rgba(0,0,0,0.1);
+            --card-radius: 12px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.5;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+
+        /* Page Header - invasion-specific */
+        .page-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 24px; padding-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+            position: relative;
+        }
+        .page-header::after {
+            content: '';
+            position: absolute;
+            bottom: -1px; left: 0;
+            width: 100%; height: 1px;
+            background: linear-gradient(90deg, 
+                transparent 0%, 
+                var(--accent-primary) 20%, 
+                var(--accent-secondary) 50%, 
+                var(--accent-primary) 80%, 
+                transparent 100%);
+            opacity: 0.6;
+        }
+        .page-header h1 {
+            font-size: 1.75rem;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+            position: relative;
+            text-shadow: 0 0 30px rgba(45, 212, 191, 0.2);
+        }
+        .page-header h1::after {
+            content: '';
+            position: absolute;
+            bottom: -4px; left: 0;
+            width: 40px; height: 3px;
+            background: linear-gradient(90deg, var(--accent-primary), transparent);
+            border-radius: 2px;
+        }
+
+        /* Buttons - keep btn-validate, btn-sm modifiers */
+        .btn-validate {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+        .btn-validate:hover {
+            background: var(--bg-glass, rgba(255,255,255,0.1));
+            border-color: var(--accent-primary);
+        }
+        .btn-sm { padding: 6px 12px; font-size: 0.8rem; }
+
+        /* Cards Grid - invasion-specific layout */
+        .cards-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+            gap: 20px;
+        }
+        .card-title {
+            font-size: 1.1rem; 
+            font-weight: 600;
+            background: linear-gradient(135deg, var(--text-primary), var(--text-secondary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        /* Card Entrance Animation */
+        @keyframes card-enter {
+            from {
+                opacity: 0;
+                transform: translateY(20px) scale(0.98);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+        .card {
+            animation: card-enter 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+        }
+        .cards-grid .card:nth-child(1) { animation-delay: 0ms; }
+        .cards-grid .card:nth-child(2) { animation-delay: 50ms; }
+        .cards-grid .card:nth-child(3) { animation-delay: 100ms; }
+        .cards-grid .card:nth-child(4) { animation-delay: 150ms; }
+        .cards-grid .card:nth-child(5) { animation-delay: 200ms; }
+        .cards-grid .card:nth-child(6) { animation-delay: 250ms; }
+        .cards-grid .card:nth-child(7) { animation-delay: 300ms; }
+        .cards-grid .card:nth-child(8) { animation-delay: 350ms; }
+        .card-header {
+            display: flex; justify-content: space-between; align-items: flex-start;
+            margin-bottom: 12px;
+        }
+        .card-meta {
+            display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px;
+            font-size: 0.85rem; color: var(--text-secondary);
+        }
+        .card-meta span { display: flex; align-items: center; gap: 6px; }
+        .card-actions {
+            display: flex; gap: 8px; flex-wrap: wrap; padding-top: 12px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        /* Validation Result */
+        .validate-result {
+            margin-top: 10px; padding: 10px 14px; border-radius: 8px;
+            font-size: 0.85rem; display: none;
+        }
+        .validate-result.success { display: block; background: rgba(16,185,129,0.1); color: var(--accent-success); border: 1px solid rgba(16,185,129,0.3); }
+        .validate-result.error { display: block; background: rgba(239,68,68,0.1); color: var(--accent-danger); border: 1px solid rgba(239,68,68,0.3); }
+
+        /* Delete Confirm */
+        .delete-confirm-input {
+            width: 100%; padding: 12px 16px; margin-top: 10px;
+            border: 2px solid var(--accent-danger); border-radius: 10px;
+            background: rgba(239, 68, 68, 0.05); color: var(--text-primary);
+            font-size: 0.9rem;
+            transition: all 0.3s;
+        }
+        .delete-confirm-input:focus {
+            outline: none;
+            background: rgba(239, 68, 68, 0.1);
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15), 0 0 20px rgba(239, 68, 68, 0.1);
+        }
+
+        /* Conditional fields */
+        .hidden { display: none !important; }
+
+        @media (max-width: 600px) {
+            .cards-grid { grid-template-columns: 1fr; }
+            .form-row { grid-template-columns: 1fr; }
+            .page-header { flex-direction: column; gap: 12px; align-items: flex-start; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="app-header">
+        <div class="header-left">
+            <a href="/" class="logo">
+                <div class="logo-icon">🥚</div>
+                <span style="color: var(--accent);">AURA</span><span style="color: var(--text-primary);">GO</span>
+                <span style="font-weight:300;opacity:0.5;margin-left:0.3rem;" class="logo-subtitle">INVASION</span>
+            </a>
+        </div>
+        <div class="header-actions">
+            <button id="theme-toggle" class="btn-theme" title="Toggle theme"></button>
+        </div>
+    </header>
+
+    <!-- Radial Navigation Menu -->
+    <nav class="radial-menu" id="radialMenu">
+        <button class="radial-trigger" id="radialTrigger" aria-label="Navigation">
+            <div class="radial-icon"><span></span><span></span><span></span></div>
+        </button>
+        <div class="radial-items">
+            <a href="/" class="radial-item"><span class="radial-item-label">Chat</span><span class="radial-item-icon">💬</span></a>
+            <a href="/dashboard" class="radial-item"><span class="radial-item-label">Dashboard</span><span class="radial-item-icon">📊</span></a>
+            <a href="/missions" class="radial-item"><span class="radial-item-label">Missions</span><span class="radial-item-icon">🚀</span></a>
+            <a href="/config" class="radial-item"><span class="radial-item-label">Config</span><span class="radial-item-icon">⚙️</span></a>
+            <a href="/invasion" class="radial-item active"><span class="radial-item-label">Invasion</span><span class="radial-item-icon">🥚</span></a>
+            <a id="radialLogout" href="/auth/logout" class="radial-item" style="display:none;"><span class="radial-item-label">Logout</span><span class="radial-item-icon">🔓</span></a>
+        </div>
+    </nav>
+    <div class="radial-backdrop" id="radialBackdrop"></div>
+
+    <div class="container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1 data-i18n="title">Invasion Control</h1>
+            <button class="btn btn-primary" id="btn-create" onclick="openCreateModal()">
+                <span>+</span> <span data-i18n="create_new">Neu erstellen</span>
+            </button>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab active" data-tab="nests" onclick="switchTab('nests')">
+                🪺 <span data-i18n="nests">Nester</span>
+            </button>
+            <button class="tab" data-tab="eggs" onclick="switchTab('eggs')">
+                🥚 <span data-i18n="eggs">Eier</span>
+            </button>
+        </div>
+
+        <!-- Content -->
+        <div id="content-nests" class="tab-content">
+            <div class="cards-grid" id="nests-grid"></div>
+            <div class="empty-state" id="nests-empty" style="display:none;">
+                <div class="icon">🪺</div>
+                <p data-i18n="no_nests">Noch keine Nester konfiguriert.</p>
+                <button class="btn btn-primary" onclick="openCreateModal()">
+                    <span data-i18n="create_first_nest">Erstes Nest erstellen</span>
+                </button>
+            </div>
+        </div>
+
+        <div id="content-eggs" class="tab-content" style="display:none;">
+            <div class="cards-grid" id="eggs-grid"></div>
+            <div class="empty-state" id="eggs-empty" style="display:none;">
+                <div class="icon">🥚</div>
+                <p data-i18n="no_eggs">Noch keine Eggs konfiguriert.</p>
+                <button class="btn btn-primary" onclick="openCreateModal()">
+                    <span data-i18n="create_first_egg">Erstes Egg erstellen</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Nest Modal -->
+    <div class="modal-overlay" id="nest-modal">
+        <div class="modal">
+            <h2 id="nest-modal-title" data-i18n="create_nest">Nest erstellen</h2>
+            <input type="hidden" id="nest-id">
+            <div class="form-group">
+                <label data-i18n="name">Name</label>
+                <input type="text" id="nest-name" placeholder="Production Server">
+            </div>
+            <div class="form-group">
+                <label data-i18n="notes">Notizen</label>
+                <textarea id="nest-notes" placeholder="Optional notes..." rows="2" style="resize:vertical;"></textarea>
+            </div>
+            <div class="form-group">
+                <label data-i18n="access_type">Zugangstyp</label>
+                <select id="nest-access-type" onchange="onAccessTypeChange()">
+                    <option value="ssh">SSH</option>
+                    <option value="docker">Docker API</option>
+                    <option value="local">Lokal</option>
+                </select>
+            </div>
+            <div id="nest-remote-fields">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label data-i18n="host">Host</label>
+                        <input type="text" id="nest-host" placeholder="192.168.1.100">
+                    </div>
+                    <div class="form-group">
+                        <label data-i18n="port">Port</label>
+                        <input type="number" id="nest-port" value="22">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label data-i18n="username">Benutzer</label>
+                    <input type="text" id="nest-username" placeholder="deploy">
+                </div>
+                <div class="form-group">
+                    <label id="nest-secret-label" data-i18n="secret">Secret (Passwort / SSH-Key)</label>
+                    <textarea id="nest-secret" placeholder="Passwort oder SSH Private Key..." rows="3" style="resize:vertical;"></textarea>
+                    <small id="nest-secret-hint" style="color:var(--text-secondary);display:none;" data-i18n="secret_set">
+                        Secret ist bereits gesetzt. Leer lassen um es beizubehalten.
+                    </small>
+                </div>
+            </div>
+            <div class="form-group">
+                <label data-i18n="assign_egg">Egg zuordnen</label>
+                <select id="nest-egg-id">
+                    <option value="">— Kein Egg —</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label data-i18n="deploy_method">Deploy-Methode</label>
+                <select id="nest-deploy-method">
+                    <option value="ssh">SSH</option>
+                    <option value="docker_remote">Docker (Remote)</option>
+                    <option value="docker_local">Docker (Lokal)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label data-i18n="target_arch">Ziel-Architektur</label>
+                <select id="nest-target-arch">
+                    <option value="linux/amd64">linux/amd64</option>
+                    <option value="linux/arm64">linux/arm64</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label data-i18n="route">Route (Rückkanal)</label>
+                <select id="nest-route">
+                    <option value="direct">Direct</option>
+                    <option value="ssh_tunnel">SSH Tunnel</option>
+                    <option value="tailscale">Tailscale</option>
+                    <option value="wireguard">WireGuard</option>
+                    <option value="custom">Custom</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label data-i18n="route_config">Route Config (JSON, optional)</label>
+                <textarea id="nest-route-config" placeholder='{"tunnel_port":8443}' rows="2" style="resize:vertical;"></textarea>
+            </div>
+            <div class="form-group">
+                <div class="toggle-wrap">
+                    <label class="toggle">
+                        <input type="checkbox" id="nest-active" checked>
+                        <span class="slider"></span>
+                    </label>
+                    <span data-i18n="active">Aktiv</span>
+                </div>
+            </div>
+            <div id="nest-validate-area" style="display:none;">
+                <button class="btn btn-sm btn-secondary" id="btn-validate" onclick="validateNest()" data-i18n="test_connection">
+                    🔗 Verbindung testen
+                </button>
+                <div class="validate-result" id="validate-result"></div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal('nest-modal')" data-i18n="cancel">Abbrechen</button>
+                <button class="btn btn-primary" onclick="saveNest()" data-i18n="save">Speichern</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Egg Modal -->
+    <div class="modal-overlay" id="egg-modal">
+        <div class="modal">
+            <h2 id="egg-modal-title" data-i18n="create_egg">Egg erstellen</h2>
+            <input type="hidden" id="egg-id">
+            <div class="form-group">
+                <label data-i18n="name">Name</label>
+                <input type="text" id="egg-name" placeholder="Analytics Agent">
+            </div>
+            <div class="form-group">
+                <label data-i18n="description">Beschreibung</label>
+                <textarea id="egg-description" placeholder="Was macht dieser Sub-Agent?" rows="2" style="resize:vertical;"></textarea>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Provider</label>
+                    <input type="text" id="egg-provider" placeholder="openrouter">
+                </div>
+                <div class="form-group">
+                    <label>Model</label>
+                    <input type="text" id="egg-model" placeholder="gpt-4o-mini">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Base URL</label>
+                <input type="text" id="egg-base-url" placeholder="https://openrouter.ai/api/v1">
+            </div>
+            <div class="form-group">
+                <label>API Key</label>
+                <input type="password" id="egg-api-key" placeholder="sk-...">
+                <small id="egg-apikey-hint" style="color:var(--text-secondary);display:none;" data-i18n="apikey_set">
+                    API Key ist bereits gesetzt. Leer lassen um ihn beizubehalten.
+                </small>
+            </div>
+            <div class="form-group">
+                <label data-i18n="egg_port">Egg Port</label>
+                <input type="number" id="egg-port" value="8099" min="1024" max="65535">
+            </div>
+            <div class="form-group">
+                <label data-i18n="allowed_tools">Erlaubte Tools (JSON Array, leer = Standard)</label>
+                <input type="text" id="egg-allowed-tools" placeholder='["shell","python"]'>
+            </div>
+            <div class="form-group">
+                <div class="toggle-wrap">
+                    <label class="toggle">
+                        <input type="checkbox" id="egg-permanent">
+                        <span class="slider"></span>
+                    </label>
+                    <span data-i18n="permanent">Permanent (Systemd-Service)</span>
+                </div>
+            </div>
+            <div class="form-group">
+                <div class="toggle-wrap">
+                    <label class="toggle">
+                        <input type="checkbox" id="egg-include-vault">
+                        <span class="slider"></span>
+                    </label>
+                    <span data-i18n="include_vault">Vault übertragen</span>
+                </div>
+            </div>
+            <div class="form-group">
+                <div class="toggle-wrap">
+                    <label class="toggle">
+                        <input type="checkbox" id="egg-inherit-llm" checked>
+                        <span class="slider"></span>
+                    </label>
+                    <span data-i18n="inherit_llm">LLM vom Master erben</span>
+                </div>
+            </div>
+            <div class="form-group">
+                <div class="toggle-wrap">
+                    <label class="toggle">
+                        <input type="checkbox" id="egg-active" checked>
+                        <span class="slider"></span>
+                    </label>
+                    <span data-i18n="active">Aktiv</span>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal('egg-modal')" data-i18n="cancel">Abbrechen</button>
+                <button class="btn btn-primary" onclick="saveEgg()" data-i18n="save">Speichern</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirm Modal -->
+    <div class="modal-overlay" id="delete-modal">
+        <div class="modal">
+            <h2 style="color: var(--accent-danger);">⚠️ <span data-i18n="confirm_delete">Löschen bestätigen</span></h2>
+            <p id="delete-message" style="margin:12px 0;"></p>
+            <p data-i18n="type_name_confirm" style="font-size:0.85rem; color:var(--text-secondary);">
+                Tippe den Namen ein zur Bestätigung:
+            </p>
+            <input type="text" class="delete-confirm-input" id="delete-confirm-input"
+                   oninput="checkDeleteConfirm()" autocomplete="off">
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal('delete-modal')" data-i18n="cancel">Abbrechen</button>
+                <button class="btn btn-danger" id="btn-delete-confirm" disabled onclick="confirmDelete()" data-i18n="delete_permanent">
+                    🗑️ Endgültig löschen
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+    const LANG = '{{.Lang}}' || 'de';
+
+    const i18n = {
+        de: {
+            subtitle: 'Invasions-Kontrolle',
+            title: 'Invasions-Kontrolle',
+            nests: 'Nester',
+            eggs: 'Eier',
+            create_new: 'Neu erstellen',
+            create_nest: 'Nest erstellen',
+            edit_nest: 'Nest bearbeiten',
+            create_egg: 'Egg erstellen',
+            edit_egg: 'Egg bearbeiten',
+            name: 'Name',
+            notes: 'Notizen',
+            access_type: 'Zugangstyp',
+            host: 'Host',
+            port: 'Port',
+            username: 'Benutzer',
+            secret: 'Secret (Passwort / SSH-Key)',
+            secret_set: 'Secret ist bereits gesetzt. Leer lassen um es beizubehalten.',
+            assign_egg: 'Egg zuordnen',
+            no_egg: '— Kein Egg —',
+            active: 'Aktiv',
+            inactive: 'Inaktiv',
+            save: 'Speichern',
+            cancel: 'Abbrechen',
+            edit: 'Bearbeiten',
+            delete: 'Löschen',
+            test_connection: '🔗 Verbindung testen',
+            testing: 'Teste...',
+            no_nests: 'Noch keine Nester konfiguriert.',
+            no_eggs: 'Noch keine Eggs konfiguriert.',
+            create_first_nest: 'Erstes Nest erstellen',
+            create_first_egg: 'Erstes Egg erstellen',
+            confirm_delete: 'Löschen bestätigen',
+            delete_permanent: '🗑️ Endgültig löschen',
+            type_name_confirm: 'Tippe den Namen ein zur Bestätigung:',
+            will_delete_nest: 'wird unwiderruflich gelöscht. Das zugehörige Secret wird aus dem Vault entfernt.',
+            will_delete_egg: 'wird unwiderruflich gelöscht. Der zugehörige API-Key wird aus dem Vault entfernt.',
+            saved: 'Gespeichert!',
+            deleted: 'Gelöscht!',
+            error: 'Fehler',
+            description: 'Beschreibung',
+            apikey_set: 'API Key ist bereits gesetzt. Leer lassen um ihn beizubehalten.',
+            validate_first: 'Bitte zuerst speichern, dann Verbindung testen.',
+            deploy_method: 'Deploy-Methode',
+            target_arch: 'Ziel-Architektur',
+            route: 'Route (Rückkanal)',
+            route_config: 'Route Config (JSON, optional)',
+            egg_port: 'Egg Port',
+            allowed_tools: 'Erlaubte Tools (JSON Array, leer = Standard)',
+            permanent: 'Permanent (Systemd-Service)',
+            include_vault: 'Vault übertragen',
+            inherit_llm: 'LLM vom Master erben',
+            hatch: '🥚 Hatchen',
+            stop_egg: '⏹ Stoppen',
+            hatch_idle: 'Idle',
+            hatch_hatching: 'Hatching…',
+            hatch_running: 'Running',
+            hatch_failed: 'Fehlgeschlagen',
+            hatch_stopped: 'Gestoppt',
+            ws_connected: 'Verbunden',
+            ws_disconnected: 'Getrennt',
+        },
+        en: {
+            subtitle: 'Invasion Control',
+            title: 'Invasion Control',
+            nests: 'Nests',
+            eggs: 'Eggs',
+            create_new: 'Create New',
+            create_nest: 'Create Nest',
+            edit_nest: 'Edit Nest',
+            create_egg: 'Create Egg',
+            edit_egg: 'Edit Egg',
+            name: 'Name',
+            notes: 'Notes',
+            access_type: 'Access Type',
+            host: 'Host',
+            port: 'Port',
+            username: 'Username',
+            secret: 'Secret (Password / SSH Key)',
+            secret_set: 'Secret is already set. Leave empty to keep it.',
+            assign_egg: 'Assign Egg',
+            no_egg: '— No Egg —',
+            active: 'Active',
+            inactive: 'Inactive',
+            save: 'Save',
+            cancel: 'Cancel',
+            edit: 'Edit',
+            delete: 'Delete',
+            test_connection: '🔗 Test Connection',
+            testing: 'Testing...',
+            no_nests: 'No nests configured yet.',
+            no_eggs: 'No eggs configured yet.',
+            create_first_nest: 'Create First Nest',
+            create_first_egg: 'Create First Egg',
+            confirm_delete: 'Confirm Deletion',
+            delete_permanent: '🗑️ Delete Permanently',
+            type_name_confirm: 'Type the name to confirm:',
+            will_delete_nest: 'will be permanently deleted. The associated secret will be removed from the vault.',
+            will_delete_egg: 'will be permanently deleted. The associated API key will be removed from the vault.',
+            saved: 'Saved!',
+            deleted: 'Deleted!',
+            error: 'Error',
+            description: 'Description',
+            apikey_set: 'API Key is already set. Leave empty to keep it.',
+            validate_first: 'Please save first, then test connection.',
+            deploy_method: 'Deploy Method',
+            target_arch: 'Target Architecture',
+            route: 'Route (Back-Channel)',
+            route_config: 'Route Config (JSON, optional)',
+            egg_port: 'Egg Port',
+            allowed_tools: 'Allowed Tools (JSON Array, empty = default)',
+            permanent: 'Permanent (Systemd Service)',
+            include_vault: 'Transfer Vault',
+            inherit_llm: 'Inherit LLM from Master',
+            hatch: '🥚 Hatch',
+            stop_egg: '⏹ Stop',
+            hatch_idle: 'Idle',
+            hatch_hatching: 'Hatching…',
+            hatch_running: 'Running',
+            hatch_failed: 'Failed',
+            hatch_stopped: 'Stopped',
+            ws_connected: 'Connected',
+            ws_disconnected: 'Disconnected',
+        }
+    };
+
+    const t = (key) => (i18n[LANG] || i18n.en)[key] || (i18n.en)[key] || key;
+
+    let currentTab = 'nests';
+    let nestsData = [];
+    let eggsData = [];
+    let deleteTarget = null; // { type: 'nest'|'egg', id, name }
+
+    // ── Init ─────────────────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', () => {
+        applyI18n();
+        loadNests();
+        loadEggs();
+    });
+
+    function applyI18n() {
+        document.querySelectorAll('[data-i18n]').forEach(el => {
+            const key = el.getAttribute('data-i18n');
+            const text = t(key);
+            if (text) el.textContent = text;
+        });
+    }
+
+    // ── Tabs ─────────────────────────────────────────────────
+    function switchTab(tab) {
+        currentTab = tab;
+        document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+        document.getElementById('content-nests').style.display = tab === 'nests' ? '' : 'none';
+        document.getElementById('content-eggs').style.display = tab === 'eggs' ? '' : 'none';
+    }
+
+    // ── API ──────────────────────────────────────────────────
+    async function api(path, options = {}) {
+        const resp = await fetch('/api/invasion/' + path, {
+            headers: { 'Content-Type': 'application/json' },
+            ...options
+        });
+        if (!resp.ok) {
+            const err = await resp.json().catch(() => ({ error: resp.statusText }));
+            throw new Error(err.error || resp.statusText);
+        }
+        return resp.json();
+    }
+
+    // ── Load Data ────────────────────────────────────────────
+    async function loadNests() {
+        try {
+            nestsData = (await api('nests')) || [];
+            renderNests();
+        } catch (e) { showToast(t('error') + ': ' + e.message, 'error'); }
+    }
+
+    async function loadEggs() {
+        try {
+            eggsData = (await api('eggs')) || [];
+            renderEggs();
+        } catch (e) { showToast(t('error') + ': ' + e.message, 'error'); }
+    }
+
+    // ── Render ───────────────────────────────────────────────
+    function renderNests() {
+        const grid = document.getElementById('nests-grid');
+        const empty = document.getElementById('nests-empty');
+        if (!nestsData || nestsData.length === 0) {
+            grid.innerHTML = '';
+            empty.style.display = '';
+            return;
+        }
+        empty.style.display = 'none';
+        grid.innerHTML = nestsData.map(n => {
+            const eggName = n.egg_id ? (eggsData.find(e => e.id === n.egg_id)?.name || n.egg_id) : '—';
+            const hs = n.hatch_status || 'idle';
+            const hsBadge = `<span class="badge badge-${hs}">${t('hatch_' + hs)}</span>`;
+            const wsStatus = n.ws_connected
+                ? `<span class="badge badge-connected">${t('ws_connected')}</span>`
+                : (hs === 'running' ? `<span class="badge badge-disconnected">${t('ws_disconnected')}</span>` : '');
+            const canHatch = n.egg_id && n.active && (hs === 'idle' || hs === 'failed' || hs === 'stopped');
+            const canStop = hs === 'running' || hs === 'hatching';
+            return `
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">${esc(n.name)}</div>
+                    <div>
+                        <span class="badge ${n.active ? 'badge-active' : 'badge-inactive'}">
+                            ${n.active ? t('active') : t('inactive')}
+                        </span>
+                        ${hsBadge} ${wsStatus}
+                    </div>
+                </div>
+                <div class="card-meta">
+                    <span><span class="badge badge-${n.access_type}">${n.access_type.toUpperCase()}</span>
+                          ${n.access_type !== 'local' ? esc(n.host) + ':' + n.port : 'localhost'}</span>
+                    ${n.username ? '<span>👤 ' + esc(n.username) + '</span>' : ''}
+                    <span>🥚 ${esc(eggName)}</span>
+                    ${n.deploy_method ? '<span>🚀 ' + esc(n.deploy_method) + '</span>' : ''}
+                    ${n.route ? '<span>🔗 ' + esc(n.route) + '</span>' : ''}
+                    ${n.target_arch ? '<span>💻 ' + esc(n.target_arch) + '</span>' : ''}
+                    ${n.hatch_error ? '<span style="color:var(--accent-danger);">⚠️ ' + esc(n.hatch_error) + '</span>' : ''}
+                    ${n.notes ? '<span style="opacity:0.7;font-style:italic;">📝 ' + esc(n.notes) + '</span>' : ''}
+                </div>
+                <div class="card-actions">
+                    <button class="btn btn-sm btn-secondary" onclick="editNest('${n.id}')">✏️ ${t('edit')}</button>
+                    ${canHatch ? `<button class="btn btn-sm btn-primary" onclick="hatchNest('${n.id}')">${t('hatch')}</button>` : ''}
+                    ${canStop ? `<button class="btn btn-sm btn-danger" onclick="stopNest('${n.id}')">${t('stop_egg')}</button>` : ''}
+                    <button class="btn btn-sm btn-secondary" onclick="toggleNest('${n.id}', ${!n.active})">
+                        ${n.active ? '⏸️' : '▶️'} ${n.active ? t('inactive') : t('active')}
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="requestDelete('nest','${n.id}','${esc(n.name)}')">🗑️</button>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    function renderEggs() {
+        const grid = document.getElementById('eggs-grid');
+        const empty = document.getElementById('eggs-empty');
+        if (!eggsData || eggsData.length === 0) {
+            grid.innerHTML = '';
+            empty.style.display = '';
+            return;
+        }
+        empty.style.display = 'none';
+        grid.innerHTML = eggsData.map(e => `
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">${esc(e.name)}</div>
+                    <span class="badge ${e.active ? 'badge-active' : 'badge-inactive'}">
+                        ${e.active ? t('active') : t('inactive')}
+                    </span>
+                </div>
+                <div class="card-meta">
+                    ${e.description ? '<span>📋 ' + esc(e.description) + '</span>' : ''}
+                    ${e.model ? '<span>🤖 ' + esc(e.provider ? e.provider + '/' : '') + esc(e.model) + '</span>' : ''}
+                    <span>🔑 API Key: ${e.has_api_key ? '✅' : '❌'}</span>
+                    <span>🌐 Port: ${e.egg_port || 8099}</span>
+                    ${e.permanent ? '<span class="badge badge-permanent">Permanent</span>' : ''}
+                    ${e.inherit_llm ? '<span class="badge badge-inherit">LLM Inherit</span>' : ''}
+                    ${e.include_vault ? '<span class="badge badge-vault">Vault</span>' : ''}
+                </div>
+                <div class="card-actions">
+                    <button class="btn btn-sm btn-secondary" onclick="editEgg('${e.id}')">✏️ ${t('edit')}</button>
+                    <button class="btn btn-sm btn-secondary" onclick="toggleEgg('${e.id}', ${!e.active})">
+                        ${e.active ? '⏸️' : '▶️'} ${e.active ? t('inactive') : t('active')}
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="requestDelete('egg','${e.id}','${esc(e.name)}')">🗑️</button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    // ── Create / Edit ────────────────────────────────────────
+    function openCreateModal() {
+        if (currentTab === 'nests') {
+            openNestModal();
+        } else {
+            openEggModal();
+        }
+    }
+
+    function openNestModal(nest = null) {
+        try {
+            const isEdit = !!nest;
+            const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; else console.warn('[IC] missing element:', id); };
+            const setChk = (id, val) => { const el = document.getElementById(id); if (el) el.checked = val; else console.warn('[IC] missing element:', id); };
+            const setTxt = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; else console.warn('[IC] missing element:', id); };
+            const setDisp = (id, val) => { const el = document.getElementById(id); if (el) el.style.display = val; else console.warn('[IC] missing element:', id); };
+
+            setTxt('nest-modal-title', t(isEdit ? 'edit_nest' : 'create_nest'));
+            setVal('nest-id', nest?.id || '');
+            setVal('nest-name', nest?.name || '');
+            setVal('nest-notes', nest?.notes || '');
+            setVal('nest-access-type', nest?.access_type || 'ssh');
+            setVal('nest-host', nest?.host || '');
+            setVal('nest-port', nest?.port || 22);
+            setVal('nest-username', nest?.username || '');
+            setVal('nest-secret', '');
+            setChk('nest-active', nest?.active !== false);
+            setDisp('nest-secret-hint', (isEdit && nest?.has_secret) ? '' : 'none');
+
+            const eggSelect = document.getElementById('nest-egg-id');
+            if (eggSelect) {
+                eggSelect.innerHTML = `<option value="">${t('no_egg')}</option>` +
+                    (eggsData || []).map(e => `<option value="${e.id}" ${e.id === nest?.egg_id ? 'selected' : ''}>${esc(e.name)}</option>`).join('');
+            }
+
+            setVal('nest-deploy-method', nest?.deploy_method || 'ssh');
+            setVal('nest-target-arch', nest?.target_arch || 'linux/amd64');
+            setVal('nest-route', nest?.route || 'direct');
+            setVal('nest-route-config', nest?.route_config || '');
+
+            setDisp('nest-validate-area', isEdit ? '' : 'none');
+            const vr = document.getElementById('validate-result');
+            if (vr) { vr.className = 'validate-result'; vr.textContent = ''; }
+
+            onAccessTypeChange();
+            openModal('nest-modal');
+        } catch(err) {
+            console.error('[IC] openNestModal error:', err);
+            showToast('Modal error: ' + err.message, 'error');
+        }
+    }
+
+    function openEggModal(egg = null) {
+        const isEdit = !!egg;
+        document.getElementById('egg-modal-title').textContent = t(isEdit ? 'edit_egg' : 'create_egg');
+        document.getElementById('egg-id').value = egg?.id || '';
+        document.getElementById('egg-name').value = egg?.name || '';
+        document.getElementById('egg-description').value = egg?.description || '';
+        document.getElementById('egg-provider').value = egg?.provider || '';
+        document.getElementById('egg-model').value = egg?.model || '';
+        document.getElementById('egg-base-url').value = egg?.base_url || '';
+        document.getElementById('egg-api-key').value = '';
+        document.getElementById('egg-active').checked = egg?.active !== false;
+        document.getElementById('egg-apikey-hint').style.display = (isEdit && egg?.has_api_key) ? '' : 'none';
+
+        document.getElementById('egg-port').value = egg?.egg_port || 8099;
+        document.getElementById('egg-allowed-tools').value = egg?.allowed_tools || '';
+        document.getElementById('egg-permanent').checked = !!egg?.permanent;
+        document.getElementById('egg-include-vault').checked = !!egg?.include_vault;
+        document.getElementById('egg-inherit-llm').checked = egg?.inherit_llm !== false;
+
+        openModal('egg-modal');
+    }
+
+    function editNest(id) {
+        const nest = nestsData.find(n => n.id === id);
+        if (nest) openNestModal(nest);
+    }
+
+    function editEgg(id) {
+        const egg = eggsData.find(e => e.id === id);
+        if (egg) openEggModal(egg);
+    }
+
+    // ── Access Type ──────────────────────────────────────────
+    function onAccessTypeChange() {
+        const type = document.getElementById('nest-access-type').value;
+        const remoteFields = document.getElementById('nest-remote-fields');
+        if (type === 'local') {
+            remoteFields.classList.add('hidden');
+        } else {
+            remoteFields.classList.remove('hidden');
+            if (type === 'docker') {
+                document.getElementById('nest-port').value = document.getElementById('nest-port').value == 22 ? 2375 : document.getElementById('nest-port').value;
+            } else {
+                document.getElementById('nest-port').value = document.getElementById('nest-port').value == 2375 ? 22 : document.getElementById('nest-port').value;
+            }
+        }
+    }
+
+    // ── Save ─────────────────────────────────────────────────
+    async function saveNest() {
+        const id = document.getElementById('nest-id').value;
+        const body = {
+            name: document.getElementById('nest-name').value.trim(),
+            notes: document.getElementById('nest-notes').value.trim(),
+            access_type: document.getElementById('nest-access-type').value,
+            host: document.getElementById('nest-host').value.trim(),
+            port: parseInt(document.getElementById('nest-port').value) || 22,
+            username: document.getElementById('nest-username').value.trim(),
+            secret: document.getElementById('nest-secret').value,
+            active: document.getElementById('nest-active').checked,
+            egg_id: document.getElementById('nest-egg-id').value,
+            deploy_method: document.getElementById('nest-deploy-method').value,
+            target_arch: document.getElementById('nest-target-arch').value,
+            route: document.getElementById('nest-route').value,
+            route_config: document.getElementById('nest-route-config').value.trim(),
+        };
+        if (!body.name) { document.getElementById('nest-name').focus(); return; }
+
+        try {
+            if (id) {
+                await api('nests/' + id, { method: 'PUT', body: JSON.stringify(body) });
+            } else {
+                await api('nests', { method: 'POST', body: JSON.stringify(body) });
+            }
+            closeModal('nest-modal');
+            showToast(t('saved'), 'success');
+            await loadNests();
+        } catch (e) { showToast(t('error') + ': ' + e.message, 'error'); }
+    }
+
+    async function saveEgg() {
+        const id = document.getElementById('egg-id').value;
+        const body = {
+            name: document.getElementById('egg-name').value.trim(),
+            description: document.getElementById('egg-description').value.trim(),
+            model: document.getElementById('egg-model').value.trim(),
+            provider: document.getElementById('egg-provider').value.trim(),
+            base_url: document.getElementById('egg-base-url').value.trim(),
+            api_key: document.getElementById('egg-api-key').value,
+            active: document.getElementById('egg-active').checked,
+            egg_port: parseInt(document.getElementById('egg-port').value) || 8099,
+            allowed_tools: document.getElementById('egg-allowed-tools').value.trim(),
+            permanent: document.getElementById('egg-permanent').checked,
+            include_vault: document.getElementById('egg-include-vault').checked,
+            inherit_llm: document.getElementById('egg-inherit-llm').checked,
+        };
+        if (!body.name) { document.getElementById('egg-name').focus(); return; }
+
+        try {
+            if (id) {
+                await api('eggs/' + id, { method: 'PUT', body: JSON.stringify(body) });
+            } else {
+                await api('eggs', { method: 'POST', body: JSON.stringify(body) });
+            }
+            closeModal('egg-modal');
+            showToast(t('saved'), 'success');
+            await loadEggs();
+            renderNests(); // re-render in case egg names changed
+        } catch (e) { showToast(t('error') + ': ' + e.message, 'error'); }
+    }
+
+    // ── Toggle ───────────────────────────────────────────────
+    async function toggleNest(id, active) {
+        try {
+            await api('nests/' + id + '/toggle', { method: 'POST', body: JSON.stringify({ active }) });
+            await loadNests();
+        } catch (e) { showToast(t('error') + ': ' + e.message, 'error'); }
+    }
+
+    async function toggleEgg(id, active) {
+        try {
+            await api('eggs/' + id + '/toggle', { method: 'POST', body: JSON.stringify({ active }) });
+            await loadEggs();
+        } catch (e) { showToast(t('error') + ': ' + e.message, 'error'); }
+    }
+
+    // ── Hatch / Stop ─────────────────────────────────────────
+    async function hatchNest(id) {
+        try {
+            await api('nests/' + id + '/hatch', { method: 'POST' });
+            showToast('Hatching started…', 'success');
+            // Start polling for status
+            pollHatchStatus(id);
+        } catch (e) { showToast(t('error') + ': ' + e.message, 'error'); }
+    }
+
+    async function stopNest(id) {
+        try {
+            await api('nests/' + id + '/stop', { method: 'POST' });
+            showToast('Stop signal sent', 'success');
+            await loadNests();
+        } catch (e) { showToast(t('error') + ': ' + e.message, 'error'); }
+    }
+
+    function pollHatchStatus(id) {
+        let attempts = 0;
+        const poll = setInterval(async () => {
+            attempts++;
+            try {
+                const resp = await api('nests/' + id + '/hatch/status');
+                const st = resp.hatch_status;
+                // Update the nest in local data
+                const nest = nestsData.find(n => n.id === id);
+                if (nest) {
+                    nest.hatch_status = st;
+                    nest.ws_connected = resp.ws_connected;
+                    renderNests();
+                }
+                if (st === 'running' || st === 'failed' || st === 'stopped' || attempts > 60) {
+                    clearInterval(poll);
+                    await loadNests();
+                }
+            } catch (e) {
+                clearInterval(poll);
+            }
+        }, 3000);
+    }
+
+    // ── Validate Connection ──────────────────────────────────
+    async function validateNest() {
+        const id = document.getElementById('nest-id').value;
+        if (!id) { showToast(t('validate_first'), 'error'); return; }
+
+        const btn = document.getElementById('btn-validate');
+        const result = document.getElementById('validate-result');
+        btn.disabled = true;
+        btn.textContent = t('testing');
+        result.className = 'validate-result';
+
+        try {
+            const resp = await api('nests/' + id + '/validate', { method: 'POST' });
+            result.textContent = resp.message;
+            result.className = 'validate-result ' + (resp.success ? 'success' : 'error');
+        } catch (e) {
+            result.textContent = e.message;
+            result.className = 'validate-result error';
+        } finally {
+            btn.disabled = false;
+            btn.textContent = t('test_connection');
+        }
+    }
+
+    // ── Delete ───────────────────────────────────────────────
+    function requestDelete(type, id, name) {
+        deleteTarget = { type, id, name };
+        const msgKey = type === 'nest' ? 'will_delete_nest' : 'will_delete_egg';
+        document.getElementById('delete-message').innerHTML =
+            `<strong>"${esc(name)}"</strong> ${t(msgKey)}`;
+        document.getElementById('delete-confirm-input').value = '';
+        document.getElementById('btn-delete-confirm').disabled = true;
+        openModal('delete-modal');
+        document.getElementById('delete-confirm-input').focus();
+    }
+
+    function checkDeleteConfirm() {
+        const input = document.getElementById('delete-confirm-input').value.trim();
+        document.getElementById('btn-delete-confirm').disabled = input !== deleteTarget?.name;
+    }
+
+    async function confirmDelete() {
+        if (!deleteTarget) return;
+        const { type, id } = deleteTarget;
+        try {
+            await api(type + 's/' + id, { method: 'DELETE' });
+            closeModal('delete-modal');
+            showToast(t('deleted'), 'success');
+            if (type === 'nest') await loadNests();
+            else await loadEggs();
+        } catch (e) { showToast(t('error') + ': ' + e.message, 'error'); }
+        deleteTarget = null;
+    }
+
+    // ── Modal Helpers ────────────────────────────────────────
+    function openModal(id) { document.getElementById(id).classList.add('active'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+    // Close modal on overlay click
+    document.querySelectorAll('.modal-overlay').forEach(overlay => {
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) overlay.classList.remove('active');
+        });
+    });
+
+    // ── Escape HTML ──────────────────────────────────────────
+    function esc(str) {
+        if (!str) return '';
+        const d = document.createElement('div');
+        d.textContent = str;
+        return d.innerHTML;
+    }
+    </script>
+</body>
+</html>

@@ -1,0 +1,81 @@
+# Compiled Go binaries
+/*.exe
+/*.exe~
+/*.dll
+/*.so
+/*.dylib
+/aurago.exe
+# bin/ — track Linux release binaries, ignore Windows executables and bare names
+/bin/*.exe
+/bin/aurago
+/bin/lifeboat
+METRICS_DASHBOARD_DATA_SOURCES.md
+# Lock files (runtime)
+*.lock
+
+# Deploy output
+/deploy/
+deploy_linux.ps1
+
+# Secrets & Configuration (CRITICAL!)
+config_debug.yaml
+config_local.yaml
+*.env
+.env
+.env.*
+telegram_token.txt
+client_secret.json
+token.json
+*.pem
+*.key
+id_rsa*
+ssh_connections.json
+data/secrets.vault
+data/vault.bin
+data/budget.json
+
+# Databases & Memory (Kein Backup von RAG oder Chat-Historie)
+*.db
+*.sqlite
+*.sqlite3
+*.gob
+chat_history.json
+chromem-go_data/
+agent_workspace/workdir/
+agent_workspace/tools/broken_tools/
+data/vectordb/
+data/vectordb_backup/
+data/tts/
+data/core_memory.db
+data/short_term.db
+data/short_term.db-shm
+data/short_term.db-wal
+data/inventory.db
+data/aurago.lock
+
+# Runtime data (generated at runtime by the agent)
+data/character_journal.md
+data/chat_history.json
+data/core_memory.md
+data/crontab.json
+data/current_plan.md
+data/graph.json
+data/state.json
+
+# Python Virtual Environments
+.venv/
+venv/
+__pycache__/
+# Logs
+log/
+*.log
+
+# IDEs
+.vscode/
+
+# Vaults
+*.vault
+*.bin
+
+# Audit reports
+CODE_AUDIT_REPORT.md

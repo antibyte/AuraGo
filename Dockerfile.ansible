@@ -1,0 +1,48 @@
+# ============================================================
+# Ansible Sidecar for AuraGo
+# ============================================================
+# Provides a REST API wrapper around Ansible CLI commands.
+# Managed hosts are reached via SSH from this container.
+#
+# Build:
+#   docker build -f Dockerfile.ansible -t aurago-ansible .
+#
+# Or use via docker-compose.yml (see the commented block in docker-compose.yml).
+# ============================================================
+FROM python:3.12-slim-bookworm
+
+# SSH client (required by Ansible to connect to managed hosts)
+# sshpass  – needed for password-based SSH auth (host.yml vars: ansible_password)
+# git      – useful for Galaxy roles / collections
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        openssh-client \
+        sshpass \
+        git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Ansible (latest stable for Python 3.12)
+RUN pip install --no-cache-dir ansible
+
+WORKDIR /app
+COPY ansible_api/server.py /app/server.py
+
+# Create default mount-point directories
+RUN mkdir -p /playbooks /inventory
+
+# Sample inventory — overridden by volume mount at runtime
+RUN printf '[all]\n# Add managed hosts here\n# myhost ansible_host=192.168.1.100\n' \
+    > /inventory/hosts
+
+EXPOSE 5001
+
+# ── Environment ───────────────────────────────────────────────────────────────
+# All values can be overridden in docker-compose.yml / docker run -e ...
+ENV PORT=5001
+ENV PLAYBOOKS_DIR=/playbooks
+ENV DEFAULT_INVENTORY=/inventory/hosts
+ENV ANSIBLE_TIMEOUT=300
+# Disable SSH host-key checking by default so first-time connections work without
+# pre-populating known_hosts. Override with ANSIBLE_HOST_KEY_CHECKING=True if needed.
+ENV ANSIBLE_HOST_KEY_CHECKING=False
+
+CMD ["python", "/app/server.py"]

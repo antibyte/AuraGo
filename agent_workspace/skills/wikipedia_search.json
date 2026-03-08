@@ -1,0 +1,10 @@
+{
+  "name": "wikipedia_search",
+  "description": "Searches Wikipedia and returns a summary of the best matching article. Use this to look up facts, definitions, historical events, people, places, or any encyclopaedic topic.",
+  "executable": "__builtin__",
+  "parameters": {
+    "query": "The search term or topic to look up on Wikipedia",
+    "language": "Wikipedia language code (e.g. 'en', 'de', 'fr'). Defaults to 'en' if omitted"
+  },
+  "returns": "Article title and summary text from Wikipedia"
+}

@@ -1,0 +1,706 @@
+package server
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"strings"
+	"time"
+
+	"aurago/internal/invasion"
+	"aurago/internal/remote"
+)
+
+// ── Nest Handlers ───────────────────────────────────────────────────────────
+
+// handleInvasionNests handles GET (list) and POST (create) for /api/invasion/nests.
+func handleInvasionNests(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if s.InvasionDB == nil {
+			http.Error(w, "Invasion Control is not enabled", http.StatusServiceUnavailable)
+			return
+		}
+		switch r.Method {
+		case http.MethodGet:
+			nests, err := invasion.ListNests(s.InvasionDB)
+			if err != nil {
+				jsonError(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			if nests == nil {
+				nests = []invasion.NestRecord{}
+			}
+			// Build response with has_secret flag, never return vault IDs
+			type nestResponse struct {
+				invasion.NestRecord
+				HasSecret   bool `json:"has_secret"`
+				WSConnected bool `json:"ws_connected"`
+			}
+			resp := make([]nestResponse, 0, len(nests))
+			for _, n := range nests {
+				hasWS := false
+				if s.EggHub != nil {
+					hasWS = s.EggHub.IsConnected(n.ID)
+				}
+				resp = append(resp, nestResponse{
+					NestRecord: invasion.NestRecord{
+						ID:           n.ID,
+						Name:         n.Name,
+						Notes:        n.Notes,
+						AccessType:   n.AccessType,
+						Host:         n.Host,
+						Port:         n.Port,
+						Username:     n.Username,
+						Active:       n.Active,
+						EggID:        n.EggID,
+						HatchStatus:  n.HatchStatus,
+						HatchError:   n.HatchError,
+						DeployMethod: n.DeployMethod,
+						TargetArch:   n.TargetArch,
+						Route:        n.Route,
+						RouteConfig:  n.RouteConfig,
+						CreatedAt:    n.CreatedAt,
+						UpdatedAt:    n.UpdatedAt,
+					},
+					HasSecret:   n.VaultSecretID != "",
+					WSConnected: hasWS,
+				})
+			}
+			writeJSON(w, resp)
+
+		case http.MethodPost:
+			var req struct {
+				Name         string `json:"name"`
+				Notes        string `json:"notes"`
+				AccessType   string `json:"access_type"`
+				Host         string `json:"host"`
+				Port         int    `json:"port"`
+				Username     string `json:"username"`
+				Secret       string `json:"secret"`
+				Active       bool   `json:"active"`
+				DeployMethod string `json:"deploy_method"`
+				TargetArch   string `json:"target_arch"`
+				Route        string `json:"route"`
+				RouteConfig  string `json:"route_config"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				jsonError(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
+				return
+			}
+			if req.Name == "" {
+				jsonError(w, "Name is required", http.StatusBadRequest)
+				return
+			}
+			if req.AccessType == "" {
+				req.AccessType = "ssh"
+			}
+			if req.Port <= 0 {
+				switch req.AccessType {
+				case "docker":
+					req.Port = 2375
+				default:
+					req.Port = 22
+				}
+			}
+
+			nest := invasion.NestRecord{
+				Name:         req.Name,
+				Notes:        req.Notes,
+				AccessType:   req.AccessType,
+				Host:         req.Host,
+				Port:         req.Port,
+				Username:     req.Username,
+				Active:       req.Active,
+				DeployMethod: req.DeployMethod,
+				TargetArch:   req.TargetArch,
+				Route:        req.Route,
+				RouteConfig:  req.RouteConfig,
+			}
+
+			// Store secret in vault if provided
+			if req.Secret != "" {
+				id, err := invasion.CreateNest(s.InvasionDB, nest)
+				if err != nil {
+					jsonError(w, err.Error(), http.StatusInternalServerError)
+					return
+				}
+				vaultKey := "nest_" + id
+				if err := s.Vault.WriteSecret(vaultKey, req.Secret); err != nil {
+					// Rollback: delete the nest
+					_ = invasion.DeleteNest(s.InvasionDB, id)
+					jsonError(w, "Failed to store secret in vault: "+err.Error(), http.StatusInternalServerError)
+					return
+				}
+				// Update nest with vault reference
+				created, _ := invasion.GetNest(s.InvasionDB, id)
+				created.VaultSecretID = vaultKey
+				_ = invasion.UpdateNest(s.InvasionDB, created)
+
+				writeJSON(w, map[string]interface{}{
+					"id":          id,
+					"name":        req.Name,
+					"access_type": req.AccessType,
+					"host":        req.Host,
+					"port":        req.Port,
+					"has_secret":  true,
+					"active":      req.Active,
+				})
+			} else {
+				id, err := invasion.CreateNest(s.InvasionDB, nest)
+				if err != nil {
+					jsonError(w, err.Error(), http.StatusInternalServerError)
+					return
+				}
+				writeJSON(w, map[string]interface{}{
+					"id":          id,
+					"name":        req.Name,
+					"access_type": req.AccessType,
+					"host":        req.Host,
+					"port":        req.Port,
+					"has_secret":  false,
+					"active":      req.Active,
+				})
+			}
+
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	}
+}
+
+// handleInvasionNest handles GET/PUT/DELETE for /api/invasion/nests/{id}.
+func handleInvasionNest(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if s.InvasionDB == nil {
+			http.Error(w, "Invasion Control is not enabled", http.StatusServiceUnavailable)
+			return
+		}
+		id := extractInvasionID(r.URL.Path, "/api/invasion/nests/")
+		if id == "" {
+			jsonError(w, "Missing nest ID", http.StatusBadRequest)
+			return
+		}
+		// Strip trailing sub-paths (toggle, validate)
+		if strings.Contains(id, "/") {
+			jsonError(w, "Invalid nest ID", http.StatusBadRequest)
+			return
+		}
+
+		switch r.Method {
+		case http.MethodGet:
+			nest, err := invasion.GetNest(s.InvasionDB, id)
+			if err != nil {
+				jsonError(w, err.Error(), http.StatusNotFound)
+				return
+			}
+			writeJSON(w, map[string]interface{}{
+				"id":            nest.ID,
+				"name":          nest.Name,
+				"notes":         nest.Notes,
+				"access_type":   nest.AccessType,
+				"host":          nest.Host,
+				"port":          nest.Port,
+				"username":      nest.Username,
+				"active":        nest.Active,
+				"egg_id":        nest.EggID,
+				"has_secret":    nest.VaultSecretID != "",
+				"hatch_status":  nest.HatchStatus,
+				"hatch_error":   nest.HatchError,
+				"deploy_method": nest.DeployMethod,
+				"target_arch":   nest.TargetArch,
+				"route":         nest.Route,
+				"route_config":  nest.RouteConfig,
+				"created_at":    nest.CreatedAt,
+				"updated_at":    nest.UpdatedAt,
+			})
+
+		case http.MethodPut:
+			var req struct {
+				Name         string `json:"name"`
+				Notes        string `json:"notes"`
+				AccessType   string `json:"access_type"`
+				Host         string `json:"host"`
+				Port         int    `json:"port"`
+				Username     string `json:"username"`
+				Secret       string `json:"secret"`
+				Active       bool   `json:"active"`
+				EggID        string `json:"egg_id"`
+				DeployMethod string `json:"deploy_method"`
+				TargetArch   string `json:"target_arch"`
+				Route        string `json:"route"`
+				RouteConfig  string `json:"route_config"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				jsonError(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
+				return
+			}
+
+			existing, err := invasion.GetNest(s.InvasionDB, id)
+			if err != nil {
+				jsonError(w, err.Error(), http.StatusNotFound)
+				return
+			}
+
+			existing.Name = req.Name
+			existing.Notes = req.Notes
+			existing.AccessType = req.AccessType
+			existing.Host = req.Host
+			existing.Port = req.Port
+			existing.Username = req.Username
+			existing.Active = req.Active
+			existing.EggID = req.EggID
+			existing.DeployMethod = req.DeployMethod
+			existing.TargetArch = req.TargetArch
+			existing.Route = req.Route
+			existing.RouteConfig = req.RouteConfig
+
+			// Update secret if provided (non-empty)
+			if req.Secret != "" {
+				vaultKey := "nest_" + id
+				if err := s.Vault.WriteSecret(vaultKey, req.Secret); err != nil {
+					jsonError(w, "Failed to store secret: "+err.Error(), http.StatusInternalServerError)
+					return
+				}
+				existing.VaultSecretID = vaultKey
+			}
+
+			if err := invasion.UpdateNest(s.InvasionDB, existing); err != nil {
+				jsonError(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			writeJSON(w, map[string]string{"status": "updated"})
+
+		case http.MethodDelete:
+			// Clean up vault secret before deleting
+			nest, err := invasion.GetNest(s.InvasionDB, id)
+			if err != nil {
+				jsonError(w, err.Error(), http.StatusNotFound)
+				return
+			}
+			if nest.VaultSecretID != "" {
+				_ = s.Vault.DeleteSecret(nest.VaultSecretID)
+			}
+			if err := invasion.DeleteNest(s.InvasionDB, id); err != nil {
+				jsonError(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			// Fire mission trigger: nest cleared
+			if s.MissionManagerV2 != nil {
+				s.MissionManagerV2.NotifyInvasionEvent("nest_cleared", id, nest.Name, "", "")
+			}
+			writeJSON(w, map[string]string{"status": "deleted"})
+
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	}
+}
+
+// handleInvasionNestToggle handles POST for /api/invasion/nests/{id}/toggle.
+func handleInvasionNestToggle(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if s.InvasionDB == nil || r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		// Path: /api/invasion/nests/{id}/toggle
+		path := strings.TrimPrefix(r.URL.Path, "/api/invasion/nests/")
+		parts := strings.SplitN(path, "/", 2)
+		if len(parts) < 1 {
+			jsonError(w, "Missing nest ID", http.StatusBadRequest)
+			return
+		}
+		id := parts[0]
+
+		var req struct {
+			Active bool `json:"active"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			jsonError(w, "Invalid JSON", http.StatusBadRequest)
+			return
+		}
+		if err := invasion.ToggleNestActive(s.InvasionDB, id, req.Active); err != nil {
+			jsonError(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, map[string]interface{}{"status": "toggled", "active": req.Active})
+	}
+}
+
+// handleInvasionNestValidate handles POST for /api/invasion/nests/{id}/validate.
+func handleInvasionNestValidate(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if s.InvasionDB == nil || r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		path := strings.TrimPrefix(r.URL.Path, "/api/invasion/nests/")
+		parts := strings.SplitN(path, "/", 2)
+		if len(parts) < 1 {
+			jsonError(w, "Missing nest ID", http.StatusBadRequest)
+			return
+		}
+		id := parts[0]
+
+		nest, err := invasion.GetNest(s.InvasionDB, id)
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusNotFound)
+			return
+		}
+
+		start := time.Now()
+		validationErr := validateNestConnection(nest, s)
+		elapsed := time.Since(start)
+
+		if validationErr != nil {
+			writeJSON(w, map[string]interface{}{
+				"success": false,
+				"message": validationErr.Error(),
+				"time_ms": elapsed.Milliseconds(),
+			})
+			return
+		}
+		writeJSON(w, map[string]interface{}{
+			"success": true,
+			"message": fmt.Sprintf("Connection successful (%dms)", elapsed.Milliseconds()),
+			"time_ms": elapsed.Milliseconds(),
+		})
+	}
+}
+
+// validateNestConnection tests connectivity to a nest based on its access type.
+func validateNestConnection(nest invasion.NestRecord, s *Server) error {
+	switch nest.AccessType {
+	case "ssh":
+		if nest.VaultSecretID == "" {
+			return fmt.Errorf("no SSH secret configured for this nest")
+		}
+		secret, err := s.Vault.ReadSecret(nest.VaultSecretID)
+		if err != nil {
+			return fmt.Errorf("failed to read secret from vault: %w", err)
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+		output, err := remote.ExecuteRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, []byte(secret), "echo ok && hostname")
+		if err != nil {
+			return fmt.Errorf("SSH connection failed: %w", err)
+		}
+		_ = output
+		return nil
+
+	case "docker":
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		url := fmt.Sprintf("http://%s:%d/version", nest.Host, nest.Port)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+		if err != nil {
+			return fmt.Errorf("failed to build request: %w", err)
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return fmt.Errorf("Docker API connection failed: %w", err)
+		}
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			return fmt.Errorf("Docker API returned status %d", resp.StatusCode)
+		}
+		return nil
+
+	case "local":
+		return nil // local is always reachable
+
+	default:
+		return fmt.Errorf("unknown access type: %s", nest.AccessType)
+	}
+}
+
+// ── Egg Handlers ────────────────────────────────────────────────────────────
+
+// handleInvasionEggs handles GET (list) and POST (create) for /api/invasion/eggs.
+func handleInvasionEggs(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if s.InvasionDB == nil {
+			http.Error(w, "Invasion Control is not enabled", http.StatusServiceUnavailable)
+			return
+		}
+		switch r.Method {
+		case http.MethodGet:
+			eggs, err := invasion.ListEggs(s.InvasionDB)
+			if err != nil {
+				jsonError(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			if eggs == nil {
+				eggs = []invasion.EggRecord{}
+			}
+			// Strip api_key_ref from response, add has_api_key flag
+			type eggResponse struct {
+				ID           string `json:"id"`
+				Name         string `json:"name"`
+				Description  string `json:"description"`
+				Model        string `json:"model"`
+				Provider     string `json:"provider"`
+				BaseURL      string `json:"base_url"`
+				Active       bool   `json:"active"`
+				HasAPIKey    bool   `json:"has_api_key"`
+				Permanent    bool   `json:"permanent"`
+				IncludeVault bool   `json:"include_vault"`
+				InheritLLM   bool   `json:"inherit_llm"`
+				EggPort      int    `json:"egg_port"`
+				AllowedTools string `json:"allowed_tools"`
+				CreatedAt    string `json:"created_at"`
+				UpdatedAt    string `json:"updated_at"`
+			}
+			resp := make([]eggResponse, 0, len(eggs))
+			for _, e := range eggs {
+				resp = append(resp, eggResponse{
+					ID:           e.ID,
+					Name:         e.Name,
+					Description:  e.Description,
+					Model:        e.Model,
+					Provider:     e.Provider,
+					BaseURL:      e.BaseURL,
+					Active:       e.Active,
+					HasAPIKey:    e.APIKeyRef != "",
+					Permanent:    e.Permanent,
+					IncludeVault: e.IncludeVault,
+					InheritLLM:   e.InheritLLM,
+					EggPort:      e.EggPort,
+					AllowedTools: e.AllowedTools,
+					CreatedAt:    e.CreatedAt,
+					UpdatedAt:    e.UpdatedAt,
+				})
+			}
+			writeJSON(w, resp)
+
+		case http.MethodPost:
+			var req struct {
+				Name         string `json:"name"`
+				Description  string `json:"description"`
+				Model        string `json:"model"`
+				Provider     string `json:"provider"`
+				BaseURL      string `json:"base_url"`
+				APIKey       string `json:"api_key"`
+				Active       bool   `json:"active"`
+				Permanent    bool   `json:"permanent"`
+				IncludeVault bool   `json:"include_vault"`
+				InheritLLM   bool   `json:"inherit_llm"`
+				EggPort      int    `json:"egg_port"`
+				AllowedTools string `json:"allowed_tools"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				jsonError(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
+				return
+			}
+			if req.Name == "" {
+				jsonError(w, "Name is required", http.StatusBadRequest)
+				return
+			}
+
+			egg := invasion.EggRecord{
+				Name:         req.Name,
+				Description:  req.Description,
+				Model:        req.Model,
+				Provider:     req.Provider,
+				BaseURL:      req.BaseURL,
+				Active:       req.Active,
+				Permanent:    req.Permanent,
+				IncludeVault: req.IncludeVault,
+				InheritLLM:   req.InheritLLM,
+				EggPort:      req.EggPort,
+				AllowedTools: req.AllowedTools,
+			}
+
+			id, err := invasion.CreateEgg(s.InvasionDB, egg)
+			if err != nil {
+				jsonError(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			// Store API key in vault if provided
+			if req.APIKey != "" {
+				vaultKey := "egg_apikey_" + id
+				if err := s.Vault.WriteSecret(vaultKey, req.APIKey); err != nil {
+					_ = invasion.DeleteEgg(s.InvasionDB, id)
+					jsonError(w, "Failed to store API key in vault: "+err.Error(), http.StatusInternalServerError)
+					return
+				}
+				created, _ := invasion.GetEgg(s.InvasionDB, id)
+				created.APIKeyRef = vaultKey
+				_ = invasion.UpdateEgg(s.InvasionDB, created)
+			}
+
+			writeJSON(w, map[string]interface{}{
+				"id":          id,
+				"name":        req.Name,
+				"has_api_key": req.APIKey != "",
+				"active":      req.Active,
+			})
+
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	}
+}
+
+// handleInvasionEgg handles GET/PUT/DELETE for /api/invasion/eggs/{id}.
+func handleInvasionEgg(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if s.InvasionDB == nil {
+			http.Error(w, "Invasion Control is not enabled", http.StatusServiceUnavailable)
+			return
+		}
+		id := extractInvasionID(r.URL.Path, "/api/invasion/eggs/")
+		if id == "" || strings.Contains(id, "/") {
+			jsonError(w, "Invalid egg ID", http.StatusBadRequest)
+			return
+		}
+
+		switch r.Method {
+		case http.MethodGet:
+			egg, err := invasion.GetEgg(s.InvasionDB, id)
+			if err != nil {
+				jsonError(w, err.Error(), http.StatusNotFound)
+				return
+			}
+			writeJSON(w, map[string]interface{}{
+				"id":            egg.ID,
+				"name":          egg.Name,
+				"description":   egg.Description,
+				"model":         egg.Model,
+				"provider":      egg.Provider,
+				"base_url":      egg.BaseURL,
+				"active":        egg.Active,
+				"has_api_key":   egg.APIKeyRef != "",
+				"permanent":     egg.Permanent,
+				"include_vault": egg.IncludeVault,
+				"inherit_llm":   egg.InheritLLM,
+				"egg_port":      egg.EggPort,
+				"allowed_tools": egg.AllowedTools,
+				"created_at":    egg.CreatedAt,
+				"updated_at":    egg.UpdatedAt,
+			})
+
+		case http.MethodPut:
+			var req struct {
+				Name         string `json:"name"`
+				Description  string `json:"description"`
+				Model        string `json:"model"`
+				Provider     string `json:"provider"`
+				BaseURL      string `json:"base_url"`
+				APIKey       string `json:"api_key"`
+				Active       bool   `json:"active"`
+				Permanent    bool   `json:"permanent"`
+				IncludeVault bool   `json:"include_vault"`
+				InheritLLM   bool   `json:"inherit_llm"`
+				EggPort      int    `json:"egg_port"`
+				AllowedTools string `json:"allowed_tools"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				jsonError(w, "Invalid JSON", http.StatusBadRequest)
+				return
+			}
+
+			existing, err := invasion.GetEgg(s.InvasionDB, id)
+			if err != nil {
+				jsonError(w, err.Error(), http.StatusNotFound)
+				return
+			}
+
+			existing.Name = req.Name
+			existing.Description = req.Description
+			existing.Model = req.Model
+			existing.Provider = req.Provider
+			existing.BaseURL = req.BaseURL
+			existing.Active = req.Active
+			existing.Permanent = req.Permanent
+			existing.IncludeVault = req.IncludeVault
+			existing.InheritLLM = req.InheritLLM
+			existing.EggPort = req.EggPort
+			existing.AllowedTools = req.AllowedTools
+
+			if req.APIKey != "" {
+				vaultKey := "egg_apikey_" + id
+				if err := s.Vault.WriteSecret(vaultKey, req.APIKey); err != nil {
+					jsonError(w, "Failed to store API key: "+err.Error(), http.StatusInternalServerError)
+					return
+				}
+				existing.APIKeyRef = vaultKey
+			}
+
+			if err := invasion.UpdateEgg(s.InvasionDB, existing); err != nil {
+				jsonError(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			writeJSON(w, map[string]string{"status": "updated"})
+
+		case http.MethodDelete:
+			egg, err := invasion.GetEgg(s.InvasionDB, id)
+			if err != nil {
+				jsonError(w, err.Error(), http.StatusNotFound)
+				return
+			}
+			if egg.APIKeyRef != "" {
+				_ = s.Vault.DeleteSecret(egg.APIKeyRef)
+			}
+			if err := invasion.DeleteEgg(s.InvasionDB, id); err != nil {
+				jsonError(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			writeJSON(w, map[string]string{"status": "deleted"})
+
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	}
+}
+
+// handleInvasionEggToggle handles POST for /api/invasion/eggs/{id}/toggle.
+func handleInvasionEggToggle(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if s.InvasionDB == nil || r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		path := strings.TrimPrefix(r.URL.Path, "/api/invasion/eggs/")
+		parts := strings.SplitN(path, "/", 2)
+		if len(parts) < 1 {
+			jsonError(w, "Missing egg ID", http.StatusBadRequest)
+			return
+		}
+		id := parts[0]
+
+		var req struct {
+			Active bool `json:"active"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			jsonError(w, "Invalid JSON", http.StatusBadRequest)
+			return
+		}
+		if err := invasion.ToggleEggActive(s.InvasionDB, id, req.Active); err != nil {
+			jsonError(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, map[string]interface{}{"status": "toggled", "active": req.Active})
+	}
+}
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
+
+func extractInvasionID(urlPath, prefix string) string {
+	rest := strings.TrimPrefix(urlPath, prefix)
+	rest = strings.TrimSuffix(rest, "/")
+	return rest
+}
+
+func writeJSON(w http.ResponseWriter, v interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(v)
+}
+
+func jsonError(w http.ResponseWriter, msg string, code int) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	json.NewEncoder(w).Encode(map[string]string{"error": msg})
+}

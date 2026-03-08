@@ -1,0 +1,9 @@
+{
+  "name": "virustotal_scan",
+  "description": "Scans a URL, domain, IP address, or file hash against VirusTotal to check for malware or malicious activity. Requires a VirusTotal API key in config (virustotal.api_key).",
+  "executable": "__builtin__",
+  "parameters": {
+    "resource": "The URL, domain, IP address, or file hash (MD5/SHA1/SHA256) to scan"
+  },
+  "returns": "Scan results showing detection ratio and vendor results from VirusTotal"
+}

@@ -1,0 +1,12 @@
+{
+  "name": "brave_search",
+  "description": "Performs a high-quality web search using the Brave Search API. Returns results with titles, URLs, descriptions and publication dates. Requires a configured Brave Search API key. Prefer this over ddg_search when precision and freshness matter.",
+  "executable": "__builtin__",
+  "parameters": {
+    "query": "The search query string (required)",
+    "count": "Number of results to return (1-20, default: 10)",
+    "country": "Two-letter country code for localised results, e.g. 'DE', 'US' (optional, default from config)",
+    "lang": "Search language code, e.g. 'de', 'en' (optional, default from config)"
+  },
+  "returns": "JSON with status, query, result_count and results array (title, url, description, published)"
+}

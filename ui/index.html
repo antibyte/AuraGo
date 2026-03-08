@@ -1,0 +1,2581 @@
+<!DOCTYPE html>
+<html lang="de" data-theme="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
+    <title>AuraGo Interface</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'aura': {
+                            'accent': 'var(--accent)',
+                            'bg': 'var(--bg-primary)',
+                            'surface': 'var(--bg-secondary)',
+                            'text': 'var(--text-primary)',
+                            'muted': 'var(--text-secondary)',
+                        }
+                    },
+                    fontFamily: {
+                        'sans': ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+                        'mono': ['SF Mono', 'Fira Code', 'Cascadia Code', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/markdown-it@14.0.0/dist/markdown-it.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/shared.css">
+    <script src="/shared.js"></script>
+    <script>
+        const SYSTEM_LANG = "{{.Lang}}";
+        const SHOW_TOOL_RESULTS = {{.ShowToolResults }};
+        const AGENT_DEBUG_MODE = {{.DebugMode }};
+        const PERSONALITY_ENABLED = {{.PersonalityEnabled }};
+        /* Prevent theme-flash: apply saved theme before first paint */
+        (function () { var t = localStorage.getItem('aurago-theme'); if (t) document.documentElement.setAttribute('data-theme', t); })();
+    </script>
+    <style>
+        /* ── Page-specific: Chat Interface ─────────────────── */
+
+        body {
+            overflow: hidden;
+        }
+
+        /* Page Header - Gradient underline effect with glow */
+        .app-header {
+            position: relative;
+        }
+        .app-header::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            width: 100%;
+            height: 1px;
+            background: linear-gradient(90deg, 
+                transparent 0%, 
+                var(--accent) 20%, 
+                var(--accent-secondary, #0d9488) 50%, 
+                var(--accent) 80%, 
+                transparent 100%);
+            opacity: 0.6;
+        }
+
+        /* Logo text gradient */
+        .logo {
+            position: relative;
+        }
+        .logo span:first-of-type {
+            background: linear-gradient(135deg, var(--accent), var(--accent-secondary, #0d9488));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 30px var(--accent-dim);
+        }
+
+        /* ── Greeting row specific styles ─────────────────── */
+        .greeting-row {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+            padding: 3rem 1rem;
+            text-align: center;
+            animation: msgIn 0.5s ease;
+        }
+
+        .greeting-icon {
+            font-size: 2.5rem;
+            width: 64px;
+            height: 64px;
+            border-radius: 20px;
+            background: linear-gradient(135deg, var(--accent-dim), rgba(99, 102, 241, 0.1));
+            border: 1px solid var(--border-accent);
+            display: grid;
+            place-items: center;
+            box-shadow: 0 0 30px var(--accent-dim);
+            animation: float 3s ease-in-out infinite;
+        }
+
+        .greeting-text {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            max-width: 28rem;
+            line-height: 1.7;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+
+        /* ── Mood Widget (page-specific enhancements) ───────── */
+        .mood-widget {
+            position: relative;
+        }
+
+        .mood-toggle {
+            font-size: 0.7rem;
+            font-weight: 500;
+            padding: 0.25rem 0.6rem;
+            border-radius: 999px;
+            border: 1px solid var(--border-subtle);
+            background: var(--bg-glass);
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: none;
+            /* hidden until data loaded */
+            align-items: center;
+            gap: 0.35rem;
+            transition: all 0.25s;
+            user-select: none;
+        }
+
+        .mood-toggle:hover {
+            border-color: var(--border-accent);
+            color: var(--text-primary);
+        }
+
+        .mood-toggle .mood-emoji {
+            font-size: 0.85rem;
+            line-height: 1;
+        }
+
+        .mood-toggle .mood-chevron {
+            font-size: 0.6rem;
+            opacity: 0.5;
+            transition: transform 0.2s ease;
+            margin-left: 0.1rem;
+        }
+
+        .mood-toggle.open .mood-chevron {
+            transform: rotate(180deg);
+            opacity: 0.9;
+        }
+
+        .mood-panel {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            min-width: 240px;
+            padding: 0.85rem 1rem;
+            border-radius: 14px;
+            border: 1px solid var(--border-subtle);
+            background: var(--modal-surface);
+            backdrop-filter: blur(20px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25), 0 0 0 1px var(--border-subtle);
+            z-index: 1000;
+            opacity: 0;
+            transform: translateY(-6px) scale(0.97);
+            pointer-events: none;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+
+        .mood-panel.open {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            pointer-events: all;
+        }
+
+        .mood-panel-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.7rem;
+            padding-bottom: 0.55rem;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .mood-panel-header .mood-label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            text-transform: capitalize;
+        }
+
+        .mood-panel-header .mood-emoji-lg {
+            font-size: 1.15rem;
+        }
+
+        .trait-row {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.4rem;
+        }
+
+        .trait-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .trait-label {
+            font-size: 0.65rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            width: 78px;
+            flex-shrink: 0;
+            text-transform: capitalize;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .trait-bar-bg {
+            flex: 1;
+            height: 6px;
+            border-radius: 3px;
+            background: var(--bg-glass);
+            border: 1px solid var(--border-subtle);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .trait-bar-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            min-width: 2px;
+        }
+
+        .trait-bar-fill[data-trait="curiosity"] {
+            background: linear-gradient(90deg, #06b6d4, #22d3ee);
+        }
+
+        .trait-bar-fill[data-trait="thoroughness"] {
+            background: linear-gradient(90deg, #8b5cf6, #a78bfa);
+        }
+
+        .trait-bar-fill[data-trait="creativity"] {
+            background: linear-gradient(90deg, #f59e0b, #fbbf24);
+        }
+
+        .trait-bar-fill[data-trait="empathy"] {
+            background: linear-gradient(90deg, #ec4899, #f472b6);
+        }
+
+        .trait-bar-fill[data-trait="confidence"] {
+            background: linear-gradient(90deg, #22c55e, #4ade80);
+        }
+
+        .trait-bar-fill[data-trait="affinity"] {
+            background: linear-gradient(90deg, #2dd4bf, #5eead4);
+        }
+
+        .trait-bar-fill[data-trait="loneliness"] {
+            background: linear-gradient(90deg, #6366f1, #818cf8);
+        }
+
+        .trait-value {
+            font-size: 0.6rem;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            color: var(--text-secondary);
+            width: 28px;
+            text-align: right;
+            flex-shrink: 0;
+        }
+
+        @media (max-width: 640px) {
+            .mood-widget {
+                display: none;
+            }
+        }
+
+        /* ── Personality Select (page-specific) ────────────── */
+        .select-personality {
+            font-size: 0.75rem;
+            font-weight: 500;
+            padding: 0.3rem 0.6rem;
+            border-radius: 10px;
+            border: 1px solid var(--border-subtle);
+            background: var(--bg-glass);
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s;
+            outline: none;
+            max-width: 140px;
+        }
+
+        .select-personality:hover {
+            border-color: var(--border-accent);
+            color: var(--text-primary);
+        }
+
+        .select-personality option {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+        /* ── Chat area ─────────────────────────────────────── */
+        #chat-box {
+            flex: 1;
+            min-height: 0;
+            /* Critical: allows flex child to shrink so footer stays visible */
+            overflow-y: auto;
+            overflow-x: hidden;
+            scroll-behavior: smooth;
+            background: var(--bg-primary);
+            background-image:
+                radial-gradient(ellipse 600px 400px at 20% 50%, rgba(45, 212, 191, 0.03), transparent),
+                radial-gradient(ellipse 500px 500px at 80% 30%, rgba(99, 102, 241, 0.03), transparent);
+            position: relative;
+            transition: background-color 0.3s;
+        }
+
+        /* Background watermark logo */
+        #chat-box::after {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: var(--bg-logo) center / cover no-repeat;
+            opacity: 0.04;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        #chat-content {
+            max-width: 52rem;
+            margin: 0 auto;
+            padding: 1.5rem 1rem 2rem 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            min-height: 100%;
+            justify-content: flex-end;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ── Message rows ──────────────────────────────────── */
+        .msg-row {
+            display: flex;
+            align-items: flex-end;
+            gap: 0.6rem;
+            animation: msgIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+            margin-bottom: 0.5rem;
+        }
+
+        .msg-row.user {
+            flex-direction: row-reverse;
+        }
+
+        @keyframes msgIn {
+            from {
+                opacity: 0;
+                transform: translateY(12px) scale(0.97);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        /* Avatars */
+        .avatar {
+            width: 34px;
+            height: 34px;
+            border-radius: 12px;
+            display: grid;
+            place-items: center;
+            font-size: 1.1rem;
+            flex-shrink: 0;
+            margin-bottom: 2px;
+        }
+
+        .avatar.bot {
+            background: linear-gradient(135deg, rgba(45, 212, 191, 0.15), rgba(99, 102, 241, 0.1));
+            border: 1px solid var(--border-accent);
+            box-shadow: 0 0 12px var(--accent-dim);
+        }
+
+        .avatar.human {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(168, 85, 247, 0.1));
+            border: 1px solid rgba(99, 102, 241, 0.2);
+        }
+
+        /* ── Bubbles ───────────────────────────────────────── */
+        .bubble {
+            position: relative;
+            padding: 0.8rem 1rem;
+            max-width: min(80%, 38rem);
+            line-height: 1.6;
+            font-size: 0.9rem;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        /* Bot ─ square corner at BOTTOM-LEFT (near avatar) */
+        .bubble.bot {
+            background: var(--bot-bubble);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius) var(--radius) var(--radius) 4px;
+            color: var(--text-primary);
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+        }
+
+        .bubble.bot::before {
+            content: '';
+            position: absolute;
+            left: -7px;
+            bottom: 0;
+            width: 0;
+            height: 0;
+            border-style: solid;
+            border-width: 0 0 10px 8px;
+            border-color: transparent transparent var(--bot-bubble-tail) transparent;
+        }
+
+        /* User ─ square corner at BOTTOM-RIGHT (near avatar) */
+        .bubble.user {
+            background: var(--user-bubble);
+            border: none;
+            border-radius: var(--radius) var(--radius) 4px var(--radius);
+            color: #ffffff;
+            box-shadow: 0 2px 12px var(--user-bubble-shadow);
+        }
+
+        .bubble.user::before {
+            content: '';
+            position: absolute;
+            right: -7px;
+            bottom: 0;
+            width: 0;
+            height: 0;
+            border-style: solid;
+            border-width: 0 8px 10px 0;
+            border-color: transparent transparent var(--user-bubble-tail) transparent;
+        }
+
+        .bubble.technical {
+            background: var(--code-bg);
+            border: 1px solid var(--border-accent);
+            border-radius: var(--radius) var(--radius) var(--radius) 4px;
+        }
+
+        .bubble.technical pre {
+            font-size: 0.75rem;
+            font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+            color: var(--accent);
+            white-space: pre-wrap;
+            overflow-x: auto;
+            margin: 0;
+        }
+
+        /* ── Tool Output debug block ─────────────────────── */
+        .tool-output-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.6rem;
+            margin-bottom: 0.4rem;
+            animation: msgIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .tool-output-block {
+            flex: 1;
+            max-width: min(80%, 38rem);
+        }
+
+        .tool-output-block summary {
+            cursor: pointer;
+            font-size: 0.72rem;
+            color: var(--accent);
+            background: var(--accent-dim);
+            border: 1px solid var(--border-accent);
+            padding: 0.3rem 0.7rem;
+            border-radius: 999px;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            list-style: none;
+            user-select: none;
+        }
+
+        .tool-output-block summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .tool-output-block .tool-output-content {
+            background: var(--code-bg);
+            border: 1px solid var(--border-accent);
+            border-radius: 10px;
+            padding: 0.7rem 0.9rem;
+            margin-top: 0.4rem;
+            font-size: 0.75rem;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            color: var(--text-secondary);
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .pill-debug {
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .pill-debug.debug-on {
+            color: var(--accent);
+            background: var(--accent-dim);
+            border-color: var(--border-accent);
+        }
+
+        /* Markdown prose inside bubbles */
+        .bubble p {
+            margin: 0 0 0.6rem 0;
+        }
+
+        .bubble p:last-child {
+            margin-bottom: 0;
+        }
+
+        .bubble ul,
+        .bubble ol {
+            margin: 0.4rem 0;
+            padding-left: 1.4rem;
+        }
+
+        .bubble li {
+            margin: 0.2rem 0;
+        }
+
+        .bubble code {
+            font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+            font-size: 0.82em;
+            background: var(--inline-code-bg);
+            padding: 0.15em 0.4em;
+            border-radius: 5px;
+        }
+
+        .bubble pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border-subtle);
+            border-radius: 10px;
+            padding: 0.8rem 1rem;
+            overflow-x: auto;
+            margin: 0.6rem 0;
+        }
+
+        .bubble pre code {
+            background: none;
+            padding: 0;
+            font-size: 0.8em;
+        }
+
+        .bubble blockquote {
+            border-left: 3px solid var(--accent);
+            margin: 0.5rem 0;
+            padding-left: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .bubble img {
+            max-width: 100%;
+            border-radius: 12px;
+            margin: 0.6rem 0;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+            cursor: zoom-in;
+            transition: opacity 0.15s;
+        }
+
+        .bubble img:hover {
+            opacity: 0.88;
+        }
+
+        /* ── Image Lightbox ──────────────────────────────── */
+        #img-lightbox {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            background: rgba(0, 0, 0, 0.92);
+            align-items: center;
+            justify-content: center;
+            cursor: zoom-out;
+        }
+
+        #img-lightbox.open {
+            display: flex;
+        }
+
+        #img-lightbox img {
+            max-width: 96vw;
+            max-height: 92vh;
+            border-radius: 8px;
+            box-shadow: 0 8px 48px rgba(0, 0, 0, 0.8);
+            object-fit: contain;
+            pointer-events: none;
+        }
+
+        #img-lightbox-close {
+            position: fixed;
+            top: 1rem;
+            right: 1.25rem;
+            font-size: 2rem;
+            line-height: 1;
+            color: #fff;
+            opacity: 0.7;
+            cursor: pointer;
+            background: none;
+            border: none;
+            padding: 0;
+        }
+
+        #img-lightbox-close:hover {
+            opacity: 1;
+        }
+
+        .bubble a {
+            color: var(--accent);
+            text-decoration: underline;
+            text-underline-offset: 2px;
+        }
+
+        .bubble strong {
+            color: var(--strong-color);
+        }
+
+        .bubble h1,
+        .bubble h2,
+        .bubble h3 {
+            color: var(--text-primary);
+            margin: 0.8rem 0 0.3rem;
+            font-weight: 600;
+        }
+
+        .bubble h1 {
+            font-size: 1.2em;
+        }
+
+        .bubble h2 {
+            font-size: 1.1em;
+        }
+
+        .bubble h3 {
+            font-size: 1em;
+        }
+
+        /* Greeting */
+        .greeting-row {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+            padding: 3rem 1rem;
+            text-align: center;
+            animation: msgIn 0.5s ease;
+        }
+
+        .greeting-icon {
+            font-size: 2.5rem;
+            width: 64px;
+            height: 64px;
+            border-radius: 20px;
+            background: linear-gradient(135deg, var(--accent-dim), rgba(99, 102, 241, 0.1));
+            border: 1px solid var(--border-accent);
+            display: grid;
+            place-items: center;
+            box-shadow: 0 0 30px var(--accent-dim);
+        }
+
+        .greeting-text {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            max-width: 28rem;
+            line-height: 1.7;
+        }
+
+        /* ── Status bar ────────────────────────────────────── */
+        #agentStatusContainer {
+            display: none;
+            align-items: center;
+            gap: 0.75rem;
+            max-width: 52rem;
+            margin: 0 auto;
+            padding: 0.5rem 1rem;
+        }
+
+        .status-pill {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.78rem;
+            color: var(--accent);
+            background: var(--accent-dim);
+            padding: 0.35rem 0.8rem;
+            border-radius: 999px;
+            border: 1px solid var(--border-accent);
+            animation: statusIn 0.3s ease;
+        }
+
+        @keyframes statusIn {
+            from {
+                opacity: 0;
+                transform: translateY(6px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .pulsing-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--accent);
+            border-radius: 50%;
+            box-shadow: 0 0 8px var(--accent-glow);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 0.4;
+                transform: scale(0.8);
+            }
+
+            50% {
+                opacity: 1;
+                transform: scale(1.2);
+            }
+        }
+
+        #agentStatusText {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* ── Footer / Input ────────────────────────────────── */
+        .app-footer {
+            background: var(--header-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-top: 1px solid var(--border-subtle);
+            padding: 0.75rem 1rem;
+            transition: background 0.3s;
+        }
+
+        .input-row {
+            max-width: 52rem;
+            margin: 0 auto;
+            display: flex;
+            gap: 0.5rem;
+            align-items: flex-end;
+        }
+
+        .input-wrap {
+            flex: 1;
+            position: relative;
+        }
+
+        .input-wrap textarea {
+            width: 100%;
+            background: var(--bg-glass);
+            border: 1px solid var(--border-subtle);
+            border-radius: 14px;
+            padding: 0.75rem 1.1rem;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            font-family: inherit;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            outline: none;
+            resize: none;
+            overflow-y: auto;
+            min-height: 60px;
+            max-height: calc(5 * 1.5em + 1.5rem);
+            /* 5 lines */
+            line-height: 1.5;
+            box-sizing: border-box;
+            scrollbar-width: thin;
+        }
+
+        .input-wrap textarea:focus {
+            border-color: var(--border-accent);
+            box-shadow: 0 0 0 3px var(--accent-dim);
+        }
+
+        .input-wrap textarea::placeholder {
+            color: var(--text-secondary);
+            opacity: 0.6;
+        }
+
+        .btn-send {
+            width: 44px;
+            height: 44px;
+            border-radius: 14px;
+            border: none;
+            background: linear-gradient(135deg, #2dd4bf, #0d9488);
+            color: #0b0f1a;
+            font-size: 1.2rem;
+            cursor: pointer;
+            display: grid;
+            place-items: center;
+            transition: transform 0.15s, box-shadow 0.2s;
+            flex-shrink: 0;
+            box-shadow: 0 2px 12px rgba(45, 212, 191, 0.25);
+        }
+
+        .btn-send:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 20px rgba(45, 212, 191, 0.35);
+        }
+
+        .btn-send:active {
+            transform: scale(0.95);
+        }
+
+        .btn-send:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-stop {
+            width: 44px;
+            height: 44px;
+            border-radius: 14px;
+            border: 1px solid rgba(239, 68, 68, 0.5);
+            background: rgba(239, 68, 68, 0.15);
+            color: #ef4444;
+            font-size: 1.1rem;
+            cursor: pointer;
+            display: grid;
+            /* always visible */
+            place-items: center;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+
+        .btn-stop:hover:not(:disabled) {
+            background: rgba(239, 68, 68, 0.3);
+            border-color: rgba(239, 68, 68, 0.7);
+        }
+
+        .btn-stop:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        /* ── Mood Feedback Buttons ── */
+        .mood-feedback-row {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+            padding: 0.3rem 0 0.1rem 0;
+        }
+
+        .mood-btn {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            border: 1px solid var(--border-subtle);
+            background: var(--bg-glass);
+            font-size: 1.15rem;
+            cursor: pointer;
+            display: grid;
+            place-items: center;
+            transition: all 0.2s;
+            opacity: 0.6;
+        }
+
+        .mood-btn:hover {
+            opacity: 1;
+            transform: scale(1.15);
+        }
+
+        .mood-btn.mood-positive:hover {
+            border-color: #22c55e;
+            background: rgba(34, 197, 94, 0.15);
+            box-shadow: 0 0 8px rgba(34, 197, 94, 0.3);
+        }
+
+        .mood-btn.mood-negative:hover {
+            border-color: #f59e0b;
+            background: rgba(245, 158, 11, 0.15);
+            box-shadow: 0 0 8px rgba(245, 158, 11, 0.3);
+        }
+
+        .mood-btn.mood-angry:hover {
+            border-color: #ef4444;
+            background: rgba(239, 68, 68, 0.15);
+            box-shadow: 0 0 8px rgba(239, 68, 68, 0.3);
+        }
+
+        .mood-btn.mood-laughing:hover {
+            border-color: #facc15;
+            background: rgba(250, 204, 21, 0.15);
+            box-shadow: 0 0 8px rgba(250, 204, 21, 0.3);
+        }
+
+        .mood-btn.mood-crying:hover {
+            border-color: #60a5fa;
+            background: rgba(96, 165, 250, 0.15);
+            box-shadow: 0 0 8px rgba(96, 165, 250, 0.3);
+        }
+
+        .mood-btn.mood-amazed:hover {
+            border-color: #a78bfa;
+            background: rgba(167, 139, 250, 0.15);
+            box-shadow: 0 0 8px rgba(167, 139, 250, 0.3);
+        }
+
+        .mood-btn.flash-ok {
+            animation: flashGreen 0.5s ease;
+        }
+
+        @keyframes flashGreen {
+            0% {
+                background: rgba(34, 197, 94, 0.4);
+            }
+
+            100% {
+                background: var(--bg-glass);
+            }
+        }
+
+        .btn-upload {
+            width: 44px;
+            height: 44px;
+            border-radius: 14px;
+            border: 1px solid var(--border-color, rgba(148, 163, 184, 0.3));
+            background: rgba(148, 163, 184, 0.12);
+            color: var(--text-primary, #e2e8f0);
+            font-size: 1.2rem;
+            cursor: pointer;
+            display: grid;
+            place-items: center;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+
+        .btn-upload:hover {
+            color: var(--accent, #2dd4bf);
+            border-color: var(--border-accent, rgba(45, 212, 191, 0.5));
+            background: rgba(45, 212, 191, 0.15);
+        }
+
+        .btn-upload:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .btn-upload.has-file {
+            color: var(--accent);
+            border-color: var(--border-accent);
+            background: var(--accent-dim);
+        }
+
+        .attachment-chip {
+            max-width: 52rem;
+            margin: 0.4rem auto 0;
+            display: none;
+            align-items: center;
+            gap: 6px;
+            background: var(--accent-dim);
+            border: 1px solid var(--border-accent);
+            border-radius: 20px;
+            padding: 4px 10px 4px 12px;
+            font-size: 0.78rem;
+            color: var(--accent);
+        }
+
+        .attachment-chip-name {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 260px;
+        }
+
+        .chip-clear {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            padding: 0;
+            line-height: 1;
+            flex-shrink: 0;
+        }
+
+        .chip-clear:hover {
+            color: var(--text-primary);
+        }
+
+        /* Typing dots animation */
+        .typing-dots {
+            display: inline-flex;
+            gap: 4px;
+            padding: 0.8rem 1rem;
+        }
+
+        .typing-dots span {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--text-secondary);
+            animation: typing 1.4s infinite;
+        }
+
+        .typing-dots span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-dots span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes typing {
+
+            0%,
+            60%,
+            100% {
+                opacity: 0.3;
+                transform: translateY(0);
+            }
+
+            30% {
+                opacity: 1;
+                transform: translateY(-4px);
+            }
+        }
+
+        /* ── Tool Output (Real-time SSE) ───────────────────── */
+        .tool-output-row {
+            display: flex;
+            gap: 1rem;
+            margin: 1rem 0;
+            padding: 0 1.5rem;
+        }
+
+        .tool-output-block {
+            background: var(--msg-bot);
+            border: 1px solid var(--border-subtle);
+            border-radius: 14px;
+            padding: 0.75rem 1rem;
+            max-width: 85%;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .tool-output-block details summary {
+            cursor: pointer;
+            font-weight: 500;
+            color: var(--accent);
+            outline: none;
+        }
+
+        .tool-output-content {
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-subtle);
+            padding: 0.75rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            margin-top: 0.75rem;
+            color: var(--text-primary);
+        }
+
+        /* ── Modal Dialog (replaces confirm/alert) ─────────── */
+        /* Base modal styles in shared.css */
+
+        .modal-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .modal-body {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+            margin-bottom: 1.25rem;
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.5rem;
+        }
+
+        .modal-btn {
+            font-family: inherit;
+            font-size: 0.82rem;
+            font-weight: 500;
+            padding: 0.5rem 1.1rem;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .modal-btn.cancel {
+            background: var(--bg-glass);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-secondary);
+        }
+
+        .modal-btn.cancel:hover {
+            background: rgba(128, 128, 128, 0.12);
+            color: var(--text-primary);
+        }
+
+        .modal-btn.confirm {
+            background: linear-gradient(135deg, #2dd4bf, #0d9488);
+            border: none;
+            color: #0b0f1a;
+            font-weight: 600;
+        }
+
+        .modal-btn.confirm:hover {
+            box-shadow: 0 2px 12px rgba(45, 212, 191, 0.35);
+        }
+
+        /* ── Enhanced Animations ───────────────────────────── */
+
+        /* Fade In Up */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .animate-fade-in-up {
+            animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        /* Scale In */
+        @keyframes scaleIn {
+            from {
+                opacity: 0;
+                transform: scale(0.9);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .animate-scale-in {
+            animation: scaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        /* Slide In Right */
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(30px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .animate-slide-in {
+            animation: slideInRight 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        /* Glow Pulse */
+        @keyframes glowPulse {
+
+            0%,
+            100% {
+                box-shadow: 0 0 5px var(--accent-glow), 0 0 10px var(--accent-glow);
+            }
+
+            50% {
+                box-shadow: 0 0 15px var(--accent-glow), 0 0 30px var(--accent-glow);
+            }
+        }
+
+        .animate-glow {
+            animation: glowPulse 2s ease-in-out infinite;
+        }
+
+        /* Shimmer Effect for Loading */
+        @keyframes shimmer {
+            0% {
+                background-position: -200% 0;
+            }
+
+            100% {
+                background-position: 200% 0;
+            }
+        }
+
+        .shimmer {
+            background: linear-gradient(90deg,
+                    var(--bg-glass) 25%,
+                    rgba(255, 255, 255, 0.05) 50%,
+                    var(--bg-glass) 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+        }
+
+        /* Float Animation */
+        @keyframes float {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-5px);
+            }
+        }
+
+        .animate-float {
+            animation: float 3s ease-in-out infinite;
+        }
+
+        /* Bounce Soft */
+        @keyframes bounceSoft {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-3px);
+            }
+        }
+
+        .animate-bounce-soft {
+            animation: bounceSoft 2s ease-in-out infinite;
+        }
+
+        /* Gradient Shift */
+        @keyframes gradientShift {
+            0% {
+                background-position: 0% 50%;
+            }
+
+            50% {
+                background-position: 100% 50%;
+            }
+
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+
+        .animate-gradient {
+            background-size: 200% 200%;
+            animation: gradientShift 5s ease infinite;
+        }
+
+        /* Stagger Children Animation */
+        .stagger-children>* {
+            opacity: 0;
+            animation: fadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        .stagger-children>*:nth-child(1) {
+            animation-delay: 0.05s;
+        }
+
+        .stagger-children>*:nth-child(2) {
+            animation-delay: 0.1s;
+        }
+
+        .stagger-children>*:nth-child(3) {
+            animation-delay: 0.15s;
+        }
+
+        .stagger-children>*:nth-child(4) {
+            animation-delay: 0.2s;
+        }
+
+        .stagger-children>*:nth-child(5) {
+            animation-delay: 0.25s;
+        }
+
+        .stagger-children>*:nth-child(6) {
+            animation-delay: 0.3s;
+        }
+
+        /* Tool Card Hover Effect */
+        .tool-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .tool-card:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        /* Message Hover Effect */
+        .msg-row {
+            transition: opacity 0.2s;
+        }
+
+        #chat-content:hover .msg-row:not(:hover) {
+            opacity: 0.7;
+        }
+
+        /* Input Focus Glow */
+        .input-wrap textarea:focus {
+            box-shadow: 0 0 0 3px var(--accent-dim), 0 0 20px var(--accent-glow);
+        }
+
+        /* Button Press Effect */
+        .btn-send:active,
+        .btn-stop:active,
+        .btn-upload:active {
+            transform: scale(0.92);
+        }
+
+        /* Typing indicator enhancement */
+        .typing-dots {
+            background: var(--bot-bubble);
+            border-radius: var(--radius);
+            border: 1px solid var(--border-subtle);
+            backdrop-filter: blur(12px);
+        }
+
+        /* Smooth message transitions */
+        .bubble {
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .bubble:hover {
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Avatar hover effect */
+        .avatar {
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .msg-row:hover .avatar {
+            transform: scale(1.1);
+        }
+
+        /* ── Responsive ────────────────────────────────────── */
+
+        /* Mobile (< 640px) */
+        @media (max-width: 639px) {
+            .bubble {
+                max-width: 92%;
+                font-size: var(--text-sm);
+                padding: 0.65rem 0.85rem;
+            }
+
+            .avatar {
+                width: 28px;
+                height: 28px;
+                font-size: 0.9rem;
+                border-radius: 10px;
+            }
+
+            #chat-content {
+                padding: 0.75rem 0.5rem 1.5rem 0.5rem;
+            }
+
+            .greeting-row {
+                padding: 2rem 0.75rem;
+            }
+
+            .greeting-icon {
+                width: 48px;
+                height: 48px;
+                font-size: 2rem;
+                border-radius: 16px;
+            }
+
+            .greeting-text {
+                font-size: var(--text-sm);
+            }
+
+            .input-row {
+                gap: 0.35rem;
+            }
+
+            .btn-send,
+            .btn-stop,
+            .btn-upload {
+                width: 40px;
+                height: 40px;
+                min-width: 40px;
+                border-radius: 12px;
+            }
+
+            .input-wrap textarea {
+                font-size: var(--text-sm);
+                padding: 0.65rem 0.9rem;
+                min-height: 52px;
+                border-radius: 12px;
+            }
+
+            .app-footer {
+                padding: 0.6rem 0.75rem;
+            }
+
+            .msg-row {
+                gap: 0.4rem;
+            }
+
+            .mood-widget {
+                display: none;
+            }
+
+            .bubble pre {
+                font-size: 0.72rem;
+            }
+
+            .bubble code {
+                font-size: 0.78em;
+            }
+
+            #agentStatusContainer {
+                padding: 0.35rem 0.75rem;
+            }
+
+            .status-pill {
+                font-size: var(--text-xs);
+            }
+
+            .modal-actions {
+                flex-direction: column;
+            }
+
+            .modal-btn {
+                width: 100%;
+                text-align: center;
+            }
+        }
+
+        /* Small tablet (640px - 767px) */
+        @media (min-width: 640px) and (max-width: 767px) {
+            .bubble {
+                max-width: 85%;
+            }
+
+            .mood-widget {
+                display: none;
+            }
+        }
+
+        /* Tablet and above (≥ 768px) */
+        @media (min-width: 768px) {
+            .bubble {
+                max-width: min(80%, 38rem);
+            }
+        }
+    </style>
+</head>
+
+<body class="h-screen h-[100dvh] flex flex-col">
+
+    <header class="app-header">
+        <a href="/" class="logo">
+            <div class="logo-icon">🤖</div>
+            <span style="color: var(--accent);">AURA</span><span style="color: var(--text-primary);">GO</span>
+        </a>
+        <div class="header-actions">
+            <!-- Theme toggle first (consistent across all pages) -->
+            <button id="theme-toggle" class="btn-theme" title="Toggle theme"></button>
+            <!-- Always visible on all screens -->
+            <span id="tokenCounter" class="pill pill-tokens">0 tok</span>
+
+            <span id="budgetPill" class="pill pill-budget" title="Daily budget usage">$0.00</span>
+            <span id="creditsPill" class="pill pill-budget" title="OpenRouter Credits"
+                style="display:none;cursor:pointer;">💳 $0.00</span>
+            <select id="personality-select" class="select-personality" title="Change Core Personality">
+                <option value="" disabled selected>Loading...</option>
+            </select>
+            <div class="mood-widget" id="moodWidget">
+                <button class="mood-toggle" id="moodToggle" title="Persönlichkeitszustand – klicken für Details">
+                    <span class="mood-emoji" id="moodEmoji">🧠</span>
+                    <span id="moodText">Neugierig</span>
+                    <span class="mood-chevron">▾</span>
+                </button>
+                <div class="mood-panel" id="moodPanel">
+                    <div class="mood-panel-header">
+                        <span class="mood-emoji-lg" id="moodPanelEmoji">🧠</span>
+                        <span class="mood-label" id="moodPanelLabel">Neugierig</span>
+                    </div>
+                    <div id="moodTraits"></div>
+                </div>
+            </div>
+            <span id="debug-pill" class="pill pill-debug" title="Toggle debug mode (/debug on|off)">debug</span>
+            <span id="connectionPill" class="pill pill-active" data-i18n="agent_active">Agent
+                Active</span>
+            <button id="clear-btn" class="btn-header" data-i18n="btn_clear">New Session</button>
+            <a id="logout-btn" href="/auth/logout" class="btn-header" title="Logout"
+                style="text-decoration:none;display:none;color:var(--text-secondary);">🔓 Logout</a>
+        </div>
+    </header>
+
+    <!-- Radial Navigation Menu -->
+    <nav class="radial-menu" id="radialMenu">
+        <button class="radial-trigger" id="radialTrigger" aria-label="Navigation">
+            <div class="radial-icon"><span></span><span></span><span></span></div>
+        </button>
+        <div class="radial-items">
+            <a href="/" class="radial-item active"><span class="radial-item-label">Chat</span><span
+                    class="radial-item-icon">💬</span></a>
+            <a href="/dashboard" class="radial-item"><span class="radial-item-label">Dashboard</span><span
+                    class="radial-item-icon">📊</span></a>
+            <a href="/missions" class="radial-item"><span class="radial-item-label">Missions</span><span
+                    class="radial-item-icon">🚀</span></a>
+            <a href="/config" class="radial-item"><span class="radial-item-label">Config</span><span
+                    class="radial-item-icon">⚙️</span></a>
+            <a href="/invasion" class="radial-item"><span class="radial-item-label">Invasion</span><span
+                    class="radial-item-icon">🥚</span></a>
+            <a id="radialLogout" href="/auth/logout" class="radial-item" style="display:none;"><span
+                    class="radial-item-label">Logout</span><span class="radial-item-icon">🔓</span></a>
+        </div>
+    </nav>
+    <div class="radial-backdrop" id="radialBackdrop"></div>
+
+    <main id="chat-box">
+        <div id="chat-content">
+            <div class="greeting-row" data-greeting>
+                <div class="greeting-icon">🤖</div>
+                <div class="greeting-text" data-i18n="greeting">Hello! I am AuraGo. What task can I do for you today?
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="agentStatusContainer">
+        <div class="status-pill">
+            <div class="pulsing-dot"></div>
+            <span id="agentStatusText"></span>
+        </div>
+    </div>
+
+    <footer class="app-footer">
+        <form id="chat-form" class="input-row">
+            <input type="file" id="file-input" style="display:none">
+            <div class="input-wrap">
+                <textarea id="user-input" name="aura-chat-input" autocomplete="off" spellcheck="true" rows="2"
+                    placeholder="Type a message..." data-i18n-placeholder="input_placeholder"></textarea>
+            </div>
+            <button type="button" id="upload-btn" title="Datei anhängen" class="btn-upload">📎</button>
+            <button type="submit" id="send-btn" title="Send" class="btn-send">➤</button>
+            <button type="button" id="stop-btn" title="Stop" class="btn-stop" disabled>■</button>
+        </form>
+        {{if .PersonalityEnabled}}
+        <div id="mood-feedback-row" class="mood-feedback-row">
+            <button type="button" class="mood-btn mood-positive" data-feedback="positive"
+                title="Positives Feedback">👍</button>
+            <button type="button" class="mood-btn mood-negative" data-feedback="negative"
+                title="Negatives Feedback">👎</button>
+            <button type="button" class="mood-btn mood-angry" data-feedback="angry" title="Wütend">😡</button>
+            <button type="button" class="mood-btn mood-laughing" data-feedback="laughing" title="Lachend">😂</button>
+            <button type="button" class="mood-btn mood-crying" data-feedback="crying" title="Weinend">😢</button>
+            <button type="button" class="mood-btn mood-amazed" data-feedback="amazed" title="Staunend">😲</button>
+        </div>
+        {{end}}
+        <div id="attachment-chip" class="attachment-chip">
+            <span>📎&nbsp;</span><span id="attachment-name" class="attachment-chip-name"></span>
+            <button type="button" id="attachment-clear" class="chip-clear" title="Entfernen">✕</button>
+        </div>
+    </footer>
+
+    <!-- ── Custom Modal ── -->
+    <div id="modal-overlay" class="modal-overlay">
+        <div class="modal-card">
+            <div id="modal-title" class="modal-title"></div>
+            <div id="modal-message" class="modal-body"></div>
+            <div class="modal-actions">
+                <button id="modal-cancel" class="modal-btn cancel">Cancel</button>
+                <button id="modal-confirm" class="modal-btn confirm">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* ── DOM refs ── */
+        const chatBox = document.getElementById('chat-box');
+        const chatContent = document.getElementById('chat-content');
+        const chatForm = document.getElementById('chat-form');
+        const userInput = document.getElementById('user-input');
+        const sendBtn = document.getElementById('send-btn');
+        const stopBtn = document.getElementById('stop-btn');
+
+
+        /* ── Mood Feedback Buttons (insert emoji + personality feedback) ── */
+        const moodEmojiMap = {
+            positive: '👍',
+            negative: '👎',
+            angry: '😡',
+            laughing: '😂',
+            crying: '😢',
+            amazed: '😲'
+        };
+        document.querySelectorAll('.mood-btn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const feedbackType = btn.dataset.feedback;
+                const emoji = moodEmojiMap[feedbackType] || '';
+
+                // Insert emoji at cursor position in the textarea
+                const ta = document.getElementById('user-input');
+                const start = ta.selectionStart;
+                const end = ta.selectionEnd;
+                const before = ta.value.substring(0, start);
+                const after = ta.value.substring(end);
+                ta.value = before + emoji + after;
+                ta.selectionStart = ta.selectionEnd = start + emoji.length;
+                ta.focus();
+                autoResize();
+
+                // Send personality feedback to backend
+                btn.disabled = true;
+                try {
+                    const res = await fetch('/api/personality/feedback', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ type: feedbackType })
+                    });
+                    if (res.ok) {
+                        btn.classList.add('flash-ok');
+                        setTimeout(() => btn.classList.remove('flash-ok'), 500);
+                    }
+                } catch (e) {
+                    console.error('Feedback error:', e);
+                } finally {
+                    btn.disabled = false;
+                }
+            });
+        });
+
+        /* ── Auto-resize textarea (max 5 lines) ── */
+        function autoResize() {
+            userInput.style.height = 'auto';
+            const maxH = parseFloat(getComputedStyle(userInput).maxHeight);
+            userInput.style.height = Math.min(userInput.scrollHeight, maxH) + 'px';
+        }
+        userInput.addEventListener('input', autoResize);
+
+        /* ── Enter submits, Shift+Enter inserts newline ── */
+        userInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                chatForm.requestSubmit();
+            }
+        });
+
+        /* ── i18n ── */
+        const i18nDict = {
+            "en": {
+                "greeting": "Hello! I am AuraGo. What task can I do for you today?",
+                "input_placeholder": "Give your agent a task...",
+                "btn_send": "Send",
+                "status_typing": "AuraGo is thinking...",
+                "agent_active": "Agent Active",
+                "agent_connected": "Connected",
+                "agent_disconnected": "Disconnected",
+                "agent_reconnecting": "Reconnecting...",
+                "btn_clear": "New Session",
+                "sse_thinking": "AuraGo is thinking...",
+                "sse_tool_start": "Using tool: ",
+                "sse_tool_end": "Tool completed: ",
+                "sse_co_agent_spawn": "⚡ Co-Agent started: ",
+                "sse_workflow_plan": "🧠 Planning next steps",
+                "sse_coding": "Writing and testing a script...",
+                "sse_error_recovery": "Script had an error. Fixing code...",
+                "sse_execute_skill": "Running skill: ",
+                "sse_list_skills": "Checking available skills...",
+                "btn_stop": "Stop",
+                "modal_ok": "OK",
+                "modal_cancel": "Cancel",
+                "confirm_clear_title": "New Session",
+                "confirm_clear_msg": "Start a new session? Short-term memory will be cleared.",
+                "confirm_stop_title": "Stop Action",
+                "confirm_stop_msg": "Stop current action?",
+                "alert_stopped_title": "Interrupted",
+                "alert_stopped_msg": "Agent stops after current step."
+            },
+            "de": {
+                "greeting": "Hallo! Ich bin AuraGo. Welche Aufgabe soll ich für dich übernehmen?",
+                "input_placeholder": "Gib deinem Agenten eine Aufgabe...",
+                "btn_send": "Senden",
+                "status_typing": "AuraGo denkt nach...",
+                "agent_active": "Verbunden",
+                "agent_connected": "Verbunden",
+                "agent_disconnected": "Getrennt",
+                "agent_reconnecting": "Verbinde...",
+                "btn_clear": "Neuer Chat",
+                "sse_thinking": "AuraGo denkt nach...",
+                "sse_tool_start": "Werkzeug wird genutzt: ",
+                "sse_tool_end": "Werkzeug abgeschlossen: ",
+                "sse_co_agent_spawn": "⚡ Co-Agent gestartet: ",
+                "sse_workflow_plan": "🧠 Plane nächste Schritte",
+                "sse_coding": "Schreibe und teste ein Skript...",
+                "sse_error_recovery": "Skript hatte einen Fehler. Code wird korrigiert...",
+                "sse_execute_skill": "Skill wird ausgeführt: ",
+                "sse_list_skills": "Verfügbare Skills werden geprüft...",
+                "btn_stop": "Stop",
+                "modal_ok": "OK",
+                "modal_cancel": "Abbrechen",
+                "confirm_clear_title": "Neuer Chat",
+                "confirm_clear_msg": "Einen neuen Chat starten? Kurzzeitgedächtnis wird gelöscht.",
+                "confirm_stop_title": "Aktion abbrechen",
+                "confirm_stop_msg": "Aktuelle Aktion abbrechen?",
+                "alert_stopped_title": "Unterbrochen",
+                "alert_stopped_msg": "Agent stoppt nach aktuellem Schritt."
+            },
+            "zh": {
+                "greeting": "你好！我是 AuraGo。今天我能为你做什么任务？",
+                "input_placeholder": "给您的代理分配任务...",
+                "btn_send": "发送",
+                "status_typing": "AuraGo 正在思考...",
+                "agent_active": "已连接",
+                "agent_connected": "已连接",
+                "agent_disconnected": "已断开",
+                "agent_reconnecting": "重连中...",
+                "btn_clear": "新会话"
+            },
+            "hi": {
+                "greeting": "नमस्ते! मैं AuraGo हूँ। मैं आपके लिए कौन सा कार्य कर सकता हूँ?",
+                "input_placeholder": "अपने एजेंट को एक कार्य दें...",
+                "btn_send": "भेजें",
+                "status_typing": "AuraGo सोच रहा है...",
+                "agent_active": "कनेक्टेड",
+                "agent_connected": "कनेक्टेड",
+                "agent_disconnected": "डिस्कनेक्टेड",
+                "agent_reconnecting": "पुनः कनेक्ट हो रहा है...",
+                "btn_clear": "नया सत्र"
+            }
+        };
+
+        const langDict = i18nDict[SYSTEM_LANG] || i18nDict["en"];
+
+        function applyTranslations() {
+            document.querySelectorAll("[data-i18n]").forEach(el => {
+                const key = el.getAttribute("data-i18n");
+                if (langDict[key]) el.textContent = langDict[key];
+            });
+            document.querySelectorAll("[data-i18n-placeholder]").forEach(el => {
+                const key = el.getAttribute("data-i18n-placeholder");
+                if (langDict[key]) el.setAttribute("placeholder", langDict[key]);
+            });
+            document.getElementById('modal-confirm').textContent = langDict.modal_ok || 'OK';
+            document.getElementById('modal-cancel').textContent = langDict.modal_cancel || 'Cancel';
+        }
+
+        applyTranslations();
+
+
+        /* ── Modal (replaces confirm / alert) ── */
+        function showModal(title, message, isConfirm) {
+            return new Promise(resolve => {
+                const overlay = document.getElementById('modal-overlay');
+                const titleEl = document.getElementById('modal-title');
+                const msgEl = document.getElementById('modal-message');
+                const confirmBtn = document.getElementById('modal-confirm');
+                const cancelBtn = document.getElementById('modal-cancel');
+
+                titleEl.textContent = title;
+                msgEl.textContent = message;
+                cancelBtn.style.display = isConfirm ? '' : 'none';
+                overlay.style.display = 'flex';
+                overlay.style.opacity = '1';
+
+                function cleanup(result) {
+                    overlay.style.display = 'none';
+                    overlay.style.opacity = '0';
+                    confirmBtn.removeEventListener('click', onConfirm);
+                    cancelBtn.removeEventListener('click', onCancel);
+                    overlay.removeEventListener('click', onOverlay);
+                    document.removeEventListener('keydown', onKey);
+                    resolve(result);
+                }
+
+                function onConfirm() { cleanup(true); }
+                function onCancel() { cleanup(false); }
+                function onOverlay(e) { if (e.target === overlay) cleanup(false); }
+                function onKey(e) {
+                    if (e.key === 'Escape') cleanup(false);
+                    if (e.key === 'Enter') cleanup(true);
+                }
+
+                confirmBtn.addEventListener('click', onConfirm);
+                cancelBtn.addEventListener('click', onCancel);
+                overlay.addEventListener('click', onOverlay);
+                document.addEventListener('keydown', onKey);
+            });
+        }
+
+        function showConfirm(title, msg) { return showModal(title, msg, true); }
+        function showAlert(title, msg) { return showModal(title, msg, false); }
+
+        /* ── Data ── */
+        let conversation = [];
+        // Tracks /files/ paths already rendered via SSE 'image' events
+        // so appendMessage() can skip the duplicate markdown image.
+        let seenSSEImages = new Set();
+
+        /* ── Debug mode ── */
+        // If user has explicitly set a preference in localStorage, use it.
+        // Only fall back to server defaults if no preference has been saved yet.
+        const _storedDebug = localStorage.getItem('aurago-debug');
+        let debugMode = _storedDebug !== null ? (_storedDebug === 'true') : (SHOW_TOOL_RESULTS || AGENT_DEBUG_MODE);
+        function updateDebugPill() {
+            const pill = document.getElementById('debug-pill');
+            if (!pill) return;
+            if (debugMode) { pill.classList.add('debug-on'); pill.textContent = '🔍 debug'; }
+            else { pill.classList.remove('debug-on'); pill.textContent = 'debug'; }
+        }
+        updateDebugPill();
+        document.getElementById('debug-pill').addEventListener('click', () => {
+            debugMode = !debugMode;
+            localStorage.setItem('aurago-debug', debugMode);
+            updateDebugPill();
+            // Sync to server so new messages also reflect debug state
+            const cmd = debugMode ? '/debug on' : '/debug off';
+            fetch('/v1/chat/completions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ model: 'aurago', messages: [{ role: 'user', content: cmd }] })
+            }).catch(() => { }); // fire-and-forget
+        });
+
+        function appendToolOutput(text, label) {
+            if (!text || !debugMode) return;
+            const greet = chatContent.querySelector('[data-greeting]');
+            if (greet) greet.remove();
+            const escaped = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            const lbl = label || 'Tool Output';
+            const row = document.createElement('div');
+            row.className = 'tool-output-row';
+            row.innerHTML = `
+                <div class="avatar bot">⚙️</div>
+                <div class="tool-output-block">
+                    <details>
+                        <summary>⚙️ ${lbl}</summary>
+                        <div class="tool-output-content">${escaped}</div>
+                    </details>
+                </div>
+            `;
+            chatContent.appendChild(row);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        /* ── Load history & notifications ── */
+        async function initPage() {
+            // Check auth status to show/hide logout button
+            try {
+                const authRes = await fetch('/api/auth/status');
+                if (authRes.ok) {
+                    const authData = await authRes.json();
+                    if (authData.enabled) {
+                        const lb = document.getElementById('logout-btn');
+                        const rl = document.getElementById('radialLogout');
+                        if (lb) lb.style.display = '';
+                        if (rl) rl.style.display = '';
+                    }
+                }
+            } catch (e) { /* auth endpoint unavailable, hide button */ }
+
+            try {
+                const res = await fetch('/history');
+                if (res.ok) {
+                    const history = await res.json();
+                    if (history && history.length > 0) {
+                        chatContent.innerHTML = '';
+                        history.forEach(msg => {
+                            if (msg.role === 'user' || msg.role === 'assistant') {
+                                appendMessage(msg.role, msg.content);
+                                conversation.push(msg);
+                            }
+                        });
+                    }
+                }
+            } catch (err) {
+                console.error("Failed to load history:", err);
+            }
+
+            try {
+                const res = await fetch('/notifications');
+                if (res.ok) {
+                    const notes = await res.json();
+                    if (notes && notes.length > 0) {
+                        const greet = chatContent.querySelector('[data-greeting]');
+                        if (greet) greet.remove();
+                        notes.forEach(note => {
+                            appendMessage('assistant', "🌅 **System Briefing:**\n\n" + note);
+                        });
+                        fetch('/notifications/read', { method: 'POST' });
+                    }
+                }
+            } catch (err) {
+                console.error("Failed to load notifications:", err);
+            }
+
+            /* Load personalities */
+            try {
+                const res = await fetch('/api/personalities');
+                if (res.ok) {
+                    const data = await res.json();
+                    const select = document.getElementById('personality-select');
+                    if (select) {
+                        select.innerHTML = '';
+                        data.personalities.forEach(p => {
+                            const opt = document.createElement('option');
+                            opt.value = p.name;
+                            opt.textContent = p.name.charAt(0).toUpperCase() + p.name.slice(1);
+                            if (p.name === data.active) opt.selected = true;
+                            select.appendChild(opt);
+                        });
+                    }
+                }
+            } catch (err) {
+                console.error("Failed to load personalities:", err);
+            }
+        }
+
+        // Robust init: fire immediately if DOM already ready, else wait for event
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initPage);
+        } else {
+            initPage();
+        }
+
+        /* Handle personality change (shared helper for both selects) */
+        async function changePersonality(newId, triggerSelect) {
+            try {
+                const res = await fetch('/api/personality', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: newId })
+                });
+                if (res.ok) {
+                    const sel = document.getElementById('personality-select');
+                    if (sel) sel.value = newId;
+                    // Visual feedback: brief flash on the triggering select
+                    if (triggerSelect) {
+                        triggerSelect.style.borderColor = '#22c55e';
+                        triggerSelect.style.boxShadow = '0 0 6px rgba(34,197,94,0.4)';
+                        setTimeout(() => {
+                            triggerSelect.style.borderColor = '';
+                            triggerSelect.style.boxShadow = '';
+                        }, 800);
+                    }
+                    console.log("Personality updated to:", newId);
+                } else {
+                    console.error("Failed to update personality:", res.status);
+                    if (triggerSelect) {
+                        triggerSelect.style.borderColor = '#ef4444';
+                        setTimeout(() => { triggerSelect.style.borderColor = ''; }, 800);
+                    }
+                }
+            } catch (err) {
+                console.error("Error updating personality:", err);
+            }
+        }
+
+        document.getElementById('personality-select').addEventListener('change', function (e) {
+            changePersonality(e.target.value, e.target);
+        });
+
+        /* ── Clear session ── */
+        document.getElementById('clear-btn').addEventListener('click', async () => {
+            const ok = await showConfirm(
+                langDict.confirm_clear_title || 'New Session',
+                langDict.confirm_clear_msg || 'Start a new session?'
+            );
+            if (ok) {
+                try {
+                    const res = await fetch('/clear', { method: 'DELETE' });
+                    if (res.ok) {
+                        chatContent.innerHTML = '';
+                        conversation = [];
+                        appendMessage('assistant', langDict.greeting || "Session cleared. How can I help?");
+                    }
+                } catch (err) {
+                    console.error("Failed to clear session:", err);
+                }
+            }
+        });
+
+        /* ── Stop agent ── */
+        document.getElementById('stop-btn').addEventListener('click', async () => {
+            const ok = await showConfirm(
+                langDict.confirm_stop_title || 'Stop Action',
+                langDict.confirm_stop_msg || 'Stop current action?'
+            );
+            if (ok) {
+                try {
+                    const res = await fetch('/api/admin/stop', { method: 'POST' });
+                    if (res.ok) {
+                        await showAlert(
+                            langDict.alert_stopped_title || 'Interrupted',
+                            langDict.alert_stopped_msg || 'Agent stops after current step.'
+                        );
+                    }
+                } catch (err) {
+                    console.error("Failed to stop agent:", err);
+                }
+            }
+        });
+
+        /* ── Append message ── */
+        function appendMessage(role, text) {
+            if (!text || typeof text !== 'string') text = '';
+
+            const greet = chatContent.querySelector('[data-greeting]');
+            if (greet) greet.remove();
+
+            const isUser = role === 'user';
+            let isTechnical = false;
+
+            if (!isUser && (text.includes('Tool Output:') || text.includes('{"action":'))) {
+                isTechnical = true;
+            }
+
+            let displayContent = text;
+            if (!isTechnical && !isUser) {
+                // Strip XML tool call tags
+                displayContent = displayContent.replace(/<tool_call>[\s\S]*?<\/tool_call>/g, '');
+                // Strip fenced JSON code blocks containing tool calls (```json\n{"action":...}\n```)
+                // Use a precise pattern that only matches actual tool JSON blocks, not inline backtick spans
+                displayContent = displayContent.replace(/```(?:json)?\s*\{\s*"action"[\s\S]*?\}\s*```/g, '');
+                // Strip bare JSON tool calls not in a fence (fallback)
+                displayContent = displayContent.replace(/^```(?:json)?\n\{[\s\S]*?\}\n```$/gm, '');
+                // Strip Tool Output lines (tool result echoes)
+                displayContent = displayContent.replace(/^Tool Output:.*$/gm, '');
+            }
+
+            displayContent = displayContent.trim();
+            if (!displayContent) return;
+
+            // Remove markdown images already shown live via SSE 'image' event
+            if (!isTechnical && seenSSEImages.size > 0) {
+                displayContent = displayContent.replace(/!\[[^\]]*\]\(([^)]+)\)/g, (match, url) =>
+                    seenSSEImages.has(url) ? '' : match
+                ).trim();
+                if (!displayContent) return; // nothing left to show
+            }
+
+            let finalHTML = displayContent;
+            if (isTechnical) {
+                finalHTML = `<pre>${displayContent}</pre>`;
+            } else {
+                try {
+                    if (typeof window.markdownit !== 'undefined') {
+                        const md = window.markdownit({
+                            breaks: true,
+                            linkify: true,
+                            highlight: function (str, lang) {
+                                if (lang && window.hljs && hljs.getLanguage(lang)) {
+                                    try {
+                                        return '<pre class="hljs"><code>' +
+                                            hljs.highlight(str, { language: lang, ignoreIllegals: true }).value +
+                                            '</code></pre>';
+                                    } catch (__) { }
+                                }
+                                return '<pre class="hljs"><code>' + escapeHtml(str) + '</code></pre>';
+                            }
+                        });
+                        finalHTML = md.render(displayContent);
+                    }
+                } catch (e) {
+                    console.error("Markdown parsing failed:", e);
+                }
+            }
+
+            const side = isUser ? 'user' : 'bot';
+            const avatarIcon = isUser ? '🧑' : '🤖';
+            const bubbleClass = isTechnical ? 'bubble bot technical' : `bubble ${side}`;
+
+            const msgHTML = `
+                <div class="msg-row ${side}">
+                    <div class="avatar ${isUser ? 'human' : 'bot'}">${avatarIcon}</div>
+                    <div class="${bubbleClass}">${finalHTML}</div>
+                </div>
+            `;
+            chatContent.insertAdjacentHTML('beforeend', msgHTML);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        /* ── Helpers ── */
+        function escapeHtml(str) {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        /* ── File Upload ── */
+        const fileInput = document.getElementById('file-input');
+        const uploadBtn = document.getElementById('upload-btn');
+        const attachChip = document.getElementById('attachment-chip');
+        const attachName = document.getElementById('attachment-name');
+        const attachClear = document.getElementById('attachment-clear');
+        let pendingAttachment = null; // { path, filename }
+
+        uploadBtn.addEventListener('click', () => fileInput.click());
+
+        attachClear.addEventListener('click', () => {
+            pendingAttachment = null;
+            fileInput.value = '';
+            attachChip.style.display = 'none';
+            uploadBtn.classList.remove('has-file');
+        });
+
+        fileInput.addEventListener('change', async () => {
+            const file = fileInput.files[0];
+            if (!file) return;
+            const formData = new FormData();
+            formData.append('file', file);
+            uploadBtn.disabled = true;
+            try {
+                const res = await fetch('/api/upload', { method: 'POST', body: formData });
+                if (!res.ok) throw new Error(await res.text());
+                const data = await res.json();
+                pendingAttachment = { path: data.path, filename: data.filename };
+                attachName.textContent = data.filename;
+                attachChip.style.display = 'flex';
+                uploadBtn.classList.add('has-file');
+            } catch (err) {
+                console.error('Upload error:', err);
+                appendMessage('assistant', '⚠️ Upload fehlgeschlagen: ' + err.message);
+            } finally {
+                uploadBtn.disabled = false;
+            }
+        });
+
+        /* ── Form submit ── */
+        chatForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            let message = userInput.value.trim();
+            if (!message && !pendingAttachment) return;
+            if (!message) message = '(Datei gesendet)';
+
+            // Append attachment info for the agent
+            let agentMessage = message;
+            if (pendingAttachment) {
+                agentMessage += '\n\n[DATEI ANGEHÄNGT]: ' + pendingAttachment.path +
+                    '\nDu findest die Datei unter diesem Pfad. Verarbeite oder analysiere sie nach Bedarf.';
+                pendingAttachment = null;
+                fileInput.value = '';
+                attachChip.style.display = 'none';
+                uploadBtn.classList.remove('has-file');
+            }
+
+            // Show only the user's typed message in chat (not the agent path)
+            // For /sudopwd, mask the password argument to avoid showing it in chat
+            const displayMessage = /^\/sudopwd\s+\S/i.test(message)
+                ? '/sudopwd ***'
+                : message;
+            appendMessage('user', displayMessage);
+            userInput.value = '';
+            userInput.style.height = ''; // Reset height to CSS default (min-height from stylesheet)
+
+            // Use agentMessage (with path) for the API call below
+            const _origMessage = message; // keep ref
+            message = agentMessage;
+
+            /* ── /debug command intercept ── */
+            /* Toggle local UI display state, then let the message propagate to the server
+               so the agent's system prompt debug mode is also updated there. */
+            if (/^\/debug(\s+(on|off))?$/i.test(userInput.value || _origMessage)) {
+                const arg = _origMessage.split(/\s+/)[1];
+                debugMode = arg ? (arg.toLowerCase() === 'on') : !debugMode;
+                localStorage.setItem('aurago-debug', debugMode);
+                updateDebugPill();
+                // Fall through — do NOT return; the server command handler responds
+            }
+
+            userInput.disabled = true;
+            sendBtn.disabled = true;
+            stopBtn.disabled = false;
+
+            conversation.push({ role: 'user', content: message });
+
+            /* Show status bar immediately for instant feedback */
+            agentStatusText.textContent = sseDict.sse_thinking || 'Thinking...';
+            agentStatusDiv.style.display = 'flex';
+
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 10 * 60 * 1000); // 10 min
+                let response;
+                try {
+                    response = await fetch('/v1/chat/completions', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            model: 'aurago',
+                            messages: conversation
+                        }),
+                        signal: controller.signal
+                    });
+                } finally {
+                    clearTimeout(timeoutId);
+                }
+
+                if (!response.ok) throw new Error('API Error: ' + response.statusText);
+
+                const data = await response.json();
+                const assistantMessage = data.choices[0].message;
+
+                appendMessage('assistant', assistantMessage.content);
+                seenSSEImages.clear(); // reset after final response is rendered
+                conversation.push(assistantMessage);
+
+            } catch (error) {
+                if (error.name === 'AbortError') {
+                    appendMessage('assistant', '⚠️ Timeout: Der Agent hat zu lange gebraucht. Bitte erneut versuchen.');
+                } else {
+                    appendMessage('assistant', '⚠️ Verbindungsfehler: ' + error.message);
+                }
+            } finally {
+                userInput.disabled = false;
+                sendBtn.disabled = false;
+                userInput.focus();
+                document.getElementById('agentStatusContainer').style.display = 'none';
+                stopBtn.disabled = true;
+            }
+        });
+
+        /* ── SSE (Server-Sent Events) ── */
+        const agentStatusDiv = document.getElementById('agentStatusContainer');
+        const agentStatusText = document.getElementById('agentStatusText');
+        const sseDict = i18nDict[SYSTEM_LANG] || i18nDict["en"];
+
+        /* ── Connection status pills ── */
+        function setConnectionState(state) {
+            // state: 'connected' | 'disconnected' | 'reconnecting'
+            const pills = ['connectionPill', 'connectionPill-m'].map(id => document.getElementById(id)).filter(Boolean);
+            pills.forEach(pill => {
+                pill.classList.remove('pill-active', 'pill-disconnected', 'pill-reconnecting');
+                if (state === 'connected') {
+                    pill.classList.add('pill-active');
+                    pill.textContent = sseDict.agent_connected || sseDict.agent_active || 'Connected';
+                } else if (state === 'reconnecting') {
+                    pill.classList.add('pill-reconnecting');
+                    pill.textContent = sseDict.agent_reconnecting || 'Reconnecting...';
+                } else {
+                    pill.classList.add('pill-disconnected');
+                    pill.textContent = sseDict.agent_disconnected || 'Disconnected';
+                }
+            });
+        }
+
+        let sseReconnectTimer = null;
+        let currentEventSource = null;
+
+        function connectSSE() {
+            if (currentEventSource) {
+                currentEventSource.close();
+            }
+            const es = new EventSource('/events');
+            currentEventSource = es;
+
+            es.onopen = function () {
+                setConnectionState('connected');
+                if (sseReconnectTimer) {
+                    clearTimeout(sseReconnectTimer);
+                    sseReconnectTimer = null;
+                }
+            };
+
+            es.onerror = function () {
+                if (es.readyState === EventSource.CLOSED) {
+                    setConnectionState('disconnected');
+                } else {
+                    // CONNECTING — browser is already trying to reconnect
+                    setConnectionState('reconnecting');
+                }
+                // Force a clean reconnect after 5 s if still not back
+                if (!sseReconnectTimer) {
+                    sseReconnectTimer = setTimeout(() => {
+                        sseReconnectTimer = null;
+                        if (currentEventSource.readyState !== EventSource.OPEN) {
+                            setConnectionState('reconnecting');
+                            connectSSE();
+                        }
+                    }, 5000);
+                }
+            };
+
+            es.onmessage = handleSSEMessage;
+            return es;
+        }
+
+        // Start in connecting state until onopen fires
+        setConnectionState('reconnecting');
+        const eventSource = connectSSE();
+
+        function handleSSEMessage(e) {
+            try {
+                const data = JSON.parse(e.data);
+                let message = '';
+
+                if (data.event === 'thinking') {
+                    stopBtn.disabled = false;
+                    message = data.detail || sseDict.sse_thinking || 'Thinking...';
+                } else if (data.event === 'tool_start') {
+                    if (data.detail === 'execute_skill') {
+                        message = (sseDict.sse_execute_skill || 'Running skill: ') + data.detail;
+                    } else if (data.detail === 'list_skills') {
+                        message = sseDict.sse_list_skills || 'Checking available skills...';
+                    } else if (data.detail === 'co_agent' || data.detail === 'co_agents') {
+                        return; // suppress generic "Using tool: co_agent" — co_agent_spawn event will follow
+                    } else {
+                        message = (sseDict.sse_tool_start || 'Using tool: ') + data.detail;
+                    }
+                } else if (data.event === 'co_agent_spawn') {
+                    message = (sseDict.sse_co_agent_spawn || '⚡ Co-Agent started: ') + data.detail;
+                } else if (data.event === 'workflow_plan') {
+                    message = sseDict.sse_workflow_plan || '🧠 Planning next steps';
+                } else if (data.event === 'tool_end') {
+                    if (data.detail === 'co_agent' || data.detail === 'co_agents') {
+                        return; // suppress generic "Tool completed: co_agent"
+                    }
+                    message = (sseDict.sse_tool_end || 'Tool completed: ') + data.detail;
+                } else if (data.event === 'coding') {
+                    message = sseDict.sse_coding || 'Writing and testing a script...';
+                } else if (data.event === 'error_recovery') {
+                    message = sseDict.sse_error_recovery || 'Script had an error. Fixing code...';
+                } else if (data.event === 'tool_call') {
+                    if (debugMode) {
+                        appendToolOutput(data.detail, 'Tool Call');
+                    }
+                    // Extract human-readable text before/after the JSON tool call block and show it
+                    const thinkingText = (data.detail || '')
+                        .replace(/```json[\s\S]*?```/g, '')   // strip ```json ... ``` fences
+                        .replace(/`[^`]*`/g, '')               // strip inline backtick code
+                        .replace(/\{[\s\S]*"action"\s*:[\s\S]*/g, '') // strip from {"action": to end (greedy, handles nested objects)
+                        .trim();
+                    if (thinkingText) {
+                        appendMessage('assistant', thinkingText);
+                    }
+                    return;
+                } else if (data.event === 'tool_output') {
+                    if (debugMode) {
+                        appendToolOutput(data.detail, 'Tool Output');
+                    }
+                    return;
+                } else if (data.event === 'budget_update') {
+                    try {
+                        const b = JSON.parse(data.message || '{}');
+                        updateBudgetPills(b);
+                    } catch (_) { }
+                    return;
+                } else if (data.event === 'budget_warning') {
+                    appendMessage('system', '\u26a0\ufe0f ' + (data.message || 'Budget warning threshold reached.'));
+                    return;
+                } else if (data.event === 'budget_blocked') {
+                    appendMessage('system', '\ud83d\udeab ' + (data.message || 'Budget limit reached — request blocked.'));
+                    return;
+                } else if (data.event === 'image') {
+                    try {
+                        const imgData = JSON.parse(data.detail);
+                        if (imgData && imgData.path) {
+                            seenSSEImages.add(imgData.path); // remember to skip duplicate in appendMessage
+                            const cap = imgData.caption ? escapeHtml(imgData.caption) : '';
+                            const imgHTML = `
+                                <div class="msg-row bot">
+                                    <div class="avatar bot">🤖</div>
+                                    <div class="bubble bot"><img src="${imgData.path}" alt="${cap}" title="${cap}" loading="lazy" style="cursor:zoom-in;"></div>
+                                </div>`;
+                            chatContent.insertAdjacentHTML('beforeend', imgHTML);
+                            chatBox.scrollTop = chatBox.scrollHeight;
+                        }
+                    } catch (e) { /* ignore */ }
+                    return;
+                } else if (data.event === 'done') {
+                    agentStatusDiv.style.display = 'none';
+                    stopBtn.disabled = true;
+                    return;
+                } else if (data.event === 'tokens') {
+                    const tokenEl = document.getElementById('tokenCounter');
+                    const session = data.session_total || 0;
+                    const est = data.is_estimated ? ' ~' : '';
+                    tokenEl.textContent = `${session.toLocaleString()}${est} tok`;
+                    return;
+                }
+
+                agentStatusText.textContent = message;
+                agentStatusDiv.style.display = 'flex';
+            } catch (err) { /* ignore parse errors */ }
+        }
+        /* ── Image lightbox ── */
+        const lightbox = document.getElementById('img-lightbox');
+        const lightboxImg = document.getElementById('img-lightbox-img');
+        const lightboxClose = document.getElementById('img-lightbox-close');
+
+        chatContent.addEventListener('click', (e) => {
+            if (e.target.tagName === 'IMG' && e.target.closest('.bubble')) {
+                if (lightboxImg) lightboxImg.src = e.target.src;
+                if (lightbox) lightbox.classList.add('open');
+            }
+        });
+
+        if (lightbox) lightbox.addEventListener('click', () => lightbox.classList.remove('open'));
+        if (lightboxClose) lightboxClose.addEventListener('click', () => lightbox && lightbox.classList.remove('open'));
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && lightbox) lightbox.classList.remove('open'); });
+
+        /* ── Budget pill ── */
+        function updateBudgetPills(b) {
+            if (!b || !b.enabled) return;
+            const cost = (b.spent_usd || b.total_cost_usd || 0).toFixed(3);
+            const limit = (b.daily_limit_usd || 0).toFixed(2);
+            const bp = document.getElementById('budgetPill');
+            if (bp) {
+                bp.style.display = 'inline-flex';
+                bp.textContent = `$${cost} / $${limit}`;
+                bp.title = `Budget: $${cost} of $${limit} (${b.enforcement})`;
+                bp.classList.remove('budget-warning', 'budget-exceeded');
+                if (b.is_exceeded || b.exceeded) bp.classList.add('budget-exceeded');
+                else if (b.is_warning || b.warning_sent) bp.classList.add('budget-warning');
+            }
+        }
+
+        document.getElementById('budgetPill').addEventListener('click', () => {
+            fetch('/api/budget').then(r => r.json()).then(updateBudgetPills).catch(() => { });
+        });
+        // Fetch initial budget status on page load
+        fetch('/api/budget').then(r => r.json()).then(updateBudgetPills).catch(() => { });
+
+        /* ── OpenRouter Credits Pill ── */
+        function updateCreditsPills(c) {
+            if (!c || !c.available) return;
+            if (c.error) return;
+            const el = document.getElementById('creditsPill');
+            if (el) {
+                el.style.display = 'inline-flex';
+                if (c.limit > 0) {
+                    el.textContent = '💳 $' + c.balance.toFixed(2);
+                    el.title = `OpenRouter: $${c.usage.toFixed(2)} used / $${c.limit.toFixed(2)} limit`;
+                    el.classList.remove('budget-warning', 'budget-exceeded');
+                    const pct = c.usage / c.limit;
+                    if (pct >= 1.0) el.classList.add('budget-exceeded');
+                    else if (pct >= 0.8) el.classList.add('budget-warning');
+                } else {
+                    el.textContent = '💳 $' + c.usage.toFixed(2);
+                    el.title = `OpenRouter: $${c.usage.toFixed(2)} used (pay-as-you-go)`;
+                }
+            }
+        }
+        document.getElementById('creditsPill').addEventListener('click', () => {
+            fetch('/api/credits').then(r => r.json()).then(updateCreditsPills).catch(() => { });
+        });
+        fetch('/api/credits').then(r => r.json()).then(updateCreditsPills).catch(() => { });
+
+        /* ── Mood Widget ── */
+        const moodStateEmojiMap = {
+            curious: '🔍', focused: '🎯', creative: '🎨',
+            analytical: '📊', cautious: '🛡️', playful: '🎮'
+        };
+        const moodNameDE = {
+            curious: 'Neugierig', focused: 'Fokussiert', creative: 'Kreativ',
+            analytical: 'Analytisch', cautious: 'Vorsichtig', playful: 'Verspielt'
+        };
+        const traitOrder = ['curiosity', 'thoroughness', 'creativity', 'empathy', 'confidence', 'affinity', 'loneliness'];
+        const traitNameDE = {
+            curiosity: 'Neugier', thoroughness: 'Gründlichkeit', creativity: 'Kreativität',
+            empathy: 'Empathie', confidence: 'Selbstvertrauen', affinity: 'Zuneigung',
+            loneliness: 'Einsamkeit'
+        };
+
+        function updateMoodWidget(data) {
+            if (!data || !data.enabled) return;
+            const toggle = document.getElementById('moodToggle');
+            const emoji = moodStateEmojiMap[data.mood] || '🧠';
+            const nameDE = moodNameDE[data.mood] || data.mood;
+            document.getElementById('moodEmoji').textContent = emoji;
+            document.getElementById('moodText').textContent = nameDE;
+            document.getElementById('moodPanelEmoji').textContent = emoji;
+            document.getElementById('moodPanelLabel').textContent = nameDE;
+            const traitsEl = document.getElementById('moodTraits');
+            traitsEl.innerHTML = '';
+            traitOrder.forEach(t => {
+                const v = (data.traits && data.traits[t] != null) ? data.traits[t] : 0.5;
+                const pct = Math.round(v * 100);
+                const row = document.createElement('div');
+                row.className = 'trait-row';
+                row.innerHTML = `<span class="trait-label">${traitNameDE[t] || t}</span>` +
+                    `<div class="trait-bar-bg"><div class="trait-bar-fill" data-trait="${t}" style="width:${pct}%"></div></div>` +
+                    `<span class="trait-value">${v.toFixed(2)}</span>`;
+                traitsEl.appendChild(row);
+            });
+            toggle.style.display = 'inline-flex';
+        }
+
+        if (PERSONALITY_ENABLED) {
+            fetch('/api/personality/state').then(r => r.json()).then(updateMoodWidget).catch(() => { });
+            setInterval(() => {
+                fetch('/api/personality/state').then(r => r.json()).then(updateMoodWidget).catch(() => { });
+            }, 30000);
+
+            document.getElementById('moodToggle').addEventListener('click', (e) => {
+                e.stopPropagation();
+                document.getElementById('moodPanel').classList.toggle('open');
+                document.getElementById('moodToggle').classList.toggle('open');
+            });
+            document.addEventListener('click', (e) => {
+                const panel = document.getElementById('moodPanel');
+                if (panel.classList.contains('open') && !e.target.closest('.mood-widget')) {
+                    panel.classList.remove('open');
+                    document.getElementById('moodToggle').classList.remove('open');
+                }
+            });
+        }
+    </script>
+
+    <!-- Image Lightbox Overlay -->
+    <div id="img-lightbox">
+        <button id="img-lightbox-close" title="Close (Esc)">&#x2715;</button>
+        <img id="img-lightbox-img" src="" alt="">
+    </div>
+
+    <!-- Toast container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <script>
+        // ── Mobile viewport / virtual keyboard fix ───────────────────────────────
+        // When the on-screen keyboard opens on Android/iOS the visual viewport
+        // shrinks but the layout viewport may not.  We track visualViewport and
+        // keep the body height in sync so the input toolbar is always visible.
+        (function () {
+            function applyVVH() {
+                var h = (window.visualViewport ? window.visualViewport.height : window.innerHeight);
+                document.body.style.height = h + 'px';
+            }
+            if (window.visualViewport) {
+                window.visualViewport.addEventListener('resize', applyVVH);
+                window.visualViewport.addEventListener('scroll', applyVVH);
+            }
+            window.addEventListener('resize', applyVVH);
+            applyVVH();
+        })();
+    </script>
+</body>
+
+</html>

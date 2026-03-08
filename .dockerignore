@@ -1,0 +1,30 @@
+# Build artifacts
+bin/
+deploy/
+*.bat
+*.sh
+!docker-entrypoint.sh
+
+# Git / IDE
+.git/
+.gitignore
+.vscode/
+
+# Developer-only config (contains real credentials – keep out of image)
+config_debug.yaml
+
+# Runtime data (should be mounted as volumes, not baked in)
+data/
+log/
+agent_workspace/workdir/
+agent_workspace/tools/
+
+# Sensitive skill credentials
+agent_workspace/skills/token.json
+agent_workspace/skills/client_secret.json
+agent_workspace/skills/client_secrets.json
+
+# Misc
+*.lock
+*.md
+!README.md

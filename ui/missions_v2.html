@@ -1,0 +1,1571 @@
+<!DOCTYPE html>
+<html lang="de" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AuraGo - Mission Control</title>
+    <link rel="stylesheet" href="/shared.css">
+    <script src="/shared.js"></script>
+    <script>
+        (function () { var t = localStorage.getItem('aurago-theme'); if (t) document.documentElement.setAttribute('data-theme', t); })();
+    </script>
+    <style>
+        /* Page-specific variables (not in shared.css) */
+        :root,
+        [data-theme="dark"] {
+            --bg-tertiary: #334155;
+            --accent-primary: #2dd4bf;
+            --accent-secondary: #0d9488;
+            --accent-success: #10b981;
+            --accent-warning: #f59e0b;
+            --accent-danger: #ef4444;
+            --border-color: #334155;
+            --shadow: 0 4px 20px rgba(0,0,0,0.3);
+            --card-radius: 12px;
+        }
+
+        [data-theme="light"] {
+            --bg-tertiary: #e2e8f0;
+            --accent-primary: #0f766e;
+            --accent-secondary: #115e59;
+            --accent-success: #059669;
+            --accent-warning: #d97706;
+            --accent-danger: #dc2626;
+            --border-color: #cbd5e1;
+            --shadow: 0 4px 20px rgba(0,0,0,0.1);
+            --card-radius: 12px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.5;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Status Bar */
+        .status-bar {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .status-card {
+            background: var(--bg-secondary);
+            border-radius: var(--card-radius);
+            padding: 16px 20px;
+            border: 1px solid var(--border-color);
+            position: relative;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: hidden;
+        }
+        .status-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; height: 1px;
+            background: linear-gradient(90deg, 
+                transparent, 
+                rgba(45, 212, 191, 0.3), 
+                transparent);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .status-card::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at 50% 0%, rgba(45, 212, 191, 0.08), transparent 70%);
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+        }
+        .status-card:hover {
+            border-color: var(--accent-primary);
+            box-shadow: 
+                0 20px 40px rgba(0, 0, 0, 0.3),
+                0 0 0 1px rgba(45, 212, 191, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.05);
+            transform: translateY(-4px);
+        }
+        .status-card:hover::before,
+        .status-card:hover::after {
+            opacity: 1;
+        }
+        .status-card.running {
+            border-left: 4px solid var(--accent-primary);
+            animation: pulse 2s infinite;
+        }
+        .status-card.running::before {
+            opacity: 1;
+        }
+        .status-card.running::after {
+            opacity: 1;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+
+        .status-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+
+        .status-value {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        /* Queue Section */
+        .queue-section {
+            background: var(--bg-secondary);
+            border-radius: var(--card-radius);
+            padding: 20px;
+            margin-bottom: 24px;
+            border: 1px solid var(--border-color);
+            position: relative;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: hidden;
+        }
+        .queue-section::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; height: 1px;
+            background: linear-gradient(90deg, 
+                transparent, 
+                rgba(45, 212, 191, 0.3), 
+                transparent);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .queue-section::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at 50% 0%, rgba(45, 212, 191, 0.05), transparent 70%);
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+        }
+        .queue-section:hover {
+            border-color: var(--accent-primary);
+            box-shadow: 
+                0 20px 40px rgba(0, 0, 0, 0.3),
+                0 0 0 1px rgba(45, 212, 191, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        }
+        .queue-section:hover::before,
+        .queue-section:hover::after {
+            opacity: 1;
+        }
+
+        .queue-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .queue-items {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .queue-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            border-left: 3px solid var(--accent-primary);
+        }
+
+        .queue-item.priority-high { border-left-color: var(--accent-danger); }
+        .queue-item.priority-medium { border-left-color: var(--accent-warning); }
+        .queue-item.priority-low { border-left-color: var(--accent-success); }
+
+        .queue-position {
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-primary);
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .queue-info {
+            flex: 1;
+        }
+
+        .queue-name {
+            font-weight: 500;
+            margin-bottom: 2px;
+        }
+
+        .queue-meta {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .queue-trigger {
+            font-size: 0.75rem;
+            padding: 2px 8px;
+            background: var(--bg-secondary);
+            border-radius: 4px;
+            color: var(--accent-secondary);
+        }
+
+        /* Mission Grid */
+        .missions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+        }
+        .mission-card {
+            background: var(--bg-secondary);
+            border-radius: var(--card-radius);
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+            position: relative;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            animation: card-enter 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+        }
+        .mission-card.running {
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 20px rgba(45,212,191,0.2);
+        }
+        .mission-card.queued {
+            border-color: var(--accent-warning);
+        }
+        .mission-card.waiting {
+            border-color: var(--accent-secondary);
+            opacity: 0.9;
+        }
+        @keyframes card-enter {
+            from {
+                opacity: 0;
+                transform: translateY(20px) scale(0.98);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+        .missions-grid .mission-card:nth-child(1) { animation-delay: 0ms; }
+        .missions-grid .mission-card:nth-child(2) { animation-delay: 50ms; }
+        .missions-grid .mission-card:nth-child(3) { animation-delay: 100ms; }
+        .missions-grid .mission-card:nth-child(4) { animation-delay: 150ms; }
+        .missions-grid .mission-card:nth-child(5) { animation-delay: 200ms; }
+        .missions-grid .mission-card:nth-child(6) { animation-delay: 250ms; }
+        .missions-grid .mission-card:nth-child(7) { animation-delay: 300ms; }
+        .missions-grid .mission-card:nth-child(8) { animation-delay: 350ms; }
+
+        .mission-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .mission-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .mission-name {
+            font-weight: 600;
+            font-size: 1rem;
+        }
+
+        .mission-locked {
+            color: var(--accent-warning);
+            font-size: 0.9rem;
+        }
+
+        .mission-badges {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .mission-body {
+            padding: 16px;
+        }
+
+        .mission-prompt {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            line-height: 1.4;
+        }
+
+        .mission-trigger {
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            padding: 10px 12px;
+            font-size: 0.8rem;
+            margin-top: 8px;
+        }
+
+        .trigger-label {
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+        }
+
+        .trigger-value {
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .mission-footer {
+            padding: 12px 16px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(0,0,0,0.1);
+        }
+
+        .mission-stats {
+            display: flex;
+            gap: 16px;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .mission-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .icon-btn {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+        .icon-btn::before {
+            content: '';
+            position: absolute;
+            top: 0; left: -100%;
+            width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+        }
+        .icon-btn:hover::before {
+            left: 100%;
+        }
+        .icon-btn:hover {
+            background: var(--accent-primary);
+            border-color: var(--accent-primary);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(45, 212, 191, 0.3);
+        }
+        .icon-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .modal-title {
+            background: linear-gradient(135deg, var(--text-primary), var(--accent-primary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 4px;
+        }
+
+        .modal-body {
+            padding: 20px;
+            overflow-y: auto;
+            max-height: 60vh;
+        }
+
+        .form-textarea {
+            width: 100%;
+            padding: 12px 16px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            min-height: 100px;
+            resize: vertical;
+            font-family: inherit;
+        }
+        .form-textarea:hover {
+            border-color: rgba(45, 212, 191, 0.4);
+        }
+        .form-textarea:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.15), 0 0 20px rgba(45, 212, 191, 0.1);
+            background: var(--bg-secondary);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .form-hint {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        /* Execution Type Selector */
+        .exec-type-selector {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .exec-type-option {
+            position: relative;
+            padding: 16px;
+            background: var(--bg-primary);
+            border: 2px solid var(--border-color);
+            border-radius: var(--card-radius);
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: hidden;
+        }
+        .exec-type-option:hover {
+            border-color: var(--accent-primary);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+        }
+        .exec-type-option.selected {
+            border-color: var(--accent-primary);
+            background: rgba(45,212,191,0.1);
+            box-shadow: 0 0 20px rgba(45,212,191,0.15);
+        }
+
+        .exec-type-option input {
+            position: absolute;
+            opacity: 0;
+        }
+
+        .exec-icon {
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+        }
+
+        .exec-label {
+            font-weight: 500;
+            font-size: 0.9rem;
+            display: block;
+        }
+
+        .exec-desc {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        /* Trigger Config */
+        .trigger-config {
+            background: var(--bg-primary);
+            border-radius: var(--card-radius);
+            padding: 16px;
+            margin-top: 16px;
+        }
+
+        .trigger-type-selector {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .trigger-type-btn {
+            padding: 8px 16px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+        .trigger-type-btn:hover,
+        .trigger-type-btn.active {
+            background: linear-gradient(135deg, var(--accent-secondary), var(--accent-primary));
+            color: white;
+            border-color: transparent;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(45, 212, 191, 0.25);
+        }
+
+        .trigger-fields {
+            display: none;
+        }
+
+        .trigger-fields.active {
+            display: block;
+        }
+
+        /* Mission Selector for Trigger */
+        .mission-selector {
+            max-height: 200px;
+            overflow-y: auto;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+        .mission-option {
+            padding: 12px;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .mission-option:hover,
+        .mission-option.selected {
+            background: rgba(45,212,191,0.1);
+            border-left: 3px solid var(--accent-primary);
+        }
+
+        .mission-option:last-child {
+            border-bottom: none;
+        }
+
+        .mission-option input {
+            margin: 0;
+        }
+
+        .mission-option-info {
+            flex: 1;
+        }
+
+        .mission-option-name {
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        .mission-option-meta {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                gap: 16px;
+                align-items: flex-start;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .exec-type-selector {
+                grid-template-columns: 1fr;
+            }
+
+            .missions-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Loading State */
+        .skeleton {
+            background: linear-gradient(90deg, var(--bg-secondary) 25%, var(--bg-tertiary) 50%, var(--bg-secondary) 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 8px;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+    </style>
+</head>
+<body>
+    <!-- App Header -->
+    <header class="app-header">
+        <div class="header-left">
+            <a href="/" class="logo">
+                <div class="logo-icon">🚀</div>
+                <span style="color: var(--accent);">AURA</span><span style="color: var(--text-primary);">GO</span>
+                <span style="font-weight:300;opacity:0.5;margin-left:0.3rem;" class="logo-subtitle">MISSIONS</span>
+            </a>
+        </div>
+        <div class="header-actions">
+            <button id="theme-toggle" class="btn-theme" title="Toggle theme"></button>
+        </div>
+    </header>
+
+    <!-- Radial Navigation Menu -->
+    <nav class="radial-menu" id="radialMenu">
+        <button class="radial-trigger" id="radialTrigger" aria-label="Navigation">
+            <div class="radial-icon"><span></span><span></span><span></span></div>
+        </button>
+        <div class="radial-items">
+            <a href="/" class="radial-item"><span class="radial-item-label">Chat</span><span class="radial-item-icon">💬</span></a>
+            <a href="/dashboard" class="radial-item"><span class="radial-item-label">Dashboard</span><span class="radial-item-icon">📊</span></a>
+            <a href="/missions" class="radial-item active"><span class="radial-item-label">Missions</span><span class="radial-item-icon">🚀</span></a>
+            <a href="/config" class="radial-item"><span class="radial-item-label">Config</span><span class="radial-item-icon">⚙️</span></a>
+            <a href="/invasion" class="radial-item"><span class="radial-item-label">Invasion</span><span class="radial-item-icon">🥚</span></a>
+            <a id="radialLogout" href="/auth/logout" class="radial-item" style="display:none;"><span class="radial-item-label">Logout</span><span class="radial-item-icon">🔓</span></a>
+        </div>
+    </nav>
+    <div class="radial-backdrop" id="radialBackdrop"></div>
+
+    <div class="container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1>🎯 Mission Control</h1>
+            <button class="btn btn-primary" onclick="openMissionModal()">
+                <span>+</span> Neue Mission
+            </button>
+        </div>
+
+        <!-- Status Bar -->
+        <div class="status-bar">
+            <div class="status-card" id="status-total">
+                <div class="status-label">Gesamt</div>
+                <div class="status-value">-</div>
+            </div>
+            <div class="status-card" id="status-running">
+                <div class="status-label">Läuft</div>
+                <div class="status-value">-</div>
+            </div>
+            <div class="status-card" id="status-queued">
+                <div class="status-label">Warteschlange</div>
+                <div class="status-value">-</div>
+            </div>
+            <div class="status-card" id="status-triggered">
+                <div class="status-label">Ausgelöst</div>
+                <div class="status-value">-</div>
+            </div>
+        </div>
+
+        <!-- Queue Section -->
+        <div class="queue-section" id="queue-section" style="display: none;">
+            <div class="queue-header">
+                <h3>📋 Ausführungswarteschlange</h3>
+                <span class="badge badge-running">Serielle Abarbeitung</span>
+            </div>
+            <div class="queue-items" id="queue-items"></div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab active" onclick="filterMissions('all')">Alle</button>
+            <button class="tab" onclick="filterMissions('manual')">Manuell</button>
+            <button class="tab" onclick="filterMissions('scheduled')">Geplant</button>
+            <button class="tab" onclick="filterMissions('triggered')">Ausgelöst</button>
+        </div>
+
+        <!-- Missions Grid -->
+        <div class="missions-grid" id="missions-grid">
+            <div class="mission-card skeleton" style="height: 120px;"></div>
+            <div class="mission-card skeleton" style="height: 120px;"></div>
+            <div class="mission-card skeleton" style="height: 120px;"></div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="modal-title">Neue Mission</h2>
+                <button class="modal-close" onclick="closeModal('modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="mission-form" onsubmit="return false;">
+                    <input type="hidden" id="mission-id">
+                    
+                    <div class="form-group">
+                        <label>Name</label>
+                        <input type="text" id="mission-name" placeholder="z.B. Täglicher Bericht" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Prompt / Aufgabe</label>
+                        <textarea class="form-textarea" id="mission-prompt" placeholder="Beschreibe die Aufgabe für den Agenten..." required></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Priorität</label>
+                        <select id="mission-priority">
+                            <option value="low">🟢 Niedrig</option>
+                            <option value="medium" selected>🟡 Mittel</option>
+                            <option value="high">🔴 Hoch</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Ausführungstyp</label>
+                        <div class="exec-type-selector">
+                            <label class="exec-type-option" onclick="selectExecType('manual')">
+                                <input type="radio" name="exec-type" value="manual" checked>
+                                <span class="exec-icon">👆</span>
+                                <span class="exec-label">Manuell</span>
+                                <span class="exec-desc">On-Demand Ausführung</span>
+                            </label>
+                            <label class="exec-type-option" onclick="selectExecType('scheduled')">
+                                <input type="radio" name="exec-type" value="scheduled">
+                                <span class="exec-icon">📅</span>
+                                <span class="exec-label">Geplant</span>
+                                <span class="exec-desc">Cron-Schedule</span>
+                            </label>
+                            <label class="exec-type-option" onclick="selectExecType('triggered')">
+                                <input type="radio" name="exec-type" value="triggered">
+                                <span class="exec-icon">⚡</span>
+                                <span class="exec-label">Ausgelöst</span>
+                                <span class="exec-desc">Event-basiert</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Scheduled Config -->
+                    <div id="config-scheduled" class="trigger-config" style="display: none;">
+                        <div class="form-group">
+                            <label>Cron-Ausdruck</label>
+                            <input type="text" id="cron-schedule" placeholder="0 9 * * * (täglich um 9:00)">
+                            <div class="form-hint">Format: Minute Stunde Tag Monat Wochentag</div>
+                        </div>
+                    </div>
+
+                    <!-- Triggered Config -->
+                    <div id="config-triggered" class="trigger-config" style="display: none;">
+                        <div class="trigger-type-selector">
+                            <button type="button" class="trigger-type-btn" data-trigger="mission_completed" onclick="selectTriggerType('mission_completed')">
+                                ✅ Mission abgeschlossen
+                            </button>
+                            <button type="button" class="trigger-type-btn" data-trigger="email_received" onclick="selectTriggerType('email_received')">
+                                📧 Email empfangen
+                            </button>
+                            <button type="button" class="trigger-type-btn" data-trigger="webhook" onclick="selectTriggerType('webhook')">
+                                🪝 Webhook
+                            </button>
+                            <button type="button" class="trigger-type-btn" data-trigger="egg_hatched" onclick="selectTriggerType('egg_hatched')">
+                                🥚 Ei geschlüpft
+                            </button>
+                            <button type="button" class="trigger-type-btn" data-trigger="nest_cleared" onclick="selectTriggerType('nest_cleared')">
+                                🪺 Nest geräumt
+                            </button>
+                            <button type="button" class="trigger-type-btn" data-trigger="mqtt_message" onclick="selectTriggerType('mqtt_message')">
+                                📡 MQTT Nachricht
+                            </button>
+                        </div>
+
+                        <!-- Mission Completed Trigger -->
+                        <div id="trigger-mission_completed" class="trigger-fields">
+                            <div class="form-group">
+                                <label>Quell-Mission</label>
+                                <div class="mission-selector" id="mission-selector"></div>
+                            </div>
+                            <div class="form-group">
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="require-success">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                                <span style="margin-left: 12px; font-size: 0.9rem;">Nur bei erfolgreicher Ausführung auslösen</span>
+                            </div>
+                        </div>
+
+                        <!-- Email Trigger -->
+                        <div id="trigger-email_received" class="trigger-fields">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Ordner</label>
+                                    <select id="email-folder">
+                                        <option value="INBOX">Posteingang</option>
+                                        <option value="Sent">Gesendet</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Betreff enthält (optional)</label>
+                                    <input type="text" id="email-subject" placeholder="z.B. 'Auftrag'">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Absender enthält (optional)</label>
+                                <input type="text" id="email-from" placeholder="z.B. '@company.com'">
+                            </div>
+                        </div>
+
+                        <!-- Webhook Trigger -->
+                        <div id="trigger-webhook" class="trigger-fields">
+                            <div class="form-group">
+                                <label>Webhook</label>
+                                <select id="webhook-select">
+                                    <option value="">Lade Webhooks...</option>
+                                </select>
+                                <div class="form-hint">Der Webhook muss im Webhook-Manager erstellt werden</div>
+                            </div>
+                        </div>
+
+                        <!-- Egg Hatched Trigger -->
+                        <div id="trigger-egg_hatched" class="trigger-fields">
+                            <div class="form-hint" style="margin-bottom: 12px;">Wird ausgelöst, wenn ein Ei erfolgreich auf einem Nest installiert wurde.</div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Ei (leer = beliebiges Ei)</label>
+                                    <select id="egg-hatched-egg-select">
+                                        <option value="">Beliebiges Ei</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Nest (leer = beliebiges Nest)</label>
+                                    <select id="egg-hatched-nest-select">
+                                        <option value="">Beliebiges Nest</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Nest Cleared Trigger -->
+                        <div id="trigger-nest_cleared" class="trigger-fields">
+                            <div class="form-hint" style="margin-bottom: 12px;">Wird ausgelöst, wenn ein temporäres Nest entfernt wird.</div>
+                            <div class="form-group">
+                                <label>Nest (leer = beliebiges Nest)</label>
+                                <select id="nest-cleared-nest-select">
+                                    <option value="">Beliebiges Nest</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- MQTT Message Trigger -->
+                        <div id="trigger-mqtt_message" class="trigger-fields">
+                            <div class="form-hint" style="margin-bottom: 12px;">Wird ausgelöst, wenn eine MQTT-Nachricht auf dem konfigurierten Topic eingeht.</div>
+                            <div class="form-group">
+                                <label>Topic-Filter *</label>
+                                <input type="text" id="mqtt-topic" placeholder="z.B. home/sensors/# oder devices/+/status">
+                                <div class="form-hint">Unterstützt MQTT-Wildcards: + (eine Ebene), # (alle Ebenen)</div>
+                            </div>
+                            <div class="form-group">
+                                <label>Payload enthält (optional)</label>
+                                <input type="text" id="mqtt-payload-contains" placeholder="z.B. 'alarm' oder '{&quot;state&quot;:&quot;on&quot;}'">
+                                <div class="form-hint">Nur auslösen, wenn der Nachrichteninhalt diesen Text enthält</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group" style="display: flex; align-items: center; gap: 12px; margin-top: 24px;">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="mission-locked">
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <div>
+                            <div style="font-weight: 500;">Mission sperren</div>
+                            <div class="form-hint">Verhindert Löschung der Mission</div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('modal')">Abbrechen</button>
+                <button type="button" class="btn btn-primary" onclick="saveMission()">Speichern</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State
+        let missions = [];
+        let queue = { items: [], running: '' };
+        let webhooks = [];
+        let currentFilter = 'all';
+        let editingId = null;
+        let initialLoad = false; // Track if first load completed
+
+        // Icons
+        const icons = {
+            play: '▶️',
+            pause: '⏸️',
+            stop: '⏹️',
+            edit: '✏️',
+            delete: '🗑️',
+            lock: '🔒',
+            unlock: '🔓',
+            manual: '👆',
+            scheduled: '📅',
+            triggered: '⚡',
+            running: '🔄',
+            queued: '⏳',
+            waiting: '⏸️',
+            success: '✅',
+            error: '❌'
+        };
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadData();
+            setInterval(loadData, 2000); // Refresh every 2 seconds
+        });
+
+        // Show loading skeleton
+        function showLoading() {
+            const container = document.getElementById('missions-grid');
+            container.innerHTML = `
+                <div class="mission-card skeleton" style="height: 120px;"></div>
+                <div class="mission-card skeleton" style="height: 120px;"></div>
+                <div class="mission-card skeleton" style="height: 120px;"></div>
+            `;
+        }
+
+        // Load data from API
+        async function loadData() {
+            try {
+                if (!initialLoad) {
+                    showLoading();
+                }
+                const response = await fetch('/api/missions/v2');
+                const data = await response.json();
+                missions = data.missions || [];
+                queue = data.queue || { items: [], running: '' };
+                initialLoad = true;
+                render();
+            } catch (err) {
+                console.error('Failed to load missions:', err);
+                if (!initialLoad) {
+                    // Show error state on initial load failure
+                    document.getElementById('missions-grid').innerHTML = `
+                        <div class="empty-state">
+                            <div class="icon">⚠️</div>
+                            <p>Fehler beim Laden der Missionen</p>
+                        </div>
+                    `;
+                }
+            }
+        }
+
+        // Render everything
+        function render() {
+            renderStatusBar();
+            renderQueue();
+            renderMissions();
+        }
+
+        // Status Bar
+        function renderStatusBar() {
+            const total = missions.length;
+            const running = missions.filter(m => m.status === 'running').length;
+            const queued = queue.items.length;
+            const triggered = missions.filter(m => m.execution_type === 'triggered').length;
+
+            document.querySelector('#status-total .status-value').textContent = total;
+            document.querySelector('#status-running .status-value').textContent = running;
+            document.querySelector('#status-queued .status-value').textContent = queued;
+            document.querySelector('#status-triggered .status-value').textContent = triggered;
+
+            // Highlight running card
+            const runningCard = document.getElementById('status-running');
+            if (running > 0) {
+                runningCard.classList.add('running');
+            } else {
+                runningCard.classList.remove('running');
+            }
+        }
+
+        // Queue
+        function renderQueue() {
+            const section = document.getElementById('queue-section');
+            const container = document.getElementById('queue-items');
+
+            if (queue.items.length === 0 && !queue.running) {
+                section.style.display = 'none';
+                return;
+            }
+
+            section.style.display = 'block';
+            let html = '';
+
+            // Show running mission first
+            if (queue.running) {
+                const runningMission = missions.find(m => m.id === queue.running);
+                if (runningMission) {
+                    html += `
+                        <div class="queue-item priority-${runningMission.priority}" style="border-left-color: var(--accent-primary);">
+                            <div class="queue-position">${icons.running}</div>
+                            <div class="queue-info">
+                                <div class="queue-name">${escapeHtml(runningMission.name)}</div>
+                                <div class="queue-meta">Läuft gerade... | Priorität: ${runningMission.priority}</div>
+                            </div>
+                            <span class="queue-trigger" style="background: var(--accent-primary);">AKTIV</span>
+                        </div>
+                    `;
+                }
+            }
+
+            // Show queued items
+            queue.items.forEach((item, index) => {
+                const mission = missions.find(m => m.id === item.mission_id);
+                if (!mission) return;
+
+                const priorityClass = item.priority === 3 ? 'high' : item.priority === 2 ? 'medium' : 'low';
+                const triggerLabel = item.trigger_type ? `[${item.trigger_type}]` : '';
+
+                html += `
+                    <div class="queue-item priority-${priorityClass}">
+                        <div class="queue-position">${index + 1}</div>
+                        <div class="queue-info">
+                            <div class="queue-name">${escapeHtml(mission.name)}</div>
+                            <div class="queue-meta">Wartet seit ${formatTime(item.enqueued_at)} | Priorität: ${mission.priority}</div>
+                        </div>
+                        ${triggerLabel ? `<span class="queue-trigger">${triggerLabel}</span>` : ''}
+                        <button class="icon-btn" onclick="removeFromQueue('${mission.id}')" title="Aus Warteschlange entfernen">
+                            ${icons.stop}
+                        </button>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        // Missions Grid
+        function renderMissions() {
+            const container = document.getElementById('missions-grid');
+
+            let filtered = missions;
+            if (currentFilter !== 'all') {
+                filtered = missions.filter(m => m.execution_type === currentFilter);
+            }
+
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">🚀</div>
+                        <p>${currentFilter === 'all' ? 'Erstelle deine erste Mission, um loszulegen' : 'Keine Missionen dieses Typs vorhanden'}</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = filtered.map(mission => {
+                const isRunning = mission.id === queue.running;
+                const isQueued = queue.items.some(i => i.mission_id === mission.id);
+                const statusClass = isRunning ? 'running' : isQueued ? 'queued' : mission.status === 'waiting' ? 'waiting' : '';
+
+                const priorityBadge = `<span class="badge badge-priority-${mission.priority}">${mission.priority}</span>`;
+                const typeBadge = `<span class="badge badge-type-${mission.execution_type}">${mission.execution_type}</span>`;
+                const statusBadge = isRunning ? `<span class="badge badge-running">läuft</span>` : '';
+
+                let triggerInfo = '';
+                if (mission.execution_type === 'triggered' && mission.trigger_config) {
+                    triggerInfo = renderTriggerInfo(mission);
+                }
+
+                const lastRun = mission.last_run ? formatTime(mission.last_run) : 'Nie';
+                const resultIcon = mission.last_result === 'success' ? icons.success : mission.last_result === 'error' ? icons.error : '';
+
+                return `
+                    <div class="mission-card ${statusClass}">
+                        <div class="mission-header">
+                            <div class="mission-title">
+                                <span class="mission-name">${escapeHtml(mission.name)}</span>
+                                ${mission.locked ? `<span class="mission-locked" title="Gesperrt">${icons.lock}</span>` : ''}
+                            </div>
+                            <div class="mission-badges">
+                                ${priorityBadge}
+                                ${typeBadge}
+                                ${statusBadge}
+                            </div>
+                        </div>
+                        <div class="mission-body">
+                            <div class="mission-prompt">${escapeHtml(mission.prompt)}</div>
+                            ${triggerInfo}
+                        </div>
+                        <div class="mission-footer">
+                            <div class="mission-stats">
+                                <span>${resultIcon} ${lastRun}</span>
+                                <span>📊 ${mission.run_count}x ausgeführt</span>
+                            </div>
+                            <div class="mission-actions">
+                                <button class="icon-btn" onclick="runMission('${mission.id}')" title="Jetzt ausführen" ${isRunning ? 'disabled' : ''}>
+                                    ${icons.play}
+                                </button>
+                                <button class="icon-btn" onclick="editMission('${mission.id}')" title="Bearbeiten">
+                                    ${icons.edit}
+                                </button>
+                                <button class="icon-btn" onclick="deleteMission('${mission.id}')" title="Löschen" ${mission.locked ? 'disabled' : ''}>
+                                    ${icons.delete}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderTriggerInfo(mission) {
+            const cfg = mission.trigger_config;
+            let triggerText = '';
+
+            switch (mission.trigger_type) {
+                case 'mission_completed':
+                    const sourceName = cfg.source_mission_name || cfg.source_mission_id || 'Unbekannte Mission';
+                    const successText = cfg.require_success ? ' (nur bei Erfolg)' : '';
+                    triggerText = `Wenn "${escapeHtml(sourceName)}" abgeschlossen${successText}`;
+                    break;
+                case 'email_received':
+                    const filters = [];
+                    if (cfg.email_folder) filters.push(`Ordner: ${cfg.email_folder}`);
+                    if (cfg.email_subject_contains) filters.push(`Betreff: "${cfg.email_subject_contains}"`);
+                    if (cfg.email_from_contains) filters.push(`Von: "${cfg.email_from_contains}"`);
+                    triggerText = filters.length > 0 ? filters.join(' | ') : 'Bei jeder Email';
+                    break;
+                case 'webhook':
+                    triggerText = `Webhook: ${cfg.webhook_slug || cfg.webhook_id || 'Unbekannt'}`;
+                    break;
+                case 'egg_hatched':
+                    const eggLabel = cfg.egg_name || cfg.egg_id ? `Ei: ${cfg.egg_name || cfg.egg_id}` : 'Beliebiges Ei';
+                    const nestEggLabel = cfg.nest_name || cfg.nest_id ? `, Nest: ${cfg.nest_name || cfg.nest_id}` : '';
+                    triggerText = `🥚 ${eggLabel}${nestEggLabel}`;
+                    break;
+                case 'nest_cleared':
+                    triggerText = `🪺 ${cfg.nest_name || cfg.nest_id ? `Nest: ${cfg.nest_name || cfg.nest_id}` : 'Beliebiges Nest'}`;
+                    break;
+                case 'mqtt_message':
+                    const mqttParts = [`Topic: ${cfg.mqtt_topic || '#'}`];
+                    if (cfg.mqtt_payload_contains) mqttParts.push(`Payload enthält: "${cfg.mqtt_payload_contains}"`);
+                    triggerText = `📡 ${mqttParts.join(' | ')}`;
+                    break;
+            }
+
+            return `
+                <div class="mission-trigger">
+                    <div class="trigger-label">⚡ Auslöser</div>
+                    <div class="trigger-value">${triggerText}</div>
+                </div>
+            `;
+        }
+
+        // Filter tabs
+        function filterMissions(type) {
+            currentFilter = type;
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+                if (tab.textContent.toLowerCase().includes(type === 'all' ? 'alle' : 
+                    type === 'manual' ? 'manuell' : 
+                    type === 'scheduled' ? 'geplant' : 'ausgelöst')) {
+                    tab.classList.add('active');
+                }
+            });
+            renderMissions();
+        }
+
+        // Modal
+        function openMissionModal(missionId = null) {
+            editingId = missionId;
+            document.getElementById('modal-title').textContent = missionId ? 'Mission bearbeiten' : 'Neue Mission';
+            
+            if (missionId) {
+                const mission = missions.find(m => m.id === missionId);
+                if (mission) {
+                    document.getElementById('mission-id').value = mission.id;
+                    document.getElementById('mission-name').value = mission.name;
+                    document.getElementById('mission-prompt').value = mission.prompt;
+                    document.getElementById('mission-priority').value = mission.priority;
+                    document.getElementById('mission-locked').checked = mission.locked;
+                    
+                    selectExecType(mission.execution_type);
+                    
+                    if (mission.execution_type === 'scheduled') {
+                        document.getElementById('cron-schedule').value = mission.schedule || '';
+                    } else if (mission.execution_type === 'triggered') {
+                        selectTriggerType(mission.trigger_type);
+                        fillTriggerConfig(mission.trigger_config, mission.trigger_type);
+                    }
+                }
+            } else {
+                document.getElementById('mission-form').reset();
+                document.getElementById('mission-id').value = '';
+                selectExecType('manual');
+            }
+
+            // Load mission selector for triggers
+            loadMissionSelector();
+            // Load webhooks
+            loadWebhooks();
+            // Load invasion eggs/nests for triggers
+            loadInvasionData();
+
+            openModal('modal');
+        }
+
+        // Execution Type Selection
+        function selectExecType(type) {
+            document.querySelectorAll('.exec-type-option').forEach(opt => {
+                opt.classList.remove('selected');
+                if (opt.querySelector('input').value === type) {
+                    opt.classList.add('selected');
+                    opt.querySelector('input').checked = true;
+                }
+            });
+
+            document.getElementById('config-scheduled').style.display = type === 'scheduled' ? 'block' : 'none';
+            document.getElementById('config-triggered').style.display = type === 'triggered' ? 'block' : 'none';
+        }
+
+        // Trigger Type Selection
+        function selectTriggerType(type) {
+            document.querySelectorAll('.trigger-type-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.trigger === type) {
+                    btn.classList.add('active');
+                }
+            });
+
+            document.querySelectorAll('.trigger-fields').forEach(field => {
+                field.classList.remove('active');
+            });
+
+            const fieldId = 'trigger-' + type;
+            const field = document.getElementById(fieldId);
+            if (field) {
+                field.classList.add('active');
+            }
+        }
+
+        // Load mission selector
+        function loadMissionSelector() {
+            const container = document.getElementById('mission-selector');
+            const manualMissions = missions.filter(m => m.execution_type === 'manual' || m.execution_type === 'scheduled');
+            
+            if (manualMissions.length === 0) {
+                container.innerHTML = '<div style="padding: 12px; color: var(--text-secondary);">Keine geeigneten Missionen verfügbar</div>';
+                return;
+            }
+
+            container.innerHTML = manualMissions.map(m => `
+                <label class="mission-option">
+                    <input type="radio" name="source-mission" value="${m.id}" data-name="${escapeHtml(m.name)}">
+                    <div class="mission-option-info">
+                        <div class="mission-option-name">${escapeHtml(m.name)}</div>
+                        <div class="mission-option-meta">${m.execution_type} • ${m.priority} • ${m.run_count}x ausgeführt</div>
+                    </div>
+                </label>
+            `).join('');
+        }
+
+        // Load webhooks
+        async function loadWebhooks() {
+            try {
+                const response = await fetch('/api/webhooks');
+                webhooks = await response.json();
+                
+                const select = document.getElementById('webhook-select');
+                select.innerHTML = webhooks.length === 0 
+                    ? '<option value="">Keine Webhooks verfügbar</option>'
+                    : webhooks.map(w => `<option value="${w.id}" data-slug="${w.slug}">${escapeHtml(w.name)} (${w.slug})</option>`).join('');
+            } catch (err) {
+                console.error('Failed to load webhooks:', err);
+            }
+        }
+
+        // Load invasion eggs and nests for trigger selectors
+        async function loadInvasionData() {
+            try {
+                const [eggsResp, nestsResp] = await Promise.all([
+                    fetch('/api/invasion/eggs'),
+                    fetch('/api/invasion/nests')
+                ]);
+                if (!eggsResp.ok || !nestsResp.ok) return;
+                const eggs = await eggsResp.json();
+                const nests = await nestsResp.json();
+
+                const eggOptions = '<option value="">Beliebiges Ei</option>' +
+                    (eggs.eggs || eggs || []).map(e => `<option value="${e.id}" data-name="${escapeHtml(e.name)}">${escapeHtml(e.name)}</option>`).join('');
+                const nestOptions = '<option value="">Beliebiges Nest</option>' +
+                    (nests.nests || nests || []).map(n => `<option value="${n.id}" data-name="${escapeHtml(n.name)}">${escapeHtml(n.name)}</option>`).join('');
+
+                document.getElementById('egg-hatched-egg-select').innerHTML = eggOptions;
+                document.getElementById('egg-hatched-nest-select').innerHTML = nestOptions;
+                document.getElementById('nest-cleared-nest-select').innerHTML = nestOptions;
+            } catch (err) {
+                // Invasion not enabled — selectors stay with default "Beliebiges" option
+            }
+        }
+
+        // Fill trigger config when editing
+        function fillTriggerConfig(cfg, type) {
+            if (!cfg) return;
+
+            switch (type) {
+                case 'mission_completed':
+                    if (cfg.source_mission_id) {
+                        const radio = document.querySelector(`input[name="source-mission"][value="${cfg.source_mission_id}"]`);
+                        if (radio) {
+                            radio.checked = true;
+                            radio.closest('.mission-option').classList.add('selected');
+                        }
+                    }
+                    document.getElementById('require-success').checked = cfg.require_success || false;
+                    break;
+                case 'email_received':
+                    document.getElementById('email-folder').value = cfg.email_folder || 'INBOX';
+                    document.getElementById('email-subject').value = cfg.email_subject_contains || '';
+                    document.getElementById('email-from').value = cfg.email_from_contains || '';
+                    break;
+                case 'webhook':
+                    document.getElementById('webhook-select').value = cfg.webhook_id || '';
+                    break;
+                case 'egg_hatched':
+                    document.getElementById('egg-hatched-egg-select').value = cfg.egg_id || '';
+                    document.getElementById('egg-hatched-nest-select').value = cfg.nest_id || '';
+                    break;
+                case 'nest_cleared':
+                    document.getElementById('nest-cleared-nest-select').value = cfg.nest_id || '';
+                    break;
+                case 'mqtt_message':
+                    document.getElementById('mqtt-topic').value = cfg.mqtt_topic || '';
+                    document.getElementById('mqtt-payload-contains').value = cfg.mqtt_payload_contains || '';
+                    break;
+            }
+        }
+
+        // Save mission
+        async function saveMission() {
+            const name = document.getElementById('mission-name').value.trim();
+            const prompt = document.getElementById('mission-prompt').value.trim();
+            
+            if (!name || !prompt) {
+                showToast('Name und Prompt sind erforderlich', 'error');
+                return;
+            }
+
+            const checkedRadio = document.querySelector('input[name="exec-type"]:checked');
+            if (!checkedRadio) {
+                showToast('Bitte Ausführungstyp wählen', 'error');
+                return;
+            }
+            const execType = checkedRadio.value;
+            const mission = {
+                name,
+                prompt,
+                priority: document.getElementById('mission-priority').value,
+                execution_type: execType,
+                enabled: true,
+                locked: document.getElementById('mission-locked').checked
+            };
+
+            // Add execution-specific config
+            if (execType === 'scheduled') {
+                mission.schedule = document.getElementById('cron-schedule').value;
+            } else if (execType === 'triggered') {
+                const triggerType = document.querySelector('.trigger-type-btn.active')?.dataset.trigger;
+                if (!triggerType) {
+                    showToast('Bitte wähle einen Auslösertyp', 'error');
+                    return;
+                }
+                mission.trigger_type = triggerType;
+                mission.trigger_config = buildTriggerConfig(triggerType);
+            }
+
+            try {
+                const url = editingId ? `/api/missions/v2/${editingId}` : '/api/missions/v2';
+                const method = editingId ? 'PUT' : 'POST';
+                
+                const response = await fetch(url, {
+                    method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(mission)
+                });
+
+                if (!response.ok) {
+                    throw new Error(await response.text());
+                }
+
+                showToast(editingId ? 'Mission aktualisiert' : 'Mission erstellt', 'success');
+                closeModal('modal');
+                loadData();
+            } catch (err) {
+                showToast('Fehler: ' + err.message, 'error');
+            }
+        }
+
+        function buildTriggerConfig(type) {
+            const config = {};
+            
+            switch (type) {
+                case 'mission_completed':
+                    const selectedMission = document.querySelector('input[name="source-mission"]:checked');
+                    if (selectedMission) {
+                        config.source_mission_id = selectedMission.value;
+                        config.source_mission_name = selectedMission.dataset.name;
+                    }
+                    config.require_success = document.getElementById('require-success').checked;
+                    break;
+                case 'email_received':
+                    config.email_folder = document.getElementById('email-folder').value;
+                    config.email_subject_contains = document.getElementById('email-subject').value;
+                    config.email_from_contains = document.getElementById('email-from').value;
+                    break;
+                case 'webhook': {
+                    const webhookSelect = document.getElementById('webhook-select');
+                    config.webhook_id = webhookSelect.value;
+                    config.webhook_slug = webhookSelect.options[webhookSelect.selectedIndex]?.dataset?.slug || '';
+                    break;
+                }
+                case 'egg_hatched': {
+                    const eggSel = document.getElementById('egg-hatched-egg-select');
+                    const nestSel = document.getElementById('egg-hatched-nest-select');
+                    config.egg_id = eggSel.value;
+                    config.egg_name = eggSel.options[eggSel.selectedIndex]?.dataset?.name || '';
+                    config.nest_id = nestSel.value;
+                    config.nest_name = nestSel.options[nestSel.selectedIndex]?.dataset?.name || '';
+                    break;
+                }
+                case 'nest_cleared': {
+                    const nestSel = document.getElementById('nest-cleared-nest-select');
+                    config.nest_id = nestSel.value;
+                    config.nest_name = nestSel.options[nestSel.selectedIndex]?.dataset?.name || '';
+                    break;
+                }
+                case 'mqtt_message': {
+                    config.mqtt_topic = document.getElementById('mqtt-topic').value.trim();
+                    config.mqtt_payload_contains = document.getElementById('mqtt-payload-contains').value.trim();
+                    break;
+                }
+            }
+            
+            return config;
+        }
+
+        // Actions
+        async function runMission(id) {
+            try {
+                const response = await fetch(`/api/missions/v2/${id}/run`, { method: 'POST' });
+                if (!response.ok) throw new Error(await response.text());
+                showToast('Mission in Warteschlange', 'success');
+                loadData();
+            } catch (err) {
+                showToast('Fehler: ' + err.message, 'error');
+            }
+        }
+
+        async function removeFromQueue(id) {
+            try {
+                const response = await fetch(`/api/missions/v2/${id}/queue`, { method: 'DELETE' });
+                if (!response.ok) throw new Error(await response.text());
+                showToast('Aus Warteschlange entfernt', 'success');
+                loadData();
+            } catch (err) {
+                showToast('Fehler: ' + err.message, 'error');
+            }
+        }
+
+        function editMission(id) {
+            openMissionModal(id);
+        }
+
+        async function deleteMission(id) {
+            const mission = missions.find(m => m.id === id);
+            if (!mission) return;
+
+            if (!confirm(`Mission "${mission.name}" wirklich löschen?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/missions/v2/${id}`, { method: 'DELETE' });
+                if (!response.ok) throw new Error(await response.text());
+                showToast('Mission gelöscht', 'success');
+                loadData();
+            } catch (err) {
+                showToast('Fehler: ' + err.message, 'error');
+            }
+        }
+
+        // Helpers
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function formatTime(isoString) {
+            if (!isoString) return 'Nie';
+            const date = new Date(isoString);
+            const now = new Date();
+            const diff = now - date;
+            
+            const minutes = Math.floor(diff / 60000);
+            const hours = Math.floor(diff / 3600000);
+            const days = Math.floor(diff / 86400000);
+
+            if (minutes < 1) return 'Gerade eben';
+            if (minutes < 60) return `Vor ${minutes} Min`;
+            if (hours < 24) return `Vor ${hours} Std`;
+            if (days < 7) return `Vor ${days} Tagen`;
+            return date.toLocaleDateString('de-DE');
+        }
+    </script>
+</body>
+</html>

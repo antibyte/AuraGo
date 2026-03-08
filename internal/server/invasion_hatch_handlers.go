@@ -1,0 +1,492 @@
+package server
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+
+	"aurago/internal/invasion"
+	"aurago/internal/invasion/bridge"
+
+	"github.com/gorilla/websocket"
+)
+
+// ── Hatch (deploy) an egg to a nest ─────────────────────────────────────────
+
+func handleInvasionNestHatch(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if s.InvasionDB == nil || r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		id := extractNestSubID(r.URL.Path, "hatch")
+		if id == "" {
+			jsonError(w, "Missing nest ID", http.StatusBadRequest)
+			return
+		}
+
+		nest, err := invasion.GetNest(s.InvasionDB, id)
+		if err != nil {
+			jsonError(w, "Nest not found: "+err.Error(), http.StatusNotFound)
+			return
+		}
+		if !nest.Active {
+			jsonError(w, "Nest is inactive", http.StatusBadRequest)
+			return
+		}
+		if nest.EggID == "" {
+			jsonError(w, "No egg assigned to this nest", http.StatusBadRequest)
+			return
+		}
+		if nest.HatchStatus == "hatching" {
+			jsonError(w, "Hatch already in progress", http.StatusConflict)
+			return
+		}
+
+		egg, err := invasion.GetEgg(s.InvasionDB, nest.EggID)
+		if err != nil {
+			jsonError(w, "Assigned egg not found: "+err.Error(), http.StatusNotFound)
+			return
+		}
+
+		// Mark hatching status
+		_ = invasion.UpdateNestHatchStatus(s.InvasionDB, id, "hatching", "")
+
+		// Run deployment in background
+		go func() {
+			if err := s.deployEgg(nest, egg); err != nil {
+				s.Logger.Error("Egg deployment failed", "nest_id", id, "error", err)
+				_ = invasion.UpdateNestHatchStatus(s.InvasionDB, id, "failed", err.Error())
+			} else {
+				s.Logger.Info("Egg deployed successfully", "nest_id", id, "egg_id", egg.ID)
+				_ = invasion.UpdateNestHatchStatus(s.InvasionDB, id, "running", "")
+				// Fire mission trigger: egg hatched
+				if s.MissionManagerV2 != nil {
+					s.MissionManagerV2.NotifyInvasionEvent("egg_hatched", id, nest.Name, egg.ID, egg.Name)
+				}
+			}
+		}()
+
+		writeJSON(w, map[string]interface{}{
+			"status":  "hatching",
+			"nest_id": id,
+			"egg_id":  egg.ID,
+		})
+	}
+}
+
+// deployEgg performs the actual deployment of an egg to a nest.
+func (s *Server) deployEgg(nest invasion.NestRecord, egg invasion.EggRecord) error {
+	// 1. Generate shared key for master↔egg HMAC
+	sharedKey, err := invasion.GenerateSharedKey()
+	if err != nil {
+		return fmt.Errorf("failed to generate shared key: %w", err)
+	}
+
+	// 2. Resolve the master URL the egg should connect to
+	masterURL := invasion.ResolveMasterURL(s.Cfg, nest)
+
+	// 3. Optionally export vault
+	var vaultData []byte
+	var eggMasterKey string
+	if egg.IncludeVault {
+		vaultData, eggMasterKey, err = invasion.ExportVaultForEgg(s.Vault)
+		if err != nil {
+			return fmt.Errorf("failed to export vault: %w", err)
+		}
+	} else {
+		// Generate a fresh master key for the egg anyway (needed for vault init)
+		eggMasterKey, err = invasion.GenerateSharedKey()
+		if err != nil {
+			return fmt.Errorf("failed to generate egg master key: %w", err)
+		}
+	}
+
+	// 4. Generate egg config.yaml
+	cfgYAML, err := invasion.GenerateEggConfig(s.Cfg, egg, nest, sharedKey, masterURL, eggMasterKey)
+	if err != nil {
+		return fmt.Errorf("failed to generate egg config: %w", err)
+	}
+
+	// 5. Resolve binary path for target architecture
+	binaryPath, err := resolveBinaryPath(nest.TargetArch)
+	if err != nil {
+		return fmt.Errorf("failed to resolve binary: %w", err)
+	}
+
+	// 6. Resolve resources.dat path
+	exePath, _ := os.Executable()
+	installDir := filepath.Dir(exePath)
+	resourcesPath := filepath.Join(installDir, "resources.dat")
+	if _, err := os.Stat(resourcesPath); os.IsNotExist(err) {
+		resourcesPath = "" // no resources to transfer
+	}
+
+	// 7. Get nest secret from vault
+	var secretBytes []byte
+	if nest.VaultSecretID != "" {
+		secretStr, err := s.Vault.ReadSecret(nest.VaultSecretID)
+		if err != nil {
+			return fmt.Errorf("failed to read nest secret: %w", err)
+		}
+		secretBytes = []byte(secretStr)
+	}
+
+	// 8. Build deployment payload
+	payload := invasion.EggDeployPayload{
+		BinaryPath:   binaryPath,
+		ConfigYAML:   cfgYAML,
+		ResourcesPkg: resourcesPath,
+		SharedKey:    sharedKey,
+		Permanent:    egg.Permanent,
+		IncludeVault: egg.IncludeVault,
+		VaultData:    vaultData,
+		MasterKey:    eggMasterKey,
+	}
+
+	// 9. Get connector and deploy
+	connector := invasion.GetConnector(nest)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+
+	if err := connector.Deploy(ctx, nest, secretBytes, payload); err != nil {
+		return err
+	}
+
+	// 10. Store shared key in vault for WebSocket auth
+	if err := s.Vault.WriteSecret("egg_shared_"+nest.ID, sharedKey); err != nil {
+		s.Logger.Warn("Failed to store egg shared key in vault", "nest_id", nest.ID, "error", err)
+	}
+
+	return nil
+}
+
+// resolveBinaryPath finds the correct AuraGo binary for the target architecture.
+func resolveBinaryPath(targetArch string) (string, error) {
+	exePath, _ := os.Executable()
+	installDir := filepath.Dir(exePath)
+
+	// Map target architectures to binary names
+	binaryMap := map[string][]string{
+		"linux/amd64": {"deploy/aurago_linux", "bin/aurago_linux"},
+		"linux/arm64": {"deploy/aurago_linux_arm64"},
+	}
+
+	candidates, ok := binaryMap[targetArch]
+	if !ok {
+		return "", fmt.Errorf("unsupported target architecture: %s", targetArch)
+	}
+
+	for _, candidate := range candidates {
+		fullPath := filepath.Join(installDir, candidate)
+		if _, err := os.Stat(fullPath); err == nil {
+			return fullPath, nil
+		}
+	}
+
+	return "", fmt.Errorf("no binary found for %s in %s", targetArch, installDir)
+}
+
+// ── Stop a running egg ──────────────────────────────────────────────────────
+
+func handleInvasionNestStop(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if s.InvasionDB == nil || r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		id := extractNestSubID(r.URL.Path, "stop")
+		if id == "" {
+			jsonError(w, "Missing nest ID", http.StatusBadRequest)
+			return
+		}
+
+		nest, err := invasion.GetNest(s.InvasionDB, id)
+		if err != nil {
+			jsonError(w, "Nest not found", http.StatusNotFound)
+			return
+		}
+
+		// Try graceful stop via WebSocket first
+		if s.EggHub.IsConnected(id) {
+			if err := s.EggHub.SendStop(id); err != nil {
+				s.Logger.Warn("Failed to send stop via WebSocket", "nest_id", id, "error", err)
+			}
+		}
+
+		// Also stop via connector (process/container level)
+		var secretBytes []byte
+		if nest.VaultSecretID != "" {
+			secretStr, _ := s.Vault.ReadSecret(nest.VaultSecretID)
+			secretBytes = []byte(secretStr)
+		}
+
+		connector := invasion.GetConnector(nest)
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		if err := connector.Stop(ctx, nest, secretBytes); err != nil {
+			s.Logger.Warn("Connector stop failed", "nest_id", id, "error", err)
+		}
+
+		_ = invasion.UpdateNestHatchStatus(s.InvasionDB, id, "stopped", "")
+
+		writeJSON(w, map[string]interface{}{
+			"status":  "stopped",
+			"nest_id": id,
+		})
+	}
+}
+
+// ── Hatch status ────────────────────────────────────────────────────────────
+
+func handleInvasionNestHatchStatus(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if s.InvasionDB == nil || r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		id := extractNestSubID(r.URL.Path, "status")
+		if id == "" {
+			jsonError(w, "Missing nest ID", http.StatusBadRequest)
+			return
+		}
+
+		nest, err := invasion.GetNest(s.InvasionDB, id)
+		if err != nil {
+			jsonError(w, "Nest not found", http.StatusNotFound)
+			return
+		}
+
+		connected := s.EggHub.IsConnected(id)
+		writeJSON(w, map[string]interface{}{
+			"nest_id":       id,
+			"hatch_status":  nest.HatchStatus,
+			"last_hatch_at": nest.LastHatchAt,
+			"hatch_error":   nest.HatchError,
+			"ws_connected":  connected,
+		})
+	}
+}
+
+// ── Send secret to a running egg ────────────────────────────────────────────
+
+func handleInvasionNestSendSecret(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if s.InvasionDB == nil || r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		id := extractNestSubID(r.URL.Path, "send-secret")
+		if id == "" {
+			jsonError(w, "Missing nest ID", http.StatusBadRequest)
+			return
+		}
+
+		var req struct {
+			Key   string `json:"key"`
+			Value string `json:"value"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Key == "" {
+			jsonError(w, "Invalid request: key and value required", http.StatusBadRequest)
+			return
+		}
+
+		if !s.EggHub.IsConnected(id) {
+			jsonError(w, "No active WebSocket connection to this nest", http.StatusConflict)
+			return
+		}
+
+		// Read the shared key from vault
+		sharedKey, err := s.Vault.ReadSecret("egg_shared_" + id)
+		if err != nil {
+			jsonError(w, "Failed to retrieve shared key", http.StatusInternalServerError)
+			return
+		}
+
+		// Encrypt the value with the shared key (not the vault master key!)
+		// The egg will decrypt with the same shared key before storing in its vault.
+		encrypted, err := bridge.EncryptWithSharedKey([]byte(req.Value), sharedKey)
+		if err != nil {
+			jsonError(w, "Failed to encrypt secret", http.StatusInternalServerError)
+			return
+		}
+
+		if err := s.EggHub.SendSecret(id, req.Key, encrypted); err != nil {
+			jsonError(w, "Failed to send secret: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		writeJSON(w, map[string]string{"status": "sent"})
+	}
+}
+
+// ── WebSocket upgrade for egg connections ───────────────────────────────────
+
+var wsUpgrader = websocket.Upgrader{
+	ReadBufferSize:  4096,
+	WriteBufferSize: 4096,
+	CheckOrigin:     func(r *http.Request) bool { return true },
+}
+
+func handleInvasionWebSocket(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if s.InvasionDB == nil {
+			http.Error(w, "Invasion Control is not enabled", http.StatusServiceUnavailable)
+			return
+		}
+
+		conn, err := wsUpgrader.Upgrade(w, r, nil)
+		if err != nil {
+			s.Logger.Error("WebSocket upgrade failed", "error", err)
+			return
+		}
+
+		// Wait for auth message
+		conn.SetReadDeadline(time.Now().Add(15 * time.Second))
+		_, data, err := conn.ReadMessage()
+		if err != nil {
+			s.Logger.Warn("No auth message received", "error", err)
+			conn.Close()
+			return
+		}
+		conn.SetReadDeadline(time.Time{}) // reset deadline
+
+		var authMsg bridge.Message
+		if err := json.Unmarshal(data, &authMsg); err != nil || authMsg.Type != bridge.MsgAuth {
+			s.Logger.Warn("Invalid auth message from egg")
+			conn.Close()
+			return
+		}
+
+		// Validate egg and nest
+		nest, err := invasion.GetNest(s.InvasionDB, authMsg.NestID)
+		if err != nil {
+			s.Logger.Warn("Auth failed: nest not found", "nest_id", authMsg.NestID)
+			conn.Close()
+			return
+		}
+
+		egg, err := invasion.GetEgg(s.InvasionDB, authMsg.EggID)
+		if err != nil {
+			s.Logger.Warn("Auth failed: egg not found", "egg_id", authMsg.EggID)
+			conn.Close()
+			return
+		}
+
+		_ = egg // validated existence
+
+		// Read shared key from vault
+		sharedKey, err := s.Vault.ReadSecret("egg_shared_" + nest.ID)
+		if err != nil {
+			s.Logger.Warn("Auth failed: shared key not found", "nest_id", nest.ID)
+			conn.Close()
+			return
+		}
+
+		// Verify HMAC
+		ok, err := bridge.VerifyMessage(authMsg, sharedKey)
+		if err != nil || !ok {
+			s.Logger.Warn("Auth failed: HMAC mismatch", "nest_id", nest.ID)
+			conn.Close()
+			return
+		}
+
+		// Send ack
+		ackMsg, err := bridge.NewMessage(bridge.MsgAck, authMsg.EggID, authMsg.NestID, sharedKey,
+			bridge.AckPayload{RefID: authMsg.ID, Success: true, Detail: "authenticated"})
+		if err == nil {
+			_ = conn.WriteJSON(ackMsg)
+		}
+
+		// Register connection
+		eggConn := &bridge.EggConnection{
+			Conn:          conn,
+			EggID:         authMsg.EggID,
+			NestID:        authMsg.NestID,
+			SharedKey:     sharedKey,
+			LastHeartbeat: time.Now(),
+			Status:        "connected",
+		}
+		s.EggHub.Register(nest.ID, eggConn)
+
+		// Update nest status to running
+		_ = invasion.UpdateNestHatchStatus(s.InvasionDB, nest.ID, "running", "")
+
+		// Set up callbacks for this connection
+		s.EggHub.OnDisconnect = func(nestID, eggID string) {
+			s.Logger.Info("Egg disconnected", "nest_id", nestID, "egg_id", eggID)
+			_ = invasion.UpdateNestHatchStatus(s.InvasionDB, nestID, "stopped", "connection lost")
+		}
+
+		// Block on read loop
+		s.EggHub.HandleMessages(eggConn)
+	}
+}
+
+// ── Send task to a running egg ──────────────────────────────────────────────
+
+func handleInvasionNestSendTask(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if s.InvasionDB == nil || r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		id := extractNestSubID(r.URL.Path, "send-task")
+		if id == "" {
+			jsonError(w, "Missing nest ID", http.StatusBadRequest)
+			return
+		}
+
+		var req struct {
+			Description string `json:"description"`
+			Timeout     int    `json:"timeout"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Description == "" {
+			jsonError(w, "Invalid request: description is required", http.StatusBadRequest)
+			return
+		}
+
+		if !s.EggHub.IsConnected(id) {
+			jsonError(w, "No active WebSocket connection to this nest", http.StatusConflict)
+			return
+		}
+
+		taskPayload := bridge.TaskPayload{
+			TaskID:      fmt.Sprintf("task-%d", time.Now().UnixNano()),
+			Description: req.Description,
+			Timeout:     req.Timeout,
+		}
+
+		if err := s.EggHub.SendTask(id, taskPayload); err != nil {
+			jsonError(w, "Failed to send task: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		s.Logger.Info("Task sent to egg", "nest_id", id, "task_id", taskPayload.TaskID)
+		writeJSON(w, map[string]interface{}{
+			"status":  "sent",
+			"task_id": taskPayload.TaskID,
+			"nest_id": id,
+		})
+	}
+}
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
+
+// extractNestSubID extracts the nest ID from paths like /api/invasion/nests/{id}/{action}.
+func extractNestSubID(urlPath, action string) string {
+	prefix := "/api/invasion/nests/"
+	rest := strings.TrimPrefix(urlPath, prefix)
+	rest = strings.TrimSuffix(rest, "/"+action)
+	rest = strings.TrimSuffix(rest, "/")
+	if rest == "" || strings.Contains(rest, "/") {
+		return ""
+	}
+	return rest
+}

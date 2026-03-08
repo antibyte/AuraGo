@@ -1,0 +1,12 @@
+{
+    "name": "pdf_extractor",
+    "description": "Extracts all text content from a PDF file. Use this instead of writing your own PDF parser.",
+    "executable": "pdf_extractor.py",
+    "parameters": {
+        "filepath": "The relative path to the PDF file within the agent_workspace/workdir/."
+    },
+    "returns": "The full text content of the PDF file as a string.",
+    "dependencies": [
+        "PyPDF2"
+    ]
+}

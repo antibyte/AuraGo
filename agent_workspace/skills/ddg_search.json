@@ -1,0 +1,10 @@
+{
+  "name": "ddg_search",
+  "description": "Performs a web search using DuckDuckGo and returns the top results. Use this for current events, general web searches, or when you need to find online information.",
+  "executable": "__builtin__",
+  "parameters": {
+    "query": "The search query string",
+    "max_results": "Maximum number of results to return (default: 5, max recommended: 10)"
+  },
+  "returns": "List of search results with titles, snippets, and URLs"
+}

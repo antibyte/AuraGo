@@ -1,0 +1,718 @@
+package server
+
+import (
+	"bufio"
+	"encoding/json"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strconv"
+	"time"
+
+	"aurago/internal/agent"
+	"aurago/internal/invasion"
+	"aurago/internal/inventory"
+	"aurago/internal/memory"
+	"aurago/internal/mqtt"
+	"aurago/internal/prompts"
+	"aurago/internal/tools"
+)
+
+// ── Dashboard API Handlers ──────────────────────────────────────────────────
+// Provides data for the /dashboard metrics page.
+// All endpoints are guarded by WebConfig.Enabled in server.go route registration.
+
+// handleDashboardSystem returns system metrics (CPU, RAM, Disk, Network, SSE clients, uptime).
+func handleDashboardSystem(s *Server, sse *SSEBroadcaster, startedAt time.Time) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		// Parse the JSON from GetSystemMetrics
+		raw := tools.GetSystemMetrics()
+		var metricsResult struct {
+			Status string              `json:"status"`
+			Data   tools.SystemMetrics `json:"data"`
+		}
+		if err := json.Unmarshal([]byte(raw), &metricsResult); err != nil {
+			s.Logger.Error("Failed to parse system metrics", "error", err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+
+		response := map[string]interface{}{
+			"cpu":            metricsResult.Data.CPU,
+			"memory":         metricsResult.Data.Memory,
+			"disk":           metricsResult.Data.Disk,
+			"network":        metricsResult.Data.Network,
+			"sse_clients":    sse.ClientCount(),
+			"uptime_seconds": int(time.Since(startedAt).Seconds()),
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+	}
+}
+
+// handleDashboardMoodHistory returns mood log entries for a given time range.
+func handleDashboardMoodHistory(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		hours := 24
+		if h := r.URL.Query().Get("hours"); h != "" {
+			if parsed, err := strconv.Atoi(h); err == nil && parsed > 0 {
+				hours = parsed
+			}
+		}
+
+		entries, err := s.ShortTermMem.GetMoodHistory(hours)
+		if err != nil {
+			s.Logger.Error("Failed to get mood history", "error", err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+
+		if entries == nil {
+			entries = []memory.MoodLogEntry{}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(entries)
+	}
+}
+
+// handleDashboardMemory returns memory statistics (core memory, messages, vectordb, graph, milestones).
+func handleDashboardMemory(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		coreCount, _ := s.ShortTermMem.GetCoreMemoryCount()
+		msgCount, _ := s.ShortTermMem.GetMessageCount()
+
+		vectorCount := 0
+		vectorDisabled := false
+		if s.LongTermMem != nil {
+			vectorCount = s.LongTermMem.Count()
+			vectorDisabled = s.LongTermMem.IsDisabled()
+		}
+
+		graphNodes, graphEdges := 0, 0
+		if s.KG != nil {
+			graphNodes, graphEdges = s.KG.Stats()
+		}
+
+		milestones, _ := s.ShortTermMem.GetMilestoneEntries(10)
+		if milestones == nil {
+			milestones = []memory.MilestoneEntry{}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"core_memory_facts": coreCount,
+			"chat_messages":     msgCount,
+			"vectordb_entries":  vectorCount,
+			"vectordb_disabled": vectorDisabled,
+			"knowledge_graph": map[string]int{
+				"nodes": graphNodes,
+				"edges": graphEdges,
+			},
+			"milestones": milestones,
+		})
+	}
+}
+
+// handleDashboardCoreMemory returns all core memory facts as a JSON array.
+func handleDashboardCoreMemory(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		rows, err := s.ShortTermMem.GetCoreMemoryFacts()
+		if err != nil {
+			s.Logger.Error("Failed to get core memory facts", "error", err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"facts": rows,
+			"count": len(rows),
+		})
+	}
+}
+
+// handleDashboardProfile returns all user profile entries grouped by category.
+func handleDashboardProfile(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		entries, err := s.ShortTermMem.GetProfileEntries("")
+		if err != nil {
+			s.Logger.Error("Failed to get profile entries", "error", err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+
+		categories := make(map[string][]map[string]interface{})
+		for _, e := range entries {
+			categories[e.Category] = append(categories[e.Category], map[string]interface{}{
+				"key":        e.Key,
+				"value":      e.Value,
+				"confidence": e.Confidence,
+				"source":     e.Source,
+				"updated_at": e.UpdatedAt,
+				"first_seen": e.FirstSeen,
+			})
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"categories":    categories,
+			"total_entries": len(entries),
+		})
+	}
+}
+
+// handleDashboardActivity returns cron jobs, processes, webhooks, and co-agents.
+func handleDashboardActivity(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		// Cron Jobs
+		var cronJobs interface{} = []struct{}{}
+		if s.CronManager != nil {
+			cronJobs = s.CronManager.GetJobs()
+		}
+
+		// Process Registry
+		var processes interface{} = []struct{}{}
+		if s.Registry != nil {
+			processes = s.Registry.List()
+		}
+
+		// Webhooks summary
+		webhookInfo := map[string]interface{}{"count": 0, "recent_events": 0}
+		if s.WebhookManager != nil {
+			hooks := s.WebhookManager.List()
+			webhookInfo["count"] = len(hooks)
+			if whLog := s.WebhookManager.GetLog(); whLog != nil {
+				webhookInfo["recent_events"] = len(whLog.Recent(20))
+			}
+		}
+
+		// Co-Agents
+		var coagents interface{} = []struct{}{}
+		if s.CoAgentRegistry != nil {
+			coagents = s.CoAgentRegistry.List()
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"cron_jobs": cronJobs,
+			"processes": processes,
+			"webhooks":  webhookInfo,
+			"coagents":  coagents,
+		})
+	}
+}
+
+// handleDashboardPromptStats returns aggregated prompt builder metrics.
+func handleDashboardPromptStats() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(prompts.GetAggregatedStats())
+	}
+}
+
+// handleDashboardLogs returns the last N lines from the supervisor log file.
+// Query param: ?lines=100 (default 100, max 500)
+func handleDashboardLogs(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		maxLines := 100
+		if n, err := strconv.Atoi(r.URL.Query().Get("lines")); err == nil && n > 0 {
+			maxLines = n
+		}
+		if maxLines > 500 {
+			maxLines = 500
+		}
+
+		logDir := s.Cfg.Logging.LogDir
+		if logDir == "" {
+			logDir = "./log"
+		}
+
+		logPath := filepath.Join(logDir, "supervisor.log")
+		lines, err := tailFile(logPath, maxLines)
+		if err != nil {
+			// Try lifeboat.log as fallback
+			logPath = filepath.Join(logDir, "lifeboat.log")
+			lines, err = tailFile(logPath, maxLines)
+			if err != nil {
+				w.Header().Set("Content-Type", "application/json")
+				json.NewEncoder(w).Encode(map[string]interface{}{
+					"lines":    []string{},
+					"error":    "Log file not available",
+					"log_file": logPath,
+				})
+				return
+			}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"lines":    lines,
+			"log_file": filepath.Base(logPath),
+			"count":    len(lines),
+		})
+	}
+}
+
+// handleDashboardGitHubRepos returns GitHub repos for the dashboard widget.
+// It first lists locally tracked projects, then fetches live repos from the GitHub API.
+func handleDashboardGitHubRepos(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		if !s.Cfg.GitHub.Enabled || s.Cfg.GitHub.Owner == "" {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"enabled": false,
+				"repos":   []struct{}{},
+			})
+			return
+		}
+
+		// Read token from vault
+		token := ""
+		if s.Vault != nil {
+			t, err := s.Vault.ReadSecret("github_token")
+			if err == nil {
+				token = t
+			}
+		}
+
+		if token == "" {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"enabled": true,
+				"error":   "GitHub token not found in vault",
+				"repos":   []struct{}{},
+			})
+			return
+		}
+
+		ghCfg := tools.GitHubConfig{
+			Token:   token,
+			Owner:   s.Cfg.GitHub.Owner,
+			BaseURL: s.Cfg.GitHub.BaseURL,
+		}
+
+		raw := tools.GitHubListRepos(ghCfg, "")
+		var result map[string]interface{}
+		if err := json.Unmarshal([]byte(raw), &result); err != nil {
+			http.Error(w, `{"error":"failed to parse GitHub response"}`, http.StatusInternalServerError)
+			return
+		}
+
+		if result["status"] != "ok" {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"enabled": true,
+				"error":   result["message"],
+				"repos":   []struct{}{},
+			})
+			return
+		}
+
+		// Load tracked projects for cross-reference
+		tracked := map[string]bool{}
+		trackedRaw := tools.GitHubListProjects(s.Cfg.Directories.WorkspaceDir)
+		var trackedResult map[string]interface{}
+		if err := json.Unmarshal([]byte(trackedRaw), &trackedResult); err == nil {
+			if projects, ok := trackedResult["projects"].([]interface{}); ok {
+				for _, p := range projects {
+					if pm, ok := p.(map[string]interface{}); ok {
+						if name, ok := pm["name"].(string); ok {
+							tracked[name] = true
+						}
+					}
+				}
+			}
+		}
+
+		// Enrich repos with tracked status
+		repos := result["repos"]
+		if repoList, ok := repos.([]interface{}); ok {
+			for _, r := range repoList {
+				if rm, ok := r.(map[string]interface{}); ok {
+					name, _ := rm["name"].(string)
+					rm["tracked"] = tracked[name]
+				}
+			}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"enabled": true,
+			"owner":   s.Cfg.GitHub.Owner,
+			"repos":   repos,
+			"count":   result["count"],
+		})
+	}
+}
+
+// handleDashboardCoreMemoryMutate handles POST (add), PUT (update), and DELETE (remove) for core memory facts.
+func handleDashboardCoreMemoryMutate(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			var req struct {
+				Fact string `json:"fact"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Fact == "" {
+				http.Error(w, `{"error":"fact is required"}`, http.StatusBadRequest)
+				return
+			}
+			id, err := s.ShortTermMem.AddCoreMemoryFact(req.Fact)
+			if err != nil {
+				http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusCreated)
+			json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok", "id": id})
+
+		case http.MethodPut:
+			var req struct {
+				ID   int64  `json:"id"`
+				Fact string `json:"fact"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.ID == 0 || req.Fact == "" {
+				http.Error(w, `{"error":"id and fact are required"}`, http.StatusBadRequest)
+				return
+			}
+			if err := s.ShortTermMem.UpdateCoreMemoryFact(req.ID, req.Fact); err != nil {
+				http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+
+		case http.MethodDelete:
+			var req struct {
+				ID int64 `json:"id"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.ID == 0 {
+				http.Error(w, `{"error":"id is required"}`, http.StatusBadRequest)
+				return
+			}
+			if err := s.ShortTermMem.DeleteCoreMemoryFact(req.ID); err != nil {
+				http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	}
+}
+
+// handleDashboardOverview returns a composite snapshot of agent status, integrations, missions, invasion, indexer, devices, MQTT, notes, security, context, and last activity.
+func handleDashboardOverview(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		s.CfgMu.RLock()
+		cfg := s.Cfg
+		s.CfgMu.RUnlock()
+
+		// ── Agent Info ─────────────────────────────────────────
+		agentInfo := map[string]interface{}{
+			"model":          cfg.LLM.Model,
+			"provider":       cfg.LLM.ProviderType,
+			"personality":    cfg.Agent.CorePersonality,
+			"context_window": cfg.Agent.ContextWindow,
+			"busy":           tools.IsBusy(),
+			"debug":          agent.GetDebugMode(),
+			"maintenance":    cfg.Maintenance.Enabled,
+		}
+
+		// ── Integrations (all Enabled flags) ──────────────────
+		integrations := map[string]bool{
+			"telegram":       cfg.Telegram.BotToken != "",
+			"discord":        cfg.Discord.Enabled,
+			"email":          cfg.Email.Enabled,
+			"home_assistant": cfg.HomeAssistant.Enabled,
+			"docker":         cfg.Docker.Enabled,
+			"co_agents":      cfg.CoAgents.Enabled,
+			"webhooks":       cfg.Webhooks.Enabled,
+			"webdav":         cfg.WebDAV.Enabled,
+			"koofr":          cfg.Koofr.Enabled,
+			"chromecast":     cfg.Chromecast.Enabled,
+			"proxmox":        cfg.Proxmox.Enabled,
+			"ollama":         cfg.Ollama.Enabled,
+			"rocketchat":     cfg.RocketChat.Enabled,
+			"tailscale":      cfg.Tailscale.Enabled,
+			"ansible":        cfg.Ansible.Enabled,
+			"invasion":       cfg.InvasionControl.Enabled,
+			"github":         cfg.GitHub.Enabled,
+			"mqtt":           cfg.MQTT.Enabled,
+			"budget":         cfg.Budget.Enabled,
+			"indexing":       cfg.Indexing.Enabled,
+			"auth":           cfg.Auth.Enabled,
+			"fallback_llm":   cfg.FallbackLLM.Enabled,
+			"personality_v2": cfg.Agent.PersonalityEngineV2,
+			"user_profiling": cfg.Agent.UserProfiling,
+			"tts":            cfg.TTS.Provider != "",
+		}
+
+		// ── Missions Summary ──────────────────────────────────
+		missionsSummary := map[string]interface{}{
+			"total": 0, "enabled": 0, "running": 0, "queued": 0,
+		}
+		if s.MissionManagerV2 != nil {
+			missions := s.MissionManagerV2.List()
+			enabledCount := 0
+			runningCount := 0
+			for _, m := range missions {
+				if m.Enabled {
+					enabledCount++
+				}
+				if m.Status == "running" {
+					runningCount++
+				}
+			}
+			queue, runningID := s.MissionManagerV2.GetQueue()
+			queueLen := 0
+			if queue != nil {
+				queueLen = len(queue.List())
+			}
+			if runningID != "" {
+				runningCount = 1
+			}
+			missionsSummary = map[string]interface{}{
+				"total":   len(missions),
+				"enabled": enabledCount,
+				"running": runningCount,
+				"queued":  queueLen,
+			}
+		}
+
+		// ── Invasion Summary ──────────────────────────────────
+		invasionSummary := map[string]interface{}{
+			"nests": 0, "eggs": 0, "connected_eggs": 0, "connected_nests": []string{},
+		}
+		if s.InvasionDB != nil {
+			nests, _ := invasion.ListNests(s.InvasionDB)
+			eggs, _ := invasion.ListEggs(s.InvasionDB)
+			invasionSummary["nests"] = len(nests)
+			invasionSummary["eggs"] = len(eggs)
+		}
+		if s.EggHub != nil {
+			invasionSummary["connected_eggs"] = s.EggHub.ConnectionCount()
+			invasionSummary["connected_nests"] = s.EggHub.ConnectedNests()
+		}
+
+		// ── Indexer Status ────────────────────────────────────
+		indexerStatus := map[string]interface{}{
+			"enabled": false,
+		}
+		if s.FileIndexer != nil {
+			status := s.FileIndexer.Status()
+			indexerStatus = map[string]interface{}{
+				"enabled":       true,
+				"running":       status.Running,
+				"total_files":   status.TotalFiles,
+				"indexed_files": status.IndexedFiles,
+				"last_scan_at":  status.LastScanAt,
+			}
+		}
+
+		// ── Devices Count ─────────────────────────────────────
+		deviceCount := 0
+		if s.InventoryDB != nil {
+			devices, err := inventory.ListAllDevices(s.InventoryDB)
+			if err == nil {
+				deviceCount = len(devices)
+			}
+		}
+
+		// ── MQTT Status ───────────────────────────────────────
+		mqttStatus := map[string]interface{}{
+			"enabled":   cfg.MQTT.Enabled,
+			"connected": false,
+			"buffer":    0,
+		}
+		if cfg.MQTT.Enabled {
+			mqttStatus["connected"] = mqtt.IsConnected()
+			mqttStatus["buffer"] = mqtt.BufferLen()
+		}
+
+		// ── Notes Summary ─────────────────────────────────────
+		notesSummary := map[string]interface{}{
+			"total": 0, "open": 0, "done": 0,
+		}
+		if s.ShortTermMem != nil {
+			allNotes, err := s.ShortTermMem.ListNotes("", -1)
+			if err == nil {
+				open := 0
+				done := 0
+				for _, n := range allNotes {
+					if n.Done {
+						done++
+					} else {
+						open++
+					}
+				}
+				notesSummary = map[string]interface{}{
+					"total": len(allNotes),
+					"open":  open,
+					"done":  done,
+				}
+			}
+		}
+
+		// ── Security Summary ──────────────────────────────────
+		securitySummary := map[string]interface{}{
+			"vault_keys": 0, "tokens": 0,
+		}
+		if s.Vault != nil {
+			keys, err := s.Vault.ListKeys()
+			if err == nil {
+				securitySummary["vault_keys"] = len(keys)
+			}
+		}
+		if s.TokenManager != nil {
+			securitySummary["tokens"] = s.TokenManager.Count()
+		}
+
+		// ── Context Summary ───────────────────────────────────
+		contextSummary := map[string]interface{}{
+			"total_chars": 0, "has_summary": false,
+		}
+		if s.HistoryManager != nil {
+			contextSummary["total_chars"] = s.HistoryManager.TotalChars()
+			contextSummary["has_summary"] = s.HistoryManager.GetSummary() != ""
+		}
+
+		// ── Last Activity ─────────────────────────────────────
+		lastActivityHours := float64(-1)
+		if s.ShortTermMem != nil {
+			h, err := s.ShortTermMem.GetHoursSinceLastUserMessage("")
+			if err == nil {
+				lastActivityHours = h
+			}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"agent":               agentInfo,
+			"integrations":        integrations,
+			"missions":            missionsSummary,
+			"invasion":            invasionSummary,
+			"indexer":             indexerStatus,
+			"devices":             deviceCount,
+			"mqtt":                mqttStatus,
+			"notes":               notesSummary,
+			"security":            securitySummary,
+			"context":             contextSummary,
+			"last_activity_hours": lastActivityHours,
+		})
+	}
+}
+
+// handleDashboardNotes returns all notes as a JSON array, with optional filtering.
+// Query params: ?category=xxx&done=0|1|-1 (default: all)
+func handleDashboardNotes(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		category := r.URL.Query().Get("category")
+		doneFilter := -1
+		if d := r.URL.Query().Get("done"); d != "" {
+			if parsed, err := strconv.Atoi(d); err == nil {
+				doneFilter = parsed
+			}
+		}
+
+		notes, err := s.ShortTermMem.ListNotes(category, doneFilter)
+		if err != nil {
+			s.Logger.Error("Failed to list notes", "error", err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+		if notes == nil {
+			notes = []memory.Note{}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"notes": notes,
+			"count": len(notes),
+		})
+	}
+}
+
+// tailFile reads the last N lines from a file efficiently.
+func tailFile(path string, n int) ([]string, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	// Read all lines (supervisor.log is truncated on restart, so it's bounded)
+	scanner := bufio.NewScanner(file)
+	scanner.Buffer(make([]byte, 0, 256*1024), 256*1024) // 256KB max line
+	var allLines []string
+	for scanner.Scan() {
+		allLines = append(allLines, scanner.Text())
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+
+	// Return last N lines
+	if len(allLines) <= n {
+		return allLines, nil
+	}
+	return allLines[len(allLines)-n:], nil
+}

@@ -1,0 +1,127 @@
+package tools
+
+import (
+	"bytes"
+	"encoding/base64"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"strings"
+	"time"
+
+	"aurago/internal/config"
+)
+
+// AnalyzeImageWithPrompt sends an image file to the configured Vision LLM for analysis.
+// The prompt parameter controls what the model should focus on.
+func AnalyzeImageWithPrompt(filePath, prompt string, cfg *config.Config) (string, error) {
+	// Resolved by config.ResolveProviders (falls back to main LLM)
+	apiKey := cfg.Vision.APIKey
+	baseURL := cfg.Vision.BaseURL
+
+	model := cfg.Vision.Model
+	if model == "" {
+		model = "google/gemini-2.5-flash-lite-preview-09-2025"
+	}
+
+	// Read and base64-encode the image
+	imageData, err := os.ReadFile(filePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read image file: %w", err)
+	}
+
+	mimeType := "image/jpeg"
+	lower := strings.ToLower(filePath)
+	switch {
+	case strings.HasSuffix(lower, ".png"):
+		mimeType = "image/png"
+	case strings.HasSuffix(lower, ".gif"):
+		mimeType = "image/gif"
+	case strings.HasSuffix(lower, ".webp"):
+		mimeType = "image/webp"
+	case strings.HasSuffix(lower, ".bmp"):
+		mimeType = "image/bmp"
+	}
+
+	encodedImage := base64.StdEncoding.EncodeToString(imageData)
+	dataURL := fmt.Sprintf("data:%s;base64,%s", mimeType, encodedImage)
+
+	// OpenAI-compatible vision payload
+	type ImageURL struct {
+		URL string `json:"url"`
+	}
+	type ContentPart struct {
+		Type     string    `json:"type"`
+		Text     string    `json:"text,omitempty"`
+		ImageURL *ImageURL `json:"image_url,omitempty"`
+	}
+	type Message struct {
+		Role    string        `json:"role"`
+		Content []ContentPart `json:"content"`
+	}
+	type RequestBody struct {
+		Model    string    `json:"model"`
+		Messages []Message `json:"messages"`
+	}
+
+	payload := RequestBody{
+		Model: model,
+		Messages: []Message{
+			{
+				Role: "user",
+				Content: []ContentPart{
+					{Type: "text", Text: prompt},
+					{Type: "image_url", ImageURL: &ImageURL{URL: dataURL}},
+				},
+			},
+		},
+	}
+
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal vision payload: %w", err)
+	}
+
+	reqURL := baseURL + "/chat/completions"
+	req, err := http.NewRequest("POST", reqURL, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return "", fmt.Errorf("failed to create vision request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+apiKey)
+	req.Header.Set("HTTP-Referer", "https://github.com/andre/aurago")
+	req.Header.Set("X-Title", "AuraGo")
+
+	client := &http.Client{Timeout: 60 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("vision request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("vision API error (status %d): %s", resp.StatusCode, string(body))
+	}
+
+	var result struct {
+		Choices []struct {
+			Message struct {
+				Content string `json:"content"`
+			} `json:"message"`
+		} `json:"choices"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", fmt.Errorf("failed to decode vision response: %w", err)
+	}
+
+	if len(result.Choices) == 0 {
+		return "", fmt.Errorf("no analysis received in vision response")
+	}
+
+	return result.Choices[0].Message.Content, nil
+}
