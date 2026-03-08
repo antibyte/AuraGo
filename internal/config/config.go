@@ -459,6 +459,15 @@ type Config struct {
 		WOL struct {
 			Enabled bool `yaml:"enabled"` // enable wake_on_lan tool (send magic packet to devices with MAC address)
 		} `yaml:"wol"`
+		WebScraper struct {
+			Enabled          bool   `yaml:"enabled"`           // enable web_scraper (default true)
+			SummaryMode      bool   `yaml:"summary_mode"`      // send scraped content to a separate LLM for summarisation before returning to agent
+			SummaryProvider  string `yaml:"summary_provider"`  // provider entry ID used for summarisation
+			// resolved fields (populated by ResolveProviders)
+			SummaryBaseURL   string `yaml:"-" json:"-"`
+			SummaryAPIKey    string `yaml:"-" json:"-"`
+			SummaryModel     string `yaml:"-" json:"-"`
+		} `yaml:"web_scraper"`
 	} `yaml:"tools"`
 	Sandbox struct {
 		Enabled        bool   `yaml:"enabled"`
@@ -681,6 +690,24 @@ func (c *Config) ResolveProviders() {
 	}
 	if c.Agent.PersonalityV2ResolvedKey == "" && c.Agent.PersonalityV2APIKey != "" {
 		c.Agent.PersonalityV2ResolvedKey = c.Agent.PersonalityV2APIKey
+	}
+
+	// ── WebScraper summary ── (falls back to main LLM if provider empty)
+	if c.Tools.WebScraper.SummaryProvider != "" {
+		if p := c.FindProvider(c.Tools.WebScraper.SummaryProvider); p != nil {
+			c.Tools.WebScraper.SummaryBaseURL = p.BaseURL
+			c.Tools.WebScraper.SummaryAPIKey = p.APIKey
+			c.Tools.WebScraper.SummaryModel = p.Model
+		}
+	}
+	if c.Tools.WebScraper.SummaryAPIKey == "" {
+		c.Tools.WebScraper.SummaryAPIKey = c.LLM.APIKey
+	}
+	if c.Tools.WebScraper.SummaryBaseURL == "" {
+		c.Tools.WebScraper.SummaryBaseURL = c.LLM.BaseURL
+	}
+	if c.Tools.WebScraper.SummaryModel == "" {
+		c.Tools.WebScraper.SummaryModel = c.LLM.Model
 	}
 }
 
@@ -986,6 +1013,7 @@ func Load(path string) (*Config, error) {
 	cfg.Tools.StopProcess.Enabled = true
 	cfg.Tools.Inventory.Enabled = true
 	cfg.Tools.MemoryMaintenance.Enabled = true
+	cfg.Tools.WebScraper.Enabled = true
 
 	// Danger-zone capabilities default to false (opt-in) for new installations.
 	// Existing configs with explicit true/false values will be read from YAML unchanged.
@@ -1045,6 +1073,12 @@ func Load(path string) (*Config, error) {
 		if val := os.Getenv("AURAGO_MASTER_KEY"); val != "" {
 			cfg.Server.MasterKey = val
 		}
+	}
+
+	// Migrate legacy agent.allow_web_scraper → tools.web_scraper.enabled.
+	// Old configs that set allow_web_scraper: false should carry over.
+	if !cfg.Agent.AllowWebScraper {
+		cfg.Tools.WebScraper.Enabled = false
 	}
 
 	// Resolve provider references → populates all yaml:"-" fields.

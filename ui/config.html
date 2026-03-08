@@ -1505,7 +1505,8 @@
                     { key: 'brave_search', icon: '🦁', label: { de: 'Brave Search', en: 'Brave Search' }, desc: { de: 'Brave Search API für Web-Suchen', en: 'Brave Search API for web searches' } },
                     { key: 'vision', icon: '👁️', label: { de: 'Vision', en: 'Vision' }, desc: { de: 'Bildanalyse-Konfiguration', en: 'Image analysis configuration' } },
                     { key: 'whisper', icon: '🎤', label: { de: 'Sprache', en: 'Speech' }, desc: { de: 'Whisper Speech-to-Text', en: 'Whisper speech-to-text' } },
-                    { key: 'tts', icon: '🔊', label: { de: 'Text-to-Speech', en: 'Text-to-Speech' }, desc: { de: 'Sprachausgabe-Einstellungen', en: 'Speech output settings' } }
+                    { key: 'tts', icon: '🔊', label: { de: 'Text-to-Speech', en: 'Text-to-Speech' }, desc: { de: 'Sprachausgabe-Einstellungen', en: 'Speech output settings' } },
+                    { key: 'web_scraper', icon: '🕷️', label: { de: 'Web Scraper', en: 'Web Scraper' }, desc: { de: 'Webseiten abrufen und Textinhalte extrahieren', en: 'Fetch web pages and extract text content' }, customRender: 'renderWebScraperSection' }
                 ]
             },
             // ── Integrationen (in Kategorien unterteilt) ──────────────────────
@@ -1864,6 +1865,12 @@
                 return;
             }
 
+            // Custom render for Web Scraper settings
+            if (key === 'web_scraper') {
+                renderWebScraperSection(section);
+                return;
+            }
+
             // Custom render for secrets / vault management
             if (key === 'secrets') {
                 renderSecretsSection(section);
@@ -1877,7 +1884,7 @@
             const AGENT_SKIP_KEYS = new Set([
                 'allow_shell', 'allow_python', 'allow_filesystem_write',
                 'allow_network_requests', 'allow_remote_shell', 'allow_self_update',
-                'allow_mcp', 'allow_web_scraper', // → Danger Zone
+                'allow_mcp',               // → Danger Zone
                 'sudo_enabled',            // → Danger Zone
                 'core_personality',         // → Prompts & Personas
                 'additional_prompt'         // → Prompts & Personas
@@ -2507,6 +2514,19 @@
 
         function escapeAttr(s) { return String(s).replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
         function escapeHtml(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+        /** Set a deep value on an object using a dot-separated path, e.g. "tools.web_scraper.enabled". */
+        function setNestedValue(obj, path, value) {
+            const parts = path.split('.');
+            let cur = obj;
+            for (let i = 0; i < parts.length - 1; i++) {
+                if (cur[parts[i]] === undefined || cur[parts[i]] === null || typeof cur[parts[i]] !== 'object') {
+                    cur[parts[i]] = {};
+                }
+                cur = cur[parts[i]];
+            }
+            cur[parts[parts.length - 1]] = value;
+        }
 
         function toggleBool(el) {
             const on = el.classList.toggle('on');
@@ -5148,6 +5168,70 @@
             attachChangeListeners();
         }
 
+        function renderWebScraperSection(section) {
+            const lDe = lang === 'de';
+            // Ensure nested config objects exist
+            if (!configData.tools) configData.tools = {};
+            if (!configData.tools.web_scraper) configData.tools.web_scraper = {};
+            const wsCfg = configData.tools.web_scraper;
+            const wsEnabled = wsCfg.enabled === true;
+            const summaryOn = wsCfg.summary_mode === true;
+
+            let html = `<div class="cfg-section active">
+                <div class="section-header">${section.icon} ${section.label[lang]}</div>
+                <div class="section-desc">${section.desc[lang]}</div>`;
+
+            // Enabled toggle
+            html += `<div style="display:flex;align-items:center;gap:0.8rem;margin-bottom:1rem;padding:0.6rem 1rem;border-radius:8px;background:var(--bg-tertiary);">
+                <span style="font-size:0.85rem;color:var(--text-secondary);">${lDe ? 'Web Scraper aktiviert:' : 'Web Scraper enabled:'}</span>
+                <div class="toggle ${wsEnabled ? 'on' : ''}" data-path="tools.web_scraper.enabled" onclick="toggleBool(this)"></div>
+            </div>`;
+
+            if (!wsEnabled) {
+                html += `<div class="wh-notice">
+                    <span>🕷️</span>
+                    <div>
+                        <strong>${lDe ? 'Web Scraper ist deaktiviert' : 'Web Scraper is disabled'}</strong><br>
+                        <small>${lDe ? 'Aktiviere den Schalter oben, damit der Agent externe Webseiten abrufen und deren Inhalte analysieren kann.' : 'Enable the toggle above to allow the agent to fetch external web pages and analyse their content.'}</small>
+                    </div>
+                </div>`;
+            }
+
+            // Summary mode section
+            html += `<div style="margin-top:1.2rem;padding:1rem;border-radius:10px;border:1px solid var(--border);background:var(--bg-tertiary);">
+                <div style="display:flex;align-items:center;gap:0.8rem;margin-bottom:0.6rem;">
+                    <span style="font-size:0.85rem;font-weight:600;color:var(--text-primary);">📝 ${lDe ? 'Zusammenfassungs-Modus' : 'Summary Mode'}</span>
+                    <div class="toggle ${summaryOn ? 'on' : ''}" data-path="tools.web_scraper.summary_mode" onclick="toggleBool(this)"></div>
+                </div>
+                <div style="font-size:0.8rem;color:var(--text-secondary);line-height:1.5;margin-bottom:0.8rem;">
+                    ${lDe
+                        ? 'Gescrapte Webseiten werden an ein separates LLM gesendet, das eine Zusammenfassung erstellt. Der Agent erhält nur die Zusammenfassung statt des gesamten Seiteninhalts.<br><strong>Vorteile:</strong> Spart Token im Hauptmodell und verhindert Prompt-Injection durch externe Inhalte. Hier kann ein günstiges Modell gewählt werden.'
+                        : 'Scraped web pages are sent to a separate LLM that creates a summary. The agent only receives the summary instead of the full page content.<br><strong>Benefits:</strong> Saves tokens in the main model and prevents prompt injection from external content. A cheap model can be selected here.'}
+                </div>`;
+
+            // Provider dropdown (only relevant when summary mode is on)
+            const curProvider = wsCfg.summary_provider || '';
+            html += `<label style="display:block;${summaryOn ? '' : 'opacity:0.5;pointer-events:none;'}">
+                <span style="font-size:0.78rem;color:var(--text-secondary);">${lDe ? 'Zusammenfassungs-Provider' : 'Summary Provider'} <small style="color:var(--text-tertiary);">(${lDe ? 'leer = Haupt-LLM' : 'empty = main LLM'})</small></span>
+                <select class="cfg-input" data-path="tools.web_scraper.summary_provider" style="width:100%;margin-top:0.2rem;"
+                    onchange="setNestedValue(configData,'tools.web_scraper.summary_provider',this.value);setDirty(true)">
+                    <option value=""${!curProvider ? ' selected' : ''}>${lDe ? '— Haupt-LLM verwenden —' : '— Use main LLM —'}</option>`;
+            providersCache.forEach(p => {
+                const sel = (String(curProvider) === String(p.id)) ? ' selected' : '';
+                const name = p.name || p.id;
+                const badge = p.type ? (' [' + p.type + ']') : '';
+                const model = p.model ? (' — ' + p.model) : '';
+                html += `<option value="${escapeAttr(p.id)}"${sel}>${escapeAttr(name + badge + model)}</option>`;
+            });
+            html += `</select></label>`;
+
+            html += `</div>`; // close summary mode box
+
+            html += `</div>`; // close cfg-section
+            document.getElementById('content').innerHTML = html;
+            attachChangeListeners();
+        }
+
         function renderDangerZoneSection(section) {
             const agentCfg = configData.agent || {};
 
@@ -5173,7 +5257,7 @@
                     val: agentCfg.allow_python === true,
                     icon: '🐍',
                     title: { de: 'Python / Skill-Ausführung (execute_python / execute_skill / save_tool)', en: 'Python / Skill Execution (execute_python / execute_skill / save_tool)' },
-                    desc: { de: 'Erlaubt dem Agenten, beliebigen Python-Code auszuführen, Skills zu starten und neue Tools zu speichern.', en: 'Allows the agent to execute arbitrary Python code, run skills, and persist new tools.' },
+                    desc: { de: 'Erlaubt dem Agenten, beliebigen Python-Code und Skills <strong>lokal ohne Sandbox</strong> auszuführen sowie neue Tools zu speichern. Code wird direkt auf dem Host-System ausgeführt — für isolierte Ausführung stattdessen die Sandbox nutzen.', en: 'Allows the agent to execute arbitrary Python code and skills <strong>locally without sandbox</strong> and persist new tools. Code runs directly on the host system — use the sandbox for isolated execution instead.' },
                     badge: 'execute_python'
                 },
                 {
@@ -5214,18 +5298,10 @@
                     icon: '🔌',
                     title: { de: 'MCP Server-Verbindungen (mcp_call)', en: 'MCP Server Connections (mcp_call)' },
                     desc: {
-                        de: 'Erlaubt dem Agenten, sich mit externen MCP-Servern zu verbinden und deren Tools zu nutzen. <strong style="color:#f87171;">⚠ MCP-Server sind externe Prozesse, die beliebigen Code ausführen können — nur vertrauenswürdige Server hinzufügen!</strong>',
-                        en: 'Allows the agent to connect to external MCP servers and use their tools. <strong style="color:#f87171;">⚠ MCP servers are external processes that can execute arbitrary code — only add trusted servers!</strong>'
+                        de: 'Erlaubt dem Agenten, sich mit externen MCP-Servern zu verbinden und deren Tools zu nutzen. <strong style="color:#f87171;">⚠ Nur vertrauenswürdige Server hinzufügen!</strong>',
+                        en: 'Allows the agent to connect to external MCP servers and use their tools. <strong style="color:#f87171;">⚠ Only add trusted servers!</strong>'
                     },
                     badge: 'mcp_call'
-                },
-                {
-                    path: 'agent.allow_web_scraper',
-                    val: agentCfg.allow_web_scraper === true,
-                    icon: '🕷️',
-                    title: { de: 'Web-Scraper (web_scraper)', en: 'Web Scraper (web_scraper)' },
-                    desc: { de: 'Erlaubt dem Agenten, externe Webseiten abzurufen und deren Inhalte zu analysieren. Inhalte externer Seiten werden als <code>&lt;external_data&gt;</code> markiert und gegen Prompt-Injektion geschützt.', en: 'Allows the agent to fetch external websites and analyse their content. Content from external pages is tagged as <code>&lt;external_data&gt;</code> and protected against prompt injection.' },
-                    badge: 'web_scraper'
                 }
             ];
 

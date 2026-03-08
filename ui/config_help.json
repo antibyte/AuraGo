@@ -638,8 +638,21 @@
         "en": "When disabled, all mcp_call requests are blocked. MCP servers are external processes – only add trusted servers."
     },
     "agent.allow_web_scraper": {
+        "de": "Veraltet — verwende stattdessen tools.web_scraper.enabled im Bereich 'Tools & Dienste'.",
+        "en": "Deprecated — use tools.web_scraper.enabled in the 'Tools & Services' section instead."
+    },
+    "tools.web_scraper.enabled": {
         "de": "Wenn deaktiviert, wird der web_scraper-Skill blockiert. Der Agent kann dann keine externen Webseiten abrufen.",
         "en": "When disabled, the web_scraper skill is blocked. The agent will not be able to fetch external websites."
+    },
+    "tools.web_scraper.summary_mode": {
+        "de": "Gescrapte Inhalte werden an ein separates (günstiges) Modell gesendet, das nur eine Zusammenfassung erstellt. Der Agent erhält nur die Zusammenfassung — spart Token und verhindert Prompt-Injection.",
+        "en": "Scraped content is sent to a separate (cheap) model that creates a summary only. The agent receives only the summary — saves tokens and prevents prompt injection."
+    },
+    "tools.web_scraper.summary_provider": {
+        "de": "Provider-Eintrag für das Zusammenfassungsmodell. Leer = Haupt-LLM wird verwendet. Hier empfiehlt sich ein günstiges Modell.",
+        "en": "Provider entry for the summarisation model. Empty = main LLM is used. A cheap model is recommended here.",
+        "provider_ref": true
     },
     "agent.additional_prompt": {
         "de": "Beliebiger Text, der immer am Ende des System-Prompts angehängt wird. Ideal für nutzerspezifische Regeln, Kontextinfos oder feste Anweisungen, die bei jeder Anfrage gelten sollen.",

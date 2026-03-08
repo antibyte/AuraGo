@@ -161,6 +161,10 @@ tools:
         enabled: true
     wol:
         enabled: false
+    web_scraper:
+        enabled: true
+        summary_mode: false
+        summary_provider: ""
 # LLM Providers — configure via the Setup Wizard or Config UI
 providers: []
 llm:

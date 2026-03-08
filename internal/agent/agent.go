@@ -2587,11 +2587,29 @@ func dispatchInner(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 		cleanSkillName := strings.TrimSuffix(skillName, ".py")
 		switch cleanSkillName {
 		case "web_scraper":
-			if !cfg.Agent.AllowWebScraper {
-				return "Tool Output: [PERMISSION DENIED] web_scraper is disabled in Danger Zone settings (agent.allow_web_scraper: false)."
+			if !cfg.Tools.WebScraper.Enabled {
+				return "Tool Output: [PERMISSION DENIED] web_scraper is disabled in settings (tools.web_scraper.enabled: false)."
 			}
 			urlStr, _ := args["url"].(string)
-			return tools.ExecuteWebScraper(urlStr)
+			scraped := tools.ExecuteWebScraper(urlStr)
+
+			// Summary mode: send scraped content to a separate LLM for
+			// summarisation so the agent only receives a concise summary.
+			// This saves tokens in the main model and prevents prompt
+			// injection from external web content.
+			if cfg.Tools.WebScraper.SummaryMode {
+				searchQuery, _ := args["search_query"].(string)
+				if searchQuery == "" {
+					searchQuery = "general summary of the page content"
+				}
+				summary, err := tools.SummariseScrapedContent(ctx, cfg, logger, scraped, searchQuery)
+				if err != nil {
+					logger.Warn("web_scraper summary failed, returning raw content", "error", err)
+				} else {
+					scraped = summary
+				}
+			}
+			return scraped
 		case "wikipedia_search":
 			queryStr, _ := args["query"].(string)
 			langStr, _ := args["language"].(string)
