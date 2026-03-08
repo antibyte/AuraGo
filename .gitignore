@@ -5,10 +5,8 @@
 /*.so
 /*.dylib
 /aurago.exe
-# bin/ — track Linux release binaries, ignore Windows executables and bare names
-/bin/*.exe
-/bin/aurago
-/bin/lifeboat
+# bin/ — all binaries are distributed via GitHub Releases, not tracked in git
+/bin/
 METRICS_DASHBOARD_DATA_SOURCES.md
 # Lock files (runtime)
 *.lock

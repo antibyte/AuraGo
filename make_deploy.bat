@@ -89,14 +89,43 @@ echo.
 echo ━━━ Done! Artifacts in %DEPLOY_DIR%\ ━━━
 dir "%DEPLOY_DIR%"
 
-REM ── Step 4: Auto Commit & Push ─────────────────────────────────────────
+REM ── Step 4: Commit code & upload binaries as GitHub Release ─────────────
 echo.
-echo [4/4] Committing and pushing to GitHub ...
+echo [4/5] Committing code changes to GitHub ...
 git add .
 git diff-index --quiet HEAD || (
-    git commit -m "build: auto-deploy artifacts and code updates [skip actions]" >nul
+    git commit -m "build: code updates [skip actions]" >nul
     git push origin main
     echo     Code pushed to GitHub successfully.
 )
-if errorlevel 0 echo     No changes to commit.
+
+echo.
+echo [5/5] Creating GitHub Release with binaries ...
+
+REM Build a date-based tag  (v2026.0308.HHMM)
+for /f "tokens=1-4 delims=/ " %%a in ('date /t') do set "DDATE=%%c%%b%%a"
+for /f "tokens=1-2 delims=: " %%a in ('time /t') do set "DTIME=%%a%%b"
+set "TAG=v%date:~6,4%.%date:~3,2%%date:~0,2%.%time:~0,2%%time:~3,2%"
+set "TAG=%TAG: =0%"
+
+REM Delete previous "latest" release if it exists, then create new one
+gh release delete latest --yes --cleanup-tag 2>nul
+gh release create latest ^
+    --title "AuraGo Latest Build" ^
+    --notes "Auto-built on %date% %time%" ^
+    --latest ^
+    "bin\aurago_linux" ^
+    "bin\aurago_linux_arm64" ^
+    "bin\lifeboat_linux" ^
+    "bin\lifeboat_linux_arm64" ^
+    "bin\config-merger_linux" ^
+    "bin\config-merger_linux_arm64" ^
+    "%DEPLOY_DIR%\%RESOURCES%"
+
+if errorlevel 1 (
+    echo     ERROR: Failed to create GitHub Release.
+    echo     Make sure gh is authenticated: gh auth status
+) else (
+    echo     GitHub Release "latest" created with all binaries.
+)
 endlocal

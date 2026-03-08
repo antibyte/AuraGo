@@ -412,11 +412,21 @@ section "Updating binaries"
 # Ensure bin directory exists (e.g. if user manually deleted it)
 mkdir -p "$DIR/bin"
 
-# Force restore any tracked binaries that might have been locally deleted or clobbered by a stash pop
-git checkout HEAD -- \
-    bin/aurago_linux bin/lifeboat_linux bin/config-merger_linux \
-    bin/aurago_linux_arm64 bin/lifeboat_linux_arm64 bin/config-merger_linux_arm64 \
-    2>/dev/null || true
+# Binaries are now distributed via GitHub Releases (no longer tracked in git)
+GITHUB_REPO="antibyte/AuraGo"
+RELEASE_TAG="latest"
+
+_download_release_bin() {
+    local name="$1"
+    local url="https://github.com/${GITHUB_REPO}/releases/download/${RELEASE_TAG}/${name}"
+    if command -v curl >/dev/null 2>&1; then
+        curl -fsSL "$url" -o "$DIR/bin/$name"
+    elif command -v wget >/dev/null 2>&1; then
+        wget -q "$url" -O "$DIR/bin/$name"
+    else
+        return 1
+    fi
+}
 
 GO_MIN_VERSION="1.26"
 GO_FOUND=false
@@ -451,47 +461,40 @@ if $GO_FOUND; then
         ok "bin/config-merger_linux built from source"
     fi
 else
-    # ── Pre-built binaries (no Go or < 1.26) ─────────────────────────────
+    # ── Download binaries from GitHub Releases (no Go or < 1.26) ──────────
     if command -v go >/dev/null 2>&1; then
-        warn "Go ($GO_VERSION) is too old (min $GO_MIN_VERSION) — using pre-built binaries."
+        warn "Go ($GO_VERSION) is too old (min $GO_MIN_VERSION) — downloading pre-built binaries from GitHub Releases."
     else
-        warn "Go is not installed — using pre-built binaries from the repository."
+        warn "Go is not installed — downloading pre-built binaries from GitHub Releases."
     fi
-    info "These are the binaries included in the latest git pull."
 
-    # Pick arch-appropriate pre-built binary name
-    PREBUILT_SUFFIX=""
+    # Pick arch-appropriate binary names
     if [ "$GOARCH" = "arm64" ]; then
-        PREBUILT_SUFFIX="_arm64"
-    elif [ "$GOARCH" != "amd64" ]; then
-        warn "No pre-built binary for $ARCH_RAW. Install Go $GO_MIN_VERSION+ and re-run update.sh."
-        warn "https://go.dev/dl/"
-    fi
-
-    _use_prebuilt() {
-        local base="$1" target="$2"
-        local src="$DIR/bin/${base}${PREBUILT_SUFFIX}"
-        if [ -f "$src" ]; then
-            # Copy to standard name (what systemd and scripts expect)
-            [ "$src" != "$DIR/bin/$base" ] && cp -p "$src" "$DIR/bin/$base"
-            ok "$base  (pre-built $ARCH_RAW, $(du -sh "$src" 2>/dev/null | cut -f1))"
-        else
-            echo "$target" ; return 1
-        fi
-    }
-
-    if ! _use_prebuilt "aurago_linux" "bin/aurago_linux not found after git pull. Cannot continue."; then
-        die "bin/aurago_linux${PREBUILT_SUFFIX} not found after git pull. Cannot continue."
-    fi
-    _use_prebuilt "lifeboat_linux" "" || warn "bin/lifeboat_linux${PREBUILT_SUFFIX} not found — maintenance features may not work."
-    _use_prebuilt "config-merger_linux" "" || warn "bin/config-merger_linux${PREBUILT_SUFFIX} not found — config merging disabled."
-
-    if [ -f "$DIR/bin/lifeboat_linux" ]; then
-        ok "bin/lifeboat_linux  (pre-built, $(du -sh "$DIR/bin/lifeboat_linux" 2>/dev/null | cut -f1))"
-        cp -p "$DIR/bin/lifeboat_linux" "$DIR/bin/lifeboat" 2>/dev/null || true
+        BINS=("aurago_linux_arm64" "lifeboat_linux_arm64" "config-merger_linux_arm64")
     else
-        warn "bin/lifeboat_linux not found — maintenance features may not work."
+        BINS=("aurago_linux" "lifeboat_linux" "config-merger_linux")
     fi
+
+    for BIN_NAME in "${BINS[@]}"; do
+        info "Downloading $BIN_NAME from GitHub Releases..."
+        if _download_release_bin "$BIN_NAME"; then
+            ok "$BIN_NAME downloaded."
+        else
+            warn "$BIN_NAME download failed."
+        fi
+    done
+
+    # Ensure standard names exist (for arm64 → copy to non-suffixed names)
+    if [ "$GOARCH" = "arm64" ]; then
+        [ -f "$DIR/bin/aurago_linux_arm64" ]        && cp -p "$DIR/bin/aurago_linux_arm64"        "$DIR/bin/aurago_linux"
+        [ -f "$DIR/bin/lifeboat_linux_arm64" ]      && cp -p "$DIR/bin/lifeboat_linux_arm64"      "$DIR/bin/lifeboat_linux"
+        [ -f "$DIR/bin/config-merger_linux_arm64" ]  && cp -p "$DIR/bin/config-merger_linux_arm64"  "$DIR/bin/config-merger_linux"
+    fi
+
+    [ -f "$DIR/bin/aurago_linux" ] || die "Failed to obtain aurago_linux binary. Cannot continue."
+
+    # Create lifeboat symlink
+    [ -f "$DIR/bin/lifeboat_linux" ] && cp -p "$DIR/bin/lifeboat_linux" "$DIR/bin/lifeboat" 2>/dev/null || true
 fi
 
 # Ensure all binaries are executable. Try with sudo if needed.

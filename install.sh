@@ -10,6 +10,7 @@
 #    2. Installs Git, Python 3 + pip, ffmpeg if missing
 #    3. Installs Go 1.26 if not present (official Go binary for your arch)
 #    4. Clones the AuraGo repo and builds binaries from source
+#       (or downloads pre-built binaries from GitHub Releases)
 #    5. Generates a random AES-256 master key -> .env
 #    6. Optionally configures network binding and installs a systemd service
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -137,8 +138,8 @@ if _go_version_ok; then
     BUILD_FROM_SOURCE=true
 else
     info "Go $GO_VERSION+ not found."
-    echo "  The repository includes a pre-built binary that is ready to use."
-    echo "  You only need to install Go if you want to build from source."
+    echo "  Pre-built binaries are available from GitHub Releases."
+    echo "  You only need Go if you want to build from source."
     echo ""
     read -r -p "Install Go $GO_VERSION and build from source? [y/N]: " GO_REPLY < /dev/tty || true
     if [[ "${GO_REPLY:-n}" =~ ^[Yy]$ ]]; then
@@ -201,17 +202,38 @@ if $BUILD_FROM_SOURCE; then
         go build -trimpath -ldflags="-s -w" -o bin/config-merger_linux ./cmd/config-merger
     ok "bin/config-merger_linux built."
 else
-    info "Using pre-built binary from repository (arch: $GOARCH)..."
-    # For arm64, swap in the _arm64 variants committed alongside the amd64 binary
-    if [ "$GOARCH" = "arm64" ] && [ -f "bin/aurago_linux_arm64" ]; then
+    info "Using pre-built binary from GitHub Releases (arch: $GOARCH)..."
+
+    GITHUB_REPO="antibyte/AuraGo"
+    RELEASE_TAG="latest"
+
+    _download_release_bin() {
+        local name="$1"
+        local url="https://github.com/${GITHUB_REPO}/releases/download/${RELEASE_TAG}/${name}"
+        info "Downloading $name ..."
+        if command -v curl >/dev/null 2>&1; then
+            curl -fsSL "$url" -o "bin/$name"
+        elif command -v wget >/dev/null 2>&1; then
+            wget -q "$url" -O "bin/$name"
+        else
+            die "Neither curl nor wget available. Cannot download binaries."
+        fi
+    }
+
+    # Download arch-appropriate binaries
+    if [ "$GOARCH" = "arm64" ]; then
+        _download_release_bin "aurago_linux_arm64"
+        _download_release_bin "lifeboat_linux_arm64"    2>/dev/null || warn "lifeboat_linux_arm64 not found in release."
+        _download_release_bin "config-merger_linux_arm64" 2>/dev/null || warn "config-merger_linux_arm64 not found in release."
         cp bin/aurago_linux_arm64  bin/aurago_linux
         cp bin/lifeboat_linux_arm64     bin/lifeboat_linux     2>/dev/null || true
         cp bin/config-merger_linux_arm64 bin/config-merger_linux 2>/dev/null || true
-        ok "Copied arm64 binaries."
-    elif [ ! -f "bin/aurago_linux" ]; then
-        die "Pre-built binary not found at bin/aurago_linux. Run the installer with Go to build from source."
+        ok "Downloaded and copied arm64 binaries."
     else
-        ok "Using bin/aurago_linux (amd64)."
+        _download_release_bin "aurago_linux"
+        _download_release_bin "lifeboat_linux"          2>/dev/null || warn "lifeboat_linux not found in release."
+        _download_release_bin "config-merger_linux"     2>/dev/null || warn "config-merger_linux not found in release."
+        ok "Downloaded amd64 binaries."
     fi
 fi
 chmod +x bin/aurago_linux bin/lifeboat_linux bin/config-merger_linux 2>/dev/null || true
