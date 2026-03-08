@@ -5,18 +5,15 @@
 #  Usage:
 #    curl -fsSL https://raw.githubusercontent.com/antibyte/AuraGo/main/install.sh | bash
 #
-#  What it does:
-#    1. Detects architecture (x86_64 / aarch64) — both fully supported
-#    2. Installs Git, Python 3 + pip, ffmpeg if missing
-#    3. Installs Go 1.26 if not present (official Go binary for your arch)
-#    4. Clones the AuraGo repo and builds binaries from source
-#       (or downloads pre-built binaries from GitHub Releases)
-#    5. Generates a random AES-256 master key -> .env
-#    6. Optionally configures network binding and installs a systemd service
+#  Two installation modes:
+#    A) Source build  — clones repo, requires Go 1.26+, builds from source
+#    B) Binary install — downloads pre-built binaries + resources from
+#       GitHub Releases. No git clone, no Go required.
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 set -euo pipefail
 
-REPO="https://github.com/antibyte/AuraGo.git"
+GITHUB_REPO="antibyte/AuraGo"
+REPO="https://github.com/${GITHUB_REPO}.git"
 INSTALL_DIR="${AURAGO_DIR:-$HOME/aurago}"
 SYSTEMD_SERVICE="aurago"
 GO_VERSION="1.26.0"
@@ -39,10 +36,10 @@ ARCH_RAW=$(uname -m)
 case "$ARCH_RAW" in
     x86_64)        GOARCH="amd64" ;;
     aarch64|arm64) GOARCH="arm64" ;;
-    armv7l|armv6l) GOARCH="armv6l" ;;  # Raspberry Pi 32-bit
+    armv7l|armv6l) GOARCH="armv6l" ;;
     *)             die "Unsupported architecture: $ARCH_RAW" ;;
 esac
-ok "Architecture: $ARCH_RAW → Go target: $GOARCH"
+ok "Architecture: $ARCH_RAW → target: $GOARCH"
 
 SUDO=""
 [ "$(id -u)" -ne 0 ] && SUDO="sudo"
@@ -72,14 +69,23 @@ _pkg_install() {
     esac
 }
 
-# ── System dependencies ──────────────────────────────────────────────────
-info "Checking system dependencies..."
-
-command -v git >/dev/null 2>&1 || { info "Installing git..."; _pkg_install git; }
-ok "git: $(git --version)"
-
+# ── Ensure curl or wget ──────────────────────────────────────────────────
 command -v curl >/dev/null 2>&1 || command -v wget >/dev/null 2>&1 || \
     { info "Installing curl..."; _pkg_install curl; }
+
+_download() {
+    local url="$1" dest="$2"
+    if command -v curl >/dev/null 2>&1; then
+        curl -fsSL "$url" -o "$dest"
+    elif command -v wget >/dev/null 2>&1; then
+        wget -q "$url" -O "$dest"
+    else
+        die "Neither curl nor wget available."
+    fi
+}
+
+# ── Optional system dependencies ─────────────────────────────────────────
+info "Checking system dependencies..."
 
 # ffmpeg (needed for Telegram voice conversion)
 if ! command -v ffmpeg >/dev/null 2>&1; then
@@ -122,7 +128,9 @@ else
     ok "Python 3 + pip found."
 fi
 
-# ── Go (optional — only needed to build from source) ─────────────────────
+# ══════════════════════════════════════════════════════════════════════════
+#  Decide installation mode: SOURCE BUILD vs BINARY INSTALL
+# ══════════════════════════════════════════════════════════════════════════
 BUILD_FROM_SOURCE=false
 
 _go_version_ok() {
@@ -138,23 +146,20 @@ if _go_version_ok; then
     BUILD_FROM_SOURCE=true
 else
     info "Go $GO_VERSION+ not found."
-    echo "  Pre-built binaries are available from GitHub Releases."
-    echo "  You only need Go if you want to build from source."
     echo ""
-    read -r -p "Install Go $GO_VERSION and build from source? [y/N]: " GO_REPLY < /dev/tty || true
-    if [[ "${GO_REPLY:-n}" =~ ^[Yy]$ ]]; then
+    echo "  Choose installation mode:"
+    echo "    1) Binary install — download pre-built binaries (no Go needed, fast)"
+    echo "    2) Source build   — install Go $GO_VERSION, clone repo, build from source"
+    echo ""
+    read -r -p "Install mode [1/2, default=1]: " MODE_REPLY < /dev/tty || true
+    if [[ "${MODE_REPLY:-1}" == "2" ]]; then
         info "Installing Go $GO_VERSION for $GOARCH..."
         GO_TAR="go${GO_VERSION}.linux-${GOARCH}.tar.gz"
         GO_URL="https://go.dev/dl/${GO_TAR}"
         TMP_GO=$(mktemp -d)
         trap 'rm -rf "$TMP_GO"' EXIT
 
-        if command -v curl >/dev/null 2>&1; then
-            curl -fsSL "$GO_URL" -o "$TMP_GO/$GO_TAR"
-        else
-            wget -q "$GO_URL" -O "$TMP_GO/$GO_TAR"
-        fi
-
+        _download "$GO_URL" "$TMP_GO/$GO_TAR"
         $SUDO rm -rf "$GO_INSTALL_DIR/go"
         $SUDO tar -C "$GO_INSTALL_DIR" -xzf "$TMP_GO/$GO_TAR"
         rm -rf "$TMP_GO"
@@ -167,28 +172,29 @@ GOPATH
         ok "Go $GO_VERSION installed to $GO_INSTALL_DIR/go"
         BUILD_FROM_SOURCE=true
     else
-        ok "Skipping Go — using pre-built binary from the repository."
+        ok "Binary install selected — no Go required."
     fi
 fi
 
-# ── Clone / update repo ──────────────────────────────────────────────────
-if [ -d "$INSTALL_DIR/.git" ]; then
-    info "Existing installation found at $INSTALL_DIR — updating..."
-    git -C "$INSTALL_DIR" pull --ff-only
-    ok "Updated to latest."
-else
-    info "Cloning into $INSTALL_DIR ..."
-    git clone "$REPO" "$INSTALL_DIR"
-    ok "Cloned."
-fi
-
-cd "$INSTALL_DIR"
-mkdir -p data agent_workspace/workdir agent_workspace/tools log
-ok "Runtime directories created."
-
-# ── Build from source (or use pre-built binary from repo) ────────────────
-mkdir -p bin
+# ══════════════════════════════════════════════════════════════════════════
+#  MODE A: Source build — clone repo & compile
+# ══════════════════════════════════════════════════════════════════════════
 if $BUILD_FROM_SOURCE; then
+    command -v git >/dev/null 2>&1 || { info "Installing git..."; _pkg_install git; }
+
+    if [ -d "$INSTALL_DIR/.git" ]; then
+        info "Existing installation found at $INSTALL_DIR — updating..."
+        git -C "$INSTALL_DIR" pull --ff-only
+        ok "Updated to latest."
+    else
+        info "Cloning into $INSTALL_DIR ..."
+        git clone "$REPO" "$INSTALL_DIR"
+        ok "Cloned."
+    fi
+
+    cd "$INSTALL_DIR"
+    mkdir -p bin data agent_workspace/workdir agent_workspace/tools log
+
     info "Building AuraGo from source (GOOS=linux GOARCH=$GOARCH)..."
     CGO_ENABLED=0 GOOS=linux GOARCH="$GOARCH" \
         go build -trimpath -ldflags="-s -w" -o bin/aurago_linux ./cmd/aurago
@@ -201,45 +207,51 @@ if $BUILD_FROM_SOURCE; then
     CGO_ENABLED=0 GOOS=linux GOARCH="$GOARCH" \
         go build -trimpath -ldflags="-s -w" -o bin/config-merger_linux ./cmd/config-merger
     ok "bin/config-merger_linux built."
+
+# ══════════════════════════════════════════════════════════════════════════
+#  MODE B: Binary install — download from GitHub Releases (no clone)
+# ══════════════════════════════════════════════════════════════════════════
 else
-    info "Using pre-built binary from GitHub Releases (arch: $GOARCH)..."
+    info "Binary install — downloading from GitHub Releases..."
 
-    GITHUB_REPO="antibyte/AuraGo"
-
-    # Resolve the latest release tag dynamically
-    RELEASE_TAG=$(curl -fsSL "https://api.github.com/repos/${GITHUB_REPO}/releases/latest" | grep -o '"tag_name": *"[^"]*"' | head -1 | cut -d'"' -f4)
+    # Resolve the latest release tag
+    RELEASE_TAG=$(curl -fsSL "https://api.github.com/repos/${GITHUB_REPO}/releases/latest" \
+                  | grep -o '"tag_name": *"[^"]*"' | head -1 | cut -d'"' -f4)
     [ -z "$RELEASE_TAG" ] && die "Could not determine latest release tag from GitHub."
     info "Latest release: $RELEASE_TAG"
 
-    _download_release_bin() {
-        local name="$1"
-        local url="https://github.com/${GITHUB_REPO}/releases/download/${RELEASE_TAG}/${name}"
-        info "Downloading $name ..."
-        if command -v curl >/dev/null 2>&1; then
-            curl -fsSL "$url" -o "bin/$name"
-        elif command -v wget >/dev/null 2>&1; then
-            wget -q "$url" -O "bin/$name"
-        else
-            die "Neither curl nor wget available. Cannot download binaries."
-        fi
-    }
+    RELEASE_BASE="https://github.com/${GITHUB_REPO}/releases/download/${RELEASE_TAG}"
 
-    # Download arch-appropriate binaries
+    # Create install directory + subdirectories
+    mkdir -p "$INSTALL_DIR/bin" "$INSTALL_DIR/data" "$INSTALL_DIR/log"
+    mkdir -p "$INSTALL_DIR/agent_workspace/workdir" "$INSTALL_DIR/agent_workspace/tools"
+    cd "$INSTALL_DIR"
+
+    # Download resources.dat and extract (contains prompts, skills, config template, UI)
+    info "Downloading resources.dat ..."
+    _download "${RELEASE_BASE}/resources.dat" "$INSTALL_DIR/resources.dat"
+    tar -xzf "$INSTALL_DIR/resources.dat" -C "$INSTALL_DIR"
+    rm -f "$INSTALL_DIR/resources.dat"
+    ok "Resources extracted."
+
+    # Download binaries
     if [ "$GOARCH" = "arm64" ]; then
-        _download_release_bin "aurago_linux_arm64"
-        _download_release_bin "lifeboat_linux_arm64"    2>/dev/null || warn "lifeboat_linux_arm64 not found in release."
-        _download_release_bin "config-merger_linux_arm64" 2>/dev/null || warn "config-merger_linux_arm64 not found in release."
-        cp bin/aurago_linux_arm64  bin/aurago_linux
-        cp bin/lifeboat_linux_arm64     bin/lifeboat_linux     2>/dev/null || true
-        cp bin/config-merger_linux_arm64 bin/config-merger_linux 2>/dev/null || true
-        ok "Downloaded and copied arm64 binaries."
+        info "Downloading arm64 binaries..."
+        _download "${RELEASE_BASE}/aurago_linux_arm64"          "bin/aurago_linux_arm64"
+        _download "${RELEASE_BASE}/lifeboat_linux_arm64"        "bin/lifeboat_linux_arm64"        2>/dev/null || warn "lifeboat_linux_arm64 not in release."
+        _download "${RELEASE_BASE}/config-merger_linux_arm64"   "bin/config-merger_linux_arm64"   2>/dev/null || warn "config-merger_linux_arm64 not in release."
+        cp bin/aurago_linux_arm64           bin/aurago_linux
+        cp bin/lifeboat_linux_arm64         bin/lifeboat_linux         2>/dev/null || true
+        cp bin/config-merger_linux_arm64    bin/config-merger_linux     2>/dev/null || true
     else
-        _download_release_bin "aurago_linux"
-        _download_release_bin "lifeboat_linux"          2>/dev/null || warn "lifeboat_linux not found in release."
-        _download_release_bin "config-merger_linux"     2>/dev/null || warn "config-merger_linux not found in release."
-        ok "Downloaded amd64 binaries."
+        info "Downloading amd64 binaries..."
+        _download "${RELEASE_BASE}/aurago_linux"                "bin/aurago_linux"
+        _download "${RELEASE_BASE}/lifeboat_linux"              "bin/lifeboat_linux"              2>/dev/null || warn "lifeboat_linux not in release."
+        _download "${RELEASE_BASE}/config-merger_linux"         "bin/config-merger_linux"         2>/dev/null || warn "config-merger_linux not in release."
     fi
+    ok "Binaries downloaded."
 fi
+
 chmod +x bin/aurago_linux bin/lifeboat_linux bin/config-merger_linux 2>/dev/null || true
 ok "Binaries ready."
 
@@ -367,7 +379,8 @@ if $BUILD_FROM_SOURCE; then
     echo -e "  ${CYAN}Update later:${NC}  cd $INSTALL_DIR && bash update.sh"
     echo    "               (or rebuild: go build -o bin/aurago_linux ./cmd/aurago)"
 else
-    echo -e "  ${CYAN}Update later:${NC}  cd $INSTALL_DIR && bash update.sh"
+    echo -e "  ${CYAN}Update later:${NC}  curl -fsSL https://raw.githubusercontent.com/${GITHUB_REPO}/main/install.sh | bash"
+    echo    "               (re-running the installer will download the latest release)"
 fi
 echo ""
 echo -e "${GREEN}Setup complete! Finish configuration in the Web UI.${NC}"
