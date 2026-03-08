@@ -144,13 +144,21 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 }
 
 // needsSetup returns true if the Quick Setup wizard should be shown.
-// LLM.APIKey / ProviderType are resolved at runtime (yaml:"-") and are always
-// empty when first read from disk, so we check the yaml-stored fields instead:
-//   - cfg.LLM.Provider  — the provider-entry ID selected for the main LLM
-//   - cfg.Providers     — at least one provider must be configured
+// We check that at least one provider with a non-empty API key (or OAuth)
+// exists and is referenced by the main LLM slot.
 func needsSetup(cfg *config.Config) bool {
 	if len(cfg.Providers) == 0 {
 		return true
 	}
-	return cfg.LLM.Provider == ""
+	if cfg.LLM.Provider == "" {
+		return true
+	}
+	// Even if "providers" and "llm.provider" are set (e.g. by migration),
+	// require at least one provider to have a usable key or auth.
+	for _, p := range cfg.Providers {
+		if p.APIKey != "" || p.AuthType == "oauth2" {
+			return false
+		}
+	}
+	return true // all providers have empty keys → still needs setup
 }
