@@ -1476,6 +1476,7 @@
                     { key: 'web_config', icon: '🛡️', label: { de: 'Web-Konfiguration & Login', en: 'Web Config & Login' }, desc: { de: 'Sicherheitseinstellungen, Login-Schutz und 2FA', en: 'Security settings, login guard and 2FA' } },
                     { key: 'secrets', icon: '🔐', label: { de: 'Secrets', en: 'Secrets' }, desc: { de: 'Verschlüsselte Secrets im Vault verwalten', en: 'Manage encrypted secrets in the vault' } },
                     { key: 'backup_restore', icon: '💾', label: { de: 'Backup & Restore', en: 'Backup & Restore' }, desc: { de: 'Instanz sichern und wiederherstellen (.ago-Archiv)', en: 'Back up and restore the instance (.ago archive)' } },
+                    { key: 'updates', icon: '🔄', label: { de: 'Updates', en: 'Updates' }, desc: { de: 'AuraGo auf die neueste Version aktualisieren', en: 'Update AuraGo to the latest version' } },
                     { key: 'devices', icon: '📱', label: { de: 'Geräte', en: 'Devices' }, desc: { de: 'Geräte-Registry verwalten (anzeigen, hinzufügen, bearbeiten, löschen)', en: 'Manage device registry (view, add, edit, delete)' } }
                 ]
             },
@@ -1824,6 +1825,12 @@
             // Custom render for backup & restore
             if (key === 'backup_restore') {
                 renderBackupSection(section);
+                return;
+            }
+
+            // Custom render for updates
+            if (key === 'updates') {
+                renderUpdatesSection(section);
                 return;
             }
 
@@ -4187,6 +4194,146 @@
                 secretsRenderTable();
             } catch (e) {
                 alert('Error: ' + e.message);
+            }
+        }
+
+        // ── Updates Section ──────────────────────────────────────────────────
+        function renderUpdatesSection(section) {
+            const lDe = lang === 'de';
+            const content = document.getElementById('section-content');
+            content.innerHTML = `
+            <div class="cfg-section active">
+                <div class="section-header">${section.icon} ${section.label[lang]}</div>
+                <div class="section-desc">${section.desc[lang]}</div>
+                <div id="updates-body" style="margin-top:1.5rem;"></div>
+            </div>`;
+
+            renderUpdatesBody();
+        }
+
+        async function renderUpdatesBody() {
+            const lDe = lang === 'de';
+            const body = document.getElementById('updates-body');
+            if (!body) return;
+
+            body.innerHTML = `
+            <div style="background:var(--bg-secondary);border:1px solid var(--border-subtle);border-radius:12px;padding:1.25rem;margin-bottom:1.25rem;">
+                <div style="font-size:0.8rem;color:var(--text-secondary);line-height:1.6;">
+                    ${lDe
+                        ? '⚠️ Das Update ersetzt Binärdateien, Prompts und UI-Dateien. <strong>Deine Konfiguration und Daten bleiben erhalten.</strong> AuraGo wird nach dem Update neu gestartet.'
+                        : '⚠️ The update replaces binaries, prompts and UI files. <strong>Your configuration and data are preserved.</strong> AuraGo will restart after the update.'}
+                </div>
+            </div>
+
+            <div id="updates-check-result" style="margin-bottom:1.25rem;"></div>
+
+            <div style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap;">
+                <button class="btn-save" style="padding:0.55rem 1.4rem;font-size:0.85rem;" id="updates-check-btn" onclick="updatesCheck()">
+                    ${lDe ? '🔍 Nach Updates suchen' : '🔍 Check for Updates'}
+                </button>
+                <button class="btn-save" style="padding:0.55rem 1.4rem;font-size:0.85rem;display:none;" id="updates-install-btn" onclick="updatesInstall()">
+                    ${lDe ? '⬆️ Update installieren' : '⬆️ Install Update'}
+                </button>
+                <span id="updates-status" style="font-size:0.8rem;color:var(--text-secondary);"></span>
+            </div>`;
+        }
+
+        async function updatesCheck() {
+            const lDe = lang === 'de';
+            const btn = document.getElementById('updates-check-btn');
+            const resultDiv = document.getElementById('updates-check-result');
+            const installBtn = document.getElementById('updates-install-btn');
+            const status = document.getElementById('updates-status');
+            if (!btn || !resultDiv) return;
+
+            btn.disabled = true;
+            btn.textContent = lDe ? '⏳ Prüfe…' : '⏳ Checking…';
+            status.textContent = '';
+            if (installBtn) installBtn.style.display = 'none';
+
+            try {
+                const resp = await fetch('/api/updates/check');
+                const data = await resp.json();
+
+                if (data.error) {
+                    resultDiv.innerHTML = `
+                    <div style="border:1px solid var(--border-subtle);border-radius:10px;padding:1rem 1.2rem;background:rgba(239,68,68,0.07);">
+                        <div style="font-weight:600;color:var(--danger);">❌ ${lDe ? 'Fehler' : 'Error'}</div>
+                        <div style="font-size:0.82rem;color:var(--text-secondary);margin-top:0.3rem;">${data.error}</div>
+                    </div>`;
+                } else if (data.update_available) {
+                    let changelogHtml = '';
+                    if (data.changelog) {
+                        const lines = data.changelog.split('\n').filter(l => l.trim());
+                        changelogHtml = `
+                        <div style="margin-top:0.75rem;">
+                            <div style="font-size:0.78rem;font-weight:600;color:var(--text-secondary);margin-bottom:0.4rem;">${lDe ? 'Änderungen:' : 'Changelog:'}</div>
+                            <div style="font-family:monospace;font-size:0.77rem;color:var(--text-secondary);background:var(--bg-secondary);border-radius:7px;padding:0.65rem 0.85rem;max-height:120px;overflow-y:auto;line-height:1.55;">
+                                ${lines.map(l => `<div>${l}</div>`).join('')}
+                            </div>
+                        </div>`;
+                    }
+                    resultDiv.innerHTML = `
+                    <div style="border:1px solid rgba(245,158,11,0.35);border-radius:10px;padding:1rem 1.2rem;background:rgba(245,158,11,0.07);">
+                        <div style="font-weight:600;color:var(--warning);">🆕 ${lDe ? 'Update verfügbar' : 'Update Available'}</div>
+                        <div style="display:flex;gap:1.2rem;margin-top:0.5rem;font-size:0.82rem;color:var(--text-secondary);">
+                            ${data.current_version ? `<span>${lDe ? 'Aktuell' : 'Current'}: <strong>${data.current_version}</strong></span>` : ''}
+                            ${data.latest_version ? `<span>${lDe ? 'Neu' : 'Latest'}: <strong style="color:var(--accent);">${data.latest_version}</strong></span>` : ''}
+                            ${data.commit_count ? `<span>${data.commit_count} commit(s)</span>` : ''}
+                        </div>
+                        ${changelogHtml}
+                    </div>`;
+                    if (installBtn) installBtn.style.display = '';
+                } else {
+                    resultDiv.innerHTML = `
+                    <div style="border:1px solid rgba(34,197,94,0.3);border-radius:10px;padding:1rem 1.2rem;background:rgba(34,197,94,0.07);">
+                        <div style="font-weight:600;color:var(--success,#22c55e);">✅ ${lDe ? 'Aktuell' : 'Up to date'}</div>
+                        <div style="display:flex;gap:1.2rem;margin-top:0.4rem;font-size:0.82rem;color:var(--text-secondary);">
+                            ${data.current_version ? `<span>${lDe ? 'Version' : 'Version'}: <strong>${data.current_version}</strong></span>` : ''}
+                            <span>${data.message || ''}</span>
+                        </div>
+                    </div>`;
+                }
+            } catch (e) {
+                resultDiv.innerHTML = `<div style="color:var(--danger);font-size:0.85rem;">❌ ${e.message}</div>`;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = lDe ? '🔍 Nach Updates suchen' : '🔍 Check for Updates';
+            }
+        }
+
+        async function updatesInstall() {
+            const lDe = lang === 'de';
+            const msg = lDe
+                ? 'Das Update wird jetzt gestartet. AuraGo wird danach automatisch neu gestartet.\n\nBitte die Seite nach ca. 30–60 Sekunden neu laden.'
+                : 'The update will start now. AuraGo will restart automatically afterwards.\n\nPlease reload the page after about 30–60 seconds.';
+            if (!confirm(msg)) return;
+
+            const installBtn = document.getElementById('updates-install-btn');
+            const checkBtn = document.getElementById('updates-check-btn');
+            const status = document.getElementById('updates-status');
+            if (installBtn) { installBtn.disabled = true; installBtn.textContent = lDe ? '⏳ Installiere…' : '⏳ Installing…'; }
+            if (checkBtn) checkBtn.disabled = true;
+            if (status) status.textContent = lDe ? 'Update läuft — bitte warten und Seite neu laden…' : 'Update running — please wait and reload the page…';
+
+            try {
+                const resp = await fetch('/api/updates/install', { method: 'POST' });
+                const data = await resp.json();
+                if (data.error) {
+                    if (status) status.textContent = '❌ ' + data.error;
+                    if (installBtn) { installBtn.disabled = false; installBtn.textContent = lDe ? '⬆️ Update installieren' : '⬆️ Install Update'; }
+                    if (checkBtn) checkBtn.disabled = false;
+                } else {
+                    if (status) status.textContent = lDe
+                        ? '✅ Update gestartet — AuraGo startet neu. Seite in 60s neu laden…'
+                        : '✅ Update started — AuraGo is restarting. Reload in 60s…';
+                    // Auto-reload after 75 seconds
+                    setTimeout(() => location.reload(), 75000);
+                }
+            } catch (e) {
+                if (status) status.textContent = '❌ ' + e.message;
+                if (installBtn) { installBtn.disabled = false; }
+                if (checkBtn) checkBtn.disabled = false;
             }
         }
 

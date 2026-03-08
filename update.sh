@@ -315,6 +315,7 @@ if $BINARY_ONLY; then
     fi
 
     rm -rf "$TMPEXT"
+    printf '%s' "$RELEASE_TAG" > "$DIR/.version"
     ok "Resources updated from release $RELEASE_TAG"
 else
     # Git-based: stash, pull, restore
@@ -345,6 +346,9 @@ else
         fi
     }
     ok "Code updated to $(git log --format='%h  %s' -1)"
+    # Write version tag for the Web UI update check
+    GIT_VER=$(git describe --tags --always 2>/dev/null || git rev-parse --short HEAD 2>/dev/null || echo 'git')
+    printf '%s' "$GIT_VER" > "$DIR/.version"
 fi
 
 # ── Migrate old prompts location (agent_workspace/prompts → prompts/) ─

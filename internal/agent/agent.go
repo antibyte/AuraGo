@@ -2021,7 +2021,41 @@ func dispatchInner(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 		logger.Info("LLM requested update management", "operation", tc.Operation)
 		switch tc.Operation {
 		case "check":
-			// git fetch origin main --quiet
+			installDir := filepath.Dir(cfg.ConfigPath)
+
+			// Binary-only install: no .git directory → use GitHub Releases API
+			if _, gitErr := os.Stat(filepath.Join(installDir, ".git")); os.IsNotExist(gitErr) {
+				// Read installed version from .version file
+				currentVer := "unknown"
+				if vb, err := os.ReadFile(filepath.Join(installDir, ".version")); err == nil {
+					currentVer = strings.TrimSpace(string(vb))
+				}
+				// Fetch latest release from GitHub
+				type ghRelease struct {
+					TagName string `json:"tag_name"`
+				}
+				httpClient := &http.Client{Timeout: 10 * time.Second}
+				req, reqErr := http.NewRequest("GET", "https://api.github.com/repos/antibyte/AuraGo/releases/latest", nil)
+				if reqErr != nil {
+					return fmt.Sprintf(`Tool Output: {"status":"error","message":"Failed to build request: %v"}`, reqErr)
+				}
+				req.Header.Set("User-Agent", "AuraGo-Agent/1.0")
+				resp, fetchErr := httpClient.Do(req)
+				if fetchErr != nil {
+					return fmt.Sprintf(`Tool Output: {"status":"error","message":"Failed to reach GitHub: %v"}`, fetchErr)
+				}
+				defer resp.Body.Close()
+				var rel ghRelease
+				if decErr := json.NewDecoder(resp.Body).Decode(&rel); decErr != nil {
+					return fmt.Sprintf(`Tool Output: {"status":"error","message":"Failed to parse GitHub response: %v"}`, decErr)
+				}
+				if currentVer != "unknown" && currentVer == rel.TagName {
+					return fmt.Sprintf(`Tool Output: {"status":"success","update_available":false,"current_version":%q,"latest_version":%q,"message":"AuraGo is up to date."}`, currentVer, rel.TagName)
+				}
+				return fmt.Sprintf(`Tool Output: {"status":"success","update_available":true,"current_version":%q,"latest_version":%q,"message":"Update available."}`, currentVer, rel.TagName)
+			}
+
+			// Git-based install
 			_, err := runGitCommand(filepath.Dir(cfg.ConfigPath), "fetch", "origin", "main", "--quiet")
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Failed to fetch updates: %v"}`, err)

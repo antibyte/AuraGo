@@ -265,6 +265,8 @@ else
         _download "${RELEASE_BASE}/lifeboat_linux"              "bin/lifeboat_linux"              2>/dev/null || warn "lifeboat_linux not in release."
         _download "${RELEASE_BASE}/config-merger_linux"         "bin/config-merger_linux"         2>/dev/null || warn "config-merger_linux not in release."
     fi
+    # Record installed version for update checks
+    printf '%s' "$RELEASE_TAG" > "$INSTALL_DIR/.version"
     ok "Binaries downloaded."
 fi
 
