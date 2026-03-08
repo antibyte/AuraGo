@@ -103,15 +103,11 @@ echo.
 echo [5/5] Creating GitHub Release with binaries ...
 
 REM Build a date-based tag  (v2026.0308.HHMM)
-for /f "tokens=1-4 delims=/ " %%a in ('date /t') do set "DDATE=%%c%%b%%a"
-for /f "tokens=1-2 delims=: " %%a in ('time /t') do set "DTIME=%%a%%b"
 set "TAG=v%date:~6,4%.%date:~3,2%%date:~0,2%.%time:~0,2%%time:~3,2%"
 set "TAG=%TAG: =0%"
 
-REM Delete previous "latest" release if it exists, then create new one
-gh release delete latest --yes --cleanup-tag 2>nul
-gh release create latest ^
-    --title "AuraGo Latest Build" ^
+gh release create %TAG% ^
+    --title "AuraGo %TAG%" ^
     --notes "Auto-built on %date% %time%" ^
     --latest ^
     "bin\aurago_linux" ^
@@ -126,6 +122,19 @@ if errorlevel 1 (
     echo     ERROR: Failed to create GitHub Release.
     echo     Make sure gh is authenticated: gh auth status
 ) else (
-    echo     GitHub Release "latest" created with all binaries.
+    echo     GitHub Release "%TAG%" created with all binaries.
 )
+
+REM ── Cleanup: keep only the 3 most recent releases ──────────────────────
+echo.
+echo [cleanup] Pruning old releases (keeping latest 3) ...
+set "SKIP=0"
+for /f "tokens=1" %%r in ('gh release list --limit 100 --json tagName --jq ".[].tagName"') do (
+    set /a SKIP+=1
+    if !SKIP! GTR 3 (
+        echo     Deleting old release %%r ...
+        gh release delete %%r --yes --cleanup-tag 2>nul
+    )
+)
+echo     Done.
 endlocal

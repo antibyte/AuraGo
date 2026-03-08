@@ -414,7 +414,15 @@ mkdir -p "$DIR/bin"
 
 # Binaries are now distributed via GitHub Releases (no longer tracked in git)
 GITHUB_REPO="antibyte/AuraGo"
-RELEASE_TAG="latest"
+
+# Resolve the latest release tag dynamically
+RELEASE_TAG=$(curl -fsSL "https://api.github.com/repos/${GITHUB_REPO}/releases/latest" | grep -o '"tag_name": *"[^"]*"' | head -1 | cut -d'"' -f4)
+if [ -z "$RELEASE_TAG" ]; then
+    warn "Could not determine latest release tag — trying 'latest' as fallback."
+    RELEASE_TAG="latest"
+else
+    info "Latest release: $RELEASE_TAG"
+fi
 
 _download_release_bin() {
     local name="$1"

@@ -205,7 +205,11 @@ else
     info "Using pre-built binary from GitHub Releases (arch: $GOARCH)..."
 
     GITHUB_REPO="antibyte/AuraGo"
-    RELEASE_TAG="latest"
+
+    # Resolve the latest release tag dynamically
+    RELEASE_TAG=$(curl -fsSL "https://api.github.com/repos/${GITHUB_REPO}/releases/latest" | grep -o '"tag_name": *"[^"]*"' | head -1 | cut -d'"' -f4)
+    [ -z "$RELEASE_TAG" ] && die "Could not determine latest release tag from GitHub."
+    info "Latest release: $RELEASE_TAG"
 
     _download_release_bin() {
         local name="$1"
