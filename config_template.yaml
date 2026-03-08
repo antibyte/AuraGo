@@ -1,0 +1,207 @@
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  AuraGo Configuration Template
+#  This file is used for fresh installations. On first start, the
+#  Setup Wizard will guide you through the initial configuration.
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+auth:
+    enabled: false
+    password_hash: ""
+    session_secret: ""
+    session_timeout_hours: 24
+    totp_secret: ""
+    totp_enabled: false
+    max_login_attempts: 5
+    lockout_minutes: 15
+agent:
+    context_window: 131000
+    core_memory_cap_mode: soft
+    core_memory_max_entries: 200
+    core_personality: friend
+    debug_mode: false
+    enable_google_workspace: true
+    max_tool_calls: 12
+    memory_compression_char_limit: 50000
+    personality_engine: true
+    personality_engine_v2: true
+    personality_v2_model: ""
+    personality_v2_url: ""
+    personality_v2_api_key: ""
+    show_tool_results: false
+    step_delay_seconds: 0
+    system_language: English
+    system_prompt_token_budget: 8192
+    workflow_feedback: true
+    sudo_enabled: false
+    allow_shell: true
+    allow_python: true
+    allow_filesystem_write: true
+    allow_network_requests: true
+    allow_remote_shell: true
+    allow_self_update: true
+    allow_mcp: true
+    allow_web_scraper: true
+budget:
+    daily_limit_usd: 1
+    default_cost:
+        input_per_million: 1
+        output_per_million: 3
+    enabled: false
+    enforcement: warn
+    models: []
+    reset_hour: 0
+    warning_threshold: 0.8
+chromecast:
+    enabled: false
+    tts_port: 8090
+circuit_breaker:
+    llm_timeout_seconds: 180
+    maintenance_timeout_minutes: 10
+    max_tool_calls: 20
+    retry_intervals:
+        - 10s
+        - 2m
+        - 10m
+co_agents:
+    circuit_breaker:
+        max_tokens: 0
+        max_tool_calls: 12
+        timeout_seconds: 300
+    enabled: false
+    llm:
+        api_key: ""
+        base_url: ""
+        model: ""
+        provider: ""
+    max_concurrent: 3
+directories:
+    data_dir: ./data
+    prompts_dir: ./prompts
+    skills_dir: ./agent_workspace/skills
+    tools_dir: ./agent_workspace/tools
+    vectordb_dir: ./data/vectordb
+    workspace_dir: ./agent_workspace/workdir
+discord:
+    allowed_user_id: ""
+    bot_token: ""
+    default_channel_id: ""
+    enabled: false
+    guild_id: ""
+docker:
+    enabled: false
+    host: ""
+email:
+    enabled: false
+    from_address: ""
+    imap_host: ""
+    imap_port: 993
+    password: ""
+    smtp_host: ""
+    smtp_port: 587
+    username: ""
+    watch_enabled: false
+    watch_folder: INBOX
+    watch_interval_seconds: 120
+embeddings:
+    api_key: ""
+    external_model: ""
+    external_url: ""
+    internal_model: ""
+    provider: internal
+fallback_llm:
+    api_key: ""
+    base_url: ""
+    enabled: false
+    error_threshold: 2
+    model: ""
+    probe_interval_seconds: 60
+home_assistant:
+    access_token: ""
+    enabled: false
+    url: ""
+brave_search:
+    api_key: ""
+    country: ""
+    lang: ""
+koofr:
+    app_password: ""
+    base_url: https://app.koofr.net
+    enabled: false
+    username: ""
+virustotal:
+    api_key: ""
+# LLM Providers — configure via the Setup Wizard or Config UI
+providers: []
+llm:
+    provider: ""
+    use_native_functions: true
+    temperature: 0.7
+    structured_outputs: false
+logging:
+    enable_file_log: true
+    log_dir: ./log
+meshcentral:
+    enabled: false
+    readonly: false
+    blocked_operations: []
+    url: ""
+    username: ""
+maintenance:
+    enabled: true
+    lifeboat_enabled: true
+    lifeboat_port: 8091
+    time: "04:00"
+server:
+    host: 127.0.0.1
+    port: 8088
+    bridge_address: "localhost:8089"
+    max_body_bytes: 10485760
+sqlite:
+    inventory_path: ./data/inventory.db
+    invasion_path: ./data/invasion.db
+    long_term_path: ./data/long_term.db
+    short_term_path: ./data/short_term.db
+telegram:
+    bot_token: ""
+    telegram_user_id: 0
+    max_concurrent_workers: 5
+tts:
+    elevenlabs:
+        api_key: ""
+        model_id: eleven_multilingual_v2
+        voice_id: ""
+    language: en
+    provider: google
+vision:
+    provider: ""
+web_config:
+    enabled: true
+invasion_control:
+    enabled: true
+indexing:
+    enabled: true
+    directories:
+        - ./knowledge
+    poll_interval_seconds: 60
+    extensions:
+        - .txt
+        - .md
+        - .json
+        - .csv
+        - .log
+        - .yaml
+        - .yml
+webdav:
+    enabled: false
+    password: ""
+    url: ""
+    username: ""
+whisper:
+    provider: ""
+mqtt:
+    enabled: false
+    broker: ""
+    client_id: aurago
+    username: ""
+    topics: []
+    qos: 0
+    relay_to_agent: false

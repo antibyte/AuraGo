@@ -230,8 +230,24 @@ else
     # Download resources.dat and extract (contains prompts, skills, config template, UI)
     info "Downloading resources.dat ..."
     _download "${RELEASE_BASE}/resources.dat" "$INSTALL_DIR/resources.dat"
-    tar -xzf "$INSTALL_DIR/resources.dat" -C "$INSTALL_DIR"
+    # Extract to a temp dir so we can selectively merge (never clobber existing config)
+    TMPEXT=$(mktemp -d)
+    tar -xzf "$INSTALL_DIR/resources.dat" -C "$TMPEXT"
     rm -f "$INSTALL_DIR/resources.dat"
+
+    # Copy prompts, skills, and other resource dirs (always overwrite — they are code)
+    [ -d "$TMPEXT/prompts" ]           && cp -a "$TMPEXT/prompts"           "$INSTALL_DIR/"
+    [ -d "$TMPEXT/agent_workspace" ]   && cp -a "$TMPEXT/agent_workspace"   "$INSTALL_DIR/"
+    [ -d "$TMPEXT/ui" ]               && cp -a "$TMPEXT/ui"               "$INSTALL_DIR/" 2>/dev/null || true
+
+    # Only install config.yaml if none exists (preserve user config on re-install)
+    if [ ! -f "$INSTALL_DIR/config.yaml" ]; then
+        [ -f "$TMPEXT/config.yaml" ] && cp "$TMPEXT/config.yaml" "$INSTALL_DIR/config.yaml"
+        ok "config.yaml installed (clean template — Setup Wizard will run)."
+    else
+        ok "Existing config.yaml preserved."
+    fi
+    rm -rf "$TMPEXT"
     ok "Resources extracted."
 
     # Download binaries

@@ -30,8 +30,13 @@ mkdir "%TMPRES%\agent_workspace\workdir\attachments" 2>nul
 mkdir "%TMPRES%\data\vectordb" 2>nul
 mkdir "%TMPRES%\log" 2>nul
 
-REM Copy config template (simple copy — manual sanitization recommended)
-copy /Y config.yaml "%TMPRES%\config.yaml" >nul
+REM Copy clean config template (no secrets, no providers — triggers Setup Wizard)
+if exist config_template.yaml (
+    copy /Y config_template.yaml "%TMPRES%\config.yaml" >nul
+) else (
+    echo     WARNING: config_template.yaml not found, using config.yaml
+    copy /Y config.yaml "%TMPRES%\config.yaml" >nul
+)
 
 REM Use tar (built into Windows 10+)
 tar -czf "%DEPLOY_DIR%\%RESOURCES%" -C "%TMPRES%" .
