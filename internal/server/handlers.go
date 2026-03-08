@@ -354,9 +354,13 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 				s.Logger.Info("[FirstStart] Injecting one-time naming prompt")
 				finalMessages = append(finalMessages, openai.ChatCompletionMessage{
 					Role: openai.ChatMessageRoleSystem,
-					Content: "[FIRST START INITIALIZATION — ONE TIME ONLY] Before responding to the user's message, " +
-						"ask them: would they like to give you a personal name, or should you choose one yourself? " +
-						"Wait for their answer, then settle on a name. " +
+					Content: "[FIRST START INITIALIZATION — ONE TIME ONLY] " +
+						"YOU are the AI assistant. YOU do not yet have a name. " +
+						"Before responding to the user's message, ask the USER to give YOU (the AI) a personal name. " +
+						"Example: 'Bevor wir loslegen – magst du mir einen Namen geben? Oder soll ich mir selbst einen aussuchen?' " +
+						"IMPORTANT: You are asking the user to name YOU, the AI — NOT asking them for their own name, " +
+						"and NOT offering to give the user a name. " +
+						"Wait for the user's answer, then settle on a name for yourself. " +
 						"Immediately after the name is decided, save it permanently to core memory " +
 						"using the manage_memory tool (operation \"add\", fact: \"My name is <chosen_name>\"). " +
 						"Do not skip this step.",
