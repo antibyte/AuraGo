@@ -19,7 +19,10 @@ echo [1/3] Packing resources.dat ...
 
 set TMPRES=%TEMP%\aurago_res_%RANDOM%
 mkdir "%TMPRES%\agent_workspace" 2>nul
-xcopy /E /I /Q prompts  "%TMPRES%\prompts"  >nul
+REM System prompts are embedded in the binary — not shipped on disk.
+REM Only the user-editable personalities/ placeholder goes into resources.dat;
+REM identity.md is extracted from the binary on first start by EnsurePromptsDir.
+mkdir "%TMPRES%\prompts\personalities" 2>nul
 xcopy /E /I /Q agent_workspace\skills   "%TMPRES%\agent_workspace\skills"   >nul
 REM Remove credential files that must never be deployed
 del /Q "%TMPRES%\agent_workspace\skills\client_secret.json" 2>nul

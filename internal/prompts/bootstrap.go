@@ -3,71 +3,53 @@ package prompts
 import (
 	promptsembed "aurago/prompts"
 	"io"
-	"io/fs"
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
-// EnsurePromptsDir extracts the embedded default prompt files to dir if the
-// directory does not yet exist (or contains no .md files at its root).
-// Existing files on disk are never overwritten so user customisations survive.
+// EnsurePromptsDir ensures that the on-disk prompts directory exists and
+// contains the user-editable files.
+//
+// System prompts (rules.md, tools_*.md, maintenance.md, …) are embedded
+// directly in the binary and loaded at runtime from the embed.FS — they are
+// intentionally NOT written to disk so users cannot accidentally or
+// deliberately tamper with them.
+//
+// Only two things are placed on disk:
+//   - identity.md   — the agent's base identity, fully customisable by the user.
+//   - personalities/ — empty directory where users can add custom personality
+//     profiles.  Built-in profiles (friend.md, professional.md, …) live in the
+//     binary embed and are read from there at runtime.
 func EnsurePromptsDir(dir string, logger *slog.Logger) {
-	// Check if identity.md exists – the primary marker of a valid prompts dir.
-	if _, err := os.Stat(filepath.Join(dir, "identity.md")); err == nil {
-		return // already populated
-	}
-
-	logger.Info("Extracting embedded prompt defaults", "dest", dir)
-
-	if err := os.MkdirAll(dir, 0750); err != nil {
-		logger.Error("Cannot create prompts directory", "error", err)
+	// Always ensure the personalities sub-directory exists for user additions.
+	if err := os.MkdirAll(filepath.Join(dir, "personalities"), 0750); err != nil {
+		logger.Error("Cannot create personalities directory", "error", err)
 		return
 	}
 
-	err := fs.WalkDir(promptsembed.FS, ".", func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		// Skip the embed.go file itself
-		if path == "embed.go" {
-			return nil
-		}
-
-		dest := filepath.Join(dir, filepath.FromSlash(path))
-
-		if d.IsDir() {
-			return os.MkdirAll(dest, 0750)
-		}
-
-		// Never overwrite existing files
-		if _, err := os.Stat(dest); err == nil {
-			return nil
-		}
-
-		src, err := promptsembed.FS.Open(path)
-		if err != nil {
-			return err
-		}
-		defer src.Close()
-
-		if err := os.MkdirAll(filepath.Dir(dest), 0750); err != nil {
-			return err
-		}
-
-		out, err := os.Create(dest)
-		if err != nil {
-			return err
-		}
-		defer out.Close()
-
-		_, err = io.Copy(out, src)
-		return err
-	})
-
-	if err != nil {
-		logger.Error("Failed to extract prompt defaults", "error", err)
-	} else {
-		logger.Info("Prompt defaults extracted", "dest", dir)
+	// Extract identity.md only if it does not yet exist (preserve user edits).
+	identityPath := filepath.Join(dir, "identity.md")
+	if _, err := os.Stat(identityPath); err == nil {
+		return // already present
 	}
+
+	data, err := io.ReadAll(func() io.Reader {
+		f, e := promptsembed.FS.Open("identity.md")
+		if e != nil {
+			return strings.NewReader("")
+		}
+		return f
+	}())
+	if err != nil || len(data) == 0 {
+		logger.Error("Could not read embedded identity.md", "error", err)
+		return
+	}
+
+	if err := os.WriteFile(identityPath, data, 0640); err != nil {
+		logger.Error("Failed to write identity.md", "path", identityPath, "error", err)
+		return
+	}
+	logger.Info("identity.md extracted for customisation", "path", identityPath)
 }

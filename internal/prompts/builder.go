@@ -2,7 +2,9 @@ package prompts
 
 import (
 	"aurago/internal/memory"
+	promptsembed "aurago/prompts"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -169,12 +171,16 @@ func BuildSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string,
 	// 1b. Load core personality profile content (injected later in dynamic section for prominence)
 	corePersonalityContent := ""
 	if flags.CorePersonality != "" {
+		// Try disk first (user-created or overridden personality), fall back to embedded default.
 		profilePath := filepath.Join(promptsDir, "personalities", flags.CorePersonality+".md")
 		if data, err := os.ReadFile(profilePath); err == nil {
 			corePersonalityContent = strings.TrimSpace(string(data))
-			logger.Debug("Loaded core personality profile", "profile", flags.CorePersonality)
+			logger.Debug("Loaded core personality profile from disk", "profile", flags.CorePersonality)
+		} else if data, err := fs.ReadFile(promptsembed.FS, "personalities/"+flags.CorePersonality+".md"); err == nil {
+			corePersonalityContent = strings.TrimSpace(string(data))
+			logger.Debug("Loaded core personality profile from embed", "profile", flags.CorePersonality)
 		} else {
-			logger.Warn("Core personality profile not found, using default", "profile", flags.CorePersonality, "error", err)
+			logger.Warn("Core personality profile not found", "profile", flags.CorePersonality)
 		}
 	}
 
@@ -606,8 +612,25 @@ func CountTokens(text string) int {
 	return len(text) / 4
 }
 
+// parseOrFallback parses a prompt module, falling back to a minimal struct if
+// the file has no YAML frontmatter.
+func parseOrFallback(filename, content string) PromptModule {
+	mod, err := parsePromptModule(content)
+	if err != nil {
+		return PromptModule{
+			Metadata: PromptMetadata{
+				ID:       strings.TrimSuffix(filepath.Base(filename), ".md"),
+				Priority: 100,
+				Tags:     []string{"core"},
+			},
+			Content: content,
+		}
+	}
+	return *mod
+}
+
 func loadPromptModules(dir string, logger *slog.Logger) []PromptModule {
-	// --- Fast path: check cache validity ---
+	// --- Fast path: check cache validity (based on disk files only) ---
 	promptCacheMu.RLock()
 	cached, ok := promptCacheByDir[dir]
 	promptCacheMu.RUnlock()
@@ -616,45 +639,58 @@ func loadPromptModules(dir string, logger *slog.Logger) []PromptModule {
 		return cached.modules
 	}
 
-	// --- Slow path: read from disk ---
-	var modules []PromptModule
-	mtimes := make(map[string]time.Time)
+	// --- Slow path: embedded FS is the immutable system base; disk overlays user customizations ---
+	//
+	// System prompts (rules.md, tools_*.md, etc.) live only in the binary embed.
+	// Users may add or override any prompt by placing a same-named .md file in
+	// the on-disk promptsDir.  The disk copy always wins over the embedded copy.
+	moduleMap := make(map[string]PromptModule)
 
-	files, err := os.ReadDir(dir)
-	if err != nil {
-		logger.Error("Failed to read prompts directory", "path", dir, "error", err)
-		return modules
+	// 1. Seed from embedded FS (system prompts — tamper-proof in the binary)
+	_ = fs.WalkDir(promptsembed.FS, ".", func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return nil
+		}
+		// Only root-level .md files belong to the module system; sub-directories
+		// (personalities/, templates/, tools_manuals/) are handled separately.
+		if strings.Contains(path, "/") || !strings.HasSuffix(path, ".md") {
+			return nil
+		}
+		data, err := fs.ReadFile(promptsembed.FS, path)
+		if err != nil {
+			return nil
+		}
+		moduleMap[path] = parseOrFallback(path, string(data))
+		return nil
+	})
+
+	// 2. Overlay with on-disk files (user identity.md or custom prompts override the embedded versions)
+	mtimes := make(map[string]time.Time)
+	if files, err := os.ReadDir(dir); err == nil {
+		for _, file := range files {
+			if file.IsDir() || !strings.HasSuffix(file.Name(), ".md") {
+				continue
+			}
+			path := filepath.Join(dir, file.Name())
+			info, err := file.Info()
+			if err == nil {
+				mtimes[path] = info.ModTime()
+			}
+			data, err := os.ReadFile(path)
+			if err != nil {
+				logger.Warn("Failed to read prompt file", "path", path, "error", err)
+				continue
+			}
+			moduleMap[file.Name()] = parseOrFallback(file.Name(), string(data))
+		}
+	} else if len(moduleMap) == 0 {
+		logger.Error("Failed to read prompts directory and no embedded modules loaded", "path", dir, "error", err)
 	}
 
-	for _, file := range files {
-		if file.IsDir() || !strings.HasSuffix(file.Name(), ".md") {
-			continue
-		}
-		path := filepath.Join(dir, file.Name())
-		info, err := file.Info()
-		if err == nil {
-			mtimes[path] = info.ModTime()
-		}
-		data, err := os.ReadFile(path)
-		if err != nil {
-			logger.Warn("Failed to read prompt file", "path", path, "error", err)
-			continue
-		}
-
-		mod, err := parsePromptModule(string(data))
-		if err != nil {
-			// Fallback for files without frontmatter
-			modules = append(modules, PromptModule{
-				Metadata: PromptMetadata{
-					ID:       strings.TrimSuffix(file.Name(), ".md"),
-					Priority: 100,
-					Tags:     []string{"core"}, // Fallback assumes core if no tags
-				},
-				Content: string(data),
-			})
-			continue
-		}
-		modules = append(modules, *mod)
+	// Convert map to slice
+	modules := make([]PromptModule, 0, len(moduleMap))
+	for _, m := range moduleMap {
+		modules = append(modules, m)
 	}
 
 	// Update cache
