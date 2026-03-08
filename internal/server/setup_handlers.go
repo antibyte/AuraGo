@@ -3,6 +3,7 @@ package server
 import (
 	"aurago/internal/budget"
 	"aurago/internal/config"
+	"aurago/internal/llm"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -119,6 +120,16 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 
 			// Re-create BudgetTracker
 			s.BudgetTracker = budget.NewTracker(newCfg, s.Logger, newCfg.Directories.DataDir)
+
+			// Reconfigure the live LLM client with the new API key / base URL / model.
+			// Without this the old client (created at startup with an empty key from
+			// config_template.yaml) would be used for the first chat after setup.
+			if fm, ok := s.LLMClient.(*llm.FailoverManager); ok {
+				fm.Reconfigure(s.Cfg)
+				s.Logger.Info("[Setup] LLM client reconfigured",
+					"provider", newCfg.LLM.ProviderType,
+					"base_url", newCfg.LLM.BaseURL)
+			}
 
 			s.Logger.Info("[Setup] Configuration hot-reloaded successfully")
 		}
