@@ -328,9 +328,11 @@ type Config struct {
 		Enabled bool `yaml:"enabled"` // false = /config endpoint disabled for security
 	} `yaml:"web_config"`
 	VirusTotal struct {
-		APIKey string `yaml:"-" vault:"api_key"` // vault-only
+		Enabled bool   `yaml:"enabled"`
+		APIKey  string `yaml:"-" vault:"api_key"` // vault-only
 	} `yaml:"virustotal"`
 	BraveSearch struct {
+		Enabled bool   `yaml:"enabled"`
 		APIKey  string `yaml:"-" vault:"api_key"` // Brave Search Subscription Token (vault-only)
 		Country string `yaml:"country"`           // default country filter (e.g. "DE", "US"; empty = global)
 		Lang    string `yaml:"lang"`              // default search language (e.g. "de", "en"; empty = API default)

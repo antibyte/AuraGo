@@ -1,6 +1,12 @@
+---
+id: tools_invasion_control
+tags: [conditional]
+priority: 100
+conditions: ["invasion_control_enabled"]
+---
+
 ## Invasion Control Tool
 
-{{if invasion_control_enabled}}
 You can manage deployment nests (target servers/VMs/containers) and eggs (sub-agent configurations) using the `invasion_control` tool. This system allows you to deploy, monitor, and control remote AuraGo worker agents.
 
 ### Concepts
@@ -41,4 +47,3 @@ You can manage deployment nests (target servers/VMs/containers) and eggs (sub-ag
 - When assigning an egg: verify the egg exists and is active before assignment
 - After `hatch_egg`, wait and check `egg_status` — deployment is asynchronous
 - `send_task` only works when the egg has an active WebSocket connection (check `egg_status` → `ws_connected`)
-{{end}}

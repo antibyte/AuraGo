@@ -495,10 +495,18 @@
         "de": "Modellname für Whisper, z.B. 'whisper-1'.",
         "en": "Model name for Whisper, e.g. 'whisper-1'."
     },
+    "virustotal.enabled": {
+        "de": "Aktiviert die VirusTotal-Integration. Ermöglicht das Scannen von URLs, Domains, IPs und Datei-Hashes über die VirusTotal API.",
+        "en": "Enable the VirusTotal integration. Allows scanning URLs, domains, IPs, and file hashes via the VirusTotal API."
+    },
     "virustotal.api_key": {
         "de": "API Key für das VirusTotal Tool. WARNUNG: Nutze dieses Tool nicht für Dateien, die persönliche Daten oder sensible Informationen enthalten. Dateien können Sicherheitsforschern zur Verfügung gestellt werden und deine Einreichungen können öffentlich gemacht werden.",
         "en": "API Key for VirusTotal tool. WARNING: DO NOT use this tool on files containing personal data or sensitive information. Files may be made available to security researchers and your submissions may be made public."
-    },    "brave_search.api_key": {
+    },    "brave_search.enabled": {
+        "de": "Aktiviert die Brave Search-Integration. Ermöglicht Websuchen über die Brave Search API mit hochwertigen, aktuellen Ergebnissen.",
+        "en": "Enable the Brave Search integration. Allows web searches via the Brave Search API with high-quality, up-to-date results."
+    },
+    "brave_search.api_key": {
         "de": "Brave Search Subscription Token (X-Subscription-Token). Kostenlosen oder bezahlten Key erhalten unter https://brave.com/search/api/ \u2014 Free-Tier erlaubt 2000 Anfragen/Monat.",
         "en": "Brave Search subscription token (X-Subscription-Token). Get a free or paid key at https://brave.com/search/api/ \u2014 the free tier allows 2000 requests/month."
     },

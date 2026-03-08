@@ -428,6 +428,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		MCPEnabled:               cfg.MCP.Enabled && cfg.Agent.AllowMCP,
 		SandboxEnabled:           cfg.Sandbox.Enabled,
 		MeshCentralEnabled:       cfg.MeshCentral.Enabled,
+		VirusTotalEnabled:        cfg.VirusTotal.Enabled,
+		BraveSearchEnabled:       cfg.BraveSearch.Enabled,
 		MemoryEnabled:            cfg.Tools.Memory.Enabled,
 		KnowledgeGraphEnabled:    cfg.Tools.KnowledgeGraph.Enabled,
 		SecretsVaultEnabled:      cfg.Tools.SecretsVault.Enabled,
@@ -2568,9 +2570,15 @@ func dispatchInner(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 			}
 			return tools.ExecuteDDGSearch(queryStr, int(maxRes))
 		case "virustotal_scan":
+			if !cfg.VirusTotal.Enabled {
+				return `Tool Output: {"status": "error", "message": "VirusTotal integration is not enabled. Set virustotal.enabled=true in config.yaml."}`
+			}
 			resource, _ := args["resource"].(string)
 			return tools.ExecuteVirusTotalScan(cfg.VirusTotal.APIKey, resource)
 		case "brave_search":
+			if !cfg.BraveSearch.Enabled {
+				return `Tool Output: {"status": "error", "message": "Brave Search integration is not enabled. Set brave_search.enabled=true in config.yaml."}`
+			}
 			queryStr, _ := args["query"].(string)
 			count, ok := args["count"].(float64)
 			if !ok {

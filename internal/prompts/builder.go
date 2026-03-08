@@ -104,6 +104,8 @@ type ContextFlags struct {
 	MCPEnabled             bool
 	SandboxEnabled         bool
 	MeshCentralEnabled     bool
+	VirusTotalEnabled      bool
+	BraveSearchEnabled     bool
 	// Danger Zone toggles
 	AllowShell           bool
 	AllowPython          bool
@@ -958,6 +960,14 @@ func (m *PromptModule) ShouldInclude(flags ContextFlags) bool {
 			}
 		case "wol_enabled":
 			if flags.WOLEnabled {
+				return true
+			}
+		case "virustotal_enabled":
+			if flags.VirusTotalEnabled {
+				return true
+			}
+		case "brave_search_enabled":
+			if flags.BraveSearchEnabled {
 				return true
 			}
 		}

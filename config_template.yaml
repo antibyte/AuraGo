@@ -18,7 +18,7 @@ agent:
     core_memory_max_entries: 200
     core_personality: friend
     debug_mode: false
-    enable_google_workspace: true
+    enable_google_workspace: false
     max_tool_calls: 12
     memory_compression_char_limit: 50000
     personality_engine: true
@@ -32,12 +32,14 @@ agent:
     system_prompt_token_budget: 8192
     workflow_feedback: true
     sudo_enabled: false
-    allow_shell: true
-    allow_python: true
-    allow_filesystem_write: true
-    allow_network_requests: true
-    allow_remote_shell: true
-    allow_self_update: true
+    # ── Danger Zone ── disabled by default for fresh installs
+    allow_shell: false
+    allow_python: false
+    allow_filesystem_write: false
+    allow_network_requests: false
+    allow_remote_shell: false
+    allow_self_update: false
+    # ── Standard API access ── enabled by default
     allow_mcp: true
     allow_web_scraper: true
 budget:
@@ -119,6 +121,7 @@ home_assistant:
     enabled: false
     url: ""
 brave_search:
+    enabled: false
     api_key: ""
     country: ""
     lang: ""
@@ -128,7 +131,36 @@ koofr:
     enabled: false
     username: ""
 virustotal:
+    enabled: false
     api_key: ""
+# ── Built-in Tool Permissions ── all enabled, none in readonly mode
+tools:
+    memory:
+        enabled: true
+        readonly: false
+    knowledge_graph:
+        enabled: true
+        readonly: false
+    secrets_vault:
+        enabled: true
+        readonly: false
+    scheduler:
+        enabled: true
+        readonly: false
+    notes:
+        enabled: true
+        readonly: false
+    missions:
+        enabled: true
+        readonly: false
+    stop_process:
+        enabled: true
+    inventory:
+        enabled: true
+    memory_maintenance:
+        enabled: true
+    wol:
+        enabled: false
 # LLM Providers — configure via the Setup Wizard or Config UI
 providers: []
 llm:
@@ -176,7 +208,7 @@ vision:
 web_config:
     enabled: true
 invasion_control:
-    enabled: true
+    enabled: false
 indexing:
     enabled: true
     directories:
@@ -205,3 +237,70 @@ mqtt:
     topics: []
     qos: 0
     relay_to_agent: false
+# ── Additional Integrations ── disabled by default for fresh installs
+webhooks:
+    enabled: false
+    readonly: false
+    max_payload_size: 65536
+    rate_limit: 0
+proxmox:
+    enabled: false
+    readonly: false
+    url: ""
+    token_id: ""
+    node: ""
+    insecure: false
+ollama:
+    enabled: false
+    readonly: false
+    url: ""
+rocketchat:
+    enabled: false
+    url: ""
+    user_id: ""
+    channel: ""
+    alias: ""
+tailscale:
+    enabled: false
+    readonly: false
+    tailnet: ""
+ansible:
+    enabled: false
+    readonly: false
+    mode: sidecar
+    url: ""
+    timeout: 300
+    playbooks_dir: ""
+    default_inventory: ""
+egg_mode:
+    enabled: false
+    master_url: ""
+    shared_key: ""
+    egg_id: ""
+    nest_id: ""
+github:
+    enabled: false
+    readonly: false
+    owner: ""
+    default_private: false
+    base_url: ""
+mcp:
+    enabled: false
+    servers: []
+sandbox:
+    enabled: false
+    backend: docker
+    docker_host: ""
+    image: ""
+    auto_install: true
+    pool_size: 0
+    timeout_seconds: 30
+    network_enabled: false
+    keep_alive: false
+notifications:
+    ntfy:
+        enabled: false
+        url: ""
+        topic: ""
+    pushover:
+        enabled: false
