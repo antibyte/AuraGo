@@ -342,6 +342,32 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 		))
 	}
 
+	if ff.InventoryEnabled {
+		tools = append(tools, tool("query_inventory",
+			"Search registered servers, virtual machines, and network devices by tag or hostname in the device inventory.",
+			schema(map[string]interface{}{
+				"tag":         prop("string", "Filter by a specific tag (e.g. 'prod', 'db', 'web')"),
+				"device_type": prop("string", "Filter by type (e.g. 'server', 'docker', 'vm', 'network_device')"),
+				"hostname":    prop("string", "Search for a specific name or substring"),
+			}),
+		))
+		tools = append(tools, tool("register_device",
+			"Add a new device to the inventory. Automatically stores credentials in the vault.",
+			schema(map[string]interface{}{
+				"hostname":         prop("string", "Device name or hostname"),
+				"device_type":      prop("string", "Type (e.g. 'server', 'docker', 'vm', 'network_device')"),
+				"ip_address":       prop("string", "IP address or FQDN"),
+				"port":             prop("integer", "Port number (default 22 for SSH)"),
+				"username":         prop("string", "Login username"),
+				"password":         prop("string", "Login password (optional)"),
+				"private_key_path": prop("string", "Path to private key (optional)"),
+				"description":      prop("string", "Brief description"),
+				"tags":             prop("string", "Comma-separated tags (e.g. 'prod,db')"),
+				"mac_address":      prop("string", "MAC address for Wake-on-LAN (optional)"),
+			}, "hostname", "device_type"),
+		))
+	}
+
 	// ── Integration tools (conditionally included) ───────────────────────────
 
 	if ff.HomeAssistantEnabled {

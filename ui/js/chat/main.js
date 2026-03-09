@@ -396,21 +396,23 @@ function appendMessage(role, text) {
     const isUser = role === 'user';
     let isTechnical = false;
 
-    if (!isUser && (text.includes('Tool Output:') || text.includes('{"action":'))) {
-        isTechnical = true;
-    }
-
     let displayContent = text;
-    if (!isTechnical && !isUser) {
-        // Strip XML tool call tags
-        displayContent = displayContent.replace(/<tool_call>[\s\S]*?<\/tool_call>/g, '');
-        // Strip fenced JSON code blocks containing tool calls (```json\n{"action":...}\n```)
-        // Use a precise pattern that only matches actual tool JSON blocks, not inline backtick spans
-        displayContent = displayContent.replace(/```(?:json)?\s*\{\s*"action"[\s\S]*?\}\s*```/g, '');
-        // Strip bare JSON tool calls not in a fence (fallback)
-        displayContent = displayContent.replace(/^```(?:json)?\n\{[\s\S]*?\}\n```$/gm, '');
-        // Strip Tool Output lines (tool result echoes)
-        displayContent = displayContent.replace(/^Tool Output:.*$/gm, '');
+    if (!isUser) {
+        // Pre-emptively strip to see if there's any conversational text left
+        let strippedContent = displayContent
+            .replace(/<tool_call>[\s\S]*?<\/tool_call>/g, '')
+            .replace(/```(?:json)?\s*\{\s*"action"[\s\S]*?\}\s*```/g, '')
+            .replace(/^```(?:json)?\n\{[\s\S]*?\}\n```$/gm, '')
+            .replace(/^Tool Output:.*$/gm, '')
+            .trim();
+
+        if (!strippedContent && (text.includes('Tool Output:') || text.includes('{"action":'))) {
+            // Entire message was just a tool output or tool call with no other text
+            isTechnical = true;
+        } else {
+            // If there's conversational text, we show the stripped version
+            displayContent = strippedContent;
+        }
     }
 
     displayContent = displayContent.trim();
@@ -426,7 +428,7 @@ function appendMessage(role, text) {
 
     let finalHTML = displayContent;
     if (isTechnical) {
-        finalHTML = `<pre>${displayContent}</pre>`;
+        finalHTML = `<pre>${escapeHtml(displayContent)}</pre>`;
     } else {
         try {
             if (typeof window.markdownit !== 'undefined') {

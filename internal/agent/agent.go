@@ -1280,6 +1280,15 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 			// Persist tool call to history: native path synthesizes a text representation
 			histContent := content
+
+			// Decide if this message should be hidden from the UI history endpoint.
+			// Hide it if it's purely a synthetic JSON string (e.g. no text, only tool call),
+			// but show it if the LLM provided conversational text.
+			isMsgInternal := true
+			if strings.TrimSpace(content) != "" && !strings.HasPrefix(strings.TrimSpace(content), "{") {
+				isMsgInternal = false
+			}
+
 			if useNativePath && histContent == "" && len(nativeAssistantMsg.ToolCalls) > 0 {
 				nc := nativeAssistantMsg.ToolCalls[0]
 				histContent = fmt.Sprintf("{\"action\": \"%s\"}", nc.Function.Name)
@@ -1293,12 +1302,12 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					}
 				}
 			}
-			id, err := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleAssistant, histContent, false, true)
+			id, err := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleAssistant, histContent, false, isMsgInternal)
 			if err != nil {
 				currentLogger.Error("Failed to persist tool-call message to SQLite", "error", err)
 			}
 			if sessionID == "default" {
-				historyManager.Add(openai.ChatMessageRoleAssistant, histContent, id, false, true)
+				historyManager.Add(openai.ChatMessageRoleAssistant, histContent, id, false, isMsgInternal)
 			}
 
 			// For SSE: send only the preamble text (without the raw JSON) to prevent
