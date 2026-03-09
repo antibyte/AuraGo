@@ -1,0 +1,18 @@
+{
+  "config.updates.warning_banner": "L'aggiornamento sostituisce binari, prompt e file UI. La tua configurazione e i dati sono preservati. AuraGo si riavvierà dopo l'aggiornamento.",
+  "config.updates.check_button": "🔍 Controlla Aggiornamenti",
+  "config.updates.install_button": "⬆️ Installa Aggiornamento",
+  "config.updates.checking": "⏳ Controllo in corso…",
+  "config.updates.error": "Errore",
+  "config.updates.available": "Aggiornamento Disponibile",
+  "config.updates.current": "Corrente",
+  "config.updates.latest": "Ultima",
+  "config.updates.up_to_date": "Aggiornato",
+  "config.updates.changelog": "Changelog:",
+  "config.updates.version": "Versione",
+  "config.updates.confirm_install": "L'aggiornamento inizierà ora. AuraGo si riavvierà automaticamente dopo.\n\nRicarica la pagina dopo circa 30–60 secondi.",
+  "config.updates.installing": "⏳ Installazione in corso…",
+  "config.updates.running": "Aggiornamento in corso — attendi e ricarica la pagina…",
+  "config.updates.started": "✅ Aggiornamento avviato — AuraGo si sta riavviando. Ricarica tra 60s…",
+  "config.updates.commits": "commit"
+}

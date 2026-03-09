@@ -15,7 +15,17 @@
       "Français",
       "Español",
       "中文",
-      "日本語"
+      "日本語",
+      "Nederlands",
+      "Português",
+      "Polski",
+      "Čeština",
+      "Italiano",
+      "Svenska",
+      "Norsk",
+      "Dansk",
+      "Ελληνικά",
+      "हिन्दी"
     ]
   },
   "help.agent.core_personality": {
@@ -50,7 +60,16 @@
       "es",
       "it",
       "ja",
-      "zh"
+      "zh",
+      "nl",
+      "pt",
+      "pl",
+      "cs",
+      "sv",
+      "no",
+      "da",
+      "el",
+      "hi"
     ]
   },
   "help.embeddings.provider": {

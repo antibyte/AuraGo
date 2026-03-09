@@ -1,0 +1,10 @@
+{
+  "config.web_scraper.enabled_label": "Web Scraper povolen:",
+  "config.web_scraper.disabled_notice": "Web Scraper je zakázán",
+  "config.web_scraper.disabled_desc": "Povolte přepínač výše, aby mohl agent načítat externí webové stránky a analyzovat jejich obsah.",
+  "config.web_scraper.summary_mode": "Režim shrnutí",
+  "config.web_scraper.summary_desc": "Načtené webové stránky jsou odeslány do samostatného LLM, který vytvoří shrnutí. Agent obdrží pouze shrnutí místo celého obsahu stránky.<br><strong>Výhody:</strong> Šetří tokeny v hlavním modelu a zabraňuje prompt injection z externího obsahu. Zde lze vybrat levný model.",
+  "config.web_scraper.summary_provider": "Poskytovatel shrnutí",
+  "config.web_scraper.empty_main_llm": "prázdné = hlavní LLM",
+  "config.web_scraper.use_main_llm": "— Použít hlavní LLM —"
+}

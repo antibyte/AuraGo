@@ -1,0 +1,18 @@
+{
+  "config.updates.warning_banner": "De update vervangt binaries, prompts en UI bestanden. <strong>Uw configuratie en data blijven behouden.</strong> AuraGo start opnieuw na de update.",
+  "config.updates.check_button": "🔍 Controleren op Updates",
+  "config.updates.install_button": "⬆️ Update Installeren",
+  "config.updates.checking": "⏳ Controleren…",
+  "config.updates.error": "Fout",
+  "config.updates.available": "Update Beschikbaar",
+  "config.updates.current": "Huidig",
+  "config.updates.latest": "Nieuwste",
+  "config.updates.up_to_date": "Up-to-date",
+  "config.updates.changelog": "Changelog:",
+  "config.updates.version": "Versie",
+  "config.updates.confirm_install": "De update start nu. AuraGo start daarna automatisch opnieuw.\\n\\nHerlaad de pagina na ongeveer 30–60 seconden.",
+  "config.updates.installing": "⏳ Installeren…",
+  "config.updates.running": "Update wordt uitgevoerd — wacht en herlaad de pagina…",
+  "config.updates.started": "✅ Update gestart — AuraGo start opnieuw. Herlaad over 60s…",
+  "config.updates.commits": "commit(s)"
+}

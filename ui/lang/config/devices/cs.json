@@ -1,0 +1,17 @@
+{
+  "config.devices.title": "Zarizeni",
+  "config.devices.enabled": "Povoleno",
+  "config.devices.add_device": "Pridat zarizeni",
+  "config.devices.edit_device": "Upravit zarizeni",
+  "config.devices.delete_device": "Smazat zarizeni",
+  "config.devices.device_name": "Nazev zarizeni",
+  "config.devices.device_type": "Typ zarizeni",
+  "config.devices.host": "Hostitel",
+  "config.devices.port": "Port",
+  "config.devices.username": "Uzivatelske jmeno",
+  "config.devices.password": "Heslo",
+  "config.devices.ssh_key": "SSH Klic",
+  "config.devices.test_connection": "Testovat pripojeni",
+  "config.devices.save": "Ulozit",
+  "config.devices.cancel": "Zrusit"
+}

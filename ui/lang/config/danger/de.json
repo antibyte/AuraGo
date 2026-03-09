@@ -1,0 +1,20 @@
+{
+  "config.danger.warning_title": "Achtung",
+  "config.danger.warning_desc": "Du kannst hier entscheiden, wieviel Macht du deinem Agenten gibst. Bedenke dass der Agent <strong>Fehler machen kann</strong> — aktiviere nur, was du wirklich benötigst!",
+  "config.danger.sudo.title": "Sudo-Ausführung (execute_sudo)",
+  "config.danger.sudo.desc": "Erlaubt dem Agenten, Befehle mit sudo-Rechten auszuführen. Sudo-Passwort muss im Vault gespeichert sein.",
+  "config.danger.shell.title": "Shell-Ausführung (execute_shell)",
+  "config.danger.shell.desc": "Erlaubt dem Agenten, beliebige Shell-Befehle auf dem Host-System auszuführen.",
+  "config.danger.python.title": "Python / Skill-Ausführung (execute_python / execute_skill / save_tool)",
+  "config.danger.python.desc": "Erlaubt dem Agenten, beliebigen Python-Code und Skills <strong>lokal ohne Sandbox</strong> auszuführen sowie neue Tools zu speichern. Code wird direkt auf dem Host-System ausgeführt — für isolierte Ausführung stattdessen die Sandbox nutzen.",
+  "config.danger.filesystem.title": "Dateisystem-Schreibzugriff (filesystem write ops)",
+  "config.danger.filesystem.desc": "Erlaubt dem Agenten, Dateien zu schreiben, zu löschen, zu verschieben und Verzeichnisse zu erstellen (filesystem-Tool).",
+  "config.danger.network.title": "Netzwerk-Anfragen (api_request)",
+  "config.danger.network.desc": "Erlaubt dem Agenten, beliebige HTTP-Anfragen an externe URLs zu senden.",
+  "config.danger.remote_shell.title": "Remote-Shell (execute_remote_shell)",
+  "config.danger.remote_shell.desc": "Erlaubt dem Agenten, Shell-Befehle auf entfernten Servern via SSH auszuführen.",
+  "config.danger.self_update.title": "Selbst-Update (manage_updates)",
+  "config.danger.self_update.desc": "Erlaubt dem Agenten, sich selbst zu aktualisieren und neu zu starten.",
+  "config.danger.mcp.title": "MCP Server-Verbindungen (mcp_call)",
+  "config.danger.mcp.desc": "Erlaubt dem Agenten, sich mit externen MCP-Servern zu verbinden und deren Tools zu nutzen. <strong style=\"color:#f87171;\">⚠ Nur vertrauenswürdige Server hinzufügen!</strong>"
+}

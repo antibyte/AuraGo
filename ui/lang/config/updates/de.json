@@ -1,0 +1,18 @@
+{
+  "config.updates.warning_banner": "Das Update ersetzt Binärdateien, Prompts und UI-Dateien. <strong>Deine Konfiguration und Daten bleiben erhalten.</strong> AuraGo wird nach dem Update neu gestartet.",
+  "config.updates.check_button": "🔍 Nach Updates suchen",
+  "config.updates.install_button": "⬆️ Update installieren",
+  "config.updates.checking": "⏳ Prüfe…",
+  "config.updates.error": "Fehler",
+  "config.updates.available": "Update verfügbar",
+  "config.updates.current": "Aktuell",
+  "config.updates.latest": "Neu",
+  "config.updates.up_to_date": "Aktuell",
+  "config.updates.changelog": "Änderungen:",
+  "config.updates.version": "Version",
+  "config.updates.confirm_install": "Das Update wird jetzt gestartet. AuraGo wird danach automatisch neu gestartet.\n\nBitte die Seite nach ca. 30–60 Sekunden neu laden.",
+  "config.updates.installing": "⏳ Installiere…",
+  "config.updates.running": "Update läuft — bitte warten und Seite neu laden…",
+  "config.updates.started": "✅ Update gestartet — AuraGo startet neu. Seite in 60s neu laden…",
+  "config.updates.commits": "commit(s)"
+}

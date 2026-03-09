@@ -1,0 +1,22 @@
+{
+  "config.header.restart_full": "↻ 再起動",
+  "config.header.restart_tooltip": "AuraGo サービスを再起動",
+  "config.nav.chat": "チャット",
+  "config.nav.dashboard": "ダッシュボード",
+  "config.nav.missions": "ミッション",
+  "config.nav.config": "設定",
+  "config.nav.invasion": "インベージョン",
+  "config.nav.logout": "ログアウト",
+  "config.save_bar.unsaved_changes": "未保存の変更",
+  "config.save_bar.save_button": "💾 保存",
+  "config.save_bar.saving": "保存中…",
+  "config.save_bar.saved": "保存・適用済み",
+  "config.save_bar.restart_needed": "再起動が必要",
+  "config.save_bar.error": "エラー",
+  "config.toggle.active": "アクティブ",
+  "config.toggle.inactive": "非アクティブ",
+  "config.field.no_provider": "— プロバイダなし —",
+  "config.field.disabled": "🚫 無効",
+  "config.field.comma_separated": "カンマ区切りの値",
+  "config.field.json_array_hint": "JSON 配列 (name、input_per_million、output_per_million を持つオブジェクト)"
+}

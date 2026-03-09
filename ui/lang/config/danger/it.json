@@ -1,0 +1,20 @@
+{
+  "config.danger.warning_title": "Attenzione",
+  "config.danger.warning_desc": "Qui decidi quanto potere concedere al tuo agente. Tieni presente che l'agente può commettere errori — abilita solo ciò di cui hai veramente bisogno!",
+  "config.danger.sudo.title": "Esecuzione Sudo (execute_sudo)",
+  "config.danger.sudo.desc": "Permette all'agente di eseguire comandi con privilegi sudo. La password sudo deve essere memorizzata nel vault.",
+  "config.danger.shell.title": "Esecuzione Shell (execute_shell)",
+  "config.danger.shell.desc": "Permette all'agente di eseguire comandi shell arbitrari sul sistema host.",
+  "config.danger.python.title": "Esecuzione Python / Skill (execute_python / execute_skill / save_tool)",
+  "config.danger.python.desc": "Permette all'agente di eseguire codice Python arbitrario e skill localmente senza sandbox e persistere nuovi tool. Il codice gira direttamente sul sistema host — usa la sandbox per esecuzione isolata invece.",
+  "config.danger.filesystem.title": "Accesso Scrittura Filesystem (operazioni write filesystem)",
+  "config.danger.filesystem.desc": "Permette all'agente di scrivere, eliminare, spostare file e creare directory tramite il tool filesystem.",
+  "config.danger.network.title": "Richieste Network (api_request)",
+  "config.danger.network.desc": "Permette all'agente di inviare richieste HTTP arbitrarie a URL esterni.",
+  "config.danger.remote_shell.title": "Shell Remota (execute_remote_shell)",
+  "config.danger.remote_shell.desc": "Permette all'agente di eseguire comandi shell su server remoti via SSH.",
+  "config.danger.self_update.title": "Auto-Aggiornamento (manage_updates)",
+  "config.danger.self_update.desc": "Permette all'agente di aggiornarsi e riavviare il processo.",
+  "config.danger.mcp.title": "Connessioni Server MCP (mcp_call)",
+  "config.danger.mcp.desc": "Permette all'agente di connettersi a server MCP esterni e usare i loro tool. ⚠️ Aggiungi solo server fidati!"
+}

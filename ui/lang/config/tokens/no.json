@@ -1,0 +1,12 @@
+{
+  "config.tokens.title": "Tokeny",
+  "config.tokens.enabled": "Povoleno",
+  "config.tokens.add_token": "Pridat token",
+  "config.tokens.delete_token": "Smazat token",
+  "config.tokens.token_name": "Nazev tokenu",
+  "config.tokens.token_value": "Hodnota tokenu",
+  "config.tokens.expires": "Platnost do",
+  "config.tokens.never": "Nikdy",
+  "config.tokens.save": "Ulozit",
+  "config.tokens.cancel": "Zrusit"
+}

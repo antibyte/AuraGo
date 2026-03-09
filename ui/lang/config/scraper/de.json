@@ -1,0 +1,10 @@
+{
+  "config.web_scraper.enabled_label": "Web Scraper aktiviert:",
+  "config.web_scraper.disabled_notice": "Web Scraper ist deaktiviert",
+  "config.web_scraper.disabled_desc": "Aktiviere den Schalter oben, damit der Agent externe Webseiten abrufen und deren Inhalte analysieren kann.",
+  "config.web_scraper.summary_mode": "Zusammenfassungs-Modus",
+  "config.web_scraper.summary_desc": "Gescrapte Webseiten werden an ein separates LLM gesendet, das eine Zusammenfassung erstellt. Der Agent erhält nur die Zusammenfassung statt des gesamten Seiteninhalts.<br><strong>Vorteile:</strong> Spart Token im Hauptmodell und verhindert Prompt-Injection durch externe Inhalte. Hier kann ein günstiges Modell gewählt werden.",
+  "config.web_scraper.summary_provider": "Zusammenfassungs-Provider",
+  "config.web_scraper.empty_main_llm": "leer = Haupt-LLM",
+  "config.web_scraper.use_main_llm": "— Haupt-LLM verwenden —"
+}

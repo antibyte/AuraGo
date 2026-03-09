@@ -1,0 +1,12 @@
+{
+  "config.tokens.title": "Tokens",
+  "config.tokens.enabled": "Ενεργοποιημενο",
+  "config.tokens.add_token": "Προσθηκη token",
+  "config.tokens.delete_token": "Διαγραφη token",
+  "config.tokens.token_name": "Ονομα token",
+  "config.tokens.token_value": "Τιμη token",
+  "config.tokens.expires": "Ληξη",
+  "config.tokens.never": "Ποτε",
+  "config.tokens.save": "Αποθηκευση",
+  "config.tokens.cancel": "Ακυρωση"
+}

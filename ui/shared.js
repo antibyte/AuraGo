@@ -4,6 +4,106 @@
  */
 
 // ═══════════════════════════════════════════════════════════════
+// I18N (INTERNATIONALIZATION)
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Translate a key using the page's I18N dictionary.
+ * Each page must define `const I18N = ...` before loading shared.js.
+ * Supports {{placeholder}} interpolation.
+ * @param {string} k - The translation key
+ * @param {Object} [p] - Optional placeholder map
+ * @returns {string}
+ */
+function t(k, p) {
+    const dict = typeof I18N !== 'undefined' ? I18N : null;
+    let s = (dict && dict[k]) || k;
+    if (p) Object.entries(p).forEach(([a, b]) => s = s.replaceAll('{{' + a + '}}', b));
+    return s;
+}
+
+/**
+ * Apply translations to all elements with data-i18n attributes.
+ * Supports data-i18n-attr to set a specific attribute instead of textContent.
+ * Only updates if a translation exists (does not overwrite with the raw key).
+ */
+function applyI18n() {
+    const dict = typeof I18N !== 'undefined' ? I18N : null;
+    if (!dict) return; // I18N not loaded yet — skip
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        const translated = dict[key];
+        if (!translated) return; // no translation → keep existing text
+        const attr = el.getAttribute('data-i18n-attr');
+        if (attr) {
+            el.setAttribute(attr, translated);
+        } else {
+            el.textContent = translated;
+        }
+    });
+    // Also handle data-i18n-placeholder, data-i18n-title, data-i18n-aria-label
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+        const v = dict[el.getAttribute('data-i18n-placeholder')];
+        if (v) el.placeholder = v;
+    });
+    document.querySelectorAll('[data-i18n-title]').forEach(el => {
+        const v = dict[el.getAttribute('data-i18n-title')];
+        if (v) el.title = v;
+    });
+    document.querySelectorAll('[data-i18n-aria-label]').forEach(el => {
+        const v = dict[el.getAttribute('data-i18n-aria-label')];
+        if (v) el.setAttribute('aria-label', v);
+    });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RADIAL NAVIGATION MENU INJECTION
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Inject the radial navigation menu HTML into the page.
+ * Place a <div id="radialMenuAnchor"></div> where the menu should appear.
+ * Automatically detects the current page and marks it as active.
+ */
+function injectRadialMenu() {
+    const anchor = document.getElementById('radialMenuAnchor');
+    if (!anchor) return;
+    
+    // Detect current page from URL
+    const path = window.location.pathname;
+    const pages = [
+        { href: '/',          icon: '💬', key: 'common.nav_chat' },
+        { href: '/dashboard', icon: '📊', key: 'common.nav_dashboard' },
+        { href: '/missions',  icon: '🚀', key: 'common.nav_missions' },
+        { href: '/config',    icon: '⚙️', key: 'common.nav_config' },
+        { href: '/invasion',  icon: '🥚', key: 'common.nav_invasion' },
+    ];
+    
+    const items = pages.map(p => {
+        const active = (p.href === '/' && path === '/') ||
+                       (p.href !== '/' && path.startsWith(p.href)) ? ' active' : '';
+        return `<a href="${p.href}" class="radial-item${active}"><span class="radial-item-label" data-i18n="${p.key}">${t(p.key)}</span><span class="radial-item-icon">${p.icon}</span></a>`;
+    }).join('\n            ');
+    
+    anchor.innerHTML = `
+    <nav class="radial-menu" id="radialMenu">
+        <button class="radial-trigger" id="radialTrigger" aria-label="${t('common.nav_aria_label') || 'Navigation'}">
+            <div class="radial-icon"><span></span><span></span><span></span></div>
+        </button>
+        <div class="radial-items">
+            ${items}
+            <a id="radialLogout" href="/auth/logout" class="radial-item" style="display:none;"><span class="radial-item-label" data-i18n="common.nav_logout">${t('common.nav_logout')}</span><span class="radial-item-icon">🔓</span></a>
+        </div>
+    </nav>
+    <div class="radial-backdrop" id="radialBackdrop"></div>`;
+    
+    // Re-initialize radial menu events for the new DOM elements
+    const trigger = document.getElementById('radialTrigger');
+    if (trigger) trigger.dataset.initialized = '';
+    initRadialMenu();
+}
+
+// ═══════════════════════════════════════════════════════════════
 // THEME MANAGEMENT
 // ═══════════════════════════════════════════════════════════════
 
@@ -328,9 +428,11 @@ function initShared() {
     console.log('[AuraGo] Initializing shared components...');
     
     try { initTheme(); } catch (e) { console.error('[AuraGo] initTheme failed:', e); }
+    try { injectRadialMenu(); } catch (e) { console.error('[AuraGo] injectRadialMenu failed:', e); }
     try { initRadialMenu(); } catch (e) { console.error('[AuraGo] initRadialMenu failed:', e); }
     try { initModals(); } catch (e) { console.error('[AuraGo] initModals failed:', e); }
     try { initThemeToggle(); } catch (e) { console.error('[AuraGo] initThemeToggle failed:', e); }
+    try { applyI18n(); } catch (e) { console.error('[AuraGo] applyI18n failed:', e); }
     try { checkAuth(); } catch (e) { console.error('[AuraGo] checkAuth failed:', e); }
     
     console.log('[AuraGo] Shared components initialized');

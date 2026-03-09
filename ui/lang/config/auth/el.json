@@ -1,0 +1,16 @@
+{
+  "config.auth.title": "Ταυτοποιηση",
+  "config.auth.enabled": "Ενεργοποιημενο",
+  "config.auth.disabled": "Απενεργοποιημενο",
+  "config.auth.save": "Αποθηκευση",
+  "config.auth.cancel": "Ακυρωση",
+  "config.auth.username": "Ονομα χρηστη",
+  "config.auth.password": "Κωδικος",
+  "config.auth.token": "Token",
+  "config.auth.api_key": "API Klic",
+  "config.auth.login": "Συνδεση",
+  "config.auth.logout": "Αποσυνδεση",
+  "config.auth.remember_me": "Να με θυμασαι",
+  "config.auth.forgot_password": "Ξεχασατε τον κωδικο;",
+  "config.auth.register": "Εγγραφη"
+}

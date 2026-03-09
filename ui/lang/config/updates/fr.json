@@ -1,0 +1,18 @@
+{
+  "config.updates.warning_banner": "La mise à jour remplace les binaires, prompts et fichiers UI. <strong>Votre configuration et vos données sont préservées.</strong> AuraGo redémarrera après la mise à jour.",
+  "config.updates.check_button": "🔍 Vérifier les Mises à jour",
+  "config.updates.install_button": "⬆️ Installer la Mise à jour",
+  "config.updates.checking": "⏳ Vérification...",
+  "config.updates.error": "Erreur",
+  "config.updates.available": "Mise à jour Disponible",
+  "config.updates.current": "Actuel",
+  "config.updates.latest": "Dernier",
+  "config.updates.up_to_date": "À jour",
+  "config.updates.changelog": "Changelog :",
+  "config.updates.version": "Version",
+  "config.updates.confirm_install": "La mise à jour va démarrer maintenant. AuraGo redémarrera automatiquement ensuite.\n\nVeuillez recharger la page après environ 30–60 secondes.",
+  "config.updates.installing": "⏳ Installation...",
+  "config.updates.running": "Mise à jour en cours — veuillez patienter et recharger la page...",
+  "config.updates.started": "✅ Mise à jour démarrée — AuraGo redémarre. Recharge dans 60s...",
+  "config.updates.commits": "commit(s)"
+}

@@ -79,10 +79,16 @@ var (
 	i18nMetaJSON string            // JSON string of {key: {options:[...], provider_ref:bool}, ...}
 )
 
-// loadI18N reads ui/lang/*.json from the embedded FS and prepares per-language JSON blobs.
-// Each file is named <lang>.json (e.g. de.json, en.json, fr.json) and contains a flat
-// {key: translation} map. The special file meta.json holds field-option metadata.
+// loadI18N reads ui/lang/*/<lang>.json from the embedded FS and prepares per-language JSON blobs.
+// Files are organized in category subdirectories (chat/, config/, help/, etc.)
+// Config files have an additional level: config/*/<lang>.json
+// Each <lang>.json contains a flat {key: translation} map.
+// The special file meta.json in the root holds field-option metadata.
 func loadI18N(uiFS fs.FS, logger *slog.Logger) {
+	i18nLangJSON = make(map[string]string)
+	langData := make(map[string]map[string]string) // lang -> key -> translation
+
+	// Read root lang directory
 	entries, err := fs.ReadDir(uiFS, "lang")
 	if err != nil {
 		logger.Error("Failed to read lang/ directory", "error", err)
@@ -91,26 +97,76 @@ func loadI18N(uiFS fs.FS, logger *slog.Logger) {
 		return
 	}
 
-	i18nLangJSON = make(map[string]string)
-	for _, e := range entries {
-		if e.IsDir() || !strings.HasSuffix(e.Name(), ".json") {
-			continue
-		}
-		data, err := fs.ReadFile(uiFS, "lang/"+e.Name())
-		if err != nil {
-			logger.Warn("Failed to read lang file", "file", e.Name(), "error", err)
-			continue
-		}
-		lang := strings.TrimSuffix(e.Name(), ".json")
-		if lang == "meta" {
-			i18nMetaJSON = string(data)
-		} else {
-			i18nLangJSON[lang] = string(data)
-		}
-	}
-	if i18nMetaJSON == "" {
+	// Process meta.json from root
+	metaData, err := fs.ReadFile(uiFS, "lang/meta.json")
+	if err == nil {
+		i18nMetaJSON = string(metaData)
+	} else {
 		i18nMetaJSON = "{}"
 	}
+
+	// Process subdirectories recursively
+	var processDir func(path string, logger *slog.Logger)
+	processDir = func(dirPath string, logger *slog.Logger) {
+		entries, err := fs.ReadDir(uiFS, dirPath)
+		if err != nil {
+			logger.Warn("Failed to read directory", "path", dirPath, "error", err)
+			return
+		}
+
+		for _, e := range entries {
+			itemPath := dirPath + "/" + e.Name()
+			
+			if e.IsDir() {
+				// Recurse into subdirectory
+				processDir(itemPath, logger)
+			} else if strings.HasSuffix(e.Name(), ".json") {
+				// Process JSON file
+				lang := strings.TrimSuffix(e.Name(), ".json")
+				data, err := fs.ReadFile(uiFS, itemPath)
+				if err != nil {
+					logger.Warn("Failed to read lang file", "file", itemPath, "error", err)
+					continue
+				}
+
+				// Parse JSON and merge into langData
+				var translations map[string]string
+				if err := json.Unmarshal(data, &translations); err != nil {
+					logger.Warn("Failed to parse lang file", "file", itemPath, "error", err)
+					continue
+				}
+
+				if langData[lang] == nil {
+					langData[lang] = make(map[string]string)
+				}
+				for key, value := range translations {
+					langData[lang][key] = value
+				}
+			}
+		}
+	}
+
+	// Process all subdirectories in lang/
+	for _, e := range entries {
+		if e.IsDir() {
+			processDir("lang/"+e.Name(), logger)
+		}
+	}
+
+	// Convert merged data to JSON strings
+	for lang, translations := range langData {
+		jsonBytes, err := json.Marshal(translations)
+		if err != nil {
+			logger.Warn("Failed to marshal translations", "lang", lang, "error", err)
+			continue
+		}
+		i18nLangJSON[lang] = string(jsonBytes)
+	}
+
+	if len(i18nLangJSON) == 0 {
+		i18nLangJSON = map[string]string{"en": "{}"}
+	}
+
 	logger.Info("i18n loaded", "languages", len(i18nLangJSON))
 }
 

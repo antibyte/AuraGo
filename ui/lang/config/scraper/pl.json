@@ -1,0 +1,10 @@
+{
+  "config.web_scraper.enabled_label": "Web Scraper włączony:",
+  "config.web_scraper.disabled_notice": "Web Scraper jest wyłączony",
+  "config.web_scraper.disabled_desc": "Włącz przełącznik powyżej, aby pozwolić agentowi pobierać zewnętrzne strony internetowe i analizować ich zawartość.",
+  "config.web_scraper.summary_mode": "Tryb Podsumowania",
+  "config.web_scraper.summary_desc": "Pobrane strony internetowe są wysyłane do osobnego LLM, który tworzy podsumowanie. Agent otrzymuje tylko podsumowanie zamiast pełnej treści strony.<br><strong>Korzyści:</strong> Oszczędza tokeny w głównym modelu i zapobiega prompt injection z zewnętrznej zawartości. Można tu wybrać tani model.",
+  "config.web_scraper.summary_provider": "Dostawca Podsumowania",
+  "config.web_scraper.empty_main_llm": "puste = główny LLM",
+  "config.web_scraper.use_main_llm": "— Użyj głównego LLM —"
+}

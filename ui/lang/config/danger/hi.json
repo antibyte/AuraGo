@@ -1,0 +1,20 @@
+{
+  "config.danger.warning_title": "Varování",
+  "config.danger.warning_desc": "Zde rozhodujete, kolik moci dáte svému agentovi. Mějte na paměti, že agent <strong>může dělat chyby</strong> — povolte pouze to, co opravdu potřebujete!",
+  "config.danger.sudo.title": "Sudo provádění (execute_sudo)",
+  "config.danger.sudo.desc": "Umožňuje agentovi spouštět příkazy s právy sudo. Heslo sudo musí být uloženo v trezoru.",
+  "config.danger.shell.title": "Shell provádění (execute_shell)",
+  "config.danger.shell.desc": "Umožňuje agentovi spouštět libovolné shell příkazy na hostitelském systému.",
+  "config.danger.python.title": "Python / Skill provádění (execute_python / execute_skill / save_tool)",
+  "config.danger.python.desc": "Umožňuje agentovi spouštět libovolný Python kód a skilly <strong>lokálně bez sandboxu</strong> a persistovat nové nástroje. Kód běží přímo na hostitelském systému — použijte sandbox pro izolované spuštění.",
+  "config.danger.filesystem.title": "Souborový systém zápis (filesystem write ops)",
+  "config.danger.filesystem.desc": "Umožňuje agentovi zapisovat, mazat, přesouvat soubory a vytvářet adresáře prostřednictvím nástroje souborového systému.",
+  "config.danger.network.title": "Síťové požadavky (api_request)",
+  "config.danger.network.desc": "Umožňuje agentovi odesílat libovolné HTTP požadavky na externí URL.",
+  "config.danger.remote_shell.title": "Remote Shell (execute_remote_shell)",
+  "config.danger.remote_shell.desc": "Umožňuje agentovi spouštět shell příkazy na vzdálených serverech přes SSH.",
+  "config.danger.self_update.title": "Samoaktualizace (manage_updates)",
+  "config.danger.self_update.desc": "Umožňuje agentovi aktualizovat sebe a restartovat proces.",
+  "config.danger.mcp.title": "MCP Server připojení (mcp_call)",
+  "config.danger.mcp.desc": "Umožňuje agentovi připojit se k externím MCP serverům a používat jejich nástroje. <strong style=\"color:#f87171;\">⚠ Přidejte pouze důvěryhodné servery!</strong>"
+}

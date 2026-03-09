@@ -1,0 +1,17 @@
+{
+  "config.devices.title": "Συσκευες",
+  "config.devices.enabled": "Ενεργοποιημενο",
+  "config.devices.add_device": "Προσθηκη συσκευης",
+  "config.devices.edit_device": "Επεξεργασια συσκευης",
+  "config.devices.delete_device": "Διαγραφη συσκευης",
+  "config.devices.device_name": "Ονομα συσκευης",
+  "config.devices.device_type": "Τυπος συσκευης",
+  "config.devices.host": "Host",
+  "config.devices.port": "Θυρα",
+  "config.devices.username": "Ονομα χρηστη",
+  "config.devices.password": "Κωδικος",
+  "config.devices.ssh_key": "Κλειδι SSH",
+  "config.devices.test_connection": "Δοκιμη συνδεσης",
+  "config.devices.save": "Αποθηκευση",
+  "config.devices.cancel": "Ακυρωση"
+}

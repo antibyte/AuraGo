@@ -1,0 +1,16 @@
+{
+  "config.tokens.new_token": "新 Token",
+  "config.tokens.empty": "尚未创建任何 token。",
+  "config.tokens.expires": "过期",
+  "config.tokens.never": "从不",
+  "config.tokens.last_used": "上次使用",
+  "config.tokens.name_prompt": "Token 名称：",
+  "config.tokens.created_notice": "Token 已创建！立即复制 — 仅显示一次。",
+  "config.tokens.activated": "Token 已激活",
+  "config.tokens.deactivated": "Token 已停用",
+  "config.tokens.delete_confirm": "删除 token：",
+  "config.tokens.deleted": "Token 已删除",
+  "config.tokens.scopes_label": "作用域：",
+  "config.tokens.toggle_disable": "禁用",
+  "config.tokens.toggle_enable": "启用"
+}

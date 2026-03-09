@@ -1,0 +1,20 @@
+{
+  "config.danger.warning_title": "Ostrzeżenie",
+  "config.danger.warning_desc": "Tutaj decydujesz, ile mocy przyznać swojemu agentowi. Pamiętaj, że agent <strong>może popełniać błędy</strong> — włączaj tylko to, czego naprawdę potrzebujesz!",
+  "config.danger.sudo.title": "Wykonanie Sudo (execute_sudo)",
+  "config.danger.sudo.desc": "Pozwala agentowi uruchamiać polecenia z uprawnieniami sudo. Hasło sudo musi być przechowywane w vault.",
+  "config.danger.shell.title": "Wykonanie Shell (execute_shell)",
+  "config.danger.shell.desc": "Pozwala agentowi uruchamiać dowolne polecenia shell na systemie hosta.",
+  "config.danger.python.title": "Python / Wykonanie Umiejętności (execute_python / execute_skill / save_tool)",
+  "config.danger.python.desc": "Pozwala agentowi wykonywać dowolny kod Python i umiejętności <strong>lokalnie bez sandbox</strong> oraz persistować nowe narzędzia. Kod działa bezpośrednio na systemie hosta — użyj sandboxa dla izolowanego wykonania.",
+  "config.danger.filesystem.title": "Dostęp Zapisu do Systemu Plików (filesystem write ops)",
+  "config.danger.filesystem.desc": "Pozwala agentowi zapisywać, usuwać, przenosić pliki i tworzyć katalogi przez narzędzie filesystem.",
+  "config.danger.network.title": "Żądania Sieciowe (api_request)",
+  "config.danger.network.desc": "Pozwala agentowi wysyłać dowolne żądania HTTP do zewnętrznych URL.",
+  "config.danger.remote_shell.title": "Zdalny Shell (execute_remote_shell)",
+  "config.danger.remote_shell.desc": "Pozwala agentowi wykonywać polecenia shell na zdalnych serwerach przez SSH.",
+  "config.danger.self_update.title": "Samoaktualizacja (manage_updates)",
+  "config.danger.self_update.desc": "Pozwala agentowi aktualizować się i restartować proces.",
+  "config.danger.mcp.title": "Połączenia Serwerów MCP (mcp_call)",
+  "config.danger.mcp.desc": "Pozwala agentowi łączyć się z zewnętrznymi serwerami MCP i używać ich narzędzi. <strong style=\"color:#f87171;\">⚠ Tylko zaufane serwery!</strong>"
+}

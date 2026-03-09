@@ -1,0 +1,16 @@
+{
+  "config.tokens.new_token": "New Token",
+  "config.tokens.empty": "No tokens created yet.",
+  "config.tokens.expires": "Platnost do",
+  "config.tokens.never": "Nikdy",
+  "config.tokens.last_used": "Last used",
+  "config.tokens.name_prompt": "Token name:",
+  "config.tokens.created_notice": "Token created! Copy now – shown only once.",
+  "config.tokens.activated": "Token activated",
+  "config.tokens.deactivated": "Token deactivated",
+  "config.tokens.delete_confirm": "Delete token: ",
+  "config.tokens.deleted": "Token deleted",
+  "config.tokens.scopes_label": "Scopes:",
+  "config.tokens.toggle_disable": "Disable",
+  "config.tokens.toggle_enable": "Enable"
+}

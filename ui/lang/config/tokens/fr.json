@@ -1,0 +1,16 @@
+{
+  "config.tokens.new_token": "Nouveau Token",
+  "config.tokens.empty": "Aucun token créé pour l'instant.",
+  "config.tokens.expires": "Expire",
+  "config.tokens.never": "Jamais",
+  "config.tokens.last_used": "Dernière utilisation",
+  "config.tokens.name_prompt": "Nom du token :",
+  "config.tokens.created_notice": "Token créé ! Copiez maintenant — affiché une seule fois.",
+  "config.tokens.activated": "Token activé",
+  "config.tokens.deactivated": "Token désactivé",
+  "config.tokens.delete_confirm": "Supprimer le token : ",
+  "config.tokens.deleted": "Token supprimé",
+  "config.tokens.scopes_label": "Scopes :",
+  "config.tokens.toggle_disable": "Désactiver",
+  "config.tokens.toggle_enable": "Activer"
+}

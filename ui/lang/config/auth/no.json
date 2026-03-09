@@ -1,0 +1,16 @@
+{
+  "config.auth.title": "Autentizace",
+  "config.auth.enabled": "Povoleno",
+  "config.auth.disabled": "Zakazano",
+  "config.auth.save": "Ulozit",
+  "config.auth.cancel": "Zrusit",
+  "config.auth.username": "Uzivatelske jmeno",
+  "config.auth.password": "Heslo",
+  "config.auth.token": "Token",
+  "config.auth.api_key": "API Klic",
+  "config.auth.login": "Prihlasit se",
+  "config.auth.logout": "Odhlasit se",
+  "config.auth.remember_me": "Zapamatovat si me",
+  "config.auth.forgot_password": "Zapomneli jste heslo?",
+  "config.auth.register": "Registrovat se"
+}

@@ -1,0 +1,13 @@
+{
+  "config.updates.title": "Ενημερωσεις",
+  "config.updates.enabled": "Ενεργοποιημενο",
+  "config.updates.check_on_startup": "Ελεγχος κατα την εκκινηση",
+  "config.updates.auto_update": "Αυτοματες ενημερωσεις",
+  "config.updates.channel": "Καναλι",
+  "config.updates.stable": "Σταθερο",
+  "config.updates.beta": "Beta",
+  "config.updates.dev": "Αναπτυξης",
+  "config.updates.check_now": "Ελεγχος τωρα",
+  "config.updates.save": "Αποθηκευση",
+  "config.updates.cancel": "Ακυρωση"
+}

@@ -1,0 +1,20 @@
+{
+  "config.danger.warning_title": "Waarschuwing",
+  "config.danger.warning_desc": "Hier bepaalt u hoeveel macht u uw agent geeft. Houd er rekening mee dat de agent <strong>fouten kan maken</strong> — schakel alleen in wat u echt nodig heeft!",
+  "config.danger.sudo.title": "Sudo Uitvoering (execute_sudo)",
+  "config.danger.sudo.desc": "Staat de agent toe om commandos met sudo privileges uit te voeren. Het sudo wachtwoord moet in de vault worden opgeslagen.",
+  "config.danger.shell.title": "Shell Uitvoering (execute_shell)",
+  "config.danger.shell.desc": "Staat de agent toe om willekeurige shell commandos uit te voeren op het hostsysteem.",
+  "config.danger.python.title": "Python / Skill Uitvoering (execute_python / execute_skill / save_tool)",
+  "config.danger.python.desc": "Staat de agent toe om willekeurige Python code en skills <strong>lokaal zonder sandbox</strong> uit te voeren en nieuwe tools te persisteren. Code wordt direct op het hostsysteem uitgevoerd — gebruik de sandbox voor geïsoleerde uitvoering.",
+  "config.danger.filesystem.title": "Bestandssysteem Schrijftoegang (filesystem write ops)",
+  "config.danger.filesystem.desc": "Staat de agent toe om via de filesystem tool bestanden te schrijven, verwijderen, verplaatsen en mappen aan te maken.",
+  "config.danger.network.title": "Netwerkverzoeken (api_request)",
+  "config.danger.network.desc": "Staat de agent toe om willekeurige HTTP verzoeken naar externe URLs te sturen.",
+  "config.danger.remote_shell.title": "Remote Shell (execute_remote_shell)",
+  "config.danger.remote_shell.desc": "Staat de agent toe om shell commandos op externe servers via SSH uit te voeren.",
+  "config.danger.self_update.title": "Zelfupdate (manage_updates)",
+  "config.danger.self_update.desc": "Staat de agent toe om zichzelf te updaten en het proces opnieuw te starten.",
+  "config.danger.mcp.title": "MCP Server Verbindingen (mcp_call)",
+  "config.danger.mcp.desc": "Staat de agent toe om verbinding te maken met externe MCP servers en hun tools te gebruiken. <strong style=\"color:#f87171;\">⚠ Voeg alleen vertrouwde servers toe!</strong>"
+}

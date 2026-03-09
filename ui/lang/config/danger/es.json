@@ -1,0 +1,20 @@
+{
+  "config.danger.warning_title": "Advertencia",
+  "config.danger.warning_desc": "Aquí decides cuánto poder conceder a tu agente. ¡Ten en cuenta que el agente <strong>puede cometer errores</strong> — solo activa lo que realmente necesitas!",
+  "config.danger.sudo.title": "Ejecución Sudo (execute_sudo)",
+  "config.danger.sudo.desc": "Permite al agente ejecutar comandos con privilegios sudo. La contraseña sudo debe almacenarse en el vault.",
+  "config.danger.shell.title": "Ejecución Shell (execute_shell)",
+  "config.danger.shell.desc": "Permite al agente ejecutar comandos shell arbitrarios en el sistema host.",
+  "config.danger.python.title": "Python / Ejecución de Skills (execute_python / execute_skill / save_tool)",
+  "config.danger.python.desc": "Permite al agente ejecutar código Python arbitrario y skills <strong>localmente sin sandbox</strong> y persistir nuevas herramientas. El código se ejecuta directamente en el sistema host — usa el sandbox para ejecución aislada.",
+  "config.danger.filesystem.title": "Acceso de Escritura al Sistema de Archivos (operaciones de escritura filesystem)",
+  "config.danger.filesystem.desc": "Permite al agente escribir, eliminar, mover archivos y crear directorios vía la herramienta filesystem.",
+  "config.danger.network.title": "Solicitudes de Red (api_request)",
+  "config.danger.network.desc": "Permite al agente enviar solicitudes HTTP arbitrarias a URLs externas.",
+  "config.danger.remote_shell.title": "Shell Remoto (execute_remote_shell)",
+  "config.danger.remote_shell.desc": "Permite al agente ejecutar comandos shell en servidores remotos vía SSH.",
+  "config.danger.self_update.title": "Auto-Actualización (manage_updates)",
+  "config.danger.self_update.desc": "Permite al agente actualizarse a sí mismo y reiniciar el proceso.",
+  "config.danger.mcp.title": "Conexiones de Servidor MCP (mcp_call)",
+  "config.danger.mcp.desc": "Permite al agente conectarse a servidores MCP externos y usar sus herramientas. <strong style=\"color:#f87171;\">⚠ ¡Solo añade servidores de confianza!</strong>"
+}

@@ -1,0 +1,19 @@
+{
+  "config.email.title": "Email",
+  "config.email.enabled": "Povoleno",
+  "config.email.accounts": "Ucty",
+  "config.email.add_account": "Pridat ucet",
+  "config.email.edit_account": "Upravit ucet",
+  "config.email.delete_account": "Smazat ucet",
+  "config.email.account_name": "Nazev uctu",
+  "config.email.imap_server": "IMAP Server",
+  "config.email.imap_port": "IMAP Port",
+  "config.email.smtp_server": "SMTP Server",
+  "config.email.smtp_port": "SMTP Port",
+  "config.email.username": "Uzivatelske jmeno",
+  "config.email.password": "Heslo",
+  "config.email.use_ssl": "Pouzit SSL",
+  "config.email.test_connection": "Testovat pripojeni",
+  "config.email.save": "Ulozit",
+  "config.email.cancel": "Zrusit"
+}

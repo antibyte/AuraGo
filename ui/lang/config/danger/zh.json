@@ -1,0 +1,20 @@
+{
+  "config.danger.warning_title": "警告",
+  "config.danger.warning_desc": "在此您可以决定授予代理多少权限。请记住，代理<strong>可能会犯错</strong> — 只启用您真正需要的功能！",
+  "config.danger.sudo.title": "Sudo 执行 (execute_sudo)",
+  "config.danger.sudo.desc": "允许代理使用 sudo 权限运行命令。sudo 密码必须存储在 vault 中。",
+  "config.danger.shell.title": "Shell 执行 (execute_shell)",
+  "config.danger.shell.desc": "允许代理在主机系统上运行任意 shell 命令。",
+  "config.danger.python.title": "Python / 技能执行 (execute_python / execute_skill / save_tool)",
+  "config.danger.python.desc": "允许代理<strong>在无沙盒的情况下本地</strong>执行任意 Python 代码和技能，并持久化新工具。代码直接在主机系统上运行 — 请改用沙盒进行隔离执行。",
+  "config.danger.filesystem.title": "文件系统写入权限 (filesystem write ops)",
+  "config.danger.filesystem.desc": "允许代理通过文件系统工具写入、删除、移动文件和创建目录。",
+  "config.danger.network.title": "网络请求 (api_request)",
+  "config.danger.network.desc": "允许代理向外部 URL 发送任意 HTTP 请求。",
+  "config.danger.remote_shell.title": "远程 Shell (execute_remote_shell)",
+  "config.danger.remote_shell.desc": "允许代理通过 SSH 在远程服务器上执行 shell 命令。",
+  "config.danger.self_update.title": "自我更新 (manage_updates)",
+  "config.danger.self_update.desc": "允许代理更新自身并重启进程。",
+  "config.danger.mcp.title": "MCP 服务器连接 (mcp_call)",
+  "config.danger.mcp.desc": "允许代理连接到外部 MCP 服务器并使用其工具。<strong style=\"color:#f87171;\">⚠ 仅添加受信任的服务器！</strong>"
+}

@@ -1,0 +1,19 @@
+{
+  "config.email.title": "Email",
+  "config.email.enabled": "Ενεργοποιημενο",
+  "config.email.accounts": "Λογαριασμοι",
+  "config.email.add_account": "Προσθηκη λογαριασμου",
+  "config.email.edit_account": "Επεξεργασια λογαριασμου",
+  "config.email.delete_account": "Διαγραφη λογαριασμου",
+  "config.email.account_name": "Ονομα λογαριασμου",
+  "config.email.imap_server": "Διακομιστης IMAP",
+  "config.email.imap_port": "Θυρα IMAP",
+  "config.email.smtp_server": "Διακομιστης SMTP",
+  "config.email.smtp_port": "Θυρα SMTP",
+  "config.email.username": "Ονομα χρηστη",
+  "config.email.password": "Κωδικος",
+  "config.email.use_ssl": "Χρηση SSL",
+  "config.email.test_connection": "Δοκιμη συνδεσης",
+  "config.email.save": "Αποθηκευση",
+  "config.email.cancel": "Ακυρωση"
+}

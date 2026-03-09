@@ -1,0 +1,18 @@
+{
+  "config.updates.warning_banner": "更新将替换二进制文件、提示和 UI 文件。<strong>您的配置和数据将被保留。</strong>AuraGo 将在更新后重启。",
+  "config.updates.check_button": "🔍 检查更新",
+  "config.updates.install_button": "⬆️ 安装更新",
+  "config.updates.checking": "⏳ 检查中…",
+  "config.updates.error": "错误",
+  "config.updates.available": "有可用更新",
+  "config.updates.current": "当前",
+  "config.updates.latest": "最新",
+  "config.updates.up_to_date": "已是最新",
+  "config.updates.changelog": "更新日志：",
+  "config.updates.version": "版本",
+  "config.updates.confirm_install": "更新将立即开始。AuraGo 之后将自动重启。\n\n请在大约 30-60 秒后重新加载页面。",
+  "config.updates.installing": "⏳ 安装中…",
+  "config.updates.running": "更新进行中 — 请等待并重新加载页面…",
+  "config.updates.started": "✅ 更新已开始 — AuraGo 正在重启。60 秒后重新加载...",
+  "config.updates.commits": "个提交"
+}

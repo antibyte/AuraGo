@@ -1,0 +1,13 @@
+{
+  "config.updates.title": "Aktualizace",
+  "config.updates.enabled": "Povoleno",
+  "config.updates.check_on_startup": "Kontrolovat pri startu",
+  "config.updates.auto_update": "Automaticke aktualizace",
+  "config.updates.channel": "Kanal",
+  "config.updates.stable": "Stabilni",
+  "config.updates.beta": "Beta",
+  "config.updates.dev": "Vyvojovy",
+  "config.updates.check_now": "Kontrolovat ted",
+  "config.updates.save": "Ulozit",
+  "config.updates.cancel": "Zrusit"
+}

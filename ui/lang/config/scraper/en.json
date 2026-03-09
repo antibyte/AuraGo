@@ -1,0 +1,10 @@
+{
+  "config.web_scraper.enabled_label": "Web Scraper enabled:",
+  "config.web_scraper.disabled_notice": "Web Scraper is disabled",
+  "config.web_scraper.disabled_desc": "Enable the toggle above to allow the agent to fetch external web pages and analyse their content.",
+  "config.web_scraper.summary_mode": "Summary Mode",
+  "config.web_scraper.summary_desc": "Scraped web pages are sent to a separate LLM that creates a summary. The agent only receives the summary instead of the full page content.<br><strong>Benefits:</strong> Saves tokens in the main model and prevents prompt injection from external content. A cheap model can be selected here.",
+  "config.web_scraper.summary_provider": "Summary Provider",
+  "config.web_scraper.empty_main_llm": "empty = main LLM",
+  "config.web_scraper.use_main_llm": "— Use main LLM —"
+}

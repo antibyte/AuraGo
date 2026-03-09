@@ -1,0 +1,20 @@
+{
+  "config.danger.warning_title": "Attention",
+  "config.danger.warning_desc": "Ici vous décidez de la puissance à accorder à votre agent. Gardez à l'esprit que l'agent <strong>peut faire des erreurs</strong> — n'activez que ce dont vous avez vraiment besoin !",
+  "config.danger.sudo.title": "Exécution Sudo (execute_sudo)",
+  "config.danger.sudo.desc": "Permet à l'agent d'exécuter des commandes avec privilèges sudo. Le mot de passe sudo doit être stocké dans le coffre.",
+  "config.danger.shell.title": "Exécution Shell (execute_shell)",
+  "config.danger.shell.desc": "Permet à l'agent d'exécuter des commandes shell arbitraires sur le système hôte.",
+  "config.danger.python.title": "Python / Exécution de Skills (execute_python / execute_skill / save_tool)",
+  "config.danger.python.desc": "Permet à l'agent d'exécuter du code Python arbitraire et des skills <strong>localement sans sandbox</strong> et de persister de nouveaux outils. Le code s'exécute directement sur le système hôte — utilisez plutôt le sandbox pour l'exécution isolée.",
+  "config.danger.filesystem.title": "Accès Écriture au Système de Fichiers (opérations d'écriture filesystem)",
+  "config.danger.filesystem.desc": "Permet à l'agent d'écrire, supprimer, déplacer des fichiers et créer des répertoires via l'outil filesystem.",
+  "config.danger.network.title": "Requêtes Réseau (api_request)",
+  "config.danger.network.desc": "Permet à l'agent d'envoyer des requêtes HTTP arbitraires vers des URLs externes.",
+  "config.danger.remote_shell.title": "Shell Distant (execute_remote_shell)",
+  "config.danger.remote_shell.desc": "Permet à l'agent d'exécuter des commandes shell sur des serveurs distants via SSH.",
+  "config.danger.self_update.title": "Auto-Mise à jour (manage_updates)",
+  "config.danger.self_update.desc": "Permet à l'agent de se mettre à jour et de redémarrer le processus.",
+  "config.danger.mcp.title": "Connexions Serveur MCP (mcp_call)",
+  "config.danger.mcp.desc": "Permet à l'agent de se connecter à des serveurs MCP externes et d'utiliser leurs outils. <strong style=\"color:#f87171;\">⚠ N'ajoutez que des serveurs de confiance !</strong>"
+}
