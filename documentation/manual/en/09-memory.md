@@ -1,5 +1,7 @@
 # Chapter 9: Memory & Knowledge
 
+> ⚠️ **Note:** This documentation describes the current implementation of the AuraGo memory system. Some features may evolve as the system is further developed.
+
 AuraGo's memory system is what transforms it from a simple chatbot into a truly personal assistant. This chapter explores how AuraGo remembers, organizes, and retrieves information across conversations.
 
 ## Memory Architecture Overview
@@ -14,7 +16,7 @@ AuraGo's memory system is what transforms it from a simple chatbot into a truly 
 │  Memory (STM)     │ SQLite-based, context window        │
 ├───────────────────┼─────────────────────────────────────┤
 │  Long-Term        │ Vector embeddings, semantic search  │
-│  Memory (LTM)     │ ChromaDB / pgvector                 │
+│  Memory (LTM)     │ Via configured embeddings provider  │
 ├───────────────────┼─────────────────────────────────────┤
 │  Knowledge Graph  │ Entities, relationships, facts      │
 │                   │ Structured network of knowledge     │
@@ -30,33 +32,9 @@ Short-term memory stores the immediate conversation context, allowing AuraGo to 
 
 ### How STM Works
 
-- **Storage**: SQLite database (`data/conversations.db`)
+- **Storage**: SQLite database (configured via `sqlite.short_term_path`, default: `./data/short_term.db`)
 - **Retention**: Last N messages (configurable, default: 20)
 - **Structure**: Message history with timestamps, roles, and metadata
-
-### Configuration
-
-```yaml
-memory:
-  short_term:
-    max_messages: 20          # Messages kept in context
-    summary_threshold: 50     # When to compress older messages
-    compression_enabled: true # Enable persistent summaries
-```
-
-### Persistent Summary Compression
-
-When conversations exceed the threshold, older messages are compressed into a persistent summary:
-
-```
-Original: 50 individual messages
-↓ Compression
-Summary: "User discussed vacation plans for Italy in June. 
-          Preferences: Rome 3 days, Florence 2 days. 
-          Budget concerns mentioned."
-```
-
-> 💡 **Tip:** Compression reduces token usage while preserving key context. The summary is stored alongside the raw messages for full recall if needed.
 
 ### STM in Action
 
@@ -72,20 +50,13 @@ User: "And tomorrow?"
 
 Long-term memory enables AuraGo to recall information from past conversations, documents, and learned facts using semantic search.
 
-### Vector Database Options
-
-| Database | Best For | Embedding Model |
-|----------|----------|-----------------|
-| **ChromaDB** | Local deployments, single-instance | `sentence-transformers/all-MiniLM-L6-v2` |
-| **pgvector** | Scalable deployments, existing PostgreSQL | Same as above |
-
 ### How RAG Works
 
 ```
 User Query → Embedding Model → Vector Search → Top-K Results → Context Injection → LLM Response
 ```
 
-1. **Storage**: Text is converted to vector embeddings (384 dimensions)
+1. **Storage**: Text is converted to vector embeddings (when embeddings are enabled)
 2. **Retrieval**: Cosine similarity search finds relevant chunks
 3. **Context**: Top results are injected into the system prompt
 4. **Response**: LLM answers using retrieved context
@@ -115,16 +86,6 @@ User: "Remind me about that Italian restaurant"
 → Retrieved: "Mario's Trattoria - recommended by colleague, 
               downtown location, good pasta"
 ```
-
-> 🔍 **Deep Dive: Embedding Models**
->
-> AuraGo uses `all-MiniLM-L6-v2` by default (22MB, fast, good quality). 
-> For multilingual support, consider `paraphrase-multilingual-MiniLM-L12-v2`.
-> Change in `config.yaml`:
-> ```yaml
-> memory:
->   embedding_model: "sentence-transformers/all-MiniLM-L6-v2"
-> ```
 
 ## Knowledge Graph
 
@@ -372,6 +333,58 @@ User: "I'm flying to Paris next Tuesday for a conference"
 "What projects am I working on?"
 ```
 
+## Memory Configuration
+
+The actual configuration structure in `config.yaml`:
+
+```yaml
+# Embeddings configuration for LTM/RAG
+embeddings:
+  provider: "internal"              # Options: "disabled", "internal", or provider-id
+  internal_model: "qwen/qwen3-embedding-8b"  # Model used when provider is "internal"
+  external_url: "http://localhost:11434/v1"  # External embedding service URL
+  external_model: "nomic-embed-text"         # Model for external provider
+  api_key: "dummy_key"              # API key for external provider (if needed)
+
+# Agent memory settings
+agent:
+  memory_compression_char_limit: 50000   # Trigger compression at this character limit
+  core_memory_max_entries: 200           # Maximum entries in core memory (0 = unlimited)
+  core_memory_cap_mode: "soft"           # "soft" (default) or "hard"
+
+# SQLite database paths
+sqlite:
+  short_term_path: "./data/short_term.db"  # STM database location
+  long_term_path: "./data/long_term.db"    # LTM database location
+
+# Knowledge indexing configuration
+indexing:
+  enabled: true                        # Enable automatic file indexing
+  directories:                         # Directories to monitor and index
+    - ./knowledge
+  poll_interval_seconds: 60            # How often to check for changes
+  extensions:                          # File types to index
+    - .txt
+    - .md
+    - .json
+    - .csv
+    - .log
+    - .yaml
+    - .yml
+```
+
+### Configuration Reference
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `embeddings.provider` | `"disabled"` | Embedding provider: `"disabled"` (no LTM), `"internal"` (use main LLM), or a provider ID |
+| `embeddings.internal_model` | `"qwen/qwen3-embedding-8b"` | Model for internal embedding generation |
+| `agent.memory_compression_char_limit` | `50000` | Characters before STM compression triggers |
+| `agent.core_memory_max_entries` | `200` | Maximum core memory entries (0 = unlimited) |
+| `agent.core_memory_cap_mode` | `"soft"` | How to handle overflow: `"soft"` (warn) or `"hard"` (reject) |
+| `sqlite.short_term_path` | `"./data/short_term.db"` | Path to STM SQLite database |
+| `indexing.enabled` | `true` | Enable automatic knowledge base indexing |
+
 ## Memory Optimization
 
 ### Token Usage Management
@@ -380,26 +393,23 @@ User: "I'm flying to Paris next Tuesday for a conference"
 |-----------|----------------|--------------|
 | System prompt | 500-1000 | Fixed |
 | Core memory | 200-500 | Keep concise |
-| STM (20 messages) | 1000-2000 | Adjust `max_messages` |
-| LTM results | 500-1500 | Adjust `max_results` |
+| STM (20 messages) | 1000-2000 | Adjust context window |
+| LTM results | 500-1500 | Adjust retrieval settings |
 | **Total per request** | **2200-5000** | Monitor costs |
 
 ### Reducing Memory Overhead
 
 ```yaml
 # config.yaml - Memory optimization
-memory:
-  short_term:
-    max_messages: 10          # Reduce for cheaper calls
-    compression_enabled: true # Always enable compression
+agent:
+  memory_compression_char_limit: 30000   # Compress earlier
+  core_memory_max_entries: 50            # Keep core memory small
   
-  long_term:
-    max_results: 3            # Fewer retrieved memories
-    similarity_threshold: 0.7 # Higher = fewer but better matches
-    chunk_size: 512           # Larger chunks = fewer embeddings
-  
-  core_memory:
-    max_entries: 20           # Limit core memory size
+embeddings:
+  provider: "disabled"                   # Disable LTM if not needed
+
+indexing:
+  enabled: false                         # Disable file indexing
 ```
 
 ### Database Maintenance
@@ -407,19 +417,19 @@ memory:
 **Pruning old conversations:**
 ```bash
 # Via Web UI → Settings → Memory → Cleanup
-# Or manually delete from data/conversations.db
+# Or manually delete from data/short_term.db
 ```
 
-**Optimizing vector DB:**
+**Optimizing LTM:**
 ```bash
-# ChromaDB automatically manages indices
-# For pgvector, run VACUUM periodically
+# LTM is stored in SQLite at sqlite.long_term_path
+# Run VACUUM periodically to reclaim space
 ```
 
 ### Memory Compression Strategies
 
 **Automatic compression:**
-- Old conversations → Summaries
+- Old conversations → Summaries (triggered by `memory_compression_char_limit`)
 - Large documents → Chunked embeddings
 - Knowledge graph → Prune low-confidence relations
 
@@ -506,10 +516,10 @@ LTM:
 | Issue | Cause | Solution |
 |-------|-------|----------|
 | "I forgot what we discussed" | STM cleared | Check if `/reset` was used; check LTM retrieval |
-| High API costs | Too much context | Reduce `max_messages` and `max_results` |
-| Irrelevant memories retrieved | Low similarity threshold | Increase `similarity_threshold` in config |
-| Slow responses | Large vector DB | Prune old memories, consider pgvector |
+| High API costs | Too much context | Reduce context window size |
+| Irrelevant memories retrieved | Embedding mismatch | Check `embeddings.provider` config |
 | Missing information | Not stored or expired | Use explicit "remember" commands |
+| LTM not working | Embeddings disabled | Set `embeddings.provider` to "internal" or a provider ID |
 
 ---
 

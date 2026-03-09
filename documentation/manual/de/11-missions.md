@@ -1,6 +1,10 @@
 # Kapitel 11: Mission Control
 
+> ⚠️ **Hinweis:** Mission Control ist primär über die **Web-UI** und **REST API** verfügbar. CLI-Befehle sind in der aktuellen Version nicht implementiert.
+
 Mission Control ist das Automatisierungszentrum von AuraGo. Hier definierst du wiederkehrende Aufgaben, die der Agent eigenständig ausführt – von einfachen Backups bis zu komplexen Monitoring-Routinen.
+
+---
 
 ## Was sind Missions?
 
@@ -22,6 +26,22 @@ Mission Control ist das Automatisierungszentrum von AuraGo. Hier definierst du w
 ```
 
 > 💡 Missions laufen im Hintergrund und beeinträchtigen den normalen Chat-Betrieb nicht.
+
+---
+
+## Voraussetzungen
+
+Mission Control erfordert die Aktivierung des Scheduler-Tools:
+
+```yaml
+# config.yaml
+tools:
+  scheduler:
+    enabled: true
+    readonly: false   # false = erlaubt Erstellen/Bearbeiten
+```
+
+---
 
 ## Konzepte: Nester & Eier
 
@@ -63,9 +83,11 @@ eggs:
 
 > 🔍 **Deep Dive:** Die Namensgebung stammt aus der Idee, dass ein Nest (Server) mehrere Eier (Aufgaben) "ausbrüten" kann. Ein Ei kann in mehreren Nestern deployed werden.
 
+---
+
 ## Missions erstellen
 
-### Über die Web-UI
+### Über die Web-UI (Empfohlen)
 
 1. **Öffne** Mission Control im Radial-Menü (🚀)
 2. **Klicke** auf "Neue Mission"
@@ -73,19 +95,25 @@ eggs:
 4. **Konfiguriere** den Zeitplan
 5. **Speichere** die Mission
 
-### Über die Config-Datei
+### Über die REST API
 
-```yaml
-missions:
-  - name: "tägliches-backup"
-    egg: "postgres-backup"           # Referenz zum Ei
-    nest: "produktion-db"            # Wo ausführen
-    schedule: "0 2 * * *"           # Cron-Ausdruck
-    enabled: true
-    retries: 3                       # Bei Fehler wiederholen
-    notifications:
-      on_success: false
-      on_failure: true
+```bash
+# Mission erstellen
+curl -X POST http://localhost:8088/api/missions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "tägliches-backup",
+    "egg": "postgres-backup",
+    "nest": "produktion-db",
+    "schedule": "0 2 * * *",
+    "enabled": true
+  }'
+
+# Alle Missionen auflisten
+curl http://localhost:8088/api/missions
+
+# Mission manuell ausführen
+curl -X POST http://localhost:8088/api/missions/tägliches-backup/run
 ```
 
 ### Mission-Typen
@@ -96,6 +124,8 @@ missions:
 | `script` | Skript-Datei ausführen | Python, Bash, etc. |
 | `http` | HTTP-Request senden | API-Aufruf, Webhook |
 | `agent` | Agent-Aktion ausführen | KI-gestützte Aufgabe |
+
+---
 
 ## Scheduling mit Cron
 
@@ -141,6 +171,8 @@ schedule: "@startup"
 trigger: "manual"
 ```
 
+---
+
 ## Manuelle Ausführung
 
 Missions können jederzeit manuell gestartet werden – unabhängig vom Zeitplan.
@@ -152,29 +184,21 @@ Missions können jederzeit manuell gestartet werden – unabhängig vom Zeitplan
 3. **Klicke** auf den ▶️ "Run Now"-Button
 4. **Warte** auf die Ausführung
 
-### Über das Terminal
+### Über die REST API
 
 ```bash
-# Alle Missionen auflisten
-./aurago missions list
+# Mission ausführen
+curl -X POST http://localhost:8088/api/missions/tägliches-backup/run
 
-# Spezifische Mission ausführen
-./aurago missions run tägliches-backup
-
-# Mit spezifischem Nest überschreiben
-./aurago missions run tägliches-backup --nest=staging-db
+# Mit Debug-Output
+curl -X POST http://localhost:8088/api/missions/tägliches-backup/run?debug=true
 ```
 
-### API-Aufruf
-
-```bash
-curl -X POST http://localhost:8088/api/missions/tägliches-backup/run \
-  -H "Authorization: Bearer YOUR_TOKEN"
-```
+---
 
 ## Monitoring von Missions
 
-### Status-Übersicht
+### Status-Übersicht (Web-UI)
 
 Die Mission Control-Oberfläche zeigt eine Echtzeit-Übersicht:
 
@@ -195,71 +219,32 @@ Die Mission Control-Oberfläche zeigt eine Echtzeit-Übersicht:
 │                                                             │
 │  🔴 health-check              Letzter Lauf: Vor 10m         │
 │     ├─ Status: Failed                                       │
-│     ├─ Fehler: Connection timeout                          │
-│     └─ Versuche: 2/3                                        │
+│     └─ Fehler: Connection timeout                          │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
-```
-
-### Ausführungsverlauf
-
-Jede Mission protokolliert ihre Ausführungen:
-
-| Zeitpunkt | Status | Dauer | Ausgabe |
-|-----------|--------|-------|---------|
-| 2024-01-15 02:00:05 | ✅ Success | 45s | [Anzeigen] |
-| 2024-01-14 02:00:03 | ✅ Success | 42s | [Anzeigen] |
-| 2024-01-13 02:00:08 | ❌ Failed | 30s | [Anzeigen] |
-
-> 💡 Klicke auf "[Anzeigen]" um vollständige Logs zu sehen – hilfreich bei Fehlern.
-
-## Mission-Status und Lifecycle
-
-### Status-Übergänge
-
-```
-                    ┌─────────────┐
-                    │   Created   │
-                    └──────┬──────┘
-                           │ enable
-                           ▼
-                    ┌─────────────┐
-         ┌─────────│  Scheduled  │◀────────┐
-         │         └──────┬──────┘         │
-         │                │ trigger        │
-         │                ▼                │
-  retry  │         ┌─────────────┐         │ complete
-  ┌──────┤         │   Running   │─────────┤
-  │      │         └──────┬──────┘         │
-  │      │                │                 │
-  │      │    ┌───────────┼───────────┐     │
-  │      │    ▼           ▼           ▼     │
-  │      │ ┌──────┐   ┌──────┐   ┌────────┐ │
-  │      │ │Success│   │Failed│   │Timeout │ │
-  │      │ └──┬───┘   └──┬───┘   └───┬────┘ │
-  │      │    │          │           │      │
-  │      └────┘    ┌─────┘           │      │
-  │                │ retry limit?    │      │
-  │           yes  ▼                 │      │
-  │         ┌──────────┐             │      │
-  └────────▶│ PermFail │◀────────────┘      │
-            └──────────┘────────────────────┘
 ```
 
 ### Status-Bedeutungen
 
 | Status | Icon | Bedeutung |
 |--------|------|-----------|
-| `Created` | ⚪ | Mission erstellt, aber nicht aktiv |
 | `Scheduled` | 🕐 | Wartet auf nächsten Ausführungszeitpunkt |
 | `Running` | 🟡 | Wird aktuell ausgeführt |
 | `Success` | 🟢 | Erfolgreich abgeschlossen |
 | `Failed` | 🔴 | Fehler aufgetreten |
-| `Timeout` | ⏱️ | Zeitlimit überschritten |
-| `PermFail` | 🚫 | Dauerhafter Fehler (max. Retries erreicht) |
 | `Disabled` | ⚫ | Manuell deaktiviert |
 
-> ⚠️ **Achtung:** Bei `PermFail` wird die Mission automatisch deaktiviert. Du musst sie manuell reaktivieren nachdem das Problem behoben wurde.
+### API-Abfrage
+
+```bash
+# Status einer Mission prüfen
+curl http://localhost:8088/api/missions/tägliches-backup/status
+
+# Ausführungsverlauf abrufen
+curl http://localhost:8088/api/missions/tägliches-backup/history
+```
+
+---
 
 ## Best Practices für Automation
 
@@ -277,43 +262,15 @@ if ! grep -q "$(date +%Y-%m-%d)" backup.log; then
 fi
 ```
 
-### 2. Ressourcen-Monitoring
+### 2. Retry-Strategien
 
-```yaml
-missions:
-  - name: "speicher-intensiv"
-    pre_conditions:
-      - type: "disk_space"
-        min_gb: 10
-      - type: "memory"
-        min_percent: 20
-```
+| Szenario | Retries | Begründung |
+|----------|---------|------------|
+| Netzwerk-Request | 5 | Temporäre Ausfälle |
+| Datenbank-Backup | 2 | Lock-Konflikte |
+| API-Aufruf | 3 | Rate Limiting |
 
-### 3. Retry-Strategien
-
-| Szenario | Retries | Delay | Begründung |
-|----------|---------|-------|------------|
-| Netzwerk-Request | 5 | 30s | Temporäre Ausfälle |
-| Datenbank-Backup | 2 | 5m | Lock-Konflikte |
-| API-Aufruf | 3 | Exponential | Rate Limiting |
-
-### 4. Benachrichtigungen konfigurieren
-
-```yaml
-notifications:
-  channels:
-    - type: "telegram"
-      chat_id: "123456789"
-    - type: "email"
-      to: "admin@example.com"
-  rules:
-    - on: "failure"
-      throttle: "1h"  # Max. 1 Benachrichtigung pro Stunde
-    - on: "permanent_failure"
-      priority: "high"
-```
-
-### 5. Zeitpläne verteilen
+### 3. Zeitpläne verteilen
 
 ```yaml
 # ❌ Schlecht: Alles zur gleichen Zeit
@@ -325,11 +282,14 @@ notifications:
 - "0 4 * * *"  # Cleanup um 04:00
 ```
 
+---
+
 ## Beispiele
 
 ### Beispiel 1: Datenbank-Backup
 
 ```yaml
+# config.yaml
 eggs:
   - name: "postgres-backup"
     type: "shell"
@@ -349,19 +309,12 @@ eggs:
       echo "Backup erstellt: ${FILENAME}"
     env:
       PGPASSWORD: "${DB_PASSWORD}"  # Aus Umgebungsvariable
-
-missions:
-  - name: "nächtliches-db-backup"
-    egg: "postgres-backup"
-    nest: "db-server"
-    schedule: "0 2 * * *"
-    timeout: "1h"
-    retries: 2
-    notifications:
-      on_failure: true
 ```
 
-> 💡 Nutze Umgebungsvariablen für sensible Daten – niemals Passwörter im Klartext speichern!
+Erstelle die Mission über die Web-UI oder API mit:
+- **Egg:** postgres-backup
+- **Nest:** local (oder dein Datenbank-Server)
+- **Schedule:** `0 2 * * *` (täglich um 2 Uhr)
 
 ### Beispiel 2: System-Monitoring
 
@@ -385,47 +338,9 @@ eggs:
       elif percent_used > 80:
           print("WARNING: Disk usage above 80%")
           sys.exit(2)
-
-missions:
-  - name: "disk-check"
-    egg: "disk-space-monitor"
-    nest: "local"
-    schedule: "*/15 * * * *"  # Alle 15 Minuten
-    exit_code_handling:
-      0: "success"      # OK
-      1: "critical"     # > 90%
-      2: "warning"      # > 80%
 ```
 
-### Beispiel 3: Wöchentlicher Report
-
-```yaml
-eggs:
-  - name: "weekly-report"
-    type: "agent"
-    prompt: |
-      Erstelle einen Wochenbericht mit:
-      1. Zusammenfassung der System-Logs der letzten 7 Tage
-      2. Anzahl der API-Requests pro Endpunkt
-      3. Fehler-Rate und kritische Events
-      4. Empfehlungen für Optimierungen
-      
-      Speichere den Report als PDF unter /reports/weekly/
-    output_format: "pdf"
-
-missions:
-  - name: "sonntags-report"
-    egg: "weekly-report"
-    nest: "local"
-    schedule: "0 8 * * 0"  # Sonntag 08:00
-    notifications:
-      on_success:
-        type: "email"
-        to: "team@example.com"
-        attach_output: true
-```
-
-### Beispiel 4: Health-Check mit Webhook
+### Beispiel 3: API-Health-Check
 
 ```yaml
 eggs:
@@ -435,39 +350,47 @@ eggs:
     url: "https://api.example.com/health"
     expected_status: 200
     timeout: "10s"
-    headers:
-      Authorization: "Bearer ${API_TOKEN}"
-
-missions:
-  - name: "api-monitor"
-    egg: "api-health-check"
-    nest: "local"
-    schedule: "*/5 * * * *"  # Alle 5 Minuten
-    on_failure:
-      - type: "webhook"
-        url: "https://alerts.example.com/webhook"
-        payload: |
-          {
-            "severity": "critical",
-            "service": "api",
-            "message": "API health check failed"
-          }
-      - type: "telegram"
-        message: "🚨 API ist nicht erreichbar!"
 ```
+
+---
 
 ## Fehlerbehebung
 
 | Problem | Ursache | Lösung |
 |---------|---------|--------|
-| Mission bleibt im Status "Running" | Hängender Prozess | Timeout verringern, Prozess prüfen |
+| Mission bleibt im Status "Running" | Hängender Prozess | Timeout in Egg-Config setzen |
 | Cron wird nicht ausgelöst | Falscher Zeitpunkt | Cron-Ausdruck mit crontab.guru prüfen |
-| Umgebungsvariablen fehlen | Shell-Kontext | Volle Pfade verwenden, env explizit setzen |
-| Berechtigungsfehler | Falsche Rechte | Nutzer/Gruppe prüfen, sudo konfigurieren |
-| SSH-Verbindung fehlschlägt | Key-Problem | SSH-Key testen: `ssh -i key user@host` |
+| Berechtigungsfehler | Falsche Rechte | Nutzer/Gruppe prüfen |
+| "Scheduler tool disabled" | Tool nicht aktiviert | `tools.scheduler.enabled: true` |
 
-## Nächste Schritte
+### Debug-Logging
 
-- **[Invasion Control](12-invasion.md)** – Remote-Deployment verstehen
-- **[Dashboard](13-dashboard.md)** – Mission-Metriken visualisieren
-- **Missions API** – Programmatische Steuerung
+```yaml
+# config.yaml
+agent:
+  debug_mode: true
+```
+
+Logs prüfen:
+```bash
+tail -f log/supervisor.log | grep -i mission
+```
+
+---
+
+## Zusammenfassung
+
+| Feature | Verfügbarkeit |
+|---------|--------------|
+| **Web-UI** | ✅ Vollständig |
+| **REST API** | ✅ Vollständig |
+| **CLI-Befehle** | ❌ Nicht implementiert |
+| **Cron-Scheduling** | ✅ Unterstützt |
+| **Manuelle Ausführung** | ✅ Über Web-UI/API |
+
+> 💡 **Tipp:** Für komplexe Automatisierungen nutze die Web-UI. Für Integrationen in externe Systeme verwende die REST API.
+
+---
+
+**Vorheriges Kapitel:** [Kapitel 10: Persönlichkeit](./10-personality.md)  
+**Nächstes Kapitel:** [Kapitel 12: Invasion Control](./12-invasion.md)

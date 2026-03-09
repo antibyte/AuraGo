@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>AuraGo – Quick Setup</title>
+    <title id="page-title">AuraGo – Quick Setup</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -32,6 +32,8 @@
     <link rel="stylesheet" href="/shared.css">
     <script>
         const SYSTEM_LANG = "{{.Lang}}";
+        const I18N = {{.I18N}};
+        function t(k,p){let s=I18N[k]||k;if(p)Object.entries(p).forEach(([a,b])=>s=s.replaceAll('{'+'{'+a+'}'+'}',b));return s;}
         (function () { var t = localStorage.getItem('aurago-theme'); if (t) document.documentElement.setAttribute('data-theme', t); })();
     </script>
     <style>
@@ -449,13 +451,11 @@
         <div class="logo">
             <div class="logo-icon">✦</div>
             <span>AURAGO</span>
-            <span style="font-size:var(--text-xs); font-weight:400; color:var(--text-secondary); margin-left:0.3rem">Quick Setup</span>
+            <span id="header-subtitle" style="font-size:var(--text-xs); font-weight:400; color:var(--text-secondary); margin-left:0.3rem"><script>document.write(t('setup.header_subtitle'))</script></span>
         </div>
         <div class="header-actions">
             <button id="theme-toggle" class="btn-theme" title="Toggle theme"></button>
-            <button class="btn-header btn-skip" onclick="skipSetup()" title="Setup überspringen">
-                Überspringen ✕
-            </button>
+            <button id="btn-skip-setup" class="btn-header btn-skip" onclick="skipSetup()"><script>document.write(t('setup.skip_button'))</script></button>
         </div>
     </header>
 
@@ -478,16 +478,13 @@
             <!-- ═══ Section 1: Minimum Config ═══ -->
             <div class="setup-section active" id="step-0">
                 <div class="section-header">
-                    <div class="section-badge badge-required">⚡ Erforderlich</div>
-                    <h2 class="section-title">LLM-Verbindung</h2>
-                    <p class="section-desc">
-                        AuraGo benötigt mindestens eine LLM-Anbindung um zu funktionieren.
-                        Wähle deinen Provider und trage den API-Key ein.
-                    </p>
+                    <div id="badge-step0" class="section-badge badge-required"><script>document.write(t('setup.step0_badge'))</script></div>
+                    <h2 id="title-step0" class="section-title"><script>document.write(t('setup.step0_title'))</script></h2>
+                    <p id="desc-step0" class="section-desc"><script>document.write(t('setup.step0_description'))</script></p>
                 </div>
 
                 <div class="field-group">
-                    <label class="field-label">Provider <span class="required-star">*</span></label>
+                    <label id="lbl-provider" class="field-label"><script>document.write(t('setup.step0_provider_label'))</script> <span class="required-star">*</span></label>
                     <select class="field-select" id="llm-provider" onchange="onProviderChange()">
                         <option value="openrouter">OpenRouter</option>
                         <option value="openai">OpenAI</option>
@@ -496,49 +493,57 @@
                         <option value="ollama">Ollama (lokal)</option>
                         <option value="custom">Custom / Andere</option>
                     </select>
-                    <div class="field-hint">OpenRouter empfohlen — bietet viele Modelle inkl. kostenloser Optionen.</div>
+                    <div id="hint-provider" class="field-hint"><script>document.write(t('setup.step0_provider_hint'))</script></div>
                 </div>
 
                 <div class="field-group" id="group-api-key">
-                    <label class="field-label">API Key <span class="required-star">*</span></label>
+                    <label id="lbl-api-key" class="field-label"><script>document.write(t('setup.step0_api_key_label'))</script> <span class="required-star">*</span></label>
                     <input class="field-input" type="password" id="llm-api-key" placeholder="sk-or-v1-..." autocomplete="off">
-                    <div class="field-error" id="err-api-key">API Key wird benötigt.</div>
-                    <div class="field-hint" id="hint-api-key">Erhältlich unter <span id="provider-link">openrouter.ai</span></div>
+                    <div class="field-error" id="err-api-key"><script>document.write(t('setup.step0_api_key_error'))</script></div>
+                    <div class="field-hint" id="hint-api-key"><span id="hint-api-key-text"><script>document.write(t('setup.step0_api_key_hint'))</script></span> <span id="provider-link">openrouter.ai</span></div>
                 </div>
 
                 <div class="field-group">
-                    <label class="field-label">Base URL</label>
+                    <label id="lbl-base-url" class="field-label"><script>document.write(t('setup.step0_base_url_label'))</script></label>
                     <input class="field-input" type="url" id="llm-base-url" placeholder="https://openrouter.ai/api/v1">
-                    <div class="field-hint">Wird automatisch basierend auf dem Provider gesetzt.</div>
+                    <div id="hint-base-url" class="field-hint"><script>document.write(t('setup.step0_base_url_hint'))</script></div>
                 </div>
 
                 <div class="field-row">
                     <div class="field-group">
-                        <label class="field-label">Modell <span class="required-star">*</span></label>
+                        <label id="lbl-model" class="field-label"><script>document.write(t('setup.step0_model_label'))</script> <span class="required-star">*</span></label>
                         <div style="display:flex;gap:0.4rem;align-items:stretch;">
                             <input class="field-input" type="text" id="llm-model" placeholder="z.B. gpt-4o, claude-sonnet-4-20250514" style="flex:1;">
-                            <button type="button" id="or-browse-btn" class="btn-primary" style="display:none;padding:0.4rem 0.7rem;font-size:0.75rem;white-space:nowrap;border-radius:8px;background:rgba(72,199,142,0.15);color:#48c78e;border:1px solid rgba(72,199,142,0.3);cursor:pointer;" onclick="openOpenRouterBrowser(function(m){document.getElementById('llm-model').value=m.id;document.getElementById('err-model').style.display='none';})">
-                                🌐 Browse
-                            </button>
+                            <button type="button" id="or-browse-btn" class="btn-primary" style="display:none;padding:0.4rem 0.7rem;font-size:0.75rem;white-space:nowrap;border-radius:8px;background:rgba(72,199,142,0.15);color:#48c78e;border:1px solid rgba(72,199,142,0.3);cursor:pointer;" onclick="openOpenRouterBrowser(function(m){document.getElementById('llm-model').value=m.id;document.getElementById('err-model').style.display='none';})"><script>document.write(t('setup.step0_model_browse'))</script></button>
                         </div>
-                        <div class="field-error" id="err-model">Modellname wird benötigt.</div>
+                        <div class="field-error" id="err-model"><script>document.write(t('setup.step0_model_error'))</script></div>
                     </div>
                     <div class="field-group">
-                        <label class="field-label" id="lang-label">Language / Sprache</label>
+                        <label class="field-label" id="lang-label"><script>document.write(t('setup.step0_language_label'))</script></label>
                         <select class="field-select" id="system-language">
                             <option value="Deutsch">Deutsch</option>
                             <option value="English">English</option>
                             <option value="Español">Español</option>
                             <option value="Français">Français</option>
                             <option value="Polski">Polski</option>
+                            <option value="中文">中文</option>
+                            <option value="हिन्दी">हिन्दी</option>
+                            <option value="Nederlands">Nederlands</option>
+                            <option value="Italiano">Italiano</option>
+                            <option value="Português">Português</option>
+                            <option value="Dansk">Dansk</option>
+                            <option value="日本語">日本語</option>
+                            <option value="Svenska">Svenska</option>
+                            <option value="Norsk">Norsk</option>
+                            <option value="Čeština">Čeština</option>
                         </select>
                     </div>
                 </div>
 
                 <div class="toggle-row">
                     <div>
-                        <div class="toggle-label">Native Function Calling ⚠️</div>
-                        <div class="toggle-desc">Nutzt die nativen Tool-Calls des Providers. <strong>Achtung:</strong> Nur aktivieren wenn das Modell dies unterstützt (GPT-4, Claude, Gemini). Free-Tier Modelle unterstützen dies oft NICHT!</div>
+                        <div id="lbl-native-functions" class="toggle-label"><script>document.write(t('setup.step0_native_functions_label'))</script></div>
+                        <div id="desc-native-functions" class="toggle-desc"><script>document.write(t('setup.step0_native_functions_desc'))</script></div>
                     </div>
                     <label class="toggle-switch">
                         <input type="checkbox" id="native-functions">
@@ -550,20 +555,17 @@
             <!-- ═══ Section 2: Recommended Optional ═══ -->
             <div class="setup-section" id="step-1">
                 <div class="section-header">
-                    <div class="section-badge badge-recommended">⭐ Empfohlen</div>
-                    <h2 class="section-title">Erweiterte Fähigkeiten</h2>
-                    <p class="section-desc">
-                        Diese Einstellungen verbessern AuraGos Fähigkeiten erheblich.
-                        Du kannst sie jetzt konfigurieren oder später in der Config-UI nachholen.
-                    </p>
+                    <div id="badge-step1" class="section-badge badge-recommended"><script>document.write(t('setup.step1_badge'))</script></div>
+                    <h2 id="title-step1" class="section-title"><script>document.write(t('setup.step1_title'))</script></h2>
+                    <p id="desc-step1" class="section-desc"><script>document.write(t('setup.step1_description'))</script></p>
                 </div>
 
                 <!-- Embeddings -->
                 <div style="margin-bottom: 1.5rem;">
-                    <h3 style="font-size: var(--text-base); font-weight: 600; margin-bottom: 0.75rem;">🧠 Embeddings (Langzeitgedächtnis)</h3>
+                    <h3 id="heading-embeddings" style="font-size: var(--text-base); font-weight: 600; margin-bottom: 0.75rem;"><script>document.write(t('setup.step1_embeddings_heading'))</script></h3>
                     <div class="field-row">
                         <div class="field-group">
-                            <label class="field-label">Provider</label>
+                            <label id="lbl-emb-provider" class="field-label"><script>document.write(t('setup.step1_embeddings_provider_label'))</script></label>
                             <select class="field-select" id="emb-provider" onchange="onEmbProviderChange()">
                                 <option value="internal">Internal (OpenRouter/OpenAI kompatibel)</option>
                                 <option value="ollama">Ollama (lokal)</option>
@@ -571,23 +573,23 @@
                             </select>
                         </div>
                         <div class="field-group">
-                            <label class="field-label">Modell</label>
+                            <label id="lbl-emb-model" class="field-label"><script>document.write(t('setup.step1_embeddings_model_label'))</script></label>
                             <input class="field-input" type="text" id="emb-model" placeholder="qwen/qwen3-embedding-8b" value="qwen/qwen3-embedding-8b">
                         </div>
                     </div>
                     <div class="field-group" id="group-emb-apikey" style="display: none;">
-                        <label class="field-label">Embeddings API Key</label>
+                        <label id="lbl-emb-apikey" class="field-label"><script>document.write(t('setup.step1_embeddings_apikey_label'))</script></label>
                         <input class="field-input" type="password" id="emb-api-key" placeholder="Gleicher Key wie LLM, falls selber Provider">
-                        <div class="field-hint">Wird nur benötigt wenn ein externer Provider verwendet wird.</div>
+                        <div id="hint-emb-apikey" class="field-hint"><script>document.write(t('setup.step1_embeddings_apikey_hint'))</script></div>
                     </div>
                 </div>
 
                 <!-- Vision -->
                 <div style="margin-bottom: 1.5rem;">
-                    <h3 style="font-size: var(--text-base); font-weight: 600; margin-bottom: 0.75rem;">👁️ Vision (Bilderkennung)</h3>
+                    <h3 id="heading-vision" style="font-size: var(--text-base); font-weight: 600; margin-bottom: 0.75rem;"><script>document.write(t('setup.step1_vision_heading'))</script></h3>
                     <div class="field-row">
                         <div class="field-group">
-                            <label class="field-label">Provider</label>
+                            <label id="lbl-vision-provider" class="field-label"><script>document.write(t('setup.step1_vision_provider_label'))</script></label>
                             <select class="field-select" id="vision-provider">
                                 <option value="openrouter">OpenRouter</option>
                                 <option value="openai">OpenAI</option>
@@ -596,7 +598,7 @@
                             </select>
                         </div>
                         <div class="field-group">
-                            <label class="field-label">Modell</label>
+                            <label id="lbl-vision-model" class="field-label"><script>document.write(t('setup.step1_vision_model_label'))</script></label>
                             <input class="field-input" type="text" id="vision-model" placeholder="google/gemini-2.5-flash-lite-preview-09-2025" value="google/gemini-2.5-flash-lite-preview-09-2025">
                         </div>
                     </div>
@@ -604,10 +606,10 @@
 
                 <!-- Whisper / STT -->
                 <div>
-                    <h3 style="font-size: var(--text-base); font-weight: 600; margin-bottom: 0.75rem;">🎤 Sprache-zu-Text (Whisper)</h3>
+                    <h3 id="heading-whisper" style="font-size: var(--text-base); font-weight: 600; margin-bottom: 0.75rem;"><script>document.write(t('setup.step1_whisper_heading'))</script></h3>
                     <div class="field-row">
                         <div class="field-group">
-                            <label class="field-label">Provider</label>
+                            <label id="lbl-whisper-provider" class="field-label"><script>document.write(t('setup.step1_whisper_provider_label'))</script></label>
                             <select class="field-select" id="whisper-provider">
                                 <option value="openrouter">OpenRouter</option>
                                 <option value="openai">OpenAI</option>
@@ -616,7 +618,7 @@
                             </select>
                         </div>
                         <div class="field-group">
-                            <label class="field-label">Modell</label>
+                            <label id="lbl-whisper-model" class="field-label"><script>document.write(t('setup.step1_whisper_model_label'))</script></label>
                             <input class="field-input" type="text" id="whisper-model" placeholder="google/gemini-2.5-flash-lite-preview-09-2025" value="google/gemini-2.5-flash-lite-preview-09-2025">
                         </div>
                     </div>
@@ -626,19 +628,16 @@
             <!-- ═══ Section 3: Optional ═══ -->
             <div class="setup-section" id="step-2">
                 <div class="section-header">
-                    <div class="section-badge badge-optional">🎨 Optional</div>
-                    <h2 class="section-title">Persönlichkeit & Extras</h2>
-                    <p class="section-desc">
-                        Feineinstellungen für AuraGos Persönlichkeit und erweiterte Features.
-                        Alles kann später in der Config-Oberfläche geändert werden.
-                    </p>
+                    <div id="badge-step2" class="section-badge badge-optional"><script>document.write(t('setup.step2_badge'))</script></div>
+                    <h2 id="title-step2" class="section-title"><script>document.write(t('setup.step2_title'))</script></h2>
+                    <p id="desc-step2" class="section-desc"><script>document.write(t('setup.step2_description'))</script></p>
                 </div>
 
                 <!-- Personality Engine V2 -->
                 <div class="toggle-row" style="border-bottom: 1px solid var(--border-subtle); padding-bottom: 1rem; margin-bottom: 1rem;">
                     <div>
-                        <div class="toggle-label">Personality Engine V2</div>
-                        <div class="toggle-desc">Dynamische Stimmung und emotionale Reaktionen basierend auf Konversationskontext.</div>
+                        <div id="lbl-personality-v2" class="toggle-label"><script>document.write(t('setup.step2_personality_v2_label'))</script></div>
+                        <div id="desc-personality-v2" class="toggle-desc"><script>document.write(t('setup.step2_personality_v2_desc'))</script></div>
                     </div>
                     <label class="toggle-switch">
                         <input type="checkbox" id="personality-v2" checked onchange="onPersonalityToggle()">
@@ -649,36 +648,36 @@
                 <div class="conditional-fields visible" id="personality-v2-fields">
                     <div class="field-row">
                         <div class="field-group">
-                            <label class="field-label">V2 LLM Modell</label>
+                            <label id="lbl-v2-model" class="field-label"><script>document.write(t('setup.step2_v2_model_label'))</script></label>
                             <input class="field-input" type="text" id="v2-model" placeholder="gpt-4o-mini" value="gpt-4o-mini">
-                            <div class="field-hint">Kleines, schnelles Modell für Stimmungsanalyse.</div>
+                            <div id="hint-v2-model" class="field-hint"><script>document.write(t('setup.step2_v2_model_hint'))</script></div>
                         </div>
                         <div class="field-group">
-                            <label class="field-label">V2 API URL</label>
+                            <label id="lbl-v2-url" class="field-label"><script>document.write(t('setup.step2_v2_url_label'))</script></label>
                             <input class="field-input" type="url" id="v2-url" placeholder="Leer = gleiche URL wie Haupt-LLM">
                         </div>
                     </div>
                     <div class="field-group">
-                        <label class="field-label">V2 API Key</label>
+                        <label id="lbl-v2-apikey" class="field-label"><script>document.write(t('setup.step2_v2_apikey_label'))</script></label>
                         <input class="field-input" type="password" id="v2-api-key" placeholder="Leer = gleicher Key wie Haupt-LLM">
-                        <div class="field-hint">Optional — wenn leer, wird der Haupt-API-Key verwendet.</div>
+                        <div id="hint-v2-apikey" class="field-hint"><script>document.write(t('setup.step2_v2_apikey_hint'))</script></div>
                     </div>
                 </div>
 
                 <!-- Core Personality -->
                 <div class="field-group" style="margin-top: 1.25rem;">
-                    <label class="field-label">Kern-Persönlichkeit</label>
+                    <label id="lbl-core-personality" class="field-label"><script>document.write(t('setup.step2_core_personality_label'))</script></label>
                     <select class="field-select" id="core-personality">
                         <option value="friend" selected>Freundlich (friend)</option>
                     </select>
-                    <div class="field-hint">Grundlegende Persönlichkeit — beeinflusst Tonfall und Kommunikationsstil. Eigene Persönlichkeiten können als .md Dateien angelegt werden.</div>
+                    <div id="hint-core-personality" class="field-hint"><script>document.write(t('setup.step2_core_personality_hint'))</script></div>
                 </div>
 
                 <!-- Maintenance -->
                 <div class="toggle-row" style="margin-top: 0.5rem;">
                     <div>
-                        <div class="toggle-label">Automatische Wartung</div>
-                        <div class="toggle-desc">Tägliche Selbstreflexion und Gedächtnis-Optimierung (empfohlen).</div>
+                        <div id="lbl-maintenance" class="toggle-label"><script>document.write(t('setup.step2_maintenance_label'))</script></div>
+                        <div id="desc-maintenance" class="toggle-desc"><script>document.write(t('setup.step2_maintenance_desc'))</script></div>
                     </div>
                     <label class="toggle-switch">
                         <input type="checkbox" id="maintenance-enabled" checked>
@@ -689,8 +688,8 @@
                 <!-- Web Config -->
                 <div class="toggle-row">
                     <div>
-                        <div class="toggle-label">Web Config UI</div>
-                        <div class="toggle-desc">Konfiguration über den Browser bearbeiten (unter /config).</div>
+                        <div id="lbl-web-config" class="toggle-label"><script>document.write(t('setup.step2_web_config_label'))</script></div>
+                        <div id="desc-web-config" class="toggle-desc"><script>document.write(t('setup.step2_web_config_desc'))</script></div>
                     </div>
                     <label class="toggle-switch">
                         <input type="checkbox" id="web-config-enabled" checked>
@@ -702,33 +701,20 @@
             <!-- ═══ Success Screen ═══ -->
             <div class="success-screen" id="success-screen">
                 <div class="success-icon">✨</div>
-                <h2 class="success-title">Setup abgeschlossen!</h2>
-                <p class="success-desc">
-                    AuraGo ist jetzt konfiguriert und bereit.<br>
-                    Die Einstellungen wurden gespeichert.
-                </p>
-                <p class="success-desc" id="restart-notice" style="display:none; color: var(--warning);">
-                    ⚠️ Ein Neustart wird empfohlen, damit alle Änderungen wirksam werden.
-                </p>
-                <button class="btn-setup btn-next" onclick="window.location.href='/'">
-                    Zum Chat →
-                </button>
+                <h2 id="success-title" class="success-title"><script>document.write(t('setup.success_title'))</script></h2>
+                <p id="success-desc" class="success-desc"><script>document.write(t('setup.success_description').replace(/\n/g,'<br>'))</script></p>
+                <p class="success-desc" id="restart-notice" style="display:none; color: var(--warning);"><script>document.write(t('setup.success_restart_notice'))</script></p>
+                <button id="btn-go-to-chat" class="btn-setup btn-next" onclick="window.location.href='/'"><script>document.write(t('setup.success_go_to_chat'))</script></button>
             </div>
 
             <!-- Footer -->
             <div class="setup-footer" id="setup-footer">
                 <div class="footer-left">
-                    <button class="btn-setup btn-back" id="btn-back" style="display:none" onclick="prevStep()">
-                        ← Zurück
-                    </button>
+                    <button class="btn-setup btn-back" id="btn-back" style="display:none" onclick="prevStep()"><script>document.write(t('setup.nav_back'))</script></button>
                 </div>
                 <div style="display:flex; align-items:center; gap:0.75rem;">
-                    <button class="btn-skip" id="btn-skip-step" onclick="nextStep(true)">
-                        Überspringen
-                    </button>
-                    <button class="btn-setup btn-next" id="btn-next" onclick="nextStep()">
-                        Weiter →
-                    </button>
+                    <button class="btn-skip" id="btn-skip-step" onclick="nextStep(true)"><script>document.write(t('setup.nav_skip_step'))</script></button>
+                    <button class="btn-setup btn-next" id="btn-next" onclick="nextStep()"><script>document.write(t('setup.nav_next'))</script></button>
                 </div>
             </div>
         </div>
@@ -798,7 +784,7 @@
             },
             ollama: {
                 baseUrl: 'http://localhost:11434/v1',
-                placeholder: 'nicht benötigt',
+                placeholder: t('setup.provider_ollama_key_placeholder'),
                 link: 'ollama.com',
                 defaultModel: 'llama3.1',
                 needsKey: false,
@@ -822,7 +808,6 @@
         const OR_CACHE_TTL = 5 * 60 * 1000;
 
         async function openOpenRouterBrowser(onSelect) {
-            const lDe = true; // Setup screen is always German
 
             const existing = document.getElementById('or-browser-overlay');
             if (existing) existing.remove();
@@ -836,13 +821,13 @@
             <div style="background:var(--bg-secondary, #1a1a2e);border-radius:16px;width:min(760px,95vw);height:min(85vh,720px);display:flex;flex-direction:column;border:1px solid var(--border-subtle, #2a2a3e);overflow:hidden;" onclick="event.stopPropagation()">
                 <div style="padding:1rem 1.2rem;border-bottom:1px solid var(--border-subtle, #2a2a3e);flex-shrink:0;">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.7rem;">
-                        <div style="font-weight:700;font-size:1rem;">🌐 OpenRouter Modell-Browser</div>
+                        <div style="font-weight:700;font-size:1rem;">${t('setup.or_browser_title')}</div>
                         <button onclick="document.getElementById('or-browser-overlay').remove()" style="background:none;border:none;color:var(--text-secondary, #888);font-size:1.2rem;cursor:pointer;">✕</button>
                     </div>
                     <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
-                        <input id="or-search" class="field-input" type="text" placeholder="Modell suchen..." style="flex:1;min-width:180px;font-size:0.82rem;padding:0.4rem 0.7rem;">
-                        <button id="or-free-btn" style="padding:0.35rem 0.8rem;font-size:0.75rem;background:var(--bg-tertiary, #252538);color:var(--text-primary, #eee);border:1px solid var(--border-subtle, #2a2a3e);border-radius:8px;cursor:pointer;white-space:nowrap;" title="Nur kostenlose Modelle anzeigen">
-                            🆓 Kostenlose
+                        <input id="or-search" class="field-input" type="text" placeholder="${t('setup.or_browser_search_placeholder')}" style="flex:1;min-width:180px;font-size:0.82rem;padding:0.4rem 0.7rem;">
+                        <button id="or-free-btn" style="padding:0.35rem 0.8rem;font-size:0.75rem;background:var(--bg-tertiary, #252538);color:var(--text-primary, #eee);border:1px solid var(--border-subtle, #2a2a3e);border-radius:8px;cursor:pointer;white-space:nowrap;" title="${t('setup.or_browser_free_button_title')}">
+                            ${t('setup.or_browser_free_button')}
                         </button>
                         <div id="or-count" style="font-size:0.72rem;color:var(--text-tertiary, #666);white-space:nowrap;"></div>
                     </div>
@@ -854,7 +839,7 @@
                     <div id="or-detail" style="width:280px;flex-shrink:0;border-left:1px solid var(--border-subtle, #2a2a3e);overflow-y:auto;display:none;padding:1rem;font-size:0.8rem;"></div>
                 </div>
                 <div id="or-loading" style="padding:2rem;text-align:center;color:var(--text-secondary, #888);font-size:0.85rem;">
-                    ⏳ Lade Modelle von OpenRouter...
+                    ${t('setup.or_browser_loading')}
                 </div>
             </div>`;
             document.body.appendChild(overlay);
@@ -879,7 +864,7 @@
                     const resp = await fetch('/api/openrouter/models');
                     const json = await resp.json();
                     if (json.available === false) {
-                        loadingDiv.innerHTML = '<span style="color:#e74c3c;">❌ ' + (json.reason || 'Fehler') + '</span>';
+                        loadingDiv.innerHTML = '<span style="color:#e74c3c;">❌ ' + (json.reason || t('common.error')) + '</span>';
                         return;
                     }
                     allModels = (json.data || []).map(m => ({
@@ -894,7 +879,7 @@
                     _orModelsCacheTime = now;
                 }
             } catch (e) {
-                loadingDiv.innerHTML = '<span style="color:#e74c3c;">❌ Verbindungsfehler: ' + e.message + '</span>';
+                loadingDiv.innerHTML = '<span style="color:#e74c3c;">❌ ' + t('setup.or_browser_connection_error') + e.message + '</span>';
                 return;
             }
             loadingDiv.style.display = 'none';
@@ -905,7 +890,7 @@
             }
             function formatCost(perToken) {
                 const val = parseFloat(perToken || '0');
-                if (val === 0) return 'Kostenlos';
+                if (val === 0) return t('setup.or_browser_free_cost');
                 const perMillion = val * 1000000;
                 if (perMillion < 0.01) return '$' + perMillion.toFixed(4) + '/M';
                 if (perMillion < 1) return '$' + perMillion.toFixed(3) + '/M';
@@ -925,9 +910,9 @@
                     if (query) return m.id.toLowerCase().includes(query) || m.name.toLowerCase().includes(query);
                     return true;
                 });
-                countDiv.textContent = filtered.length + ' Modelle' + (freeOnly ? ' (nur kostenlose)' : '');
+                countDiv.textContent = filtered.length + ' ' + t('setup.or_browser_model_count') + (freeOnly ? ' ' + t('setup.or_browser_model_count_free_only') : '');
                 if (filtered.length === 0) {
-                    listDiv.innerHTML = '<div style="padding:1.5rem;text-align:center;color:var(--text-tertiary, #666);font-size:0.82rem;">Keine Modelle gefunden.</div>';
+                    listDiv.innerHTML = '<div style="padding:1.5rem;text-align:center;color:var(--text-tertiary, #666);font-size:0.82rem;">' + t('setup.or_browser_no_models_found') + '</div>';
                     return;
                 }
                 listDiv.innerHTML = filtered.map(m => {
@@ -941,7 +926,7 @@
                             <div style="font-size:0.68rem;color:var(--text-tertiary, #666);font-family:monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(m.id)}</div>
                         </div>
                         <div style="flex-shrink:0;display:flex;gap:0.4rem;align-items:center;">
-                            ${free ? '<span style="font-size:0.65rem;padding:0.1rem 0.4rem;border-radius:4px;background:rgba(72,199,142,0.15);color:#48c78e;font-weight:600;">FREE</span>' : '<span style="font-size:0.65rem;color:var(--text-tertiary, #666);" title="Input / Output">'+promptCost+' · '+completionCost+'</span>'}
+                            ${free ? '<span style="font-size:0.65rem;padding:0.1rem 0.4rem;border-radius:4px;background:rgba(72,199,142,0.15);color:#48c78e;font-weight:600;">'+t('setup.or_browser_free_badge')+'</span>' : '<span style="font-size:0.65rem;color:var(--text-tertiary, #666);" title="Input / Output">'+promptCost+' · '+completionCost+'</span>'}
                             <span style="font-size:0.65rem;color:var(--text-tertiary, #666);" title="Context">${formatContext(m.context_length)}</span>
                         </div>
                     </div>`;
@@ -970,16 +955,16 @@
                     <div style="font-family:monospace;font-size:0.7rem;color:var(--accent, #63b3ed);margin-bottom:0.7rem;word-break:break-all;">${escapeHtml(m.id)}</div>
                     ${m.description ? '<div style="font-size:0.75rem;color:var(--text-secondary, #aaa);margin-bottom:0.8rem;line-height:1.4;max-height:120px;overflow-y:auto;">' + escapeHtml(m.description) + '</div>' : ''}
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem 0.8rem;font-size:0.75rem;margin-bottom:0.8rem;">
-                        <div><span style="color:var(--text-tertiary, #666);">Context:</span></div>
-                        <div style="font-weight:600;">${formatContext(m.context_length)} tokens</div>
-                        <div><span style="color:var(--text-tertiary, #666);">Input:</span></div>
-                        <div style="font-weight:600;${free?'color:#48c78e;':''}">${free ? 'Kostenlos' : '$'+promptPerM.toFixed(4)+'/M'}</div>
-                        <div><span style="color:var(--text-tertiary, #666);">Output:</span></div>
-                        <div style="font-weight:600;${free?'color:#48c78e;':''}">${free ? 'Kostenlos' : '$'+completionPerM.toFixed(4)+'/M'}</div>
+                        <div><span style="color:var(--text-tertiary, #666);">${t('setup.or_browser_detail_context')}</span></div>
+                        <div style="font-weight:600;">${formatContext(m.context_length)} ${t('setup.or_browser_detail_tokens')}</div>
+                        <div><span style="color:var(--text-tertiary, #666);">${t('setup.or_browser_detail_input')}</span></div>
+                        <div style="font-weight:600;${free?'color:#48c78e;':''}">${free ? t('setup.or_browser_free_cost') : '$'+promptPerM.toFixed(4)+'/M'}</div>
+                        <div><span style="color:var(--text-tertiary, #666);">${t('setup.or_browser_detail_output')}</span></div>
+                        <div style="font-weight:600;${free?'color:#48c78e;':''}">${free ? t('setup.or_browser_free_cost') : '$'+completionPerM.toFixed(4)+'/M'}</div>
                     </div>
-                    ${free ? '<div style="padding:0.4rem 0.6rem;border-radius:7px;background:rgba(72,199,142,0.1);border:1px solid rgba(72,199,142,0.2);font-size:0.72rem;color:#48c78e;margin-bottom:0.8rem;">🆓 Dieses Modell ist kostenlos</div>' : ''}
+                    ${free ? '<div style="padding:0.4rem 0.6rem;border-radius:7px;background:rgba(72,199,142,0.1);border:1px solid rgba(72,199,142,0.2);font-size:0.72rem;color:#48c78e;margin-bottom:0.8rem;">'+t('setup.or_browser_free_model_badge')+'</div>' : ''}
                     <button id="or-apply-btn" style="width:100%;padding:0.5rem;font-size:0.82rem;border-radius:8px;background:var(--accent, #63b3ed);color:#fff;border:none;cursor:pointer;font-weight:600;">
-                        ✅ Modell übernehmen
+                        ${t('setup.or_browser_apply_model')}
                     </button>
                 `;
                 document.getElementById('or-apply-btn').onclick = () => {
@@ -1113,9 +1098,9 @@
 
             const btnNext = document.getElementById('btn-next');
             if (currentStep === totalSteps - 1) {
-                btnNext.innerHTML = 'Speichern & Starten ✓';
+                btnNext.innerHTML = t('setup.nav_save_and_start');
             } else {
-                btnNext.innerHTML = 'Weiter →';
+                btnNext.innerHTML = t('setup.nav_next');
             }
         }
 
@@ -1241,7 +1226,7 @@
 
             const btnNext = document.getElementById('btn-next');
             btnNext.disabled = true;
-            btnNext.innerHTML = '<div class="spinner"></div> Speichere...';
+            btnNext.innerHTML = '<div class="spinner"></div> ' + t('setup.nav_saving');
 
             try {
                 const patch = buildConfigPatch();
@@ -1268,11 +1253,11 @@
                     document.getElementById('restart-notice').style.display = '';
                 }
 
-                showToast('Konfiguration gespeichert!', 'success');
+                showToast(t('setup.toast_config_saved'), 'success');
             } catch (err) {
-                showToast('Fehler: ' + err.message, 'error');
+                showToast(t('setup.toast_error_prefix') + err.message, 'error');
                 btnNext.disabled = false;
-                btnNext.innerHTML = 'Speichern & Starten ✓';
+                btnNext.innerHTML = t('setup.nav_save_and_start');
             } finally {
                 saving = false;
             }
@@ -1280,7 +1265,7 @@
 
         // ── Skip Setup ───────────────────────────────
         function skipSetup() {
-            if (confirm('Setup überspringen? Du kannst AuraGo später über /config konfigurieren.')) {
+            if (confirm(t('setup.confirm_skip_setup'))) {
                 window.location.href = '/?skip_setup=1';
             }
         }
@@ -1318,9 +1303,130 @@
                 'es': 'Español',
                 'fr': 'Français',
                 'pl': 'Polski',
+                'zh': '中文',
+                'hi': 'हिन्दी',
+                'nl': 'Nederlands',
+                'it': 'Italiano',
+                'pt': 'Português',
+                'da': 'Dansk',
+                'ja': '日本語',
+                'sv': 'Svenska',
+                'no': 'Norsk',
+                'cs': 'Čeština',
             };
             const sel = document.getElementById('system-language');
             sel.value = map[base] || 'English';
+        })();
+
+        // ── i18n: populate text ──
+        (function applyI18N() {
+            const el = id => document.getElementById(id);
+            // Page title
+            document.title = t('setup.page_title');
+            // Header
+            el('header-subtitle').textContent = t('setup.header_subtitle');
+            el('btn-skip-setup').textContent = t('setup.skip_button');
+            el('btn-skip-setup').title = t('setup.skip_button_title');
+            // Step 0
+            el('badge-step0').textContent = t('setup.step0_badge');
+            el('title-step0').textContent = t('setup.step0_title');
+            el('desc-step0').textContent = t('setup.step0_description');
+            el('lbl-provider').innerHTML = t('setup.step0_provider_label') + ' <span class="required-star">*</span>';
+            el('hint-provider').textContent = t('setup.step0_provider_hint');
+            // Provider select options
+            const provSel = el('llm-provider');
+            provSel.querySelector('[value="openrouter"]').textContent = t('setup.step0_provider_openrouter');
+            provSel.querySelector('[value="openai"]').textContent = t('setup.step0_provider_openai');
+            provSel.querySelector('[value="anthropic"]').textContent = t('setup.step0_provider_anthropic');
+            provSel.querySelector('[value="google"]').textContent = t('setup.step0_provider_google');
+            provSel.querySelector('[value="ollama"]').textContent = t('setup.step0_provider_ollama');
+            provSel.querySelector('[value="custom"]').textContent = t('setup.step0_provider_custom');
+            // API Key
+            el('lbl-api-key').innerHTML = t('setup.step0_api_key_label') + ' <span class="required-star">*</span>';
+            el('err-api-key').textContent = t('setup.step0_api_key_error');
+            el('hint-api-key-text').textContent = t('setup.step0_api_key_hint');
+            // Base URL
+            el('lbl-base-url').textContent = t('setup.step0_base_url_label');
+            el('hint-base-url').textContent = t('setup.step0_base_url_hint');
+            // Model
+            el('lbl-model').innerHTML = t('setup.step0_model_label') + ' <span class="required-star">*</span>';
+            el('llm-model').placeholder = t('setup.step0_model_placeholder');
+            el('or-browse-btn').textContent = t('setup.step0_model_browse');
+            el('err-model').textContent = t('setup.step0_model_error');
+            // Language
+            el('lang-label').textContent = t('setup.step0_language_label');
+            // Native Functions
+            el('lbl-native-functions').textContent = t('setup.step0_native_functions_label');
+            el('desc-native-functions').innerHTML = t('setup.step0_native_functions_desc');
+            // Step 1
+            el('badge-step1').textContent = t('setup.step1_badge');
+            el('title-step1').textContent = t('setup.step1_title');
+            el('desc-step1').textContent = t('setup.step1_description');
+            // Embeddings
+            el('heading-embeddings').textContent = t('setup.step1_embeddings_heading');
+            el('lbl-emb-provider').textContent = t('setup.step1_embeddings_provider_label');
+            const embSel = el('emb-provider');
+            embSel.querySelector('[value="internal"]').textContent = t('setup.step1_embeddings_provider_internal');
+            embSel.querySelector('[value="ollama"]').textContent = t('setup.step1_embeddings_provider_ollama');
+            embSel.querySelector('[value=""]').textContent = t('setup.step1_embeddings_provider_disabled');
+            el('lbl-emb-model').textContent = t('setup.step1_embeddings_model_label');
+            el('lbl-emb-apikey').textContent = t('setup.step1_embeddings_apikey_label');
+            el('emb-api-key').placeholder = t('setup.step1_embeddings_apikey_placeholder');
+            el('hint-emb-apikey').textContent = t('setup.step1_embeddings_apikey_hint');
+            // Vision
+            el('heading-vision').textContent = t('setup.step1_vision_heading');
+            el('lbl-vision-provider').textContent = t('setup.step1_vision_provider_label');
+            const visSel = el('vision-provider');
+            visSel.querySelector('[value="openrouter"]').textContent = t('setup.step1_vision_provider_openrouter');
+            visSel.querySelector('[value="openai"]').textContent = t('setup.step1_vision_provider_openai');
+            visSel.querySelector('[value="ollama"]').textContent = t('setup.step1_vision_provider_ollama');
+            visSel.querySelector('[value=""]').textContent = t('setup.step1_vision_provider_disabled');
+            el('lbl-vision-model').textContent = t('setup.step1_vision_model_label');
+            // Whisper
+            el('heading-whisper').textContent = t('setup.step1_whisper_heading');
+            el('lbl-whisper-provider').textContent = t('setup.step1_whisper_provider_label');
+            const whSel = el('whisper-provider');
+            whSel.querySelector('[value="openrouter"]').textContent = t('setup.step1_whisper_provider_openrouter');
+            whSel.querySelector('[value="openai"]').textContent = t('setup.step1_whisper_provider_openai');
+            whSel.querySelector('[value="ollama"]').textContent = t('setup.step1_whisper_provider_ollama');
+            whSel.querySelector('[value=""]').textContent = t('setup.step1_whisper_provider_disabled');
+            el('lbl-whisper-model').textContent = t('setup.step1_whisper_model_label');
+            // Step 2
+            el('badge-step2').textContent = t('setup.step2_badge');
+            el('title-step2').textContent = t('setup.step2_title');
+            el('desc-step2').textContent = t('setup.step2_description');
+            // Personality V2
+            el('lbl-personality-v2').textContent = t('setup.step2_personality_v2_label');
+            el('desc-personality-v2').textContent = t('setup.step2_personality_v2_desc');
+            // V2 fields
+            el('lbl-v2-model').textContent = t('setup.step2_v2_model_label');
+            el('hint-v2-model').textContent = t('setup.step2_v2_model_hint');
+            el('lbl-v2-url').textContent = t('setup.step2_v2_url_label');
+            el('v2-url').placeholder = t('setup.step2_v2_url_placeholder');
+            el('lbl-v2-apikey').textContent = t('setup.step2_v2_apikey_label');
+            el('v2-api-key').placeholder = t('setup.step2_v2_apikey_placeholder');
+            el('hint-v2-apikey').textContent = t('setup.step2_v2_apikey_hint');
+            // Core personality
+            el('lbl-core-personality').textContent = t('setup.step2_core_personality_label');
+            el('hint-core-personality').textContent = t('setup.step2_core_personality_hint');
+            // Default option fallback
+            const coreDefault = el('core-personality').querySelector('[value="friend"]');
+            if (coreDefault) coreDefault.textContent = t('setup.step2_core_personality_default');
+            // Maintenance
+            el('lbl-maintenance').textContent = t('setup.step2_maintenance_label');
+            el('desc-maintenance').textContent = t('setup.step2_maintenance_desc');
+            // Web Config
+            el('lbl-web-config').textContent = t('setup.step2_web_config_label');
+            el('desc-web-config').textContent = t('setup.step2_web_config_desc');
+            // Success
+            el('success-title').textContent = t('setup.success_title');
+            el('success-desc').innerHTML = t('setup.success_description').replace(/\n/g, '<br>');
+            el('restart-notice').innerHTML = t('setup.success_restart_notice');
+            el('btn-go-to-chat').textContent = t('setup.success_go_to_chat');
+            // Footer
+            el('btn-back').textContent = t('setup.nav_back');
+            el('btn-skip-step').textContent = t('setup.nav_skip_step');
+            el('btn-next').textContent = t('setup.nav_next');
         })();
 
         // ── Init ─────────────────────────────────────

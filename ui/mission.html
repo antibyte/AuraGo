@@ -6,6 +6,7 @@
     <meta name="viewport"
         content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
     <title>AuraGo – Mission Control</title>
+    <script>const I18N={{.I18N}};function t(k,p){let s=I18N[k]||k;if(p)Object.entries(p).forEach(([a,b])=>s=s.replaceAll('{'+'{'+a+'}'+'}',b));return s;}</script>
     <link rel="stylesheet" href="/shared.css">
     <script src="/shared.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -566,10 +567,10 @@
         <a href="/" class="logo">
             <div class="logo-icon">🚀</div>
             <span style="color: var(--accent);">AURA</span><span style="color: var(--text-primary);">GO</span>
-            <span style="font-weight:300;opacity:0.5;margin-left:0.3rem;" class="logo-subtitle" data-i18n="header_missions">MISSIONS</span>
+            <span style="font-weight:300;opacity:0.5;margin-left:0.3rem;" class="logo-subtitle" data-i18n="mission.header_missions">MISSIONS</span>
         </a>
         <div class="header-actions">
-            <button id="theme-toggle" class="btn-theme" title="Toggle theme"></button>
+            <button id="theme-toggle" class="btn-theme" title="Toggle theme"><script>document.currentScript.parentElement.title=t('common.toggle_theme')</script></button>
         </div>
     </header>
 
@@ -579,12 +580,12 @@
             <div class="radial-icon"><span></span><span></span><span></span></div>
         </button>
         <div class="radial-items">
-            <a href="/" class="radial-item"><span class="radial-item-label">Chat</span><span class="radial-item-icon">💬</span></a>
-            <a href="/dashboard" class="radial-item"><span class="radial-item-label">Dashboard</span><span class="radial-item-icon">📊</span></a>
-            <a href="/missions" class="radial-item active"><span class="radial-item-label">Missions</span><span class="radial-item-icon">🚀</span></a>
-            <a href="/config" class="radial-item"><span class="radial-item-label">Config</span><span class="radial-item-icon">⚙️</span></a>
-            <a href="/invasion" class="radial-item"><span class="radial-item-label">Invasion</span><span class="radial-item-icon">🥚</span></a>
-            <a id="radialLogout" href="/auth/logout" class="radial-item" style="display:none;"><span class="radial-item-label">Logout</span><span class="radial-item-icon">🔓</span></a>
+            <a href="/" class="radial-item"><span class="radial-item-label"><script>document.write(t('common.nav_chat'))</script></span><span class="radial-item-icon">💬</span></a>
+            <a href="/dashboard" class="radial-item"><span class="radial-item-label"><script>document.write(t('common.nav_dashboard'))</script></span><span class="radial-item-icon">📊</span></a>
+            <a href="/missions" class="radial-item active"><span class="radial-item-label"><script>document.write(t('common.nav_missions'))</script></span><span class="radial-item-icon">🚀</span></a>
+            <a href="/config" class="radial-item"><span class="radial-item-label"><script>document.write(t('common.nav_config'))</script></span><span class="radial-item-icon">⚙️</span></a>
+            <a href="/invasion" class="radial-item"><span class="radial-item-label"><script>document.write(t('common.nav_invasion'))</script></span><span class="radial-item-icon">🥚</span></a>
+            <a id="radialLogout" href="/auth/logout" class="radial-item" style="display:none;"><span class="radial-item-label"><script>document.write(t('common.nav_logout'))</script></span><span class="radial-item-icon">🔓</span></a>
         </div>
     </nav>
     <div class="radial-backdrop" id="radialBackdrop"></div>
@@ -595,30 +596,30 @@
             <div class="stat-card">
                 <div class="stat-icon">🎯</div>
                 <div class="stat-number" id="stat-total">0</div>
-                <div class="stat-label" data-i18n="stat_missions">Missions</div>
+                <div class="stat-label" data-i18n="mission.stat_missions">Missions</div>
             </div>
             <div class="stat-card">
                 <div class="stat-icon">⏰</div>
                 <div class="stat-number" id="stat-scheduled">0</div>
-                <div class="stat-label" data-i18n="stat_scheduled">Scheduled</div>
+                <div class="stat-label" data-i18n="mission.stat_scheduled">Scheduled</div>
             </div>
             <div class="stat-card">
                 <div class="stat-icon">▶️</div>
                 <div class="stat-number" id="stat-runs">0</div>
-                <div class="stat-label" data-i18n="stat_runs">Total Runs</div>
+                <div class="stat-label" data-i18n="mission.stat_runs">Total Runs</div>
             </div>
             <div class="stat-card">
                 <div class="stat-icon">✅</div>
                 <div class="stat-number" id="stat-success">0</div>
-                <div class="stat-label" data-i18n="stat_success">Successful</div>
+                <div class="stat-label" data-i18n="mission.stat_success">Successful</div>
             </div>
         </div>
 
         <!-- Toolbar -->
         <div class="mc-toolbar">
-            <h2 data-i18n="queue_title">📋 Mission Queue</h2>
+            <h2 data-i18n="mission.queue_title">📋 Mission Queue</h2>
             <button class="btn-create" id="btnCreate" onclick="openCreateModal()">
-                <span data-i18n="btn_new_mission">＋ New Mission</span>
+                <span data-i18n="mission.btn_new_mission">＋ New Mission</span>
             </button>
         </div>
 
@@ -628,11 +629,11 @@
         <!-- Empty State (shown when no missions) -->
         <div class="empty-state empty-state-missions" id="emptyState" style="display:none;">
             <div class="icon">🚀</div>
-            <div class="empty-title" data-i18n="empty_title">No missions yet</div>
-            <div class="empty-desc" data-i18n="empty_desc">Create your first mission to automate tasks. Missions can run
+            <div class="empty-title" data-i18n="mission.empty_title">No missions yet</div>
+            <div class="empty-desc" data-i18n="mission.empty_desc">Create your first mission to automate tasks. Missions can run
                 on demand or on a
                 schedule.</div>
-            <button class="btn-create" onclick="openCreateModal()" data-i18n="btn_create_first">＋ Create First
+            <button class="btn-create" onclick="openCreateModal()" data-i18n="mission.btn_create_first">＋ Create First
                 Mission</button>
         </div>
     </div>
@@ -640,77 +641,77 @@
     <!-- Create / Edit Modal -->
     <div class="modal-overlay mission-modal" id="missionModal">
         <div class="modal modal-card-mission">
-            <div class="modal-title-mission" id="modalTitle">🚀 <span data-i18n="modal_title_new">New Mission</span></div>
+            <div class="modal-title-mission" id="modalTitle">🚀 <span data-i18n="mission.modal_title_new">New Mission</span></div>
 
             <div class="form-group">
-                <label class="form-label" data-i18n="lbl_name">Name *</label>
+                <label class="form-label" data-i18n="mission.lbl_name">Name *</label>
                 <input class="form-input" type="text" id="missionName" placeholder="e.g. Daily Server Check"
                     autocomplete="off">
             </div>
 
             <div class="form-group">
-                <label class="form-label" data-i18n="lbl_prompt">Task Prompt *</label>
+                <label class="form-label" data-i18n="mission.lbl_prompt">Task Prompt *</label>
                 <textarea class="form-textarea" id="missionPrompt" rows="3"
                     placeholder="Describe what the agent should do..."></textarea>
-                <div class="form-hint" data-i18n="hint_prompt">This is the message sent to the agent when the mission
+                <div class="form-hint" data-i18n="mission.hint_prompt">This is the message sent to the agent when the mission
                     runs.</div>
             </div>
 
             <div class="form-group">
-                <label class="form-label" data-i18n="lbl_schedule_type">Schedule Type</label>
+                <label class="form-label" data-i18n="mission.lbl_schedule_type">Schedule Type</label>
                 <div class="schedule-type-row">
                     <button class="schedule-type-btn active" data-type="manual" onclick="setScheduleType('manual')">🖱️
-                        <span data-i18n="btn_manual">Manual</span></button>
+                        <span data-i18n="mission.btn_manual">Manual</span></button>
                     <button class="schedule-type-btn" data-type="cron" onclick="setScheduleType('cron')">⏰
-                        <span data-i18n="btn_scheduled">Scheduled</span></button>
+                        <span data-i18n="mission.btn_scheduled">Scheduled</span></button>
                 </div>
             </div>
 
             <div class="form-group" id="cronGroup" style="display:none;">
-                <label class="form-label" data-i18n="lbl_cron">Cron Schedule *</label>
+                <label class="form-label" data-i18n="mission.lbl_cron">Cron Schedule *</label>
                 <div style="margin-bottom: 0.5rem;">
                     <select class="form-select" id="cronPreset" onchange="applyCronPreset()">
-                        <option value="" data-i18n="preset_custom">-- Custom Expression --</option>
-                        <option value="0 * * * * *" data-i18n="preset_min">Every minute</option>
-                        <option value="0 */30 * * * *" data-i18n="preset_30min">Every 30 minutes</option>
-                        <option value="0 0 * * * *" data-i18n="preset_hourly">Hourly</option>
-                        <option value="0 0 */12 * * *" data-i18n="preset_12h">Every 12 hours</option>
-                        <option value="0 0 9 * * *" data-i18n="preset_daily9">Daily at 9:00 AM</option>
-                        <option value="0 0 23 * * *" data-i18n="preset_daily23">Daily at 11:00 PM</option>
-                        <option value="0 0 0 * * 1" data-i18n="preset_weekly">Weekly (Monday midnight)</option>
-                        <option value="0 0 0 1 * *" data-i18n="preset_monthly">Monthly (1st at midnight)</option>
+                        <option value="" data-i18n="mission.preset_custom">-- Custom Expression --</option>
+                        <option value="0 * * * * *" data-i18n="mission.preset_min">Every minute</option>
+                        <option value="0 */30 * * * *" data-i18n="mission.preset_30min">Every 30 minutes</option>
+                        <option value="0 0 * * * *" data-i18n="mission.preset_hourly">Hourly</option>
+                        <option value="0 0 */12 * * *" data-i18n="mission.preset_12h">Every 12 hours</option>
+                        <option value="0 0 9 * * *" data-i18n="mission.preset_daily9">Daily at 9:00 AM</option>
+                        <option value="0 0 23 * * *" data-i18n="mission.preset_daily23">Daily at 11:00 PM</option>
+                        <option value="0 0 0 * * 1" data-i18n="mission.preset_weekly">Weekly (Monday midnight)</option>
+                        <option value="0 0 0 1 * *" data-i18n="mission.preset_monthly">Monthly (1st at midnight)</option>
                     </select>
                 </div>
                 <input class="form-input" type="text" id="missionCron" placeholder="0 0 9 * * *" autocomplete="off">
                 <div class="form-hint">
-                    <span data-i18n="hint_cron_fmt">Format: sec min hour day month weekday</span><br>
-                    <span data-i18n="hint_cron_ex">Examples: <code>0 0 9 * * *</code> = daily 9:00,
+                    <span data-i18n="mission.hint_cron_fmt">Format: sec min hour day month weekday</span><br>
+                    <span data-i18n="mission.hint_cron_ex">Examples: <code>0 0 9 * * *</code> = daily 9:00,
                         <code>0 */30 * * * *</code> = every 30 min</span>
                 </div>
             </div>
 
             <div class="form-row">
                 <div class="form-group">
-                    <label class="form-label" data-i18n="lbl_priority">Priority</label>
+                    <label class="form-label" data-i18n="mission.lbl_priority">Priority</label>
                     <select class="form-select" id="missionPriority">
-                        <option value="low" data-i18n="prio_low">🟢 Low</option>
-                        <option value="medium" selected data-i18n="prio_medium">🟡 Medium</option>
-                        <option value="high" data-i18n="prio_high">🔴 High</option>
+                        <option value="low" data-i18n="mission.prio_low">🟢 Low</option>
+                        <option value="medium" selected data-i18n="mission.prio_medium">🟡 Medium</option>
+                        <option value="high" data-i18n="mission.prio_high">🔴 High</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label class="form-label" data-i18n="lbl_status">Status</label>
+                    <label class="form-label" data-i18n="mission.lbl_status">Status</label>
                     <select class="form-select" id="missionEnabled">
-                        <option value="true" selected data-i18n="status_enabled">✅ Enabled</option>
-                        <option value="false" data-i18n="status_paused">⏸️ Paused</option>
+                        <option value="true" selected data-i18n="mission.status_enabled">✅ Enabled</option>
+                        <option value="false" data-i18n="mission.status_paused">⏸️ Paused</option>
                     </select>
                 </div>
             </div>
 
             <div class="modal-actions">
-                <button class="btn btn-secondary" onclick="closeMissionModal()" data-i18n="btn_cancel">Cancel</button>
+                <button class="btn btn-secondary" onclick="closeMissionModal()" data-i18n="common.btn_cancel">Cancel</button>
                 <button class="btn btn-primary" id="btnSave" onclick="saveMission()"
-                    data-i18n="btn_save_mission">Create Mission</button>
+                    data-i18n="mission.btn_save_mission">Create Mission</button>
             </div>
         </div>
     </div>
@@ -718,13 +719,13 @@
     <!-- Confirm Delete Modal -->
     <div class="modal-overlay" id="deleteModal">
         <div class="modal-card" style="max-width:380px;">
-            <div class="modal-title">🗑️ <span data-i18n="modal_title_del">Delete Mission</span></div>
-            <div class="confirm-body" id="deleteBody" data-i18n="del_confirm">Are you sure you want to delete this
+            <div class="modal-title">🗑️ <span data-i18n="mission.modal_title_del">Delete Mission</span></div>
+            <div class="confirm-body" id="deleteBody" data-i18n="mission.del_confirm">Are you sure you want to delete this
                 mission?</div>
             <div class="modal-actions">
-                <button class="btn btn-secondary" onclick="closeDeleteModal()" data-i18n="btn_cancel">Cancel</button>
+                <button class="btn btn-secondary" onclick="closeDeleteModal()" data-i18n="common.btn_cancel">Cancel</button>
                 <button class="btn btn-danger" id="btnConfirmDelete" onclick="confirmDelete()"
-                    data-i18n="btn_delete">Delete</button>
+                    data-i18n="common.btn_delete">Delete</button>
             </div>
         </div>
     </div>
@@ -737,410 +738,19 @@
         // Mission Control – JavaScript
         // ══════════════════════════════════════════════════════════════════════════════
 
-        // ── Translations ─────────────────────────────────────────────────────────────
-        const translations = {
-            en: {
-                header_missions: "MISSIONS",
-                nav_chat: "Chat",
-                nav_dashboard: "Dashboard",
-                nav_config: "Config",
-                stat_missions: "Missions",
-                stat_scheduled: "Scheduled",
-                stat_runs: "Total Runs",
-                stat_success: "Successful",
-                queue_title: "📋 Mission Queue",
-                btn_new_mission: "＋ New Mission",
-                empty_title: "No missions yet",
-                empty_desc: "Create your first mission to automate tasks. Missions can run on demand or on a schedule.",
-                btn_create_first: "＋ Create First Mission",
-                modal_title_new: "New Mission",
-                modal_title_edit: "Edit Mission",
-                lbl_name: "Name *",
-                lbl_prompt: "Task Prompt *",
-                hint_prompt: "This is the message sent to the agent when the mission runs.",
-                lbl_schedule_type: "Schedule Type",
-                btn_manual: "Manual",
-                btn_scheduled: "Scheduled",
-                lbl_cron: "Cron Schedule *",
-                preset_custom: "-- Custom Expression --",
-                preset_min: "Every minute",
-                preset_30min: "Every 30 minutes",
-                preset_hourly: "Hourly",
-                preset_12h: "Every 12 hours",
-                preset_daily9: "Daily at 9:00 AM",
-                preset_daily23: "Daily at 11:00 PM",
-                preset_weekly: "Weekly (Monday midnight)",
-                preset_monthly: "Monthly (1st at midnight)",
-                hint_cron_fmt: "Format: sec min hour day month weekday",
-                hint_cron_ex: "Examples: 0 0 9 * * * = daily 9:00, 0 */30 * * * * = every 30 min",
-                lbl_priority: "Priority",
-                prio_low: "🟢 Low",
-                prio_medium: "🟡 Medium",
-                prio_high: "🔴 High",
-                lbl_status: "Status",
-                status_enabled: "✅ Enabled",
-                status_paused: "⏸️ Paused",
-                btn_cancel: "Cancel",
-                btn_save_mission: "Create Mission",
-                btn_save_changes: "Save Changes",
-                modal_title_del: "Delete Mission",
-                del_confirm: "Are you sure you want to delete this mission?",
-                btn_delete: "Delete",
-                // Dynamic labels
-                toast_name_req: "❌ Name and prompt are required",
-                toast_cron_req: "❌ Cron expression required for scheduled missions",
-                toast_mission_upd: "✅ Mission updated",
-                toast_mission_add: "✅ Mission created",
-                toast_failed_save: "❌ Failed to save mission",
-                toast_mission_del: "✅ Mission deleted",
-                toast_failed_del: "❌ Failed to delete mission",
-                toast_mission_start: "🚀 Mission started",
-                toast_failed_start: "❌ Failed to start mission",
-                toast_mission_res: "▶️ Mission resumed",
-                toast_mission_pau: "⏸️ Mission paused",
-                toast_mission_lck: "🔒 Mission locked",
-                toast_mission_ulck: "🔓 Mission unlocked",
-                lbl_last_run: "🕐 Last run: ",
-                lbl_never_run: "🕐 Never run",
-                lbl_just_now: "just now",
-                lbl_ago_m: "m ago",
-                lbl_ago_h: "h ago",
-                lbl_ago_d: "d ago",
-                badge_manual: "🖱️ Manual",
-                lbl_paused: "(paused)",
-                title_run: "Run Now",
-                title_pause: "Pause",
-                title_resume: "Resume",
-                title_edit: "Edit",
-                title_delete: "Delete",
-                title_locked_no_del: "Locked missions cannot be deleted",
-                title_lock: "Lock Mission",
-                title_unlock: "Unlock Mission"
-            },
-            de: {
-                header_missions: "MISSIONEN",
-                nav_chat: "Chat",
-                nav_dashboard: "Dashboard",
-                nav_config: "Konfig",
-                stat_missions: "Missionen",
-                stat_scheduled: "Geplant",
-                stat_runs: "Läufe gesamt",
-                stat_success: "Erfolgreich",
-                queue_title: "📋 Missions-Warteschlange",
-                btn_new_mission: "＋ Neue Mission",
-                empty_title: "Noch keine Missionen",
-                empty_desc: "Erstelle deine erste Mission, um Aufgaben zu automatisieren. Missionen können manuell oder nach Zeitplan ausgeführt werden.",
-                btn_create_first: "＋ Erste Mission erstellen",
-                modal_title_new: "Neue Mission",
-                modal_title_edit: "Mission bearbeiten",
-                lbl_name: "Name *",
-                lbl_prompt: "Aufgabe / Prompt *",
-                hint_prompt: "Diese Nachricht wird an den Agenten gesendet, wenn die Mission ausgeführt wird.",
-                lbl_schedule_type: "Ausführungstyp",
-                btn_manual: "Manuell",
-                btn_scheduled: "Geplant",
-                lbl_cron: "Cron-Zeitplan *",
-                preset_custom: "-- Eigener Ausdruck --",
-                preset_min: "Jede Minute",
-                preset_30min: "Alle 30 Minuten",
-                preset_hourly: "Stündlich",
-                preset_12h: "Alle 12 Stunden",
-                preset_daily9: "Täglich um 9:00",
-                preset_daily23: "Täglich um 23:00",
-                preset_weekly: "Wöchentlich (Montag Nacht)",
-                preset_monthly: "Monatlich (am 1. um 0:00)",
-                hint_cron_fmt: "Format: Sek Min Std Tag Monat Wochentag",
-                hint_cron_ex: "Bespiel: 0 0 9 * * * = täglich 9:00, 0 */30 * * * * = alle 30 Min",
-                lbl_priority: "Priorität",
-                prio_low: "🟢 Niedrig",
-                prio_medium: "🟡 Mittel",
-                prio_high: "🔴 Hoch",
-                lbl_status: "Status",
-                status_enabled: "✅ Aktiv",
-                status_paused: "⏸️ Pausiert",
-                btn_cancel: "Abbrechen",
-                btn_save_mission: "Mission erstellen",
-                btn_save_changes: "Änderungen speichern",
-                modal_title_del: "Mission löschen",
-                del_confirm: "Möchtest du diese Mission wirklich löschen?",
-                btn_delete: "Löschen",
-                toast_name_req: "❌ Name und Prompt werden benötigt",
-                toast_cron_req: "❌ Für geplante Missionen wird ein Cron-Ausdruck benötigt",
-                toast_mission_upd: "✅ Mission aktualisiert",
-                toast_mission_add: "✅ Mission erstellt",
-                toast_failed_save: "❌ Speichern fehlgeschlagen",
-                toast_mission_del: "✅ Mission gelöscht",
-                toast_failed_del: "❌ Löschen fehlgeschlagen",
-                toast_mission_start: "🚀 Mission gestartet",
-                toast_failed_start: "❌ Starten fehlgeschlagen",
-                toast_mission_res: "▶️ Mission fortgesetzt",
-                toast_mission_pau: "⏸️ Mission pausiert",
-                toast_mission_lck: "🔒 Mission gesperrt",
-                toast_mission_ulck: "🔓 Mission entsperrt",
-                lbl_last_run: "🕐 Letzter Lauf: ",
-                lbl_never_run: "🕐 Noch nie",
-                lbl_just_now: "gerade eben",
-                lbl_ago_m: " Min her",
-                lbl_ago_h: " Std her",
-                lbl_ago_d: " Tage her",
-                badge_manual: "🖱️ Manuell",
-                lbl_paused: "(pausiert)",
-                title_run: "Jetzt ausführen",
-                title_pause: "Pausieren",
-                title_resume: "Fortsetzen",
-                title_edit: "Bearbeiten",
-                title_delete: "Löschen",
-                title_locked_no_del: "Gesperrte Missionen können nicht gelöscht werden",
-                title_lock: "Mission sperren",
-                title_unlock: "Mission entsperren"
-            },
-            es: {
-                header_missions: "MISIONES",
-                nav_chat: "Chat",
-                nav_dashboard: "Panel",
-                nav_config: "Config",
-                stat_missions: "Misiones",
-                stat_scheduled: "Programadas",
-                stat_runs: "Ejec. Totales",
-                stat_success: "Exitosas",
-                queue_title: "📋 Cola de Misiones",
-                btn_new_mission: "＋ Nueva Misión",
-                empty_title: "Sin misiones aún",
-                empty_desc: "Crea tu primera misión para automatizar tareas. Las misiones pueden ejecutarse bajo demanda o programadas.",
-                btn_create_first: "＋ Crear Primera Misión",
-                modal_title_new: "Nueva Misión",
-                modal_title_edit: "Editar Misión",
-                lbl_name: "Nombre *",
-                lbl_prompt: "Mensaje de Tarea *",
-                hint_prompt: "Este es el mensaje enviado al agente cuando se ejecuta la misión.",
-                lbl_schedule_type: "Tipo de Programación",
-                btn_manual: "Manual",
-                btn_scheduled: "Programada",
-                lbl_cron: "Programa Cron *",
-                preset_custom: "-- Expresión Personalizada --",
-                preset_min: "Cada minuto",
-                preset_30min: "Cada 30 minutos",
-                preset_hourly: "Cada hora",
-                preset_12h: "Cada 12 horas",
-                preset_daily9: "Diario a las 9:00 AM",
-                preset_daily23: "Diario a las 11:00 PM",
-                preset_weekly: "Semanal (Lunes medianoche)",
-                preset_monthly: "Mensual (Día 1 a la medianoche)",
-                hint_cron_fmt: "Formato: seg min hora día mes dia-semana",
-                hint_cron_ex: "Ejemplo: 0 0 9 * * * = diario 9:00, 0 */30 * * * * = cada 30 min",
-                lbl_priority: "Prioridad",
-                prio_low: "🟢 Baja",
-                prio_medium: "🟡 Media",
-                prio_high: "🔴 Alta",
-                lbl_status: "Estado",
-                status_enabled: "✅ Habilitado",
-                status_paused: "⏸️ Pausado",
-                btn_cancel: "Cancelar",
-                btn_save_mission: "Crear Misión",
-                btn_save_changes: "Guardar Cambios",
-                modal_title_del: "Eliminar Misión",
-                del_confirm: "¿Estás seguro de que quieres eliminar esta misión?",
-                btn_delete: "Eliminar",
-                toast_name_req: "❌ Nombre y mensaje son obligatorios",
-                toast_cron_req: "❌ Se requiere expresión Cron para misiones programadas",
-                toast_mission_upd: "✅ Misión actualizada",
-                toast_mission_add: "✅ Misión creada",
-                toast_failed_save: "❌ Error al guardar la misión",
-                toast_mission_del: "✅ Misión eliminada",
-                toast_failed_del: "❌ Error al eliminar la misión",
-                toast_mission_start: "🚀 Misión iniciada",
-                toast_failed_start: "❌ Error al iniciar la misión",
-                toast_mission_res: "▶️ Misión reanudada",
-                toast_mission_pau: "⏸️ Misión pausada",
-                toast_mission_lck: "🔒 Misión bloqueada",
-                toast_mission_ulck: "🔓 Misión desbloqueada",
-                lbl_last_run: "🕐 Últ. ejec: ",
-                lbl_never_run: "🕐 Nunca",
-                lbl_just_now: "justo ahora",
-                lbl_ago_m: "m atrás",
-                lbl_ago_h: "h atrás",
-                lbl_ago_d: "d atrás",
-                badge_manual: "🖱️ Manual",
-                lbl_paused: "(pausado)",
-                title_run: "Ejecutar Ahora",
-                title_pause: "Pausar",
-                title_resume: "Reanudar",
-                title_edit: "Editar",
-                title_delete: "Eliminar",
-                title_locked_no_del: "Las misiones bloqueadas no se pueden eliminar",
-                title_lock: "Bloquear Misión",
-                title_unlock: "Desbloquear Misión"
-            },
-            fr: {
-                header_missions: "MISSIONS",
-                nav_chat: "Chat",
-                nav_dashboard: "Tableau de Bord",
-                nav_config: "Config",
-                stat_missions: "Missions",
-                stat_scheduled: "Planifiées",
-                stat_runs: "Exéc. Totales",
-                stat_success: "Réussies",
-                queue_title: "📋 File d'Attente",
-                btn_new_mission: "＋ Nouvelle Mission",
-                empty_title: "Aucune mission",
-                empty_desc: "Créez votre première mission pour automatiser des tâches. Les missions peuvent s'exécuter à la demande ou être planifiées.",
-                btn_create_first: "＋ Créer la Première Mission",
-                modal_title_new: "Nouvelle Mission",
-                modal_title_edit: "Modifier la Mission",
-                lbl_name: "Nom *",
-                lbl_prompt: "Invite de Tâche *",
-                hint_prompt: "Ceci est le message envoyé à l'agent lors de l'exécution.",
-                lbl_schedule_type: "Type de Planification",
-                btn_manual: "Manuel",
-                btn_scheduled: "Planifié",
-                lbl_cron: "Planification Cron *",
-                preset_custom: "-- Expression Personnalisée --",
-                preset_min: "Chaque minute",
-                preset_30min: "Toutes les 30 minutes",
-                preset_hourly: "Chaque heure",
-                preset_12h: "Toutes les 12 heures",
-                preset_daily9: "Tous les jours à 9h00",
-                preset_daily23: "Tous les jours à 23h00",
-                preset_weekly: "Hebdomadaire (Lundi minuit)",
-                preset_monthly: "Mensuel (1er dé mois à minuit)",
-                hint_cron_fmt: "Format: sec min heure jour mois jour-semaine",
-                hint_cron_ex: "Exemple: 0 0 9 * * * = tous les jours à 9:00, 0 */30 * * * * = toutes les 30 min",
-                lbl_priority: "Priorité",
-                prio_low: "🟢 Basse",
-                prio_medium: "🟡 Moyenne",
-                prio_high: "🔴 Haute",
-                lbl_status: "Statut",
-                status_enabled: "✅ Activé",
-                status_paused: "⏸️ En Pause",
-                btn_cancel: "Annuler",
-                btn_save_mission: "Créer Mission",
-                btn_save_changes: "Sauvegarder",
-                modal_title_del: "Supprimer la Mission",
-                del_confirm: "Êtes-vous sûr de vouloir supprimer cette mission ?",
-                btn_delete: "Supprimer",
-                toast_name_req: "❌ Le nom et l'invite sont requis",
-                toast_cron_req: "❌ Expression Cron requise pour les missions planifiées",
-                toast_mission_upd: "✅ Mission mise à jour",
-                toast_mission_add: "✅ Mission créée",
-                toast_failed_save: "❌ Échec de la sauvegarde",
-                toast_mission_del: "✅ Mission supprimée",
-                toast_failed_del: "❌ Échec de la suppression",
-                toast_mission_start: "🚀 Mission démarrée",
-                toast_failed_start: "❌ Échec du démarrage de la mission",
-                toast_mission_res: "▶️ Mission reprise",
-                toast_mission_pau: "⏸️ Mission en pause",
-                toast_mission_lck: "🔒 Mission verrouillée",
-                toast_mission_ulck: "🔓 Mission déverrouillée",
-                lbl_last_run: "🕐 Dern. exéc: ",
-                lbl_never_run: "🕐 Jamais",
-                lbl_just_now: "à l'instant",
-                lbl_ago_m: " min",
-                lbl_ago_h: " h",
-                lbl_ago_d: " j",
-                badge_manual: "🖱️ Manuel",
-                lbl_paused: "(en pause)",
-                title_run: "Exécuter",
-                title_pause: "Mettre en Pause",
-                title_resume: "Reprendre",
-                title_edit: "Modifier",
-                title_delete: "Supprimer",
-                title_locked_no_del: "Les missions verrouillées ne peuvent pas être supprimées",
-                title_lock: "Verrouiller la Mission",
-                title_unlock: "Déverrouiller la Mission"
-            },
-            pl: {
-                header_missions: "MISJE",
-                nav_chat: "Czat",
-                nav_dashboard: "Panel",
-                nav_config: "Ustawienia",
-                stat_missions: "Misje",
-                stat_scheduled: "Zaplanowane",
-                stat_runs: "Wykonane",
-                stat_success: "Ukończone",
-                queue_title: "📋 Kolejka Misji",
-                btn_new_mission: "＋ Nowa Misja",
-                empty_title: "Brak misji",
-                empty_desc: "Utwórz swoją pierwszą misję, aby zautomatyzować zadania. Misje mogą być uruchamiane na żądanie lub zgodnie z harmonogramem.",
-                btn_create_first: "＋ Utwórz Pierwszą Misję",
-                modal_title_new: "Nowa Misja",
-                modal_title_edit: "Edytuj Misję",
-                lbl_name: "Nazwa *",
-                lbl_prompt: "Polecenie Zadania *",
-                hint_prompt: "To wiadomość wysyłana do agenta podczas uruchamiania misji.",
-                lbl_schedule_type: "Typ Harmonogramu",
-                btn_manual: "Ręcznie",
-                btn_scheduled: "Zaplanowane",
-                lbl_cron: "Harmonogram Cron *",
-                preset_custom: "-- Własne Wyrażenie --",
-                preset_min: "Każda minuta",
-                preset_30min: "Co 30 minut",
-                preset_hourly: "Co godzinę",
-                preset_12h: "Co 12 godzin",
-                preset_daily9: "Codziennie o 9:00",
-                preset_daily23: "Codziennie o 23:00",
-                preset_weekly: "Co tydzień (poniedziałek, północ)",
-                preset_monthly: "Co miesiąc (1. dzień o północy)",
-                hint_cron_fmt: "Format: sek min godz dzień mies dzień-tyg",
-                hint_cron_ex: "Przykłady: 0 0 9 * * * = codziennie 9:00, 0 */30 * * * * = co 30 min",
-                lbl_priority: "Priorytet",
-                prio_low: "🟢 Niski",
-                prio_medium: "🟡 Średni",
-                prio_high: "🔴 Wysoki",
-                lbl_status: "Status",
-                status_enabled: "✅ Aktywna",
-                status_paused: "⏸️ Wstrzymana",
-                btn_cancel: "Anuluj",
-                btn_save_mission: "Utwórz Misję",
-                btn_save_changes: "Zapisz Zmiany",
-                modal_title_del: "Usuń Misję",
-                del_confirm: "Czy na pewno chcesz usunąć tę misję?",
-                btn_delete: "Usuń",
-                toast_name_req: "❌ Nazwa i polecenie są wymagane",
-                toast_cron_req: "❌ Wyrażenie Cron jest wymagane dla zaplanowanych misji",
-                toast_mission_upd: "✅ Misja zaktualizowana",
-                toast_mission_add: "✅ Misja utworzona",
-                toast_failed_save: "❌ Nie udało się zapisać misji",
-                toast_mission_del: "✅ Misja usunięta",
-                toast_failed_del: "❌ Nie udało się usunąć misji",
-                toast_mission_start: "🚀 Misja uruchomiona",
-                toast_failed_start: "❌ Nie udało się uruchomić misji",
-                toast_mission_res: "▶️ Misja wznowiona",
-                toast_mission_pau: "⏸️ Misja wstrzymana",
-                toast_mission_lck: "🔒 Misja zablokowana",
-                toast_mission_ulck: "🔓 Misja odblokowana",
-                lbl_last_run: "🕐 Ost. urucho.: ",
-                lbl_never_run: "🕐 Nigdy",
-                lbl_just_now: "teraz",
-                lbl_ago_m: " min temu",
-                lbl_ago_h: " godz temu",
-                lbl_ago_d: " dni temu",
-                badge_manual: "🖱️ Ręcznie",
-                lbl_paused: "(wstrzymana)",
-                title_run: "Uruchom Teraz",
-                title_pause: "Wstrzymaj",
-                title_resume: "Wznów",
-                title_edit: "Edytuj",
-                title_delete: "Usuń",
-                title_locked_no_del: "Zablokowanych misji nie można usunąć",
-                title_lock: "Zablokuj Misję",
-                title_unlock: "Odblokuj Misję"
-            }
-        };
-
-        const currentLang = document.documentElement.lang || 'en';
-        function t(key) {
-            const strings = translations[currentLang] || translations['en'];
-            return strings[key] || translations['en'][key] || key;
-        }
-
+        // ── i18n (centralized) ────────────────────────────────────────────────────
         function applyTranslations() {
             document.querySelectorAll('[data-i18n]').forEach(el => {
                 const key = el.getAttribute('data-i18n');
                 if (key) el.innerText = t(key);
             });
-            // Update placeholders if needed
+            // Update placeholders
             const nameInput = document.getElementById('missionName');
-            if (nameInput) nameInput.placeholder = t('lbl_name').replace(' *', '');
+            if (nameInput) nameInput.placeholder = t('mission.placeholder_name');
+            const promptInput = document.getElementById('missionPrompt');
+            if (promptInput) promptInput.placeholder = t('mission.placeholder_prompt');
+            // Page title
+            document.title = t('mission.page_title');
         }
 
         // ── State ────────────────────────────────────────────────────────────────────
@@ -1199,14 +809,14 @@
 
         // ── Render ───────────────────────────────────────────────────────────────────
         function timeAgoMission(dateStr) {
-            if (!dateStr) return t('lbl_never_run');
+            if (!dateStr) return t('mission.lbl_never_run');
             const d = new Date(dateStr);
-            if (isNaN(d.getTime()) || d.getFullYear() < 2000) return t('lbl_never_run');
+            if (isNaN(d.getTime()) || d.getFullYear() < 2000) return t('mission.lbl_never_run');
             const secs = Math.floor((Date.now() - d.getTime()) / 1000);
-            if (secs < 60) return t('lbl_just_now');
-            if (secs < 3600) return Math.floor(secs / 60) + t('lbl_ago_m');
-            if (secs < 86400) return Math.floor(secs / 3600) + t('lbl_ago_h');
-            return Math.floor(secs / 86400) + t('lbl_ago_d');
+            if (secs < 60) return t('mission.lbl_just_now');
+            if (secs < 3600) return Math.floor(secs / 60) + t('mission.lbl_ago_m');
+            if (secs < 86400) return Math.floor(secs / 3600) + t('mission.lbl_ago_h');
+            return Math.floor(secs / 86400) + t('mission.lbl_ago_d');
         }
 
         function renderStats() {
@@ -1240,17 +850,17 @@
             list.innerHTML = sorted.map(m => {
                 const scheduleBadge = m.schedule
                     ? `<span class="badge badge-schedule">⏰ ${escHtml(m.schedule)}</span>`
-                    : `<span class="badge badge-manual">${t('badge_manual')}</span>`;
+                    : `<span class="badge badge-manual">${t('mission.badge_manual')}</span>`;
                 const prioBadge = `<span class="badge badge-${m.priority}">${m.priority}</span>`;
                 const resultBadge = m.last_result
-                    ? `<span class="badge badge-${m.last_result}">${m.last_result === 'success' ? '✅' : '❌'} ${m.last_result}</span>`
+                    ? `<span class="badge badge-${m.last_result}">${m.last_result === 'success' ? t('mission.badge_result_success') : t('mission.badge_result_error')}</span>`
                     : '';
                 const runsBadge = m.run_count > 0
-                    ? `<span class="badge badge-runs">${m.run_count} run${m.run_count !== 1 ? 's' : ''}</span>`
+                    ? `<span class="badge badge-runs">${m.run_count} ${m.run_count !== 1 ? t('mission.badge_run_plural') : t('mission.badge_run_singular')}</span>`
                     : '';
                 const disabledClass = m.enabled ? '' : ' disabled';
                 const pauseIcon = m.enabled ? '⏸' : '▶️';
-                const pauseTitle = m.enabled ? t('title_pause') : t('title_resume');
+                const pauseTitle = m.enabled ? t('mission.title_pause') : t('mission.title_resume');
 
                 return `
         <div class="mission-card${disabledClass}" data-id="${m.id}">
@@ -1258,8 +868,8 @@
                 <div class="mission-meta">
                     <h3 class="mission-name">
                         ${escHtml(m.name)}
-                        ${m.locked ? `<span style="font-size:0.9rem;" title="${t('title_locked_no_del')}">🔒</span>` : ''}
-                        ${!m.enabled ? `<span style="opacity:0.5;font-size:var(--text-xs);">${t('lbl_paused')}</span>` : ''}
+                        ${m.locked ? `<span style="font-size:0.9rem;" title="${t('mission.title_locked_no_del')}">🔒</span>` : ''}
+                        ${!m.enabled ? `<span style="opacity:0.5;font-size:var(--text-xs);">${t('mission.lbl_paused')}</span>` : ''}
                     </h3>
                     <div class="mission-prompt">${escHtml(m.prompt)}</div>
                     <div class="mission-badges">
@@ -1270,18 +880,18 @@
             <div class="mission-card-bottom">
                 <div class="mission-last-run">
                     ${m.last_run && new Date(m.last_run).getFullYear() > 2000
-                        ? t('lbl_last_run') + timeAgoMission(m.last_run)
-                        : t('lbl_never_run')}
+                        ? t('mission.lbl_last_run') + timeAgoMission(m.last_run)
+                        : t('mission.lbl_never_run')}
                 </div>
                 <div class="mission-actions">
-                    <button class="btn-action run-btn" onclick="runMission('${m.id}')" title="${t('title_run')}">▶</button>
+                    <button class="btn-action run-btn" onclick="runMission('${m.id}')" title="${t('mission.title_run')}">▶</button>
                     <button class="btn-action" onclick="toggleMission('${m.id}', ${!m.enabled})" title="${pauseTitle}">${pauseIcon}</button>
-                    <button class="btn-action" onclick="openEditModal('${m.id}')" title="${t('title_edit')}">✏️</button>
+                    <button class="btn-action" onclick="openEditModal('${m.id}')" title="${t('mission.title_edit')}">✏️</button>
                     ${m.locked
-                        ? `<button class="btn-action" onclick="toggleLock('${m.id}', false)" title="${t('title_unlock')}">🔓</button>
-                           <button class="btn-action danger disabled" style="opacity:0.3;cursor:not-allowed;" title="${t('title_locked_no_del')}">🗑</button>`
-                        : `<button class="btn-action" onclick="toggleLock('${m.id}', true)" title="${t('title_lock')}">🔒</button>
-                           <button class="btn-action danger" onclick="openDeleteModal('${m.id}')" title="${t('title_delete')}">🗑</button>`
+                        ? `<button class="btn-action" onclick="toggleLock('${m.id}', false)" title="${t('mission.title_unlock')}">🔓</button>
+                           <button class="btn-action danger disabled" style="opacity:0.3;cursor:not-allowed;" title="${t('mission.title_locked_no_del')}">🗑</button>`
+                        : `<button class="btn-action" onclick="toggleLock('${m.id}', true)" title="${t('mission.title_lock')}">🔒</button>
+                           <button class="btn-action danger" onclick="openDeleteModal('${m.id}')" title="${t('mission.title_delete')}">🗑</button>`
                     }
                 </div>
             </div>
@@ -1323,8 +933,8 @@
 
         function openCreateModal() {
             editingId = null;
-            document.getElementById('modalTitle').innerHTML = `🚀 <span>${t('modal_title_new')}</span>`;
-            document.getElementById('btnSave').textContent = t('btn_save_mission');
+            document.getElementById('modalTitle').innerHTML = `🚀 <span>${t('mission.modal_title_new')}</span>`;
+            document.getElementById('btnSave').textContent = t('mission.btn_save_mission');
             document.getElementById('missionName').value = '';
             document.getElementById('missionPrompt').value = '';
             document.getElementById('missionCron').value = '';
@@ -1341,8 +951,8 @@
             const m = missions.find(x => x.id === id);
             if (!m) return;
             editingId = id;
-            document.getElementById('modalTitle').innerHTML = `✏️ <span>${t('modal_title_edit')}</span>`;
-            document.getElementById('btnSave').textContent = t('btn_save_changes');
+            document.getElementById('modalTitle').innerHTML = `✏️ <span>${t('mission.modal_title_edit')}</span>`;
+            document.getElementById('btnSave').textContent = t('mission.btn_save_changes');
             document.getElementById('missionName').value = m.name;
             document.getElementById('missionPrompt').value = m.prompt;
             document.getElementById('missionCron').value = m.schedule || '';
@@ -1369,11 +979,11 @@
             const enabled = document.getElementById('missionEnabled').value === 'true';
 
             if (!name || !prompt) {
-                showMissionToast(t('toast_name_req'));
+                showMissionToast(t('mission.toast_name_req'));
                 return;
             }
             if (scheduleType === 'cron' && !cron) {
-                showMissionToast(t('toast_cron_req'));
+                showMissionToast(t('mission.toast_cron_req'));
                 return;
             }
 
@@ -1382,17 +992,17 @@
             let ok;
             if (editingId) {
                 ok = await API.update(editingId, data);
-                if (ok) showMissionToast(t('toast_mission_upd'));
+                if (ok) showMissionToast(t('mission.toast_mission_upd'));
             } else {
                 ok = await API.create(data);
-                if (ok) showMissionToast(t('toast_mission_add'));
+                if (ok) showMissionToast(t('mission.toast_mission_add'));
             }
 
             if (ok) {
                 closeMissionModal();
                 await refresh();
             } else {
-                showMissionToast(t('toast_failed_save'));
+                showMissionToast(t('mission.toast_failed_save'));
             }
         }
 
@@ -1416,10 +1026,10 @@
             const ok = await API.remove(deleteId);
             closeDeleteModal();
             if (ok) {
-                showMissionToast(t('toast_mission_del'));
+                showMissionToast(t('mission.toast_mission_del'));
                 await refresh();
             } else {
-                showMissionToast(t('toast_failed_del'));
+                showMissionToast(t('mission.toast_failed_del'));
             }
         }
 
@@ -1427,9 +1037,9 @@
         async function runMission(id) {
             const ok = await API.run(id);
             if (ok) {
-                showMissionToast(t('toast_mission_start'));
+                showMissionToast(t('mission.toast_mission_start'));
             } else {
-                showMissionToast(t('toast_failed_start'));
+                showMissionToast(t('mission.toast_failed_start'));
             }
         }
 
@@ -1439,7 +1049,7 @@
             const data = { ...m, enabled };
             const ok = await API.update(id, data);
             if (ok) {
-                showMissionToast(enabled ? t('toast_mission_res') : t('toast_mission_pau'));
+                showMissionToast(enabled ? t('mission.toast_mission_res') : t('mission.toast_mission_pau'));
                 await refresh();
             }
         }
@@ -1450,7 +1060,7 @@
             const data = { ...m, locked };
             const ok = await API.update(id, data);
             if (ok) {
-                showMissionToast(locked ? t('toast_mission_lck') : t('toast_mission_ulck'));
+                showMissionToast(locked ? t('mission.toast_mission_lck') : t('mission.toast_mission_ulck'));
                 await refresh();
             }
         }

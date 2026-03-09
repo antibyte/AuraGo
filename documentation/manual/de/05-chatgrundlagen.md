@@ -64,6 +64,9 @@ Spezielle Steuerbefehle für den Chat:
 | `/debug off` | Kompakte Ausgaben (Standard) | `/debug off` |
 | `/budget` | Heutige API-Kosten anzeigen | `/budget` |
 | `/personality <name>` | Persönlichkeit wechseln | `/personality pro` |
+| `/sudo` | Sudo-Modus aktivieren (falls konfiguriert) | `/sudo` |
+| `/credits` | OpenRouter Credits anzeigen | `/credits` |
+| `/addssh` | SSH-Server zum Inventar hinzufügen | `/addssh server.com user key` |
 
 ### Mehrzeilige Nachrichten
 

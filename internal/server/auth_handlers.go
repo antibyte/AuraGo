@@ -83,6 +83,7 @@ func handleAuthLoginPage(s *Server, uiFS fs.FS) http.HandlerFunc {
 		}
 		data := map[string]interface{}{
 			"Lang":        lang,
+			"I18N":        getI18NJSON(lang),
 			"TOTPEnabled": totpEnabled,
 			"Redirect":    r.URL.Query().Get("redirect"),
 		}

@@ -1,31 +1,36 @@
 # Kapitel 8: Integrationen
 
-AuraGo lässt sich nahtlos in verschiedene Dienste und Plattformen integrieren. Dieses Kapitel erklärt alle verfügbaren Integrationen und deren Einrichtung.
+AuraGo lässt sich nahtlos in verschiedene Dienste und Plattformen integrieren.
+
+---
 
 ## Übersicht aller Integrationen
 
-| Integration | Typ | Zweck |
-|-------------|-----|-------|
-| **Telegram** | Chat | Mobile Benachrichtigungen & Chat |
-| **Discord** | Chat | Community-Integration |
-| **E-Mail** | Kommunikation | IMAP/SMTP für Senden/Empfangen |
-| **Home Assistant** | Smart Home | Gerätesteuerung |
-| **Docker** | Infrastruktur | Container-Verwaltung |
-| **Webhooks** | API | Eingehende HTTP-Events |
-| **Budget Tracking** | Finanzen | Kostenkontrolle |
-| **Google Workspace** | Produktivität | Kalender, Gmail, Drive |
-| **WebDAV/Koofr** | Speicher | Cloud-Dateizugriff |
-| **MQTT** | IoT | Geräte-Kommunikation |
-| **Proxmox** | Infrastruktur | VM-Verwaltung |
-| **Tailscale** | Netzwerk | VPN-Status |
-
-> 💡 **Tipp:** Integrationen können kombiniert werden – z.B. Telegram für Benachrichtigungen + Home Assistant für Smart Home.
+| Integration | Typ | Zweck | Konfiguration |
+|-------------|-----|-------|---------------|
+| **Telegram** | Chat | Mobile Benachrichtigungen | `telegram:` |
+| **Discord** | Chat | Community-Integration | `discord:` |
+| **Rocket.Chat** | Chat | Self-hosted Chat | `rocketchat:` |
+| **E-Mail** | Kommunikation | IMAP/SMTP | `email:` |
+| **Home Assistant** | Smart Home | Gerätesteuerung | `home_assistant:` |
+| **MQTT** | IoT | Geräte-Kommunikation | `mqtt:` |
+| **Docker** | Infrastruktur | Container-Verwaltung | `docker:` |
+| **Proxmox** | Infrastruktur | VM-Verwaltung | `proxmox:` |
+| **Webhooks** | API | Eingehende HTTP-Events | `webhooks:` |
+| **Budget Tracking** | Finanzen | Kostenkontrolle | `budget:` |
+| **Google Workspace** | Produktivität | Gmail, Kalender, Drive | `agent.enable_google_workspace` |
+| **WebDAV/Koofr** | Speicher | Cloud-Dateizugriff | `webdav:`, `koofr:` |
+| **Tailscale** | Netzwerk | VPN-Status | `tailscale:` |
+| **Brave Search** | Suche | Websuche API | `brave_search:` |
+| **GitHub** | Entwicklung | Repository-Verwaltung | `github:` |
+| **Ollama** | AI | Lokale Modelle | `ollama:` |
+| **MeshCentral** | Remote | Fernwartung | `meshcentral:` |
+| **Ansible** | Automation | Playbook-Ausführung | `ansible:` |
+| **Notifications** | Alerts | Push-Benachrichtigungen | `notifications:` |
 
 ---
 
 ## Telegram Bot Setup
-
-Mit dem Telegram-Bot kannst du mit AuraGo chatten und Benachrichtigungen empfangen.
 
 ### Schritt 1: Bot bei BotFather erstellen
 
@@ -33,8 +38,8 @@ Mit dem Telegram-Bot kannst du mit AuraGo chatten und Benachrichtigungen empfang
 2. Starte den Bot mit `/start`
 3. Erstelle einen neuen Bot: `/newbot`
 4. Gib einen Namen ein (z.B. "Mein AuraGo")
-5. Gib einen Benutzernamen ein (muss mit "bot" enden, z.B. `mein_aurago_bot`)
-6. **Speichere den Token** (sieht aus wie: `123456789:ABCdefGHIjklMNOpqrsTUVwxyz`)
+5. Gib einen Benutzernamen ein (muss mit "bot" enden)
+6. **Speichere den Token** (z.B. `123456789:ABCdefGHIjklMNOpqrsTUVwxyz`)
 
 ### Schritt 2: Deine User-ID ermitteln
 
@@ -46,10 +51,12 @@ Mit dem Telegram-Bot kannst du mit AuraGo chatten und Benachrichtigungen empfang
 
 ```yaml
 telegram:
-    bot_token: "123456789:ABCdefGHIjklMNOpqrsTUVwxyz"
-    telegram_user_id: 12345678
-    max_concurrent_workers: 5
+  bot_token: "123456789:ABC..."      # Wird im Vault gespeichert
+  telegram_user_id: 12345678
+  max_concurrent_workers: 5
 ```
+
+> 💡 **Sicherheit:** Das Bot-Token wird automatisch im verschlüsselten Vault gespeichert, nicht in der config.yaml.
 
 ### Schritt 4: Testen
 
@@ -57,13 +64,9 @@ telegram:
 2. Sende eine Nachricht an deinen Bot
 3. Der Bot sollte antworten
 
-> ⚠️ **Sicherheit:** Aus Sicherheitsgründen antwortet der Bot nur auf den konfigurierten `telegram_user_id`.
-
 ---
 
 ## Discord Bot Setup
-
-Für Community-Server oder Team-Kollaboration.
 
 ### Schritt 1: Discord-Anwendung erstellen
 
@@ -74,8 +77,8 @@ Für Community-Server oder Team-Kollaboration.
 
 ### Schritt 2: Token und Berechtigungen
 
-1. Kopiere den **Token** (unter "Bot" → "Token")
-2. Aktiviere folgende Intents:
+1. Kopiere den **Token**
+2. Aktiviere Intents:
    - Message Content Intent
    - Server Members Intent
 
@@ -83,66 +86,67 @@ Für Community-Server oder Team-Kollaboration.
 
 1. Gehe zu "OAuth2" → "URL Generator"
 2. Scopes: `bot`, `applications.commands`
-3. Permissions: `Send Messages`, `Read Messages`, `Embed Links`
-4. Kopiere die URL und öffne sie im Browser
-5. Wähle deinen Server aus
+3. Permissions: `Send Messages`, `Read Messages`
+4. Öffne die URL und wähle deinen Server
 
-### Schritt 4: Server- und Channel-ID ermitteln
-
-- Aktiviere Discord Developer Mode (Einstellungen → Erweitert)
-- Rechtsklick auf Server → "Server-ID kopieren"
-- Rechtsklick auf Channel → "Channel-ID kopieren"
-
-### Schritt 5: AuraGo konfigurieren
+### Schritt 4: AuraGo konfigurieren
 
 ```yaml
 discord:
-    enabled: true
-    bot_token: "DEIN-DISCORD-TOKEN"
-    guild_id: "123456789012345678"
-    default_channel_id: "123456789012345678"
-    allowed_user_id: "123456789012345678"  # Optional: nur dieser User
-    readonly: false
+  enabled: true
+  bot_token: "DEIN-TOKEN"           # Wird im Vault gespeichert
+  guild_id: "123456789012345678"
+  default_channel_id: "123456789012345678"
+  allowed_user_id: ""               # Optional: nur dieser User
 ```
 
-| Option | Beschreibung |
-|--------|--------------|
-| `readonly` | `true` = Nur lesen, keine Antworten senden |
-| `allowed_user_id` | Beschränkt auf spezifischen Discord-User |
+---
+
+## Rocket.Chat Integration
+
+Für selbst-gehostete Rocket.Chat-Instanzen.
+
+```yaml
+rocketchat:
+  enabled: true
+  url: "https://chat.example.com"
+  user_id: "..."
+  channel: "#general"
+  alias: "AuraGo"
+```
 
 ---
 
 ## E-Mail (IMAP/SMTP) Konfiguration
 
-AuraGo kann E-Mails senden und empfangen.
-
 ### Einzelnes E-Mail-Konto
 
 ```yaml
-email_accounts:
-    - id: "private"
-      name: "Privat"
-      imap_host: "imap.gmail.com"
-      imap_port: 993
-      smtp_host: "smtp.gmail.com"
-      smtp_port: 587
-      username: "dein.email@gmail.com"
-      from_address: "dein.email@gmail.com"
-      watch_enabled: true
-      watch_interval_seconds: 120
-      watch_folder: "INBOX"
+email:
+  enabled: true
+  imap_host: "imap.gmail.com"
+  imap_port: 993
+  smtp_host: "smtp.gmail.com"
+  smtp_port: 587
+  username: "dein.email@gmail.com"
+  from_address: "dein.email@gmail.com"
+  watch_enabled: true
+  watch_interval_seconds: 120
+  watch_folder: "INBOX"
 ```
 
-### Passwort im Vault speichern
+> ⚠️ **Wichtig:** Das Passwort wird **nicht** in der `config.yaml` gespeichert, sondern im verschlüsselten Vault. Konfiguriere es über die Web-UI oder den Chat-Befehl `/store_secret`.
 
-Das Passwort wird **nicht** in der `config.yaml` gespeichert, sondern im verschlüsselten Vault:
+### Gmail App-Passwort verwenden
 
-```bash
-# Über die Web-UI oder Chat
-/store_secret email_private_password "dein-app-passwort"
-```
+Für Gmail musst du ein [App-Passwort](https://myaccount.google.com/apppasswords) erstellen:
 
-> 💡 **Gmail-Tipp:** Verwende ein [App-Passwort](https://myaccount.google.com/apppasswords), nicht dein normales Passwort.
+1. Google-Konto → Sicherheit → 2-Schritt-Verification aktivieren
+2. App-Passwörter → Andere (benutzerdefinierter Name)
+3. Das generierte Passwort im Vault speichern:
+   ```
+   /store_secret email_password "dein-app-passwort"
+   ```
 
 ### Provider-Einstellungen
 
@@ -152,13 +156,6 @@ Das Passwort wird **nicht** in der `config.yaml` gespeichert, sondern im verschl
 | Outlook | `outlook.office365.com` | `smtp.office365.com` |
 | GMX | `imap.gmx.net` | `mail.gmx.net` |
 | Web.de | `imap.web.de` | `smtp.web.de` |
-
-### Automatisches E-Mail-Monitoring
-
-Mit `watch_enabled: true` überwacht AuraGo den Posteingang:
-- Prüft alle `watch_interval_seconds` auf neue E-Mails
-- Benachrichtigt den Agenten bei neuen Nachrichten
-- Ermöglicht automatische Antworten
 
 ---
 
@@ -170,21 +167,18 @@ Steuere Smart-Home-Geräte über AuraGo.
 
 ```yaml
 home_assistant:
-    enabled: true
-    url: "http://homeassistant.local:8123"
+  enabled: true
+  url: "http://homeassistant.local:8123"
+  access_token: ""                  # Wird im Vault gespeichert
 ```
 
 ### Access Token erstellen
 
 1. Öffne Home Assistant
-2. Gehe zu deinem Profil (unten links auf deinen Namen klicken)
+2. Gehe zu deinem Profil (unten links)
 3. Scrollen zu "Long-Lived Access Tokens"
 4. Klicke "Create Token"
-5. Kopiere den Token und speichere ihn:
-
-```bash
-/store_secret home_assistant "dein-langlebiger-token"
-```
+5. Speichere den Token im Vault
 
 ### Verwendung im Chat
 
@@ -194,11 +188,24 @@ Wie ist die Temperatur im Schlafzimmer?
 Starte die Staubsauger-Routine.
 ```
 
-> 🔍 **Deep Dive:** AuraGo erkennt verfügbare Entities automatisch und kann alle Services aufrufen, die Home Assistant bereitstellt.
+---
 
-| Option | Beschreibung |
-|--------|--------------|
-| `readonly` | `true` = Nur Status abfragen, keine Aktionen |
+## MQTT Integration
+
+Für IoT-Geräte und Smart-Home-Automation.
+
+```yaml
+mqtt:
+  enabled: true
+  broker: "mqtt.example.com"
+  client_id: "aurago"
+  username: ""                      # Optional
+  topics:                           # Zu abonnierende Topics
+    - "home/+/sensors"
+    - "aurago/commands"
+  qos: 0                            # Quality of Service (0, 1, 2)
+  relay_to_agent: false             # MQTT-Nachrichten an Agent weiterleiten
+```
 
 ---
 
@@ -210,20 +217,9 @@ Verwalte Docker-Container über AuraGo.
 
 ```yaml
 docker:
-    enabled: true
-    host: "unix:///var/run/docker.sock"
-    readonly: false
+  enabled: true
+  host: "unix:///var/run/docker.sock"
 ```
-
-### Host-Optionen
-
-| Host-URL | Beschreibung |
-|----------|--------------|
-| `unix:///var/run/docker.sock` | Lokaler Docker (Linux/macOS) |
-| `tcp://localhost:2375` | Remote Docker (unsicher) |
-| `tcp://localhost:2376` | Remote Docker mit TLS |
-
-> ⚠️ **Sicherheit:** Der Docker-Zugriff ermöglicht volle Kontrolle über den Host. Aktiviere `readonly` für mehr Sicherheit.
 
 ### Docker Socket mounten (Docker-Compose)
 
@@ -233,6 +229,25 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
 ```
+
+> ⚠️ **Sicherheit:** Der Docker-Zugriff ermöglicht volle Kontrolle über den Host. Aktiviere `readonly` für mehr Sicherheit.
+
+---
+
+## Proxmox Integration
+
+VM- und Container-Verwaltung.
+
+```yaml
+proxmox:
+  enabled: true
+  url: "https://proxmox.example.com:8006"
+  token_id: "root@pam!aurago"
+  node: "pve"
+  insecure: false                   # true = unsichere TLS akzeptieren
+```
+
+Das Token wird im Vault gespeichert.
 
 ---
 
@@ -244,15 +259,13 @@ Webhooks ermöglichen es externen Diensten, AuraGo zu benachrichtigen.
 
 ```yaml
 webhooks:
-    enabled: true
-    readonly: false
-    max_payload_size: 65536
-    rate_limit: 60
+  enabled: true
+  readonly: false
+  max_payload_size: 65536
+  rate_limit: 60
 ```
 
-### Webhook erstellen
-
-Über die Web-UI oder API:
+### Webhook erstellen (API)
 
 ```bash
 curl -X POST http://localhost:8088/api/webhooks \
@@ -274,156 +287,174 @@ curl -X POST http://localhost:8088/api/webhooks \
   }'
 ```
 
-### Delivery Modes
-
-| Modus | Beschreibung |
-|-------|--------------|
-| `message` | Payload wird als Nachricht an den Agenten gesendet |
-| `notify` | Nur Benachrichtigung im UI, kein Agent |
-| `silent` | Nur Logging, keine Aktion |
-
-### Beispiel: GitHub Integration
-
-```yaml
-# Webhook-URL in GitHub eintragen:
-# http://localhost:8088/api/webhooks/github-push?token=DEIN-TOKEN
-```
-
 ---
 
-## Budget Tracking Setup
+## Budget Tracking
 
 Überwache die Kosten für LLM-API-Aufrufe.
 
-### Aktivierung
-
 ```yaml
 budget:
-    enabled: true
-    daily_limit_usd: 1.0
-    enforcement: "warn"           # "warn", "partial", "full"
-    warning_threshold: 0.8
-    reset_hour: 0
-    default_cost:
-        input_per_million: 1.0
-        output_per_million: 3.0
+  enabled: true
+  daily_limit_usd: 1.0
+  enforcement: "warn"               # "warn", "partial", "full"
+  warning_threshold: 0.8
+  reset_hour: 0
+  default_cost:
+    input_per_million: 1.0
+    output_per_million: 3.0
+  models:
+    - name: "gpt-4"
+      input_per_million: 30.0
+      output_per_million: 60.0
 ```
-
-### Enforcement-Modi
-
-| Modus | Beschreibung |
-|-------|--------------|
-| `warn` | Warnung bei Überschreitung, aber weiterarbeiten |
-| `partial` | Nur günstige Modelle erlauben |
-| `full` | Alle Anfragen blockieren bis Reset |
-
-### Modell-spezifische Kosten
-
-```yaml
-budget:
-    models:
-        - name: "gpt-4"
-          input_per_million: 30.0
-          output_per_million: 60.0
-        - name: "gpt-3.5-turbo"
-          input_per_million: 0.5
-          output_per_million: 1.5
-        - name: "arcee-ai/trinity-large-preview:free"
-          input_per_million: 0
-          output_per_million: 0
-```
-
-> 💡 **Tipp:** Setze kostenlose Modelle auf `0`, damit sie nicht zum Budget zählen.
 
 ---
 
-## Google Workspace Setup
+## Google Workspace
 
 Zugriff auf Gmail, Kalender und Drive.
 
-### Aktivierung
-
 ```yaml
 agent:
-    enable_google_workspace: true
+  enable_google_workspace: true
 ```
 
-### OAuth2 Einrichtung
-
-1. Gehe zu [Google Cloud Console](https://console.cloud.google.com/)
-2. Erstelle ein Projekt
-3. Aktiviere die APIs:
-   - Gmail API
-   - Google Calendar API
-   - Google Drive API
-4. Erstelle OAuth2-Anmeldedaten (Desktop-Anwendung)
-5. Client-ID und Secret in AuraGo eintragen
-
-```yaml
-providers:
-    - id: "google"
-      name: "Google"
-      type: "google"
-      auth_type: "oauth2"
-      oauth_auth_url: "https://accounts.google.com/o/oauth2/auth"
-      oauth_token_url: "https://oauth2.googleapis.com/token"
-      oauth_client_id: "DEINE-CLIENT-ID"
-      oauth_client_secret: "DEIN-CLIENT-SECRET"
-      oauth_scopes: "https://www.googleapis.com/auth/gmail.modify https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/drive"
-```
-
-### Autorisierung
-
-1. Starte AuraGo
-2. Rufe die Auth-URL auf: `http://localhost:8088/api/auth/google`
-3. Melde dich bei Google an
-4. Das Token wird automatisch gespeichert
+Die OAuth2-Authentifizierung erfolgt über die Web-UI.
 
 ---
 
-## WebDAV/Koofr Setup
+## WebDAV/Koofr
 
-Dateizugriff auf WebDAV-kompatible Cloud-Speicher.
-
-### WebDAV (Nextcloud, ownCloud, etc.)
+### WebDAV (Nextcloud, ownCloud, Synology)
 
 ```yaml
 webdav:
-    enabled: true
-    url: "https://cloud.example.com/remote.php/dav/files/username/"
-    username: "dein-username"
-    readonly: false
-```
-
-Passwort speichern:
-```bash
-/store_secret webdav "dein-app-passwort"
+  enabled: true
+  url: "https://cloud.example.com/remote.php/dav/files/username/"
+  username: "username"
+  password: ""                      # Wird im Vault gespeichert
 ```
 
 ### Koofr
 
 ```yaml
 koofr:
+  enabled: true
+  username: "user@example.com"
+  app_password: ""                  # App-spezifisches Passwort
+  base_url: "https://app.koofr.net"
+```
+
+---
+
+## Tailscale
+
+VPN-Status und -Verwaltung.
+
+```yaml
+tailscale:
+  enabled: true
+  readonly: false
+  tailnet: "tailnet.ts.net"
+```
+
+---
+
+## Brave Search
+
+Erweiterte Websuche über Brave Search API.
+
+```yaml
+brave_search:
+  enabled: true
+  api_key: "BS..."
+  country: "DE"
+  lang: "de"
+```
+
+---
+
+## GitHub Integration
+
+Repository- und Issue-Verwaltung.
+
+```yaml
+github:
+  enabled: true
+  readonly: false
+  owner: "username"
+  default_private: false
+  base_url: ""                      # Für GitHub Enterprise
+```
+
+---
+
+## Ollama Integration
+
+Lokale LLM-Verwaltung.
+
+```yaml
+ollama:
+  enabled: true
+  readonly: false                   # false = erlaubt pull/delete
+  url: "http://localhost:11434"
+```
+
+---
+
+## MeshCentral
+
+Remote-Desktop und -Verwaltung.
+
+```yaml
+meshcentral:
+  enabled: true
+  readonly: false
+  url: "https://mesh.example.com"
+  username: "admin"
+  blocked_operations: ["shutdown"]  # Optional: Operationen blockieren
+```
+
+---
+
+## Ansible Integration
+
+Playbook-Ausführung.
+
+```yaml
+ansible:
+  enabled: true
+  readonly: false
+  mode: sidecar                     # "sidecar" oder "remote"
+  url: "http://localhost:5000"      # Für remote mode
+  timeout: 300
+  playbooks_dir: "/path/to/playbooks"
+  default_inventory: "/path/to/inventory"
+```
+
+---
+
+## Notifications
+
+Push-Benachrichtigungen.
+
+```yaml
+notifications:
+  ntfy:
     enabled: true
-    username: "dein@email.com"
-    base_url: "https://app.koofr.net"
-    readonly: false
+    url: "https://ntfy.sh"
+    topic: "aurago-alerts"
+  pushover:
+    enabled: true
+    # Token über Web-UI konfigurieren
 ```
-
-Passwort speichern:
-```bash
-/store_secret koofr "dein-app-password"
-```
-
-> 💡 **Koofr-Tipp:** Erstelle ein dediziertes App-Passwort unter Einstellungen → Passwörter.
 
 ---
 
 ## Integrationen testen
 
 ### Test über Chat
-
-Die meisten Integrationen können direkt im Chat getestet werden:
 
 ```
 Zeige meine Telegram-Config.
@@ -434,27 +465,16 @@ Wie ist der Status meiner Home Assistant-Geräte?
 
 ### Test über Dashboard
 
-Das Dashboard zeigt den Status aller Integrationen:
-
 1. Öffne die Web-UI
 2. Klicke auf "Dashboard"
 3. Scrolle zu "Integrationen"
 4. Grüner Punkt = Verbindung OK
 
-### Fehlerbehebung
-
-| Problem | Lösung |
-|---------|--------|
-| "Connection refused" | URL und Port prüfen |
-| "Unauthorized" | API-Key/Token prüfen |
-| "Timeout" | Firewall/Netzwerk prüfen |
-| Integration erscheint nicht | `enabled: true` in config.yaml |
-
-### Debug-Logging aktivieren
+### Debug-Logging
 
 ```yaml
 agent:
-    debug_mode: true
+  debug_mode: true
 ```
 
 Logs prüfen:
@@ -464,8 +484,15 @@ tail -f log/supervisor.log | grep -i telegram
 
 ---
 
-## Nächste Schritte
+## Fehlerbehebung
 
-- **[Gedächtnis & Wissen](09-memory.md)** – Wie AuraGo Informationen speichert
-- **[Persönlichkeit](10-personality.md)** – Den Agenten anpassen
-- **[Mission Control](11-missions.md)** – Automatisierung einrichten
+| Problem | Lösung |
+|---------|--------|
+| "Connection refused" | URL und Port prüfen |
+| "Unauthorized" | API-Key/Token prüfen |
+| "Timeout" | Firewall/Netzwerk prüfen |
+| Integration erscheint nicht | `enabled: true` in config.yaml |
+
+---
+
+**Nächstes Kapitel:** [Kapitel 9: Gedächtnis & Wissen](./09-memory.md)

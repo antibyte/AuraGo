@@ -51,9 +51,83 @@ func normalizeLang(lang string) string {
 		return "zh"
 	case strings.Contains(l, "hindi") || l == "hi":
 		return "hi"
+	case strings.Contains(l, "dutch") || strings.Contains(l, "nederlands") || l == "nl":
+		return "nl"
+	case strings.Contains(l, "italian") || strings.Contains(l, "italiano") || l == "it":
+		return "it"
+	case strings.Contains(l, "portuguese") || strings.Contains(l, "português") || l == "pt":
+		return "pt"
+	case strings.Contains(l, "danish") || strings.Contains(l, "dansk") || l == "da":
+		return "da"
+	case strings.Contains(l, "japanese") || strings.Contains(l, "日本語") || l == "ja":
+		return "ja"
+	case strings.Contains(l, "swedish") || strings.Contains(l, "svenska") || l == "sv":
+		return "sv"
+	case strings.Contains(l, "norwegian") || strings.Contains(l, "norsk") || l == "no":
+		return "no"
+	case strings.Contains(l, "czech") || strings.Contains(l, "čeština") || l == "cs":
+		return "cs"
 	default:
 		return "en" // Fallback
 	}
+}
+
+// i18nStore holds the parsed i18n.json keyed by language code.
+// Each value is the raw JSON string for that language, ready for template injection.
+var (
+	i18nLangJSON map[string]string // lang -> JSON string of {key: translation, ...}
+	i18nMetaJSON string            // JSON string of {key: {options:[...], provider_ref:bool}, ...}
+)
+
+// loadI18N reads ui/lang/*.json from the embedded FS and prepares per-language JSON blobs.
+// Each file is named <lang>.json (e.g. de.json, en.json, fr.json) and contains a flat
+// {key: translation} map. The special file meta.json holds field-option metadata.
+func loadI18N(uiFS fs.FS, logger *slog.Logger) {
+	entries, err := fs.ReadDir(uiFS, "lang")
+	if err != nil {
+		logger.Error("Failed to read lang/ directory", "error", err)
+		i18nLangJSON = map[string]string{"en": "{}"}
+		i18nMetaJSON = "{}"
+		return
+	}
+
+	i18nLangJSON = make(map[string]string)
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".json") {
+			continue
+		}
+		data, err := fs.ReadFile(uiFS, "lang/"+e.Name())
+		if err != nil {
+			logger.Warn("Failed to read lang file", "file", e.Name(), "error", err)
+			continue
+		}
+		lang := strings.TrimSuffix(e.Name(), ".json")
+		if lang == "meta" {
+			i18nMetaJSON = string(data)
+		} else {
+			i18nLangJSON[lang] = string(data)
+		}
+	}
+	if i18nMetaJSON == "" {
+		i18nMetaJSON = "{}"
+	}
+	logger.Info("i18n loaded", "languages", len(i18nLangJSON))
+}
+
+// getI18NJSON returns the JSON string for the given language, falling back to "en".
+func getI18NJSON(lang string) template.JS {
+	if j, ok := i18nLangJSON[lang]; ok {
+		return template.JS(j)
+	}
+	if j, ok := i18nLangJSON["en"]; ok {
+		return template.JS(j)
+	}
+	return template.JS("{}")
+}
+
+// getI18NMetaJSON returns the _meta section JSON for config_help metadata.
+func getI18NMetaJSON() template.JS {
+	return template.JS(i18nMetaJSON)
 }
 
 // Server holds the state and dependencies for the web server and socket bridge.
@@ -626,6 +700,10 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	if err != nil {
 		return fmt.Errorf("failed to create UI filesystem: %w", err)
 	}
+
+	// Load i18n translations from embedded i18n.json
+	loadI18N(uiFS, s.Logger)
+
 	tmpl, err := template.ParseFS(uiFS, "index.html")
 	if err != nil {
 		s.Logger.Error("Failed to parse UI template", "error", err)
@@ -642,8 +720,11 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 				http.Error(w, "Config template error", http.StatusInternalServerError)
 				return
 			}
+			lang := normalizeLang(s.Cfg.Agent.SystemLanguage)
 			data := map[string]interface{}{
-				"Lang": normalizeLang(s.Cfg.Agent.SystemLanguage),
+				"Lang":     lang,
+				"I18N":     getI18NJSON(lang),
+				"I18NMeta": getI18NMetaJSON(),
 			}
 			if err := cfgTmpl.Execute(w, data); err != nil {
 				s.Logger.Error("Failed to execute config template", "error", err)
@@ -672,8 +753,10 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 				http.Error(w, "Dashboard template error", http.StatusInternalServerError)
 				return
 			}
+			lang := normalizeLang(s.Cfg.Agent.SystemLanguage)
 			data := map[string]interface{}{
-				"Lang": normalizeLang(s.Cfg.Agent.SystemLanguage),
+				"Lang": lang,
+				"I18N": getI18NJSON(lang),
 			}
 			if err := dashTmpl.Execute(w, data); err != nil {
 				s.Logger.Error("Failed to execute dashboard template", "error", err)
@@ -698,8 +781,10 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 				http.Error(w, "Mission V2 template error", http.StatusInternalServerError)
 				return
 			}
+			lang := normalizeLang(s.Cfg.Agent.SystemLanguage)
 			data := map[string]interface{}{
-				"Lang": normalizeLang(s.Cfg.Agent.SystemLanguage),
+				"Lang": lang,
+				"I18N": getI18NJSON(lang),
 			}
 			if err := missionV2Tmpl.Execute(w, data); err != nil {
 				s.Logger.Error("Failed to execute mission V2 template", "error", err)
@@ -764,8 +849,10 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 			http.Error(w, "Invasion Control template error", http.StatusInternalServerError)
 			return
 		}
+		lang := normalizeLang(s.Cfg.Agent.SystemLanguage)
 		data := map[string]interface{}{
-			"Lang": normalizeLang(s.Cfg.Agent.SystemLanguage),
+			"Lang": lang,
+			"I18N": getI18NJSON(lang),
 		}
 		if err := invasionTmpl.Execute(w, data); err != nil {
 			s.Logger.Error("Failed to execute invasion control template", "error", err)
@@ -784,8 +871,10 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 			http.Error(w, "Setup template error", http.StatusInternalServerError)
 			return
 		}
+		lang := normalizeLang(s.Cfg.Agent.SystemLanguage)
 		data := map[string]interface{}{
-			"Lang": normalizeLang(s.Cfg.Agent.SystemLanguage),
+			"Lang": lang,
+			"I18N": getI18NJSON(lang),
 		}
 		if err := setupTmpl.Execute(w, data); err != nil {
 			s.Logger.Error("Failed to execute setup template", "error", err)
@@ -820,8 +909,10 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 			}
 
 			if tmpl != nil {
+				lang := normalizeLang(s.Cfg.Agent.SystemLanguage)
 				data := map[string]interface{}{
-					"Lang":               normalizeLang(s.Cfg.Agent.SystemLanguage),
+					"Lang":               lang,
+					"I18N":               getI18NJSON(lang),
 					"ShowToolResults":    s.Cfg.Agent.ShowToolResults,
 					"DebugMode":          agent.GetDebugMode(),
 					"PersonalityEnabled": s.Cfg.Agent.PersonalityEngine,

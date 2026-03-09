@@ -3,12 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AuraGo - Invasion Control</title>
+    <title id="page-title">AuraGo - Invasion Control</title>
     <link rel="stylesheet" href="/shared.css">
     <script src="/shared.js"></script>
     <script>
         (function () { var t = localStorage.getItem('aurago-theme'); if (t) document.documentElement.setAttribute('data-theme', t); })();
     </script>
+    <script>const I18N={{.I18N}};function t(k,p){let s=I18N[k]||k;if(p)Object.entries(p).forEach(([a,b])=>s=s.replaceAll('{'+'{'+a+'}'+'}',b));return s;}</script>
     <style>
         :root,
         [data-theme="dark"] {
@@ -184,11 +185,11 @@
             <a href="/" class="logo">
                 <div class="logo-icon">🥚</div>
                 <span style="color: var(--accent);">AURA</span><span style="color: var(--text-primary);">GO</span>
-                <span style="font-weight:300;opacity:0.5;margin-left:0.3rem;" class="logo-subtitle">INVASION</span>
+                <span style="font-weight:300;opacity:0.5;margin-left:0.3rem;" class="logo-subtitle"><script>document.write(t('invasion.logo_subtitle'))</script></span>
             </a>
         </div>
         <div class="header-actions">
-            <button id="theme-toggle" class="btn-theme" title="Toggle theme"></button>
+            <button id="theme-toggle" class="btn-theme" data-i18n-title="common.toggle_theme" title="Toggle theme"></button>
         </div>
     </header>
 
@@ -198,12 +199,12 @@
             <div class="radial-icon"><span></span><span></span><span></span></div>
         </button>
         <div class="radial-items">
-            <a href="/" class="radial-item"><span class="radial-item-label">Chat</span><span class="radial-item-icon">💬</span></a>
-            <a href="/dashboard" class="radial-item"><span class="radial-item-label">Dashboard</span><span class="radial-item-icon">📊</span></a>
-            <a href="/missions" class="radial-item"><span class="radial-item-label">Missions</span><span class="radial-item-icon">🚀</span></a>
-            <a href="/config" class="radial-item"><span class="radial-item-label">Config</span><span class="radial-item-icon">⚙️</span></a>
-            <a href="/invasion" class="radial-item active"><span class="radial-item-label">Invasion</span><span class="radial-item-icon">🥚</span></a>
-            <a id="radialLogout" href="/auth/logout" class="radial-item" style="display:none;"><span class="radial-item-label">Logout</span><span class="radial-item-icon">🔓</span></a>
+            <a href="/" class="radial-item"><span class="radial-item-label"><script>document.write(t('common.nav_chat'))</script></span><span class="radial-item-icon">💬</span></a>
+            <a href="/dashboard" class="radial-item"><span class="radial-item-label"><script>document.write(t('common.nav_dashboard'))</script></span><span class="radial-item-icon">📊</span></a>
+            <a href="/missions" class="radial-item"><span class="radial-item-label"><script>document.write(t('common.nav_missions'))</script></span><span class="radial-item-icon">🚀</span></a>
+            <a href="/config" class="radial-item"><span class="radial-item-label"><script>document.write(t('common.nav_config'))</script></span><span class="radial-item-icon">⚙️</span></a>
+            <a href="/invasion" class="radial-item active"><span class="radial-item-label"><script>document.write(t('common.nav_invasion'))</script></span><span class="radial-item-icon">🥚</span></a>
+            <a id="radialLogout" href="/auth/logout" class="radial-item" style="display:none;"><span class="radial-item-label"><script>document.write(t('common.nav_logout'))</script></span><span class="radial-item-icon">🔓</span></a>
         </div>
     </nav>
     <div class="radial-backdrop" id="radialBackdrop"></div>
@@ -211,19 +212,19 @@
     <div class="container">
         <!-- Page Header -->
         <div class="page-header">
-            <h1 data-i18n="title">Invasion Control</h1>
+            <h1><script>document.write(t('invasion.title'))</script></h1>
             <button class="btn btn-primary" id="btn-create" onclick="openCreateModal()">
-                <span>+</span> <span data-i18n="create_new">Neu erstellen</span>
+                <span>+</span> <span><script>document.write(t('invasion.create_new'))</script></span>
             </button>
         </div>
 
         <!-- Tabs -->
         <div class="tabs">
             <button class="tab active" data-tab="nests" onclick="switchTab('nests')">
-                🪺 <span data-i18n="nests">Nester</span>
+                🪺 <span><script>document.write(t('invasion.nests'))</script></span>
             </button>
             <button class="tab" data-tab="eggs" onclick="switchTab('eggs')">
-                🥚 <span data-i18n="eggs">Eier</span>
+                🥚 <span><script>document.write(t('invasion.eggs'))</script></span>
             </button>
         </div>
 
@@ -232,9 +233,9 @@
             <div class="cards-grid" id="nests-grid"></div>
             <div class="empty-state" id="nests-empty" style="display:none;">
                 <div class="icon">🪺</div>
-                <p data-i18n="no_nests">Noch keine Nester konfiguriert.</p>
+                <p><script>document.write(t('invasion.no_nests'))</script></p>
                 <button class="btn btn-primary" onclick="openCreateModal()">
-                    <span data-i18n="create_first_nest">Erstes Nest erstellen</span>
+                    <span><script>document.write(t('invasion.create_first_nest'))</script></span>
                 </button>
             </div>
         </div>
@@ -243,9 +244,9 @@
             <div class="cards-grid" id="eggs-grid"></div>
             <div class="empty-state" id="eggs-empty" style="display:none;">
                 <div class="icon">🥚</div>
-                <p data-i18n="no_eggs">Noch keine Eggs konfiguriert.</p>
+                <p><script>document.write(t('invasion.no_eggs'))</script></p>
                 <button class="btn btn-primary" onclick="openCreateModal()">
-                    <span data-i18n="create_first_egg">Erstes Egg erstellen</span>
+                    <span><script>document.write(t('invasion.create_first_egg'))</script></span>
                 </button>
             </div>
         </div>
@@ -254,80 +255,80 @@
     <!-- Nest Modal -->
     <div class="modal-overlay" id="nest-modal">
         <div class="modal">
-            <h2 id="nest-modal-title" data-i18n="create_nest">Nest erstellen</h2>
+            <h2 id="nest-modal-title"><script>document.write(t('invasion.create_nest'))</script></h2>
             <input type="hidden" id="nest-id">
             <div class="form-group">
-                <label data-i18n="name">Name</label>
-                <input type="text" id="nest-name" placeholder="Production Server">
+                <label><script>document.write(t('invasion.name'))</script></label>
+                <input type="text" id="nest-name" data-i18n-ph="invasion.ph_nest_name" placeholder="Produktionsserver">
             </div>
             <div class="form-group">
-                <label data-i18n="notes">Notizen</label>
-                <textarea id="nest-notes" placeholder="Optional notes..." rows="2" style="resize:vertical;"></textarea>
+                <label><script>document.write(t('invasion.notes'))</script></label>
+                <textarea id="nest-notes" data-i18n-ph="invasion.ph_nest_notes" placeholder="Optionale Notizen..." rows="2" style="resize:vertical;"></textarea>
             </div>
             <div class="form-group">
-                <label data-i18n="access_type">Zugangstyp</label>
+                <label><script>document.write(t('invasion.access_type'))</script></label>
                 <select id="nest-access-type" onchange="onAccessTypeChange()">
-                    <option value="ssh">SSH</option>
-                    <option value="docker">Docker API</option>
-                    <option value="local">Lokal</option>
+                    <option value="ssh" data-i18n="invasion.access_ssh">SSH</option>
+                    <option value="docker" data-i18n="invasion.access_docker">Docker API</option>
+                    <option value="local" data-i18n="invasion.access_local">Lokal</option>
                 </select>
             </div>
             <div id="nest-remote-fields">
                 <div class="form-row">
                     <div class="form-group">
-                        <label data-i18n="host">Host</label>
-                        <input type="text" id="nest-host" placeholder="192.168.1.100">
+                        <label><script>document.write(t('invasion.host'))</script></label>
+                        <input type="text" id="nest-host" data-i18n-ph="invasion.ph_host" placeholder="192.168.1.100">
                     </div>
                     <div class="form-group">
-                        <label data-i18n="port">Port</label>
+                        <label><script>document.write(t('invasion.port'))</script></label>
                         <input type="number" id="nest-port" value="22">
                     </div>
                 </div>
                 <div class="form-group">
-                    <label data-i18n="username">Benutzer</label>
-                    <input type="text" id="nest-username" placeholder="deploy">
+                    <label><script>document.write(t('invasion.username'))</script></label>
+                    <input type="text" id="nest-username" data-i18n-ph="invasion.ph_username" placeholder="deploy">
                 </div>
                 <div class="form-group">
-                    <label id="nest-secret-label" data-i18n="secret">Secret (Passwort / SSH-Key)</label>
-                    <textarea id="nest-secret" placeholder="Passwort oder SSH Private Key..." rows="3" style="resize:vertical;"></textarea>
-                    <small id="nest-secret-hint" style="color:var(--text-secondary);display:none;" data-i18n="secret_set">
-                        Secret ist bereits gesetzt. Leer lassen um es beizubehalten.
+                    <label id="nest-secret-label"><script>document.write(t('invasion.secret'))</script></label>
+                    <textarea id="nest-secret" data-i18n-ph="invasion.ph_secret" placeholder="Passwort oder SSH Private Key..." rows="3" style="resize:vertical;"></textarea>
+                    <small id="nest-secret-hint" style="color:var(--text-secondary);display:none;">
+                        <script>document.write(t('invasion.secret_set'))</script>
                     </small>
                 </div>
             </div>
             <div class="form-group">
-                <label data-i18n="assign_egg">Egg zuordnen</label>
+                <label><script>document.write(t('invasion.assign_egg'))</script></label>
                 <select id="nest-egg-id">
-                    <option value="">— Kein Egg —</option>
+                    <option value="" data-i18n="invasion.no_egg">— Kein Egg —</option>
                 </select>
             </div>
             <div class="form-group">
-                <label data-i18n="deploy_method">Deploy-Methode</label>
+                <label><script>document.write(t('invasion.deploy_method'))</script></label>
                 <select id="nest-deploy-method">
-                    <option value="ssh">SSH</option>
-                    <option value="docker_remote">Docker (Remote)</option>
-                    <option value="docker_local">Docker (Lokal)</option>
+                    <option value="ssh" data-i18n="invasion.deploy_ssh">SSH</option>
+                    <option value="docker_remote" data-i18n="invasion.deploy_docker_remote">Docker (Remote)</option>
+                    <option value="docker_local" data-i18n="invasion.deploy_docker_local">Docker (Lokal)</option>
                 </select>
             </div>
             <div class="form-group">
-                <label data-i18n="target_arch">Ziel-Architektur</label>
+                <label><script>document.write(t('invasion.target_arch'))</script></label>
                 <select id="nest-target-arch">
                     <option value="linux/amd64">linux/amd64</option>
                     <option value="linux/arm64">linux/arm64</option>
                 </select>
             </div>
             <div class="form-group">
-                <label data-i18n="route">Route (Rückkanal)</label>
+                <label><script>document.write(t('invasion.route'))</script></label>
                 <select id="nest-route">
-                    <option value="direct">Direct</option>
-                    <option value="ssh_tunnel">SSH Tunnel</option>
-                    <option value="tailscale">Tailscale</option>
-                    <option value="wireguard">WireGuard</option>
-                    <option value="custom">Custom</option>
+                    <option value="direct" data-i18n="invasion.route_direct">Direct</option>
+                    <option value="ssh_tunnel" data-i18n="invasion.route_ssh_tunnel">SSH Tunnel</option>
+                    <option value="tailscale" data-i18n="invasion.route_tailscale">Tailscale</option>
+                    <option value="wireguard" data-i18n="invasion.route_wireguard">WireGuard</option>
+                    <option value="custom" data-i18n="invasion.route_custom">Custom</option>
                 </select>
             </div>
             <div class="form-group">
-                <label data-i18n="route_config">Route Config (JSON, optional)</label>
+                <label><script>document.write(t('invasion.route_config'))</script></label>
                 <textarea id="nest-route-config" placeholder='{"tunnel_port":8443}' rows="2" style="resize:vertical;"></textarea>
             </div>
             <div class="form-group">
@@ -336,18 +337,18 @@
                         <input type="checkbox" id="nest-active" checked>
                         <span class="slider"></span>
                     </label>
-                    <span data-i18n="active">Aktiv</span>
+                    <span><script>document.write(t('invasion.active'))</script></span>
                 </div>
             </div>
             <div id="nest-validate-area" style="display:none;">
-                <button class="btn btn-sm btn-secondary" id="btn-validate" onclick="validateNest()" data-i18n="test_connection">
-                    🔗 Verbindung testen
+                <button class="btn btn-sm btn-secondary" id="btn-validate" onclick="validateNest()">
+                    <script>document.write(t('invasion.test_connection'))</script>
                 </button>
                 <div class="validate-result" id="validate-result"></div>
             </div>
             <div class="modal-actions">
-                <button class="btn btn-secondary" onclick="closeModal('nest-modal')" data-i18n="cancel">Abbrechen</button>
-                <button class="btn btn-primary" onclick="saveNest()" data-i18n="save">Speichern</button>
+                <button class="btn btn-secondary" onclick="closeModal('nest-modal')"><script>document.write(t('invasion.cancel'))</script></button>
+                <button class="btn btn-primary" onclick="saveNest()"><script>document.write(t('invasion.save'))</script></button>
             </div>
         </div>
     </div>
@@ -355,43 +356,43 @@
     <!-- Egg Modal -->
     <div class="modal-overlay" id="egg-modal">
         <div class="modal">
-            <h2 id="egg-modal-title" data-i18n="create_egg">Egg erstellen</h2>
+            <h2 id="egg-modal-title"><script>document.write(t('invasion.create_egg'))</script></h2>
             <input type="hidden" id="egg-id">
             <div class="form-group">
-                <label data-i18n="name">Name</label>
-                <input type="text" id="egg-name" placeholder="Analytics Agent">
+                <label><script>document.write(t('invasion.name'))</script></label>
+                <input type="text" id="egg-name" data-i18n-ph="invasion.ph_egg_name" placeholder="Analytics Agent">
             </div>
             <div class="form-group">
-                <label data-i18n="description">Beschreibung</label>
-                <textarea id="egg-description" placeholder="Was macht dieser Sub-Agent?" rows="2" style="resize:vertical;"></textarea>
+                <label><script>document.write(t('invasion.description'))</script></label>
+                <textarea id="egg-description" data-i18n-ph="invasion.ph_egg_description" placeholder="Was macht dieser Sub-Agent?" rows="2" style="resize:vertical;"></textarea>
             </div>
             <div class="form-row">
                 <div class="form-group">
-                    <label>Provider</label>
+                    <label><script>document.write(t('invasion.provider'))</script></label>
                     <input type="text" id="egg-provider" placeholder="openrouter">
                 </div>
                 <div class="form-group">
-                    <label>Model</label>
+                    <label><script>document.write(t('invasion.model'))</script></label>
                     <input type="text" id="egg-model" placeholder="gpt-4o-mini">
                 </div>
             </div>
             <div class="form-group">
-                <label>Base URL</label>
+                <label><script>document.write(t('invasion.base_url'))</script></label>
                 <input type="text" id="egg-base-url" placeholder="https://openrouter.ai/api/v1">
             </div>
             <div class="form-group">
-                <label>API Key</label>
+                <label><script>document.write(t('invasion.api_key'))</script></label>
                 <input type="password" id="egg-api-key" placeholder="sk-...">
-                <small id="egg-apikey-hint" style="color:var(--text-secondary);display:none;" data-i18n="apikey_set">
-                    API Key ist bereits gesetzt. Leer lassen um ihn beizubehalten.
+                <small id="egg-apikey-hint" style="color:var(--text-secondary);display:none;">
+                    <script>document.write(t('invasion.apikey_set'))</script>
                 </small>
             </div>
             <div class="form-group">
-                <label data-i18n="egg_port">Egg Port</label>
+                <label><script>document.write(t('invasion.egg_port'))</script></label>
                 <input type="number" id="egg-port" value="8099" min="1024" max="65535">
             </div>
             <div class="form-group">
-                <label data-i18n="allowed_tools">Erlaubte Tools (JSON Array, leer = Standard)</label>
+                <label><script>document.write(t('invasion.allowed_tools'))</script></label>
                 <input type="text" id="egg-allowed-tools" placeholder='["shell","python"]'>
             </div>
             <div class="form-group">
@@ -400,7 +401,7 @@
                         <input type="checkbox" id="egg-permanent">
                         <span class="slider"></span>
                     </label>
-                    <span data-i18n="permanent">Permanent (Systemd-Service)</span>
+                    <span><script>document.write(t('invasion.permanent'))</script></span>
                 </div>
             </div>
             <div class="form-group">
@@ -409,7 +410,7 @@
                         <input type="checkbox" id="egg-include-vault">
                         <span class="slider"></span>
                     </label>
-                    <span data-i18n="include_vault">Vault übertragen</span>
+                    <span><script>document.write(t('invasion.include_vault'))</script></span>
                 </div>
             </div>
             <div class="form-group">
@@ -418,7 +419,7 @@
                         <input type="checkbox" id="egg-inherit-llm" checked>
                         <span class="slider"></span>
                     </label>
-                    <span data-i18n="inherit_llm">LLM vom Master erben</span>
+                    <span><script>document.write(t('invasion.inherit_llm'))</script></span>
                 </div>
             </div>
             <div class="form-group">
@@ -427,12 +428,12 @@
                         <input type="checkbox" id="egg-active" checked>
                         <span class="slider"></span>
                     </label>
-                    <span data-i18n="active">Aktiv</span>
+                    <span><script>document.write(t('invasion.active'))</script></span>
                 </div>
             </div>
             <div class="modal-actions">
-                <button class="btn btn-secondary" onclick="closeModal('egg-modal')" data-i18n="cancel">Abbrechen</button>
-                <button class="btn btn-primary" onclick="saveEgg()" data-i18n="save">Speichern</button>
+                <button class="btn btn-secondary" onclick="closeModal('egg-modal')"><script>document.write(t('invasion.cancel'))</script></button>
+                <button class="btn btn-primary" onclick="saveEgg()"><script>document.write(t('invasion.save'))</script></button>
             </div>
         </div>
     </div>
@@ -440,17 +441,17 @@
     <!-- Delete Confirm Modal -->
     <div class="modal-overlay" id="delete-modal">
         <div class="modal">
-            <h2 style="color: var(--accent-danger);">⚠️ <span data-i18n="confirm_delete">Löschen bestätigen</span></h2>
+            <h2 style="color: var(--accent-danger);">⚠️ <span><script>document.write(t('invasion.confirm_delete'))</script></span></h2>
             <p id="delete-message" style="margin:12px 0;"></p>
-            <p data-i18n="type_name_confirm" style="font-size:0.85rem; color:var(--text-secondary);">
-                Tippe den Namen ein zur Bestätigung:
+            <p style="font-size:0.85rem; color:var(--text-secondary);">
+                <script>document.write(t('invasion.type_name_confirm'))</script>
             </p>
             <input type="text" class="delete-confirm-input" id="delete-confirm-input"
                    oninput="checkDeleteConfirm()" autocomplete="off">
             <div class="modal-actions">
-                <button class="btn btn-secondary" onclick="closeModal('delete-modal')" data-i18n="cancel">Abbrechen</button>
-                <button class="btn btn-danger" id="btn-delete-confirm" disabled onclick="confirmDelete()" data-i18n="delete_permanent">
-                    🗑️ Endgültig löschen
+                <button class="btn btn-secondary" onclick="closeModal('delete-modal')"><script>document.write(t('invasion.cancel'))</script></button>
+                <button class="btn btn-danger" id="btn-delete-confirm" disabled onclick="confirmDelete()">
+                    <script>document.write(t('invasion.delete_permanent'))</script>
                 </button>
             </div>
         </div>
@@ -460,137 +461,6 @@
     <div class="toast" id="toast"></div>
 
     <script>
-    const LANG = '{{.Lang}}' || 'de';
-
-    const i18n = {
-        de: {
-            subtitle: 'Invasions-Kontrolle',
-            title: 'Invasions-Kontrolle',
-            nests: 'Nester',
-            eggs: 'Eier',
-            create_new: 'Neu erstellen',
-            create_nest: 'Nest erstellen',
-            edit_nest: 'Nest bearbeiten',
-            create_egg: 'Egg erstellen',
-            edit_egg: 'Egg bearbeiten',
-            name: 'Name',
-            notes: 'Notizen',
-            access_type: 'Zugangstyp',
-            host: 'Host',
-            port: 'Port',
-            username: 'Benutzer',
-            secret: 'Secret (Passwort / SSH-Key)',
-            secret_set: 'Secret ist bereits gesetzt. Leer lassen um es beizubehalten.',
-            assign_egg: 'Egg zuordnen',
-            no_egg: '— Kein Egg —',
-            active: 'Aktiv',
-            inactive: 'Inaktiv',
-            save: 'Speichern',
-            cancel: 'Abbrechen',
-            edit: 'Bearbeiten',
-            delete: 'Löschen',
-            test_connection: '🔗 Verbindung testen',
-            testing: 'Teste...',
-            no_nests: 'Noch keine Nester konfiguriert.',
-            no_eggs: 'Noch keine Eggs konfiguriert.',
-            create_first_nest: 'Erstes Nest erstellen',
-            create_first_egg: 'Erstes Egg erstellen',
-            confirm_delete: 'Löschen bestätigen',
-            delete_permanent: '🗑️ Endgültig löschen',
-            type_name_confirm: 'Tippe den Namen ein zur Bestätigung:',
-            will_delete_nest: 'wird unwiderruflich gelöscht. Das zugehörige Secret wird aus dem Vault entfernt.',
-            will_delete_egg: 'wird unwiderruflich gelöscht. Der zugehörige API-Key wird aus dem Vault entfernt.',
-            saved: 'Gespeichert!',
-            deleted: 'Gelöscht!',
-            error: 'Fehler',
-            description: 'Beschreibung',
-            apikey_set: 'API Key ist bereits gesetzt. Leer lassen um ihn beizubehalten.',
-            validate_first: 'Bitte zuerst speichern, dann Verbindung testen.',
-            deploy_method: 'Deploy-Methode',
-            target_arch: 'Ziel-Architektur',
-            route: 'Route (Rückkanal)',
-            route_config: 'Route Config (JSON, optional)',
-            egg_port: 'Egg Port',
-            allowed_tools: 'Erlaubte Tools (JSON Array, leer = Standard)',
-            permanent: 'Permanent (Systemd-Service)',
-            include_vault: 'Vault übertragen',
-            inherit_llm: 'LLM vom Master erben',
-            hatch: '🥚 Hatchen',
-            stop_egg: '⏹ Stoppen',
-            hatch_idle: 'Idle',
-            hatch_hatching: 'Hatching…',
-            hatch_running: 'Running',
-            hatch_failed: 'Fehlgeschlagen',
-            hatch_stopped: 'Gestoppt',
-            ws_connected: 'Verbunden',
-            ws_disconnected: 'Getrennt',
-        },
-        en: {
-            subtitle: 'Invasion Control',
-            title: 'Invasion Control',
-            nests: 'Nests',
-            eggs: 'Eggs',
-            create_new: 'Create New',
-            create_nest: 'Create Nest',
-            edit_nest: 'Edit Nest',
-            create_egg: 'Create Egg',
-            edit_egg: 'Edit Egg',
-            name: 'Name',
-            notes: 'Notes',
-            access_type: 'Access Type',
-            host: 'Host',
-            port: 'Port',
-            username: 'Username',
-            secret: 'Secret (Password / SSH Key)',
-            secret_set: 'Secret is already set. Leave empty to keep it.',
-            assign_egg: 'Assign Egg',
-            no_egg: '— No Egg —',
-            active: 'Active',
-            inactive: 'Inactive',
-            save: 'Save',
-            cancel: 'Cancel',
-            edit: 'Edit',
-            delete: 'Delete',
-            test_connection: '🔗 Test Connection',
-            testing: 'Testing...',
-            no_nests: 'No nests configured yet.',
-            no_eggs: 'No eggs configured yet.',
-            create_first_nest: 'Create First Nest',
-            create_first_egg: 'Create First Egg',
-            confirm_delete: 'Confirm Deletion',
-            delete_permanent: '🗑️ Delete Permanently',
-            type_name_confirm: 'Type the name to confirm:',
-            will_delete_nest: 'will be permanently deleted. The associated secret will be removed from the vault.',
-            will_delete_egg: 'will be permanently deleted. The associated API key will be removed from the vault.',
-            saved: 'Saved!',
-            deleted: 'Deleted!',
-            error: 'Error',
-            description: 'Description',
-            apikey_set: 'API Key is already set. Leave empty to keep it.',
-            validate_first: 'Please save first, then test connection.',
-            deploy_method: 'Deploy Method',
-            target_arch: 'Target Architecture',
-            route: 'Route (Back-Channel)',
-            route_config: 'Route Config (JSON, optional)',
-            egg_port: 'Egg Port',
-            allowed_tools: 'Allowed Tools (JSON Array, empty = default)',
-            permanent: 'Permanent (Systemd Service)',
-            include_vault: 'Transfer Vault',
-            inherit_llm: 'Inherit LLM from Master',
-            hatch: '🥚 Hatch',
-            stop_egg: '⏹ Stop',
-            hatch_idle: 'Idle',
-            hatch_hatching: 'Hatching…',
-            hatch_running: 'Running',
-            hatch_failed: 'Failed',
-            hatch_stopped: 'Stopped',
-            ws_connected: 'Connected',
-            ws_disconnected: 'Disconnected',
-        }
-    };
-
-    const t = (key) => (i18n[LANG] || i18n.en)[key] || (i18n.en)[key] || key;
-
     let currentTab = 'nests';
     let nestsData = [];
     let eggsData = [];
@@ -606,9 +476,20 @@
     function applyI18n() {
         document.querySelectorAll('[data-i18n]').forEach(el => {
             const key = el.getAttribute('data-i18n');
-            const text = t(key);
-            if (text) el.textContent = text;
+            const val = t(key);
+            if (val && val !== key) el.textContent = val;
         });
+        document.querySelectorAll('[data-i18n-ph]').forEach(el => {
+            const key = el.getAttribute('data-i18n-ph');
+            const val = t(key);
+            if (val && val !== key) el.placeholder = val;
+        });
+        document.querySelectorAll('[data-i18n-title]').forEach(el => {
+            const key = el.getAttribute('data-i18n-title');
+            const val = t(key);
+            if (val && val !== key) el.title = val;
+        });
+        document.title = t('invasion.page_title');
     }
 
     // ── Tabs ─────────────────────────────────────────────────
@@ -637,14 +518,14 @@
         try {
             nestsData = (await api('nests')) || [];
             renderNests();
-        } catch (e) { showToast(t('error') + ': ' + e.message, 'error'); }
+        } catch (e) { showToast(t('invasion.error') + ': ' + e.message, 'error'); }
     }
 
     async function loadEggs() {
         try {
             eggsData = (await api('eggs')) || [];
             renderEggs();
-        } catch (e) { showToast(t('error') + ': ' + e.message, 'error'); }
+        } catch (e) { showToast(t('invasion.error') + ': ' + e.message, 'error'); }
     }
 
     // ── Render ───────────────────────────────────────────────
@@ -660,10 +541,10 @@
         grid.innerHTML = nestsData.map(n => {
             const eggName = n.egg_id ? (eggsData.find(e => e.id === n.egg_id)?.name || n.egg_id) : '—';
             const hs = n.hatch_status || 'idle';
-            const hsBadge = `<span class="badge badge-${hs}">${t('hatch_' + hs)}</span>`;
+            const hsBadge = `<span class="badge badge-${hs}">${t('invasion.hatch_' + hs)}</span>`;
             const wsStatus = n.ws_connected
-                ? `<span class="badge badge-connected">${t('ws_connected')}</span>`
-                : (hs === 'running' ? `<span class="badge badge-disconnected">${t('ws_disconnected')}</span>` : '');
+                ? `<span class="badge badge-connected">${t('invasion.ws_connected')}</span>`
+                : (hs === 'running' ? `<span class="badge badge-disconnected">${t('invasion.ws_disconnected')}</span>` : '');
             const canHatch = n.egg_id && n.active && (hs === 'idle' || hs === 'failed' || hs === 'stopped');
             const canStop = hs === 'running' || hs === 'hatching';
             return `
@@ -672,7 +553,7 @@
                     <div class="card-title">${esc(n.name)}</div>
                     <div>
                         <span class="badge ${n.active ? 'badge-active' : 'badge-inactive'}">
-                            ${n.active ? t('active') : t('inactive')}
+                            ${n.active ? t('invasion.active') : t('invasion.inactive')}
                         </span>
                         ${hsBadge} ${wsStatus}
                     </div>
@@ -689,11 +570,11 @@
                     ${n.notes ? '<span style="opacity:0.7;font-style:italic;">📝 ' + esc(n.notes) + '</span>' : ''}
                 </div>
                 <div class="card-actions">
-                    <button class="btn btn-sm btn-secondary" onclick="editNest('${n.id}')">✏️ ${t('edit')}</button>
-                    ${canHatch ? `<button class="btn btn-sm btn-primary" onclick="hatchNest('${n.id}')">${t('hatch')}</button>` : ''}
-                    ${canStop ? `<button class="btn btn-sm btn-danger" onclick="stopNest('${n.id}')">${t('stop_egg')}</button>` : ''}
+                    <button class="btn btn-sm btn-secondary" onclick="editNest('${n.id}')">✏️ ${t('invasion.edit')}</button>
+                    ${canHatch ? `<button class="btn btn-sm btn-primary" onclick="hatchNest('${n.id}')">${t('invasion.hatch')}</button>` : ''}
+                    ${canStop ? `<button class="btn btn-sm btn-danger" onclick="stopNest('${n.id}')">${t('invasion.stop_egg')}</button>` : ''}
                     <button class="btn btn-sm btn-secondary" onclick="toggleNest('${n.id}', ${!n.active})">
-                        ${n.active ? '⏸️' : '▶️'} ${n.active ? t('inactive') : t('active')}
+                        ${n.active ? '⏸️' : '▶️'} ${n.active ? t('invasion.inactive') : t('invasion.active')}
                     </button>
                     <button class="btn btn-sm btn-danger" onclick="requestDelete('nest','${n.id}','${esc(n.name)}')">🗑️</button>
                 </div>
@@ -715,22 +596,22 @@
                 <div class="card-header">
                     <div class="card-title">${esc(e.name)}</div>
                     <span class="badge ${e.active ? 'badge-active' : 'badge-inactive'}">
-                        ${e.active ? t('active') : t('inactive')}
+                        ${e.active ? t('invasion.active') : t('invasion.inactive')}
                     </span>
                 </div>
                 <div class="card-meta">
                     ${e.description ? '<span>📋 ' + esc(e.description) + '</span>' : ''}
                     ${e.model ? '<span>🤖 ' + esc(e.provider ? e.provider + '/' : '') + esc(e.model) + '</span>' : ''}
-                    <span>🔑 API Key: ${e.has_api_key ? '✅' : '❌'}</span>
-                    <span>🌐 Port: ${e.egg_port || 8099}</span>
-                    ${e.permanent ? '<span class="badge badge-permanent">Permanent</span>' : ''}
-                    ${e.inherit_llm ? '<span class="badge badge-inherit">LLM Inherit</span>' : ''}
-                    ${e.include_vault ? '<span class="badge badge-vault">Vault</span>' : ''}
+                    <span>🔑 ${t('invasion.api_key')}: ${e.has_api_key ? '✅' : '❌'}</span>
+                    <span>🌐 ${t('invasion.port')}: ${e.egg_port || 8099}</span>
+                    ${e.permanent ? '<span class="badge badge-permanent">' + t('invasion.badge_permanent') + '</span>' : ''}
+                    ${e.inherit_llm ? '<span class="badge badge-inherit">' + t('invasion.badge_llm_inherit') + '</span>' : ''}
+                    ${e.include_vault ? '<span class="badge badge-vault">' + t('invasion.badge_vault') + '</span>' : ''}
                 </div>
                 <div class="card-actions">
-                    <button class="btn btn-sm btn-secondary" onclick="editEgg('${e.id}')">✏️ ${t('edit')}</button>
+                    <button class="btn btn-sm btn-secondary" onclick="editEgg('${e.id}')">✏️ ${t('invasion.edit')}</button>
                     <button class="btn btn-sm btn-secondary" onclick="toggleEgg('${e.id}', ${!e.active})">
-                        ${e.active ? '⏸️' : '▶️'} ${e.active ? t('inactive') : t('active')}
+                        ${e.active ? '⏸️' : '▶️'} ${e.active ? t('invasion.inactive') : t('invasion.active')}
                     </button>
                     <button class="btn btn-sm btn-danger" onclick="requestDelete('egg','${e.id}','${esc(e.name)}')">🗑️</button>
                 </div>
@@ -755,7 +636,7 @@
             const setTxt = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; else console.warn('[IC] missing element:', id); };
             const setDisp = (id, val) => { const el = document.getElementById(id); if (el) el.style.display = val; else console.warn('[IC] missing element:', id); };
 
-            setTxt('nest-modal-title', t(isEdit ? 'edit_nest' : 'create_nest'));
+            setTxt('nest-modal-title', t(isEdit ? 'invasion.edit_nest' : 'invasion.create_nest'));
             setVal('nest-id', nest?.id || '');
             setVal('nest-name', nest?.name || '');
             setVal('nest-notes', nest?.notes || '');
@@ -769,7 +650,7 @@
 
             const eggSelect = document.getElementById('nest-egg-id');
             if (eggSelect) {
-                eggSelect.innerHTML = `<option value="">${t('no_egg')}</option>` +
+                eggSelect.innerHTML = `<option value="">${t('invasion.no_egg')}</option>` +
                     (eggsData || []).map(e => `<option value="${e.id}" ${e.id === nest?.egg_id ? 'selected' : ''}>${esc(e.name)}</option>`).join('');
             }
 
@@ -792,7 +673,7 @@
 
     function openEggModal(egg = null) {
         const isEdit = !!egg;
-        document.getElementById('egg-modal-title').textContent = t(isEdit ? 'edit_egg' : 'create_egg');
+        document.getElementById('egg-modal-title').textContent = t(isEdit ? 'invasion.edit_egg' : 'invasion.create_egg');
         document.getElementById('egg-id').value = egg?.id || '';
         document.getElementById('egg-name').value = egg?.name || '';
         document.getElementById('egg-description').value = egg?.description || '';
@@ -865,9 +746,9 @@
                 await api('nests', { method: 'POST', body: JSON.stringify(body) });
             }
             closeModal('nest-modal');
-            showToast(t('saved'), 'success');
+            showToast(t('invasion.saved'), 'success');
             await loadNests();
-        } catch (e) { showToast(t('error') + ': ' + e.message, 'error'); }
+        } catch (e) { showToast(t('invasion.error') + ': ' + e.message, 'error'); }
     }
 
     async function saveEgg() {
@@ -895,10 +776,10 @@
                 await api('eggs', { method: 'POST', body: JSON.stringify(body) });
             }
             closeModal('egg-modal');
-            showToast(t('saved'), 'success');
+            showToast(t('invasion.saved'), 'success');
             await loadEggs();
             renderNests(); // re-render in case egg names changed
-        } catch (e) { showToast(t('error') + ': ' + e.message, 'error'); }
+        } catch (e) { showToast(t('invasion.error') + ': ' + e.message, 'error'); }
     }
 
     // ── Toggle ───────────────────────────────────────────────
@@ -906,32 +787,32 @@
         try {
             await api('nests/' + id + '/toggle', { method: 'POST', body: JSON.stringify({ active }) });
             await loadNests();
-        } catch (e) { showToast(t('error') + ': ' + e.message, 'error'); }
+        } catch (e) { showToast(t('invasion.error') + ': ' + e.message, 'error'); }
     }
 
     async function toggleEgg(id, active) {
         try {
             await api('eggs/' + id + '/toggle', { method: 'POST', body: JSON.stringify({ active }) });
             await loadEggs();
-        } catch (e) { showToast(t('error') + ': ' + e.message, 'error'); }
+        } catch (e) { showToast(t('invasion.error') + ': ' + e.message, 'error'); }
     }
 
     // ── Hatch / Stop ─────────────────────────────────────────
     async function hatchNest(id) {
         try {
             await api('nests/' + id + '/hatch', { method: 'POST' });
-            showToast('Hatching started…', 'success');
+            showToast(t('invasion.hatching_started'), 'success');
             // Start polling for status
             pollHatchStatus(id);
-        } catch (e) { showToast(t('error') + ': ' + e.message, 'error'); }
+        } catch (e) { showToast(t('invasion.error') + ': ' + e.message, 'error'); }
     }
 
     async function stopNest(id) {
         try {
             await api('nests/' + id + '/stop', { method: 'POST' });
-            showToast('Stop signal sent', 'success');
+            showToast(t('invasion.stop_signal_sent'), 'success');
             await loadNests();
-        } catch (e) { showToast(t('error') + ': ' + e.message, 'error'); }
+        } catch (e) { showToast(t('invasion.error') + ': ' + e.message, 'error'); }
     }
 
     function pollHatchStatus(id) {
@@ -961,12 +842,12 @@
     // ── Validate Connection ──────────────────────────────────
     async function validateNest() {
         const id = document.getElementById('nest-id').value;
-        if (!id) { showToast(t('validate_first'), 'error'); return; }
+        if (!id) { showToast(t('invasion.validate_first'), 'error'); return; }
 
         const btn = document.getElementById('btn-validate');
         const result = document.getElementById('validate-result');
         btn.disabled = true;
-        btn.textContent = t('testing');
+        btn.textContent = t('invasion.testing');
         result.className = 'validate-result';
 
         try {
@@ -978,14 +859,14 @@
             result.className = 'validate-result error';
         } finally {
             btn.disabled = false;
-            btn.textContent = t('test_connection');
+            btn.textContent = t('invasion.test_connection');
         }
     }
 
     // ── Delete ───────────────────────────────────────────────
     function requestDelete(type, id, name) {
         deleteTarget = { type, id, name };
-        const msgKey = type === 'nest' ? 'will_delete_nest' : 'will_delete_egg';
+        const msgKey = type === 'nest' ? 'invasion.will_delete_nest' : 'invasion.will_delete_egg';
         document.getElementById('delete-message').innerHTML =
             `<strong>"${esc(name)}"</strong> ${t(msgKey)}`;
         document.getElementById('delete-confirm-input').value = '';
@@ -1005,10 +886,10 @@
         try {
             await api(type + 's/' + id, { method: 'DELETE' });
             closeModal('delete-modal');
-            showToast(t('deleted'), 'success');
+            showToast(t('invasion.deleted'), 'success');
             if (type === 'nest') await loadNests();
             else await loadEggs();
-        } catch (e) { showToast(t('error') + ': ' + e.message, 'error'); }
+        } catch (e) { showToast(t('invasion.error') + ': ' + e.message, 'error'); }
         deleteTarget = null;
     }
 

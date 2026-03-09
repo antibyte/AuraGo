@@ -1,0 +1,104 @@
+{
+  "help.server.host": {
+    "options": [
+      "127.0.0.1",
+      "0.0.0.0"
+    ]
+  },
+  "help.llm.provider": {
+    "provider_ref": true
+  },
+  "help.agent.system_language": {
+    "options": [
+      "Deutsch",
+      "English",
+      "Français",
+      "Español",
+      "中文",
+      "日本語"
+    ]
+  },
+  "help.agent.core_personality": {
+    "options": [
+      "neutral",
+      "punk",
+      "zen",
+      "professional",
+      "cheerful",
+      "secretary",
+      "thinker"
+    ]
+  },
+  "help.budget.enforcement": {
+    "options": [
+      "warn",
+      "partial",
+      "full"
+    ]
+  },
+  "help.tts.provider": {
+    "options": [
+      "google",
+      "elevenlabs"
+    ]
+  },
+  "help.tts.language": {
+    "options": [
+      "de",
+      "en",
+      "fr",
+      "es",
+      "it",
+      "ja",
+      "zh"
+    ]
+  },
+  "help.embeddings.provider": {
+    "provider_ref": true,
+    "allow_disabled": true
+  },
+  "help.whisper.provider": {
+    "provider_ref": true
+  },
+  "help.whisper.mode": {
+    "options": [
+      "whisper",
+      "multimodal",
+      "local"
+    ]
+  },
+  "help.vision.provider": {
+    "provider_ref": true
+  },
+  "help.co_agents.llm.provider": {
+    "provider_ref": true
+  },
+  "help.agent.personality_v2_provider": {
+    "provider_ref": true
+  },
+  "help.fallback_llm.provider": {
+    "provider_ref": true
+  },
+  "help.agent.core_memory_cap_mode": {
+    "options": [
+      "soft",
+      "hard"
+    ]
+  },
+  "help.tools.web_scraper.summary_provider": {
+    "provider_ref": true
+  },
+  "help.ansible.mode": {
+    "options": [
+      "sidecar",
+      "local"
+    ]
+  },
+  "help.mqtt.qos": {
+    "options": [
+      "0",
+      "1",
+      "2"
+    ]
+  }
+}

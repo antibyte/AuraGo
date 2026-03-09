@@ -1,6 +1,10 @@
 # Kapitel 12: Invasion Control
 
-Invasion Control ermöglicht das Deployment und die Verwaltung von AuraGo-Agenten auf Remote-Servern. Ob Cloud-Instanzen, On-Premise-Server oder Edge-Geräte – mit Invasion Control breitest du AuraGo überall aus.
+> ⚠️ **Hinweis:** Invasion Control ist primär über die **Web-UI** und **REST API** verfügbar. CLI-Befehle sind in der aktuellen Version nicht implementiert.
+
+Invasion Control ermöglicht das Deployment und die Verwaltung von AuraGo-Agenten auf Remote-Servern.
+
+---
 
 ## Konzept: Nester & Eier
 
@@ -19,7 +23,6 @@ Ein **Nest** ist ein Zielserver oder eine Umgebung, auf der ein Agent deployed w
 │  │  (AWS EC2)  │◄──►│  (On-Prem)  │◄──►│  (Raspberry)│     │
 │  │             │    │             │    │             │     │
 │  │ 🥚 Agent v1 │    │ 🥚 Agent v2 │    │ 🥚 Agent v1 │     │
-│  │ 🥚 Agent v2 │    │             │    │             │     │
 │  └─────────────┘    └─────────────┘    └─────────────┘     │
 │         ▲                                                   │
 │         │ SSH / Docker / Tailscale                         │
@@ -33,14 +36,27 @@ Ein **Nest** ist ein Zielserver oder eine Umgebung, auf der ein Agent deployed w
 
 ### Eier (Eggs)
 
-Ein **Ei** ist eine Agent-Konfiguration, die auf ein Nest deployed wird. Es enthält:
+Ein **Ei** ist eine Agent-Konfiguration, die auf ein Nest deployed wird.
 
-- Agent-Version und -Konfiguration
-- Umgebungsvariablen
-- Zu installierende Tools
-- Verbindungsparameter
+> 🔍 **Deep Dive:** Die Begriffe stammen aus der Vorstellung, dass AuraGo "Eier" (Agent-Pakete) in "Nester" (Server) legt, wo sie dann "schlüpfen" (starten).
 
-> 🔍 **Deep Dive:** Die Begriffe stammen aus der Vorstellung, dass AuraGo "Eier" (Agent-Pakete) in "Nester" (Server) legt, wo sie dann "schlüpfen" (starten) und eigenständig arbeiten.
+---
+
+## Voraussetzungen
+
+Invasion Control erfordert:
+
+```yaml
+# config.yaml
+invasion_control:
+  enabled: true
+
+tools:
+  inventory:
+    enabled: true  # Für SSH-Verbindungen
+```
+
+---
 
 ## SSH-Verbindungen einrichten
 
@@ -48,7 +64,6 @@ Ein **Ei** ist eine Agent-Konfiguration, die auf ein Nest deployed wird. Es enth
 
 - SSH-Zugriff auf den Zielserver
 - SSH-Key (empfohlen) oder Passwort
-- Sudo-Rechte (für Systemd-Service)
 
 ### SSH-Key erstellen
 
@@ -63,34 +78,23 @@ ssh-copy-id -i ~/.ssh/id_ed25519.pub user@zielserver
 ssh -i ~/.ssh/id_ed25519 user@zielserver "echo 'OK'"
 ```
 
-### Nest-Konfiguration (SSH)
+### Nest-Konfiguration
 
 ```yaml
+# config.yaml
 nests:
   - name: "produktion-server-01"
     type: "ssh"
     host: "203.0.113.10"
     port: 22
     user: "aurago"
-    auth:
-      type: "key"
-      private_key: "~/.ssh/id_ed25519"
-      # oder:
-      # type: "password"
-      # password: "${SSH_PASSWORD}"  # Aus Umgebungsvariable
-    
-    # Optionale Einstellungen
-    sudo: true                    # Sudo für Installation
-    working_dir: "/opt/aurago"    # Installationspfad
-    
-    # ProxyJump (Bastion Host)
-    proxy:
-      host: "bastion.example.com"
-      user: "jumpuser"
-      key: "~/.ssh/bastion_key"
+    key_file: "~/.ssh/id_ed25519"
+    working_dir: "/opt/aurago"
 ```
 
-> ⚠️ **Sicherheit:** Verwende niemals Passwörter im Klartext. Nutze immer SSH-Keys oder Umgebungsvariablen.
+> ⚠️ **Sicherheit:** Verwende niemals Passwörter im Klartext. Nutze immer SSH-Keys.
+
+---
 
 ## Docker Deployment
 
@@ -100,19 +104,7 @@ nests:
 nests:
   - name: "docker-local"
     type: "docker"
-    # Lokaler Docker Socket
     socket: "unix:///var/run/docker.sock"
-    
-    # ODER: Remote Docker API (nicht empfohlen für Produktion)
-    # host: "tcp://docker.example.com:2376"
-    # tls:
-    #   ca_file: "/path/to/ca.pem"
-    #   cert_file: "/path/to/cert.pem"
-    #   key_file: "/path/to/key.pem"
-    
-    network: "aurago-network"     # Docker-Netzwerk
-    volumes:
-      - "aurago-data:/data"       # Persistente Daten
 ```
 
 ### Docker Ei erstellen
@@ -126,53 +118,21 @@ eggs:
     environment:
       - "AURAGO_MODE=edge"
       - "AURAGO_HUB=wss://hq.example.com/ws"
-      - "AURAGO_TOKEN=${EDGE_TOKEN}"
     
     resources:
-      memory: "512m"              # RAM-Limit
-      cpus: "1.0"                 # CPU-Limit
+      memory: "512m"
+      cpus: "1.0"
     
     ports:
-      - "8088:8088"              # Web-UI
+      - "8088:8088"
     
     volumes:
-      - "/var/run/docker.sock:/var/run/docker.sock:ro"
       - "edge-data:/app/data"
-    
-    restart_policy: "unless-stopped"
 ```
 
-### Multi-Stage Deployment
-
-```bash
-# Auf HQ: Ei auf Nest deployen
-./aurago invasion deploy \
-  --egg aurago-edge-agent \
-  --nest docker-local \
-  --name "edge-node-01"
-
-# Status prüfen
-./aurago invasion status edge-node-01
-
-# Logs anzeigen
-./aurago invasion logs edge-node-01 --follow
-```
+---
 
 ## Remote Agents deployen
-
-### Deployment-Prozess
-
-```
-┌──────────┐     ┌──────────────────────────────────────────┐
-│   HQ     │────►│ 1. Verbindung zum Nest herstellen        │
-│ (aurago) │     │ 2. Vorab-Checks (Speicher, Ports, OS)   │
-└──────────┘     │ 3. Binärdateien übertragen               │
-                 │ 4. Konfiguration schreiben               │
-                 │ 5. Service registrieren (systemd)       │
-                 │ 6. Agent starten                         │
-                 │ 7. Health-Check durchführen              │
-                 └──────────────────────────────────────────┘
-```
 
 ### Über die Web-UI
 
@@ -182,66 +142,33 @@ eggs:
 4. **Wähle** ein Ei oder erstelle eine neue Konfiguration
 5. **Konfiguriere**:
    - Agent-Name
-   - Verbindungsmodus (siehe unten)
+   - Verbindungsmodus
    - Ressourcen-Limits
 6. **Klicke** "Deploy"
-7. **Warte** auf den Hatch-Status "Running"
+7. **Warte** auf den Status "Running"
 
-### Über die CLI
+### Über die REST API
 
 ```bash
 # Deployment starten
-./aurago invasion deploy \
-  --egg aurago-edge \
-  --nest produktion-server-01 \
-  --name "edge-berlin-01" \
-  --mode "tunnel" \
-  --resources memory=1g,cpus=2
+curl -X POST http://localhost:8088/api/invasion/deploy \
+  -H "Content-Type: application/json" \
+  -d '{
+    "egg": "aurago-edge-agent",
+    "nest": "produktion-server-01",
+    "name": "edge-berlin-01"
+  }'
 
 # Alle Deployments anzeigen
-./aurago invasion list
+curl http://localhost:8088/api/invasion/deployments
 
-# Spezifisches Deployment verwalten
-./aurago invasion stop edge-berlin-01
-./aurago invasion start edge-berlin-01
-./aurago invasion restart edge-berlin-01
-./aurago invasion remove edge-berlin-01
+# Deployment verwalten
+curl -X POST http://localhost:8088/api/invasion/deployments/edge-berlin-01/stop
+curl -X POST http://localhost:8088/api/invasion/deployments/edge-berlin-01/start
+curl -X DELETE http://localhost:8088/api/invasion/deployments/edge-berlin-01
 ```
 
-### Konfigurations-Template
-
-```yaml
-# invasion.yaml
-deployments:
-  - name: "edge-berlin-01"
-    egg: "aurago-edge"
-    nest: "produktion-server-01"
-    
-    # Agent-Konfiguration
-    config:
-      server:
-        port: 8088
-      llm:
-        provider: "openrouter"
-        model: "anthropic/claude-3-sonnet"
-      
-    # Verbindung zu HQ
-    upstream:
-      url: "wss://aurago-hq.example.com/ws"
-      token: "${UPSTREAM_TOKEN}"
-      reconnect_interval: "30s"
-    
-    # Lokale Ressourcen
-    resources:
-      max_memory: "2g"
-      max_storage: "10g"
-      
-    # Auto-Update
-    updates:
-      enabled: true
-      channel: "stable"
-      schedule: "0 4 * * *"
-```
+---
 
 ## Lifecycle Management
 
@@ -273,37 +200,18 @@ deployments:
      └────────────┘
 ```
 
-### Verwaltungsbefehle
+### Verwaltung über API
 
-| Befehl | Beschreibung |
-|--------|--------------|
-| `deploy` | Neues Deployment erstellen |
-| `start` | Gestoppten Agenten starten |
-| `stop` | Laufenden Agenten stoppen |
-| `restart` | Agenten neu starten |
-| `remove` | Deployment komplett entfernen |
-| `update` | Auf neue Version aktualisieren |
-| `logs` | Logs anzeigen |
-| `exec` | Befehl auf dem Agenten ausführen |
-| `shell` | Interaktive Shell öffnen |
+| Aktion | API-Endpunkt |
+|--------|-------------|
+| Deploy | `POST /api/invasion/deploy` |
+| Start | `POST /api/invasion/deployments/{name}/start` |
+| Stop | `POST /api/invasion/deployments/{name}/stop` |
+| Restart | `POST /api/invasion/deployments/{name}/restart` |
+| Remove | `DELETE /api/invasion/deployments/{name}` |
+| Logs | `GET /api/invasion/deployments/{name}/logs` |
 
-### Beispiel: Rolling Update
-
-```bash
-# Alle Edge-Nodes aktualisieren
-for node in edge-berlin-01 edge-munich-01 edge-hamburg-01; do
-    echo "Updating $node..."
-    ./aurago invasion update "$node" --version latest
-    
-    # Warte auf erfolgreichen Start
-    until ./aurago invasion status "$node" | grep -q "Running"; do
-        echo "Waiting for $node..."
-        sleep 5
-    done
-    
-    echo "$node updated successfully"
-done
-```
+---
 
 ## Verbindungstypen
 
@@ -316,7 +224,7 @@ nest:
   type: "ssh"
   host: "server.example.com"
   user: "admin"
-  key: "~/.ssh/id_rsa"
+  key_file: "~/.ssh/id_rsa"
 ```
 
 | Vorteil | Nachteil |
@@ -339,7 +247,6 @@ nest:
 |---------|----------|
 | Schnell und effizient | Nur für Docker-Umgebungen |
 | Einfache Verwaltung | Remote API oft unsicher |
-| Isolierte Container | |
 
 ### Local
 
@@ -350,101 +257,11 @@ nest:
   type: "local"
 ```
 
-| Vorteil | Nachteil |
-|---------|----------|
-| Keine Netzwerkabhängigkeit | Nur lokale Ressourcen |
-| Schnellste Ausführung | Keine Skalierung |
+---
 
-## Routing-Optionen
+## Status Monitoring
 
-### Direct
-
-Direkte Verbindung ohne Proxy oder Tunnel.
-
-```
-HQ ──────► Nest (öffentliche IP)
-```
-
-**Wann nutzen:**
-- Nest hat öffentliche IP
-- Keine Firewall-Einschränkungen
-- Geringste Latenz benötigt
-
-```yaml
-deployment:
-  routing:
-    type: "direct"
-    address: "203.0.113.10:8088"
-```
-
-### SSH Tunnel
-
-Verschlüsselter Tunnel über SSH.
-
-```
-HQ ──SSH──► Bastion ──SSH──► Nest (privates Netzwerk)
-```
-
-**Wann nutzen:**
-- Nest im privaten Netzwerk
-- Existierende SSH-Infrastruktur
-- Keine zusätzliche Software nötig
-
-```yaml
-deployment:
-  routing:
-    type: "ssh_tunnel"
-    bastion:
-      host: "bastion.example.com"
-      user: "tunnel"
-      key: "~/.ssh/bastion"
-    local_port: 18088  # Lokaler Port auf HQ
-    remote_port: 8088  # Port auf Nest
-```
-
-> 💡 SSH Tunnels werden automatisch bei HQ-Start aufgebaut und bei Verbindungsverlust neu gestartet.
-
-### Tailscale
-
-VPN-basierte Verbindung über Tailscale.
-
-```
-HQ ──Tailscale Mesh──► Nest (überall)
-```
-
-**Wann nutzen:**
-- Verteilte Infrastruktur
-- Dynamische IPs
-- Einfache Verwaltung
-
-```yaml
-deployment:
-  routing:
-    type: "tailscale"
-    hostname: "nest-berlin.tailnet.ts.net"
-    # Oder:
-    ip: "100.64.0.1"
-```
-
-**Voraussetzungen:**
-- Tailscale auf HQ installiert
-- Tailscale auf Nest installiert
-- Beide im gleichen Tailnet
-
-### Routing-Vergleich
-
-| Feature | Direct | SSH Tunnel | Tailscale |
-|---------|--------|------------|-----------|
-| Einrichtung | Einfach | Mittel | Mittel |
-| Sicherheit | TLS | SSH + TLS | WireGuard + TLS |
-| Latenz | Niedrig | Mittel | Niedrig |
-| Skalierbarkeit | Gut | Mittel | Exzellent |
-| Firewall-tauglich | Nein | Ja | Ja |
-| Dynamische IPs | Nein | Nein | Ja |
-
-## Hatch Status Monitoring
-
-### Status-Anzeige
+### Web-UI Anzeige
 
 Die Invasion Control-Oberfläche zeigt den Status jedes Deployments:
 
@@ -457,20 +274,15 @@ Die Invasion Control-Oberfläche zeigt den Status jedes Deployments:
 │     ├─ Nest: produktion-server-01                          │
 │     ├─ Version: 2.1.4                                       │
 │     ├─ Status: Running (seit 3 Tagen)                      │
-│     ├─ Routing: Tailscale (100.64.0.5)                     │
 │     └─ Letzte Aktivität: Vor 5 Minuten                     │
 │                                                             │
 │  🟡 edge-munich-01                                          │
-│     ├─ Nest: produktion-server-02                          │
-│     ├─ Version: 2.1.3 → 2.1.4 (Update läuft)              │
 │     ├─ Status: Updating                                     │
 │     └─ Fortschritt: 75%                                     │
 │                                                             │
 │  🔴 edge-hamburg-01                                         │
-│     ├─ Nest: cloud-vm-03                                    │
-│     ├─ Version: 2.1.4                                       │
 │     ├─ Status: Error                                        │
-│     └─ Fehler: Connection timeout zu HQ                    │
+│     └─ Fehler: Connection timeout                          │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -485,35 +297,23 @@ Die Invasion Control-Oberfläche zeigt den Status jedes Deployments:
 | `Idle` | ⚪ | Agent pausiert |
 | `Error` | 🔴 | Fehler aufgetreten |
 | `Updating` | 🟡 | Update läuft |
-| `Hatching` | 🐣 | Initialisierung läuft |
-| `Unknown` | ⚫ | Status nicht verfügbar |
 
-### Health-Checks
+### API-Abfragen
 
-```yaml
-deployment:
-  health_check:
-    enabled: true
-    interval: "30s"
-    timeout: "10s"
-    
-    checks:
-      - type: "http"
-        endpoint: "/health"
-        expected_status: 200
-      
-      - type: "tcp"
-        port: 8088
-      
-      - type: "custom"
-        command: "aurago health-check"
-        
-    on_failure:
-      action: "restart"  # restart | alert | ignore
-      max_restarts: 3
+```bash
+# Status prüfen
+curl http://localhost:8088/api/invasion/deployments/edge-berlin-01/status
+
+# Logs abrufen
+curl http://localhost:8088/api/invasion/deployments/edge-berlin-01/logs
+
+# Metriken abrufen
+curl http://localhost:8088/api/invasion/deployments/edge-berlin-01/metrics
 ```
 
-## Troubleshooting Deployments
+---
+
+## Troubleshooting
 
 ### Verbindungsprobleme
 
@@ -524,114 +324,75 @@ deployment:
 ```bash
 # 1. Netzwerk-Verbindung testen
 ping zielserver
-ssh -v user@zielserver  # Verbose-Modus
+ssh -v user@zielserver
 
 # 2. Firewall prüfen
 ssh user@zielserver "sudo ufw status"
-ssh user@zielserver "sudo iptables -L"
 
 # 3. SSH-Service prüfen
 ssh user@zielserver "sudo systemctl status sshd"
-
-# 4. Port erreichbar?
-nc -zv zielserver 22
 ```
 
 ### Berechtigungsfehler
 
-**Symptom:** `Permission denied` oder `sudo: no tty`
+**Symptom:** `Permission denied`
 
 **Lösungen:**
 
 ```bash
-# 1. SSH-Key Berechtigungen
+# SSH-Key Berechtigungen
 chmod 700 ~/.ssh
-chmod 600 ~/.ssh/id_rsa
-chmod 644 ~/.ssh/id_rsa.pub
-
-# 2. Sudo ohne Passwort (auf Zielserver)
-ssh user@zielserver "sudo visudo"
-# Füge hinzu: aurago ALL=(ALL) NOPASSWD:ALL
-
-# 3. SELinux/AppArmor prüfen
-ssh user@zielserver "sudo getenforce"  # SELinux
-ssh user@zielserver "sudo aa-status"   # AppArmor
+chmod 600 ~/.ssh/id_ed25519
+chmod 644 ~/.ssh/id_ed25519.pub
 ```
 
 ### Docker-Probleme
 
-**Symptom:** Container startet nicht oder crashed
-
-**Lösungen:**
+**Symptom:** Container startet nicht
 
 ```bash
-# 1. Container-Logs prüfen
+# Container-Logs prüfen
 docker logs aurago-edge-01
 
-# 2. Ressourcen prüfen
+# Ressourcen prüfen
 docker stats aurago-edge-01
-
-# 3. Image existiert?
-docker images | grep aurago
-
-# 4. Netzwerk-Verbindung
-docker network inspect aurago-network
 ```
 
-### Hatch-Fehler
-
-**Symptom:** Deployment bleibt im Status "Error"
-
-**Vorgehen:**
-
-```bash
-# 1. Detaillierten Fehler anzeigen
-./aurago invasion logs <name> --lines 100
-
-# 2. Auf Nest manuell prüfen
-ssh user@nest "sudo journalctl -u aurago -n 50"
-
-# 3. Bereinigung und Neustart
-./aurago invasion remove <name> --force
-./aurago invasion deploy --egg <egg> --nest <nest> --name <name>
-```
-
-### Häufige Fehler und Lösungen
+### Häufige Fehler
 
 | Fehler | Ursache | Lösung |
 |--------|---------|--------|
 | `No route to host` | Netzwerk-Problem | Routing, Firewall prüfen |
-| `Authentication failed` | Falscher Key/Passwort | SSH-Key testen, Berechtigungen |
+| `Authentication failed` | Falscher Key | SSH-Key testen |
 | `Disk full` | Kein Speicherplatz | Auf Nest aufräumen |
-| `Port already in use` | Port belegt | Anderen Port wählen oder Prozess beenden |
-| `TLS handshake error` | Zertifikatsproblem | Systemzeit prüfen, Zertifikat erneuern |
-| `Cannot pull image` | Docker Registry | Internet-Verbindung, Credentials prüfen |
+| `Port already in use` | Port belegt | Anderen Port wählen |
 
-### Debug-Modus
-
-```bash
-# Verbose Logging aktivieren
-./aurago invasion deploy ... --debug
-
-# SSH-Debug
-./aurago invasion deploy ... --ssh-flags="-vvv"
-
-# Lokale Tests
-AURAGO_DEBUG=1 ./aurago invasion status <name>
-```
+---
 
 ## Sicherheitshinweise
 
 > ⚠️ **Wichtig:**
 > - Nutze immer SSH-Keys statt Passwörtern
-> - Aktiviere 2FA für Tailscale
-
+> - Aktiviere 2FA für externe Zugriffe
 > - Beschränke Nest-Zugriff auf notwendige IPs
 > - Rotiere Deployment-Tokens regelmäßig
 > - Überwache ungewöhnliche Verbindungen
 
-## Nächste Schritte
+---
 
-- **[Dashboard](13-dashboard.md)** – Alle Nodes im Überblick
-- **[Mission Control](11-missions.md)** – Aufgaben auf Remote-Nodes
-- **Security Guide** – Härtung deiner Infrastruktur
+## Zusammenfassung
+
+| Feature | Verfügbarkeit |
+|---------|--------------|
+| **Web-UI** | ✅ Vollständig |
+| **REST API** | ✅ Vollständig |
+| **CLI-Befehle** | ❌ Nicht implementiert |
+| **SSH Deployment** | ✅ Unterstützt |
+| **Docker Deployment** | ✅ Unterstützt |
+
+> 💡 **Tipp:** Für das Management mehrerer AuraGo-Instanzen ist Invasion Control über die Web-UI die bevorzugte Methode.
+
+---
+
+**Vorheriges Kapitel:** [Kapitel 11: Mission Control](./11-missions.md)  
+**Nächstes Kapitel:** [Kapitel 13: Dashboard](./13-dashboard.md)

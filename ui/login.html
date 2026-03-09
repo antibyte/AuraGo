@@ -25,6 +25,9 @@
         const TOTP_ENABLED = {{if .TOTPEnabled}}true{{else}}false{{end}};
         const REDIRECT_URL = "{{.Redirect}}";
         (function () { var t = localStorage.getItem('aurago-theme'); if (t) document.documentElement.setAttribute('data-theme', t); })();
+        /* ── i18n ── */
+        const I18N = {{.I18N}};
+        function t(k, p) { let s = I18N[k] || k; if (p) Object.entries(p).forEach(([a,b]) => s = s.replaceAll('{'+'{'+a+'}'+'}', b)); return s; }
     </script>
     <style>
         body {
@@ -508,25 +511,25 @@
         <div class="login-logo">
             <div class="login-logo-icon">✦</div>
             <div class="login-title">AURAGO</div>
-            <div class="login-subtitle">Bitte anmelden um fortzufahren</div>
+            <div class="login-subtitle" id="loginSubtitle"></div>
         </div>
 
         <!-- Password -->
         <div class="login-field">
-            <label class="login-label" for="password">Passwort</label>
+            <label class="login-label" for="password" id="lblPassword"></label>
             <div class="login-input-wrap">
                 <input class="login-input" type="password" id="password"
                     placeholder="••••••••" autocomplete="current-password"
                     onkeydown="if(event.key==='Enter') submitLogin()">
-                <button type="button" class="eye-btn" onclick="toggleEye(this, 'password')" title="Passwort anzeigen">👁</button>
+                <button type="button" class="eye-btn" onclick="toggleEye(this, 'password')" id="eyeBtn">👁</button>
             </div>
         </div>
 
         <!-- TOTP Code (shown only when TOTP is enabled) -->
         <div id="totpSection" style="display:none;">
-            <div class="totp-divider">Authenticator-Code</div>
+            <div class="totp-divider" id="totpDivider"></div>
             <div class="login-field">
-                <label class="login-label" for="totpCode">6-stelliger Code</label>
+                <label class="login-label" for="totpCode" id="lblTotp"></label>
                 <input class="login-input" type="number" id="totpCode"
                     placeholder="000000" maxlength="6" autocomplete="one-time-code"
                     onkeydown="if(event.key==='Enter') submitLogin()">
@@ -535,7 +538,7 @@
 
         <!-- Submit Button -->
         <button class="btn-login" id="btnLogin" onclick="submitLogin()">
-            <span id="btnText">Anmelden →</span>
+            <span id="btnText"></span>
         </button>
 
         <!-- Error -->
@@ -598,6 +601,18 @@
         } else {
             window.addEventListener('load', initBackground);
         }
+
+        // ── i18n: populate text ──
+        (function applyI18N() {
+            const el = id => document.getElementById(id);
+            el('loginSubtitle').textContent       = t('login.subtitle');
+            el('lblPassword').textContent          = t('login.password_label');
+            el('eyeBtn').title                     = t('login.password_show');
+            el('totpDivider').textContent           = t('login.totp_divider');
+            el('lblTotp').textContent               = t('login.totp_label');
+            el('btnText').textContent               = t('login.btn_submit');
+            if (TOTP_ENABLED) el('totpSection').style.display = '';
+        })();
         
         function initWebGL() {
             // Scene setup
@@ -956,7 +971,7 @@
                 if (resp.ok && data.ok) {
                     window.location.href = data.redirect || '/';
                 } else {
-                    showError(data.error || 'Anmeldung fehlgeschlagen.');
+                    showError(data.error || t('login.error_failed'));
                     document.getElementById('password').classList.add('error-field');
                     if (TOTP_ENABLED && data.error && data.error.toLowerCase().includes('authenticator')) {
                         document.getElementById('totpCode').classList.add('error-field');
@@ -966,10 +981,10 @@
                     }
                 }
             } catch (err) {
-                showError('Netzwerkfehler. Bitte erneut versuchen.');
+                showError(t('login.error_network'));
             } finally {
                 btn.disabled = false;
-                document.getElementById('btnText').textContent = 'Anmelden →';
+                document.getElementById('btnText').textContent = t('login.btn_submit');
             }
         }
     </script>

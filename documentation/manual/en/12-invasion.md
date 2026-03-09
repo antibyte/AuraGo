@@ -1,5 +1,7 @@
 # Chapter 12: Invasion Control
 
+> ⚠️ **Important:** Invasion Control is available exclusively via **Web-UI** and **REST API**. CLI commands for Invasion Control are not implemented.
+
 Deploy and manage AuraGo agents across your infrastructure with Invasion Control. From single-server setups to multi-cloud deployments, manage remote execution with ease.
 
 ## Concept: Nests & Eggs
@@ -108,16 +110,25 @@ Advanced Options:
 
 ### Testing SSH Connection
 
+Use the Web-UI or REST API to test the connection:
+
+**Web-UI:** Navigate to **Invasion Control → Nests → production-web-01 → Test Connection**
+
+**REST API:**
+```bash
+curl -X POST http://localhost:8080/api/v1/invasion/nests/production-web-01/test \
+  -H "Authorization: Bearer ${API_TOKEN}"
 ```
-You: Test connection to production-web-01
-Agent: 🔌 Testing SSH connection to production-web-01...
-     Host: 192.168.1.10
-     User: aurago
-     
-     ✅ Connection successful
-     Response time: 45ms
-     OS: Ubuntu 22.04 LTS
-     Architecture: x86_64
+
+Expected response:
+```json
+{
+  "success": true,
+  "host": "192.168.1.10",
+  "response_time_ms": 45,
+  "os": "Ubuntu 22.04 LTS",
+  "architecture": "x86_64"
+}
 ```
 
 ## Docker Deployment
@@ -154,6 +165,8 @@ Client Key: /certs/client-key.pem
 
 ### Creating a Docker Egg
 
+Navigate to **Invasion Control → Eggs → New Egg**:
+
 ```yaml
 Name: containerized-agent
 Type: docker
@@ -183,25 +196,33 @@ Resources:
   Memory Limit: 512M
 ```
 
-### Deploying to Docker
+### Deploying to Docker via REST API
 
+```bash
+# Deploy containerized-agent to local-docker
+curl -X POST http://localhost:8080/api/v1/invasion/deployments \
+  -H "Authorization: Bearer ${API_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "egg": "containerized-agent",
+    "nest": "local-docker",
+    "name": "web-agent-01"
+  }'
 ```
-You: Deploy containerized-agent to local-docker
-Agent: 🐳 Deploying to Docker...
-     
-     Step 1: Pulling image aurago/agent:latest
-     ✓ Image pulled (tag: latest, size: 45MB)
-     
-     Step 2: Creating container aurago-agent-local-docker
-     ✓ Container created
-     
-     Step 3: Starting container
-     ✓ Container started (ID: a1b2c3d4)
-     
-     Step 4: Health check
-     ✓ Agent responding (ping: 23ms)
-     
-     ✅ Deployment successful!
+
+Expected response:
+```json
+{
+  "deployment_id": "hatch-001",
+  "status": "pending",
+  "steps": [
+    {"step": "pull_image", "status": "completed"},
+    {"step": "create_container", "status": "completed"},
+    {"step": "start_container", "status": "completed"},
+    {"step": "health_check", "status": "completed"}
+  ],
+  "result": "success"
+}
 ```
 
 ## Deploying Remote Agents
@@ -223,6 +244,8 @@ Remote agents extend AuraGo's capabilities to other servers, forming a distribut
 ### Standard Agent Deployment
 
 **Egg: standard-remote-agent**
+
+Navigate to **Invasion Control → Eggs → New Egg**:
 
 ```yaml
 Name: standard-remote-agent
@@ -263,59 +286,56 @@ Service Setup:
   Restart: always
 ```
 
-### Deployment Commands
+### Deployment via Web-UI
 
-| Command | Description |
-|---------|-------------|
-| `hatch <egg> <nest>` | Deploy egg to nest |
-| `hatch update <deployment>` | Update running agent |
-| `hatch remove <deployment>` | Remove agent from nest |
-| `hatch status <deployment>` | Check deployment health |
-| `hatch logs <deployment>` | View agent logs |
+Navigate to **Invasion Control → Deployments → New Deployment**:
 
-### Example Deployment Flow
+1. Select an **Egg** (deployment template)
+2. Select a **Nest** (target server)
+3. Configure deployment name
+4. Click **Deploy**
 
+### Deployment via REST API
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/v1/invasion/deployments` | POST | Deploy egg to nest |
+| `/api/v1/invasion/deployments/{id}` | PUT | Update running agent |
+| `/api/v1/invasion/deployments/{id}` | DELETE | Remove agent from nest |
+| `/api/v1/invasion/deployments/{id}/status` | GET | Check deployment health |
+| `/api/v1/invasion/deployments/{id}/logs` | GET | View agent logs |
+
+**Example: Deploy via REST API**
+
+```bash
+curl -X POST http://localhost:8080/api/v1/invasion/deployments \
+  -H "Authorization: Bearer ${API_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "egg": "standard-remote-agent",
+    "nest": "production-web-01",
+    "name": "web-agent-01"
+  }'
 ```
-You: hatch standard-remote-agent production-web-01
 
-Agent: 🚀 Starting deployment...
-     
-     ┌─ Phase 1: Connection Check ─────────────────┐
-     │ ✅ SSH connection established               │
-     │ ✅ Sudo privileges confirmed                │
-     └─────────────────────────────────────────────┘
-     
-     ┌─ Phase 2: Prerequisites ────────────────────┐
-     │ ✅ curl installed (version 7.81.0)          │
-     │ ⚠️  Docker not found (optional)             │
-     └─────────────────────────────────────────────┘
-     
-     ┌─ Phase 3: Installation ─────────────────────┐
-     │ 📥 Downloading agent binary...              │
-     │ ✓ Downloaded (24.5 MB)                      │
-     │ 📂 Installing to /opt/aurago...             │
-     │ ✓ Binary installed                          │
-     │ 📝 Writing configuration...                 │
-     │ ✓ Config written                            │
-     └─────────────────────────────────────────────┘
-     
-     ┌─ Phase 4: Service Setup ────────────────────┐
-     │ 🔧 Creating systemd service...              │
-     │ ✓ Service created                           │
-     │ ▶️  Starting service...                     │
-     │ ✓ Service active                            │
-     └─────────────────────────────────────────────┘
-     
-     ┌─ Phase 5: Verification ─────────────────────┐
-     │ 🔍 Checking agent health...                 │
-     │ ✓ Agent responding                          │
-     │ ✓ Connected to master                       │
-     └─────────────────────────────────────────────┘
-     
-     ✅ Deployment complete!
-     Deployment ID: hatch-001
-     Status: Healthy
-     Agent Version: 1.4.2
+Expected response:
+```json
+{
+  "deployment_id": "hatch-001",
+  "name": "web-agent-01",
+  "egg": "standard-remote-agent",
+  "nest": "production-web-01",
+  "status": "healthy",
+  "phases": [
+    {"phase": "connection_check", "status": "completed"},
+    {"phase": "prerequisites", "status": "completed"},
+    {"phase": "installation", "status": "completed"},
+    {"phase": "service_setup", "status": "completed"},
+    {"phase": "verification", "status": "completed"}
+  ],
+  "agent_version": "1.4.2",
+  "created_at": "2024-01-15T10:23:45Z"
+}
 ```
 
 ## Lifecycle Management
@@ -340,75 +360,44 @@ Agent: 🚀 Starting deployment...
 └──────────┘    └──────────┘    └──────────┘
 ```
 
-### Managing Deployments
+### Managing Deployments via Web-UI
 
 **View All Deployments:**
 
-```
-You: Show all deployments
-Agent: 📋 Active Deployments
-     
-     ┌─────────────────┬─────────────┬──────────┬────────────┐
-     │ Deployment      │ Nest        │ Status   │ Version    │
-     ├─────────────────┼─────────────┼──────────┼────────────┤
-     │ web-agent-01    │ web-server  │ ✅ Healthy│ 1.4.2      │
-     │ db-monitor      │ db-server   │ ✅ Healthy│ 1.4.2      │
-     │ backup-worker   │ backup-nas  │ ⚠️ Degraded│ 1.4.1     │
-     │ cloud-proxy     │ aws-instance│ ✅ Healthy│ 1.4.2      │
-     └─────────────────┴─────────────┴──────────┴────────────┘
-```
+Navigate to **Invasion Control → Deployments**
+
+The dashboard shows:
+
+| Deployment | Nest | Status | Version |
+|------------|------|--------|---------|
+| web-agent-01 | web-server | ✅ Healthy | 1.4.2 |
+| db-monitor | db-server | ✅ Healthy | 1.4.2 |
+| backup-worker | backup-nas | ⚠️ Degraded | 1.4.1 |
+| cloud-proxy | aws-instance | ✅ Healthy | 1.4.2 |
 
 **Updating an Agent:**
 
-```
-You: Update deployment web-agent-01
-Agent: 🔄 Updating deployment web-agent-01...
-     
-     Current: v1.4.1
-     Target: v1.4.2
-     
-     Step 1: Downloading update...
-     ✓ Downloaded
-     
-     Step 2: Stopping current agent...
-     ✓ Stopped gracefully
-     
-     Step 3: Installing new version...
-     ✓ Installed
-     
-     Step 4: Starting updated agent...
-     ✓ Started
-     
-     Step 5: Verifying...
-     ✓ Health check passed
-     
-     ✅ Update complete!
-     web-agent-01 is now running v1.4.2
+Navigate to **Invasion Control → Deployments → web-agent-01 → Update**
+
+Or use REST API:
+```bash
+curl -X PUT http://localhost:8080/api/v1/invasion/deployments/web-agent-01 \
+  -H "Authorization: Bearer ${API_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "action": "update",
+    "target_version": "1.4.2"
+  }'
 ```
 
 **Removing a Deployment:**
 
-```
-You: Remove deployment backup-worker
-Agent: 🗑️ Removing deployment backup-worker...
-     
-     ⚠️ This will:
-     - Stop the agent service
-     - Remove installed files
-     - Remove configuration
-     
-     Type 'confirm' to proceed: confirm
-     
-     Step 1: Stopping service...
-     ✓ Service stopped
-     
-     Step 2: Removing files...
-     ✓ Files removed
-     
-     Step 3: Cleaning up...
-     ✓ Cleanup complete
-     
-     ✅ Deployment removed successfully
+Navigate to **Invasion Control → Deployments → web-agent-01 → Remove**
+
+Or use REST API:
+```bash
+curl -X DELETE http://localhost:8080/api/v1/invasion/deployments/backup-worker \
+  -H "Authorization: Bearer ${API_TOKEN}"
 ```
 
 ## Connection Types
@@ -416,6 +405,8 @@ Agent: 🗑️ Removing deployment backup-worker...
 ### SSH (Secure Shell)
 
 Most versatile connection type for Linux/Unix servers.
+
+Configure via Web-UI at **Invasion Control → Nests → New Nest**:
 
 ```yaml
 Type: SSH
@@ -489,6 +480,8 @@ AuraGo ──────▶ Remote Server
         (Direct)
 ```
 
+Configure via Web-UI:
+
 ```yaml
 Routing: Direct
 Host: 192.168.1.10
@@ -508,6 +501,8 @@ Route traffic through an intermediate SSH server (bastion/jump host).
 AuraGo ──────▶ Bastion Host ──────▶ Remote Server
         (SSH)              (SSH)
 ```
+
+Configure via Web-UI:
 
 ```yaml
 Routing: SSH Tunnel
@@ -535,6 +530,8 @@ Zero-config VPN using Tailscale mesh networking.
 AuraGo ──────▶ Tailscale Mesh ──────▶ Remote Server
         (Encrypted WireGuard)
 ```
+
+Configure via Web-UI:
 
 ```yaml
 Routing: Tailscale
@@ -580,6 +577,8 @@ Monitor the health and status of all your deployments.
 
 ### Dashboard View
 
+Navigate to **Invasion Control → Dashboard** to view:
+
 ```
 ┌─────────────────────────────────────────────────────────┐
 │ 🥚 Invasion Control Dashboard                           │
@@ -607,6 +606,8 @@ Monitor the health and status of all your deployments.
 
 ### Alert Configuration
 
+Navigate to **Invasion Control → Settings → Alerts**:
+
 ```yaml
 Monitoring:
   Health Check Interval: 30s
@@ -623,6 +624,23 @@ Monitoring:
     Version Mismatch:
       Condition: version != master.version
       Action: notify.webui
+```
+
+Or via REST API:
+```bash
+curl -X PUT http://localhost:8080/api/v1/invasion/settings/alerts \
+  -H "Authorization: Bearer ${API_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "health_check_interval": "30s",
+    "alerts": [
+      {
+        "name": "Agent Offline",
+        "condition": "last_ping > 2m",
+        "action": "notify.telegram"
+      }
+    ]
+  }'
 ```
 
 ## Troubleshooting Deployments
@@ -680,76 +698,89 @@ Monitoring:
 3. Check port conflicts: `netstat -tlnp | grep 8080`
 4. Ensure binary has execute permission: `chmod +x aurago-agent`
 
-### Diagnostic Commands
+### Diagnostic via REST API
 
-```
-You: Diagnose deployment web-agent-01
-
-Agent: 🔍 Running diagnostics for web-agent-01...
-     
-     ┌─ Connection ───────────────────────────────┐
-     │ ✅ SSH reachable (45ms)                    │
-     │ ✅ Authentication successful               │
-     └────────────────────────────────────────────┘
-     
-     ┌─ Installation ─────────────────────────────┐
-     │ ✅ Binary exists                           │
-     │ ✅ Config file readable                    │
-     │ ✅ Correct permissions                     │
-     └────────────────────────────────────────────┘
-     
-     ┌─ Service ──────────────────────────────────┐
-     │ ❌ Service not running                     │
-     │ Error: Port 8080 already in use            │
-     └────────────────────────────────────────────┘
-     
-     💡 Recommendation:
-     Port 8080 is occupied by another process.
-     Options:
-     1. Change agent port in config
-     2. Stop the other service
-     3. Use Docker deployment instead
+```bash
+curl -X POST http://localhost:8080/api/v1/invasion/deployments/web-agent-01/diagnose \
+  -H "Authorization: Bearer ${API_TOKEN}"
 ```
 
-### Log Access
+Expected response:
+```json
+{
+  "deployment": "web-agent-01",
+  "checks": {
+    "connection": {
+      "status": "passed",
+      "response_time_ms": 45,
+      "message": "SSH reachable"
+    },
+    "authentication": {
+      "status": "passed",
+      "message": "Authentication successful"
+    },
+    "installation": {
+      "status": "passed",
+      "message": "Binary exists, config readable"
+    },
+    "service": {
+      "status": "failed",
+      "message": "Port 8080 already in use"
+    }
+  },
+  "recommendation": "Port 8080 is occupied. Options: 1) Change agent port, 2) Stop other service, 3) Use Docker deployment"
+}
+```
+
+### Log Access via REST API
 
 View remote agent logs:
 
-```
-You: Show logs for web-agent-01
-Agent: 📋 Last 50 lines from web-agent-01:
-     
-     [2024-01-15 10:23:45] INFO: Agent starting (v1.4.2)
-     [2024-01-15 10:23:45] INFO: Connecting to master...
-     [2024-01-15 10:23:46] INFO: Connected successfully
-     [2024-01-15 10:23:46] INFO: Health server listening on :8080
-     [2024-01-15 10:24:15] INFO: Heartbeat sent
-     ...
+```bash
+curl "http://localhost:8080/api/v1/invasion/deployments/web-agent-01/logs?lines=50" \
+  -H "Authorization: Bearer ${API_TOKEN}"
 ```
 
-### Emergency Recovery
+Expected response:
+```json
+{
+  "deployment": "web-agent-01",
+  "lines": [
+    "[2024-01-15 10:23:45] INFO: Agent starting (v1.4.2)",
+    "[2024-01-15 10:23:45] INFO: Connecting to master...",
+    "[2024-01-15 10:23:46] INFO: Connected successfully",
+    "[2024-01-15 10:23:46] INFO: Health server listening on :8080",
+    "[2024-01-15 10:24:15] INFO: Heartbeat sent"
+  ]
+}
+```
+
+### Emergency Recovery via REST API
 
 If a deployment becomes unresponsive:
 
+```bash
+curl -X POST http://localhost:8080/api/v1/invasion/deployments/web-agent-01/restart \
+  -H "Authorization: Bearer ${API_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "force": true
+  }'
 ```
-You: Force restart web-agent-01
-Agent: 🚨 Emergency restart initiated...
-     
-     ⚠️ Normal restart failed. Attempting force restart...
-     
-     Step 1: SSH to host...
-     ✅ Connected
-     
-     Step 2: Kill agent process...
-     ✅ Process terminated
-     
-     Step 3: Start fresh instance...
-     ✅ Agent started
-     
-     Step 4: Verify connectivity...
-     ✅ Responding to pings
-     
-     ✅ Emergency restart successful!
+
+Expected response:
+```json
+{
+  "deployment": "web-agent-01",
+  "action": "force_restart",
+  "steps": [
+    {"step": "ssh_connect", "status": "completed"},
+    {"step": "kill_process", "status": "completed"},
+    {"step": "start_fresh", "status": "completed"},
+    {"step": "verify", "status": "completed"}
+  ],
+  "result": "success"
+}
 ```
 
 ---

@@ -460,13 +460,13 @@ type Config struct {
 			Enabled bool `yaml:"enabled"` // enable wake_on_lan tool (send magic packet to devices with MAC address)
 		} `yaml:"wol"`
 		WebScraper struct {
-			Enabled          bool   `yaml:"enabled"`           // enable web_scraper (default true)
-			SummaryMode      bool   `yaml:"summary_mode"`      // send scraped content to a separate LLM for summarisation before returning to agent
-			SummaryProvider  string `yaml:"summary_provider"`  // provider entry ID used for summarisation
+			Enabled         bool   `yaml:"enabled"`          // enable web_scraper (default true)
+			SummaryMode     bool   `yaml:"summary_mode"`     // send scraped content to a separate LLM for summarisation before returning to agent
+			SummaryProvider string `yaml:"summary_provider"` // provider entry ID used for summarisation
 			// resolved fields (populated by ResolveProviders)
-			SummaryBaseURL   string `yaml:"-" json:"-"`
-			SummaryAPIKey    string `yaml:"-" json:"-"`
-			SummaryModel     string `yaml:"-" json:"-"`
+			SummaryBaseURL string `yaml:"-" json:"-"`
+			SummaryAPIKey  string `yaml:"-" json:"-"`
+			SummaryModel   string `yaml:"-" json:"-"`
 		} `yaml:"web_scraper"`
 	} `yaml:"tools"`
 	Sandbox struct {

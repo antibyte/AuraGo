@@ -1,5 +1,7 @@
 # Chapter 11: Mission Control
 
+> ⚠️ **Important:** Mission Control is available via **Web-UI** and **REST API** only. CLI commands for mission management are not implemented.
+
 Automate recurring tasks with AuraGo's Mission Control system. From backups to monitoring to scheduled reports – missions let you run tasks on autopilot.
 
 ## What are Missions?
@@ -174,25 +176,23 @@ Sometimes you need to run a mission immediately:
 3. Click the **▶️ Run** button
 4. Monitor execution in real-time
 
-### Via Chat
-
-```
-You: Run mission nightly-db-backup
-Agent: 🚀 Executing mission "nightly-db-backup"...
-     Target: local
-     Egg: database-backup
-     
-     ⏳ Running...
-     
-     ✅ Mission completed successfully
-     Duration: 45 seconds
-     Exit code: 0
-```
-
-### Via API
+### Via REST API
 
 ```bash
+# Run a mission
 curl -X POST http://localhost:8088/api/missions/nightly-db-backup/run \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+# List all missions
+curl -X GET http://localhost:8088/api/missions \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+# Get mission details
+curl -X GET http://localhost:8088/api/missions/nightly-db-backup \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+# Get mission execution history
+curl -X GET http://localhost:8088/api/missions/nightly-db-backup/history \
   -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
@@ -324,10 +324,12 @@ Notifications:
 
 ### 6. Test Before Scheduling
 
-Always run missions manually first:
-```
-You: Run mission test-backup
-Agent: Testing backup mission...
+Always run missions manually first via the Web UI or REST API:
+
+```bash
+# Test via API
+curl -X POST http://localhost:8088/api/missions/test-backup/run \
+  -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
 ### 7. Use Meaningful Names

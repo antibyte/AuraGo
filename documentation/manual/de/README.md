@@ -2,6 +2,11 @@
 
 Willkommen zum AuraGo Benutzerhandbuch – deiner umfassenden Anleitung für den persönlichen KI-Agenten.
 
+> 📅 **Stand:** März 2026  
+> 🔄 **Version:** 2.x kompatibel
+
+---
+
 ## Was ist AuraGo?
 
 AuraGo ist ein vollständig autonomer KI-Agent, der als einzelne portable Binary mit eingebetteter Web-Oberfläche ausgeliefert wird. Verbinde ihn mit einem beliebigen OpenAI-kompatiblen LLM-Provider und er wird zu einem persönlichen Assistenten, der Code ausführen, Dateien verwalten, Smart-Home-Geräte steuern, E-Mails senden, sich alles merken und sogar seinen eigenen Quellcode verbessern kann.
@@ -17,6 +22,8 @@ AuraGo ist ein vollständig autonomer KI-Agent, der als einzelne portable Binary
 | Fortgeschrittene Themen suchst | [Kapitel 11-15](11-missions.md) |
 | Ein Problem hast | [Kapitel 16: Troubleshooting](16-troubleshooting.md) |
 
+---
+
 ## Handbuch-Struktur
 
 ### Teil 1: Grundlagen
@@ -27,15 +34,15 @@ AuraGo ist ein vollständig autonomer KI-Agent, der als einzelne portable Binary
 5. [Chat-Grundlagen](05-chatgrundlagen.md) – Kommunikation
 
 ### Teil 2: Features im Detail
-6. [Werkzeuge](06-tools.md) – 30+ Tools nutzen
-7. [Konfiguration](07-konfiguration.md) – Feintuning
-8. [Integrationen](08-integrations.md) – Telegram, Discord, etc.
+6. [Werkzeuge](06-tools.md) – 60+ Tools nutzen
+7. [Konfiguration](07-konfiguration.md) – Feintuning mit Provider-System
+8. [Integrationen](08-integrations.md) – Telegram, Discord, Email, etc.
 9. [Gedächtnis & Wissen](09-memory.md) – Speicher verstehen
 10. [Persönlichkeit](10-personality.md) – Character anpassen
 
-### Teil 3: Fortgeschritten
-11. [Mission Control](11-missions.md) – Automatisierung
-12. [Invasion Control](12-invasion.md) – Remote Deployment
+### Teil 3: Fortgeschritten (Web-UI/API)
+11. [Mission Control](11-missions.md) – Automatisierung ⚠️ *Web-UI/API*
+12. [Invasion Control](12-invasion.md) – Remote Deployment ⚠️ *Web-UI/API*
 13. [Dashboard](13-dashboard.md) – Analytics & Metriken
 
 ### Teil 4: Für Profis
@@ -44,6 +51,24 @@ AuraGo ist ein vollständig autonomer KI-Agent, der als einzelne portable Binary
 16. [Troubleshooting](16-troubleshooting.md) – Problemlösung
 17. [Glossar](17-glossar.md) – Begriffe erklärt
 18. [Anhang](18-anhang.md) – Referenzmaterial
+
+---
+
+## Wichtige Hinweise
+
+### ⚠️ CLI vs. Web-UI
+
+Einige fortgeschrittene Features (Mission Control, Invasion Control) sind **primär über die Web-UI und REST API** verfügbar. CLI-Befehle dafür existieren in der aktuellen Version nicht.
+
+### 🆕 Provider-System (Neu in 2.x)
+
+Die Konfiguration verwendet jetzt ein zentrales Provider-System für LLM-Verbindungen. Siehe [Kapitel 7: Konfiguration](07-konfiguration.md).
+
+### 🔒 Sicherheit
+
+> **Wichtig:** AuraGo kann beliebige Shell-Befehle ausführen und Systemdateien ändern. Exponiere die Web-UI niemals ungeschützt im Internet. Verwende immer VPN, Reverse Proxy mit Authentifizierung oder Firewall-Regeln.
+
+---
 
 ## Schnell-Navigation
 
@@ -54,16 +79,29 @@ AuraGo ist ein vollständig autonomer KI-Agent, der als einzelne portable Binary
 /stop          - Aktuelle Aktion abbrechen
 /debug on/off  - Debug-Modus umschalten
 /budget        - Kostenübersicht anzeigen
+/personality   - Persönlichkeit wechseln
+/sudo          - Sudo-Modus aktivieren
+/credits       - OpenRouter Credits anzeigen
+/addssh        - SSH-Server hinzufügen
 ```
 
 ### Schnell-Links
-- [Vollständige Konfigurationsreferenz](../configuration.md)
-- [Telegram Setup](../telegram_setup.md)
-- [Docker Guide](../docker.md)
+- [Vollständige Konfigurationsreferenz](../../configuration.md)
+- [Telegram Setup](../../telegram_setup.md)
+- [Docker Guide](../../docker.md)
+- [Personality Engine V2](../../personality_engine_v2.md)
+- [Co-Agent Concept](../../co_agent_concept.md)
 
-## Sicherheitshinweis
+---
 
-> ⚠️ **Wichtig:** AuraGo kann beliebige Shell-Befehle ausführen und Systemdateien ändern. Exponiere die Web-UI niemals ungeschützt im Internet. Verwende immer VPN, Reverse Proxy mit Authentifizierung oder Firewall-Regeln.
+## Aktualisierungen
+
+| Datum | Änderung |
+|-------|----------|
+| 2026-03 | Überarbeitung für Version 2.x (Provider-System, Tool-Dokumentation) |
+| 2026-03 | Korrektur: Memory-Kapitel aktualisiert |
+| 2026-03 | Korrektur: Personality-Kapitel aktualisiert |
+| 2026-03 | Hinweis: Mission/Invasion Control nur Web-UI/API |
 
 ---
 

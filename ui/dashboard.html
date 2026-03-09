@@ -7,6 +7,7 @@
     <title>AuraGo – Dashboard</title>
     <link rel="stylesheet" href="/shared.css">
     <script src="/shared.js"></script>
+    <script>const I18N={{.I18N}};function t(k,p){let s=I18N[k]||k;if(p)Object.entries(p).forEach(([a,b])=>s=s.replaceAll('{'+'{'+a+'}'+'}',b));return s;}</script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
     <style>
@@ -1513,25 +1514,25 @@
         <a href="/" class="logo">
             <div class="logo-icon">📊</div>
             <span style="color: var(--accent);">AURA</span><span style="color: var(--text-primary);">GO</span>
-            <span style="font-weight:300;opacity:0.5;margin-left:0.3rem;" class="logo-subtitle">DASHBOARD</span>
+            <span style="font-weight:300;opacity:0.5;margin-left:0.3rem;" class="logo-subtitle" data-i18n="dashboard.logo_subtitle">DASHBOARD</span>
         </a>
         <div class="header-actions">
-            <button id="theme-toggle" class="btn-theme" title="Toggle theme"></button>
+            <button id="theme-toggle" class="btn-theme" data-i18n-title="common.toggle_theme" title="Toggle theme"></button>
         </div>
     </header>
 
     <!-- Radial Navigation Menu -->
     <nav class="radial-menu" id="radialMenu">
-        <button class="radial-trigger" id="radialTrigger" aria-label="Navigation">
+        <button class="radial-trigger" id="radialTrigger" data-i18n-aria-label="common.nav_aria_label" aria-label="Navigation">
             <div class="radial-icon"><span></span><span></span><span></span></div>
         </button>
         <div class="radial-items">
-            <a href="/" class="radial-item"><span class="radial-item-label">Chat</span><span class="radial-item-icon">💬</span></a>
-            <a href="/dashboard" class="radial-item active"><span class="radial-item-label">Dashboard</span><span class="radial-item-icon">📊</span></a>
-            <a href="/missions" class="radial-item"><span class="radial-item-label">Missions</span><span class="radial-item-icon">🚀</span></a>
-            <a href="/config" class="radial-item"><span class="radial-item-label">Config</span><span class="radial-item-icon">⚙️</span></a>
-            <a href="/invasion" class="radial-item"><span class="radial-item-label">Invasion</span><span class="radial-item-icon">🥚</span></a>
-            <a id="radialLogout" href="/auth/logout" class="radial-item" style="display:none;"><span class="radial-item-label">Logout</span><span class="radial-item-icon">🔓</span></a>
+            <a href="/" class="radial-item"><span class="radial-item-label" data-i18n="common.nav_chat">Chat</span><span class="radial-item-icon">💬</span></a>
+            <a href="/dashboard" class="radial-item active"><span class="radial-item-label" data-i18n="common.nav_dashboard">Dashboard</span><span class="radial-item-icon">📊</span></a>
+            <a href="/missions" class="radial-item"><span class="radial-item-label" data-i18n="common.nav_missions">Missions</span><span class="radial-item-icon">🚀</span></a>
+            <a href="/config" class="radial-item"><span class="radial-item-label" data-i18n="common.nav_config">Config</span><span class="radial-item-icon">⚙️</span></a>
+            <a href="/invasion" class="radial-item"><span class="radial-item-label" data-i18n="common.nav_invasion">Invasion</span><span class="radial-item-icon">🥚</span></a>
+            <a id="radialLogout" href="/auth/logout" class="radial-item" style="display:none;"><span class="radial-item-label" data-i18n="common.nav_logout">Logout</span><span class="radial-item-icon">🔓</span></a>
         </div>
     </nav>
     <div class="radial-backdrop" id="radialBackdrop"></div>
@@ -1541,16 +1542,16 @@
 
         <!-- 0. Agent Status Banner (full width) -->
         <div class="dash-card dash-full-width" id="card-agent-banner">
-            <div class="dash-card-header"><span class="card-icon">🤖</span> Agent-Status</div>
+            <div class="dash-card-header"><span class="card-icon">🤖</span> <span data-i18n="dashboard.agent_banner_title">Agent-Status</span></div>
             <div class="dash-card-body">
                 <div class="agent-banner" id="agent-banner">
                     <div class="agent-banner-item"><span class="status-dot gray" id="ab-status-dot"></span> <strong id="ab-model">—</strong></div>
                     <div class="agent-banner-sep"></div>
                     <div class="agent-banner-item">🎭 <strong id="ab-personality">—</strong></div>
                     <div class="agent-banner-sep"></div>
-                    <div class="agent-banner-item context-gauge">📐 Kontext: <div class="context-gauge-bar"><div class="context-gauge-fill" id="ab-ctx-fill" style="width:0%"></div></div> <span id="ab-ctx-pct">—</span></div>
+                    <div class="agent-banner-item context-gauge">📐 <span data-i18n="dashboard.agent_banner_context">Kontext:</span> <div class="context-gauge-bar"><div class="context-gauge-fill" id="ab-ctx-fill" style="width:0%"></div></div> <span id="ab-ctx-pct">—</span></div>
                     <div class="agent-banner-sep"></div>
-                    <div class="agent-banner-item" id="ab-integrations">🔌 <strong>—</strong> Integrationen</div>
+                    <div class="agent-banner-item" id="ab-integrations">🔌 <strong>—</strong> <span data-i18n="dashboard.agent_banner_integrations">Integrationen</span></div>
                     <div class="agent-banner-sep"></div>
                     <div class="agent-banner-item" id="ab-last-activity">💬 <span>—</span></div>
                 </div>
@@ -1559,43 +1560,43 @@
 
         <!-- 1. System Health -->
         <div class="dash-card" id="card-system">
-            <div class="dash-card-header"><span class="card-icon">🖥️</span> Systemstatus</div>
+            <div class="dash-card-header"><span class="card-icon">🖥️</span> <span data-i18n="dashboard.system_title">Systemstatus</span></div>
             <div class="dash-card-body">
                 <div class="gauge-grid">
                     <div class="gauge-item">
                         <canvas id="cpu-chart"></canvas>
                         <div class="gauge-value" id="cpu-val">—</div>
-                        <div class="gauge-label">CPU</div>
+                        <div class="gauge-label" data-i18n="dashboard.system_cpu">CPU</div>
                     </div>
                     <div class="gauge-item">
                         <canvas id="ram-chart"></canvas>
                         <div class="gauge-value" id="ram-val">—</div>
-                        <div class="gauge-label">RAM</div>
+                        <div class="gauge-label" data-i18n="dashboard.system_ram">RAM</div>
                     </div>
                     <div class="gauge-item">
                         <canvas id="disk-chart"></canvas>
                         <div class="gauge-value" id="disk-val">—</div>
-                        <div class="gauge-label">Festplatte</div>
+                        <div class="gauge-label" data-i18n="dashboard.system_disk">Festplatte</div>
                     </div>
                 </div>
                 <div class="stats-grid" id="system-stats">
                     <div class="stat-item">
                         <div class="stat-value" id="net-sent">—</div>
-                        <div class="stat-label">Netz ↑</div>
+                        <div class="stat-label" data-i18n="dashboard.system_net_sent">Netz ↑</div>
                     </div>
                     <div class="stat-item">
                         <div class="stat-value" id="net-recv">—</div>
-                        <div class="stat-label">Netz ↓</div>
+                        <div class="stat-label" data-i18n="dashboard.system_net_recv">Netz ↓</div>
                     </div>
                     <div class="stat-item">
                         <div class="stat-value" id="sse-clients">—</div>
-                        <div class="stat-label">SSE Clients</div>
+                        <div class="stat-label" data-i18n="dashboard.system_sse_clients">SSE Clients</div>
                     </div>
                 </div>
                 <div class="stats-grid" style="grid-template-columns:1fr;margin-top:0.5rem;">
                     <div class="stat-item">
                         <div class="stat-value" id="uptime-val">—</div>
-                        <div class="stat-label">Betriebszeit</div>
+                        <div class="stat-label" data-i18n="dashboard.system_uptime">Betriebszeit</div>
                     </div>
                 </div>
             </div>
@@ -1603,7 +1604,7 @@
 
         <!-- 2. Budget & Tokens -->
         <div class="dash-card" id="card-budget">
-            <div class="dash-card-header"><span class="card-icon">💰</span> Budget & Tokens</div>
+            <div class="dash-card-header"><span class="card-icon">💰</span> <span data-i18n="dashboard.budget_title">Budget & Tokens</span></div>
             <div class="dash-card-body">
                 <div id="budget-content">
                     <div class="budget-badges" id="budget-badges"></div>
@@ -1621,32 +1622,32 @@
                     </div>
                     <div class="budget-reset" id="budget-reset"></div>
                     <div class="credits-row" id="credits-row" style="display:none;">
-                        <span>OpenRouter Guthaben</span>
+                        <span data-i18n="dashboard.budget_openrouter_credits">OpenRouter Guthaben</span>
                         <span class="credits-val" id="credits-balance">—</span>
                     </div>
                 </div>
-                <div id="budget-disabled" class="empty-state" style="display:none;">Budget-Tracking deaktiviert.</div>
+                <div id="budget-disabled" class="empty-state" style="display:none;" data-i18n="dashboard.budget_disabled">Budget-Tracking deaktiviert.</div>
             </div>
         </div>
 
         <!-- 3. Personality Traits + Mood Inline -->
         <div class="dash-card" id="card-personality">
-            <div class="dash-card-header"><span class="card-icon">🧠</span> Persönlichkeit</div>
+            <div class="dash-card-header"><span class="card-icon">🧠</span> <span data-i18n="dashboard.personality_title">Persönlichkeit</span></div>
             <div class="dash-card-body">
                 <div id="personality-content" class="personality-layout">
                     <canvas id="traits-chart"></canvas>
-                    <div class="mood-badge" id="mood-badge">Neugierig</div>
+                    <div class="mood-badge" id="mood-badge" data-i18n="dashboard.personality_default_mood">Neugierig</div>
                     <div class="mood-trigger-text" id="mood-trigger"></div>
                     <!-- Inline Mood Mini-Chart -->
                     <div class="mood-mini-wrap">
                         <div class="mood-mini-header">
-                            <span>📈 Stimmungsverlauf</span>
+                            <span>📈 <span data-i18n="dashboard.personality_mood_timeline">Stimmungsverlauf</span></span>
                             <div class="mood-mini-btns">
-                                <button class="mood-btn" data-hours="1">1h</button>
-                                <button class="mood-btn" data-hours="6">6h</button>
-                                <button class="mood-btn active" data-hours="24">24h</button>
-                                <button class="mood-btn" data-hours="168">7d</button>
-                                <button class="mood-btn" data-hours="720">30d</button>
+                                <button class="mood-btn" data-hours="1" data-i18n="dashboard.personality_btn_1h">1h</button>
+                                <button class="mood-btn" data-hours="6" data-i18n="dashboard.personality_btn_6h">6h</button>
+                                <button class="mood-btn active" data-hours="24" data-i18n="dashboard.personality_btn_24h">24h</button>
+                                <button class="mood-btn" data-hours="168" data-i18n="dashboard.personality_btn_7d">7d</button>
+                                <button class="mood-btn" data-hours="720" data-i18n="dashboard.personality_btn_30d">30d</button>
                             </div>
                         </div>
                         <div class="mood-mini-chart-wrap">
@@ -1654,13 +1655,13 @@
                         </div>
                     </div>
                 </div>
-                <div id="personality-disabled" class="empty-state" style="display:none;">Persönlichkeits-Engine deaktiviert.</div>
+                <div id="personality-disabled" class="empty-state" style="display:none;" data-i18n="dashboard.personality_disabled">Persönlichkeits-Engine deaktiviert.</div>
             </div>
         </div>
 
         <!-- 5. Memory & Knowledge -->
         <div class="dash-card" id="card-memory">
-            <div class="dash-card-header"><span class="card-icon">🧩</span> Gedächtnis</div>
+            <div class="dash-card-header"><span class="card-icon">🧩</span> <span data-i18n="dashboard.memory_title">Gedächtnis</span></div>
             <div class="dash-card-body">
                 <div class="memory-stats-grid" id="memory-stats"></div>
                 <div class="memory-bar-wrap">
@@ -1672,16 +1673,16 @@
 
         <!-- 6. User Profile -->
         <div class="dash-card" id="card-profile">
-            <div class="dash-card-header"><span class="card-icon">👤</span> Nutzerprofil</div>
+            <div class="dash-card-header"><span class="card-icon">👤</span> <span data-i18n="dashboard.profile_title">Nutzerprofil</span></div>
             <div class="dash-card-body">
-                <input type="text" class="profile-search" id="profile-search" placeholder="Profil durchsuchen...">
+                <input type="text" class="profile-search" id="profile-search" data-i18n-placeholder="dashboard.profile_search_placeholder" placeholder="Profil durchsuchen...">
                 <div class="profile-scroll" id="profile-content"></div>
             </div>
         </div>
 
         <!-- 7. Operations Overview -->
         <div class="dash-card" id="card-operations">
-            <div class="dash-card-header"><span class="card-icon">⚙️</span> Betrieb & Dienste</div>
+            <div class="dash-card-header"><span class="card-icon">⚙️</span> <span data-i18n="dashboard.operations_title">Betrieb & Dienste</span></div>
             <div class="dash-card-body">
                 <div class="ops-grid" id="ops-grid"></div>
                 <div class="integration-grid" id="integration-grid"></div>
@@ -1690,7 +1691,7 @@
 
         <!-- 8. Activity & Automations (full width) -->
         <div class="dash-card dash-full-width" id="card-activity">
-            <div class="dash-card-header"><span class="card-icon">⚡</span> Aktivität <span class="collapse-toggle" data-card="card-activity" title="Einklappen">▼</span></div>
+            <div class="dash-card-header"><span class="card-icon">⚡</span> <span data-i18n="dashboard.activity_title">Aktivität</span> <span class="collapse-toggle" data-card="card-activity" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
             <div class="dash-card-body">
                 <div class="activity-grid" id="activity-stats"></div>
                 <div id="activity-details"></div>
@@ -1699,21 +1700,21 @@
 
         <!-- 9. Prompt Builder Analytics (full width) -->
         <div class="dash-card dash-full-width" id="card-prompt">
-            <div class="dash-card-header"><span class="card-icon">📝</span> Prompt-Analyse <span class="collapse-toggle" data-card="card-prompt" title="Einklappen">▼</span></div>
+            <div class="dash-card-header"><span class="card-icon">📝</span> <span data-i18n="dashboard.prompt_title">Prompt-Analyse</span> <span class="collapse-toggle" data-card="card-prompt" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
             <div class="dash-card-body">
-                <div id="prompt-no-data" class="empty-state">Noch keine Daten. Statistiken erscheinen nach dem ersten
+                <div id="prompt-no-data" class="empty-state" data-i18n="dashboard.prompt_no_data">Noch keine Daten. Statistiken erscheinen nach dem ersten
                     Gespräch und werden bei Serverneustart gelöscht.</div>
                 <div id="prompt-content" style="display:none;">
                     <div class="prompt-kpi-grid" id="prompt-kpis"></div>
                     <div class="prompt-details-grid">
                         <div>
-                            <h4 style="margin:0 0 0.5rem;font-size:var(--text-sm);color:var(--text-secondary);">Prompt-Verlauf</h4>
+                            <h4 style="margin:0 0 0.5rem;font-size:var(--text-sm);color:var(--text-secondary);" data-i18n="dashboard.prompt_history">Prompt-Verlauf</h4>
                             <div class="prompt-chart-wrap">
                                 <canvas id="prompt-size-chart"></canvas>
                             </div>
                         </div>
                         <div>
-                            <h4 style="margin:0 0 0.5rem;font-size:var(--text-sm);color:var(--text-secondary);">Tier-Verteilung</h4>
+                            <h4 style="margin:0 0 0.5rem;font-size:var(--text-sm);color:var(--text-secondary);" data-i18n="dashboard.prompt_tier_distribution">Tier-Verteilung</h4>
                             <div class="prompt-chart-wrap">
                                 <canvas id="prompt-tier-chart"></canvas>
                             </div>
@@ -1721,11 +1722,11 @@
                     </div>
                     <div class="prompt-details-grid" style="margin-top:0.75rem;">
                         <div>
-                            <h4 style="margin:0 0 0.5rem;font-size:var(--text-sm);color:var(--text-secondary);">Budget Shed Bereiche</h4>
+                            <h4 style="margin:0 0 0.5rem;font-size:var(--text-sm);color:var(--text-secondary);" data-i18n="dashboard.prompt_budget_shed_sections">Budget Shed Bereiche</h4>
                             <div class="shed-list" id="shed-list"></div>
                         </div>
                         <div>
-                            <h4 style="margin:0 0 0.5rem;font-size:var(--text-sm);color:var(--text-secondary);">Einsparungen</h4>
+                            <h4 style="margin:0 0 0.5rem;font-size:var(--text-sm);color:var(--text-secondary);" data-i18n="dashboard.prompt_savings">Einsparungen</h4>
                             <div class="prompt-chart-wrap">
                                 <canvas id="prompt-savings-chart"></canvas>
                             </div>
@@ -1737,7 +1738,7 @@
 
         <!-- 10. GitHub Repositories (full width) -->
         <div class="dash-card dash-full-width" id="card-github" style="display:none;">
-            <div class="dash-card-header"><span class="card-icon">🐙</span> GitHub Repositories <span class="collapse-toggle" data-card="card-github" title="Einklappen">▼</span></div>
+            <div class="dash-card-header"><span class="card-icon">🐙</span> <span data-i18n="dashboard.github_title">GitHub Repositories</span> <span class="collapse-toggle" data-card="card-github" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
             <div class="dash-card-body">
                 <div id="github-content"></div>
             </div>
@@ -1745,15 +1746,15 @@
 
         <!-- 11. Log Viewer (full width) -->
         <div class="dash-card dash-full-width" id="card-logs">
-            <div class="dash-card-header"><span class="card-icon">📋</span> Live-Log <span class="collapse-toggle" data-card="card-logs" title="Einklappen">▼</span></div>
+            <div class="dash-card-header"><span class="card-icon">📋</span> <span data-i18n="dashboard.logs_title">Live-Log</span> <span class="collapse-toggle" data-card="card-logs" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
             <div class="dash-card-body">
                 <div class="log-controls">
-                    <input type="text" id="log-filter" placeholder="Logs filtern (Regex unterstützt)...">
-                    <button class="log-btn" id="log-scroll-btn" title="Zum Ende springen">⬇ Aktuell</button>
-                    <button class="log-btn" id="log-refresh-btn" title="Logs neu laden">🔄 Aktualisieren</button>
+                    <input type="text" id="log-filter" data-i18n-placeholder="dashboard.logs_filter_placeholder" placeholder="Logs filtern (Regex unterstützt)...">
+                    <button class="log-btn" id="log-scroll-btn" data-i18n-title="dashboard.logs_scroll_to_bottom_title" title="Zum Ende springen" data-i18n="dashboard.logs_scroll_to_bottom">⬇ Aktuell</button>
+                    <button class="log-btn" id="log-refresh-btn" data-i18n-title="dashboard.logs_refresh_title" title="Logs neu laden" data-i18n="dashboard.logs_refresh">🔄 Aktualisieren</button>
                 </div>
                 <div class="log-viewer" id="log-viewer">
-                    <div class="log-line" style="color:var(--text-secondary);">Logs werden geladen...</div>
+                    <div class="log-line" style="color:var(--text-secondary);" data-i18n="dashboard.logs_loading">Logs werden geladen...</div>
                 </div>
                 <div class="log-meta" id="log-meta"></div>
             </div>
@@ -1788,6 +1789,28 @@
             Chart.defaults.maintainAspectRatio = false;
         }
         setChartDefaults();
+
+        // ── i18n: apply translations to static HTML elements ─────────────────────
+        function applyTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (key) el.textContent = t(key);
+            });
+            document.querySelectorAll('[data-i18n-title]').forEach(el => {
+                const key = el.getAttribute('data-i18n-title');
+                if (key) el.title = t(key);
+            });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+                const key = el.getAttribute('data-i18n-placeholder');
+                if (key) el.placeholder = t(key);
+            });
+            document.querySelectorAll('[data-i18n-aria-label]').forEach(el => {
+                const key = el.getAttribute('data-i18n-aria-label');
+                if (key) el.setAttribute('aria-label', t(key));
+            });
+            document.title = t('dashboard.page_title');
+        }
+        applyTranslations();
 
         // ── Chart Instances ─────────────────────────────────────────────────────────
         const Charts = {};
@@ -1857,7 +1880,7 @@
             return new Chart(ctx, {
                 type: 'doughnut',
                 data: {
-                    labels: ['Spent', 'Remaining'],
+                    labels: [t('dashboard.budget_chart_spent'), t('dashboard.budget_chart_remaining')],
                     datasets: [{
                         data: [spent, remaining],
                         backgroundColor: [cv('--accent'), cv('--border-subtle')],
@@ -1881,8 +1904,8 @@
                 data: {
                     labels: labels,
                     datasets: [
-                        { label: 'Input (k)', data: inputData, backgroundColor: cv('--accent') + 'aa', borderRadius: 4 },
-                        { label: 'Output (k)', data: outputData, backgroundColor: cv('--success') + 'aa', borderRadius: 4 },
+                        { label: t('dashboard.budget_chart_input'), data: inputData, backgroundColor: cv('--accent') + 'aa', borderRadius: 4 },
+                        { label: t('dashboard.budget_chart_output'), data: outputData, backgroundColor: cv('--success') + 'aa', borderRadius: 4 },
                     ]
                 },
                 options: {
@@ -1900,13 +1923,17 @@
             const ctx = document.getElementById(canvasId);
             if (!ctx) return null;
             const traitOrder = ['curiosity', 'thoroughness', 'creativity', 'empathy', 'confidence', 'affinity', 'loneliness'];
-            const traitNameDE = {
-                curiosity: 'Neugier', thoroughness: 'Gründlichkeit', creativity: 'Kreativität',
-                empathy: 'Empathie', confidence: 'Selbstvertrauen', affinity: 'Zuneigung',
-                loneliness: 'Einsamkeit'
+            const traitNameMap = {
+                curiosity: t('dashboard.personality_trait_curiosity'),
+                thoroughness: t('dashboard.personality_trait_thoroughness'),
+                creativity: t('dashboard.personality_trait_creativity'),
+                empathy: t('dashboard.personality_trait_empathy'),
+                confidence: t('dashboard.personality_trait_confidence'),
+                affinity: t('dashboard.personality_trait_affinity'),
+                loneliness: t('dashboard.personality_trait_loneliness')
             };
-            const labels = traitOrder.map(t => traitNameDE[t] || t);
-            const data = traitOrder.map(t => (traits && traits[t] != null) ? traits[t] : 0.5);
+            const labels = traitOrder.map(t2 => traitNameMap[t2] || t2);
+            const data = traitOrder.map(t2 => (traits && traits[t2] != null) ? traits[t2] : 0.5);
             return new Chart(ctx, {
                 type: 'radar',
                 data: {
@@ -1945,7 +1972,14 @@
             neutral: 2, cautious: 2,
             bored: 1, frustrated: 0
         };
-        const MOOD_LABELS = ['Frustriert', 'Gelangweilt', 'Neutral', 'Fokussiert', 'Neugierig', 'Begeistert'];
+        const MOOD_LABELS = [
+            t('dashboard.personality_mood_frustrated'),
+            t('dashboard.personality_mood_bored'),
+            t('dashboard.personality_mood_neutral'),
+            t('dashboard.personality_mood_focused'),
+            t('dashboard.personality_mood_curious'),
+            t('dashboard.personality_mood_excited')
+        ];
 
         function moodToNum(mood) {
             const m = (mood || '').toLowerCase();
@@ -1994,11 +2028,22 @@
                         tooltip: {
                             callbacks: {
                                 title: (items) => {
-                                    const moodNameDE = { curious: 'Neugierig', focused: 'Fokussiert', creative: 'Kreativ', analytical: 'Analytisch', cautious: 'Vorsichtig', playful: 'Verspielt', excited: 'Begeistert', neutral: 'Neutral', bored: 'Gelangweilt', frustrated: 'Frustriert' };
+                                    const moodNameMap = {
+                                        curious: t('dashboard.personality_mood_curious'),
+                                        focused: t('dashboard.personality_mood_focused'),
+                                        creative: t('dashboard.personality_mood_creative'),
+                                        analytical: t('dashboard.personality_mood_analytical'),
+                                        cautious: t('dashboard.personality_mood_cautious'),
+                                        playful: t('dashboard.personality_mood_playful'),
+                                        excited: t('dashboard.personality_mood_excited'),
+                                        neutral: t('dashboard.personality_mood_neutral'),
+                                        bored: t('dashboard.personality_mood_bored'),
+                                        frustrated: t('dashboard.personality_mood_frustrated')
+                                    };
                                     const m = moods[items[0].dataIndex] || '';
-                                    return moodNameDE[m] || m;
+                                    return moodNameMap[m] || m;
                                 },
-                                label: (item) => triggers[item.dataIndex] || 'Kein Auslöser',
+                                label: (item) => triggers[item.dataIndex] || t('dashboard.personality_no_trigger'),
                             }
                         }
                     }
@@ -2009,8 +2054,8 @@
         function createMemoryBarChart(canvasId, data) {
             const ctx = document.getElementById(canvasId);
             if (!ctx) return null;
-            const embLabel = data.vectordb_disabled ? 'Embeddings ⚠' : 'Embeddings';
-            const labels = ['Core Memory', 'Messages', embLabel, 'Graph Nodes', 'Graph Edges'];
+            const embLabel = data.vectordb_disabled ? t('dashboard.memory_embeddings_disabled') : t('dashboard.memory_embeddings');
+            const labels = [t('dashboard.memory_chart_core_memory'), t('dashboard.memory_chart_messages'), embLabel, t('dashboard.memory_chart_graph_nodes'), t('dashboard.memory_chart_graph_edges')];
             const values = [
                 data.core_memory_facts || 0,
                 data.chat_messages || 0,
@@ -2072,16 +2117,16 @@
             document.getElementById('budget-content').style.display = '';
             document.getElementById('budget-disabled').style.display = 'none';
             document.getElementById('budget-spent').textContent = '$' + (data.spent_usd || 0).toFixed(2);
-            document.getElementById('budget-sublabel').textContent = 'von $' + (data.daily_limit_usd || 0).toFixed(2);
+            document.getElementById('budget-sublabel').textContent = t('dashboard.budget_sublabel', {amount: '$' + (data.daily_limit_usd || 0).toFixed(2)});
 
             // Status badges
             const badgesEl = document.getElementById('budget-badges');
             let badges = '';
-            if (data.is_blocked) badges += '<span class="budget-badge danger">🚫 Blockiert</span>';
-            else if (data.is_exceeded) badges += '<span class="budget-badge danger">⚠️ Überschritten</span>';
-            else if (data.is_warning) badges += '<span class="budget-badge warning">⚡ Warnung</span>';
+            if (data.is_blocked) badges += '<span class="budget-badge danger">🚫 ' + t('dashboard.budget_blocked') + '</span>';
+            else if (data.is_exceeded) badges += '<span class="budget-badge danger">⚠️ ' + t('dashboard.budget_exceeded') + '</span>';
+            else if (data.is_warning) badges += '<span class="budget-badge warning">⚡ ' + t('dashboard.budget_warning') + '</span>';
             if (data.enforcement) {
-                const enfMap = { warn: 'Warnung', partial: 'Teilweise', full: 'Vollständig' };
+                const enfMap = { warn: t('dashboard.budget_enforcement_warn'), partial: t('dashboard.budget_enforcement_partial'), full: t('dashboard.budget_enforcement_full') };
                 badges += `<span class="budget-badge info">🛡️ ${enfMap[data.enforcement] || data.enforcement}</span>`;
             }
             badgesEl.innerHTML = badges;
@@ -2095,7 +2140,7 @@
                 if (diffMs > 0) {
                     const hrs = Math.floor(diffMs / 3600000);
                     const mins = Math.floor((diffMs % 3600000) / 60000);
-                    resetEl.textContent = `↻ Reset in ${hrs}h ${mins}m`;
+                    resetEl.textContent = t('dashboard.budget_reset_in', {hours: hrs, minutes: mins});
                 } else {
                     resetEl.textContent = '';
                 }
@@ -2119,14 +2164,18 @@
                 document.getElementById('personality-disabled').style.display = 'block';
                 return;
             }
-            const moodNameDE = {
-                curious: 'Neugierig', focused: 'Fokussiert', creative: 'Kreativ',
-                analytical: 'Analytisch', cautious: 'Vorsichtig', playful: 'Verspielt'
+            const moodNameMap = {
+                curious: t('dashboard.personality_mood_curious'),
+                focused: t('dashboard.personality_mood_focused'),
+                creative: t('dashboard.personality_mood_creative'),
+                analytical: t('dashboard.personality_mood_analytical'),
+                cautious: t('dashboard.personality_mood_cautious'),
+                playful: t('dashboard.personality_mood_playful')
             };
             const badge = document.getElementById('mood-badge');
             const trigger = document.getElementById('mood-trigger');
-            const nameDE = moodNameDE[data.mood] || data.mood;
-            if (badge) badge.textContent = '🎭 ' + nameDE;
+            const nameLocalized = moodNameMap[data.mood] || data.mood;
+            if (badge) badge.textContent = '🎭 ' + nameLocalized;
             if (trigger && data.trigger) trigger.textContent = '"' + data.trigger + '"';
         }
 
@@ -2137,26 +2186,26 @@
             const ge = (data.knowledge_graph || {}).edges || 0;
 
             let embeddingVal = data.vectordb_entries || 0;
-            let embeddingLbl = 'Embeddings';
+            let embeddingLbl = t('dashboard.memory_embeddings');
             if (data.vectordb_disabled) {
-                embeddingLbl = 'Embeddings ⚠';
+                embeddingLbl = t('dashboard.memory_embeddings_disabled');
             }
 
             const stats = [
-                { val: data.core_memory_facts || 0, lbl: 'Kernfakten', clickable: true },
-                { val: data.chat_messages || 0, lbl: 'Nachrichten' },
+                { val: data.core_memory_facts || 0, lbl: t('dashboard.memory_core_facts'), clickable: true },
+                { val: data.chat_messages || 0, lbl: t('dashboard.memory_messages') },
                 { val: embeddingVal, lbl: embeddingLbl },
-                { val: gn + ' / ' + ge, lbl: 'Graph K/K' },
+                { val: gn + ' / ' + ge, lbl: t('dashboard.memory_graph_label') },
             ];
             container.innerHTML = stats.map(s =>
-                `<div class="mem-stat${s.clickable ? ' clickable' : ''}"${s.clickable ? ' onclick="openCoreFactsModal()" title="Kernfakten anzeigen"' : ''}><div class="mem-stat-val">${s.val}</div><div class="mem-stat-lbl">${s.lbl}${s.clickable ? ' 🔍' : ''}</div></div>`
+                `<div class="mem-stat${s.clickable ? ' clickable' : ''}"${s.clickable ? ' onclick="openCoreFactsModal()" title="' + t('dashboard.memory_show_core_facts') + '"' : ''}><div class="mem-stat-val">${s.val}</div><div class="mem-stat-lbl">${s.lbl}${s.clickable ? ' 🔍' : ''}</div></div>`
             ).join('');
         }
 
         function renderMilestones(milestones) {
             const container = document.getElementById('milestone-list');
             if (!milestones || milestones.length === 0) {
-                container.innerHTML = '<div class="empty-state">Noch keine Meilensteine</div>';
+                container.innerHTML = '<div class="empty-state">' + t('dashboard.memory_no_milestones') + '</div>';
                 return;
             }
             container.innerHTML = milestones.map(m => {
@@ -2173,28 +2222,34 @@
         function renderProfile(data) {
             const container = document.getElementById('profile-content');
             if (!data || !data.categories || Object.keys(data.categories).length === 0) {
-                container.innerHTML = '<div class="empty-state">Noch keine Profildaten</div>';
+                container.innerHTML = '<div class="empty-state">' + t('dashboard.profile_empty') + '</div>';
                 return;
             }
             const catIcons = { tech: '💻', preferences: '⭐', interests: '🎯', context: '📋', communication: '💬' };
-            const catNameDE = { tech: 'Technik', preferences: 'Vorlieben', interests: 'Interessen', context: 'Kontext', communication: 'Kommunikation' };
+            const catNameMap = {
+                tech: t('dashboard.profile_cat_tech'),
+                preferences: t('dashboard.profile_cat_preferences'),
+                interests: t('dashboard.profile_cat_interests'),
+                context: t('dashboard.profile_cat_context'),
+                communication: t('dashboard.profile_cat_communication')
+            };
             let html = '';
             for (const [cat, entries] of Object.entries(data.categories)) {
                 html += `<div class="profile-category" data-cat="${esc(cat)}">
             <div class="profile-cat-header" onclick="toggleCategory(this)">
                 <span class="profile-cat-toggle">▶</span>
-                ${catIcons[cat] || '📦'} ${catNameDE[cat] || esc(cat)} (${entries.length})
+                ${catIcons[cat] || '📦'} ${catNameMap[cat] || esc(cat)} (${entries.length})
             </div>
             <div class="profile-entries" style="display:none;">`;
                 for (const e of entries) {
                     const confClass = 'conf-' + Math.min(3, Math.max(1, e.confidence || 1));
                     const firstSeen = e.first_seen ? e.first_seen.replace('T', ' ').slice(0, 16) : '';
                     const updatedAt = e.updated_at ? e.updated_at.replace('T', ' ').slice(0, 16) : '';
-                    const tip = (firstSeen ? 'Erstellt: ' + firstSeen + '\n' : '') + (updatedAt ? 'Zuletzt: ' + updatedAt : '');
+                    const tip = (firstSeen ? t('dashboard.profile_tooltip_created') + ' ' + firstSeen + '\n' : '') + (updatedAt ? t('dashboard.profile_tooltip_updated') + ' ' + updatedAt : '');
                     html += `<div class="profile-entry" data-search="${esc(e.key + ' ' + e.value)}" title="${esc(tip)}">
                 <span class="profile-key">${esc(e.key)}</span>
                 <span class="profile-val">${esc(e.value)}</span>
-                <span class="confidence-badge ${confClass}" title="Konfidenz ${e.confidence}">${e.confidence}</span>
+                <span class="confidence-badge ${confClass}" title="${t('dashboard.profile_confidence')} ${e.confidence}">${e.confidence}</span>
             </div>`;
                 }
                 html += '</div></div>';
@@ -2228,10 +2283,10 @@
             const coCount = Array.isArray(data.coagents) ? data.coagents.length : 0;
 
             statsEl.innerHTML = [
-                { icon: '⏰', val: cronCount, lbl: 'Geplant' },
-                { icon: '🔄', val: procCount, lbl: 'Prozesse' },
-                { icon: '🔗', val: whCount, lbl: 'Webhooks' },
-                { icon: '🤖', val: coCount, lbl: 'Co-Agenten' },
+                { icon: '⏰', val: cronCount, lbl: t('dashboard.activity_scheduled') },
+                { icon: '🔄', val: procCount, lbl: t('dashboard.activity_processes') },
+                { icon: '🔗', val: whCount, lbl: t('dashboard.activity_webhooks') },
+                { icon: '🤖', val: coCount, lbl: t('dashboard.activity_coagents') },
             ].map(s =>
                 `<div class="activity-stat">
             <div class="activity-stat-icon">${s.icon}</div>
@@ -2244,7 +2299,7 @@
 
             // Cron Jobs
             if (cronCount > 0) {
-                details += '<div class="activity-section"><div class="activity-section-title">⏰ Geplante Aufgaben</div>';
+                details += '<div class="activity-section"><div class="activity-section-title">⏰ ' + t('dashboard.activity_scheduled_tasks') + '</div>';
                 for (const job of data.cron_jobs) {
                     details += `<div class="activity-item">
                 <span class="activity-item-name">${esc(job.id || 'unknown')}</span>
@@ -2256,12 +2311,12 @@
 
             // Processes
             if (procCount > 0) {
-                details += '<div class="activity-section"><div class="activity-section-title">🔄 Laufende Prozesse</div>';
+                details += '<div class="activity-section"><div class="activity-section-title">🔄 ' + t('dashboard.activity_running_processes') + '</div>';
                 for (const p of data.processes) {
                     const alive = p.alive ? 'pill-running' : 'pill-idle';
                     details += `<div class="activity-item">
                 <span class="activity-item-name">PID ${p.pid}</span>
-                <span><span class="pill-status ${alive}">${p.alive ? 'aktiv' : 'gestoppt'}</span>
+                <span><span class="pill-status ${alive}">${p.alive ? t('dashboard.activity_process_active') : t('dashboard.activity_process_stopped')}</span>
                 <span class="activity-item-detail" style="margin-left:0.4rem;">${esc(p.uptime || '')}</span></span>
             </div>`;
                 }
@@ -2270,15 +2325,19 @@
 
             // Co-Agents
             if (coCount > 0) {
-                details += '<div class="activity-section"><div class="activity-section-title">🤖 Co-Agenten</div>';
+                details += '<div class="activity-section"><div class="activity-section-title">🤖 ' + t('dashboard.activity_coagents') + '</div>';
                 for (const ca of data.coagents) {
-                    const stateDE = { running: 'läuft', completed: 'abgeschlossen', failed: 'fehlgeschlagen' };
+                    const stateMap = {
+                        running: t('dashboard.activity_coagent_running'),
+                        completed: t('dashboard.activity_coagent_completed'),
+                        failed: t('dashboard.activity_coagent_failed')
+                    };
                     const stateClass = ca.state === 'running' ? 'pill-running' :
                         ca.state === 'completed' ? 'pill-completed' :
                             ca.state === 'failed' ? 'pill-failed' : 'pill-idle';
                     details += `<div class="activity-item">
                 <span class="activity-item-name">${esc(truncate(ca.task || ca.id, 50))}</span>
-                <span><span class="pill-status ${stateClass}">${esc(stateDE[ca.state] || ca.state)}</span>
+                <span><span class="pill-status ${stateClass}">${esc(stateMap[ca.state] || ca.state)}</span>
                 <span class="activity-item-detail" style="margin-left:0.4rem;">${esc(ca.runtime || '')}</span></span>
             </div>`;
                 }
@@ -2286,7 +2345,7 @@
             }
 
             if (!details) {
-                details = '<div class="empty-state">Keine aktiven Automationen</div>';
+                details = '<div class="empty-state">' + t('dashboard.activity_no_automations') + '</div>';
             }
             detailsEl.innerHTML = details;
         }
@@ -2308,14 +2367,14 @@
             const kpis = document.getElementById('prompt-kpis');
             const optPct = data.avg_optimization_pct ? data.avg_optimization_pct.toFixed(1) : '0';
             const kpiItems = [
-                { val: data.total_builds, lbl: 'Builds gesamt' },
-                { val: data.avg_tokens.toLocaleString(), lbl: 'Ø Token' },
-                { val: data.avg_raw_len.toLocaleString(), lbl: 'Ø Zeichen roh' },
-                { val: data.avg_optimized_len.toLocaleString(), lbl: 'Ø Zeichen opt.' },
-                { val: optPct + '%', lbl: 'Ø Einsparung %' },
-                { val: data.total_saved_chars.toLocaleString(), lbl: 'Zeichen gespart' },
-                { val: data.budget_shed_count, lbl: 'Budget-Sheds' },
-                { val: data.avg_guides_count, lbl: 'Ø Guides' },
+                { val: data.total_builds, lbl: t('dashboard.prompt_kpi_total_builds') },
+                { val: data.avg_tokens.toLocaleString(), lbl: t('dashboard.prompt_kpi_avg_tokens') },
+                { val: data.avg_raw_len.toLocaleString(), lbl: t('dashboard.prompt_kpi_avg_raw_chars') },
+                { val: data.avg_optimized_len.toLocaleString(), lbl: t('dashboard.prompt_kpi_avg_opt_chars') },
+                { val: optPct + '%', lbl: t('dashboard.prompt_kpi_avg_saving_pct') },
+                { val: data.total_saved_chars.toLocaleString(), lbl: t('dashboard.prompt_kpi_chars_saved') },
+                { val: data.budget_shed_count, lbl: t('dashboard.prompt_kpi_budget_sheds') },
+                { val: data.avg_guides_count, lbl: t('dashboard.prompt_kpi_avg_guides') },
             ];
             kpis.innerHTML = kpiItems.map(k =>
                 `<div class="prompt-kpi"><div class="prompt-kpi-val">${k.val}</div><div class="prompt-kpi-lbl">${k.lbl}</div></div>`
@@ -2326,7 +2385,7 @@
             const shedCounts = data.shed_section_counts || {};
             const shedKeys = Object.keys(shedCounts).sort((a, b) => shedCounts[b] - shedCounts[a]);
             if (shedKeys.length === 0) {
-                shedEl.innerHTML = '<div class="empty-state" style="padding:0.5rem 0;">No sections shed yet</div>';
+                shedEl.innerHTML = '<div class="empty-state" style="padding:0.5rem 0;">' + t('dashboard.prompt_no_sections_shed') + '</div>';
             } else {
                 shedEl.innerHTML = shedKeys.map(k =>
                     `<div class="shed-item"><span>${esc(k)}</span><span class="shed-count">${shedCounts[k]}×</span></div>`
@@ -2344,7 +2403,7 @@
                     labels: labels,
                     datasets: [
                         {
-                            label: 'Raw',
+                            label: t('dashboard.prompt_chart_raw'),
                             data: recent.map(r => r.raw_len),
                             borderColor: cv('--text-secondary'),
                             backgroundColor: 'transparent',
@@ -2353,7 +2412,7 @@
                             tension: 0.3,
                         },
                         {
-                            label: 'Optimized',
+                            label: t('dashboard.prompt_chart_optimized'),
                             data: recent.map(r => r.optimized_len),
                             borderColor: cv('--accent'),
                             backgroundColor: cv('--accent') + '22',
@@ -2409,7 +2468,7 @@
                 data: {
                     labels: labels,
                     datasets: [{
-                        label: 'Zeichen gespart',
+                        label: t('dashboard.prompt_chart_chars_saved'),
                         data: recent.map(r => r.saved_chars),
                         backgroundColor: cv('--success') + 'aa',
                         borderRadius: 3,
@@ -2436,7 +2495,7 @@
             logData = data.lines || [];
             applyLogFilter();
             const meta = document.getElementById('log-meta');
-            if (meta) meta.textContent = `${data.count || 0} lines from ${data.log_file || 'unknown'}`;
+            if (meta) meta.textContent = t('dashboard.logs_meta', {count: data.count || 0, file: data.log_file || 'unknown'});
         }
 
         function applyLogFilter() {
@@ -2450,7 +2509,7 @@
             const lines = regex ? logData.filter(l => regex.test(l)) : logData;
 
             if (lines.length === 0) {
-                viewer.innerHTML = '<div class="log-line" style="color:var(--text-secondary);">Keine passenden Log-Zeilen.</div>';
+                viewer.innerHTML = '<div class="log-line" style="color:var(--text-secondary);">' + t('dashboard.logs_no_match') + '</div>';
                 return;
             }
 
@@ -2489,7 +2548,7 @@
 
             const repos = data.repos || [];
             if (repos.length === 0) {
-                container.innerHTML = '<div class="empty-state">Keine Repositories gefunden.</div>';
+                container.innerHTML = '<div class="empty-state">' + t('dashboard.github_no_repos') + '</div>';
                 return;
             }
 
@@ -2503,14 +2562,14 @@
             const owner = data.owner || '';
             let countInfo = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;">
                 <span style="font-size:var(--text-sm);color:var(--text-secondary);">
-                    👤 <strong>${esc(owner)}</strong> — ${repos.length} Repositories
+                    👤 <strong>${esc(owner)}</strong> — ${t('dashboard.github_repositories_count', {n: repos.length})}
                 </span>
             </div>`;
 
             let html = countInfo + '<div class="gh-repo-list">';
             for (const r of repos) {
-                const vis = r.private ? '<span class="gh-badge gh-badge-private">🔒 Private</span>' : '<span class="gh-badge gh-badge-public">🌐 Public</span>';
-                const tracked = r.tracked ? '<span class="gh-badge gh-badge-tracked">📌 Tracked</span>' : '';
+                const vis = r.private ? '<span class="gh-badge gh-badge-private">🔒 ' + t('dashboard.github_badge_private') + '</span>' : '<span class="gh-badge gh-badge-public">🌐 ' + t('dashboard.github_badge_public') + '</span>';
+                const tracked = r.tracked ? '<span class="gh-badge gh-badge-tracked">📌 ' + t('dashboard.github_badge_tracked') + '</span>' : '';
                 const lang = r.language ? `<span>💻 ${esc(r.language)}</span>` : '';
                 const updated = r.updated_at ? `<span>🕐 ${new Date(r.updated_at).toLocaleDateString()}</span>` : '';
                 const desc = r.description ? `<div class="gh-repo-desc">${esc(r.description)}</div>` : '';
@@ -2541,15 +2600,15 @@
             // Status dot
             const dot = document.getElementById('ab-status-dot');
             if (dot) {
-                if (a.busy) { dot.className = 'status-dot yellow'; dot.title = 'Beschäftigt'; }
-                else if (a.maintenance) { dot.className = 'status-dot yellow'; dot.title = 'Wartung'; }
-                else if (a.debug) { dot.className = 'status-dot red'; dot.title = 'Debug-Modus'; }
-                else { dot.className = 'status-dot green'; dot.title = 'Bereit'; }
+                if (a.busy) { dot.className = 'status-dot yellow'; dot.title = t('dashboard.agent_banner_status_busy'); }
+                else if (a.maintenance) { dot.className = 'status-dot yellow'; dot.title = t('dashboard.agent_banner_status_maintenance'); }
+                else if (a.debug) { dot.className = 'status-dot red'; dot.title = t('dashboard.agent_banner_status_debug'); }
+                else { dot.className = 'status-dot green'; dot.title = t('dashboard.agent_banner_status_ready'); }
             }
 
             // Personality
             const persEl = document.getElementById('ab-personality');
-            if (persEl) persEl.textContent = a.personality || 'Standard';
+            if (persEl) persEl.textContent = a.personality || t('dashboard.agent_banner_personality_default');
 
             // Context gauge
             const ctxWindow = a.context_window || 128000;
@@ -2570,17 +2629,17 @@
             if (intEl && overview.integrations) {
                 const active = Object.values(overview.integrations).filter(v => v).length;
                 const total = Object.keys(overview.integrations).length;
-                intEl.innerHTML = `🔌 <strong>${active}</strong>/${total} Integrationen`;
+                intEl.innerHTML = `🔌 <strong>${active}</strong>/${total} ${t('dashboard.agent_banner_integrations')}`;
             }
 
             // Last activity
             const actEl = document.getElementById('ab-last-activity');
             if (actEl) {
                 const h = overview.last_activity_hours;
-                if (h >= 0 && h < 1) actEl.innerHTML = '💬 <span>Gerade aktiv</span>';
-                else if (h >= 1 && h < 24) actEl.innerHTML = `💬 <span>Vor ${Math.round(h)}h</span>`;
-                else if (h >= 24) actEl.innerHTML = `💬 <span>Vor ${Math.round(h / 24)}d</span>`;
-                else actEl.innerHTML = '💬 <span>Keine Aktivität</span>';
+                if (h >= 0 && h < 1) actEl.innerHTML = '💬 <span>' + t('dashboard.agent_banner_just_active') + '</span>';
+                else if (h >= 1 && h < 24) actEl.innerHTML = '💬 <span>' + t('dashboard.agent_banner_hours_ago', {n: Math.round(h)}) + '</span>';
+                else if (h >= 24) actEl.innerHTML = '💬 <span>' + t('dashboard.agent_banner_days_ago', {n: Math.round(h / 24)}) + '</span>';
+                else actEl.innerHTML = '💬 <span>' + t('dashboard.agent_banner_no_activity') + '</span>';
             }
         }
 
@@ -2599,14 +2658,14 @@
             const sec = overview.security || {};
 
             const items = [
-                { icon: '🚀', val: m.total || 0, lbl: 'Missionen', sub: m.running ? `${m.running} aktiv` : (m.queued ? `${m.queued} Warteschlange` : `${m.enabled || 0} aktiv`) },
-                { icon: '🥚', val: inv.nests || 0, lbl: 'Nester', sub: `${inv.connected_eggs || 0} Eggs verbunden` },
-                { icon: '📂', val: idx.indexed_files || 0, lbl: 'Indiziert', sub: idx.enabled ? `von ${idx.total_files || 0} Dateien` : 'Deaktiviert' },
-                { icon: '📡', val: mq.connected ? '✓' : '✗', lbl: 'MQTT', sub: mq.enabled ? `${mq.buffer || 0} gepuffert` : 'Deaktiviert' },
-                { icon: '📋', val: notes.open || 0, lbl: 'Notizen offen', sub: `${notes.total || 0} gesamt, ${notes.done || 0} erledigt` },
-                { icon: '🔐', val: sec.vault_keys || 0, lbl: 'Vault Keys', sub: `${sec.tokens || 0} API-Tokens` },
-                { icon: '📱', val: overview.devices || 0, lbl: 'Geräte', sub: 'Inventar' },
-                { icon: '🧠', val: overview.context?.has_summary ? '✓' : '✗', lbl: 'Zusammenfassung', sub: `${((overview.context?.total_chars || 0) / 1000).toFixed(1)}k Zeichen` },
+                { icon: '🚀', val: m.total || 0, lbl: t('dashboard.operations_missions'), sub: m.running ? t('dashboard.operations_missions_active', {n: m.running}) : (m.queued ? t('dashboard.operations_missions_queued', {n: m.queued}) : t('dashboard.operations_missions_active', {n: m.enabled || 0})) },
+                { icon: '🥚', val: inv.nests || 0, lbl: t('dashboard.operations_nests'), sub: t('dashboard.operations_eggs_connected', {n: inv.connected_eggs || 0}) },
+                { icon: '📂', val: idx.indexed_files || 0, lbl: t('dashboard.operations_indexed'), sub: idx.enabled ? t('dashboard.operations_of_files', {n: idx.total_files || 0}) : t('dashboard.operations_disabled') },
+                { icon: '📡', val: mq.connected ? '✓' : '✗', lbl: t('dashboard.operations_mqtt'), sub: mq.enabled ? t('dashboard.operations_buffered', {n: mq.buffer || 0}) : t('dashboard.operations_disabled') },
+                { icon: '📋', val: notes.open || 0, lbl: t('dashboard.operations_notes_open'), sub: t('dashboard.operations_notes_sub', {total: notes.total || 0, done: notes.done || 0}) },
+                { icon: '🔐', val: sec.vault_keys || 0, lbl: t('dashboard.operations_vault_keys'), sub: t('dashboard.operations_api_tokens', {n: sec.tokens || 0}) },
+                { icon: '📱', val: overview.devices || 0, lbl: t('dashboard.operations_devices'), sub: t('dashboard.operations_inventory') },
+                { icon: '🧠', val: overview.context?.has_summary ? '✓' : '✗', lbl: t('dashboard.operations_summary'), sub: t('dashboard.operations_chars_count', {n: ((overview.context?.total_chars || 0) / 1000).toFixed(1)}) },
             ];
 
             grid.innerHTML = items.map(s =>
@@ -2631,12 +2690,19 @@
                 auth: '🔑', fallback_llm: '🔄', personality_v2: '🎭', user_profiling: '👤', tts: '🔊'
             };
             const names = {
-                telegram: 'Telegram', discord: 'Discord', email: 'E-Mail', home_assistant: 'Home Assistant',
-                docker: 'Docker', co_agents: 'Co-Agents', webhooks: 'Webhooks', webdav: 'WebDAV',
-                koofr: 'Koofr', chromecast: 'Chromecast', proxmox: 'Proxmox', ollama: 'Ollama',
-                rocketchat: 'Rocket.Chat', tailscale: 'Tailscale', ansible: 'Ansible', invasion: 'Invasion',
-                github: 'GitHub', mqtt: 'MQTT', budget: 'Budget', indexing: 'Indexer',
-                auth: 'Auth', fallback_llm: 'Fallback LLM', personality_v2: 'Personality V2', user_profiling: 'Profiling', tts: 'TTS'
+                telegram: t('dashboard.integration_telegram'), discord: t('dashboard.integration_discord'),
+                email: t('dashboard.integration_email'), home_assistant: t('dashboard.integration_home_assistant'),
+                docker: t('dashboard.integration_docker'), co_agents: t('dashboard.integration_co_agents'),
+                webhooks: t('dashboard.integration_webhooks'), webdav: t('dashboard.integration_webdav'),
+                koofr: t('dashboard.integration_koofr'), chromecast: t('dashboard.integration_chromecast'),
+                proxmox: t('dashboard.integration_proxmox'), ollama: t('dashboard.integration_ollama'),
+                rocketchat: t('dashboard.integration_rocketchat'), tailscale: t('dashboard.integration_tailscale'),
+                ansible: t('dashboard.integration_ansible'), invasion: t('dashboard.integration_invasion'),
+                github: t('dashboard.integration_github'), mqtt: t('dashboard.integration_mqtt'),
+                budget: t('dashboard.integration_budget'), indexing: t('dashboard.integration_indexing'),
+                auth: t('dashboard.integration_auth'), fallback_llm: t('dashboard.integration_fallback_llm'),
+                personality_v2: t('dashboard.integration_personality_v2'), user_profiling: t('dashboard.integration_user_profiling'),
+                tts: t('dashboard.integration_tts')
             };
 
             // Sort: active first
@@ -2903,7 +2969,7 @@
         async function openCoreFactsModal() {
             const overlay = document.getElementById('cfOverlay');
             const body = document.getElementById('cfBody');
-            body.innerHTML = '<div class="empty-state">Wird geladen…</div>';
+            body.innerHTML = '<div class="empty-state">' + t('dashboard.core_facts_modal_loading') + '</div>';
             overlay.classList.add('open');
 
             try {
@@ -2911,27 +2977,27 @@
                 const facts = data.facts || [];
 
                 let html = `<div class="cf-add-bar">
-                    <input type="text" class="cf-add-input" id="cfAddInput" placeholder="Neuen Kernfakt hinzufügen…" onkeydown="if(event.key==='Enter')cfAddFact()">
+                    <input type="text" class="cf-add-input" id="cfAddInput" placeholder="${t('dashboard.core_facts_modal_add_placeholder')}" onkeydown="if(event.key==='Enter')cfAddFact()">
                     <button class="cf-add-btn" onclick="cfAddFact()">＋</button>
                 </div>`;
 
                 if (facts.length === 0) {
-                    html += '<div class="empty-state">Keine Kernfakten gespeichert.</div>';
+                    html += '<div class="empty-state">' + t('dashboard.core_facts_modal_empty') + '</div>';
                 } else {
                     html += facts.map(f =>
                         `<div class="cf-fact" data-id="${f.id}">
                             <span class="cf-id">[${f.id}]</span>
                             <span class="cf-fact-text" id="cf-text-${f.id}">${esc(f.fact)}</span>
                             <span class="cf-fact-actions">
-                                <button class="cf-fact-btn" onclick="cfEditFact(${f.id})" title="Bearbeiten">✏️</button>
-                                <button class="cf-fact-btn danger" onclick="cfDeleteFact(${f.id})" title="Löschen">🗑️</button>
+                                <button class="cf-fact-btn" onclick="cfEditFact(${f.id})" title="${t('dashboard.core_facts_modal_edit')}">✏️</button>
+                                <button class="cf-fact-btn danger" onclick="cfDeleteFact(${f.id})" title="${t('dashboard.core_facts_modal_delete')}">🗑️</button>
                             </span>
                         </div>`
                     ).join('');
                 }
                 body.innerHTML = html;
             } catch (e) {
-                body.innerHTML = '<div class="empty-state">Fehler beim Laden.</div>';
+                body.innerHTML = '<div class="empty-state">' + t('dashboard.core_facts_modal_error_load') + '</div>';
             }
         }
 
@@ -2946,7 +3012,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ fact })
                 });
-                if (!resp.ok) throw new Error('Fehler beim Hinzufügen');
+                if (!resp.ok) throw new Error(t('dashboard.core_facts_modal_error_add'));
                 await openCoreFactsModal(); // reload
             } catch (e) {
                 alert('❌ ' + e.message);
@@ -2964,8 +3030,8 @@
             // Replace text with inline input
             textEl.outerHTML = `<input type="text" class="cf-add-input" id="cf-edit-${id}" value="${esc(currentText)}" style="flex:1;" onkeydown="if(event.key==='Enter')cfSaveEdit(${id});if(event.key==='Escape')openCoreFactsModal();">`;
             actionsEl.innerHTML = `
-                <button class="cf-fact-btn" onclick="cfSaveEdit(${id})" title="Speichern" style="color:var(--success);">✅</button>
-                <button class="cf-fact-btn" onclick="openCoreFactsModal()" title="Abbrechen">❌</button>`;
+                <button class="cf-fact-btn" onclick="cfSaveEdit(${id})" title="${t('dashboard.core_facts_modal_save')}" style="color:var(--success);">✅</button>
+                <button class="cf-fact-btn" onclick="openCoreFactsModal()" title="${t('dashboard.core_facts_modal_cancel')}">❌</button>`;
             document.getElementById('cf-edit-' + id).focus();
         }
 
@@ -2981,7 +3047,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ id, fact })
                 });
-                if (!resp.ok) throw new Error('Fehler beim Speichern');
+                if (!resp.ok) throw new Error(t('dashboard.core_facts_modal_error_save'));
                 await openCoreFactsModal(); // reload
             } catch (e) {
                 alert('❌ ' + e.message);
@@ -2990,14 +3056,14 @@
         }
 
         async function cfDeleteFact(id) {
-            if (!confirm('Kernfakt #' + id + ' wirklich löschen?')) return;
+            if (!confirm(t('dashboard.core_facts_modal_confirm_delete', {id: id}))) return;
             try {
                 const resp = await fetch('/api/dashboard/core-memory/mutate', {
                     method: 'DELETE',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ id })
                 });
-                if (!resp.ok) throw new Error('Fehler beim Löschen');
+                if (!resp.ok) throw new Error(t('dashboard.core_facts_modal_error_delete'));
                 await openCoreFactsModal(); // reload
             } catch (e) {
                 alert('❌ ' + e.message);
@@ -3046,11 +3112,11 @@
     <div class="cf-overlay" id="cfOverlay">
         <div class="cf-modal">
             <div class="cf-header">
-                <span class="cf-title">🧠 Kernfakten</span>
-                <button class="cf-close" id="cfClose" title="Schließen">&times;</button>
+                <span class="cf-title">🧠 <span data-i18n="dashboard.core_facts_modal_title">Kernfakten</span></span>
+                <button class="cf-close" id="cfClose" data-i18n-title="common.btn_close" title="Schließen">&times;</button>
             </div>
             <div class="cf-body" id="cfBody">
-                <div class="empty-state">Wird geladen…</div>
+                <div class="empty-state" data-i18n="dashboard.core_facts_modal_loading">Wird geladen…</div>
             </div>
         </div>
     </div>

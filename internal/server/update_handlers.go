@@ -15,7 +15,7 @@ import (
 
 // UpdateCheckResult is the payload returned by /api/updates/check.
 type UpdateCheckResult struct {
-	Mode            string `json:"mode"`             // "git" or "binary"
+	Mode            string `json:"mode"` // "git" or "binary"
 	UpdateAvailable bool   `json:"update_available"`
 	CurrentVersion  string `json:"current_version"`
 	LatestVersion   string `json:"latest_version"`
