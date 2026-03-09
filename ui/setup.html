@@ -33,7 +33,7 @@
     <script src="/shared.js"></script>
     <script>
         const SYSTEM_LANG = "{{.Lang}}";
-        const I18N = {{.I18N}};
+        const I18N = {{.I18N }};
         (function () { var t = localStorage.getItem('aurago-theme'); if (t) document.documentElement.setAttribute('data-theme', t); })();
     </script>
     <link rel="stylesheet" href="/css/setup.css">
@@ -44,11 +44,16 @@
         <div class="logo">
             <div class="logo-icon">✦</div>
             <span>AURAGO</span>
-            <span id="header-subtitle" style="font-size:var(--text-xs); font-weight:400; color:var(--text-secondary); margin-left:0.3rem"><script>document.write(t('setup.header_subtitle'))</script></span>
+            <span id="header-subtitle"
+                style="font-size:var(--text-xs); font-weight:400; color:var(--text-secondary); margin-left:0.3rem">
+                <script>document.write(t('setup.header_subtitle'))</script>
+            </span>
         </div>
         <div class="header-actions">
             <button id="theme-toggle" class="btn-theme" title="Toggle theme"></button>
-            <button id="btn-skip-setup" class="btn-header btn-skip" onclick="skipSetup()"><script>document.write(t('setup.skip_button'))</script></button>
+            <button id="btn-skip-setup" class="btn-header btn-skip" onclick="skipSetup()">
+                <script>document.write(t('setup.skip_button'))</script>
+            </button>
         </div>
     </header>
 
@@ -71,13 +76,22 @@
             <!-- ═══ Section 1: Minimum Config ═══ -->
             <div class="setup-section active" id="step-0">
                 <div class="section-header">
-                    <div id="badge-step0" class="section-badge badge-required"><script>document.write(t('setup.step0_badge'))</script></div>
-                    <h2 id="title-step0" class="section-title"><script>document.write(t('setup.step0_title'))</script></h2>
-                    <p id="desc-step0" class="section-desc"><script>document.write(t('setup.step0_description'))</script></p>
+                    <div id="badge-step0" class="section-badge badge-required">
+                        <script>document.write(t('setup.step0_badge'))</script>
+                    </div>
+                    <h2 id="title-step0" class="section-title">
+                        <script>document.write(t('setup.step0_title'))</script>
+                    </h2>
+                    <p id="desc-step0" class="section-desc">
+                        <script>document.write(t('setup.step0_description'))</script>
+                    </p>
                 </div>
 
                 <div class="field-group">
-                    <label id="lbl-provider" class="field-label"><script>document.write(t('setup.step0_provider_label'))</script> <span class="required-star">*</span></label>
+                    <label id="lbl-provider" class="field-label">
+                        <script>document.write(t('setup.step0_provider_label'))</script> <span
+                            class="required-star">*</span>
+                    </label>
                     <select class="field-select" id="llm-provider" onchange="onProviderChange()">
                         <option value="openrouter">OpenRouter</option>
                         <option value="openai">OpenAI</option>
@@ -86,34 +100,60 @@
                         <option value="ollama">Ollama (lokal)</option>
                         <option value="custom">Custom / Andere</option>
                     </select>
-                    <div id="hint-provider" class="field-hint"><script>document.write(t('setup.step0_provider_hint'))</script></div>
+                    <div id="hint-provider" class="field-hint">
+                        <script>document.write(t('setup.step0_provider_hint'))</script>
+                    </div>
                 </div>
 
                 <div class="field-group" id="group-api-key">
-                    <label id="lbl-api-key" class="field-label"><script>document.write(t('setup.step0_api_key_label'))</script> <span class="required-star">*</span></label>
-                    <input class="field-input" type="password" id="llm-api-key" placeholder="sk-or-v1-..." autocomplete="off">
-                    <div class="field-error" id="err-api-key"><script>document.write(t('setup.step0_api_key_error'))</script></div>
-                    <div class="field-hint" id="hint-api-key"><span id="hint-api-key-text"><script>document.write(t('setup.step0_api_key_hint'))</script></span> <span id="provider-link">openrouter.ai</span></div>
+                    <label id="lbl-api-key" class="field-label">
+                        <script>document.write(t('setup.step0_api_key_label'))</script> <span
+                            class="required-star">*</span>
+                    </label>
+                    <input class="field-input" type="password" id="llm-api-key" placeholder="sk-or-v1-..."
+                        autocomplete="off">
+                    <div class="field-error" id="err-api-key">
+                        <script>document.write(t('setup.step0_api_key_error'))</script>
+                    </div>
+                    <div class="field-hint" id="hint-api-key"><span id="hint-api-key-text">
+                            <script>document.write(t('setup.step0_api_key_hint'))</script>
+                        </span> <span id="provider-link">openrouter.ai</span></div>
                 </div>
 
                 <div class="field-group">
-                    <label id="lbl-base-url" class="field-label"><script>document.write(t('setup.step0_base_url_label'))</script></label>
+                    <label id="lbl-base-url" class="field-label">
+                        <script>document.write(t('setup.step0_base_url_label'))</script>
+                    </label>
                     <input class="field-input" type="url" id="llm-base-url" placeholder="https://openrouter.ai/api/v1">
-                    <div id="hint-base-url" class="field-hint"><script>document.write(t('setup.step0_base_url_hint'))</script></div>
+                    <div id="hint-base-url" class="field-hint">
+                        <script>document.write(t('setup.step0_base_url_hint'))</script>
+                    </div>
                 </div>
 
                 <div class="field-row">
                     <div class="field-group">
-                        <label id="lbl-model" class="field-label"><script>document.write(t('setup.step0_model_label'))</script> <span class="required-star">*</span></label>
+                        <label id="lbl-model" class="field-label">
+                            <script>document.write(t('setup.step0_model_label'))</script> <span
+                                class="required-star">*</span>
+                        </label>
                         <div style="display:flex;gap:0.4rem;align-items:stretch;">
-                            <input class="field-input" type="text" id="llm-model" placeholder="z.B. gpt-4o, claude-sonnet-4-20250514" style="flex:1;">
-                            <button type="button" id="or-browse-btn" class="btn-primary" style="display:none;padding:0.4rem 0.7rem;font-size:0.75rem;white-space:nowrap;border-radius:8px;background:rgba(72,199,142,0.15);color:#48c78e;border:1px solid rgba(72,199,142,0.3);cursor:pointer;" onclick="openOpenRouterBrowser(function(m){document.getElementById('llm-model').value=m.id;document.getElementById('err-model').style.display='none';})"><script>document.write(t('setup.step0_model_browse'))</script></button>
+                            <input class="field-input" type="text" id="llm-model"
+                                placeholder="z.B. gpt-4o, claude-sonnet-4-20250514" style="flex:1;">
+                            <button type="button" id="or-browse-btn" class="btn-primary"
+                                style="display:none;padding:0.4rem 0.7rem;font-size:0.75rem;white-space:nowrap;border-radius:8px;background:rgba(72,199,142,0.15);color:#48c78e;border:1px solid rgba(72,199,142,0.3);cursor:pointer;"
+                                onclick="openOpenRouterBrowser(function(m){document.getElementById('llm-model').value=m.id;document.getElementById('err-model').style.display='none';})">
+                                <script>document.write(t('setup.step0_model_browse'))</script>
+                            </button>
                         </div>
-                        <div class="field-error" id="err-model"><script>document.write(t('setup.step0_model_error'))</script></div>
+                        <div class="field-error" id="err-model">
+                            <script>document.write(t('setup.step0_model_error'))</script>
+                        </div>
                     </div>
                     <div class="field-group">
-                        <label class="field-label" id="lang-label"><script>document.write(t('setup.step0_language_label'))</script></label>
-                        <select class="field-select" id="system-language">
+                        <label class="field-label" id="lang-label">
+                            <script>document.write(t('setup.step0_language_label'))</script>
+                        </label>
+                        <select class="field-select" id="system-language" onchange="onLanguageChange()">
                             <option value="Deutsch">Deutsch</option>
                             <option value="English">English</option>
                             <option value="Español">Español</option>
@@ -129,14 +169,21 @@
                             <option value="Svenska">Svenska</option>
                             <option value="Norsk">Norsk</option>
                             <option value="Čeština">Čeština</option>
+                            <option value="Other / Custom">Other / Custom</option>
                         </select>
+                        <input class="field-input" type="text" id="system-language-custom" placeholder="e.g. Klingon"
+                            style="display:none; margin-top:0.4rem;">
                     </div>
                 </div>
 
                 <div class="toggle-row">
                     <div>
-                        <div id="lbl-native-functions" class="toggle-label"><script>document.write(t('setup.step0_native_functions_label'))</script></div>
-                        <div id="desc-native-functions" class="toggle-desc"><script>document.write(t('setup.step0_native_functions_desc'))</script></div>
+                        <div id="lbl-native-functions" class="toggle-label">
+                            <script>document.write(t('setup.step0_native_functions_label'))</script>
+                        </div>
+                        <div id="desc-native-functions" class="toggle-desc">
+                            <script>document.write(t('setup.step0_native_functions_desc'))</script>
+                        </div>
                     </div>
                     <label class="toggle-switch">
                         <input type="checkbox" id="native-functions">
@@ -148,17 +195,28 @@
             <!-- ═══ Section 2: Recommended Optional ═══ -->
             <div class="setup-section" id="step-1">
                 <div class="section-header">
-                    <div id="badge-step1" class="section-badge badge-recommended"><script>document.write(t('setup.step1_badge'))</script></div>
-                    <h2 id="title-step1" class="section-title"><script>document.write(t('setup.step1_title'))</script></h2>
-                    <p id="desc-step1" class="section-desc"><script>document.write(t('setup.step1_description'))</script></p>
+                    <div id="badge-step1" class="section-badge badge-recommended">
+                        <script>document.write(t('setup.step1_badge'))</script>
+                    </div>
+                    <h2 id="title-step1" class="section-title">
+                        <script>document.write(t('setup.step1_title'))</script>
+                    </h2>
+                    <p id="desc-step1" class="section-desc">
+                        <script>document.write(t('setup.step1_description'))</script>
+                    </p>
                 </div>
 
                 <!-- Embeddings -->
                 <div style="margin-bottom: 1.5rem;">
-                    <h3 id="heading-embeddings" style="font-size: var(--text-base); font-weight: 600; margin-bottom: 0.75rem;"><script>document.write(t('setup.step1_embeddings_heading'))</script></h3>
+                    <h3 id="heading-embeddings"
+                        style="font-size: var(--text-base); font-weight: 600; margin-bottom: 0.75rem;">
+                        <script>document.write(t('setup.step1_embeddings_heading'))</script>
+                    </h3>
                     <div class="field-row">
                         <div class="field-group">
-                            <label id="lbl-emb-provider" class="field-label"><script>document.write(t('setup.step1_embeddings_provider_label'))</script></label>
+                            <label id="lbl-emb-provider" class="field-label">
+                                <script>document.write(t('setup.step1_embeddings_provider_label'))</script>
+                            </label>
                             <select class="field-select" id="emb-provider" onchange="onEmbProviderChange()">
                                 <option value="internal">Internal (OpenRouter/OpenAI kompatibel)</option>
                                 <option value="ollama">Ollama (lokal)</option>
@@ -166,23 +224,36 @@
                             </select>
                         </div>
                         <div class="field-group">
-                            <label id="lbl-emb-model" class="field-label"><script>document.write(t('setup.step1_embeddings_model_label'))</script></label>
-                            <input class="field-input" type="text" id="emb-model" placeholder="qwen/qwen3-embedding-8b" value="qwen/qwen3-embedding-8b">
+                            <label id="lbl-emb-model" class="field-label">
+                                <script>document.write(t('setup.step1_embeddings_model_label'))</script>
+                            </label>
+                            <input class="field-input" type="text" id="emb-model" placeholder="qwen/qwen3-embedding-8b"
+                                value="qwen/qwen3-embedding-8b">
                         </div>
                     </div>
                     <div class="field-group" id="group-emb-apikey" style="display: none;">
-                        <label id="lbl-emb-apikey" class="field-label"><script>document.write(t('setup.step1_embeddings_apikey_label'))</script></label>
-                        <input class="field-input" type="password" id="emb-api-key" placeholder="Gleicher Key wie LLM, falls selber Provider">
-                        <div id="hint-emb-apikey" class="field-hint"><script>document.write(t('setup.step1_embeddings_apikey_hint'))</script></div>
+                        <label id="lbl-emb-apikey" class="field-label">
+                            <script>document.write(t('setup.step1_embeddings_apikey_label'))</script>
+                        </label>
+                        <input class="field-input" type="password" id="emb-api-key"
+                            placeholder="Gleicher Key wie LLM, falls selber Provider">
+                        <div id="hint-emb-apikey" class="field-hint">
+                            <script>document.write(t('setup.step1_embeddings_apikey_hint'))</script>
+                        </div>
                     </div>
                 </div>
 
                 <!-- Vision -->
                 <div style="margin-bottom: 1.5rem;">
-                    <h3 id="heading-vision" style="font-size: var(--text-base); font-weight: 600; margin-bottom: 0.75rem;"><script>document.write(t('setup.step1_vision_heading'))</script></h3>
+                    <h3 id="heading-vision"
+                        style="font-size: var(--text-base); font-weight: 600; margin-bottom: 0.75rem;">
+                        <script>document.write(t('setup.step1_vision_heading'))</script>
+                    </h3>
                     <div class="field-row">
                         <div class="field-group">
-                            <label id="lbl-vision-provider" class="field-label"><script>document.write(t('setup.step1_vision_provider_label'))</script></label>
+                            <label id="lbl-vision-provider" class="field-label">
+                                <script>document.write(t('setup.step1_vision_provider_label'))</script>
+                            </label>
                             <select class="field-select" id="vision-provider">
                                 <option value="openrouter">OpenRouter</option>
                                 <option value="openai">OpenAI</option>
@@ -191,18 +262,27 @@
                             </select>
                         </div>
                         <div class="field-group">
-                            <label id="lbl-vision-model" class="field-label"><script>document.write(t('setup.step1_vision_model_label'))</script></label>
-                            <input class="field-input" type="text" id="vision-model" placeholder="google/gemini-2.5-flash-lite-preview-09-2025" value="google/gemini-2.5-flash-lite-preview-09-2025">
+                            <label id="lbl-vision-model" class="field-label">
+                                <script>document.write(t('setup.step1_vision_model_label'))</script>
+                            </label>
+                            <input class="field-input" type="text" id="vision-model"
+                                placeholder="google/gemini-2.5-flash-lite-preview-09-2025"
+                                value="google/gemini-2.5-flash-lite-preview-09-2025">
                         </div>
                     </div>
                 </div>
 
                 <!-- Whisper / STT -->
                 <div>
-                    <h3 id="heading-whisper" style="font-size: var(--text-base); font-weight: 600; margin-bottom: 0.75rem;"><script>document.write(t('setup.step1_whisper_heading'))</script></h3>
+                    <h3 id="heading-whisper"
+                        style="font-size: var(--text-base); font-weight: 600; margin-bottom: 0.75rem;">
+                        <script>document.write(t('setup.step1_whisper_heading'))</script>
+                    </h3>
                     <div class="field-row">
                         <div class="field-group">
-                            <label id="lbl-whisper-provider" class="field-label"><script>document.write(t('setup.step1_whisper_provider_label'))</script></label>
+                            <label id="lbl-whisper-provider" class="field-label">
+                                <script>document.write(t('setup.step1_whisper_provider_label'))</script>
+                            </label>
                             <select class="field-select" id="whisper-provider">
                                 <option value="openrouter">OpenRouter</option>
                                 <option value="openai">OpenAI</option>
@@ -211,8 +291,12 @@
                             </select>
                         </div>
                         <div class="field-group">
-                            <label id="lbl-whisper-model" class="field-label"><script>document.write(t('setup.step1_whisper_model_label'))</script></label>
-                            <input class="field-input" type="text" id="whisper-model" placeholder="google/gemini-2.5-flash-lite-preview-09-2025" value="google/gemini-2.5-flash-lite-preview-09-2025">
+                            <label id="lbl-whisper-model" class="field-label">
+                                <script>document.write(t('setup.step1_whisper_model_label'))</script>
+                            </label>
+                            <input class="field-input" type="text" id="whisper-model"
+                                placeholder="google/gemini-2.5-flash-lite-preview-09-2025"
+                                value="google/gemini-2.5-flash-lite-preview-09-2025">
                         </div>
                     </div>
                 </div>
@@ -221,16 +305,27 @@
             <!-- ═══ Section 3: Optional ═══ -->
             <div class="setup-section" id="step-2">
                 <div class="section-header">
-                    <div id="badge-step2" class="section-badge badge-optional"><script>document.write(t('setup.step2_badge'))</script></div>
-                    <h2 id="title-step2" class="section-title"><script>document.write(t('setup.step2_title'))</script></h2>
-                    <p id="desc-step2" class="section-desc"><script>document.write(t('setup.step2_description'))</script></p>
+                    <div id="badge-step2" class="section-badge badge-optional">
+                        <script>document.write(t('setup.step2_badge'))</script>
+                    </div>
+                    <h2 id="title-step2" class="section-title">
+                        <script>document.write(t('setup.step2_title'))</script>
+                    </h2>
+                    <p id="desc-step2" class="section-desc">
+                        <script>document.write(t('setup.step2_description'))</script>
+                    </p>
                 </div>
 
                 <!-- Personality Engine V2 -->
-                <div class="toggle-row" style="border-bottom: 1px solid var(--border-subtle); padding-bottom: 1rem; margin-bottom: 1rem;">
+                <div class="toggle-row"
+                    style="border-bottom: 1px solid var(--border-subtle); padding-bottom: 1rem; margin-bottom: 1rem;">
                     <div>
-                        <div id="lbl-personality-v2" class="toggle-label"><script>document.write(t('setup.step2_personality_v2_label'))</script></div>
-                        <div id="desc-personality-v2" class="toggle-desc"><script>document.write(t('setup.step2_personality_v2_desc'))</script></div>
+                        <div id="lbl-personality-v2" class="toggle-label">
+                            <script>document.write(t('setup.step2_personality_v2_label'))</script>
+                        </div>
+                        <div id="desc-personality-v2" class="toggle-desc">
+                            <script>document.write(t('setup.step2_personality_v2_desc'))</script>
+                        </div>
                     </div>
                     <label class="toggle-switch">
                         <input type="checkbox" id="personality-v2" checked onchange="onPersonalityToggle()">
@@ -241,36 +336,57 @@
                 <div class="conditional-fields visible" id="personality-v2-fields">
                     <div class="field-row">
                         <div class="field-group">
-                            <label id="lbl-v2-model" class="field-label"><script>document.write(t('setup.step2_v2_model_label'))</script></label>
-                            <input class="field-input" type="text" id="v2-model" placeholder="gpt-4o-mini" value="gpt-4o-mini">
-                            <div id="hint-v2-model" class="field-hint"><script>document.write(t('setup.step2_v2_model_hint'))</script></div>
+                            <label id="lbl-v2-model" class="field-label">
+                                <script>document.write(t('setup.step2_v2_model_label'))</script>
+                            </label>
+                            <input class="field-input" type="text" id="v2-model" placeholder="gpt-4o-mini"
+                                value="gpt-4o-mini">
+                            <div id="hint-v2-model" class="field-hint">
+                                <script>document.write(t('setup.step2_v2_model_hint'))</script>
+                            </div>
                         </div>
                         <div class="field-group">
-                            <label id="lbl-v2-url" class="field-label"><script>document.write(t('setup.step2_v2_url_label'))</script></label>
-                            <input class="field-input" type="url" id="v2-url" placeholder="Leer = gleiche URL wie Haupt-LLM">
+                            <label id="lbl-v2-url" class="field-label">
+                                <script>document.write(t('setup.step2_v2_url_label'))</script>
+                            </label>
+                            <input class="field-input" type="url" id="v2-url"
+                                placeholder="Leer = gleiche URL wie Haupt-LLM">
                         </div>
                     </div>
                     <div class="field-group">
-                        <label id="lbl-v2-apikey" class="field-label"><script>document.write(t('setup.step2_v2_apikey_label'))</script></label>
-                        <input class="field-input" type="password" id="v2-api-key" placeholder="Leer = gleicher Key wie Haupt-LLM">
-                        <div id="hint-v2-apikey" class="field-hint"><script>document.write(t('setup.step2_v2_apikey_hint'))</script></div>
+                        <label id="lbl-v2-apikey" class="field-label">
+                            <script>document.write(t('setup.step2_v2_apikey_label'))</script>
+                        </label>
+                        <input class="field-input" type="password" id="v2-api-key"
+                            placeholder="Leer = gleicher Key wie Haupt-LLM">
+                        <div id="hint-v2-apikey" class="field-hint">
+                            <script>document.write(t('setup.step2_v2_apikey_hint'))</script>
+                        </div>
                     </div>
                 </div>
 
                 <!-- Core Personality -->
                 <div class="field-group" style="margin-top: 1.25rem;">
-                    <label id="lbl-core-personality" class="field-label"><script>document.write(t('setup.step2_core_personality_label'))</script></label>
+                    <label id="lbl-core-personality" class="field-label">
+                        <script>document.write(t('setup.step2_core_personality_label'))</script>
+                    </label>
                     <select class="field-select" id="core-personality">
                         <option value="friend" selected>Freundlich (friend)</option>
                     </select>
-                    <div id="hint-core-personality" class="field-hint"><script>document.write(t('setup.step2_core_personality_hint'))</script></div>
+                    <div id="hint-core-personality" class="field-hint">
+                        <script>document.write(t('setup.step2_core_personality_hint'))</script>
+                    </div>
                 </div>
 
                 <!-- Maintenance -->
                 <div class="toggle-row" style="margin-top: 0.5rem;">
                     <div>
-                        <div id="lbl-maintenance" class="toggle-label"><script>document.write(t('setup.step2_maintenance_label'))</script></div>
-                        <div id="desc-maintenance" class="toggle-desc"><script>document.write(t('setup.step2_maintenance_desc'))</script></div>
+                        <div id="lbl-maintenance" class="toggle-label">
+                            <script>document.write(t('setup.step2_maintenance_label'))</script>
+                        </div>
+                        <div id="desc-maintenance" class="toggle-desc">
+                            <script>document.write(t('setup.step2_maintenance_desc'))</script>
+                        </div>
                     </div>
                     <label class="toggle-switch">
                         <input type="checkbox" id="maintenance-enabled" checked>
@@ -281,8 +397,12 @@
                 <!-- Web Config -->
                 <div class="toggle-row">
                     <div>
-                        <div id="lbl-web-config" class="toggle-label"><script>document.write(t('setup.step2_web_config_label'))</script></div>
-                        <div id="desc-web-config" class="toggle-desc"><script>document.write(t('setup.step2_web_config_desc'))</script></div>
+                        <div id="lbl-web-config" class="toggle-label">
+                            <script>document.write(t('setup.step2_web_config_label'))</script>
+                        </div>
+                        <div id="desc-web-config" class="toggle-desc">
+                            <script>document.write(t('setup.step2_web_config_desc'))</script>
+                        </div>
                     </div>
                     <label class="toggle-switch">
                         <input type="checkbox" id="web-config-enabled" checked>
@@ -294,20 +414,34 @@
             <!-- ═══ Success Screen ═══ -->
             <div class="success-screen" id="success-screen">
                 <div class="success-icon">✨</div>
-                <h2 id="success-title" class="success-title"><script>document.write(t('setup.success_title'))</script></h2>
-                <p id="success-desc" class="success-desc"><script>document.write(t('setup.success_description').replace(/\n/g,'<br>'))</script></p>
-                <p class="success-desc" id="restart-notice" style="display:none; color: var(--warning);"><script>document.write(t('setup.success_restart_notice'))</script></p>
-                <button id="btn-go-to-chat" class="btn-setup btn-next" onclick="window.location.href='/'"><script>document.write(t('setup.success_go_to_chat'))</script></button>
+                <h2 id="success-title" class="success-title">
+                    <script>document.write(t('setup.success_title'))</script>
+                </h2>
+                <p id="success-desc" class="success-desc">
+                    <script>document.write(t('setup.success_description').replace(/\n/g, '<br>'))</script>
+                </p>
+                <p class="success-desc" id="restart-notice" style="display:none; color: var(--warning);">
+                    <script>document.write(t('setup.success_restart_notice'))</script>
+                </p>
+                <button id="btn-go-to-chat" class="btn-setup btn-next" onclick="window.location.href='/'">
+                    <script>document.write(t('setup.success_go_to_chat'))</script>
+                </button>
             </div>
 
             <!-- Footer -->
             <div class="setup-footer" id="setup-footer">
                 <div class="footer-left">
-                    <button class="btn-setup btn-back" id="btn-back" style="display:none" onclick="prevStep()"><script>document.write(t('setup.nav_back'))</script></button>
+                    <button class="btn-setup btn-back" id="btn-back" style="display:none" onclick="prevStep()">
+                        <script>document.write(t('setup.nav_back'))</script>
+                    </button>
                 </div>
                 <div style="display:flex; align-items:center; gap:0.75rem;">
-                    <button class="btn-skip" id="btn-skip-step" onclick="nextStep(true)"><script>document.write(t('setup.nav_skip_step'))</script></button>
-                    <button class="btn-setup btn-next" id="btn-next" onclick="nextStep()"><script>document.write(t('setup.nav_next'))</script></button>
+                    <button class="btn-skip" id="btn-skip-step" onclick="nextStep(true)">
+                        <script>document.write(t('setup.nav_skip_step'))</script>
+                    </button>
+                    <button class="btn-setup btn-next" id="btn-next" onclick="nextStep()">
+                        <script>document.write(t('setup.nav_next'))</script>
+                    </button>
                 </div>
             </div>
         </div>

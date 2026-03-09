@@ -63,6 +63,44 @@ func handleGetConfig(s *Server) http.HandlerFunc {
 	}
 }
 
+// handleUILanguage updates the UI language independently from the main config patch.
+func handleUILanguage(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPut {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		var body struct {
+			Language string `json:"language"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			http.Error(w, "Invalid JSON", http.StatusBadRequest)
+			return
+		}
+
+		if body.Language == "" {
+			http.Error(w, "Language required", http.StatusBadRequest)
+			return
+		}
+
+		s.CfgMu.Lock()
+		s.Cfg.Server.UILanguage = body.Language
+		if err := s.Cfg.Save(s.Cfg.ConfigPath); err != nil {
+			s.Logger.Error("Failed to save UI language", "error", err)
+			s.CfgMu.Unlock()
+			http.Error(w, "Failed to save configuration", http.StatusInternalServerError)
+			return
+		}
+		s.CfgMu.Unlock()
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{
+			"status": "ok",
+		})
+	}
+}
+
 // handleUpdateConfig patches the config.yaml with the provided JSON values.
 func handleUpdateConfig(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

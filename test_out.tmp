@@ -1,0 +1,33 @@
+?   	aurago/cmd/aurago	[no test files]
+ok  	aurago/cmd/config-merger	(cached)
+?   	aurago/cmd/lifeboat	[no test files]
+# aurago/internal/invasion [aurago/internal/invasion.test]
+internal\invasion\invasion_test.go:158:3: unknown field Personality in struct literal of type EggRecord
+ok  	aurago/internal/agent	(cached)
+?   	aurago/internal/budget	[no test files]
+?   	aurago/internal/commands	[no test files]
+ok  	aurago/internal/config	(cached)
+?   	aurago/internal/discord	[no test files]
+FAIL	aurago/internal/invasion [build failed]
+?   	aurago/internal/invasion/bridge	[no test files]
+ok  	aurago/internal/inventory	(cached)
+?   	aurago/internal/llm	[no test files]
+?   	aurago/internal/logger	[no test files]
+?   	aurago/internal/media	[no test files]
+ok  	aurago/internal/memory	(cached)
+ok  	aurago/internal/meshcentral	(cached)
+?   	aurago/internal/mqtt	[no test files]
+ok  	aurago/internal/prompts	(cached)
+ok  	aurago/internal/remote	(cached)
+?   	aurago/internal/rocketchat	[no test files]
+?   	aurago/internal/scraper	[no test files]
+ok  	aurago/internal/security	(cached)
+?   	aurago/internal/server	[no test files]
+?   	aurago/internal/services	[no test files]
+?   	aurago/internal/setup	[no test files]
+?   	aurago/internal/telegram	[no test files]
+ok  	aurago/internal/tools	(cached)
+?   	aurago/internal/webhooks	[no test files]
+?   	aurago/prompts	[no test files]
+?   	aurago/ui	[no test files]
+FAIL

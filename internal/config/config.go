@@ -70,6 +70,7 @@ type Config struct {
 		Port          int    `yaml:"port"`
 		BridgeAddress string `yaml:"bridge_address"`
 		MaxBodyBytes  int64  `yaml:"max_body_bytes"`
+		UILanguage    string `yaml:"ui_language"`
 		MasterKey     string `yaml:"-"` // ENV-only (AURAGO_MASTER_KEY)
 	} `yaml:"server"`
 	LLM struct {
@@ -1193,6 +1194,9 @@ func Load(path string) (*Config, error) {
 	if cfg.Server.MaxBodyBytes <= 0 {
 		cfg.Server.MaxBodyBytes = 10 << 20 // 10 MB
 	}
+	if cfg.Server.UILanguage == "" {
+		cfg.Server.UILanguage = "en"
+	}
 
 	// Telegram defaults
 	if cfg.Telegram.MaxConcurrentWorkers <= 0 {
@@ -1414,6 +1418,9 @@ func (c *Config) Save(path string) error {
 	// 2. Patch only the fields that are safe to change at runtime
 	if agentSection, ok := rawCfg["agent"].(map[string]interface{}); ok {
 		agentSection["core_personality"] = c.Agent.CorePersonality
+	}
+	if serverSection, ok := rawCfg["server"].(map[string]interface{}); ok {
+		serverSection["ui_language"] = c.Server.UILanguage
 	}
 
 	// 3. Write back with all original fields (including API keys) intact

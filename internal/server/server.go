@@ -116,7 +116,7 @@ func loadI18N(uiFS fs.FS, logger *slog.Logger) {
 
 		for _, e := range entries {
 			itemPath := dirPath + "/" + e.Name()
-			
+
 			if e.IsDir() {
 				// Recurse into subdirectory
 				processDir(itemPath, logger)
@@ -462,6 +462,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 			}
 		})
 		mux.HandleFunc("/api/config/schema", handleGetConfigSchema(s))
+		mux.HandleFunc("/api/ui-language", handleUILanguage(s))
 		// Lists models available on the configured Ollama instance.
 		// Returns the model names as JSON so the UI can offer a model picker.
 		mux.HandleFunc("/api/ollama/models", handleOllamaModels(s))
@@ -776,7 +777,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 				http.Error(w, "Config template error", http.StatusInternalServerError)
 				return
 			}
-			lang := normalizeLang(s.Cfg.Agent.SystemLanguage)
+			lang := normalizeLang(s.Cfg.Server.UILanguage)
 			data := map[string]interface{}{
 				"Lang":     lang,
 				"I18N":     getI18NJSON(lang),
@@ -809,7 +810,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 				http.Error(w, "Dashboard template error", http.StatusInternalServerError)
 				return
 			}
-			lang := normalizeLang(s.Cfg.Agent.SystemLanguage)
+			lang := normalizeLang(s.Cfg.Server.UILanguage)
 			data := map[string]interface{}{
 				"Lang": lang,
 				"I18N": getI18NJSON(lang),
@@ -837,7 +838,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 				http.Error(w, "Mission V2 template error", http.StatusInternalServerError)
 				return
 			}
-			lang := normalizeLang(s.Cfg.Agent.SystemLanguage)
+			lang := normalizeLang(s.Cfg.Server.UILanguage)
 			data := map[string]interface{}{
 				"Lang": lang,
 				"I18N": getI18NJSON(lang),
@@ -905,7 +906,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 			http.Error(w, "Invasion Control template error", http.StatusInternalServerError)
 			return
 		}
-		lang := normalizeLang(s.Cfg.Agent.SystemLanguage)
+		lang := normalizeLang(s.Cfg.Server.UILanguage)
 		data := map[string]interface{}{
 			"Lang": lang,
 			"I18N": getI18NJSON(lang),
@@ -927,7 +928,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 			http.Error(w, "Setup template error", http.StatusInternalServerError)
 			return
 		}
-		lang := normalizeLang(s.Cfg.Agent.SystemLanguage)
+		lang := normalizeLang(s.Cfg.Server.UILanguage)
 		data := map[string]interface{}{
 			"Lang": lang,
 			"I18N": getI18NJSON(lang),
@@ -965,7 +966,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 			}
 
 			if tmpl != nil {
-				lang := normalizeLang(s.Cfg.Agent.SystemLanguage)
+				lang := normalizeLang(s.Cfg.Server.UILanguage)
 				data := map[string]interface{}{
 					"Lang":               lang,
 					"I18N":               getI18NJSON(lang),

@@ -54,7 +54,7 @@
   "setup.step0_model_error": "モデル名が必要です。",
   "setup.step0_model_label": "モデル",
   "setup.step0_model_placeholder": "例: gpt-4o、claude-sonnet-4-20250514",
-  "setup.step0_native_functions_desc": "プロバイダのネイティブツール呼び出しを使用します。<strong>警告:</strong> モデルがこれをサポートしている場合のみ有効にしてください (GPT-4、Claude、Gemini)。無料ティアのモデルは多くの場合サポートしていません！",
+  "setup.step0_native_functions_desc": "プロバイダのネイティブツール呼び出しを使用します。\u003cstrong\u003e警告:\u003c/strong\u003e モデルがこれをサポートしている場合のみ有効にしてください (GPT-4、Claude、Gemini)。無料ティアのモデルは多くの場合サポートしていません！",
   "setup.step0_native_functions_label": "ネイティブファンクションコール ⚠️",
   "setup.step0_provider_anthropic": "Anthropic",
   "setup.step0_provider_custom": "カスタム / その他",

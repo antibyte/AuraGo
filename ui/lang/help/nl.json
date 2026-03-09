@@ -7,7 +7,7 @@
   "help.agent.allow_remote_shell": "Wanneer uitgeschakeld, blokkeert externe shell.",
   "help.agent.allow_self_update": "Wanneer uitgeschakeld, geen automatische updates.",
   "help.agent.allow_shell": "Wanneer uitgeschakeld, blokkeert de agent alle shell-opdrachten.",
-  "help.agent.allow_web_scraper": "Verouderd — gebruik tools.web_scraper.enabled in de sectie \"Tools & Services\" in plaats hiervan.",
+  "help.agent.allow_web_scraper": "Verouderd — gebruik tools.web_scraper.enabled in de sectie \"Tools \u0026 Services\" in plaats hiervan.",
   "help.agent.context_window": "Contextvenster grootte in tokens.",
   "help.agent.core_memory_cap_mode": "Gedrag wanneer de limiet is bereikt: \"soft\" voegt de invoer toe en retourneert een waarschuwing, \"hard\" weigert nieuwe invoer. Standaard: soft.",
   "help.agent.core_memory_max_entries": "Maximaal aantal kerngeheugeninvoeren. 0 = onbeperkt. Standaard: 200.",

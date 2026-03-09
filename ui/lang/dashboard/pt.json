@@ -190,6 +190,5 @@
   "dashboard.system_ram": "RAM",
   "dashboard.system_sse_clients": "Clientes SSE",
   "dashboard.system_title": "Sistema",
-  "dashboard.system_uptime": "Tempo de Atividade",
-  "dashboard.integration_profiling": "Perfil"
+  "dashboard.system_uptime": "Tempo de Atividade"
 }

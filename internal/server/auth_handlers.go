@@ -56,7 +56,7 @@ func handleAuthLoginPage(s *Server, uiFS fs.FS) http.HandlerFunc {
 		s.CfgMu.RLock()
 		enabled := s.Cfg.Auth.Enabled
 		totpEnabled := s.Cfg.Auth.TOTPEnabled && s.Cfg.Auth.TOTPSecret != ""
-		lang := normalizeLang(s.Cfg.Agent.SystemLanguage)
+		lang := normalizeLang(s.Cfg.Server.UILanguage)
 		s.CfgMu.RUnlock()
 
 		if !enabled {

@@ -77,7 +77,5 @@
   "chat.trait_loneliness": "Eenzaamheid",
   "chat.trait_thoroughness": "Grondigheid",
   "chat.upload_btn_title": "Bestand bijvoegen",
-  "chat.upload_failed": "Upload mislukt",
-  "chat.budget_tooltip_payg": "OpenRouter: ${{usage}} gebruikt (pay-as-you-go)",
-  "chat.budget_tooltip_used_limit": "OpenRouter: ${{usage}} gebruikt / ${{limit}} limiet"
+  "chat.upload_failed": "Upload mislukt"
 }

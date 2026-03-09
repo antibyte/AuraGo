@@ -7,7 +7,7 @@
   "help.agent.allow_remote_shell": "Kdyz zakazano, blokuje vzdaleny shell.",
   "help.agent.allow_self_update": "Kdyz zakazano, zadne automaticke aktualizace.",
   "help.agent.allow_shell": "Kdyz zakazano, agent blokuje vsechny shell prikazy.",
-  "help.agent.allow_web_scraper": "Verouderd — gebruik tools.web_scraper.enabled in de sectie \"Tools & Services\" in plaats hiervan.",
+  "help.agent.allow_web_scraper": "Verouderd — gebruik tools.web_scraper.enabled in de sectie \"Tools \u0026 Services\" in plaats hiervan.",
   "help.agent.context_window": "Velikost kontextoveho okna v tokenech.",
   "help.agent.core_memory_cap_mode": "Gedrag wanneer de limiet is bereikt: \"soft\" voegt de invoer toe en retourneert een waarschuwing, \"hard\" weigert nieuwe invoer. Standaard: soft.",
   "help.agent.core_memory_max_entries": "Maximaal aantal kerngeheugeninvoeren. 0 = onbeperkt. Standaard: 200.",

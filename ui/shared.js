@@ -68,23 +68,23 @@ function applyI18n() {
 function injectRadialMenu() {
     const anchor = document.getElementById('radialMenuAnchor');
     if (!anchor) return;
-    
+
     // Detect current page from URL
     const path = window.location.pathname;
     const pages = [
-        { href: '/',          icon: '💬', key: 'common.nav_chat' },
+        { href: '/', icon: '💬', key: 'common.nav_chat' },
         { href: '/dashboard', icon: '📊', key: 'common.nav_dashboard' },
-        { href: '/missions',  icon: '🚀', key: 'common.nav_missions' },
-        { href: '/config',    icon: '⚙️', key: 'common.nav_config' },
-        { href: '/invasion',  icon: '🥚', key: 'common.nav_invasion' },
+        { href: '/missions', icon: '🚀', key: 'common.nav_missions' },
+        { href: '/config', icon: '⚙️', key: 'common.nav_config' },
+        { href: '/invasion', icon: '🥚', key: 'common.nav_invasion' },
     ];
-    
+
     const items = pages.map(p => {
         const active = (p.href === '/' && path === '/') ||
-                       (p.href !== '/' && path.startsWith(p.href)) ? ' active' : '';
+            (p.href !== '/' && path.startsWith(p.href)) ? ' active' : '';
         return `<a href="${p.href}" class="radial-item${active}"><span class="radial-item-label" data-i18n="${p.key}">${t(p.key)}</span><span class="radial-item-icon">${p.icon}</span></a>`;
     }).join('\n            ');
-    
+
     anchor.innerHTML = `
     <nav class="radial-menu" id="radialMenu">
         <button class="radial-trigger" id="radialTrigger" aria-label="${t('common.nav_aria_label') || 'Navigation'}">
@@ -96,7 +96,7 @@ function injectRadialMenu() {
         </div>
     </nav>
     <div class="radial-backdrop" id="radialBackdrop"></div>`;
-    
+
     // Re-initialize radial menu events for the new DOM elements
     const trigger = document.getElementById('radialTrigger');
     if (trigger) trigger.dataset.initialized = '';
@@ -146,7 +146,7 @@ function initRadialMenu() {
         console.warn('[AuraGo] Radial menu elements not found');
         return;
     }
-    
+
     // Prevent double initialization
     if (trigger.dataset.initialized === 'true') {
         console.log('[AuraGo] Radial menu already initialized');
@@ -290,7 +290,7 @@ function closeModal(id) {
 function initModals() {
     if (window._modalsInitialized) return;
     window._modalsInitialized = true;
-    
+
     document.querySelectorAll('.modal-overlay').forEach(overlay => {
         overlay.addEventListener('click', (e) => {
             if (e.target === overlay) {
@@ -406,6 +406,96 @@ async function api(url, options = {}) {
 // INITIALIZATION
 // ═══════════════════════════════════════════════════════════════
 
+// ═══════════════════════════════════════════════════════════════
+// UI LANGUAGE SWITCHER
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Inject the UI language switcher widget
+ */
+function injectLanguageSwitcher() {
+    if (document.getElementById('ui-lang-switcher')) return;
+
+    const langs = [
+        { code: 'en', label: 'English', flag: '🇬🇧' },
+        { code: 'de', label: 'Deutsch', flag: '🇩🇪' },
+        { code: 'fr', label: 'Français', flag: '🇫🇷' },
+        { code: 'es', label: 'Español', flag: '🇪🇸' },
+        { code: 'zh', label: '中文', flag: '🇨🇳' },
+        { code: 'ja', label: '日本語', flag: '🇯🇵' },
+        { code: 'nl', label: 'Nederlands', flag: '🇳🇱' },
+        { code: 'pt', label: 'Português', flag: '🇵🇹' },
+        { code: 'pl', label: 'Polski', flag: '🇵🇱' },
+        { code: 'cs', label: 'Čeština', flag: '🇨🇿' },
+        { code: 'it', label: 'Italiano', flag: '🇮🇹' },
+        { code: 'sv', label: 'Svenska', flag: '🇸🇪' },
+        { code: 'no', label: 'Norsk', flag: '🇳🇴' },
+        { code: 'da', label: 'Dansk', flag: '🇩🇰' },
+        { code: 'el', label: 'Ελληνικά', flag: '🇬🇷' },
+        { code: 'hi', label: 'हिन्दी', flag: '🇮🇳' },
+    ];
+
+    const currentLangCode = document.documentElement.lang || 'en';
+    const currentLang = langs.find(l => l.code === currentLangCode) || langs[0];
+
+    const container = document.createElement('div');
+    container.id = 'ui-lang-switcher';
+    container.className = 'ui-lang-switcher';
+
+    container.innerHTML = `
+        <button class="ui-lang-btn" id="ui-lang-btn" title="Change UI Language">
+            <span class="ui-lang-flag">${currentLang.flag}</span>
+        </button>
+        <div class="ui-lang-menu" id="ui-lang-menu">
+            ${langs.map(l => `
+                <button class="ui-lang-option ${l.code === currentLangCode ? 'active' : ''}" data-lang="${l.code}">
+                    <span class="ui-lang-flag">${l.flag}</span>
+                    <span class="ui-lang-label">${l.label}</span>
+                </button>
+            `).join('')}
+        </div>
+    `;
+
+    document.body.appendChild(container);
+
+    const btn = document.getElementById('ui-lang-btn');
+    const menu = document.getElementById('ui-lang-menu');
+
+    btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        menu.classList.toggle('open');
+    });
+
+    document.addEventListener('click', () => {
+        menu.classList.remove('open');
+    });
+
+    menu.addEventListener('click', async (e) => {
+        const option = e.target.closest('.ui-lang-option');
+        if (!option) return;
+
+        const lang = option.dataset.lang;
+        if (lang === currentLangCode) return;
+
+        try {
+            const resp = await fetch('/api/ui-language', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ language: lang })
+            });
+            if (resp.ok) {
+                window.location.reload();
+            } else {
+                const err = await resp.text();
+                showToast('Failed to update UI language: ' + err, 'error');
+            }
+        } catch (err) {
+            console.error('Failed to update UI language:', err);
+            showToast('Failed to connect to server', 'error');
+        }
+    });
+}
+
 /**
  * Initialize theme toggle button
  */
@@ -426,15 +516,16 @@ function initThemeToggle() {
  */
 function initShared() {
     console.log('[AuraGo] Initializing shared components...');
-    
+
     try { initTheme(); } catch (e) { console.error('[AuraGo] initTheme failed:', e); }
     try { injectRadialMenu(); } catch (e) { console.error('[AuraGo] injectRadialMenu failed:', e); }
     try { initRadialMenu(); } catch (e) { console.error('[AuraGo] initRadialMenu failed:', e); }
     try { initModals(); } catch (e) { console.error('[AuraGo] initModals failed:', e); }
     try { initThemeToggle(); } catch (e) { console.error('[AuraGo] initThemeToggle failed:', e); }
     try { applyI18n(); } catch (e) { console.error('[AuraGo] applyI18n failed:', e); }
+    try { injectLanguageSwitcher(); } catch (e) { console.error('[AuraGo] injectLanguageSwitcher failed:', e); }
     try { checkAuth(); } catch (e) { console.error('[AuraGo] checkAuth failed:', e); }
-    
+
     console.log('[AuraGo] Shared components initialized');
 }
 

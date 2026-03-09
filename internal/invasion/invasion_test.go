@@ -155,7 +155,6 @@ func TestEggCRUD(t *testing.T) {
 	egg := EggRecord{
 		Name:        "Analytics Agent",
 		Description: "Processes analytics data",
-		Personality: "analytical",
 		Model:       "gpt-4o-mini",
 		Provider:    "openrouter",
 		Active:      true,

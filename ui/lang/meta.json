@@ -25,7 +25,8 @@
       "Norsk",
       "Dansk",
       "Ελληνικά",
-      "हिन्दी"
+      "हिन्दी",
+      "Other / Custom"
     ]
   },
   "help.agent.core_personality": {

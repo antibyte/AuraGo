@@ -54,7 +54,7 @@
   "setup.step0_model_error": "मॉडल का नाम आवश्यक है।",
   "setup.step0_model_label": "मॉडल",
   "setup.step0_model_placeholder": "जैसे gpt-4o, claude-sonnet-4-20250514",
-  "setup.step0_native_functions_desc": "Uses the provider's native tool calls. <strong>Warning:</strong> Only enable if the model supports this (GPT-4, Claude, Gemini). Free-tier models often do NOT support this!",
+  "setup.step0_native_functions_desc": "Uses the provider's native tool calls. \u003cstrong\u003eWarning:\u003c/strong\u003e Only enable if the model supports this (GPT-4, Claude, Gemini). Free-tier models often do NOT support this!",
   "setup.step0_native_functions_label": "Native Function Calling ⚠️",
   "setup.step0_provider_anthropic": "Anthropic",
   "setup.step0_provider_custom": "Custom / Other",

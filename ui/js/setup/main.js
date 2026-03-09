@@ -1,103 +1,103 @@
 // AuraGo – setup page logic
 // Extracted from setup.html
 
-        // ── State ────────────────────────────────────
-        let currentStep = 0;
-        const totalSteps = 3;
-        let saving = false;
+// ── State ────────────────────────────────────
+let currentStep = 0;
+const totalSteps = 3;
+let saving = false;
 
-        // ── Load Personality Profiles on startup ─────
-        (async function loadPersonalities() {
-            try {
-                const resp = await fetch('/api/personalities');
-                if (!resp.ok) return;
-                const data = await resp.json();
-                const profiles = data.personalities || [];
-                const active = data.active || 'friend';
-                const sel = document.getElementById('core-personality');
-                if (!sel || profiles.length === 0) return;
-                sel.innerHTML = '';
-                for (const p of profiles) {
-                    const name = p.name || p; // API returns objects {name, core}
-                    const opt = document.createElement('option');
-                    opt.value = name;
-                    opt.textContent = name.charAt(0).toUpperCase() + name.slice(1);
-                    if (name === active || name === 'friend') opt.selected = true;
-                    sel.appendChild(opt);
-                }
-                // Ensure 'friend' is selected by default for setup
-                const names = profiles.map(p => p.name || p);
-                if (names.includes('friend')) sel.value = 'friend';
-                else if (active && names.includes(active)) sel.value = active;
-            } catch (e) { /* ignore — fallback option remains */ }
-        })();
+// ── Load Personality Profiles on startup ─────
+(async function loadPersonalities() {
+    try {
+        const resp = await fetch('/api/personalities');
+        if (!resp.ok) return;
+        const data = await resp.json();
+        const profiles = data.personalities || [];
+        const active = data.active || 'friend';
+        const sel = document.getElementById('core-personality');
+        if (!sel || profiles.length === 0) return;
+        sel.innerHTML = '';
+        for (const p of profiles) {
+            const name = p.name || p; // API returns objects {name, core}
+            const opt = document.createElement('option');
+            opt.value = name;
+            opt.textContent = name.charAt(0).toUpperCase() + name.slice(1);
+            if (name === active || name === 'friend') opt.selected = true;
+            sel.appendChild(opt);
+        }
+        // Ensure 'friend' is selected by default for setup
+        const names = profiles.map(p => p.name || p);
+        if (names.includes('friend')) sel.value = 'friend';
+        else if (active && names.includes(active)) sel.value = active;
+    } catch (e) { /* ignore — fallback option remains */ }
+})();
 
-        // ── Provider Config Map ──────────────────────
-        const providerConfig = {
-            openrouter: {
-                baseUrl: 'https://openrouter.ai/api/v1',
-                placeholder: 'sk-or-v1-...',
-                link: 'openrouter.ai/keys',
-                defaultModel: 'arcee-ai/trinity-large-preview:free',
-                needsKey: true,
-            },
-            openai: {
-                baseUrl: 'https://api.openai.com/v1',
-                placeholder: 'sk-...',
-                link: 'platform.openai.com/api-keys',
-                defaultModel: 'gpt-4o',
-                needsKey: true,
-            },
-            anthropic: {
-                baseUrl: 'https://api.anthropic.com/v1',
-                placeholder: 'sk-ant-...',
-                link: 'console.anthropic.com/settings/keys',
-                defaultModel: 'claude-sonnet-4-20250514',
-                needsKey: true,
-            },
-            google: {
-                baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai/',
-                placeholder: 'AIza...',
-                link: 'aistudio.google.com/apikey',
-                defaultModel: 'gemini-2.5-flash',
-                needsKey: true,
-            },
-            ollama: {
-                baseUrl: 'http://localhost:11434/v1',
-                placeholder: t('setup.provider_ollama_key_placeholder'),
-                link: 'ollama.com',
-                defaultModel: 'llama3.1',
-                needsKey: false,
-            },
-            custom: {
-                baseUrl: '',
-                placeholder: 'API Key...',
-                link: '',
-                defaultModel: '',
-                needsKey: true,
-            },
-        };
+// ── Provider Config Map ──────────────────────
+const providerConfig = {
+    openrouter: {
+        baseUrl: 'https://openrouter.ai/api/v1',
+        placeholder: 'sk-or-v1-...',
+        link: 'openrouter.ai/keys',
+        defaultModel: 'arcee-ai/trinity-large-preview:free',
+        needsKey: true,
+    },
+    openai: {
+        baseUrl: 'https://api.openai.com/v1',
+        placeholder: 'sk-...',
+        link: 'platform.openai.com/api-keys',
+        defaultModel: 'gpt-4o',
+        needsKey: true,
+    },
+    anthropic: {
+        baseUrl: 'https://api.anthropic.com/v1',
+        placeholder: 'sk-ant-...',
+        link: 'console.anthropic.com/settings/keys',
+        defaultModel: 'claude-sonnet-4-20250514',
+        needsKey: true,
+    },
+    google: {
+        baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai/',
+        placeholder: 'AIza...',
+        link: 'aistudio.google.com/apikey',
+        defaultModel: 'gemini-2.5-flash',
+        needsKey: true,
+    },
+    ollama: {
+        baseUrl: 'http://localhost:11434/v1',
+        placeholder: t('setup.provider_ollama_key_placeholder'),
+        link: 'ollama.com',
+        defaultModel: 'llama3.1',
+        needsKey: false,
+    },
+    custom: {
+        baseUrl: '',
+        placeholder: 'API Key...',
+        link: '',
+        defaultModel: '',
+        needsKey: true,
+    },
+};
 
-        // ── Helpers ───────────────────────────────────
-        function escapeAttr(s) { return String(s).replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
-        function escapeHtml(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+// ── Helpers ───────────────────────────────────
+function escapeAttr(s) { return String(s).replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
+function escapeHtml(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
-        /* ── OpenRouter Model Browser (reusable modal) ── */
-        let _orModelsCache = null;
-        let _orModelsCacheTime = 0;
-        const OR_CACHE_TTL = 5 * 60 * 1000;
+/* ── OpenRouter Model Browser (reusable modal) ── */
+let _orModelsCache = null;
+let _orModelsCacheTime = 0;
+const OR_CACHE_TTL = 5 * 60 * 1000;
 
-        async function openOpenRouterBrowser(onSelect) {
+async function openOpenRouterBrowser(onSelect) {
 
-            const existing = document.getElementById('or-browser-overlay');
-            if (existing) existing.remove();
+    const existing = document.getElementById('or-browser-overlay');
+    if (existing) existing.remove();
 
-            const overlay = document.createElement('div');
-            overlay.id = 'or-browser-overlay';
-            overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:1100;backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;';
-            overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+    const overlay = document.createElement('div');
+    overlay.id = 'or-browser-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:1100;backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;';
+    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
 
-            overlay.innerHTML = `
+    overlay.innerHTML = `
             <div style="background:var(--bg-secondary, #1a1a2e);border-radius:16px;width:min(760px,95vw);height:min(85vh,720px);display:flex;flex-direction:column;border:1px solid var(--border-subtle, #2a2a3e);overflow:hidden;" onclick="event.stopPropagation()">
                 <div style="padding:1rem 1.2rem;border-bottom:1px solid var(--border-subtle, #2a2a3e);flex-shrink:0;">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.7rem;">
@@ -122,115 +122,115 @@
                     ${t('setup.or_browser_loading')}
                 </div>
             </div>`;
-            document.body.appendChild(overlay);
+    document.body.appendChild(overlay);
 
-            const searchInput = document.getElementById('or-search');
-            const freeBtn = document.getElementById('or-free-btn');
-            const listDiv = document.getElementById('or-list');
-            const detailDiv = document.getElementById('or-detail');
-            const countDiv = document.getElementById('or-count');
-            const loadingDiv = document.getElementById('or-loading');
-            const listWrap = document.getElementById('or-list-wrap');
+    const searchInput = document.getElementById('or-search');
+    const freeBtn = document.getElementById('or-free-btn');
+    const listDiv = document.getElementById('or-list');
+    const detailDiv = document.getElementById('or-detail');
+    const countDiv = document.getElementById('or-count');
+    const loadingDiv = document.getElementById('or-loading');
+    const listWrap = document.getElementById('or-list-wrap');
 
-            let allModels = [];
-            let freeOnly = false;
-            let selectedModel = null;
+    let allModels = [];
+    let freeOnly = false;
+    let selectedModel = null;
 
-            try {
-                const now = Date.now();
-                if (_orModelsCache && (now - _orModelsCacheTime) < OR_CACHE_TTL) {
-                    allModels = _orModelsCache;
-                } else {
-                    const resp = await fetch('/api/openrouter/models');
-                    const json = await resp.json();
-                    if (json.available === false) {
-                        loadingDiv.innerHTML = '<span style="color:#e74c3c;">❌ ' + (json.reason || t('common.error')) + '</span>';
-                        return;
-                    }
-                    allModels = (json.data || []).map(m => ({
-                        id: m.id || '',
-                        name: m.name || m.id || '',
-                        description: m.description || '',
-                        context_length: m.context_length || 0,
-                        pricing: m.pricing || {},
-                    }));
-                    allModels.sort((a, b) => a.name.localeCompare(b.name));
-                    _orModelsCache = allModels;
-                    _orModelsCacheTime = now;
-                }
-            } catch (e) {
-                loadingDiv.innerHTML = '<span style="color:#e74c3c;">❌ ' + t('setup.or_browser_connection_error') + e.message + '</span>';
+    try {
+        const now = Date.now();
+        if (_orModelsCache && (now - _orModelsCacheTime) < OR_CACHE_TTL) {
+            allModels = _orModelsCache;
+        } else {
+            const resp = await fetch('/api/openrouter/models');
+            const json = await resp.json();
+            if (json.available === false) {
+                loadingDiv.innerHTML = '<span style="color:#e74c3c;">❌ ' + (json.reason || t('common.error')) + '</span>';
                 return;
             }
-            loadingDiv.style.display = 'none';
-            listWrap.style.display = 'block';
+            allModels = (json.data || []).map(m => ({
+                id: m.id || '',
+                name: m.name || m.id || '',
+                description: m.description || '',
+                context_length: m.context_length || 0,
+                pricing: m.pricing || {},
+            }));
+            allModels.sort((a, b) => a.name.localeCompare(b.name));
+            _orModelsCache = allModels;
+            _orModelsCacheTime = now;
+        }
+    } catch (e) {
+        loadingDiv.innerHTML = '<span style="color:#e74c3c;">❌ ' + t('setup.or_browser_connection_error') + e.message + '</span>';
+        return;
+    }
+    loadingDiv.style.display = 'none';
+    listWrap.style.display = 'block';
 
-            function isFree(m) {
-                return m.pricing && parseFloat(m.pricing.prompt || '1') === 0 && parseFloat(m.pricing.completion || '1') === 0;
-            }
-            function formatCost(perToken) {
-                const val = parseFloat(perToken || '0');
-                if (val === 0) return t('setup.or_browser_free_cost');
-                const perMillion = val * 1000000;
-                if (perMillion < 0.01) return '$' + perMillion.toFixed(4) + '/M';
-                if (perMillion < 1) return '$' + perMillion.toFixed(3) + '/M';
-                return '$' + perMillion.toFixed(2) + '/M';
-            }
-            function formatContext(ctx) {
-                if (!ctx) return '—';
-                if (ctx >= 1000000) return (ctx / 1000000).toFixed(1) + 'M';
-                if (ctx >= 1000) return Math.round(ctx / 1000) + 'K';
-                return ctx.toString();
-            }
+    function isFree(m) {
+        return m.pricing && parseFloat(m.pricing.prompt || '1') === 0 && parseFloat(m.pricing.completion || '1') === 0;
+    }
+    function formatCost(perToken) {
+        const val = parseFloat(perToken || '0');
+        if (val === 0) return t('setup.or_browser_free_cost');
+        const perMillion = val * 1000000;
+        if (perMillion < 0.01) return '$' + perMillion.toFixed(4) + '/M';
+        if (perMillion < 1) return '$' + perMillion.toFixed(3) + '/M';
+        return '$' + perMillion.toFixed(2) + '/M';
+    }
+    function formatContext(ctx) {
+        if (!ctx) return '—';
+        if (ctx >= 1000000) return (ctx / 1000000).toFixed(1) + 'M';
+        if (ctx >= 1000) return Math.round(ctx / 1000) + 'K';
+        return ctx.toString();
+    }
 
-            function renderList() {
-                const query = searchInput.value.toLowerCase().trim();
-                const filtered = allModels.filter(m => {
-                    if (freeOnly && !isFree(m)) return false;
-                    if (query) return m.id.toLowerCase().includes(query) || m.name.toLowerCase().includes(query);
-                    return true;
-                });
-                countDiv.textContent = filtered.length + ' ' + t('setup.or_browser_model_count') + (freeOnly ? ' ' + t('setup.or_browser_model_count_free_only') : '');
-                if (filtered.length === 0) {
-                    listDiv.innerHTML = '<div style="padding:1.5rem;text-align:center;color:var(--text-tertiary, #666);font-size:0.82rem;">' + t('setup.or_browser_no_models_found') + '</div>';
-                    return;
-                }
-                listDiv.innerHTML = filtered.map(m => {
-                    const free = isFree(m);
-                    const promptCost = formatCost(m.pricing.prompt);
-                    const completionCost = formatCost(m.pricing.completion);
-                    const isSelected = selectedModel && selectedModel.id === m.id;
-                    return `<div class="or-model-row" data-id="${escapeAttr(m.id)}" style="padding:0.5rem 0.7rem;border-bottom:1px solid var(--border-subtle, #2a2a3e);cursor:pointer;display:flex;align-items:center;gap:0.6rem;transition:background 0.12s;${isSelected?'background:rgba(99,179,237,0.1);':''}">
+    function renderList() {
+        const query = searchInput.value.toLowerCase().trim();
+        const filtered = allModels.filter(m => {
+            if (freeOnly && !isFree(m)) return false;
+            if (query) return m.id.toLowerCase().includes(query) || m.name.toLowerCase().includes(query);
+            return true;
+        });
+        countDiv.textContent = filtered.length + ' ' + t('setup.or_browser_model_count') + (freeOnly ? ' ' + t('setup.or_browser_model_count_free_only') : '');
+        if (filtered.length === 0) {
+            listDiv.innerHTML = '<div style="padding:1.5rem;text-align:center;color:var(--text-tertiary, #666);font-size:0.82rem;">' + t('setup.or_browser_no_models_found') + '</div>';
+            return;
+        }
+        listDiv.innerHTML = filtered.map(m => {
+            const free = isFree(m);
+            const promptCost = formatCost(m.pricing.prompt);
+            const completionCost = formatCost(m.pricing.completion);
+            const isSelected = selectedModel && selectedModel.id === m.id;
+            return `<div class="or-model-row" data-id="${escapeAttr(m.id)}" style="padding:0.5rem 0.7rem;border-bottom:1px solid var(--border-subtle, #2a2a3e);cursor:pointer;display:flex;align-items:center;gap:0.6rem;transition:background 0.12s;${isSelected ? 'background:rgba(99,179,237,0.1);' : ''}">
                         <div style="flex:1;min-width:0;">
                             <div style="font-size:0.8rem;font-weight:600;color:var(--text-primary, #eee);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${escapeAttr(m.id)}">${escapeHtml(m.name)}</div>
                             <div style="font-size:0.68rem;color:var(--text-tertiary, #666);font-family:monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(m.id)}</div>
                         </div>
                         <div style="flex-shrink:0;display:flex;gap:0.4rem;align-items:center;">
-                            ${free ? '<span style="font-size:0.65rem;padding:0.1rem 0.4rem;border-radius:4px;background:rgba(72,199,142,0.15);color:#48c78e;font-weight:600;">'+t('setup.or_browser_free_badge')+'</span>' : '<span style="font-size:0.65rem;color:var(--text-tertiary, #666);" title="Input / Output">'+promptCost+' · '+completionCost+'</span>'}
+                            ${free ? '<span style="font-size:0.65rem;padding:0.1rem 0.4rem;border-radius:4px;background:rgba(72,199,142,0.15);color:#48c78e;font-weight:600;">' + t('setup.or_browser_free_badge') + '</span>' : '<span style="font-size:0.65rem;color:var(--text-tertiary, #666);" title="Input / Output">' + promptCost + ' · ' + completionCost + '</span>'}
                             <span style="font-size:0.65rem;color:var(--text-tertiary, #666);" title="Context">${formatContext(m.context_length)}</span>
                         </div>
                     </div>`;
-                }).join('');
-                listDiv.querySelectorAll('.or-model-row').forEach(row => {
-                    row.onmouseover = () => { if (!row.style.background.includes('237')) row.style.background='var(--bg-tertiary, #252538)'; };
-                    row.onmouseout = () => { if (selectedModel && selectedModel.id === row.dataset.id) row.style.background='rgba(99,179,237,0.1)'; else row.style.background=''; };
-                    row.onclick = () => {
-                        const m = allModels.find(x => x.id === row.dataset.id);
-                        if (!m) return;
-                        selectedModel = m;
-                        showDetail(m);
-                        listDiv.querySelectorAll('.or-model-row').forEach(r => r.style.background='');
-                        row.style.background = 'rgba(99,179,237,0.1)';
-                    };
-                });
-            }
+        }).join('');
+        listDiv.querySelectorAll('.or-model-row').forEach(row => {
+            row.onmouseover = () => { if (!row.style.background.includes('237')) row.style.background = 'var(--bg-tertiary, #252538)'; };
+            row.onmouseout = () => { if (selectedModel && selectedModel.id === row.dataset.id) row.style.background = 'rgba(99,179,237,0.1)'; else row.style.background = ''; };
+            row.onclick = () => {
+                const m = allModels.find(x => x.id === row.dataset.id);
+                if (!m) return;
+                selectedModel = m;
+                showDetail(m);
+                listDiv.querySelectorAll('.or-model-row').forEach(r => r.style.background = '');
+                row.style.background = 'rgba(99,179,237,0.1)';
+            };
+        });
+    }
 
-            function showDetail(m) {
-                detailDiv.style.display = 'block';
-                const free = isFree(m);
-                const promptPerM = (parseFloat(m.pricing.prompt || '0') * 1000000);
-                const completionPerM = (parseFloat(m.pricing.completion || '0') * 1000000);
-                detailDiv.innerHTML = `
+    function showDetail(m) {
+        detailDiv.style.display = 'block';
+        const free = isFree(m);
+        const promptPerM = (parseFloat(m.pricing.prompt || '0') * 1000000);
+        const completionPerM = (parseFloat(m.pricing.completion || '0') * 1000000);
+        detailDiv.innerHTML = `
                     <div style="font-weight:700;font-size:0.9rem;color:var(--text-primary, #eee);margin-bottom:0.3rem;">${escapeHtml(m.name)}</div>
                     <div style="font-family:monospace;font-size:0.7rem;color:var(--accent, #63b3ed);margin-bottom:0.7rem;word-break:break-all;">${escapeHtml(m.id)}</div>
                     ${m.description ? '<div style="font-size:0.75rem;color:var(--text-secondary, #aaa);margin-bottom:0.8rem;line-height:1.4;max-height:120px;overflow-y:auto;">' + escapeHtml(m.description) + '</div>' : ''}
@@ -238,477 +238,492 @@
                         <div><span style="color:var(--text-tertiary, #666);">${t('setup.or_browser_detail_context')}</span></div>
                         <div style="font-weight:600;">${formatContext(m.context_length)} ${t('setup.or_browser_detail_tokens')}</div>
                         <div><span style="color:var(--text-tertiary, #666);">${t('setup.or_browser_detail_input')}</span></div>
-                        <div style="font-weight:600;${free?'color:#48c78e;':''}">${free ? t('setup.or_browser_free_cost') : '$'+promptPerM.toFixed(4)+'/M'}</div>
+                        <div style="font-weight:600;${free ? 'color:#48c78e;' : ''}">${free ? t('setup.or_browser_free_cost') : '$' + promptPerM.toFixed(4) + '/M'}</div>
                         <div><span style="color:var(--text-tertiary, #666);">${t('setup.or_browser_detail_output')}</span></div>
-                        <div style="font-weight:600;${free?'color:#48c78e;':''}">${free ? t('setup.or_browser_free_cost') : '$'+completionPerM.toFixed(4)+'/M'}</div>
+                        <div style="font-weight:600;${free ? 'color:#48c78e;' : ''}">${free ? t('setup.or_browser_free_cost') : '$' + completionPerM.toFixed(4) + '/M'}</div>
                     </div>
-                    ${free ? '<div style="padding:0.4rem 0.6rem;border-radius:7px;background:rgba(72,199,142,0.1);border:1px solid rgba(72,199,142,0.2);font-size:0.72rem;color:#48c78e;margin-bottom:0.8rem;">'+t('setup.or_browser_free_model_badge')+'</div>' : ''}
+                    ${free ? '<div style="padding:0.4rem 0.6rem;border-radius:7px;background:rgba(72,199,142,0.1);border:1px solid rgba(72,199,142,0.2);font-size:0.72rem;color:#48c78e;margin-bottom:0.8rem;">' + t('setup.or_browser_free_model_badge') + '</div>' : ''}
                     <button id="or-apply-btn" style="width:100%;padding:0.5rem;font-size:0.82rem;border-radius:8px;background:var(--accent, #63b3ed);color:#fff;border:none;cursor:pointer;font-weight:600;">
                         ${t('setup.or_browser_apply_model')}
                     </button>
                 `;
-                document.getElementById('or-apply-btn').onclick = () => {
-                    if (onSelect) onSelect({
-                        id: m.id,
-                        name: m.name,
-                        pricing: m.pricing,
-                        context_length: m.context_length,
-                        inputPerMillion: parseFloat(m.pricing.prompt || '0') * 1000000,
-                        outputPerMillion: parseFloat(m.pricing.completion || '0') * 1000000,
-                    });
-                    overlay.remove();
-                };
-            }
-
-            let searchTimer;
-            searchInput.oninput = () => {
-                clearTimeout(searchTimer);
-                searchTimer = setTimeout(renderList, 150);
-            };
-            freeBtn.onclick = () => {
-                freeOnly = !freeOnly;
-                freeBtn.style.background = freeOnly ? 'rgba(72,199,142,0.2)' : 'var(--bg-tertiary, #252538)';
-                freeBtn.style.color = freeOnly ? '#48c78e' : 'var(--text-primary, #eee)';
-                freeBtn.style.borderColor = freeOnly ? 'rgba(72,199,142,0.4)' : 'var(--border-subtle, #2a2a3e)';
-                renderList();
-            };
-            renderList();
-            searchInput.focus();
-        }
-
-        // ── Provider Change Handler ──────────────────
-        function onProviderChange() {
-            const provider = document.getElementById('llm-provider').value;
-            const cfg = providerConfig[provider] || providerConfig.custom;
-
-            document.getElementById('llm-base-url').value = cfg.baseUrl;
-            document.getElementById('llm-base-url').placeholder = cfg.baseUrl || 'https://...';
-            document.getElementById('llm-api-key').placeholder = cfg.placeholder;
-            document.getElementById('llm-model').placeholder = cfg.defaultModel;
-            document.getElementById('provider-link').textContent = cfg.link;
-
-            // Pre-fill model if empty
-            const modelInput = document.getElementById('llm-model');
-            if (!modelInput.value && cfg.defaultModel) {
-                modelInput.value = cfg.defaultModel;
-            }
-
-            // Show/hide API key field for Ollama
-            const apiKeyGroup = document.getElementById('group-api-key');
-            if (!cfg.needsKey) {
-                apiKeyGroup.style.opacity = '0.4';
-                document.getElementById('llm-api-key').removeAttribute('required');
-            } else {
-                apiKeyGroup.style.opacity = '1';
-            }
-
-            // Show/hide OpenRouter browse button
-            const orBrowseBtn = document.getElementById('or-browse-btn');
-            if (orBrowseBtn) {
-                orBrowseBtn.style.display = provider === 'openrouter' ? 'block' : 'none';
-            }
-        }
-
-        // ── Embeddings Provider Change ───────────────
-        function onEmbProviderChange() {
-            const provider = document.getElementById('emb-provider').value;
-            const apiKeyGroup = document.getElementById('group-emb-apikey');
-            apiKeyGroup.style.display = (provider === 'internal' || provider === '') ? 'none' : 'block';
-        }
-
-        // ── Personality V2 Toggle ────────────────────
-        function onPersonalityToggle() {
-            const fields = document.getElementById('personality-v2-fields');
-            const checked = document.getElementById('personality-v2').checked;
-            fields.classList.toggle('visible', checked);
-        }
-
-        // ── Step Navigation ──────────────────────────
-        function goToStep(step) {
-            if (step < 0 || step >= totalSteps) return;
-            // Only allow going back or to completed steps
-            if (step > currentStep) return;
-
-            currentStep = step;
-            updateUI();
-        }
-
-        function nextStep(skip = false) {
-            if (currentStep === 0 && !skip) {
-                if (!validateStep0()) return;
-            }
-
-            if (currentStep < totalSteps - 1) {
-                currentStep++;
-                updateUI();
-            } else {
-                // Final step — save
-                saveConfig();
-            }
-        }
-
-        function prevStep() {
-            if (currentStep > 0) {
-                currentStep--;
-                updateUI();
-            }
-        }
-
-        function updateUI() {
-            // Update sections
-            document.querySelectorAll('.setup-section').forEach((s, i) => {
-                s.classList.toggle('active', i === currentStep);
+        document.getElementById('or-apply-btn').onclick = () => {
+            if (onSelect) onSelect({
+                id: m.id,
+                name: m.name,
+                pricing: m.pricing,
+                context_length: m.context_length,
+                inputPerMillion: parseFloat(m.pricing.prompt || '0') * 1000000,
+                outputPerMillion: parseFloat(m.pricing.completion || '0') * 1000000,
             });
+            overlay.remove();
+        };
+    }
 
-            // Update step dots
-            document.querySelectorAll('.step-dot').forEach((dot, i) => {
-                dot.classList.toggle('active', i === currentStep);
-                dot.classList.toggle('completed', i < currentStep);
-            });
+    let searchTimer;
+    searchInput.oninput = () => {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(renderList, 150);
+    };
+    freeBtn.onclick = () => {
+        freeOnly = !freeOnly;
+        freeBtn.style.background = freeOnly ? 'rgba(72,199,142,0.2)' : 'var(--bg-tertiary, #252538)';
+        freeBtn.style.color = freeOnly ? '#48c78e' : 'var(--text-primary, #eee)';
+        freeBtn.style.borderColor = freeOnly ? 'rgba(72,199,142,0.4)' : 'var(--border-subtle, #2a2a3e)';
+        renderList();
+    };
+    renderList();
+    searchInput.focus();
+}
 
-            // Update lines
-            for (let i = 0; i < totalSteps - 1; i++) {
-                const line = document.getElementById(`line-${i}-${i + 1}`);
-                if (line) line.classList.toggle('completed', i < currentStep);
-            }
+// ── Provider Change Handler ──────────────────
+function onProviderChange() {
+    const provider = document.getElementById('llm-provider').value;
+    const cfg = providerConfig[provider] || providerConfig.custom;
 
-            // Update buttons
-            document.getElementById('btn-back').style.display = currentStep > 0 ? '' : 'none';
-            document.getElementById('btn-skip-step').style.display = currentStep > 0 ? '' : 'none';
+    document.getElementById('llm-base-url').value = cfg.baseUrl;
+    document.getElementById('llm-base-url').placeholder = cfg.baseUrl || 'https://...';
+    document.getElementById('llm-api-key').placeholder = cfg.placeholder;
+    document.getElementById('llm-model').placeholder = cfg.defaultModel;
+    document.getElementById('provider-link').textContent = cfg.link;
 
-            const btnNext = document.getElementById('btn-next');
-            if (currentStep === totalSteps - 1) {
-                btnNext.innerHTML = t('setup.nav_save_and_start');
-            } else {
-                btnNext.innerHTML = t('setup.nav_next');
-            }
+    // Pre-fill model if empty
+    const modelInput = document.getElementById('llm-model');
+    if (!modelInput.value && cfg.defaultModel) {
+        modelInput.value = cfg.defaultModel;
+    }
+
+    // Show/hide API key field for Ollama
+    const apiKeyGroup = document.getElementById('group-api-key');
+    if (!cfg.needsKey) {
+        apiKeyGroup.style.opacity = '0.4';
+        document.getElementById('llm-api-key').removeAttribute('required');
+    } else {
+        apiKeyGroup.style.opacity = '1';
+    }
+
+    // Show/hide OpenRouter browse button
+    const orBrowseBtn = document.getElementById('or-browse-btn');
+    if (orBrowseBtn) {
+        orBrowseBtn.style.display = provider === 'openrouter' ? 'block' : 'none';
+    }
+}
+
+// ── Agent Language Change Handler ────────────
+function onLanguageChange() {
+    const sel = document.getElementById('system-language');
+    const customInput = document.getElementById('system-language-custom');
+    if (sel.value === 'Other / Custom') {
+        customInput.style.display = 'block';
+        customInput.focus();
+    } else {
+        customInput.style.display = 'none';
+    }
+}
+
+// ── Embeddings Provider Change ───────────────
+function onEmbProviderChange() {
+    const provider = document.getElementById('emb-provider').value;
+    const apiKeyGroup = document.getElementById('group-emb-apikey');
+    apiKeyGroup.style.display = (provider === 'internal' || provider === '') ? 'none' : 'block';
+}
+
+// ── Personality V2 Toggle ────────────────────
+function onPersonalityToggle() {
+    const fields = document.getElementById('personality-v2-fields');
+    const checked = document.getElementById('personality-v2').checked;
+    fields.classList.toggle('visible', checked);
+}
+
+// ── Step Navigation ──────────────────────────
+function goToStep(step) {
+    if (step < 0 || step >= totalSteps) return;
+    // Only allow going back or to completed steps
+    if (step > currentStep) return;
+
+    currentStep = step;
+    updateUI();
+}
+
+function nextStep(skip = false) {
+    if (currentStep === 0 && !skip) {
+        if (!validateStep0()) return;
+    }
+
+    if (currentStep < totalSteps - 1) {
+        currentStep++;
+        updateUI();
+    } else {
+        // Final step — save
+        saveConfig();
+    }
+}
+
+function prevStep() {
+    if (currentStep > 0) {
+        currentStep--;
+        updateUI();
+    }
+}
+
+function updateUI() {
+    // Update sections
+    document.querySelectorAll('.setup-section').forEach((s, i) => {
+        s.classList.toggle('active', i === currentStep);
+    });
+
+    // Update step dots
+    document.querySelectorAll('.step-dot').forEach((dot, i) => {
+        dot.classList.toggle('active', i === currentStep);
+        dot.classList.toggle('completed', i < currentStep);
+    });
+
+    // Update lines
+    for (let i = 0; i < totalSteps - 1; i++) {
+        const line = document.getElementById(`line-${i}-${i + 1}`);
+        if (line) line.classList.toggle('completed', i < currentStep);
+    }
+
+    // Update buttons
+    document.getElementById('btn-back').style.display = currentStep > 0 ? '' : 'none';
+    document.getElementById('btn-skip-step').style.display = currentStep > 0 ? '' : 'none';
+
+    const btnNext = document.getElementById('btn-next');
+    if (currentStep === totalSteps - 1) {
+        btnNext.innerHTML = t('setup.nav_save_and_start');
+    } else {
+        btnNext.innerHTML = t('setup.nav_next');
+    }
+}
+
+// ── Validation ───────────────────────────────
+function validateStep0() {
+    let valid = true;
+    const provider = document.getElementById('llm-provider').value;
+    const cfg = providerConfig[provider];
+
+    // API Key required (except Ollama)
+    if (cfg && cfg.needsKey) {
+        const apiKey = document.getElementById('llm-api-key').value.trim();
+        if (!apiKey) {
+            showFieldError('llm-api-key', 'err-api-key');
+            valid = false;
+        } else {
+            clearFieldError('llm-api-key', 'err-api-key');
         }
+    }
 
-        // ── Validation ───────────────────────────────
-        function validateStep0() {
-            let valid = true;
-            const provider = document.getElementById('llm-provider').value;
-            const cfg = providerConfig[provider];
+    // Model required
+    const model = document.getElementById('llm-model').value.trim();
+    if (!model) {
+        showFieldError('llm-model', 'err-model');
+        valid = false;
+    } else {
+        clearFieldError('llm-model', 'err-model');
+    }
 
-            // API Key required (except Ollama)
-            if (cfg && cfg.needsKey) {
-                const apiKey = document.getElementById('llm-api-key').value.trim();
-                if (!apiKey) {
-                    showFieldError('llm-api-key', 'err-api-key');
-                    valid = false;
-                } else {
-                    clearFieldError('llm-api-key', 'err-api-key');
-                }
-            }
+    return valid;
+}
 
-            // Model required
-            const model = document.getElementById('llm-model').value.trim();
-            if (!model) {
-                showFieldError('llm-model', 'err-model');
-                valid = false;
-            } else {
-                clearFieldError('llm-model', 'err-model');
-            }
+function showFieldError(inputId, errorId) {
+    document.getElementById(inputId).classList.add('error');
+    document.getElementById(errorId).classList.add('visible');
+}
 
-            return valid;
-        }
+function clearFieldError(inputId, errorId) {
+    document.getElementById(inputId).classList.remove('error');
+    document.getElementById(errorId).classList.remove('visible');
+}
 
-        function showFieldError(inputId, errorId) {
-            document.getElementById(inputId).classList.add('error');
-            document.getElementById(errorId).classList.add('visible');
-        }
+// Clear errors on input
+document.addEventListener('input', (e) => {
+    if (e.target.classList.contains('error')) {
+        e.target.classList.remove('error');
+        const errEl = e.target.parentElement.querySelector('.field-error');
+        if (errEl) errEl.classList.remove('visible');
+    }
+});
 
-        function clearFieldError(inputId, errorId) {
-            document.getElementById(inputId).classList.remove('error');
-            document.getElementById(errorId).classList.remove('visible');
-        }
+// ── Build Config Patch ───────────────────────
+function buildConfigPatch() {
+    const provider = document.getElementById('llm-provider').value;
+    const patch = {
+        server: {
+            ui_language: document.documentElement.lang || 'en',
+        },
+        llm: {
+            provider: provider,
+            api_key: document.getElementById('llm-api-key').value.trim(),
+            base_url: document.getElementById('llm-base-url').value.trim(),
+            model: document.getElementById('llm-model').value.trim(),
+            use_native_functions: document.getElementById('native-functions').checked,
+        },
+        agent: {
+            system_language: document.getElementById('system-language').value === 'Other / Custom' ? document.getElementById('system-language-custom').value.trim() : document.getElementById('system-language').value,
+            personality_engine_v2: document.getElementById('personality-v2').checked,
+            personality_engine: document.getElementById('personality-v2').checked, // V2 implies V1
+            core_personality: document.getElementById('core-personality').value,
+        },
+        maintenance: {
+            enabled: document.getElementById('maintenance-enabled').checked,
+        },
+        web_config: {
+            enabled: document.getElementById('web-config-enabled').checked,
+        },
+    };
 
-        // Clear errors on input
-        document.addEventListener('input', (e) => {
-            if (e.target.classList.contains('error')) {
-                e.target.classList.remove('error');
-                const errEl = e.target.parentElement.querySelector('.field-error');
-                if (errEl) errEl.classList.remove('visible');
-            }
+    // Section 2: Embeddings
+    const embProvider = document.getElementById('emb-provider').value;
+    if (embProvider) {
+        patch.embeddings = {
+            provider: embProvider,
+            internal_model: document.getElementById('emb-model').value.trim(),
+        };
+        const embKey = document.getElementById('emb-api-key').value.trim();
+        if (embKey) patch.embeddings.api_key = embKey;
+    }
+
+    // Section 2: Vision
+    const visionProvider = document.getElementById('vision-provider').value;
+    if (visionProvider) {
+        patch.vision = {
+            provider: visionProvider,
+            model: document.getElementById('vision-model').value.trim(),
+        };
+    }
+
+    // Section 2: Whisper
+    const whisperProvider = document.getElementById('whisper-provider').value;
+    if (whisperProvider) {
+        patch.whisper = {
+            provider: whisperProvider,
+            model: document.getElementById('whisper-model').value.trim(),
+        };
+    }
+
+    // Section 3: Personality V2
+    if (patch.agent.personality_engine_v2) {
+        const v2Model = document.getElementById('v2-model').value.trim();
+        if (v2Model) patch.agent.personality_v2_model = v2Model;
+        const v2Url = document.getElementById('v2-url').value.trim();
+        if (v2Url) patch.agent.personality_v2_url = v2Url;
+        const v2Key = document.getElementById('v2-api-key').value.trim();
+        if (v2Key) patch.agent.personality_v2_api_key = v2Key;
+    }
+
+    return patch;
+}
+
+// ── Save Config ──────────────────────────────
+async function saveConfig() {
+    if (saving) return;
+    saving = true;
+
+    const btnNext = document.getElementById('btn-next');
+    btnNext.disabled = true;
+    btnNext.innerHTML = '<div class="spinner"></div> ' + t('setup.nav_saving');
+
+    try {
+        const patch = buildConfigPatch();
+        const resp = await fetch('/api/setup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(patch),
         });
 
-        // ── Build Config Patch ───────────────────────
-        function buildConfigPatch() {
-            const provider = document.getElementById('llm-provider').value;
-            const patch = {
-                llm: {
-                    provider: provider,
-                    api_key: document.getElementById('llm-api-key').value.trim(),
-                    base_url: document.getElementById('llm-base-url').value.trim(),
-                    model: document.getElementById('llm-model').value.trim(),
-                    use_native_functions: document.getElementById('native-functions').checked,
-                },
-                agent: {
-                    system_language: document.getElementById('system-language').value,
-                    personality_engine_v2: document.getElementById('personality-v2').checked,
-                    personality_engine: document.getElementById('personality-v2').checked, // V2 implies V1
-                    core_personality: document.getElementById('core-personality').value,
-                },
-                maintenance: {
-                    enabled: document.getElementById('maintenance-enabled').checked,
-                },
-                web_config: {
-                    enabled: document.getElementById('web-config-enabled').checked,
-                },
-            };
-
-            // Section 2: Embeddings
-            const embProvider = document.getElementById('emb-provider').value;
-            if (embProvider) {
-                patch.embeddings = {
-                    provider: embProvider,
-                    internal_model: document.getElementById('emb-model').value.trim(),
-                };
-                const embKey = document.getElementById('emb-api-key').value.trim();
-                if (embKey) patch.embeddings.api_key = embKey;
-            }
-
-            // Section 2: Vision
-            const visionProvider = document.getElementById('vision-provider').value;
-            if (visionProvider) {
-                patch.vision = {
-                    provider: visionProvider,
-                    model: document.getElementById('vision-model').value.trim(),
-                };
-            }
-
-            // Section 2: Whisper
-            const whisperProvider = document.getElementById('whisper-provider').value;
-            if (whisperProvider) {
-                patch.whisper = {
-                    provider: whisperProvider,
-                    model: document.getElementById('whisper-model').value.trim(),
-                };
-            }
-
-            // Section 3: Personality V2
-            if (patch.agent.personality_engine_v2) {
-                const v2Model = document.getElementById('v2-model').value.trim();
-                if (v2Model) patch.agent.personality_v2_model = v2Model;
-                const v2Url = document.getElementById('v2-url').value.trim();
-                if (v2Url) patch.agent.personality_v2_url = v2Url;
-                const v2Key = document.getElementById('v2-api-key').value.trim();
-                if (v2Key) patch.agent.personality_v2_api_key = v2Key;
-            }
-
-            return patch;
+        if (!resp.ok) {
+            const text = await resp.text();
+            throw new Error(text || `HTTP ${resp.status}`);
         }
 
-        // ── Save Config ──────────────────────────────
-        async function saveConfig() {
-            if (saving) return;
-            saving = true;
+        const result = await resp.json();
 
-            const btnNext = document.getElementById('btn-next');
-            btnNext.disabled = true;
-            btnNext.innerHTML = '<div class="spinner"></div> ' + t('setup.nav_saving');
+        // Show success screen
+        document.querySelectorAll('.setup-section').forEach(s => s.classList.remove('active'));
+        document.getElementById('setup-footer').style.display = 'none';
+        document.querySelector('.step-indicator').style.display = 'none';
+        document.getElementById('success-screen').classList.add('active');
 
-            try {
-                const patch = buildConfigPatch();
-                const resp = await fetch('/api/setup', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(patch),
-                });
-
-                if (!resp.ok) {
-                    const text = await resp.text();
-                    throw new Error(text || `HTTP ${resp.status}`);
-                }
-
-                const result = await resp.json();
-
-                // Show success screen
-                document.querySelectorAll('.setup-section').forEach(s => s.classList.remove('active'));
-                document.getElementById('setup-footer').style.display = 'none';
-                document.querySelector('.step-indicator').style.display = 'none';
-                document.getElementById('success-screen').classList.add('active');
-
-                if (result.needs_restart) {
-                    document.getElementById('restart-notice').style.display = '';
-                }
-
-                showToast(t('setup.toast_config_saved'), 'success');
-            } catch (err) {
-                showToast(t('setup.toast_error_prefix') + err.message, 'error');
-                btnNext.disabled = false;
-                btnNext.innerHTML = t('setup.nav_save_and_start');
-            } finally {
-                saving = false;
-            }
+        if (result.needs_restart) {
+            document.getElementById('restart-notice').style.display = '';
         }
 
-        // ── Skip Setup ───────────────────────────────
-        function skipSetup() {
-            if (confirm(t('setup.confirm_skip_setup'))) {
-                window.location.href = '/?skip_setup=1';
-            }
-        }
+        showToast(t('setup.toast_config_saved'), 'success');
+    } catch (err) {
+        showToast(t('setup.toast_error_prefix') + err.message, 'error');
+        btnNext.disabled = false;
+        btnNext.innerHTML = t('setup.nav_save_and_start');
+    } finally {
+        saving = false;
+    }
+}
 
-        // ── Theme Toggle ─────────────────────────────
-        function toggleTheme() {
-            const html = document.documentElement;
-            const current = html.getAttribute('data-theme') || 'dark';
-            const next = current === 'dark' ? 'light' : 'dark';
-            html.setAttribute('data-theme', next);
-            localStorage.setItem('aurago-theme', next);
-        }
+// ── Skip Setup ───────────────────────────────
+function skipSetup() {
+    if (confirm(t('setup.confirm_skip_setup'))) {
+        window.location.href = '/?skip_setup=1';
+    }
+}
 
-        // ── Toast Notifications ──────────────────────
-        function showToast(message, type = 'info') {
-            const container = document.getElementById('toastContainer');
-            const toast = document.createElement('div');
-            toast.className = `toast ${type}`;
-            const icons = { success: '✓', error: '✕', warning: '⚠', info: 'ℹ' };
-            toast.innerHTML = `<span style="font-weight:700">${icons[type] || ''}</span> ${message}`;
-            container.appendChild(toast);
-            setTimeout(() => {
-                toast.classList.add('toast-exit');
-                setTimeout(() => toast.remove(), 300);
-            }, 4000);
-        }
+// ── Theme Toggle ─────────────────────────────
+function toggleTheme() {
+    const html = document.documentElement;
+    const current = html.getAttribute('data-theme') || 'dark';
+    const next = current === 'dark' ? 'light' : 'dark';
+    html.setAttribute('data-theme', next);
+    localStorage.setItem('aurago-theme', next);
+}
 
-        // ── Browser Language Auto-detection ──────────
-        (function detectAndSetLanguage() {
-            const lang = (navigator.languages && navigator.languages[0]) || navigator.language || 'en';
-            const base = lang.toLowerCase().split('-')[0];
-            const map = {
-                'de': 'Deutsch',
-                'en': 'English',
-                'es': 'Español',
-                'fr': 'Français',
-                'pl': 'Polski',
-                'zh': '中文',
-                'hi': 'हिन्दी',
-                'nl': 'Nederlands',
-                'it': 'Italiano',
-                'pt': 'Português',
-                'da': 'Dansk',
-                'ja': '日本語',
-                'sv': 'Svenska',
-                'no': 'Norsk',
-                'cs': 'Čeština',
-            };
-            const sel = document.getElementById('system-language');
-            sel.value = map[base] || 'English';
-        })();
+// ── Toast Notifications ──────────────────────
+function showToast(message, type = 'info') {
+    const container = document.getElementById('toastContainer');
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    const icons = { success: '✓', error: '✕', warning: '⚠', info: 'ℹ' };
+    toast.innerHTML = `<span style="font-weight:700">${icons[type] || ''}</span> ${message}`;
+    container.appendChild(toast);
+    setTimeout(() => {
+        toast.classList.add('toast-exit');
+        setTimeout(() => toast.remove(), 300);
+    }, 4000);
+}
 
-        // ── i18n: populate text ──
-        (function applyI18N() {
-            const el = id => document.getElementById(id);
-            // Page title
-            document.title = t('setup.page_title');
-            // Header
-            el('header-subtitle').textContent = t('setup.header_subtitle');
-            el('btn-skip-setup').textContent = t('setup.skip_button');
-            el('btn-skip-setup').title = t('setup.skip_button_title');
-            // Step 0
-            el('badge-step0').textContent = t('setup.step0_badge');
-            el('title-step0').textContent = t('setup.step0_title');
-            el('desc-step0').textContent = t('setup.step0_description');
-            el('lbl-provider').innerHTML = t('setup.step0_provider_label') + ' <span class="required-star">*</span>';
-            el('hint-provider').textContent = t('setup.step0_provider_hint');
-            // Provider select options
-            const provSel = el('llm-provider');
-            provSel.querySelector('[value="openrouter"]').textContent = t('setup.step0_provider_openrouter');
-            provSel.querySelector('[value="openai"]').textContent = t('setup.step0_provider_openai');
-            provSel.querySelector('[value="anthropic"]').textContent = t('setup.step0_provider_anthropic');
-            provSel.querySelector('[value="google"]').textContent = t('setup.step0_provider_google');
-            provSel.querySelector('[value="ollama"]').textContent = t('setup.step0_provider_ollama');
-            provSel.querySelector('[value="custom"]').textContent = t('setup.step0_provider_custom');
-            // API Key
-            el('lbl-api-key').innerHTML = t('setup.step0_api_key_label') + ' <span class="required-star">*</span>';
-            el('err-api-key').textContent = t('setup.step0_api_key_error');
-            el('hint-api-key-text').textContent = t('setup.step0_api_key_hint');
-            // Base URL
-            el('lbl-base-url').textContent = t('setup.step0_base_url_label');
-            el('hint-base-url').textContent = t('setup.step0_base_url_hint');
-            // Model
-            el('lbl-model').innerHTML = t('setup.step0_model_label') + ' <span class="required-star">*</span>';
-            el('llm-model').placeholder = t('setup.step0_model_placeholder');
-            el('or-browse-btn').textContent = t('setup.step0_model_browse');
-            el('err-model').textContent = t('setup.step0_model_error');
-            // Language
-            el('lang-label').textContent = t('setup.step0_language_label');
-            // Native Functions
-            el('lbl-native-functions').textContent = t('setup.step0_native_functions_label');
-            el('desc-native-functions').innerHTML = t('setup.step0_native_functions_desc');
-            // Step 1
-            el('badge-step1').textContent = t('setup.step1_badge');
-            el('title-step1').textContent = t('setup.step1_title');
-            el('desc-step1').textContent = t('setup.step1_description');
-            // Embeddings
-            el('heading-embeddings').textContent = t('setup.step1_embeddings_heading');
-            el('lbl-emb-provider').textContent = t('setup.step1_embeddings_provider_label');
-            const embSel = el('emb-provider');
-            embSel.querySelector('[value="internal"]').textContent = t('setup.step1_embeddings_provider_internal');
-            embSel.querySelector('[value="ollama"]').textContent = t('setup.step1_embeddings_provider_ollama');
-            embSel.querySelector('[value=""]').textContent = t('setup.step1_embeddings_provider_disabled');
-            el('lbl-emb-model').textContent = t('setup.step1_embeddings_model_label');
-            el('lbl-emb-apikey').textContent = t('setup.step1_embeddings_apikey_label');
-            el('emb-api-key').placeholder = t('setup.step1_embeddings_apikey_placeholder');
-            el('hint-emb-apikey').textContent = t('setup.step1_embeddings_apikey_hint');
-            // Vision
-            el('heading-vision').textContent = t('setup.step1_vision_heading');
-            el('lbl-vision-provider').textContent = t('setup.step1_vision_provider_label');
-            const visSel = el('vision-provider');
-            visSel.querySelector('[value="openrouter"]').textContent = t('setup.step1_vision_provider_openrouter');
-            visSel.querySelector('[value="openai"]').textContent = t('setup.step1_vision_provider_openai');
-            visSel.querySelector('[value="ollama"]').textContent = t('setup.step1_vision_provider_ollama');
-            visSel.querySelector('[value=""]').textContent = t('setup.step1_vision_provider_disabled');
-            el('lbl-vision-model').textContent = t('setup.step1_vision_model_label');
-            // Whisper
-            el('heading-whisper').textContent = t('setup.step1_whisper_heading');
-            el('lbl-whisper-provider').textContent = t('setup.step1_whisper_provider_label');
-            const whSel = el('whisper-provider');
-            whSel.querySelector('[value="openrouter"]').textContent = t('setup.step1_whisper_provider_openrouter');
-            whSel.querySelector('[value="openai"]').textContent = t('setup.step1_whisper_provider_openai');
-            whSel.querySelector('[value="ollama"]').textContent = t('setup.step1_whisper_provider_ollama');
-            whSel.querySelector('[value=""]').textContent = t('setup.step1_whisper_provider_disabled');
-            el('lbl-whisper-model').textContent = t('setup.step1_whisper_model_label');
-            // Step 2
-            el('badge-step2').textContent = t('setup.step2_badge');
-            el('title-step2').textContent = t('setup.step2_title');
-            el('desc-step2').textContent = t('setup.step2_description');
-            // Personality V2
-            el('lbl-personality-v2').textContent = t('setup.step2_personality_v2_label');
-            el('desc-personality-v2').textContent = t('setup.step2_personality_v2_desc');
-            // V2 fields
-            el('lbl-v2-model').textContent = t('setup.step2_v2_model_label');
-            el('hint-v2-model').textContent = t('setup.step2_v2_model_hint');
-            el('lbl-v2-url').textContent = t('setup.step2_v2_url_label');
-            el('v2-url').placeholder = t('setup.step2_v2_url_placeholder');
-            el('lbl-v2-apikey').textContent = t('setup.step2_v2_apikey_label');
-            el('v2-api-key').placeholder = t('setup.step2_v2_apikey_placeholder');
-            el('hint-v2-apikey').textContent = t('setup.step2_v2_apikey_hint');
-            // Core personality
-            el('lbl-core-personality').textContent = t('setup.step2_core_personality_label');
-            el('hint-core-personality').textContent = t('setup.step2_core_personality_hint');
-            // Default option fallback
-            const coreDefault = el('core-personality').querySelector('[value="friend"]');
-            if (coreDefault) coreDefault.textContent = t('setup.step2_core_personality_default');
-            // Maintenance
-            el('lbl-maintenance').textContent = t('setup.step2_maintenance_label');
-            el('desc-maintenance').textContent = t('setup.step2_maintenance_desc');
-            // Web Config
-            el('lbl-web-config').textContent = t('setup.step2_web_config_label');
-            el('desc-web-config').textContent = t('setup.step2_web_config_desc');
-            // Success
-            el('success-title').textContent = t('setup.success_title');
-            el('success-desc').innerHTML = t('setup.success_description').replace(/\n/g, '<br>');
-            el('restart-notice').innerHTML = t('setup.success_restart_notice');
-            el('btn-go-to-chat').textContent = t('setup.success_go_to_chat');
-            // Footer
-            el('btn-back').textContent = t('setup.nav_back');
-            el('btn-skip-step').textContent = t('setup.nav_skip_step');
-            el('btn-next').textContent = t('setup.nav_next');
-        })();
+// ── Browser Language Auto-detection ──────────
+(function detectAndSetLanguage() {
+    const lang = (navigator.languages && navigator.languages[0]) || navigator.language || 'en';
+    const base = lang.toLowerCase().split('-')[0];
+    const map = {
+        'de': 'Deutsch',
+        'en': 'English',
+        'es': 'Español',
+        'fr': 'Français',
+        'pl': 'Polski',
+        'zh': '中文',
+        'hi': 'हिन्दी',
+        'nl': 'Nederlands',
+        'it': 'Italiano',
+        'pt': 'Português',
+        'da': 'Dansk',
+        'ja': '日本語',
+        'sv': 'Svenska',
+        'no': 'Norsk',
+        'cs': 'Čeština',
+    };
+    const sel = document.getElementById('system-language');
+    sel.value = map[base] || 'English';
+})();
 
-        // ── Init ─────────────────────────────────────
-        onProviderChange();
-        updateUI();
+// ── i18n: populate text ──
+(function applyI18N() {
+    const el = id => document.getElementById(id);
+    // Page title
+    document.title = t('setup.page_title');
+    // Header
+    el('header-subtitle').textContent = t('setup.header_subtitle');
+    el('btn-skip-setup').textContent = t('setup.skip_button');
+    el('btn-skip-setup').title = t('setup.skip_button_title');
+    // Step 0
+    el('badge-step0').textContent = t('setup.step0_badge');
+    el('title-step0').textContent = t('setup.step0_title');
+    el('desc-step0').textContent = t('setup.step0_description');
+    el('lbl-provider').innerHTML = t('setup.step0_provider_label') + ' <span class="required-star">*</span>';
+    el('hint-provider').textContent = t('setup.step0_provider_hint');
+    // Provider select options
+    const provSel = el('llm-provider');
+    provSel.querySelector('[value="openrouter"]').textContent = t('setup.step0_provider_openrouter');
+    provSel.querySelector('[value="openai"]').textContent = t('setup.step0_provider_openai');
+    provSel.querySelector('[value="anthropic"]').textContent = t('setup.step0_provider_anthropic');
+    provSel.querySelector('[value="google"]').textContent = t('setup.step0_provider_google');
+    provSel.querySelector('[value="ollama"]').textContent = t('setup.step0_provider_ollama');
+    provSel.querySelector('[value="custom"]').textContent = t('setup.step0_provider_custom');
+    // API Key
+    el('lbl-api-key').innerHTML = t('setup.step0_api_key_label') + ' <span class="required-star">*</span>';
+    el('err-api-key').textContent = t('setup.step0_api_key_error');
+    el('hint-api-key-text').textContent = t('setup.step0_api_key_hint');
+    // Base URL
+    el('lbl-base-url').textContent = t('setup.step0_base_url_label');
+    el('hint-base-url').textContent = t('setup.step0_base_url_hint');
+    // Model
+    el('lbl-model').innerHTML = t('setup.step0_model_label') + ' <span class="required-star">*</span>';
+    el('llm-model').placeholder = t('setup.step0_model_placeholder');
+    el('or-browse-btn').textContent = t('setup.step0_model_browse');
+    el('err-model').textContent = t('setup.step0_model_error');
+    // Language
+    el('lang-label').textContent = t('setup.step0_language_label');
+    // Native Functions
+    el('lbl-native-functions').textContent = t('setup.step0_native_functions_label');
+    el('desc-native-functions').innerHTML = t('setup.step0_native_functions_desc');
+    // Step 1
+    el('badge-step1').textContent = t('setup.step1_badge');
+    el('title-step1').textContent = t('setup.step1_title');
+    el('desc-step1').textContent = t('setup.step1_description');
+    // Embeddings
+    el('heading-embeddings').textContent = t('setup.step1_embeddings_heading');
+    el('lbl-emb-provider').textContent = t('setup.step1_embeddings_provider_label');
+    const embSel = el('emb-provider');
+    embSel.querySelector('[value="internal"]').textContent = t('setup.step1_embeddings_provider_internal');
+    embSel.querySelector('[value="ollama"]').textContent = t('setup.step1_embeddings_provider_ollama');
+    embSel.querySelector('[value=""]').textContent = t('setup.step1_embeddings_provider_disabled');
+    el('lbl-emb-model').textContent = t('setup.step1_embeddings_model_label');
+    el('lbl-emb-apikey').textContent = t('setup.step1_embeddings_apikey_label');
+    el('emb-api-key').placeholder = t('setup.step1_embeddings_apikey_placeholder');
+    el('hint-emb-apikey').textContent = t('setup.step1_embeddings_apikey_hint');
+    // Vision
+    el('heading-vision').textContent = t('setup.step1_vision_heading');
+    el('lbl-vision-provider').textContent = t('setup.step1_vision_provider_label');
+    const visSel = el('vision-provider');
+    visSel.querySelector('[value="openrouter"]').textContent = t('setup.step1_vision_provider_openrouter');
+    visSel.querySelector('[value="openai"]').textContent = t('setup.step1_vision_provider_openai');
+    visSel.querySelector('[value="ollama"]').textContent = t('setup.step1_vision_provider_ollama');
+    visSel.querySelector('[value=""]').textContent = t('setup.step1_vision_provider_disabled');
+    el('lbl-vision-model').textContent = t('setup.step1_vision_model_label');
+    // Whisper
+    el('heading-whisper').textContent = t('setup.step1_whisper_heading');
+    el('lbl-whisper-provider').textContent = t('setup.step1_whisper_provider_label');
+    const whSel = el('whisper-provider');
+    whSel.querySelector('[value="openrouter"]').textContent = t('setup.step1_whisper_provider_openrouter');
+    whSel.querySelector('[value="openai"]').textContent = t('setup.step1_whisper_provider_openai');
+    whSel.querySelector('[value="ollama"]').textContent = t('setup.step1_whisper_provider_ollama');
+    whSel.querySelector('[value=""]').textContent = t('setup.step1_whisper_provider_disabled');
+    el('lbl-whisper-model').textContent = t('setup.step1_whisper_model_label');
+    // Step 2
+    el('badge-step2').textContent = t('setup.step2_badge');
+    el('title-step2').textContent = t('setup.step2_title');
+    el('desc-step2').textContent = t('setup.step2_description');
+    // Personality V2
+    el('lbl-personality-v2').textContent = t('setup.step2_personality_v2_label');
+    el('desc-personality-v2').textContent = t('setup.step2_personality_v2_desc');
+    // V2 fields
+    el('lbl-v2-model').textContent = t('setup.step2_v2_model_label');
+    el('hint-v2-model').textContent = t('setup.step2_v2_model_hint');
+    el('lbl-v2-url').textContent = t('setup.step2_v2_url_label');
+    el('v2-url').placeholder = t('setup.step2_v2_url_placeholder');
+    el('lbl-v2-apikey').textContent = t('setup.step2_v2_apikey_label');
+    el('v2-api-key').placeholder = t('setup.step2_v2_apikey_placeholder');
+    el('hint-v2-apikey').textContent = t('setup.step2_v2_apikey_hint');
+    // Core personality
+    el('lbl-core-personality').textContent = t('setup.step2_core_personality_label');
+    el('hint-core-personality').textContent = t('setup.step2_core_personality_hint');
+    // Default option fallback
+    const coreDefault = el('core-personality').querySelector('[value="friend"]');
+    if (coreDefault) coreDefault.textContent = t('setup.step2_core_personality_default');
+    // Maintenance
+    el('lbl-maintenance').textContent = t('setup.step2_maintenance_label');
+    el('desc-maintenance').textContent = t('setup.step2_maintenance_desc');
+    // Web Config
+    el('lbl-web-config').textContent = t('setup.step2_web_config_label');
+    el('desc-web-config').textContent = t('setup.step2_web_config_desc');
+    // Success
+    el('success-title').textContent = t('setup.success_title');
+    el('success-desc').innerHTML = t('setup.success_description').replace(/\n/g, '<br>');
+    el('restart-notice').innerHTML = t('setup.success_restart_notice');
+    el('btn-go-to-chat').textContent = t('setup.success_go_to_chat');
+    // Footer
+    el('btn-back').textContent = t('setup.nav_back');
+    el('btn-skip-step').textContent = t('setup.nav_skip_step');
+    el('btn-next').textContent = t('setup.nav_next');
+})();
+
+// ── Init ─────────────────────────────────────
+onProviderChange();
+updateUI();

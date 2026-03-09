@@ -217,8 +217,15 @@ body {
 }
 
 @keyframes logoPulse {
-    0%, 100% { box-shadow: 0 0 16px var(--accent-glow); }
-    50% { box-shadow: 0 0 24px var(--accent-glow), 0 0 32px rgba(45, 212, 191, 0.2); }
+
+    0%,
+    100% {
+        box-shadow: 0 0 16px var(--accent-glow);
+    }
+
+    50% {
+        box-shadow: 0 0 24px var(--accent-glow), 0 0 32px rgba(45, 212, 191, 0.2);
+    }
 }
 
 /* Logo as link */
@@ -520,8 +527,15 @@ a.logo {
 }
 
 @keyframes pulse-glow {
-    0%, 100% { box-shadow: 0 0 10px currentColor; }
-    50% { box-shadow: 0 0 20px currentColor; }
+
+    0%,
+    100% {
+        box-shadow: 0 0 10px currentColor;
+    }
+
+    50% {
+        box-shadow: 0 0 20px currentColor;
+    }
 }
 
 /* ── Pill badges ───────────────────────────────────────────── */
@@ -820,6 +834,7 @@ a.logo {
         opacity: 0;
         transform: scale(0.92) translateY(20px);
     }
+
     to {
         opacity: 1;
         transform: scale(1) translateY(0);
@@ -916,12 +931,22 @@ a.logo {
 }
 
 @keyframes toastIn {
-    from { opacity: 0; transform: translateX(40px) scale(0.9); }
-    to { opacity: 1; transform: translateX(0) scale(1); }
+    from {
+        opacity: 0;
+        transform: translateX(40px) scale(0.9);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+    }
 }
 
 @keyframes toastOut {
-    to { opacity: 0; transform: translateX(40px) scale(0.9); }
+    to {
+        opacity: 0;
+        transform: translateX(40px) scale(0.9);
+    }
 }
 
 /* ── Empty State ───────────────────────────────────────────── */
@@ -958,8 +983,15 @@ a.logo {
 }
 
 @keyframes float {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-8px); }
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-8px);
+    }
 }
 
 /* ── Hamburger Menu Button ─────────────────────────────────── */
@@ -1021,6 +1053,7 @@ a.logo {
         opacity: 0;
         transform: translateY(-8px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);
@@ -1051,30 +1084,31 @@ a.logo {
 
 /* ── Skeleton loading shimmer ──────────────────────────────── */
 .skeleton {
-    background: linear-gradient(
-        90deg,
-        var(--bg-glass) 25%,
-        rgba(255, 255, 255, 0.06) 37%,
-        var(--bg-glass) 63%
-    );
+    background: linear-gradient(90deg,
+            var(--bg-glass) 25%,
+            rgba(255, 255, 255, 0.06) 37%,
+            var(--bg-glass) 63%);
     background-size: 400% 100%;
     animation: shimmer 1.4s ease infinite;
     border-radius: 8px;
 }
 
 [data-theme="light"] .skeleton {
-    background: linear-gradient(
-        90deg,
-        rgba(0, 0, 0, 0.04) 25%,
-        rgba(0, 0, 0, 0.08) 37%,
-        rgba(0, 0, 0, 0.04) 63%
-    );
+    background: linear-gradient(90deg,
+            rgba(0, 0, 0, 0.04) 25%,
+            rgba(0, 0, 0, 0.08) 37%,
+            rgba(0, 0, 0, 0.04) 63%);
     background-size: 400% 100%;
 }
 
 @keyframes shimmer {
-    0% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
+    0% {
+        background-position: 100% 50%;
+    }
+
+    100% {
+        background-position: 0% 50%;
+    }
 }
 
 /* ── Collapsible Sections ──────────────────────────────────── */
@@ -1166,9 +1200,19 @@ a.logo {
 }
 
 @keyframes bgFloat {
-    0%, 100% { transform: translate(0, 0) rotate(0deg); }
-    33% { transform: translate(2%, 2%) rotate(1deg); }
-    66% { transform: translate(-1%, 1%) rotate(-1deg); }
+
+    0%,
+    100% {
+        transform: translate(0, 0) rotate(0deg);
+    }
+
+    33% {
+        transform: translate(2%, 2%) rotate(1deg);
+    }
+
+    66% {
+        transform: translate(-1%, 1%) rotate(-1deg);
+    }
 }
 
 /* ── Glowing Border Effect ────────────────────────────────── */
@@ -1229,16 +1273,37 @@ a.logo {
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* ── Stagger Animation ─────────────────────────────────────── */
-.stagger-1 { animation-delay: 0.05s; }
-.stagger-2 { animation-delay: 0.1s; }
-.stagger-3 { animation-delay: 0.15s; }
-.stagger-4 { animation-delay: 0.2s; }
-.stagger-5 { animation-delay: 0.25s; }
+.stagger-1 {
+    animation-delay: 0.05s;
+}
+
+.stagger-2 {
+    animation-delay: 0.1s;
+}
+
+.stagger-3 {
+    animation-delay: 0.15s;
+}
+
+.stagger-4 {
+    animation-delay: 0.2s;
+}
+
+.stagger-5 {
+    animation-delay: 0.25s;
+}
 
 /* ── Corner Radial Menu ─────────────────────────────────────── */
 .radial-menu {
@@ -1311,9 +1376,19 @@ a.logo {
     transform-origin: center;
 }
 
-.radial-icon span:nth-child(1) { width: 18px; }
-.radial-icon span:nth-child(2) { width: 14px; align-self: flex-end; }
-.radial-icon span:nth-child(3) { width: 10px; align-self: flex-end; }
+.radial-icon span:nth-child(1) {
+    width: 18px;
+}
+
+.radial-icon span:nth-child(2) {
+    width: 14px;
+    align-self: flex-end;
+}
+
+.radial-icon span:nth-child(3) {
+    width: 10px;
+    align-self: flex-end;
+}
 
 /* Trigger open state → X morphing */
 .radial-menu.open .radial-trigger {
@@ -1355,7 +1430,7 @@ a.logo {
     transition: opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.radial-menu.open ~ .radial-backdrop,
+.radial-menu.open~.radial-backdrop,
 .radial-backdrop.open {
     opacity: 1;
     pointer-events: all;
@@ -1390,14 +1465,37 @@ a.logo {
 }
 
 /* Vertical position for each item (below trigger: 42px + 8px gap, then 52px spacing) */
-.radial-item:nth-child(1) { top: 50px; }
-.radial-item:nth-child(2) { top: 102px; }
-.radial-item:nth-child(3) { top: 154px; }
-.radial-item:nth-child(4) { top: 206px; }
-.radial-item:nth-child(5) { top: 258px; }
-.radial-item:nth-child(6) { top: 310px; }
-.radial-item:nth-child(7) { top: 362px; }
-.radial-item:nth-child(8) { top: 414px; }
+.radial-item:nth-child(1) {
+    top: 50px;
+}
+
+.radial-item:nth-child(2) {
+    top: 102px;
+}
+
+.radial-item:nth-child(3) {
+    top: 154px;
+}
+
+.radial-item:nth-child(4) {
+    top: 206px;
+}
+
+.radial-item:nth-child(5) {
+    top: 258px;
+}
+
+.radial-item:nth-child(6) {
+    top: 310px;
+}
+
+.radial-item:nth-child(7) {
+    top: 362px;
+}
+
+.radial-item:nth-child(8) {
+    top: 414px;
+}
 
 .radial-menu.open .radial-item {
     opacity: 1;
@@ -1476,29 +1574,82 @@ a.logo {
 }
 
 /* Stagger delays per item (set via inline --i variable) */
-.radial-menu.open .radial-item:nth-child(1) { transition-delay: 0.03s; }
-.radial-menu.open .radial-item:nth-child(2) { transition-delay: 0.06s; }
-.radial-menu.open .radial-item:nth-child(3) { transition-delay: 0.09s; }
-.radial-menu.open .radial-item:nth-child(4) { transition-delay: 0.12s; }
-.radial-menu.open .radial-item:nth-child(5) { transition-delay: 0.15s; }
-.radial-menu.open .radial-item:nth-child(6) { transition-delay: 0.18s; }
-.radial-menu.open .radial-item:nth-child(7) { transition-delay: 0.21s; }
-.radial-menu.open .radial-item:nth-child(8) { transition-delay: 0.24s; }
+.radial-menu.open .radial-item:nth-child(1) {
+    transition-delay: 0.03s;
+}
+
+.radial-menu.open .radial-item:nth-child(2) {
+    transition-delay: 0.06s;
+}
+
+.radial-menu.open .radial-item:nth-child(3) {
+    transition-delay: 0.09s;
+}
+
+.radial-menu.open .radial-item:nth-child(4) {
+    transition-delay: 0.12s;
+}
+
+.radial-menu.open .radial-item:nth-child(5) {
+    transition-delay: 0.15s;
+}
+
+.radial-menu.open .radial-item:nth-child(6) {
+    transition-delay: 0.18s;
+}
+
+.radial-menu.open .radial-item:nth-child(7) {
+    transition-delay: 0.21s;
+}
+
+.radial-menu.open .radial-item:nth-child(8) {
+    transition-delay: 0.24s;
+}
 
 /* Closing: reverse stagger */
-.radial-menu:not(.open) .radial-item:nth-child(1) { transition-delay: 0.18s; }
-.radial-menu:not(.open) .radial-item:nth-child(2) { transition-delay: 0.15s; }
-.radial-menu:not(.open) .radial-item:nth-child(3) { transition-delay: 0.12s; }
-.radial-menu:not(.open) .radial-item:nth-child(4) { transition-delay: 0.09s; }
-.radial-menu:not(.open) .radial-item:nth-child(5) { transition-delay: 0.06s; }
-.radial-menu:not(.open) .radial-item:nth-child(6) { transition-delay: 0.03s; }
-.radial-menu:not(.open) .radial-item:nth-child(7) { transition-delay: 0.02s; }
-.radial-menu:not(.open) .radial-item:nth-child(8) { transition-delay: 0.01s; }
+.radial-menu:not(.open) .radial-item:nth-child(1) {
+    transition-delay: 0.18s;
+}
+
+.radial-menu:not(.open) .radial-item:nth-child(2) {
+    transition-delay: 0.15s;
+}
+
+.radial-menu:not(.open) .radial-item:nth-child(3) {
+    transition-delay: 0.12s;
+}
+
+.radial-menu:not(.open) .radial-item:nth-child(4) {
+    transition-delay: 0.09s;
+}
+
+.radial-menu:not(.open) .radial-item:nth-child(5) {
+    transition-delay: 0.06s;
+}
+
+.radial-menu:not(.open) .radial-item:nth-child(6) {
+    transition-delay: 0.03s;
+}
+
+.radial-menu:not(.open) .radial-item:nth-child(7) {
+    transition-delay: 0.02s;
+}
+
+.radial-menu:not(.open) .radial-item:nth-child(8) {
+    transition-delay: 0.01s;
+}
 
 /* Glow ring on trigger when menu is open */
 @keyframes radialGlow {
-    0%, 100% { box-shadow: 0 0 16px var(--accent-glow), 0 4px 20px rgba(0, 0, 0, 0.15); }
-    50% { box-shadow: 0 0 28px var(--accent-glow), 0 0 48px rgba(45, 212, 191, 0.15), 0 4px 20px rgba(0, 0, 0, 0.15); }
+
+    0%,
+    100% {
+        box-shadow: 0 0 16px var(--accent-glow), 0 4px 20px rgba(0, 0, 0, 0.15);
+    }
+
+    50% {
+        box-shadow: 0 0 28px var(--accent-glow), 0 0 48px rgba(45, 212, 191, 0.15), 0 4px 20px rgba(0, 0, 0, 0.15);
+    }
 }
 
 .radial-menu.open .radial-trigger {
@@ -1529,14 +1680,37 @@ a.logo {
     }
 
     /* Tighter vertical spacing for smaller icons (38px + 8px gap = 46px) */
-    .radial-item:nth-child(1) { top: 46px; }
-    .radial-item:nth-child(2) { top: 92px; }
-    .radial-item:nth-child(3) { top: 138px; }
-    .radial-item:nth-child(4) { top: 184px; }
-    .radial-item:nth-child(5) { top: 230px; }
-    .radial-item:nth-child(6) { top: 276px; }
-    .radial-item:nth-child(7) { top: 322px; }
-    .radial-item:nth-child(8) { top: 368px; }
+    .radial-item:nth-child(1) {
+        top: 46px;
+    }
+
+    .radial-item:nth-child(2) {
+        top: 92px;
+    }
+
+    .radial-item:nth-child(3) {
+        top: 138px;
+    }
+
+    .radial-item:nth-child(4) {
+        top: 184px;
+    }
+
+    .radial-item:nth-child(5) {
+        top: 230px;
+    }
+
+    .radial-item:nth-child(6) {
+        top: 276px;
+    }
+
+    .radial-item:nth-child(7) {
+        top: 322px;
+    }
+
+    .radial-item:nth-child(8) {
+        top: 368px;
+    }
 }
 
 /* ── Tooltip ───────────────────────────────────────────────── */
@@ -1601,10 +1775,10 @@ a.logo {
     }
 
     /* Hide logo text on mobile – keep only the icon to save space */
-    .logo > *:not(.logo-icon) {
+    .logo>*:not(.logo-icon) {
         display: none;
     }
-    
+
     /* Form row stack on mobile */
     .form-row {
         grid-template-columns: 1fr;
@@ -1633,6 +1807,7 @@ a.logo {
 
 /* iOS safe area for footers */
 @supports (padding-bottom: env(safe-area-inset-bottom)) {
+
     .app-footer,
     .save-bar {
         padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
@@ -1650,7 +1825,9 @@ a.logo {
 }
 
 @keyframes spin {
-    to { transform: rotate(360deg); }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 /* ── Pulse Animation for Live Indicators ───────────────────── */
@@ -1669,10 +1846,13 @@ a.logo {
 }
 
 @keyframes pulseLive {
-    0%, 100% {
+
+    0%,
+    100% {
         box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
         transform: scale(1);
     }
+
     50% {
         box-shadow: 0 0 0 8px rgba(34, 197, 94, 0);
         transform: scale(1.1);
@@ -1685,8 +1865,15 @@ a.logo {
 }
 
 @keyframes bounce {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-5px); }
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-5px);
+    }
 }
 
 /* ── Slide In from Bottom ─────────────────────────────────── */
@@ -1699,6 +1886,7 @@ a.logo {
         opacity: 0;
         transform: translateY(30px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);
@@ -1723,4 +1911,89 @@ a.logo {
 /* ── Hidden utility ────────────────────────────────────────── */
 .hidden {
     display: none !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   UI LANGUAGE SWITCHER
+   ═══════════════════════════════════════════════════════════════ */
+
+.ui-lang-switcher {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    z-index: 9999;
+}
+
+.ui-lang-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 1px solid var(--border-subtle);
+    background: var(--bg-glass);
+    backdrop-filter: blur(10px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 1.2rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ui-lang-btn:hover {
+    transform: scale(1.1);
+    background: var(--bg-secondary);
+    border-color: var(--accent);
+}
+
+.ui-lang-menu {
+    position: absolute;
+    bottom: calc(100% + 10px);
+    left: 0;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(10px);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    max-height: 300px;
+    overflow-y: auto;
+    width: max-content;
+}
+
+.ui-lang-menu.open {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.ui-lang-option {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 16px;
+    border: none;
+    background: transparent;
+    color: var(--text-primary);
+    cursor: pointer;
+    border-radius: 8px;
+    transition: background 0.2s;
+    font-size: 0.9rem;
+    text-align: left;
+}
+
+.ui-lang-option:hover {
+    background: var(--bg-glass);
+}
+
+.ui-lang-option.active {
+    background: var(--accent-dim);
+    color: var(--text-primary);
+    font-weight: 500;
 }

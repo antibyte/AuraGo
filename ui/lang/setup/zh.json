@@ -54,7 +54,7 @@
   "setup.step0_model_error": "需要模型名称。",
   "setup.step0_model_label": "模型",
   "setup.step0_model_placeholder": "例如：gpt-4o, claude-sonnet-4-20250514",
-  "setup.step0_native_functions_desc": "使用提供商的原生工具调用。<strong>警告：</strong>仅当模型支持此功能时才启用 (GPT-4, Claude, Gemini)。免费层级模型通常不支持！",
+  "setup.step0_native_functions_desc": "使用提供商的原生工具调用。\u003cstrong\u003e警告：\u003c/strong\u003e仅当模型支持此功能时才启用 (GPT-4, Claude, Gemini)。免费层级模型通常不支持！",
   "setup.step0_native_functions_label": "原生函数调用 ⚠️",
   "setup.step0_provider_anthropic": "Anthropic",
   "setup.step0_provider_custom": "自定义 / 其他",

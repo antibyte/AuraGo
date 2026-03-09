@@ -54,7 +54,7 @@
   "setup.step0_model_error": "Nazwa modelu jest wymagana.",
   "setup.step0_model_label": "Model",
   "setup.step0_model_placeholder": "np. gpt-4o, claude-sonnet-4-20250514",
-  "setup.step0_native_functions_desc": "Używa natywnych wywołań narzędzi dostawcy. <strong>Ostrzeżenie:</strong> Włącz tylko, jeśli model to obsługuje (GPT-4, Claude, Gemini). Modele free-tier często NIE obsługują tego!",
+  "setup.step0_native_functions_desc": "Używa natywnych wywołań narzędzi dostawcy. \u003cstrong\u003eOstrzeżenie:\u003c/strong\u003e Włącz tylko, jeśli model to obsługuje (GPT-4, Claude, Gemini). Modele free-tier często NIE obsługują tego!",
   "setup.step0_native_functions_label": "Natywne Wywoływanie Funkcji ⚠️",
   "setup.step0_provider_anthropic": "Anthropic",
   "setup.step0_provider_custom": "Niestandardowy / Inny",
