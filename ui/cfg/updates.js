@@ -1,7 +1,7 @@
 // cfg/updates.js — Updates section module
 
 function renderUpdatesSection(section) {
-    const content = document.getElementById('section-content');
+    const content = document.getElementById('content');
     content.innerHTML = `
     <div class="cfg-section active">
         <div class="section-header">${section.icon} ${section.label}</div>
