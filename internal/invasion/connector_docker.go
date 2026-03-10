@@ -63,6 +63,10 @@ func (c *DockerConnector) Deploy(ctx context.Context, nest NestRecord, secret []
 			"RestartPolicy": map[string]interface{}{
 				"Name": "unless-stopped",
 			},
+			"Binds": []string{
+				fmt.Sprintf("aurago-egg-%s-data:/app/data", nest.ID[:8]),
+				fmt.Sprintf("aurago-egg-%s-log:/app/log", nest.ID[:8]),
+			},
 		},
 	}
 

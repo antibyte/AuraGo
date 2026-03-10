@@ -22,7 +22,7 @@ func (c *SSHConnector) Validate(ctx context.Context, nest NestRecord, secret []b
 }
 
 func (c *SSHConnector) Deploy(ctx context.Context, nest NestRecord, secret []byte, payload EggDeployPayload) error {
-	baseDir := fmt.Sprintf("/opt/aurago-egg-%s", nest.ID[:8])
+	baseDir := fmt.Sprintf("~/.aurago-egg-%s", nest.ID[:8])
 
 	// 1. Create target directory
 	mkdirCmd := fmt.Sprintf("mkdir -p %s/data %s/log %s/prompts", baseDir, baseDir, baseDir)
@@ -88,11 +88,11 @@ func (c *SSHConnector) Deploy(ctx context.Context, nest NestRecord, secret []byt
 }
 
 func (c *SSHConnector) Stop(ctx context.Context, nest NestRecord, secret []byte) error {
-	baseDir := fmt.Sprintf("/opt/aurago-egg-%s", nest.ID[:8])
+	baseDir := fmt.Sprintf("~/.aurago-egg-%s", nest.ID[:8])
 	serviceName := fmt.Sprintf("aurago-egg-%s", nest.ID[:8])
 
 	// Try systemd first
-	stopCmd := fmt.Sprintf("systemctl stop %s 2>/dev/null || true", serviceName)
+	stopCmd := fmt.Sprintf("systemctl --user stop %s 2>/dev/null || true", serviceName)
 	if _, err := remote.ExecuteRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, stopCmd); err != nil {
 		return fmt.Errorf("failed to stop service: %w", err)
 	}
@@ -105,12 +105,12 @@ func (c *SSHConnector) Stop(ctx context.Context, nest NestRecord, secret []byte)
 }
 
 func (c *SSHConnector) Status(ctx context.Context, nest NestRecord, secret []byte) (string, error) {
-	baseDir := fmt.Sprintf("/opt/aurago-egg-%s", nest.ID[:8])
+	baseDir := fmt.Sprintf("~/.aurago-egg-%s", nest.ID[:8])
 	serviceName := fmt.Sprintf("aurago-egg-%s", nest.ID[:8])
 
 	// Check systemd service first
 	output, err := remote.ExecuteRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret,
-		fmt.Sprintf("systemctl is-active %s 2>/dev/null || echo 'inactive'", serviceName))
+		fmt.Sprintf("systemctl --user is-active %s 2>/dev/null || echo 'inactive'", serviceName))
 	if err == nil && strings.TrimSpace(output) == "active" {
 		return "running", nil
 	}
@@ -142,12 +142,12 @@ RestartSec=10
 WantedBy=multi-user.target
 `, nest.ID[:8], baseDir, baseDir, baseDir)
 
-	writeCmd := fmt.Sprintf("cat > /etc/systemd/system/%s.service << 'EOF'\n%s\nEOF", serviceName, unitFile)
+	writeCmd := fmt.Sprintf("mkdir -p ~/.config/systemd/user && cat > ~/.config/systemd/user/%s.service << 'EOF'\n%s\nEOF", serviceName, unitFile)
 	if _, err := remote.ExecuteRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, writeCmd); err != nil {
 		return fmt.Errorf("failed to write service unit: %w", err)
 	}
 
-	startCmd := fmt.Sprintf("systemctl daemon-reload && systemctl enable %s && systemctl start %s", serviceName, serviceName)
+	startCmd := fmt.Sprintf("systemctl --user daemon-reload && systemctl --user enable %s && systemctl --user start %s", serviceName, serviceName)
 	if _, err := remote.ExecuteRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, startCmd); err != nil {
 		return fmt.Errorf("failed to start service: %w", err)
 	}
