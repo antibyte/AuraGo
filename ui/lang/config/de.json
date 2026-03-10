@@ -1,1 +1,11 @@
-{}
+{
+  "config.https.status_active": "HTTPS ist aktiv",
+  "config.https.status_inactive": "HTTPS ist deaktiviert",
+  "config.https.connection_secure": "Deine Verbindung ist sicher (HTTPS)",
+  "config.https.connection_insecure": "Unsichere Verbindung (HTTP) – Aktiviere HTTPS für produktive Nutzung",
+  "config.https.behind_proxy_notice": "Hinter Reverse Proxy erkannt – Sicherheitsheader werden entsprechend gesetzt",
+  "config.security.title": "Sicherheitsstatus",
+  "config.security.https_enabled": "HTTPS aktiviert",
+  "config.security.auth_enabled": "Login-Schutz aktiv",
+  "config.security.totp_enabled": "Zwei-Faktor-Authentifizierung (2FA)"
+}

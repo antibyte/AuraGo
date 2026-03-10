@@ -1,1 +1,11 @@
-{}
+{
+  "config.https.status_active": "HTTPSが有効です",
+  "config.https.status_inactive": "HTTPSが無効です",
+  "config.https.connection_secure": "接続は安全です（HTTPS）",
+  "config.https.connection_insecure": "安全でない接続（HTTP） – 本番環境で使用するにはHTTPSを有効にしてください",
+  "config.https.behind_proxy_notice": "リバースプロキシを検出 – セキュリティヘッダーを適切に調整しました",
+  "config.security.title": "セキュリティステータス",
+  "config.security.https_enabled": "HTTPS有効",
+  "config.security.auth_enabled": "ログイン保護有効",
+  "config.security.totp_enabled": "二要素認証（2FA）"
+}

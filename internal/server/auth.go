@@ -147,17 +147,26 @@ func validateSessionValue(secret, value string) bool {
 }
 
 // SetSessionCookie writes a signed, HttpOnly session cookie to the response.
-func SetSessionCookie(w http.ResponseWriter, secret string, timeout time.Duration) {
+// The Secure flag is automatically set when the request is over HTTPS.
+func SetSessionCookie(w http.ResponseWriter, r *http.Request, secret string, timeout time.Duration) {
 	expiry := time.Now().Add(timeout)
 	value := createSessionValue(secret, expiry)
-	http.SetCookie(w, &http.Cookie{
+	
+	cookie := &http.Cookie{
 		Name:     sessionCookieName,
 		Value:    value,
 		Path:     "/",
 		Expires:  expiry,
 		HttpOnly: true,
 		SameSite: http.SameSiteStrictMode,
-	})
+	}
+	
+	// Set Secure flag if request is HTTPS (direct or via proxy)
+	if IsSecureRequest(r) {
+		cookie.Secure = true
+	}
+	
+	http.SetCookie(w, cookie)
 }
 
 // ClearSessionCookie expires the session cookie immediately.
@@ -257,6 +266,7 @@ func ClientIP(r *http.Request) string {
 var authBypassPrefixes = []string{
 	"/auth/",
 	"/api/auth/status",
+	"/api/security/status",
 	"/api/setup",
 	"/api/openrouter/models",
 	"/api/oauth/callback",

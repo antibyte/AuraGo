@@ -26,6 +26,18 @@
       "email": {
         "title": "Admin Email",
         "description": "Required by Let's Encrypt for important expiry notifications."
+      },
+      "https_port": {
+        "title": "HTTPS Port",
+        "description": "Port for HTTPS traffic. Default: 443. Only change if you use a reverse proxy with port forwarding."
+      },
+      "http_port": {
+        "title": "HTTP Port",
+        "description": "Port for HTTP redirect to HTTPS. Default: 80. Let's Encrypt requires this to be reachable from the internet."
+      },
+      "behind_proxy": {
+        "title": "Behind Reverse Proxy",
+        "description": "Trust X-Forwarded-* headers from upstream proxies. Enable when using Nginx, Caddy, or Cloudflare."
       }
     }
   },

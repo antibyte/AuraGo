@@ -4,11 +4,15 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
+	"aurago/internal/config"
 	"aurago/internal/security"
 	"aurago/internal/webhooks"
+
+	"gopkg.in/yaml.v3"
 )
 
 // --- Token Admin API Handlers ---
@@ -290,4 +294,113 @@ func handleWebhookLogGlobal(mgr *webhooks.Manager) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(entries)
 	}
+}
+
+// --- Outgoing Webhooks Handlers ---
+
+func handleOutgoingWebhooks(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			handleGetOutgoingWebhooks(s, w, r)
+		case http.MethodPut:
+			handlePutOutgoingWebhooks(s, w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	}
+}
+
+func handleGetOutgoingWebhooks(s *Server, w http.ResponseWriter, r *http.Request) {
+	s.CfgMu.RLock()
+	outgoing := s.Cfg.Webhooks.Outgoing
+	s.CfgMu.RUnlock()
+
+	if outgoing == nil {
+		outgoing = []config.OutgoingWebhook{}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(outgoing)
+}
+
+func handlePutOutgoingWebhooks(s *Server, w http.ResponseWriter, r *http.Request) {
+	var incoming []config.OutgoingWebhook
+	if err := json.NewDecoder(r.Body).Decode(&incoming); err != nil {
+		http.Error(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	s.CfgMu.RLock()
+	configPath := s.Cfg.ConfigPath
+	s.CfgMu.RUnlock()
+
+	if configPath == "" {
+		http.Error(w, "Config path not set", http.StatusInternalServerError)
+		return
+	}
+
+	// Read raw YAML, update mcp.servers key, write back
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		s.Logger.Error("Failed to read config for outgoing-webhooks update", "error", err)
+		http.Error(w, "Failed to read config", http.StatusInternalServerError)
+		return
+	}
+
+	var rawCfg map[string]interface{}
+	if err := yaml.Unmarshal(data, &rawCfg); err != nil {
+		s.Logger.Error("Failed to parse config for outgoing-webhooks update", "error", err)
+		http.Error(w, "Failed to parse config", http.StatusInternalServerError)
+		return
+	}
+
+	// Ensure webhooks section exists
+	webhooksSection, ok := rawCfg["webhooks"].(map[string]interface{})
+	if !ok {
+		webhooksSection = map[string]interface{}{}
+	}
+
+	b, _ := json.Marshal(incoming)
+	var genericList []interface{}
+	json.Unmarshal(b, &genericList)
+
+	webhooksSection["outgoing"] = genericList
+	rawCfg["webhooks"] = webhooksSection
+
+	out, err := yaml.Marshal(rawCfg)
+	if err != nil {
+		s.Logger.Error("Failed to marshal config after outgoing-webhooks update", "error", err)
+		http.Error(w, "Failed to save config", http.StatusInternalServerError)
+		return
+	}
+
+	if err := os.WriteFile(configPath, out, 0644); err != nil {
+		s.Logger.Error("Failed to write config after outgoing-webhooks update", "error", err)
+		http.Error(w, "Failed to write config", http.StatusInternalServerError)
+		return
+	}
+
+	// Hot-reload
+	s.CfgMu.Lock()
+	newCfg, loadErr := config.Load(configPath)
+	if loadErr != nil {
+		s.CfgMu.Unlock()
+		s.Logger.Error("[OutgoingWebhooks] Hot-reload failed", "error", loadErr)
+		http.Error(w, "Saved but reload failed: "+loadErr.Error(), http.StatusInternalServerError)
+		return
+	}
+	savedPath := s.Cfg.ConfigPath
+	*s.Cfg = *newCfg
+	s.Cfg.ConfigPath = savedPath
+	s.Cfg.ApplyOAuthTokens(s.Vault)
+	s.CfgMu.Unlock()
+
+	s.Logger.Info("[OutgoingWebhooks] Updated list", "count", len(incoming))
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status": "ok",
+		"count":  len(incoming),
+	})
 }

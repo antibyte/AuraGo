@@ -484,6 +484,52 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 		))
 	}
 
+	if ff.WebhooksEnabled {
+		tools = append(tools,
+			tool("call_webhook",
+				"Trigger an outgoing Webhook. The required 'parameters' depend on the webhook definition.",
+				schema(map[string]interface{}{
+					"webhook_name": prop("string", "Name of the webhook to execute"),
+					"parameters": map[string]interface{}{
+						"type":                 "object",
+						"description":          "Parameters payload for the webhook.",
+						"additionalProperties": true,
+					},
+				}, "webhook_name", "parameters"),
+			),
+			tool("manage_outgoing_webhooks",
+				"Manage configured outgoing webhooks (list, create, update, delete). 'list' requires no other args.",
+				schema(map[string]interface{}{
+					"operation": map[string]interface{}{
+						"type":        "string",
+						"description": "Operation to perform",
+						"enum":        []string{"list", "create", "update", "delete"},
+					},
+					"id":            prop("string", "Webhook ID (required for update/delete)"),
+					"name":          prop("string", "Friendly name of the webhook (required for create)"),
+					"description":   prop("string", "Description of what it does and parameters needed (required for create)"),
+					"method":        map[string]interface{}{"type": "string", "enum": []string{"GET", "POST", "PUT", "DELETE"}},
+					"url":           prop("string", "URL endpoint. Can contain {{variables}}"),
+					"payload_type":  map[string]interface{}{"type": "string", "enum": []string{"json", "form", "custom"}},
+					"body_template": prop("string", "Custom request body template. Applies only if payload_type is custom."),
+					"headers":       map[string]interface{}{"type": "object", "additionalProperties": map[string]interface{}{"type": "string"}},
+					"parameters": map[string]interface{}{
+						"type": "array",
+						"items": map[string]interface{}{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"name":        map[string]interface{}{"type": "string"},
+								"type":        map[string]interface{}{"type": "string", "enum": []string{"string", "number", "boolean"}},
+								"description": map[string]interface{}{"type": "string"},
+								"required":    map[string]interface{}{"type": "boolean"},
+							},
+						},
+					},
+				}, "operation"),
+			),
+		)
+	}
+
 	if ff.NetlifyEnabled {
 		tools = append(tools, tool("netlify",
 			"Manage Netlify sites, deploys, environment variables, forms, hooks, and SSL certificates via the Netlify API.",

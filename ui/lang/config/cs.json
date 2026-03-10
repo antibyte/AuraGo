@@ -1,1 +1,11 @@
-{}
+{
+  "config.https.status_active": "HTTPS je aktivní",
+  "config.https.status_inactive": "HTTPS je deaktivováno",
+  "config.https.connection_secure": "Vaše připojení je zabezpečené (HTTPS)",
+  "config.https.connection_insecure": "Nezabezpečené připojení (HTTP) – Pro produkční použití povolte HTTPS",
+  "config.https.behind_proxy_notice": "Detekován reverzní proxy – Bezpečnostní hlavičky byly odpovídajícím způsobem upraveny",
+  "config.security.title": "Stav zabezpečení",
+  "config.security.https_enabled": "HTTPS povoleno",
+  "config.security.auth_enabled": "Ochrana přihlášení aktivní",
+  "config.security.totp_enabled": "Dvoufaktorová autentizace (2FA)"
+}

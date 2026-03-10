@@ -202,6 +202,10 @@ type ToolCall struct {
 	Method             string                 `json:"method"`
 	Headers            map[string]string      `json:"headers"`
 	Params             map[string]interface{} `json:"params"`
+	WebhookName        string                 `json:"webhook_name"`
+	Parameters         interface{}            `json:"parameters"`
+	PayloadType        string                 `json:"payload_type"`
+	BodyTemplate       string                 `json:"body_template"`
 	Tag                string                 `json:"tag"`
 	Hostname           string                 `json:"hostname"`
 	ServerID           string                 `json:"server_id"`
@@ -420,6 +424,23 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	sessionID := runCfg.SessionID
 	isMaintenance := runCfg.IsMaintenance
 	surgeryPlan := runCfg.SurgeryPlan
+	var webhooksDef strings.Builder
+	if cfg.Webhooks.Enabled && len(cfg.Webhooks.Outgoing) > 0 {
+		for _, w := range cfg.Webhooks.Outgoing {
+			webhooksDef.WriteString(fmt.Sprintf("- **%s**: %s\n", w.Name, w.Description))
+			if len(w.Parameters) > 0 {
+				webhooksDef.WriteString("  Parameters:\n")
+				for _, p := range w.Parameters {
+					reqStr := ""
+					if p.Required {
+						reqStr = " (required)"
+					}
+					webhooksDef.WriteString(fmt.Sprintf("    - `%s` [%s]%s: %s\n", p.Name, p.Type, reqStr, p.Description))
+				}
+			}
+		}
+	}
+
 	flags := prompts.ContextFlags{
 		IsErrorState:             false,
 		RequiresCoding:           false,
@@ -452,6 +473,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		MeshCentralEnabled:       cfg.MeshCentral.Enabled,
 		HomepageEnabled:          cfg.Homepage.Enabled && cfg.Docker.Enabled,
 		NetlifyEnabled:           cfg.Netlify.Enabled,
+		WebhooksEnabled:          cfg.Webhooks.Enabled,
+		WebhooksDefinitions:      webhooksDef.String(),
 		VirusTotalEnabled:        cfg.VirusTotal.Enabled,
 		BraveSearchEnabled:       cfg.BraveSearch.Enabled,
 		MemoryEnabled:            cfg.Tools.Memory.Enabled,
@@ -2560,6 +2583,56 @@ func dispatchInner(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 		logger.Info("LLM requested cron job removal", "id", tc.ID)
 		result, _ := cronManager.ManageSchedule("remove", tc.ID, "", "")
 		return result
+
+	case "call_webhook":
+		if !cfg.Webhooks.Enabled {
+			return `Tool Output: {"status":"error","message":"Webhooks are disabled in the config. Set webhooks.enabled=true."}`
+		}
+		logger.Info("LLM requested webhook execution", "webhook_name", tc.WebhookName)
+
+		// Find the webhook by name
+		var targetHook *config.OutgoingWebhook
+		for _, w := range cfg.Webhooks.Outgoing {
+			if strings.EqualFold(w.Name, tc.WebhookName) {
+				targetHook = &w
+				break
+			}
+		}
+
+		if targetHook == nil {
+			return fmt.Sprintf(`Tool Output: {"status":"error","message":"Webhook '%s' not found. Check the exact name of the webhook from your System Context."}`, tc.WebhookName)
+		}
+
+		// Map parameters
+		paramMap := make(map[string]interface{})
+		if pm, ok := tc.Parameters.(map[string]interface{}); ok {
+			for k, v := range pm {
+				paramMap[k] = v
+			}
+		}
+
+		out, statusCode, err := tools.ExecuteOutgoingWebhook(ctx, *targetHook, paramMap)
+		if err != nil {
+			return fmt.Sprintf(`Tool Output: {"status":"error","message":"Failed to execute webhook: %v"}`, err)
+		}
+
+		// Provide simple response
+		return fmt.Sprintf(`Tool Output: {"status":"success", "http_status_code": %d, "response": %q}`, statusCode, out)
+
+	case "manage_outgoing_webhooks":
+		if !cfg.Webhooks.Enabled {
+			return `Tool Output: {"status":"error","message":"Webhooks are disabled in the config. Set webhooks.enabled=true."}`
+		}
+		if cfg.Webhooks.ReadOnly && tc.Operation != "list" {
+			return `Tool Output: {"status":"error","message":"Webhooks tool is set to Read-Only mode. Cannot modify."}`
+		}
+
+		var rawParams []interface{}
+		if rp, ok := tc.Parameters.([]interface{}); ok {
+			rawParams = rp
+		}
+
+		return tools.ManageOutgoingWebhooks(tc.Operation, tc.ID, tc.Name, tc.Description, tc.Method, tc.URL, tc.PayloadType, tc.BodyTemplate, tc.Headers, rawParams, cfg)
 
 	case "list_skills":
 		logger.Info("LLM requested to list skills")

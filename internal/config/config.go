@@ -61,6 +61,25 @@ type EmailAccount struct {
 	WatchFolder   string `yaml:"watch_folder"   json:"watch_folder"`
 }
 
+type WebhookParameter struct {
+	Name        string `yaml:"name" json:"name"`               // e.g. "message", "user_id"
+	Type        string `yaml:"type" json:"type"`               // "string", "number", "boolean"
+	Description string `yaml:"description" json:"description"` // Crucial for LLM
+	Required    bool   `yaml:"required" json:"required"`
+}
+
+type OutgoingWebhook struct {
+	ID           string             `yaml:"id" json:"id"`
+	Name         string             `yaml:"name" json:"name"`               // Agent uses this name
+	Description  string             `yaml:"description" json:"description"` // Tells agent when to use it
+	Method       string             `yaml:"method" json:"method"`           // GET, POST, PUT, DELETE
+	URL          string             `yaml:"url" json:"url"`                 // Can contain {{variables}}
+	Headers      map[string]string  `yaml:"headers" json:"headers"`
+	Parameters   []WebhookParameter `yaml:"parameters" json:"parameters"`
+	PayloadType  string             `yaml:"payload_type" json:"payload_type"`   // "json", "form", "custom"
+	BodyTemplate string             `yaml:"body_template" json:"body_template"` // Context for custom templating
+}
+
 type Config struct {
 	ConfigPath    string          `yaml:"-"` // runtime-only: absolute path to the config file
 	Providers     []ProviderEntry `yaml:"providers"`
@@ -73,9 +92,12 @@ type Config struct {
 		UILanguage    string `yaml:"ui_language"`
 		MasterKey     string `yaml:"-"` // ENV-only (AURAGO_MASTER_KEY)
 		HTTPS         struct {
-			Enabled bool   `yaml:"enabled"`
-			Domain  string `yaml:"domain"`
-			Email   string `yaml:"email"`
+			Enabled     bool   `yaml:"enabled"`
+			Domain      string `yaml:"domain"`
+			Email       string `yaml:"email"`
+			HTTPSPort   int    `yaml:"https_port"`   // default: 443
+			HTTPPort    int    `yaml:"http_port"`    // default: 80 (for redirect)
+			BehindProxy bool   `yaml:"behind_proxy"` // trust X-Forwarded-* headers
 		} `yaml:"https"`
 	} `yaml:"server"`
 	LLM struct {
@@ -233,9 +255,9 @@ type Config struct {
 	} `yaml:"email"` // legacy single-account; migrated to EmailAccounts at startup
 	HomeAssistant struct {
 		Enabled     bool   `yaml:"enabled"`
-		ReadOnly    bool   `yaml:"readonly"` // true = only read states, block call_service
+		ReadOnly    bool   `yaml:"readonly"`                     // true = only read states, block call_service
 		URL         string `yaml:"url"`
-		AccessToken string `yaml:"-"`
+		AccessToken string `yaml:"-" vault:"access_token"`      // vault-only
 	} `yaml:"home_assistant"`
 	MeshCentral struct {
 		Enabled           bool     `yaml:"enabled"`
@@ -1169,6 +1191,12 @@ func Load(path string) (*Config, error) {
 
 	if cfg.Server.Host == "" {
 		cfg.Server.Host = "127.0.0.1"
+	}
+	if cfg.Server.HTTPS.HTTPSPort <= 0 {
+		cfg.Server.HTTPS.HTTPSPort = 443
+	}
+	if cfg.Server.HTTPS.HTTPPort <= 0 {
+		cfg.Server.HTTPS.HTTPPort = 80
 	}
 	if cfg.Agent.StepDelaySeconds < 0 {
 		cfg.Agent.StepDelaySeconds = 0

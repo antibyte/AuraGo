@@ -7,8 +7,14 @@ require gopkg.in/yaml.v3 v3.0.1
 require github.com/sashabaranov/go-openai v1.41.2
 
 require (
+	github.com/JohannesKaufmann/html-to-markdown/v2 v2.5.0
+	github.com/SherClockHolmes/webpush-go v1.4.0
 	github.com/bwmarrin/discordgo v0.29.0
+	github.com/eclipse/paho.mqtt.golang v1.5.1
+	github.com/go-rod/rod v0.116.2
+	github.com/go-shiori/go-readability v0.0.0-20251205110129-5db1dc9836f0
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1
+	github.com/gocolly/colly/v2 v2.3.0
 	github.com/gofrs/flock v0.13.0
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.3
@@ -25,9 +31,7 @@ require (
 
 require (
 	github.com/JohannesKaufmann/dom v0.2.0 // indirect
-	github.com/JohannesKaufmann/html-to-markdown/v2 v2.5.0 // indirect
 	github.com/PuerkitoBio/goquery v1.11.0 // indirect
-	github.com/SherClockHolmes/webpush-go v1.4.0 // indirect
 	github.com/andybalholm/cascadia v1.3.3 // indirect
 	github.com/antchfx/htmlquery v1.3.5 // indirect
 	github.com/antchfx/xmlquery v1.5.0 // indirect
@@ -38,13 +42,9 @@ require (
 	github.com/dlclark/regexp2 v1.10.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/ebitengine/purego v0.9.1 // indirect
-	github.com/eclipse/paho.mqtt.golang v1.5.1 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
-	github.com/go-rod/rod v0.116.2 // indirect
 	github.com/go-shiori/dom v0.0.0-20230515143342-73569d674e1c // indirect
-	github.com/go-shiori/go-readability v0.0.0-20251205110129-5db1dc9836f0 // indirect
 	github.com/gobwas/glob v0.2.3 // indirect
-	github.com/gocolly/colly/v2 v2.3.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/gogs/chardet v0.0.0-20211120154057-b7413eaefb8f // indirect
 	github.com/golang-jwt/jwt/v5 v5.2.1 // indirect

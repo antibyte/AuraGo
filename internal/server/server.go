@@ -431,6 +431,8 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		serverCancel()
 	}()
 
+
+
 	// Phase 34: Start the background daily reflection loop
 	tools.StartDailyReflectionLoop(serverCtx, s.Cfg, s.Logger, s.LLMClient, s.HistoryManager, s.ShortTermMem)
 
@@ -458,6 +460,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 
 	// Auth endpoints — always reachable (whitelisted in authMiddleware)
 	mux.HandleFunc("/api/auth/status", handleAuthStatus(s))
+	mux.HandleFunc("/api/security/status", handleSecurityStatus(s))
 	mux.HandleFunc("/api/auth/password", handleAuthSetPassword(s))
 	mux.HandleFunc("/api/auth/totp/setup", handleAuthTOTPSetup(s))
 	mux.HandleFunc("/api/auth/totp/confirm", handleAuthTOTPConfirm(s))
@@ -474,6 +477,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		mux.HandleFunc("/api/providers", handleProviders(s))
 		mux.HandleFunc("/api/email-accounts", handleEmailAccounts(s))
 		mux.HandleFunc("/api/mcp-servers", handleMCPServers(s))
+		mux.HandleFunc("/api/outgoing-webhooks", handleOutgoingWebhooks(s))
 		mux.HandleFunc("/api/sandbox/status", handleSandboxStatus(s))
 
 		// OAuth2 Authorization Code flow endpoints
@@ -1074,9 +1078,6 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		}()
 	}
 
-	addr := fmt.Sprintf("%s:%d", s.Cfg.Server.Host, s.Cfg.Server.Port)
-	s.Logger.Info("Starting server", "host", s.Cfg.Server.Host, "port", s.Cfg.Server.Port)
-
 	// Start Phase 1 TCP Bridge
 	bridgeAddr := s.Cfg.Server.BridgeAddress
 	if bridgeAddr == "" {
@@ -1084,43 +1085,145 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	}
 	go s.StartTCPBridge(bridgeAddr)
 
+	// Determine server mode: HTTPS auto, HTTPS manual, or HTTP
+	tlsCfg := NewTLSConfigFromConfig(s.Cfg, s.Cfg.Directories.DataDir)
+	tlsCfg.BehindProxy = s.Cfg.Server.HTTPS.BehindProxy
+
+	if tlsCfg.IsTLSActive() {
+		return s.runHTTPS(mux, ttsServer, tlsCfg, shutdownCh)
+	}
+	
+	return s.runHTTP(mux, ttsServer, shutdownCh)
+}
+
+// runHTTP starts the server in HTTP mode (for local/LAN use)
+func (s *Server) runHTTP(mux *http.ServeMux, ttsServer *http.Server, shutdownCh chan struct{}) error {
+	addr := fmt.Sprintf("%s:%d", s.Cfg.Server.Host, s.Cfg.Server.Port)
+	s.Logger.Info("Starting HTTP server", "host", s.Cfg.Server.Host, "port", s.Cfg.Server.Port, "tls", false)
+
+	// Apply security headers (relaxed for HTTP, but still present)
+	handler := securityHeadersMiddleware(authMiddleware(s, mux), false, s.Cfg.Server.HTTPS.BehindProxy)
+
 	server := &http.Server{
 		Addr:         addr,
-		Handler:      authMiddleware(s, mux), // auth check; respects s.Cfg.Auth.Enabled dynamically
+		Handler:      handler,
 		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 5 * time.Minute, // generous for streaming responses
+		WriteTimeout: 5 * time.Minute,
 		IdleTimeout:  2 * time.Minute,
 	}
 
-	// Graceful shutdown goroutine
-	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				s.Logger.Error("[Shutdown] Goroutine panic recovered", "error", r)
+	return s.serveWithShutdown(server, nil, ttsServer, shutdownCh)
+}
+
+// runHTTPS starts the server with auto-TLS (Let's Encrypt)
+func (s *Server) runHTTPS(mux *http.ServeMux, ttsServer *http.Server, tlsCfg *TLSConfig, shutdownCh chan struct{}) error {
+	tlsCfg.HTTPSPort = s.Cfg.Server.HTTPS.HTTPSPort
+	tlsCfg.HTTPPort = s.Cfg.Server.HTTPS.HTTPPort
+
+	// Apply security headers (strict for HTTPS)
+	handler := securityHeadersMiddleware(authMiddleware(s, mux), true, s.Cfg.Server.HTTPS.BehindProxy)
+
+	httpsServer, httpServer, err := SetupServers(tlsCfg, handler, s.Logger)
+	if err != nil {
+		return fmt.Errorf("failed to setup TLS servers: %w", err)
+	}
+
+	s.Logger.Info("Starting HTTPS servers", 
+		"domain", tlsCfg.Domain, 
+		"https_port", tlsCfg.HTTPSPort,
+		"http_port", tlsCfg.HTTPPort,
+		"email", tlsCfg.Email,
+		"cert_dir", tlsCfg.CertDir)
+
+	return s.serveWithShutdown(httpsServer, httpServer, ttsServer, shutdownCh)
+}
+
+// serveWithShutdown handles graceful shutdown for servers
+func (s *Server) serveWithShutdown(server, redirectServer, ttsServer *http.Server, shutdownCh chan struct{}) error {
+	// Start redirect server (if provided) in background
+	if redirectServer != nil {
+		go func() {
+			s.Logger.Info("Starting HTTP redirect server", "addr", redirectServer.Addr)
+			if err := redirectServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				s.Logger.Error("HTTP redirect server error", "error", err)
 			}
 		}()
+	}
+
+	// Graceful shutdown handler
+	go func() {
 		<-shutdownCh
-		s.Logger.Info("Initiating graceful HTTP server shutdown...")
+		s.Logger.Info("Initiating graceful server shutdown...")
+		
 		// Shut down MCP servers
 		tools.ShutdownMCPManager()
 		// Shut down Sandbox
 		tools.ShutdownSandboxManager()
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
-		// Shut down TTS server (releases port so next startup doesn't get EADDRINUSE)
+		
 		if ttsServer != nil {
-			if err := ttsServer.Shutdown(ctx); err != nil {
-				s.Logger.Warn("TTS Server shutdown error", "error", err)
-			}
+			ttsServer.Shutdown(ctx)
+		}
+		if redirectServer != nil {
+			redirectServer.Shutdown(ctx)
 		}
 		if err := server.Shutdown(ctx); err != nil {
-			s.Logger.Error("HTTP server shutdown error", "error", err)
+			s.Logger.Error("Server shutdown error", "error", err)
 		}
 	}()
 
-	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+	// Start main server
+	var err error
+	if server.TLSConfig != nil {
+		err = server.ListenAndServeTLS("", "")
+	} else {
+		err = server.ListenAndServe()
+	}
+	
+	if err != nil && err != http.ErrServerClosed {
 		return err
 	}
+	
 	s.Logger.Info("Server stopped gracefully")
 	return nil
+}
+
+// securityHeadersMiddleware adds security headers based on TLS mode
+func securityHeadersMiddleware(next http.Handler, tlsActive, behindProxy bool) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Always set these headers
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("X-XSS-Protection", "1; mode=block")
+		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		
+		// Content Security Policy - strict for both modes
+		csp := "default-src 'self'; " +
+			"script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
+			"style-src 'self' 'unsafe-inline'; " +
+			"img-src 'self' data: blob:; " +
+			"font-src 'self'; " +
+			"connect-src 'self' ws: wss:; " +
+			"frame-ancestors 'none'; " +
+			"base-uri 'self';"
+		w.Header().Set("Content-Security-Policy", csp)
+		
+		if tlsActive {
+			// Strict Transport Security (only for HTTPS)
+			w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload")
+		}
+		
+		// Add cache control for authenticated routes
+		if !strings.HasPrefix(r.URL.Path, "/auth/") && 
+		   !strings.HasPrefix(r.URL.Path, "/api/auth/") &&
+		   !strings.HasPrefix(r.URL.Path, "/setup") &&
+		   !strings.HasPrefix(r.URL.Path, "/static/") {
+			w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, private")
+			w.Header().Set("Pragma", "no-cache")
+		}
+		
+		next.ServeHTTP(w, r)
+	})
 }

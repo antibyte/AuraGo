@@ -1,1 +1,11 @@
-{}
+{
+  "config.https.status_active": "Το HTTPS είναι ενεργό",
+  "config.https.status_inactive": "Το HTTPS είναι απενεργοποιημένο",
+  "config.https.connection_secure": "Η σύνδεσή σας είναι ασφαλής (HTTPS)",
+  "config.https.connection_insecure": "Ανασφαλής σύνδεση (HTTP) – Ενεργοποιήστε το HTTPS για παραγωγική χρήση",
+  "config.https.behind_proxy_notice": "Ανιχνεύθηκε reverse proxy – Οι κεφαλίδες ασφαλείας προσαρμόστηκαν ανάλογα",
+  "config.security.title": "Κατάσταση ασφαλείας",
+  "config.security.https_enabled": "HTTPS ενεργοποιημένο",
+  "config.security.auth_enabled": "Προστασία σύνδεσης ενεργή",
+  "config.security.totp_enabled": "Έλεγχος ταυτότητας δύο παραγόντων (2FA)"
+}

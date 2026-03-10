@@ -106,6 +106,8 @@ type ContextFlags struct {
 	MeshCentralEnabled     bool
 	HomepageEnabled        bool
 	NetlifyEnabled         bool
+	WebhooksEnabled        bool
+	WebhooksDefinitions    string // Summary of configured outgoing webhooks for tool context
 	VirusTotalEnabled      bool
 	BraveSearchEnabled     bool
 	// Danger Zone toggles
@@ -249,6 +251,13 @@ func BuildSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string,
 			finalPrompt.WriteString(guide)
 			finalPrompt.WriteString("\n\n")
 		}
+	}
+
+	// Dynamic Outgoing Webhooks definition
+	if flags.WebhooksEnabled && flags.WebhooksDefinitions != "" && flags.Tier != "minimal" {
+		finalPrompt.WriteString("# OUTGOING WEBHOOKS\n")
+		finalPrompt.WriteString(flags.WebhooksDefinitions)
+		finalPrompt.WriteString("\n\n")
 	}
 
 	now := time.Now()

@@ -5,33 +5,48 @@
   <img alt="AuraGo" src="ui/aurago_logo_dark.png" width="360">
 </picture>
 
-# AuraGo - your personal AI agent with personality
+# AuraGo — Your Home Lab AI Agent
 
-**A self-contained, self-improving AI agent framework — single binary, zero external dependencies.**
+**A self-contained AI agent built for home labs — single binary, zero external dependencies, runs on any Linux server or Raspberry Pi.**
 
-> **⚠️ Work in Progress** — This project is under active development. Not all features are fully tested. Expect rough edges, breaking changes, and experimental behavior.
+> **🛠️ Work in Progress** — AuraGo is under active development. Not all features are fully tested; expect rough edges and occasional breaking changes.
 
-> **🚨 Security Warning** — AuraGo can execute arbitrary shell commands, write files, and modify system state. **Never expose the Web UI to the public internet without proper security measures** (VPN, reverse proxy with authentication, firewall rules). Running this unprotected on a public-facing server is a serious security risk.
+> **ℹ️ You are in control** — Nearly every feature in AuraGo can be individually disabled or restricted. Shell and Python execution, filesystem access, network requests, self-updates, and remote access each have their own on/off toggle in the **Danger Zone**. Integrations like Home Assistant and webhooks support **read-only mode**. The firewall monitor can be set to observe-only. Web UI access can be protected with a password and 2FA; when HTTPS is active, login cannot be disabled. — That said, AuraGo is a capable system that can interact with your infrastructure, and **you are ultimately responsible for how you configure and expose it**. For internet-facing installs, always enable HTTPS, login protection, and 2FA. Never run it unprotected on a public IP.
 
-> **🖥️ Installation Recommendation** — While it is technically possible to run AuraGo on your daily-use workstation, it is **strongly recommended** to install it in an isolated environment: a **virtual machine**, a **Docker container**, or a **dedicated PC**. AuraGo executes code, modifies files, and manages processes on the host system — mistakes by the LLM or a misconfigured prompt can have unintended effects on the surrounding system.
 
-AuraGo is a fully autonomous AI agent written in Go that ships as one portable binary with an embedded Web UI. Connect it to any OpenAI-compatible LLM provider (OpenRouter, Ollama, local models, …) and it becomes a personal assistant that can execute code, manage files, control smart-home devices, send emails, remember everything, and even improve its own source code — all from a clean chat interface or via Telegram and Discord.
+AuraGo is a fully autonomous AI agent written in Go that ships as one portable binary with an embedded Web UI. Connect it to any OpenAI-compatible LLM provider (OpenRouter, Ollama, local models, …) and it becomes a powerful home lab assistant: managing Docker containers, monitoring Proxmox VMs, controlling Home Assistant devices, waking up servers via Wake-on-LAN, watching your firewall, sending notifications, calling outgoing webhooks, and much more — all from a clean chat interface or via Telegram and Discord.
+
+---
+
+## Why AuraGo for Home Labs?
+
+Unlike cloud AI services, AuraGo runs **on your hardware**, has **direct access to your infrastructure**, and keeps all data local. It's designed to be the AI brain of a home lab:
+
+- 🏠 **Control your smart home** via Home Assistant
+- 🐳 **Manage Docker & containers** — start, stop, inspect
+- 🖥️ **Monitor Proxmox VMs and LXCs** — snapshots, status, lifecycle
+- 🌐 **SSH into network devices** — routers, NAS boxes, remote servers
+- 💤 **Wake-on-LAN** — remotely power on devices
+- 🧱 **Firewall monitoring** — read rules, get alerts on changes (Linux)
+- 📤 **Outgoing webhooks** — connect to any external API or automation
+- 🔔 **Notifications** — ntfy, Pushover, Telegram alerts
+- 🔒 **HTTPS with Let's Encrypt** — built-in auto-TLS for internet-facing installs
+- 📡 **MQTT** — subscribe and publish to your smart home message bus
 
 ---
 
 ## Key Features
 
 ### Agent Core
-- **30+ built-in tools** — WebDAV, Koofr, Chromecast, Text-to-Speech, shell & Python execution, file system, HTTP requests, cron scheduling, process management, system metrics, Proxmox, Ollama, and many more
+- **30+ built-in tools** — shell & Python execution, file system, HTTP requests, cron scheduling, process management, system metrics, Docker, Proxmox, Ollama, Home Assistant, Tailscale, Ansible, MeshCentral, and many more
 - **Native Function Calling** — OpenAI-style tool calls with auto-detection for DeepSeek and compatible models; optional **Structured Outputs** mode for constrained decoding
 - **Dynamic tool creation** — the agent can write, save, and register new Python tools at runtime
 - **Multi-step reasoning loop** with automatic tool dispatch, error recovery, and corrective feedback
 - **Co-Agent system** — spawn parallel sub-agents with independent LLM contexts for complex tasks
-- **Intelligent Prompt Builder** — reduces costs via recursive character-based context compression, background summarization (Persistent Summary), and automatic RAG-based factual recall; includes analytics dashboard
-- **Configurable personalities** — friend, professional, punk, neutral, mistress and more
-- **Personality Engine** — V1 with zero extra LLM calls and an advanced V2 requiring a lightweight external model. The V2 engine dynamically adapts the agent's mood and motivation to the situation and your reactions, making him more human-like and giving him a natural desire to evolve and improve
-- **User Profiling** (V2) — automatic detection and storage of user preferences, interests, and communication style
-- **Temperature Modulation** — personality engine can dynamically adjust LLM temperature based on mood
+- **Intelligent Prompt Builder** — reduces costs via context compression, background summarization, and automatic RAG-based recall; includes analytics dashboard
+- **Configurable personalities** — friend, professional, punk, neutral, and more
+- **Personality Engine** — dynamically adapts mood and motivation to context, making the agent more natural to interact with
+- **User Profiling** — automatic detection and storage of user preferences and communication style
 
 ### Memory & Knowledge
 - **Short-term memory** — SQLite sliding-window conversation context
@@ -40,42 +55,53 @@ AuraGo is a fully autonomous AI agent written in Go that ships as one portable b
 - **Persistent notes & to-dos** — categorized, prioritized, with due dates
 - **Core memory** — permanent facts the agent always remembers
 
-### Integrations
+### Home Lab Integrations
+
 | Integration | Description |
 |---|---|
-| **Web UI** | Embedded single-page chat app with dark/light theme, file uploads, image lightbox, **system dashboard**, and **full configuration editor** |
-| **Quick Setup Wizard** | First-run assistant that guides you through LLM, personality, and integration setup |
+| **Web UI** | Embedded single-page chat app with dark/light theme, file uploads, **system dashboard**, and **full configuration editor** |
+| **HTTPS + Let's Encrypt** | Built-in auto-TLS — just provide a domain and email, certificates are managed automatically |
+| **Docker** | Container, image, network & volume management — start, stop, inspect, logs |
+| **Proxmox** | VM and LXC lifecycle management (start, stop, snapshots, status) |
+| **Home Assistant** | Smart-home control — device states, services, toggle, read-only guard mode |
+| **Device Inventory** | SSH command execution on remote servers, NAS, and routers |
+| **Wake-on-LAN** | Power on network devices by MAC address |
+| **Firewall Monitor** | Linux ufw/iptables guard — read rules, alert on changes (guard mode, read-only mode) |
+| **MQTT** | Subscribe and publish to smart home message bus |
+| **Outgoing Webhooks** | Call any external HTTP API with configurable parameters — agent can trigger them by name |
+| **Incoming Webhooks** | Receive events from GitHub, Alertmanager, Home Assistant, etc. with token auth |
+| **Ansible** | Run playbooks and manage your lab fleet |
+| **Tailscale** | VPN node inspection and management |
+| **MeshCentral** | Remote desktop agent management |
+| **Ollama** | Local model management (list, pull, delete, run) |
 | **Telegram** | Full bot with voice messages, image analysis, inline commands |
 | **Discord** | Bot integration with message bridge |
-| **Rocket.Chat** | Bot integration for self-hosted Rocket.Chat instances |
+| **Rocket.Chat** | Bot integration for self-hosted instances |
 | **Email** | IMAP inbox watcher + SMTP sending |
-| **Home Assistant** | Smart-home device control (states, services, toggle) |
-| **Docker** | Container, image, network & volume management |
-| **Proxmox** | VM and LXC container management (start, stop, status, snapshots) |
-| **Ollama** | Local model management (list, pull, delete, run) |
-| **Device Inventory** | Execute commands on remote SSH servers and manage generic network devices |
-| **Chromecast & Audio**| Discover LAN speakers, adjust volume, and stream Text-to-Speech audio |
-| **Google Workspace** | Manage Gmail, Calendar, Drive, and Docs via internal tool |
-| **Cloud Storage** | WebDAV & Koofr access (Nextcloud, ownCloud, Synology, Koofr, etc.) |
-| **Budget Tracking** | Optional per-model cost tracking with daily limits and enforcement modes |
-| **Notifications** | Push notifications via **ntfy** and **Pushover** |
-| **Webhooks** | Incoming webhooks with token authentication for external integrations |
-
-### Self-Improvement
-- **Maintenance loop** — scheduled nightly agent run for housekeeping, memory cleanup, and autonomous tasks
-- **Lifeboat system** — companion binary that hot-swaps the main process for self-updates
-- **Code surgery** — the agent can modify its own codebase via a structured plan/execute workflow
-- **Daily reflection** — morning briefing generation at 03:00 AM
+| **Google Workspace** | Gmail, Calendar, Drive, and Docs |
+| **Cloud Storage** | WebDAV & Koofr (Nextcloud, ownCloud, Synology, etc.) |
+| **Chromecast & Audio** | Discover LAN speakers, TTS streaming |
+| **Notifications** | Push via **ntfy** and **Pushover** |
+| **Budget Tracking** | Per-model token cost tracking with daily limits |
+| **MCP Servers** | Connect Model Context Protocol servers for extended tool access |
 
 ### Security
-- **AES-256-GCM encrypted vault** for API keys and secrets — manageable via Web UI with safe key rotation
-- **Web UI Authentication** — optional login protection with **bcrypt** password hashing and **TOTP 2FA**
-- **Danger Zone** — granular capability gates to enable/disable shell, Python, filesystem, network, remote shell, and self-update tools
-- **Sandboxed execution** — Python runs in an isolated venv workspace
-- **File lock** — prevents duplicate instances
-- **LLM failover** — automatic switch to a backup provider on consecutive errors
-- **Circuit breaker** — configurable limits on tool calls, timeouts, and retry intervals
-- **Rate limiting** — login attempts, webhook requests, and API calls can be rate-limited
+- **AES-256-GCM encrypted vault** for API keys — manageable via Web UI with key rotation
+- **Web UI Authentication** — login protection with **bcrypt** password hashing, **TOTP 2FA**, and API token management
+- **Auto-provisioned passwords** — the install script generates a secure first-login password
+- **HTTPS enforcement** — when HTTPS is active, login cannot be disabled (enforced via UI)
+- **Danger Zone** — granular capability gates (shell, Python, filesystem, network, remote shell, self-update)
+- **Security Headers** — CSP, HSTS, X-Frame-Options, and more on every response
+- **Sandboxed Python execution** — isolated venv workspace
+- **LLM failover** — automatic switch to backup provider on errors
+- **Circuit breaker** — configurable limits on tool calls, timeouts, and retries
+- **Rate limiting** — login attempts, webhook requests, and API calls
+
+### Self-Improvement
+- **Maintenance loop** — scheduled nightly agent run for memory cleanup and autonomous tasks
+- **Lifeboat system** — companion binary for hot-swap self-updates
+- **Code surgery** — the agent can modify its own codebase via a structured plan/execute workflow
+- **Daily reflection** — morning briefing generated at 03:00
 
 ---
 
@@ -87,38 +113,53 @@ AuraGo is a fully autonomous AI agent written in Go that ships as one portable b
 curl -fsSL https://raw.githubusercontent.com/antibyte/AuraGo/main/install.sh | bash
 ```
 
-The script clones the repo, sets permissions on the pre-built binary, generates a master key into `.env`, and optionally installs a systemd service. Afterwards:
+The interactive install script will:
+- Clone the repo and set up the directory structure
+- Check for Docker and offer to install it (recommended for many features)
+- Ask if this is an internet-facing server — if yes, prompt for domain + email and configure **automatic HTTPS with Let's Encrypt**
+- Generate a **secure first-login password** and display it (also saved to `firstpassword.txt`)
+- Optionally install a **systemd service** so AuraGo starts on boot
+
+After install:
 
 1. Edit `~/aurago/config.yaml` — set at minimum `llm.api_key`
 2. `source ~/aurago/.env`
 3. `cd ~/aurago && ./start.sh`
-4. Open **http://localhost:8088**
+4. Open **https://yourdomain.com** (HTTPS) or **http://localhost:8088** (local)
+5. Log in with the generated password — **change it immediately**
+
+#### Command-Line Flags
+
+AuraGo supports flags for automated/scripted startup:
+
+```bash
+# Start with HTTPS, domain, email, and a pre-set password (used by install script)
+./aurago -https -domain=home.example.com -email=you@example.com -password=<generated>
+
+# Custom config path
+./aurago --config /etc/aurago/config.yaml
+```
 
 #### Linux Service Installation (Optional)
-
-To keep AuraGo running in the background and start automatically on boot:
 
 ```bash
 sudo ./install_service_linux.sh
 ```
 
-This will create a systemd service, handle root/user permissions, ensure your master key is set, and enable the service.
-
 ---
 
 ### Option B — Build from Source
 
-### Prerequisites
+#### Prerequisites
 
-- **Go 1.21+** (for building from source)
-- **Python 3.10+** — required for the agent to create and execute custom tools, run skills (web scraping, Google Workspace, etc.), and use the sandboxed Python environment
-- **[Gemini CLI](https://github.com/google-gemini/gemini-cli)** (optional) — required only for the self-modification feature (code surgery via lifeboat). Install and authenticate it before enabling `maintenance.lifeboat_enabled`
+- **Go 1.21+**
+- **Python 3.10+** — required for custom tools, skills, and sandboxed execution
 - An API key for an OpenAI-compatible LLM provider (e.g. [OpenRouter](https://openrouter.ai/))
 
-### 1. Clone & Build
+#### 1. Clone & Build
 
 ```bash
-git clone https://github.com/your-username/AuraGo.git
+git clone https://github.com/antibyte/AuraGo.git
 cd AuraGo
 go build -o aurago cmd/aurago/main.go
 ```
@@ -130,7 +171,7 @@ go build -o aurago.exe cmd/aurago/main.go
 
 > The binary is fully portable — pure Go SQLite driver, no CGO required. The Web UI is baked in via `go:embed`.
 
-### 2. Configure
+#### 2. Configure
 
 Edit `config.yaml` in the project root:
 
@@ -138,17 +179,32 @@ Edit `config.yaml` in the project root:
 server:
   host: "127.0.0.1"
   port: 8088
+  # Optional HTTPS (Let's Encrypt):
+  # https:
+  #   enabled: true
+  #   domain: "home.example.com"
+  #   email: "you@example.com"
 
 llm:
-  provider: openrouter                          # or "ollama", any OpenAI-compatible
+  provider: openrouter
   base_url: "https://openrouter.ai/api/v1"
-  api_key: "sk-or-..."                          # ← your API key
-  model: "arcee-ai/trinity-large-preview:free"  # ← your preferred model
+  api_key: "sk-or-..."
+  model: "google/gemini-2.0-flash-001"
+
+# Enable Docker for container management
+docker:
+  enabled: true
+
+# Enable Home Assistant integration
+home_assistant:
+  enabled: true
+  url: "http://homeassistant.local:8123"
+  # AccessToken via vault (set in Web UI)
 ```
 
-See `config.yaml` for all available options (Telegram, Discord, email, Home Assistant, Docker, co-agents, budget, etc.).
+See `config.yaml` for all available options.
 
-### 3. Set Master Key
+#### 3. Set Master Key
 
 AuraGo encrypts its secrets vault with a 64-character hex key (32 bytes AES-256):
 
@@ -164,7 +220,7 @@ $env:AURAGO_MASTER_KEY = -join ((1..32) | ForEach-Object { '{0:x2}' -f (Get-Rand
 
 > **Keep this key safe.** Without it, the encrypted vault cannot be decrypted.
 
-### 4. Start
+#### 4. Start
 
 ```bash
 ./aurago
@@ -180,7 +236,7 @@ chmod +x start.sh && ./start.sh
 start.bat
 ```
 
-Open **http://localhost:8088** in your browser — done.
+Open **http://localhost:8088** — done.
 
 ---
 
@@ -197,15 +253,16 @@ AuraGo/
 │   ├── commands/        # Slash commands (/reset, /budget, /debug, …)
 │   ├── config/          # YAML config parser & defaults
 │   ├── discord/         # Discord bot integration
-│   ├── inventory/       # SSH server inventory (SQLite)
+│   ├── inventory/       # SSH device inventory (SQLite)
 │   ├── llm/             # LLM client, failover, retry, context detection
 │   ├── memory/          # All memory subsystems (STM, LTM, graph, personality, …)
 │   ├── prompts/         # Dynamic system prompt builder
 │   ├── remote/          # SSH remote execution
-│   ├── security/        # AES-GCM vault & guardian
-│   ├── server/          # HTTP server, SSE, REST handlers
+│   ├── security/        # AES-GCM vault & token manager
+│   ├── server/          # HTTP/HTTPS server, SSE, REST handlers, TLS management
 │   ├── telegram/        # Telegram bot (text, voice, vision)
-│   └── tools/           # All tool implementations + process/cron managers
+│   ├── tools/           # All tool implementations + process/cron managers
+│   └── webhooks/        # Incoming & outgoing webhook engine
 ├── agent_workspace/
 │   ├── prompts/         # Modular system prompt markdown files & personalities
 │   ├── skills/          # Pre-built Python skills (search, scraping, Google, …)
@@ -226,6 +283,7 @@ AuraGo/
 | `/help` | List available commands |
 | `/reset` | Clear conversation history and start fresh |
 | `/stop` | Interrupt the current agent action |
+| `/restart` | Restart the agent process |
 | `/debug on\|off` | Toggle detailed error reporting |
 | `/budget` | Show daily token cost breakdown |
 | `/personality <name>` | Switch to a different personality profile |
@@ -234,18 +292,57 @@ AuraGo/
 
 ## Web UI Features
 
-The embedded Web UI provides a complete control center for AuraGo:
-
 | Feature | Description |
 |---|---|
 | **Chat** | Real-time streaming conversation with tool execution feedback |
 | **Dashboard** | System metrics, mood history, prompt builder analytics, memory stats |
-| **Configuration** | Full YAML config editor organized by section (LLM, Agent, Integrations, etc.) |
-| **Quick Setup** | First-run wizard for essential settings (LLM API key, personality, integrations) |
+| **Configuration** | Full config editor organized by section (LLM, Docker, Proxmox, Webhooks, Firewall, …) |
+| **Quick Setup** | First-run wizard for essential settings |
 | **Login & 2FA** | Optional authentication with bcrypt passwords and TOTP two-factor |
+| **API Tokens** | Create and manage API tokens for webhook integrations |
+| **Outgoing Webhooks** | Configure external webhooks the agent can call with parameters |
+| **Incoming Webhooks** | Receive and process events from external services |
+| **Firewall Monitor** | View and monitor Linux firewall rules (ufw/iptables) — Linux only |
 | **Danger Zone** | Toggle agent capabilities (shell, Python, filesystem, network, self-update) |
 | **Vault Management** | View vault status and safely reset/regenerate the master key |
-| **Personality Editor** | Create, edit, and manage personality profiles directly in the browser |
+| **Personality Editor** | Create and manage personality profiles directly in the browser |
+| **MCP Servers** | Manage Model Context Protocol server connections |
+
+---
+
+## Outgoing Webhooks
+
+AuraGo supports **outgoing webhooks** — configurable HTTP calls the agent can trigger by name. This enables seamless integration with external services:
+
+```
+Example: "Send Slack Notification"
+  Method: POST
+  URL: https://hooks.slack.com/services/...
+  Parameters:
+    - message [string, required] — The message to send
+    - channel [string] — Target Slack channel
+```
+
+Once configured in the UI, the agent can call any webhook by name:  
+_"Hey, send a Slack notification to #alerts: Proxmox backup completed."_
+
+---
+
+## HTTPS with Let's Encrypt
+
+For internet-facing installs, AuraGo handles TLS automatically:
+
+```yaml
+server:
+  https:
+    enabled: true
+    domain: "home.example.com"  # Your public domain
+    email: "you@example.com"    # For Let's Encrypt notifications
+```
+
+- Certificates are obtained and renewed automatically
+- HTTP traffic on port 80 is redirected to HTTPS
+- When HTTPS is active, login **cannot be disabled** in the UI
 
 ---
 
@@ -283,7 +380,8 @@ This project is provided as-is for personal and educational use.
 | [discordgo](https://github.com/bwmarrin/discordgo) | Discord bot integration |
 | [gopsutil](https://github.com/shirou/gopsutil) | System metrics (CPU, memory, disk) |
 | [sftp](https://github.com/pkg/sftp) | SFTP file transfers for remote execution |
-| [golang.org/x/crypto](https://pkg.go.dev/golang.org/x/crypto) | SSH client, bcrypt password hashing & cryptographic primitives |
+| [golang.org/x/crypto](https://pkg.go.dev/golang.org/x/crypto) | SSH client, bcrypt password hashing & crypto |
+| [golang.org/x/crypto/acme](https://pkg.go.dev/golang.org/x/crypto/acme) | Let's Encrypt / ACME TLS automation |
 | [cron/v3](https://github.com/robfig/cron) | Cron-based task scheduler |
 | [vishen/go-chromecast](https://github.com/vishen/go-chromecast) | Chromecast LAN discovery and CASTV2 control |
 | [hashicorp/mdns](https://github.com/hashicorp/mdns) | Multicast DNS discovery |

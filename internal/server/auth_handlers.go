@@ -13,7 +13,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// ── Auth Status ──────────────────────────────────────────────────────────────
+// ── Auth & Security Status ───────────────────────────────────────────────────
 
 // handleAuthStatus returns whether auth is enabled, if a password is set, and TOTP state.
 // This endpoint is always public (whitelisted in middleware).
@@ -176,7 +176,7 @@ func handleAuthLogin(s *Server) http.HandlerFunc {
 		// Success — set session cookie
 		ClearLoginRecord(ip)
 		timeout := time.Duration(timeoutHours) * time.Hour
-		SetSessionCookie(w, secret, timeout)
+		SetSessionCookie(w, r, secret, timeout)
 		s.Logger.Info("[Auth] Successful login", "ip", ip)
 
 		redirect := req.Redirect
@@ -455,4 +455,40 @@ func patchAuthConfig(s *Server, fields map[string]interface{}) error {
 	}
 	s.CfgMu.Unlock()
 	return loadErr
+}
+
+// handleSecurityStatus returns security configuration status (HTTPS, Auth, etc.)
+// This endpoint is always public (whitelisted in middleware).
+func handleSecurityStatus(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		s.CfgMu.RLock()
+		response := map[string]interface{}{
+			"auth": map[string]interface{}{
+				"enabled":      s.Cfg.Auth.Enabled,
+				"password_set": s.Cfg.Auth.PasswordHash != "",
+				"totp_enabled": s.Cfg.Auth.TOTPEnabled && s.Cfg.Auth.TOTPSecret != "",
+			},
+			"https": map[string]interface{}{
+				"enabled":      s.Cfg.Server.HTTPS.Enabled,
+				"domain":       s.Cfg.Server.HTTPS.Domain,
+				"email":        s.Cfg.Server.HTTPS.Email,
+				"https_port":   s.Cfg.Server.HTTPS.HTTPSPort,
+				"http_port":    s.Cfg.Server.HTTPS.HTTPPort,
+				"behind_proxy": s.Cfg.Server.HTTPS.BehindProxy,
+			},
+			"connection": map[string]interface{}{
+				"secure": IsSecureRequest(r),
+				"proto":  r.Header.Get("X-Forwarded-Proto"),
+			},
+		}
+		s.CfgMu.RUnlock()
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+	}
 }
