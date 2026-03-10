@@ -2,31 +2,31 @@
 
 let _totpNewSecret = '';
 
-        async function renderWebConfigSection(section) {
-            const content = document.getElementById('content');
-            content.innerHTML = '<div class="cfg-section active"><div style="text-align:center;padding:3rem;color:var(--text-secondary);">' + t('config.common.loading') + '</div></div>';
+async function renderWebConfigSection(section) {
+    const content = document.getElementById('content');
+    content.innerHTML = '<div class="cfg-section active"><div style="text-align:center;padding:3rem;color:var(--text-secondary);">' + t('config.common.loading') + '</div></div>';
 
-            let authStatus = { enabled: false, password_set: false, totp_enabled: false };
-            try {
-                const resp = await fetch('/api/auth/status');
-                authStatus = await resp.json();
-            } catch (e) { /* auth endpoint unavailable */ }
+    let authStatus = { enabled: false, password_set: false, totp_enabled: false };
+    try {
+        const resp = await fetch('/api/auth/status');
+        authStatus = await resp.json();
+    } catch (e) { /* auth endpoint unavailable */ }
 
-            const webCfg = configData.web_config || {};
-            const authCfg = configData.auth || {};
-            const isWebEnabled = webCfg.enabled === true;
-            const isAuthEnabled = authCfg.enabled === true;
+    const webCfg = configData.web_config || {};
+    const authCfg = configData.auth || {};
+    const isWebEnabled = webCfg.enabled === true;
+    const isAuthEnabled = authCfg.enabled === true;
 
-            let html = '<div class="cfg-section active">';
-            html += '<div class="section-header">' + section.icon + ' ' + section.label + '</div>';
-            html += '<div class="section-desc">' + section.desc + '</div>';
+    let html = '<div class="cfg-section active">';
+    html += '<div class="section-header">' + section.icon + ' ' + section.label + '</div>';
+    html += '<div class="section-desc">' + section.desc + '</div>';
 
-            // ── Web Config Toggle ──
-            html += `<div style="margin-bottom:0.5rem;font-weight:600;font-size:0.85rem;color:var(--accent);border-bottom:1px solid var(--border-subtle);padding-bottom:0.3rem;">
+    // ── Web Config Toggle ──
+    html += `<div style="margin-bottom:0.5rem;font-weight:600;font-size:0.85rem;color:var(--accent);border-bottom:1px solid var(--border-subtle);padding-bottom:0.3rem;">
                 🛡️ ${t('config.auth.web_config_title')}
             </div>`;
-            const wcHelp = (helpTexts['web_config.enabled'] || {})[lang] || '';
-            html += `<div class="field-group">
+    const wcHelp = (helpTexts['web_config.enabled'] || {})[lang] || '';
+    html += `<div class="field-group">
                 <div class="field-label">${t('config.auth.config_page_enabled')}</div>
                 ${wcHelp ? `<div class="field-help">${wcHelp}</div>` : ''}
                 <div class="toggle-wrap">
@@ -35,23 +35,27 @@ let _totpNewSecret = '';
                 </div>
             </div>`;
 
-            // ── Login-Schutz ──
-            html += `<div style="margin-top:1.5rem;margin-bottom:0.5rem;font-weight:600;font-size:0.85rem;color:var(--accent);border-bottom:1px solid var(--border-subtle);padding-bottom:0.3rem;">
+    // ── Login-Schutz ──
+    html += `<div style="margin-top:1.5rem;margin-bottom:0.5rem;font-weight:600;font-size:0.85rem;color:var(--accent);border-bottom:1px solid var(--border-subtle);padding-bottom:0.3rem;">
                 🔐 ${t('config.auth.login_guard_title')}
             </div>`;
 
-            // Enable toggle
-            html += `<div class="field-group">
+    // Enable toggle
+    const isHttpsEnabled = (configData.server && configData.server.https && configData.server.https.enabled) === true;
+    const authToggleStyle = isHttpsEnabled ? ' opacity: 0.6; pointer-events: none;' : '';
+    const authHelpText = isHttpsEnabled ? (t('config.auth.https_forces_auth') || 'HTTPS is active. Login cannot be disabled.') : t('config.auth.enable_desc');
+
+    html += `<div class="field-group">
                 <div class="field-label">🔐 ${t('config.auth.enable_login_guard')}</div>
-                <div class="field-help">${t('config.auth.enable_desc')}</div>
-                <div class="toggle-wrap">
+                <div class="field-help">${authHelpText}</div>
+                <div class="toggle-wrap" style="${authToggleStyle}">
                     <div class="toggle ${isAuthEnabled ? 'on' : ''}" data-path="auth.enabled" onclick="toggleBool(this)"></div>
                     <span class="toggle-label">${isAuthEnabled ? t('config.common.active') : t('config.common.inactive')}</span>
                 </div>
             </div>`;
 
-            // Session / rate limit settings
-            html += `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.75rem;margin-bottom:0.75rem;">
+    // Session / rate limit settings
+    html += `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.75rem;margin-bottom:0.75rem;">
                 <div class="field-group" style="margin-bottom:0;">
                     <div class="field-label">${t('config.auth.session_hours')}</div>
                     <div class="field-help">${t('config.auth.session_validity')}</div>
@@ -69,13 +73,13 @@ let _totpNewSecret = '';
                 </div>
             </div>`;
 
-            // ── Password card
-            html += `<div class="field-group">
+    // ── Password card
+    html += `<div class="field-group">
                 <div class="field-label">🔑 ${t('config.auth.password_label')}</div>
                 <div class="field-help">${authStatus.password_set
-                    ? t('config.auth.password_is_set')
-                    : t('config.auth.password_not_set')
-                }</div>
+            ? t('config.auth.password_is_set')
+            : t('config.auth.password_not_set')
+        }</div>
                 <div style="display:flex;gap:0.5rem;align-items:center;margin-top:0.4rem;">
                     <div class="password-wrap" style="flex:1;margin-bottom:0;">
                         <input class="field-input" type="password" id="auth-new-pw"
@@ -91,21 +95,21 @@ let _totpNewSecret = '';
                 <div id="auth-pw-msg" style="margin-top:0.5rem;font-size:0.8rem;display:none;"></div>
             </div>`;
 
-            // ── TOTP card
-            html += `<div class="field-group">
+    // ── TOTP card
+    html += `<div class="field-group">
                 <div class="field-label">📱 ${t('config.auth.totp_title')}</div>
                 <div class="field-help">${t('config.auth.totp_desc')}</div>
                 <div id="auth-totp-status-area" style="margin-top:0.5rem;">`;
 
-            if (authStatus.totp_enabled) {
-                html += `<div style="display:flex;align-items:center;gap:0.75rem;">
+    if (authStatus.totp_enabled) {
+        html += `<div style="display:flex;align-items:center;gap:0.75rem;">
                     <span style="color:var(--success);font-weight:600;">✅ ${t('config.auth.totp_active')}</span>
                     <button onclick="authTOTPDisable()" style="padding:0.35rem 0.75rem;background:rgba(239,68,68,0.1);color:#f87171;border:1px solid rgba(239,68,68,0.3);border-radius:8px;font-size:0.78rem;font-weight:600;cursor:pointer;">
                         ${t('config.auth.totp_disable')}
                     </button>
                 </div>`;
-            } else {
-                html += `<div style="margin-bottom:0.5rem;font-size:0.82rem;color:var(--text-secondary);">${t('config.auth.totp_not_active')}.</div>
+    } else {
+        html += `<div style="margin-bottom:0.5rem;font-size:0.82rem;color:var(--text-secondary);">${t('config.auth.totp_not_active')}.</div>
                 <button onclick="authTOTPStartSetup()" id="btn-totp-start" style="padding:0.45rem 1rem;background:var(--bg-glass);color:var(--text-primary);border:1px solid var(--border-accent);border-radius:8px;font-size:0.82rem;font-weight:600;cursor:pointer;">
                     ${t('config.auth.totp_setup')}
                 </button>
@@ -133,111 +137,111 @@ let _totpNewSecret = '';
                     </div>
                     <div id="auth-totp-msg" style="margin-top:0.5rem;font-size:0.8rem;display:none;"></div>
                 </div>`;
-            }
+    }
 
-            html += '</div></div>'; // close totp-status-area + field-group
-            html += '</div>'; // close cfg-section
+    html += '</div></div>'; // close totp-status-area + field-group
+    html += '</div>'; // close cfg-section
 
-            content.innerHTML = html;
-            attachChangeListeners();
+    content.innerHTML = html;
+    attachChangeListeners();
+}
+
+async function authSetPassword() {
+    const pw = (document.getElementById('auth-new-pw') || {}).value || '';
+    const msgEl = document.getElementById('auth-pw-msg');
+    msgEl.style.display = 'none';
+    if (!pw || pw.length < 8) {
+        msgEl.style.display = '';
+        msgEl.style.color = 'var(--danger)';
+        msgEl.textContent = t('config.auth.password_min_length');
+        return;
+    }
+    try {
+        const resp = await fetch('/api/auth/password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ new_password: pw })
+        });
+        const data = await resp.json();
+        msgEl.style.display = '';
+        if (resp.ok && data.ok) {
+            msgEl.style.color = 'var(--success)';
+            msgEl.textContent = '✓ ' + (data.message || t('config.common.saved'));
+            document.getElementById('auth-new-pw').value = '';
+        } else {
+            msgEl.style.color = 'var(--danger)';
+            msgEl.textContent = data.error || t('config.common.error');
         }
+    } catch (e) {
+        msgEl.style.display = '';
+        msgEl.style.color = 'var(--danger)';
+        msgEl.textContent = t('config.common.network_error');
+    }
+}
 
-        async function authSetPassword() {
-            const pw = (document.getElementById('auth-new-pw') || {}).value || '';
-            const msgEl = document.getElementById('auth-pw-msg');
-            msgEl.style.display = 'none';
-            if (!pw || pw.length < 8) {
-                msgEl.style.display = '';
-                msgEl.style.color = 'var(--danger)';
-                msgEl.textContent = t('config.auth.password_min_length');
-                return;
-            }
-            try {
-                const resp = await fetch('/api/auth/password', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ new_password: pw })
-                });
-                const data = await resp.json();
-                msgEl.style.display = '';
-                if (resp.ok && data.ok) {
-                    msgEl.style.color = 'var(--success)';
-                    msgEl.textContent = '✓ ' + (data.message || t('config.common.saved'));
-                    document.getElementById('auth-new-pw').value = '';
-                } else {
-                    msgEl.style.color = 'var(--danger)';
-                    msgEl.textContent = data.error || t('config.common.error');
-                }
-            } catch (e) {
-                msgEl.style.display = '';
-                msgEl.style.color = 'var(--danger)';
-                msgEl.textContent = t('config.common.network_error');
-            }
+async function authTOTPStartSetup() {
+    try {
+        const resp = await fetch('/api/auth/totp/setup');
+        if (resp.status === 401) { alert(t('config.auth.login_first')); return; }
+        const data = await resp.json();
+        _totpNewSecret = data.secret;
+        document.getElementById('totp-secret-display').textContent = data.secret;
+        document.getElementById('auth-totp-setup').style.display = '';
+        document.getElementById('btn-totp-start').style.display = 'none';
+        // Render QR code (qrcodejs library)
+        const qrEl = document.getElementById('totp-qr');
+        qrEl.innerHTML = '';
+        if (typeof QRCode !== 'undefined') {
+            new QRCode(qrEl, { text: data.uri, width: 180, height: 180, colorDark: '#000000', colorLight: '#ffffff' });
+        } else {
+            // Fallback: display URI as text
+            qrEl.style.cssText = 'background:none;padding:0;';
+            qrEl.innerHTML = '<div style="font-size:0.65rem;word-break:break-all;max-width:220px;color:var(--text-primary);">' + esc(data.uri) + '</div>';
         }
+    } catch (e) {
+        alert(t('config.common.error') + ': ' + e.message);
+    }
+}
 
-        async function authTOTPStartSetup() {
-            try {
-                const resp = await fetch('/api/auth/totp/setup');
-                if (resp.status === 401) { alert(t('config.auth.login_first')); return; }
-                const data = await resp.json();
-                _totpNewSecret = data.secret;
-                document.getElementById('totp-secret-display').textContent = data.secret;
-                document.getElementById('auth-totp-setup').style.display = '';
-                document.getElementById('btn-totp-start').style.display = 'none';
-                // Render QR code (qrcodejs library)
-                const qrEl = document.getElementById('totp-qr');
-                qrEl.innerHTML = '';
-                if (typeof QRCode !== 'undefined') {
-                    new QRCode(qrEl, { text: data.uri, width: 180, height: 180, colorDark: '#000000', colorLight: '#ffffff' });
-                } else {
-                    // Fallback: display URI as text
-                    qrEl.style.cssText = 'background:none;padding:0;';
-                    qrEl.innerHTML = '<div style="font-size:0.65rem;word-break:break-all;max-width:220px;color:var(--text-primary);">' + esc(data.uri) + '</div>';
-                }
-            } catch (e) {
-                alert(t('config.common.error') + ': ' + e.message);
-            }
+async function authTOTPConfirm() {
+    const code = (document.getElementById('totp-confirm-code') || {}).value || '';
+    const msgEl = document.getElementById('auth-totp-msg');
+    try {
+        const resp = await fetch('/api/auth/totp/confirm', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ secret: _totpNewSecret, code })
+        });
+        const data = await resp.json();
+        msgEl.style.display = '';
+        if (resp.ok && data.ok) {
+            msgEl.style.color = 'var(--success)';
+            msgEl.textContent = '✓ ' + (data.message || t('config.auth.totp_activated'));
+            setTimeout(() => selectSection('web_config'), 1200);
+        } else {
+            msgEl.style.color = 'var(--danger)';
+            msgEl.textContent = data.error || t('config.auth.invalid_code');
         }
+    } catch (e) {
+        msgEl.style.display = '';
+        msgEl.style.color = 'var(--danger)';
+        msgEl.textContent = t('config.common.network_error');
+    }
+}
 
-        async function authTOTPConfirm() {
-            const code = (document.getElementById('totp-confirm-code') || {}).value || '';
-            const msgEl = document.getElementById('auth-totp-msg');
-            try {
-                const resp = await fetch('/api/auth/totp/confirm', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ secret: _totpNewSecret, code })
-                });
-                const data = await resp.json();
-                msgEl.style.display = '';
-                if (resp.ok && data.ok) {
-                    msgEl.style.color = 'var(--success)';
-                    msgEl.textContent = '✓ ' + (data.message || t('config.auth.totp_activated'));
-                    setTimeout(() => selectSection('web_config'), 1200);
-                } else {
-                    msgEl.style.color = 'var(--danger)';
-                    msgEl.textContent = data.error || t('config.auth.invalid_code');
-                }
-            } catch (e) {
-                msgEl.style.display = '';
-                msgEl.style.color = 'var(--danger)';
-                msgEl.textContent = t('config.common.network_error');
-            }
+async function authTOTPDisable() {
+    if (!confirm(t('config.auth.totp_disable_confirm'))) return;
+    try {
+        const resp = await fetch('/api/auth/totp', { method: 'DELETE' });
+        const data = await resp.json();
+        if (resp.ok) {
+            selectSection('web_config');
+        } else {
+            alert(data.error || t('config.common.error'));
         }
+    } catch (e) {
+        alert(t('config.common.network_error'));
+    }
+}
 
-        async function authTOTPDisable() {
-            if (!confirm(t('config.auth.totp_disable_confirm'))) return;
-            try {
-                const resp = await fetch('/api/auth/totp', { method: 'DELETE' });
-                const data = await resp.json();
-                if (resp.ok) {
-                    selectSection('web_config');
-                } else {
-                    alert(data.error || t('config.common.error'));
-                }
-            } catch (e) {
-                alert(t('config.common.network_error'));
-            }
-        }
-
-        // Vault delete functions are in config.html core (needed by vault modal HTML + renderField)
+// Vault delete functions are in config.html core (needed by vault modal HTML + renderField)

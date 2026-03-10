@@ -101,6 +101,8 @@
   "config.section.sandbox.desc": "Isolerad kodexekvering i Docker-behållare",
   "config.section.ollama.label": "Ollama",
   "config.section.ollama.desc": "Lokal LLM-ledning",
+  "config.section.homepage.label": "Hemsida",
+  "config.section.homepage.desc": "Designa och driftsätt webbplatser via Docker",
   "config.section.prompts_editor.label": "Uppmaningar och personas",
   "config.section.prompts_editor.desc": "Hantera ytterligare meddelanden och personlighetsprofiler",
   "config.section.danger_zone.label": "Farozon",

@@ -148,6 +148,27 @@ else
     ok "Python 3 + pip found."
 fi
 
+# Docker (needed for many useful features)
+if ! command -v docker >/dev/null 2>&1; then
+    echo ""
+    echo -e " ${G1}╭──────────────────────────────────────────────────────────────╮${NC}"
+    echo -e " ${G2}│${NC}  ${BOLD}Docker not found${NC}                                            ${G2}│${NC}"
+    echo -e " ${G3}│${NC}  Many useful AuraGo features (Sandbox, tools) need Docker.   ${G3}│${NC}"
+    echo -e " ${G4}╰──────────────────────────────────────────────────────────────╯${NC}"
+    echo ""
+    read -r -p "Install Docker now? (Recommended) [Y/n]: " DKR_REPLY < /dev/tty || true
+    if [[ "${DKR_REPLY:-y}" =~ ^[Yy]$ ]]; then
+        info "Installing Docker via official get.docker.com script..."
+        curl -fsSL https://get.docker.com | sh
+        $SUDO usermod -aG docker $USER || warn "Failed to add $USER to docker group. You may need to do this manually."
+        ok "Docker installed."
+    else
+        warn "Skipping Docker installation."
+    fi
+else
+    ok "Docker found."
+fi
+
 # ══════════════════════════════════════════════════════════════════════════
 #  Decide installation mode: SOURCE BUILD vs BINARY INSTALL
 # ══════════════════════════════════════════════════════════════════════════
@@ -335,39 +356,72 @@ elif command -v wget >/dev/null 2>&1; then
 fi
 [ -f "$INSTALL_DIR/update.sh" ] && chmod +x "$INSTALL_DIR/update.sh" && ok "update.sh installed."
 
-# ── Network binding ───────────────────────────────────────────────────────
+# ── Network binding & HTTPS ───────────────────────────────────────────────
 echo ""
 echo -e " ${YELLOW}╭──────────────────────────────────────────────────────────────╮${NC}"
-echo -e " ${YELLOW}│${NC}  ${BOLD}⚠  SECURITY WARNING${NC}                                        ${YELLOW}│${NC}"
-echo -e " ${YELLOW}│${NC}  NEVER enable outside access on an internet-facing server!   ${YELLOW}│${NC}"
+echo -e " ${YELLOW}│${NC}  ${BOLD}⚠  NETWORK SETUP${NC}                                             ${YELLOW}│${NC}"
+echo -e " ${YELLOW}│${NC}  Configure external access and HTTPS for this installation.  ${YELLOW}│${NC}"
 echo -e " ${YELLOW}╰──────────────────────────────────────────────────────────────╯${NC}"
 echo ""
-echo "  Only allow network access if AuraGo runs on a trusted local LAN"
-echo "  (e.g. a home server / Proxmox container) — never expose it directly"
-echo "  to the internet."
-echo ""
-read -r -p "Enable access from outside localhost? [y/N]: " NET_REPLY < /dev/tty || true
 
-if [[ "${NET_REPLY:-n}" =~ ^[Yy]$ ]]; then
+read -r -p "Is this an internet-facing server and do you want to enable HTTPS (Let's Encrypt)? [y/N]: " HTTPS_REPLY < /dev/tty || true
+
+SERVER_HOST="127.0.0.1"
+HTTPS_ENABLED="false"
+
+if [[ "${HTTPS_REPLY:-n}" =~ ^[Yy]$ ]]; then
     SERVER_HOST="0.0.0.0"
-    warn "Web UI will listen on ALL interfaces (0.0.0.0:8088)."
+    HTTPS_ENABLED="true"
+    read -r -p "Enter your domain (e.g., aurago.example.com): " HTTPS_DOMAIN < /dev/tty || true
+    read -r -p "Enter your email for Let's Encrypt: " HTTPS_EMAIL < /dev/tty || true
+    ok "Web UI will listen on ALL interfaces (0.0.0.0:443) with HTTPS."
 else
-    SERVER_HOST="127.0.0.1"
-    ok "Web UI will only be reachable locally (127.0.0.1:8088). ✅"
+    echo ""
+    echo "  Only allow network access if AuraGo runs on a trusted local LAN"
+    echo "  (e.g. a home server / Proxmox container) — never expose it directly"
+    echo "  to the internet without HTTPS / reverse proxy."
+    echo ""
+    read -r -p "Enable HTTP access from outside localhost (LAN)? [y/N]: " NET_REPLY < /dev/tty || true
+    if [[ "${NET_REPLY:-n}" =~ ^[Yy]$ ]]; then
+        SERVER_HOST="0.0.0.0"
+        warn "Web UI will listen on ALL interfaces (0.0.0.0:8088) without HTTPS."
+    else
+        ok "Web UI will only be reachable locally (127.0.0.1:8088). ✅"
+    fi
 fi
 
 CONFIG_FILE="$INSTALL_DIR/config.yaml"
 if [ -f "$CONFIG_FILE" ]; then
-    awk -v host="$SERVER_HOST" '
-        /^server:/ { in_server=1 }
-        /^[a-z]/ && !/^server:/ { in_server=0 }
-        in_server && /^[[:space:]]+host:/ { sub(/host:.*/, "host: " host) }
-        { print }
-    ' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
-    ok "config.yaml → server.host set to $SERVER_HOST"
+    INFO_PASSWORD=$(openssl rand -base64 12 2>/dev/null || python3 -c "import secrets; print(secrets.token_urlsafe(12))")
+    
+    # Always set password if setup runs
+    echo "password: $INFO_PASSWORD" > "$INSTALL_DIR/firstpassword.txt"
+    echo ""
+    echo -e " ${GREEN}╭──────────────────────────────────────────────────────────────╮${NC}"
+    echo -e " ${GREEN}│${NC}  ${BOLD}🔐 INITIAL PASSWORD GENERATED${NC}                               ${GREEN}│${NC}"
+    echo -e " ${GREEN}│${NC}  Dein initiales Passwort lautet: ${BOLD}${INFO_PASSWORD}${NC}   ${GREEN}│${NC}"
+    echo -e " ${GREEN}│${NC}  Bitte nutze dieses Passwort für den ersten Login.           ${GREEN}│${NC}"
+    echo -e " ${GREEN}│${NC}  (Gespeichert in: firstpassword.txt)                         ${GREEN}│${NC}"
+    echo -e " ${GREEN}╰──────────────────────────────────────────────────────────────╯${NC}"
+    echo ""
+
+    if [ "$HTTPS_ENABLED" = "true" ]; then
+        ./bin/aurago_linux --config "$CONFIG_FILE" -setup -password "$INFO_PASSWORD" -https -domain "$HTTPS_DOMAIN" -email "$HTTPS_EMAIL" > /dev/null 2>&1 || true
+        ok "config.yaml → HTTPS enabled for $HTTPS_DOMAIN"
+    else
+        ./bin/aurago_linux --config "$CONFIG_FILE" -setup -password "$INFO_PASSWORD" > /dev/null 2>&1 || true
+        awk -v host="$SERVER_HOST" '
+            /^server:/ { in_server=1 }
+            /^[a-z]/ && !/^server:/ { in_server=0 }
+            in_server && /^[[:space:]]+host:/ { sub(/host:.*/, "host: " host) }
+            { print }
+        ' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+        ok "config.yaml → server.host set to $SERVER_HOST"
+    fi
 else
     warn "config.yaml not found — skipping host configuration."
 fi
+
 
 # ── Optional systemd service ──────────────────────────────────────────────
 SERVICE_INSTALLED=false

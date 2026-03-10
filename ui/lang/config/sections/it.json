@@ -101,6 +101,8 @@
   "config.section.sandbox.desc": "Esecuzione codice isolata in container Docker",
   "config.section.ollama.label": "Ollama",
   "config.section.ollama.desc": "Gestione LLM locale",
+  "config.section.homepage.label": "Homepage",
+  "config.section.homepage.desc": "Progetta e distribuisci siti web tramite Docker",
   "config.section.prompts_editor.label": "Prompt & Personas",
   "config.section.prompts_editor.desc": "Gestisci profili prompt e personalità aggiuntivi",
   "config.section.danger_zone.label": "Zona Pericolo",

@@ -44,11 +44,19 @@ func main() {
 	var checkConfig bool
 	var configFile string
 	var recoveryContext string
+	var enableHTTPS bool
+	var httpsDomain string
+	var httpsEmail string
+	var initialPassword string
 	flag.BoolVar(&debug, "debug", false, "Enable debug mode")
 	flag.BoolVar(&runSetup, "setup", false, "Extract resources.dat, install service, and exit")
 	flag.BoolVar(&checkConfig, "check-config", false, "Validate config file syntax and exit (used by Docker entrypoint)")
 	flag.StringVar(&configFile, "config", "config.yaml", "Path to config file (default: config.yaml)")
 	flag.StringVar(&recoveryContext, "recovery-context", "", "Recovery context after maintenance (Base64)")
+	flag.BoolVar(&enableHTTPS, "https", false, "Enable HTTPS (Let's Encrypt) and update config")
+	flag.StringVar(&httpsDomain, "domain", "", "Domain for Let's Encrypt")
+	flag.StringVar(&httpsEmail, "email", "", "Email for Let's Encrypt")
+	flag.StringVar(&initialPassword, "password", "", "Set initial login password (hashes and stores in vault)")
 	flag.Parse()
 
 	appLog := logger.Setup(debug)
@@ -72,6 +80,68 @@ func main() {
 	if err != nil && !runSetup {
 		// If we can't load config and we're not in setup, we can't safely proceed
 		log.Fatalf("❌ CONFIG ERROR: %v", err)
+	}
+
+	// ── Apply CLI flags for HTTPS ──────────────────────────────────────────
+	if enableHTTPS && cfg != nil {
+		saveNeeded := false
+		if !cfg.Server.HTTPS.Enabled {
+			cfg.Server.HTTPS.Enabled = true
+			saveNeeded = true
+		}
+		if httpsDomain != "" && cfg.Server.HTTPS.Domain != httpsDomain {
+			cfg.Server.HTTPS.Domain = httpsDomain
+			saveNeeded = true
+		}
+		if httpsEmail != "" && cfg.Server.HTTPS.Email != httpsEmail {
+			cfg.Server.HTTPS.Email = httpsEmail
+			saveNeeded = true
+		}
+		if cfg.Server.Host != "0.0.0.0" {
+			cfg.Server.Host = "0.0.0.0"
+			saveNeeded = true
+		}
+		if saveNeeded {
+			appLog.Info("Updating config.yaml with HTTPS settings from CLI flags")
+			if err := cfg.Save(configFile); err != nil {
+				appLog.Error("Failed to save config with HTTPS settings", "error", err)
+			}
+		}
+	}
+
+	// ── Apply initial password ───────────────────────────────────────────
+	if initialPassword != "" && cfg != nil {
+		masterKey := os.Getenv("AURAGO_MASTER_KEY")
+		if masterKey != "" && len(masterKey) == 64 {
+			vaultPath := filepath.Join(cfg.Directories.DataDir, "vault.bin")
+			if v, err := security.NewVault(masterKey, vaultPath); err == nil {
+				hash, err := server.HashPassword(initialPassword)
+				if err == nil {
+					_ = v.WriteSecret("auth_password_hash", hash)
+					appLog.Info("Initial password hash stored in vault")
+
+					// Setup session secret if not exists
+					if sec, _ := v.ReadSecret("auth_session_secret"); sec == "" {
+						if newSec, e := server.GenerateRandomHex(32); e == nil {
+							_ = v.WriteSecret("auth_session_secret", newSec)
+						}
+					}
+
+					if !cfg.Auth.Enabled {
+						cfg.Auth.Enabled = true
+						if err := cfg.Save(configFile); err != nil {
+							appLog.Error("Failed to enable auth in config.yaml", "error", err)
+						}
+					}
+				} else {
+					appLog.Error("Failed to hash initial password", "error", err)
+				}
+			} else {
+				appLog.Error("Failed to open vault for password setup", "error", err)
+			}
+		} else {
+			appLog.Warn("AURAGO_MASTER_KEY missing or invalid to set initial password")
+		}
 	}
 
 	// ── Robust File Locking ──────────────────────────────────────────────

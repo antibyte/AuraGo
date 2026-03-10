@@ -101,6 +101,8 @@
   "config.section.sandbox.desc": "Geïsoleerde code uitvoering",
   "config.section.ollama.label": "Ollama",
   "config.section.ollama.desc": "Ollama integratie",
+  "config.section.homepage.label": "Homepage",
+  "config.section.homepage.desc": "Websites ontwerpen en deployen via Docker",
   "config.section.prompts_editor.label": "Prompt Editor",
   "config.section.prompts_editor.desc": "Prompt bewerking",
   "config.section.danger_zone.label": "Gevarenzone",

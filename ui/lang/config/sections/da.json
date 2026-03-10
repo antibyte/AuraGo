@@ -101,6 +101,8 @@
   "config.section.sandbox.desc": "Isoleret kodeudførelse i Docker-containere",
   "config.section.ollama.label": "Ollama",
   "config.section.ollama.desc": "Lokal LLM ledelse",
+  "config.section.homepage.label": "Hjemmeside",
+  "config.section.homepage.desc": "Design og udrulning af hjemmesider via Docker",
   "config.section.prompts_editor.label": "Forespørgsler og personas",
   "config.section.prompts_editor.desc": "Administrer yderligere prompt- og personlighedsprofiler",
   "config.section.danger_zone.label": "Farezone",

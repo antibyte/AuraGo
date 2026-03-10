@@ -91,6 +91,7 @@ const SECTIONS = [
             { key: 'github', icon: '🐙', label: t('config.section.github.label'), desc: t('config.section.github.desc') },
             { key: 'mcp', icon: '🔌', label: t('config.section.mcp.label'), desc: t('config.section.mcp.desc') },
             { key: 'sandbox', icon: '📦', label: t('config.section.sandbox.label'), desc: t('config.section.sandbox.desc') },
+            { key: 'homepage', icon: '🌐', label: t('config.section.homepage.label'), desc: t('config.section.homepage.desc') },
             { key: 'ollama', icon: '🦙', label: t('config.section.ollama.label'), desc: t('config.section.ollama.desc') }
         ]
     },
@@ -763,6 +764,7 @@ const SECTION_MODULES = {
     updates: { m: 'updates', fn: 'renderUpdatesSection' },
     devices: { m: 'devices', fn: 'renderDevicesSection' },
     chromecast: { m: 'chromecast', fn: 'renderChromecastSection' },
+    homepage: { m: 'homepage', fn: 'renderHomepageSection' },
     danger_zone: { m: 'danger', fn: 'renderDangerZoneSection' },
     web_config: { m: 'auth', fn: 'renderWebConfigSection' }
 };

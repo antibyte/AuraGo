@@ -59,6 +59,7 @@ type ToolFeatureFlags struct {
 	MCPEnabled             bool
 	SandboxEnabled         bool
 	MeshCentralEnabled     bool
+	HomepageEnabled        bool
 	// Danger Zone toggles
 	AllowShell           bool
 	AllowPython          bool
@@ -454,6 +455,29 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 				"task":          prop("string", "Task description for the co-agent to work on (required for 'spawn')"),
 				"co_agent_id":   prop("string", "Co-agent ID (required for 'get_result' and 'stop')"),
 				"context_hints": map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Optional keywords or topics for RAG context injection (for 'spawn')"},
+			}, "operation"),
+		))
+	}
+
+	if ff.HomepageEnabled {
+		tools = append(tools, tool("homepage",
+			"Design, develop, build, test and deploy websites using a Docker-based dev environment with Node.js, Playwright, Lighthouse and more. Supports Next.js, Vite, Astro, Svelte, Vue and static HTML.",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "Operation to perform",
+					"enum":        []string{"init", "start", "stop", "status", "rebuild", "destroy", "exec", "init_project", "build", "install_deps", "lighthouse", "screenshot", "lint", "list_files", "read_file", "write_file", "optimize_images", "dev", "deploy", "test_connection", "webserver_start", "webserver_stop", "webserver_status", "publish_local"},
+				},
+				"command":     prop("string", "Shell command to execute (for 'exec')"),
+				"framework":   prop("string", "Web framework: next, vite, astro, svelte, vue, html (for 'init_project')"),
+				"name":        prop("string", "Project name (for 'init_project')"),
+				"project_dir": prop("string", "Project subdirectory within /workspace (default: '.')"),
+				"build_dir":   prop("string", "Build output directory (auto-detected if empty)"),
+				"path":        prop("string", "File path relative to /workspace (for 'read_file', 'write_file', 'list_files')"),
+				"content":     prop("string", "File content to write (for 'write_file')"),
+				"url":         prop("string", "URL for lighthouse audit or screenshot"),
+				"viewport":    prop("string", "Viewport size for screenshot (e.g. '1280x720')"),
+				"packages":    map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "NPM packages to install (for 'install_deps')"},
 			}, "operation"),
 		))
 	}

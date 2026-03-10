@@ -326,6 +326,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			GoogleWorkspaceEnabled: s.Cfg.Agent.EnableGoogleWorkspace,
 			ProxmoxEnabled:         s.Cfg.Proxmox.Enabled,
 			OllamaEnabled:          s.Cfg.Ollama.Enabled,
+			HomepageEnabled:        s.Cfg.Homepage.Enabled && s.Cfg.Docker.Enabled,
 			IsEgg:                  s.Cfg.EggMode.Enabled,
 		}
 		sysPrompt := prompts.BuildSystemPrompt(s.Cfg.Directories.PromptsDir, flags, coreMem, s.Logger)

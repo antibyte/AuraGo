@@ -247,6 +247,7 @@ func processMessage(cfg *config.Config, logger *slog.Logger, client llm.ChatClie
 		GoogleWorkspaceEnabled: cfg.Agent.EnableGoogleWorkspace,
 		ProxmoxEnabled:         cfg.Proxmox.Enabled,
 		OllamaEnabled:          cfg.Ollama.Enabled,
+		HomepageEnabled:        cfg.Homepage.Enabled && cfg.Docker.Enabled,
 		IsEgg:                  cfg.EggMode.Enabled,
 	}
 
@@ -280,6 +281,7 @@ func processMessage(cfg *config.Config, logger *slog.Logger, client llm.ChatClie
 			WebhooksEnabled:      cfg.Webhooks.Enabled,
 			ProxmoxEnabled:       cfg.Proxmox.Enabled,
 			OllamaEnabled:        cfg.Ollama.Enabled,
+			HomepageEnabled:      cfg.Homepage.Enabled && cfg.Docker.Enabled,
 		}
 		ntSchemas := agent.BuildNativeToolSchemas(cfg.Directories.SkillsDir, manifest, cfg.Agent.EnableGoogleWorkspace, ff, logger)
 		req.Tools = ntSchemas

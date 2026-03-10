@@ -120,6 +120,19 @@ home_assistant:
     access_token: ""
     enabled: false
     url: ""
+homepage:
+    enabled: false
+    allow_deploy: false
+    allow_container_management: true
+    deploy_host: ""
+    deploy_port: 22
+    deploy_user: ""
+    deploy_path: ""
+    deploy_method: sftp
+    webserver_enabled: false
+    webserver_port: 8080
+    webserver_domain: ""
+    workspace_path: ""
 brave_search:
     enabled: false
     api_key: ""

@@ -168,6 +168,56 @@
       "description": "Long-lived access token from your HA profile. Stored in vault."
     }
   },
+  "homepage": {
+    "enabled": {
+      "title": "Enable Homepage Tool",
+      "description": "Activates the Docker-based web development environment. Requires Docker integration to be enabled."
+    },
+    "allow_deploy": {
+      "title": "Allow Deployment",
+      "description": "Permits the agent to upload built websites to a remote server via SFTP/SCP."
+    },
+    "allow_container_management": {
+      "title": "Allow Container Management",
+      "description": "Permits the agent to start, stop, rebuild, and destroy the development container."
+    },
+    "deploy_host": {
+      "title": "Deploy Host",
+      "description": "Hostname or IP of the remote web server for deployment."
+    },
+    "deploy_port": {
+      "title": "Deploy Port",
+      "description": "SSH port of the remote server. Default: 22."
+    },
+    "deploy_user": {
+      "title": "Deploy Username",
+      "description": "SSH username for connecting to the deploy server."
+    },
+    "deploy_path": {
+      "title": "Remote Path",
+      "description": "Absolute path on the remote server where the website files will be uploaded (e.g. /var/www/html)."
+    },
+    "deploy_method": {
+      "title": "Deploy Method",
+      "description": "Transfer method: SFTP (default, recommended) or SCP."
+    },
+    "webserver_enabled": {
+      "title": "Enable Local Web Server",
+      "description": "Starts a Caddy web server in Docker to preview and host websites locally. Supports automatic HTTPS when a domain is configured."
+    },
+    "webserver_port": {
+      "title": "Web Server Port",
+      "description": "Port for the local Caddy web server. Default: 8080."
+    },
+    "webserver_domain": {
+      "title": "Web Server Domain",
+      "description": "Optional domain for the local web server. When set, Caddy will automatically provision HTTPS via Let's Encrypt."
+    },
+    "workspace_path": {
+      "title": "Workspace Path",
+      "description": "Local directory path where web projects are stored and mounted into the Docker container."
+    }
+  },
   "docker": {
     "host": {
       "title": "Docker Host",

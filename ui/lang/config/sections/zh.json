@@ -101,6 +101,8 @@
   "config.section.sandbox.desc": "在 Docker 容器中隔离执行代码",
   "config.section.ollama.label": "Ollama",
   "config.section.ollama.desc": "本地 LLM 管理",
+  "config.section.homepage.label": "主页",
+  "config.section.homepage.desc": "通过Docker设计和部署网站",
   "config.section.prompts_editor.label": "提示与角色",
   "config.section.prompts_editor.desc": "管理额外的提示和个性配置文件",
   "config.section.danger_zone.label": "危险区域",

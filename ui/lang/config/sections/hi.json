@@ -101,6 +101,8 @@
   "config.section.sandbox.desc": "डॉकर कंटेनरों में पृथक कोड निष्पादन",
   "config.section.ollama.label": "ओलामा",
   "config.section.ollama.desc": "स्थानीय एलएलएम प्रबंधन",
+  "config.section.homepage.label": "होमपेज",
+  "config.section.homepage.desc": "Docker के माध्यम से वेबसाइट डिज़ाइन और डिप्लॉय करें",
   "config.section.prompts_editor.label": "संकेत और व्यक्तित्व",
   "config.section.prompts_editor.desc": "अतिरिक्त संकेत और व्यक्तित्व प्रोफ़ाइल प्रबंधित करें",
   "config.section.danger_zone.label": "खतरे का क्षेत्र",

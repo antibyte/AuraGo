@@ -101,6 +101,8 @@
   "config.section.sandbox.desc": "Izolované spouštění kódu v Docker kontejnerech",
   "config.section.ollama.label": "Ollama",
   "config.section.ollama.desc": "Διαχείριση τοπικού LLM",
+  "config.section.homepage.label": "Ιστοσελίδα",
+  "config.section.homepage.desc": "Σχεδιασμός και ανάπτυξη ιστοσελίδων μέσω Docker",
   "config.section.prompts_editor.label": "Prompty & Persony",
   "config.section.prompts_editor.desc": "Správa dodatečných promptů a profilů osobnosti",
   "config.section.danger_zone.label": "Επικίνδυνη Ζώνη",

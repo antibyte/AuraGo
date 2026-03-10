@@ -101,6 +101,8 @@
   "config.section.sandbox.desc": "Docker コンテナでの分離コード実行",
   "config.section.ollama.label": "Ollama",
   "config.section.ollama.desc": "ローカル LLM 管理",
+  "config.section.homepage.label": "ホームページ",
+  "config.section.homepage.desc": "Dockerでウェブサイトを設計・デプロイ",
   "config.section.prompts_editor.label": "プロンプトとペルソナ",
   "config.section.prompts_editor.desc": "追加のプロンプトとパーソナリティプロファイルの管理",
   "config.section.danger_zone.label": "危険ゾーン",

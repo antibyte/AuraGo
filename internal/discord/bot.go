@@ -422,6 +422,7 @@ func processDiscordMessage(s *discordgo.Session, m *discordgo.MessageCreate, inp
 		GoogleWorkspaceEnabled: cfg.Agent.EnableGoogleWorkspace,
 		ProxmoxEnabled:         cfg.Proxmox.Enabled,
 		OllamaEnabled:          cfg.Ollama.Enabled,
+		HomepageEnabled:        cfg.Homepage.Enabled && cfg.Docker.Enabled,
 		IsEgg:                  cfg.EggMode.Enabled,
 	}
 	coreMem := shortTermMem.ReadCoreMemory()

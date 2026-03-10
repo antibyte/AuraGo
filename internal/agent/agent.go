@@ -330,6 +330,12 @@ type ToolCall struct {
 	// Sandbox fields
 	SandboxLang string   `json:"sandbox_lang"` // language for execute_sandbox (python, javascript, go, etc.)
 	Libraries   []string `json:"libraries"`    // optional packages to install before running sandbox code
+	// Homepage fields
+	Framework  string   `json:"framework"`   // web framework: next, vite, astro, svelte, vue, html
+	Viewport   string   `json:"viewport"`    // screenshot viewport: "1280x720"
+	Packages   []string `json:"packages"`    // npm packages to install
+	ProjectDir string   `json:"project_dir"` // subdirectory within /workspace
+	BuildDir   string   `json:"build_dir"`   // build output directory (auto-detected if empty)
 }
 
 // GetArgs returns Args as a string slice, handling various input types (slice of strings or interface).
@@ -430,6 +436,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		MCPEnabled:               cfg.MCP.Enabled && cfg.Agent.AllowMCP,
 		SandboxEnabled:           cfg.Sandbox.Enabled,
 		MeshCentralEnabled:       cfg.MeshCentral.Enabled,
+		HomepageEnabled:          cfg.Homepage.Enabled && cfg.Docker.Enabled,
 		VirusTotalEnabled:        cfg.VirusTotal.Enabled,
 		BraveSearchEnabled:       cfg.BraveSearch.Enabled,
 		MemoryEnabled:            cfg.Tools.Memory.Enabled,
@@ -513,6 +520,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			MCPEnabled:               cfg.MCP.Enabled && cfg.Agent.AllowMCP,
 			SandboxEnabled:           cfg.Sandbox.Enabled,
 			MeshCentralEnabled:       cfg.MeshCentral.Enabled,
+			HomepageEnabled:          cfg.Homepage.Enabled && cfg.Docker.Enabled,
 			MemoryEnabled:            cfg.Tools.Memory.Enabled,
 			KnowledgeGraphEnabled:    cfg.Tools.KnowledgeGraph.Enabled,
 			SecretsVaultEnabled:      cfg.Tools.SecretsVault.Enabled,
@@ -3553,6 +3561,121 @@ func dispatchInner(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 			return "Tool Output: " + tools.DockerCompose(dockerCfg, tc.File, tc.Command)
 		default:
 			return `Tool Output: {"status": "error", "message": "Unknown docker operation. Use: list_containers, inspect, start, stop, restart, pause, unpause, remove, logs, create, run, list_images, pull, remove_image, list_networks, create_network, remove_network, connect, disconnect, list_volumes, create_volume, remove_volume, exec, stats, top, port, cp, compose, info"}`
+		}
+
+	case "homepage", "homepage_tool":
+		if !cfg.Docker.Enabled {
+			return `Tool Output: {"status": "error", "message": "Homepage tool requires Docker. Set docker.enabled=true in config.yaml."}`
+		}
+		if !cfg.Homepage.Enabled {
+			return `Tool Output: {"status": "error", "message": "Homepage tool is not enabled. Set homepage.enabled=true in config.yaml."}`
+		}
+		homepageCfg := tools.HomepageConfig{
+			DockerHost:      cfg.Docker.Host,
+			WorkspacePath:   cfg.Homepage.WorkspacePath,
+			WebServerPort:   cfg.Homepage.WebServerPort,
+			WebServerDomain: cfg.Homepage.WebServerDomain,
+		}
+		if homepageCfg.WorkspacePath == "" {
+			homepageCfg.WorkspacePath = filepath.Join(cfg.Directories.DataDir, "homepage")
+		}
+		deployCfg := tools.HomepageDeployConfig{
+			Host:     cfg.Homepage.DeployHost,
+			Port:     cfg.Homepage.DeployPort,
+			User:     cfg.Homepage.DeployUser,
+			Password: cfg.Homepage.DeployPassword,
+			Key:      cfg.Homepage.DeployKey,
+			Path:     cfg.Homepage.DeployPath,
+			Method:   cfg.Homepage.DeployMethod,
+		}
+
+		// Permission checks for restricted operations
+		switch tc.Operation {
+		case "deploy", "test_connection":
+			if !cfg.Homepage.AllowDeploy {
+				return `Tool Output: {"status":"error","message":"Deployment is disabled. Enable homepage.allow_deploy in config."}`
+			}
+		case "init", "start", "stop", "rebuild", "destroy", "webserver_start", "webserver_stop":
+			if !cfg.Homepage.AllowContainerManagement {
+				return `Tool Output: {"status":"error","message":"Container management is disabled. Enable homepage.allow_container_management in config."}`
+			}
+		}
+
+		switch tc.Operation {
+		case "init":
+			logger.Info("LLM requested homepage init")
+			return "Tool Output: " + tools.HomepageInit(homepageCfg, logger)
+		case "start":
+			logger.Info("LLM requested homepage start")
+			return "Tool Output: " + tools.HomepageStart(homepageCfg, logger)
+		case "stop":
+			logger.Info("LLM requested homepage stop")
+			return "Tool Output: " + tools.HomepageStop(homepageCfg, logger)
+		case "status":
+			logger.Info("LLM requested homepage status")
+			return "Tool Output: " + tools.HomepageStatus(homepageCfg, logger)
+		case "rebuild":
+			logger.Info("LLM requested homepage rebuild")
+			return "Tool Output: " + tools.HomepageRebuild(homepageCfg, logger)
+		case "destroy":
+			logger.Info("LLM requested homepage destroy")
+			return "Tool Output: " + tools.HomepageDestroy(homepageCfg, logger)
+		case "exec":
+			logger.Info("LLM requested homepage exec", "cmd", tc.Command)
+			return "Tool Output: " + tools.HomepageExec(homepageCfg, tc.Command, logger)
+		case "init_project":
+			logger.Info("LLM requested homepage init_project", "framework", tc.Framework, "name", tc.Name)
+			return "Tool Output: " + tools.HomepageInitProject(homepageCfg, tc.Framework, tc.Name, logger)
+		case "build":
+			logger.Info("LLM requested homepage build", "dir", tc.ProjectDir)
+			return "Tool Output: " + tools.HomepageBuild(homepageCfg, tc.ProjectDir, logger)
+		case "install_deps":
+			logger.Info("LLM requested homepage install_deps", "packages", tc.Packages)
+			return "Tool Output: " + tools.HomepageInstallDeps(homepageCfg, tc.ProjectDir, tc.Packages, logger)
+		case "lighthouse":
+			logger.Info("LLM requested homepage lighthouse", "url", tc.URL)
+			return "Tool Output: " + tools.HomepageLighthouse(homepageCfg, tc.URL, logger)
+		case "screenshot":
+			logger.Info("LLM requested homepage screenshot", "url", tc.URL, "viewport", tc.Viewport)
+			return "Tool Output: " + tools.HomepageScreenshot(homepageCfg, tc.URL, tc.Viewport, logger)
+		case "lint":
+			logger.Info("LLM requested homepage lint", "dir", tc.ProjectDir)
+			return "Tool Output: " + tools.HomepageLint(homepageCfg, tc.ProjectDir, logger)
+		case "list_files":
+			logger.Info("LLM requested homepage list_files", "path", tc.Path)
+			return "Tool Output: " + tools.HomepageListFiles(homepageCfg, tc.Path, logger)
+		case "read_file":
+			logger.Info("LLM requested homepage read_file", "path", tc.Path)
+			return "Tool Output: " + tools.HomepageReadFile(homepageCfg, tc.Path, logger)
+		case "write_file":
+			logger.Info("LLM requested homepage write_file", "path", tc.Path)
+			return "Tool Output: " + tools.HomepageWriteFile(homepageCfg, tc.Path, tc.Content, logger)
+		case "optimize_images":
+			logger.Info("LLM requested homepage optimize_images", "dir", tc.ProjectDir)
+			return "Tool Output: " + tools.HomepageOptimizeImages(homepageCfg, tc.ProjectDir, logger)
+		case "dev":
+			logger.Info("LLM requested homepage dev server", "dir", tc.ProjectDir)
+			return "Tool Output: " + tools.HomepageDev(homepageCfg, tc.ProjectDir, 3000, logger)
+		case "deploy":
+			logger.Info("LLM requested homepage deploy", "host", deployCfg.Host)
+			return "Tool Output: " + tools.HomepageDeploy(homepageCfg, deployCfg, tc.ProjectDir, tc.BuildDir, logger)
+		case "test_connection":
+			logger.Info("LLM requested homepage test_connection")
+			return "Tool Output: " + tools.HomepageTestConnection(deployCfg, logger)
+		case "webserver_start":
+			logger.Info("LLM requested homepage webserver_start")
+			return "Tool Output: " + tools.HomepageWebServerStart(homepageCfg, tc.ProjectDir, tc.BuildDir, logger)
+		case "webserver_stop":
+			logger.Info("LLM requested homepage webserver_stop")
+			return "Tool Output: " + tools.HomepageWebServerStop(homepageCfg, logger)
+		case "webserver_status":
+			logger.Info("LLM requested homepage webserver_status")
+			return "Tool Output: " + tools.HomepageWebServerStatus(homepageCfg, logger)
+		case "publish_local":
+			logger.Info("LLM requested homepage publish_local")
+			return "Tool Output: " + tools.HomepagePublishToLocal(homepageCfg, tc.ProjectDir, logger)
+		default:
+			return `Tool Output: {"status":"error","message":"Unknown homepage operation. Use: init, start, stop, status, rebuild, destroy, exec, init_project, build, install_deps, lighthouse, screenshot, lint, list_files, read_file, write_file, optimize_images, dev, deploy, test_connection, webserver_start, webserver_stop, webserver_status, publish_local"}`
 		}
 
 	case "webdav", "webdav_storage":

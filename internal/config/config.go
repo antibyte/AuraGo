@@ -306,6 +306,22 @@ type Config struct {
 		Enabled bool `yaml:"enabled"`
 		TTSPort int  `yaml:"tts_port"`
 	} `yaml:"chromecast"`
+	Homepage struct {
+		Enabled                  bool   `yaml:"enabled"`
+		AllowDeploy              bool   `yaml:"allow_deploy"`
+		AllowContainerManagement bool   `yaml:"allow_container_management"`
+		DeployHost               string `yaml:"deploy_host"`
+		DeployPort               int    `yaml:"deploy_port"`
+		DeployUser               string `yaml:"deploy_user"`
+		DeployPassword           string `yaml:"-"` // vault-only
+		DeployKey                string `yaml:"-"` // vault-only (SSH private key)
+		DeployPath               string `yaml:"deploy_path"`
+		DeployMethod             string `yaml:"deploy_method"` // "sftp" or "scp"
+		WebServerEnabled         bool   `yaml:"webserver_enabled"`
+		WebServerPort            int    `yaml:"webserver_port"`
+		WebServerDomain          string `yaml:"webserver_domain"`
+		WorkspacePath            string `yaml:"workspace_path"`
+	} `yaml:"homepage"`
 	Notifications struct {
 		Ntfy struct {
 			Enabled bool   `yaml:"enabled"`
@@ -816,6 +832,10 @@ func (c *Config) ApplyVaultSecrets(vault SecretReader) {
 	apply("github_token", &c.GitHub.Token)
 	apply("rocketchat_auth_token", &c.RocketChat.AuthToken)
 	apply("mqtt_password", &c.MQTT.Password)
+
+	// ── Homepage deploy secrets ──
+	apply("homepage_deploy_password", &c.Homepage.DeployPassword)
+	apply("homepage_deploy_key", &c.Homepage.DeployKey)
 
 	// ── Email account passwords ──
 	apply("email_password", &c.Email.Password)
