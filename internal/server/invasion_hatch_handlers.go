@@ -172,29 +172,43 @@ func (s *Server) deployEgg(nest invasion.NestRecord, egg invasion.EggRecord) err
 }
 
 // resolveBinaryPath finds the correct AuraGo binary for the target architecture.
+// Searches in multiple locations: install dir, parent dir, and common paths.
 func resolveBinaryPath(targetArch string) (string, error) {
 	exePath, _ := os.Executable()
 	installDir := filepath.Dir(exePath)
 
 	// Map target architectures to binary names
 	binaryMap := map[string][]string{
-		"linux/amd64": {"deploy/aurago_linux", "bin/aurago_linux"},
-		"linux/arm64": {"deploy/aurago_linux_arm64", "bin/aurago_linux_arm64"},
+		"linux/amd64": {"aurago_linux", "aurago"},
+		"linux/arm64": {"aurago_linux_arm64", "aurago"},
 	}
 
-	candidates, ok := binaryMap[targetArch]
+	binaryNames, ok := binaryMap[targetArch]
 	if !ok {
 		return "", fmt.Errorf("unsupported target architecture: %s", targetArch)
 	}
 
-	for _, candidate := range candidates {
-		fullPath := filepath.Join(installDir, candidate)
-		if _, err := os.Stat(fullPath); err == nil {
-			return fullPath, nil
+	// Search paths in order of priority
+	searchPaths := []string{
+		installDir,                           // Current dir (e.g., /home/aurago/aurago/bin)
+		filepath.Join(installDir, ".."),      // Parent dir
+		filepath.Join(installDir, "..", "bin"), // Parent/bin
+		"/home/aurago/aurago/bin",            // Common install path
+		"/opt/aurago/bin",
+		"/usr/local/bin",
+	}
+
+	for _, searchPath := range searchPaths {
+		cleanPath := filepath.Clean(searchPath)
+		for _, binaryName := range binaryNames {
+			fullPath := filepath.Join(cleanPath, binaryName)
+			if info, err := os.Stat(fullPath); err == nil && !info.IsDir() {
+				return fullPath, nil
+			}
 		}
 	}
 
-	return "", fmt.Errorf("no binary found for %s in %s", targetArch, installDir)
+	return "", fmt.Errorf("no binary found for %s (searched for: %v in: %v)", targetArch, binaryNames, searchPaths)
 }
 
 // ── Stop a running egg ──────────────────────────────────────────────────────

@@ -2,7 +2,7 @@
   "config.homepage.docker_required": "Docker integration required",
   "config.homepage.docker_required_desc": "The Homepage tool requires Docker to be enabled. Please activate Docker integration first.",
   "config.homepage.status_active": "Homepage tool active",
-  "config.homepage.status_inactive": "Homepage tool — containers not running",
+  "config.homepage.status_inactive": "Homepage tool — dev container not running",
   "config.homepage.dev_container": "Dev Container",
   "config.homepage.web_container": "Web Server",
   "config.homepage.enabled_label": "Homepage tool enabled:",

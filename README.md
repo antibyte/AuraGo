@@ -206,9 +206,11 @@ home_assistant:
 
 See `config.yaml` for all available options.
 
-#### 3. Set Master Key
+#### 3. Set Master Key (optional)
 
-AuraGo encrypts its secrets vault with a 64-character hex key (32 bytes AES-256):
+AuraGo automatically generates a secure master key on first start and saves it to `.env`. You don't need to do anything — just make sure to **back up the `.env` file** so you don't lose access to your vault.
+
+If you prefer to set your own key (e.g., for reproducible deployments), set the environment variable before starting:
 
 **Linux / macOS:**
 ```bash
@@ -220,7 +222,7 @@ export AURAGO_MASTER_KEY="$(openssl rand -hex 32)"
 $env:AURAGO_MASTER_KEY = -join ((1..32) | ForEach-Object { '{0:x2}' -f (Get-Random -Max 256) })
 ```
 
-> **Keep this key safe.** Without it, the encrypted vault cannot be decrypted.
+> The key is stored in `.env` and loaded automatically at startup. Keep that file safe — without it, the encrypted vault cannot be decrypted.
 
 #### 4. Start
 
@@ -270,20 +272,17 @@ services:
     # command: ["-https", "-domain=home.example.com", "-email=you@example.com"]
 ```
 
-#### 2. Create the `.env` file
+#### 2. Set the master key (optional)
 
-In the stack directory (usually `/opt/stacks/aurago/`), create a `.env` file:
+AuraGo **automatically generates a secure master key on first start** and saves it inside the `./data` volume. You don't need to set it manually.
+
+If you want to use your own key (e.g., for portability between hosts), add it to Dockge's **Environment** tab or create a `.env` file in the stack directory:
 
 ```bash
-AURAGO_MASTER_KEY=<your-64-char-hex-key>
+AURAGO_MASTER_KEY=$(openssl rand -hex 32)
 ```
 
-Generate a key with:
-```bash
-openssl rand -hex 32
-```
-
-> **Keep this key safe.** Without it, the encrypted vault cannot be decrypted. Back it up separately.
+> Back up the key (and the `./data` volume). Without the key, the encrypted vault cannot be decrypted.
 
 #### 3. Add a minimal `config.yaml`
 

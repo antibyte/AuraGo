@@ -32,19 +32,20 @@ async function renderHomepageSection(section) {
     }
 
     // ── Status banner ──
+    // Nur der Dev-Container ist relevant für "aktiv" Status (Webserver ist optional)
     if (dockerEnabled && hpEnabled) {
         const devState = st.dev_container || 'not_found';
         const webState = st.web_container || 'not_found';
         const devIcon = devState === 'running' ? '✅' : devState === 'exited' ? '⏸️' : '⭕';
         const webIcon = webState === 'running' ? '✅' : webState === 'exited' ? '⏸️' : '⭕';
-        const anyRunning = devState === 'running' || webState === 'running';
-        const borderColor = anyRunning ? 'var(--success)' : 'var(--warning)';
-        const bg = anyRunning ? 'rgba(34,197,94,0.06)' : 'rgba(234,179,8,0.06)';
+        const devRunning = devState === 'running';
+        const borderColor = devRunning ? 'var(--success)' : 'var(--warning)';
+        const bg = devRunning ? 'rgba(34,197,94,0.06)' : 'rgba(234,179,8,0.06)';
 
         html += `<div class="wh-notice" style="border-color:${borderColor};background:${bg};">
-            <span>${anyRunning ? '🌐' : '⚠️'}</span>
+            <span>${devRunning ? '🌐' : '⚠️'}</span>
             <div>
-                <strong>${anyRunning ? t('config.homepage.status_active') : t('config.homepage.status_inactive')}</strong><br>
+                <strong>${devRunning ? t('config.homepage.status_active') : t('config.homepage.status_inactive')}</strong><br>
                 <small>${devIcon} ${t('config.homepage.dev_container')}: ${escapeAttr(devState)} · ${webIcon} ${t('config.homepage.web_container')}: ${escapeAttr(webState)}</small>
             </div>
         </div>`;
