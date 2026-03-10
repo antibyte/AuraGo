@@ -36,7 +36,7 @@ function renderChromecastSection(section) {
     // Action buttons row
     html += '<div style="display:flex;gap:0.6rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap;">';
     html += '<button class="btn-save" style="padding:0.45rem 1.1rem;font-size:0.82rem;" onclick="ccDiscoverDevices()" id="cc-discover-btn">🔍 ' + t('config.chromecast.discover_btn') + '</button>';
-    html += '<button class="btn-save" style="padding:0.45rem 1.1rem;font-size:0.82rem;background:var(--bg-secondary);color:var(--text-primary);box-shadow:none;" onclick="ccShowAddManual()">＋ ' + t('config.chromecast.add_manual_btn') + '</button>';
+    html += '<button class="btn-save" style="padding:0.45rem 1.1rem;font-size:0.82rem;background:var(--bg-tertiary);color:var(--text-primary);border:1px solid var(--border-subtle);" onclick="ccShowAddManual()">＋ ' + t('config.chromecast.add_manual_btn') + '</button>';
     html += '</div>';
 
     // Discovery results area (hidden initially)
@@ -95,7 +95,7 @@ function renderChromecastSection(section) {
             </div>
             <div id="cc-modal-error" style="display:none;margin-top:0.7rem;padding:0.5rem 0.8rem;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;font-size:0.8rem;color:var(--danger);"></div>
             <div style="display:flex;justify-content:flex-end;gap:0.6rem;margin-top:1.2rem;">
-                <button class="btn-save" style="padding:0.45rem 1rem;font-size:0.82rem;background:var(--bg-secondary);color:var(--text-primary);box-shadow:none;" onclick="ccCloseModal()">${t('config.chromecast.cancel')}</button>
+                <button class="btn-save" style="padding:0.45rem 1rem;font-size:0.82rem;background:var(--bg-tertiary);color:var(--text-primary);border:1px solid var(--border-subtle);" onclick="ccCloseModal()">${t('config.chromecast.cancel')}</button>
                 <button class="btn-save" style="padding:0.45rem 1.2rem;font-size:0.82rem;" id="cc-modal-save" onclick="ccSaveDevice()">${t('config.chromecast.save')}</button>
             </div>
         </div>

@@ -55,7 +55,13 @@
 
         // ── API ─────────────────────────────────────────────────────────────────────
         const API = {
-            get: url => fetch(url).then(r => r.ok ? r.json() : null).catch(() => null),
+            get: url => fetch(url, { credentials: 'same-origin' }).then(r => {
+                if (r.status === 401) {
+                    window.location.href = '/auth/login?redirect=' + encodeURIComponent(window.location.pathname);
+                    return null;
+                }
+                return r.ok ? r.json() : null;
+            }).catch(() => null),
             fetchAll(hours) {
                 return Promise.all([
                     this.get('/api/dashboard/system'),
@@ -1167,7 +1173,7 @@
 
         // ── SSE Live Updates ────────────────────────────────────────────────────────
         function connectSSE() {
-            const es = new EventSource('/events');
+            const es = new EventSource('/events', { withCredentials: true });
             es.onmessage = function (event) {
                 try {
                     const data = JSON.parse(event.data);
@@ -1181,6 +1187,12 @@
             };
             es.onerror = function () {
                 es.close();
+                // Check if auth error (401) - redirect to login
+                fetch('/api/auth/status', { credentials: 'same-origin' }).then(r => {
+                    if (r.status === 401) {
+                        window.location.href = '/auth/login?redirect=' + encodeURIComponent(window.location.pathname);
+                    }
+                }).catch(() => {});
                 setTimeout(connectSSE, 5000);
             };
         }
@@ -1205,7 +1217,7 @@
             overlay.classList.add('open');
 
             try {
-                const data = await fetch('/api/dashboard/core-memory').then(r => r.json());
+                const data = await fetch('/api/dashboard/core-memory', { credentials: 'same-origin' }).then(r => r.json());
                 const facts = data.facts || [];
 
                 let html = `<div class="cf-add-bar">
@@ -1241,6 +1253,7 @@
             try {
                 const resp = await fetch('/api/dashboard/core-memory/mutate', {
                     method: 'POST',
+                    credentials: 'same-origin',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ fact })
                 });
@@ -1276,6 +1289,7 @@
             try {
                 const resp = await fetch('/api/dashboard/core-memory/mutate', {
                     method: 'PUT',
+                    credentials: 'same-origin',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ id, fact })
                 });
@@ -1292,6 +1306,7 @@
             try {
                 const resp = await fetch('/api/dashboard/core-memory/mutate', {
                     method: 'DELETE',
+                    credentials: 'same-origin',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ id })
                 });
