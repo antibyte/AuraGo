@@ -188,27 +188,74 @@ func resolveBinaryPath(targetArch string) (string, error) {
 		return "", fmt.Errorf("unsupported target architecture: %s", targetArch)
 	}
 
+	// Also check if current running binary can be used (for self-deployment)
+	if exePath != "" {
+		exePathClean := filepath.Clean(exePath)
+		if info, err := os.Stat(exePathClean); err == nil && !info.IsDir() {
+			// Current binary exists - check if name matches what we need
+			exeName := filepath.Base(exePathClean)
+			for _, expectedName := range binaryNames {
+				if exeName == expectedName {
+					return exePathClean, nil
+				}
+			}
+		}
+	}
+
 	// Search paths in order of priority
 	searchPaths := []string{
 		installDir,                           // Current dir (e.g., /home/aurago/aurago/bin)
 		filepath.Join(installDir, ".."),      // Parent dir
 		filepath.Join(installDir, "..", "bin"), // Parent/bin
+		filepath.Join(installDir, "deploy"),  // deploy subdir
 		"/home/aurago/aurago/bin",            // Common install path
+		"/home/aurago/aurago",                // Parent of bin
 		"/opt/aurago/bin",
+		"/opt/aurago",
 		"/usr/local/bin",
 	}
 
+	var checkedPaths []string
+	var existingButNotExecutable []string
+	
 	for _, searchPath := range searchPaths {
 		cleanPath := filepath.Clean(searchPath)
 		for _, binaryName := range binaryNames {
 			fullPath := filepath.Join(cleanPath, binaryName)
-			if info, err := os.Stat(fullPath); err == nil && !info.IsDir() {
+			checkedPaths = append(checkedPaths, fullPath)
+			
+			info, err := os.Stat(fullPath)
+			if err != nil {
+				if os.IsNotExist(err) {
+					continue // File doesn't exist, try next
+				}
+				// Permission error - note it but continue
+				existingButNotExecutable = append(existingButNotExecutable, fmt.Sprintf("%s (permission denied)", fullPath))
+				continue
+			}
+			
+			if info.IsDir() {
+				continue // It's a directory, not a file
+			}
+			
+			// File exists - check if executable
+			if info.Mode()&0111 != 0 {
 				return fullPath, nil
 			}
+			
+			// File exists but isn't executable
+			existingButNotExecutable = append(existingButNotExecutable, fmt.Sprintf("%s (not executable)", fullPath))
 		}
 	}
 
-	return "", fmt.Errorf("no binary found for %s (searched for: %v in: %v)", targetArch, binaryNames, searchPaths)
+	// Build detailed error message
+	errMsg := fmt.Sprintf("no binary found for %s (searched for: %v)", targetArch, binaryNames)
+	if len(existingButNotExecutable) > 0 {
+		errMsg += fmt.Sprintf("; found but not usable: %v", existingButNotExecutable)
+	}
+	errMsg += fmt.Sprintf("; checked paths: %v", checkedPaths)
+	
+	return "", fmt.Errorf("%s", errMsg)
 }
 
 // ── Stop a running egg ──────────────────────────────────────────────────────
