@@ -403,7 +403,7 @@ type Config struct {
 	GitHub struct {
 		Enabled        bool   `yaml:"enabled"`
 		ReadOnly       bool   `yaml:"readonly"`        // true = only list/get/search, block create/delete/update
-		Token          string `yaml:"-"`               // Personal Access Token (from vault)
+		Token          string `yaml:"-" vault:"token"` // Personal Access Token (from vault)
 		Owner          string `yaml:"owner"`           // GitHub username or organisation
 		DefaultPrivate bool   `yaml:"default_private"` // true = new repos are private by default
 		BaseURL        string `yaml:"base_url"`        // API base URL (default: https://api.github.com), for GitHub Enterprise

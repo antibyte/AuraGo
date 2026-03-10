@@ -107,6 +107,7 @@
   "help.github.enabled": "Enables the GitHub integration for repository and issue management.",
   "help.github.owner": "GitHub username or organization used as the default owner for API calls.",
   "help.github.read_only": "When enabled, the agent can only read repos, issues, and PRs but cannot create, delete, or modify files.",
+  "help.github.token": "Personal Access Token (PAT) for the GitHub API. Create one at https://github.com/settings/tokens with the required scopes (repo, issues, etc.). Stored encrypted in the vault.",
   "help.home_assistant.access_token": "Long-lived access token for Home Assistant auth.",
   "help.home_assistant.enabled": "Enables Home Assistant smart home integration.",
   "help.home_assistant.read_only": "When enabled, the agent can only read device states but cannot call services (no toggling devices).",
