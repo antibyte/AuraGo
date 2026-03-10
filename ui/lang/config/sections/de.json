@@ -105,6 +105,8 @@
   "config.section.firewall.desc": "Verwaltung der Linux Firewall (ufw/iptables)",
   "config.section.homepage.label": "Homepage",
   "config.section.homepage.desc": "Webseiten per Docker gestalten und deployen",
+  "config.section.homepage.circuit_breaker_multiplier": "Circuit Breaker Multiplikator",
+  "config.section.homepage.circuit_breaker_multiplier.desc": "Erhöht das Tool-Call-Limit für komplexe Web-Workflows (Init → Build → Test → Deploy). 2.0 = doppeltes Limit, max 5.0",
   "config.section.netlify.label": "Netlify",
   "config.section.netlify.desc": "Seiten auf Netlify verwalten und deployen",
   "config.section.prompts_editor.label": "Prompts & Personas",

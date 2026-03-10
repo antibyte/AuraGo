@@ -133,6 +133,9 @@ homepage:
     webserver_port: 8080
     webserver_domain: ""
     workspace_path: ""
+    # Circuit Breaker Multiplier für komplexe Homepage-Workflows
+    # Erhöht das Tool-Call-Limit für Homepage-Operationen (z.B. 2.0 = doppeltes Limit)
+    circuit_breaker_multiplier: 2.0
 brave_search:
     enabled: false
     api_key: ""

@@ -329,20 +329,23 @@ type Config struct {
 		TTSPort int  `yaml:"tts_port"`
 	} `yaml:"chromecast"`
 	Homepage struct {
-		Enabled                  bool   `yaml:"enabled"`
-		AllowDeploy              bool   `yaml:"allow_deploy"`
-		AllowContainerManagement bool   `yaml:"allow_container_management"`
-		DeployHost               string `yaml:"deploy_host"`
-		DeployPort               int    `yaml:"deploy_port"`
-		DeployUser               string `yaml:"deploy_user"`
-		DeployPassword           string `yaml:"-"` // vault-only
-		DeployKey                string `yaml:"-"` // vault-only (SSH private key)
-		DeployPath               string `yaml:"deploy_path"`
-		DeployMethod             string `yaml:"deploy_method"` // "sftp" or "scp"
-		WebServerEnabled         bool   `yaml:"webserver_enabled"`
-		WebServerPort            int    `yaml:"webserver_port"`
-		WebServerDomain          string `yaml:"webserver_domain"`
-		WorkspacePath            string `yaml:"workspace_path"`
+		Enabled                   bool    `yaml:"enabled"`
+		AllowDeploy               bool    `yaml:"allow_deploy"`
+		AllowContainerManagement  bool    `yaml:"allow_container_management"`
+		DeployHost                string  `yaml:"deploy_host"`
+		DeployPort                int     `yaml:"deploy_port"`
+		DeployUser                string  `yaml:"deploy_user"`
+		DeployPassword            string  `yaml:"-"` // vault-only
+		DeployKey                 string  `yaml:"-"` // vault-only (SSH private key)
+		DeployPath                string  `yaml:"deploy_path"`
+		DeployMethod              string  `yaml:"deploy_method"` // "sftp" or "scp"
+		WebServerEnabled          bool    `yaml:"webserver_enabled"`
+		WebServerPort             int     `yaml:"webserver_port"`
+		WebServerDomain           string  `yaml:"webserver_domain"`
+		WorkspacePath             string  `yaml:"workspace_path"`
+		// CircuitBreakerMultiplier erhöht das Tool-Call-Limit für Homepage-Operationen
+		// z.B. 2.0 = doppeltes Limit (Standard: 2.0, max: 5.0)
+		CircuitBreakerMultiplier float64 `yaml:"circuit_breaker_multiplier"`
 	} `yaml:"homepage"`
 	Notifications struct {
 		Ntfy struct {
@@ -1256,6 +1259,14 @@ func Load(path string) (*Config, error) {
 	}
 	if cfg.Koofr.BaseURL == "" {
 		cfg.Koofr.BaseURL = "https://app.koofr.net"
+	}
+
+	// Homepage defaults
+	if cfg.Homepage.CircuitBreakerMultiplier <= 0 {
+		cfg.Homepage.CircuitBreakerMultiplier = 2.0
+	}
+	if cfg.Homepage.CircuitBreakerMultiplier > 5.0 {
+		cfg.Homepage.CircuitBreakerMultiplier = 5.0 // max 5x
 	}
 
 	// Server defaults

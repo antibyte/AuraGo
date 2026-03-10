@@ -103,6 +103,8 @@
   "config.section.ollama.desc": "Gestión de LLM local",
   "config.section.homepage.label": "Página web",
   "config.section.homepage.desc": "Diseñar y desplegar sitios web con Docker",
+  "config.section.homepage.circuit_breaker_multiplier": "Multiplicador de Circuit Breaker",
+  "config.section.homepage.circuit_breaker_multiplier.desc": "Aumenta el límite de llamadas a herramientas para flujos web complejos (init → build → test → deploy). 2.0 = límite doble, max 5.0",
   "config.section.netlify.label": "Netlify",
   "config.section.netlify.desc": "Desplegar y gestionar sitios en Netlify",
   "config.section.prompts_editor.label": "Prompts y Personas",

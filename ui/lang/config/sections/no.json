@@ -103,6 +103,8 @@
   "config.section.ollama.desc": "Lokal LLM-ledelse",
   "config.section.homepage.label": "Hjemmeside",
   "config.section.homepage.desc": "Design og distribuer nettsider via Docker",
+  "config.section.homepage.circuit_breaker_multiplier": "Circuit Breaker Multiplikator",
+  "config.section.homepage.circuit_breaker_multiplier.desc": "Øker grensen for verktøykall for komplekse web-arbeidsflyter (init → build → test → deploy). 2.0 = dobbelt grense, max 5.0",
   "config.section.netlify.label": "Netlify",
   "config.section.netlify.desc": "Distribuer og administrer nettsteder på Netlify",
   "config.section.prompts_editor.label": "Forespørsler og personas",

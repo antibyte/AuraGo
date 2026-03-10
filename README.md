@@ -173,7 +173,9 @@ go build -o aurago.exe cmd/aurago/main.go
 
 #### 2. Configure
 
-Edit `config.yaml` in the project root:
+The easiest way to set up AuraGo is through the **Web UI** — open it after the first start and use the built-in **Quick Setup Wizard** and **Configuration editor** to configure your LLM, integrations, and features without touching a file.
+
+Alternatively, you can edit `config.yaml` directly — useful for scripted or headless setups. The minimum required is an LLM API key:
 
 ```yaml
 server:
@@ -237,6 +239,69 @@ start.bat
 ```
 
 Open **http://localhost:8088** — done.
+
+---
+
+### Option C — Dockge (Docker Compose UI)
+
+[Dockge](https://github.com/louislam/dockge) is a popular self-hosted Docker Compose manager, perfect for home labs. You can add AuraGo as a stack in a few clicks.
+
+#### 1. Create the stack
+
+In Dockge, click **+ Compose**, name it `aurago`, and paste the following `compose.yaml`:
+
+```yaml
+services:
+  aurago:
+    image: ghcr.io/antibyte/aurago:latest
+    container_name: aurago
+    restart: unless-stopped
+    ports:
+      - "8088:8088"     # Web UI (HTTP)
+      # - "443:443"     # Uncomment for HTTPS (Let's Encrypt)
+      # - "80:80"       # Uncomment for HTTP → HTTPS redirect
+    volumes:
+      - ./data:/app/data          # Databases, vault, vector store
+      - ./config.yaml:/app/config.yaml
+      - ./agent_workspace:/app/agent_workspace
+    environment:
+      - AURAGO_MASTER_KEY=${AURAGO_MASTER_KEY}
+    # Optional: HTTPS via Let's Encrypt flags
+    # command: ["-https", "-domain=home.example.com", "-email=you@example.com"]
+```
+
+#### 2. Create the `.env` file
+
+In the stack directory (usually `/opt/stacks/aurago/`), create a `.env` file:
+
+```bash
+AURAGO_MASTER_KEY=<your-64-char-hex-key>
+```
+
+Generate a key with:
+```bash
+openssl rand -hex 32
+```
+
+> **Keep this key safe.** Without it, the encrypted vault cannot be decrypted. Back it up separately.
+
+#### 3. Add a minimal `config.yaml`
+
+```yaml
+llm:
+  provider: openrouter
+  base_url: "https://openrouter.ai/api/v1"
+  api_key: "sk-or-..."
+  model: "google/gemini-2.0-flash-001"
+```
+
+All other settings can be configured via the **Web UI** after the first start.
+
+#### 4. Deploy
+
+Click **Deploy** in Dockge — AuraGo starts and is accessible at **http://your-server-ip:8088**.
+
+> **Tip:** Use a Traefik or Nginx Proxy Manager reverse proxy (also manageable via Dockge stacks) to add a domain name and automatic HTTPS in front of AuraGo, or use AuraGo's built-in HTTPS support with the `-https` flag.
 
 ---
 

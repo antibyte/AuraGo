@@ -103,6 +103,8 @@
   "config.section.ollama.desc": "Integração com Ollama",
   "config.section.homepage.label": "Homepage",
   "config.section.homepage.desc": "Projetar e implantar sites via Docker",
+  "config.section.homepage.circuit_breaker_multiplier": "Multiplicador de Circuit Breaker",
+  "config.section.homepage.circuit_breaker_multiplier.desc": "Aumenta o limite de chamadas de ferramentas para workflows web complexos (init → build → test → deploy). 2.0 = limite duplo, max 5.0",
   "config.section.netlify.label": "Netlify",
   "config.section.netlify.desc": "Implantar e gerenciar sites no Netlify",
   "config.section.prompts_editor.label": "Editor de Prompts",

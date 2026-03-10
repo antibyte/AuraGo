@@ -341,6 +341,8 @@ type ToolCall struct {
 	Packages   []string `json:"packages"`    // npm packages to install
 	ProjectDir string   `json:"project_dir"` // subdirectory within /workspace
 	BuildDir   string   `json:"build_dir"`   // build output directory (auto-detected if empty)
+	// Circuit Breaker Override - ermöglicht temporäre Erhöhung des Limits für komplexe Operationen
+	CircuitBreakerOverride int `json:"circuit_breaker_override,omitempty"`
 	// Netlify fields
 	SiteID       string `json:"site_id"`       // Netlify site ID
 	DeployID     string `json:"deploy_id"`     // Netlify deploy ID
@@ -691,17 +693,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			meta = prompts.GetCorePersonalityMeta(cfg.Directories.PromptsDir, flags.CorePersonality)
 		}
 
-		// Circuit breaker
-		effectiveMaxCalls := cfg.CircuitBreaker.MaxToolCalls
-		if personalityEnabled && cfg.Agent.PersonalityEngineV2 && shortTermMem != nil {
-			if traits, err := shortTermMem.GetTraits(); err == nil {
-				if thoroughness, ok := traits[memory.TraitThoroughness]; ok && thoroughness > 0.8 {
-					// High thoroughness trait allows 50% more tool calls before triggering the breaker
-					effectiveMaxCalls = int(float64(effectiveMaxCalls) * 1.5)
-					currentLogger.Debug("[Behavioral Tool Calling] Increased MaxToolCalls due to high Thoroughness", "new_max", effectiveMaxCalls)
-				}
-			}
-		}
+		// Circuit breaker - berechne Basis-Limit (Tool-spezifische Anpassungen erfolgen später wenn tc bekannt ist)
+		effectiveMaxCalls := calculateEffectiveMaxCalls(cfg, ToolCall{}, personalityEnabled, shortTermMem, currentLogger)
 
 		if toolCallCount >= effectiveMaxCalls {
 			currentLogger.Warn("[Sync] Circuit breaker triggered", "count", toolCallCount, "limit", effectiveMaxCalls)
@@ -1323,7 +1316,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			continue
 		}
 
-		if tc.IsTool && toolCallCount < cfg.CircuitBreaker.MaxToolCalls {
+		// Berechne effektives Limit neu mit bekanntem tc (für Tool-spezifische Anpassungen)
+		effectiveMaxCallsWithTool := calculateEffectiveMaxCalls(cfg, tc, personalityEnabled, shortTermMem, currentLogger)
+		
+		if tc.IsTool && toolCallCount < effectiveMaxCallsWithTool {
 			toolCallCount++
 			broker.Send("thinking", fmt.Sprintf("[%d] Running %s...", toolCallCount, tc.Action))
 
@@ -5638,4 +5634,53 @@ func decodeBase64(s string) ([]byte, error) {
 		data, err = base64.RawStdEncoding.DecodeString(s)
 	}
 	return data, err
+}
+
+// calculateEffectiveMaxCalls berechnet das effektive Circuit Breaker Limit
+// basierend auf Personality Traits, Homepage-Multiplier und explizitem Override.
+// Wenn tc leer ist (ToolCall{}), werden nur die Basis-Anpassungen berechnet (Personality).
+// Tool-spezifische Anpassungen erfolgen später wenn tc bekannt ist.
+func calculateEffectiveMaxCalls(cfg *config.Config, tc ToolCall, personalityEnabled bool, shortTermMem *memory.SQLiteMemory, logger *slog.Logger) int {
+	effectiveMaxCalls := cfg.CircuitBreaker.MaxToolCalls
+
+	// 1. Personality Engine V2: Thoroughness Trait
+	if personalityEnabled && cfg.Agent.PersonalityEngineV2 && shortTermMem != nil {
+		if traits, err := shortTermMem.GetTraits(); err == nil {
+			if thoroughness, ok := traits[memory.TraitThoroughness]; ok && thoroughness > 0.8 {
+				effectiveMaxCalls = int(float64(effectiveMaxCalls) * 1.5)
+				logger.Debug("[Behavioral Tool Calling] Increased MaxToolCalls due to high Thoroughness", "new_max", effectiveMaxCalls)
+			}
+		}
+	}
+
+	// 2. Homepage Tool: Multiplier für komplexe Web-Workflows
+	// Nur anwenden wenn tc bekannt ist (nicht leer)
+	if tc.Tool != "" && tc.Tool == "homepage" && cfg.Homepage.Enabled {
+		multiplier := cfg.Homepage.CircuitBreakerMultiplier
+		if multiplier > 0 {
+			// Cap bei 5x
+			if multiplier > 5.0 {
+				multiplier = 5.0
+			}
+			newLimit := int(float64(effectiveMaxCalls) * multiplier)
+			logger.Debug("[Circuit Breaker] Homepage multiplier applied", "base_limit", effectiveMaxCalls, "multiplier", multiplier, "new_limit", newLimit)
+			effectiveMaxCalls = newLimit
+		}
+	}
+
+	// 3. Expliziter Override im ToolCall (höchste Priorität)
+	// Nur anwenden wenn tc bekannt ist
+	if tc.Tool != "" && tc.CircuitBreakerOverride > 0 {
+		// Max 3x Standard-Limit für Sicherheit
+		maxAllowed := cfg.CircuitBreaker.MaxToolCalls * 3
+		if tc.CircuitBreakerOverride > maxAllowed {
+			logger.Warn("[Circuit Breaker] Override exceeds maximum allowed, capping", "requested", tc.CircuitBreakerOverride, "max_allowed", maxAllowed)
+			effectiveMaxCalls = maxAllowed
+		} else {
+			logger.Debug("[Circuit Breaker] Explicit override applied", "override", tc.CircuitBreakerOverride)
+			effectiveMaxCalls = tc.CircuitBreakerOverride
+		}
+	}
+
+	return effectiveMaxCalls
 }
