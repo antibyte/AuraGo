@@ -31,17 +31,21 @@ func handleInvasionNests(s *Server) http.HandlerFunc {
 			if nests == nil {
 				nests = []invasion.NestRecord{}
 			}
-			// Build response with has_secret flag, never return vault IDs
 			type nestResponse struct {
 				invasion.NestRecord
-				HasSecret   bool `json:"has_secret"`
-				WSConnected bool `json:"ws_connected"`
+				HasSecret   bool        `json:"has_secret"`
+				WSConnected bool        `json:"ws_connected"`
+				Telemetry   interface{} `json:"telemetry"`
 			}
 			resp := make([]nestResponse, 0, len(nests))
 			for _, n := range nests {
 				hasWS := false
+				var tel interface{} = nil
 				if s.EggHub != nil {
 					hasWS = s.EggHub.IsConnected(n.ID)
+					if c := s.EggHub.GetConnection(n.ID); c != nil {
+						tel = c.GetTelemetry()
+					}
 				}
 				resp = append(resp, nestResponse{
 					NestRecord: invasion.NestRecord{
@@ -65,6 +69,7 @@ func handleInvasionNests(s *Server) http.HandlerFunc {
 					},
 					HasSecret:   n.VaultSecretID != "",
 					WSConnected: hasWS,
+					Telemetry:   tel,
 				})
 			}
 			writeJSON(w, resp)

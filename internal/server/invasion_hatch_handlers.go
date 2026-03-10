@@ -269,12 +269,20 @@ func handleInvasionNestHatchStatus(s *Server) http.HandlerFunc {
 		}
 
 		connected := s.EggHub.IsConnected(id)
+		var telemetry interface{} = nil
+		if connected {
+			if c := s.EggHub.GetConnection(id); c != nil {
+				telemetry = c.GetTelemetry()
+			}
+		}
+
 		writeJSON(w, map[string]interface{}{
 			"nest_id":       id,
 			"hatch_status":  nest.HatchStatus,
 			"last_hatch_at": nest.LastHatchAt,
 			"hatch_error":   nest.HatchError,
 			"ws_connected":  connected,
+			"telemetry":     telemetry,
 		})
 	}
 }

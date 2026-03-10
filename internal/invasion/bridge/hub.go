@@ -18,14 +18,23 @@ type EggConnection struct {
 	SharedKey     string // hex-encoded
 	LastHeartbeat time.Time
 	Status        string // "connected" | "idle" | "busy" | "error"
+	Telemetry     HeartbeatPayload
 	mu            sync.Mutex
 }
 
 // Send writes a signed message to the egg.
 func (ec *EggConnection) Send(msg *Message) error {
 	ec.mu.Lock()
+	conn := ec.Conn
+	ec.mu.Unlock()
+	return conn.WriteJSON(msg)
+}
+
+// GetTelemetry safely retrieves the latest heartbeat data.
+func (ec *EggConnection) GetTelemetry() HeartbeatPayload {
+	ec.mu.Lock()
 	defer ec.mu.Unlock()
-	return ec.Conn.WriteJSON(msg)
+	return ec.Telemetry
 }
 
 // EggHub manages all connected egg workers on the master side.
@@ -197,8 +206,11 @@ func (h *EggHub) HandleMessages(conn *EggConnection) {
 		case MsgHeartbeat:
 			var hb HeartbeatPayload
 			if err := json.Unmarshal(msg.Payload, &hb); err == nil {
+				conn.mu.Lock()
 				conn.LastHeartbeat = time.Now()
 				conn.Status = hb.Status
+				conn.Telemetry = hb
+				conn.mu.Unlock()
 				if h.OnHeartbeat != nil {
 					h.OnHeartbeat(conn.NestID, hb)
 				}

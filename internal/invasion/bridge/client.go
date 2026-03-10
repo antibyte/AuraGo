@@ -8,6 +8,9 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/shirou/gopsutil/v4/cpu"
+	"github.com/shirou/gopsutil/v4/host"
+	"github.com/shirou/gopsutil/v4/mem"
 )
 
 // EggClient implements the egg-side WebSocket connection to the master.
@@ -255,8 +258,24 @@ func (c *EggClient) heartbeatLoop(done chan struct{}) {
 		case <-c.done:
 			return
 		case <-ticker.C:
+			var cpuP float64
+			if cpP, err := cpu.Percent(0, false); err == nil && len(cpP) > 0 {
+				cpuP = cpP[0]
+			}
+			var memP float64
+			if v, err := mem.VirtualMemory(); err == nil {
+				memP = v.UsedPercent
+			}
+			var upS int64
+			if h, err := host.Info(); err == nil {
+				upS = int64(h.Uptime)
+			}
+
 			hb := HeartbeatPayload{
-				Status: "idle",
+				Status:     "idle",
+				CPUPercent: cpuP,
+				MemPercent: memP,
+				Uptime:     upS,
 			}
 			msg, err := NewMessage(MsgHeartbeat, c.EggID, c.NestID, c.SharedKey, hb)
 			if err != nil {
