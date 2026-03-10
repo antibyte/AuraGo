@@ -204,12 +204,13 @@ func resolveBinaryPath(targetArch string) (string, error) {
 
 	// Search paths in order of priority
 	searchPaths := []string{
-		installDir,                           // Current dir (e.g., /home/aurago/aurago/bin)
-		filepath.Join(installDir, ".."),      // Parent dir
-		filepath.Join(installDir, "..", "bin"), // Parent/bin
-		filepath.Join(installDir, "deploy"),  // deploy subdir
-		"/home/aurago/aurago/bin",            // Common install path
-		"/home/aurago/aurago",                // Parent of bin
+		installDir,                              // Current dir (e.g., /home/aurago/aurago/bin)
+		filepath.Join(installDir, ".."),         // Parent dir
+		filepath.Join(installDir, "..", "bin"),  // Parent/bin
+		filepath.Join(installDir, "deploy"),     // deploy subdir
+		filepath.Join(installDir, "..", "deploy"), // Parent/deploy
+		"/home/aurago/aurago/bin",               // Common install path
+		"/home/aurago/aurago",                   // Parent of bin
 		"/opt/aurago/bin",
 		"/opt/aurago",
 		"/usr/local/bin",

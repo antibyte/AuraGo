@@ -69,17 +69,25 @@ for target in "${TARGETS[@]}"; do
   OS="${target%/*}"
   ARCH="${target#*/}"
   
-  if [ "$OS" = "linux" ] && [ "$ARCH" = "amd64" ]; then
-    # Standard Linux release: put binaries in bin/ for GitHub updates
+  if [ "$OS" = "linux" ]; then
+    # Linux binaries go to bin/ for GitHub updates and nest deployment
     mkdir -p bin
+    SUFFIX=""
+    # amd64 is the default and gets no suffix (→ aurago_linux); other arches
+    # get a suffix (→ aurago_linux_arm64) to match resolveBinaryPath conventions.
+    if [ "$ARCH" != "amd64" ]; then SUFFIX="_${ARCH}"; fi
     
-    OUT_AURAGO="bin/aurago_linux"
+    OUT_AURAGO="bin/aurago_linux${SUFFIX}"
     echo "    → $OUT_AURAGO"
     CGO_ENABLED=0 GOOS="$OS" GOARCH="$ARCH" go build -trimpath -ldflags="-s -w" -o "$OUT_AURAGO" ./cmd/aurago/
     
-    OUT_LIFEBOAT="bin/lifeboat_linux"
+    OUT_LIFEBOAT="bin/lifeboat_linux${SUFFIX}"
     echo "    → $OUT_LIFEBOAT"
     CGO_ENABLED=0 GOOS="$OS" GOARCH="$ARCH" go build -trimpath -ldflags="-s -w" -o "$OUT_LIFEBOAT" ./cmd/lifeboat/
+
+    OUT_CFGMERGER="bin/config-merger_linux${SUFFIX}"
+    echo "    → $OUT_CFGMERGER"
+    CGO_ENABLED=0 GOOS="$OS" GOARCH="$ARCH" go build -trimpath -ldflags="-s -w" -o "$OUT_CFGMERGER" ./cmd/config-merger/
   else
     # Other targets go to deploy/
     EXT=""
