@@ -60,6 +60,8 @@ type ToolFeatureFlags struct {
 	SandboxEnabled         bool
 	MeshCentralEnabled     bool
 	HomepageEnabled        bool
+	NetlifyEnabled         bool
+	FirewallEnabled        bool
 	// Danger Zone toggles
 	AllowShell           bool
 	AllowPython          bool
@@ -482,6 +484,35 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 		))
 	}
 
+	if ff.NetlifyEnabled {
+		tools = append(tools, tool("netlify",
+			"Manage Netlify sites, deploys, environment variables, forms, hooks, and SSL certificates via the Netlify API.",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "Operation to perform",
+					"enum":        []string{"list_sites", "get_site", "create_site", "update_site", "delete_site", "list_deploys", "get_deploy", "deploy_zip", "deploy_draft", "rollback", "cancel_deploy", "list_env", "get_env", "set_env", "delete_env", "list_files", "list_forms", "get_submissions", "list_hooks", "create_hook", "delete_hook", "provision_ssl"},
+				},
+				"site_id":       prop("string", "Netlify site ID (uses default_site_id if omitted)"),
+				"site_name":     prop("string", "Site subdomain name for create (name.netlify.app)"),
+				"custom_domain": prop("string", "Custom domain for the site"),
+				"deploy_id":     prop("string", "Deploy ID (for get_deploy, rollback, cancel_deploy)"),
+				"content":       prop("string", "Base64-encoded ZIP archive (for deploy_zip/deploy_draft)"),
+				"title":         prop("string", "Deploy title/message"),
+				"draft":         map[string]interface{}{"type": "boolean", "description": "Deploy as draft (not published)"},
+				"env_key":       prop("string", "Environment variable key"),
+				"env_value":     prop("string", "Environment variable value"),
+				"env_context":   prop("string", "Env var context: all, production, deploy-preview, branch-deploy, dev"),
+				"form_id":       prop("string", "Form ID (for get_submissions)"),
+				"hook_id":       prop("string", "Hook ID (for delete_hook)"),
+				"hook_type":     prop("string", "Hook type: url, email, slack"),
+				"hook_event":    prop("string", "Hook event: deploy_created, deploy_building, deploy_failed, etc."),
+				"url":           prop("string", "Webhook URL (for create_hook with type=url)"),
+				"value":         prop("string", "Email address (for create_hook with type=email)"),
+			}, "operation"),
+		))
+	}
+
 	if ff.AllowSelfUpdate {
 		tools = append(tools, tool("manage_updates",
 			"Check for AuraGo updates on GitHub or install them. Use 'check' to see if a new version is available without installing. Use 'install' only after user approval.",
@@ -569,6 +600,19 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 				},
 				"query": prop("string", "Device hostname, MagicDNS name, IP address, or node ID (for device/routes/enable_routes/disable_routes)"),
 				"value": prop("string", "Comma-separated CIDR routes to enable or disable (e.g. '10.0.0.0/8,192.168.1.0/24')"),
+			}, "operation"),
+		))
+	}
+	if ff.FirewallEnabled {
+		tools = append(tools, tool("firewall",
+			"Manage and inspect local Linux firewall rules (iptables/ufw). Note: modification commands are blocked in 'readonly' mode.",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "Operation to perform",
+					"enum":        []string{"get_rules", "modify_rule"},
+				},
+				"command": prop("string", "The modifying command, e.g. 'iptables -A INPUT -p tcp --dport 80 -j ACCEPT' or 'ufw allow 80/tcp' (required for modify_rule)"),
 			}, "operation"),
 		))
 	}

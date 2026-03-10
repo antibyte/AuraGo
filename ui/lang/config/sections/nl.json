@@ -103,8 +103,12 @@
   "config.section.ollama.desc": "Ollama integratie",
   "config.section.homepage.label": "Homepage",
   "config.section.homepage.desc": "Websites ontwerpen en deployen via Docker",
+  "config.section.netlify.label": "Netlify",
+  "config.section.netlify.desc": "Sites deployen en beheren op Netlify",
   "config.section.prompts_editor.label": "Prompt Editor",
   "config.section.prompts_editor.desc": "Prompt bewerking",
   "config.section.danger_zone.label": "Gevarenzone",
-  "config.section.danger_zone.desc": "Gevaarlijke instellingen"
+  "config.section.danger_zone.desc": "Gevaarlijke instellingen",
+  "config.section.firewall.label": "Firewall",
+  "config.section.firewall.desc": "Beheer Linux Firewall (ufw/iptables)"
 }

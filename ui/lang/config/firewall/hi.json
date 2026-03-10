@@ -1,0 +1,9 @@
+{
+  "help.config.firewall.mode": "ऑपरेशन का तरीका चुनें. <span style=\"color:var(--accent);\">readonly</span> मोड में, एजेंट केवल नियम देख सकता है। <span style=\"color:var(--warning);\">guard</span> मोड में, यह उन्हें संशोधित भी कर सकता है, और एक बैकग्राउंड लूप सक्रिय रूप से बाहरी नियम परिवर्तनों की निगरानी करता है।",
+  "help.config.firewall.poll_interval_seconds": "एजेंट को सूचित करने के लिए गार्ड मोड कितनी बार (सेकंड में) फ़ायरवॉल नियम संपादन की जाँच करता है।",
+  "config.firewall.os_banner": "🚫फ़ायरवॉल टूल विशेष रूप से Linux (iptables/ufw) पर उपलब्ध है। यह वर्तमान में इस ऑपरेटिंग सिस्टम के लिए अक्षम है।",
+  "config.firewall.enable_label": "फ़ायरवॉल टूल सक्षम करें",
+  "config.firewall.enable_help": "एआई एजेंट को नियमों को पढ़ने या संशोधित करने के लिए सिस्टम फ़ायरवॉल के साथ बातचीत करने की अनुमति देता है।",
+  "config.firewall.active": "सक्रिय",
+  "config.firewall.inactive": "निष्क्रिय"
+}

@@ -1,0 +1,9 @@
+{
+  "help.config.firewall.mode": "Välj driftsätt. I läget <span style=\"color:var(--accent);\">skrivskyddat</span> kan agenten bara se reglerna. I <span style=\"color:var(--warning);\">vakt</span>-läget kan det också ändra dem, och en bakgrundsloop övervakar aktivt för externa regeländringar.",
+  "help.config.firewall.poll_interval_seconds": "Hur ofta (i sekunder) vaktläget söker efter ändringar av brandväggsregeln för att informera agenten.",
+  "config.firewall.os_banner": "🚫 Brandväggsverktyget är exklusivt tillgängligt på Linux (iptables / ufw). Det är för närvarande inaktiverat för det här operativsystemet.",
+  "config.firewall.enable_label": "Aktivera brandväggsverktyget",
+  "config.firewall.enable_help": "Tillåter AI-agenten att interagera med systemets brandvägg för att läsa eller ändra regler.",
+  "config.firewall.active": "Aktiv",
+  "config.firewall.inactive": "Inaktiv"
+}

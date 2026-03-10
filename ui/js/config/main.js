@@ -81,7 +81,8 @@ const SECTIONS = [
             { key: 'proxmox', icon: '🖥️', label: t('config.section.proxmox.label'), desc: t('config.section.proxmox.desc') },
             { key: 'tailscale', icon: '🔒', label: t('config.section.tailscale.label'), desc: t('config.section.tailscale.desc') },
             { key: 'ansible', icon: '⚙️', label: t('config.section.ansible.label'), desc: t('config.section.ansible.desc') },
-            { key: 'meshcentral', icon: '🖥️', label: t('config.section.meshcentral.label'), desc: t('config.section.meshcentral.desc') }
+            { key: 'meshcentral', icon: '🖥️', label: t('config.section.meshcentral.label'), desc: t('config.section.meshcentral.desc') },
+            { key: 'firewall', icon: '🧱', label: 'Firewall', desc: 'Manage Linux Firewall (ufw/iptables)' }
         ]
     },
     {
@@ -92,6 +93,7 @@ const SECTIONS = [
             { key: 'mcp', icon: '🔌', label: t('config.section.mcp.label'), desc: t('config.section.mcp.desc') },
             { key: 'sandbox', icon: '📦', label: t('config.section.sandbox.label'), desc: t('config.section.sandbox.desc') },
             { key: 'homepage', icon: '🌐', label: t('config.section.homepage.label'), desc: t('config.section.homepage.desc') },
+            { key: 'netlify', icon: '🔺', label: t('config.section.netlify.label'), desc: t('config.section.netlify.desc') },
             { key: 'ollama', icon: '🦙', label: t('config.section.ollama.label'), desc: t('config.section.ollama.desc') }
         ]
     },
@@ -765,8 +767,10 @@ const SECTION_MODULES = {
     devices: { m: 'devices', fn: 'renderDevicesSection' },
     chromecast: { m: 'chromecast', fn: 'renderChromecastSection' },
     homepage: { m: 'homepage', fn: 'renderHomepageSection' },
+    netlify: { m: 'netlify', fn: 'renderNetlifySection' },
     danger_zone: { m: 'danger', fn: 'renderDangerZoneSection' },
-    web_config: { m: 'auth', fn: 'renderWebConfigSection' }
+    web_config: { m: 'auth', fn: 'renderWebConfigSection' },
+    firewall: { m: 'firewall', fn: 'renderFirewallSection' }
 };
 
 function loadModule(name) {

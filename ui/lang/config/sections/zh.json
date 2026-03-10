@@ -103,8 +103,12 @@
   "config.section.ollama.desc": "本地 LLM 管理",
   "config.section.homepage.label": "主页",
   "config.section.homepage.desc": "通过Docker设计和部署网站",
+  "config.section.netlify.label": "Netlify",
+  "config.section.netlify.desc": "在 Netlify 上部署和管理站点",
   "config.section.prompts_editor.label": "提示与角色",
   "config.section.prompts_editor.desc": "管理额外的提示和个性配置文件",
   "config.section.danger_zone.label": "危险区域",
-  "config.section.danger_zone.desc": "切换上帝模式代理功能"
+  "config.section.danger_zone.desc": "切换上帝模式代理功能",
+  "config.section.firewall.label": "防火墙",
+  "config.section.firewall.desc": "管理 Linux 防火墙 (ufw/iptables)"
 }

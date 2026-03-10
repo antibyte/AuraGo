@@ -218,6 +218,36 @@
       "description": "Local directory path where web projects are stored and mounted into the Docker container."
     }
   },
+  "netlify": {
+    "enabled": {
+      "title": "Enable Netlify Integration",
+      "description": "Activates Netlify site management, deployments, environment variables, forms, hooks, and SSL provisioning."
+    },
+    "readonly": {
+      "title": "Read-Only Mode",
+      "description": "When enabled, the agent can only read Netlify data. All create, update, delete, and deploy operations are blocked."
+    },
+    "allow_deploy": {
+      "title": "Allow Deployments",
+      "description": "Permits the agent to deploy ZIP archives and roll back deploys on Netlify sites."
+    },
+    "allow_site_management": {
+      "title": "Allow Site Management",
+      "description": "Permits the agent to create, update, and delete Netlify sites."
+    },
+    "allow_env_management": {
+      "title": "Allow Environment Variable Management",
+      "description": "Permits the agent to create, update, and delete environment variables on Netlify sites."
+    },
+    "default_site_id": {
+      "title": "Default Site ID",
+      "description": "Optional Netlify site ID used when the agent does not specify one. Found in Site settings → General."
+    },
+    "team_slug": {
+      "title": "Team Slug",
+      "description": "Optional Netlify team slug for API calls that require a team context (e.g. creating new sites)."
+    }
+  },
   "docker": {
     "host": {
       "title": "Docker Host",

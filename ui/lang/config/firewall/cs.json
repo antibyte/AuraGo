@@ -1,0 +1,9 @@
+{
+  "help.config.firewall.mode": "Vyberte provozní režim. V režimu <span style=\"color:var(--accent);\">pouze pro čtení</span> může agent pravidla pouze zobrazit. V režimu <span style=\"color:var(--warning);\">stráž</span> je může také upravovat a smyčka na pozadí aktivně sleduje změny externích pravidel.",
+  "help.config.firewall.poll_interval_seconds": "Jak často (v sekundách) režim ochrany kontroluje úpravy pravidel brány firewall, aby informoval agenta.",
+  "config.firewall.os_banner": "🚫 Nástroj Firewall je k dispozici výhradně na Linuxu (iptables / ufw). V současné době je pro tento operační systém zakázána.",
+  "config.firewall.enable_label": "Povolit nástroj brány firewall",
+  "config.firewall.enable_help": "Umožňuje agentovi AI komunikovat se systémovou bránou firewall a číst nebo upravovat pravidla.",
+  "config.firewall.active": "Aktivní",
+  "config.firewall.inactive": "Neaktivní"
+}

@@ -103,8 +103,12 @@
   "config.section.ollama.desc": "Integração com Ollama",
   "config.section.homepage.label": "Homepage",
   "config.section.homepage.desc": "Projetar e implantar sites via Docker",
+  "config.section.netlify.label": "Netlify",
+  "config.section.netlify.desc": "Implantar e gerenciar sites no Netlify",
   "config.section.prompts_editor.label": "Editor de Prompts",
   "config.section.prompts_editor.desc": "Edição de prompts",
   "config.section.danger_zone.label": "Zona de Perigo",
-  "config.section.danger_zone.desc": "Configurações perigosas"
+  "config.section.danger_zone.desc": "Configurações perigosas",
+  "config.section.firewall.label": "Firewall",
+  "config.section.firewall.desc": "Gerenciar Firewall Linux (ufw/iptables)"
 }

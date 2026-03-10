@@ -1,0 +1,9 @@
+{
+  "help.config.firewall.mode": "Wybierz tryb pracy. W trybie <span style=\"color:var(--accent);\">tylko do odczytu</span> agent może tylko przeglądać reguły. W trybie <span style=\"color:var(--warning);\">guard</span> może je również modyfikować, a pętla w tle aktywnie monitoruje zmiany reguł zewnętrznych.",
+  "help.config.firewall.poll_interval_seconds": "Jak często (w sekundach) tryb ochrony sprawdza zmiany reguł zapory sieciowej, aby poinformować agenta.",
+  "config.firewall.os_banner": "🚫 Narzędzie zapory sieciowej jest dostępne wyłącznie w systemie Linux (iptables / ufw). Obecnie jest wyłączona w tym systemie operacyjnym.",
+  "config.firewall.enable_label": "Włącz narzędzie zapory sieciowej",
+  "config.firewall.enable_help": "Umożliwia agentowi AI interakcję z zaporą systemową w celu odczytania lub zmodyfikowania reguł.",
+  "config.firewall.active": "Aktywny",
+  "config.firewall.inactive": "Nieaktywny"
+}

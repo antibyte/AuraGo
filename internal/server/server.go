@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"net/http"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -386,6 +387,36 @@ func Start(cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, sh
 		logger.Info("File indexer started", "directories", cfg.Indexing.Directories)
 	}
 
+	// Start Firewall Guard loop if enabled
+	if cfg.Firewall.Enabled && cfg.Firewall.Mode == "guard" {
+		go tools.StartFirewallGuard(context.Background(), cfg, logger, func(prompt string) {
+			go func() {
+				url := fmt.Sprintf("http://127.0.0.1:%d/v1/chat/completions", cfg.Server.Port)
+				payload := map[string]interface{}{
+					"model":  "aurago",
+					"stream": false,
+					"messages": []map[string]string{
+						{"role": "user", "content": prompt},
+					},
+				}
+				body, _ := json.Marshal(payload)
+				req, err := http.NewRequest("POST", url, strings.NewReader(string(body)))
+				if err != nil {
+					logger.Error("[FirewallGuard] Failed to create request", "error", err)
+					return
+				}
+				req.Header.Set("Content-Type", "application/json")
+				req.Header.Set("X-Internal-FollowUp", "true")
+
+				client := &http.Client{Timeout: 10 * time.Minute}
+				_, err = client.Do(req)
+				if err != nil {
+					logger.Error("[FirewallGuard] Execution failed", "error", err)
+				}
+			}()
+		})
+	}
+
 	return s.run(shutdownCh)
 }
 
@@ -462,6 +493,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 			}
 		})
 		mux.HandleFunc("/api/config/schema", handleGetConfigSchema(s))
+		mux.HandleFunc("/api/ui-language", handleUILanguage(s))
 		// Lists models available on the configured Ollama instance.
 		// Returns the model names as JSON so the UI can offer a model picker.
 		mux.HandleFunc("/api/ollama/models", handleOllamaModels(s))
@@ -490,6 +522,10 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		// Homepage tool endpoints
 		mux.HandleFunc("/api/homepage/status", handleHomepageStatus(s))
 		mux.HandleFunc("/api/homepage/test-connection", handleHomepageTestConnection(s))
+
+		// Netlify integration endpoints
+		mux.HandleFunc("/api/netlify/status", handleNetlifyStatus(s))
+		mux.HandleFunc("/api/netlify/test-connection", handleNetlifyTestConnection(s))
 
 		// Device Registry (inventory CRUD)
 		mux.HandleFunc("/api/devices", func(w http.ResponseWriter, r *http.Request) {
@@ -602,6 +638,12 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		mux.HandleFunc("/api/dashboard/logs", handleDashboardLogs(s))
 		mux.HandleFunc("/api/dashboard/overview", handleDashboardOverview(s))
 		mux.HandleFunc("/api/dashboard/notes", handleDashboardNotes(s))
+
+		// System endpoints
+		mux.HandleFunc("/api/system/os", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]string{"os": runtime.GOOS})
+		})
 
 		// File Indexing API endpoints
 		mux.HandleFunc("/api/indexing/status", handleIndexingStatus(s))

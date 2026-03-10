@@ -1,0 +1,9 @@
+{
+  "help.config.firewall.mode": "Sélectionnez le mode de fonctionnement. En mode <span style=\"color:var(--accent);\">lecture seule</span>, l'agent ne peut visualiser que les règles. En mode <span style=\"color:var(--warning);\">guard</span>, il peut également les modifier, et une boucle d'arrière-plan surveille activement les changements de règles externes.",
+  "help.config.firewall.poll_interval_seconds": "À quelle fréquence (en secondes) le mode garde vérifie les modifications des règles de pare-feu pour informer l'agent.",
+  "config.firewall.os_banner": "🚫 Le Firewall Tool est exclusivement disponible sur Linux (iptables/ufw). Il est actuellement désactivé pour ce système d'exploitation.",
+  "config.firewall.enable_label": "Activer l'outil de pare-feu",
+  "config.firewall.enable_help": "Permet à l'agent AI d'interagir avec le pare-feu du système pour lire ou modifier les règles.",
+  "config.firewall.active": "Actif",
+  "config.firewall.inactive": "Inactif"
+}

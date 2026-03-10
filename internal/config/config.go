@@ -428,6 +428,21 @@ type Config struct {
 		DefaultPrivate bool   `yaml:"default_private"` // true = new repos are private by default
 		BaseURL        string `yaml:"base_url"`        // API base URL (default: https://api.github.com), for GitHub Enterprise
 	} `yaml:"github"`
+	Firewall struct {
+		Enabled             bool   `yaml:"enabled"`
+		Mode                string `yaml:"mode"`                  // "readonly" or "guard"
+		PollIntervalSeconds int    `yaml:"poll_interval_seconds"` // default 60
+	} `yaml:"firewall"`
+	Netlify struct {
+		Enabled             bool   `yaml:"enabled"`
+		ReadOnly            bool   `yaml:"readonly"`              // true = only list/get, block create/update/delete/deploy
+		AllowDeploy         bool   `yaml:"allow_deploy"`          // allow deploying sites
+		AllowSiteManagement bool   `yaml:"allow_site_management"` // allow creating/updating/deleting sites
+		AllowEnvManagement  bool   `yaml:"allow_env_management"`  // allow managing environment variables
+		DefaultSiteID       string `yaml:"default_site_id"`       // default site ID for operations
+		TeamSlug            string `yaml:"team_slug"`             // Netlify team/account slug
+		Token               string `yaml:"-" vault:"token"`       // Personal Access Token (from vault)
+	} `yaml:"netlify"`
 	MQTT struct {
 		Enabled      bool     `yaml:"enabled"`
 		ReadOnly     bool     `yaml:"readonly"` // true = only subscribe/get_messages/unsubscribe, block publish
@@ -836,6 +851,9 @@ func (c *Config) ApplyVaultSecrets(vault SecretReader) {
 	// ── Homepage deploy secrets ──
 	apply("homepage_deploy_password", &c.Homepage.DeployPassword)
 	apply("homepage_deploy_key", &c.Homepage.DeployKey)
+
+	// ── Netlify ──
+	apply("netlify_token", &c.Netlify.Token)
 
 	// ── Email account passwords ──
 	apply("email_password", &c.Email.Password)
@@ -1393,9 +1411,16 @@ func Load(path string) (*Config, error) {
 		cfg.Indexing.Directories[i] = resolvePath(configDir, dir)
 	}
 
-	// GitHub defaults
 	if cfg.GitHub.BaseURL == "" {
 		cfg.GitHub.BaseURL = "https://api.github.com"
+	}
+
+	// Firewall defaults
+	if cfg.Firewall.PollIntervalSeconds <= 0 {
+		cfg.Firewall.PollIntervalSeconds = 60
+	}
+	if cfg.Firewall.Mode == "" {
+		cfg.Firewall.Mode = "readonly"
 	}
 
 	// Sandbox defaults

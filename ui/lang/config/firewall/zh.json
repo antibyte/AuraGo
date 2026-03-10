@@ -1,0 +1,9 @@
+{
+  "help.config.firewall.mode": "选择操作模式。在<span style=\"color:var(--accent);\">readonly</span>模式下，座席只能查看规则。在 <span style=\"color:var(--warning);\">guard</span> 模式下，它也可能会修改它们，并且后台循环会主动监视外部规则更改。",
+  "help.config.firewall.poll_interval_seconds": "防护模式检查防火墙规则编辑以通知代理的频率（以秒为单位）。",
+  "config.firewall.os_banner": "🚫 防火墙工具仅在 Linux (iptables / ufw) 上可用。目前该操作系统已禁用此功能。",
+  "config.firewall.enable_label": "启用防火墙工具",
+  "config.firewall.enable_help": "允许AI代理与系统防火墙交互以读取或修改规则。",
+  "config.firewall.active": "积极的",
+  "config.firewall.inactive": "不活跃"
+}

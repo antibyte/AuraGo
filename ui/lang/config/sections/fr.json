@@ -103,8 +103,12 @@
   "config.section.ollama.desc": "Gestion LLM local",
   "config.section.homepage.label": "Page web",
   "config.section.homepage.desc": "Concevoir et déployer des sites web via Docker",
+  "config.section.netlify.label": "Netlify",
+  "config.section.netlify.desc": "Déployer et gérer des sites sur Netlify",
   "config.section.prompts_editor.label": "Prompts & Personas",
   "config.section.prompts_editor.desc": "Gérer les profils de prompts et personnalités supplémentaires",
   "config.section.danger_zone.label": "Zone de Danger",
-  "config.section.danger_zone.desc": "Activer/désactiver les capacités agent en mode god-mode"
+  "config.section.danger_zone.desc": "Activer/désactiver les capacités agent en mode god-mode",
+  "config.section.firewall.label": "Pare-feu",
+  "config.section.firewall.desc": "Gérer le pare-feu Linux (ufw/iptables)"
 }

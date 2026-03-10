@@ -301,6 +301,14 @@ github:
     owner: ""
     default_private: false
     base_url: ""
+netlify:
+    enabled: false
+    readonly: false
+    allow_deploy: true
+    allow_site_management: false
+    allow_env_management: false
+    default_site_id: ""
+    team_slug: ""
 mcp:
     enabled: false
     servers: []

@@ -1,0 +1,9 @@
+{
+  "help.config.firewall.mode": "Selecteer de werkingsmodus. In de modus <span style=\"color:var(--accent);\">alleen-lezen</span> kan de agent de regels alleen bekijken. In de <span style=\"color:var(--warning);\">bewakingsmodus</span> kan het deze ook wijzigen, en een achtergrondlus controleert actief op externe regelwijzigingen.",
+  "help.config.firewall.poll_interval_seconds": "Hoe vaak (in seconden) de bewakingsmodus controleert op wijzigingen in de firewallregels om de agent te informeren.",
+  "config.firewall.os_banner": "🚫 De Firewall Tool is exclusief beschikbaar op Linux (iptables/ufw). Het is momenteel uitgeschakeld voor dit besturingssysteem.",
+  "config.firewall.enable_label": "Firewalltool inschakelen",
+  "config.firewall.enable_help": "Hiermee kan de AI-agent communiceren met de systeemfirewall om regels te lezen of te wijzigen.",
+  "config.firewall.active": "Actief",
+  "config.firewall.inactive": "Inactief"
+}

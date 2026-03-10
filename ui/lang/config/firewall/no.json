@@ -1,0 +1,9 @@
+{
+  "help.config.firewall.mode": "Velg driftsmodus. I <span style=\"color:var(--accent);\">skrivebeskyttet</span>-modus kan agenten bare se reglene. I <span style=\"color:var(--warning);\">vakt</span>-modus kan den også endre dem, og en bakgrunnsløkke overvåker aktivt for eksterne regelendringer.",
+  "help.config.firewall.poll_interval_seconds": "Hvor ofte (i sekunder) vaktmodus ser etter endringer i brannmurregelen for å informere agenten.",
+  "config.firewall.os_banner": "🚫 Brannmurverktøyet er eksklusivt tilgjengelig på Linux (iptables / ufw). Det er for øyeblikket deaktivert for dette operativsystemet.",
+  "config.firewall.enable_label": "Aktiver brannmurverktøy",
+  "config.firewall.enable_help": "Lar AI-agenten samhandle med systemets brannmur for å lese eller endre regler.",
+  "config.firewall.active": "Aktiv",
+  "config.firewall.inactive": "Inaktiv"
+}

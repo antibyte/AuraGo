@@ -1,0 +1,9 @@
+{
+  "help.config.firewall.mode": "Vælg driftstilstand. I tilstanden <span style=\"color:var(--accent);\">skrivebeskyttet</span> kan agenten kun se reglerne. I <span style=\"color:var(--warning);\">vagt</span>-tilstand kan den også ændre dem, og en baggrundsløkke overvåger aktivt for eksterne regelændringer.",
+  "help.config.firewall.poll_interval_seconds": "Hvor ofte (i sekunder) vagttilstanden tjekker for ændringer af firewallreglerne for at informere agenten.",
+  "config.firewall.os_banner": "🚫 Firewall-værktøjet er udelukkende tilgængeligt på Linux (iptables / ufw). Det er i øjeblikket deaktiveret for dette operativsystem.",
+  "config.firewall.enable_label": "Aktiver Firewall-værktøj",
+  "config.firewall.enable_help": "Tillader AI-agenten at interagere med systemets firewall for at læse eller ændre regler.",
+  "config.firewall.active": "Aktiv",
+  "config.firewall.inactive": "Inaktiv"
+}

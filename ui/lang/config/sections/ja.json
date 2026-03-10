@@ -103,8 +103,12 @@
   "config.section.ollama.desc": "ローカル LLM 管理",
   "config.section.homepage.label": "ホームページ",
   "config.section.homepage.desc": "Dockerでウェブサイトを設計・デプロイ",
+  "config.section.netlify.label": "Netlify",
+  "config.section.netlify.desc": "Netlifyでサイトをデプロイ・管理",
   "config.section.prompts_editor.label": "プロンプトとペルソナ",
   "config.section.prompts_editor.desc": "追加のプロンプトとパーソナリティプロファイルの管理",
   "config.section.danger_zone.label": "危険ゾーン",
-  "config.section.danger_zone.desc": "ゴッドモードエージェント機能の切り替え"
+  "config.section.danger_zone.desc": "ゴッドモードエージェント機能の切り替え",
+  "config.section.firewall.label": "ファイアウォール",
+  "config.section.firewall.desc": "Linux ファイアウォールの管理 (ufw/iptables)"
 }

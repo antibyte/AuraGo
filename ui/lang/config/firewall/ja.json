@@ -1,0 +1,9 @@
+{
+  "help.config.firewall.mode": "動作モードを選択します。 <span style=\"color:var(--accent);\">読み取り専用</span> モードでは、エージェントはルールの表示のみが可能です。 <span style=\"color:var(--warning);\">ガード</span> モードでは、ルールを変更することもでき、バックグラウンド ループが外部ルールの変更をアクティブに監視します。",
+  "help.config.firewall.poll_interval_seconds": "ガード モードがファイアウォール ルールの編集をチェックしてエージェントに通知する頻度 (秒単位)。",
+  "config.firewall.os_banner": "🚫 ファイアウォール ツールは Linux (iptables / ufw) でのみ利用可能です。現在、このオペレーティング システムでは無効になっています。",
+  "config.firewall.enable_label": "ファイアウォールツールを有効にする",
+  "config.firewall.enable_help": "AI エージェントがシステム ファイアウォールと対話してルールを読み取りまたは変更できるようにします。",
+  "config.firewall.active": "アクティブ",
+  "config.firewall.inactive": "非アクティブ"
+}

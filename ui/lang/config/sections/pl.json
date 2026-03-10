@@ -103,8 +103,12 @@
   "config.section.ollama.desc": "Zarządzanie lokalnymi LLM",
   "config.section.homepage.label": "Strona domowa",
   "config.section.homepage.desc": "Projektowanie i wdrażanie stron internetowych przez Docker",
+  "config.section.netlify.label": "Netlify",
+  "config.section.netlify.desc": "Wdrażanie i zarządzanie stronami na Netlify",
   "config.section.prompts_editor.label": "Prompty i Persony",
   "config.section.prompts_editor.desc": "Zarządzaj dodatkowymi profilami promptów i osobowości",
   "config.section.danger_zone.label": "Strefa Zagrożenia",
-  "config.section.danger_zone.desc": "Włącz możliwości agenta w trybie god-mode"
+  "config.section.danger_zone.desc": "Włącz możliwości agenta w trybie god-mode",
+  "config.section.firewall.label": "Zapora sieciowa",
+  "config.section.firewall.desc": "Zarządzaj zaporą systemu Linux (ufw/iptables)"
 }

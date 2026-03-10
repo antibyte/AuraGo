@@ -1,0 +1,9 @@
+{
+  "help.config.firewall.mode": "Selezionare la modalità di funzionamento. Nella modalità <span style=\"color:var(--accent);\">sola lettura</span>, l'agente può solo visualizzare le regole. Nella modalità <span style=\"color:var(--warning);\">guard</span>, può anche modificarli e un ciclo in background monitora attivamente le modifiche alle regole esterne.",
+  "help.config.firewall.poll_interval_seconds": "La frequenza con cui (in secondi) la modalità guardia verifica le modifiche alle regole firewall per informare l'agente.",
+  "config.firewall.os_banner": "🚫 Lo strumento Firewall è disponibile esclusivamente su Linux (iptables / ufw). Attualmente è disabilitato per questo sistema operativo.",
+  "config.firewall.enable_label": "Abilita strumento firewall",
+  "config.firewall.enable_help": "Consente all'agente AI di interagire con il firewall del sistema per leggere o modificare le regole.",
+  "config.firewall.active": "Attivo",
+  "config.firewall.inactive": "Inattivo"
+}

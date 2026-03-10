@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"database/sql"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -336,6 +337,19 @@ type ToolCall struct {
 	Packages   []string `json:"packages"`    // npm packages to install
 	ProjectDir string   `json:"project_dir"` // subdirectory within /workspace
 	BuildDir   string   `json:"build_dir"`   // build output directory (auto-detected if empty)
+	// Netlify fields
+	SiteID       string `json:"site_id"`       // Netlify site ID
+	DeployID     string `json:"deploy_id"`     // Netlify deploy ID
+	FormID       string `json:"form_id"`       // Netlify form ID
+	HookID       string `json:"hook_id"`       // Netlify hook ID
+	EnvKey       string `json:"env_key"`       // environment variable key
+	EnvValue     string `json:"env_value"`     // environment variable value
+	EnvContext   string `json:"env_context"`   // env var context: all, production, deploy-preview, branch-deploy, dev
+	SiteName     string `json:"site_name"`     // site subdomain name (for create)
+	Draft        bool   `json:"draft"`         // deploy as draft
+	HookType     string `json:"hook_type"`     // hook type: url, email, slack
+	HookEvent    string `json:"hook_event"`    // hook event: deploy_created, deploy_building, deploy_failed, etc.
+	CustomDomain string `json:"custom_domain"` // custom domain for site
 }
 
 // GetArgs returns Args as a string slice, handling various input types (slice of strings or interface).
@@ -437,6 +451,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		SandboxEnabled:           cfg.Sandbox.Enabled,
 		MeshCentralEnabled:       cfg.MeshCentral.Enabled,
 		HomepageEnabled:          cfg.Homepage.Enabled && cfg.Docker.Enabled,
+		NetlifyEnabled:           cfg.Netlify.Enabled,
 		VirusTotalEnabled:        cfg.VirusTotal.Enabled,
 		BraveSearchEnabled:       cfg.BraveSearch.Enabled,
 		MemoryEnabled:            cfg.Tools.Memory.Enabled,
@@ -521,6 +536,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			SandboxEnabled:           cfg.Sandbox.Enabled,
 			MeshCentralEnabled:       cfg.MeshCentral.Enabled,
 			HomepageEnabled:          cfg.Homepage.Enabled && cfg.Docker.Enabled,
+			NetlifyEnabled:           cfg.Netlify.Enabled,
 			MemoryEnabled:            cfg.Tools.Memory.Enabled,
 			KnowledgeGraphEnabled:    cfg.Tools.KnowledgeGraph.Enabled,
 			SecretsVaultEnabled:      cfg.Tools.SecretsVault.Enabled,
@@ -4375,6 +4391,150 @@ func dispatchInner(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 			return `Tool Output: {"status":"error","message":"Unknown github operation. Use: list_repos, create_repo, delete_repo, get_repo, list_issues, create_issue, close_issue, list_pull_requests, list_branches, get_file, create_or_update_file, list_commits, list_workflow_runs, search_repos, list_projects, track_project, untrack_project"}`
 		}
 
+	case "netlify":
+		if !cfg.Netlify.Enabled {
+			return `Tool Output: {"status":"error","message":"Netlify integration is not enabled. Set netlify.enabled=true in config.yaml."}`
+		}
+		token, tokenErr := vault.ReadSecret("netlify_token")
+		if tokenErr != nil || token == "" {
+			return `Tool Output: {"status":"error","message":"Netlify token not found in vault. Store it with key 'netlify_token' via the vault API."}`
+		}
+		nfCfg := tools.NetlifyConfig{
+			Token:         token,
+			DefaultSiteID: cfg.Netlify.DefaultSiteID,
+			TeamSlug:      cfg.Netlify.TeamSlug,
+		}
+		// Read-only mode: block all mutating operations
+		if cfg.Netlify.ReadOnly {
+			switch tc.Operation {
+			case "create_site", "update_site", "delete_site",
+				"deploy_zip", "deploy_draft", "rollback", "cancel_deploy",
+				"set_env", "delete_env",
+				"create_hook", "delete_hook",
+				"provision_ssl":
+				return `Tool Output: {"status":"error","message":"Netlify is in read-only mode. Disable netlify.readonly to allow changes."}`
+			}
+		}
+		// Granular permission checks
+		if !cfg.Netlify.AllowDeploy {
+			switch tc.Operation {
+			case "deploy_zip", "deploy_draft", "rollback", "cancel_deploy":
+				return `Tool Output: {"status":"error","message":"Netlify deploy is not allowed. Set netlify.allow_deploy=true in config.yaml."}`
+			}
+		}
+		if !cfg.Netlify.AllowSiteManagement {
+			switch tc.Operation {
+			case "create_site", "update_site", "delete_site":
+				return `Tool Output: {"status":"error","message":"Netlify site management is not allowed. Set netlify.allow_site_management=true in config.yaml."}`
+			}
+		}
+		if !cfg.Netlify.AllowEnvManagement {
+			switch tc.Operation {
+			case "set_env", "delete_env":
+				return `Tool Output: {"status":"error","message":"Netlify env var management is not allowed. Set netlify.allow_env_management=true in config.yaml."}`
+			}
+		}
+		switch tc.Operation {
+		// ── Sites ──
+		case "list_sites":
+			logger.Info("LLM requested Netlify list sites")
+			return "Tool Output: " + tools.NetlifyListSites(nfCfg)
+		case "get_site":
+			logger.Info("LLM requested Netlify get site", "site_id", tc.SiteID)
+			return "Tool Output: " + tools.NetlifyGetSite(nfCfg, tc.SiteID)
+		case "create_site":
+			logger.Info("LLM requested Netlify create site", "name", tc.SiteName, "custom_domain", tc.CustomDomain)
+			return "Tool Output: " + tools.NetlifyCreateSite(nfCfg, tc.SiteName, tc.CustomDomain)
+		case "update_site":
+			logger.Info("LLM requested Netlify update site", "site_id", tc.SiteID)
+			return "Tool Output: " + tools.NetlifyUpdateSite(nfCfg, tc.SiteID, tc.SiteName, tc.CustomDomain)
+		case "delete_site":
+			logger.Info("LLM requested Netlify delete site", "site_id", tc.SiteID)
+			return "Tool Output: " + tools.NetlifyDeleteSite(nfCfg, tc.SiteID)
+		// ── Deploys ──
+		case "list_deploys":
+			logger.Info("LLM requested Netlify list deploys", "site_id", tc.SiteID)
+			return "Tool Output: " + tools.NetlifyListDeploys(nfCfg, tc.SiteID)
+		case "get_deploy":
+			logger.Info("LLM requested Netlify get deploy", "deploy_id", tc.DeployID)
+			return "Tool Output: " + tools.NetlifyGetDeploy(nfCfg, tc.DeployID)
+		case "deploy_zip":
+			logger.Info("LLM requested Netlify deploy ZIP", "site_id", tc.SiteID, "draft", tc.Draft)
+			// ZIP deploy requires building and zipping from the homepage tool first.
+			// The agent must pass the ZIP data via tc.Content (base64 encoded).
+			if tc.Content == "" {
+				return `Tool Output: {"status":"error","message":"content (base64 ZIP) is required for deploy_zip. Build with the homepage tool first, then zip and base64-encode the output."}`
+			}
+			zipData, decErr := decodeBase64(tc.Content)
+			if decErr != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"Failed to decode base64 ZIP: %v"}`, decErr)
+			}
+			return "Tool Output: " + tools.NetlifyDeployZip(nfCfg, tc.SiteID, tc.Title, tc.Draft, zipData)
+		case "deploy_draft":
+			logger.Info("LLM requested Netlify draft deploy", "site_id", tc.SiteID)
+			if tc.Content == "" {
+				return `Tool Output: {"status":"error","message":"content (base64 ZIP) is required for deploy_draft."}`
+			}
+			zipData, decErr := decodeBase64(tc.Content)
+			if decErr != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"Failed to decode base64 ZIP: %v"}`, decErr)
+			}
+			return "Tool Output: " + tools.NetlifyDeployZip(nfCfg, tc.SiteID, tc.Title, true, zipData)
+		case "rollback":
+			logger.Info("LLM requested Netlify rollback", "site_id", tc.SiteID, "deploy_id", tc.DeployID)
+			return "Tool Output: " + tools.NetlifyRollback(nfCfg, tc.SiteID, tc.DeployID)
+		case "cancel_deploy":
+			logger.Info("LLM requested Netlify cancel deploy", "deploy_id", tc.DeployID)
+			return "Tool Output: " + tools.NetlifyCancelDeploy(nfCfg, tc.DeployID)
+		// ── Environment Variables ──
+		case "list_env":
+			logger.Info("LLM requested Netlify list env vars", "site_id", tc.SiteID)
+			return "Tool Output: " + tools.NetlifyListEnvVars(nfCfg, tc.SiteID)
+		case "get_env":
+			logger.Info("LLM requested Netlify get env var", "site_id", tc.SiteID, "key", tc.EnvKey)
+			return "Tool Output: " + tools.NetlifyGetEnvVar(nfCfg, tc.SiteID, tc.EnvKey)
+		case "set_env":
+			logger.Info("LLM requested Netlify set env var", "site_id", tc.SiteID, "key", tc.EnvKey)
+			return "Tool Output: " + tools.NetlifySetEnvVar(nfCfg, tc.SiteID, tc.EnvKey, tc.EnvValue, tc.EnvContext)
+		case "delete_env":
+			logger.Info("LLM requested Netlify delete env var", "site_id", tc.SiteID, "key", tc.EnvKey)
+			return "Tool Output: " + tools.NetlifyDeleteEnvVar(nfCfg, tc.SiteID, tc.EnvKey)
+		// ── Files ──
+		case "list_files":
+			logger.Info("LLM requested Netlify list files", "site_id", tc.SiteID)
+			return "Tool Output: " + tools.NetlifyListFiles(nfCfg, tc.SiteID)
+		// ── Forms ──
+		case "list_forms":
+			logger.Info("LLM requested Netlify list forms", "site_id", tc.SiteID)
+			return "Tool Output: " + tools.NetlifyListForms(nfCfg, tc.SiteID)
+		case "get_submissions":
+			logger.Info("LLM requested Netlify get form submissions", "form_id", tc.FormID)
+			return "Tool Output: " + tools.NetlifyGetFormSubmissions(nfCfg, tc.FormID)
+		// ── Hooks ──
+		case "list_hooks":
+			logger.Info("LLM requested Netlify list hooks", "site_id", tc.SiteID)
+			return "Tool Output: " + tools.NetlifyListHooks(nfCfg, tc.SiteID)
+		case "create_hook":
+			logger.Info("LLM requested Netlify create hook", "site_id", tc.SiteID, "type", tc.HookType, "event", tc.HookEvent)
+			hookData := map[string]interface{}{}
+			if tc.URL != "" {
+				hookData["url"] = tc.URL
+			}
+			if tc.Value != "" {
+				hookData["email"] = tc.Value
+			}
+			return "Tool Output: " + tools.NetlifyCreateHook(nfCfg, tc.SiteID, tc.HookType, tc.HookEvent, hookData)
+		case "delete_hook":
+			logger.Info("LLM requested Netlify delete hook", "hook_id", tc.HookID)
+			return "Tool Output: " + tools.NetlifyDeleteHook(nfCfg, tc.HookID)
+		// ── SSL ──
+		case "provision_ssl":
+			logger.Info("LLM requested Netlify provision SSL", "site_id", tc.SiteID)
+			return "Tool Output: " + tools.NetlifyProvisionSSL(nfCfg, tc.SiteID)
+		default:
+			return `Tool Output: {"status":"error","message":"Unknown netlify operation. Use: list_sites, get_site, create_site, update_site, delete_site, list_deploys, get_deploy, deploy_zip, deploy_draft, rollback, cancel_deploy, list_env, get_env, set_env, delete_env, list_files, list_forms, get_submissions, list_hooks, create_hook, delete_hook, provision_ssl"}`
+		}
+
 	case "mqtt_publish":
 		if !cfg.MQTT.Enabled {
 			return `Tool Output: {"status": "error", "message": "MQTT is not enabled. Configure the mqtt section in config.yaml."}`
@@ -5392,4 +5552,17 @@ func handleWebhookToolCall(tc ToolCall, mgr *webhooks.Manager, logger *slog.Logg
 	default:
 		return `Tool Output: {"status":"error","message":"Unknown operation. Use: list, get, create, update, delete, logs"}`
 	}
+}
+
+// decodeBase64 decodes a standard or URL-safe base64 string.
+func decodeBase64(s string) ([]byte, error) {
+	// Try standard encoding first, then URL-safe
+	data, err := base64.StdEncoding.DecodeString(s)
+	if err != nil {
+		data, err = base64.URLEncoding.DecodeString(s)
+	}
+	if err != nil {
+		data, err = base64.RawStdEncoding.DecodeString(s)
+	}
+	return data, err
 }

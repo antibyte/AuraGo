@@ -1,0 +1,9 @@
+{
+    "help.config.firewall.mode": "Wählen Sie den Betriebsmodus. Im <span style=\"color:var(--accent);\">readonly</span> Modus kann der Agent die Regeln nur lesen. Im <span style=\"color:var(--warning);\">guard</span> Modus kann er sie auch bearbeiten, und eine Hintergrundschleife überwacht aktiv auf externe Regeländerungen.",
+    "help.config.firewall.poll_interval_seconds": "Wie oft (in Sekunden) der Guard-Modus nach Firewall-Regeländerungen sucht, um den Agenten zu informieren.",
+    "config.firewall.os_banner": "🚫 Das Firewall-Tool ist exklusiv für Linux (iptables / ufw) verfügbar. Auf diesem Betriebssystem ist es derzeit deaktiviert.",
+    "config.firewall.enable_label": "Firewall-Tool aktivieren",
+    "config.firewall.enable_help": "Erlaubt dem KI-Agenten, mit der Systemfirewall zu interagieren, um Regeln zu lesen oder zu ändern.",
+    "config.firewall.active": "Aktiv",
+    "config.firewall.inactive": "Inaktiv"
+}

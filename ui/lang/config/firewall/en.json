@@ -1,0 +1,9 @@
+{
+    "help.config.firewall.mode": "Select the mode of operation. In <span style=\"color:var(--accent);\">readonly</span> mode, the agent can only view the rules. In <span style=\"color:var(--warning);\">guard</span> mode, it may also modify them, and a background loop actively monitors for external rule changes.",
+    "help.config.firewall.poll_interval_seconds": "How often (in seconds) the guard mode checks for firewall rule edits to inform the agent.",
+    "config.firewall.os_banner": "🚫 The Firewall Tool is exclusively available on Linux (iptables / ufw). It is currently disabled for this operating system.",
+    "config.firewall.enable_label": "Enable Firewall Tool",
+    "config.firewall.enable_help": "Allows the AI agent to interact with the system firewall to read or modify rules.",
+    "config.firewall.active": "Active",
+    "config.firewall.inactive": "Inactive"
+}

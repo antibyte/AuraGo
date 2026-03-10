@@ -105,6 +105,7 @@ type ContextFlags struct {
 	SandboxEnabled         bool
 	MeshCentralEnabled     bool
 	HomepageEnabled        bool
+	NetlifyEnabled         bool
 	VirusTotalEnabled      bool
 	BraveSearchEnabled     bool
 	// Danger Zone toggles
@@ -973,6 +974,10 @@ func (m *PromptModule) ShouldInclude(flags ContextFlags) bool {
 			}
 		case "homepage_enabled":
 			if flags.HomepageEnabled {
+				return true
+			}
+		case "netlify_enabled":
+			if flags.NetlifyEnabled {
 				return true
 			}
 		}

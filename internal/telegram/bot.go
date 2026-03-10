@@ -276,6 +276,7 @@ func processUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Con
 		ProxmoxEnabled:         cfg.Proxmox.Enabled,
 		OllamaEnabled:          cfg.Ollama.Enabled,
 		HomepageEnabled:        cfg.Homepage.Enabled && cfg.Docker.Enabled,
+		NetlifyEnabled:         cfg.Netlify.Enabled,
 		IsEgg:                  cfg.EggMode.Enabled,
 	}
 	coreMem := shortTermMem.ReadCoreMemory()

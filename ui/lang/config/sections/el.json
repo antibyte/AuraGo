@@ -103,8 +103,12 @@
   "config.section.ollama.desc": "Διαχείριση τοπικού LLM",
   "config.section.homepage.label": "Ιστοσελίδα",
   "config.section.homepage.desc": "Σχεδιασμός και ανάπτυξη ιστοσελίδων μέσω Docker",
+  "config.section.netlify.label": "Netlify",
+  "config.section.netlify.desc": "Ανάπτυξη και διαχείριση ιστότοπων στο Netlify",
   "config.section.prompts_editor.label": "Prompty & Persony",
   "config.section.prompts_editor.desc": "Správa dodatečných promptů a profilů osobnosti",
   "config.section.danger_zone.label": "Επικίνδυνη Ζώνη",
-  "config.section.danger_zone.desc": "Εναλλαγή δυνατοτήτων god-mode πράκτορα"
+  "config.section.danger_zone.desc": "Εναλλαγή δυνατοτήτων god-mode πράκτορα",
+  "config.section.firewall.label": "Τείχος προστασίας",
+  "config.section.firewall.desc": "Διαχείριση τείχους προστασίας Linux (ufw/iptables)"
 }
