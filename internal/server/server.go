@@ -1199,12 +1199,12 @@ func securityHeadersMiddleware(next http.Handler, tlsActive, behindProxy bool) h
 		w.Header().Set("X-XSS-Protection", "1; mode=block")
 		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
 		
-		// Content Security Policy - strict for both modes
+		// Content Security Policy - strict but allows necessary CDNs
 		csp := "default-src 'self'; " +
-			"script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
-			"style-src 'self' 'unsafe-inline'; " +
+			"script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com; " +
+			"style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; " +
 			"img-src 'self' data: blob:; " +
-			"font-src 'self'; " +
+			"font-src 'self' https://fonts.gstatic.com; " +
 			"connect-src 'self' ws: wss:; " +
 			"frame-ancestors 'none'; " +
 			"base-uri 'self';"
