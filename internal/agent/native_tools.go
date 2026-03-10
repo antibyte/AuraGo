@@ -613,6 +613,22 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 			}, "operation"),
 		))
 	}
+	if ff.MeshCentralEnabled {
+		tools = append(tools, tool("meshcentral",
+			"Manage MeshCentral devices. List device groups, list devices, wake devices via WOL, send power actions, and run commands on remote shells.",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "Operation to perform",
+					"enum":        []string{"list_groups", "list_devices", "wake", "power_action", "run_command"},
+				},
+				"mesh_id":      prop("string", "Mesh/Group ID (optional for list_devices to filter results)"),
+				"node_id":      prop("string", "Node/Device ID (required for wake, power_action, run_command)"),
+				"power_action": map[string]interface{}{"type": "integer", "description": "Power action ID. 1=Sleep, 2=Hibernate, 3=PowerOff, 4=Reset (for power_action)"},
+				"command":      prop("string", "Command to run on remote device (for run_command)"),
+			}, "operation"),
+		))
+	}
 	if ff.MQTTEnabled {
 		tools = append(tools, tool("mqtt_publish",
 			"Publish a message to an MQTT topic.",
