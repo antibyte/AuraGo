@@ -2797,7 +2797,10 @@ func dispatchInner(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 		logger.Info("LLM requested system metrics")
 		return "Tool Output: " + tools.GetSystemMetrics()
 
-	case "send_notification", "notification_center":
+	case "send_notification", "notification_center", "send_push_notification", "web_push":
+		if tc.ToolName == "send_push_notification" || tc.ToolName == "web_push" {
+			tc.Channel = "push"
+		}
 		logger.Info("LLM requested notification", "channel", tc.Channel, "title", tc.Title)
 		// Use discord bridge (tools.DiscordSend) to avoid import cycle
 		var discordSend tools.DiscordSendFunc

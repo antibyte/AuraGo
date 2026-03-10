@@ -1,6 +1,8 @@
 package tools
 
 import (
+	"aurago/internal/config"
+	"aurago/internal/push"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -9,8 +11,6 @@ import (
 	"net/http"
 	"strings"
 	"time"
-
-	"aurago/internal/config"
 )
 
 // NotificationChannel identifies a notification target.
@@ -21,6 +21,7 @@ const (
 	ChannelPushover NotificationChannel = "pushover"
 	ChannelTelegram NotificationChannel = "telegram"
 	ChannelDiscord  NotificationChannel = "discord"
+	ChannelPush     NotificationChannel = "push"
 	ChannelAll      NotificationChannel = "all"
 )
 
@@ -71,6 +72,8 @@ func SendNotification(cfg *config.Config, logger *slog.Logger, channel, title, m
 			err = sendTelegramNotification(cfg, title, message)
 		case ChannelDiscord:
 			err = sendDiscordNotification(cfg, discordSend, title, message)
+		case ChannelPush:
+			err = sendPushNotification(title, message, priority)
 		default:
 			results = append(results, result{Channel: string(c), Status: "error", Detail: "unknown channel"})
 			return
@@ -97,6 +100,9 @@ func SendNotification(cfg *config.Config, logger *slog.Logger, channel, title, m
 		}
 		if cfg.Discord.Enabled && cfg.Discord.DefaultChannelID != "" && discordSend != nil {
 			send(ChannelDiscord)
+		}
+		if push.GlobalManager != nil {
+			send(ChannelPush)
 		}
 		if len(results) == 0 {
 			return encode(map[string]interface{}{"status": "error", "message": "no notification channels are enabled"})
@@ -266,4 +272,29 @@ func sendDiscordNotification(cfg *config.Config, discordSend DiscordSendFunc, ti
 
 	formatted := fmt.Sprintf("**%s**\n%s", title, message)
 	return discordSend(cfg.Discord.DefaultChannelID, formatted)
+}
+
+// ── Web Push (PWA) ───────────────────────────────────────────────────────────
+
+func sendPushNotification(title, message, priority string) error {
+	if push.GlobalManager == nil {
+		return fmt.Errorf("web push manager is not initialized")
+	}
+
+	payload, err := json.Marshal(map[string]string{
+		"title":   title,
+		"message": message,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to encode push payload: %v", err)
+	}
+
+	successCount, err := push.GlobalManager.SendPush(payload)
+	if err != nil {
+		return err
+	}
+	if successCount == 0 {
+		return fmt.Errorf("no active web push subscriptions found")
+	}
+	return nil
 }

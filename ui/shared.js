@@ -497,6 +497,67 @@ function injectLanguageSwitcher() {
 }
 
 /**
+ * Initialize Progressive Web App (PWA) and Push Notifications
+ */
+async function initPWA() {
+    // 1. Inject Manifest
+    if (!document.querySelector('link[rel="manifest"]')) {
+        const link = document.createElement('link');
+        link.rel = 'manifest';
+        link.href = '/manifest.json';
+        document.head.appendChild(link);
+    }
+
+    // 2. Register Service Worker and Push
+    if ('serviceWorker' in navigator && 'PushManager' in window) {
+        try {
+            const registration = await navigator.serviceWorker.register('/sw.js');
+            console.log('[PWA] Service Worker registered with scope:', registration.scope);
+
+            // Fetch VAPID Key and subscribe if permission is granted
+            if (Notification.permission !== 'denied') {
+                const subResp = await fetch('/api/push/vapid-pubkey');
+                if (subResp.ok) {
+                    const { public_key } = await subResp.json();
+                    if (public_key) {
+                        try {
+                            const subscription = await registration.pushManager.subscribe({
+                                userVisibleOnly: true,
+                                applicationServerKey: urlBase64ToUint8Array(public_key)
+                            });
+
+                            // Send subscription to server
+                            await fetch('/api/push/subscribe', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(subscription)
+                            });
+                            console.log('[PWA] Push subscription sent to server.');
+                        } catch (err) {
+                            console.warn('[PWA] Push subscription failed or rejected by user', err);
+                        }
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('[PWA] Service Worker registration failed:', error);
+        }
+    }
+}
+
+// Utility function to convert VAPID Key
+function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+}
+
+/**
  * Initialize theme toggle button
  */
 function initThemeToggle() {
@@ -525,6 +586,7 @@ function initShared() {
     try { applyI18n(); } catch (e) { console.error('[AuraGo] applyI18n failed:', e); }
     try { injectLanguageSwitcher(); } catch (e) { console.error('[AuraGo] injectLanguageSwitcher failed:', e); }
     try { checkAuth(); } catch (e) { console.error('[AuraGo] checkAuth failed:', e); }
+    try { initPWA(); } catch (e) { console.error('[AuraGo] initPWA failed:', e); }
 
     console.log('[AuraGo] Shared components initialized');
 }

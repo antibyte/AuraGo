@@ -24,6 +24,7 @@ import (
 	"aurago/internal/llm"
 	"aurago/internal/memory"
 	"aurago/internal/mqtt"
+	"aurago/internal/push"
 	"aurago/internal/rocketchat"
 	"aurago/internal/security"
 	"aurago/internal/services"
@@ -211,6 +212,7 @@ type Server struct {
 	MissionManagerV2 *tools.MissionManagerV2
 	EggHub           *bridge.EggHub
 	FileIndexer      *services.FileIndexer
+	PushManager      *push.Manager
 	// IsFirstStart is true if core_memory.md was just freshly created (no prior data).
 	IsFirstStart   bool
 	StartedAt      time.Time     // server start time for uptime calculation
@@ -384,6 +386,14 @@ func Start(cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, sh
 		s.FileIndexer = services.NewFileIndexer(cfg, &s.CfgMu, longTermMem, shortTermMem, logger)
 		s.FileIndexer.Start(context.Background())
 		logger.Info("File indexer started", "directories", cfg.Indexing.Directories)
+	}
+
+	// Initialize Web Push Manager
+	pushManager, err := push.NewManager(cfg.Directories.DataDir, vault, logger)
+	if err != nil {
+		logger.Warn("Failed to initialize Web Push Manager (Push notifications disabled)", "error", err)
+	} else {
+		s.PushManager = pushManager
 	}
 
 	return s.run(shutdownCh)
@@ -737,6 +747,40 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		json.NewEncoder(w).Encode(filtered)
 	})
 
+	// PWA Push Subscription Endpoints
+	mux.HandleFunc("/api/push/vapid-pubkey", func(w http.ResponseWriter, r *http.Request) {
+		if s.PushManager == nil {
+			http.Error(w, "Push notifications not configured", http.StatusNotImplemented)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{"public_key": s.PushManager.GetPublicKey()})
+	})
+
+	mux.HandleFunc("/api/push/subscribe", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if s.PushManager == nil {
+			http.Error(w, "Push notifications not configured", http.StatusNotImplemented)
+			return
+		}
+
+		var sub push.PushSubscription
+		if err := json.NewDecoder(r.Body).Decode(&sub); err != nil {
+			http.Error(w, "Invalid subscription payload", http.StatusBadRequest)
+			return
+		}
+
+		if err := s.PushManager.Subscribe(sub); err != nil {
+			s.Logger.Error("Failed to save push subscription", "error", err)
+			http.Error(w, "Failed to subscribe", http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	})
+
 	mux.HandleFunc("/clear", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodDelete {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -1068,6 +1112,12 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		if err := server.Shutdown(ctx); err != nil {
 			s.Logger.Error("HTTP server shutdown error", "error", err)
 		}
+	}()
+
+	// Fire the system_startup trigger with a small delay so HTTP is ready
+	go func() {
+		time.Sleep(3 * time.Second)
+		s.MissionManagerV2.NotifySystemStartup()
 	}()
 
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {

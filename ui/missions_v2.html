@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="{{.Lang}}" data-theme="dark">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,10 +8,13 @@
     <script src="/shared.js"></script>
     <script>
         (function () { var th = localStorage.getItem('aurago-theme'); if (th) document.documentElement.setAttribute('data-theme', th); })();
-        const I18N = {{.I18N}};
+        const I18N = {{.I18N }};
     </script>
-    <title><script>document.write(t('missions.page_title'))</script></title>
+    <title>
+        <script>document.write(t('missions.page_title'))</script>
+    </title>
     <link rel="stylesheet" href="/css/missions.css">
+
 <body>
     <!-- App Header -->
     <header class="app-header">
@@ -18,11 +22,15 @@
             <a href="/" class="logo">
                 <div class="logo-icon">🚀</div>
                 <span style="color: var(--accent);">AURA</span><span style="color: var(--text-primary);">GO</span>
-                <span style="font-weight:300;opacity:0.5;margin-left:0.3rem;" class="logo-subtitle"><script>document.write(t('missions.logo_subtitle'))</script></span>
+                <span style="font-weight:300;opacity:0.5;margin-left:0.3rem;" class="logo-subtitle">
+                    <script>document.write(t('missions.logo_subtitle'))</script>
+                </span>
             </a>
         </div>
         <div class="header-actions">
-            <button id="theme-toggle" class="btn-theme"><script>document.currentScript.parentElement.title=t('common.toggle_theme')</script></button>
+            <button id="theme-toggle" class="btn-theme">
+                <script>document.currentScript.parentElement.title = t('common.toggle_theme')</script>
+            </button>
         </div>
     </header>
 
@@ -31,28 +39,39 @@
     <div class="container">
         <!-- Page Header -->
         <div class="page-header">
-            <h1><script>document.write(t('missions.heading'))</script></h1>
+            <h1>
+                <script>document.write(t('missions.heading'))</script>
+            </h1>
             <button class="btn btn-primary" onclick="openMissionModal()">
-                <span>+</span> <script>document.write(t('missions.btn_new_mission'))</script>
+                <span>+</span>
+                <script>document.write(t('missions.btn_new_mission'))</script>
             </button>
         </div>
 
         <!-- Status Bar -->
         <div class="status-bar">
             <div class="status-card" id="status-total">
-                <div class="status-label"><script>document.write(t('missions.status_total'))</script></div>
+                <div class="status-label">
+                    <script>document.write(t('missions.status_total'))</script>
+                </div>
                 <div class="status-value">-</div>
             </div>
             <div class="status-card" id="status-running">
-                <div class="status-label"><script>document.write(t('missions.status_running'))</script></div>
+                <div class="status-label">
+                    <script>document.write(t('missions.status_running'))</script>
+                </div>
                 <div class="status-value">-</div>
             </div>
             <div class="status-card" id="status-queued">
-                <div class="status-label"><script>document.write(t('missions.status_queue'))</script></div>
+                <div class="status-label">
+                    <script>document.write(t('missions.status_queue'))</script>
+                </div>
                 <div class="status-value">-</div>
             </div>
             <div class="status-card" id="status-triggered">
-                <div class="status-label"><script>document.write(t('missions.status_triggered'))</script></div>
+                <div class="status-label">
+                    <script>document.write(t('missions.status_triggered'))</script>
+                </div>
                 <div class="status-value">-</div>
             </div>
         </div>
@@ -60,18 +79,30 @@
         <!-- Queue Section -->
         <div class="queue-section" id="queue-section" style="display: none;">
             <div class="queue-header">
-                <h3><script>document.write(t('missions.queue_title'))</script></h3>
-                <span class="badge badge-running"><script>document.write(t('missions.queue_serial_badge'))</script></span>
+                <h3>
+                    <script>document.write(t('missions.queue_title'))</script>
+                </h3>
+                <span class="badge badge-running">
+                    <script>document.write(t('missions.queue_serial_badge'))</script>
+                </span>
             </div>
             <div class="queue-items" id="queue-items"></div>
         </div>
 
         <!-- Tabs -->
         <div class="tabs">
-            <button class="tab active" onclick="filterMissions('all')" id="tab-all"><script>document.write(t('missions.filter_all'))</script></button>
-            <button class="tab" onclick="filterMissions('manual')" id="tab-manual"><script>document.write(t('missions.filter_manual'))</script></button>
-            <button class="tab" onclick="filterMissions('scheduled')" id="tab-scheduled"><script>document.write(t('missions.filter_scheduled'))</script></button>
-            <button class="tab" onclick="filterMissions('triggered')" id="tab-triggered"><script>document.write(t('missions.filter_triggered'))</script></button>
+            <button class="tab active" onclick="filterMissions('all')" id="tab-all">
+                <script>document.write(t('missions.filter_all'))</script>
+            </button>
+            <button class="tab" onclick="filterMissions('manual')" id="tab-manual">
+                <script>document.write(t('missions.filter_manual'))</script>
+            </button>
+            <button class="tab" onclick="filterMissions('scheduled')" id="tab-scheduled">
+                <script>document.write(t('missions.filter_scheduled'))</script>
+            </button>
+            <button class="tab" onclick="filterMissions('triggered')" id="tab-triggered">
+                <script>document.write(t('missions.filter_triggered'))</script>
+            </button>
         </div>
 
         <!-- Missions Grid -->
@@ -92,46 +123,74 @@
             <div class="modal-body">
                 <form id="mission-form" onsubmit="return false;">
                     <input type="hidden" id="mission-id">
-                    
+
                     <div class="form-group">
-                        <label><script>document.write(t('missions.form_name_label'))</script></label>
-                        <input type="text" id="mission-name" required><script>document.getElementById('mission-name').placeholder=t('missions.form_name_placeholder')</script>
+                        <label>
+                            <script>document.write(t('missions.form_name_label'))</script>
+                        </label>
+                        <input type="text" id="mission-name" required>
+                        <script>document.getElementById('mission-name').placeholder = t('missions.form_name_placeholder')</script>
                     </div>
 
                     <div class="form-group">
-                        <label><script>document.write(t('missions.form_prompt_label'))</script></label>
-                        <textarea class="form-textarea" id="mission-prompt" required></textarea><script>document.getElementById('mission-prompt').placeholder=t('missions.form_prompt_placeholder')</script>
+                        <label>
+                            <script>document.write(t('missions.form_prompt_label'))</script>
+                        </label>
+                        <textarea class="form-textarea" id="mission-prompt" required></textarea>
+                        <script>document.getElementById('mission-prompt').placeholder = t('missions.form_prompt_placeholder')</script>
                     </div>
 
                     <div class="form-group">
-                        <label><script>document.write(t('missions.form_priority_label'))</script></label>
+                        <label>
+                            <script>document.write(t('missions.form_priority_label'))</script>
+                        </label>
                         <select id="mission-priority">
-                            <option value="low"><script>document.write(t('missions.form_priority_low'))</script></option>
-                            <option value="medium" selected><script>document.write(t('missions.form_priority_medium'))</script></option>
-                            <option value="high"><script>document.write(t('missions.form_priority_high'))</script></option>
+                            <option value="low">
+                                <script>document.write(t('missions.form_priority_low'))</script>
+                            </option>
+                            <option value="medium" selected>
+                                <script>document.write(t('missions.form_priority_medium'))</script>
+                            </option>
+                            <option value="high">
+                                <script>document.write(t('missions.form_priority_high'))</script>
+                            </option>
                         </select>
                     </div>
 
                     <div class="form-group">
-                        <label><script>document.write(t('missions.form_exec_type_label'))</script></label>
+                        <label>
+                            <script>document.write(t('missions.form_exec_type_label'))</script>
+                        </label>
                         <div class="exec-type-selector">
                             <label class="exec-type-option" onclick="selectExecType('manual')">
                                 <input type="radio" name="exec-type" value="manual" checked>
                                 <span class="exec-icon">👆</span>
-                                <span class="exec-label"><script>document.write(t('missions.form_exec_manual_label'))</script></span>
-                                <span class="exec-desc"><script>document.write(t('missions.form_exec_manual_desc'))</script></span>
+                                <span class="exec-label">
+                                    <script>document.write(t('missions.form_exec_manual_label'))</script>
+                                </span>
+                                <span class="exec-desc">
+                                    <script>document.write(t('missions.form_exec_manual_desc'))</script>
+                                </span>
                             </label>
                             <label class="exec-type-option" onclick="selectExecType('scheduled')">
                                 <input type="radio" name="exec-type" value="scheduled">
                                 <span class="exec-icon">📅</span>
-                                <span class="exec-label"><script>document.write(t('missions.form_exec_scheduled_label'))</script></span>
-                                <span class="exec-desc"><script>document.write(t('missions.form_exec_scheduled_desc'))</script></span>
+                                <span class="exec-label">
+                                    <script>document.write(t('missions.form_exec_scheduled_label'))</script>
+                                </span>
+                                <span class="exec-desc">
+                                    <script>document.write(t('missions.form_exec_scheduled_desc'))</script>
+                                </span>
                             </label>
                             <label class="exec-type-option" onclick="selectExecType('triggered')">
                                 <input type="radio" name="exec-type" value="triggered">
                                 <span class="exec-icon">⚡</span>
-                                <span class="exec-label"><script>document.write(t('missions.form_exec_triggered_label'))</script></span>
-                                <span class="exec-desc"><script>document.write(t('missions.form_exec_triggered_desc'))</script></span>
+                                <span class="exec-label">
+                                    <script>document.write(t('missions.form_exec_triggered_label'))</script>
+                                </span>
+                                <span class="exec-desc">
+                                    <script>document.write(t('missions.form_exec_triggered_desc'))</script>
+                                </span>
                             </label>
                         </div>
                     </div>
@@ -139,39 +198,63 @@
                     <!-- Scheduled Config -->
                     <div id="config-scheduled" class="trigger-config" style="display: none;">
                         <div class="form-group">
-                            <label><script>document.write(t('missions.form_cron_label'))</script></label>
-                            <input type="text" id="cron-schedule"><script>document.getElementById('cron-schedule').placeholder=t('missions.form_cron_placeholder')</script>
-                            <div class="form-hint"><script>document.write(t('missions.form_cron_hint'))</script></div>
+                            <label>
+                                <script>document.write(t('missions.form_cron_label'))</script>
+                            </label>
+                            <input type="text" id="cron-schedule">
+                            <script>document.getElementById('cron-schedule').placeholder = t('missions.form_cron_placeholder')</script>
+                            <div class="form-hint">
+                                <script>document.write(t('missions.form_cron_hint'))</script>
+                            </div>
                         </div>
                     </div>
 
                     <!-- Triggered Config -->
                     <div id="config-triggered" class="trigger-config" style="display: none;">
                         <div class="trigger-type-selector">
-                            <button type="button" class="trigger-type-btn" data-trigger="mission_completed" onclick="selectTriggerType('mission_completed')">
+                            <button type="button" class="trigger-type-btn" data-trigger="mission_completed"
+                                onclick="selectTriggerType('mission_completed')">
                                 <script>document.write(t('missions.trigger_mission_completed'))</script>
                             </button>
-                            <button type="button" class="trigger-type-btn" data-trigger="email_received" onclick="selectTriggerType('email_received')">
+                            <button type="button" class="trigger-type-btn" data-trigger="email_received"
+                                onclick="selectTriggerType('email_received')">
                                 <script>document.write(t('missions.trigger_email_received'))</script>
                             </button>
-                            <button type="button" class="trigger-type-btn" data-trigger="webhook" onclick="selectTriggerType('webhook')">
+                            <button type="button" class="trigger-type-btn" data-trigger="webhook"
+                                onclick="selectTriggerType('webhook')">
                                 <script>document.write(t('missions.trigger_webhook'))</script>
                             </button>
-                            <button type="button" class="trigger-type-btn" data-trigger="egg_hatched" onclick="selectTriggerType('egg_hatched')">
+                            <button type="button" class="trigger-type-btn" data-trigger="egg_hatched"
+                                onclick="selectTriggerType('egg_hatched')">
                                 <script>document.write(t('missions.trigger_egg_hatched'))</script>
                             </button>
-                            <button type="button" class="trigger-type-btn" data-trigger="nest_cleared" onclick="selectTriggerType('nest_cleared')">
+                            <button type="button" class="trigger-type-btn" data-trigger="nest_cleared"
+                                onclick="selectTriggerType('nest_cleared')">
                                 <script>document.write(t('missions.trigger_nest_cleared'))</script>
                             </button>
-                            <button type="button" class="trigger-type-btn" data-trigger="mqtt_message" onclick="selectTriggerType('mqtt_message')">
+                            <button type="button" class="trigger-type-btn" data-trigger="mqtt_message"
+                                onclick="selectTriggerType('mqtt_message')">
                                 <script>document.write(t('missions.trigger_mqtt_message'))</script>
                             </button>
+                            <button type="button" class="trigger-type-btn" data-trigger="system_startup"
+                                onclick="selectTriggerType('system_startup')">
+                                <script>document.write(t('missions.trigger_system_startup'))</script>
+                            </button>
+                        </div>
+
+                        <!-- System Startup Trigger -->
+                        <div id="trigger-system_startup" class="trigger-fields">
+                            <div class="form-hint" style="margin-bottom: 0;">
+                                <script>document.write(t('missions.trigger_system_startup_hint'))</script>
+                            </div>
                         </div>
 
                         <!-- Mission Completed Trigger -->
                         <div id="trigger-mission_completed" class="trigger-fields">
                             <div class="form-group">
-                                <label><script>document.write(t('missions.trigger_source_mission_label'))</script></label>
+                                <label>
+                                    <script>document.write(t('missions.trigger_source_mission_label'))</script>
+                                </label>
                                 <div class="mission-selector" id="mission-selector"></div>
                             </div>
                             <div class="form-group">
@@ -179,7 +262,9 @@
                                     <input type="checkbox" id="require-success">
                                     <span class="toggle-slider"></span>
                                 </label>
-                                <span style="margin-left: 12px; font-size: 0.9rem;"><script>document.write(t('missions.trigger_require_success'))</script></span>
+                                <span style="margin-left: 12px; font-size: 0.9rem;">
+                                    <script>document.write(t('missions.trigger_require_success'))</script>
+                                </span>
                             </div>
                         </div>
 
@@ -187,48 +272,76 @@
                         <div id="trigger-email_received" class="trigger-fields">
                             <div class="form-row">
                                 <div class="form-group">
-                                    <label><script>document.write(t('missions.trigger_email_folder_label'))</script></label>
+                                    <label>
+                                        <script>document.write(t('missions.trigger_email_folder_label'))</script>
+                                    </label>
                                     <select id="email-folder">
-                                        <option value="INBOX"><script>document.write(t('missions.trigger_email_folder_inbox'))</script></option>
-                                        <option value="Sent"><script>document.write(t('missions.trigger_email_folder_sent'))</script></option>
+                                        <option value="INBOX">
+                                            <script>document.write(t('missions.trigger_email_folder_inbox'))</script>
+                                        </option>
+                                        <option value="Sent">
+                                            <script>document.write(t('missions.trigger_email_folder_sent'))</script>
+                                        </option>
                                     </select>
                                 </div>
                                 <div class="form-group">
-                                    <label><script>document.write(t('missions.trigger_email_subject_label'))</script></label>
-                                    <input type="text" id="email-subject"><script>document.getElementById('email-subject').placeholder=t('missions.trigger_email_subject_placeholder')</script>
+                                    <label>
+                                        <script>document.write(t('missions.trigger_email_subject_label'))</script>
+                                    </label>
+                                    <input type="text" id="email-subject">
+                                    <script>document.getElementById('email-subject').placeholder = t('missions.trigger_email_subject_placeholder')</script>
                                 </div>
                             </div>
                             <div class="form-group">
-                                <label><script>document.write(t('missions.trigger_email_from_label'))</script></label>
-                                <input type="text" id="email-from"><script>document.getElementById('email-from').placeholder=t('missions.trigger_email_from_placeholder')</script>
+                                <label>
+                                    <script>document.write(t('missions.trigger_email_from_label'))</script>
+                                </label>
+                                <input type="text" id="email-from">
+                                <script>document.getElementById('email-from').placeholder = t('missions.trigger_email_from_placeholder')</script>
                             </div>
                         </div>
 
                         <!-- Webhook Trigger -->
                         <div id="trigger-webhook" class="trigger-fields">
                             <div class="form-group">
-                                <label><script>document.write(t('missions.trigger_webhook_label'))</script></label>
+                                <label>
+                                    <script>document.write(t('missions.trigger_webhook_label'))</script>
+                                </label>
                                 <select id="webhook-select">
-                                    <option value=""><script>document.write(t('missions.trigger_webhook_loading'))</script></option>
+                                    <option value="">
+                                        <script>document.write(t('missions.trigger_webhook_loading'))</script>
+                                    </option>
                                 </select>
-                                <div class="form-hint"><script>document.write(t('missions.trigger_webhook_hint'))</script></div>
+                                <div class="form-hint">
+                                    <script>document.write(t('missions.trigger_webhook_hint'))</script>
+                                </div>
                             </div>
                         </div>
 
                         <!-- Egg Hatched Trigger -->
                         <div id="trigger-egg_hatched" class="trigger-fields">
-                            <div class="form-hint" style="margin-bottom: 12px;"><script>document.write(t('missions.trigger_egg_hatched_hint'))</script></div>
+                            <div class="form-hint" style="margin-bottom: 12px;">
+                                <script>document.write(t('missions.trigger_egg_hatched_hint'))</script>
+                            </div>
                             <div class="form-row">
                                 <div class="form-group">
-                                    <label><script>document.write(t('missions.trigger_egg_select_label'))</script></label>
+                                    <label>
+                                        <script>document.write(t('missions.trigger_egg_select_label'))</script>
+                                    </label>
                                     <select id="egg-hatched-egg-select">
-                                        <option value=""><script>document.write(t('missions.trigger_egg_any'))</script></option>
+                                        <option value="">
+                                            <script>document.write(t('missions.trigger_egg_any'))</script>
+                                        </option>
                                     </select>
                                 </div>
                                 <div class="form-group">
-                                    <label><script>document.write(t('missions.trigger_nest_select_label'))</script></label>
+                                    <label>
+                                        <script>document.write(t('missions.trigger_nest_select_label'))</script>
+                                    </label>
                                     <select id="egg-hatched-nest-select">
-                                        <option value=""><script>document.write(t('missions.trigger_nest_any'))</script></option>
+                                        <option value="">
+                                            <script>document.write(t('missions.trigger_nest_any'))</script>
+                                        </option>
                                     </select>
                                 </div>
                             </div>
@@ -236,27 +349,45 @@
 
                         <!-- Nest Cleared Trigger -->
                         <div id="trigger-nest_cleared" class="trigger-fields">
-                            <div class="form-hint" style="margin-bottom: 12px;"><script>document.write(t('missions.trigger_nest_cleared_hint'))</script></div>
+                            <div class="form-hint" style="margin-bottom: 12px;">
+                                <script>document.write(t('missions.trigger_nest_cleared_hint'))</script>
+                            </div>
                             <div class="form-group">
-                                <label><script>document.write(t('missions.trigger_nest_select_label'))</script></label>
+                                <label>
+                                    <script>document.write(t('missions.trigger_nest_select_label'))</script>
+                                </label>
                                 <select id="nest-cleared-nest-select">
-                                    <option value=""><script>document.write(t('missions.trigger_nest_any'))</script></option>
+                                    <option value="">
+                                        <script>document.write(t('missions.trigger_nest_any'))</script>
+                                    </option>
                                 </select>
                             </div>
                         </div>
 
                         <!-- MQTT Message Trigger -->
                         <div id="trigger-mqtt_message" class="trigger-fields">
-                            <div class="form-hint" style="margin-bottom: 12px;"><script>document.write(t('missions.trigger_mqtt_hint'))</script></div>
-                            <div class="form-group">
-                                <label><script>document.write(t('missions.trigger_mqtt_topic_label'))</script></label>
-                                <input type="text" id="mqtt-topic"><script>document.getElementById('mqtt-topic').placeholder=t('missions.trigger_mqtt_topic_placeholder')</script>
-                                <div class="form-hint"><script>document.write(t('missions.trigger_mqtt_topic_hint'))</script></div>
+                            <div class="form-hint" style="margin-bottom: 12px;">
+                                <script>document.write(t('missions.trigger_mqtt_hint'))</script>
                             </div>
                             <div class="form-group">
-                                <label><script>document.write(t('missions.trigger_mqtt_payload_label'))</script></label>
-                                <input type="text" id="mqtt-payload-contains"><script>document.getElementById('mqtt-payload-contains').placeholder=t('missions.trigger_mqtt_payload_placeholder')</script>
-                                <div class="form-hint"><script>document.write(t('missions.trigger_mqtt_payload_hint'))</script></div>
+                                <label>
+                                    <script>document.write(t('missions.trigger_mqtt_topic_label'))</script>
+                                </label>
+                                <input type="text" id="mqtt-topic">
+                                <script>document.getElementById('mqtt-topic').placeholder = t('missions.trigger_mqtt_topic_placeholder')</script>
+                                <div class="form-hint">
+                                    <script>document.write(t('missions.trigger_mqtt_topic_hint'))</script>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>
+                                    <script>document.write(t('missions.trigger_mqtt_payload_label'))</script>
+                                </label>
+                                <input type="text" id="mqtt-payload-contains">
+                                <script>document.getElementById('mqtt-payload-contains').placeholder = t('missions.trigger_mqtt_payload_placeholder')</script>
+                                <div class="form-hint">
+                                    <script>document.write(t('missions.trigger_mqtt_payload_hint'))</script>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -267,19 +398,28 @@
                             <span class="toggle-slider"></span>
                         </label>
                         <div>
-                            <div style="font-weight: 500;"><script>document.write(t('missions.form_lock_label'))</script></div>
-                            <div class="form-hint"><script>document.write(t('missions.form_lock_hint'))</script></div>
+                            <div style="font-weight: 500;">
+                                <script>document.write(t('missions.form_lock_label'))</script>
+                            </div>
+                            <div class="form-hint">
+                                <script>document.write(t('missions.form_lock_hint'))</script>
+                            </div>
                         </div>
                     </div>
                 </form>
             </div>
             <div class="modal-actions">
-                <button type="button" class="btn btn-secondary" onclick="closeModal('modal')"><script>document.write(t('missions.modal_btn_cancel'))</script></button>
-                <button type="button" class="btn btn-primary" onclick="saveMission()"><script>document.write(t('missions.modal_btn_save'))</script></button>
+                <button type="button" class="btn btn-secondary" onclick="closeModal('modal')">
+                    <script>document.write(t('missions.modal_btn_cancel'))</script>
+                </button>
+                <button type="button" class="btn btn-primary" onclick="saveMission()">
+                    <script>document.write(t('missions.modal_btn_save'))</script>
+                </button>
             </div>
         </div>
     </div>
 
     <script src="/js/missions/main.js"></script>
 </body>
+
 </html>

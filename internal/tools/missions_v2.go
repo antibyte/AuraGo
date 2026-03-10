@@ -30,6 +30,7 @@ const (
 	TriggerEggHatched       TriggerType = "egg_hatched"       // Egg deployed to a nest
 	TriggerNestCleared      TriggerType = "nest_cleared"      // Nest removed
 	TriggerMQTTMessage      TriggerType = "mqtt_message"      // MQTT message received
+	TriggerSystemStartup    TriggerType = "system_startup"    // AuraGo Startup
 )
 
 // TriggerConfig holds configuration for mission triggers
@@ -553,6 +554,28 @@ func (m *MissionManagerV2) NotifyInvasionEvent(eventType, nestID, nestName, eggI
 			"egg_name":  eggName,
 		})
 		m.queue.Enqueue(mission.ID, mission.Priority, eventType, string(triggerData))
+		mission.Status = "queued"
+	}
+	m.save()
+}
+
+// NotifySystemStartup fires mission triggers meant to run when AuraGo starts.
+func (m *MissionManagerV2) NotifySystemStartup() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	for _, mission := range m.missions {
+		if !mission.Enabled ||
+			mission.ExecutionType != ExecutionTriggered ||
+			mission.TriggerType != TriggerSystemStartup {
+			continue
+		}
+
+		triggerData, _ := json.Marshal(map[string]string{
+			"event": "system_startup",
+			"time":  time.Now().Format(time.RFC3339),
+		})
+		m.queue.Enqueue(mission.ID, mission.Priority, string(TriggerSystemStartup), string(triggerData))
 		mission.Status = "queued"
 	}
 	m.save()
