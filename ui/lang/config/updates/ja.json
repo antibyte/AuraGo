@@ -1,0 +1,18 @@
+{
+  "config.updates.warning_banner": "このアップデートにより、バイナリ、プロンプト、UI ファイルが置き換えられます。 <strong>設定とデータは保持されます。</strong> アップデート後に AuraGo が再起動します。",
+  "config.updates.check_button": "🔍 アップデートをチェックする",
+  "config.updates.install_button": "⬆️ アップデートをインストール",
+  "config.updates.checking": "⏳ 確認中…",
+  "config.updates.error": "エラー",
+  "config.updates.available": "利用可能なアップデート",
+  "config.updates.current": "現在",
+  "config.updates.latest": "最新",
+  "config.updates.up_to_date": "最新の",
+  "config.updates.changelog": "変更履歴:",
+  "config.updates.version": "バージョン",
+  "config.updates.confirm_install": "今からアップデートが始まります。 AuraGo はその後自動的に再起動します。\n\n約 30 ～ 60 秒後にページをリロードしてください。",
+  "config.updates.installing": "⏳ インストール中…",
+  "config.updates.running": "アップデートを実行中 — しばらく待ってページをリロードしてください…",
+  "config.updates.started": "✅ アップデートが開始されました — AuraGo が再起動中です。 60秒以内にリロードしてください…",
+  "config.updates.commits": "コミット"
+}

@@ -15,14 +15,26 @@
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 set -euo pipefail
 
-# ── Colours ────────────────────────────────────────────────────────────
-RED='\033[0;31m'; YELLOW='\033[1;33m'; GREEN='\033[0;32m'
-CYAN='\033[0;36m'; BOLD='\033[1m'; NC='\033[0m'
-info()    { echo -e "${CYAN}[UPDATE]${NC} $*"; }
-ok()      { echo -e "${GREEN}[  OK  ]${NC} $*"; }
-warn()    { echo -e "${YELLOW}[ WARN ]${NC} $*"; }
-die()     { echo -e "${RED}[ERROR ]${NC} $*" >&2; exit 1; }
-section() { echo -e "\n${BOLD}${CYAN}━━━  $*  ━━━${NC}"; }
+# ── UI & Typography ──────────────────────────────────────────────────────
+RED='\033[38;5;196m'
+YELLOW='\033[38;5;220m'
+GREEN='\033[38;5;114m'
+CYAN='\033[38;5;86m'
+BLUE='\033[38;5;39m'
+BOLD='\033[1m'
+DIM='\033[2m'
+NC='\033[0m'
+
+ICO_INFO="ℹ"
+ICO_OK="✔"
+ICO_WARN="⚠"
+ICO_ERR="✖"
+
+info()    { echo -e "${CYAN}${ICO_INFO} UPDATE${NC} ➜ $*"; }
+ok()      { echo -e "${GREEN}${ICO_OK} OK${NC}     ➜ $*"; }
+warn()    { echo -e "${YELLOW}${ICO_WARN} WARN${NC}   ➜ $*"; }
+die()     { echo -e "${RED}${ICO_ERR} ERROR${NC}  ➜ $*" >&2; exit 1; }
+section() { echo -e "\n${BOLD}${BLUE}═══ $* ═══${NC}"; }
 
 # ── CLI flags ──────────────────────────────────────────────────────────
 AUTO_YES=false
@@ -90,10 +102,16 @@ PROTECTED_DIRS=(
 PROMPTS_DIR="$DIR/prompts"
 
 # ── Banner ─────────────────────────────────────────────────────────────
+G1='\033[38;5;39m'
+G2='\033[38;5;38m'
+G3='\033[38;5;37m'
+G4='\033[38;5;36m'
+
 echo ""
-echo -e "${CYAN}╔══════════════════════════════════════╗${NC}"
-echo -e "${CYAN}║       AuraGo Updater  v2             ║${NC}"
-echo -e "${CYAN}╚══════════════════════════════════════╝${NC}"
+echo -e " ${G1}╭──────────────────────────────────────╮${NC}"
+echo -e " ${G2}│${NC} ${BOLD}✨ AuraGo Updater v2${NC}                   ${G2}│${NC}"
+echo -e " ${G3}│${NC} ${DIM}Keeping your AI Agent up to date${NC}       ${G3}│${NC}"
+echo -e " ${G4}╰──────────────────────────────────────╯${NC}"
 echo ""
 info "Installation: $DIR"
 if $BINARY_ONLY; then
@@ -643,9 +661,9 @@ fi
 
 # ── Summary ────────────────────────────────────────────────────────────
 echo ""
-echo -e "${GREEN}╔══════════════════════════════════════════════════╗${NC}"
-echo -e "${GREEN}║   AuraGo updated successfully! 🚀                ║${NC}"
-echo -e "${GREEN}╚══════════════════════════════════════════════════╝${NC}"
+echo -e " ${GREEN}╭──────────────────────────────────────────────────╮${NC}"
+echo -e " ${GREEN}│${NC}   ${BOLD}AuraGo updated successfully! 🚀${NC}                ${GREEN}│${NC}"
+echo -e " ${GREEN}╰──────────────────────────────────────────────────╯${NC}"
 echo ""
 info "Backup of your data kept at: $BACKUP_DIR"
 info "To remove backup:            rm -rf $BACKUP_DIR"

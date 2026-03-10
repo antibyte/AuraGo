@@ -19,16 +19,36 @@ SYSTEMD_SERVICE="aurago"
 GO_VERSION="1.26.0"
 GO_INSTALL_DIR="/usr/local"
 
-RED='\033[0;31m'; YELLOW='\033[1;33m'; GREEN='\033[0;32m'; CYAN='\033[0;36m'; BOLD='\033[1m'; NC='\033[0m'
-info() { echo -e "${CYAN}[AuraGo]${NC} $*"; }
-ok()   { echo -e "${GREEN}[  OK  ]${NC} $*"; }
-warn() { echo -e "${YELLOW}[ WARN ]${NC} $*"; }
-die()  { echo -e "${RED}[ERROR ]${NC} $*"; exit 1; }
+# ── UI & Typography ──────────────────────────────────────────────────────
+RED='\033[38;5;196m'
+YELLOW='\033[38;5;220m'
+GREEN='\033[38;5;114m'
+CYAN='\033[38;5;86m'
+BLUE='\033[38;5;39m'
+BOLD='\033[1m'
+DIM='\033[2m'
+NC='\033[0m'
+
+ICO_INFO="ℹ"
+ICO_OK="✔"
+ICO_WARN="⚠"
+ICO_ERR="✖"
+
+info() { echo -e "${CYAN}${ICO_INFO} AuraGo${NC} ➜ $*"; }
+ok()   { echo -e "${GREEN}${ICO_OK} OK${NC}     ➜ $*"; }
+warn() { echo -e "${YELLOW}${ICO_WARN} WARN${NC}   ➜ $*"; }
+die()  { echo -e "${RED}${ICO_ERR} ERROR${NC}  ➜ $*"; exit 1; }
+
+G1='\033[38;5;39m'
+G2='\033[38;5;38m'
+G3='\033[38;5;37m'
+G4='\033[38;5;36m'
 
 echo ""
-echo -e "${CYAN}╔══════════════════════════════════════╗${NC}"
-echo -e "${CYAN}║         AuraGo Installer             ║${NC}"
-echo -e "${CYAN}╚══════════════════════════════════════╝${NC}"
+echo -e " ${G1}╭──────────────────────────────────────╮${NC}"
+echo -e " ${G2}│${NC} ${BOLD}✨ AuraGo Quick Installer${NC}              ${G2}│${NC}"
+echo -e " ${G3}│${NC} ${DIM}AI Agent Framework for Linux${NC}           ${G3}│${NC}"
+echo -e " ${G4}╰──────────────────────────────────────╯${NC}"
 echo ""
 
 # ── Architecture detection ──────────────────────────────────────────────
@@ -317,10 +337,10 @@ fi
 
 # ── Network binding ───────────────────────────────────────────────────────
 echo ""
-echo -e "${YELLOW}╔══════════════════════════════════════════════════════════════╗${NC}"
-echo -e "${YELLOW}║  ⚠  SECURITY WARNING                                        ║${NC}"
-echo -e "${YELLOW}║  NEVER enable outside access on an internet-facing server!  ║${NC}"
-echo -e "${YELLOW}╚══════════════════════════════════════════════════════════════╝${NC}"
+echo -e " ${YELLOW}╭──────────────────────────────────────────────────────────────╮${NC}"
+echo -e " ${YELLOW}│${NC}  ${BOLD}⚠  SECURITY WARNING${NC}                                        ${YELLOW}│${NC}"
+echo -e " ${YELLOW}│${NC}  NEVER enable outside access on an internet-facing server!   ${YELLOW}│${NC}"
+echo -e " ${YELLOW}╰──────────────────────────────────────────────────────────────╯${NC}"
 echo ""
 echo "  Only allow network access if AuraGo runs on a trusted local LAN"
 echo "  (e.g. a home server / Proxmox container) — never expose it directly"
@@ -380,9 +400,10 @@ fi
 
 # ── Summary ───────────────────────────────────────────────────────────────
 echo ""
-echo -e "${GREEN}╔══════════════════════════════════════════════════════════════╗${NC}"
-echo -e "${GREEN}║  AuraGo installed at: $INSTALL_DIR${NC}"
-echo -e "${GREEN}╚══════════════════════════════════════════════════════════════╝${NC}"
+echo -e " ${GREEN}╭───────────────────────────────────────────────────────────────${NC}"
+echo -e " ${GREEN}│${NC}  ${BOLD}🎉 AuraGo successfully installed!${NC}"
+echo -e " ${GREEN}│${NC}  ${DIM}Location:${NC} $INSTALL_DIR"
+echo -e " ${GREEN}╰───────────────────────────────────────────────────────────────${NC}"
 echo ""
 
 if [ "$SERVICE_INSTALLED" = "true" ]; then
@@ -416,9 +437,9 @@ echo -e "Go to the ${BOLD}CONFIG${NC} section to set up your LLM provider and AP
 echo ""
 
 if [ "$PYTHON_MISSING" = "true" ]; then
-    echo -e "${YELLOW}╔══════════════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${YELLOW}║  ⚠  Python not installed — Python-based skills will not work.   ║${NC}"
-    echo -e "${YELLOW}╚══════════════════════════════════════════════════════════════════╝${NC}"
+    echo -e " ${YELLOW}╭──────────────────────────────────────────────────────────────────╮${NC}"
+    echo -e " ${YELLOW}│${NC}  ${BOLD}⚠  Python not installed${NC} — Python-based skills will not work.   ${YELLOW}│${NC}"
+    echo -e " ${YELLOW}╰──────────────────────────────────────────────────────────────────╯${NC}"
     echo ""
 fi
 set -euo pipefail

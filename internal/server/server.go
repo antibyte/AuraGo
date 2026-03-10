@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"crypto/tls"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -10,14 +9,11 @@ import (
 	"io"
 	"io/fs"
 	"log/slog"
-	"net"
 	"net/http"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
-
-	"golang.org/x/crypto/acme/autocert"
 
 	"aurago/internal/agent"
 	"aurago/internal/budget"
@@ -28,7 +24,6 @@ import (
 	"aurago/internal/llm"
 	"aurago/internal/memory"
 	"aurago/internal/mqtt"
-	"aurago/internal/push"
 	"aurago/internal/rocketchat"
 	"aurago/internal/security"
 	"aurago/internal/services"
@@ -216,7 +211,6 @@ type Server struct {
 	MissionManagerV2 *tools.MissionManagerV2
 	EggHub           *bridge.EggHub
 	FileIndexer      *services.FileIndexer
-	PushManager      *push.Manager
 	// IsFirstStart is true if core_memory.md was just freshly created (no prior data).
 	IsFirstStart   bool
 	StartedAt      time.Time     // server start time for uptime calculation
@@ -392,14 +386,6 @@ func Start(cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, sh
 		logger.Info("File indexer started", "directories", cfg.Indexing.Directories)
 	}
 
-	// Initialize Web Push Manager
-	pushManager, err := push.NewManager(cfg.Directories.DataDir, vault, logger)
-	if err != nil {
-		logger.Warn("Failed to initialize Web Push Manager (Push notifications disabled)", "error", err)
-	} else {
-		s.PushManager = pushManager
-	}
-
 	return s.run(shutdownCh)
 }
 
@@ -476,7 +462,6 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 			}
 		})
 		mux.HandleFunc("/api/config/schema", handleGetConfigSchema(s))
-		mux.HandleFunc("/api/ui-language", handleUILanguage(s))
 		// Lists models available on the configured Ollama instance.
 		// Returns the model names as JSON so the UI can offer a model picker.
 		mux.HandleFunc("/api/ollama/models", handleOllamaModels(s))
@@ -498,6 +483,9 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		// Backup & Restore (.ago archives)
 		mux.HandleFunc("/api/backup/create", handleBackupCreate(s))
 		mux.HandleFunc("/api/backup/import", handleBackupImport(s))
+
+		// Chromecast mDNS discovery
+		mux.HandleFunc("/api/chromecast/discover", handleChromecastDiscover(s))
 
 		// Device Registry (inventory CRUD)
 		mux.HandleFunc("/api/devices", func(w http.ResponseWriter, r *http.Request) {
@@ -751,40 +739,6 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		json.NewEncoder(w).Encode(filtered)
 	})
 
-	// PWA Push Subscription Endpoints
-	mux.HandleFunc("/api/push/vapid-pubkey", func(w http.ResponseWriter, r *http.Request) {
-		if s.PushManager == nil {
-			http.Error(w, "Push notifications not configured", http.StatusNotImplemented)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{"public_key": s.PushManager.GetPublicKey()})
-	})
-
-	mux.HandleFunc("/api/push/subscribe", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-		if s.PushManager == nil {
-			http.Error(w, "Push notifications not configured", http.StatusNotImplemented)
-			return
-		}
-
-		var sub push.PushSubscription
-		if err := json.NewDecoder(r.Body).Decode(&sub); err != nil {
-			http.Error(w, "Invalid subscription payload", http.StatusBadRequest)
-			return
-		}
-
-		if err := s.PushManager.Subscribe(sub); err != nil {
-			s.Logger.Error("Failed to save push subscription", "error", err)
-			http.Error(w, "Failed to subscribe", http.StatusInternalServerError)
-			return
-		}
-		w.WriteHeader(http.StatusOK)
-	})
-
 	mux.HandleFunc("/clear", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodDelete {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -825,7 +779,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 				http.Error(w, "Config template error", http.StatusInternalServerError)
 				return
 			}
-			lang := normalizeLang(s.Cfg.Server.UILanguage)
+			lang := normalizeLang(s.Cfg.Agent.SystemLanguage)
 			data := map[string]interface{}{
 				"Lang":     lang,
 				"I18N":     getI18NJSON(lang),
@@ -858,7 +812,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 				http.Error(w, "Dashboard template error", http.StatusInternalServerError)
 				return
 			}
-			lang := normalizeLang(s.Cfg.Server.UILanguage)
+			lang := normalizeLang(s.Cfg.Agent.SystemLanguage)
 			data := map[string]interface{}{
 				"Lang": lang,
 				"I18N": getI18NJSON(lang),
@@ -886,7 +840,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 				http.Error(w, "Mission V2 template error", http.StatusInternalServerError)
 				return
 			}
-			lang := normalizeLang(s.Cfg.Server.UILanguage)
+			lang := normalizeLang(s.Cfg.Agent.SystemLanguage)
 			data := map[string]interface{}{
 				"Lang": lang,
 				"I18N": getI18NJSON(lang),
@@ -954,7 +908,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 			http.Error(w, "Invasion Control template error", http.StatusInternalServerError)
 			return
 		}
-		lang := normalizeLang(s.Cfg.Server.UILanguage)
+		lang := normalizeLang(s.Cfg.Agent.SystemLanguage)
 		data := map[string]interface{}{
 			"Lang": lang,
 			"I18N": getI18NJSON(lang),
@@ -976,7 +930,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 			http.Error(w, "Setup template error", http.StatusInternalServerError)
 			return
 		}
-		lang := normalizeLang(s.Cfg.Server.UILanguage)
+		lang := normalizeLang(s.Cfg.Agent.SystemLanguage)
 		data := map[string]interface{}{
 			"Lang": lang,
 			"I18N": getI18NJSON(lang),
@@ -1014,7 +968,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 			}
 
 			if tmpl != nil {
-				lang := normalizeLang(s.Cfg.Server.UILanguage)
+				lang := normalizeLang(s.Cfg.Agent.SystemLanguage)
 				data := map[string]interface{}{
 					"Lang":               lang,
 					"I18N":               getI18NJSON(lang),
@@ -1074,6 +1028,9 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		}()
 	}
 
+	addr := fmt.Sprintf("%s:%d", s.Cfg.Server.Host, s.Cfg.Server.Port)
+	s.Logger.Info("Starting server", "host", s.Cfg.Server.Host, "port", s.Cfg.Server.Port)
+
 	// Start Phase 1 TCP Bridge
 	bridgeAddr := s.Cfg.Server.BridgeAddress
 	if bridgeAddr == "" {
@@ -1081,64 +1038,12 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	}
 	go s.StartTCPBridge(bridgeAddr)
 
-	mainHandler := authMiddleware(s, mux)
-	var server *http.Server
-	var httpServer *http.Server
-
-	if s.Cfg.Server.HTTPS.Enabled && s.Cfg.Server.HTTPS.Domain != "" {
-		certDir := filepath.Join(s.Cfg.Directories.DataDir, "certs")
-		certManager := &autocert.Manager{
-			Prompt:     autocert.AcceptTOS,
-			HostPolicy: autocert.HostWhitelist(s.Cfg.Server.HTTPS.Domain),
-			Cache:      autocert.DirCache(certDir),
-			Email:      s.Cfg.Server.HTTPS.Email,
-		}
-
-		server = &http.Server{
-			Addr:    fmt.Sprintf("%s:443", s.Cfg.Server.Host),
-			Handler: mainHandler,
-			TLSConfig: &tls.Config{
-				GetCertificate: certManager.GetCertificate,
-			},
-			ReadTimeout:  30 * time.Second,
-			WriteTimeout: 5 * time.Minute,
-			IdleTimeout:  2 * time.Minute,
-		}
-
-		httpServer = &http.Server{
-			Addr: fmt.Sprintf("%s:80", s.Cfg.Server.Host),
-			Handler: certManager.HTTPHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				host := r.Host
-				if strings.Contains(host, ":") {
-					host, _, _ = net.SplitHostPort(host)
-				}
-				if host == "127.0.0.1" || host == "localhost" || host == "::1" {
-					mainHandler.ServeHTTP(w, r)
-					return
-				}
-				target := "https://" + s.Cfg.Server.HTTPS.Domain + r.URL.RequestURI()
-				http.Redirect(w, r, target, http.StatusPermanentRedirect)
-			})),
-		}
-
-		go func() {
-			s.Logger.Info("Starting HTTP/ACME redirect server", "port", 80)
-			if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-				s.Logger.Error("HTTP redirect server failed", "error", err)
-			}
-		}()
-
-		s.Logger.Info("Starting HTTPS server with Let's Encrypt", "domain", s.Cfg.Server.HTTPS.Domain)
-	} else {
-		addr := fmt.Sprintf("%s:%d", s.Cfg.Server.Host, s.Cfg.Server.Port)
-		server = &http.Server{
-			Addr:         addr,
-			Handler:      mainHandler,
-			ReadTimeout:  30 * time.Second,
-			WriteTimeout: 5 * time.Minute,
-			IdleTimeout:  2 * time.Minute,
-		}
-		s.Logger.Info("Starting HTTP server", "host", s.Cfg.Server.Host, "port", s.Cfg.Server.Port)
+	server := &http.Server{
+		Addr:         addr,
+		Handler:      authMiddleware(s, mux), // auth check; respects s.Cfg.Auth.Enabled dynamically
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 5 * time.Minute, // generous for streaming responses
+		IdleTimeout:  2 * time.Minute,
 	}
 
 	// Graceful shutdown goroutine
@@ -1162,32 +1067,14 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 				s.Logger.Warn("TTS Server shutdown error", "error", err)
 			}
 		}
-		if httpServer != nil {
-			if err := httpServer.Shutdown(ctx); err != nil {
-				s.Logger.Warn("HTTP Redirect server shutdown error", "error", err)
-			}
-		}
 		if err := server.Shutdown(ctx); err != nil {
 			s.Logger.Error("HTTP server shutdown error", "error", err)
 		}
 	}()
 
-	// Fire the system_startup trigger with a small delay so HTTP is ready
-	go func() {
-		time.Sleep(3 * time.Second)
-		s.MissionManagerV2.NotifySystemStartup()
-	}()
-
-	if s.Cfg.Server.HTTPS.Enabled && s.Cfg.Server.HTTPS.Domain != "" {
-		if err := server.ListenAndServeTLS("", ""); err != nil && err != http.ErrServerClosed {
-			return err
-		}
-	} else {
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			return err
-		}
+	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		return err
 	}
-
 	s.Logger.Info("Server stopped gracefully")
 	return nil
 }

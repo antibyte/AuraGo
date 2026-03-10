@@ -50,7 +50,6 @@
   "help.budget.reset_hour": "每日预算重置时的一天中的某个时间 (0-23)。",
   "help.budget.warning_threshold": "触发警告的百分比（0.0 到 1.0）。",
   "help.chromecast.enabled": "启用音频输出的 Chromecast 集成。",
-  "help.chromecast.read_only": "启用后，代理只能发现 Chromecast 设备并检查状态，但无法播放、讲话或控制它们。",
   "help.chromecast.tts_port": "TTS 文件服务器流式传输到 Chromecast 的本地端口。",
   "help.circuit_breaker.llm_timeout_seconds": "LLM 请求超时（以秒为单位）。",
   "help.circuit_breaker.maintenance_timeout_minutes": "代理自动从维护模式返回之前无用户活动的时间（以分钟为单位）。",
@@ -164,7 +163,7 @@
   "help.rocketchat.channel": "默认收听频道，例如'一般的'。",
   "help.rocketchat.enabled": "启用 Rocket.Chat 机器人集成。",
   "help.rocketchat.url": "Rocket.Chat 实例的 URL，例如'https://chat.example.com'。",
-  "help.rocketchat.user_id": "来自 Rocket.Chat 的机器人用户 ID（个人资料 \u003e 个人访问令牌）。",
+  "help.rocketchat.user_id": "来自 Rocket.Chat 的机器人用户 ID（个人资料 > 个人访问令牌）。",
   "help.sandbox.auto_install": "启动时自动安装 llm-sandbox Python 包（带有 MCP 附加功能）。根据后端安装“llm-sandbox[mcp-docker]”或“llm-sandbox[mcp-podman]”。需要一个有效的 Python/pip 环境。",
   "help.sandbox.backend": "容器后端：“docker”（默认）或“podman”。 Docker 必须已安装且可访问。",
   "help.sandbox.docker_host": "Docker 主机地址（例如“unix:///var/run/docker.sock”或“tcp://localhost:2375”）。空 = 自动检测或继承自 docker.host。",
@@ -177,7 +176,7 @@
   "help.server.bridge_address": "救生艇桥连接的 TCP 地址（主机：端口）。默认值：“本地主机：8089”。",
   "help.server.host": "服务器侦听的 IP 地址。 “127.0.0.1”=仅限本地，“0.0.0.0”=所有接口。",
   "help.server.max_body_bytes": "最大 HTTP 请求正文大小（以字节为单位）（配置端点）。默认值：10485760 (10 MB)。",
-    "help.server.https.enabled": "Enables HTTPS via Let's Encrypt. AuraGo will automatically obtain and renew a certificate for your domain. HTTP (port 80) from external sources is redirected to HTTPS. Localhost remains accessible via HTTP.",
+  "help.server.https.enabled": "Enables HTTPS via Let's Encrypt. AuraGo will automatically obtain and renew a certificate for your domain. HTTP (port 80) from external sources is redirected to HTTPS. Localhost remains accessible via HTTP.",
   "help.server.https.domain": "Public domain name (e.g. aurago.mydomain.com). Both port 80 and 443 must be forwarded to AuraGo for Let's Encrypt to work.",
   "help.server.https.email": "Contact email for Let's Encrypt. Used for certificate expiry warnings. Not publicly displayed.",
   "help.server.port": "Web 服务器和 REST API 的端口。",
@@ -233,5 +232,6 @@
   "help.whisper.base_url": "Whisper 提供商的基本 URL。",
   "help.whisper.mode": "Whisper 模式：“whisper”（标准 OpenAI API）、“multimodal”（Gemini/multimodal LLM）或“local”（本地服务器）。",
   "help.whisper.model": "Whisper 的型号名称，例如'耳语-1'。",
-  "help.whisper.provider": "从语音转文本的提供商管理中选择提供商。"
+  "help.whisper.provider": "从语音转文本的提供商管理中选择提供商。",
+  "help.github.token": "GitHub API 的个人访问令牌 (PAT)。在 https://github.com/settings/tokens 上创建一个具有所需范围（存储库、问题等）的令牌。加密存储在保管库中。"
 }

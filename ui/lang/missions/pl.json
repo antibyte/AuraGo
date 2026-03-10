@@ -193,5 +193,11 @@
   "missions.trigger_webhook_hint": "Webhook musi być utworzony w Webhook Manager",
   "missions.trigger_webhook_label": "Webhook",
   "missions.trigger_webhook_loading": "Ładowanie webhooków...",
-  "missions.trigger_webhook_none": "Brak dostępnych webhooków"
+  "missions.trigger_webhook_none": "Brak dostępnych webhooków",
+  "missions.card_btn_duplicate_title": "Zduplikowana misja",
+  "missions.card_no_output": "Nie wygenerowano jeszcze żadnych wyników.",
+  "missions.card_view_log": "Wyświetl dziennik",
+  "missions.trigger_system_startup": "🟢 Uruchamianie systemu",
+  "missions.trigger_system_startup_badge": "🟢 Podczas uruchamiania systemu",
+  "missions.trigger_system_startup_hint": "Wykonuje tę misję automatycznie po uruchomieniu AuraGo."
 }

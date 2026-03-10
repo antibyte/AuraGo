@@ -6,6 +6,7 @@ priority: 50
 # Chromecast
 
 Control Chromecast speakers on the local network. Discover devices, play audio, speak via TTS, control volume.
+Chromecast devices can be registered in the device registry with friendly names (e.g. "Living Room", "Kitchen"). Use `device_name` to address devices by name instead of IP address.
 
 ## Operations
 
@@ -16,35 +17,36 @@ Control Chromecast speakers on the local network. Discover devices, play audio, 
 
 ### Play audio URL
 ```json
-{"action": "chromecast", "operation": "play", "device_addr": "192.168.1.50", "url": "https://example.com/song.mp3"}
+{"action": "chromecast", "operation": "play", "device_name": "Living Room", "url": "https://example.com/song.mp3"}
 ```
 
 ### Speak text (TTS → Chromecast)
 ```json
-{"action": "chromecast", "operation": "speak", "device_addr": "192.168.1.50", "text": "Dinner is ready"}
+{"action": "chromecast", "operation": "speak", "device_name": "Living Room", "text": "Dinner is ready"}
 ```
 ⚠️ Max 200 characters for text.
 
 ### Stop playback
 ```json
-{"action": "chromecast", "operation": "stop", "device_addr": "192.168.1.50"}
+{"action": "chromecast", "operation": "stop", "device_name": "Living Room"}
 ```
 
 ### Set volume (0.0–1.0)
 ```json
-{"action": "chromecast", "operation": "volume", "device_addr": "192.168.1.50", "volume": 0.5}
+{"action": "chromecast", "operation": "volume", "device_name": "Living Room", "volume": 0.5}
 ```
 
 ### Get status
 ```json
-{"action": "chromecast", "operation": "status", "device_addr": "192.168.1.50"}
+{"action": "chromecast", "operation": "status", "device_name": "Living Room"}
 ```
 
 ## Parameters
 | Field | Required | Description |
 |-------|----------|-------------|
 | `operation` | ✅ | discover, play, speak, stop, volume, status |
-| `device_addr` | For all except discover | IP address from discover |
+| `device_name` | For all except discover | Friendly device name from device registry (e.g. "Living Room") — resolved to IP automatically |
+| `device_addr` | Alternative to device_name | Direct IP address (use device_name when possible) |
 | `device_port` | ❌ | Default: 8009 |
 | `url` | For play | Media URL |
 | `text` | For speak | Text to speak (max 200 chars) |
@@ -53,6 +55,6 @@ Control Chromecast speakers on the local network. Discover devices, play audio, 
 | `language` | ❌ | TTS language override |
 
 ## Workflow
-1. `discover` → find devices
-2. Use `device_addr` from results
+1. Registered devices can be addressed by name directly (e.g. `device_name: "Living Room"`)
+2. If no devices are registered, use `discover` → find devices → use `device_addr` from results
 3. `speak` / `play` / `volume` / `stop`

@@ -193,5 +193,11 @@
   "missions.trigger_webhook_hint": "Selecione um webhook configurado",
   "missions.trigger_webhook_label": "Webhook",
   "missions.trigger_webhook_loading": "Carregando webhooks...",
-  "missions.trigger_webhook_none": "Nenhum webhook disponível"
+  "missions.trigger_webhook_none": "Nenhum webhook disponível",
+  "missions.card_btn_duplicate_title": "Duplikatoppdrag",
+  "missions.card_no_output": "Ingen utgang generert ennå.",
+  "missions.card_view_log": "Vis logg",
+  "missions.trigger_system_startup": "Systemoppstart",
+  "missions.trigger_system_startup_badge": "Ved systemoppstart",
+  "missions.trigger_system_startup_hint": "Utfører dette oppdraget automatisk når AuraGo starter."
 }

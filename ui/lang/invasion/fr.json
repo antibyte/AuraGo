@@ -87,5 +87,8 @@
   "invasion.will_delete_egg": "sera définitivement supprimé. La clé API associée sera retirée du coffre.",
   "invasion.will_delete_nest": "sera définitivement supprimé. Le secret associé sera retiré du coffre.",
   "invasion.ws_connected": "Connecté",
-  "invasion.ws_disconnected": "Déconnecté"
+  "invasion.ws_disconnected": "Déconnecté",
+  "invasion.telemetry_cpu": "Processeur",
+  "invasion.telemetry_mem": "RAM",
+  "invasion.telemetry_uptime": "Temps de disponibilité"
 }

@@ -87,5 +87,8 @@
   "invasion.will_delete_egg": "将被永久删除。关联的 API Key 将从 Vault 中移除。",
   "invasion.will_delete_nest": "将被永久删除。关联的密钥将从 Vault 中移除。",
   "invasion.ws_connected": "已连接",
-  "invasion.ws_disconnected": "已断开"
+  "invasion.ws_disconnected": "已断开",
+  "invasion.telemetry_cpu": "中央处理器",
+  "invasion.telemetry_mem": "内存",
+  "invasion.telemetry_uptime": "正常运行时间"
 }

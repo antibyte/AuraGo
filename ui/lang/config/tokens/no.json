@@ -1,12 +1,16 @@
 {
-  "config.tokens.title": "Tokeny",
-  "config.tokens.enabled": "Povoleno",
-  "config.tokens.add_token": "Pridat token",
-  "config.tokens.delete_token": "Smazat token",
-  "config.tokens.token_name": "Nazev tokenu",
-  "config.tokens.token_value": "Hodnota tokenu",
-  "config.tokens.expires": "Platnost do",
-  "config.tokens.never": "Nikdy",
-  "config.tokens.save": "Ulozit",
-  "config.tokens.cancel": "Zrusit"
+  "config.tokens.expires": "Utløper",
+  "config.tokens.never": "Aldri",
+  "config.tokens.new_token": "Ny token",
+  "config.tokens.empty": "Ingen tokens opprettet ennå.",
+  "config.tokens.last_used": "Sist brukt",
+  "config.tokens.name_prompt": "Token name:",
+  "config.tokens.created_notice": "Token opprettet! Kopier nå – vises kun én gang.",
+  "config.tokens.activated": "Token aktivert",
+  "config.tokens.deactivated": "Token deaktivert",
+  "config.tokens.delete_confirm": "Slett token:",
+  "config.tokens.deleted": "Token slettet",
+  "config.tokens.scopes_label": "Omfang:",
+  "config.tokens.toggle_disable": "Deaktiver",
+  "config.tokens.toggle_enable": "Aktiver"
 }

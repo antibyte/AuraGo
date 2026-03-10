@@ -87,5 +87,8 @@
   "invasion.will_delete_egg": "bude trvale smazán. Přidružený API key bude odstraněn z vault.",
   "invasion.will_delete_nest": "bude trvale smazán. Přidružený secret bude odstraněn z vault.",
   "invasion.ws_connected": "Připojeno",
-  "invasion.ws_disconnected": "Odpojeno"
+  "invasion.ws_disconnected": "Odpojeno",
+  "invasion.telemetry_cpu": "CPU",
+  "invasion.telemetry_mem": "RAM",
+  "invasion.telemetry_uptime": "Doba provozuschopnosti"
 }

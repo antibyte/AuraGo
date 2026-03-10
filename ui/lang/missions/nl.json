@@ -193,5 +193,11 @@
   "missions.trigger_webhook_hint": "De webhook moet worden aangemaakt in de Webhook Manager",
   "missions.trigger_webhook_label": "Webhook",
   "missions.trigger_webhook_loading": "Webhooks laden...",
-  "missions.trigger_webhook_none": "Geen webhooks beschikbaar"
+  "missions.trigger_webhook_none": "Geen webhooks beschikbaar",
+  "missions.card_btn_duplicate_title": "Dubbele missie",
+  "missions.card_no_output": "Er is nog geen uitvoer gegenereerd.",
+  "missions.card_view_log": "Logboek bekijken",
+  "missions.trigger_system_startup": "🟢 Systeem opstarten",
+  "missions.trigger_system_startup_badge": "🟢 Bij het opstarten van het systeem",
+  "missions.trigger_system_startup_hint": "Executes this mission automatically when AuraGo starts."
 }

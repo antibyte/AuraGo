@@ -18,5 +18,15 @@
   "config.field.no_provider": "— プロバイダなし —",
   "config.field.disabled": "🚫 無効",
   "config.field.comma_separated": "カンマ区切りの値",
-  "config.field.json_array_hint": "JSON 配列 (name、input_per_million、output_per_million を持つオブジェクト)"
+  "config.field.json_array_hint": "JSON 配列 (name、input_per_million、output_per_million を持つオブジェクト)",
+  "config.common.cancel": "キャンセル",
+  "config.common.save": "保存",
+  "config.common.delete": "消去",
+  "config.common.edit": "編集",
+  "config.common.loading": "読み込み中...",
+  "config.common.error": "エラー",
+  "config.common.saved": "保存されました。",
+  "config.common.network_error": "ネットワークエラー。",
+  "config.common.active": "アクティブ",
+  "config.common.inactive": "非アクティブ"
 }

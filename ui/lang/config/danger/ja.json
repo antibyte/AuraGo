@@ -1,0 +1,20 @@
+{
+  "config.danger.warning_title": "警告",
+  "config.danger.warning_desc": "ここで、エージェントに付与する権限を決定します。エージェントは<strong>間違いを犯す可能性がある</strong>ことに留意してください。本当に必要なものだけを有効にしてください。",
+  "config.danger.sudo.title": "Sudo の実行 (execute_sudo)",
+  "config.danger.sudo.desc": "エージェントが sudo 権限でコマンドを実行できるようにします。 Sudo パスワードはボールトに保存する必要があります。",
+  "config.danger.shell.title": "シェルの実行 (execute_shell)",
+  "config.danger.shell.desc": "エージェントがホスト システム上で任意のシェル コマンドを実行できるようにします。",
+  "config.danger.python.title": "Python / スキル実行 (execute_python /execute_skill /save_tool)",
+  "config.danger.python.desc": "エージェントが任意の Python コードとスキルを<strong>サンドボックスなしでローカルで</strong>実行し、新しいツールを永続化できるようにします。コードはホスト システム上で直接実行されます。代わりに、分離された実行にはサンドボックスを使用します。",
+  "config.danger.filesystem.title": "ファイルシステム書き込みアクセス (ファイルシステム書き込み操作)",
+  "config.danger.filesystem.desc": "エージェントがファイル システム ツールを介してファイルの書き込み、削除、移動、およびディレクトリの作成をできるようにします。",
+  "config.danger.network.title": "ネットワークリクエスト (api_request)",
+  "config.danger.network.desc": "エージェントが任意の HTTP リクエストを外部 URL に送信できるようにします。",
+  "config.danger.remote_shell.title": "リモート シェル (execute_remote_shell)",
+  "config.danger.remote_shell.desc": "エージェントが SSH 経由でリモート サーバー上でシェル コマンドを実行できるようにします。",
+  "config.danger.self_update.title": "自己更新 (manage_updates)",
+  "config.danger.self_update.desc": "エージェントが自身を更新し、プロセスを再起動できるようにします。",
+  "config.danger.mcp.title": "MCP サーバー接続 (mcp_call)",
+  "config.danger.mcp.desc": "エージェントが外部 MCP サーバーに接続し、そのツールを使用できるようにします。 <strong style=\"color:#f87171;\">⚠ 信頼できるサーバーのみを追加してください。</strong>"
+}

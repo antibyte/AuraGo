@@ -1,12 +1,16 @@
 {
-  "config.tokens.title": "Tokeny",
-  "config.tokens.enabled": "Povoleno",
-  "config.tokens.add_token": "Pridat token",
-  "config.tokens.delete_token": "Smazat token",
-  "config.tokens.token_name": "Nazev tokenu",
-  "config.tokens.token_value": "Hodnota tokenu",
-  "config.tokens.expires": "Platnost do",
-  "config.tokens.never": "Nikdy",
-  "config.tokens.save": "Ulozit",
-  "config.tokens.cancel": "Zrusit"
+  "config.tokens.expires": "Upphör att gälla",
+  "config.tokens.never": "Aldrig",
+  "config.tokens.new_token": "Ny token",
+  "config.tokens.empty": "Inga tokens har skapats ännu.",
+  "config.tokens.last_used": "Senast använd",
+  "config.tokens.name_prompt": "Tokennamn:",
+  "config.tokens.created_notice": "Token skapad! Kopiera nu – visas endast en gång.",
+  "config.tokens.activated": "Token aktiverad",
+  "config.tokens.deactivated": "Token avaktiverad",
+  "config.tokens.delete_confirm": "Ta bort token:",
+  "config.tokens.deleted": "Token raderad",
+  "config.tokens.scopes_label": "Omfattningar:",
+  "config.tokens.toggle_disable": "Inaktivera",
+  "config.tokens.toggle_enable": "Aktivera"
 }

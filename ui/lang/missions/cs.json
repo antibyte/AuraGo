@@ -193,5 +193,11 @@
   "missions.trigger_webhook_hint": "Vyberte nakonfigurovany webhook",
   "missions.trigger_webhook_label": "Webhook",
   "missions.trigger_webhook_loading": "Nacitani webhooku...",
-  "missions.trigger_webhook_none": "Zadny webhook dostupny"
+  "missions.trigger_webhook_none": "Zadny webhook dostupny",
+  "missions.card_btn_duplicate_title": "Duplicitní mise",
+  "missions.card_no_output": "Dosud nebyl vytvořen žádný výstup.",
+  "missions.card_view_log": "Zobrazit protokol",
+  "missions.trigger_system_startup": "🢢 Spuštění systému",
+  "missions.trigger_system_startup_badge": "🟢 Při spuštění systému",
+  "missions.trigger_system_startup_hint": "Provede tuto misi automaticky při spuštění AuraGo."
 }

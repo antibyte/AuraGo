@@ -1,12 +1,16 @@
 {
-  "config.tokens.title": "Tokeny",
-  "config.tokens.enabled": "Povoleno",
-  "config.tokens.add_token": "Pridat token",
-  "config.tokens.delete_token": "Smazat token",
-  "config.tokens.token_name": "Nazev tokenu",
-  "config.tokens.token_value": "Hodnota tokenu",
-  "config.tokens.expires": "Platnost do",
-  "config.tokens.never": "Nikdy",
-  "config.tokens.save": "Ulozit",
-  "config.tokens.cancel": "Zrusit"
+  "config.tokens.expires": "समाप्त हो रहा है",
+  "config.tokens.never": "कभी नहीं",
+  "config.tokens.new_token": "नया टोकन",
+  "config.tokens.empty": "अभी तक कोई टोकन नहीं बनाया गया.",
+  "config.tokens.last_used": "अंतिम बार उपयोग किया गया",
+  "config.tokens.name_prompt": "टोकन नाम:",
+  "config.tokens.created_notice": "टोकन बनाया गया! अभी कॉपी करें - केवल एक बार दिखाया गया।",
+  "config.tokens.activated": "टोकन सक्रिय",
+  "config.tokens.deactivated": "टोकन निष्क्रिय",
+  "config.tokens.delete_confirm": "टोकन हटाएं:",
+  "config.tokens.deleted": "टोकन हटा दिया गया",
+  "config.tokens.scopes_label": "दायरा:",
+  "config.tokens.toggle_disable": "अक्षम करें",
+  "config.tokens.toggle_enable": "सक्षम"
 }

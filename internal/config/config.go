@@ -303,9 +303,8 @@ type Config struct {
 		} `yaml:"elevenlabs"`
 	} `yaml:"tts"`
 	Chromecast struct {
-		Enabled  bool `yaml:"enabled"`
-		ReadOnly bool `yaml:"readonly"` // true = only discover/status, block play/speak/stop/volume
-		TTSPort  int  `yaml:"tts_port"`
+		Enabled bool `yaml:"enabled"`
+		TTSPort int  `yaml:"tts_port"`
 	} `yaml:"chromecast"`
 	Notifications struct {
 		Ntfy struct {

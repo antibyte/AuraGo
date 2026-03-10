@@ -1,12 +1,16 @@
 {
-  "config.tokens.title": "Tokeny",
-  "config.tokens.enabled": "Povoleno",
-  "config.tokens.add_token": "Pridat token",
-  "config.tokens.delete_token": "Smazat token",
-  "config.tokens.token_name": "Nazev tokenu",
-  "config.tokens.token_value": "Hodnota tokenu",
   "config.tokens.expires": "Platnost do",
   "config.tokens.never": "Nikdy",
-  "config.tokens.save": "Ulozit",
-  "config.tokens.cancel": "Zrusit"
+  "config.tokens.new_token": "Nový token",
+  "config.tokens.empty": "Zatím nebyly vytvořeny žádné tokeny.",
+  "config.tokens.last_used": "Naposledy použité",
+  "config.tokens.name_prompt": "Název tokenu:",
+  "config.tokens.created_notice": "Token vytvořen! Kopírovat nyní – zobrazeno pouze jednou.",
+  "config.tokens.activated": "Token aktivován",
+  "config.tokens.deactivated": "Token deaktivován",
+  "config.tokens.delete_confirm": "Smazat token:",
+  "config.tokens.deleted": "Token smazán",
+  "config.tokens.scopes_label": "Rozsah:",
+  "config.tokens.toggle_disable": "Zakázat",
+  "config.tokens.toggle_enable": "Umožnit"
 }

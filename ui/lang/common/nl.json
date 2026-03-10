@@ -9,11 +9,11 @@
   "common.enabled": "Ingeschakeld",
   "common.error": "Fout",
   "common.loading": "Laden...",
-  "common.nav_aria_label": "Navigation",
-  "common.nav_chat": "Chat",
-  "common.nav_config": "Config",
+  "common.nav_aria_label": "Navigatie",
+  "common.nav_chat": "Chatten",
+  "common.nav_config": "Configuratie",
   "common.nav_dashboard": "Dashboard",
-  "common.nav_invasion": "Invasion",
+  "common.nav_invasion": "Invasie",
   "common.nav_logout": "Uitloggen",
   "common.nav_missions": "Missies",
   "common.no": "Nee",
@@ -26,6 +26,6 @@
   "login.password_label": "Wachtwoord",
   "login.password_show": "Wachtwoord tonen",
   "login.subtitle": "Log in om verder te gaan",
-  "login.totp_divider": "Authenticator Code",
+  "login.totp_divider": "Authenticatiecode",
   "login.totp_label": "6-cijferige code"
 }

@@ -193,5 +193,11 @@
   "missions.trigger_webhook_hint": "Webhook は Webhook マネージャーで作成する必要があります",
   "missions.trigger_webhook_label": "Webhook",
   "missions.trigger_webhook_loading": "Webhook を読み込み中…",
-  "missions.trigger_webhook_none": "Webhook がありません"
+  "missions.trigger_webhook_none": "Webhook がありません",
+  "missions.card_btn_duplicate_title": "ミッションの重複",
+  "missions.card_no_output": "まだ出力は生成されていません。",
+  "missions.card_view_log": "ログの表示",
+  "missions.trigger_system_startup": "🟢 システム起動",
+  "missions.trigger_system_startup_badge": "🟢 システム起動時",
+  "missions.trigger_system_startup_hint": "AuraGo の起動時にこのミッションが自動的に実行されます。"
 }

@@ -762,6 +762,7 @@ const SECTION_MODULES = {
     backup_restore: { m: 'backup', fn: 'renderBackupSection' },
     updates: { m: 'updates', fn: 'renderUpdatesSection' },
     devices: { m: 'devices', fn: 'renderDevicesSection' },
+    chromecast: { m: 'chromecast', fn: 'renderChromecastSection' },
     danger_zone: { m: 'danger', fn: 'renderDangerZoneSection' },
     web_config: { m: 'auth', fn: 'renderWebConfigSection' }
 };

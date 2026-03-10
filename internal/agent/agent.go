@@ -283,6 +283,7 @@ type ToolCall struct {
 	// TTS / Chromecast fields
 	Text        string  `json:"text"`
 	DeviceAddr  string  `json:"device_addr"`
+	DeviceName  string  `json:"device_name"`
 	DevicePort  int     `json:"device_port"`
 	Volume      float64 `json:"volume"`
 	ContentType string  `json:"content_type"`
@@ -3767,10 +3768,17 @@ func dispatchInner(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 		if !cfg.Chromecast.Enabled {
 			return `Tool Output: {"status": "error", "message": "Chromecast is disabled. Set chromecast.enabled=true in config.yaml."}`
 		}
-		if cfg.Chromecast.ReadOnly {
-			switch tc.Operation {
-			case "play", "speak", "stop", "volume":
-				return `Tool Output: {"status":"error","message":"Chromecast is in read-only mode. Disable chromecast.read_only to allow changes."}`
+		// Resolve device_name → device_addr via inventory if device_addr is empty
+		if tc.DeviceAddr == "" && tc.DeviceName != "" && inventoryDB != nil {
+			devices, err := inventory.QueryDevices(inventoryDB, "", "chromecast", tc.DeviceName)
+			if err == nil && len(devices) > 0 {
+				tc.DeviceAddr = devices[0].IPAddress
+				if tc.DevicePort == 0 && devices[0].Port > 0 {
+					tc.DevicePort = devices[0].Port
+				}
+				logger.Info("Resolved chromecast device name", "name", tc.DeviceName, "addr", tc.DeviceAddr, "port", tc.DevicePort)
+			} else {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"Could not find chromecast device named '%s' in the device registry."}`, tc.DeviceName)
 			}
 		}
 		op := tc.Operation

@@ -7,7 +7,7 @@
   "help.agent.allow_remote_shell": "Quando disabilitato, execute_remote_shell / remote_execution sono bloccati.",
   "help.agent.allow_self_update": "Quando disabilitato, l'agente non può eseguire manage_updates (nessun auto-aggiornamento).",
   "help.agent.allow_shell": "Quando disabilitato, l'agente blocca tutte le richieste execute_shell con un errore PERMISSION DENIED.",
-  "help.agent.allow_web_scraper": "Deprecato — usa tools.web_scraper.enabled nella sezione 'Tool \u0026 Servizi' invece.",
+  "help.agent.allow_web_scraper": "Deprecato — usa tools.web_scraper.enabled nella sezione 'Tool & Servizi' invece.",
   "help.agent.context_window": "Dimensione della finestra di contesto in token. 0 = auto-rilevamento.",
   "help.agent.core_memory_cap_mode": "Comportamento quando il limite è raggiunto: 'soft' aggiunge l'entry e restituisce un avviso, 'hard' rifiuta nuove entry. Default: soft.",
   "help.agent.core_memory_max_entries": "Numero massimo di entry core memory. 0 = illimitato. Default: 200.",
@@ -50,7 +50,6 @@
   "help.budget.reset_hour": "Ora del giorno (0-23) quando il budget giornaliero si resetta.",
   "help.budget.warning_threshold": "Percentuale (0.0 a 1.0) alla quale viene attivato un avviso.",
   "help.chromecast.enabled": "Abilita l'integrazione Chromecast per l'output audio.",
-  "help.chromecast.read_only": "Quando abilitato, l'agente può solo scoprire dispositivi Chromecast e controllare lo stato ma non può riprodurre, parlare o controllarli.",
   "help.chromecast.tts_port": "Porta locale per il server file TTS per lo streaming a Chromecast.",
   "help.circuit_breaker.llm_timeout_seconds": "Timeout per le richieste LLM in secondi.",
   "help.circuit_breaker.maintenance_timeout_minutes": "Tempo in minuti senza attività utente prima che l'agente torni automaticamente dalla modalità manutenzione.",
@@ -164,7 +163,7 @@
   "help.rocketchat.channel": "Canale predefinito su cui ascoltare, es. 'general'.",
   "help.rocketchat.enabled": "Abilita l'integrazione bot Rocket.Chat.",
   "help.rocketchat.url": "URL dell'istanza Rocket.Chat, es. 'https://chat.example.com'.",
-  "help.rocketchat.user_id": "User ID bot da Rocket.Chat (Profile \u003e Personal Access Tokens).",
+  "help.rocketchat.user_id": "User ID bot da Rocket.Chat (Profile > Personal Access Tokens).",
   "help.sandbox.auto_install": "Installa automaticamente il pacchetto Python llm-sandbox (con extra MCP) all'avvio. Installa 'llm-sandbox[mcp-docker]' o 'llm-sandbox[mcp-podman]' a seconda del backend. Richiede un ambiente Python/pip funzionante.",
   "help.sandbox.backend": "Backend container: 'docker' (default) o 'podman'. Docker deve essere installato e raggiungibile.",
   "help.sandbox.docker_host": "Indirizzo host Docker (es. 'unix:///var/run/docker.sock' o 'tcp://localhost:2375'). Vuoto = auto-rilevamento o ereditato da docker.host.",
@@ -177,7 +176,7 @@
   "help.server.bridge_address": "Indirizzo TCP per la connessione Lifeboat bridge (host:port). Default: 'localhost:8089'.",
   "help.server.host": "Indirizzo IP su cui il server ascolta. '127.0.0.1' = solo locale, '0.0.0.0' = tutte le interfacce.",
   "help.server.max_body_bytes": "Dimensione massima body HTTP in byte (endpoint config). Default: 10485760 (10 MB).",
-    "help.server.https.enabled": "Enables HTTPS via Let's Encrypt. AuraGo will automatically obtain and renew a certificate for your domain. HTTP (port 80) from external sources is redirected to HTTPS. Localhost remains accessible via HTTP.",
+  "help.server.https.enabled": "Enables HTTPS via Let's Encrypt. AuraGo will automatically obtain and renew a certificate for your domain. HTTP (port 80) from external sources is redirected to HTTPS. Localhost remains accessible via HTTP.",
   "help.server.https.domain": "Public domain name (e.g. aurago.mydomain.com). Both port 80 and 443 must be forwarded to AuraGo for Let's Encrypt to work.",
   "help.server.https.email": "Contact email for Let's Encrypt. Used for certificate expiry warnings. Not publicly displayed.",
   "help.server.port": "Porta per il server web e l'API REST.",
@@ -233,5 +232,6 @@
   "help.whisper.base_url": "URL base per il provider Whisper.",
   "help.whisper.mode": "Modalità Whisper: 'whisper' (API OpenAI standard), 'multimodal' (Gemini/multimodal LLM) o 'local' (server locale).",
   "help.whisper.model": "Nome modello per Whisper, es. 'whisper-1'.",
-  "help.whisper.provider": "Seleziona un provider dalla gestione provider per speech-to-text."
+  "help.whisper.provider": "Seleziona un provider dalla gestione provider per speech-to-text.",
+  "help.github.token": "Token di accesso personale (PAT) per l'API GitHub. Creane uno su https://github.com/settings/tokens con gli ambiti richiesti (repo, problemi, ecc.). Conservato crittografato nel caveau."
 }

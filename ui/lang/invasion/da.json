@@ -87,5 +87,8 @@
   "invasion.will_delete_egg": "wordt permanent verwijderd. De bijbehorende API key wordt uit de vault verwijderd.",
   "invasion.will_delete_nest": "wordt permanent verwijderd. De bijbehorende secret wordt uit de vault verwijderd.",
   "invasion.ws_connected": "Forbundet",
-  "invasion.ws_disconnected": "Afbrudt"
+  "invasion.ws_disconnected": "Afbrudt",
+  "invasion.telemetry_cpu": "CPU",
+  "invasion.telemetry_mem": "RAM",
+  "invasion.telemetry_uptime": "Oppetid"
 }

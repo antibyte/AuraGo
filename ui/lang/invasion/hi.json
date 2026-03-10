@@ -87,5 +87,8 @@
   "invasion.will_delete_egg": "wordt permanent verwijderd. De bijbehorende API key wordt uit de vault verwijderd.",
   "invasion.will_delete_nest": "wordt permanent verwijderd. De bijbehorende secret wordt uit de vault verwijderd.",
   "invasion.ws_connected": "जुड़ा हुआ",
-  "invasion.ws_disconnected": "डिस्कनेक्ट हो गया"
+  "invasion.ws_disconnected": "डिस्कनेक्ट हो गया",
+  "invasion.telemetry_cpu": "सीपीयू",
+  "invasion.telemetry_mem": "राम",
+  "invasion.telemetry_uptime": "अपटाइम"
 }

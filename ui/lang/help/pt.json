@@ -7,7 +7,7 @@
   "help.agent.allow_remote_shell": "Quando desabilitado, bloqueia execute_remote_shell.",
   "help.agent.allow_self_update": "Quando desabilitado, o agente não pode executar manage_updates.",
   "help.agent.allow_shell": "Quando desabilitado, o agente bloqueia todas as chamadas execute_shell.",
-  "help.agent.allow_web_scraper": "Verouderd — gebruik tools.web_scraper.enabled in de sectie \"Tools \u0026 Services\" in plaats hiervan.",
+  "help.agent.allow_web_scraper": "Verouderd — gebruik tools.web_scraper.enabled in de sectie \"Tools & Services\" in plaats hiervan.",
   "help.agent.context_window": "Tamanho da janela de contexto em tokens. 0 = auto-detectar.",
   "help.agent.core_memory_cap_mode": "Gedrag wanneer de limiet is bereikt: \"soft\" voegt de invoer toe en retourneert een waarschuwing, \"hard\" weigert nieuwe invoer. Standaard: soft.",
   "help.agent.core_memory_max_entries": "Maximaal aantal kerngeheugeninvoeren. 0 = onbeperkt. Standaard: 200.",
@@ -50,7 +50,6 @@
   "help.budget.reset_hour": "Hour of the day (0-23) when the daily budget resets.",
   "help.budget.warning_threshold": "Prahova hodnota pro budget.",
   "help.chromecast.enabled": "Habilita integração Chromecast.",
-  "help.chromecast.read_only": "Pouze pro cteni pro chromecast.",
   "help.chromecast.tts_port": "Port pro chromecast.",
   "help.circuit_breaker.llm_timeout_seconds": "Casovy limit pro circuit_breaker.",
   "help.circuit_breaker.maintenance_timeout_minutes": "Casovy limit pro circuit_breaker.",
@@ -177,7 +176,7 @@
   "help.server.bridge_address": "Endereço TCP para conexão Lifeboat.",
   "help.server.host": "Endereço IP do servidor. \"127.0.0.1\" = apenas local.",
   "help.server.max_body_bytes": "Tamanho máximo do corpo HTTP em bytes.",
-    "help.server.https.enabled": "Enables HTTPS via Let's Encrypt. AuraGo will automatically obtain and renew a certificate for your domain. HTTP (port 80) from external sources is redirected to HTTPS. Localhost remains accessible via HTTP.",
+  "help.server.https.enabled": "Enables HTTPS via Let's Encrypt. AuraGo will automatically obtain and renew a certificate for your domain. HTTP (port 80) from external sources is redirected to HTTPS. Localhost remains accessible via HTTP.",
   "help.server.https.domain": "Public domain name (e.g. aurago.mydomain.com). Both port 80 and 443 must be forwarded to AuraGo for Let's Encrypt to work.",
   "help.server.https.email": "Contact email for Let's Encrypt. Used for certificate expiry warnings. Not publicly displayed.",
   "help.server.port": "Porta para servidor web e API REST.",
@@ -233,5 +232,6 @@
   "help.whisper.base_url": "URL pro whisper.",
   "help.whisper.mode": "Mod pro whisper.",
   "help.whisper.model": "Model pro whisper.",
-  "help.whisper.provider": "Poskytovatel pro whisper."
+  "help.whisper.provider": "Poskytovatel pro whisper.",
+  "help.github.token": "Token de acesso pessoal (PAT) para a API GitHub. Crie um em https://github.com/settings/tokens com os escopos necessários (repo, problemas, etc.). Armazenado criptografado no cofre."
 }

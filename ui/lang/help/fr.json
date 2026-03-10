@@ -50,7 +50,6 @@
   "help.budget.reset_hour": "Heure de la journée (0-23) à laquelle le budget quotidien est réinitialisé.",
   "help.budget.warning_threshold": "Pourcentage (0,0 à 1,0) auquel un avertissement est déclenché.",
   "help.chromecast.enabled": "Permet l'intégration de Chromecast pour la sortie audio.",
-  "help.chromecast.read_only": "Lorsqu'il est activé, l'agent peut uniquement découvrir les appareils Chromecast et vérifier leur état, mais ne peut pas les lire, les parler ou les contrôler.",
   "help.chromecast.tts_port": "Port local permettant au serveur de fichiers TTS de diffuser sur Chromecast.",
   "help.circuit_breaker.llm_timeout_seconds": "Délai d'expiration des requêtes LLM en secondes.",
   "help.circuit_breaker.maintenance_timeout_minutes": "Durée en minutes sans activité de l'utilisateur avant que l'agent ne quitte automatiquement le mode maintenance.",
@@ -164,7 +163,7 @@
   "help.rocketchat.channel": "Chaîne par défaut sur laquelle écouter, par ex. 'général'.",
   "help.rocketchat.enabled": "Active l’intégration du bot Rocket.Chat.",
   "help.rocketchat.url": "URL de l'instance Rocket.Chat, par ex. 'https://chat.exemple.com'.",
-  "help.rocketchat.user_id": "ID utilisateur du bot de Rocket.Chat (Profil \u003e Jetons d’accès personnels).",
+  "help.rocketchat.user_id": "ID utilisateur du bot de Rocket.Chat (Profil > Jetons d’accès personnels).",
   "help.sandbox.auto_install": "Installez automatiquement le package Python llm-sandbox (avec les extras MCP) au démarrage. Installe 'llm-sandbox[mcp-docker]' ou 'llm-sandbox[mcp-podman]' en fonction du backend. Nécessite un environnement Python/pip fonctionnel.",
   "help.sandbox.backend": "Backend du conteneur : 'docker' (par défaut) ou 'podman'. Docker doit être installé et accessible.",
   "help.sandbox.docker_host": "Adresse de l'hôte Docker (par exemple 'unix:///var/run/docker.sock' ou 'tcp://localhost:2375'). Vide = détection automatique ou héritage de docker.host.",
@@ -177,7 +176,7 @@
   "help.server.bridge_address": "Adresse TCP pour la connexion du pont Lifeboat (hôte:port). Par défaut : 'localhost:8089'.",
   "help.server.host": "Adresse IP sur laquelle le serveur écoute. '127.0.0.1' = local uniquement, '0.0.0.0' = toutes les interfaces.",
   "help.server.max_body_bytes": "Taille maximale du corps de la requête HTTP en octets (point de terminaison de configuration). Par défaut : 10485760 (10 Mo).",
-    "help.server.https.enabled": "Enables HTTPS via Let's Encrypt. AuraGo will automatically obtain and renew a certificate for your domain. HTTP (port 80) from external sources is redirected to HTTPS. Localhost remains accessible via HTTP.",
+  "help.server.https.enabled": "Enables HTTPS via Let's Encrypt. AuraGo will automatically obtain and renew a certificate for your domain. HTTP (port 80) from external sources is redirected to HTTPS. Localhost remains accessible via HTTP.",
   "help.server.https.domain": "Public domain name (e.g. aurago.mydomain.com). Both port 80 and 443 must be forwarded to AuraGo for Let's Encrypt to work.",
   "help.server.https.email": "Contact email for Let's Encrypt. Used for certificate expiry warnings. Not publicly displayed.",
   "help.server.port": "Port pour le serveur web et l'API REST.",
@@ -233,5 +232,6 @@
   "help.whisper.base_url": "URL de base du fournisseur Whisper.",
   "help.whisper.mode": "Mode Whisper : « Whisper » (API OpenAI standard), « multimodal » (Gemini/multimodal LLM) ou « local » (serveur local).",
   "help.whisper.model": "Nom du modèle pour Whisper, par ex. 'chuchotement-1'.",
-  "help.whisper.provider": "Sélectionnez un fournisseur dans la gestion des fournisseurs pour la synthèse vocale."
+  "help.whisper.provider": "Sélectionnez un fournisseur dans la gestion des fournisseurs pour la synthèse vocale.",
+  "help.github.token": "Jeton d'accès personnel (PAT) pour l'API GitHub. Créez-en un sur https://github.com/settings/tokens avec les étendues requises (dépôt, problèmes, etc.). Stocké crypté dans le coffre-fort."
 }

@@ -193,5 +193,11 @@
   "missions.trigger_webhook_hint": "Selecione um webhook configurado",
   "missions.trigger_webhook_label": "Webhook",
   "missions.trigger_webhook_loading": "Carregando webhooks...",
-  "missions.trigger_webhook_none": "Nenhum webhook disponível"
+  "missions.trigger_webhook_none": "Nenhum webhook disponível",
+  "missions.card_btn_duplicate_title": "Missão duplicada",
+  "missions.card_no_output": "Nenhuma saída gerada ainda.",
+  "missions.card_view_log": "Ver registro",
+  "missions.trigger_system_startup": "🟢 Inicialização do Sistema",
+  "missions.trigger_system_startup_badge": "🟢 Na inicialização do sistema",
+  "missions.trigger_system_startup_hint": "Executa esta missão automaticamente quando o AuraGo é iniciado."
 }

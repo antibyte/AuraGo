@@ -1,0 +1,16 @@
+{
+  "config.tokens.new_token": "新しいトークン",
+  "config.tokens.empty": "まだトークンは作成されていません。",
+  "config.tokens.expires": "有効期限が切れます",
+  "config.tokens.never": "一度もない",
+  "config.tokens.last_used": "最後に使用した",
+  "config.tokens.name_prompt": "トークン名:",
+  "config.tokens.created_notice": "トークンが作成されました!今すぐコピー – 1 回のみ表示されます。",
+  "config.tokens.activated": "トークンが有効化されました",
+  "config.tokens.deactivated": "トークンが非アクティブ化されました",
+  "config.tokens.delete_confirm": "トークンを削除します:",
+  "config.tokens.deleted": "トークンが削除されました",
+  "config.tokens.scopes_label": "範囲:",
+  "config.tokens.toggle_disable": "無効にする",
+  "config.tokens.toggle_enable": "有効にする"
+}

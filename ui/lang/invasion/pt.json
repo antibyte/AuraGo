@@ -87,5 +87,8 @@
   "invasion.will_delete_egg": "será excluído permanentemente. A chave de API associada será removida do vault.",
   "invasion.will_delete_nest": "será excluído permanentemente. O segredo associado será removido do vault.",
   "invasion.ws_connected": "Conectado",
-  "invasion.ws_disconnected": "Desconectado"
+  "invasion.ws_disconnected": "Desconectado",
+  "invasion.telemetry_cpu": "CPU",
+  "invasion.telemetry_mem": "RAM",
+  "invasion.telemetry_uptime": "Tempo de atividade"
 }

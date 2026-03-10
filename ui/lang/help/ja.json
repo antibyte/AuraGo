@@ -50,7 +50,6 @@
   "help.budget.reset_hour": "1 日の予算がリセットされる時刻 (0 ～ 23)。",
   "help.budget.warning_threshold": "警告がトリガーされる割合 (0.0 ～ 1.0)。",
   "help.chromecast.enabled": "オーディオ出力用の Chromecast 統合を有効にします。",
-  "help.chromecast.read_only": "有効にすると、エージェントは Chromecast デバイスを検出してステータスを確認することのみができますが、再生したり、話したり、制御したりすることはできません。",
   "help.chromecast.tts_port": "Chromecast にストリーミングするための TTS ファイル サーバーのローカル ポート。",
   "help.circuit_breaker.llm_timeout_seconds": "LLM リクエストのタイムアウト (秒単位)。",
   "help.circuit_breaker.maintenance_timeout_minutes": "エージェントがメンテナンス モードから自動的に戻るまでの、ユーザー アクティビティがない時間 (分単位)。",
@@ -164,7 +163,7 @@
   "help.rocketchat.channel": "リッスンするデフォルトのチャンネル、例: '一般的な'。",
   "help.rocketchat.enabled": "Rocket.Chat ボットの統合を有効にします。",
   "help.rocketchat.url": "Rocket.Chat インスタンスの URL (例: 「https://chat.example.com」。",
-  "help.rocketchat.user_id": "Rocket.Chat のボット ユーザー ID ([プロファイル] \u003e [パーソナル アクセス トークン])。",
+  "help.rocketchat.user_id": "Rocket.Chat のボット ユーザー ID ([プロファイル] > [パーソナル アクセス トークン])。",
   "help.sandbox.auto_install": "起動時に llm-sandbox Python パッケージ (MCP エクストラを含む) を自動的にインストールします。バックエンドに応じて、「llm-sandbox[mcp-docker]」または「llm-sandbox[mcp-podman]」をインストールします。動作する Python/pip 環境が必要です。",
   "help.sandbox.backend": "コンテナー バックエンド: 'docker' (デフォルト) または 'podman'。 Docker がインストールされ、アクセス可能である必要があります。",
   "help.sandbox.docker_host": "Docker ホスト アドレス (例: 「unix:///var/run/docker.sock」または「tcp://localhost:2375」)。空 = 自動検出または docker.host から継承します。",
@@ -177,7 +176,7 @@
   "help.server.bridge_address": "Lifeboat ブリッジ接続の TCP アドレス (ホスト:ポート)。デフォルト: 「ローカルホスト:8089」。",
   "help.server.host": "サーバーがリッスンする IP アドレス。 「127.0.0.1」 = ローカルのみ、「0.0.0.0」 = すべてのインターフェイス。",
   "help.server.max_body_bytes": "HTTP リクエスト本文の最大サイズ (バイト単位) (構成エンドポイント)。デフォルト: 10485760 (10 MB)。",
-    "help.server.https.enabled": "Enables HTTPS via Let's Encrypt. AuraGo will automatically obtain and renew a certificate for your domain. HTTP (port 80) from external sources is redirected to HTTPS. Localhost remains accessible via HTTP.",
+  "help.server.https.enabled": "Enables HTTPS via Let's Encrypt. AuraGo will automatically obtain and renew a certificate for your domain. HTTP (port 80) from external sources is redirected to HTTPS. Localhost remains accessible via HTTP.",
   "help.server.https.domain": "Public domain name (e.g. aurago.mydomain.com). Both port 80 and 443 must be forwarded to AuraGo for Let's Encrypt to work.",
   "help.server.https.email": "Contact email for Let's Encrypt. Used for certificate expiry warnings. Not publicly displayed.",
   "help.server.port": "Web サーバーと REST API のポート。",
@@ -233,5 +232,6 @@
   "help.whisper.base_url": "Whisper プロバイダーのベース URL。",
   "help.whisper.mode": "ウィスパー モード: 「ウィスパー」 (標準 OpenAI API)、「マルチモーダル」 (Gemini/マルチモーダル LLM)、または「ローカル」 (ローカル サーバー)。",
   "help.whisper.model": "Whisper のモデル名、例: 「ささやき-1」。",
-  "help.whisper.provider": "Speech-to-Text のプロバイダー管理からプロバイダーを選択します。"
+  "help.whisper.provider": "Speech-to-Text のプロバイダー管理からプロバイダーを選択します。",
+  "help.github.token": "GitHub API のパーソナル アクセス トークン (PAT)。 https://github.com/settings/tokens で必要なスコープ (リポジトリ、問題など) を指定して作成します。暗号化されて金庫に保管されます。"
 }
