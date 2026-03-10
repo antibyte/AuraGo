@@ -124,7 +124,12 @@ func (s *Server) deployEgg(nest invasion.NestRecord, egg invasion.EggRecord) err
 	installDir := filepath.Dir(exePath)
 	resourcesPath := filepath.Join(installDir, "resources.dat")
 	if _, err := os.Stat(resourcesPath); os.IsNotExist(err) {
-		resourcesPath = "" // no resources to transfer
+		altResourcesPath := filepath.Join(installDir, "deploy", "resources.dat")
+		if _, err := os.Stat(altResourcesPath); err == nil {
+			resourcesPath = altResourcesPath
+		} else {
+			resourcesPath = "" // no resources to transfer
+		}
 	}
 
 	// 7. Get nest secret from vault
@@ -174,7 +179,7 @@ func resolveBinaryPath(targetArch string) (string, error) {
 	// Map target architectures to binary names
 	binaryMap := map[string][]string{
 		"linux/amd64": {"deploy/aurago_linux", "bin/aurago_linux"},
-		"linux/arm64": {"deploy/aurago_linux_arm64"},
+		"linux/arm64": {"deploy/aurago_linux_arm64", "bin/aurago_linux_arm64"},
 	}
 
 	candidates, ok := binaryMap[targetArch]
