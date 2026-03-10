@@ -216,6 +216,7 @@ type ToolCall struct {
 	Port               int                    `json:"port"`
 	Username           string                 `json:"username"`
 	Password           string                 `json:"password"`
+	Owner              string                 `json:"owner"`
 	PrivateKeyPath     string                 `json:"private_key_path"`
 	Tags               string                 `json:"tags"`
 	Direction          string                 `json:"direction"`
@@ -4145,7 +4146,7 @@ func dispatchInner(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 			BaseURL:        cfg.GitHub.BaseURL,
 			DefaultPrivate: cfg.GitHub.DefaultPrivate,
 		}
-		owner := tc.Value // owner override — reuse Value field
+		owner := tc.Owner
 		if owner == "" {
 			owner = cfg.GitHub.Owner
 		}
