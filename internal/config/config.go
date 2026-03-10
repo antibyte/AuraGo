@@ -72,6 +72,11 @@ type Config struct {
 		MaxBodyBytes  int64  `yaml:"max_body_bytes"`
 		UILanguage    string `yaml:"ui_language"`
 		MasterKey     string `yaml:"-"` // ENV-only (AURAGO_MASTER_KEY)
+		HTTPS         struct {
+			Enabled bool   `yaml:"enabled"`
+			Domain  string `yaml:"domain"`
+			Email   string `yaml:"email"`
+		} `yaml:"https"`
 	} `yaml:"server"`
 	LLM struct {
 		Provider           string  `yaml:"provider"`          // provider entry ID (references Providers[].ID)

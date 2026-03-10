@@ -12,6 +12,21 @@
     "bridge_address": {
       "title": "Bridge Address",
       "description": "Internal TCP address for Lifeboat communication (hot-swapping updates). Default: localhost:8089"
+    },
+    "https": {
+      "enabled": {
+        "title": "Enable HTTPS",
+        "description": "Enables HTTPS via Let's Encrypt (auto-renewal). Also redirects external HTTP traffic to HTTPS."
+      },
+      "domain": {
+        "title": "Domain Name",
+        "description": "A public resolving domain (e.g. aurago.mydomain.com). Port 80 and 443 must be forwarded to AuraGo.",
+        "warning": "⚠️ Let's Encrypt will fail if Port 80 is not reachable from the internet."
+      },
+      "email": {
+        "title": "Admin Email",
+        "description": "Required by Let's Encrypt for important expiry notifications."
+      }
     }
   },
   "llm": {
