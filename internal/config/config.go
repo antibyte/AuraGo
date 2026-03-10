@@ -359,10 +359,11 @@ type Config struct {
 		Lang    string `yaml:"lang"`              // default search language (e.g. "de", "en"; empty = API default)
 	} `yaml:"brave_search"`
 	Webhooks struct {
-		Enabled        bool `yaml:"enabled"`
-		ReadOnly       bool `yaml:"readonly"`         // true = only list/get/logs, block create/update/delete
-		MaxPayloadSize int  `yaml:"max_payload_size"` // max body bytes per request (default 65536)
-		RateLimit      int  `yaml:"rate_limit"`       // max requests per minute per token (0 = unlimited)
+		Enabled        bool              `yaml:"enabled"`
+		ReadOnly       bool              `yaml:"readonly"`         // true = only list/get/logs, block create/update/delete
+		MaxPayloadSize int               `yaml:"max_payload_size"` // max body bytes per request (default 65536)
+		RateLimit      int               `yaml:"rate_limit"`       // max requests per minute per token (0 = unlimited)
+		Outgoing       []OutgoingWebhook `yaml:"outgoing"`         // configured outgoing webhooks for the agent
 	} `yaml:"webhooks"`
 	Proxmox struct {
 		Enabled  bool   `yaml:"enabled"`
