@@ -525,29 +525,33 @@ func HomepageWebServerStart(cfg HomepageConfig, projectDir, buildDir string, log
 	}
 
 	// Create Caddy container
-	payload := map[string]interface{}{
-		"Image": homepageWebImage,
-		"ExposedPorts": map[string]interface{}{
-			fmt.Sprintf("%d/tcp", port): map[string]interface{}{},
+	portKey := fmt.Sprintf("%d/tcp", port)
+	exposedPorts := map[string]interface{}{
+		portKey: map[string]interface{}{},
+	}
+	portBindings := map[string]interface{}{
+		portKey: []map[string]interface{}{
+			{"HostPort": fmt.Sprintf("%d", port)},
 		},
+	}
+	if cfg.WebServerDomain != "" {
+		// With a domain Caddy handles HTTP→HTTPS redirects and TLS; expose 80 + 443.
+		exposedPorts["80/tcp"] = map[string]interface{}{}
+		exposedPorts["443/tcp"] = map[string]interface{}{}
+		portBindings["80/tcp"] = []map[string]interface{}{{"HostPort": "80"}}
+		portBindings["443/tcp"] = []map[string]interface{}{{"HostPort": "443"}}
+	}
+	payload := map[string]interface{}{
+		"Image":        homepageWebImage,
+		"ExposedPorts": exposedPorts,
 		"HostConfig": map[string]interface{}{
 			"Binds": []string{
 				hostBuildPath + ":/srv",
 				caddyfilePath + ":/etc/caddy/Caddyfile",
 			},
-			"PortBindings": map[string]interface{}{
-				"80/tcp": []map[string]interface{}{
-					{"HostPort": fmt.Sprintf("%d", port)},
-				},
-			},
+			"PortBindings": portBindings,
 			"RestartPolicy": map[string]string{"Name": "unless-stopped"},
 		},
-	}
-	if cfg.WebServerDomain != "" {
-		// If domain is set, also bind 443
-		payload["HostConfig"].(map[string]interface{})["PortBindings"].(map[string]interface{})["443/tcp"] = []map[string]interface{}{
-			{"HostPort": "443"},
-		}
 	}
 
 	body, _ := json.Marshal(payload)
