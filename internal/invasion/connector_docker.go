@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"runtime"
 	"strings"
 	"time"
 )
@@ -172,6 +173,9 @@ func (c *DockerConnector) httpClient(nest NestRecord) *http.Client {
 			Timeout: 30 * time.Second,
 			Transport: &http.Transport{
 				DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+					if runtime.GOOS == "windows" {
+						return net.Dial("tcp", "localhost:2375")
+					}
 					return net.Dial("unix", "/var/run/docker.sock")
 				},
 			},
