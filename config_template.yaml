@@ -29,7 +29,7 @@ agent:
     show_tool_results: false
     step_delay_seconds: 0
     system_language: English
-    system_prompt_token_budget: 8192
+    system_prompt_token_budget: 12288
     workflow_feedback: true
     sudo_enabled: false
     # ── Danger Zone ── disabled by default for fresh installs

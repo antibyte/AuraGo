@@ -449,7 +449,12 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			flusher.Flush()
 
 		} else {
-			resp, err := agent.ExecuteAgentLoop(r.Context(), req, runCfg, false, sse)
+			// Use a detached context for sync requests so a client disconnect
+			// does not abort an in-progress tool chain (e.g. mid-execution after
+			// the agent already started hatching an egg or running a command).
+			syncCtx, syncCancel := context.WithTimeout(context.Background(), 10*time.Minute)
+			defer syncCancel()
+			resp, err := agent.ExecuteAgentLoop(syncCtx, req, runCfg, false, sse)
 			if err != nil {
 				s.Logger.Error("Sync agent loop failed", "error", err)
 				// Return a user-visible error as a proper OpenAI response instead of HTTP 500

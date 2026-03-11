@@ -24,7 +24,7 @@ agent:
     show_tool_results: false
     step_delay_seconds: 0
     system_language: Deutsch
-    system_prompt_token_budget: 8192
+    system_prompt_token_budget: 12288
     workflow_feedback: true
     # Tool permissions (Danger Zone)
     sudo_enabled: false

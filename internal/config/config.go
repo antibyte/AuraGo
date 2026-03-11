@@ -255,9 +255,9 @@ type Config struct {
 	} `yaml:"email"` // legacy single-account; migrated to EmailAccounts at startup
 	HomeAssistant struct {
 		Enabled     bool   `yaml:"enabled"`
-		ReadOnly    bool   `yaml:"readonly"`                     // true = only read states, block call_service
+		ReadOnly    bool   `yaml:"readonly"` // true = only read states, block call_service
 		URL         string `yaml:"url"`
-		AccessToken string `yaml:"-" vault:"access_token"`      // vault-only
+		AccessToken string `yaml:"-" vault:"access_token"` // vault-only
 	} `yaml:"home_assistant"`
 	MeshCentral struct {
 		Enabled           bool     `yaml:"enabled"`
@@ -329,20 +329,20 @@ type Config struct {
 		TTSPort int  `yaml:"tts_port"`
 	} `yaml:"chromecast"`
 	Homepage struct {
-		Enabled                   bool    `yaml:"enabled"`
-		AllowDeploy               bool    `yaml:"allow_deploy"`
-		AllowContainerManagement  bool    `yaml:"allow_container_management"`
-		DeployHost                string  `yaml:"deploy_host"`
-		DeployPort                int     `yaml:"deploy_port"`
-		DeployUser                string  `yaml:"deploy_user"`
-		DeployPassword            string  `yaml:"-"` // vault-only
-		DeployKey                 string  `yaml:"-"` // vault-only (SSH private key)
-		DeployPath                string  `yaml:"deploy_path"`
-		DeployMethod              string  `yaml:"deploy_method"` // "sftp" or "scp"
-		WebServerEnabled          bool    `yaml:"webserver_enabled"`
-		WebServerPort             int     `yaml:"webserver_port"`
-		WebServerDomain           string  `yaml:"webserver_domain"`
-		WorkspacePath             string  `yaml:"workspace_path"`
+		Enabled                  bool   `yaml:"enabled"`
+		AllowDeploy              bool   `yaml:"allow_deploy"`
+		AllowContainerManagement bool   `yaml:"allow_container_management"`
+		DeployHost               string `yaml:"deploy_host"`
+		DeployPort               int    `yaml:"deploy_port"`
+		DeployUser               string `yaml:"deploy_user"`
+		DeployPassword           string `yaml:"-"` // vault-only
+		DeployKey                string `yaml:"-"` // vault-only (SSH private key)
+		DeployPath               string `yaml:"deploy_path"`
+		DeployMethod             string `yaml:"deploy_method"` // "sftp" or "scp"
+		WebServerEnabled         bool   `yaml:"webserver_enabled"`
+		WebServerPort            int    `yaml:"webserver_port"`
+		WebServerDomain          string `yaml:"webserver_domain"`
+		WorkspacePath            string `yaml:"workspace_path"`
 		// CircuitBreakerMultiplier erhöht das Tool-Call-Limit für Homepage-Operationen
 		// z.B. 2.0 = doppeltes Limit (Standard: 2.0, max: 5.0)
 		CircuitBreakerMultiplier float64 `yaml:"circuit_breaker_multiplier"`
@@ -1230,7 +1230,7 @@ func Load(path string) (*Config, error) {
 		cfg.Agent.PersonalityEngine = true
 	}
 	if cfg.Agent.SystemPromptTokenBudget <= 0 {
-		cfg.Agent.SystemPromptTokenBudget = 8192
+		cfg.Agent.SystemPromptTokenBudget = 12288
 	}
 	// LLM defaults
 	if cfg.LLM.Temperature == 0 {
