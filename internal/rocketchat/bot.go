@@ -73,6 +73,7 @@ func rcRequest(cfg *config.Config, method, endpoint string, body string) ([]byte
 
 // SendMessage sends a text message to a Rocket.Chat channel.
 func SendMessage(cfg *config.Config, channel, text string) error {
+	text = security.Scrub(text)
 	if channel == "" {
 		channel = cfg.RocketChat.Channel
 	}

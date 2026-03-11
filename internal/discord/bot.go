@@ -101,6 +101,7 @@ func GetSession() *discordgo.Session {
 
 // SendMessage sends a message to a Discord channel. Used by the agent's send_discord tool.
 func SendMessage(channelID, content string, logger *slog.Logger) error {
+	content = security.Scrub(content)
 	s := GetSession()
 	if s == nil {
 		return fmt.Errorf("discord bot is not connected")

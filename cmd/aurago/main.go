@@ -328,6 +328,8 @@ func main() {
 		appLog.Error("CRITICAL: AURAGO_MASTER_KEY environment variable is missing or not exactly 64 hex characters (32 bytes). Refusing to start.")
 		os.Exit(1)
 	}
+	// Ensure the master key is never leaked through any outgoing communication channel.
+	security.RegisterSensitive(masterKey)
 
 	vaultPath := filepath.Join(cfg.Directories.DataDir, "vault.bin")
 	vault, err := security.NewVault(masterKey, vaultPath)

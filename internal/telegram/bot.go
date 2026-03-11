@@ -416,6 +416,7 @@ func processUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Con
 }
 
 func sendTelegramMessage(bot *tgbotapi.BotAPI, chatID int64, text string) error {
+	text = security.Scrub(text)
 	msg := tgbotapi.NewMessage(chatID, text)
 	_, err := bot.Send(msg)
 	return err

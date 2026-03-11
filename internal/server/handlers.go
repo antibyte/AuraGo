@@ -17,6 +17,7 @@ import (
 	"aurago/internal/llm"
 	"aurago/internal/memory"
 	"aurago/internal/prompts"
+	"aurago/internal/security"
 	"aurago/internal/tools"
 	promptsembed "aurago/prompts"
 
@@ -478,6 +479,10 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 					}},
 				})
 				return
+			}
+			// Scrub any sensitive values from the response content before sending.
+			for i := range resp.Choices {
+				resp.Choices[i].Message.Content = security.Scrub(resp.Choices[i].Message.Content)
 			}
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(resp)

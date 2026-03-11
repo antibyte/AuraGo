@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
+
+	"aurago/internal/security"
 )
 
 // SSEBroadcaster manages Server-Sent Events connections and broadcasts messages.
@@ -22,6 +24,7 @@ func NewSSEBroadcaster() *SSEBroadcaster {
 
 // Send broadcasts a JSON event string to all connected SSE clients (non-blocking).
 func (b *SSEBroadcaster) Send(event, detail string) {
+	detail = security.Scrub(detail)
 	payload, _ := json.Marshal(struct {
 		Event  string `json:"event"`
 		Detail string `json:"detail"`
@@ -40,6 +43,7 @@ func (b *SSEBroadcaster) Send(event, detail string) {
 
 // SendJSON broadcasts a raw JSON string to all connected SSE clients (non-blocking).
 func (b *SSEBroadcaster) SendJSON(jsonMsg string) {
+	jsonMsg = security.Scrub(jsonMsg)
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	for ch := range b.clients {
