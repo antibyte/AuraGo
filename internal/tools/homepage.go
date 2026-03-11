@@ -1,12 +1,16 @@
 package tools
 
 import (
+	"archive/tar"
+	"bufio"
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -606,21 +610,61 @@ func HomepagePublishToLocal(cfg HomepageConfig, projectDir string, logger *slog.
 // ─── Internal Helpers ─────────────────────────────────────────────────────
 
 func homepageBuildImage(dockerCfg DockerConfig) string {
-	// Write Dockerfile to a temp directory, create tar, and POST /build
-	tmpDir, err := os.MkdirTemp("", "aurago-homepage-build-")
+	// Build the image via the Docker Engine HTTP API.
+	// POST /build with a tar archive containing the Dockerfile — no docker CLI needed.
+	var buf bytes.Buffer
+	tw := tar.NewWriter(&buf)
+	contents := []byte(homepageDockerfile)
+	if err := tw.WriteHeader(&tar.Header{
+		Name: "Dockerfile",
+		Mode: 0644,
+		Size: int64(len(contents)),
+	}); err != nil {
+		return errJSON("Failed to write tar header: %v", err)
+	}
+	if _, err := tw.Write(contents); err != nil {
+		return errJSON("Failed to write Dockerfile to tar: %v", err)
+	}
+	_ = tw.Close()
+
+	client := getDockerClient(dockerCfg)
+	reqURL := "http://localhost/v1.45/build?t=" + homepageImageName
+	req, err := http.NewRequestWithContext(
+		context.Background(), http.MethodPost, reqURL, &buf)
 	if err != nil {
-		return errJSON("Failed to create temp dir: %v", err)
+		return errJSON("Failed to create build request: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	req.Header.Set("Content-Type", "application/x-tar")
 
-	dockerfilePath := filepath.Join(tmpDir, "Dockerfile")
-	if err := os.WriteFile(dockerfilePath, []byte(homepageDockerfile), 0644); err != nil {
-		return errJSON("Failed to write Dockerfile: %v", err)
+	// Build can take several minutes (pulling base image + npm install)
+	buildClient := &http.Client{Transport: client.Transport, Timeout: 15 * time.Minute}
+	resp, err := buildClient.Do(req)
+	if err != nil {
+		return errJSON("Image build request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// Docker streams JSON progress lines; drain and check final line for errors.
+	var lastLine string
+	scanner := bufio.NewScanner(resp.Body)
+	for scanner.Scan() {
+		if line := strings.TrimSpace(scanner.Text()); line != "" {
+			lastLine = line
+		}
 	}
 
-	// Use docker CLI to build (more reliable for context handling)
-	args := []string{"build", "-t", homepageImageName, "-f", dockerfilePath, tmpDir}
-	return runDockerCLIHelper(dockerCfg, args...)
+	var streamErr struct {
+		Error string `json:"error"`
+	}
+	if json.Unmarshal([]byte(lastLine), &streamErr) == nil && streamErr.Error != "" {
+		return errJSON("Image build error: %s", streamErr.Error)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return errJSON("Image build failed with status %d", resp.StatusCode)
+	}
+
+	res, _ := json.Marshal(map[string]interface{}{"status": "ok", "output": "Image built successfully"})
+	return string(res)
 }
 
 func containerStatus(dockerCfg DockerConfig, name string) string {
