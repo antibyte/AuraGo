@@ -1183,7 +1183,7 @@ func Load(path string) (*Config, error) {
 		cfg.CircuitBreaker.MaxToolCalls = 10 // User specifically asked for 10
 	}
 	if cfg.CircuitBreaker.LLMTimeoutSeconds <= 0 {
-		cfg.CircuitBreaker.LLMTimeoutSeconds = 180 // 3 minutes
+		cfg.CircuitBreaker.LLMTimeoutSeconds = 600 // 10 minutes
 	}
 	if cfg.CircuitBreaker.MaintenanceTimeoutMinutes <= 0 {
 		cfg.CircuitBreaker.MaintenanceTimeoutMinutes = 10

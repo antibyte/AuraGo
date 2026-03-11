@@ -56,7 +56,7 @@ chromecast:
     enabled: true
     tts_port: 8090
 circuit_breaker:
-    llm_timeout_seconds: 180
+    llm_timeout_seconds: 600
     maintenance_timeout_minutes: 10
     max_tool_calls: 20
     retry_intervals:

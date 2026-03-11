@@ -89,7 +89,7 @@ func GenerateEggConfig(masterCfg *config.Config, egg EggRecord, nest NestRecord,
 	// ── Circuit Breaker ──
 	cfg["circuit_breaker"] = map[string]interface{}{
 		"max_tool_calls":      15,
-		"llm_timeout_seconds": 180,
+		"llm_timeout_seconds": 600,
 		"retry_intervals":     []string{"10s", "2m", "10m"},
 	}
 
