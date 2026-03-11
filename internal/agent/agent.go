@@ -498,6 +498,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		IsEgg:                    cfg.EggMode.Enabled,
 		AdditionalPrompt:         cfg.Agent.AdditionalPrompt,
 	}
+	logger.Debug("[Agent] Context flags initialised",
+		"token_budget", flags.TokenBudget,
+		"session_id", runCfg.SessionID,
+	)
 	toolCallCount := 0
 	rawCodeCount := 0
 	missedToolCount := 0

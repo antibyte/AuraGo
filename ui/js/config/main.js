@@ -657,7 +657,7 @@ async function saveConfig() {
             val = el.value === '' ? 0 : (el.step === '0.01' ? parseFloat(el.value) : parseInt(el.value));
         } else if (el.dataset.type === 'array') {
             // Check if this is an object array (budget.models) or string array
-            if (fullPath === 'budget.models' || el.value.trim().startsWith('[')) {
+            if (path === 'budget.models' || el.value.trim().startsWith('[')) {
                 // Object array - parse as JSON
                 try { val = JSON.parse(el.value); } catch (e) {
                     val = el.value.split(',').map(s => s.trim()).filter(Boolean);

@@ -151,7 +151,7 @@ func validateSessionValue(secret, value string) bool {
 func SetSessionCookie(w http.ResponseWriter, r *http.Request, secret string, timeout time.Duration) {
 	expiry := time.Now().Add(timeout)
 	value := createSessionValue(secret, expiry)
-	
+
 	cookie := &http.Cookie{
 		Name:     sessionCookieName,
 		Value:    value,
@@ -160,12 +160,12 @@ func SetSessionCookie(w http.ResponseWriter, r *http.Request, secret string, tim
 		HttpOnly: true,
 		SameSite: http.SameSiteStrictMode,
 	}
-	
+
 	// Set Secure flag if request is HTTPS (direct or via proxy)
 	if IsSecureRequest(r) {
 		cookie.Secure = true
 	}
-	
+
 	http.SetCookie(w, cookie)
 }
 
@@ -274,6 +274,8 @@ var authBypassPrefixes = []string{
 	"/api/ui-language",
 	"/setup",
 	"/shared.css",
+	"/shared.js",
+	"/css/login.css",
 }
 
 func isAuthBypassed(path string) bool {

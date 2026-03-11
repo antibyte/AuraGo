@@ -143,7 +143,7 @@ func detectContextWindowOpenRouter(baseURL, apiKey, model string, logger *slog.L
 
 // AutoConfigureBudget sets the system prompt token budget based on the detected context window.
 // Budget allocation: 20% system prompt, 50% history, 30% response.
-// Only overrides if current budget is the default (1200) and context window was detected.
+// Only overrides if current budget is the default (12288) and context window was detected.
 func AutoConfigureBudget(contextWindow, currentBudget int, logger *slog.Logger) (tokenBudget int, contextWindowOut int) {
 	if contextWindow <= 0 {
 		return currentBudget, 0
@@ -153,8 +153,8 @@ func AutoConfigureBudget(contextWindow, currentBudget int, logger *slog.Logger) 
 	if suggestedBudget < 500 {
 		suggestedBudget = 500 // Minimum viable budget
 	}
-	if suggestedBudget > 8000 {
-		suggestedBudget = 8000 // Cap — balances prompt richness vs. history/response space
+	if suggestedBudget > 32768 {
+		suggestedBudget = 32768 // Cap — prevents runaway prompt sizes on very large context models
 	}
 
 	logger.Info(fmt.Sprintf("[ContextDetect] Auto-configured: context_window=%d, system_budget=%d (was %d)",
