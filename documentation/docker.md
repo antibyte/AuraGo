@@ -184,16 +184,44 @@ docker:
 
 | Variable | Description |
 |---|---|
-| `AURAGO_MASTER_KEY` | Encryption key for the secrets vault. Set a stable value (`openssl rand -hex 32`) so secrets persist across rebuilds. |
+| `AURAGO_MASTER_KEY` | Encryption key for the secrets vault (64 hex characters = 32 bytes). |
 
-Set it in a `.env` file next to `docker-compose.yml`:
+### Recommended: Docker Compose Secrets (file-based)
+
+Docker Compose secrets keep the key out of environment variable listings and `docker inspect` output. The key is mounted read-only into `/run/secrets/aurago_master_key`.
 
 ```bash
-echo "AURAGO_MASTER_KEY=$(openssl rand -hex 32)" > .env
+# 1. Generate the key file on the host
+openssl rand -hex 32 > aurago_master.key
+chmod 600 aurago_master.key
+
+# 2. docker-compose.yml already references it — just start:
+docker compose up -d
 ```
 
-Or export it directly:
+The `docker-compose.yml` includes:
+```yaml
+secrets:
+  - aurago_master_key
 
+# ... and at the bottom:
+secrets:
+  aurago_master_key:
+    file: ./aurago_master.key
+```
+
+### Fallback: Auto-generated key
+
+If no secret file exists, the container auto-generates a key on first start and saves it to `data/.env` inside the Docker volume. This works but is less secure — the key lives inside the container volume rather than on the host.
+
+To extract it later:
+```bash
+docker compose exec aurago cat /app/data/.env
+```
+
+### Alternative: Plain environment variable
+
+You can also pass the key as a regular environment variable (visible in `docker inspect`):
 ```bash
 export AURAGO_MASTER_KEY="your-64-char-hex-key"
 docker compose up -d

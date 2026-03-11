@@ -62,7 +62,8 @@ func main() {
 	appLog := logger.Setup(debug)
 	slog.SetDefault(appLog)
 
-	// Load .env file manually if it exists (avoids extra dependencies)
+	// Load secrets: Docker secret → /etc/aurago/master.key → local .env
+	loadDockerSecret("/run/secrets/aurago_master_key", "AURAGO_MASTER_KEY", appLog)
 	loadDotEnv(filepath.Join(filepath.Dir(configFile), ".env"), appLog)
 
 	// ── Config-check mode: validate YAML and exit (used by Docker entrypoint) ─
@@ -541,6 +542,26 @@ func loadDotEnv(path string, log *slog.Logger) {
 			os.Setenv(key, val)
 		}
 	}
+}
+
+// loadDockerSecret reads a Docker secret file (mounted at /run/secrets/) and
+// sets the given environment variable if it is not already set. This allows
+// Docker Compose file-based secrets to inject credentials without .env files
+// or plaintext environment variables visible in `docker inspect`.
+func loadDockerSecret(path, envVar string, log *slog.Logger) {
+	if os.Getenv(envVar) != "" {
+		return // Already set via env — don't override
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return // Secret file doesn't exist — not a Docker deployment
+	}
+	val := strings.TrimSpace(string(data))
+	if val == "" {
+		return
+	}
+	os.Setenv(envVar, val)
+	log.Info("Loaded secret from Docker secret file", "env", envVar, "path", path)
 }
 
 func startLifeboatSidecar(log *slog.Logger, cfg *config.Config) {

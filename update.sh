@@ -453,6 +453,89 @@ fi
 
 ok "All user data preserved."
 
+# ── Offer to migrate .env → /etc/aurago/master.key ─────────────────────
+# If .env is still in the install directory, offer to move the key to a
+# root-owned credential file outside the application directory.
+# This is the same mechanism used by install.sh for new systemd installs.
+ENV_FILE="$DIR/.env"
+CREDENTIAL_DIR="/etc/aurago"
+CREDENTIAL_FILE="${CREDENTIAL_DIR}/master.key"
+
+if [ -f "$ENV_FILE" ] && grep -q "AURAGO_MASTER_KEY" "$ENV_FILE"; then
+    # Only offer if not already migrated
+    if [ -f "$CREDENTIAL_FILE" ] && grep -q "AURAGO_MASTER_KEY" "$CREDENTIAL_FILE"; then
+        info "Master key already exists at $CREDENTIAL_FILE."
+        info "Removing leftover $ENV_FILE ..."
+        rm -f "$ENV_FILE"
+        ok "Removed $ENV_FILE (key is in $CREDENTIAL_FILE)."
+    else
+        echo ""
+        echo -e " ${YELLOW}╭──────────────────────────────────────────────────────────────────╮${NC}"
+        echo -e " ${YELLOW}│${NC}  ${BOLD}⚠  SECURITY RECOMMENDATION${NC}                                      ${YELLOW}│${NC}"
+        echo -e " ${YELLOW}│${NC}  Your vault master key is stored in ${BOLD}.env${NC} inside the AuraGo     ${YELLOW}│${NC}"
+        echo -e " ${YELLOW}│${NC}  directory. This file is readable by your user account.          ${YELLOW}│${NC}"
+        echo -e " ${YELLOW}│${NC}                                                                  ${YELLOW}│${NC}"
+        echo -e " ${YELLOW}│${NC}  It is ${BOLD}strongly recommended${NC} to move it to a root-protected     ${YELLOW}│${NC}"
+        echo -e " ${YELLOW}│${NC}  location at ${BOLD}/etc/aurago/master.key${NC} (mode 0600, root:root).    ${YELLOW}│${NC}"
+        echo -e " ${YELLOW}│${NC}  systemd will inject it automatically — no manual sourcing.      ${YELLOW}│${NC}"
+        echo -e " ${YELLOW}╰──────────────────────────────────────────────────────────────────╯${NC}"
+        echo ""
+
+        if confirm "Move master key to /etc/aurago/master.key? (strongly recommended)"; then
+            # shellcheck disable=SC1090
+            source "$ENV_FILE"
+            if [ -z "${AURAGO_MASTER_KEY:-}" ]; then
+                warn "Could not read AURAGO_MASTER_KEY from .env — skipping migration."
+            else
+                sudo mkdir -p "$CREDENTIAL_DIR"
+                sudo chmod 700 "$CREDENTIAL_DIR"
+                printf "AURAGO_MASTER_KEY=%s\n" "$AURAGO_MASTER_KEY" | sudo tee "$CREDENTIAL_FILE" > /dev/null
+                sudo chmod 600 "$CREDENTIAL_FILE"
+                sudo chown root:root "$CREDENTIAL_DIR" "$CREDENTIAL_FILE"
+                rm -f "$ENV_FILE"
+                ok "Master key moved to $CREDENTIAL_FILE (root-only, mode 0600)."
+                ok "Removed $ENV_FILE."
+
+                # Update systemd unit if it exists and still references .env
+                SVC_FILE="/etc/systemd/system/aurago.service"
+                if [ -f "$SVC_FILE" ]; then
+                    if grep -q "EnvironmentFile=.*\.env" "$SVC_FILE" || grep -q "Environment=.*AURAGO_MASTER_KEY" "$SVC_FILE"; then
+                        info "Updating systemd unit to use $CREDENTIAL_FILE ..."
+                        # Replace EnvironmentFile pointing to .env
+                        sudo sed -i "s|EnvironmentFile=.*\.env|EnvironmentFile=${CREDENTIAL_FILE}|g" "$SVC_FILE"
+                        # Replace inline Environment= with EnvironmentFile=
+                        sudo sed -i "s|Environment=\"AURAGO_MASTER_KEY=.*\"|EnvironmentFile=${CREDENTIAL_FILE}|g" "$SVC_FILE"
+                        # Remove dash prefix (fail-silent) if present
+                        sudo sed -i "s|EnvironmentFile=-|EnvironmentFile=|g" "$SVC_FILE"
+                        # Add security hardening if not already present
+                        if ! grep -q "NoNewPrivileges" "$SVC_FILE"; then
+                            sudo sed -i "/^\[Install\]/i\\
+# Security hardening\\
+NoNewPrivileges=true\\
+ProtectSystem=strict\\
+ReadWritePaths=${DIR} ${CREDENTIAL_DIR}\\
+ProtectHome=read-only\\
+PrivateTmp=true" "$SVC_FILE"
+                        fi
+                        sudo systemctl daemon-reload
+                        ok "systemd unit updated and reloaded."
+                    fi
+                fi
+
+                echo ""
+                echo -e " ${GREEN}╭──────────────────────────────────────────────────────────────╮${NC}"
+                echo -e " ${GREEN}│${NC}  ${BOLD}🔐 MASTER KEY SECURED${NC}                                      ${GREEN}│${NC}"
+                echo -e " ${GREEN}│${NC}  Location: ${BOLD}/etc/aurago/master.key${NC} (root-only, mode 0600)    ${GREEN}│${NC}"
+                echo -e " ${GREEN}│${NC}  The key is injected into AuraGo via systemd.                ${GREEN}│${NC}"
+                echo -e " ${GREEN}│${NC}  ${YELLOW}Back up this file! Losing it = losing your vault.${NC}          ${GREEN}│${NC}"
+                echo -e " ${GREEN}╰──────────────────────────────────────────────────────────────╯${NC}"
+            fi
+        else
+            warn "Keeping .env in place. You can migrate later by re-running this update."
+        fi
+    fi
+fi
+
 # ── Merge config.yaml (Safety First) ──────────────────────────────────
 section "Merging configuration"
 

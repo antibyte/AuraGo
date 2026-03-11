@@ -99,9 +99,15 @@ fi
 echo "[Entrypoint] Config OK"
 
 # === 4. MASTER KEY SETUP ===
+# Priority: env var > Docker Compose secret > .env file > auto-generate
 
 if [ -z "${AURAGO_MASTER_KEY:-}" ]; then
-    if [ -f "$ENV_FILE" ]; then
+    # Try Docker Compose file-based secret (mounted at /run/secrets/)
+    DOCKER_SECRET="/run/secrets/aurago_master_key"
+    if [ -f "$DOCKER_SECRET" ]; then
+        echo "[Entrypoint] Loading master key from Docker secret ($DOCKER_SECRET)"
+        export AURAGO_MASTER_KEY="$(cat "$DOCKER_SECRET" | tr -d '[:space:]')"
+    elif [ -f "$ENV_FILE" ]; then
         echo "[Entrypoint] Loading master key from $ENV_FILE"
         # shellcheck source=/dev/null
         source "$ENV_FILE"
@@ -117,7 +123,10 @@ if [ -z "${AURAGO_MASTER_KEY:-}" ]; then
         echo "=========================================================================="
         echo "⚠️  IMPORTANT: A new Master Key was generated"
         echo "   Saved to: $ENV_FILE"
-        echo "   Please back up this key!"
+        echo "   For better security, use Docker Compose secrets instead:"
+        echo "   1. Copy the key: docker compose exec aurago cat /app/data/.env"
+        echo "   2. Save to host: echo '<key>' > aurago_master.key && chmod 600 aurago_master.key"
+        echo "   3. Add to docker-compose.yml — see documentation for details."
         echo "=========================================================================="
     fi
 fi

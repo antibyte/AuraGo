@@ -81,7 +81,7 @@ This command will:
 1. **Extract `resources.dat`** → creates `agent_workspace/`, `config.yaml`, `data/`, `log/`
 2. **Generate a master key** → saved to `.env` (used for vault encryption)
 3. **Install a system service** for automatic boot start:
-   - **Linux**: systemd unit (`aurago.service`)
+   - **Linux**: systemd unit (`aurago.service`) — moves the master key to `/etc/aurago/master.key` (root-only, mode 0600)
    - **macOS**: launchd agent (`com.aurago.agent`)
    - **Windows**: Scheduled Task (`AuraGo`, runs at logon)
 
@@ -107,9 +107,14 @@ All other settings have sensible defaults and are optional.
 
 ### Step 5: Set the master key
 
-The setup generated a `.env` file with your encryption key. Load it:
+The setup generated a `.env` file with your encryption key.
 
-**Linux/macOS:**
+**If you installed as a systemd service (Linux):**
+The install script already moved the key to `/etc/aurago/master.key` (root-only). It is injected automatically via `EnvironmentFile=` in the systemd unit — no manual action needed.
+
+To verify: `sudo cat /etc/aurago/master.key`
+
+**Manual start (no systemd) — Linux/macOS:**
 ```bash
 export $(cat .env | xargs)
 ```
@@ -121,7 +126,10 @@ Get-Content .env | ForEach-Object {
 }
 ```
 
-> **Important:** Keep the `.env` file safe. If you lose it, the encrypted secrets vault cannot be decrypted.
+> **Important:** Back up your master key. If you lose it, the encrypted secrets vault cannot be decrypted.
+> - **systemd installs**: `/etc/aurago/master.key`
+> - **Manual installs**: `.env` in the AuraGo directory
+> - **Docker**: `aurago_master.key` on the Docker host (or `data/.env` inside the volume)
 
 ### Step 6: Start AuraGo
 
@@ -157,7 +165,7 @@ Navigate to: **http://localhost:8088**
 ~/aurago/
 ├── aurago                          # Executable
 ├── resources.dat                   # Resource archive (can be deleted after setup)
-├── .env                            # Master key (KEEP SAFE!)
+├── .env                            # Master key (only if NOT using systemd)
 ├── config.yaml                     # Your configuration
 ├── agent_workspace/
 │   ├── prompts/                    # System prompts & personalities
@@ -199,6 +207,7 @@ sudo systemctl restart aurago   # or just ./aurago
 sudo systemctl stop aurago
 sudo systemctl disable aurago
 sudo rm /etc/systemd/system/aurago.service
+sudo rm -rf /etc/aurago
 sudo systemctl daemon-reload
 
 # macOS
@@ -219,7 +228,7 @@ rm -rf ~/aurago
 | Problem | Solution |
 |---|---|
 | `resources.dat not found` | Place `resources.dat` next to the `aurago` binary before running `--setup` |
-| `AURAGO_MASTER_KEY is missing` | Run `export $(cat .env \| xargs)` or set the variable manually |
+| `AURAGO_MASTER_KEY is missing` | systemd: check `sudo cat /etc/aurago/master.key`. Manual: run `export $(cat .env \| xargs)` |
 | Service install fails on Linux | Run `sudo ./aurago --setup` (systemd requires root for `/etc/systemd/system/`) |
 | Port already in use | Change `server.port` in `config.yaml` |
 | Python venv creation fails | Install Python 3.9+: `sudo apt install python3 python3-venv` |

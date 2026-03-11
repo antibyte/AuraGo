@@ -155,8 +155,7 @@
             margin-top: 0.3rem;
         }
 
-        .field-input,
-        .field-select {
+        .field-input {
             width: 100%;
             padding: 0.6rem 0.85rem;
             font-size: var(--text-base);
@@ -169,8 +168,7 @@
             outline: none;
         }
 
-        .field-input:focus,
-        .field-select:focus {
+        .field-input:focus {
             border-color: var(--accent);
             box-shadow: 0 0 0 3px var(--accent-dim);
         }
@@ -180,10 +178,7 @@
             opacity: 0.5;
         }
 
-        .field-select option {
-            background: var(--bg-secondary);
-            color: var(--text-primary);
-        }
+        /* field-select uses unified shared.css style */
 
         .field-row {
             display: grid;

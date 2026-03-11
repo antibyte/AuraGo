@@ -86,7 +86,7 @@
             </div>
             <div class="form-group">
                 <label><script>document.write(t('invasion.access_type'))</script></label>
-                <select id="nest-access-type" onchange="onAccessTypeChange()">
+                <select id="nest-access-type" class="form-select" onchange="onAccessTypeChange()">
                     <option value="ssh" data-i18n="invasion.access_ssh">SSH</option>
                     <option value="docker" data-i18n="invasion.access_docker">Docker API</option>
                     <option value="local" data-i18n="invasion.access_local">Lokal</option>
@@ -117,13 +117,13 @@
             </div>
             <div class="form-group">
                 <label><script>document.write(t('invasion.assign_egg'))</script></label>
-                <select id="nest-egg-id">
+                <select id="nest-egg-id" class="form-select">
                     <option value="" data-i18n="invasion.no_egg">— Kein Egg —</option>
                 </select>
             </div>
             <div class="form-group">
                 <label><script>document.write(t('invasion.deploy_method'))</script></label>
-                <select id="nest-deploy-method" onchange="onDeployMethodChange()">
+                <select id="nest-deploy-method" class="form-select" onchange="onDeployMethodChange()">
                     <option value="ssh" data-i18n="invasion.deploy_ssh">SSH</option>
                     <option value="docker_remote" data-i18n="invasion.deploy_docker_remote">Docker (Remote)</option>
                     <option value="docker_local" data-i18n="invasion.deploy_docker_local">Docker (Lokal)</option>
@@ -132,14 +132,14 @@
             </div>
             <div class="form-group">
                 <label><script>document.write(t('invasion.target_arch'))</script></label>
-                <select id="nest-target-arch">
+                <select id="nest-target-arch" class="form-select">
                     <option value="linux/amd64">linux/amd64</option>
                     <option value="linux/arm64">linux/arm64</option>
                 </select>
             </div>
             <div class="form-group">
                 <label><script>document.write(t('invasion.route'))</script></label>
-                <select id="nest-route">
+                <select id="nest-route" class="form-select">
                     <option value="direct" data-i18n="invasion.route_direct">Direct</option>
                     <option value="ssh_tunnel" data-i18n="invasion.route_ssh_tunnel">SSH Tunnel</option>
                     <option value="tailscale" data-i18n="invasion.route_tailscale">Tailscale</option>

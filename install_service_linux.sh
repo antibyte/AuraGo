@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # AuraGo Systemd Service Installer (Linux)
 # This script sets up AuraGo as a system-wide service.
+# The vault master key is stored in /etc/aurago/master.key (root-only, mode 0600)
+# and injected via systemd EnvironmentFile — it never appears in the unit file.
 
 set -euo pipefail
 
@@ -11,6 +13,8 @@ SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
 BINARY_PATH="${INSTALL_DIR}/bin/aurago_linux"
 CONFIG_PATH="${INSTALL_DIR}/config.yaml"
 ENV_FILE="${INSTALL_DIR}/.env"
+CREDENTIAL_DIR="/etc/aurago"
+CREDENTIAL_FILE="${CREDENTIAL_DIR}/master.key"
 
 # Colors for output
 RED='\033[0;31m'
@@ -18,6 +22,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
 NC='\033[0m'
+BOLD='\033[1m'
 
 info() { echo -e "${CYAN}[AuraGo]${NC} $*"; }
 error() { echo -e "${RED}[ERROR]${NC} $*"; exit 1; }
@@ -44,13 +49,18 @@ if [[ ! -f "$CONFIG_PATH" ]]; then
 fi
 
 # 3. Handle Environment Variables (AURAGO_MASTER_KEY)
-if [[ -f "$ENV_FILE" ]]; then
+# Priority: existing /etc/aurago/master.key → local .env → user input → generate
+if [[ -f "$CREDENTIAL_FILE" ]] && grep -q "AURAGO_MASTER_KEY" "$CREDENTIAL_FILE"; then
+    warn "$CREDENTIAL_FILE already exists — keeping existing key."
+    # shellcheck disable=SC1090
+    source "$CREDENTIAL_FILE"
+elif [[ -f "$ENV_FILE" ]]; then
     # shellcheck disable=SC1090
     source "$ENV_FILE"
 fi
 
 if [[ -z "${AURAGO_MASTER_KEY:-}" ]]; then
-    warn "AURAGO_MASTER_KEY not found in ${ENV_FILE} or environment."
+    warn "AURAGO_MASTER_KEY not found in ${CREDENTIAL_FILE}, ${ENV_FILE}, or environment."
     read -rp "Enter AURAGO_MASTER_KEY (64 hex characters) or press Enter to generate one: " USER_KEY
     if [[ -z "$USER_KEY" ]]; then
         info "Generating random AURAGO_MASTER_KEY..."
@@ -58,15 +68,27 @@ if [[ -z "${AURAGO_MASTER_KEY:-}" ]]; then
         if [[ "$AURAGO_MASTER_KEY" == "failed" ]]; then
             error "Failed to generate a secure random key. Please provide one manually."
         fi
-        echo "AURAGO_MASTER_KEY=${AURAGO_MASTER_KEY}" >> "$ENV_FILE"
-        chmod 600 "$ENV_FILE"
-        ok "Generated key saved to ${ENV_FILE}"
+        ok "Generated new master key."
     else
         AURAGO_MASTER_KEY="$USER_KEY"
-        echo "AURAGO_MASTER_KEY=${AURAGO_MASTER_KEY}" >> "$ENV_FILE"
-        chmod 600 "$ENV_FILE"
-        ok "Entered key saved to ${ENV_FILE}"
+        ok "Using user-provided key."
     fi
+fi
+
+# 3b. Store the key in /etc/aurago/master.key (root-only)
+if ! [[ -f "$CREDENTIAL_FILE" ]] || ! grep -q "AURAGO_MASTER_KEY" "$CREDENTIAL_FILE"; then
+    mkdir -p "$CREDENTIAL_DIR"
+    chmod 700 "$CREDENTIAL_DIR"
+    printf "AURAGO_MASTER_KEY=%s\n" "$AURAGO_MASTER_KEY" > "$CREDENTIAL_FILE"
+    chmod 600 "$CREDENTIAL_FILE"
+    chown root:root "$CREDENTIAL_DIR" "$CREDENTIAL_FILE"
+    ok "Master key stored at ${CREDENTIAL_FILE} (root-only, mode 0600)."
+fi
+
+# Remove the plaintext .env from the install directory (no longer needed)
+if [[ -f "$ENV_FILE" ]]; then
+    rm -f "$ENV_FILE"
+    ok "Removed ${ENV_FILE} — key is now in ${CREDENTIAL_FILE}."
 fi
 
 # 4. Create Systemd Service File
@@ -88,14 +110,16 @@ WorkingDirectory=${INSTALL_DIR}
 ExecStart=${BINARY_PATH} --config ${CONFIG_PATH}
 Restart=always
 RestartSec=5
-Environment="AURAGO_MASTER_KEY=${AURAGO_MASTER_KEY}"
+EnvironmentFile=${CREDENTIAL_FILE}
 StandardOutput=append:${INSTALL_DIR}/log/aurago.log
 StandardError=append:${INSTALL_DIR}/log/aurago.err
 
 # Security hardening
-# NoNewPrivileges=true
-# ProtectSystem=full
-# ProtectHome=read-only
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=${INSTALL_DIR} ${CREDENTIAL_DIR}
+ProtectHome=read-only
+PrivateTmp=true
 
 [Install]
 WantedBy=multi-user.target
@@ -103,7 +127,7 @@ EOF
 
 # Ensure log directory exists
 mkdir -p "${INSTALL_DIR}/log"
-chown -R "${SUDO_USER:-root}:${SUDO_USER:-root}" "${INSTALL_DIR}/log"
+chown -R "${SUDO_USER:-root}:$(id -gn "${SUDO_USER:-root}")" "${INSTALL_DIR}/log"
 
 # 5. Reload systemd and enable service
 info "Reloading systemd daemon..."
@@ -113,6 +137,15 @@ info "Enabling ${SERVICE_NAME} service..."
 systemctl enable "${SERVICE_NAME}"
 
 ok "AuraGo service has been installed and enabled."
+echo ""
+echo -e " ${GREEN}╭──────────────────────────────────────────────────────────────╮${NC}"
+echo -e " ${GREEN}│${NC}  ${BOLD}🔐 MASTER KEY SECURED${NC}                                      ${GREEN}│${NC}"
+echo -e " ${GREEN}│${NC}  Location: ${BOLD}/etc/aurago/master.key${NC} (root-only, mode 0600)    ${GREEN}│${NC}"
+echo -e " ${GREEN}│${NC}  The key is injected into AuraGo via systemd.                ${GREEN}│${NC}"
+echo -e " ${GREEN}│${NC}  ${YELLOW}Back up this file! Losing it = losing your vault.${NC}          ${GREEN}│${NC}"
+echo -e " ${GREEN}╰──────────────────────────────────────────────────────────────╯${NC}"
+echo ""
 info "To start the service:   sudo systemctl start ${SERVICE_NAME}"
 info "To check status:        sudo systemctl status ${SERVICE_NAME}"
 info "To view logs:           tail -f ${INSTALL_DIR}/log/aurago.log"
+info "Master key location:    ${CREDENTIAL_FILE}"

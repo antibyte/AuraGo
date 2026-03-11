@@ -564,12 +564,42 @@ a.logo {
     background: rgba(16, 185, 129, 0.12);
     border-color: rgba(16, 185, 129, 0.45);
     color: rgb(16, 185, 129);
+    animation: pill-pulse-green 2s ease-in-out infinite;
+    position: relative;
+    padding-left: 1.1rem;
+}
+
+.pill-active::before {
+    content: '';
+    position: absolute;
+    left: 0.5rem;
+    width: 6px;
+    height: 6px;
+    background: rgb(16, 185, 129);
+    border-radius: 50%;
+    animation: dot-pulse-green 1.5s ease-in-out infinite;
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.8);
 }
 
 .pill-disconnected {
     background: rgba(239, 68, 68, 0.12);
     border-color: rgba(239, 68, 68, 0.45);
     color: rgb(239, 68, 68);
+    animation: pill-shake-red 0.6s ease-in-out, pill-glow-red 1.5s ease-in-out infinite;
+    position: relative;
+    padding-left: 1.1rem;
+}
+
+.pill-disconnected::before {
+    content: '';
+    position: absolute;
+    left: 0.5rem;
+    width: 6px;
+    height: 6px;
+    background: rgb(239, 68, 68);
+    border-radius: 50%;
+    box-shadow: 0 0 10px rgba(239, 68, 68, 1);
+    animation: dot-blink-red 0.8s ease-in-out infinite;
 }
 
 .pill-reconnecting {
@@ -577,6 +607,58 @@ a.logo {
     border-color: rgba(245, 158, 11, 0.45);
     color: rgb(245, 158, 11);
     animation: pill-blink 1.4s ease-in-out infinite;
+}
+
+/* Animations for connected state */
+@keyframes pill-pulse-green {
+    0%, 100% { 
+        box-shadow: 0 0 5px rgba(16, 185, 129, 0.3), inset 0 0 10px rgba(16, 185, 129, 0.05);
+    }
+    50% { 
+        box-shadow: 0 0 15px rgba(16, 185, 129, 0.5), inset 0 0 15px rgba(16, 185, 129, 0.1);
+    }
+}
+
+@keyframes dot-pulse-green {
+    0%, 100% { 
+        transform: scale(1);
+        opacity: 1;
+        box-shadow: 0 0 6px rgba(16, 185, 129, 0.8);
+    }
+    50% { 
+        transform: scale(1.3);
+        opacity: 0.9;
+        box-shadow: 0 0 12px rgba(16, 185, 129, 1), 0 0 20px rgba(16, 185, 129, 0.4);
+    }
+}
+
+/* Animations for disconnected state */
+@keyframes pill-shake-red {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-2px); }
+    20%, 40%, 60%, 80% { transform: translateX(2px); }
+}
+
+@keyframes pill-glow-red {
+    0%, 100% { 
+        box-shadow: 0 0 5px rgba(239, 68, 68, 0.4), inset 0 0 8px rgba(239, 68, 68, 0.1);
+    }
+    50% { 
+        box-shadow: 0 0 20px rgba(239, 68, 68, 0.7), 0 0 30px rgba(239, 68, 68, 0.3), inset 0 0 12px rgba(239, 68, 68, 0.15);
+    }
+}
+
+@keyframes dot-blink-red {
+    0%, 100% { 
+        opacity: 1;
+        transform: scale(1);
+        box-shadow: 0 0 10px rgba(239, 68, 68, 1);
+    }
+    50% { 
+        opacity: 0.4;
+        transform: scale(0.8);
+        box-shadow: 0 0 5px rgba(239, 68, 68, 0.5);
+    }
 }
 
 @keyframes pill-blink {
@@ -682,10 +764,30 @@ a.logo {
     font-family: inherit;
 }
 
+/* Selects in forms get special styling with dropdown icon */
+.form-group select {
+    padding: 12px 40px 12px 16px;
+    cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%232dd4bf' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 16px;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+}
+
 .form-group input:hover,
 .form-group select:hover,
 .form-group textarea:hover {
     border-color: rgba(45, 212, 191, 0.4);
+}
+
+.form-group select:hover {
+    border-color: rgba(45, 212, 191, 0.5);
+    background-color: var(--bg-secondary);
+    box-shadow: 0 4px 12px rgba(45, 212, 191, 0.1);
+    transform: translateY(-1px);
 }
 
 .form-group input:focus,
@@ -697,6 +799,20 @@ a.logo {
     background: var(--bg-secondary);
 }
 
+.form-group select:focus {
+    box-shadow: 
+        0 0 0 3px rgba(45, 212, 191, 0.15),
+        0 0 25px rgba(45, 212, 191, 0.15),
+        inset 0 1px 2px rgba(255, 255, 255, 0.05);
+}
+
+.form-group select option {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    padding: 10px;
+    font-size: 0.9rem;
+}
+
 .form-group textarea {
     resize: vertical;
     min-height: 60px;
@@ -706,6 +822,90 @@ a.logo {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 12px;
+}
+
+/* ── Unified Select Dropdown Style ─────────────────────────── */
+select,
+.form-select,
+.field-select,
+.select-personality {
+    width: 100%;
+    padding: 12px 40px 12px 16px;
+    font-size: 0.9rem;
+    font-family: inherit;
+    color: var(--text-primary);
+    background: var(--input-bg);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%232dd4bf' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 16px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    outline: none;
+}
+
+select:hover,
+.form-select:hover,
+.field-select:hover,
+.select-personality:hover {
+    border-color: rgba(45, 212, 191, 0.5);
+    background-color: var(--bg-secondary);
+    box-shadow: 0 4px 12px rgba(45, 212, 191, 0.1);
+    transform: translateY(-1px);
+}
+
+select:focus,
+.form-select:focus,
+.field-select:focus,
+.select-personality:focus {
+    border-color: var(--accent);
+    box-shadow: 
+        0 0 0 3px rgba(45, 212, 191, 0.15),
+        0 0 25px rgba(45, 212, 191, 0.15),
+        inset 0 1px 2px rgba(255, 255, 255, 0.05);
+    background-color: var(--bg-secondary);
+}
+
+select option,
+.form-select option,
+.field-select option,
+.select-personality option {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    padding: 10px;
+    font-size: 0.9rem;
+}
+
+select option:hover,
+.form-select option:hover,
+.field-select option:hover,
+.select-personality option:hover {
+    background: var(--accent-dim);
+    color: var(--accent);
+}
+
+/* Select sizes */
+select.small,
+.form-select.small,
+.field-select.small {
+    padding: 8px 32px 8px 12px;
+    font-size: 0.8rem;
+    background-position: right 10px center;
+    background-size: 14px;
+}
+
+select.large,
+.form-select.large,
+.field-select.large {
+    padding: 14px 44px 14px 18px;
+    font-size: 1rem;
+    background-position: right 14px center;
+    background-size: 18px;
 }
 
 /* ── Toggle Switch ─────────────────────────────────────────── */

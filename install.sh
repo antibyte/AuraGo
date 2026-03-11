@@ -331,11 +331,17 @@ cat > "$INSTALL_DIR/start.sh" <<'STARTSH'
 #!/usr/bin/env bash
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$DIR"
-[ -f "$DIR/.env" ] && source "$DIR/.env"
+
+# Load master key: prefer system-wide credential, fall back to local .env
+if [ -f /etc/aurago/master.key ]; then
+    source /etc/aurago/master.key
+elif [ -f "$DIR/.env" ]; then
+    source "$DIR/.env"
+fi
 
 if [ -z "${AURAGO_MASTER_KEY:-}" ]; then
     echo "ERROR: AURAGO_MASTER_KEY is not set."
-    echo "  Run: source .env   or   export AURAGO_MASTER_KEY=your_64_hex_chars"
+    echo "  Expected at: /etc/aurago/master.key  or  $DIR/.env"
     exit 1
 fi
 
@@ -429,10 +435,39 @@ if command -v systemctl >/dev/null 2>&1; then
     echo ""
     read -r -p "Install as systemd service (auto-start on boot)? [Y/n]: " SVC_REPLY < /dev/tty || true
     if [[ "${SVC_REPLY:-y}" =~ ^[Yy]$ ]]; then
+
+        # ── Move master key to /etc/aurago/master.key (root-only) ─────────
+        CREDENTIAL_DIR="/etc/aurago"
+        CREDENTIAL_FILE="${CREDENTIAL_DIR}/master.key"
+        if [ -f "$CREDENTIAL_FILE" ] && grep -q "AURAGO_MASTER_KEY" "$CREDENTIAL_FILE"; then
+            warn "$CREDENTIAL_FILE already exists — keeping existing key."
+        else
+            # Read the key from the .env we generated earlier
+            # shellcheck disable=SC1090
+            [ -f "$ENV_FILE" ] && source "$ENV_FILE"
+            if [ -z "${AURAGO_MASTER_KEY:-}" ]; then
+                die "Cannot migrate master key — AURAGO_MASTER_KEY is empty."
+            fi
+            $SUDO mkdir -p "$CREDENTIAL_DIR"
+            $SUDO chmod 700 "$CREDENTIAL_DIR"
+            printf "AURAGO_MASTER_KEY=%s\n" "$AURAGO_MASTER_KEY" | $SUDO tee "$CREDENTIAL_FILE" > /dev/null
+            $SUDO chmod 600 "$CREDENTIAL_FILE"
+            $SUDO chown root:root "$CREDENTIAL_DIR" "$CREDENTIAL_FILE"
+            ok "Master key moved to $CREDENTIAL_FILE (root-only, mode 0600)."
+        fi
+
+        # Remove the plaintext .env from the install directory
+        if [ -f "$ENV_FILE" ]; then
+            rm -f "$ENV_FILE"
+            ok "Removed $ENV_FILE (no longer needed — key is in $CREDENTIAL_FILE)."
+        fi
+
+        # ── Create systemd unit ──────────────────────────────────────────
         $SUDO tee /etc/systemd/system/${SYSTEMD_SERVICE}.service > /dev/null <<EOF
 [Unit]
 Description=AuraGo AI Agent
 After=network.target
+StartLimitIntervalSec=0
 
 [Service]
 Type=simple
@@ -440,7 +475,14 @@ WorkingDirectory=${INSTALL_DIR}
 ExecStart=${INSTALL_DIR}/bin/aurago_linux --config ${INSTALL_DIR}/config.yaml
 Restart=on-failure
 RestartSec=5
-EnvironmentFile=-${INSTALL_DIR}/.env
+EnvironmentFile=${CREDENTIAL_FILE}
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=${INSTALL_DIR} ${CREDENTIAL_DIR}
+ProtectHome=read-only
+PrivateTmp=true
 
 [Install]
 WantedBy=multi-user.target
@@ -449,6 +491,14 @@ EOF
         $SUDO systemctl enable "$SYSTEMD_SERVICE"
         SERVICE_INSTALLED=true
         ok "Systemd service installed and enabled."
+
+        echo ""
+        echo -e " ${GREEN}╭──────────────────────────────────────────────────────────────╮${NC}"
+        echo -e " ${GREEN}│${NC}  ${BOLD}🔐 MASTER KEY SECURED${NC}                                      ${GREEN}│${NC}"
+        echo -e " ${GREEN}│${NC}  Location: ${BOLD}/etc/aurago/master.key${NC} (root-only, mode 0600)    ${GREEN}│${NC}"
+        echo -e " ${GREEN}│${NC}  The key is injected into AuraGo via systemd.                ${GREEN}│${NC}"
+        echo -e " ${GREEN}│${NC}  ${YELLOW}Back up this file! Losing it = losing your vault.${NC}          ${GREEN}│${NC}"
+        echo -e " ${GREEN}╰──────────────────────────────────────────────────────────────╯${NC}"
     fi
 fi
 
@@ -468,6 +518,7 @@ if [ "$SERVICE_INSTALLED" = "true" ]; then
     echo ""
     echo -e "  ${CYAN}Service status:${NC}  sudo systemctl status $SYSTEMD_SERVICE"
     echo -e "  ${CYAN}Logs:           ${NC}  sudo journalctl -u $SYSTEMD_SERVICE -f"
+    echo -e "  ${CYAN}Master key:    ${NC}  /etc/aurago/master.key (root-only)"
 else
     echo "  Next steps:"
     echo "  1. Edit config:  nano $CONFIG_FILE"
