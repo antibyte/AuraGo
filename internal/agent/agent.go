@@ -570,6 +570,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			MeshCentralEnabled:       cfg.MeshCentral.Enabled,
 			HomepageEnabled:          cfg.Homepage.Enabled && cfg.Docker.Enabled,
 			NetlifyEnabled:           cfg.Netlify.Enabled,
+			FirewallEnabled:          cfg.Firewall.Enabled,
 			MemoryEnabled:            cfg.Tools.Memory.Enabled,
 			KnowledgeGraphEnabled:    cfg.Tools.KnowledgeGraph.Enabled,
 			SecretsVaultEnabled:      cfg.Tools.SecretsVault.Enabled,
@@ -580,6 +581,13 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			InventoryEnabled:         cfg.Tools.Inventory.Enabled,
 			MemoryMaintenanceEnabled: cfg.Tools.MemoryMaintenance.Enabled,
 			WOLEnabled:               cfg.Tools.WOL.Enabled,
+			// Danger Zone capability gates
+			AllowShell:           cfg.Agent.AllowShell,
+			AllowPython:          cfg.Agent.AllowPython,
+			AllowFilesystemWrite: cfg.Agent.AllowFilesystemWrite,
+			AllowNetworkRequests: cfg.Agent.AllowNetworkRequests,
+			AllowRemoteShell:     cfg.Agent.AllowRemoteShell,
+			AllowSelfUpdate:      cfg.Agent.AllowSelfUpdate,
 		}
 		ntSchemas := BuildNativeToolSchemas(cfg.Directories.SkillsDir, manifest, cfg.Agent.EnableGoogleWorkspace, ff, logger)
 		// Structured Outputs: set Strict=true on every tool definition so the
@@ -1575,8 +1583,16 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 						mood, affDelta, traitDeltas, profileUpdates, err := shortTermMem.AnalyzeMoodV2(v2Ctx, analyzerClient, modelName, contextHistory, userHistory, m, profilingEnabled)
 						if err != nil {
-							currentLogger.Warn("[Personality V2] Failed to analyze mood", "error", err)
-							return
+						v2URL := cfg.Agent.PersonalityV2URL
+						if v2URL == "" {
+							v2URL = "(main LLM endpoint)"
+						}
+						currentLogger.Warn("[Personality V2] Failed to analyze mood",
+							"error", err,
+							"model", modelName,
+							"url", v2URL,
+							"timeout_secs", cfg.Agent.PersonalityV2TimeoutSecs,
+							"hint", "increase agent.personality_v2_timeout_secs in config if this is a timeout")
 						}
 
 						_ = shortTermMem.LogMood(mood, tInfo)

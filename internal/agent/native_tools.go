@@ -906,7 +906,7 @@ func BuildNativeToolSchemas(skillsDir string, manifest *tools.Manifest, enableGo
 	}
 
 	if logger != nil {
-		logger.Debug("[NativeTools] Built tool schemas", "count", len(allTools))
+		logger.Info("[NativeTools] Built tool schemas", "count", len(allTools))
 	}
 
 	return allTools

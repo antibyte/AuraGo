@@ -21,6 +21,7 @@ agent:
     personality_v2_model: qwen/qwen-2.5-7b-instruct
     personality_v2_url: ""
     personality_v2_api_key: ""
+    personality_v2_timeout_secs: 120
     show_tool_results: false
     step_delay_seconds: 0
     system_language: Deutsch
