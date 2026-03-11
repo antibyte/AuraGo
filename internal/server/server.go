@@ -829,7 +829,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 				http.Error(w, "Config template error", http.StatusInternalServerError)
 				return
 			}
-			lang := normalizeLang(s.Cfg.Agent.SystemLanguage)
+			lang := normalizeLang(s.Cfg.Server.UILanguage)
 			data := map[string]interface{}{
 				"Lang":     lang,
 				"I18N":     getI18NJSON(lang),
@@ -862,7 +862,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 				http.Error(w, "Dashboard template error", http.StatusInternalServerError)
 				return
 			}
-			lang := normalizeLang(s.Cfg.Agent.SystemLanguage)
+			lang := normalizeLang(s.Cfg.Server.UILanguage)
 			data := map[string]interface{}{
 				"Lang": lang,
 				"I18N": getI18NJSON(lang),
@@ -890,7 +890,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 				http.Error(w, "Mission V2 template error", http.StatusInternalServerError)
 				return
 			}
-			lang := normalizeLang(s.Cfg.Agent.SystemLanguage)
+			lang := normalizeLang(s.Cfg.Server.UILanguage)
 			data := map[string]interface{}{
 				"Lang": lang,
 				"I18N": getI18NJSON(lang),
@@ -958,7 +958,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 			http.Error(w, "Invasion Control template error", http.StatusInternalServerError)
 			return
 		}
-		lang := normalizeLang(s.Cfg.Agent.SystemLanguage)
+		lang := normalizeLang(s.Cfg.Server.UILanguage)
 		data := map[string]interface{}{
 			"Lang": lang,
 			"I18N": getI18NJSON(lang),
@@ -980,7 +980,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 			http.Error(w, "Setup template error", http.StatusInternalServerError)
 			return
 		}
-		lang := normalizeLang(s.Cfg.Agent.SystemLanguage)
+		lang := normalizeLang(s.Cfg.Server.UILanguage)
 		data := map[string]interface{}{
 			"Lang": lang,
 			"I18N": getI18NJSON(lang),
@@ -1018,7 +1018,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 			}
 
 			if tmpl != nil {
-				lang := normalizeLang(s.Cfg.Agent.SystemLanguage)
+				lang := normalizeLang(s.Cfg.Server.UILanguage)
 				data := map[string]interface{}{
 					"Lang":               lang,
 					"I18N":               getI18NJSON(lang),

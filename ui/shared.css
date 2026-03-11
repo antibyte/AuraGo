@@ -559,6 +559,31 @@ a.logo {
     background: var(--accent-dim);
 }
 
+/* Connection state variants */
+.pill-active {
+    background: rgba(16, 185, 129, 0.12);
+    border-color: rgba(16, 185, 129, 0.45);
+    color: rgb(16, 185, 129);
+}
+
+.pill-disconnected {
+    background: rgba(239, 68, 68, 0.12);
+    border-color: rgba(239, 68, 68, 0.45);
+    color: rgb(239, 68, 68);
+}
+
+.pill-reconnecting {
+    background: rgba(245, 158, 11, 0.12);
+    border-color: rgba(245, 158, 11, 0.45);
+    color: rgb(245, 158, 11);
+    animation: pill-blink 1.4s ease-in-out infinite;
+}
+
+@keyframes pill-blink {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.55; }
+}
+
 /* ── Tabs ──────────────────────────────────────────────────── */
 .tabs {
     display: flex;

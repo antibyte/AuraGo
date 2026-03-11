@@ -609,13 +609,30 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	for {
 		// Check for user interrupt
 		if checkAndClearInterrupt(sessionID) {
-			currentLogger.Warn("[Sync] User interrupted the agent")
-			interruptMsg := "the user has interrupted your work. ask what is wrong"
-			req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: interruptMsg})
-			// Reset error states to focus on the new interrupt msg
-			flags.IsErrorState = false
-			broker.Send("thinking", "User interrupted. Asking for instructions...")
-			continue
+			currentLogger.Warn("[Sync] User interrupted the agent — stopping immediately")
+			broker.Send("thinking", "Stopped by user.")
+			stopContent := "⏹ Stopped."
+			// Persist the stop event so the agent remembers it was stopped
+			if shortTermMem != nil {
+				msgID, _ := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleAssistant, stopContent, false, false)
+				if sessionID == "default" && historyManager != nil {
+					historyManager.Add(openai.ChatMessageRoleAssistant, stopContent, msgID, false, false)
+				}
+			}
+			return openai.ChatCompletionResponse{
+				ID:      "stop-" + sessionID,
+				Object:  "chat.completion",
+				Created: time.Now().Unix(),
+				Model:   req.Model,
+				Choices: []openai.ChatCompletionChoice{{
+					Index: 0,
+					Message: openai.ChatCompletionMessage{
+						Role:    openai.ChatMessageRoleAssistant,
+						Content: stopContent,
+					},
+					FinishReason: openai.FinishReasonStop,
+				}},
+			}, nil
 		}
 
 		// Revive logic: If idle in lifeboat for too long, poke the agent
@@ -1827,6 +1844,56 @@ func splitCSV(s string) []string {
 	return out
 }
 
+// systemSecretPrefixes lists key prefixes that are exclusively managed by system/tool handlers.
+// The agent may NOT read or list these via the secrets_vault tool — only their respective
+// tool handlers are allowed to access them directly.
+var systemSecretPrefixes = []string{
+	"email_",            // email account passwords  (email_<id>_password, email_password)
+	"google_workspace_", // Google Workspace OAuth credentials
+	"vapid_",            // Web Push VAPID keys
+	"homepage_",         // Homepage deploy credentials
+	"nest_",             // Invasion nest secrets
+	"auth_",             // Auth hashes / session secrets / TOTP
+}
+
+// systemSecretExact is the set of exact vault keys managed by system handlers.
+var systemSecretExact = map[string]struct{}{
+	"telegram_bot_token":          {},
+	"discord_bot_token":           {},
+	"meshcentral_password":        {},
+	"meshcentral_token":           {},
+	"tailscale_api_key":           {},
+	"ansible_token":               {},
+	"virustotal_api_key":          {},
+	"brave_search_api_key":        {},
+	"tts_elevenlabs_api_key":      {},
+	"ntfy_token":                  {},
+	"home_assistant_access_token": {},
+	"webdav_password":             {},
+	"koofr_password":              {},
+	"proxmox_secret":              {},
+	"github_token":                {},
+	"rocketchat_auth_token":       {},
+	"mqtt_password":               {},
+	"netlify_token":               {},
+	"pushover_user_key":           {},
+	"pushover_app_token":          {},
+}
+
+// isSystemSecret returns true if the given vault key belongs to a system/tool handler
+// and therefore must not be readable by the agent via the secrets_vault tool.
+func isSystemSecret(key string) bool {
+	if _, ok := systemSecretExact[key]; ok {
+		return true
+	}
+	for _, pfx := range systemSecretPrefixes {
+		if strings.HasPrefix(key, pfx) {
+			return true
+		}
+	}
+	return false
+}
+
 func dispatchInner(ctx context.Context, tc ToolCall, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, missionManager *tools.MissionManager, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, historyMgr *memory.HistoryManager, isMaintenance bool, surgeryPlan string, guardian *security.Guardian, sessionID string, coAgentRegistry *CoAgentRegistry, budgetTracker *budget.Tracker) string {
 	// Co-Agent blacklist: co-agents (identified by sessionID prefix) cannot modify memory, notes, KG, or spawn sub-agents
 	isCoAgent := strings.HasPrefix(sessionID, "coagent-")
@@ -2380,6 +2447,10 @@ func dispatchInner(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 			if tc.Key == "" || tc.Value == "" {
 				return `Tool Output: {"status": "error", "message": "'key' and 'value' are required for set_secret/store"}`
 			}
+			if isSystemSecret(tc.Key) {
+				logger.Warn("LLM attempted to overwrite system-managed secret — access denied", "key", tc.Key)
+				return `Tool Output: {"status": "error", "message": "Access denied: this secret is managed by a system component and cannot be overwritten via secrets_vault."}`
+			}
 			err := vault.WriteSecret(tc.Key, tc.Value)
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
@@ -2391,15 +2462,27 @@ func dispatchInner(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 		logger.Info("LLM requested secret retrieval", "key", tc.Key)
 		if tc.Key == "" {
 			// List available secret keys when no key is specified
+			// Filter out system-managed keys — the agent must not know they exist
 			keys, err := vault.ListKeys()
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
 			}
-			b, mErr := json.Marshal(keys)
+			visibleKeys := keys[:0]
+			for _, k := range keys {
+				if !isSystemSecret(k) {
+					visibleKeys = append(visibleKeys, k)
+				}
+			}
+			b, mErr := json.Marshal(visibleKeys)
 			if mErr != nil {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Failed to serialize keys: %v"}`, mErr)
 			}
 			return fmt.Sprintf(`Tool Output: {"status": "success", "message": "Stored secret keys (use get_secret with 'key' to retrieve a value)", "keys": %s}`, string(b))
+		}
+		// Block access to system-managed secrets
+		if isSystemSecret(tc.Key) {
+			logger.Warn("LLM attempted to read system-managed secret — access denied", "key", tc.Key)
+			return `Tool Output: {"status": "error", "message": "Access denied: this secret is managed by a system component and cannot be retrieved via secrets_vault."}`
 		}
 		secret, err := vault.ReadSecret(tc.Key)
 		if err != nil {
@@ -2419,6 +2502,10 @@ func dispatchInner(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 		logger.Info("LLM requested secret storage", "key", tc.Key)
 		if tc.Key == "" || tc.Value == "" {
 			return `Tool Output: {"status": "error", "message": "'key' and 'value' are required for set_secret"}`
+		}
+		if isSystemSecret(tc.Key) {
+			logger.Warn("LLM attempted to overwrite system-managed secret — access denied", "key", tc.Key)
+			return `Tool Output: {"status": "error", "message": "Access denied: this secret is managed by a system component and cannot be overwritten via secrets_vault."}`
 		}
 		err := vault.WriteSecret(tc.Key, tc.Value)
 		if err != nil {
@@ -3151,14 +3238,14 @@ func dispatchInner(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 			return `Tool Output: {"status": "success", "count": 0, "data": [], "message": "No email accounts configured."}`
 		}
 		type acctInfo struct {
-			ID          string `json:"id"`
-			Name        string `json:"name"`
-			Email       string `json:"email"`
-			IMAP        string `json:"imap"`
-			SMTP        string `json:"smtp"`
-			Watcher     bool   `json:"watcher"`
-			Enabled     bool   `json:"enabled"`
-			AllowSend   bool   `json:"allow_sending"`
+			ID        string `json:"id"`
+			Name      string `json:"name"`
+			Email     string `json:"email"`
+			IMAP      string `json:"imap"`
+			SMTP      string `json:"smtp"`
+			Watcher   bool   `json:"watcher"`
+			Enabled   bool   `json:"enabled"`
+			AllowSend bool   `json:"allow_sending"`
 		}
 		var accts []acctInfo
 		for _, a := range cfg.EmailAccounts {
