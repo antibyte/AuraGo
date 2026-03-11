@@ -3,6 +3,7 @@ package server
 import (
 	"aurago/internal/config"
 	"encoding/json"
+	"fmt"
 	"html/template"
 	"io"
 	"io/fs"
@@ -414,41 +415,76 @@ func requireSession(s *Server, w http.ResponseWriter, r *http.Request) bool {
 	return true
 }
 
-// patchAuthConfig writes the given key-value pairs under the "auth" section of config.yaml
-// and hot-reloads the running config.
+// vaultAuthKeys maps auth config field names to their vault key names.
+// These fields carry yaml:"-" and must be stored in the vault, not config.yaml.
+var vaultAuthKeys = map[string]string{
+	"password_hash":  "auth_password_hash",
+	"session_secret": "auth_session_secret",
+	"totp_secret":    "auth_totp_secret",
+}
+
+// patchAuthConfig writes the given key-value pairs for the "auth" config section.
+// Vault-only fields (password_hash, session_secret, totp_secret) are stored in the
+// encrypted vault; remaining fields go into config.yaml. Both paths hot-reload the
+// running config so the change takes effect immediately without a restart.
 func patchAuthConfig(s *Server, fields map[string]interface{}) error {
 	configPath := s.Cfg.ConfigPath
-	data, err := os.ReadFile(configPath)
-	if err != nil {
-		return err
-	}
 
-	var rawCfg map[string]interface{}
-	if err := yaml.Unmarshal(data, &rawCfg); err != nil {
-		return err
-	}
-
-	authSection, ok := rawCfg["auth"].(map[string]interface{})
-	if !ok {
-		authSection = make(map[string]interface{})
-	}
+	// Split vault-only fields from regular YAML-persisted fields.
+	vaultUpdates := map[string]string{}
+	yamlFields := map[string]interface{}{}
 	for k, v := range fields {
-		authSection[k] = v
-	}
-	rawCfg["auth"] = authSection
-
-	out, err := yaml.Marshal(rawCfg)
-	if err != nil {
-		return err
-	}
-	if err := os.WriteFile(configPath, out, 0644); err != nil {
-		return err
+		if vaultKey, isVault := vaultAuthKeys[k]; isVault {
+			if str, ok := v.(string); ok {
+				vaultUpdates[vaultKey] = str
+			}
+		} else {
+			yamlFields[k] = v
+		}
 	}
 
-	// Hot-reload
+	// Write sensitive fields to the vault.
+	if s.Vault != nil {
+		for vaultKey, val := range vaultUpdates {
+			if err := s.Vault.WriteSecret(vaultKey, val); err != nil {
+				return fmt.Errorf("writing %q to vault: %w", vaultKey, err)
+			}
+		}
+	}
+
+	// Write non-vault fields to config.yaml (skip file I/O when there is nothing to persist).
+	if len(yamlFields) > 0 {
+		data, err := os.ReadFile(configPath)
+		if err != nil {
+			return err
+		}
+		var rawCfg map[string]interface{}
+		if err := yaml.Unmarshal(data, &rawCfg); err != nil {
+			return err
+		}
+		authSection, ok := rawCfg["auth"].(map[string]interface{})
+		if !ok {
+			authSection = make(map[string]interface{})
+		}
+		for k, v := range yamlFields {
+			authSection[k] = v
+		}
+		rawCfg["auth"] = authSection
+		out, err := yaml.Marshal(rawCfg)
+		if err != nil {
+			return err
+		}
+		if err := os.WriteFile(configPath, out, 0644); err != nil {
+			return err
+		}
+	}
+
+	// Hot-reload: re-read config.yaml and re-apply vault secrets so that all
+	// vault-only fields (including the ones just written above) are populated.
 	s.CfgMu.Lock()
 	newCfg, loadErr := config.Load(configPath)
 	if loadErr == nil {
+		newCfg.ApplyVaultSecrets(s.Vault)
 		savedPath := s.Cfg.ConfigPath
 		*s.Cfg = *newCfg
 		s.Cfg.ConfigPath = savedPath
