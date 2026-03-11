@@ -183,7 +183,7 @@ type ToolCall struct {
 	IsTool             bool                   `json:"-"`
 	RawCodeDetected    bool                   `json:"-"`
 	RawJSON            string                 `json:"-"`
-	NativeCallID       string                 `json:"-"` // Native API tool call ID for role=tool responses
+	NativeCallID       string                 `json:"-"`               // Native API tool call ID for role=tool responses
 	Todo               string                 `json:"_todo,omitempty"` // Session-scoped task list piggybacked on every tool call
 	Operation          string                 `json:"operation"`
 	Fact               string                 `json:"fact"`
@@ -456,7 +456,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		IsDebugMode:              cfg.Agent.DebugMode || GetDebugMode(),
 		IsCoAgent:                strings.HasPrefix(sessionID, "coagent-"),
 		DiscordEnabled:           cfg.Discord.Enabled,
-		EmailEnabled:             cfg.Email.Enabled,
+		EmailEnabled:             cfg.Email.Enabled || len(cfg.EmailAccounts) > 0,
 		DockerEnabled:            cfg.Docker.Enabled,
 		HomeAssistantEnabled:     cfg.HomeAssistant.Enabled,
 		WebDAVEnabled:            cfg.WebDAV.Enabled,
