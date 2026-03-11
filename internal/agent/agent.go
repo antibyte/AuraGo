@@ -822,6 +822,42 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}, req.Messages...)
 		}
 
+		// ── Context window guard ──
+		// Count total tokens across all messages and trim old history if we would
+		// exceed the model's context window. We keep the system prompt (index 0) and
+		// always preserve the final user message so the model has something to answer.
+		// A 4096-token margin is reserved for the model's completion output.
+		ctxWindow := cfg.Agent.ContextWindow
+		if ctxWindow <= 0 {
+			ctxWindow = 163840 // sensible default matching common 160k-context models
+		}
+		completionMargin := 4096
+		maxHistoryTokens := ctxWindow - completionMargin
+		if maxHistoryTokens < 4096 {
+			maxHistoryTokens = 4096
+		}
+		totalMsgTokens := 0
+		for _, m := range req.Messages {
+			totalMsgTokens += prompts.CountTokens(m.Content) + 4 // ~4 tokens overhead per message
+		}
+		if totalMsgTokens > maxHistoryTokens && len(req.Messages) > 2 {
+			currentLogger.Warn("[ContextGuard] Token limit exceeded before LLM call — trimming history",
+				"tokens", totalMsgTokens, "limit", maxHistoryTokens, "messages", len(req.Messages))
+			sysMsg := req.Messages[0]
+			lastMsg := req.Messages[len(req.Messages)-1]
+			// Drop messages from index 1 onward (oldest first) until we fit.
+			// Always keep system (0) and the latest message.
+			mid := req.Messages[1 : len(req.Messages)-1]
+			for totalMsgTokens > maxHistoryTokens && len(mid) > 0 {
+				dropped := mid[0]
+				mid = mid[1:]
+				totalMsgTokens -= prompts.CountTokens(dropped.Content) + 4
+			}
+			req.Messages = append([]openai.ChatCompletionMessage{sysMsg}, append(mid, lastMsg)...)
+			currentLogger.Info("[ContextGuard] History trimmed",
+				"remaining_messages", len(req.Messages), "estimated_tokens", totalMsgTokens)
+		}
+
 		// Verbose Logging of LLM Request
 		if len(req.Messages) > 0 {
 			lastMsg := req.Messages[len(req.Messages)-1]
@@ -1318,7 +1354,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 		// Berechne effektives Limit neu mit bekanntem tc (für Tool-spezifische Anpassungen)
 		effectiveMaxCallsWithTool := calculateEffectiveMaxCalls(cfg, tc, personalityEnabled, shortTermMem, currentLogger)
-		
+
 		if tc.IsTool && toolCallCount < effectiveMaxCallsWithTool {
 			toolCallCount++
 			broker.Send("thinking", fmt.Sprintf("[%d] Running %s...", toolCallCount, tc.Action))

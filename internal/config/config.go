@@ -1237,7 +1237,7 @@ func Load(path string) (*Config, error) {
 		cfg.LLM.Temperature = 0.7
 	}
 	if cfg.Agent.ContextWindow <= 0 {
-		cfg.Agent.ContextWindow = 0 // 0 = auto-detect or use budget as-is
+		cfg.Agent.ContextWindow = 0 // 0 = agent loop defaults to 163840 (160k context guard)
 	}
 	// Default to true if not explicitly set (YAML unmarshal results in false if missing,
 	// so we check if the key was present or just use a safe default approach)
