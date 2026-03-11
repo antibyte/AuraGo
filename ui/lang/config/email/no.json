@@ -33,5 +33,13 @@
   "config.email.imap_host": "IMAP-vert",
   "config.email.smtp_host": "SMTP-vert",
   "config.email.password_set": "sett",
-  "config.email.password_unchanged": "uendret"
+  "config.email.password_unchanged": "uendret",
+  "config.email.enabled": "Aktiv",
+  "config.email.disabled": "Deaktivert",
+  "config.email.read_only": "Kun lesing",
+  "config.email.account_settings": "Kontoinnstillinger",
+  "config.email.account_enabled_label": "Konto aktiv",
+  "config.email.account_enabled_help": "Hvis deaktivert, kan ikke agenten bruke denne kontoen.",
+  "config.email.allow_sending_label": "Tillat sending av e-post",
+  "config.email.allow_sending_help": "Hvis deaktivert, kan agenten bare lese e-post, ikke sende."
 }

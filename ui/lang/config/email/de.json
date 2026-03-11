@@ -33,5 +33,13 @@
   "config.email.smtp_host": "SMTP Host",
   "config.email.smtp_port": "SMTP Port",
   "config.email.password_set": "gesetzt",
-  "config.email.password_unchanged": "unverändert"
+  "config.email.password_unchanged": "unverändert",
+  "config.email.enabled": "Aktiv",
+  "config.email.disabled": "Deaktiviert",
+  "config.email.read_only": "Nur lesen",
+  "config.email.account_settings": "Kontoeinstellungen",
+  "config.email.account_enabled_label": "Konto aktiv",
+  "config.email.account_enabled_help": "Wenn deaktiviert, kann der Agent dieses Konto nicht nutzen.",
+  "config.email.allow_sending_label": "E-Mail-Versand erlaubt",
+  "config.email.allow_sending_help": "Wenn deaktiviert, kann der Agent nur E-Mails lesen, nicht senden."
 }

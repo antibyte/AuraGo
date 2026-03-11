@@ -59,6 +59,8 @@ type EmailAccount struct {
 	WatchEnabled  bool   `yaml:"watch_enabled"  json:"watch_enabled"`
 	WatchInterval int    `yaml:"watch_interval_seconds" json:"watch_interval_seconds"`
 	WatchFolder   string `yaml:"watch_folder"   json:"watch_folder"`
+	Disabled      bool   `yaml:"disabled"       json:"-"` // if true, account is inactive (default false = active)
+	ReadOnly      bool   `yaml:"readonly"       json:"-"` // if true, only fetch/read, block send
 }
 
 type WebhookParameter struct {
@@ -586,12 +588,14 @@ func (c *Config) FindEmailAccount(id string) *EmailAccount {
 	return nil
 }
 
-// DefaultEmailAccount returns the first EmailAccount, or nil if none exist.
+// DefaultEmailAccount returns the first non-disabled EmailAccount, or nil if none are active.
 func (c *Config) DefaultEmailAccount() *EmailAccount {
-	if len(c.EmailAccounts) == 0 {
-		return nil
+	for i := range c.EmailAccounts {
+		if !c.EmailAccounts[i].Disabled {
+			return &c.EmailAccounts[i]
+		}
 	}
-	return &c.EmailAccounts[0]
+	return nil
 }
 
 // MigrateEmailAccounts migrates the legacy single Email config into the

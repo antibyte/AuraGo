@@ -33,5 +33,13 @@
   "config.email.imap_host": "IMAP-värd",
   "config.email.smtp_host": "SMTP-värd",
   "config.email.password_set": "set",
-  "config.email.password_unchanged": "oförändrad"
+  "config.email.password_unchanged": "oförändrad",
+  "config.email.enabled": "Aktiv",
+  "config.email.disabled": "Inaktiverad",
+  "config.email.read_only": "Skrivskyddad",
+  "config.email.account_settings": "Kontoinställningar",
+  "config.email.account_enabled_label": "Konto aktivt",
+  "config.email.account_enabled_help": "Om inaktiverad kan agenten inte använda det här kontot.",
+  "config.email.allow_sending_label": "Tillåt att skicka e-post",
+  "config.email.allow_sending_help": "Om inaktiverad kan agenten bara läsa e-post, inte skicka."
 }

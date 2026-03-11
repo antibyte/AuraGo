@@ -33,5 +33,13 @@
   "config.email.imap_host": "आईएमएपी होस्ट",
   "config.email.smtp_host": "एसएमटीपी होस्ट",
   "config.email.password_set": "सेट",
-  "config.email.password_unchanged": "अपरिवर्तित"
+  "config.email.password_unchanged": "अपरिवर्तित",
+  "config.email.enabled": "सक्रिय",
+  "config.email.disabled": "निष्क्रिय",
+  "config.email.read_only": "केवल पढ़ें",
+  "config.email.account_settings": "खाता सेटिंग",
+  "config.email.account_enabled_label": "खाता सक्षम",
+  "config.email.account_enabled_help": "यदि निष्क्रिय है, तो एजेंट इस खाते का उपयोग नहीं कर सकता।",
+  "config.email.allow_sending_label": "ईमेल भेजने की अनुमति",
+  "config.email.allow_sending_help": "यदि निष्क्रिय है, तो एजेंट केवल ईमेल पढ़ सकता है, भेज नहीं सकता।"
 }

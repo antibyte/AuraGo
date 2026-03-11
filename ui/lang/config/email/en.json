@@ -33,5 +33,13 @@
   "config.email.smtp_host": "SMTP Host",
   "config.email.smtp_port": "SMTP Port",
   "config.email.password_set": "set",
-  "config.email.password_unchanged": "unchanged"
+  "config.email.password_unchanged": "unchanged",
+  "config.email.enabled": "Active",
+  "config.email.disabled": "Disabled",
+  "config.email.read_only": "Read only",
+  "config.email.account_settings": "Account Settings",
+  "config.email.account_enabled_label": "Account enabled",
+  "config.email.account_enabled_help": "If disabled, the agent cannot use this account.",
+  "config.email.allow_sending_label": "Allow sending emails",
+  "config.email.allow_sending_help": "If disabled, the agent can only read emails, not send them."
 }

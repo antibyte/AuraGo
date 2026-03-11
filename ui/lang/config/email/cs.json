@@ -33,5 +33,13 @@
   "config.email.imap_host": "Hostitel IMAP",
   "config.email.smtp_host": "Hostitel SMTP",
   "config.email.password_set": "nastavit",
-  "config.email.password_unchanged": "beze změny"
+  "config.email.password_unchanged": "beze změny",
+  "config.email.enabled": "Aktivní",
+  "config.email.disabled": "Deaktivováno",
+  "config.email.read_only": "Pouze čtení",
+  "config.email.account_settings": "Nastavení účtu",
+  "config.email.account_enabled_label": "Účet aktivní",
+  "config.email.account_enabled_help": "Pokud je deaktivováno, agent nemůže tento účet používat.",
+  "config.email.allow_sending_label": "Povolit odesílání e-mailů",
+  "config.email.allow_sending_help": "Pokud je deaktivováno, agent může pouze číst e-maily, nikoli odesílat."
 }

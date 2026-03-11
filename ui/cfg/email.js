@@ -44,6 +44,12 @@ let emailAccountsCache = null;
                 const watchBadge = a.watch_enabled
                     ? `<span style="display:inline-block;padding:0.15rem 0.5rem;border-radius:6px;font-size:0.7rem;font-weight:600;background:var(--success);color:#fff;margin-left:0.4rem;">👁️ Watcher</span>`
                     : '';
+                const enabledBadge = (a.enabled === false)
+                    ? `<span style="display:inline-block;padding:0.15rem 0.5rem;border-radius:6px;font-size:0.7rem;font-weight:600;background:var(--danger,#e55);color:#fff;margin-left:0.4rem;">⏸ ${t('config.email.disabled')}</span>`
+                    : `<span style="display:inline-block;padding:0.15rem 0.5rem;border-radius:6px;font-size:0.7rem;font-weight:600;background:var(--success);color:#fff;margin-left:0.4rem;">✔ ${t('config.email.enabled')}</span>`;
+                const sendBadge = (a.allow_sending === false)
+                    ? `<span style="display:inline-block;padding:0.15rem 0.5rem;border-radius:6px;font-size:0.7rem;font-weight:600;background:var(--warning,#f90);color:#000;margin-left:0.4rem;">📖 ${t('config.email.read_only')}</span>`
+                    : '';
                 const maskedPw = a.password === '••••••••'
                     ? `<span style="color:var(--success);">✔ ${t('config.email.password_set')}</span>`
                     : (a.password ? `<span style="color:var(--success);">✔ ${t('config.email.password_set')}</span>` : '<span style="color:var(--text-tertiary);">—</span>');
@@ -52,7 +58,7 @@ let emailAccountsCache = null;
                 <div class="provider-card" data-idx="${idx}" style="border:1px solid var(--border-subtle);border-radius:12px;padding:1rem 1.2rem;margin-bottom:0.75rem;background:var(--bg-secondary);transition:border-color 0.15s;">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.6rem;">
                         <div style="font-weight:600;font-size:0.9rem;">
-                            ${escapeAttr(a.name || a.id)}${watchBadge}
+                            ${escapeAttr(a.name || a.id)}${enabledBadge}${sendBadge}${watchBadge}
                             <span style="font-size:0.72rem;color:var(--text-tertiary);margin-left:0.5rem;">ID: ${escapeAttr(a.id)}</span>
                         </div>
                         <div style="display:flex;gap:0.4rem;">
@@ -96,6 +102,30 @@ let emailAccountsCache = null;
                 <div class="field-group">
                     <div class="field-label">${t('config.email.field_name')}</div>
                     <input class="field-input" id="ea-name" value="${escapeAttr(data.name || '')}" placeholder="${t('config.email.display_name')}">
+                </div>
+
+                <div style="margin-top:0.8rem;padding-top:0.8rem;border-top:1px solid var(--border-subtle);">
+                    <div style="font-weight:600;font-size:0.85rem;color:var(--accent);margin-bottom:0.6rem;">⚙️ ${t('config.email.account_settings')}</div>
+                </div>
+                <div class="field-group" style="display:flex;align-items:center;gap:0.8rem;">
+                    <div style="flex:1;">
+                        <div class="field-label" style="margin-bottom:0.1rem;">${t('config.email.account_enabled_label')}</div>
+                        <div class="field-help" style="margin:0;">${t('config.email.account_enabled_help')}</div>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="ea-enabled" ${(data.enabled !== false) ? 'checked' : ''}>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="field-group" style="display:flex;align-items:center;gap:0.8rem;">
+                    <div style="flex:1;">
+                        <div class="field-label" style="margin-bottom:0.1rem;">${t('config.email.allow_sending_label')}</div>
+                        <div class="field-help" style="margin:0;">${t('config.email.allow_sending_help')}</div>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="ea-allow-sending" ${(data.allow_sending !== false) ? 'checked' : ''}>
+                        <span class="toggle-slider"></span>
+                    </label>
                 </div>
 
                 <div style="margin-top:0.8rem;padding-top:0.8rem;border-top:1px solid var(--border-subtle);">
@@ -179,6 +209,8 @@ let emailAccountsCache = null;
             document.getElementById('ea-save-btn').onclick = () => {
                 const id = document.getElementById('ea-id').value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
                 const name = document.getElementById('ea-name').value.trim();
+                const enabled = document.getElementById('ea-enabled').checked;
+                const allow_sending = document.getElementById('ea-allow-sending').checked;
                 const imap_host = document.getElementById('ea-imap-host').value.trim();
                 const imap_port = parseInt(document.getElementById('ea-imap-port').value, 10) || 993;
                 const smtp_host = document.getElementById('ea-smtp-host').value.trim();
@@ -194,7 +226,7 @@ let emailAccountsCache = null;
                 if (!id) { alert(t('config.email.id_empty')); return; }
                 if (!imap_host && !smtp_host) { alert(t('config.email.host_required')); return; }
 
-                const entry = { id, name: name || id, imap_host, imap_port, smtp_host, smtp_port, username, password, from_address, watch_enabled, watch_folder, watch_interval_seconds };
+                const entry = { id, name: name || id, enabled, allow_sending, imap_host, imap_port, smtp_host, smtp_port, username, password, from_address, watch_enabled, watch_folder, watch_interval_seconds };
                 onSave(entry);
                 overlay.remove();
             };

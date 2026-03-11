@@ -3055,7 +3055,10 @@ func dispatchInner(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 			acct = cfg.DefaultEmailAccount()
 		}
 		if acct == nil {
-			return `Tool Output: {"status": "error", "message": "No email account configured."}`
+			return `Tool Output: {"status": "error", "message": "No active email account configured. Enable an account in Settings > Email."}`
+		}
+		if acct.Disabled {
+			return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Email account '%s' is disabled. Enable it in Settings > Email."}`, acct.ID)
 		}
 		logger.Info("LLM requested email fetch", "account", acct.ID, "folder", tc.Folder)
 		folder := tc.Folder
@@ -3110,7 +3113,13 @@ func dispatchInner(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 			acct = cfg.DefaultEmailAccount()
 		}
 		if acct == nil {
-			return `Tool Output: {"status": "error", "message": "No email account configured."}`
+			return `Tool Output: {"status": "error", "message": "No active email account configured. Enable an account in Settings > Email."}`
+		}
+		if acct.Disabled {
+			return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Email account '%s' is disabled. Enable it in Settings > Email."}`, acct.ID)
+		}
+		if acct.ReadOnly {
+			return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Email account '%s' is read-only. Enable sending in Settings > Email."}`, acct.ID)
 		}
 		to := tc.To
 		if to == "" {
@@ -3142,22 +3151,26 @@ func dispatchInner(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 			return `Tool Output: {"status": "success", "count": 0, "data": [], "message": "No email accounts configured."}`
 		}
 		type acctInfo struct {
-			ID      string `json:"id"`
-			Name    string `json:"name"`
-			Email   string `json:"email"`
-			IMAP    string `json:"imap"`
-			SMTP    string `json:"smtp"`
-			Watcher bool   `json:"watcher"`
+			ID          string `json:"id"`
+			Name        string `json:"name"`
+			Email       string `json:"email"`
+			IMAP        string `json:"imap"`
+			SMTP        string `json:"smtp"`
+			Watcher     bool   `json:"watcher"`
+			Enabled     bool   `json:"enabled"`
+			AllowSend   bool   `json:"allow_sending"`
 		}
 		var accts []acctInfo
 		for _, a := range cfg.EmailAccounts {
 			accts = append(accts, acctInfo{
-				ID:      a.ID,
-				Name:    a.Name,
-				Email:   a.FromAddress,
-				IMAP:    fmt.Sprintf("%s:%d", a.IMAPHost, a.IMAPPort),
-				SMTP:    fmt.Sprintf("%s:%d", a.SMTPHost, a.SMTPPort),
-				Watcher: a.WatchEnabled,
+				ID:        a.ID,
+				Name:      a.Name,
+				Email:     a.FromAddress,
+				IMAP:      fmt.Sprintf("%s:%d", a.IMAPHost, a.IMAPPort),
+				SMTP:      fmt.Sprintf("%s:%d", a.SMTPHost, a.SMTPPort),
+				Watcher:   a.WatchEnabled,
+				Enabled:   !a.Disabled,
+				AllowSend: !a.ReadOnly,
 			})
 		}
 		result := tools.EmailResult{Status: "success", Count: len(accts), Data: accts}

@@ -33,5 +33,13 @@
   "config.email.smtp_host": "SMTP Host",
   "config.email.smtp_port": "SMTP Poort",
   "config.email.password_set": "ingesteld",
-  "config.email.password_unchanged": "ongewijzigd"
+  "config.email.password_unchanged": "ongewijzigd",
+  "config.email.enabled": "Actief",
+  "config.email.disabled": "Uitgeschakeld",
+  "config.email.read_only": "Alleen lezen",
+  "config.email.account_settings": "Accountinstellingen",
+  "config.email.account_enabled_label": "Account actief",
+  "config.email.account_enabled_help": "Als uitgeschakeld, kan de agent dit account niet gebruiken.",
+  "config.email.allow_sending_label": "E-mails verzenden toestaan",
+  "config.email.allow_sending_help": "Als uitgeschakeld, kan de agent alleen e-mails lezen, niet verzenden."
 }

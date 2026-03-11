@@ -33,5 +33,13 @@
   "config.email.imap_host": "Κεντρικός υπολογιστής IMAP",
   "config.email.smtp_host": "Κεντρικός υπολογιστής SMTP",
   "config.email.password_set": "σετ",
-  "config.email.password_unchanged": "αμετάβλητος"
+  "config.email.password_unchanged": "αμετάβλητος",
+  "config.email.enabled": "Ενεργό",
+  "config.email.disabled": "Απενεργοποιημένο",
+  "config.email.read_only": "Μόνο ανάγνωση",
+  "config.email.account_settings": "Ρυθμίσεις λογαριασμού",
+  "config.email.account_enabled_label": "Λογαριασμός ενεργός",
+  "config.email.account_enabled_help": "Αν απενεργοποιηθεί, ο πράκτορας δεν μπορεί να χρησιμοποιήσει αυτόν τον λογαριασμό.",
+  "config.email.allow_sending_label": "Επιτρέπεται η αποστολή email",
+  "config.email.allow_sending_help": "Αν απενεργοποιηθεί, ο πράκτορας μπορεί μόνο να διαβάζει email, όχι να τα στέλνει."
 }

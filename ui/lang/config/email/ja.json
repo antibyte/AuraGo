@@ -33,5 +33,13 @@
   "config.email.smtp_host": "SMTPホスト",
   "config.email.smtp_port": "SMTPポート",
   "config.email.password_set": "セット",
-  "config.email.password_unchanged": "変わらない"
+  "config.email.password_unchanged": "変わらない",
+  "config.email.enabled": "有効",
+  "config.email.disabled": "無効",
+  "config.email.read_only": "読み取り専用",
+  "config.email.account_settings": "アカウント設定",
+  "config.email.account_enabled_label": "アカウント有効",
+  "config.email.account_enabled_help": "無効にすると、エージェントはこのアカウントを使用できません。",
+  "config.email.allow_sending_label": "メール送信を許可",
+  "config.email.allow_sending_help": "無効にすると、エージェントはメールを読むだけで、送信できません。"
 }

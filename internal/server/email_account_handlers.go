@@ -21,6 +21,8 @@ type emailAccountJSON struct {
 	Username      string `json:"username"`
 	Password      string `json:"password,omitempty"`
 	FromAddress   string `json:"from_address"`
+	Enabled       bool   `json:"enabled"`
+	AllowSending  bool   `json:"allow_sending"`
 	WatchEnabled  bool   `json:"watch_enabled"`
 	WatchInterval int    `json:"watch_interval_seconds"`
 	WatchFolder   string `json:"watch_folder"`
@@ -62,6 +64,8 @@ func handleGetEmailAccounts(s *Server, w http.ResponseWriter, _ *http.Request) {
 			Username:      a.Username,
 			Password:      pw,
 			FromAddress:   a.FromAddress,
+			Enabled:       !a.Disabled,
+			AllowSending:  !a.ReadOnly,
 			WatchEnabled:  a.WatchEnabled,
 			WatchInterval: a.WatchInterval,
 			WatchFolder:   a.WatchFolder,
@@ -126,6 +130,8 @@ func handlePutEmailAccounts(s *Server, w http.ResponseWriter, r *http.Request) {
 			Username:      a.Username,
 			Password:      pw,
 			FromAddress:   a.FromAddress,
+			Disabled:      !a.Enabled,
+			ReadOnly:      !a.AllowSending,
 			WatchEnabled:  a.WatchEnabled,
 			WatchInterval: a.WatchInterval,
 			WatchFolder:   a.WatchFolder,
@@ -159,6 +165,8 @@ func handlePutEmailAccounts(s *Server, w http.ResponseWriter, r *http.Request) {
 			"smtp_port":              e.SMTPPort,
 			"username":               e.Username,
 			"from_address":           e.FromAddress,
+			"disabled":               e.Disabled,
+			"readonly":               e.ReadOnly,
 			"watch_enabled":          e.WatchEnabled,
 			"watch_interval_seconds": e.WatchInterval,
 			"watch_folder":           e.WatchFolder,
