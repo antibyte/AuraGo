@@ -51,7 +51,6 @@ async function renderWebhooksSection(section) {
                     <button class="wh-tab active" onclick="whSwitchTab(this,'wh-panel-hooks')">${t('config.webhooks.tab_webhooks')}</button>
                     <button class="wh-tab" onclick="whSwitchTab(this,'wh-panel-tokens')">${t('config.webhooks.tab_tokens')}</button>
                     <button class="wh-tab" onclick="whSwitchTab(this,'wh-panel-log')">${t('config.webhooks.tab_log')}</button>
-                    <button class="wh-tab" onclick="whSwitchTab(this,'wh-panel-outgoing')">${t('config.webhooks.tab_outgoing') || '📤 Outgoing'}</button>
                 </div>`;
 
         // Webhooks panel
@@ -68,12 +67,15 @@ async function renderWebhooksSection(section) {
         html += '<div id="wh-panel-log" class="wh-panel">';
         html += whRenderLog();
         html += '</div>';
-
-        // Outgoing panel
-        html += '<div id="wh-panel-outgoing" class="wh-panel">';
-        html += ogRenderList();
-        html += '</div>';
     }
+
+    // Outgoing webhooks — always visible, independent of incoming webhook server
+    html += `<div style="margin-top:2rem;">
+        <div style="font-weight:600;font-size:0.85rem;color:var(--accent);margin-bottom:0.75rem;border-bottom:1px solid var(--border-subtle);padding-bottom:0.3rem;">
+            ${t('config.webhooks.tab_outgoing') || '📤 Outgoing Webhooks'}
+        </div>`;
+    html += ogRenderList();
+    html += '</div>';
 
     html += '</div>';
     content.innerHTML = html;
