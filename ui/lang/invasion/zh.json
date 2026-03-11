@@ -23,6 +23,7 @@
   "invasion.delete_permanent": "🗑️ 永久删除",
   "invasion.deleted": "已删除！",
   "invasion.deploy_docker_local": "Docker (本地)",
+  "invasion.docker_local_hint": "对于本地Docker部署，主URL会自动解析为host.docker.internal — 无需手动配置主机。",
   "invasion.deploy_docker_remote": "Docker (远程)",
   "invasion.deploy_method": "部署方式",
   "invasion.deploy_ssh": "SSH",

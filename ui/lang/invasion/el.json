@@ -23,6 +23,7 @@
   "invasion.delete_permanent": "🗑️ Permanent Verwijderen",
   "invasion.deleted": "Διαγράφηκε!",
   "invasion.deploy_docker_local": "Docker (Lokaal)",
+  "invasion.docker_local_hint": "Για τοπικές αναπτύξεις Docker, το κύριο URL επιλύεται αυτόματα σε host.docker.internal — δεν απαιτείται χειροκίνητη διαμόρφωση κεντρικού υπολογιστή.",
   "invasion.deploy_docker_remote": "Docker (Remote)",
   "invasion.deploy_method": "Deploy Methode",
   "invasion.deploy_ssh": "SSH",

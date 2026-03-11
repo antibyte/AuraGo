@@ -23,6 +23,7 @@
   "invasion.delete_permanent": "🗑️ Endgültig löschen",
   "invasion.deleted": "Gelöscht!",
   "invasion.deploy_docker_local": "Docker (Lokal)",
+  "invasion.docker_local_hint": "Für lokale Docker-Deployments wird die Master-URL automatisch auf host.docker.internal gesetzt – keine manuelle Host-Konfiguration erforderlich.",
   "invasion.deploy_docker_remote": "Docker (Remote)",
   "invasion.deploy_method": "Deploy-Methode",
   "invasion.deploy_ssh": "SSH",

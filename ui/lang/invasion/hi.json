@@ -23,6 +23,7 @@
   "invasion.delete_permanent": "🗑️ Permanent Verwijderen",
   "invasion.deleted": "हटा दिया गया!",
   "invasion.deploy_docker_local": "Docker (Lokaal)",
+  "invasion.docker_local_hint": "स्थानीय Docker deployments के लिए, master URL स्वचालित रूप से host.docker.internal पर हल होता है — कोई मैन्युअल होस्ट कॉन्फ़िगरेशन आवश्यक नहीं।",
   "invasion.deploy_docker_remote": "Docker (Remote)",
   "invasion.deploy_method": "Deploy Methode",
   "invasion.deploy_ssh": "SSH",

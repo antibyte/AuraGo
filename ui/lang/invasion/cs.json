@@ -23,6 +23,7 @@
   "invasion.delete_permanent": "🗑️ Trvale smazat",
   "invasion.deleted": "Smazáno!",
   "invasion.deploy_docker_local": "Docker (Lokální)",
+  "invasion.docker_local_hint": "Pro lokální Docker nasazení je URL mastera automaticky přeložena na host.docker.internal — není potřeba ruční konfigurace hostitele.",
   "invasion.deploy_docker_remote": "Docker (Vzdálený)",
   "invasion.deploy_method": "Metoda nasazení",
   "invasion.deploy_ssh": "SSH",

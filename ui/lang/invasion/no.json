@@ -23,6 +23,7 @@
   "invasion.delete_permanent": "🗑️ Permanent Verwijderen",
   "invasion.deleted": "Slettet!",
   "invasion.deploy_docker_local": "Docker (Lokaal)",
+  "invasion.docker_local_hint": "For lokale Docker-distribusjoner løses master-URL-en automatisk til host.docker.internal — ingen manuell vertskonfigurasjon kreves.",
   "invasion.deploy_docker_remote": "Docker (Remote)",
   "invasion.deploy_method": "Deploy Methode",
   "invasion.deploy_ssh": "SSH",

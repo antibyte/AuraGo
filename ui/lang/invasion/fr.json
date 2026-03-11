@@ -23,6 +23,7 @@
   "invasion.delete_permanent": "🗑️ Supprimer Définitivement",
   "invasion.deleted": "Supprimé !",
   "invasion.deploy_docker_local": "Docker (Local)",
+  "invasion.docker_local_hint": "Pour les déploiements Docker locaux, l'URL maître est automatiquement résolue en host.docker.internal — aucune configuration d'hôte requise.",
   "invasion.deploy_docker_remote": "Docker (Distant)",
   "invasion.deploy_method": "Méthode de Déploiement",
   "invasion.deploy_ssh": "SSH",

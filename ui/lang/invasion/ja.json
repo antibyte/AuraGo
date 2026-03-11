@@ -23,6 +23,7 @@
   "invasion.delete_permanent": "🗑️ 完全に削除",
   "invasion.deleted": "削除しました！",
   "invasion.deploy_docker_local": "Docker (ローカル)",
+  "invasion.docker_local_hint": "ローカルDockerデプロイメントでは、マスターURLは自動的にhost.docker.internalに解決されます — 手動のホスト設定は不要です。",
   "invasion.deploy_docker_remote": "Docker (リモート)",
   "invasion.deploy_method": "デプロイ方法",
   "invasion.deploy_ssh": "SSH",

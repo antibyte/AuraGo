@@ -216,6 +216,7 @@ function openNestModal(nest = null) {
         if (vr) { vr.className = 'validate-result'; vr.textContent = ''; }
 
         onAccessTypeChange();
+        onDeployMethodChange();
         openModal('nest-modal');
     } catch (err) {
         console.error('[IC] openNestModal error:', err);
@@ -256,6 +257,12 @@ function editEgg(id) {
 }
 
 // ── Access Type ──────────────────────────────────────────
+function onDeployMethodChange() {
+    const method = document.getElementById('nest-deploy-method').value;
+    const hint = document.getElementById('deploy-docker-local-hint');
+    if (hint) hint.style.display = method === 'docker_local' ? 'block' : 'none';
+}
+
 function onAccessTypeChange() {
     const type = document.getElementById('nest-access-type').value;
     const remoteFields = document.getElementById('nest-remote-fields');

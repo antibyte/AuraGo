@@ -155,12 +155,30 @@ func ResolveMasterURL(masterCfg *config.Config, nest NestRecord) string {
 		masterPort = 8080
 	}
 
+	// For local Docker deployments the egg runs inside a container and cannot
+	// reach the host via 0.0.0.0 (the bind address). Use host.docker.internal
+	// which is the standard gateway hostname on Docker Desktop (Windows/macOS)
+	// and also available on recent Docker versions on Linux.
+	// Fall back to the Docker default bridge gateway (172.17.0.1) for older
+	// Linux setups where host.docker.internal is not automatically set.
+	if nest.DeployMethod == "docker_local" && nest.Route != "custom" && nest.Route != "ssh_tunnel" {
+		host := nest.Host
+		if host == "" || host == "0.0.0.0" {
+			host = "host.docker.internal"
+		}
+		return fmt.Sprintf("%s://%s:%d/api/invasion/ws", scheme, host, masterPort)
+	}
+
 	switch nest.Route {
 	case "tailscale", "wireguard", "direct":
 		// Use nest host or fall back to master config
 		host := nest.Host
-		if host == "" {
+		if host == "" || host == "0.0.0.0" {
 			host = masterCfg.Server.Host
+		}
+		// Guard against the master bind address being used as a target
+		if host == "0.0.0.0" {
+			host = "localhost"
 		}
 		return fmt.Sprintf("%s://%s:%d/api/invasion/ws", scheme, host, masterPort)
 
@@ -177,6 +195,13 @@ func ResolveMasterURL(masterCfg *config.Config, nest NestRecord) string {
 		return fmt.Sprintf("%s://%s:%d/api/invasion/ws", scheme, nest.Host, masterPort)
 
 	default:
-		return fmt.Sprintf("%s://%s:%d/api/invasion/ws", scheme, nest.Host, masterPort)
+		host := nest.Host
+		if host == "" || host == "0.0.0.0" {
+			host = masterCfg.Server.Host
+		}
+		if host == "0.0.0.0" {
+			host = "localhost"
+		}
+		return fmt.Sprintf("%s://%s:%d/api/invasion/ws", scheme, host, masterPort)
 	}
 }
