@@ -77,5 +77,6 @@
   "chat.trait_loneliness": "孤独感",
   "chat.trait_thoroughness": "细致度",
   "chat.upload_btn_title": "附加文件",
-  "chat.upload_failed": "⚠️ 上传失败："
+  "chat.upload_failed": "⚠️ 上传失败：",
+  "chat.todo_panel_title": "📋 任务列表"
 }

@@ -77,5 +77,6 @@
   "chat.trait_loneliness": "Eenzaamheid",
   "chat.trait_thoroughness": "Grondigheid",
   "chat.upload_btn_title": "Bestand bijvoegen",
-  "chat.upload_failed": "Upload mislukt"
+  "chat.upload_failed": "Upload mislukt",
+  "chat.todo_panel_title": "📋 Takenlijst"
 }

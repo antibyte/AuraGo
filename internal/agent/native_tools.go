@@ -884,6 +884,27 @@ func BuildNativeToolSchemas(skillsDir string, manifest *tools.Manifest, enableGo
 		}
 	}
 
+	// Inject _todo property into every tool schema so the agent can piggyback
+	// a session-scoped task list on each tool call (optional, never required).
+	todoProperty := map[string]interface{}{
+		"type":        []string{"string", "null"},
+		"description": "Optional: a compact task list for multi-step work. Format each task as '- [x] done task' or '- [ ] pending task', one per line. Update this on every tool call to track your progress through the current session's objectives. Leave empty or null if not needed.",
+	}
+	for i := range allTools {
+		if allTools[i].Function == nil || allTools[i].Function.Parameters == nil {
+			continue
+		}
+		params, ok := allTools[i].Function.Parameters.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		props, ok := params["properties"].(map[string]interface{})
+		if !ok {
+			continue
+		}
+		props["_todo"] = todoProperty
+	}
+
 	if logger != nil {
 		logger.Debug("[NativeTools] Built tool schemas", "count", len(allTools))
 	}

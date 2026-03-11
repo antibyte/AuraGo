@@ -77,5 +77,6 @@
   "chat.trait_loneliness": "Solitudine",
   "chat.trait_thoroughness": "Completezza",
   "chat.upload_btn_title": "Allega file",
-  "chat.upload_failed": "⚠️ Caricamento fallito: "
+  "chat.upload_failed": "⚠️ Caricamento fallito: ",
+  "chat.todo_panel_title": "📋 Elenco attività"
 }

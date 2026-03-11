@@ -77,5 +77,6 @@
   "chat.trait_loneliness": "Osamělost",
   "chat.trait_thoroughness": "Pečlivost",
   "chat.upload_btn_title": "Připojit soubor",
-  "chat.upload_failed": "Nahrani selhalo"
+  "chat.upload_failed": "Nahrani selhalo",
+  "chat.todo_panel_title": "📋 Seznam úkolů"
 }

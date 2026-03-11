@@ -77,5 +77,6 @@
   "chat.trait_loneliness": "Solidão",
   "chat.trait_thoroughness": "Minuciosidade",
   "chat.upload_btn_title": "Anexar arquivo",
-  "chat.upload_failed": "Upload falhou"
+  "chat.upload_failed": "Upload falhou",
+  "chat.todo_panel_title": "📋 Lista de tarefas"
 }

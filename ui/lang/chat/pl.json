@@ -77,5 +77,6 @@
   "chat.trait_loneliness": "Samotność",
   "chat.trait_thoroughness": "Dokładność",
   "chat.upload_btn_title": "Załącz plik",
-  "chat.upload_failed": "⚠️ Błąd przesyłania: "
+  "chat.upload_failed": "⚠️ Błąd przesyłania: ",
+  "chat.todo_panel_title": "📋 Lista zadań"
 }

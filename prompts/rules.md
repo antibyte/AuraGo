@@ -26,7 +26,13 @@ priority: 10
   - Recurring tasks or workflows
   - Personal goals or project context
   - Any explicitly stated preference ("I prefer X", "always do Y")
-  **CRITICAL:** You MUST actually output the `{"action": "manage_memory", ...}` JSON tool call to save it in the same response turn. Do not just politely reply that you will save it without invoking the tool.
+  **CRITICAL:** You MUST actually output the `{"action": "manage_memory", ...}` JSON tool call to save it in the same response turn. Do not just politely reply that you will save it without invoking the tool. Do NOT save temporary task lists or session progress notes to core memory — use the `_todo` field instead.
+- **Task Tracking (Session Todo).** Every tool call includes an optional `_todo` field. Use it to maintain a compact task list during multi-step work:
+  - Start a todo list when a task requires 3+ steps. Write tasks as `- [ ] pending` or `- [x] done`.
+  - Update `_todo` on **every** subsequent tool call — mark completed items and add new ones as they emerge.
+  - Keep it concise (one line per task, max ~10 items). Drop completed items once the overall task is finished.
+  - Do NOT save todo items to core memory — they are session-scoped and automatically cleared on new sessions.
+  - This is purely for your own progress tracking; the user sees it only in debug mode.
 - **Inventory Management.** When the user provides details about a new network device, server, or IP address, or when you discover one, you MUST immediately output a `{"action": "register_device", ...}` JSON tool call to save it to your inventory.
 - **Acknowledge before long actions.** ⚠️ **MANDATORY** — Before beginning any task that **you estimate will require more than 2 tool calls OR more than ~5 seconds of execution time**, you MUST first send a short, natural acknowledgment message to the user in the same response turn **before** initiating the first tool call or outputting a workflow plan. This rule applies **only when the task was directly requested by the user** in this turn — NOT during `follow_up` background chains or autonomous continuation tasks.
 

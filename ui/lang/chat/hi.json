@@ -77,5 +77,6 @@
   "chat.trait_loneliness": "अकेलापन",
   "chat.trait_thoroughness": "सूक्ष्मता",
   "chat.upload_btn_title": "फाइल अटैच करें",
-  "chat.upload_failed": "Nahrani selhalo"
+  "chat.upload_failed": "Nahrani selhalo",
+  "chat.todo_panel_title": "📋 कार्य सूची"
 }

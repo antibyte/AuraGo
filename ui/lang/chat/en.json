@@ -77,5 +77,6 @@
   "chat.trait_loneliness": "Loneliness",
   "chat.trait_thoroughness": "Thoroughness",
   "chat.upload_btn_title": "Attach file",
-  "chat.upload_failed": "⚠️ Upload failed: "
+  "chat.upload_failed": "⚠️ Upload failed: ",
+  "chat.todo_panel_title": "📋 Agent Task List"
 }

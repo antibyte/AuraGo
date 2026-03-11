@@ -226,6 +226,39 @@ function appendToolOutput(text, label) {
     chatBox.scrollTop = chatBox.scrollHeight;
 }
 
+/* ── Session Todo Panel (debug mode only) ── */
+function updateTodoPanel(todoText) {
+    if (!debugMode || !todoText) { hideTodoPanel(); return; }
+    let panel = document.getElementById('todo-debug-panel');
+    if (!panel) {
+        panel = document.createElement('div');
+        panel.id = 'todo-debug-panel';
+        panel.className = 'todo-debug-panel';
+        panel.innerHTML = '<div class="todo-debug-header">' + escapeHtml(t('chat.todo_panel_title')) + '</div><div class="todo-debug-body"></div>';
+        // Insert before the agent status container
+        const statusContainer = document.getElementById('agentStatusContainer');
+        if (statusContainer) statusContainer.parentNode.insertBefore(panel, statusContainer);
+        else document.body.appendChild(panel);
+    }
+    const body = panel.querySelector('.todo-debug-body');
+    if (body) {
+        // Parse markdown-style todo items into HTML
+        const lines = todoText.split('\n').filter(l => l.trim());
+        body.innerHTML = lines.map(line => {
+            const done = /^\s*-\s*\[x\]/i.test(line);
+            const text = line.replace(/^\s*-\s*\[[ x]\]\s*/i, '').trim();
+            return '<div class="todo-item ' + (done ? 'todo-done' : 'todo-pending') + '">'
+                + (done ? '✅' : '⬜') + ' ' + escapeHtml(text) + '</div>';
+        }).join('');
+    }
+    panel.style.display = 'block';
+}
+
+function hideTodoPanel() {
+    const panel = document.getElementById('todo-debug-panel');
+    if (panel) panel.style.display = 'none';
+}
+
 /* ── Load history & notifications ── */
 async function initPage() {
     applyI18n();
@@ -357,6 +390,7 @@ document.getElementById('clear-btn').addEventListener('click', async () => {
             if (res.ok) {
                 chatContent.innerHTML = '';
                 conversation = [];
+                hideTodoPanel();
                 appendMessage('assistant', t('chat.greeting'));
             }
         } catch (err) {
@@ -740,6 +774,9 @@ function handleSSEMessage(e) {
         } else if (data.event === 'budget_blocked') {
             appendMessage('system', '\ud83d\udeab ' + (data.message || t('chat.budget_blocked')));
             return;
+        } else if (data.event === 'todo_update') {
+            updateTodoPanel(data.detail);
+            return;
         } else if (data.event === 'image') {
             try {
                 const imgData = JSON.parse(data.detail);
@@ -759,6 +796,7 @@ function handleSSEMessage(e) {
         } else if (data.event === 'done') {
             agentStatusDiv.style.display = 'none';
             stopBtn.disabled = true;
+            hideTodoPanel();
             return;
         } else if (data.event === 'tokens') {
             const tokenEl = document.getElementById('tokenCounter');

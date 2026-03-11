@@ -77,5 +77,6 @@
   "chat.trait_loneliness": "Μοναξιά",
   "chat.trait_thoroughness": "Επιμέλεια",
   "chat.upload_btn_title": "Επισύναψη αρχείου",
-  "chat.upload_failed": "Η μεταφορτωση απετυχε"
+  "chat.upload_failed": "Η μεταφορτωση απετυχε",
+  "chat.todo_panel_title": "📋 Λίστα εργασιών"
 }

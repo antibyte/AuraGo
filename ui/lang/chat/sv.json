@@ -77,5 +77,6 @@
   "chat.trait_loneliness": "Ensamhet",
   "chat.trait_thoroughness": "Grundlighet",
   "chat.upload_btn_title": "Bifoga fil",
-  "chat.upload_failed": "Nahrani selhalo"
+  "chat.upload_failed": "Nahrani selhalo",
+  "chat.todo_panel_title": "📋 Uppgiftslista"
 }

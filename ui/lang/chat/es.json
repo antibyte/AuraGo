@@ -77,5 +77,6 @@
   "chat.trait_loneliness": "Soledad",
   "chat.trait_thoroughness": "Minuciosidad",
   "chat.upload_btn_title": "Adjuntar archivo",
-  "chat.upload_failed": "⚠️ Error al subir: "
+  "chat.upload_failed": "⚠️ Error al subir: ",
+  "chat.todo_panel_title": "📋 Lista de tareas"
 }

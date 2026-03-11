@@ -77,5 +77,6 @@
   "chat.trait_loneliness": "Solitude",
   "chat.trait_thoroughness": "Rigueur",
   "chat.upload_btn_title": "Joindre un fichier",
-  "chat.upload_failed": "⚠️ Échec du téléchargement : "
+  "chat.upload_failed": "⚠️ Échec du téléchargement : ",
+  "chat.todo_panel_title": "📋 Liste des tâches"
 }

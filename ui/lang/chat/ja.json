@@ -77,5 +77,6 @@
   "chat.trait_loneliness": "孤独感",
   "chat.trait_thoroughness": "徹底性",
   "chat.upload_btn_title": "ファイルを添付",
-  "chat.upload_failed": "⚠️ アップロード失敗: "
+  "chat.upload_failed": "⚠️ アップロード失敗: ",
+  "chat.todo_panel_title": "📋 タスクリスト"
 }

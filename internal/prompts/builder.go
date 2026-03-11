@@ -130,6 +130,7 @@ type ContextFlags struct {
 	WOLEnabled               bool
 	UserProfileSummary       string // Optional user profile summary from profiling engine
 	AdditionalPrompt         string // Extra instructions always appended at end of system prompt
+	SessionTodoItems         string // Session-scoped task list piggybacked on tool calls
 }
 
 // DetermineTier returns the appropriate prompt tier based on the conversation length.
@@ -222,6 +223,13 @@ func BuildSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string,
 	if coreMemory != "" {
 		finalPrompt.WriteString("### CORE MEMORY ###\n")
 		finalPrompt.WriteString(coreMemory)
+		finalPrompt.WriteString("\n\n")
+	}
+
+	// Session-scoped task list — always inject when present
+	if flags.SessionTodoItems != "" {
+		finalPrompt.WriteString("### ACTIVE TASK LIST ###\n")
+		finalPrompt.WriteString(flags.SessionTodoItems)
 		finalPrompt.WriteString("\n\n")
 	}
 

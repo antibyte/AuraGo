@@ -184,6 +184,7 @@ type ToolCall struct {
 	RawCodeDetected    bool                   `json:"-"`
 	RawJSON            string                 `json:"-"`
 	NativeCallID       string                 `json:"-"` // Native API tool call ID for role=tool responses
+	Todo               string                 `json:"_todo,omitempty"` // Session-scoped task list piggybacked on every tool call
 	Operation          string                 `json:"operation"`
 	Fact               string                 `json:"fact"`
 	ID                 string                 `json:"id"`
@@ -528,6 +529,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	coreMemCache := ""
 	coreMemDirty := true // Force initial load
 
+	// Session-scoped todo list piggybacked on tool calls
+	sessionTodoList := ""
+
 	// Phase D: Personality Engine (opt-in)
 	personalityEnabled := cfg.Agent.PersonalityEngine
 	if personalityEnabled && shortTermMem != nil {
@@ -675,6 +679,11 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 			broker.Send("tool_end", ptc.Action)
 			lastActivity = time.Now()
+			// Update session todo from piggybacked _todo field
+			if ptc.Todo != "" {
+				sessionTodoList = ptc.Todo
+				broker.Send("todo_update", sessionTodoList)
+			}
 			if ptc.Action == "manage_memory" || ptc.Action == "core_memory" {
 				coreMemDirty = true
 			}
@@ -806,6 +815,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		flags.Tier = prompts.DetermineTier(flags.MessageCount)
 		flags.RecentlyUsedTools = recentTools
 		flags.IsDebugMode = cfg.Agent.DebugMode || GetDebugMode() // re-check each iteration (toggleable at runtime)
+
+		// Inject session todo list into system prompt context
+		flags.SessionTodoItems = sessionTodoList
 
 		sysPrompt := prompts.BuildSystemPrompt(cfg.Directories.PromptsDir, flags, coreMemCache, currentLogger)
 
@@ -1445,6 +1457,12 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 			broker.Send("tool_end", tc.Action)
 			lastActivity = time.Now() // Tool activity
+
+			// Update session todo from piggybacked _todo field
+			if tc.Todo != "" {
+				sessionTodoList = tc.Todo
+				broker.Send("todo_update", sessionTodoList)
+			}
 
 			// Invalidate core memory cache when it was modified
 			if tc.Action == "manage_memory" {

@@ -77,5 +77,6 @@
   "chat.trait_loneliness": "Einsamkeit",
   "chat.trait_thoroughness": "Gründlichkeit",
   "chat.upload_btn_title": "Datei anhängen",
-  "chat.upload_failed": "⚠️ Upload fehlgeschlagen: "
+  "chat.upload_failed": "⚠️ Upload fehlgeschlagen: ",
+  "chat.todo_panel_title": "📋 Aufgabenliste"
 }
