@@ -62,8 +62,13 @@ func main() {
 	appLog := logger.Setup(debug)
 	slog.SetDefault(appLog)
 
-	// Load secrets: Docker secret → /etc/aurago/master.key → local .env
+	// Load secrets in priority order — each step only sets vars not already present:
+	//   1. systemd EnvironmentFile (already in env before process starts)
+	//   2. Docker Compose secret  (/run/secrets/aurago_master_key)
+	//   3. System credential file (/etc/aurago/master.key)  ← manual starts post-migration
+	//   4. Local .env             ($configDir/.env)          ← dev / non-systemd installs
 	loadDockerSecret("/run/secrets/aurago_master_key", "AURAGO_MASTER_KEY", appLog)
+	loadDotEnv("/etc/aurago/master.key", appLog)
 	loadDotEnv(filepath.Join(filepath.Dir(configFile), ".env"), appLog)
 
 	// ── Config-check mode: validate YAML and exit (used by Docker entrypoint) ─
@@ -527,7 +532,7 @@ func loadDotEnv(path string, log *slog.Logger) {
 	if err != nil {
 		return // Ignore if file doesn't exist
 	}
-	log.Info("Loading environment from .env", "path", path)
+	log.Info("Loading environment from credential file", "path", path)
 	for _, line := range bytes.Split(data, []byte("\n")) {
 		line = bytes.TrimSpace(line)
 		if len(line) == 0 || bytes.HasPrefix(line, []byte("#")) {
@@ -539,7 +544,11 @@ func loadDotEnv(path string, log *slog.Logger) {
 			val := string(bytes.TrimSpace(parts[1]))
 			// Remove quotes if present
 			val = strings.Trim(val, `"'`)
-			os.Setenv(key, val)
+			// Only set if not already provided by a higher-priority source
+			// (systemd EnvironmentFile, Docker secret, or earlier file in the chain).
+			if os.Getenv(key) == "" {
+				os.Setenv(key, val)
+			}
 		}
 	}
 }
