@@ -45,12 +45,11 @@ conditions: ["netlify_enabled"]
 
 **Parameters:** `operation`, `site_id`, `site_name`, `custom_domain`, `deploy_id`, `content`, `title`, `draft`, `env_key`, `env_value`, `env_context`, `form_id`, `hook_id`, `hook_type`, `hook_event`, `url`, `value`
 
-**Homepage → Netlify workflow (preferred):**
-1. Use `homepage` → `deploy_netlify` — handles build + ZIP + upload in one step
-   - Params: `project_dir`, `site_id` (optional if default configured), `title`, `draft`
+**Homepage → Netlify deployment (only supported method):**
+- Use `homepage` → `deploy_netlify` — handles build + ZIP + upload entirely server-side
+  - Params: `project_dir`, `site_id` (optional if default configured), `title`, `draft`
 
-**Manual deploy_zip workflow (only if needed):**
-1. Build with `homepage` → `build`
-2. Deploy with `netlify` → `deploy_zip` (`content` = base64 ZIP, `site_id`, `title`, `draft`)
+⚠️ **Do NOT use `netlify` → `deploy_zip` / `deploy_draft` with manually created ZIP data.**
+The agent cannot reliably pass binary/base64 data through tool arguments — the ZIP will be truncated or corrupted, causing 400 errors. Always use `homepage › deploy_netlify` for homepage deployments.
 
 📖 See **tools_manuals/netlify.md** for detailed usage.

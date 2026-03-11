@@ -58,20 +58,14 @@ Gets details about a specific deploy.
 {"operation": "get_deploy", "deploy_id": "def456"}
 ```
 
-#### deploy_zip
-Deploys a site by uploading a ZIP archive of the build output.
-```json
-{"operation": "deploy_zip", "site_id": "abc123", "content": "<base64-encoded-zip>", "title": "v1.2.0 release", "draft": false}
-```
-- `content`: Base64-encoded ZIP of the build output directory
-- `title`: Optional deploy label
-- `draft`: If true, deploys as a preview (not published)
+#### deploy_zip / deploy_draft
+⚠️ **Not usable from the agent directly.** These operations require passing a valid base64-encoded ZIP via `content`, but binary data cannot be reliably transported through LLM tool arguments (the ZIP will be truncated or corrupted, leading to 400 errors from the Netlify API).
 
-#### deploy_draft
-Shortcut for deploying as a draft.
+**Always use `homepage` → `deploy_netlify` instead.** It performs the build, creates the ZIP, and uploads it entirely server-side without the agent needing to handle binary data:
 ```json
-{"operation": "deploy_draft", "site_id": "abc123", "content": "<base64-encoded-zip>", "title": "Preview build"}
+{"operation": "deploy_netlify", "project_dir": "my-site", "site_id": "abc123", "title": "v1.2.0", "draft": false}
 ```
+Only use `deploy_zip` if you have a pre-built ZIP path available on disk and can pass it through a different mechanism.
 
 #### rollback
 Restores a previous deploy.

@@ -276,6 +276,7 @@ var authBypassPrefixes = []string{
 	"/shared.css",
 	"/shared.js",
 	"/css/login.css",
+	"/js/login/",
 }
 
 func isAuthBypassed(path string) bool {

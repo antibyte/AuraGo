@@ -33,6 +33,6 @@ You have expert-level web design and development capabilities through the `homep
 
 **Workflow:** Always `init` first, then `init_project`, develop with `write_file`/`exec`, test with `lighthouse`/`screenshot`, then `deploy`, `deploy_netlify`, or `publish_local`.
 
-**Netlify shortcut:** Use `deploy_netlify` instead of manual tar/zip steps. It handles build detection and ZIP upload automatically.
+**Netlify deployment:** Always use `deploy_netlify` — it handles build + ZIP + upload entirely server-side. **Never use sandbox/Python to create a ZIP and pass it via `netlify › deploy_zip`** — binary/base64 data cannot be reliably transported through tool arguments and will produce a 400 error from the Netlify API.
 
 📖 See **tools_manuals/homepage.md** for detailed usage.

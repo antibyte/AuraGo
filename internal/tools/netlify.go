@@ -403,8 +403,19 @@ func NetlifyDeployZip(cfg NetlifyConfig, siteID, title string, draft bool, zipDa
 	if err != nil {
 		return errJSON("Failed to deploy: %v", err)
 	}
-	if code != 200 {
-		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+	// Netlify returns 200 for re-deploys and 201 Created for new deploys.
+	if code != 200 && code != 201 {
+		// Try to extract a helpful message from the Netlify error body
+		errMsg := string(data)
+		var errBody map[string]interface{}
+		if jsonErr := json.Unmarshal(data, &errBody); jsonErr == nil {
+			if msg, ok := errBody["message"]; ok {
+				errMsg = fmt.Sprintf("%v", msg)
+			} else if msg, ok := errBody["error"]; ok {
+				errMsg = fmt.Sprintf("%v", msg)
+			}
+		}
+		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, errMsg)
 	}
 
 	var deploy map[string]interface{}
