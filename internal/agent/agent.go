@@ -4587,14 +4587,6 @@ func dispatchInner(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 			return "Tool Output: " + tools.NetlifyGetDeploy(nfCfg, tc.DeployID)
 		case "deploy_zip":
 			logger.Info("LLM requested Netlify deploy ZIP", "site_id", tc.SiteID, "draft", tc.Draft)
-			// Binary data cannot be reliably transported through LLM tool arguments:
-			// base64 content passed inline gets truncated by the context window and the
-			// resulting ZIP is always malformed, causing a 400 from the Netlify API.
-			// When the homepage integration is available, use it instead.
-			if cfg.Homepage.Enabled {
-				return `Tool Output: {"status":"error","message":"deploy_zip is not usable from the agent: inline base64 ZIP data is always truncated and causes 400 errors. Use the homepage tool with operation=deploy_netlify instead. It handles build + ZIP + upload entirely server-side with no data truncation issues."}`
-			}
-			// Homepage integration not available — still guard against empty/corrupt data.
 			if tc.Content == "" {
 				return `Tool Output: {"status":"error","message":"content (base64 ZIP) is required for deploy_zip."}`
 			}
@@ -4605,9 +4597,6 @@ func dispatchInner(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 			return "Tool Output: " + tools.NetlifyDeployZip(nfCfg, tc.SiteID, tc.Title, tc.Draft, zipData)
 		case "deploy_draft":
 			logger.Info("LLM requested Netlify draft deploy", "site_id", tc.SiteID)
-			if cfg.Homepage.Enabled {
-				return `Tool Output: {"status":"error","message":"deploy_draft is not usable from the agent: inline base64 ZIP data is always truncated and causes 400 errors. Use the homepage tool with operation=deploy_netlify and draft=true instead."}`
-			}
 			if tc.Content == "" {
 				return `Tool Output: {"status":"error","message":"content (base64 ZIP) is required for deploy_draft."}`
 			}
