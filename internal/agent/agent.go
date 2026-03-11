@@ -1894,6 +1894,71 @@ func isSystemSecret(key string) bool {
 	return false
 }
 
+// isProtectedSystemPath returns true when the given path refers to a system-sensitive
+// file that the agent must never read or write via the filesystem tool:
+//   - The active config.yaml
+//   - The vault file (vault.bin) and its lock
+//   - All SQLite database files (short-term, long-term, inventory, invasion) + WAL/SHM journals
+//   - Any file named .env or ending in .env
+//
+// rawPath may be absolute or relative; relative paths are resolved against workspaceDir.
+func isProtectedSystemPath(rawPath, workspaceDir string, cfg *config.Config) bool {
+	if rawPath == "" {
+		return false
+	}
+
+	// Resolve to absolute path
+	var abs string
+	if filepath.IsAbs(rawPath) {
+		abs = filepath.Clean(rawPath)
+	} else {
+		abs = filepath.Clean(filepath.Join(workspaceDir, rawPath))
+	}
+
+	// Block .env files by name regardless of location
+	base := strings.ToLower(filepath.Base(abs))
+	if base == ".env" || strings.HasSuffix(base, ".env") {
+		return true
+	}
+
+	// Build list of protected absolute paths from config
+	vaultBase := filepath.Join(cfg.Directories.DataDir, "vault.bin")
+	protected := []string{
+		cfg.ConfigPath,
+		vaultBase,
+		vaultBase + ".lock",
+		cfg.SQLite.ShortTermPath,
+		cfg.SQLite.ShortTermPath + "-wal",
+		cfg.SQLite.ShortTermPath + "-shm",
+		cfg.SQLite.LongTermPath,
+		cfg.SQLite.LongTermPath + "-wal",
+		cfg.SQLite.LongTermPath + "-shm",
+		cfg.SQLite.InventoryPath,
+		cfg.SQLite.InventoryPath + "-wal",
+		cfg.SQLite.InventoryPath + "-shm",
+		cfg.SQLite.InvasionPath,
+		cfg.SQLite.InvasionPath + "-wal",
+		cfg.SQLite.InvasionPath + "-shm",
+	}
+
+	for _, p := range protected {
+		if p == "" {
+			continue
+		}
+		cleanP := filepath.Clean(p)
+		if abs == cleanP {
+			return true
+		}
+		// Resolve symlinks on the stored path (covers Linux /proc/ or mount aliases)
+		if resolved, err := filepath.EvalSymlinks(cleanP); err == nil {
+			if abs == filepath.Clean(resolved) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func dispatchInner(ctx context.Context, tc ToolCall, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, missionManager *tools.MissionManager, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, historyMgr *memory.HistoryManager, isMaintenance bool, surgeryPlan string, guardian *security.Guardian, sessionID string, coAgentRegistry *CoAgentRegistry, budgetTracker *budget.Tracker) string {
 	// Co-Agent blacklist: co-agents (identified by sessionID prefix) cannot modify memory, notes, KG, or spawn sub-agents
 	isCoAgent := strings.HasPrefix(sessionID, "coagent-")
@@ -2528,6 +2593,17 @@ func dispatchInner(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 		if op == "list" || op == "ls" {
 			op = "list_dir"
 		}
+
+		// Block access to system-sensitive files (config, vault, databases, .env)
+		wsDir := cfg.Directories.WorkspaceDir
+		for _, checkPath := range []string{fpath, fdest} {
+			if isProtectedSystemPath(checkPath, wsDir, cfg) {
+				logger.Warn("LLM attempted filesystem access to protected system file — blocked",
+					"op", op, "path", checkPath)
+				return "Tool Output: [PERMISSION DENIED] Access to this file is not allowed. System configuration, database and credential files are off-limits."
+			}
+		}
+
 		if !cfg.Agent.AllowFilesystemWrite {
 			writeOps := map[string]bool{"write": true, "write_file": true, "append": true, "delete": true, "remove": true, "move": true, "rename": true, "mkdir": true, "create_dir": true, "create": true}
 			if writeOps[op] {
