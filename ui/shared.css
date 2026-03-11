@@ -1762,11 +1762,27 @@ a.logo {
         overflow-y: hidden;
         -webkit-overflow-scrolling: touch;
         scrollbar-width: none;
-        padding-right: 48px;
+        flex-wrap: nowrap;
+        /* trailing gap so last item isn't hidden behind the radial menu button */
+        padding-right: 0;
     }
 
     .header-actions::-webkit-scrollbar {
         display: none;
+    }
+
+    /* Prevent children from shrinking — they must keep their natural size
+       so the container scrolls rather than squishing them to nothing */
+    .header-actions > * {
+        flex-shrink: 0;
+    }
+
+    /* Spacer after last item to clear the fixed radial-menu trigger button */
+    .header-actions::after {
+        content: '';
+        display: block;
+        min-width: 52px;
+        flex-shrink: 0;
     }
 
     .app-header,
