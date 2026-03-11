@@ -45,9 +45,12 @@ conditions: ["netlify_enabled"]
 
 **Parameters:** `operation`, `site_id`, `site_name`, `custom_domain`, `deploy_id`, `content`, `title`, `draft`, `env_key`, `env_value`, `env_context`, `form_id`, `hook_id`, `hook_type`, `hook_event`, `url`, `value`
 
-**Homepage → Netlify workflow:**
-1. Build with `homepage` tool (`build` operation)
-2. Read the build output, ZIP it, base64-encode
-3. Deploy to Netlify with `netlify` → `deploy_zip`
+**Homepage → Netlify workflow (preferred):**
+1. Use `homepage` → `deploy_netlify` — handles build + ZIP + upload in one step
+   - Params: `project_dir`, `site_id` (optional if default configured), `title`, `draft`
+
+**Manual deploy_zip workflow (only if needed):**
+1. Build with `homepage` → `build`
+2. Deploy with `netlify` → `deploy_zip` (`content` = base64 ZIP, `site_id`, `title`, `draft`)
 
 📖 See **tools_manuals/netlify.md** for detailed usage.

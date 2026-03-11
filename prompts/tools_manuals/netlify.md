@@ -174,7 +174,13 @@ Provisions a Let's Encrypt SSL certificate for the site's custom domain.
 - Large file uploads: 60-second timeout
 
 ## Homepage Integration
-Build sites with the `homepage` tool, then deploy to Netlify:
+**Use `homepage` → `deploy_netlify` for a one-step build+deploy:**
+```json
+{"action": "homepage", "operation": "deploy_netlify", "project_dir": "landing-page", "site_id": "abc123", "title": "v1.0"}
+```
+This automatically builds (if a build script exists), packages as ZIP and uploads to Netlify.
+
+**Manual workflow (only if you need custom ZIP contents):**
 1. `homepage` → `build` (builds the project)
 2. Zip the build output in the dev container
 3. `netlify` → `deploy_zip` with the base64-encoded ZIP

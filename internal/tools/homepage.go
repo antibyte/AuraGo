@@ -2,6 +2,7 @@ package tools
 
 import (
 	"archive/tar"
+	"archive/zip"
 	"bufio"
 	"bytes"
 	"context"
@@ -588,6 +589,91 @@ func HomepageWebServerStop(cfg HomepageConfig, logger *slog.Logger) string {
 func HomepageWebServerStatus(cfg HomepageConfig, logger *slog.Logger) string {
 	dockerCfg := DockerConfig{Host: cfg.DockerHost}
 	return containerStatus(dockerCfg, homepageWebContainer)
+}
+
+// HomepageDeployNetlify builds the project (if a build script exists) and deploys it to
+// Netlify by creating an in-memory ZIP of the build/project directory and calling the
+// Netlify Deploy API. The caller supplies a fully-resolved NetlifyConfig.
+func HomepageDeployNetlify(cfg HomepageConfig, nfCfg NetlifyConfig, projectDir, buildDir, siteID, title string, draft bool, logger *slog.Logger) string {
+	if nfCfg.Token == "" {
+		return errJSON("Netlify token is required")
+	}
+	if cfg.WorkspacePath == "" {
+		return errJSON("Homepage workspace path is not configured")
+	}
+	if projectDir == "" {
+		projectDir = "."
+	}
+
+	// Try to build first; ignore failure for plain-HTML projects that have no build script.
+	if buildDir == "" {
+		logger.Info("[Homepage] Attempting build before Netlify deploy", "dir", projectDir)
+		buildResult := HomepageBuild(cfg, projectDir, logger)
+		var br map[string]interface{}
+		if err := json.Unmarshal([]byte(buildResult), &br); err == nil {
+			if s, _ := br["status"].(string); s != "error" {
+				// Build succeeded — detect the output directory.
+				buildDir = detectBuildDir(cfg, projectDir)
+			}
+			// else: plain-HTML project, no build script; deploy project dir directly.
+		}
+	}
+
+	// Resolve the host-side path to zip.
+	var deployPath string
+	if buildDir == "" || buildDir == "." {
+		deployPath = filepath.Join(cfg.WorkspacePath, projectDir)
+	} else {
+		deployPath = filepath.Join(cfg.WorkspacePath, projectDir, buildDir)
+	}
+
+	// Verify the deploy path exists.
+	if _, err := os.Stat(deployPath); err != nil {
+		return errJSON("Deploy path does not exist: %s", deployPath)
+	}
+
+	logger.Info("[Homepage] Packaging for Netlify deploy", "path", deployPath)
+
+	// Create an in-memory ZIP of the deploy directory.
+	var zipBuf bytes.Buffer
+	zw := zip.NewWriter(&zipBuf)
+	walkErr := filepath.Walk(deployPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			return nil
+		}
+		rel, err := filepath.Rel(deployPath, path)
+		if err != nil {
+			return err
+		}
+		rel = filepath.ToSlash(rel)
+		w, err := zw.Create(rel)
+		if err != nil {
+			return err
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		_, err = w.Write(data)
+		return err
+	})
+	if walkErr != nil {
+		return errJSON("Failed to create ZIP: %v", walkErr)
+	}
+	if err := zw.Close(); err != nil {
+		return errJSON("Failed to finalise ZIP: %v", err)
+	}
+
+	zipBytes := zipBuf.Bytes()
+	if len(zipBytes) == 0 {
+		return errJSON("ZIP is empty — check that %q contains files", deployPath)
+	}
+
+	logger.Info("[Homepage] Deploying to Netlify", "site_id", siteID, "bytes", len(zipBytes), "draft", draft)
+	return NetlifyDeployZip(nfCfg, siteID, title, draft, zipBytes)
 }
 
 // HomepagePublishToLocal rebuilds and refreshes the local web server.

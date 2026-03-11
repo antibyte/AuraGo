@@ -29,7 +29,10 @@ You have expert-level web design and development capabilities through the `homep
 - `deploy` — Build and upload to remote server via SFTP/SCP
 - `webserver_start` / `webserver_stop` — Local Caddy web server
 - `publish_local` — Build and serve on local web server
+- `deploy_netlify` — Build project and deploy directly to Netlify (`site_id`, `title`, `draft` optional)
 
-**Workflow:** Always `init` first, then `init_project`, develop with `write_file`/`exec`, test with `lighthouse`/`screenshot`, then `deploy` or `publish_local`.
+**Workflow:** Always `init` first, then `init_project`, develop with `write_file`/`exec`, test with `lighthouse`/`screenshot`, then `deploy`, `deploy_netlify`, or `publish_local`.
+
+**Netlify shortcut:** Use `deploy_netlify` instead of manual tar/zip steps. It handles build detection and ZIP upload automatically.
 
 📖 See **tools_manuals/homepage.md** for detailed usage.

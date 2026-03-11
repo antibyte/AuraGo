@@ -3795,8 +3795,26 @@ func dispatchInner(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 		case "publish_local":
 			logger.Info("LLM requested homepage publish_local")
 			return "Tool Output: " + tools.HomepagePublishToLocal(homepageCfg, tc.ProjectDir, logger)
+		case "deploy_netlify":
+			if !cfg.Homepage.AllowDeploy {
+				return `Tool Output: {"status":"error","message":"Deployment is disabled. Enable homepage.allow_deploy in config."}`
+			}
+			if !cfg.Netlify.Enabled {
+				return `Tool Output: {"status":"error","message":"Netlify integration is not enabled. Set netlify.enabled=true in config.yaml."}`
+			}
+			nfToken, nfErr := vault.ReadSecret("netlify_token")
+			if nfErr != nil || nfToken == "" {
+				return `Tool Output: {"status":"error","message":"Netlify token not found in vault. Store it with key 'netlify_token' via the Config UI."}`
+			}
+			nfCfg := tools.NetlifyConfig{
+				Token:         nfToken,
+				DefaultSiteID: cfg.Netlify.DefaultSiteID,
+				TeamSlug:      cfg.Netlify.TeamSlug,
+			}
+			logger.Info("LLM requested homepage deploy_netlify", "project", tc.ProjectDir, "build_dir", tc.BuildDir, "site_id", tc.SiteID, "draft", tc.Draft)
+			return "Tool Output: " + tools.HomepageDeployNetlify(homepageCfg, nfCfg, tc.ProjectDir, tc.BuildDir, tc.SiteID, tc.Title, tc.Draft, logger)
 		default:
-			return `Tool Output: {"status":"error","message":"Unknown homepage operation. Use: init, start, stop, status, rebuild, destroy, exec, init_project, build, install_deps, lighthouse, screenshot, lint, list_files, read_file, write_file, optimize_images, dev, deploy, test_connection, webserver_start, webserver_stop, webserver_status, publish_local"}`
+			return `Tool Output: {"status":"error","message":"Unknown homepage operation. Use: init, start, stop, status, rebuild, destroy, exec, init_project, build, install_deps, lighthouse, screenshot, lint, list_files, read_file, write_file, optimize_images, dev, deploy, deploy_netlify, test_connection, webserver_start, webserver_stop, webserver_status, publish_local"}`
 		}
 
 	case "webdav", "webdav_storage":
