@@ -68,6 +68,11 @@ func (c *DockerConnector) Deploy(ctx context.Context, nest NestRecord, secret []
 				fmt.Sprintf("aurago-egg-%s-data:/app/data", nest.ID[:8]),
 				fmt.Sprintf("aurago-egg-%s-log:/app/log", nest.ID[:8]),
 			},
+			// Allow the egg to reach the master via host.docker.internal.
+			// On Linux Docker Engine this is not injected automatically;
+			// host-gateway resolves to the Docker bridge gateway (typically 172.17.0.1).
+			// Safe no-op on Docker Desktop (Windows/Mac) where the name already resolves.
+			"ExtraHosts": []string{"host.docker.internal:host-gateway"},
 		},
 	}
 

@@ -36,8 +36,19 @@ services:
       # Optional: expose the agent's tool scripts on the host for inspection.
       # - ./agent_workspace/tools:/app/agent_workspace/tools
 
-    # Note: AURAGO_MASTER_KEY is generated automatically on first run
-    # and saved securely in your aurago_data volume at /app/data/.env
+      # Docker socket — required for Invasion Control "Docker (Lokal)" deployments.
+      # This allows AuraGo to spawn egg containers on the host Docker daemon.
+      # SECURITY NOTE: Mounting the Docker socket grants root-equivalent access
+      # to the host. Only enable this if you trust AuraGo's agent completely.
+      # Comment out the line below to disable local Docker egg deployments.
+      - /var/run/docker.sock:/var/run/docker.sock
+
+    # host.docker.internal resolves to the host machine from inside containers.
+    # On Linux Docker Engine (non-Desktop) this is NOT injected automatically —
+    # the extra_hosts entry below makes it available so egg containers can reach
+    # the AuraGo master via WebSocket. Safe no-op on Docker Desktop.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
     # --- Restart policy ---
     restart: unless-stopped
