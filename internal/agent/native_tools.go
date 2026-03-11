@@ -62,6 +62,7 @@ type ToolFeatureFlags struct {
 	HomepageEnabled        bool
 	NetlifyEnabled         bool
 	FirewallEnabled        bool
+	EmailEnabled           bool
 	// Danger Zone toggles
 	AllowShell           bool
 	AllowPython          bool
@@ -649,6 +650,32 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 			}, "operation"),
 		))
 	}
+	if ff.EmailEnabled {
+		tools = append(tools,
+			tool("fetch_email",
+				"Fetch emails from an IMAP mailbox. Returns a list of messages with sender, subject, date, and body.",
+				schema(map[string]interface{}{
+					"folder":  prop("string", "Mailbox folder to read (default: INBOX)"),
+					"limit":   map[string]interface{}{"type": "integer", "description": "Max number of messages to return (default: 10)"},
+					"account": prop("string", "Email account ID (use list_email_accounts to see available accounts; omit for default)"),
+				}),
+			),
+			tool("send_email",
+				"Send an email via SMTP.",
+				schema(map[string]interface{}{
+					"to":      prop("string", "Recipient email address"),
+					"subject": prop("string", "Email subject"),
+					"body":    prop("string", "Email body (plain text)"),
+					"account": prop("string", "Email account ID to send from (omit for default)"),
+				}, "to"),
+			),
+			tool("list_email_accounts",
+				"List all configured email accounts with their IMAP/SMTP settings and status.",
+				schema(map[string]interface{}{}),
+			),
+		)
+	}
+
 	if ff.FirewallEnabled {
 		tools = append(tools, tool("firewall",
 			"Manage and inspect local Linux firewall rules (iptables/ufw). Note: modification commands are blocked in 'readonly' mode.",

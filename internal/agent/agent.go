@@ -571,6 +571,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			HomepageEnabled:          cfg.Homepage.Enabled && cfg.Docker.Enabled,
 			NetlifyEnabled:           cfg.Netlify.Enabled,
 			FirewallEnabled:          cfg.Firewall.Enabled,
+			EmailEnabled:             cfg.Email.Enabled || len(cfg.EmailAccounts) > 0,
 			MemoryEnabled:            cfg.Tools.Memory.Enabled,
 			KnowledgeGraphEnabled:    cfg.Tools.KnowledgeGraph.Enabled,
 			SecretsVaultEnabled:      cfg.Tools.SecretsVault.Enabled,
@@ -1583,16 +1584,16 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 						mood, affDelta, traitDeltas, profileUpdates, err := shortTermMem.AnalyzeMoodV2(v2Ctx, analyzerClient, modelName, contextHistory, userHistory, m, profilingEnabled)
 						if err != nil {
-						v2URL := cfg.Agent.PersonalityV2URL
-						if v2URL == "" {
-							v2URL = "(main LLM endpoint)"
-						}
-						currentLogger.Warn("[Personality V2] Failed to analyze mood",
-							"error", err,
-							"model", modelName,
-							"url", v2URL,
-							"timeout_secs", cfg.Agent.PersonalityV2TimeoutSecs,
-							"hint", "increase agent.personality_v2_timeout_secs in config if this is a timeout")
+							v2URL := cfg.Agent.PersonalityV2URL
+							if v2URL == "" {
+								v2URL = "(main LLM endpoint)"
+							}
+							currentLogger.Warn("[Personality V2] Failed to analyze mood",
+								"error", err,
+								"model", modelName,
+								"url", v2URL,
+								"timeout_secs", cfg.Agent.PersonalityV2TimeoutSecs,
+								"hint", "increase agent.personality_v2_timeout_secs in config if this is a timeout")
 						}
 
 						_ = shortTermMem.LogMood(mood, tInfo)
@@ -2883,9 +2884,6 @@ func dispatchInner(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 		return fmt.Sprintf("Tool Output: Internal Skills Configuration:\n%s", string(b))
 
 	case "execute_skill":
-		if !cfg.Agent.AllowPython {
-			return "Tool Output: [PERMISSION DENIED] execute_skill is disabled in Danger Zone settings (agent.allow_python: false)."
-		}
 		logger.Info("LLM requested skill execution", "skill", tc.Skill, "args", tc.SkillArgs, "params", tc.Params)
 		// Robust argument lookup: handle both 'skill_args' and 'params'
 		args := tc.SkillArgs
@@ -2992,6 +2990,9 @@ func dispatchInner(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 			json.Unmarshal(reqJSON, &req)
 			return tools.ExecuteGit(cfg.Directories.WorkspaceDir, req)
 		case "google_workspace":
+			if !cfg.Agent.AllowPython {
+				return "Tool Output: [PERMISSION DENIED] google_workspace skill requires Python (agent.allow_python: false)."
+			}
 			op, _ := args["operation"].(string)
 			limit, _ := args["limit"].(float64)
 			docID, _ := args["document_id"].(string)
@@ -3013,6 +3014,10 @@ func dispatchInner(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 			return res
 		}
 
+		// Generic Python skill fallback — gate on AllowPython
+		if !cfg.Agent.AllowPython {
+			return fmt.Sprintf("Tool Output: [PERMISSION DENIED] Skill '%s' requires Python execution which is disabled (agent.allow_python: false).", skillName)
+		}
 		res, err := tools.ExecuteSkill(cfg.Directories.SkillsDir, cfg.Directories.WorkspaceDir, skillName, args, cfg.Agent.EnableGoogleWorkspace)
 		if err != nil {
 			return fmt.Sprintf("Tool Output: ERROR executing skill: %v\nOutput: %s", err, res)
