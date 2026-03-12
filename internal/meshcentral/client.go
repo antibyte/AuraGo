@@ -3,6 +3,7 @@ package meshcentral
 import (
 	"bytes"
 	"crypto/tls"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -98,10 +99,16 @@ func (c *Client) Connect() error {
 	// Determine authentication strategy
 	if c.loginToken != "" {
 		c.log("[MeshCentral] Using auth strategy: Login Token (token length: %d)", len(c.loginToken))
-		q := u.Query()
-		q.Set("auth", c.loginToken)
-		u.RawQuery = q.Encode()
-		c.log("[MeshCentral] Auth parameter added to URL")
+		// MeshCentral uses x-meshauth header with base64 encoded credentials
+		// Format: base64(~t:tokenname),base64(tokenpassword)
+		// For login tokens created in UI, they typically have format: ~t:name:password
+		authHeader := c.loginToken
+		if strings.HasPrefix(c.loginToken, "~t:") {
+			// Token is already in correct format, just base64 encode it
+			authHeader = base64.StdEncoding.EncodeToString([]byte(c.loginToken))
+		}
+		header.Set("x-meshauth", authHeader)
+		c.log("[MeshCentral] Auth header set (x-meshauth)")
 	} else if c.username != "" {
 		c.log("[MeshCentral] Using auth strategy: Username/Password")
 		// Try HTTP login first so we get a proper session cookie.
@@ -137,9 +144,14 @@ func (c *Client) Connect() error {
 		HandshakeTimeout: 10 * time.Second,
 	}
 
-	// Log URL without query parameters (may contain auth tokens)
-	urlWithoutQuery := u.Scheme + "://" + u.Host + u.Path
-	c.log("[MeshCentral] Dialing WebSocket", "url", urlWithoutQuery)
+	// Log URL with auth parameter masked (to verify it's being sent)
+	finalURL := u.String()
+	maskedURL := finalURL
+	if c.loginToken != "" {
+		// Replace token with *** for logging
+		maskedURL = strings.ReplaceAll(finalURL, "auth="+c.loginToken, "auth=***")
+	}
+	c.log("[MeshCentral] Dialing WebSocket with URL", "url", maskedURL)
 	
 	ws, resp, err := dialer.Dial(u.String(), header)
 	if err != nil {
