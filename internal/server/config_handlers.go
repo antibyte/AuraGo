@@ -873,6 +873,7 @@ func handleMeshCentralTest(s *Server) http.HandlerFunc {
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status":  "error",
 				"message": err.Error(),
+				"debug":   mc.GetDebugLog(),
 			})
 			return
 		}
@@ -881,6 +882,7 @@ func handleMeshCentralTest(s *Server) http.HandlerFunc {
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"status":  "ok",
 			"message": "Login and WebSocket handshake successful.",
+			"debug":   mc.GetDebugLog(),
 		})
 	}
 }
