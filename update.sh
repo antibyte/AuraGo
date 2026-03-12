@@ -101,6 +101,33 @@ PROTECTED_DIRS=(
 # Prompt directories: protect all custom *.md files that are NOT tracked by git
 PROMPTS_DIR="$DIR/prompts"
 
+# ── Escape systemd service cgroup ─────────────────────────────────────
+# When triggered from the AuraGo web UI, this script runs inside the
+# aurago systemd service cgroup.  By default (KillMode=control-group),
+# systemd sends SIGTERM to *all* processes in that cgroup — including
+# this script — the moment aurago's main process is stopped below.
+# To survive that cleanup we try to re-exec ourselves in an independent
+# transient scope before we touch any processes.
+if [ -z "${_AU_ESCAPED:-}" ]; then
+    export _AU_ESCAPED=1
+    if command -v systemd-run >/dev/null 2>&1; then
+        # Prefer a user scope (no root required, needs active user session).
+        if systemd-run --user --scope --quiet -- /bin/bash "$0" "$@" 2>/dev/null; then
+            exit 0
+        fi
+        # Fall back to a system scope via sudo (password-less sudo only).
+        if command -v sudo >/dev/null 2>&1; then
+            if sudo -n systemd-run --scope --quiet -- env _AU_ESCAPED=1 /bin/bash "$0" "$@" 2>/dev/null; then
+                exit 0
+            fi
+        fi
+    fi
+    # No escape possible — continue in the same cgroup.
+    # Non-systemd installs are unaffected; systemd installs without sudo
+    # may be interrupted by cgroup cleanup.  Use `sudo systemctl stop
+    # aurago` + `sudo /path/to/update.sh --yes` for a guaranteed update.
+fi
+
 # ── Banner ─────────────────────────────────────────────────────────────
 G1='\033[38;5;39m'
 G2='\033[38;5;38m'
@@ -710,6 +737,10 @@ elif command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files aurago.se
         [ ! -f "$LAUNCH_BIN" ] && LAUNCH_BIN="$DIR/bin/aurago"
         if [ -f "$LAUNCH_BIN" ]; then
             mkdir -p "$DIR/log"
+            # Ensure the vault key is available even if env inheritance broke.
+            if [ -z "${AURAGO_MASTER_KEY:-}" ] && [ -f "$DIR/.env" ]; then
+                set -a; source "$DIR/.env" || true; set +a
+            fi
             nohup "$LAUNCH_BIN" --config "$DIR/config.yaml" >>"${DIR}/log/aurago.log" 2>&1 &
             LAUNCH_PID=$!
             info "AuraGo starting (PID=$LAUNCH_PID)..."
@@ -730,6 +761,10 @@ else
         warn "No aurago binary found — start manually with: ./start.sh"
     else
         mkdir -p "$DIR/log"
+        # Ensure the vault key is available even if env inheritance broke.
+        if [ -z "${AURAGO_MASTER_KEY:-}" ] && [ -f "$DIR/.env" ]; then
+            set -a; source "$DIR/.env" || true; set +a
+        fi
         nohup "$LAUNCH_BIN" --config "$DIR/config.yaml" >>"${DIR}/log/aurago.log" 2>&1 &
         LAUNCH_PID=$!
         info "AuraGo starting (PID=$LAUNCH_PID)..."

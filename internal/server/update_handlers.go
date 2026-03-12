@@ -221,7 +221,18 @@ func handleUpdateInstall(s *Server) http.HandlerFunc {
 			return
 		}
 
-		cmd := exec.Command("/bin/bash", "update.sh", "--yes")
+		// Ensure log directory exists so update output can be captured.
+		logDir := filepath.Join(dir, "log")
+		os.MkdirAll(logDir, 0755)
+		logPath := filepath.Join(logDir, "update.log")
+
+		// Launch update.sh via `nohup … &` inside a one-shot shell so the script
+		// is immune to SIGHUP and fully detached from aurago's process group.
+		// The outer wrapper shell exits immediately; the backgrounded nohup
+		// process carries on independently and its output lands in update.log.
+		wrapper := fmt.Sprintf(`nohup /bin/bash %q --yes < /dev/null >> %q 2>&1 &`,
+			scriptPath, logPath)
+		cmd := exec.Command("/bin/bash", "-c", wrapper)
 		cmd.Dir = dir
 		if home, _ := os.UserHomeDir(); home != "" {
 			cmd.Env = append(os.Environ(), "HOME="+home)
@@ -235,13 +246,16 @@ func handleUpdateInstall(s *Server) http.HandlerFunc {
 			})
 			return
 		}
+		// Collect the wrapper shell's exit status asynchronously so it does
+		// not become a zombie process.
+		go cmd.Wait()
 
-		s.Logger.Info("[Update] Update script started", "pid", cmd.Process.Pid)
+		s.Logger.Info("[Update] Update script started", "log", logPath)
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{
 			"status":  "started",
-			"message": "Update started. AuraGo will restart automatically once the update is complete.",
+			"message": "Update started. Progress is logged to log/update.log. AuraGo will restart automatically once the update is complete.",
 		})
 	}
 }

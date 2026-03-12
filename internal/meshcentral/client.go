@@ -143,7 +143,17 @@ func (c *Client) login(loginUser string) error {
 		u.Scheme = "https"
 	}
 	loginURL := u.String()
-	rootURL := strings.TrimSuffix(c.url, "/") + "/"
+
+	// Build rootURL with HTTP(S) scheme so loginViaForm can make HTTP requests.
+	// Without the scheme fix, wss:// URLs would cause an "unsupported protocol scheme" error.
+	rootU, _ := url.Parse(strings.TrimSuffix(c.url, "/") + "/")
+	switch rootU.Scheme {
+	case "ws":
+		rootU.Scheme = "http"
+	case "wss":
+		rootU.Scheme = "https"
+	}
+	rootURL := rootU.String()
 
 	httpClient := &http.Client{
 		Transport: &http.Transport{
@@ -220,30 +230,67 @@ func (c *Client) login(loginUser string) error {
 	return fmt.Errorf("no auth cookies found in login response")
 }
 
+// loginViaForm is called when the primary POST to /login.ashx returns 404,
+// which typically means MeshCentral is served at a sub-path (e.g. /meshcentral).
+// It follows any HTTP redirect from the root URL to auto-discover the real
+// MeshCentral base path, extracts the per-session CSRF nonce from that page,
+// then POSTs JSON credentials to the discovered /login.ashx endpoint.
 func (c *Client) loginViaForm(rootURL, loginUser, password string, httpClient *http.Client) error {
-	resp, err := httpClient.Get(rootURL)
+	// Step 1: GET root URL, following any redirects to find the actual install path.
+	getResp, err := httpClient.Get(rootURL)
+	if err != nil {
+		return fmt.Errorf("discovery GET failed: %w", err)
+	}
+	defer getResp.Body.Close()
+	pageBytes, _ := io.ReadAll(getResp.Body)
+
+	// Step 2: Extract CSRF nonce from the login page (works for both root and sub-path).
+	var nonce string
+	if m := regexp.MustCompile(`random="([^"]+)"`).FindSubmatch(pageBytes); len(m) == 2 {
+		nonce = string(m[1])
+	}
+
+	// Step 3: Build the login.ashx URL relative to the final URL after redirect.
+	// e.g. if root redirects to https://host/meshcentral/, login.ashx is at
+	// https://host/meshcentral/login.ashx
+	finalU := getResp.Request.URL // URL of the last request in the redirect chain
+	basePath := finalU.Path
+	if idx := strings.LastIndex(basePath, "/"); idx >= 0 {
+		basePath = basePath[:idx+1]
+	} else {
+		basePath = "/"
+	}
+	discoveredLoginU := *finalU
+	discoveredLoginU.Path = basePath + "login.ashx"
+	discoveredLoginURL := discoveredLoginU.String()
+
+	// Step 4: POST JSON credentials (same format as primary login path).
+	payload := map[string]interface{}{
+		"u":  loginUser,
+		"p":  password,
+		"a":  1,
+		"rn": nonce,
+	}
+	bodyData, err := json.Marshal(payload)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
-
-	form := url.Values{}
-	form.Set("action", "login")
-	form.Set("username", loginUser)
-	form.Set("password", password)
-	form.Set("urlargs", "")
-
-	postReq, err := http.NewRequest("POST", rootURL, strings.NewReader(form.Encode()))
+	postReq, err := http.NewRequest("POST", discoveredLoginURL, bytes.NewBuffer(bodyData))
 	if err != nil {
 		return err
 	}
-	postReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	postReq.Header.Set("Content-Type", "application/json")
 
 	postResp, err := httpClient.Do(postReq)
 	if err != nil {
 		return err
 	}
 	defer postResp.Body.Close()
+
+	if postResp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(postResp.Body)
+		return fmt.Errorf("discovered login HTTP %d at %s: %s", postResp.StatusCode, discoveredLoginURL, string(body))
+	}
 
 	if cookies := postResp.Cookies(); len(cookies) > 0 {
 		c.authCookies = append([]*http.Cookie(nil), cookies...)
@@ -256,8 +303,7 @@ func (c *Client) loginViaForm(rootURL, loginUser, password string, httpClient *h
 		return nil
 	}
 
-	body, _ := io.ReadAll(postResp.Body)
-	return fmt.Errorf("form login HTTP %d: %s", postResp.StatusCode, string(body))
+	return fmt.Errorf("no auth cookies found in login response from %s", discoveredLoginURL)
 }
 
 // Close gracefully closes the WebSocket.
