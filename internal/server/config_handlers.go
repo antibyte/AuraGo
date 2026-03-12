@@ -869,11 +869,11 @@ func handleMeshCentralTest(s *Server) http.HandlerFunc {
 		}
 
 		mc := meshcentral.NewClient(url, username, password, loginToken, s.Cfg.MeshCentral.Insecure)
+		mc.SetLogger(s.Logger)
 		if err := mc.Connect(); err != nil {
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status":  "error",
 				"message": err.Error(),
-				"debug":   mc.GetDebugLog(),
 			})
 			return
 		}
@@ -882,7 +882,6 @@ func handleMeshCentralTest(s *Server) http.HandlerFunc {
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"status":  "ok",
 			"message": "Login and WebSocket handshake successful.",
-			"debug":   mc.GetDebugLog(),
 		})
 	}
 }
