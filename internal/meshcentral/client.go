@@ -102,46 +102,42 @@ func (c *Client) Connect() error {
 	// Determine authentication strategy
 	if c.loginToken != "" {
 		c.log("[MeshCentral] Using auth strategy: Login Token (HTTP Login)")
-		// Login tokens have format: ~t:tokenname:tokenpassword
-		// For HTTP login: username = "~t:tokenname", password = "tokenpassword"
-		tokenName, tokenPass, err := c.parseLoginToken(c.loginToken)
-		if err == nil {
-			// Build username with ~t: prefix for token login
-			// If tokenName is empty, we need it from config - but this shouldn't happen with proper tokens
-			loginUser := "~t:" + tokenName
-			if tokenName == "" {
-				// Fallback: try using configured username with ~t: prefix
-				if c.username != "" {
-					loginUser = "~t:" + c.username
-				}
-			}
-			c.log("[MeshCentral] Token login with user: %s", loginUser)
-			// Temporarily set password for login
-			savedPass := c.password
-			c.password = tokenPass
-			if loginErr := c.login(loginUser); loginErr == nil {
-				// HTTP login succeeded; build cookie header
-				if len(c.authCookies) > 0 {
-					parts := make([]string, 0, len(c.authCookies))
-					for _, ck := range c.authCookies {
-						if ck != nil && ck.Name != "" && ck.Value != "" {
-							parts = append(parts, ck.Name+"="+ck.Value)
-						}
-					}
-					if len(parts) > 0 {
-						header.Set("Cookie", strings.Join(parts, "; "))
-					}
-				} else if c.sessionID != "" {
-					header.Set("Cookie", (&http.Cookie{Name: "meshcom", Value: c.sessionID}).String())
-				}
-			} else {
-				c.log("[MeshCentral] HTTP login with token credentials failed: %v", loginErr)
-			}
-			// Restore original password
-			c.password = savedPass
-		} else {
-			c.log("[MeshCentral] Failed to parse login token: %v", err)
+		// Login tokens have format: ~t:tokenpassword or just the password
+		// For HTTP login: username = empty or "token", password = the token value
+		tokenValue := c.loginToken
+		// Remove ~t: prefix if present
+		if strings.HasPrefix(tokenValue, "~t:") {
+			tokenValue = tokenValue[3:]
 		}
+		
+		// Try login with "token" as username and the token as password
+		// MeshCentral accepts this for login token authentication
+		loginUser := "token"
+		c.log("[MeshCentral] Token login with token value (length: %d)", len(tokenValue))
+		
+		// Temporarily set password for login
+		savedPass := c.password
+		c.password = tokenValue
+		if loginErr := c.login(loginUser); loginErr == nil {
+			// HTTP login succeeded; build cookie header
+			if len(c.authCookies) > 0 {
+				parts := make([]string, 0, len(c.authCookies))
+				for _, ck := range c.authCookies {
+					if ck != nil && ck.Name != "" && ck.Value != "" {
+						parts = append(parts, ck.Name+"="+ck.Value)
+					}
+				}
+				if len(parts) > 0 {
+					header.Set("Cookie", strings.Join(parts, "; "))
+				}
+			} else if c.sessionID != "" {
+				header.Set("Cookie", (&http.Cookie{Name: "meshcom", Value: c.sessionID}).String())
+			}
+		} else {
+			c.log("[MeshCentral] HTTP login with token failed: %v", loginErr)
+		}
+		// Restore original password
+		c.password = savedPass
 	} else if c.username != "" {
 		c.log("[MeshCentral] Using auth strategy: Username/Password")
 		// Try HTTP login first so we get a proper session cookie.
