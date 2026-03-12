@@ -178,6 +178,27 @@ func ListAllDevices(db *sql.DB) ([]DeviceRecord, error) {
 	return scanDevices(rows)
 }
 
+// GetDeviceByIDOrName retrieves a device by UUID first; if not found, falls back
+// to an exact (case-insensitive) name lookup. This allows callers to pass either
+// the registered UUID or the human-readable device name interchangeably.
+func GetDeviceByIDOrName(db *sql.DB, idOrName string) (DeviceRecord, error) {
+	d, err := GetDeviceByID(db, idOrName)
+	if err == nil {
+		return d, nil
+	}
+	devices, qErr := QueryDevices(db, "", "", idOrName)
+	if qErr != nil {
+		return DeviceRecord{}, err // return original ID-lookup error
+	}
+	lower := strings.ToLower(idOrName)
+	for _, dev := range devices {
+		if strings.ToLower(dev.Name) == lower {
+			return dev, nil
+		}
+	}
+	return DeviceRecord{}, fmt.Errorf("device not found: %s", idOrName)
+}
+
 // GetDeviceByID retrieves a device record by its ID.
 func GetDeviceByID(db *sql.DB, id string) (DeviceRecord, error) {
 	var d DeviceRecord

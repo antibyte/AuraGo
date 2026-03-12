@@ -2710,7 +2710,7 @@ func dispatchInner(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 		if tc.ServerID == "" || tc.Command == "" {
 			return `Tool Output: {"status": "error", "message": "'server_id' and 'command' are required"}`
 		}
-		device, err := inventory.GetDeviceByID(inventoryDB, tc.ServerID)
+		device, err := inventory.GetDeviceByIDOrName(inventoryDB, tc.ServerID)
 		if err != nil {
 			return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Device not found: %v"}`, err)
 		}
@@ -2752,7 +2752,7 @@ func dispatchInner(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 			return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Permission denied: local_path must be within %s"}`, workspaceWorkdir)
 		}
 
-		device, err := inventory.GetDeviceByID(inventoryDB, tc.ServerID)
+		device, err := inventory.GetDeviceByIDOrName(inventoryDB, tc.ServerID)
 		if err != nil {
 			return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Device not found: %v"}`, err)
 		}
@@ -3184,7 +3184,7 @@ func dispatchInner(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 		mac := tc.MACAddress
 		if mac == "" && tc.ServerID != "" && inventoryDB != nil {
 			// Look up MAC from inventory
-			device, err := inventory.GetDeviceByID(inventoryDB, tc.ServerID)
+			device, err := inventory.GetDeviceByIDOrName(inventoryDB, tc.ServerID)
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Device not found: %v"}`, err)
 			}
@@ -5004,7 +5004,12 @@ func dispatchInner(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 	default:
 
 		logger.Warn("LLM requested unknown action", "action", tc.Action)
-		return fmt.Sprintf("Tool Output: ERROR unknown action '%s'", tc.Action)
+		hint := ""
+		switch tc.Action {
+		case "firewall", "firewall_rules", "iptables":
+			hint = " For firewall rules, use execute_shell with iptables commands (e.g. sudo iptables -L -n)."
+		}
+		return fmt.Sprintf("Tool Output: ERROR unknown action '%s'.%s Available actions are listed in the tool schema.", tc.Action, hint)
 	}
 }
 

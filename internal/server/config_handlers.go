@@ -152,7 +152,16 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 		// Deep merge the patch into the existing config, skipping masked password values.
 		// Before merging, extract any secrets from the patch and write them to the vault
 		// so they never end up in config.yaml.
-		extractSecretsToVault(patch, s.Vault, s.Logger)
+		if vaultErr := extractSecretsToVault(patch, s.Vault, s.Logger); vaultErr != nil {
+			s.Logger.Error("[Config] Credential could not be saved to vault", "error", vaultErr)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"status":  "error",
+				"message": vaultErr.Error(),
+			})
+			return
+		}
 		deepMerge(rawCfg, patch)
 
 		// Write back
@@ -426,8 +435,9 @@ func deepMerge(dst, src map[string]interface{}) {
 				}
 			}
 		case string:
-			// Skip masked or empty password fields
-			if sensitiveKeys[key] && (sv == "••••••••" || sv == "") {
+			// Always skip sensitive fields — extractSecretsToVault already handled them
+			// (moved to vault or stripped). Never allow credentials into config.yaml.
+			if sensitiveKeys[key] {
 				continue
 			}
 			// Skip JavaScript-stringified values like "[object Object]"
@@ -471,14 +481,17 @@ var vaultKeyMap = map[string]string{
 
 // extractSecretsToVault walks a JSON patch map and moves sensitive values into the vault.
 // Sensitive keys are removed from the patch so they never reach config.yaml.
-func extractSecretsToVault(patch map[string]interface{}, vault *security.Vault, logger *slog.Logger) {
-	if vault == nil {
-		return
-	}
-	extractRecursive(patch, "", vault, logger)
+// extractSecretsToVault moves sensitive credential fields out of the patch map
+// and into the vault. It always strips sensitive fields from the patch to
+// ensure they never reach config.yaml, even when no vault is available.
+// Returns an error if any credential could not be written to the vault so that
+// the caller can surface the failure instead of silently discarding credentials.
+func extractSecretsToVault(patch map[string]interface{}, vault *security.Vault, logger *slog.Logger) error {
+	return extractRecursive(patch, "", vault, logger)
 }
 
-func extractRecursive(m map[string]interface{}, prefix string, vault *security.Vault, logger *slog.Logger) {
+func extractRecursive(m map[string]interface{}, prefix string, vault *security.Vault, logger *slog.Logger) error {
+	var firstErr error
 	for key, val := range m {
 		fullPath := key
 		if prefix != "" {
@@ -487,32 +500,45 @@ func extractRecursive(m map[string]interface{}, prefix string, vault *security.V
 
 		switch v := val.(type) {
 		case map[string]interface{}:
-			extractRecursive(v, fullPath, vault, logger)
+			if err := extractRecursive(v, fullPath, vault, logger); err != nil && firstErr == nil {
+				firstErr = err
+			}
 		case string:
 			if !sensitiveKeys[key] {
 				continue
 			}
-			// Skip masked / empty values
+			// Always remove from patch — sensitive fields must never reach config.yaml.
+			delete(m, key)
+			// Empty or masked values are just removed, nothing to store.
 			if v == "" || v == "••••••••" {
-				delete(m, key)
+				continue
+			}
+			if vault == nil {
+				// No vault available — credential is stripped but cannot be persisted.
+				// Return an error so the caller can inform the user.
+				if firstErr == nil {
+					firstErr = fmt.Errorf("credential '%s' cannot be saved: no vault configured (AURAGO_MASTER_KEY required)", fullPath)
+				}
 				continue
 			}
 			// Check if this path maps to a known vault key
 			vaultKey, ok := vaultKeyMap[fullPath]
 			if !ok {
-				// Unknown sensitive path — still strip from YAML, don't store
+				// Unknown sensitive path — stripped from YAML, not stored
 				logger.Warn("[Config] Sensitive field not in vault map, stripping from YAML", "path", fullPath)
-				delete(m, key)
 				continue
 			}
 			if err := vault.WriteSecret(vaultKey, v); err != nil {
 				logger.Error("[Config] Failed to write secret to vault", "key", vaultKey, "error", err)
+				if firstErr == nil {
+					firstErr = fmt.Errorf("failed to save credential '%s' to vault: %w", fullPath, err)
+				}
 			} else {
 				logger.Info("[Config] Secret saved to vault", "key", vaultKey)
 			}
-			delete(m, key) // never persist in YAML
 		}
 	}
+	return firstErr
 }
 
 // injectVaultIndicators adds masked placeholder values ("••••••••") into the

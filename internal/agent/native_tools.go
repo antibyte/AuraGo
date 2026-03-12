@@ -7,6 +7,7 @@ package agent
 import (
 	"encoding/json"
 	"log/slog"
+	"regexp"
 
 	openai "github.com/sashabaranov/go-openai"
 
@@ -845,10 +846,18 @@ func NativeToolCallToToolCall(native openai.ToolCall, logger *slog.Logger) ToolC
 			logger.Warn("[NativeTools] Failed to unmarshal native tool arguments, using raw",
 				"name", native.Function.Name, "error", err)
 		}
-		// Fallback: try to put the raw args into Params
+		// Fallback 1: try to put the raw args into Params (works for valid-but-unexpected JSON)
 		var rawMap map[string]interface{}
 		if json.Unmarshal([]byte(native.Function.Arguments), &rawMap) == nil {
 			tc.Params = rawMap
+		}
+		// Fallback 2: for truncated/malformed JSON, extract known string fields via regex
+		// so that tools like execute_skill still get the essential skill name.
+		if native.Function.Name == "execute_skill" && tc.Skill == "" {
+			reSkill := regexp.MustCompile(`"skill"\s*:\s*"([^"]+)"`)
+			if m := reSkill.FindStringSubmatch(native.Function.Arguments); len(m) > 1 {
+				tc.Skill = m[1]
+			}
 		}
 		return tc
 	}
