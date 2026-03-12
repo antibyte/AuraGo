@@ -127,15 +127,32 @@ func (c *Client) Connect() error {
 		return fmt.Errorf("websocket dial failed: %v", err)
 	}
 
+	// Pre-register BOTH possible handshake channels BEFORE readPump starts.
+	// MeshCentral sends either action="userinfo" or action="event" /
+	// eventType="serverinfo" immediately upon WebSocket connect.  If we only
+	// register one channel at a time (sequentially) the other message arrives
+	// while no consumer is waiting and the non-blocking send in readPump
+	// silently drops it, causing a guaranteed timeout on the second wait.
+	userinfoC := make(chan map[string]interface{}, 5)
+	serverinfoC := make(chan map[string]interface{}, 5)
+	c.reqsMu.Lock()
+	c.pendingReqs["userinfo"] = userinfoC
+	c.pendingReqs["event_serverinfo"] = serverinfoC
+	c.reqsMu.Unlock()
+
 	c.ws = ws
 	go c.readPump()
 
-	// Wait for initial handshake message to confirm connection.
-	// Some MeshCentral setups emit "userinfo" but no "serverinfo" event.
-	if _, err = c.WaitForAction("userinfo", 5*time.Second); err != nil {
-		if _, err2 := c.WaitForEvent("serverinfo", 2*time.Second); err2 != nil {
-			return fmt.Errorf("failed to receive initial meshcentral handshake (userinfo/serverinfo): %v / %v", err, err2)
-		}
+	// Wait for whichever handshake message the server sends first.
+	timer := time.NewTimer(10 * time.Second)
+	defer timer.Stop()
+	select {
+	case <-userinfoC:
+		// connected — server sent userinfo
+	case <-serverinfoC:
+		// connected — server sent event_serverinfo
+	case <-timer.C:
+		return fmt.Errorf("failed to receive initial meshcentral handshake: timeout waiting for userinfo or serverinfo")
 	}
 
 	return nil
@@ -373,13 +390,6 @@ func (c *Client) readPump() {
 		if err != nil {
 			break
 		}
-
-		// Log everything briefly for debugging BEFORE JSON parse
-		logMsg := string(msg)
-		if len(logMsg) > 200 {
-			logMsg = logMsg[:200] + "..."
-		}
-		fmt.Printf("[MeshCentral] RAW RX: %s\n", logMsg)
 
 		// MeshCentral sometimes sends purely string payloads or empty objects
 		if len(msg) < 2 || msg[0] != '{' {

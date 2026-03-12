@@ -75,5 +75,13 @@
   "config.providers.output_cost": "出力 $/M",
   "config.providers.no_models_configured": "モデルコストはまだ設定されていません。",
   "config.providers.no_pricing_found": "このプロバイダーの価格データが見つかりません。",
-  "config.providers.pricing_fetched": "{{count}} モデルの価格を取得しました。"
+  "config.providers.pricing_fetched": "{{count}} モデルの価格を取得しました。",
+  "config.providers.pricing_picker_title": "インポートするモデルを選択",
+  "config.providers.pricing_picker_search": "モデルを検索...",
+  "config.providers.pricing_picker_total": "モデル",
+  "config.providers.pricing_picker_selected": "選択済み",
+  "config.providers.pricing_picker_select_all": "すべての表示中を選択",
+  "config.providers.pricing_picker_import": "インポート ({{count}})",
+  "config.providers.filter_models": "設定済みモデルを絞り込む...",
+  "config.providers.no_filter_results": "\"{{q}}\" に一致するモデルはありません"
 }

@@ -75,5 +75,13 @@
   "config.providers.output_cost": "Output $/M",
   "config.providers.no_models_configured": "Ingen modelomkostninger konfigureret endnu.",
   "config.providers.no_pricing_found": "Ingen prisdata fundet for denne udbyder.",
-  "config.providers.pricing_fetched": "Priser hentet for {{count}} modeller."
+  "config.providers.pricing_fetched": "Priser hentet for {{count}} modeller.",
+  "config.providers.pricing_picker_title": "Vælg modeller at importere",
+  "config.providers.pricing_picker_search": "Søg efter modeller...",
+  "config.providers.pricing_picker_total": "modeller",
+  "config.providers.pricing_picker_selected": "valgt",
+  "config.providers.pricing_picker_select_all": "Vælg alle synlige",
+  "config.providers.pricing_picker_import": "Importer ({{count}})",
+  "config.providers.filter_models": "Filtrer konfigurerede modeller...",
+  "config.providers.no_filter_results": "Ingen modeller svarer til \"{{q}}\""
 }

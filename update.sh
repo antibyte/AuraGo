@@ -72,7 +72,8 @@ ARCH_RAW=$(uname -m)
 case "$ARCH_RAW" in
     x86_64)        GOARCH="amd64" ;;
     aarch64|arm64) GOARCH="arm64" ;;
-    armv7l|armv6l) GOARCH="armv6l" ;;
+    armv7l)        GOARCH="arm"; GOARM="7" ;;
+    armv6l)        GOARCH="arm"; GOARM="6" ;;
     *)             GOARCH="amd64"; warn "Unknown architecture $ARCH_RAW — assuming amd64" ;;
 esac
 ok "Architecture: $ARCH_RAW → Go target: $GOARCH"
@@ -86,6 +87,55 @@ fi
 
 GITHUB_REPO="antibyte/AuraGo"
 RELEASE_BASE=""  # set in "Checking for updates" for binary mode
+
+fetch_url_to_file() {
+    local url="$1"
+    local out="$2"
+    if command -v curl >/dev/null 2>&1; then
+        curl -fsSL "$url" -o "$out"
+    elif command -v wget >/dev/null 2>&1; then
+        wget -q "$url" -O "$out"
+    else
+        return 1
+    fi
+}
+
+fetch_url_stdout() {
+    local url="$1"
+    if command -v curl >/dev/null 2>&1; then
+        curl -fsSL "$url"
+    elif command -v wget >/dev/null 2>&1; then
+        wget -qO- "$url"
+    else
+        return 1
+    fi
+}
+
+latest_release_tag() {
+    fetch_url_stdout "https://api.github.com/repos/${GITHUB_REPO}/releases/latest" \
+        | grep -o '"tag_name": *"[^"]*"' \
+        | head -1 \
+        | cut -d'"' -f4
+}
+
+read_master_key_from_env() {
+    local env_file="$1"
+    local raw
+    raw=$(grep -E '^AURAGO_MASTER_KEY=' "$env_file" | head -1 || true)
+    raw="${raw#AURAGO_MASTER_KEY=}"
+    raw="${raw%$'\r'}"
+    case "$raw" in
+        \"*\")
+            raw="${raw#\"}"
+            raw="${raw%\"}"
+            ;;
+        \'*\')
+            raw="${raw#\'}"
+            raw="${raw%\'}"
+            ;;
+    esac
+    printf '%s' "$raw"
+}
 
 # ── Files & directories that must NEVER be touched ─────────────────────
 # These are backed up before git operations and restored afterwards.
@@ -152,8 +202,7 @@ echo ""
 section "Checking for updates"
 
 if $BINARY_ONLY; then
-    RELEASE_TAG=$(curl -fsSL "https://api.github.com/repos/${GITHUB_REPO}/releases/latest" \
-                  | grep -o '"tag_name": *"[^"]*"' | head -1 | cut -d'"' -f4)
+    RELEASE_TAG=$(latest_release_tag || true)
     [ -z "$RELEASE_TAG" ] && die "Could not determine latest release tag from GitHub."
     info "Latest release available: $RELEASE_TAG"
     RELEASE_BASE="https://github.com/${GITHUB_REPO}/releases/download/${RELEASE_TAG}"
@@ -331,11 +380,7 @@ if $BINARY_ONLY; then
     # Binary-only: download resources.dat and extract
     info "Downloading resources.dat ..."
     TMPRES=$(mktemp)
-    if command -v curl >/dev/null 2>&1; then
-        curl -fsSL "${RELEASE_BASE}/resources.dat" -o "$TMPRES"
-    elif command -v wget >/dev/null 2>&1; then
-        wget -q "${RELEASE_BASE}/resources.dat" -O "$TMPRES"
-    else
+    if ! fetch_url_to_file "${RELEASE_BASE}/resources.dat" "$TMPRES"; then
         die "Neither curl nor wget found. Cannot download update."
     fi
     TMPEXT=$(mktemp -d)
@@ -512,8 +557,7 @@ if [ -f "$ENV_FILE" ] && grep -q "AURAGO_MASTER_KEY" "$ENV_FILE"; then
         echo ""
 
         if confirm "Move master key to /etc/aurago/master.key? (strongly recommended)"; then
-            # shellcheck disable=SC1090
-            source "$ENV_FILE"
+            AURAGO_MASTER_KEY="$(read_master_key_from_env "$ENV_FILE")"
             if [ -z "${AURAGO_MASTER_KEY:-}" ]; then
                 warn "Could not read AURAGO_MASTER_KEY from .env — skipping migration."
             else
@@ -603,11 +647,10 @@ if [ -f "$USER_CONFIG_BAK" ] && [ -f "$CURRENT_TEMPLATE" ]; then
     else
         warn "config-merger tool not found. Restoring your exact old config.yaml."
         warn "You may be missing new configuration options (budget, webdav, etc)."
-        cp -p "$USER_CONFIG_BAK" "$CURRENT_TEMPLATE"
-        
         NEW_KEYS=$(comm -23 \
             <(grep -E '^[a-z_]+:' "$CURRENT_TEMPLATE" | sort) \
             <(grep -E '^[a-z_]+:' "$USER_CONFIG_BAK" | sort) 2>/dev/null || true)
+        cp -p "$USER_CONFIG_BAK" "$CURRENT_TEMPLATE"
         if [ -n "$NEW_KEYS" ]; then
             warn "Please add these missing sections manually if needed:"
             echo "$NEW_KEYS" | while read -r key; do echo "    +  $key"; done
@@ -625,7 +668,7 @@ mkdir -p "$DIR/bin"
 GITHUB_REPO="antibyte/AuraGo"
 
 # Resolve the latest release tag dynamically
-RELEASE_TAG=$(curl -fsSL "https://api.github.com/repos/${GITHUB_REPO}/releases/latest" | grep -o '"tag_name": *"[^"]*"' | head -1 | cut -d'"' -f4)
+RELEASE_TAG=$(latest_release_tag || true)
 if [ -z "$RELEASE_TAG" ]; then
     warn "Could not determine latest release tag — trying 'latest' as fallback."
     RELEASE_TAG="latest"
@@ -636,13 +679,7 @@ fi
 _download_release_bin() {
     local name="$1"
     local url="https://github.com/${GITHUB_REPO}/releases/download/${RELEASE_TAG}/${name}"
-    if command -v curl >/dev/null 2>&1; then
-        curl -fsSL "$url" -o "$DIR/bin/$name"
-    elif command -v wget >/dev/null 2>&1; then
-        wget -q "$url" -O "$DIR/bin/$name"
-    else
-        return 1
-    fi
+    fetch_url_to_file "$url" "$DIR/bin/$name"
 }
 
 GO_MIN_VERSION="1.26"
@@ -658,6 +695,10 @@ fi
 if $GO_FOUND; then
     # ── Source build (Go 1.26+ available) ────────────────────────────────
     info "Go $GO_VERSION found — building from source..."
+
+    if [ "$GOARCH" = "arm" ] && [ -n "${GOARM:-}" ]; then
+        export GOARM
+    fi
 
     info "Building aurago_linux ($GOARCH)..."
     if CGO_ENABLED=0 GOOS=linux GOARCH="$GOARCH" go build -trimpath -ldflags='-s -w' -o bin/aurago_linux ./cmd/aurago; then
@@ -688,8 +729,10 @@ else
     # Pick arch-appropriate binary names
     if [ "$GOARCH" = "arm64" ]; then
         BINS=("aurago_linux_arm64" "lifeboat_linux_arm64" "config-merger_linux_arm64")
-    else
+    elif [ "$GOARCH" = "amd64" ]; then
         BINS=("aurago_linux" "lifeboat_linux" "config-merger_linux")
+    else
+        die "No prebuilt release binaries for architecture ${ARCH_RAW}. Install Go ${GO_MIN_VERSION}+ to build from source."
     fi
 
     for BIN_NAME in "${BINS[@]}"; do
@@ -742,7 +785,8 @@ elif command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files aurago.se
             mkdir -p "$DIR/log"
             # Ensure the vault key is available even if env inheritance broke.
             if [ -z "${AURAGO_MASTER_KEY:-}" ] && [ -f "$DIR/.env" ]; then
-                set -a; source "$DIR/.env" || true; set +a
+                AURAGO_MASTER_KEY="$(read_master_key_from_env "$DIR/.env")"
+                export AURAGO_MASTER_KEY
             fi
             nohup "$LAUNCH_BIN" --config "$DIR/config.yaml" >>"${DIR}/log/aurago.log" 2>&1 &
             LAUNCH_PID=$!
@@ -766,7 +810,8 @@ else
         mkdir -p "$DIR/log"
         # Ensure the vault key is available even if env inheritance broke.
         if [ -z "${AURAGO_MASTER_KEY:-}" ] && [ -f "$DIR/.env" ]; then
-            set -a; source "$DIR/.env" || true; set +a
+            AURAGO_MASTER_KEY="$(read_master_key_from_env "$DIR/.env")"
+            export AURAGO_MASTER_KEY
         fi
         nohup "$LAUNCH_BIN" --config "$DIR/config.yaml" >>"${DIR}/log/aurago.log" 2>&1 &
         LAUNCH_PID=$!

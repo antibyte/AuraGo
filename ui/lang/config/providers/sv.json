@@ -75,5 +75,13 @@
   "config.providers.output_cost": "Output $/M",
   "config.providers.no_models_configured": "Inga modellkostnader konfigurerade ännu.",
   "config.providers.no_pricing_found": "Inga prisdata hittades för denna leverantör.",
-  "config.providers.pricing_fetched": "Priser hämtade för {{count}} modeller."
+  "config.providers.pricing_fetched": "Priser hämtade för {{count}} modeller.",
+  "config.providers.pricing_picker_title": "Välj modeller att importera",
+  "config.providers.pricing_picker_search": "Sök modeller...",
+  "config.providers.pricing_picker_total": "modeller",
+  "config.providers.pricing_picker_selected": "valda",
+  "config.providers.pricing_picker_select_all": "Välj alla synliga",
+  "config.providers.pricing_picker_import": "Importera ({{count}})",
+  "config.providers.filter_models": "Filtrera konfigurerade modeller...",
+  "config.providers.no_filter_results": "Inga modeller matchar \"{{q}}\""
 }

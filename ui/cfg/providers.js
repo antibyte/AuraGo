@@ -342,7 +342,27 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
         function providerRenderModelsTable() {
             const tbody = document.getElementById('prov-models-body');
             const empty = document.getElementById('prov-models-empty');
+            const searchWrap = document.getElementById('prov-models-search-wrap');
+            const filterEl = document.getElementById('prov-models-filter');
+            const countEl = document.getElementById('prov-models-count');
             if (!tbody) return;
+
+            // Show filter bar only when enough rows to be useful
+            if (searchWrap) searchWrap.style.display = _provModalModels.length >= 5 ? '' : 'none';
+
+            const filterQ = filterEl ? filterEl.value.toLowerCase().trim() : '';
+            const visible = filterQ
+                ? _provModalModels.filter(m => m.name && m.name.toLowerCase().includes(filterQ))
+                : _provModalModels;
+
+            if (countEl && _provModalModels.length > 0) {
+                countEl.textContent = filterQ
+                    ? `${visible.length} / ${_provModalModels.length}`
+                    : `${_provModalModels.length} model${_provModalModels.length !== 1 ? 's' : ''}`;
+                countEl.style.display = '';
+            } else if (countEl) {
+                countEl.style.display = 'none';
+            }
 
             if (_provModalModels.length === 0) {
                 tbody.innerHTML = '';
@@ -351,7 +371,14 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
             }
             if (empty) empty.style.display = 'none';
 
-            tbody.innerHTML = _provModalModels.map((m, i) => `
+            if (visible.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" style="padding:0.8rem;text-align:center;color:var(--text-tertiary);font-size:0.75rem;">${escapeHtml(t('config.providers.no_filter_results', { q: filterQ }))}</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = visible.map(m => {
+                const i = _provModalModels.indexOf(m);
+                return `
                 <tr style="border-bottom:1px solid var(--border-subtle);">
                     <td style="padding:0.3rem 0.4rem;">
                         <input class="field-input" style="font-size:0.75rem;padding:0.2rem 0.4rem;" value="${escapeAttr(m.name)}" onchange="providerUpdateModelRow(${i},'name',this.value)">
@@ -365,8 +392,8 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                     <td style="padding:0.3rem 0;text-align:center;">
                         <button type="button" style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:0.8rem;" onclick="providerDeleteModelRow(${i})" title="Delete">✕</button>
                     </td>
-                </tr>
-            `).join('');
+                </tr>`;
+            }).join('');
         }
 
         function providerAddModelRow() {
@@ -415,21 +442,141 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
             showBudgetToast(t('config.budget.model_cost_updated', { model: m.id }));
         }
 
+        /**
+         * Opens a searchable picker modal to select which models/prices to import.
+         * @param {Array<{name,input_per_million,output_per_million}>} allPricing
+         */
+        function openPricingPickerModal(allPricing) {
+            if (!allPricing || allPricing.length === 0) {
+                showBudgetToast(t('config.providers.no_pricing_found'));
+                return;
+            }
+
+            let filterQuery = '';
+            const activeNames = new Set(_provModalModels.map(m => (m.name || '').toLowerCase()));
+            // Pre-select already configured models
+            const selected = new Set(
+                allPricing.filter(m => activeNames.has(m.name.toLowerCase())).map(m => m.name)
+            );
+
+            const overlay = document.createElement('div');
+            overlay.id = 'pricing-picker-overlay';
+            overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9100;display:flex;align-items:center;justify-content:center;padding:1rem;';
+
+            function getVisible() {
+                const q = filterQuery.toLowerCase();
+                return q ? allPricing.filter(m => m.name.toLowerCase().includes(q)) : allPricing;
+            }
+
+            function renderPicker() {
+                const visible = getVisible();
+                const selCount = selected.size;
+                const allVisibleSelected = visible.length > 0 && visible.every(m => selected.has(m.name));
+
+                overlay.innerHTML = `
+                    <div style="background:var(--bg-secondary);border:1px solid var(--border-subtle);border-radius:14px;width:min(580px,96vw);max-height:84vh;display:flex;flex-direction:column;box-shadow:0 24px 64px rgba(0,0,0,0.55);">
+                        <div style="padding:0.9rem 1.1rem 0.6rem;border-bottom:1px solid var(--border-subtle);flex-shrink:0;">
+                            <div style="font-size:0.9rem;font-weight:700;color:var(--text-primary);margin-bottom:0.55rem;">📡 ${escapeHtml(t('config.providers.pricing_picker_title'))}</div>
+                            <input id="pricing-picker-search" class="field-input" type="search" autocomplete="off"
+                                   placeholder="🔍 ${escapeHtml(t('config.providers.pricing_picker_search'))}"
+                                   style="width:100%;font-size:0.8rem;padding:0.32rem 0.55rem;" value="${escapeAttr(filterQuery)}">
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:0.35rem;">
+                                <span style="font-size:0.7rem;color:var(--text-tertiary);">${visible.length} / ${allPricing.length} ${escapeHtml(t('config.providers.pricing_picker_total'))}</span>
+                                <span id="pp-sel-count" style="font-size:0.7rem;color:var(--accent);font-weight:600;">${selCount} ${escapeHtml(t('config.providers.pricing_picker_selected'))}</span>
+                            </div>
+                        </div>
+                        <div style="overflow-y:auto;flex:1;" id="pricing-picker-list">
+                            ${visible.length === 0
+                                ? `<div style="padding:2rem;text-align:center;color:var(--text-tertiary);font-size:0.82rem;">${escapeHtml(t('config.providers.no_pricing_found'))}</div>`
+                                : visible.map(m => {
+                                    const ck = selected.has(m.name);
+                                    const fmt = v => v > 0 ? '$' + v.toFixed(3) : (v === 0 ? 'free' : '—');
+                                    return `<label style="display:flex;align-items:center;gap:0.55rem;padding:0.36rem 1rem;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.04);" onmouseover="this.style.background='var(--bg-tertiary)'" onmouseout="this.style.background=''">
+                                        <input type="checkbox" data-name="${escapeAttr(m.name)}" data-in="${m.input_per_million}" data-out="${m.output_per_million}" ${ck ? 'checked' : ''} style="width:14px;height:14px;flex-shrink:0;cursor:pointer;accent-color:var(--accent);">
+                                        <span style="flex:1;min-width:0;font-size:0.78rem;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${escapeAttr(m.name)}">${escapeHtml(m.name)}</span>
+                                        <span style="font-size:0.67rem;color:var(--text-tertiary);flex-shrink:0;font-family:monospace;">${escapeHtml(fmt(m.input_per_million))} · ${escapeHtml(fmt(m.output_per_million))}</span>
+                                    </label>`;
+                                }).join('')
+                            }
+                        </div>
+                        <div style="padding:0.6rem 1rem;border-top:1px solid var(--border-subtle);display:flex;justify-content:space-between;align-items:center;gap:0.5rem;flex-shrink:0;">
+                            <label style="display:flex;align-items:center;gap:0.4rem;font-size:0.75rem;color:var(--text-secondary);cursor:pointer;">
+                                <input type="checkbox" id="pp-select-all" ${allVisibleSelected ? 'checked' : ''} style="cursor:pointer;accent-color:var(--accent);">
+                                ${escapeHtml(t('config.providers.pricing_picker_select_all'))}
+                            </label>
+                            <div style="display:flex;gap:0.45rem;">
+                                <button class="btn-save" style="padding:0.32rem 0.9rem;font-size:0.77rem;background:var(--bg-tertiary);color:var(--text-primary);" onclick="document.getElementById('pricing-picker-overlay').remove()">${escapeHtml(t('config.providers.cancel'))}</button>
+                                <button class="btn-save" id="pp-confirm" style="padding:0.32rem 0.9rem;font-size:0.77rem;">${escapeHtml(t('config.providers.pricing_picker_import', { count: selCount }))}</button>
+                            </div>
+                        </div>
+                    </div>`;
+
+                // Wire: search
+                const searchEl = document.getElementById('pricing-picker-search');
+                if (searchEl) {
+                    searchEl.focus();
+                    let debounce;
+                    searchEl.addEventListener('input', () => {
+                        clearTimeout(debounce);
+                        debounce = setTimeout(() => { filterQuery = searchEl.value; renderPicker(); }, 120);
+                    });
+                }
+
+                // Wire: checkboxes — update selection + footer counts without full re-render
+                document.querySelectorAll('#pricing-picker-list input[type=checkbox]').forEach(cb => {
+                    cb.addEventListener('change', () => {
+                        if (cb.checked) selected.add(cb.dataset.name); else selected.delete(cb.dataset.name);
+                        const sc = document.getElementById('pp-sel-count');
+                        if (sc) sc.textContent = selected.size + ' ' + t('config.providers.pricing_picker_selected');
+                        const btn = document.getElementById('pp-confirm');
+                        if (btn) btn.textContent = t('config.providers.pricing_picker_import', { count: selected.size });
+                        const sa = document.getElementById('pp-select-all');
+                        if (sa) { const v = getVisible(); sa.checked = v.length > 0 && v.every(m => selected.has(m.name)); }
+                    });
+                });
+
+                // Wire: select all
+                const saEl = document.getElementById('pp-select-all');
+                if (saEl) {
+                    saEl.addEventListener('change', () => {
+                        getVisible().forEach(m => saEl.checked ? selected.add(m.name) : selected.delete(m.name));
+                        renderPicker();
+                    });
+                }
+
+                // Wire: confirm
+                const confirmBtn = document.getElementById('pp-confirm');
+                if (confirmBtn) {
+                    confirmBtn.addEventListener('click', () => {
+                        const toImport = allPricing.filter(m => selected.has(m.name));
+                        for (const p of toImport) {
+                            const ex = _provModalModels.find(e => e.name && e.name.toLowerCase() === p.name.toLowerCase());
+                            if (ex) { ex.input_per_million = p.input_per_million; ex.output_per_million = p.output_per_million; }
+                            else _provModalModels.push({ name: p.name, input_per_million: p.input_per_million, output_per_million: p.output_per_million });
+                        }
+                        overlay.remove();
+                        providerRenderModelsTable();
+                        showBudgetToast(t('config.providers.pricing_fetched', { count: toImport.length }));
+                    });
+                }
+            }
+
+            renderPicker();
+            document.body.appendChild(overlay);
+        }
+
         async function providerFetchPricing() {
             const provId = (document.getElementById('prov-id') || {}).value;
             const provType = (document.getElementById('prov-type') || {}).value;
 
-            // For unsaved providers, use the type to determine the fetch strategy
             const btn = document.getElementById('prov-fetch-pricing-btn');
             if (btn) { btn.disabled = true; btn.textContent = '⏳ ' + t('config.providers.loading'); }
 
             try {
                 let url;
                 if (provId && providersCache.some(p => p.id === provId)) {
-                    // Saved provider — use server-side endpoint
                     url = '/api/providers/pricing?id=' + encodeURIComponent(provId);
                 } else {
-                    // Unsaved or new — use OpenRouter models as a universal source
                     url = '/api/openrouter/models';
                 }
 
@@ -439,7 +586,6 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
 
                 let pricing;
                 if (json.data) {
-                    // OpenRouter /models format — filter by provider type prefix
                     const prefixMap = { openai: 'openai/', anthropic: 'anthropic/', google: 'google/' };
                     const prefix = prefixMap[provType] || '';
                     pricing = (json.data || [])
@@ -450,7 +596,6 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                             output_per_million: parseFloat(m.pricing.completion || '0') * 1000000,
                         }));
                 } else if (Array.isArray(json)) {
-                    // Server pricing endpoint format
                     pricing = json.map(m => ({
                         name: m.model_id,
                         input_per_million: m.input_per_million,
@@ -460,25 +605,8 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                     pricing = [];
                 }
 
-                if (pricing.length === 0) {
-                    showBudgetToast(t('config.providers.no_pricing_found'));
-                    return;
-                }
-
-                // Merge: update existing, add new
-                for (const p of pricing) {
-                    const existing = _provModalModels.find(
-                        e => e.name && e.name.toLowerCase() === p.name.toLowerCase()
-                    );
-                    if (existing) {
-                        existing.input_per_million = p.input_per_million;
-                        existing.output_per_million = p.output_per_million;
-                    } else {
-                        _provModalModels.push(p);
-                    }
-                }
-                providerRenderModelsTable();
-                showBudgetToast(t('config.providers.pricing_fetched', { count: pricing.length }));
+                // Open picker modal instead of bulk-importing
+                openPricingPickerModal(pricing);
             } catch (e) {
                 showBudgetToast('❌ ' + e.message);
             } finally {
@@ -754,6 +882,13 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                         </div>
                     </div>
                     <div id="prov-models-table-wrap">
+                        <div id="prov-models-search-wrap" style="display:none;margin-bottom:0.4rem;">
+                            <input class="field-input" id="prov-models-filter" type="search" autocomplete="off"
+                                   placeholder="🔍 ${escapeHtml(t('config.providers.filter_models'))}"
+                                   style="width:100%;font-size:0.77rem;padding:0.28rem 0.5rem;"
+                                   oninput="providerRenderModelsTable()">
+                            <div id="prov-models-count" style="font-size:0.7rem;color:var(--text-tertiary);text-align:right;margin-top:0.18rem;display:none;"></div>
+                        </div>
                         <table style="width:100%;border-collapse:collapse;font-size:0.78rem;" id="prov-models-table">
                             <thead>
                                 <tr style="border-bottom:1px solid var(--border-subtle);color:var(--text-tertiary);font-size:0.7rem;">

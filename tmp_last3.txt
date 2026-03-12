@@ -1,0 +1,97 @@
+FILE: en.json
+LAST 3 LINES:
+  "config.providers.no_pricing_found": "No pricing data found for this provider.",
+  "config.providers.pricing_fetched": "Pricing fetched for {{count}} models."
+}
+
+FILE: de.json
+LAST 3 LINES:
+  "config.providers.no_pricing_found": "Keine Preisdaten für diesen Provider gefunden.",
+  "config.providers.pricing_fetched": "Preise für {{count}} Modelle abgerufen."
+}
+
+FILE: fr.json
+LAST 3 LINES:
+  "config.providers.no_pricing_found": "Aucune donnée de prix trouvée pour ce fournisseur.",
+  "config.providers.pricing_fetched": "Prix récupérés pour {{count}} modèles."
+}
+
+FILE: es.json
+LAST 3 LINES:
+  "config.providers.no_pricing_found": "No se encontraron datos de precios para este proveedor.",
+  "config.providers.pricing_fetched": "Precios obtenidos para {{count}} modelos."
+}
+
+FILE: it.json
+LAST 3 LINES:
+  "config.providers.no_pricing_found": "Nessun dato di prezzo trovato per questo provider.",
+  "config.providers.pricing_fetched": "Prezzi recuperati per {{count}} modelli."
+}
+
+FILE: pt.json
+LAST 3 LINES:
+  "config.providers.no_pricing_found": "Nenhum dado de preço encontrado para este provedor.",
+  "config.providers.pricing_fetched": "Preços obtidos para {{count}} modelos."
+}
+
+FILE: nl.json
+LAST 3 LINES:
+  "config.providers.no_pricing_found": "Geen prijsgegevens gevonden voor deze provider.",
+  "config.providers.pricing_fetched": "Prijzen opgehaald voor {{count}} modellen."
+}
+
+FILE: pl.json
+LAST 3 LINES:
+  "config.providers.no_pricing_found": "Nie znaleziono danych cenowych dla tego dostawcy.",
+  "config.providers.pricing_fetched": "Pobrano ceny dla {{count}} modeli."
+}
+
+FILE: sv.json
+LAST 3 LINES:
+  "config.providers.no_pricing_found": "Inga prisdata hittades för denna leverantör.",
+  "config.providers.pricing_fetched": "Priser hämtade för {{count}} modeller."
+}
+
+FILE: no.json
+LAST 3 LINES:
+  "config.providers.no_pricing_found": "Ingen prisdata funnet for denne leverandøren.",
+  "config.providers.pricing_fetched": "Priser hentet for {{count}} modeller."
+}
+
+FILE: da.json
+LAST 3 LINES:
+  "config.providers.no_pricing_found": "Ingen prisdata fundet for denne udbyder.",
+  "config.providers.pricing_fetched": "Priser hentet for {{count}} modeller."
+}
+
+FILE: cs.json
+LAST 3 LINES:
+  "config.providers.no_pricing_found": "Pro tohoto poskytovatele nebyla nalezena cenová data.",
+  "config.providers.pricing_fetched": "Ceny načteny pro {{count}} modelů."
+}
+
+FILE: el.json
+LAST 3 LINES:
+  "config.providers.no_pricing_found": "Δεν βρέθηκαν δεδομένα τιμολόγησης για αυτόν τον πάροχο.",
+  "config.providers.pricing_fetched": "Ανακτήθηκαν τιμές για {{count}} μοντέλα."
+}
+
+FILE: zh.json
+LAST 3 LINES:
+  "config.providers.no_pricing_found": "未找到此提供商的价格数据。",
+  "config.providers.pricing_fetched": "已获取 {{count}} 个模型的价格。"
+}
+
+FILE: ja.json
+LAST 3 LINES:
+  "config.providers.no_pricing_found": "このプロバイダーの価格データが見つかりません。",
+  "config.providers.pricing_fetched": "{{count}} モデルの価格を取得しました。"
+}
+
+FILE: hi.json
+LAST 3 LINES:
+  "config.providers.no_pricing_found": "इस प्रदाता के लिए कोई मूल्य निर्धारण डेटा नहीं मिला।",
+  "config.providers.pricing_fetched": "{{count}} मॉडलों के लिए कीमतें प्राप्त की गईं।"
+}
+
+

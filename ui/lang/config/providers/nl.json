@@ -89,5 +89,13 @@
   "config.providers.output_cost": "Output $/M",
   "config.providers.no_models_configured": "Nog geen modelkosten geconfigureerd.",
   "config.providers.no_pricing_found": "Geen prijsgegevens gevonden voor deze provider.",
-  "config.providers.pricing_fetched": "Prijzen opgehaald voor {{count}} modellen."
+  "config.providers.pricing_fetched": "Prijzen opgehaald voor {{count}} modellen.",
+  "config.providers.pricing_picker_title": "Modellen selecteren om te importeren",
+  "config.providers.pricing_picker_search": "Modellen zoeken...",
+  "config.providers.pricing_picker_total": "modellen",
+  "config.providers.pricing_picker_selected": "geselecteerd",
+  "config.providers.pricing_picker_select_all": "Alle zichtbare selecteren",
+  "config.providers.pricing_picker_import": "Importeren ({{count}})",
+  "config.providers.filter_models": "Geconfigureerde modellen filteren...",
+  "config.providers.no_filter_results": "Geen model komt overeen met \"{{q}}\""
 }

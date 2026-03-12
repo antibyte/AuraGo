@@ -75,5 +75,13 @@
   "config.providers.output_cost": "输出 $/M",
   "config.providers.no_models_configured": "尚未配置模型成本。",
   "config.providers.no_pricing_found": "未找到此提供商的价格数据。",
-  "config.providers.pricing_fetched": "已获取 {{count}} 个模型的价格。"
+  "config.providers.pricing_fetched": "已获取 {{count}} 个模型的价格。",
+  "config.providers.pricing_picker_title": "选择要导入的模型",
+  "config.providers.pricing_picker_search": "搜索模型...",
+  "config.providers.pricing_picker_total": "个模型",
+  "config.providers.pricing_picker_selected": "已选择",
+  "config.providers.pricing_picker_select_all": "选择所有可见项",
+  "config.providers.pricing_picker_import": "导入 ({{count}})",
+  "config.providers.filter_models": "筛选已配置的模型...",
+  "config.providers.no_filter_results": "没有模型匹配 \"{{q}}\""
 }

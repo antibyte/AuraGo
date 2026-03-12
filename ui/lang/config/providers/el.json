@@ -89,5 +89,13 @@
   "config.providers.output_cost": "Output $/M",
   "config.providers.no_models_configured": "Δεν έχουν ρυθμιστεί κόστη μοντέλων ακόμα.",
   "config.providers.no_pricing_found": "Δεν βρέθηκαν δεδομένα τιμολόγησης για αυτόν τον πάροχο.",
-  "config.providers.pricing_fetched": "Ανακτήθηκαν τιμές για {{count}} μοντέλα."
+  "config.providers.pricing_fetched": "Ανακτήθηκαν τιμές για {{count}} μοντέλα.",
+  "config.providers.pricing_picker_title": "Επιλογή μοντέλων για εισαγωγή",
+  "config.providers.pricing_picker_search": "Αναζήτηση μοντέλων...",
+  "config.providers.pricing_picker_total": "μοντέλα",
+  "config.providers.pricing_picker_selected": "επιλεγμένα",
+  "config.providers.pricing_picker_select_all": "Επιλογή όλων των ορατών",
+  "config.providers.pricing_picker_import": "Εισαγωγή ({{count}})",
+  "config.providers.filter_models": "Φιλτράρισμα διαμορφωμένων μοντέλων...",
+  "config.providers.no_filter_results": "Κανένα μοντέλο δεν ταιριάζει με \"{{q}}\""
 }

@@ -75,5 +75,13 @@
   "config.providers.output_cost": "Salida $/M",
   "config.providers.no_models_configured": "Aún no hay costos de modelo configurados.",
   "config.providers.no_pricing_found": "No se encontraron datos de precios para este proveedor.",
-  "config.providers.pricing_fetched": "Precios obtenidos para {{count}} modelos."
+  "config.providers.pricing_fetched": "Precios obtenidos para {{count}} modelos.",
+  "config.providers.pricing_picker_title": "Seleccionar modelos para importar",
+  "config.providers.pricing_picker_search": "Buscar modelos...",
+  "config.providers.pricing_picker_total": "modelos",
+  "config.providers.pricing_picker_selected": "seleccionado(s)",
+  "config.providers.pricing_picker_select_all": "Seleccionar todos los visibles",
+  "config.providers.pricing_picker_import": "Importar ({{count}})",
+  "config.providers.filter_models": "Filtrar modelos configurados...",
+  "config.providers.no_filter_results": "Ningún modelo coincide con \"{{q}}\""
 }

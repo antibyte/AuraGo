@@ -75,5 +75,13 @@
   "config.providers.output_cost": "आउटपुट $/M",
   "config.providers.no_models_configured": "अभी तक कोई मॉडल लागत कॉन्फ़िगर नहीं की गई।",
   "config.providers.no_pricing_found": "इस प्रदाता के लिए कोई मूल्य निर्धारण डेटा नहीं मिला।",
-  "config.providers.pricing_fetched": "{{count}} मॉडलों के लिए कीमतें प्राप्त की गईं।"
+  "config.providers.pricing_fetched": "{{count}} मॉडलों के लिए कीमतें प्राप्त की गईं।",
+  "config.providers.pricing_picker_title": "आयात करने के लिए मॉडल चुनें",
+  "config.providers.pricing_picker_search": "मॉडल खोजें...",
+  "config.providers.pricing_picker_total": "मॉडल",
+  "config.providers.pricing_picker_selected": "चुने गए",
+  "config.providers.pricing_picker_select_all": "सभी दृश्यमान चुनें",
+  "config.providers.pricing_picker_import": "आयात करें ({{count}})",
+  "config.providers.filter_models": "कॉन्फ़िगर किए गए मॉडल फ़िल्टर करें...",
+  "config.providers.no_filter_results": "\"{{q}}\" से कोई मॉडल मेल नहीं खाता"
 }
