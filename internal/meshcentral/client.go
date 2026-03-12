@@ -143,16 +143,20 @@ func (c *Client) Connect() error {
 		HandshakeTimeout: 10 * time.Second,
 	}
 
+	c.logDebug("[MeshCentral] Dialing WebSocket: %s", u.String())
+	
 	ws, resp, err := dialer.Dial(u.String(), header)
 	if err != nil {
 		if resp != nil {
 			body, _ := io.ReadAll(resp.Body)
+			c.logDebug("[MeshCentral] WebSocket dial failed: HTTP %d", resp.StatusCode)
 			return fmt.Errorf("websocket dial failed: HTTP %d - %s", resp.StatusCode, string(body))
 		}
+		c.logDebug("[MeshCentral] WebSocket dial failed: %v", err)
 		return fmt.Errorf("websocket dial failed: %v", err)
 	}
 	
-	c.logDebug("[MeshCentral] WebSocket connected to %s", u.String())
+	c.logDebug("[MeshCentral] WebSocket connected successfully")
 
 	c.wsMu.Lock()
 	c.ws = ws
@@ -507,18 +511,24 @@ func (c *Client) Send(cmd map[string]interface{}) error {
 
 // WaitForAction waits for a response with the given action string.
 func (c *Client) WaitForAction(action string, timeout time.Duration) (map[string]interface{}, error) {
+	c.logDebug("[MeshCentral] WaitForAction: registering channel for action='%s'", action)
+	
 	c.reqsMu.Lock()
 	if c.pendingReqs[action] == nil {
 		c.pendingReqs[action] = make(chan map[string]interface{}, 5)
 	}
 	waitCh := c.pendingReqs[action]
 	c.reqsMu.Unlock()
+	
+	c.logDebug("[MeshCentral] WaitForAction: waiting for action='%s' (timeout=%v)", action, timeout)
 
 	select {
 	case res := <-waitCh:
+		c.logDebug("[MeshCentral] WaitForAction: received response for action='%s'", action)
 		return res, nil
 	case <-time.After(timeout):
 		// Clean up the channel to prevent memory leaks
+		c.logDebug("[MeshCentral] WaitForAction: TIMEOUT waiting for action='%s'", action)
 		c.reqsMu.Lock()
 		if c.pendingReqs[action] == waitCh {
 			delete(c.pendingReqs, action)
@@ -526,6 +536,7 @@ func (c *Client) WaitForAction(action string, timeout time.Duration) (map[string
 		c.reqsMu.Unlock()
 		return nil, fmt.Errorf("timeout waiting for action %s", action)
 	case <-c.done:
+		c.logDebug("[MeshCentral] WaitForAction: client disconnected while waiting for action='%s'", action)
 		return nil, fmt.Errorf("client disconnected while waiting for action %s", action)
 	}
 }
