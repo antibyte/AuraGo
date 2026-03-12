@@ -61,10 +61,13 @@ func (c *Client) SetLogger(l *slog.Logger) {
 	c.logger = l
 }
 
-// logDebug logs a debug message.
-func (c *Client) logDebug(msg string, args ...interface{}) {
+// log logs a message at Info level (always visible).
+func (c *Client) log(msg string, args ...interface{}) {
 	if c.logger != nil {
-		c.logger.Debug(msg, args...)
+		c.logger.Info(msg, args...)
+	} else {
+		// Fallback to default logger
+		slog.Info(msg, args...)
 	}
 }
 
@@ -140,20 +143,20 @@ func (c *Client) Connect() error {
 
 	// Log URL without query parameters (may contain auth tokens)
 	urlWithoutQuery := u.Scheme + "://" + u.Host + u.Path
-	c.logDebug("[MeshCentral] Dialing WebSocket", "url", urlWithoutQuery)
+	c.log("[MeshCentral] Dialing WebSocket", "url", urlWithoutQuery)
 	
 	ws, resp, err := dialer.Dial(u.String(), header)
 	if err != nil {
 		if resp != nil {
 			body, _ := io.ReadAll(resp.Body)
-			c.logDebug("[MeshCentral] WebSocket dial failed", "status", resp.StatusCode)
+			c.log("[MeshCentral] WebSocket dial failed", "status", resp.StatusCode)
 			return fmt.Errorf("websocket dial failed: HTTP %d - %s", resp.StatusCode, string(body))
 		}
-		c.logDebug("[MeshCentral] WebSocket dial failed", "error", err)
+		c.log("[MeshCentral] WebSocket dial failed", "error", err)
 		return fmt.Errorf("websocket dial failed: %v", err)
 	}
 	
-	c.logDebug("[MeshCentral] WebSocket connected successfully")
+	c.log("[MeshCentral] WebSocket connected successfully")
 
 	c.wsMu.Lock()
 	c.ws = ws
@@ -165,7 +168,7 @@ func (c *Client) Connect() error {
 	// MeshCentral requires the client to send a serverinfo request
 	// to verify the connection is working. The server responds with
 	// serverinfo which confirms authentication was successful.
-	c.logDebug("[MeshCentral] Sending serverinfo request to verify connection")
+	c.log("[MeshCentral] Sending serverinfo request to verify connection")
 	if err := c.Send(map[string]interface{}{"action": "serverinfo"}); err != nil {
 		return fmt.Errorf("failed to send serverinfo request: %w", err)
 	}
@@ -176,7 +179,7 @@ func (c *Client) Connect() error {
 		return fmt.Errorf("failed to receive serverinfo response: %w", err)
 	}
 	
-	c.logDebug("[MeshCentral] Connection verified", "serverVersion", res["serverVersion"])
+	c.log("[MeshCentral] Connection verified", "serverVersion", res["serverVersion"])
 	return nil
 }
 
@@ -434,7 +437,7 @@ func (c *Client) readPump() {
 		
 		_, msg, err := ws.ReadMessage()
 		if err != nil {
-			c.logDebug("[MeshCentral] readPump: WebSocket read error", "error", err)
+			c.log("[MeshCentral] readPump: WebSocket read error", "error", err)
 			return
 		}
 		
@@ -444,46 +447,46 @@ func (c *Client) readPump() {
 		if len(msgStr) > 100 {
 			msgStr = msgStr[:100] + "..."
 		}
-		c.logDebug("[MeshCentral] readPump: Received message", "count", msgCount, "msg", msgStr)
+		c.log("[MeshCentral] readPump: Received message", "count", msgCount, "msg", msgStr)
 
 		// MeshCentral sometimes sends purely string payloads or empty objects
 		if len(msg) < 2 || msg[0] != '{' {
-			c.logDebug("[MeshCentral] readPump: Skipping non-JSON message")
+			c.log("[MeshCentral] readPump: Skipping non-JSON message")
 			continue
 		}
 
 		var data map[string]interface{}
 		if err := json.Unmarshal(msg, &data); err != nil {
-			c.logDebug("[MeshCentral] readPump: Failed to parse JSON", "error", err)
+			c.log("[MeshCentral] readPump: Failed to parse JSON", "error", err)
 			continue
 		}
 
 		action, _ := data["action"].(string)
-		c.logDebug("[MeshCentral] readPump: Parsed action", "action", action)
+		c.log("[MeshCentral] readPump: Parsed action", "action", action)
 
 		c.reqsMu.RLock()
 		ch := c.pendingReqs[action]
 		if action == "event" {
 			if eventType, ok := data["eventType"].(string); ok {
-				c.logDebug("[MeshCentral] readPump: Event type", "eventType", eventType)
+				c.log("[MeshCentral] readPump: Event type", "eventType", eventType)
 				ch = c.pendingReqs["event_"+eventType]
 			}
 		}
 		c.reqsMu.RUnlock()
 		
 		if ch != nil {
-			c.logDebug("[MeshCentral] readPump: Routing to channel", "action", action)
+			c.log("[MeshCentral] readPump: Routing to channel", "action", action)
 			// Non-blocking send with done channel check
 			select {
 			case ch <- data:
-				c.logDebug("[MeshCentral] readPump: Successfully sent to channel")
+				c.log("[MeshCentral] readPump: Successfully sent to channel")
 			case <-c.done:
 				return
 			default:
-				c.logDebug("[MeshCentral] readPump: Channel full, dropping message")
+				c.log("[MeshCentral] readPump: Channel full, dropping message")
 			}
 		} else {
-			c.logDebug("[MeshCentral] readPump: No channel registered", "action", action)
+			c.log("[MeshCentral] readPump: No channel registered", "action", action)
 		}
 	}
 }
@@ -509,7 +512,7 @@ func (c *Client) Send(cmd map[string]interface{}) error {
 
 // WaitForAction waits for a response with the given action string.
 func (c *Client) WaitForAction(action string, timeout time.Duration) (map[string]interface{}, error) {
-	c.logDebug("[MeshCentral] WaitForAction: registering channel", "action", action)
+	c.log("[MeshCentral] WaitForAction: registering channel", "action", action)
 	
 	c.reqsMu.Lock()
 	if c.pendingReqs[action] == nil {
@@ -518,15 +521,15 @@ func (c *Client) WaitForAction(action string, timeout time.Duration) (map[string
 	waitCh := c.pendingReqs[action]
 	c.reqsMu.Unlock()
 	
-	c.logDebug("[MeshCentral] WaitForAction: waiting", "action", action, "timeout", timeout)
+	c.log("[MeshCentral] WaitForAction: waiting", "action", action, "timeout", timeout)
 
 	select {
 	case res := <-waitCh:
-		c.logDebug("[MeshCentral] WaitForAction: received response", "action", action)
+		c.log("[MeshCentral] WaitForAction: received response", "action", action)
 		return res, nil
 	case <-time.After(timeout):
 		// Clean up the channel to prevent memory leaks
-		c.logDebug("[MeshCentral] WaitForAction: TIMEOUT", "action", action)
+		c.log("[MeshCentral] WaitForAction: TIMEOUT", "action", action)
 		c.reqsMu.Lock()
 		if c.pendingReqs[action] == waitCh {
 			delete(c.pendingReqs, action)
@@ -534,7 +537,7 @@ func (c *Client) WaitForAction(action string, timeout time.Duration) (map[string
 		c.reqsMu.Unlock()
 		return nil, fmt.Errorf("timeout waiting for action %s", action)
 	case <-c.done:
-		c.logDebug("[MeshCentral] WaitForAction: client disconnected", "action", action)
+		c.log("[MeshCentral] WaitForAction: client disconnected", "action", action)
 		return nil, fmt.Errorf("client disconnected while waiting for action %s", action)
 	}
 }
