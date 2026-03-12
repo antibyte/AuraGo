@@ -49,42 +49,16 @@ func NewClient(urlStr, username, password, loginToken string, insecure bool) *Cl
 }
 
 // Connect authenticates and opens the WebSocket connection.
+//
+// Authentication strategy (in priority order):
+//  1. Login Token  — passed as ?auth=<token> on the WebSocket URL.
+//     This is the official MeshCentral API mechanism; no HTTP round-trip needed.
+//  2. Username + Password — HTTP POST to login.ashx to obtain a session cookie.
+//     Falls back to ?user=<u>&pass=<p> on the WS URL if login.ashx is unreachable
+//     (e.g. reverse-proxy that only exposes /control.ashx).
+//  3. Raw session token (loginToken set, no ~t: prefix) — sent as meshcom cookie.
 func (c *Client) Connect() error {
-	// 1. Authenticate to get a session cookie via HTTP login.
-	// If login.ashx is unreachable (e.g. reverse-proxy exposes only the WebSocket
-	// path), we fall back to passing credentials as query parameters on the
-	// WebSocket URL — MeshCentral natively supports ?loginkey= and ?user=/pass=.
-	needsLogin := false
-	loginUser := c.username
-
-	if strings.HasPrefix(c.loginToken, "~t:") {
-		// It's a MeshCentral Login Token Username
-		loginUser = c.loginToken
-		needsLogin = true
-	} else if c.loginToken == "" && c.username != "" {
-		needsLogin = true
-	}
-
-	// wsLoginKey / wsUser / wsPass are set when HTTP login is unavailable and
-	// we need to authenticate via WebSocket query parameters instead.
-	var wsLoginKey, wsUser, wsPass string
-
-	if needsLogin {
-		if err := c.login(loginUser); err != nil {
-			// HTTP login failed (login.ashx may be 404 because only the WS path is
-			// exposed via a reverse proxy).  Fall back to WebSocket query-param auth.
-			if strings.HasPrefix(loginUser, "~t:") {
-				// MeshCentral login tokens: use ?loginkey=TOKEN
-				wsLoginKey = loginUser
-			} else {
-				// Username + password: use ?user=USER&pass=PASS
-				wsUser = loginUser
-				wsPass = c.password
-			}
-		}
-	}
-
-	// 2. Connect to WebSocket
+	// Build the WebSocket URL: scheme normalisation + /control.ashx
 	u, err := url.Parse(c.url + "/control.ashx")
 	if err != nil {
 		return err
@@ -96,45 +70,52 @@ func (c *Client) Connect() error {
 		u.Scheme = "wss"
 	}
 
-	// Append auth query parameters when HTTP login was unavailable.
-	if wsLoginKey != "" {
+	header := http.Header{}
+
+	switch {
+	case c.loginToken != "":
+		// ── Strategy 1: Login Token ──────────────────────────────────────────
+		// MeshCentral login tokens are passed as ?auth=<token> on the WS URL.
+		// This is the primary, recommended API authentication method and works
+		// regardless of whether login.ashx is accessible.
 		q := u.Query()
-		q.Set("loginkey", wsLoginKey)
+		q.Set("auth", c.loginToken)
 		u.RawQuery = q.Encode()
-	} else if wsUser != "" {
-		q := u.Query()
-		q.Set("user", wsUser)
-		q.Set("pass", wsPass)
-		u.RawQuery = q.Encode()
+
+	case c.username != "":
+		// ── Strategy 2: Username + Password ─────────────────────────────────
+		// Try HTTP login first so we get a proper session cookie.
+		if err := c.login(c.username); err == nil {
+			// HTTP login succeeded; build cookie header from obtained cookies.
+			if len(c.authCookies) > 0 {
+				parts := make([]string, 0, len(c.authCookies))
+				for _, ck := range c.authCookies {
+					if ck != nil && ck.Name != "" && ck.Value != "" {
+						parts = append(parts, ck.Name+"="+ck.Value)
+					}
+				}
+				if len(parts) > 0 {
+					header.Set("Cookie", strings.Join(parts, "; "))
+				}
+			} else if c.sessionID != "" {
+				header.Set("Cookie", (&http.Cookie{Name: "meshcom", Value: c.sessionID}).String())
+			}
+		} else {
+			// HTTP login unavailable (login.ashx 404 / reverse-proxy) — fall back
+			// to WS query-param auth: ?user=<u>&pass=<p>
+			q := u.Query()
+			q.Set("user", c.username)
+			q.Set("pass", c.password)
+			u.RawQuery = q.Encode()
+		}
+
+	default:
+		// No credentials configured — attempt unauthenticated connection.
 	}
 
 	dialer := websocket.Dialer{
 		TLSClientConfig:  &tls.Config{InsecureSkipVerify: c.insecure},
 		HandshakeTimeout: 10 * time.Second,
-	}
-
-	header := http.Header{}
-	if wsLoginKey == "" && wsUser == "" {
-		// Cookie-based auth: used when HTTP login succeeded or a raw session token
-		// was provided directly.
-		if c.loginToken != "" && !strings.HasPrefix(c.loginToken, "~t:") {
-			// Raw session cookie / API key
-			cookie := &http.Cookie{Name: "meshcom", Value: c.loginToken}
-			header.Set("Cookie", cookie.String())
-		} else if len(c.authCookies) > 0 {
-			cookieParts := make([]string, 0, len(c.authCookies))
-			for _, ck := range c.authCookies {
-				if ck != nil && ck.Name != "" && ck.Value != "" {
-					cookieParts = append(cookieParts, ck.Name+"="+ck.Value)
-				}
-			}
-			if len(cookieParts) > 0 {
-				header.Set("Cookie", strings.Join(cookieParts, "; "))
-			}
-		} else if c.sessionID != "" {
-			cookie := &http.Cookie{Name: "meshcom", Value: c.sessionID}
-			header.Set("Cookie", cookie.String())
-		}
 	}
 
 	ws, resp, err := dialer.Dial(u.String(), header)

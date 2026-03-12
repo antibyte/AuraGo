@@ -342,10 +342,13 @@ if $BINARY_ONLY; then
     tar -xzf "$TMPRES" -C "$TMPEXT"
     rm -f "$TMPRES"
 
-    # Always overwrite code assets (prompts, ui, agent_workspace)
-    [ -d "$TMPEXT/prompts" ]           && cp -a "$TMPEXT/prompts"           "$DIR/"
-    [ -d "$TMPEXT/agent_workspace" ]   && cp -a "$TMPEXT/agent_workspace"   "$DIR/"
-    [ -d "$TMPEXT/ui" ]                && cp -a "$TMPEXT/ui"                "$DIR/" 2>/dev/null || true
+    # Always overwrite code assets (prompts, ui, agent_workspace).
+    # Use -r (no -p) so we don't try to preserve timestamps/ownership from the
+    # tar archive — non-root users cannot change timestamps on files they don't
+    # own, which produces spurious "Operation not permitted" warnings with cp -a.
+    [ -d "$TMPEXT/prompts" ]           && cp -r "$TMPEXT/prompts"           "$DIR/"
+    [ -d "$TMPEXT/agent_workspace" ]   && cp -r "$TMPEXT/agent_workspace"   "$DIR/"
+    [ -d "$TMPEXT/ui" ]                && cp -r "$TMPEXT/ui"                "$DIR/" 2>/dev/null || true
 
     # Treat the extracted config.yaml as the new template for the merger below
     if [ -f "$TMPEXT/config.yaml" ]; then
