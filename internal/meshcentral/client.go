@@ -95,18 +95,15 @@ func (c *Client) Connect() error {
 
 	header := http.Header{}
 
-	switch {
-	case c.loginToken != "":
-		// ── Strategy 1: Login Token ──────────────────────────────────────────
-		// MeshCentral login tokens are passed as ?auth=<token> on the WS URL.
-		// This is the primary, recommended API authentication method and works
-		// regardless of whether login.ashx is accessible.
+	// Determine authentication strategy
+	if c.loginToken != "" {
+		c.log("[MeshCentral] Using auth strategy: Login Token (token length: %d)", len(c.loginToken))
 		q := u.Query()
 		q.Set("auth", c.loginToken)
 		u.RawQuery = q.Encode()
-
-	case c.username != "":
-		// ── Strategy 2: Username + Password ─────────────────────────────────
+		c.log("[MeshCentral] Auth parameter added to URL")
+	} else if c.username != "" {
+		c.log("[MeshCentral] Using auth strategy: Username/Password")
 		// Try HTTP login first so we get a proper session cookie.
 		if err := c.login(c.username); err == nil {
 			// HTTP login succeeded; build cookie header from obtained cookies.
@@ -131,9 +128,8 @@ func (c *Client) Connect() error {
 			q.Set("pass", c.password)
 			u.RawQuery = q.Encode()
 		}
-
-	default:
-		// No credentials configured — attempt unauthenticated connection.
+	} else {
+		c.log("[MeshCentral] Using auth strategy: None (unauthenticated)")
 	}
 
 	dialer := websocket.Dialer{

@@ -842,14 +842,20 @@ func handleMeshCentralTest(s *Server) http.HandlerFunc {
 		if s.Vault != nil {
 			if password == "" {
 				if v, _ := s.Vault.ReadSecret("meshcentral_password"); v != "" {
+					s.Logger.Info("[MeshCentral Test] Found password in vault")
 					password = v
 				}
 			}
 			if loginToken == "" {
 				if v, _ := s.Vault.ReadSecret("meshcentral_token"); v != "" {
+					s.Logger.Info("[MeshCentral Test] Found login token in vault", "tokenLength", len(v))
 					loginToken = v
+				} else {
+					s.Logger.Info("[MeshCentral Test] No login token found in vault")
 				}
 			}
+		} else {
+			s.Logger.Info("[MeshCentral Test] Vault is nil")
 		}
 
 		// URL is always required. Username is required only when no login token is set.
