@@ -338,6 +338,7 @@ type Config struct {
 		Enabled                  bool   `yaml:"enabled"`
 		AllowDeploy              bool   `yaml:"allow_deploy"`
 		AllowContainerManagement bool   `yaml:"allow_container_management"`
+		AllowLocalServer         bool   `yaml:"allow_local_server"` // Danger Zone: allow Python HTTP server fallback when Docker unavailable
 		DeployHost               string `yaml:"deploy_host"`
 		DeployPort               int    `yaml:"deploy_port"`
 		DeployUser               string `yaml:"deploy_user"`

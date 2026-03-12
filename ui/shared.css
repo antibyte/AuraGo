@@ -32,7 +32,7 @@
     --border-subtle: rgba(148, 163, 184, 0.08);
     --border-accent: rgba(45, 212, 191, 0.2);
     --radius: 20px;
-    --bg-logo: url('aurago_logo_dark.png');
+    --bg-logo: url('../aurago_logo_dark.png');
     --modal-bg: rgba(0, 0, 0, 0.6);
     --modal-surface: #1e293b;
     --modal-border: rgba(148, 163, 184, 0.1);

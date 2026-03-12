@@ -25,10 +25,14 @@ The `meshcentral` tool allows you to interact with devices managed by a MeshCent
 
 ### `run_command` vs `shell`
 
-Both operations execute commands on remote devices, but differ in how they handle output:
+Both operations execute commands on remote devices and return the full response from MeshCentral:
 
-- **`run_command`**: Fire-and-forget. Sends the command to the agent but does not wait for or return output. Use for long-running commands or when output is not needed.
-- **`shell`**: Interactive WebSocket shell. Sends the command and waits for output (up to 10 seconds). Use when you need to see the command result.
+- **`run_command`**: Executes a command and waits for the result (up to 30 seconds). Returns stdout, stderr, and exit code if available.
+- **`shell`**: Opens an interactive shell session, executes the command, and returns the output (up to 30 seconds).
+
+Both operations return a JSON response with:
+- `status`: "success" or "error"
+- `data`: The full response from MeshCentral (may include stdout, stderr, result, etc.)
 
 ## Examples
 

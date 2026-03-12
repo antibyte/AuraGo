@@ -21,6 +21,7 @@ func handleHomepageStatus(s *Server) http.HandlerFunc {
 		workspacePath := s.Cfg.Homepage.WorkspacePath
 		webServerPort := s.Cfg.Homepage.WebServerPort
 		webServerDomain := s.Cfg.Homepage.WebServerDomain
+		allowLocalServer := s.Cfg.Homepage.AllowLocalServer
 		dockerEnabled := s.Cfg.Docker.Enabled
 		homepageEnabled := s.Cfg.Homepage.Enabled
 		s.CfgMu.RUnlock()
@@ -35,10 +36,11 @@ func handleHomepageStatus(s *Server) http.HandlerFunc {
 		}
 
 		cfg := tools.HomepageConfig{
-			DockerHost:      dockerHost,
-			WorkspacePath:   workspacePath,
-			WebServerPort:   webServerPort,
-			WebServerDomain: webServerDomain,
+			DockerHost:       dockerHost,
+			WorkspacePath:    workspacePath,
+			WebServerPort:    webServerPort,
+			WebServerDomain:  webServerDomain,
+			AllowLocalServer: allowLocalServer,
 		}
 		result := tools.HomepageStatus(cfg, s.Logger)
 

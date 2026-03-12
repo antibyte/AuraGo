@@ -65,12 +65,13 @@ type ToolFeatureFlags struct {
 	FirewallEnabled        bool
 	EmailEnabled           bool
 	// Danger Zone toggles
-	AllowShell           bool
-	AllowPython          bool
-	AllowFilesystemWrite bool
-	AllowNetworkRequests bool
-	AllowRemoteShell     bool
-	AllowSelfUpdate      bool
+	AllowShell              bool
+	AllowPython             bool
+	AllowFilesystemWrite    bool
+	AllowNetworkRequests    bool
+	AllowRemoteShell        bool
+	AllowSelfUpdate         bool
+	HomepageAllowLocalServer bool // Allow Python HTTP server fallback when Docker unavailable
 	// Built-in tool toggles
 	MemoryEnabled            bool
 	KnowledgeGraphEnabled    bool
@@ -464,8 +465,12 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 	}
 
 	if ff.HomepageEnabled {
+		homepageDesc := "Design, develop, build, test and deploy websites using a Docker-based dev environment with Node.js, Playwright, Lighthouse and more. Supports Next.js, Vite, Astro, Svelte, Vue and static HTML."
+		if !ff.HomepageAllowLocalServer {
+			homepageDesc += " REQUIRES DOCKER: Local Python server fallback is disabled for security. Ensure Docker is running or enable homepage.allow_local_server in config."
+		}
 		tools = append(tools, tool("homepage",
-			"Design, develop, build, test and deploy websites using a Docker-based dev environment with Node.js, Playwright, Lighthouse and more. Supports Next.js, Vite, Astro, Svelte, Vue and static HTML.",
+			homepageDesc,
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
 					"type":        "string",

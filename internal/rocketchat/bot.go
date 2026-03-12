@@ -306,15 +306,16 @@ func processMessage(cfg *config.Config, logger *slog.Logger, client llm.ChatClie
 
 	if cfg.LLM.UseNativeFunctions {
 		ff := agent.ToolFeatureFlags{
-			HomeAssistantEnabled: cfg.HomeAssistant.Enabled,
-			DockerEnabled:        cfg.Docker.Enabled,
-			CoAgentEnabled:       cfg.CoAgents.Enabled,
-			SudoEnabled:          cfg.Agent.SudoEnabled,
-			WebhooksEnabled:      cfg.Webhooks.Enabled,
-			ProxmoxEnabled:       cfg.Proxmox.Enabled,
-			OllamaEnabled:        cfg.Ollama.Enabled,
-			HomepageEnabled:      cfg.Homepage.Enabled && cfg.Docker.Enabled,
-			NetlifyEnabled:       cfg.Netlify.Enabled,
+			HomeAssistantEnabled:     cfg.HomeAssistant.Enabled,
+			DockerEnabled:            cfg.Docker.Enabled,
+			CoAgentEnabled:           cfg.CoAgents.Enabled,
+			SudoEnabled:              cfg.Agent.SudoEnabled,
+			WebhooksEnabled:          cfg.Webhooks.Enabled,
+			ProxmoxEnabled:           cfg.Proxmox.Enabled,
+			OllamaEnabled:            cfg.Ollama.Enabled,
+			HomepageEnabled:          cfg.Homepage.Enabled && cfg.Docker.Enabled,
+			HomepageAllowLocalServer: cfg.Homepage.AllowLocalServer,
+			NetlifyEnabled:           cfg.Netlify.Enabled,
 		}
 		ntSchemas := agent.BuildNativeToolSchemas(cfg.Directories.SkillsDir, manifest, cfg.Agent.EnableGoogleWorkspace, ff, logger)
 		req.Tools = ntSchemas

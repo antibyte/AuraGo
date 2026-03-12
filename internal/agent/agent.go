@@ -569,6 +569,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			SandboxEnabled:           cfg.Sandbox.Enabled,
 			MeshCentralEnabled:       cfg.MeshCentral.Enabled,
 			HomepageEnabled:          cfg.Homepage.Enabled && cfg.Docker.Enabled,
+			HomepageAllowLocalServer: cfg.Homepage.AllowLocalServer,
 			NetlifyEnabled:           cfg.Netlify.Enabled,
 			FirewallEnabled:          cfg.Firewall.Enabled,
 			EmailEnabled:             cfg.Email.Enabled || len(cfg.EmailAccounts) > 0,
@@ -3775,7 +3776,9 @@ func dispatchInner(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Failed to run command: %v"}`, err)
 			}
-			return fmt.Sprintf(`Tool Output: {"status": "success", "result": "%s"}`, result)
+			// Format result for display
+			resultJSON, _ := json.Marshal(result)
+			return fmt.Sprintf(`Tool Output: {"status": "success", "data": %s}`, string(resultJSON))
 
 		case "shell":
 			if tc.NodeID == "" || tc.Command == "" {
@@ -3785,7 +3788,9 @@ func dispatchInner(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Failed to execute shell command: %v"}`, err)
 			}
-			return fmt.Sprintf(`Tool Output: {"status": "success", "output": %q}`, result)
+			// Format result for display
+			resultJSON, _ := json.Marshal(result)
+			return fmt.Sprintf(`Tool Output: {"status": "success", "data": %s}`, string(resultJSON))
 
 		default:
 			return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Unknown operation: %s"}`, tc.Operation)
@@ -3924,10 +3929,11 @@ func dispatchInner(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 			return `Tool Output: {"status": "error", "message": "Homepage tool is not enabled. Set homepage.enabled=true in config.yaml."}`
 		}
 		homepageCfg := tools.HomepageConfig{
-			DockerHost:      cfg.Docker.Host,
-			WorkspacePath:   cfg.Homepage.WorkspacePath,
-			WebServerPort:   cfg.Homepage.WebServerPort,
-			WebServerDomain: cfg.Homepage.WebServerDomain,
+			DockerHost:       cfg.Docker.Host,
+			WorkspacePath:    cfg.Homepage.WorkspacePath,
+			WebServerPort:    cfg.Homepage.WebServerPort,
+			WebServerDomain:  cfg.Homepage.WebServerDomain,
+			AllowLocalServer: cfg.Homepage.AllowLocalServer,
 		}
 		if homepageCfg.WorkspacePath == "" {
 			homepageCfg.WorkspacePath = filepath.Join(cfg.Directories.DataDir, "homepage")

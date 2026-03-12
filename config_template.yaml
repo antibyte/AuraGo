@@ -125,6 +125,9 @@ homepage:
     enabled: false
     allow_deploy: false
     allow_container_management: true
+    # DANGER ZONE: Allow local Python HTTP server when Docker unavailable
+    # Enabling this executes Python directly on the host system (security risk)
+    allow_local_server: false
     deploy_host: ""
     deploy_port: 22
     deploy_user: ""

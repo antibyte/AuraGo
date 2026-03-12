@@ -791,11 +791,21 @@
             white-space: nowrap;
             height: 46px;
             min-width: 100px;
+            order: -1; /* Move to left side */
+            margin-right: 0.5rem;
         }
         .btn-new-chat:hover {
             background: var(--accent-dim);
             border-color: var(--accent);
             color: var(--accent);
+        }
+
+        /* Logout button - ensure text fits */
+        #logout-btn {
+            padding: 0.4rem 0.8rem;
+            font-size: 0.85rem;
+            min-width: 80px;
+            text-align: center;
         }
 
         .app-footer {
@@ -1456,6 +1466,13 @@
                 font-size: 0.75rem;
                 min-width: 80px;
                 height: 40px;
+                margin-right: 0.35rem;
+            }
+            
+            #logout-btn {
+                padding: 0.3rem 0.6rem;
+                font-size: 0.8rem;
+                min-width: 70px;
             }
 
             .input-row {

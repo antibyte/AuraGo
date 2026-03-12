@@ -1,13 +1,48 @@
 # Homepage — Web Development & Deployment Tool
 
-Design, develop, build, test and deploy professional websites using a Docker-based development environment. The container includes Node.js, Playwright, Lighthouse, SVGO and popular web frameworks.
+Design, develop, build, test and deploy professional websites. The tool uses Docker when available, or falls back to Python HTTP server for lightweight hosting.
 
 ## Prerequisites
 
-- Docker integration must be enabled (`docker.enabled: true`)
+- **Required**: Docker integration enabled (`docker.enabled: true`)
+- **Optional**: Python 3 installed (for HTTP server fallback when Docker unavailable)
 - Homepage tool must be enabled (`homepage.enabled: true`)
+- **Security**: Local Python server requires `homepage.allow_local_server: true` (Danger Zone)
 - For deployment: SFTP/SCP credentials must be stored in the vault
-- For local web server: Caddy container image will be auto-pulled
+
+## Security Notice (Danger Zone)
+
+The Homepage tool can execute **Python directly on the host system** when Docker is unavailable. This is disabled by default for security.
+
+To enable the Python HTTP server fallback:
+```yaml
+homepage:
+  enabled: true
+  allow_local_server: true  # Danger Zone: allows local Python execution
+```
+
+**Risks:**
+- Local file system exposure via HTTP server
+- Process running with agent's privileges
+- No container isolation
+
+**Mitigation:**
+- Only enable in trusted environments
+- Ensure firewall rules block external access to the server port
+- Use Docker mode for production deployments
+
+## Docker vs Python Fallback Mode
+
+### Full Mode (Docker available)
+- Complete dev environment with Node.js, Playwright, Lighthouse
+- Caddy web server with automatic HTTPS
+- Full framework support (Next.js, Vite, etc.)
+
+### Fallback Mode (Docker unavailable)
+- Python HTTP server for static file hosting
+- Basic file operations (read, write, list)
+- Manual build steps required (no containerized builds)
+- **Limitation**: No advanced features like Playwright testing, automatic HTTPS
 
 ## Container Lifecycle
 
@@ -16,6 +51,8 @@ Creates the Docker image and container. **Run this first** before any other oper
 ```json
 {"action": "homepage", "operation": "init"}
 ```
+
+**Fallback behavior:** If Docker is unavailable AND `homepage.allow_local_server: true` is set, starts Python HTTP server instead. Otherwise returns an error.
 
 ### start — Start the dev container
 ```json
@@ -27,11 +64,16 @@ Creates the Docker image and container. **Run this first** before any other oper
 {"action": "homepage", "operation": "stop"}
 ```
 
-### status — Get container status
-Returns status of both dev container and web server container.
+### status — Get environment status
+Returns status of Docker containers or Python fallback server.
 ```json
 {"action": "homepage", "operation": "status"}
 ```
+
+**Response fields:**
+- `docker_available`: true/false - whether Docker is accessible
+- `mode`: "docker" or "python_fallback"
+- `python_server`: Status of Python HTTP server (in fallback mode)
 
 ### rebuild — Rebuild the dev container from scratch
 Removes container and image, then rebuilds. Use when you need a fresh environment.
@@ -157,13 +199,19 @@ Tests connectivity to the configured deployment target.
 {"action": "homepage", "operation": "test_connection"}
 ```
 
-## Local Web Server (Caddy)
+## Local Web Server (Caddy/Python)
 
-### webserver_start — Start local Caddy web server
-Serves the build output on the configured port. If a domain is configured, Caddy provides automatic HTTPS via Let's Encrypt.
+### webserver_start — Start local web server
+Serves the build output. Uses Caddy with Docker (preferred), or Python HTTP server as fallback (requires `homepage.allow_local_server: true`).
 ```json
 {"action": "homepage", "operation": "webserver_start", "project_dir": "my-site"}
 ```
+
+**Response:**
+- `url`: The URL where the site is accessible
+- `mode`: "docker" or "python"
+
+**Security:** Python fallback only works when `homepage.allow_local_server: true` is set in config.yaml (Danger Zone).
 
 ### webserver_stop — Stop the web server
 ```json
@@ -198,5 +246,53 @@ Combines `build` + `webserver_start` in one step.
 - The container persists between sessions (uses `unless-stopped` restart policy)
 - Build output directory is auto-detected: checks `out`, `dist`, `build`, `.next`, `public`
 - For deployment, store credentials in the vault: `homepage_deploy_password` or `homepage_deploy_key`
-- The Caddy web server can serve with automatic HTTPS if a domain is configured
+- The Caddy web server can serve with automatic HTTPS if a domain is configured (Docker mode only)
 - Use compound operations (`init_project`, `build`, `deploy`) to save tokens — avoid running many individual `exec` calls
+
+## Troubleshooting
+
+### "Docker not available" Error
+
+**Problem:** Docker daemon is not running or not accessible.
+
+**Solutions:**
+1. **Start Docker:** `sudo systemctl start docker` (recommended)
+2. **Enable Docker:** `sudo systemctl enable docker`
+3. **Use Python Fallback:** Set `homepage.allow_local_server: true` in config.yaml (see Security Notice above)
+
+### "Python fallback failed" Error
+
+**Problem:** Neither Docker nor Python is available.
+
+**Solution:** Install Python 3: `sudo apt-get install python3` (Debian/Ubuntu) or `sudo yum install python3` (RHEL/CentOS)
+
+### Limited Functionality in Fallback Mode
+
+**Symptoms:** No container builds, no Lighthouse testing, no automatic HTTPS.
+
+**Cause:** Docker is not available.
+
+**Requirements:** Must set `homepage.allow_local_server: true` to use fallback mode.
+
+**Workaround:** 
+- For static sites: Use Python server with `webserver_start` (requires `allow_local_server: true`)
+- For builds: Run `npm run build` locally, then upload files
+- For testing: Use browser DevTools instead of Lighthouse
+
+### Web Server Not Accessible
+
+**Problem:** `publish_local` or `webserver_start` reports success but site not reachable.
+
+**Check:**
+1. Verify port is not in use: `netstat -tlnp | grep 8080`
+2. Check firewall rules: `sudo ufw allow 8080`
+3. Try different port in config: `homepage.webserver_port: 8081`
+
+### Status Shows "running": false
+
+**Problem:** Container or server appears stopped.
+
+**Solutions:**
+1. Check Docker status: `docker ps -a`
+2. Start manually: `homepage start`
+3. If stuck: `homepage destroy` then `homepage init`

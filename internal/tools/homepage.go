@@ -13,7 +13,9 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -25,10 +27,11 @@ import (
 
 // HomepageConfig holds the configuration for the homepage dev environment.
 type HomepageConfig struct {
-	DockerHost      string
-	WorkspacePath   string // host path mounted as /workspace in the container
-	WebServerPort   int
-	WebServerDomain string
+	DockerHost       string
+	WorkspacePath    string // host path mounted as /workspace in the container
+	WebServerPort    int
+	WebServerDomain  string
+	AllowLocalServer bool // Danger Zone: allow Python HTTP server fallback when Docker unavailable
 }
 
 const (
@@ -69,15 +72,66 @@ type HomepageDeployConfig struct {
 
 // ─── Container Lifecycle ──────────────────────────────────────────────────
 
-// HomepageInit builds the image (if needed) and creates the dev container.
-func HomepageInit(cfg HomepageConfig, logger *slog.Logger) string {
-	dockerCfg := DockerConfig{Host: cfg.DockerHost}
+// checkDockerAvailable checks if Docker is available and running.
+func checkDockerAvailable(dockerHost string) bool {
+	return DockerPing(dockerHost) == nil
+}
 
+// startPythonServer starts a Python HTTP server as fallback when Docker is not available.
+// Returns the URL and process info or error.
+func startPythonServer(port int, directory string) (string, int, error) {
+	if port <= 0 {
+		port = 8080
+	}
+	cmd := exec.Command("python3", "-m", "http.server", 
+		strconv.Itoa(port), "--directory", directory)
+	err := cmd.Start()
+	if err != nil {
+		return "", 0, fmt.Errorf("failed to start Python server: %w", err)
+	}
+	
+	// Give the server a moment to start
+	time.Sleep(500 * time.Millisecond)
+	
+	url := fmt.Sprintf("http://localhost:%d", port)
+	return url, cmd.Process.Pid, nil
+}
+
+// HomepageInit builds the image (if needed) and creates the dev container.
+// If Docker is not available, falls back to Python HTTP server (only if AllowLocalServer is true).
+func HomepageInit(cfg HomepageConfig, logger *slog.Logger) string {
 	// Ensure workspace dir exists on the host
 	if cfg.WorkspacePath != "" {
 		if err := os.MkdirAll(cfg.WorkspacePath, 0755); err != nil {
 			return errJSON("Failed to create workspace directory: %v", err)
 		}
+	}
+
+	// Check if Docker is available
+	dockerCfg := DockerConfig{Host: cfg.DockerHost}
+	if !checkDockerAvailable(cfg.DockerHost) {
+		// Check if local Python server is allowed (Danger Zone)
+		if !cfg.AllowLocalServer {
+			return errJSON("Docker not available at %s and local Python server is disabled for security. "+
+				"Please ensure Docker is running (systemctl start docker) or enable homepage.allow_local_server in config.yaml.", 
+				cfg.DockerHost)
+		}
+		
+		logger.Info("[Homepage] Docker not available, using Python fallback")
+		
+		// Try to start Python server as fallback
+		url, pid, err := startPythonServer(cfg.WebServerPort, cfg.WorkspacePath)
+		if err != nil {
+			return errJSON("Docker not available (%v) and Python fallback failed: %v. "+
+				"Please ensure either Docker is running (systemctl start docker) or Python is installed.", 
+				DockerPing(cfg.DockerHost), err)
+		}
+		
+		return okJSON("Web server started (Python fallback)", 
+			"url", url, 
+			"pid", strconv.Itoa(pid),
+			"mode", "python",
+			"note", "Limited functionality without Docker. Full dev environment requires Docker.")
 	}
 
 	// Check if image exists
@@ -167,6 +221,37 @@ func HomepageStop(cfg HomepageConfig, logger *slog.Logger) string {
 func HomepageStatus(cfg HomepageConfig, logger *slog.Logger) string {
 	dockerCfg := DockerConfig{Host: cfg.DockerHost}
 	result := map[string]interface{}{"status": "ok"}
+
+	// Check Docker availability
+	dockerAvailable := checkDockerAvailable(cfg.DockerHost)
+	result["docker_available"] = dockerAvailable
+	
+	if !dockerAvailable {
+		result["mode"] = "python_fallback"
+		result["message"] = "Docker not available. Using Python HTTP server (limited functionality)."
+		
+		// Check if Python server is running by testing the port
+		port := cfg.WebServerPort
+		if port <= 0 {
+			port = 8080
+		}
+		conn, err := net.DialTimeout("tcp", fmt.Sprintf("localhost:%d", port), 2*time.Second)
+		if err == nil {
+			conn.Close()
+			result["python_server"] = map[string]interface{}{
+				"running": true,
+				"url":     fmt.Sprintf("http://localhost:%d", port),
+			}
+		} else {
+			result["python_server"] = map[string]interface{}{
+				"running": false,
+				"error":   "Server not responding",
+			}
+		}
+		
+		out, _ := json.Marshal(result)
+		return string(out)
+	}
 
 	// Dev container status
 	devStatus := containerStatus(dockerCfg, homepageContainerName)
@@ -500,8 +585,6 @@ func HomepageTestConnection(deployCfg HomepageDeployConfig, logger *slog.Logger)
 
 // HomepageWebServerStart starts the Caddy container serving the build output.
 func HomepageWebServerStart(cfg HomepageConfig, projectDir, buildDir string, logger *slog.Logger) string {
-	dockerCfg := DockerConfig{Host: cfg.DockerHost}
-
 	if buildDir == "" {
 		buildDir = detectBuildDir(cfg, projectDir)
 	}
@@ -512,6 +595,33 @@ func HomepageWebServerStart(cfg HomepageConfig, projectDir, buildDir string, log
 		port = 8080
 	}
 
+	// Check if Docker is available
+	dockerCfg := DockerConfig{Host: cfg.DockerHost}
+	if !checkDockerAvailable(cfg.DockerHost) {
+		// Check if local Python server is allowed (Danger Zone)
+		if !cfg.AllowLocalServer {
+			return errJSON("Docker not available and local Python server is disabled for security. "+
+				"Please ensure Docker is running (systemctl start docker) or enable homepage.allow_local_server in config.yaml.")
+		}
+		
+		logger.Info("[Homepage] Docker not available, using Python fallback for web server")
+		
+		// Use Python HTTP server as fallback
+		url, pid, err := startPythonServer(port, hostBuildPath)
+		if err != nil {
+			return errJSON("Failed to start web server (Docker not available, Python fallback failed): %v", err)
+		}
+		
+		logger.Info("[Homepage] Web server started (Python fallback)", "url", url, "pid", pid)
+		return okJSON("Web server started (Python fallback)", 
+			"url", url, 
+			"port", fmt.Sprintf("%d", port),
+			"pid", strconv.Itoa(pid),
+			"mode", "python",
+			"note", "Limited functionality. Full features require Docker.")
+	}
+
+	// Docker is available - use Caddy
 	// Check if already running
 	_, code, _ := dockerRequest(dockerCfg, "GET", "/containers/"+homepageWebContainer+"/json", "")
 	if code == 200 {
