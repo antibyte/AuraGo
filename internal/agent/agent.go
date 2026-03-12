@@ -3748,10 +3748,11 @@ func dispatchInner(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 			if tc.NodeID == "" {
 				return `Tool Output: {"status": "error", "message": "'node_id' is required for wake"}`
 			}
-			if err := mcClient.WakeOnLan([]string{tc.NodeID}); err != nil {
+			result, err := mcClient.WakeOnLan([]string{tc.NodeID})
+			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Failed to send wake magic packet: %v"}`, err)
 			}
-			return `Tool Output: {"status": "success", "message": "Wake-on-LAN packet sent"}`
+			return fmt.Sprintf(`Tool Output: {"status": "success", "message": "%s"}`, result)
 
 		case "power_action":
 			if tc.NodeID == "" {
@@ -3760,19 +3761,21 @@ func dispatchInner(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 			if tc.PowerAction < 1 || tc.PowerAction > 4 {
 				return `Tool Output: {"status": "error", "message": "Invalid power action. 1=Sleep, 2=Hibernate, 3=PowerOff, 4=Reset"}`
 			}
-			if err := mcClient.PowerAction([]string{tc.NodeID}, tc.PowerAction); err != nil {
+			result, err := mcClient.PowerAction([]string{tc.NodeID}, tc.PowerAction)
+			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Failed to send power action: %v"}`, err)
 			}
-			return `Tool Output: {"status": "success", "message": "Power action sent"}`
+			return fmt.Sprintf(`Tool Output: {"status": "success", "message": "%s"}`, result)
 
 		case "run_command":
 			if tc.NodeID == "" || tc.Command == "" {
 				return `Tool Output: {"status": "error", "message": "'node_id' and 'command' are required for run_command"}`
 			}
-			if err := mcClient.RunCommand(tc.NodeID, tc.Command); err != nil {
+			result, err := mcClient.RunCommand(tc.NodeID, tc.Command)
+			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Failed to run command: %v"}`, err)
 			}
-			return `Tool Output: {"status": "success", "message": "Command dispatched to MeshAgent"}`
+			return fmt.Sprintf(`Tool Output: {"status": "success", "result": "%s"}`, result)
 
 		default:
 			return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Unknown operation: %s"}`, tc.Operation)

@@ -875,7 +875,6 @@ func handleMeshCentralTest(s *Server) http.HandlerFunc {
 		}
 
 		mc := meshcentral.NewClient(url, username, password, loginToken, s.Cfg.MeshCentral.Insecure)
-		mc.SetLogger(s.Logger)
 		if err := mc.Connect(); err != nil {
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status":  "error",

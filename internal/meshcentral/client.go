@@ -17,12 +17,13 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// Client handles communication with a MeshCentral server.
+// Client handles communication with a MeshCentral server via WebSocket.
+// It supports authentication via login tokens or username/password.
 type Client struct {
 	url        string
-	username   string
-	password   string // Used if login_token is empty
-	loginToken string // Optional token from vault
+	username   string // Regular username (when not using login token)
+	password   string // Regular password OR token password (when loginToken is set)
+	loginToken string // Login token username (e.g., "~t:automation" or "automation")
 	insecure   bool
 
 	ws          *websocket.Conn
@@ -36,12 +37,18 @@ type Client struct {
 	// Channels for routing responses
 	pendingReqs map[string]chan map[string]interface{}
 	reqsMu      sync.RWMutex
-	
+
 	// Logger for debug output
 	logger *slog.Logger
 }
 
 // NewClient creates a new MeshCentral client.
+// Parameters:
+//   - urlStr: The MeshCentral server URL (e.g., "https://mesh.example.com")
+//   - username: Regular username for authentication
+//   - password: Regular password OR token password (when loginToken is set)
+//   - loginToken: Login token name (e.g., "automation" or "~t:automation")
+//   - insecure: Skip TLS certificate verification
 func NewClient(urlStr, username, password, loginToken string, insecure bool) *Client {
 	urlStr = strings.TrimSuffix(urlStr, "/")
 	return &Client{
@@ -61,218 +68,177 @@ func (c *Client) SetLogger(l *slog.Logger) {
 	c.logger = l
 }
 
-// log logs a message at Info level (always visible).
+// log logs a message at Info level.
 func (c *Client) log(msg string, args ...interface{}) {
 	if c.logger != nil {
 		c.logger.Info(msg, args...)
-	} else {
-		// Fallback to default logger
-		slog.Info(msg, args...)
 	}
 }
 
-// Connect authenticates and opens the WebSocket connection.
-//
-// Authentication strategy (in priority order):
-//  1. Login Token  — passed as ?auth=<token> on the WebSocket URL.
-//     This is the official MeshCentral API mechanism; no HTTP round-trip needed.
-//  2. Username + Password — HTTP POST to /login to obtain a session cookie.
-//     Falls back to ?user=<u>&pass=<p> on the WS URL if /login is unreachable
-//     (e.g. reverse-proxy that only exposes /control.ashx).
-//  3. Raw session token (loginToken set, no ~t: prefix) — sent as meshcom cookie.
+/*
+MESHCENTRAL AUTHENTICATION FLOW
+===============================
+
+This client supports two authentication methods:
+
+1. LOGIN TOKEN AUTH (Recommended for automation)
+   - The "loginToken" field contains the token username (e.g., "~t:automation" or just "automation")
+   - The "password" field contains the actual token secret
+   - Flow:
+     a) POST to /login with form-data: username=~t:automation&password=TOKEN_SECRET
+     b) Server responds with session cookies
+     c) Use cookies for WebSocket connection to /control.ashx
+
+2. USERNAME/PASSWORD AUTH
+   - Standard login with username and password
+   - Flow:
+     a) POST to /login with JSON: {"u": "username", "p": "password", "a": 1}
+     b) Server responds with session cookies
+     c) Use cookies for WebSocket connection to /control.ashx
+
+IMPORTANT NOTES:
+- The /login endpoint expects application/x-www-form-urlencoded for token login
+- The WebSocket endpoint is /control.ashx (not /api/...)
+- Session cookies (meshcom) must be included in WebSocket handshake
+- First message after connect should be {"action": "serverinfo"} to verify auth
+*/
+
+// Connect authenticates and opens the WebSocket connection to MeshCentral.
 func (c *Client) Connect() error {
-	// Build the WebSocket URL: scheme normalisation + /control.ashx
-	// Handle URLs that may already have a path
+	// Build the WebSocket URL
 	baseURL := strings.TrimSuffix(c.url, "/")
 	u, err := url.Parse(baseURL + "/control.ashx")
 	if err != nil {
 		return err
 	}
+
+	// Convert http/https to ws/wss for WebSocket
 	switch u.Scheme {
 	case "http":
 		u.Scheme = "ws"
 	case "https":
 		u.Scheme = "wss"
 	}
-	
-	c.log("[MeshCentral] Connect using base URL: %s", c.url)
+
+	c.log("[MeshCentral] Connecting to %s", c.url)
 
 	header := http.Header{}
 
-	// Determine authentication strategy
-	if c.loginToken != "" && c.password != "" {
-		c.log("[MeshCentral] Using auth strategy: Login Token (HTTP Login)")
-		// The loginToken field contains the username (e.g., "~t:automation")
-		// The password field contains the actual token password
+	// Authentication Strategy Selection
+	switch {
+	// Strategy 1: Login Token + Password
+	// The loginToken field contains the token name (with or without ~t: prefix)
+	// The password field contains the actual token secret
+	case c.loginToken != "" && c.password != "":
+		c.log("[MeshCentral] Auth: Login Token")
 		loginUser := c.loginToken
 		if !strings.HasPrefix(loginUser, "~t:") {
-			// Add ~t: prefix if not present
 			loginUser = "~t:" + loginUser
 		}
-		c.log("[MeshCentral] Token login with user: %s", loginUser)
-		
-		if loginErr := c.login(loginUser); loginErr == nil {
-			// HTTP login succeeded; build cookie header
-			if len(c.authCookies) > 0 {
-				parts := make([]string, 0, len(c.authCookies))
-				for _, ck := range c.authCookies {
-					if ck != nil && ck.Name != "" && ck.Value != "" {
-						parts = append(parts, ck.Name+"="+ck.Value)
-					}
-				}
-				if len(parts) > 0 {
-					header.Set("Cookie", strings.Join(parts, "; "))
-				}
-			} else if c.sessionID != "" {
-				header.Set("Cookie", (&http.Cookie{Name: "meshcom", Value: c.sessionID}).String())
-			}
-		} else {
-			c.log("[MeshCentral] HTTP login with token failed: %v", loginErr)
+		if err := c.httpLogin(loginUser); err != nil {
+			return fmt.Errorf("login failed: %w", err)
 		}
-	} else if c.username != "" {
-		c.log("[MeshCentral] Using auth strategy: Username/Password")
-		// Try HTTP login first so we get a proper session cookie.
-		if err := c.login(c.username); err == nil {
-			// HTTP login succeeded; build cookie header from obtained cookies.
-			if len(c.authCookies) > 0 {
-				parts := make([]string, 0, len(c.authCookies))
-				for _, ck := range c.authCookies {
-					if ck != nil && ck.Name != "" && ck.Value != "" {
-						parts = append(parts, ck.Name+"="+ck.Value)
-					}
-				}
-				if len(parts) > 0 {
-					header.Set("Cookie", strings.Join(parts, "; "))
-				}
-			} else if c.sessionID != "" {
-				header.Set("Cookie", (&http.Cookie{Name: "meshcom", Value: c.sessionID}).String())
-			}
-		} else {
-			// HTTP login unavailable (/login 404 / reverse-proxy) — fall back
-			// to WS query-param auth: ?user=<u>&pass=<p>
-			q := u.Query()
-			q.Set("user", c.username)
-			q.Set("pass", c.password)
-			u.RawQuery = q.Encode()
+		c.addAuthCookies(header)
+
+	// Strategy 2: Username + Password
+	case c.username != "" && c.password != "":
+		c.log("[MeshCentral] Auth: Username/Password")
+		if err := c.httpLogin(c.username); err != nil {
+			return fmt.Errorf("login failed: %w", err)
 		}
-	} else {
-		c.log("[MeshCentral] Using auth strategy: None (unauthenticated)")
+		c.addAuthCookies(header)
+
+	// Strategy 3: Unauthenticated (will likely fail)
+	default:
+		c.log("[MeshCentral] Auth: None (unauthenticated)")
 	}
 
+	// Dial WebSocket with authentication cookies
 	dialer := websocket.Dialer{
 		TLSClientConfig:  &tls.Config{InsecureSkipVerify: c.insecure},
 		HandshakeTimeout: 10 * time.Second,
 	}
 
-	// Log URL with auth parameter masked (to verify it's being sent)
-	finalURL := u.String()
-	maskedURL := finalURL
-	if c.loginToken != "" {
-		// Replace token with *** for logging
-		maskedURL = strings.ReplaceAll(finalURL, "auth="+c.loginToken, "auth=***")
-	}
-	c.log("[MeshCentral] Dialing WebSocket with URL", "url", maskedURL)
-	
 	ws, resp, err := dialer.Dial(u.String(), header)
 	if err != nil {
 		if resp != nil {
 			body, _ := io.ReadAll(resp.Body)
-			c.log("[MeshCentral] WebSocket dial failed", "status", resp.StatusCode)
 			return fmt.Errorf("websocket dial failed: HTTP %d - %s", resp.StatusCode, string(body))
 		}
-		c.log("[MeshCentral] WebSocket dial failed", "error", err)
-		return fmt.Errorf("websocket dial failed: %v", err)
+		return fmt.Errorf("websocket dial failed: %w", err)
 	}
-	
-	c.log("[MeshCentral] WebSocket connected successfully")
 
 	c.wsMu.Lock()
 	c.ws = ws
 	c.wsMu.Unlock()
-	
+
 	go c.readPump()
 	go c.pingPump()
 
-	// MeshCentral requires the client to send a serverinfo request
-	// to verify the connection is working. The server responds with
-	// serverinfo which confirms authentication was successful.
-	c.log("[MeshCentral] Sending serverinfo request to verify connection")
+	// Verify connection by requesting serverinfo
 	if err := c.Send(map[string]interface{}{"action": "serverinfo"}); err != nil {
 		return fmt.Errorf("failed to send serverinfo request: %w", err)
 	}
 
-	// Wait for serverinfo response to confirm connection is working
 	res, err := c.WaitForAction("serverinfo", 10*time.Second)
 	if err != nil {
-		return fmt.Errorf("failed to receive serverinfo response: %w", err)
+		return fmt.Errorf("failed to receive serverinfo: %w", err)
 	}
-	
-	c.log("[MeshCentral] Connection verified", "serverVersion", res["serverVersion"])
+
+	c.log("[MeshCentral] Connected (server version: %v)", res["serverVersion"])
 	return nil
 }
 
-// login performs the HTTP POST to /login to get the auth cookie.
-// MeshCentral requires a per-session CSRF nonce (embedded in the login page
-// as  random="<base64>"  in the JS) to be replayed as "rn" in the POST body.
-func (c *Client) login(loginUser string) error {
-	// Handle URLs that may already have a path
+// httpLogin performs HTTP POST to /login to obtain session cookies.
+// For token auth: username should be "~t:tokenname", password is the token secret.
+func (c *Client) httpLogin(loginUser string) error {
 	baseURL := strings.TrimSuffix(c.url, "/")
 	u, err := url.Parse(baseURL + "/login")
 	if err != nil {
 		return err
 	}
+
+	// Ensure HTTP scheme for login request
 	switch u.Scheme {
 	case "ws":
 		u.Scheme = "http"
 	case "wss":
 		u.Scheme = "https"
 	}
-	loginURL := u.String()
 
-	// Build rootURL with HTTP(S) scheme so loginViaForm can make HTTP requests.
-	// Without the scheme fix, wss:// URLs would cause an "unsupported protocol scheme" error.
-	rootU, _ := url.Parse(strings.TrimSuffix(c.url, "/") + "/")
-	switch rootU.Scheme {
-	case "ws":
-		rootU.Scheme = "http"
-	case "wss":
-		rootU.Scheme = "https"
-	}
-	rootURL := rootU.String()
+	loginURL := u.String()
 
 	httpClient := &http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: c.insecure},
 		},
 		Timeout: 10 * time.Second,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse // Don't follow redirects automatically
+		},
 	}
 
-	// Step 1: GET the login page to extract the CSRF nonce.
+	// Get CSRF nonce from login page
 	var nonce string
-	getResp, err := httpClient.Get(loginURL)
-	if err == nil {
-		defer getResp.Body.Close()
-		pageBytes, _ := io.ReadAll(getResp.Body)
-		// MeshCentral embeds the nonce as: random="<base64value>"
+	if getResp, err := httpClient.Get(loginURL); err == nil {
+		pageBytes, _ := io.ReadAll(io.LimitReader(getResp.Body, 32*1024))
+		getResp.Body.Close()
 		if m := regexp.MustCompile(`random="([^"]+)"`).FindSubmatch(pageBytes); len(m) == 2 {
 			nonce = string(m[1])
 		}
 	}
 
-	// Step 2: POST credentials including the nonce.
-	// Use form data for token login (~t:username), JSON for regular login
-	var req *http.Request
+	// Determine content type based on auth method
 	var bodyData []byte
 	contentType := "application/json"
-	
+
 	if strings.HasPrefix(loginUser, "~t:") {
-		// Token login uses form data
+		// Token login uses form data: username=~t:name&password=secret
 		formData := url.Values{}
 		formData.Set("username", loginUser)
 		formData.Set("password", c.password)
 		bodyData = []byte(formData.Encode())
 		contentType = "application/x-www-form-urlencoded"
-		c.log("[MeshCentral] Using form-data login for token auth")
 	} else {
 		// Regular login uses JSON
 		payload := map[string]interface{}{
@@ -284,7 +250,7 @@ func (c *Client) login(loginUser string) error {
 		bodyData, _ = json.Marshal(payload)
 	}
 
-	req, err = http.NewRequest("POST", loginURL, bytes.NewBuffer(bodyData))
+	req, err := http.NewRequest("POST", loginURL, bytes.NewBuffer(bodyData))
 	if err != nil {
 		return err
 	}
@@ -295,15 +261,6 @@ func (c *Client) login(loginUser string) error {
 		return err
 	}
 	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusNotFound {
-		if formErr := c.loginViaForm(rootURL, loginUser, c.password, httpClient); formErr == nil {
-			return nil
-		} else {
-			// Return the (human-readable) discovery error, not the raw HTML 404 body.
-			return formErr
-		}
-	}
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
@@ -321,173 +278,38 @@ func (c *Client) login(loginUser string) error {
 		return nil
 	}
 
-	return fmt.Errorf("no auth cookies found in login response")
+	return fmt.Errorf("no auth cookies received")
 }
 
-// parseLoginToken parses a MeshCentral login token.
-// Login tokens can have formats:
-//   ~t:username:password (full format)
-//   ~t:password          (short format, username is empty)
-//   password             (raw password, no prefix)
-// Returns username, password, and error if parsing fails.
-func (c *Client) parseLoginToken(token string) (string, string, error) {
-	// Login token format: ~t:username:password or ~t:password
-	if !strings.HasPrefix(token, "~t:") {
-		// Raw password format - use configured username
-		return "", token, nil
+// addAuthCookies adds authentication cookies to the WebSocket header.
+func (c *Client) addAuthCookies(header http.Header) {
+	if len(c.authCookies) > 0 {
+		parts := make([]string, 0, len(c.authCookies))
+		for _, ck := range c.authCookies {
+			if ck != nil && ck.Name != "" && ck.Value != "" {
+				parts = append(parts, ck.Name+"="+ck.Value)
+			}
+		}
+		if len(parts) > 0 {
+			header.Set("Cookie", strings.Join(parts, "; "))
+		}
+	} else if c.sessionID != "" {
+		header.Set("Cookie", (&http.Cookie{Name: "meshcom", Value: c.sessionID}).String())
 	}
-	
-	parts := strings.SplitN(token[3:], ":", 2) // Skip "~t:" prefix
-	if len(parts) == 2 {
-		// Full format: ~t:username:password
-		return parts[0], parts[1], nil
-	} else if len(parts) == 1 {
-		// Short format: ~t:password (username is empty, will use configured username)
-		return "", parts[0], nil
-	}
-	
-	return "", "", fmt.Errorf("invalid login token format")
 }
 
-// loginViaForm is called when the primary POST to /login returns 404.
-// It probes multiple candidate base URLs:
-//  1. The redirect-discovered path from rootURL (catches reverse-proxy setups that
-//     redirect the root to the real MeshCentral install path).
-//  2. Common sub-paths: /meshcentral/, /mesh/, /mc/
-//
-// On success it writes auth cookies and updates c.url so the subsequent WebSocket
-// dial uses the correct base path automatically.
-func (c *Client) loginViaForm(rootURL, loginUser, password string, httpClient *http.Client) error {
-	parsedRoot, err := url.Parse(rootURL)
-	if err != nil {
-		return fmt.Errorf("invalid root URL: %w", err)
-	}
-
-	// Build the list of candidate base URLs (all with trailing slash).
-	var candidates []string
-
-	// 1. Follow redirect from configured root to auto-discover the actual install path.
-	if getResp, getErr := httpClient.Get(rootURL); getErr == nil {
-		io.Copy(io.Discard, io.LimitReader(getResp.Body, 4096)) //nolint:errcheck
-		getResp.Body.Close()
-		finalU := getResp.Request.URL
-		basePath := finalU.Path
-		if idx := strings.LastIndex(basePath, "/"); idx >= 0 {
-			basePath = basePath[:idx+1]
-		} else {
-			basePath = "/"
-		}
-		candidates = append(candidates, fmt.Sprintf("%s://%s%s", finalU.Scheme, finalU.Host, basePath))
-	}
-
-	// 2. Common MeshCentral sub-paths relative to the configured host.
-	hostBase := fmt.Sprintf("%s://%s", parsedRoot.Scheme, parsedRoot.Host)
-	for _, sub := range []string{"/meshcentral/", "/mesh/", "/mc/"} {
-		candidates = append(candidates, hostBase+sub)
-	}
-
-	var triedURLs []string
-	var lastErr error
-
-	for _, base := range candidates {
-		base = strings.TrimSuffix(base, "/") + "/"
-		loginURL := base + "login"
-		triedURLs = append(triedURLs, loginURL)
-
-		// GET login page to extract CSRF nonce; skip this candidate if it returns non-200.
-		var nonce string
-		if getResp, getErr := httpClient.Get(loginURL); getErr == nil {
-			pageBytes, _ := io.ReadAll(io.LimitReader(getResp.Body, 32*1024))
-			getResp.Body.Close()
-			if getResp.StatusCode != http.StatusOK {
-				lastErr = fmt.Errorf("HTTP %d at %s", getResp.StatusCode, loginURL)
-				continue
-			}
-			if m := regexp.MustCompile(`random="([^"]+)"`).FindSubmatch(pageBytes); len(m) == 2 {
-				nonce = string(m[1])
-			}
-		} else {
-			lastErr = fmt.Errorf("GET %s: %v", loginURL, getErr)
-			continue
-		}
-
-		// POST credentials - use form data for token login
-		var bodyData []byte
-		contentType := "application/json"
-		if strings.HasPrefix(loginUser, "~t:") {
-			formData := url.Values{}
-			formData.Set("username", loginUser)
-			formData.Set("password", password)
-			bodyData = []byte(formData.Encode())
-			contentType = "application/x-www-form-urlencoded"
-		} else {
-			payload := map[string]interface{}{"u": loginUser, "p": password, "a": 1, "rn": nonce}
-			bodyData, _ = json.Marshal(payload)
-		}
-		
-		postReq, reqErr := http.NewRequest("POST", loginURL, bytes.NewBuffer(bodyData))
-		if reqErr != nil {
-			lastErr = reqErr
-			continue
-		}
-		postReq.Header.Set("Content-Type", contentType)
-
-		postResp, postErr := httpClient.Do(postReq)
-		if postErr != nil {
-			lastErr = fmt.Errorf("POST %s: %v", loginURL, postErr)
-			continue
-		}
-		io.Copy(io.Discard, io.LimitReader(postResp.Body, 4096)) //nolint:errcheck
-		postResp.Body.Close()
-
-		if postResp.StatusCode == http.StatusOK {
-			if cookies := postResp.Cookies(); len(cookies) > 0 {
-				c.authCookies = append([]*http.Cookie(nil), cookies...)
-				for _, ck := range cookies {
-					if ck.Name == "meshcom" {
-						c.sessionID = ck.Value
-						break
-					}
-				}
-				// Update c.url to the discovered base so the WebSocket also uses the correct path.
-				if parsedBase, pErr := url.Parse(strings.TrimSuffix(base, "/")); pErr == nil {
-					switch parsedBase.Scheme {
-					case "http":
-						parsedBase.Scheme = "ws"
-					case "https":
-						parsedBase.Scheme = "wss"
-					}
-					c.url = parsedBase.String()
-				}
-				return nil
-			}
-			lastErr = fmt.Errorf("no auth cookies in response from %s", loginURL)
-		} else {
-			lastErr = fmt.Errorf("HTTP %d at %s", postResp.StatusCode, loginURL)
-		}
-	}
-
-	tried := strings.Join(triedURLs, ", ")
-	if lastErr != nil {
-		return fmt.Errorf("/login not found at the configured URL or common sub-paths (tried: %s). "+
-			"Last error: %v — Set the MeshCentral URL in config to the exact sub-path "+
-			"(e.g. https://host/meshcentral)", tried, lastErr)
-	}
-	return fmt.Errorf("no candidate /login endpoint found (tried: %s)", tried)
-}
-
-// Close gracefully closes the WebSocket.
+// Close gracefully closes the WebSocket connection.
 func (c *Client) Close() {
 	close(c.done)
-	
+
 	c.wsMu.Lock()
 	if c.ws != nil {
 		_ = c.ws.Close()
 		c.ws = nil
 	}
 	c.wsMu.Unlock()
-	
-	// Clean up pending request channels to prevent memory leaks
+
+	// Clean up pending request channels
 	c.reqsMu.Lock()
 	for _, ch := range c.pendingReqs {
 		close(ch)
@@ -496,76 +318,56 @@ func (c *Client) Close() {
 	c.reqsMu.Unlock()
 }
 
-// readPump reads messages from the WebSocket and routes them.
+// readPump reads messages from the WebSocket and routes them to registered channels.
 func (c *Client) readPump() {
-	msgCount := 0
 	for {
 		select {
 		case <-c.done:
 			return
 		default:
 		}
-		
+
 		c.wsMu.RLock()
 		ws := c.ws
 		c.wsMu.RUnlock()
-		
+
 		if ws == nil {
 			return
 		}
-		
+
 		_, msg, err := ws.ReadMessage()
 		if err != nil {
-			c.log("[MeshCentral] readPump: WebSocket read error", "error", err)
 			return
 		}
-		
-		msgCount++
-		msgStr := string(msg)
-		// Truncate message to avoid logging sensitive data
-		if len(msgStr) > 100 {
-			msgStr = msgStr[:100] + "..."
-		}
-		c.log("[MeshCentral] readPump: Received message", "count", msgCount, "msg", msgStr)
 
-		// MeshCentral sometimes sends purely string payloads or empty objects
+		// Skip non-JSON messages
 		if len(msg) < 2 || msg[0] != '{' {
-			c.log("[MeshCentral] readPump: Skipping non-JSON message")
 			continue
 		}
 
 		var data map[string]interface{}
 		if err := json.Unmarshal(msg, &data); err != nil {
-			c.log("[MeshCentral] readPump: Failed to parse JSON", "error", err)
 			continue
 		}
 
 		action, _ := data["action"].(string)
-		c.log("[MeshCentral] readPump: Parsed action", "action", action)
 
 		c.reqsMu.RLock()
 		ch := c.pendingReqs[action]
 		if action == "event" {
 			if eventType, ok := data["eventType"].(string); ok {
-				c.log("[MeshCentral] readPump: Event type", "eventType", eventType)
 				ch = c.pendingReqs["event_"+eventType]
 			}
 		}
 		c.reqsMu.RUnlock()
-		
+
 		if ch != nil {
-			c.log("[MeshCentral] readPump: Routing to channel", "action", action)
-			// Non-blocking send with done channel check
 			select {
 			case ch <- data:
-				c.log("[MeshCentral] readPump: Successfully sent to channel")
 			case <-c.done:
 				return
 			default:
-				c.log("[MeshCentral] readPump: Channel full, dropping message")
 			}
-		} else {
-			c.log("[MeshCentral] readPump: No channel registered", "action", action)
 		}
 	}
 }
@@ -578,7 +380,7 @@ func (c *Client) Send(cmd map[string]interface{}) error {
 	c.wsMu.RLock()
 	ws := c.ws
 	c.wsMu.RUnlock()
-	
+
 	if ws == nil {
 		return fmt.Errorf("not connected")
 	}
@@ -591,24 +393,18 @@ func (c *Client) Send(cmd map[string]interface{}) error {
 
 // WaitForAction waits for a response with the given action string.
 func (c *Client) WaitForAction(action string, timeout time.Duration) (map[string]interface{}, error) {
-	c.log("[MeshCentral] WaitForAction: registering channel", "action", action)
-	
 	c.reqsMu.Lock()
 	if c.pendingReqs[action] == nil {
 		c.pendingReqs[action] = make(chan map[string]interface{}, 5)
 	}
 	waitCh := c.pendingReqs[action]
 	c.reqsMu.Unlock()
-	
-	c.log("[MeshCentral] WaitForAction: waiting", "action", action, "timeout", timeout)
 
 	select {
 	case res := <-waitCh:
-		c.log("[MeshCentral] WaitForAction: received response", "action", action)
 		return res, nil
 	case <-time.After(timeout):
 		// Clean up the channel to prevent memory leaks
-		c.log("[MeshCentral] WaitForAction: TIMEOUT", "action", action)
 		c.reqsMu.Lock()
 		if c.pendingReqs[action] == waitCh {
 			delete(c.pendingReqs, action)
@@ -616,8 +412,7 @@ func (c *Client) WaitForAction(action string, timeout time.Duration) (map[string
 		c.reqsMu.Unlock()
 		return nil, fmt.Errorf("timeout waiting for action %s", action)
 	case <-c.done:
-		c.log("[MeshCentral] WaitForAction: client disconnected", "action", action)
-		return nil, fmt.Errorf("client disconnected while waiting for action %s", action)
+		return nil, fmt.Errorf("client disconnected")
 	}
 }
 
@@ -630,7 +425,7 @@ func (c *Client) WaitForEvent(eventType string, timeout time.Duration) (map[stri
 func (c *Client) pingPump() {
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
-	
+
 	for {
 		select {
 		case <-c.done:
@@ -639,11 +434,11 @@ func (c *Client) pingPump() {
 			c.wsMu.RLock()
 			ws := c.ws
 			c.wsMu.RUnlock()
-			
+
 			if ws == nil {
 				return
 			}
-			
+
 			if err := ws.WriteMessage(websocket.PingMessage, nil); err != nil {
 				return
 			}
@@ -655,10 +450,7 @@ func (c *Client) pingPump() {
 
 // ListDeviceGroups requests the meshes/groups list.
 func (c *Client) ListDeviceGroups() ([]interface{}, error) {
-	err := c.Send(map[string]interface{}{
-		"action": "meshes",
-	})
-	if err != nil {
+	if err := c.Send(map[string]interface{}{"action": "meshes"}); err != nil {
 		return nil, err
 	}
 
@@ -675,9 +467,7 @@ func (c *Client) ListDeviceGroups() ([]interface{}, error) {
 
 // ListDevices requests the nodes/devices list.
 func (c *Client) ListDevices(meshID string) ([]interface{}, error) {
-	cmd := map[string]interface{}{
-		"action": "nodes",
-	}
+	cmd := map[string]interface{}{"action": "nodes"}
 	if meshID != "" {
 		cmd["meshid"] = meshID
 	}
@@ -692,7 +482,6 @@ func (c *Client) ListDevices(meshID string) ([]interface{}, error) {
 	}
 
 	if nodes, ok := res["nodes"].([]interface{}); ok {
-		// MeshCentral sometimes packages results under a meshid key if queried specific
 		return nodes, nil
 	}
 
@@ -711,29 +500,55 @@ func (c *Client) ListDevices(meshID string) ([]interface{}, error) {
 }
 
 // WakeOnLan sends a WOL magic packet to a specific node.
-func (c *Client) WakeOnLan(nodeIDs []string) error {
-	return c.Send(map[string]interface{}{
+// Returns success message or error.
+func (c *Client) WakeOnLan(nodeIDs []string) (string, error) {
+	if err := c.Send(map[string]interface{}{
 		"action":  "wakeonlan",
 		"nodeids": nodeIDs,
-	})
+	}); err != nil {
+		return "", err
+	}
+	// WOL is fire-and-forget, no response expected
+	return "Wake-on-LAN packet sent", nil
 }
 
 // PowerAction sends a power action (reset, sleep, poweroff) to a specific node.
-func (c *Client) PowerAction(nodeIDs []string, powerAction int) error {
-	// Power actions: 1=Sleep, 2=Hibernate, 3=PowerOff, 4=Reset
-	return c.Send(map[string]interface{}{
+// Power actions: 1=Sleep, 2=Hibernate, 3=PowerOff, 4=Reset
+// Returns success message or error.
+func (c *Client) PowerAction(nodeIDs []string, powerAction int) (string, error) {
+	if err := c.Send(map[string]interface{}{
 		"action":     "poweraction",
 		"nodeids":    nodeIDs,
 		"actiontype": powerAction,
-	})
+	}); err != nil {
+		return "", err
+	}
+	// Power action is fire-and-forget, no immediate response expected
+	return "Power action sent", nil
 }
 
-// RunCommand attempts to execute a shell command on the device via the MeshAgent.
-func (c *Client) RunCommand(nodeID, command string) error {
-	// Send to MeshAgent runcommand
-	return c.Send(map[string]interface{}{
+// RunCommand executes a shell command on the device via the MeshAgent.
+// Returns the command output or error.
+func (c *Client) RunCommand(nodeID, command string) (string, error) {
+	if err := c.Send(map[string]interface{}{
 		"action": "runcommand",
 		"nodeid": nodeID,
 		"run":    command,
-	})
+	}); err != nil {
+		return "", err
+	}
+	
+	// Wait for command result
+	// MeshCentral sends the result as an event or as a response with action "runcommand"
+	res, err := c.WaitForAction("runcommand", 30*time.Second)
+	if err != nil {
+		return "", fmt.Errorf("timeout waiting for command result: %w", err)
+	}
+	
+	// Extract result from response
+	if result, ok := res["result"].(string); ok {
+		return result, nil
+	}
+	
+	return "", fmt.Errorf("no result in command response")
 }

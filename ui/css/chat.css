@@ -479,10 +479,11 @@
         }
 
         /* ── Session Todo debug panel ────────────────────── */
+        /* Desktop: Top right, below topbar */
         .todo-debug-panel {
             display: none;
             position: fixed;
-            bottom: 5.5rem;
+            top: 70px;
             right: 1.2rem;
             width: 280px;
             max-height: 320px;
@@ -493,6 +494,18 @@
             z-index: 900;
             overflow: hidden;
             animation: msgIn 0.25s ease-out;
+        }
+
+        /* Mobile: Top center */
+        @media (max-width: 768px) {
+            .todo-debug-panel {
+                top: 70px;
+                right: auto;
+                left: 50%;
+                transform: translateX(-50%);
+                width: 90%;
+                max-width: 320px;
+            }
         }
         .todo-debug-header {
             padding: 0.5rem 0.8rem;
@@ -761,6 +774,29 @@
         }
 
         /* ── Footer / Input ────────────────────────────────── */
+        /* New Chat Button - positioned above input row */
+        .btn-new-chat {
+            display: block;
+            width: 100%;
+            max-width: 52rem;
+            margin: 0 auto 0.75rem auto;
+            padding: 0.6rem 1rem;
+            background: var(--bg-glass);
+            border: 1px solid var(--border-subtle);
+            border-radius: 10px;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+        }
+        .btn-new-chat:hover {
+            background: var(--accent-dim);
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
         .app-footer {
             background: var(--header-bg);
             backdrop-filter: blur(20px);
@@ -1412,6 +1448,12 @@
 
             .greeting-text {
                 font-size: var(--text-sm);
+            }
+
+            .btn-new-chat {
+                padding: 0.5rem 0.75rem;
+                font-size: 0.8rem;
+                margin-bottom: 0.5rem;
             }
 
             .input-row {
