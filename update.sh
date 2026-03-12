@@ -55,7 +55,8 @@ done
 confirm() {
     local msg="$1"
     if $AUTO_YES; then return 0; fi
-    read -r -p "$msg [y/N]: " REPLY
+    printf '%s [y/N]: ' "$msg" >/dev/tty
+    read -r REPLY </dev/tty
     [[ "${REPLY:-n}" =~ ^[Yy]$ ]]
 }
 
@@ -340,7 +341,7 @@ done
 for d in "${PROTECTED_DIRS[@]}"; do
     if [ -d "$DIR/$d" ]; then
         local_name="${d//\//__}"      # replace / with __ for flat backup name
-        cp -rp "$DIR/$d" "$BACKUP_DIR/$local_name"
+        cp -r "$DIR/$d" "$BACKUP_DIR/$local_name"
         ok "Backed up: $d/"
     fi
 done
@@ -354,7 +355,7 @@ if [ -d "$PROMPTS_DIR" ]; then
         if command -v rsync >/dev/null 2>&1; then
             rsync -a "$PROMPTS_DIR/" "$CUSTOM_PROMPTS/"
         else
-            cp -rp "$PROMPTS_DIR/." "$CUSTOM_PROMPTS/"
+            cp -r "$PROMPTS_DIR/." "$CUSTOM_PROMPTS/"
         fi
         CUSTOM_COUNT=$(find "$PROMPTS_DIR" -type f | wc -l)
     else
@@ -447,7 +448,7 @@ if $BINARY_ONLY && [ -d "$BACKUP_DIR/prompts__custom" ] && [ "$(ls -A "$BACKUP_D
     if command -v rsync >/dev/null 2>&1; then
         rsync -a --quiet "$BACKUP_DIR/prompts__custom/" "$DIR/prompts/"
     else
-        cp -rp "$BACKUP_DIR/prompts__custom/." "$DIR/prompts/"
+        cp -r "$BACKUP_DIR/prompts__custom/." "$DIR/prompts/"
     fi
     ok "Custom prompt files restored"
 fi
@@ -505,7 +506,7 @@ for d in "${PROTECTED_DIRS[@]}"; do
         if command -v rsync >/dev/null 2>&1; then
             rsync -a --quiet "$bak/" "$DIR/$d/"
         else
-            cp -rp "$bak/." "$DIR/$d/"
+            cp -r "$bak/." "$DIR/$d/"
         fi
         ok "Restored: $d/"
     fi
@@ -517,7 +518,7 @@ if [ -d "$CUSTOM_PROMPTS" ] && [ "$(ls -A "$CUSTOM_PROMPTS")" ]; then
     if command -v rsync >/dev/null 2>&1; then
         rsync -a --quiet "$CUSTOM_PROMPTS/" "$PROMPTS_DIR/"
     else
-        cp -rp "$CUSTOM_PROMPTS/." "$PROMPTS_DIR/"
+        cp -r "$CUSTOM_PROMPTS/." "$PROMPTS_DIR/"
     fi
     ok "Restored custom prompt files"
 fi

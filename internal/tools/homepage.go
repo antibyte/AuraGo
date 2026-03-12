@@ -324,6 +324,10 @@ func HomepageInitProject(cfg HomepageConfig, framework, name string, logger *slo
 	if name == "" {
 		name = "my-site"
 	}
+	// Validate name to prevent shell injection
+	if strings.ContainsAny(name, ";|&`$(){}\"' <>") {
+		return errJSON("Invalid project name: %s", name)
+	}
 	var cmd string
 	switch strings.ToLower(framework) {
 	case "next", "nextjs", "next.js":
@@ -343,6 +347,75 @@ func HomepageInitProject(cfg HomepageConfig, framework, name string, logger *slo
 	}
 
 	logger.Info("[Homepage] Init project", "framework", framework, "name", name)
+
+	// Docker-unavailable path
+	if !checkDockerAvailable(cfg.DockerHost) {
+		if cfg.WorkspacePath == "" {
+			return errJSON("Docker not available and workspace_path not configured")
+		}
+		projectPath := filepath.Join(cfg.WorkspacePath, name)
+
+		switch strings.ToLower(framework) {
+		case "html", "static", "vanilla":
+			// Pure HTML — create locally without any build tool
+			if err := os.MkdirAll(projectPath, 0755); err != nil {
+				return errJSON("Failed to create project directory: %v", err)
+			}
+			html := `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>` + name + `</title>
+  <style>
+    body { font-family: sans-serif; max-width: 800px; margin: 2rem auto; padding: 0 1rem; }
+  </style>
+</head>
+<body>
+  <h1>` + name + `</h1>
+  <p>Edit index.html to get started.</p>
+</body>
+</html>`
+			indexPath := filepath.Join(projectPath, "index.html")
+			if err := os.WriteFile(indexPath, []byte(html), 0644); err != nil {
+				return errJSON("Failed to write index.html: %v", err)
+			}
+			out, _ := json.Marshal(map[string]interface{}{
+				"status":  "ok",
+				"mode":    "local",
+				"message": fmt.Sprintf("Project '%s' created locally (html). Use write_file to add more files.", name),
+				"path":    name,
+				"files":   []string{name + "/index.html"},
+			})
+			return string(out)
+
+		default:
+			// Framework needs npm/npx — try local npx if available
+			if _, err := exec.LookPath("npx"); err == nil {
+				if err := os.MkdirAll(cfg.WorkspacePath, 0755); err != nil {
+					return errJSON("Failed to access workspace: %v", err)
+				}
+				exeCmd := exec.Command("bash", "-c", "cd "+cfg.WorkspacePath+" && "+cmd)
+				out, runErr := exeCmd.CombinedOutput()
+				if runErr != nil {
+					return errJSON("Project init failed (local npx): %s", strings.TrimSpace(string(out)))
+				}
+				res, _ := json.Marshal(map[string]interface{}{
+					"status":  "ok",
+					"mode":    "local",
+					"message": fmt.Sprintf("Project '%s' scaffolded locally via npx (Docker not available).", name),
+					"path":    name,
+					"output":  strings.TrimSpace(string(out)),
+				})
+				return string(res)
+			}
+			// Neither Docker nor npx available
+			return errJSON("Docker not available and npx not found locally. "+
+				"Framework '%s' requires npm/npx to scaffold. "+
+				"Options: (1) Start Docker, (2) Install Node.js+npm, (3) Use framework='html' for a plain HTML project (works without Docker or npm).", framework)
+		}
+	}
+
 	dockerCfg := DockerConfig{Host: cfg.DockerHost}
 	return DockerExec(dockerCfg, homepageContainerName, "cd /workspace && "+cmd, "")
 }
@@ -458,27 +531,29 @@ func HomepageListFiles(cfg HomepageConfig, path string, logger *slog.Logger) str
 			if err != nil {
 				return nil
 			}
-			rel, _ := filepath.Rel(base, p)
+			// Return paths relative to WorkspacePath so they are usable with read_file / write_file
+			rel, _ := filepath.Rel(cfg.WorkspacePath, p)
 			slashRel := filepath.ToSlash(rel)
-			if strings.Contains(slashRel, "/node_modules/") || strings.Contains(slashRel, "/.next/") || strings.Contains(slashRel, "/.git/") {
+			if strings.Contains(slashRel, "/node_modules") || strings.Contains(slashRel, "/.next") || strings.Contains(slashRel, "/.git") {
 				if info.IsDir() {
 					return filepath.SkipDir
 				}
 				return nil
 			}
-			parts := strings.Split(rel, string(os.PathSeparator))
-			if len(parts) > 3 {
+			// Limit depth to 3 segments below WorkspacePath
+			parts := strings.Split(slashRel, "/")
+			if len(parts) > 4 {
 				if info.IsDir() {
 					return filepath.SkipDir
 				}
 				return nil
 			}
 			if len(files) < 200 {
-				files = append(files, filepath.ToSlash(p))
+				files = append(files, slashRel)
 			}
 			return nil
 		})
-		out, _ := json.Marshal(map[string]interface{}{"status": "ok", "files": files})
+		out, _ := json.Marshal(map[string]interface{}{"status": "ok", "mode": "local", "workspace": cfg.WorkspacePath, "files": files})
 		return string(out)
 	}
 
