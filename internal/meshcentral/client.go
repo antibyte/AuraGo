@@ -98,14 +98,19 @@ func (c *Client) Connect() error {
 	// Determine authentication strategy
 	if c.loginToken != "" {
 		c.log("[MeshCentral] Using auth strategy: Login Token (HTTP Login)")
-		// Login tokens have format: ~t:name:password
+		// Login tokens have format: ~t:name:password or ~t:password
 		// We need to extract name and password, then do HTTP login
 		tokenUser, tokenPass, err := c.parseLoginToken(c.loginToken)
 		if err == nil {
-			// Temporarily set username/password for login
-			savedUser, savedPass := c.username, c.password
-			c.username, c.password = tokenUser, tokenPass
-			if loginErr := c.login(tokenUser); loginErr == nil {
+			// Use username from token if present, otherwise use configured username
+			loginUser := tokenUser
+			if loginUser == "" {
+				loginUser = c.username
+			}
+			// Temporarily set password for login (keep username for cookie)
+			savedPass := c.password
+			c.password = tokenPass
+			if loginErr := c.login(loginUser); loginErr == nil {
 				// HTTP login succeeded; build cookie header
 				if len(c.authCookies) > 0 {
 					parts := make([]string, 0, len(c.authCookies))
@@ -123,8 +128,8 @@ func (c *Client) Connect() error {
 			} else {
 				c.log("[MeshCentral] HTTP login with token credentials failed: %v", loginErr)
 			}
-			// Restore original credentials
-			c.username, c.password = savedUser, savedPass
+			// Restore original password
+			c.password = savedPass
 		} else {
 			c.log("[MeshCentral] Failed to parse login token: %v", err)
 		}
@@ -309,20 +314,28 @@ func (c *Client) login(loginUser string) error {
 }
 
 // parseLoginToken parses a MeshCentral login token.
-// Login tokens have the format: ~t:username:password
+// Login tokens can have formats:
+//   ~t:username:password (full format)
+//   ~t:password          (short format, username is empty)
+//   password             (raw password, no prefix)
 // Returns username, password, and error if parsing fails.
 func (c *Client) parseLoginToken(token string) (string, string, error) {
-	// Login token format: ~t:username:password
+	// Login token format: ~t:username:password or ~t:password
 	if !strings.HasPrefix(token, "~t:") {
-		return "", "", fmt.Errorf("invalid login token format: must start with ~t:")
+		// Raw password format - use configured username
+		return "", token, nil
 	}
 	
-	parts := strings.SplitN(token, ":", 3)
-	if len(parts) != 3 {
-		return "", "", fmt.Errorf("invalid login token format: expected ~t:username:password")
+	parts := strings.SplitN(token[3:], ":", 2) // Skip "~t:" prefix
+	if len(parts) == 2 {
+		// Full format: ~t:username:password
+		return parts[0], parts[1], nil
+	} else if len(parts) == 1 {
+		// Short format: ~t:password (username is empty, will use configured username)
+		return "", parts[0], nil
 	}
 	
-	return parts[1], parts[2], nil
+	return "", "", fmt.Errorf("invalid login token format")
 }
 
 // loginViaForm is called when the primary POST to /login.ashx returns 404.
