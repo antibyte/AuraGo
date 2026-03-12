@@ -50,7 +50,10 @@ func NewClient(urlStr, username, password, loginToken string, insecure bool) *Cl
 
 // Connect authenticates and opens the WebSocket connection.
 func (c *Client) Connect() error {
-	// 1. Authenticate to get session cookie
+	// 1. Authenticate to get a session cookie via HTTP login.
+	// If login.ashx is unreachable (e.g. reverse-proxy exposes only the WebSocket
+	// path), we fall back to passing credentials as query parameters on the
+	// WebSocket URL — MeshCentral natively supports ?loginkey= and ?user=/pass=.
 	needsLogin := false
 	loginUser := c.username
 
@@ -62,9 +65,22 @@ func (c *Client) Connect() error {
 		needsLogin = true
 	}
 
+	// wsLoginKey / wsUser / wsPass are set when HTTP login is unavailable and
+	// we need to authenticate via WebSocket query parameters instead.
+	var wsLoginKey, wsUser, wsPass string
+
 	if needsLogin {
 		if err := c.login(loginUser); err != nil {
-			return fmt.Errorf("login failed: %v", err)
+			// HTTP login failed (login.ashx may be 404 because only the WS path is
+			// exposed via a reverse proxy).  Fall back to WebSocket query-param auth.
+			if strings.HasPrefix(loginUser, "~t:") {
+				// MeshCentral login tokens: use ?loginkey=TOKEN
+				wsLoginKey = loginUser
+			} else {
+				// Username + password: use ?user=USER&pass=PASS
+				wsUser = loginUser
+				wsPass = c.password
+			}
 		}
 	}
 
@@ -80,29 +96,45 @@ func (c *Client) Connect() error {
 		u.Scheme = "wss"
 	}
 
+	// Append auth query parameters when HTTP login was unavailable.
+	if wsLoginKey != "" {
+		q := u.Query()
+		q.Set("loginkey", wsLoginKey)
+		u.RawQuery = q.Encode()
+	} else if wsUser != "" {
+		q := u.Query()
+		q.Set("user", wsUser)
+		q.Set("pass", wsPass)
+		u.RawQuery = q.Encode()
+	}
+
 	dialer := websocket.Dialer{
 		TLSClientConfig:  &tls.Config{InsecureSkipVerify: c.insecure},
 		HandshakeTimeout: 10 * time.Second,
 	}
 
 	header := http.Header{}
-	if c.loginToken != "" && !strings.HasPrefix(c.loginToken, "~t:") {
-		// If it's a raw cookie token (not a MeshCentral login token username), use it as cookie
-		cookie := &http.Cookie{Name: "meshcom", Value: c.loginToken}
-		header.Set("Cookie", cookie.String())
-	} else if len(c.authCookies) > 0 {
-		cookieParts := make([]string, 0, len(c.authCookies))
-		for _, ck := range c.authCookies {
-			if ck != nil && ck.Name != "" && ck.Value != "" {
-				cookieParts = append(cookieParts, ck.Name+"="+ck.Value)
+	if wsLoginKey == "" && wsUser == "" {
+		// Cookie-based auth: used when HTTP login succeeded or a raw session token
+		// was provided directly.
+		if c.loginToken != "" && !strings.HasPrefix(c.loginToken, "~t:") {
+			// Raw session cookie / API key
+			cookie := &http.Cookie{Name: "meshcom", Value: c.loginToken}
+			header.Set("Cookie", cookie.String())
+		} else if len(c.authCookies) > 0 {
+			cookieParts := make([]string, 0, len(c.authCookies))
+			for _, ck := range c.authCookies {
+				if ck != nil && ck.Name != "" && ck.Value != "" {
+					cookieParts = append(cookieParts, ck.Name+"="+ck.Value)
+				}
 			}
+			if len(cookieParts) > 0 {
+				header.Set("Cookie", strings.Join(cookieParts, "; "))
+			}
+		} else if c.sessionID != "" {
+			cookie := &http.Cookie{Name: "meshcom", Value: c.sessionID}
+			header.Set("Cookie", cookie.String())
 		}
-		if len(cookieParts) > 0 {
-			header.Set("Cookie", strings.Join(cookieParts, "; "))
-		}
-	} else if c.sessionID != "" {
-		cookie := &http.Cookie{Name: "meshcom", Value: c.sessionID}
-		header.Set("Cookie", cookie.String())
 	}
 
 	ws, resp, err := dialer.Dial(u.String(), header)
@@ -199,21 +231,17 @@ func (c *Client) login(loginUser string) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
-		if err := c.loginViaForm(rootURL, loginUser, c.password, httpClient); err == nil {
+		if formErr := c.loginViaForm(rootURL, loginUser, c.password, httpClient); formErr == nil {
 			return nil
+		} else {
+			// Return the (human-readable) discovery error, not the raw HTML 404 body.
+			return formErr
 		}
 	}
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		hint := ""
-		if resp.StatusCode == http.StatusNotFound {
-			hint = " — Hint: The MeshCentral base URL in config.yaml may be wrong. " +
-				"Set it to the root of the MeshCentral installation. " +
-				"If MeshCentral is on a sub-path, include it (e.g. https://host/meshcentral). " +
-				"The client appends /login.ashx automatically."
-		}
-		return fmt.Errorf("login HTTP %d: %s%s", resp.StatusCode, string(body), hint)
+		return fmt.Errorf("login HTTP %d: %s", resp.StatusCode, string(body))
 	}
 
 	if cookies := resp.Cookies(); len(cookies) > 0 {
@@ -230,80 +258,120 @@ func (c *Client) login(loginUser string) error {
 	return fmt.Errorf("no auth cookies found in login response")
 }
 
-// loginViaForm is called when the primary POST to /login.ashx returns 404,
-// which typically means MeshCentral is served at a sub-path (e.g. /meshcentral).
-// It follows any HTTP redirect from the root URL to auto-discover the real
-// MeshCentral base path, extracts the per-session CSRF nonce from that page,
-// then POSTs JSON credentials to the discovered /login.ashx endpoint.
+// loginViaForm is called when the primary POST to /login.ashx returns 404.
+// It probes multiple candidate base URLs:
+//  1. The redirect-discovered path from rootURL (catches reverse-proxy setups that
+//     redirect the root to the real MeshCentral install path).
+//  2. Common sub-paths: /meshcentral/, /mesh/, /mc/
+//
+// On success it writes auth cookies and updates c.url so the subsequent WebSocket
+// dial uses the correct base path automatically.
 func (c *Client) loginViaForm(rootURL, loginUser, password string, httpClient *http.Client) error {
-	// Step 1: GET root URL, following any redirects to find the actual install path.
-	getResp, err := httpClient.Get(rootURL)
+	parsedRoot, err := url.Parse(rootURL)
 	if err != nil {
-		return fmt.Errorf("discovery GET failed: %w", err)
-	}
-	defer getResp.Body.Close()
-	pageBytes, _ := io.ReadAll(getResp.Body)
-
-	// Step 2: Extract CSRF nonce from the login page (works for both root and sub-path).
-	var nonce string
-	if m := regexp.MustCompile(`random="([^"]+)"`).FindSubmatch(pageBytes); len(m) == 2 {
-		nonce = string(m[1])
+		return fmt.Errorf("invalid root URL: %w", err)
 	}
 
-	// Step 3: Build the login.ashx URL relative to the final URL after redirect.
-	// e.g. if root redirects to https://host/meshcentral/, login.ashx is at
-	// https://host/meshcentral/login.ashx
-	finalU := getResp.Request.URL // URL of the last request in the redirect chain
-	basePath := finalU.Path
-	if idx := strings.LastIndex(basePath, "/"); idx >= 0 {
-		basePath = basePath[:idx+1]
-	} else {
-		basePath = "/"
-	}
-	discoveredLoginU := *finalU
-	discoveredLoginU.Path = basePath + "login.ashx"
-	discoveredLoginURL := discoveredLoginU.String()
+	// Build the list of candidate base URLs (all with trailing slash).
+	var candidates []string
 
-	// Step 4: POST JSON credentials (same format as primary login path).
-	payload := map[string]interface{}{
-		"u":  loginUser,
-		"p":  password,
-		"a":  1,
-		"rn": nonce,
-	}
-	bodyData, err := json.Marshal(payload)
-	if err != nil {
-		return err
-	}
-	postReq, err := http.NewRequest("POST", discoveredLoginURL, bytes.NewBuffer(bodyData))
-	if err != nil {
-		return err
-	}
-	postReq.Header.Set("Content-Type", "application/json")
-
-	postResp, err := httpClient.Do(postReq)
-	if err != nil {
-		return err
-	}
-	defer postResp.Body.Close()
-
-	if postResp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(postResp.Body)
-		return fmt.Errorf("discovered login HTTP %d at %s: %s", postResp.StatusCode, discoveredLoginURL, string(body))
-	}
-
-	if cookies := postResp.Cookies(); len(cookies) > 0 {
-		c.authCookies = append([]*http.Cookie(nil), cookies...)
-		for _, cookie := range cookies {
-			if cookie.Name == "meshcom" {
-				c.sessionID = cookie.Value
-				break
-			}
+	// 1. Follow redirect from configured root to auto-discover the actual install path.
+	if getResp, getErr := httpClient.Get(rootURL); getErr == nil {
+		io.Copy(io.Discard, io.LimitReader(getResp.Body, 4096)) //nolint:errcheck
+		getResp.Body.Close()
+		finalU := getResp.Request.URL
+		basePath := finalU.Path
+		if idx := strings.LastIndex(basePath, "/"); idx >= 0 {
+			basePath = basePath[:idx+1]
+		} else {
+			basePath = "/"
 		}
-		return nil
+		candidates = append(candidates, fmt.Sprintf("%s://%s%s", finalU.Scheme, finalU.Host, basePath))
 	}
 
-	return fmt.Errorf("no auth cookies found in login response from %s", discoveredLoginURL)
+	// 2. Common MeshCentral sub-paths relative to the configured host.
+	hostBase := fmt.Sprintf("%s://%s", parsedRoot.Scheme, parsedRoot.Host)
+	for _, sub := range []string{"/meshcentral/", "/mesh/", "/mc/"} {
+		candidates = append(candidates, hostBase+sub)
+	}
+
+	var triedURLs []string
+	var lastErr error
+
+	for _, base := range candidates {
+		base = strings.TrimSuffix(base, "/") + "/"
+		loginURL := base + "login.ashx"
+		triedURLs = append(triedURLs, loginURL)
+
+		// GET login page to extract CSRF nonce; skip this candidate if it returns non-200.
+		var nonce string
+		if getResp, getErr := httpClient.Get(loginURL); getErr == nil {
+			pageBytes, _ := io.ReadAll(io.LimitReader(getResp.Body, 32*1024))
+			getResp.Body.Close()
+			if getResp.StatusCode != http.StatusOK {
+				lastErr = fmt.Errorf("HTTP %d at %s", getResp.StatusCode, loginURL)
+				continue
+			}
+			if m := regexp.MustCompile(`random="([^"]+)"`).FindSubmatch(pageBytes); len(m) == 2 {
+				nonce = string(m[1])
+			}
+		} else {
+			lastErr = fmt.Errorf("GET %s: %v", loginURL, getErr)
+			continue
+		}
+
+		// POST credentials.
+		payload := map[string]interface{}{"u": loginUser, "p": password, "a": 1, "rn": nonce}
+		bodyData, _ := json.Marshal(payload)
+		postReq, reqErr := http.NewRequest("POST", loginURL, bytes.NewBuffer(bodyData))
+		if reqErr != nil {
+			lastErr = reqErr
+			continue
+		}
+		postReq.Header.Set("Content-Type", "application/json")
+
+		postResp, postErr := httpClient.Do(postReq)
+		if postErr != nil {
+			lastErr = fmt.Errorf("POST %s: %v", loginURL, postErr)
+			continue
+		}
+		io.Copy(io.Discard, io.LimitReader(postResp.Body, 4096)) //nolint:errcheck
+		postResp.Body.Close()
+
+		if postResp.StatusCode == http.StatusOK {
+			if cookies := postResp.Cookies(); len(cookies) > 0 {
+				c.authCookies = append([]*http.Cookie(nil), cookies...)
+				for _, ck := range cookies {
+					if ck.Name == "meshcom" {
+						c.sessionID = ck.Value
+						break
+					}
+				}
+				// Update c.url to the discovered base so the WebSocket also uses the correct path.
+				if parsedBase, pErr := url.Parse(strings.TrimSuffix(base, "/")); pErr == nil {
+					switch parsedBase.Scheme {
+					case "http":
+						parsedBase.Scheme = "ws"
+					case "https":
+						parsedBase.Scheme = "wss"
+					}
+					c.url = parsedBase.String()
+				}
+				return nil
+			}
+			lastErr = fmt.Errorf("no auth cookies in response from %s", loginURL)
+		} else {
+			lastErr = fmt.Errorf("HTTP %d at %s", postResp.StatusCode, loginURL)
+		}
+	}
+
+	tried := strings.Join(triedURLs, ", ")
+	if lastErr != nil {
+		return fmt.Errorf("login.ashx not found at the configured URL or common sub-paths (tried: %s). "+
+			"Last error: %v — Set the MeshCentral URL in config to the exact sub-path "+
+			"(e.g. https://host/meshcentral)", tried, lastErr)
+	}
+	return fmt.Errorf("no candidate login.ashx endpoint found (tried: %s)", tried)
 }
 
 // Close gracefully closes the WebSocket.
