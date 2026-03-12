@@ -132,49 +132,28 @@ func (c *Client) Connect() error {
 	
 	fmt.Printf("[MeshCentral] WebSocket connected to %s\n", u.String())
 
-	// Pre-register BOTH possible handshake channels BEFORE readPump starts.
-	// MeshCentral sends either action="userinfo" or action="event" /
-	// eventType="serverinfo" immediately upon WebSocket connect.  If we only
-	// register one channel at a time (sequentially) the other message arrives
-	// while no consumer is waiting and the non-blocking send in readPump
-	// silently drops it, causing a guaranteed timeout on the second wait.
-	userinfoC := make(chan map[string]interface{}, 5)
-	serverinfoC := make(chan map[string]interface{}, 5)
-	c.reqsMu.Lock()
-	c.pendingReqs["userinfo"] = userinfoC
-	c.pendingReqs["event_serverinfo"] = serverinfoC
-	c.reqsMu.Unlock()
-
 	c.wsMu.Lock()
 	c.ws = ws
 	c.wsMu.Unlock()
 	
 	go c.readPump()
-	// Note: pingPump is started AFTER successful handshake to avoid interference
+	go c.pingPump()
 
-	// Wait for whichever handshake message the server sends first.
-	fmt.Printf("[MeshCentral] Waiting for handshake (userinfo or serverinfo)...\n")
-	timer := time.NewTimer(10 * time.Second)
-	defer timer.Stop()
-	select {
-	case <-userinfoC:
-		// connected — server sent userinfo
-		fmt.Printf("[MeshCentral] Handshake successful: received userinfo\n")
-		go c.pingPump()
-	case <-serverinfoC:
-		// connected — server sent event_serverinfo
-		fmt.Printf("[MeshCentral] Handshake successful: received serverinfo\n")
-		go c.pingPump()
-	case <-c.done:
-		return fmt.Errorf("client closed while waiting for handshake")
-	case <-timer.C:
-		c.reqsMu.RLock()
-		hasUserinfo := c.pendingReqs["userinfo"] != nil
-		hasServerinfo := c.pendingReqs["event_serverinfo"] != nil
-		c.reqsMu.RUnlock()
-		return fmt.Errorf("failed to receive initial meshcentral handshake: timeout waiting for userinfo or serverinfo (within 10s) [hasUserinfoCh=%v, hasServerinfoCh=%v]", hasUserinfo, hasServerinfo)
+	// MeshCentral requires the client to send a serverinfo request
+	// to verify the connection is working. The server responds with
+	// serverinfo which confirms authentication was successful.
+	fmt.Printf("[MeshCentral] Sending serverinfo request to verify connection...\n")
+	if err := c.Send(map[string]interface{}{"action": "serverinfo"}); err != nil {
+		return fmt.Errorf("failed to send serverinfo request: %w", err)
 	}
 
+	// Wait for serverinfo response to confirm connection is working
+	res, err := c.WaitForAction("serverinfo", 10*time.Second)
+	if err != nil {
+		return fmt.Errorf("failed to receive serverinfo response: %w", err)
+	}
+	
+	fmt.Printf("[MeshCentral] Connection verified: serverinfo received (server version: %v)\n", res["serverVersion"])
 	return nil
 }
 
