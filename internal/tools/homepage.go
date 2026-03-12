@@ -83,16 +83,16 @@ func startPythonServer(port int, directory string) (string, int, error) {
 	if port <= 0 {
 		port = 8080
 	}
-	cmd := exec.Command("python3", "-m", "http.server", 
+	cmd := exec.Command("python3", "-m", "http.server",
 		strconv.Itoa(port), "--directory", directory)
 	err := cmd.Start()
 	if err != nil {
 		return "", 0, fmt.Errorf("failed to start Python server: %w", err)
 	}
-	
+
 	// Give the server a moment to start
 	time.Sleep(500 * time.Millisecond)
-	
+
 	url := fmt.Sprintf("http://localhost:%d", port)
 	return url, cmd.Process.Pid, nil
 }
@@ -113,22 +113,34 @@ func HomepageInit(cfg HomepageConfig, logger *slog.Logger) string {
 		// Check if local Python server is allowed (Danger Zone)
 		if !cfg.AllowLocalServer {
 			return errJSON("Docker not available at %s and local Python server is disabled for security. "+
-				"Please ensure Docker is running (systemctl start docker) or enable homepage.allow_local_server in config.yaml.", 
+				"Please ensure Docker is running (systemctl start docker) or enable homepage.allow_local_server in config.yaml.",
 				cfg.DockerHost)
 		}
-		
+
 		logger.Info("[Homepage] Docker not available, using Python fallback")
-		
+
+		// Check if already running on the configured port
+		checkPort := cfg.WebServerPort
+		if checkPort <= 0 {
+			checkPort = 8080
+		}
+		if c, dialErr := net.DialTimeout("tcp", fmt.Sprintf("localhost:%d", checkPort), time.Second); dialErr == nil {
+			c.Close()
+			return okJSON("Web server already running (Python fallback)",
+				"url", fmt.Sprintf("http://localhost:%d", checkPort),
+				"mode", "python")
+		}
+
 		// Try to start Python server as fallback
 		url, pid, err := startPythonServer(cfg.WebServerPort, cfg.WorkspacePath)
 		if err != nil {
 			return errJSON("Docker not available (%v) and Python fallback failed: %v. "+
-				"Please ensure either Docker is running (systemctl start docker) or Python is installed.", 
+				"Please ensure either Docker is running (systemctl start docker) or Python is installed.",
 				DockerPing(cfg.DockerHost), err)
 		}
-		
-		return okJSON("Web server started (Python fallback)", 
-			"url", url, 
+
+		return okJSON("Web server started (Python fallback)",
+			"url", url,
 			"pid", strconv.Itoa(pid),
 			"mode", "python",
 			"note", "Limited functionality without Docker. Full dev environment requires Docker.")
@@ -225,11 +237,11 @@ func HomepageStatus(cfg HomepageConfig, logger *slog.Logger) string {
 	// Check Docker availability
 	dockerAvailable := checkDockerAvailable(cfg.DockerHost)
 	result["docker_available"] = dockerAvailable
-	
+
 	if !dockerAvailable {
 		result["mode"] = "python_fallback"
 		result["message"] = "Docker not available. Using Python HTTP server (limited functionality)."
-		
+
 		// Check if Python server is running by testing the port
 		port := cfg.WebServerPort
 		if port <= 0 {
@@ -248,7 +260,7 @@ func HomepageStatus(cfg HomepageConfig, logger *slog.Logger) string {
 				"error":   "Server not responding",
 			}
 		}
-		
+
 		out, _ := json.Marshal(result)
 		return string(out)
 	}
@@ -425,11 +437,51 @@ func HomepageListFiles(cfg HomepageConfig, path string, logger *slog.Logger) str
 	if path == "" {
 		path = "."
 	}
-	// Prevent path traversal outside /workspace
+	// Prevent path traversal outside workspace
 	if strings.Contains(path, "..") {
 		return errJSON("Path traversal not allowed")
 	}
 	logger.Info("[Homepage] ListFiles", "path", path)
+
+	if !checkDockerAvailable(cfg.DockerHost) {
+		if cfg.WorkspacePath == "" {
+			return errJSON("workspace_path not configured")
+		}
+		base := filepath.Join(cfg.WorkspacePath, filepath.FromSlash(path))
+		cleanWS := filepath.Clean(cfg.WorkspacePath)
+		cleanBase := filepath.Clean(base)
+		if cleanBase != cleanWS && !strings.HasPrefix(cleanBase, cleanWS+string(os.PathSeparator)) {
+			return errJSON("Path traversal not allowed")
+		}
+		var files []string
+		_ = filepath.Walk(base, func(p string, info os.FileInfo, err error) error {
+			if err != nil {
+				return nil
+			}
+			rel, _ := filepath.Rel(base, p)
+			slashRel := filepath.ToSlash(rel)
+			if strings.Contains(slashRel, "/node_modules/") || strings.Contains(slashRel, "/.next/") || strings.Contains(slashRel, "/.git/") {
+				if info.IsDir() {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			parts := strings.Split(rel, string(os.PathSeparator))
+			if len(parts) > 3 {
+				if info.IsDir() {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			if len(files) < 200 {
+				files = append(files, filepath.ToSlash(p))
+			}
+			return nil
+		})
+		out, _ := json.Marshal(map[string]interface{}{"status": "ok", "files": files})
+		return string(out)
+	}
+
 	dockerCfg := DockerConfig{Host: cfg.DockerHost}
 	return DockerExec(dockerCfg, homepageContainerName, fmt.Sprintf("find /workspace/%s -maxdepth 2 -not -path '*/node_modules/*' -not -path '*/.next/*' -not -path '*/.git/*' | head -200", path), "")
 }
@@ -443,6 +495,25 @@ func HomepageReadFile(cfg HomepageConfig, path string, logger *slog.Logger) stri
 		return errJSON("Path traversal not allowed")
 	}
 	logger.Info("[Homepage] ReadFile", "path", path)
+
+	if !checkDockerAvailable(cfg.DockerHost) {
+		if cfg.WorkspacePath == "" {
+			return errJSON("workspace_path not configured")
+		}
+		fullPath := filepath.Join(cfg.WorkspacePath, filepath.FromSlash(path))
+		cleanWS := filepath.Clean(cfg.WorkspacePath)
+		cleanFull := filepath.Clean(fullPath)
+		if cleanFull == cleanWS || !strings.HasPrefix(cleanFull, cleanWS+string(os.PathSeparator)) {
+			return errJSON("Path traversal not allowed")
+		}
+		data, err := os.ReadFile(fullPath)
+		if err != nil {
+			return errJSON("Failed to read file: %v", err)
+		}
+		out, _ := json.Marshal(map[string]interface{}{"status": "ok", "content": string(data)})
+		return string(out)
+	}
+
 	dockerCfg := DockerConfig{Host: cfg.DockerHost}
 	return DockerExec(dockerCfg, homepageContainerName, fmt.Sprintf("cat /workspace/%s", path), "")
 }
@@ -455,9 +526,30 @@ func HomepageWriteFile(cfg HomepageConfig, path, content string, logger *slog.Lo
 	if strings.Contains(path, "..") {
 		return errJSON("Path traversal not allowed")
 	}
+	logger.Info("[Homepage] WriteFile", "path", path, "size", len(content))
+
+	if !checkDockerAvailable(cfg.DockerHost) {
+		if cfg.WorkspacePath == "" {
+			return errJSON("workspace_path not configured")
+		}
+		fullPath := filepath.Join(cfg.WorkspacePath, filepath.FromSlash(path))
+		cleanWS := filepath.Clean(cfg.WorkspacePath)
+		cleanFull := filepath.Clean(fullPath)
+		if cleanFull == cleanWS || !strings.HasPrefix(cleanFull, cleanWS+string(os.PathSeparator)) {
+			return errJSON("Path traversal not allowed")
+		}
+		if err := os.MkdirAll(filepath.Dir(fullPath), 0755); err != nil {
+			return errJSON("Failed to create directory: %v", err)
+		}
+		if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
+			return errJSON("Failed to write file: %v", err)
+		}
+		out, _ := json.Marshal(map[string]interface{}{"status": "ok", "path": path, "size": len(content)})
+		return string(out)
+	}
+
 	// Use base64 to safely pass content through shell
 	encoded := base64.StdEncoding.EncodeToString([]byte(content))
-	logger.Info("[Homepage] WriteFile", "path", path, "size", len(content))
 	dockerCfg := DockerConfig{Host: cfg.DockerHost}
 	// Ensure parent directory exists
 	dir := filepath.Dir(path)
@@ -600,21 +692,30 @@ func HomepageWebServerStart(cfg HomepageConfig, projectDir, buildDir string, log
 	if !checkDockerAvailable(cfg.DockerHost) {
 		// Check if local Python server is allowed (Danger Zone)
 		if !cfg.AllowLocalServer {
-			return errJSON("Docker not available and local Python server is disabled for security. "+
+			return errJSON("Docker not available and local Python server is disabled for security. " +
 				"Please ensure Docker is running (systemctl start docker) or enable homepage.allow_local_server in config.yaml.")
 		}
-		
+
 		logger.Info("[Homepage] Docker not available, using Python fallback for web server")
-		
+
+		// Check if already running
+		if c, dialErr := net.DialTimeout("tcp", fmt.Sprintf("localhost:%d", port), time.Second); dialErr == nil {
+			c.Close()
+			return okJSON("Web server already running (Python fallback)",
+				"url", fmt.Sprintf("http://localhost:%d", port),
+				"port", fmt.Sprintf("%d", port),
+				"mode", "python")
+		}
+
 		// Use Python HTTP server as fallback
 		url, pid, err := startPythonServer(port, hostBuildPath)
 		if err != nil {
 			return errJSON("Failed to start web server (Docker not available, Python fallback failed): %v", err)
 		}
-		
+
 		logger.Info("[Homepage] Web server started (Python fallback)", "url", url, "pid", pid)
-		return okJSON("Web server started (Python fallback)", 
-			"url", url, 
+		return okJSON("Web server started (Python fallback)",
+			"url", url,
 			"port", fmt.Sprintf("%d", port),
 			"pid", strconv.Itoa(pid),
 			"mode", "python",
@@ -697,6 +798,24 @@ func HomepageWebServerStop(cfg HomepageConfig, logger *slog.Logger) string {
 
 // HomepageWebServerStatus returns the status of the Caddy web server.
 func HomepageWebServerStatus(cfg HomepageConfig, logger *slog.Logger) string {
+	if !checkDockerAvailable(cfg.DockerHost) {
+		// Check Python server via TCP probe
+		port := cfg.WebServerPort
+		if port <= 0 {
+			port = 8080
+		}
+		conn, err := net.DialTimeout("tcp", fmt.Sprintf("localhost:%d", port), 2*time.Second)
+		if err == nil {
+			conn.Close()
+			out, _ := json.Marshal(map[string]interface{}{
+				"running": true,
+				"mode":    "python",
+				"url":     fmt.Sprintf("http://localhost:%d", port),
+			})
+			return string(out)
+		}
+		return `{"running":false,"mode":"python","exists":false}`
+	}
 	dockerCfg := DockerConfig{Host: cfg.DockerHost}
 	return containerStatus(dockerCfg, homepageWebContainer)
 }
@@ -883,6 +1002,17 @@ func containerStatus(dockerCfg DockerConfig, name string) string {
 }
 
 func detectBuildDir(cfg HomepageConfig, projectDir string) string {
+	if !checkDockerAvailable(cfg.DockerHost) {
+		if cfg.WorkspacePath != "" {
+			for _, dir := range []string{"out", "dist", "build", ".next", "public"} {
+				p := filepath.Join(cfg.WorkspacePath, projectDir, dir)
+				if s, err := os.Stat(p); err == nil && s.IsDir() {
+					return dir
+				}
+			}
+		}
+		return "out"
+	}
 	dockerCfg := DockerConfig{Host: cfg.DockerHost}
 	// Try common build output directories
 	for _, dir := range []string{"out", "dist", "build", ".next", "public"} {

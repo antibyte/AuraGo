@@ -85,31 +85,32 @@ type ContextFlags struct {
 	IsCoAgent         bool     // True if the current LLM call is for a co-agent
 	IsEgg             bool     // True if this instance runs in egg worker mode
 	// Feature toggles — control which conditional tool descriptions are included
-	DiscordEnabled         bool
-	EmailEnabled           bool
-	DockerEnabled          bool
-	HomeAssistantEnabled   bool
-	WebDAVEnabled          bool
-	KoofrEnabled           bool
-	ChromecastEnabled      bool
-	CoAgentEnabled         bool
-	GoogleWorkspaceEnabled bool
-	ProxmoxEnabled         bool
-	OllamaEnabled          bool
-	TailscaleEnabled       bool
-	AnsibleEnabled         bool
-	InvasionControlEnabled bool
-	GitHubEnabled          bool
-	MQTTEnabled            bool
-	MCPEnabled             bool
-	SandboxEnabled         bool
-	MeshCentralEnabled     bool
-	HomepageEnabled        bool
-	NetlifyEnabled         bool
-	WebhooksEnabled        bool
-	WebhooksDefinitions    string // Summary of configured outgoing webhooks for tool context
-	VirusTotalEnabled      bool
-	BraveSearchEnabled     bool
+	DiscordEnabled           bool
+	EmailEnabled             bool
+	DockerEnabled            bool
+	HomeAssistantEnabled     bool
+	WebDAVEnabled            bool
+	KoofrEnabled             bool
+	ChromecastEnabled        bool
+	CoAgentEnabled           bool
+	GoogleWorkspaceEnabled   bool
+	ProxmoxEnabled           bool
+	OllamaEnabled            bool
+	TailscaleEnabled         bool
+	AnsibleEnabled           bool
+	InvasionControlEnabled   bool
+	GitHubEnabled            bool
+	MQTTEnabled              bool
+	MCPEnabled               bool
+	SandboxEnabled           bool
+	MeshCentralEnabled       bool
+	HomepageEnabled          bool
+	HomepageAllowLocalServer bool
+	NetlifyEnabled           bool
+	WebhooksEnabled          bool
+	WebhooksDefinitions      string // Summary of configured outgoing webhooks for tool context
+	VirusTotalEnabled        bool
+	BraveSearchEnabled       bool
 	// Danger Zone toggles
 	AllowShell           bool
 	AllowPython          bool
@@ -128,6 +129,7 @@ type ContextFlags struct {
 	InventoryEnabled         bool
 	MemoryMaintenanceEnabled bool
 	WOLEnabled               bool
+	InternetExposed          bool   // HTTPS is enabled — system is likely reachable from the internet
 	UserProfileSummary       string // Optional user profile summary from profiling engine
 	AdditionalPrompt         string // Extra instructions always appended at end of system prompt
 	SessionTodoItems         string // Session-scoped task list piggybacked on tool calls
@@ -292,6 +294,11 @@ func BuildSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string,
 
 	finalPrompt.WriteString(fmt.Sprintf("# NOW\n%s %s\n",
 		now.Format("2006-01-02"), now.Format("15:04")))
+
+	// Internet-exposure warning — shown before custom instructions so it is always visible
+	if flags.InternetExposed {
+		finalPrompt.WriteString("\n> **Warning:** This system is probably reachable from the internet. Be careful when exposing services to the outside!\n")
+	}
 
 	// Additional custom instructions (always appended last, after NOW, for maximum LLM attention)
 	if flags.AdditionalPrompt != "" {
@@ -991,6 +998,10 @@ func (m *PromptModule) ShouldInclude(flags ContextFlags) bool {
 			}
 		case "homepage_enabled":
 			if flags.HomepageEnabled {
+				return true
+			}
+		case "homepage_allow_local_server":
+			if flags.HomepageAllowLocalServer {
 				return true
 			}
 		case "netlify_enabled":

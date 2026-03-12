@@ -1,48 +1,17 @@
 # Homepage — Web Development & Deployment Tool
 
-Design, develop, build, test and deploy professional websites. The tool uses Docker when available, or falls back to Python HTTP server for lightweight hosting.
+Design, develop, build, test and deploy professional websites using a Docker-based dev environment with Node.js, Playwright, Lighthouse, SVGO and more.
 
 ## Prerequisites
 
 - **Required**: Docker integration enabled (`docker.enabled: true`)
-- **Optional**: Python 3 installed (for HTTP server fallback when Docker unavailable)
 - Homepage tool must be enabled (`homepage.enabled: true`)
-- **Security**: Local Python server requires `homepage.allow_local_server: true` (Danger Zone)
 - For deployment: SFTP/SCP credentials must be stored in the vault
 
-## Security Notice (Danger Zone)
+## Docker Mode
 
-The Homepage tool can execute **Python directly on the host system** when Docker is unavailable. This is disabled by default for security.
-
-To enable the Python HTTP server fallback:
-```yaml
-homepage:
-  enabled: true
-  allow_local_server: true  # Danger Zone: allows local Python execution
-```
-
-**Risks:**
-- Local file system exposure via HTTP server
-- Process running with agent's privileges
-- No container isolation
-
-**Mitigation:**
-- Only enable in trusted environments
-- Ensure firewall rules block external access to the server port
-- Use Docker mode for production deployments
-
-## Docker vs Python Fallback Mode
-
-### Full Mode (Docker available)
-- Complete dev environment with Node.js, Playwright, Lighthouse
-- Caddy web server with automatic HTTPS
-- Full framework support (Next.js, Vite, etc.)
-
-### Fallback Mode (Docker unavailable)
-- Python HTTP server for static file hosting
-- Basic file operations (read, write, list)
-- Manual build steps required (no containerized builds)
-- **Limitation**: No advanced features like Playwright testing, automatic HTTPS
+Full dev environment with Node.js, Playwright, Lighthouse and Caddy web server with automatic HTTPS.
+Supports all frameworks: Next.js, Vite, Astro, SvelteKit, Vue, static HTML.
 
 ## Container Lifecycle
 
@@ -52,7 +21,7 @@ Creates the Docker image and container. **Run this first** before any other oper
 {"action": "homepage", "operation": "init"}
 ```
 
-**Fallback behavior:** If Docker is unavailable AND `homepage.allow_local_server: true` is set, starts Python HTTP server instead. Otherwise returns an error.
+**Note:** Docker must be running. If Docker is unavailable, start it with `sudo systemctl start docker`.)
 
 ### start — Start the dev container
 ```json
@@ -199,19 +168,17 @@ Tests connectivity to the configured deployment target.
 {"action": "homepage", "operation": "test_connection"}
 ```
 
-## Local Web Server (Caddy/Python)
+## Local Web Server (Caddy)
 
-### webserver_start — Start local web server
-Serves the build output. Uses Caddy with Docker (preferred), or Python HTTP server as fallback (requires `homepage.allow_local_server: true`).
+### webserver_start — Start local Caddy web server
+Serves the build output via Caddy (Docker required).
 ```json
 {"action": "homepage", "operation": "webserver_start", "project_dir": "my-site"}
 ```
 
 **Response:**
 - `url`: The URL where the site is accessible
-- `mode`: "docker" or "python"
-
-**Security:** Python fallback only works when `homepage.allow_local_server: true` is set in config.yaml (Danger Zone).
+- `mode`: "docker"
 
 ### webserver_stop — Stop the web server
 ```json
@@ -258,26 +225,6 @@ Combines `build` + `webserver_start` in one step.
 **Solutions:**
 1. **Start Docker:** `sudo systemctl start docker` (recommended)
 2. **Enable Docker:** `sudo systemctl enable docker`
-3. **Use Python Fallback:** Set `homepage.allow_local_server: true` in config.yaml (see Security Notice above)
-
-### "Python fallback failed" Error
-
-**Problem:** Neither Docker nor Python is available.
-
-**Solution:** Install Python 3: `sudo apt-get install python3` (Debian/Ubuntu) or `sudo yum install python3` (RHEL/CentOS)
-
-### Limited Functionality in Fallback Mode
-
-**Symptoms:** No container builds, no Lighthouse testing, no automatic HTTPS.
-
-**Cause:** Docker is not available.
-
-**Requirements:** Must set `homepage.allow_local_server: true` to use fallback mode.
-
-**Workaround:** 
-- For static sites: Use Python server with `webserver_start` (requires `allow_local_server: true`)
-- For builds: Run `npm run build` locally, then upload files
-- For testing: Use browser DevTools instead of Lighthouse
 
 ### Web Server Not Accessible
 
@@ -290,7 +237,7 @@ Combines `build` + `webserver_start` in one step.
 
 ### Status Shows "running": false
 
-**Problem:** Container or server appears stopped.
+**Problem:** Container appears stopped.
 
 **Solutions:**
 1. Check Docker status: `docker ps -a`

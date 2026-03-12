@@ -260,6 +260,7 @@ func processMessage(cfg *config.Config, logger *slog.Logger, client llm.ChatClie
 		SandboxEnabled:           cfg.Sandbox.Enabled,
 		MeshCentralEnabled:       cfg.MeshCentral.Enabled,
 		HomepageEnabled:          cfg.Homepage.Enabled && cfg.Docker.Enabled,
+		HomepageAllowLocalServer: cfg.Homepage.AllowLocalServer,
 		NetlifyEnabled:           cfg.Netlify.Enabled,
 		VirusTotalEnabled:        cfg.VirusTotal.Enabled,
 		BraveSearchEnabled:       cfg.BraveSearch.Enabled,
@@ -280,6 +281,7 @@ func processMessage(cfg *config.Config, logger *slog.Logger, client llm.ChatClie
 		AllowRemoteShell:         cfg.Agent.AllowRemoteShell,
 		AllowSelfUpdate:          cfg.Agent.AllowSelfUpdate,
 		IsEgg:                    cfg.EggMode.Enabled,
+		InternetExposed:          cfg.Server.HTTPS.Enabled,
 		AdditionalPrompt:         cfg.Agent.AdditionalPrompt,
 	}
 

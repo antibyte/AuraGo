@@ -287,6 +287,7 @@ func processUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Con
 		SandboxEnabled:           cfg.Sandbox.Enabled,
 		MeshCentralEnabled:       cfg.MeshCentral.Enabled,
 		HomepageEnabled:          cfg.Homepage.Enabled && cfg.Docker.Enabled,
+		HomepageAllowLocalServer: cfg.Homepage.AllowLocalServer,
 		NetlifyEnabled:           cfg.Netlify.Enabled,
 		VirusTotalEnabled:        cfg.VirusTotal.Enabled,
 		BraveSearchEnabled:       cfg.BraveSearch.Enabled,
@@ -307,6 +308,7 @@ func processUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Con
 		AllowRemoteShell:         cfg.Agent.AllowRemoteShell,
 		AllowSelfUpdate:          cfg.Agent.AllowSelfUpdate,
 		IsEgg:                    cfg.EggMode.Enabled,
+		InternetExposed:          cfg.Server.HTTPS.Enabled,
 		AdditionalPrompt:         cfg.Agent.AdditionalPrompt,
 	}
 	coreMem := shortTermMem.ReadCoreMemory()
