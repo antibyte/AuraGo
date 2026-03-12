@@ -136,6 +136,9 @@ const SENSITIVE_KEYS = ['api_key', 'bot_token', 'password', 'app_password', 'acc
 // Provider management state (loaded from /api/providers)
 let providersCache = [];
 
+// Runtime environment detection (loaded from /api/runtime)
+let runtimeData = { runtime: {}, features: {} };
+
 // Init
 async function init() {
     try {
@@ -151,6 +154,11 @@ async function init() {
         try {
             const provResp = await fetch('/api/providers');
             if (provResp.ok) providersCache = await provResp.json();
+        } catch (_) { }
+        // Load runtime environment capabilities (Docker mode, socket, broadcast, etc.)
+        try {
+            const rtResp = await fetch('/api/runtime');
+            if (rtResp.ok) runtimeData = await rtResp.json();
         } catch (_) { }
     } catch (e) {
         document.getElementById('content').innerHTML = '<div style="text-align:center;padding:4rem;color:var(--danger);">❌ ' + t('config.loading_error') + '<br><small>' + e.message + '</small></div>';
@@ -353,6 +361,16 @@ async function renderSection(key) {
     html += '<div class="section-header">' + section.icon + ' ' + section.label + '</div>';
     html += '<div class="section-desc">' + section.desc + '</div>';
 
+    // Generic feature-unavailability banner for sections with runtime checks
+    const SECTION_FEATURE_MAP = { docker: 'docker', invasion_control: 'invasion_local' };
+    const sectionFeatureKey = SECTION_FEATURE_MAP[key];
+    if (sectionFeatureKey) {
+        const fb = featureUnavailableBanner(sectionFeatureKey);
+        if (fb) html += fb;
+    }
+    const sectionBlocked = sectionFeatureKey && runtimeData.features && runtimeData.features[sectionFeatureKey] && !runtimeData.features[sectionFeatureKey].available;
+    if (sectionBlocked) html += '<div class="feature-unavailable-fields">';
+
     // LLM settings explanation
     if (key === 'llm') {
         html += `<div style="margin-bottom:1.2rem;padding:0.65rem 0.9rem;border-radius:9px;background:rgba(99,179,237,0.08);border:1px solid rgba(99,179,237,0.22);font-size:0.78rem;color:var(--text-secondary);line-height:1.55;">
@@ -416,6 +434,7 @@ async function renderSection(key) {
         html += renderMeshCentralTestBlock();
     }
 
+    if (sectionBlocked) html += '</div>'; // End feature-unavailable-fields
     html += '</div>';
 
     document.getElementById('content').innerHTML = html;
@@ -436,6 +455,26 @@ function renderFields(fields, data, parentPath) {
         }
     }
     return html;
+}
+
+/**
+ * Returns a feature-unavailable banner HTML if the given feature key is unavailable.
+ * featureKey: key from runtimeData.features (e.g. 'docker', 'sandbox', 'firewall')
+ * options.blocked: if true, uses a stronger (red) styling
+ * Returns empty string if the feature is available or unknown.
+ */
+function featureUnavailableBanner(featureKey, options) {
+    const fa = (runtimeData.features || {})[featureKey];
+    if (!fa || fa.available) return '';
+    const blocked = options && options.blocked;
+    const cls = blocked ? 'feature-unavailable-banner fub-blocked' : 'feature-unavailable-banner';
+    const icon = blocked ? '🚫' : '⚠️';
+    return '<div class="' + cls + '"><span class="fub-icon">' + icon + '</span><span>' + escapeHtml(fa.reason || t('config.feature_unavailable')) + '</span></div>';
+}
+
+/** Returns true if AuraGo is running inside a Docker container. */
+function isDockerRuntime() {
+    return !!(runtimeData.runtime && runtimeData.runtime.is_docker);
 }
 
 function renderField(fullPath, key, value, parentPath, fieldSchema) {

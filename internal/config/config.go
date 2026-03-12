@@ -86,7 +86,8 @@ type OutgoingWebhook struct {
 }
 
 type Config struct {
-	ConfigPath    string          `yaml:"-"` // runtime-only: absolute path to the config file
+	ConfigPath    string          `yaml:"-"`          // runtime-only: absolute path to the config file
+	Runtime       Runtime         `yaml:"-" json:"-"` // runtime-only: detected environment capabilities
 	Providers     []ProviderEntry `yaml:"providers"`
 	EmailAccounts []EmailAccount  `yaml:"email_accounts"`
 	Server        struct {
@@ -272,7 +273,7 @@ type Config struct {
 		Username          string   `yaml:"username"`
 		Password          string   `yaml:"-" vault:"password"`    // vault-only
 		LoginToken        string   `yaml:"-" vault:"login_token"` // vault-only
-		Insecure          bool     `yaml:"insecure"`             // skip TLS certificate verification (default: false)
+		Insecure          bool     `yaml:"insecure"`              // skip TLS certificate verification (default: false)
 	} `yaml:"meshcentral"`
 	Docker struct {
 		Enabled  bool   `yaml:"enabled"`

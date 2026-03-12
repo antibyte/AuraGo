@@ -57,7 +57,9 @@ func handleGetConfig(s *Server) http.HandlerFunc {
 		// Inject masked indicators for vault-only secrets so the UI
 		// shows “••••••••” for fields that have a value stored in the vault.
 		injectVaultIndicators(rawCfg, s.Vault)
-
+		// Inject feature availability flags so the UI can gray out
+		// sections that are not functional in the current runtime.
+		injectFeatureAvailability(rawCfg, s.Cfg.Runtime)
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(rawCfg)
 	}
@@ -195,6 +197,9 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			newCfg.ApplyVaultSecrets(s.Vault)
 			newCfg.ResolveProviders()
 			newCfg.ApplyOAuthTokens(s.Vault)
+
+			// Carry over runtime detection (computed once at startup, not on reload)
+			newCfg.Runtime = s.Cfg.Runtime
 
 			// Detect sections that need restart
 			if oldCfg.Server != newCfg.Server {
@@ -539,6 +544,87 @@ func extractRecursive(m map[string]interface{}, prefix string, vault *security.V
 		}
 	}
 	return firstErr
+}
+
+// handleRuntime returns the current runtime detection results and feature availability.
+func handleRuntime(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		s.CfgMu.RLock()
+		rt := s.Cfg.Runtime
+		s.CfgMu.RUnlock()
+
+		result := map[string]interface{}{
+			"runtime":  rt,
+			"features": config.ComputeFeatureAvailability(rt),
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(result)
+	}
+}
+
+// injectFeatureAvailability adds _available and _reason fields into
+// the raw config sections so the UI can gray out unavailable features.
+func injectFeatureAvailability(rawCfg map[string]interface{}, rt config.Runtime) {
+	avail := config.ComputeFeatureAvailability(rt)
+
+	// Map feature keys to config section names
+	mapping := map[string]string{
+		"firewall":             "firewall",
+		"docker":               "docker",
+		"sandbox":              "sandbox",
+		"sudo":                 "agent",
+		"wol":                  "tools",
+		"homepage_docker":      "homepage",
+		"invasion_local":       "invasion_control",
+		"chromecast_discovery": "chromecast",
+	}
+
+	for featureKey, fa := range avail {
+		sectionName, ok := mapping[featureKey]
+		if !ok {
+			continue
+		}
+
+		// For "sudo" we inject into the agent section with a prefixed key
+		if featureKey == "sudo" {
+			if agentSec, ok := rawCfg["agent"].(map[string]interface{}); ok {
+				agentSec["_sudo_available"] = fa.Available
+				if fa.Reason != "" {
+					agentSec["_sudo_reason"] = fa.Reason
+				}
+			}
+			continue
+		}
+
+		// Use a sub-key for features that share a section (e.g. wol lives under tools.wol)
+		if featureKey == "wol" {
+			toolsSec, ok := rawCfg[sectionName].(map[string]interface{})
+			if !ok {
+				continue
+			}
+			wolSec, ok := toolsSec["wol"].(map[string]interface{})
+			if ok {
+				wolSec["_available"] = fa.Available
+				if fa.Reason != "" {
+					wolSec["_reason"] = fa.Reason
+				}
+			}
+			continue
+		}
+
+		section, ok := rawCfg[sectionName].(map[string]interface{})
+		if !ok {
+			continue
+		}
+		section["_available"] = fa.Available
+		if fa.Reason != "" {
+			section["_reason"] = fa.Reason
+		}
+	}
 }
 
 // injectVaultIndicators adds masked placeholder values ("••••••••") into the

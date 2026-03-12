@@ -28,5 +28,8 @@
   "config.common.saved": "Salvo",
   "config.common.network_error": "Netwerkfout.",
   "config.common.active": "Actief",
-  "config.common.inactive": "Inactief"
+  "config.common.inactive": "Inactief",
+  "config.feature_unavailable": "Deze functie is niet beschikbaar in de huidige runtime-omgeving.",
+  "config.docker_mode_banner": "AuraGo draait in een Docker-container. Sommige functies kunnen beperkt zijn.",
+  "config.firewall.docker_blocked": "Firewallbeheer is niet beschikbaar in een Docker-container."
 }

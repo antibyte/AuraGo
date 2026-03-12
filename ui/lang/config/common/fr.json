@@ -28,5 +28,8 @@
   "config.common.saved": "Enregistré.",
   "config.common.network_error": "Erreur réseau.",
   "config.common.active": "Actif",
-  "config.common.inactive": "Inactif"
+  "config.common.inactive": "Inactif",
+  "config.feature_unavailable": "Cette fonctionnalité n'est pas disponible dans l'environnement d'exécution actuel.",
+  "config.docker_mode_banner": "AuraGo s'exécute dans un conteneur Docker. Certaines fonctionnalités peuvent être limitées.",
+  "config.firewall.docker_blocked": "La gestion du pare-feu n'est pas disponible à l'intérieur d'un conteneur Docker."
 }

@@ -28,5 +28,8 @@
   "config.common.saved": "已保存。",
   "config.common.network_error": "网络错误。",
   "config.common.active": "活跃",
-  "config.common.inactive": "非活跃"
+  "config.common.inactive": "非活跃",
+  "config.feature_unavailable": "此功能在当前运行环境中不可用。",
+  "config.docker_mode_banner": "AuraGo 正在 Docker 容器内运行。某些功能可能受到限制。",
+  "config.firewall.docker_blocked": "在 Docker 容器内无法进行防火墙管理。"
 }

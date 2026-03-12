@@ -12,8 +12,16 @@ window.renderFirewallSection = function (sectionParam) {
                 ${t('config.firewall.os_banner')}
             </div>`;
 
+    // Banner for Docker container (firewall not possible)
+    const fwUnavail = featureUnavailableBanner('firewall', { blocked: true });
+    if (fwUnavail) html += fwUnavail;
+
     const fwConfig = configData.firewall || {};
     const isOn = fwConfig.enabled === true;
+    const fwBlocked = !!(runtimeData.features && runtimeData.features.firewall && !runtimeData.features.firewall.available);
+
+    // Wrap fields in graying class when Docker-blocked
+    if (fwBlocked) html += '<div class="feature-unavailable-fields">';
 
     // Enabled Toggle
     html += '<div class="field-group">';
@@ -44,6 +52,7 @@ window.renderFirewallSection = function (sectionParam) {
     html += '<div style="margin-top:-0.5rem;font-size:0.75rem;color:var(--text-secondary);">' + t('help.config.firewall.poll_interval_seconds') + '</div>';
 
     html += '</div>'; // End wrapper
+    if (fwBlocked) html += '</div>'; // End feature-unavailable-fields
     html += '</div>';
 
     document.getElementById('content').innerHTML = html;

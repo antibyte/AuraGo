@@ -522,6 +522,9 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		// Chromecast mDNS discovery
 		mux.HandleFunc("/api/chromecast/discover", handleChromecastDiscover(s))
 
+		// Runtime environment detection (Docker, socket, broadcast, firewall)
+		mux.HandleFunc("/api/runtime", handleRuntime(s))
+
 		// Homepage tool endpoints
 		mux.HandleFunc("/api/homepage/status", handleHomepageStatus(s))
 		mux.HandleFunc("/api/homepage/test-connection", handleHomepageTestConnection(s))

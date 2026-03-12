@@ -28,5 +28,8 @@
   "config.common.saved": "Ulozeno",
   "config.common.network_error": "Síťová chyba.",
   "config.common.active": "Aktivní",
-  "config.common.inactive": "Neaktivní"
+  "config.common.inactive": "Neaktivní",
+  "config.feature_unavailable": "Tato funkce není v aktuálním běhovém prostředí dostupná.",
+  "config.docker_mode_banner": "AuraGo běží uvnitř kontejneru Docker. Některé funkce mohou být omezeny.",
+  "config.firewall.docker_blocked": "Správa firewallu není uvnitř kontejneru Docker dostupná."
 }

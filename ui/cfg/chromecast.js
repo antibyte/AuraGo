@@ -11,6 +11,11 @@ function renderChromecastSection(section) {
     html += '<div class="section-header">' + section.icon + ' ' + section.label + '</div>';
     html += '<div class="section-desc">' + section.desc + '</div>';
 
+    // mDNS discovery unavailable banner (Docker bridge network)
+    const ccDiscBanner = featureUnavailableBanner('chromecast_discovery');
+    if (ccDiscBanner) html += ccDiscBanner;
+    const ccDiscBlocked = !!(runtimeData.features && runtimeData.features.chromecast_discovery && !runtimeData.features.chromecast_discovery.available);
+
     // ── Enabled toggle ──
     const helpEnabled = t('help.chromecast.enabled');
     html += '<div class="field-group">';
@@ -35,7 +40,7 @@ function renderChromecastSection(section) {
 
     // Action buttons row
     html += '<div style="display:flex;gap:0.6rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap;">';
-    html += '<button class="btn-save" style="padding:0.45rem 1.1rem;font-size:0.82rem;" onclick="ccDiscoverDevices()" id="cc-discover-btn">🔍 ' + t('config.chromecast.discover_btn') + '</button>';
+    html += '<button class="btn-save" style="padding:0.45rem 1.1rem;font-size:0.82rem;' + (ccDiscBlocked ? 'opacity:0.45;pointer-events:none;' : '') + '" onclick="ccDiscoverDevices()" id="cc-discover-btn">🔍 ' + t('config.chromecast.discover_btn') + '</button>';
     html += '<button class="btn-save" style="padding:0.45rem 1.1rem;font-size:0.82rem;background:var(--bg-tertiary);color:var(--text-primary);border:1px solid var(--border-subtle);" onclick="ccShowAddManual()">＋ ' + t('config.chromecast.add_manual_btn') + '</button>';
     html += '</div>';
 

@@ -28,5 +28,8 @@
   "config.common.saved": "Ulozeno",
   "config.common.network_error": "Σφάλμα δικτύου.",
   "config.common.active": "Ενεργό",
-  "config.common.inactive": "Ανενεργό"
+  "config.common.inactive": "Ανενεργό",
+  "config.feature_unavailable": "Αυτή η λειτουργία δεν είναι διαθέσιμη στο τρέχον περιβάλλον εκτέλεσης.",
+  "config.docker_mode_banner": "Το AuraGo εκτελείται μέσα σε ένα Docker container. Ορισμένες λειτουργίες ενδέχεται να είναι περιορισμένες.",
+  "config.firewall.docker_blocked": "Η διαχείριση του τείχους προστασίας δεν είναι διαθέσιμη μέσα σε ένα Docker container."
 }

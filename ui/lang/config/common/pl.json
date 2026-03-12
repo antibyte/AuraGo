@@ -28,5 +28,8 @@
   "config.common.saved": "Zapisano.",
   "config.common.network_error": "Błąd sieci.",
   "config.common.active": "Aktywny",
-  "config.common.inactive": "Nieaktywny"
+  "config.common.inactive": "Nieaktywny",
+  "config.feature_unavailable": "Ta funkcja nie jest dostępna w bieżącym środowisku uruchomieniowym.",
+  "config.docker_mode_banner": "AuraGo działa wewnątrz kontenera Docker. Niektóre funkcje mogą być ograniczone.",
+  "config.firewall.docker_blocked": "Zarządzanie zaporą sieciową nie jest dostępne wewnątrz kontenera Docker."
 }

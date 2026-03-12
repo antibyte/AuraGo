@@ -83,8 +83,20 @@
                 const isOn = cap.val;
                 const helpKey = cap.path;
                 const helpText = (helpTexts[helpKey] || {})[lang] || '';
-                html += `<div class="danger-card">
-                    <div class="danger-card-header">
+
+                // Check if this specific capability is Docker-blocked
+                let capBlocked = false;
+                if (cap.path === 'agent.sudo_enabled') {
+                    const sudoFa = (runtimeData.features || {}).sudo;
+                    capBlocked = sudoFa && !sudoFa.available;
+                }
+
+                html += `<div class="danger-card">`;
+                if (capBlocked) {
+                    const sudoFa = (runtimeData.features || {}).sudo;
+                    html += `<div class="feature-unavailable-banner fub-blocked" style="margin-bottom:0.5rem;"><span class="fub-icon">🚫</span><span>${escapeHtml(sudoFa.reason || t('config.feature_unavailable'))}</span></div>`;
+                }
+                html += `<div class="danger-card-header"${capBlocked ? ' style="opacity:0.45;pointer-events:none;"' : ''}>
                         <div>
                             <div class="danger-card-title">${cap.icon} ${cap.title}</div>
                             <div class="danger-card-desc">${cap.desc}</div>

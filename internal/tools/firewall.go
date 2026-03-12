@@ -56,6 +56,10 @@ func StartFirewallGuard(ctx context.Context, cfg *config.Config, logger *slog.Lo
 	if !cfg.Firewall.Enabled || cfg.Firewall.Mode != "guard" {
 		return
 	}
+	if !cfg.Runtime.FirewallAccessOK {
+		logger.Info("Firewall Guard disabled: no firewall access (running in Docker or iptables unavailable)")
+		return
+	}
 
 	logger.Info("Starting Firewall Guard", "interval", cfg.Firewall.PollIntervalSeconds)
 

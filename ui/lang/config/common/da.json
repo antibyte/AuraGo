@@ -28,5 +28,8 @@
   "config.common.saved": "Ulozeno",
   "config.common.network_error": "Netværksfejl.",
   "config.common.active": "Aktiv",
-  "config.common.inactive": "Inaktiv"
+  "config.common.inactive": "Inaktiv",
+  "config.feature_unavailable": "Denne funktion er ikke tilgængelig i det aktuelle kørselsmiljø.",
+  "config.docker_mode_banner": "AuraGo kører inde i en Docker-container. Nogle funktioner kan være begrænsede.",
+  "config.firewall.docker_blocked": "Firewall-administration er ikke tilgængelig inde i en Docker-container."
 }

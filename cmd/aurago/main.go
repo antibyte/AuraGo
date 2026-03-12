@@ -352,6 +352,9 @@ func main() {
 	// Apply OAuth2 access tokens from vault into provider API keys
 	cfg.ApplyOAuthTokens(vault)
 
+	// Detect runtime environment capabilities (Docker, socket, broadcast, firewall)
+	cfg.Runtime = config.DetectRuntime(appLog)
+
 	llmClient := llm.NewFailoverManager(cfg, appLog)
 
 	// Auto-detect context window and configure token budget

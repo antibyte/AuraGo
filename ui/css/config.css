@@ -1490,3 +1490,35 @@ select.cfg-input option {
     background: rgba(239, 68, 68, 0.15);
     color: #f87171;
 }
+
+/* ── Feature unavailable banner (Docker runtime) ── */
+.feature-unavailable-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.7rem;
+    margin-bottom: 1.2rem;
+    padding: 0.7rem 1rem;
+    border-radius: 10px;
+    background: rgba(251, 191, 36, 0.08);
+    border: 1px solid rgba(251, 191, 36, 0.28);
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    line-height: 1.55;
+}
+
+.feature-unavailable-banner .fub-icon {
+    font-size: 1.1rem;
+    flex-shrink: 0;
+    margin-top: 0.05rem;
+}
+
+.feature-unavailable-banner.fub-blocked {
+    background: rgba(239, 68, 68, 0.06);
+    border-color: rgba(239, 68, 68, 0.22);
+}
+
+.feature-unavailable-fields {
+    opacity: 0.45;
+    pointer-events: none;
+    user-select: none;
+}

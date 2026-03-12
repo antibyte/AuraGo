@@ -130,6 +130,7 @@ type ContextFlags struct {
 	MemoryMaintenanceEnabled bool
 	WOLEnabled               bool
 	InternetExposed          bool   // HTTPS is enabled — system is likely reachable from the internet
+	IsDocker                 bool   // Running inside a Docker container
 	UserProfileSummary       string // Optional user profile summary from profiling engine
 	AdditionalPrompt         string // Extra instructions always appended at end of system prompt
 	SessionTodoItems         string // Session-scoped task list piggybacked on tool calls
@@ -1006,6 +1007,10 @@ func (m *PromptModule) ShouldInclude(flags ContextFlags) bool {
 			}
 		case "netlify_enabled":
 			if flags.NetlifyEnabled {
+				return true
+			}
+		case "is_docker":
+			if flags.IsDocker {
 				return true
 			}
 		}

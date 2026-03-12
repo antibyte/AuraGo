@@ -31,6 +31,10 @@ async function renderHomepageSection(section) {
         </div>`;
     }
 
+    // ── Docker socket unavailable banner (runtime) ──
+    const hpBanner = featureUnavailableBanner('homepage_docker');
+    if (hpBanner) html += hpBanner;
+
     // ── Status banner ──
     // Nur der Dev-Container ist relevant für "aktiv" Status (Webserver ist optional)
     if (dockerEnabled && hpEnabled) {

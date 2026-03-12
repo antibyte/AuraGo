@@ -28,5 +28,8 @@
   "config.common.saved": "Salvo",
   "config.common.network_error": "Erro de rede.",
   "config.common.active": "Ativo",
-  "config.common.inactive": "Inativo"
+  "config.common.inactive": "Inativo",
+  "config.feature_unavailable": "Este recurso não está disponível no ambiente de execução atual.",
+  "config.docker_mode_banner": "O AuraGo está sendo executado dentro de um contêiner Docker. Alguns recursos podem ser limitados.",
+  "config.firewall.docker_blocked": "O gerenciamento de firewall não está disponível dentro de um contêiner Docker."
 }

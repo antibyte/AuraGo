@@ -18,6 +18,13 @@ let sandboxStatusCache = null;
                 <div class="section-header">${section.icon} ${section.label}</div>
                 <div class="section-desc">${section.desc}</div>`;
 
+            // Docker socket unavailable banner
+            const sbBanner = featureUnavailableBanner('sandbox');
+            if (sbBanner) html += sbBanner;
+            const sbBlocked = !!(runtimeData.features && runtimeData.features.sandbox && !runtimeData.features.sandbox.available);
+
+            if (sbBlocked) html += '<div class="feature-unavailable-fields">';
+
             // Status banner
             if (sbEnabled && st.ready) {
                 const langList = (st.languages || []).join(', ') || 'python';
@@ -132,6 +139,7 @@ let sandboxStatusCache = null;
                 </div>`;
             }
 
+            if (sbBlocked) html += '</div>'; // End feature-unavailable-fields
             html += `</div>`;
             document.getElementById('content').innerHTML = html;
             attachChangeListeners();
