@@ -82,7 +82,9 @@ func (c *Client) log(msg string, args ...interface{}) {
 //  3. Raw session token (loginToken set, no ~t: prefix) — sent as meshcom cookie.
 func (c *Client) Connect() error {
 	// Build the WebSocket URL: scheme normalisation + /control.ashx
-	u, err := url.Parse(c.url + "/control.ashx")
+	// Handle URLs that may already have a path
+	baseURL := strings.TrimSuffix(c.url, "/")
+	u, err := url.Parse(baseURL + "/control.ashx")
 	if err != nil {
 		return err
 	}
@@ -92,22 +94,29 @@ func (c *Client) Connect() error {
 	case "https":
 		u.Scheme = "wss"
 	}
+	
+	c.log("[MeshCentral] Connect using base URL: %s", c.url)
 
 	header := http.Header{}
 
 	// Determine authentication strategy
 	if c.loginToken != "" {
 		c.log("[MeshCentral] Using auth strategy: Login Token (HTTP Login)")
-		// Login tokens have format: ~t:name:password or ~t:password
-		// We need to extract name and password, then do HTTP login
-		tokenUser, tokenPass, err := c.parseLoginToken(c.loginToken)
+		// Login tokens have format: ~t:tokenname:tokenpassword
+		// For HTTP login: username = "~t:tokenname", password = "tokenpassword"
+		tokenName, tokenPass, err := c.parseLoginToken(c.loginToken)
 		if err == nil {
-			// Use username from token if present, otherwise use configured username
-			loginUser := tokenUser
-			if loginUser == "" {
-				loginUser = c.username
+			// Build username with ~t: prefix for token login
+			// If tokenName is empty, we need it from config - but this shouldn't happen with proper tokens
+			loginUser := "~t:" + tokenName
+			if tokenName == "" {
+				// Fallback: try using configured username with ~t: prefix
+				if c.username != "" {
+					loginUser = "~t:" + c.username
+				}
 			}
-			// Temporarily set password for login (keep username for cookie)
+			c.log("[MeshCentral] Token login with user: %s", loginUser)
+			// Temporarily set password for login
 			savedPass := c.password
 			c.password = tokenPass
 			if loginErr := c.login(loginUser); loginErr == nil {
@@ -219,7 +228,9 @@ func (c *Client) Connect() error {
 // MeshCentral requires a per-session CSRF nonce (embedded in the login page
 // as  random="<base64>"  in the JS) to be replayed as "rn" in the POST body.
 func (c *Client) login(loginUser string) error {
-	u, err := url.Parse(c.url + "/login.ashx")
+	// Handle URLs that may already have a path
+	baseURL := strings.TrimSuffix(c.url, "/")
+	u, err := url.Parse(baseURL + "/login.ashx")
 	if err != nil {
 		return err
 	}
@@ -262,22 +273,35 @@ func (c *Client) login(loginUser string) error {
 	}
 
 	// Step 2: POST credentials including the nonce.
-	payload := map[string]interface{}{
-		"u":  loginUser,
-		"p":  c.password,
-		"a":  1, // Web/Agent login
-		"rn": nonce,
-	}
-	bodyData, err := json.Marshal(payload)
-	if err != nil {
-		return err
+	// Use form data for token login (~t:username), JSON for regular login
+	var req *http.Request
+	var bodyData []byte
+	contentType := "application/json"
+	
+	if strings.HasPrefix(loginUser, "~t:") {
+		// Token login uses form data
+		formData := url.Values{}
+		formData.Set("username", loginUser)
+		formData.Set("password", c.password)
+		bodyData = []byte(formData.Encode())
+		contentType = "application/x-www-form-urlencoded"
+		c.log("[MeshCentral] Using form-data login for token auth")
+	} else {
+		// Regular login uses JSON
+		payload := map[string]interface{}{
+			"u":  loginUser,
+			"p":  c.password,
+			"a":  1, // Web/Agent login
+			"rn": nonce,
+		}
+		bodyData, _ = json.Marshal(payload)
 	}
 
-	req, err := http.NewRequest("POST", loginURL, bytes.NewBuffer(bodyData))
+	req, err = http.NewRequest("POST", loginURL, bytes.NewBuffer(bodyData))
 	if err != nil {
 		return err
 	}
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Type", contentType)
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
@@ -400,15 +424,26 @@ func (c *Client) loginViaForm(rootURL, loginUser, password string, httpClient *h
 			continue
 		}
 
-		// POST credentials.
-		payload := map[string]interface{}{"u": loginUser, "p": password, "a": 1, "rn": nonce}
-		bodyData, _ := json.Marshal(payload)
+		// POST credentials - use form data for token login
+		var bodyData []byte
+		contentType := "application/json"
+		if strings.HasPrefix(loginUser, "~t:") {
+			formData := url.Values{}
+			formData.Set("username", loginUser)
+			formData.Set("password", password)
+			bodyData = []byte(formData.Encode())
+			contentType = "application/x-www-form-urlencoded"
+		} else {
+			payload := map[string]interface{}{"u": loginUser, "p": password, "a": 1, "rn": nonce}
+			bodyData, _ = json.Marshal(payload)
+		}
+		
 		postReq, reqErr := http.NewRequest("POST", loginURL, bytes.NewBuffer(bodyData))
 		if reqErr != nil {
 			lastErr = reqErr
 			continue
 		}
-		postReq.Header.Set("Content-Type", "application/json")
+		postReq.Header.Set("Content-Type", contentType)
 
 		postResp, postErr := httpClient.Do(postReq)
 		if postErr != nil {
