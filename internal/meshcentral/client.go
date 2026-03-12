@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"regexp"
 	"strings"
 	"sync"
@@ -130,7 +131,7 @@ func (c *Client) Connect() error {
 		return fmt.Errorf("websocket dial failed: %v", err)
 	}
 	
-	fmt.Printf("[MeshCentral] WebSocket connected to %s\n", u.String())
+	fmt.Fprintf(os.Stderr, "[MeshCentral] WebSocket connected to %s\n", u.String())
 
 	c.wsMu.Lock()
 	c.ws = ws
@@ -142,7 +143,7 @@ func (c *Client) Connect() error {
 	// MeshCentral requires the client to send a serverinfo request
 	// to verify the connection is working. The server responds with
 	// serverinfo which confirms authentication was successful.
-	fmt.Printf("[MeshCentral] Sending serverinfo request to verify connection...\n")
+	fmt.Fprintf(os.Stderr, "[MeshCentral] Sending serverinfo request to verify connection...\n")
 	if err := c.Send(map[string]interface{}{"action": "serverinfo"}); err != nil {
 		return fmt.Errorf("failed to send serverinfo request: %w", err)
 	}
@@ -153,7 +154,7 @@ func (c *Client) Connect() error {
 		return fmt.Errorf("failed to receive serverinfo response: %w", err)
 	}
 	
-	fmt.Printf("[MeshCentral] Connection verified: serverinfo received (server version: %v)\n", res["serverVersion"])
+	fmt.Fprintf(os.Stderr, "[MeshCentral] Connection verified: serverinfo received (server version: %v)\n", res["serverVersion"])
 	return nil
 }
 
@@ -411,7 +412,7 @@ func (c *Client) readPump() {
 		
 		_, msg, err := ws.ReadMessage()
 		if err != nil {
-			fmt.Printf("[MeshCentral] readPump: WebSocket read error: %v\n", err)
+			fmt.Fprintf(os.Stderr, "[MeshCentral] readPump: WebSocket read error: %v\n", err)
 			return
 		}
 		
@@ -424,13 +425,13 @@ func (c *Client) readPump() {
 
 		// MeshCentral sometimes sends purely string payloads or empty objects
 		if len(msg) < 2 || msg[0] != '{' {
-			fmt.Printf("[MeshCentral] readPump: Skipping non-JSON message\n")
+			fmt.Fprintf(os.Stderr, "[MeshCentral] readPump: Skipping non-JSON message\n")
 			continue
 		}
 
 		var data map[string]interface{}
 		if err := json.Unmarshal(msg, &data); err != nil {
-			fmt.Printf("[MeshCentral] readPump: Failed to parse JSON: %v\n", err)
+			fmt.Fprintf(os.Stderr, "[MeshCentral] readPump: Failed to parse JSON: %v\n", err)
 			continue
 		}
 
@@ -441,25 +442,25 @@ func (c *Client) readPump() {
 		ch := c.pendingReqs[action]
 		if action == "event" {
 			if eventType, ok := data["eventType"].(string); ok {
-				fmt.Printf("[MeshCentral] readPump: Event type='%s', looking for channel 'event_%s'\n", eventType, eventType)
+				fmt.Fprintf(os.Stderr, "[MeshCentral] readPump: Event type='%s', looking for channel 'event_%s'\n", eventType, eventType)
 				ch = c.pendingReqs["event_"+eventType]
 			}
 		}
 		c.reqsMu.RUnlock()
 		
 		if ch != nil {
-			fmt.Printf("[MeshCentral] readPump: Routing to channel for action='%s'\n", action)
+			fmt.Fprintf(os.Stderr, "[MeshCentral] readPump: Routing to channel for action='%s'\n", action)
 			// Non-blocking send with done channel check
 			select {
 			case ch <- data:
-				fmt.Printf("[MeshCentral] readPump: Successfully sent to channel\n")
+				fmt.Fprintf(os.Stderr, "[MeshCentral] readPump: Successfully sent to channel\n")
 			case <-c.done:
 				return
 			default:
-				fmt.Printf("[MeshCentral] readPump: Channel full, dropping message\n")
+				fmt.Fprintf(os.Stderr, "[MeshCentral] readPump: Channel full, dropping message\n")
 			}
 		} else {
-			fmt.Printf("[MeshCentral] readPump: No channel registered for action='%s'\n", action)
+			fmt.Fprintf(os.Stderr, "[MeshCentral] readPump: No channel registered for action='%s'\n", action)
 		}
 	}
 }
