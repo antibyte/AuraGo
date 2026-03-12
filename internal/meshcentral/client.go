@@ -129,6 +129,8 @@ func (c *Client) Connect() error {
 		}
 		return fmt.Errorf("websocket dial failed: %v", err)
 	}
+	
+	fmt.Printf("[MeshCentral] WebSocket connected to %s\n", u.String())
 
 	// Pre-register BOTH possible handshake channels BEFORE readPump starts.
 	// MeshCentral sends either action="userinfo" or action="event" /
@@ -148,18 +150,29 @@ func (c *Client) Connect() error {
 	c.wsMu.Unlock()
 	
 	go c.readPump()
-	go c.pingPump()
+	// Note: pingPump is started AFTER successful handshake to avoid interference
 
 	// Wait for whichever handshake message the server sends first.
+	fmt.Printf("[MeshCentral] Waiting for handshake (userinfo or serverinfo)...\n")
 	timer := time.NewTimer(10 * time.Second)
 	defer timer.Stop()
 	select {
 	case <-userinfoC:
 		// connected — server sent userinfo
+		fmt.Printf("[MeshCentral] Handshake successful: received userinfo\n")
+		go c.pingPump()
 	case <-serverinfoC:
 		// connected — server sent event_serverinfo
+		fmt.Printf("[MeshCentral] Handshake successful: received serverinfo\n")
+		go c.pingPump()
+	case <-c.done:
+		return fmt.Errorf("client closed while waiting for handshake")
 	case <-timer.C:
-		return fmt.Errorf("failed to receive initial meshcentral handshake: timeout waiting for userinfo or serverinfo")
+		c.reqsMu.RLock()
+		hasUserinfo := c.pendingReqs["userinfo"] != nil
+		hasServerinfo := c.pendingReqs["event_serverinfo"] != nil
+		c.reqsMu.RUnlock()
+		return fmt.Errorf("failed to receive initial meshcentral handshake: timeout waiting for userinfo or serverinfo (within 10s) [hasUserinfoCh=%v, hasServerinfoCh=%v]", hasUserinfo, hasServerinfo)
 	}
 
 	return nil
@@ -432,6 +445,15 @@ func (c *Client) readPump() {
 		}
 
 		action, _ := data["action"].(string)
+		
+		// Debug logging for handshake messages
+		if action == "userinfo" || action == "event" {
+			if eventType, ok := data["eventType"].(string); ok && action == "event" {
+				fmt.Printf("[MeshCentral] Received: action=%s, eventType=%s\n", action, eventType)
+			} else {
+				fmt.Printf("[MeshCentral] Received: action=%s\n", action)
+			}
+		}
 
 		c.reqsMu.RLock()
 		ch := c.pendingReqs[action]

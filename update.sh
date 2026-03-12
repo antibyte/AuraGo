@@ -124,16 +124,12 @@ read_master_key_from_env() {
     raw=$(grep -E '^AURAGO_MASTER_KEY=' "$env_file" | head -1 || true)
     raw="${raw#AURAGO_MASTER_KEY=}"
     raw="${raw%$'\r'}"
-    case "$raw" in
-        \"*\")
-            raw="${raw#\"}"
-            raw="${raw%\"}"
-            ;;
-        \'*\')
-            raw="${raw#\'}"
-            raw="${raw%\'}"
-            ;;
-    esac
+    # Remove surrounding quotes if present
+    if [[ "$raw" == \"*\" ]]; then
+        raw="${raw:1:-1}"
+    elif [[ "$raw" == \'*\' ]]; then
+        raw="${raw:1:-1}"
+    fi
     printf '%s' "$raw"
 }
 
