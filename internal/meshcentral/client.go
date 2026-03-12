@@ -76,8 +76,8 @@ func (c *Client) log(msg string, args ...interface{}) {
 // Authentication strategy (in priority order):
 //  1. Login Token  — passed as ?auth=<token> on the WebSocket URL.
 //     This is the official MeshCentral API mechanism; no HTTP round-trip needed.
-//  2. Username + Password — HTTP POST to login.ashx to obtain a session cookie.
-//     Falls back to ?user=<u>&pass=<p> on the WS URL if login.ashx is unreachable
+//  2. Username + Password — HTTP POST to /login to obtain a session cookie.
+//     Falls back to ?user=<u>&pass=<p> on the WS URL if /login is unreachable
 //     (e.g. reverse-proxy that only exposes /control.ashx).
 //  3. Raw session token (loginToken set, no ~t: prefix) — sent as meshcom cookie.
 func (c *Client) Connect() error {
@@ -161,7 +161,7 @@ func (c *Client) Connect() error {
 				header.Set("Cookie", (&http.Cookie{Name: "meshcom", Value: c.sessionID}).String())
 			}
 		} else {
-			// HTTP login unavailable (login.ashx 404 / reverse-proxy) — fall back
+			// HTTP login unavailable (/login 404 / reverse-proxy) — fall back
 			// to WS query-param auth: ?user=<u>&pass=<p>
 			q := u.Query()
 			q.Set("user", c.username)
@@ -224,13 +224,13 @@ func (c *Client) Connect() error {
 	return nil
 }
 
-// login performs the HTTP POST to /login.ashx to get the auth cookie.
+// login performs the HTTP POST to /login to get the auth cookie.
 // MeshCentral requires a per-session CSRF nonce (embedded in the login page
 // as  random="<base64>"  in the JS) to be replayed as "rn" in the POST body.
 func (c *Client) login(loginUser string) error {
 	// Handle URLs that may already have a path
 	baseURL := strings.TrimSuffix(c.url, "/")
-	u, err := url.Parse(baseURL + "/login.ashx")
+	u, err := url.Parse(baseURL + "/login")
 	if err != nil {
 		return err
 	}
@@ -362,7 +362,7 @@ func (c *Client) parseLoginToken(token string) (string, string, error) {
 	return "", "", fmt.Errorf("invalid login token format")
 }
 
-// loginViaForm is called when the primary POST to /login.ashx returns 404.
+// loginViaForm is called when the primary POST to /login returns 404.
 // It probes multiple candidate base URLs:
 //  1. The redirect-discovered path from rootURL (catches reverse-proxy setups that
 //     redirect the root to the real MeshCentral install path).
@@ -404,7 +404,7 @@ func (c *Client) loginViaForm(rootURL, loginUser, password string, httpClient *h
 
 	for _, base := range candidates {
 		base = strings.TrimSuffix(base, "/") + "/"
-		loginURL := base + "login.ashx"
+		loginURL := base + "login"
 		triedURLs = append(triedURLs, loginURL)
 
 		// GET login page to extract CSRF nonce; skip this candidate if it returns non-200.
@@ -482,11 +482,11 @@ func (c *Client) loginViaForm(rootURL, loginUser, password string, httpClient *h
 
 	tried := strings.Join(triedURLs, ", ")
 	if lastErr != nil {
-		return fmt.Errorf("login.ashx not found at the configured URL or common sub-paths (tried: %s). "+
+		return fmt.Errorf("/login not found at the configured URL or common sub-paths (tried: %s). "+
 			"Last error: %v — Set the MeshCentral URL in config to the exact sub-path "+
 			"(e.g. https://host/meshcentral)", tried, lastErr)
 	}
-	return fmt.Errorf("no candidate login.ashx endpoint found (tried: %s)", tried)
+	return fmt.Errorf("no candidate /login endpoint found (tried: %s)", tried)
 }
 
 // Close gracefully closes the WebSocket.
