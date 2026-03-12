@@ -1,20 +1,17 @@
 // cfg/homepage.js — Homepage tool section module
 
-let hpStatusCache = null;
-
 async function renderHomepageSection(section) {
-    // Lazy-load status
-    if (hpStatusCache === null) {
-        try {
-            const resp = await fetch('/api/homepage/status');
-            hpStatusCache = resp.ok ? await resp.json() : {};
-        } catch (_) { hpStatusCache = {}; }
-    }
+    // Always fetch fresh status — stale cache would persist docker_available:false
+    // across the session even after Docker becomes accessible again.
+    let st = {};
+    try {
+        const resp = await fetch('/api/homepage/status');
+        st = resp.ok ? await resp.json() : {};
+    } catch (_) {}
 
     const cfg = configData.homepage || {};
     const dockerEnabled = !!(configData.docker && configData.docker.enabled);
     const hpEnabled = cfg.enabled === true;
-    const st = hpStatusCache || {};
 
     let html = `<div class="cfg-section active">
         <div class="section-header">${section.icon} ${section.label}</div>
