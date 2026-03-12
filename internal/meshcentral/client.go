@@ -414,6 +414,7 @@ func (c *Client) Close() {
 
 // readPump reads messages from the WebSocket and routes them.
 func (c *Client) readPump() {
+	msgCount := 0
 	for {
 		select {
 		case <-c.done:
@@ -431,47 +432,55 @@ func (c *Client) readPump() {
 		
 		_, msg, err := ws.ReadMessage()
 		if err != nil {
+			fmt.Printf("[MeshCentral] readPump: WebSocket read error: %v\n", err)
 			return
 		}
+		
+		msgCount++
+		msgStr := string(msg)
+		if len(msgStr) > 200 {
+			msgStr = msgStr[:200] + "..."
+		}
+		fmt.Printf("[MeshCentral] readPump: Received message #%d: %s\n", msgCount, msgStr)
 
 		// MeshCentral sometimes sends purely string payloads or empty objects
 		if len(msg) < 2 || msg[0] != '{' {
+			fmt.Printf("[MeshCentral] readPump: Skipping non-JSON message\n")
 			continue
 		}
 
 		var data map[string]interface{}
 		if err := json.Unmarshal(msg, &data); err != nil {
+			fmt.Printf("[MeshCentral] readPump: Failed to parse JSON: %v\n", err)
 			continue
 		}
 
 		action, _ := data["action"].(string)
-		
-		// Debug logging for handshake messages
-		if action == "userinfo" || action == "event" {
-			if eventType, ok := data["eventType"].(string); ok && action == "event" {
-				fmt.Printf("[MeshCentral] Received: action=%s, eventType=%s\n", action, eventType)
-			} else {
-				fmt.Printf("[MeshCentral] Received: action=%s\n", action)
-			}
-		}
+		fmt.Printf("[MeshCentral] readPump: Parsed action='%s'\n", action)
 
 		c.reqsMu.RLock()
 		ch := c.pendingReqs[action]
 		if action == "event" {
 			if eventType, ok := data["eventType"].(string); ok {
+				fmt.Printf("[MeshCentral] readPump: Event type='%s', looking for channel 'event_%s'\n", eventType, eventType)
 				ch = c.pendingReqs["event_"+eventType]
 			}
 		}
 		c.reqsMu.RUnlock()
 		
 		if ch != nil {
+			fmt.Printf("[MeshCentral] readPump: Routing to channel for action='%s'\n", action)
 			// Non-blocking send with done channel check
 			select {
 			case ch <- data:
+				fmt.Printf("[MeshCentral] readPump: Successfully sent to channel\n")
 			case <-c.done:
 				return
 			default:
+				fmt.Printf("[MeshCentral] readPump: Channel full, dropping message\n")
 			}
+		} else {
+			fmt.Printf("[MeshCentral] readPump: No channel registered for action='%s'\n", action)
 		}
 	}
 }
