@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bytes"
 	"log/slog"
 	"net"
 	"os"
@@ -30,10 +31,11 @@ func DetectRuntime(logger *slog.Logger) Runtime {
 	rt := Runtime{}
 	logger.Info("[Runtime] Detecting environment capabilities …")
 
-	// 1. Docker container detection: /.dockerenv is created by Docker
-	if _, err := os.Stat("/.dockerenv"); err == nil {
-		rt.IsDocker = true
-	}
+	// 1. Docker container detection.
+	// /.dockerenv alone is NOT a reliable signal — Proxmox LXC and other
+	// container runtimes may also have this file.  We require at least one
+	// additional positive signal before setting IsDocker=true.
+	rt.IsDocker = probeDockerContainer()
 	logger.Info("[Runtime] Container check", "is_docker", rt.IsDocker)
 
 	// 2. Docker socket reachability — try common paths / configured host.
@@ -81,10 +83,32 @@ func ComputeFeatureAvailability(rt Runtime) map[string]FeatureAvailability {
 	}
 
 	// Docker socket
-	avail["docker"] = FeatureAvailability{Available: rt.DockerSocketOK, Reason: boolReason(!rt.DockerSocketOK, "Docker socket not detected. Mount /var/run/docker.sock to enable.")}
-	avail["sandbox"] = FeatureAvailability{Available: rt.DockerSocketOK, Reason: boolReason(!rt.DockerSocketOK, "Sandbox requires Docker socket. Mount /var/run/docker.sock to enable.")}
-	avail["homepage_docker"] = FeatureAvailability{Available: rt.DockerSocketOK, Reason: boolReason(!rt.DockerSocketOK, "Docker-based development requires the Docker socket. Local file server still works.")}
-	avail["invasion_local"] = FeatureAvailability{Available: rt.DockerSocketOK, Reason: boolReason(!rt.DockerSocketOK, "Local Docker deployment requires the Docker socket. SSH deployment still works.")}
+	// Only report the socket as "unavailable" (with a reason) when we are
+	// actually running inside a Docker container — outside Docker, the socket
+	// simply being absent is normal (Docker not installed / not needed).
+	socketReason := ""
+	if rt.IsDocker && !rt.DockerSocketOK {
+		socketReason = "Docker socket not detected. Mount /var/run/docker.sock to enable."
+	}
+	avail["docker"] = FeatureAvailability{Available: rt.DockerSocketOK || !rt.IsDocker, Reason: socketReason}
+	avail["sandbox"] = FeatureAvailability{Available: rt.DockerSocketOK || !rt.IsDocker, Reason: func() string {
+		if rt.IsDocker && !rt.DockerSocketOK {
+			return "Sandbox requires Docker socket. Mount /var/run/docker.sock to enable."
+		}
+		return ""
+	}()}
+	avail["homepage_docker"] = FeatureAvailability{Available: rt.DockerSocketOK || !rt.IsDocker, Reason: func() string {
+		if rt.IsDocker && !rt.DockerSocketOK {
+			return "Docker-based development requires the Docker socket. Local file server still works."
+		}
+		return ""
+	}()}
+	avail["invasion_local"] = FeatureAvailability{Available: rt.DockerSocketOK || !rt.IsDocker, Reason: func() string {
+		if rt.IsDocker && !rt.DockerSocketOK {
+			return "Local Docker deployment requires the Docker socket. SSH deployment still works."
+		}
+		return ""
+	}()}
 
 	// Broadcast network (WOL, Chromecast discovery)
 	avail["wol"] = FeatureAvailability{Available: rt.BroadcastOK, Reason: boolReason(!rt.BroadcastOK, "Wake-on-LAN requires broadcast network. Use network_mode: host in Docker.")}
@@ -98,6 +122,48 @@ func boolReason(show bool, reason string) string {
 		return reason
 	}
 	return ""
+}
+
+// probeDockerContainer returns true only when the process is running inside a
+// Docker container.  /.dockerenv alone is not a reliable indicator — Proxmox
+// LXC containers and other runtimes create it too.  We require /.dockerenv
+// PLUS at least one of:
+//   - /proc/1/environ contains "container=docker"  (set by Docker's init)
+//   - /proc/self/cgroup contains a path element "docker"
+//   - /proc/1/cpuset path starts with "/docker/"
+//
+// Systemd-only containers (LXC, nspawn, etc.) will fail ALL secondary checks
+// even if /.dockerenv happens to exist.
+func probeDockerContainer() bool {
+	if _, err := os.Stat("/.dockerenv"); err != nil {
+		return false // no /.dockerenv — definitely not Docker
+	}
+
+	// Check /proc/1/environ for container=docker
+	if env, err := os.ReadFile("/proc/1/environ"); err == nil {
+		for _, kv := range bytes.Split(env, []byte{0}) {
+			if bytes.Equal(kv, []byte("container=docker")) {
+				return true
+			}
+		}
+	}
+
+	// Check cgroup for docker path
+	if cg, err := os.ReadFile("/proc/self/cgroup"); err == nil {
+		if bytes.Contains(cg, []byte("docker")) {
+			return true
+		}
+	}
+
+	// Check cpuset for /docker/ prefix
+	if cs, err := os.ReadFile("/proc/1/cpuset"); err == nil {
+		line := bytes.TrimSpace(cs)
+		if bytes.HasPrefix(line, []byte("/docker/")) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // probeDockerSocket tries connecting to common Docker socket paths.

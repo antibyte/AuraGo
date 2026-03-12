@@ -267,11 +267,11 @@ func HomepageStatus(cfg HomepageConfig, logger *slog.Logger) string {
 
 	// Dev container status
 	devStatus := containerStatus(dockerCfg, homepageContainerName)
-	result["dev_container"] = devStatus
+	result["dev_container"] = json.RawMessage(devStatus)
 
 	// Web container status
 	webStatus := containerStatus(dockerCfg, homepageWebContainer)
-	result["web_container"] = webStatus
+	result["web_container"] = json.RawMessage(webStatus)
 
 	out, _ := json.Marshal(result)
 	return string(out)

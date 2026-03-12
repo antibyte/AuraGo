@@ -617,7 +617,10 @@ CURRENT_TEMPLATE="$DIR/config.yaml"
 # In binary-only mode the new template was stored as config.yaml.new_template;
 # switch it in so the merger works against it.
 if $BINARY_ONLY && [ -f "$DIR/config.yaml.new_template" ]; then
-    cp "$DIR/config.yaml.new_template" "$CURRENT_TEMPLATE"
+    # Use -f (force) so that pre-existing root-owned config.yaml can be replaced
+    # by removing it first (requires only directory write permission).
+    cp -f "$DIR/config.yaml.new_template" "$CURRENT_TEMPLATE" || \
+        { warn "cp -f failed; trying with sudo..."; sudo -n cp -f "$DIR/config.yaml.new_template" "$CURRENT_TEMPLATE" && sudo -n chown "$(id -un):" "$CURRENT_TEMPLATE"; }
     rm -f "$DIR/config.yaml.new_template"
 fi
 
@@ -639,7 +642,8 @@ if [ -f "$USER_CONFIG_BAK" ] && [ -f "$CURRENT_TEMPLATE" ]; then
             ok "Your settings have been merged into the new config.yaml."
         else
             warn "config-merger failed. Restoring your old config.yaml exactly."
-            cp -p "$USER_CONFIG_BAK" "$CURRENT_TEMPLATE"
+            cp -fp "$USER_CONFIG_BAK" "$CURRENT_TEMPLATE" || \
+                { sudo -n cp -fp "$USER_CONFIG_BAK" "$CURRENT_TEMPLATE" && sudo -n chown "$(id -un):" "$CURRENT_TEMPLATE"; }
         fi
     else
         warn "config-merger tool not found. Restoring your exact old config.yaml."
@@ -647,7 +651,8 @@ if [ -f "$USER_CONFIG_BAK" ] && [ -f "$CURRENT_TEMPLATE" ]; then
         NEW_KEYS=$(comm -23 \
             <(grep -E '^[a-z_]+:' "$CURRENT_TEMPLATE" | sort) \
             <(grep -E '^[a-z_]+:' "$USER_CONFIG_BAK" | sort) 2>/dev/null || true)
-        cp -p "$USER_CONFIG_BAK" "$CURRENT_TEMPLATE"
+        cp -fp "$USER_CONFIG_BAK" "$CURRENT_TEMPLATE" || \
+            { sudo -n cp -fp "$USER_CONFIG_BAK" "$CURRENT_TEMPLATE" && sudo -n chown "$(id -un):" "$CURRENT_TEMPLATE"; }
         if [ -n "$NEW_KEYS" ]; then
             warn "Please add these missing sections manually if needed:"
             echo "$NEW_KEYS" | while read -r key; do echo "    +  $key"; done
