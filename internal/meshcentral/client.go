@@ -25,10 +25,12 @@ type Client struct {
 	insecure   bool
 
 	ws          *websocket.Conn
-	sessionID   string // login cookie if using user/pass
+	wsMu        sync.RWMutex // Protects ws for concurrent access
+	sessionID   string       // login cookie if using user/pass
 	authCookies []*http.Cookie
 	reqID       int
 	mu          sync.Mutex
+	done        chan struct{} // Signals goroutines to stop
 
 	// Channels for routing responses
 	pendingReqs map[string]chan map[string]interface{}
@@ -45,6 +47,7 @@ func NewClient(urlStr, username, password, loginToken string, insecure bool) *Cl
 		loginToken:  loginToken,
 		insecure:    insecure,
 		pendingReqs: make(map[string]chan map[string]interface{}),
+		done:        make(chan struct{}),
 	}
 }
 
@@ -140,8 +143,12 @@ func (c *Client) Connect() error {
 	c.pendingReqs["event_serverinfo"] = serverinfoC
 	c.reqsMu.Unlock()
 
+	c.wsMu.Lock()
 	c.ws = ws
+	c.wsMu.Unlock()
+	
 	go c.readPump()
+	go c.pingPump()
 
 	// Wait for whichever handshake message the server sends first.
 	timer := time.NewTimer(10 * time.Second)
@@ -374,21 +381,44 @@ func (c *Client) loginViaForm(rootURL, loginUser, password string, httpClient *h
 
 // Close gracefully closes the WebSocket.
 func (c *Client) Close() {
+	close(c.done)
+	
+	c.wsMu.Lock()
 	if c.ws != nil {
 		_ = c.ws.Close()
 		c.ws = nil
 	}
+	c.wsMu.Unlock()
+	
+	// Clean up pending request channels to prevent memory leaks
+	c.reqsMu.Lock()
+	for _, ch := range c.pendingReqs {
+		close(ch)
+	}
+	c.pendingReqs = make(map[string]chan map[string]interface{})
+	c.reqsMu.Unlock()
 }
 
 // readPump reads messages from the WebSocket and routes them.
 func (c *Client) readPump() {
 	for {
-		if c.ws == nil {
-			break
+		select {
+		case <-c.done:
+			return
+		default:
 		}
-		_, msg, err := c.ws.ReadMessage()
+		
+		c.wsMu.RLock()
+		ws := c.ws
+		c.wsMu.RUnlock()
+		
+		if ws == nil {
+			return
+		}
+		
+		_, msg, err := ws.ReadMessage()
 		if err != nil {
-			break
+			return
 		}
 
 		// MeshCentral sometimes sends purely string payloads or empty objects
@@ -404,22 +434,23 @@ func (c *Client) readPump() {
 		action, _ := data["action"].(string)
 
 		c.reqsMu.RLock()
-		if action != "" && c.pendingReqs[action] != nil {
-			// Non-blocking send
-			select {
-			case c.pendingReqs[action] <- data:
-			default:
-			}
-		} else if action == "event" {
-			// Route events if someone is waiting for them
-			if eventType, ok := data["eventType"].(string); ok && c.pendingReqs["event_"+eventType] != nil {
-				select {
-				case c.pendingReqs["event_"+eventType] <- data:
-				default:
-				}
+		ch := c.pendingReqs[action]
+		if action == "event" {
+			if eventType, ok := data["eventType"].(string); ok {
+				ch = c.pendingReqs["event_"+eventType]
 			}
 		}
 		c.reqsMu.RUnlock()
+		
+		if ch != nil {
+			// Non-blocking send with done channel check
+			select {
+			case ch <- data:
+			case <-c.done:
+				return
+			default:
+			}
+		}
 	}
 }
 
@@ -428,14 +459,18 @@ func (c *Client) Send(cmd map[string]interface{}) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if c.ws == nil {
+	c.wsMu.RLock()
+	ws := c.ws
+	c.wsMu.RUnlock()
+	
+	if ws == nil {
 		return fmt.Errorf("not connected")
 	}
 
 	c.reqID++
 	cmd["reqid"] = c.reqID
 
-	return c.ws.WriteJSON(cmd)
+	return ws.WriteJSON(cmd)
 }
 
 // WaitForAction waits for a response with the given action string.
@@ -451,13 +486,46 @@ func (c *Client) WaitForAction(action string, timeout time.Duration) (map[string
 	case res := <-waitCh:
 		return res, nil
 	case <-time.After(timeout):
+		// Clean up the channel to prevent memory leaks
+		c.reqsMu.Lock()
+		if c.pendingReqs[action] == waitCh {
+			delete(c.pendingReqs, action)
+		}
+		c.reqsMu.Unlock()
 		return nil, fmt.Errorf("timeout waiting for action %s", action)
+	case <-c.done:
+		return nil, fmt.Errorf("client disconnected while waiting for action %s", action)
 	}
 }
 
 // WaitForEvent waits for an event response with the given eventType string.
 func (c *Client) WaitForEvent(eventType string, timeout time.Duration) (map[string]interface{}, error) {
 	return c.WaitForAction("event_"+eventType, timeout)
+}
+
+// pingPump sends periodic ping messages to keep the connection alive.
+func (c *Client) pingPump() {
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+	
+	for {
+		select {
+		case <-c.done:
+			return
+		case <-ticker.C:
+			c.wsMu.RLock()
+			ws := c.ws
+			c.wsMu.RUnlock()
+			
+			if ws == nil {
+				return
+			}
+			
+			if err := ws.WriteMessage(websocket.PingMessage, nil); err != nil {
+				return
+			}
+		}
+	}
 }
 
 // --- High Level API Methods --- //

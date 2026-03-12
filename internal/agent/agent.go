@@ -3721,7 +3721,7 @@ func dispatchInner(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 			return `Tool Output: {"status": "error", "message": "No password or token found. Please set 'meshcentral_password' or 'meshcentral_token' in the vault."}`
 		}
 
-		mcClient := meshcentral.NewClient(cfg.MeshCentral.URL, cfg.MeshCentral.Username, pass, token, true)
+		mcClient := meshcentral.NewClient(cfg.MeshCentral.URL, cfg.MeshCentral.Username, pass, token, cfg.MeshCentral.Insecure)
 		if err := mcClient.Connect(); err != nil {
 			return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Failed to connect to MeshCentral: %v"}`, err)
 		}

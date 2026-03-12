@@ -272,6 +272,7 @@ type Config struct {
 		Username          string   `yaml:"username"`
 		Password          string   `yaml:"-" vault:"password"`    // vault-only
 		LoginToken        string   `yaml:"-" vault:"login_token"` // vault-only
+		Insecure          bool     `yaml:"insecure"`             // skip TLS certificate verification (default: false)
 	} `yaml:"meshcentral"`
 	Docker struct {
 		Enabled  bool   `yaml:"enabled"`

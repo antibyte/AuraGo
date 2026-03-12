@@ -198,6 +198,7 @@ meshcentral:
     blocked_operations: []
     url: ""
     username: ""
+    insecure: false  # Set to true to skip TLS certificate verification (not recommended for production)
 maintenance:
     enabled: true
     lifeboat_enabled: true
