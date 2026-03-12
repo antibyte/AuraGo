@@ -397,17 +397,17 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 
 	if ff.MeshCentralEnabled {
 		tools = append(tools, tool("meshcentral",
-			"Manage and interact with devices and groups managed by a MeshCentral server. Supports listing devices, wake-on-lan, power actions, and running commands.",
+			"Manage and interact with devices and groups managed by a MeshCentral server. Supports listing devices, wake-on-lan, power actions, running commands, and interactive shell access.",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
 					"type":        "string",
 					"description": "Operation to perform",
-					"enum":        []string{"list_groups", "list_devices", "wake", "power_action", "run_command"},
+					"enum":        []string{"list_groups", "list_devices", "wake", "power_action", "run_command", "shell"},
 				},
 				"mesh_id":      prop("string", "Mesh/Group ID (for list_devices)"),
-				"node_id":      prop("string", "Node/Device ID (for wake, power_action, run_command)"),
+				"node_id":      prop("string", "Node/Device ID (for wake, power_action, run_command, shell)"),
 				"power_action": prop("integer", "Action (1=Sleep, 2=Hibernate, 3=PowerOff, 4=Reset)"),
-				"command":      prop("string", "Command string (for run_command)"),
+				"command":      prop("string", "Command string (for run_command or shell)"),
 			}, "operation"),
 		))
 	}
@@ -757,17 +757,17 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 	}
 	if ff.MeshCentralEnabled {
 		tools = append(tools, tool("meshcentral",
-			"Manage MeshCentral devices. List device groups, list devices, wake devices via WOL, send power actions, and run commands on remote shells.",
+			"Manage MeshCentral devices. List device groups, list devices, wake devices via WOL, send power actions, run commands, and execute interactive shell commands with output.",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
 					"type":        "string",
 					"description": "Operation to perform",
-					"enum":        []string{"list_groups", "list_devices", "wake", "power_action", "run_command"},
+					"enum":        []string{"list_groups", "list_devices", "wake", "power_action", "run_command", "shell"},
 				},
 				"mesh_id":      prop("string", "Mesh/Group ID (optional for list_devices to filter results)"),
-				"node_id":      prop("string", "Node/Device ID (required for wake, power_action, run_command)"),
+				"node_id":      prop("string", "Node/Device ID (required for wake, power_action, run_command, shell)"),
 				"power_action": map[string]interface{}{"type": "integer", "description": "Power action ID. 1=Sleep, 2=Hibernate, 3=PowerOff, 4=Reset (for power_action)"},
-				"command":      prop("string", "Command to run on remote device (for run_command)"),
+				"command":      prop("string", "Command to run on remote device (for run_command or shell)"),
 			}, "operation"),
 		))
 	}

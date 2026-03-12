@@ -774,22 +774,23 @@
         }
 
         /* ── Footer / Input ────────────────────────────────── */
-        /* New Chat Button - positioned above input row */
+        /* New Chat Button - positioned left of input field */
         .btn-new-chat {
-            display: block;
-            width: 100%;
-            max-width: 52rem;
-            margin: 0 auto 0.75rem auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             padding: 0.6rem 1rem;
             background: var(--bg-glass);
             border: 1px solid var(--border-subtle);
-            border-radius: 10px;
+            border-radius: 12px;
             color: var(--text-secondary);
             font-size: 0.85rem;
             font-weight: 500;
             cursor: pointer;
             transition: all 0.2s ease;
-            text-align: center;
+            white-space: nowrap;
+            height: 46px;
+            min-width: 100px;
         }
         .btn-new-chat:hover {
             background: var(--accent-dim);
@@ -1452,8 +1453,9 @@
 
             .btn-new-chat {
                 padding: 0.5rem 0.75rem;
-                font-size: 0.8rem;
-                margin-bottom: 0.5rem;
+                font-size: 0.75rem;
+                min-width: 80px;
+                height: 40px;
             }
 
             .input-row {

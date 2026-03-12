@@ -351,11 +351,17 @@ func (c *Client) readPump() {
 		}
 
 		action, _ := data["action"].(string)
+		
+		// Debug logging for troubleshooting
+		if action != "" && action != "ping" && action != "pong" {
+			c.log("[MeshCentral] Received message", "action", action)
+		}
 
 		c.reqsMu.RLock()
 		ch := c.pendingReqs[action]
 		if action == "event" {
 			if eventType, ok := data["eventType"].(string); ok {
+				c.log("[MeshCentral] Received event", "eventType", eventType)
 				ch = c.pendingReqs["event_"+eventType]
 			}
 		}
@@ -528,7 +534,8 @@ func (c *Client) PowerAction(nodeIDs []string, powerAction int) (string, error) 
 }
 
 // RunCommand executes a shell command on the device via the MeshAgent.
-// Returns the command output or error.
+// Note: MeshCentral does not return command output via WebSocket. The command
+// is executed asynchronously on the agent. Success only means the command was sent.
 func (c *Client) RunCommand(nodeID, command string) (string, error) {
 	if err := c.Send(map[string]interface{}{
 		"action": "runcommand",
@@ -538,17 +545,35 @@ func (c *Client) RunCommand(nodeID, command string) (string, error) {
 		return "", err
 	}
 	
-	// Wait for command result
-	// MeshCentral sends the result as an event or as a response with action "runcommand"
-	res, err := c.WaitForAction("runcommand", 30*time.Second)
+	// MeshCentral runcommand is fire-and-forget - no response expected
+	// The command executes asynchronously on the agent
+	return "Command sent to agent for execution (output not available via WebSocket)", nil
+}
+
+// Shell starts an interactive shell session on the device via the MeshAgent.
+// This uses the WebSocket-based shell protocol which provides bidirectional
+// communication. Returns the initial response or error.
+//
+// Note: This requires an active shell session. Use RunCommand for one-off commands.
+func (c *Client) Shell(nodeID, command string) (string, error) {
+	if err := c.Send(map[string]interface{}{
+		"action": "shell",
+		"nodeid": nodeID,
+		"data":   command + "\n",
+	}); err != nil {
+		return "", err
+	}
+	
+	// Wait for shell response (with timeout)
+	res, err := c.WaitForAction("shell", 10*time.Second)
 	if err != nil {
-		return "", fmt.Errorf("timeout waiting for command result: %w", err)
+		return "", fmt.Errorf("timeout waiting for shell response: %w", err)
 	}
 	
-	// Extract result from response
-	if result, ok := res["result"].(string); ok {
-		return result, nil
+	// Extract output from response
+	if data, ok := res["data"].(string); ok {
+		return data, nil
 	}
 	
-	return "", fmt.Errorf("no result in command response")
+	return "", fmt.Errorf("no data in shell response")
 }

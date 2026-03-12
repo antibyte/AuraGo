@@ -3777,6 +3777,16 @@ func dispatchInner(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 			}
 			return fmt.Sprintf(`Tool Output: {"status": "success", "result": "%s"}`, result)
 
+		case "shell":
+			if tc.NodeID == "" || tc.Command == "" {
+				return `Tool Output: {"status": "error", "message": "'node_id' and 'command' are required for shell"}`
+			}
+			result, err := mcClient.Shell(tc.NodeID, tc.Command)
+			if err != nil {
+				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Failed to execute shell command: %v"}`, err)
+			}
+			return fmt.Sprintf(`Tool Output: {"status": "success", "output": %q}`, result)
+
 		default:
 			return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Unknown operation: %s"}`, tc.Operation)
 		}
