@@ -97,13 +97,37 @@ func (c *Client) Connect() error {
 
 	// Determine authentication strategy
 	if c.loginToken != "" {
-		c.log("[MeshCentral] Using auth strategy: Login Token (token length: %d)", len(c.loginToken))
-		// MeshCentral supports both x-meshauth header and ?auth= query parameter
-		// Try query parameter first as it's more widely supported
-		q := u.Query()
-		q.Set("auth", c.loginToken)
-		u.RawQuery = q.Encode()
-		c.log("[MeshCentral] Auth parameter added to URL")
+		c.log("[MeshCentral] Using auth strategy: Login Token (HTTP Login)")
+		// Login tokens have format: ~t:name:password
+		// We need to extract name and password, then do HTTP login
+		tokenUser, tokenPass, err := c.parseLoginToken(c.loginToken)
+		if err == nil {
+			// Temporarily set username/password for login
+			savedUser, savedPass := c.username, c.password
+			c.username, c.password = tokenUser, tokenPass
+			if loginErr := c.login(tokenUser); loginErr == nil {
+				// HTTP login succeeded; build cookie header
+				if len(c.authCookies) > 0 {
+					parts := make([]string, 0, len(c.authCookies))
+					for _, ck := range c.authCookies {
+						if ck != nil && ck.Name != "" && ck.Value != "" {
+							parts = append(parts, ck.Name+"="+ck.Value)
+						}
+					}
+					if len(parts) > 0 {
+						header.Set("Cookie", strings.Join(parts, "; "))
+					}
+				} else if c.sessionID != "" {
+					header.Set("Cookie", (&http.Cookie{Name: "meshcom", Value: c.sessionID}).String())
+				}
+			} else {
+				c.log("[MeshCentral] HTTP login with token credentials failed: %v", loginErr)
+			}
+			// Restore original credentials
+			c.username, c.password = savedUser, savedPass
+		} else {
+			c.log("[MeshCentral] Failed to parse login token: %v", err)
+		}
 	} else if c.username != "" {
 		c.log("[MeshCentral] Using auth strategy: Username/Password")
 		// Try HTTP login first so we get a proper session cookie.
@@ -282,6 +306,23 @@ func (c *Client) login(loginUser string) error {
 	}
 
 	return fmt.Errorf("no auth cookies found in login response")
+}
+
+// parseLoginToken parses a MeshCentral login token.
+// Login tokens have the format: ~t:username:password
+// Returns username, password, and error if parsing fails.
+func (c *Client) parseLoginToken(token string) (string, string, error) {
+	// Login token format: ~t:username:password
+	if !strings.HasPrefix(token, "~t:") {
+		return "", "", fmt.Errorf("invalid login token format: must start with ~t:")
+	}
+	
+	parts := strings.SplitN(token, ":", 3)
+	if len(parts) != 3 {
+		return "", "", fmt.Errorf("invalid login token format: expected ~t:username:password")
+	}
+	
+	return parts[1], parts[2], nil
 }
 
 // loginViaForm is called when the primary POST to /login.ashx returns 404.
