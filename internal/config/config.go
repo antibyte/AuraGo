@@ -43,6 +43,9 @@ type ProviderEntry struct {
 	OAuthClientID     string `yaml:"oauth_client_id,omitempty"     json:"oauth_client_id"`     // client ID
 	OAuthClientSecret string `yaml:"-" vault:"oauth_client_secret" json:"oauth_client_secret"` // client secret (vault-only)
 	OAuthScopes       string `yaml:"oauth_scopes,omitempty"        json:"oauth_scopes"`        // space-separated scopes
+
+	// Per-provider model cost overrides (used by budget tracker)
+	Models []ModelCost `yaml:"models,omitempty" json:"models,omitempty"`
 }
 
 // EmailAccount defines a single IMAP/SMTP email account.
@@ -578,6 +581,42 @@ func (c *Config) FindProvider(id string) *ProviderEntry {
 	return nil
 }
 
+// migrateBudgetModelsToProviders copies legacy budget.models entries into
+// matching providers (by model name). Already-present entries are skipped.
+// This is a one-way read-only migration: budget.models is never modified.
+func (c *Config) migrateBudgetModelsToProviders() {
+	if len(c.Budget.Models) == 0 || len(c.Providers) == 0 {
+		return
+	}
+
+	for _, bm := range c.Budget.Models {
+		lowerName := strings.ToLower(bm.Name)
+		// Find the provider whose default model matches
+		var target *ProviderEntry
+		for i := range c.Providers {
+			if strings.ToLower(c.Providers[i].Model) == lowerName {
+				target = &c.Providers[i]
+				break
+			}
+		}
+		if target == nil {
+			continue
+		}
+
+		// Skip if this model already exists in the provider's Models list
+		alreadyExists := false
+		for _, pm := range target.Models {
+			if strings.ToLower(pm.Name) == lowerName {
+				alreadyExists = true
+				break
+			}
+		}
+		if !alreadyExists {
+			target.Models = append(target.Models, bm)
+		}
+	}
+}
+
 // FindEmailAccount returns the EmailAccount with the given ID, or nil.
 func (c *Config) FindEmailAccount(id string) *EmailAccount {
 	for i := range c.EmailAccounts {
@@ -633,6 +672,7 @@ func (c *Config) MigrateEmailAccounts() {
 // auto-creates provider entries and sets the references.
 func (c *Config) ResolveProviders() {
 	c.migrateInlineProviders()
+	c.migrateBudgetModelsToProviders()
 
 	// ── LLM ──
 	if p := c.FindProvider(c.LLM.Provider); p != nil {

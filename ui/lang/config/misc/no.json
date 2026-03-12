@@ -44,5 +44,6 @@
   "config.vault.confirm_word_de": "slett",
   "config.vault.destroy_button": "Ødelegg",
   "config.vault.cancel": "Avbryt",
-  "config.vault.deleted_toast": "✓ Hvelv slettet. Skriv inn en ny hovednøkkel, lagre og start AuraGo på nytt."
+  "config.vault.deleted_toast": "✓ Hvelv slettet. Skriv inn en ny hovednøkkel, lagre og start AuraGo på nytt.",
+  "config.budget.models_moved_hint": "Modellkostnader administreres nå i leverandørinnstillingene."
 }

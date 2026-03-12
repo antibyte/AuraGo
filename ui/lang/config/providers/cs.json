@@ -80,5 +80,14 @@
   "config.providers.test_success": "Test uspesny",
   "config.providers.test_failed": "Test selhal",
   "config.providers.saved": "Poskytovatel ulozen",
-  "config.providers.deleted": "Poskytovatel smazan"
+  "config.providers.deleted": "Poskytovatel smazan",
+  "config.providers.model_pricing": "Ceny modelů",
+  "config.providers.fetch_pricing": "Načíst ceny",
+  "config.providers.add_model": "Přidat model",
+  "config.providers.model_name": "Model",
+  "config.providers.input_cost": "Vstup $/M",
+  "config.providers.output_cost": "Výstup $/M",
+  "config.providers.no_models_configured": "Žádné náklady na modely dosud nenastaveny.",
+  "config.providers.no_pricing_found": "Pro tohoto poskytovatele nebyla nalezena cenová data.",
+  "config.providers.pricing_fetched": "Ceny načteny pro {{count}} modelů."
 }

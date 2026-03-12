@@ -44,5 +44,6 @@
   "config.vault.confirm_word_de": "ta bort",
   "config.vault.destroy_button": "Förstör",
   "config.vault.cancel": "Avbryt",
-  "config.vault.deleted_toast": "✓ Valv raderat. Ange en ny huvudnyckel, spara och starta om AuraGo."
+  "config.vault.deleted_toast": "✓ Valv raderat. Ange en ny huvudnyckel, spara och starta om AuraGo.",
+  "config.budget.models_moved_hint": "Modellkostnader hanteras nu i leverantörsinställningarna."
 }

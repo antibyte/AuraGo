@@ -44,5 +44,6 @@
   "config.vault.confirm_word_de": "消去",
   "config.vault.destroy_button": "破壊する",
   "config.vault.cancel": "キャンセル",
-  "config.vault.deleted_toast": "✓ ボールトが削除されました。新しいマスターキーを入力して保存し、AuraGo を再起動します。"
+  "config.vault.deleted_toast": "✓ ボールトが削除されました。新しいマスターキーを入力して保存し、AuraGo を再起動します。",
+  "config.budget.models_moved_hint": "モデルコストはプロバイダー設定で管理されるようになりました。"
 }

@@ -80,5 +80,14 @@
   "config.providers.test_success": "Test geslaagd",
   "config.providers.test_failed": "Test mislukt",
   "config.providers.saved": "Provider opgeslagen",
-  "config.providers.deleted": "Provider verwijderd"
+  "config.providers.deleted": "Provider verwijderd",
+  "config.providers.model_pricing": "Modelprijzen",
+  "config.providers.fetch_pricing": "Prijzen ophalen",
+  "config.providers.add_model": "Model toevoegen",
+  "config.providers.model_name": "Model",
+  "config.providers.input_cost": "Input $/M",
+  "config.providers.output_cost": "Output $/M",
+  "config.providers.no_models_configured": "Nog geen modelkosten geconfigureerd.",
+  "config.providers.no_pricing_found": "Geen prijsgegevens gevonden voor deze provider.",
+  "config.providers.pricing_fetched": "Prijzen opgehaald voor {{count}} modellen."
 }

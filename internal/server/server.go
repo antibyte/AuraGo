@@ -431,8 +431,6 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		serverCancel()
 	}()
 
-
-
 	// Phase 34: Start the background daily reflection loop
 	tools.StartDailyReflectionLoop(serverCtx, s.Cfg, s.Logger, s.LLMClient, s.HistoryManager, s.ShortTermMem)
 
@@ -475,6 +473,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	// Config UI endpoints (only when explicitly enabled for security)
 	if s.Cfg.WebConfig.Enabled {
 		mux.HandleFunc("/api/providers", handleProviders(s))
+		mux.HandleFunc("/api/providers/pricing", handleProviderPricing(s))
 		mux.HandleFunc("/api/email-accounts", handleEmailAccounts(s))
 		mux.HandleFunc("/api/mcp-servers", handleMCPServers(s))
 		mux.HandleFunc("/api/outgoing-webhooks", handleOutgoingWebhooks(s))
@@ -1092,7 +1091,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	if tlsCfg.IsTLSActive() {
 		return s.runHTTPS(mux, ttsServer, tlsCfg, shutdownCh)
 	}
-	
+
 	return s.runHTTP(mux, ttsServer, shutdownCh)
 }
 
@@ -1128,8 +1127,8 @@ func (s *Server) runHTTPS(mux *http.ServeMux, ttsServer *http.Server, tlsCfg *TL
 		return fmt.Errorf("failed to setup TLS servers: %w", err)
 	}
 
-	s.Logger.Info("Starting HTTPS servers", 
-		"domain", tlsCfg.Domain, 
+	s.Logger.Info("Starting HTTPS servers",
+		"domain", tlsCfg.Domain,
 		"https_port", tlsCfg.HTTPSPort,
 		"http_port", tlsCfg.HTTPPort,
 		"email", tlsCfg.Email,
@@ -1154,15 +1153,15 @@ func (s *Server) serveWithShutdown(server, redirectServer, ttsServer *http.Serve
 	go func() {
 		<-shutdownCh
 		s.Logger.Info("Initiating graceful server shutdown...")
-		
+
 		// Shut down MCP servers
 		tools.ShutdownMCPManager()
 		// Shut down Sandbox
 		tools.ShutdownSandboxManager()
-		
+
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
-		
+
 		if ttsServer != nil {
 			ttsServer.Shutdown(ctx)
 		}
@@ -1181,11 +1180,11 @@ func (s *Server) serveWithShutdown(server, redirectServer, ttsServer *http.Serve
 	} else {
 		err = server.ListenAndServe()
 	}
-	
+
 	if err != nil && err != http.ErrServerClosed {
 		return err
 	}
-	
+
 	s.Logger.Info("Server stopped gracefully")
 	return nil
 }
@@ -1198,7 +1197,7 @@ func securityHeadersMiddleware(next http.Handler, tlsActive, behindProxy bool) h
 		w.Header().Set("X-Frame-Options", "DENY")
 		w.Header().Set("X-XSS-Protection", "1; mode=block")
 		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
-		
+
 		// Content Security Policy - strict but allows necessary CDNs
 		csp := "default-src 'self'; " +
 			"script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com; " +
@@ -1209,21 +1208,21 @@ func securityHeadersMiddleware(next http.Handler, tlsActive, behindProxy bool) h
 			"frame-ancestors 'none'; " +
 			"base-uri 'self';"
 		w.Header().Set("Content-Security-Policy", csp)
-		
+
 		if tlsActive {
 			// Strict Transport Security (only for HTTPS)
 			w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload")
 		}
-		
+
 		// Add cache control for authenticated routes
-		if !strings.HasPrefix(r.URL.Path, "/auth/") && 
-		   !strings.HasPrefix(r.URL.Path, "/api/auth/") &&
-		   !strings.HasPrefix(r.URL.Path, "/setup") &&
-		   !strings.HasPrefix(r.URL.Path, "/static/") {
+		if !strings.HasPrefix(r.URL.Path, "/auth/") &&
+			!strings.HasPrefix(r.URL.Path, "/api/auth/") &&
+			!strings.HasPrefix(r.URL.Path, "/setup") &&
+			!strings.HasPrefix(r.URL.Path, "/static/") {
 			w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, private")
 			w.Header().Set("Pragma", "no-cache")
 		}
-		
+
 		next.ServeHTTP(w, r)
 	})
 }

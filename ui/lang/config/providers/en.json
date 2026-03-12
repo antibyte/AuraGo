@@ -66,5 +66,14 @@
   "config.providers.type_anthropic": "anthropic",
   "config.providers.type_google": "google",
   "config.providers.type_custom": "custom",
-  "config.providers.key_placeholder_existing": "•••••••• (unchanged)"
+  "config.providers.key_placeholder_existing": "•••••••• (unchanged)",
+  "config.providers.model_pricing": "Model Pricing",
+  "config.providers.fetch_pricing": "Fetch Pricing",
+  "config.providers.add_model": "Add Model",
+  "config.providers.model_name": "Model",
+  "config.providers.input_cost": "Input $/M",
+  "config.providers.output_cost": "Output $/M",
+  "config.providers.no_models_configured": "No model costs configured yet.",
+  "config.providers.no_pricing_found": "No pricing data found for this provider.",
+  "config.providers.pricing_fetched": "Pricing fetched for {{count}} models."
 }

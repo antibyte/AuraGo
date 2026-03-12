@@ -282,6 +282,14 @@
     "enforcement": {
       "title": "Enforcement Mode",
       "description": "Action when budget is exceeded: warn = notification only, partial = limit expensive tools, full = block all requests"
+    },
+    "default_cost": {
+      "title": "Default Cost (per 1M tokens)",
+      "description": "Fallback input/output cost used when a model has no explicit pricing configured in its provider."
+    },
+    "models": {
+      "title": "Model Costs (Legacy)",
+      "description": "Model-specific costs are now configured per-provider in the Providers section. Existing entries here still work as fallback."
     }
   },
   "circuit_breaker": {

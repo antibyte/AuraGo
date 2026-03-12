@@ -66,5 +66,14 @@
   "config.providers.type_anthropic": "anthropic",
   "config.providers.type_google": "google",
   "config.providers.type_custom": "custom",
-  "config.providers.key_placeholder_existing": "•••••••• (未更改)"
+  "config.providers.key_placeholder_existing": "•••••••• (未更改)",
+  "config.providers.model_pricing": "模型定价",
+  "config.providers.fetch_pricing": "获取价格",
+  "config.providers.add_model": "添加模型",
+  "config.providers.model_name": "模型",
+  "config.providers.input_cost": "输入 $/M",
+  "config.providers.output_cost": "输出 $/M",
+  "config.providers.no_models_configured": "尚未配置模型成本。",
+  "config.providers.no_pricing_found": "未找到此提供商的价格数据。",
+  "config.providers.pricing_fetched": "已获取 {{count}} 个模型的价格。"
 }

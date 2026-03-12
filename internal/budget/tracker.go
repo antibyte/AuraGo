@@ -381,6 +381,20 @@ func (t *Tracker) calcCostLocked(model string, inputTokens, outputTokens int) fl
 
 func (t *Tracker) findRatesLocked(model string) config.ModelCostRates {
 	lowerModel := strings.ToLower(model)
+
+	// 1) Search per-provider model costs
+	for _, p := range t.cfg.Providers {
+		for _, m := range p.Models {
+			if strings.ToLower(m.Name) == lowerModel {
+				return config.ModelCostRates{
+					InputPerMillion:  m.InputPerMillion,
+					OutputPerMillion: m.OutputPerMillion,
+				}
+			}
+		}
+	}
+
+	// 2) Legacy fallback: budget.models
 	for _, m := range t.cfg.Budget.Models {
 		if strings.ToLower(m.Name) == lowerModel {
 			return config.ModelCostRates{
@@ -389,6 +403,8 @@ func (t *Tracker) findRatesLocked(model string) config.ModelCostRates {
 			}
 		}
 	}
+
+	// 3) Global default
 	return t.cfg.Budget.DefaultCost
 }
 

@@ -76,5 +76,6 @@
   "config.misc.refresh": "Vernieuwen",
   "config.misc.open": "Openen",
   "config.misc.show": "Tonen",
-  "config.misc.hide": "Verbergen"
+  "config.misc.hide": "Verbergen",
+  "config.budget.models_moved_hint": "Τα κόστη μοντέλων διαχειρίζονται πλέον στις ρυθμίσεις παρόχου."
 }

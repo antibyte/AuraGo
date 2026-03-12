@@ -44,5 +44,6 @@
   "config.vault.confirm_word_de": "slet",
   "config.vault.destroy_button": "Ødelæg",
   "config.vault.cancel": "Annuller",
-  "config.vault.deleted_toast": "✓ Vault slettet. Indtast en ny hovednøgle, gem og genstart AuraGo."
+  "config.vault.deleted_toast": "✓ Vault slettet. Indtast en ny hovednøgle, gem og genstart AuraGo.",
+  "config.budget.models_moved_hint": "Modelomkostninger administreres nu i udbyderindstillingerne."
 }

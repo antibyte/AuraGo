@@ -77,5 +77,14 @@
   "config.providers.api_url": "URL da API",
   "config.providers.model": "Modelo",
   "config.providers.enabled": "Habilitado",
-  "config.providers.test": "Testar Conexão"
+  "config.providers.test": "Testar Conexão",
+  "config.providers.model_pricing": "Preços dos modelos",
+  "config.providers.fetch_pricing": "Buscar preços",
+  "config.providers.add_model": "Adicionar modelo",
+  "config.providers.model_name": "Modelo",
+  "config.providers.input_cost": "Entrada $/M",
+  "config.providers.output_cost": "Saída $/M",
+  "config.providers.no_models_configured": "Nenhum custo de modelo configurado ainda.",
+  "config.providers.no_pricing_found": "Nenhum dado de preço encontrado para este provedor.",
+  "config.providers.pricing_fetched": "Preços obtidos para {{count}} modelos."
 }

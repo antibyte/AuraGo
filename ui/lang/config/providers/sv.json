@@ -66,5 +66,14 @@
   "config.providers.type_anthropic": "antropisk",
   "config.providers.type_google": "google",
   "config.providers.type_custom": "anpassad",
-  "config.providers.key_placeholder_existing": "•••••••• (oförändrad)"
+  "config.providers.key_placeholder_existing": "•••••••• (oförändrad)",
+  "config.providers.model_pricing": "Modellpriser",
+  "config.providers.fetch_pricing": "Hämta priser",
+  "config.providers.add_model": "Lägg till modell",
+  "config.providers.model_name": "Modell",
+  "config.providers.input_cost": "Input $/M",
+  "config.providers.output_cost": "Output $/M",
+  "config.providers.no_models_configured": "Inga modellkostnader konfigurerade ännu.",
+  "config.providers.no_pricing_found": "Inga prisdata hittades för denna leverantör.",
+  "config.providers.pricing_fetched": "Priser hämtade för {{count}} modeller."
 }

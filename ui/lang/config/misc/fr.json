@@ -44,5 +44,6 @@
   "config.vault.confirm_word_de": "delete",
   "config.vault.destroy_button": "Détruire",
   "config.vault.cancel": "Annuler",
-  "config.vault.deleted_toast": "✓ Coffre supprimé. Entrez une nouvelle clé master, enregistrez et redémarrez AuraGo."
+  "config.vault.deleted_toast": "✓ Coffre supprimé. Entrez une nouvelle clé master, enregistrez et redémarrez AuraGo.",
+  "config.budget.models_moved_hint": "Les coûts des modèles sont désormais gérés dans les paramètres du fournisseur."
 }

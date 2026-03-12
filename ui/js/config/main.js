@@ -532,8 +532,13 @@ function renderField(fullPath, key, value, parentPath, fieldSchema) {
         }
         html += '<input class="field-input" type="number" step="' + step + '" data-path="' + fullPath + '" value="' + (showValue ?? '') + '">';
     } else if (fieldType === 'array') {
-        // Special handling for budget.models - always render as JSON object array
-        const isObjArray = fullPath === 'budget.models' || (Array.isArray(value) && value.length > 0 && typeof value[0] === 'object' && value[0] !== null);
+        // budget.models is now managed in Provider settings
+        if (fullPath === 'budget.models') {
+            html += '<div style="padding:0.6rem 0.8rem;border-radius:8px;background:rgba(72,199,142,0.06);border:1px solid rgba(72,199,142,0.18);font-size:0.78rem;color:var(--text-secondary);">'
+                + '💰 ' + t('config.budget.models_moved_hint')
+                + '</div>';
+        } else {
+        const isObjArray = (Array.isArray(value) && value.length > 0 && typeof value[0] === 'object' && value[0] !== null);
         if (isObjArray) {
             const jsonVal = Array.isArray(value) ? JSON.stringify(value, null, 2) : '[]';
             html += '<textarea class="field-input" data-path="' + fullPath + '" data-type="json" rows="6" style="font-family:monospace;font-size:0.78rem;resize:vertical;white-space:pre;">' + escapeHtml(jsonVal) + '</textarea>';
@@ -541,6 +546,7 @@ function renderField(fullPath, key, value, parentPath, fieldSchema) {
         } else {
             const arrVal = Array.isArray(value) ? value.join(', ') : (value || '');
             html += '<input class="field-input" type="text" data-path="' + fullPath + '" data-type="array" value="' + escapeAttr(arrVal) + '" placeholder="' + t('config.field.comma_separated') + '">';
+        }
         }
     } else {
         html += '<input class="field-input" type="text" data-path="' + fullPath + '" value="' + escapeAttr(value ?? '') + '">';

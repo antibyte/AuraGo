@@ -66,5 +66,14 @@
   "config.providers.type_anthropic": "anthropic",
   "config.providers.type_google": "google",
   "config.providers.type_custom": "custom",
-  "config.providers.key_placeholder_existing": "•••••••• (niezmienione)"
+  "config.providers.key_placeholder_existing": "•••••••• (niezmienione)",
+  "config.providers.model_pricing": "Ceny modeli",
+  "config.providers.fetch_pricing": "Pobierz ceny",
+  "config.providers.add_model": "Dodaj model",
+  "config.providers.model_name": "Model",
+  "config.providers.input_cost": "Wejście $/M",
+  "config.providers.output_cost": "Wyjście $/M",
+  "config.providers.no_models_configured": "Brak skonfigurowanych kosztów modeli.",
+  "config.providers.no_pricing_found": "Nie znaleziono danych cenowych dla tego dostawcy.",
+  "config.providers.pricing_fetched": "Pobrano ceny dla {{count}} modeli."
 }

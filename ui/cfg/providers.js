@@ -329,6 +329,163 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
             }, 3500);
         }
 
+        // ── Model Pricing Table helpers (inside provider modal) ──
+
+        // Temporary model list for the currently open provider modal
+        let _provModalModels = [];
+
+        function providerInitModelsTable(models) {
+            _provModalModels = (models || []).map(m => ({...m}));
+            providerRenderModelsTable();
+        }
+
+        function providerRenderModelsTable() {
+            const tbody = document.getElementById('prov-models-body');
+            const empty = document.getElementById('prov-models-empty');
+            if (!tbody) return;
+
+            if (_provModalModels.length === 0) {
+                tbody.innerHTML = '';
+                if (empty) empty.style.display = '';
+                return;
+            }
+            if (empty) empty.style.display = 'none';
+
+            tbody.innerHTML = _provModalModels.map((m, i) => `
+                <tr style="border-bottom:1px solid var(--border-subtle);">
+                    <td style="padding:0.3rem 0.4rem;">
+                        <input class="field-input" style="font-size:0.75rem;padding:0.2rem 0.4rem;" value="${escapeAttr(m.name)}" onchange="providerUpdateModelRow(${i},'name',this.value)">
+                    </td>
+                    <td style="padding:0.3rem 0.4rem;">
+                        <input class="field-input" type="number" step="0.001" min="0" style="font-size:0.75rem;padding:0.2rem 0.4rem;text-align:right;width:90px;" value="${m.input_per_million}" onchange="providerUpdateModelRow(${i},'input_per_million',parseFloat(this.value)||0)">
+                    </td>
+                    <td style="padding:0.3rem 0.4rem;">
+                        <input class="field-input" type="number" step="0.001" min="0" style="font-size:0.75rem;padding:0.2rem 0.4rem;text-align:right;width:90px;" value="${m.output_per_million}" onchange="providerUpdateModelRow(${i},'output_per_million',parseFloat(this.value)||0)">
+                    </td>
+                    <td style="padding:0.3rem 0;text-align:center;">
+                        <button type="button" style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:0.8rem;" onclick="providerDeleteModelRow(${i})" title="Delete">✕</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function providerAddModelRow() {
+            _provModalModels.push({ name: '', input_per_million: 0, output_per_million: 0 });
+            providerRenderModelsTable();
+            // Focus the new name field
+            setTimeout(() => {
+                const inputs = document.querySelectorAll('#prov-models-body tr:last-child input');
+                if (inputs.length) inputs[0].focus();
+            }, 30);
+        }
+
+        function providerUpdateModelRow(idx, field, value) {
+            if (_provModalModels[idx]) _provModalModels[idx][field] = value;
+        }
+
+        function providerDeleteModelRow(idx) {
+            _provModalModels.splice(idx, 1);
+            providerRenderModelsTable();
+        }
+
+        function providerGetModels() {
+            return _provModalModels.filter(m => m.name && m.name.trim());
+        }
+
+        // Called from OpenRouter browser when a model is selected
+        function updateProviderModelCost(m) {
+            if (!m || !m.id) return;
+            const inputPM = m.inputPerMillion || 0;
+            const outputPM = m.outputPerMillion || 0;
+
+            const existing = _provModalModels.find(
+                e => e.name && e.name.toLowerCase() === m.id.toLowerCase()
+            );
+            if (existing) {
+                existing.input_per_million = inputPM;
+                existing.output_per_million = outputPM;
+            } else {
+                _provModalModels.push({
+                    name: m.id,
+                    input_per_million: inputPM,
+                    output_per_million: outputPM,
+                });
+            }
+            providerRenderModelsTable();
+            showBudgetToast(t('config.budget.model_cost_updated', { model: m.id }));
+        }
+
+        async function providerFetchPricing() {
+            const provId = (document.getElementById('prov-id') || {}).value;
+            const provType = (document.getElementById('prov-type') || {}).value;
+
+            // For unsaved providers, use the type to determine the fetch strategy
+            const btn = document.getElementById('prov-fetch-pricing-btn');
+            if (btn) { btn.disabled = true; btn.textContent = '⏳ ' + t('config.providers.loading'); }
+
+            try {
+                let url;
+                if (provId && providersCache.some(p => p.id === provId)) {
+                    // Saved provider — use server-side endpoint
+                    url = '/api/providers/pricing?id=' + encodeURIComponent(provId);
+                } else {
+                    // Unsaved or new — use OpenRouter models as a universal source
+                    url = '/api/openrouter/models';
+                }
+
+                const resp = await fetch(url);
+                if (!resp.ok) throw new Error(await resp.text());
+                const json = await resp.json();
+
+                let pricing;
+                if (json.data) {
+                    // OpenRouter /models format — filter by provider type prefix
+                    const prefixMap = { openai: 'openai/', anthropic: 'anthropic/', google: 'google/' };
+                    const prefix = prefixMap[provType] || '';
+                    pricing = (json.data || [])
+                        .filter(m => m.pricing && (prefix ? m.id.startsWith(prefix) : true))
+                        .map(m => ({
+                            name: prefix ? m.id.substring(prefix.length) : m.id,
+                            input_per_million: parseFloat(m.pricing.prompt || '0') * 1000000,
+                            output_per_million: parseFloat(m.pricing.completion || '0') * 1000000,
+                        }));
+                } else if (Array.isArray(json)) {
+                    // Server pricing endpoint format
+                    pricing = json.map(m => ({
+                        name: m.model_id,
+                        input_per_million: m.input_per_million,
+                        output_per_million: m.output_per_million,
+                    }));
+                } else {
+                    pricing = [];
+                }
+
+                if (pricing.length === 0) {
+                    showBudgetToast(t('config.providers.no_pricing_found'));
+                    return;
+                }
+
+                // Merge: update existing, add new
+                for (const p of pricing) {
+                    const existing = _provModalModels.find(
+                        e => e.name && e.name.toLowerCase() === p.name.toLowerCase()
+                    );
+                    if (existing) {
+                        existing.input_per_million = p.input_per_million;
+                        existing.output_per_million = p.output_per_million;
+                    } else {
+                        _provModalModels.push(p);
+                    }
+                }
+                providerRenderModelsTable();
+                showBudgetToast(t('config.providers.pricing_fetched', { count: pricing.length }));
+            } catch (e) {
+                showBudgetToast('❌ ' + e.message);
+            } finally {
+                if (btn) { btn.disabled = false; btn.textContent = '📡 ' + t('config.providers.fetch_pricing'); }
+            }
+        }
+
         function renderMeshCentralTestBlock() {
             const labelTest = t('config.meshcentral.test_label');
             const labelDesc = t('config.meshcentral.test_desc');
@@ -576,10 +733,41 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                 <!-- OpenRouter model browser (only visible when type = openrouter) -->
                 <div id="prov-openrouter-block" class="field-group" style="display:${(data.type || 'openai') === 'openrouter' ? 'block' : 'none'};margin-top:0;padding:0.7rem 0.9rem;border-radius:9px;background:rgba(72,199,142,0.06);border:1px solid rgba(72,199,142,0.18);">
                     <div style="display:flex;gap:0.6rem;align-items:center;flex-wrap:wrap;">
-                        <button type="button" class="btn-save" style="padding:0.3rem 0.9rem;font-size:0.75rem;background:rgba(72,199,142,0.15);color:#48c78e;border:1px solid rgba(72,199,142,0.3);" onclick="openOpenRouterBrowser(function(m){document.getElementById('prov-model').value=m.id;document.getElementById('prov-model').dispatchEvent(new Event('input',{bubbles:true}));updateBudgetModelCost(m);})">
+                        <button type="button" class="btn-save" style="padding:0.3rem 0.9rem;font-size:0.75rem;background:rgba(72,199,142,0.15);color:#48c78e;border:1px solid rgba(72,199,142,0.3);" onclick="openOpenRouterBrowser(function(m){document.getElementById('prov-model').value=m.id;document.getElementById('prov-model').dispatchEvent(new Event('input',{bubbles:true}));updateProviderModelCost(m);})">
                             🌐 ${t('config.providers.open_model_browser')}
                         </button>
                         <span style="font-size:0.72rem;color:var(--text-tertiary);">${t('config.providers.browse_openrouter')}</span>
+                    </div>
+                </div>
+
+                <!-- Model Pricing Table -->
+                <div class="field-group" style="margin-top:0.8rem;padding-top:0.8rem;border-top:1px solid var(--border-subtle);">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
+                        <div class="field-label" style="margin-bottom:0;">💰 ${t('config.providers.model_pricing')}</div>
+                        <div style="display:flex;gap:0.4rem;">
+                            <button type="button" class="btn-save" id="prov-fetch-pricing-btn" style="padding:0.25rem 0.65rem;font-size:0.72rem;background:rgba(72,199,142,0.12);color:#48c78e;border:1px solid rgba(72,199,142,0.25);display:${['openrouter','openai','anthropic','google','ollama'].includes(data.type || 'openai') ? 'inline-block' : 'none'};">
+                                📡 ${t('config.providers.fetch_pricing')}
+                            </button>
+                            <button type="button" class="btn-save" style="padding:0.25rem 0.65rem;font-size:0.72rem;background:var(--bg-tertiary);color:var(--text-primary);" onclick="providerAddModelRow()">
+                                + ${t('config.providers.add_model')}
+                            </button>
+                        </div>
+                    </div>
+                    <div id="prov-models-table-wrap">
+                        <table style="width:100%;border-collapse:collapse;font-size:0.78rem;" id="prov-models-table">
+                            <thead>
+                                <tr style="border-bottom:1px solid var(--border-subtle);color:var(--text-tertiary);font-size:0.7rem;">
+                                    <th style="text-align:left;padding:0.3rem 0.4rem;">${t('config.providers.model_name')}</th>
+                                    <th style="text-align:right;padding:0.3rem 0.4rem;">${t('config.providers.input_cost')}</th>
+                                    <th style="text-align:right;padding:0.3rem 0.4rem;">${t('config.providers.output_cost')}</th>
+                                    <th style="width:2rem;"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="prov-models-body"></tbody>
+                        </table>
+                        <div id="prov-models-empty" style="text-align:center;padding:0.8rem;color:var(--text-tertiary);font-size:0.75rem;display:none;">
+                            ${t('config.providers.no_models_configured')}
+                        </div>
                     </div>
                 </div>
 
@@ -660,6 +848,13 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
             </div>`;
             document.body.appendChild(overlay);
 
+            // ── Initialize model pricing table ──
+            providerInitModelsTable(data.models);
+
+            // ── Wire up fetch pricing button ──
+            const fetchPricingBtn = document.getElementById('prov-fetch-pricing-btn');
+            if (fetchPricingBtn) fetchPricingBtn.onclick = () => providerFetchPricing();
+
             // ── Auto-fill Base URL when type changes (only if URL field is empty) ──
             const typeSelect = document.getElementById('prov-type');
             const urlInput = document.getElementById('prov-url');
@@ -683,6 +878,10 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                 if (ollamaBlock) ollamaBlock.style.display = typ === 'ollama' ? 'block' : 'none';
                 // Show/hide OpenRouter model browser block
                 if (openrouterBlock) openrouterBlock.style.display = typ === 'openrouter' ? 'block' : 'none';
+                // Show/hide fetch pricing button
+                if (fetchPricingBtn) {
+                    fetchPricingBtn.style.display = ['openrouter','openai','anthropic','google','ollama'].includes(typ) ? 'inline-block' : 'none';
+                }
             });
 
             // ── Auth type toggle ──
@@ -780,6 +979,9 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                     entry.oauth_client_secret = '';
                     entry.oauth_scopes = '';
                 }
+
+                // Include model pricing data
+                entry.models = providerGetModels();
 
                 onSave(entry);
                 overlay.remove();

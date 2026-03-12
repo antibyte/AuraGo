@@ -66,5 +66,14 @@
   "config.providers.type_anthropic": "मानवशास्त्रीय",
   "config.providers.type_google": "गूगल",
   "config.providers.type_custom": "कस्टम",
-  "config.providers.key_placeholder_existing": "•••••••• (अपरिवर्तित)"
+  "config.providers.key_placeholder_existing": "•••••••• (अपरिवर्तित)",
+  "config.providers.model_pricing": "मॉडल मूल्य निर्धारण",
+  "config.providers.fetch_pricing": "कीमतें प्राप्त करें",
+  "config.providers.add_model": "मॉडल जोड़ें",
+  "config.providers.model_name": "मॉडल",
+  "config.providers.input_cost": "इनपुट $/M",
+  "config.providers.output_cost": "आउटपुट $/M",
+  "config.providers.no_models_configured": "अभी तक कोई मॉडल लागत कॉन्फ़िगर नहीं की गई।",
+  "config.providers.no_pricing_found": "इस प्रदाता के लिए कोई मूल्य निर्धारण डेटा नहीं मिला।",
+  "config.providers.pricing_fetched": "{{count}} मॉडलों के लिए कीमतें प्राप्त की गईं।"
 }

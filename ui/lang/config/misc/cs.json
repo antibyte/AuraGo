@@ -76,5 +76,6 @@
   "config.misc.refresh": "Obnovit",
   "config.misc.open": "Otevrit",
   "config.misc.show": "Zobrazit",
-  "config.misc.hide": "Skryt"
+  "config.misc.hide": "Skryt",
+  "config.budget.models_moved_hint": "Náklady na modely jsou nyní spravovány v nastavení poskytovatele."
 }

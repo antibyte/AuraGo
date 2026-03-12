@@ -44,5 +44,6 @@
   "config.vault.confirm_word_de": "löschen",
   "config.vault.destroy_button": "Vernichten",
   "config.vault.cancel": "Abbrechen",
-  "config.vault.deleted_toast": "✓ Vault gelöscht. Neuen Master Key eingeben, speichern und AuraGo neu starten."
+  "config.vault.deleted_toast": "✓ Vault gelöscht. Neuen Master Key eingeben, speichern und AuraGo neu starten.",
+  "config.budget.models_moved_hint": "Modellkosten werden jetzt in den Provider-Einstellungen verwaltet."
 }

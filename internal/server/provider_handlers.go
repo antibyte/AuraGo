@@ -2,6 +2,7 @@ package server
 
 import (
 	"aurago/internal/config"
+	"aurago/internal/llm"
 	"encoding/json"
 	"net/http"
 	"os"
@@ -12,18 +13,19 @@ import (
 
 // providerJSON is the API representation of a provider entry.
 type providerJSON struct {
-	ID                string `json:"id"`
-	Name              string `json:"name"`
-	Type              string `json:"type"`
-	BaseURL           string `json:"base_url"`
-	APIKey            string `json:"api_key"`
-	Model             string `json:"model"`
-	AuthType          string `json:"auth_type"`
-	OAuthAuthURL      string `json:"oauth_auth_url"`
-	OAuthTokenURL     string `json:"oauth_token_url"`
-	OAuthClientID     string `json:"oauth_client_id"`
-	OAuthClientSecret string `json:"oauth_client_secret"`
-	OAuthScopes       string `json:"oauth_scopes"`
+	ID                string             `json:"id"`
+	Name              string             `json:"name"`
+	Type              string             `json:"type"`
+	BaseURL           string             `json:"base_url"`
+	APIKey            string             `json:"api_key"`
+	Model             string             `json:"model"`
+	AuthType          string             `json:"auth_type"`
+	OAuthAuthURL      string             `json:"oauth_auth_url"`
+	OAuthTokenURL     string             `json:"oauth_token_url"`
+	OAuthClientID     string             `json:"oauth_client_id"`
+	OAuthClientSecret string             `json:"oauth_client_secret"`
+	OAuthScopes       string             `json:"oauth_scopes"`
+	Models            []config.ModelCost `json:"models,omitempty"`
 }
 
 const maskedKey = "••••••••"
@@ -75,6 +77,7 @@ func handleGetProviders(s *Server, w http.ResponseWriter, _ *http.Request) {
 			OAuthClientID:     p.OAuthClientID,
 			OAuthClientSecret: clientSecret,
 			OAuthScopes:       p.OAuthScopes,
+			Models:            p.Models,
 		}
 	}
 
@@ -159,6 +162,7 @@ func handlePutProviders(s *Server, w http.ResponseWriter, r *http.Request) {
 			OAuthClientID:     p.OAuthClientID,
 			OAuthClientSecret: clientSecret,
 			OAuthScopes:       p.OAuthScopes,
+			Models:            p.Models,
 		}
 	}
 
@@ -186,6 +190,9 @@ func handlePutProviders(s *Server, w http.ResponseWriter, r *http.Request) {
 			"type":     e.Type,
 			"base_url": e.BaseURL,
 			"model":    e.Model,
+		}
+		if len(e.Models) > 0 {
+			m["models"] = e.Models
 		}
 		// Secrets are NOT written to YAML — they live in the vault.
 		if e.AuthType != "" && e.AuthType != "api_key" {
@@ -237,4 +244,142 @@ func handlePutProviders(s *Server, w http.ResponseWriter, r *http.Request) {
 		"status": "ok",
 		"count":  len(entries),
 	})
+}
+
+// handleProviderPricing dispatches GET/POST for /api/providers/pricing?id=<providerID>.
+// GET  — fetch available pricing for the provider type (from OpenRouter or local)
+// POST — apply the given pricing to the provider's Models list and save config
+func handleProviderPricing(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		providerID := r.URL.Query().Get("id")
+		if providerID == "" {
+			http.Error(w, "Missing 'id' query parameter", http.StatusBadRequest)
+			return
+		}
+
+		switch r.Method {
+		case http.MethodGet:
+			handleFetchPricing(s, w, providerID)
+		case http.MethodPost:
+			handleApplyPricing(s, w, r, providerID)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	}
+}
+
+// handleFetchPricing returns available model pricing for the given provider.
+func handleFetchPricing(s *Server, w http.ResponseWriter, providerID string) {
+	s.CfgMu.RLock()
+	p := s.Cfg.FindProvider(providerID)
+	var providerType, apiKey, baseURL string
+	if p != nil {
+		providerType = p.Type
+		apiKey = p.APIKey
+		baseURL = p.BaseURL
+	}
+	s.CfgMu.RUnlock()
+
+	if providerType == "" {
+		http.Error(w, "Provider not found", http.StatusNotFound)
+		return
+	}
+
+	pricing, err := llm.FetchPricingForProvider(providerType, apiKey, baseURL)
+	if err != nil {
+		s.Logger.Error("[Pricing] Failed to fetch pricing", "provider", providerID, "error", err)
+		http.Error(w, "Failed to fetch pricing: "+err.Error(), http.StatusBadGateway)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(pricing)
+}
+
+// handleApplyPricing writes the given model pricing to the provider's Models list.
+func handleApplyPricing(s *Server, w http.ResponseWriter, r *http.Request, providerID string) {
+	var incoming []llm.ModelPricing
+	if err := json.NewDecoder(r.Body).Decode(&incoming); err != nil {
+		http.Error(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	models := llm.ToModelCosts(incoming)
+
+	s.CfgMu.Lock()
+	p := s.Cfg.FindProvider(providerID)
+	if p == nil {
+		s.CfgMu.Unlock()
+		http.Error(w, "Provider not found", http.StatusNotFound)
+		return
+	}
+	p.Models = models
+	configPath := s.Cfg.ConfigPath
+	s.CfgMu.Unlock()
+
+	// Persist to YAML
+	if err := persistProviders(s, configPath); err != nil {
+		http.Error(w, "Failed to save: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status": "ok",
+		"count":  len(models),
+	})
+}
+
+// persistProviders writes the current in-memory providers to config.yaml.
+func persistProviders(s *Server, configPath string) error {
+	s.CfgMu.RLock()
+	providers := s.Cfg.Providers
+	s.CfgMu.RUnlock()
+
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return err
+	}
+	var rawCfg map[string]interface{}
+	if err := yaml.Unmarshal(data, &rawCfg); err != nil {
+		return err
+	}
+
+	provList := make([]interface{}, len(providers))
+	for i, e := range providers {
+		m := map[string]interface{}{
+			"id":       e.ID,
+			"name":     e.Name,
+			"type":     e.Type,
+			"base_url": e.BaseURL,
+			"model":    e.Model,
+		}
+		if len(e.Models) > 0 {
+			// Convert to generic []interface{} for clean YAML output
+			ml := make([]interface{}, len(e.Models))
+			for j, mc := range e.Models {
+				ml[j] = map[string]interface{}{
+					"name":               mc.Name,
+					"input_per_million":  mc.InputPerMillion,
+					"output_per_million": mc.OutputPerMillion,
+				}
+			}
+			m["models"] = ml
+		}
+		if e.AuthType != "" && e.AuthType != "api_key" {
+			m["auth_type"] = e.AuthType
+			m["oauth_auth_url"] = e.OAuthAuthURL
+			m["oauth_token_url"] = e.OAuthTokenURL
+			m["oauth_client_id"] = e.OAuthClientID
+			m["oauth_scopes"] = e.OAuthScopes
+		}
+		provList[i] = m
+	}
+	rawCfg["providers"] = provList
+
+	out, err := yaml.Marshal(rawCfg)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(configPath, out, 0644)
 }

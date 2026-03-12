@@ -80,5 +80,14 @@
   "config.providers.test_success": "Test geslaagd",
   "config.providers.test_failed": "Test mislukt",
   "config.providers.saved": "Provider opgeslagen",
-  "config.providers.deleted": "Provider verwijderd"
+  "config.providers.deleted": "Provider verwijderd",
+  "config.providers.model_pricing": "Τιμολόγηση μοντέλων",
+  "config.providers.fetch_pricing": "Ανάκτηση τιμών",
+  "config.providers.add_model": "Προσθήκη μοντέλου",
+  "config.providers.model_name": "Μοντέλο",
+  "config.providers.input_cost": "Input $/M",
+  "config.providers.output_cost": "Output $/M",
+  "config.providers.no_models_configured": "Δεν έχουν ρυθμιστεί κόστη μοντέλων ακόμα.",
+  "config.providers.no_pricing_found": "Δεν βρέθηκαν δεδομένα τιμολόγησης για αυτόν τον πάροχο.",
+  "config.providers.pricing_fetched": "Ανακτήθηκαν τιμές για {{count}} μοντέλα."
 }

@@ -66,5 +66,14 @@
   "config.providers.type_anthropic": "人間的な",
   "config.providers.type_google": "グーグル",
   "config.providers.type_custom": "カスタム",
-  "config.providers.key_placeholder_existing": "••••••••（変更なし）"
+  "config.providers.key_placeholder_existing": "••••••••（変更なし）",
+  "config.providers.model_pricing": "モデル価格",
+  "config.providers.fetch_pricing": "価格を取得",
+  "config.providers.add_model": "モデルを追加",
+  "config.providers.model_name": "モデル",
+  "config.providers.input_cost": "入力 $/M",
+  "config.providers.output_cost": "出力 $/M",
+  "config.providers.no_models_configured": "モデルコストはまだ設定されていません。",
+  "config.providers.no_pricing_found": "このプロバイダーの価格データが見つかりません。",
+  "config.providers.pricing_fetched": "{{count}} モデルの価格を取得しました。"
 }

@@ -44,5 +44,6 @@
   "config.vault.confirm_word_de": "delete",
   "config.vault.destroy_button": "Destruir",
   "config.vault.cancel": "Cancelar",
-  "config.vault.deleted_toast": "✓ Vault eliminado. Introduce una nueva clave maestra, guarda y reinicia AuraGo."
+  "config.vault.deleted_toast": "✓ Vault eliminado. Introduce una nueva clave maestra, guarda y reinicia AuraGo.",
+  "config.budget.models_moved_hint": "Los costos de modelos ahora se gestionan en la configuración del proveedor."
 }

@@ -66,5 +66,14 @@
   "config.providers.type_anthropic": "antropisk",
   "config.providers.type_google": "google",
   "config.providers.type_custom": "tilpasset",
-  "config.providers.key_placeholder_existing": "•••••••• (uendret)"
+  "config.providers.key_placeholder_existing": "•••••••• (uendret)",
+  "config.providers.model_pricing": "Modellpriser",
+  "config.providers.fetch_pricing": "Hent priser",
+  "config.providers.add_model": "Legg til modell",
+  "config.providers.model_name": "Modell",
+  "config.providers.input_cost": "Input $/M",
+  "config.providers.output_cost": "Output $/M",
+  "config.providers.no_models_configured": "Ingen modellkostnader konfigurert ennå.",
+  "config.providers.no_pricing_found": "Ingen prisdata funnet for denne leverandøren.",
+  "config.providers.pricing_fetched": "Priser hentet for {{count}} modeller."
 }

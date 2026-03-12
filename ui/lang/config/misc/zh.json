@@ -44,5 +44,6 @@
   "config.vault.confirm_word_de": "delete",
   "config.vault.destroy_button": "销毁",
   "config.vault.cancel": "取消",
-  "config.vault.deleted_toast": "✓ Vault 已删除。输入新的主密钥，保存，然后重启 AuraGo。"
+  "config.vault.deleted_toast": "✓ Vault 已删除。输入新的主密钥，保存，然后重启 AuraGo。",
+  "config.budget.models_moved_hint": "模型成本现在在提供商设置中管理。"
 }

@@ -44,5 +44,6 @@
   "config.vault.confirm_word_de": "हटाएं",
   "config.vault.destroy_button": "नष्ट करो",
   "config.vault.cancel": "रद्द करें",
-  "config.vault.deleted_toast": "✓ वॉल्ट हटा दिया गया. एक नई मास्टर कुंजी दर्ज करें, सहेजें और AuraGo को पुनरारंभ करें।"
+  "config.vault.deleted_toast": "✓ वॉल्ट हटा दिया गया. एक नई मास्टर कुंजी दर्ज करें, सहेजें और AuraGo को पुनरारंभ करें।",
+  "config.budget.models_moved_hint": "मॉडल लागत अब प्रदाता सेटिंग्स में प्रबंधित की जाती हैं।"
 }
