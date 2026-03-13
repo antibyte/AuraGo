@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
+	"os"
 	"strings"
 	"time"
 
@@ -16,10 +17,50 @@ type SQLiteMemory struct {
 	logger *slog.Logger
 }
 
-func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) {
+// openSQLiteDB opens (or recovers) the SQLite database at dbPath.
+// If the file is corrupted (integrity_check fails), it is renamed to .bak and
+// a fresh database is created so the agent can continue operating.
+func openSQLiteDB(dbPath string, logger *slog.Logger) (*sql.DB, error) {
 	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open sqlite db: %w", err)
+	}
+
+	// Quick integrity check — catches "malformed disk image" before any writes.
+	var integrityResult string
+	if checkErr := db.QueryRow("PRAGMA integrity_check(1)").Scan(&integrityResult); checkErr != nil || integrityResult != "ok" {
+		db.Close()
+		logger.Error("SQLite database is corrupted, attempting recovery",
+			"path", dbPath, "result", integrityResult, "check_error", checkErr)
+
+		// Rename corrupted files so we don't lose them entirely.
+		for _, suffix := range []string{"", "-wal", "-shm"} {
+			src := dbPath + suffix
+			if _, statErr := os.Stat(src); statErr == nil {
+				dst := src + ".bak"
+				if renErr := os.Rename(src, dst); renErr != nil {
+					logger.Warn("Could not rename corrupted DB file", "src", src, "error", renErr)
+				} else {
+					logger.Warn("Renamed corrupted DB file", "src", src, "dst", dst)
+				}
+			}
+		}
+
+		// Open a fresh database.
+		db, err = sql.Open("sqlite", dbPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create fresh sqlite db after recovery: %w", err)
+		}
+		logger.Info("Created fresh SQLite database after corruption recovery", "path", dbPath)
+	}
+
+	return db, nil
+}
+
+func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) {
+	db, err := openSQLiteDB(dbPath, logger)
+	if err != nil {
+		return nil, err
 	}
 
 	// Create schema if not exists
