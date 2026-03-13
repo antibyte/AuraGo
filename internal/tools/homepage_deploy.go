@@ -301,6 +301,16 @@ func HomepageDeployNetlify(cfg HomepageConfig, nfCfg NetlifyConfig, projectDir, 
 
 	// Try to build first; ignore failure for plain-HTML projects that have no build script.
 	if buildDir == "" {
+		// For Next.js projects, ensure output: 'export' is configured before building.
+		// Without it, `next build` produces only a .next/ server bundle that Netlify cannot serve.
+		if cfg.WorkspacePath != "" {
+			projectRoot := filepath.Join(cfg.WorkspacePath, projectDir)
+			if isNextJsProject(projectRoot) {
+				if patched := ensureNextJsStaticExport(projectRoot, logger); patched {
+					logger.Info("[Homepage] Netlify: Next.js config patched for static export — building now")
+				}
+			}
+		}
 		logger.Info("[Homepage] Attempting build before Netlify deploy", "dir", projectDir)
 		buildResult := HomepageBuild(cfg, projectDir, logger)
 		var br map[string]interface{}
@@ -313,10 +323,49 @@ func HomepageDeployNetlify(cfg HomepageConfig, nfCfg NetlifyConfig, projectDir, 
 		}
 	}
 
+	// If detectBuildDir returned ".next", the build was a Next.js server build (not static).
+	// Patch the config and rebuild to produce a proper static output directory.
+	if buildDir == ".next" && cfg.WorkspacePath != "" {
+		projectRoot := filepath.Join(cfg.WorkspacePath, projectDir)
+		logger.Info("[Homepage] Netlify: .next server build detected — patching Next.js config for static export and rebuilding")
+		ensureNextJsStaticExport(projectRoot, logger)
+		rebuildResult := HomepageBuild(cfg, projectDir, logger)
+		var rb map[string]interface{}
+		if err := json.Unmarshal([]byte(rebuildResult), &rb); err == nil {
+			if s, _ := rb["status"].(string); s != "error" {
+				buildDir = detectBuildDir(cfg, projectDir)
+			}
+		}
+		// If still .next after rebuild, fall through to project root (deploy will likely fail,
+		// but at least we tried and the error will be visible in the deploy result).
+		if buildDir == ".next" {
+			buildDir = ""
+		}
+	}
+
 	// Resolve the host-side path to zip.
 	var deployPath string
 	if buildDir == "" || buildDir == "." {
-		deployPath = filepath.Join(cfg.WorkspacePath, projectDir)
+		projectRoot := filepath.Join(cfg.WorkspacePath, projectDir)
+		// If no explicit buildDir was given, check whether a standard build output
+		// subdirectory (out, dist, build) already contains an index.html.
+		// This prevents the ZIP from including the whole project tree with the build
+		// output nested under a subdirectory (e.g. out/index.html instead of index.html),
+		// which would make Netlify return "Page not found" even with SPA redirects.
+		detected := ""
+		for _, sub := range []string{"out", "dist", "build"} {
+			candidate := filepath.Join(projectRoot, sub, "index.html")
+			if _, err := os.Stat(candidate); err == nil {
+				detected = sub
+				break
+			}
+		}
+		if detected != "" {
+			logger.Info("[Homepage] Auto-detected build output subdirectory", "subdir", detected)
+			deployPath = filepath.Join(projectRoot, detected)
+		} else {
+			deployPath = projectRoot
+		}
 	} else {
 		deployPath = filepath.Join(cfg.WorkspacePath, projectDir, buildDir)
 	}
@@ -702,4 +751,86 @@ func sftpUploadDir(ctx context.Context, deployCfg HomepageDeployConfig, localDir
 
 	logger.Info("[Homepage] Deploy complete", "files", uploaded, "host", deployCfg.Host)
 	return "" // success — caller handles the ok response
+}
+
+// isNextJsProject returns true if the directory contains a Next.js config file.
+func isNextJsProject(projectRoot string) bool {
+	for _, name := range []string{"next.config.js", "next.config.ts", "next.config.mjs", "next.config.cjs"} {
+		if _, err := os.Stat(filepath.Join(projectRoot, name)); err == nil {
+			return true
+		}
+	}
+	return false
+}
+
+// ensureNextJsStaticExport ensures the Next.js project config has output: 'export' so that
+// `next build` produces a static site in the `out/` directory (required for Netlify and other
+// static hosts). Returns true if the config was created or modified (a rebuild is needed).
+func ensureNextJsStaticExport(projectRoot string, logger *slog.Logger) bool {
+	// Check each known config filename
+	configNames := []string{"next.config.js", "next.config.ts", "next.config.mjs", "next.config.cjs"}
+	var configPath string
+	for _, name := range configNames {
+		p := filepath.Join(projectRoot, name)
+		if _, err := os.Stat(p); err == nil {
+			configPath = p
+			break
+		}
+	}
+
+	if configPath != "" {
+		data, err := os.ReadFile(configPath)
+		if err != nil {
+			logger.Warn("[Homepage] Could not read Next.js config", "path", configPath, "error", err)
+		} else {
+			content := string(data)
+			// Already has an output setting — don't touch it.
+			if strings.Contains(content, "output") {
+				return false
+			}
+			// Try to inject output: 'export' into the existing config object.
+			if patched := nextJsInjectOutputExport(content); patched != "" {
+				if werr := os.WriteFile(configPath, []byte(patched), 0644); werr == nil {
+					logger.Info("[Homepage] Injected output: 'export' into Next.js config", "file", configPath)
+					return true
+				}
+			}
+		}
+		// Fallback: overwrite with a minimal config that preserves the filename.
+	}
+
+	// No config found, or injection failed — write a minimal next.config.js.
+	if configPath == "" {
+		configPath = filepath.Join(projectRoot, "next.config.js")
+	}
+	minimal := "/** @type {import('next').NextConfig} */\nconst nextConfig = {\n  output: 'export',\n};\n\nmodule.exports = nextConfig;\n"
+	if strings.HasSuffix(configPath, ".ts") || strings.HasSuffix(configPath, ".mjs") {
+		minimal = "import type { NextConfig } from 'next';\n\nconst nextConfig: NextConfig = {\n  output: 'export',\n};\n\nexport default nextConfig;\n"
+	}
+	if werr := os.WriteFile(configPath, []byte(minimal), 0644); werr == nil {
+		logger.Info("[Homepage] Wrote minimal Next.js config with output: 'export'", "file", configPath)
+		return true
+	}
+	logger.Warn("[Homepage] Could not write Next.js config", "file", configPath)
+	return false
+}
+
+// nextJsInjectOutputExport tries to inject `output: 'export',` into a Next.js config string
+// by finding the opening brace of the config object. Returns the patched string, or "" on failure.
+func nextJsInjectOutputExport(content string) string {
+	// Patterns that precede the config object opening brace:
+	patterns := []string{
+		"nextConfig = {",
+		"nextConfig: NextConfig = {",
+		"module.exports = {",
+		"export default {",
+		"const config = {",
+	}
+	for _, p := range patterns {
+		if idx := strings.Index(content, p); idx != -1 {
+			insertAt := idx + len(p)
+			return content[:insertAt] + "\n  output: 'export'," + content[insertAt:]
+		}
+	}
+	return ""
 }
