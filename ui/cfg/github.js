@@ -218,8 +218,7 @@ function githubUpdateAllowedRepos() {
     const hiddenInput = document.getElementById('github-allowed-repos-input');
     if (hiddenInput) {
         hiddenInput.value = checkedRepos.join(', ');
-        // Trigger dirty marking
-        hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
+        markDirty();
     }
 
     const total = _githubReposData ? _githubReposData.length : checkedRepos.length;
