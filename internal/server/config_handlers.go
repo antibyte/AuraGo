@@ -479,6 +479,7 @@ var vaultKeyMap = map[string]string{
 	"email.password":                   "email_password",
 	"notifications.pushover.user_key":  "pushover_user_key",
 	"notifications.pushover.app_token": "pushover_app_token",
+	"adguard.password":                 "adguard_password",
 }
 
 // extractSecretsToVault walks a JSON patch map and moves sensitive values into the vault.
