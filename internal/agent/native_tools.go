@@ -545,7 +545,7 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 				"operation": map[string]interface{}{
 					"type":        "string",
 					"description": "Operation to perform",
-					"enum":        []string{"list_sites", "get_site", "create_site", "update_site", "delete_site", "list_deploys", "get_deploy", "deploy_zip", "deploy_draft", "rollback", "cancel_deploy", "list_env", "get_env", "set_env", "delete_env", "list_files", "list_forms", "get_submissions", "list_hooks", "create_hook", "delete_hook", "provision_ssl"},
+					"enum":        []string{"list_sites", "get_site", "create_site", "update_site", "delete_site", "list_deploys", "get_deploy", "deploy_zip", "deploy_draft", "rollback", "cancel_deploy", "list_env", "get_env", "set_env", "delete_env", "list_files", "list_forms", "get_submissions", "list_hooks", "create_hook", "delete_hook", "provision_ssl", "check_connection"},
 				},
 				"site_id":       prop("string", "Netlify site ID (uses default_site_id if omitted)"),
 				"site_name":     prop("string", "Site subdomain name for create (name.netlify.app)"),

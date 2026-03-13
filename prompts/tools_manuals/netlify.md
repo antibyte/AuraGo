@@ -9,6 +9,17 @@ Generate a token at: https://app.netlify.com/user/applications#personal-access-t
 
 ## Operations
 
+### Diagnostics
+
+#### check_connection
+Tests connectivity to the Netlify API in three steps: DNS resolution → TCP connection → authenticated API call.
+Always run this first if any Netlify operation fails with a network error.
+```json
+{"operation": "check_connection"}
+```
+Returns `dns_ok`, `tcp_ok`, `api_ok`, resolved IPs, and account info on success.
+If `tcp_ok: false`, the Netlify API is blocked by a firewall — this is a network/infrastructure problem, not a token problem.
+
 ### Sites
 
 #### list_sites

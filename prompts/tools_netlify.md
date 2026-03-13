@@ -43,6 +43,9 @@ conditions: ["netlify_enabled"]
 **SSL:**
 - `provision_ssl` — Provision a Let's Encrypt SSL certificate for a site
 
+**Diagnostics:**
+- `check_connection` — Test connectivity to the Netlify API (DNS resolution → TCP → authenticated API call). Run this first if any Netlify operation fails with a network error.
+
 **Parameters:** `operation`, `site_id`, `site_name`, `custom_domain`, `deploy_id`, `content`, `title`, `draft`, `env_key`, `env_value`, `env_context`, `form_id`, `hook_id`, `hook_type`, `hook_event`, `url`, `value`
 
 **Homepage → Netlify deployment (only supported method):**

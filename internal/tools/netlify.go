@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"time"
 )
@@ -377,10 +378,89 @@ func NetlifyGetDeploy(cfg NetlifyConfig, deployID string) string {
 
 // NetlifyDeployZip creates a new deploy by uploading a ZIP archive.
 // The zipData should be the raw ZIP file bytes.
+// NetlifyTestConnection checks whether the Netlify API is reachable and the token is valid.
+// Returns a diagnostic object with dns_ok, tcp_ok, api_ok, resolved_ips, and account info.
+func NetlifyTestConnection(cfg NetlifyConfig) string {
+	result := map[string]interface{}{"api_url": netlifyBaseURL}
+
+	// 1. DNS resolution
+	addrs, dnsErr := net.LookupHost("api.netlify.com")
+	if dnsErr != nil {
+		result["dns_ok"] = false
+		result["dns_error"] = dnsErr.Error()
+		result["status"] = "error"
+		result["message"] = "DNS resolution failed for api.netlify.com: " + dnsErr.Error() +
+			" — Check DNS settings or whether the hostname is blocked."
+		out, _ := json.Marshal(result)
+		return string(out)
+	}
+	result["dns_ok"] = true
+	result["resolved_ips"] = addrs
+
+	// 2. TCP connection
+	conn, tcpErr := net.DialTimeout("tcp", "api.netlify.com:443", 10*time.Second)
+	if tcpErr != nil {
+		result["tcp_ok"] = false
+		result["tcp_error"] = tcpErr.Error()
+		result["status"] = "error"
+		result["message"] = fmt.Sprintf(
+			"TCP connection to api.netlify.com:443 failed: %v — "+
+				"The Netlify API is blocked by a firewall or network policy on this host. "+
+				"Check iptables/nftables rules, or ask your provider to allow outbound HTTPS "+
+				"to %v.",
+			tcpErr, addrs)
+		out, _ := json.Marshal(result)
+		return string(out)
+	}
+	conn.Close()
+	result["tcp_ok"] = true
+
+	// 3. Authenticated API call
+	data, code, apiErr := netlifyRequest(cfg, "GET", "/user", nil)
+	if apiErr != nil {
+		result["api_ok"] = false
+		result["api_error"] = apiErr.Error()
+		result["status"] = "error"
+		result["message"] = "API request failed: " + apiErr.Error()
+		out, _ := json.Marshal(result)
+		return string(out)
+	}
+	if code == 401 {
+		result["api_ok"] = false
+		result["api_http_code"] = code
+		result["status"] = "error"
+		result["message"] = "Authentication failed (HTTP 401) — the netlify_token in the vault is invalid or expired."
+		out, _ := json.Marshal(result)
+		return string(out)
+	}
+	if code != 200 {
+		result["api_ok"] = false
+		result["api_http_code"] = code
+		result["status"] = "error"
+		result["message"] = fmt.Sprintf("API returned unexpected HTTP %d", code)
+		out, _ := json.Marshal(result)
+		return string(out)
+	}
+
+	var user map[string]interface{}
+	_ = json.Unmarshal(data, &user)
+	result["api_ok"] = true
+	result["status"] = "ok"
+	result["message"] = "Netlify API is reachable and token is valid"
+	if email, ok := user["email"].(string); ok {
+		result["account_email"] = email
+	}
+	if slug, ok := user["slug"].(string); ok {
+		result["account_slug"] = slug
+	}
+	out, _ := json.Marshal(result)
+	return string(out)
+}
+
 func NetlifyDeployZip(cfg NetlifyConfig, siteID, title string, draft bool, zipData []byte) string {
 	siteID = netlifyResolveSiteID(cfg, siteID)
 	if siteID == "" {
-		return errJSON("site_id is required")
+		return errJSON("site_id is required. Use 'netlify check_connection' to verify API access, then 'netlify list_sites' to find your site ID, or set default_site_id in the Netlify config.")
 	}
 	if len(zipData) == 0 {
 		return errJSON("zip data is empty")

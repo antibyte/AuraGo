@@ -805,8 +805,12 @@ func dispatchInfra(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 		case "provision_ssl":
 			logger.Info("LLM requested Netlify provision SSL", "site_id", tc.SiteID)
 			return "Tool Output: " + tools.NetlifyProvisionSSL(nfCfg, tc.SiteID)
+		// ── Diagnostics ──
+		case "check_connection":
+			logger.Info("LLM requested Netlify connection check")
+			return "Tool Output: " + tools.NetlifyTestConnection(nfCfg)
 		default:
-			return `Tool Output: {"status":"error","message":"Unknown netlify operation. Use: list_sites, get_site, create_site, update_site, delete_site, list_deploys, get_deploy, deploy_zip, deploy_draft, rollback, cancel_deploy, list_env, get_env, set_env, delete_env, list_files, list_forms, get_submissions, list_hooks, create_hook, delete_hook, provision_ssl"}`
+			return `Tool Output: {"status":"error","message":"Unknown netlify operation. Use: list_sites, get_site, create_site, update_site, delete_site, list_deploys, get_deploy, deploy_zip, deploy_draft, rollback, cancel_deploy, list_env, get_env, set_env, delete_env, list_files, list_forms, get_submissions, list_hooks, create_hook, delete_hook, provision_ssl, check_connection"}`
 		}
 
 	case "mqtt_publish":
