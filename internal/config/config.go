@@ -477,6 +477,13 @@ type Config struct {
 		TeamSlug            string `yaml:"team_slug"`             // Netlify team/account slug
 		Token               string `yaml:"-" vault:"token"`       // Personal Access Token (from vault)
 	} `yaml:"netlify"`
+	AdGuard struct {
+		Enabled  bool   `yaml:"enabled"`
+		ReadOnly bool   `yaml:"readonly"` // true = only read status/stats/logs, block all mutations
+		URL      string `yaml:"url"`      // e.g. http://192.168.1.1:3000
+		Username string `yaml:"username"`
+		Password string `yaml:"-" vault:"adguard_password"`
+	} `yaml:"adguard"`
 	MQTT struct {
 		Enabled      bool     `yaml:"enabled"`
 		ReadOnly     bool     `yaml:"readonly"` // true = only subscribe/get_messages/unsubscribe, block publish
@@ -920,6 +927,7 @@ func (c *Config) ApplyVaultSecrets(vault SecretReader) {
 	apply("github_token", &c.GitHub.Token)
 	apply("rocketchat_auth_token", &c.RocketChat.AuthToken)
 	apply("mqtt_password", &c.MQTT.Password)
+	apply("adguard_password", &c.AdGuard.Password)
 
 	// ── Homepage deploy secrets ──
 	apply("homepage_deploy_password", &c.Homepage.DeployPassword)

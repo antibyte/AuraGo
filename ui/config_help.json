@@ -264,6 +264,28 @@
       "description": "Optional Netlify team slug for API calls that require a team context (e.g. creating new sites)."
     }
   },
+  "adguard": {
+    "enabled": {
+      "title": "Enable AdGuard Home Integration",
+      "description": "Activates AdGuard Home DNS management — statistics, query log, filtering, DNS rewrites, blocked services, safe browsing, parental controls, DHCP, and client management."
+    },
+    "readonly": {
+      "title": "Read-Only Mode",
+      "description": "When enabled, the agent can only read AdGuard Home data. All write operations (toggle filtering, add rewrites, modify clients, etc.) are blocked."
+    },
+    "url": {
+      "title": "AdGuard Home URL",
+      "description": "Base URL of your AdGuard Home instance, e.g. http://192.168.1.1:3000. The API is accessed at /control/ on this URL."
+    },
+    "username": {
+      "title": "Username",
+      "description": "Username for AdGuard Home Basic Auth. Leave empty if authentication is disabled."
+    },
+    "password": {
+      "title": "Password",
+      "description": "Password for AdGuard Home Basic Auth. Stored securely in the vault under key 'adguard_password'."
+    }
+  },
   "docker": {
     "host": {
       "title": "Docker Host",

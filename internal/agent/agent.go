@@ -357,6 +357,13 @@ type ToolCall struct {
 	HookType     string `json:"hook_type"`     // hook type: url, email, slack
 	HookEvent    string `json:"hook_event"`    // hook event: deploy_created, deploy_building, deploy_failed, etc.
 	CustomDomain string `json:"custom_domain"` // custom domain for site
+	// AdGuard Home fields
+	Answer   string   `json:"answer"`   // DNS rewrite answer (IP or CNAME)
+	Rules    string   `json:"rules"`    // custom filtering rules (newline-separated)
+	Services []string `json:"services"` // blocked service IDs / upstream DNS servers
+	MAC      string   `json:"mac"`      // MAC address for DHCP leases
+	IP       string   `json:"ip"`       // IP address for DHCP leases
+	Offset   int      `json:"offset"`   // pagination offset
 }
 
 // GetArgs returns Args as a string slice, handling various input types (slice of strings or interface).
@@ -474,6 +481,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		InvasionControlEnabled:   cfg.InvasionControl.Enabled && invasionDB != nil,
 		GitHubEnabled:            cfg.GitHub.Enabled,
 		MQTTEnabled:              cfg.MQTT.Enabled,
+		AdGuardEnabled:           cfg.AdGuard.Enabled,
 		MCPEnabled:               cfg.MCP.Enabled && cfg.Agent.AllowMCP,
 		SandboxEnabled:           cfg.Sandbox.Enabled && (!cfg.Runtime.IsDocker || cfg.Runtime.DockerSocketOK),
 		MeshCentralEnabled:       cfg.MeshCentral.Enabled,
@@ -571,6 +579,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			InvasionControlEnabled:   cfg.InvasionControl.Enabled && invasionDB != nil,
 			GitHubEnabled:            cfg.GitHub.Enabled,
 			MQTTEnabled:              cfg.MQTT.Enabled,
+			AdGuardEnabled:           cfg.AdGuard.Enabled,
 			MCPEnabled:               cfg.MCP.Enabled && cfg.Agent.AllowMCP,
 			SandboxEnabled:           cfg.Sandbox.Enabled && (!cfg.Runtime.IsDocker || cfg.Runtime.DockerSocketOK),
 			MeshCentralEnabled:       cfg.MeshCentral.Enabled,
@@ -1899,6 +1908,7 @@ var systemSecretExact = map[string]struct{}{
 	"github_token":                {},
 	"rocketchat_auth_token":       {},
 	"mqtt_password":               {},
+	"adguard_password":            {},
 	"netlify_token":               {},
 	"pushover_user_key":           {},
 	"pushover_app_token":          {},
@@ -5024,6 +5034,123 @@ func dispatchInner(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 
 		default:
 			return fmt.Sprintf(`Tool Output: {"status": "error", "message": "unknown mcp_call operation '%s'. Use list_servers, list_tools, or call_tool."}`, op)
+		}
+
+	case "adguard", "adguard_home":
+		if !cfg.AdGuard.Enabled {
+			return `Tool Output: {"status":"error","message":"AdGuard Home is not enabled. Configure the adguard section in config.yaml."}`
+		}
+		adgCfg := tools.AdGuardConfig{
+			URL:      cfg.AdGuard.URL,
+			Username: cfg.AdGuard.Username,
+			Password: cfg.AdGuard.Password,
+		}
+		op := strings.ToLower(strings.TrimSpace(tc.Operation))
+
+		// Read-only operations
+		switch op {
+		case "status":
+			logger.Info("LLM requested AdGuard status")
+			return "Tool Output: " + tools.AdGuardStatus(adgCfg)
+		case "stats":
+			logger.Info("LLM requested AdGuard stats")
+			return "Tool Output: " + tools.AdGuardStats(adgCfg)
+		case "stats_top":
+			logger.Info("LLM requested AdGuard top stats")
+			return "Tool Output: " + tools.AdGuardStatsTop(adgCfg)
+		case "query_log":
+			logger.Info("LLM requested AdGuard query log", "search", tc.Query, "limit", tc.Limit)
+			return "Tool Output: " + tools.AdGuardQueryLog(adgCfg, tc.Query, tc.Limit, tc.Offset)
+		case "filtering_status":
+			logger.Info("LLM requested AdGuard filtering status")
+			return "Tool Output: " + tools.AdGuardFilteringStatus(adgCfg)
+		case "rewrite_list":
+			logger.Info("LLM requested AdGuard rewrite list")
+			return "Tool Output: " + tools.AdGuardRewriteList(adgCfg)
+		case "blocked_services_list":
+			logger.Info("LLM requested AdGuard blocked services list")
+			return "Tool Output: " + tools.AdGuardBlockedServicesList(adgCfg)
+		case "safebrowsing_status":
+			logger.Info("LLM requested AdGuard safe browsing status")
+			return "Tool Output: " + tools.AdGuardSafeBrowsingStatus(adgCfg)
+		case "parental_status":
+			logger.Info("LLM requested AdGuard parental status")
+			return "Tool Output: " + tools.AdGuardParentalStatus(adgCfg)
+		case "dhcp_status":
+			logger.Info("LLM requested AdGuard DHCP status")
+			return "Tool Output: " + tools.AdGuardDHCPStatus(adgCfg)
+		case "clients":
+			logger.Info("LLM requested AdGuard clients")
+			return "Tool Output: " + tools.AdGuardClients(adgCfg)
+		case "dns_info":
+			logger.Info("LLM requested AdGuard DNS info")
+			return "Tool Output: " + tools.AdGuardDNSInfo(adgCfg)
+		case "test_upstream":
+			logger.Info("LLM requested AdGuard test upstream", "servers", tc.Services)
+			return "Tool Output: " + tools.AdGuardTestUpstream(adgCfg, tc.Services)
+		}
+
+		// Write operations — check readonly
+		if cfg.AdGuard.ReadOnly {
+			return `Tool Output: {"status":"error","message":"AdGuard Home is in read-only mode. Disable adguard.readonly to allow changes."}`
+		}
+		switch op {
+		case "query_log_clear":
+			logger.Info("LLM requested AdGuard query log clear")
+			return "Tool Output: " + tools.AdGuardQueryLogClear(adgCfg)
+		case "filtering_toggle":
+			logger.Info("LLM requested AdGuard filtering toggle", "enabled", tc.Enabled)
+			return "Tool Output: " + tools.AdGuardFilteringToggle(adgCfg, tc.Enabled)
+		case "filtering_add_url":
+			logger.Info("LLM requested AdGuard add filter URL", "url", tc.URL)
+			return "Tool Output: " + tools.AdGuardFilteringAddURL(adgCfg, tc.Name, tc.URL)
+		case "filtering_remove_url":
+			logger.Info("LLM requested AdGuard remove filter URL", "url", tc.URL)
+			return "Tool Output: " + tools.AdGuardFilteringRemoveURL(adgCfg, tc.URL)
+		case "filtering_refresh":
+			logger.Info("LLM requested AdGuard filtering refresh")
+			return "Tool Output: " + tools.AdGuardFilteringRefresh(adgCfg)
+		case "filtering_set_rules":
+			logger.Info("LLM requested AdGuard set filtering rules")
+			return "Tool Output: " + tools.AdGuardFilteringSetRules(adgCfg, tc.Rules)
+		case "rewrite_add":
+			logger.Info("LLM requested AdGuard add rewrite", "domain", tc.Domain, "answer", tc.Answer)
+			return "Tool Output: " + tools.AdGuardRewriteAdd(adgCfg, tc.Domain, tc.Answer)
+		case "rewrite_delete":
+			logger.Info("LLM requested AdGuard delete rewrite", "domain", tc.Domain, "answer", tc.Answer)
+			return "Tool Output: " + tools.AdGuardRewriteDelete(adgCfg, tc.Domain, tc.Answer)
+		case "blocked_services_set":
+			logger.Info("LLM requested AdGuard set blocked services", "services", tc.Services)
+			return "Tool Output: " + tools.AdGuardBlockedServicesSet(adgCfg, tc.Services)
+		case "safebrowsing_toggle":
+			logger.Info("LLM requested AdGuard safe browsing toggle", "enabled", tc.Enabled)
+			return "Tool Output: " + tools.AdGuardSafeBrowsingToggle(adgCfg, tc.Enabled)
+		case "parental_toggle":
+			logger.Info("LLM requested AdGuard parental toggle", "enabled", tc.Enabled)
+			return "Tool Output: " + tools.AdGuardParentalToggle(adgCfg, tc.Enabled)
+		case "dhcp_set_config":
+			logger.Info("LLM requested AdGuard DHCP set config")
+			return "Tool Output: " + tools.AdGuardDHCPSetConfig(adgCfg, tc.Content)
+		case "dhcp_add_lease":
+			logger.Info("LLM requested AdGuard DHCP add lease", "mac", tc.MAC, "ip", tc.IP)
+			return "Tool Output: " + tools.AdGuardDHCPAddLease(adgCfg, tc.MAC, tc.IP, tc.Hostname)
+		case "dhcp_remove_lease":
+			logger.Info("LLM requested AdGuard DHCP remove lease", "mac", tc.MAC, "ip", tc.IP)
+			return "Tool Output: " + tools.AdGuardDHCPRemoveLease(adgCfg, tc.MAC, tc.IP, tc.Hostname)
+		case "client_add":
+			logger.Info("LLM requested AdGuard client add")
+			return "Tool Output: " + tools.AdGuardClientAdd(adgCfg, tc.Content)
+		case "client_update":
+			logger.Info("LLM requested AdGuard client update")
+			return "Tool Output: " + tools.AdGuardClientUpdate(adgCfg, tc.Content)
+		case "client_delete":
+			logger.Info("LLM requested AdGuard client delete", "name", tc.Name)
+			return "Tool Output: " + tools.AdGuardClientDelete(adgCfg, tc.Name)
+		case "dns_config":
+			logger.Info("LLM requested AdGuard DNS config update")
+			return "Tool Output: " + tools.AdGuardDNSConfig(adgCfg, tc.Content)
+		default:
+			return fmt.Sprintf(`Tool Output: {"status":"error","message":"Unknown adguard operation '%s'. Use: status, stats, stats_top, query_log, query_log_clear, filtering_status, filtering_toggle, filtering_add_url, filtering_remove_url, filtering_refresh, filtering_set_rules, rewrite_list, rewrite_add, rewrite_delete, blocked_services_list, blocked_services_set, safebrowsing_status, safebrowsing_toggle, parental_status, parental_toggle, dhcp_status, dhcp_set_config, dhcp_add_lease, dhcp_remove_lease, clients, client_add, client_update, client_delete, dns_info, dns_config, test_upstream"}`, op)
 		}
 
 	default:

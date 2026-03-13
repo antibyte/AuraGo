@@ -57,6 +57,7 @@ type ToolFeatureFlags struct {
 	InvasionControlEnabled bool
 	GitHubEnabled          bool
 	MQTTEnabled            bool
+	AdGuardEnabled         bool
 	MCPEnabled             bool
 	SandboxEnabled         bool
 	MeshCentralEnabled     bool
@@ -65,12 +66,12 @@ type ToolFeatureFlags struct {
 	FirewallEnabled        bool
 	EmailEnabled           bool
 	// Danger Zone toggles
-	AllowShell              bool
-	AllowPython             bool
-	AllowFilesystemWrite    bool
-	AllowNetworkRequests    bool
-	AllowRemoteShell        bool
-	AllowSelfUpdate         bool
+	AllowShell               bool
+	AllowPython              bool
+	AllowFilesystemWrite     bool
+	AllowNetworkRequests     bool
+	AllowRemoteShell         bool
+	AllowSelfUpdate          bool
 	HomepageAllowLocalServer bool // Allow Python HTTP server fallback when Docker unavailable
 	// Built-in tool toggles
 	MemoryEnabled            bool
@@ -827,6 +828,28 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 				"libraries":    map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Optional packages to install before running (e.g. ['requests', 'pandas'])"},
 				"description":  prop("string", "Brief description of what this code does"),
 			}, "code"),
+		))
+	}
+	if ff.AdGuardEnabled {
+		tools = append(tools, tool("adguard",
+			"Manage AdGuard Home DNS server. Supports: status, stats, stats_top, query_log, query_log_clear, filtering_status, filtering_toggle, filtering_add_url, filtering_remove_url, filtering_refresh, filtering_set_rules, rewrite_list, rewrite_add, rewrite_delete, blocked_services_list, blocked_services_set, safebrowsing_status, safebrowsing_toggle, parental_status, parental_toggle, dhcp_status, dhcp_set_config, dhcp_add_lease, dhcp_remove_lease, clients, client_add, client_update, client_delete, dns_info, dns_config, test_upstream.",
+			schema(map[string]interface{}{
+				"operation": prop("string", "The operation to perform (e.g. status, stats, query_log, rewrite_add, filtering_toggle, etc.)"),
+				"query":     prop("string", "Search query for query_log"),
+				"limit":     map[string]interface{}{"type": "integer", "description": "Max results to return (default: 25 for query_log)"},
+				"offset":    map[string]interface{}{"type": "integer", "description": "Pagination offset for query_log"},
+				"domain":    prop("string", "Domain for rewrite operations"),
+				"answer":    prop("string", "Answer IP/CNAME for rewrite operations"),
+				"name":      prop("string", "Name for filter lists or client delete"),
+				"url":       prop("string", "URL for filter list add/remove"),
+				"rules":     prop("string", "Custom filtering rules (newline-separated)"),
+				"enabled":   map[string]interface{}{"type": "boolean", "description": "Enable/disable toggle for filtering, safebrowsing, parental"},
+				"services":  map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Service IDs for blocked_services_set or upstream DNS servers for test_upstream"},
+				"mac":       prop("string", "MAC address for DHCP lease operations"),
+				"ip":        prop("string", "IP address for DHCP lease operations"),
+				"hostname":  prop("string", "Hostname for DHCP lease operations"),
+				"content":   prop("string", "Raw JSON config for DHCP, client, or DNS settings operations"),
+			}, "operation"),
 		))
 	}
 	return tools

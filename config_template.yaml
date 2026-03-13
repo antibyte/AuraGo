@@ -269,6 +269,11 @@ mqtt:
     topics: []
     qos: 0
     relay_to_agent: false
+adguard:
+    enabled: false
+    readonly: false
+    url: ""
+    username: ""
 # ── Additional Integrations ── disabled by default for fresh installs
 webhooks:
     enabled: false

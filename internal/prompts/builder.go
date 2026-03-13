@@ -101,6 +101,7 @@ type ContextFlags struct {
 	InvasionControlEnabled   bool
 	GitHubEnabled            bool
 	MQTTEnabled              bool
+	AdGuardEnabled           bool
 	MCPEnabled               bool
 	SandboxEnabled           bool
 	MeshCentralEnabled       bool

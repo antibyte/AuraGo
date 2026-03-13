@@ -431,6 +431,7 @@ func processDiscordMessage(s *discordgo.Session, m *discordgo.MessageCreate, inp
 		AnsibleEnabled:           cfg.Ansible.Enabled,
 		GitHubEnabled:            cfg.GitHub.Enabled,
 		MQTTEnabled:              cfg.MQTT.Enabled,
+		AdGuardEnabled:           cfg.AdGuard.Enabled,
 		MCPEnabled:               cfg.MCP.Enabled && cfg.Agent.AllowMCP,
 		SandboxEnabled:           cfg.Sandbox.Enabled && (!cfg.Runtime.IsDocker || cfg.Runtime.DockerSocketOK),
 		MeshCentralEnabled:       cfg.MeshCentral.Enabled,

@@ -256,6 +256,7 @@ func processMessage(cfg *config.Config, logger *slog.Logger, client llm.ChatClie
 		AnsibleEnabled:           cfg.Ansible.Enabled,
 		GitHubEnabled:            cfg.GitHub.Enabled,
 		MQTTEnabled:              cfg.MQTT.Enabled,
+		AdGuardEnabled:           cfg.AdGuard.Enabled,
 		MCPEnabled:               cfg.MCP.Enabled && cfg.Agent.AllowMCP,
 		SandboxEnabled:           cfg.Sandbox.Enabled && (!cfg.Runtime.IsDocker || cfg.Runtime.DockerSocketOK),
 		MeshCentralEnabled:       cfg.MeshCentral.Enabled,
@@ -319,6 +320,7 @@ func processMessage(cfg *config.Config, logger *slog.Logger, client llm.ChatClie
 			HomepageEnabled:          cfg.Homepage.Enabled && (!cfg.Runtime.IsDocker || cfg.Runtime.DockerSocketOK || cfg.Homepage.AllowLocalServer),
 			HomepageAllowLocalServer: cfg.Homepage.AllowLocalServer,
 			NetlifyEnabled:           cfg.Netlify.Enabled,
+			AdGuardEnabled:           cfg.AdGuard.Enabled,
 		}
 		ntSchemas := agent.BuildNativeToolSchemas(cfg.Directories.SkillsDir, manifest, cfg.Agent.EnableGoogleWorkspace, ff, logger)
 		req.Tools = ntSchemas

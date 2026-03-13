@@ -71,7 +71,8 @@ const SECTIONS = [
         items: [
             { key: 'home_assistant', icon: '🏠', label: t('config.section.home_assistant.label'), desc: t('config.section.home_assistant.desc') },
             { key: 'mqtt', icon: '📡', label: t('config.section.mqtt.label'), desc: t('config.section.mqtt.desc') },
-            { key: 'chromecast', icon: '📺', label: t('config.section.chromecast.label'), desc: t('config.section.chromecast.desc') }
+            { key: 'chromecast', icon: '📺', label: t('config.section.chromecast.label'), desc: t('config.section.chromecast.desc') },
+            { key: 'adguard', icon: '🛡️', label: t('config.section.adguard.label'), desc: t('config.section.adguard.desc') }
         ]
     },
     {
@@ -811,6 +812,7 @@ const SECTION_MODULES = {
     updates: { m: 'updates', fn: 'renderUpdatesSection' },
     devices: { m: 'devices', fn: 'renderDevicesSection' },
     chromecast: { m: 'chromecast', fn: 'renderChromecastSection' },
+    adguard: { m: 'adguard', fn: 'renderAdGuardSection' },
     homepage: { m: 'homepage', fn: 'renderHomepageSection' },
     netlify: { m: 'netlify', fn: 'renderNetlifySection' },
     danger_zone: { m: 'danger', fn: 'renderDangerZoneSection' },
