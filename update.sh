@@ -684,18 +684,14 @@ _download_release_bin() {
     fetch_url_to_file "$url" "$DIR/bin/$name"
 }
 
-GO_MIN_VERSION="1.26"
 GO_FOUND=false
 if command -v go >/dev/null 2>&1; then
     GO_VERSION=$(go version | awk '{print $3}' | sed 's/go//')
-    # Simple version comparison for 1.26+
-    if [ "$(printf '%s\n%s' "$GO_MIN_VERSION" "$GO_VERSION" | sort -V | head -n1)" = "$GO_MIN_VERSION" ]; then
-        GO_FOUND=true
-    fi
+    GO_FOUND=true
 fi
 
 if $GO_FOUND; then
-    # ── Source build (Go 1.26+ available) ────────────────────────────────
+    # ── Source build (Go available) ───────────────────────────────────────
     info "Go $GO_VERSION found — building from source..."
 
     if [ "$GOARCH" = "arm" ] && [ -n "${GOARM:-}" ]; then
@@ -721,12 +717,8 @@ if $GO_FOUND; then
         ok "bin/config-merger_linux built from source"
     fi
 else
-    # ── Download binaries from GitHub Releases (no Go or < 1.26) ──────────
-    if command -v go >/dev/null 2>&1; then
-        warn "Go ($GO_VERSION) is too old (min $GO_MIN_VERSION) — downloading pre-built binaries from GitHub Releases."
-    else
-        warn "Go is not installed — downloading pre-built binaries from GitHub Releases."
-    fi
+    # ── Download binaries from GitHub Releases (no Go available) ─────────
+    warn "Go is not installed — downloading pre-built binaries from GitHub Releases."
 
     # Pick arch-appropriate binary names
     if [ "$GOARCH" = "arm64" ]; then
