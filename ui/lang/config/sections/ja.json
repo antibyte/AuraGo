@@ -85,6 +85,8 @@
   "config.section.mqtt.desc": "IoT とメッセージング用 MQTT ブローカーインテグレーション",
   "config.section.chromecast.label": "Chromecast",
   "config.section.chromecast.desc": "Chromecast オーディオインテグレーション",
+  "config.section.adguard.label": "AdGuard Home",
+  "config.section.adguard.desc": "DNSフィルタリング & ネットワーク保護",
   "config.section.proxmox.label": "Proxmox",
   "config.section.proxmox.desc": "Proxmox VE 仮想化",
   "config.section.tailscale.label": "Tailscale",

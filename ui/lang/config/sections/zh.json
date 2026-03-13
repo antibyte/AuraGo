@@ -85,6 +85,8 @@
   "config.section.mqtt.desc": "用于物联网和消息传递的 MQTT 代理集成",
   "config.section.chromecast.label": "Chromecast",
   "config.section.chromecast.desc": "Chromecast 音频集成",
+  "config.section.adguard.label": "AdGuard Home",
+  "config.section.adguard.desc": "DNS 过滤 & 网络保护",
   "config.section.proxmox.label": "Proxmox",
   "config.section.proxmox.desc": "Proxmox VE 虚拟化",
   "config.section.tailscale.label": "Tailscale",

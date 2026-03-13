@@ -85,6 +85,8 @@
   "config.section.mqtt.desc": "Configurações MQTT",
   "config.section.chromecast.label": "Chromecast",
   "config.section.chromecast.desc": "Integração com Chromecast",
+  "config.section.adguard.label": "AdGuard Home",
+  "config.section.adguard.desc": "Filtragem DNS & proteção de rede",
   "config.section.proxmox.label": "Proxmox",
   "config.section.proxmox.desc": "Integração com Proxmox",
   "config.section.tailscale.label": "Tailscale",

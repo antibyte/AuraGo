@@ -46,7 +46,10 @@ type agoManifest struct {
 // migrated between systems. All other vault keys (integration credentials) are
 // included in the encrypted vault export.
 var vaultSkipKeys = map[string]bool{
-	"auth_password_hash":  true,
+	// Session secret is randomly generated per-instance for JWT/cookie signing.
+	// Migrating it would NOT break logins, but it's safer to let each instance
+	// generate its own — existing sessions on the new instance would be invalidated
+	// anyway after a restore+restart.
 	"auth_session_secret": true,
 }
 
