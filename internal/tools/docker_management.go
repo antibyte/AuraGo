@@ -1,0 +1,441 @@
+package tools
+
+import (
+	"encoding/json"
+	"fmt"
+	"net/url"
+	"os/exec"
+	"strings"
+)
+
+// DockerCreateContainer creates a new container from a configuration.
+func DockerCreateContainer(cfg DockerConfig, name, image string, env []string, ports map[string]string, volumes []string, cmd []string, restart string) string {
+	if image == "" {
+		return errJSON("image is required")
+	}
+
+	// Build HostConfig.PortBindings and ExposedPorts
+	exposedPorts := map[string]interface{}{}
+	portBindings := map[string]interface{}{}
+	for containerPort, hostPort := range ports {
+		// Ensure container port has /tcp suffix
+		if !strings.Contains(containerPort, "/") {
+			containerPort += "/tcp"
+		}
+		exposedPorts[containerPort] = struct{}{}
+		portBindings[containerPort] = []map[string]string{{"HostPort": hostPort}}
+	}
+
+	// Build volume binds
+	hostConfig := map[string]interface{}{
+		"Binds":         volumes,
+		"PortBindings":  portBindings,
+		"RestartPolicy": map[string]interface{}{"Name": restart},
+	}
+
+	payload := map[string]interface{}{
+		"Image":        image,
+		"Env":          env,
+		"ExposedPorts": exposedPorts,
+		"HostConfig":   hostConfig,
+	}
+	if len(cmd) > 0 {
+		payload["Cmd"] = cmd
+	}
+
+	body, _ := json.Marshal(payload)
+
+	endpoint := "/containers/create"
+	if name != "" {
+		if err := validateDockerName(name); err != nil {
+			return errJSON("%v", err)
+		}
+		endpoint += "?name=" + url.QueryEscape(name)
+	}
+
+	data, code, err := dockerRequest(cfg, "POST", endpoint, string(body))
+	if err != nil {
+		return errJSON("Failed to create container: %v", err)
+	}
+	if code == 201 {
+		var resp map[string]interface{}
+		json.Unmarshal(data, &resp)
+		return fmt.Sprintf(`{"status":"ok","message":"Container created","id":"%v"}`, resp["Id"])
+	}
+	return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+}
+
+// DockerListNetworks returns all Docker networks.
+func DockerListNetworks(cfg DockerConfig) string {
+	data, code, err := dockerRequest(cfg, "GET", "/networks", "")
+	if err != nil {
+		return errJSON("Failed to list networks: %v", err)
+	}
+	if code != 200 {
+		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+	}
+
+	var networks []map[string]interface{}
+	if err := json.Unmarshal(data, &networks); err != nil {
+		return errJSON("Failed to parse networks: %v", err)
+	}
+
+	type compact struct {
+		ID     string `json:"id"`
+		Name   string `json:"name"`
+		Driver string `json:"driver"`
+		Scope  string `json:"scope"`
+	}
+	var result []compact
+	for _, n := range networks {
+		entry := compact{
+			Name:   fmt.Sprintf("%v", n["Name"]),
+			Driver: fmt.Sprintf("%v", n["Driver"]),
+			Scope:  fmt.Sprintf("%v", n["Scope"]),
+		}
+		if id, ok := n["Id"].(string); ok && len(id) > 12 {
+			entry.ID = id[:12]
+		}
+		result = append(result, entry)
+	}
+
+	out, _ := json.Marshal(map[string]interface{}{"status": "ok", "count": len(result), "networks": result})
+	return string(out)
+}
+
+// DockerListVolumes returns all Docker volumes.
+func DockerListVolumes(cfg DockerConfig) string {
+	data, code, err := dockerRequest(cfg, "GET", "/volumes", "")
+	if err != nil {
+		return errJSON("Failed to list volumes: %v", err)
+	}
+	if code != 200 {
+		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+	}
+
+	var resp map[string]interface{}
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return errJSON("Failed to parse volumes: %v", err)
+	}
+
+	type compact struct {
+		Name       string `json:"name"`
+		Driver     string `json:"driver"`
+		Mountpoint string `json:"mountpoint"`
+	}
+	var result []compact
+	if vols, ok := resp["Volumes"].([]interface{}); ok {
+		for _, v := range vols {
+			if vol, ok := v.(map[string]interface{}); ok {
+				result = append(result, compact{
+					Name:       fmt.Sprintf("%v", vol["Name"]),
+					Driver:     fmt.Sprintf("%v", vol["Driver"]),
+					Mountpoint: fmt.Sprintf("%v", vol["Mountpoint"]),
+				})
+			}
+		}
+	}
+
+	out, _ := json.Marshal(map[string]interface{}{"status": "ok", "count": len(result), "volumes": result})
+	return string(out)
+}
+
+// DockerSystemInfo returns a summary of the Docker engine (version, containers, images count).
+func DockerSystemInfo(cfg DockerConfig) string {
+	data, code, err := dockerRequest(cfg, "GET", "/info", "")
+	if err != nil {
+		return errJSON("Failed to get Docker info: %v", err)
+	}
+	if code != 200 {
+		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+	}
+
+	var info map[string]interface{}
+	if err := json.Unmarshal(data, &info); err != nil {
+		return errJSON("Failed to parse info: %v", err)
+	}
+
+	result := map[string]interface{}{
+		"status":             "ok",
+		"server_version":     info["ServerVersion"],
+		"os":                 info["OperatingSystem"],
+		"architecture":       info["Architecture"],
+		"cpus":               info["NCPU"],
+		"memory_bytes":       info["MemTotal"],
+		"containers_total":   info["Containers"],
+		"containers_running": info["ContainersRunning"],
+		"containers_stopped": info["ContainersStopped"],
+		"containers_paused":  info["ContainersPaused"],
+		"images":             info["Images"],
+	}
+	out, _ := json.Marshal(result)
+	return string(out)
+}
+
+// DockerExec executes a command inside a running container using the REST API.
+func DockerExec(cfg DockerConfig, containerID, cmd, user string) string {
+	if err := validateDockerName(containerID); err != nil {
+		return errJSON("%v", err)
+	}
+
+	cmdArray := []string{"sh", "-c", cmd}
+	payload := map[string]interface{}{
+		"AttachStdout": true,
+		"AttachStderr": true,
+		"Cmd":          cmdArray,
+		"Tty":          false,
+	}
+	if user != "" {
+		payload["User"] = user
+	}
+	body, _ := json.Marshal(payload)
+
+	// Create exec instance
+	data, code, err := dockerRequest(cfg, "POST", "/containers/"+url.PathEscape(containerID)+"/exec", string(body))
+	if err != nil {
+		return errJSON("Failed to map exec: %v", err)
+	}
+	if code != 201 {
+		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+	}
+
+	var execResp map[string]interface{}
+	json.Unmarshal(data, &execResp)
+	execID, ok := execResp["Id"].(string)
+	if !ok || execID == "" {
+		return errJSON("Failed to obtain exec ID")
+	}
+
+	// Start exec instance and read output
+	startPayload := `{"Detach": false, "Tty": false}`
+	outData, outCode, err := dockerRequest(cfg, "POST", "/exec/"+execID+"/start", startPayload)
+	if err != nil {
+		return errJSON("Failed to start exec: %v", err)
+	}
+	if outCode != 200 {
+		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, outCode, string(outData))
+	}
+
+	outputStr := stripDockerLogHeaders(outData)
+	result := map[string]interface{}{
+		"status":       "ok",
+		"container_id": containerID,
+		"output":       outputStr,
+	}
+	out, _ := json.Marshal(result)
+	return string(out)
+}
+
+// DockerStats retrieves real-time resource usage of a container.
+func DockerStats(cfg DockerConfig, containerID string) string {
+	if err := validateDockerName(containerID); err != nil {
+		return errJSON("%v", err)
+	}
+	data, code, err := dockerRequest(cfg, "GET", "/containers/"+url.PathEscape(containerID)+"/stats?stream=false", "")
+	if err != nil {
+		return errJSON("Failed to get stats: %v", err)
+	}
+	if code != 200 {
+		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+	}
+	return string(data)
+}
+
+// DockerTop lists running processes inside a container.
+func DockerTop(cfg DockerConfig, containerID string) string {
+	if err := validateDockerName(containerID); err != nil {
+		return errJSON("%v", err)
+	}
+	data, code, err := dockerRequest(cfg, "GET", "/containers/"+url.PathEscape(containerID)+"/top", "")
+	if err != nil {
+		return errJSON("Failed to get top: %v", err)
+	}
+	if code != 200 {
+		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+	}
+	return string(data)
+}
+
+// DockerPort shows mapped ports for a container.
+func DockerPort(cfg DockerConfig, containerID string) string {
+	if err := validateDockerName(containerID); err != nil {
+		return errJSON("%v", err)
+	}
+	data, code, err := dockerRequest(cfg, "GET", "/containers/"+url.PathEscape(containerID)+"/json", "")
+	if err != nil {
+		return errJSON("Failed to get port info: %v", err)
+	}
+	if code != 200 {
+		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+	}
+	var full map[string]interface{}
+	json.Unmarshal(data, &full)
+
+	ports := map[string]interface{}{}
+	if netSettings, ok := full["NetworkSettings"].(map[string]interface{}); ok {
+		if p, ok := netSettings["Ports"]; ok {
+			ports = p.(map[string]interface{})
+		}
+	}
+	out, _ := json.Marshal(map[string]interface{}{"status": "ok", "ports": ports})
+	return string(out)
+}
+
+// DockerCreateNetwork creates a network.
+func DockerCreateNetwork(cfg DockerConfig, name, driver string) string {
+	if name == "" {
+		return errJSON("network name required")
+	}
+	if driver == "" {
+		driver = "bridge"
+	}
+	payload, _ := json.Marshal(map[string]interface{}{"Name": name, "Driver": driver})
+	data, code, err := dockerRequest(cfg, "POST", "/networks/create", string(payload))
+	if err != nil {
+		return errJSON("Failed to create network: %v", err)
+	}
+	if code == 201 {
+		var r map[string]interface{}
+		json.Unmarshal(data, &r)
+		return fmt.Sprintf(`{"status":"ok","message":"Network created","id":"%v"}`, r["Id"])
+	}
+	return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+}
+
+// DockerRemoveNetwork removes a network.
+func DockerRemoveNetwork(cfg DockerConfig, name string) string {
+	if name == "" {
+		return errJSON("network name required")
+	}
+	data, code, err := dockerRequest(cfg, "DELETE", "/networks/"+url.PathEscape(name), "")
+	if err != nil {
+		return errJSON("Failed to remove network: %v", err)
+	}
+	if code == 204 || code == 200 {
+		return `{"status":"ok","message":"Network removed"}`
+	}
+	return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+}
+
+// DockerConnectNetwork connects a container to a network.
+func DockerConnectNetwork(cfg DockerConfig, containerID, network string) string {
+	if err := validateDockerName(containerID); err != nil {
+		return errJSON("%v", err)
+	}
+	payload, _ := json.Marshal(map[string]interface{}{"Container": containerID})
+	data, code, err := dockerRequest(cfg, "POST", "/networks/"+url.PathEscape(network)+"/connect", string(payload))
+	if err != nil {
+		return errJSON("Failed to connect to network: %v", err)
+	}
+	if code == 200 || code == 204 {
+		return fmt.Sprintf(`{"status":"ok","message":"Connected to %s"}`, network)
+	}
+	return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+}
+
+// DockerDisconnectNetwork disconnects a container from a network.
+func DockerDisconnectNetwork(cfg DockerConfig, containerID, network string) string {
+	if err := validateDockerName(containerID); err != nil {
+		return errJSON("%v", err)
+	}
+	payload, _ := json.Marshal(map[string]interface{}{"Container": containerID, "Force": true})
+	data, code, err := dockerRequest(cfg, "POST", "/networks/"+url.PathEscape(network)+"/disconnect", string(payload))
+	if err != nil {
+		return errJSON("Failed to disconnect from network: %v", err)
+	}
+	if code == 200 || code == 204 {
+		return fmt.Sprintf(`{"status":"ok","message":"Disconnected from %s"}`, network)
+	}
+	return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+}
+
+// DockerCreateVolume creates a volume.
+func DockerCreateVolume(cfg DockerConfig, name, driver string) string {
+	if name == "" {
+		return errJSON("volume name required")
+	}
+	if driver == "" {
+		driver = "local"
+	}
+	payload, _ := json.Marshal(map[string]interface{}{"Name": name, "Driver": driver})
+	data, code, err := dockerRequest(cfg, "POST", "/volumes/create", string(payload))
+	if err != nil {
+		return errJSON("Failed to create volume: %v", err)
+	}
+	if code == 201 || code == 200 {
+		return fmt.Sprintf(`{"status":"ok","message":"Volume created","name":"%s"}`, name)
+	}
+	return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+}
+
+// DockerRemoveVolume removes a volume.
+func DockerRemoveVolume(cfg DockerConfig, name string, force bool) string {
+	if name == "" {
+		return errJSON("volume name required")
+	}
+	forceParam := ""
+	if force {
+		forceParam = "?force=true"
+	}
+	data, code, err := dockerRequest(cfg, "DELETE", "/volumes/"+url.PathEscape(name)+forceParam, "")
+	if err != nil {
+		return errJSON("Failed to remove volume: %v", err)
+	}
+	if code == 204 || code == 200 {
+		return `{"status":"ok","message":"Volume removed"}`
+	}
+	return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+}
+
+// runDockerCLIHelper is used for operations like cp and compose which are notoriously difficult strictly via REST API.
+func runDockerCLIHelper(cfg DockerConfig, args ...string) string {
+	var cmdArgs []string
+	if cfg.Host != "" && !strings.HasPrefix(cfg.Host, "unix://") && !strings.HasPrefix(cfg.Host, "npipe://") {
+		cmdArgs = append(cmdArgs, "-H", cfg.Host)
+	}
+	cmdArgs = append(cmdArgs, args...)
+	cmd := exec.Command("docker", cmdArgs...)
+	out, err := cmd.CombinedOutput()
+
+	msg := string(out)
+	if err != nil {
+		return errJSON("Command failed: %v | Output: %s", err, msg)
+	}
+
+	res, _ := json.Marshal(map[string]interface{}{
+		"status": "ok",
+		"output": msg,
+	})
+	return string(res)
+}
+
+// DockerCopy uses CLI to copy files to/from container.
+func DockerCopy(cfg DockerConfig, containerID, src, dest, direction string) string {
+	if err := validateDockerName(containerID); err != nil {
+		return errJSON("%v", err)
+	}
+	if src == "" || dest == "" {
+		return errJSON("src and dest required")
+	}
+
+	var args []string
+	if direction == "from_container" {
+		args = []string{"cp", containerID + ":" + src, dest}
+	} else if direction == "to_container" {
+		args = []string{"cp", src, containerID + ":" + dest}
+	} else {
+		return errJSON("direction must be from_container or to_container")
+	}
+
+	return runDockerCLIHelper(cfg, args...)
+}
+
+// DockerCompose uses CLI to trigger compose.
+func DockerCompose(cfg DockerConfig, file, cmd string) string {
+	if file == "" || cmd == "" {
+		return errJSON("file and command required")
+	}
+	args := []string{"compose", "-f", file}
+	args = append(args, strings.Fields(cmd)...)
+	return runDockerCLIHelper(cfg, args...)
+}
