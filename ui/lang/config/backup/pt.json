@@ -20,5 +20,7 @@
   "config.backup.password_required": "Zašifrovaná záloha — zadejte heslo.",
   "config.backup.decryption_failed": "Dešifrování selhalo — špatné heslo?",
   "config.backup.import_success": "Import úspěšný",
-  "config.backup.restart_now": "Restartovat nyní"
+  "config.backup.restart_now": "Restartovat nyní",
+  "config.backup.no_password_warning": "⚠️ Sem senha, nenhuma chave API, senha de login ou token será salvo. Sempre defina uma senha para uma migração completa.",
+  "config.backup.vault_included_hint": "🔐 Segredos do vault (chaves API, senha de login, tokens) serão incluídos."
 }

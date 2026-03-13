@@ -20,5 +20,7 @@
   "config.backup.password_required": "加密备份 — 请输入密码。",
   "config.backup.decryption_failed": "解密失败 — 密码错误？",
   "config.backup.import_success": "导入成功",
-  "config.backup.restart_now": "立即重启"
+  "config.backup.restart_now": "立即重启",
+  "config.backup.no_password_warning": "⚠️ 不设置密码将不会备份任何 API 密钥、登录密码或 Token。完整迁移请务必设置密码。",
+  "config.backup.vault_included_hint": "🔐 Vault 密钥（API 密钥、登录密码、Token）将被包含。"
 }

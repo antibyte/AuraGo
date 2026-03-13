@@ -39,9 +39,10 @@
                     <div class="field-label">${t('config.backup.password_label')}</div>
                     <div class="field-hint" style="margin-bottom:0.5rem;">${t('config.backup.password_hint')}</div>
                     <div class="password-wrap">
-                        <input type="password" id="backup-password" class="field-input" placeholder="${t('config.backup.encryption_placeholder')}" autocomplete="new-password">
+                        <input type="password" id="backup-password" class="field-input" placeholder="${t('config.backup.encryption_placeholder')}" autocomplete="new-password" oninput="backupUpdateVaultHint()">
                         <button type="button" class="password-toggle" onclick="(function(b){var i=document.getElementById('backup-password');i.type=i.type==='password'?'text':'password';b.innerHTML=i.type==='password'?EYE_OPEN_SVG:EYE_CLOSED_SVG;})(this)" title="Toggle visibility">${'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>'}</button>
                     </div>
+                    <div id="backup-vault-hint" style="margin-top:0.5rem;padding:0.5rem 0.75rem;border-radius:8px;font-size:0.79rem;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);color:var(--warning);">${t('config.backup.no_password_warning')}</div>
                 </div>
 
                 <div style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap;">
@@ -83,6 +84,23 @@
 
             html += '</div>';
             document.getElementById('content').innerHTML = html;
+        }
+
+        function backupUpdateVaultHint() {
+            const pw = document.getElementById('backup-password');
+            const hint = document.getElementById('backup-vault-hint');
+            if (!pw || !hint) return;
+            if (pw.value) {
+                hint.style.background = 'rgba(34,197,94,0.08)';
+                hint.style.borderColor = 'rgba(34,197,94,0.3)';
+                hint.style.color = 'var(--success)';
+                hint.textContent = t('config.backup.vault_included_hint');
+            } else {
+                hint.style.background = 'rgba(245,158,11,0.1)';
+                hint.style.borderColor = 'rgba(245,158,11,0.3)';
+                hint.style.color = 'var(--warning)';
+                hint.textContent = t('config.backup.no_password_warning');
+            }
         }
 
         function backupShowTab(tab) {

@@ -455,12 +455,13 @@ type Config struct {
 		IndexImages         bool     `yaml:"index_images"`          // send images to Vision LLM for analysis and index results
 	} `yaml:"indexing"`
 	GitHub struct {
-		Enabled        bool   `yaml:"enabled"`
-		ReadOnly       bool   `yaml:"readonly"`        // true = only list/get/search, block create/delete/update
-		Token          string `yaml:"-" vault:"token"` // Personal Access Token (from vault)
-		Owner          string `yaml:"owner"`           // GitHub username or organisation
-		DefaultPrivate bool   `yaml:"default_private"` // true = new repos are private by default
-		BaseURL        string `yaml:"base_url"`        // API base URL (default: https://api.github.com), for GitHub Enterprise
+		Enabled        bool     `yaml:"enabled"`
+		ReadOnly       bool     `yaml:"readonly"`        // true = only list/get/search, block create/delete/update
+		Token          string   `yaml:"-" vault:"token"` // Personal Access Token (from vault)
+		Owner          string   `yaml:"owner"`           // GitHub username or organisation
+		DefaultPrivate bool     `yaml:"default_private"` // true = new repos are private by default
+		BaseURL        string   `yaml:"base_url"`        // API base URL (default: https://api.github.com), for GitHub Enterprise
+		AllowedRepos   []string `yaml:"allowed_repos"`   // repos agent may access; empty = only agent-created repos
 	} `yaml:"github"`
 	Firewall struct {
 		Enabled             bool   `yaml:"enabled"`

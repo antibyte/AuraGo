@@ -20,5 +20,7 @@
   "config.backup.password_required": "Zaszyfrowany backup — podaj hasło.",
   "config.backup.decryption_failed": "Deszyfrowanie nieudane — złe hasło?",
   "config.backup.import_success": "Import udany",
-  "config.backup.restart_now": "Zrestartuj teraz"
+  "config.backup.restart_now": "Zrestartuj teraz",
+  "config.backup.no_password_warning": "⚠️ Bez hasła nie zostają zachowane klucze API, hasło logowania ani tokeny. Zawsze ustaw hasło dla pełnej migracji.",
+  "config.backup.vault_included_hint": "🔐 Sekrety vault (klucze API, hasło logowania, tokeny) zostaną dołączone."
 }

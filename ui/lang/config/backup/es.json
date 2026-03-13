@@ -20,5 +20,7 @@
   "config.backup.password_required": "Backup cifrado — por favor, introduce la contraseña.",
   "config.backup.decryption_failed": "Descifrado fallido — ¿contraseña incorrecta?",
   "config.backup.import_success": "Importación exitosa",
-  "config.backup.restart_now": "Reiniciar ahora"
+  "config.backup.restart_now": "Reiniciar ahora",
+  "config.backup.no_password_warning": "⚠️ Sin contraseña no se respaldarán claves API, contraseña de inicio de sesión ni tokens. Establece siempre una contraseña para una migración completa.",
+  "config.backup.vault_included_hint": "🔐 Los secretos del vault (claves API, contraseña, tokens) se incluirán."
 }

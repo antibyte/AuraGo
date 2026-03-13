@@ -33,36 +33,44 @@ async function renderHomepageSection(section) {
     if (hpBanner) html += hpBanner;
 
     // ── Status banner ──
-    // Nur der Dev-Container ist relevant für "aktiv" Status (Webserver ist optional)
+    // Only show container status when Docker is configured AND containers exist.
+    // SSH/SFTP deploy works without Docker — no warning needed just because containers aren't running.
     if (dockerEnabled && hpEnabled) {
         if (st.docker_available === false) {
-            // Docker engine configured but not reachable at runtime
-            html += `<div class="wh-notice" style="border-color:var(--warning);background:rgba(234,179,8,0.06);">
-                <span>⚠️</span>
-                <div>
-                    <strong>${t('config.homepage.status_inactive')}</strong><br>
-                    <small>Docker engine not reachable. Check Docker host configuration.</small>
-                </div>
-            </div>`;
+            // Docker configured but not reachable — only show banner if container management is enabled
+            if (cfg.allow_container_management) {
+                html += `<div class="wh-notice" style="border-color:var(--warning);background:rgba(234,179,8,0.06);">
+                    <span>⚠️</span>
+                    <div>
+                        <strong>${t('config.homepage.status_inactive')}</strong><br>
+                        <small>Docker engine not reachable. Container management unavailable. Deploy via SSH/SFTP still works.</small>
+                    </div>
+                </div>`;
+            }
         } else {
             // dev_container / web_container are objects: {exists, running, status}
             const devCtr = st.dev_container;
             const webCtr = st.web_container;
-            const devState = devCtr ? (devCtr.status || (devCtr.exists ? 'stopped' : 'not_created')) : 'not_found';
-            const webState = webCtr ? (webCtr.status || (webCtr.exists ? 'stopped' : 'not_created')) : 'not_found';
-            const devIcon = devState === 'running' ? '✅' : devState === 'exited' ? '⏸️' : '⭕';
-            const webIcon = webState === 'running' ? '✅' : webState === 'exited' ? '⏸️' : '⭕';
-            const devRunning = devState === 'running';
-            const borderColor = devRunning ? 'var(--success)' : 'var(--warning)';
-            const bg = devRunning ? 'rgba(34,197,94,0.06)' : 'rgba(234,179,8,0.06)';
-
-            html += `<div class="wh-notice" style="border-color:${borderColor};background:${bg};">
-                <span>${devRunning ? '🌐' : '⚠️'}</span>
-                <div>
-                    <strong>${devRunning ? t('config.homepage.status_active') : t('config.homepage.status_inactive')}</strong><br>
-                    <small>${devIcon} ${t('config.homepage.dev_container')}: ${escapeAttr(devState)} · ${webIcon} ${t('config.homepage.web_container')}: ${escapeAttr(webState)}</small>
-                </div>
-            </div>`;
+            const devExists = devCtr && devCtr.exists;
+            const webExists = webCtr && webCtr.exists;
+            // Only show container status when at least one container has been created.
+            // "not_created" is normal initial state — deploy via SSH/SFTP works without containers.
+            if (devExists || webExists) {
+                const devState = devCtr ? (devCtr.status || (devExists ? 'stopped' : 'not_created')) : 'not_found';
+                const webState = webCtr ? (webCtr.status || (webExists ? 'stopped' : 'not_created')) : 'not_found';
+                const devIcon = devState === 'running' ? '✅' : devState === 'exited' ? '⏸️' : '⭕';
+                const webIcon = webState === 'running' ? '✅' : webState === 'exited' ? '⏸️' : '⭕';
+                const devRunning = devState === 'running';
+                const borderColor = devRunning ? 'var(--success)' : 'var(--warning)';
+                const bg = devRunning ? 'rgba(34,197,94,0.06)' : 'rgba(234,179,8,0.06)';
+                html += `<div class="wh-notice" style="border-color:${borderColor};background:${bg};">
+                    <span>${devRunning ? '🌐' : '⚠️'}</span>
+                    <div>
+                        <strong>${devRunning ? t('config.homepage.status_active') : t('config.homepage.status_inactive')}</strong><br>
+                        <small>${devIcon} ${t('config.homepage.dev_container')}: ${escapeAttr(devState)} · ${webIcon} ${t('config.homepage.web_container')}: ${escapeAttr(webState)}</small>
+                    </div>
+                </div>`;
+            }
         }
     }
 

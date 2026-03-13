@@ -20,5 +20,7 @@
   "config.backup.password_required": "Sauvegarde chiffrée — veuillez entrer le mot de passe.",
   "config.backup.decryption_failed": "Échec du déchiffrement — mauvais mot de passe ?",
   "config.backup.import_success": "Import réussi",
-  "config.backup.restart_now": "Redémarrer maintenant"
+  "config.backup.restart_now": "Redémarrer maintenant",
+  "config.backup.no_password_warning": "⚠️ Sans mot de passe, aucune clé API, mot de passe de connexion ou token ne sera sauvegardé. Définissez toujours un mot de passe pour une migration complète.",
+  "config.backup.vault_included_hint": "🔐 Les secrets du vault (clés API, mot de passe, tokens) seront inclus."
 }

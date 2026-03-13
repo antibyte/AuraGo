@@ -37,7 +37,7 @@ function renderAdGuardSection(section) {
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.adguard.url_label') + '</div>';
     if (helpURL) html += '<div class="field-help">' + helpURL + '</div>';
-    html += '<input class="field-input" type="text" data-path="adguard.url" value="' + escAttr(data.url || '') + '" placeholder="http://192.168.1.1:3000">';
+    html += '<input class="field-input" type="text" data-path="adguard.url" value="' + escapeAttr(data.url || '') + '" placeholder="http://192.168.1.1:3000">';
     html += '</div>';
 
     // ── Username ──
@@ -45,7 +45,7 @@ function renderAdGuardSection(section) {
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.adguard.username_label') + '</div>';
     if (helpUser) html += '<div class="field-help">' + helpUser + '</div>';
-    html += '<input class="field-input" type="text" data-path="adguard.username" value="' + escAttr(data.username || '') + '" placeholder="admin">';
+    html += '<input class="field-input" type="text" data-path="adguard.username" value="' + escapeAttr(data.username || '') + '" placeholder="admin">';
     html += '</div>';
 
     // ── Password (vault) ──

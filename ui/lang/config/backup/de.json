@@ -20,5 +20,7 @@
   "config.backup.password_required": "Verschlüsseltes Backup — bitte Passwort eingeben.",
   "config.backup.decryption_failed": "Entschlüsselung fehlgeschlagen — falsches Passwort?",
   "config.backup.import_success": "Import erfolgreich",
-  "config.backup.restart_now": "Jetzt neu starten"
+  "config.backup.restart_now": "Jetzt neu starten",
+  "config.backup.no_password_warning": "⚠️ Ohne Passwort werden keine API-Keys, Login-Passwort oder Tokens gesichert. Für eine vollständige Migration immer ein Passwort setzen.",
+  "config.backup.vault_included_hint": "🔐 Vault-Secrets (API-Keys, Login-Passwort, Tokens) werden eingeschlossen."
 }

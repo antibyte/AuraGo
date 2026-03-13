@@ -20,5 +20,7 @@
   "config.backup.password_required": "एन्क्रिप्टेड बैकअप - कृपया पासवर्ड दर्ज करें।",
   "config.backup.decryption_failed": "डिक्रिप्शन विफल - गलत पासवर्ड?",
   "config.backup.import_success": "आयात सफल",
-  "config.backup.restart_now": "अब पुनःचालू करें"
+  "config.backup.restart_now": "अब पुनःचालू करें",
+  "config.backup.no_password_warning": "⚠️ पासवर्ड के बिना कोई API keys, लॉगिन पासवर्ड या tokens बैकअप नहीं होंगे। पूर्ण माइग्रेशन के लिए हमेशा पासवर्ड सेट करें।",
+  "config.backup.vault_included_hint": "🔐 Vault secrets (API keys, लॉगिन पासवर्ड, tokens) शामिल होंगे।"
 }

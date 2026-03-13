@@ -20,5 +20,7 @@
   "config.backup.password_required": "暗号化されたバックアップ — パスワードを入力してください。",
   "config.backup.decryption_failed": "復号化に失敗しました — パスワードが間違っていますか?",
   "config.backup.import_success": "インポート成功",
-  "config.backup.restart_now": "今すぐ再起動してください"
+  "config.backup.restart_now": "今すぐ再起動してください",
+  "config.backup.no_password_warning": "⚠️ パスワードなしでは、APIキー、ログインパスワード、トークンはバックアップされません。完全な移行にはパスワードを設定してください。",
+  "config.backup.vault_included_hint": "🔐 Vault secrets（APIキー、ログインパスワード、トークン）が含まれます。"
 }

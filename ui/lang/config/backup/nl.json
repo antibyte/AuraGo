@@ -20,5 +20,7 @@
   "config.backup.password_required": "Versleutelde backup — voer het wachtwoord in.",
   "config.backup.decryption_failed": "Decryptie mislukt — verkeerd wachtwoord?",
   "config.backup.import_success": "Importeren succesvol",
-  "config.backup.restart_now": "Nu herstarten"
+  "config.backup.restart_now": "Nu herstarten",
+  "config.backup.no_password_warning": "⚠️ Zonder wachtwoord worden geen API-sleutels, inlogwachtwoord of tokens opgeslagen. Stel altijd een wachtwoord in voor een volledige migratie.",
+  "config.backup.vault_included_hint": "🔐 Vault-secrets (API-sleutels, inlogwachtwoord, tokens) worden meegenomen."
 }

@@ -645,6 +645,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		mux.HandleFunc("/api/dashboard/activity", handleDashboardActivity(s))
 		mux.HandleFunc("/api/dashboard/prompt-stats", handleDashboardPromptStats())
 		mux.HandleFunc("/api/dashboard/github-repos", handleDashboardGitHubRepos(s))
+		mux.HandleFunc("/api/github/repos", handleGitHubReposForUI(s))
 		mux.HandleFunc("/api/dashboard/logs", handleDashboardLogs(s))
 		mux.HandleFunc("/api/dashboard/overview", handleDashboardOverview(s))
 		mux.HandleFunc("/api/dashboard/notes", handleDashboardNotes(s))

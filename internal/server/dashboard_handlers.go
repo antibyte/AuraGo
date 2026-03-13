@@ -296,6 +296,7 @@ func handleDashboardLogs(s *Server) http.HandlerFunc {
 
 // handleDashboardGitHubRepos returns GitHub repos for the dashboard widget.
 // It first lists locally tracked projects, then fetches live repos from the GitHub API.
+// Only repos in cfg.GitHub.AllowedRepos are returned (or all repos if the list is empty).
 func handleDashboardGitHubRepos(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
@@ -354,6 +355,13 @@ func handleDashboardGitHubRepos(s *Server) http.HandlerFunc {
 			return
 		}
 
+		// Build allowed repos filter
+		allowedMap := map[string]bool{}
+		hasAllowedList := len(s.Cfg.GitHub.AllowedRepos) > 0
+		for _, r := range s.Cfg.GitHub.AllowedRepos {
+			allowedMap[r] = true
+		}
+
 		// Load tracked projects for cross-reference
 		tracked := map[string]bool{}
 		trackedRaw := tools.GitHubListProjects(s.Cfg.Directories.WorkspaceDir)
@@ -370,23 +378,131 @@ func handleDashboardGitHubRepos(s *Server) http.HandlerFunc {
 			}
 		}
 
-		// Enrich repos with tracked status
+		// Enrich repos with tracked status and filter by allowed list
 		repos := result["repos"]
+		var filteredRepos []interface{}
 		if repoList, ok := repos.([]interface{}); ok {
 			for _, r := range repoList {
 				if rm, ok := r.(map[string]interface{}); ok {
 					name, _ := rm["name"].(string)
 					rm["tracked"] = tracked[name]
+					// Include repo if: no allowed list configured, OR repo is in allowed list, OR it's tracked (agent-created)
+					if !hasAllowedList || allowedMap[name] || tracked[name] {
+						filteredRepos = append(filteredRepos, rm)
+					}
 				}
 			}
+		}
+		if filteredRepos == nil {
+			filteredRepos = []interface{}{}
 		}
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"enabled": true,
 			"owner":   s.Cfg.GitHub.Owner,
-			"repos":   repos,
-			"count":   result["count"],
+			"repos":   filteredRepos,
+			"count":   len(filteredRepos),
+		})
+	}
+}
+
+// handleGitHubReposForUI returns all GitHub repos with an `allowed` flag for the config UI.
+// Used by the config section to let the user pick which repos the agent may access.
+func handleGitHubReposForUI(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+
+		if !s.Cfg.GitHub.Enabled {
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"status":  "error",
+				"message": "GitHub integration is not enabled",
+			})
+			return
+		}
+
+		token := ""
+		if s.Vault != nil {
+			t, err := s.Vault.ReadSecret("github_token")
+			if err == nil {
+				token = t
+			}
+		}
+		if token == "" {
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"status":  "error",
+				"message": "GitHub token not found in vault",
+			})
+			return
+		}
+
+		ghCfg := tools.GitHubConfig{
+			Token:   token,
+			Owner:   s.Cfg.GitHub.Owner,
+			BaseURL: s.Cfg.GitHub.BaseURL,
+		}
+
+		raw := tools.GitHubListRepos(ghCfg, "")
+		var result map[string]interface{}
+		if err := json.Unmarshal([]byte(raw), &result); err != nil {
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"status":  "error",
+				"message": "failed to parse GitHub response",
+			})
+			return
+		}
+
+		if result["status"] != "ok" {
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"status":  "error",
+				"message": result["message"],
+			})
+			return
+		}
+
+		// Build allowed set
+		allowedMap := map[string]bool{}
+		for _, r := range s.Cfg.GitHub.AllowedRepos {
+			allowedMap[r] = true
+		}
+
+		// Load tracked (agent-created) projects
+		tracked := map[string]bool{}
+		trackedRaw := tools.GitHubListProjects(s.Cfg.Directories.WorkspaceDir)
+		var trackedResult map[string]interface{}
+		if err := json.Unmarshal([]byte(trackedRaw), &trackedResult); err == nil {
+			if projects, ok := trackedResult["projects"].([]interface{}); ok {
+				for _, p := range projects {
+					if pm, ok := p.(map[string]interface{}); ok {
+						if name, ok := pm["name"].(string); ok {
+							tracked[name] = true
+						}
+					}
+				}
+			}
+		}
+
+		// Annotate repos
+		repos := result["repos"]
+		if repoList, ok := repos.([]interface{}); ok {
+			for _, r := range repoList {
+				if rm, ok := r.(map[string]interface{}); ok {
+					name, _ := rm["name"].(string)
+					rm["allowed"] = allowedMap[name]
+					rm["agent_created"] = tracked[name]
+				}
+			}
+		}
+
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"status": "ok",
+			"repos":  repos,
+			"count":  result["count"],
 		})
 	}
 }

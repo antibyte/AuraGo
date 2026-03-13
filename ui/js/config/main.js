@@ -817,7 +817,8 @@ const SECTION_MODULES = {
     netlify: { m: 'netlify', fn: 'renderNetlifySection' },
     danger_zone: { m: 'danger', fn: 'renderDangerZoneSection' },
     web_config: { m: 'auth', fn: 'renderWebConfigSection' },
-    firewall: { m: 'firewall', fn: 'renderFirewallSection' }
+    firewall: { m: 'firewall', fn: 'renderFirewallSection' },
+    github: { m: 'github', fn: 'renderGitHubSection' }
 };
 
 function loadModule(name) {

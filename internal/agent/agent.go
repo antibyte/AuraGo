@@ -4667,6 +4667,44 @@ func dispatchInner(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 		if err != nil || token == "" {
 			return `Tool Output: {"status":"error","message":"GitHub token not found in vault. Store it with key 'github_token' via the vault API."}`
 		}
+
+		// Allowed-repos enforcement: if a list is configured the agent may only access
+		// repos that are explicitly allowed OR repos it created itself (tracked projects).
+		if len(cfg.GitHub.AllowedRepos) > 0 {
+			repoArg := tc.Name
+			repoOpsNeedCheck := map[string]bool{
+				"delete_repo": true, "get_repo": true, "list_issues": true,
+				"create_issue": true, "close_issue": true, "list_pull_requests": true,
+				"list_branches": true, "get_file": true, "create_or_update_file": true,
+				"list_commits": true, "list_workflow_runs": true,
+			}
+			if repoArg != "" && repoOpsNeedCheck[tc.Operation] {
+				allowedMap := map[string]bool{}
+				for _, r := range cfg.GitHub.AllowedRepos {
+					allowedMap[r] = true
+				}
+				// Agent-created repos (tracked in workspace) are always permitted
+				isTracked := false
+				trackedRaw := tools.GitHubListProjects(cfg.Directories.WorkspaceDir)
+				var trackedResult map[string]interface{}
+				if jsonErr := json.Unmarshal([]byte(trackedRaw), &trackedResult); jsonErr == nil {
+					if projects, ok := trackedResult["projects"].([]interface{}); ok {
+						for _, p := range projects {
+							if pm, ok := p.(map[string]interface{}); ok {
+								if name, _ := pm["name"].(string); name == repoArg {
+									isTracked = true
+									break
+								}
+							}
+						}
+					}
+				}
+				if !allowedMap[repoArg] && !isTracked {
+					return fmt.Sprintf(`Tool Output: {"status":"error","message":"Repo '%s' is not in the allowed repos list. Add it in Settings → GitHub to grant access."}`, repoArg)
+				}
+			}
+		}
+
 		ghCfg := tools.GitHubConfig{
 			Token:          token,
 			Owner:          cfg.GitHub.Owner,
