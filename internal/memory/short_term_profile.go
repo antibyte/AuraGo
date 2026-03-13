@@ -344,8 +344,16 @@ func (s *SQLiteMemory) MigrateCoreMemoryFromMarkdown(dataDir string, logger *slo
 
 	data, err := os.ReadFile(mdPath)
 	if err != nil {
-		// No .md file — first start if table is also empty.
-		return count == 0
+		// No .md file. If the table is also empty, this is a genuine first start.
+		if count == 0 {
+			// Write the sentinel now so that a future DB wipe or corruption recovery
+			// does not re-trigger the naming prompt. The prompt fires exactly once.
+			if werr := os.WriteFile(migratedPath, []byte(""), 0644); werr != nil {
+				logger.Warn("[Memory] Could not create first-start sentinel", "path", migratedPath, "error", werr)
+			}
+			return true
+		}
+		return false
 	}
 
 	var facts []string
