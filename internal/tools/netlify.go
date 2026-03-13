@@ -2,6 +2,7 @@ package tools
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -20,7 +21,37 @@ type NetlifyConfig struct {
 
 const netlifyBaseURL = "https://api.netlify.com/api/v1"
 
-var netlifyHTTPClient = &http.Client{Timeout: 60 * time.Second}
+// netlifyDial tries all resolved IP addresses for the host in order.
+// Go's default dialer stops at the first failure; this mirrors curl's behavior
+// where one IPv4 address may be unreachable but another (or an IPv6 address) works.
+func netlifyDial(ctx context.Context, network, addr string) (net.Conn, error) {
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return (&net.Dialer{Timeout: 15 * time.Second}).DialContext(ctx, network, addr)
+	}
+	addrs, err := net.DefaultResolver.LookupHost(ctx, host)
+	if err != nil || len(addrs) == 0 {
+		return (&net.Dialer{Timeout: 15 * time.Second}).DialContext(ctx, network, addr)
+	}
+	var lastErr error
+	for _, a := range addrs {
+		conn, dialErr := (&net.Dialer{Timeout: 15 * time.Second}).DialContext(ctx, network, net.JoinHostPort(a, port))
+		if dialErr == nil {
+			return conn, nil
+		}
+		lastErr = dialErr
+	}
+	return nil, lastErr
+}
+
+var netlifyHTTPClient = &http.Client{
+	Timeout: 60 * time.Second,
+	Transport: &http.Transport{
+		DialContext:         netlifyDial,
+		TLSHandshakeTimeout: 15 * time.Second,
+		ForceAttemptHTTP2:   true,
+	},
+}
 
 // ── Internal helpers ────────────────────────────────────────────────────────
 
