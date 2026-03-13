@@ -1467,4 +1467,3 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		return resp, nil
 	}
 }
-

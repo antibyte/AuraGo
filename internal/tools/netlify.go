@@ -432,4 +432,3 @@ func NetlifyDeployZip(cfg NetlifyConfig, siteID, title string, draft bool, zipDa
 	})
 	return string(out)
 }
-

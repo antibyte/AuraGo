@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 )
+
 func (s *SQLiteMemory) GetMessageCount() (int, error) {
 	var count int
 	err := s.db.QueryRow("SELECT COUNT(*) FROM messages").Scan(&count)

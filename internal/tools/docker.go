@@ -424,4 +424,3 @@ func DockerRemoveImage(cfg DockerConfig, image string, force bool) string {
 	}
 	return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
 }
-

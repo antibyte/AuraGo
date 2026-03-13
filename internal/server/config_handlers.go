@@ -542,4 +542,3 @@ func extractRecursive(m map[string]interface{}, prefix string, vault *security.V
 	}
 	return firstErr
 }
-

@@ -10,7 +10,6 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-
 // ── Milestone Thresholds ─────────────────────────────────────────────────────
 
 // MilestoneThreshold defines a threshold that triggers a milestone.

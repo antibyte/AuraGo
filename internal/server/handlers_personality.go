@@ -11,6 +11,7 @@ import (
 	"aurago/internal/memory"
 	promptsembed "aurago/prompts"
 )
+
 func isCorePersonality(name string) bool {
 	_, err := promptsembed.FS.Open("personalities/" + name + ".md")
 	return err == nil

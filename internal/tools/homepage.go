@@ -410,11 +410,23 @@ func HomepageInitProject(cfg HomepageConfig, framework, name string, logger *slo
 }
 
 // HomepageBuild runs the build command in the project directory.
+// Plain HTML projects (no package.json) are detected and skipped — they need no build step.
 func HomepageBuild(cfg HomepageConfig, projectDir string, logger *slog.Logger) string {
 	if projectDir == "" {
 		projectDir = "."
 	}
 	logger.Info("[Homepage] Build", "dir", projectDir)
+
+	// Detect plain HTML projects: no package.json → no build needed.
+	if cfg.WorkspacePath != "" {
+		pkgPath := filepath.Join(cfg.WorkspacePath, projectDir, "package.json")
+		if _, err := os.Stat(pkgPath); err != nil {
+			logger.Info("[Homepage] No package.json found — plain HTML project, skipping build")
+			out, _ := json.Marshal(map[string]interface{}{"status": "ok", "output": "Plain HTML project — no build required"})
+			return string(out)
+		}
+	}
+
 	dockerCfg := DockerConfig{Host: cfg.DockerHost}
 	return DockerExec(dockerCfg, homepageContainerName, fmt.Sprintf("cd /workspace/%s && npm run build 2>&1", projectDir), "")
 }

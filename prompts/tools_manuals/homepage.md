@@ -192,6 +192,7 @@ Serves the build output via Caddy (Docker required).
 
 ### publish_local — Build and serve locally
 Combines `build` + `webserver_start` in one step.
+For plain HTML projects (no `package.json`), the build step is automatically skipped and the project directory is served directly.
 ```json
 {"action": "homepage", "operation": "publish_local", "project_dir": "my-site"}
 ```
@@ -211,7 +212,8 @@ Combines `build` + `webserver_start` in one step.
 
 - All file paths are relative to `/workspace` inside the container
 - The container persists between sessions (uses `unless-stopped` restart policy)
-- Build output directory is auto-detected: checks `out`, `dist`, `build`, `.next`, `public`
+- Build output directory is auto-detected: checks `out`, `dist`, `build`, `.next`, `public`. If none exist (plain HTML), serves the project root directly.
+- Plain HTML projects (no `package.json`) skip the build step entirely — no Docker dev container needed for deployment.
 - For deployment, store credentials in the vault: `homepage_deploy_password` or `homepage_deploy_key`
 - The Caddy web server can serve with automatic HTTPS if a domain is configured (Docker mode only)
 - Use compound operations (`init_project`, `build`, `deploy`) to save tokens — avoid running many individual `exec` calls

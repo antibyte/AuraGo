@@ -370,19 +370,21 @@ func HomepageDeployNetlify(cfg HomepageConfig, nfCfg NetlifyConfig, projectDir, 
 }
 
 // HomepagePublishToLocal rebuilds and refreshes the local web server.
+// For plain HTML projects (no build script), the build step is skipped and
+// the project directory is served directly.
 func HomepagePublishToLocal(cfg HomepageConfig, projectDir string, logger *slog.Logger) string {
-	// Build first
+	// Try build; ignore failure for plain-HTML projects that have no build script.
 	buildResult := HomepageBuild(cfg, projectDir, logger)
 	var br map[string]interface{}
 	if json.Unmarshal([]byte(buildResult), &br) == nil {
 		if s, _ := br["status"].(string); s == "error" {
-			return errJSON("Build failed: %s", buildResult)
+			logger.Info("[Homepage] Build failed or not applicable, serving project root directly", "result", buildResult)
 		}
 	}
 
 	buildDir := detectBuildDir(cfg, projectDir)
 
-	// Start/restart web server with new build
+	// Start/restart web server with detected (or project root) directory
 	return HomepageWebServerStart(cfg, projectDir, buildDir, logger)
 }
 
@@ -475,7 +477,9 @@ func detectBuildDir(cfg HomepageConfig, projectDir string) string {
 				}
 			}
 		}
-		return "out"
+		// No standard build dir found — serve project root directly.
+		// This handles plain HTML projects that have no build step.
+		return "."
 	}
 	dockerCfg := DockerConfig{Host: cfg.DockerHost}
 	// Try common build output directories
@@ -485,7 +489,8 @@ func detectBuildDir(cfg HomepageConfig, projectDir string) string {
 			return dir
 		}
 	}
-	return "out" // default fallback
+	// No standard build dir found — serve project root directly.
+	return "."
 }
 
 func homepageCaddyfile(domain string, port int) string {
