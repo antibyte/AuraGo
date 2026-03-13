@@ -126,6 +126,33 @@ func netlifyResolveSiteID(cfg NetlifyConfig, siteID string) string {
 	return cfg.DefaultSiteID
 }
 
+// netlifyResolveNameToID looks up a site by name and returns its UUID.
+// If the name is already a UUID or the lookup fails, it returns "".
+func netlifyResolveNameToID(cfg NetlifyConfig, name string) string {
+	if looksLikeUUID(name) {
+		// Already a UUID — no lookup needed.
+		return name
+	}
+	endpoint := "/sites?per_page=100"
+	if cfg.TeamSlug != "" {
+		endpoint = fmt.Sprintf("/%s/sites?per_page=100", cfg.TeamSlug)
+	}
+	data, code, err := netlifyRequest(cfg, "GET", endpoint, nil)
+	if err != nil || code != 200 {
+		return ""
+	}
+	var sites []map[string]interface{}
+	if err := json.Unmarshal(data, &sites); err != nil {
+		return ""
+	}
+	for _, s := range sites {
+		if strVal(s, "name") == name {
+			return strVal(s, "id")
+		}
+	}
+	return ""
+}
+
 // ── Sites ───────────────────────────────────────────────────────────────────
 
 // NetlifyListSites returns all sites for the account/team.

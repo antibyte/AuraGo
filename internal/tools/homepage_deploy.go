@@ -366,11 +366,23 @@ func HomepageDeployNetlify(cfg HomepageConfig, nfCfg NetlifyConfig, projectDir, 
 		return errJSON("ZIP is empty — check that %q contains files", deployPath)
 	}
 
-	logger.Info("[Homepage] Deploying to Netlify", "site_id", siteID, "bytes", len(zipBytes), "draft", draft)
-	deployResult := NetlifyDeployZip(nfCfg, siteID, title, draft, zipBytes)
+	// If siteID is a human-readable name (not a UUID), resolve it to a UUID first.
+	// This avoids the Netlify API 404 that occurs when a name is passed where a UUID is expected.
+	resolvedID := siteID
+	if !looksLikeUUID(siteID) && siteID != "" {
+		logger.Info("[Homepage] Resolving site name to UUID", "name", siteID)
+		if uuid := netlifyResolveNameToID(nfCfg, siteID); uuid != "" {
+			logger.Info("[Homepage] Site resolved", "name", siteID, "uuid", uuid)
+			resolvedID = uuid
+		}
+		// If uuid == "", site doesn't exist yet — auto-create below after deploy attempt.
+	}
 
-	// If Netlify returned 404, the site_id might be a name that doesn't exist yet.
-	// Auto-create the site and retry — unless siteID looks like a UUID (an existing site that was deleted).
+	logger.Info("[Homepage] Deploying to Netlify", "site_id", resolvedID, "bytes", len(zipBytes), "draft", draft)
+	deployResult := NetlifyDeployZip(nfCfg, resolvedID, title, draft, zipBytes)
+
+	// If Netlify returned 404, the site doesn't exist yet — auto-create and retry.
+	// Only do this when siteID was a name (not a UUID), to avoid recreating a deleted site by UUID.
 	var dr map[string]interface{}
 	if json.Unmarshal([]byte(deployResult), &dr) == nil {
 		if code, _ := dr["http_code"].(float64); code == 404 && !looksLikeUUID(siteID) {
