@@ -1,27 +1,28 @@
 package tools
 
 import (
-"archive/tar"
-"archive/zip"
-"bufio"
-"bytes"
-"context"
-"encoding/json"
-"fmt"
-"log/slog"
-"net"
-"net/http"
-"os"
-"path/filepath"
-"strconv"
-"strings"
-"time"
+	"archive/tar"
+	"archive/zip"
+	"bufio"
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"log/slog"
+	"net"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
 
-"aurago/internal/remote"
+	"aurago/internal/remote"
 
-"github.com/pkg/sftp"
-"golang.org/x/crypto/ssh"
+	"github.com/pkg/sftp"
+	"golang.org/x/crypto/ssh"
 )
+
 func HomepageOptimizeImages(cfg HomepageConfig, projectDir string, logger *slog.Logger) string {
 	if projectDir == "" {
 		projectDir = "."
