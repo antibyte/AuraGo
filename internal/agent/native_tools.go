@@ -483,7 +483,7 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 				"name":        prop("string", "Project name (for 'init_project')"),
 				"project_dir": prop("string", "Project subdirectory within /workspace (default: '.')"),
 				"build_dir":   prop("string", "Build output directory (auto-detected if empty)"),
-				"path":        prop("string", "File path relative to /workspace (for 'read_file', 'write_file', 'list_files')"),
+				"path":        prop("string", "File path relative to /workspace — MUST include the project subdirectory prefix (e.g. 'my-project/index.html', NOT just 'index.html'). Applies to 'read_file', 'write_file', 'list_files'."),
 				"content":     prop("string", "File content to write (for 'write_file')"),
 				"url":         prop("string", "URL for lighthouse audit or screenshot"),
 				"viewport":    prop("string", "Viewport size for screenshot (e.g. '1280x720')"),

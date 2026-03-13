@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"time"
 )
 
@@ -475,7 +476,7 @@ func NetlifyDeployZip(cfg NetlifyConfig, siteID, title string, draft bool, zipDa
 		if draft {
 			sep = "&"
 		}
-		endpoint += sep + "title=" + title
+		endpoint += sep + "title=" + url.QueryEscape(title)
 	}
 
 	data, code, err := netlifyRequestRaw(cfg, "POST", endpoint, "application/zip", bytes.NewReader(zipData))
