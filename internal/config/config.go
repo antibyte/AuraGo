@@ -186,6 +186,9 @@ func Load(path string) (*Config, error) {
 	if cfg.Agent.PersonalityV2TimeoutSecs <= 0 {
 		cfg.Agent.PersonalityV2TimeoutSecs = 30
 	}
+	if cfg.Agent.ToolOutputLimit <= 0 {
+		cfg.Agent.ToolOutputLimit = 50000
+	}
 	// V2 requires V1 — automatically enable V1 when V2 is on.
 	if cfg.Agent.PersonalityEngineV2 && !cfg.Agent.PersonalityEngine {
 		cfg.Agent.PersonalityEngine = true

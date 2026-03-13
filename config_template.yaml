@@ -27,6 +27,7 @@ agent:
     personality_v2_url: ""
     personality_v2_api_key: ""
     personality_v2_timeout_secs: 120
+    tool_output_limit: 50000  # max characters of a single tool result fed into context (0 = unlimited)
     show_tool_results: false
     step_delay_seconds: 0
     system_language: English

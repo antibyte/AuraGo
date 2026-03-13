@@ -158,6 +158,7 @@ type Config struct {
 		UserProfiling              bool   `yaml:"user_profiling"`              // opt-in: collect user profile via V2 analysis
 		UserProfilingThreshold     int    `yaml:"user_profiling_threshold"`    // min confidence for profile summary (default: 3)
 		PersonalityV2TimeoutSecs   int    `yaml:"personality_v2_timeout_secs"` // timeout for V2 mood analysis LLM call (default: 30)
+		ToolOutputLimit            int    `yaml:"tool_output_limit"`           // max characters of a single tool result added to context (0 = unlimited, default: 50000)
 		SudoEnabled                bool   `yaml:"sudo_enabled"`                // allow execute_sudo tool (password must be stored in vault as "sudo_password")
 		// ── Danger Zone: tool capability gates (all default true) ──
 		AllowShell           bool   `yaml:"allow_shell"`            // allow execute_shell

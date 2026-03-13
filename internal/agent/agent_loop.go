@@ -313,6 +313,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			broker.Send("tool_call", ptcJSON)
 			broker.Send("tool_start", ptc.Action)
 			pResultContent := DispatchToolCall(ctx, ptc, cfg, currentLogger, client, vault, registry, manifest, cronManager, missionManager, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, historyManager, tools.IsBusy(), surgeryPlan, guardian, sessionID, coAgentRegistry, budgetTracker)
+			pResultContent = truncateToolOutput(pResultContent, cfg.Agent.ToolOutputLimit)
 			broker.Send("tool_output", pResultContent)
 			if ptc.Action == "send_image" {
 				var imgRes struct {
@@ -1085,6 +1086,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 
 			resultContent := DispatchToolCall(ctx, tc, cfg, currentLogger, client, vault, registry, manifest, cronManager, missionManager, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, historyManager, tools.IsBusy(), surgeryPlan, guardian, sessionID, coAgentRegistry, budgetTracker)
+			resultContent = truncateToolOutput(resultContent, cfg.Agent.ToolOutputLimit)
 			broker.Send("tool_output", resultContent)
 
 			// Emit SSE image event so the Web UI shows the image immediately (before LLM responds)
@@ -1326,6 +1328,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					broker.Send("tool_start", btc.Action)
 
 					bResult := DispatchToolCall(ctx, btc, cfg, currentLogger, client, vault, registry, manifest, cronManager, missionManager, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, historyManager, tools.IsBusy(), surgeryPlan, guardian, sessionID, coAgentRegistry, budgetTracker)
+					bResult = truncateToolOutput(bResult, cfg.Agent.ToolOutputLimit)
 					broker.Send("tool_output", bResult)
 					broker.Send("tool_end", btc.Action)
 					lastActivity = time.Now()
