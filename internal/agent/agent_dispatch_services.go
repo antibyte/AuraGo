@@ -436,8 +436,8 @@ func dispatchServices(ctx context.Context, tc ToolCall, cfg *config.Config, logg
 			logger.Info("LLM requested homepage publish_local")
 			return "Tool Output: " + tools.HomepagePublishToLocal(homepageCfg, tc.ProjectDir, logger)
 		case "deploy_netlify":
-			if !cfg.Homepage.AllowDeploy {
-				return `Tool Output: {"status":"error","message":"Deployment is disabled. Enable homepage.allow_deploy in config."}`
+			if !cfg.Netlify.AllowDeploy {
+				return `Tool Output: {"status":"error","message":"Deployment is disabled. Enable netlify.allow_deploy in config."}`
 			}
 			if !cfg.Netlify.Enabled {
 				return `Tool Output: {"status":"error","message":"Netlify integration is not enabled. Set netlify.enabled=true in config.yaml."}`
