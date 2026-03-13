@@ -106,15 +106,19 @@
 
     <footer class="app-footer">
         <form id="chat-form" class="input-row">
-            <button type="button" id="clear-btn" class="btn-new-chat" title=""></button>
             <input type="file" id="file-input" style="display:none">
             <div class="input-wrap">
                 <textarea id="user-input" name="aura-chat-input" autocomplete="off" spellcheck="true" rows="2"
                     placeholder=""></textarea>
             </div>
-            <button type="button" id="upload-btn" class="btn-upload">📎</button>
-            <button type="submit" id="send-btn" class="btn-send">➤</button>
-            <button type="button" id="stop-btn" class="btn-stop" disabled>■</button>
+            <div class="input-actions">
+                <button type="button" id="clear-btn" class="btn-new-chat" title=""></button>
+                <div class="action-btns">
+                    <button type="button" id="upload-btn" class="btn-upload">📎</button>
+                    <button type="submit" id="send-btn" class="btn-send">➤</button>
+                    <button type="button" id="stop-btn" class="btn-stop" disabled>■</button>
+                </div>
+            </div>
         </form>
         {{if .PersonalityEnabled}}
         <div id="mood-feedback-row" class="mood-feedback-row">

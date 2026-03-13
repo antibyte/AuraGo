@@ -774,7 +774,7 @@
         }
 
         /* ── Footer / Input ────────────────────────────────── */
-        /* New Chat Button - positioned left of input field */
+        /* New Chat Button - above the action buttons */
         .btn-new-chat {
             display: flex;
             align-items: center;
@@ -789,10 +789,8 @@
             cursor: pointer;
             transition: all 0.2s ease;
             white-space: nowrap;
-            height: 46px;
-            min-width: 100px;
-            order: -1; /* Move to left side */
-            margin-right: 0.5rem;
+            height: 38px;
+            width: 100%;
         }
         .btn-new-chat:hover {
             background: var(--accent-dim);
@@ -800,11 +798,25 @@
             color: var(--accent);
         }
 
+        .input-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+            align-items: stretch;
+        }
+
+        .action-btns {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            justify-content: flex-end;
+        }
+
         /* Logout button - ensure text fits */
         #logout-btn {
             padding: 0.4rem 0.8rem;
             font-size: 0.85rem;
-            min-width: 80px;
+            min-width: max-content;
             text-align: center;
         }
 
@@ -1464,15 +1476,14 @@
             .btn-new-chat {
                 padding: 0.5rem 0.75rem;
                 font-size: 0.75rem;
-                min-width: 80px;
-                height: 40px;
-                margin-right: 0.35rem;
+                height: 36px;
+                width: 100%;
             }
-            
+
             #logout-btn {
                 padding: 0.3rem 0.6rem;
                 font-size: 0.8rem;
-                min-width: 70px;
+                min-width: max-content;
             }
 
             .input-row {
