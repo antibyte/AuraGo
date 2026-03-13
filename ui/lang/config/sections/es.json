@@ -1,4 +1,4 @@
-﻿{
+{
   "config.group.system_core": "Sistema y Núcleo",
   "config.group.agent_llm": "Agente y LLM",
   "config.group.tools_services": "Herramientas y Servicios",

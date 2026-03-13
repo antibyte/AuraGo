@@ -1,4 +1,4 @@
-﻿{
+{
   "config.group.system_core": "システムとコア",
   "config.group.agent_llm": "エージェントと LLM",
   "config.group.tools_services": "ツールとサービス",

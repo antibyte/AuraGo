@@ -1,4 +1,4 @@
-﻿{
+{
   "config.group.system_core": "System och kärna",
   "config.group.agent_llm": "Agent & LLM",
   "config.group.tools_services": "Verktyg och tjänster",
