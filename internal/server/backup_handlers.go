@@ -642,12 +642,12 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"status":          "ok",
-			"restored":        restored,
-			"skipped":         skipped,
-			"vault_restored":  vaultRestored,
-			"schema_warning":  schemaWarning,
-			"message":         msg,
+			"status":         "ok",
+			"restored":       restored,
+			"skipped":        skipped,
+			"vault_restored": vaultRestored,
+			"schema_warning": schemaWarning,
+			"message":        msg,
 		})
 	}
 }

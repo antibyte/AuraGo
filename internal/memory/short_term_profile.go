@@ -333,10 +333,11 @@ func (s *SQLiteMemory) MigrateCoreMemoryFromMarkdown(dataDir string, logger *slo
 	mdPath := filepath.Join(dataDir, "core_memory.md")
 	migratedPath := mdPath + ".migrated"
 
-	// If already migrated, just check table count.
+	// .migrated sentinel exists → first-start was already completed at some point.
+	// Even if the DB was subsequently wiped (e.g. corruption recovery), we must NOT
+	// trigger the naming prompt again — the agent already has an identity.
 	if _, err := os.Stat(migratedPath); err == nil {
-		count, _ := s.GetCoreMemoryCount()
-		return count == 0
+		return false
 	}
 
 	count, _ := s.GetCoreMemoryCount()
