@@ -72,7 +72,7 @@ function renderAdGuardSection(section) {
 
     html += '</div>';
 
-    section._el.innerHTML = html;
+    document.getElementById('content').innerHTML = html;
 
     // Auto-check status on load
     if (enabledOn && data.url) {
