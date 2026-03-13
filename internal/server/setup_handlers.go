@@ -175,13 +175,15 @@ func needsSetup(cfg *config.Config) bool {
 		return true
 	}
 	// Walk providers: accept any that has a key, OAuth, or is a key-less
-	// local endpoint (e.g. Ollama) identified by having both URL and model set.
+	// local endpoint (Ollama) identified by type="ollama" with URL and model set.
+	// NOTE: cloud providers (openrouter, openai, etc.) with BaseURL+model but no key
+	// must NOT be treated as configured — they still need an API key entered by the user.
 	for _, p := range cfg.Providers {
 		if p.APIKey != "" || p.AuthType == "oauth2" {
 			return false
 		}
-		if p.BaseURL != "" && p.Model != "" {
-			return false // key-less local provider (Ollama etc.)
+		if p.Type == "ollama" && p.BaseURL != "" && p.Model != "" {
+			return false // key-less local provider (Ollama)
 		}
 	}
 	return true // all providers lack usable credentials → still needs setup
