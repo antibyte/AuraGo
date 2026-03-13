@@ -18,7 +18,7 @@
   "chat.confirm_clear_title": "新規セッション",
   "chat.confirm_stop_msg": "現在のアクションを停止しますか？",
   "chat.confirm_stop_title": "アクションを停止",
-  "chat.credits_pill_text": "💳 ${{金額}}",
+  "chat.credits_pill_text": "💳 ${{amount}}",
   "chat.credits_pill_title": "OpenRouter クレジット",
   "chat.credits_tooltip_payg": "OpenRouter: ${{usage}} 使用済み (従量課金)",
   "chat.credits_tooltip_used_limit": "OpenRouter: ${{usage}} 使用済み / {{limit}} 上限",

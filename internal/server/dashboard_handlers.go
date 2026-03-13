@@ -386,8 +386,9 @@ func handleDashboardGitHubRepos(s *Server) http.HandlerFunc {
 				if rm, ok := r.(map[string]interface{}); ok {
 					name, _ := rm["name"].(string)
 					rm["tracked"] = tracked[name]
-					// Include repo if: no allowed list configured, OR repo is in allowed list, OR it's tracked (agent-created)
-					if !hasAllowedList || allowedMap[name] || tracked[name] {
+					// Include repo if: repo is explicitly allowed, OR it's tracked (agent-created).
+					// When AllowedRepos is empty, only tracked repos are shown (consistent with agent enforcement).
+					if tracked[name] || (hasAllowedList && allowedMap[name]) {
 						filteredRepos = append(filteredRepos, rm)
 					}
 				}

@@ -18,7 +18,7 @@
   "chat.confirm_clear_title": "新会话",
   "chat.confirm_stop_msg": "停止当前操作？",
   "chat.confirm_stop_title": "停止操作",
-  "chat.credits_pill_text": "💳 ${{金额}}",
+  "chat.credits_pill_text": "💳 ${{amount}}",
   "chat.credits_pill_title": "OpenRouter 余额",
   "chat.credits_tooltip_payg": "OpenRouter: ${{usage}} 已使用 (按量付费)",
   "chat.credits_tooltip_used_limit": "OpenRouter: ${{usage}} 已使用 / ${{limit}} 限额",

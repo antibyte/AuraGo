@@ -1,0 +1,35 @@
+PRÜFUNG: Zuvor problematische Einträge
+================================================================================
+
+hi -> chat.agent_active:
+  Aktuell: एजेंट सक्रिय
+  STATUS: [OK] Korrigiert
+
+hi -> chat.btn_send:
+  Aktuell: भेजें
+  STATUS: [OK] Korrigiert
+
+hi -> chat.error_connection:
+  Aktuell: ⚠️ कनेक्शन त्रुटि: 
+  STATUS: [OK] Korrigiert
+
+el -> chat.budget_pill_format:
+  Aktuell: ${{cost}} / ${{limit}}
+  STATUS: [OK] Korrigiert
+
+el -> chat.error_connection:
+  Aktuell: ⚠️ Σφάλμα σύνδεσης: 
+  STATUS: [OK] Korrigiert
+
+el -> chat.personality_loading:
+  Aktuell: Φόρτωση...
+  STATUS: [OK] Korrigiert
+
+da -> chat.agent_active:
+  Aktuell: Agent aktiv
+  STATUS: [OK] Korrigiert
+
+da -> chat.btn_send:
+  Aktuell: Send
+  STATUS: [OK] Korrigiert
+

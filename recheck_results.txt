@@ -1,0 +1,16 @@
+PRÜFUNG: Tschechische Wörter in anderen Sprachen
+================================================================================
+
+da: [OK] Keine tschechischen Wörter gefunden
+
+el: [OK] Keine tschechischen Wörter gefunden
+
+hi: [OK] Keine tschechischen Wörter gefunden
+
+ja: [OK] Keine tschechischen Wörter gefunden
+
+zh: [OK] Keine tschechischen Wörter gefunden
+
+================================================================================
+[OK] ALLE TSCHECHISCHEN KONTAMINATIONEN BEHOBEN!
+================================================================================
