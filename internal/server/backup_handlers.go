@@ -27,6 +27,7 @@ import (
 	"strings"
 	"time"
 
+	"aurago/internal/config"
 	"aurago/internal/security"
 	promptsembed "aurago/prompts"
 )
@@ -586,6 +587,17 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 			} else {
 				vaultRestored = n
 				s.Logger.Info("[Backup] Vault secrets imported", "count", n)
+				// Hot-reload config so that vault-backed fields like Auth.PasswordHash
+				// are reflected in the in-memory config immediately — without this the
+				// login handler would still see the old (empty) hash and reject logins.
+				s.CfgMu.Lock()
+				if newCfg, loadErr := config.Load(s.Cfg.ConfigPath); loadErr == nil {
+					newCfg.ApplyVaultSecrets(s.Vault)
+					savedPath := s.Cfg.ConfigPath
+					*s.Cfg = *newCfg
+					s.Cfg.ConfigPath = savedPath
+				}
+				s.CfgMu.Unlock()
 			}
 		}
 

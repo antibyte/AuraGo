@@ -489,8 +489,9 @@ WantedBy=multi-user.target
 EOF
         $SUDO systemctl daemon-reload
         $SUDO systemctl enable "$SYSTEMD_SERVICE"
+        $SUDO systemctl start "$SYSTEMD_SERVICE"
         SERVICE_INSTALLED=true
-        ok "Systemd service installed and enabled."
+        ok "Systemd service installed, enabled and started."
 
         echo ""
         echo -e " ${GREEN}╭──────────────────────────────────────────────────────────────╮${NC}"
@@ -514,7 +515,7 @@ if [ "$SERVICE_INSTALLED" = "true" ]; then
     echo "  Next steps:"
     echo "  1. Edit config:  nano $CONFIG_FILE"
     echo "     Set at minimum: llm.api_key"
-    echo "  2. Start:        sudo systemctl start $SYSTEMD_SERVICE"
+    echo "  2. Restart after config change: sudo systemctl restart $SYSTEMD_SERVICE"
     echo ""
     echo -e "  ${CYAN}Service status:${NC}  sudo systemctl status $SYSTEMD_SERVICE"
     echo -e "  ${CYAN}Logs:           ${NC}  sudo journalctl -u $SYSTEMD_SERVICE -f"
@@ -523,10 +524,15 @@ else
     echo "  Next steps:"
     echo "  1. Edit config:  nano $CONFIG_FILE"
     echo "     Set at minimum: llm.api_key"
-    echo "  2. Start:        cd $INSTALL_DIR && source .env && ./start.sh"
+    echo "  2. Restart after config change: cd $INSTALL_DIR && source .env && ./start.sh"
     echo "  3. Open UI:      http://localhost:8088"
     echo ""
     echo -e "  ${CYAN}Logs:${NC}  tail -f $INSTALL_DIR/log/aurago.log"
+
+    # Start AuraGo now
+    cd "$INSTALL_DIR"
+    source "$ENV_FILE" 2>/dev/null || true
+    bash start.sh
 fi
 echo ""
 if $BUILD_FROM_SOURCE; then
