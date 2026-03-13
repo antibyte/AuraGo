@@ -226,9 +226,9 @@ function appendToolOutput(text, label) {
     chatBox.scrollTop = chatBox.scrollHeight;
 }
 
-/* ── Session Todo Panel (debug mode only) ── */
+/* ── Session Todo Panel ── */
 function updateTodoPanel(todoText) {
-    if (!debugMode || !todoText) { hideTodoPanel(); return; }
+    if (!todoText) { hideTodoPanel(); return; }
     let panel = document.getElementById('todo-debug-panel');
     if (!panel) {
         panel = document.createElement('div');
