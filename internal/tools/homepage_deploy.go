@@ -331,6 +331,10 @@ func HomepageDeployNetlify(cfg HomepageConfig, nfCfg NetlifyConfig, projectDir, 
 	// Create an in-memory ZIP of the deploy directory.
 	var zipBuf bytes.Buffer
 	zw := zip.NewWriter(&zipBuf)
+
+	// Track which special Netlify config files are already present in the project.
+	var hasHeaders, hasNetlifyToml bool
+
 	walkErr := filepath.Walk(deployPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -343,6 +347,12 @@ func HomepageDeployNetlify(cfg HomepageConfig, nfCfg NetlifyConfig, projectDir, 
 			return err
 		}
 		rel = filepath.ToSlash(rel)
+		if rel == "_headers" {
+			hasHeaders = true
+		}
+		if rel == "netlify.toml" {
+			hasNetlifyToml = true
+		}
 		w, err := zw.Create(rel)
 		if err != nil {
 			return err
@@ -357,6 +367,25 @@ func HomepageDeployNetlify(cfg HomepageConfig, nfCfg NetlifyConfig, projectDir, 
 	if walkErr != nil {
 		return errJSON("Failed to create ZIP: %v", walkErr)
 	}
+
+	// Inject a _headers file if the project doesn't already have one.
+	// When deploying via the Netlify ZIP API, MIME types are sometimes not
+	// inferred from file extensions — explicit Content-Type headers fix this.
+	if !hasHeaders {
+		headersContent := "/*.html\n  Content-Type: text/html; charset=UTF-8\n/*.css\n  Content-Type: text/css; charset=UTF-8\n/*.js\n  Content-Type: application/javascript; charset=UTF-8\n"
+		if w, err := zw.Create("_headers"); err == nil {
+			_, _ = w.Write([]byte(headersContent))
+		}
+	}
+
+	// Inject a minimal netlify.toml if the project doesn't already have one.
+	if !hasNetlifyToml {
+		tomlContent := "[[headers]]\n  for = \"/*.html\"\n  [headers.values]\n    Content-Type = \"text/html; charset=UTF-8\"\n\n[[headers]]\n  for = \"/*.css\"\n  [headers.values]\n    Content-Type = \"text/css; charset=UTF-8\"\n\n[[headers]]\n  for = \"/*.js\"\n  [headers.values]\n    Content-Type = \"application/javascript; charset=UTF-8\"\n"
+		if w, err := zw.Create("netlify.toml"); err == nil {
+			_, _ = w.Write([]byte(tomlContent))
+		}
+	}
+
 	if err := zw.Close(); err != nil {
 		return errJSON("Failed to finalise ZIP: %v", err)
 	}
