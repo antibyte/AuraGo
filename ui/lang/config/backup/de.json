@@ -1,7 +1,7 @@
 {
   "config.backup.tab_create": "📦 Backup erstellen",
   "config.backup.tab_import": "📥 Backup importieren",
-  "config.backup.create_desc": "Erstellt ein <strong>.ago</strong>-Archiv (ZIP) mit Konfiguration, Prompts, Daten und Skills. Das Archiv kann optional verschlüsselt und auf einer anderen Instanz importiert werden.",
+  "config.backup.create_desc": "Erstellt ein <strong>.ago</strong>-Archiv (ZIP) mit Konfiguration, Prompts, Daten und Skills. Mit Passwort werden auch alle Vault-Secrets (API-Schlüssel, Tokens) sicher verschlüsselt eingeschlossen — ideal für den Umzug auf eine neue Instanz (z. B. mit systemd-Injektion).",
   "config.backup.include_vectordb": "VectorDB einschließen (Embeddings — kann groß sein)",
   "config.backup.include_workdir": "Arbeitsverzeichnis einschließen (agent_workspace/workdir)",
   "config.backup.password_label": "🔒 Passwort (optional)",

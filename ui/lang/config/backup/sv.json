@@ -1,7 +1,7 @@
 {
   "config.backup.tab_create": "📦 Backup Maken",
   "config.backup.tab_import": "📥 Backup Importeren",
-  "config.backup.create_desc": "Maakt een <strong>.ago</strong> archief (ZIP) met config, prompts, data en skills. Het archief kan optioneel worden versleuteld en op een andere instantie worden geïmporteerd.",
+  "config.backup.create_desc": "Skapar ett <strong>.ago</strong>-arkiv (ZIP) med konfiguration, prompts, data och färdigheter. Med lösenord inkluderas alla vault-hemligheter (API-nycklar, tokens) säkert — idealiskt för migrering till en ny instans (t.ex. med systemd-injektion).",
   "config.backup.include_vectordb": "VectorDB opnemen (embeddings — kan groot zijn)",
   "config.backup.include_workdir": "Workdir opnemen (agent_workspace/workdir)",
   "config.backup.password_label": "🔒 Wachtwoord (optioneel)",

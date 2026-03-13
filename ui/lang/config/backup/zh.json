@@ -1,7 +1,7 @@
 {
   "config.backup.tab_create": "📦 创建备份",
   "config.backup.tab_import": "📥 导入备份",
-  "config.backup.create_desc": "创建包含配置、提示、数据和技能的 <strong>.ago</strong> 归档 (ZIP)。归档可以选择加密，并可在其他实例上导入。",
+  "config.backup.create_desc": "创建包含配置、提示、数据和技能的 <strong>.ago</strong> 归档 (ZIP)。设置密码后，所有 vault 密钙（API 密钒、Token）也会被安全加密包含——适合迁移到新实例（如 systemd 注入主密钀）。",
   "config.backup.include_vectordb": "包含 VectorDB (embeddings — 可能很大)",
   "config.backup.include_workdir": "包含工作目录 (agent_workspace/workdir)",
   "config.backup.password_label": "🔒 密码 (可选)",

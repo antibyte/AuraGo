@@ -1,7 +1,7 @@
 {
   "config.backup.tab_create": "📦 Vytvořit zálohu",
   "config.backup.tab_import": "📥 Importovat zálohu",
-  "config.backup.create_desc": "Vytvoří <strong>.ago</strong> archiv (ZIP) s konfigurací, prompty, daty a skilly. Archiv může být volitelně zašifrován a importován na jinou instanci.",
+  "config.backup.create_desc": "Cria um arquivo <strong>.ago</strong> (ZIP) com configuração, prompts, dados e skills. Com senha, todos os segredos do vault (chaves API, tokens) também são incluídos de forma segura — ideal para migrar para uma nova instância (p. ex. com injeção systemd).",
   "config.backup.include_vectordb": "Zahrnout VectorDB (embeddings — může být velký)",
   "config.backup.include_workdir": "Zahrnout workdir (agent_workspace/workdir)",
   "config.backup.password_label": "🔒 Heslo (volitelné)",

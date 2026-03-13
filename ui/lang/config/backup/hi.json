@@ -1,7 +1,7 @@
 {
   "config.backup.tab_create": "📦 बैकअप बनाएं",
   "config.backup.tab_import": "📥 बैकअप आयात करें",
-  "config.backup.create_desc": "कॉन्फ़िगरेशन, संकेतों, डेटा और कौशल के साथ एक <strong>.ago</strong> संग्रह (ज़िप) बनाता है। संग्रह को वैकल्पिक रूप से एन्क्रिप्ट किया जा सकता है और किसी अन्य उदाहरण पर आयात किया जा सकता है।",
+  "config.backup.create_desc": "<strong>.ago</strong> संग्रह (ZIP) बनाता है जिसमें कॉन्फ़िगरेशन, प्रॉम्प्ट, डेटा और स्किल शामिल हैं। पासवर्ड सेट करने पर vault secrets (API कुंजियां, tokens) भी सुरक्षित रूप से शामिल होते हैं — नई इंस्टेंस पर माइग्रेशन के लिए आदर्श।",
   "config.backup.include_vectordb": "वेक्टरडीबी शामिल करें (एम्बेडिंग - बड़ी हो सकती है)",
   "config.backup.include_workdir": "वर्कडिर (एजेंट_वर्कस्पेस/वर्कडिर)",
   "config.backup.password_label": "शामिल करें 🔒 पासवर्ड (वैकल्पिक)",

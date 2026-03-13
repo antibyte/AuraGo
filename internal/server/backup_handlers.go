@@ -5,6 +5,10 @@ package server
 // .ago file format:
 //   Plain (no password):    standard ZIP file, rename to .zip to inspect.
 //   Encrypted (password):   4-byte magic "AGOE" + 16-byte salt + 12-byte nonce + AES-256-GCM(ZIP).
+//
+// Vault secrets are included as vault_secrets.enc only when a backup password is set.
+// They are encrypted independently with AES-256-GCM derived from the same password so they
+// can be migrated to a new instance that has a different AURAGO_MASTER_KEY (e.g. systemd).
 
 import (
 	"archive/zip"
@@ -23,6 +27,7 @@ import (
 	"strings"
 	"time"
 
+	"aurago/internal/security"
 	promptsembed "aurago/prompts"
 )
 
@@ -30,10 +35,118 @@ const agoMagic = "AGOE"
 
 // agoManifest is written as manifest.json at the ZIP root.
 type agoManifest struct {
-	Version   string   `json:"version"`
-	CreatedAt string   `json:"created_at"`
-	Hostname  string   `json:"hostname"`
-	Contents  []string `json:"contents"`
+	Version       string   `json:"version"`
+	CreatedAt     string   `json:"created_at"`
+	Hostname      string   `json:"hostname"`
+	Contents      []string `json:"contents"`
+	VaultIncluded bool     `json:"vault_included,omitempty"`
+}
+
+// vaultSkipKeys contains secrets that are instance-specific and must not be
+// migrated between systems. All other vault keys (integration credentials) are
+// included in the encrypted vault export.
+var vaultSkipKeys = map[string]bool{
+	"auth_password_hash":  true,
+	"auth_session_secret": true,
+}
+
+// ── Vault export / import ────────────────────────────────────────────────────
+
+// exportVaultSecrets reads all transferable secrets from the vault and returns
+// them as an AES-256-GCM blob encrypted with the given backup password.
+// Returns nil, nil if the vault is nil or has no transferable secrets.
+func exportVaultSecrets(vault *security.Vault, password string) ([]byte, error) {
+	if vault == nil {
+		return nil, nil
+	}
+	keys, err := vault.ListKeys()
+	if err != nil {
+		return nil, fmt.Errorf("vault list: %w", err)
+	}
+	data := make(map[string]string, len(keys))
+	for _, k := range keys {
+		if vaultSkipKeys[k] {
+			continue
+		}
+		v, err := vault.ReadSecret(k)
+		if err == nil && v != "" {
+			data[k] = v
+		}
+	}
+	if len(data) == 0 {
+		return nil, nil
+	}
+	plain, err := json.Marshal(data)
+	if err != nil {
+		return nil, fmt.Errorf("vault marshal: %w", err)
+	}
+	// Derive per-blob key with a fresh salt so it's independent of the zip encryption.
+	salt := make([]byte, 16)
+	if _, err := rand.Read(salt); err != nil {
+		return nil, err
+	}
+	key := deriveKey(password, salt)
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return nil, err
+	}
+	nonce := make([]byte, gcm.NonceSize())
+	if _, err := rand.Read(nonce); err != nil {
+		return nil, err
+	}
+	var buf bytes.Buffer
+	buf.Write(salt)
+	buf.Write(nonce)
+	buf.Write(gcm.Seal(nil, nonce, plain, nil))
+	return buf.Bytes(), nil
+}
+
+// importVaultSecrets decrypts vault_secrets.enc data and writes every secret
+// into the running vault. Returns the number of secrets written.
+func importVaultSecrets(vault *security.Vault, encData []byte, password string) (int, error) {
+	if vault == nil {
+		return 0, nil
+	}
+	if len(encData) < 28 { // 16 salt + 12 nonce min
+		return 0, fmt.Errorf("vault_secrets.enc too short")
+	}
+	salt := encData[:16]
+	rest := encData[16:]
+	key := deriveKey(password, salt)
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return 0, err
+	}
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return 0, err
+	}
+	nonceSize := gcm.NonceSize()
+	if len(rest) < nonceSize {
+		return 0, fmt.Errorf("vault_secrets.enc nonce missing")
+	}
+	plain, err := gcm.Open(nil, rest[:nonceSize], rest[nonceSize:], nil)
+	if err != nil {
+		return 0, fmt.Errorf("vault secrets decryption failed (wrong password?): %w", err)
+	}
+	var data map[string]string
+	if err := json.Unmarshal(plain, &data); err != nil {
+		return 0, fmt.Errorf("vault secrets parse: %w", err)
+	}
+	count := 0
+	for k, v := range data {
+		if vaultSkipKeys[k] {
+			continue
+		}
+		if err := vault.WriteSecret(k, v); err == nil {
+			count++
+		}
+	}
+	return count, nil
 }
 
 // ── Key derivation ───────────────────────────────────────────────────────────
@@ -261,13 +374,28 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 			contents = append(contents, "agent_workspace/workdir/")
 		}
 
-		// 8. Write manifest
+		// 8. Vault secrets (only when a password is set — never in plain-text backups)
+		vaultIncluded := false
+		if req.Password != "" && s.Vault != nil {
+			if vaultBlob, err := exportVaultSecrets(s.Vault, req.Password); err != nil {
+				s.Logger.Warn("[Backup] Could not export vault secrets", "error", err)
+			} else if len(vaultBlob) > 0 {
+				if vw, err := zw.Create("vault_secrets.enc"); err == nil {
+					vw.Write(vaultBlob)
+					vaultIncluded = true
+					contents = append(contents, "vault_secrets.enc (secrets, encrypted)")
+				}
+			}
+		}
+
+		// 9. Write manifest
 		hostname, _ := os.Hostname()
 		manifest := agoManifest{
-			Version:   "1",
-			CreatedAt: time.Now().UTC().Format(time.RFC3339),
-			Hostname:  hostname,
-			Contents:  contents,
+			Version:       "1",
+			CreatedAt:     time.Now().UTC().Format(time.RFC3339),
+			Hostname:      hostname,
+			Contents:      contents,
+			VaultIncluded: vaultIncluded,
 		}
 		if mw, err := zw.Create("manifest.json"); err == nil {
 			json.NewEncoder(mw).Encode(manifest)
@@ -299,8 +427,7 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 		s.Logger.Info("[Backup] Backup created",
 			"filename", filename,
 			"size_bytes", len(outData),
-			"encrypted", req.Password != "",
-			"vectordb", req.IncludeVectorDB,
+			"encrypted", req.Password != "", "vault_included", vaultIncluded, "vectordb", req.IncludeVectorDB,
 			"workdir", req.IncludeWorkdir)
 	}
 }
@@ -383,6 +510,7 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 		}
 
 		restored, skipped := 0, 0
+		var vaultEncData []byte // vault_secrets.enc bytes, if present
 
 		for _, f := range zr.File {
 			// Security: reject path-traversal attempts
@@ -390,6 +518,20 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 			if strings.HasPrefix(clean, "..") || filepath.IsAbs(clean) {
 				s.Logger.Warn("[Backup] Skipping unsafe path in archive", "path", f.Name)
 				skipped++
+				continue
+			}
+
+			// vault_secrets.enc is never written to disk — handled separately below.
+			if clean == "vault_secrets.enc" {
+				if rc, err := f.Open(); err == nil {
+					vaultEncData, _ = io.ReadAll(rc)
+					rc.Close()
+				}
+				continue
+			}
+
+			// manifest.json is metadata only — skip file-system restore.
+			if clean == "manifest.json" {
 				continue
 			}
 
@@ -429,16 +571,39 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 			}
 		}
 
-		s.Logger.Info("[Backup] Import completed", "restored", restored, "skipped", skipped)
+		// Vault secrets import — re-encrypt with the local AURAGO_MASTER_KEY so
+		// the secrets are immediately available without restarting.
+		vaultRestored := 0
+		vaultErr := ""
+		if len(vaultEncData) > 0 && password != "" && s.Vault != nil {
+			n, err := importVaultSecrets(s.Vault, vaultEncData, password)
+			if err != nil {
+				s.Logger.Warn("[Backup] Vault secrets import failed", "error", err)
+				vaultErr = err.Error()
+			} else {
+				vaultRestored = n
+				s.Logger.Info("[Backup] Vault secrets imported", "count", n)
+			}
+		}
+
+		s.Logger.Info("[Backup] Import completed", "restored", restored, "skipped", skipped, "vault_secrets", vaultRestored)
+
+		msg := fmt.Sprintf("%d Dateien wiederhergestellt, %d übersprungen.", restored, skipped)
+		if vaultRestored > 0 {
+			msg += fmt.Sprintf(" %d Vault-Secrets wiederhergestellt.", vaultRestored)
+		}
+		if vaultErr != "" {
+			msg += " Vault-Import fehlgeschlagen: " + vaultErr
+		}
+		msg += " Neustart empfohlen um alle Änderungen zu übernehmen."
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"status":   "ok",
-			"restored": restored,
-			"skipped":  skipped,
-			"message": fmt.Sprintf(
-				"%d Dateien wiederhergestellt, %d übersprungen. Neustart empfohlen um alle Änderungen zu übernehmen.",
-				restored, skipped),
+			"status":         "ok",
+			"restored":       restored,
+			"skipped":        skipped,
+			"vault_restored": vaultRestored,
+			"message":        msg,
 		})
 	}
 }
