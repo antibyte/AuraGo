@@ -1,0 +1,87 @@
+================================================================================
+KI-GERECHTE PROJEKTSTRUKTUR - ANALYSE
+================================================================================
+
+KRITERIEN FUER KI-GERECHT:
+--------------------------------------------------------------------------------
+Optimal:    < 300 Zeilen (einheitlich verarbeitbar)
+Akzeptabel: < 500 Zeilen (noch gut ueberschaubar)
+Grenzwertig: < 800 Zeilen (maximale KI-Kapazitaet)
+Problematisch: > 800 Zeilen (Kontext-Probleme)
+
+GESAMTSTATISTIK:
+--------------------------------------------------------------------------------
+Go-Dateien gesamt: 183
+Gesamtzeilen: 54,758
+Durchschnitt: 299 Zeilen/Datei
+
+VERTEILUNG DER DATEIEN:
+--------------------------------------------------------------------------------
+KI-Optimal (<300 Zeilen):    124 Dateien (67%)
+KI-OK (301-500 Zeilen):       28 Dateien (15%)
+Grenzwertig (501-800):        14 Dateien (7%)
+Problematisch (>800):         17 Dateien (9%)
+
+GESAMTBEWERTUNG:
+--------------------------------------------------------------------------------
+KI-Gerecht-Score: 83.8%
+Status: [GUT] Das Projekt ist weitgehend KI-gerecht.
+
+PROBLEMDATEIEN (KI-Sicht):
+--------------------------------------------------------------------------------
+
+XXL:
+   1617 Zeilen: internal\config\config.go
+   1602 Zeilen: internal\agent\agent_loop.go
+   1236 Zeilen: internal\server\server.go
+   1203 Zeilen: internal\tools\homepage.go
+
+XLARGE:
+   1199 Zeilen: internal\prompts\builder.go
+   1100 Zeilen: internal\server\handlers.go
+   1058 Zeilen: internal\agent\agent_dispatch_infra.go
+    986 Zeilen: internal\memory\short_term.go
+    982 Zeilen: internal\tools\netlify.go
+    978 Zeilen: internal\server\config_handlers.go
+    977 Zeilen: internal\agent\native_tools.go
+    974 Zeilen: internal\agent\agent_parse.go
+    965 Zeilen: internal\memory\personality.go
+    859 Zeilen: internal\tools\docker.go
+
+PACKAGE-STRUKTUR:
+--------------------------------------------------------------------------------
+[KRITISCH] tools                      56 Dateien, 14025 Zeilen
+[KRITISCH] server                     32 Dateien, 10933 Zeilen
+[KRITISCH] agent                      15 Dateien,  8760 Zeilen
+[WARN] memory                     10 Dateien,  4175 Zeilen
+[OK] invasion                   10 Dateien,  2379 Zeilen
+[OK] config                      3 Dateien,  1883 Zeilen
+[OK] prompts                     4 Dateien,  1546 Zeilen
+[OK] llm                         7 Dateien,   995 Zeilen
+[OK] security                    5 Dateien,   954 Zeilen
+[OK] webhooks                    5 Dateien,   952 Zeilen
+[OK] services                    3 Dateien,   920 Zeilen
+[OK] telegram                    3 Dateien,   832 Zeilen
+[OK] meshcentral                 2 Dateien,   609 Zeilen
+[OK] discord                     1 Dateien,   586 Zeilen
+[OK] budget                      1 Dateien,   477 Zeilen
+
+================================================================================
+EMPFEHLUNGEN:
+================================================================================
+2. HOCH: XXL-Dateien refactoren
+   - internal\config\config.go
+   - internal\agent\agent_loop.go
+   - internal\server\server.go
+
+3. MITTEL: Packages mit >3000 Zeilen aufsplitten
+   - Package "tools": 14025 Zeilen
+   - Package "server": 10933 Zeilen
+   - Package "agent": 8760 Zeilen
+   - Package "memory": 4175 Zeilen
+
+4. BEST PRACTICES fuer KI-Verarbeitung:
+   - Eine Datei = Eine klare Verantwortung
+   - Max. 300 Zeilen pro Datei
+   - Klare Schnittstellen zwischen Modulen
+   - Dokumentation der wichtigsten Funktionen
