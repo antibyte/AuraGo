@@ -135,8 +135,11 @@ func dockerRequest(cfg DockerConfig, method, endpoint string, body string) ([]by
 }
 
 // errJSON is a helper that returns a JSON error string.
+// Uses proper marshaling to handle special characters (quotes, newlines, etc.) in messages.
 func errJSON(msg string, args ...interface{}) string {
-	return fmt.Sprintf(`{"status":"error","message":"`+msg+`"}`, args...)
+	text := fmt.Sprintf(msg, args...)
+	b, _ := json.Marshal(map[string]string{"status": "error", "message": text})
+	return string(b)
 }
 
 // ---------- Operations ----------
