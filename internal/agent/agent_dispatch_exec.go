@@ -25,7 +25,7 @@ import (
 )
 
 // dispatchExec handles execution, memory, security, filesystem, API, remote, and scheduling tool calls.
-func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, missionManager *tools.MissionManager, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, historyMgr *memory.HistoryManager, isMaintenance bool, surgeryPlan string, guardian *security.Guardian, sessionID string, coAgentRegistry *CoAgentRegistry, budgetTracker *budget.Tracker) string {
+func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, missionManager *tools.MissionManager, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, historyMgr *memory.HistoryManager, isMaintenance bool, surgeryPlan string, guardian *security.Guardian, sessionID string, coAgentRegistry *CoAgentRegistry, budgetTracker *budget.Tracker) string {
 	switch tc.Action {
 	case "execute_sandbox":
 		if !cfg.Sandbox.Enabled {
@@ -539,6 +539,88 @@ func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 			return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
 		}
 		return fmt.Sprintf("Tool Output: %s", result)
+
+	case "cheatsheet":
+		if cheatsheetDB == nil {
+			return `Tool Output: {"status":"error","message":"Cheat sheet database is not available."}`
+		}
+		op := strings.ToLower(strings.TrimSpace(tc.Operation))
+		if op == "" {
+			return `Tool Output: {"status":"error","message":"'operation' is required (list, get, create, update, delete)."}`
+		}
+		switch op {
+		case "list":
+			sheets, err := tools.CheatsheetList(cheatsheetDB, true)
+			if err != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
+			}
+			type entry struct {
+				ID   string `json:"id"`
+				Name string `json:"name"`
+			}
+			list := make([]entry, len(sheets))
+			for i, s := range sheets {
+				list[i] = entry{ID: s.ID, Name: s.Name}
+			}
+			data, _ := json.Marshal(map[string]interface{}{"status": "ok", "count": len(list), "cheatsheets": list})
+			return fmt.Sprintf("Tool Output: %s", string(data))
+		case "get":
+			var sheet *tools.CheatSheet
+			var err error
+			if tc.ID != "" {
+				sheet, err = tools.CheatsheetGet(cheatsheetDB, tc.ID)
+			} else if tc.Name != "" {
+				sheet, err = tools.CheatsheetGetByName(cheatsheetDB, tc.Name)
+			} else {
+				return `Tool Output: {"status":"error","message":"'id' or 'name' is required for get."}`
+			}
+			if err != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"cheat sheet not found: %v"}`, err)
+			}
+			data, _ := json.Marshal(map[string]interface{}{"status": "ok", "cheatsheet": sheet})
+			return fmt.Sprintf("Tool Output: %s", string(data))
+		case "create":
+			if tc.Name == "" {
+				return `Tool Output: {"status":"error","message":"'name' is required for create."}`
+			}
+			sheet, err := tools.CheatsheetCreate(cheatsheetDB, tc.Name, tc.Content, "agent")
+			if err != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
+			}
+			data, _ := json.Marshal(map[string]interface{}{"status": "ok", "message": "Cheat sheet created.", "cheatsheet": sheet})
+			return fmt.Sprintf("Tool Output: %s", string(data))
+		case "update":
+			if tc.ID == "" {
+				return `Tool Output: {"status":"error","message":"'id' is required for update."}`
+			}
+			var namePtr, contentPtr *string
+			var activePtr *bool
+			if tc.Name != "" {
+				namePtr = &tc.Name
+			}
+			if tc.Content != "" {
+				contentPtr = &tc.Content
+			}
+			if tc.Active != nil {
+				activePtr = tc.Active
+			}
+			sheet, err := tools.CheatsheetUpdate(cheatsheetDB, tc.ID, namePtr, contentPtr, activePtr)
+			if err != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
+			}
+			data, _ := json.Marshal(map[string]interface{}{"status": "ok", "message": "Cheat sheet updated.", "cheatsheet": sheet})
+			return fmt.Sprintf("Tool Output: %s", string(data))
+		case "delete":
+			if tc.ID == "" {
+				return `Tool Output: {"status":"error","message":"'id' is required for delete."}`
+			}
+			if err := tools.CheatsheetDelete(cheatsheetDB, tc.ID); err != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
+			}
+			return `Tool Output: {"status":"ok","message":"Cheat sheet deleted."}`
+		default:
+			return fmt.Sprintf(`Tool Output: {"status":"error","message":"Unknown cheatsheet operation: %s. Use list, get, create, update, or delete."}`, op)
+		}
 
 	case "get_secret", "secrets_vault":
 		if !cfg.Tools.SecretsVault.Enabled {

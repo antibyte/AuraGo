@@ -27,5 +27,6 @@
   "login.password_show": "显示密码",
   "login.subtitle": "请登录以继续",
   "login.totp_divider": "验证码",
-  "login.totp_label": "6位验证码"
+  "login.totp_label": "6位验证码",
+  "common.nav_cheatsheets": "速查表"
 }

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="de" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="page-title">AuraGo - Cheat Sheets</title>
+    <link rel="stylesheet" href="/shared.css">
+    <script src="/shared.js"></script>
+    <script>
+        (function () { var t = localStorage.getItem('aurago-theme'); if (t) document.documentElement.setAttribute('data-theme', t); })();
+    </script>
+    <script>const I18N={{.I18N}};</script>
+    <link rel="stylesheet" href="/css/cheatsheets.css">
+</head>
+<body>
+    <header class="app-header">
+        <div class="header-left">
+            <a href="/" class="logo">
+                <div class="logo-icon">🥚</div>
+                <span style="color:var(--accent);">AURA</span><span style="color:var(--text-primary);">GO</span>
+                <span class="logo-subtitle" data-i18n="cheatsheets.subtitle">Cheat Sheets</span>
+            </a>
+        </div>
+        <div class="header-actions">
+            <button id="theme-toggle" class="btn-theme" title="Toggle theme"></button>
+        </div>
+    </header>
+
+    <div id="radialMenuAnchor"></div>
+
+    <div class="container">
+        <div class="page-header">
+            <h1 data-i18n="cheatsheets.title">Cheat Sheets</h1>
+            <button class="btn btn-primary" id="btn-create" onclick="openCreate()">
+                <span>+</span> <span data-i18n="cheatsheets.create_new">New Cheat Sheet</span>
+            </button>
+        </div>
+
+        <!-- Cards grid -->
+        <div class="cards-grid" id="sheets-grid"></div>
+        <div class="empty-state" id="sheets-empty" style="display:none;">
+            <div class="empty-icon">📋</div>
+            <h3 data-i18n="cheatsheets.empty_title">No Cheat Sheets Yet</h3>
+            <p data-i18n="cheatsheets.empty_desc">Create reusable workflow instructions for the agent.</p>
+        </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div class="modal-overlay" id="edit-modal">
+        <div class="modal modal-wide">
+            <h2 id="modal-title" data-i18n="cheatsheets.create_new">New Cheat Sheet</h2>
+            <input type="hidden" id="sheet-id">
+            <div class="form-group">
+                <label data-i18n="cheatsheets.name">Name</label>
+                <input type="text" id="sheet-name" placeholder="e.g. Deploy Website" maxlength="200">
+            </div>
+            <div class="form-group">
+                <label data-i18n="cheatsheets.content">Content (Markdown)</label>
+                <div class="editor-tabs">
+                    <button class="editor-tab active" onclick="switchEditorTab('edit')" data-i18n="cheatsheets.tab_edit">Edit</button>
+                    <button class="editor-tab" onclick="switchEditorTab('preview')" data-i18n="cheatsheets.tab_preview">Preview</button>
+                </div>
+                <textarea id="sheet-content" rows="16" placeholder="# Steps&#10;1. First do this&#10;2. Then do that"></textarea>
+                <div id="sheet-preview" class="md-preview" style="display:none;"></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="toggle-wrap">
+                        <span data-i18n="cheatsheets.active">Active</span>
+                        <label class="toggle"><input type="checkbox" id="sheet-active" checked><span class="slider"></span></label>
+                    </label>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal('edit-modal')" data-i18n="cheatsheets.cancel">Cancel</button>
+                <button class="btn btn-primary" onclick="saveSheet()" data-i18n="cheatsheets.save">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirm Modal -->
+    <div class="modal-overlay" id="delete-modal">
+        <div class="modal">
+            <h2 style="color:var(--accent-danger);">⚠️ <span data-i18n="cheatsheets.confirm_delete">Confirm Deletion</span></h2>
+            <p id="delete-message"></p>
+            <input type="text" class="delete-confirm-input" id="delete-confirm-input" oninput="checkDeleteConfirm()" autocomplete="off">
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal('delete-modal')" data-i18n="cheatsheets.cancel">Cancel</button>
+                <button class="btn btn-danger" id="btn-delete-confirm" disabled onclick="confirmDelete()" data-i18n="cheatsheets.delete">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <script src="/js/cheatsheets/main.js"></script>
+</body>
+</html>

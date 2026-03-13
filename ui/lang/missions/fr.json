@@ -199,5 +199,9 @@
   "missions.card_view_log": "Afficher le journal",
   "missions.trigger_system_startup": "🟢 Démarrage du système",
   "missions.trigger_system_startup_badge": "🟢 Au démarrage du système",
-  "missions.trigger_system_startup_hint": "Exécute cette mission automatiquement au démarrage d'AuraGo."
+  "missions.trigger_system_startup_hint": "Exécute cette mission automatiquement au démarrage d'AuraGo.",
+  "missions.form_cheatsheets_label": "Aide-mémoire",
+  "missions.form_cheatsheets_hint": "Les aide-mémoire sélectionnés seront inclus comme contexte lors de l'exécution de la mission.",
+  "missions.form_cheatsheets_loading": "Chargement...",
+  "missions.form_cheatsheets_none": "Aucun aide-mémoire actif"
 }

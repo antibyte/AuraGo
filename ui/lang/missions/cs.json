@@ -199,5 +199,9 @@
   "missions.card_view_log": "Zobrazit protokol",
   "missions.trigger_system_startup": "🢢 Spuštění systému",
   "missions.trigger_system_startup_badge": "🟢 Při spuštění systému",
-  "missions.trigger_system_startup_hint": "Provede tuto misi automaticky při spuštění AuraGo."
+  "missions.trigger_system_startup_hint": "Provede tuto misi automaticky při spuštění AuraGo.",
+  "missions.form_cheatsheets_label": "Cheat Sheety",
+  "missions.form_cheatsheets_hint": "Vybrané cheat sheety budou zahrnuty jako kontext při spuštění mise.",
+  "missions.form_cheatsheets_loading": "Načítání...",
+  "missions.form_cheatsheets_none": "Žádné aktivní cheat sheety"
 }

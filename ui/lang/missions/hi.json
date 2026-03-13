@@ -199,5 +199,9 @@
   "missions.card_view_log": "लॉग देखें",
   "missions.trigger_system_startup": "🟢 सिस्टम स्टार्टअप",
   "missions.trigger_system_startup_badge": "🟢 सिस्टम स्टार्टअप पर",
-  "missions.trigger_system_startup_hint": "AuraGo प्रारंभ होने पर इस मिशन को स्वचालित रूप से निष्पादित करता है।"
+  "missions.trigger_system_startup_hint": "AuraGo प्रारंभ होने पर इस मिशन को स्वचालित रूप से निष्पादित करता है।",
+  "missions.form_cheatsheets_label": "चीट शीट्स",
+  "missions.form_cheatsheets_hint": "चयनित चीट शीट्स मिशन चलने पर संदर्भ के रूप में शामिल की जाएंगी।",
+  "missions.form_cheatsheets_loading": "लोड हो रहा है...",
+  "missions.form_cheatsheets_none": "कोई सक्रिय चीट शीट उपलब्ध नहीं"
 }

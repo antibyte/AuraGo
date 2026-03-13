@@ -190,5 +190,7 @@
   "dashboard.system_ram": "टक्कर मारना",
   "dashboard.system_sse_clients": "एसएसई ग्राहक",
   "dashboard.system_title": "सिस्टम स्थिति",
-  "dashboard.system_uptime": "अपटाइम"
+  "dashboard.system_uptime": "अपटाइम",
+  "dashboard.operations_cheatsheets": "चीट शीट",
+  "dashboard.operations_cheatsheets_active": "{{n}} सक्रिय"
 }

@@ -199,5 +199,9 @@
   "missions.card_view_log": "Vis log",
   "missions.trigger_system_startup": "Systemstart",
   "missions.trigger_system_startup_badge": "Ved systemstart",
-  "missions.trigger_system_startup_hint": "Udfører denne mission automatisk, når AuraGo starter."
+  "missions.trigger_system_startup_hint": "Udfører denne mission automatisk, når AuraGo starter.",
+  "missions.form_cheatsheets_label": "Cheat Sheets",
+  "missions.form_cheatsheets_hint": "Valgte cheat sheets inkluderes som kontekst, når missionen kører.",
+  "missions.form_cheatsheets_loading": "Indlæser...",
+  "missions.form_cheatsheets_none": "Ingen aktive cheat sheets"
 }

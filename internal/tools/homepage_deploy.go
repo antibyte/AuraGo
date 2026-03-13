@@ -333,7 +333,7 @@ func HomepageDeployNetlify(cfg HomepageConfig, nfCfg NetlifyConfig, projectDir, 
 	zw := zip.NewWriter(&zipBuf)
 
 	// Track which special Netlify config files are already present in the project.
-	var hasHeaders, hasNetlifyToml bool
+	var hasHeaders, hasNetlifyToml, hasRedirects bool
 
 	walkErr := filepath.Walk(deployPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -352,6 +352,9 @@ func HomepageDeployNetlify(cfg HomepageConfig, nfCfg NetlifyConfig, projectDir, 
 		}
 		if rel == "netlify.toml" {
 			hasNetlifyToml = true
+		}
+		if rel == "_redirects" {
+			hasRedirects = true
 		}
 		w, err := zw.Create(rel)
 		if err != nil {
@@ -380,9 +383,18 @@ func HomepageDeployNetlify(cfg HomepageConfig, nfCfg NetlifyConfig, projectDir, 
 
 	// Inject a minimal netlify.toml if the project doesn't already have one.
 	if !hasNetlifyToml {
-		tomlContent := "[[headers]]\n  for = \"/*.html\"\n  [headers.values]\n    Content-Type = \"text/html; charset=UTF-8\"\n\n[[headers]]\n  for = \"/*.css\"\n  [headers.values]\n    Content-Type = \"text/css; charset=UTF-8\"\n\n[[headers]]\n  for = \"/*.js\"\n  [headers.values]\n    Content-Type = \"application/javascript; charset=UTF-8\"\n"
+		tomlContent := "[[headers]]\n  for = \"/*.html\"\n  [headers.values]\n    Content-Type = \"text/html; charset=UTF-8\"\n\n[[headers]]\n  for = \"/*.css\"\n  [headers.values]\n    Content-Type = \"text/css; charset=UTF-8\"\n\n[[headers]]\n  for = \"/*.js\"\n  [headers.values]\n    Content-Type = \"application/javascript; charset=UTF-8\"\n\n[[redirects]]\n  from = \"/*\"\n  to = \"/index.html\"\n  status = 200\n"
 		if w, err := zw.Create("netlify.toml"); err == nil {
 			_, _ = w.Write([]byte(tomlContent))
+		}
+	}
+
+	// Inject a _redirects file for SPA routing if the project doesn't have one.
+	// This ensures single-page apps (React, Next.js static, Vue, etc.) serve
+	// index.html for all routes instead of returning Netlify's default 404.
+	if !hasRedirects {
+		if w, err := zw.Create("_redirects"); err == nil {
+			_, _ = w.Write([]byte("/*    /index.html   200\n"))
 		}
 	}
 

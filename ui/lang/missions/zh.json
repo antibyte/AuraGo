@@ -199,5 +199,9 @@
   "missions.card_view_log": "查看日志",
   "missions.trigger_system_startup": "🟢 系统启动",
   "missions.trigger_system_startup_badge": "🟢 系统启动时",
-  "missions.trigger_system_startup_hint": "AuraGo 启动时自动执行此任务。"
+  "missions.trigger_system_startup_hint": "AuraGo 启动时自动执行此任务。",
+  "missions.form_cheatsheets_label": "备忘录",
+  "missions.form_cheatsheets_hint": "选定的备忘录将在任务运行时作为上下文包含。",
+  "missions.form_cheatsheets_loading": "加载中...",
+  "missions.form_cheatsheets_none": "没有可用的活动备忘录"
 }

@@ -199,5 +199,9 @@
   "missions.trigger_webhook_hint": "Der Webhook muss im Webhook-Manager erstellt werden",
   "missions.trigger_webhook_label": "Webhook",
   "missions.trigger_webhook_loading": "Lade Webhooks...",
-  "missions.trigger_webhook_none": "Keine Webhooks verfügbar"
+  "missions.trigger_webhook_none": "Keine Webhooks verfügbar",
+  "missions.form_cheatsheets_label": "Spickzettel",
+  "missions.form_cheatsheets_hint": "Ausgewählte Spickzettel werden als Kontext eingebunden, wenn die Mission ausgeführt wird.",
+  "missions.form_cheatsheets_loading": "Laden...",
+  "missions.form_cheatsheets_none": "Keine aktiven Spickzettel vorhanden"
 }

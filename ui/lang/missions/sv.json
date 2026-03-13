@@ -199,5 +199,9 @@
   "missions.card_view_log": "View Log",
   "missions.trigger_system_startup": "Systemstart",
   "missions.trigger_system_startup_badge": "Vid systemstart",
-  "missions.trigger_system_startup_hint": "Utför detta uppdrag automatiskt när AuraGo startar."
+  "missions.trigger_system_startup_hint": "Utför detta uppdrag automatiskt när AuraGo startar.",
+  "missions.form_cheatsheets_label": "Fusklappar",
+  "missions.form_cheatsheets_hint": "Valda fusklappar inkluderas som kontext när uppdraget körs.",
+  "missions.form_cheatsheets_loading": "Laddar...",
+  "missions.form_cheatsheets_none": "Inga aktiva fusklappar"
 }

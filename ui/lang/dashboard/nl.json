@@ -124,7 +124,7 @@
   "dashboard.operations_notes_sub": "{{total}} total, {{done}} done",
   "dashboard.operations_of_files": "of {{n}} files",
   "dashboard.operations_summary": "Samenvatting",
-  "dashboard.operations_title": "Operaties \u0026 Diensten",
+  "dashboard.operations_title": "Operaties & Diensten",
   "dashboard.operations_vault_keys": "Vault Sleutels",
   "dashboard.page_title": "AuraGo – Dashboard",
   "dashboard.personality_btn_1h": "1h",
@@ -190,5 +190,7 @@
   "dashboard.system_ram": "RAM",
   "dashboard.system_sse_clients": "SSE Clients",
   "dashboard.system_title": "Systeemstatus",
-  "dashboard.system_uptime": "Uptime"
+  "dashboard.system_uptime": "Uptime",
+  "dashboard.operations_cheatsheets": "Spiekbriefjes",
+  "dashboard.operations_cheatsheets_active": "{{n}} actief"
 }

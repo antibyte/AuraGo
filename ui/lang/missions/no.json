@@ -199,5 +199,9 @@
   "missions.card_view_log": "Vis logg",
   "missions.trigger_system_startup": "Systemoppstart",
   "missions.trigger_system_startup_badge": "Ved systemoppstart",
-  "missions.trigger_system_startup_hint": "Utfører dette oppdraget automatisk når AuraGo starter."
+  "missions.trigger_system_startup_hint": "Utfører dette oppdraget automatisk når AuraGo starter.",
+  "missions.form_cheatsheets_label": "Jukselapper",
+  "missions.form_cheatsheets_hint": "Valgte jukselapper inkluderes som kontekst når oppdraget kjøres.",
+  "missions.form_cheatsheets_loading": "Laster...",
+  "missions.form_cheatsheets_none": "Ingen aktive jukselapper"
 }

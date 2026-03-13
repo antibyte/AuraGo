@@ -1,4 +1,5 @@
 package config
+
 // Defined here to avoid a circular dependency on the security package.
 type SecretReader interface {
 	ReadSecret(key string) (string, error)
@@ -114,10 +115,11 @@ type Config struct {
 		VectorDBDir  string `yaml:"vectordb_dir"`
 	} `yaml:"directories"`
 	SQLite struct {
-		ShortTermPath string `yaml:"short_term_path"`
-		LongTermPath  string `yaml:"long_term_path"`
-		InventoryPath string `yaml:"inventory_path"`
-		InvasionPath  string `yaml:"invasion_path"`
+		ShortTermPath  string `yaml:"short_term_path"`
+		LongTermPath   string `yaml:"long_term_path"`
+		InventoryPath  string `yaml:"inventory_path"`
+		InvasionPath   string `yaml:"invasion_path"`
+		CheatsheetPath string `yaml:"cheatsheet_path"`
 	} `yaml:"sqlite"`
 	Embeddings struct {
 		Provider      string `yaml:"provider"`          // "disabled" or provider entry ID
@@ -567,4 +569,3 @@ type ModelCostRates struct {
 	InputPerMillion  float64 `yaml:"input_per_million"`
 	OutputPerMillion float64 `yaml:"output_per_million"`
 }
-

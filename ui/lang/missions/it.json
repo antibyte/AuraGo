@@ -199,5 +199,9 @@
   "missions.card_view_log": "Visualizza registro",
   "missions.trigger_system_startup": "🟢 Avvio del sistema",
   "missions.trigger_system_startup_badge": "🟢 All'avvio del sistema",
-  "missions.trigger_system_startup_hint": "Esegue questa missione automaticamente all'avvio di AuraGo."
+  "missions.trigger_system_startup_hint": "Esegue questa missione automaticamente all'avvio di AuraGo.",
+  "missions.form_cheatsheets_label": "Cheat Sheet",
+  "missions.form_cheatsheets_hint": "I cheat sheet selezionati saranno inclusi come contesto durante l'esecuzione della missione.",
+  "missions.form_cheatsheets_loading": "Caricamento...",
+  "missions.form_cheatsheets_none": "Nessun cheat sheet attivo"
 }

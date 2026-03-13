@@ -83,6 +83,10 @@ func Load(path string) (*Config, error) {
 		cfg.SQLite.InvasionPath = "./data/invasion.db"
 	}
 	cfg.SQLite.InvasionPath = resolvePath(configDir, cfg.SQLite.InvasionPath)
+	if cfg.SQLite.CheatsheetPath == "" {
+		cfg.SQLite.CheatsheetPath = "./data/cheatsheets.db"
+	}
+	cfg.SQLite.CheatsheetPath = resolvePath(configDir, cfg.SQLite.CheatsheetPath)
 
 	// Resolve logging directory
 	cfg.Logging.LogDir = resolvePath(configDir, cfg.Logging.LogDir)

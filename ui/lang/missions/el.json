@@ -199,5 +199,9 @@
   "missions.card_view_log": "Προβολή αρχείου καταγραφής",
   "missions.trigger_system_startup": "🟢 Εκκίνηση συστήματος",
   "missions.trigger_system_startup_badge": "🟢 Κατά την εκκίνηση συστήματος",
-  "missions.trigger_system_startup_hint": "Εκτελεί αυτόματα αυτήν την αποστολή όταν ξεκινά το AuraGo."
+  "missions.trigger_system_startup_hint": "Εκτελεί αυτόματα αυτήν την αποστολή όταν ξεκινά το AuraGo.",
+  "missions.form_cheatsheets_label": "Cheat Sheets",
+  "missions.form_cheatsheets_hint": "Τα επιλεγμένα cheat sheets θα συμπεριληφθούν ως πλαίσιο κατά την εκτέλεση της αποστολής.",
+  "missions.form_cheatsheets_loading": "Φόρτωση...",
+  "missions.form_cheatsheets_none": "Δεν υπάρχουν ενεργά cheat sheets"
 }

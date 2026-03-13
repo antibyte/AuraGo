@@ -75,6 +75,7 @@ function injectRadialMenu() {
         { href: '/', icon: '💬', key: 'common.nav_chat' },
         { href: '/dashboard', icon: '📊', key: 'common.nav_dashboard' },
         { href: '/missions', icon: '🚀', key: 'common.nav_missions' },
+        { href: '/cheatsheets', icon: '📋', key: 'common.nav_cheatsheets' },
         { href: '/config', icon: '⚙️', key: 'common.nav_config' },
         { href: '/invasion', icon: '🥚', key: 'common.nav_invasion' },
     ];

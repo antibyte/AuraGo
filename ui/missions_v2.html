@@ -142,6 +142,20 @@
 
                     <div class="form-group">
                         <label>
+                            <script>document.write(t('missions.form_cheatsheets_label'))</script>
+                        </label>
+                        <div id="cheatsheet-picker" class="cheatsheet-picker">
+                            <div class="cheatsheet-picker-empty">
+                                <script>document.write(t('missions.form_cheatsheets_loading'))</script>
+                            </div>
+                        </div>
+                        <div class="form-hint">
+                            <script>document.write(t('missions.form_cheatsheets_hint'))</script>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>
                             <script>document.write(t('missions.form_priority_label'))</script>
                         </label>
                         <select id="mission-priority" class="form-select">

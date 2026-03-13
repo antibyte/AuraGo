@@ -190,5 +190,7 @@
   "dashboard.system_ram": "RAM",
   "dashboard.system_sse_clients": "SSE Klienti",
   "dashboard.system_title": "System",
-  "dashboard.system_uptime": "Doba Provozu"
+  "dashboard.system_uptime": "Doba Provozu",
+  "dashboard.operations_cheatsheets": "Σκονάκια",
+  "dashboard.operations_cheatsheets_active": "{{n}} ενεργά"
 }

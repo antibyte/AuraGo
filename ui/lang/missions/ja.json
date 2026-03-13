@@ -199,5 +199,9 @@
   "missions.card_view_log": "ログの表示",
   "missions.trigger_system_startup": "🟢 システム起動",
   "missions.trigger_system_startup_badge": "🟢 システム起動時",
-  "missions.trigger_system_startup_hint": "AuraGo の起動時にこのミッションが自動的に実行されます。"
+  "missions.trigger_system_startup_hint": "AuraGo の起動時にこのミッションが自動的に実行されます。",
+  "missions.form_cheatsheets_label": "チートシート",
+  "missions.form_cheatsheets_hint": "選択したチートシートはミッション実行時にコンテキストとして含まれます。",
+  "missions.form_cheatsheets_loading": "読み込み中...",
+  "missions.form_cheatsheets_none": "アクティブなチートシートがありません"
 }

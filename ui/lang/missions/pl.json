@@ -199,5 +199,9 @@
   "missions.card_view_log": "Wyświetl dziennik",
   "missions.trigger_system_startup": "🟢 Uruchamianie systemu",
   "missions.trigger_system_startup_badge": "🟢 Podczas uruchamiania systemu",
-  "missions.trigger_system_startup_hint": "Wykonuje tę misję automatycznie po uruchomieniu AuraGo."
+  "missions.trigger_system_startup_hint": "Wykonuje tę misję automatycznie po uruchomieniu AuraGo.",
+  "missions.form_cheatsheets_label": "Ściągawki",
+  "missions.form_cheatsheets_hint": "Wybrane ściągawki zostaną dołączone jako kontekst podczas wykonywania misji.",
+  "missions.form_cheatsheets_loading": "Ładowanie...",
+  "missions.form_cheatsheets_none": "Brak aktywnych ściągawek"
 }

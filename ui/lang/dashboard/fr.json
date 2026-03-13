@@ -39,7 +39,7 @@
   "dashboard.budget_openrouter_credits": "Crédits OpenRouter",
   "dashboard.budget_reset_in": "↻ Réinitialisation dans {{hours}}h {{minutes}}m",
   "dashboard.budget_sublabel": "sur {{amount}}",
-  "dashboard.budget_title": "Budget \u0026 Tokens",
+  "dashboard.budget_title": "Budget & Tokens",
   "dashboard.budget_warning": "Avertissement",
   "dashboard.core_facts_modal_add_placeholder": "Ajouter un nouveau fait principal…",
   "dashboard.core_facts_modal_cancel": "Annuler",
@@ -124,7 +124,7 @@
   "dashboard.operations_notes_sub": "{{total}} total, {{done}} terminé",
   "dashboard.operations_of_files": "sur {{n}} fichiers",
   "dashboard.operations_summary": "Résumé",
-  "dashboard.operations_title": "Opérations \u0026 Services",
+  "dashboard.operations_title": "Opérations & Services",
   "dashboard.operations_vault_keys": "Clés du Coffre",
   "dashboard.page_title": "AuraGo – Tableau de bord",
   "dashboard.personality_btn_1h": "1h",
@@ -190,5 +190,7 @@
   "dashboard.system_ram": "RAM",
   "dashboard.system_sse_clients": "Clients SSE",
   "dashboard.system_title": "État du Système",
-  "dashboard.system_uptime": "Uptime"
+  "dashboard.system_uptime": "Uptime",
+  "dashboard.operations_cheatsheets": "Aide-mémoire",
+  "dashboard.operations_cheatsheets_active": "{{n}} actifs"
 }

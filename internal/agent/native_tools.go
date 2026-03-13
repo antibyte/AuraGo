@@ -260,6 +260,22 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 		)
 	}
 
+	// Cheat Sheets — always available (DB is always initialized)
+	tools = append(tools, tool("cheatsheet",
+		"Manage cheat sheets (reusable workflow instructions). List, view, create, update, or delete cheat sheets that describe step-by-step procedures.",
+		schema(map[string]interface{}{
+			"operation": map[string]interface{}{
+				"type":        "string",
+				"description": "Operation to perform",
+				"enum":        []string{"list", "get", "create", "update", "delete"},
+			},
+			"id":      prop("string", "Cheat sheet ID (for get/update/delete). Can also be the name for 'get'."),
+			"name":    prop("string", "Name of the cheat sheet (for create/update)"),
+			"content": prop("string", "Markdown content of the cheat sheet (for create/update)"),
+			"active":  map[string]interface{}{"type": "boolean", "description": "Whether the cheat sheet is active (for update)"},
+		}, "operation"),
+	))
+
 	if ff.KnowledgeGraphEnabled {
 		tools = append(tools, tool("knowledge_graph",
 			"Store or query relationships between entities in the knowledge graph.",

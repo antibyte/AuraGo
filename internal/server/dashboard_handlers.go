@@ -756,6 +756,16 @@ func handleDashboardOverview(s *Server) http.HandlerFunc {
 			}
 		}
 
+		// ── Cheat Sheets Summary ──────────────────────────────
+		cheatsheetsSummary := map[string]interface{}{
+			"total": 0, "active": 0,
+		}
+		if s.CheatsheetDB != nil {
+			total, active, _ := tools.CheatsheetCount(s.CheatsheetDB)
+			cheatsheetsSummary["total"] = total
+			cheatsheetsSummary["active"] = active
+		}
+
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"agent":               agentInfo,
@@ -769,6 +779,7 @@ func handleDashboardOverview(s *Server) http.HandlerFunc {
 			"security":            securitySummary,
 			"context":             contextSummary,
 			"last_activity_hours": lastActivityHours,
+			"cheatsheets":         cheatsheetsSummary,
 		})
 	}
 }

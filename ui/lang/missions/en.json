@@ -199,5 +199,9 @@
   "missions.trigger_webhook_hint": "The webhook must be created in the Webhook Manager",
   "missions.trigger_webhook_label": "Webhook",
   "missions.trigger_webhook_loading": "Loading webhooks...",
-  "missions.trigger_webhook_none": "No webhooks available"
+  "missions.trigger_webhook_none": "No webhooks available",
+  "missions.form_cheatsheets_label": "Cheat Sheets",
+  "missions.form_cheatsheets_hint": "Selected cheat sheets will be included as context when the mission runs.",
+  "missions.form_cheatsheets_loading": "Loading...",
+  "missions.form_cheatsheets_none": "No active cheat sheets available"
 }

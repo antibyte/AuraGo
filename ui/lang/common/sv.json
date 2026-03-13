@@ -27,5 +27,6 @@
   "login.password_show": "Visa lösenord",
   "login.subtitle": "Logga in för att fortsätta",
   "login.totp_divider": "Authenticator-kod",
-  "login.totp_label": "6-siffrig kod"
+  "login.totp_label": "6-siffrig kod",
+  "common.nav_cheatsheets": "Fusklapp"
 }

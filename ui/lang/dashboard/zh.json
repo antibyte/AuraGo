@@ -190,5 +190,7 @@
   "dashboard.system_ram": "内存",
   "dashboard.system_sse_clients": "SSE 客户端",
   "dashboard.system_title": "系统状态",
-  "dashboard.system_uptime": "运行时间"
+  "dashboard.system_uptime": "运行时间",
+  "dashboard.operations_cheatsheets": "速查表",
+  "dashboard.operations_cheatsheets_active": "{{n}} 个启用"
 }

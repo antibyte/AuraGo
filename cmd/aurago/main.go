@@ -313,6 +313,16 @@ func main() {
 		cfg.InvasionControl.Enabled = true
 	}
 
+	// Cheat Sheets DB
+	cheatsheetDB, cheatsheetDBErr := tools.InitCheatsheetDB(cfg.SQLite.CheatsheetPath)
+	if cheatsheetDBErr != nil {
+		appLog.Warn("Failed to initialize Cheatsheet DB", "error", cheatsheetDBErr, "path", cfg.SQLite.CheatsheetPath)
+		cheatsheetDB = nil
+	} else {
+		defer cheatsheetDB.Close()
+		appLog.Info("Cheatsheet DB initialized", "path", cfg.SQLite.CheatsheetPath)
+	}
+
 	// Tool guide indexing (at startup for performance)
 	toolGuidesDir := filepath.Join(cfg.Directories.PromptsDir, "tools_manuals")
 	if err := longTermMem.IndexToolGuides(toolGuidesDir, false); err != nil {
@@ -506,7 +516,7 @@ func main() {
 		go eggClient.Start()
 	}
 
-	if err := server.Start(cfg, appLog, llmClient, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, invasionDB, isFirstStart, shutdownCh); err != nil {
+	if err := server.Start(cfg, appLog, llmClient, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, invasionDB, cheatsheetDB, isFirstStart, shutdownCh); err != nil {
 		appLog.Error("Server failed", "error", err)
 		os.Exit(1)
 	}

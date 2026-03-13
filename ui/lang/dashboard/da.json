@@ -190,5 +190,7 @@
   "dashboard.system_ram": "RAM",
   "dashboard.system_sse_clients": "Clientes SSE",
   "dashboard.system_title": "Sistema",
-  "dashboard.system_uptime": "Tempo de Atividade"
+  "dashboard.system_uptime": "Tempo de Atividade",
+  "dashboard.operations_cheatsheets": "Snydeblade",
+  "dashboard.operations_cheatsheets_active": "{{n}} aktive"
 }

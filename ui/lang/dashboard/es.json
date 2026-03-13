@@ -190,5 +190,7 @@
   "dashboard.system_ram": "RAM",
   "dashboard.system_sse_clients": "Clientes SSE",
   "dashboard.system_title": "Estado del Sistema",
-  "dashboard.system_uptime": "Tiempo activo"
+  "dashboard.system_uptime": "Tiempo activo",
+  "dashboard.operations_cheatsheets": "Hojas de Trucos",
+  "dashboard.operations_cheatsheets_active": "{{n}} activas"
 }

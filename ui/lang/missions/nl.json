@@ -199,5 +199,9 @@
   "missions.card_view_log": "Logboek bekijken",
   "missions.trigger_system_startup": "🟢 Systeem opstarten",
   "missions.trigger_system_startup_badge": "🟢 Bij het opstarten van het systeem",
-  "missions.trigger_system_startup_hint": "Executes this mission automatically when AuraGo starts."
+  "missions.trigger_system_startup_hint": "Executes this mission automatically when AuraGo starts.",
+  "missions.form_cheatsheets_label": "Cheat Sheets",
+  "missions.form_cheatsheets_hint": "Geselecteerde cheat sheets worden als context meegestuurd wanneer de missie wordt uitgevoerd.",
+  "missions.form_cheatsheets_loading": "Laden...",
+  "missions.form_cheatsheets_none": "Geen actieve cheat sheets"
 }

@@ -27,5 +27,6 @@
   "login.password_show": "Vis adgangskode",
   "login.subtitle": "Log ind for at fortsætte",
   "login.totp_divider": "Authenticator-kode",
-  "login.totp_label": "6-cifret kode"
+  "login.totp_label": "6-cifret kode",
+  "common.nav_cheatsheets": "Snydeblade"
 }

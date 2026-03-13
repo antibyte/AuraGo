@@ -199,5 +199,9 @@
   "missions.card_view_log": "Ver registro",
   "missions.trigger_system_startup": "🟢 Inicialização do Sistema",
   "missions.trigger_system_startup_badge": "🟢 Na inicialização do sistema",
-  "missions.trigger_system_startup_hint": "Executa esta missão automaticamente quando o AuraGo é iniciado."
+  "missions.trigger_system_startup_hint": "Executa esta missão automaticamente quando o AuraGo é iniciado.",
+  "missions.form_cheatsheets_label": "Cheat Sheets",
+  "missions.form_cheatsheets_hint": "As cheat sheets selecionadas serão incluídas como contexto quando a missão for executada.",
+  "missions.form_cheatsheets_loading": "Carregando...",
+  "missions.form_cheatsheets_none": "Nenhuma cheat sheet ativa"
 }

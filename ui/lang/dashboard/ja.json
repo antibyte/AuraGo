@@ -190,5 +190,7 @@
   "dashboard.system_ram": "RAM",
   "dashboard.system_sse_clients": "SSE クライアント",
   "dashboard.system_title": "システム状態",
-  "dashboard.system_uptime": "稼働時間"
+  "dashboard.system_uptime": "稼働時間",
+  "dashboard.operations_cheatsheets": "チートシート",
+  "dashboard.operations_cheatsheets_active": "{{n}} 個有効"
 }

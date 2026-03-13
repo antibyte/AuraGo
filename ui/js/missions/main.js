@@ -333,6 +333,8 @@ function openMissionModal(missionId = null) {
     loadWebhooks();
     // Load invasion eggs/nests for triggers
     loadInvasionData();
+    // Load cheatsheet picker
+    loadCheatsheetPicker(missionId ? (missions.find(m => m.id === missionId)?.cheatsheet_ids || []) : []);
 
     openModal('modal');
 }
@@ -468,6 +470,36 @@ function fillTriggerConfig(cfg, type) {
     }
 }
 
+// Cheatsheet Picker
+async function loadCheatsheetPicker(selectedIds = []) {
+    const container = document.getElementById('cheatsheet-picker');
+    try {
+        const resp = await fetch('/api/cheatsheets?active=true');
+        if (!resp.ok) throw new Error();
+        const sheets = await resp.json();
+
+        if (!sheets || sheets.length === 0) {
+            container.innerHTML = `<div class="cheatsheet-picker-empty">${t('missions.form_cheatsheets_none')}</div>`;
+            return;
+        }
+
+        container.innerHTML = sheets.map(s => {
+            const checked = selectedIds.includes(s.id) ? 'checked' : '';
+            return `<div class="cheatsheet-picker-item">
+                <input type="checkbox" id="cs-${s.id}" value="${s.id}" ${checked}>
+                <label for="cs-${s.id}">${escapeHtml(s.name)}</label>
+            </div>`;
+        }).join('');
+    } catch (e) {
+        container.innerHTML = `<div class="cheatsheet-picker-empty">${t('missions.form_cheatsheets_none')}</div>`;
+    }
+}
+
+function getSelectedCheatsheetIds() {
+    const checks = document.querySelectorAll('#cheatsheet-picker input[type="checkbox"]:checked');
+    return Array.from(checks).map(c => c.value);
+}
+
 // Save mission
 async function saveMission() {
     const name = document.getElementById('mission-name').value.trim();
@@ -490,7 +522,8 @@ async function saveMission() {
         priority: document.getElementById('mission-priority').value,
         execution_type: execType,
         enabled: true,
-        locked: document.getElementById('mission-locked').checked
+        locked: document.getElementById('mission-locked').checked,
+        cheatsheet_ids: getSelectedCheatsheetIds()
     };
 
     // Add execution-specific config

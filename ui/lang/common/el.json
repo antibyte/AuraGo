@@ -27,5 +27,6 @@
   "login.password_show": "Εμφάνιση κωδικού",
   "login.subtitle": "Συνδεθείτε για να συνεχίσετε",
   "login.totp_divider": "Κωδικός Authenticator",
-  "login.totp_label": "6-ψήφιος κωδικός"
+  "login.totp_label": "6-ψήφιος κωδικός",
+  "common.nav_cheatsheets": "Σκονάκια"
 }

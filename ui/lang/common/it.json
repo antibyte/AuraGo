@@ -27,5 +27,6 @@
   "login.password_show": "Mostra password",
   "login.subtitle": "Accedi per continuare",
   "login.totp_divider": "Codice Autenticatore",
-  "login.totp_label": "Codice a 6 cifre"
+  "login.totp_label": "Codice a 6 cifre",
+  "common.nav_cheatsheets": "Promemoria"
 }

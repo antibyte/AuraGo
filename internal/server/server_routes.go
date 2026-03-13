@@ -511,6 +511,32 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		})
 		s.Logger.Info("Mission Control V2 UI enabled at /missions/v2")
 
+		// Cheat Sheet Editor page
+		cheatsheetTmpl, cheatsheetErr := template.ParseFS(uiFS, "cheatsheets.html")
+		if cheatsheetErr != nil {
+			s.Logger.Error("Failed to parse cheatsheet UI template", "error", cheatsheetErr)
+		}
+		mux.HandleFunc("/cheatsheets", func(w http.ResponseWriter, r *http.Request) {
+			if cheatsheetTmpl == nil {
+				http.Error(w, "Cheatsheet template error", http.StatusInternalServerError)
+				return
+			}
+			lang := normalizeLang(s.Cfg.Server.UILanguage)
+			data := map[string]interface{}{
+				"Lang": lang,
+				"I18N": getI18NJSON(lang),
+			}
+			if err := cheatsheetTmpl.Execute(w, data); err != nil {
+				s.Logger.Error("Failed to execute cheatsheet template", "error", err)
+				http.Error(w, "Template render error", http.StatusInternalServerError)
+			}
+		})
+		s.Logger.Info("Cheat Sheet Editor UI enabled at /cheatsheets")
+
+		// ── Cheat Sheets API ──
+		mux.HandleFunc("/api/cheatsheets", handleCheatSheets(s))
+		mux.HandleFunc("/api/cheatsheets/", handleCheatSheetByID(s))
+
 		// ── Invasion Control API (handlers guard themselves with s.InvasionDB == nil check) ──
 		mux.HandleFunc("/api/invasion/nests", handleInvasionNests(s))
 		mux.HandleFunc("/api/invasion/eggs", handleInvasionEggs(s))

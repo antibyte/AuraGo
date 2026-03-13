@@ -2,6 +2,7 @@ package tools
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -79,6 +80,7 @@ type MissionV2 struct {
 	CreatedAt     time.Time      `json:"created_at"`
 	Locked        bool           `json:"locked"`                   // Prevents deletion
 	WaitingForID  string         `json:"waiting_for_id,omitempty"` // ID of mission this is waiting for
+	CheatsheetIDs []string      `json:"cheatsheet_ids,omitempty"` // Linked cheat sheet IDs for prompt expansion
 }
 
 // QueueItem represents a mission in the execution queue
@@ -211,6 +213,7 @@ type MissionManagerV2 struct {
 	emailWatcher      EmailWatcherInterface
 	webhookMgr        WebhookManagerInterface
 	mqttMgr           MQTTManagerInterface
+	cheatsheetDB      *sql.DB
 	onMissionComplete func(completedID, result, output string) // callback for mission completion
 }
 
@@ -268,6 +271,13 @@ func (m *MissionManagerV2) SetMQTTManager(mgr MQTTManagerInterface) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.mqttMgr = mgr
+}
+
+// SetCheatsheetDB sets the cheatsheet database for prompt expansion
+func (m *MissionManagerV2) SetCheatsheetDB(db *sql.DB) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.cheatsheetDB = db
 }
 
 // Start loads missions and initializes triggers
@@ -436,6 +446,8 @@ func (m *MissionManagerV2) processNext() {
 	callback := m.callback
 	prompt := mission.Prompt
 	missionID := mission.ID
+	cheatsheetIDs := mission.CheatsheetIDs
+	cheatsheetDB := m.cheatsheetDB
 	m.mu.Unlock()
 
 	if callback == nil {
@@ -450,6 +462,13 @@ func (m *MissionManagerV2) processNext() {
 		m.mu.Unlock()
 		m.queue.Done()
 		return
+	}
+
+	// Enhance prompt with linked cheat sheets
+	if len(cheatsheetIDs) > 0 && cheatsheetDB != nil {
+		if extra := CheatsheetGetMultiple(cheatsheetDB, cheatsheetIDs); extra != "" {
+			prompt += extra
+		}
 	}
 
 	// Enhance prompt with trigger data

@@ -27,5 +27,6 @@
   "login.password_show": "पासवर्ड दिखाएं",
   "login.subtitle": "जारी रखने के लिए लॉग इन करें",
   "login.totp_divider": "ऑथेंटिकेटर कोड",
-  "login.totp_label": "6-अंकों का कोड"
+  "login.totp_label": "6-अंकों का कोड",
+  "common.nav_cheatsheets": "चीट शीट"
 }

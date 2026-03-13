@@ -28,10 +28,11 @@ type Agent struct {
 	KG           *memory.KnowledgeGraph
 	InventoryDB  *sql.DB
 	InvasionDB   *sql.DB
+	CheatsheetDB *sql.DB
 }
 
 // NewAgent creates a new Agent instance.
-func NewAgent(cfg *config.Config, logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cron *tools.CronManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB) *Agent {
+func NewAgent(cfg *config.Config, logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cron *tools.CronManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB) *Agent {
 	return &Agent{
 		Cfg:          cfg,
 		Logger:       logger,
@@ -43,6 +44,7 @@ func NewAgent(cfg *config.Config, logger *slog.Logger, stm *memory.SQLiteMemory,
 		KG:           kg,
 		InventoryDB:  inventoryDB,
 		InvasionDB:   invasionDB,
+		CheatsheetDB: cheatsheetDB,
 	}
 }
 
@@ -346,6 +348,8 @@ type ToolCall struct {
 	MAC      string   `json:"mac"`      // MAC address for DHCP leases
 	IP       string   `json:"ip"`       // IP address for DHCP leases
 	Offset   int      `json:"offset"`   // pagination offset
+	// Cheat Sheet fields
+	Active *bool `json:"active,omitempty"` // pointer so nil = not provided vs false = explicitly inactive
 }
 
 // GetArgs returns Args as a string slice, handling various input types (slice of strings or interface).
@@ -382,6 +386,7 @@ type RunConfig struct {
 	KG              *memory.KnowledgeGraph
 	InventoryDB     *sql.DB
 	InvasionDB      *sql.DB
+	CheatsheetDB    *sql.DB
 	Vault           *security.Vault
 	Registry        *tools.ProcessRegistry
 	Manifest        *tools.Manifest
@@ -394,7 +399,7 @@ type RunConfig struct {
 	SurgeryPlan     string
 }
 
-func dispatchInner(ctx context.Context, tc ToolCall, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, missionManager *tools.MissionManager, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, historyMgr *memory.HistoryManager, isMaintenance bool, surgeryPlan string, guardian *security.Guardian, sessionID string, coAgentRegistry *CoAgentRegistry, budgetTracker *budget.Tracker) string {
+func dispatchInner(ctx context.Context, tc ToolCall, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, missionManager *tools.MissionManager, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, historyMgr *memory.HistoryManager, isMaintenance bool, surgeryPlan string, guardian *security.Guardian, sessionID string, coAgentRegistry *CoAgentRegistry, budgetTracker *budget.Tracker) string {
 	// Co-Agent blacklist: co-agents (identified by sessionID prefix) cannot modify memory, notes, KG, or spawn sub-agents
 	isCoAgent := strings.HasPrefix(sessionID, "coagent-")
 	if isCoAgent {
@@ -421,16 +426,16 @@ func dispatchInner(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 	}
 
 	// Route to sub-dispatchers
-	if result := dispatchExec(ctx, tc, cfg, logger, llmClient, vault, registry, manifest, cronManager, missionManager, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, historyMgr, isMaintenance, surgeryPlan, guardian, sessionID, coAgentRegistry, budgetTracker); result != dispatchNotHandled {
+	if result := dispatchExec(ctx, tc, cfg, logger, llmClient, vault, registry, manifest, cronManager, missionManager, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, historyMgr, isMaintenance, surgeryPlan, guardian, sessionID, coAgentRegistry, budgetTracker); result != dispatchNotHandled {
 		return result
 	}
-	if result := dispatchComm(ctx, tc, cfg, logger, llmClient, vault, registry, manifest, cronManager, missionManager, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, historyMgr, isMaintenance, surgeryPlan, guardian, sessionID, coAgentRegistry, budgetTracker); result != dispatchNotHandled {
+	if result := dispatchComm(ctx, tc, cfg, logger, llmClient, vault, registry, manifest, cronManager, missionManager, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, historyMgr, isMaintenance, surgeryPlan, guardian, sessionID, coAgentRegistry, budgetTracker); result != dispatchNotHandled {
 		return result
 	}
-	if result := dispatchServices(ctx, tc, cfg, logger, llmClient, vault, registry, manifest, cronManager, missionManager, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, historyMgr, isMaintenance, surgeryPlan, guardian, sessionID, coAgentRegistry, budgetTracker); result != dispatchNotHandled {
+	if result := dispatchServices(ctx, tc, cfg, logger, llmClient, vault, registry, manifest, cronManager, missionManager, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, historyMgr, isMaintenance, surgeryPlan, guardian, sessionID, coAgentRegistry, budgetTracker); result != dispatchNotHandled {
 		return result
 	}
-	if result := dispatchInfra(ctx, tc, cfg, logger, llmClient, vault, registry, manifest, cronManager, missionManager, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, historyMgr, isMaintenance, surgeryPlan, guardian, sessionID, coAgentRegistry, budgetTracker); result != dispatchNotHandled {
+	if result := dispatchInfra(ctx, tc, cfg, logger, llmClient, vault, registry, manifest, cronManager, missionManager, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, historyMgr, isMaintenance, surgeryPlan, guardian, sessionID, coAgentRegistry, budgetTracker); result != dispatchNotHandled {
 		return result
 	}
 

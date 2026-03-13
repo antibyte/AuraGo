@@ -27,5 +27,6 @@
   "login.password_show": "Show password",
   "login.subtitle": "Please sign in to continue",
   "login.totp_divider": "Authenticator Code",
-  "login.totp_label": "6-digit code"
+  "login.totp_label": "6-digit code",
+  "common.nav_cheatsheets": "Cheat Sheets"
 }

@@ -205,6 +205,7 @@ type Server struct {
 	MissionManagerV2 *tools.MissionManagerV2
 	EggHub           *bridge.EggHub
 	FileIndexer      *services.FileIndexer
+	CheatsheetDB     *sql.DB
 	// IsFirstStart is true if core_memory.md was just freshly created (no prior data).
 	IsFirstStart   bool
 	StartedAt      time.Time     // server start time for uptime calculation
@@ -213,7 +214,7 @@ type Server struct {
 	muFirstStart   sync.Mutex
 }
 
-func Start(cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, isFirstStart bool, shutdownCh chan struct{}) error {
+func Start(cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, isFirstStart bool, shutdownCh chan struct{}) error {
 	s := &Server{
 		Cfg:              cfg,
 		Logger:           logger,
@@ -227,6 +228,7 @@ func Start(cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, sh
 		KG:               kg,
 		InventoryDB:      inventoryDB,
 		InvasionDB:       invasionDB,
+		CheatsheetDB:     cheatsheetDB,
 		Guardian:         security.NewGuardian(logger),
 		CoAgentRegistry:  agent.NewCoAgentRegistry(cfg.CoAgents.MaxConcurrent, logger),
 		BudgetTracker:    budget.NewTracker(cfg, logger, cfg.Directories.DataDir),
@@ -362,6 +364,11 @@ func Start(cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, sh
 	// Set MQTT manager for MQTT message triggers
 	if cfg.MQTT.Enabled {
 		s.MissionManagerV2.SetMQTTManager(&missionMQTTAdapter{logger: logger})
+	}
+
+	// Set cheatsheet DB for mission prompt expansion
+	if s.CheatsheetDB != nil {
+		s.MissionManagerV2.SetCheatsheetDB(s.CheatsheetDB)
 	}
 
 	if err := s.MissionManagerV2.Start(); err != nil {
