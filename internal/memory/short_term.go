@@ -191,6 +191,15 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 		}
 	}
 
+	// Set user_version so backup/restore can detect schema generation.
+	// Increment this constant whenever a new column or table is added.
+	const shortTermSchemaVersion = 1
+	var currentVer int
+	_ = db.QueryRow("PRAGMA user_version").Scan(&currentVer)
+	if currentVer != shortTermSchemaVersion {
+		db.Exec(fmt.Sprintf("PRAGMA user_version = %d", shortTermSchemaVersion))
+	}
+
 	logger.Info("Initialized SQLite Short-Term Memory", "path", dbPath)
 	stm := &SQLiteMemory{db: db, logger: logger}
 

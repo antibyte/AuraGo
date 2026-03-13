@@ -34,13 +34,18 @@ import (
 
 const agoMagic = "AGOE"
 
+// currentDBSchemaVersion is incremented whenever any SQLite schema changes.
+// Stored in the manifest so imports can warn about version mismatches.
+const currentDBSchemaVersion = 1
+
 // agoManifest is written as manifest.json at the ZIP root.
 type agoManifest struct {
-	Version       string   `json:"version"`
-	CreatedAt     string   `json:"created_at"`
-	Hostname      string   `json:"hostname"`
-	Contents      []string `json:"contents"`
-	VaultIncluded bool     `json:"vault_included,omitempty"`
+	Version         string   `json:"version"`
+	CreatedAt       string   `json:"created_at"`
+	Hostname        string   `json:"hostname"`
+	Contents        []string `json:"contents"`
+	VaultIncluded   bool     `json:"vault_included,omitempty"`
+	DBSchemaVersion int      `json:"db_schema_version,omitempty"`
 }
 
 // vaultSkipKeys contains secrets that are instance-specific and must not be
@@ -395,11 +400,12 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 		// 9. Write manifest
 		hostname, _ := os.Hostname()
 		manifest := agoManifest{
-			Version:       "1",
-			CreatedAt:     time.Now().UTC().Format(time.RFC3339),
-			Hostname:      hostname,
-			Contents:      contents,
-			VaultIncluded: vaultIncluded,
+			Version:         "1",
+			CreatedAt:       time.Now().UTC().Format(time.RFC3339),
+			Hostname:        hostname,
+			Contents:        contents,
+			VaultIncluded:   vaultIncluded,
+			DBSchemaVersion: currentDBSchemaVersion,
 		}
 		if mw, err := zw.Create("manifest.json"); err == nil {
 			json.NewEncoder(mw).Encode(manifest)
@@ -515,6 +521,7 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 
 		restored, skipped := 0, 0
 		var vaultEncData []byte // vault_secrets.enc bytes, if present
+		var backupManifest *agoManifest
 
 		for _, f := range zr.File {
 			// Security: reject path-traversal attempts
@@ -534,8 +541,15 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 				continue
 			}
 
-			// manifest.json is metadata only — skip file-system restore.
+			// manifest.json — read for schema version check, skip file-system restore.
 			if clean == "manifest.json" {
+				if rc, err := f.Open(); err == nil {
+					var m agoManifest
+					if jsonErr := json.NewDecoder(rc).Decode(&m); jsonErr == nil {
+						backupManifest = &m
+					}
+					rc.Close()
+				}
 				continue
 			}
 
@@ -603,6 +617,17 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 
 		s.Logger.Info("[Backup] Import completed", "restored", restored, "skipped", skipped, "vault_secrets", vaultRestored)
 
+		schemaWarning := ""
+		if backupManifest != nil && backupManifest.DBSchemaVersion != 0 && backupManifest.DBSchemaVersion != currentDBSchemaVersion {
+			schemaWarning = fmt.Sprintf(
+				"DB-Schema-Version im Backup (%d) unterscheidet sich von aktueller Version (%d). "+
+					"AuraGo führt beim Neustart automatische Migrationen aus.",
+				backupManifest.DBSchemaVersion, currentDBSchemaVersion)
+			s.Logger.Warn("[Backup] DB schema version mismatch",
+				"backup_version", backupManifest.DBSchemaVersion,
+				"current_version", currentDBSchemaVersion)
+		}
+
 		msg := fmt.Sprintf("%d Dateien wiederhergestellt, %d übersprungen.", restored, skipped)
 		if vaultRestored > 0 {
 			msg += fmt.Sprintf(" %d Vault-Secrets wiederhergestellt.", vaultRestored)
@@ -610,15 +635,19 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 		if vaultErr != "" {
 			msg += " Vault-Import fehlgeschlagen: " + vaultErr
 		}
+		if schemaWarning != "" {
+			msg += " " + schemaWarning
+		}
 		msg += " Neustart empfohlen um alle Änderungen zu übernehmen."
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"status":         "ok",
-			"restored":       restored,
-			"skipped":        skipped,
-			"vault_restored": vaultRestored,
-			"message":        msg,
+			"status":          "ok",
+			"restored":        restored,
+			"skipped":         skipped,
+			"vault_restored":  vaultRestored,
+			"schema_warning":  schemaWarning,
+			"message":         msg,
 		})
 	}
 }

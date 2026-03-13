@@ -94,6 +94,14 @@ func InitDB(dbPath string) (*sql.DB, error) {
 		}
 	}
 
+	// Set user_version so backup/restore can detect schema generation.
+	const inventorySchemaVersion = 1
+	var currentVer int
+	_ = db.QueryRow("PRAGMA user_version").Scan(&currentVer)
+	if currentVer != inventorySchemaVersion {
+		db.Exec(fmt.Sprintf("PRAGMA user_version = %d", inventorySchemaVersion))
+	}
+
 	return db, nil
 }
 
