@@ -172,6 +172,12 @@ fi
 # ══════════════════════════════════════════════════════════════════════════
 #  Decide installation mode: SOURCE BUILD vs BINARY INSTALL
 # ══════════════════════════════════════════════════════════════════════════
+# Add common Go install locations to PATH (in case Go was already installed but not in PATH)
+for _godir in /usr/local/go/bin "$HOME/go/bin" /usr/local/bin; do
+    [ -d "$_godir" ] && [[ ":$PATH:" != *":$_godir:"* ]] && export PATH="$_godir:$PATH"
+done
+unset _godir
+
 BUILD_FROM_SOURCE=false
 
 _go_version_ok() {

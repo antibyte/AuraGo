@@ -684,6 +684,12 @@ _download_release_bin() {
     fetch_url_to_file "$url" "$DIR/bin/$name"
 }
 
+# Add common Go install locations to PATH (in case the shell was not re-sourced after install)
+for _godir in /usr/local/go/bin "$HOME/go/bin" /usr/local/bin; do
+    [ -d "$_godir" ] && [[ ":$PATH:" != *":$_godir:"* ]] && export PATH="$_godir:$PATH"
+done
+unset _godir
+
 GO_FOUND=false
 if command -v go >/dev/null 2>&1; then
     GO_VERSION=$(go version | awk '{print $3}' | sed 's/go//')
