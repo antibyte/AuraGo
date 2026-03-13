@@ -1,0 +1,68 @@
+VERBLEIBENDE PROBLEME NACH KORREKTUR
+================================================================================
+
+ZUSAMMENFASSUNG:
+Die ursprünglich identifizierten Probleme in hi, el, da wurden behoben.
+Aber es wurden weitere tschechische Kontaminationen gefunden:
+
+================================================================================
+NOCH VORHANDEN: Tschechische Wörter in folgenden Dateien
+================================================================================
+
+1. NORWEGISCH (no) - 10 Einträge in chat/no.json:
+   - chat.agent_active: "Agent je aktivni" (sollte Norwegisch sein)
+   - chat.agent_connected: "Agent pripojen"
+   - chat.agent_disconnected: "Agent odpojen"
+   - chat.agent_reconnecting: "Agent se znovu pripojuje..."
+   - chat.alert_stopped_msg: "Agent byl zastaven"
+   - chat.attachment_clear_title: "Vymazat prilohu"
+   - chat.btn_clear: "Vymazat"
+   - chat.btn_send: "Odeslat"
+   - chat.input_placeholder: "Napiste zpravu..."
+
+2. SCHWEDISCH (sv) - 10 Einträge in chat/sv.json:
+   - chat.agent_active: "Agent je aktivni" (sollte Schwedisch sein)
+   - chat.agent_connected: "Agent pripojen"
+   - chat.agent_disconnected: "Agent odpojen"
+   - chat.agent_reconnecting: "Agent se znovu pripojuje..."
+   - chat.alert_stopped_msg: "Agent byl zastaven"
+   - chat.attachment_clear_title: "Vymazat prilohu"
+   - chat.btn_clear: "Vymazat"
+   - chat.btn_send: "Odeslat"
+   - chat.input_placeholder: "Napiste zpravu..."
+
+3. PORTUGIESISCH (pt) - 4 Einträge in chat/pt.json:
+   - chat.budget_pill_format: "Rozpocet"
+   - chat.credits_pill_text: "Upravit"
+   - chat.credits_tooltip_payg: "Upravit"
+   - chat.credits_tooltip_used_limit: "Upravit"
+
+================================================================================
+BEREITS BEHOBEN (vorherige Probleme):
+================================================================================
+
+✅ Hindi (hi): Alle tschechischen Wörter entfernt
+   - Vorher: "Agent je aktivni", "Odeslat", "Chyba"
+   - Nachher: "एजेंट सक्रिय", "भेजें", "कनेक्शन त्रुटि"
+
+✅ Griechisch (el): Alle tschechischen Wörter entfernt
+   - Vorher: "Rozpocet", "Chyba", "Nacitani"
+   - Nachher: "${{cost}} / ${{limit}}", "Σφάλμα σύνδεσης", "Φόρτωση..."
+
+✅ Dänisch (da): Alle tschechischen Wörter entfernt
+   - Vorher: "Agent je aktivni", "Odeslat", "Vymazat"
+   - Nachher: "Agent aktiv", "Send", "Ryd"
+
+================================================================================
+EMPFEHLUNG:
+================================================================================
+
+Die folgenden Dateien müssen noch korrigiert werden:
+1. ui/lang/chat/no.json (10 Einträge)
+2. ui/lang/chat/sv.json (10 Einträge)
+3. ui/lang/chat/pt.json (4 Einträge)
+
+Die Muster sind identisch mit den vorherigen Korrekturen:
+- "Agent je aktivni" -> sollte "Agent aktiv" (no/sv) oder "Agente ativo" (pt) sein
+- "Odeslat" -> sollte "Send" (no/sv) oder "Enviar" (pt) sein
+- "Rozpocet" -> sollte "${{cost}} / ${{limit}}" sein
