@@ -367,7 +367,40 @@ func HomepageDeployNetlify(cfg HomepageConfig, nfCfg NetlifyConfig, projectDir, 
 	}
 
 	logger.Info("[Homepage] Deploying to Netlify", "site_id", siteID, "bytes", len(zipBytes), "draft", draft)
-	return NetlifyDeployZip(nfCfg, siteID, title, draft, zipBytes)
+	deployResult := NetlifyDeployZip(nfCfg, siteID, title, draft, zipBytes)
+
+	// If Netlify returned 404, the site_id might be a name that doesn't exist yet.
+	// Auto-create the site and retry — unless siteID looks like a UUID (an existing site that was deleted).
+	var dr map[string]interface{}
+	if json.Unmarshal([]byte(deployResult), &dr) == nil {
+		if code, _ := dr["http_code"].(float64); code == 404 && !looksLikeUUID(siteID) {
+			logger.Info("[Homepage] Site not found, auto-creating", "name", siteID)
+			createResult := NetlifyCreateSite(nfCfg, siteID, "")
+			var cr map[string]interface{}
+			if json.Unmarshal([]byte(createResult), &cr) == nil && cr["status"] == "ok" {
+				newID, _ := cr["id"].(string)
+				newDomain, _ := cr["default_domain"].(string)
+				if newID != "" {
+					logger.Info("[Homepage] Site created, retrying deploy", "site_id", newID, "domain", newDomain)
+					deployResult = NetlifyDeployZip(nfCfg, newID, title, draft, zipBytes)
+					// Annotate success with the auto-created site info
+					var rr map[string]interface{}
+					if json.Unmarshal([]byte(deployResult), &rr) == nil {
+						rr["auto_created_site"] = true
+						rr["new_site_id"] = newID
+						rr["new_site_domain"] = newDomain
+						if b, merr := json.Marshal(rr); merr == nil {
+							deployResult = string(b)
+						}
+					}
+				}
+			} else {
+				// Return create error to the agent
+				return errJSON("Site %q not found and auto-creation failed: %s", siteID, createResult)
+			}
+		}
+	}
+	return deployResult
 }
 
 // HomepagePublishToLocal rebuilds and refreshes the local web server.
@@ -466,6 +499,27 @@ func containerStatus(dockerCfg DockerConfig, name string) string {
 	}
 	out, _ := json.Marshal(result)
 	return string(out)
+}
+
+// looksLikeUUID returns true if s matches the standard 8-4-4-4-12 UUID format.
+// Used to distinguish Netlify site UUIDs from human-readable site names.
+func looksLikeUUID(s string) bool {
+	if len(s) != 36 {
+		return false
+	}
+	for i, c := range s {
+		switch i {
+		case 8, 13, 18, 23:
+			if c != '-' {
+				return false
+			}
+		default:
+			if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 func detectBuildDir(cfg HomepageConfig, projectDir string) string {

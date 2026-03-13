@@ -485,6 +485,9 @@ func NetlifyDeployZip(cfg NetlifyConfig, siteID, title string, draft bool, zipDa
 	}
 	// Netlify returns 200 for re-deploys and 201 Created for new deploys.
 	if code != 200 && code != 201 {
+		if code == 404 {
+			return fmt.Sprintf(`{"status":"error","http_code":404,"message":"Site %q not found on Netlify. Either the site_id is wrong or the site was deleted. Use 'netlify list_sites' to see existing sites, or use 'homepage deploy_netlify' which auto-creates the site if it does not exist."}`, siteID)
+		}
 		// Try to extract a helpful message from the Netlify error body
 		errMsg := string(data)
 		var errBody map[string]interface{}

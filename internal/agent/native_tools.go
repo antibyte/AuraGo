@@ -551,7 +551,7 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 				"site_name":     prop("string", "Site subdomain name for create (name.netlify.app)"),
 				"custom_domain": prop("string", "Custom domain for the site"),
 				"deploy_id":     prop("string", "Deploy ID (for get_deploy, rollback, cancel_deploy)"),
-				"content":       prop("string", "Base64-encoded ZIP archive (for deploy_zip/deploy_draft)"),
+				"content":       prop("string", "Base64-encoded ZIP archive (for deploy_zip/deploy_draft). NOTE: For workspace projects use 'homepage' action with 'deploy_netlify' operation instead — it builds and ZIPs automatically."),
 				"title":         prop("string", "Deploy title/message"),
 				"draft":         map[string]interface{}{"type": "boolean", "description": "Deploy as draft (not published)"},
 				"env_key":       prop("string", "Environment variable key"),
