@@ -156,6 +156,33 @@ read_master_key_from_env() {
     printf '%s' "$raw"
 }
 
+safe_restore_file() {
+    local src="$1"
+    local dst="$2"
+
+    [ -f "$src" ] || return 0
+
+    # First try a normal forced overwrite with metadata preserved.
+    if cp -fp "$src" "$dst" 2>/dev/null; then
+        return 0
+    fi
+
+    # If destination exists but is not writable, remove then copy.
+    if rm -f "$dst" 2>/dev/null && cp -fp "$src" "$dst" 2>/dev/null; then
+        return 0
+    fi
+
+    # Last resort: sudo copy (for legacy root-owned files in user installs).
+    if command -v sudo >/dev/null 2>&1; then
+        if sudo cp -fp "$src" "$dst" 2>/dev/null; then
+            sudo chown "$(id -u):$(id -g)" "$dst" 2>/dev/null || true
+            return 0
+        fi
+    fi
+
+    return 1
+}
+
 # ── Files & directories that must NEVER be touched ─────────────────────
 # These are backed up before git operations and restored afterwards.
 PROTECTED_FILES=(
@@ -508,7 +535,10 @@ else
     fi
 
     # Restore user's config.yaml — git must never win over user's config.
-    [ -f "$BACKUP_DIR/config.yaml" ] && cp -p "$BACKUP_DIR/config.yaml" "$DIR/config.yaml"
+    if [ -f "$BACKUP_DIR/config.yaml" ]; then
+        safe_restore_file "$BACKUP_DIR/config.yaml" "$DIR/config.yaml" \
+            || die "Could not restore config.yaml (permission denied)."
+    fi
 fi
 
 # ── Migrate old prompts location (agent_workspace/prompts → prompts/) ─
@@ -558,8 +588,11 @@ for f in "${PROTECTED_FILES[@]}"; do
             # The merger below will handle it. Skip here.
             continue
         fi
-        cp -p "$bak" "$DIR/$f"
-        ok "Restored: $f"
+        if safe_restore_file "$bak" "$DIR/$f"; then
+            ok "Restored: $f"
+        else
+            warn "Could not restore $f (permission denied)."
+        fi
     fi
 done
 
@@ -584,7 +617,7 @@ if [ -d "$BACKUP_DIR/data" ]; then
     for f in "${DATA_FILES[@]}"; do
         bak="$BACKUP_DIR/data/$(basename "$f")"
         if [ -f "$bak" ]; then
-            cp -p "$bak" "$DIR/$f"
+            safe_restore_file "$bak" "$DIR/$f" || warn "Could not restore $f (permission denied)."
         fi
     done
 fi
@@ -737,7 +770,8 @@ else
                 ok "Your settings have been merged into the new config.yaml."
             else
                 warn "config-merger failed. Restoring your old config.yaml exactly."
-                cp -fp "$USER_CONFIG_BAK" "$DIR/config.yaml"
+                safe_restore_file "$USER_CONFIG_BAK" "$DIR/config.yaml" \
+                    || die "Could not restore config.yaml after failed merge (permission denied)."
             fi
         else
             warn "config-merger not found. Keeping your existing config.yaml."
