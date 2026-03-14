@@ -104,7 +104,7 @@ async function renderGoogleWorkspaceSection(section) {
     html += `</div>`; // close scopes section
 
     html += `</div>`; // close cfg-section
-    document.getElementById('config-content').innerHTML = html;
+    document.getElementById('content').innerHTML = html;
     attachChangeListeners();
 
     // Check OAuth status on load

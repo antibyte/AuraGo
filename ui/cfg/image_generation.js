@@ -23,7 +23,7 @@ async function renderImageGenerationSection(section) {
             </div>
         </div>`;
         html += `</div>`;
-        document.getElementById('config-content').innerHTML = html;
+        document.getElementById('content').innerHTML = html;
         attachChangeListeners();
         return;
     }
@@ -141,7 +141,7 @@ async function renderImageGenerationSection(section) {
     </div>`;
 
     html += `</div>`;
-    document.getElementById('config-content').innerHTML = html;
+    document.getElementById('content').innerHTML = html;
     attachChangeListeners();
 }
 

@@ -23,7 +23,7 @@ async function renderRemoteControlSection(section) {
             </div>
         </div>`;
         html += `</div>`;
-        document.getElementById('config-content').innerHTML = html;
+        document.getElementById('content').innerHTML = html;
         attachChangeListeners();
         return;
     }
@@ -102,7 +102,7 @@ async function renderRemoteControlSection(section) {
     </div>`;
 
     html += `</div>`;
-    document.getElementById('config-content').innerHTML = html;
+    document.getElementById('content').innerHTML = html;
     attachChangeListeners();
 
     // Load device list async
