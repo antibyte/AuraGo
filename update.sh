@@ -76,6 +76,20 @@ if [ ! -f "$DIR/go.mod" ] && [ ! -f "$DIR/bin/aurago_linux" ]; then
     die "Could not find AuraGo installation at $DIR. Is update.sh in the right place?"
 fi
 
+# ── Single-instance guard ──────────────────────────────────────────────
+# Prevents re-entrant execution caused by:
+#   • bash lazy re-reads of a script replaced on disk by git pull
+#   • git hooks or other subprocesses that inherit the environment
+# Any invocation that finds this lock and the owning process alive exits silently.
+_AU_LOCK="/tmp/.aurago-update-$(id -u).lock"
+if [ -f "$_AU_LOCK" ]; then
+    _AU_LOCK_PID=$(cat "$_AU_LOCK" 2>/dev/null || echo 0)
+    if [ "${_AU_LOCK_PID:-0}" -gt 0 ] && kill -0 "$_AU_LOCK_PID" 2>/dev/null; then
+        exit 0  # Another update is already running — silently bail
+    fi
+    rm -f "$_AU_LOCK"  # Stale lock from a dead process
+fi
+
 # ── Architecture detection ─────────────────────────────────────────────
 ARCH_RAW=$(uname -m)
 case "$ARCH_RAW" in
@@ -201,8 +215,10 @@ if [ -z "${_AU_TMPRUN:-}" ]; then
     export _AU_ORIG_DIR="$DIR"
     exec /bin/bash "$_TMPS" "$@"
 fi
-# Running from temp copy: schedule cleanup.
-trap 'rm -f "${BASH_SOURCE[0]}"' EXIT
+# Running from temp copy: claim the single-instance lock and schedule cleanup.
+_AU_LOCK="/tmp/.aurago-update-$(id -u).lock"
+echo $$ > "$_AU_LOCK"
+trap 'rm -f "$_AU_LOCK" "${BASH_SOURCE[0]}"' EXIT
 
 # ── Banner ─────────────────────────────────────────────────────────────
 G1='\033[38;5;39m'
@@ -438,6 +454,9 @@ if $BINARY_ONLY; then
     ok "Resources updated from release $RELEASE_TAG"
 else
     # Git-based: stash, pull, restore
+    # STASH_REF records the ref of the stash we created (or "" if none).
+    # We ONLY pop the stash we created — never a pre-existing entry.
+    STASH_REF=""
     if ! git diff --quiet || ! git diff --cached --quiet; then
         warn "Local changes detected in tracked files."
         if git diff --name-only | grep -q "config.yaml"; then
@@ -446,13 +465,18 @@ else
         fi
         if ! git diff --quiet || ! git diff --cached --quiet; then
             warn "Stashing other changes temporarily..."
-            if ! git stash push --quiet -m "aurago-update-stash-$(date +%s)"; then
+            if git stash push --quiet -m "aurago-update-stash-$(date +%s)" 2>/dev/null; then
+                STASH_REF=$(git stash list --format='%gd' 2>/dev/null | head -1 || true)
+            else
                 warn "Git stash failed (index lock?). Attempting index cleanup..."
                 rm -f "$DIR/.git/index.lock" 2>/dev/null || true
-                git reset --mixed HEAD || true
-                git stash push --quiet -m "aurago-update-stash-$(date +%s)" || warn "Stash still failing."
+                git reset --mixed HEAD 2>/dev/null || true
+                if git stash push --quiet -m "aurago-update-stash-$(date +%s)" 2>/dev/null; then
+                    STASH_REF=$(git stash list --format='%gd' 2>/dev/null | head -1 || true)
+                else
+                    warn "Stash still failing. Tracked changes will remain as-is."
+                fi
             fi
-            STASH_NEEDED=true
         fi
     fi
 
@@ -503,10 +527,10 @@ if [ -d "$OLD_PROMPTS" ]; then
     ok "Migrated and removed agent_workspace/prompts/"
 fi
 
-# Re-apply stash if we stashed (git mode only)
-if ! $BINARY_ONLY && $STASH_NEEDED; then
+# Re-apply ONLY the stash we created (git mode only)
+if ! $BINARY_ONLY && [ -n "${STASH_REF:-}" ]; then
     info "Re-applying stashed local changes..."
-    git stash pop --quiet 2>/dev/null || warn "Could not re-apply stash automatically — check 'git stash list'"
+    git stash pop "$STASH_REF" --quiet 2>/dev/null || warn "Could not re-apply stash — check 'git stash list'"
 fi
 
 # ── Restore user data ──────────────────────────────────────────────────
