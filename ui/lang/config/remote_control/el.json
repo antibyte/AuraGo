@@ -20,5 +20,12 @@
   "config.remote_control.loading_devices": "Φόρτωση συσκευών…",
   "config.remote_control.no_devices": "Δεν υπάρχουν εγγεγραμμένες συσκευές ακόμα.",
   "config.remote_control.status_connected": "Συνδεδεμένο",
-  "config.remote_control.status_offline": "Εκτός σύνδεσης"
+  "config.remote_control.status_offline": "Εκτός σύνδεσης",
+  "config.remote_control.download_title": "Λήψη προγράμματος-πελάτη",
+  "config.remote_control.download_desc": "Κατεβάστε ένα εξατομικευμένο δυαδικό αρχείο πράκτορα προδιαμορφωμένο με ένα διακριτικό εγγραφής για αυτό το στιγμιότυπο AuraGo. Επιλέξτε την πλατφόρμα της συσκευής-στόχου.",
+  "config.remote_control.download_name_label": "Όνομα συσκευής (προαιρετικό)",
+  "config.remote_control.download_name_placeholder": "π.χ. ο-φορητός-μου",
+  "config.remote_control.loading_platforms": "Φόρτωση διαθέσιμων πλατφορμών…",
+  "config.remote_control.no_platforms": "Δεν υπάρχουν διαθέσιμα δυαδικά αρχεία πελάτη. Εκτελέστε πρώτα το make_deploy.sh.",
+  "config.remote_control.platforms_error": "Δεν ήταν δυνατή η φόρτωση της λίστας πλατφορμών."
 }

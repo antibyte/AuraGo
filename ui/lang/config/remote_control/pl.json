@@ -20,5 +20,12 @@
   "config.remote_control.loading_devices": "Ładowanie urządzeń…",
   "config.remote_control.no_devices": "Brak zarejestrowanych urządzeń.",
   "config.remote_control.status_connected": "Połączony",
-  "config.remote_control.status_offline": "Offline"
+  "config.remote_control.status_offline": "Offline",
+  "config.remote_control.download_title": "Pobieranie klienta",
+  "config.remote_control.download_desc": "Pobierz spersonalizowany plik binarny agenta wstępnie skonfigurowany z tokenem rejestracji dla tej instancji AuraGo. Wybierz platformę urządzenia docelowego.",
+  "config.remote_control.download_name_label": "Nazwa urządzenia (opcjonalne)",
+  "config.remote_control.download_name_placeholder": "np. mój-laptop",
+  "config.remote_control.loading_platforms": "Ładowanie dostępnych platform…",
+  "config.remote_control.no_platforms": "Brak dostępnych plików binarnych klienta. Najpierw uruchom make_deploy.sh.",
+  "config.remote_control.platforms_error": "Nie można załadować listy platform."
 }

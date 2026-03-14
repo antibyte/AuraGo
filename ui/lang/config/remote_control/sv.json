@@ -20,5 +20,12 @@
   "config.remote_control.loading_devices": "Laddar enheter…",
   "config.remote_control.no_devices": "Inga enheter registrerade ännu.",
   "config.remote_control.status_connected": "Ansluten",
-  "config.remote_control.status_offline": "Offline"
+  "config.remote_control.status_offline": "Offline",
+  "config.remote_control.download_title": "Klientnedladdning",
+  "config.remote_control.download_desc": "Ladda ner en personaliserad agentbinär förkonfigurerad med en registreringstoken för den här AuraGo-instansen. Välj plattform för målenheten.",
+  "config.remote_control.download_name_label": "Enhetsnamn (valfritt)",
+  "config.remote_control.download_name_placeholder": "t.ex. min-laptop",
+  "config.remote_control.loading_platforms": "Laddar tillgängliga plattformar…",
+  "config.remote_control.no_platforms": "Inga klientbinärer tillgängliga. Kör make_deploy.sh först.",
+  "config.remote_control.platforms_error": "Det gick inte att ladda plattformslistan."
 }

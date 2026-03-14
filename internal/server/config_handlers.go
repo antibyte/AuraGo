@@ -161,13 +161,27 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			})
 			return
 		}
-		deepMerge(rawCfg, patch)
+		deepMerge(rawCfg, patch, "")
 
 		// Write back
 		out, err := yaml.Marshal(rawCfg)
 		if err != nil {
 			s.Logger.Error("Failed to marshal patched config", "error", err)
 			http.Error(w, "Failed to save config", http.StatusInternalServerError)
+			return
+		}
+
+		// Safety net: validate that the marshaled YAML can still be loaded
+		// into a Config struct. If not, reject the save and keep the old file.
+		var validateCfg config.Config
+		if valErr := yaml.Unmarshal(out, &validateCfg); valErr != nil {
+			s.Logger.Error("[Config] Pre-write validation failed — save rejected to protect config", "error", valErr)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"status":  "error",
+				"message": "Config validation failed: " + valErr.Error() + ". Save rejected — your existing config is unchanged.",
+			})
 			return
 		}
 
@@ -399,13 +413,18 @@ func maskSensitiveFields(m map[string]interface{}) {
 
 // deepMerge recursively merges src into dst. Masked values ("••••••••") and empty
 // strings for sensitive fields are skipped to avoid overwriting real secrets.
-func deepMerge(dst, src map[string]interface{}) {
+// path tracks the dotted YAML path for context-aware decisions.
+func deepMerge(dst, src map[string]interface{}, path string) {
 	for key, srcVal := range src {
+		fullPath := key
+		if path != "" {
+			fullPath = path + "." + key
+		}
 		switch sv := srcVal.(type) {
 		case map[string]interface{}:
 			// Recurse into nested maps
 			if dstMap, ok := dst[key].(map[string]interface{}); ok {
-				deepMerge(dstMap, sv)
+				deepMerge(dstMap, sv, fullPath)
 			} else {
 				dst[key] = srcVal
 			}
@@ -420,7 +439,7 @@ func deepMerge(dst, src map[string]interface{}) {
 			}
 			if valid {
 				// Special handling for budget.models: ensure all items are proper objects
-				if key == "models" {
+				if fullPath == "budget.models" {
 					cleanModels := make([]interface{}, 0, len(sv))
 					for _, elem := range sv {
 						if obj, ok := elem.(map[string]interface{}); ok {
@@ -433,6 +452,14 @@ func deepMerge(dst, src map[string]interface{}) {
 					// Always set the models array (even if empty) to avoid corruption
 					dst[key] = cleanModels
 				} else {
+					// Protect against empty arrays overwriting non-empty existing arrays.
+					// This prevents accidental clearing of configured lists when saving
+					// a section where the field happened to be empty in the DOM.
+					if len(sv) == 0 {
+						if existing, ok := dst[key].([]interface{}); ok && len(existing) > 0 {
+							continue // keep existing non-empty array
+						}
+					}
 					dst[key] = srcVal
 				}
 			}
@@ -444,6 +471,17 @@ func deepMerge(dst, src map[string]interface{}) {
 			}
 			// Skip JavaScript-stringified values like "[object Object]"
 			if strings.HasPrefix(sv, "[object") {
+				continue
+			}
+			// If the existing value is a slice, never overwrite it with a plain string.
+			// This happens e.g. when an empty textarea is saved without data-type="array-lines":
+			// the JS sends "" but the YAML field is []string.
+			if _, dstIsSlice := dst[key].([]interface{}); dstIsSlice {
+				if sv == "" {
+					// keep existing empty slice, don't corrupt it to a string
+					continue
+				}
+				// non-empty string for a slice field: ignore silently
 				continue
 			}
 			dst[key] = srcVal

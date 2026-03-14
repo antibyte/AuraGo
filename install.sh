@@ -255,6 +255,10 @@ if $BUILD_FROM_SOURCE; then
         go build -trimpath -ldflags="-s -w" -o bin/config-merger_linux ./cmd/config-merger
     ok "bin/config-merger_linux built."
 
+    CGO_ENABLED=0 GOOS=linux GOARCH="$GOARCH" \
+        go build -trimpath -ldflags="-s -w" -o bin/aurago-remote_linux ./cmd/remote
+    ok "bin/aurago-remote_linux built."
+
 # ══════════════════════════════════════════════════════════════════════════
 #  MODE B: Binary install — download from GitHub Releases (no clone)
 # ══════════════════════════════════════════════════════════════════════════
@@ -300,24 +304,27 @@ else
     # Download binaries
     if [ "$GOARCH" = "arm64" ]; then
         info "Downloading arm64 binaries..."
-        _download "${RELEASE_BASE}/aurago_linux_arm64"          "bin/aurago_linux_arm64"
-        _download "${RELEASE_BASE}/lifeboat_linux_arm64"        "bin/lifeboat_linux_arm64"        2>/dev/null || warn "lifeboat_linux_arm64 not in release."
-        _download "${RELEASE_BASE}/config-merger_linux_arm64"   "bin/config-merger_linux_arm64"   2>/dev/null || warn "config-merger_linux_arm64 not in release."
+        _download "${RELEASE_BASE}/aurago_linux_arm64"                "bin/aurago_linux_arm64"
+        _download "${RELEASE_BASE}/lifeboat_linux_arm64"              "bin/lifeboat_linux_arm64"              2>/dev/null || warn "lifeboat_linux_arm64 not in release."
+        _download "${RELEASE_BASE}/config-merger_linux_arm64"         "bin/config-merger_linux_arm64"         2>/dev/null || warn "config-merger_linux_arm64 not in release."
+        _download "${RELEASE_BASE}/aurago-remote_linux_arm64"         "bin/aurago-remote_linux_arm64"         2>/dev/null || warn "aurago-remote_linux_arm64 not in release."
         cp bin/aurago_linux_arm64           bin/aurago_linux
-        cp bin/lifeboat_linux_arm64         bin/lifeboat_linux         2>/dev/null || true
-        cp bin/config-merger_linux_arm64    bin/config-merger_linux     2>/dev/null || true
+        cp bin/lifeboat_linux_arm64         bin/lifeboat_linux             2>/dev/null || true
+        cp bin/config-merger_linux_arm64    bin/config-merger_linux         2>/dev/null || true
+        cp bin/aurago-remote_linux_arm64    bin/aurago-remote_linux         2>/dev/null || true
     else
         info "Downloading amd64 binaries..."
-        _download "${RELEASE_BASE}/aurago_linux"                "bin/aurago_linux"
-        _download "${RELEASE_BASE}/lifeboat_linux"              "bin/lifeboat_linux"              2>/dev/null || warn "lifeboat_linux not in release."
-        _download "${RELEASE_BASE}/config-merger_linux"         "bin/config-merger_linux"         2>/dev/null || warn "config-merger_linux not in release."
+        _download "${RELEASE_BASE}/aurago_linux"                      "bin/aurago_linux"
+        _download "${RELEASE_BASE}/lifeboat_linux"                    "bin/lifeboat_linux"                    2>/dev/null || warn "lifeboat_linux not in release."
+        _download "${RELEASE_BASE}/config-merger_linux"               "bin/config-merger_linux"               2>/dev/null || warn "config-merger_linux not in release."
+        _download "${RELEASE_BASE}/aurago-remote_linux"               "bin/aurago-remote_linux"               2>/dev/null || warn "aurago-remote_linux not in release."
     fi
     # Record installed version for update checks
     printf '%s' "$RELEASE_TAG" > "$INSTALL_DIR/.version"
     ok "Binaries downloaded."
 fi
 
-chmod +x bin/aurago_linux bin/lifeboat_linux bin/config-merger_linux 2>/dev/null || true
+chmod +x bin/aurago_linux bin/lifeboat_linux bin/config-merger_linux bin/aurago-remote_linux 2>/dev/null || true
 ok "Binaries ready."
 
 # ── Master key ────────────────────────────────────────────────────────────

@@ -20,5 +20,12 @@
   "config.remote_control.loading_devices": "Načítání zařízení…",
   "config.remote_control.no_devices": "Zatím žádná registrovaná zařízení.",
   "config.remote_control.status_connected": "Připojeno",
-  "config.remote_control.status_offline": "Offline"
+  "config.remote_control.status_offline": "Offline",
+  "config.remote_control.download_title": "Stažení klienta",
+  "config.remote_control.download_desc": "Stáhněte si personalizovaný binární soubor agenta předkonfigurovaný s registračním tokenem pro tuto instanci AuraGo. Vyberte platformu cílového zařízení.",
+  "config.remote_control.download_name_label": "Název zařízení (volitelné)",
+  "config.remote_control.download_name_placeholder": "např. můj-laptop",
+  "config.remote_control.loading_platforms": "Načítání dostupných platforem…",
+  "config.remote_control.no_platforms": "Žádné binární soubory klienta nejsou k dispozici. Nejprve spusťte make_deploy.sh.",
+  "config.remote_control.platforms_error": "Nepodařilo se načíst seznam platforem."
 }

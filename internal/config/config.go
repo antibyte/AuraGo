@@ -110,8 +110,9 @@ func Load(path string) (*Config, error) {
 	}
 
 	// Migrate legacy agent.allow_web_scraper → tools.web_scraper.enabled.
-	// Old configs that set allow_web_scraper: false should carry over.
-	if !cfg.Agent.AllowWebScraper {
+	// Only apply when the field is explicitly set to false in the YAML.
+	// A nil pointer means the field was absent — don't disable the scraper.
+	if cfg.Agent.AllowWebScraper != nil && !*cfg.Agent.AllowWebScraper {
 		cfg.Tools.WebScraper.Enabled = false
 	}
 

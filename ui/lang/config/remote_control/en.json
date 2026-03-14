@@ -20,5 +20,12 @@
   "config.remote_control.loading_devices": "Loading devices…",
   "config.remote_control.no_devices": "No devices enrolled yet.",
   "config.remote_control.status_connected": "Connected",
-  "config.remote_control.status_offline": "Offline"
+  "config.remote_control.status_offline": "Offline",
+  "config.remote_control.download_title": "Client Download",
+  "config.remote_control.download_desc": "Download a personalized agent binary pre-configured with an enrollment token for this AuraGo instance. Choose the platform of the target device.",
+  "config.remote_control.download_name_label": "Device name (optional)",
+  "config.remote_control.download_name_placeholder": "e.g. my-laptop",
+  "config.remote_control.loading_platforms": "Loading available platforms…",
+  "config.remote_control.no_platforms": "No client binaries available. Run make_deploy.sh first.",
+  "config.remote_control.platforms_error": "Could not load platform list."
 }

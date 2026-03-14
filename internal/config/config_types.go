@@ -173,7 +173,7 @@ type Config struct {
 		AllowRemoteShell     bool   `yaml:"allow_remote_shell"`     // allow execute_remote_shell
 		AllowSelfUpdate      bool   `yaml:"allow_self_update"`      // allow manage_updates
 		AllowMCP             bool   `yaml:"allow_mcp"`              // allow MCP (Model Context Protocol) server connections
-		AllowWebScraper      bool   `yaml:"allow_web_scraper"`      // allow web_scraper skill (scrape external websites)
+		AllowWebScraper      *bool  `yaml:"allow_web_scraper"`      // deprecated: migrated to tools.web_scraper.enabled
 		AdditionalPrompt     string `yaml:"additional_prompt"`      // extra instructions always appended to the system prompt
 	} `yaml:"agent"`
 	CircuitBreaker struct {

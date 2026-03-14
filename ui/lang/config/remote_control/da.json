@@ -20,5 +20,12 @@
   "config.remote_control.loading_devices": "Indlæser enheder…",
   "config.remote_control.no_devices": "Ingen enheder registreret endnu.",
   "config.remote_control.status_connected": "Tilsluttet",
-  "config.remote_control.status_offline": "Offline"
+  "config.remote_control.status_offline": "Offline",
+  "config.remote_control.download_title": "Klientdownload",
+  "config.remote_control.download_desc": "Download en personaliseret agentbinær forudkonfigureret med et registreringstoken til denne AuraGo-instans. Vælg platformen for målenheden.",
+  "config.remote_control.download_name_label": "Enhedsnavn (valgfrit)",
+  "config.remote_control.download_name_placeholder": "f.eks. min-laptop",
+  "config.remote_control.loading_platforms": "Indlæser tilgængelige platforme…",
+  "config.remote_control.no_platforms": "Ingen klientbinærer tilgængelige. Kør make_deploy.sh først.",
+  "config.remote_control.platforms_error": "Kunne ikke indlæse platformlisten."
 }

@@ -84,7 +84,7 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 		}
 
 		// Deep merge the setup patch into existing config
-		deepMerge(rawCfg, patch)
+		deepMerge(rawCfg, patch, "")
 
 		// Write back
 		out, err := yaml.Marshal(rawCfg)

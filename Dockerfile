@@ -21,6 +21,8 @@ RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
     go build -ldflags="-s -w" -o /lifeboat ./cmd/lifeboat
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
     go build -ldflags="-s -w" -o /config-merger ./cmd/config-merger
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
+    go build -ldflags="-s -w" -o /aurago-remote ./cmd/remote
 
 # ============================================================
 # Stage 2: Runtime
@@ -42,6 +44,7 @@ WORKDIR /app
 COPY --from=builder /aurago /app/aurago
 COPY --from=builder /lifeboat /app/lifeboat
 COPY --from=builder /config-merger /app/config-merger
+COPY --from=builder /aurago-remote /app/aurago-remote
 
 # Static resources that the agent needs at runtime.
 # config.yaml is intentionally NOT baked in – users must supply it via volume.

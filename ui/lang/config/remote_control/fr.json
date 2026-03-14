@@ -20,5 +20,12 @@
   "config.remote_control.loading_devices": "Chargement des appareils…",
   "config.remote_control.no_devices": "Aucun appareil enregistré.",
   "config.remote_control.status_connected": "Connecté",
-  "config.remote_control.status_offline": "Hors ligne"
+  "config.remote_control.status_offline": "Hors ligne",
+  "config.remote_control.download_title": "Téléchargement client",
+  "config.remote_control.download_desc": "Téléchargez un binaire agent personnalisé préconfiguré avec un jeton d'inscription pour cette instance AuraGo. Choisissez la plateforme de l'appareil cible.",
+  "config.remote_control.download_name_label": "Nom de l'appareil (optionnel)",
+  "config.remote_control.download_name_placeholder": "ex. mon-ordinateur",
+  "config.remote_control.loading_platforms": "Chargement des plateformes disponibles…",
+  "config.remote_control.no_platforms": "Aucun binaire client disponible. Exécutez d'abord make_deploy.sh.",
+  "config.remote_control.platforms_error": "Impossible de charger la liste des plateformes."
 }

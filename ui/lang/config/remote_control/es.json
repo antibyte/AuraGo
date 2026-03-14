@@ -20,5 +20,12 @@
   "config.remote_control.loading_devices": "Cargando dispositivos…",
   "config.remote_control.no_devices": "Aún no hay dispositivos registrados.",
   "config.remote_control.status_connected": "Conectado",
-  "config.remote_control.status_offline": "Desconectado"
+  "config.remote_control.status_offline": "Desconectado",
+  "config.remote_control.download_title": "Descarga del cliente",
+  "config.remote_control.download_desc": "Descarga un binario de agente personalizado preconfigurado con un token de inscripción para esta instancia de AuraGo. Elige la plataforma del dispositivo de destino.",
+  "config.remote_control.download_name_label": "Nombre del dispositivo (opcional)",
+  "config.remote_control.download_name_placeholder": "ej. mi-laptop",
+  "config.remote_control.loading_platforms": "Cargando plataformas disponibles…",
+  "config.remote_control.no_platforms": "No hay binarios de cliente disponibles. Ejecuta make_deploy.sh primero.",
+  "config.remote_control.platforms_error": "No se pudo cargar la lista de plataformas."
 }

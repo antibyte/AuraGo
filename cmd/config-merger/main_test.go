@@ -403,6 +403,183 @@ func TestSanitizeMergedConfig_EmptyModels(t *testing.T) {
 	}
 }
 
+// ── enforceTemplateTypes tests ────────────────────────────────────────
+
+func TestEnforceTemplateTypes_StringToArray(t *testing.T) {
+	// User has "" (string) where template has [] (array) — must fix
+	tmpl := map[string]interface{}{
+		"remote_control": map[string]interface{}{
+			"allowed_paths": []interface{}{},
+		},
+	}
+	merged := map[string]interface{}{
+		"remote_control": map[string]interface{}{
+			"allowed_paths": "",
+		},
+	}
+
+	fixed := enforceTemplateTypes(merged, tmpl)
+
+	if !fixed {
+		t.Error("expected enforceTemplateTypes to return true")
+	}
+	rc, _ := asStringMap(merged["remote_control"])
+	if _, ok := rc["allowed_paths"].([]interface{}); !ok {
+		t.Errorf("allowed_paths should be []interface{}, got %T", rc["allowed_paths"])
+	}
+}
+
+func TestEnforceTemplateTypes_ArrayPreserved(t *testing.T) {
+	// User has a proper array — must NOT be replaced
+	tmpl := map[string]interface{}{
+		"indexing": map[string]interface{}{
+			"directories": []interface{}{},
+		},
+	}
+	merged := map[string]interface{}{
+		"indexing": map[string]interface{}{
+			"directories": []interface{}{"/home/user", "/var/data"},
+		},
+	}
+
+	fixed := enforceTemplateTypes(merged, tmpl)
+
+	if fixed {
+		t.Error("correctly typed array should not trigger a fix")
+	}
+	idx, _ := asStringMap(merged["indexing"])
+	dirs, ok := idx["directories"].([]interface{})
+	if !ok || len(dirs) != 2 {
+		t.Errorf("user's array should be preserved, got %v", idx["directories"])
+	}
+}
+
+func TestEnforceTemplateTypes_StringToBool(t *testing.T) {
+	tmpl := map[string]interface{}{
+		"agent": map[string]interface{}{
+			"allow_shell": true,
+		},
+	}
+	merged := map[string]interface{}{
+		"agent": map[string]interface{}{
+			"allow_shell": "true",
+		},
+	}
+
+	fixed := enforceTemplateTypes(merged, tmpl)
+
+	if !fixed {
+		t.Error("expected fix for string→bool coercion")
+	}
+	ag, _ := asStringMap(merged["agent"])
+	if ag["allow_shell"] != true {
+		t.Errorf("expected true (bool), got %v (%T)", ag["allow_shell"], ag["allow_shell"])
+	}
+}
+
+func TestEnforceTemplateTypes_MapVsScalar(t *testing.T) {
+	// Template has a map but merged has a string — map wins
+	tmpl := map[string]interface{}{
+		"server": map[string]interface{}{
+			"host": "127.0.0.1",
+			"port": 8088,
+		},
+	}
+	merged := map[string]interface{}{
+		"server": "broken_value",
+	}
+
+	fixed := enforceTemplateTypes(merged, tmpl)
+
+	if !fixed {
+		t.Error("expected fix for scalar→map replacement")
+	}
+	if _, ok := asStringMap(merged["server"]); !ok {
+		t.Errorf("server should be restored to map, got %T", merged["server"])
+	}
+}
+
+func TestEnforceTemplateTypes_CorrectTypesUntouched(t *testing.T) {
+	// All types match — nothing should change
+	tmpl := map[string]interface{}{
+		"agent": map[string]interface{}{
+			"debug_mode": false,
+			"max_tools":  10,
+		},
+	}
+	merged := map[string]interface{}{
+		"agent": map[string]interface{}{
+			"debug_mode": true,
+			"max_tools":  20,
+		},
+	}
+
+	fixed := enforceTemplateTypes(merged, tmpl)
+
+	if fixed {
+		t.Error("correctly typed values should not trigger any fix")
+	}
+	ag, _ := asStringMap(merged["agent"])
+	if ag["debug_mode"] != true {
+		t.Error("user's bool value should be preserved")
+	}
+	if ag["max_tools"] != 20 {
+		t.Error("user's int value should be preserved")
+	}
+}
+
+// ── sanitizeMergedConfig extended tests ──────────────────────────────
+
+func TestSanitizeMergedConfig_StringArrayFields(t *testing.T) {
+	// Simulates corrupted []string fields that are strings instead of arrays
+	m := map[string]interface{}{
+		"remote_control": map[string]interface{}{
+			"allowed_paths": "",
+		},
+		"indexing": map[string]interface{}{
+			"directories": "single_path",
+		},
+		"github": map[string]interface{}{
+			"allowed_repos": 42, // wrong type entirely
+		},
+	}
+
+	changed := sanitizeMergedConfig(m)
+
+	if !changed {
+		t.Error("expected sanitizeMergedConfig to return true")
+	}
+	rc, _ := asStringMap(m["remote_control"])
+	if _, ok := rc["allowed_paths"].([]interface{}); !ok {
+		t.Errorf("allowed_paths should be reset to [], got %T", rc["allowed_paths"])
+	}
+	idx, _ := asStringMap(m["indexing"])
+	if _, ok := idx["directories"].([]interface{}); !ok {
+		t.Errorf("directories should be reset to [], got %T", idx["directories"])
+	}
+	gh, _ := asStringMap(m["github"])
+	if _, ok := gh["allowed_repos"].([]interface{}); !ok {
+		t.Errorf("allowed_repos should be reset to [], got %T", gh["allowed_repos"])
+	}
+}
+
+func TestSanitizeMergedConfig_ValidArraysUntouched(t *testing.T) {
+	m := map[string]interface{}{
+		"remote_control": map[string]interface{}{
+			"allowed_paths": []interface{}{"/home", "/var"},
+		},
+		"indexing": map[string]interface{}{
+			"directories": []interface{}{"/docs"},
+		},
+	}
+
+	changed := sanitizeMergedConfig(m)
+
+	if changed {
+		t.Error("valid arrays should not be modified")
+	}
+}
+
 // keys returns map keys as a slice
 func keys(m map[string]string) []string {
 	out := make([]string, 0, len(m))

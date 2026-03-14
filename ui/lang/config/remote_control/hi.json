@@ -20,5 +20,12 @@
   "config.remote_control.loading_devices": "उपकरण लोड हो रहे हैं…",
   "config.remote_control.no_devices": "अभी तक कोई उपकरण पंजीकृत नहीं।",
   "config.remote_control.status_connected": "जुड़ा हुआ",
-  "config.remote_control.status_offline": "ऑफ़लाइन"
+  "config.remote_control.status_offline": "ऑफ़लाइन",
+  "config.remote_control.download_title": "क्लाइंट डाउनलोड",
+  "config.remote_control.download_desc": "इस AuraGo इंस्टेंस के लिए नामांकन टोकन के साथ पूर्व-कॉन्फ़िगर किया गया व्यक्तिगत एजेंट बाइनरी डाउनलोड करें। लक्ष्य डिवाइस का प्लेटफ़ॉर्म चुनें।",
+  "config.remote_control.download_name_label": "डिवाइस का नाम (वैकल्पिक)",
+  "config.remote_control.download_name_placeholder": "जैसे मेरा-लैपटॉप",
+  "config.remote_control.loading_platforms": "उपलब्ध प्लेटफ़ॉर्म लोड हो रहे हैं…",
+  "config.remote_control.no_platforms": "कोई क्लाइंट बाइनरी उपलब्ध नहीं। पहले make_deploy.sh चलाएं।",
+  "config.remote_control.platforms_error": "प्लेटफ़ॉर्म सूची लोड नहीं हो सकी।"
 }

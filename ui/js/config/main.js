@@ -355,6 +355,7 @@ async function renderSection(key) {
         'allow_shell', 'allow_python', 'allow_filesystem_write',
         'allow_network_requests', 'allow_remote_shell', 'allow_self_update',
         'allow_mcp',               // → Danger Zone
+        'allow_web_scraper',        // → deprecated, migrated to tools.web_scraper.enabled
         'sudo_enabled',            // → Danger Zone
         'core_personality',         // → Prompts & Personas
         'additional_prompt',        // → Prompts & Personas
@@ -736,6 +737,9 @@ async function saveConfig() {
                 // Simple string array
                 val = el.value.split(',').map(s => s.trim()).filter(Boolean);
             }
+        } else if (el.dataset.type === 'array-lines') {
+            // Newline-separated string array
+            val = el.value.split('\n').map(s => s.trim()).filter(Boolean);
         } else if (el.dataset.type === 'json') {
             try { val = JSON.parse(el.value); } catch (e) { val = el.value; }
         } else if (el.tagName === 'SELECT' && el.value === 'Other / Custom') {

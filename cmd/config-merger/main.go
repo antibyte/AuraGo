@@ -75,9 +75,10 @@ func main() {
 		// ── Happy path: user config is valid YAML ──
 		missing := findMissingTopKeys(tmplMap, srcMap)
 		merged := deepMerge(tmplMap, srcMap)
+		typeFixed := enforceTemplateTypes(merged, tmplMap)
 		sanitized := sanitizeMergedConfig(merged)
 
-		if len(missing) == 0 && !sanitized {
+		if len(missing) == 0 && !sanitized && !typeFixed {
 			fmt.Println("Config is up to date")
 			if *outputPath != *sourcePath {
 				atomicWriteYAML(*outputPath, merged)
@@ -90,8 +91,8 @@ func main() {
 			sort.Strings(missing)
 			fmt.Printf("Added %d new section(s): %s\n", len(missing), strings.Join(missing, ", "))
 		}
-		if sanitized {
-			fmt.Println("Applied data shape fixes (e.g. budget.models)")
+		if sanitized || typeFixed {
+			fmt.Println("Applied data shape fixes")
 		}
 		return
 	}
@@ -112,6 +113,7 @@ func main() {
 	var merged map[string]interface{}
 	if len(salvaged) > 0 {
 		merged = deepMerge(tmplMap, salvaged)
+		enforceTemplateTypes(merged, tmplMap)
 		sanitizeMergedConfig(merged)
 		total := countTopLevelKeys(srcData)
 		log.Printf("Recovered %d/%d section(s); template defaults used for the rest", len(salvaged), total)
@@ -318,11 +320,90 @@ func truncate(s string, maxLen int) string {
 	return s[:maxLen] + "..."
 }
 
+// enforceTemplateTypes recursively walks merged and compares leaf value types
+// against the template. When the template defines a specific type (array, map,
+// bool, int) but the merged value has a different type (typically a string from
+// a corrupted or old-format config), the template default is used instead.
+// This prevents type mismatches from causing config.Load() unmarshal errors.
+func enforceTemplateTypes(merged, tmpl map[string]interface{}) bool {
+	fixed := false
+	for key, tmplVal := range tmpl {
+		mergedVal, exists := merged[key]
+		if !exists {
+			continue
+		}
+
+		tMap, tIsMap := asStringMap(tmplVal)
+		mMap, mIsMap := asStringMap(mergedVal)
+
+		if tIsMap && mIsMap {
+			// Both maps: recurse
+			if enforceTemplateTypes(mMap, tMap) {
+				fixed = true
+			}
+			continue
+		}
+
+		if tIsMap && !mIsMap {
+			// Template has a map but merged has a scalar — use template
+			log.Printf("enforceTypes: %s should be a map, got %T — using template default", key, mergedVal)
+			merged[key] = tmplVal
+			fixed = true
+			continue
+		}
+
+		// Template is a leaf: check type compatibility
+		switch tmplVal.(type) {
+		case []interface{}:
+			if _, ok := mergedVal.([]interface{}); !ok {
+				log.Printf("enforceTypes: %s should be an array, got %T — using template default", key, mergedVal)
+				merged[key] = tmplVal
+				fixed = true
+			}
+		case bool:
+			if _, ok := mergedVal.(bool); !ok {
+				// Try to parse string "true"/"false"
+				if s, ok := mergedVal.(string); ok {
+					switch strings.ToLower(s) {
+					case "true":
+						merged[key] = true
+					case "false":
+						merged[key] = false
+					default:
+						merged[key] = tmplVal
+					}
+				} else {
+					merged[key] = tmplVal
+				}
+				log.Printf("enforceTypes: %s should be bool, got %T — corrected", key, mergedVal)
+				fixed = true
+			}
+		case int:
+			if _, ok := mergedVal.(int); !ok {
+				log.Printf("enforceTypes: %s should be int, got %T — using template default", key, mergedVal)
+				merged[key] = tmplVal
+				fixed = true
+			}
+		case float64:
+			switch mergedVal.(type) {
+			case float64, int:
+				// Compatible numeric types — keep user value
+			default:
+				log.Printf("enforceTypes: %s should be numeric, got %T — using template default", key, mergedVal)
+				merged[key] = tmplVal
+				fixed = true
+			}
+		}
+	}
+	return fixed
+}
+
 // sanitizeMergedConfig fixes known data shape problems that would cause
 // config.Load() to fail with unmarshal errors. Returns true if any fix was applied.
 //
 // Known issues:
 //   - budget.models must be []map; plain strings (legacy format before V5) → reset to []
+//   - Various []string fields must not be strings (e.g. allowed_paths, directories)
 func sanitizeMergedConfig(m map[string]interface{}) bool {
 	changed := false
 
@@ -340,6 +421,32 @@ func sanitizeMergedConfig(m map[string]interface{}) bool {
 						changed = true
 						break
 					}
+				}
+			}
+		}
+	}
+
+	// Ensure known []string fields are actually arrays, not strings.
+	// This catches corruption from old Web UI saves or manual edits.
+	arrayFields := []struct {
+		section string
+		key     string
+	}{
+		{"remote_control", "allowed_paths"},
+		{"indexing", "directories"},
+		{"indexing", "extensions"},
+		{"github", "allowed_repos"},
+		{"mqtt", "topics"},
+		{"circuit_breaker", "retry_intervals"},
+		{"meshcentral", "blocked_operations"},
+	}
+	for _, af := range arrayFields {
+		if sec, ok := asStringMap(m[af.section]); ok {
+			if val, exists := sec[af.key]; exists {
+				if _, isArr := val.([]interface{}); !isArr {
+					log.Printf("sanitize: %s.%s should be an array, got %T — reset to []", af.section, af.key, val)
+					sec[af.key] = []interface{}{}
+					changed = true
 				}
 			}
 		}

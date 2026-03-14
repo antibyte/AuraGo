@@ -89,11 +89,27 @@ async function renderRemoteControlSection(section) {
     const curPaths = (cfg.allowed_paths || []).join('\n');
     html += `<label style="display:block;margin-bottom:0.6rem;">
         <span style="font-size:0.78rem;color:var(--text-secondary);">${t('config.remote_control.allowed_paths_label')} <small style="color:var(--text-tertiary);">(${t('config.remote_control.allowed_paths_hint')})</small></span>
-        <textarea class="cfg-input" data-path="remote_control.allowed_paths" rows="3"
+        <textarea class="cfg-input" data-path="remote_control.allowed_paths" data-type="array-lines" rows="3"
             style="width:100%;margin-top:0.2rem;font-family:monospace;font-size:0.8rem;"
             onchange="setNestedValue(configData,'remote_control.allowed_paths',this.value.split('\\n').filter(l=>l.trim()));setDirty(true)">${escapeAttr(curPaths)}</textarea>
     </label>`;
     html += `</div>`;
+
+    // ── Client Download ──
+    html += `<div class="field-group">
+        <div class="field-group-title">${t('config.remote_control.download_title')}</div>
+        <div class="field-group-desc">${t('config.remote_control.download_desc')}</div>
+        <div style="margin-bottom:0.6rem;">
+            <label style="display:block;margin-bottom:0.3rem;">
+                <span style="font-size:0.78rem;color:var(--text-secondary);">${t('config.remote_control.download_name_label')}</span>
+                <input type="text" id="rc-device-name" class="cfg-input" placeholder="${t('config.remote_control.download_name_placeholder')}"
+                    style="width:100%;margin-top:0.2rem;">
+            </label>
+        </div>
+        <div id="rc-platform-list" style="margin-top:0.5rem;">
+            <span style="font-size:0.8rem;color:var(--text-tertiary);">${t('config.remote_control.loading_platforms')}</span>
+        </div>
+    </div>`;
 
     // ── Connected Devices (live status) ──
     html += `<div class="field-group">
@@ -108,8 +124,49 @@ async function renderRemoteControlSection(section) {
     document.getElementById('content').innerHTML = html;
     attachChangeListeners();
 
-    // Load device list async
+    // Load platform list and device list async
+    loadRemotePlatforms();
     loadRemoteDevices();
+}
+
+async function loadRemotePlatforms() {
+    const container = document.getElementById('rc-platform-list');
+    if (!container) return;
+    try {
+        const resp = await fetch('/api/remote/platforms');
+        if (!resp.ok) {
+            container.innerHTML = `<span style="color:var(--danger);font-size:0.8rem;">${t('config.remote_control.platforms_error')}</span>`;
+            return;
+        }
+        const platforms = await resp.json();
+        const available = platforms.filter(p => p.available);
+        if (!available.length) {
+            container.innerHTML = `<span style="color:var(--text-tertiary);font-size:0.8rem;">${t('config.remote_control.no_platforms')}</span>`;
+            return;
+        }
+
+        const osIcons = { linux: '🐧', darwin: '🍎', windows: '🪟' };
+        let html = '<div style="display:flex;flex-wrap:wrap;gap:0.5rem;">';
+        available.forEach(p => {
+            const icon = osIcons[p.os] || '💻';
+            const label = `${icon} ${p.os} / ${p.arch}`;
+            html += `<button class="btn-save" style="padding:0.4rem 0.9rem;font-size:0.8rem;"
+                onclick="rcDownload('${escapeAttr(p.os)}','${escapeAttr(p.arch)}')">
+                ⬇ ${label}
+            </button>`;
+        });
+        html += '</div>';
+        container.innerHTML = html;
+    } catch (e) {
+        container.innerHTML = `<span style="color:var(--danger);font-size:0.8rem;">Error: ${e.message}</span>`;
+    }
+}
+
+function rcDownload(os, arch) {
+    const nameEl = document.getElementById('rc-device-name');
+    const name = nameEl ? nameEl.value.trim() : '';
+    const qs = name ? `?name=${encodeURIComponent(name)}` : '';
+    window.location.href = `/api/remote/download/${os}/${arch}${qs}`;
 }
 
 async function loadRemoteDevices() {

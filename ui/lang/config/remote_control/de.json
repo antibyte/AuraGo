@@ -20,5 +20,12 @@
   "config.remote_control.loading_devices": "Geräte werden geladen…",
   "config.remote_control.no_devices": "Noch keine Geräte registriert.",
   "config.remote_control.status_connected": "Verbunden",
-  "config.remote_control.status_offline": "Offline"
+  "config.remote_control.status_offline": "Offline",
+  "config.remote_control.download_title": "Client-Download",
+  "config.remote_control.download_desc": "Lade ein personalisiertes Agent-Binary herunter, das mit einem Einschreibungs-Token für diese AuraGo-Instanz vorkonfiguriert ist. Wähle die Plattform des Zielgeräts.",
+  "config.remote_control.download_name_label": "Gerätename (optional)",
+  "config.remote_control.download_name_placeholder": "z.B. mein-laptop",
+  "config.remote_control.loading_platforms": "Verfügbare Plattformen werden geladen…",
+  "config.remote_control.no_platforms": "Keine Client-Binaries verfügbar. Zuerst make_deploy.sh ausführen.",
+  "config.remote_control.platforms_error": "Plattformliste konnte nicht geladen werden."
 }

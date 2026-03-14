@@ -111,7 +111,12 @@ for target in "${REMOTE_TARGETS[@]}"; do
   EXT=""
   if [ "$OS" = "windows" ]; then EXT=".exe"; fi
 
-  OUT="$DEPLOY_DIR/aurago-remote_${OS}_${ARCH}${EXT}"
+  if [ "$OS" = "linux" ] && [ "$ARCH" = "amd64" ]; then
+    # Standard Linux release: put in bin/ alongside the main aurago binary
+    OUT="bin/aurago-remote_linux"
+  else
+    OUT="$DEPLOY_DIR/aurago-remote_${OS}_${ARCH}${EXT}"
+  fi
   echo "    → $OUT"
   CGO_ENABLED=0 GOOS="$OS" GOARCH="$ARCH" go build -trimpath -ldflags="-s -w" -o "$OUT" ./cmd/remote/
 done

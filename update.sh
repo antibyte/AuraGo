@@ -722,15 +722,20 @@ if $GO_FOUND; then
     if CGO_ENABLED=0 GOOS=linux GOARCH="$GOARCH" go build -trimpath -ldflags='-s -w' -o bin/config-merger_linux ./cmd/config-merger; then
         ok "bin/config-merger_linux built from source"
     fi
+
+    info "Building aurago-remote_linux ($GOARCH)..."
+    if CGO_ENABLED=0 GOOS=linux GOARCH="$GOARCH" go build -trimpath -ldflags='-s -w' -o bin/aurago-remote_linux ./cmd/remote; then
+        ok "bin/aurago-remote_linux built from source"
+    fi
 else
     # ── Download binaries from GitHub Releases (no Go available) ─────────
     warn "Go is not installed — downloading pre-built binaries from GitHub Releases."
 
     # Pick arch-appropriate binary names
     if [ "$GOARCH" = "arm64" ]; then
-        BINS=("aurago_linux_arm64" "lifeboat_linux_arm64" "config-merger_linux_arm64")
+        BINS=("aurago_linux_arm64" "lifeboat_linux_arm64" "config-merger_linux_arm64" "aurago-remote_linux_arm64")
     elif [ "$GOARCH" = "amd64" ]; then
-        BINS=("aurago_linux" "lifeboat_linux" "config-merger_linux")
+        BINS=("aurago_linux" "lifeboat_linux" "config-merger_linux" "aurago-remote_linux")
     else
         die "No prebuilt release binaries for architecture ${ARCH_RAW}. Install Go ${GO_MIN_VERSION}+ to build from source."
     fi
@@ -746,9 +751,10 @@ else
 
     # Ensure standard names exist (for arm64 → copy to non-suffixed names)
     if [ "$GOARCH" = "arm64" ]; then
-        [ -f "$DIR/bin/aurago_linux_arm64" ]        && cp -p "$DIR/bin/aurago_linux_arm64"        "$DIR/bin/aurago_linux"
-        [ -f "$DIR/bin/lifeboat_linux_arm64" ]      && cp -p "$DIR/bin/lifeboat_linux_arm64"      "$DIR/bin/lifeboat_linux"
-        [ -f "$DIR/bin/config-merger_linux_arm64" ]  && cp -p "$DIR/bin/config-merger_linux_arm64"  "$DIR/bin/config-merger_linux"
+        [ -f "$DIR/bin/aurago_linux_arm64" ]             && cp -p "$DIR/bin/aurago_linux_arm64"             "$DIR/bin/aurago_linux"
+        [ -f "$DIR/bin/lifeboat_linux_arm64" ]           && cp -p "$DIR/bin/lifeboat_linux_arm64"           "$DIR/bin/lifeboat_linux"
+        [ -f "$DIR/bin/config-merger_linux_arm64" ]      && cp -p "$DIR/bin/config-merger_linux_arm64"      "$DIR/bin/config-merger_linux"
+        [ -f "$DIR/bin/aurago-remote_linux_arm64" ]      && cp -p "$DIR/bin/aurago-remote_linux_arm64"      "$DIR/bin/aurago-remote_linux"
     fi
 
     [ -f "$DIR/bin/aurago_linux" ] || die "Failed to obtain aurago_linux binary. Cannot continue."
