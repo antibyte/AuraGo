@@ -36,6 +36,7 @@
   "config.homepage.webserver_title": "Servidor web local",
   "config.homepage.webserver_desc": "Execute um servidor web Caddy local no Docker para pré-visualizar e hospedar sites. Suporta HTTPS automático quando um domínio é definido.",
   "config.homepage.webserver_enabled": "Ativar servidor web local (Caddy)",
+  "config.homepage.webserver_internal_only": "Acesso apenas interno (127.0.0.1)",
   "config.homepage.webserver_port": "Porta",
   "config.homepage.webserver_domain": "Domínio",
   "config.homepage.optional": "opcional",

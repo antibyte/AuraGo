@@ -121,6 +121,7 @@
   "help.homepage.webserver_enabled": "Web サイトのプレビュー用に Docker 内でローカル Caddy Web サーバーを起動します。ドメインによる自動 HTTPS をサポートします。",
   "help.homepage.webserver_port": "ローカル Caddy Web サーバーのポート。デフォルト: 8080。",
   "help.homepage.webserver_domain": "Let's Encrypt による自動 HTTPS のためのオプションのドメイン。",
+  "help.homepage.webserver_internal_only": "有効にすると、CaddyコンテナはIPアドレス127.0.0.1（localhost）のみにバインドします。Webサーバーはローカルからのみアクセス可能で、外部ネットワークからはアクセスできません。",
   "help.homepage.workspace_path": "Web プロジェクト用のローカルディレクトリ。Docker コンテナにマウントされます。",
   "help.indexing.directories": "監視およびインデックスを作成するディレクトリのリスト。相対パスは config ディレクトリから解決されます。デフォルト: ./knowledge。",
   "help.indexing.enabled": "自動ファイルインデックス作成を有効にします。構成されたフォルダー内のファイルは定期的にスキャンされ、埋め込みに変換され、エージェントがナレッジ ベースとして利用できるようになります。",

@@ -36,6 +36,7 @@
   "config.homepage.webserver_title": "स्थानीय वेब सर्वर",
   "config.homepage.webserver_desc": "वेबसाइटों के पूर्वावलोकन और होस्टिंग के लिए Docker में एक स्थानीय Caddy वेब सर्वर चलाएँ। डोमेन सेट होने पर स्वचालित HTTPS का समर्थन करता है।",
   "config.homepage.webserver_enabled": "स्थानीय वेब सर्वर सक्षम करें (Caddy)",
+  "config.homepage.webserver_internal_only": "केवल आंतरिक पहुंच (127.0.0.1)",
   "config.homepage.webserver_port": "पोर्ट",
   "config.homepage.webserver_domain": "डोमेन",
   "config.homepage.optional": "वैकल्पिक",

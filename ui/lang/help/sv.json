@@ -121,6 +121,7 @@
   "help.homepage.webserver_enabled": "Startar en lokal Caddy-webbserver i Docker för förhandsgranskning av webbplatser. Stöder automatisk HTTPS med en domän.",
   "help.homepage.webserver_port": "Port för den lokala Caddy-webbservern. Standard: 8080.",
   "help.homepage.webserver_domain": "Valfri domän för automatisk HTTPS via Let's Encrypt.",
+  "help.homepage.webserver_internal_only": "När det är aktiverat binder Caddy-containern endast till 127.0.0.1 (localhost). Webbservern är då bara nåbar lokalt, inte från externa nätverk.",
   "help.homepage.workspace_path": "Lokal katalog för webbprojekt, monterad i Docker-containern.",
   "help.indexing.directories": "Adresar pro indexing.",
   "help.indexing.enabled": "Povoluje indexovani souboru.",

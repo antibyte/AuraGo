@@ -36,6 +36,7 @@
   "config.homepage.webserver_title": "Lokální webový server",
   "config.homepage.webserver_desc": "Spusťte lokální webový server Caddy v Dockeru pro náhled a hosting webů. Podporuje automatické HTTPS při nastavené doméně.",
   "config.homepage.webserver_enabled": "Povolit lokální webový server (Caddy)",
+  "config.homepage.webserver_internal_only": "Pouze interní přístup (127.0.0.1)",
   "config.homepage.webserver_port": "Port",
   "config.homepage.webserver_domain": "Doména",
   "config.homepage.optional": "volitelné",

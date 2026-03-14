@@ -36,11 +36,12 @@ func handleHomepageStatus(s *Server) http.HandlerFunc {
 		}
 
 		cfg := tools.HomepageConfig{
-			DockerHost:       dockerHost,
-			WorkspacePath:    workspacePath,
-			WebServerPort:    webServerPort,
-			WebServerDomain:  webServerDomain,
-			AllowLocalServer: allowLocalServer,
+			DockerHost:            dockerHost,
+			WorkspacePath:         workspacePath,
+			WebServerPort:         webServerPort,
+			WebServerDomain:       webServerDomain,
+			WebServerInternalOnly: s.Cfg.Homepage.WebServerInternalOnly,
+			AllowLocalServer:      allowLocalServer,
 		}
 		result := tools.HomepageStatus(cfg, s.Logger)
 

@@ -16,11 +16,12 @@ import (
 
 // HomepageConfig holds the configuration for the homepage dev environment.
 type HomepageConfig struct {
-	DockerHost       string
-	WorkspacePath    string // host path mounted as /workspace in the container
-	WebServerPort    int
-	WebServerDomain  string
-	AllowLocalServer bool // Danger Zone: allow Python HTTP server fallback when Docker unavailable
+	DockerHost            string
+	WorkspacePath         string // host path mounted as /workspace in the container
+	WebServerPort         int
+	WebServerDomain       string
+	WebServerInternalOnly bool // bind Caddy port only on 127.0.0.1 (internal-only)
+	AllowLocalServer      bool // Danger Zone: allow Python HTTP server fallback when Docker unavailable
 }
 
 const (
@@ -384,7 +385,11 @@ func HomepageInitProject(cfg HomepageConfig, framework, name string, logger *slo
 				if err := os.MkdirAll(cfg.WorkspacePath, 0755); err != nil {
 					return errJSON("Failed to access workspace: %v", err)
 				}
-				exeCmd := exec.Command("bash", "-c", "cd "+cfg.WorkspacePath+" && "+cmd)
+				// Split pre-built cmd into args and set Dir instead of using
+				// bash -c to avoid shell injection via cfg.WorkspacePath.
+				parts := strings.Fields(cmd)
+				exeCmd := exec.Command(parts[0], parts[1:]...)
+				exeCmd.Dir = cfg.WorkspacePath
 				out, runErr := exeCmd.CombinedOutput()
 				if runErr != nil {
 					return errJSON("Project init failed (local npx): %s", strings.TrimSpace(string(out)))

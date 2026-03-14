@@ -36,6 +36,7 @@
   "config.homepage.webserver_title": "本地Web服务器",
   "config.homepage.webserver_desc": "在Docker中运行本地Caddy Web服务器以预览和托管网站。设置域名后支持自动HTTPS。",
   "config.homepage.webserver_enabled": "启用本地Web服务器（Caddy）",
+  "config.homepage.webserver_internal_only": "仅限内部访问（127.0.0.1）",
   "config.homepage.webserver_port": "端口",
   "config.homepage.webserver_domain": "域名",
   "config.homepage.optional": "可选",

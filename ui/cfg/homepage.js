@@ -219,6 +219,12 @@ async function renderHomepageSection(section) {
             <span style="font-size:0.82rem;color:var(--text-secondary);">${t('config.homepage.webserver_enabled')}</span>
         </div>`;
 
+        // Webserver Internal Only toggle
+        html += `<div style="display:flex;align-items:center;gap:0.6rem;padding:0.5rem 0;margin-bottom:0.6rem;">
+            <div class="toggle ${cfg.webserver_internal_only ? 'on' : ''}" data-path="homepage.webserver_internal_only" onclick="toggleBool(this)"></div>
+            <span style="font-size:0.82rem;color:var(--text-secondary);">${t('config.homepage.webserver_internal_only')}</span>
+        </div>`;
+
         html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.8rem 1.2rem;">`;
 
         // Webserver Port

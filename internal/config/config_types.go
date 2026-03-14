@@ -339,6 +339,7 @@ type Config struct {
 		WebServerEnabled         bool   `yaml:"webserver_enabled"`
 		WebServerPort            int    `yaml:"webserver_port"`
 		WebServerDomain          string `yaml:"webserver_domain"`
+		WebServerInternalOnly    bool   `yaml:"webserver_internal_only"` // bind on 127.0.0.1 only
 		WorkspacePath            string `yaml:"workspace_path"`
 		// CircuitBreakerMultiplier erhöht das Tool-Call-Limit für Homepage-Operationen
 		// z.B. 2.0 = doppeltes Limit (Standard: 2.0, max: 5.0)

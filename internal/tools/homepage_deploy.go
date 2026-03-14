@@ -205,6 +205,12 @@ func HomepageWebServerStart(cfg HomepageConfig, projectDir, buildDir string, log
 		return errJSON("Failed to write Caddyfile: %v", err)
 	}
 
+	// Determine bind address: internal-only (127.0.0.1) or all interfaces (0.0.0.0).
+	hostIP := "0.0.0.0"
+	if cfg.WebServerInternalOnly {
+		hostIP = "127.0.0.1"
+	}
+
 	// Create Caddy container
 	payload := map[string]interface{}{
 		"Image": homepageWebImage,
@@ -218,7 +224,7 @@ func HomepageWebServerStart(cfg HomepageConfig, projectDir, buildDir string, log
 			},
 			"PortBindings": map[string]interface{}{
 				"80/tcp": []map[string]interface{}{
-					{"HostPort": fmt.Sprintf("%d", port)},
+					{"HostIp": hostIP, "HostPort": fmt.Sprintf("%d", port)},
 				},
 			},
 			"RestartPolicy": map[string]string{"Name": "unless-stopped"},
@@ -227,7 +233,7 @@ func HomepageWebServerStart(cfg HomepageConfig, projectDir, buildDir string, log
 	if cfg.WebServerDomain != "" {
 		// If domain is set, also bind 443
 		payload["HostConfig"].(map[string]interface{})["PortBindings"].(map[string]interface{})["443/tcp"] = []map[string]interface{}{
-			{"HostPort": "443"},
+			{"HostIp": hostIP, "HostPort": "443"},
 		}
 	}
 

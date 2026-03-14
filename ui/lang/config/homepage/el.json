@@ -36,6 +36,7 @@
   "config.homepage.webserver_title": "Τοπικός διακομιστής Web",
   "config.homepage.webserver_desc": "Εκτελέστε έναν τοπικό διακομιστή Caddy σε Docker για προεπισκόπηση και φιλοξενία ιστοσελίδων. Υποστηρίζει αυτόματο HTTPS όταν έχει οριστεί domain.",
   "config.homepage.webserver_enabled": "Ενεργοποίηση τοπικού διακομιστή web (Caddy)",
+  "config.homepage.webserver_internal_only": "Μόνο εσωτερική πρόσβαση (127.0.0.1)",
   "config.homepage.webserver_port": "Θύρα",
   "config.homepage.webserver_domain": "Domain",
   "config.homepage.optional": "προαιρετικό",

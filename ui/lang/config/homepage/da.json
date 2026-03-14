@@ -36,6 +36,7 @@
   "config.homepage.webserver_title": "Lokal webserver",
   "config.homepage.webserver_desc": "Kør en lokal Caddy-webserver i Docker til forhåndsvisning og hosting af hjemmesider. Understøtter automatisk HTTPS når et domæne er angivet.",
   "config.homepage.webserver_enabled": "Aktiver lokal webserver (Caddy)",
+  "config.homepage.webserver_internal_only": "Kun intern adgang (127.0.0.1)",
   "config.homepage.webserver_port": "Port",
   "config.homepage.webserver_domain": "Domæne",
   "config.homepage.optional": "valgfrit",

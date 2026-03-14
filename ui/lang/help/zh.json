@@ -121,6 +121,7 @@
   "help.homepage.webserver_enabled": "在 Docker 中启动本地 Caddy Web 服务器以预览网站。支持使用域名自动配置 HTTPS。",
   "help.homepage.webserver_port": "本地 Caddy Web 服务器的端口。默认值：8080。",
   "help.homepage.webserver_domain": "用于通过 Let's Encrypt 自动配置 HTTPS 的可选域名。",
+  "help.homepage.webserver_internal_only": "启用后，Caddy 容器仅绑定到 127.0.0.1（localhost）。然后，Web 服务器只能在本地访问，不能从外部网络访问。",
   "help.homepage.workspace_path": "Web 项目的本地目录，挂载到 Docker 容器中。",
   "help.indexing.directories": "要监视和索引的目录列表。相对路径是从 config 目录解析的。默认值：./知识。",
   "help.indexing.enabled": "启用自动文件索引。定期扫描配置文件夹中的文件，将其转换为嵌入内容，并作为知识库提供给代理。",

@@ -331,11 +331,12 @@ func dispatchServices(ctx context.Context, tc ToolCall, cfg *config.Config, logg
 			return `Tool Output: {"status": "error", "message": "Homepage tool is not enabled. Set homepage.enabled=true in config.yaml."}`
 		}
 		homepageCfg := tools.HomepageConfig{
-			DockerHost:       cfg.Docker.Host,
-			WorkspacePath:    cfg.Homepage.WorkspacePath,
-			WebServerPort:    cfg.Homepage.WebServerPort,
-			WebServerDomain:  cfg.Homepage.WebServerDomain,
-			AllowLocalServer: cfg.Homepage.AllowLocalServer,
+			DockerHost:            cfg.Docker.Host,
+			WorkspacePath:         cfg.Homepage.WorkspacePath,
+			WebServerPort:         cfg.Homepage.WebServerPort,
+			WebServerDomain:       cfg.Homepage.WebServerDomain,
+			WebServerInternalOnly: cfg.Homepage.WebServerInternalOnly,
+			AllowLocalServer:      cfg.Homepage.AllowLocalServer,
 		}
 		if homepageCfg.WorkspacePath == "" {
 			homepageCfg.WorkspacePath = filepath.Join(cfg.Directories.DataDir, "homepage")

@@ -36,6 +36,7 @@
   "config.homepage.webserver_title": "ローカルWebサーバー",
   "config.homepage.webserver_desc": "Dockerでローカル Caddy Webサーバーを実行して、ウェブサイトのプレビューとホスティングを行います。ドメイン設定時に自動HTTPSをサポートします。",
   "config.homepage.webserver_enabled": "ローカルWebサーバーを有効にする（Caddy）",
+  "config.homepage.webserver_internal_only": "内部アクセスのみ（127.0.0.1）",
   "config.homepage.webserver_port": "ポート",
   "config.homepage.webserver_domain": "ドメイン",
   "config.homepage.optional": "任意",

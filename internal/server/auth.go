@@ -263,6 +263,10 @@ func ClientIP(r *http.Request) string {
 // ── Auth Middleware ──────────────────────────────────────────────────────────
 
 // authBypassPrefixes lists URL prefixes that are always accessible without a session.
+// NOTE: /api/personalities is intentionally NOT in this list — personality profile
+// names are internal information and the login page does not need them.
+// The setup wizard (/setup) calls this endpoint but auth is auto-disabled when no
+// password is configured, so the setup flow still works without a bypass here.
 var authBypassPrefixes = []string{
 	"/auth/",
 	"/api/auth/status",
@@ -270,7 +274,6 @@ var authBypassPrefixes = []string{
 	"/api/setup",
 	"/api/openrouter/models",
 	"/api/oauth/callback",
-	"/api/personalities",
 	"/api/ui-language",
 	"/setup",
 	"/shared.css",

@@ -36,6 +36,7 @@
   "config.homepage.webserver_title": "Lokale webserver",
   "config.homepage.webserver_desc": "Draai een lokale Caddy-webserver in Docker om websites te bekijken en te hosten. Ondersteunt automatische HTTPS wanneer een domein is ingesteld.",
   "config.homepage.webserver_enabled": "Lokale webserver inschakelen (Caddy)",
+  "config.homepage.webserver_internal_only": "Alleen intern toegankelijk (127.0.0.1)",
   "config.homepage.webserver_port": "Poort",
   "config.homepage.webserver_domain": "Domein",
   "config.homepage.optional": "optioneel",

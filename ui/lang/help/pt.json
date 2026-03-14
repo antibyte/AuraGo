@@ -121,6 +121,7 @@
   "help.homepage.webserver_enabled": "Inicia um servidor web Caddy local no Docker para pré-visualizar sites. Suporta HTTPS automático com um domínio.",
   "help.homepage.webserver_port": "Porta para o servidor web Caddy local. Padrão: 8080.",
   "help.homepage.webserver_domain": "Domínio opcional para HTTPS automático via Let's Encrypt.",
+  "help.homepage.webserver_internal_only": "Quando ativado, o contêner Caddy se vincula apenas a 127.0.0.1 (localhost). O servidor web só é acessível localmente, não de redes externas.",
   "help.homepage.workspace_path": "Diretório local para projetos web, montado no container Docker.",
   "help.indexing.directories": "Adresar pro indexing.",
   "help.indexing.enabled": "Habilita indexação de arquivos.",

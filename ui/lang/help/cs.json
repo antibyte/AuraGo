@@ -121,6 +121,7 @@
   "help.homepage.webserver_enabled": "Spustí lokální webový server Caddy v Dockeru pro náhled webů. Podporuje automatické HTTPS s doménou.",
   "help.homepage.webserver_port": "Port pro lokální webový server Caddy. Výchozí: 8080.",
   "help.homepage.webserver_domain": "Volitelná doména pro automatické HTTPS přes Let's Encrypt.",
+  "help.homepage.webserver_internal_only": "Pokud je povoleno, kontejner Caddy se váže pouze na 127.0.0.1 (localhost). Webový server je pak dostupný pouze lokálně, nikoli z externích sítí.",
   "help.homepage.workspace_path": "Lokální adresář pro webové projekty, připojený do Docker kontejneru.",
   "help.indexing.directories": "Adresar pro indexing.",
   "help.indexing.enabled": "Povoluje indexovani souboru.",
