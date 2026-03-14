@@ -207,14 +207,15 @@ function renderMissions() {
                                 ${typeBadge}
                                 ${statusBadge}
                             </div>
+                        </div>
                         <div class="mission-body">
                             <div class="mission-prompt">${escapeHtml(mission.prompt)}</div>
                             ${triggerInfo}
-                            <div class="mission-log-wrapper" style="margin-top: 10px;">
-                                <div class="mission-log-toggle" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none'" style="cursor:pointer; font-size: 0.8rem; color: var(--accent); opacity: 0.8;">
-                                    📝 <span style="text-decoration: underline;">${t('missions.card_view_log')}</span>
+                            <div class="mission-log-wrapper">
+                                <div class="mission-log-toggle" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none'">
+                                    📝 <span>${t('missions.card_view_log')}</span>
                                 </div>
-                                <div class="mission-log-content" style="display: none; margin-top: 8px; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 4px; font-family: monospace; font-size: 0.75rem; white-space: pre-wrap; word-break: break-all; max-height: 150px; overflow-y: auto;">
+                                <div class="mission-log-content">
                                     ${escapeHtml(mission.last_output || t('missions.card_no_output'))}
                                 </div>
                             </div>
@@ -224,18 +225,11 @@ function renderMissions() {
                                 <span>${resultIcon} ${lastRun}</span>
                                 <span>📊 ${t('missions.meta_run_count', { count: mission.run_count })}</span>
                             </div>
-                                <button class="icon-btn" onclick="runMission('${mission.id}')" title="${t('missions.card_btn_run_title')}" ${isRunning ? 'disabled' : ''}>
-                                    ${icons.play}
-                                </button>
-                                <button class="icon-btn" onclick="duplicateMission('${mission.id}')" title="${t('missions.card_btn_duplicate_title')}">
-                                    ${icons.duplicate}
-                                </button>
-                                <button class="icon-btn" onclick="editMission('${mission.id}')" title="${t('missions.card_btn_edit_title')}">
-                                    ${icons.edit}
-                                </button>
-                                <button class="icon-btn" onclick="deleteMission('${mission.id}')" title="${t('missions.card_btn_delete_title')}" ${mission.locked ? 'disabled' : ''}>
-                                    ${icons.delete}
-                                </button>
+                            <div class="mission-actions">
+                                <button class="icon-btn" onclick="runMission('${mission.id}')" title="${t('missions.card_btn_run_title')}" ${isRunning ? 'disabled' : ''}>${icons.play}</button>
+                                <button class="icon-btn" onclick="duplicateMission('${mission.id}')" title="${t('missions.card_btn_duplicate_title')}">${icons.duplicate}</button>
+                                <button class="icon-btn" onclick="editMission('${mission.id}')" title="${t('missions.card_btn_edit_title')}">${icons.edit}</button>
+                                <button class="icon-btn" onclick="deleteMission('${mission.id}')" title="${t('missions.card_btn_delete_title')}" ${mission.locked ? 'disabled' : ''}>${icons.delete || '🗑️'}</button>
                             </div>
                         </div>
                     </div>
