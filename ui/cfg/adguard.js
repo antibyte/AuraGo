@@ -164,7 +164,7 @@ function adgSavePassword() {
     const pw = input ? input.value.trim() : '';
     if (!pw) { showToast(t('config.adguard.password_empty'), 'error'); return; }
 
-    fetch('/api/vault', {
+    fetch('/api/vault/secrets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key: 'adguard_password', value: pw })

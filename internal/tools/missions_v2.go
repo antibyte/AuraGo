@@ -80,7 +80,7 @@ type MissionV2 struct {
 	CreatedAt     time.Time      `json:"created_at"`
 	Locked        bool           `json:"locked"`                   // Prevents deletion
 	WaitingForID  string         `json:"waiting_for_id,omitempty"` // ID of mission this is waiting for
-	CheatsheetIDs []string      `json:"cheatsheet_ids,omitempty"` // Linked cheat sheet IDs for prompt expansion
+	CheatsheetIDs []string       `json:"cheatsheet_ids,omitempty"` // Linked cheat sheet IDs for prompt expansion
 }
 
 // QueueItem represents a mission in the execution queue
