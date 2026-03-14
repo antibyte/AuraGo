@@ -4,6 +4,7 @@
 # Force LF for all shell scripts regardless of OS
 *.sh    text eol=lf
 *.bash  text eol=lf
+docker-entrypoint.sh text eol=lf
 
 # Go source files use LF
 *.go    text eol=lf
