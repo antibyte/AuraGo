@@ -217,6 +217,7 @@ For plain HTML projects (no `package.json`), the build step is automatically ski
 - For deployment, store credentials in the vault: `homepage_deploy_password` or `homepage_deploy_key`
 - The Caddy web server can serve with automatic HTTPS if a domain is configured (Docker mode only)
 - Use compound operations (`init_project`, `build`, `deploy`) to save tokens — avoid running many individual `exec` calls
+- **NEVER use the `filesystem` tool for homepage project files.** The filesystem tool writes to `agent_workspace/workdir/` — a completely different location from the homepage workspace. Files created there will NOT be found by `build`, `deploy`, `deploy_netlify`, or `publish_local`. Always use `homepage` → `write_file` instead.
 
 ## Troubleshooting
 
@@ -245,3 +246,18 @@ For plain HTML projects (no `package.json`), the build step is automatically ski
 1. Check Docker status: `docker ps -a`
 2. Start manually: `homepage start`
 3. If stuck: `homepage destroy` then `homepage init`
+
+### init_project fails or install_deps can't find directory
+
+**Problem:** `init_project` appears to succeed but `install_deps` or `build` reports directory not found. This typically means the Node.js version in the container is too old for the requested framework (npm `EBADENGINE` warnings).
+
+**Solutions:**
+1. Use `framework: "html"` for plain HTML projects (no Node.js required)
+2. Rebuild the homepage container to get a newer Node.js: `homepage rebuild`
+3. Create files manually with `homepage write_file` — do NOT use the `filesystem` tool
+
+### deploy_netlify: "Deploy path does not exist"
+
+**Problem:** Files were created with the `filesystem` tool instead of `homepage write_file`, placing them in `agent_workspace/workdir/` instead of the homepage workspace.
+
+**Solution:** Use `homepage write_file` to create all project files. The `deploy_netlify` operation only finds files in the homepage workspace (`data/homepage/`).

@@ -33,6 +33,8 @@ You have expert-level web design and development capabilities through the `homep
 
 **Workflow:** Always `init` first, then `init_project`, develop with `write_file`/`exec`, test with `lighthouse`/`screenshot`, then `deploy`, `deploy_netlify`, or `publish_local`.
 
+**CRITICAL — File management:** Always use `homepage` → `write_file` / `read_file` / `list_files` for all homepage project files. **Never use the `filesystem` tool** to create or edit homepage files — the `filesystem` tool writes to `agent_workspace/workdir/` which is a completely different path from the homepage workspace (`data/homepage/`). Files created via `filesystem` will **not be found** by `build`, `deploy`, `deploy_netlify`, or `publish_local`. If `init_project` fails, use `homepage` → `write_file` to create files manually in the correct location.
+
 **Netlify deployment:** Always use `deploy_netlify` — it handles build + ZIP + upload entirely server-side. **Never use sandbox/Python to create a ZIP and pass it via `netlify › deploy_zip`** — binary/base64 data cannot be reliably transported through tool arguments and will produce a 400 error from the Netlify API.
 
 📖 See **tools_manuals/homepage.md** for detailed usage.

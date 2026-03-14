@@ -60,6 +60,27 @@ type HomepageDeployConfig struct {
 	Method   string // "sftp" or "scp"
 }
 
+// ─── Helpers ──────────────────────────────────────────────────────────────
+
+// truncateStr returns s truncated to maxLen characters with "…" suffix.
+func truncateStr(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen] + "…"
+}
+
+// extractOutput parses a DockerExec JSON result and returns the "output" field.
+func extractOutput(jsonResult string) string {
+	var m map[string]interface{}
+	if json.Unmarshal([]byte(jsonResult), &m) == nil {
+		if o, ok := m["output"].(string); ok {
+			return o
+		}
+	}
+	return jsonResult
+}
+
 // ─── Container Lifecycle ──────────────────────────────────────────────────
 
 // checkDockerAvailable checks if Docker is available and running.
@@ -411,7 +432,24 @@ func HomepageInitProject(cfg HomepageConfig, framework, name string, logger *slo
 	}
 
 	dockerCfg := DockerConfig{Host: cfg.DockerHost}
-	return DockerExec(dockerCfg, homepageContainerName, "cd /workspace && "+cmd, "")
+	scaffoldResult := DockerExec(dockerCfg, homepageContainerName, "cd /workspace && "+cmd, "")
+
+	// Verify the project directory was actually created.
+	// Scaffolding tools like create-vite may print warnings but fail silently
+	// (e.g. Node version mismatch / EBADENGINE) without creating the directory.
+	verifyResult := DockerExec(dockerCfg, homepageContainerName, fmt.Sprintf("test -d /workspace/%s && echo EXISTS", name), "")
+	var vr map[string]interface{}
+	if json.Unmarshal([]byte(verifyResult), &vr) == nil {
+		out, _ := vr["output"].(string)
+		if !strings.Contains(out, "EXISTS") {
+			return errJSON("Project scaffolding did not create directory '/workspace/%s'. "+
+				"This often means the container's Node.js version is too old for the requested framework. "+
+				"Try framework='html' for a plain project, or rebuild the homepage container to update Node.js. "+
+				"Scaffold output: %s", name, truncateStr(extractOutput(scaffoldResult), 500))
+		}
+	}
+
+	return scaffoldResult
 }
 
 // HomepageBuild runs the build command in the project directory.
@@ -451,8 +489,18 @@ func HomepageInstallDeps(cfg HomepageConfig, projectDir string, packages []strin
 		}
 		cmd += " " + strings.Join(packages, " ")
 	}
-	logger.Info("[Homepage] Install deps", "packages", packages)
+	logger.Info("[Homepage] Install deps", "project_dir", projectDir, "packages", packages)
 	dockerCfg := DockerConfig{Host: cfg.DockerHost}
+
+	// Pre-check: verify the project directory exists to give a clear error
+	if projectDir != "." {
+		checkResult := DockerExec(dockerCfg, homepageContainerName, fmt.Sprintf("test -d /workspace/%s && echo EXISTS", projectDir), "")
+		if !strings.Contains(checkResult, "EXISTS") {
+			return errJSON("Project directory '/workspace/%s' does not exist in the homepage container. "+
+				"Run init_project first, or use homepage write_file to create files in the correct location.", projectDir)
+		}
+	}
+
 	return DockerExec(dockerCfg, homepageContainerName, fmt.Sprintf("cd /workspace/%s && %s 2>&1", projectDir, cmd), "")
 }
 

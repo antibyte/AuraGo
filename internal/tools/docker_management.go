@@ -222,6 +222,21 @@ func DockerExec(cfg DockerConfig, containerID, cmd, user string) string {
 		"container_id": containerID,
 		"output":       outputStr,
 	}
+
+	// Inspect exec instance to get exit code
+	inspectData, inspectCode, inspectErr := dockerRequest(cfg, "GET", "/exec/"+execID+"/json", "")
+	if inspectErr == nil && inspectCode == 200 {
+		var inspectResp map[string]interface{}
+		if json.Unmarshal(inspectData, &inspectResp) == nil {
+			if ec, ok := inspectResp["ExitCode"].(float64); ok {
+				result["exit_code"] = int(ec)
+				if int(ec) != 0 {
+					result["status"] = "error"
+				}
+			}
+		}
+	}
+
 	out, _ := json.Marshal(result)
 	return string(out)
 }
