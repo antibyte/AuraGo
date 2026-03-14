@@ -969,9 +969,22 @@ else
         [ -f "$DIR/bin/aurago-remote_linux_arm64" ]      && cp -p "$DIR/bin/aurago-remote_linux_arm64"      "$DIR/bin/aurago-remote_linux"
     fi
 
-    # Copy downloaded remote binary to deploy/ so the client download feature works
+    # Download aurago-remote client binaries for all platforms so the
+    # /api/remote/download/{os}/{arch} endpoint can serve them.
     mkdir -p "$DIR/deploy"
-    [ -f "$DIR/bin/aurago-remote_linux" ] && cp -p "$DIR/bin/aurago-remote_linux" "$DIR/deploy/aurago-remote_linux_${GOARCH}"
+    info "Downloading aurago-remote client binaries for all platforms..."
+    _RAW_BASE="https://raw.githubusercontent.com/${GITHUB_REPO}/main/deploy"
+    for _t in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64; do
+        _ros="${_t%/*}"; _rarch="${_t#*/}"; _rext=""
+        [ "$_ros" = "windows" ] && _rext=".exe"
+        _rname="aurago-remote_${_ros}_${_rarch}${_rext}"
+        if fetch_url_to_file "${_RAW_BASE}/${_rname}" "$DIR/deploy/${_rname}"; then
+            ok "  deploy/${_rname}"
+        else
+            warn "  Could not download deploy/${_rname} — skipping."
+        fi
+    done
+    chmod +x "$DIR/deploy/aurago-remote_linux"* 2>/dev/null || true
 
     [ -f "$DIR/bin/aurago_linux" ] || die "Failed to obtain aurago_linux binary. Cannot continue."
 
