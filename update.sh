@@ -190,7 +190,8 @@ copy_tree_merge() {
     if command -v rsync >/dev/null 2>&1; then
         # Avoid owner/group preservation to prevent non-fatal permission errors
         # on systems where destination files may be root-owned.
-        rsync -rlt --quiet --no-owner --no-group "$src" "$dst"
+        # Also avoid timestamp preservation (-t) to prevent "failed to set times" warnings.
+        rsync -rl --quiet --no-owner --no-group "$src" "$dst"
     else
         cp -r "$src" "$dst"
     fi
@@ -567,7 +568,7 @@ if [ -d "$OLD_PROMPTS" ]; then
     info "Old location detected: agent_workspace/prompts/ — migrating custom files ..."
     # Copy any files that don't yet exist at the new location (don't overwrite)
     if command -v rsync >/dev/null 2>&1; then
-        rsync -rlt --quiet --no-owner --no-group --ignore-existing "$OLD_PROMPTS/" "$DIR/prompts/" || warn "Could not fully migrate old prompts directory."
+        rsync -rl --quiet --no-owner --no-group --ignore-existing "$OLD_PROMPTS/" "$DIR/prompts/" || warn "Could not fully migrate old prompts directory."
     else
         find "$OLD_PROMPTS" -type f | while read -r f; do
             rel="${f#$OLD_PROMPTS/}"
