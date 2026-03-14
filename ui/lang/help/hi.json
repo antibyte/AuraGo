@@ -1,4 +1,4 @@
-{
+﻿{
   "help.agent.additional_prompt": "मनमाना पाठ जो हमेशा सिस्टम प्रॉम्प्ट के अंत में जोड़ा जाता है। उपयोगकर्ता-विशिष्ट नियमों, संदर्भ जानकारी या निश्चित निर्देशों के लिए आदर्श जो हर अनुरोध पर लागू होने चाहिए।",
   "help.agent.allow_filesystem_write": "अक्षम होने पर, केवल पढ़ने के संचालन (सूची, पढ़ें) की अनुमति है। लिखने के कार्य (लिखना, हटाना, स्थानांतरित करना, mkdir...) अवरुद्ध हैं।",
   "help.agent.allow_mcp": "⚠️ डेंजर ज़ोन: एजेंट को बाहरी एमसीपी सर्वर (मॉडल कॉन्टेक्स्ट प्रोटोकॉल) से कनेक्ट करने और उनके टूल का उपयोग करने की अनुमति देता है। एमसीपी सर्वर बाहरी प्रक्रियाएं हैं जो मनमाना कोड निष्पादित कर सकते हैं - केवल विश्वसनीय सर्वर जोड़ें!",
@@ -246,5 +246,12 @@
   "help.whisper.mode": "व्हिस्पर मोड: 'व्हिस्पर' (मानक ओपनएआई एपीआई), 'मल्टीमॉडल' (मिथुन/मल्टीमॉडल एलएलएम) या 'लोकल' (स्थानीय सर्वर)।",
   "help.whisper.model": "व्हिस्पर के लिए मॉडल नाम, उदा. 'कानाफूसी-1'.",
   "help.whisper.provider": "स्पीच-टू-टेक्स्ट के लिए प्रदाता प्रबंधन से एक प्रदाता का चयन करें।",
-  "help.github.token": "GitHub API के लिए पर्सनल एक्सेस टोकन (PAT)। आवश्यक दायरे (रेपो, मुद्दे, आदि) के साथ https://github.com/settings/tokens पर एक बनाएं। तिजोरी में एन्क्रिप्टेड संग्रहीत।"
+  "help.github.token": "GitHub API के लिए पर्सनल एक्सेस टोकन (PAT)। आवश्यक दायरे (रेपो, मुद्दे, आदि) के साथ https://github.com/settings/tokens पर एक बनाएं। तिजोरी में एन्क्रिप्टेड संग्रहीत।",
+  "help.ai_gateway.account_id": "Your Cloudflare Account ID. Found in the Cloudflare dashboard under Workers & Pages.",
+  "help.ai_gateway.enabled": "Enable Cloudflare AI Gateway to proxy all LLM API requests. Provides caching, rate-limiting, logging, and analytics. Local providers (Ollama) are excluded.",
+  "help.ai_gateway.gateway_id": "The name or slug of your AI Gateway instance in Cloudflare.",
+  "help.mcp_server.allowed_tools": "List of tool names exposed via MCP. Leave empty to expose all currently enabled tools.",
+  "help.mcp_server.enabled": "Enable the built-in MCP server to expose AuraGo tools for external AI agents via Streamable HTTP.",
+  "help.mcp_server.require_auth": "When enabled, MCP clients must authenticate with a Bearer token or valid session cookie.",
+  "help.providers.account_id": "Cloudflare Account ID for Workers AI providers. Required when using the workers-ai provider type."
 }

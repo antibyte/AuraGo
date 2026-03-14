@@ -52,15 +52,17 @@ func NewFailoverManager(cfg *config.Config, logger *slog.Logger) *FailoverManage
 	}
 
 	fb := cfg.FallbackLLM
-	if !fb.Enabled || fb.BaseURL == "" {
+	if !fb.Enabled || (fb.BaseURL == "" && fb.AccountID == "") {
 		return fm // passthrough mode
 	}
 
 	// Build fallback client reusing NewClient logic
 	fallbackCfg := *cfg
+	fallbackCfg.LLM.ProviderType = fb.ProviderType
 	fallbackCfg.LLM.BaseURL = fb.BaseURL
 	fallbackCfg.LLM.APIKey = fb.APIKey
 	fallbackCfg.LLM.Model = fb.Model
+	fallbackCfg.LLM.AccountID = fb.AccountID
 	fm.fallback = NewClient(&fallbackCfg)
 	fm.fallbackModel = fb.Model
 
@@ -96,11 +98,13 @@ func (fm *FailoverManager) Reconfigure(cfg *config.Config) {
 
 	fb := cfg.FallbackLLM
 	startProbe := false
-	if fb.Enabled && fb.BaseURL != "" {
+	if fb.Enabled && (fb.BaseURL != "" || fb.AccountID != "") {
 		fallbackCfg := *cfg
+		fallbackCfg.LLM.ProviderType = fb.ProviderType
 		fallbackCfg.LLM.BaseURL = fb.BaseURL
 		fallbackCfg.LLM.APIKey = fb.APIKey
 		fallbackCfg.LLM.Model = fb.Model
+		fallbackCfg.LLM.AccountID = fb.AccountID
 		fm.fallback = NewClient(&fallbackCfg)
 		fm.fallbackModel = fb.Model
 		if fb.ErrorThreshold > 0 {

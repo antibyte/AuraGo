@@ -1,4 +1,4 @@
-{
+﻿{
   "config.providers.new_provider": "Ny leverandør",
   "config.providers.empty": "Ingen leverandører er konfigurert. Legg til en!",
   "config.providers.authorized": "Autorisert",
@@ -83,5 +83,11 @@
   "config.providers.pricing_picker_select_all": "Velg alle synlige",
   "config.providers.pricing_picker_import": "Importer ({{count}})",
   "config.providers.filter_models": "Filtrer konfigurerte modeller...",
-  "config.providers.no_filter_results": "Ingen modeller samsvarer med \"{{q}}\""
+  "config.providers.no_filter_results": "Ingen modeller samsvarer med \"{{q}}\"",
+  "config.providers.type_workers_ai": "workers-ai",
+  "config.providers.hint.workers_ai": "Cloudflare API-token med Workers AI-tillatelser.",
+  "config.providers.account_id": "Konto-ID",
+  "config.providers.account_id_help": "Din Cloudflare Account-ID (finnes i dashboard-URL-en eller API-innstillinger).",
+  "config.providers.account_id_empty_error": "Konto-ID er p\u00e5krevd for Workers AI.",
+  "config.providers.workers_ai_url_auto": "URL genereres automatisk fra Konto-ID."
 }

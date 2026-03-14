@@ -1,0 +1,11 @@
+﻿{
+  "config.ai_gateway.title": "AI Gateway",
+  "config.ai_gateway.enabled_label": "AI Gateway aktiviert",
+  "config.ai_gateway.account_id": "Account-ID",
+  "config.ai_gateway.account_id_placeholder": "Cloudflare Account-ID",
+  "config.ai_gateway.gateway_id": "Gateway-ID",
+  "config.ai_gateway.gateway_id_placeholder": "mein-gateway",
+  "config.ai_gateway.disabled_notice": "AI Gateway ist deaktiviert",
+  "config.ai_gateway.disabled_desc": "Aktivieren Sie den Schalter, um LLM-Anfragen \u00fcber Cloudflare AI Gateway f\u00fcr Caching, Ratenbegrenzung und Analysen zu leiten.",
+  "config.ai_gateway.info": "Leitet alle LLM-API-Anfragen \u00fcber Cloudflare AI Gateway. Bietet Caching, Ratenbegrenzung, Protokollierung und Fallback-F\u00e4higkeiten. Lokale Anbieter (Ollama) sind ausgenommen."
+}

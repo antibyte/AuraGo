@@ -1,0 +1,18 @@
+﻿{
+  "config.mcp_server.title": "MCP Server",
+  "config.mcp_server.enabled_label": "MCP Server aktiveret",
+  "config.mcp_server.require_auth": "Kr\u00e6v godkendelse",
+  "config.mcp_server.allowed_tools": "Tilladte v\u00e6rkt\u00f8jer",
+  "config.mcp_server.allowed_tools_desc": "V\u00e6rkt\u00f8jer eksponeret via MCP-endpointet. Lad v\u00e6re tom for at eksponere alle.",
+  "config.mcp_server.token": "Bearer-token",
+  "config.mcp_server.generate_token": "Gener\u00e9r token",
+  "config.mcp_server.endpoint_url": "Endpoint-URL",
+  "config.mcp_server.no_tools_warning": "Ingen v\u00e6rkt\u00f8jer aktiveret.",
+  "config.mcp_server.auth_warning": "Godkendelse deaktiveret. Alle med netv\u00e6rksadgang kan kalde dine v\u00e6rkt\u00f8jer.",
+  "config.mcp_server.disabled_notice": "MCP Server er deaktiveret",
+  "config.mcp_server.disabled_desc": "Aktiv\u00e9r for at eksponere AuraGo-v\u00e6rkt\u00f8jer via MCP.",
+  "config.mcp_server.info": "Eksponerer AuraGo-v\u00e6rkt\u00f8jer som fjern MCP-server via Streamable HTTP.",
+  "config.mcp_server.copy_url": "Kopi\u00e9r URL",
+  "config.mcp_server.copy_token": "Kopi\u00e9r token",
+  "config.mcp_server.copied": "Kopieret!"
+}

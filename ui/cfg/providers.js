@@ -785,6 +785,7 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
             ollama: 'http://localhost:11434',
             anthropic: 'https://api.anthropic.com/v1',
             google: 'https://generativelanguage.googleapis.com/v1beta/openai',
+            'workers-ai': '',
             custom: ''
         };
 
@@ -794,6 +795,7 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
             anthropic: 'config.providers.hint.anthropic',
             google: 'config.providers.hint.google',
             openai: 'config.providers.hint.openai',
+            'workers-ai': 'config.providers.hint.workers_ai',
             custom: 'config.providers.hint.custom'
         };
 
@@ -829,14 +831,22 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                     <div class="field-label">Type</div>
                     <div class="field-help">${t('config.providers.type_help')}</div>
                     <select class="field-select" id="prov-type">
-                        ${['openai','openrouter','ollama','anthropic','google','custom'].map(typ =>
+                        ${['openai','openrouter','ollama','anthropic','google','workers-ai','custom'].map(typ =>
                             `<option value="${typ}"${data.type === typ ? ' selected' : ''}>${typ}</option>`
                         ).join('')}
                     </select>
                 </div>
                 <div class="field-group">
                     <div class="field-label">Base URL</div>
-                    <input class="field-input" id="prov-url" value="${escapeAttr(data.base_url || '')}" placeholder="${PROVIDER_BASE_URLS[data.type] || PROVIDER_BASE_URLS.openrouter}">
+                    <input class="field-input" id="prov-url" value="${escapeAttr(data.base_url || '')}" placeholder="${PROVIDER_BASE_URLS[data.type] || PROVIDER_BASE_URLS.openrouter}" ${(data.type || '') === 'workers-ai' ? 'disabled style="opacity:0.55;cursor:not-allowed;"' : ''}>
+                    <div id="prov-url-auto-hint" style="font-size:0.7rem;color:var(--text-tertiary);margin-top:0.2rem;display:${(data.type || '') === 'workers-ai' ? 'block' : 'none'};">${t('config.providers.workers_ai_url_auto')}</div>
+                </div>
+
+                <!-- Workers AI Account ID (only visible when type = workers-ai) -->
+                <div id="prov-account-id-block" class="field-group" style="display:${(data.type || '') === 'workers-ai' ? 'block' : 'none'};">
+                    <div class="field-label">${t('config.providers.account_id')}</div>
+                    <div class="field-help">${t('config.providers.account_id_help')}</div>
+                    <input class="field-input" id="prov-account-id" value="${escapeAttr(data.account_id || '')}" placeholder="e.g. a1b2c3d4e5f6...">
                 </div>
                 <div class="field-group">
                     <div class="field-label">Model</div>
@@ -996,28 +1006,44 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
             const hintEl = document.getElementById('prov-key-hint');
             const ollamaBlock = document.getElementById('prov-ollama-block');
             const openrouterBlock = document.getElementById('prov-openrouter-block');
+            const accountIdBlock = document.getElementById('prov-account-id-block');
+            const urlAutoHint = document.getElementById('prov-url-auto-hint');
             const knownUrls = new Set(Object.values(PROVIDER_BASE_URLS).filter(Boolean));
             typeSelect.addEventListener('change', () => {
                 const typ = typeSelect.value;
                 const currentUrl = urlInput.value.trim();
+                const isWorkersAI = typ === 'workers-ai';
                 // Auto-fill URL when empty OR when it still contains a known default URL (i.e. user hasn't typed a custom one)
-                if ((!currentUrl || knownUrls.has(currentUrl)) && PROVIDER_BASE_URLS[typ]) {
-                    urlInput.value = PROVIDER_BASE_URLS[typ];
+                if (isWorkersAI) {
+                    urlInput.value = '';
+                    urlInput.disabled = true;
+                    urlInput.style.opacity = '0.55';
+                    urlInput.style.cursor = 'not-allowed';
+                } else {
+                    urlInput.disabled = false;
+                    urlInput.style.opacity = '';
+                    urlInput.style.cursor = '';
+                    if ((!currentUrl || knownUrls.has(currentUrl)) && PROVIDER_BASE_URLS[typ]) {
+                        urlInput.value = PROVIDER_BASE_URLS[typ];
+                    }
                 }
                 // Update placeholder
-                urlInput.placeholder = PROVIDER_BASE_URLS[typ] || 'https://...';
+                urlInput.placeholder = isWorkersAI ? t('config.providers.workers_ai_url_auto') : (PROVIDER_BASE_URLS[typ] || 'https://...');
                 // Update hint
                 if (hintEl) {
                     const hintKey = PROVIDER_HINTS[typ];
                     hintEl.textContent = hintKey ? t(hintKey) : '';
                 }
+                // Show/hide Workers AI account ID + URL auto hint
+                if (accountIdBlock) accountIdBlock.style.display = isWorkersAI ? 'block' : 'none';
+                if (urlAutoHint) urlAutoHint.style.display = isWorkersAI ? 'block' : 'none';
                 // Show/hide Ollama model query block
                 if (ollamaBlock) ollamaBlock.style.display = typ === 'ollama' ? 'block' : 'none';
                 // Show/hide OpenRouter model browser block
                 if (openrouterBlock) openrouterBlock.style.display = typ === 'openrouter' ? 'block' : 'none';
                 // Show/hide fetch pricing button
                 if (fetchPricingBtn) {
-                    fetchPricingBtn.style.display = ['openrouter','openai','anthropic','google','ollama'].includes(typ) ? 'inline-block' : 'none';
+                    fetchPricingBtn.style.display = ['openrouter','openai','anthropic','google','ollama','workers-ai'].includes(typ) ? 'inline-block' : 'none';
                 }
             });
 
@@ -1085,11 +1111,16 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                 const base_url = document.getElementById('prov-url').value.trim();
                 const model = document.getElementById('prov-model').value.trim();
                 const auth_type = document.getElementById('prov-auth-type').value;
+                const account_id = (document.getElementById('prov-account-id') || {}).value ? document.getElementById('prov-account-id').value.trim() : '';
 
                 if (!id) { alert(t('config.providers.id_empty_error')); return; }
-                if (!base_url) { alert(t('config.providers.url_empty_error')); return; }
+                if (type === 'workers-ai') {
+                    if (!account_id) { alert(t('config.providers.account_id_empty_error')); return; }
+                } else if (!base_url) {
+                    alert(t('config.providers.url_empty_error')); return;
+                }
 
-                const entry = { id, name: name || id, type, base_url, model, auth_type };
+                const entry = { id, name: name || id, type, base_url, model, auth_type, account_id };
 
                 if (auth_type === 'oauth2') {
                     entry.api_key = data.api_key === '••••••••' ? '••••••••' : '';

@@ -1,0 +1,18 @@
+﻿{
+  "config.mcp_server.title": "MCP Server",
+  "config.mcp_server.enabled_label": "MCP Server aktiverad",
+  "config.mcp_server.require_auth": "Kr\u00e4v autentisering",
+  "config.mcp_server.allowed_tools": "Till\u00e5tna verktyg",
+  "config.mcp_server.allowed_tools_desc": "Verktyg exponerade via MCP-\u00e4ndpunkten. L\u00e4mna tomt f\u00f6r att exponera alla.",
+  "config.mcp_server.token": "Bearer-token",
+  "config.mcp_server.generate_token": "Generera token",
+  "config.mcp_server.endpoint_url": "\u00c4ndpunkts-URL",
+  "config.mcp_server.no_tools_warning": "Inga verktyg aktiverade.",
+  "config.mcp_server.auth_warning": "Autentisering inaktiverad. Alla med n\u00e4tverks\u00e5tkomst kan anropa dina verktyg.",
+  "config.mcp_server.disabled_notice": "MCP Server \u00e4r inaktiverad",
+  "config.mcp_server.disabled_desc": "Aktivera f\u00f6r att exponera AuraGo-verktyg via MCP.",
+  "config.mcp_server.info": "Exponerar AuraGo-verktyg som fj\u00e4rr-MCP-server via Streamable HTTP.",
+  "config.mcp_server.copy_url": "Kopiera URL",
+  "config.mcp_server.copy_token": "Kopiera token",
+  "config.mcp_server.copied": "Kopierat!"
+}

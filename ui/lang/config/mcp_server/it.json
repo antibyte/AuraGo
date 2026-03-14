@@ -1,0 +1,18 @@
+﻿{
+  "config.mcp_server.title": "MCP Server",
+  "config.mcp_server.enabled_label": "Server MCP abilitato",
+  "config.mcp_server.require_auth": "Richiedi autenticazione",
+  "config.mcp_server.allowed_tools": "Strumenti consentiti",
+  "config.mcp_server.allowed_tools_desc": "Strumenti esposti tramite l'endpoint MCP. Lascia vuoto per esporre tutti gli strumenti abilitati.",
+  "config.mcp_server.token": "Token Bearer",
+  "config.mcp_server.generate_token": "Genera token",
+  "config.mcp_server.endpoint_url": "URL endpoint",
+  "config.mcp_server.no_tools_warning": "Nessuno strumento attualmente abilitato.",
+  "config.mcp_server.auth_warning": "Autenticazione disabilitata. Chiunque con accesso alla rete pu\u00f2 chiamare i tuoi strumenti.",
+  "config.mcp_server.disabled_notice": "Server MCP disabilitato",
+  "config.mcp_server.disabled_desc": "Abilita per esporre gli strumenti AuraGo tramite MCP.",
+  "config.mcp_server.info": "Espone gli strumenti AuraGo come server MCP remoto via HTTP Streamable.",
+  "config.mcp_server.copy_url": "Copia URL",
+  "config.mcp_server.copy_token": "Copia token",
+  "config.mcp_server.copied": "Copiato!"
+}

@@ -51,6 +51,9 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/budget", handleBudgetStatus(s))
 	mux.HandleFunc("/api/credits", handleOpenRouterCredits(s))
 
+	// MCP Server endpoint (handles its own auth via Bearer token / session)
+	mux.HandleFunc("/mcp", handleMCPEndpoint(s))
+
 	// Quick Setup wizard endpoints (always available — needed before config is complete)
 	mux.HandleFunc("/api/setup/status", handleSetupStatus(s))
 	mux.HandleFunc("/api/setup", handleSetupSave(s))
@@ -80,6 +83,10 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		mux.HandleFunc("/api/mcp-servers", handleMCPServers(s))
 		mux.HandleFunc("/api/outgoing-webhooks", handleOutgoingWebhooks(s))
 		mux.HandleFunc("/api/sandbox/status", handleSandboxStatus(s))
+
+		// MCP Server config API
+		mux.HandleFunc("/api/mcp-server/tools", handleMCPServerTools(s))
+		mux.HandleFunc("/api/mcp-server/token", handleMCPServerToken(s))
 
 		// OAuth2 Authorization Code flow endpoints
 		mux.HandleFunc("/api/oauth/start", handleOAuthStart(s))

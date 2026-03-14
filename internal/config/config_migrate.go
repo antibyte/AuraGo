@@ -113,6 +113,7 @@ func (c *Config) ResolveProviders() {
 		c.LLM.BaseURL = p.BaseURL
 		c.LLM.APIKey = p.APIKey
 		c.LLM.Model = p.Model
+		c.LLM.AccountID = p.AccountID
 	} else if c.LLM.LegacyAPIKey != "" {
 		// Legacy fallback: use inline fields from old config format
 		c.LLM.BaseURL = c.LLM.LegacyURL
@@ -127,6 +128,7 @@ func (c *Config) ResolveProviders() {
 		c.FallbackLLM.BaseURL = p.BaseURL
 		c.FallbackLLM.APIKey = p.APIKey
 		c.FallbackLLM.Model = p.Model
+		c.FallbackLLM.AccountID = p.AccountID
 	} else if c.FallbackLLM.LegacyAPIKey != "" {
 		c.FallbackLLM.BaseURL = c.FallbackLLM.LegacyURL
 		c.FallbackLLM.APIKey = c.FallbackLLM.LegacyAPIKey

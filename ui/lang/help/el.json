@@ -1,4 +1,4 @@
-{
+﻿{
   "help.agent.additional_prompt": "Dodatecny text k promptu.",
   "help.agent.allow_filesystem_write": "Kdyz zakazano, pouze cteni.",
   "help.agent.allow_mcp": "Povoluje MCP servery.",
@@ -244,5 +244,12 @@
   "help.whisper.mode": "Mod pro whisper.",
   "help.whisper.model": "Model pro whisper.",
   "help.whisper.provider": "Poskytovatel pro whisper.",
-  "help.github.token": "Προσωπικό διακριτικό πρόσβασης (PAT) για το GitHub API. Δημιουργήστε ένα στη διεύθυνση https://github.com/settings/tokens με τα απαιτούμενα πεδία (repo, ζητήματα κ.λπ.). Stored encrypted in the vault."
+  "help.github.token": "Προσωπικό διακριτικό πρόσβασης (PAT) για το GitHub API. Δημιουργήστε ένα στη διεύθυνση https://github.com/settings/tokens με τα απαιτούμενα πεδία (repo, ζητήματα κ.λπ.). Stored encrypted in the vault.",
+  "help.ai_gateway.account_id": "Your Cloudflare Account ID. Found in the Cloudflare dashboard under Workers & Pages.",
+  "help.ai_gateway.enabled": "Enable Cloudflare AI Gateway to proxy all LLM API requests. Provides caching, rate-limiting, logging, and analytics. Local providers (Ollama) are excluded.",
+  "help.ai_gateway.gateway_id": "The name or slug of your AI Gateway instance in Cloudflare.",
+  "help.mcp_server.allowed_tools": "List of tool names exposed via MCP. Leave empty to expose all currently enabled tools.",
+  "help.mcp_server.enabled": "Enable the built-in MCP server to expose AuraGo tools for external AI agents via Streamable HTTP.",
+  "help.mcp_server.require_auth": "When enabled, MCP clients must authenticate with a Bearer token or valid session cookie.",
+  "help.providers.account_id": "Cloudflare Account ID for Workers AI providers. Required when using the workers-ai provider type."
 }

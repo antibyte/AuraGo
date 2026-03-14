@@ -1,4 +1,4 @@
-{
+﻿{
   "help.agent.additional_prompt": "Beliebiger Text, der immer am Ende des System-Prompts angehängt wird. Ideal für nutzerspezifische Regeln, Kontextinfos oder feste Anweisungen, die bei jeder Anfrage gelten sollen.",
   "help.agent.allow_filesystem_write": "Wenn deaktiviert, werden nur Lesezugriffe (list, read) erlaubt. Schreiboperationen (write, delete, move, mkdir…) werden blockiert.",
   "help.agent.allow_mcp": "⚠️ Danger Zone: Erlaubt dem Agenten, sich mit externen MCP-Servern (Model Context Protocol) zu verbinden und deren Tools zu nutzen. MCP-Server sind externe Prozesse, die beliebigen Code ausführen können — nur vertrauenswürdige Server hinzufügen!",
@@ -246,5 +246,12 @@
   "help.whisper.base_url": "Basis-URL für den Whisper-Provider.",
   "help.whisper.mode": "Whisper-Modus: 'whisper' (Standard OpenAI API), 'multimodal' (Gemini/multimodales LLM) oder 'local' (lokaler Server).",
   "help.whisper.model": "Modellname für Whisper, z.B. 'whisper-1'.",
-  "help.whisper.provider": "Wähle einen Provider aus der Provider-Verwaltung für Speech-to-Text."
+  "help.whisper.provider": "Wähle einen Provider aus der Provider-Verwaltung für Speech-to-Text.",
+  "help.ai_gateway.account_id": "Ihre Cloudflare Account-ID. Im Cloudflare-Dashboard unter Workers & Pages zu finden.",
+  "help.ai_gateway.enabled": "Cloudflare AI Gateway aktivieren, um alle LLM-API-Anfragen zu proxyen. Bietet Caching, Ratenbegrenzung und Analysen. Lokale Anbieter (Ollama) sind ausgenommen.",
+  "help.ai_gateway.gateway_id": "Der Name oder Slug Ihrer AI Gateway-Instanz in Cloudflare.",
+  "help.mcp_server.allowed_tools": "Liste der \u00fcber MCP verf\u00fcgbaren Werkzeugnamen. Leer lassen, um alle aktivierten Werkzeuge freizugeben.",
+  "help.mcp_server.enabled": "Den integrierten MCP-Server aktivieren, um AuraGo-Werkzeuge f\u00fcr externe KI-Agenten \u00fcber Streamable HTTP bereitzustellen.",
+  "help.mcp_server.require_auth": "Wenn aktiviert, m\u00fcssen MCP-Clients sich mit einem Bearer-Token oder einem g\u00fcltigen Session-Cookie authentifizieren.",
+  "help.providers.account_id": "Cloudflare Account-ID f\u00fcr Workers AI-Anbieter. Erforderlich bei Verwendung des workers-ai-Anbietertyps."
 }

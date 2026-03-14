@@ -23,6 +23,9 @@ type ProviderEntry struct {
 	APIKey  string `yaml:"-" vault:"api_key" json:"api_key,omitempty"` // API key (vault-only)
 	Model   string `yaml:"model"    json:"model"`                      // default model name
 
+	// Cloudflare Workers AI — required when Type is "workers-ai"
+	AccountID string `yaml:"account_id,omitempty" json:"account_id"` // Cloudflare account ID
+
 	// OAuth2 Authorization Code flow (optional, alternative to static API key)
 	AuthType          string `yaml:"auth_type,omitempty"           json:"auth_type"`           // "api_key" (default) or "oauth2"
 	OAuthAuthURL      string `yaml:"oauth_auth_url,omitempty"      json:"oauth_auth_url"`      // authorization endpoint
@@ -99,6 +102,7 @@ type Config struct {
 		BaseURL            string  `yaml:"-"       json:"-"`  // resolved from provider entry
 		APIKey             string  `yaml:"-"       json:"-"`  // resolved from provider entry
 		Model              string  `yaml:"-"       json:"-"`  // resolved from provider entry
+		AccountID          string  `yaml:"-"       json:"-"`  // resolved from provider entry (workers-ai)
 		LegacyURL          string  `yaml:"base_url" json:"-"` // legacy/compat: inline base URL from old config format
 		LegacyAPIKey       string  `yaml:"api_key"  json:"-"` // legacy/compat: inline API key from old config format
 		LegacyModel        string  `yaml:"model"    json:"-"` // legacy/compat: inline model from old config format
@@ -210,6 +214,7 @@ type Config struct {
 		BaseURL              string `yaml:"-"       json:"-"`  // resolved
 		APIKey               string `yaml:"-"       json:"-"`  // resolved
 		Model                string `yaml:"-"       json:"-"`  // resolved
+		AccountID            string `yaml:"-"       json:"-"`  // resolved from provider entry (workers-ai)
 		LegacyURL            string `yaml:"base_url" json:"-"` // legacy/compat
 		LegacyAPIKey         string `yaml:"api_key"  json:"-"` // legacy/compat
 		LegacyModel          string `yaml:"model"    json:"-"` // legacy/compat
@@ -548,6 +553,16 @@ type Config struct {
 		NetworkEnabled bool   `yaml:"network_enabled"` // allow sandbox containers to access the network
 		KeepAlive      bool   `yaml:"keep_alive"`      // keep sandbox MCP server running between calls
 	} `yaml:"sandbox"`
+	AIGateway struct {
+		Enabled   bool   `yaml:"enabled"`
+		AccountID string `yaml:"account_id"` // Cloudflare account ID
+		GatewayID string `yaml:"gateway_id"` // AI Gateway name/slug
+	} `yaml:"ai_gateway"`
+	MCPServer struct {
+		Enabled      bool     `yaml:"enabled"`
+		AllowedTools []string `yaml:"allowed_tools"` // tool names to expose; empty = none
+		RequireAuth  bool     `yaml:"require_auth"`  // require Bearer token or session cookie
+	} `yaml:"mcp_server"`
 }
 
 // MCPServer describes one external MCP server in the config.

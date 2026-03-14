@@ -1,4 +1,4 @@
-{
+﻿{
   "help.agent.additional_prompt": "始终附加在系统提示符末尾的任意文本。非常适合用户特定的规则、上下文信息或应适用于每个请求的固定指令。",
   "help.agent.allow_filesystem_write": "禁用时，仅允许读取操作（列表、读取）。写入操作（写入、删除、移动、mkdir...）被阻止。",
   "help.agent.allow_mcp": "⚠️ 危险区域：允许代理连接到外部 MCP 服务器（模型上下文协议）并使用其工具。 MCP 服务器是可以执行任意代码的外部进程 - 仅添加受信任的服务器！",
@@ -246,5 +246,12 @@
   "help.whisper.mode": "Whisper 模式：“whisper”（标准 OpenAI API）、“multimodal”（Gemini/multimodal LLM）或“local”（本地服务器）。",
   "help.whisper.model": "Whisper 的型号名称，例如'耳语-1'。",
   "help.whisper.provider": "从语音转文本的提供商管理中选择提供商。",
-  "help.github.token": "GitHub API 的个人访问令牌 (PAT)。在 https://github.com/settings/tokens 上创建一个具有所需范围（存储库、问题等）的令牌。加密存储在保管库中。"
+  "help.github.token": "GitHub API 的个人访问令牌 (PAT)。在 https://github.com/settings/tokens 上创建一个具有所需范围（存储库、问题等）的令牌。加密存储在保管库中。",
+  "help.ai_gateway.account_id": "Your Cloudflare Account ID. Found in the Cloudflare dashboard under Workers & Pages.",
+  "help.ai_gateway.enabled": "Enable Cloudflare AI Gateway to proxy all LLM API requests. Provides caching, rate-limiting, logging, and analytics. Local providers (Ollama) are excluded.",
+  "help.ai_gateway.gateway_id": "The name or slug of your AI Gateway instance in Cloudflare.",
+  "help.mcp_server.allowed_tools": "List of tool names exposed via MCP. Leave empty to expose all currently enabled tools.",
+  "help.mcp_server.enabled": "Enable the built-in MCP server to expose AuraGo tools for external AI agents via Streamable HTTP.",
+  "help.mcp_server.require_auth": "When enabled, MCP clients must authenticate with a Bearer token or valid session cookie.",
+  "help.providers.account_id": "Cloudflare Account ID for Workers AI providers. Required when using the workers-ai provider type."
 }

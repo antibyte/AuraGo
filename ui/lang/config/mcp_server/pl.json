@@ -1,0 +1,18 @@
+﻿{
+  "config.mcp_server.title": "MCP Server",
+  "config.mcp_server.enabled_label": "Serwer MCP w\u0142\u0105czony",
+  "config.mcp_server.require_auth": "Wymagaj uwierzytelnienia",
+  "config.mcp_server.allowed_tools": "Dozwolone narz\u0119dzia",
+  "config.mcp_server.allowed_tools_desc": "Narz\u0119dzia udost\u0119pnione przez endpoint MCP. Zostaw puste, aby udost\u0119pni\u0107 wszystkie.",
+  "config.mcp_server.token": "Token Bearer",
+  "config.mcp_server.generate_token": "Generuj token",
+  "config.mcp_server.endpoint_url": "URL endpointu",
+  "config.mcp_server.no_tools_warning": "Brak w\u0142\u0105czonych narz\u0119dzi.",
+  "config.mcp_server.auth_warning": "Uwierzytelnianie wy\u0142\u0105czone. Ka\u017cdy z dost\u0119pem do sieci mo\u017ce wywo\u0142a\u0107 Twoje narz\u0119dzia.",
+  "config.mcp_server.disabled_notice": "Serwer MCP wy\u0142\u0105czony",
+  "config.mcp_server.disabled_desc": "W\u0142\u0105cz, aby udost\u0119pni\u0107 narz\u0119dzia AuraGo przez MCP.",
+  "config.mcp_server.info": "Udost\u0119pnia narz\u0119dzia AuraGo jako zdalny serwer MCP przez Streamable HTTP.",
+  "config.mcp_server.copy_url": "Kopiuj URL",
+  "config.mcp_server.copy_token": "Kopiuj token",
+  "config.mcp_server.copied": "Skopiowano!"
+}

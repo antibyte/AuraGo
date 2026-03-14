@@ -1,4 +1,4 @@
-{
+﻿{
   "config.providers.new_provider": "Nieuwe Provider",
   "config.providers.empty": "Geen providers",
   "config.providers.authorized": "Authorized",
@@ -97,5 +97,11 @@
   "config.providers.pricing_picker_select_all": "Alle zichtbare selecteren",
   "config.providers.pricing_picker_import": "Importeren ({{count}})",
   "config.providers.filter_models": "Geconfigureerde modellen filteren...",
-  "config.providers.no_filter_results": "Geen model komt overeen met \"{{q}}\""
+  "config.providers.no_filter_results": "Geen model komt overeen met \"{{q}}\"",
+  "config.providers.type_workers_ai": "workers-ai",
+  "config.providers.hint.workers_ai": "Cloudflare API-token met Workers AI-machtigingen.",
+  "config.providers.account_id": "Account-ID",
+  "config.providers.account_id_help": "Uw Cloudflare Account-ID (te vinden in de dashboard-URL of API-instellingen).",
+  "config.providers.account_id_empty_error": "Account-ID is vereist voor Workers AI.",
+  "config.providers.workers_ai_url_auto": "URL wordt automatisch gegenereerd op basis van het Account-ID."
 }

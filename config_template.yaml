@@ -344,6 +344,14 @@ sandbox:
     timeout_seconds: 30
     network_enabled: false
     keep_alive: false
+ai_gateway:
+    enabled: false
+    account_id: ""
+    gateway_id: ""
+mcp_server:
+    enabled: false
+    allowed_tools: []
+    require_auth: true
 notifications:
     ntfy:
         enabled: false

@@ -1,6 +1,7 @@
 package llm
 
 import (
+	"fmt"
 	"strings"
 
 	"aurago/internal/config"
@@ -14,7 +15,8 @@ import (
 // so the SDK doesn't choke on an empty string.
 func NewClient(cfg *config.Config) *openai.Client {
 	apiKey := cfg.LLM.APIKey
-	isOllama := strings.EqualFold(cfg.LLM.ProviderType, "ollama")
+	providerType := strings.ToLower(cfg.LLM.ProviderType)
+	isOllama := providerType == "ollama"
 
 	// Ollama doesn't require an API key; use a dummy value so the SDK
 	// always sends a well-formed Authorization header.
@@ -42,5 +44,48 @@ func NewClient(cfg *config.Config) *openai.Client {
 		clientConfig.BaseURL = baseURL
 	}
 
+	// Workers AI: auto-build the OpenAI-compatible URL from the account ID.
+	// Overrides any manually-set BaseURL since the URL is deterministic.
+	if providerType == "workers-ai" && cfg.LLM.AccountID != "" {
+		clientConfig.BaseURL = fmt.Sprintf(
+			"https://api.cloudflare.com/client/v4/accounts/%s/ai/v1",
+			cfg.LLM.AccountID,
+		)
+	}
+
+	// AI Gateway: rewrite BaseURL to route through Cloudflare AI Gateway.
+	// Provides caching, rate-limiting, logging and fallback for any provider.
+	// Does not apply to local providers (Ollama) — no point proxying localhost.
+	if cfg.AIGateway.Enabled && cfg.AIGateway.AccountID != "" && cfg.AIGateway.GatewayID != "" && !isOllama {
+		segment := aiGatewaySegment(providerType)
+		if segment != "" {
+			clientConfig.BaseURL = fmt.Sprintf(
+				"https://gateway.ai.cloudflare.com/v1/%s/%s/%s",
+				cfg.AIGateway.AccountID,
+				cfg.AIGateway.GatewayID,
+				segment,
+			)
+		}
+	}
+
 	return openai.NewClientWithConfig(clientConfig)
+}
+
+// aiGatewaySegment maps a provider type to the Cloudflare AI Gateway URL segment.
+func aiGatewaySegment(providerType string) string {
+	switch providerType {
+	case "openai":
+		return "openai"
+	case "anthropic":
+		return "anthropic"
+	case "google":
+		return "google-ai-studio"
+	case "workers-ai":
+		return "workers-ai"
+	case "openrouter", "custom":
+		// OpenRouter and custom providers are OpenAI-compatible
+		return "openai"
+	default:
+		return ""
+	}
 }

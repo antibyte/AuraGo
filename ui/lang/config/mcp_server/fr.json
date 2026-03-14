@@ -1,0 +1,18 @@
+﻿{
+  "config.mcp_server.title": "MCP Server",
+  "config.mcp_server.enabled_label": "Serveur MCP activ\u00e9",
+  "config.mcp_server.require_auth": "Exiger l'authentification",
+  "config.mcp_server.allowed_tools": "Outils autoris\u00e9s",
+  "config.mcp_server.allowed_tools_desc": "Outils expos\u00e9s via le point de terminaison MCP. Laissez vide pour exposer tous les outils activ\u00e9s.",
+  "config.mcp_server.token": "Jeton Bearer",
+  "config.mcp_server.generate_token": "G\u00e9n\u00e9rer un jeton",
+  "config.mcp_server.endpoint_url": "URL du point de terminaison",
+  "config.mcp_server.no_tools_warning": "Aucun outil n'est actuellement activ\u00e9. Activez d'abord des outils dans la section Outils.",
+  "config.mcp_server.auth_warning": "L'authentification est d\u00e9sactiv\u00e9e. Toute personne ayant acc\u00e8s au r\u00e9seau peut appeler vos outils.",
+  "config.mcp_server.disabled_notice": "Le serveur MCP est d\u00e9sactiv\u00e9",
+  "config.mcp_server.disabled_desc": "Activez le bouton pour exposer les outils AuraGo via le protocole MCP pour les agents externes.",
+  "config.mcp_server.info": "Expose les outils AuraGo en tant que serveur MCP distant via HTTP Streamable. Les agents IA externes peuvent d\u00e9couvrir et appeler vos outils sur le r\u00e9seau.",
+  "config.mcp_server.copy_url": "Copier l'URL",
+  "config.mcp_server.copy_token": "Copier le jeton",
+  "config.mcp_server.copied": "Copi\u00e9 !"
+}

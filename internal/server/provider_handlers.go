@@ -4,6 +4,7 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/llm"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 	"strings"
@@ -19,6 +20,7 @@ type providerJSON struct {
 	BaseURL           string             `json:"base_url"`
 	APIKey            string             `json:"api_key"`
 	Model             string             `json:"model"`
+	AccountID         string             `json:"account_id"`
 	AuthType          string             `json:"auth_type"`
 	OAuthAuthURL      string             `json:"oauth_auth_url"`
 	OAuthTokenURL     string             `json:"oauth_token_url"`
@@ -71,6 +73,7 @@ func handleGetProviders(s *Server, w http.ResponseWriter, _ *http.Request) {
 			BaseURL:           p.BaseURL,
 			APIKey:            apiKey,
 			Model:             p.Model,
+			AccountID:         p.AccountID,
 			AuthType:          authType,
 			OAuthAuthURL:      p.OAuthAuthURL,
 			OAuthTokenURL:     p.OAuthTokenURL,
@@ -156,6 +159,7 @@ func handlePutProviders(s *Server, w http.ResponseWriter, r *http.Request) {
 			BaseURL:           p.BaseURL,
 			APIKey:            apiKey,
 			Model:             p.Model,
+			AccountID:         p.AccountID,
 			AuthType:          authType,
 			OAuthAuthURL:      p.OAuthAuthURL,
 			OAuthTokenURL:     p.OAuthTokenURL,
@@ -190,6 +194,9 @@ func handlePutProviders(s *Server, w http.ResponseWriter, r *http.Request) {
 			"type":     e.Type,
 			"base_url": e.BaseURL,
 			"model":    e.Model,
+		}
+		if e.AccountID != "" {
+			m["account_id"] = e.AccountID
 		}
 		if len(e.Models) > 0 {
 			m["models"] = e.Models
@@ -277,6 +284,10 @@ func handleFetchPricing(s *Server, w http.ResponseWriter, providerID string) {
 		providerType = p.Type
 		apiKey = p.APIKey
 		baseURL = p.BaseURL
+		// Workers AI: auto-build URL from account ID if BaseURL is empty.
+		if providerType == "workers-ai" && baseURL == "" && p.AccountID != "" {
+			baseURL = fmt.Sprintf("https://api.cloudflare.com/client/v4/accounts/%s/ai/v1", p.AccountID)
+		}
 	}
 	s.CfgMu.RUnlock()
 

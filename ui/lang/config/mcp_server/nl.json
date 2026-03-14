@@ -1,0 +1,18 @@
+﻿{
+  "config.mcp_server.title": "MCP Server",
+  "config.mcp_server.enabled_label": "MCP Server ingeschakeld",
+  "config.mcp_server.require_auth": "Authenticatie vereisen",
+  "config.mcp_server.allowed_tools": "Toegestane tools",
+  "config.mcp_server.allowed_tools_desc": "Tools beschikbaar via het MCP-eindpunt. Laat leeg om alle ingeschakelde tools te tonen.",
+  "config.mcp_server.token": "Bearer-token",
+  "config.mcp_server.generate_token": "Token genereren",
+  "config.mcp_server.endpoint_url": "Eindpunt-URL",
+  "config.mcp_server.no_tools_warning": "Geen tools ingeschakeld.",
+  "config.mcp_server.auth_warning": "Authenticatie uitgeschakeld. Iedereen met netwerktoegang kan uw tools aanroepen.",
+  "config.mcp_server.disabled_notice": "MCP Server is uitgeschakeld",
+  "config.mcp_server.disabled_desc": "Schakel in om AuraGo-tools via MCP beschikbaar te maken.",
+  "config.mcp_server.info": "Stelt AuraGo-tools beschikbaar als externe MCP-server via Streamable HTTP.",
+  "config.mcp_server.copy_url": "URL kopi\u00ebren",
+  "config.mcp_server.copy_token": "Token kopi\u00ebren",
+  "config.mcp_server.copied": "Gekopieerd!"
+}

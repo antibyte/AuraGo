@@ -1,0 +1,18 @@
+﻿{
+  "config.mcp_server.title": "MCP Server",
+  "config.mcp_server.enabled_label": "MCP Server aktivert",
+  "config.mcp_server.require_auth": "Krev autentisering",
+  "config.mcp_server.allowed_tools": "Tillatte verkt\u00f8y",
+  "config.mcp_server.allowed_tools_desc": "Verkt\u00f8y eksponert via MCP-endpunktet. La st\u00e5 tomt for \u00e5 eksponere alle.",
+  "config.mcp_server.token": "Bearer-token",
+  "config.mcp_server.generate_token": "Generer token",
+  "config.mcp_server.endpoint_url": "Endpunkt-URL",
+  "config.mcp_server.no_tools_warning": "Ingen verkt\u00f8y aktivert.",
+  "config.mcp_server.auth_warning": "Autentisering deaktivert. Alle med nettverkstilgang kan kalle verkt\u00f8yene dine.",
+  "config.mcp_server.disabled_notice": "MCP Server er deaktivert",
+  "config.mcp_server.disabled_desc": "Aktiver for \u00e5 eksponere AuraGo-verkt\u00f8y via MCP.",
+  "config.mcp_server.info": "Eksponerer AuraGo-verkt\u00f8y som ekstern MCP-server via Streamable HTTP.",
+  "config.mcp_server.copy_url": "Kopier URL",
+  "config.mcp_server.copy_token": "Kopier token",
+  "config.mcp_server.copied": "Kopiert!"
+}

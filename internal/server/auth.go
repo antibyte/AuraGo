@@ -275,6 +275,7 @@ var authBypassPrefixes = []string{
 	"/api/openrouter/models",
 	"/api/oauth/callback",
 	"/api/ui-language",
+	"/mcp",
 	"/setup",
 	"/shared.css",
 	"/shared.js",

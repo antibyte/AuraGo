@@ -1,4 +1,4 @@
-{
+﻿{
   "config.group.system_core": "Σύστημα και Πυρήνας",
   "config.group.agent_llm": "Πράκτορας και LLM",
   "config.group.tools_services": "Εργαλεία και Υπηρεσίες",
@@ -144,5 +144,9 @@
   "config.github.repos_list_empty": "Kante klik sto Anaktisi repos gia phortosi ton GitHub repos sas",
   "config.github.agent_created_note": "Ta repos poy dimioyrgise o agent einai pantote prosvata - akoma kai choris riti egkrisi.",
   "config.github.agent_badge": "Agent",
-  "config.github.agent_created_always_allowed": "Dimioyrgithike apo agent - pantote epitrepomeno"
+  "config.github.agent_created_always_allowed": "Dimioyrgithike apo agent - pantote epitrepomeno",
+  "config.section.ai_gateway.label": "AI Gateway",
+  "config.section.ai_gateway.desc": "\u0394\u03c1\u03bf\u03bc\u03bf\u03bb\u03cc\u03b3\u03b7\u03c3\u03b7 LLM \u03b1\u03b9\u03c4\u03b7\u03bc\u03ac\u03c4\u03c9\u03bd \u03bc\u03ad\u03c3\u03c9 Cloudflare AI Gateway",
+  "config.section.mcp_server.label": "MCP Server",
+  "config.section.mcp_server.desc": "\u0388\u03ba\u03b8\u03b5\u03c3\u03b7 \u03b5\u03c1\u03b3\u03b1\u03bb\u03b5\u03af\u03c9\u03bd AuraGo \u03bc\u03ad\u03c3\u03c9 MCP"
 }

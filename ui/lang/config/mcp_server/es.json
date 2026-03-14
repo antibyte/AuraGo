@@ -1,0 +1,18 @@
+﻿{
+  "config.mcp_server.title": "MCP Server",
+  "config.mcp_server.enabled_label": "Servidor MCP habilitado",
+  "config.mcp_server.require_auth": "Requerir autenticaci\u00f3n",
+  "config.mcp_server.allowed_tools": "Herramientas permitidas",
+  "config.mcp_server.allowed_tools_desc": "Herramientas expuestas a trav\u00e9s del endpoint MCP. Deje vac\u00edo para exponer todas las herramientas habilitadas.",
+  "config.mcp_server.token": "Token Bearer",
+  "config.mcp_server.generate_token": "Generar token",
+  "config.mcp_server.endpoint_url": "URL del endpoint",
+  "config.mcp_server.no_tools_warning": "No hay herramientas habilitadas. Habilite herramientas en la secci\u00f3n Herramientas primero.",
+  "config.mcp_server.auth_warning": "La autenticaci\u00f3n est\u00e1 deshabilitada. Cualquiera con acceso a la red puede llamar a sus herramientas.",
+  "config.mcp_server.disabled_notice": "El servidor MCP est\u00e1 deshabilitado",
+  "config.mcp_server.disabled_desc": "Active el interruptor para exponer las herramientas de AuraGo a trav\u00e9s del protocolo MCP para agentes externos.",
+  "config.mcp_server.info": "Expone las herramientas de AuraGo como servidor MCP remoto mediante HTTP Streamable. Los agentes IA externos pueden descubrir y llamar sus herramientas a trav\u00e9s de la red.",
+  "config.mcp_server.copy_url": "Copiar URL",
+  "config.mcp_server.copy_token": "Copiar token",
+  "config.mcp_server.copied": "\u00a1Copiado!"
+}

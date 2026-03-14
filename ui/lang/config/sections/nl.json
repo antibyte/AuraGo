@@ -1,4 +1,4 @@
-{
+﻿{
   "config.group.system_core": "Systeem & Core",
   "config.group.agent_llm": "Agent & LLM",
   "config.group.tools_services": "Tools & Diensten",
@@ -144,5 +144,9 @@
   "config.github.repos_list_empty": "Klik op Repos ophalen om je GitHub-repos te laden",
   "config.github.agent_created_note": "Repos die de agent heeft aangemaakt zijn altijd toegankelijk - ook zonder expliciete goedkeuring.",
   "config.github.agent_badge": "Agent",
-  "config.github.agent_created_always_allowed": "Aangemaakt door agent - altijd toegestaan"
+  "config.github.agent_created_always_allowed": "Aangemaakt door agent - altijd toegestaan",
+  "config.section.ai_gateway.label": "AI Gateway",
+  "config.section.ai_gateway.desc": "LLM-verzoeken via Cloudflare AI Gateway routeren",
+  "config.section.mcp_server.label": "MCP Server",
+  "config.section.mcp_server.desc": "AuraGo-tools via MCP beschikbaar maken voor externe agents"
 }

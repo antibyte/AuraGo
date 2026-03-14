@@ -1,0 +1,11 @@
+﻿{
+  "config.ai_gateway.title": "AI Gateway",
+  "config.ai_gateway.enabled_label": "AI Gateway aktiverad",
+  "config.ai_gateway.account_id": "Konto-ID",
+  "config.ai_gateway.account_id_placeholder": "Cloudflare Account ID",
+  "config.ai_gateway.gateway_id": "Gateway-ID",
+  "config.ai_gateway.gateway_id_placeholder": "my-gateway",
+  "config.ai_gateway.disabled_notice": "AI Gateway \u00e4r inaktiverad",
+  "config.ai_gateway.disabled_desc": "Aktivera v\u00e4xeln f\u00f6r att dirigera LLM-f\u00f6rfr\u00e5gningar via Cloudflare AI Gateway.",
+  "config.ai_gateway.info": "Dirigerar alla LLM API-f\u00f6rfr\u00e5gningar via Cloudflare AI Gateway. Erbjuder caching, hastighetsbegr\u00e4nsning, loggning och failover. Lokala leverant\u00f6rer (Ollama) \u00e4r undantagna."
+}

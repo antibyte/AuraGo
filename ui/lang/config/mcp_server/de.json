@@ -1,0 +1,18 @@
+﻿{
+  "config.mcp_server.title": "MCP Server",
+  "config.mcp_server.enabled_label": "MCP Server aktiviert",
+  "config.mcp_server.require_auth": "Authentifizierung erforderlich",
+  "config.mcp_server.allowed_tools": "Erlaubte Werkzeuge",
+  "config.mcp_server.allowed_tools_desc": "Werkzeuge, die \u00fcber den MCP-Endpunkt verf\u00fcgbar sind. Leer lassen, um alle aktivierten Werkzeuge freizugeben.",
+  "config.mcp_server.token": "Bearer-Token",
+  "config.mcp_server.generate_token": "Token generieren",
+  "config.mcp_server.endpoint_url": "Endpunkt-URL",
+  "config.mcp_server.no_tools_warning": "Keine Werkzeuge sind derzeit aktiviert. Aktivieren Sie zuerst Werkzeuge im Werkzeuge-Bereich.",
+  "config.mcp_server.auth_warning": "Authentifizierung ist deaktiviert. Jeder mit Netzwerkzugang kann Ihre Werkzeuge aufrufen.",
+  "config.mcp_server.disabled_notice": "MCP Server ist deaktiviert",
+  "config.mcp_server.disabled_desc": "Aktivieren Sie den Schalter, um AuraGo-Werkzeuge \u00fcber das Model Context Protocol (MCP) f\u00fcr externe Agenten bereitzustellen.",
+  "config.mcp_server.info": "Stellt AuraGo-Werkzeuge als Remote-MCP-Server \u00fcber Streamable HTTP bereit. Externe KI-Agenten k\u00f6nnen Ihre Werkzeuge \u00fcber das Netzwerk erkennen und aufrufen.",
+  "config.mcp_server.copy_url": "URL kopieren",
+  "config.mcp_server.copy_token": "Token kopieren",
+  "config.mcp_server.copied": "Kopiert!"
+}

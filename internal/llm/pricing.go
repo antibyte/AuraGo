@@ -48,6 +48,8 @@ func FetchPricingForProvider(providerType, apiKey, baseURL string) ([]ModelPrici
 		return fetchOpenRouterPricingFiltered("google/")
 	case "ollama":
 		return fetchOllamaPricing(baseURL)
+	case "workers-ai":
+		return fetchWorkersAIPricing(apiKey, baseURL)
 	default:
 		return nil, nil
 	}
@@ -218,4 +220,101 @@ func ToModelCosts(pricing []ModelPricing) []config.ModelCost {
 		}
 	}
 	return costs
+}
+
+// fetchWorkersAIPricing returns pricing for Cloudflare Workers AI models.
+// Workers AI uses a neuron-based billing model. The values below are converted
+// to approximate per-million-token costs for budget tracking compatibility.
+// If an API key and base URL are provided, we attempt to list models from the
+// Cloudflare API; otherwise we return the hardcoded popular models list.
+func fetchWorkersAIPricing(apiKey, baseURL string) ([]ModelPricing, error) {
+	// Attempt live model list if credentials are available.
+	if apiKey != "" && baseURL != "" {
+		models, err := fetchWorkersAIModelsFromAPI(apiKey, baseURL)
+		if err == nil && len(models) > 0 {
+			return models, nil
+		}
+		// Fall through to hardcoded list on error.
+	}
+	return workersAIHardcodedPricing(), nil
+}
+
+// fetchWorkersAIModelsFromAPI queries the Cloudflare Workers AI models endpoint.
+// baseURL should be the account-scoped API base, e.g.
+// "https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/v1".
+func fetchWorkersAIModelsFromAPI(apiKey, baseURL string) ([]ModelPricing, error) {
+	// The models endpoint is at /models relative to the AI base.
+	url := strings.TrimRight(baseURL, "/") + "/models"
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+apiKey)
+
+	client := &http.Client{Timeout: 15 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to reach Workers AI: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("Workers AI returned HTTP %d", resp.StatusCode)
+	}
+
+	var apiResp struct {
+		Result []struct {
+			Name string `json:"name"`
+		} `json:"result"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
+		return nil, fmt.Errorf("failed to parse Workers AI models response: %w", err)
+	}
+
+	// Build pricing with known costs or zero (free-tier models).
+	known := workersAIKnownCosts()
+	result := make([]ModelPricing, 0, len(apiResp.Result))
+	for _, m := range apiResp.Result {
+		p := ModelPricing{ModelID: m.Name}
+		if k, ok := known[m.Name]; ok {
+			p.InputPerMillion = k.InputPerMillion
+			p.OutputPerMillion = k.OutputPerMillion
+		}
+		result = append(result, p)
+	}
+	return result, nil
+}
+
+// workersAIHardcodedPricing returns a static list of popular Workers AI models
+// with approximate per-million-token pricing (USD).
+func workersAIHardcodedPricing() []ModelPricing {
+	known := workersAIKnownCosts()
+	result := make([]ModelPricing, 0, len(known))
+	for id, p := range known {
+		result = append(result, ModelPricing{
+			ModelID:          id,
+			InputPerMillion:  p.InputPerMillion,
+			OutputPerMillion: p.OutputPerMillion,
+		})
+	}
+	return result
+}
+
+// workersAIKnownCosts returns approximate per-million-token costs for known
+// Workers AI models.  Workers AI bills by neurons; these are converted to
+// per-token equivalents based on published rates.
+func workersAIKnownCosts() map[string]ModelPricing {
+	return map[string]ModelPricing{
+		"@cf/meta/llama-3.1-8b-instruct":               {InputPerMillion: 0.0, OutputPerMillion: 0.0}, // free tier
+		"@cf/meta/llama-3.1-70b-instruct":              {InputPerMillion: 0.34, OutputPerMillion: 0.40},
+		"@cf/meta/llama-3.2-1b-instruct":               {InputPerMillion: 0.0, OutputPerMillion: 0.0}, // free tier
+		"@cf/meta/llama-3.2-3b-instruct":               {InputPerMillion: 0.0, OutputPerMillion: 0.0}, // free tier
+		"@cf/meta/llama-3.3-70b-instruct-fp8-fast":     {InputPerMillion: 0.34, OutputPerMillion: 0.40},
+		"@cf/mistral/mistral-7b-instruct-v0.2":         {InputPerMillion: 0.0, OutputPerMillion: 0.0}, // free tier
+		"@cf/google/gemma-7b-it":                       {InputPerMillion: 0.0, OutputPerMillion: 0.0}, // free tier
+		"@cf/qwen/qwen1.5-14b-chat-awq":                {InputPerMillion: 0.0, OutputPerMillion: 0.0}, // free tier
+		"@cf/deepseek-ai/deepseek-r1-distill-qwen-32b": {InputPerMillion: 0.15, OutputPerMillion: 0.15},
+		"@hf/thebloke/codellama-7b-instruct-awq":       {InputPerMillion: 0.0, OutputPerMillion: 0.0}, // free tier
+	}
 }

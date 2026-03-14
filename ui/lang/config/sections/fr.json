@@ -1,4 +1,4 @@
-{
+﻿{
   "config.group.system_core": "Système & Cœur",
   "config.group.agent_llm": "Agent & LLM",
   "config.group.tools_services": "Outils & Services",
@@ -144,5 +144,9 @@
   "config.github.repos_list_empty": "Cliquez sur Recuperer les depots pour charger vos depots GitHub",
   "config.github.agent_created_note": "Les depots crees par l'agent sont toujours accessibles - meme sans approbation explicite.",
   "config.github.agent_badge": "Agent",
-  "config.github.agent_created_always_allowed": "Cree par l'agent - toujours autorise"
+  "config.github.agent_created_always_allowed": "Cree par l'agent - toujours autorise",
+  "config.section.ai_gateway.label": "AI Gateway",
+  "config.section.ai_gateway.desc": "Acheminer les requ\u00eates LLM via Cloudflare AI Gateway",
+  "config.section.mcp_server.label": "Serveur MCP",
+  "config.section.mcp_server.desc": "Exposer les outils AuraGo via MCP pour agents externes"
 }

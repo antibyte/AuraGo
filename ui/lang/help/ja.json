@@ -1,4 +1,4 @@
-{
+﻿{
   "help.agent.additional_prompt": "システム プロンプトの最後に常に追加される任意のテキスト。すべてのリクエストに適用する必要があるユーザー固有のルール、コンテキスト情報、または固定命令に最適です。",
   "help.agent.allow_filesystem_write": "無効にすると、読み取り操作 (リスト、読み取り) のみが許可されます。書き込み操作 (書き込み、削除、移動、mkdir など) はブロックされます。",
   "help.agent.allow_mcp": "⚠️ 危険ゾーン: エージェントが外部 MCP サーバー (モデル コンテキスト プロトコル) に接続し、そのツールを使用できるようにします。 MCP サーバーは、任意のコードを実行できる外部プロセスです。信頼できるサーバーのみを追加してください。",
@@ -246,5 +246,12 @@
   "help.whisper.mode": "ウィスパー モード: 「ウィスパー」 (標準 OpenAI API)、「マルチモーダル」 (Gemini/マルチモーダル LLM)、または「ローカル」 (ローカル サーバー)。",
   "help.whisper.model": "Whisper のモデル名、例: 「ささやき-1」。",
   "help.whisper.provider": "Speech-to-Text のプロバイダー管理からプロバイダーを選択します。",
-  "help.github.token": "GitHub API のパーソナル アクセス トークン (PAT)。 https://github.com/settings/tokens で必要なスコープ (リポジトリ、問題など) を指定して作成します。暗号化されて金庫に保管されます。"
+  "help.github.token": "GitHub API のパーソナル アクセス トークン (PAT)。 https://github.com/settings/tokens で必要なスコープ (リポジトリ、問題など) を指定して作成します。暗号化されて金庫に保管されます。",
+  "help.ai_gateway.account_id": "Your Cloudflare Account ID. Found in the Cloudflare dashboard under Workers & Pages.",
+  "help.ai_gateway.enabled": "Enable Cloudflare AI Gateway to proxy all LLM API requests. Provides caching, rate-limiting, logging, and analytics. Local providers (Ollama) are excluded.",
+  "help.ai_gateway.gateway_id": "The name or slug of your AI Gateway instance in Cloudflare.",
+  "help.mcp_server.allowed_tools": "List of tool names exposed via MCP. Leave empty to expose all currently enabled tools.",
+  "help.mcp_server.enabled": "Enable the built-in MCP server to expose AuraGo tools for external AI agents via Streamable HTTP.",
+  "help.mcp_server.require_auth": "When enabled, MCP clients must authenticate with a Bearer token or valid session cookie.",
+  "help.providers.account_id": "Cloudflare Account ID for Workers AI providers. Required when using the workers-ai provider type."
 }

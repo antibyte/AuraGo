@@ -1,0 +1,11 @@
+﻿{
+  "config.ai_gateway.title": "AI Gateway",
+  "config.ai_gateway.enabled_label": "AI Gateway povolen",
+  "config.ai_gateway.account_id": "ID \u00fa\u010dtu",
+  "config.ai_gateway.account_id_placeholder": "Cloudflare Account ID",
+  "config.ai_gateway.gateway_id": "ID Gateway",
+  "config.ai_gateway.gateway_id_placeholder": "my-gateway",
+  "config.ai_gateway.disabled_notice": "AI Gateway je vypnut\u00fd",
+  "config.ai_gateway.disabled_desc": "Zapn\u011bte p\u0159ep\u00edna\u010d pro sm\u011brov\u00e1n\u00ed LLM po\u017eadavk\u016f p\u0159es Cloudflare AI Gateway.",
+  "config.ai_gateway.info": "Sm\u011bruje v\u0161echny LLM API po\u017eadavky p\u0159es Cloudflare AI Gateway. Poskytuje cache, limity, logov\u00e1n\u00ed a failover. Lok\u00e1ln\u00ed poskytovatel\u00e9 (Ollama) jsou vylou\u010deni."
+}

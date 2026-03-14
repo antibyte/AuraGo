@@ -1,4 +1,4 @@
-{
+﻿{
   "help.agent.additional_prompt": "Arbitrary text that is always appended at the end of the system prompt. Ideal for user-specific rules, context info, or fixed instructions that should apply to every request.",
   "help.agent.allow_filesystem_write": "When disabled, only read operations (list, read) are allowed. Write operations (write, delete, move, mkdir…) are blocked.",
   "help.agent.allow_mcp": "⚠️ Danger Zone: Allows the agent to connect to external MCP servers (Model Context Protocol) and use their tools. MCP servers are external processes that can execute arbitrary code — only add trusted servers!",
@@ -246,5 +246,12 @@
   "help.whisper.base_url": "Base URL for the Whisper provider.",
   "help.whisper.mode": "Whisper mode: 'whisper' (standard OpenAI API), 'multimodal' (Gemini/multimodal LLM) or 'local' (local server).",
   "help.whisper.model": "Model name for Whisper, e.g. 'whisper-1'.",
-  "help.whisper.provider": "Select a provider from the provider management for speech-to-text."
+  "help.whisper.provider": "Select a provider from the provider management for speech-to-text.",
+  "help.ai_gateway.account_id": "Your Cloudflare Account ID. Found in the Cloudflare dashboard under Workers & Pages.",
+  "help.ai_gateway.enabled": "Enable Cloudflare AI Gateway to proxy all LLM API requests. Provides caching, rate-limiting, logging, and analytics. Local providers (Ollama) are excluded.",
+  "help.ai_gateway.gateway_id": "The name or slug of your AI Gateway instance in Cloudflare.",
+  "help.mcp_server.allowed_tools": "List of tool names exposed via MCP. Leave empty to expose all currently enabled tools.",
+  "help.mcp_server.enabled": "Enable the built-in MCP server to expose AuraGo tools for external AI agents via Streamable HTTP.",
+  "help.mcp_server.require_auth": "When enabled, MCP clients must authenticate with a Bearer token or valid session cookie.",
+  "help.providers.account_id": "Cloudflare Account ID for Workers AI providers. Required when using the workers-ai provider type."
 }

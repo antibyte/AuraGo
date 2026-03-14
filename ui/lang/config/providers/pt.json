@@ -1,4 +1,4 @@
-{
+﻿{
   "config.providers.new_provider": "Novy Poskytovatel",
   "config.providers.empty": "Zadni poskytovatele",
   "config.providers.authorized": "Authorized",
@@ -94,5 +94,11 @@
   "config.providers.pricing_picker_select_all": "Selecionar todos os visíveis",
   "config.providers.pricing_picker_import": "Importar ({{count}})",
   "config.providers.filter_models": "Filtrar modelos configurados...",
-  "config.providers.no_filter_results": "Nenhum modelo corresponde a \"{{q}}\""
+  "config.providers.no_filter_results": "Nenhum modelo corresponde a \"{{q}}\"",
+  "config.providers.type_workers_ai": "workers-ai",
+  "config.providers.hint.workers_ai": "Token API Cloudflare com permiss\u00f5es Workers AI.",
+  "config.providers.account_id": "ID da conta",
+  "config.providers.account_id_help": "Seu ID de conta Cloudflare (encontrado na URL do painel ou configura\u00e7\u00f5es de API).",
+  "config.providers.account_id_empty_error": "O ID da conta \u00e9 obrigat\u00f3rio para Workers AI.",
+  "config.providers.workers_ai_url_auto": "A URL \u00e9 gerada automaticamente a partir do ID da conta."
 }

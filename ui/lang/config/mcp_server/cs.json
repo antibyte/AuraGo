@@ -1,0 +1,18 @@
+﻿{
+  "config.mcp_server.title": "MCP Server",
+  "config.mcp_server.enabled_label": "MCP Server povolen",
+  "config.mcp_server.require_auth": "Vy\u017eadovat ov\u011b\u0159en\u00ed",
+  "config.mcp_server.allowed_tools": "Povolen\u00e9 n\u00e1stroje",
+  "config.mcp_server.allowed_tools_desc": "N\u00e1stroje dostupn\u00e9 p\u0159es MCP endpoint. Nechte pr\u00e1zdn\u00e9 pro zp\u0159\u00edstupn\u011bn\u00ed v\u0161ech.",
+  "config.mcp_server.token": "Bearer token",
+  "config.mcp_server.generate_token": "Generovat token",
+  "config.mcp_server.endpoint_url": "URL endpointu",
+  "config.mcp_server.no_tools_warning": "\u017d\u00e1dn\u00e9 n\u00e1stroje nejsou povoleny.",
+  "config.mcp_server.auth_warning": "Ov\u011b\u0159ov\u00e1n\u00ed vypnuto. Kdokoli s p\u0159\u00edstupem k s\u00edti m\u016f\u017ee volat va\u0161e n\u00e1stroje.",
+  "config.mcp_server.disabled_notice": "MCP Server je vypnut\u00fd",
+  "config.mcp_server.disabled_desc": "Povolte pro zp\u0159\u00edstupn\u011bn\u00ed n\u00e1stroj\u016f AuraGo p\u0159es MCP.",
+  "config.mcp_server.info": "Zp\u0159\u00edstup\u0148uje n\u00e1stroje AuraGo jako vzd\u00e1len\u00fd MCP server p\u0159es Streamable HTTP.",
+  "config.mcp_server.copy_url": "Kop\u00edrovat URL",
+  "config.mcp_server.copy_token": "Kop\u00edrovat token",
+  "config.mcp_server.copied": "Zkop\u00edrov\u00e1no!"
+}

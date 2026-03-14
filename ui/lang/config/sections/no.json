@@ -1,4 +1,4 @@
-{
+﻿{
   "config.group.system_core": "System og kjerne",
   "config.group.agent_llm": "Agent & LLM",
   "config.group.tools_services": "Verktøy og tjenester",
@@ -144,5 +144,9 @@
   "config.github.repos_list_empty": "Klikk paa Hent repos for aa laste inn dine GitHub-repos",
   "config.github.agent_created_note": "Repos opprettet av agenten er alltid tilgjengelige - selv uten eksplisitt godkjenning.",
   "config.github.agent_badge": "Agent",
-  "config.github.agent_created_always_allowed": "Opprettet av agent - alltid tillatt"
+  "config.github.agent_created_always_allowed": "Opprettet av agent - alltid tillatt",
+  "config.section.ai_gateway.label": "AI Gateway",
+  "config.section.ai_gateway.desc": "Rute LLM-foresp\u00f8rsler via Cloudflare AI Gateway",
+  "config.section.mcp_server.label": "MCP Server",
+  "config.section.mcp_server.desc": "Eksponere AuraGo-verkt\u00f8y via MCP"
 }

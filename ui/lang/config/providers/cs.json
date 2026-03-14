@@ -1,4 +1,4 @@
-{
+﻿{
   "config.providers.new_provider": "Novy Poskytovatel",
   "config.providers.empty": "Zadni poskytovatele",
   "config.providers.authorized": "Authorized",
@@ -97,5 +97,11 @@
   "config.providers.pricing_picker_select_all": "Vybrat vše viditelné",
   "config.providers.pricing_picker_import": "Importovat ({{count}})",
   "config.providers.filter_models": "Filtrovat konfigurované modely...",
-  "config.providers.no_filter_results": "Žádný model neodpovídá \"{{q}}\""
+  "config.providers.no_filter_results": "Žádný model neodpovídá \"{{q}}\"",
+  "config.providers.type_workers_ai": "workers-ai",
+  "config.providers.hint.workers_ai": "API token Cloudflare s opr\u00e1vn\u011bn\u00edmi Workers AI.",
+  "config.providers.account_id": "ID \u00fa\u010dtu",
+  "config.providers.account_id_help": "Va\u0161e Cloudflare Account ID (najdete v URL panelu nebo nastaven\u00ed API).",
+  "config.providers.account_id_empty_error": "ID \u00fa\u010dtu je povinn\u00e9 pro Workers AI.",
+  "config.providers.workers_ai_url_auto": "URL se generuje automaticky z ID \u00fa\u010dtu."
 }

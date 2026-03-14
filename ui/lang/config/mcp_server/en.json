@@ -1,0 +1,18 @@
+﻿{
+  "config.mcp_server.title": "MCP Server",
+  "config.mcp_server.enabled_label": "MCP Server enabled",
+  "config.mcp_server.require_auth": "Require authentication",
+  "config.mcp_server.allowed_tools": "Allowed tools",
+  "config.mcp_server.allowed_tools_desc": "Tools exposed via the MCP endpoint. Leave empty to expose all enabled tools.",
+  "config.mcp_server.token": "Bearer token",
+  "config.mcp_server.generate_token": "Generate token",
+  "config.mcp_server.endpoint_url": "Endpoint URL",
+  "config.mcp_server.no_tools_warning": "No tools are currently enabled. Enable tools in the Tools section first.",
+  "config.mcp_server.auth_warning": "Authentication is disabled. Anyone with network access can call your tools.",
+  "config.mcp_server.disabled_notice": "MCP Server is disabled",
+  "config.mcp_server.disabled_desc": "Enable the toggle to expose AuraGo tools via the Model Context Protocol (MCP) for external agents.",
+  "config.mcp_server.info": "Exposes AuraGo tools as a remote MCP server using Streamable HTTP transport. External AI agents can discover and call your tools over the network.",
+  "config.mcp_server.copy_url": "Copy URL",
+  "config.mcp_server.copy_token": "Copy token",
+  "config.mcp_server.copied": "Copied!"
+}

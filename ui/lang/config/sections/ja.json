@@ -1,4 +1,4 @@
-{
+﻿{
   "config.group.system_core": "システムとコア",
   "config.group.agent_llm": "エージェントと LLM",
   "config.group.tools_services": "ツールとサービス",
@@ -144,5 +144,9 @@
   "config.github.repos_list_empty": "GitHub repo wo yomikomi suru ni wa Repo wo shutoku wo kurikku shite kudasai",
   "config.github.agent_created_note": "Agent ga sakusei shita repo wa, meijiteki na shounin nashi demo tsuneni akusesu kanou desu.",
   "config.github.agent_badge": "Agent",
-  "config.github.agent_created_always_allowed": "Agent ga sakusei - tsuneni kyoka"
+  "config.github.agent_created_always_allowed": "Agent ga sakusei - tsuneni kyoka",
+  "config.section.ai_gateway.label": "AI Gateway",
+  "config.section.ai_gateway.desc": "Cloudflare AI Gateway\u7d4c\u7531\u3067LLM\u30ea\u30af\u30a8\u30b9\u30c8\u3092\u30eb\u30fc\u30c6\u30a3\u30f3\u30b0",
+  "config.section.mcp_server.label": "MCP\u30b5\u30fc\u30d0\u30fc",
+  "config.section.mcp_server.desc": "\u5916\u90e8\u30a8\u30fc\u30b8\u30a7\u30f3\u30c8\u5411\u3051\u306bMCP\u3067AuraGo\u30c4\u30fc\u30eb\u3092\u516c\u958b"
 }

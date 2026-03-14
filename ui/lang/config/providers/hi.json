@@ -1,4 +1,4 @@
-{
+﻿{
   "config.providers.new_provider": "नया प्रदाता",
   "config.providers.empty": "कोई प्रदाता कॉन्फ़िगर नहीं किया गया. एक जोड़ें!",
   "config.providers.authorized": "अधिकृत",
@@ -83,5 +83,11 @@
   "config.providers.pricing_picker_select_all": "सभी दृश्यमान चुनें",
   "config.providers.pricing_picker_import": "आयात करें ({{count}})",
   "config.providers.filter_models": "कॉन्फ़िगर किए गए मॉडल फ़िल्टर करें...",
-  "config.providers.no_filter_results": "\"{{q}}\" से कोई मॉडल मेल नहीं खाता"
+  "config.providers.no_filter_results": "\"{{q}}\" से कोई मॉडल मेल नहीं खाता",
+  "config.providers.type_workers_ai": "workers-ai",
+  "config.providers.hint.workers_ai": "Workers AI \u0905\u0928\u0941\u092e\u0924\u093f\u092f\u094b\u0902 \u0915\u0947 \u0938\u093e\u0925 Cloudflare API \u091f\u094b\u0915\u0928\u0964",
+  "config.providers.account_id": "\u0916\u093e\u0924\u093e ID",
+  "config.providers.account_id_help": "\u0906\u092a\u0915\u093e Cloudflare \u0916\u093e\u0924\u093e ID (\u0921\u0948\u0936\u092c\u094b\u0930\u094d\u0921 URL \u092f\u093e API \u0938\u0947\u091f\u093f\u0902\u0917\u094d\u0938 \u092e\u0947\u0902 \u092e\u093f\u0932\u0947\u0917\u093e)\u0964",
+  "config.providers.account_id_empty_error": "Workers AI \u0915\u0947 \u0932\u093f\u090f \u0916\u093e\u0924\u093e ID \u0906\u0935\u0936\u094d\u092f\u0915 \u0939\u0948\u0964",
+  "config.providers.workers_ai_url_auto": "URL \u0916\u093e\u0924\u093e ID \u0938\u0947 \u0938\u094d\u0935\u091a\u093e\u0932\u093f\u0924 \u0930\u0942\u092a \u0938\u0947 \u0909\u0924\u094d\u092a\u0928\u094d\u0928 \u0939\u094b\u0924\u093e \u0939\u0948\u0964"
 }

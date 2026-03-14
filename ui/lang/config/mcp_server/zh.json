@@ -1,0 +1,18 @@
+﻿{
+  "config.mcp_server.title": "MCP \u670d\u52a1\u5668",
+  "config.mcp_server.enabled_label": "MCP \u670d\u52a1\u5668\u5df2\u542f\u7528",
+  "config.mcp_server.require_auth": "\u8981\u6c42\u8eab\u4efd\u9a8c\u8bc1",
+  "config.mcp_server.allowed_tools": "\u5141\u8bb8\u7684\u5de5\u5177",
+  "config.mcp_server.allowed_tools_desc": "\u901a\u8fc7 MCP \u7aef\u70b9\u516c\u5f00\u7684\u5de5\u5177\u3002\u7559\u7a7a\u4ee5\u516c\u5f00\u6240\u6709\u5df2\u542f\u7528\u7684\u5de5\u5177\u3002",
+  "config.mcp_server.token": "Bearer \u4ee4\u724c",
+  "config.mcp_server.generate_token": "\u751f\u6210\u4ee4\u724c",
+  "config.mcp_server.endpoint_url": "\u7aef\u70b9 URL",
+  "config.mcp_server.no_tools_warning": "\u6ca1\u6709\u5df2\u542f\u7528\u7684\u5de5\u5177\u3002",
+  "config.mcp_server.auth_warning": "\u8eab\u4efd\u9a8c\u8bc1\u5df2\u7981\u7528\u3002\u4efb\u4f55\u6709\u7f51\u7edc\u8bbf\u95ee\u6743\u7684\u4eba\u90fd\u53ef\u4ee5\u8c03\u7528\u60a8\u7684\u5de5\u5177\u3002",
+  "config.mcp_server.disabled_notice": "MCP \u670d\u52a1\u5668\u5df2\u7981\u7528",
+  "config.mcp_server.disabled_desc": "\u542f\u7528\u4ee5\u901a\u8fc7 MCP \u516c\u5f00 AuraGo \u5de5\u5177\u3002",
+  "config.mcp_server.info": "\u5c06 AuraGo \u5de5\u5177\u4f5c\u4e3a\u8fdc\u7a0b MCP \u670d\u52a1\u5668\u901a\u8fc7 Streamable HTTP \u516c\u5f00\u3002",
+  "config.mcp_server.copy_url": "\u590d\u5236 URL",
+  "config.mcp_server.copy_token": "\u590d\u5236\u4ee4\u724c",
+  "config.mcp_server.copied": "\u5df2\u590d\u5236\uff01"
+}

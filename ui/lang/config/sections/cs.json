@@ -1,4 +1,4 @@
-{
+﻿{
   "config.group.system_core": "System & Core",
   "config.group.agent_llm": "Agent & LLM",
   "config.group.tools_services": "Nastroje & Sluzby",
@@ -144,5 +144,9 @@
   "config.github.repos_list_empty": "Kliknete na Nacist repozitare pro nacteni vasich GitHub repozitaru",
   "config.github.agent_created_note": "Repozitare vytvorene agentem jsou vzdy pristupne - i bez explicitniho schvaleni.",
   "config.github.agent_badge": "Agent",
-  "config.github.agent_created_always_allowed": "Vytvoreno agentem - vzdy povoleno"
+  "config.github.agent_created_always_allowed": "Vytvoreno agentem - vzdy povoleno",
+  "config.section.ai_gateway.label": "AI Gateway",
+  "config.section.ai_gateway.desc": "Sm\u011brovat LLM po\u017eadavky p\u0159es Cloudflare AI Gateway",
+  "config.section.mcp_server.label": "MCP Server",
+  "config.section.mcp_server.desc": "Zp\u0159\u00edstupnit n\u00e1stroje AuraGo p\u0159es MCP"
 }

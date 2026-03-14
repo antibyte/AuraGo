@@ -1,4 +1,4 @@
-{
+﻿{
   "config.providers.new_provider": "Ny leverantör",
   "config.providers.empty": "Inga leverantörer har konfigurerats. Lägg till en!",
   "config.providers.authorized": "Auktoriserad",
@@ -83,5 +83,11 @@
   "config.providers.pricing_picker_select_all": "Välj alla synliga",
   "config.providers.pricing_picker_import": "Importera ({{count}})",
   "config.providers.filter_models": "Filtrera konfigurerade modeller...",
-  "config.providers.no_filter_results": "Inga modeller matchar \"{{q}}\""
+  "config.providers.no_filter_results": "Inga modeller matchar \"{{q}}\"",
+  "config.providers.type_workers_ai": "workers-ai",
+  "config.providers.hint.workers_ai": "Cloudflare API-token med Workers AI-beh\u00f6righeter.",
+  "config.providers.account_id": "Konto-ID",
+  "config.providers.account_id_help": "Ditt Cloudflare Account ID (finns i instrumentpanelens URL eller API-inst\u00e4llningar).",
+  "config.providers.account_id_empty_error": "Konto-ID kr\u00e4vs f\u00f6r Workers AI.",
+  "config.providers.workers_ai_url_auto": "URL genereras automatiskt fr\u00e5n Konto-ID."
 }

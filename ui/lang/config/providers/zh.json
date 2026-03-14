@@ -1,4 +1,4 @@
-{
+﻿{
   "config.providers.new_provider": "新提供商",
   "config.providers.empty": "未配置提供商。添加一个！",
   "config.providers.authorized": "已授权",
@@ -83,5 +83,11 @@
   "config.providers.pricing_picker_select_all": "选择所有可见项",
   "config.providers.pricing_picker_import": "导入 ({{count}})",
   "config.providers.filter_models": "筛选已配置的模型...",
-  "config.providers.no_filter_results": "没有模型匹配 \"{{q}}\""
+  "config.providers.no_filter_results": "没有模型匹配 \"{{q}}\"",
+  "config.providers.type_workers_ai": "workers-ai",
+  "config.providers.hint.workers_ai": "\u5177\u6709 Workers AI \u6743\u9650\u7684 Cloudflare API \u4ee4\u724c\u3002",
+  "config.providers.account_id": "\u8d26\u6237 ID",
+  "config.providers.account_id_help": "\u60a8\u7684 Cloudflare \u8d26\u6237 ID\uff08\u53ef\u5728\u4eea\u8868\u677f URL \u6216 API \u8bbe\u7f6e\u4e2d\u627e\u5230\uff09\u3002",
+  "config.providers.account_id_empty_error": "Workers AI \u9700\u8981\u8d26\u6237 ID\u3002",
+  "config.providers.workers_ai_url_auto": "URL \u7531\u8d26\u6237 ID \u81ea\u52a8\u751f\u6210\u3002"
 }

@@ -1,4 +1,4 @@
-{
+﻿{
   "help.agent.additional_prompt": "Texte arbitraire qui est toujours ajouté à la fin de l'invite système. Idéal pour les règles spécifiques à l'utilisateur, les informations contextuelles ou les instructions fixes qui doivent s'appliquer à chaque demande.",
   "help.agent.allow_filesystem_write": "Lorsqu'elle est désactivée, seules les opérations de lecture (liste, lecture) sont autorisées. Les opérations d'écriture (écriture, suppression, déplacement, mkdir…) sont bloquées.",
   "help.agent.allow_mcp": "⚠️ Zone de danger : Permet à l'agent de se connecter à des serveurs MCP externes (Model Context Protocol) et d'utiliser leurs outils. Les serveurs MCP sont des processus externes qui peuvent exécuter du code arbitraire : ajoutez uniquement des serveurs de confiance !",
@@ -244,5 +244,12 @@
   "help.whisper.mode": "Mode Whisper : « Whisper » (API OpenAI standard), « multimodal » (Gemini/multimodal LLM) ou « local » (serveur local).",
   "help.whisper.model": "Nom du modèle pour Whisper, par ex. 'chuchotement-1'.",
   "help.whisper.provider": "Sélectionnez un fournisseur dans la gestion des fournisseurs pour la synthèse vocale.",
-  "help.github.token": "Jeton d'accès personnel (PAT) pour l'API GitHub. Créez-en un sur https://github.com/settings/tokens avec les étendues requises (dépôt, problèmes, etc.). Stocké crypté dans le coffre-fort."
+  "help.github.token": "Jeton d'accès personnel (PAT) pour l'API GitHub. Créez-en un sur https://github.com/settings/tokens avec les étendues requises (dépôt, problèmes, etc.). Stocké crypté dans le coffre-fort.",
+  "help.ai_gateway.account_id": "Your Cloudflare Account ID. Found in the Cloudflare dashboard under Workers & Pages.",
+  "help.ai_gateway.enabled": "Enable Cloudflare AI Gateway to proxy all LLM API requests. Provides caching, rate-limiting, logging, and analytics. Local providers (Ollama) are excluded.",
+  "help.ai_gateway.gateway_id": "The name or slug of your AI Gateway instance in Cloudflare.",
+  "help.mcp_server.allowed_tools": "List of tool names exposed via MCP. Leave empty to expose all currently enabled tools.",
+  "help.mcp_server.enabled": "Enable the built-in MCP server to expose AuraGo tools for external AI agents via Streamable HTTP.",
+  "help.mcp_server.require_auth": "When enabled, MCP clients must authenticate with a Bearer token or valid session cookie.",
+  "help.providers.account_id": "Cloudflare Account ID for Workers AI providers. Required when using the workers-ai provider type."
 }

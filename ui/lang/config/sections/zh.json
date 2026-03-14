@@ -1,4 +1,4 @@
-{
+﻿{
   "config.group.system_core": "系统与核心",
   "config.group.agent_llm": "代理与 LLM",
   "config.group.tools_services": "工具与服务",
@@ -144,5 +144,9 @@
   "config.github.repos_list_empty": "Dianji Huoqu cangku yi jiazai nin de GitHub cangku",
   "config.github.agent_created_note": "Agent chuangjian de cangku shishong ke fangwen - ji shi meiyou mingque pizhun.",
   "config.github.agent_badge": "Agent",
-  "config.github.agent_created_always_allowed": "You Agent chuangjian - shishong yunxu"
+  "config.github.agent_created_always_allowed": "You Agent chuangjian - shishong yunxu",
+  "config.section.ai_gateway.label": "AI Gateway",
+  "config.section.ai_gateway.desc": "\u901a\u8fc7 Cloudflare AI Gateway \u8def\u7531 LLM \u8bf7\u6c42",
+  "config.section.mcp_server.label": "MCP \u670d\u52a1\u5668",
+  "config.section.mcp_server.desc": "\u901a\u8fc7 MCP \u4e3a\u5916\u90e8\u4ee3\u7406\u516c\u5f00 AuraGo \u5de5\u5177"
 }

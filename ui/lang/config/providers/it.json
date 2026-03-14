@@ -1,4 +1,4 @@
-{
+﻿{
   "config.providers.new_provider": "Nuovo Provider",
   "config.providers.empty": "Nessun provider configurato. Aggiungine uno!",
   "config.providers.authorized": "Autorizzato",
@@ -83,5 +83,11 @@
   "config.providers.pricing_picker_select_all": "Seleziona tutti i visibili",
   "config.providers.pricing_picker_import": "Importa ({{count}})",
   "config.providers.filter_models": "Filtra modelli configurati...",
-  "config.providers.no_filter_results": "Nessun modello corrisponde a \"{{q}}\""
+  "config.providers.no_filter_results": "Nessun modello corrisponde a \"{{q}}\"",
+  "config.providers.type_workers_ai": "workers-ai",
+  "config.providers.hint.workers_ai": "Token API Cloudflare con permessi Workers AI.",
+  "config.providers.account_id": "ID account",
+  "config.providers.account_id_help": "Il tuo ID account Cloudflare (visibile nell'URL della dashboard o nelle impostazioni API).",
+  "config.providers.account_id_empty_error": "L'ID account \u00e8 obbligatorio per Workers AI.",
+  "config.providers.workers_ai_url_auto": "L'URL viene generato automaticamente dall'ID account."
 }

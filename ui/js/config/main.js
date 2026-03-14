@@ -33,7 +33,8 @@ const SECTIONS = [
             { key: 'embeddings', icon: '🔗', label: t('config.section.embeddings.label'), desc: t('config.section.embeddings.desc') },
             { key: 'circuit_breaker', icon: '🔌', label: t('config.section.circuit_breaker.label'), desc: t('config.section.circuit_breaker.desc') },
             { key: 'budget', icon: '💰', label: t('config.section.budget.label'), desc: t('config.section.budget.desc') },
-            { key: 'co_agents', icon: '🤖', label: t('config.section.co_agents.label'), desc: t('config.section.co_agents.desc') }
+            { key: 'co_agents', icon: '🤖', label: t('config.section.co_agents.label'), desc: t('config.section.co_agents.desc') },
+            { key: 'ai_gateway', icon: '🌩️', label: t('config.section.ai_gateway.label'), desc: t('config.section.ai_gateway.desc') }
         ]
     },
     {
@@ -93,6 +94,7 @@ const SECTIONS = [
             { key: 'github', icon: '🐙', label: t('config.section.github.label'), desc: t('config.section.github.desc') },
             { key: 'mcp', icon: '🔌', label: t('config.section.mcp.label'), desc: t('config.section.mcp.desc') },
             { key: 'sandbox', icon: '📦', label: t('config.section.sandbox.label'), desc: t('config.section.sandbox.desc') },
+            { key: 'mcp_server', icon: '🔗', label: t('config.section.mcp_server.label'), desc: t('config.section.mcp_server.desc') },
             { key: 'homepage', icon: '🌐', label: t('config.section.homepage.label'), desc: t('config.section.homepage.desc') },
             { key: 'netlify', icon: '🔺', label: t('config.section.netlify.label'), desc: t('config.section.netlify.desc') },
             { key: 'ollama', icon: '🦙', label: t('config.section.ollama.label'), desc: t('config.section.ollama.desc') }
@@ -836,7 +838,9 @@ const SECTION_MODULES = {
     danger_zone: { m: 'danger', fn: 'renderDangerZoneSection' },
     web_config: { m: 'auth', fn: 'renderWebConfigSection' },
     firewall: { m: 'firewall', fn: 'renderFirewallSection' },
-    github: { m: 'github', fn: 'renderGitHubSection' }
+    github: { m: 'github', fn: 'renderGitHubSection' },
+    ai_gateway: { m: 'ai_gateway', fn: 'renderAIGatewaySection' },
+    mcp_server: { m: 'mcp_server', fn: 'renderMCPServerSection' }
 };
 
 function loadModule(name) {
