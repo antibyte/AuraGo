@@ -351,12 +351,17 @@ async function renderSection(key) {
         'allow_mcp',               // → Danger Zone
         'sudo_enabled',            // → Danger Zone
         'core_personality',         // → Prompts & Personas
-        'additional_prompt'         // → Prompts & Personas
+        'additional_prompt',        // → Prompts & Personas
+        'personality_v2_model',     // → managed by provider
+        'personality_v2_url',       // → managed by provider
+        'personality_v2_api_key'    // → managed by provider
     ]);
     // Legacy fields superseded by provider management — hide from UI
     const EMBEDDINGS_SKIP_KEYS = new Set(['api_key', 'external_model', 'external_url', 'internal_model']);
     // Legacy fields superseded by provider management — hide from UI
     const LLM_SKIP_KEYS = new Set(['api_key', 'base_url', 'model']);
+    // Sections whose api_key/base_url/model are managed by provider entries
+    const PROVIDER_MANAGED_SECTIONS = new Set(['vision', 'whisper']);
 
     let html = '<div class="cfg-section active">';
     html += '<div class="section-header">' + section.icon + ' ' + section.label + '</div>';
@@ -411,6 +416,17 @@ async function renderSection(key) {
         if (key === 'llm' || key === 'fallback_llm') {
             schemaChildren = schemaChildren.filter(f => !LLM_SKIP_KEYS.has(f.yaml_key));
         }
+        if (PROVIDER_MANAGED_SECTIONS.has(key)) {
+            schemaChildren = schemaChildren.filter(f => !LLM_SKIP_KEYS.has(f.yaml_key));
+        }
+        if (key === 'co_agents') {
+            schemaChildren = schemaChildren.map(f => {
+                if (f.yaml_key === 'llm' && f.children) {
+                    return { ...f, children: f.children.filter(c => !LLM_SKIP_KEYS.has(c.yaml_key)) };
+                }
+                return f;
+            });
+        }
         html += renderFields(schemaChildren, data, key);
     } else {
         for (const [k, v] of Object.entries(data)) {
@@ -418,9 +434,11 @@ async function renderSection(key) {
             if (key === 'agent' && AGENT_SKIP_KEYS.has(k)) continue;
             if (key === 'embeddings' && EMBEDDINGS_SKIP_KEYS.has(k)) continue;
             if ((key === 'llm' || key === 'fallback_llm') && LLM_SKIP_KEYS.has(k)) continue;
+            if (PROVIDER_MANAGED_SECTIONS.has(key) && LLM_SKIP_KEYS.has(k)) continue;
             if (typeof v === 'object' && v !== null && !Array.isArray(v)) {
                 html += '<div style="margin-top:1rem;margin-bottom:0.5rem;font-weight:600;font-size:0.85rem;color:var(--accent);">' + formatKey(k) + '</div>';
                 for (const [sk, sv] of Object.entries(v)) {
+                    if (key === 'co_agents' && k === 'llm' && LLM_SKIP_KEYS.has(sk)) continue;
                     html += renderField(key + '.' + k + '.' + sk, sk, sv, key + '.' + k);
                 }
             } else {

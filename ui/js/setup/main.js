@@ -321,13 +321,6 @@ function onLanguageChange() {
     }
 }
 
-// ── Embeddings Provider Change ───────────────
-function onEmbProviderChange() {
-    const provider = document.getElementById('emb-provider').value;
-    const apiKeyGroup = document.getElementById('group-emb-apikey');
-    apiKeyGroup.style.display = (provider === 'internal' || provider === '') ? 'none' : 'block';
-}
-
 // ── Personality V2 Toggle ────────────────────
 function onPersonalityToggle() {
     const fields = document.getElementById('personality-v2-fields');
@@ -444,24 +437,100 @@ document.addEventListener('input', (e) => {
     }
 });
 
+// ── Build Provider Entries ───────────────────
+// Creates provider entries from setup wizard fields.
+// Each subsystem (embeddings, vision, whisper, personality_v2) gets its own
+// provider entry so it can have a different model while sharing connection details.
+function buildProviderEntries() {
+    const mainType = document.getElementById('llm-provider').value;
+    const mainCfg = providerConfig[mainType] || providerConfig.custom;
+    const mainUrl = document.getElementById('llm-base-url').value.trim() || mainCfg.baseUrl;
+    const mainKey = document.getElementById('llm-api-key').value.trim();
+    const mainModel = document.getElementById('llm-model').value.trim();
+
+    const providers = [];
+
+    // Main LLM provider (always created)
+    providers.push({
+        id: 'main', name: 'Main LLM', type: mainType,
+        base_url: mainUrl, api_key: mainKey, model: mainModel,
+    });
+
+    // Embeddings provider
+    const embProvValue = document.getElementById('emb-provider').value;
+    if (embProvValue && embProvValue !== '') {
+        const embModel = document.getElementById('emb-model').value.trim();
+        if (embProvValue === 'ollama') {
+            providers.push({
+                id: 'embeddings', name: 'Embeddings', type: 'ollama',
+                base_url: providerConfig.ollama.baseUrl, api_key: '', model: embModel,
+            });
+        } else {
+            // "internal" = same URL/key as main, different model
+            providers.push({
+                id: 'embeddings', name: 'Embeddings', type: mainType,
+                base_url: mainUrl, api_key: mainKey, model: embModel,
+            });
+        }
+    }
+
+    // Vision provider
+    const visionType = document.getElementById('vision-provider').value;
+    if (visionType) {
+        const visionModel = document.getElementById('vision-model').value.trim();
+        const visionCfg = providerConfig[visionType] || providerConfig.custom;
+        providers.push({
+            id: 'vision', name: 'Vision', type: visionType,
+            base_url: visionCfg.baseUrl || mainUrl,
+            api_key: visionType === 'ollama' ? '' : mainKey,
+            model: visionModel,
+        });
+    }
+
+    // Whisper / STT provider
+    const whisperType = document.getElementById('whisper-provider').value;
+    if (whisperType) {
+        const whisperModel = document.getElementById('whisper-model').value.trim();
+        const whisperCfg = providerConfig[whisperType] || providerConfig.custom;
+        providers.push({
+            id: 'whisper', name: 'Whisper / STT', type: whisperType,
+            base_url: whisperCfg.baseUrl || mainUrl,
+            api_key: whisperType === 'ollama' ? '' : mainKey,
+            model: whisperModel,
+        });
+    }
+
+    // Personality V2 provider
+    if (document.getElementById('personality-v2').checked) {
+        const v2Model = document.getElementById('v2-model').value.trim();
+        if (v2Model) {
+            providers.push({
+                id: 'personality-v2', name: 'Personality V2', type: mainType,
+                base_url: mainUrl, api_key: mainKey, model: v2Model,
+            });
+        }
+    }
+
+    return providers;
+}
+
 // ── Build Config Patch ───────────────────────
+// Returns the config patch with provider references (no inline API keys/URLs).
+// Provider entries carry all connection details separately.
 function buildConfigPatch() {
-    const provider = document.getElementById('llm-provider').value;
     const patch = {
+        providers: buildProviderEntries(),
         server: {
             ui_language: document.documentElement.lang || 'en',
         },
         llm: {
-            provider: provider,
-            api_key: document.getElementById('llm-api-key').value.trim(),
-            base_url: document.getElementById('llm-base-url').value.trim(),
-            model: document.getElementById('llm-model').value.trim(),
+            provider: 'main',
             use_native_functions: document.getElementById('native-functions').checked,
         },
         agent: {
             system_language: document.getElementById('system-language').value === 'Other / Custom' ? document.getElementById('system-language-custom').value.trim() : document.getElementById('system-language').value,
             personality_engine_v2: document.getElementById('personality-v2').checked,
-            personality_engine: document.getElementById('personality-v2').checked, // V2 implies V1
+            personality_engine: document.getElementById('personality-v2').checked,
             core_personality: document.getElementById('core-personality').value,
         },
         maintenance: {
@@ -472,43 +541,28 @@ function buildConfigPatch() {
         },
     };
 
-    // Section 2: Embeddings
+    // Embeddings: reference provider entry or disable
     const embProvider = document.getElementById('emb-provider').value;
-    if (embProvider) {
-        patch.embeddings = {
-            provider: embProvider,
-            internal_model: document.getElementById('emb-model').value.trim(),
-        };
-        const embKey = document.getElementById('emb-api-key').value.trim();
-        if (embKey) patch.embeddings.api_key = embKey;
-    }
+    patch.embeddings = { provider: (embProvider && embProvider !== '') ? 'embeddings' : 'disabled' };
 
-    // Section 2: Vision
+    // Vision: reference provider entry
     const visionProvider = document.getElementById('vision-provider').value;
     if (visionProvider) {
-        patch.vision = {
-            provider: visionProvider,
-            model: document.getElementById('vision-model').value.trim(),
-        };
+        patch.vision = { provider: 'vision' };
     }
 
-    // Section 2: Whisper
+    // Whisper: reference provider entry
     const whisperProvider = document.getElementById('whisper-provider').value;
     if (whisperProvider) {
-        patch.whisper = {
-            provider: whisperProvider,
-            model: document.getElementById('whisper-model').value.trim(),
-        };
+        patch.whisper = { provider: 'whisper' };
     }
 
-    // Section 3: Personality V2
+    // Personality V2: reference provider entry
     if (patch.agent.personality_engine_v2) {
         const v2Model = document.getElementById('v2-model').value.trim();
-        if (v2Model) patch.agent.personality_v2_model = v2Model;
-        const v2Url = document.getElementById('v2-url').value.trim();
-        if (v2Url) patch.agent.personality_v2_url = v2Url;
-        const v2Key = document.getElementById('v2-api-key').value.trim();
-        if (v2Key) patch.agent.personality_v2_api_key = v2Key;
+        if (v2Model) {
+            patch.agent.personality_v2_provider = 'personality-v2';
+        }
     }
 
     return patch;

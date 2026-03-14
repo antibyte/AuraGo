@@ -990,16 +990,18 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
             const fetchPricingBtn = document.getElementById('prov-fetch-pricing-btn');
             if (fetchPricingBtn) fetchPricingBtn.onclick = () => providerFetchPricing();
 
-            // ── Auto-fill Base URL when type changes (only if URL field is empty) ──
+            // ── Auto-fill Base URL when type changes (only if URL field is empty or was auto-filled) ──
             const typeSelect = document.getElementById('prov-type');
             const urlInput = document.getElementById('prov-url');
             const hintEl = document.getElementById('prov-key-hint');
             const ollamaBlock = document.getElementById('prov-ollama-block');
             const openrouterBlock = document.getElementById('prov-openrouter-block');
+            const knownUrls = new Set(Object.values(PROVIDER_BASE_URLS).filter(Boolean));
             typeSelect.addEventListener('change', () => {
                 const typ = typeSelect.value;
-                // Auto-fill URL only when empty
-                if (!urlInput.value.trim() && PROVIDER_BASE_URLS[typ]) {
+                const currentUrl = urlInput.value.trim();
+                // Auto-fill URL when empty OR when it still contains a known default URL (i.e. user hasn't typed a custom one)
+                if ((!currentUrl || knownUrls.has(currentUrl)) && PROVIDER_BASE_URLS[typ]) {
                     urlInput.value = PROVIDER_BASE_URLS[typ];
                 }
                 // Update placeholder

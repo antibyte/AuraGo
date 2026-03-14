@@ -217,7 +217,7 @@
                             <label id="lbl-emb-provider" class="field-label">
                                 <script>document.write(t('setup.step1_embeddings_provider_label'))</script>
                             </label>
-                            <select class="field-select" id="emb-provider" onchange="onEmbProviderChange()">
+                            <select class="field-select" id="emb-provider">
                                 <option value="internal">Internal (OpenRouter/OpenAI kompatibel)</option>
                                 <option value="ollama">Ollama (lokal)</option>
                                 <option value="">Deaktiviert</option>
@@ -229,16 +229,6 @@
                             </label>
                             <input class="field-input" type="text" id="emb-model" placeholder="qwen/qwen3-embedding-8b"
                                 value="qwen/qwen3-embedding-8b">
-                        </div>
-                    </div>
-                    <div class="field-group" id="group-emb-apikey" style="display: none;">
-                        <label id="lbl-emb-apikey" class="field-label">
-                            <script>document.write(t('setup.step1_embeddings_apikey_label'))</script>
-                        </label>
-                        <input class="field-input" type="password" id="emb-api-key"
-                            placeholder="Gleicher Key wie LLM, falls selber Provider">
-                        <div id="hint-emb-apikey" class="field-hint">
-                            <script>document.write(t('setup.step1_embeddings_apikey_hint'))</script>
                         </div>
                     </div>
                 </div>
@@ -334,33 +324,14 @@
                 </div>
 
                 <div class="conditional-fields visible" id="personality-v2-fields">
-                    <div class="field-row">
-                        <div class="field-group">
-                            <label id="lbl-v2-model" class="field-label">
-                                <script>document.write(t('setup.step2_v2_model_label'))</script>
-                            </label>
-                            <input class="field-input" type="text" id="v2-model" placeholder="gpt-4o-mini"
-                                value="gpt-4o-mini">
-                            <div id="hint-v2-model" class="field-hint">
-                                <script>document.write(t('setup.step2_v2_model_hint'))</script>
-                            </div>
-                        </div>
-                        <div class="field-group">
-                            <label id="lbl-v2-url" class="field-label">
-                                <script>document.write(t('setup.step2_v2_url_label'))</script>
-                            </label>
-                            <input class="field-input" type="url" id="v2-url"
-                                placeholder="Leer = gleiche URL wie Haupt-LLM">
-                        </div>
-                    </div>
                     <div class="field-group">
-                        <label id="lbl-v2-apikey" class="field-label">
-                            <script>document.write(t('setup.step2_v2_apikey_label'))</script>
+                        <label id="lbl-v2-model" class="field-label">
+                            <script>document.write(t('setup.step2_v2_model_label'))</script>
                         </label>
-                        <input class="field-input" type="password" id="v2-api-key"
-                            placeholder="Leer = gleicher Key wie Haupt-LLM">
-                        <div id="hint-v2-apikey" class="field-hint">
-                            <script>document.write(t('setup.step2_v2_apikey_hint'))</script>
+                        <input class="field-input" type="text" id="v2-model" placeholder="gpt-4o-mini"
+                            value="gpt-4o-mini">
+                        <div id="hint-v2-model" class="field-hint">
+                            <script>document.write(t('setup.step2_v2_model_hint'))</script>
                         </div>
                     </div>
                 </div>
