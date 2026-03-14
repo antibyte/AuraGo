@@ -187,14 +187,62 @@ copy_tree_merge() {
     local src="$1"
     local dst="$2"
 
+    # Ensure destination exists and is writable by the current user when possible.
+    mkdir -p "$dst" 2>/dev/null || true
+    if [ ! -w "$dst" ] && command -v sudo >/dev/null 2>&1; then
+        sudo chown -R "$(id -u):$(id -g)" "$dst" 2>/dev/null || true
+        sudo chmod -R u+rwX "$dst" 2>/dev/null || true
+    fi
+
     if command -v rsync >/dev/null 2>&1; then
         # Avoid owner/group preservation to prevent non-fatal permission errors
         # on systems where destination files may be root-owned.
         # Also avoid timestamp preservation (-t) to prevent "failed to set times" warnings.
-        rsync -rl --quiet --no-owner --no-group "$src" "$dst"
+        rsync -rl --omit-dir-times --quiet --no-owner --no-group "$src" "$dst"
     else
         cp -r "$src" "$dst"
     fi
+}
+
+repair_worktree_permissions() {
+    # Make changed tracked files and parent directories writable so git can
+    # overwrite/unlink them during update.
+    local changed
+    changed="$(git -C "$DIR" status --porcelain --untracked-files=no 2>/dev/null | awk '{print $2}')"
+    [ -n "$changed" ] || return 0
+
+    while IFS= read -r rel; do
+        [ -n "$rel" ] || continue
+        local abs="$DIR/$rel"
+        local parent
+        parent="$(dirname "$abs")"
+
+        if [ -e "$abs" ]; then
+            chmod u+rw "$abs" 2>/dev/null || true
+            if [ ! -w "$abs" ] && command -v sudo >/dev/null 2>&1; then
+                sudo chown "$(id -u):$(id -g)" "$abs" 2>/dev/null || true
+                sudo chmod u+rw "$abs" 2>/dev/null || true
+            fi
+        fi
+
+        chmod u+rwx "$parent" 2>/dev/null || true
+        if [ ! -w "$parent" ] && command -v sudo >/dev/null 2>&1; then
+            sudo chown "$(id -u):$(id -g)" "$parent" 2>/dev/null || true
+            sudo chmod u+rwx "$parent" 2>/dev/null || true
+        fi
+    done <<< "$changed"
+}
+
+clean_tracked_changes() {
+    # Reset only tracked changes; user data/custom files are restored from backup.
+    repair_worktree_permissions
+
+    git -C "$DIR" restore --source=HEAD --staged --worktree . 2>/dev/null || true
+    git -C "$DIR" checkout -- . 2>/dev/null || true
+    git -C "$DIR" reset --quiet HEAD 2>/dev/null || true
+
+    # Return success if tracked changes are gone.
+    git -C "$DIR" diff --quiet && git -C "$DIR" diff --cached --quiet
 }
 
 # ── Files & directories that must NEVER be touched ─────────────────────
@@ -535,15 +583,28 @@ else
     # Git-based update.
     if ! $GIT_UP_TO_DATE; then
         if ! git diff --quiet || ! git diff --cached --quiet; then
-            git checkout -- . 2>/dev/null || true
-            git reset --quiet HEAD 2>/dev/null || true
+            info "Cleaning local tracked changes before update..."
+            if ! clean_tracked_changes; then
+                warn "Automatic cleanup of tracked changes failed."
+                warn "Changed files still present:"
+                git -C "$DIR" status --porcelain --untracked-files=no | head -20 || true
+                die "Cannot continue update while tracked files are locked/unwritable. Fix permissions or run with sudo."
+            fi
         fi
 
-        git pull origin main --ff-only || {
-            warn "Fast-forward pull failed — fetching and resetting to origin/main..."
-            git fetch origin main --quiet
-            git reset --hard origin/main
-        }
+        if ! git fetch origin main --quiet; then
+            die "Failed to fetch updates from GitHub (network/connectivity issue)."
+        fi
+
+        if ! git merge --ff-only origin/main; then
+            warn "Fast-forward merge failed — retrying after tracked-change cleanup..."
+            clean_tracked_changes || true
+            if ! git merge --ff-only origin/main; then
+                warn "Could not fast-forward automatically."
+                warn "Please ensure repository files are writable and no manual merge is required."
+                die "Update aborted safely (no hard reset performed)."
+            fi
+        fi
         ok "Code updated to $(git log --format='%h  %s' -1)"
         GIT_VER=$(git describe --tags --always 2>/dev/null || git rev-parse --short HEAD 2>/dev/null || echo 'git')
         printf '%s' "$GIT_VER" > "$DIR/.version"
