@@ -68,6 +68,7 @@ type ToolFeatureFlags struct {
 	CloudflareTunnelEnabled bool
 	GoogleWorkspaceEnabled  bool
 	ImageGenerationEnabled  bool
+	RemoteControlEnabled    bool
 	// Danger Zone toggles
 	AllowShell               bool
 	AllowPython              bool
@@ -939,6 +940,27 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 			}, "prompt"),
 		))
 	}
+
+	if ff.RemoteControlEnabled {
+		tools = append(tools, tool("remote_control",
+			"Manage and interact with remote devices connected to this AuraGo instance. "+
+				"List devices, check status, execute commands, transfer files, and get system information from remote machines.",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "Operation to perform",
+					"enum":        []string{"list_devices", "device_status", "execute_command", "read_file", "write_file", "list_files", "sysinfo", "revoke_device"},
+				},
+				"device_id":   prop("string", "Device ID (for device_status, execute_command, read_file, write_file, list_files, sysinfo, revoke_device)"),
+				"device_name": prop("string", "Device name — alternative to device_id for lookup"),
+				"command":     prop("string", "Shell command to execute (for execute_command)"),
+				"path":        prop("string", "File or directory path on the remote device (for read_file, write_file, list_files)"),
+				"content":     prop("string", "File content to write (for write_file)"),
+				"recursive":   map[string]interface{}{"type": "boolean", "description": "List directory recursively (for list_files, default: false)"},
+			}, "operation"),
+		))
+	}
+
 	return tools
 }
 

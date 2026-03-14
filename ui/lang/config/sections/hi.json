@@ -151,6 +151,8 @@
   "config.github.agent_created_note": "Agent dwara banaye gaye repos hamesha sulabh hote hain - spasht anumodan ke bina bhi.",
   "config.github.agent_badge": "Agent",
   "config.github.agent_created_always_allowed": "Agent dwara banaya gaya - hamesha anumati prapt",
+  "config.section.remote_control.label": "रिमोट कंट्रोल",
+  "config.section.remote_control.desc": "हल्के एजेंट बाइनरी द्वारा दूरस्थ उपकरणों का प्रबंधन करें",
   "config.section.ai_gateway.label": "AI Gateway",
   "config.section.ai_gateway.desc": "Cloudflare AI Gateway \u0915\u0947 \u092e\u093e\u0927\u094d\u092f\u092e \u0938\u0947 LLM \u0905\u0928\u0941\u0930\u094b\u0927 \u0930\u0942\u091f \u0915\u0930\u0947\u0902",
   "config.section.mcp_server.label": "MCP \u0938\u0930\u094d\u0935\u0930",

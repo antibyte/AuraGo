@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"flag"
@@ -27,6 +28,7 @@ import (
 	"aurago/internal/logger"
 	"aurago/internal/memory"
 	promptspkg "aurago/internal/prompts"
+	"aurago/internal/remote"
 	"aurago/internal/security"
 	"aurago/internal/server"
 	"aurago/internal/setup"
@@ -333,6 +335,20 @@ func main() {
 		appLog.Info("Image Gallery DB initialized", "path", cfg.SQLite.ImageGalleryPath)
 	}
 
+	// Remote Control DB
+	var remoteControlDB *sql.DB
+	if cfg.SQLite.RemoteControlPath != "" {
+		var rcErr error
+		remoteControlDB, rcErr = remote.InitDB(cfg.SQLite.RemoteControlPath)
+		if rcErr != nil {
+			appLog.Warn("Failed to initialize Remote Control DB; feature disabled", "error", rcErr, "path", cfg.SQLite.RemoteControlPath)
+			remoteControlDB = nil
+		} else {
+			defer remoteControlDB.Close()
+			appLog.Info("Remote Control DB initialized", "path", cfg.SQLite.RemoteControlPath)
+		}
+	}
+
 	// Tool guide indexing (at startup for performance)
 	toolGuidesDir := filepath.Join(cfg.Directories.PromptsDir, "tools_manuals")
 	if err := longTermMem.IndexToolGuides(toolGuidesDir, false); err != nil {
@@ -526,7 +542,7 @@ func main() {
 		go eggClient.Start()
 	}
 
-	if err := server.Start(cfg, appLog, llmClient, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, isFirstStart, shutdownCh); err != nil {
+	if err := server.Start(cfg, appLog, llmClient, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, remoteControlDB, isFirstStart, shutdownCh); err != nil {
 		appLog.Error("Server failed", "error", err)
 		os.Exit(1)
 	}

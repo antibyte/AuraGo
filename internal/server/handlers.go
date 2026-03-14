@@ -416,6 +416,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			InvasionDB:      s.InvasionDB,
 			CheatsheetDB:    s.CheatsheetDB,
 			ImageGalleryDB:  s.ImageGalleryDB,
+			RemoteHub:       s.RemoteHub,
 			Vault:           s.Vault,
 			Registry:        s.Registry,
 			Manifest:        manifest,

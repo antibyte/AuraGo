@@ -292,6 +292,37 @@
       "description": "Docker daemon address. Leave empty for local socket, or use tcp://host:port for remote."
     }
   },
+  "remote_control": {
+    "enabled": {
+      "title": "Enable Remote Control",
+      "description": "Activates the AuraGo Remote feature — manage remote devices via lightweight agent binaries."
+    },
+    "read_only": {
+      "title": "Read-Only Mode",
+      "description": "When enabled, file writes, deletions, and shell commands are blocked on all remote devices."
+    },
+    "discovery_port": {
+      "title": "Discovery Port",
+      "description": "UDP port for automatic network discovery. Remote clients broadcast on this port to find the supervisor. Default: 8092"
+    },
+    "auto_approve": {
+      "title": "Auto-Approve Devices",
+      "description": "Automatically approve new devices when they connect. Disable to require manual approval in the UI.",
+      "warning": "⚠️ Only enable on trusted networks! Any device on the network can join automatically."
+    },
+    "audit_log": {
+      "title": "Audit Log",
+      "description": "Log all remote control operations (commands, file access, revocations) for security auditing."
+    },
+    "max_file_size_mb": {
+      "title": "Max File Size (MB)",
+      "description": "Maximum file size for remote file read/write operations. Default: 50 MB"
+    },
+    "allowed_paths": {
+      "title": "Allowed Paths",
+      "description": "Restrict file operations to these directories. One path per line. Leave empty to allow all paths."
+    }
+  },
   "budget": {
     "enabled": {
       "title": "Enable Budget Tracking",

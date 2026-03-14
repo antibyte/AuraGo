@@ -85,7 +85,8 @@ const SECTIONS = [
             { key: 'cloudflare_tunnel', icon: '🌩️', label: t('config.section.cloudflare_tunnel.label'), desc: t('config.section.cloudflare_tunnel.desc') },
             { key: 'ansible', icon: '⚙️', label: t('config.section.ansible.label'), desc: t('config.section.ansible.desc') },
             { key: 'meshcentral', icon: '🖥️', label: t('config.section.meshcentral.label'), desc: t('config.section.meshcentral.desc') },
-            { key: 'firewall', icon: '🧱', label: 'Firewall', desc: 'Manage Linux Firewall (ufw/iptables)' }
+            { key: 'firewall', icon: '🧱', label: 'Firewall', desc: 'Manage Linux Firewall (ufw/iptables)' },
+            { key: 'remote_control', icon: '📡', label: t('config.section.remote_control.label'), desc: t('config.section.remote_control.desc') }
         ]
     },
     {
@@ -846,7 +847,8 @@ const SECTION_MODULES = {
     ai_gateway: { m: 'ai_gateway', fn: 'renderAIGatewaySection' },
     cloudflare_tunnel: { m: 'cloudflare_tunnel', fn: 'renderCloudflareTunnelSection' },
     mcp_server: { m: 'mcp_server', fn: 'renderMCPServerSection' },
-    image_generation: { m: 'image_generation', fn: 'renderImageGenerationSection' }
+    image_generation: { m: 'image_generation', fn: 'renderImageGenerationSection' },
+    remote_control: { m: 'remote_control', fn: 'renderRemoteControlSection' }
 };
 
 function loadModule(name) {

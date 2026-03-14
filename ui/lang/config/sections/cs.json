@@ -151,6 +151,8 @@
   "config.github.agent_created_note": "Repozitare vytvorene agentem jsou vzdy pristupne - i bez explicitniho schvaleni.",
   "config.github.agent_badge": "Agent",
   "config.github.agent_created_always_allowed": "Vytvoreno agentem - vzdy povoleno",
+  "config.section.remote_control.label": "Vzdálené ovládání",
+  "config.section.remote_control.desc": "Spravovat vzdálená zařízení pomocí lehkých agentních binárních souborů",
   "config.section.ai_gateway.label": "AI Gateway",
   "config.section.ai_gateway.desc": "Sm\u011brovat LLM po\u017eadavky p\u0159es Cloudflare AI Gateway",
   "config.section.mcp_server.label": "MCP Server",

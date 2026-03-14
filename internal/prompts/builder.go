@@ -142,6 +142,7 @@ type ContextFlags struct {
 	InventoryEnabled         bool
 	MemoryMaintenanceEnabled bool
 	ImageGenerationEnabled   bool
+	RemoteControlEnabled     bool
 	WOLEnabled               bool
 	InternetExposed          bool   // HTTPS is enabled — system is likely reachable from the internet
 	IsDocker                 bool   // Running inside a Docker container

@@ -151,6 +151,8 @@
   "config.github.agent_created_note": "Agent chuangjian de cangku shishong ke fangwen - ji shi meiyou mingque pizhun.",
   "config.github.agent_badge": "Agent",
   "config.github.agent_created_always_allowed": "You Agent chuangjian - shishong yunxu",
+  "config.section.remote_control.label": "远程控制",
+  "config.section.remote_control.desc": "通过轻量级代理二进制文件管理远程设备",
   "config.section.ai_gateway.label": "AI Gateway",
   "config.section.ai_gateway.desc": "\u901a\u8fc7 Cloudflare AI Gateway \u8def\u7531 LLM \u8bf7\u6c42",
   "config.section.mcp_server.label": "MCP \u670d\u52a1\u5668",

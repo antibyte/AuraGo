@@ -625,6 +625,29 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		s.Logger.Info("Invasion Control API registered at /api/invasion/...")
 	}
 
+	// ── Remote Control API (handlers guard themselves with s.RemoteHub == nil check) ──
+	if s.RemoteHub != nil {
+		mux.HandleFunc("/api/remote/devices", handleRemoteDevices(s))
+		mux.HandleFunc("/api/remote/devices/", func(w http.ResponseWriter, r *http.Request) {
+			path := strings.TrimPrefix(r.URL.Path, "/api/remote/devices/")
+			if strings.HasSuffix(path, "/approve") {
+				handleRemoteDeviceApprove(s)(w, r)
+			} else if strings.HasSuffix(path, "/reject") {
+				handleRemoteDeviceReject(s)(w, r)
+			} else if strings.HasSuffix(path, "/revoke") {
+				handleRemoteDeviceRevoke(s)(w, r)
+			} else {
+				handleRemoteDevice(s)(w, r)
+			}
+		})
+		mux.HandleFunc("/api/remote/enroll", handleRemoteEnrollmentCreate(s))
+		mux.HandleFunc("/api/remote/audit", handleRemoteAuditLog(s))
+		mux.HandleFunc("/api/remote/platforms", handleRemotePlatforms(s))
+		mux.HandleFunc("/api/remote/download/", handleRemoteDownload(s))
+		mux.HandleFunc("/api/remote/ws", handleRemoteWebSocket(s))
+		s.Logger.Info("Remote Control API registered at /api/remote/...")
+	}
+
 	// Invasion Control UI page (always registered — same pattern as /setup)
 	invasionTmpl, invasionErr := template.ParseFS(uiFS, "invasion_control.html")
 	if invasionErr != nil {

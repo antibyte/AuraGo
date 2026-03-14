@@ -5,6 +5,8 @@
 # Output in deploy/:
 #   aurago_linux_amd64          aurago_darwin_amd64         aurago_windows_amd64.exe
 #   aurago_linux_arm64          aurago_darwin_arm64         aurago_windows_arm64.exe
+#   aurago-remote_linux_amd64   aurago-remote_darwin_amd64  aurago-remote_windows_amd64.exe
+#   aurago-remote_linux_arm64   aurago-remote_darwin_arm64  aurago-remote_windows_arm64.exe
 #   resources.dat               (shared across all platforms)
 #   install.sh                  (one-liner bootstrap script)
 #
@@ -54,7 +56,7 @@ tar -czf "$DEPLOY_DIR/$RESOURCES" -C "$TMPDIR_RES" .
 echo "    → resources.dat ($(du -h "$DEPLOY_DIR/$RESOURCES" | cut -f1))"
 
 # ── Step 2: Cross-compile binaries ───────────────────────────────────────
-echo "[2/3] Compiling binaries ..."
+echo "[2/4] Compiling AuraGo binaries ..."
 
 TARGETS=(
   "linux/amd64"
@@ -91,8 +93,31 @@ for target in "${TARGETS[@]}"; do
   fi
 done
 
-# ── Step 3: Copy install script ──────────────────────────────────────────
-echo "[3/3] Copying install script ..."
+# ── Step 3: Cross-compile AuraGo Remote binaries ────────────────────────
+echo "[3/4] Compiling AuraGo Remote binaries ..."
+
+REMOTE_TARGETS=(
+  "linux/amd64"
+  "linux/arm64"
+  "darwin/amd64"
+  "darwin/arm64"
+  "windows/amd64"
+  "windows/arm64"
+)
+
+for target in "${REMOTE_TARGETS[@]}"; do
+  OS="${target%/*}"
+  ARCH="${target#*/}"
+  EXT=""
+  if [ "$OS" = "windows" ]; then EXT=".exe"; fi
+
+  OUT="$DEPLOY_DIR/aurago-remote_${OS}_${ARCH}${EXT}"
+  echo "    → $OUT"
+  CGO_ENABLED=0 GOOS="$OS" GOARCH="$ARCH" go build -trimpath -ldflags="-s -w" -o "$OUT" ./cmd/remote/
+done
+
+# ── Step 4: Copy install script ──────────────────────────────────────────
+echo "[4/4] Copying install script ..."
 cp deploy/install.sh "$DEPLOY_DIR/install.sh" 2>/dev/null || cp install.sh "$DEPLOY_DIR/" 2>/dev/null || true
 
 echo "━━━ Done! Artifacts in $DEPLOY_DIR/ ━━━"

@@ -119,12 +119,13 @@ type Config struct {
 		VectorDBDir  string `yaml:"vectordb_dir"`
 	} `yaml:"directories"`
 	SQLite struct {
-		ShortTermPath    string `yaml:"short_term_path"`
-		LongTermPath     string `yaml:"long_term_path"`
-		InventoryPath    string `yaml:"inventory_path"`
-		InvasionPath     string `yaml:"invasion_path"`
-		CheatsheetPath   string `yaml:"cheatsheet_path"`
-		ImageGalleryPath string `yaml:"image_gallery_path"`
+		ShortTermPath     string `yaml:"short_term_path"`
+		LongTermPath      string `yaml:"long_term_path"`
+		InventoryPath     string `yaml:"inventory_path"`
+		InvasionPath      string `yaml:"invasion_path"`
+		CheatsheetPath    string `yaml:"cheatsheet_path"`
+		ImageGalleryPath  string `yaml:"image_gallery_path"`
+		RemoteControlPath string `yaml:"remote_control_path"`
 	} `yaml:"sqlite"`
 	Embeddings struct {
 		Provider      string `yaml:"provider"`          // "disabled" or provider entry ID
@@ -449,6 +450,15 @@ type Config struct {
 		Enabled  bool `yaml:"enabled"`  // enable Invasion Control sub-agent management UI
 		ReadOnly bool `yaml:"readonly"` // true = only list/status, block deploy/stop/send_task/send_secret
 	} `yaml:"invasion_control"`
+	RemoteControl struct {
+		Enabled       bool     `yaml:"enabled"`
+		ReadOnly      bool     `yaml:"readonly"`         // global read-only override for all remote devices
+		DiscoveryPort int      `yaml:"discovery_port"`   // UDP broadcast discovery port (default: 8092)
+		MaxFileSizeMB int      `yaml:"max_file_size_mb"` // max file read/write size in MB (default: 50)
+		AutoApprove   bool     `yaml:"auto_approve"`     // auto-approve new devices (NOT recommended)
+		AllowedPaths  []string `yaml:"allowed_paths"`    // global path whitelist (empty = all)
+		AuditLog      bool     `yaml:"audit_log"`        // log all operations (default: true)
+	} `yaml:"remote_control"`
 	EggMode struct {
 		Enabled   bool   `yaml:"enabled"`    // true = this instance is a worker egg
 		MasterURL string `yaml:"master_url"` // WebSocket URL of the master (ws[s]://host:port/api/invasion/ws)

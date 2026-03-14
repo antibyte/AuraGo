@@ -149,6 +149,8 @@
   "config.github.agent_created_note": "Repozytoria utworzone przez agenta sa zawsze dostepne - nawet bez wyraznego zezwolenia.",
   "config.github.agent_badge": "Agent",
   "config.github.agent_created_always_allowed": "Utworzone przez agenta - zawsze dozwolone",
+  "config.section.remote_control.label": "Zdalne sterowanie",
+  "config.section.remote_control.desc": "Zarządzaj urządzeniami zdalnymi za pomocą lekkich plików binarnych agenta",
   "config.section.ai_gateway.label": "AI Gateway",
   "config.section.ai_gateway.desc": "Kierowa\u0107 \u017c\u0105dania LLM przez Cloudflare AI Gateway",
   "config.section.mcp_server.label": "Serwer MCP",

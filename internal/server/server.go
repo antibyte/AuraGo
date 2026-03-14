@@ -22,6 +22,7 @@ import (
 	"aurago/internal/invasion/bridge"
 	"aurago/internal/llm"
 	"aurago/internal/memory"
+	"aurago/internal/remote"
 	"aurago/internal/security"
 	"aurago/internal/services"
 	"aurago/internal/tools"
@@ -205,6 +206,7 @@ type Server struct {
 	MissionManager   *tools.MissionManager
 	MissionManagerV2 *tools.MissionManagerV2
 	EggHub           *bridge.EggHub
+	RemoteHub        *remote.RemoteHub
 	FileIndexer      *services.FileIndexer
 	CheatsheetDB     *sql.DB
 	ImageGalleryDB   *sql.DB
@@ -216,7 +218,7 @@ type Server struct {
 	muFirstStart   sync.Mutex
 }
 
-func Start(cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, isFirstStart bool, shutdownCh chan struct{}) error {
+func Start(cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, remoteControlDB *sql.DB, isFirstStart bool, shutdownCh chan struct{}) error {
 	s := &Server{
 		Cfg:              cfg,
 		Logger:           logger,
@@ -241,6 +243,13 @@ func Start(cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, sh
 		MissionManager:   tools.NewMissionManager(cfg.Directories.DataDir, cronManager),
 		MissionManagerV2: tools.NewMissionManagerV2(cfg.Directories.DataDir, cronManager),
 		EggHub:           bridge.NewEggHub(logger),
+	}
+
+	// Initialize Remote Control Hub
+	if remoteControlDB != nil {
+		s.RemoteHub = remote.NewRemoteHub(remoteControlDB, vault, logger)
+		s.RemoteHub.StartHeartbeatMonitor(30*time.Second, 90*time.Second)
+		logger.Info("Remote Control Hub initialized")
 	}
 
 	// Initialize runtime debug mode from config

@@ -223,6 +223,7 @@ server:
 sqlite:
     inventory_path: ./data/inventory.db
     invasion_path: ./data/invasion.db
+    remote_control_path: ./data/remote_control.db
     long_term_path: ./data/long_term.db
     short_term_path: ./data/short_term.db
 telegram:
@@ -242,6 +243,14 @@ web_config:
     enabled: true
 invasion_control:
     enabled: false
+remote_control:
+    enabled: false
+    readonly: false
+    discovery_port: 8092
+    max_file_size_mb: 50
+    auto_approve: false
+    allowed_paths: []
+    audit_log: true
 indexing:
     enabled: true
     directories:

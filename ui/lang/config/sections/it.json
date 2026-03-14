@@ -154,5 +154,7 @@
   "config.section.ai_gateway.label": "AI Gateway",
   "config.section.ai_gateway.desc": "Instradare richieste LLM tramite Cloudflare AI Gateway",
   "config.section.mcp_server.label": "Server MCP",
-  "config.section.mcp_server.desc": "Esporre strumenti AuraGo via MCP per agenti esterni"
+  "config.section.mcp_server.desc": "Esporre strumenti AuraGo via MCP per agenti esterni",
+  "config.section.remote_control.label": "Controllo remoto",
+  "config.section.remote_control.desc": "Gestire dispositivi remoti tramite binari agent leggeri"
 }

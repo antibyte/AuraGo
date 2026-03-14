@@ -154,5 +154,7 @@
   "config.section.ai_gateway.label": "AI Gateway",
   "config.section.ai_gateway.desc": "Diriger LLM-anmodninger via Cloudflare AI Gateway",
   "config.section.mcp_server.label": "MCP Server",
-  "config.section.mcp_server.desc": "Eksponere AuraGo-v\u00e6rkt\u00f8jer via MCP"
+  "config.section.mcp_server.desc": "Eksponere AuraGo-værktøjer via MCP",
+  "config.section.remote_control.label": "Fjernstyring",
+  "config.section.remote_control.desc": "Administrer fjernenheder via lette agent-binære filer"
 }
