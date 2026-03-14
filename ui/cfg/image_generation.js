@@ -1,6 +1,9 @@
 // cfg/image_generation.js — Image Generation config section module
 
+let _imggenSection = null;
+
 async function renderImageGenerationSection(section) {
+    if (section) _imggenSection = section; else section = _imggenSection;
     const cfg = configData.image_generation || {};
     const enabled = cfg.enabled === true;
 
@@ -11,7 +14,7 @@ async function renderImageGenerationSection(section) {
     // ── Enabled toggle ──
     html += `<div style="display:flex;align-items:center;gap:0.8rem;margin-bottom:1rem;padding:0.6rem 1rem;border-radius:8px;background:var(--bg-tertiary);">
         <span style="font-size:0.85rem;color:var(--text-secondary);">${t('config.image_generation.enabled_label')}</span>
-        <div class="toggle ${enabled ? 'on' : ''}" data-path="image_generation.enabled" onclick="toggleBool(this)"></div>
+        <div class="toggle ${enabled ? 'on' : ''}" data-path="image_generation.enabled" onclick="toggleBool(this);setNestedValue(configData,'image_generation.enabled',this.classList.contains('on'));renderImageGenerationSection(null)"></div>
     </div>`;
 
     if (!enabled) {
