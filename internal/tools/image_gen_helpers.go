@@ -2,6 +2,7 @@ package tools
 
 import (
 	"bytes"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -117,6 +118,112 @@ func tryDownloadImageURL(rawURL string) ([]byte, string, error) {
 	}
 	return data, detectFormat(data), nil
 }
+
+func isRecognizedImageData(data []byte) bool {
+	if len(data) < 4 {
+		return false
+	}
+	// PNG
+	if data[0] == 0x89 && data[1] == 0x50 && data[2] == 0x4E && data[3] == 0x47 {
+		return true
+	}
+	// JPEG
+	if len(data) >= 3 && data[0] == 0xFF && data[1] == 0xD8 && data[2] == 0xFF {
+		return true
+	}
+	// WebP
+	if len(data) >= 12 && string(data[:4]) == "RIFF" && string(data[8:12]) == "WEBP" {
+		return true
+	}
+	// GIF
+	if len(data) >= 6 && string(data[:3]) == "GIF" {
+		return true
+	}
+	return false
+}
+
+func tryDecodeImageString(raw string) ([]byte, string, error) {
+	s := strings.TrimSpace(raw)
+	if s == "" {
+		return nil, "", fmt.Errorf("empty string")
+	}
+
+	// data:image/...;base64,...
+	if idx := strings.Index(s, "base64,"); idx >= 0 {
+		b64 := s[idx+7:]
+		if end := strings.IndexAny(b64, "\" \n\r)"); end > 0 {
+			b64 = b64[:end]
+		}
+		if data, err := base64.StdEncoding.DecodeString(b64); err == nil && isRecognizedImageData(data) {
+			return data, detectFormat(data), nil
+		}
+	}
+
+	// Raw base64 blob.
+	if data, err := base64.StdEncoding.DecodeString(s); err == nil && isRecognizedImageData(data) {
+		return data, detectFormat(data), nil
+	}
+
+	// Direct URL.
+	if data, ext, err := tryDownloadImageURL(s); err == nil {
+		return data, ext, nil
+	}
+
+	// Markdown image link: ![...](url)
+	if idx := strings.Index(s, "]("); idx >= 0 {
+		rest := s[idx+2:]
+		if end := strings.IndexByte(rest, ')'); end > 0 {
+			if data, ext, err := tryDownloadImageURL(rest[:end]); err == nil {
+				return data, ext, nil
+			}
+		}
+	}
+
+	return nil, "", fmt.Errorf("string does not contain image payload")
+}
+
+func extractImageFromAnyResponse(payload interface{}) ([]byte, string, error) {
+	var walk func(v interface{}, depth int) ([]byte, string, error)
+
+	walk = func(v interface{}, depth int) ([]byte, string, error) {
+		if depth > 10 {
+			return nil, "", fmt.Errorf("max depth reached")
+		}
+
+		switch t := v.(type) {
+		case string:
+			return tryDecodeImageString(t)
+
+		case []interface{}:
+			for _, item := range t {
+				if data, ext, err := walk(item, depth+1); err == nil {
+					return data, ext, nil
+				}
+			}
+
+		case map[string]interface{}:
+			priorityKeys := []string{"image_url", "url", "b64_json", "image_base64", "base64", "data", "image", "content", "output", "result"}
+			for _, k := range priorityKeys {
+				if child, ok := t[k]; ok {
+					if data, ext, err := walk(child, depth+1); err == nil {
+						return data, ext, nil
+					}
+				}
+			}
+			for _, child := range t {
+				if data, ext, err := walk(child, depth+1); err == nil {
+					return data, ext, nil
+				}
+			}
+		}
+
+		return nil, "", fmt.Errorf("no image payload at this node")
+	}
+
+	if data, ext, err := walk(payload, 0); err == nil {
+		return data, ext, nil
+	}
+	return nil, "", fmt.Errorf("no extractable image payload found")
 }
 
 // ResolveSourceImagePath resolves a source image path relative to workspace or data dir.

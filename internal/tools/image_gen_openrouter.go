@@ -127,69 +127,34 @@ func generateOpenRouter(cfg ImageGenConfig, prompt string, opts ImageGenOptions)
 	// Content might be a string with base64/URL, or an array of content blocks
 	switch v := content.(type) {
 	case string:
-		// Try to decode as raw base64
-		imgData, err := base64.StdEncoding.DecodeString(v)
-		if err == nil && len(imgData) > 100 {
-			return imgData, "png", nil
-		}
-		// Check if it contains a data URI
-		if idx := strings.Index(v, "base64,"); idx >= 0 {
-			b64 := v[idx+7:]
-			if end := strings.IndexAny(b64, "\" \n\r)"); end > 0 {
-				b64 = b64[:end]
-			}
-			imgData, err = base64.StdEncoding.DecodeString(b64)
-			if err == nil && len(imgData) > 100 {
-				return imgData, detectFormat(imgData), nil
-			}
-		}
-		// Check if it is or contains a direct URL — some OpenRouter models return
-		// a hosted image URL instead of inline base64.
-		if imgData, ext, err := tryDownloadImageURL(v); err == nil {
+		if imgData, ext, err := tryDecodeImageString(v); err == nil {
 			return imgData, ext, nil
-		}
-		// Check if it contains a markdown image link: ![...](url)
-		if idx := strings.Index(v, "]("); idx >= 0 {
-			rest := v[idx+2:]
-			if end := strings.IndexByte(rest, ')'); end > 0 {
-				if imgData, ext, err := tryDownloadImageURL(rest[:end]); err == nil {
-					return imgData, ext, nil
-				}
-			}
 		}
 		return nil, "", fmt.Errorf("could not extract image data from OpenRouter string response (len=%d, preview=%q)", len(v), truncateError(v))
 
 	case []interface{}:
-		// Array of content blocks — look for type=image_url
-		for _, block := range v {
-			m, ok := block.(map[string]interface{})
-			if !ok {
-				continue
-			}
-			if m["type"] == "image_url" {
-				if imgURL, ok := m["image_url"].(map[string]interface{}); ok {
-					if urlStr, ok := imgURL["url"].(string); ok {
-						if idx := strings.Index(urlStr, "base64,"); idx >= 0 {
-							b64 := urlStr[idx+7:]
-							imgData, err := base64.StdEncoding.DecodeString(b64)
-							if err == nil && len(imgData) > 100 {
-								return imgData, detectFormat(imgData), nil
-							}
-						}
-						// Try as direct URL
-						if imgData, ext, err := tryDownloadImageURL(urlStr); err == nil {
-							return imgData, ext, nil
-						}
-					}
-				}
-			}
+		if imgData, ext, err := extractImageFromAnyResponse(v); err == nil {
+			return imgData, ext, nil
 		}
 		return nil, "", fmt.Errorf("no image_url block found in OpenRouter response")
+
+	case map[string]interface{}:
+		if imgData, ext, err := extractImageFromAnyResponse(v); err == nil {
+			return imgData, ext, nil
+		}
+		return nil, "", fmt.Errorf("could not extract image data from OpenRouter object response")
 
 	case nil:
 		return nil, "", fmt.Errorf("OpenRouter returned null content (model may not support image generation or prompt was refused)")
 
 	default:
+		// Final fallback: search the full raw response recursively for image payloads.
+		var anyResp interface{}
+		if err := json.Unmarshal(respBody, &anyResp); err == nil {
+			if imgData, ext, walkErr := extractImageFromAnyResponse(anyResp); walkErr == nil {
+				return imgData, ext, nil
+			}
+		}
 		return nil, "", fmt.Errorf("unexpected content type in OpenRouter response: %T (raw: %s)", content, truncateError(string(respBody)))
 	}
 }
