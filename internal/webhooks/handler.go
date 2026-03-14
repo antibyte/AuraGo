@@ -29,6 +29,7 @@ type Handler struct {
 	mu             gosync.RWMutex // protects maxPayloadSize and rateLimiter during hot-reload
 	manager        *Manager
 	tokenManager   *security.TokenManager
+	guardian       *security.Guardian
 	logger         *slog.Logger
 	serverPort     int
 	maxPayloadSize int64
@@ -37,10 +38,11 @@ type Handler struct {
 }
 
 // NewHandler creates a webhook receiver handler.
-func NewHandler(manager *Manager, tokenManager *security.TokenManager, logger *slog.Logger, serverPort int, maxPayloadSize int64, rateLimit int) *Handler {
+func NewHandler(manager *Manager, tokenManager *security.TokenManager, guardian *security.Guardian, logger *slog.Logger, serverPort int, maxPayloadSize int64, rateLimit int) *Handler {
 	return &Handler{
 		manager:        manager,
 		tokenManager:   tokenManager,
+		guardian:       guardian,
 		logger:         logger,
 		serverPort:     serverPort,
 		maxPayloadSize: maxPayloadSize,
@@ -156,7 +158,16 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	fields := extractFields(body, wh.Format.Fields)
 	headers := extractHeaders(r)
 
-	// 8. Render prompt
+	// 8. Scan raw payload for injection attempts before rendering
+	if h.guardian != nil {
+		scan := h.guardian.ScanForInjection(string(body))
+		if scan.Level >= security.ThreatHigh {
+			h.logger.Warn("[Webhook] High-threat injection pattern in payload", "webhook", wh.Name, "threat", scan.Level, "source_ip", sourceIP)
+			body = []byte(security.IsolateExternalData(string(body)))
+		}
+	}
+
+	// 9. Render prompt
 	prompt, err := renderPrompt(wh, string(body), fields, headers)
 	if err != nil {
 		h.logger.Error("Failed to render webhook prompt", "error", err, "webhook", wh.Name)

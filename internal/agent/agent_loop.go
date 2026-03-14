@@ -81,7 +81,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		KoofrEnabled:             cfg.Koofr.Enabled,
 		ChromecastEnabled:        cfg.Chromecast.Enabled,
 		CoAgentEnabled:           cfg.CoAgents.Enabled,
-		GoogleWorkspaceEnabled:   cfg.Agent.EnableGoogleWorkspace,
+		GoogleWorkspaceEnabled:   cfg.GoogleWorkspace.Enabled,
 		ProxmoxEnabled:           cfg.Proxmox.Enabled,
 		OllamaEnabled:            cfg.Ollama.Enabled,
 		TailscaleEnabled:         cfg.Tailscale.Enabled,
@@ -198,6 +198,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			FirewallEnabled:          cfg.Firewall.Enabled && cfg.Runtime.FirewallAccessOK,
 			EmailEnabled:             cfg.Email.Enabled || len(cfg.EmailAccounts) > 0,
 			CloudflareTunnelEnabled:  cfg.CloudflareTunnel.Enabled,
+			GoogleWorkspaceEnabled:   cfg.GoogleWorkspace.Enabled,
 			MemoryEnabled:            cfg.Tools.Memory.Enabled,
 			KnowledgeGraphEnabled:    cfg.Tools.KnowledgeGraph.Enabled,
 			SecretsVaultEnabled:      cfg.Tools.SecretsVault.Enabled,
@@ -216,7 +217,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			AllowRemoteShell:     cfg.Agent.AllowRemoteShell,
 			AllowSelfUpdate:      cfg.Agent.AllowSelfUpdate,
 		}
-		ntSchemas := BuildNativeToolSchemas(cfg.Directories.SkillsDir, manifest, cfg.Agent.EnableGoogleWorkspace, ff, logger)
+		ntSchemas := BuildNativeToolSchemas(cfg.Directories.SkillsDir, manifest, ff, logger)
 		// Structured Outputs: set Strict=true on every tool definition so the
 		// provider uses constrained decoding for tool-call arguments.
 		// Only enable this for models that support structured outputs (e.g. GPT-4o,

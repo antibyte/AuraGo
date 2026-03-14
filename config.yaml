@@ -13,7 +13,6 @@ agent:
     core_memory_max_entries: 200
     core_personality: friend
     debug_mode: false
-    enable_google_workspace: true
     max_tool_calls: 12
     memory_compression_char_limit: 50000
     personality_engine: true

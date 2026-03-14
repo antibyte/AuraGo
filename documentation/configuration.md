@@ -49,7 +49,6 @@ Core agent behaviour settings.
 |---|---|---|
 | `system_language` | `"German"` | Language for system prompts and agent responses. Any natural language name works (e.g. `"English"`, `"French"`). |
 | `max_tool_calls` | `12` | Maximum consecutive tool calls the agent can make per user request before aborting. Prevents runaway loops. |
-| `enable_google_workspace` | `true` | Includes Google Workspace tool instructions in the system prompt. Only effective if `client_secret.json` is configured in `agent_workspace/skills/`. |
 | `step_delay_seconds` | `0` | Pause (seconds) between tool calls. Useful to avoid rate-limiting (HTTP 429) errors with slow providers. |
 | `memory_compression_char_limit` | `50000` | Character threshold at which the agent compresses older messages in the prompt. Roughly 50% of the model's context window in tokens. |
 | `personality_engine` | `true` | Enables the heuristic mood & trait engine. The agent's tone subtly shifts based on interaction patterns. Zero extra LLM calls. |

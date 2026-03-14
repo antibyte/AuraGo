@@ -146,6 +146,9 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		mux.HandleFunc("/api/netlify/status", handleNetlifyStatus(s))
 		mux.HandleFunc("/api/netlify/test-connection", handleNetlifyTestConnection(s))
 
+		// Google Workspace integration endpoints
+		mux.HandleFunc("/api/google-workspace/test", handleGoogleWorkspaceTest(s))
+
 		// AdGuard Home integration endpoints
 		mux.HandleFunc("/api/adguard/status", handleAdGuardStatus(s))
 		mux.HandleFunc("/api/adguard/test", handleAdGuardTest(s))

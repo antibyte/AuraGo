@@ -242,9 +242,18 @@ type ToolCall struct {
 	MACAddress string `json:"mac_address,omitempty"` // Optional MAC for Wake-on-LAN
 	NoteID     int64  `json:"note_id"`
 	// Google Workspace fields
-	DocumentID string `json:"document_id"`
-	MaxResults int    `json:"max_results"`
-	Append     bool   `json:"append"`
+	DocumentID   string          `json:"document_id"`
+	MaxResults   int             `json:"max_results"`
+	Append       bool            `json:"append"`
+	MessageID    string          `json:"message_id"`
+	AddLabels    []string        `json:"add_labels"`
+	RemoveLabels []string        `json:"remove_labels"`
+	EventID      string          `json:"event_id"`
+	StartTime    string          `json:"start_time"`
+	EndTime      string          `json:"end_time"`
+	FileID       string          `json:"file_id"`
+	Range        string          `json:"range"`
+	Values       [][]interface{} `json:"values"`
 	// Vision / STT fields
 	Prompt string `json:"prompt"`
 	// Home Assistant fields

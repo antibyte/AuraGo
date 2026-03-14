@@ -424,7 +424,7 @@ func processDiscordMessage(s *discordgo.Session, m *discordgo.MessageCreate, inp
 		KoofrEnabled:             cfg.Koofr.Enabled,
 		ChromecastEnabled:        cfg.Chromecast.Enabled,
 		CoAgentEnabled:           cfg.CoAgents.Enabled,
-		GoogleWorkspaceEnabled:   cfg.Agent.EnableGoogleWorkspace,
+		GoogleWorkspaceEnabled:   cfg.GoogleWorkspace.Enabled,
 		ProxmoxEnabled:           cfg.Proxmox.Enabled,
 		OllamaEnabled:            cfg.Ollama.Enabled,
 		TailscaleEnabled:         cfg.Tailscale.Enabled,

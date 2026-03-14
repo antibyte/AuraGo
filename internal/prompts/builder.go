@@ -2,6 +2,7 @@ package prompts
 
 import (
 	"aurago/internal/memory"
+	"aurago/internal/security"
 	promptsembed "aurago/prompts"
 	"fmt"
 	"io/fs"
@@ -44,6 +45,17 @@ var (
 type metaCacheEntry struct {
 	meta  memory.PersonalityMeta
 	mtime time.Time
+}
+
+// personalityContentCache caches loaded personality profile text keyed by profile name.
+var (
+	personalityCacheMu sync.RWMutex
+	personalityCache   = make(map[string]personalityCacheEntry)
+)
+
+type personalityCacheEntry struct {
+	content string
+	mtime   time.Time
 }
 
 // toolGuideCache caches tool guide contents keyed by file path.
@@ -170,6 +182,7 @@ type PromptModule struct {
 // It respects the Tier and TokenBudget settings for context-aware optimization.
 func BuildSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string, logger *slog.Logger) string {
 	var finalPrompt strings.Builder
+	finalPrompt.Grow(32768) // Pre-allocate ~32KB to reduce reallocs
 
 	// Auto-determine tier if not set
 	if flags.Tier == "" {
@@ -182,17 +195,7 @@ func BuildSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string,
 	// 1b. Load core personality profile content (injected later in dynamic section for prominence)
 	corePersonalityContent := ""
 	if flags.CorePersonality != "" {
-		// Try disk first (user-created or overridden personality), fall back to embedded default.
-		profilePath := filepath.Join(promptsDir, "personalities", flags.CorePersonality+".md")
-		if data, err := os.ReadFile(profilePath); err == nil {
-			corePersonalityContent = strings.TrimSpace(string(data))
-			logger.Debug("Loaded core personality profile from disk", "profile", flags.CorePersonality)
-		} else if data, err := fs.ReadFile(promptsembed.FS, "personalities/"+flags.CorePersonality+".md"); err == nil {
-			corePersonalityContent = strings.TrimSpace(string(data))
-			logger.Debug("Loaded core personality profile from embed", "profile", flags.CorePersonality)
-		} else {
-			logger.Warn("Core personality profile not found", "profile", flags.CorePersonality)
-		}
+		corePersonalityContent = loadCorePersonalityContent(promptsDir, flags.CorePersonality, logger)
 	}
 
 	// 2. Filter modules based on flags
@@ -240,7 +243,7 @@ func BuildSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string,
 	// RAG: Retrieved Long-Term Memories — skip in minimal tier
 	if flags.RetrievedMemories != "" && flags.Tier != "minimal" {
 		finalPrompt.WriteString("# RETRIEVED MEMORIES\n")
-		finalPrompt.WriteString(flags.RetrievedMemories)
+		finalPrompt.WriteString(security.IsolateExternalData(flags.RetrievedMemories))
 		finalPrompt.WriteString("\n\n")
 	}
 
@@ -294,8 +297,9 @@ func BuildSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string,
 		finalPrompt.WriteString("\n\n")
 	}
 
-	finalPrompt.WriteString(fmt.Sprintf("# NOW\n%s %s\n",
-		now.Format("2006-01-02"), now.Format("15:04")))
+	finalPrompt.WriteString("# NOW\n")
+	finalPrompt.WriteString(now.Format("2006-01-02 15:04"))
+	finalPrompt.WriteString("\n")
 
 	// Internet-exposure warning — shown before custom instructions so it is always visible
 	if flags.InternetExposed {
@@ -485,12 +489,15 @@ func trimRetrievedMemoriesSection(prompt string, budget int, logger *slog.Logger
 	for len(entries) > 0 {
 		content := header + "\n" + strings.Join(entries, sep) + "\n\n"
 		candidate := before + content + afterSection
-		tokens := CountTokens(candidate)
-		if tokens <= budget {
-			if trimmed {
-				logger.Debug("[Budget] Trimmed retrieved memories", "remaining_entries", len(entries))
+		// Fast char-estimate check: skip expensive tokenization if clearly over budget
+		if len(candidate)/4 <= budget {
+			tokens := CountTokens(candidate)
+			if tokens <= budget {
+				if trimmed {
+					logger.Debug("[Budget] Trimmed retrieved memories", "remaining_entries", len(entries))
+				}
+				return candidate, trimmed, tokens
 			}
-			return candidate, trimmed, tokens
 		}
 		// Drop the last (lowest-ranked) entry and retry
 		entries = entries[:len(entries)-1]
@@ -624,6 +631,50 @@ func OptimizePrompt(raw string) (string, int) {
 	saved := len(raw) - len(optimized)
 
 	return optimized, saved
+}
+
+// loadCorePersonalityContent loads personality profile content with caching.
+// Checks disk first (user-overridden), then falls back to embedded defaults.
+func loadCorePersonalityContent(promptsDir, profile string, logger *slog.Logger) string {
+	profilePath := filepath.Join(promptsDir, "personalities", profile+".md")
+
+	// Check cache
+	personalityCacheMu.RLock()
+	cached, ok := personalityCache[profile]
+	personalityCacheMu.RUnlock()
+
+	if ok {
+		if info, err := os.Stat(profilePath); err == nil {
+			if !info.ModTime().After(cached.mtime) {
+				return cached.content
+			}
+		} else if cached.mtime.IsZero() {
+			// File gone from disk — still valid if loaded from embed
+			return cached.content
+		}
+	}
+
+	var content string
+	var mtime time.Time
+	if data, err := os.ReadFile(profilePath); err == nil {
+		content = strings.TrimSpace(string(data))
+		if info, err := os.Stat(profilePath); err == nil {
+			mtime = info.ModTime()
+		}
+		logger.Debug("Loaded core personality profile from disk", "profile", profile)
+	} else if data, err := fs.ReadFile(promptsembed.FS, "personalities/"+profile+".md"); err == nil {
+		content = strings.TrimSpace(string(data))
+		logger.Debug("Loaded core personality profile from embed", "profile", profile)
+	} else {
+		logger.Warn("Core personality profile not found", "profile", profile)
+		return ""
+	}
+
+	personalityCacheMu.Lock()
+	personalityCache[profile] = personalityCacheEntry{content: content, mtime: mtime}
+	personalityCacheMu.Unlock()
+
+	return content
 }
 
 // CountTokens returns the number of BPE tokens in text using the cl100k_base encoding.

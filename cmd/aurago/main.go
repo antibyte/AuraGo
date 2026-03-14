@@ -275,7 +275,7 @@ func main() {
 
 	// Phase 26.1: Provision skill dependencies into the venv in the background
 	// so the server starts immediately without waiting for pip.
-	go tools.ProvisionSkillDependencies(cfg.Directories.SkillsDir, cfg.Directories.WorkspaceDir, appLog, cfg.Agent.EnableGoogleWorkspace)
+	go tools.ProvisionSkillDependencies(cfg.Directories.SkillsDir, cfg.Directories.WorkspaceDir, appLog)
 
 	shortTermMem, err := memory.NewSQLiteMemory(cfg.SQLite.ShortTermPath, appLog)
 	if err != nil {

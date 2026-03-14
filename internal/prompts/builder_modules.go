@@ -395,7 +395,10 @@ func (m *PromptModule) ShouldInclude(flags ContextFlags) bool {
 }
 
 // readToolGuide reads a tool guide file with caching.
+// Guides exceeding 8KB are truncated to prevent prompt bloat.
 func readToolGuide(path string) (string, bool) {
+	const maxGuideBytes = 8192
+
 	guideCacheMu.RLock()
 	cached, ok := guideCache[path]
 	guideCacheMu.RUnlock()
@@ -412,7 +415,10 @@ func readToolGuide(path string) (string, bool) {
 		return "", false
 	}
 
-	content := string(data)
+	content := strings.TrimSpace(string(data))
+	if len(content) > maxGuideBytes {
+		content = content[:maxGuideBytes] + "\n[...truncated]"
+	}
 	info, err := os.Stat(path)
 	if err == nil {
 		guideCacheMu.Lock()

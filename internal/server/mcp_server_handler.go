@@ -204,7 +204,7 @@ func mcpBuildToolList(s *Server) []mcpToolSchema {
 
 	ff := mcpFeatureFlags(cfg)
 	manifest := tools.NewManifest(cfg.Directories.ToolsDir)
-	oaiTools := agent.BuildNativeToolSchemas(cfg.Directories.SkillsDir, manifest, cfg.Agent.EnableGoogleWorkspace, ff, s.Logger)
+	oaiTools := agent.BuildNativeToolSchemas(cfg.Directories.SkillsDir, manifest, ff, s.Logger)
 
 	allowSet := make(map[string]bool, len(allowed))
 	for _, name := range allowed {
@@ -327,6 +327,7 @@ func mcpFeatureFlags(cfg *config.Config) agent.ToolFeatureFlags {
 		OllamaEnabled:            cfg.Ollama.Enabled,
 		TailscaleEnabled:         cfg.Tailscale.Enabled,
 		CloudflareTunnelEnabled:  cfg.CloudflareTunnel.Enabled,
+		GoogleWorkspaceEnabled:   cfg.GoogleWorkspace.Enabled,
 		AnsibleEnabled:           cfg.Ansible.Enabled,
 		InvasionControlEnabled:   cfg.InvasionControl.Enabled,
 		GitHubEnabled:            cfg.GitHub.Enabled,
@@ -374,7 +375,7 @@ func handleMCPServerTools(s *Server) http.HandlerFunc {
 
 		ff := mcpFeatureFlags(cfg)
 		manifest := tools.NewManifest(cfg.Directories.ToolsDir)
-		oaiTools := agent.BuildNativeToolSchemas(cfg.Directories.SkillsDir, manifest, cfg.Agent.EnableGoogleWorkspace, ff, s.Logger)
+		oaiTools := agent.BuildNativeToolSchemas(cfg.Directories.SkillsDir, manifest, ff, s.Logger)
 
 		names := make([]string, 0, len(oaiTools))
 		for _, t := range oaiTools {

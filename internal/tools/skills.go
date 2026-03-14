@@ -24,7 +24,7 @@ type SkillManifest struct {
 }
 
 // ListSkills scans the skills directory for .json manifest files and returns them.
-func ListSkills(skillsDir string, enableGoogleWorkspace bool) ([]SkillManifest, error) {
+func ListSkills(skillsDir string) ([]SkillManifest, error) {
 	var skills []SkillManifest
 
 	entries, err := os.ReadDir(skillsDir)
@@ -43,16 +43,8 @@ func ListSkills(skillsDir string, enableGoogleWorkspace bool) ([]SkillManifest, 
 				continue // Skip unreadable files
 			}
 
-			if !enableGoogleWorkspace && entry.Name() == "google_workspace.json" {
-				continue // Skip conditionally disabled skill
-			}
-
 			var manifest SkillManifest
 			if err := json.Unmarshal(data, &manifest); err == nil && manifest.Name != "" && manifest.Executable != "" {
-				// Filter out internal tools that are now skills folder workers
-				if manifest.Name == "google_workspace" {
-					continue
-				}
 				skills = append(skills, manifest)
 			}
 		}
@@ -62,9 +54,9 @@ func ListSkills(skillsDir string, enableGoogleWorkspace bool) ([]SkillManifest, 
 }
 
 // ExecuteSkill dynamically executes the requested skill script, routing Python scripts to the venv.
-func ExecuteSkill(skillsDir, workspaceDir, skillName string, argsJSON map[string]interface{}, enableGoogleWorkspace bool) (string, error) {
+func ExecuteSkill(skillsDir, workspaceDir, skillName string, argsJSON map[string]interface{}) (string, error) {
 	// First, lookup the skill manifest to find its executable
-	skills, err := ListSkills(skillsDir, enableGoogleWorkspace)
+	skills, err := ListSkills(skillsDir)
 	if err != nil {
 		return "", fmt.Errorf("failed to scan skills: %v", err)
 	}
@@ -158,8 +150,8 @@ func ExecuteSkill(skillsDir, workspaceDir, skillName string, argsJSON map[string
 }
 
 // ProvisionSkillDependencies scans all skills and installs their pip dependencies into the venv.
-func ProvisionSkillDependencies(skillsDir, workspaceDir string, logger *slog.Logger, enableGoogleWorkspace bool) {
-	skills, err := ListSkills(skillsDir, enableGoogleWorkspace)
+func ProvisionSkillDependencies(skillsDir, workspaceDir string, logger *slog.Logger) {
+	skills, err := ListSkills(skillsDir)
 	if err != nil {
 		logger.Warn("Failed to scan skills for dependency provisioning", "error", err)
 		return

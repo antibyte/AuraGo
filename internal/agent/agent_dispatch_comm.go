@@ -78,7 +78,7 @@ func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 
 	case "list_skills":
 		logger.Info("LLM requested to list skills")
-		skills, err := tools.ListSkills(cfg.Directories.SkillsDir, cfg.Agent.EnableGoogleWorkspace)
+		skills, err := tools.ListSkills(cfg.Directories.SkillsDir)
 		if err != nil {
 			return fmt.Sprintf("Tool Output: ERROR listing skills: %v", err)
 		}
@@ -198,35 +198,18 @@ func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 			json.Unmarshal(reqJSON, &req)
 			return tools.ExecuteGit(cfg.Directories.WorkspaceDir, req)
 		case "google_workspace":
-			if !cfg.Agent.AllowPython {
-				return "Tool Output: [PERMISSION DENIED] google_workspace skill requires Python (agent.allow_python: false)."
+			if !cfg.GoogleWorkspace.Enabled {
+				return `Tool Output: {"status": "error", "message": "Google Workspace is not enabled. Enable it in Settings > Google Workspace."}`
 			}
 			op, _ := args["operation"].(string)
-			limit, _ := args["limit"].(float64)
-			docID, _ := args["document_id"].(string)
-			title, _ := args["title"].(string)
-			text, _ := args["text"].(string)
-			appendMode, _ := args["append"].(bool)
-			gConfig := tools.GoogleWorkspaceConfig{
-				Action:     op,
-				MaxResults: int(limit),
-				DocumentID: docID,
-				Title:      title,
-				Text:       text,
-				Append:     appendMode,
-			}
-			res, err := tools.ExecuteGoogleWorkspace(vault, cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir, gConfig)
-			if err != nil {
-				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
-			}
-			return res
+			return "Tool Output: " + tools.ExecuteGoogleWorkspace(*cfg, vault, op, args)
 		}
 
 		// Generic Python skill fallback — gate on AllowPython
 		if !cfg.Agent.AllowPython {
 			return fmt.Sprintf("Tool Output: [PERMISSION DENIED] Skill '%s' requires Python execution which is disabled (agent.allow_python: false).", skillName)
 		}
-		res, err := tools.ExecuteSkill(cfg.Directories.SkillsDir, cfg.Directories.WorkspaceDir, skillName, args, cfg.Agent.EnableGoogleWorkspace)
+		res, err := tools.ExecuteSkill(cfg.Directories.SkillsDir, cfg.Directories.WorkspaceDir, skillName, args)
 		if err != nil {
 			return fmt.Sprintf("Tool Output: ERROR executing skill: %v\nOutput: %s", err, res)
 		}

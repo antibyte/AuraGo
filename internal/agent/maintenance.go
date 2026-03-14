@@ -84,6 +84,13 @@ func runMaintenanceTask(cfg *config.Config, logger *slog.Logger, client llm.Chat
 		} else if deleted > 0 {
 			logger.Info("[Maintenance] Cleaned old interaction patterns", "deleted", deleted)
 		}
+
+		deletedEvents, err := shortTermMem.CleanOldArchiveEvents(90)
+		if err != nil {
+			logger.Error("[Maintenance] Failed to clean old archive events", "error", err)
+		} else if deletedEvents > 0 {
+			logger.Info("[Maintenance] Cleaned old archive events", "deleted", deletedEvents)
+		}
 	}
 
 	// Phase D8: Personality Engine maintenance — trait decay + journal

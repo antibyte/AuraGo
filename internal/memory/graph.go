@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 )
 
 type Node struct {
@@ -28,9 +29,10 @@ type graphState struct {
 }
 
 type KnowledgeGraph struct {
-	filePath string
-	mu       sync.RWMutex
-	state    graphState
+	filePath    string
+	mu          sync.RWMutex
+	state       graphState
+	savePending int32 // atomic: 1 if a background save goroutine is already queued
 }
 
 func NewKnowledgeGraph(filePath string) *KnowledgeGraph {
@@ -214,33 +216,38 @@ func (kg *KnowledgeGraph) Search(query string) string {
 	}
 	data, _ := json.Marshal(result)
 
-	// Update access counts asynchronously (write path)
-	go func() {
-		kg.mu.Lock()
-		defer kg.mu.Unlock()
-		for _, id := range matchedNodeIDs {
-			if n, ok := kg.state.Nodes[id]; ok {
-				count := 0
-				if countStr := n.Properties["access_count"]; countStr != "" {
-					fmt.Sscanf(countStr, "%d", &count)
+	// Update access counts asynchronously (write path).
+	// We cap this to at most one pending goroutine: if a save is already
+	// queued, skip launching another to prevent unbounded goroutine accumulation.
+	if atomic.CompareAndSwapInt32(&kg.savePending, 0, 1) {
+		go func() {
+			kg.mu.Lock()
+			defer kg.mu.Unlock()
+			for _, id := range matchedNodeIDs {
+				if n, ok := kg.state.Nodes[id]; ok {
+					count := 0
+					if countStr := n.Properties["access_count"]; countStr != "" {
+						fmt.Sscanf(countStr, "%d", &count)
+					}
+					n.Properties["access_count"] = fmt.Sprintf("%d", count+1)
+					kg.state.Nodes[id] = n
 				}
-				n.Properties["access_count"] = fmt.Sprintf("%d", count+1)
-				kg.state.Nodes[id] = n
 			}
-		}
-		for _, idx := range matchedEdgeIdxs {
-			if idx < len(kg.state.Edges) {
-				e := kg.state.Edges[idx]
-				count := 0
-				if countStr := e.Properties["access_count"]; countStr != "" {
-					fmt.Sscanf(countStr, "%d", &count)
+			for _, idx := range matchedEdgeIdxs {
+				if idx < len(kg.state.Edges) {
+					e := kg.state.Edges[idx]
+					count := 0
+					if countStr := e.Properties["access_count"]; countStr != "" {
+						fmt.Sscanf(countStr, "%d", &count)
+					}
+					e.Properties["access_count"] = fmt.Sprintf("%d", count+1)
+					kg.state.Edges[idx] = e
 				}
-				e.Properties["access_count"] = fmt.Sprintf("%d", count+1)
-				kg.state.Edges[idx] = e
 			}
-		}
-		kg.save()
-	}()
+			kg.save()
+			atomic.StoreInt32(&kg.savePending, 0)
+		}()
+	}
 
 	return string(data)
 }

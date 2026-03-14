@@ -11,7 +11,66 @@ func (c *Config) FindProvider(id string) *ProviderEntry {
 			return &c.Providers[i]
 		}
 	}
+	// Synthetic provider for Google Workspace OAuth
+	if id == "google_workspace" && c.GoogleWorkspace.ClientID != "" {
+		secret := c.GoogleWorkspace.ClientSecret
+		scopes := c.googleWorkspaceOAuthScopes()
+		c.gwProvider = ProviderEntry{
+			ID:                "google_workspace",
+			Name:              "Google Workspace",
+			AuthType:          "oauth2",
+			OAuthAuthURL:      "https://accounts.google.com/o/oauth2/v2/auth",
+			OAuthTokenURL:     "https://oauth2.googleapis.com/token",
+			OAuthClientID:     c.GoogleWorkspace.ClientID,
+			OAuthClientSecret: secret,
+			OAuthScopes:       scopes,
+		}
+		return &c.gwProvider
+	}
 	return nil
+}
+
+func (c *Config) googleWorkspaceOAuthScopes() string {
+	scopes := []string{}
+	gw := c.GoogleWorkspace
+	if gw.Gmail || gw.GmailSend {
+		if gw.GmailSend {
+			scopes = append(scopes, "https://www.googleapis.com/auth/gmail.modify", "https://www.googleapis.com/auth/gmail.send")
+		} else {
+			scopes = append(scopes, "https://www.googleapis.com/auth/gmail.readonly")
+		}
+	}
+	if gw.Calendar || gw.CalendarWrite {
+		if gw.CalendarWrite {
+			scopes = append(scopes, "https://www.googleapis.com/auth/calendar")
+		} else {
+			scopes = append(scopes, "https://www.googleapis.com/auth/calendar.readonly")
+		}
+	}
+	if gw.Drive {
+		scopes = append(scopes, "https://www.googleapis.com/auth/drive.readonly")
+	}
+	if gw.Docs || gw.DocsWrite {
+		if gw.DocsWrite {
+			scopes = append(scopes, "https://www.googleapis.com/auth/documents")
+		} else {
+			scopes = append(scopes, "https://www.googleapis.com/auth/documents.readonly")
+		}
+	}
+	if gw.Sheets || gw.SheetsWrite {
+		if gw.SheetsWrite {
+			scopes = append(scopes, "https://www.googleapis.com/auth/spreadsheets")
+		} else {
+			scopes = append(scopes, "https://www.googleapis.com/auth/spreadsheets.readonly")
+		}
+	}
+	if len(scopes) == 0 {
+		// Default minimal scope set
+		scopes = append(scopes, "https://www.googleapis.com/auth/gmail.readonly",
+			"https://www.googleapis.com/auth/calendar.readonly",
+			"https://www.googleapis.com/auth/drive.readonly")
+	}
+	return strings.Join(scopes, " ")
 }
 
 // migrateBudgetModelsToProviders copies legacy budget.models entries into
@@ -294,6 +353,16 @@ func (c *Config) ApplyOAuthTokens(vault SecretReader) {
 	applyIfOAuth(c.Embeddings.Provider, &c.Embeddings.APIKey)
 	applyIfOAuth(c.CoAgents.LLM.Provider, &c.CoAgents.LLM.APIKey)
 	applyIfOAuth(c.Agent.PersonalityV2Provider, &c.Agent.PersonalityV2ResolvedKey)
+
+	// ── Google Workspace OAuth token ──
+	if raw, err := vault.ReadSecret("oauth_google_workspace"); err == nil && raw != "" {
+		var tok OAuthToken
+		if err := json.Unmarshal([]byte(raw), &tok); err == nil {
+			c.GoogleWorkspace.AccessToken = tok.AccessToken
+			c.GoogleWorkspace.RefreshToken = tok.RefreshToken
+			c.GoogleWorkspace.TokenExpiry = tok.Expiry
+		}
+	}
 }
 
 // ApplyVaultSecrets populates all vault-only secret fields from the vault.
@@ -360,6 +429,9 @@ func (c *Config) ApplyVaultSecrets(vault SecretReader) {
 
 	// ── Netlify ──
 	apply("netlify_token", &c.Netlify.Token)
+
+	// ── Google Workspace ──
+	apply("google_workspace_client_secret", &c.GoogleWorkspace.ClientSecret)
 
 	// ── Email account passwords ──
 	apply("email_password", &c.Email.Password)

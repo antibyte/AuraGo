@@ -18,7 +18,6 @@ agent:
     core_memory_max_entries: 200
     core_personality: friend
     debug_mode: false
-    enable_google_workspace: false
     max_tool_calls: 12
     memory_compression_char_limit: 50000
     personality_engine: true
@@ -336,6 +335,19 @@ github:
     owner: ""
     default_private: false
     base_url: ""
+google_workspace:
+    enabled: false
+    readonly: false
+    gmail: false
+    gmail_send: false
+    calendar: false
+    calendar_write: false
+    drive: false
+    docs: false
+    docs_write: false
+    sheets: false
+    sheets_write: false
+    client_id: ""
 netlify:
     enabled: false
     readonly: false

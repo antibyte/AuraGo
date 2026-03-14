@@ -276,7 +276,7 @@ func processUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Con
 		KoofrEnabled:             cfg.Koofr.Enabled,
 		ChromecastEnabled:        cfg.Chromecast.Enabled,
 		CoAgentEnabled:           cfg.CoAgents.Enabled,
-		GoogleWorkspaceEnabled:   cfg.Agent.EnableGoogleWorkspace,
+		GoogleWorkspaceEnabled:   cfg.GoogleWorkspace.Enabled,
 		ProxmoxEnabled:           cfg.Proxmox.Enabled,
 		OllamaEnabled:            cfg.Ollama.Enabled,
 		TailscaleEnabled:         cfg.Tailscale.Enabled,

@@ -249,7 +249,7 @@ func processMessage(cfg *config.Config, logger *slog.Logger, client llm.ChatClie
 		KoofrEnabled:             cfg.Koofr.Enabled,
 		ChromecastEnabled:        cfg.Chromecast.Enabled,
 		CoAgentEnabled:           cfg.CoAgents.Enabled,
-		GoogleWorkspaceEnabled:   cfg.Agent.EnableGoogleWorkspace,
+		GoogleWorkspaceEnabled:   cfg.GoogleWorkspace.Enabled,
 		ProxmoxEnabled:           cfg.Proxmox.Enabled,
 		OllamaEnabled:            cfg.Ollama.Enabled,
 		TailscaleEnabled:         cfg.Tailscale.Enabled,
@@ -322,8 +322,9 @@ func processMessage(cfg *config.Config, logger *slog.Logger, client llm.ChatClie
 			HomepageAllowLocalServer: cfg.Homepage.AllowLocalServer,
 			NetlifyEnabled:           cfg.Netlify.Enabled,
 			AdGuardEnabled:           cfg.AdGuard.Enabled,
+			GoogleWorkspaceEnabled:   cfg.GoogleWorkspace.Enabled,
 		}
-		ntSchemas := agent.BuildNativeToolSchemas(cfg.Directories.SkillsDir, manifest, cfg.Agent.EnableGoogleWorkspace, ff, logger)
+		ntSchemas := agent.BuildNativeToolSchemas(cfg.Directories.SkillsDir, manifest, ff, logger)
 		req.Tools = ntSchemas
 		req.ToolChoice = "auto"
 	}

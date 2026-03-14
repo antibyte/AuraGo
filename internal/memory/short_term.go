@@ -135,7 +135,12 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		first_seen DATETIME DEFAULT CURRENT_TIMESTAMP,
 		PRIMARY KEY (category, key)
-	);`
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_messages_session_ts ON messages(session_id, timestamp);
+	CREATE INDEX IF NOT EXISTS idx_memory_meta_accessed ON memory_meta(last_accessed);
+	CREATE INDEX IF NOT EXISTS idx_interaction_patterns_last_seen ON interaction_patterns(last_seen);
+	CREATE INDEX IF NOT EXISTS idx_archive_events_session_ts ON archive_events(session_id, timestamp);`
 
 	if _, err := db.Exec(schema); err != nil {
 		return nil, fmt.Errorf("failed to create sqlite schema: %w", err)
@@ -601,6 +606,15 @@ func (s *SQLiteMemory) GetTopPatterns(hour, weekday, limit int) ([]string, error
 // CleanOldPatterns removes interaction patterns older than the given number of days.
 func (s *SQLiteMemory) CleanOldPatterns(olderThanDays int) (int64, error) {
 	res, err := s.db.Exec(`DELETE FROM interaction_patterns WHERE last_seen < datetime('now', '-' || ? || ' days');`, olderThanDays)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
+}
+
+// CleanOldArchiveEvents removes archive events older than the given number of days.
+func (s *SQLiteMemory) CleanOldArchiveEvents(olderThanDays int) (int64, error) {
+	res, err := s.db.Exec(`DELETE FROM archive_events WHERE timestamp < datetime('now', '-' || ? || ' days');`, olderThanDays)
 	if err != nil {
 		return 0, err
 	}

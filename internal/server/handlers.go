@@ -324,7 +324,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			KoofrEnabled:             s.Cfg.Koofr.Enabled,
 			ChromecastEnabled:        s.Cfg.Chromecast.Enabled,
 			CoAgentEnabled:           s.Cfg.CoAgents.Enabled,
-			GoogleWorkspaceEnabled:   s.Cfg.Agent.EnableGoogleWorkspace,
+			GoogleWorkspaceEnabled:   s.Cfg.GoogleWorkspace.Enabled,
 			ProxmoxEnabled:           s.Cfg.Proxmox.Enabled,
 			OllamaEnabled:            s.Cfg.Ollama.Enabled,
 			TailscaleEnabled:         s.Cfg.Tailscale.Enabled,

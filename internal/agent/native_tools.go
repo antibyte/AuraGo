@@ -66,6 +66,7 @@ type ToolFeatureFlags struct {
 	FirewallEnabled         bool
 	EmailEnabled            bool
 	CloudflareTunnelEnabled bool
+	GoogleWorkspaceEnabled  bool
 	// Danger Zone toggles
 	AllowShell               bool
 	AllowPython              bool
@@ -98,7 +99,7 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 
 	tools := []openai.Tool{
 		tool("execute_skill",
-			"Run a pre-built registered skill (e.g. web_search, ddg_search, pdf_extractor, wikipedia_search, google_workspace, virustotal_scan). Use for external data retrieval.",
+			"Run a pre-built registered skill (e.g. web_search, ddg_search, pdf_extractor, wikipedia_search, virustotal_scan). Use for external data retrieval.",
 			schema(map[string]interface{}{
 				"skill": prop("string", "Name of the skill to execute (e.g. 'ddg_search', 'web_scraper', 'pdf_extractor', 'virustotal_scan')"),
 				"skill_args": map[string]interface{}{
@@ -882,6 +883,43 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 			}, "operation"),
 		))
 	}
+	if ff.GoogleWorkspaceEnabled {
+		tools = append(tools, tool("google_workspace",
+			"Interact with Google Workspace services (Gmail, Calendar, Drive, Docs, Sheets). "+
+				"Perform operations like listing/reading/sending emails, managing calendar events, "+
+				"searching Drive files, and reading/writing documents and spreadsheets.",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "Operation to perform",
+					"enum": []string{
+						"gmail_list", "gmail_read", "gmail_send", "gmail_modify_labels",
+						"calendar_list", "calendar_create", "calendar_update",
+						"drive_search", "drive_get_content",
+						"docs_get", "docs_create", "docs_update",
+						"sheets_get", "sheets_update", "sheets_create",
+					},
+				},
+				"message_id":    prop("string", "Gmail message ID (for gmail_read, gmail_modify_labels)"),
+				"to":            prop("string", "Recipient email address (for gmail_send)"),
+				"subject":       prop("string", "Email subject (for gmail_send)"),
+				"body":          prop("string", "Email body or document content"),
+				"add_labels":    map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Label IDs to add (for gmail_modify_labels)"},
+				"remove_labels": map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Label IDs to remove (for gmail_modify_labels)"},
+				"query":         prop("string", "Search query (Gmail search syntax for gmail_list, or Drive search for drive_search)"),
+				"max_results":   map[string]interface{}{"type": "integer", "description": "Maximum number of results to return (default: 10)"},
+				"event_id":      prop("string", "Calendar event ID (for calendar_update)"),
+				"title":         prop("string", "Event summary or document title"),
+				"start_time":    prop("string", "Event start time in RFC3339 format (for calendar_create/update)"),
+				"end_time":      prop("string", "Event end time in RFC3339 format (for calendar_create/update)"),
+				"description":   prop("string", "Event description or additional details"),
+				"file_id":       prop("string", "Drive file ID (for drive_get_content)"),
+				"document_id":   prop("string", "Google Docs or Sheets document ID"),
+				"range":         prop("string", "Sheet cell range in A1 notation (for sheets_get, sheets_update)"),
+				"values":        map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}}, "description": "2D array of cell values (for sheets_update)"},
+			}, "operation"),
+		))
+	}
 	return tools
 }
 
@@ -941,11 +979,11 @@ func NativeToolCallToToolCall(native openai.ToolCall, logger *slog.Logger) ToolC
 }
 
 // BuildNativeToolSchemas returns the full tool list: built-ins + registered skills + custom tools.
-func BuildNativeToolSchemas(skillsDir string, manifest *tools.Manifest, enableGoogleWorkspace bool, ff ToolFeatureFlags, logger *slog.Logger) []openai.Tool {
+func BuildNativeToolSchemas(skillsDir string, manifest *tools.Manifest, ff ToolFeatureFlags, logger *slog.Logger) []openai.Tool {
 	allTools := builtinToolSchemas(ff)
 
 	// Add skills as sub-variants of execute_skill (informational context; already handled by execute_skill schema)
-	if skills, err := tools.ListSkills(skillsDir, enableGoogleWorkspace); err == nil {
+	if skills, err := tools.ListSkills(skillsDir); err == nil {
 		for _, skill := range skills {
 			allTools = append(allTools, tool(
 				"skill__"+skill.Name,

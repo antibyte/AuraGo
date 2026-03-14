@@ -83,7 +83,11 @@ func GenerateEggConfig(masterCfg *config.Config, egg EggRecord, nest NestRecord,
 		"allow_remote_shell":         false,
 		"allow_self_update":          false,
 		"sudo_enabled":               false,
-		"enable_google_workspace":    false,
+	}
+
+	// ── Google Workspace — disabled for eggs ──
+	cfg["google_workspace"] = map[string]interface{}{
+		"enabled": false,
 	}
 
 	// ── Circuit Breaker ──

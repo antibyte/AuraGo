@@ -57,10 +57,12 @@ func RecordBuild(rec PromptBuildRecord) {
 	defer globalStats.mu.Unlock()
 
 	if len(globalStats.records) >= globalStats.maxSize {
-		// Shift: drop oldest 20%
+		// Shift: drop oldest 20% and reallocate to release memory
 		drop := globalStats.maxSize / 5
-		copy(globalStats.records, globalStats.records[drop:])
-		globalStats.records = globalStats.records[:len(globalStats.records)-drop]
+		remaining := len(globalStats.records) - drop
+		newRecords := make([]PromptBuildRecord, remaining, globalStats.maxSize)
+		copy(newRecords, globalStats.records[drop:])
+		globalStats.records = newRecords
 	}
 	globalStats.records = append(globalStats.records, rec)
 }
