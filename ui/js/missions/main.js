@@ -10,6 +10,7 @@ let webhooks = [];
 let currentFilter = 'all';
 let editingId = null;
 let initialLoad = false; // Track if first load completed
+let gridRendered = false; // Track if grid has been rendered at least once (for enter animation)
 
 // Icons
 const icons = {
@@ -175,6 +176,8 @@ function renderMissions() {
         return;
     }
 
+    const isFirstRender = !gridRendered;
+    gridRendered = true;
     container.innerHTML = filtered.map(mission => {
         const isRunning = mission.id === queue.running;
         const isQueued = queue.items.some(i => i.mission_id === mission.id);
@@ -193,7 +196,7 @@ function renderMissions() {
         const resultIcon = mission.last_result === 'success' ? icons.success : mission.last_result === 'error' ? icons.error : '';
 
         return `
-                    <div class="mission-card ${statusClass}">
+                    <div class="mission-card ${statusClass}${isFirstRender ? ' entering' : ''}">`
                         <div class="mission-header">
                             <div class="mission-title">
                                 <span class="mission-name">${escapeHtml(mission.name)}</span>
