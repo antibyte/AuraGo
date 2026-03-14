@@ -257,6 +257,8 @@ echo ""
 # ── Check current vs available version ────────────────────────────────
 section "Checking for updates"
 
+GIT_UP_TO_DATE=false   # set to true when local git is already at latest commit
+
 if $BINARY_ONLY; then
     RELEASE_TAG=$(latest_release_tag || true)
     [ -z "$RELEASE_TAG" ] && die "Could not determine latest release tag from GitHub."
@@ -269,27 +271,24 @@ else
 
     LOCAL_HASH=$(git rev-parse HEAD)
     REMOTE_HASH=$(git rev-parse origin/main)
+    GIT_UP_TO_DATE=false
 
     if [ "$LOCAL_HASH" = "$REMOTE_HASH" ]; then
-        ok "Already up to date! ($(git log --format='%h %s' -1))"
+        ok "Code is already at the latest version ($(git log --format='%h %s' -1))"
+        GIT_UP_TO_DATE=true
+    else
+        AHEAD_COUNT=$(git rev-list HEAD..origin/main --count)
+        info "Local:  $(git log --format='%h  %s  (%cd)' --date=short -1)"
+        info "Remote: $(git log --format='%h  %s  (%cd)' --date=short -1 origin/main)"
         echo ""
-        if ! confirm "Force update anyway?"; then
-            info "Nothing to do."
-            exit 0
+        info "$AHEAD_COUNT commit(s) available to pull."
+        echo ""
+
+        if [ "$AHEAD_COUNT" -gt 0 ]; then
+            section "Changelog"
+            git log HEAD..origin/main --oneline --no-decorate | head -20
+            echo ""
         fi
-    fi
-
-    AHEAD_COUNT=$(git rev-list HEAD..origin/main --count)
-    info "Local:  $(git log --format='%h  %s  (%cd)' --date=short -1)"
-    info "Remote: $(git log --format='%h  %s  (%cd)' --date=short -1 origin/main)"
-    echo ""
-    info "$AHEAD_COUNT commit(s) available to pull."
-    echo ""
-
-    if [ "$AHEAD_COUNT" -gt 0 ]; then
-        section "Changelog"
-        git log HEAD..origin/main --oneline --no-decorate | head -20
-        echo ""
     fi
 
     confirm "Proceed with update?" || { info "Update cancelled."; exit 0; }
@@ -491,38 +490,25 @@ if $BINARY_ONLY; then
     printf '%s' "$RELEASE_TAG" > "$DIR/.version"
     ok "Resources updated from release $RELEASE_TAG"
 else
-    # Git-based update
-    # ── Strategy: We already backed up ALL user data (config.yaml, custom
-    # prompts, data/, etc.) so we can safely reset dirty tracked files.
-    # This avoids stash entirely (which fails when prompt files are
-    # modified) and avoids git reset --hard (which triggers bash re-reads
-    # of the on-disk script).  After pull we restore from backup.
-    if ! git diff --quiet || ! git diff --cached --quiet; then
-        info "Resetting tracked files to clean state for pull (user data is backed up)..."
-        git checkout -- . 2>/dev/null || true
-        # Drop any staged changes too
-        git reset --quiet HEAD 2>/dev/null || true
+    # Git-based update.
+    if ! $GIT_UP_TO_DATE; then
+        if ! git diff --quiet || ! git diff --cached --quiet; then
+            git checkout -- . 2>/dev/null || true
+            git reset --quiet HEAD 2>/dev/null || true
+        fi
+
+        git pull origin main --ff-only || {
+            warn "Fast-forward pull failed — fetching and resetting to origin/main..."
+            git fetch origin main --quiet
+            git reset --hard origin/main
+        }
+        ok "Code updated to $(git log --format='%h  %s' -1)"
+        GIT_VER=$(git describe --tags --always 2>/dev/null || git rev-parse --short HEAD 2>/dev/null || echo 'git')
+        printf '%s' "$GIT_VER" > "$DIR/.version"
     fi
 
-    git pull origin main --ff-only || {
-        warn "Fast-forward pull failed — fetching and resetting to origin/main..."
-        git fetch origin main --quiet
-        git reset --hard origin/main
-    }
-    ok "Code updated to $(git log --format='%h  %s' -1)"
-    # Write version tag for the Web UI update check
-    GIT_VER=$(git describe --tags --always 2>/dev/null || git rev-parse --short HEAD 2>/dev/null || echo 'git')
-    printf '%s' "$GIT_VER" > "$DIR/.version"
-
-    # ── Immediately re-protect config.yaml ──────────────────────────────
-    # git checkout -- . and git reset --hard both overwrite config.yaml
-    # with the repository template.  Putting the user's config back here
-    # means that even if bash re-executes this script (all guards failed),
-    # the re-execution will back up and use the CORRECT user config rather
-    # than the template.  The config-merger below always wins the final say.
-    if [ -f "$BACKUP_DIR/config.yaml" ]; then
-        cp -p "$BACKUP_DIR/config.yaml" "$DIR/config.yaml"
-    fi
+    # Restore user's config.yaml — git must never win over user's config.
+    [ -f "$BACKUP_DIR/config.yaml" ] && cp -p "$BACKUP_DIR/config.yaml" "$DIR/config.yaml"
 fi
 
 # ── Migrate old prompts location (agent_workspace/prompts → prompts/) ─
