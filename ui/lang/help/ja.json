@@ -253,5 +253,9 @@
   "help.mcp_server.allowed_tools": "List of tool names exposed via MCP. Leave empty to expose all currently enabled tools.",
   "help.mcp_server.enabled": "Enable the built-in MCP server to expose AuraGo tools for external AI agents via Streamable HTTP.",
   "help.mcp_server.require_auth": "When enabled, MCP clients must authenticate with a Bearer token or valid session cookie.",
-  "help.providers.account_id": "Cloudflare Account ID for Workers AI providers. Required when using the workers-ai provider type."
+  "help.providers.account_id": "Cloudflare Account ID for Workers AI providers. Required when using the workers-ai provider type.",
+  "help.paperless_ngx.enabled": "Enables the Paperless-ngx integration for document management.",
+  "help.paperless_ngx.read_only": "When enabled, the agent can only search and read documents but cannot upload, update, or delete them.",
+  "help.paperless_ngx.url": "URL of the Paperless-ngx instance (e.g. https://paperless.example.com).",
+  "help.paperless_ngx.api_token": "API token for the Paperless-ngx instance. Stored in the vault."
 }
