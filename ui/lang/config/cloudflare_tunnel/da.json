@@ -1,0 +1,19 @@
+{
+  "config.cloudflare_tunnel.enabled_label": "Cloudflare Tunnel aktiveret",
+  "config.cloudflare_tunnel.readonly_label": "Skrivebeskyttet tilstand (kun status)",
+  "config.cloudflare_tunnel.auto_start_label": "Autostart ved opstart",
+  "config.cloudflare_tunnel.mode": "K\u00f8rselstilstand",
+  "config.cloudflare_tunnel.auth_method": "Godkendelsesmetode",
+  "config.cloudflare_tunnel.tunnel_name": "Tunnelnavn",
+  "config.cloudflare_tunnel.account_id": "Konto-ID",
+  "config.cloudflare_tunnel.metrics_port": "Metrikport",
+  "config.cloudflare_tunnel.log_level": "Logniveau",
+  "config.cloudflare_tunnel.exposure_heading": "Tjenesteeksponering",
+  "config.cloudflare_tunnel.expose_web_ui": "Ekspon\u00e9r AuraGo Web UI",
+  "config.cloudflare_tunnel.expose_homepage": "Ekspon\u00e9r Homepage-webserver",
+  "config.cloudflare_tunnel.info": "Ekspon\u00e9r lokale tjenester sikkert p\u00e5 internettet via Cloudflares globale netv\u00e6rk med cloudflared. Underst\u00f8tter Docker og nativ bin\u00e6r.",
+  "config.cloudflare_tunnel.disabled_notice": "Cloudflare Tunnel er deaktiveret",
+  "config.cloudflare_tunnel.disabled_desc": "Aktiv\u00e9r kontakten for at administrere Cloudflare-tunneler til sikker fjernadgang til dine lokale tjenester.",
+  "config.cloudflare_tunnel.token_hint": "Gem dit Cloudflare-forbindelsestoken i hemmeligheds-velvet med n\u00f8glen 'cloudflared_token'.",
+  "config.cloudflare_tunnel.named_hint": "Gem indholdet af credentials.json i hemmeligheds-velvet med n\u00f8glen 'cloudflared_credentials'."
+}

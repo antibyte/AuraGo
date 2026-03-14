@@ -591,31 +591,32 @@ func handleDashboardOverview(s *Server) http.HandlerFunc {
 
 		// ── Integrations (all Enabled flags) ──────────────────
 		integrations := map[string]bool{
-			"telegram":       cfg.Telegram.BotToken != "",
-			"discord":        cfg.Discord.Enabled,
-			"email":          cfg.Email.Enabled,
-			"home_assistant": cfg.HomeAssistant.Enabled,
-			"docker":         cfg.Docker.Enabled,
-			"co_agents":      cfg.CoAgents.Enabled,
-			"webhooks":       cfg.Webhooks.Enabled,
-			"webdav":         cfg.WebDAV.Enabled,
-			"koofr":          cfg.Koofr.Enabled,
-			"chromecast":     cfg.Chromecast.Enabled,
-			"proxmox":        cfg.Proxmox.Enabled,
-			"ollama":         cfg.Ollama.Enabled,
-			"rocketchat":     cfg.RocketChat.Enabled,
-			"tailscale":      cfg.Tailscale.Enabled,
-			"ansible":        cfg.Ansible.Enabled,
-			"invasion":       cfg.InvasionControl.Enabled,
-			"github":         cfg.GitHub.Enabled,
-			"mqtt":           cfg.MQTT.Enabled,
-			"budget":         cfg.Budget.Enabled,
-			"indexing":       cfg.Indexing.Enabled,
-			"auth":           cfg.Auth.Enabled,
-			"fallback_llm":   cfg.FallbackLLM.Enabled,
-			"personality_v2": cfg.Agent.PersonalityEngineV2,
-			"user_profiling": cfg.Agent.UserProfiling,
-			"tts":            cfg.TTS.Provider != "",
+			"telegram":          cfg.Telegram.BotToken != "",
+			"discord":           cfg.Discord.Enabled,
+			"email":             cfg.Email.Enabled,
+			"home_assistant":    cfg.HomeAssistant.Enabled,
+			"docker":            cfg.Docker.Enabled,
+			"co_agents":         cfg.CoAgents.Enabled,
+			"webhooks":          cfg.Webhooks.Enabled,
+			"webdav":            cfg.WebDAV.Enabled,
+			"koofr":             cfg.Koofr.Enabled,
+			"chromecast":        cfg.Chromecast.Enabled,
+			"proxmox":           cfg.Proxmox.Enabled,
+			"ollama":            cfg.Ollama.Enabled,
+			"rocketchat":        cfg.RocketChat.Enabled,
+			"tailscale":         cfg.Tailscale.Enabled,
+			"cloudflare_tunnel": cfg.CloudflareTunnel.Enabled,
+			"ansible":           cfg.Ansible.Enabled,
+			"invasion":          cfg.InvasionControl.Enabled,
+			"github":            cfg.GitHub.Enabled,
+			"mqtt":              cfg.MQTT.Enabled,
+			"budget":            cfg.Budget.Enabled,
+			"indexing":          cfg.Indexing.Enabled,
+			"auth":              cfg.Auth.Enabled,
+			"fallback_llm":      cfg.FallbackLLM.Enabled,
+			"personality_v2":    cfg.Agent.PersonalityEngineV2,
+			"user_profiling":    cfg.Agent.UserProfiling,
+			"tts":               cfg.TTS.Provider != "",
 		}
 
 		// ── Missions Summary ──────────────────────────────────
@@ -766,6 +767,14 @@ func handleDashboardOverview(s *Server) http.HandlerFunc {
 			cheatsheetsSummary["active"] = active
 		}
 
+		// ── Tunnel Status ─────────────────────────────────────
+		tunnelInfo := map[string]interface{}{
+			"running": tools.IsTunnelRunning(),
+		}
+		if url := tools.GetTunnelURL(); url != "" {
+			tunnelInfo["url"] = url
+		}
+
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"agent":               agentInfo,
@@ -780,6 +789,7 @@ func handleDashboardOverview(s *Server) http.HandlerFunc {
 			"context":             contextSummary,
 			"last_activity_hours": lastActivityHours,
 			"cheatsheets":         cheatsheetsSummary,
+			"tunnel":              tunnelInfo,
 		})
 	}
 }

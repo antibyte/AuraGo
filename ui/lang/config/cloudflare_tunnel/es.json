@@ -1,0 +1,19 @@
+{
+  "config.cloudflare_tunnel.enabled_label": "Cloudflare Tunnel activado",
+  "config.cloudflare_tunnel.readonly_label": "Modo solo lectura (solo estado)",
+  "config.cloudflare_tunnel.auto_start_label": "Inicio autom\u00e1tico al arrancar",
+  "config.cloudflare_tunnel.mode": "Modo de ejecuci\u00f3n",
+  "config.cloudflare_tunnel.auth_method": "M\u00e9todo de autenticaci\u00f3n",
+  "config.cloudflare_tunnel.tunnel_name": "Nombre del t\u00fanel",
+  "config.cloudflare_tunnel.account_id": "ID de cuenta",
+  "config.cloudflare_tunnel.metrics_port": "Puerto de m\u00e9tricas",
+  "config.cloudflare_tunnel.log_level": "Nivel de log",
+  "config.cloudflare_tunnel.exposure_heading": "Exposici\u00f3n de servicios",
+  "config.cloudflare_tunnel.expose_web_ui": "Exponer Web UI de AuraGo",
+  "config.cloudflare_tunnel.expose_homepage": "Exponer servidor web Homepage",
+  "config.cloudflare_tunnel.info": "Exponga servicios locales a internet de forma segura a trav\u00e9s de la red global de Cloudflare usando cloudflared. Compatible con Docker y binario nativo.",
+  "config.cloudflare_tunnel.disabled_notice": "Cloudflare Tunnel est\u00e1 desactivado",
+  "config.cloudflare_tunnel.disabled_desc": "Active el interruptor para gestionar Cloudflare Tunnels para acceso remoto seguro a sus servicios locales.",
+  "config.cloudflare_tunnel.token_hint": "Almacene su token de conector Cloudflare en el Vault de secretos con la clave 'cloudflared_token'.",
+  "config.cloudflare_tunnel.named_hint": "Almacene el contenido de su credentials.json en el Vault de secretos con la clave 'cloudflared_credentials'."
+}

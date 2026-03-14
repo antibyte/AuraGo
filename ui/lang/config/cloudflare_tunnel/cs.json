@@ -1,0 +1,19 @@
+{
+  "config.cloudflare_tunnel.enabled_label": "Cloudflare Tunnel povolen",
+  "config.cloudflare_tunnel.readonly_label": "Re\u017eim jen pro \u010dten\u00ed (pouze stav)",
+  "config.cloudflare_tunnel.auto_start_label": "Automatick\u00e9 spu\u0161t\u011bn\u00ed p\u0159i startu",
+  "config.cloudflare_tunnel.mode": "Re\u017eim b\u011bhu",
+  "config.cloudflare_tunnel.auth_method": "Metoda ov\u011b\u0159en\u00ed",
+  "config.cloudflare_tunnel.tunnel_name": "N\u00e1zev tunelu",
+  "config.cloudflare_tunnel.account_id": "ID \u00fa\u010dtu",
+  "config.cloudflare_tunnel.metrics_port": "Port metrik",
+  "config.cloudflare_tunnel.log_level": "\u00darove\u0148 logov\u00e1n\u00ed",
+  "config.cloudflare_tunnel.exposure_heading": "Vys\u00edl\u00e1n\u00ed slu\u017eeb",
+  "config.cloudflare_tunnel.expose_web_ui": "Vystavit AuraGo Web UI",
+  "config.cloudflare_tunnel.expose_homepage": "Vystavit Homepage webserver",
+  "config.cloudflare_tunnel.info": "Bezpe\u010dn\u011b vystavte lok\u00e1ln\u00ed slu\u017eby na internetu prost\u0159ednictv\u00edm glob\u00e1ln\u00ed s\u00edt\u011b Cloudflare pomoc\u00ed cloudflared. Podporuje Docker i nativn\u00ed bin\u00e1rku.",
+  "config.cloudflare_tunnel.disabled_notice": "Cloudflare Tunnel je zak\u00e1z\u00e1n",
+  "config.cloudflare_tunnel.disabled_desc": "Povolte p\u0159ep\u00edna\u010d pro spr\u00e1vu Cloudflare tunel\u016f pro bezpe\u010dn\u00fd vzd\u00e1len\u00fd p\u0159\u00edstup k va\u0161im lok\u00e1ln\u00edm slu\u017eb\u00e1m.",
+  "config.cloudflare_tunnel.token_hint": "Ulo\u017ete sv\u016fj Cloudflare p\u0159ipojovac\u00ed token do trezoru tajemstv\u00ed s kl\u00ed\u010dem 'cloudflared_token'.",
+  "config.cloudflare_tunnel.named_hint": "Ulo\u017ete obsah credentials.json do trezoru tajemstv\u00ed s kl\u00ed\u010dem 'cloudflared_credentials'."
+}

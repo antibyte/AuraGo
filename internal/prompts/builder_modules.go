@@ -280,6 +280,10 @@ func (m *PromptModule) ShouldInclude(flags ContextFlags) bool {
 			if flags.TailscaleEnabled {
 				return true
 			}
+		case "cloudflare_tunnel_enabled":
+			if flags.CloudflareTunnelEnabled {
+				return true
+			}
 		case "ansible_enabled":
 			if flags.AnsibleEnabled {
 				return true

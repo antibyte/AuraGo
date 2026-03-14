@@ -138,6 +138,10 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		mux.HandleFunc("/api/homepage/status", handleHomepageStatus(s))
 		mux.HandleFunc("/api/homepage/test-connection", handleHomepageTestConnection(s))
 
+		// Cloudflare Tunnel endpoints
+		mux.HandleFunc("/api/tunnel/status", handleTunnelStatus(s))
+		mux.HandleFunc("/api/tunnel/quick", handleTunnelQuick(s))
+
 		// Netlify integration endpoints
 		mux.HandleFunc("/api/netlify/status", handleNetlifyStatus(s))
 		mux.HandleFunc("/api/netlify/test-connection", handleNetlifyTestConnection(s))

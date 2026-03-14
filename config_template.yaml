@@ -303,6 +303,19 @@ tailscale:
     enabled: false
     readonly: false
     tailnet: ""
+cloudflare_tunnel:
+    enabled: false
+    readonly: false
+    mode: auto                              # "auto" (docker preferred, native fallback), "docker", "native"
+    auto_start: true                        # start tunnel automatically when AuraGo starts
+    auth_method: token                      # "token" (Connector Token), "named" (credentials.json), "quick" (temporary URL, no account)
+    tunnel_name: ""                         # named tunnel: tunnel name from CF dashboard
+    account_id: ""                          # named tunnel: Cloudflare account ID
+    expose_web_ui: true                     # route AuraGo web UI through the tunnel
+    expose_homepage: true                   # route Homepage web server through the tunnel
+    custom_ingress: []                      # additional ingress rules: [{hostname: "x.example.com", service: "http://localhost:3000"}]
+    metrics_port: 0                         # cloudflared metrics endpoint (0 = disabled)
+    log_level: info                         # cloudflared log level: info, debug, warn, error
 ansible:
     enabled: false
     readonly: false

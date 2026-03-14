@@ -45,26 +45,27 @@ func tool(name, description string, params map[string]interface{}) openai.Tool {
 
 // ToolFeatureFlags controls which optional tool schemas are included.
 type ToolFeatureFlags struct {
-	HomeAssistantEnabled   bool
-	DockerEnabled          bool
-	CoAgentEnabled         bool
-	SudoEnabled            bool
-	WebhooksEnabled        bool
-	ProxmoxEnabled         bool
-	OllamaEnabled          bool
-	TailscaleEnabled       bool
-	AnsibleEnabled         bool
-	InvasionControlEnabled bool
-	GitHubEnabled          bool
-	MQTTEnabled            bool
-	AdGuardEnabled         bool
-	MCPEnabled             bool
-	SandboxEnabled         bool
-	MeshCentralEnabled     bool
-	HomepageEnabled        bool
-	NetlifyEnabled         bool
-	FirewallEnabled        bool
-	EmailEnabled           bool
+	HomeAssistantEnabled    bool
+	DockerEnabled           bool
+	CoAgentEnabled          bool
+	SudoEnabled             bool
+	WebhooksEnabled         bool
+	ProxmoxEnabled          bool
+	OllamaEnabled           bool
+	TailscaleEnabled        bool
+	AnsibleEnabled          bool
+	InvasionControlEnabled  bool
+	GitHubEnabled           bool
+	MQTTEnabled             bool
+	AdGuardEnabled          bool
+	MCPEnabled              bool
+	SandboxEnabled          bool
+	MeshCentralEnabled      bool
+	HomepageEnabled         bool
+	NetlifyEnabled          bool
+	FirewallEnabled         bool
+	EmailEnabled            bool
+	CloudflareTunnelEnabled bool
 	// Danger Zone toggles
 	AllowShell               bool
 	AllowPython              bool
@@ -670,6 +671,19 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 				},
 				"query": prop("string", "Device hostname, MagicDNS name, IP address, or node ID (for device/routes/enable_routes/disable_routes)"),
 				"value": prop("string", "Comma-separated CIDR routes to enable or disable (e.g. '10.0.0.0/8,192.168.1.0/24')"),
+			}, "operation"),
+		))
+	}
+	if ff.CloudflareTunnelEnabled {
+		tools = append(tools, tool("cloudflare_tunnel",
+			"Manage a Cloudflare Tunnel (cloudflared) to expose local services to the internet securely. Supports Docker and native binary modes, token/named/quick tunnel authentication.",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "Operation to perform",
+					"enum":        []string{"start", "stop", "restart", "status", "quick_tunnel", "logs", "list_routes", "install"},
+				},
+				"port": map[string]interface{}{"type": "integer", "description": "Port to expose (for quick_tunnel; defaults to web UI port)"},
 			}, "operation"),
 		))
 	}

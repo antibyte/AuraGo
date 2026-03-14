@@ -326,6 +326,7 @@ func mcpFeatureFlags(cfg *config.Config) agent.ToolFeatureFlags {
 		ProxmoxEnabled:           cfg.Proxmox.Enabled,
 		OllamaEnabled:            cfg.Ollama.Enabled,
 		TailscaleEnabled:         cfg.Tailscale.Enabled,
+		CloudflareTunnelEnabled:  cfg.CloudflareTunnel.Enabled,
 		AnsibleEnabled:           cfg.Ansible.Enabled,
 		InvasionControlEnabled:   cfg.InvasionControl.Enabled,
 		GitHubEnabled:            cfg.GitHub.Enabled,

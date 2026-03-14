@@ -421,6 +421,20 @@ type Config struct {
 		APIKey   string `yaml:"-" vault:"api_key"` // Tailscale API key (vault-only)
 		Tailnet  string `yaml:"tailnet"`           // Tailnet name, e.g. "example.com" or "-" for default
 	} `yaml:"tailscale"`
+	CloudflareTunnel struct {
+		Enabled        bool                    `yaml:"enabled"`         // master toggle
+		ReadOnly       bool                    `yaml:"readonly"`        // agent: status-only, no start/stop/route changes
+		Mode           string                  `yaml:"mode"`            // "auto" (default), "docker", "native"
+		AutoStart      bool                    `yaml:"auto_start"`      // start tunnel on AuraGo boot
+		AuthMethod     string                  `yaml:"auth_method"`     // "token" (default), "named", "quick"
+		TunnelName     string                  `yaml:"tunnel_name"`     // named tunnel: tunnel name
+		AccountID      string                  `yaml:"account_id"`      // named tunnel: Cloudflare account ID
+		ExposeWebUI    bool                    `yaml:"expose_web_ui"`   // auto-route AuraGo web UI through tunnel
+		ExposeHomepage bool                    `yaml:"expose_homepage"` // auto-route homepage web server through tunnel
+		CustomIngress  []CloudflareIngressRule `yaml:"custom_ingress"`  // additional ingress rules
+		MetricsPort    int                     `yaml:"metrics_port"`    // cloudflared metrics (0=disabled)
+		LogLevel       string                  `yaml:"log_level"`       // "info" (default), "debug", "warn", "error"
+	} `yaml:"cloudflare_tunnel"`
 	Ansible struct {
 		Enabled          bool   `yaml:"enabled"`
 		ReadOnly         bool   `yaml:"readonly"`          // true = only status/list/inventory/ping/facts, block adhoc/playbook
@@ -572,6 +586,13 @@ type MCPServer struct {
 	Args    []string          `yaml:"args"    json:"args"`
 	Env     map[string]string `yaml:"env"     json:"env"`
 	Enabled bool              `yaml:"enabled" json:"enabled"`
+}
+
+// CloudflareIngressRule defines a custom ingress entry for cloudflared.
+type CloudflareIngressRule struct {
+	Hostname string `yaml:"hostname" json:"hostname"` // e.g. "app.example.com"
+	Service  string `yaml:"service"  json:"service"`  // e.g. "http://localhost:8088"
+	Path     string `yaml:"path"     json:"path"`     // optional URL path prefix
 }
 
 // ModelCost defines per-model token pricing.

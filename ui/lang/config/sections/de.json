@@ -91,6 +91,8 @@
   "config.section.proxmox.desc": "Proxmox VE Virtualisierung",
   "config.section.tailscale.label": "Tailscale",
   "config.section.tailscale.desc": "Tailscale VPN-Verwaltung",
+  "config.section.cloudflare_tunnel.label": "Cloudflare Tunnel",
+  "config.section.cloudflare_tunnel.desc": "Lokale Dienste über Cloudflare Tunnel (cloudflared) verfügbar machen",
   "config.section.ansible.label": "Ansible",
   "config.section.ansible.desc": "Ansible-Automatisierung (sidecar oder local)",
   "config.section.meshcentral.label": "MeshCentral",

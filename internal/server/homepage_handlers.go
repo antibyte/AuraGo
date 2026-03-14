@@ -45,6 +45,18 @@ func handleHomepageStatus(s *Server) http.HandlerFunc {
 		}
 		result := tools.HomepageStatus(cfg, s.Logger)
 
+		// Inject tunnel URL when Cloudflare Tunnel is running
+		if tunnelURL := tools.GetTunnelURL(); tunnelURL != "" {
+			var parsed map[string]interface{}
+			if json.Unmarshal([]byte(result), &parsed) == nil {
+				parsed["tunnel_url"] = tunnelURL
+				enriched, err := json.Marshal(parsed)
+				if err == nil {
+					result = string(enriched)
+				}
+			}
+		}
+
 		w.Write([]byte(result))
 	}
 }

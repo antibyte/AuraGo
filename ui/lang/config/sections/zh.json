@@ -91,6 +91,8 @@
   "config.section.proxmox.desc": "Proxmox VE 虚拟化",
   "config.section.tailscale.label": "Tailscale",
   "config.section.tailscale.desc": "Tailscale VPN 管理",
+  "config.section.cloudflare_tunnel.label": "Cloudflare Tunnel",
+  "config.section.cloudflare_tunnel.desc": "通过 Cloudflare Tunnel 暴露本地服务",
   "config.section.ansible.label": "Ansible",
   "config.section.ansible.desc": "Ansible 自动化 (sidecar 或本地模式)",
   "config.section.meshcentral.label": "MeshCentral",

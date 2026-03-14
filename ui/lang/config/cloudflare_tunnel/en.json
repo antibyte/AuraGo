@@ -1,0 +1,19 @@
+{
+  "config.cloudflare_tunnel.enabled_label": "Cloudflare Tunnel enabled",
+  "config.cloudflare_tunnel.readonly_label": "Read-only mode (status only)",
+  "config.cloudflare_tunnel.auto_start_label": "Auto-start on boot",
+  "config.cloudflare_tunnel.mode": "Runtime mode",
+  "config.cloudflare_tunnel.auth_method": "Authentication method",
+  "config.cloudflare_tunnel.tunnel_name": "Tunnel name",
+  "config.cloudflare_tunnel.account_id": "Account ID",
+  "config.cloudflare_tunnel.metrics_port": "Metrics port",
+  "config.cloudflare_tunnel.log_level": "Log level",
+  "config.cloudflare_tunnel.exposure_heading": "Service Exposure",
+  "config.cloudflare_tunnel.expose_web_ui": "Expose AuraGo Web UI",
+  "config.cloudflare_tunnel.expose_homepage": "Expose Homepage Web Server",
+  "config.cloudflare_tunnel.info": "Securely expose local services to the internet through Cloudflare's global network using cloudflared. Supports Docker and native binary modes.",
+  "config.cloudflare_tunnel.disabled_notice": "Cloudflare Tunnel is disabled",
+  "config.cloudflare_tunnel.disabled_desc": "Enable the toggle to manage Cloudflare Tunnels for secure remote access to your local services.",
+  "config.cloudflare_tunnel.token_hint": "Store your Cloudflare connector token in the Secrets Vault with key 'cloudflared_token'.",
+  "config.cloudflare_tunnel.named_hint": "Store your tunnel credentials.json content in the Secrets Vault with key 'cloudflared_credentials'."
+}

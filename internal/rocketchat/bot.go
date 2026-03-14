@@ -253,6 +253,7 @@ func processMessage(cfg *config.Config, logger *slog.Logger, client llm.ChatClie
 		ProxmoxEnabled:           cfg.Proxmox.Enabled,
 		OllamaEnabled:            cfg.Ollama.Enabled,
 		TailscaleEnabled:         cfg.Tailscale.Enabled,
+		CloudflareTunnelEnabled:  cfg.CloudflareTunnel.Enabled,
 		AnsibleEnabled:           cfg.Ansible.Enabled,
 		GitHubEnabled:            cfg.GitHub.Enabled,
 		MQTTEnabled:              cfg.MQTT.Enabled,

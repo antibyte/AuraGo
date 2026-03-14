@@ -328,6 +328,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			ProxmoxEnabled:           s.Cfg.Proxmox.Enabled,
 			OllamaEnabled:            s.Cfg.Ollama.Enabled,
 			TailscaleEnabled:         s.Cfg.Tailscale.Enabled,
+			CloudflareTunnelEnabled:  s.Cfg.CloudflareTunnel.Enabled,
 			AnsibleEnabled:           s.Cfg.Ansible.Enabled,
 			GitHubEnabled:            s.Cfg.GitHub.Enabled,
 			MQTTEnabled:              s.Cfg.MQTT.Enabled,

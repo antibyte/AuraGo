@@ -91,6 +91,8 @@
   "config.section.proxmox.desc": "Proxmox integrace",
   "config.section.tailscale.label": "Tailscale",
   "config.section.tailscale.desc": "Tailscale integrace",
+  "config.section.cloudflare_tunnel.label": "Cloudflare Tunnel",
+  "config.section.cloudflare_tunnel.desc": "Zp\u0159\u00edstupn\u011bte lok\u00e1ln\u00ed slu\u017eby p\u0159es Cloudflare Tunnel",
   "config.section.ansible.label": "Ansible",
   "config.section.ansible.desc": "Ansible integrace",
   "config.section.meshcentral.label": "MeshCentral",

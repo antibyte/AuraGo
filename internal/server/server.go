@@ -417,6 +417,38 @@ func Start(cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, sh
 		})
 	}
 
+	// Start Cloudflare Tunnel if enabled and auto_start is true
+	if cfg.CloudflareTunnel.Enabled && cfg.CloudflareTunnel.AutoStart {
+		go func() {
+			tunnelCfg := tools.CloudflareTunnelConfig{
+				Enabled:        cfg.CloudflareTunnel.Enabled,
+				ReadOnly:       cfg.CloudflareTunnel.ReadOnly,
+				Mode:           cfg.CloudflareTunnel.Mode,
+				AutoStart:      cfg.CloudflareTunnel.AutoStart,
+				AuthMethod:     cfg.CloudflareTunnel.AuthMethod,
+				TunnelName:     cfg.CloudflareTunnel.TunnelName,
+				AccountID:      cfg.CloudflareTunnel.AccountID,
+				ExposeWebUI:    cfg.CloudflareTunnel.ExposeWebUI,
+				ExposeHomepage: cfg.CloudflareTunnel.ExposeHomepage,
+				MetricsPort:    cfg.CloudflareTunnel.MetricsPort,
+				LogLevel:       cfg.CloudflareTunnel.LogLevel,
+				DockerHost:     cfg.Docker.Host,
+				WebUIPort:      cfg.Server.Port,
+				HomepagePort:   cfg.Homepage.WebServerPort,
+				DataDir:        cfg.Directories.DataDir,
+			}
+			for _, r := range cfg.CloudflareTunnel.CustomIngress {
+				tunnelCfg.CustomIngress = append(tunnelCfg.CustomIngress, tools.CloudflareIngress{
+					Hostname: r.Hostname,
+					Service:  r.Service,
+					Path:     r.Path,
+				})
+			}
+			result := tools.CloudflareTunnelStart(tunnelCfg, vault, registry, logger)
+			logger.Info("[CloudflareTunnel] Auto-start result", "result", result)
+		}()
+	}
+
 	return s.run(shutdownCh)
 }
 
@@ -483,6 +515,11 @@ func (s *Server) serveWithShutdown(server, redirectServer, ttsServer *http.Serve
 		tools.ShutdownMCPManager()
 		// Shut down Sandbox
 		tools.ShutdownSandboxManager()
+		// Shut down Cloudflare Tunnel (Docker containers won't be killed by KillAll)
+		if tools.IsTunnelRunning() {
+			tunnelCfg := tools.CloudflareTunnelConfig{DockerHost: s.Cfg.Docker.Host}
+			tools.CloudflareTunnelStop(tunnelCfg, s.Registry, s.Logger)
+		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()

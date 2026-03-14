@@ -1,0 +1,19 @@
+{
+  "config.cloudflare_tunnel.enabled_label": "Cloudflare Tunnel ingeschakeld",
+  "config.cloudflare_tunnel.readonly_label": "Alleen-lezen modus (alleen status)",
+  "config.cloudflare_tunnel.auto_start_label": "Automatisch starten bij opstarten",
+  "config.cloudflare_tunnel.mode": "Uitvoermodus",
+  "config.cloudflare_tunnel.auth_method": "Authenticatiemethode",
+  "config.cloudflare_tunnel.tunnel_name": "Tunnelnaam",
+  "config.cloudflare_tunnel.account_id": "Account-ID",
+  "config.cloudflare_tunnel.metrics_port": "Metriekenpoort",
+  "config.cloudflare_tunnel.log_level": "Logniveau",
+  "config.cloudflare_tunnel.exposure_heading": "Service-expositie",
+  "config.cloudflare_tunnel.expose_web_ui": "AuraGo Web UI beschikbaar stellen",
+  "config.cloudflare_tunnel.expose_homepage": "Homepage webserver beschikbaar stellen",
+  "config.cloudflare_tunnel.info": "Stel lokale diensten veilig beschikbaar op internet via het wereldwijde Cloudflare-netwerk met cloudflared. Ondersteunt Docker en native binary.",
+  "config.cloudflare_tunnel.disabled_notice": "Cloudflare Tunnel is uitgeschakeld",
+  "config.cloudflare_tunnel.disabled_desc": "Schakel de schakelaar in om Cloudflare Tunnels te beheren voor veilige externe toegang tot uw lokale diensten.",
+  "config.cloudflare_tunnel.token_hint": "Sla uw Cloudflare connector token op in de Secrets Vault met sleutel 'cloudflared_token'.",
+  "config.cloudflare_tunnel.named_hint": "Sla de inhoud van uw credentials.json op in de Secrets Vault met sleutel 'cloudflared_credentials'."
+}

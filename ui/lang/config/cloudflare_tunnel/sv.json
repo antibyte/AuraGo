@@ -1,0 +1,19 @@
+{
+  "config.cloudflare_tunnel.enabled_label": "Cloudflare Tunnel aktiverad",
+  "config.cloudflare_tunnel.readonly_label": "Skrivskyddat l\u00e4ge (endast status)",
+  "config.cloudflare_tunnel.auto_start_label": "Starta automatiskt vid uppstart",
+  "config.cloudflare_tunnel.mode": "K\u00f6rl\u00e4ge",
+  "config.cloudflare_tunnel.auth_method": "Autentiseringsmetod",
+  "config.cloudflare_tunnel.tunnel_name": "Tunnelnamn",
+  "config.cloudflare_tunnel.account_id": "Konto-ID",
+  "config.cloudflare_tunnel.metrics_port": "M\u00e4tport",
+  "config.cloudflare_tunnel.log_level": "Loggniv\u00e5",
+  "config.cloudflare_tunnel.exposure_heading": "Tj\u00e4nstexponering",
+  "config.cloudflare_tunnel.expose_web_ui": "Exponera AuraGo Web UI",
+  "config.cloudflare_tunnel.expose_homepage": "Exponera Homepage-webbserver",
+  "config.cloudflare_tunnel.info": "Exponera lokala tj\u00e4nster s\u00e4kert p\u00e5 internet via Cloudflares globala n\u00e4tverk med cloudflared. St\u00f6der Docker och nativ bin\u00e4r.",
+  "config.cloudflare_tunnel.disabled_notice": "Cloudflare Tunnel \u00e4r inaktiverad",
+  "config.cloudflare_tunnel.disabled_desc": "Aktivera v\u00e4xeln f\u00f6r att hantera Cloudflare-tunnlar f\u00f6r s\u00e4ker fj\u00e4rr\u00e5tkomst till dina lokala tj\u00e4nster.",
+  "config.cloudflare_tunnel.token_hint": "Spara din Cloudflare-anslutningstoken i hemlighetskammaren med nyckeln 'cloudflared_token'.",
+  "config.cloudflare_tunnel.named_hint": "Spara inneh\u00e5llet i din credentials.json i hemlighetskammaren med nyckeln 'cloudflared_credentials'."
+}

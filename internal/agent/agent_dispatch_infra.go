@@ -386,6 +386,70 @@ func dispatchInfra(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 			return `Tool Output: {"status":"error","message":"Unknown tailscale operation. Use: devices, device, routes, enable_routes, disable_routes, dns, acl, local_status"}`
 		}
 
+	case "cloudflare_tunnel":
+		if !cfg.CloudflareTunnel.Enabled {
+			return `Tool Output: {"status":"error","message":"Cloudflare Tunnel integration is not enabled. Set cloudflare_tunnel.enabled=true in config.yaml."}`
+		}
+		if cfg.CloudflareTunnel.ReadOnly {
+			switch tc.Operation {
+			case "start", "stop", "restart", "install":
+				return `Tool Output: {"status":"error","message":"Cloudflare Tunnel is in read-only mode. Disable cloudflare_tunnel.readonly to allow changes."}`
+			}
+		}
+		tunnelCfg := tools.CloudflareTunnelConfig{
+			Enabled:        cfg.CloudflareTunnel.Enabled,
+			ReadOnly:       cfg.CloudflareTunnel.ReadOnly,
+			Mode:           cfg.CloudflareTunnel.Mode,
+			AutoStart:      cfg.CloudflareTunnel.AutoStart,
+			AuthMethod:     cfg.CloudflareTunnel.AuthMethod,
+			TunnelName:     cfg.CloudflareTunnel.TunnelName,
+			AccountID:      cfg.CloudflareTunnel.AccountID,
+			ExposeWebUI:    cfg.CloudflareTunnel.ExposeWebUI,
+			ExposeHomepage: cfg.CloudflareTunnel.ExposeHomepage,
+			MetricsPort:    cfg.CloudflareTunnel.MetricsPort,
+			LogLevel:       cfg.CloudflareTunnel.LogLevel,
+			DockerHost:     cfg.Docker.Host,
+			WebUIPort:      cfg.Server.Port,
+			HomepagePort:   cfg.Homepage.WebServerPort,
+			DataDir:        cfg.Directories.DataDir,
+		}
+		for _, r := range cfg.CloudflareTunnel.CustomIngress {
+			tunnelCfg.CustomIngress = append(tunnelCfg.CustomIngress, tools.CloudflareIngress{
+				Hostname: r.Hostname,
+				Service:  r.Service,
+				Path:     r.Path,
+			})
+		}
+		switch tc.Operation {
+		case "start":
+			logger.Info("LLM requested Cloudflare Tunnel start")
+			return "Tool Output: " + tools.CloudflareTunnelStart(tunnelCfg, vault, registry, logger)
+		case "stop":
+			logger.Info("LLM requested Cloudflare Tunnel stop")
+			return "Tool Output: " + tools.CloudflareTunnelStop(tunnelCfg, registry, logger)
+		case "restart":
+			logger.Info("LLM requested Cloudflare Tunnel restart")
+			return "Tool Output: " + tools.CloudflareTunnelRestart(tunnelCfg, vault, registry, logger)
+		case "status":
+			logger.Info("LLM requested Cloudflare Tunnel status")
+			return "Tool Output: " + tools.CloudflareTunnelStatus(tunnelCfg, registry, logger)
+		case "quick_tunnel":
+			port := tc.Port
+			logger.Info("LLM requested Cloudflare quick tunnel", "port", port)
+			return "Tool Output: " + tools.CloudflareTunnelQuickTunnel(tunnelCfg, registry, logger, port)
+		case "logs":
+			logger.Info("LLM requested Cloudflare Tunnel logs")
+			return "Tool Output: " + tools.CloudflareTunnelLogs(registry, logger)
+		case "list_routes":
+			logger.Info("LLM requested Cloudflare Tunnel list routes")
+			return "Tool Output: " + tools.CloudflareTunnelListRoutes(tunnelCfg, logger)
+		case "install":
+			logger.Info("LLM requested Cloudflare Tunnel install binary")
+			return "Tool Output: " + tools.CloudflareTunnelInstall(tunnelCfg, logger)
+		default:
+			return `Tool Output: {"status":"error","message":"Unknown cloudflare_tunnel operation. Use: start, stop, restart, status, quick_tunnel, logs, list_routes, install"}`
+		}
+
 	case "ansible":
 		if !cfg.Ansible.Enabled {
 			return `Tool Output: {"status":"error","message":"Ansible integration is not enabled. Set ansible.enabled=true in config.yaml."}`

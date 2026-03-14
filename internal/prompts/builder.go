@@ -107,6 +107,7 @@ type ContextFlags struct {
 	HomepageEnabled          bool
 	HomepageAllowLocalServer bool
 	NetlifyEnabled           bool
+	CloudflareTunnelEnabled  bool
 	WebhooksEnabled          bool
 	WebhooksDefinitions      string // Summary of configured outgoing webhooks for tool context
 	VirusTotalEnabled        bool

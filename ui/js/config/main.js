@@ -82,6 +82,7 @@ const SECTIONS = [
         items: [
             { key: 'proxmox', icon: '🖥️', label: t('config.section.proxmox.label'), desc: t('config.section.proxmox.desc') },
             { key: 'tailscale', icon: '🔒', label: t('config.section.tailscale.label'), desc: t('config.section.tailscale.desc') },
+            { key: 'cloudflare_tunnel', icon: '🌩️', label: t('config.section.cloudflare_tunnel.label'), desc: t('config.section.cloudflare_tunnel.desc') },
             { key: 'ansible', icon: '⚙️', label: t('config.section.ansible.label'), desc: t('config.section.ansible.desc') },
             { key: 'meshcentral', icon: '🖥️', label: t('config.section.meshcentral.label'), desc: t('config.section.meshcentral.desc') },
             { key: 'firewall', icon: '🧱', label: 'Firewall', desc: 'Manage Linux Firewall (ufw/iptables)' }
@@ -840,6 +841,7 @@ const SECTION_MODULES = {
     firewall: { m: 'firewall', fn: 'renderFirewallSection' },
     github: { m: 'github', fn: 'renderGitHubSection' },
     ai_gateway: { m: 'ai_gateway', fn: 'renderAIGatewaySection' },
+    cloudflare_tunnel: { m: 'cloudflare_tunnel', fn: 'renderCloudflareTunnelSection' },
     mcp_server: { m: 'mcp_server', fn: 'renderMCPServerSection' }
 };
 

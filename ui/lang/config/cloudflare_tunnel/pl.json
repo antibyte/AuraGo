@@ -1,0 +1,19 @@
+{
+  "config.cloudflare_tunnel.enabled_label": "Cloudflare Tunnel w\u0142\u0105czony",
+  "config.cloudflare_tunnel.readonly_label": "Tryb tylko do odczytu (tylko status)",
+  "config.cloudflare_tunnel.auto_start_label": "Automatyczny start przy uruchomieniu",
+  "config.cloudflare_tunnel.mode": "Tryb uruchomienia",
+  "config.cloudflare_tunnel.auth_method": "Metoda uwierzytelniania",
+  "config.cloudflare_tunnel.tunnel_name": "Nazwa tunelu",
+  "config.cloudflare_tunnel.account_id": "ID konta",
+  "config.cloudflare_tunnel.metrics_port": "Port metryk",
+  "config.cloudflare_tunnel.log_level": "Poziom log\u00f3w",
+  "config.cloudflare_tunnel.exposure_heading": "Ekspozycja us\u0142ug",
+  "config.cloudflare_tunnel.expose_web_ui": "Udost\u0119pnij Web UI AuraGo",
+  "config.cloudflare_tunnel.expose_homepage": "Udost\u0119pnij serwer Homepage",
+  "config.cloudflare_tunnel.info": "Bezpiecznie udost\u0119pniaj lokalne us\u0142ugi w internecie przez globaln\u0105 sie\u0107 Cloudflare za pomoc\u0105 cloudflared. Obs\u0142uguje Docker i natywny plik binarny.",
+  "config.cloudflare_tunnel.disabled_notice": "Cloudflare Tunnel jest wy\u0142\u0105czony",
+  "config.cloudflare_tunnel.disabled_desc": "W\u0142\u0105cz prze\u0142\u0105cznik, aby zarz\u0105dza\u0107 tunelami Cloudflare dla bezpiecznego zdalnego dost\u0119pu do lokalnych us\u0142ug.",
+  "config.cloudflare_tunnel.token_hint": "Zapisz token konektora Cloudflare w skarbcu sekret\u00f3w z kluczem 'cloudflared_token'.",
+  "config.cloudflare_tunnel.named_hint": "Zapisz zawarto\u015b\u0107 credentials.json w skarbcu sekret\u00f3w z kluczem 'cloudflared_credentials'."
+}

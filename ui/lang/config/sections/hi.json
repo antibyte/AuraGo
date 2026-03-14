@@ -91,6 +91,8 @@
   "config.section.proxmox.desc": "प्रॉक्समॉक्स वीई वर्चुअलाइजेशन",
   "config.section.tailscale.label": "टेलस्केल",
   "config.section.tailscale.desc": "टेलस्केल वीपीएन प्रबंधन",
+  "config.section.cloudflare_tunnel.label": "Cloudflare Tunnel",
+  "config.section.cloudflare_tunnel.desc": "Cloudflare Tunnel के माध्यम से स्थानीय सेवाओं को एक्सपोज़ करें",
   "config.section.ansible.label": "अन्सिबल",
   "config.section.ansible.desc": "अन्सिबल ऑटोमेशन (साइडकार या स्थानीय मोड)",
   "config.section.meshcentral.label": "मेशसेंट्रल",
