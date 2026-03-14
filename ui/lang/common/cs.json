@@ -28,5 +28,6 @@
   "login.subtitle": "Přihlaste se pro pokračování",
   "login.totp_divider": "Authenticator Kód",
   "login.totp_label": "6místný kód",
-  "common.nav_cheatsheets": "Taháky"
+  "common.nav_cheatsheets": "Taháky",
+  "common.nav_gallery": "Image Gallery"
 }

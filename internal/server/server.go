@@ -207,6 +207,7 @@ type Server struct {
 	EggHub           *bridge.EggHub
 	FileIndexer      *services.FileIndexer
 	CheatsheetDB     *sql.DB
+	ImageGalleryDB   *sql.DB
 	// IsFirstStart is true if core_memory.md was just freshly created (no prior data).
 	IsFirstStart   bool
 	StartedAt      time.Time     // server start time for uptime calculation
@@ -215,7 +216,7 @@ type Server struct {
 	muFirstStart   sync.Mutex
 }
 
-func Start(cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, isFirstStart bool, shutdownCh chan struct{}) error {
+func Start(cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, isFirstStart bool, shutdownCh chan struct{}) error {
 	s := &Server{
 		Cfg:              cfg,
 		Logger:           logger,
@@ -230,6 +231,7 @@ func Start(cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, sh
 		InventoryDB:      inventoryDB,
 		InvasionDB:       invasionDB,
 		CheatsheetDB:     cheatsheetDB,
+		ImageGalleryDB:   imageGalleryDB,
 		Guardian:         security.NewGuardian(logger),
 		CoAgentRegistry:  agent.NewCoAgentRegistry(cfg.CoAgents.MaxConcurrent, logger),
 		BudgetTracker:    budget.NewTracker(cfg, logger, cfg.Directories.DataDir),

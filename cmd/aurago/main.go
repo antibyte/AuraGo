@@ -323,6 +323,16 @@ func main() {
 		appLog.Info("Cheatsheet DB initialized", "path", cfg.SQLite.CheatsheetPath)
 	}
 
+	// Image Gallery DB
+	imageGalleryDB, imageGalleryDBErr := tools.InitImageGalleryDB(cfg.SQLite.ImageGalleryPath)
+	if imageGalleryDBErr != nil {
+		appLog.Warn("Failed to initialize Image Gallery DB", "error", imageGalleryDBErr, "path", cfg.SQLite.ImageGalleryPath)
+		imageGalleryDB = nil
+	} else {
+		defer imageGalleryDB.Close()
+		appLog.Info("Image Gallery DB initialized", "path", cfg.SQLite.ImageGalleryPath)
+	}
+
 	// Tool guide indexing (at startup for performance)
 	toolGuidesDir := filepath.Join(cfg.Directories.PromptsDir, "tools_manuals")
 	if err := longTermMem.IndexToolGuides(toolGuidesDir, false); err != nil {
@@ -516,7 +526,7 @@ func main() {
 		go eggClient.Start()
 	}
 
-	if err := server.Start(cfg, appLog, llmClient, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, invasionDB, cheatsheetDB, isFirstStart, shutdownCh); err != nil {
+	if err := server.Start(cfg, appLog, llmClient, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, isFirstStart, shutdownCh); err != nil {
 		appLog.Error("Server failed", "error", err)
 		os.Exit(1)
 	}

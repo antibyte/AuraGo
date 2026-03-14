@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="de" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="page-title">AuraGo - Image Gallery</title>
+    <link rel="stylesheet" href="/shared.css">
+    <script src="/shared.js"></script>
+    <script>
+        (function () { var t = localStorage.getItem('aurago-theme'); if (t) document.documentElement.setAttribute('data-theme', t); })();
+    </script>
+    <script>const I18N={{.I18N}};</script>
+    <link rel="stylesheet" href="/css/gallery.css">
+</head>
+<body>
+    <header class="app-header">
+        <div class="header-left">
+            <a href="/" class="logo">
+                <div class="logo-icon">🥚</div>
+                <span style="color:var(--accent);">AURA</span><span style="color:var(--text-primary);">GO</span>
+                <span class="logo-subtitle" data-i18n="gallery.subtitle">Image Gallery</span>
+            </a>
+        </div>
+        <div class="header-actions">
+            <button id="theme-toggle" class="btn-theme" title="Toggle theme"></button>
+        </div>
+    </header>
+
+    <div id="radialMenuAnchor"></div>
+
+    <div class="gallery-container">
+        <div class="gallery-header">
+            <h1 data-i18n="gallery.title">🎨 Image Gallery</h1>
+            <div class="gallery-controls">
+                <input type="text" id="gallery-search" class="gallery-search"
+                    placeholder="Search prompts..." data-i18n-placeholder="gallery.search_placeholder">
+                <select id="gallery-provider-filter" class="gallery-filter">
+                    <option value="" data-i18n="gallery.all_providers">All Providers</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="gallery-grid" class="gallery-grid">
+            <div class="gallery-loading" data-i18n="gallery.loading">Loading...</div>
+        </div>
+
+        <div id="gallery-pagination" class="gallery-pagination" style="display:none;">
+            <button id="gallery-prev" class="btn-gallery-nav" onclick="galleryPrev()">← Previous</button>
+            <span id="gallery-page-info"></span>
+            <button id="gallery-next" class="btn-gallery-nav" onclick="galleryNext()">Next →</button>
+        </div>
+    </div>
+
+    <!-- Lightbox -->
+    <div id="lightbox" class="lightbox" style="display:none;" onclick="closeLightbox(event)">
+        <div class="lightbox-content" onclick="event.stopPropagation()">
+            <button class="lightbox-close" onclick="closeLightbox()">&times;</button>
+            <img id="lightbox-img" src="" alt="">
+            <div class="lightbox-meta" id="lightbox-meta"></div>
+            <div class="lightbox-actions">
+                <a id="lightbox-download" href="" download class="btn-gallery-action" data-i18n="gallery.download">⬇ Download</a>
+                <button id="lightbox-delete" class="btn-gallery-action btn-danger" onclick="galleryDeleteCurrent()" data-i18n="gallery.delete">🗑 Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/gallery/main.js"></script>
+</body>
+</html>

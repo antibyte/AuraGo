@@ -299,7 +299,7 @@ func mcpCallTool(ctx context.Context, s *Server, params json.RawMessage) mcpCall
 		toolCtx, tc, cfg, s.Logger, s.LLMClient, s.Vault,
 		s.Registry, manifest, s.CronManager, s.MissionManager,
 		s.LongTermMem, s.ShortTermMem, s.KG,
-		s.InventoryDB, s.InvasionDB, s.CheatsheetDB,
+		s.InventoryDB, s.InvasionDB, s.CheatsheetDB, s.ImageGalleryDB,
 		s.HistoryManager, false, "", s.Guardian,
 		"mcp-server", s.CoAgentRegistry, s.BudgetTracker,
 	)
@@ -341,6 +341,7 @@ func mcpFeatureFlags(cfg *config.Config) agent.ToolFeatureFlags {
 		NetlifyEnabled:           cfg.Netlify.Enabled,
 		FirewallEnabled:          cfg.Firewall.Enabled && cfg.Runtime.FirewallAccessOK,
 		EmailEnabled:             cfg.Email.Enabled || len(cfg.EmailAccounts) > 0,
+		ImageGenerationEnabled:   cfg.ImageGeneration.Enabled,
 		MemoryEnabled:            cfg.Tools.Memory.Enabled,
 		KnowledgeGraphEnabled:    cfg.Tools.KnowledgeGraph.Enabled,
 		SecretsVaultEnabled:      cfg.Tools.SecretsVault.Enabled,

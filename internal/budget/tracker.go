@@ -157,8 +157,39 @@ func (t *Tracker) Record(model string, inputTokens, outputTokens int) bool {
 	return crossedWarning
 }
 
+// RecordCost adds a direct cost to the daily budget (e.g. image generation).
+func (t *Tracker) RecordCost(costUSD float64) {
+	if t == nil || costUSD <= 0 {
+		return
+	}
+
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	today := t.todayStr()
+	if t.date != today {
+		t.date = today
+		t.totalCostUSD = 0
+		t.inputTokens = make(map[string]int)
+		t.outputTokens = make(map[string]int)
+		t.warningsSent = 0
+		t.exceeded = false
+	}
+
+	t.totalCostUSD += costUSD
+
+	limit := t.cfg.Budget.DailyLimitUSD
+	if limit > 0 && t.totalCostUSD/limit >= 1.0 && !t.exceeded {
+		t.exceeded = true
+		t.logger.Warn("[Budget] Daily budget EXCEEDED (image generation)",
+			"spent", t.totalCostUSD, "limit", limit)
+	}
+
+	t.persistLocked()
+}
+
 // IsBlocked returns true if the given category is blocked by budget enforcement.
-// category: "chat", "coagent", "vision", "stt"
+// category: "chat", "coagent", "vision", "stt", "image_generation"
 func (t *Tracker) IsBlocked(category string) bool {
 	if t == nil {
 		return false

@@ -28,5 +28,6 @@
   "login.subtitle": "Veuillez vous connecter pour continuer",
   "login.totp_divider": "Code d'authentification",
   "login.totp_label": "Code à 6 chiffres",
-  "common.nav_cheatsheets": "Aide-mémoire"
+  "common.nav_cheatsheets": "Aide-mémoire",
+  "common.nav_gallery": "Image Gallery"
 }

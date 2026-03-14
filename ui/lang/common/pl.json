@@ -28,5 +28,6 @@
   "login.subtitle": "Zaloguj się, aby kontynuować",
   "login.totp_divider": "Kod Uwierzytelniający",
   "login.totp_label": "6-cyfrowy kod",
-  "common.nav_cheatsheets": "Ściągawki"
+  "common.nav_cheatsheets": "Ściągawki",
+  "common.nav_gallery": "Image Gallery"
 }

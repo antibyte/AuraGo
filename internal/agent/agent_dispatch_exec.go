@@ -25,7 +25,7 @@ import (
 )
 
 // dispatchExec handles execution, memory, security, filesystem, API, remote, and scheduling tool calls.
-func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, missionManager *tools.MissionManager, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, historyMgr *memory.HistoryManager, isMaintenance bool, surgeryPlan string, guardian *security.Guardian, sessionID string, coAgentRegistry *CoAgentRegistry, budgetTracker *budget.Tracker) string {
+func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, missionManager *tools.MissionManager, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, historyMgr *memory.HistoryManager, isMaintenance bool, surgeryPlan string, guardian *security.Guardian, sessionID string, coAgentRegistry *CoAgentRegistry, budgetTracker *budget.Tracker) string {
 	switch tc.Action {
 	case "execute_sandbox":
 		if !cfg.Sandbox.Enabled {
@@ -835,6 +835,111 @@ func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 			params["remove_labels"] = tc.RemoveLabels
 		}
 		return "Tool Output: " + tools.ExecuteGoogleWorkspace(*cfg, vault, op, params)
+
+	case "generate_image":
+		if !cfg.ImageGeneration.Enabled {
+			return `Tool Output: {"status": "error", "message": "Image generation is not enabled. Enable it in Settings > Image Generation."}`
+		}
+		if cfg.ImageGeneration.APIKey == "" {
+			return `Tool Output: {"status": "error", "message": "Image generation provider not configured. Set a provider in Settings > Image Generation."}`
+		}
+		prompt := tc.Prompt
+		if prompt == "" {
+			prompt = tc.Content
+		}
+		if prompt == "" {
+			return `Tool Output: {"status": "error", "message": "'prompt' is required for image generation."}`
+		}
+		logger.Info("LLM requested image generation", "prompt_len", len(prompt), "provider", cfg.ImageGeneration.ProviderType)
+
+		// Check budget
+		if budgetTracker != nil && budgetTracker.IsBlocked("image_generation") {
+			return `Tool Output: {"status": "error", "message": "Image generation blocked: daily budget exceeded."}`
+		}
+
+		// Check monthly limit
+		if cfg.ImageGeneration.MaxMonthly > 0 {
+			count, err := tools.ImageGalleryMonthlyCount(imageGalleryDB)
+			if err == nil && count >= cfg.ImageGeneration.MaxMonthly {
+				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Monthly image generation limit reached (%d/%d). Try again next month or increase the limit in settings."}`, count, cfg.ImageGeneration.MaxMonthly)
+			}
+		}
+
+		// Prompt enhancement
+		enhancedPrompt := ""
+		doEnhance := cfg.ImageGeneration.PromptEnhancement
+		if tc.EnhancePrompt != nil {
+			doEnhance = *tc.EnhancePrompt
+		}
+		effectivePrompt := prompt
+		if doEnhance {
+			enhanced, err := tools.EnhanceImagePrompt(llmClient, cfg.LLM.Model, prompt)
+			if err != nil {
+				logger.Warn("Image prompt enhancement failed, using original", "error", err)
+			} else {
+				enhancedPrompt = enhanced
+				effectivePrompt = enhanced
+			}
+		}
+
+		// Build config
+		genCfg := tools.ImageGenConfig{
+			ProviderType: cfg.ImageGeneration.ProviderType,
+			BaseURL:      cfg.ImageGeneration.BaseURL,
+			APIKey:       cfg.ImageGeneration.APIKey,
+			Model:        cfg.ImageGeneration.ResolvedModel,
+			DataDir:      cfg.Directories.DataDir,
+		}
+		if tc.Model != "" {
+			genCfg.Model = tc.Model
+		}
+
+		opts := tools.ImageGenOptions{
+			Size:    tc.Size,
+			Quality: tc.Quality,
+			Style:   tc.Style,
+		}
+		if opts.Size == "" {
+			opts.Size = cfg.ImageGeneration.DefaultSize
+		}
+		if opts.Quality == "" {
+			opts.Quality = cfg.ImageGeneration.DefaultQuality
+		}
+		if opts.Style == "" {
+			opts.Style = cfg.ImageGeneration.DefaultStyle
+		}
+		if tc.SourceImage != "" {
+			opts.SourceImage = tools.ResolveSourceImagePath(tc.SourceImage, cfg.Directories.WorkspaceDir, cfg.Directories.DataDir)
+		}
+
+		result, err := tools.GenerateImage(genCfg, effectivePrompt, opts)
+		if err != nil {
+			return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Image generation failed: %s"}`, err.Error())
+		}
+
+		result.Prompt = prompt
+		result.EnhancedPrompt = enhancedPrompt
+
+		// Save to gallery DB
+		tools.SaveGeneratedImage(imageGalleryDB, result)
+
+		// Record cost in budget tracker
+		if budgetTracker != nil && result.CostEstimate > 0 {
+			budgetTracker.RecordCost(result.CostEstimate)
+		}
+
+		resultJSON, _ := json.Marshal(map[string]interface{}{
+			"status":          "success",
+			"web_path":        result.WebPath,
+			"markdown":        result.Markdown,
+			"prompt":          result.Prompt,
+			"enhanced_prompt": result.EnhancedPrompt,
+			"model":           result.Model,
+			"provider":        result.Provider,
+			"size":            result.Size,
+			"duration_ms":     result.DurationMs,
+		})
+		return "Tool Output: " + string(resultJSON)
 
 	case "query_inventory":
 		queryTag := tc.Tag

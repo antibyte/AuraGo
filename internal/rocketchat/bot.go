@@ -264,6 +264,7 @@ func processMessage(cfg *config.Config, logger *slog.Logger, client llm.ChatClie
 		HomepageEnabled:          cfg.Homepage.Enabled && (!cfg.Runtime.IsDocker || cfg.Runtime.DockerSocketOK || cfg.Homepage.AllowLocalServer),
 		HomepageAllowLocalServer: cfg.Homepage.AllowLocalServer,
 		NetlifyEnabled:           cfg.Netlify.Enabled,
+		ImageGenerationEnabled:   cfg.ImageGeneration.Enabled,
 		VirusTotalEnabled:        cfg.VirusTotal.Enabled,
 		BraveSearchEnabled:       cfg.BraveSearch.Enabled,
 		MemoryEnabled:            cfg.Tools.Memory.Enabled,
@@ -321,6 +322,7 @@ func processMessage(cfg *config.Config, logger *slog.Logger, client llm.ChatClie
 			HomepageEnabled:          cfg.Homepage.Enabled && (!cfg.Runtime.IsDocker || cfg.Runtime.DockerSocketOK || cfg.Homepage.AllowLocalServer),
 			HomepageAllowLocalServer: cfg.Homepage.AllowLocalServer,
 			NetlifyEnabled:           cfg.Netlify.Enabled,
+			ImageGenerationEnabled:   cfg.ImageGeneration.Enabled,
 			AdGuardEnabled:           cfg.AdGuard.Enabled,
 			GoogleWorkspaceEnabled:   cfg.GoogleWorkspace.Enabled,
 		}

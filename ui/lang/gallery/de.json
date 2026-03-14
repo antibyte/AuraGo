@@ -1,0 +1,21 @@
+{
+  "gallery.title": "🎨 Bildergalerie",
+  "gallery.subtitle": "Bildergalerie",
+  "gallery.search_placeholder": "Prompts durchsuchen...",
+  "gallery.all_providers": "Alle Anbieter",
+  "gallery.loading": "Laden...",
+  "gallery.empty": "Noch keine Bilder. Generiere dein erstes Bild im Chat!",
+  "gallery.images": "Bilder",
+  "gallery.prompt": "Prompt",
+  "gallery.enhanced_prompt": "Verbesserter Prompt",
+  "gallery.provider": "Anbieter",
+  "gallery.model": "Modell",
+  "gallery.size": "Größe",
+  "gallery.quality": "Qualität",
+  "gallery.duration": "Dauer",
+  "gallery.cost": "Kosten",
+  "gallery.date": "Datum",
+  "gallery.download": "⬇ Download",
+  "gallery.delete": "🗑 Löschen",
+  "gallery.confirm_delete": "Bist du sicher, dass du dieses Bild löschen möchtest?"
+}

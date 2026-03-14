@@ -7,6 +7,7 @@ import (
 	"html/template"
 	"io/fs"
 	"net/http"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
@@ -148,6 +149,11 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 
 		// Google Workspace integration endpoints
 		mux.HandleFunc("/api/google-workspace/test", handleGoogleWorkspaceTest(s))
+
+		// Image Generation endpoints
+		mux.HandleFunc("/api/image-generation/test", handleImageGenerationTest(s))
+		mux.HandleFunc("/api/image-gallery", handleImageGalleryList(s))
+		mux.HandleFunc("/api/image-gallery/", handleImageGalleryByID(s))
 
 		// AdGuard Home integration endpoints
 		mux.HandleFunc("/api/adguard/status", handleAdGuardStatus(s))
@@ -547,6 +553,28 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		})
 		s.Logger.Info("Cheat Sheet Editor UI enabled at /cheatsheets")
 
+		// ── Image Gallery Page ──
+		galleryTmpl, galleryTmplErr := template.ParseFS(uiFS, "gallery.html")
+		if galleryTmplErr != nil {
+			s.Logger.Error("Failed to parse gallery UI template", "error", galleryTmplErr)
+		}
+		mux.HandleFunc("/gallery", func(w http.ResponseWriter, r *http.Request) {
+			if galleryTmpl == nil {
+				http.Error(w, "Gallery template error", http.StatusInternalServerError)
+				return
+			}
+			lang := normalizeLang(s.Cfg.Server.UILanguage)
+			data := map[string]interface{}{
+				"Lang": lang,
+				"I18N": getI18NJSON(lang),
+			}
+			if err := galleryTmpl.Execute(w, data); err != nil {
+				s.Logger.Error("Failed to execute gallery template", "error", err)
+				http.Error(w, "Template render error", http.StatusInternalServerError)
+			}
+		})
+		s.Logger.Info("Image Gallery UI enabled at /gallery")
+
 		// ── Cheat Sheets API ──
 		mux.HandleFunc("/api/cheatsheets", handleCheatSheets(s))
 		mux.HandleFunc("/api/cheatsheets/", handleCheatSheetByID(s))
@@ -687,6 +715,15 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		}
 		// Serve static assets from embedded UI FS (logos, etc.)
 		staticHandler.ServeHTTP(w, r)
+	})
+
+	// Serve generated images from data directory
+	genImgDir := filepath.Join(s.Cfg.Directories.DataDir, "generated_images")
+	genImgHandler := http.StripPrefix("/files/generated_images/", http.FileServer(neuteredFileSystem{http.Dir(genImgDir)}))
+	mux.HandleFunc("/files/generated_images/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("Cache-Control", "public, max-age=86400")
+		genImgHandler.ServeHTTP(w, r)
 	})
 
 	// Serve static files securely from the workspace directory

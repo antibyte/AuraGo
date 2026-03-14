@@ -309,6 +309,20 @@ func (c *Config) ResolveProviders() {
 	if c.Tools.WebScraper.SummaryModel == "" {
 		c.Tools.WebScraper.SummaryModel = c.LLM.Model
 	}
+
+	// ── Image Generation ── (no fallback — must be explicitly configured)
+	if c.ImageGeneration.Provider != "" {
+		if p := c.FindProvider(c.ImageGeneration.Provider); p != nil {
+			c.ImageGeneration.ProviderType = p.Type
+			c.ImageGeneration.BaseURL = p.BaseURL
+			c.ImageGeneration.APIKey = p.APIKey
+			if c.ImageGeneration.Model == "" {
+				c.ImageGeneration.ResolvedModel = p.Model
+			} else {
+				c.ImageGeneration.ResolvedModel = c.ImageGeneration.Model
+			}
+		}
+	}
 }
 
 // ApplyOAuthTokens reads stored OAuth2 access tokens from the vault and injects

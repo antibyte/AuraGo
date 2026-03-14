@@ -99,7 +99,8 @@ const SECTIONS = [
             { key: 'mcp_server', icon: '🔗', label: t('config.section.mcp_server.label'), desc: t('config.section.mcp_server.desc') },
             { key: 'homepage', icon: '🌐', label: t('config.section.homepage.label'), desc: t('config.section.homepage.desc') },
             { key: 'netlify', icon: '🔺', label: t('config.section.netlify.label'), desc: t('config.section.netlify.desc') },
-            { key: 'ollama', icon: '🦙', label: t('config.section.ollama.label'), desc: t('config.section.ollama.desc') }
+            { key: 'ollama', icon: '🦙', label: t('config.section.ollama.label'), desc: t('config.section.ollama.desc') },
+            { key: 'image_generation', icon: '🎨', label: t('config.section.image_generation.label'), desc: t('config.section.image_generation.desc') }
         ]
     },
     {
@@ -844,7 +845,8 @@ const SECTION_MODULES = {
     google_workspace: { m: 'google_workspace', fn: 'renderGoogleWorkspaceSection' },
     ai_gateway: { m: 'ai_gateway', fn: 'renderAIGatewaySection' },
     cloudflare_tunnel: { m: 'cloudflare_tunnel', fn: 'renderCloudflareTunnelSection' },
-    mcp_server: { m: 'mcp_server', fn: 'renderMCPServerSection' }
+    mcp_server: { m: 'mcp_server', fn: 'renderMCPServerSection' },
+    image_generation: { m: 'image_generation', fn: 'renderImageGenerationSection' }
 };
 
 function loadModule(name) {

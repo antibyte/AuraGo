@@ -28,5 +28,6 @@
   "login.subtitle": "Bitte anmelden um fortzufahren",
   "login.totp_divider": "Authenticator-Code",
   "login.totp_label": "6-stelliger Code",
-  "common.nav_cheatsheets": "Spickzettel"
+  "common.nav_cheatsheets": "Spickzettel",
+  "common.nav_gallery": "Bildergalerie"
 }

@@ -348,6 +348,15 @@ google_workspace:
     sheets: false
     sheets_write: false
     client_id: ""
+image_generation:
+    enabled: false
+    provider: ""
+    model: ""
+    default_size: "1024x1024"
+    default_quality: "standard"
+    default_style: "natural"
+    prompt_enhancement: false
+    max_monthly: 0
 netlify:
     enabled: false
     readonly: false

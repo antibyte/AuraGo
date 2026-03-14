@@ -28,5 +28,6 @@
   "login.subtitle": "Por favor, entre para continuar",
   "login.totp_divider": "Código do Autenticador",
   "login.totp_label": "Código de 6 dígitos",
-  "common.nav_cheatsheets": "Folhas de Dicas"
+  "common.nav_cheatsheets": "Folhas de Dicas",
+  "common.nav_gallery": "Image Gallery"
 }

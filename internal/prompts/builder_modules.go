@@ -384,6 +384,10 @@ func (m *PromptModule) ShouldInclude(flags ContextFlags) bool {
 			if flags.NetlifyEnabled {
 				return true
 			}
+		case "image_generation_enabled":
+			if flags.ImageGenerationEnabled {
+				return true
+			}
 		case "is_docker":
 			if flags.IsDocker {
 				return true

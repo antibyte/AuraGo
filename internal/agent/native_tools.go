@@ -67,6 +67,7 @@ type ToolFeatureFlags struct {
 	EmailEnabled            bool
 	CloudflareTunnelEnabled bool
 	GoogleWorkspaceEnabled  bool
+	ImageGenerationEnabled  bool
 	// Danger Zone toggles
 	AllowShell               bool
 	AllowPython              bool
@@ -918,6 +919,24 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 				"range":         prop("string", "Sheet cell range in A1 notation (for sheets_get, sheets_update)"),
 				"values":        map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}}, "description": "2D array of cell values (for sheets_update)"},
 			}, "operation"),
+		))
+	}
+	if ff.ImageGenerationEnabled {
+		tools = append(tools, tool("generate_image",
+			"Generate images from text prompts using AI. Supports text-to-image and image-to-image generation. "+
+				"Returns a markdown image link that can be included in the response to show the generated image to the user.",
+			schema(map[string]interface{}{
+				"prompt": map[string]interface{}{
+					"type":        "string",
+					"description": "Text description of the image to generate. Be detailed and specific for best results.",
+				},
+				"size":           prop("string", "Image size (e.g. '1024x1024', '1344x768', '768x1344'). Default: 1024x1024"),
+				"quality":        prop("string", "Image quality ('standard' or 'hd'). Default: standard"),
+				"style":          prop("string", "Image style ('natural' or 'vivid'). Default: natural"),
+				"model":          prop("string", "Override the default model for this generation (optional)"),
+				"source_image":   prop("string", "Path to an existing image for image-to-image generation (optional)"),
+				"enhance_prompt": map[string]interface{}{"type": "boolean", "description": "If true, the prompt will be enhanced by the LLM before generation (optional)"},
+			}, "prompt"),
 		))
 	}
 	return tools

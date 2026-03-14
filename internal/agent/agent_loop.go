@@ -32,6 +32,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	inventoryDB := runCfg.InventoryDB
 	invasionDB := runCfg.InvasionDB
 	cheatsheetDB := runCfg.CheatsheetDB
+	imageGalleryDB := runCfg.ImageGalleryDB
 	vault := runCfg.Vault
 	registry := runCfg.Registry
 	manifest := runCfg.Manifest
@@ -101,6 +102,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		WebhooksDefinitions:      webhooksDef.String(),
 		VirusTotalEnabled:        cfg.VirusTotal.Enabled,
 		BraveSearchEnabled:       cfg.BraveSearch.Enabled,
+		ImageGenerationEnabled:   cfg.ImageGeneration.Enabled,
 		MemoryEnabled:            cfg.Tools.Memory.Enabled,
 		KnowledgeGraphEnabled:    cfg.Tools.KnowledgeGraph.Enabled,
 		SecretsVaultEnabled:      cfg.Tools.SecretsVault.Enabled,
@@ -199,6 +201,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			EmailEnabled:             cfg.Email.Enabled || len(cfg.EmailAccounts) > 0,
 			CloudflareTunnelEnabled:  cfg.CloudflareTunnel.Enabled,
 			GoogleWorkspaceEnabled:   cfg.GoogleWorkspace.Enabled,
+			ImageGenerationEnabled:   cfg.ImageGeneration.Enabled,
 			MemoryEnabled:            cfg.Tools.Memory.Enabled,
 			KnowledgeGraphEnabled:    cfg.Tools.KnowledgeGraph.Enabled,
 			SecretsVaultEnabled:      cfg.Tools.SecretsVault.Enabled,
@@ -315,7 +318,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 			broker.Send("tool_call", ptcJSON)
 			broker.Send("tool_start", ptc.Action)
-			pResultContent := DispatchToolCall(ctx, ptc, cfg, currentLogger, client, vault, registry, manifest, cronManager, missionManager, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, historyManager, tools.IsBusy(), surgeryPlan, guardian, sessionID, coAgentRegistry, budgetTracker)
+			pResultContent := DispatchToolCall(ctx, ptc, cfg, currentLogger, client, vault, registry, manifest, cronManager, missionManager, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, historyManager, tools.IsBusy(), surgeryPlan, guardian, sessionID, coAgentRegistry, budgetTracker)
 			pResultContent = truncateToolOutput(pResultContent, cfg.Agent.ToolOutputLimit)
 			broker.Send("tool_output", pResultContent)
 			if ptc.Action == "send_image" {
@@ -1088,7 +1091,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				broker.Send("co_agent_spawn", taskPreview)
 			}
 
-			resultContent := DispatchToolCall(ctx, tc, cfg, currentLogger, client, vault, registry, manifest, cronManager, missionManager, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, historyManager, tools.IsBusy(), surgeryPlan, guardian, sessionID, coAgentRegistry, budgetTracker)
+			resultContent := DispatchToolCall(ctx, tc, cfg, currentLogger, client, vault, registry, manifest, cronManager, missionManager, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, historyManager, tools.IsBusy(), surgeryPlan, guardian, sessionID, coAgentRegistry, budgetTracker)
 			resultContent = truncateToolOutput(resultContent, cfg.Agent.ToolOutputLimit)
 			broker.Send("tool_output", resultContent)
 
@@ -1330,7 +1333,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					broker.Send("thinking", fmt.Sprintf("[%d] Running %s (batched)...", toolCallCount, btc.Action))
 					broker.Send("tool_start", btc.Action)
 
-					bResult := DispatchToolCall(ctx, btc, cfg, currentLogger, client, vault, registry, manifest, cronManager, missionManager, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, historyManager, tools.IsBusy(), surgeryPlan, guardian, sessionID, coAgentRegistry, budgetTracker)
+					bResult := DispatchToolCall(ctx, btc, cfg, currentLogger, client, vault, registry, manifest, cronManager, missionManager, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, historyManager, tools.IsBusy(), surgeryPlan, guardian, sessionID, coAgentRegistry, budgetTracker)
 					bResult = truncateToolOutput(bResult, cfg.Agent.ToolOutputLimit)
 					broker.Send("tool_output", bResult)
 					broker.Send("tool_end", btc.Action)

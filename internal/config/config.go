@@ -87,6 +87,10 @@ func Load(path string) (*Config, error) {
 		cfg.SQLite.CheatsheetPath = "./data/cheatsheets.db"
 	}
 	cfg.SQLite.CheatsheetPath = resolvePath(configDir, cfg.SQLite.CheatsheetPath)
+	if cfg.SQLite.ImageGalleryPath == "" {
+		cfg.SQLite.ImageGalleryPath = "./data/image_gallery.db"
+	}
+	cfg.SQLite.ImageGalleryPath = resolvePath(configDir, cfg.SQLite.ImageGalleryPath)
 
 	// Resolve logging directory
 	cfg.Logging.LogDir = resolvePath(configDir, cfg.Logging.LogDir)

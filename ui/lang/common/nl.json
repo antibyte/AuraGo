@@ -28,5 +28,6 @@
   "login.subtitle": "Log in om verder te gaan",
   "login.totp_divider": "Authenticatiecode",
   "login.totp_label": "6-cijferige code",
-  "common.nav_cheatsheets": "Spiekbriefjes"
+  "common.nav_cheatsheets": "Spiekbriefjes",
+  "common.nav_gallery": "Image Gallery"
 }

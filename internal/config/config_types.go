@@ -119,11 +119,12 @@ type Config struct {
 		VectorDBDir  string `yaml:"vectordb_dir"`
 	} `yaml:"directories"`
 	SQLite struct {
-		ShortTermPath  string `yaml:"short_term_path"`
-		LongTermPath   string `yaml:"long_term_path"`
-		InventoryPath  string `yaml:"inventory_path"`
-		InvasionPath   string `yaml:"invasion_path"`
-		CheatsheetPath string `yaml:"cheatsheet_path"`
+		ShortTermPath    string `yaml:"short_term_path"`
+		LongTermPath     string `yaml:"long_term_path"`
+		InventoryPath    string `yaml:"inventory_path"`
+		InvasionPath     string `yaml:"invasion_path"`
+		CheatsheetPath   string `yaml:"cheatsheet_path"`
+		ImageGalleryPath string `yaml:"image_gallery_path"`
 	} `yaml:"sqlite"`
 	Embeddings struct {
 		Provider      string `yaml:"provider"`          // "disabled" or provider entry ID
@@ -594,6 +595,21 @@ type Config struct {
 		RefreshToken  string `yaml:"-" json:"-"`     // resolved from OAuth token in vault
 		TokenExpiry   string `yaml:"-" json:"-"`     // resolved: RFC3339 expiry
 	} `yaml:"google_workspace"`
+	ImageGeneration struct {
+		Enabled           bool   `yaml:"enabled"`
+		Provider          string `yaml:"provider"`           // references ProviderEntry ID
+		Model             string `yaml:"model"`              // default model override (empty = use provider default)
+		DefaultSize       string `yaml:"default_size"`       // e.g. "1024x1024"
+		DefaultQuality    string `yaml:"default_quality"`    // "standard", "hd"
+		DefaultStyle      string `yaml:"default_style"`      // "natural", "vivid"
+		PromptEnhancement bool   `yaml:"prompt_enhancement"` // LLM improves prompt before generation
+		MaxMonthly        int    `yaml:"max_monthly"`        // 0 = unlimited
+		// resolved fields (populated by ResolveProviders)
+		ProviderType  string `yaml:"-" json:"-"` // resolved: openai, openrouter, stability, ideogram, google, etc.
+		BaseURL       string `yaml:"-" json:"-"` // resolved from provider entry
+		APIKey        string `yaml:"-" json:"-"` // resolved from provider entry
+		ResolvedModel string `yaml:"-" json:"-"` // resolved: model from provider if not overridden
+	} `yaml:"image_generation"`
 
 	// gwProvider is a synthetic ProviderEntry used by FindProvider for Google Workspace OAuth.
 	gwProvider ProviderEntry `yaml:"-" json:"-"`

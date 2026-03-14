@@ -28,5 +28,6 @@
   "login.subtitle": "Logg inn for å fortsette",
   "login.totp_divider": "Authenticator-kode",
   "login.totp_label": "6-sifret kode",
-  "common.nav_cheatsheets": "Jukseark"
+  "common.nav_cheatsheets": "Jukseark",
+  "common.nav_gallery": "Image Gallery"
 }

@@ -28,5 +28,6 @@
   "login.subtitle": "Please sign in to continue",
   "login.totp_divider": "Authenticator Code",
   "login.totp_label": "6-digit code",
-  "common.nav_cheatsheets": "Cheat Sheets"
+  "common.nav_cheatsheets": "Cheat Sheets",
+  "common.nav_gallery": "Image Gallery"
 }

@@ -1,0 +1,235 @@
+.gallery-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 1.5rem;
+}
+
+.gallery-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.gallery-header h1 {
+    font-size: 1.4rem;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.gallery-controls {
+    display: flex;
+    gap: 0.6rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.gallery-search {
+    padding: 0.45rem 0.8rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    min-width: 200px;
+}
+
+.gallery-filter {
+    padding: 0.45rem 0.8rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 0.85rem;
+}
+
+.gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 1rem;
+}
+
+.gallery-card {
+    border-radius: 12px;
+    overflow: hidden;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.gallery-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+.gallery-card img {
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+    display: block;
+}
+
+.gallery-card-info {
+    padding: 0.6rem 0.8rem;
+}
+
+.gallery-card-prompt {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-bottom: 0.3rem;
+}
+
+.gallery-card-meta {
+    font-size: 0.68rem;
+    color: var(--text-tertiary);
+    display: flex;
+    justify-content: space-between;
+}
+
+.gallery-loading {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 3rem;
+    color: var(--text-tertiary);
+    font-size: 0.9rem;
+}
+
+.gallery-empty {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 4rem 2rem;
+    color: var(--text-tertiary);
+}
+
+.gallery-empty-icon {
+    font-size: 3rem;
+    margin-bottom: 0.8rem;
+}
+
+.gallery-pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.5rem 0;
+}
+
+.btn-gallery-nav {
+    padding: 0.4rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 0.82rem;
+    cursor: pointer;
+}
+
+.btn-gallery-nav:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* Lightbox */
+.lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+}
+
+.lightbox-content {
+    max-width: 900px;
+    max-height: 90vh;
+    background: var(--bg-primary);
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+.lightbox-close {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.6rem;
+    background: rgba(0, 0, 0, 0.6);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 2rem;
+    height: 2rem;
+    font-size: 1.2rem;
+    cursor: pointer;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.lightbox-content img {
+    max-width: 100%;
+    max-height: 60vh;
+    object-fit: contain;
+    display: block;
+}
+
+.lightbox-meta {
+    padding: 1rem;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.lightbox-meta strong {
+    color: var(--text-primary);
+}
+
+.lightbox-actions {
+    display: flex;
+    gap: 0.6rem;
+    padding: 0.8rem 1rem;
+    border-top: 1px solid var(--border);
+}
+
+.btn-gallery-action {
+    padding: 0.4rem 0.8rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 0.78rem;
+    cursor: pointer;
+    text-decoration: none;
+    text-align: center;
+}
+
+.btn-danger {
+    color: var(--danger, #ef4444);
+    border-color: var(--danger, #ef4444);
+}
+
+.btn-danger:hover {
+    background: rgba(239, 68, 68, 0.1);
+}
+
+@media (max-width: 640px) {
+    .gallery-grid {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    }
+    .gallery-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}
