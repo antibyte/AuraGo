@@ -39,10 +39,12 @@ section() { echo -e "\n${BOLD}${BLUE}═══ $* ═══${NC}"; }
 # ── CLI flags ──────────────────────────────────────────────────────────
 AUTO_YES=false
 NO_RESTART=false
+_AU_ESCAPED=""
 for arg in "$@"; do
     case "$arg" in
         --yes)        AUTO_YES=true ;;
         --no-restart) NO_RESTART=true ;;
+        --escaped)    _AU_ESCAPED=1 ;;   # internal: already running in an independent scope
         --help|-h)
             echo "Usage: $0 [--yes] [--no-restart]"
             echo "  --yes         Skip confirmation prompts"
@@ -156,18 +158,20 @@ PROMPTS_DIR="$DIR/prompts"
 # To survive that cleanup we try to re-exec ourselves in an independent
 # transient scope before we touch any processes.
 if [ -z "${_AU_ESCAPED:-}" ]; then
-    export _AU_ESCAPED=1
     if command -v systemd-run >/dev/null 2>&1; then
         # Prefer a user scope (no root required, needs active user session).
-        # Pass _AU_ESCAPED=1 explicitly: systemd-run --user --scope uses the
-        # logind session environment, NOT the calling process's exported vars,
-        # so 'export _AU_ESCAPED=1' above is NOT inherited by the scope.
-        if systemd-run --user --scope --quiet -- env _AU_ESCAPED=1 /bin/bash "$0" "$@" 2>/dev/null; then
+        # Pass --escaped as a CLI argument — this is 100% reliable regardless
+        # of environment variable inheritance or file replacement mid-execution.
+        # env-variable guards (export _AU_ESCAPED=1) can be lost when
+        # systemd-run --scope uses the logind session environment instead of
+        # the calling process's exported vars, or when git stash pop replaces
+        # the running script on disk and bash re-reads the new content.
+        if systemd-run --user --scope --quiet -- /bin/bash "$0" "--escaped" "$@" 2>/dev/null; then
             exit 0
         fi
         # Fall back to a system scope via sudo (password-less sudo only).
         if command -v sudo >/dev/null 2>&1; then
-            if sudo -n systemd-run --scope --quiet -- env _AU_ESCAPED=1 /bin/bash "$0" "$@" 2>/dev/null; then
+            if sudo -n systemd-run --scope --quiet -- /bin/bash "$0" "--escaped" "$@" 2>/dev/null; then
                 exit 0
             fi
         fi
