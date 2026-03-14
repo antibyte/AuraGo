@@ -33,6 +33,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	invasionDB := runCfg.InvasionDB
 	cheatsheetDB := runCfg.CheatsheetDB
 	imageGalleryDB := runCfg.ImageGalleryDB
+	mediaRegistryDB := runCfg.MediaRegistryDB
+	homepageRegistryDB := runCfg.HomepageRegistryDB
 	remoteHub := runCfg.RemoteHub
 	vault := runCfg.Vault
 	registry := runCfg.Registry
@@ -115,6 +117,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		InventoryEnabled:         cfg.Tools.Inventory.Enabled,
 		MemoryMaintenanceEnabled: cfg.Tools.MemoryMaintenance.Enabled,
 		WOLEnabled:               cfg.Tools.WOL.Enabled && (!cfg.Runtime.IsDocker || cfg.Runtime.BroadcastOK),
+		MediaRegistryEnabled:     cfg.MediaRegistry.Enabled && mediaRegistryDB != nil,
+		HomepageRegistryEnabled:  cfg.Homepage.Enabled && homepageRegistryDB != nil,
 		AllowShell:               cfg.Agent.AllowShell,
 		AllowPython:              cfg.Agent.AllowPython,
 		AllowFilesystemWrite:     cfg.Agent.AllowFilesystemWrite,
@@ -151,6 +155,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	workflowPlanCount := 0              // Prevent infinite workflow_plan loops
 	lastResponseWasTool := false        // True when the previous iteration was a tool call; suppresses announcement detector on completion messages
 	pendingTCs := make([]ToolCall, 0)   // Queued tool calls from multi-tool responses (processed without a new LLM call)
+
+	// Context compression: tracks message count at last compression for cooldown
+	lastCompressionMsg := 0
 
 	// Core memory cache: read once, invalidate on manage_memory calls
 	coreMemCache := ""
@@ -215,6 +222,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			InventoryEnabled:         cfg.Tools.Inventory.Enabled,
 			MemoryMaintenanceEnabled: cfg.Tools.MemoryMaintenance.Enabled,
 			WOLEnabled:               cfg.Tools.WOL.Enabled && cfg.Runtime.BroadcastOK,
+			MediaRegistryEnabled:     cfg.MediaRegistry.Enabled && mediaRegistryDB != nil,
+			HomepageRegistryEnabled:  cfg.Homepage.Enabled && homepageRegistryDB != nil,
 			// Danger Zone capability gates
 			AllowShell:           cfg.Agent.AllowShell,
 			AllowPython:          cfg.Agent.AllowPython,
@@ -321,8 +330,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 			broker.Send("tool_call", ptcJSON)
 			broker.Send("tool_start", ptc.Action)
-			pResultContent := DispatchToolCall(ctx, ptc, cfg, currentLogger, client, vault, registry, manifest, cronManager, missionManager, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, remoteHub, historyManager, tools.IsBusy(), surgeryPlan, guardian, sessionID, coAgentRegistry, budgetTracker)
+			pResultContent := DispatchToolCall(ctx, ptc, cfg, currentLogger, client, vault, registry, manifest, cronManager, missionManager, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, remoteHub, historyManager, tools.IsBusy(), surgeryPlan, guardian, sessionID, coAgentRegistry, budgetTracker)
 			pResultContent = truncateToolOutput(pResultContent, cfg.Agent.ToolOutputLimit)
+			prompts.RecordToolUsage(ptc.Action, ptc.Operation, !isToolError(pResultContent))
 			broker.Send("tool_output", pResultContent)
 			if ptc.Action == "send_image" {
 				var imgRes struct {
@@ -470,10 +480,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			flags.UserProfileSummary = shortTermMem.GetUserProfileSummary(cfg.Agent.UserProfilingThreshold)
 		}
 
-		// Adaptive tier: adjust prompt complexity based on conversation length
+		// Adaptive tier: adjust prompt complexity based on conversation length and context signals
 		flags.MessageCount = len(req.Messages)
-		flags.Tier = prompts.DetermineTier(flags.MessageCount)
 		flags.RecentlyUsedTools = recentTools
+		flags.Tier = prompts.DetermineTierAdaptive(flags)
 		flags.IsDebugMode = cfg.Agent.DebugMode || GetDebugMode() // re-check each iteration (toggleable at runtime)
 
 		// Inject session todo list into system prompt context
@@ -498,20 +508,27 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}, req.Messages...)
 		}
 
-		// ── Context window guard ──
-		// Count total tokens across all messages and trim old history if we would
-		// exceed the model's context window. We keep the system prompt (index 0) and
-		// always preserve the final user message so the model has something to answer.
-		// A 4096-token margin is reserved for the model's completion output.
+		// ── Context compression ──
+		// Before the hard-trim guard, try to compress older messages into a summary
+		// to preserve knowledge while freeing token budget.
 		ctxWindow := cfg.Agent.ContextWindow
 		if ctxWindow <= 0 {
-			ctxWindow = 163840 // sensible default matching common 160k-context models
+			ctxWindow = 163840
 		}
 		completionMargin := 4096
 		maxHistoryTokens := ctxWindow - completionMargin
 		if maxHistoryTokens < 4096 {
 			maxHistoryTokens = 4096
 		}
+		req.Messages, lastCompressionMsg, _ = CompressHistory(
+			ctx, req.Messages, maxHistoryTokens, cfg.LLM.Model, client, lastCompressionMsg, currentLogger,
+		)
+
+		// ── Context window guard ──
+		// Count total tokens across all messages and trim old history if we would
+		// exceed the model's context window. We keep the system prompt (index 0) and
+		// always preserve the final user message so the model has something to answer.
+		// A 4096-token margin is reserved for the model's completion output.
 		totalMsgTokens := 0
 		for _, m := range req.Messages {
 			totalMsgTokens += prompts.CountTokens(m.Content) + 4 // ~4 tokens overhead per message
@@ -1094,8 +1111,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				broker.Send("co_agent_spawn", taskPreview)
 			}
 
-			resultContent := DispatchToolCall(ctx, tc, cfg, currentLogger, client, vault, registry, manifest, cronManager, missionManager, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, remoteHub, historyManager, tools.IsBusy(), surgeryPlan, guardian, sessionID, coAgentRegistry, budgetTracker)
+			resultContent := DispatchToolCall(ctx, tc, cfg, currentLogger, client, vault, registry, manifest, cronManager, missionManager, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, remoteHub, historyManager, tools.IsBusy(), surgeryPlan, guardian, sessionID, coAgentRegistry, budgetTracker)
 			resultContent = truncateToolOutput(resultContent, cfg.Agent.ToolOutputLimit)
+			prompts.RecordToolUsage(tc.Action, tc.Operation, !isToolError(resultContent))
 			broker.Send("tool_output", resultContent)
 
 			// Emit SSE image event so the Web UI shows the image immediately (before LLM responds)
@@ -1336,8 +1354,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					broker.Send("thinking", fmt.Sprintf("[%d] Running %s (batched)...", toolCallCount, btc.Action))
 					broker.Send("tool_start", btc.Action)
 
-					bResult := DispatchToolCall(ctx, btc, cfg, currentLogger, client, vault, registry, manifest, cronManager, missionManager, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, remoteHub, historyManager, tools.IsBusy(), surgeryPlan, guardian, sessionID, coAgentRegistry, budgetTracker)
+					bResult := DispatchToolCall(ctx, btc, cfg, currentLogger, client, vault, registry, manifest, cronManager, missionManager, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, remoteHub, historyManager, tools.IsBusy(), surgeryPlan, guardian, sessionID, coAgentRegistry, budgetTracker)
 					bResult = truncateToolOutput(bResult, cfg.Agent.ToolOutputLimit)
+					prompts.RecordToolUsage(btc.Action, btc.Operation, !isToolError(bResult))
 					broker.Send("tool_output", bResult)
 					broker.Send("tool_end", btc.Action)
 					lastActivity = time.Now()

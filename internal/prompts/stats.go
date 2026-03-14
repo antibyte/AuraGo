@@ -1,6 +1,7 @@
 package prompts
 
 import (
+	"sort"
 	"sync"
 	"time"
 )
@@ -130,4 +131,146 @@ func GetAggregatedStats() PromptStatsAggregated {
 	copy(agg.Recent, globalStats.records[n-recentCount:])
 
 	return agg
+}
+
+// ─── Tool Usage Tracking ───────────────────────────────────────────────────
+
+// ToolUsageRecord captures a single tool invocation.
+type ToolUsageRecord struct {
+	Tool      string    `json:"tool"`
+	Operation string    `json:"operation,omitempty"`
+	Success   bool      `json:"success"`
+	Timestamp time.Time `json:"timestamp"`
+}
+
+// ToolUsageStats aggregates per-tool call counts.
+type ToolUsageStats struct {
+	TotalCalls   int `json:"total_calls"`
+	SuccessCount int `json:"success_count"`
+	FailureCount int `json:"failure_count"`
+}
+
+// ToolUsageAggregated is the JSON-friendly aggregate returned by the dashboard API.
+type ToolUsageAggregated struct {
+	TotalCalls int                       `json:"total_calls"`
+	ByTool     map[string]ToolUsageStats `json:"by_tool"`
+	TopTools   []ToolRanking             `json:"top_tools"`
+	Recent     []ToolUsageRecord         `json:"recent"`
+}
+
+// ToolRanking is a (tool, count) pair for sorted output.
+type ToolRanking struct {
+	Tool  string `json:"tool"`
+	Count int    `json:"count"`
+}
+
+type toolUsageCollector struct {
+	mu      sync.RWMutex
+	records []ToolUsageRecord
+	maxSize int
+}
+
+var globalToolStats = &toolUsageCollector{
+	maxSize: 500,
+}
+
+// RecordToolUsage appends a tool call record to the ring buffer.
+func RecordToolUsage(tool, operation string, success bool) {
+	globalToolStats.mu.Lock()
+	defer globalToolStats.mu.Unlock()
+
+	if len(globalToolStats.records) >= globalToolStats.maxSize {
+		drop := globalToolStats.maxSize / 5
+		remaining := len(globalToolStats.records) - drop
+		newRecords := make([]ToolUsageRecord, remaining, globalToolStats.maxSize)
+		copy(newRecords, globalToolStats.records[drop:])
+		globalToolStats.records = newRecords
+	}
+	globalToolStats.records = append(globalToolStats.records, ToolUsageRecord{
+		Tool:      tool,
+		Operation: operation,
+		Success:   success,
+		Timestamp: time.Now(),
+	})
+}
+
+// GetToolUsageStats computes aggregated tool usage statistics.
+func GetToolUsageStats() ToolUsageAggregated {
+	globalToolStats.mu.RLock()
+	defer globalToolStats.mu.RUnlock()
+
+	n := len(globalToolStats.records)
+	agg := ToolUsageAggregated{
+		TotalCalls: n,
+		ByTool:     make(map[string]ToolUsageStats),
+	}
+	if n == 0 {
+		agg.TopTools = []ToolRanking{}
+		agg.Recent = []ToolUsageRecord{}
+		return agg
+	}
+
+	for _, r := range globalToolStats.records {
+		s := agg.ByTool[r.Tool]
+		s.TotalCalls++
+		if r.Success {
+			s.SuccessCount++
+		} else {
+			s.FailureCount++
+		}
+		agg.ByTool[r.Tool] = s
+	}
+
+	// Build sorted top-tools list
+	rankings := make([]ToolRanking, 0, len(agg.ByTool))
+	for tool, stats := range agg.ByTool {
+		rankings = append(rankings, ToolRanking{Tool: tool, Count: stats.TotalCalls})
+	}
+	sort.Slice(rankings, func(i, j int) bool {
+		return rankings[i].Count > rankings[j].Count
+	})
+	if len(rankings) > 10 {
+		rankings = rankings[:10]
+	}
+	agg.TopTools = rankings
+
+	// Recent 20
+	recentCount := 20
+	if n < recentCount {
+		recentCount = n
+	}
+	agg.Recent = make([]ToolUsageRecord, recentCount)
+	copy(agg.Recent, globalToolStats.records[n-recentCount:])
+
+	return agg
+}
+
+// GetFrequentTools returns the names of the top-N most frequently used tools.
+// This is used by PrepareDynamicGuides to boost guide prediction accuracy.
+func GetFrequentTools(topN int) []string {
+	globalToolStats.mu.RLock()
+	defer globalToolStats.mu.RUnlock()
+
+	counts := make(map[string]int)
+	for _, r := range globalToolStats.records {
+		counts[r.Tool]++
+	}
+
+	type kv struct {
+		Tool  string
+		Count int
+	}
+	ranked := make([]kv, 0, len(counts))
+	for t, c := range counts {
+		ranked = append(ranked, kv{t, c})
+	}
+	sort.Slice(ranked, func(i, j int) bool {
+		return ranked[i].Count > ranked[j].Count
+	})
+
+	result := make([]string, 0, topN)
+	for i := 0; i < topN && i < len(ranked); i++ {
+		result = append(result, ranked[i].Tool)
+	}
+	return result
 }

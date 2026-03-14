@@ -25,7 +25,7 @@ const dispatchNotHandled = "\x00__DISPATCH_NOT_HANDLED__"
 
 // dispatchInfra handles network, cloud platform, and external service tool calls
 // (co_agent, mdns, tts, chromecast, proxmox, ollama, tailscale, ansible, invasion, github, netlify, mqtt, mcp, adguard).
-func dispatchInfra(ctx context.Context, tc ToolCall, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, missionManager *tools.MissionManager, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, remoteHub *remote.RemoteHub, historyMgr *memory.HistoryManager, isMaintenance bool, surgeryPlan string, guardian *security.Guardian, sessionID string, coAgentRegistry *CoAgentRegistry, budgetTracker *budget.Tracker) string {
+func dispatchInfra(ctx context.Context, tc ToolCall, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, missionManager *tools.MissionManager, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, mediaRegistryDB *sql.DB, homepageRegistryDB *sql.DB, remoteHub *remote.RemoteHub, historyMgr *memory.HistoryManager, isMaintenance bool, surgeryPlan string, guardian *security.Guardian, sessionID string, coAgentRegistry *CoAgentRegistry, budgetTracker *budget.Tracker) string {
 	switch tc.Action {
 	case "co_agent", "co_agents":
 		if budgetTracker != nil && budgetTracker.IsBlocked("coagent") {
@@ -135,6 +135,23 @@ func dispatchInfra(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 		if err != nil {
 			return fmt.Sprintf(`Tool Output: {"status": "error", "message": "TTS failed: %v"}`, err)
 		}
+
+		// Auto-register in media registry
+		if mediaRegistryDB != nil {
+			tools.RegisterMedia(mediaRegistryDB, tools.MediaItem{
+				MediaType:  "tts",
+				SourceTool: "tts",
+				Filename:   filename,
+				FilePath:   filepath.Join(cfg.Directories.DataDir, "tts", filename),
+				Format:     "mp3",
+				Provider:   cfg.TTS.Provider,
+				Prompt:     text,
+				Language:   ttsCfg.Language,
+				VoiceID:    ttsCfg.ElevenLabs.VoiceID,
+				Tags:       []string{"auto-generated", "tts"},
+			})
+		}
+
 		ttsPort := cfg.Chromecast.TTSPort
 		if ttsPort == 0 {
 			ttsPort = cfg.Server.Port // Fallback if chromecast integration is disabled

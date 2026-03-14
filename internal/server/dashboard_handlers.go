@@ -246,6 +246,18 @@ func handleDashboardPromptStats() http.HandlerFunc {
 	}
 }
 
+// handleDashboardToolStats returns aggregated tool usage statistics.
+func handleDashboardToolStats() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(prompts.GetToolUsageStats())
+	}
+}
+
 // handleDashboardLogs returns the last N lines from the supervisor log file.
 // Query param: ?lines=100 (default 100, max 500)
 func handleDashboardLogs(s *Server) http.HandlerFunc {

@@ -91,6 +91,14 @@ func Load(path string) (*Config, error) {
 		cfg.SQLite.ImageGalleryPath = "./data/image_gallery.db"
 	}
 	cfg.SQLite.ImageGalleryPath = resolvePath(configDir, cfg.SQLite.ImageGalleryPath)
+	if cfg.SQLite.MediaRegistryPath == "" {
+		cfg.SQLite.MediaRegistryPath = "./data/media_registry.db"
+	}
+	cfg.SQLite.MediaRegistryPath = resolvePath(configDir, cfg.SQLite.MediaRegistryPath)
+	if cfg.SQLite.HomepageRegistryPath == "" {
+		cfg.SQLite.HomepageRegistryPath = "./data/homepage_registry.db"
+	}
+	cfg.SQLite.HomepageRegistryPath = resolvePath(configDir, cfg.SQLite.HomepageRegistryPath)
 
 	// Resolve logging directory
 	cfg.Logging.LogDir = resolvePath(configDir, cfg.Logging.LogDir)

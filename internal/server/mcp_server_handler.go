@@ -300,6 +300,7 @@ func mcpCallTool(ctx context.Context, s *Server, params json.RawMessage) mcpCall
 		s.Registry, manifest, s.CronManager, s.MissionManager,
 		s.LongTermMem, s.ShortTermMem, s.KG,
 		s.InventoryDB, s.InvasionDB, s.CheatsheetDB, s.ImageGalleryDB,
+		s.MediaRegistryDB, s.HomepageRegistryDB,
 		s.RemoteHub, s.HistoryManager, false, "", s.Guardian,
 		"mcp-server", s.CoAgentRegistry, s.BudgetTracker,
 	)

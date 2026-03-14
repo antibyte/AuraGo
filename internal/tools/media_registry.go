@@ -1,0 +1,433 @@
+package tools
+
+import (
+	"database/sql"
+	"encoding/json"
+	"fmt"
+	"strings"
+	"time"
+
+	_ "modernc.org/sqlite"
+)
+
+// MediaItem represents a single entry in the media registry.
+type MediaItem struct {
+	ID               int64    `json:"id"`
+	CreatedAt        string   `json:"created_at"`
+	UpdatedAt        string   `json:"updated_at"`
+	MediaType        string   `json:"media_type"`  // image, tts, audio, music
+	SourceTool       string   `json:"source_tool"` // generate_image, tts, transcribe, manual
+	Filename         string   `json:"filename"`
+	FilePath         string   `json:"file_path"`
+	WebPath          string   `json:"web_path"`
+	FileSize         int64    `json:"file_size"`
+	Format           string   `json:"format"` // png, jpg, mp3, wav, etc.
+	Provider         string   `json:"provider"`
+	Model            string   `json:"model"`
+	Prompt           string   `json:"prompt"`
+	Description      string   `json:"description"`
+	Tags             []string `json:"tags"`
+	DurationMs       int64    `json:"duration_ms,omitempty"`
+	GenerationTimeMs int64    `json:"generation_time_ms,omitempty"`
+	CostEstimate     float64  `json:"cost_estimate,omitempty"`
+	SourceImage      string   `json:"source_image,omitempty"`
+	Quality          string   `json:"quality,omitempty"`
+	Style            string   `json:"style,omitempty"`
+	Size             string   `json:"size,omitempty"`
+	Language         string   `json:"language,omitempty"`
+	VoiceID          string   `json:"voice_id,omitempty"`
+	Hash             string   `json:"hash,omitempty"`
+	Deleted          bool     `json:"deleted"`
+}
+
+// InitMediaRegistryDB initializes the media registry SQLite database.
+func InitMediaRegistryDB(dbPath string) (*sql.DB, error) {
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open media registry database: %w", err)
+	}
+
+	db.SetMaxOpenConns(1)
+	if _, err := db.Exec("PRAGMA journal_mode=WAL"); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("failed to set WAL mode: %w", err)
+	}
+
+	schema := `
+	CREATE TABLE IF NOT EXISTS media_items (
+		id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+		created_at         DATETIME DEFAULT CURRENT_TIMESTAMP,
+		updated_at         DATETIME DEFAULT CURRENT_TIMESTAMP,
+		media_type         TEXT NOT NULL DEFAULT 'image',
+		source_tool        TEXT NOT NULL DEFAULT 'manual',
+		filename           TEXT NOT NULL,
+		file_path          TEXT NOT NULL DEFAULT '',
+		web_path           TEXT NOT NULL DEFAULT '',
+		file_size          INTEGER DEFAULT 0,
+		format             TEXT DEFAULT '',
+		provider           TEXT DEFAULT '',
+		model              TEXT DEFAULT '',
+		prompt             TEXT DEFAULT '',
+		description        TEXT DEFAULT '',
+		tags               TEXT DEFAULT '[]',
+		duration_ms        INTEGER DEFAULT 0,
+		generation_time_ms INTEGER DEFAULT 0,
+		cost_estimate      REAL DEFAULT 0,
+		source_image       TEXT DEFAULT '',
+		quality            TEXT DEFAULT '',
+		style              TEXT DEFAULT '',
+		size               TEXT DEFAULT '',
+		language           TEXT DEFAULT '',
+		voice_id           TEXT DEFAULT '',
+		hash               TEXT DEFAULT '',
+		deleted            INTEGER DEFAULT 0
+	);
+	CREATE INDEX IF NOT EXISTS idx_media_items_media_type ON media_items(media_type);
+	CREATE INDEX IF NOT EXISTS idx_media_items_created_at ON media_items(created_at);
+	CREATE INDEX IF NOT EXISTS idx_media_items_hash ON media_items(hash);
+	CREATE INDEX IF NOT EXISTS idx_media_items_deleted ON media_items(deleted);`
+	if _, err := db.Exec(schema); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("failed to create media registry schema: %w", err)
+	}
+
+	return db, nil
+}
+
+// RegisterMedia inserts a new media item. Returns the ID. Skips if hash is non-empty and already exists.
+func RegisterMedia(db *sql.DB, item MediaItem) (int64, bool, error) {
+	if db == nil {
+		return 0, false, fmt.Errorf("media registry DB not initialized")
+	}
+
+	// Dedup check: if hash is set, check for existing non-deleted entry
+	if item.Hash != "" {
+		var existingID int64
+		err := db.QueryRow("SELECT id FROM media_items WHERE hash = ? AND deleted = 0", item.Hash).Scan(&existingID)
+		if err == nil {
+			return existingID, true, nil // already exists
+		}
+	}
+
+	// Dedup check: if filename is set, check for existing non-deleted entry
+	if item.Filename != "" {
+		var existingID int64
+		err := db.QueryRow("SELECT id FROM media_items WHERE filename = ? AND deleted = 0", item.Filename).Scan(&existingID)
+		if err == nil {
+			return existingID, true, nil
+		}
+	}
+
+	tagsJSON, _ := json.Marshal(item.Tags)
+	if item.Tags == nil {
+		tagsJSON = []byte("[]")
+	}
+
+	res, err := db.Exec(`INSERT INTO media_items
+		(media_type, source_tool, filename, file_path, web_path, file_size, format, provider, model,
+		 prompt, description, tags, duration_ms, generation_time_ms, cost_estimate, source_image,
+		 quality, style, size, language, voice_id, hash)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		item.MediaType, item.SourceTool, item.Filename, item.FilePath, item.WebPath, item.FileSize,
+		item.Format, item.Provider, item.Model, item.Prompt, item.Description, string(tagsJSON),
+		item.DurationMs, item.GenerationTimeMs, item.CostEstimate, item.SourceImage,
+		item.Quality, item.Style, item.Size, item.Language, item.VoiceID, item.Hash,
+	)
+	if err != nil {
+		return 0, false, fmt.Errorf("failed to insert media item: %w", err)
+	}
+	id, _ := res.LastInsertId()
+	return id, false, nil
+}
+
+// SearchMedia searches media items by query string across description, prompt, tags, and filename.
+func SearchMedia(db *sql.DB, query, mediaType string, tags []string, limit, offset int) ([]MediaItem, int, error) {
+	if db == nil {
+		return nil, 0, fmt.Errorf("media registry DB not initialized")
+	}
+	if limit <= 0 {
+		limit = 20
+	}
+
+	var conditions []string
+	var args []interface{}
+	conditions = append(conditions, "deleted = 0")
+
+	if query != "" {
+		conditions = append(conditions, "(description LIKE ? OR prompt LIKE ? OR tags LIKE ? OR filename LIKE ?)")
+		q := "%" + query + "%"
+		args = append(args, q, q, q, q)
+	}
+	if mediaType != "" {
+		conditions = append(conditions, "media_type = ?")
+		args = append(args, mediaType)
+	}
+	for _, t := range tags {
+		conditions = append(conditions, "tags LIKE ?")
+		args = append(args, "%\""+t+"\"%")
+	}
+
+	where := strings.Join(conditions, " AND ")
+
+	// Count total
+	var total int
+	countArgs := make([]interface{}, len(args))
+	copy(countArgs, args)
+	if err := db.QueryRow("SELECT COUNT(*) FROM media_items WHERE "+where, countArgs...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("failed to count media items: %w", err)
+	}
+
+	args = append(args, limit, offset)
+	rows, err := db.Query("SELECT id, created_at, updated_at, media_type, source_tool, filename, file_path, web_path, file_size, format, provider, model, prompt, description, tags, duration_ms, generation_time_ms, cost_estimate, source_image, quality, style, size, language, voice_id, hash FROM media_items WHERE "+where+" ORDER BY created_at DESC LIMIT ? OFFSET ?", args...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to search media items: %w", err)
+	}
+	defer rows.Close()
+
+	var items []MediaItem
+	for rows.Next() {
+		var m MediaItem
+		var tagsStr string
+		if err := rows.Scan(&m.ID, &m.CreatedAt, &m.UpdatedAt, &m.MediaType, &m.SourceTool, &m.Filename, &m.FilePath, &m.WebPath, &m.FileSize, &m.Format, &m.Provider, &m.Model, &m.Prompt, &m.Description, &tagsStr, &m.DurationMs, &m.GenerationTimeMs, &m.CostEstimate, &m.SourceImage, &m.Quality, &m.Style, &m.Size, &m.Language, &m.VoiceID, &m.Hash); err != nil {
+			return nil, 0, fmt.Errorf("failed to scan media item: %w", err)
+		}
+		json.Unmarshal([]byte(tagsStr), &m.Tags)
+		if m.Tags == nil {
+			m.Tags = []string{}
+		}
+		items = append(items, m)
+	}
+	return items, total, nil
+}
+
+// GetMedia retrieves a single media item by ID.
+func GetMedia(db *sql.DB, id int64) (*MediaItem, error) {
+	if db == nil {
+		return nil, fmt.Errorf("media registry DB not initialized")
+	}
+	var m MediaItem
+	var tagsStr string
+	err := db.QueryRow("SELECT id, created_at, updated_at, media_type, source_tool, filename, file_path, web_path, file_size, format, provider, model, prompt, description, tags, duration_ms, generation_time_ms, cost_estimate, source_image, quality, style, size, language, voice_id, hash FROM media_items WHERE id = ? AND deleted = 0", id).Scan(&m.ID, &m.CreatedAt, &m.UpdatedAt, &m.MediaType, &m.SourceTool, &m.Filename, &m.FilePath, &m.WebPath, &m.FileSize, &m.Format, &m.Provider, &m.Model, &m.Prompt, &m.Description, &tagsStr, &m.DurationMs, &m.GenerationTimeMs, &m.CostEstimate, &m.SourceImage, &m.Quality, &m.Style, &m.Size, &m.Language, &m.VoiceID, &m.Hash)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("media item %d not found", id)
+		}
+		return nil, fmt.Errorf("failed to get media item: %w", err)
+	}
+	json.Unmarshal([]byte(tagsStr), &m.Tags)
+	if m.Tags == nil {
+		m.Tags = []string{}
+	}
+	return &m, nil
+}
+
+// ListMedia returns media items filtered by type.
+func ListMedia(db *sql.DB, mediaType string, limit, offset int) ([]MediaItem, int, error) {
+	return SearchMedia(db, "", mediaType, nil, limit, offset)
+}
+
+// UpdateMedia updates description and/or tags for a media item.
+func UpdateMedia(db *sql.DB, id int64, description string, tags []string) error {
+	if db == nil {
+		return fmt.Errorf("media registry DB not initialized")
+	}
+	now := time.Now().UTC().Format("2006-01-02 15:04:05")
+
+	if tags != nil {
+		tagsJSON, _ := json.Marshal(tags)
+		_, err := db.Exec("UPDATE media_items SET description = ?, tags = ?, updated_at = ? WHERE id = ? AND deleted = 0", description, string(tagsJSON), now, id)
+		return err
+	}
+	_, err := db.Exec("UPDATE media_items SET description = ?, updated_at = ? WHERE id = ? AND deleted = 0", description, now, id)
+	return err
+}
+
+// TagMedia modifies tags for a media item. mode: "add", "remove", or "set".
+func TagMedia(db *sql.DB, id int64, newTags []string, mode string) error {
+	if db == nil {
+		return fmt.Errorf("media registry DB not initialized")
+	}
+
+	item, err := GetMedia(db, id)
+	if err != nil {
+		return err
+	}
+
+	var resultTags []string
+	switch mode {
+	case "set":
+		resultTags = newTags
+	case "remove":
+		removeSet := make(map[string]bool)
+		for _, t := range newTags {
+			removeSet[t] = true
+		}
+		for _, t := range item.Tags {
+			if !removeSet[t] {
+				resultTags = append(resultTags, t)
+			}
+		}
+	default: // "add"
+		existing := make(map[string]bool)
+		for _, t := range item.Tags {
+			existing[t] = true
+		}
+		resultTags = append(resultTags, item.Tags...)
+		for _, t := range newTags {
+			if !existing[t] {
+				resultTags = append(resultTags, t)
+			}
+		}
+	}
+
+	now := time.Now().UTC().Format("2006-01-02 15:04:05")
+	tagsJSON, _ := json.Marshal(resultTags)
+	_, err = db.Exec("UPDATE media_items SET tags = ?, updated_at = ? WHERE id = ? AND deleted = 0", string(tagsJSON), now, id)
+	return err
+}
+
+// DeleteMedia performs a soft-delete on a media item.
+func DeleteMedia(db *sql.DB, id int64) error {
+	if db == nil {
+		return fmt.Errorf("media registry DB not initialized")
+	}
+	now := time.Now().UTC().Format("2006-01-02 15:04:05")
+	res, err := db.Exec("UPDATE media_items SET deleted = 1, updated_at = ? WHERE id = ? AND deleted = 0", now, id)
+	if err != nil {
+		return err
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("media item %d not found or already deleted", id)
+	}
+	return nil
+}
+
+// MediaStats returns aggregate statistics about the media registry.
+func MediaStats(db *sql.DB) (map[string]interface{}, error) {
+	if db == nil {
+		return nil, fmt.Errorf("media registry DB not initialized")
+	}
+
+	stats := map[string]interface{}{}
+
+	// Counts by type
+	rows, err := db.Query("SELECT media_type, COUNT(*), COALESCE(SUM(file_size), 0) FROM media_items WHERE deleted = 0 GROUP BY media_type")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	typeCounts := map[string]interface{}{}
+	var totalCount int64
+	var totalSize int64
+	for rows.Next() {
+		var mt string
+		var cnt, sz int64
+		rows.Scan(&mt, &cnt, &sz)
+		typeCounts[mt] = map[string]interface{}{"count": cnt, "size_bytes": sz}
+		totalCount += cnt
+		totalSize += sz
+	}
+	stats["by_type"] = typeCounts
+	stats["total_count"] = totalCount
+	stats["total_size_bytes"] = totalSize
+
+	return stats, nil
+}
+
+// DispatchMediaRegistry handles tool calls for the media_registry action.
+func DispatchMediaRegistry(db *sql.DB, operation, query, mediaType, description string, tags []string, tagMode string, id int64, limit, offset int) string {
+	switch operation {
+	case "register":
+		item := MediaItem{
+			MediaType:   mediaType,
+			SourceTool:  "manual",
+			Description: description,
+		}
+		if item.MediaType == "" {
+			item.MediaType = "image"
+		}
+		if len(tags) > 0 {
+			item.Tags = tags
+		}
+		newID, dup, err := RegisterMedia(db, item)
+		if err != nil {
+			return fmt.Sprintf(`{"status":"error","message":"%s"}`, err.Error())
+		}
+		if dup {
+			return fmt.Sprintf(`{"status":"duplicate","id":%d,"message":"Entry already exists."}`, newID)
+		}
+		return fmt.Sprintf(`{"status":"success","id":%d,"message":"Media item registered."}`, newID)
+
+	case "search":
+		items, total, err := SearchMedia(db, query, mediaType, tags, limit, offset)
+		if err != nil {
+			return fmt.Sprintf(`{"status":"error","message":"%s"}`, err.Error())
+		}
+		b, _ := json.Marshal(items)
+		return fmt.Sprintf(`{"status":"success","total":%d,"items":%s}`, total, string(b))
+
+	case "get":
+		if id <= 0 {
+			return `{"status":"error","message":"'id' is required for get operation."}`
+		}
+		item, err := GetMedia(db, id)
+		if err != nil {
+			return fmt.Sprintf(`{"status":"error","message":"%s"}`, err.Error())
+		}
+		b, _ := json.Marshal(item)
+		return fmt.Sprintf(`{"status":"success","item":%s}`, string(b))
+
+	case "list":
+		items, total, err := ListMedia(db, mediaType, limit, offset)
+		if err != nil {
+			return fmt.Sprintf(`{"status":"error","message":"%s"}`, err.Error())
+		}
+		b, _ := json.Marshal(items)
+		return fmt.Sprintf(`{"status":"success","total":%d,"items":%s}`, total, string(b))
+
+	case "update":
+		if id <= 0 {
+			return `{"status":"error","message":"'id' is required for update operation."}`
+		}
+		err := UpdateMedia(db, id, description, tags)
+		if err != nil {
+			return fmt.Sprintf(`{"status":"error","message":"%s"}`, err.Error())
+		}
+		return `{"status":"success","message":"Media item updated."}`
+
+	case "tag":
+		if id <= 0 {
+			return `{"status":"error","message":"'id' is required for tag operation."}`
+		}
+		if tagMode == "" {
+			tagMode = "add"
+		}
+		err := TagMedia(db, id, tags, tagMode)
+		if err != nil {
+			return fmt.Sprintf(`{"status":"error","message":"%s"}`, err.Error())
+		}
+		return fmt.Sprintf(`{"status":"success","message":"Tags updated (mode: %s)."}`, tagMode)
+
+	case "delete":
+		if id <= 0 {
+			return `{"status":"error","message":"'id' is required for delete operation."}`
+		}
+		err := DeleteMedia(db, id)
+		if err != nil {
+			return fmt.Sprintf(`{"status":"error","message":"%s"}`, err.Error())
+		}
+		return `{"status":"success","message":"Media item deleted (soft-delete)."}`
+
+	case "stats":
+		s, err := MediaStats(db)
+		if err != nil {
+			return fmt.Sprintf(`{"status":"error","message":"%s"}`, err.Error())
+		}
+		b, _ := json.Marshal(s)
+		return fmt.Sprintf(`{"status":"success","stats":%s}`, string(b))
+
+	default:
+		return fmt.Sprintf(`{"status":"error","message":"Unknown media_registry operation '%s'. Use: register, search, get, list, update, tag, delete, stats."}`, operation)
+	}
+}

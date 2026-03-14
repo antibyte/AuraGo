@@ -392,6 +392,14 @@ func (m *PromptModule) ShouldInclude(flags ContextFlags) bool {
 			if flags.IsDocker {
 				return true
 			}
+		case "media_registry_enabled":
+			if flags.MediaRegistryEnabled {
+				return true
+			}
+		case "homepage_registry_enabled":
+			if flags.HomepageRegistryEnabled {
+				return true
+			}
 		}
 	}
 
@@ -496,6 +504,22 @@ func PrepareDynamicGuides(vdb memory.VectorDB, stm *memory.SQLiteMemory, userQue
 					guides = append(guides, content)
 					guideMap[cleanPath] = true
 					logger.Info("Statistically predicted next tool", "from", lastTool, "predicted", nextTool)
+				}
+			}
+		}
+	}
+
+	// C2. Global usage frequency: boost tools that are frequently used across all sessions
+	if len(guides) < 3 {
+		for _, tool := range GetFrequentTools(3) {
+			if len(guides) >= 3 {
+				break
+			}
+			cleanPath := filepath.Clean(filepath.Join(toolsDir, tool+".md"))
+			if !guideMap[cleanPath] {
+				if content, ok := readToolGuide(cleanPath); ok {
+					guides = append(guides, content)
+					guideMap[cleanPath] = true
 				}
 			}
 		}

@@ -119,6 +119,99 @@ func TestDetermineTier(t *testing.T) {
 	}
 }
 
+func TestDetermineTierAdaptive(t *testing.T) {
+	tests := []struct {
+		name     string
+		flags    ContextFlags
+		expected string
+	}{
+		{
+			name:     "Empty conversation",
+			flags:    ContextFlags{MessageCount: 0},
+			expected: "full",
+		},
+		{
+			name:     "Short simple chat stays full",
+			flags:    ContextFlags{MessageCount: 5},
+			expected: "full",
+		},
+		{
+			name:     "Medium simple chat goes compact",
+			flags:    ContextFlags{MessageCount: 10},
+			expected: "compact",
+		},
+		{
+			name:     "Long simple chat goes minimal",
+			flags:    ContextFlags{MessageCount: 25},
+			expected: "minimal",
+		},
+		{
+			name: "Tool-heavy session at msg 10 stays full",
+			flags: ContextFlags{
+				MessageCount:      10,
+				RecentlyUsedTools: []string{"shell", "filesystem", "docker"},
+				PredictedGuides:   []string{"guide1"},
+			},
+			expected: "full",
+		},
+		{
+			name: "Error state at msg 10 stays full",
+			flags: ContextFlags{
+				MessageCount: 10,
+				IsErrorState: true,
+			},
+			expected: "full",
+		},
+		{
+			name: "Coding + tools at msg 15 stays full",
+			flags: ContextFlags{
+				MessageCount:      15,
+				RequiresCoding:    true,
+				RecentlyUsedTools: []string{"shell", "filesystem", "docker"},
+			},
+			expected: "full",
+		},
+		{
+			name: "All complexity factors at msg 20 stays compact",
+			flags: ContextFlags{
+				MessageCount:      20,
+				IsErrorState:      true,
+				RequiresCoding:    true,
+				RecentlyUsedTools: []string{"a", "b", "c"},
+				PredictedGuides:   []string{"guide"},
+			},
+			expected: "full",
+		},
+		{
+			name: "Very long with complexity stays full",
+			flags: ContextFlags{
+				MessageCount:      50,
+				IsErrorState:      true,
+				RequiresCoding:    true,
+				RecentlyUsedTools: []string{"a", "b", "c"},
+			},
+			expected: "full",
+		},
+		{
+			name: "Very long with only coding goes compact",
+			flags: ContextFlags{
+				MessageCount:   50,
+				RequiresCoding: true,
+			},
+			expected: "minimal",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := DetermineTierAdaptive(tt.flags)
+			if got != tt.expected {
+				t.Errorf("DetermineTierAdaptive(%v) = %q, want %q", tt.name, got, tt.expected)
+			}
+		})
+	}
+}
+
 func TestCountTokens(t *testing.T) {
 	// Basic sanity check: a simple sentence should return a reasonable token count
 	text := "Hello, world! This is a test sentence."

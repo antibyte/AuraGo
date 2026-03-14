@@ -119,13 +119,15 @@ type Config struct {
 		VectorDBDir  string `yaml:"vectordb_dir"`
 	} `yaml:"directories"`
 	SQLite struct {
-		ShortTermPath     string `yaml:"short_term_path"`
-		LongTermPath      string `yaml:"long_term_path"`
-		InventoryPath     string `yaml:"inventory_path"`
-		InvasionPath      string `yaml:"invasion_path"`
-		CheatsheetPath    string `yaml:"cheatsheet_path"`
-		ImageGalleryPath  string `yaml:"image_gallery_path"`
-		RemoteControlPath string `yaml:"remote_control_path"`
+		ShortTermPath        string `yaml:"short_term_path"`
+		LongTermPath         string `yaml:"long_term_path"`
+		InventoryPath        string `yaml:"inventory_path"`
+		InvasionPath         string `yaml:"invasion_path"`
+		CheatsheetPath       string `yaml:"cheatsheet_path"`
+		ImageGalleryPath     string `yaml:"image_gallery_path"`
+		RemoteControlPath    string `yaml:"remote_control_path"`
+		MediaRegistryPath    string `yaml:"media_registry_path"`
+		HomepageRegistryPath string `yaml:"homepage_registry_path"`
 	} `yaml:"sqlite"`
 	Embeddings struct {
 		Provider      string `yaml:"provider"`          // "disabled" or provider entry ID
@@ -326,6 +328,9 @@ type Config struct {
 			ModelID string `yaml:"model_id"`          // e.g. "eleven_multilingual_v2"
 		} `yaml:"elevenlabs"`
 	} `yaml:"tts"`
+	MediaRegistry struct {
+		Enabled bool `yaml:"enabled"`
+	} `yaml:"media_registry"`
 	Chromecast struct {
 		Enabled bool `yaml:"enabled"`
 		TTSPort int  `yaml:"tts_port"`

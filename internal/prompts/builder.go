@@ -144,6 +144,8 @@ type ContextFlags struct {
 	ImageGenerationEnabled   bool
 	RemoteControlEnabled     bool
 	WOLEnabled               bool
+	MediaRegistryEnabled     bool
+	HomepageRegistryEnabled  bool
 	InternetExposed          bool   // HTTPS is enabled — system is likely reachable from the internet
 	IsDocker                 bool   // Running inside a Docker container
 	UserProfileSummary       string // Optional user profile summary from profiling engine
@@ -153,11 +155,65 @@ type ContextFlags struct {
 
 // DetermineTier returns the appropriate prompt tier based on the conversation length.
 // full = all modules; compact = skip RAG/guides; minimal = identity + tools only.
+// Kept as a simple fallback; prefer DetermineTierAdaptive for context-aware decisions.
 func DetermineTier(messageCount int) string {
 	switch {
 	case messageCount <= 6:
 		return "full"
 	case messageCount <= 12:
+		return "compact"
+	default:
+		return "minimal"
+	}
+}
+
+// DetermineTierAdaptive returns a prompt tier based on both conversation length and
+// contextual complexity signals from ContextFlags. Complex sessions (tool-heavy,
+// error recovery, coding) retain the "full" tier longer.
+//
+// Scoring: message count adds pressure, complexity factors reduce it.
+//   - MessageCount 0-4 → 0, 5-8 → 2, 9-14 → 4, 15-20 → 6, >20 → 8
+//   - IsErrorState:       -2 (error recovery needs guides & context)
+//   - RequiresCoding:     -1 (coding benefits from full tool guides)
+//   - RecentlyUsedTools>2: -2 (tool-heavy sessions need schemas & guides)
+//   - PredictedGuides>0:  -1 (active guides are valuable, keep them)
+//
+// Tier mapping: score ≤3 → full, ≤6 → compact, >6 → minimal.
+func DetermineTierAdaptive(flags ContextFlags) string {
+	score := 0
+
+	// Message count is the primary pressure towards compacting
+	switch {
+	case flags.MessageCount <= 4:
+		score += 0
+	case flags.MessageCount <= 8:
+		score += 2
+	case flags.MessageCount <= 14:
+		score += 4
+	case flags.MessageCount <= 20:
+		score += 6
+	default:
+		score += 8
+	}
+
+	// Complexity factors reduce compacting pressure
+	if flags.IsErrorState {
+		score -= 2
+	}
+	if flags.RequiresCoding {
+		score -= 1
+	}
+	if len(flags.RecentlyUsedTools) > 2 {
+		score -= 2
+	}
+	if len(flags.PredictedGuides) > 0 {
+		score -= 1
+	}
+
+	switch {
+	case score <= 3:
+		return "full"
+	case score <= 6:
 		return "compact"
 	default:
 		return "minimal"
@@ -188,7 +244,7 @@ func BuildSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string,
 
 	// Auto-determine tier if not set
 	if flags.Tier == "" {
-		flags.Tier = DetermineTier(flags.MessageCount)
+		flags.Tier = DetermineTierAdaptive(flags)
 	}
 
 	// 1. Load and parse all prompt modules

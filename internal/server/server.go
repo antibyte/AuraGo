@@ -184,32 +184,34 @@ func getI18NMetaJSON() template.JS {
 
 // Server holds the state and dependencies for the web server and socket bridge.
 type Server struct {
-	Cfg              *config.Config
-	CfgMu            sync.RWMutex // protects Cfg during hot-reload
-	Logger           *slog.Logger
-	LLMClient        llm.ChatClient
-	ShortTermMem     *memory.SQLiteMemory
-	LongTermMem      memory.VectorDB
-	Vault            *security.Vault
-	Registry         *tools.ProcessRegistry
-	CronManager      *tools.CronManager
-	HistoryManager   *memory.HistoryManager
-	KG               *memory.KnowledgeGraph
-	InventoryDB      *sql.DB
-	InvasionDB       *sql.DB
-	Guardian         *security.Guardian
-	CoAgentRegistry  *agent.CoAgentRegistry
-	BudgetTracker    *budget.Tracker
-	TokenManager     *security.TokenManager
-	WebhookManager   *webhooks.Manager
-	WebhookHandler   *webhooks.Handler
-	MissionManager   *tools.MissionManager
-	MissionManagerV2 *tools.MissionManagerV2
-	EggHub           *bridge.EggHub
-	RemoteHub        *remote.RemoteHub
-	FileIndexer      *services.FileIndexer
-	CheatsheetDB     *sql.DB
-	ImageGalleryDB   *sql.DB
+	Cfg                *config.Config
+	CfgMu              sync.RWMutex // protects Cfg during hot-reload
+	Logger             *slog.Logger
+	LLMClient          llm.ChatClient
+	ShortTermMem       *memory.SQLiteMemory
+	LongTermMem        memory.VectorDB
+	Vault              *security.Vault
+	Registry           *tools.ProcessRegistry
+	CronManager        *tools.CronManager
+	HistoryManager     *memory.HistoryManager
+	KG                 *memory.KnowledgeGraph
+	InventoryDB        *sql.DB
+	InvasionDB         *sql.DB
+	Guardian           *security.Guardian
+	CoAgentRegistry    *agent.CoAgentRegistry
+	BudgetTracker      *budget.Tracker
+	TokenManager       *security.TokenManager
+	WebhookManager     *webhooks.Manager
+	WebhookHandler     *webhooks.Handler
+	MissionManager     *tools.MissionManager
+	MissionManagerV2   *tools.MissionManagerV2
+	EggHub             *bridge.EggHub
+	RemoteHub          *remote.RemoteHub
+	FileIndexer        *services.FileIndexer
+	CheatsheetDB       *sql.DB
+	ImageGalleryDB     *sql.DB
+	MediaRegistryDB    *sql.DB
+	HomepageRegistryDB *sql.DB
 	// IsFirstStart is true if core_memory.md was just freshly created (no prior data).
 	IsFirstStart   bool
 	StartedAt      time.Time     // server start time for uptime calculation
@@ -218,31 +220,33 @@ type Server struct {
 	muFirstStart   sync.Mutex
 }
 
-func Start(cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, remoteControlDB *sql.DB, isFirstStart bool, shutdownCh chan struct{}) error {
+func Start(cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, remoteControlDB *sql.DB, mediaRegistryDB *sql.DB, homepageRegistryDB *sql.DB, isFirstStart bool, shutdownCh chan struct{}) error {
 	s := &Server{
-		Cfg:              cfg,
-		Logger:           logger,
-		LLMClient:        llmClient,
-		ShortTermMem:     shortTermMem,
-		LongTermMem:      longTermMem,
-		Vault:            vault,
-		Registry:         registry,
-		CronManager:      cronManager,
-		HistoryManager:   historyManager,
-		KG:               kg,
-		InventoryDB:      inventoryDB,
-		InvasionDB:       invasionDB,
-		CheatsheetDB:     cheatsheetDB,
-		ImageGalleryDB:   imageGalleryDB,
-		Guardian:         security.NewGuardian(logger),
-		CoAgentRegistry:  agent.NewCoAgentRegistry(cfg.CoAgents.MaxConcurrent, logger),
-		BudgetTracker:    budget.NewTracker(cfg, logger, cfg.Directories.DataDir),
-		IsFirstStart:     isFirstStart,
-		StartedAt:        time.Now(),
-		ShutdownCh:       shutdownCh,
-		MissionManager:   tools.NewMissionManager(cfg.Directories.DataDir, cronManager),
-		MissionManagerV2: tools.NewMissionManagerV2(cfg.Directories.DataDir, cronManager),
-		EggHub:           bridge.NewEggHub(logger),
+		Cfg:                cfg,
+		Logger:             logger,
+		LLMClient:          llmClient,
+		ShortTermMem:       shortTermMem,
+		LongTermMem:        longTermMem,
+		Vault:              vault,
+		Registry:           registry,
+		CronManager:        cronManager,
+		HistoryManager:     historyManager,
+		KG:                 kg,
+		InventoryDB:        inventoryDB,
+		InvasionDB:         invasionDB,
+		CheatsheetDB:       cheatsheetDB,
+		ImageGalleryDB:     imageGalleryDB,
+		MediaRegistryDB:    mediaRegistryDB,
+		HomepageRegistryDB: homepageRegistryDB,
+		Guardian:           security.NewGuardian(logger),
+		CoAgentRegistry:    agent.NewCoAgentRegistry(cfg.CoAgents.MaxConcurrent, logger),
+		BudgetTracker:      budget.NewTracker(cfg, logger, cfg.Directories.DataDir),
+		IsFirstStart:       isFirstStart,
+		StartedAt:          time.Now(),
+		ShutdownCh:         shutdownCh,
+		MissionManager:     tools.NewMissionManager(cfg.Directories.DataDir, cronManager),
+		MissionManagerV2:   tools.NewMissionManagerV2(cfg.Directories.DataDir, cronManager),
+		EggHub:             bridge.NewEggHub(logger),
 	}
 
 	// Initialize Remote Control Hub

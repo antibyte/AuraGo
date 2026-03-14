@@ -19,35 +19,39 @@ import (
 
 // Agent encapsulates the agent's dependencies and state.
 type Agent struct {
-	Cfg            *config.Config
-	Logger         *slog.Logger
-	ShortTermMem   *memory.SQLiteMemory
-	LongTermMem    memory.VectorDB
-	Vault          *security.Vault
-	Registry       *tools.ProcessRegistry
-	CronManager    *tools.CronManager
-	KG             *memory.KnowledgeGraph
-	InventoryDB    *sql.DB
-	InvasionDB     *sql.DB
-	CheatsheetDB   *sql.DB
-	ImageGalleryDB *sql.DB
+	Cfg                *config.Config
+	Logger             *slog.Logger
+	ShortTermMem       *memory.SQLiteMemory
+	LongTermMem        memory.VectorDB
+	Vault              *security.Vault
+	Registry           *tools.ProcessRegistry
+	CronManager        *tools.CronManager
+	KG                 *memory.KnowledgeGraph
+	InventoryDB        *sql.DB
+	InvasionDB         *sql.DB
+	CheatsheetDB       *sql.DB
+	ImageGalleryDB     *sql.DB
+	MediaRegistryDB    *sql.DB
+	HomepageRegistryDB *sql.DB
 }
 
 // NewAgent creates a new Agent instance.
-func NewAgent(cfg *config.Config, logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cron *tools.CronManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB) *Agent {
+func NewAgent(cfg *config.Config, logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cron *tools.CronManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, mediaRegistryDB *sql.DB, homepageRegistryDB *sql.DB) *Agent {
 	return &Agent{
-		Cfg:            cfg,
-		Logger:         logger,
-		ShortTermMem:   stm,
-		LongTermMem:    ltm,
-		Vault:          vault,
-		Registry:       registry,
-		CronManager:    cron,
-		KG:             kg,
-		InventoryDB:    inventoryDB,
-		InvasionDB:     invasionDB,
-		CheatsheetDB:   cheatsheetDB,
-		ImageGalleryDB: imageGalleryDB,
+		Cfg:                cfg,
+		Logger:             logger,
+		ShortTermMem:       stm,
+		LongTermMem:        ltm,
+		Vault:              vault,
+		Registry:           registry,
+		CronManager:        cron,
+		KG:                 kg,
+		InventoryDB:        inventoryDB,
+		InvasionDB:         invasionDB,
+		CheatsheetDB:       cheatsheetDB,
+		ImageGalleryDB:     imageGalleryDB,
+		MediaRegistryDB:    mediaRegistryDB,
+		HomepageRegistryDB: homepageRegistryDB,
 	}
 }
 
@@ -371,6 +375,13 @@ type ToolCall struct {
 	Offset   int      `json:"offset"`   // pagination offset
 	// Cheat Sheet fields
 	Active *bool `json:"active,omitempty"` // pointer so nil = not provided vs false = explicitly inactive
+	// Media Registry / Homepage Registry fields
+	MediaType string `json:"media_type,omitempty"` // image, tts, audio, music
+	TagMode   string `json:"tag_mode,omitempty"`   // add, remove, set (for media_registry tag op)
+	Reason    string `json:"reason,omitempty"`     // edit reason (homepage_registry log_edit)
+	Problem   string `json:"problem,omitempty"`    // problem description (homepage_registry log_problem/resolve_problem)
+	Status    string `json:"status,omitempty"`     // project status: active, archived, maintenance
+	Notes     string `json:"notes,omitempty"`      // additional notes
 }
 
 // GetArgs returns Args as a string slice, handling various input types (slice of strings or interface).
@@ -398,31 +409,33 @@ func (tc ToolCall) GetArgs() []string {
 // RunConfig holds all the dependencies required to run the agent loop,
 // consolidating the parameter list that was previously over 20 items long.
 type RunConfig struct {
-	Config          *config.Config
-	Logger          *slog.Logger
-	LLMClient       llm.ChatClient
-	ShortTermMem    *memory.SQLiteMemory
-	HistoryManager  *memory.HistoryManager
-	LongTermMem     memory.VectorDB
-	KG              *memory.KnowledgeGraph
-	InventoryDB     *sql.DB
-	InvasionDB      *sql.DB
-	CheatsheetDB    *sql.DB
-	ImageGalleryDB  *sql.DB
-	RemoteHub       *remote.RemoteHub
-	Vault           *security.Vault
-	Registry        *tools.ProcessRegistry
-	Manifest        *tools.Manifest
-	CronManager     *tools.CronManager
-	MissionManager  *tools.MissionManager
-	CoAgentRegistry *CoAgentRegistry
-	BudgetTracker   *budget.Tracker
-	SessionID       string
-	IsMaintenance   bool
-	SurgeryPlan     string
+	Config             *config.Config
+	Logger             *slog.Logger
+	LLMClient          llm.ChatClient
+	ShortTermMem       *memory.SQLiteMemory
+	HistoryManager     *memory.HistoryManager
+	LongTermMem        memory.VectorDB
+	KG                 *memory.KnowledgeGraph
+	InventoryDB        *sql.DB
+	InvasionDB         *sql.DB
+	CheatsheetDB       *sql.DB
+	ImageGalleryDB     *sql.DB
+	MediaRegistryDB    *sql.DB
+	HomepageRegistryDB *sql.DB
+	RemoteHub          *remote.RemoteHub
+	Vault              *security.Vault
+	Registry           *tools.ProcessRegistry
+	Manifest           *tools.Manifest
+	CronManager        *tools.CronManager
+	MissionManager     *tools.MissionManager
+	CoAgentRegistry    *CoAgentRegistry
+	BudgetTracker      *budget.Tracker
+	SessionID          string
+	IsMaintenance      bool
+	SurgeryPlan        string
 }
 
-func dispatchInner(ctx context.Context, tc ToolCall, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, missionManager *tools.MissionManager, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, remoteHub *remote.RemoteHub, historyMgr *memory.HistoryManager, isMaintenance bool, surgeryPlan string, guardian *security.Guardian, sessionID string, coAgentRegistry *CoAgentRegistry, budgetTracker *budget.Tracker) string {
+func dispatchInner(ctx context.Context, tc ToolCall, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, missionManager *tools.MissionManager, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, mediaRegistryDB *sql.DB, homepageRegistryDB *sql.DB, remoteHub *remote.RemoteHub, historyMgr *memory.HistoryManager, isMaintenance bool, surgeryPlan string, guardian *security.Guardian, sessionID string, coAgentRegistry *CoAgentRegistry, budgetTracker *budget.Tracker) string {
 	// Co-Agent blacklist: co-agents (identified by sessionID prefix) cannot modify memory, notes, KG, or spawn sub-agents
 	isCoAgent := strings.HasPrefix(sessionID, "coagent-")
 	if isCoAgent {
@@ -449,16 +462,16 @@ func dispatchInner(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 	}
 
 	// Route to sub-dispatchers
-	if result := dispatchExec(ctx, tc, cfg, logger, llmClient, vault, registry, manifest, cronManager, missionManager, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, remoteHub, historyMgr, isMaintenance, surgeryPlan, guardian, sessionID, coAgentRegistry, budgetTracker); result != dispatchNotHandled {
+	if result := dispatchExec(ctx, tc, cfg, logger, llmClient, vault, registry, manifest, cronManager, missionManager, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, remoteHub, historyMgr, isMaintenance, surgeryPlan, guardian, sessionID, coAgentRegistry, budgetTracker); result != dispatchNotHandled {
 		return result
 	}
-	if result := dispatchComm(ctx, tc, cfg, logger, llmClient, vault, registry, manifest, cronManager, missionManager, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, remoteHub, historyMgr, isMaintenance, surgeryPlan, guardian, sessionID, coAgentRegistry, budgetTracker); result != dispatchNotHandled {
+	if result := dispatchComm(ctx, tc, cfg, logger, llmClient, vault, registry, manifest, cronManager, missionManager, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, remoteHub, historyMgr, isMaintenance, surgeryPlan, guardian, sessionID, coAgentRegistry, budgetTracker); result != dispatchNotHandled {
 		return result
 	}
-	if result := dispatchServices(ctx, tc, cfg, logger, llmClient, vault, registry, manifest, cronManager, missionManager, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, remoteHub, historyMgr, isMaintenance, surgeryPlan, guardian, sessionID, coAgentRegistry, budgetTracker); result != dispatchNotHandled {
+	if result := dispatchServices(ctx, tc, cfg, logger, llmClient, vault, registry, manifest, cronManager, missionManager, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, remoteHub, historyMgr, isMaintenance, surgeryPlan, guardian, sessionID, coAgentRegistry, budgetTracker); result != dispatchNotHandled {
 		return result
 	}
-	if result := dispatchInfra(ctx, tc, cfg, logger, llmClient, vault, registry, manifest, cronManager, missionManager, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, remoteHub, historyMgr, isMaintenance, surgeryPlan, guardian, sessionID, coAgentRegistry, budgetTracker); result != dispatchNotHandled {
+	if result := dispatchInfra(ctx, tc, cfg, logger, llmClient, vault, registry, manifest, cronManager, missionManager, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, remoteHub, historyMgr, isMaintenance, surgeryPlan, guardian, sessionID, coAgentRegistry, budgetTracker); result != dispatchNotHandled {
 		return result
 	}
 

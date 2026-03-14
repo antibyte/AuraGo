@@ -88,6 +88,8 @@ type ToolFeatureFlags struct {
 	InventoryEnabled         bool
 	MemoryMaintenanceEnabled bool
 	WOLEnabled               bool
+	MediaRegistryEnabled     bool
+	HomepageRegistryEnabled  bool
 }
 
 // builtinToolSchemas returns schemas for all built-in AuraGo tools.
@@ -957,6 +959,55 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 				"path":        prop("string", "File or directory path on the remote device (for read_file, write_file, list_files)"),
 				"content":     prop("string", "File content to write (for write_file)"),
 				"recursive":   map[string]interface{}{"type": "boolean", "description": "List directory recursively (for list_files, default: false)"},
+			}, "operation"),
+		))
+	}
+
+	if ff.MediaRegistryEnabled {
+		tools = append(tools, tool("media_registry",
+			"Search, browse, tag, and manage the media registry. Tracks all generated images, TTS audio, and other media files with metadata, tags, and descriptions. "+
+				"Operations: register (manual add), search (full-text across description/prompt/tags), get (by id), list (optionally filter by media_type), update (description/tags), tag (add/remove/set tags), delete (soft-delete), stats (aggregate counts).",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "Operation to perform",
+					"enum":        []string{"register", "search", "get", "list", "update", "tag", "delete", "stats"},
+				},
+				"media_type":  prop("string", "Media type filter: image, tts, audio, music"),
+				"query":       prop("string", "Search query (searches description, prompt, tags, filename)"),
+				"id":          map[string]interface{}{"type": "integer", "description": "Media item ID (for get/update/tag/delete)"},
+				"description": prop("string", "Short description of the media item"),
+				"tags":        map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Tags for the media item"},
+				"tag_mode":    prop("string", "Tag operation mode: add (default), remove, set. Only for 'tag' operation."),
+				"limit":       map[string]interface{}{"type": "integer", "description": "Max results (default: 20)"},
+				"offset":      map[string]interface{}{"type": "integer", "description": "Pagination offset"},
+			}, "operation"),
+		))
+	}
+	if ff.HomepageRegistryEnabled {
+		tools = append(tools, tool("homepage_registry",
+			"Track and manage homepage/web projects. Records URL, framework, deploy history, edit reasons, and known problems. "+
+				"Operations: register, search, get (by id or name), list, update, delete, log_edit (record edit with reason), log_deploy (record deploy with URL), log_problem (add known issue), resolve_problem (mark issue resolved).",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "Operation to perform",
+					"enum":        []string{"register", "search", "get", "list", "update", "delete", "log_edit", "log_deploy", "log_problem", "resolve_problem"},
+				},
+				"name":        prop("string", "Project name (unique identifier)"),
+				"query":       prop("string", "Search query (searches name, description, framework, URL, notes)"),
+				"id":          map[string]interface{}{"type": "integer", "description": "Project ID"},
+				"description": prop("string", "Project description"),
+				"framework":   prop("string", "Web framework (next, vite, astro, svelte, vue, html, etc.)"),
+				"project_dir": prop("string", "Project directory within workspace"),
+				"url":         prop("string", "Live URL of the project or deploy URL for log_deploy"),
+				"status":      prop("string", "Project status: active, archived, maintenance"),
+				"reason":      prop("string", "Edit reason (for log_edit)"),
+				"problem":     prop("string", "Problem description (for log_problem/resolve_problem)"),
+				"tags":        map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Project tags"},
+				"notes":       prop("string", "Additional notes"),
+				"limit":       map[string]interface{}{"type": "integer", "description": "Max results (default: 20)"},
+				"offset":      map[string]interface{}{"type": "integer", "description": "Pagination offset"},
 			}, "operation"),
 		))
 	}

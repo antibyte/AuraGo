@@ -226,6 +226,8 @@ sqlite:
     remote_control_path: ./data/remote_control.db
     long_term_path: ./data/long_term.db
     short_term_path: ./data/short_term.db
+    media_registry_path: ./data/media_registry.db
+    homepage_registry_path: ./data/homepage_registry.db
 telegram:
     bot_token: ""
     telegram_user_id: 0
@@ -237,6 +239,8 @@ tts:
         voice_id: ""
     language: en
     provider: google
+media_registry:
+    enabled: true
 vision:
     provider: ""
 web_config:

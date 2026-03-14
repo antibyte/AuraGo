@@ -349,6 +349,26 @@ func main() {
 		}
 	}
 
+	// Media Registry DB
+	mediaRegistryDB, mediaRegistryDBErr := tools.InitMediaRegistryDB(cfg.SQLite.MediaRegistryPath)
+	if mediaRegistryDBErr != nil {
+		appLog.Warn("Failed to initialize Media Registry DB", "error", mediaRegistryDBErr, "path", cfg.SQLite.MediaRegistryPath)
+		mediaRegistryDB = nil
+	} else {
+		defer mediaRegistryDB.Close()
+		appLog.Info("Media Registry DB initialized", "path", cfg.SQLite.MediaRegistryPath)
+	}
+
+	// Homepage Registry DB
+	homepageRegistryDB, homepageRegistryDBErr := tools.InitHomepageRegistryDB(cfg.SQLite.HomepageRegistryPath)
+	if homepageRegistryDBErr != nil {
+		appLog.Warn("Failed to initialize Homepage Registry DB", "error", homepageRegistryDBErr, "path", cfg.SQLite.HomepageRegistryPath)
+		homepageRegistryDB = nil
+	} else {
+		defer homepageRegistryDB.Close()
+		appLog.Info("Homepage Registry DB initialized", "path", cfg.SQLite.HomepageRegistryPath)
+	}
+
 	// Tool guide indexing (at startup for performance)
 	toolGuidesDir := filepath.Join(cfg.Directories.PromptsDir, "tools_manuals")
 	if err := longTermMem.IndexToolGuides(toolGuidesDir, false); err != nil {
@@ -542,7 +562,7 @@ func main() {
 		go eggClient.Start()
 	}
 
-	if err := server.Start(cfg, appLog, llmClient, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, remoteControlDB, isFirstStart, shutdownCh); err != nil {
+	if err := server.Start(cfg, appLog, llmClient, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, remoteControlDB, mediaRegistryDB, homepageRegistryDB, isFirstStart, shutdownCh); err != nil {
 		appLog.Error("Server failed", "error", err)
 		os.Exit(1)
 	}

@@ -21,7 +21,7 @@ import (
 
 // dispatchServices handles media, infrastructure management, and platform tool calls
 // (vision, transcribe, meshcentral, docker, homepage, webdav, home_assistant).
-func dispatchServices(ctx context.Context, tc ToolCall, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, missionManager *tools.MissionManager, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, remoteHub *remote.RemoteHub, historyMgr *memory.HistoryManager, isMaintenance bool, surgeryPlan string, guardian *security.Guardian, sessionID string, coAgentRegistry *CoAgentRegistry, budgetTracker *budget.Tracker) string {
+func dispatchServices(ctx context.Context, tc ToolCall, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, missionManager *tools.MissionManager, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, mediaRegistryDB *sql.DB, homepageRegistryDB *sql.DB, remoteHub *remote.RemoteHub, historyMgr *memory.HistoryManager, isMaintenance bool, surgeryPlan string, guardian *security.Guardian, sessionID string, coAgentRegistry *CoAgentRegistry, budgetTracker *budget.Tracker) string {
 	switch tc.Action {
 	case "analyze_image", "vision":
 		if budgetTracker != nil && budgetTracker.IsBlocked("vision") {
@@ -388,16 +388,43 @@ func dispatchServices(ctx context.Context, tc ToolCall, cfg *config.Config, logg
 			return "Tool Output: " + tools.HomepageExec(homepageCfg, tc.Command, logger)
 		case "init_project":
 			logger.Info("LLM requested homepage init_project", "framework", tc.Framework, "name", tc.Name)
-			return "Tool Output: " + tools.HomepageInitProject(homepageCfg, tc.Framework, tc.Name, logger)
+			result := tools.HomepageInitProject(homepageCfg, tc.Framework, tc.Name, logger)
+			// Auto-register project in homepage registry
+			if homepageRegistryDB != nil && tc.Name != "" {
+				tools.RegisterProject(homepageRegistryDB, tools.HomepageProject{
+					Name:      tc.Name,
+					Framework: tc.Framework,
+					Status:    "active",
+					Tags:      []string{"auto-registered"},
+				})
+			}
+			return "Tool Output: " + result
 		case "build":
 			logger.Info("LLM requested homepage build", "dir", tc.ProjectDir)
-			return "Tool Output: " + tools.HomepageBuild(homepageCfg, tc.ProjectDir, logger)
+			result := tools.HomepageBuild(homepageCfg, tc.ProjectDir, logger)
+			// Auto-log edit in homepage registry
+			if homepageRegistryDB != nil && tc.ProjectDir != "" {
+				if proj, err := tools.GetProjectByDir(homepageRegistryDB, tc.ProjectDir); err == nil {
+					tools.LogEdit(homepageRegistryDB, proj.ID, "build")
+				}
+			}
+			return "Tool Output: " + result
 		case "install_deps":
 			logger.Info("LLM requested homepage install_deps", "packages", tc.Packages)
 			return "Tool Output: " + tools.HomepageInstallDeps(homepageCfg, tc.ProjectDir, tc.Packages, logger)
 		case "lighthouse":
 			logger.Info("LLM requested homepage lighthouse", "url", tc.URL)
-			return "Tool Output: " + tools.HomepageLighthouse(homepageCfg, tc.URL, logger)
+			result := tools.HomepageLighthouse(homepageCfg, tc.URL, logger)
+			// Auto-log lighthouse score in homepage registry
+			if homepageRegistryDB != nil && tc.URL != "" {
+				projects, _, _ := tools.SearchProjects(homepageRegistryDB, tc.URL, "", nil, 1, 0)
+				if len(projects) > 0 {
+					tools.UpdateProject(homepageRegistryDB, projects[0].ID, map[string]interface{}{
+						"lighthouse_score": result,
+					})
+				}
+			}
+			return "Tool Output: " + result
 		case "screenshot":
 			logger.Info("LLM requested homepage screenshot", "url", tc.URL, "viewport", tc.Viewport)
 			return "Tool Output: " + tools.HomepageScreenshot(homepageCfg, tc.URL, tc.Viewport, logger)
@@ -421,7 +448,14 @@ func dispatchServices(ctx context.Context, tc ToolCall, cfg *config.Config, logg
 			return "Tool Output: " + tools.HomepageDev(homepageCfg, tc.ProjectDir, 3000, logger)
 		case "deploy":
 			logger.Info("LLM requested homepage deploy", "host", deployCfg.Host)
-			return "Tool Output: " + tools.HomepageDeploy(homepageCfg, deployCfg, tc.ProjectDir, tc.BuildDir, logger)
+			result := tools.HomepageDeploy(homepageCfg, deployCfg, tc.ProjectDir, tc.BuildDir, logger)
+			// Auto-log deploy in homepage registry
+			if homepageRegistryDB != nil && tc.ProjectDir != "" {
+				if proj, err := tools.GetProjectByDir(homepageRegistryDB, tc.ProjectDir); err == nil {
+					tools.LogDeploy(homepageRegistryDB, proj.ID, deployCfg.Host)
+				}
+			}
+			return "Tool Output: " + result
 		case "test_connection":
 			logger.Info("LLM requested homepage test_connection")
 			return "Tool Output: " + tools.HomepageTestConnection(deployCfg, logger)
@@ -454,7 +488,23 @@ func dispatchServices(ctx context.Context, tc ToolCall, cfg *config.Config, logg
 				TeamSlug:      cfg.Netlify.TeamSlug,
 			}
 			logger.Info("LLM requested homepage deploy_netlify", "project", tc.ProjectDir, "build_dir", tc.BuildDir, "site_id", tc.SiteID, "draft", tc.Draft)
-			return "Tool Output: " + tools.HomepageDeployNetlify(homepageCfg, nfCfg, tc.ProjectDir, tc.BuildDir, tc.SiteID, tc.Title, tc.Draft, logger)
+			result := tools.HomepageDeployNetlify(homepageCfg, nfCfg, tc.ProjectDir, tc.BuildDir, tc.SiteID, tc.Title, tc.Draft, logger)
+			// Auto-log deploy in homepage registry
+			if homepageRegistryDB != nil && tc.ProjectDir != "" {
+				deployURL := tc.SiteID
+				if deployURL == "" {
+					deployURL = "netlify"
+				}
+				if proj, err := tools.GetProjectByDir(homepageRegistryDB, tc.ProjectDir); err == nil {
+					tools.LogDeploy(homepageRegistryDB, proj.ID, deployURL)
+					if tc.SiteID != "" {
+						tools.UpdateProject(homepageRegistryDB, proj.ID, map[string]interface{}{
+							"netlify_site_id": tc.SiteID,
+						})
+					}
+				}
+			}
+			return "Tool Output: " + result
 		default:
 			return `Tool Output: {"status":"error","message":"Unknown homepage operation. Use: init, start, stop, status, rebuild, destroy, exec, init_project, build, install_deps, lighthouse, screenshot, lint, list_files, read_file, write_file, optimize_images, dev, deploy, deploy_netlify, test_connection, webserver_start, webserver_stop, webserver_status, publish_local"}`
 		}
@@ -552,6 +602,67 @@ func dispatchServices(ctx context.Context, tc ToolCall, cfg *config.Config, logg
 		default:
 			return `Tool Output: {"status": "error", "message": "Unknown home_assistant operation. Use: get_states, get_state, call_service, list_services"}`
 		}
+
+	case "media_registry":
+		if mediaRegistryDB == nil {
+			return `Tool Output: {"status": "error", "message": "Media registry is not enabled or DB not initialized."}`
+		}
+		op := tc.Operation
+		if op == "" {
+			op = "list"
+		}
+		// Parse tags from array or comma-separated string
+		var tags []string
+		if arr, ok := tc.Params["tags"].([]interface{}); ok {
+			for _, v := range arr {
+				if s, ok := v.(string); ok {
+					tags = append(tags, s)
+				}
+			}
+		} else if tc.Tags != "" {
+			for _, t := range strings.Split(tc.Tags, ",") {
+				t = strings.TrimSpace(t)
+				if t != "" {
+					tags = append(tags, t)
+				}
+			}
+		}
+		var itemID int64
+		if v, ok := tc.Params["id"].(float64); ok {
+			itemID = int64(v)
+		}
+		logger.Info("LLM requested media_registry", "operation", op, "media_type", tc.MediaType)
+		return "Tool Output: " + tools.DispatchMediaRegistry(mediaRegistryDB, op, tc.Query, tc.MediaType, tc.Description, tags, tc.TagMode, itemID, tc.Limit, tc.Offset)
+
+	case "homepage_registry":
+		if homepageRegistryDB == nil {
+			return `Tool Output: {"status": "error", "message": "Homepage registry is not enabled or DB not initialized."}`
+		}
+		op := tc.Operation
+		if op == "" {
+			op = "list"
+		}
+		var tags []string
+		if arr, ok := tc.Params["tags"].([]interface{}); ok {
+			for _, v := range arr {
+				if s, ok := v.(string); ok {
+					tags = append(tags, s)
+				}
+			}
+		} else if tc.Tags != "" {
+			for _, t := range strings.Split(tc.Tags, ",") {
+				t = strings.TrimSpace(t)
+				if t != "" {
+					tags = append(tags, t)
+				}
+			}
+		}
+		var projectID int64
+		if v, ok := tc.Params["id"].(float64); ok {
+			projectID = int64(v)
+		}
+		logger.Info("LLM requested homepage_registry", "operation", op, "name", tc.Name)
+		return "Tool Output: " + tools.DispatchHomepageRegistry(homepageRegistryDB, op, tc.Query, tc.Name, tc.Description, tc.Framework, tc.ProjectDir, tc.URL, tc.Status, tc.Reason, tc.Problem, tc.Notes, tags, projectID, "", tc.Limit, tc.Offset)
 
 	default:
 		return dispatchNotHandled

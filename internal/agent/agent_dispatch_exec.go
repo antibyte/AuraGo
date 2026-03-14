@@ -25,7 +25,7 @@ import (
 )
 
 // dispatchExec handles execution, memory, security, filesystem, API, remote, and scheduling tool calls.
-func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, missionManager *tools.MissionManager, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, remoteHub *remote.RemoteHub, historyMgr *memory.HistoryManager, isMaintenance bool, surgeryPlan string, guardian *security.Guardian, sessionID string, coAgentRegistry *CoAgentRegistry, budgetTracker *budget.Tracker) string {
+func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, missionManager *tools.MissionManager, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, mediaRegistryDB *sql.DB, homepageRegistryDB *sql.DB, remoteHub *remote.RemoteHub, historyMgr *memory.HistoryManager, isMaintenance bool, surgeryPlan string, guardian *security.Guardian, sessionID string, coAgentRegistry *CoAgentRegistry, budgetTracker *budget.Tracker) string {
 	switch tc.Action {
 	case "execute_sandbox":
 		if !cfg.Sandbox.Enabled {
@@ -922,6 +922,28 @@ func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 
 		// Save to gallery DB
 		tools.SaveGeneratedImage(imageGalleryDB, result)
+
+		// Auto-register in media registry
+		if mediaRegistryDB != nil {
+			tools.RegisterMedia(mediaRegistryDB, tools.MediaItem{
+				MediaType:        "image",
+				SourceTool:       "generate_image",
+				Filename:         result.Filename,
+				FilePath:         result.Filename,
+				WebPath:          result.WebPath,
+				Format:           "png",
+				Provider:         result.Provider,
+				Model:            result.Model,
+				Prompt:           result.Prompt,
+				Quality:          result.Quality,
+				Style:            result.Style,
+				Size:             result.Size,
+				SourceImage:      result.SourceImage,
+				GenerationTimeMs: int64(result.DurationMs),
+				CostEstimate:     result.CostEstimate,
+				Tags:             []string{"auto-generated"},
+			})
+		}
 
 		// Record cost in budget tracker
 		if budgetTracker != nil && result.CostEstimate > 0 {

@@ -221,6 +221,8 @@ DATA_FILES=(
     "data/current_plan.md"
     "data/graph.json"
     "data/state.json"
+    "data/media_registry.db"
+    "data/homepage_registry.db"
 )
 # Prompt directories: protect all custom *.md files that are NOT tracked by git
 PROMPTS_DIR="$DIR/prompts"
