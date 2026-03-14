@@ -97,7 +97,7 @@ func generateOpenRouter(cfg ImageGenConfig, prompt string, opts ImageGenOptions)
 
 	content := result.Choices[0].Message.Content
 
-	// Content might be a string with base64, or an array of content blocks
+	// Content might be a string with base64/URL, or an array of content blocks
 	switch v := content.(type) {
 	case string:
 		// Try to decode as raw base64
@@ -116,7 +116,21 @@ func generateOpenRouter(cfg ImageGenConfig, prompt string, opts ImageGenOptions)
 				return imgData, detectFormat(imgData), nil
 			}
 		}
-		return nil, "", fmt.Errorf("could not extract image data from OpenRouter response")
+		// Check if it is or contains a direct URL — some OpenRouter models return
+		// a hosted image URL instead of inline base64.
+		if imgData, ext, err := tryDownloadImageURL(v); err == nil {
+			return imgData, ext, nil
+		}
+		// Check if it contains a markdown image link: ![...](url)
+		if idx := strings.Index(v, "]("); idx >= 0 {
+			rest := v[idx+2:]
+			if end := strings.IndexByte(rest, ')'); end > 0 {
+				if imgData, ext, err := tryDownloadImageURL(rest[:end]); err == nil {
+					return imgData, ext, nil
+				}
+			}
+		}
+		return nil, "", fmt.Errorf("could not extract image data from OpenRouter string response (len=%d, preview=%q)", len(v), truncateError(v))
 
 	case []interface{}:
 		// Array of content blocks — look for type=image_url
@@ -135,13 +149,20 @@ func generateOpenRouter(cfg ImageGenConfig, prompt string, opts ImageGenOptions)
 								return imgData, detectFormat(imgData), nil
 							}
 						}
+						// Try as direct URL
+						if imgData, ext, err := tryDownloadImageURL(urlStr); err == nil {
+							return imgData, ext, nil
+						}
 					}
 				}
 			}
 		}
 		return nil, "", fmt.Errorf("no image_url block found in OpenRouter response")
 
+	case nil:
+		return nil, "", fmt.Errorf("OpenRouter returned null content (model may not support image generation or prompt was refused)")
+
 	default:
-		return nil, "", fmt.Errorf("unexpected content type in OpenRouter response")
+		return nil, "", fmt.Errorf("unexpected content type in OpenRouter response: %T (raw: %s)", content, truncateError(string(respBody)))
 	}
 }

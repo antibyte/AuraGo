@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // loadSourceImage reads an image file from disk for image-to-image operations.
@@ -98,6 +99,24 @@ func truncateError(s string) string {
 		return s
 	}
 	return s[:max] + "..."
+}
+
+// tryDownloadImageURL attempts to download an image from a URL string.
+// Returns (data, ext, error). Only accepts http/https URLs.
+func tryDownloadImageURL(rawURL string) ([]byte, string, error) {
+	u := strings.TrimSpace(rawURL)
+	if !strings.HasPrefix(u, "http://") && !strings.HasPrefix(u, "https://") {
+		return nil, "", fmt.Errorf("not a URL")
+	}
+	data, err := downloadImage(u)
+	if err != nil {
+		return nil, "", err
+	}
+	if len(data) < 100 {
+		return nil, "", fmt.Errorf("downloaded data too small to be an image")
+	}
+	return data, detectFormat(data), nil
+}
 }
 
 // ResolveSourceImagePath resolves a source image path relative to workspace or data dir.
