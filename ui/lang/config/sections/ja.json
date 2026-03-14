@@ -158,5 +158,13 @@
   "config.section.ai_gateway.label": "AI Gateway",
   "config.section.ai_gateway.desc": "Cloudflare AI Gateway\u7d4c\u7531\u3067LLM\u30ea\u30af\u30a8\u30b9\u30c8\u3092\u30eb\u30fc\u30c6\u30a3\u30f3\u30b0",
   "config.section.mcp_server.label": "MCP\u30b5\u30fc\u30d0\u30fc",
-  "config.section.mcp_server.desc": "\u5916\u90e8\u30a8\u30fc\u30b8\u30a7\u30f3\u30c8\u5411\u3051\u306bMCP\u3067AuraGo\u30c4\u30fc\u30eb\u3092\u516c\u958b"
+  "config.section.mcp_server.desc": "\u5916\u90e8\u30a8\u30fc\u30b8\u30a7\u30f3\u30c8\u5411\u3051\u306bMCP\u3067AuraGo\u30c4\u30fc\u30eb\u3092\u516c\u958b",
+  "config.paperless.enabled_label": "\u6709\u52b9",
+  "config.paperless.readonly_label": "\u8aad\u307f\u53d6\u308a\u5c02\u7528",
+  "config.paperless.url_label": "Paperless-ngx URL",
+  "config.paperless.token_label": "API\u30c8\u30fc\u30af\u30f3",
+  "config.paperless.save_vault": "Vault\u306b\u4fdd\u5b58",
+  "config.paperless.token_empty": "\u30c8\u30fc\u30af\u30f3\u306f\u7a7a\u306b\u3067\u304d\u307e\u305b\u3093",
+  "config.paperless.token_saved": "\u30c8\u30fc\u30af\u30f3\u3092\u4fdd\u5b58\u3057\u307e\u3057\u305f",
+  "config.paperless.token_save_failed": "\u30c8\u30fc\u30af\u30f3\u306e\u4fdd\u5b58\u306b\u5931\u6557\u3057\u307e\u3057\u305f"
 }

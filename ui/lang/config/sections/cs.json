@@ -158,5 +158,13 @@
   "config.section.ai_gateway.label": "AI Gateway",
   "config.section.ai_gateway.desc": "Sm\u011brovat LLM po\u017eadavky p\u0159es Cloudflare AI Gateway",
   "config.section.mcp_server.label": "MCP Server",
-  "config.section.mcp_server.desc": "Zp\u0159\u00edstupnit n\u00e1stroje AuraGo p\u0159es MCP"
+  "config.section.mcp_server.desc": "Zp\u0159\u00edstupnit n\u00e1stroje AuraGo p\u0159es MCP",
+  "config.paperless.enabled_label": "Povoleno",
+  "config.paperless.readonly_label": "Pouze \u010dten\u00ed",
+  "config.paperless.url_label": "Paperless-ngx URL",
+  "config.paperless.token_label": "API token",
+  "config.paperless.save_vault": "Ulo\u017eit do Vaultu",
+  "config.paperless.token_empty": "Token nesm\u00ed b\u00fdt pr\u00e1zdn\u00fd",
+  "config.paperless.token_saved": "Token ulo\u017een",
+  "config.paperless.token_save_failed": "Token se nepoda\u0159ilo ulo\u017eit"
 }

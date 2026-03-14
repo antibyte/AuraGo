@@ -158,5 +158,13 @@
   "config.section.mcp_server.label": "MCP Server",
   "config.section.mcp_server.desc": "AuraGo-Werkzeuge über MCP für externe Agenten bereitstellen",
   "config.section.remote_control.label": "Fernsteuerung",
-  "config.section.remote_control.desc": "Entfernte Geräte über leichtgewichtige Agent-Binaries verwalten"
+  "config.section.remote_control.desc": "Ferngeräte über leichtgewichtige Agent-Binaries verwalten",
+  "config.paperless.enabled_label": "Aktiviert",
+  "config.paperless.readonly_label": "Nur-Lesen",
+  "config.paperless.url_label": "Paperless-ngx URL",
+  "config.paperless.token_label": "API-Token",
+  "config.paperless.save_vault": "Im Vault speichern",
+  "config.paperless.token_empty": "Token darf nicht leer sein",
+  "config.paperless.token_saved": "Token gespeichert",
+  "config.paperless.token_save_failed": "Token konnte nicht gespeichert werden"
 }

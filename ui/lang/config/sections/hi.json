@@ -158,5 +158,13 @@
   "config.section.ai_gateway.label": "AI Gateway",
   "config.section.ai_gateway.desc": "Cloudflare AI Gateway \u0915\u0947 \u092e\u093e\u0927\u094d\u092f\u092e \u0938\u0947 LLM \u0905\u0928\u0941\u0930\u094b\u0927 \u0930\u0942\u091f \u0915\u0930\u0947\u0902",
   "config.section.mcp_server.label": "MCP \u0938\u0930\u094d\u0935\u0930",
-  "config.section.mcp_server.desc": "\u092c\u093e\u0939\u0930\u0940 \u090f\u091c\u0947\u0902\u091f\u094b\u0902 \u0915\u0947 \u0932\u093f\u090f MCP \u0915\u0947 \u092e\u093e\u0927\u094d\u092f\u092e \u0938\u0947 AuraGo \u0909\u092a\u0915\u0930\u0923 \u0909\u091c\u093e\u0917\u0930 \u0915\u0930\u0947\u0902"
+  "config.section.mcp_server.desc": "\u092c\u093e\u0939\u0930\u0940 \u090f\u091c\u0947\u0902\u091f\u094b\u0902 \u0915\u0947 \u0932\u093f\u090f MCP \u0915\u0947 \u092e\u093e\u0927\u094d\u092f\u092e \u0938\u0947 AuraGo \u0909\u092a\u0915\u0930\u0923 \u0909\u091c\u093e\u0917\u0930 \u0915\u0930\u0947\u0902",
+  "config.paperless.enabled_label": "\u0938\u0915\u094d\u0937\u092e",
+  "config.paperless.readonly_label": "\u0915\u0947\u0935\u0932 \u092a\u0920\u0928",
+  "config.paperless.url_label": "Paperless-ngx URL",
+  "config.paperless.token_label": "API Token",
+  "config.paperless.save_vault": "Vault \u092e\u0947\u0902 \u0938\u0947\u0935 \u0915\u0930\u0947\u0902",
+  "config.paperless.token_empty": "Token \u0916\u093e\u0932\u0940 \u0928\u0939\u0940\u0902 \u0939\u094b \u0938\u0915\u0924\u093e",
+  "config.paperless.token_saved": "Token \u0938\u0947\u0935 \u0939\u094b \u0917\u092f\u093e",
+  "config.paperless.token_save_failed": "Token \u0938\u0947\u0935 \u0915\u0930\u0928\u0947 \u092e\u0947\u0902 \u0935\u093f\u092b\u0932"
 }

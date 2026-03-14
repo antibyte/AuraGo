@@ -842,6 +842,7 @@ const SECTION_MODULES = {
     devices: { m: 'devices', fn: 'renderDevicesSection' },
     chromecast: { m: 'chromecast', fn: 'renderChromecastSection' },
     adguard: { m: 'adguard', fn: 'renderAdGuardSection' },
+    paperless_ngx: { m: 'paperless', fn: 'renderPaperlessSection' },
     homepage: { m: 'homepage', fn: 'renderHomepageSection' },
     netlify: { m: 'netlify', fn: 'renderNetlifySection' },
     danger_zone: { m: 'danger', fn: 'renderDangerZoneSection' },

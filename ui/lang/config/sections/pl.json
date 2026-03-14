@@ -156,5 +156,13 @@
   "config.section.ai_gateway.label": "AI Gateway",
   "config.section.ai_gateway.desc": "Kierowa\u0107 \u017c\u0105dania LLM przez Cloudflare AI Gateway",
   "config.section.mcp_server.label": "Serwer MCP",
-  "config.section.mcp_server.desc": "Udost\u0119pni\u0107 narz\u0119dzia AuraGo przez MCP"
+  "config.section.mcp_server.desc": "Udost\u0119pni\u0107 narz\u0119dzia AuraGo przez MCP",
+  "config.paperless.enabled_label": "W\u0142\u0105czone",
+  "config.paperless.readonly_label": "Tylko odczyt",
+  "config.paperless.url_label": "URL Paperless-ngx",
+  "config.paperless.token_label": "Token API",
+  "config.paperless.save_vault": "Zapisz w Vault",
+  "config.paperless.token_empty": "Token nie mo\u017ce by\u0107 pusty",
+  "config.paperless.token_saved": "Token zapisany",
+  "config.paperless.token_save_failed": "Nie uda\u0142o si\u0119 zapisa\u0107 tokenu"
 }

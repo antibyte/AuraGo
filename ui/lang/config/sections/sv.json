@@ -158,5 +158,13 @@
   "config.section.mcp_server.label": "MCP Server",
   "config.section.mcp_server.desc": "Exponera AuraGo-verktyg via MCP",
   "config.section.remote_control.label": "Fjärrstyrning",
-  "config.section.remote_control.desc": "Hantera fjärrenheter via enkla agentbinärer"
+  "config.section.remote_control.desc": "Hantera fjärrenheter via enkla agentbinärer",
+  "config.paperless.enabled_label": "Aktiverad",
+  "config.paperless.readonly_label": "Skrivskyddad",
+  "config.paperless.url_label": "Paperless-ngx URL",
+  "config.paperless.token_label": "API-token",
+  "config.paperless.save_vault": "Spara i Vault",
+  "config.paperless.token_empty": "Token får inte vara tom",
+  "config.paperless.token_saved": "Token sparad",
+  "config.paperless.token_save_failed": "Det gick inte att spara token"
 }

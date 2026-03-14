@@ -158,5 +158,13 @@
   "config.section.mcp_server.label": "MCP Server",
   "config.section.mcp_server.desc": "Eksponere AuraGo-verktøy via MCP",
   "config.section.remote_control.label": "Fjernstyring",
-  "config.section.remote_control.desc": "Administrer fjernenheter via lette agentbinærer"
+  "config.section.remote_control.desc": "Administrer fjernenheter via lette agentbinærer",
+  "config.paperless.enabled_label": "Aktivert",
+  "config.paperless.readonly_label": "Kun lesing",
+  "config.paperless.url_label": "Paperless-ngx URL",
+  "config.paperless.token_label": "API-token",
+  "config.paperless.save_vault": "Lagre i Vault",
+  "config.paperless.token_empty": "Token kan ikke være tomt",
+  "config.paperless.token_saved": "Token lagret",
+  "config.paperless.token_save_failed": "Kunne ikke lagre token"
 }
