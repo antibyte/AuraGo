@@ -556,12 +556,8 @@ for f in "${PROTECTED_FILES[@]}"; do
     bak="$BACKUP_DIR/$(basename "$f")"
     if [ -f "$bak" ]; then
         if [ "$f" = "config.yaml" ]; then
-            # Always record the backed-up (user's) config as the merge source.
-            # Do NOT restore it to $DIR/config.yaml here — the merger below
-            # needs $DIR/config.yaml to be the new template from git pull.
-            # We already restored it temporarily after git pull to prevent
-            # re-execution corruption, but the merger will fix that.
-            cp -p "$bak" "$BACKUP_DIR/config.yaml.user"
+            # config.yaml is already restored after git operations.
+            # The merger below will handle it. Skip here.
             continue
         fi
         cp -p "$bak" "$DIR/$f"
@@ -690,68 +686,72 @@ PrivateTmp=true" "$SVC_FILE"
     fi
 fi
 
-# ── Merge config.yaml (Safety First) ──────────────────────────────────
+# ── Merge config.yaml ──────────────────────────────────────────────────
 section "Merging configuration"
 
-USER_CONFIG_BAK="$BACKUP_DIR/config.yaml.user"
-# $DIR/config.yaml may be the user's version (re-protected after git pull)
-# or the pulled template, depending on execution path.  For git mode we
-# always want to merge against the PULLED template, so extract it from git.
-CURRENT_TEMPLATE="$DIR/config.yaml"
-if ! $BINARY_ONLY; then
-    # Extract the template as committed in the repo (origin/main HEAD)
-    # into a temp file so we always merge user-config ←→ upstream-template,
-    # never user-config ←→ user-config.
-    _TMPL=$(mktemp "/tmp/aurago-config-tmpl.XXXXXX")
-    if git show HEAD:config.yaml > "$_TMPL" 2>/dev/null && [ -s "$_TMPL" ]; then
-        CURRENT_TEMPLATE="$_TMPL"
+# Source:   backup of config.yaml taken before any git/file operations.
+# Template: config_template.yaml in the repo (the authoritative template).
+#           Binary-only mode: newly extracted config.yaml.new_template.
+#           Fallback: git show HEAD:config.yaml.
+# Output:   $DIR/config.yaml  (always the final result).
+#
+# If config.yaml didn't exist before (fresh install): copy template directly.
+
+USER_CONFIG_BAK="$BACKUP_DIR/config.yaml"
+
+if [ ! -f "$USER_CONFIG_BAK" ] && [ ! -f "$DIR/config.yaml" ]; then
+    # Fresh install: no prior config at all — create from template.
+    if [ -f "$DIR/config_template.yaml" ]; then
+        cp "$DIR/config_template.yaml" "$DIR/config.yaml"
+        ok "Created config.yaml from template."
     fi
-fi
-
-# In binary-only mode the new template was stored as config.yaml.new_template;
-# use it directly as the template source for the merger.
-if $BINARY_ONLY && [ -f "$DIR/config.yaml.new_template" ]; then
-    CURRENT_TEMPLATE="$DIR/config.yaml.new_template"
-fi
-
-if [ -f "$USER_CONFIG_BAK" ] && [ -f "$CURRENT_TEMPLATE" ]; then
-    # Try multiple binary locations for config-merger
-    MERGER_BIN=""
-    if [ -f "$DIR/bin/config-merger_linux" ]; then
-        MERGER_BIN="$DIR/bin/config-merger_linux"
-    elif [ -f "$DIR/bin/config-merger" ]; then
-        MERGER_BIN="$DIR/bin/config-merger"
-    elif [ -f "$DIR/cmd/config-merger/config-merger" ]; then
-        MERGER_BIN="$DIR/cmd/config-merger/config-merger"
-    fi
-
-    if [ -n "$MERGER_BIN" ]; then
-        info "Running config-merger to integrate your settings..."
-        # Merger: source=user_bak, template=upstream_template -> result saved to config.yaml
-        if "$MERGER_BIN" -source "$USER_CONFIG_BAK" -template "$CURRENT_TEMPLATE" -output "$DIR/config.yaml"; then
-            ok "Your settings have been merged into the new config.yaml."
+else
+    # Existing install: merge user settings with any new template fields.
+    if $BINARY_ONLY && [ -f "$DIR/config.yaml.new_template" ]; then
+        CURRENT_TEMPLATE="$DIR/config.yaml.new_template"
+    elif [ -f "$DIR/config_template.yaml" ]; then
+        CURRENT_TEMPLATE="$DIR/config_template.yaml"
+    else
+        # Fallback: extract template from git history.
+        _TMPL=$(mktemp "/tmp/aurago-config-tmpl.XXXXXX")
+        if git show HEAD:config_template.yaml > "$_TMPL" 2>/dev/null && [ -s "$_TMPL" ]; then
+            CURRENT_TEMPLATE="$_TMPL"
+        elif git show HEAD:config.yaml > "$_TMPL" 2>/dev/null && [ -s "$_TMPL" ]; then
+            CURRENT_TEMPLATE="$_TMPL"
         else
-            warn "config-merger failed. Restoring your old config.yaml exactly."
-            cp -fp "$USER_CONFIG_BAK" "$DIR/config.yaml" || \
-                { sudo -n cp -fp "$USER_CONFIG_BAK" "$DIR/config.yaml" && sudo -n chown "$(id -un):" "$DIR/config.yaml"; }
+            CURRENT_TEMPLATE=""
+        fi
+    fi
+
+    if [ -n "${CURRENT_TEMPLATE:-}" ] && [ -f "$USER_CONFIG_BAK" ]; then
+        MERGER_BIN=""
+        if [ -f "$DIR/bin/config-merger_linux" ]; then
+            MERGER_BIN="$DIR/bin/config-merger_linux"
+        elif [ -f "$DIR/bin/config-merger" ]; then
+            MERGER_BIN="$DIR/bin/config-merger"
+        elif [ -f "$DIR/cmd/config-merger/config-merger" ]; then
+            MERGER_BIN="$DIR/cmd/config-merger/config-merger"
+        fi
+
+        if [ -n "$MERGER_BIN" ]; then
+            info "Running config-merger to integrate your settings..."
+            if "$MERGER_BIN" -source "$USER_CONFIG_BAK" -template "$CURRENT_TEMPLATE" -output "$DIR/config.yaml"; then
+                ok "Your settings have been merged into the new config.yaml."
+            else
+                warn "config-merger failed. Restoring your old config.yaml exactly."
+                cp -fp "$USER_CONFIG_BAK" "$DIR/config.yaml"
+            fi
+        else
+            warn "config-merger not found. Keeping your existing config.yaml."
+            # User's config is already on disk (restored after git ops). Nothing to do.
         fi
     else
-        warn "config-merger tool not found. Restoring your exact old config.yaml."
-        warn "You may be missing new configuration options (budget, webdav, etc)."
-        NEW_KEYS=$(comm -23 \
-            <(grep -E '^[a-z_]+:' "$CURRENT_TEMPLATE" | sort) \
-            <(grep -E '^[a-z_]+:' "$USER_CONFIG_BAK" | sort) 2>/dev/null || true)
-        cp -fp "$USER_CONFIG_BAK" "$DIR/config.yaml" || \
-            { sudo -n cp -fp "$USER_CONFIG_BAK" "$DIR/config.yaml" && sudo -n chown "$(id -un):" "$DIR/config.yaml"; }
-        if [ -n "$NEW_KEYS" ]; then
-            warn "Please add these missing sections manually if needed:"
-            echo "$NEW_KEYS" | while read -r key; do echo "    +  $key"; done
-        fi
+        warn "No template found. Keeping your existing config.yaml."
     fi
+
+    [ -n "${_TMPL:-}" ] && rm -f "$_TMPL"
+    [ -f "$DIR/config.yaml.new_template" ] && rm -f "$DIR/config.yaml.new_template"
 fi
-# Clean up temp files
-[ -n "${_TMPL:-}" ] && rm -f "$_TMPL"
-[ -f "$DIR/config.yaml.new_template" ] && rm -f "$DIR/config.yaml.new_template"
 
 # ── Update binary ───────────────────────────────────────────────────────
 section "Updating binaries"
