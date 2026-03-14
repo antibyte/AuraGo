@@ -27,6 +27,7 @@ func generateOpenRouter(cfg ImageGenConfig, prompt string, opts ImageGenOptions)
 		"messages": []map[string]interface{}{
 			{"role": "user", "content": prompt},
 		},
+		"modalities": []string{"image"},
 	}
 
 	// If source image is provided (image-to-image), include it as a vision message
@@ -80,11 +81,16 @@ func generateOpenRouter(cfg ImageGenConfig, prompt string, opts ImageGenOptions)
 		return nil, "", fmt.Errorf("OpenRouter returned status %d: %s", resp.StatusCode, truncateError(string(respBody)))
 	}
 
-	// Parse response — look for base64 image data in choices[0].message.content
+	// Parse response — look for image data in choices[0].message
 	var result struct {
 		Choices []struct {
 			Message struct {
 				Content interface{} `json:"content"` // may be string or array
+				Images  []struct {
+					ImageURL struct {
+						URL string `json:"url"`
+					} `json:"image_url"`
+				} `json:"images"` // used by models like bytedance-seed/seedream-*
 			} `json:"message"`
 		} `json:"choices"`
 	}
@@ -95,7 +101,28 @@ func generateOpenRouter(cfg ImageGenConfig, prompt string, opts ImageGenOptions)
 		return nil, "", fmt.Errorf("OpenRouter returned no choices")
 	}
 
-	content := result.Choices[0].Message.Content
+	msg := result.Choices[0].Message
+
+	// ── Check message.images first (e.g. bytedance-seed/seedream-*) ──────
+	for _, img := range msg.Images {
+		urlStr := img.ImageURL.URL
+		if urlStr == "" {
+			continue
+		}
+		// Base64 data URL: data:image/png;base64,...
+		if idx := strings.Index(urlStr, "base64,"); idx >= 0 {
+			b64 := urlStr[idx+7:]
+			if imgData, err := base64.StdEncoding.DecodeString(b64); err == nil && len(imgData) > 100 {
+				return imgData, detectFormat(imgData), nil
+			}
+		}
+		// Direct HTTP URL
+		if imgData, ext, err := tryDownloadImageURL(urlStr); err == nil {
+			return imgData, ext, nil
+		}
+	}
+
+	content := msg.Content
 
 	// Content might be a string with base64/URL, or an array of content blocks
 	switch v := content.(type) {
