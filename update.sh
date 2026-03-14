@@ -474,6 +474,16 @@ else
     # Write version tag for the Web UI update check
     GIT_VER=$(git describe --tags --always 2>/dev/null || git rev-parse --short HEAD 2>/dev/null || echo 'git')
     printf '%s' "$GIT_VER" > "$DIR/.version"
+
+    # ── Immediately re-protect config.yaml ──────────────────────────────
+    # git checkout -- . and git reset --hard both overwrite config.yaml
+    # with the repository template.  Putting the user's config back here
+    # means that even if bash re-executes this script (all guards failed),
+    # the re-execution will back up and use the CORRECT user config rather
+    # than the template.  The config-merger below always wins the final say.
+    if [ -f "$BACKUP_DIR/config.yaml" ]; then
+        cp -p "$BACKUP_DIR/config.yaml" "$DIR/config.yaml"
+    fi
 fi
 
 # ── Migrate old prompts location (agent_workspace/prompts → prompts/) ─
@@ -519,9 +529,11 @@ for f in "${PROTECTED_FILES[@]}"; do
     bak="$BACKUP_DIR/$(basename "$f")"
     if [ -f "$bak" ]; then
         if [ "$f" = "config.yaml" ]; then
-            # We don't just overwrite config.yaml here anymore.
-            # We keep it as is (which is the new template after git pull)
-            # and let the merging section below handle it.
+            # Always record the backed-up (user's) config as the merge source.
+            # Do NOT restore it to $DIR/config.yaml here — the merger below
+            # needs $DIR/config.yaml to be the new template from git pull.
+            # We already restored it temporarily after git pull to prevent
+            # re-execution corruption, but the merger will fix that.
             cp -p "$bak" "$BACKUP_DIR/config.yaml.user"
             continue
         fi
@@ -643,17 +655,24 @@ fi
 section "Merging configuration"
 
 USER_CONFIG_BAK="$BACKUP_DIR/config.yaml.user"
-# The current config.yaml in $DIR is the new template from GitHub
+# $DIR/config.yaml may be the user's version (re-protected after git pull)
+# or the pulled template, depending on execution path.  For git mode we
+# always want to merge against the PULLED template, so extract it from git.
 CURRENT_TEMPLATE="$DIR/config.yaml"
+if ! $BINARY_ONLY; then
+    # Extract the template as committed in the repo (origin/main HEAD)
+    # into a temp file so we always merge user-config ←→ upstream-template,
+    # never user-config ←→ user-config.
+    _TMPL=$(mktemp "/tmp/aurago-config-tmpl.XXXXXX")
+    if git show HEAD:config.yaml > "$_TMPL" 2>/dev/null && [ -s "$_TMPL" ]; then
+        CURRENT_TEMPLATE="$_TMPL"
+    fi
+fi
 
 # In binary-only mode the new template was stored as config.yaml.new_template;
-# switch it in so the merger works against it.
+# use it directly as the template source for the merger.
 if $BINARY_ONLY && [ -f "$DIR/config.yaml.new_template" ]; then
-    # Use -f (force) so that pre-existing root-owned config.yaml can be replaced
-    # by removing it first (requires only directory write permission).
-    cp -f "$DIR/config.yaml.new_template" "$CURRENT_TEMPLATE" || \
-        { warn "cp -f failed; trying with sudo..."; sudo -n cp -f "$DIR/config.yaml.new_template" "$CURRENT_TEMPLATE" && sudo -n chown "$(id -un):" "$CURRENT_TEMPLATE"; }
-    rm -f "$DIR/config.yaml.new_template"
+    CURRENT_TEMPLATE="$DIR/config.yaml.new_template"
 fi
 
 if [ -f "$USER_CONFIG_BAK" ] && [ -f "$CURRENT_TEMPLATE" ]; then
@@ -669,13 +688,13 @@ if [ -f "$USER_CONFIG_BAK" ] && [ -f "$CURRENT_TEMPLATE" ]; then
 
     if [ -n "$MERGER_BIN" ]; then
         info "Running config-merger to integrate your settings..."
-        # Merger: source=user_bak, template=new_template -> result saved to new_template (config.yaml)
-        if "$MERGER_BIN" -source "$USER_CONFIG_BAK" -template "$CURRENT_TEMPLATE" -output "$CURRENT_TEMPLATE"; then
+        # Merger: source=user_bak, template=upstream_template -> result saved to config.yaml
+        if "$MERGER_BIN" -source "$USER_CONFIG_BAK" -template "$CURRENT_TEMPLATE" -output "$DIR/config.yaml"; then
             ok "Your settings have been merged into the new config.yaml."
         else
             warn "config-merger failed. Restoring your old config.yaml exactly."
-            cp -fp "$USER_CONFIG_BAK" "$CURRENT_TEMPLATE" || \
-                { sudo -n cp -fp "$USER_CONFIG_BAK" "$CURRENT_TEMPLATE" && sudo -n chown "$(id -un):" "$CURRENT_TEMPLATE"; }
+            cp -fp "$USER_CONFIG_BAK" "$DIR/config.yaml" || \
+                { sudo -n cp -fp "$USER_CONFIG_BAK" "$DIR/config.yaml" && sudo -n chown "$(id -un):" "$DIR/config.yaml"; }
         fi
     else
         warn "config-merger tool not found. Restoring your exact old config.yaml."
@@ -683,14 +702,17 @@ if [ -f "$USER_CONFIG_BAK" ] && [ -f "$CURRENT_TEMPLATE" ]; then
         NEW_KEYS=$(comm -23 \
             <(grep -E '^[a-z_]+:' "$CURRENT_TEMPLATE" | sort) \
             <(grep -E '^[a-z_]+:' "$USER_CONFIG_BAK" | sort) 2>/dev/null || true)
-        cp -fp "$USER_CONFIG_BAK" "$CURRENT_TEMPLATE" || \
-            { sudo -n cp -fp "$USER_CONFIG_BAK" "$CURRENT_TEMPLATE" && sudo -n chown "$(id -un):" "$CURRENT_TEMPLATE"; }
+        cp -fp "$USER_CONFIG_BAK" "$DIR/config.yaml" || \
+            { sudo -n cp -fp "$USER_CONFIG_BAK" "$DIR/config.yaml" && sudo -n chown "$(id -un):" "$DIR/config.yaml"; }
         if [ -n "$NEW_KEYS" ]; then
             warn "Please add these missing sections manually if needed:"
             echo "$NEW_KEYS" | while read -r key; do echo "    +  $key"; done
         fi
     fi
 fi
+# Clean up temp files
+[ -n "${_TMPL:-}" ] && rm -f "$_TMPL"
+[ -f "$DIR/config.yaml.new_template" ] && rm -f "$DIR/config.yaml.new_template"
 
 # ── Update binary ───────────────────────────────────────────────────────
 section "Updating binaries"
