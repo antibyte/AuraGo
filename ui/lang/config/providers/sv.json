@@ -1,4 +1,4 @@
-﻿{
+{
   "config.providers.new_provider": "Ny leverantör",
   "config.providers.empty": "Inga leverantörer har konfigurerats. Lägg till en!",
   "config.providers.authorized": "Auktoriserad",

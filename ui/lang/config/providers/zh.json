@@ -1,4 +1,4 @@
-﻿{
+{
   "config.providers.new_provider": "新提供商",
   "config.providers.empty": "未配置提供商。添加一个！",
   "config.providers.authorized": "已授权",

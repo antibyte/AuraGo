@@ -1,4 +1,4 @@
-﻿{
+{
   "help.agent.additional_prompt": "Extra tekst toegevoegd aan systeemprompt.",
   "help.agent.allow_filesystem_write": "Wanneer uitgeschakeld, alleen leesbewerkingen toegestaan.",
   "help.agent.allow_mcp": "⚠️ Permite ao agente conectar-se a servidores MCP externos.",

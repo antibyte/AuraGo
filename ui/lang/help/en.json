@@ -1,4 +1,4 @@
-﻿{
+{
   "help.agent.additional_prompt": "Arbitrary text that is always appended at the end of the system prompt. Ideal for user-specific rules, context info, or fixed instructions that should apply to every request.",
   "help.agent.allow_filesystem_write": "When disabled, only read operations (list, read) are allowed. Write operations (write, delete, move, mkdir…) are blocked.",
   "help.agent.allow_mcp": "⚠️ Danger Zone: Allows the agent to connect to external MCP servers (Model Context Protocol) and use their tools. MCP servers are external processes that can execute arbitrary code — only add trusted servers!",

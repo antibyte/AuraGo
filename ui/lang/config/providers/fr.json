@@ -1,4 +1,4 @@
-﻿{
+{
   "config.providers.new_provider": "Nouveau Provider",
   "config.providers.empty": "Aucun provider configuré. Ajoutez-en un !",
   "config.providers.authorized": "Autorisé",

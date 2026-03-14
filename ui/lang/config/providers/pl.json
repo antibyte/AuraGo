@@ -1,4 +1,4 @@
-﻿{
+{
   "config.providers.new_provider": "Nowy Dostawca",
   "config.providers.empty": "Brak skonfigurowanych dostawców. Dodaj jednego!",
   "config.providers.authorized": "Autoryzowany",

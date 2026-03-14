@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -125,7 +126,7 @@ func loadI18N(uiFS fs.FS, logger *slog.Logger) {
 
 				// Parse JSON and merge into langData
 				var translations map[string]string
-				if err := json.Unmarshal(data, &translations); err != nil {
+				if err := json.Unmarshal(bytes.TrimPrefix(data, []byte("\xef\xbb\xbf")), &translations); err != nil {
 					logger.Warn("Failed to parse lang file", "file", itemPath, "error", err)
 					continue
 				}

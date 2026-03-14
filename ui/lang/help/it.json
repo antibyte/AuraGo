@@ -1,4 +1,4 @@
-﻿{
+{
   "help.agent.additional_prompt": "Testo arbitrario che viene sempre aggiunto alla fine del system prompt. Ideale per regole specifiche dell'utente, informazioni di contesto o istruzioni fisse che dovrebbero applicarsi a ogni richiesta.",
   "help.agent.allow_filesystem_write": "Quando disabilitato, sono consentite solo operazioni di lettura (list, read). Le operazioni di scrittura (write, delete, move, mkdir…) sono bloccate.",
   "help.agent.allow_mcp": "⚠️ Zona Pericolo: Consente all'agente di connettersi a server MCP esterni (Model Context Protocol) e utilizzare i loro tool. I server MCP sono processi esterni che possono eseguire codice arbitrario — aggiungi solo server fidati!",

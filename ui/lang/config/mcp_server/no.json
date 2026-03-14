@@ -1,4 +1,4 @@
-﻿{
+{
   "config.mcp_server.title": "MCP Server",
   "config.mcp_server.enabled_label": "MCP Server aktivert",
   "config.mcp_server.require_auth": "Krev autentisering",

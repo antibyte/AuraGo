@@ -1,4 +1,4 @@
-﻿{
+{
   "config.group.system_core": "系统与核心",
   "config.group.agent_llm": "代理与 LLM",
   "config.group.tools_services": "工具与服务",

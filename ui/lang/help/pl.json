@@ -1,4 +1,4 @@
-﻿{
+{
   "help.agent.additional_prompt": "Dowolny tekst, który jest zawsze dołączany na końcu promptu systemowego. Idealny dla reguł specyficznych dla użytkownika, informacji kontekstowych lub stałych instrukcji, które powinny dotyczyć każdego żądania.",
   "help.agent.allow_filesystem_write": "Gdy wyłączone, dozwolone są tylko operacje odczytu (list, read). Operacje zapisu (write, delete, move, mkdir…) są blokowane.",
   "help.agent.allow_mcp": "⚠️ Strefa Zagrożenia: Pozwala agentowi łączyć się z zewnętrznymi serwerami MCP (Model Context Protocol) i używać ich narzędzi. Serwery MCP to zewnętrzne procesy, które mogą wykonywać dowolny kod — dodawaj tylko zaufane serwery!",

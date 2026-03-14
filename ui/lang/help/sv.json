@@ -1,4 +1,4 @@
-﻿{
+{
   "help.agent.additional_prompt": "Dodatecny text pridany k systemovemu promptu.",
   "help.agent.allow_filesystem_write": "Kdyz zakazano, povoleny pouze operace cteni.",
   "help.agent.allow_mcp": "Umoznuje agentovi pripojit se k externim MCP serverum.",

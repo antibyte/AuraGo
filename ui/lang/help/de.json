@@ -1,4 +1,4 @@
-﻿{
+{
   "help.agent.additional_prompt": "Beliebiger Text, der immer am Ende des System-Prompts angehängt wird. Ideal für nutzerspezifische Regeln, Kontextinfos oder feste Anweisungen, die bei jeder Anfrage gelten sollen.",
   "help.agent.allow_filesystem_write": "Wenn deaktiviert, werden nur Lesezugriffe (list, read) erlaubt. Schreiboperationen (write, delete, move, mkdir…) werden blockiert.",
   "help.agent.allow_mcp": "⚠️ Danger Zone: Erlaubt dem Agenten, sich mit externen MCP-Servern (Model Context Protocol) zu verbinden und deren Tools zu nutzen. MCP-Server sind externe Prozesse, die beliebigen Code ausführen können — nur vertrauenswürdige Server hinzufügen!",

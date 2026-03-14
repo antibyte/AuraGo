@@ -1,4 +1,4 @@
-﻿{
+{
   "config.providers.new_provider": "新しいプロバイダー",
   "config.providers.empty": "プロバイダーが構成されていません。 1つ追加してください！",
   "config.providers.authorized": "認可された",

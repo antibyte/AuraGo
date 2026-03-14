@@ -1,4 +1,4 @@
-﻿{
+{
   "help.agent.additional_prompt": "Texto adicional sempre anexado ao final do prompt do sistema.",
   "help.agent.allow_filesystem_write": "Quando desabilitado, apenas operações de leitura são permitidas.",
   "help.agent.allow_mcp": "⚠️ Permite ao agente conectar-se a servidores MCP externos.",
