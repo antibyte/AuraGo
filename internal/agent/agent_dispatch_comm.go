@@ -161,14 +161,48 @@ func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 		case "wikipedia_search":
 			queryStr, _ := args["query"].(string)
 			langStr, _ := args["language"].(string)
-			return tools.ExecuteWikipediaSearch(queryStr, langStr)
+			result := tools.ExecuteWikipediaSearch(queryStr, langStr)
+			if cfg.Tools.Wikipedia.SummaryMode {
+				searchQuery, _ := args["search_query"].(string)
+				if searchQuery == "" {
+					searchQuery = "summarise the key facts about: " + queryStr
+				}
+				summary, err := tools.SummariseContent(ctx, tools.SummaryLLMConfig{
+					APIKey:  cfg.Tools.Wikipedia.SummaryAPIKey,
+					BaseURL: cfg.Tools.Wikipedia.SummaryBaseURL,
+					Model:   cfg.Tools.Wikipedia.SummaryModel,
+				}, logger, result, searchQuery, "Wikipedia article")
+				if err != nil {
+					logger.Warn("wikipedia summary failed, returning raw content", "error", err)
+				} else {
+					result = summary
+				}
+			}
+			return result
 		case "ddg_search":
 			queryStr, _ := args["query"].(string)
 			maxRes, ok := args["max_results"].(float64)
 			if !ok {
 				maxRes = 5
 			}
-			return tools.ExecuteDDGSearch(queryStr, int(maxRes))
+			result := tools.ExecuteDDGSearch(queryStr, int(maxRes))
+			if cfg.Tools.DDGSearch.SummaryMode {
+				searchQuery, _ := args["search_query"].(string)
+				if searchQuery == "" {
+					searchQuery = "synthesise the most relevant findings for: " + queryStr
+				}
+				summary, err := tools.SummariseContent(ctx, tools.SummaryLLMConfig{
+					APIKey:  cfg.Tools.DDGSearch.SummaryAPIKey,
+					BaseURL: cfg.Tools.DDGSearch.SummaryBaseURL,
+					Model:   cfg.Tools.DDGSearch.SummaryModel,
+				}, logger, result, searchQuery, "search results")
+				if err != nil {
+					logger.Warn("ddg_search summary failed, returning raw content", "error", err)
+				} else {
+					result = summary
+				}
+			}
+			return result
 		case "virustotal_scan":
 			if !cfg.VirusTotal.Enabled {
 				return `Tool Output: {"status": "error", "message": "VirusTotal integration is not enabled. Set virustotal.enabled=true in config.yaml."}`
@@ -204,6 +238,29 @@ func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 			}
 			op, _ := args["operation"].(string)
 			return "Tool Output: " + tools.ExecuteGoogleWorkspace(*cfg, vault, op, args)
+		case "pdf_extractor":
+			if !cfg.Tools.PDFExtractor.Enabled {
+				return "Tool Output: [PERMISSION DENIED] pdf_extractor is disabled in settings (tools.pdf_extractor.enabled: false)."
+			}
+			filePath, _ := args["filepath"].(string)
+			result := tools.ExecutePDFExtract(cfg.Directories.WorkspaceDir, filePath)
+			if cfg.Tools.PDFExtractor.SummaryMode {
+				searchQuery, _ := args["search_query"].(string)
+				if searchQuery == "" {
+					searchQuery = "summarise the key content of this document"
+				}
+				summary, err := tools.SummariseContent(ctx, tools.SummaryLLMConfig{
+					APIKey:  cfg.Tools.PDFExtractor.SummaryAPIKey,
+					BaseURL: cfg.Tools.PDFExtractor.SummaryBaseURL,
+					Model:   cfg.Tools.PDFExtractor.SummaryModel,
+				}, logger, result, searchQuery, "PDF document")
+				if err != nil {
+					logger.Warn("pdf_extractor summary failed, returning raw content", "error", err)
+				} else {
+					result = summary
+				}
+			}
+			return result
 		}
 
 		// Generic Python skill fallback — gate on AllowPython

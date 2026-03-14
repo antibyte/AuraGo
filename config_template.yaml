@@ -186,6 +186,16 @@ tools:
         enabled: true
         summary_mode: false
         summary_provider: ""
+    wikipedia:
+        summary_mode: false
+        summary_provider: ""
+    ddg_search:
+        summary_mode: false
+        summary_provider: ""
+    pdf_extractor:
+        enabled: true
+        summary_mode: false
+        summary_provider: ""
 # LLM Providers — configure via the Setup Wizard or Config UI
 providers: []
 llm:

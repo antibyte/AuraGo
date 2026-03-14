@@ -111,14 +111,14 @@ for target in "${REMOTE_TARGETS[@]}"; do
   EXT=""
   if [ "$OS" = "windows" ]; then EXT=".exe"; fi
 
-  if [ "$OS" = "linux" ] && [ "$ARCH" = "amd64" ]; then
-    # Standard Linux release: put in bin/ alongside the main aurago binary
-    OUT="bin/aurago-remote_linux"
-  else
-    OUT="$DEPLOY_DIR/aurago-remote_${OS}_${ARCH}${EXT}"
-  fi
+  OUT="$DEPLOY_DIR/aurago-remote_${OS}_${ARCH}${EXT}"
   echo "    → $OUT"
   CGO_ENABLED=0 GOOS="$OS" GOARCH="$ARCH" go build -trimpath -ldflags="-s -w" -o "$OUT" ./cmd/remote/
+  # For Linux/amd64 also keep a copy in bin/ (update.sh / install.sh compatibility)
+  if [ "$OS" = "linux" ] && [ "$ARCH" = "amd64" ]; then
+    mkdir -p bin
+    cp "$OUT" "bin/aurago-remote_linux"
+  fi
 done
 
 # ── Step 4: Copy install script ──────────────────────────────────────────

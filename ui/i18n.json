@@ -496,6 +496,13 @@
     "help.tools.web_scraper.enabled": "Wenn deaktiviert, wird der web_scraper-Skill blockiert. Der Agent kann dann keine externen Webseiten abrufen.",
     "help.tools.web_scraper.summary_mode": "Gescrapte Inhalte werden an ein separates (günstiges) Modell gesendet, das nur eine Zusammenfassung erstellt. Der Agent erhält nur die Zusammenfassung — spart Token und verhindert Prompt-Injection.",
     "help.tools.web_scraper.summary_provider": "Provider-Eintrag für das Zusammenfassungsmodell. Leer = Haupt-LLM wird verwendet. Hier empfiehlt sich ein günstiges Modell.",
+    "help.tools.wikipedia.summary_mode": "Wikipedia-Inhalte werden an ein separates (günstiges) Modell gesendet, das eine fokussierte Zusammenfassung erstellt. Der Agent erhält nur die Zusammenfassung statt des vollständigen Artikels.",
+    "help.tools.wikipedia.summary_provider": "Provider-Eintrag für das Zusammenfassungsmodell. Leer = Haupt-LLM wird verwendet.",
+    "help.tools.ddg_search.summary_mode": "Suchergebnisse werden an ein separates (günstiges) Modell gesendet, das die relevantesten Informationen zusammenfasst. Der Agent erhält nur die Zusammenfassung.",
+    "help.tools.ddg_search.summary_provider": "Provider-Eintrag für das Zusammenfassungsmodell. Leer = Haupt-LLM wird verwendet.",
+    "help.tools.pdf_extractor.enabled": "Wenn deaktiviert, kann der Agent keine PDF-Dateien auslesen.",
+    "help.tools.pdf_extractor.summary_mode": "Extrahierter PDF-Text wird an ein separates (günstiges) Modell gesendet, das eine fokussierte Zusammenfassung erstellt. Der Agent erhält nur die Zusammenfassung.",
+    "help.tools.pdf_extractor.summary_provider": "Provider-Eintrag für das Zusammenfassungsmodell. Leer = Haupt-LLM wird verwendet.",
     "help.tools.wol.enabled": "Aktiviert das Wake-on-LAN Tool. Der Agent kann damit Geräten, für die eine MAC-Adresse im Gerätemanager hinterlegt ist, einen Magic-Packet-Weck-Befehl senden. Erfordert, dass die Geräte WOL unterstützen und im lokalen Netzwerk erreichbar sind.",
     "help.tts.elevenlabs.api_key": "ElevenLabs API Key.",
     "help.tts.elevenlabs.model_id": "ElevenLabs Model ID, z.B. 'eleven_multilingual_v2'.",
@@ -2115,6 +2122,13 @@
     "help.tools.web_scraper.enabled": "When disabled, the web_scraper skill is blocked. The agent will not be able to fetch external websites.",
     "help.tools.web_scraper.summary_mode": "Scraped content is sent to a separate (cheap) model that creates a summary only. The agent receives only the summary — saves tokens and prevents prompt injection.",
     "help.tools.web_scraper.summary_provider": "Provider entry for the summarisation model. Empty = main LLM is used. A cheap model is recommended here.",
+    "help.tools.wikipedia.summary_mode": "Wikipedia content is sent to a separate (cheap) model that creates a focused summary. The agent receives only the summary instead of the full article.",
+    "help.tools.wikipedia.summary_provider": "Provider entry for the summarisation model. Empty = main LLM is used.",
+    "help.tools.ddg_search.summary_mode": "Search results are sent to a separate (cheap) model that synthesises the most relevant information. The agent receives only the summary.",
+    "help.tools.ddg_search.summary_provider": "Provider entry for the summarisation model. Empty = main LLM is used.",
+    "help.tools.pdf_extractor.enabled": "When disabled, the agent cannot extract text from PDF files.",
+    "help.tools.pdf_extractor.summary_mode": "Extracted PDF text is sent to a separate (cheap) model that creates a focused summary. The agent receives only the summary.",
+    "help.tools.pdf_extractor.summary_provider": "Provider entry for the summarisation model. Empty = main LLM is used.",
     "help.tools.wol.enabled": "Enables the Wake-on-LAN tool. The agent can send a magic packet to wake up devices that have a MAC address registered in the device manager. Requires devices to support WOL and be reachable on the local network.",
     "help.tts.elevenlabs.api_key": "ElevenLabs API Key.",
     "help.tts.elevenlabs.model_id": "ElevenLabs Model ID, e.g. 'eleven_multilingual_v2'.",
@@ -3325,6 +3339,15 @@
       ]
     },
     "help.tools.web_scraper.summary_provider": {
+      "provider_ref": true
+    },
+    "help.tools.wikipedia.summary_provider": {
+      "provider_ref": true
+    },
+    "help.tools.ddg_search.summary_provider": {
+      "provider_ref": true
+    },
+    "help.tools.pdf_extractor.summary_provider": {
       "provider_ref": true
     },
     "help.ansible.mode": {

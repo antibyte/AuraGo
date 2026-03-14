@@ -4,7 +4,8 @@
   "executable": "__builtin__",
   "parameters": {
     "query": "The search query string",
-    "max_results": "Maximum number of results to return (default: 5, max recommended: 10)"
+    "max_results": "Maximum number of results to return (default: 5, max recommended: 10)",
+    "search_query": "When summary mode is active, tell the summariser what specific information to synthesise from the results. Be specific."
   },
-  "returns": "List of search results with titles, snippets, and URLs"
+  "returns": "List of search results with titles, snippets, and URLs, or a focused summary when summary mode is enabled"
 }

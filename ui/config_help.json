@@ -404,6 +404,18 @@
     "web_scraper": {
       "title": "Web Scraper",
       "description": "Enable fetching and scraping web content"
+    },
+    "wikipedia": {
+      "title": "Wikipedia Search",
+      "description": "Summary mode sends Wikipedia content to a separate LLM for focused summarisation before returning to the agent"
+    },
+    "ddg_search": {
+      "title": "DuckDuckGo Search",
+      "description": "Summary mode sends search results to a separate LLM for focused summarisation before returning to the agent"
+    },
+    "pdf_extractor": {
+      "title": "PDF Extractor",
+      "description": "Extract text content from PDF files. Summary mode sends extracted text to a separate LLM for focused summarisation"
     }
   }
 }

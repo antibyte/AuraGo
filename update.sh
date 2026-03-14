@@ -915,6 +915,8 @@ if $GO_FOUND; then
     info "Building aurago-remote_linux ($GOARCH)..."
     if CGO_ENABLED=0 GOOS=linux GOARCH="$GOARCH" go build -trimpath -ldflags='-s -w' -o bin/aurago-remote_linux ./cmd/remote; then
         ok "bin/aurago-remote_linux built from source"
+        mkdir -p "$DIR/deploy"
+        cp "$DIR/bin/aurago-remote_linux" "$DIR/deploy/aurago-remote_linux_${GOARCH}"
     fi
 else
     # ── Download binaries from GitHub Releases (no Go available) ─────────
@@ -945,6 +947,10 @@ else
         [ -f "$DIR/bin/config-merger_linux_arm64" ]      && cp -p "$DIR/bin/config-merger_linux_arm64"      "$DIR/bin/config-merger_linux"
         [ -f "$DIR/bin/aurago-remote_linux_arm64" ]      && cp -p "$DIR/bin/aurago-remote_linux_arm64"      "$DIR/bin/aurago-remote_linux"
     fi
+
+    # Copy downloaded remote binary to deploy/ so the client download feature works
+    mkdir -p "$DIR/deploy"
+    [ -f "$DIR/bin/aurago-remote_linux" ] && cp -p "$DIR/bin/aurago-remote_linux" "$DIR/deploy/aurago-remote_linux_${GOARCH}"
 
     [ -f "$DIR/bin/aurago_linux" ] || die "Failed to obtain aurago_linux binary. Cannot continue."
 

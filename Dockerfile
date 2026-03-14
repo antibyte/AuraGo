@@ -24,6 +24,16 @@ RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
     go build -ldflags="-s -w" -o /aurago-remote ./cmd/remote
 
+# Build aurago-remote client binaries for all supported platforms so the
+# server can serve them via /api/remote/download/{os}/{arch}.
+RUN mkdir -p /deploy && \
+    for target in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64; do \
+        os="${target%/*}"; arch="${target#*/}"; ext=""; \
+        [ "$os" = "windows" ] && ext=".exe"; \
+        CGO_ENABLED=0 GOOS=$os GOARCH=$arch go build -trimpath -ldflags="-s -w" \
+            -o "/deploy/aurago-remote_${os}_${arch}${ext}" ./cmd/remote/; \
+    done
+
 # ============================================================
 # Stage 2: Runtime
 # ============================================================
@@ -45,6 +55,7 @@ COPY --from=builder /aurago /app/aurago
 COPY --from=builder /lifeboat /app/lifeboat
 COPY --from=builder /config-merger /app/config-merger
 COPY --from=builder /aurago-remote /app/aurago-remote
+COPY --from=builder /deploy /app/deploy
 
 # Static resources that the agent needs at runtime.
 # config.yaml is intentionally NOT baked in – users must supply it via volume.

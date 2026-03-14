@@ -4,7 +4,8 @@
   "executable": "__builtin__",
   "parameters": {
     "query": "The search term or topic to look up on Wikipedia",
-    "language": "Wikipedia language code (e.g. 'en', 'de', 'fr'). Defaults to 'en' if omitted"
+    "language": "Wikipedia language code (e.g. 'en', 'de', 'fr'). Defaults to 'en' if omitted",
+    "search_query": "When summary mode is active, tell the summariser what specific information to extract from the article. Be specific."
   },
-  "returns": "Article title and summary text from Wikipedia"
+  "returns": "Article title and summary text from Wikipedia, or a focused summary when summary mode is enabled"
 }

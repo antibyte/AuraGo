@@ -570,6 +570,31 @@ type Config struct {
 			SummaryAPIKey  string `yaml:"-" json:"-"`
 			SummaryModel   string `yaml:"-" json:"-"`
 		} `yaml:"web_scraper"`
+		Wikipedia struct {
+			SummaryMode     bool   `yaml:"summary_mode"`     // summarise Wikipedia content via a separate LLM before returning to agent
+			SummaryProvider string `yaml:"summary_provider"` // provider entry ID used for summarisation
+			// resolved fields (populated by ResolveProviders)
+			SummaryBaseURL string `yaml:"-" json:"-"`
+			SummaryAPIKey  string `yaml:"-" json:"-"`
+			SummaryModel   string `yaml:"-" json:"-"`
+		} `yaml:"wikipedia"`
+		DDGSearch struct {
+			SummaryMode     bool   `yaml:"summary_mode"`     // summarise DDG search results via a separate LLM before returning to agent
+			SummaryProvider string `yaml:"summary_provider"` // provider entry ID used for summarisation
+			// resolved fields (populated by ResolveProviders)
+			SummaryBaseURL string `yaml:"-" json:"-"`
+			SummaryAPIKey  string `yaml:"-" json:"-"`
+			SummaryModel   string `yaml:"-" json:"-"`
+		} `yaml:"ddg_search"`
+		PDFExtractor struct {
+			Enabled         bool   `yaml:"enabled"`          // enable pdf_extractor (default true)
+			SummaryMode     bool   `yaml:"summary_mode"`     // summarise extracted PDF text via a separate LLM before returning to agent
+			SummaryProvider string `yaml:"summary_provider"` // provider entry ID used for summarisation
+			// resolved fields (populated by ResolveProviders)
+			SummaryBaseURL string `yaml:"-" json:"-"`
+			SummaryAPIKey  string `yaml:"-" json:"-"`
+			SummaryModel   string `yaml:"-" json:"-"`
+		} `yaml:"pdf_extractor"`
 	} `yaml:"tools"`
 	Sandbox struct {
 		Enabled        bool   `yaml:"enabled"`

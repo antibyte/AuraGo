@@ -1,12 +1,10 @@
 {
     "name": "pdf_extractor",
     "description": "Extracts all text content from a PDF file. Use this instead of writing your own PDF parser.",
-    "executable": "pdf_extractor.py",
+    "executable": "__builtin__",
     "parameters": {
-        "filepath": "The relative path to the PDF file within the agent_workspace/workdir/."
+        "filepath": "The path to the PDF file (relative to the workspace workdir, or absolute).",
+        "search_query": "When summary mode is active, tell the summariser what information to extract from the PDF. Be specific."
     },
-    "returns": "The full text content of the PDF file as a string.",
-    "dependencies": [
-        "PyPDF2"
-    ]
+    "returns": "The full text content of the PDF file as a string, or a focused summary when summary mode is enabled."
 }
