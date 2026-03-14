@@ -183,6 +183,19 @@ safe_restore_file() {
     return 1
 }
 
+copy_tree_merge() {
+    local src="$1"
+    local dst="$2"
+
+    if command -v rsync >/dev/null 2>&1; then
+        # Avoid owner/group preservation to prevent non-fatal permission errors
+        # on systems where destination files may be root-owned.
+        rsync -rlt --quiet --no-owner --no-group "$src" "$dst"
+    else
+        cp -r "$src" "$dst"
+    fi
+}
+
 # ── Files & directories that must NEVER be touched ─────────────────────
 # These are backed up before git operations and restored afterwards.
 PROTECTED_FILES=(
@@ -211,6 +224,13 @@ DATA_FILES=(
 # Prompt directories: protect all custom *.md files that are NOT tracked by git
 PROMPTS_DIR="$DIR/prompts"
 
+# Escape to a separate systemd scope only when actually running inside
+# the aurago service cgroup. Manual shell runs do not need this path.
+IN_AURAGO_CGROUP=false
+if [ -r "/proc/$$/cgroup" ] && grep -qE 'aurago\.service' "/proc/$$/cgroup"; then
+    IN_AURAGO_CGROUP=true
+fi
+
 # ── Escape systemd service cgroup ─────────────────────────────────────
 # When triggered from the AuraGo web UI, this script runs inside the
 # aurago systemd service cgroup.  By default (KillMode=control-group),
@@ -218,7 +238,7 @@ PROMPTS_DIR="$DIR/prompts"
 # this script — the moment aurago's main process is stopped below.
 # To survive that cleanup we try to re-exec ourselves in an independent
 # transient scope before we touch any processes.
-if [ -z "${_AU_ESCAPED:-}" ]; then
+if $IN_AURAGO_CGROUP && [ -z "${_AU_ESCAPED:-}" ]; then
     if command -v systemd-run >/dev/null 2>&1; then
         # Prefer a user scope (no root required, needs active user session).
         # Pass --escaped as a CLI argument — this is 100% reliable regardless
@@ -447,11 +467,7 @@ ok "Backed up: data/ (critical files)"
 for d in "${PROTECTED_DIRS[@]}"; do
     if [ -d "$DIR/$d" ]; then
         local_name="${d//\//__}"      # replace / with __ for flat backup name
-        if command -v rsync >/dev/null 2>&1; then
-            rsync -a --quiet "$DIR/$d/" "$BACKUP_DIR/$local_name/"
-        else
-            cp -r "$DIR/$d" "$BACKUP_DIR/$local_name"
-        fi
+        copy_tree_merge "$DIR/$d/" "$BACKUP_DIR/$local_name/" || warn "Could not fully back up $d/."
         ok "Backed up: $d/"
     fi
 done
@@ -462,11 +478,7 @@ if [ -d "$PROMPTS_DIR" ]; then
     mkdir -p "$CUSTOM_PROMPTS"
     if $BINARY_ONLY; then
         # Binary install: back up all prompt files (they are always overwritten by update)
-        if command -v rsync >/dev/null 2>&1; then
-            rsync -a "$PROMPTS_DIR/" "$CUSTOM_PROMPTS/"
-        else
-            cp -r "$PROMPTS_DIR/." "$CUSTOM_PROMPTS/"
-        fi
+        copy_tree_merge "$PROMPTS_DIR/" "$CUSTOM_PROMPTS/" || warn "Could not fully back up prompts/."
         CUSTOM_COUNT=$(find "$PROMPTS_DIR" -type f | wc -l)
     else
         # Git install: back up only untracked/locally modified files
@@ -545,11 +557,7 @@ fi
 # In binary-only mode the custom prompt backup covers all files; re-apply
 # it now so user customisations are not wiped by the resources.dat extract.
 if $BINARY_ONLY && [ -d "$BACKUP_DIR/prompts__custom" ] && [ "$(ls -A "$BACKUP_DIR/prompts__custom")" ]; then
-    if command -v rsync >/dev/null 2>&1; then
-        rsync -a --quiet "$BACKUP_DIR/prompts__custom/" "$DIR/prompts/"
-    else
-        cp -r "$BACKUP_DIR/prompts__custom/." "$DIR/prompts/"
-    fi
+    copy_tree_merge "$BACKUP_DIR/prompts__custom/" "$DIR/prompts/" || warn "Could not fully restore custom prompt files."
     ok "Custom prompt files restored"
 fi
 
@@ -559,7 +567,7 @@ if [ -d "$OLD_PROMPTS" ]; then
     info "Old location detected: agent_workspace/prompts/ — migrating custom files ..."
     # Copy any files that don't yet exist at the new location (don't overwrite)
     if command -v rsync >/dev/null 2>&1; then
-        rsync -a --ignore-existing "$OLD_PROMPTS/" "$DIR/prompts/"
+        rsync -rlt --quiet --no-owner --no-group --ignore-existing "$OLD_PROMPTS/" "$DIR/prompts/" || warn "Could not fully migrate old prompts directory."
     else
         find "$OLD_PROMPTS" -type f | while read -r f; do
             rel="${f#$OLD_PROMPTS/}"
@@ -601,11 +609,7 @@ for d in "${PROTECTED_DIRS[@]}"; do
     bak="$BACKUP_DIR/$local_name"
     if [ -d "$bak" ]; then
         # Use rsync if available for smart merge; fall back to cp
-        if command -v rsync >/dev/null 2>&1; then
-            rsync -a --quiet "$bak/" "$DIR/$d/"
-        else
-            cp -r "$bak/." "$DIR/$d/"
-        fi
+        copy_tree_merge "$bak/" "$DIR/$d/" || warn "Could not fully restore $d/."
         ok "Restored: $d/"
     fi
 done
@@ -625,11 +629,7 @@ fi
 # Restore custom prompt files
 CUSTOM_PROMPTS="$BACKUP_DIR/prompts__custom"
 if [ -d "$CUSTOM_PROMPTS" ] && [ "$(ls -A "$CUSTOM_PROMPTS")" ]; then
-    if command -v rsync >/dev/null 2>&1; then
-        rsync -a --quiet "$CUSTOM_PROMPTS/" "$PROMPTS_DIR/"
-    else
-        cp -r "$CUSTOM_PROMPTS/." "$PROMPTS_DIR/"
-    fi
+    copy_tree_merge "$CUSTOM_PROMPTS/" "$PROMPTS_DIR/" || warn "Could not fully restore custom prompt files."
     ok "Restored custom prompt files"
 fi
 
