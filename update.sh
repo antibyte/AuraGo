@@ -163,9 +163,23 @@ PROTECTED_FILES=(
     "config.yaml"
     "config_debug.yaml"
 )
+# Directories to back up fully (must be small — they go to /tmp).
+# data/vectordb, data/tts, data/vectordb_backup are intentionally excluded:
+# they are gitignored (git never touches them) and can be very large.
+# agent_workspace/workdir and agent_workspace/github are also excluded
+# (ephemeral working state, gitignored, safe).
 PROTECTED_DIRS=(
-    # Runtime directories like data/, log/, workdir/ are in .gitignore
-    # and will be preserved by git pull automatically. No need to move them.
+    "agent_workspace/tools"
+    "agent_workspace/skills"
+)
+# Critical data files backed up individually (avoids copying large binary dirs)
+DATA_FILES=(
+    "data/character_journal.md"
+    "data/chat_history.json"
+    "data/crontab.json"
+    "data/current_plan.md"
+    "data/graph.json"
+    "data/state.json"
 )
 # Prompt directories: protect all custom *.md files that are NOT tracked by git
 PROMPTS_DIR="$DIR/prompts"
@@ -383,10 +397,23 @@ for f in "${PROTECTED_FILES[@]}"; do
     fi
 done
 
+# Back up individual critical data files
+mkdir -p "$BACKUP_DIR/data"
+for f in "${DATA_FILES[@]}"; do
+    if [ -f "$DIR/$f" ]; then
+        cp -p "$DIR/$f" "$BACKUP_DIR/data/$(basename "$f")"
+    fi
+done
+ok "Backed up: data/ (critical files)"
+
 for d in "${PROTECTED_DIRS[@]}"; do
     if [ -d "$DIR/$d" ]; then
         local_name="${d//\//__}"      # replace / with __ for flat backup name
-        cp -r "$DIR/$d" "$BACKUP_DIR/$local_name"
+        if command -v rsync >/dev/null 2>&1; then
+            rsync -a --quiet "$DIR/$d/" "$BACKUP_DIR/$local_name/"
+        else
+            cp -r "$DIR/$d" "$BACKUP_DIR/$local_name"
+        fi
         ok "Backed up: $d/"
     fi
 done
@@ -555,6 +582,18 @@ for d in "${PROTECTED_DIRS[@]}"; do
         ok "Restored: $d/"
     fi
 done
+
+# Restore critical data files (these are gitignored so git can't touch them,
+# but restore from backup for completeness in case of any edge case)
+if [ -d "$BACKUP_DIR/data" ]; then
+    mkdir -p "$DIR/data"
+    for f in "${DATA_FILES[@]}"; do
+        bak="$BACKUP_DIR/data/$(basename "$f")"
+        if [ -f "$bak" ]; then
+            cp -p "$bak" "$DIR/$f"
+        fi
+    done
+fi
 
 # Restore custom prompt files
 CUSTOM_PROMPTS="$BACKUP_DIR/prompts__custom"
