@@ -196,7 +196,7 @@ function renderMissions() {
         const resultIcon = mission.last_result === 'success' ? icons.success : mission.last_result === 'error' ? icons.error : '';
 
         return `
-                    <div class="mission-card ${statusClass}${isFirstRender ? ' entering' : ''}">`
+                    <div class="mission-card ${statusClass}${isFirstRender ? ' entering' : ''}">
                         <div class="mission-header">
                             <div class="mission-title">
                                 <span class="mission-name">${escapeHtml(mission.name)}</span>
