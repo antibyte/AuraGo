@@ -63,7 +63,13 @@ confirm() {
 }
 
 # ── Find installation directory ────────────────────────────────────────
-DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# _AU_ORIG_DIR is exported when re-execing from a temp copy (see below).
+# In that case BASH_SOURCE[0] points to /tmp/... so we must use the saved path.
+if [ -n "${_AU_ORIG_DIR:-}" ]; then
+    DIR="$_AU_ORIG_DIR"
+else
+    DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+fi
 cd "$DIR"
 
 if [ ! -f "$DIR/go.mod" ] && [ ! -f "$DIR/bin/aurago_linux" ]; then
@@ -181,6 +187,22 @@ if [ -z "${_AU_ESCAPED:-}" ]; then
     # may be interrupted by cgroup cleanup.  Use `sudo systemctl stop
     # aurago` + `sudo /path/to/update.sh --yes` for a guaranteed update.
 fi
+
+# ── Copy to temp to prevent mid-run file replacement ─────────────────
+# bash reads scripts lazily in chunks from disk. git pull replaces this
+# file during execution; subsequent reads start at the wrong byte offset
+# in the new version, causing re-execution from near the top of the file.
+# Running from a temp copy ensures git pull cannot affect our execution.
+if [ -z "${_AU_TMPRUN:-}" ]; then
+    _TMPS=$(mktemp "/tmp/aurago-update.XXXXXX")
+    cp -- "$0" "$_TMPS"
+    chmod +x "$_TMPS"
+    export _AU_TMPRUN=1
+    export _AU_ORIG_DIR="$DIR"
+    exec /bin/bash "$_TMPS" "$@"
+fi
+# Running from temp copy: schedule cleanup.
+trap 'rm -f "${BASH_SOURCE[0]}"' EXIT
 
 # ── Banner ─────────────────────────────────────────────────────────────
 G1='\033[38;5;39m'
