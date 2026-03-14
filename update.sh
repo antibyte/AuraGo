@@ -417,7 +417,6 @@ if [ -d "$PROMPTS_DIR" ]; then
 fi
 
 # ── Apply update ───────────────────────────────────────────────────────
-STASH_NEEDED=false
 if $BINARY_ONLY; then
     # Binary-only: download resources.dat and extract
     info "Downloading resources.dat ..."
@@ -453,40 +452,23 @@ if $BINARY_ONLY; then
     printf '%s' "$RELEASE_TAG" > "$DIR/.version"
     ok "Resources updated from release $RELEASE_TAG"
 else
-    # Git-based: stash, pull, restore
-    # STASH_REF records the ref of the stash we created (or "" if none).
-    # We ONLY pop the stash we created — never a pre-existing entry.
-    STASH_REF=""
+    # Git-based update
+    # ── Strategy: We already backed up ALL user data (config.yaml, custom
+    # prompts, data/, etc.) so we can safely reset dirty tracked files.
+    # This avoids stash entirely (which fails when prompt files are
+    # modified) and avoids git reset --hard (which triggers bash re-reads
+    # of the on-disk script).  After pull we restore from backup.
     if ! git diff --quiet || ! git diff --cached --quiet; then
-        warn "Local changes detected in tracked files."
-        if git diff --name-only | grep -q "config.yaml"; then
-            info "Resetting config.yaml to upstream state before pull (will merge from backup later)..."
-            git checkout config.yaml
-        fi
-        if ! git diff --quiet || ! git diff --cached --quiet; then
-            warn "Stashing other changes temporarily..."
-            if git stash push --quiet -m "aurago-update-stash-$(date +%s)" 2>/dev/null; then
-                STASH_REF=$(git stash list --format='%gd' 2>/dev/null | head -1 || true)
-            else
-                warn "Git stash failed (index lock?). Attempting index cleanup..."
-                rm -f "$DIR/.git/index.lock" 2>/dev/null || true
-                git reset --mixed HEAD 2>/dev/null || true
-                if git stash push --quiet -m "aurago-update-stash-$(date +%s)" 2>/dev/null; then
-                    STASH_REF=$(git stash list --format='%gd' 2>/dev/null | head -1 || true)
-                else
-                    warn "Stash still failing. Tracked changes will remain as-is."
-                fi
-            fi
-        fi
+        info "Resetting tracked files to clean state for pull (user data is backed up)..."
+        git checkout -- . 2>/dev/null || true
+        # Drop any staged changes too
+        git reset --quiet HEAD 2>/dev/null || true
     fi
 
     git pull origin main --ff-only || {
-        warn "Fast-forward failed. Attempting reset to origin/main..."
-        if confirm "Reset local repo to origin/main? (Your user data is backed up and will be restored)"; then
-            git reset --hard origin/main
-        else
-            die "Update aborted."
-        fi
+        warn "Fast-forward pull failed — fetching and resetting to origin/main..."
+        git fetch origin main --quiet
+        git reset --hard origin/main
     }
     ok "Code updated to $(git log --format='%h  %s' -1)"
     # Write version tag for the Web UI update check
@@ -527,11 +509,8 @@ if [ -d "$OLD_PROMPTS" ]; then
     ok "Migrated and removed agent_workspace/prompts/"
 fi
 
-# Re-apply ONLY the stash we created (git mode only)
-if ! $BINARY_ONLY && [ -n "${STASH_REF:-}" ]; then
-    info "Re-applying stashed local changes..."
-    git stash pop "$STASH_REF" --quiet 2>/dev/null || warn "Could not re-apply stash — check 'git stash list'"
-fi
+# No stash to re-apply — we used git checkout instead.
+# User data (config.yaml, custom prompts) is restored from backup below.
 
 # ── Restore user data ──────────────────────────────────────────────────
 section "Restoring user data"
