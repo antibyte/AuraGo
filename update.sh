@@ -159,7 +159,10 @@ if [ -z "${_AU_ESCAPED:-}" ]; then
     export _AU_ESCAPED=1
     if command -v systemd-run >/dev/null 2>&1; then
         # Prefer a user scope (no root required, needs active user session).
-        if systemd-run --user --scope --quiet -- /bin/bash "$0" "$@" 2>/dev/null; then
+        # Pass _AU_ESCAPED=1 explicitly: systemd-run --user --scope uses the
+        # logind session environment, NOT the calling process's exported vars,
+        # so 'export _AU_ESCAPED=1' above is NOT inherited by the scope.
+        if systemd-run --user --scope --quiet -- env _AU_ESCAPED=1 /bin/bash "$0" "$@" 2>/dev/null; then
             exit 0
         fi
         # Fall back to a system scope via sudo (password-less sudo only).
