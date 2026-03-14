@@ -397,6 +397,18 @@ for f in "${PROTECTED_FILES[@]}"; do
     fi
 done
 
+# If config.yaml is missing (e.g. re-execution after git deleted it during a
+# tracked→untracked transition), recover it from the most recent prior backup.
+if [ ! -f "$BACKUP_DIR/config.yaml" ]; then
+    _prev_cfg=$(find /tmp -maxdepth 2 -name "config.yaml" \
+        -path "*/aurago-backup-*" ! -path "$BACKUP_DIR/*" \
+        2>/dev/null | xargs ls -t 2>/dev/null | head -1)
+    if [ -n "$_prev_cfg" ]; then
+        cp -p "$_prev_cfg" "$BACKUP_DIR/config.yaml"
+        ok "Recovered config.yaml from previous backup (re-execution safety net)."
+    fi
+fi
+
 # Back up individual critical data files
 mkdir -p "$BACKUP_DIR/data"
 for f in "${DATA_FILES[@]}"; do
