@@ -57,6 +57,8 @@
   "config.section.webdav.desc": "WebDAV क्लाउड सिंक",
   "config.section.koofr.label": "कूफ़र",
   "config.section.koofr.desc": "कूफ़र क्लाउड स्टोरेज",
+  "config.section.paperless_ngx.label": "Paperless-ngx",
+  "config.section.paperless_ngx.desc": "Paperless-ngx दस्तावेज़ प्रबंधन",
   "config.section.virustotal.label": "वायरसटोटल",
   "config.section.virustotal.desc": "स्कैन के लिए वायरसटोटल एपीआई",
   "config.section.brave_search.label": "बहादुर खोज",

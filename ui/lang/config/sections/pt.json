@@ -57,6 +57,8 @@
   "config.section.webdav.desc": "Integração com WebDAV",
   "config.section.koofr.label": "Koofr",
   "config.section.koofr.desc": "Integração com Koofr",
+  "config.section.paperless_ngx.label": "Paperless-ngx",
+  "config.section.paperless_ngx.desc": "Gestão de documentos Paperless-ngx",
   "config.section.virustotal.label": "VirusTotal",
   "config.section.virustotal.desc": "Integração com VirusTotal",
   "config.section.brave_search.label": "Brave Search",

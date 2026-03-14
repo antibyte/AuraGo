@@ -491,6 +491,9 @@ func (c *Config) ApplyVaultSecrets(vault SecretReader) {
 	apply("mqtt_password", &c.MQTT.Password)
 	apply("adguard_password", &c.AdGuard.Password)
 
+	// ── Paperless-ngx ──
+	apply("paperless_ngx_api_token", &c.PaperlessNGX.APIToken)
+
 	// ── Homepage deploy secrets ──
 	apply("homepage_deploy_password", &c.Homepage.DeployPassword)
 	apply("homepage_deploy_key", &c.Homepage.DeployKey)

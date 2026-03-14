@@ -124,6 +124,7 @@ type ContextFlags struct {
 	WebhooksDefinitions      string // Summary of configured outgoing webhooks for tool context
 	VirusTotalEnabled        bool
 	BraveSearchEnabled       bool
+	PaperlessNGXEnabled      bool
 	// Danger Zone toggles
 	AllowShell           bool
 	AllowPython          bool

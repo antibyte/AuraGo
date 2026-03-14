@@ -918,6 +918,27 @@ if $GO_FOUND; then
         mkdir -p "$DIR/deploy"
         cp "$DIR/bin/aurago-remote_linux" "$DIR/deploy/aurago-remote_linux_${GOARCH}"
     fi
+
+    # Cross-compile aurago-remote for all client platforms so the
+    # /api/remote/download/{os}/{arch} endpoint can serve them.
+    info "Cross-compiling aurago-remote client binaries..."
+    mkdir -p "$DIR/deploy"
+    for _target in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64; do
+        _os="${_target%/*}"
+        _arch="${_target#*/}"
+        _ext=""
+        [ "$_os" = "windows" ] && _ext=".exe"
+        _out="$DIR/deploy/aurago-remote_${_os}_${_arch}${_ext}"
+        # Skip if we already built this exact combo above
+        if [ "$_os" = "linux" ] && [ "$_arch" = "$GOARCH" ] && [ -f "$_out" ]; then
+            continue
+        fi
+        if CGO_ENABLED=0 GOOS="$_os" GOARCH="$_arch" go build -trimpath -ldflags='-s -w' -o "$_out" ./cmd/remote; then
+            ok "  $_out"
+        else
+            warn "  cross-compile failed: $_os/$_arch"
+        fi
+    done
 else
     # ── Download binaries from GitHub Releases (no Go available) ─────────
     warn "Go is not installed — downloading pre-built binaries from GitHub Releases."

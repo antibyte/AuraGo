@@ -57,6 +57,8 @@
   "config.section.webdav.desc": "WebDAV クラウド同期",
   "config.section.koofr.label": "Koofr",
   "config.section.koofr.desc": "Koofr クラウドストレージ",
+  "config.section.paperless_ngx.label": "Paperless-ngx",
+  "config.section.paperless_ngx.desc": "Paperless-ngx ドキュメント管理",
   "config.section.virustotal.label": "VirusTotal",
   "config.section.virustotal.desc": "スキャン用 VirusTotal API",
   "config.section.brave_search.label": "Brave Search",

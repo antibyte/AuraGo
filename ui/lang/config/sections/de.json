@@ -57,6 +57,8 @@
   "config.section.webdav.desc": "WebDAV Cloud-Sync",
   "config.section.koofr.label": "Koofr",
   "config.section.koofr.desc": "Koofr Cloud-Storage",
+  "config.section.paperless_ngx.label": "Paperless-ngx",
+  "config.section.paperless_ngx.desc": "Paperless-ngx Dokumentenverwaltung",
   "config.section.virustotal.label": "VirusTotal",
   "config.section.virustotal.desc": "VirusTotal API für Scans",
   "config.section.brave_search.label": "Brave Search",

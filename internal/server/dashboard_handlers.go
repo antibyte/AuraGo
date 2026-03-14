@@ -612,6 +612,7 @@ func handleDashboardOverview(s *Server) http.HandlerFunc {
 			"webhooks":          cfg.Webhooks.Enabled,
 			"webdav":            cfg.WebDAV.Enabled,
 			"koofr":             cfg.Koofr.Enabled,
+			"paperless_ngx":     cfg.PaperlessNGX.Enabled,
 			"chromecast":        cfg.Chromecast.Enabled,
 			"proxmox":           cfg.Proxmox.Enabled,
 			"ollama":            cfg.Ollama.Enabled,

@@ -1,0 +1,17 @@
+{
+  "name": "paperless",
+  "description": "Manage documents in a Paperless-ngx document management system. Search documents by full text or filters, retrieve document metadata and content, upload new documents, update metadata, delete documents, and list tags/correspondents/document types.",
+  "executable": "__builtin__",
+  "parameters": {
+    "operation": "The operation to perform: search, get, download, upload, update, delete, list_tags, list_correspondents, list_document_types (required)",
+    "query": "Full-text search query string (for search operation)",
+    "document_id": "Numeric ID of the document (for get, download, update, delete)",
+    "title": "Document title (for upload or update)",
+    "tags": "Comma-separated tag names for filtering (search) or setting (upload/update)",
+    "name": "Correspondent name for filtering (search) or setting (upload/update)",
+    "category": "Document type name for filtering (search) or setting (upload/update)",
+    "content": "Text content to upload as a new document (for upload)",
+    "limit": "Maximum number of results to return (default: 25, for search)"
+  },
+  "returns": "JSON object with status, message, and data containing document details, search results, or lists of tags/correspondents/document types"
+}

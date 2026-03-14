@@ -58,6 +58,7 @@ var systemSecretExact = map[string]struct{}{
 	"netlify_token":               {},
 	"pushover_user_key":           {},
 	"pushover_app_token":          {},
+	"paperless_ngx_api_token":     {},
 }
 
 // isSystemSecret returns true if the given vault key belongs to a system/tool handler

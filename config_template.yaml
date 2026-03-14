@@ -151,6 +151,10 @@ koofr:
     base_url: https://app.koofr.net
     enabled: false
     username: ""
+paperless_ngx:
+    enabled: false
+    readonly: false
+    url: ""
 virustotal:
     enabled: false
     api_key: ""

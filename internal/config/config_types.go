@@ -319,6 +319,12 @@ type Config struct {
 		AppPassword string `yaml:"-"`
 		BaseURL     string `yaml:"base_url"` // default: https://app.koofr.net
 	} `yaml:"koofr"`
+	PaperlessNGX struct {
+		Enabled  bool   `yaml:"enabled"`
+		ReadOnly bool   `yaml:"readonly"` // true = only search/get/download/list, block upload/update/delete
+		URL      string `yaml:"url"`      // e.g. https://paperless.example.com
+		APIToken string `yaml:"-"`
+	} `yaml:"paperless_ngx"`
 	TTS struct {
 		Provider   string `yaml:"provider"` // "google" or "elevenlabs"
 		Language   string `yaml:"language"` // BCP-47 language code for Google TTS (e.g. "de", "en")

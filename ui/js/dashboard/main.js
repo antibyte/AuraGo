@@ -932,7 +932,8 @@
                 koofr: '☁️', chromecast: '📺', proxmox: '🖥️', ollama: '🧠',
                 rocketchat: '💬', tailscale: '🔒', ansible: '🔧', invasion: '🥚',
                 github: '🐙', mqtt: '📡', budget: '💰', indexing: '📂',
-                auth: '🔑', fallback_llm: '🔄', personality_v2: '🎭', user_profiling: '👤', tts: '🔊'
+                auth: '🔑', fallback_llm: '🔄', personality_v2: '🎭', user_profiling: '👤', tts: '🔊',
+                paperless_ngx: '📄'
             };
             const names = {
                 telegram: t('dashboard.integration_telegram'), discord: t('dashboard.integration_discord'),
@@ -947,7 +948,8 @@
                 budget: t('dashboard.integration_budget'), indexing: t('dashboard.integration_indexing'),
                 auth: t('dashboard.integration_auth'), fallback_llm: t('dashboard.integration_fallback_llm'),
                 personality_v2: t('dashboard.integration_personality_v2'), user_profiling: t('dashboard.integration_user_profiling'),
-                tts: t('dashboard.integration_tts')
+                tts: t('dashboard.integration_tts'),
+                paperless_ngx: t('dashboard.integration_paperless_ngx')
             };
 
             // Sort: active first

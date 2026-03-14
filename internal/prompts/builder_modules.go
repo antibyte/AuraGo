@@ -256,6 +256,10 @@ func (m *PromptModule) ShouldInclude(flags ContextFlags) bool {
 			if flags.KoofrEnabled {
 				return true
 			}
+		case "paperless_ngx_enabled":
+			if flags.PaperlessNGXEnabled {
+				return true
+			}
 		case "chromecast_enabled":
 			if flags.ChromecastEnabled {
 				return true

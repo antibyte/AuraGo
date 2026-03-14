@@ -83,6 +83,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		HomeAssistantEnabled:     cfg.HomeAssistant.Enabled,
 		WebDAVEnabled:            cfg.WebDAV.Enabled,
 		KoofrEnabled:             cfg.Koofr.Enabled,
+		PaperlessNGXEnabled:      cfg.PaperlessNGX.Enabled,
 		ChromecastEnabled:        cfg.Chromecast.Enabled,
 		CoAgentEnabled:           cfg.CoAgents.Enabled,
 		GoogleWorkspaceEnabled:   cfg.GoogleWorkspace.Enabled,
