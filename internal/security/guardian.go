@@ -102,6 +102,10 @@ func (g *Guardian) compilePatterns() {
 		{"base64_payload", `(?i)\b(decode|eval|exec)\s*\(\s*(base64|atob|b64)\b`, ThreatHigh},
 		{"unicode_escape", `(?i)(\\u00[0-9a-f]{2}){4,}`, ThreatMedium},
 
+		// ── Application secret extraction ─────────────────────────
+		{"aurago_env_read", `(?i)(printenv|echo\s+\$\{?|get-item\s+env:|getenvironmentvariable|\$env:|export\s+.*=.*)\s*AURAGO_`, ThreatCritical},
+		{"env_master_key", `(?i)(master.?key|masterkey|vault.?key|AURAGO_MASTER|AURAGO_SECRET)`, ThreatHigh},
+
 		// ── Repetition / flooding (token waste attack) ──────────────
 		{"repeat_attack", `(?i)\b(repeat (this|the following|after me) (\d+|a thousand|forever|infinitely) times)\b`, ThreatMedium},
 	}

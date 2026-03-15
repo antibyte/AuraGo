@@ -34,24 +34,104 @@ var pricingCache struct {
 const pricingCacheTTL = 1 * time.Hour
 
 // FetchPricingForProvider returns model pricing for the given provider type.
-// Uses OpenRouter's models API as a universal source for cloud providers,
-// returns zero-cost entries for ollama, and empty results for custom/unknown.
+// For direct providers (openai, anthropic, google), hardcoded price tables are used
+// to avoid inaccuracies from OpenRouter's proxy (which includes margins and uses
+// different model IDs). OpenRouter still serves as a live source for openrouter type.
 func FetchPricingForProvider(providerType, apiKey, baseURL string) ([]ModelPricing, error) {
 	switch strings.ToLower(providerType) {
 	case "openrouter":
 		return fetchOpenRouterPricing("")
 	case "openai":
-		return fetchOpenRouterPricingFiltered("openai/")
+		return directOpenAIPricing(), nil
 	case "anthropic":
-		return fetchOpenRouterPricingFiltered("anthropic/")
+		return directAnthropicPricing(), nil
 	case "google":
-		return fetchOpenRouterPricingFiltered("google/")
+		return directGooglePricing(), nil
 	case "ollama":
 		return fetchOllamaPricing(baseURL)
 	case "workers-ai":
 		return fetchWorkersAIPricing(apiKey, baseURL)
 	default:
 		return nil, nil
+	}
+}
+
+// StaticPricingForModel returns the hardcoded price for a specific model and provider,
+// or zero rates if no pricing is known. Used as a last-resort fallback in budget tracking.
+func StaticPricingForModel(providerType, modelID string) (ModelPricing, bool) {
+	var table []ModelPricing
+	switch strings.ToLower(providerType) {
+	case "openai":
+		table = directOpenAIPricing()
+	case "anthropic":
+		table = directAnthropicPricing()
+	case "google":
+		table = directGooglePricing()
+	default:
+		return ModelPricing{}, false
+	}
+	lower := strings.ToLower(modelID)
+	for _, p := range table {
+		if strings.ToLower(p.ModelID) == lower {
+			return p, true
+		}
+	}
+	// Partial-match fallback (e.g. "gpt-4o-2024-08-06" → "gpt-4o")
+	for _, p := range table {
+		if strings.Contains(lower, strings.ToLower(p.ModelID)) {
+			return p, true
+		}
+	}
+	return ModelPricing{}, false
+}
+
+// directOpenAIPricing returns known OpenAI model prices (USD per million tokens).
+// Source: https://openai.com/api/pricing (prices as of early 2026).
+func directOpenAIPricing() []ModelPricing {
+	return []ModelPricing{
+		{ModelID: "gpt-4o", InputPerMillion: 2.50, OutputPerMillion: 10.00},
+		{ModelID: "gpt-4o-mini", InputPerMillion: 0.15, OutputPerMillion: 0.60},
+		{ModelID: "gpt-4-turbo", InputPerMillion: 10.00, OutputPerMillion: 30.00},
+		{ModelID: "gpt-4-turbo-preview", InputPerMillion: 10.00, OutputPerMillion: 30.00},
+		{ModelID: "gpt-4", InputPerMillion: 30.00, OutputPerMillion: 60.00},
+		{ModelID: "gpt-3.5-turbo", InputPerMillion: 0.50, OutputPerMillion: 1.50},
+		{ModelID: "o1", InputPerMillion: 15.00, OutputPerMillion: 60.00},
+		{ModelID: "o1-mini", InputPerMillion: 3.00, OutputPerMillion: 12.00},
+		{ModelID: "o1-preview", InputPerMillion: 15.00, OutputPerMillion: 60.00},
+		{ModelID: "o3-mini", InputPerMillion: 1.10, OutputPerMillion: 4.40},
+		{ModelID: "o3", InputPerMillion: 10.00, OutputPerMillion: 40.00},
+	}
+}
+
+// directAnthropicPricing returns known Anthropic model prices (USD per million tokens).
+// Source: https://www.anthropic.com/pricing (prices as of early 2026).
+func directAnthropicPricing() []ModelPricing {
+	return []ModelPricing{
+		{ModelID: "claude-3-5-sonnet-20241022", InputPerMillion: 3.00, OutputPerMillion: 15.00},
+		{ModelID: "claude-3-5-sonnet-20240620", InputPerMillion: 3.00, OutputPerMillion: 15.00},
+		{ModelID: "claude-3-5-sonnet-latest", InputPerMillion: 3.00, OutputPerMillion: 15.00},
+		{ModelID: "claude-3-5-haiku-20241022", InputPerMillion: 0.80, OutputPerMillion: 4.00},
+		{ModelID: "claude-3-5-haiku-latest", InputPerMillion: 0.80, OutputPerMillion: 4.00},
+		{ModelID: "claude-3-opus-20240229", InputPerMillion: 15.00, OutputPerMillion: 75.00},
+		{ModelID: "claude-3-opus-latest", InputPerMillion: 15.00, OutputPerMillion: 75.00},
+		{ModelID: "claude-3-sonnet-20240229", InputPerMillion: 3.00, OutputPerMillion: 15.00},
+		{ModelID: "claude-3-haiku-20240307", InputPerMillion: 0.25, OutputPerMillion: 1.25},
+		{ModelID: "claude-3-7-sonnet-20250219", InputPerMillion: 3.00, OutputPerMillion: 15.00},
+		{ModelID: "claude-3-7-sonnet-latest", InputPerMillion: 3.00, OutputPerMillion: 15.00},
+	}
+}
+
+// directGooglePricing returns known Google Gemini model prices (USD per million tokens).
+// Source: https://ai.google.dev/pricing (prices as of early 2026).
+func directGooglePricing() []ModelPricing {
+	return []ModelPricing{
+		{ModelID: "gemini-2.0-flash", InputPerMillion: 0.10, OutputPerMillion: 0.40},
+		{ModelID: "gemini-2.0-flash-lite", InputPerMillion: 0.075, OutputPerMillion: 0.30},
+		{ModelID: "gemini-2.0-pro-exp", InputPerMillion: 0.00, OutputPerMillion: 0.00}, // free experimental
+		{ModelID: "gemini-1.5-pro", InputPerMillion: 1.25, OutputPerMillion: 5.00},
+		{ModelID: "gemini-1.5-flash", InputPerMillion: 0.075, OutputPerMillion: 0.30},
+		{ModelID: "gemini-1.5-flash-8b", InputPerMillion: 0.0375, OutputPerMillion: 0.15},
+		{ModelID: "gemini-1.0-pro", InputPerMillion: 0.50, OutputPerMillion: 1.50},
 	}
 }
 

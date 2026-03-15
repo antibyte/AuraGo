@@ -102,6 +102,11 @@ func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 		if !cfg.Agent.AllowShell {
 			return "Tool Output: [PERMISSION DENIED] execute_shell is disabled in Danger Zone settings (agent.allow_shell: false)."
 		}
+		// Block commands that attempt to read AURAGO_* environment variables (contains vault master key etc.)
+		if isBlockedEnvRead(tc.Command) {
+			logger.Warn("[Security] Blocked attempt to read sensitive environment variable", "command", tc.Command)
+			return "Tool Output: [PERMISSION DENIED] Reading AURAGO_ environment variables via shell is not permitted."
+		}
 		logger.Info("LLM requested shell execution", "command", tc.Command, "background", tc.Background)
 		if tc.Background {
 			pid, err := tools.ExecuteShellBackground(tc.Command, cfg.Directories.WorkspaceDir, registry)
@@ -111,6 +116,8 @@ func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 			return fmt.Sprintf("Tool Output: Shell process started in background. PID=%d. Use {\"action\": \"read_process_logs\", \"pid\": %d} to check output.", pid, pid)
 		}
 		stdout, stderr, err := tools.ExecuteShell(tc.Command, cfg.Directories.WorkspaceDir)
+		stdout = security.Scrub(stdout)
+		stderr = security.Scrub(stderr)
 
 		var sb strings.Builder
 		sb.WriteString("Tool Output:\n")
@@ -138,6 +145,8 @@ func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 		}
 		logger.Info("LLM requested sudo execution", "command", tc.Command)
 		stdoutS, stderrS, errS := tools.ExecuteSudo(tc.Command, cfg.Directories.WorkspaceDir, sudoPass)
+		stdoutS = security.Scrub(stdoutS)
+		stderrS = security.Scrub(stderrS)
 
 		var sbSudo strings.Builder
 		sbSudo.WriteString("Tool Output:\n")
@@ -1224,4 +1233,25 @@ func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 	default:
 		return dispatchNotHandled
 	}
+}
+
+// isBlockedEnvRead returns true if the shell command appears to read an AURAGO_*
+// environment variable. These variables include the master vault key and must never
+// be accessible through the shell tool.
+func isBlockedEnvRead(command string) bool {
+	upper := strings.ToUpper(command)
+	if !strings.Contains(upper, "AURAGO_") {
+		return false
+	}
+	lower := strings.ToLower(command)
+	// Match common env-reading patterns across sh/bash/zsh/PowerShell
+	return strings.Contains(lower, "printenv") ||
+		strings.Contains(lower, "echo") ||
+		strings.Contains(lower, "$env:") ||
+		strings.Contains(lower, "get-item") ||
+		strings.Contains(lower, "get-childitem") ||
+		strings.Contains(lower, "getenvironmentvariable") ||
+		strings.Contains(lower, "[system.environment]") ||
+		strings.Contains(lower, "environ") ||
+		strings.Contains(lower, "export")
 }

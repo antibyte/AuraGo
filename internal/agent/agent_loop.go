@@ -743,9 +743,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 
 			// Estimate streaming tokens
-			completionTokens = estimateTokens(content)
+			completionTokens = estimateTokensForModel(content, req.Model)
 			for _, m := range req.Messages {
-				promptTokens += estimateTokens(m.Content)
+				promptTokens += estimateTokensForModel(m.Content, req.Model)
 			}
 			totalTokens = promptTokens + completionTokens
 
@@ -900,10 +900,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 			// Estimate prompt tokens from all messages in request
 			for _, m := range req.Messages {
-				promptTokens += estimateTokens(m.Content)
+				promptTokens += estimateTokensForModel(m.Content, req.Model)
 			}
 			// Estimate completion tokens from response content
-			completionTokens = estimateTokens(content)
+			completionTokens = estimateTokensForModel(content, req.Model)
 			totalTokens = promptTokens + completionTokens
 		}
 

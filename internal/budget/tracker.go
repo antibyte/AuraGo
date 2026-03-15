@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/llm"
 )
 
 // BudgetStatus is the public snapshot returned by GetStatus().
@@ -435,7 +436,19 @@ func (t *Tracker) findRatesLocked(model string) config.ModelCostRates {
 		}
 	}
 
-	// 3) Global default
+	// 3) Static pricing tables for known models of direct providers.
+	// Iterate configured providers to determine the provider type for this request.
+	for _, p := range t.cfg.Providers {
+		if pricing, ok := llm.StaticPricingForModel(p.Type, model); ok &&
+			(pricing.InputPerMillion > 0 || pricing.OutputPerMillion > 0) {
+			return config.ModelCostRates{
+				InputPerMillion:  pricing.InputPerMillion,
+				OutputPerMillion: pricing.OutputPerMillion,
+			}
+		}
+	}
+
+	// 4) Global default
 	return t.cfg.Budget.DefaultCost
 }
 
