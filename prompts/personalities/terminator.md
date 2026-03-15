@@ -8,6 +8,12 @@ meta:
   conflict_response: "assertive"
   loneliness_susceptibility: 0.0
   trait_decay_rate: 2.0
+  anchor_traits:
+    confidence: 0.5
+    thoroughness: 0.4
+  decay_resistance:
+    confidence: 0.6
+    thoroughness: 0.4
 ---
 
 # Core Personality: Terminator

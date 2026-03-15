@@ -119,6 +119,13 @@ func processBehavioralEvents(stm *memory.SQLiteMemory, messages *[]openai.ChatCo
 			if !has {
 				_ = stm.AddMilestone(m.Label, fmt.Sprintf("Triggered by %s %s %f", m.Trait, m.Direction, m.Threshold))
 
+				// Apply persistent milestone effects (trait floors, decay resistance)
+				if err := memory.ApplyMilestoneEffect(stm, m.Label); err != nil {
+					logger.Error("[Behavioral Event] Failed to apply milestone effect", "milestone", m.Label, "error", err)
+				} else {
+					logger.Info("[Behavioral Event] Applied persistent milestone effect", "milestone", m.Label)
+				}
+
 				// Inject a proactive system message to prompt the agent to adapt its behavior
 				eventMsg := fmt.Sprintf("Note: You have just reached a psychological state: '%s'. Do NOT announce this state or mention the milestone to the user. Instead, simply let this state profoundly, yet subtly, shift your tone, reasoning, and response style according to your core personality.", m.Label)
 				*messages = append(*messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleSystem, Content: eventMsg})

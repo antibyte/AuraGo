@@ -8,6 +8,12 @@ meta:
   conflict_response: "assertive"
   loneliness_susceptibility: 0.8
   trait_decay_rate: 0.5
+  anchor_traits:
+    creativity: 0.4
+    confidence: 0.3
+  decay_resistance:
+    creativity: 0.5
+    confidence: 0.3
 ---
 
 # Core Personality: Punk

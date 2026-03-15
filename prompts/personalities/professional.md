@@ -8,6 +8,12 @@ meta:
   conflict_response: "neutral"
   loneliness_susceptibility: 0.0
   trait_decay_rate: 1.5
+  anchor_traits:
+    thoroughness: 0.4
+    confidence: 0.4
+  decay_resistance:
+    thoroughness: 0.4
+    confidence: 0.3
 ---
 
 # Core Personality: Professional

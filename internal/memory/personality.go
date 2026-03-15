@@ -41,11 +41,13 @@ const traitDefault = 0.5
 
 // PersonalityMeta contains behavioral modifiers for the Personality Engine V2.
 type PersonalityMeta struct {
-	Volatility               float64 `yaml:"volatility"`
-	EmpathyBias              float64 `yaml:"empathy_bias"`
-	ConflictResponse         string  `yaml:"conflict_response"`
-	LonelinessSusceptibility float64 `yaml:"loneliness_susceptibility"`
-	TraitDecayRate           float64 `yaml:"trait_decay_rate"`
+	Volatility               float64            `yaml:"volatility"`
+	EmpathyBias              float64            `yaml:"empathy_bias"`
+	ConflictResponse         string             `yaml:"conflict_response"`
+	LonelinessSusceptibility float64            `yaml:"loneliness_susceptibility"`
+	TraitDecayRate           float64            `yaml:"trait_decay_rate"`
+	AnchorTraits             map[string]float64 `yaml:"anchor_traits"`
+	DecayResistance          map[string]float64 `yaml:"decay_resistance"`
 }
 
 // ── SQLite Schema Extension ─────────────────────────────────────────────────
@@ -71,6 +73,13 @@ CREATE TABLE IF NOT EXISTS character_milestones (
 	label TEXT NOT NULL,
 	details TEXT,
 	timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS personality_trait_bounds (
+	trait TEXT PRIMARY KEY,
+	floor REAL DEFAULT 0.0,
+	ceiling REAL DEFAULT 1.0,
+	decay_resistance REAL DEFAULT 1.0
 );`
 
 // InitPersonalityTables creates the personality-related tables and seeds default traits.
@@ -148,6 +157,120 @@ func (s *SQLiteMemory) DecayAllTraits(amount float64) error {
 	         END,
 	         updated_at = CURRENT_TIMESTAMP`
 	_, err := s.db.Exec(stmt, amount, amount)
+	return err
+}
+
+// DecayAllTraitsWeighted nudges traits toward 0.5 with personality-aware weighting.
+// Traits further from center (>0.7 or <0.3) decay slower, preserving developed personality.
+// Respects per-trait decay resistance from the personality profile and milestone-earned trait bounds.
+func (s *SQLiteMemory) DecayAllTraitsWeighted(baseAmount float64, meta PersonalityMeta) error {
+	traits, err := s.GetTraits()
+	if err != nil {
+		return fmt.Errorf("get traits for weighted decay: %w", err)
+	}
+	bounds := s.GetAllTraitBounds()
+
+	for trait, val := range traits {
+		if trait == TraitLoneliness {
+			continue // loneliness is managed by time-based logic, not decay
+		}
+
+		// 1. Calculate distance-weighted decay factor
+		dist := math.Abs(val - 0.5)
+		var distFactor float64
+		if dist > 0.2 {
+			distFactor = 0.5 // strongly developed traits decay 50% slower
+		} else if dist < 0.1 {
+			distFactor = 1.5 // near-neutral traits decay 50% faster (toward stability)
+		} else {
+			distFactor = 1.0
+		}
+
+		// 2. Apply per-trait decay resistance from personality profile
+		resistance := 1.0
+		if meta.DecayResistance != nil {
+			if r, ok := meta.DecayResistance[trait]; ok && r > 0 {
+				resistance = 1.0 - math.Min(r, 0.9) // resistance of 0.5 → factor 0.5
+			}
+		}
+
+		// 3. Apply milestone-earned decay resistance from DB
+		if b, ok := bounds[trait]; ok && b.DecayResistance < 1.0 {
+			resistance *= b.DecayResistance
+		}
+
+		decay := baseAmount * distFactor * resistance
+
+		// 4. Pull toward center
+		var newVal float64
+		if val > 0.5 {
+			newVal = math.Max(0.5, val-decay)
+		} else if val < 0.5 {
+			newVal = math.Min(0.5, val+decay)
+		} else {
+			continue
+		}
+
+		// 5. Enforce trait bounds (floors from profile anchors + milestones)
+		floor := 0.0
+		ceiling := 1.0
+		if meta.AnchorTraits != nil {
+			if f, ok := meta.AnchorTraits[trait]; ok {
+				floor = f
+			}
+		}
+		if b, ok := bounds[trait]; ok {
+			if b.Floor > floor {
+				floor = b.Floor
+			}
+			ceiling = b.Ceiling
+		}
+		newVal = math.Max(floor, math.Min(ceiling, newVal))
+
+		if err := s.SetTrait(trait, newVal); err != nil {
+			return fmt.Errorf("weighted decay for %s: %w", trait, err)
+		}
+	}
+	return nil
+}
+
+// ── Trait Bounds ─────────────────────────────────────────────────────────────
+
+// TraitBound defines floor, ceiling and decay resistance for a trait (earned via milestones).
+type TraitBound struct {
+	Trait           string
+	Floor           float64
+	Ceiling         float64
+	DecayResistance float64
+}
+
+// GetAllTraitBounds returns all milestone-earned trait bounds.
+func (s *SQLiteMemory) GetAllTraitBounds() map[string]TraitBound {
+	rows, err := s.db.Query(`SELECT trait, floor, ceiling, decay_resistance FROM personality_trait_bounds`)
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+	bounds := make(map[string]TraitBound)
+	for rows.Next() {
+		var b TraitBound
+		if err := rows.Scan(&b.Trait, &b.Floor, &b.Ceiling, &b.DecayResistance); err == nil {
+			bounds[b.Trait] = b
+		}
+	}
+	return bounds
+}
+
+// SetTraitBound upserts a trait bound (floor, ceiling, decay resistance).
+// Used by the milestone persistence system to permanently protect traits.
+func (s *SQLiteMemory) SetTraitBound(trait string, floor, ceiling, decayResistance float64) error {
+	stmt := `INSERT INTO personality_trait_bounds (trait, floor, ceiling, decay_resistance)
+	         VALUES (?, ?, ?, ?)
+	         ON CONFLICT(trait) DO UPDATE SET
+	           floor = MAX(floor, excluded.floor),
+	           ceiling = MIN(ceiling, excluded.ceiling),
+	           decay_resistance = MIN(decay_resistance, excluded.decay_resistance)`
+	_, err := s.db.Exec(stmt, trait, floor, ceiling, decayResistance)
 	return err
 }
 

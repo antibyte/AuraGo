@@ -172,10 +172,10 @@ func personalityMaintenance(cfg *config.Config, stm *memory.SQLiteMemory, logger
 	// 1. Trait decay: nudge all traits toward 0.5, respecting the personality profile's decay rate
 	meta := prompts.GetCorePersonalityMeta(cfg.Directories.PromptsDir, cfg.Agent.CorePersonality)
 	decayAmount := 0.002 * meta.TraitDecayRate
-	if err := stm.DecayAllTraits(decayAmount); err != nil {
+	if err := stm.DecayAllTraitsWeighted(decayAmount, meta); err != nil {
 		logger.Error("[Personality] Trait decay failed", "error", err)
 	} else {
-		logger.Info("[Personality] Daily trait decay applied", "amount", decayAmount, "decay_rate", meta.TraitDecayRate)
+		logger.Info("[Personality] Daily weighted trait decay applied", "amount", decayAmount, "decay_rate", meta.TraitDecayRate)
 	}
 
 	// 2. Character journal: append today's snapshot to data/character_journal.md

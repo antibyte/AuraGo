@@ -8,6 +8,8 @@ meta:
   conflict_response: "neutral"
   loneliness_susceptibility: 1.0
   trait_decay_rate: 1.0
+  anchor_traits: {}
+  decay_resistance: {}
 ---
 
 # Core Personality: Neutral

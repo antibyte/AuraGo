@@ -8,6 +8,12 @@ meta:
   conflict_response: "submissive"
   loneliness_susceptibility: 1.5
   trait_decay_rate: 0.8
+  anchor_traits:
+    empathy: 0.4
+    affinity: 0.3
+  decay_resistance:
+    empathy: 0.5
+    affinity: 0.4
 ---
 
 # Core Personality: Friend

@@ -8,6 +8,12 @@ meta:
   conflict_response: "assertive"
   loneliness_susceptibility: 0.5
   trait_decay_rate: 0.1
+  anchor_traits:
+    creativity: 0.5
+    confidence: 0.4
+  decay_resistance:
+    creativity: 0.6
+    confidence: 0.5
 ---
 
 # Core Personality: Psycho

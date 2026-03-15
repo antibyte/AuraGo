@@ -8,6 +8,12 @@ meta:
   conflict_response: "assertive"
   loneliness_susceptibility: 0.2
   trait_decay_rate: 0.3
+  anchor_traits:
+    confidence: 0.5
+    creativity: 0.4
+  decay_resistance:
+    confidence: 0.6
+    creativity: 0.4
 ---
 
 # Core Personality: Evil

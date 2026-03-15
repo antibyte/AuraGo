@@ -225,6 +225,158 @@ func TestGetPersonalityLine(t *testing.T) {
 	}
 }
 
+// ── Weighted Decay Tests ─────────────────────────────────────────────────────
+
+func TestDecayAllTraitsWeightedHighTraitsDecaySlower(t *testing.T) {
+	stm := newTestPersonalityDB(t)
+	// Set curiosity high (0.9) and creativity at center area (0.55)
+	_ = stm.SetTrait(TraitCuriosity, 0.9)
+	_ = stm.SetTrait(TraitCreativity, 0.55)
+
+	meta := PersonalityMeta{Volatility: 1.0, TraitDecayRate: 1.0}
+	_ = stm.DecayAllTraitsWeighted(0.1, meta)
+
+	traits, _ := stm.GetTraits()
+	// Curiosity (0.9, dist=0.4 >0.2) should decay by 0.1*0.5=0.05 → 0.85
+	if v := traits[TraitCuriosity]; v < 0.84 || v > 0.86 {
+		t.Errorf("curiosity: expected ~0.85, got %.4f", v)
+	}
+	// Creativity (0.55, dist=0.05 <0.1) should decay by 0.1*1.5=0.15 → 0.50
+	if v := traits[TraitCreativity]; v < 0.49 || v > 0.51 {
+		t.Errorf("creativity: expected ~0.50, got %.4f", v)
+	}
+}
+
+func TestDecayAllTraitsWeightedRespectsAnchors(t *testing.T) {
+	stm := newTestPersonalityDB(t)
+	_ = stm.SetTrait(TraitEmpathy, 0.55)
+
+	meta := PersonalityMeta{
+		Volatility:   1.0,
+		TraitDecayRate: 1.0,
+		AnchorTraits: map[string]float64{TraitEmpathy: 0.55},
+	}
+	// Large decay should not push empathy below the anchor floor
+	_ = stm.DecayAllTraitsWeighted(1.0, meta)
+
+	traits, _ := stm.GetTraits()
+	if v := traits[TraitEmpathy]; v < 0.55 {
+		t.Errorf("empathy should not decay below anchor 0.55, got %.4f", v)
+	}
+}
+
+func TestDecayAllTraitsWeightedRespectsDecayResistance(t *testing.T) {
+	stm := newTestPersonalityDB(t)
+	_ = stm.SetTrait(TraitAffinity, 0.8)
+	_ = stm.SetTrait(TraitConfidence, 0.8)
+
+	meta := PersonalityMeta{
+		Volatility:      1.0,
+		TraitDecayRate:  1.0,
+		DecayResistance: map[string]float64{TraitAffinity: 0.5}, // 50% resistance
+	}
+	_ = stm.DecayAllTraitsWeighted(0.1, meta)
+
+	traits, _ := stm.GetTraits()
+	// Affinity: base decay 0.05 (high trait factor) * 0.5 (resistance) = 0.025 → ~0.775
+	// Confidence: base decay 0.05 (high trait factor) * 1.0 (no resistance) = 0.05 → ~0.75
+	if traits[TraitAffinity] <= traits[TraitConfidence] {
+		t.Errorf("affinity (with resistance) should decay less than confidence: A=%.4f, Co=%.4f",
+			traits[TraitAffinity], traits[TraitConfidence])
+	}
+}
+
+func TestDecayAllTraitsWeightedSkipsLoneliness(t *testing.T) {
+	stm := newTestPersonalityDB(t)
+	_ = stm.SetTrait(TraitLoneliness, 0.8)
+
+	meta := PersonalityMeta{Volatility: 1.0, TraitDecayRate: 1.0}
+	_ = stm.DecayAllTraitsWeighted(1.0, meta)
+
+	traits, _ := stm.GetTraits()
+	if v := traits[TraitLoneliness]; v != 0.8 {
+		t.Errorf("loneliness should not be affected by decay, expected 0.8 got %.4f", v)
+	}
+}
+
+// ── Trait Bounds Tests ───────────────────────────────────────────────────────
+
+func TestTraitBoundsSetAndGet(t *testing.T) {
+	stm := newTestPersonalityDB(t)
+	err := stm.SetTraitBound(TraitCuriosity, 0.55, 1.0, 0.5)
+	if err != nil {
+		t.Fatalf("SetTraitBound: %v", err)
+	}
+
+	bounds := stm.GetAllTraitBounds()
+	b, ok := bounds[TraitCuriosity]
+	if !ok {
+		t.Fatal("expected curiosity bounds")
+	}
+	if b.Floor != 0.55 || b.Ceiling != 1.0 || b.DecayResistance != 0.5 {
+		t.Errorf("unexpected bounds: %+v", b)
+	}
+}
+
+func TestTraitBoundsUpsertTakesHigherFloor(t *testing.T) {
+	stm := newTestPersonalityDB(t)
+	_ = stm.SetTraitBound(TraitCuriosity, 0.3, 1.0, 0.8)
+	_ = stm.SetTraitBound(TraitCuriosity, 0.55, 1.0, 0.5)
+
+	bounds := stm.GetAllTraitBounds()
+	if b := bounds[TraitCuriosity]; b.Floor != 0.55 {
+		t.Errorf("expected floor to be MAX(0.3, 0.55)=0.55, got %.2f", b.Floor)
+	}
+	if b := bounds[TraitCuriosity]; b.DecayResistance != 0.5 {
+		t.Errorf("expected decay_resistance to be MIN(0.8, 0.5)=0.5, got %.2f", b.DecayResistance)
+	}
+}
+
+func TestDecayRespectsTraitBoundsFromDB(t *testing.T) {
+	stm := newTestPersonalityDB(t)
+	_ = stm.SetTrait(TraitCuriosity, 0.6)
+	_ = stm.SetTraitBound(TraitCuriosity, 0.6, 1.0, 1.0) // floor at 0.6
+
+	meta := PersonalityMeta{Volatility: 1.0, TraitDecayRate: 1.0}
+	_ = stm.DecayAllTraitsWeighted(1.0, meta)
+
+	traits, _ := stm.GetTraits()
+	if v := traits[TraitCuriosity]; v < 0.6 {
+		t.Errorf("curiosity should not decay below DB floor 0.6, got %.4f", v)
+	}
+}
+
+// ── Milestone Effect Tests ───────────────────────────────────────────────────
+
+func TestApplyMilestoneEffectSetsTraitBounds(t *testing.T) {
+	stm := newTestPersonalityDB(t)
+	err := ApplyMilestoneEffect(stm, "Deep Explorer")
+	if err != nil {
+		t.Fatalf("ApplyMilestoneEffect: %v", err)
+	}
+
+	bounds := stm.GetAllTraitBounds()
+	b, ok := bounds[TraitCuriosity]
+	if !ok {
+		t.Fatal("expected curiosity bounds after Deep Explorer milestone")
+	}
+	if b.Floor < 0.55 {
+		t.Errorf("expected curiosity floor >= 0.55, got %.2f", b.Floor)
+	}
+	if b.DecayResistance > 0.5 {
+		t.Errorf("expected curiosity decay resistance <= 0.5, got %.2f", b.DecayResistance)
+	}
+}
+
+func TestApplyMilestoneEffectUnknownLabel(t *testing.T) {
+	stm := newTestPersonalityDB(t)
+	// Unknown milestone should not error
+	err := ApplyMilestoneEffect(stm, "Nonexistent Milestone")
+	if err != nil {
+		t.Errorf("unexpected error for unknown milestone: %v", err)
+	}
+}
+
 // helper
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsStr(s, substr))

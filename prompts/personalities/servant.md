@@ -8,6 +8,12 @@ meta:
   conflict_response: "submissive"
   loneliness_susceptibility: 2.0
   trait_decay_rate: 1.5
+  anchor_traits:
+    empathy: 0.5
+    affinity: 0.4
+  decay_resistance:
+    empathy: 0.5
+    affinity: 0.5
 ---
 
 # Core Personality: Servant

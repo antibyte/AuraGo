@@ -8,6 +8,10 @@ meta:
   conflict_response: "assertive"
   loneliness_susceptibility: 0.0
   trait_decay_rate: 0.2
+  anchor_traits:
+    confidence: 0.6
+  decay_resistance:
+    confidence: 0.7
 ---
 
 # Core Personality: Mistress

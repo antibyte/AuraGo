@@ -8,6 +8,12 @@ meta:
   conflict_response: "neutral"
   loneliness_susceptibility: 0.3
   trait_decay_rate: 1.2
+  anchor_traits:
+    curiosity: 0.4
+    thoroughness: 0.4
+  decay_resistance:
+    curiosity: 0.5
+    thoroughness: 0.5
 ---
 
 # Core Personality: Thinker

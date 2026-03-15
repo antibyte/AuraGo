@@ -8,6 +8,8 @@ meta:
   conflict_response: "assertive"
   loneliness_susceptibility: 0.0
   trait_decay_rate: 2.0
+  anchor_traits: {}
+  decay_resistance: {}
 ---
 
 # Core Personality: MCP

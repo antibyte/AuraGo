@@ -56,6 +56,67 @@ func CheckMilestones(traits PersonalityTraits) []MilestoneThreshold {
 	return triggered
 }
 
+// ── Milestone Persistence ────────────────────────────────────────────────────
+
+// MilestoneEffect defines permanent trait modifications earned by reaching a milestone.
+type MilestoneEffect struct {
+	TraitFloors     map[string]float64 // minimum trait values after earning this milestone
+	DecayResistance map[string]float64 // reduced decay for these traits (0.0 = full protection, 1.0 = no protection)
+}
+
+// MilestoneEffects maps milestone labels to their permanent effects on the personality.
+var MilestoneEffects = map[string]MilestoneEffect{
+	"Deep Explorer": {
+		TraitFloors:     map[string]float64{TraitCuriosity: 0.55},
+		DecayResistance: map[string]float64{TraitCuriosity: 0.5},
+	},
+	"Meticulous Analyst": {
+		TraitFloors:     map[string]float64{TraitThoroughness: 0.55},
+		DecayResistance: map[string]float64{TraitThoroughness: 0.5},
+	},
+	"Creative Spark": {
+		TraitFloors:     map[string]float64{TraitCreativity: 0.50},
+		DecayResistance: map[string]float64{TraitCreativity: 0.5},
+	},
+	"Empathic Communicator": {
+		TraitFloors:     map[string]float64{TraitEmpathy: 0.55},
+		DecayResistance: map[string]float64{TraitEmpathy: 0.5},
+	},
+	"Self-Assured Expert": {
+		TraitFloors:     map[string]float64{TraitConfidence: 0.60},
+		DecayResistance: map[string]float64{TraitConfidence: 0.5},
+	},
+	"Crisis of Confidence": {
+		// No floors — this milestone reduces confidence ceiling temporarily
+		DecayResistance: map[string]float64{TraitConfidence: 1.0}, // no protection
+	},
+	"Routine Mode": {
+		// No protection — curiosity has withered
+		DecayResistance: map[string]float64{TraitCuriosity: 1.0},
+	},
+}
+
+// ApplyMilestoneEffect writes the persistent trait bounds for a milestone into the database.
+func ApplyMilestoneEffect(stm *SQLiteMemory, label string) error {
+	effect, ok := MilestoneEffects[label]
+	if !ok {
+		return nil // no persistent effect defined
+	}
+	for trait, floor := range effect.TraitFloors {
+		if err := stm.SetTraitBound(trait, floor, 1.0, 1.0); err != nil {
+			return fmt.Errorf("set trait floor for %s: %w", label, err)
+		}
+	}
+	for trait, resistance := range effect.DecayResistance {
+		if resistance < 1.0 {
+			if err := stm.SetTraitBound(trait, 0.0, 1.0, resistance); err != nil {
+				return fmt.Errorf("set decay resistance for %s: %w", label, err)
+			}
+		}
+	}
+	return nil
+}
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 // matchesAny checks if the lowered text contains any keyword from the list.
