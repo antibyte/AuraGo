@@ -59,14 +59,12 @@ func (m *CronManager) Start(callback func(prompt string)) error {
 	return nil
 }
 
-// Unlocked scheduling logic
+// Unlocked scheduling logic — must be called with m.mu held.
 func (m *CronManager) scheduleInternal(job CronJob) error {
 	// Rebind job.TaskPrompt so the closure captures the correct string
 	prompt := job.TaskPrompt
-	// Capture callback under lock to avoid data race
-	m.mu.Lock()
+	// Caller already holds m.mu, so read m.callback directly (no nested lock).
 	callback := m.callback
-	m.mu.Unlock()
 	entryID, err := m.engine.AddFunc(job.CronExpr, func() {
 		if callback != nil {
 			callback(prompt)
