@@ -41,12 +41,9 @@ func rerankWithRecency(memories []string, docIDs []string, stm *memory.SQLiteMem
 			break
 		}
 		// Parse similarity from "[Similarity: 0.85] ..."
-		sim := 0.5 // fallback
-		if len(mem) > 15 && mem[0] == '[' {
-			var parsed float64
-			if _, err := fmt.Sscanf(mem, "[Similarity: %f]", &parsed); err == nil {
-				sim = parsed
-			}
+		sim := memory.ExtractSimilarityScore(mem)
+		if sim == 0 {
+			sim = 0.5 // fallback for malformed entries
 		}
 
 		// Calculate recency bonus: 0.3 for today, decaying to 0 at 30+ days

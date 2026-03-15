@@ -248,6 +248,8 @@ type Config struct {
 		Provider         string  `yaml:"provider"`               // provider entry ID (falls back to main LLM)
 		Model            string  `yaml:"model"`                  // model override (optional)
 		AutoConfirm      float64 `yaml:"auto_confirm_threshold"` // confidence threshold for auto-store (default 0.92)
+		QueryExpansion   bool    `yaml:"query_expansion"`        // expand RAG queries using analysis LLM (default false)
+		LLMReranking     bool    `yaml:"llm_reranking"`          // LLM-based re-ranking of RAG candidates (default false)
 		ProviderType     string  `yaml:"-" json:"-"`             // resolved
 		BaseURL          string  `yaml:"-" json:"-"`             // resolved
 		APIKey           string  `yaml:"-" json:"-"`             // resolved

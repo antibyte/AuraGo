@@ -225,7 +225,7 @@ func (cv *ChromemVectorDB) StoreDocumentWithDomain(concept, content, domain stri
 
 	// Deduplication: check if a very similar concept already exists
 	if similar, _, err := cv.SearchMemoriesOnly(concept, 1); err == nil && len(similar) > 0 {
-		if sim := extractSimilarityScore(similar[0]); sim > 0.95 {
+		if sim := ExtractSimilarityScore(similar[0]); sim > 0.95 {
 			cv.logger.Debug("Skipping duplicate concept (similarity > 0.95)", "concept", concept, "similarity", sim)
 			return nil, nil
 		}
@@ -592,9 +592,10 @@ func (cv *ChromemVectorDB) getQueryEmbedding(ctx context.Context, query string) 
 	return embedding, nil
 }
 
-// extractSimilarityScore extracts the similarity value from a formatted search result string.
+// ExtractSimilarityScore extracts the similarity value from a formatted search result string.
 // Expected format: "[Similarity: 0.95] ..."
-func extractSimilarityScore(result string) float64 {
+// Returns 0 if the format is invalid. Values are clamped to [0.0, 1.0].
+func ExtractSimilarityScore(result string) float64 {
 	const prefix = "[Similarity: "
 	idx := strings.Index(result, prefix)
 	if idx < 0 {
@@ -608,6 +609,12 @@ func extractSimilarityScore(result string) float64 {
 	val, err := strconv.ParseFloat(result[start:start+end], 64)
 	if err != nil {
 		return 0
+	}
+	if val < 0 {
+		return 0
+	}
+	if val > 1 {
+		return 1
 	}
 	return val
 }

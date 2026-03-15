@@ -318,6 +318,12 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 		currentLogger.Debug("[Sync] Agent loop iteration starting", "is_maintenance", isMaintenance, "lock_exists", tools.IsBusy())
 
+		// Extract the last user message early — needed for Guardian context in pendingTCs path
+		lastUserMsg := ""
+		if len(req.Messages) > 0 && req.Messages[len(req.Messages)-1].Role == openai.ChatMessageRoleUser {
+			lastUserMsg = req.Messages[len(req.Messages)-1].Content
+		}
+
 		// Process queued tool calls from multi-tool responses (skip LLM for these)
 		if len(pendingTCs) > 0 {
 			ptc := pendingTCs[0]
@@ -337,7 +343,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 			broker.Send("tool_call", ptcJSON)
 			broker.Send("tool_start", ptc.Action)
-			pResultContent := DispatchToolCall(ctx, ptc, cfg, currentLogger, client, vault, registry, manifest, cronManager, missionManager, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, remoteHub, historyManager, tools.IsBusy(), surgeryPlan, guardian, llmGuardian, sessionID, coAgentRegistry, budgetTracker)
+			pResultContent := DispatchToolCall(ctx, ptc, cfg, currentLogger, client, vault, registry, manifest, cronManager, missionManager, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, remoteHub, historyManager, tools.IsBusy(), surgeryPlan, guardian, llmGuardian, sessionID, coAgentRegistry, budgetTracker, lastUserMsg)
 			pResultContent = truncateToolOutput(pResultContent, cfg.Agent.ToolOutputLimit)
 			prompts.RecordToolUsage(ptc.Action, ptc.Operation, !isToolError(pResultContent))
 			broker.Send("tool_output", pResultContent)
@@ -406,7 +412,6 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		// explicitTools is persistent across loop iterations
 
 		// Prepare Dynamic Tool Guides
-		lastUserMsg := ""
 		if len(req.Messages) > 0 && req.Messages[len(req.Messages)-1].Role == openai.ChatMessageRoleUser {
 			lastUserMsg = req.Messages[len(req.Messages)-1].Content
 		}
@@ -424,10 +429,17 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		flags.RetrievedMemories = ""
 		flags.PredictedMemories = ""
 		if lastUserMsg != "" && longTermMem != nil {
+			// Query expansion: enrich user message with LLM-generated keywords for better RAG
+			ragQuery := expandQueryForRAG(ctx, cfg, currentLogger, lastUserMsg)
+
 			// Over-fetch 6 candidates, then re-rank to keep best 3
-			memories, docIDs, err := longTermMem.SearchSimilar(lastUserMsg, 6)
+			memories, docIDs, err := longTermMem.SearchSimilar(ragQuery, 6)
 			if err == nil && len(memories) > 0 {
 				ranked := rerankWithRecency(memories, docIDs, shortTermMem, currentLogger)
+
+				// LLM re-ranking: blend LLM relevance scores with recency-boosted scores
+				ranked = rerankWithLLM(ctx, cfg, currentLogger, ranked, lastUserMsg)
+
 				for _, r := range ranked {
 					_ = shortTermMem.UpdateMemoryAccess(r.docID)
 				}
@@ -1146,7 +1158,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				broker.Send("co_agent_spawn", taskPreview)
 			}
 
-			resultContent := DispatchToolCall(ctx, tc, cfg, currentLogger, client, vault, registry, manifest, cronManager, missionManager, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, remoteHub, historyManager, tools.IsBusy(), surgeryPlan, guardian, llmGuardian, sessionID, coAgentRegistry, budgetTracker)
+			resultContent := DispatchToolCall(ctx, tc, cfg, currentLogger, client, vault, registry, manifest, cronManager, missionManager, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, remoteHub, historyManager, tools.IsBusy(), surgeryPlan, guardian, llmGuardian, sessionID, coAgentRegistry, budgetTracker, lastUserMsg)
 			resultContent = truncateToolOutput(resultContent, cfg.Agent.ToolOutputLimit)
 			toolFailed := isToolError(resultContent)
 			prompts.RecordToolUsage(tc.Action, tc.Operation, !toolFailed)
@@ -1404,7 +1416,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					broker.Send("thinking", fmt.Sprintf("[%d] Running %s (batched)...", toolCallCount, btc.Action))
 					broker.Send("tool_start", btc.Action)
 
-					bResult := DispatchToolCall(ctx, btc, cfg, currentLogger, client, vault, registry, manifest, cronManager, missionManager, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, remoteHub, historyManager, tools.IsBusy(), surgeryPlan, guardian, llmGuardian, sessionID, coAgentRegistry, budgetTracker)
+					bResult := DispatchToolCall(ctx, btc, cfg, currentLogger, client, vault, registry, manifest, cronManager, missionManager, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, remoteHub, historyManager, tools.IsBusy(), surgeryPlan, guardian, llmGuardian, sessionID, coAgentRegistry, budgetTracker, lastUserMsg)
 					bResult = truncateToolOutput(bResult, cfg.Agent.ToolOutputLimit)
 					prompts.RecordToolUsage(btc.Action, btc.Operation, !isToolError(bResult))
 					broker.Send("tool_output", bResult)

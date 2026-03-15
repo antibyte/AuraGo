@@ -580,7 +580,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 		}
 		if cfg.Tools.Memory.ReadOnly {
 			switch tc.Operation {
-			case "add", "update", "delete", "reset_profile", "delete_profile_entry":
+			case "add", "store", "save", "set", "update", "delete", "remove", "reset_profile", "delete_profile_entry":
 				return `Tool Output: {"status":"error","message":"Memory is in read-only mode. Disable tools.memory.read_only to allow changes."}`
 			}
 		}

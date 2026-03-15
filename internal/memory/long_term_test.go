@@ -19,13 +19,16 @@ func TestExtractSimilarityScore(t *testing.T) {
 		{"malformed bracket", "[Similarity: bad] text", 0},
 		{"empty string", "", 0},
 		{"missing closing bracket", "[Similarity: 0.50 text", 0},
+		{"negative clamped to 0", "[Similarity: -0.50] text", 0},
+		{"above 1 clamped to 1", "[Similarity: 1.50] text", 1.0},
+		{"exactly 0", "[Similarity: 0.00] text", 0},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := extractSimilarityScore(tt.input)
+			got := ExtractSimilarityScore(tt.input)
 			if got != tt.expected {
-				t.Errorf("extractSimilarityScore(%q) = %v, want %v", tt.input, got, tt.expected)
+				t.Errorf("ExtractSimilarityScore(%q) = %v, want %v", tt.input, got, tt.expected)
 			}
 		})
 	}

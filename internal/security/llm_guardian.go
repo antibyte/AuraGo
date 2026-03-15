@@ -160,15 +160,30 @@ func (g *LLMGuardian) EvaluateWithFailSafe(ctx context.Context, check GuardianCh
 	return g.Evaluate(ctx, check)
 }
 
+// buildMessages creates the message list for a Guardian LLM call.
+// Models that reject the system role get the system prompt prepended to the user message instead.
+func (g *LLMGuardian) buildMessages(systemPrompt, userPrompt string) []openai.ChatCompletionMessage {
+	pt := strings.ToLower(g.cfg.LLMGuardian.ProviderType)
+	if pt == "ollama" {
+		// Ollama handles system role fine; keep separate for better formatting.
+		return []openai.ChatCompletionMessage{
+			{Role: openai.ChatMessageRoleSystem, Content: systemPrompt},
+			{Role: openai.ChatMessageRoleUser, Content: userPrompt},
+		}
+	}
+	// For cloud providers: merge system prompt into user message to avoid 405 errors
+	// on models that do not support the system role (e.g. stepfun/step-3.5-flash).
+	return []openai.ChatCompletionMessage{
+		{Role: openai.ChatMessageRoleUser, Content: systemPrompt + "\n\n" + userPrompt},
+	}
+}
+
 func (g *LLMGuardian) callLLM(ctx context.Context, check GuardianCheck, start time.Time) GuardianResult {
 	prompt := buildGuardianPrompt(check)
 
 	req := openai.ChatCompletionRequest{
-		Model: g.model,
-		Messages: []openai.ChatCompletionMessage{
-			{Role: openai.ChatMessageRoleSystem, Content: guardianSystemPrompt},
-			{Role: openai.ChatMessageRoleUser, Content: prompt},
-		},
+		Model:       g.model,
+		Messages:    g.buildMessages(guardianSystemPrompt, prompt),
 		MaxTokens:   50,
 		Temperature: 0,
 	}
@@ -414,11 +429,8 @@ func (g *LLMGuardian) EvaluateClarification(ctx context.Context, check GuardianC
 	prompt := buildClarificationPrompt(check)
 
 	req := openai.ChatCompletionRequest{
-		Model: g.model,
-		Messages: []openai.ChatCompletionMessage{
-			{Role: openai.ChatMessageRoleSystem, Content: clarificationSystemPrompt},
-			{Role: openai.ChatMessageRoleUser, Content: prompt},
-		},
+		Model:       g.model,
+		Messages:    g.buildMessages(clarificationSystemPrompt, prompt),
 		MaxTokens:   50,
 		Temperature: 0,
 	}
@@ -532,11 +544,8 @@ func (g *LLMGuardian) EvaluateContent(ctx context.Context, contentType string, c
 	prompt := buildContentScanPrompt(contentType, snippet)
 
 	req := openai.ChatCompletionRequest{
-		Model: g.model,
-		Messages: []openai.ChatCompletionMessage{
-			{Role: openai.ChatMessageRoleSystem, Content: contentScanSystemPrompt},
-			{Role: openai.ChatMessageRoleUser, Content: prompt},
-		},
+		Model:       g.model,
+		Messages:    g.buildMessages(contentScanSystemPrompt, prompt),
 		MaxTokens:   50,
 		Temperature: 0,
 	}

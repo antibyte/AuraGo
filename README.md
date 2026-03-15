@@ -38,22 +38,28 @@ Unlike cloud AI services, AuraGo runs **on your hardware**, has **direct access 
 ## Key Features
 
 ### Agent Core
-- **30+ built-in tools** — shell & Python execution, file system, HTTP requests, cron scheduling, process management, system metrics, Docker, Proxmox, Ollama, Home Assistant, Tailscale, Ansible, MeshCentral, and many more
+- **40+ built-in tools** — shell & Python execution, file system, HTTP requests, cron scheduling, process management, system metrics, Docker, Proxmox, Ollama, Home Assistant, Tailscale, Ansible, MeshCentral, GitHub, Netlify, and many more
 - **Native Function Calling** — OpenAI-style tool calls with auto-detection for DeepSeek and compatible models; optional **Structured Outputs** mode for constrained decoding
 - **Dynamic tool creation** — the agent can write, save, and register new Python tools at runtime
 - **Multi-step reasoning loop** with automatic tool dispatch, error recovery, and corrective feedback
 - **Co-Agent system** — spawn parallel sub-agents with independent LLM contexts for complex tasks
 - **Intelligent Prompt Builder** — reduces costs via context compression, background summarization, and automatic RAG-based recall; includes analytics dashboard
 - **Configurable personalities** — friend, professional, punk, neutral, and more
-- **Personality Engine** — dynamically adapts mood and motivation to context, making the agent more natural to interact with
-- **User Profiling** — automatic detection and storage of user preferences and communication style
+- **Personality Engine V2** — LLM-powered mood analysis, affinity tracking, and behavioral adaptation
+- **User Profiling** — automatic detection and storage of user preferences, tech stack, and communication style
+- **Context Compression** — automatic summarization of long conversations to preserve token budget
+- **Memory Analysis** — dedicated LLM provider for real-time extraction of facts, preferences, and corrections
+- **Memory Consolidation** — nightly batch processing of archived conversations into long-term memory
 
 ### Memory & Knowledge
 - **Short-term memory** — SQLite sliding-window conversation context
 - **Long-term memory (RAG)** — embedded vector database (chromem-go) with semantic search
-- **Knowledge graph** — entity-relationship store for structured facts
+- **Knowledge graph** — entity-relationship store for structured facts with auto-extraction and prompt injection
 - **Persistent notes & to-dos** — categorized, prioritized, with due dates
 - **Core memory** — permanent facts the agent always remembers
+- **Journal** — chronological event logging with importance scoring and auto-generated entries
+- **Temporal Patterns** — interaction pattern detection for predictive memory pre-fetching
+- **Knowledge Indexing** — automatic indexing of local files (.md, .txt, .json, .csv, .log, .yaml)
 
 ### Home Lab Integrations
 
@@ -77,13 +83,31 @@ Unlike cloud AI services, AuraGo runs **on your hardware**, has **direct access 
 | **Telegram** | Full bot with voice messages, image analysis, inline commands |
 | **Discord** | Bot integration with message bridge |
 | **Rocket.Chat** | Bot integration for self-hosted instances |
-| **Email** | IMAP inbox watcher + SMTP sending |
-| **Google Workspace** | Gmail, Calendar, Drive, and Docs |
+| **Email** | IMAP inbox watcher + SMTP sending (multiple accounts supported) |
+| **Google Workspace** | Gmail, Calendar, Drive, Docs, Sheets with OAuth2 |
 | **Cloud Storage** | WebDAV & Koofr (Nextcloud, ownCloud, Synology, etc.) |
 | **Chromecast & Audio** | Discover LAN speakers, TTS streaming |
 | **Notifications** | Push via **ntfy** and **Pushover** |
-| **Budget Tracking** | Per-model token cost tracking with daily limits |
-| **MCP Servers** | Connect Model Context Protocol servers for extended tool access |
+| **Budget Tracking** | Per-model token cost tracking with daily limits and enforcement |
+| **MCP** | Model Context Protocol — connect external MCP servers or expose AuraGo as MCP server |
+| **MCP Server** | Expose AuraGo tools to other MCP clients (e.g., Claude Desktop) |
+| **Invasion Control** | Distributed agent management — spawn "eggs" (sub-agents) across multiple hosts |
+| **Remote Control** | Remote agent-to-agent communication for distributed task execution |
+| **Cloudflare Tunnel** | Built-in Cloudflare tunnel integration (quick, token, or named tunnels) |
+| **Cloudflare AI Gateway** | Unified AI gateway for request routing and observability |
+| **AdGuard Home** | DNS filtering management and statistics |
+| **GitHub** | Repository management, issues, pull requests, projects |
+| **Netlify** | Static site deployment and management |
+| **Paperless NGX** | Document management integration |
+| **Brave Search** | Web search via Brave Search API |
+| **VirusTotal** | File and URL security scanning |
+| **Image Generation** | Multi-provider support (OpenAI, Stability, Ideogram, Google, OpenRouter) |
+| **Media Registry** | Local media file indexing and metadata management |
+| **Homepage Registry** | Dashboard homepage site management |
+| **Sandbox** | Isolated Python execution environment (Docker/Podman backend) |
+| **Vision** | Image analysis via vision-capable LLMs |
+| **Transcription** | Audio transcription via Whisper (OpenAI or local) |
+| **TTS** | Text-to-speech via Google or ElevenLabs |
 
 ### Security
 - **AES-256-GCM encrypted vault** for API keys — manageable via Web UI with key rotation
@@ -91,17 +115,22 @@ Unlike cloud AI services, AuraGo runs **on your hardware**, has **direct access 
 - **Auto-provisioned passwords** — the install script generates a secure first-login password
 - **HTTPS enforcement** — when HTTPS is active, login cannot be disabled (enforced via UI)
 - **Danger Zone** — granular capability gates (shell, Python, filesystem, network, remote shell, self-update)
+- **LLM Guardian** — AI-powered security scanner for tool calls, documents, and emails with threat detection
 - **Security Headers** — CSP, HSTS, X-Frame-Options, and more on every response
-- **Sandboxed Python execution** — isolated venv workspace
+- **Sandboxed Python execution** — isolated venv workspace or Docker/Podman containers
 - **LLM failover** — automatic switch to backup provider on errors
 - **Circuit breaker** — configurable limits on tool calls, timeouts, and retries
 - **Rate limiting** — login attempts, webhook requests, and API calls
+- **Prompt Injection Defense** — automatic isolation of external content with `<external_data>` wrappers
 
 ### Self-Improvement
 - **Maintenance loop** — scheduled nightly agent run for memory cleanup and autonomous tasks
 - **Lifeboat system** — companion binary for hot-swap self-updates
 - **Code surgery** — the agent can modify its own codebase via a structured plan/execute workflow
 - **Daily reflection** — morning briefing generated at 03:00
+- **Memory Consolidation** — automatic archival and compression of old conversations into long-term memory
+- **Memory Analysis** — dedicated LLM extracts facts, preferences, and corrections from conversations
+- **Weekly Reflection** — periodic memory health analysis and pattern recognition
 
 ---
 
@@ -152,7 +181,7 @@ sudo ./install_service_linux.sh
 
 #### Prerequisites
 
-- **Go 1.21+**
+- **Go 1.23+**
 - **Python 3.10+** — required for custom tools, skills, and sandboxed execution
 - An API key for an OpenAI-compatible LLM provider (e.g. [OpenRouter](https://openrouter.ai/))
 
@@ -310,31 +339,48 @@ Click **Deploy** in Dockge — AuraGo starts and is accessible at **http://your-
 AuraGo/
 ├── cmd/
 │   ├── aurago/          # Main agent entry point
-│   └── lifeboat/        # Self-update companion binary
+│   ├── lifeboat/        # Self-update companion binary
+│   ├── config-merger/   # Configuration merging utility
+│   └── remote/          # Remote execution agent
 ├── internal/
-│   ├── agent/           # Core agent loop, tool dispatch, co-agents, maintenance
+│   ├── agent/           # Core agent loop, tool dispatch, co-agents, maintenance, memory analysis
 │   ├── budget/          # Token cost tracking & enforcement
 │   ├── commands/        # Slash commands (/reset, /budget, /debug, …)
-│   ├── config/          # YAML config parser & defaults
+│   ├── config/          # YAML config parser, migration & defaults
 │   ├── discord/         # Discord bot integration
+│   ├── invasion/        # Invasion Control (egg/nest distributed system)
 │   ├── inventory/       # SSH device inventory (SQLite)
 │   ├── llm/             # LLM client, failover, retry, context detection
-│   ├── memory/          # All memory subsystems (STM, LTM, graph, personality, …)
-│   ├── prompts/         # Dynamic system prompt builder
-│   ├── remote/          # SSH remote execution
-│   ├── security/        # AES-GCM vault & token manager
-│   ├── server/          # HTTP/HTTPS server, SSE, REST handlers, TLS management
+│   ├── media/           # Media registry and metadata management
+│   ├── memory/          # All memory subsystems (STM, LTM, graph, personality, journal, notes)
+│   ├── meshcentral/     # MeshCentral remote desktop integration
+│   ├── mqtt/            # MQTT client for IoT integration
+│   ├── prompts/         # Dynamic system prompt builder with analytics
+│   ├── push/            # Push notification manager (ntfy, Pushover)
+│   ├── remote/          # Remote agent communication protocol
+│   ├── rocketchat/      # Rocket.Chat bot integration
+│   ├── scraper/         # Web scraping utilities
+│   ├── security/        # AES-GCM vault, tokens, LLM Guardian, scrubber
+│   ├── server/          # HTTP/HTTPS server, SSE, REST handlers, TLS, WebSocket bridge
+│   ├── services/        # Content ingestion and indexing services
+│   ├── setup/           # First-run setup wizard logic
 │   ├── telegram/        # Telegram bot (text, voice, vision)
-│   ├── tools/           # All tool implementations + process/cron managers
+│   ├── tools/           # All tool implementations (40+ tools)
 │   └── webhooks/        # Incoming & outgoing webhook engine
 ├── agent_workspace/
 │   ├── prompts/         # Modular system prompt markdown files & personalities
 │   ├── skills/          # Pre-built Python skills (search, scraping, Google, …)
 │   ├── tools/           # Agent-created tools + manifest
 │   └── workdir/         # Sandboxed execution directory
+├── prompts/             # System prompts, personalities, and tool manuals
+│   ├── tools_manuals/   # RAG-indexed tool documentation
+│   ├── personalities/   # Personality profiles (friend, punk, professional, …)
+│   └── templates/       # Prompt templates
 ├── ui/                  # Embedded Web UI (single-file SPA)
 ├── data/                # Runtime data (SQLite DBs, vector store, vault, state)
+├── knowledge/           # Local knowledge base for indexing
 ├── documentation/       # Detailed setup guides & concepts
+├── deploy/              # Deployment configurations
 └── config.yaml          # Main configuration file
 ```
 
@@ -351,6 +397,9 @@ AuraGo/
 | `/debug on\|off` | Toggle detailed error reporting |
 | `/budget` | Show daily token cost breakdown |
 | `/personality <name>` | Switch to a different personality profile |
+| `/sudo` | Temporarily elevate privileges for sensitive operations |
+| `/journal` | Open journal management interface |
+| `/addssh <host> <user>` | Quick-add SSH device to inventory |
 
 ---
 
@@ -359,7 +408,7 @@ AuraGo/
 | Feature | Description |
 |---|---|
 | **Chat** | Real-time streaming conversation with tool execution feedback |
-| **Dashboard** | System metrics, mood history, prompt builder analytics, memory stats |
+| **Dashboard** | System metrics, mood history, prompt builder analytics, memory stats, token usage |
 | **Configuration** | Full config editor organized by section (LLM, Docker, Proxmox, Webhooks, Firewall, …) |
 | **Quick Setup** | First-run wizard for essential settings |
 | **Login & 2FA** | Optional authentication with bcrypt passwords and TOTP two-factor |
@@ -371,6 +420,19 @@ AuraGo/
 | **Vault Management** | View vault status and safely reset/regenerate the master key |
 | **Personality Editor** | Create and manage personality profiles directly in the browser |
 | **MCP Servers** | Manage Model Context Protocol server connections |
+| **MCP Server Config** | Configure AuraGo as an MCP server for external clients |
+| **Invasion Control** | Distributed agent management — spawn and monitor remote "egg" agents |
+| **Remote Control** | Manage remote agent connections for distributed execution |
+| **Media Registry** | Browse and search indexed local media files |
+| **Homepage Registry** | Manage Homepage dashboard deployments |
+| **Image Gallery** | View and manage generated images |
+| **Memory Maintenance** | Archive, optimize, and manage memory stores |
+| **Journal** | View and search chronological event logs |
+| **Knowledge Graph** | Visualize entity relationships |
+| **Notes** | Manage persistent notes and to-dos |
+| **Device Inventory** | SSH device management and connection testing |
+| **Cheatsheets** | Quick-reference command snippets |
+| **Sandbox** | Configure and monitor sandboxed execution environments |
 
 ---
 
@@ -423,6 +485,13 @@ Detailed guides are available in the [`documentation/`](documentation/) folder:
 - [WebDAV Integration](documentation/webdav.md)
 - [Co-Agent Concept](documentation/co_agent_concept.md)
 - [Personality Engine V2](documentation/personality_engine_v2.md)
+- [Memory Analysis & Consolidation](documentation/memory_analysis.md)
+- [Invasion Control (Distributed Agents)](documentation/invasion_control.md)
+- [MCP Integration](documentation/mcp.md)
+- [LLM Guardian Security](documentation/llm_guardian.md)
+- [Cloudflare Tunnel Setup](documentation/cloudflare_tunnel.md)
+- [Image Generation](documentation/image_generation.md)
+- [Sandbox Setup](documentation/sandbox.md)
 
 ---
 
@@ -453,5 +522,8 @@ This project is provided as-is for personal and educational use.
 | [uuid](https://github.com/google/uuid) | UUID generation |
 | [tiktoken-go](https://github.com/pkoukk/tiktoken-go) | Token counting for context management |
 | [yaml.v3](https://github.com/go-yaml/yaml) | YAML configuration parsing |
+| [oauth2](https://golang.org/x/oauth2) | OAuth2 authentication for Google Workspace |
+| [qrcode](https://github.com/skip2/go-qrcode) | TOTP QR code generation |
+| [gonote](https://github.com/mazznoer/gonote) | Colorful console output |
 
 </details>

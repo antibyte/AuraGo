@@ -29,7 +29,7 @@ import (
 // DispatchToolCall executes the appropriate tool based on the parsed ToolCall.
 // It automatically handles LLM Guardian pre-check, Redaction, Guardian sanitization,
 // and ensures the output is correctly prefixed with "[Tool Output]\n" unless it's a known error marker.
-func DispatchToolCall(ctx context.Context, tc ToolCall, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, missionManager *tools.MissionManager, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, mediaRegistryDB *sql.DB, homepageRegistryDB *sql.DB, remoteHub *remote.RemoteHub, historyMgr *memory.HistoryManager, isMaintenance bool, surgeryPlan string, guardian *security.Guardian, llmGuardian *security.LLMGuardian, sessionID string, coAgentRegistry *CoAgentRegistry, budgetTracker *budget.Tracker) string {
+func DispatchToolCall(ctx context.Context, tc ToolCall, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, missionManager *tools.MissionManager, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, mediaRegistryDB *sql.DB, homepageRegistryDB *sql.DB, remoteHub *remote.RemoteHub, historyMgr *memory.HistoryManager, isMaintenance bool, surgeryPlan string, guardian *security.Guardian, llmGuardian *security.LLMGuardian, sessionID string, coAgentRegistry *CoAgentRegistry, budgetTracker *budget.Tracker, userContext string) string {
 
 	// LLM Guardian: pre-execution security check
 	if llmGuardian != nil {
@@ -39,10 +39,18 @@ func DispatchToolCall(ctx context.Context, tc ToolCall, cfg *config.Config, logg
 			regexLevel = guardian.ScanForInjection(scanText).Level
 		}
 		if llmGuardian.ShouldCheck(tc.Action, regexLevel) {
+			// Build guardian context: prefer the triggering user message over tc.Content
+			guardianCtx := userContext
+			if guardianCtx == "" {
+				guardianCtx = tc.Content
+			}
+			if len(guardianCtx) > 300 {
+				guardianCtx = guardianCtx[:300]
+			}
 			check := security.GuardianCheck{
 				Operation:  tc.Action,
 				Parameters: toolCallParams(tc),
-				Context:    tc.Content,
+				Context:    guardianCtx,
 				RegexLevel: regexLevel,
 			}
 			result := llmGuardian.EvaluateWithFailSafe(ctx, check)

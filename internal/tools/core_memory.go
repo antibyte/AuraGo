@@ -93,6 +93,6 @@ func ManageCoreMemory(operation, fact string, id int64, stm *memory.SQLiteMemory
 		return fmt.Sprintf(`{"status":"success","entries":%q}`, text), nil
 
 	default:
-		return "", fmt.Errorf("unsupported operation '%s'. Use 'add', 'update', 'delete', 'remove', or 'list'", operation)
+		return "", fmt.Errorf("unsupported operation '%s'. Supported: 'add' (or 'store'), 'update', 'delete', 'remove', 'list'", operation)
 	}
 }

@@ -248,16 +248,15 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 	if ff.MemoryEnabled {
 		tools = append(tools,
 			tool("manage_memory",
-				"Store or delete facts in long-term memory, or save structured key-value data to core memory.",
+				"Manage permanently stored core memory facts. Use 'add' to store a new fact, 'update' to correct an existing fact by ID, 'delete' to remove a fact by ID, 'remove' to remove a fact by text match, 'list' to read all stored facts.",
 				schema(map[string]interface{}{
 					"operation": map[string]interface{}{
 						"type":        "string",
-						"description": "Operation to perform",
-						"enum":        []string{"store", "delete", "save_core", "delete_core"},
+						"description": "Operation: 'add' (store new fact), 'update' (edit by id), 'delete' (remove by id), 'remove' (remove by text match), 'list' (read all)",
+						"enum":        []string{"add", "update", "delete", "remove", "list"},
 					},
-					"fact":  prop("string", "A factual statement to store (for 'store' operation)"),
-					"key":   prop("string", "Key name for core memory (for 'save_core'/'delete_core')"),
-					"value": prop("string", "Value to save for the given key (for 'save_core')"),
+					"fact": prop("string", "The factual statement to add or remove. Required for 'add' and 'remove'."),
+					"id":   prop("string", "Numeric ID of the fact to update or delete. Required for 'update' and 'delete'. IDs are shown in brackets when listing facts."),
 				}, "operation"),
 			),
 			tool("query_memory",

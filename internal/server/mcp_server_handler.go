@@ -302,7 +302,7 @@ func mcpCallTool(ctx context.Context, s *Server, params json.RawMessage) mcpCall
 		s.InventoryDB, s.InvasionDB, s.CheatsheetDB, s.ImageGalleryDB,
 		s.MediaRegistryDB, s.HomepageRegistryDB,
 		s.RemoteHub, s.HistoryManager, false, "", s.Guardian, s.LLMGuardian,
-		"mcp-server", s.CoAgentRegistry, s.BudgetTracker,
+		"mcp-server", s.CoAgentRegistry, s.BudgetTracker, "",
 	)
 
 	// Strip the "[Tool Output]\n" prefix if present
