@@ -27,9 +27,36 @@ import (
 )
 
 // DispatchToolCall executes the appropriate tool based on the parsed ToolCall.
-// It automatically handles Redaction, Guardian sanitization, and ensures the output
-// is correctly prefixed with "[Tool Output]\n" unless it's a known error marker.
-func DispatchToolCall(ctx context.Context, tc ToolCall, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, missionManager *tools.MissionManager, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, mediaRegistryDB *sql.DB, homepageRegistryDB *sql.DB, remoteHub *remote.RemoteHub, historyMgr *memory.HistoryManager, isMaintenance bool, surgeryPlan string, guardian *security.Guardian, sessionID string, coAgentRegistry *CoAgentRegistry, budgetTracker *budget.Tracker) string {
+// It automatically handles LLM Guardian pre-check, Redaction, Guardian sanitization,
+// and ensures the output is correctly prefixed with "[Tool Output]\n" unless it's a known error marker.
+func DispatchToolCall(ctx context.Context, tc ToolCall, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, missionManager *tools.MissionManager, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, mediaRegistryDB *sql.DB, homepageRegistryDB *sql.DB, remoteHub *remote.RemoteHub, historyMgr *memory.HistoryManager, isMaintenance bool, surgeryPlan string, guardian *security.Guardian, llmGuardian *security.LLMGuardian, sessionID string, coAgentRegistry *CoAgentRegistry, budgetTracker *budget.Tracker) string {
+
+	// LLM Guardian: pre-execution security check
+	if llmGuardian != nil {
+		var regexLevel security.ThreatLevel
+		if guardian != nil {
+			scanText := toolCallScanText(tc)
+			regexLevel = guardian.ScanForInjection(scanText).Level
+		}
+		if llmGuardian.ShouldCheck(tc.Action, regexLevel) {
+			check := security.GuardianCheck{
+				Operation:  tc.Action,
+				Parameters: toolCallParams(tc),
+				Context:    tc.Content,
+				RegexLevel: regexLevel,
+			}
+			result := llmGuardian.EvaluateWithFailSafe(ctx, check)
+			if result.Decision == security.DecisionBlock {
+				logger.Warn("[LLM Guardian] Blocked tool call",
+					"tool", tc.Action, "reason", result.Reason, "risk", result.RiskScore)
+				return fmt.Sprintf("[TOOL BLOCKED] Security check failed for %s: %s (risk: %.0f%%)", tc.Action, result.Reason, result.RiskScore*100)
+			}
+			if result.Decision == security.DecisionQuarantine {
+				logger.Warn("[LLM Guardian] Quarantined tool call (proceeding with caution)",
+					"tool", tc.Action, "reason", result.Reason, "risk", result.RiskScore)
+			}
+		}
+	}
 
 	rawResult := dispatchInner(ctx, tc, cfg, logger, llmClient, vault, registry, manifest, cronManager, missionManager, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, remoteHub, historyMgr, isMaintenance, surgeryPlan, guardian, sessionID, coAgentRegistry, budgetTracker)
 
@@ -990,4 +1017,59 @@ func calculateEffectiveMaxCalls(cfg *config.Config, tc ToolCall, personalityEnab
 	}
 
 	return effectiveMaxCalls
+}
+
+// toolCallScanText extracts the most security-relevant text fields from a ToolCall
+// for regex-based injection scanning.
+func toolCallScanText(tc ToolCall) string {
+	parts := make([]string, 0, 4)
+	if tc.Command != "" {
+		parts = append(parts, tc.Command)
+	}
+	if tc.Code != "" {
+		parts = append(parts, tc.Code)
+	}
+	if tc.Content != "" {
+		parts = append(parts, tc.Content)
+	}
+	if tc.Body != "" {
+		parts = append(parts, tc.Body)
+	}
+	if tc.URL != "" {
+		parts = append(parts, tc.URL)
+	}
+	return strings.Join(parts, "\n")
+}
+
+// toolCallParams extracts key parameters from a ToolCall as a flat map for LLM Guardian evaluation.
+func toolCallParams(tc ToolCall) map[string]string {
+	m := make(map[string]string)
+	if tc.Operation != "" {
+		m["operation"] = tc.Operation
+	}
+	if tc.Command != "" {
+		m["command"] = tc.Command
+	}
+	if tc.Code != "" {
+		if len(tc.Code) > 300 {
+			m["code"] = tc.Code[:300]
+		} else {
+			m["code"] = tc.Code
+		}
+	}
+	if tc.FilePath != "" {
+		m["file_path"] = tc.FilePath
+	} else if tc.Path != "" {
+		m["file_path"] = tc.Path
+	}
+	if tc.URL != "" {
+		m["url"] = tc.URL
+	}
+	if tc.Hostname != "" {
+		m["hostname"] = tc.Hostname
+	}
+	if tc.Name != "" {
+		m["name"] = tc.Name
+	}
+	return m
 }

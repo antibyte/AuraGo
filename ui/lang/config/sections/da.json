@@ -117,6 +117,8 @@
   "config.section.netlify.desc": "Deploy og administrer sider på Netlify",
   "config.section.memory_analysis.label": "Hukommelsesanalyse",
   "config.section.memory_analysis.desc": "Dedikeret LLM til analyse af samtaler og udtræk af erindringer",
+  "config.section.llm_guardian.label": "LLM Guardian",
+  "config.section.llm_guardian.desc": "LLM-baseret sikkerhedslag til validering af værktøjskald",
   "config.section.image_generation.label": "Image Generation",
   "config.section.image_generation.desc": "Generate images from text prompts using AI",
   "config.section.prompts_editor.label": "Forespørgsler og personas",

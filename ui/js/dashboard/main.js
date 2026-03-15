@@ -966,6 +966,72 @@
             return s.substring(0, max) + '…';
         }
 
+        // ── LLM Guardian Card ───────────────────────────────────────────────────────
+
+        async function loadGuardianCard() {
+            const data = await API.get('/api/dashboard/guardian');
+            const card = document.getElementById('card-guardian');
+            if (!data || !data.enabled) {
+                if (card) card.style.display = 'none';
+                return;
+            }
+            if (card) card.style.display = '';
+            renderGuardianCard(data);
+        }
+
+        function renderGuardianCard(data) {
+            const statusEl = document.getElementById('guardian-status');
+            const metricsEl = document.getElementById('guardian-metrics');
+            if (!statusEl || !metricsEl) return;
+
+            const levelLabels = { off: '⚪ Off', low: '🟢 Low', medium: '🟡 Medium', high: '🔴 High' };
+            const fsLabels = { block: '🚫 Block', quarantine: '⚠️ Quarantine', allow: '✅ Allow' };
+
+            statusEl.innerHTML = `
+                <div class="guardian-status-row">
+                    <span class="guardian-lbl">${t('dashboard.guardian_level')}:</span>
+                    <span class="guardian-val">${levelLabels[data.level] || data.level}</span>
+                </div>
+                <div class="guardian-status-row">
+                    <span class="guardian-lbl">${t('dashboard.guardian_failsafe')}:</span>
+                    <span class="guardian-val">${fsLabels[data.fail_safe] || data.fail_safe}</span>
+                </div>`;
+
+            const m = data.metrics;
+            if (!m || m.total_checks === 0) {
+                metricsEl.innerHTML = `<div class="empty-state">${t('dashboard.guardian_no_data')}</div>`;
+                return;
+            }
+
+            metricsEl.innerHTML = `
+                <div class="guardian-metrics-grid">
+                    <div class="guardian-metric">
+                        <div class="guardian-metric-val">${m.total_checks}</div>
+                        <div class="guardian-metric-lbl">${t('dashboard.guardian_total')}</div>
+                    </div>
+                    <div class="guardian-metric">
+                        <div class="guardian-metric-val ok">${m.allows}</div>
+                        <div class="guardian-metric-lbl">${t('dashboard.guardian_allowed')}</div>
+                    </div>
+                    <div class="guardian-metric">
+                        <div class="guardian-metric-val warn">${m.quarantines}</div>
+                        <div class="guardian-metric-lbl">${t('dashboard.guardian_quarantined')}</div>
+                    </div>
+                    <div class="guardian-metric">
+                        <div class="guardian-metric-val danger">${m.blocks}</div>
+                        <div class="guardian-metric-lbl">${t('dashboard.guardian_blocked')}</div>
+                    </div>
+                    <div class="guardian-metric">
+                        <div class="guardian-metric-val">${(m.cache_hit_rate * 100).toFixed(0)}%</div>
+                        <div class="guardian-metric-lbl">${t('dashboard.guardian_cache_rate')}</div>
+                    </div>
+                    <div class="guardian-metric">
+                        <div class="guardian-metric-val">${m.total_tokens}</div>
+                        <div class="guardian-metric-lbl">${t('dashboard.guardian_tokens')}</div>
+                    </div>
+                </div>`;
+        }
+
         // ══════════════════════════════════════════════════════════════════════════════
         // INITIALIZATION
         // ══════════════════════════════════════════════════════════════════════════════
@@ -1079,6 +1145,9 @@
             renderOperations(overview);
             renderIntegrations(overview);
 
+            // LLM Guardian
+            loadGuardianCard();
+
             // Activity
             renderActivity(activity);
 
@@ -1182,6 +1251,9 @@
                 // Operations & Integrations
                 renderOperations(overview);
                 renderIntegrations(overview);
+
+                // LLM Guardian
+                loadGuardianCard();
 
                 // Journal
                 loadJournal();

@@ -117,6 +117,8 @@
   "config.section.netlify.desc": "Sites deployen en beheren op Netlify",
   "config.section.memory_analysis.label": "Geheugenanalyse",
   "config.section.memory_analysis.desc": "Eigen LLM voor gespreksanalyse en geheugenextractie",
+  "config.section.llm_guardian.label": "LLM Guardian",
+  "config.section.llm_guardian.desc": "LLM-gebaseerde beveiligingslaag voor tool-aanroep validatie",
   "config.section.image_generation.label": "Image Generation",
   "config.section.image_generation.desc": "Generate images from text prompts using AI",
   "config.section.prompts_editor.label": "Prompt Editor",

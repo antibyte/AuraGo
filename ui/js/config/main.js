@@ -35,7 +35,8 @@ const SECTIONS = [
             { key: 'budget', icon: '💰', label: t('config.section.budget.label'), desc: t('config.section.budget.desc') },
             { key: 'co_agents', icon: '🤖', label: t('config.section.co_agents.label'), desc: t('config.section.co_agents.desc') },
             { key: 'ai_gateway', icon: '🌩️', label: t('config.section.ai_gateway.label'), desc: t('config.section.ai_gateway.desc') },
-            { key: 'memory_analysis', icon: '🧬', label: t('config.section.memory_analysis.label'), desc: t('config.section.memory_analysis.desc') }
+            { key: 'memory_analysis', icon: '🧬', label: t('config.section.memory_analysis.label'), desc: t('config.section.memory_analysis.desc') },
+            { key: 'llm_guardian', icon: '🛡️', label: t('config.section.llm_guardian.label'), desc: t('config.section.llm_guardian.desc') }
         ]
     },
     {
@@ -856,7 +857,8 @@ const SECTION_MODULES = {
     mcp_server: { m: 'mcp_server', fn: 'renderMCPServerSection' },
     image_generation: { m: 'image_generation', fn: 'renderImageGenerationSection' },
     remote_control: { m: 'remote_control', fn: 'renderRemoteControlSection' },
-    memory_analysis: { m: 'memory_analysis', fn: 'renderMemoryAnalysisSection' }
+    memory_analysis: { m: 'memory_analysis', fn: 'renderMemoryAnalysisSection' },
+    llm_guardian: { m: 'llm_guardian', fn: 'renderLLMGuardianSection' }
 };
 
 function loadModule(name) {

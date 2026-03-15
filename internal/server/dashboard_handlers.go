@@ -868,6 +868,38 @@ func tailFile(path string, n int) ([]string, error) {
 	return allLines[len(allLines)-n:], nil
 }
 
+// handleDashboardGuardian returns LLM Guardian metrics for the dashboard card.
+func handleDashboardGuardian(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		s.CfgMu.RLock()
+		enabled := s.Cfg.LLMGuardian.Enabled
+		level := s.Cfg.LLMGuardian.DefaultLevel
+		failSafe := s.Cfg.LLMGuardian.FailSafe
+		s.CfgMu.RUnlock()
+
+		response := map[string]interface{}{
+			"enabled":   enabled,
+			"level":     level,
+			"fail_safe": failSafe,
+		}
+
+		if s.LLMGuardian != nil && s.LLMGuardian.Metrics != nil {
+			snap := s.LLMGuardian.Metrics.Snapshot()
+			response["metrics"] = snap
+		} else {
+			response["metrics"] = nil
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+	}
+}
+
 // handleDashboardJournal returns recent journal entries as JSON.
 // Query params: ?from=YYYY-MM-DD&to=YYYY-MM-DD&type=xxx&limit=20
 func handleDashboardJournal(s *Server) http.HandlerFunc {

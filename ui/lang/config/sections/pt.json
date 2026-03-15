@@ -117,6 +117,8 @@
   "config.section.netlify.desc": "Implantar e gerenciar sites no Netlify",
   "config.section.memory_analysis.label": "Análise de Memória",
   "config.section.memory_analysis.desc": "LLM dedicado para analisar conversas e extrair memórias",
+  "config.section.llm_guardian.label": "LLM Guardian",
+  "config.section.llm_guardian.desc": "Camada de segurança baseada em LLM para validação de chamadas de ferramentas",
   "config.section.image_generation.label": "Image Generation",
   "config.section.image_generation.desc": "Generate images from text prompts using AI",
   "config.section.prompts_editor.label": "Editor de Prompts",

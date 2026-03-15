@@ -115,6 +115,8 @@
   "config.section.netlify.desc": "Wdrażanie i zarządzanie stronami na Netlify",
   "config.section.memory_analysis.label": "Analiza Pamięci",
   "config.section.memory_analysis.desc": "Dedykowany LLM do analizy rozmów i ekstrakcji wspomnień",
+  "config.section.llm_guardian.label": "LLM Guardian",
+  "config.section.llm_guardian.desc": "Warstwa bezpieczeństwa oparta na LLM do walidacji wywołań narzędzi",
   "config.section.image_generation.label": "Image Generation",
   "config.section.image_generation.desc": "Generate images from text prompts using AI",
   "config.section.prompts_editor.label": "Prompty i Persony",

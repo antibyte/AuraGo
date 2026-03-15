@@ -390,6 +390,32 @@ func (c *Config) ResolveProviders() {
 		c.MemoryAnalysis.ProviderType = c.LLM.ProviderType
 	}
 
+	// ── LLM Guardian ── (falls back to main LLM if provider empty)
+	if c.LLMGuardian.Provider != "" {
+		if p := c.FindProvider(c.LLMGuardian.Provider); p != nil {
+			c.LLMGuardian.ProviderType = p.Type
+			c.LLMGuardian.BaseURL = p.BaseURL
+			c.LLMGuardian.APIKey = p.APIKey
+			if c.LLMGuardian.Model == "" {
+				c.LLMGuardian.ResolvedModel = p.Model
+			} else {
+				c.LLMGuardian.ResolvedModel = c.LLMGuardian.Model
+			}
+		}
+	}
+	if c.LLMGuardian.APIKey == "" {
+		c.LLMGuardian.APIKey = c.LLM.APIKey
+	}
+	if c.LLMGuardian.BaseURL == "" {
+		c.LLMGuardian.BaseURL = c.LLM.BaseURL
+	}
+	if c.LLMGuardian.ResolvedModel == "" {
+		c.LLMGuardian.ResolvedModel = c.LLM.Model
+	}
+	if c.LLMGuardian.ProviderType == "" {
+		c.LLMGuardian.ProviderType = c.LLM.ProviderType
+	}
+
 	// ── Image Generation ── (no fallback — must be explicitly configured)
 	if c.ImageGeneration.Provider != "" {
 		if p := c.FindProvider(c.ImageGeneration.Provider); p != nil {

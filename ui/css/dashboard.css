@@ -1562,3 +1562,34 @@
         .journal-entry[data-importance="3"] { border-left-color: var(--accent); }
         .journal-entry[data-importance="2"] { border-left-color: #6b7280; }
         .journal-entry[data-importance="1"] { border-left-color: #374151; }
+
+        /* ── LLM Guardian Card ──────────────────────────────────────────── */
+        .guardian-status-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.3rem 0;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+        .guardian-status-row:last-child { border-bottom: none; }
+        .guardian-lbl { color: var(--text-muted); font-size: 0.85rem; }
+        .guardian-val { font-weight: 600; font-size: 0.85rem; }
+        .guardian-metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.6rem;
+            margin-top: 0.8rem;
+        }
+        .guardian-metric { text-align: center; }
+        .guardian-metric-val {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--text);
+        }
+        .guardian-metric-val.ok { color: #22c55e; }
+        .guardian-metric-val.warn { color: #f59e0b; }
+        .guardian-metric-val.danger { color: #ef4444; }
+        .guardian-metric-lbl {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-top: 0.15rem;
+        }

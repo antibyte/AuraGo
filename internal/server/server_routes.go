@@ -276,6 +276,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		mux.HandleFunc("/api/dashboard/journal", handleDashboardJournal(s))
 		mux.HandleFunc("/api/dashboard/journal/summaries", handleDashboardJournalSummary(s))
 		mux.HandleFunc("/api/dashboard/journal/stats", handleDashboardJournalStats(s))
+		mux.HandleFunc("/api/dashboard/guardian", handleDashboardGuardian(s))
 
 		// System endpoints
 		mux.HandleFunc("/api/system/os", func(w http.ResponseWriter, r *http.Request) {

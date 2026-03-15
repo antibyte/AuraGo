@@ -62,6 +62,12 @@ func Load(path string) (*Config, error) {
 	cfg.MemoryAnalysis.WeeklyReflection = true
 	cfg.MemoryAnalysis.ReflectionDay = "sunday"
 
+	// LLM Guardian defaults: disabled by default, medium protection when enabled.
+	cfg.LLMGuardian.DefaultLevel = "medium"
+	cfg.LLMGuardian.FailSafe = "quarantine"
+	cfg.LLMGuardian.CacheTTL = 300
+	cfg.LLMGuardian.MaxChecksPerMin = 60
+
 	// Danger-zone capabilities default to false (opt-in) for new installations.
 	// Existing configs with explicit true/false values will be read from YAML unchanged.
 	if err := yaml.Unmarshal(data, &cfg); err != nil {

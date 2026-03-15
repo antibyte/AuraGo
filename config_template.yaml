@@ -384,6 +384,15 @@ image_generation:
     default_style: "natural"
     prompt_enhancement: false
     max_monthly: 0
+llm_guardian:
+    enabled: false
+    provider: ""
+    model: ""
+    default_level: "medium"
+    fail_safe: "quarantine"
+    cache_ttl: 300
+    max_checks_per_min: 60
+    tool_overrides: {}
 netlify:
     enabled: false
     readonly: false

@@ -198,6 +198,7 @@ type Server struct {
 	InventoryDB        *sql.DB
 	InvasionDB         *sql.DB
 	Guardian           *security.Guardian
+	LLMGuardian        *security.LLMGuardian
 	CoAgentRegistry    *agent.CoAgentRegistry
 	BudgetTracker      *budget.Tracker
 	TokenManager       *security.TokenManager
@@ -239,6 +240,7 @@ func Start(cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, sh
 		MediaRegistryDB:    mediaRegistryDB,
 		HomepageRegistryDB: homepageRegistryDB,
 		Guardian:           security.NewGuardian(logger),
+		LLMGuardian:        security.NewLLMGuardian(cfg, logger),
 		CoAgentRegistry:    agent.NewCoAgentRegistry(cfg.CoAgents.MaxConcurrent, logger),
 		BudgetTracker:      budget.NewTracker(cfg, logger, cfg.Directories.DataDir),
 		IsFirstStart:       isFirstStart,
