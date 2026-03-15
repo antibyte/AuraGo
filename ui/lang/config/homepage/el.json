@@ -41,5 +41,8 @@
   "config.homepage.webserver_domain": "Domain",
   "config.homepage.optional": "προαιρετικό",
   "config.homepage.workspace_title": "Χώρος εργασίας",
-  "config.homepage.workspace_path": "Διαδρομή χώρου εργασίας"
+  "config.homepage.workspace_path": "Διαδρομή χώρου εργασίας",
+  "config.homepage.circuit_breaker_title": "Circuit Breaker",
+  "config.homepage.circuit_breaker_desc": "Το εργαλείο ιστοσελίδας χρειάζεται συχνά πολλές διαδοχικές κλήσεις εργαλείων. Αυτό ορίζει ένα ξεχωριστό, υψηλότερο όριο που ισχύει προσωρινά από την πρώτη κλήση ιστοσελίδας μέχρι το τέλος της τρέχουσας αλυσίδας ενεργειών.",
+  "config.homepage.circuit_breaker_max_calls": "Μέγ. κλήσεις εργαλείων"
 }

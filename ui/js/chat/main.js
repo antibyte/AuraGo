@@ -668,6 +668,50 @@ chatForm.addEventListener('submit', async (e) => {
 const agentStatusDiv = document.getElementById('agentStatusContainer');
 const agentStatusText = document.getElementById('agentStatusText');
 
+/* ── Floating action icons ── */
+const TOOL_ICONS = {
+    execute_shell: '🖥️', execute_python: '🐍', execute_sandbox: '📦',
+    filesystem: '📁', system_metrics: '📊', process_management: '⚙️',
+    follow_up: '🔄', analyze_image: '🔍', transcribe_audio: '🎤',
+    send_image: '🖼️', execute_skill: '🎯', list_skills: '📜',
+    save_tool: '💾', remote_execution: '🌐', api_request: '🔗',
+    manage_memory: '🧠', query_memory: '🧠', memory_reflect: '💭',
+    cheatsheet: '📋', knowledge_graph: '🕸️', secrets_vault: '🔐',
+    cron_scheduler: '⏰', manage_notes: '📝', manage_journal: '📓',
+    manage_missions: '🎯', query_inventory: '📋', register_device: '📱',
+    home_assistant: '🏠', meshcentral: '🖧', wake_on_lan: '⚡',
+    docker: '🐳', co_agent: '🤖', homepage: '🌍', homepage_registry: '📚',
+    call_webhook: '🪝', manage_outgoing_webhooks: '🪝', manage_webhooks: '🪝',
+    netlify: '🚀', manage_updates: '🔄', execute_sudo: '🛡️',
+    proxmox: '🖥️', ollama: '🦙', tailscale: '🔒',
+    cloudflare_tunnel: '☁️', fetch_email: '📧', send_email: '📧',
+    list_email_accounts: '📧', firewall: '🧱', ansible: '🔧',
+    invasion_control: '🥚', github: '🐙', generate_image: '🎨',
+    mqtt_publish: '📡', mqtt_subscribe: '📡', mqtt_unsubscribe: '📡',
+    mqtt_get_messages: '📡', mcp_call: '🔌', adguard: '🛡️',
+    google_workspace: '📊', remote_control: '🎮', media_registry: '🎬',
+    thinking: '💡', coding: '💻', co_agent_spawn: '🤖',
+    _default: '✨'
+};
+
+function spawnFloatingIcon(toolName) {
+    const pill = agentStatusDiv.querySelector('.status-pill');
+    if (!pill || agentStatusDiv.style.display === 'none') return;
+    // Throttle: max one icon per 800ms per tool
+    const now = Date.now();
+    const key = '_lastIcon_' + toolName;
+    if (spawnFloatingIcon[key] && now - spawnFloatingIcon[key] < 800) return;
+    spawnFloatingIcon[key] = now;
+    const icon = document.createElement('span');
+    icon.className = 'floating-icon';
+    icon.textContent = TOOL_ICONS[toolName] || TOOL_ICONS._default;
+    const pillW = pill.offsetWidth;
+    const randomX = Math.random() * Math.max(pillW - 16, 20);
+    icon.style.left = randomX + 'px';
+    agentStatusDiv.appendChild(icon);
+    icon.addEventListener('animationend', () => icon.remove());
+}
+
 
 /* ── Connection status pills ── */
 function setConnectionState(state) {
@@ -741,6 +785,7 @@ function handleSSEMessage(e) {
         if (data.event === 'thinking') {
             stopBtn.disabled = false;
             message = data.detail || t('chat.sse_thinking');
+            spawnFloatingIcon('thinking');
         } else if (data.event === 'tool_start') {
             if (data.detail === 'execute_skill') {
                 message = t('chat.sse_execute_skill') + data.detail;
@@ -751,8 +796,10 @@ function handleSSEMessage(e) {
             } else {
                 message = t('chat.sse_tool_start') + data.detail;
             }
+            spawnFloatingIcon(data.detail);
         } else if (data.event === 'co_agent_spawn') {
             message = t('chat.sse_co_agent_spawn') + data.detail;
+            spawnFloatingIcon('co_agent_spawn');
         } else if (data.event === 'workflow_plan') {
             message = t('chat.sse_workflow_plan');
         } else if (data.event === 'tool_end') {
@@ -762,6 +809,7 @@ function handleSSEMessage(e) {
             message = t('chat.sse_tool_end') + data.detail;
         } else if (data.event === 'coding') {
             message = t('chat.sse_coding');
+            spawnFloatingIcon('coding');
         } else if (data.event === 'error_recovery') {
             message = t('chat.sse_error_recovery');
         } else if (data.event === 'tool_call') {

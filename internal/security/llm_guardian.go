@@ -155,7 +155,7 @@ func (g *LLMGuardian) Evaluate(ctx context.Context, check GuardianCheck) Guardia
 
 // EvaluateWithFailSafe wraps Evaluate with timeout and error recovery.
 func (g *LLMGuardian) EvaluateWithFailSafe(ctx context.Context, check GuardianCheck) GuardianResult {
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	return g.Evaluate(ctx, check)
 }
@@ -202,6 +202,11 @@ func (g *LLMGuardian) callLLM(ctx context.Context, check GuardianCheck, start ti
 
 	tokensUsed := resp.Usage.TotalTokens
 	raw := resp.Choices[0].Message.Content
+	// Reasoning models (e.g. DeepSeek, step-3.5-flash) may put the answer in
+	// ReasoningContent and leave Content empty.  Fall back gracefully.
+	if strings.TrimSpace(raw) == "" && resp.Choices[0].Message.ReasoningContent != "" {
+		raw = resp.Choices[0].Message.ReasoningContent
+	}
 	result := parseGuardianResponse(raw)
 	result.TokensUsed = tokensUsed
 	result.Duration = time.Since(start)
@@ -292,6 +297,7 @@ var riskyTools = map[string]bool{
 	"manage_updates":       true,
 	"netlify":              true,
 	"home_assistant":       true,
+	"homepage":             true,
 }
 
 func isHighRiskTool(name string) bool { return highRiskTools[name] }
@@ -347,6 +353,13 @@ func buildGuardianPrompt(check GuardianCheck) string {
 
 func parseGuardianResponse(raw string) GuardianResult {
 	raw = strings.TrimSpace(raw)
+	// Strip <think>...</think> or <thinking>...</thinking> tags from reasoning models
+	// that embed chain-of-thought in Content instead of ReasoningContent.
+	if idx := strings.Index(raw, "</think>"); idx >= 0 {
+		raw = strings.TrimSpace(raw[idx+len("</think>"):])
+	} else if idx := strings.Index(raw, "</thinking>"); idx >= 0 {
+		raw = strings.TrimSpace(raw[idx+len("</thinking>"):])
+	}
 	// Expected: "safe 10 routine file listing" or "dangerous 95 deletes system files"
 	// Some reasoning models may wrap the answer in extra text; scan all words for a known decision keyword.
 	parts := strings.Fields(raw)

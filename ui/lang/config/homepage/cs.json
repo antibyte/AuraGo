@@ -41,5 +41,8 @@
   "config.homepage.webserver_domain": "Doména",
   "config.homepage.optional": "volitelné",
   "config.homepage.workspace_title": "Pracovní prostor",
-  "config.homepage.workspace_path": "Cesta k pracovnímu prostoru"
+  "config.homepage.workspace_path": "Cesta k pracovnímu prostoru",
+  "config.homepage.circuit_breaker_title": "Circuit Breaker",
+  "config.homepage.circuit_breaker_desc": "Nástroj homepage často vyžaduje mnoho po sobě jdoucích volání nástrojů. Toto nastavuje samostatný, vyšší limit, který platí dočasně od prvního volání homepage do konce aktuálního řetězce akcí.",
+  "config.homepage.circuit_breaker_max_calls": "Max. volání nástrojů"
 }

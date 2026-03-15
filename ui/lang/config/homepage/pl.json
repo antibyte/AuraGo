@@ -41,5 +41,8 @@
   "config.homepage.webserver_domain": "Domena",
   "config.homepage.optional": "opcjonalne",
   "config.homepage.workspace_title": "Przestrzeń robocza",
-  "config.homepage.workspace_path": "Ścieżka przestrzeni roboczej"
+  "config.homepage.workspace_path": "Ścieżka przestrzeni roboczej",
+  "config.homepage.circuit_breaker_title": "Circuit Breaker",
+  "config.homepage.circuit_breaker_desc": "Narzędzie homepage często wymaga wielu kolejnych wywołań narzędzi. Ustawia to oddzielny, wyższy limit, który obowiązuje tymczasowo od pierwszego wywołania homepage do końca bieżącego łańcucha akcji.",
+  "config.homepage.circuit_breaker_max_calls": "Maks. wywołań narzędzi"
 }

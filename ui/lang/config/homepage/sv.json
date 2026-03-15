@@ -41,5 +41,8 @@
   "config.homepage.webserver_domain": "Domän",
   "config.homepage.optional": "valfritt",
   "config.homepage.workspace_title": "Arbetsyta",
-  "config.homepage.workspace_path": "Sökväg till arbetsyta"
+  "config.homepage.workspace_path": "Sökväg till arbetsyta",
+  "config.homepage.circuit_breaker_title": "Circuit Breaker",
+  "config.homepage.circuit_breaker_desc": "Hemsideverktyget behöver ofta många på varandra följande verktygsanrop. Detta sätter en separat, högre gräns som gäller tillfälligt från det första hemsideanropet till slutet av den aktuella åtgärdskedjan.",
+  "config.homepage.circuit_breaker_max_calls": "Max. verktygsanrop"
 }

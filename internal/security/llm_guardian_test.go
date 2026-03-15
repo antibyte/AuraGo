@@ -28,6 +28,9 @@ func TestParseGuardianResponse(t *testing.T) {
 		{"score only", "safe 50", DecisionAllow, 0.45, 0.55, ""},
 		{"score clamp high", "safe 200 weird", DecisionAllow, 1.0, 1.01, "weird"},
 		{"negative score", "safe -10 weird", DecisionAllow, -0.01, 0.01, "weird"},
+		{"think tags", "<think>This is a routine file write to an existing project.</think>\nsafe 5 routine file write", DecisionAllow, 0.01, 0.1, "routine file write"},
+		{"thinking tags", "<thinking>Analyzing the tool call parameters.</thinking>\ndangerous 90 deletes root", DecisionBlock, 0.85, 0.95, "deletes root"},
+		{"think tags only decision", "<think>Long reasoning here.</think>\nsafe 10", DecisionAllow, 0.05, 0.15, ""},
 	}
 
 	for _, tt := range tests {

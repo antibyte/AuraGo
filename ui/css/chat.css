@@ -767,6 +767,8 @@
             max-width: 52rem;
             margin: 0 auto;
             padding: 0.5rem 1rem;
+            position: relative;
+            overflow: visible;
         }
 
         .status-pill {
@@ -780,6 +782,35 @@
             border-radius: 999px;
             border: 1px solid var(--border-accent);
             animation: statusIn 0.3s ease;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ── Floating action icons ── */
+        .floating-icon {
+            position: absolute;
+            bottom: 0;
+            font-size: 1.2rem;
+            pointer-events: none;
+            z-index: 0;
+            animation: floatUp 2.5s ease-out forwards;
+            line-height: 1;
+            filter: drop-shadow(0 0 4px var(--accent-glow));
+        }
+
+        @keyframes floatUp {
+            0% {
+                opacity: 0.8;
+                transform: translateY(0) scale(1);
+            }
+            50% {
+                opacity: 0.5;
+                transform: translateY(-40px) scale(0.9);
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(-80px) scale(0.7);
+            }
         }
 
         @keyframes statusIn {

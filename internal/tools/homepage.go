@@ -33,7 +33,7 @@ const (
 )
 
 // homepageDockerfile is the embedded Dockerfile for the dev container.
-const homepageDockerfile = `FROM mcr.microsoft.com/playwright:v1.42.0-jammy
+const homepageDockerfile = `FROM mcr.microsoft.com/playwright:v1.50.0-noble
 WORKDIR /workspace
 RUN apt-get update && apt-get install -y \
     git curl wget jq libvips-dev \

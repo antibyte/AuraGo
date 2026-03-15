@@ -41,5 +41,8 @@
   "config.homepage.webserver_domain": "Domain",
   "config.homepage.optional": "optional",
   "config.homepage.workspace_title": "Workspace",
-  "config.homepage.workspace_path": "Workspace path"
+  "config.homepage.workspace_path": "Workspace path",
+  "config.homepage.circuit_breaker_title": "Circuit Breaker",
+  "config.homepage.circuit_breaker_desc": "The homepage tool often needs many consecutive tool calls. This sets a separate, higher limit that applies temporarily from the first homepage call until the end of the current action chain.",
+  "config.homepage.circuit_breaker_max_calls": "Max Tool Calls"
 }

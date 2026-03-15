@@ -41,5 +41,8 @@
   "config.homepage.webserver_domain": "Domínio",
   "config.homepage.optional": "opcional",
   "config.homepage.workspace_title": "Espaço de trabalho",
-  "config.homepage.workspace_path": "Caminho do espaço de trabalho"
+  "config.homepage.workspace_path": "Caminho do espaço de trabalho",
+  "config.homepage.circuit_breaker_title": "Circuit Breaker",
+  "config.homepage.circuit_breaker_desc": "A ferramenta homepage frequentemente necessita de muitas chamadas consecutivas. Isto define um limite separado e mais alto que se aplica temporariamente desde a primeira chamada homepage até ao fim da cadeia de ações atual.",
+  "config.homepage.circuit_breaker_max_calls": "Máx. chamadas de ferramentas"
 }

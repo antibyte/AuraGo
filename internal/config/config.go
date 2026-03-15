@@ -269,11 +269,11 @@ func Load(path string) (*Config, error) {
 	}
 
 	// Homepage defaults
-	if cfg.Homepage.CircuitBreakerMultiplier <= 0 {
-		cfg.Homepage.CircuitBreakerMultiplier = 2.0
+	if cfg.Homepage.CircuitBreakerMaxCalls <= 0 {
+		cfg.Homepage.CircuitBreakerMaxCalls = 35
 	}
-	if cfg.Homepage.CircuitBreakerMultiplier > 5.0 {
-		cfg.Homepage.CircuitBreakerMultiplier = 5.0 // max 5x
+	if cfg.Homepage.CircuitBreakerMaxCalls > 100 {
+		cfg.Homepage.CircuitBreakerMaxCalls = 100
 	}
 
 	// Server defaults

@@ -254,7 +254,19 @@ async function renderHomepageSection(section) {
         </label>`;
     }
 
-    html += `</div>`;
+    // ── Circuit Breaker ──
+    if (dockerEnabled) {
+        html += `<div style="margin-top:1.5rem;margin-bottom:0.5rem;font-weight:600;font-size:0.9rem;color:var(--accent);border-bottom:1px solid var(--border-subtle);padding-bottom:0.4rem;">⚡ ${t('config.homepage.circuit_breaker_title')}</div>`;
+        html += `<div class="field-help" style="margin-bottom:0.8rem;">${t('config.homepage.circuit_breaker_desc')}</div>`;
+
+        html += `<label style="display:block;max-width:200px;">
+            <span style="font-size:0.78rem;color:var(--text-secondary);">${t('config.homepage.circuit_breaker_max_calls')}</span>
+            <input type="number" class="cfg-input" data-path="homepage.circuit_breaker_max_calls" value="${cfg.circuit_breaker_max_calls || 35}" min="1" max="100" style="width:100%;margin-top:0.2rem;"
+                onchange="setNestedValue(configData,'homepage.circuit_breaker_max_calls',parseInt(this.value)||35);setDirty(true)">
+        </label>`;
+    }
+
+    html += \`</div>\`;
     document.getElementById('content').innerHTML = html;
     attachChangeListeners();
 }

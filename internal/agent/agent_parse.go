@@ -1002,10 +1002,10 @@ func decodeBase64(s string) ([]byte, error) {
 }
 
 // calculateEffectiveMaxCalls berechnet das effektive Circuit Breaker Limit
-// basierend auf Personality Traits, Homepage-Multiplier und explizitem Override.
-// Wenn tc leer ist (ToolCall{}), werden nur die Basis-Anpassungen berechnet (Personality).
-// Tool-spezifische Anpassungen erfolgen später wenn tc bekannt ist.
-func calculateEffectiveMaxCalls(cfg *config.Config, tc ToolCall, personalityEnabled bool, shortTermMem *memory.SQLiteMemory, logger *slog.Logger) int {
+// basierend auf Personality Traits, Homepage-MaxCalls und explizitem Override.
+// homepageActiveInChain wird true sobald das Homepage-Tool in der aktuellen Aktionskette
+// aufgerufen wurde – ab dann gilt das erhöhte Limit für die gesamte Kette.
+func calculateEffectiveMaxCalls(cfg *config.Config, tc ToolCall, homepageActiveInChain bool, personalityEnabled bool, shortTermMem *memory.SQLiteMemory, logger *slog.Logger) int {
 	effectiveMaxCalls := cfg.CircuitBreaker.MaxToolCalls
 
 	// 1. Personality Engine V2: Thoroughness Trait
@@ -1018,18 +1018,13 @@ func calculateEffectiveMaxCalls(cfg *config.Config, tc ToolCall, personalityEnab
 		}
 	}
 
-	// 2. Homepage Tool: Multiplier für komplexe Web-Workflows
-	// Nur anwenden wenn tc bekannt ist (nicht leer)
-	if tc.Tool != "" && tc.Tool == "homepage" && cfg.Homepage.Enabled {
-		multiplier := cfg.Homepage.CircuitBreakerMultiplier
-		if multiplier > 0 {
-			// Cap bei 5x
-			if multiplier > 5.0 {
-				multiplier = 5.0
-			}
-			newLimit := int(float64(effectiveMaxCalls) * multiplier)
-			logger.Debug("[Circuit Breaker] Homepage multiplier applied", "base_limit", effectiveMaxCalls, "multiplier", multiplier, "new_limit", newLimit)
-			effectiveMaxCalls = newLimit
+	// 2. Homepage Tool: absolutes Limit für komplexe Web-Workflows
+	// Gilt sobald Homepage in der aktuellen Kette aktiv ist ODER der aktuelle Call homepage ist.
+	isHomepage := tc.Action == "homepage" || tc.Action == "homepage_tool" || tc.Tool == "homepage"
+	if (isHomepage || homepageActiveInChain) && cfg.Homepage.Enabled && cfg.Homepage.CircuitBreakerMaxCalls > 0 {
+		if cfg.Homepage.CircuitBreakerMaxCalls > effectiveMaxCalls {
+			logger.Debug("[Circuit Breaker] Homepage max calls applied", "base_limit", effectiveMaxCalls, "homepage_limit", cfg.Homepage.CircuitBreakerMaxCalls)
+			effectiveMaxCalls = cfg.Homepage.CircuitBreakerMaxCalls
 		}
 	}
 

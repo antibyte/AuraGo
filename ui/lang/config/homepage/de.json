@@ -41,5 +41,8 @@
   "config.homepage.webserver_domain": "Domain",
   "config.homepage.optional": "optional",
   "config.homepage.workspace_title": "Arbeitsbereich",
-  "config.homepage.workspace_path": "Arbeitsbereich-Pfad"
+  "config.homepage.workspace_path": "Arbeitsbereich-Pfad",
+  "config.homepage.circuit_breaker_title": "Circuit Breaker",
+  "config.homepage.circuit_breaker_desc": "Das Homepage-Tool benötigt oft viele aufeinanderfolgende Tool-Aufrufe. Hier wird ein separates, höheres Limit gesetzt, das temporär ab dem ersten Homepage-Aufruf bis zum Ende der aktuellen Aktionskette gilt.",
+  "config.homepage.circuit_breaker_max_calls": "Max. Tool-Aufrufe"
 }

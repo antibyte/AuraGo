@@ -41,5 +41,8 @@
   "config.homepage.webserver_domain": "Domaine",
   "config.homepage.optional": "optionnel",
   "config.homepage.workspace_title": "Espace de travail",
-  "config.homepage.workspace_path": "Chemin de l'espace de travail"
+  "config.homepage.workspace_path": "Chemin de l'espace de travail",
+  "config.homepage.circuit_breaker_title": "Circuit Breaker",
+  "config.homepage.circuit_breaker_desc": "L'outil homepage nécessite souvent de nombreux appels d'outils consécutifs. Ceci définit une limite séparée et plus élevée qui s'applique temporairement du premier appel homepage jusqu'à la fin de la chaîne d'actions en cours.",
+  "config.homepage.circuit_breaker_max_calls": "Appels d'outils max."
 }

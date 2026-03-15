@@ -234,9 +234,9 @@
       "title": "Workspace Path",
       "description": "Local directory path where web projects are stored and mounted into the Docker container."
     },
-    "circuit_breaker_multiplier": {
-      "title": "Circuit Breaker Multiplier",
-      "description": "Increases the tool call limit for Homepage operations. Complex web workflows (init → build → test → deploy) often exceed the default limit. 2.0 = double the limit, 5.0 = maximum. Default: 2.0"
+    "circuit_breaker_max_calls": {
+      "title": "Circuit Breaker Max Calls",
+      "description": "Sets a separate tool call limit when the Homepage tool is active. Complex web workflows (init → build → test → deploy) often exceed the default circuit breaker. This higher limit applies temporarily from the first Homepage tool call until the end of the current action chain. Default: 35, max: 100"
     }
   },
   "netlify": {

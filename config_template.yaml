@@ -138,9 +138,9 @@ homepage:
     webserver_domain: ""
     webserver_internal_only: false
     workspace_path: ""
-    # Circuit Breaker Multiplier für komplexe Homepage-Workflows
-    # Erhöht das Tool-Call-Limit für Homepage-Operationen (z.B. 2.0 = doppeltes Limit)
-    circuit_breaker_multiplier: 2.0
+    # Circuit Breaker Max Calls für komplexe Homepage-Workflows
+    # Setzt ein eigenes Tool-Call-Limit wenn Homepage aktiv ist (Standard: 35, max: 100)
+    circuit_breaker_max_calls: 35
 brave_search:
     enabled: false
     api_key: ""

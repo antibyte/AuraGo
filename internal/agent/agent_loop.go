@@ -143,8 +143,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	sessionTokens := 0
 	emptyRetried := false // Prevents infinite retry on persistent empty responses
 	stepsSinceLastFeedback := 0
-	lastToolError := ""        // Tracks the last tool error string for consecutive-error detection
-	consecutiveErrorCount := 0 // Incremented each time the same tool error repeats back-to-back
+	lastToolError := ""          // Tracks the last tool error string for consecutive-error detection
+	consecutiveErrorCount := 0   // Incremented each time the same tool error repeats back-to-back
+	homepageUsedInChain := false // Elevated circuit breaker once homepage tool is first used
 
 	// Guardian: prompt injection defense
 	guardian := security.NewGuardian(logger)
@@ -329,6 +330,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			ptc := pendingTCs[0]
 			pendingTCs = pendingTCs[1:]
 			toolCallCount++
+			if ptc.Action == "homepage" || ptc.Action == "homepage_tool" {
+				homepageUsedInChain = true
+			}
 			broker.Send("thinking", fmt.Sprintf("[%d] Running %s...", toolCallCount, ptc.Action))
 			ptcJSON := ptc.RawJSON
 			if ptcJSON == "" {
@@ -390,7 +394,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 
 		// Circuit breaker - berechne Basis-Limit (Tool-spezifische Anpassungen erfolgen später wenn tc bekannt ist)
-		effectiveMaxCalls := calculateEffectiveMaxCalls(cfg, ToolCall{}, personalityEnabled, shortTermMem, currentLogger)
+		effectiveMaxCalls := calculateEffectiveMaxCalls(cfg, ToolCall{}, homepageUsedInChain, personalityEnabled, shortTermMem, currentLogger)
 
 		if toolCallCount >= effectiveMaxCalls {
 			currentLogger.Warn("[Sync] Circuit breaker triggered", "count", toolCallCount, "limit", effectiveMaxCalls)
@@ -1093,10 +1097,13 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 
 		// Berechne effektives Limit neu mit bekanntem tc (für Tool-spezifische Anpassungen)
-		effectiveMaxCallsWithTool := calculateEffectiveMaxCalls(cfg, tc, personalityEnabled, shortTermMem, currentLogger)
+		effectiveMaxCallsWithTool := calculateEffectiveMaxCalls(cfg, tc, homepageUsedInChain, personalityEnabled, shortTermMem, currentLogger)
 
 		if tc.IsTool && toolCallCount < effectiveMaxCallsWithTool {
 			toolCallCount++
+			if tc.Action == "homepage" || tc.Action == "homepage_tool" {
+				homepageUsedInChain = true
+			}
 			broker.Send("thinking", fmt.Sprintf("[%d] Running %s...", toolCallCount, tc.Action))
 
 			// Persist tool call to history: native path synthesizes a text representation
@@ -1413,6 +1420,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					btc := pendingTCs[0]
 					pendingTCs = pendingTCs[1:]
 					toolCallCount++
+					if btc.Action == "homepage" || btc.Action == "homepage_tool" {
+						homepageUsedInChain = true
+					}
 					broker.Send("thinking", fmt.Sprintf("[%d] Running %s (batched)...", toolCallCount, btc.Action))
 					broker.Send("tool_start", btc.Action)
 
