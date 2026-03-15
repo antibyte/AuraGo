@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	openai "github.com/sashabaranov/go-openai"
+
 	"aurago/internal/config"
 )
 
@@ -512,5 +514,56 @@ func TestContentScanSystemPromptContent(t *testing.T) {
 	}
 	if !contains(contentScanSystemPrompt, "injection") {
 		t.Error("content scan system prompt should mention injection")
+	}
+}
+
+func TestExtractMessageContent(t *testing.T) {
+	tests := []struct {
+		name string
+		msg  openai.ChatCompletionMessage
+		want string
+	}{
+		{
+			name: "plain content",
+			msg:  openai.ChatCompletionMessage{Content: "safe 10 routine"},
+			want: "safe 10 routine",
+		},
+		{
+			name: "reasoning content fallback",
+			msg:  openai.ChatCompletionMessage{ReasoningContent: "safe 5 ok"},
+			want: "safe 5 ok",
+		},
+		{
+			name: "multi content fallback",
+			msg: openai.ChatCompletionMessage{
+				MultiContent: []openai.ChatMessagePart{
+					{Type: openai.ChatMessagePartTypeText, Text: "safe 15 array format"},
+				},
+			},
+			want: "safe 15 array format",
+		},
+		{
+			name: "content preferred over reasoning",
+			msg:  openai.ChatCompletionMessage{Content: "safe 10 first", ReasoningContent: "dangerous 90 second"},
+			want: "safe 10 first",
+		},
+		{
+			name: "all empty",
+			msg:  openai.ChatCompletionMessage{},
+			want: "",
+		},
+		{
+			name: "whitespace-only content falls through",
+			msg:  openai.ChatCompletionMessage{Content: "   ", ReasoningContent: "safe 20 fallback"},
+			want: "safe 20 fallback",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := extractMessageContent(tt.msg)
+			if got != tt.want {
+				t.Errorf("extractMessageContent() = %q, want %q", got, tt.want)
+			}
+		})
 	}
 }

@@ -201,11 +201,12 @@ func (g *LLMGuardian) callLLM(ctx context.Context, check GuardianCheck, start ti
 	}
 
 	tokensUsed := resp.Usage.TotalTokens
-	raw := resp.Choices[0].Message.Content
-	// Reasoning models (e.g. DeepSeek, step-3.5-flash) may put the answer in
-	// ReasoningContent and leave Content empty.  Fall back gracefully.
-	if strings.TrimSpace(raw) == "" && resp.Choices[0].Message.ReasoningContent != "" {
-		raw = resp.Choices[0].Message.ReasoningContent
+	raw := extractMessageContent(resp.Choices[0].Message)
+	if strings.TrimSpace(raw) == "" {
+		g.logger.Warn("[Guardian] Empty content from LLM",
+			"operation", check.Operation,
+			"tokens", tokensUsed,
+			"finish_reason", resp.Choices[0].FinishReason)
 	}
 	result := parseGuardianResponse(raw)
 	result.TokensUsed = tokensUsed
@@ -433,6 +434,26 @@ func mapDecisionWord(lower string) Decision {
 	}
 }
 
+// extractMessageContent retrieves the text content from a ChatCompletionMessage,
+// trying Content, ReasoningContent, and MultiContent in order.
+func extractMessageContent(msg openai.ChatCompletionMessage) string {
+	if s := strings.TrimSpace(msg.Content); s != "" {
+		return msg.Content
+	}
+	// Reasoning models (e.g. DeepSeek, step-3.5-flash) may put the answer in
+	// ReasoningContent and leave Content empty.
+	if s := strings.TrimSpace(msg.ReasoningContent); s != "" {
+		return msg.ReasoningContent
+	}
+	// Some providers return content as an array of parts (MultiContent).
+	for _, part := range msg.MultiContent {
+		if t := strings.TrimSpace(part.Text); t != "" {
+			return part.Text
+		}
+	}
+	return ""
+}
+
 func truncate(s string, maxLen int) string {
 	if len(s) <= maxLen {
 		return s
@@ -484,7 +505,7 @@ func (g *LLMGuardian) EvaluateClarification(ctx context.Context, check GuardianC
 		return g.failSafeResult(start, "empty clarification response")
 	}
 
-	raw := resp.Choices[0].Message.Content
+	raw := extractMessageContent(resp.Choices[0].Message)
 	result := parseGuardianResponse(raw)
 	result.TokensUsed = resp.Usage.TotalTokens
 	result.Duration = time.Since(start)
@@ -599,7 +620,7 @@ func (g *LLMGuardian) EvaluateContent(ctx context.Context, contentType string, c
 		return g.failSafeResult(start, "empty content scan response")
 	}
 
-	raw := resp.Choices[0].Message.Content
+	raw := extractMessageContent(resp.Choices[0].Message)
 	result := parseGuardianResponse(raw)
 	result.TokensUsed = resp.Usage.TotalTokens
 	result.Duration = time.Since(start)
