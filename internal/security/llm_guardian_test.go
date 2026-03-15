@@ -33,6 +33,8 @@ func TestParseGuardianResponse(t *testing.T) {
 		{"think tags", "<think>This is a routine file write to an existing project.</think>\nsafe 5 routine file write", DecisionAllow, 0.01, 0.1, "routine file write"},
 		{"thinking tags", "<thinking>Analyzing the tool call parameters.</thinking>\ndangerous 90 deletes root", DecisionBlock, 0.85, 0.95, "deletes root"},
 		{"think tags only decision", "<think>Long reasoning here.</think>\nsafe 10", DecisionAllow, 0.05, 0.15, ""},
+		{"truncated think block no closing tag", "<think>This appears to be a safe operation to list cron jobs for the user. The tool is requ", DecisionQuarantine, 0.4, 0.6, ""},
+		{"think block with verdict inside truncated", "<think>safe 5 routine cron list", DecisionAllow, 0.01, 0.1, ""},
 	}
 
 	for _, tt := range tests {

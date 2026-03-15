@@ -184,7 +184,7 @@ func (g *LLMGuardian) callLLM(ctx context.Context, check GuardianCheck, start ti
 	req := openai.ChatCompletionRequest{
 		Model:       g.model,
 		Messages:    g.buildMessages(guardianSystemPrompt, prompt),
-		MaxTokens:   512, // reasoning models (e.g. step-3.5-flash) need budget for thinking + response
+		MaxTokens:   2048, // must be large enough for <think> reasoning blocks + verdict
 		Temperature: 0,
 	}
 
@@ -360,6 +360,15 @@ func parseGuardianResponse(raw string) GuardianResult {
 		raw = strings.TrimSpace(raw[idx+len("</think>"):])
 	} else if idx := strings.Index(raw, "</thinking>"); idx >= 0 {
 		raw = strings.TrimSpace(raw[idx+len("</thinking>"):])
+	} else {
+		// Handle truncated <think> block: response was cut before </think> was written.
+		// Strip the opening tag and scan remaining text for verdict keywords.
+		for _, openTag := range []string{"<think>", "<thinking>"} {
+			if strings.HasPrefix(strings.ToLower(raw), openTag) {
+				raw = strings.TrimSpace(raw[len(openTag):])
+				break
+			}
+		}
 	}
 	// Expected: "safe 10 routine file listing" or "dangerous 95 deletes system files"
 	// Some reasoning models may wrap the answer in extra text; scan all words for a known decision keyword.
@@ -489,7 +498,7 @@ func (g *LLMGuardian) EvaluateClarification(ctx context.Context, check GuardianC
 	req := openai.ChatCompletionRequest{
 		Model:       g.model,
 		Messages:    g.buildMessages(clarificationSystemPrompt, prompt),
-		MaxTokens:   512,
+		MaxTokens:   2048,
 		Temperature: 0,
 	}
 
@@ -604,7 +613,7 @@ func (g *LLMGuardian) EvaluateContent(ctx context.Context, contentType string, c
 	req := openai.ChatCompletionRequest{
 		Model:       g.model,
 		Messages:    g.buildMessages(contentScanSystemPrompt, prompt),
-		MaxTokens:   512,
+		MaxTokens:   2048,
 		Temperature: 0,
 	}
 
