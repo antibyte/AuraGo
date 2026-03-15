@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -38,6 +39,12 @@ type VectorDB interface {
 	Close() error
 }
 
+// queryCacheEntry stores a pre-computed query embedding with a timestamp for TTL expiry.
+type queryCacheEntry struct {
+	embedding []float32
+	timestamp time.Time
+}
+
 // ChromemVectorDB implements VectorDB using chromem-go with persistence.
 type ChromemVectorDB struct {
 	db            *chromem.DB
@@ -47,6 +54,10 @@ type ChromemVectorDB struct {
 	embeddingFunc chromem.EmbeddingFunc
 	disabled      atomic.Bool  // Set when embedding pipeline fails; skips operations gracefully
 	idCounter     atomic.Int64 // Monotonic counter for collision-free document IDs
+	queryCache    map[string]queryCacheEntry
+	queryCacheMu  sync.RWMutex
+	queryCacheTTL time.Duration
+	indexing      atomic.Bool // True while async indexing is in progress
 }
 
 func (cv *ChromemVectorDB) Close() error {
@@ -154,19 +165,19 @@ func NewChromemVectorDB(cfg *config.Config, logger *slog.Logger) (*ChromemVector
 		collection:    collection,
 		logger:        logger,
 		embeddingFunc: embeddingFunc,
+		queryCache:    make(map[string]queryCacheEntry),
+		queryCacheTTL: 5 * time.Minute,
 	}
 
-	// Phase 29: Startup validation — test the embedding pipeline
+	// Phase 29: Startup validation — test the embedding pipeline with retries
 	if provider == "disabled" {
 		vdb.disabled.Store(true)
 		logger.Info("VectorDB disabled by configuration, skipping embedding validation")
 	} else {
-		logger.Info("Validating embedding pipeline (60s timeout)...")
-		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-		defer cancel()
-		vec, err := embeddingFunc(ctx, "startup validation test")
+		logger.Info("Validating embedding pipeline (with retries)...")
+		vec, err := validateEmbeddingWithRetry(embeddingFunc, 3, logger)
 		if err != nil {
-			logger.Warn("Embedding pipeline validation failed. Long-term memory will be disabled.", "error", err)
+			logger.Warn("Embedding pipeline validation failed after retries. Long-term memory will be disabled.", "error", err)
 			vdb.disabled.Store(true)
 		} else {
 			logger.Info("Embedding pipeline validated", "vector_dimensions", len(vec), "provider", provider, "docs", collection.Count())
@@ -174,6 +185,28 @@ func NewChromemVectorDB(cfg *config.Config, logger *slog.Logger) (*ChromemVector
 	}
 
 	return vdb, nil
+}
+
+// validateEmbeddingWithRetry attempts to validate the embedding pipeline up to maxRetries times
+// with exponential backoff (1s, 4s, 9s). Returns the embedding vector on success.
+func validateEmbeddingWithRetry(ef chromem.EmbeddingFunc, maxRetries int, logger *slog.Logger) ([]float32, error) {
+	var lastErr error
+	for i := 0; i < maxRetries; i++ {
+		if i > 0 {
+			backoff := time.Duration(i*i) * time.Second
+			logger.Info("Retrying embedding validation...", "attempt", i+1, "backoff", backoff)
+			time.Sleep(backoff)
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+		vec, err := ef(ctx, "startup validation test")
+		cancel()
+		if err == nil {
+			return vec, nil
+		}
+		lastErr = err
+		logger.Warn("Embedding validation attempt failed", "attempt", i+1, "error", err)
+	}
+	return nil, fmt.Errorf("embedding validation failed after %d attempts: %w", maxRetries, lastErr)
 }
 
 // StoreDocument stores a concept/content pair, auto-chunking large texts.
@@ -184,9 +217,18 @@ func (cv *ChromemVectorDB) StoreDocument(concept, content string) ([]string, err
 
 // StoreDocumentWithDomain stores a concept/content pair with an optional domain tag
 // for cross-domain learning (Phase C). The domain helps categorize knowledge.
+// Deduplication: skips storage if a very similar document already exists (similarity > 0.95).
 func (cv *ChromemVectorDB) StoreDocumentWithDomain(concept, content, domain string) ([]string, error) {
 	if cv.disabled.Load() {
 		return nil, fmt.Errorf("VectorDB is disabled (embedding pipeline failed at startup)")
+	}
+
+	// Deduplication: check if a very similar concept already exists
+	if similar, _, err := cv.SearchMemoriesOnly(concept, 1); err == nil && len(similar) > 0 {
+		if sim := extractSimilarityScore(similar[0]); sim > 0.95 {
+			cv.logger.Debug("Skipping duplicate concept (similarity > 0.95)", "concept", concept, "similarity", sim)
+			return nil, nil
+		}
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -239,7 +281,9 @@ func (cv *ChromemVectorDB) StoreDocumentWithDomain(concept, content, domain stri
 	}
 
 	// Batch-add all chunks in one call (sequential embedding to avoid rate limits)
-	if err := cv.collection.AddDocuments(ctx, docs, 1); err != nil {
+	chunkCtx, chunkCancel := context.WithTimeout(context.Background(), calculateBatchTimeout(len(docs)))
+	defer chunkCancel()
+	if err := cv.collection.AddDocuments(chunkCtx, docs, 1); err != nil {
 		cv.logger.Error("Failed to store chunked document", "error", err, "chunks", len(chunks))
 		return nil, fmt.Errorf("failed to add chunked document (%d chunks): %w", len(chunks), err)
 	}
@@ -334,7 +378,7 @@ func (cv *ChromemVectorDB) StoreBatch(items []ArchiveItem) ([]string, error) {
 		if concurrency > 4 {
 			concurrency = 4
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), calculateBatchTimeout(len(smallDocs)))
 		defer cancel()
 		if err := cv.collection.AddDocuments(ctx, smallDocs, concurrency); err != nil {
 			cv.logger.Error("Failed to batch-add documents", "error", err, "count", len(smallDocs))
@@ -349,6 +393,7 @@ func (cv *ChromemVectorDB) StoreBatch(items []ArchiveItem) ([]string, error) {
 
 // SearchSimilar finds the topK most semantically similar documents across all relevant collections.
 // Results from all collections are merged, sorted by similarity, and trimmed to topK globally.
+// Uses a query embedding cache to avoid redundant embedding API calls.
 func (cv *ChromemVectorDB) SearchSimilar(query string, topK int) ([]string, []string, error) {
 	if cv.disabled.Load() {
 		return nil, nil, nil // Graceful degradation: return empty results
@@ -356,6 +401,12 @@ func (cv *ChromemVectorDB) SearchSimilar(query string, topK int) ([]string, []st
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
+
+	// Compute query embedding once and reuse across all collections
+	queryEmbedding, err := cv.getQueryEmbedding(ctx, query)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to compute query embedding: %w", err)
+	}
 
 	collections := []string{"aurago_memories", "tool_guides", "documentation"}
 
@@ -365,7 +416,7 @@ func (cv *ChromemVectorDB) SearchSimilar(query string, topK int) ([]string, []st
 		similarity float32
 	}
 
-	// Query all collections in parallel to avoid 3× sequential embedding roundtrips.
+	// Query all collections in parallel using pre-computed embedding.
 	type colResult struct {
 		colName string
 		results []chromem.Result
@@ -391,7 +442,7 @@ func (cv *ChromemVectorDB) SearchSimilar(query string, topK int) ([]string, []st
 			searchK = col.Count()
 		}
 		go func(c *chromem.Collection, k int) {
-			res, qErr := c.Query(ctx, query, k, nil, nil)
+			res, qErr := c.QueryEmbedding(ctx, queryEmbedding, k, nil, nil)
 			resultCh <- colResult{colName: colName, results: res, err: qErr}
 		}(col, searchK)
 	}
@@ -445,6 +496,7 @@ func (cv *ChromemVectorDB) SearchSimilar(query string, topK int) ([]string, []st
 // SearchMemoriesOnly searches only the aurago_memories collection. Much cheaper than
 // SearchSimilar because it skips the tool_guides and documentation collections.
 // Intended for use cases like predictive pre-fetch where documentation hits add no value.
+// Uses the query embedding cache to avoid redundant API calls.
 func (cv *ChromemVectorDB) SearchMemoriesOnly(query string, topK int) ([]string, []string, error) {
 	if cv.disabled.Load() {
 		return nil, nil, nil
@@ -463,7 +515,12 @@ func (cv *ChromemVectorDB) SearchMemoriesOnly(query string, topK int) ([]string,
 		searchK = col.Count()
 	}
 
-	results, err := col.Query(ctx, query, searchK, nil, nil)
+	queryEmbedding, err := cv.getQueryEmbedding(ctx, query)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to compute query embedding: %w", err)
+	}
+
+	results, err := col.QueryEmbedding(ctx, queryEmbedding, searchK, nil, nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -501,4 +558,71 @@ func (cv *ChromemVectorDB) DeleteDocument(id string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	return cv.collection.Delete(ctx, nil, nil, id)
+}
+
+// getQueryEmbedding returns a cached embedding for the query string, or computes a new one.
+// The cache uses a TTL to avoid stale embeddings. This saves redundant API calls
+// when the same query is used across multiple collections.
+func (cv *ChromemVectorDB) getQueryEmbedding(ctx context.Context, query string) ([]float32, error) {
+	cv.queryCacheMu.RLock()
+	if entry, ok := cv.queryCache[query]; ok && time.Since(entry.timestamp) < cv.queryCacheTTL {
+		cv.queryCacheMu.RUnlock()
+		return entry.embedding, nil
+	}
+	cv.queryCacheMu.RUnlock()
+
+	embedding, err := cv.embeddingFunc(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+
+	cv.queryCacheMu.Lock()
+	cv.queryCache[query] = queryCacheEntry{embedding: embedding, timestamp: time.Now()}
+	// Evict old entries if cache grows too large (> 200 entries)
+	if len(cv.queryCache) > 200 {
+		now := time.Now()
+		for k, v := range cv.queryCache {
+			if now.Sub(v.timestamp) > cv.queryCacheTTL {
+				delete(cv.queryCache, k)
+			}
+		}
+	}
+	cv.queryCacheMu.Unlock()
+
+	return embedding, nil
+}
+
+// extractSimilarityScore extracts the similarity value from a formatted search result string.
+// Expected format: "[Similarity: 0.95] ..."
+func extractSimilarityScore(result string) float64 {
+	const prefix = "[Similarity: "
+	idx := strings.Index(result, prefix)
+	if idx < 0 {
+		return 0
+	}
+	start := idx + len(prefix)
+	end := strings.Index(result[start:], "]")
+	if end < 0 {
+		return 0
+	}
+	val, err := strconv.ParseFloat(result[start:start+end], 64)
+	if err != nil {
+		return 0
+	}
+	return val
+}
+
+// calculateBatchTimeout returns a dynamic timeout based on the number of documents.
+// Base: 30s + 2s per document, capped at 5 minutes.
+func calculateBatchTimeout(docCount int) time.Duration {
+	timeout := 30*time.Second + time.Duration(docCount)*2*time.Second
+	if timeout > 5*time.Minute {
+		return 5 * time.Minute
+	}
+	return timeout
+}
+
+// IsIndexing reports whether async indexing is currently in progress.
+func (cv *ChromemVectorDB) IsIndexing() bool {
+	return cv.indexing.Load()
 }

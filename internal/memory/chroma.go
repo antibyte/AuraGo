@@ -117,6 +117,7 @@ func (cv *ChromemVectorDB) IndexToolGuides(toolsDir string, force bool) error {
 }
 
 // SearchToolGuides finds relevant tool guides based on a query.
+// Uses the query embedding cache if the same query is reused.
 func (cv *ChromemVectorDB) SearchToolGuides(query string, topK int) ([]string, error) {
 	if cv.disabled.Load() || query == "" {
 		return nil, nil
@@ -134,7 +135,12 @@ func (cv *ChromemVectorDB) SearchToolGuides(query string, topK int) ([]string, e
 		return nil, nil
 	}
 
-	results, err := collection.Query(ctx, query, topK, nil, nil)
+	queryEmbedding, err := cv.getQueryEmbedding(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to compute query embedding: %w", err)
+	}
+
+	results, err := collection.QueryEmbedding(ctx, queryEmbedding, topK, nil, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query tool guides: %w", err)
 	}
@@ -285,4 +291,28 @@ func splitFrontmatter(raw string) (string, string) {
 	frontmatter := inner[:idx]
 	body := strings.TrimLeft(inner[idx+4:], "\r\n") // skip "\n---"
 	return frontmatter, body
+}
+
+// IndexToolGuidesAsync starts tool guide indexing in a background goroutine.
+// Returns immediately. Use IsIndexing() to check progress.
+func (cv *ChromemVectorDB) IndexToolGuidesAsync(toolsDir string, force bool) {
+	cv.indexing.Store(true)
+	go func() {
+		defer cv.indexing.Store(false)
+		if err := cv.IndexToolGuides(toolsDir, force); err != nil {
+			cv.logger.Error("Async tool guide indexing failed", "error", err)
+		}
+	}()
+}
+
+// IndexDirectoryAsync starts directory indexing in a background goroutine.
+// Returns immediately. Use IsIndexing() to check progress.
+func (cv *ChromemVectorDB) IndexDirectoryAsync(dir, collectionName string, stm *SQLiteMemory, force bool) {
+	cv.indexing.Store(true)
+	go func() {
+		defer cv.indexing.Store(false)
+		if err := cv.IndexDirectory(dir, collectionName, stm, force); err != nil {
+			cv.logger.Error("Async directory indexing failed", "dir", dir, "error", err)
+		}
+	}()
 }

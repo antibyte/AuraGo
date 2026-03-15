@@ -394,18 +394,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Tool guide indexing (at startup for performance)
+	// Tool guide indexing (async at startup for faster boot)
 	toolGuidesDir := filepath.Join(cfg.Directories.PromptsDir, "tools_manuals")
-	if err := longTermMem.IndexToolGuides(toolGuidesDir, false); err != nil {
-		appLog.Warn("Tool guide indexing failed", "error", err)
-	}
+	longTermMem.IndexToolGuidesAsync(toolGuidesDir, false)
 
-	// Documentation indexing (RAG)
+	// Documentation indexing (async RAG)
 	docDir := filepath.Join(filepath.Dir(cfg.ConfigPath), "documentation")
 	if _, err := os.Stat(docDir); err == nil {
-		if err := longTermMem.IndexDirectory(docDir, "documentation", shortTermMem, false); err != nil {
-			appLog.Warn("Documentation indexing failed", "error", err)
-		}
+		longTermMem.IndexDirectoryAsync(docDir, "documentation", shortTermMem, false)
 	} else {
 		appLog.Debug("Documentation directory not found, skipping indexing", "path", docDir)
 	}
