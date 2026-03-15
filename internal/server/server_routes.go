@@ -762,7 +762,8 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/files/documents/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Cache-Control", "public, max-age=3600")
-		w.Header().Set("Content-Disposition", "inline")
+		filename := filepath.Base(r.URL.Path)
+		w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
 		docHandler.ServeHTTP(w, r)
 	})
 

@@ -53,3 +53,10 @@ conditions: ["document_creator_enabled"]
 **Output:**
 - Files are saved to the configured output directory (default: `data/documents/`)
 - Returns the file path and a web-accessible URL at `/files/documents/`
+
+**IMPORTANT — Presenting the download link:**
+When the tool returns a `web_path` (e.g. `/files/documents/report.pdf`), always present it to the user as a **clickable Markdown link**:
+```
+[📄 report.pdf](/files/documents/report.pdf)
+```
+Never output the `web_path` as bare text — it must be a Markdown link for the user to click it.

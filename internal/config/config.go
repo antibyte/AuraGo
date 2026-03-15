@@ -111,6 +111,9 @@ func Load(path string) (*Config, error) {
 	cfg.Directories.SkillsDir = resolvePath(configDir, cfg.Directories.SkillsDir)
 	cfg.Directories.VectorDBDir = resolvePath(configDir, cfg.Directories.VectorDBDir)
 
+	// Resolve document creator output directory
+	cfg.Tools.DocumentCreator.OutputDir = resolvePath(configDir, cfg.Tools.DocumentCreator.OutputDir)
+
 	// Resolve absolute paths for SQLite
 	cfg.SQLite.ShortTermPath = resolvePath(configDir, cfg.SQLite.ShortTermPath)
 	cfg.SQLite.LongTermPath = resolvePath(configDir, cfg.SQLite.LongTermPath)
