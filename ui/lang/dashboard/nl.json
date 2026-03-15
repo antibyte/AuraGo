@@ -196,5 +196,15 @@
   "dashboard.journal_title": "Dagboek",
   "dashboard.journal_empty": "Nog geen vermeldingen.",
   "dashboard.guardian_clarifications": "Verduidelijkingen",
-  "dashboard.guardian_content_scans": "Inhoudsscans"
+  "dashboard.guardian_content_scans": "Inhoudsscans",
+  "dashboard.guardian_title": "LLM Guardian",
+  "dashboard.guardian_level": "Beschermingsniveau",
+  "dashboard.guardian_failsafe": "Fail-Safe",
+  "dashboard.guardian_no_data": "Er zijn nog geen beveiligingscontroles uitgevoerd.",
+  "dashboard.guardian_total": "Controles",
+  "dashboard.guardian_allowed": "Toegestaan",
+  "dashboard.guardian_quarantined": "Quarantaine",
+  "dashboard.guardian_blocked": "Geblokkeerd",
+  "dashboard.guardian_cache_rate": "Cache Rate",
+  "dashboard.guardian_tokens": "Tokens"
 }

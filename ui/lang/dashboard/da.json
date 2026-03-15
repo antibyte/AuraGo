@@ -196,5 +196,15 @@
   "dashboard.journal_title": "Journal",
   "dashboard.journal_empty": "Ingen indlæg endnu.",
   "dashboard.guardian_clarifications": "Præciseringer",
-  "dashboard.guardian_content_scans": "Indholdsscanninger"
+  "dashboard.guardian_content_scans": "Indholdsscanninger",
+  "dashboard.guardian_title": "LLM Guardian",
+  "dashboard.guardian_level": "Beskyttelsesniveau",
+  "dashboard.guardian_failsafe": "Fail-Safe",
+  "dashboard.guardian_no_data": "Ingen sikkerhedstjek udført endnu.",
+  "dashboard.guardian_total": "Kontroller",
+  "dashboard.guardian_allowed": "Tilladt",
+  "dashboard.guardian_quarantined": "Karantæne",
+  "dashboard.guardian_blocked": "Blokeret",
+  "dashboard.guardian_cache_rate": "Cache Rate",
+  "dashboard.guardian_tokens": "Tokens"
 }

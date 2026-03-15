@@ -196,5 +196,15 @@
   "dashboard.journal_title": "Deník",
   "dashboard.journal_empty": "Zatím žádné záznamy.",
   "dashboard.guardian_clarifications": "Upřesnění",
-  "dashboard.guardian_content_scans": "Kontroly obsahu"
+  "dashboard.guardian_content_scans": "Kontroly obsahu",
+  "dashboard.guardian_title": "LLM Guardian",
+  "dashboard.guardian_level": "Úroveň ochrany",
+  "dashboard.guardian_failsafe": "Fail-Safe",
+  "dashboard.guardian_no_data": "Zatím nebyly provedeny žádné bezpečnostní kontroly.",
+  "dashboard.guardian_total": "Kontroly",
+  "dashboard.guardian_allowed": "Povoleno",
+  "dashboard.guardian_quarantined": "Karanténa",
+  "dashboard.guardian_blocked": "Blokováno",
+  "dashboard.guardian_cache_rate": "Cache Rate",
+  "dashboard.guardian_tokens": "Tokeny"
 }

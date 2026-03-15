@@ -196,5 +196,15 @@
   "dashboard.journal_title": "Dagbok",
   "dashboard.journal_empty": "Ingen oppføringer ennå.",
   "dashboard.guardian_clarifications": "Klargjøringer",
-  "dashboard.guardian_content_scans": "Innholdsskanning"
+  "dashboard.guardian_content_scans": "Innholdsskanning",
+  "dashboard.guardian_title": "LLM Guardian",
+  "dashboard.guardian_level": "Beskyttelsesnivå",
+  "dashboard.guardian_failsafe": "Fail-Safe",
+  "dashboard.guardian_no_data": "Ingen sikkerhetssjekker utført ennå.",
+  "dashboard.guardian_total": "Sjekker",
+  "dashboard.guardian_allowed": "Tillatt",
+  "dashboard.guardian_quarantined": "Karantene",
+  "dashboard.guardian_blocked": "Blokkert",
+  "dashboard.guardian_cache_rate": "Cache Rate",
+  "dashboard.guardian_tokens": "Tokens"
 }

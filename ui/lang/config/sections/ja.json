@@ -103,7 +103,7 @@
   "config.section.github.desc": "GitHub リポジトリと Issue 管理",
   "config.section.google_workspace.label": "Google Workspace",
   "config.section.google_workspace.desc": "Google Gmail、カレンダー、ドライブ、ドキュメント & スプレッドシートの統合",
-  "config.section.mcp.label": "MCP サーバー",
+  "config.section.mcp.label": "MCP ツール",
   "config.section.mcp.desc": "Model Context Protocol — 外部ツールサーバーの管理",
   "config.section.sandbox.label": "サンドボックス",
   "config.section.sandbox.desc": "Docker コンテナでの分離コード実行",

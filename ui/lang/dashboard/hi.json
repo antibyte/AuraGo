@@ -196,5 +196,15 @@
   "dashboard.journal_title": "जर्नल",
   "dashboard.journal_empty": "अभी तक कोई प्रविष्टि नहीं।",
   "dashboard.guardian_clarifications": "स्पष्टीकरण",
-  "dashboard.guardian_content_scans": "सामग्री स्कैन"
+  "dashboard.guardian_content_scans": "सामग्री स्कैन",
+  "dashboard.guardian_title": "LLM गार्डियन",
+  "dashboard.guardian_level": "सुरक्षा स्तर",
+  "dashboard.guardian_failsafe": "Fail-Safe",
+  "dashboard.guardian_no_data": "अभी तक कोई सुरक्षा जाँच नहीं की गई।",
+  "dashboard.guardian_total": "जाँच",
+  "dashboard.guardian_allowed": "अनुमति",
+  "dashboard.guardian_quarantined": "क्वारंटाइन",
+  "dashboard.guardian_blocked": "अवरुद्ध",
+  "dashboard.guardian_cache_rate": "कैश दर",
+  "dashboard.guardian_tokens": "टोकन"
 }

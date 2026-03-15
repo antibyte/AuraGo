@@ -196,5 +196,15 @@
   "dashboard.journal_title": "日志",
   "dashboard.journal_empty": "暂无条目。",
   "dashboard.guardian_clarifications": "澳清",
-  "dashboard.guardian_content_scans": "内容扫描"
+  "dashboard.guardian_content_scans": "内容扫描",
+  "dashboard.guardian_title": "LLM 守护者",
+  "dashboard.guardian_level": "保护级别",
+  "dashboard.guardian_failsafe": "故障保护",
+  "dashboard.guardian_no_data": "尚未执行安全检查。",
+  "dashboard.guardian_total": "检查",
+  "dashboard.guardian_allowed": "已允许",
+  "dashboard.guardian_quarantined": "已隔离",
+  "dashboard.guardian_blocked": "已阻止",
+  "dashboard.guardian_cache_rate": "缓存率",
+  "dashboard.guardian_tokens": "令牌"
 }

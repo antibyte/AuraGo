@@ -103,7 +103,7 @@
   "config.section.github.desc": "Gestione repository & issue GitHub",
   "config.section.google_workspace.label": "Google Workspace",
   "config.section.google_workspace.desc": "Integrazione Google Gmail, Calendar, Drive, Docs e Sheets",
-  "config.section.mcp.label": "Server MCP",
+  "config.section.mcp.label": "Strumenti MCP",
   "config.section.mcp.desc": "Model Context Protocol — gestisci server tool esterni",
   "config.section.sandbox.label": "Sandbox",
   "config.section.sandbox.desc": "Esecuzione codice isolata in container Docker",

@@ -103,7 +103,7 @@
   "config.section.github.desc": "GitHub 仓库和 Issue 管理",
   "config.section.google_workspace.label": "Google Workspace",
   "config.section.google_workspace.desc": "Google Gmail、日历、云端硬盘、文档和表格集成",
-  "config.section.mcp.label": "MCP 服务器",
+  "config.section.mcp.label": "MCP 工具",
   "config.section.mcp.desc": "Model Context Protocol — 管理外部工具服务器",
   "config.section.sandbox.label": "沙盒",
   "config.section.sandbox.desc": "在 Docker 容器中隔离执行代码",

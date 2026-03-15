@@ -196,5 +196,15 @@
   "dashboard.journal_title": "Journal",
   "dashboard.journal_empty": "No entries yet.",
   "dashboard.guardian_clarifications": "Clarifications",
-  "dashboard.guardian_content_scans": "Content Scans"
+  "dashboard.guardian_content_scans": "Content Scans",
+  "dashboard.guardian_title": "LLM Guardian",
+  "dashboard.guardian_level": "Protection Level",
+  "dashboard.guardian_failsafe": "Fail-Safe",
+  "dashboard.guardian_no_data": "No security checks performed yet.",
+  "dashboard.guardian_total": "Checks",
+  "dashboard.guardian_allowed": "Allowed",
+  "dashboard.guardian_quarantined": "Quarantined",
+  "dashboard.guardian_blocked": "Blocked",
+  "dashboard.guardian_cache_rate": "Cache Rate",
+  "dashboard.guardian_tokens": "Tokens"
 }

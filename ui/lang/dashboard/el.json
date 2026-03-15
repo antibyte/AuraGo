@@ -196,5 +196,15 @@
   "dashboard.journal_title": "Ημερολόγιο",
   "dashboard.journal_empty": "Δεν υπάρχουν ακόμη καταχωρήσεις.",
   "dashboard.guardian_clarifications": "Διευκρινίσεις",
-  "dashboard.guardian_content_scans": "Σαρώσεις περιεχομένου"
+  "dashboard.guardian_content_scans": "Σαρώσεις περιεχομένου",
+  "dashboard.guardian_title": "LLM Guardian",
+  "dashboard.guardian_level": "Επίπεδο Προστασίας",
+  "dashboard.guardian_failsafe": "Fail-Safe",
+  "dashboard.guardian_no_data": "Δεν έχουν πραγματοποιηθεί ακόμα έλεγχοι ασφαλείας.",
+  "dashboard.guardian_total": "Έλεγχοι",
+  "dashboard.guardian_allowed": "Επιτρέπεται",
+  "dashboard.guardian_quarantined": "Καραντίνα",
+  "dashboard.guardian_blocked": "Αποκλεισμένα",
+  "dashboard.guardian_cache_rate": "Cache Rate",
+  "dashboard.guardian_tokens": "Tokens"
 }

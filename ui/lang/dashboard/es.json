@@ -196,5 +196,15 @@
   "dashboard.journal_title": "Diario",
   "dashboard.journal_empty": "Sin entradas aún.",
   "dashboard.guardian_clarifications": "Aclaraciones",
-  "dashboard.guardian_content_scans": "Análisis de contenido"
+  "dashboard.guardian_content_scans": "Análisis de contenido",
+  "dashboard.guardian_title": "LLM Guardian",
+  "dashboard.guardian_level": "Nivel de Protección",
+  "dashboard.guardian_failsafe": "Fail-Safe",
+  "dashboard.guardian_no_data": "Aún no se han realizado comprobaciones de seguridad.",
+  "dashboard.guardian_total": "Comprobaciones",
+  "dashboard.guardian_allowed": "Permitidas",
+  "dashboard.guardian_quarantined": "Cuarentena",
+  "dashboard.guardian_blocked": "Bloqueadas",
+  "dashboard.guardian_cache_rate": "Tasa de Caché",
+  "dashboard.guardian_tokens": "Tokens"
 }

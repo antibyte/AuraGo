@@ -196,5 +196,15 @@
   "dashboard.journal_title": "ジャーナル",
   "dashboard.journal_empty": "まだエントリーがありません。",
   "dashboard.guardian_clarifications": "確認",
-  "dashboard.guardian_content_scans": "コンテンツスキャン"
+  "dashboard.guardian_content_scans": "コンテンツスキャン",
+  "dashboard.guardian_title": "LLM ガーディアン",
+  "dashboard.guardian_level": "保護レベル",
+  "dashboard.guardian_failsafe": "フェイルセーフ",
+  "dashboard.guardian_no_data": "セキュリティチェックはまだ実行されていません。",
+  "dashboard.guardian_total": "チェック",
+  "dashboard.guardian_allowed": "許可",
+  "dashboard.guardian_quarantined": "階離",
+  "dashboard.guardian_blocked": "ブロック",
+  "dashboard.guardian_cache_rate": "キャッシュ率",
+  "dashboard.guardian_tokens": "トークン"
 }
