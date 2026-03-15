@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"regexp"
+	"strings"
 
 	openai "github.com/sashabaranov/go-openai"
 
@@ -1018,9 +1019,18 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 // NativeToolCallToToolCall converts an OpenAI native ToolCall response to AuraGo's ToolCall struct.
 // Arguments JSON is unmarshalled directly into the struct fields.
 func NativeToolCallToToolCall(native openai.ToolCall, logger *slog.Logger) ToolCall {
+	// Convert skill__name shortcut to execute_skill so the skill dispatcher handles it correctly.
+	name := native.Function.Name
+	skillFromShortcut := ""
+	if strings.HasPrefix(name, "skill__") {
+		skillFromShortcut = strings.TrimPrefix(name, "skill__")
+		name = "execute_skill"
+	}
+
 	tc := ToolCall{
 		IsTool:       true,
-		Action:       native.Function.Name,
+		Action:       name,
+		Skill:        skillFromShortcut,
 		NativeCallID: native.ID,
 	}
 
@@ -1041,7 +1051,7 @@ func NativeToolCallToToolCall(native openai.ToolCall, logger *slog.Logger) ToolC
 		}
 		// Fallback 2: for truncated/malformed JSON, extract known string fields via regex
 		// so that tools like execute_skill still get the essential skill name.
-		if native.Function.Name == "execute_skill" && tc.Skill == "" {
+		if (name == "execute_skill") && tc.Skill == "" {
 			reSkill := regexp.MustCompile(`"skill"\s*:\s*"([^"]+)"`)
 			if m := reSkill.FindStringSubmatch(native.Function.Arguments); len(m) > 1 {
 				tc.Skill = m[1]

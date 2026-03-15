@@ -261,6 +261,60 @@ func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 				}
 			}
 			return result
+		case "paperless", "paperless_ngx":
+			if !cfg.PaperlessNGX.Enabled {
+				return `Tool Output: {"status": "error", "message": "Paperless-ngx integration is not enabled. Set paperless_ngx.enabled=true in config.yaml."}`
+			}
+			op, _ := args["operation"].(string)
+			if cfg.PaperlessNGX.ReadOnly {
+				switch op {
+				case "upload", "post", "update", "patch", "delete", "rm":
+					return `Tool Output: {"status":"error","message":"Paperless-ngx is in read-only mode. Disable paperless_ngx.readonly to allow changes."}`
+				}
+			}
+			plCfg := tools.PaperlessConfig{
+				URL:      cfg.PaperlessNGX.URL,
+				APIToken: cfg.PaperlessNGX.APIToken,
+			}
+			docID, _ := args["document_id"].(string)
+			query, _ := args["query"].(string)
+			content, _ := args["content"].(string)
+			title, _ := args["title"].(string)
+			tagsStr, _ := args["tags"].(string)
+			corrName, _ := args["name"].(string)
+			category, _ := args["category"].(string)
+			limitF, _ := args["limit"].(float64)
+			switch op {
+			case "search", "find", "query":
+				logger.Info("LLM requested Paperless search (via skill)", "query", query)
+				return "Tool Output: " + tools.PaperlessSearch(plCfg, query, tagsStr, corrName, category, int(limitF))
+			case "get", "info":
+				logger.Info("LLM requested Paperless get (via skill)", "document_id", docID)
+				return "Tool Output: " + tools.PaperlessGet(plCfg, docID)
+			case "download", "read", "content":
+				logger.Info("LLM requested Paperless download (via skill)", "document_id", docID)
+				return "Tool Output: " + tools.PaperlessDownload(plCfg, docID)
+			case "upload", "post":
+				logger.Info("LLM requested Paperless upload (via skill)", "title", title)
+				return "Tool Output: " + tools.PaperlessUpload(plCfg, title, content, tagsStr, corrName, category)
+			case "update", "patch":
+				logger.Info("LLM requested Paperless update (via skill)", "document_id", docID)
+				return "Tool Output: " + tools.PaperlessUpdate(plCfg, docID, title, tagsStr, corrName, category)
+			case "delete", "rm":
+				logger.Info("LLM requested Paperless delete (via skill)", "document_id", docID)
+				return "Tool Output: " + tools.PaperlessDelete(plCfg, docID)
+			case "list_tags", "tags":
+				logger.Info("LLM requested Paperless list tags (via skill)")
+				return "Tool Output: " + tools.PaperlessListTags(plCfg)
+			case "list_correspondents", "correspondents":
+				logger.Info("LLM requested Paperless list correspondents (via skill)")
+				return "Tool Output: " + tools.PaperlessListCorrespondents(plCfg)
+			case "list_document_types", "document_types":
+				logger.Info("LLM requested Paperless list document types (via skill)")
+				return "Tool Output: " + tools.PaperlessListDocumentTypes(plCfg)
+			default:
+				return `Tool Output: {"status": "error", "message": "Unknown paperless operation. Use: search, get, download, upload, update, delete, list_tags, list_correspondents, list_document_types"}`
+			}
 		}
 
 		// Generic Python skill fallback — gate on AllowPython
