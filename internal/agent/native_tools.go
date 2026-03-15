@@ -93,6 +93,7 @@ type ToolFeatureFlags struct {
 	HomepageRegistryEnabled  bool
 	JournalEnabled           bool
 	MemoryAnalysisEnabled    bool
+	DocumentCreatorEnabled   bool
 }
 
 // builtinToolSchemas returns schemas for all built-in AuraGo tools.
@@ -1056,6 +1057,31 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 				"notes":       prop("string", "Additional notes"),
 				"limit":       map[string]interface{}{"type": "integer", "description": "Max results (default: 20)"},
 				"offset":      map[string]interface{}{"type": "integer", "description": "Pagination offset"},
+			}, "operation"),
+		))
+	}
+
+	if ff.DocumentCreatorEnabled {
+		tools = append(tools, tool("document_creator",
+			"Create PDF documents, convert files to PDF, merge PDFs, and take screenshots. "+
+				"Backend is configured in settings: 'maroto' (built-in, create_pdf only) or 'gotenberg' (Docker sidecar, all operations). "+
+				"Operations: create_pdf (structured document from sections), url_to_pdf (capture webpage), html_to_pdf (render HTML), "+
+				"markdown_to_pdf (render Markdown), convert_document (Office files to PDF via LibreOffice), merge_pdfs (combine multiple PDFs), "+
+				"screenshot_url (capture webpage as image), screenshot_html (render HTML to image), health (check Gotenberg status).",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "Operation to perform",
+					"enum":        []string{"create_pdf", "url_to_pdf", "html_to_pdf", "markdown_to_pdf", "convert_document", "merge_pdfs", "screenshot_url", "screenshot_html", "health"},
+				},
+				"title":        prop("string", "Document title (for create_pdf)"),
+				"content":      prop("string", "HTML content (for html_to_pdf, screenshot_html), Markdown content (for markdown_to_pdf), or text content (for create_pdf without sections)"),
+				"url":          prop("string", "URL to capture (for url_to_pdf, screenshot_url)"),
+				"filename":     prop("string", "Output filename without extension (auto-generated if omitted)"),
+				"paper_size":   map[string]interface{}{"type": "string", "description": "Paper size", "enum": []string{"A4", "A3", "A5", "Letter", "Legal", "Tabloid"}},
+				"landscape":    map[string]interface{}{"type": "boolean", "description": "Landscape orientation (default: false)"},
+				"sections":     prop("string", "JSON array of sections for create_pdf. Each section: {\"type\":\"text|table|list\",\"header\":\"...\",\"body\":\"...\",\"rows\":[[...]]}"),
+				"source_files": prop("string", "JSON array of file paths for merge_pdfs or convert_document"),
 			}, "operation"),
 		))
 	}

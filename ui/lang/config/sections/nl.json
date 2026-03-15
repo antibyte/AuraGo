@@ -71,6 +71,8 @@
   "config.section.tts.desc": "Tekst naar spraak",
   "config.section.web_scraper.label": "Web Scraper",
   "config.section.web_scraper.desc": "Scraper instellingen",
+  "config.section.document_creator.label": "Document Creator",
+  "config.section.document_creator.desc": "PDF's maken en documenten converteren met Maroto of Gotenberg",
   "config.section.telegram.label": "Telegram",
   "config.section.telegram.desc": "Telegram integratie",
   "config.section.discord.label": "Discord",

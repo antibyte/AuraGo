@@ -71,6 +71,8 @@
   "config.section.tts.desc": "Text na rec",
   "config.section.web_scraper.label": "Web Scraper",
   "config.section.web_scraper.desc": "Nastaveni scraperu",
+  "config.section.document_creator.label": "Tvůrce dokumentů",
+  "config.section.document_creator.desc": "Vytvářejte PDF a převádějte dokumenty pomocí Maroto nebo Gotenberg",
   "config.section.telegram.label": "Telegram",
   "config.section.telegram.desc": "Telegram integrace",
   "config.section.discord.label": "Discord",

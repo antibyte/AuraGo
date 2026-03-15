@@ -71,6 +71,8 @@
   "config.section.tts.desc": "वाक् आउटपुट सेटिंग्स",
   "config.section.web_scraper.label": "वेब स्क्रैपर",
   "config.section.web_scraper.desc": "वेब पेज लायें और पाठ्य सामग्री निकालें",
+  "config.section.document_creator.label": "दस्तावेज़ निर्माता",
+  "config.section.document_creator.desc": "Maroto या Gotenberg से PDF बनाएं और दस्तावेज़ रूपांतरित करें",
   "config.section.telegram.label": "टेलीग्राम",
   "config.section.telegram.desc": "टेलीग्राम बॉट एकीकरण",
   "config.section.discord.label": "कलह",

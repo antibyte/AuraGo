@@ -71,6 +71,8 @@
   "config.section.tts.desc": "Nastavení hlasového výstupu",
   "config.section.web_scraper.label": "Web Scraper",
   "config.section.web_scraper.desc": "Načítání webových stránek a extrahování textu",
+  "config.section.document_creator.label": "Δημιουργός Εγγράφων",
+  "config.section.document_creator.desc": "Δημιουργία PDF και μετατροπή εγγράφων με Maroto ή Gotenberg",
   "config.section.telegram.label": "Telegram",
   "config.section.telegram.desc": "Ενσωμάτωση bot Telegram",
   "config.section.discord.label": "Discord",

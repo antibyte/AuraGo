@@ -200,6 +200,13 @@ tools:
         enabled: true
         summary_mode: false
         summary_provider: ""
+    document_creator:
+        enabled: false
+        backend: maroto  # maroto (built-in) or gotenberg (Docker sidecar)
+        output_dir: data/documents
+        gotenberg:
+            url: "http://gotenberg:3000"
+            timeout: 120
 # LLM Providers — configure via the Setup Wizard or Config UI
 providers: []
 llm:

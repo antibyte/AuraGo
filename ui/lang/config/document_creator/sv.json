@@ -1,0 +1,21 @@
+{
+  "config.document_creator.enabled_label": "Aktiverad",
+  "config.document_creator.disabled_notice": "Dokumentskapare är inaktiverad",
+  "config.document_creator.disabled_desc": "Aktivera detta verktyg för att låta agenten skapa PDF:er och konvertera dokument.",
+  "config.document_creator.backend_label": "Backend",
+  "config.document_creator.backend_maroto": "Maroto (inbyggt Go-bibliotek)",
+  "config.document_creator.backend_gotenberg": "Gotenberg (Docker-sidovagn)",
+  "config.document_creator.output_dir_label": "Utdatakatalog",
+  "config.document_creator.gotenberg_url_label": "Gotenberg URL",
+  "config.document_creator.gotenberg_timeout_label": "Timeout",
+  "config.document_creator.seconds": "sekunder",
+  "config.document_creator.test_gotenberg": "Testa anslutning",
+  "config.document_creator.url_required": "Gotenberg URL krävs",
+  "config.document_creator.test_ok": "Anslutning lyckades",
+  "config.document_creator.test_degraded": "Tjänsten försämrad",
+  "config.document_creator.test_fail": "Anslutning misslyckades",
+  "help.document_creator.backend": "Maroto är ett rent Go PDF-bibliotek utan externa beroenden. Gotenberg är en Docker-tjänst med full dokumentkonvertering, skärmdumpar och stöd för Office-format.",
+  "help.document_creator.output_dir": "Katalog där genererade dokument sparas.",
+  "help.document_creator.gotenberg_url": "Bas-URL för Gotenberg-tjänsten (t.ex. http://gotenberg:3000).",
+  "help.document_creator.gotenberg_timeout": "Maximal väntetid i sekunder för dokumentgenerering."
+}

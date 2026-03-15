@@ -1,0 +1,21 @@
+{
+  "config.document_creator.enabled_label": "सक्रिय",
+  "config.document_creator.disabled_notice": "दस्तावेज़ निर्माता अक्षम है",
+  "config.document_creator.disabled_desc": "एजेंट को PDF बनाने और दस्तावेज़ रूपांतरित करने की अनुमति देने के लिए इस उपकरण को सक्रिय करें।",
+  "config.document_creator.backend_label": "बैकएंड",
+  "config.document_creator.backend_maroto": "Maroto (अंतर्निहित Go लाइब्रेरी)",
+  "config.document_creator.backend_gotenberg": "Gotenberg (Docker साइडकार)",
+  "config.document_creator.output_dir_label": "आउटपुट डायरेक्टरी",
+  "config.document_creator.gotenberg_url_label": "Gotenberg URL",
+  "config.document_creator.gotenberg_timeout_label": "समय सीमा",
+  "config.document_creator.seconds": "सेकंड",
+  "config.document_creator.test_gotenberg": "कनेक्शन परीक्षण",
+  "config.document_creator.url_required": "Gotenberg URL आवश्यक है",
+  "config.document_creator.test_ok": "कनेक्शन सफल",
+  "config.document_creator.test_degraded": "सेवा क्षीण",
+  "config.document_creator.test_fail": "कनेक्शन विफल",
+  "help.document_creator.backend": "Maroto बिना बाहरी निर्भरता वाली शुद्ध Go PDF लाइब्रेरी है। Gotenberg एक Docker सेवा है जो पूर्ण दस्तावेज़ रूपांतरण, स्क्रीनशॉट और Office प्रारूप का समर्थन करती है।",
+  "help.document_creator.output_dir": "वह डायरेक्टरी जहाँ जनरेट किए गए दस्तावेज़ सहेजे जाते हैं।",
+  "help.document_creator.gotenberg_url": "Gotenberg सेवा का आधार URL (उदा. http://gotenberg:3000)।",
+  "help.document_creator.gotenberg_timeout": "दस्तावेज़ निर्माण के लिए सेकंड में अधिकतम प्रतीक्षा समय।"
+}

@@ -753,6 +753,19 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		staticHandler.ServeHTTP(w, r)
 	})
 
+	// Serve generated documents from the document_creator output directory
+	docDir := s.Cfg.Tools.DocumentCreator.OutputDir
+	if docDir == "" {
+		docDir = filepath.Join(s.Cfg.Directories.DataDir, "documents")
+	}
+	docHandler := http.StripPrefix("/files/documents/", http.FileServer(neuteredFileSystem{http.Dir(docDir)}))
+	mux.HandleFunc("/files/documents/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("Cache-Control", "public, max-age=3600")
+		w.Header().Set("Content-Disposition", "inline")
+		docHandler.ServeHTTP(w, r)
+	})
+
 	// Serve generated images from data directory
 	genImgDir := filepath.Join(s.Cfg.Directories.DataDir, "generated_images")
 	genImgHandler := http.StripPrefix("/files/generated_images/", http.FileServer(neuteredFileSystem{http.Dir(genImgDir)}))

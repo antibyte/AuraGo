@@ -461,6 +461,7 @@ func processDiscordMessage(s *discordgo.Session, m *discordgo.MessageCreate, inp
 		IsEgg:                    cfg.EggMode.Enabled,
 		InternetExposed:          cfg.Server.HTTPS.Enabled,
 		IsDocker:                 cfg.Runtime.IsDocker,
+		DocumentCreatorEnabled:   cfg.Tools.DocumentCreator.Enabled,
 		AdditionalPrompt:         cfg.Agent.AdditionalPrompt,
 	}
 	coreMem := shortTermMem.ReadCoreMemory()

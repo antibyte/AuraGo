@@ -53,7 +53,8 @@ const SECTIONS = [
             { key: 'vision', icon: '👁️', label: t('config.section.vision.label'), desc: t('config.section.vision.desc') },
             { key: 'whisper', icon: '🎤', label: t('config.section.whisper.label'), desc: t('config.section.whisper.desc') },
             { key: 'tts', icon: '🔊', label: t('config.section.tts.label'), desc: t('config.section.tts.desc') },
-            { key: 'web_scraper', icon: '🕷️', label: t('config.section.web_scraper.label'), desc: t('config.section.web_scraper.desc'), customRender: 'renderWebScraperSection' }
+            { key: 'web_scraper', icon: '🕷️', label: t('config.section.web_scraper.label'), desc: t('config.section.web_scraper.desc'), customRender: 'renderWebScraperSection' },
+            { key: 'document_creator', icon: '📄', label: t('config.section.document_creator.label'), desc: t('config.section.document_creator.desc') }
         ]
     },
     // ── Integrations (categorized) ──────────────────────
@@ -858,7 +859,8 @@ const SECTION_MODULES = {
     image_generation: { m: 'image_generation', fn: 'renderImageGenerationSection' },
     remote_control: { m: 'remote_control', fn: 'renderRemoteControlSection' },
     memory_analysis: { m: 'memory_analysis', fn: 'renderMemoryAnalysisSection' },
-    llm_guardian: { m: 'llm_guardian', fn: 'renderLLMGuardianSection' }
+    llm_guardian: { m: 'llm_guardian', fn: 'renderLLMGuardianSection' },
+    document_creator: { m: 'document_creator', fn: 'renderDocumentCreatorSection' }
 };
 
 function loadModule(name) {

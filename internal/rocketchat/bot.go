@@ -286,6 +286,7 @@ func processMessage(cfg *config.Config, logger *slog.Logger, client llm.ChatClie
 		IsEgg:                    cfg.EggMode.Enabled,
 		InternetExposed:          cfg.Server.HTTPS.Enabled,
 		IsDocker:                 cfg.Runtime.IsDocker,
+		DocumentCreatorEnabled:   cfg.Tools.DocumentCreator.Enabled,
 		AdditionalPrompt:         cfg.Agent.AdditionalPrompt,
 	}
 

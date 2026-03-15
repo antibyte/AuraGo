@@ -234,6 +234,7 @@ func main() {
 		cfg.Directories.SkillsDir,
 		cfg.Directories.VectorDBDir,
 		cfg.Logging.LogDir,
+		cfg.Tools.DocumentCreator.OutputDir,
 	}
 
 	appLog.Debug("Resolved absolute paths",

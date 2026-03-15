@@ -357,6 +357,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			AllowRemoteShell:         s.Cfg.Agent.AllowRemoteShell,
 			AllowSelfUpdate:          s.Cfg.Agent.AllowSelfUpdate,
 			IsEgg:                    s.Cfg.EggMode.Enabled,
+			DocumentCreatorEnabled:   s.Cfg.Tools.DocumentCreator.Enabled,
 			AdditionalPrompt:         s.Cfg.Agent.AdditionalPrompt,
 		}
 		sysPrompt := prompts.BuildSystemPrompt(s.Cfg.Directories.PromptsDir, flags, coreMem, s.Logger)

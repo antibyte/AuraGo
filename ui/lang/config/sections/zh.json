@@ -71,6 +71,8 @@
   "config.section.tts.desc": "语音输出设置",
   "config.section.web_scraper.label": "网页抓取",
   "config.section.web_scraper.desc": "获取网页并提取文本内容",
+  "config.section.document_creator.label": "文档创建器",
+  "config.section.document_creator.desc": "使用Maroto或Gotenberg创建PDF和转换文档",
   "config.section.telegram.label": "Telegram",
   "config.section.telegram.desc": "Telegram 机器人集成",
   "config.section.discord.label": "Discord",

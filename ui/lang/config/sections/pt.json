@@ -71,6 +71,8 @@
   "config.section.tts.desc": "Texto para fala",
   "config.section.web_scraper.label": "Web Scraper",
   "config.section.web_scraper.desc": "Configurações de scraper",
+  "config.section.document_creator.label": "Criador de Documentos",
+  "config.section.document_creator.desc": "Criar PDFs e converter documentos com Maroto ou Gotenberg",
   "config.section.telegram.label": "Telegram",
   "config.section.telegram.desc": "Integração com Telegram",
   "config.section.discord.label": "Discord",

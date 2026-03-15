@@ -1,0 +1,21 @@
+{
+  "config.document_creator.enabled_label": "有効",
+  "config.document_creator.disabled_notice": "ドキュメント作成は無効です",
+  "config.document_creator.disabled_desc": "このツールを有効にすると、エージェントがPDFの作成やドキュメントの変換を行えるようになります。",
+  "config.document_creator.backend_label": "バックエンド",
+  "config.document_creator.backend_maroto": "Maroto（組み込みGoライブラリ）",
+  "config.document_creator.backend_gotenberg": "Gotenberg（Dockerサイドカー）",
+  "config.document_creator.output_dir_label": "出力ディレクトリ",
+  "config.document_creator.gotenberg_url_label": "Gotenberg URL",
+  "config.document_creator.gotenberg_timeout_label": "タイムアウト",
+  "config.document_creator.seconds": "秒",
+  "config.document_creator.test_gotenberg": "接続テスト",
+  "config.document_creator.url_required": "Gotenberg URLが必要です",
+  "config.document_creator.test_ok": "接続成功",
+  "config.document_creator.test_degraded": "サービス劣化",
+  "config.document_creator.test_fail": "接続失敗",
+  "help.document_creator.backend": "Marotoは外部依存のない純粋なGo PDFライブラリです。GotenbergはDockerサービスで、完全なドキュメント変換、スクリーンショット、Officeフォーマットをサポートします。",
+  "help.document_creator.output_dir": "生成されたドキュメントが保存されるディレクトリ。",
+  "help.document_creator.gotenberg_url": "GotenbergサービスのベースURL（例: http://gotenberg:3000）。",
+  "help.document_creator.gotenberg_timeout": "ドキュメント生成の最大待機時間（秒）。"
+}

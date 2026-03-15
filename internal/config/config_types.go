@@ -75,6 +75,20 @@ type OutgoingWebhook struct {
 	BodyTemplate string             `yaml:"body_template" json:"body_template"` // Context for custom templating
 }
 
+// GotenbergConfig holds connection parameters for the Gotenberg Docker sidecar.
+type GotenbergConfig struct {
+	URL     string `yaml:"url"`     // Gotenberg API URL (default: "http://gotenberg:3000")
+	Timeout int    `yaml:"timeout"` // request timeout in seconds (default: 120)
+}
+
+// DocumentCreatorConfig holds settings for the document_creator tool.
+type DocumentCreatorConfig struct {
+	Enabled   bool            `yaml:"enabled"`    // enable document_creator tool
+	Backend   string          `yaml:"backend"`    // "maroto" (default, built-in) or "gotenberg" (Docker sidecar)
+	OutputDir string          `yaml:"output_dir"` // directory for generated documents (default: "data/documents")
+	Gotenberg GotenbergConfig `yaml:"gotenberg"`
+}
+
 type Config struct {
 	ConfigPath    string          `yaml:"-"`          // runtime-only: absolute path to the config file
 	Runtime       Runtime         `yaml:"-" json:"-"` // runtime-only: detected environment capabilities
@@ -653,6 +667,7 @@ type Config struct {
 			SummaryAPIKey  string `yaml:"-" json:"-"`
 			SummaryModel   string `yaml:"-" json:"-"`
 		} `yaml:"pdf_extractor"`
+		DocumentCreator DocumentCreatorConfig `yaml:"document_creator"`
 	} `yaml:"tools"`
 	Sandbox struct {
 		Enabled        bool   `yaml:"enabled"`

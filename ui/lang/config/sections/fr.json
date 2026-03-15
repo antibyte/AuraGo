@@ -71,6 +71,8 @@
   "config.section.tts.desc": "Paramètres de sortie vocale",
   "config.section.web_scraper.label": "Web Scraper",
   "config.section.web_scraper.desc": "Récupérer des pages web et extraire le contenu textuel",
+  "config.section.document_creator.label": "Créateur de Documents",
+  "config.section.document_creator.desc": "Créer des PDFs et convertir des documents avec Maroto ou Gotenberg",
   "config.section.telegram.label": "Telegram",
   "config.section.telegram.desc": "Intégration bot Telegram",
   "config.section.discord.label": "Discord",

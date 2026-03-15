@@ -1230,6 +1230,13 @@ func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 		result, _ := cronManager.ManageSchedule("remove", tc.ID, "", "")
 		return result
 
+	case "document_creator":
+		if !cfg.Tools.DocumentCreator.Enabled {
+			return `Tool Output: {"status":"error","message":"Document Creator is disabled. Set tools.document_creator.enabled=true in config.yaml."}`
+		}
+		logger.Info("LLM requested document creation", "operation", tc.Operation, "backend", cfg.Tools.DocumentCreator.Backend)
+		return tools.ExecuteDocumentCreator(ctx, &cfg.Tools.DocumentCreator, tc.Operation, tc.Title, tc.Content, tc.URL, tc.Filename, tc.PaperSize, tc.Landscape, tc.Sections, tc.SourceFiles)
+
 	default:
 		return dispatchNotHandled
 	}

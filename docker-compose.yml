@@ -92,6 +92,32 @@ services:
     #   - ansible
 
   # ============================================================================
+  # Gotenberg Sidecar  (OPTIONAL — uncomment to enable document conversion)
+  # ============================================================================
+  # Provides PDF creation, document conversion, and screenshot capabilities.
+  # Used by the document_creator tool when backend is set to "gotenberg".
+  # No authentication — relies on Docker network isolation (internal only).
+  #
+  # Quick start:
+  #   1. Uncomment this block.
+  #   2. Set tools.document_creator.enabled=true and backend="gotenberg" in config.yaml.
+  # ============================================================================
+  # gotenberg:
+  #   image: gotenberg/gotenberg:8
+  #   container_name: aurago_gotenberg
+  #   restart: unless-stopped
+  #   security_opt:
+  #     - no-new-privileges:true
+  #   cap_drop:
+  #     - ALL
+  #   # No ports exposed externally — internal only via Docker network
+  #   logging:
+  #     driver: json-file
+  #     options:
+  #       max-size: "10m"
+  #       max-file: "3"
+
+  # ============================================================================
   # Ansible Sidecar  (OPTIONAL — uncomment the entire block to enable)
   # ============================================================================
   # Runs a lightweight Ansible API server reachable from AuraGo as

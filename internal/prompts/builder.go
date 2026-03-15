@@ -148,6 +148,7 @@ type ContextFlags struct {
 	WOLEnabled               bool
 	MediaRegistryEnabled     bool
 	HomepageRegistryEnabled  bool
+	DocumentCreatorEnabled   bool
 	InternetExposed          bool   // HTTPS is enabled — system is likely reachable from the internet
 	IsDocker                 bool   // Running inside a Docker container
 	UserProfileSummary       string // Optional user profile summary from profiling engine

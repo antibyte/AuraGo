@@ -415,6 +415,12 @@ type ToolCall struct {
 	Problem   string `json:"problem,omitempty"`    // problem description (homepage_registry log_problem/resolve_problem)
 	Status    string `json:"status,omitempty"`     // project status: active, archived, maintenance
 	Notes     string `json:"notes,omitempty"`      // additional notes
+	// Document Creator fields
+	PaperSize   string `json:"paper_size,omitempty"`   // A4, A3, Letter, Legal
+	Landscape   bool   `json:"landscape,omitempty"`    // landscape orientation
+	Sections    string `json:"sections,omitempty"`     // JSON array of document sections for Maroto
+	SourceFiles string `json:"source_files,omitempty"` // JSON array of file paths for merge/convert
+	Filename    string `json:"filename,omitempty"`     // output filename without extension
 }
 
 // GetArgs returns Args as a string slice, handling various input types (slice of strings or interface).

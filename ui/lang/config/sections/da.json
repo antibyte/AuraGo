@@ -71,6 +71,8 @@
   "config.section.tts.desc": "Indstillinger for taleoutput",
   "config.section.web_scraper.label": "Webskraber",
   "config.section.web_scraper.desc": "Hent websider og udtræk tekstindhold",
+  "config.section.document_creator.label": "Dokumentskaber",
+  "config.section.document_creator.desc": "Opret PDF'er og konverter dokumenter med Maroto eller Gotenberg",
   "config.section.telegram.label": "Telegram",
   "config.section.telegram.desc": "Telegram bot integration",
   "config.section.discord.label": "Discord",

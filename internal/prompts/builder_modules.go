@@ -404,6 +404,10 @@ func (m *PromptModule) ShouldInclude(flags ContextFlags) bool {
 			if flags.HomepageRegistryEnabled {
 				return true
 			}
+		case "document_creator_enabled":
+			if flags.DocumentCreatorEnabled {
+				return true
+			}
 		}
 	}
 

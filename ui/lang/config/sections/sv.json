@@ -71,6 +71,8 @@
   "config.section.tts.desc": "Inställningar för talutgång",
   "config.section.web_scraper.label": "Web Scraper",
   "config.section.web_scraper.desc": "Hämta webbsidor och extrahera textinnehåll",
+  "config.section.document_creator.label": "Dokumentskapare",
+  "config.section.document_creator.desc": "Skapa PDF:er och konvertera dokument med Maroto eller Gotenberg",
   "config.section.telegram.label": "Telegram",
   "config.section.telegram.desc": "Telegram bot integration",
   "config.section.discord.label": "Discord",

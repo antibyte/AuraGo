@@ -46,6 +46,12 @@ func Load(path string) (*Config, error) {
 	cfg.Tools.Journal.Enabled = true
 	cfg.Tools.WebScraper.Enabled = true
 
+	// Document Creator defaults: Maroto backend, Gotenberg sidecar URL.
+	cfg.Tools.DocumentCreator.Backend = "maroto"
+	cfg.Tools.DocumentCreator.OutputDir = "data/documents"
+	cfg.Tools.DocumentCreator.Gotenberg.URL = "http://gotenberg:3000"
+	cfg.Tools.DocumentCreator.Gotenberg.Timeout = 120
+
 	// Journal system defaults: auto-entries and daily summaries enabled by default.
 	cfg.Journal.AutoEntries = true
 	cfg.Journal.DailySummary = true

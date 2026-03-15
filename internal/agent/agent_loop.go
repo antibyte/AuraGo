@@ -130,6 +130,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		IsEgg:                    cfg.EggMode.Enabled,
 		InternetExposed:          cfg.Server.HTTPS.Enabled,
 		IsDocker:                 cfg.Runtime.IsDocker,
+		DocumentCreatorEnabled:   cfg.Tools.DocumentCreator.Enabled,
 		AdditionalPrompt:         cfg.Agent.AdditionalPrompt,
 	}
 	logger.Debug("[Agent] Context flags initialised",
@@ -237,6 +238,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			MediaRegistryEnabled:     cfg.MediaRegistry.Enabled && mediaRegistryDB != nil,
 			HomepageRegistryEnabled:  cfg.Homepage.Enabled && homepageRegistryDB != nil,
 			MemoryAnalysisEnabled:    cfg.MemoryAnalysis.Enabled,
+			DocumentCreatorEnabled:   cfg.Tools.DocumentCreator.Enabled,
 			// Danger Zone capability gates
 			AllowShell:           cfg.Agent.AllowShell,
 			AllowPython:          cfg.Agent.AllowPython,

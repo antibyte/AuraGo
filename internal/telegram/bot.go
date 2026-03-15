@@ -313,6 +313,7 @@ func processUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Con
 		IsEgg:                    cfg.EggMode.Enabled,
 		InternetExposed:          cfg.Server.HTTPS.Enabled,
 		IsDocker:                 cfg.Runtime.IsDocker,
+		DocumentCreatorEnabled:   cfg.Tools.DocumentCreator.Enabled,
 		AdditionalPrompt:         cfg.Agent.AdditionalPrompt,
 	}
 	coreMem := shortTermMem.ReadCoreMemory()

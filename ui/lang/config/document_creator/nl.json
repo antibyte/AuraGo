@@ -1,0 +1,21 @@
+{
+  "config.document_creator.enabled_label": "Ingeschakeld",
+  "config.document_creator.disabled_notice": "Documentmaker is uitgeschakeld",
+  "config.document_creator.disabled_desc": "Schakel deze tool in zodat de agent PDF's kan maken en documenten kan converteren.",
+  "config.document_creator.backend_label": "Backend",
+  "config.document_creator.backend_maroto": "Maroto (ingebouwde Go-bibliotheek)",
+  "config.document_creator.backend_gotenberg": "Gotenberg (Docker-sidecar)",
+  "config.document_creator.output_dir_label": "Uitvoermap",
+  "config.document_creator.gotenberg_url_label": "Gotenberg URL",
+  "config.document_creator.gotenberg_timeout_label": "Timeout",
+  "config.document_creator.seconds": "seconden",
+  "config.document_creator.test_gotenberg": "Verbinding testen",
+  "config.document_creator.url_required": "Gotenberg URL is vereist",
+  "config.document_creator.test_ok": "Verbinding geslaagd",
+  "config.document_creator.test_degraded": "Service verslechterd",
+  "config.document_creator.test_fail": "Verbinding mislukt",
+  "help.document_creator.backend": "Maroto is een pure Go PDF-bibliotheek zonder externe afhankelijkheden. Gotenberg is een Docker-service met volledige documentconversie, screenshots en Office-formaat ondersteuning.",
+  "help.document_creator.output_dir": "Map waar gegenereerde documenten worden opgeslagen.",
+  "help.document_creator.gotenberg_url": "Basis-URL van de Gotenberg-service (bijv. http://gotenberg:3000).",
+  "help.document_creator.gotenberg_timeout": "Maximale wachttijd in seconden voor documentgeneratie."
+}
