@@ -343,7 +343,7 @@ func processMessage(cfg *config.Config, logger *slog.Logger, client llm.ChatClie
 	}
 
 	if len(response.Choices) > 0 {
-		reply := response.Choices[0].Message.Content
+		reply := security.StripThinkingTags(response.Choices[0].Message.Content)
 		if reply != "" {
 			// Store assistant reply
 			replyID, _ := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleAssistant, reply, false, false)

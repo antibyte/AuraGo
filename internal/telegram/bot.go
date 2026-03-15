@@ -389,7 +389,7 @@ func processUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Con
 
 	// Send result back to Telegram
 	if len(resp.Choices) > 0 {
-		answer := resp.Choices[0].Message.Content
+		answer := security.StripThinkingTags(resp.Choices[0].Message.Content)
 		// Extract markdown images and send as native Telegram photos
 		cleanText, images := media.ExtractMarkdownImages(answer)
 		for _, img := range images {

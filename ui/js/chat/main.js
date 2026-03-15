@@ -480,7 +480,28 @@ function appendMessage(role, text) {
                         return '<pre class="hljs"><code>' + escapeHtml(str) + '</code></pre>';
                     }
                 });
-                finalHTML = md.render(displayContent);
+
+                // Extract <thinking>/<think> blocks and replace with block-level placeholders
+                // so markdown-it doesn't wrap them in <p> tags.
+                const thinkingBlocks = [];
+                const contentForRender = displayContent.replace(
+                    /<(thinking|think)>([\s\S]*?)<\/\1>/gi,
+                    (match, _tag, inner) => {
+                        const idx = thinkingBlocks.length;
+                        thinkingBlocks.push(inner.trim());
+                        return `\n<div id="thinking-ph-${idx}"></div>\n`;
+                    }
+                );
+
+                finalHTML = md.render(contentForRender);
+
+                // Replace placeholders with collapsible <details> elements
+                thinkingBlocks.forEach((innerText, idx) => {
+                    const innerHtml = md.render(innerText);
+                    const label = (typeof t === 'function') ? t('chat.thinking_label') : 'Reasoning';
+                    const detailsHtml = `<details class="thinking-block"><summary>🧠 ${label}</summary><div class="thinking-content">${innerHtml}</div></details>`;
+                    finalHTML = finalHTML.replace(`<div id="thinking-ph-${idx}"></div>`, detailsHtml);
+                });
             }
         } catch (e) {
             console.error("Markdown parsing failed:", e);

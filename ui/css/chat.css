@@ -478,6 +478,56 @@
             overflow-y: auto;
         }
 
+        /* ── Thinking / Reasoning block ─────────────────── */
+        .thinking-block {
+            margin: 0.5rem 0;
+            border-radius: 10px;
+            border: 1px solid var(--border-accent);
+            background: var(--code-bg);
+            overflow: hidden;
+        }
+
+        .thinking-block > summary {
+            cursor: pointer;
+            font-size: 0.78rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            padding: 0.45rem 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            list-style: none;
+            user-select: none;
+            outline: none;
+        }
+
+        .thinking-block > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .thinking-block > summary::before {
+            content: '▶';
+            font-size: 0.6rem;
+            opacity: 0.6;
+            transition: transform 0.2s;
+        }
+
+        .thinking-block[open] > summary::before {
+            transform: rotate(90deg);
+        }
+
+        .thinking-content {
+            padding: 0.7rem 1rem;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            border-top: 1px solid var(--border-subtle);
+            max-height: 300px;
+            overflow-y: auto;
+            line-height: 1.5;
+        }
+
+        .thinking-content p:last-child { margin-bottom: 0; }
+
         /* ── Session Todo debug panel ────────────────────── */
         /* Desktop: Top right, below topbar */
         .todo-debug-panel {

@@ -46,6 +46,13 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	// Start OAuth2 token refresh loop (auto-refreshes before expiry)
 	startOAuthRefreshLoop(s, serverCtx)
 
+	// Health check — no auth required, used by Docker HEALTHCHECK and monitoring.
+	mux.HandleFunc("/api/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+	})
+
 	mux.HandleFunc("/v1/chat/completions", handleChatCompletions(s, sse))
 	mux.HandleFunc("/api/memory/archive", handleArchiveMemory(s))
 	mux.HandleFunc("/api/upload", handleUpload(s))

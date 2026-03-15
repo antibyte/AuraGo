@@ -44,6 +44,9 @@ services:
       # Optional: expose the agent's tool scripts on the host for inspection.
       # - ./agent_workspace/tools:/app/agent_workspace/tools
 
+      # Optional: persist log files on the host for debugging.
+      # - ./log:/app/log
+
       # Docker socket — required for Invasion Control "Docker (Lokal)" deployments.
       # This allows AuraGo to spawn egg containers on the host Docker daemon.
       # SECURITY NOTE: Mounting the Docker socket grants root-equivalent access
@@ -60,6 +63,22 @@ services:
 
     # --- Restart policy ---
     restart: unless-stopped
+
+    # --- Security hardening ---
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+    # --- Resource limits (adjust to your hardware) ---
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: '2.0'
+    #       memory: 2G
+    #     reservations:
+    #       cpus: '0.5'
+    #       memory: 512M
 
     # --- Logging ---
     logging:
@@ -109,6 +128,37 @@ services:
   #     # Optional: custom ansible.cfg
   #     # - ./ansible/ansible.cfg:/etc/ansible/ansible.cfg:ro
   #   restart: unless-stopped
+
+  # ============================================================================
+  # Docker Socket Proxy  (OPTIONAL — safer alternative to mounting the socket)
+  # ============================================================================
+  # Instead of mounting /var/run/docker.sock directly into the AuraGo container
+  # (which grants root-equivalent host access), you can use a socket proxy that
+  # only exposes the API subset AuraGo actually needs.
+  #
+  # To use:
+  #   1. Uncomment the docker-proxy block below.
+  #   2. Remove the docker.sock volume mount from the aurago service above.
+  #   3. Add this environment variable to the aurago service:
+  #        environment:
+  #          - DOCKER_HOST=tcp://docker-proxy:2375
+  # ============================================================================
+  # docker-proxy:
+  #   image: tecnativa/docker-socket-proxy
+  #   container_name: aurago_docker_proxy
+  #   restart: unless-stopped
+  #   volumes:
+  #     - /var/run/docker.sock:/var/run/docker.sock:ro
+  #   environment:
+  #     - CONTAINERS=1
+  #     - IMAGES=1
+  #     - NETWORKS=1
+  #     - VOLUMES=0
+  #     - POST=1          # allow start/stop/restart
+  #     - BUILD=0
+  #     - COMMIT=0
+  #     - EXEC=0
+  #     - SWARM=0
 
 volumes:
   aurago_data:

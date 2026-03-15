@@ -264,6 +264,40 @@ All potentially dangerous operations are gated:
 ### Sensitive Data Scrubbing
 Use `security.RegisterSensitive(value)` to prevent values from appearing in logs or LLM outputs.
 
+### Agent Reports & Analysis Files
+
+**CRITICAL:** When creating analysis reports, logs, or any files that may contain sensitive data:
+
+1. **Create reports in `/reports/` directory** (NOT in `documentation/`)
+2. **The `/reports/` directory is in `.gitignore`** - files here are never committed
+3. **Never commit files containing:**
+   - Master keys or vault secrets
+   - API keys or tokens
+   - Passwords or credentials
+   - Log files with sensitive output
+   - Memory dumps or conversation history
+
+**Correct workflow:**
+```bash
+# Good: Report in non-versioned directory
+reports/log_analysis_2026-03-15.md
+
+# Bad: Report in versioned directory
+documentation/log_analysis_2026-03-15.md  # DON'T DO THIS
+```
+
+**Before committing, always check:**
+```bash
+git diff --cached  # Review all staged changes
+grep -r "AURAGO_MASTER_KEY\|sk-or-\|password\|secret" .  # Scan for secrets
+```
+
+**If you accidentally committed sensitive data:**
+1. Immediately rotate/change the exposed secret
+2. Use `git filter-branch` or BFG Repo-Cleaner to remove from history
+3. Force push to overwrite (coordinate with team)
+4. Assume the secret is compromised
+
 ## Deployment
 
 ### Docker Deployment (Recommended)

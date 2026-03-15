@@ -108,6 +108,12 @@ EXPOSE 8088
 #   /app/agent_workspace/workdir  – Python venv + generated tools
 VOLUME ["/app/data", "/app/agent_workspace/workdir"]
 
+# ----- healthcheck -----
+# Uses Python (already in the image) to probe the health endpoint.
+# start-period gives the entrypoint + VectorDB init time to finish.
+HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=3 \
+  CMD python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:8088/api/health')" || exit 1
+
 # ----- entrypoint -----
 ENTRYPOINT ["/app/docker-entrypoint.sh"]
 CMD ["/app/aurago", "--config", "/app/data/config.yaml"]

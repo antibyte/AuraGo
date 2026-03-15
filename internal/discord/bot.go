@@ -525,7 +525,7 @@ func processDiscordMessage(s *discordgo.Session, m *discordgo.MessageCreate, inp
 
 	// Send result back to Discord
 	if len(resp.Choices) > 0 {
-		answer := resp.Choices[0].Message.Content
+		answer := security.StripThinkingTags(resp.Choices[0].Message.Content)
 		if answer != "" {
 			// Extract markdown images and send as native Discord attachments
 			cleanText, images := media.ExtractMarkdownImages(answer)

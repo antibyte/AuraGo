@@ -12,6 +12,9 @@ var (
 	// Regex for common API keys and secrets
 	apiKeyRegex = regexp.MustCompile(`(?i)(key|secret|password|token|auth|credential|api_key|master_key|bot_token)["']?\s*[:=]\s*["']?([a-zA-Z0-9\-_:]{16,})["']?`)
 
+	// Matches <thinking>…</thinking> and <think>…</think> blocks (reasoning traces from some LLMs).
+	thinkingTagRe = regexp.MustCompile(`(?is)<(thinking|think)>[\s\S]*?</(thinking|think)>`)
+
 	sensitiveMu     sync.RWMutex
 	sensitiveValues []string
 )
@@ -87,4 +90,12 @@ func RedactSensitiveInfo(text string) string {
 	// But we can add specific known keys here if identified.
 
 	return text
+}
+
+// StripThinkingTags removes <thinking>…</thinking> (and <think>…</think>) blocks from text.
+// These reasoning traces are emitted by some LLMs and must be removed before sending
+// responses through channels that cannot render collapsible UI (Telegram, Discord, etc.).
+func StripThinkingTags(text string) string {
+	stripped := thinkingTagRe.ReplaceAllString(text, "")
+	return strings.TrimSpace(stripped)
 }

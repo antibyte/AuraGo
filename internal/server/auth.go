@@ -268,6 +268,7 @@ func ClientIP(r *http.Request) string {
 // The setup wizard (/setup) calls this endpoint but auth is auto-disabled when no
 // password is configured, so the setup flow still works without a bypass here.
 var authBypassPrefixes = []string{
+	"/api/health",
 	"/auth/",
 	"/api/auth/status",
 	"/api/security/status",
