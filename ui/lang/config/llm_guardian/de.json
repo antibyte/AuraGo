@@ -27,5 +27,13 @@
   "config.llm_guardian.rate_limit_label": "Max. Prüfungen pro Minute",
   "config.llm_guardian.overrides_title": "Tool-Überschreibungen",
   "config.llm_guardian.overrides_desc": "Schutzstufe für bestimmte Tools überschreiben. Nützlich, um gefährliche Tools immer zu prüfen oder sichere zu überspringen.",
-  "config.llm_guardian.overrides_tool_placeholder": "Tool-Name (z.B. execute_shell)"
+  "config.llm_guardian.overrides_tool_placeholder": "Tool-Name (z.B. execute_shell)",
+  "config.llm_guardian.overrides_tool_search": "Tool suchen...",
+  "config.llm_guardian.clarification_title": "Agenten-Rückfrage",
+  "config.llm_guardian.clarification_desc": "Wenn aktiviert, kann der Agent eine Begründung liefern, falls ein Tool-Aufruf blockiert wird. Der Guardian bewertet die Anfrage einmal mit der Begründung neu, bevor er eine endgültige Entscheidung trifft.",
+  "config.llm_guardian.clarification_label": "Agenten-Rückfrage erlauben",
+  "config.llm_guardian.scan_title": "Inhalts-Scanning",
+  "config.llm_guardian.scan_desc": "Nutzt das Guardian-LLM zur Prüfung eingehender Inhalte (E-Mails, Webhooks) auf Prompt-Injection, Phishing und Social-Engineering-Angriffe — über die eingebauten Regex-Muster hinaus.",
+  "config.llm_guardian.scan_emails_label": "Eingehende E-Mails scannen",
+  "config.llm_guardian.scan_documents_label": "Webhook-Payloads scannen"
 }

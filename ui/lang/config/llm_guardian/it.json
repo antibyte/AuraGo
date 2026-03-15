@@ -27,5 +27,13 @@
   "config.llm_guardian.rate_limit_label": "Controlli max al minuto",
   "config.llm_guardian.overrides_title": "Sovrascritture strumenti",
   "config.llm_guardian.overrides_desc": "Sovrascrivere il livello di protezione per strumenti specifici. Utile per verificare sempre gli strumenti pericolosi o ignorare quelli sicuri.",
-  "config.llm_guardian.overrides_tool_placeholder": "Nome strumento (es. execute_shell)"
+  "config.llm_guardian.overrides_tool_placeholder": "Nome strumento (es. execute_shell)",
+  "config.llm_guardian.overrides_tool_search": "Cerca strumento...",
+  "config.llm_guardian.clarification_title": "Chiarimento dell'agente",
+  "config.llm_guardian.clarification_desc": "Se attivato, l'agente può fornire una giustificazione se una chiamata strumento viene bloccata. Il Guardian rivaluta la richiesta una volta con la giustificazione prima di prendere una decisione finale.",
+  "config.llm_guardian.clarification_label": "Consenti chiarimento dell'agente",
+  "config.llm_guardian.scan_title": "Scansione contenuti",
+  "config.llm_guardian.scan_desc": "Usa il Guardian LLM per scansionare i contenuti in arrivo (email, webhook) alla ricerca di prompt injection, phishing e attacchi di ingegneria sociale — oltre ai pattern regex integrati.",
+  "config.llm_guardian.scan_emails_label": "Scansiona email in arrivo",
+  "config.llm_guardian.scan_documents_label": "Scansiona payload webhook"
 }

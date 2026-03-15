@@ -119,6 +119,36 @@ async function renderLLMGuardianSection(section) {
     </label>`;
     html += `</div>`;
 
+    // ── Agent Clarification ──
+    html += `<div class="field-group">
+        <div class="field-group-title">${t('config.llm_guardian.clarification_title')}</div>
+        <div class="field-group-desc">${t('config.llm_guardian.clarification_desc')}</div>`;
+
+    const clarificationOn = cfg.allow_clarification === true;
+    html += `<div style="display:flex;align-items:center;gap:0.8rem;margin-bottom:0.4rem;padding:0.4rem 0.8rem;border-radius:6px;background:var(--bg-tertiary);">
+        <span style="font-size:0.78rem;color:var(--text-secondary);">${t('config.llm_guardian.clarification_label')}</span>
+        <div class="toggle ${clarificationOn ? 'on' : ''}" data-path="llm_guardian.allow_clarification" onclick="toggleBool(this);setNestedValue(configData,'llm_guardian.allow_clarification',this.classList.contains('on'));setDirty(true)"></div>
+    </div>`;
+    html += `</div>`;
+
+    // ── Content Scanning ──
+    html += `<div class="field-group">
+        <div class="field-group-title">${t('config.llm_guardian.scan_title')}</div>
+        <div class="field-group-desc">${t('config.llm_guardian.scan_desc')}</div>`;
+
+    const scanEmails = cfg.scan_emails === true;
+    html += `<div style="display:flex;align-items:center;gap:0.8rem;margin-bottom:0.4rem;padding:0.4rem 0.8rem;border-radius:6px;background:var(--bg-tertiary);">
+        <span style="font-size:0.78rem;color:var(--text-secondary);">${t('config.llm_guardian.scan_emails_label')}</span>
+        <div class="toggle ${scanEmails ? 'on' : ''}" data-path="llm_guardian.scan_emails" onclick="toggleBool(this);setNestedValue(configData,'llm_guardian.scan_emails',this.classList.contains('on'));setDirty(true)"></div>
+    </div>`;
+
+    const scanDocs = cfg.scan_documents === true;
+    html += `<div style="display:flex;align-items:center;gap:0.8rem;margin-bottom:0.4rem;padding:0.4rem 0.8rem;border-radius:6px;background:var(--bg-tertiary);">
+        <span style="font-size:0.78rem;color:var(--text-secondary);">${t('config.llm_guardian.scan_documents_label')}</span>
+        <div class="toggle ${scanDocs ? 'on' : ''}" data-path="llm_guardian.scan_documents" onclick="toggleBool(this);setNestedValue(configData,'llm_guardian.scan_documents',this.classList.contains('on'));setDirty(true)"></div>
+    </div>`;
+    html += `</div>`;
+
     // ── Tool Overrides ──
     html += `<div class="field-group">
         <div class="field-group-title">${t('config.llm_guardian.overrides_title')}</div>
@@ -131,8 +161,10 @@ async function renderLLMGuardianSection(section) {
         html += `<div style="display:flex;flex-direction:column;gap:0.4rem;margin-bottom:0.6rem;">`;
         overrideKeys.forEach(toolName => {
             const toolLevel = overrides[toolName] || 'medium';
+            const desc = _guardianToolDescriptions[toolName] || '';
+            const riskIcon = _guardianHighRiskTools.has(toolName) ? '🔴' : (_guardianRiskyTools.has(toolName) ? '🟡' : '⚪');
             html += `<div style="display:flex;align-items:center;gap:0.5rem;">
-                <input type="text" class="cfg-input" value="${escapeAttr(toolName)}" style="flex:1;font-size:0.78rem;" readonly>
+                <span style="flex:1;font-size:0.78rem;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${escapeAttr(desc ? toolName + ' — ' + desc : toolName)}">${riskIcon} <strong>${escapeAttr(toolName)}</strong>${desc ? ' <span style="color:var(--text-tertiary);">— ' + escapeAttr(desc) + '</span>' : ''}</span>
                 <select class="cfg-input" style="width:120px;font-size:0.78rem;"
                     onchange="guardianSetOverride('${escapeAttr(toolName)}',this.value)">`;
             levels.forEach(lv => {
@@ -147,8 +179,22 @@ async function renderLLMGuardianSection(section) {
         html += `</div>`;
     }
 
+    // Searchable tool input with datalist
     html += `<div style="display:flex;gap:0.4rem;align-items:center;">
-        <input type="text" id="guardian-new-tool" class="cfg-input" placeholder="${t('config.llm_guardian.overrides_tool_placeholder')}" style="flex:1;font-size:0.78rem;">
+        <input type="text" id="guardian-new-tool" class="cfg-input" list="guardian-tool-datalist"
+            placeholder="${t('config.llm_guardian.overrides_tool_search')}" style="flex:1;font-size:0.78rem;">
+        <datalist id="guardian-tool-datalist">`;
+    if (_guardianToolList) {
+        _guardianToolList.forEach(name => {
+            if (!overrides[name]) {
+                const desc = _guardianToolDescriptions[name] || '';
+                const riskIcon = _guardianHighRiskTools.has(name) ? '🔴' : (_guardianRiskyTools.has(name) ? '🟡' : '⚪');
+                const label = desc ? `${riskIcon} ${name} — ${desc}` : `${riskIcon} ${name}`;
+                html += `<option value="${escapeAttr(name)}" label="${escapeAttr(label)}">`;
+            }
+        });
+    }
+    html += `</datalist>
         <select id="guardian-new-level" class="cfg-input" style="width:120px;font-size:0.78rem;">`;
     levels.forEach(lv => {
         const sel = (lv === 'high') ? ' selected' : '';
@@ -163,6 +209,80 @@ async function renderLLMGuardianSection(section) {
     html += `</div>`;
     document.getElementById('content').innerHTML = html;
     attachChangeListeners();
+
+    // Load tool list asynchronously if not cached yet
+    if (!_guardianToolList) {
+        guardianLoadToolList();
+    }
+}
+
+// ── Tool list & descriptions ────────────────────────────────────────────────
+
+let _guardianToolList = null;
+
+const _guardianToolDescriptions = {
+    execute_shell: 'Run shell commands',
+    execute_sudo: 'Run commands as root',
+    execute_python: 'Execute Python code',
+    execute_remote_shell: 'SSH remote commands',
+    filesystem: 'Read/write files',
+    api_request: 'HTTP API calls',
+    docker: 'Manage Docker containers',
+    proxmox: 'Proxmox VM management',
+    home_assistant: 'Smart home control',
+    co_agent: 'Spawn sub-agents',
+    manage_updates: 'Self-update system',
+    set_secret: 'Store vault secrets',
+    save_tool: 'Create custom tools',
+    netlify: 'Netlify deployments',
+    send_email: 'Send emails',
+    fetch_email: 'Fetch emails',
+    discord: 'Discord messaging',
+    manage_memory: 'Long-term memory',
+    knowledge_graph: 'Knowledge graph ops',
+    manage_notes: 'Manage notes',
+    manage_cron: 'Cron job scheduler',
+    call_webhook: 'Call outgoing webhooks',
+    manage_missions: 'Mission management',
+    tailscale: 'Tailscale VPN',
+    manage_devices: 'SSH device inventory',
+    koofr: 'Koofr cloud storage',
+    google_workspace: 'Google Workspace',
+    webdav: 'WebDAV file access',
+    ollama: 'Ollama local models',
+    adguard: 'AdGuard Home DNS',
+    chromecast: 'Chromecast control',
+    mcp_call: 'MCP server tools',
+    cheat_sheet: 'Cheat sheet lookup',
+    send_image: 'Send/generate images',
+    text_to_speech: 'Text to speech',
+    media_registry: 'Media registry',
+    homepage_registry: 'Homepage registry',
+};
+
+const _guardianHighRiskTools = new Set([
+    'execute_shell', 'execute_sudo', 'execute_python', 'execute_remote_shell', 'filesystem'
+]);
+
+const _guardianRiskyTools = new Set([
+    'execute_shell', 'execute_sudo', 'execute_python', 'execute_remote_shell', 'filesystem',
+    'api_request', 'docker', 'proxmox', 'set_secret', 'save_tool', 'co_agent',
+    'manage_updates', 'netlify', 'home_assistant'
+]);
+
+async function guardianLoadToolList() {
+    try {
+        const resp = await fetch('/api/mcp-server/tools');
+        if (!resp.ok) return;
+        const names = await resp.json();
+        if (Array.isArray(names) && names.length > 0) {
+            _guardianToolList = names;
+            // Re-render to populate datalist
+            renderLLMGuardianSection(null);
+        }
+    } catch (e) {
+        // Silent fail — tool list is optional enhancement
+    }
 }
 
 function guardianSetOverride(tool, level) {

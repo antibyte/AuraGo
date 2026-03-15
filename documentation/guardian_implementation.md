@@ -1,6 +1,6 @@
 # LLM Guardian - Implementation Status
 
-> **Status**: ✅ Implemented (Phases 1-4 complete)
+> **Status**: ✅ Implemented (Phases 1-5 complete, including enhancements)
 
 ## Overview
 
@@ -62,6 +62,9 @@ llm_guardian:
   tool_overrides:                   # Per-tool level overrides
     execute_shell: "high"
     api_request: "low"
+  allow_clarification: false        # Agent can justify blocked calls (1 retry)
+  scan_emails: false                # LLM scan of incoming emails
+  scan_documents: false             # LLM scan of webhook payloads
 ```
 
 ### Protection Levels
@@ -101,3 +104,41 @@ When the LLM check fails (timeout, API error, rate limit exceeded):
 - `/api/dashboard/guardian` returns enabled status + metrics snapshot
 - Card auto-hidden when Guardian is disabled
 - Auto-refreshes every 30s
+- Shows clarifications and content scans counters when > 0
+
+## Enhancement: Agent Clarification
+
+When `allow_clarification` is enabled and a tool call is blocked, the agent can include a
+`_guardian_justification` field in its tool call to argue why the operation should be allowed.
+The Guardian re-evaluates the request **once** with a stricter prompt that considers the
+justification. If still blocked, the denial is final.
+
+Flow:
+1. Agent sends tool call → Guardian blocks it
+2. Block message includes a hint about `_guardian_justification`
+3. Agent retries with justification → `EvaluateClarification()` called
+4. Stricter LLM evaluation with justification context
+5. If allowed → tool proceeds. If still blocked → final denial.
+
+Implementation: `EvaluateClarification()` in `llm_guardian.go`, dispatch integration in `agent_parse.go`.
+
+## Enhancement: Content Scanning
+
+When `scan_emails` or `scan_documents` is enabled, incoming content is scanned by the
+Guardian LLM for prompt injection, phishing, and social engineering attacks — as an
+additional layer beyond the regex-based `ScanForInjection`.
+
+Scan points:
+- **Email fetching** (`agent_dispatch_comm.go`): After regex scan, emails are LLM-scanned. Blocked content is sanitized.
+- **Email watcher** (`email_watcher.go`): Background email checks get LLM scanning. Blocked content is sanitized.
+- **Webhooks** (`webhooks/handler.go`): Incoming webhook payloads are LLM-scanned. Blocked content is isolated.
+
+Implementation: `EvaluateContent()` in `llm_guardian.go`, hooks in dispatch, email watcher, and webhook handler.
+
+## Enhancement: Searchable Tool Override UI
+
+The tool override section in the config UI now features:
+- Searchable `<input>` with `<datalist>` populated from `/api/mcp-server/tools`
+- Tool descriptions and risk level icons (🔴 high-risk, 🟡 risky, ⚪ normal)
+- Styled override display with tool name + description
+- Async tool list loading with caching

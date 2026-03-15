@@ -2,6 +2,7 @@ package tools
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -17,12 +18,13 @@ import (
 // email accounts and wakes the agent via a loopback HTTP request when new
 // mail arrives.
 type EmailWatcher struct {
-	cfg      *config.Config
-	logger   *slog.Logger
-	guardian *security.Guardian
-	stopCh   chan struct{}
-	mu       sync.Mutex
-	running  bool
+	cfg         *config.Config
+	logger      *slog.Logger
+	guardian    *security.Guardian
+	llmGuardian *security.LLMGuardian
+	stopCh      chan struct{}
+	mu          sync.Mutex
+	running     bool
 	// per-account UID tracking: accountID → set of known UIDs
 	lastUIDs map[string]map[uint32]bool
 	// mission trigger callbacks
@@ -36,13 +38,14 @@ type missionTriggerCallback struct {
 	callback        func(subject, from, body string)
 }
 
-func NewEmailWatcher(cfg *config.Config, logger *slog.Logger, guardian *security.Guardian) *EmailWatcher {
+func NewEmailWatcher(cfg *config.Config, logger *slog.Logger, guardian *security.Guardian, llmGuardian *security.LLMGuardian) *EmailWatcher {
 	return &EmailWatcher{
-		cfg:      cfg,
-		logger:   logger,
-		guardian: guardian,
-		stopCh:   make(chan struct{}),
-		lastUIDs: make(map[string]map[uint32]bool),
+		cfg:         cfg,
+		logger:      logger,
+		guardian:    guardian,
+		llmGuardian: llmGuardian,
+		stopCh:      make(chan struct{}),
+		lastUIDs:    make(map[string]map[uint32]bool),
 	}
 }
 
@@ -199,6 +202,13 @@ func (ew *EmailWatcher) pollAccount(acct config.EmailAccount) {
 			if scanResult.Level >= security.ThreatHigh {
 				ew.logger.Warn("[EmailWatcher] HIGH threat detected in email, sanitizing", "account", acct.ID, "from", msg.From, "subject", msg.Subject, "threat", scanResult.Level.String())
 				content = fmt.Sprintf("From: %s | Subject: [SANITIZED - injection detected] | Snippet: [REDACTED]", msg.From)
+			} else if ew.llmGuardian != nil && ew.cfg.LLMGuardian.ScanEmails {
+				// LLM Guardian: deeper content scan if regex didn't flag HIGH
+				llmResult := ew.llmGuardian.EvaluateContent(context.Background(), "email", content)
+				if llmResult.Decision == security.DecisionBlock {
+					ew.logger.Warn("[EmailWatcher] LLM Guardian blocked email content", "account", acct.ID, "from", msg.From, "reason", llmResult.Reason)
+					content = fmt.Sprintf("From: %s | Subject: [SANITIZED - %s] | Snippet: [REDACTED]", msg.From, llmResult.Reason)
+				}
 			}
 		}
 		summary += fmt.Sprintf("\n%d. %s", i+1, content)
@@ -284,7 +294,7 @@ func (ew *EmailWatcher) notifyAgent(prompt string) {
 
 // StartEmailWatcher creates and starts an email watcher if any account has
 // watch_enabled=true (or the legacy email.enabled + watch_enabled is set).
-func StartEmailWatcher(cfg *config.Config, logger *slog.Logger, guardian *security.Guardian) *EmailWatcher {
+func StartEmailWatcher(cfg *config.Config, logger *slog.Logger, guardian *security.Guardian, llmGuardian *security.LLMGuardian) *EmailWatcher {
 	hasWatchAccount := false
 	for _, acct := range cfg.EmailAccounts {
 		if acct.WatchEnabled && acct.IMAPHost != "" && acct.Username != "" && acct.Password != "" {
@@ -299,7 +309,7 @@ func StartEmailWatcher(cfg *config.Config, logger *slog.Logger, guardian *securi
 		return nil
 	}
 
-	watcher := NewEmailWatcher(cfg, logger, guardian)
+	watcher := NewEmailWatcher(cfg, logger, guardian, llmGuardian)
 	watcher.Start()
 	return watcher
 }

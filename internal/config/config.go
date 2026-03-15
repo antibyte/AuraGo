@@ -67,6 +67,9 @@ func Load(path string) (*Config, error) {
 	cfg.LLMGuardian.FailSafe = "quarantine"
 	cfg.LLMGuardian.CacheTTL = 300
 	cfg.LLMGuardian.MaxChecksPerMin = 60
+	cfg.LLMGuardian.AllowClarification = false
+	cfg.LLMGuardian.ScanDocuments = false
+	cfg.LLMGuardian.ScanEmails = false
 
 	// Danger-zone capabilities default to false (opt-in) for new installations.
 	// Existing configs with explicit true/false values will be read from YAML unchanged.

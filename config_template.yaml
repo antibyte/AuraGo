@@ -393,6 +393,9 @@ llm_guardian:
     cache_ttl: 300
     max_checks_per_min: 60
     tool_overrides: {}
+    allow_clarification: false
+    scan_documents: false
+    scan_emails: false
 netlify:
     enabled: false
     readonly: false

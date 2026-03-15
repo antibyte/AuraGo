@@ -16,6 +16,7 @@ import (
 	"text/template"
 	"time"
 
+	"aurago/internal/config"
 	"aurago/internal/security"
 )
 
@@ -30,6 +31,8 @@ type Handler struct {
 	manager        *Manager
 	tokenManager   *security.TokenManager
 	guardian       *security.Guardian
+	llmGuardian    *security.LLMGuardian
+	cfg            *config.Config
 	logger         *slog.Logger
 	serverPort     int
 	maxPayloadSize int64
@@ -38,11 +41,13 @@ type Handler struct {
 }
 
 // NewHandler creates a webhook receiver handler.
-func NewHandler(manager *Manager, tokenManager *security.TokenManager, guardian *security.Guardian, logger *slog.Logger, serverPort int, maxPayloadSize int64, rateLimit int) *Handler {
+func NewHandler(manager *Manager, tokenManager *security.TokenManager, guardian *security.Guardian, llmGuardian *security.LLMGuardian, cfg *config.Config, logger *slog.Logger, serverPort int, maxPayloadSize int64, rateLimit int) *Handler {
 	return &Handler{
 		manager:        manager,
 		tokenManager:   tokenManager,
 		guardian:       guardian,
+		llmGuardian:    llmGuardian,
+		cfg:            cfg,
 		logger:         logger,
 		serverPort:     serverPort,
 		maxPayloadSize: maxPayloadSize,
@@ -164,6 +169,13 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if scan.Level >= security.ThreatHigh {
 			h.logger.Warn("[Webhook] High-threat injection pattern in payload", "webhook", wh.Name, "threat", scan.Level, "source_ip", sourceIP)
 			body = []byte(security.IsolateExternalData(string(body)))
+		} else if h.llmGuardian != nil && h.cfg != nil && h.cfg.LLMGuardian.ScanDocuments {
+			// LLM Guardian: deeper content scan if regex didn't flag HIGH
+			llmResult := h.llmGuardian.EvaluateContent(r.Context(), "document", string(body))
+			if llmResult.Decision == security.DecisionBlock {
+				h.logger.Warn("[Webhook] LLM Guardian blocked payload", "webhook", wh.Name, "reason", llmResult.Reason, "source_ip", sourceIP)
+				body = []byte(security.IsolateExternalData(string(body)))
+			}
 		}
 	}
 

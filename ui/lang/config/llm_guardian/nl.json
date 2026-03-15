@@ -27,5 +27,13 @@
   "config.llm_guardian.rate_limit_label": "Max. controles per minuut",
   "config.llm_guardian.overrides_title": "Tool-overschrijvingen",
   "config.llm_guardian.overrides_desc": "Overschrijf het beschermingsniveau voor specifieke tools. Handig om gevaarlijke tools altijd te controleren of veilige over te slaan.",
-  "config.llm_guardian.overrides_tool_placeholder": "Toolnaam (bijv. execute_shell)"
+  "config.llm_guardian.overrides_tool_placeholder": "Toolnaam (bijv. execute_shell)",
+  "config.llm_guardian.overrides_tool_search": "Tool zoeken...",
+  "config.llm_guardian.clarification_title": "Agent-verduidelijking",
+  "config.llm_guardian.clarification_desc": "Indien ingeschakeld kan de agent een rechtvaardiging geven als een toolaanroep wordt geblokkeerd. De Guardian herbeoordeelt het verzoek eenmaal met de rechtvaardiging voordat een definitieve beslissing wordt genomen.",
+  "config.llm_guardian.clarification_label": "Agent-verduidelijking toestaan",
+  "config.llm_guardian.scan_title": "Inhoudsscan",
+  "config.llm_guardian.scan_desc": "Gebruikt de Guardian LLM om inkomende inhoud (e-mails, webhooks) te scannen op prompt-injectie, phishing en social engineering-aanvallen — bovenop de ingebouwde regex-patronen.",
+  "config.llm_guardian.scan_emails_label": "Inkomende e-mails scannen",
+  "config.llm_guardian.scan_documents_label": "Webhook-payloads scannen"
 }

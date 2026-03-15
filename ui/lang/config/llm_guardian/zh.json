@@ -27,5 +27,13 @@
   "config.llm_guardian.rate_limit_label": "每分钟最大检查次数",
   "config.llm_guardian.overrides_title": "工具覆盖",
   "config.llm_guardian.overrides_desc": "覆盖特定工具的保护级别。用于始终检查危险工具或跳过安全工具。",
-  "config.llm_guardian.overrides_tool_placeholder": "工具名称（如 execute_shell）"
+  "config.llm_guardian.overrides_tool_placeholder": "工具名称（如 execute_shell）",
+  "config.llm_guardian.overrides_tool_search": "搜索工具...",
+  "config.llm_guardian.clarification_title": "代理澄清",
+  "config.llm_guardian.clarification_desc": "启用后，当工具调用被阻止时，代理可以提供理由。Guardian 会在做出最终决定之前，结合理由重新评估一次请求。",
+  "config.llm_guardian.clarification_label": "允许代理澄清",
+  "config.llm_guardian.scan_title": "内容扫描",
+  "config.llm_guardian.scan_desc": "使用 Guardian LLM 扫描传入内容（电子邮件、Webhook）以检测提示注入、钓鱼和社会工程攻击 — 超越内置的正则表达式模式。",
+  "config.llm_guardian.scan_emails_label": "扫描传入电子邮件",
+  "config.llm_guardian.scan_documents_label": "扫描 Webhook 负载"
 }

@@ -47,8 +47,30 @@ func DispatchToolCall(ctx context.Context, tc ToolCall, cfg *config.Config, logg
 			}
 			result := llmGuardian.EvaluateWithFailSafe(ctx, check)
 			if result.Decision == security.DecisionBlock {
+				// Clarification: if agent provided a justification AND clarification is enabled, re-evaluate once
+				if tc.GuardianJustification != "" && cfg.LLMGuardian.AllowClarification {
+					check.Justification = tc.GuardianJustification
+					clarResult := llmGuardian.EvaluateClarification(ctx, check)
+					if clarResult.Decision != security.DecisionBlock {
+						logger.Info("[LLM Guardian] Clarification accepted, proceeding",
+							"tool", tc.Action, "decision", clarResult.Decision, "reason", clarResult.Reason)
+						if clarResult.Decision == security.DecisionQuarantine {
+							logger.Warn("[LLM Guardian] Clarification resulted in quarantine (proceeding with caution)",
+								"tool", tc.Action, "reason", clarResult.Reason, "risk", clarResult.RiskScore)
+						}
+						goto proceed
+					}
+					// Clarification rejected — final block (no more retries)
+					logger.Warn("[LLM Guardian] Clarification rejected, final block",
+						"tool", tc.Action, "reason", clarResult.Reason, "risk", clarResult.RiskScore)
+					return fmt.Sprintf("[TOOL BLOCKED] Security check failed for %s: %s (risk: %.0f%%). Clarification was reviewed but the action remains blocked.", tc.Action, clarResult.Reason, clarResult.RiskScore*100)
+				}
+
 				logger.Warn("[LLM Guardian] Blocked tool call",
 					"tool", tc.Action, "reason", result.Reason, "risk", result.RiskScore)
+				if cfg.LLMGuardian.AllowClarification {
+					return fmt.Sprintf("[TOOL BLOCKED] Security check failed for %s: %s (risk: %.0f%%). You may retry this tool call once by adding a \"_guardian_justification\" field explaining why this action is necessary and safe.", tc.Action, result.Reason, result.RiskScore*100)
+				}
 				return fmt.Sprintf("[TOOL BLOCKED] Security check failed for %s: %s (risk: %.0f%%)", tc.Action, result.Reason, result.RiskScore*100)
 			}
 			if result.Decision == security.DecisionQuarantine {
@@ -57,8 +79,9 @@ func DispatchToolCall(ctx context.Context, tc ToolCall, cfg *config.Config, logg
 			}
 		}
 	}
+proceed:
 
-	rawResult := dispatchInner(ctx, tc, cfg, logger, llmClient, vault, registry, manifest, cronManager, missionManager, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, remoteHub, historyMgr, isMaintenance, surgeryPlan, guardian, sessionID, coAgentRegistry, budgetTracker)
+	rawResult := dispatchInner(ctx, tc, cfg, logger, llmClient, vault, registry, manifest, cronManager, missionManager, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, remoteHub, historyMgr, isMaintenance, surgeryPlan, guardian, llmGuardian, sessionID, coAgentRegistry, budgetTracker)
 
 	// Apply redaction to tool output
 	sanitized := security.RedactSensitiveInfo(rawResult)

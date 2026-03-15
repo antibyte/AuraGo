@@ -27,5 +27,13 @@
   "config.llm_guardian.rate_limit_label": "1分あたりの最大チェック数",
   "config.llm_guardian.overrides_title": "ツールオーバーライド",
   "config.llm_guardian.overrides_desc": "特定のツールの保護レベルをオーバーライドします。危険なツールを常にチェックしたり、安全なツールをスキップするのに便利です。",
-  "config.llm_guardian.overrides_tool_placeholder": "ツール名（例：execute_shell）"
+  "config.llm_guardian.overrides_tool_placeholder": "ツール名（例：execute_shell）",
+  "config.llm_guardian.overrides_tool_search": "ツールを検索...",
+  "config.llm_guardian.clarification_title": "エージェント弁明",
+  "config.llm_guardian.clarification_desc": "有効にすると、ツール呼び出しがブロックされた場合にエージェントが正当性を説明できます。Guardianは最終判断を下す前に、説明を含めてリクエストを一度再評価します。",
+  "config.llm_guardian.clarification_label": "エージェント弁明を許可",
+  "config.llm_guardian.scan_title": "コンテンツスキャン",
+  "config.llm_guardian.scan_desc": "Guardian LLMを使用して、受信コンテンツ（メール、Webhook）をプロンプトインジェクション、フィッシング、ソーシャルエンジニアリング攻撃について検査します — 組み込みの正規表現パターンを超えて。",
+  "config.llm_guardian.scan_emails_label": "受信メールをスキャン",
+  "config.llm_guardian.scan_documents_label": "Webhookペイロードをスキャン"
 }

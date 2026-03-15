@@ -25,7 +25,7 @@ import (
 )
 
 // dispatchComm handles webhook, skill, notification, email, discord, mission, and notes tool calls.
-func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, missionManager *tools.MissionManager, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, mediaRegistryDB *sql.DB, homepageRegistryDB *sql.DB, remoteHub *remote.RemoteHub, historyMgr *memory.HistoryManager, isMaintenance bool, surgeryPlan string, guardian *security.Guardian, sessionID string, coAgentRegistry *CoAgentRegistry, budgetTracker *budget.Tracker) string {
+func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, missionManager *tools.MissionManager, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, mediaRegistryDB *sql.DB, homepageRegistryDB *sql.DB, remoteHub *remote.RemoteHub, historyMgr *memory.HistoryManager, isMaintenance bool, surgeryPlan string, guardian *security.Guardian, llmGuardian *security.LLMGuardian, sessionID string, coAgentRegistry *CoAgentRegistry, budgetTracker *budget.Tracker) string {
 	switch tc.Action {
 	case "call_webhook":
 		if !cfg.Webhooks.Enabled {
@@ -575,7 +575,20 @@ func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 					messages[i].Subject = "[SANITIZED] " + messages[i].Subject
 					messages[i].Snippet = "[REDACTED]"
 				} else {
-					messages[i].Body = guardian.SanitizeToolOutput("email", messages[i].Body)
+					// LLM Guardian: deeper content scan if regex didn't flag HIGH
+					if llmGuardian != nil && cfg.LLMGuardian.ScanEmails {
+						llmResult := llmGuardian.EvaluateContent(ctx, "email", combined)
+						if llmResult.Decision == security.DecisionBlock {
+							logger.Warn("[Email] LLM Guardian blocked email content", "uid", messages[i].UID, "from", messages[i].From, "reason", llmResult.Reason)
+							messages[i].Body = "[REDACTED by LLM Guardian — " + llmResult.Reason + "]"
+							messages[i].Subject = "[SANITIZED] " + messages[i].Subject
+							messages[i].Snippet = "[REDACTED]"
+						} else {
+							messages[i].Body = guardian.SanitizeToolOutput("email", messages[i].Body)
+						}
+					} else {
+						messages[i].Body = guardian.SanitizeToolOutput("email", messages[i].Body)
+					}
 				}
 			}
 		}

@@ -27,5 +27,13 @@
   "config.llm_guardian.rate_limit_label": "प्रति मिनट अधिकतम जाँच",
   "config.llm_guardian.overrides_title": "उपकरण ओवरराइड",
   "config.llm_guardian.overrides_desc": "विशिष्ट उपकरणों के लिए सुरक्षा स्तर को ओवरराइड करें। खतरनाक उपकरणों की हमेशा जाँच करने या सुरक्षित को छोड़ने के लिए उपयोगी।",
-  "config.llm_guardian.overrides_tool_placeholder": "उपकरण का नाम (जैसे execute_shell)"
+  "config.llm_guardian.overrides_tool_placeholder": "उपकरण का नाम (जैसे execute_shell)",
+  "config.llm_guardian.overrides_tool_search": "टूल खोजें...",
+  "config.llm_guardian.clarification_title": "एजेंट स्पष्टीकरण",
+  "config.llm_guardian.clarification_desc": "सक्षम होने पर, एजेंट टूल कॉल ब्लॉक होने पर औचित्य प्रदान कर सकता है। Guardian अंतिम निर्णय लेने से पहले औचित्य के साथ अनुरोध का एक बार पुनर्मूल्यांकन करता है।",
+  "config.llm_guardian.clarification_label": "एजेंट स्पष्टीकरण की अनुमति दें",
+  "config.llm_guardian.scan_title": "सामग्री स्कैनिंग",
+  "config.llm_guardian.scan_desc": "इनकमिंग सामग्री (ईमेल, वेबहुक) को प्रॉम्प्ट इंजेक्शन, फ़िशिंग और सोशल इंजीनियरिंग हमलों के लिए स्कैन करने हेतु Guardian LLM का उपयोग करता है — बिल्ट-इन regex पैटर्न से परे।",
+  "config.llm_guardian.scan_emails_label": "इनकमिंग ईमेल स्कैन करें",
+  "config.llm_guardian.scan_documents_label": "वेबहुक पेलोड स्कैन करें"
 }

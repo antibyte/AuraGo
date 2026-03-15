@@ -27,5 +27,13 @@
   "config.llm_guardian.rate_limit_label": "Μέγ. έλεγχοι ανά λεπτό",
   "config.llm_guardian.overrides_title": "Παρακάμψεις εργαλείων",
   "config.llm_guardian.overrides_desc": "Παρακάμψτε το επίπεδο προστασίας για συγκεκριμένα εργαλεία. Χρήσιμο για να ελέγχετε πάντα επικίνδυνα εργαλεία ή να παρακάμπτετε ασφαλή.",
-  "config.llm_guardian.overrides_tool_placeholder": "Όνομα εργαλείου (π.χ. execute_shell)"
+  "config.llm_guardian.overrides_tool_placeholder": "Όνομα εργαλείου (π.χ. execute_shell)",
+  "config.llm_guardian.overrides_tool_search": "Αναζήτηση εργαλείου...",
+  "config.llm_guardian.clarification_title": "Διευκρίνιση πράκτορα",
+  "config.llm_guardian.clarification_desc": "Όταν ενεργοποιηθεί, ο πράκτορας μπορεί να παρέχει αιτιολόγηση εάν μια κλήση εργαλείου αποκλειστεί. Ο Guardian επαναξιολογεί το αίτημα μία φορά με την αιτιολόγηση πριν λάβει την τελική απόφαση.",
+  "config.llm_guardian.clarification_label": "Να επιτρέπεται η διευκρίνιση πράκτορα",
+  "config.llm_guardian.scan_title": "Σάρωση περιεχομένου",
+  "config.llm_guardian.scan_desc": "Χρησιμοποιεί τον Guardian LLM για σάρωση εισερχόμενου περιεχομένου (email, webhooks) για ένεση prompt, phishing και επιθέσεις κοινωνικής μηχανικής — πέρα από τα ενσωματωμένα μοτίβα regex.",
+  "config.llm_guardian.scan_emails_label": "Σάρωση εισερχόμενων email",
+  "config.llm_guardian.scan_documents_label": "Σάρωση webhook payloads"
 }

@@ -27,5 +27,13 @@
   "config.llm_guardian.rate_limit_label": "Max kontrol za minutu",
   "config.llm_guardian.overrides_title": "Přepsání nástrojů",
   "config.llm_guardian.overrides_desc": "Přepsat úroveň ochrany pro konkrétní nástroje. Užitečné pro vždy kontrolovat nebezpečné nástroje nebo přeskočit bezpečné.",
-  "config.llm_guardian.overrides_tool_placeholder": "Název nástroje (např. execute_shell)"
+  "config.llm_guardian.overrides_tool_placeholder": "Název nástroje (např. execute_shell)",
+  "config.llm_guardian.overrides_tool_search": "Hledat nástroj...",
+  "config.llm_guardian.clarification_title": "Objasnění agenta",
+  "config.llm_guardian.clarification_desc": "Pokud je povoleno, agent může poskytnout zdůvodnění, pokud je volání nástroje zablokováno. Guardian požadavek jednou přehodnotí se zdůvodněním, než učiní konečné rozhodnutí.",
+  "config.llm_guardian.clarification_label": "Povolit objasnění agenta",
+  "config.llm_guardian.scan_title": "Skenování obsahu",
+  "config.llm_guardian.scan_desc": "Používá Guardian LLM ke skenování příchozího obsahu (e-maily, webhooky) na vkládání promptů, phishing a útoky sociálního inženýrství — nad rámec vestavěných regex vzorů.",
+  "config.llm_guardian.scan_emails_label": "Skenovat příchozí e-maily",
+  "config.llm_guardian.scan_documents_label": "Skenovat payloady webhooků"
 }

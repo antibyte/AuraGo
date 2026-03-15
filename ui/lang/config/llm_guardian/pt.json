@@ -27,5 +27,13 @@
   "config.llm_guardian.rate_limit_label": "Máx. verificações por minuto",
   "config.llm_guardian.overrides_title": "Substituições de ferramentas",
   "config.llm_guardian.overrides_desc": "Substituir o nível de proteção para ferramentas específicas. Útil para sempre verificar ferramentas perigosas ou pular as seguras.",
-  "config.llm_guardian.overrides_tool_placeholder": "Nome da ferramenta (ex. execute_shell)"
+  "config.llm_guardian.overrides_tool_placeholder": "Nome da ferramenta (ex. execute_shell)",
+  "config.llm_guardian.overrides_tool_search": "Pesquisar ferramenta...",
+  "config.llm_guardian.clarification_title": "Esclarecimento do agente",
+  "config.llm_guardian.clarification_desc": "Quando ativado, o agente pode fornecer uma justificação se uma chamada de ferramenta for bloqueada. O Guardian reavalia a solicitação uma vez com a justificação antes de tomar uma decisão final.",
+  "config.llm_guardian.clarification_label": "Permitir esclarecimento do agente",
+  "config.llm_guardian.scan_title": "Varredura de conteúdo",
+  "config.llm_guardian.scan_desc": "Usa o Guardian LLM para verificar conteúdo recebido (e-mails, webhooks) em busca de injeção de prompt, phishing e ataques de engenharia social — além dos padrões regex integrados.",
+  "config.llm_guardian.scan_emails_label": "Verificar e-mails recebidos",
+  "config.llm_guardian.scan_documents_label": "Verificar payloads de webhook"
 }

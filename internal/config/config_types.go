@@ -256,18 +256,21 @@ type Config struct {
 		ReflectionDay    string  `yaml:"reflection_day"`         // day for weekly reflection (default "sunday")
 	} `yaml:"memory_analysis"`
 	LLMGuardian struct {
-		Enabled         bool              `yaml:"enabled"`               // enable LLM-based security checks before tool execution
-		Provider        string            `yaml:"provider"`              // provider entry ID (falls back to main LLM)
-		Model           string            `yaml:"model"`                 // model override (optional)
-		DefaultLevel    string            `yaml:"default_level"`         // off, low, medium, high (default "medium")
-		FailSafe        string            `yaml:"fail_safe"`             // block, allow, quarantine on guardian error (default "quarantine")
-		CacheTTL        int               `yaml:"cache_ttl"`             // cache TTL in seconds (default 300)
-		MaxChecksPerMin int               `yaml:"max_checks_per_minute"` // rate limit (default 60)
-		ToolOverrides   map[string]string `yaml:"tool_overrides"`        // per-tool level overrides (e.g. execute_shell: high)
-		ProviderType    string            `yaml:"-" json:"-"`            // resolved
-		BaseURL         string            `yaml:"-" json:"-"`            // resolved
-		APIKey          string            `yaml:"-" json:"-"`            // resolved
-		ResolvedModel   string            `yaml:"-" json:"-"`            // resolved
+		Enabled            bool              `yaml:"enabled"`               // enable LLM-based security checks before tool execution
+		Provider           string            `yaml:"provider"`              // provider entry ID (falls back to main LLM)
+		Model              string            `yaml:"model"`                 // model override (optional)
+		DefaultLevel       string            `yaml:"default_level"`         // off, low, medium, high (default "medium")
+		FailSafe           string            `yaml:"fail_safe"`             // block, allow, quarantine on guardian error (default "quarantine")
+		CacheTTL           int               `yaml:"cache_ttl"`             // cache TTL in seconds (default 300)
+		MaxChecksPerMin    int               `yaml:"max_checks_per_minute"` // rate limit (default 60)
+		ToolOverrides      map[string]string `yaml:"tool_overrides"`        // per-tool level overrides (e.g. execute_shell: high)
+		AllowClarification bool              `yaml:"allow_clarification"`   // agent can justify blocked actions (1 retry)
+		ScanDocuments      bool              `yaml:"scan_documents"`        // LLM-scan documents & webhooks for threats
+		ScanEmails         bool              `yaml:"scan_emails"`           // LLM-scan emails for phishing/injection
+		ProviderType       string            `yaml:"-" json:"-"`            // resolved
+		BaseURL            string            `yaml:"-" json:"-"`            // resolved
+		APIKey             string            `yaml:"-" json:"-"`            // resolved
+		ResolvedModel      string            `yaml:"-" json:"-"`            // resolved
 	} `yaml:"llm_guardian"`
 	Logging struct {
 		LogDir        string `yaml:"log_dir"`

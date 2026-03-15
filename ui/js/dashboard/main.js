@@ -1029,6 +1029,14 @@
                         <div class="guardian-metric-val">${m.total_tokens}</div>
                         <div class="guardian-metric-lbl">${t('dashboard.guardian_tokens')}</div>
                     </div>
+                    ${m.clarifications ? `<div class="guardian-metric">
+                        <div class="guardian-metric-val">${m.clarifications}</div>
+                        <div class="guardian-metric-lbl">${t('dashboard.guardian_clarifications')}</div>
+                    </div>` : ''}
+                    ${m.content_scans ? `<div class="guardian-metric">
+                        <div class="guardian-metric-val">${m.content_scans}</div>
+                        <div class="guardian-metric-lbl">${t('dashboard.guardian_content_scans')}</div>
+                    </div>` : ''}
                 </div>`;
         }
 

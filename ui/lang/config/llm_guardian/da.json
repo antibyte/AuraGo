@@ -27,5 +27,13 @@
   "config.llm_guardian.rate_limit_label": "Maks kontroller pr. minut",
   "config.llm_guardian.overrides_title": "Værktøjstilsidesættelser",
   "config.llm_guardian.overrides_desc": "Tilsidesæt beskyttelsesniveauet for specifikke værktøjer. Nyttigt for altid at tjekke farlige værktøjer eller springe sikre over.",
-  "config.llm_guardian.overrides_tool_placeholder": "Værktøjsnavn (f.eks. execute_shell)"
+  "config.llm_guardian.overrides_tool_placeholder": "Værktøjsnavn (f.eks. execute_shell)",
+  "config.llm_guardian.overrides_tool_search": "Søg værktøj...",
+  "config.llm_guardian.clarification_title": "Agent-afklaring",
+  "config.llm_guardian.clarification_desc": "Når aktiveret kan agenten give en begrundelse, hvis et værktøjskald blokeres. Guardian revurderer anmodningen én gang med begrundelsen, før en endelig beslutning træffes.",
+  "config.llm_guardian.clarification_label": "Tillad agent-afklaring",
+  "config.llm_guardian.scan_title": "Indholdsscanning",
+  "config.llm_guardian.scan_desc": "Bruger Guardian LLM til at scanne indgående indhold (e-mails, webhooks) for prompt-injektion, phishing og social engineering-angreb — ud over de indbyggede regex-mønstre.",
+  "config.llm_guardian.scan_emails_label": "Scan indgående e-mails",
+  "config.llm_guardian.scan_documents_label": "Scan webhook-payloads"
 }
