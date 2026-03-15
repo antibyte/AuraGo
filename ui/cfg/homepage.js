@@ -266,7 +266,7 @@ async function renderHomepageSection(section) {
         </label>`;
     }
 
-    html += \`</div>\`;
+    html += `</div>`;
     document.getElementById('content').innerHTML = html;
     attachChangeListeners();
 }

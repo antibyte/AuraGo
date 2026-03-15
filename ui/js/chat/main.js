@@ -782,6 +782,11 @@ function handleSSEMessage(e) {
         const data = JSON.parse(e.data);
         let message = '';
 
+        // Make the status bar visible early so floating icons can render
+        if (data.event === 'thinking' || data.event === 'tool_start' || data.event === 'co_agent_spawn' || data.event === 'coding') {
+            agentStatusDiv.style.display = 'flex';
+        }
+
         if (data.event === 'thinking') {
             stopBtn.disabled = false;
             message = data.detail || t('chat.sse_thinking');

@@ -463,6 +463,7 @@ type RunConfig struct {
 	MissionManager     *tools.MissionManager
 	CoAgentRegistry    *CoAgentRegistry
 	BudgetTracker      *budget.Tracker
+	LLMGuardian        *security.LLMGuardian
 	SessionID          string
 	IsMaintenance      bool
 	SurgeryPlan        string

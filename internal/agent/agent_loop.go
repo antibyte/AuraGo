@@ -151,7 +151,12 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	guardian := security.NewGuardian(logger)
 
 	// LLM Guardian: AI-powered pre-execution tool call security
-	llmGuardian := security.NewLLMGuardian(cfg, logger)
+	// Use the shared instance from RunConfig (so metrics are visible to the dashboard),
+	// falling back to a fresh instance for callers that don't provide one.
+	llmGuardian := runCfg.LLMGuardian
+	if llmGuardian == nil {
+		llmGuardian = security.NewLLMGuardian(cfg, logger)
+	}
 
 	var currentLogger *slog.Logger = logger
 	lastActivity := time.Now()

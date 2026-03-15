@@ -426,6 +426,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			MissionManager:     s.MissionManager,
 			CoAgentRegistry:    s.CoAgentRegistry,
 			BudgetTracker:      s.BudgetTracker,
+			LLMGuardian:        s.LLMGuardian,
 			SessionID:          sessionID,
 			IsMaintenance:      inMaintenance,
 			SurgeryPlan:        "", // UI-driven chats don't currently pass a formal surgery plan
