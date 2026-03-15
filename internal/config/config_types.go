@@ -87,8 +87,8 @@ type Config struct {
 		MaxBodyBytes         int64  `yaml:"max_body_bytes"`
 		UILanguage           string `yaml:"ui_language"`
 		OAuthRedirectBaseURL string `yaml:"oauth_redirect_base_url"` // override for OAuth callback (e.g. http://localhost:8088)
-		MasterKey            string `yaml:"-"` // ENV-only (AURAGO_MASTER_KEY)
-		HTTPS         struct {
+		MasterKey            string `yaml:"-"`                       // ENV-only (AURAGO_MASTER_KEY)
+		HTTPS                struct {
 			Enabled     bool   `yaml:"enabled"`
 			Domain      string `yaml:"domain"`
 			Email       string `yaml:"email"`
