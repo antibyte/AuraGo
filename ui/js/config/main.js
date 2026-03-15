@@ -726,8 +726,8 @@ async function saveConfig() {
 
         if (el.classList.contains('toggle')) {
             val = el.classList.contains('on');
-        } else if (el.type === 'number') {
-            val = el.value === '' ? 0 : (el.step === '0.01' ? parseFloat(el.value) : parseInt(el.value));
+        } else if (el.type === 'number' || el.type === 'range') {
+            val = el.value === '' ? 0 : (el.step && parseFloat(el.step) < 1 ? parseFloat(el.value) : parseInt(el.value));
         } else if (el.dataset.type === 'array') {
             // Check if this is an object array (budget.models) or string array
             if (path === 'budget.models' || el.value.trim().startsWith('[')) {
