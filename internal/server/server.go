@@ -396,6 +396,16 @@ func Start(cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, sh
 		logger.Warn("Failed to initialize notes schema (notes tool may not work)", "error", err)
 	}
 
+	// Initialize Journal schema in SQLite (idempotent: CREATE TABLE IF NOT EXISTS)
+	if err := shortTermMem.InitJournalTables(); err != nil {
+		logger.Warn("Failed to initialize journal schema (journal tool may not work)", "error", err)
+	}
+
+	// Initialize Error Learning schema in SQLite
+	if err := shortTermMem.InitErrorLearningTable(); err != nil {
+		logger.Warn("Failed to initialize error learning schema", "error", err)
+	}
+
 	// Start File Indexer if enabled
 	if cfg.Indexing.Enabled {
 		s.FileIndexer = services.NewFileIndexer(cfg, &s.CfgMu, longTermMem, shortTermMem, logger)

@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
@@ -106,6 +107,21 @@ func runMaintenanceTask(cfg *config.Config, logger *slog.Logger, client llm.Chat
 		} else if removed > 0 {
 			logger.Info("[Maintenance] Cleaned stale user profile entries", "removed", removed)
 		}
+	}
+
+	// Journal: generate daily summary from today's journal entries
+	if cfg.Tools.Journal.Enabled && cfg.Journal.DailySummary && shortTermMem != nil {
+		generateDailySummary(cfg, logger, client, shortTermMem)
+	}
+
+	// Knowledge Graph: nightly batch entity extraction from recent conversations
+	if cfg.Tools.KnowledgeGraph.Enabled && cfg.Tools.KnowledgeGraph.AutoExtraction && kg != nil && shortTermMem != nil {
+		extractKGEntities(cfg, logger, client, shortTermMem, kg)
+	}
+
+	// STM→LTM Consolidation: extract knowledge from archived messages into VectorDB
+	if cfg.Consolidation.Enabled && shortTermMem != nil && longTermMem != nil && !longTermMem.IsDisabled() {
+		consolidateSTMtoLTM(cfg, logger, client, shortTermMem, longTermMem, kg)
 	}
 
 	// 1. Load Maintenance Prompt
@@ -217,5 +233,456 @@ func personalityMaintenance(cfg *config.Config, stm *memory.SQLiteMemory, logger
 		logger.Error("[Personality] Failed to write journal entry", "error", err)
 	} else {
 		logger.Info("[Personality] Character journal updated")
+	}
+}
+
+// generateDailySummary creates an LLM-generated summary for today based on journal entries.
+func generateDailySummary(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, stm *memory.SQLiteMemory) {
+	today := time.Now().Format("2006-01-02")
+
+	// Check if a summary already exists for today
+	if existing, _ := stm.GetDailySummary(today); existing != nil {
+		logger.Debug("[Journal] Daily summary already exists", "date", today)
+		return
+	}
+
+	// Collect today's journal entries
+	entries, err := stm.GetJournalEntries(today, today, nil, 50)
+	if err != nil || len(entries) == 0 {
+		logger.Debug("[Journal] No journal entries today, skipping summary", "date", today)
+		return
+	}
+
+	// Build context for LLM
+	var sb strings.Builder
+	for _, e := range entries {
+		sb.WriteString(fmt.Sprintf("- [%s] %s: %s\n", e.EntryType, e.Title, e.Content))
+	}
+
+	prompt := fmt.Sprintf(`Summarize the following activity log from today (%s) in 2-3 concise sentences.
+Focus on: what was accomplished, key decisions, and notable events.
+Output ONLY the summary text, no JSON or formatting.
+
+Activity log:
+%s`, today, sb.String())
+
+	resp, err := llm.ExecuteWithRetry(
+		context.Background(),
+		client,
+		openai.ChatCompletionRequest{
+			Model: cfg.LLM.Model,
+			Messages: []openai.ChatCompletionMessage{
+				{Role: openai.ChatMessageRoleSystem, Content: "You are a concise activity summarizer. Output ONLY 2-3 sentences."},
+				{Role: openai.ChatMessageRoleUser, Content: prompt},
+			},
+			MaxTokens: 300,
+		},
+		logger,
+		nil,
+	)
+	if err != nil || len(resp.Choices) == 0 {
+		logger.Warn("[Journal] Failed to generate daily summary via LLM", "error", err)
+		return
+	}
+
+	summary := memory.DailySummary{
+		Date:      today,
+		Summary:   resp.Choices[0].Message.Content,
+		Sentiment: "neutral",
+	}
+
+	// Gather tool usage stats from journal tags
+	toolUsage := make(map[string]int)
+	var topics []string
+	for _, e := range entries {
+		for _, tag := range e.Tags {
+			toolUsage[tag]++
+		}
+		if e.EntryType != "" {
+			topics = append(topics, e.EntryType)
+		}
+	}
+	summary.ToolUsage = toolUsage
+	summary.KeyTopics = uniqueTopics(topics)
+
+	if err := stm.InsertDailySummary(summary); err != nil {
+		logger.Error("[Journal] Failed to store daily summary", "error", err)
+	} else {
+		logger.Info("[Journal] Daily summary stored", "date", today)
+	}
+}
+
+func uniqueTopics(in []string) []string {
+	seen := make(map[string]bool)
+	out := make([]string, 0, len(in))
+	for _, s := range in {
+		if !seen[s] {
+			seen[s] = true
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
+// extractKGEntities performs nightly batch entity extraction from the past 24h of messages.
+// Uses an LLM call to extract entities and relationships, then bulk-adds to the knowledge graph.
+func extractKGEntities(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, stm *memory.SQLiteMemory, kg *memory.KnowledgeGraph) {
+	// Collect recent messages (past 24h)
+	messages, err := stm.GetRecentMessages("default", 100)
+	if err != nil || len(messages) == 0 {
+		logger.Debug("[KG] No recent messages for entity extraction")
+		return
+	}
+
+	// Build conversation excerpt for the LLM
+	var sb strings.Builder
+	for _, m := range messages {
+		if m.Role == "system" || m.Content == "" {
+			continue
+		}
+		// Cap individual messages
+		content := m.Content
+		if len(content) > 500 {
+			content = content[:500] + "..."
+		}
+		sb.WriteString(fmt.Sprintf("[%s]: %s\n", m.Role, content))
+		if sb.Len() > 8000 {
+			break
+		}
+	}
+
+	if sb.Len() < 50 {
+		logger.Debug("[KG] Not enough conversation content for entity extraction")
+		return
+	}
+
+	prompt := fmt.Sprintf(`Extract entities and relationships from this conversation.
+Return ONLY valid JSON with this exact structure:
+{
+  "nodes": [{"id": "lowercase_id", "label": "Display Label", "properties": {"type": "person|place|tool|project|concept|device|service"}}],
+  "edges": [{"source": "node_id", "target": "node_id", "relation": "relationship_type"}]
+}
+
+Rules:
+- IDs must be lowercase with underscores (e.g. "john_doe", "home_server")
+- Extract people, places, devices, services, projects, concepts mentioned
+- Extract relationships like "owns", "uses", "manages", "works_on", "located_at", "connected_to"
+- Only extract clear, factual entities — not vague references
+- Maximum 15 nodes and 20 edges
+
+Conversation:
+%s`, sb.String())
+
+	resp, err := llm.ExecuteWithRetry(
+		context.Background(),
+		client,
+		openai.ChatCompletionRequest{
+			Model: cfg.LLM.Model,
+			Messages: []openai.ChatCompletionMessage{
+				{Role: openai.ChatMessageRoleSystem, Content: "You are an entity extraction engine. Output ONLY valid JSON, no markdown fences."},
+				{Role: openai.ChatMessageRoleUser, Content: prompt},
+			},
+			MaxTokens: 1500,
+		},
+		logger,
+		nil,
+	)
+	if err != nil || len(resp.Choices) == 0 {
+		logger.Warn("[KG] Entity extraction LLM call failed", "error", err)
+		return
+	}
+
+	// Parse the LLM response
+	rawJSON := resp.Choices[0].Message.Content
+	// Strip markdown fences if present
+	rawJSON = strings.TrimSpace(rawJSON)
+	if strings.HasPrefix(rawJSON, "```") {
+		lines := strings.Split(rawJSON, "\n")
+		if len(lines) > 2 {
+			rawJSON = strings.Join(lines[1:len(lines)-1], "\n")
+		}
+	}
+
+	var extracted struct {
+		Nodes []memory.Node `json:"nodes"`
+		Edges []memory.Edge `json:"edges"`
+	}
+	if err := json.Unmarshal([]byte(rawJSON), &extracted); err != nil {
+		logger.Warn("[KG] Failed to parse entity extraction JSON", "error", err, "raw_len", len(rawJSON))
+		return
+	}
+
+	if len(extracted.Nodes) == 0 && len(extracted.Edges) == 0 {
+		logger.Debug("[KG] No entities extracted")
+		return
+	}
+
+	// Mark extracted nodes with source metadata
+	for i := range extracted.Nodes {
+		if extracted.Nodes[i].Properties == nil {
+			extracted.Nodes[i].Properties = make(map[string]string)
+		}
+		extracted.Nodes[i].Properties["source"] = "auto_extraction"
+		extracted.Nodes[i].Properties["extracted_at"] = time.Now().Format("2006-01-02")
+	}
+
+	if err := kg.BulkAddEntities(extracted.Nodes, extracted.Edges); err != nil {
+		logger.Error("[KG] Failed to bulk-add extracted entities", "error", err)
+		return
+	}
+
+	logger.Info("[KG] Nightly entity extraction complete", "nodes", len(extracted.Nodes), "edges", len(extracted.Edges))
+}
+
+// consolidateSTMtoLTM extracts knowledge from archived STM messages and stores it in the VectorDB.
+// This bridges the gap between the sliding-window short-term memory and the persistent long-term memory.
+func consolidateSTMtoLTM(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, stm *memory.SQLiteMemory, ltm memory.VectorDB, kg *memory.KnowledgeGraph) {
+	archived, err := stm.GetUnconsolidatedMessages(cfg.Consolidation.MaxBatchMessages)
+	if err != nil {
+		logger.Error("[Consolidation] Failed to fetch unconsolidated messages", "error", err)
+		return
+	}
+	if len(archived) == 0 {
+		logger.Debug("[Consolidation] No unconsolidated archived messages")
+		return
+	}
+
+	logger.Info("[Consolidation] Starting STM→LTM consolidation", "messages", len(archived))
+
+	// Group messages into batches of ~4000 characters for LLM processing
+	const maxBatchChars = 4000
+	var batches [][]memory.ArchivedMessage
+	var currentBatch []memory.ArchivedMessage
+	currentLen := 0
+
+	for _, msg := range archived {
+		msgLen := len(msg.Content)
+		if currentLen+msgLen > maxBatchChars && len(currentBatch) > 0 {
+			batches = append(batches, currentBatch)
+			currentBatch = nil
+			currentLen = 0
+		}
+		currentBatch = append(currentBatch, msg)
+		currentLen += msgLen
+	}
+	if len(currentBatch) > 0 {
+		batches = append(batches, currentBatch)
+	}
+
+	totalStored := 0
+	var allConsolidatedIDs []int64
+
+	for i, batch := range batches {
+		// Build conversation text from batch
+		var sb strings.Builder
+		var batchIDs []int64
+		for _, msg := range batch {
+			sb.WriteString(fmt.Sprintf("[%s] %s: %s\n", msg.Timestamp, msg.Role, msg.Content))
+			batchIDs = append(batchIDs, msg.ID)
+		}
+
+		prompt := fmt.Sprintf(`Analyze the following conversation excerpt and extract the most important knowledge.
+Return ONLY valid JSON with this exact structure:
+{
+  "facts": [
+    {"concept": "Short topic title", "content": "Detailed factual information extracted"}
+  ]
+}
+
+Rules:
+- Extract concrete facts, decisions, user preferences, technical details, and actionable knowledge
+- Each fact should be self-contained and understandable without the original conversation
+- Concept should be a brief 2-5 word topic label
+- Content should preserve specific details: names, versions, paths, commands, configurations
+- Skip generic pleasantries, acknowledgments, and obvious context
+- Maximum 10 facts per batch
+- If no meaningful facts exist, return {"facts": []}
+
+Conversation:
+%s`, sb.String())
+
+		resp, err := llm.ExecuteWithRetry(
+			context.Background(),
+			client,
+			openai.ChatCompletionRequest{
+				Model: cfg.LLM.Model,
+				Messages: []openai.ChatCompletionMessage{
+					{Role: openai.ChatMessageRoleSystem, Content: "You are a knowledge extraction engine. Extract factual knowledge from conversations. Output ONLY valid JSON, no markdown fences."},
+					{Role: openai.ChatMessageRoleUser, Content: prompt},
+				},
+				MaxTokens: 1000,
+			},
+			logger,
+			nil,
+		)
+		if err != nil || len(resp.Choices) == 0 {
+			logger.Warn("[Consolidation] LLM extraction failed for batch", "batch", i+1, "error", err)
+			// Still mark as consolidated to avoid retrying indefinitely
+			allConsolidatedIDs = append(allConsolidatedIDs, batchIDs...)
+			continue
+		}
+
+		// Parse LLM response
+		rawJSON := strings.TrimSpace(resp.Choices[0].Message.Content)
+		if strings.HasPrefix(rawJSON, "```") {
+			lines := strings.Split(rawJSON, "\n")
+			if len(lines) > 2 {
+				rawJSON = strings.Join(lines[1:len(lines)-1], "\n")
+			}
+		}
+
+		var extracted struct {
+			Facts []struct {
+				Concept string `json:"concept"`
+				Content string `json:"content"`
+			} `json:"facts"`
+		}
+		if err := json.Unmarshal([]byte(rawJSON), &extracted); err != nil {
+			logger.Warn("[Consolidation] Failed to parse extraction JSON", "batch", i+1, "error", err)
+			allConsolidatedIDs = append(allConsolidatedIDs, batchIDs...)
+			continue
+		}
+
+		// Store extracted facts in VectorDB
+		for _, fact := range extracted.Facts {
+			if fact.Concept == "" || fact.Content == "" {
+				continue
+			}
+			ids, err := ltm.StoreDocument(fact.Concept, fact.Content)
+			if err != nil {
+				logger.Warn("[Consolidation] Failed to store fact in LTM", "concept", fact.Concept, "error", err)
+				continue
+			}
+			// Track metadata for priority-based forgetting
+			for _, id := range ids {
+				_ = stm.UpsertMemoryMeta(id)
+			}
+			totalStored++
+		}
+
+		allConsolidatedIDs = append(allConsolidatedIDs, batchIDs...)
+	}
+
+	// Mark all processed messages as consolidated
+	if len(allConsolidatedIDs) > 0 {
+		if err := stm.MarkConsolidated(allConsolidatedIDs); err != nil {
+			logger.Error("[Consolidation] Failed to mark messages as consolidated", "error", err)
+		}
+	}
+
+	// Clean up old archived messages
+	if cfg.Consolidation.ArchiveRetainDays > 0 {
+		cleaned, err := stm.CleanOldArchivedMessages(cfg.Consolidation.ArchiveRetainDays)
+		if err != nil {
+			logger.Error("[Consolidation] Failed to clean old archived messages", "error", err)
+		} else if cleaned > 0 {
+			logger.Info("[Consolidation] Cleaned old archived messages", "deleted", cleaned)
+		}
+	}
+
+	// Auto-optimize: run priority-based forgetting on VectorDB + KG
+	if cfg.Consolidation.AutoOptimize && totalStored > 0 {
+		autoOptimizeMemory(cfg, logger, client, ltm, stm, kg)
+	}
+
+	// Create journal entry for the consolidation run
+	if cfg.Tools.Journal.Enabled && totalStored > 0 {
+		_, _ = stm.InsertJournalEntry(memory.JournalEntry{
+			EntryType: "system",
+			Title:     "Nightly STM→LTM Consolidation",
+			Content:   fmt.Sprintf("Consolidated %d archived messages into %d LTM facts.", len(allConsolidatedIDs), totalStored),
+			Tags:      []string{"consolidation", "maintenance", "memory"},
+		})
+	}
+
+	logger.Info("[Consolidation] STM→LTM consolidation complete",
+		"messages_processed", len(allConsolidatedIDs),
+		"facts_stored", totalStored,
+		"batches", len(batches))
+}
+
+// autoOptimizeMemory runs priority-based forgetting on VectorDB and Knowledge Graph.
+func autoOptimizeMemory(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, ltm memory.VectorDB, stm *memory.SQLiteMemory, kg *memory.KnowledgeGraph) {
+	threshold := cfg.Consolidation.OptimizeThreshold
+
+	metas, err := stm.GetAllMemoryMeta()
+	if err != nil {
+		logger.Error("[AutoOptimize] Failed to fetch memory metadata", "error", err)
+		return
+	}
+
+	var lowDocs, mediumDocs []string
+	for _, meta := range metas {
+		if meta.Protected || meta.KeepForever {
+			continue
+		}
+		lastA, err := time.Parse(time.RFC3339, strings.Replace(meta.LastAccessed, " ", "T", 1)+"Z")
+		daysSince := 0
+		if err == nil {
+			daysSince = int(time.Since(lastA).Hours() / 24)
+		}
+		priority := meta.AccessCount - daysSince
+		if priority < threshold {
+			lowDocs = append(lowDocs, meta.DocID)
+		} else if priority < threshold+2 {
+			mediumDocs = append(mediumDocs, meta.DocID)
+		}
+	}
+
+	// Remove low-priority documents
+	for _, docID := range lowDocs {
+		_ = ltm.DeleteDocument(docID)
+		_ = stm.DeleteMemoryMeta(docID)
+	}
+
+	// Compress medium-priority documents
+	for _, docID := range mediumDocs {
+		content, err := ltm.GetByID(docID)
+		if err != nil || len(content) < 300 {
+			continue
+		}
+		resp, err := llm.ExecuteWithRetry(
+			context.Background(),
+			client,
+			openai.ChatCompletionRequest{
+				Model: cfg.LLM.Model,
+				Messages: []openai.ChatCompletionMessage{
+					{Role: openai.ChatMessageRoleSystem, Content: "Compress this memory into a dense bullet-point list of core facts. Output ONLY the compressed text."},
+					{Role: openai.ChatMessageRoleUser, Content: content},
+				},
+				MaxTokens: 500,
+			},
+			logger,
+			nil,
+		)
+		if err == nil && len(resp.Choices) > 0 {
+			compressed := resp.Choices[0].Message.Content
+			parts := strings.SplitN(content, "\n\n", 2)
+			concept := "Compressed Memory"
+			if len(parts) == 2 {
+				concept = parts[0]
+			}
+			newIDs, err2 := ltm.StoreDocument(concept, compressed)
+			if err2 == nil {
+				_ = ltm.DeleteDocument(docID)
+				_ = stm.DeleteMemoryMeta(docID)
+				for _, newID := range newIDs {
+					_ = stm.UpsertMemoryMeta(newID)
+				}
+			}
+		}
+	}
+
+	// Optimize Knowledge Graph
+	graphRemoved := 0
+	if kg != nil {
+		graphRemoved, _ = kg.OptimizeGraph(threshold)
+	}
+
+	if len(lowDocs) > 0 || len(mediumDocs) > 0 || graphRemoved > 0 {
+		logger.Info("[AutoOptimize] Memory optimization complete",
+			"low_removed", len(lowDocs),
+			"medium_compressed", len(mediumDocs),
+			"graph_nodes_removed", graphRemoved)
 	}
 }

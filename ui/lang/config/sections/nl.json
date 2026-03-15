@@ -115,6 +115,8 @@
   "config.section.homepage.circuit_breaker_multiplier.desc": "Verhoogt de tool-aanroep limiet voor complexe web-workflows (init → build → test → deploy). 2.0 = dubbele limiet, max 5.0",
   "config.section.netlify.label": "Netlify",
   "config.section.netlify.desc": "Sites deployen en beheren op Netlify",
+  "config.section.memory_analysis.label": "Geheugenanalyse",
+  "config.section.memory_analysis.desc": "Eigen LLM voor gespreksanalyse en geheugenextractie",
   "config.section.image_generation.label": "Image Generation",
   "config.section.image_generation.desc": "Generate images from text prompts using AI",
   "config.section.prompts_editor.label": "Prompt Editor",

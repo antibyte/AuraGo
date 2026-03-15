@@ -184,7 +184,14 @@ func runOperation(cfg *config.Config, statePath, planPath string, l *slog.Logger
 	registry := tools.NewProcessRegistry(l)
 	cronManager := tools.NewCronManager(cfg.Directories.DataDir)
 	historyManager := memory.NewHistoryManager(filepath.Join(cfg.Directories.DataDir, "chat_history.json"))
-	kg := memory.NewKnowledgeGraph(filepath.Join(cfg.Directories.DataDir, "graph.json"))
+	kg, err := memory.NewKnowledgeGraph(
+		filepath.Join(cfg.Directories.DataDir, "knowledge_graph.db"),
+		filepath.Join(cfg.Directories.DataDir, "graph.json"),
+		l,
+	)
+	if err != nil {
+		return fmt.Errorf("knowledge graph init failed: %w", err)
+	}
 	manifest := tools.NewManifest(cfg.Directories.ToolsDir)
 
 	inventoryDB, err := inventory.InitDB(cfg.SQLite.InventoryPath)

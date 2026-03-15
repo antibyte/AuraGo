@@ -115,6 +115,8 @@
   "config.section.homepage.circuit_breaker_multiplier.desc": "Øker grensen for verktøykall for komplekse web-arbeidsflyter (init → build → test → deploy). 2.0 = dobbelt grense, max 5.0",
   "config.section.netlify.label": "Netlify",
   "config.section.netlify.desc": "Distribuer og administrer nettsteder på Netlify",
+  "config.section.memory_analysis.label": "Minneanalyse",
+  "config.section.memory_analysis.desc": "Dedikert LLM for samtaleanalyse og minneekstraksjon",
   "config.section.image_generation.label": "Image Generation",
   "config.section.image_generation.desc": "Generate images from text prompts using AI",
   "config.section.prompts_editor.label": "Forespørsler og personas",

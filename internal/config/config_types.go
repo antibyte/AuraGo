@@ -231,6 +231,30 @@ type Config struct {
 		LifeboatEnabled bool   `yaml:"lifeboat_enabled"`
 		LifeboatPort    int    `yaml:"lifeboat_port"`
 	} `yaml:"maintenance"`
+	Journal struct {
+		AutoEntries  bool `yaml:"auto_entries"`  // auto-create journal entries from tool chains (default true)
+		DailySummary bool `yaml:"daily_summary"` // generate daily summaries during maintenance (default true)
+	} `yaml:"journal"`
+	Consolidation struct {
+		Enabled           bool `yaml:"enabled"`             // enable nightly STM→LTM consolidation (default true)
+		AutoOptimize      bool `yaml:"auto_optimize"`       // run optimize_memory after consolidation (default true)
+		ArchiveRetainDays int  `yaml:"archive_retain_days"` // keep archived messages for N days (default 30)
+		MaxBatchMessages  int  `yaml:"max_batch_messages"`  // max messages per consolidation batch (default 200)
+		OptimizeThreshold int  `yaml:"optimize_threshold"`  // priority threshold for auto-optimize (default 1)
+	} `yaml:"consolidation"`
+	MemoryAnalysis struct {
+		Enabled          bool    `yaml:"enabled"`                // enable dedicated memory analysis provider
+		RealTime         bool    `yaml:"real_time"`              // analyze each user message for memory-worthy content
+		Provider         string  `yaml:"provider"`               // provider entry ID (falls back to main LLM)
+		Model            string  `yaml:"model"`                  // model override (optional)
+		AutoConfirm      float64 `yaml:"auto_confirm_threshold"` // confidence threshold for auto-store (default 0.92)
+		ProviderType     string  `yaml:"-" json:"-"`             // resolved
+		BaseURL          string  `yaml:"-" json:"-"`             // resolved
+		APIKey           string  `yaml:"-" json:"-"`             // resolved
+		ResolvedModel    string  `yaml:"-" json:"-"`             // resolved
+		WeeklyReflection bool    `yaml:"weekly_reflection"`      // generate weekly reflection (default true)
+		ReflectionDay    string  `yaml:"reflection_day"`         // day for weekly reflection (default "sunday")
+	} `yaml:"memory_analysis"`
 	Logging struct {
 		LogDir        string `yaml:"log_dir"`
 		EnableFileLog bool   `yaml:"enable_file_log"`
@@ -537,8 +561,12 @@ type Config struct {
 			ReadOnly bool `yaml:"readonly"` // true = only read/query, block store/delete/save_core/delete_core
 		} `yaml:"memory"`
 		KnowledgeGraph struct {
-			Enabled  bool `yaml:"enabled"`  // default true; disable to block knowledge_graph
-			ReadOnly bool `yaml:"readonly"` // true = only query/search, block add/delete
+			Enabled         bool `yaml:"enabled"`          // default true; disable to block knowledge_graph
+			ReadOnly        bool `yaml:"readonly"`         // true = only query/search, block add/delete
+			AutoExtraction  bool `yaml:"auto_extraction"`  // nightly batch entity extraction from conversations
+			PromptInjection bool `yaml:"prompt_injection"` // inject relevant KG context into system prompt
+			MaxPromptNodes  int  `yaml:"max_prompt_nodes"` // max nodes to inject into prompt (default 5)
+			MaxPromptChars  int  `yaml:"max_prompt_chars"` // max chars for KG context in prompt (default 800)
 		} `yaml:"knowledge_graph"`
 		SecretsVault struct {
 			Enabled  bool `yaml:"enabled"`  // default true; disable to block secrets_vault
@@ -565,6 +593,10 @@ type Config struct {
 		MemoryMaintenance struct {
 			Enabled bool `yaml:"enabled"` // default true; disable to block archive_memory/optimize_memory
 		} `yaml:"memory_maintenance"`
+		Journal struct {
+			Enabled  bool `yaml:"enabled"`  // default true; enable manage_journal tool
+			ReadOnly bool `yaml:"readonly"` // true = only list/search, block add/delete
+		} `yaml:"journal"`
 		WOL struct {
 			Enabled bool `yaml:"enabled"` // enable wake_on_lan tool (send magic packet to devices with MAC address)
 		} `yaml:"wol"`

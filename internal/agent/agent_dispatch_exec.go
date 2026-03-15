@@ -282,23 +282,149 @@ func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 		if searchContent == "" {
 			searchContent = tc.Query
 		}
-		logger.Info("LLM requested memory search", "content", searchContent)
 		if searchContent == "" {
 			return `Tool Output: {"status": "error", "message": "'content' or 'query' (search query) is required"}`
 		}
-		// Phase 69: Implement semantic query against the VectorDB
-		results, _, err := longTermMem.SearchSimilar(searchContent, 5)
-		if err != nil {
-			return fmt.Sprintf(`Tool Output: {"status": "error", "message": "VectorDB search failed: %v"}`, err)
+		perSourceLimit := tc.Limit
+		if perSourceLimit <= 0 || perSourceLimit > 20 {
+			perSourceLimit = 5
 		}
-		if len(results) == 0 {
-			return `Tool Output: {"status": "success", "message": "No matching long-term memories found."}`
+
+		// Determine which sources to search
+		sourceMap := map[string]bool{"vector_db": true, "knowledge_graph": true, "journal": true, "notes": true, "core_memory": true, "error_patterns": true}
+		if len(tc.Sources) > 0 {
+			sourceMap = map[string]bool{}
+			for _, s := range tc.Sources {
+				sourceMap[s] = true
+			}
 		}
-		b, err := json.Marshal(results)
+		logger.Info("LLM requested multi-source memory search", "query", searchContent, "sources", tc.Sources, "limit", perSourceLimit)
+
+		type sourceResult struct {
+			Source string      `json:"source"`
+			Count  int         `json:"count"`
+			Data   interface{} `json:"data"`
+		}
+		var combined []sourceResult
+		var errors []string
+
+		// ── Vector DB (long-term memory) ──
+		if sourceMap["vector_db"] && longTermMem != nil {
+			results, _, err := longTermMem.SearchSimilar(searchContent, perSourceLimit)
+			if err != nil {
+				errors = append(errors, fmt.Sprintf("vector_db: %v", err))
+			} else if len(results) > 0 {
+				combined = append(combined, sourceResult{Source: "vector_db", Count: len(results), Data: results})
+			}
+		}
+
+		// ── Knowledge Graph ──
+		if sourceMap["knowledge_graph"] && kg != nil {
+			kgResult := kg.SearchForContext(searchContent, perSourceLimit, 2000)
+			if kgResult != "" && kgResult != "No matching entities found." {
+				combined = append(combined, sourceResult{Source: "knowledge_graph", Count: 1, Data: kgResult})
+			}
+		}
+
+		// ── Journal ──
+		if sourceMap["journal"] && shortTermMem != nil {
+			entries, err := shortTermMem.SearchJournalEntries(searchContent, perSourceLimit)
+			if err != nil {
+				errors = append(errors, fmt.Sprintf("journal: %v", err))
+			} else if len(entries) > 0 {
+				combined = append(combined, sourceResult{Source: "journal", Count: len(entries), Data: entries})
+			}
+		}
+
+		// ── Notes ──
+		if sourceMap["notes"] && shortTermMem != nil {
+			notes, err := shortTermMem.SearchNotes(searchContent, perSourceLimit)
+			if err != nil {
+				errors = append(errors, fmt.Sprintf("notes: %v", err))
+			} else if len(notes) > 0 {
+				combined = append(combined, sourceResult{Source: "notes", Count: len(notes), Data: notes})
+			}
+		}
+
+		// ── Core Memory ──
+		if sourceMap["core_memory"] && shortTermMem != nil {
+			facts, err := shortTermMem.GetCoreMemoryFacts()
+			if err != nil {
+				errors = append(errors, fmt.Sprintf("core_memory: %v", err))
+			} else {
+				// Filter core memory facts by query relevance (case-insensitive substring match)
+				lowerQ := strings.ToLower(searchContent)
+				var matched []memory.CoreMemoryFact
+				for _, f := range facts {
+					if strings.Contains(strings.ToLower(f.Fact), lowerQ) {
+						matched = append(matched, f)
+						if len(matched) >= perSourceLimit {
+							break
+						}
+					}
+				}
+				if len(matched) > 0 {
+					combined = append(combined, sourceResult{Source: "core_memory", Count: len(matched), Data: matched})
+				}
+			}
+		}
+
+		// ── Error Patterns ──
+		if sourceMap["error_patterns"] && shortTermMem != nil {
+			errPatterns, err := shortTermMem.GetFrequentErrors("", perSourceLimit)
+			if err != nil {
+				errors = append(errors, fmt.Sprintf("error_patterns: %v", err))
+			} else {
+				// Filter by query relevance
+				lowerQ := strings.ToLower(searchContent)
+				var matched []memory.ErrorPattern
+				for _, ep := range errPatterns {
+					if strings.Contains(strings.ToLower(ep.ToolName), lowerQ) || strings.Contains(strings.ToLower(ep.ErrorMessage), lowerQ) || strings.Contains(strings.ToLower(ep.Resolution), lowerQ) {
+						matched = append(matched, ep)
+						if len(matched) >= perSourceLimit {
+							break
+						}
+					}
+				}
+				if len(matched) > 0 {
+					combined = append(combined, sourceResult{Source: "error_patterns", Count: len(matched), Data: matched})
+				}
+			}
+		}
+
+		if len(combined) == 0 && len(errors) == 0 {
+			return `Tool Output: {"status": "success", "message": "No matching memories found across any source."}`
+		}
+
+		response := map[string]interface{}{
+			"status":  "success",
+			"results": combined,
+		}
+		if len(errors) > 0 {
+			response["errors"] = errors
+		}
+		b, err := json.Marshal(response)
 		if err != nil {
 			return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Failed to serialize results: %v"}`, err)
 		}
-		return fmt.Sprintf(`Tool Output: {"status": "success", "data": %s}`, string(b))
+		return "Tool Output: " + string(b)
+
+	case "memory_reflect":
+		if !cfg.MemoryAnalysis.Enabled {
+			return `Tool Output: {"status":"error","message":"Memory analysis is disabled. Enable memory_analysis.enabled in config."}`
+		}
+		scope := tc.Scope
+		if scope == "" {
+			scope = "recent"
+		}
+		logger.Info("LLM requested memory reflection", "scope", scope)
+		result, err := generateMemoryReflection(ctx, cfg, logger, shortTermMem, kg, longTermMem, llmClient, scope)
+		if err != nil {
+			return fmt.Sprintf(`Tool Output: {"status":"error","message":"Reflection failed: %v"}`, err)
+		}
+		resultJSON, _ := json.Marshal(result)
+		return fmt.Sprintf(`Tool Output: {"status":"success","reflection":%s}`, string(resultJSON))
+
 	case "manage_updates":
 		if !cfg.Agent.AllowSelfUpdate {
 			return "Tool Output: [PERMISSION DENIED] manage_updates is disabled in Danger Zone settings (agent.allow_self_update: false)."

@@ -115,6 +115,8 @@
   "config.section.homepage.circuit_breaker_multiplier.desc": "增加复杂Web工作流（初始化→构建→测试→部署）的工具调用限制。2.0 = 双倍限制，最大5.0",
   "config.section.netlify.label": "Netlify",
   "config.section.netlify.desc": "在 Netlify 上部署和管理站点",
+  "config.section.memory_analysis.label": "内存分析",
+  "config.section.memory_analysis.desc": "用于分析对话和提取记忆的专用LLM",
   "config.section.image_generation.label": "Image Generation",
   "config.section.image_generation.desc": "Generate images from text prompts using AI",
   "config.section.prompts_editor.label": "提示与角色",

@@ -91,6 +91,8 @@ type ToolFeatureFlags struct {
 	WOLEnabled               bool
 	MediaRegistryEnabled     bool
 	HomepageRegistryEnabled  bool
+	JournalEnabled           bool
+	MemoryAnalysisEnabled    bool
 }
 
 // builtinToolSchemas returns schemas for all built-in AuraGo tools.
@@ -259,12 +261,35 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 				}, "operation"),
 			),
 			tool("query_memory",
-				"Search long-term memory for relevant stored knowledge using a natural language query.",
+				"Search across ALL memory sources: long-term vector DB, knowledge graph, journal, notes, and core memory. Returns combined results from multiple sources. Use 'sources' to limit search to specific stores.",
 				schema(map[string]interface{}{
 					"query": prop("string", "Natural language search query"),
+					"sources": map[string]interface{}{
+						"type":        "array",
+						"description": "Memory sources to search. Default: all available. Options: vector_db, knowledge_graph, journal, notes, core_memory, error_patterns",
+						"items":       map[string]interface{}{"type": "string", "enum": []string{"vector_db", "knowledge_graph", "journal", "notes", "core_memory", "error_patterns"}},
+					},
+					"limit": map[string]interface{}{
+						"type":        "integer",
+						"description": "Max results per source (default 5)",
+					},
 				}, "query"),
 			),
 		)
+
+		// memory_reflect — only when memory_analysis is enabled
+		if ff.MemoryAnalysisEnabled {
+			tools = append(tools, tool("memory_reflect",
+				"Generate a reflection on recent memory activity: analyze patterns, detect contradictions, identify knowledge gaps, and suggest memory optimizations. Use periodically or when the user asks about memory health.",
+				schema(map[string]interface{}{
+					"scope": map[string]interface{}{
+						"type":        "string",
+						"description": "Scope of the reflection: 'recent' (last 7 days), 'monthly' (last 30 days), or 'full' (all memories)",
+						"enum":        []string{"recent", "monthly", "full"},
+					},
+				}),
+			))
+		}
 	}
 
 	// Cheat Sheets — always available (DB is always initialized)
@@ -349,6 +374,29 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 				"due_date": prop("string", "Due date in YYYY-MM-DD format"),
 				"note_id":  prop("integer", "Note ID (required for update/toggle/delete)"),
 				"done":     prop("integer", "Filter for list: -1=all, 0=open only, 1=done only"),
+			}, "operation"),
+		))
+	}
+
+	if ff.JournalEnabled {
+		tools = append(tools, tool("manage_journal",
+			"Add, list, search, or delete journal entries. Journal entries capture important events, milestones, preferences, and reflections. Use get_summary to retrieve a daily summary.",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "Journal operation",
+					"enum":        []string{"add", "list", "search", "delete", "get_summary"},
+				},
+				"title":      prop("string", "Title of the journal entry (required for add)"),
+				"content":    prop("string", "Detailed content of the journal entry"),
+				"entry_type": prop("string", "Type of entry: reflection, milestone, preference, task_completed, integration, learning, error_recovery, system_event"),
+				"tags":       prop("string", "Comma-separated tags for categorization"),
+				"importance": prop("integer", "Importance level 1-5 (default 3). 5=critical milestone, 1=minor note"),
+				"query":      prop("string", "Search keyword (required for search)"),
+				"from_date":  prop("string", "Start date filter YYYY-MM-DD (for list/get_summary)"),
+				"to_date":    prop("string", "End date filter YYYY-MM-DD (for list/get_summary)"),
+				"entry_id":   prop("integer", "Entry ID (required for delete)"),
+				"limit":      prop("integer", "Maximum entries to return (default 20)"),
 			}, "operation"),
 		))
 	}
@@ -1049,13 +1097,36 @@ func NativeToolCallToToolCall(native openai.ToolCall, logger *slog.Logger) ToolC
 		if json.Unmarshal([]byte(native.Function.Arguments), &rawMap) == nil {
 			tc.Params = rawMap
 		}
-		// Fallback 2: for truncated/malformed JSON, extract known string fields via regex
-		// so that tools like execute_skill still get the essential skill name.
-		if (name == "execute_skill") && tc.Skill == "" {
-			reSkill := regexp.MustCompile(`"skill"\s*:\s*"([^"]+)"`)
-			if m := reSkill.FindStringSubmatch(native.Function.Arguments); len(m) > 1 {
-				tc.Skill = m[1]
+		// Fallback 2: for truncated/malformed JSON, extract known string fields via regex.
+		// LLMs occasionally return truncated JSON (e.g. connection reset, token limit).
+		// The beginning of the JSON is usually intact, so we can rescue key fields.
+		extractField := func(key string) string {
+			re := regexp.MustCompile(`"` + regexp.QuoteMeta(key) + `"\s*:\s*"((?:[^"\\]|\\.)*)`)
+			if m := re.FindStringSubmatch(native.Function.Arguments); len(m) > 1 {
+				return strings.ReplaceAll(strings.ReplaceAll(m[1], `\"`, `"`), `\\`, `\`)
 			}
+			return ""
+		}
+		if tc.Prompt == "" {
+			tc.Prompt = extractField("prompt")
+		}
+		if tc.Content == "" {
+			tc.Content = extractField("content")
+		}
+		if tc.Query == "" {
+			tc.Query = extractField("query")
+		}
+		if tc.Operation == "" {
+			tc.Operation = extractField("operation")
+		}
+		if tc.Command == "" {
+			tc.Command = extractField("command")
+		}
+		if tc.Code == "" {
+			tc.Code = extractField("code")
+		}
+		if name == "execute_skill" && tc.Skill == "" {
+			tc.Skill = extractField("skill")
 		}
 		return tc
 	}

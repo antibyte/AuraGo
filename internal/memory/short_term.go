@@ -140,7 +140,18 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 	CREATE INDEX IF NOT EXISTS idx_messages_session_ts ON messages(session_id, timestamp);
 	CREATE INDEX IF NOT EXISTS idx_memory_meta_accessed ON memory_meta(last_accessed);
 	CREATE INDEX IF NOT EXISTS idx_interaction_patterns_last_seen ON interaction_patterns(last_seen);
-	CREATE INDEX IF NOT EXISTS idx_archive_events_session_ts ON archive_events(session_id, timestamp);`
+	CREATE INDEX IF NOT EXISTS idx_archive_events_session_ts ON archive_events(session_id, timestamp);
+
+	CREATE TABLE IF NOT EXISTS archived_messages (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		session_id TEXT DEFAULT 'default',
+		role TEXT,
+		content TEXT,
+		original_timestamp DATETIME,
+		archived_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		consolidated BOOLEAN DEFAULT 0
+	);
+	CREATE INDEX IF NOT EXISTS idx_archived_messages_consolidated ON archived_messages(consolidated);`
 
 	if _, err := db.Exec(schema); err != nil {
 		return nil, fmt.Errorf("failed to create sqlite schema: %w", err)
@@ -317,7 +328,8 @@ func (s *SQLiteMemory) GetHoursSinceLastUserMessage(sessionID string) (float64, 
 	return hours, nil
 }
 
-// DeleteOldMessages removes all messages except the most recent `keepN` for a given session.
+// DeleteOldMessages archives messages to archived_messages before removing them.
+// Keeps only the most recent `keepN` messages for a given session.
 func (s *SQLiteMemory) DeleteOldMessages(sessionID string, keepN int) error {
 	// First find the ID of the oldest message we want to KEEP
 	query := `
@@ -336,6 +348,16 @@ func (s *SQLiteMemory) DeleteOldMessages(sessionID string, keepN int) error {
 		return fmt.Errorf("failed to find cutoff ID for deletion: %w", err)
 	}
 
+	// Archive before deleting
+	archiveQuery := `
+	INSERT INTO archived_messages (session_id, role, content, original_timestamp)
+	SELECT session_id, role, content, timestamp
+	FROM messages
+	WHERE session_id = ? AND id < ? AND role IN ('user', 'assistant')
+	ORDER BY timestamp ASC`
+	archRes, _ := s.db.Exec(archiveQuery, sessionID, oldestKeepID)
+	archived, _ := archRes.RowsAffected()
+
 	// Delete everything older than the cutoff
 	delQuery := `DELETE FROM messages WHERE session_id = ? AND id < ?`
 	res, err := s.db.Exec(delQuery, sessionID, oldestKeepID)
@@ -344,8 +366,65 @@ func (s *SQLiteMemory) DeleteOldMessages(sessionID string, keepN int) error {
 	}
 
 	rows, _ := res.RowsAffected()
-	s.logger.Info("Cleaned up SQLite short-term memory", "session_id", sessionID, "deleted_rows", rows)
+	s.logger.Info("Cleaned up SQLite short-term memory", "session_id", sessionID, "deleted_rows", rows, "archived", archived)
 	return nil
+}
+
+// GetUnconsolidatedMessages returns archived messages that haven't been processed by consolidation yet.
+func (s *SQLiteMemory) GetUnconsolidatedMessages(limit int) ([]ArchivedMessage, error) {
+	if limit <= 0 {
+		limit = 200
+	}
+	rows, err := s.db.Query(`
+		SELECT id, session_id, role, content, original_timestamp
+		FROM archived_messages
+		WHERE consolidated = 0
+		ORDER BY original_timestamp ASC
+		LIMIT ?
+	`, limit)
+	if err != nil {
+		return nil, fmt.Errorf("query unconsolidated: %w", err)
+	}
+	defer rows.Close()
+
+	var msgs []ArchivedMessage
+	for rows.Next() {
+		var m ArchivedMessage
+		if err := rows.Scan(&m.ID, &m.SessionID, &m.Role, &m.Content, &m.Timestamp); err != nil {
+			return nil, fmt.Errorf("scan unconsolidated: %w", err)
+		}
+		msgs = append(msgs, m)
+	}
+	return msgs, rows.Err()
+}
+
+// MarkConsolidated marks a batch of archived messages as consolidated.
+func (s *SQLiteMemory) MarkConsolidated(ids []int64) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	placeholders := make([]string, len(ids))
+	args := make([]interface{}, len(ids))
+	for i, id := range ids {
+		placeholders[i] = "?"
+		args[i] = id
+	}
+	query := fmt.Sprintf("UPDATE archived_messages SET consolidated = 1 WHERE id IN (%s)",
+		strings.Join(placeholders, ","))
+	_, err := s.db.Exec(query, args...)
+	return err
+}
+
+// CleanOldArchivedMessages removes archived messages older than the given number of days.
+func (s *SQLiteMemory) CleanOldArchivedMessages(days int) (int64, error) {
+	res, err := s.db.Exec(
+		"DELETE FROM archived_messages WHERE archived_at < datetime('now', ?)",
+		fmt.Sprintf("-%d days", days),
+	)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
 }
 
 func (s *SQLiteMemory) DeleteMessagesByID(sessionID string, ids []int64) error {
@@ -463,6 +542,15 @@ func (s *SQLiteMemory) MarkNotificationsRead() error {
 	return err
 }
 
+// ArchivedMessage represents a message that was archived before deletion from STM.
+type ArchivedMessage struct {
+	ID        int64
+	SessionID string
+	Role      string
+	Content   string
+	Timestamp string
+}
+
 // MemoryMeta models the tracking metadata for a VectorDB chunk.
 type MemoryMeta struct {
 	DocID        string
@@ -549,6 +637,16 @@ func (s *SQLiteMemory) GetTopTransition(from string) (string, error) {
 		return "", nil
 	}
 	return to, err
+}
+
+// GetToolUsageCount returns the total transition count involving a tool (both as source and target).
+func (s *SQLiteMemory) GetToolUsageCount(toolName string) (int, error) {
+	var count int
+	err := s.db.QueryRow(
+		`SELECT COALESCE(SUM(count), 0) FROM tool_transitions WHERE from_tool = ? OR to_tool = ?`,
+		toolName, toolName,
+	).Scan(&count)
+	return count, err
 }
 
 // ── Temporal Memory (Phase A) ──────────────────────────────────────────────

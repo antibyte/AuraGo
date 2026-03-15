@@ -32,6 +32,10 @@ func Load(path string) (*Config, error) {
 	// correct default; explicit 'enabled: false' in the YAML will still override them.
 	cfg.Tools.Memory.Enabled = true
 	cfg.Tools.KnowledgeGraph.Enabled = true
+	cfg.Tools.KnowledgeGraph.AutoExtraction = true
+	cfg.Tools.KnowledgeGraph.PromptInjection = true
+	cfg.Tools.KnowledgeGraph.MaxPromptNodes = 5
+	cfg.Tools.KnowledgeGraph.MaxPromptChars = 800
 	cfg.Tools.SecretsVault.Enabled = true
 	cfg.Tools.Scheduler.Enabled = true
 	cfg.Tools.Notes.Enabled = true
@@ -39,7 +43,24 @@ func Load(path string) (*Config, error) {
 	cfg.Tools.StopProcess.Enabled = true
 	cfg.Tools.Inventory.Enabled = true
 	cfg.Tools.MemoryMaintenance.Enabled = true
+	cfg.Tools.Journal.Enabled = true
 	cfg.Tools.WebScraper.Enabled = true
+
+	// Journal system defaults: auto-entries and daily summaries enabled by default.
+	cfg.Journal.AutoEntries = true
+	cfg.Journal.DailySummary = true
+
+	// Consolidation defaults: nightly STM→LTM consolidation enabled by default.
+	cfg.Consolidation.Enabled = true
+	cfg.Consolidation.AutoOptimize = true
+	cfg.Consolidation.ArchiveRetainDays = 30
+	cfg.Consolidation.MaxBatchMessages = 200
+	cfg.Consolidation.OptimizeThreshold = 1
+
+	// Memory analysis defaults: disabled by default (opt-in), falls back to main LLM.
+	cfg.MemoryAnalysis.AutoConfirm = 0.92
+	cfg.MemoryAnalysis.WeeklyReflection = true
+	cfg.MemoryAnalysis.ReflectionDay = "sunday"
 
 	// Danger-zone capabilities default to false (opt-in) for new installations.
 	// Existing configs with explicit true/false values will be read from YAML unchanged.

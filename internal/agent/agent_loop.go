@@ -113,6 +113,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		SecretsVaultEnabled:      cfg.Tools.SecretsVault.Enabled,
 		SchedulerEnabled:         cfg.Tools.Scheduler.Enabled,
 		NotesEnabled:             cfg.Tools.Notes.Enabled,
+		JournalEnabled:           cfg.Tools.Journal.Enabled,
 		MissionsEnabled:          cfg.Tools.Missions.Enabled,
 		StopProcessEnabled:       cfg.Tools.StopProcess.Enabled,
 		InventoryEnabled:         cfg.Tools.Inventory.Enabled,
@@ -218,6 +219,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			SecretsVaultEnabled:      cfg.Tools.SecretsVault.Enabled,
 			SchedulerEnabled:         cfg.Tools.Scheduler.Enabled,
 			NotesEnabled:             cfg.Tools.Notes.Enabled,
+			JournalEnabled:           cfg.Tools.Journal.Enabled,
 			MissionsEnabled:          cfg.Tools.Missions.Enabled,
 			StopProcessEnabled:       cfg.Tools.StopProcess.Enabled,
 			InventoryEnabled:         cfg.Tools.Inventory.Enabled,
@@ -225,6 +227,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			WOLEnabled:               cfg.Tools.WOL.Enabled && cfg.Runtime.BroadcastOK,
 			MediaRegistryEnabled:     cfg.MediaRegistry.Enabled && mediaRegistryDB != nil,
 			HomepageRegistryEnabled:  cfg.Homepage.Enabled && homepageRegistryDB != nil,
+			MemoryAnalysisEnabled:    cfg.MemoryAnalysis.Enabled,
 			// Danger Zone capability gates
 			AllowShell:           cfg.Agent.AllowShell,
 			AllowPython:          cfg.Agent.AllowPython,
@@ -464,6 +467,34 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 						currentLogger.Debug("[Sync] Predictive RAG: Pre-fetched memories", "count", len(predictedResults), "predictions", predictions)
 					}
 				}
+			}
+		}
+
+		// Knowledge Graph context injection: search for relevant entities
+		if cfg.Tools.KnowledgeGraph.Enabled && cfg.Tools.KnowledgeGraph.PromptInjection && kg != nil && lastUserMsg != "" {
+			maxNodes := cfg.Tools.KnowledgeGraph.MaxPromptNodes
+			maxChars := cfg.Tools.KnowledgeGraph.MaxPromptChars
+			kgContext := kg.SearchForContext(lastUserMsg, maxNodes, maxChars)
+			if kgContext != "" {
+				flags.KnowledgeContext = kgContext
+				currentLogger.Debug("[Sync] KG: Injected knowledge context", "chars", len(kgContext))
+			}
+		}
+
+		// Error Pattern Context: inject known errors when in error recovery state
+		if flags.IsErrorState && shortTermMem != nil {
+			errPatterns, err := shortTermMem.GetRecentErrors(5)
+			if err == nil && len(errPatterns) > 0 {
+				var epBuf strings.Builder
+				epBuf.WriteString("Previous tool errors (learn from these to avoid repeating):\n")
+				for _, ep := range errPatterns {
+					epBuf.WriteString(fmt.Sprintf("- Tool: %s | Error: %s (occurred %d times)", ep.ToolName, ep.ErrorMessage, ep.OccurrenceCount))
+					if ep.Resolution != "" {
+						epBuf.WriteString(fmt.Sprintf(" | Resolution: %s", ep.Resolution))
+					}
+					epBuf.WriteString("\n")
+				}
+				flags.ErrorPatternContext = epBuf.String()
 			}
 		}
 
@@ -1114,7 +1145,22 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 			resultContent := DispatchToolCall(ctx, tc, cfg, currentLogger, client, vault, registry, manifest, cronManager, missionManager, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, remoteHub, historyManager, tools.IsBusy(), surgeryPlan, guardian, sessionID, coAgentRegistry, budgetTracker)
 			resultContent = truncateToolOutput(resultContent, cfg.Agent.ToolOutputLimit)
-			prompts.RecordToolUsage(tc.Action, tc.Operation, !isToolError(resultContent))
+			toolFailed := isToolError(resultContent)
+			prompts.RecordToolUsage(tc.Action, tc.Operation, !toolFailed)
+
+			// Record error patterns for learning
+			if toolFailed && shortTermMem != nil {
+				errMsg := extractErrorMessage(resultContent)
+				if errMsg != "" {
+					_ = shortTermMem.RecordError(tc.Action, errMsg)
+				}
+			}
+
+			// Record resolution when a tool succeeds after previous errors
+			if !toolFailed && consecutiveErrorCount > 0 && shortTermMem != nil && lastToolError != "" {
+				_ = shortTermMem.RecordResolution(tc.Action, lastToolError, "Succeeded with adjusted parameters")
+			}
+
 			broker.Send("tool_output", resultContent)
 
 			// Emit SSE image event so the Web UI shows the image immediately (before LLM responds)
@@ -1495,6 +1541,30 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					}
 				}
 			}
+		}
+
+		// Real-time memory analysis: async post-response extraction of memory-worthy content
+		if cfg.MemoryAnalysis.Enabled && cfg.MemoryAnalysis.RealTime && !isEmpty && shortTermMem != nil {
+			go func(userMsg, aResp, sid string) {
+				analysisCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+				defer cancel()
+				runMemoryAnalysis(analysisCtx, cfg, currentLogger, shortTermMem, kg, longTermMem, userMsg, aResp, sid)
+			}(lastUserMsg, content, sessionID)
+		}
+
+		// Journal auto-trigger: create entries for significant tool chains
+		JournalAutoTrigger(cfg, shortTermMem, currentLogger, sessionID, recentTools)
+
+		// Weekly reflection: async trigger if configured and due
+		if cfg.MemoryAnalysis.Enabled && cfg.MemoryAnalysis.WeeklyReflection && weeklyReflectionDue(cfg) {
+			go func() {
+				reflCtx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+				defer cancel()
+				_, err := generateMemoryReflection(reflCtx, cfg, currentLogger, shortTermMem, kg, longTermMem, client, "monthly")
+				if err != nil {
+					currentLogger.Warn("Weekly reflection failed", "error", err)
+				}
+			}()
 		}
 
 		return resp, nil

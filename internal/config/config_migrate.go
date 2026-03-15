@@ -364,6 +364,32 @@ func (c *Config) ResolveProviders() {
 		c.Tools.PDFExtractor.SummaryModel = c.LLM.Model
 	}
 
+	// ── Memory Analysis ── (falls back to main LLM if provider empty)
+	if c.MemoryAnalysis.Provider != "" {
+		if p := c.FindProvider(c.MemoryAnalysis.Provider); p != nil {
+			c.MemoryAnalysis.ProviderType = p.Type
+			c.MemoryAnalysis.BaseURL = p.BaseURL
+			c.MemoryAnalysis.APIKey = p.APIKey
+			if c.MemoryAnalysis.Model == "" {
+				c.MemoryAnalysis.ResolvedModel = p.Model
+			} else {
+				c.MemoryAnalysis.ResolvedModel = c.MemoryAnalysis.Model
+			}
+		}
+	}
+	if c.MemoryAnalysis.APIKey == "" {
+		c.MemoryAnalysis.APIKey = c.LLM.APIKey
+	}
+	if c.MemoryAnalysis.BaseURL == "" {
+		c.MemoryAnalysis.BaseURL = c.LLM.BaseURL
+	}
+	if c.MemoryAnalysis.ResolvedModel == "" {
+		c.MemoryAnalysis.ResolvedModel = c.LLM.Model
+	}
+	if c.MemoryAnalysis.ProviderType == "" {
+		c.MemoryAnalysis.ProviderType = c.LLM.ProviderType
+	}
+
 	// ── Image Generation ── (no fallback — must be explicitly configured)
 	if c.ImageGeneration.Provider != "" {
 		if p := c.FindProvider(c.ImageGeneration.Provider); p != nil {

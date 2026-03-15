@@ -113,6 +113,8 @@
   "config.section.homepage.circuit_breaker_multiplier.desc": "Aumenta el límite de llamadas a herramientas para flujos web complejos (init → build → test → deploy). 2.0 = límite doble, max 5.0",
   "config.section.netlify.label": "Netlify",
   "config.section.netlify.desc": "Desplegar y gestionar sitios en Netlify",
+  "config.section.memory_analysis.label": "Análisis de Memoria",
+  "config.section.memory_analysis.desc": "LLM dedicado para analizar conversaciones y extraer recuerdos",
   "config.section.image_generation.label": "Image Generation",
   "config.section.image_generation.desc": "Generate images from text prompts using AI",
   "config.section.prompts_editor.label": "Prompts y Personas",

@@ -475,8 +475,16 @@ func main() {
 	historyManager := memory.NewHistoryManager(filepath.Join(cfg.Directories.DataDir, "chat_history.json"))
 	defer historyManager.Close()
 
-	// Phase 36: Native Knowledge Graph
-	kg := memory.NewKnowledgeGraph(filepath.Join(cfg.Directories.DataDir, "graph.json"))
+	// Phase 36: Native Knowledge Graph (SQLite-backed with FTS5)
+	kg, err := memory.NewKnowledgeGraph(
+		filepath.Join(cfg.Directories.DataDir, "knowledge_graph.db"),
+		filepath.Join(cfg.Directories.DataDir, "graph.json"),
+		appLog,
+	)
+	if err != nil {
+		appLog.Error("Failed to initialize knowledge graph", "error", err)
+		return
+	}
 	defer kg.Close()
 
 	// Handle Recovery Context

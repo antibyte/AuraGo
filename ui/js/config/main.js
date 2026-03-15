@@ -34,7 +34,8 @@ const SECTIONS = [
             { key: 'circuit_breaker', icon: '🔌', label: t('config.section.circuit_breaker.label'), desc: t('config.section.circuit_breaker.desc') },
             { key: 'budget', icon: '💰', label: t('config.section.budget.label'), desc: t('config.section.budget.desc') },
             { key: 'co_agents', icon: '🤖', label: t('config.section.co_agents.label'), desc: t('config.section.co_agents.desc') },
-            { key: 'ai_gateway', icon: '🌩️', label: t('config.section.ai_gateway.label'), desc: t('config.section.ai_gateway.desc') }
+            { key: 'ai_gateway', icon: '🌩️', label: t('config.section.ai_gateway.label'), desc: t('config.section.ai_gateway.desc') },
+            { key: 'memory_analysis', icon: '🧬', label: t('config.section.memory_analysis.label'), desc: t('config.section.memory_analysis.desc') }
         ]
     },
     {
@@ -854,7 +855,8 @@ const SECTION_MODULES = {
     cloudflare_tunnel: { m: 'cloudflare_tunnel', fn: 'renderCloudflareTunnelSection' },
     mcp_server: { m: 'mcp_server', fn: 'renderMCPServerSection' },
     image_generation: { m: 'image_generation', fn: 'renderImageGenerationSection' },
-    remote_control: { m: 'remote_control', fn: 'renderRemoteControlSection' }
+    remote_control: { m: 'remote_control', fn: 'renderRemoteControlSection' },
+    memory_analysis: { m: 'memory_analysis', fn: 'renderMemoryAnalysisSection' }
 };
 
 function loadModule(name) {

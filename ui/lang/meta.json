@@ -108,6 +108,9 @@
   "help.tools.web_scraper.summary_provider": {
     "provider_ref": true
   },
+  "help.memory_analysis.provider": {
+    "provider_ref": true
+  },
   "help.ansible.mode": {
     "options": [
       "sidecar",

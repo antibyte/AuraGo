@@ -71,6 +71,33 @@ func NewClient(cfg *config.Config) *openai.Client {
 	return openai.NewClientWithConfig(clientConfig)
 }
 
+// NewClientFromProvider creates an OpenAI-compatible client from explicit provider
+// details (type, base URL, API key). Used by subsystems that resolve their own
+// provider (memory analysis, personality engine, etc.) instead of using the main LLM.
+func NewClientFromProvider(providerType, baseURL, apiKey string) *openai.Client {
+	pt := strings.ToLower(providerType)
+	isOllama := pt == "ollama"
+
+	if apiKey == "" && isOllama {
+		apiKey = "ollama"
+	}
+
+	clientConfig := openai.DefaultConfig(apiKey)
+
+	if baseURL != "" {
+		u := baseURL
+		if isOllama {
+			u = strings.TrimRight(u, "/")
+			if !strings.HasSuffix(u, "/v1") {
+				u = u + "/v1"
+			}
+		}
+		clientConfig.BaseURL = u
+	}
+
+	return openai.NewClientWithConfig(clientConfig)
+}
+
 // aiGatewaySegment maps a provider type to the Cloudflare AI Gateway URL segment.
 func aiGatewaySegment(providerType string) string {
 	switch providerType {

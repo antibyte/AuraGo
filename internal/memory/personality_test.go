@@ -252,9 +252,9 @@ func TestDecayAllTraitsWeightedRespectsAnchors(t *testing.T) {
 	_ = stm.SetTrait(TraitEmpathy, 0.55)
 
 	meta := PersonalityMeta{
-		Volatility:   1.0,
+		Volatility:     1.0,
 		TraitDecayRate: 1.0,
-		AnchorTraits: map[string]float64{TraitEmpathy: 0.55},
+		AnchorTraits:   map[string]float64{TraitEmpathy: 0.55},
 	}
 	// Large decay should not push empathy below the anchor floor
 	_ = stm.DecayAllTraitsWeighted(1.0, meta)

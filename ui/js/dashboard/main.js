@@ -970,6 +970,61 @@
         // INITIALIZATION
         // ══════════════════════════════════════════════════════════════════════════════
 
+        // ── Journal Timeline ────────────────────────────────────────────────────────
+        const JOURNAL_ICONS = {
+            reflection: '💭', milestone: '🏆', preference: '⭐', task_completed: '✅',
+            integration: '🔌', learning: '📚', error_recovery: '🔧', system_event: '⚙️'
+        };
+
+        function renderJournalTimeline(entries) {
+            const el = document.getElementById('journal-timeline');
+            if (!el) return;
+            if (!entries || entries.length === 0) {
+                el.innerHTML = `<div class="empty-state">${t('dashboard.journal_empty')}</div>`;
+                return;
+            }
+            el.innerHTML = entries.slice(0, 15).map(e => {
+                const icon = JOURNAL_ICONS[e.entry_type] || '📔';
+                const date = e.created_at ? new Date(e.created_at).toLocaleString(LANG, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+                const tags = (e.tags || '').split(',').filter(Boolean).map(t => `<span class="je-tag">${escapeHtml(t.trim())}</span>`).join('');
+                const auto = e.auto_generated ? ' 🤖' : '';
+                return `<div class="journal-entry" data-importance="${e.importance || 3}">
+                    <div class="je-icon">${icon}</div>
+                    <div class="je-body">
+                        <div class="je-title">${escapeHtml(e.title || '')}${auto}</div>
+                        <div class="je-meta">${date} · ${e.entry_type || 'reflection'}</div>
+                        ${tags ? `<div class="je-tags">${tags}</div>` : ''}
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function renderJournalSummary(summaries) {
+            const el = document.getElementById('journal-summary');
+            if (!el) return;
+            if (!summaries || summaries.length === 0) {
+                el.innerHTML = '';
+                return;
+            }
+            const latest = summaries[0];
+            el.innerHTML = `<div class="journal-summary-label">📋 ${latest.date}</div><div>${escapeHtml(latest.summary || '')}</div>`;
+        }
+
+        async function loadJournal() {
+            const [entries, summaries] = await Promise.all([
+                API.get('/api/dashboard/journal?limit=15'),
+                API.get('/api/dashboard/journal/summaries?days=1')
+            ]);
+            renderJournalTimeline(entries?.entries);
+            renderJournalSummary(summaries?.summaries);
+        }
+
+        // ── Escape HTML ─────────────────────────────────────────────────────────────
+        function escapeHtml(str) {
+            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+            return String(str).replace(/[&<>"']/g, c => map[c]);
+        }
+
         async function initDashboard() {
             const [system, budget, personality, moodHistory, memData, profile, activity, promptStats, logResults, githubRepos, overview, credits] = await API.fetchAll(currentMoodHours);
 
@@ -1016,6 +1071,9 @@
 
             // Profile
             renderProfile(profile);
+
+            // Journal
+            loadJournal();
 
             // Operations & Integrations
             renderOperations(overview);
@@ -1124,6 +1182,9 @@
                 // Operations & Integrations
                 renderOperations(overview);
                 renderIntegrations(overview);
+
+                // Journal
+                loadJournal();
             }, 30_000);
         }
 

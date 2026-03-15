@@ -105,6 +105,43 @@ func (s *SQLiteMemory) ListNotes(category string, doneFilter int) ([]Note, error
 	return notes, nil
 }
 
+// SearchNotes returns notes whose title or content contain the search term (case-insensitive).
+func (s *SQLiteMemory) SearchNotes(query string, limit int) ([]Note, error) {
+	if query == "" {
+		return nil, nil
+	}
+	if limit <= 0 || limit > 50 {
+		limit = 20
+	}
+
+	pattern := "%" + query + "%"
+	rows, err := s.db.Query(
+		`SELECT id, category, title, content, priority, done, due_date, created_at, updated_at
+		 FROM notes
+		 WHERE title LIKE ? OR content LIKE ?
+		 ORDER BY priority DESC, created_at DESC
+		 LIMIT ?`,
+		pattern, pattern, limit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("search notes: %w", err)
+	}
+	defer rows.Close()
+
+	var notes []Note
+	for rows.Next() {
+		var n Note
+		if err := rows.Scan(&n.ID, &n.Category, &n.Title, &n.Content, &n.Priority, &n.Done, &n.DueDate, &n.CreatedAt, &n.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("scan note: %w", err)
+		}
+		notes = append(notes, n)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows iteration: %w", err)
+	}
+	return notes, nil
+}
+
 // UpdateNote updates a note's title, content, priority, due_date, or category by ID.
 func (s *SQLiteMemory) UpdateNote(id int64, title, content, category string, priority int, dueDate string) error {
 	now := time.Now().UTC().Format(time.RFC3339)

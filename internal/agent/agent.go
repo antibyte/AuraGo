@@ -184,7 +184,9 @@ type ToolCall struct {
 	Skill              string                 `json:"skill"`
 	SkillArgs          map[string]interface{} `json:"skill_args"`
 	Content            string                 `json:"content"`
-	Query              string                 `json:"query"` // Alias for content in query_memory
+	Query              string                 `json:"query"`   // Alias for content in query_memory
+	Sources            []string               `json:"sources"` // Memory sources filter for query_memory (vector_db, knowledge_graph, journal, notes, core_memory)
+	Scope              string                 `json:"scope"`   // Scope for memory_reflect (recent, monthly, full)
 	Metadata           map[string]interface{} `json:"metadata"`
 	FilePath           string                 `json:"file_path"`
 	Path               string                 `json:"path"` // Alias for file_path
@@ -244,6 +246,12 @@ type ToolCall struct {
 	DueDate  string `json:"due_date"`
 	Category string `json:"category"`
 	Done     int    `json:"done"` // -1=all, 0=open, 1=done (filter for list)
+	// Journal fields
+	EntryType  string `json:"entry_type"`
+	Importance int    `json:"importance"`
+	FromDate   string `json:"from_date"`
+	ToDate     string `json:"to_date"`
+	EntryID    int64  `json:"entry_id"`
 	// Inventory / Device fields
 	DeviceType string `json:"device_type,omitempty"`
 	MACAddress string `json:"mac_address,omitempty"` // Optional MAC for Wake-on-LAN
@@ -451,6 +459,10 @@ func dispatchInner(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 		case "manage_notes":
 			if tc.Operation != "list" {
 				return `Tool Output: {"status": "error", "message": "Co-Agents cannot modify notes. Only 'list' is allowed."}`
+			}
+		case "manage_journal":
+			if tc.Operation != "list" && tc.Operation != "search" && tc.Operation != "get_summary" {
+				return `Tool Output: {"status": "error", "message": "Co-Agents cannot modify journal entries. Only list, search, and get_summary are allowed."}`
 			}
 		case "co_agent", "co_agents":
 			return `Tool Output: {"status": "error", "message": "Co-Agents cannot spawn sub-agents."}`

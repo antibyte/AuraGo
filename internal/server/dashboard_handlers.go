@@ -867,3 +867,101 @@ func tailFile(path string, n int) ([]string, error) {
 	}
 	return allLines[len(allLines)-n:], nil
 }
+
+// handleDashboardJournal returns recent journal entries as JSON.
+// Query params: ?from=YYYY-MM-DD&to=YYYY-MM-DD&type=xxx&limit=20
+func handleDashboardJournal(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		from := r.URL.Query().Get("from")
+		to := r.URL.Query().Get("to")
+		limit := 20
+		if l := r.URL.Query().Get("limit"); l != "" {
+			if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 {
+				limit = parsed
+			}
+		}
+		var types []string
+		if t := r.URL.Query().Get("type"); t != "" {
+			types = []string{t}
+		}
+
+		entries, err := s.ShortTermMem.GetJournalEntries(from, to, types, limit)
+		if err != nil {
+			s.Logger.Error("Failed to list journal entries", "error", err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+		if entries == nil {
+			entries = []memory.JournalEntry{}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"entries": entries,
+			"count":   len(entries),
+		})
+	}
+}
+
+// handleDashboardJournalSummary returns recent daily summaries.
+// Query params: ?days=7
+func handleDashboardJournalSummary(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		days := 7
+		if d := r.URL.Query().Get("days"); d != "" {
+			if parsed, err := strconv.Atoi(d); err == nil && parsed > 0 {
+				days = parsed
+			}
+		}
+
+		summaries, err := s.ShortTermMem.GetRecentDailySummaries(days)
+		if err != nil {
+			s.Logger.Error("Failed to list daily summaries", "error", err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+		if summaries == nil {
+			summaries = []memory.DailySummary{}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"summaries": summaries,
+			"count":     len(summaries),
+		})
+	}
+}
+
+// handleDashboardJournalStats returns journal statistics.
+// Query params: ?from=YYYY-MM-DD&to=YYYY-MM-DD
+func handleDashboardJournalStats(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		from := r.URL.Query().Get("from")
+		to := r.URL.Query().Get("to")
+
+		stats, err := s.ShortTermMem.GetJournalStats(from, to)
+		if err != nil {
+			s.Logger.Error("Failed to get journal stats", "error", err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(stats)
+	}
+}

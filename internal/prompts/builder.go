@@ -138,6 +138,7 @@ type ContextFlags struct {
 	SecretsVaultEnabled      bool
 	SchedulerEnabled         bool
 	NotesEnabled             bool
+	JournalEnabled           bool
 	MissionsEnabled          bool
 	StopProcessEnabled       bool
 	InventoryEnabled         bool
@@ -152,6 +153,8 @@ type ContextFlags struct {
 	UserProfileSummary       string // Optional user profile summary from profiling engine
 	AdditionalPrompt         string // Extra instructions always appended at end of system prompt
 	SessionTodoItems         string // Session-scoped task list piggybacked on tool calls
+	KnowledgeContext         string // Relevant KG entities injected from SearchForContext
+	ErrorPatternContext      string // Known error patterns with resolutions for agent learning
 }
 
 // DetermineTier returns the appropriate prompt tier based on the conversation length.
@@ -310,6 +313,20 @@ func BuildSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string,
 	if flags.PredictedMemories != "" && flags.Tier == "full" {
 		finalPrompt.WriteString("# PREDICTED CONTEXT\n")
 		finalPrompt.WriteString(flags.PredictedMemories)
+		finalPrompt.WriteString("\n\n")
+	}
+
+	// Knowledge Graph context — relevant entities and relationships
+	if flags.KnowledgeContext != "" && flags.Tier != "minimal" {
+		finalPrompt.WriteString("# RELEVANT KNOWLEDGE\n")
+		finalPrompt.WriteString(security.IsolateExternalData(flags.KnowledgeContext))
+		finalPrompt.WriteString("\n\n")
+	}
+
+	// Error Pattern Context — inject known error patterns during error recovery
+	if flags.ErrorPatternContext != "" && flags.Tier != "minimal" {
+		finalPrompt.WriteString("# KNOWN ERROR PATTERNS\n")
+		finalPrompt.WriteString(flags.ErrorPatternContext)
 		finalPrompt.WriteString("\n\n")
 	}
 

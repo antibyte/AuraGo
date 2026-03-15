@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"encoding/json"
 	"path/filepath"
 	"strings"
 
@@ -155,4 +156,22 @@ func isToolError(resultContent string) bool {
 		return true
 	}
 	return false
+}
+
+// extractErrorMessage pulls the error message from a tool output for error learning.
+func extractErrorMessage(resultContent string) string {
+	// Try to extract from JSON "message" field
+	prefix := strings.TrimPrefix(resultContent, "Tool Output: ")
+	prefix = strings.TrimPrefix(prefix, "[Tool Output]\n")
+	var parsed struct {
+		Message string `json:"message"`
+	}
+	if json.Unmarshal([]byte(prefix), &parsed) == nil && parsed.Message != "" {
+		return parsed.Message
+	}
+	// Fall back to the first 200 chars of the raw output
+	if len(resultContent) > 200 {
+		return resultContent[:200]
+	}
+	return resultContent
 }
