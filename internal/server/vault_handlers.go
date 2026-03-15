@@ -77,6 +77,14 @@ func handleSetVaultSecret(s *Server, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Immediately inject the new secret into the live config so it takes effect
+	// without requiring a full config save / hot-reload cycle.
+	if s.Cfg != nil {
+		s.CfgMu.Lock()
+		s.Cfg.ApplyVaultSecrets(s.Vault)
+		s.CfgMu.Unlock()
+	}
+
 	s.Logger.Info("[Vault] Secret written via Web UI", "key", req.Key)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"status": "ok", "key": req.Key})
