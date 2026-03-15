@@ -184,7 +184,7 @@ func (g *LLMGuardian) callLLM(ctx context.Context, check GuardianCheck, start ti
 	req := openai.ChatCompletionRequest{
 		Model:       g.model,
 		Messages:    g.buildMessages(guardianSystemPrompt, prompt),
-		MaxTokens:   50,
+		MaxTokens:   512, // reasoning models (e.g. step-3.5-flash) need budget for thinking + response
 		Temperature: 0,
 	}
 
@@ -348,9 +348,29 @@ func buildGuardianPrompt(check GuardianCheck) string {
 func parseGuardianResponse(raw string) GuardianResult {
 	raw = strings.TrimSpace(raw)
 	// Expected: "safe 10 routine file listing" or "dangerous 95 deletes system files"
+	// Some reasoning models may wrap the answer in extra text; scan all words for a known decision keyword.
 	parts := strings.Fields(raw)
+
+	// Fast path: first two fields are valid
+	if len(parts) >= 2 {
+		// Strip stray punctuation (e.g. trailing colon/period) from decision + score tokens
+		parts[0] = strings.TrimRight(parts[0], ".,;:!?")
+		parts[1] = strings.TrimRight(parts[1], ".,;:!?")
+	}
+
 	if len(parts) < 2 {
-		// Unparseable — treat as quarantine
+		// Slow path: scan for a known keyword anywhere in the response
+		for i, p := range parts {
+			clean := strings.ToLower(strings.TrimRight(p, ".,;:!?"))
+			if d := mapDecisionWord(clean); d != DecisionQuarantine || clean == "quarantine" || clean == "suspicious" {
+				reason := ""
+				if i+1 < len(parts) {
+					reason = strings.Join(parts[i+1:], " ")
+				}
+				return GuardianResult{Decision: d, RiskScore: 0.5, Reason: reason}
+			}
+		}
+		// Truly unparseable
 		return GuardianResult{
 			Decision:  DecisionQuarantine,
 			RiskScore: 0.5,
@@ -384,12 +404,16 @@ func parseGuardianResponse(raw string) GuardianResult {
 }
 
 func mapDecision(word string) Decision {
-	switch strings.ToLower(word) {
-	case "safe", "allow", "ok", "benign":
+	return mapDecisionWord(strings.ToLower(word))
+}
+
+func mapDecisionWord(lower string) Decision {
+	switch lower {
+	case "safe", "allow", "ok", "benign", "permitted", "harmless":
 		return DecisionAllow
-	case "dangerous", "block", "deny", "reject", "critical":
+	case "dangerous", "block", "deny", "reject", "critical", "malicious", "harmful":
 		return DecisionBlock
-	case "suspicious", "risky", "quarantine", "warn", "caution":
+	case "suspicious", "risky", "quarantine", "warn", "caution", "uncertain":
 		return DecisionQuarantine
 	default:
 		return DecisionQuarantine
@@ -431,7 +455,7 @@ func (g *LLMGuardian) EvaluateClarification(ctx context.Context, check GuardianC
 	req := openai.ChatCompletionRequest{
 		Model:       g.model,
 		Messages:    g.buildMessages(clarificationSystemPrompt, prompt),
-		MaxTokens:   50,
+		MaxTokens:   512,
 		Temperature: 0,
 	}
 
@@ -546,7 +570,7 @@ func (g *LLMGuardian) EvaluateContent(ctx context.Context, contentType string, c
 	req := openai.ChatCompletionRequest{
 		Model:       g.model,
 		Messages:    g.buildMessages(contentScanSystemPrompt, prompt),
-		MaxTokens:   50,
+		MaxTokens:   512,
 		Temperature: 0,
 	}
 

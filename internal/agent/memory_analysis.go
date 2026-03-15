@@ -459,7 +459,7 @@ func generateMemoryReflection(
 			{Role: openai.ChatMessageRoleUser, Content: prompt},
 		},
 		Temperature: 0.3,
-		MaxTokens:   1000,
+		MaxTokens:   2000, // reasoning models need budget for thinking + JSON response
 	}
 
 	resp, err := analysisClient.CreateChatCompletion(ctx, req)
