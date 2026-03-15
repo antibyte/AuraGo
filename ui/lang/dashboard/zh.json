@@ -192,5 +192,9 @@
   "dashboard.system_title": "系统状态",
   "dashboard.system_uptime": "运行时间",
   "dashboard.operations_cheatsheets": "速查表",
-  "dashboard.operations_cheatsheets_active": "{{n}} 个启用"
+  "dashboard.operations_cheatsheets_active": "{{n}} 个启用",
+  "dashboard.journal_title": "日志",
+  "dashboard.journal_empty": "暂无条目。",
+  "dashboard.guardian_clarifications": "澳清",
+  "dashboard.guardian_content_scans": "内容扫描"
 }

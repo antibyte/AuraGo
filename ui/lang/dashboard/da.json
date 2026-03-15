@@ -192,5 +192,9 @@
   "dashboard.system_title": "Sistema",
   "dashboard.system_uptime": "Tempo de Atividade",
   "dashboard.operations_cheatsheets": "Snydeblade",
-  "dashboard.operations_cheatsheets_active": "{{n}} aktive"
+  "dashboard.operations_cheatsheets_active": "{{n}} aktive",
+  "dashboard.journal_title": "Journal",
+  "dashboard.journal_empty": "Ingen indlæg endnu.",
+  "dashboard.guardian_clarifications": "Præciseringer",
+  "dashboard.guardian_content_scans": "Indholdsscanninger"
 }

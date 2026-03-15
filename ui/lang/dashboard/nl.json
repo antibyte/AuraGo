@@ -192,5 +192,9 @@
   "dashboard.system_title": "Systeemstatus",
   "dashboard.system_uptime": "Uptime",
   "dashboard.operations_cheatsheets": "Spiekbriefjes",
-  "dashboard.operations_cheatsheets_active": "{{n}} actief"
+  "dashboard.operations_cheatsheets_active": "{{n}} actief",
+  "dashboard.journal_title": "Dagboek",
+  "dashboard.journal_empty": "Nog geen vermeldingen.",
+  "dashboard.guardian_clarifications": "Verduidelijkingen",
+  "dashboard.guardian_content_scans": "Inhoudsscans"
 }

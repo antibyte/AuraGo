@@ -192,5 +192,9 @@
   "dashboard.system_title": "Sistema",
   "dashboard.system_uptime": "Tempo de Atividade",
   "dashboard.operations_cheatsheets": "Folhas de Dicas",
-  "dashboard.operations_cheatsheets_active": "{{n}} ativas"
+  "dashboard.operations_cheatsheets_active": "{{n}} ativas",
+  "dashboard.journal_title": "Diário",
+  "dashboard.journal_empty": "Ainda sem entradas.",
+  "dashboard.guardian_clarifications": "Esclarecimentos",
+  "dashboard.guardian_content_scans": "Análises de conteúdo"
 }

@@ -154,6 +154,20 @@ body {
     transform: translateY(-2px);
 }
 
+.field-group-title {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 0.3rem;
+}
+
+.field-group-desc {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.75rem;
+    line-height: 1.4;
+}
+
 .field-label {
     font-size: 0.78rem;
     font-weight: 600;

@@ -192,5 +192,9 @@
   "dashboard.system_title": "System",
   "dashboard.system_uptime": "Doba Provozu",
   "dashboard.operations_cheatsheets": "Taháky",
-  "dashboard.operations_cheatsheets_active": "{{n}} aktivních"
+  "dashboard.operations_cheatsheets_active": "{{n}} aktivních",
+  "dashboard.journal_title": "Deník",
+  "dashboard.journal_empty": "Zatím žádné záznamy.",
+  "dashboard.guardian_clarifications": "Upřesnění",
+  "dashboard.guardian_content_scans": "Kontroly obsahu"
 }

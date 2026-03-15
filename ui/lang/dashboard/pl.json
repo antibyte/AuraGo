@@ -192,5 +192,9 @@
   "dashboard.system_title": "Status Systemu",
   "dashboard.system_uptime": "Czas działania",
   "dashboard.operations_cheatsheets": "Ściągawki",
-  "dashboard.operations_cheatsheets_active": "{{n}} aktywnych"
+  "dashboard.operations_cheatsheets_active": "{{n}} aktywnych",
+  "dashboard.journal_title": "Dziennik",
+  "dashboard.journal_empty": "Brak wpisów.",
+  "dashboard.guardian_clarifications": "Wyjaśnienia",
+  "dashboard.guardian_content_scans": "Skany treści"
 }

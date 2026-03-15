@@ -192,5 +192,9 @@
   "dashboard.system_title": "システム状態",
   "dashboard.system_uptime": "稼働時間",
   "dashboard.operations_cheatsheets": "チートシート",
-  "dashboard.operations_cheatsheets_active": "{{n}} 個有効"
+  "dashboard.operations_cheatsheets_active": "{{n}} 個有効",
+  "dashboard.journal_title": "ジャーナル",
+  "dashboard.journal_empty": "まだエントリーがありません。",
+  "dashboard.guardian_clarifications": "確認",
+  "dashboard.guardian_content_scans": "コンテンツスキャン"
 }

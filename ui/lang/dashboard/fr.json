@@ -192,5 +192,9 @@
   "dashboard.system_title": "État du Système",
   "dashboard.system_uptime": "Uptime",
   "dashboard.operations_cheatsheets": "Aide-mémoire",
-  "dashboard.operations_cheatsheets_active": "{{n}} actifs"
+  "dashboard.operations_cheatsheets_active": "{{n}} actifs",
+  "dashboard.journal_title": "Journal",
+  "dashboard.journal_empty": "Aucune entrée pour l'instant.",
+  "dashboard.guardian_clarifications": "Clarifications",
+  "dashboard.guardian_content_scans": "Analyses de contenu"
 }

@@ -192,5 +192,9 @@
   "dashboard.system_title": "Stato Sistema",
   "dashboard.system_uptime": "Uptime",
   "dashboard.operations_cheatsheets": "Promemoria",
-  "dashboard.operations_cheatsheets_active": "{{n}} attivi"
+  "dashboard.operations_cheatsheets_active": "{{n}} attivi",
+  "dashboard.journal_title": "Diario",
+  "dashboard.journal_empty": "Nessuna voce ancora.",
+  "dashboard.guardian_clarifications": "Chiarimenti",
+  "dashboard.guardian_content_scans": "Scansioni di contenuto"
 }

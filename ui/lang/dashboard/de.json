@@ -192,5 +192,9 @@
   "dashboard.system_title": "Systemstatus",
   "dashboard.system_uptime": "Betriebszeit",
   "dashboard.operations_cheatsheets": "Spickzettel",
-  "dashboard.operations_cheatsheets_active": "{{n}} aktiv"
+  "dashboard.operations_cheatsheets_active": "{{n}} aktiv",
+  "dashboard.journal_title": "Journal",
+  "dashboard.journal_empty": "Noch keine Einträge.",
+  "dashboard.guardian_clarifications": "Rückfragen",
+  "dashboard.guardian_content_scans": "Inhaltscans"
 }

@@ -192,5 +192,9 @@
   "dashboard.system_title": "Sistema",
   "dashboard.system_uptime": "Tempo de Atividade",
   "dashboard.operations_cheatsheets": "Fusklapp",
-  "dashboard.operations_cheatsheets_active": "{{n}} aktiva"
+  "dashboard.operations_cheatsheets_active": "{{n}} aktiva",
+  "dashboard.journal_title": "Dagbok",
+  "dashboard.journal_empty": "Inga poster ännu.",
+  "dashboard.guardian_clarifications": "Förtydliganden",
+  "dashboard.guardian_content_scans": "Innehållsskanningar"
 }
