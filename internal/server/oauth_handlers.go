@@ -450,6 +450,126 @@ func buildRedirectURI(r *http.Request, serverHost string, serverPort int, oauthB
 	return fmt.Sprintf("%s://%s/api/oauth/callback", scheme, host)
 }
 
+// handleOAuthManual completes an OAuth flow using a redirect URL pasted by the user.
+// This is the fallback for LAN setups where the browser's redirect fails (ERR_CONNECTION_REFUSED).
+// POST /api/oauth/manual
+// Body: {"url": "http://localhost:8088/api/oauth/callback?code=xxx&state=yyy"}
+func handleOAuthManual(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		var body struct {
+			URL string `json:"url"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.URL == "" {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]any{"success": false, "message": "Missing 'url' in request body"})
+			return
+		}
+
+		parsed, err := url.Parse(body.URL)
+		if err != nil {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]any{"success": false, "message": "Invalid URL: " + err.Error()})
+			return
+		}
+
+		code := parsed.Query().Get("code")
+		state := parsed.Query().Get("state")
+		errParam := parsed.Query().Get("error")
+
+		if errParam != "" {
+			errDesc := parsed.Query().Get("error_description")
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]any{"success": false, "message": fmt.Sprintf("Authorization denied: %s — %s", errParam, errDesc)})
+			return
+		}
+		if code == "" || state == "" {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]any{"success": false, "message": "URL does not contain 'code' or 'state' parameters"})
+			return
+		}
+
+		if s.Vault == nil {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]any{"success": false, "message": "Vault not available"})
+			return
+		}
+
+		// Validate and consume state (same one-time-use check as the normal callback)
+		stateRaw, err := s.Vault.ReadSecret("oauth_state_" + state)
+		if err != nil || stateRaw == "" {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]any{"success": false, "message": "Invalid or expired state — please click Connect again to start a new OAuth flow"})
+			return
+		}
+		_ = s.Vault.DeleteSecret("oauth_state_" + state)
+
+		var stateData map[string]string
+		if err := json.Unmarshal([]byte(stateRaw), &stateData); err != nil {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]any{"success": false, "message": "Corrupt state data"})
+			return
+		}
+		providerID := stateData["provider_id"]
+
+		s.CfgMu.RLock()
+		prov := s.Cfg.FindProvider(providerID)
+		var entry config.ProviderEntry
+		if prov != nil {
+			entry = *prov
+		}
+		serverPort := s.Cfg.Server.Port
+		serverHost := s.Cfg.Server.Host
+		oauthBase := s.Cfg.Server.OAuthRedirectBaseURL
+		s.CfgMu.RUnlock()
+
+		if prov == nil {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]any{"success": false, "message": "Provider '" + providerID + "' not found in config"})
+			return
+		}
+
+		// Reconstruct the same redirect_uri used in the original authorization request
+		redirectURI := buildRedirectURI(r, serverHost, serverPort, oauthBase)
+
+		tokenResp, err := exchangeCodeForToken(entry, code, redirectURI)
+		if err != nil {
+			s.Logger.Error("[OAuth] Manual token exchange failed", "provider", providerID, "error", err)
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]any{"success": false, "message": "Token exchange failed: " + err.Error()})
+			return
+		}
+
+		tok := config.OAuthToken{
+			AccessToken:  tokenResp.AccessToken,
+			RefreshToken: tokenResp.RefreshToken,
+			TokenType:    tokenResp.TokenType,
+		}
+		if tokenResp.ExpiresIn > 0 {
+			tok.Expiry = time.Now().Add(time.Duration(tokenResp.ExpiresIn) * time.Second).UTC().Format(time.RFC3339)
+		}
+		tokJSON, _ := json.Marshal(tok)
+		if err := s.Vault.WriteSecret("oauth_"+providerID, string(tokJSON)); err != nil {
+			s.Logger.Error("[OAuth] Failed to store token", "provider", providerID, "error", err)
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]any{"success": false, "message": "Failed to store token: " + err.Error()})
+			return
+		}
+
+		s.CfgMu.Lock()
+		s.Cfg.ApplyOAuthTokens(s.Vault)
+		s.CfgMu.Unlock()
+
+		s.Logger.Info("[OAuth] Manual authorization successful", "provider", providerID)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]any{"success": true, "message": "Authorization successful for provider: " + providerID})
+	}
+}
+
 // renderOAuthResult shows a simple HTML page for the OAuth callback result.
 func renderOAuthResult(w http.ResponseWriter, success bool, message string) {
 	icon := "❌"

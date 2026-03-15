@@ -92,6 +92,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		// OAuth2 Authorization Code flow endpoints
 		mux.HandleFunc("/api/oauth/start", handleOAuthStart(s))
 		mux.HandleFunc("/api/oauth/callback", handleOAuthCallback(s))
+		mux.HandleFunc("/api/oauth/manual", handleOAuthManual(s))
 		mux.HandleFunc("/api/oauth/status", handleOAuthStatus(s))
 		mux.HandleFunc("/api/oauth/revoke", handleOAuthRevoke(s))
 

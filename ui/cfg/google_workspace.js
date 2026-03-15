@@ -65,6 +65,14 @@ async function renderGoogleWorkspaceSection(section) {
             <button class="btn-save" id="gw-test-btn" onclick="gwTestConnection()" style="padding:0.45rem 1rem;font-size:0.82rem;">🧪 ${t('config.google_workspace.test_btn')}</button>
         </div>
         <div id="gw-oauth-status" style="margin-top:0.4rem;font-size:0.78rem;"></div>
+        <div id="gw-manual-section" style="display:none;margin-top:0.8rem;padding:0.8rem;background:var(--bg-secondary);border:1px solid var(--border-subtle);border-radius:6px;">
+            <div style="font-size:0.82rem;color:var(--warning);font-weight:500;margin-bottom:0.4rem;">⚠️ ${t('config.google_workspace.oauth_manual_title')}</div>
+            <div style="font-size:0.78rem;color:var(--text-secondary);line-height:1.5;margin-bottom:0.6rem;">${t('config.google_workspace.oauth_manual_hint')}</div>
+            <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+                <input class="field-input" type="text" id="gw-manual-url" placeholder="http://localhost:8088/api/oauth/callback?code=…&state=…" style="flex:1;min-width:0;font-size:0.78rem;">
+                <button class="btn-save" onclick="gwOAuthManual('google_workspace')" style="padding:0.45rem 0.8rem;font-size:0.78rem;white-space:nowrap;">${t('config.google_workspace.oauth_manual_btn')}</button>
+            </div>
+        </div>
     </div>`;
 
     html += `</div>`; // close OAuth setup section
@@ -161,6 +169,8 @@ async function gwOAuthConnect() {
             window.open(data.auth_url, '_blank', 'width=600,height=700');
             statusEl.style.color = 'var(--accent)';
             statusEl.textContent = t('config.google_workspace.oauth_waiting');
+            const manualSection = document.getElementById('gw-manual-section');
+            if (manualSection) manualSection.style.display = 'block';
             // Poll status every 3 seconds for up to 2 minutes
             let attempts = 0;
             const poll = setInterval(async () => {
@@ -189,6 +199,37 @@ async function gwOAuthConnect() {
         statusEl.textContent = '✗ ' + e.message;
     } finally {
         btn.disabled = false;
+    }
+}
+
+async function gwOAuthManual(provider) {
+    const urlInput = document.getElementById('gw-manual-url');
+    const statusEl = document.getElementById('gw-oauth-status');
+    const pastedURL = urlInput ? urlInput.value.trim() : '';
+    if (!pastedURL) {
+        statusEl.style.color = 'var(--danger)';
+        statusEl.textContent = '✗ ' + t('config.google_workspace.oauth_manual_failed') + 'URL fehlt.';
+        return;
+    }
+    try {
+        const resp = await fetch('/api/oauth/manual', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: pastedURL, provider: provider })
+        });
+        const data = await resp.json();
+        if (data.success) {
+            statusEl.style.color = 'var(--success)';
+            statusEl.textContent = '✓ ' + t('config.google_workspace.oauth_manual_success');
+            const manualSection = document.getElementById('gw-manual-section');
+            if (manualSection) manualSection.style.display = 'none';
+        } else {
+            statusEl.style.color = 'var(--danger)';
+            statusEl.textContent = '✗ ' + t('config.google_workspace.oauth_manual_failed') + (data.message || '');
+        }
+    } catch (e) {
+        statusEl.style.color = 'var(--danger)';
+        statusEl.textContent = '✗ ' + t('config.google_workspace.oauth_manual_failed') + e.message;
     }
 }
 
