@@ -81,12 +81,13 @@ type Config struct {
 	Providers     []ProviderEntry `yaml:"providers"`
 	EmailAccounts []EmailAccount  `yaml:"email_accounts"`
 	Server        struct {
-		Host          string `yaml:"host"`
-		Port          int    `yaml:"port"`
-		BridgeAddress string `yaml:"bridge_address"`
-		MaxBodyBytes  int64  `yaml:"max_body_bytes"`
-		UILanguage    string `yaml:"ui_language"`
-		MasterKey     string `yaml:"-"` // ENV-only (AURAGO_MASTER_KEY)
+		Host                 string `yaml:"host"`
+		Port                 int    `yaml:"port"`
+		BridgeAddress        string `yaml:"bridge_address"`
+		MaxBodyBytes         int64  `yaml:"max_body_bytes"`
+		UILanguage           string `yaml:"ui_language"`
+		OAuthRedirectBaseURL string `yaml:"oauth_redirect_base_url"` // override for OAuth callback (e.g. http://localhost:8088)
+		MasterKey            string `yaml:"-"` // ENV-only (AURAGO_MASTER_KEY)
 		HTTPS         struct {
 			Enabled     bool   `yaml:"enabled"`
 			Domain      string `yaml:"domain"`

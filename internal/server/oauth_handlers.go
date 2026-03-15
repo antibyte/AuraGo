@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -82,7 +83,10 @@ func handleOAuthStart(s *Server) http.HandlerFunc {
 		}
 
 		// Build redirect URI
-		redirectURI := buildRedirectURI(r, serverHost, serverPort)
+		s.CfgMu.RLock()
+		oauthBase := s.Cfg.Server.OAuthRedirectBaseURL
+		s.CfgMu.RUnlock()
+		redirectURI := buildRedirectURI(r, serverHost, serverPort, oauthBase)
 
 		// Build authorization URL
 		authURL, err := url.Parse(entry.OAuthAuthURL)
@@ -171,7 +175,10 @@ func handleOAuthCallback(s *Server) http.HandlerFunc {
 		}
 
 		// Exchange authorization code for tokens
-		redirectURI := buildRedirectURI(r, serverHost, serverPort)
+		s.CfgMu.RLock()
+		oauthBase := s.Cfg.Server.OAuthRedirectBaseURL
+		s.CfgMu.RUnlock()
+		redirectURI := buildRedirectURI(r, serverHost, serverPort, oauthBase)
 
 		tokenResp, err := exchangeCodeForToken(entry, code, redirectURI)
 		if err != nil {
@@ -383,8 +390,41 @@ func refreshOAuthToken(prov config.ProviderEntry, refreshToken string) (*tokenEx
 	return &tokenResp, nil
 }
 
+// isPrivateIP returns true if the given host is a private/LAN IP address.
+// Google OAuth rejects private IPs as redirect URIs; localhost must be used instead.
+func isPrivateIP(host string) bool {
+	// Strip port if present
+	h := host
+	if idx := strings.LastIndex(host, ":"); idx != -1 {
+		h = host[:idx]
+	}
+	ip := net.ParseIP(h)
+	if ip == nil {
+		return false
+	}
+	privateRanges := []string{
+		"10.0.0.0/8",
+		"172.16.0.0/12",
+		"192.168.0.0/16",
+		"169.254.0.0/16",
+	}
+	for _, cidr := range privateRanges {
+		_, network, err := net.ParseCIDR(cidr)
+		if err == nil && network.Contains(ip) {
+			return true
+		}
+	}
+	return false
+}
+
 // buildRedirectURI constructs the OAuth callback URL.
-func buildRedirectURI(r *http.Request, serverHost string, serverPort int) string {
+// oauthBase, if non-empty, overrides auto-detection (e.g. "http://localhost:8088").
+func buildRedirectURI(r *http.Request, serverHost string, serverPort int, oauthBase string) string {
+	// Explicit override via config beats everything
+	if oauthBase != "" {
+		return strings.TrimRight(oauthBase, "/") + "/api/oauth/callback"
+	}
+
 	scheme := "http"
 	if r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" {
 		scheme = "https"
@@ -395,6 +435,16 @@ func buildRedirectURI(r *http.Request, serverHost string, serverPort int) string
 			host = fmt.Sprintf("localhost:%d", serverPort)
 		} else {
 			host = fmt.Sprintf("%s:%d", serverHost, serverPort)
+		}
+	}
+	// Google (and other providers) reject private/LAN IP addresses as redirect URIs.
+	// Replace with localhost so the registered URI matches what Google allows.
+	if isPrivateIP(host) {
+		_, port, err := net.SplitHostPort(host)
+		if err == nil && port != "" {
+			host = "localhost:" + port
+		} else {
+			host = fmt.Sprintf("localhost:%d", serverPort)
 		}
 	}
 	return fmt.Sprintf("%s://%s/api/oauth/callback", scheme, host)

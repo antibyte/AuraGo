@@ -13,6 +13,11 @@
       "title": "Bridge Address",
       "description": "Internal TCP address for Lifeboat communication (hot-swapping updates). Default: localhost:8089"
     },
+    "oauth_redirect_base_url": {
+      "title": "OAuth Redirect Base URL",
+      "description": "Override the OAuth2 callback base URL. Leave empty for auto-detection. Required when Google/other providers reject your server's IP. Set to 'http://localhost:PORT' and register the same URL in your OAuth app settings (e.g. Google Cloud Console).",
+      "placeholder": "http://localhost:8088"
+    },
     "https": {
       "enabled": {
         "title": "Enable HTTPS",
