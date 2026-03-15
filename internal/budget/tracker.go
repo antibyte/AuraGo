@@ -94,6 +94,15 @@ func NewTracker(cfg *config.Config, logger *slog.Logger, dataDir string) *Tracke
 		t.persistLocked()
 	}
 
+	// Re-evaluate exceeded flag: if the limit was raised above current spend,
+	// clear the exceeded state so the new limit takes effect immediately.
+	if t.exceeded && cfg.Budget.DailyLimitUSD > 0 && t.totalCostUSD < cfg.Budget.DailyLimitUSD {
+		t.exceeded = false
+		t.persistLocked()
+		logger.Info("[Budget] Exceeded flag cleared (limit raised above current spend)",
+			"spent", t.totalCostUSD, "new_limit", cfg.Budget.DailyLimitUSD)
+	}
+
 	logger.Info("[Budget] Tracker initialized",
 		"daily_limit", cfg.Budget.DailyLimitUSD,
 		"enforcement", cfg.Budget.Enforcement,

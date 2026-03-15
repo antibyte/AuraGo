@@ -944,8 +944,13 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 			if budgetTracker.IsExceeded() {
 				bs := budgetTracker.GetStatus()
-				exMsg := fmt.Sprintf("\u26d4 Budget exceeded! $%.4f / $%.2f (enforcement: %s)", bs.SpentUSD, bs.DailyLimit, bs.Enforcement)
-				broker.Send("budget_blocked", exMsg)
+				if bs.IsBlocked {
+					exMsg := fmt.Sprintf("\u26d4 Budget exceeded! $%.4f / $%.2f (enforcement: %s)", bs.SpentUSD, bs.DailyLimit, bs.Enforcement)
+					broker.Send("budget_blocked", exMsg)
+				} else {
+					wMsg := fmt.Sprintf("\u26a0\ufe0f Budget exceeded: $%.4f / $%.2f (enforcement: %s)", bs.SpentUSD, bs.DailyLimit, bs.Enforcement)
+					broker.Send("budget_warning", wMsg)
+				}
 			}
 		}
 
