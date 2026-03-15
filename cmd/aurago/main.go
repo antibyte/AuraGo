@@ -289,12 +289,6 @@ func main() {
 	// Migrate core_memory.md → SQLite (no-op if already done); returns true on first start
 	isFirstStart := shortTermMem.MigrateCoreMemoryFromMarkdown(cfg.Directories.DataDir, appLog)
 
-	longTermMem, err := memory.NewChromemVectorDB(cfg, appLog)
-	if err != nil {
-		appLog.Error("Failed to initialize Long-Term memory (VectorDB)", "error", err)
-		os.Exit(1)
-	}
-
 	inventoryDB, err := inventory.InitDB(cfg.SQLite.InventoryPath)
 	if err != nil {
 		appLog.Error("Failed to initialize Inventory DB", "error", err)
@@ -369,22 +363,6 @@ func main() {
 		appLog.Info("Homepage Registry DB initialized", "path", cfg.SQLite.HomepageRegistryPath)
 	}
 
-	// Tool guide indexing (at startup for performance)
-	toolGuidesDir := filepath.Join(cfg.Directories.PromptsDir, "tools_manuals")
-	if err := longTermMem.IndexToolGuides(toolGuidesDir, false); err != nil {
-		appLog.Warn("Tool guide indexing failed", "error", err)
-	}
-
-	// Documentation indexing (RAG)
-	docDir := filepath.Join(filepath.Dir(cfg.ConfigPath), "documentation")
-	if _, err := os.Stat(docDir); err == nil {
-		if err := longTermMem.IndexDirectory(docDir, "documentation", shortTermMem, false); err != nil {
-			appLog.Warn("Documentation indexing failed", "error", err)
-		}
-	} else {
-		appLog.Debug("Documentation directory not found, skipping indexing", "path", docDir)
-	}
-
 	masterKey := os.Getenv("AURAGO_MASTER_KEY")
 	if masterKey == "" || len(masterKey) != 64 {
 		appLog.Error("CRITICAL: AURAGO_MASTER_KEY environment variable is missing or not exactly 64 hex characters (32 bytes). Refusing to start.")
@@ -407,6 +385,30 @@ func main() {
 
 	// Apply OAuth2 access tokens from vault into provider API keys
 	cfg.ApplyOAuthTokens(vault)
+
+	// Initialize Long-Term memory (VectorDB) after vault secrets are applied
+	// so that the embedding provider API key is available.
+	longTermMem, err := memory.NewChromemVectorDB(cfg, appLog)
+	if err != nil {
+		appLog.Error("Failed to initialize Long-Term memory (VectorDB)", "error", err)
+		os.Exit(1)
+	}
+
+	// Tool guide indexing (at startup for performance)
+	toolGuidesDir := filepath.Join(cfg.Directories.PromptsDir, "tools_manuals")
+	if err := longTermMem.IndexToolGuides(toolGuidesDir, false); err != nil {
+		appLog.Warn("Tool guide indexing failed", "error", err)
+	}
+
+	// Documentation indexing (RAG)
+	docDir := filepath.Join(filepath.Dir(cfg.ConfigPath), "documentation")
+	if _, err := os.Stat(docDir); err == nil {
+		if err := longTermMem.IndexDirectory(docDir, "documentation", shortTermMem, false); err != nil {
+			appLog.Warn("Documentation indexing failed", "error", err)
+		}
+	} else {
+		appLog.Debug("Documentation directory not found, skipping indexing", "path", docDir)
+	}
 
 	// Detect runtime environment capabilities (Docker, socket, broadcast, firewall)
 	cfg.Runtime = config.DetectRuntime(appLog)
