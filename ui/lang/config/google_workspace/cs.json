@@ -43,5 +43,10 @@
   "config.google_workspace.oauth_disconnected": "Odpojeno",
   "config.google_workspace.oauth_not_connected": "Nepřipojeno — klikněte na Připojit pro autorizaci",
   "config.google_workspace.token_expired": "token vypršel",
-  "config.google_workspace.has_refresh": "refresh token k dispozici"
+  "config.google_workspace.has_refresh": "refresh token k dispozici",
+  "config.google_workspace.oauth_manual_title": "Přesměrování prohlížeče selhalo? Vložte URL sem",
+  "config.google_workspace.oauth_manual_hint": "Pokud váš prohlížeč zobrazuje ERR_CONNECTION_REFUSED, zkopírujte celou adresu z adresního řádku a vložte ji níže pro dokončení autorizace.",
+  "config.google_workspace.oauth_manual_btn": "Dokončit autorizaci",
+  "config.google_workspace.oauth_manual_success": "Autorizace úspěšná",
+  "config.google_workspace.oauth_manual_failed": "Autorizace selhala: "
 }

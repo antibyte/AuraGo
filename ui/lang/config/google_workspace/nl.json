@@ -43,5 +43,10 @@
   "config.google_workspace.oauth_disconnected": "Verbroken",
   "config.google_workspace.oauth_not_connected": "Niet verbonden — klik op Verbinden om te autoriseren",
   "config.google_workspace.token_expired": "token verlopen",
-  "config.google_workspace.has_refresh": "refresh token beschikbaar"
+  "config.google_workspace.has_refresh": "refresh token beschikbaar",
+  "config.google_workspace.oauth_manual_title": "Browseromleiding mislukt? Plak de URL hier",
+  "config.google_workspace.oauth_manual_hint": "Als je browser ERR_CONNECTION_REFUSED toont, kopieer dan de volledige URL uit de adresbalk en plak deze hieronder om de autorisatie te voltooien.",
+  "config.google_workspace.oauth_manual_btn": "Autorisatie voltooien",
+  "config.google_workspace.oauth_manual_success": "Autorisatie geslaagd",
+  "config.google_workspace.oauth_manual_failed": "Autorisatie mislukt: "
 }

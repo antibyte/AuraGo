@@ -43,5 +43,10 @@
   "config.google_workspace.oauth_disconnected": "Afbrudt",
   "config.google_workspace.oauth_not_connected": "Ikke forbundet — klik Tilslut for at godkende",
   "config.google_workspace.token_expired": "token udløbet",
-  "config.google_workspace.has_refresh": "refresh token tilgængeligt"
+  "config.google_workspace.has_refresh": "refresh token tilgængeligt",
+  "config.google_workspace.oauth_manual_title": "Browseromdirigeringen mislykkedes? Indsæt URL her",
+  "config.google_workspace.oauth_manual_hint": "Hvis din browser viser ERR_CONNECTION_REFUSED, kopiér den fulde adresselinke-URL og indsæt den nedenfor for at fuldføre godkendelsen.",
+  "config.google_workspace.oauth_manual_btn": "Fuldfør godkendelse",
+  "config.google_workspace.oauth_manual_success": "Godkendelse lykkedes",
+  "config.google_workspace.oauth_manual_failed": "Godkendelse mislykkedes: "
 }

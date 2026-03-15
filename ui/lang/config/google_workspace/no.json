@@ -43,5 +43,10 @@
   "config.google_workspace.oauth_disconnected": "Frakoblet",
   "config.google_workspace.oauth_not_connected": "Ikke tilkoblet — klikk Koble til for å godkjenne",
   "config.google_workspace.token_expired": "token utløpt",
-  "config.google_workspace.has_refresh": "refresh token tilgjengelig"
+  "config.google_workspace.has_refresh": "refresh token tilgjengelig",
+  "config.google_workspace.oauth_manual_title": "Nettleseromdirigering mislyktes? Lim inn URL her",
+  "config.google_workspace.oauth_manual_hint": "Hvis nettleseren din viser ERR_CONNECTION_REFUSED, kopier hele URL-en fra adressefeltet og lim den inn nedenfor for å fullføre godkjenningen.",
+  "config.google_workspace.oauth_manual_btn": "Fullfør godkjenning",
+  "config.google_workspace.oauth_manual_success": "Godkjenning vellykket",
+  "config.google_workspace.oauth_manual_failed": "Godkjenning mislyktes: "
 }

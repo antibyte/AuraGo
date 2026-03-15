@@ -43,5 +43,10 @@
   "config.google_workspace.oauth_disconnected": "已断开连接",
   "config.google_workspace.oauth_not_connected": "未连接 — 点击连接以进行授权",
   "config.google_workspace.token_expired": "令牌已过期",
-  "config.google_workspace.has_refresh": "刷新令牌可用"
+  "config.google_workspace.has_refresh": "刷新令牌可用",
+  "config.google_workspace.oauth_manual_title": "浏览器重定向失败？在此粘贴URL",
+  "config.google_workspace.oauth_manual_hint": "如果您的浏览器显示 ERR_CONNECTION_REFUSED，请从地址栏复制完整的URL并粘贴到下方以完成授权。",
+  "config.google_workspace.oauth_manual_btn": "完成授权",
+  "config.google_workspace.oauth_manual_success": "授权成功",
+  "config.google_workspace.oauth_manual_failed": "授权失败："
 }

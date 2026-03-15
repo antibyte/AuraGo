@@ -43,5 +43,10 @@
   "config.google_workspace.oauth_disconnected": "Desconectado",
   "config.google_workspace.oauth_not_connected": "No conectado — haz clic en Conectar para autorizar",
   "config.google_workspace.token_expired": "token caducado",
-  "config.google_workspace.has_refresh": "refresh token disponible"
+  "config.google_workspace.has_refresh": "refresh token disponible",
+  "config.google_workspace.oauth_manual_title": "¿Falló la redirección del navegador? Pega la URL aquí",
+  "config.google_workspace.oauth_manual_hint": "Si tu navegador muestra ERR_CONNECTION_REFUSED, copia la URL completa de la barra de direcciones y pégala abajo para completar la autorización.",
+  "config.google_workspace.oauth_manual_btn": "Completar autorización",
+  "config.google_workspace.oauth_manual_success": "Autorización exitosa",
+  "config.google_workspace.oauth_manual_failed": "Autorización fallida: "
 }

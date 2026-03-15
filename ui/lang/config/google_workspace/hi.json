@@ -43,5 +43,10 @@
   "config.google_workspace.oauth_disconnected": "डिस्कनेक्टेड",
   "config.google_workspace.oauth_not_connected": "कनेक्ट नहीं — प्राधिकरण के लिए कनेक्ट करें पर क्लिक करें",
   "config.google_workspace.token_expired": "token समाप्त",
-  "config.google_workspace.has_refresh": "refresh token उपलब्ध"
+  "config.google_workspace.has_refresh": "refresh token उपलब्ध",
+  "config.google_workspace.oauth_manual_title": "ब्राउज़र रीडायरेक्ट विफल? URL यहाँ पेस्ट करें",
+  "config.google_workspace.oauth_manual_hint": "यदि आपका ब्राउज़र ERR_CONNECTION_REFUSED दिखाता है, तो एड्रेस बार से पूरा URL कॉपी करें और प्राधिकरण पूरा करने के लिए नीचे पेस्ट करें।",
+  "config.google_workspace.oauth_manual_btn": "प्राधिकरण पूरा करें",
+  "config.google_workspace.oauth_manual_success": "प्राधिकरण सफल",
+  "config.google_workspace.oauth_manual_failed": "प्राधिकरण विफल: "
 }
