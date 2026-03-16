@@ -492,7 +492,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			ragQuery := expandQueryForRAG(ctx, cfg, currentLogger, lastUserMsg)
 
 			// Over-fetch 6 candidates, then re-rank to keep best 3
-			memories, docIDs, err := longTermMem.SearchSimilar(ragQuery, 6)
+			memories, docIDs, err := longTermMem.SearchSimilar(ragQuery, 6, "tool_guides")
 			if err == nil && len(memories) > 0 {
 				ranked := rerankWithRecency(memories, docIDs, shortTermMem, currentLogger)
 

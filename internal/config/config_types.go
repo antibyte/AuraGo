@@ -288,6 +288,7 @@ type Config struct {
 		MaxChecksPerMin    int               `yaml:"max_checks_per_minute"` // rate limit (default 60)
 		ToolOverrides      map[string]string `yaml:"tool_overrides"`        // per-tool level overrides (e.g. execute_shell: high)
 		AllowClarification bool              `yaml:"allow_clarification"`   // agent can justify blocked actions (1 retry)
+		TimeoutSecs        int               `yaml:"timeout_secs"`          // timeout per guardian check in seconds (default 30)
 		ScanDocuments      bool              `yaml:"scan_documents"`        // LLM-scan documents & webhooks for threats
 		ScanEmails         bool              `yaml:"scan_emails"`           // LLM-scan emails for phishing/injection
 		ProviderType       string            `yaml:"-" json:"-"`            // resolved

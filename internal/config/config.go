@@ -74,6 +74,7 @@ func Load(path string) (*Config, error) {
 	cfg.LLMGuardian.CacheTTL = 300
 	cfg.LLMGuardian.MaxChecksPerMin = 60
 	cfg.LLMGuardian.AllowClarification = false
+	cfg.LLMGuardian.TimeoutSecs = 30
 	cfg.LLMGuardian.ScanDocuments = false
 	cfg.LLMGuardian.ScanEmails = false
 

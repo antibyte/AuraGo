@@ -35,6 +35,30 @@ Unlike cloud AI services, AuraGo runs **on your hardware**, has **direct access 
 
 ---
 
+## 🔥 Teste unbedingt diese Features
+
+### Personality Engine V2 + User Profiling
+**Ein Agent, der dich wirklich kennt.** AuraGo lernt deine Vorlieben, deinen Tech-Stack und deinen Kommunikationsstil kennen – und passt sich vollständig an dich an. Durch kontinuierliches User Profiling entsteht im Laufe der Zeit ein individuelles Benutzerprofil, das die Art und Weise beeinflusst, wie der Agent mit dir interagiert:
+
+- **Automatische Präferenz-Erkennung** – Merkt sich, welche Tools du bevorzugst, welche Antwortlängen du magst, ob du Code-Beispiele willst
+- **Tech-Stack Tracking** – Lernt, welche Technologien du nutzt (Docker, Kubernetes, Proxmox, Home Assistant…) und gibt kontextbezogene Antworten
+- **Kommunikationsstil-Anpassung** – Ob professionell, locker, detailliert oder kurz & knackig: Der Agent passt sich deinem Stil an
+- **Emotionale Affinität** – Affinity-Tracking sorgt für eine "Beziehung", die sich über Zeit aufbaut
+
+> 💡 **Tipp:** Aktiviere Personality Engine V2 in den Einstellungen und chatte eine Weile mit dem Agent. Du wirst merken, wie die Antworten immer persönlicher werden.
+
+### LLM Guardian – Dein AI-Sicherheits-Babysitter
+**Sicherheit wird großgeschrieben.** Der LLM Guardian überwacht alles, was dein Agent tut, und schützt vor potenziell gefährlichen oder unerwünschten Aktionen:
+
+- **Tool-Call-Scanning** – Jeder Tool-Aufruf wird vor der Ausführung auf Risiken geprüft (z. B. gefährliche Shell-Befehle, Datenlöschungen, sensible Bereiche)
+- **Dokumenten- & E-Mail-Analyse** – Erkennt bösartige Inhalte, Phishing-Versuche oder verdächtige Anhänge vor der Weiterverarbeitung
+- **Prompt-Injection-Protection** – Isoliert externe Daten mit `<external_data>`-Wrappers, um Prompt-Injection-Angriffe zu verhindern
+- **Granulare Kontrolle** – Vollständig konfigurierbar: Schutzstufe, Ausnahmen, Logging
+
+> 🛡️ **Sicherheit by Design:** Der Guardian ist dein ständiger Begleiter, der darauf achtet, dass der Agent niemals über die Stränge schlägt – besonders wichtig bei Shell-Zugriff, Datei-Operationen oder Remote-Execution.
+
+---
+
 ## Key Features
 
 ### Agent Core

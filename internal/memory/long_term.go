@@ -27,7 +27,7 @@ type ArchiveItem struct {
 type VectorDB interface {
 	StoreDocument(concept, content string) ([]string, error)
 	StoreBatch(items []ArchiveItem) ([]string, error)
-	SearchSimilar(query string, topK int) ([]string, []string, error)
+	SearchSimilar(query string, topK int, excludeCollections ...string) ([]string, []string, error)
 	// SearchMemoriesOnly searches only the aurago_memories collection.
 	// Use this for lightweight lookups (e.g. predictive pre-fetch) that
 	// should not pay the cost of scanning tool_guides and documentation.
@@ -394,7 +394,7 @@ func (cv *ChromemVectorDB) StoreBatch(items []ArchiveItem) ([]string, error) {
 // SearchSimilar finds the topK most semantically similar documents across all relevant collections.
 // Results from all collections are merged, sorted by similarity, and trimmed to topK globally.
 // Uses a query embedding cache to avoid redundant embedding API calls.
-func (cv *ChromemVectorDB) SearchSimilar(query string, topK int) ([]string, []string, error) {
+func (cv *ChromemVectorDB) SearchSimilar(query string, topK int, excludeCollections ...string) ([]string, []string, error) {
 	if cv.disabled.Load() {
 		return nil, nil, nil // Graceful degradation: return empty results
 	}
@@ -408,7 +408,21 @@ func (cv *ChromemVectorDB) SearchSimilar(query string, topK int) ([]string, []st
 		return nil, nil, fmt.Errorf("failed to compute query embedding: %w", err)
 	}
 
-	collections := []string{"aurago_memories", "tool_guides", "documentation"}
+	allCollections := []string{"aurago_memories", "tool_guides", "documentation"}
+	var collections []string
+	if len(excludeCollections) > 0 {
+		excludeSet := make(map[string]bool, len(excludeCollections))
+		for _, e := range excludeCollections {
+			excludeSet[e] = true
+		}
+		for _, c := range allCollections {
+			if !excludeSet[c] {
+				collections = append(collections, c)
+			}
+		}
+	} else {
+		collections = allCollections
+	}
 
 	type rankedResult struct {
 		text       string

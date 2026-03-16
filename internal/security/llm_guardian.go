@@ -155,7 +155,11 @@ func (g *LLMGuardian) Evaluate(ctx context.Context, check GuardianCheck) Guardia
 
 // EvaluateWithFailSafe wraps Evaluate with timeout and error recovery.
 func (g *LLMGuardian) EvaluateWithFailSafe(ctx context.Context, check GuardianCheck) GuardianResult {
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	timeout := time.Duration(g.cfg.LLMGuardian.TimeoutSecs) * time.Second
+	if timeout <= 0 {
+		timeout = 30 * time.Second
+	}
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	return g.Evaluate(ctx, check)
 }
