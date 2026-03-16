@@ -108,11 +108,6 @@ function dcSwitchBackend(val) {
 }
 
 async function dcTestGotenberg() {
-    var urlInput = document.querySelector('[data-path="tools.document_creator.gotenberg.url"]');
-    if (!urlInput || !urlInput.value.trim()) {
-        showToast(t('config.document_creator.url_required'), 'error');
-        return;
-    }
     var btn = document.getElementById('dc-test-btn');
     var result = document.getElementById('dc-test-result');
     btn.disabled = true;
@@ -120,20 +115,14 @@ async function dcTestGotenberg() {
     result.style.color = 'var(--text-secondary)';
 
     try {
-        var gotUrl = urlInput.value.trim().replace(/\/+$/, '') + '/health';
-        var resp = await fetch('/api/proxy-get?url=' + encodeURIComponent(gotUrl), { method: 'GET' });
-        if (resp.ok) {
-            var body = await resp.json();
-            if (body && body.status === 'up') {
-                result.style.color = 'var(--success, #34c759)';
-                result.textContent = '✅ ' + t('config.document_creator.test_ok');
-            } else {
-                result.style.color = 'var(--danger, #ff3b30)';
-                result.textContent = '⚠️ ' + t('config.document_creator.test_degraded');
-            }
+        var resp = await fetch('/api/document-creator/test', { method: 'POST' });
+        var body = await resp.json();
+        if (resp.ok && body.status === 'up') {
+            result.style.color = 'var(--success, #34c759)';
+            result.textContent = '✅ ' + t('config.document_creator.test_ok');
         } else {
             result.style.color = 'var(--danger, #ff3b30)';
-            result.textContent = '❌ HTTP ' + resp.status;
+            result.textContent = '❌ ' + (body.message || ('HTTP ' + resp.status));
         }
     } catch (e) {
         result.style.color = 'var(--danger, #ff3b30)';

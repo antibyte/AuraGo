@@ -477,6 +477,11 @@ func Start(cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, sh
 		}()
 	}
 
+	// Auto-start Gotenberg container if document_creator is enabled with gotenberg backend
+	if cfg.Tools.DocumentCreator.Enabled && strings.EqualFold(cfg.Tools.DocumentCreator.Backend, "gotenberg") {
+		go tools.EnsureGotenbergRunning(cfg.Docker.Host, logger)
+	}
+
 	return s.run(shutdownCh)
 }
 

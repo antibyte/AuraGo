@@ -167,6 +167,9 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		mux.HandleFunc("/api/adguard/status", handleAdGuardStatus(s))
 		mux.HandleFunc("/api/adguard/test", handleAdGuardTest(s))
 
+		// Document Creator endpoints
+		mux.HandleFunc("/api/document-creator/test", handleGotenbergTest(s))
+
 		// Device Registry (inventory CRUD)
 		mux.HandleFunc("/api/devices", func(w http.ResponseWriter, r *http.Request) {
 			switch r.Method {

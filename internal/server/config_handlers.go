@@ -7,6 +7,7 @@ import (
 	"aurago/internal/llm"
 	"aurago/internal/security"
 	"aurago/internal/services"
+	"aurago/internal/tools"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -306,6 +307,13 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 					s.FileIndexer.Stop()
 					s.FileIndexer = nil
 					s.Logger.Info("[Config UI] File indexer stopped")
+				}
+			}
+
+			// Auto-start Gotenberg container if document_creator just became active
+			if newCfg.Tools.DocumentCreator.Enabled && strings.EqualFold(newCfg.Tools.DocumentCreator.Backend, "gotenberg") {
+				if !oldCfg.Tools.DocumentCreator.Enabled || !strings.EqualFold(oldCfg.Tools.DocumentCreator.Backend, "gotenberg") {
+					go tools.EnsureGotenbergRunning(newCfg.Docker.Host, s.Logger)
 				}
 			}
 

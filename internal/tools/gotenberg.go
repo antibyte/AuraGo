@@ -3,6 +3,7 @@ package tools
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -113,6 +114,78 @@ func saveGotenbergOutput(data []byte, outputDir, filename, ext string) (filePath
 }
 
 // ── Gotenberg operations ─────────────────────────────────────────────────────
+
+const gotenbergContainerName = "aurago_gotenberg"
+const gotenbergImage = "gotenberg/gotenberg:8"
+
+// EnsureGotenbergRunning ensures the Gotenberg container is running.
+// It checks the container state via the Docker API and, if missing or stopped,
+// creates/starts it. Safe to call multiple times.
+func EnsureGotenbergRunning(dockerHost string, logger interface{ Info(string, ...any); Warn(string, ...any); Error(string, ...any) }) {
+	dockerCfg := DockerConfig{Host: dockerHost}
+
+	// Inspect existing container
+	data, code, err := dockerRequest(dockerCfg, "GET", "/containers/"+gotenbergContainerName+"/json", "")
+	if err != nil {
+		logger.Warn("[Gotenberg] Docker unavailable, skipping auto-start", "error", err)
+		return
+	}
+
+	if code == 200 {
+		// Container exists — check if it's running
+		var info map[string]interface{}
+		if json.Unmarshal(data, &info) == nil {
+			if state, ok := info["State"].(map[string]interface{}); ok {
+				if running, _ := state["Running"].(bool); running {
+					logger.Info("[Gotenberg] Container already running")
+					return
+				}
+			}
+		}
+		// Exists but stopped — just start it
+		_, startCode, startErr := dockerRequest(dockerCfg, "POST", "/containers/"+gotenbergContainerName+"/start", "")
+		if startErr != nil || (startCode != 204 && startCode != 304) {
+			logger.Error("[Gotenberg] Failed to start existing container", "code", startCode, "error", startErr)
+			return
+		}
+		logger.Info("[Gotenberg] Container started")
+		return
+	}
+
+	if code != 404 {
+		logger.Warn("[Gotenberg] Unexpected Docker inspect response, skipping auto-start", "code", code)
+		return
+	}
+
+	// Container does not exist — create and start it
+	payload := map[string]interface{}{
+		"Image": gotenbergImage,
+		"HostConfig": map[string]interface{}{
+			"RestartPolicy": map[string]interface{}{"Name": "unless-stopped"},
+			"CapAdd":        []string{"SYS_ADMIN"},
+			"ShmSize":       268435456, // 256 MiB
+			"PortBindings": map[string]interface{}{
+				"3000/tcp": []map[string]string{{"HostIp": "127.0.0.1", "HostPort": "3000"}},
+			},
+		},
+		"ExposedPorts": map[string]interface{}{
+			"3000/tcp": struct{}{},
+		},
+	}
+	body, _ := json.Marshal(payload)
+	_, createCode, createErr := dockerRequest(dockerCfg, "POST", "/containers/create?name="+gotenbergContainerName, string(body))
+	if createErr != nil || createCode != 201 {
+		logger.Error("[Gotenberg] Failed to create container", "code", createCode, "error", createErr)
+		return
+	}
+
+	_, startCode, startErr := dockerRequest(dockerCfg, "POST", "/containers/"+gotenbergContainerName+"/start", "")
+	if startErr != nil || (startCode != 204 && startCode != 304) {
+		logger.Error("[Gotenberg] Failed to start new container", "code", startCode, "error", startErr)
+		return
+	}
+	logger.Info("[Gotenberg] Container created and started", "image", gotenbergImage)
+}
 
 // GotenbergHealth checks if the Gotenberg sidecar is reachable.
 func GotenbergHealth(ctx context.Context, cfg *config.GotenbergConfig) string {
