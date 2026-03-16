@@ -381,6 +381,22 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			if ptc.Action == "manage_memory" || ptc.Action == "core_memory" {
 				coreMemDirty = true
 			}
+			// Track recent tools for journal auto-trigger (keep last 5, dedup)
+			{
+				found := false
+				for _, rt := range recentTools {
+					if rt == ptc.Action {
+						found = true
+						break
+					}
+				}
+				if !found {
+					recentTools = append(recentTools, ptc.Action)
+					if len(recentTools) > 5 {
+						recentTools = recentTools[len(recentTools)-5:]
+					}
+				}
+			}
 			id, idErr = shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, pResultContent, false, true)
 			if idErr != nil {
 				currentLogger.Error("Failed to persist queued tool-result message", "error", idErr)
@@ -1447,6 +1463,22 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 					if btc.Action == "manage_memory" || btc.Action == "core_memory" {
 						coreMemDirty = true
+					}
+					// Track recent tools for journal auto-trigger (keep last 5, dedup)
+					{
+						found := false
+						for _, rt := range recentTools {
+							if rt == btc.Action {
+								found = true
+								break
+							}
+						}
+						if !found {
+							recentTools = append(recentTools, btc.Action)
+							if len(recentTools) > 5 {
+								recentTools = recentTools[len(recentTools)-5:]
+							}
+						}
 					}
 
 					// Persist batched call to history
