@@ -33,9 +33,12 @@ type BudgetStatus struct {
 
 // ModelUsage tracks per-model token usage and cost.
 type ModelUsage struct {
-	InputTokens  int     `json:"input_tokens"`
-	OutputTokens int     `json:"output_tokens"`
-	CostUSD      float64 `json:"cost_usd"`
+	InputTokens     int     `json:"input_tokens"`
+	OutputTokens    int     `json:"output_tokens"`
+	CostUSD         float64 `json:"cost_usd"`
+	Calls           int     `json:"calls"`
+	AvgInputTokens  int     `json:"avg_input_tokens"`
+	AvgOutputTokens int     `json:"avg_output_tokens"`
 }
 
 // persistedState is the JSON structure saved to disk.
@@ -44,6 +47,7 @@ type persistedState struct {
 	TotalCostUSD float64        `json:"total_cost_usd"`
 	InputTokens  map[string]int `json:"input_tokens"`
 	OutputTokens map[string]int `json:"output_tokens"`
+	CallCounts   map[string]int `json:"call_counts"`
 	WarningsSent int            `json:"warnings_sent"`
 	Exceeded     bool           `json:"exceeded"`
 }
@@ -60,6 +64,7 @@ type Tracker struct {
 	totalCostUSD float64
 	inputTokens  map[string]int
 	outputTokens map[string]int
+	callCounts   map[string]int
 	warningsSent int
 	exceeded     bool
 
@@ -77,6 +82,7 @@ func NewTracker(cfg *config.Config, logger *slog.Logger, dataDir string) *Tracke
 		logger:       logger,
 		inputTokens:  make(map[string]int),
 		outputTokens: make(map[string]int),
+		callCounts:   make(map[string]int),
 		persistPath:  filepath.Join(dataDir, "budget.json"),
 	}
 
@@ -89,6 +95,7 @@ func NewTracker(cfg *config.Config, logger *slog.Logger, dataDir string) *Tracke
 		t.totalCostUSD = 0
 		t.inputTokens = make(map[string]int)
 		t.outputTokens = make(map[string]int)
+		t.callCounts = make(map[string]int)
 		t.warningsSent = 0
 		t.exceeded = false
 		t.persistLocked()
@@ -130,12 +137,14 @@ func (t *Tracker) Record(model string, inputTokens, outputTokens int) bool {
 		t.totalCostUSD = 0
 		t.inputTokens = make(map[string]int)
 		t.outputTokens = make(map[string]int)
+		t.callCounts = make(map[string]int)
 		t.warningsSent = 0
 		t.exceeded = false
 	}
 
 	t.inputTokens[model] += inputTokens
 	t.outputTokens[model] += outputTokens
+	t.callCounts[model]++
 
 	cost := t.calcCostLocked(model, inputTokens, outputTokens)
 	t.totalCostUSD += cost
@@ -182,6 +191,7 @@ func (t *Tracker) RecordCost(costUSD float64) {
 		t.totalCostUSD = 0
 		t.inputTokens = make(map[string]int)
 		t.outputTokens = make(map[string]int)
+		t.callCounts = make(map[string]int)
 		t.warningsSent = 0
 		t.exceeded = false
 	}
@@ -299,10 +309,19 @@ func (t *Tracker) GetStatus() BudgetStatus {
 	for m := range allModels {
 		in := t.inputTokens[m]
 		out := t.outputTokens[m]
+		calls := t.callCounts[m]
+		avgIn, avgOut := 0, 0
+		if calls > 0 {
+			avgIn = in / calls
+			avgOut = out / calls
+		}
 		models[m] = ModelUsage{
-			InputTokens:  in,
-			OutputTokens: out,
-			CostUSD:      t.calcCostLocked(m, in, out),
+			InputTokens:     in,
+			OutputTokens:    out,
+			CostUSD:         t.calcCostLocked(m, in, out),
+			Calls:           calls,
+			AvgInputTokens:  avgIn,
+			AvgOutputTokens: avgOut,
 		}
 	}
 
@@ -481,6 +500,7 @@ func (t *Tracker) persistLocked() {
 		TotalCostUSD: t.totalCostUSD,
 		InputTokens:  t.inputTokens,
 		OutputTokens: t.outputTokens,
+		CallCounts:   t.callCounts,
 		WarningsSent: t.warningsSent,
 		Exceeded:     t.exceeded,
 	}
@@ -526,5 +546,10 @@ func (t *Tracker) load() {
 	}
 	if state.OutputTokens != nil {
 		t.outputTokens = state.OutputTokens
+	}
+	if state.CallCounts != nil {
+		t.callCounts = state.CallCounts
+	} else {
+		t.callCounts = make(map[string]int)
 	}
 }

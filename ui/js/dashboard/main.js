@@ -163,6 +163,78 @@
             });
         }
 
+        function createLLMAvgChart(canvasId, models) {
+            const ctx = document.getElementById(canvasId);
+            if (!ctx) return null;
+            const labels = Object.keys(models || {}).filter(m => (models[m].calls || 0) > 0);
+            if (labels.length === 0) return null;
+            const avgIn  = labels.map(m => models[m].avg_input_tokens  || 0);
+            const avgOut = labels.map(m => models[m].avg_output_tokens || 0);
+            return new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: t('dashboard.budget_llm_avg_input'),  data: avgIn,  backgroundColor: cv('--accent') + 'bb', borderRadius: 4 },
+                        { label: t('dashboard.budget_llm_avg_output'), data: avgOut, backgroundColor: cv('--success') + 'bb', borderRadius: 4 },
+                    ]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: true, position: 'top', labels: { boxWidth: 12, padding: 6, color: cv('--text-primary') } } },
+                    scales: {
+                        x: { grid: { color: cv('--border-subtle') }, ticks: { color: cv('--text-secondary') }, title: { display: true, text: t('dashboard.budget_llm_avg_xlabel'), color: cv('--text-secondary'), font: { size: 10 } } },
+                        y: { grid: { display: false }, ticks: { color: cv('--text-primary'), font: { size: 10 } } },
+                    }
+                }
+            });
+        }
+
+        function createPromptSectionDistChart(canvasId, avgSections) {
+            const ctx = document.getElementById(canvasId);
+            if (!ctx || !avgSections) return null;
+            const sectionNameMap = {
+                modules:     t('dashboard.prompt_section_modules'),
+                memories:    t('dashboard.prompt_section_memories'),
+                guides:      t('dashboard.prompt_section_guides'),
+                personality: t('dashboard.prompt_section_personality'),
+                context:     t('dashboard.prompt_section_context'),
+            };
+            const order = ['modules', 'memories', 'guides', 'personality', 'context'];
+            const labels = order.filter(k => (avgSections[k] || 0) > 0).map(k => sectionNameMap[k] || k);
+            const values = order.filter(k => (avgSections[k] || 0) > 0).map(k => avgSections[k]);
+            const colors = [cv('--accent'), '#8b5cf6', '#f59e0b', '#ec4899', cv('--text-secondary')];
+            if (labels.length === 0) return null;
+            return new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: values,
+                        backgroundColor: colors.slice(0, labels.length),
+                        borderWidth: 0,
+                        cutout: '60%',
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: (item) => {
+                                    const total = values.reduce((a, b) => a + b, 0);
+                                    const pct = total > 0 ? ((item.parsed / total) * 100).toFixed(1) : 0;
+                                    return ` ${item.label}: ${item.parsed.toLocaleString()} (${pct}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
         function createRadarChart(canvasId, traits) {
             const ctx = document.getElementById(canvasId);
             if (!ctx) return null;
@@ -400,6 +472,18 @@
             } else {
                 creditsRow.style.display = 'none';
             }
+
+            // Per-LLM average token consumption chart
+            const llmAvgWrap = document.getElementById('budget-llm-avg-wrap');
+            const models = data.models || {};
+            const hasCallData = Object.values(models).some(m => (m.calls || 0) > 0);
+            if (hasCallData && llmAvgWrap) {
+                llmAvgWrap.style.display = '';
+                if (Charts.llmAvg) { Charts.llmAvg.destroy(); Charts.llmAvg = null; }
+                Charts.llmAvg = createLLMAvgChart('budget-llm-avg-chart', models);
+            } else if (llmAvgWrap) {
+                llmAvgWrap.style.display = 'none';
+            }
         }
 
         function renderMoodBadge(data) {
@@ -634,6 +718,32 @@
                 shedEl.innerHTML = shedKeys.map(k =>
                     `<div class="shed-item"><span>${esc(k)}</span><span class="shed-count">${shedCounts[k]}×</span></div>`
                 ).join('');
+            }
+
+            // Prompt section distribution chart + legend
+            const avgSections = data.avg_section_sizes || {};
+            const sectionOrder = ['modules', 'memories', 'guides', 'personality', 'context'];
+            const sectionNameMap = {
+                modules:     t('dashboard.prompt_section_modules'),
+                memories:    t('dashboard.prompt_section_memories'),
+                guides:      t('dashboard.prompt_section_guides'),
+                personality: t('dashboard.prompt_section_personality'),
+                context:     t('dashboard.prompt_section_context'),
+            };
+            const sectionColors = ['var(--accent)', '#8b5cf6', '#f59e0b', '#ec4899', 'var(--text-secondary)'];
+            const legendEl = document.getElementById('prompt-section-legend');
+            if (legendEl && Object.keys(avgSections).length > 0) {
+                const total = sectionOrder.reduce((s, k) => s + (avgSections[k] || 0), 0);
+                legendEl.innerHTML = sectionOrder
+                    .filter(k => (avgSections[k] || 0) > 0)
+                    .map((k, i) => {
+                        const pct = total > 0 ? ((avgSections[k] / total) * 100).toFixed(1) : 0;
+                        return `<div class="prompt-section-legend-item">
+                            <span class="prompt-section-legend-dot" style="background:${sectionColors[sectionOrder.indexOf(k)]};"></span>
+                            <span class="prompt-section-legend-label">${esc(sectionNameMap[k] || k)}</span>
+                            <span class="prompt-section-legend-val">${(avgSections[k] || 0).toLocaleString()} <span style="opacity:.6;">(${pct}%)</span></span>
+                        </div>`;
+                    }).join('');
             }
         }
 
@@ -1165,6 +1275,7 @@
                 Charts.promptSize = createPromptSizeChart('prompt-size-chart', promptStats.recent);
                 Charts.promptTier = createPromptTierChart('prompt-tier-chart', promptStats.tier_distribution);
                 Charts.promptSavings = createPromptSavingsChart('prompt-savings-chart', promptStats.recent);
+                Charts.promptSectionDist = createPromptSectionDistChart('prompt-section-dist-chart', promptStats.avg_section_sizes);
             }
 
             // Log Viewer
@@ -1248,6 +1359,8 @@
                     Charts.promptTier = createPromptTierChart('prompt-tier-chart', promptStats.tier_distribution);
                     if (Charts.promptSavings) { Charts.promptSavings.destroy(); }
                     Charts.promptSavings = createPromptSavingsChart('prompt-savings-chart', promptStats.recent);
+                    if (Charts.promptSectionDist) { Charts.promptSectionDist.destroy(); }
+                    Charts.promptSectionDist = createPromptSectionDistChart('prompt-section-dist-chart', promptStats.avg_section_sizes);
                 }
 
                 // Logs auto-refresh

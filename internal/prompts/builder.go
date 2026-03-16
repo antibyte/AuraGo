@@ -274,6 +274,7 @@ func BuildSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string,
 		finalPrompt.WriteString(mod.Content)
 		finalPrompt.WriteString("\n\n")
 	}
+	sectionModules := finalPrompt.Len()
 
 	// 5. Add dynamic content — tier-aware
 
@@ -330,6 +331,7 @@ func BuildSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string,
 		finalPrompt.WriteString(flags.ErrorPatternContext)
 		finalPrompt.WriteString("\n\n")
 	}
+	sectionMemories := finalPrompt.Len() - sectionModules
 
 	// System Status
 	if flags.ActiveProcesses != "" && flags.ActiveProcesses != "None" {
@@ -337,6 +339,7 @@ func BuildSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string,
 	}
 
 	// Dynamic Tool Guides — only in full tier
+	posBeforeGuides := finalPrompt.Len()
 	if len(flags.PredictedGuides) > 0 && flags.Tier == "full" {
 		finalPrompt.WriteString("# TOOL GUIDES\n")
 		for _, guide := range flags.PredictedGuides {
@@ -344,6 +347,7 @@ func BuildSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string,
 			finalPrompt.WriteString("\n\n")
 		}
 	}
+	sectionGuides := finalPrompt.Len() - posBeforeGuides
 
 	// Dynamic Outgoing Webhooks definition
 	if flags.WebhooksEnabled && flags.WebhooksDefinitions != "" && flags.Tier != "minimal" {
@@ -355,6 +359,7 @@ func BuildSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string,
 	now := time.Now()
 
 	// Core Personality Profile (injected near end for maximum LLM attention)
+	posBeforePersonality := finalPrompt.Len()
 	if corePersonalityContent != "" {
 		finalPrompt.WriteString("# YOUR PERSONALITY (ACTIVE PROFILE: " + strings.ToUpper(flags.CorePersonality) + ")\n")
 		finalPrompt.WriteString("You MUST embody this personality in EVERY response. This overrides any default tone.\n")
@@ -373,6 +378,7 @@ func BuildSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string,
 		finalPrompt.WriteString(flags.PersonalityLine)
 		finalPrompt.WriteString("\n\n")
 	}
+	sectionPersonality := finalPrompt.Len() - posBeforePersonality
 
 	finalPrompt.WriteString("# NOW\n")
 	finalPrompt.WriteString(now.Format("2006-01-02 15:04"))
@@ -427,6 +433,13 @@ func BuildSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string,
 		ShedSections:  shedSections,
 		BudgetShed:    budgetShedTriggered,
 		MessageCount:  flags.MessageCount,
+		SectionSizes: map[string]int{
+			"modules":     sectionModules,
+			"memories":    sectionMemories,
+			"guides":      sectionGuides,
+			"personality": sectionPersonality,
+			"context":     rawLen - sectionModules - sectionMemories - sectionGuides - sectionPersonality,
+		},
 	})
 
 	return optimized

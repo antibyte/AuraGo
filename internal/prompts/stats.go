@@ -21,6 +21,8 @@ type PromptBuildRecord struct {
 	ShedSections  []string  `json:"shed_sections,omitempty"`
 	BudgetShed    bool      `json:"budget_shed"`
 	MessageCount  int       `json:"message_count"`
+	// Per-section character lengths (before optimization)
+	SectionSizes map[string]int `json:"section_sizes,omitempty"`
 }
 
 // PromptStatsAggregated is the JSON-friendly aggregate returned by the dashboard API.
@@ -39,6 +41,8 @@ type PromptStatsAggregated struct {
 	AvgModulesUsed     int                 `json:"avg_modules_used"`
 	AvgGuidesCount     int                 `json:"avg_guides_count"`
 	Recent             []PromptBuildRecord `json:"recent"`
+	// AvgSectionSizes maps section name → average character count across all builds
+	AvgSectionSizes map[string]int `json:"avg_section_sizes"`
 }
 
 // promptStatsCollector is a package-level ring buffer for prompt build metrics.
@@ -87,6 +91,8 @@ func GetAggregatedStats() PromptStatsAggregated {
 	var sumRaw, sumOpt, sumSaved, sumTokens int64
 	var sumModLoaded, sumModUsed, sumGuides int64
 	var sumOptPct float64
+	sectionSums := make(map[string]int64)
+	sectionCounts := make(map[string]int)
 
 	for _, r := range globalStats.records {
 		sumRaw += int64(r.RawLen)
@@ -111,6 +117,11 @@ func GetAggregatedStats() PromptStatsAggregated {
 		for _, s := range r.ShedSections {
 			agg.ShedSectionCounts[s]++
 		}
+
+		for sec, sz := range r.SectionSizes {
+			sectionSums[sec] += int64(sz)
+			sectionCounts[sec]++
+		}
 	}
 
 	agg.AvgRawLen = int(sumRaw / int64(n))
@@ -121,6 +132,13 @@ func GetAggregatedStats() PromptStatsAggregated {
 	agg.AvgModulesLoaded = int(sumModLoaded / int64(n))
 	agg.AvgModulesUsed = int(sumModUsed / int64(n))
 	agg.AvgGuidesCount = int(sumGuides / int64(n))
+
+	agg.AvgSectionSizes = make(map[string]int)
+	for sec, sum := range sectionSums {
+		if cnt := sectionCounts[sec]; cnt > 0 {
+			agg.AvgSectionSizes[sec] = int(sum / int64(cnt))
+		}
+	}
 
 	// Return last 20 records as recent history
 	recentCount := 20

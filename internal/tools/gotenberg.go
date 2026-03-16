@@ -128,7 +128,20 @@ func EnsureGotenbergRunning(dockerHost string, logger interface {
 }) {
 	dockerCfg := DockerConfig{Host: dockerHost}
 
-	// Inspect existing container
+	// Check if ANY gotenberg container (any name) is already running.
+	// This prevents creating a duplicate when the user already has a gotenberg
+	// container running via docker-compose or another means.
+	listData, listCode, listErr := dockerRequest(dockerCfg, "GET",
+		`/containers/json?filters={"status":["running"],"ancestor":["gotenberg/gotenberg:8"]}`, "")
+	if listErr == nil && listCode == 200 {
+		var containers []map[string]interface{}
+		if json.Unmarshal(listData, &containers) == nil && len(containers) > 0 {
+			logger.Info("[Gotenberg] Container already running (external)", "count", len(containers))
+			return
+		}
+	}
+
+	// Inspect our own managed container
 	data, code, err := dockerRequest(dockerCfg, "GET", "/containers/"+gotenbergContainerName+"/json", "")
 	if err != nil {
 		logger.Warn("[Gotenberg] Docker unavailable, skipping auto-start", "error", err)

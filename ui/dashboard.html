@@ -116,6 +116,13 @@
                         <span data-i18n="dashboard.budget_openrouter_credits">OpenRouter Guthaben</span>
                         <span class="credits-val" id="credits-balance">—</span>
                     </div>
+                    <!-- Per-LLM average token consumption -->
+                    <div id="budget-llm-avg-wrap" style="margin-top:0.75rem;display:none;">
+                        <h4 style="margin:0 0 0.5rem;font-size:var(--text-sm);color:var(--text-secondary);" data-i18n="dashboard.budget_llm_avg_title">Ø Token-Verbrauch / Anfrage</h4>
+                        <div style="position:relative;height:130px;">
+                            <canvas id="budget-llm-avg-chart"></canvas>
+                        </div>
+                    </div>
                 </div>
                 <div id="budget-disabled" class="empty-state" style="display:none;" data-i18n="dashboard.budget_disabled">Budget-Tracking deaktiviert.</div>
             </div>
@@ -241,6 +248,19 @@
                             <div class="prompt-chart-wrap">
                                 <canvas id="prompt-savings-chart"></canvas>
                             </div>
+                        </div>
+                    </div>
+                    <!-- Prompt section distribution -->
+                    <div class="prompt-details-grid" style="margin-top:0.75rem;">
+                        <div>
+                            <h4 style="margin:0 0 0.5rem;font-size:var(--text-sm);color:var(--text-secondary);" data-i18n="dashboard.prompt_section_dist">Ø Prompt-Verteilung</h4>
+                            <div class="prompt-chart-wrap" style="height:200px;">
+                                <canvas id="prompt-section-dist-chart"></canvas>
+                            </div>
+                        </div>
+                        <div>
+                            <h4 style="margin:0 0 0.5rem;font-size:var(--text-sm);color:var(--text-secondary);" data-i18n="dashboard.prompt_section_dist_hint">Zeichen je Bereich (Durchschnitt)</h4>
+                            <div class="prompt-section-legend" id="prompt-section-legend"></div>
                         </div>
                     </div>
                 </div>
