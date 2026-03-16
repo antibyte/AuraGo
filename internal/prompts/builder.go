@@ -158,20 +158,6 @@ type ContextFlags struct {
 	ErrorPatternContext      string // Known error patterns with resolutions for agent learning
 }
 
-// DetermineTier returns the appropriate prompt tier based on the conversation length.
-// full = all modules; compact = skip RAG/guides; minimal = identity + tools only.
-// Kept as a simple fallback; prefer DetermineTierAdaptive for context-aware decisions.
-func DetermineTier(messageCount int) string {
-	switch {
-	case messageCount <= 6:
-		return "full"
-	case messageCount <= 12:
-		return "compact"
-	default:
-		return "minimal"
-	}
-}
-
 // DetermineTierAdaptive returns a prompt tier based on both conversation length and
 // contextual complexity signals from ContextFlags. Complex sessions (tool-heavy,
 // error recovery, coding) retain the "full" tier longer.
@@ -314,7 +300,7 @@ func BuildSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string,
 	// Predictive RAG — only in full tier
 	if flags.PredictedMemories != "" && flags.Tier == "full" {
 		finalPrompt.WriteString("# PREDICTED CONTEXT\n")
-		finalPrompt.WriteString(flags.PredictedMemories)
+		finalPrompt.WriteString(security.IsolateExternalData(flags.PredictedMemories))
 		finalPrompt.WriteString("\n\n")
 	}
 
@@ -328,7 +314,7 @@ func BuildSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string,
 	// Error Pattern Context — inject known error patterns during error recovery
 	if flags.ErrorPatternContext != "" && flags.Tier != "minimal" {
 		finalPrompt.WriteString("# KNOWN ERROR PATTERNS\n")
-		finalPrompt.WriteString(flags.ErrorPatternContext)
+		finalPrompt.WriteString(security.IsolateExternalData(flags.ErrorPatternContext))
 		finalPrompt.WriteString("\n\n")
 	}
 	sectionMemories := finalPrompt.Len() - sectionModules

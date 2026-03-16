@@ -486,6 +486,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		// Phase A3: Over-fetch and re-rank with recency boost from memory_meta
 		flags.RetrievedMemories = ""
 		flags.PredictedMemories = ""
+		var topMemories []string
 		if lastUserMsg != "" && longTermMem != nil {
 			// Query expansion: enrich user message with LLM-generated keywords for better RAG
 			ragQuery := expandQueryForRAG(ctx, cfg, currentLogger, lastUserMsg)
@@ -504,7 +505,6 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				if len(ranked) > 3 {
 					ranked = ranked[:3]
 				}
-				var topMemories []string
 				for _, r := range ranked {
 					topMemories = append(topMemories, r.text)
 				}
@@ -522,17 +522,26 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 
 			// Phase B: Predictive pre-fetch based on temporal patterns + tool transitions
+			// Deduplicate against already-retrieved memories to avoid wasting tokens
 			if shortTermMem != nil {
 				now := time.Now()
 				predictions, err := shortTermMem.PredictNextQuery(lastTool, now.Hour(), int(now.Weekday()), 2)
 				if err == nil && len(predictions) > 0 {
+					// Build set of already-retrieved memory texts for dedup
+					retrievedSet := make(map[string]struct{})
+					for _, r := range topMemories {
+						retrievedSet[r] = struct{}{}
+					}
+
 					var predictedResults []string
 					for _, pred := range predictions {
 						// Use SearchMemoriesOnly: predictive pre-fetch needs only user memories,
 						// not tool_guides/documentation — avoids 2 full extra search cycles per request.
 						pMem, _, pErr := longTermMem.SearchMemoriesOnly(pred, 1)
 						if pErr == nil && len(pMem) > 0 {
-							predictedResults = append(predictedResults, pMem[0])
+							if _, dup := retrievedSet[pMem[0]]; !dup {
+								predictedResults = append(predictedResults, pMem[0])
+							}
 						}
 					}
 					if len(predictedResults) > 0 {

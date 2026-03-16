@@ -354,6 +354,13 @@ func (s *SQLiteMemory) DeleteOldMessages(sessionID string, keepN int) error {
 		return fmt.Errorf("failed to find cutoff ID for deletion: %w", err)
 	}
 
+	// Use a transaction so archive + delete are atomic
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
 	// Archive before deleting
 	archiveQuery := `
 	INSERT INTO archived_messages (session_id, role, content, original_timestamp)
@@ -361,14 +368,21 @@ func (s *SQLiteMemory) DeleteOldMessages(sessionID string, keepN int) error {
 	FROM messages
 	WHERE session_id = ? AND id < ? AND role IN ('user', 'assistant')
 	ORDER BY timestamp ASC`
-	archRes, _ := s.db.Exec(archiveQuery, sessionID, oldestKeepID)
+	archRes, err := tx.Exec(archiveQuery, sessionID, oldestKeepID)
+	if err != nil {
+		return fmt.Errorf("failed to archive old messages: %w", err)
+	}
 	archived, _ := archRes.RowsAffected()
 
 	// Delete everything older than the cutoff
 	delQuery := `DELETE FROM messages WHERE session_id = ? AND id < ?`
-	res, err := s.db.Exec(delQuery, sessionID, oldestKeepID)
+	res, err := tx.Exec(delQuery, sessionID, oldestKeepID)
 	if err != nil {
 		return fmt.Errorf("failed to delete old messages: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit cleanup transaction: %w", err)
 	}
 
 	rows, _ := res.RowsAffected()

@@ -94,31 +94,6 @@ func TestOptimizePromptTechnical(t *testing.T) {
 	}
 }
 
-func TestDetermineTier(t *testing.T) {
-	tests := []struct {
-		name     string
-		msgCount int
-		expected string
-	}{
-		{"Empty conversation", 0, "full"},
-		{"Few messages", 3, "full"},
-		{"Boundary full", 6, "full"},
-		{"Medium conversation", 7, "compact"},
-		{"Boundary compact", 12, "compact"},
-		{"Long conversation", 13, "minimal"},
-		{"Very long", 50, "minimal"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := DetermineTier(tt.msgCount)
-			if got != tt.expected {
-				t.Errorf("DetermineTier(%d) = %q, want %q", tt.msgCount, got, tt.expected)
-			}
-		})
-	}
-}
-
 func TestDetermineTierAdaptive(t *testing.T) {
 	tests := []struct {
 		name     string
