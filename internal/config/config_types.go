@@ -154,6 +154,13 @@ type Config struct {
 		ExternalURL   string `yaml:"external_url"`      // legacy/compat: dedicated endpoint URL
 		ExternalModel string `yaml:"external_model"`    // legacy/compat: dedicated endpoint model
 		LegacyAPIKey  string `yaml:"api_key"  json:"-"` // legacy/compat: separate API key
+		LocalOllama   struct {
+			Enabled       bool   `yaml:"enabled"`        // auto-manage an Ollama container for local embeddings
+			Model         string `yaml:"model"`          // embedding model (default: "nomic-embed-text")
+			ContainerPort int    `yaml:"container_port"` // host port for the managed container (default: 11435)
+			UseHostGPU    bool   `yaml:"use_host_gpu"`   // pass GPU devices into the container (Linux only)
+			GPUBackend    string `yaml:"gpu_backend"`    // "auto", "nvidia", "amd", "intel" (default: "auto")
+		} `yaml:"local_ollama"`
 	} `yaml:"embeddings"`
 	Agent struct {
 		SystemLanguage             string `yaml:"system_language"`

@@ -74,6 +74,10 @@ func Load(path string) (*Config, error) {
 	cfg.LLMGuardian.CacheTTL = 300
 	cfg.LLMGuardian.MaxChecksPerMin = 60
 	cfg.LLMGuardian.AllowClarification = false
+	cfg.Embeddings.LocalOllama.Model = "nomic-embed-text"
+	cfg.Embeddings.LocalOllama.ContainerPort = 11435
+	cfg.Embeddings.LocalOllama.GPUBackend = "auto"
+
 	cfg.LLMGuardian.TimeoutSecs = 30
 	cfg.LLMGuardian.ScanDocuments = false
 	cfg.LLMGuardian.ScanEmails = false

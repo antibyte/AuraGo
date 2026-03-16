@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -390,6 +391,12 @@ func HomepageDeployNetlify(cfg HomepageConfig, nfCfg NetlifyConfig, projectDir, 
 	// Track which special Netlify config files are already present in the project.
 	var hasHeaders, hasNetlifyToml, hasRedirects bool
 
+	// Collect /files/generated_images/<name> references found in HTML files so we
+	// can bundle the actual images into the ZIP (they're served by AuraGo locally
+	// but must be included as static assets for Netlify to serve them).
+	generatedImageRef := regexp.MustCompile(`/files/generated_images/([^"' ><\\]+)`)
+	referencedImages := make(map[string]struct{})
+
 	walkErr := filepath.Walk(deployPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -419,11 +426,42 @@ func HomepageDeployNetlify(cfg HomepageConfig, nfCfg NetlifyConfig, projectDir, 
 		if err != nil {
 			return err
 		}
+		// Scan HTML/CSS files for local generated-image references.
+		lowerRel := strings.ToLower(rel)
+		if strings.HasSuffix(lowerRel, ".html") || strings.HasSuffix(lowerRel, ".htm") || strings.HasSuffix(lowerRel, ".css") {
+			for _, m := range generatedImageRef.FindAllSubmatch(data, -1) {
+				if len(m) > 1 {
+					referencedImages[string(m[1])] = struct{}{}
+				}
+			}
+		}
 		_, err = w.Write(data)
 		return err
 	})
 	if walkErr != nil {
 		return errJSON("Failed to create ZIP: %v", walkErr)
+	}
+
+	// Bundle any referenced generated images into the ZIP so Netlify can serve
+	// them at the same /files/generated_images/<name> path.
+	if cfg.DataDir != "" && len(referencedImages) > 0 {
+		bundled := 0
+		for imgName := range referencedImages {
+			imgPath := filepath.Join(cfg.DataDir, "generated_images", filepath.Base(imgName))
+			imgData, readErr := os.ReadFile(imgPath)
+			if readErr != nil {
+				logger.Warn("[Homepage] Could not bundle generated image", "image", imgName, "error", readErr)
+				continue
+			}
+			zipPath := "files/generated_images/" + filepath.Base(imgName)
+			if iw, werr := zw.Create(zipPath); werr == nil {
+				_, _ = iw.Write(imgData)
+				bundled++
+			}
+		}
+		if bundled > 0 {
+			logger.Info("[Homepage] Bundled generated images into deployment", "count", bundled)
+		}
 	}
 
 	// Inject a _headers file if the project doesn't already have one.

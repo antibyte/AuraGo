@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 )
 
@@ -244,6 +245,22 @@ func (c *Config) ResolveProviders() {
 		} else if c.Embeddings.LegacyAPIKey != "" {
 			c.Embeddings.APIKey = c.Embeddings.LegacyAPIKey
 		}
+	}
+	// Auto-wire local Ollama embeddings when enabled and no explicit provider is set
+	if c.Embeddings.LocalOllama.Enabled && (c.Embeddings.Provider == "" || c.Embeddings.Provider == "disabled") {
+		port := c.Embeddings.LocalOllama.ContainerPort
+		if port <= 0 {
+			port = 11435
+		}
+		model := c.Embeddings.LocalOllama.Model
+		if model == "" {
+			model = "nomic-embed-text"
+		}
+		c.Embeddings.Provider = "local-ollama-embeddings"
+		c.Embeddings.ProviderType = "ollama"
+		c.Embeddings.BaseURL = fmt.Sprintf("http://127.0.0.1:%d/v1", port)
+		c.Embeddings.APIKey = "ollama" // Ollama ignores auth but field must be non-empty
+		c.Embeddings.Model = model
 	}
 	if c.Embeddings.APIKey == "" {
 		c.Embeddings.APIKey = c.LLM.APIKey

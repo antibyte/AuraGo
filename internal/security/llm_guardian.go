@@ -188,7 +188,7 @@ func (g *LLMGuardian) callLLM(ctx context.Context, check GuardianCheck, start ti
 	req := openai.ChatCompletionRequest{
 		Model:       g.model,
 		Messages:    g.buildMessages(guardianSystemPrompt, prompt),
-		MaxTokens:   2048, // must be large enough for <think> reasoning blocks + verdict
+		MaxTokens:   512, // enough for a short reasoning block + "DECISION SCORE REASON" verdict
 		Temperature: 0,
 	}
 

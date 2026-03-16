@@ -297,6 +297,28 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				s.Logger.Info("[Config UI] BudgetTracker disabled")
 			}
 
+			// Re-create LLMGuardian when its settings change so the new model,
+			// provider and protection level take effect without a restart.
+			oldG, newG := oldCfg.LLMGuardian, newCfg.LLMGuardian
+			guardianChanged := oldG.Enabled != newG.Enabled ||
+				oldG.Provider != newG.Provider ||
+				oldG.Model != newG.Model ||
+				oldG.DefaultLevel != newG.DefaultLevel ||
+				oldG.FailSafe != newG.FailSafe ||
+				oldG.TimeoutSecs != newG.TimeoutSecs ||
+				oldG.CacheTTL != newG.CacheTTL
+			if guardianChanged {
+				s.LLMGuardian = security.NewLLMGuardian(newCfg, s.Logger)
+				if newCfg.LLMGuardian.Enabled {
+					s.Logger.Info("[Config UI] LLMGuardian reconfigured",
+						"model", newCfg.LLMGuardian.ResolvedModel,
+						"level", newCfg.LLMGuardian.DefaultLevel,
+						"provider", newCfg.LLMGuardian.Provider)
+				} else {
+					s.Logger.Info("[Config UI] LLMGuardian disabled")
+				}
+			}
+
 			// Hot-reload File Indexer: start/stop based on enabled flag change
 			if oldCfg.Indexing.Enabled != newCfg.Indexing.Enabled {
 				if newCfg.Indexing.Enabled && s.FileIndexer == nil {
@@ -315,6 +337,11 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				if !oldCfg.Tools.DocumentCreator.Enabled || !strings.EqualFold(oldCfg.Tools.DocumentCreator.Backend, "gotenberg") {
 					go tools.EnsureGotenbergRunning(newCfg.Docker.Host, s.Logger)
 				}
+			}
+
+			// Auto-start local Ollama embeddings container if just enabled
+			if newCfg.Embeddings.LocalOllama.Enabled && !oldCfg.Embeddings.LocalOllama.Enabled {
+				go tools.EnsureOllamaEmbeddingsRunning(newCfg, s.Logger)
 			}
 
 			s.Logger.Info("[Config UI] Configuration hot-reloaded successfully")

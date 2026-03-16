@@ -219,6 +219,17 @@ For plain HTML projects (no `package.json`), the build step is automatically ski
 - Use compound operations (`init_project`, `build`, `deploy`) to save tokens — avoid running many individual `exec` calls
 - **NEVER use the `filesystem` tool for homepage project files.** The filesystem tool writes to `agent_workspace/workdir/` — a completely different location from the homepage workspace. Files created there will NOT be found by `build`, `deploy`, `deploy_netlify`, or `publish_local`. Always use `homepage` → `write_file` instead.
 
+### Using Generated Images in Netlify Deployments
+
+**IMPORTANT:** Images generated with `generate_image` are served by AuraGo at `/files/generated_images/<filename>`. When deploying to Netlify, these images are **automatically bundled** into the ZIP — you do NOT need to manually copy them.
+
+Simply embed the image in your HTML using the exact URL path from `media_registry`:
+```html
+<img src="/files/generated_images/img_20260316_114059_254b5b21fe9f.jpeg" alt="Banner">
+```
+
+The `deploy_netlify` operation scans all HTML and CSS files, detects `/files/generated_images/` references, and includes those image files in the deployment package automatically. After deploying, the image will be live at the same URL path on Netlify.
+
 ## Troubleshooting
 
 ### "Docker not available" Error

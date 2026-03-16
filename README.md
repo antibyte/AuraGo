@@ -47,6 +47,26 @@ Unlike cloud AI services, AuraGo runs **on your hardware**, has **direct access 
 
 > 💡 **Tipp:** Aktiviere Personality Engine V2 in den Einstellungen und chatte eine Weile mit dem Agent. Du wirst merken, wie die Antworten immer persönlicher werden.
 
+### Adaptive Tools – Intelligente Tool-Filterung
+**Spare Token, bleibe fokussiert.** Das Adaptive Tools System analysiert den Gesprächskontext und filtert die verfügbaren Tools intelligent, bevor sie an das LLM gesendet werden:
+
+- **Kontextbewusste Filterung** – Weniger relevante Tools werden basierend auf dem Gesprächsthema ausgeblendet
+- **Nutzungsbasiertes Scoring** – Häufig genutzte Tools werden priorisiert, seltene nach unten sortiert
+- **Konfigurierbare Grenzen** – Setze ein maximales Limit für Tools, die gleichzeitig verfügbar sein sollen
+- **Always-Include Liste** – Wichtige Tools können von der Filterung ausgenommen werden
+
+> 💡 **Warum das wichtig ist:** Weniger Tools im Kontext = niedrigere Kosten, schnellere Antworten und präzisere Tool-Auswahl durch das LLM.
+
+### Document Creator & PDF Extractor – Dokumenten-Management
+**Erstelle und verarbeite PDFs wie ein Profi.** AuraGo bringt jetzt umfassende PDF-Funktionen mit:
+
+- **PDF-Erstellung** – Generiere Rechnungen, Berichte und Dokumente via maroto (eingebaut) oder Gotenberg (Docker Sidecar)
+- **PDF-Extraktion** – Extrahiere Text aus PDFs mit optionaler LLM-Zusammenfassung für große Dokumente
+- **Template-basiert** – Wiederverwendbare Dokumentvorlagen für wiederkehrende Formate
+- **Cloud-Ready** – Integration mit Paperless NGX für Dokumenten-Archivierung
+
+> 📄 **Use Cases:** Automatisierte Rechnungsgenerierung, Vertragsverarbeitung, Dokumenten-Archivierung, PDF-Analyse aus E-Mails oder Downloads.
+
 ### LLM Guardian – Dein AI-Sicherheits-Babysitter
 **Sicherheit wird großgeschrieben.** Der LLM Guardian überwacht alles, was dein Agent tut, und schützt vor potenziell gefährlichen oder unerwünschten Aktionen:
 
@@ -62,7 +82,7 @@ Unlike cloud AI services, AuraGo runs **on your hardware**, has **direct access 
 ## Key Features
 
 ### Agent Core
-- **40+ built-in tools** — shell & Python execution, file system, HTTP requests, cron scheduling, process management, system metrics, Docker, Proxmox, Ollama, Home Assistant, Tailscale, Ansible, MeshCentral, GitHub, Netlify, and many more
+- **50+ built-in tools** — shell & Python execution, file system, HTTP requests, cron scheduling, process management, system metrics, Docker, Proxmox, Ollama, Home Assistant, Tailscale, Ansible, MeshCentral, GitHub, Netlify, Paperless NGX, PDF processing, document creation, and many more
 - **Native Function Calling** — OpenAI-style tool calls with auto-detection for DeepSeek and compatible models; optional **Structured Outputs** mode for constrained decoding
 - **Dynamic tool creation** — the agent can write, save, and register new Python tools at runtime
 - **Multi-step reasoning loop** with automatic tool dispatch, error recovery, and corrective feedback
@@ -74,6 +94,9 @@ Unlike cloud AI services, AuraGo runs **on your hardware**, has **direct access 
 - **Context Compression** — automatic summarization of long conversations to preserve token budget
 - **Memory Analysis** — dedicated LLM provider for real-time extraction of facts, preferences, and corrections
 - **Memory Consolidation** — nightly batch processing of archived conversations into long-term memory
+- **Weekly Reflection** — periodic memory health analysis and pattern recognition
+- **Adaptive Tools** — intelligent tool filtering based on conversation context to reduce token usage
+- **Sudo Execution** — privileged command execution with vault-secured password storage
 
 ### Memory & Knowledge
 - **Short-term memory** — SQLite sliding-window conversation context
@@ -125,6 +148,10 @@ Unlike cloud AI services, AuraGo runs **on your hardware**, has **direct access 
 | **Paperless NGX** | Document management integration |
 | **Brave Search** | Web search via Brave Search API |
 | **VirusTotal** | File and URL security scanning |
+| **PDF Extractor** | Extract text from PDF documents with LLM summarization |
+| **Document Creator** | Generate PDF documents (invoices, reports) via maroto or Gotenberg |
+| **Cheatsheets** | Quick-reference command snippets and personal cheat sheet management |
+| **Sudo Execution** | Execute privileged commands with stored sudo password (vault-secured) |
 | **Image Generation** | Multi-provider support (OpenAI, Stability, Ideogram, Google, OpenRouter) |
 | **Media Registry** | Local media file indexing and metadata management |
 | **Homepage Registry** | Dashboard homepage site management |
@@ -132,16 +159,17 @@ Unlike cloud AI services, AuraGo runs **on your hardware**, has **direct access 
 | **Vision** | Image analysis via vision-capable LLMs |
 | **Transcription** | Audio transcription via Whisper (OpenAI or local) |
 | **TTS** | Text-to-speech via Google or ElevenLabs |
+| **Gotenberg** | PDF generation sidecar for document creation |
 
 ### Security
 - **AES-256-GCM encrypted vault** for API keys — manageable via Web UI with key rotation
 - **Web UI Authentication** — login protection with **bcrypt** password hashing, **TOTP 2FA**, and API token management
 - **Auto-provisioned passwords** — the install script generates a secure first-login password
 - **HTTPS enforcement** — when HTTPS is active, login cannot be disabled (enforced via UI)
-- **Danger Zone** — granular capability gates (shell, Python, filesystem, network, remote shell, self-update)
+- **Danger Zone** — granular capability gates (shell, Python, filesystem, network, remote shell, self-update, MCP, web scraper)
 - **LLM Guardian** — AI-powered security scanner for tool calls, documents, and emails with threat detection
 - **Security Headers** — CSP, HSTS, X-Frame-Options, and more on every response
-- **Sandboxed Python execution** — isolated venv workspace or Docker/Podman containers
+- **Sandboxed Python execution** — isolated venv workspace or Docker/Podman containers with configurable container pooling
 - **LLM failover** — automatic switch to backup provider on errors
 - **Circuit breaker** — configurable limits on tool calls, timeouts, and retries
 - **Rate limiting** — login attempts, webhook requests, and API calls
@@ -154,7 +182,7 @@ Unlike cloud AI services, AuraGo runs **on your hardware**, has **direct access 
 - **Daily reflection** — morning briefing generated at 03:00
 - **Memory Consolidation** — automatic archival and compression of old conversations into long-term memory
 - **Memory Analysis** — dedicated LLM extracts facts, preferences, and corrections from conversations
-- **Weekly Reflection** — periodic memory health analysis and pattern recognition
+- **Weekly Reflection** — periodic memory health analysis and pattern recognition with automatic insights
 
 ---
 
@@ -389,7 +417,7 @@ AuraGo/
 │   ├── services/        # Content ingestion and indexing services
 │   ├── setup/           # First-run setup wizard logic
 │   ├── telegram/        # Telegram bot (text, voice, vision)
-│   ├── tools/           # All tool implementations (40+ tools)
+│   ├── tools/           # All tool implementations (50+ tools including document creator, PDF extractor, cheatsheets)
 │   └── webhooks/        # Incoming & outgoing webhook engine
 ├── agent_workspace/
 │   ├── prompts/         # Modular system prompt markdown files & personalities
@@ -421,7 +449,7 @@ AuraGo/
 | `/debug on\|off` | Toggle detailed error reporting |
 | `/budget` | Show daily token cost breakdown |
 | `/personality <name>` | Switch to a different personality profile |
-| `/sudo` | Temporarily elevate privileges for sensitive operations |
+| `/sudo` | Temporarily elevate privileges for sensitive operations (requires vault-stored sudo password) |
 | `/journal` | Open journal management interface |
 | `/addssh <host> <user>` | Quick-add SSH device to inventory |
 
@@ -446,6 +474,7 @@ AuraGo/
 | **MCP Servers** | Manage Model Context Protocol server connections |
 | **MCP Server Config** | Configure AuraGo as an MCP server for external clients |
 | **Invasion Control** | Distributed agent management — spawn and monitor remote "egg" agents |
+| **Document Creator** | Configure PDF generation backend (maroto/Gotenberg) |
 | **Remote Control** | Manage remote agent connections for distributed execution |
 | **Media Registry** | Browse and search indexed local media files |
 | **Homepage Registry** | Manage Homepage dashboard deployments |
@@ -455,7 +484,6 @@ AuraGo/
 | **Knowledge Graph** | Visualize entity relationships |
 | **Notes** | Manage persistent notes and to-dos |
 | **Device Inventory** | SSH device management and connection testing |
-| **Cheatsheets** | Quick-reference command snippets |
 | **Sandbox** | Configure and monitor sandboxed execution environments |
 
 ---
@@ -510,12 +538,16 @@ Detailed guides are available in the [`documentation/`](documentation/) folder:
 - [Co-Agent Concept](documentation/co_agent_concept.md)
 - [Personality Engine V2](documentation/personality_engine_v2.md)
 - [Memory Analysis & Consolidation](documentation/memory_analysis.md)
-- [Invasion Control (Distributed Agents)](documentation/invasion_control.md)
-- [MCP Integration](documentation/mcp.md)
-- [LLM Guardian Security](documentation/llm_guardian.md)
-- [Cloudflare Tunnel Setup](documentation/cloudflare_tunnel.md)
-- [Image Generation](documentation/image_generation.md)
-- [Sandbox Setup](documentation/sandbox.md)
+- [Invasion Control (Distributed Agents)](documentation/invasion_control.md) *(coming soon)*
+- [MCP Integration](documentation/mcp.md) *(coming soon)*
+- [LLM Guardian Security](documentation/llm_guardian.md) *(coming soon)*
+- [Cloudflare Tunnel Setup](documentation/cloudflare_tunnel.md) *(coming soon)*
+- [Image Generation](documentation/image_generation.md) *(coming soon)*
+- [Sandbox Setup](documentation/sandbox.md) *(coming soon)*
+- [Adaptive Tool Schemas](documentation/adaptive_tool_schema_plan.md) – Context-aware tool filtering
+- [Tool Context Optimization](documentation/tool_context_optimization_plan_v2.md) – Efficient context usage
+- [Security Introduction](documentation/security_introduction.md) – Security concepts and best practices
+- [UI/UX Analysis](documentation/ui_ux_analysis.md) – Interface design principles
 
 ---
 

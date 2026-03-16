@@ -18,6 +18,7 @@ import (
 type HomepageConfig struct {
 	DockerHost            string
 	WorkspacePath         string // host path mounted as /workspace in the container
+	DataDir               string // host path to AuraGo's data directory (for bundling generated images into deploys)
 	WebServerPort         int
 	WebServerDomain       string
 	WebServerInternalOnly bool // bind Caddy port only on 127.0.0.1 (internal-only)

@@ -440,6 +440,11 @@ func Start(cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, sh
 		go tools.EnsureGotenbergRunning(cfg.Docker.Host, logger)
 	}
 
+	// Auto-start local Ollama embeddings container if enabled
+	if cfg.Embeddings.LocalOllama.Enabled {
+		go tools.EnsureOllamaEmbeddingsRunning(cfg, logger)
+	}
+
 	return s.run(shutdownCh)
 }
 

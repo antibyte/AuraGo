@@ -334,6 +334,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, cfg *config.Config, logg
 		homepageCfg := tools.HomepageConfig{
 			DockerHost:            cfg.Docker.Host,
 			WorkspacePath:         cfg.Homepage.WorkspacePath,
+			DataDir:               cfg.Directories.DataDir,
 			WebServerPort:         cfg.Homepage.WebServerPort,
 			WebServerDomain:       cfg.Homepage.WebServerDomain,
 			WebServerInternalOnly: cfg.Homepage.WebServerInternalOnly,
