@@ -92,30 +92,42 @@ services:
     #   - ansible
 
   # ============================================================================
-  # Gotenberg Sidecar  (OPTIONAL — uncomment to enable document conversion)
+  # Gotenberg Sidecar  — PDF creation, document conversion, screenshots
   # ============================================================================
-  # Provides PDF creation, document conversion, and screenshot capabilities.
-  # Used by the document_creator tool when backend is set to "gotenberg".
-  # No authentication — relies on Docker network isolation (internal only).
+  # Provides all Gotenberg operations for the document_creator tool.
+  # Set tools.document_creator.backend="gotenberg" in config.yaml to use.
   #
-  # Quick start:
-  #   1. Uncomment this block.
-  #   2. Set tools.document_creator.enabled=true and backend="gotenberg" in config.yaml.
+  # URL config:
+  #   • AuraGo running in Docker:    http://gotenberg:3000   (default, internal)
+  #   • AuraGo running bare-metal:   http://localhost:3000   (change in config)
   # ============================================================================
-  # gotenberg:
-  #   image: gotenberg/gotenberg:8
-  #   container_name: aurago_gotenberg
-  #   restart: unless-stopped
-  #   security_opt:
-  #     - no-new-privileges:true
-  #   cap_drop:
-  #     - ALL
-  #   # No ports exposed externally — internal only via Docker network
-  #   logging:
-  #     driver: json-file
-  #     options:
-  #       max-size: "10m"
-  #       max-file: "3"
+  gotenberg:
+    image: gotenberg/gotenberg:8
+    container_name: aurago_gotenberg
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    # Chromium requires SYS_ADMIN for its sandbox inside Docker containers.
+    # Without this, PDF rendering and screenshots will fail.
+    cap_add:
+      - SYS_ADMIN
+    # Increase /dev/shm for Chromium's shared memory usage (prevents crashes).
+    shm_size: '256m'
+    # Expose on localhost only — not accessible from outside the host.
+    # Needed when AuraGo runs as a bare-metal service (not in Docker).
+    ports:
+      - "127.0.0.1:3000:3000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   # ============================================================================
   # Ansible Sidecar  (OPTIONAL — uncomment the entire block to enable)
