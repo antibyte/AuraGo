@@ -261,6 +261,9 @@ func Load(path string) (*Config, error) {
 			"execute_python", "docker", "api_request",
 		}
 	}
+	if cfg.Agent.MaxToolGuides <= 0 {
+		cfg.Agent.MaxToolGuides = 5
+	}
 	// LLM defaults
 	if cfg.LLM.Temperature == 0 {
 		cfg.LLM.Temperature = 0.7

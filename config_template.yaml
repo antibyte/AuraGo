@@ -49,6 +49,8 @@ agent:
         max_tools: 60                                               # max tool schemas sent to LLM (0 = unlimited)
         decay_half_life_days: 7                                     # usage score halves after this many days
         always_include: [filesystem, shell, manage_memory, query_memory, execute_python, docker, api_request]
+    # ── Tool guide injection ──
+    max_tool_guides: 5                                              # max tool guide documents injected into prompt (default: 5)
 budget:
     daily_limit_usd: 1
     default_cost:

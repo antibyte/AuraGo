@@ -1,9 +1,14 @@
 package agent
 
 import (
+	"io/fs"
 	"log/slog"
 	"os"
+	"path/filepath"
+	"strings"
 	"testing"
+
+	promptsembed "aurago/prompts"
 
 	"github.com/sashabaranov/go-openai"
 )
@@ -105,5 +110,85 @@ func TestNativeToolCallToToolCall_TruncatedJSON(t *testing.T) {
 				t.Errorf("Action = %q, want %q", tc.Action, tt.funcName)
 			}
 		})
+	}
+}
+
+// TestToolSchemaManualSync verifies that every built-in tool has a corresponding
+// manual in the embedded prompts/tools_manuals/ directory.
+// Tools listed in knownNoManual are exempt (simple tools that don't need guides).
+func TestToolSchemaManualSync(t *testing.T) {
+	// Get all tool names with all feature flags enabled.
+	ff := ToolFeatureFlags{
+		AllowShell: true, AllowPython: true, AllowFilesystemWrite: true,
+		AllowNetworkRequests: true, AllowSelfUpdate: true, AllowRemoteShell: true,
+		DockerEnabled: true, HomeAssistantEnabled: true, ProxmoxEnabled: true,
+		CoAgentEnabled: true, SandboxEnabled: true,
+		GitHubEnabled: true, SudoEnabled: true, AdGuardEnabled: true,
+		HomepageEnabled: true, InventoryEnabled: true, MQTTEnabled: true,
+		TailscaleEnabled: true, CloudflareTunnelEnabled: true, OllamaEnabled: true,
+		WOLEnabled: true, WebhooksEnabled: true, FirewallEnabled: true,
+		JournalEnabled: true, GoogleWorkspaceEnabled: true, MissionsEnabled: true,
+		MediaRegistryEnabled: true, MeshCentralEnabled: true, NetlifyEnabled: true,
+		EmailEnabled: true, NotesEnabled: true, InvasionControlEnabled: true,
+		AnsibleEnabled: true, MCPEnabled: true, HomepageRegistryEnabled: true,
+		RemoteControlEnabled: true, ImageGenerationEnabled: true,
+		MemoryEnabled: true, KnowledgeGraphEnabled: true, SecretsVaultEnabled: true,
+		SchedulerEnabled: true, StopProcessEnabled: true,
+		MemoryMaintenanceEnabled: true, MemoryAnalysisEnabled: true,
+		DocumentCreatorEnabled: true, HomepageAllowLocalServer: true,
+	}
+	schemas := builtinToolSchemas(ff)
+
+	// Collect all embedded manual filenames (without .md extension).
+	manuals := make(map[string]bool)
+	_ = fs.WalkDir(promptsembed.FS, "tools_manuals", func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return nil
+		}
+		name := strings.TrimSuffix(filepath.Base(path), ".md")
+		manuals[name] = true
+		return nil
+	})
+
+	// Tools that are intentionally simple / don't need a manual,
+	// or whose manual uses a different filename.
+	knownNoManual := map[string]bool{
+		"execute_sudo":             true, // single-param wrapper around shell
+		"save_tool":                true, // simple tool registration
+		"wake_on_lan":              true, // simple WOL packet
+		"call_webhook":             true, // just triggers a named webhook
+		"manage_webhooks":          true, // covered by webhook docs
+		"manage_outgoing_webhooks": true, // covered by webhook docs
+		"query_inventory":          true, // simple query tool
+		"register_device":          true, // simple registration
+		"firewall":                 true, // niche integration
+		"invasion_control":         true, // internal egg/nest system
+		"fetch_email":              true, // covered by email.md
+		"send_email":               true, // covered by email.md
+		"list_email_accounts":      true, // covered by email.md
+		"manage_memory":            true, // covered by context_memory.md / core_memory.md
+		"mqtt_get_messages":        true, // covered by mqtt.md
+		"mqtt_subscribe":           true, // covered by mqtt.md
+		"mqtt_unsubscribe":         true, // covered by mqtt.md
+		"mqtt_publish":             true, // covered by mqtt.md
+		"mcp_call":                 true, // manual is mcp.md
+		"execute_sandbox":          true, // manual is sandbox.md
+		"document_creator":         true, // simple single-purpose tool
+	}
+
+	var missing []string
+	for _, s := range schemas {
+		name := s.Function.Name
+		if knownNoManual[name] {
+			continue
+		}
+		if !manuals[name] {
+			missing = append(missing, name)
+		}
+	}
+
+	if len(missing) > 0 {
+		t.Errorf("Tool schemas without a manual in prompts/tools_manuals/ (add a .md file or add to knownNoManual):\n  %s",
+			strings.Join(missing, "\n  "))
 	}
 }

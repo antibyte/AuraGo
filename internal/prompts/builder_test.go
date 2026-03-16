@@ -280,3 +280,60 @@ func TestBudgetShedRemovesGuides(t *testing.T) {
 		t.Error("budgetShed() should report shed sections")
 	}
 }
+
+func TestReadToolGuideEmbed(t *testing.T) {
+	// "docker.md" exists in the embedded prompts/tools_manuals/ directory.
+	data, ok := readToolGuideEmbed("/any/path/tools_manuals/docker.md")
+	if !ok || len(data) == 0 {
+		t.Fatal("readToolGuideEmbed should find docker.md in embedded FS")
+	}
+	if !strings.Contains(string(data), "docker") && !strings.Contains(string(data), "Docker") {
+		t.Error("embedded docker.md should mention docker")
+	}
+}
+
+func TestReadToolGuideEmbedNotFound(t *testing.T) {
+	_, ok := readToolGuideEmbed("/any/path/tools_manuals/nonexistent_tool_xyz.md")
+	if ok {
+		t.Error("readToolGuideEmbed should return false for non-existent guides")
+	}
+}
+
+func TestReadToolGuideEmbedNoMarker(t *testing.T) {
+	// Path without "tools_manuals/" should fail gracefully.
+	_, ok := readToolGuideEmbed("/some/random/path/docker.md")
+	if ok {
+		t.Error("readToolGuideEmbed should return false when path has no tools_manuals/ segment")
+	}
+}
+
+func TestReadToolGuideFallbackToEmbed(t *testing.T) {
+	// Clear cache to ensure a fresh lookup.
+	guideCacheMu.Lock()
+	delete(guideCache, "/nonexistent/dir/tools_manuals/docker.md")
+	guideCacheMu.Unlock()
+
+	// The disk path does not exist, so readToolGuide should fall back to embed.
+	content, ok := readToolGuide("/nonexistent/dir/tools_manuals/docker.md")
+	if !ok {
+		t.Fatal("readToolGuide should fall back to embedded FS when disk file is missing")
+	}
+	if len(content) == 0 {
+		t.Error("readToolGuide fallback should return non-empty content")
+	}
+}
+
+func TestTruncateGuide(t *testing.T) {
+	short := "hello world"
+	if truncateGuide(short, 100) != short {
+		t.Error("truncateGuide should not modify short content")
+	}
+	long := strings.Repeat("x", 200)
+	result := truncateGuide(long, 100)
+	if len(result) <= 100 {
+		t.Error("truncateGuide result should contain the truncated marker")
+	}
+	if !strings.HasSuffix(result, "[...truncated]") {
+		t.Error("truncateGuide should append truncation marker")
+	}
+}

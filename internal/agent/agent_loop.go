@@ -480,7 +480,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 		// Note: The call to PrepareDynamicGuides will happen after the response is received
 		// We initialize flags.PredictedGuides now with empty explicit tools to satisfy builder.go for the first prompt
-		flags.PredictedGuides = prompts.PrepareDynamicGuides(longTermMem, shortTermMem, lastUserMsg, lastTool, toolGuidesDir, recentTools, explicitTools, currentLogger)
+		flags.PredictedGuides = prompts.PrepareDynamicGuides(longTermMem, shortTermMem, lastUserMsg, lastTool, toolGuidesDir, recentTools, explicitTools, cfg.Agent.MaxToolGuides, currentLogger)
 
 		// Automatic RAG: retrieve relevant long-term memories for the current user message
 		// Phase A3: Over-fetch and re-rank with recency boost from memory_meta

@@ -416,6 +416,8 @@ func (m *PromptModule) ShouldInclude(flags ContextFlags) bool {
 
 // readToolGuide reads a tool guide file with caching.
 // Guides exceeding 8KB are truncated to prevent prompt bloat.
+// It first tries the on-disk path (allowing user overrides), then falls back
+// to the embedded FS baked into the binary.
 func readToolGuide(path string) (string, bool) {
 	const maxGuideBytes = 8192
 
@@ -428,17 +430,29 @@ func readToolGuide(path string) (string, bool) {
 		if err == nil && !info.ModTime().After(cached.mtime) {
 			return cached.content, true
 		}
+		// If the disk file disappeared but we have a cache entry from embed,
+		// the zero mtime sentinel means "from embed, always valid".
+		if cached.mtime.IsZero() {
+			return cached.content, true
+		}
 	}
 
+	// 1. Try on-disk file first (user overrides)
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return "", false
+		// 2. Fallback: extract relative embed path (e.g. "tools_manuals/docker.md")
+		data, ok = readToolGuideEmbed(path)
+		if !ok {
+			return "", false
+		}
+		content := truncateGuide(string(data), maxGuideBytes)
+		guideCacheMu.Lock()
+		guideCache[path] = guideCacheEntry{content: content} // zero mtime = from embed
+		guideCacheMu.Unlock()
+		return content, true
 	}
 
-	content := strings.TrimSpace(string(data))
-	if len(content) > maxGuideBytes {
-		content = content[:maxGuideBytes] + "\n[...truncated]"
-	}
+	content := truncateGuide(string(data), maxGuideBytes)
 	info, err := os.Stat(path)
 	if err == nil {
 		guideCacheMu.Lock()
@@ -448,14 +462,45 @@ func readToolGuide(path string) (string, bool) {
 	return content, true
 }
 
+// readToolGuideEmbed tries to load a tool guide from the embedded FS.
+// It derives the embed-relative path by finding the "tools_manuals" segment.
+func readToolGuideEmbed(osPath string) ([]byte, bool) {
+	// Normalise to forward slashes so the split works on Windows too.
+	norm := filepath.ToSlash(osPath)
+	const marker = "tools_manuals/"
+	idx := strings.LastIndex(norm, marker)
+	if idx < 0 {
+		return nil, false
+	}
+	embedPath := norm[idx:] // e.g. "tools_manuals/docker.md"
+	data, err := fs.ReadFile(promptsembed.FS, embedPath)
+	if err != nil {
+		return nil, false
+	}
+	return data, true
+}
+
+// truncateGuide trims whitespace and limits content to maxBytes.
+func truncateGuide(raw string, maxBytes int) string {
+	content := strings.TrimSpace(raw)
+	if len(content) > maxBytes {
+		content = content[:maxBytes] + "\n[...truncated]"
+	}
+	return content
+}
+
 // PrepareDynamicGuides orchestrates explicit, semantic, statistical, and recency-based prediction to find relevant tool documents.
-func PrepareDynamicGuides(vdb memory.VectorDB, stm *memory.SQLiteMemory, userQuery, lastTool, toolsDir string, recentTools []string, explicitTools []string, logger *slog.Logger) []string {
+// maxTotalGuides caps the number of guides returned (default: 5 if <= 0).
+func PrepareDynamicGuides(vdb memory.VectorDB, stm *memory.SQLiteMemory, userQuery, lastTool, toolsDir string, recentTools []string, explicitTools []string, maxTotalGuides int, logger *slog.Logger) []string {
+	if maxTotalGuides <= 0 {
+		maxTotalGuides = 5
+	}
 	var guides []string
 	guideMap := make(map[string]bool)
 
 	// Phase Z: EXPLICIT requested tools (highest priority, injected via <workflow_plan> tag)
 	for _, tool := range explicitTools {
-		if len(guides) >= 5 {
+		if len(guides) >= maxTotalGuides {
 			break
 		}
 		cleanPath := filepath.Clean(filepath.Join(toolsDir, tool+".md"))
@@ -533,10 +578,10 @@ func PrepareDynamicGuides(vdb memory.VectorDB, stm *memory.SQLiteMemory, userQue
 		}
 	}
 
-	// D. Limit: explicit requests up to 5, auto-discovered up to 3 additional (max 5 total)
+	// D. Limit: explicit requests get boosted allowance, capped at maxTotalGuides.
 	maxGuides := 3 + len(explicitTools)
-	if maxGuides > 5 {
-		maxGuides = 5
+	if maxGuides > maxTotalGuides {
+		maxGuides = maxTotalGuides
 	}
 	if len(guides) > maxGuides {
 		guides = guides[:maxGuides]

@@ -198,6 +198,7 @@ type Config struct {
 			DecayHalfLifeDays float64  `yaml:"decay_half_life_days"` // usage score halves after this many days (default: 7)
 			AlwaysInclude     []string `yaml:"always_include"`       // tools always included regardless of usage
 		} `yaml:"adaptive_tools"`
+		MaxToolGuides int `yaml:"max_tool_guides"` // maximum tool guide documents injected into prompt (default: 5)
 	} `yaml:"agent"`
 	CircuitBreaker struct {
 		MaxToolCalls              int      `yaml:"max_tool_calls"`
