@@ -1164,7 +1164,9 @@
         // ── Journal Timeline ────────────────────────────────────────────────────────
         const JOURNAL_ICONS = {
             reflection: '💭', milestone: '🏆', preference: '⭐', task_completed: '✅',
-            integration: '🔌', learning: '📚', error_recovery: '🔧', system_event: '⚙️'
+            integration: '🔌', learning: '📚', error_recovery: '🔧', system_event: '⚙️',
+            decision: '🎯', error: '❌', budget_exceeded: '💸', security_event: '🔒',
+            error_learned: '🧠', alert: '⚠️'
         };
 
         function renderJournalTimeline(entries) {
@@ -1177,9 +1179,12 @@
             el.innerHTML = entries.slice(0, 15).map(e => {
                 const icon = JOURNAL_ICONS[e.entry_type] || '📔';
                 const date = e.created_at ? new Date(e.created_at).toLocaleString(LANG, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
-                const tags = (e.tags || '').split(',').filter(Boolean).map(t => `<span class="je-tag">${escapeHtml(t.trim())}</span>`).join('');
+                // tags is a JSON array from the backend; support both array and legacy comma-string
+                const rawTags = Array.isArray(e.tags) ? e.tags : (typeof e.tags === 'string' ? e.tags.split(',') : []);
+                const tags = rawTags.filter(Boolean).map(tag => `<span class="je-tag">${escapeHtml(tag.trim())}</span>`).join('');
                 const auto = e.auto_generated ? ' 🤖' : '';
-                return `<div class="journal-entry" data-importance="${e.importance || 3}">
+                const imp = e.importance || 2;
+                return `<div class="journal-entry" data-importance="${imp}">
                     <div class="je-icon">${icon}</div>
                     <div class="je-body">
                         <div class="je-title">${escapeHtml(e.title || '')}${auto}</div>

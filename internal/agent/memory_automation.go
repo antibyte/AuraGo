@@ -11,7 +11,8 @@ import (
 
 // JournalAutoTrigger checks completed tool chains and creates appropriate journal entries.
 // Called at the end of a successful agent loop iteration (after final response).
-func JournalAutoTrigger(cfg *config.Config, stm *memory.SQLiteMemory, logger *slog.Logger, sessionID string, toolsUsed []string) {
+// lastUserMsg is used to enrich the entry title with the user's intent.
+func JournalAutoTrigger(cfg *config.Config, stm *memory.SQLiteMemory, logger *slog.Logger, sessionID string, toolsUsed []string, lastUserMsg string) {
 	if stm == nil || !cfg.Tools.Journal.Enabled || !cfg.Journal.AutoEntries {
 		return
 	}
@@ -23,7 +24,16 @@ func JournalAutoTrigger(cfg *config.Config, stm *memory.SQLiteMemory, logger *sl
 	// Trigger: Tool chain with ≥3 unique tools = task_completed
 	uniqueTools := uniqueStrings(toolsUsed)
 	if len(uniqueTools) >= 3 {
-		title := fmt.Sprintf("Task completed using %d tools", len(uniqueTools))
+		// Include a short preview of the user's request in the title for context
+		titleSuffix := ""
+		if lastUserMsg != "" {
+			preview := lastUserMsg
+			if len(preview) > 60 {
+				preview = preview[:60] + "…"
+			}
+			titleSuffix = ": " + preview
+		}
+		title := fmt.Sprintf("Task completed (%d tools)%s", len(uniqueTools), titleSuffix)
 		content := fmt.Sprintf("Tool chain: %s", strings.Join(uniqueTools, " → "))
 		id, err := stm.InsertJournalEntry(memory.JournalEntry{
 			EntryType:     "task_completed",
