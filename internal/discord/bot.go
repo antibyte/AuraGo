@@ -29,7 +29,7 @@ import (
 var session *discordgo.Session
 
 // StartBot initializes the Discord bot and begins listening for messages.
-func StartBot(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManager *tools.MissionManager) {
+func StartBot(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManagerV2 *tools.MissionManagerV2) {
 	if !cfg.Discord.Enabled || cfg.Discord.BotToken == "" {
 		if cfg.Discord.Enabled {
 			logger.Warn("[Discord] Bot token is missing, skipping Discord start.")
@@ -47,7 +47,7 @@ func StartBot(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, sh
 	dg.Identify.Intents = discordgo.IntentsGuildMessages | discordgo.IntentsDirectMessages | discordgo.IntentsMessageContent
 
 	dg.AddHandler(func(s *discordgo.Session, m *discordgo.MessageCreate) {
-		handleMessage(s, m, cfg, logger, client, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, missionManager)
+		handleMessage(s, m, cfg, logger, client, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, missionManagerV2)
 	})
 
 	if err := dg.Open(); err != nil {
@@ -211,7 +211,7 @@ func ListGuildChannels(guildID string, logger *slog.Logger) ([]*discordgo.Channe
 
 // ── Message Handler ─────────────────────────────────────────────────────────
 
-func handleMessage(s *discordgo.Session, m *discordgo.MessageCreate, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManager *tools.MissionManager) {
+func handleMessage(s *discordgo.Session, m *discordgo.MessageCreate, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManagerV2 *tools.MissionManagerV2) {
 	// Ignore own messages
 	if m.Author.ID == s.State.User.ID {
 		return
@@ -316,7 +316,7 @@ func handleMessage(s *discordgo.Session, m *discordgo.MessageCreate, cfg *config
 	}()
 
 	// Process through the agent
-	processDiscordMessage(s, m, inputText, cfg, logger, client, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, missionManager)
+	processDiscordMessage(s, m, inputText, cfg, logger, client, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, missionManagerV2)
 	stopTyping()
 }
 
@@ -397,7 +397,7 @@ func processDiscordAttachment(att *discordgo.MessageAttachment, inputText string
 	return fileNote
 }
 
-func processDiscordMessage(s *discordgo.Session, m *discordgo.MessageCreate, inputText string, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManager *tools.MissionManager) {
+func processDiscordMessage(s *discordgo.Session, m *discordgo.MessageCreate, inputText string, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManagerV2 *tools.MissionManagerV2) {
 	manifest := tools.NewManifest(cfg.Directories.ToolsDir)
 	sessionID := "default"
 
@@ -496,24 +496,24 @@ func processDiscordMessage(s *discordgo.Session, m *discordgo.MessageCreate, inp
 	}
 
 	runCfg := agent.RunConfig{
-		Config:          cfg,
-		Logger:          logger,
-		LLMClient:       client,
-		ShortTermMem:    shortTermMem,
-		HistoryManager:  historyManager,
-		LongTermMem:     longTermMem,
-		KG:              kg,
-		InventoryDB:     inventoryDB,
-		Vault:           vault,
-		Registry:        registry,
-		Manifest:        manifest,
-		CronManager:     cronManager,
-		MissionManager:  missionManager,
-		CoAgentRegistry: nil,
-		BudgetTracker:   nil,
-		SessionID:       sessionID,
-		IsMaintenance:   tools.IsBusy(),
-		SurgeryPlan:     "",
+		Config:           cfg,
+		Logger:           logger,
+		LLMClient:        client,
+		ShortTermMem:     shortTermMem,
+		HistoryManager:   historyManager,
+		LongTermMem:      longTermMem,
+		KG:               kg,
+		InventoryDB:      inventoryDB,
+		Vault:            vault,
+		Registry:         registry,
+		Manifest:         manifest,
+		CronManager:      cronManager,
+		MissionManagerV2: missionManagerV2,
+		CoAgentRegistry:  nil,
+		BudgetTracker:    nil,
+		SessionID:        sessionID,
+		IsMaintenance:    tools.IsBusy(),
+		SurgeryPlan:      "",
 	}
 
 	resp, err := agent.ExecuteAgentLoop(ctx, req, runCfg, false, broker)

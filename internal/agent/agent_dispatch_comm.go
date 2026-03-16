@@ -1,4 +1,4 @@
-﻿package agent
+package agent
 
 import (
 	"context"
@@ -25,7 +25,7 @@ import (
 )
 
 // dispatchComm handles webhook, skill, notification, email, discord, mission, and notes tool calls.
-func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, missionManager *tools.MissionManager, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, mediaRegistryDB *sql.DB, homepageRegistryDB *sql.DB, remoteHub *remote.RemoteHub, historyMgr *memory.HistoryManager, isMaintenance bool, surgeryPlan string, guardian *security.Guardian, llmGuardian *security.LLMGuardian, sessionID string, coAgentRegistry *CoAgentRegistry, budgetTracker *budget.Tracker) string {
+func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, missionManagerV2 *tools.MissionManagerV2, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, mediaRegistryDB *sql.DB, homepageRegistryDB *sql.DB, remoteHub *remote.RemoteHub, historyMgr *memory.HistoryManager, isMaintenance bool, surgeryPlan string, guardian *security.Guardian, llmGuardian *security.LLMGuardian, sessionID string, coAgentRegistry *CoAgentRegistry, budgetTracker *budget.Tracker) string {
 	switch tc.Action {
 	case "call_webhook":
 		if !cfg.Webhooks.Enabled {
@@ -776,13 +776,13 @@ func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 			}
 		}
 		logger.Info("LLM requested mission management", "op", tc.Operation)
-		if missionManager == nil {
+		if missionManagerV2 == nil {
 			return `Tool Output: {"status": "error", "message": "Mission control storage not available"}`
 		}
 
 		switch tc.Operation {
 		case "list":
-			missions := missionManager.List()
+			missions := missionManagerV2.List()
 			b, _ := json.Marshal(map[string]interface{}{"status": "success", "data": missions})
 			return "Tool Output: " + string(b)
 
@@ -796,14 +796,20 @@ func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 			} else if tc.Priority == 3 {
 				priorityStr = "high"
 			}
-			m := tools.Mission{
+			m := &tools.MissionV2{
 				Name:     tc.Title,
 				Prompt:   tc.Command,
 				Schedule: tc.CronExpr,
 				Priority: priorityStr,
 				Locked:   tc.Locked,
+				Enabled:  true,
 			}
-			err := missionManager.Create(m)
+			if m.Schedule != "" {
+				m.ExecutionType = tools.ExecutionScheduled
+			} else {
+				m.ExecutionType = tools.ExecutionManual
+			}
+			err := missionManagerV2.Create(m)
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
 			}
@@ -814,7 +820,7 @@ func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 			if tc.ID == "" {
 				return `Tool Output: {"status": "error", "message": "'id' is required for update"}`
 			}
-			existing, ok := missionManager.Get(tc.ID)
+			existing, ok := missionManagerV2.Get(tc.ID)
 			if !ok {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Mission %s not found"}`, tc.ID)
 			}
@@ -844,7 +850,7 @@ func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 				existing.Locked = tc.Locked
 			}
 
-			err := missionManager.Update(tc.ID, existing)
+			err := missionManagerV2.Update(tc.ID, existing)
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
 			}
@@ -854,7 +860,7 @@ func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 			if tc.ID == "" {
 				return `Tool Output: {"status": "error", "message": "'id' is required for delete"}`
 			}
-			err := missionManager.Delete(tc.ID)
+			err := missionManagerV2.Delete(tc.ID)
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
 			}
@@ -864,7 +870,7 @@ func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 			if tc.ID == "" {
 				return `Tool Output: {"status": "error", "message": "'id' is required for run"}`
 			}
-			err := missionManager.RunNow(tc.ID)
+			err := missionManagerV2.RunNow(tc.ID)
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
 			}

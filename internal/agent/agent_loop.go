@@ -40,7 +40,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	registry := runCfg.Registry
 	manifest := runCfg.Manifest
 	cronManager := runCfg.CronManager
-	missionManager := runCfg.MissionManager
+	missionManagerV2 := runCfg.MissionManagerV2
 	coAgentRegistry := runCfg.CoAgentRegistry
 	budgetTracker := runCfg.BudgetTracker
 	sessionID := runCfg.SessionID
@@ -381,7 +381,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 			broker.Send("tool_call", ptcJSON)
 			broker.Send("tool_start", ptc.Action)
-			pResultContent := DispatchToolCall(ctx, ptc, cfg, currentLogger, client, vault, registry, manifest, cronManager, missionManager, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, remoteHub, historyManager, tools.IsBusy(), surgeryPlan, guardian, llmGuardian, sessionID, coAgentRegistry, budgetTracker, lastUserMsg)
+			pResultContent := DispatchToolCall(ctx, ptc, cfg, currentLogger, client, vault, registry, manifest, cronManager, missionManagerV2, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, remoteHub, historyManager, tools.IsBusy(), surgeryPlan, guardian, llmGuardian, sessionID, coAgentRegistry, budgetTracker, lastUserMsg)
 			pResultContent = truncateToolOutput(pResultContent, cfg.Agent.ToolOutputLimit)
 			prompts.RecordToolUsage(ptc.Action, ptc.Operation, !isToolError(pResultContent))
 			prompts.RecordAdaptiveToolUsage(ptc.Action)
@@ -589,9 +589,12 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			flags.PersonalityLine = shortTermMem.GetPersonalityLine(cfg.Agent.PersonalityEngineV2)
 		}
 
-		// User Profile: inject compact summary if profiling is enabled
-		if cfg.Agent.UserProfiling && cfg.Agent.PersonalityEngineV2 && shortTermMem != nil {
-			flags.UserProfileSummary = shortTermMem.GetUserProfileSummary(cfg.Agent.UserProfilingThreshold)
+		// User Profiling: inject behavioral instruction + collected profile data
+		if cfg.Agent.UserProfiling {
+			flags.UserProfilingEnabled = true
+			if cfg.Agent.PersonalityEngineV2 && shortTermMem != nil {
+				flags.UserProfileSummary = shortTermMem.GetUserProfileSummary(cfg.Agent.UserProfilingThreshold)
+			}
 		}
 
 		// Adaptive tier: adjust prompt complexity based on conversation length and context signals
@@ -599,6 +602,21 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		flags.RecentlyUsedTools = recentTools
 		flags.Tier = prompts.DetermineTierAdaptive(flags)
 		flags.IsDebugMode = cfg.Agent.DebugMode || GetDebugMode() // re-check each iteration (toggleable at runtime)
+
+		// Inject high-priority open notes as reminders
+		if cfg.Tools.Notes.Enabled && shortTermMem != nil {
+			if hpNotes, err := shortTermMem.GetHighPriorityOpenNotes(5); err == nil && len(hpNotes) > 0 {
+				var sb strings.Builder
+				for _, n := range hpNotes {
+					sb.WriteString(fmt.Sprintf("- [%s] %s", n.Category, n.Title))
+					if n.DueDate != "" {
+						sb.WriteString(fmt.Sprintf(" (due: %s)", n.DueDate))
+					}
+					sb.WriteString("\n")
+				}
+				flags.HighPriorityNotes = sb.String()
+			}
+		}
 
 		// Inject session todo list into system prompt context
 		flags.SessionTodoItems = sessionTodoList
@@ -1244,7 +1262,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				broker.Send("co_agent_spawn", taskPreview)
 			}
 
-			resultContent := DispatchToolCall(ctx, tc, cfg, currentLogger, client, vault, registry, manifest, cronManager, missionManager, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, remoteHub, historyManager, tools.IsBusy(), surgeryPlan, guardian, llmGuardian, sessionID, coAgentRegistry, budgetTracker, lastUserMsg)
+			resultContent := DispatchToolCall(ctx, tc, cfg, currentLogger, client, vault, registry, manifest, cronManager, missionManagerV2, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, remoteHub, historyManager, tools.IsBusy(), surgeryPlan, guardian, llmGuardian, sessionID, coAgentRegistry, budgetTracker, lastUserMsg)
 			resultContent = truncateToolOutput(resultContent, cfg.Agent.ToolOutputLimit)
 			toolFailed := isToolError(resultContent)
 			prompts.RecordToolUsage(tc.Action, tc.Operation, !toolFailed)
@@ -1538,7 +1556,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					broker.Send("thinking", fmt.Sprintf("[%d] Running %s (batched)...", toolCallCount, btc.Action))
 					broker.Send("tool_start", btc.Action)
 
-					bResult := DispatchToolCall(ctx, btc, cfg, currentLogger, client, vault, registry, manifest, cronManager, missionManager, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, remoteHub, historyManager, tools.IsBusy(), surgeryPlan, guardian, llmGuardian, sessionID, coAgentRegistry, budgetTracker, lastUserMsg)
+					bResult := DispatchToolCall(ctx, btc, cfg, currentLogger, client, vault, registry, manifest, cronManager, missionManagerV2, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, remoteHub, historyManager, tools.IsBusy(), surgeryPlan, guardian, llmGuardian, sessionID, coAgentRegistry, budgetTracker, lastUserMsg)
 					bResult = truncateToolOutput(bResult, cfg.Agent.ToolOutputLimit)
 					prompts.RecordToolUsage(btc.Action, btc.Operation, !isToolError(bResult))
 					prompts.RecordAdaptiveToolUsage(btc.Action)

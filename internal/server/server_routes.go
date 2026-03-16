@@ -39,7 +39,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 
 	// Phase 68: Start the daily maintenance loop
 	manifest := tools.NewManifest(s.Cfg.Directories.ToolsDir)
-	agent.StartMaintenanceLoop(serverCtx, s.Cfg, s.Logger, s.LLMClient, s.Vault, s.Registry, manifest, s.CronManager, s.LongTermMem, s.ShortTermMem, s.HistoryManager, s.KG, s.InventoryDB, s.MissionManager)
+	agent.StartMaintenanceLoop(serverCtx, s.Cfg, s.Logger, s.LLMClient, s.Vault, s.Registry, manifest, s.CronManager, s.LongTermMem, s.ShortTermMem, s.HistoryManager, s.KG, s.InventoryDB, s.MissionManagerV2)
 
 	s.CoAgentRegistry.StartCleanupLoop()
 
@@ -300,18 +300,17 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		mux.HandleFunc("/api/indexing/rescan", handleIndexingRescan(s))
 		mux.HandleFunc("/api/indexing/directories", handleIndexingDirectories(s))
 
-		// Mission Control API endpoints (legacy v1)
+		// Mission Control API endpoints (enhanced with triggers and queue)
 		mux.HandleFunc("/api/missions", func(w http.ResponseWriter, r *http.Request) {
 			switch r.Method {
 			case http.MethodGet:
-				handleListMissions(s)(w, r)
+				handleListMissionsV2(s)(w, r)
 			case http.MethodPost:
-				handleCreateMission(s)(w, r)
+				handleCreateMissionV2(s)(w, r)
 			default:
 				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			}
 		})
-		mux.HandleFunc("/api/missions/", handleMissionByID(s))
 
 		// Mission Control API endpoints v2 (enhanced with triggers and queue)
 		mux.HandleFunc("/api/missions/v2", func(w http.ResponseWriter, r *http.Request) {
@@ -333,10 +332,10 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	// ── Integration bots (disabled in egg mode — eggs are headless workers) ──
 	if !s.Cfg.EggMode.Enabled {
 		// Phase 35.2: Start the Telegram Long Polling loop
-		telegram.StartLongPolling(s.Cfg, s.Logger, s.LLMClient, s.ShortTermMem, s.LongTermMem, s.Vault, s.Registry, s.CronManager, s.HistoryManager, s.KG, s.InventoryDB, s.MissionManager)
+		telegram.StartLongPolling(s.Cfg, s.Logger, s.LLMClient, s.ShortTermMem, s.LongTermMem, s.Vault, s.Registry, s.CronManager, s.HistoryManager, s.KG, s.InventoryDB, s.MissionManagerV2)
 
 		// Discord Bot: listen for messages and relay to the agent
-		discord.StartBot(s.Cfg, s.Logger, s.LLMClient, s.ShortTermMem, s.LongTermMem, s.Vault, s.Registry, s.CronManager, s.HistoryManager, s.KG, s.InventoryDB, s.MissionManager)
+		discord.StartBot(s.Cfg, s.Logger, s.LLMClient, s.ShortTermMem, s.LongTermMem, s.Vault, s.Registry, s.CronManager, s.HistoryManager, s.KG, s.InventoryDB, s.MissionManagerV2)
 
 		// Email Watcher: poll IMAP for new messages and wake the agent
 		tools.StartEmailWatcher(s.Cfg, s.Logger, s.Guardian, s.LLMGuardian)

@@ -151,9 +151,11 @@ type ContextFlags struct {
 	DocumentCreatorEnabled   bool
 	InternetExposed          bool   // HTTPS is enabled — system is likely reachable from the internet
 	IsDocker                 bool   // Running inside a Docker container
+	UserProfilingEnabled     bool   // User profiling is active — agent should learn about the user
 	UserProfileSummary       string // Optional user profile summary from profiling engine
 	AdditionalPrompt         string // Extra instructions always appended at end of system prompt
 	SessionTodoItems         string // Session-scoped task list piggybacked on tool calls
+	HighPriorityNotes        string // Open high-priority notes injected as reminders
 	KnowledgeContext         string // Relevant KG entities injected from SearchForContext
 	ErrorPatternContext      string // Known error patterns with resolutions for agent learning
 }
@@ -283,6 +285,13 @@ func BuildSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string,
 		finalPrompt.WriteString("\n\n")
 	}
 
+	// High-priority open notes — inject as reminders
+	if flags.HighPriorityNotes != "" {
+		finalPrompt.WriteString("### ACTIVE REMINDERS (high-priority notes) ###\n")
+		finalPrompt.WriteString(flags.HighPriorityNotes)
+		finalPrompt.WriteString("\n\n")
+	}
+
 	// Session-scoped task list — always inject when present
 	if flags.SessionTodoItems != "" {
 		finalPrompt.WriteString("### ACTIVE TASK LIST ###\n")
@@ -353,9 +362,20 @@ func BuildSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string,
 		finalPrompt.WriteString("\n\n")
 	}
 
-	// User Profile (optional, from profiling engine)
-	if flags.UserProfileSummary != "" {
-		finalPrompt.WriteString(flags.UserProfileSummary)
+	// User Profiling: behavioral instruction + collected data
+	if flags.UserProfilingEnabled {
+		finalPrompt.WriteString("## USER PROFILING\n")
+		finalPrompt.WriteString("Getting to know the user well helps you provide better, more personalized assistance. " +
+			"Organically pick up on relevant details the user shares — such as their job, location, technical preferences, " +
+			"daily routines, or recurring projects — and store them in core memory. " +
+			"When the user mentions something that could be valuable context (e.g. they talk about work), " +
+			"you may ask a brief follow-up question to learn more (e.g. \"What do you do for work?\"). " +
+			"Keep this lightweight and natural — never interrogate. " +
+			"If the user signals they dislike personal questions, note that preference in core memory and stop asking immediately.\n")
+		if flags.UserProfileSummary != "" {
+			finalPrompt.WriteString("\n### Known User Profile\n")
+			finalPrompt.WriteString(flags.UserProfileSummary)
+		}
 		finalPrompt.WriteString("\n")
 	}
 

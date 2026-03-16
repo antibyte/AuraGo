@@ -1,16 +1,23 @@
 # Mission Control Tool (`manage_missions`)
 
-Create and manage background automation tasks (missions) with optional cron scheduling.
+Create and manage background automation tasks (missions) with scheduling, triggers, and chaining.
 
 ## Operations
 
 | Operation | Description | Parameters |
 |-----------|-------------|------------|
 | `list` | List all missions | — |
-| `add` | Create a mission | `title`, `command`, `cron_expr`, `priority` |
-| `update` | Update a mission | `id`, `title`, `command`, `cron_expr`, `locked` |
+| `add` | Create a mission | `title`, `command`, `cron_expr`, `priority`, `locked` |
+| `update` | Update a mission | `id`, `title`, `command`, `cron_expr`, `priority`, `locked` |
 | `delete` | Delete a mission | `id` |
 | `run` | Execute a mission now | `id` |
+
+## Execution Types
+
+Missions support three execution types (set via the V2 API):
+- **manual** — Run on demand via `run` operation
+- **scheduled** — Run on a cron schedule
+- **triggered** — Run automatically when an event occurs (webhook, mission completed, MQTT, system startup, invasion events)
 
 ## Examples
 
@@ -23,10 +30,12 @@ Create and manage background automation tasks (missions) with optional cron sche
 ```
 
 ```json
-{"action": "manage_missions", "operation": "run", "id": "1"}
+{"action": "manage_missions", "operation": "run", "id": "mission_1234"}
 ```
 
 ## Notes
 - `priority`: 1=low, 2=medium (default), 3=high
 - `locked`: prevents accidental deletion
-- `cron_expr`: standard cron format (e.g. `0 */6 * * *` = every 6 hours)
+- `cron_expr`: standard cron format (e.g. `0 */6 * * *` = every 6 hours). When provided, the mission is automatically set to `scheduled` execution type.
+- Missions without a `cron_expr` default to `manual` execution type
+- Triggered missions (webhook, MQTT, mission chaining) are configured via the V2 REST API

@@ -1,6 +1,18 @@
 ## Tool: Journal (`manage_journal`)
 
-Record and retrieve journal entries that capture important events, milestones, preferences, and reflections. Journal entries are stored in SQLite and survive restarts. Daily summaries are generated automatically during nightly maintenance.
+Record and retrieve journal entries that capture important events, milestones, and learnings. Journal entries are stored in SQLite and survive restarts. Daily summaries are generated automatically during nightly maintenance.
+
+**Unlike Core Memory** (always in your prompt), journal entries are searched on-demand. Use the journal for things worth remembering long-term that don't need to be in every prompt.
+
+### When to use (vs. Core Memory vs. Notes)
+
+| Situation | Tool |
+|---|---|
+| Permanent user fact (name, preference) | Core Memory |
+| Notable event or achievement | **Journal** |
+| Learning or discovery | **Journal** |
+| Temporary task or reminder | Notes |
+| "Check X tomorrow" | Notes + cron |
 
 ### Operations
 

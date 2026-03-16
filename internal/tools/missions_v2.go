@@ -34,6 +34,20 @@ const (
 	TriggerSystemStartup    TriggerType = "system_startup"    // AuraGo Startup
 )
 
+// MissionStatus represents the runtime status of a mission
+const (
+	MissionStatusIdle    = "idle"
+	MissionStatusQueued  = "queued"
+	MissionStatusRunning = "running"
+	MissionStatusWaiting = "waiting"
+)
+
+// MissionResult represents the outcome of a mission run
+const (
+	MissionResultSuccess = "success"
+	MissionResultError   = "error"
+)
+
 // TriggerConfig holds configuration for mission triggers
 type TriggerConfig struct {
 	// For TriggerMissionCompleted
@@ -294,8 +308,8 @@ func (m *MissionManagerV2) Start() error {
 		}
 		for _, mission := range missions {
 			m.missions[mission.ID] = mission
-			if mission.Status == "running" {
-				mission.Status = "idle" // Reset on startup
+			if mission.Status == MissionStatusRunning {
+				mission.Status = MissionStatusIdle // Reset on startup
 			}
 		}
 	} else if !os.IsNotExist(err) {
@@ -328,7 +342,16 @@ func (m *MissionManagerV2) save() error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(m.file, data, 0644)
+
+	// Atomic write: temp file + rename to prevent data loss on crash
+	tmp := m.file + ".tmp"
+	if err := os.WriteFile(tmp, data, 0644); err != nil {
+		return fmt.Errorf("write temp file: %w", err)
+	}
+	if err := os.Rename(tmp, m.file); err != nil {
+		return fmt.Errorf("rename temp file: %w", err)
+	}
+	return nil
 }
 
 // setupTriggers initializes all active triggers
@@ -439,7 +462,7 @@ func (m *MissionManagerV2) processNext() {
 		return
 	}
 
-	mission.Status = "running"
+	mission.Status = MissionStatusRunning
 	mission.LastRun = time.Now()
 	m.save()
 
@@ -454,8 +477,8 @@ func (m *MissionManagerV2) processNext() {
 		// No callback set — mark mission as error and release queue
 		m.mu.Lock()
 		if ms, ok := m.missions[missionID]; ok {
-			ms.Status = "idle"
-			ms.LastResult = "error"
+			ms.Status = MissionStatusIdle
+			ms.LastResult = MissionResultError
 			ms.LastOutput = "no callback registered"
 			m.save()
 		}
@@ -485,7 +508,7 @@ func (m *MissionManagerV2) OnMissionComplete(missionID, result, output string) {
 
 	// Update mission status
 	if mission, ok := m.missions[missionID]; ok {
-		mission.Status = "idle"
+		mission.Status = MissionStatusIdle
 		mission.LastResult = result
 		mission.LastOutput = truncateString(output, 500)
 		mission.RunCount++
@@ -508,14 +531,14 @@ func (m *MissionManagerV2) OnMissionComplete(missionID, result, output string) {
 		}
 
 		// Check if success is required
-		if cfg.RequireSuccess && result != "success" {
+		if cfg.RequireSuccess && result != MissionResultSuccess {
 			continue
 		}
 
 		// Queue the triggered mission
 		m.queue.Enqueue(mission.ID, mission.Priority, "mission_completed",
 			fmt.Sprintf(`{"source_mission":"%s","result":"%s"}`, missionID, result))
-		mission.Status = "queued"
+		mission.Status = MissionStatusQueued
 	}
 	m.save()
 }
@@ -534,7 +557,7 @@ func (m *MissionManagerV2) TriggerMission(missionID, triggerType, triggerData st
 	}
 
 	m.queue.Enqueue(missionID, mission.Priority, triggerType, triggerData)
-	mission.Status = "queued"
+	mission.Status = MissionStatusQueued
 	m.save()
 	return nil
 }
@@ -573,7 +596,7 @@ func (m *MissionManagerV2) NotifyInvasionEvent(eventType, nestID, nestName, eggI
 			"egg_name":  eggName,
 		})
 		m.queue.Enqueue(mission.ID, mission.Priority, eventType, string(triggerData))
-		mission.Status = "queued"
+		mission.Status = MissionStatusQueued
 	}
 	m.save()
 }
@@ -595,7 +618,7 @@ func (m *MissionManagerV2) NotifySystemStartup() {
 			"time":  time.Now().Format(time.RFC3339),
 		})
 		m.queue.Enqueue(mission.ID, mission.Priority, string(TriggerSystemStartup), string(triggerData))
-		mission.Status = "queued"
+		mission.Status = MissionStatusQueued
 	}
 	m.save()
 }
@@ -612,7 +635,7 @@ func (m *MissionManagerV2) RunNow(id string) error {
 
 	// For manual execution, we still queue but with high priority
 	m.queue.Enqueue(id, "high", "manual", "")
-	mission.Status = "queued"
+	mission.Status = MissionStatusQueued
 	m.save()
 	return nil
 }
@@ -631,7 +654,7 @@ func (m *MissionManagerV2) Create(mission *MissionV2) error {
 	if mission.ExecutionType == "" {
 		mission.ExecutionType = ExecutionManual
 	}
-	mission.Status = "idle"
+	mission.Status = MissionStatusIdle
 	mission.CreatedAt = time.Now()
 	mission.Enabled = true
 

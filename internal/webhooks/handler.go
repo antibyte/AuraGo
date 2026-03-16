@@ -225,6 +225,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		h.manager.RecordFire(wh.ID)
+		h.manager.NotifyWebhookFired(wh.ID, body)
 		h.logEvent(wh.ID, wh.Name, 200, sourceIP, len(body), delivered, deliveryErr)
 	}()
 }

@@ -1,6 +1,25 @@
 ## Tool: Notes & To-Do (`manage_notes`)
 
-Manage persistent notes and to-do items. Notes are stored in SQLite and survive restarts.
+Manage persistent notes and to-do items. Notes are your **short-term memory** for tasks, reminders, and temporary bookmarks. Stored in SQLite, survives restarts.
+
+**Unlike Core Memory** (permanent, always in prompt), notes are for things that have a limited lifespan. Unlike Journal (event log), notes are actionable items.
+
+### Recommended Categories
+
+| Category | Use for |
+|---|---|
+| `todo` | Action items, tasks with deadlines |
+| `reminder` | Things to remember for upcoming sessions |
+| `bookmark` | Important paths, URLs, commands to revisit |
+| `context` | Current debugging/investigation state |
+| `ideas` | Feature ideas, improvement suggestions |
+| `work` | Work-related tasks and notes |
+
+### Lifecycle
+1. **Create** a note during conversation
+2. **Act** on it when relevant (or when due_date arrives)
+3. **Toggle done** when complete
+4. Done notes are cleaned up automatically after 7 days
 
 ### Operations
 

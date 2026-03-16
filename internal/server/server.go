@@ -204,7 +204,6 @@ type Server struct {
 	TokenManager       *security.TokenManager
 	WebhookManager     *webhooks.Manager
 	WebhookHandler     *webhooks.Handler
-	MissionManager     *tools.MissionManager
 	MissionManagerV2   *tools.MissionManagerV2
 	EggHub             *bridge.EggHub
 	RemoteHub          *remote.RemoteHub
@@ -246,7 +245,6 @@ func Start(cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, sh
 		IsFirstStart:       isFirstStart,
 		StartedAt:          time.Now(),
 		ShutdownCh:         shutdownCh,
-		MissionManager:     tools.NewMissionManager(cfg.Directories.DataDir, cronManager),
 		MissionManagerV2:   tools.NewMissionManagerV2(cfg.Directories.DataDir, cronManager),
 		EggHub:             bridge.NewEggHub(logger),
 	}
@@ -281,46 +279,6 @@ func Start(cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, sh
 			s.WebhookHandler = webhooks.NewHandler(whMgr, tm, s.Guardian, s.LLMGuardian, cfg, logger, cfg.Server.Port, int64(cfg.Webhooks.MaxPayloadSize), cfg.Webhooks.RateLimit)
 			logger.Info("Webhook system initialized", "max_webhooks", webhooks.MaxWebhooks)
 		}
-	}
-
-	// Start MissionManager: loads missions from disk and registers cron jobs for scheduled ones.
-	// Wire the callback so RunNow() and cron-triggered missions actually execute the prompt.
-	missionCallback := func(prompt string) {
-		go func() {
-			url := fmt.Sprintf("http://127.0.0.1:%d/v1/chat/completions", cfg.Server.Port)
-			payload := map[string]interface{}{
-				"model":  "aurago",
-				"stream": false,
-				"messages": []map[string]string{
-					{"role": "user", "content": prompt},
-				},
-			}
-			body, _ := json.Marshal(payload)
-			req, err := http.NewRequest("POST", url, strings.NewReader(string(body)))
-			if err != nil {
-				logger.Error("[MissionRun] Failed to create request", "error", err)
-				return
-			}
-			req.Header.Set("Content-Type", "application/json")
-			req.Header.Set("X-Internal-FollowUp", "true")
-
-			client := &http.Client{Timeout: 10 * time.Minute}
-			resp, err := client.Do(req)
-			if err != nil {
-				logger.Error("[MissionRun] Execution failed", "error", err)
-				return
-			}
-			defer resp.Body.Close()
-			if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-				logger.Info("[MissionRun] Mission executed", "status", resp.Status)
-			} else {
-				bodyBytes, _ := io.ReadAll(resp.Body)
-				logger.Error("[MissionRun] Mission returned non-OK status", "status", resp.Status, "body", string(bodyBytes))
-			}
-		}()
-	}
-	if err := s.MissionManager.Start(missionCallback); err != nil {
-		logger.Warn("Failed to start MissionManager", "error", err)
 	}
 
 	// Start MissionManagerV2 with enhanced callback that reports completion

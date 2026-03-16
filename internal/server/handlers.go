@@ -424,7 +424,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			Registry:           s.Registry,
 			Manifest:           manifest,
 			CronManager:        s.CronManager,
-			MissionManager:     s.MissionManager,
+			MissionManagerV2:   s.MissionManagerV2,
 			CoAgentRegistry:    s.CoAgentRegistry,
 			BudgetTracker:      s.BudgetTracker,
 			LLMGuardian:        s.LLMGuardian,

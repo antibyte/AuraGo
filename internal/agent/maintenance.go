@@ -23,7 +23,7 @@ import (
 )
 
 // StartMaintenanceLoop spawns a background goroutine that runs daily at the configured time.
-func StartMaintenanceLoop(ctx context.Context, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, historyMgr *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManager *tools.MissionManager) {
+func StartMaintenanceLoop(ctx context.Context, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, historyMgr *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManagerV2 *tools.MissionManagerV2) {
 	if !cfg.Maintenance.Enabled {
 		logger.Info("Daily maintenance is disabled in config")
 		return
@@ -49,7 +49,7 @@ func StartMaintenanceLoop(ctx context.Context, cfg *config.Config, logger *slog.
 
 			select {
 			case <-time.After(sleepDuration):
-				runMaintenanceTask(cfg, logger, llmClient, vault, registry, manifest, cronManager, longTermMem, shortTermMem, historyMgr, kg, inventoryDB, missionManager)
+				runMaintenanceTask(cfg, logger, llmClient, vault, registry, manifest, cronManager, longTermMem, shortTermMem, historyMgr, kg, inventoryDB, missionManagerV2)
 			case <-ctx.Done():
 				logger.Info("Maintenance loop shutting down")
 				return
@@ -74,7 +74,7 @@ func parseTime(t string) (int, int, error) {
 	return hour, minute, nil
 }
 
-func runMaintenanceTask(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, historyMgr *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManager *tools.MissionManager) {
+func runMaintenanceTask(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, historyMgr *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManagerV2 *tools.MissionManagerV2) {
 	logger.Info("[Maintenance] Waking up to perform daily tasks")
 
 	// Phase A5: Clean up old interaction patterns (>90 days)
@@ -114,6 +114,16 @@ func runMaintenanceTask(cfg *config.Config, logger *slog.Logger, client llm.Chat
 		generateDailySummary(cfg, logger, client, shortTermMem)
 	}
 
+	// Notes: clean up old completed notes (done for >7 days)
+	if cfg.Tools.Notes.Enabled && shortTermMem != nil {
+		deleted, err := shortTermMem.DeleteOldDoneNotes(7)
+		if err != nil {
+			logger.Error("[Maintenance] Failed to clean old done notes", "error", err)
+		} else if deleted > 0 {
+			logger.Info("[Maintenance] Cleaned old done notes", "deleted", deleted)
+		}
+	}
+
 	// Knowledge Graph: nightly batch entity extraction from recent conversations
 	if cfg.Tools.KnowledgeGraph.Enabled && cfg.Tools.KnowledgeGraph.AutoExtraction && kg != nil && shortTermMem != nil {
 		extractKGEntities(cfg, logger, client, shortTermMem, kg)
@@ -150,24 +160,24 @@ func runMaintenanceTask(cfg *config.Config, logger *slog.Logger, client llm.Chat
 	broker := &NoopBroker{}
 
 	runCfg := RunConfig{
-		Config:          cfg,
-		Logger:          logger,
-		LLMClient:       client,
-		ShortTermMem:    shortTermMem,
-		HistoryManager:  historyMgr,
-		LongTermMem:     longTermMem,
-		KG:              kg,
-		InventoryDB:     inventoryDB,
-		Vault:           vault,
-		Registry:        registry,
-		Manifest:        manifest,
-		CronManager:     cronManager,
-		MissionManager:  missionManager,
-		CoAgentRegistry: nil,
-		BudgetTracker:   nil,
-		SessionID:       sessionID,
-		IsMaintenance:   false,
-		SurgeryPlan:     "",
+		Config:           cfg,
+		Logger:           logger,
+		LLMClient:        client,
+		ShortTermMem:     shortTermMem,
+		HistoryManager:   historyMgr,
+		LongTermMem:      longTermMem,
+		KG:               kg,
+		InventoryDB:      inventoryDB,
+		Vault:            vault,
+		Registry:         registry,
+		Manifest:         manifest,
+		CronManager:      cronManager,
+		MissionManagerV2: missionManagerV2,
+		CoAgentRegistry:  nil,
+		BudgetTracker:    nil,
+		SessionID:        sessionID,
+		IsMaintenance:    false,
+		SurgeryPlan:      "",
 	}
 
 	resp, err := ExecuteAgentLoop(ctx, req, runCfg, false, broker)

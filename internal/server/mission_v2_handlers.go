@@ -5,7 +5,21 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+
+	"github.com/robfig/cron/v3"
 )
+
+const (
+	maxMissionNameLen   = 200
+	maxMissionPromptLen = 10000
+)
+
+// validateCronExpr checks whether expr is a valid cron expression.
+func validateCronExpr(expr string) bool {
+	parser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow | cron.Descriptor)
+	_, err := parser.Parse(expr)
+	return err == nil
+}
 
 // handleListMissionsV2 returns all missions V2 with queue status
 func handleListMissionsV2(s *Server) http.HandlerFunc {
@@ -50,6 +64,15 @@ func handleCreateMissionV2(s *Server) http.HandlerFunc {
 			return
 		}
 
+		if len(mission.Name) > maxMissionNameLen {
+			http.Error(w, "name exceeds maximum length", http.StatusBadRequest)
+			return
+		}
+		if len(mission.Prompt) > maxMissionPromptLen {
+			http.Error(w, "prompt exceeds maximum length", http.StatusBadRequest)
+			return
+		}
+
 		// Validate execution type
 		switch mission.ExecutionType {
 		case tools.ExecutionManual, tools.ExecutionScheduled, tools.ExecutionTriggered:
@@ -73,6 +96,18 @@ func handleCreateMissionV2(s *Server) http.HandlerFunc {
 			}
 		}
 
+		// Validate cron schedule for scheduled missions
+		if mission.ExecutionType == tools.ExecutionScheduled {
+			if mission.Schedule == "" {
+				http.Error(w, "schedule (cron expression) is required for scheduled missions", http.StatusBadRequest)
+				return
+			}
+			if !validateCronExpr(mission.Schedule) {
+				http.Error(w, "invalid cron expression in schedule", http.StatusBadRequest)
+				return
+			}
+		}
+
 		if err := s.MissionManagerV2.Create(&mission); err != nil {
 			s.Logger.Error("Failed to create mission", "error", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -82,8 +117,8 @@ func handleCreateMissionV2(s *Server) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"status":    "ok",
-			"mission":   mission,
+			"status":  "ok",
+			"mission": mission,
 		})
 	}
 }
@@ -143,6 +178,19 @@ func handleMissionUpdateV2(s *Server, w http.ResponseWriter, r *http.Request, id
 	var updated tools.MissionV2
 	if err := json.NewDecoder(r.Body).Decode(&updated); err != nil {
 		http.Error(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if len(updated.Name) > maxMissionNameLen {
+		http.Error(w, "name exceeds maximum length", http.StatusBadRequest)
+		return
+	}
+	if len(updated.Prompt) > maxMissionPromptLen {
+		http.Error(w, "prompt exceeds maximum length", http.StatusBadRequest)
+		return
+	}
+	if updated.Schedule != "" && !validateCronExpr(updated.Schedule) {
+		http.Error(w, "invalid cron expression in schedule", http.StatusBadRequest)
 		return
 	}
 

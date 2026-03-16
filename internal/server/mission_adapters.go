@@ -16,9 +16,7 @@ type missionWebhookAdapter struct {
 
 // RegisterMissionTrigger registers a callback for webhook-triggered missions
 func (a *missionWebhookAdapter) RegisterMissionTrigger(webhookID string, callback func(payload []byte)) {
-	// Note: This is a simplified adapter. In production, you'd want to
-	// store the callback and invoke it when the webhook fires.
-	// The actual webhook handling is done in the webhook handler.
+	a.mgr.RegisterMissionTrigger(webhookID, callback)
 	a.logger.Info("[MissionWebhookAdapter] Registered mission trigger", "webhook_id", webhookID)
 }
 

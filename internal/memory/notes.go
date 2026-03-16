@@ -225,6 +225,43 @@ func (s *SQLiteMemory) DeleteNote(id int64) error {
 	return nil
 }
 
+// GetHighPriorityOpenNotes returns up to `limit` open notes with priority=3 (high), ordered by due date then creation.
+func (s *SQLiteMemory) GetHighPriorityOpenNotes(limit int) ([]Note, error) {
+	if limit <= 0 {
+		limit = 5
+	}
+	rows, err := s.db.Query(
+		`SELECT id, category, title, content, priority, done, due_date, created_at, updated_at
+		 FROM notes WHERE done = 0 AND priority = 3
+		 ORDER BY CASE WHEN due_date != '' THEN 0 ELSE 1 END, due_date ASC, created_at DESC
+		 LIMIT ?`, limit)
+	if err != nil {
+		return nil, fmt.Errorf("get high priority notes: %w", err)
+	}
+	defer rows.Close()
+
+	var notes []Note
+	for rows.Next() {
+		var n Note
+		if err := rows.Scan(&n.ID, &n.Category, &n.Title, &n.Content, &n.Priority, &n.Done, &n.DueDate, &n.CreatedAt, &n.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("scan note: %w", err)
+		}
+		notes = append(notes, n)
+	}
+	return notes, rows.Err()
+}
+
+// DeleteOldDoneNotes removes notes that are marked done and older than daysOld days.
+// Returns the number of deleted notes.
+func (s *SQLiteMemory) DeleteOldDoneNotes(daysOld int) (int64, error) {
+	cutoff := time.Now().UTC().AddDate(0, 0, -daysOld).Format(time.RFC3339)
+	res, err := s.db.Exec(`DELETE FROM notes WHERE done = 1 AND updated_at < ?`, cutoff)
+	if err != nil {
+		return 0, fmt.Errorf("delete old done notes: %w", err)
+	}
+	return res.RowsAffected()
+}
+
 // FormatNotesJSON returns the notes list as a JSON string for tool output.
 func FormatNotesJSON(notes []Note) string {
 	if notes == nil {

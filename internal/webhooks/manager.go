@@ -16,10 +16,11 @@ var slugRegex = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$`)
 
 // Manager provides CRUD for webhook configurations.
 type Manager struct {
-	mu       sync.RWMutex
-	filePath string
-	webhooks []Webhook
-	log      *Log
+	mu              sync.RWMutex
+	filePath        string
+	webhooks        []Webhook
+	log             *Log
+	missionTriggers map[string][]func(payload []byte) // webhookID → callbacks
 }
 
 // NewManager creates a Manager and loads existing webhooks from disk.
@@ -236,4 +237,24 @@ func (m *Manager) RecordFire(id string) {
 // Log returns the webhook event log.
 func (m *Manager) GetLog() *Log {
 	return m.log
+}
+
+// RegisterMissionTrigger registers a callback to fire when the given webhook is triggered.
+func (m *Manager) RegisterMissionTrigger(webhookID string, callback func(payload []byte)) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.missionTriggers == nil {
+		m.missionTriggers = make(map[string][]func(payload []byte))
+	}
+	m.missionTriggers[webhookID] = append(m.missionTriggers[webhookID], callback)
+}
+
+// NotifyWebhookFired invokes all registered mission callbacks for the given webhook.
+func (m *Manager) NotifyWebhookFired(webhookID string, payload []byte) {
+	m.mu.RLock()
+	cbs := m.missionTriggers[webhookID]
+	m.mu.RUnlock()
+	for _, cb := range cbs {
+		cb(payload)
+	}
 }
