@@ -1,4 +1,4 @@
-﻿{
+{
   "dashboard.activity_coagent_completed": "पुरा होना",
   "dashboard.activity_coagent_failed": "असफल",
   "dashboard.activity_coagent_running": "दौड़ना",
@@ -218,4 +218,14 @@
   "dashboard.system_sse_clients": "एसएसई ग्राहक",
   "dashboard.system_title": "सिस्टम स्थिति",
   "dashboard.system_uptime": "अपटाइम"
+,
+  "dashboard.errors_frequent": "सबसे सामान्य",
+  "dashboard.errors_recent": "सबसे हालिया",
+  "dashboard.errors_title": "त्रुटि पैटर्न",
+  "dashboard.guardian_errors": "त्रुटियां",
+  "dashboard.guardian_last_check": "अंतिम जांच",
+  "dashboard.journal_key_topics": "विषय",
+  "dashboard.journal_sentiment_trend": "भावना प्रवृत्ति",
+  "dashboard.prompt_kpi_avg_modules_loaded": "Ø मॉड्यूल लोड",
+  "dashboard.prompt_kpi_avg_modules_used": "Ø मॉड्यूल उपयोग"
 }

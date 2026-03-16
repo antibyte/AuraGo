@@ -166,6 +166,11 @@
                     <canvas id="memory-chart"></canvas>
                 </div>
                 <div class="milestone-list" id="milestone-list"></div>
+                <!-- Error Patterns -->
+                <div id="error-patterns-wrap" style="display:none;margin-top:0.75rem;">
+                    <h4 class="card-section-title" data-i18n="dashboard.errors_title">Fehler-Muster</h4>
+                    <div id="error-patterns-list"></div>
+                </div>
             </div>
         </div>
 
@@ -183,6 +188,12 @@
             <div class="dash-card-header"><span class="card-icon">📔</span> <span data-i18n="dashboard.journal_title">Journal</span></div>
             <div class="dash-card-body">
                 <div class="journal-summary" id="journal-summary"></div>
+                <!-- Sentiment Trend -->
+                <div id="journal-sentiment-wrap" style="display:none;margin-top:0.5rem;">
+                    <h4 class="card-section-title" data-i18n="dashboard.journal_sentiment_trend">Stimmungs-Verlauf</h4>
+                    <div class="journal-sentiment-row" id="journal-sentiment-row"></div>
+                    <div id="journal-key-topics-wrap" style="margin-top:0.5rem;"></div>
+                </div>
                 <div class="journal-timeline" id="journal-timeline">
                     <div class="empty-state" data-i18n="dashboard.journal_empty">Noch keine Einträge.</div>
                 </div>

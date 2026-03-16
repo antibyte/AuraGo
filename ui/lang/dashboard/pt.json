@@ -1,4 +1,4 @@
-﻿{
+{
   "dashboard.activity_coagent_completed": "Concluído",
   "dashboard.activity_coagent_failed": "Falhou",
   "dashboard.activity_coagent_running": "Executando",
@@ -218,4 +218,14 @@
   "dashboard.system_sse_clients": "Clientes SSE",
   "dashboard.system_title": "Sistema",
   "dashboard.system_uptime": "Tempo de Atividade"
+,
+  "dashboard.errors_frequent": "Mais frequentes",
+  "dashboard.errors_recent": "Mais recentes",
+  "dashboard.errors_title": "Padrões de erro",
+  "dashboard.guardian_errors": "Erros",
+  "dashboard.guardian_last_check": "Última verificação",
+  "dashboard.journal_key_topics": "Tópicos",
+  "dashboard.journal_sentiment_trend": "Tendência de humor",
+  "dashboard.prompt_kpi_avg_modules_loaded": "Ø Módulos carregados",
+  "dashboard.prompt_kpi_avg_modules_used": "Ø Módulos usados"
 }

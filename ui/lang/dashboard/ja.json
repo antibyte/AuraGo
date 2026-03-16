@@ -1,4 +1,4 @@
-﻿{
+{
   "dashboard.activity_coagent_completed": "完了",
   "dashboard.activity_coagent_failed": "失敗",
   "dashboard.activity_coagent_running": "実行中",
@@ -218,4 +218,14 @@
   "dashboard.system_sse_clients": "SSE クライアント",
   "dashboard.system_title": "システム状態",
   "dashboard.system_uptime": "稼働時間"
+,
+  "dashboard.errors_frequent": "頻繁なエラー",
+  "dashboard.errors_recent": "最近のエラー",
+  "dashboard.errors_title": "エラーパターン",
+  "dashboard.guardian_errors": "エラー",
+  "dashboard.guardian_last_check": "最終確認",
+  "dashboard.journal_key_topics": "トピック",
+  "dashboard.journal_sentiment_trend": "感情トレンド",
+  "dashboard.prompt_kpi_avg_modules_loaded": "Ø モジュール読込",
+  "dashboard.prompt_kpi_avg_modules_used": "Ø モジュール使用"
 }

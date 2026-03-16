@@ -1,4 +1,4 @@
-﻿{
+{
   "dashboard.activity_coagent_completed": "Concluído",
   "dashboard.activity_coagent_failed": "Falhou",
   "dashboard.activity_coagent_running": "Executando",
@@ -218,4 +218,14 @@
   "dashboard.system_sse_clients": "Clientes SSE",
   "dashboard.system_title": "Sistema",
   "dashboard.system_uptime": "Tempo de Atividade"
+,
+  "dashboard.errors_frequent": "Vanligaste",
+  "dashboard.errors_recent": "Senaste",
+  "dashboard.errors_title": "Felmönster",
+  "dashboard.guardian_errors": "Fel",
+  "dashboard.guardian_last_check": "Senaste kontroll",
+  "dashboard.journal_key_topics": "Ämnen",
+  "dashboard.journal_sentiment_trend": "Stämningstrender",
+  "dashboard.prompt_kpi_avg_modules_loaded": "Ø Moduler laddade",
+  "dashboard.prompt_kpi_avg_modules_used": "Ø Moduler använda"
 }

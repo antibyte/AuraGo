@@ -997,3 +997,29 @@ func handleDashboardJournalStats(s *Server) http.HandlerFunc {
 		json.NewEncoder(w).Encode(stats)
 	}
 }
+
+// handleDashboardErrors returns frequent and recent error patterns from the error learning system.
+func handleDashboardErrors(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		frequent, err := s.ShortTermMem.GetFrequentErrors("", 10)
+		if err != nil || frequent == nil {
+			frequent = []memory.ErrorPattern{}
+		}
+
+		recent, err := s.ShortTermMem.GetRecentErrors(10)
+		if err != nil || recent == nil {
+			recent = []memory.ErrorPattern{}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"frequent": frequent,
+			"recent":   recent,
+		})
+	}
+}

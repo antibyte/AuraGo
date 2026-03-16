@@ -1,4 +1,4 @@
-﻿{
+{
   "dashboard.activity_coagent_completed": "Concluído",
   "dashboard.activity_coagent_failed": "Falhou",
   "dashboard.activity_coagent_running": "Executando",
@@ -218,4 +218,14 @@
   "dashboard.system_sse_clients": "Clientes SSE",
   "dashboard.system_title": "Sistema",
   "dashboard.system_uptime": "Tempo de Atividade"
+,
+  "dashboard.errors_frequent": "Hyppigste",
+  "dashboard.errors_recent": "Seneste",
+  "dashboard.errors_title": "Feilmønstre",
+  "dashboard.guardian_errors": "Feil",
+  "dashboard.guardian_last_check": "Siste kontroll",
+  "dashboard.journal_key_topics": "Emner",
+  "dashboard.journal_sentiment_trend": "Stemningstrend",
+  "dashboard.prompt_kpi_avg_modules_loaded": "Ø Moduler lastet",
+  "dashboard.prompt_kpi_avg_modules_used": "Ø Moduler brukt"
 }

@@ -1,4 +1,4 @@
-﻿{
+{
   "dashboard.activity_coagent_completed": "Dokonceno",
   "dashboard.activity_coagent_failed": "Selhalo",
   "dashboard.activity_coagent_running": "Bezi",
@@ -218,4 +218,14 @@
   "dashboard.system_sse_clients": "SSE Klienti",
   "dashboard.system_title": "System",
   "dashboard.system_uptime": "Doba Provozu"
+,
+  "dashboard.errors_frequent": "Συχνότερα",
+  "dashboard.errors_recent": "Πρόσφατα",
+  "dashboard.errors_title": "Πρότυπα σφαλμάτων",
+  "dashboard.guardian_errors": "Σφάλματα",
+  "dashboard.guardian_last_check": "Τελευταίος έλεγχος",
+  "dashboard.journal_key_topics": "Θέματα",
+  "dashboard.journal_sentiment_trend": "Τάση διάθεσης",
+  "dashboard.prompt_kpi_avg_modules_loaded": "Ø Μονάδες φόρτωσης",
+  "dashboard.prompt_kpi_avg_modules_used": "Ø Μονάδες χρήσης"
 }

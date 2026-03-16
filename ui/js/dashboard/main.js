@@ -703,6 +703,8 @@
                 { val: data.total_saved_chars.toLocaleString(), lbl: t('dashboard.prompt_kpi_chars_saved') },
                 { val: data.budget_shed_count, lbl: t('dashboard.prompt_kpi_budget_sheds') },
                 { val: data.avg_guides_count, lbl: t('dashboard.prompt_kpi_avg_guides') },
+                { val: data.avg_modules_loaded, lbl: t('dashboard.prompt_kpi_avg_modules_loaded') },
+                { val: data.avg_modules_used, lbl: t('dashboard.prompt_kpi_avg_modules_used') },
             ];
             kpis.innerHTML = kpiItems.map(k =>
                 `<div class="prompt-kpi"><div class="prompt-kpi-val">${k.val}</div><div class="prompt-kpi-lbl">${k.lbl}</div></div>`
@@ -1147,7 +1149,12 @@
                         <div class="guardian-metric-val">${m.content_scans}</div>
                         <div class="guardian-metric-lbl">${t('dashboard.guardian_content_scans')}</div>
                     </div>` : ''}
-                </div>`;
+                    ${m.errors ? `<div class="guardian-metric">
+                        <div class="guardian-metric-val warn">${m.errors}</div>
+                        <div class="guardian-metric-lbl">${t('dashboard.guardian_errors')}</div>
+                    </div>` : ''}
+                </div>
+                ${m.last_check_time > 0 ? `<div style="font-size:var(--text-xs);color:var(--text-secondary);margin-top:0.35rem;">${t('dashboard.guardian_last_check')}: ${relativeTime(m.last_check_time)}</div>` : ''}`;
         }
 
         // ══════════════════════════════════════════════════════════════════════════════
@@ -1192,21 +1199,98 @@
             }
             const latest = summaries[0];
             el.innerHTML = `<div class="journal-summary-label">📋 ${latest.date}</div><div>${escapeHtml(latest.summary || '')}</div>`;
+
+            // Sentiment trend + key topics
+            const sentimentWrap = document.getElementById('journal-sentiment-wrap');
+            const sentimentRow = document.getElementById('journal-sentiment-row');
+            const topicsWrap = document.getElementById('journal-key-topics-wrap');
+            if (sentimentWrap && sentimentRow) {
+                const sentimentEmoji = { positive: '😊', neutral: '😐', frustrated: '😤' };
+                const withSentiment = summaries.filter(s => s.sentiment);
+                if (withSentiment.length > 0) {
+                    sentimentWrap.style.display = '';
+                    sentimentRow.innerHTML = withSentiment.map(s =>
+                        `<span class="sentiment-day-badge ${esc(s.sentiment)}">${sentimentEmoji[s.sentiment] || '•'} ${esc(s.date)}</span>`
+                    ).join('');
+                } else {
+                    sentimentWrap.style.display = 'none';
+                }
+                // Key topics from latest summary
+                if (topicsWrap) {
+                    const topics = latest.key_topics && latest.key_topics.length > 0 ? latest.key_topics : [];
+                    if (topics.length > 0) {
+                        topicsWrap.innerHTML = `<div style="font-size:var(--text-xs);color:var(--text-secondary);margin-bottom:0.25rem;">${t('dashboard.journal_key_topics')}:</div><div class="journal-key-topics">${topics.map(tp => `<span class="journal-topic-chip">${esc(tp)}</span>`).join('')}</div>`;
+                    } else {
+                        topicsWrap.innerHTML = '';
+                    }
+                }
+            }
+        }
+
+        function renderErrorPatterns(data) {
+            const wrap = document.getElementById('error-patterns-wrap');
+            const list = document.getElementById('error-patterns-list');
+            if (!wrap || !list) return;
+            const frequent = data?.frequent || [];
+            const recent = data?.recent || [];
+            if (frequent.length === 0 && recent.length === 0) {
+                wrap.style.display = 'none';
+                return;
+            }
+            wrap.style.display = '';
+            let html = '';
+            const renderItem = (p) => {
+                const resolved = p.resolution ? `<div class="error-pattern-resolution">✓ ${esc(p.resolution.substring(0, 80))}${p.resolution.length > 80 ? '…' : ''}</div>` : '';
+                return `<div class="error-pattern-item">
+                    <div class="error-pattern-header">
+                        <span class="error-pattern-tool">${esc(p.tool_name || '?')}</span>
+                        <span class="error-pattern-msg" title="${esc(p.error_message)}">${esc((p.error_message || '').substring(0, 60))}${(p.error_message || '').length > 60 ? '…' : ''}</span>
+                        ${p.occurrence_count > 1 ? `<span class="error-pattern-count">${p.occurrence_count}×</span>` : ''}
+                    </div>
+                    ${resolved}
+                </div>`;
+            };
+            // Deduplicate: show frequent, merge unique recents not already shown
+            const shownIds = new Set();
+            if (frequent.length > 0) {
+                html += `<div class="error-section-label">${t('dashboard.errors_frequent')}</div>`;
+                frequent.slice(0, 5).forEach(p => { html += renderItem(p); shownIds.add(p.id); });
+            }
+            const newRecent = recent.filter(p => !shownIds.has(p.id));
+            if (newRecent.length > 0) {
+                html += `<div class="error-section-label">${t('dashboard.errors_recent')}</div>`;
+                newRecent.slice(0, 5).forEach(p => { html += renderItem(p); });
+            }
+            list.innerHTML = html;
         }
 
         async function loadJournal() {
             const [entries, summaries] = await Promise.all([
                 API.get('/api/dashboard/journal?limit=15'),
-                API.get('/api/dashboard/journal/summaries?days=1')
+                API.get('/api/dashboard/journal/summaries?days=7')
             ]);
             renderJournalTimeline(entries?.entries);
             renderJournalSummary(summaries?.summaries);
+        }
+
+        async function loadErrorPatterns() {
+            const data = await API.get('/api/dashboard/errors');
+            renderErrorPatterns(data);
         }
 
         // ── Escape HTML ─────────────────────────────────────────────────────────────
         function escapeHtml(str) {
             const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
             return String(str).replace(/[&<>"']/g, c => map[c]);
+        }
+
+        // ── Relative Time ────────────────────────────────────────────────────────────
+        function relativeTime(unixMillis) {
+            const diff = Math.floor((Date.now() - unixMillis) / 1000);
+            if (diff < 60) return diff + 's';
+            if (diff < 3600) return Math.floor(diff / 60) + 'm';
+            if (diff < 86400) return Math.floor(diff / 3600) + 'h';
+            return Math.floor(diff / 86400) + 'd';
         }
 
         async function initDashboard() {
@@ -1258,6 +1342,9 @@
 
             // Journal
             loadJournal();
+
+            // Error Patterns
+            loadErrorPatterns();
 
             // Operations & Integrations
             renderOperations(overview);
@@ -1378,6 +1465,9 @@
 
                 // Journal
                 loadJournal();
+
+                // Error Patterns
+                loadErrorPatterns();
             }, 30_000);
         }
 

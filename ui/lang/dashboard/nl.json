@@ -1,4 +1,4 @@
-﻿{
+{
   "dashboard.activity_coagent_completed": "voltooid",
   "dashboard.activity_coagent_failed": "mislukt",
   "dashboard.activity_coagent_running": "actief",
@@ -218,4 +218,14 @@
   "dashboard.system_sse_clients": "SSE Clients",
   "dashboard.system_title": "Systeemstatus",
   "dashboard.system_uptime": "Uptime"
+,
+  "dashboard.errors_frequent": "Meest voorkomend",
+  "dashboard.errors_recent": "Meest recent",
+  "dashboard.errors_title": "Foutpatronen",
+  "dashboard.guardian_errors": "Fouten",
+  "dashboard.guardian_last_check": "Laatste controle",
+  "dashboard.journal_key_topics": "Onderwerpen",
+  "dashboard.journal_sentiment_trend": "Stemming-trend",
+  "dashboard.prompt_kpi_avg_modules_loaded": "Ø Modules geladen",
+  "dashboard.prompt_kpi_avg_modules_used": "Ø Modules gebruikt"
 }
