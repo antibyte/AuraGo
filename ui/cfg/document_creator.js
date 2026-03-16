@@ -37,11 +37,11 @@ async function renderDocumentCreatorSection(section) {
     if (helpBackend) html += '<div class="field-help">' + helpBackend + '</div>';
     html += '<div style="display:flex;gap:1.5rem;flex-wrap:wrap;margin-top:0.6rem;">';
     html += '<label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;">';
-    html += '<input type="radio" name="dc_backend" value="maroto"' + (backend === 'maroto' ? ' checked' : '') + ' onchange="dcSwitchBackend(this.value)">';
+    html += '<input type="radio" name="dc_backend" data-path="tools.document_creator.backend" value="maroto"' + (backend === 'maroto' ? ' checked' : '') + ' onchange="dcSwitchBackend(this.value)">';
     html += '<span style="font-size:0.85rem;">' + t('config.document_creator.backend_maroto') + '</span>';
     html += '</label>';
     html += '<label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;">';
-    html += '<input type="radio" name="dc_backend" value="gotenberg"' + (backend === 'gotenberg' ? ' checked' : '') + ' onchange="dcSwitchBackend(this.value)">';
+    html += '<input type="radio" name="dc_backend" data-path="tools.document_creator.backend" value="gotenberg"' + (backend === 'gotenberg' ? ' checked' : '') + ' onchange="dcSwitchBackend(this.value)">';
     html += '<span style="font-size:0.85rem;">' + t('config.document_creator.backend_gotenberg') + '</span>';
     html += '</label>';
     html += '</div></div>';

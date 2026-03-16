@@ -722,6 +722,9 @@ async function saveConfig() {
     // Collect all field values
     const patch = {};
     document.querySelectorAll('[data-path]').forEach(el => {
+        // Skip unchecked radio buttons — only the selected radio should write its value
+        if (el.type === 'radio' && !el.checked) return;
+
         const path = el.dataset.path;
         const parts = path.split('.');
         let val;
