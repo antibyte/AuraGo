@@ -43,6 +43,12 @@ agent:
     # ── Standard API access ── enabled by default
     allow_mcp: true
     allow_web_scraper: true
+    # ── Adaptive tool filtering (reduces token usage for tool schemas) ──
+    adaptive_tools:
+        enabled: false                                              # enable adaptive filtering
+        max_tools: 60                                               # max tool schemas sent to LLM (0 = unlimited)
+        decay_half_life_days: 7                                     # usage score halves after this many days
+        always_include: [filesystem, shell, manage_memory, query_memory, execute_python, docker, api_request]
 budget:
     daily_limit_usd: 1
     default_cost:

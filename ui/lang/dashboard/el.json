@@ -217,8 +217,7 @@
   "dashboard.system_ram": "RAM",
   "dashboard.system_sse_clients": "SSE Klienti",
   "dashboard.system_title": "System",
-  "dashboard.system_uptime": "Doba Provozu"
-,
+  "dashboard.system_uptime": "Doba Provozu",
   "dashboard.errors_frequent": "Συχνότερα",
   "dashboard.errors_recent": "Πρόσφατα",
   "dashboard.errors_title": "Πρότυπα σφαλμάτων",
@@ -227,5 +226,9 @@
   "dashboard.journal_key_topics": "Θέματα",
   "dashboard.journal_sentiment_trend": "Τάση διάθεσης",
   "dashboard.prompt_kpi_avg_modules_loaded": "Ø Μονάδες φόρτωσης",
-  "dashboard.prompt_kpi_avg_modules_used": "Ø Μονάδες χρήσης"
+  "dashboard.prompt_kpi_avg_modules_used": "Ø Μονάδες χρήσης",
+  "dashboard.adaptive_tools_title": "Προσαρμοστικό φιλτράρισμα εργαλείων",
+  "dashboard.adaptive_tools_active": "Ενεργά εργαλεία",
+  "dashboard.adaptive_tools_total_calls": "Σύνολο κλήσεων",
+  "dashboard.adaptive_tools_max": "Μέγιστα εργαλεία"
 }

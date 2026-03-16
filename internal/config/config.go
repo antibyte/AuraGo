@@ -248,6 +248,19 @@ func Load(path string) (*Config, error) {
 	if cfg.Agent.SystemPromptTokenBudget <= 0 {
 		cfg.Agent.SystemPromptTokenBudget = 12288
 	}
+	// Adaptive tools defaults
+	if cfg.Agent.AdaptiveTools.MaxTools <= 0 && cfg.Agent.AdaptiveTools.Enabled {
+		cfg.Agent.AdaptiveTools.MaxTools = 60
+	}
+	if cfg.Agent.AdaptiveTools.DecayHalfLifeDays <= 0 {
+		cfg.Agent.AdaptiveTools.DecayHalfLifeDays = 7.0
+	}
+	if len(cfg.Agent.AdaptiveTools.AlwaysInclude) == 0 && cfg.Agent.AdaptiveTools.Enabled {
+		cfg.Agent.AdaptiveTools.AlwaysInclude = []string{
+			"filesystem", "shell", "manage_memory", "query_memory",
+			"execute_python", "docker", "api_request",
+		}
+	}
 	// LLM defaults
 	if cfg.LLM.Temperature == 0 {
 		cfg.LLM.Temperature = 0.7

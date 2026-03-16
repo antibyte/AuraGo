@@ -2,10 +2,13 @@ package agent
 
 import (
 	"encoding/json"
+	"log/slog"
 	"path/filepath"
 	"strings"
 
 	"aurago/internal/config"
+
+	"github.com/sashabaranov/go-openai"
 )
 
 // splitCSV splits a comma-separated value string into a trimmed, non-empty slice.
@@ -174,4 +177,54 @@ func extractErrorMessage(resultContent string) string {
 		return resultContent[:200]
 	}
 	return resultContent
+}
+
+// filterToolSchemas removes tools that are neither in the frequent-tools list
+// nor in the always-include list, keeping at most maxTools schemas.
+// This reduces token overhead for rarely-used tools without breaking any dispatch.
+func filterToolSchemas(schemas []openai.Tool, frequentTools, alwaysInclude []string, maxTools int, logger *slog.Logger) []openai.Tool {
+	keep := make(map[string]bool, len(frequentTools)+len(alwaysInclude))
+	for _, t := range alwaysInclude {
+		keep[t] = true
+	}
+	for _, t := range frequentTools {
+		keep[t] = true
+	}
+
+	var kept, dropped []openai.Tool
+	for _, s := range schemas {
+		if s.Function == nil {
+			kept = append(kept, s)
+			continue
+		}
+		name := s.Function.Name
+		// Always keep core tools (skill__, tool__ prefixed custom tools)
+		if keep[name] || strings.HasPrefix(name, "skill__") || strings.HasPrefix(name, "tool__") {
+			kept = append(kept, s)
+		} else {
+			dropped = append(dropped, s)
+		}
+	}
+
+	// If we're already under the limit, done
+	if maxTools <= 0 || len(kept) >= maxTools {
+		if logger != nil && len(dropped) > 0 {
+			logger.Info("[AdaptiveTools] Filtered tool schemas",
+				"kept", len(kept), "dropped", len(dropped), "max", maxTools)
+		}
+		return kept
+	}
+
+	// Fill remaining slots from dropped tools (preserving original order)
+	remaining := maxTools - len(kept)
+	for i := 0; i < remaining && i < len(dropped); i++ {
+		kept = append(kept, dropped[i])
+	}
+
+	finalDropped := len(schemas) - len(kept)
+	if logger != nil && finalDropped > 0 {
+		logger.Info("[AdaptiveTools] Filtered tool schemas",
+			"kept", len(kept), "dropped", finalDropped, "max", maxTools)
+	}
+	return kept
 }

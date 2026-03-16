@@ -2,6 +2,7 @@ package prompts
 
 import (
 	"testing"
+	"time"
 )
 
 func TestRecordToolUsageAndStats(t *testing.T) {
@@ -111,5 +112,95 @@ func TestToolUsageStatsEmpty(t *testing.T) {
 	}
 	if stats.Recent == nil {
 		t.Error("Recent should be non-nil empty slice")
+	}
+}
+
+func TestDecayScore(t *testing.T) {
+	now := time.Now()
+
+	// Tool used 10 times, just now → score ≈ 10
+	s1 := decayScore(10, now, 7)
+	if s1 < 9.9 || s1 > 10.1 {
+		t.Errorf("decayScore(10, now, 7) = %f, want ~10", s1)
+	}
+
+	// Tool used 10 times, 7 days ago → score ≈ 5 (half-life)
+	s2 := decayScore(10, now.Add(-7*24*time.Hour), 7)
+	if s2 < 4.9 || s2 > 5.1 {
+		t.Errorf("decayScore(10, 7d ago, 7) = %f, want ~5", s2)
+	}
+
+	// Tool used 10 times, 14 days ago → score ≈ 2.5
+	s3 := decayScore(10, now.Add(-14*24*time.Hour), 7)
+	if s3 < 2.4 || s3 > 2.6 {
+		t.Errorf("decayScore(10, 14d ago, 7) = %f, want ~2.5", s3)
+	}
+
+	// Tool used 5 times, 30 days ago → score very low
+	s4 := decayScore(5, now.Add(-30*24*time.Hour), 7)
+	if s4 > 0.5 {
+		t.Errorf("decayScore(5, 30d ago, 7) = %f, want <0.5", s4)
+	}
+}
+
+func TestGetFrequentToolsWeighted(t *testing.T) {
+	// Reset adaptive state
+	adaptiveToolState.mu.Lock()
+	adaptiveToolState.entries = make(map[string]*ToolUsageEntry)
+	adaptiveToolState.mu.Unlock()
+
+	now := time.Now()
+
+	// Load test data
+	LoadAdaptiveToolState([]ToolUsageEntry{
+		{ToolName: "shell", TotalCount: 50, LastUsed: now.Add(-1 * 24 * time.Hour)},     // recent, high count
+		{ToolName: "docker", TotalCount: 30, LastUsed: now.Add(-2 * 24 * time.Hour)},    // recent, medium count
+		{ToolName: "ansible", TotalCount: 20, LastUsed: now.Add(-21 * 24 * time.Hour)},  // old, medium count
+		{ToolName: "forgotten", TotalCount: 5, LastUsed: now.Add(-60 * 24 * time.Hour)}, // very old, low count → should be filtered
+	})
+
+	result := GetFrequentToolsWeighted(3, 7)
+	if len(result) < 2 || len(result) > 3 {
+		t.Fatalf("GetFrequentToolsWeighted(3, 7) returned %d tools, want 2-3", len(result))
+	}
+	if result[0] != "shell" {
+		t.Errorf("Top tool should be shell, got %q", result[0])
+	}
+	if result[1] != "docker" {
+		t.Errorf("Second tool should be docker, got %q", result[1])
+	}
+}
+
+func TestGetFrequentToolsWeightedEmpty(t *testing.T) {
+	// Reset adaptive state
+	adaptiveToolState.mu.Lock()
+	adaptiveToolState.entries = make(map[string]*ToolUsageEntry)
+	adaptiveToolState.mu.Unlock()
+
+	result := GetFrequentToolsWeighted(10, 7)
+	if len(result) != 0 {
+		t.Errorf("Empty state should return 0 tools, got %d", len(result))
+	}
+}
+
+func TestRecordAdaptiveToolUsage(t *testing.T) {
+	adaptiveToolState.mu.Lock()
+	adaptiveToolState.entries = make(map[string]*ToolUsageEntry)
+	adaptiveToolState.mu.Unlock()
+
+	RecordAdaptiveToolUsage("shell")
+	RecordAdaptiveToolUsage("shell")
+	RecordAdaptiveToolUsage("docker")
+
+	scores := GetAdaptiveToolScores(7)
+	if len(scores) != 2 {
+		t.Fatalf("Expected 2 tools, got %d", len(scores))
+	}
+	// shell should be first (higher count)
+	if scores[0].Tool != "shell" {
+		t.Errorf("Top tool should be shell, got %q", scores[0].Tool)
+	}
+	if scores[0].Count != 2 {
+		t.Errorf("shell count should be 2, got %d", scores[0].Count)
 	}
 }

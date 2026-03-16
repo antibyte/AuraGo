@@ -217,8 +217,7 @@
   "dashboard.system_ram": "RAM",
   "dashboard.system_sse_clients": "SSE Clients",
   "dashboard.system_title": "System Status",
-  "dashboard.system_uptime": "Uptime"
-,
+  "dashboard.system_uptime": "Uptime",
   "dashboard.errors_frequent": "Most Frequent",
   "dashboard.errors_recent": "Most Recent",
   "dashboard.errors_title": "Error Patterns",
@@ -227,5 +226,9 @@
   "dashboard.journal_key_topics": "Topics",
   "dashboard.journal_sentiment_trend": "Sentiment Trend",
   "dashboard.prompt_kpi_avg_modules_loaded": "Ø Modules loaded",
-  "dashboard.prompt_kpi_avg_modules_used": "Ø Modules used"
+  "dashboard.prompt_kpi_avg_modules_used": "Ø Modules used",
+  "dashboard.adaptive_tools_title": "Adaptive Tool Filtering",
+  "dashboard.adaptive_tools_active": "Tools Active",
+  "dashboard.adaptive_tools_total_calls": "Total Calls",
+  "dashboard.adaptive_tools_max": "Max Tools"
 }

@@ -217,8 +217,7 @@
   "dashboard.system_ram": "RAM",
   "dashboard.system_sse_clients": "SSE クライアント",
   "dashboard.system_title": "システム状態",
-  "dashboard.system_uptime": "稼働時間"
-,
+  "dashboard.system_uptime": "稼働時間",
   "dashboard.errors_frequent": "頻繁なエラー",
   "dashboard.errors_recent": "最近のエラー",
   "dashboard.errors_title": "エラーパターン",
@@ -227,5 +226,9 @@
   "dashboard.journal_key_topics": "トピック",
   "dashboard.journal_sentiment_trend": "感情トレンド",
   "dashboard.prompt_kpi_avg_modules_loaded": "Ø モジュール読込",
-  "dashboard.prompt_kpi_avg_modules_used": "Ø モジュール使用"
+  "dashboard.prompt_kpi_avg_modules_used": "Ø モジュール使用",
+  "dashboard.adaptive_tools_title": "アダプティブツールフィルタリング",
+  "dashboard.adaptive_tools_active": "アクティブツール",
+  "dashboard.adaptive_tools_total_calls": "合計呼び出し",
+  "dashboard.adaptive_tools_max": "最大ツール"
 }

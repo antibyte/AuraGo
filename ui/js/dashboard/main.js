@@ -76,6 +76,7 @@
                     this.get('/api/dashboard/github-repos'),
                     this.get('/api/dashboard/overview'),
                     this.get('/api/credits'),
+                    this.get('/api/dashboard/tool-stats'),
                 ]);
             }
         };
@@ -841,6 +842,56 @@
         }
 
         // ══════════════════════════════════════════════════════════════════════════════
+        // ADAPTIVE TOOL STATS
+        // ══════════════════════════════════════════════════════════════════════════════
+
+        function renderAdaptiveToolStats(data) {
+            const card = document.getElementById('card-adaptive-tools');
+            if (!data || !data.adaptive_enabled) {
+                if (card) card.style.display = 'none';
+                return;
+            }
+
+            const scores = data.adaptive_scores || [];
+            const totalTracked = scores.length;
+            const maxTools = data.max_tools || 0;
+            const activeCount = maxTools > 0 ? Math.min(totalTracked, maxTools) : totalTracked;
+            const totalCalls = data.total_calls || 0;
+
+            if (card) card.style.display = '';
+
+            const kpis = document.getElementById('adaptive-tools-kpis');
+            if (kpis) {
+                const kpiItems = [
+                    { val: `${activeCount}/${totalTracked}`, lbl: t('dashboard.adaptive_tools_active') },
+                    { val: maxTools || '∞', lbl: t('dashboard.adaptive_tools_max') },
+                    { val: totalCalls.toLocaleString(), lbl: t('dashboard.adaptive_tools_total_calls') },
+                ];
+                kpis.innerHTML = kpiItems.map(k =>
+                    `<div class="prompt-kpi"><div class="prompt-kpi-val">${k.val}</div><div class="prompt-kpi-lbl">${k.lbl}</div></div>`
+                ).join('');
+            }
+
+            const list = document.getElementById('adaptive-tools-list');
+            if (list && scores.length > 0) {
+                const maxScore = scores[0]?.score || 1;
+                list.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:0.4rem;">` +
+                    scores.slice(0, 30).map((s, i) => {
+                        const pct = maxScore > 0 ? Math.round((s.score / maxScore) * 100) : 0;
+                        const isActive = maxTools <= 0 || i < maxTools;
+                        const opacity = isActive ? '1' : '0.4';
+                        return `<div style="display:flex;align-items:center;gap:0.5rem;opacity:${opacity};">
+                            <span style="flex:0 0 120px;font-size:var(--text-xs);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(s.tool)}">${esc(s.tool)}</span>
+                            <div style="flex:1;height:6px;background:var(--border-subtle);border-radius:3px;overflow:hidden;">
+                                <div style="height:100%;width:${pct}%;background:var(--accent);border-radius:3px;"></div>
+                            </div>
+                            <span style="flex:0 0 40px;font-size:var(--text-xs);text-align:right;color:var(--text-secondary);">${s.count}×</span>
+                        </div>`;
+                    }).join('') + `</div>`;
+            }
+        }
+
+        // ══════════════════════════════════════════════════════════════════════════════
         // LOG VIEWER
         // ══════════════════════════════════════════════════════════════════════════════
 
@@ -1299,7 +1350,7 @@
         }
 
         async function initDashboard() {
-            const [system, budget, personality, moodHistory, memData, profile, activity, promptStats, logResults, githubRepos, overview, credits] = await API.fetchAll(currentMoodHours);
+            const [system, budget, personality, moodHistory, memData, profile, activity, promptStats, logResults, githubRepos, overview, credits, toolStats] = await API.fetchAll(currentMoodHours);
 
             // Agent Status Banner
             renderAgentBanner(overview, overview?.context?.total_chars);
@@ -1370,6 +1421,9 @@
                 Charts.promptSectionDist = createPromptSectionDistChart('prompt-section-dist-chart', promptStats.avg_section_sizes);
             }
 
+            // Adaptive Tool Stats
+            renderAdaptiveToolStats(toolStats);
+
             // Log Viewer
             renderLogs(logResults);
             scrollLogsToBottom();
@@ -1405,7 +1459,7 @@
 
             // Everything else every 30s
             setInterval(async () => {
-                const [, budget, personality, moodHistory, memData, profile, activity, promptStats, logResults, githubRepos, overview, credits] = await API.fetchAll(currentMoodHours);
+                const [, budget, personality, moodHistory, memData, profile, activity, promptStats, logResults, githubRepos, overview, credits, toolStats] = await API.fetchAll(currentMoodHours);
 
                 // Agent banner
                 renderAgentBanner(overview, overview?.context?.total_chars);
@@ -1454,6 +1508,9 @@
                     if (Charts.promptSectionDist) { Charts.promptSectionDist.destroy(); }
                     Charts.promptSectionDist = createPromptSectionDistChart('prompt-section-dist-chart', promptStats.avg_section_sizes);
                 }
+
+                // Adaptive Tool Stats
+                renderAdaptiveToolStats(toolStats);
 
                 // Logs auto-refresh
                 renderLogs(logResults);

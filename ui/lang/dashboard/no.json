@@ -217,8 +217,7 @@
   "dashboard.system_ram": "RAM",
   "dashboard.system_sse_clients": "Clientes SSE",
   "dashboard.system_title": "Sistema",
-  "dashboard.system_uptime": "Tempo de Atividade"
-,
+  "dashboard.system_uptime": "Tempo de Atividade",
   "dashboard.errors_frequent": "Hyppigste",
   "dashboard.errors_recent": "Seneste",
   "dashboard.errors_title": "Feilmønstre",
@@ -227,5 +226,9 @@
   "dashboard.journal_key_topics": "Emner",
   "dashboard.journal_sentiment_trend": "Stemningstrend",
   "dashboard.prompt_kpi_avg_modules_loaded": "Ø Moduler lastet",
-  "dashboard.prompt_kpi_avg_modules_used": "Ø Moduler brukt"
+  "dashboard.prompt_kpi_avg_modules_used": "Ø Moduler brukt",
+  "dashboard.adaptive_tools_title": "Adaptiv verktøyfiltrering",
+  "dashboard.adaptive_tools_active": "Aktive verktøy",
+  "dashboard.adaptive_tools_total_calls": "Totale kall",
+  "dashboard.adaptive_tools_max": "Max verktøy"
 }

@@ -151,7 +151,13 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 		archived_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		consolidated BOOLEAN DEFAULT 0
 	);
-	CREATE INDEX IF NOT EXISTS idx_archived_messages_consolidated ON archived_messages(consolidated);`
+	CREATE INDEX IF NOT EXISTS idx_archived_messages_consolidated ON archived_messages(consolidated);
+
+	CREATE TABLE IF NOT EXISTS tool_usage_adaptive (
+		tool_name TEXT PRIMARY KEY,
+		total_count INTEGER DEFAULT 0,
+		last_used DATETIME DEFAULT CURRENT_TIMESTAMP
+	);`
 
 	if _, err := db.Exec(schema); err != nil {
 		return nil, fmt.Errorf("failed to create sqlite schema: %w", err)
@@ -209,7 +215,7 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 
 	// Set user_version so backup/restore can detect schema generation.
 	// Increment this constant whenever a new column or table is added.
-	const shortTermSchemaVersion = 1
+	const shortTermSchemaVersion = 2
 	var currentVer int
 	_ = db.QueryRow("PRAGMA user_version").Scan(&currentVer)
 	if currentVer != shortTermSchemaVersion {
@@ -647,6 +653,45 @@ func (s *SQLiteMemory) GetToolUsageCount(toolName string) (int, error) {
 		toolName, toolName,
 	).Scan(&count)
 	return count, err
+}
+
+// ── Adaptive Tool Usage Tracking ───────────────────────────────────────────
+
+// ToolUsageAdaptiveEntry represents a persistent tool usage record with decay support.
+type ToolUsageAdaptiveEntry struct {
+	ToolName   string
+	TotalCount int
+	LastUsed   time.Time
+}
+
+// UpsertToolUsage increments the usage counter for a tool and updates last_used.
+func (s *SQLiteMemory) UpsertToolUsage(toolName string) error {
+	_, err := s.db.Exec(`
+		INSERT INTO tool_usage_adaptive (tool_name, total_count, last_used)
+		VALUES (?, 1, CURRENT_TIMESTAMP)
+		ON CONFLICT(tool_name)
+		DO UPDATE SET total_count = total_count + 1, last_used = CURRENT_TIMESTAMP`,
+		toolName)
+	return err
+}
+
+// LoadToolUsageAdaptive returns all tracked tool usage entries.
+func (s *SQLiteMemory) LoadToolUsageAdaptive() ([]ToolUsageAdaptiveEntry, error) {
+	rows, err := s.db.Query(`SELECT tool_name, total_count, last_used FROM tool_usage_adaptive`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var entries []ToolUsageAdaptiveEntry
+	for rows.Next() {
+		var e ToolUsageAdaptiveEntry
+		if err := rows.Scan(&e.ToolName, &e.TotalCount, &e.LastUsed); err != nil {
+			continue
+		}
+		entries = append(entries, e)
+	}
+	return entries, rows.Err()
 }
 
 // ── Temporal Memory (Phase A) ──────────────────────────────────────────────

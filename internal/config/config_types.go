@@ -192,6 +192,12 @@ type Config struct {
 		AllowMCP             bool   `yaml:"allow_mcp"`              // allow MCP (Model Context Protocol) server connections
 		AllowWebScraper      *bool  `yaml:"allow_web_scraper"`      // deprecated: migrated to tools.web_scraper.enabled
 		AdditionalPrompt     string `yaml:"additional_prompt"`      // extra instructions always appended to the system prompt
+		AdaptiveTools        struct {
+			Enabled           bool     `yaml:"enabled"`              // enable adaptive tool filtering (default: false)
+			MaxTools          int      `yaml:"max_tools"`            // maximum tool schemas to send to LLM (0 = unlimited, default: 60)
+			DecayHalfLifeDays float64  `yaml:"decay_half_life_days"` // usage score halves after this many days (default: 7)
+			AlwaysInclude     []string `yaml:"always_include"`       // tools always included regardless of usage
+		} `yaml:"adaptive_tools"`
 	} `yaml:"agent"`
 	CircuitBreaker struct {
 		MaxToolCalls              int      `yaml:"max_tool_calls"`

@@ -217,8 +217,7 @@
   "dashboard.system_ram": "RAM",
   "dashboard.system_sse_clients": "SSE Klienti",
   "dashboard.system_title": "System",
-  "dashboard.system_uptime": "Doba Provozu"
-,
+  "dashboard.system_uptime": "Doba Provozu",
   "dashboard.errors_frequent": "Nejčastější",
   "dashboard.errors_recent": "Nejnovější",
   "dashboard.errors_title": "Vzory chyb",
@@ -227,5 +226,9 @@
   "dashboard.journal_key_topics": "Témata",
   "dashboard.journal_sentiment_trend": "Trend nálady",
   "dashboard.prompt_kpi_avg_modules_loaded": "Ø Načtené moduly",
-  "dashboard.prompt_kpi_avg_modules_used": "Ø Použité moduly"
+  "dashboard.prompt_kpi_avg_modules_used": "Ø Použité moduly",
+  "dashboard.adaptive_tools_title": "Adaptivní filtrování nástrojů",
+  "dashboard.adaptive_tools_active": "Aktivní nástroje",
+  "dashboard.adaptive_tools_total_calls": "Celkem volání",
+  "dashboard.adaptive_tools_max": "Max nástrojů"
 }

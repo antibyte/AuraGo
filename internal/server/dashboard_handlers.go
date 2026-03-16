@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"aurago/internal/agent"
+	"aurago/internal/config"
 	"aurago/internal/invasion"
 	"aurago/internal/inventory"
 	"aurago/internal/memory"
@@ -247,14 +248,30 @@ func handleDashboardPromptStats() http.HandlerFunc {
 }
 
 // handleDashboardToolStats returns aggregated tool usage statistics.
-func handleDashboardToolStats() http.HandlerFunc {
+func handleDashboardToolStats(cfg *config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(prompts.GetToolUsageStats())
+		stats := prompts.GetToolUsageStats()
+
+		type response struct {
+			prompts.ToolUsageAggregated
+			AdaptiveEnabled bool                     `json:"adaptive_enabled"`
+			AdaptiveScores  []prompts.ToolDecayScore `json:"adaptive_scores,omitempty"`
+			MaxTools        int                      `json:"max_tools,omitempty"`
+		}
+		resp := response{
+			ToolUsageAggregated: stats,
+			AdaptiveEnabled:     cfg.Agent.AdaptiveTools.Enabled,
+		}
+		if cfg.Agent.AdaptiveTools.Enabled {
+			resp.AdaptiveScores = prompts.GetAdaptiveToolScores(cfg.Agent.AdaptiveTools.DecayHalfLifeDays)
+			resp.MaxTools = cfg.Agent.AdaptiveTools.MaxTools
+		}
+		json.NewEncoder(w).Encode(resp)
 	}
 }
 

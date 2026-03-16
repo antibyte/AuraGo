@@ -217,8 +217,7 @@
   "dashboard.system_ram": "内存",
   "dashboard.system_sse_clients": "SSE 客户端",
   "dashboard.system_title": "系统状态",
-  "dashboard.system_uptime": "运行时间"
-,
+  "dashboard.system_uptime": "运行时间",
   "dashboard.errors_frequent": "最常见",
   "dashboard.errors_recent": "最近",
   "dashboard.errors_title": "错误模式",
@@ -227,5 +226,9 @@
   "dashboard.journal_key_topics": "主题",
   "dashboard.journal_sentiment_trend": "情感趋势",
   "dashboard.prompt_kpi_avg_modules_loaded": "Ø 已加载模块",
-  "dashboard.prompt_kpi_avg_modules_used": "Ø 已使用模块"
+  "dashboard.prompt_kpi_avg_modules_used": "Ø 已使用模块",
+  "dashboard.adaptive_tools_title": "自适应工具过滤",
+  "dashboard.adaptive_tools_active": "活跃工具",
+  "dashboard.adaptive_tools_total_calls": "总调用次数",
+  "dashboard.adaptive_tools_max": "最大工具数"
 }

@@ -1,6 +1,7 @@
 package prompts
 
 import (
+	"math"
 	"sort"
 	"sync"
 	"time"
@@ -291,4 +292,119 @@ func GetFrequentTools(topN int) []string {
 		result = append(result, ranked[i].Tool)
 	}
 	return result
+}
+
+// ─── Adaptive Tool Filtering (decay-weighted) ─────────────────────────────
+
+// ToolUsageEntry holds persistent usage data for one tool (loaded from SQLite).
+type ToolUsageEntry struct {
+	ToolName   string
+	TotalCount int
+	LastUsed   time.Time
+}
+
+// ToolDecayScore holds a tool name and its computed decay-weighted score.
+type ToolDecayScore struct {
+	Tool  string  `json:"tool"`
+	Score float64 `json:"score"`
+	Count int     `json:"count"`
+}
+
+// adaptiveToolState holds the in-memory cache of persistent tool usage data.
+var adaptiveToolState struct {
+	mu      sync.RWMutex
+	entries map[string]*ToolUsageEntry // tool_name → entry
+}
+
+func init() {
+	adaptiveToolState.entries = make(map[string]*ToolUsageEntry)
+}
+
+// LoadAdaptiveToolState populates the in-memory cache from SQLite data.
+// Call this once at startup.
+func LoadAdaptiveToolState(entries []ToolUsageEntry) {
+	adaptiveToolState.mu.Lock()
+	defer adaptiveToolState.mu.Unlock()
+	adaptiveToolState.entries = make(map[string]*ToolUsageEntry, len(entries))
+	for i := range entries {
+		e := entries[i]
+		adaptiveToolState.entries[e.ToolName] = &e
+	}
+}
+
+// RecordAdaptiveToolUsage updates the in-memory adaptive cache for a tool.
+func RecordAdaptiveToolUsage(toolName string) {
+	adaptiveToolState.mu.Lock()
+	defer adaptiveToolState.mu.Unlock()
+	e, ok := adaptiveToolState.entries[toolName]
+	if !ok {
+		e = &ToolUsageEntry{ToolName: toolName}
+		adaptiveToolState.entries[toolName] = e
+	}
+	e.TotalCount++
+	e.LastUsed = time.Now()
+}
+
+// decayScore computes: count × 0.5^(daysSinceLastUse / halfLifeDays).
+func decayScore(count int, lastUsed time.Time, halfLifeDays float64) float64 {
+	days := time.Since(lastUsed).Hours() / 24.0
+	if days < 0 {
+		days = 0
+	}
+	return float64(count) * math.Pow(0.5, days/halfLifeDays)
+}
+
+// GetFrequentToolsWeighted returns the top-N tools ranked by decay-weighted score.
+// halfLifeDays controls how fast old usage fades (7 = score halves every 7 days).
+func GetFrequentToolsWeighted(topN int, halfLifeDays float64) []string {
+	adaptiveToolState.mu.RLock()
+	defer adaptiveToolState.mu.RUnlock()
+
+	if halfLifeDays <= 0 {
+		halfLifeDays = 7.0
+	}
+
+	type scored struct {
+		tool  string
+		score float64
+	}
+	ranked := make([]scored, 0, len(adaptiveToolState.entries))
+	for _, e := range adaptiveToolState.entries {
+		s := decayScore(e.TotalCount, e.LastUsed, halfLifeDays)
+		if s >= 0.5 { // minimum threshold to be considered
+			ranked = append(ranked, scored{e.ToolName, s})
+		}
+	}
+	sort.Slice(ranked, func(i, j int) bool {
+		return ranked[i].score > ranked[j].score
+	})
+
+	result := make([]string, 0, topN)
+	for i := 0; i < topN && i < len(ranked); i++ {
+		result = append(result, ranked[i].tool)
+	}
+	return result
+}
+
+// GetAdaptiveToolScores returns all tool scores for dashboard display.
+func GetAdaptiveToolScores(halfLifeDays float64) []ToolDecayScore {
+	adaptiveToolState.mu.RLock()
+	defer adaptiveToolState.mu.RUnlock()
+
+	if halfLifeDays <= 0 {
+		halfLifeDays = 7.0
+	}
+
+	scores := make([]ToolDecayScore, 0, len(adaptiveToolState.entries))
+	for _, e := range adaptiveToolState.entries {
+		scores = append(scores, ToolDecayScore{
+			Tool:  e.ToolName,
+			Score: decayScore(e.TotalCount, e.LastUsed, halfLifeDays),
+			Count: e.TotalCount,
+		})
+	}
+	sort.Slice(scores, func(i, j int) bool {
+		return scores[i].Score > scores[j].Score
+	})
+	return scores
 }

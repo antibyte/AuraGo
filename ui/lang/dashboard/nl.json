@@ -217,8 +217,7 @@
   "dashboard.system_ram": "RAM",
   "dashboard.system_sse_clients": "SSE Clients",
   "dashboard.system_title": "Systeemstatus",
-  "dashboard.system_uptime": "Uptime"
-,
+  "dashboard.system_uptime": "Uptime",
   "dashboard.errors_frequent": "Meest voorkomend",
   "dashboard.errors_recent": "Meest recent",
   "dashboard.errors_title": "Foutpatronen",
@@ -227,5 +226,9 @@
   "dashboard.journal_key_topics": "Onderwerpen",
   "dashboard.journal_sentiment_trend": "Stemming-trend",
   "dashboard.prompt_kpi_avg_modules_loaded": "Ø Modules geladen",
-  "dashboard.prompt_kpi_avg_modules_used": "Ø Modules gebruikt"
+  "dashboard.prompt_kpi_avg_modules_used": "Ø Modules gebruikt",
+  "dashboard.adaptive_tools_title": "Adaptieve tool-filtering",
+  "dashboard.adaptive_tools_active": "Tools actief",
+  "dashboard.adaptive_tools_total_calls": "Totaal aanroepen",
+  "dashboard.adaptive_tools_max": "Max tools"
 }

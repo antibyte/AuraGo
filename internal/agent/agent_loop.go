@@ -46,6 +46,19 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	sessionID := runCfg.SessionID
 	isMaintenance := runCfg.IsMaintenance
 	surgeryPlan := runCfg.SurgeryPlan
+
+	// Load persistent adaptive tool usage data on first run
+	if cfg.Agent.AdaptiveTools.Enabled && shortTermMem != nil {
+		if entries, err := shortTermMem.LoadToolUsageAdaptive(); err == nil && len(entries) > 0 {
+			converted := make([]prompts.ToolUsageEntry, len(entries))
+			for i, e := range entries {
+				converted[i] = prompts.ToolUsageEntry{ToolName: e.ToolName, TotalCount: e.TotalCount, LastUsed: e.LastUsed}
+			}
+			prompts.LoadAdaptiveToolState(converted)
+			logger.Info("[AdaptiveTools] Loaded persistent tool usage", "tools_tracked", len(entries))
+		}
+	}
+
 	var webhooksDef strings.Builder
 	if cfg.Webhooks.Enabled && len(cfg.Webhooks.Outgoing) > 0 {
 		for _, w := range cfg.Webhooks.Outgoing {
@@ -248,6 +261,20 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			AllowSelfUpdate:      cfg.Agent.AllowSelfUpdate,
 		}
 		ntSchemas := BuildNativeToolSchemas(cfg.Directories.SkillsDir, manifest, ff, logger)
+
+		// Adaptive tool filtering: remove rarely-used tools to save tokens
+		if cfg.Agent.AdaptiveTools.Enabled && shortTermMem != nil {
+			halfLife := cfg.Agent.AdaptiveTools.DecayHalfLifeDays
+			if halfLife <= 0 {
+				halfLife = 7.0
+			}
+			frequent := prompts.GetFrequentToolsWeighted(0, halfLife) // 0 = all scored tools
+			maxTools := cfg.Agent.AdaptiveTools.MaxTools
+			alwaysInclude := cfg.Agent.AdaptiveTools.AlwaysInclude
+			if maxTools > 0 && len(frequent) > 0 {
+				ntSchemas = filterToolSchemas(ntSchemas, frequent, alwaysInclude, maxTools, logger)
+			}
+		}
 		// Structured Outputs: set Strict=true on every tool definition so the
 		// provider uses constrained decoding for tool-call arguments.
 		// Only enable this for models that support structured outputs (e.g. GPT-4o,
@@ -357,6 +384,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			pResultContent := DispatchToolCall(ctx, ptc, cfg, currentLogger, client, vault, registry, manifest, cronManager, missionManager, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, remoteHub, historyManager, tools.IsBusy(), surgeryPlan, guardian, llmGuardian, sessionID, coAgentRegistry, budgetTracker, lastUserMsg)
 			pResultContent = truncateToolOutput(pResultContent, cfg.Agent.ToolOutputLimit)
 			prompts.RecordToolUsage(ptc.Action, ptc.Operation, !isToolError(pResultContent))
+			prompts.RecordAdaptiveToolUsage(ptc.Action)
+			if shortTermMem != nil {
+				_ = shortTermMem.UpsertToolUsage(ptc.Action)
+			}
 			broker.Send("tool_output", pResultContent)
 			if ptc.Action == "send_image" {
 				var imgRes struct {
@@ -1208,6 +1239,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			resultContent = truncateToolOutput(resultContent, cfg.Agent.ToolOutputLimit)
 			toolFailed := isToolError(resultContent)
 			prompts.RecordToolUsage(tc.Action, tc.Operation, !toolFailed)
+			prompts.RecordAdaptiveToolUsage(tc.Action)
+			if shortTermMem != nil {
+				_ = shortTermMem.UpsertToolUsage(tc.Action)
+			}
 
 			// Record error patterns for learning
 			if toolFailed && shortTermMem != nil {
@@ -1497,6 +1532,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					bResult := DispatchToolCall(ctx, btc, cfg, currentLogger, client, vault, registry, manifest, cronManager, missionManager, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, remoteHub, historyManager, tools.IsBusy(), surgeryPlan, guardian, llmGuardian, sessionID, coAgentRegistry, budgetTracker, lastUserMsg)
 					bResult = truncateToolOutput(bResult, cfg.Agent.ToolOutputLimit)
 					prompts.RecordToolUsage(btc.Action, btc.Operation, !isToolError(bResult))
+					prompts.RecordAdaptiveToolUsage(btc.Action)
+					if shortTermMem != nil {
+						_ = shortTermMem.UpsertToolUsage(btc.Action)
+					}
 					broker.Send("tool_output", bResult)
 					broker.Send("tool_end", btc.Action)
 					lastActivity = time.Now()
@@ -1665,15 +1704,20 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		JournalAutoTrigger(cfg, shortTermMem, currentLogger, sessionID, recentTools, lastUserMsg)
 
 		// Weekly reflection: async trigger if configured and due
-		if cfg.MemoryAnalysis.Enabled && cfg.MemoryAnalysis.WeeklyReflection && weeklyReflectionDue(cfg) {
-			go func() {
-				reflCtx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
-				defer cancel()
-				_, err := generateMemoryReflection(reflCtx, cfg, currentLogger, shortTermMem, kg, longTermMem, client, "monthly")
-				if err != nil {
-					currentLogger.Warn("Weekly reflection failed", "error", err)
-				}
-			}()
+		// Guard: only run once per day by checking if a reflection entry already exists today.
+		if cfg.MemoryAnalysis.Enabled && cfg.MemoryAnalysis.WeeklyReflection && weeklyReflectionDue(cfg) && shortTermMem != nil {
+			today := time.Now().Format("2006-01-02")
+			existing, _ := shortTermMem.GetJournalEntries(today, today, []string{"reflection"}, 1)
+			if len(existing) == 0 {
+				go func() {
+					reflCtx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+					defer cancel()
+					_, err := generateMemoryReflection(reflCtx, cfg, currentLogger, shortTermMem, kg, longTermMem, client, "recent")
+					if err != nil {
+						currentLogger.Warn("Weekly reflection failed", "error", err)
+					}
+				}()
+			}
 		}
 
 		return resp, nil
