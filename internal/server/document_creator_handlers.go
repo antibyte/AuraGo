@@ -34,7 +34,16 @@ func handleGotenbergTest(s *Server) http.HandlerFunc {
 		ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 		defer cancel()
 
-		result := tools.GotenbergHealth(ctx, &cfg.Gotenberg)
-		w.Write([]byte(result))
+		resultStr := tools.GotenbergHealth(ctx, &cfg.Gotenberg)
+
+		// Inject the active backend so the UI can confirm what the server is using
+		var resultMap map[string]interface{}
+		if json.Unmarshal([]byte(resultStr), &resultMap) == nil {
+			resultMap["active_backend"] = cfg.Backend
+			out, _ := json.Marshal(resultMap)
+			w.Write(out)
+		} else {
+			w.Write([]byte(resultStr))
+		}
 	}
 }

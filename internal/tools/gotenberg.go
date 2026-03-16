@@ -121,7 +121,11 @@ const gotenbergImage = "gotenberg/gotenberg:8"
 // EnsureGotenbergRunning ensures the Gotenberg container is running.
 // It checks the container state via the Docker API and, if missing or stopped,
 // creates/starts it. Safe to call multiple times.
-func EnsureGotenbergRunning(dockerHost string, logger interface{ Info(string, ...any); Warn(string, ...any); Error(string, ...any) }) {
+func EnsureGotenbergRunning(dockerHost string, logger interface {
+	Info(string, ...any)
+	Warn(string, ...any)
+	Error(string, ...any)
+}) {
 	dockerCfg := DockerConfig{Host: dockerHost}
 
 	// Inspect existing container

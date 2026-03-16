@@ -117,9 +117,10 @@ async function dcTestGotenberg() {
     try {
         var resp = await fetch('/api/document-creator/test', { method: 'POST' });
         var body = await resp.json();
-        if (resp.ok && body.status === 'up') {
+        if (resp.ok && body.status === 'success') {
             result.style.color = 'var(--success, #34c759)';
-            result.textContent = '✅ ' + t('config.document_creator.test_ok');
+            var backendInfo = body.active_backend ? ' (backend: ' + body.active_backend + ')' : '';
+            result.textContent = '✅ ' + t('config.document_creator.test_ok') + backendInfo;
         } else {
             result.style.color = 'var(--danger, #ff3b30)';
             result.textContent = '❌ ' + (body.message || ('HTTP ' + resp.status));
