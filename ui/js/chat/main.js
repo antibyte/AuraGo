@@ -223,7 +223,7 @@ function appendToolOutput(text, label) {
                 </div>
             `;
     chatContent.appendChild(row);
-    SmartScroller.onNewMessage();
+    chatBox.scrollTop = chatBox.scrollHeight;
 }
 
 /* ── Session Todo Panel ── */
@@ -420,148 +420,6 @@ document.getElementById('stop-btn').addEventListener('click', async () => {
     }
 });
 
-/* ── Smart Scroller ──────────────────────────────── */
-const SmartScroller = {
-    container: null,
-    isUserScrolledUp: false,
-    scrollThreshold: 100,
-    scrollButton: null,
-    newMessagesCount: 0,
-
-    init(container) {
-        this.container = container;
-        this.createScrollButton();
-        this.container.addEventListener('scroll', () => this.onScroll());
-        
-        // Handle window resize
-        window.addEventListener('resize', () => {
-            if (!this.isUserScrolledUp) {
-                this.scrollToBottom(true);
-            }
-        });
-    },
-
-    createScrollButton() {
-        this.scrollButton = document.createElement('button');
-        this.scrollButton.className = 'scroll-to-bottom-btn';
-        this.scrollButton.innerHTML = '🔽 <span class="new-count"></span>';
-        this.scrollButton.style.display = 'none';
-        this.scrollButton.addEventListener('click', () => {
-            this.scrollToBottom(true);
-            this.newMessagesCount = 0;
-            this.updateButton();
-        });
-        document.body.appendChild(this.scrollButton);
-    },
-
-    onScroll() {
-        const { scrollTop, scrollHeight, clientHeight } = this.container;
-        const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
-        
-        this.isUserScrolledUp = distanceFromBottom > this.scrollThreshold;
-        
-        if (!this.isUserScrolledUp) {
-            this.newMessagesCount = 0;
-        }
-        
-        this.updateButton();
-    },
-
-    updateButton() {
-        if (this.isUserScrolledUp) {
-            this.scrollButton.style.display = 'flex';
-            const countEl = this.scrollButton.querySelector('.new-count');
-            countEl.textContent = this.newMessagesCount > 0 ? `${this.newMessagesCount} new` : '';
-            if (this.newMessagesCount > 0) {
-                this.scrollButton.classList.add('has-new');
-            } else {
-                this.scrollButton.classList.remove('has-new');
-            }
-        } else {
-            this.scrollButton.style.display = 'none';
-            this.scrollButton.classList.remove('has-new');
-        }
-    },
-
-    scrollToBottom(force = false) {
-        if (force || !this.isUserScrolledUp) {
-            this.container.scrollTo({
-                top: this.container.scrollHeight,
-                behavior: 'smooth'
-            });
-        } else {
-            this.newMessagesCount++;
-            this.updateButton();
-        }
-    },
-
-    onNewMessage() {
-        this.scrollToBottom(false);
-    }
-};
-
-// Initialize SmartScroller after DOM ready
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-        SmartScroller.init(chatBox);
-    });
-} else {
-    SmartScroller.init(chatBox);
-}
-
-/* ── Code Block Utilities ────────────────────────── */
-function createCodeBlock(code, lang) {
-    const id = 'code-' + Math.random().toString(36).substr(2, 9);
-    const lines = code.split('\n');
-    const lineNumbers = lines.map((_, i) => i + 1).join('\n');
-    
-    // Highlight the code
-    let highlighted = code;
-    if (lang && window.hljs && hljs.getLanguage(lang)) {
-        try {
-            highlighted = hljs.highlight(code, { language: lang, ignoreIllegals: true }).value;
-        } catch (e) {
-            highlighted = escapeHtml(code);
-        }
-    } else {
-        highlighted = escapeHtml(code);
-    }
-    
-    return `
-        <div class="code-block-wrapper">
-            <div class="code-header">
-                <span class="code-lang">${lang || 'text'}</span>
-                <button class="copy-btn" onclick="copyCodeBlock(this, '${id}')" data-code="${encodeURIComponent(code)}">
-                    📋 Copy
-                </button>
-            </div>
-            <div class="code-content">
-                <div class="line-numbers">${lineNumbers}</div>
-                <pre><code class="hljs ${lang || ''}">${highlighted}</code></pre>
-            </div>
-        </div>
-    `;
-}
-
-function copyCodeBlock(btn, id) {
-    const code = decodeURIComponent(btn.dataset.code);
-    navigator.clipboard.writeText(code).then(() => {
-        const originalText = btn.innerHTML;
-        btn.innerHTML = '✅ Copied';
-        btn.classList.add('copied');
-        setTimeout(() => {
-            btn.innerHTML = originalText;
-            btn.classList.remove('copied');
-        }, 2000);
-    }).catch(err => {
-        console.error('Copy failed:', err);
-        btn.innerHTML = '❌ Failed';
-        setTimeout(() => {
-            btn.innerHTML = '📋 Copy';
-        }, 2000);
-    });
-}
-
 /* ── Append message ── */
 function appendMessage(role, text) {
     if (!text || typeof text !== 'string') text = '';
@@ -612,12 +470,19 @@ function appendMessage(role, text) {
                     breaks: true,
                     linkify: true,
                     highlight: function (str, lang) {
-                        // Handle mermaid diagrams
-                        if (lang === 'mermaid') {
-                            return `<div class="mermaid-raw">${escapeHtml(str)}</div>`;
+                        // Use enhanced code blocks if available
+                        if (window.CodeBlocks) {
+                            return window.CodeBlocks.createCodeBlock(str, lang);
                         }
-                        // Use enhanced code blocks
-                        return createCodeBlock(str, lang);
+                        // Fallback to basic highlighting
+                        if (lang && window.hljs && hljs.getLanguage(lang)) {
+                            try {
+                                return '<pre class="hljs"><code>' +
+                                    hljs.highlight(str, { language: lang, ignoreIllegals: true }).value +
+                                    '</code></pre>';
+                            } catch (__) { }
+                        }
+                        return '<pre class="hljs"><code>' + escapeHtml(str) + '</code></pre>';
                     }
                 });
 
@@ -660,13 +525,20 @@ function appendMessage(role, text) {
             `;
     chatContent.insertAdjacentHTML('beforeend', msgHTML);
     
-    // Render mermaid diagrams in the new message
-    const newMessage = chatContent.lastElementChild;
-    if (newMessage && typeof mermaidRenderer !== 'undefined') {
-        mermaidRenderer.render(newMessage);
+    // Render mermaid diagrams if available
+    if (window.MermaidLoader) {
+        const newMessage = chatContent.lastElementChild;
+        if (newMessage) {
+            window.MermaidLoader.processBlocks(newMessage);
+        }
     }
     
-    SmartScroller.onNewMessage();
+    // Use SmartScroller or fallback
+    if (window.SmartScroller) {
+        window.SmartScroller.onNewMessage();
+    } else {
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
 }
 
 /* ── Helpers ── */
@@ -681,98 +553,12 @@ function escapeHtml(str) {
 /* ── File Upload ── */
 const fileInput = document.getElementById('file-input');
 const uploadBtn = document.getElementById('upload-btn');
-const voiceBtn = document.getElementById('voice-btn');
 const attachChip = document.getElementById('attachment-chip');
 const attachName = document.getElementById('attachment-name');
 const attachClear = document.getElementById('attachment-clear');
 let pendingAttachment = null; // { path, filename }
 
 uploadBtn.addEventListener('click', () => fileInput.click());
-
-/* ── Voice Recording ── */
-const voiceRecorder = new VoiceRecorder();
-
-// Insert voice recorder UI into footer
-const footer = document.querySelector('.app-footer');
-const recorderUI = voiceRecorder.createUI();
-footer.style.position = 'relative';
-footer.insertBefore(recorderUI, footer.firstChild);
-
-voiceBtn.addEventListener('click', async () => {
-    if (voiceRecorder.isRecording) {
-        // Already recording - send it
-        voiceRecorder.send();
-    } else {
-        // Start new recording
-        await voiceRecorder.start();
-    }
-});
-
-// Handle voice send
-voiceRecorder.onSend = async (blob, mimeType) => {
-    const formData = new FormData();
-    formData.append('audio', blob, 'recording.webm');
-    
-    voiceBtn.disabled = true;
-    voiceBtn.innerHTML = '⏳';
-    
-    try {
-        const res = await fetch('/api/upload-voice', { 
-            method: 'POST', 
-            body: formData 
-        });
-        
-        if (!res.ok) throw new Error(await res.text());
-        
-        const data = await res.json();
-        
-        // Insert transcription into input
-        userInput.value = data.transcription;
-        autoResize();
-        userInput.focus();
-        
-        showToast(t('chat.voice_transcribed') || 'Voice message transcribed', 'success');
-    } catch (err) {
-        console.error('Voice upload error:', err);
-        appendMessage('assistant', t('chat.voice_failed') + err.message);
-    } finally {
-        voiceBtn.disabled = false;
-        voiceBtn.innerHTML = '🎤';
-    }
-};
-
-voiceRecorder.onCancel = () => {
-    voiceBtn.innerHTML = '🎤';
-    showToast(t('chat.voice_cancelled') || 'Recording cancelled', 'info');
-};
-
-// Update voice button during recording
-function updateVoiceButtonState() {
-    if (voiceRecorder.isRecording) {
-        voiceBtn.innerHTML = '⏹';
-        voiceBtn.classList.add('recording');
-    } else {
-        voiceBtn.innerHTML = '🎤';
-        voiceBtn.classList.remove('recording');
-    }
-}
-
-// Monitor recording state
-setInterval(updateVoiceButtonState, 100);
-
-/* ── Drag & Drop ── */
-const dragDropManager = new DragDropManager({
-    container: chatBox,
-    onUpload: (fileData) => {
-        // Set as pending attachment
-        pendingAttachment = { path: fileData.path, filename: fileData.filename };
-        attachName.textContent = fileData.filename;
-        attachChip.style.display = 'flex';
-        uploadBtn.classList.add('has-file');
-        
-        showToast(t('chat.file_attached') || `File "${fileData.filename}" attached`, 'success');
-    }
-});
 
 attachClear.addEventListener('click', () => {
     pendingAttachment = null;
@@ -1234,3 +1020,68 @@ if (PERSONALITY_ENABLED) {
         }
     });
 }
+
+/* ── Initialize Chat Modules ── */
+document.addEventListener('DOMContentLoaded', () => {
+    // Smart Scroller
+    if (window.SmartScroller) {
+        window.SmartScroller.init(document.getElementById('chat-box'));
+    }
+    
+    // Code Blocks
+    if (window.CodeBlocks) {
+        window.CodeBlocks.init();
+    }
+    
+    // Voice Recorder
+    const voiceBtn = document.getElementById('voice-btn');
+    if (voiceBtn && window.VoiceRecorder) {
+        window.VoiceRecorder.init({
+            onTranscription: (text) => {
+                const input = document.getElementById('user-input');
+                input.value = text;
+                input.style.height = 'auto';
+                input.style.height = Math.min(input.scrollHeight, 200) + 'px';
+                input.focus();
+            },
+            onError: (msg) => {
+                if (window.showToast) {
+                    window.showToast(msg, 'error');
+                } else {
+                    alert(msg);
+                }
+            }
+        });
+        
+        voiceBtn.addEventListener('click', () => {
+            if (window.VoiceRecorder.isRecording) {
+                window.VoiceRecorder.send();
+            } else {
+                window.VoiceRecorder.start();
+            }
+        });
+    }
+    
+    // Drag & Drop
+    if (window.DragDrop) {
+        window.DragDrop.init({
+            container: document.getElementById('chat-box'),
+            onUpload: (data) => {
+                pendingAttachment = { path: data.path, filename: data.filename };
+                attachName.textContent = data.filename;
+                attachChip.style.display = 'flex';
+                uploadBtn.classList.add('has-file');
+            },
+            onError: (msg) => {
+                if (window.showToast) {
+                    window.showToast(msg, 'error');
+                }
+            }
+        });
+    }
+    
+    // Mermaid Loader
+    if (window.MermaidLoader) {
+        window.MermaidLoader.init();
+    }
+});

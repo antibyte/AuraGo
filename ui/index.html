@@ -45,6 +45,7 @@
         (function () { var t = localStorage.getItem('aurago-theme'); if (t) document.documentElement.setAttribute('data-theme', t); })();
     </script>
     <link rel="stylesheet" href="/css/chat.css">
+    <link rel="stylesheet" href="/css/chat-modules.css">
 
 <body class="h-screen h-[100dvh] flex flex-col">
 
@@ -115,6 +116,7 @@
                 <button type="button" id="clear-btn" class="btn-new-chat" title=""></button>
                 <div class="action-btns">
                     <button type="button" id="upload-btn" class="btn-upload">📎</button>
+                    <button type="button" id="voice-btn" class="btn-voice">🎤</button>
                     <button type="submit" id="send-btn" class="btn-send">➤</button>
                     <button type="button" id="stop-btn" class="btn-stop" disabled>■</button>
                 </div>
@@ -154,6 +156,12 @@
     <script src="/js/chat/voice-recorder.js"></script>
     <script src="/js/chat/mermaid-renderer.js"></script>
     <script src="/js/chat/drag-drop.js"></script>
+    <!-- Chat Modules -->
+    <script src="/js/chat/modules/smart-scroller.js"></script>
+    <script src="/js/chat/modules/code-blocks.js"></script>
+    <script src="/js/chat/modules/voice-recorder.js"></script>
+    <script src="/js/chat/modules/drag-drop.js"></script>
+    <script src="/js/chat/modules/mermaid-loader.js"></script>
     <script src="/js/chat/main.js"></script>
 
     <!-- Image Lightbox Overlay -->
