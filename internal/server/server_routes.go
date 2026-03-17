@@ -711,6 +711,18 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/proxy/logs", handleProxyLogs(s))
 	s.Logger.Info("Security Proxy API registered at /api/proxy/...")
 
+	// ── tsnet API (Tailscale embedded node) ──
+	mux.HandleFunc("/api/tsnet/status", handleTsNetStatus(s))
+	mux.HandleFunc("/api/tsnet/start", handleTsNetStart(s))
+	mux.HandleFunc("/api/tsnet/stop", handleTsNetStop(s))
+	s.Logger.Info("tsnet API registered at /api/tsnet/...")
+
+	// ── Certificate Management API ──
+	mux.HandleFunc("/api/cert/status", handleCertStatus(s))
+	mux.HandleFunc("/api/cert/regenerate", handleCertRegenerate(s))
+	mux.HandleFunc("/api/cert/upload", handleCertUpload(s))
+	s.Logger.Info("Certificate API registered at /api/cert/...")
+
 	// Invasion Control UI page (always registered — same pattern as /setup)
 	invasionTmpl, invasionErr := template.ParseFS(uiFS, "invasion_control.html")
 	if invasionErr != nil {
@@ -871,7 +883,17 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	}
 	go s.StartTCPBridge(bridgeAddr)
 
-	// Determine server mode: HTTPS auto, HTTPS manual, or HTTP
+	// Start tsnet embedded Tailscale node (serves same handler over Tailscale network)
+	if s.Cfg.Tailscale.TsNet.Enabled && s.TsNetManager != nil {
+		tsHandler := securityHeadersMiddleware(authMiddleware(s, mux), true, false)
+		go func() {
+			if err := s.TsNetManager.Start(tsHandler); err != nil {
+				s.Logger.Error("Failed to start tsnet node", "error", err)
+			}
+		}()
+	}
+
+	// Determine server mode: HTTPS auto, HTTPS custom, HTTPS self-signed, or HTTP
 	tlsCfg := NewTLSConfigFromConfig(s.Cfg, s.Cfg.Directories.DataDir)
 	tlsCfg.BehindProxy = s.Cfg.Server.HTTPS.BehindProxy
 

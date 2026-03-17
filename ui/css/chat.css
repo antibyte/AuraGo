@@ -81,9 +81,9 @@
         }
 
         .mood-toggle {
-            font-size: 0.7rem;
+            font-size: 0.75rem;
             font-weight: 500;
-            padding: 0.25rem 0.6rem;
+            padding: 0.35rem 0.7rem;
             border-radius: 999px;
             border: 1px solid var(--border-subtle);
             background: var(--bg-glass);
@@ -95,6 +95,7 @@
             gap: 0.35rem;
             transition: all 0.25s;
             user-select: none;
+            height: 32px;
         }
 
         .mood-toggle:hover {
@@ -247,11 +248,17 @@
         }
 
         /* ── Personality Select (page-specific) ────────────── */
+        .personality-select-wrapper {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+        }
+
         .select-personality {
             font-size: 0.75rem;
             font-weight: 500;
-            padding: 0.3rem 0.6rem;
-            border-radius: 10px;
+            padding: 0.35rem 1.5rem 0.35rem 0.7rem;
+            border-radius: 999px;
             border: 1px solid var(--border-subtle);
             background: var(--bg-glass);
             color: var(--text-secondary);
@@ -259,6 +266,11 @@
             transition: all 0.2s;
             outline: none;
             max-width: 140px;
+            height: 32px;
+            display: inline-flex;
+            align-items: center;
+            appearance: none;
+            -webkit-appearance: none;
         }
 
         .select-personality:hover {
@@ -269,6 +281,19 @@
         .select-personality option {
             background: var(--bg-secondary);
             color: var(--text-primary);
+        }
+
+        .personality-chevron {
+            position: absolute;
+            right: 0.5rem;
+            font-size: 0.6rem;
+            opacity: 0.5;
+            pointer-events: none;
+            color: var(--text-secondary);
+        }
+
+        .personality-select-wrapper:hover .personality-chevron {
+            opacity: 0.9;
         }
         /* ── Chat area ─────────────────────────────────────── */
         #chat-box {

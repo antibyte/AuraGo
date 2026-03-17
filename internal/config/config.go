@@ -222,6 +222,9 @@ func Load(path string) (*Config, error) {
 	if cfg.Server.HTTPS.HTTPPort <= 0 {
 		cfg.Server.HTTPS.HTTPPort = 80
 	}
+	if cfg.Server.HTTPS.Enabled && cfg.Server.HTTPS.CertMode == "" {
+		cfg.Server.HTTPS.CertMode = "auto"
+	}
 	if cfg.Agent.StepDelaySeconds < 0 {
 		cfg.Agent.StepDelaySeconds = 0
 	}
@@ -418,6 +421,14 @@ func Load(path string) (*Config, error) {
 		if val := os.Getenv("TAILSCALE_API_KEY"); val != "" {
 			cfg.Tailscale.APIKey = val
 		}
+	}
+
+	// Tailscale tsnet defaults
+	if cfg.Tailscale.TsNet.Hostname == "" {
+		cfg.Tailscale.TsNet.Hostname = "aurago"
+	}
+	if cfg.Tailscale.TsNet.StateDir == "" {
+		cfg.Tailscale.TsNet.StateDir = filepath.Join(cfg.Directories.DataDir, "tsnet")
 	}
 
 	// Ansible defaults

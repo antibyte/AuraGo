@@ -27,6 +27,7 @@ import (
 	"aurago/internal/security"
 	"aurago/internal/services"
 	"aurago/internal/tools"
+	"aurago/internal/tsnetnode"
 	"aurago/internal/webhooks"
 )
 
@@ -209,6 +210,7 @@ type Server struct {
 	EggHub             *bridge.EggHub
 	RemoteHub          *remote.RemoteHub
 	ProxyManager       *proxy.Manager
+	TsNetManager       *tsnetnode.Manager
 	FileIndexer        *services.FileIndexer
 	CheatsheetDB       *sql.DB
 	ImageGalleryDB     *sql.DB
@@ -266,6 +268,12 @@ func Start(cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, sh
 	s.ProxyManager = proxy.NewManager(cfg, logger)
 	if cfg.SecurityProxy.Enabled {
 		logger.Info("Security proxy enabled in config — use API to start/stop the proxy container")
+	}
+
+	// Initialize tsnet Manager (Tailscale embedded node)
+	s.TsNetManager = tsnetnode.NewManager(cfg, logger)
+	if cfg.Tailscale.TsNet.Enabled {
+		logger.Info("tsnet node enabled — will start alongside server")
 	}
 
 	// Initialize runtime debug mode from config
@@ -518,6 +526,11 @@ func (s *Server) serveWithShutdown(server, redirectServer, ttsServer *http.Serve
 	go func() {
 		<-shutdownCh
 		s.Logger.Info("Initiating graceful server shutdown...")
+
+		// Shut down tsnet node
+		if s.TsNetManager != nil {
+			s.TsNetManager.Stop()
+		}
 
 		// Shut down MCP servers
 		tools.ShutdownMCPManager()

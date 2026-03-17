@@ -104,8 +104,11 @@ type Config struct {
 		MasterKey            string `yaml:"-"`                       // ENV-only (AURAGO_MASTER_KEY)
 		HTTPS                struct {
 			Enabled     bool   `yaml:"enabled"`
+			CertMode    string `yaml:"cert_mode"` // "auto" (Let's Encrypt), "custom" (uploaded cert), "selfsigned" (auto-generated)
 			Domain      string `yaml:"domain"`
 			Email       string `yaml:"email"`
+			CertFile    string `yaml:"cert_file"`    // custom mode: path to PEM certificate
+			KeyFile     string `yaml:"key_file"`     // custom mode: path to PEM private key
 			HTTPSPort   int    `yaml:"https_port"`   // default: 443
 			HTTPPort    int    `yaml:"http_port"`    // default: 80 (for redirect)
 			BehindProxy bool   `yaml:"behind_proxy"` // trust X-Forwarded-* headers
@@ -505,6 +508,12 @@ type Config struct {
 		ReadOnly bool   `yaml:"readonly"`          // true = only list/status/dns, block enable/disable routes
 		APIKey   string `yaml:"-" vault:"api_key"` // Tailscale API key (vault-only)
 		Tailnet  string `yaml:"tailnet"`           // Tailnet name, e.g. "example.com" or "-" for default
+		TsNet    struct {
+			Enabled  bool   `yaml:"enabled"`   // enable tsnet embedded Tailscale node (independent of API integration)
+			Hostname string `yaml:"hostname"`  // MagicDNS hostname, e.g. "aurago" → aurago.tailnet-name.ts.net
+			StateDir string `yaml:"state_dir"` // persistent state directory (default: data/tsnet)
+			Funnel   bool   `yaml:"funnel"`    // expose via Tailscale Funnel (V2 placeholder)
+		} `yaml:"tsnet"`
 	} `yaml:"tailscale"`
 	CloudflareTunnel struct {
 		Enabled        bool                    `yaml:"enabled"`         // master toggle

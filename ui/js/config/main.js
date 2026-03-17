@@ -867,7 +867,9 @@ const SECTION_MODULES = {
     memory_analysis: { m: 'memory_analysis', fn: 'renderMemoryAnalysisSection' },
     llm_guardian: { m: 'llm_guardian', fn: 'renderLLMGuardianSection' },
     document_creator: { m: 'document_creator', fn: 'renderDocumentCreatorSection' },
-    onedrive: { m: 'onedrive', fn: 'renderOneDriveSection' }
+    onedrive: { m: 'onedrive', fn: 'renderOneDriveSection' },
+    tailscale: { m: 'tailscale', fn: 'renderTailscaleSection' },
+    server: { m: 'server', fn: 'renderServerSection' }
 };
 
 function loadModule(name) {
