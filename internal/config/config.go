@@ -82,6 +82,9 @@ func Load(path string) (*Config, error) {
 	cfg.LLMGuardian.ScanDocuments = false
 	cfg.LLMGuardian.ScanEmails = false
 
+	// OneDrive defaults: "common" tenant allows both personal and work accounts.
+	cfg.OneDrive.TenantID = "common"
+
 	// Danger-zone capabilities default to false (opt-in) for new installations.
 	// Existing configs with explicit true/false values will be read from YAML unchanged.
 	if err := yaml.Unmarshal(data, &cfg); err != nil {

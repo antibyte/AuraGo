@@ -158,6 +158,13 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		// Google Workspace integration endpoints
 		mux.HandleFunc("/api/google-workspace/test", handleGoogleWorkspaceTest(s))
 
+		// OneDrive integration endpoints (Device Code Flow)
+		mux.HandleFunc("/api/onedrive/auth/start", handleOneDriveAuthStart(s))
+		mux.HandleFunc("/api/onedrive/auth/poll", handleOneDriveAuthPoll(s))
+		mux.HandleFunc("/api/onedrive/auth/status", handleOneDriveAuthStatus(s))
+		mux.HandleFunc("/api/onedrive/auth/revoke", handleOneDriveAuthRevoke(s))
+		mux.HandleFunc("/api/onedrive/test", handleOneDriveTest(s))
+
 		// Image Generation endpoints
 		mux.HandleFunc("/api/image-generation/test", handleImageGenerationTest(s))
 		mux.HandleFunc("/api/image-gallery", handleImageGalleryList(s))

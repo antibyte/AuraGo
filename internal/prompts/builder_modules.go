@@ -272,6 +272,10 @@ func (m *PromptModule) ShouldInclude(flags ContextFlags) bool {
 			if flags.GoogleWorkspaceEnabled {
 				return true
 			}
+		case "onedrive_enabled":
+			if flags.OneDriveEnabled {
+				return true
+			}
 		case "proxmox_enabled":
 			if flags.ProxmoxEnabled {
 				return true

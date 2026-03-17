@@ -554,6 +554,7 @@ var vaultKeyMap = map[string]string{
 	"notifications.pushover.app_token": "pushover_app_token",
 	"adguard.password":                 "adguard_password",
 	"google_workspace.client_secret":   "google_workspace_client_secret",
+	"onedrive.client_secret":           "onedrive_client_secret",
 	"paperless_ngx.api_token":          "paperless_ngx_api_token",
 }
 

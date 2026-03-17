@@ -105,6 +105,7 @@ type ContextFlags struct {
 	ChromecastEnabled        bool
 	CoAgentEnabled           bool
 	GoogleWorkspaceEnabled   bool
+	OneDriveEnabled          bool
 	ProxmoxEnabled           bool
 	OllamaEnabled            bool
 	TailscaleEnabled         bool

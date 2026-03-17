@@ -390,6 +390,11 @@ google_workspace:
     sheets: false
     sheets_write: false
     client_id: ""
+onedrive:
+    enabled: false
+    readonly: false
+    client_id: ""     # Azure App Registration (public client) Client ID
+    tenant_id: common  # "common", "consumers", "organizations", or tenant UUID
 image_generation:
     enabled: false
     provider: ""

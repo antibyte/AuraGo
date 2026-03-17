@@ -500,6 +500,16 @@ func (c *Config) ApplyOAuthTokens(vault SecretReader) {
 			c.GoogleWorkspace.TokenExpiry = tok.Expiry
 		}
 	}
+
+	// ── OneDrive OAuth token ──
+	if raw, err := vault.ReadSecret("oauth_onedrive"); err == nil && raw != "" {
+		var tok OAuthToken
+		if err := json.Unmarshal([]byte(raw), &tok); err == nil {
+			c.OneDrive.AccessToken = tok.AccessToken
+			c.OneDrive.RefreshToken = tok.RefreshToken
+			c.OneDrive.TokenExpiry = tok.Expiry
+		}
+	}
 }
 
 // ApplyVaultSecrets populates all vault-only secret fields from the vault.
@@ -572,6 +582,9 @@ func (c *Config) ApplyVaultSecrets(vault SecretReader) {
 
 	// ── Google Workspace ──
 	apply("google_workspace_client_secret", &c.GoogleWorkspace.ClientSecret)
+
+	// ── OneDrive ──
+	apply("onedrive_client_secret", &c.OneDrive.ClientSecret)
 
 	// ── Email account passwords ──
 	apply("email_password", &c.Email.Password)

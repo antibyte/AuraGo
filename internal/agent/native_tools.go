@@ -68,6 +68,7 @@ type ToolFeatureFlags struct {
 	EmailEnabled            bool
 	CloudflareTunnelEnabled bool
 	GoogleWorkspaceEnabled  bool
+	OneDriveEnabled         bool
 	ImageGenerationEnabled  bool
 	RemoteControlEnabled    bool
 	// Danger Zone toggles
@@ -970,6 +971,23 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 				"document_id":   prop("string", "Google Docs or Sheets document ID"),
 				"range":         prop("string", "Sheet cell range in A1 notation (for sheets_get, sheets_update)"),
 				"values":        map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}}, "description": "2D array of cell values (for sheets_update)"},
+			}, "operation"),
+		))
+	}
+	if ff.OneDriveEnabled {
+		tools = append(tools, tool("onedrive",
+			"Interact with the user's Microsoft OneDrive cloud storage. "+
+				"List, read, search, upload, delete, move, copy files and folders, get storage quota, and create share links.",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "Operation to perform",
+					"enum":        []string{"list", "info", "read", "download", "search", "quota", "upload", "write", "mkdir", "delete", "move", "copy", "share"},
+				},
+				"path":        prop("string", "Path in OneDrive (e.g. '/Documents/report.txt' or '/' for root). Required for most operations."),
+				"destination": prop("string", "Destination path for move/copy operations"),
+				"content":     prop("string", "File content to upload (for upload/write), or search query (for search)"),
+				"max_results": map[string]interface{}{"type": "integer", "description": "Maximum number of results (default: 50 for list, 25 for search)"},
 			}, "operation"),
 		))
 	}

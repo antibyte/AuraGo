@@ -738,6 +738,16 @@ type Config struct {
 		APIKey        string `yaml:"-" json:"-"` // resolved from provider entry
 		ResolvedModel string `yaml:"-" json:"-"` // resolved: model from provider if not overridden
 	} `yaml:"image_generation"`
+	OneDrive struct {
+		Enabled      bool   `yaml:"enabled"`
+		ReadOnly     bool   `yaml:"readonly"`   // true = only list/read/search/quota, block upload/delete/move/copy/share/mkdir
+		ClientID     string `yaml:"client_id"`  // Azure App Registration Client ID (public client for Device Code flow)
+		ClientSecret string `yaml:"-"`          // vault-only: onedrive_client_secret (optional, only for confidential apps)
+		TenantID     string `yaml:"tenant_id"`  // "common" (default), "consumers", "organizations", or tenant UUID
+		AccessToken  string `yaml:"-" json:"-"` // resolved from OAuth token in vault
+		RefreshToken string `yaml:"-" json:"-"` // resolved from OAuth token in vault
+		TokenExpiry  string `yaml:"-" json:"-"` // resolved: RFC3339 expiry
+	} `yaml:"onedrive"`
 
 	// gwProvider is a synthetic ProviderEntry used by FindProvider for Google Workspace OAuth.
 	gwProvider ProviderEntry `yaml:"-" json:"-"`

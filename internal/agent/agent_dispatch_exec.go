@@ -971,6 +971,35 @@ func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 		}
 		return "Tool Output: " + tools.ExecuteGoogleWorkspace(*cfg, vault, op, params)
 
+	case "onedrive", "onedrive_op":
+		if !cfg.OneDrive.Enabled {
+			return `Tool Output: {"status": "error", "message": "OneDrive integration is not enabled. Set onedrive.enabled=true in config.yaml."}`
+		}
+		op := tc.Operation
+		if op == "" {
+			op = tc.Action
+		}
+		if cfg.OneDrive.ReadOnly {
+			switch op {
+			case "upload", "write", "mkdir", "delete", "move", "copy", "share":
+				return `Tool Output: {"status":"error","message":"OneDrive is in read-only mode. Disable onedrive.readonly to allow changes."}`
+			}
+		}
+		fpath := tc.FilePath
+		if fpath == "" {
+			fpath = tc.Path
+		}
+		fdest := tc.Destination
+		if fdest == "" {
+			fdest = tc.Dest
+		}
+		logger.Info("LLM requested onedrive operation", "op", op, "path", fpath, "dest", fdest)
+		client, err := tools.NewOneDriveClient(*cfg, vault)
+		if err != nil {
+			return "Tool Output: " + tools.ODErrJSON("OneDrive client error: %v", err)
+		}
+		return "Tool Output: " + client.ExecuteOneDrive(op, fpath, fdest, tc.Content, tc.MaxResults)
+
 	case "generate_image":
 		if !cfg.ImageGeneration.Enabled {
 			return `Tool Output: {"status": "error", "message": "Image generation is not enabled. Enable it in Settings > Image Generation."}`
