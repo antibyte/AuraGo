@@ -544,6 +544,33 @@ type Config struct {
 		AuditLog           bool     `yaml:"audit_log"`             // log all operations (default: true)
 		SSHInsecureHostKey bool     `yaml:"ssh_insecure_host_key"` // skip SSH host key verification (disables MITM protection)
 	} `yaml:"remote_control"`
+	SecurityProxy struct {
+		Enabled      bool   `yaml:"enabled"`
+		Domain       string `yaml:"domain"`      // primary domain for TLS (e.g. "aurago.example.com")
+		Email        string `yaml:"email"`       // ACME email for Let's Encrypt
+		HTTPSPort    int    `yaml:"https_port"`  // external HTTPS port (default: 443)
+		HTTPPort     int    `yaml:"http_port"`   // external HTTP port for ACME challenge (default: 80)
+		DockerHost   string `yaml:"docker_host"` // Docker host override (empty = auto-detect)
+		RateLimiting struct {
+			Enabled           bool `yaml:"enabled"`
+			RequestsPerSecond int  `yaml:"requests_per_second"` // default: 10
+			Burst             int  `yaml:"burst"`               // default: 50
+		} `yaml:"rate_limiting"`
+		IPFilter struct {
+			Enabled   bool     `yaml:"enabled"`
+			Mode      string   `yaml:"mode"`      // "allowlist" or "blocklist" (default: "blocklist")
+			Addresses []string `yaml:"addresses"` // IP addresses or CIDR ranges
+		} `yaml:"ip_filter"`
+		BasicAuth struct {
+			Enabled bool `yaml:"enabled"`
+			// Username/password stored in vault as proxy_basic_auth_user / proxy_basic_auth_pass
+		} `yaml:"basic_auth"`
+		GeoBlocking struct {
+			Enabled          bool     `yaml:"enabled"`
+			AllowedCountries []string `yaml:"allowed_countries"` // ISO 3166-1 alpha-2 codes
+		} `yaml:"geo_blocking"`
+		AdditionalRoutes []ProxyRoute `yaml:"additional_routes"`
+	} `yaml:"security_proxy"`
 	EggMode struct {
 		Enabled   bool   `yaml:"enabled"`    // true = this instance is a worker egg
 		MasterURL string `yaml:"master_url"` // WebSocket URL of the master (ws[s]://host:port/api/invasion/ws)
@@ -761,6 +788,13 @@ type MCPServer struct {
 	Args    []string          `yaml:"args"    json:"args"`
 	Env     map[string]string `yaml:"env"     json:"env"`
 	Enabled bool              `yaml:"enabled" json:"enabled"`
+}
+
+// ProxyRoute defines an additional reverse proxy route for the security proxy.
+type ProxyRoute struct {
+	Name     string `yaml:"name"     json:"name"`     // display name
+	Domain   string `yaml:"domain"   json:"domain"`   // hostname to match (e.g. "grafana.example.com")
+	Upstream string `yaml:"upstream" json:"upstream"` // backend URL (e.g. "http://localhost:3000")
 }
 
 // CloudflareIngressRule defines a custom ingress entry for cloudflared.

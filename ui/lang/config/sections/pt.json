@@ -23,6 +23,8 @@
   "config.section.indexing.desc": "Indexação de arquivos",
   "config.section.web_config.label": "Config Web",
   "config.section.web_config.desc": "Configuração via web",
+  "config.section.security_proxy.label": "Security Proxy",
+  "config.section.security_proxy.desc": "Proxy reverso Caddy gerenciado com TLS, limitação de taxa e filtragem IP",
   "config.section.secrets.label": "Segredos",
   "config.section.secrets.desc": "Gerenciamento de segredos",
   "config.section.backup_restore.label": "Backup",

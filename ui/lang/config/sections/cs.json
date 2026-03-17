@@ -23,6 +23,8 @@
   "config.section.indexing.desc": "Indexovani souboru",
   "config.section.web_config.label": "Web Config",
   "config.section.web_config.desc": "Konfigurace pres web",
+  "config.section.security_proxy.label": "Bezpečnostní proxy",
+  "config.section.security_proxy.desc": "Spravovaný Caddy reverzní proxy s TLS, omezením rychlosti a IP filtrováním",
   "config.section.secrets.label": "Tajemstvi",
   "config.section.secrets.desc": "Sprava tajemstvi",
   "config.section.backup_restore.label": "Zaloha",

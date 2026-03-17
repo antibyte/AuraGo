@@ -23,6 +23,8 @@
   "config.section.indexing.desc": "Filindexering till inbäddningar",
   "config.section.web_config.label": "Webbkonfiguration och inloggning",
   "config.section.web_config.desc": "Säkerhetsinställningar, inloggningsskydd och 2FA",
+  "config.section.security_proxy.label": "Säkerhetsproxy",
+  "config.section.security_proxy.desc": "Hanterad Caddy-omvänd proxy med TLS, hastighetsbegränsning och IP-filtrering",
   "config.section.secrets.label": "Hemligheter",
   "config.section.secrets.desc": "Hantera krypterade hemligheter i valvet",
   "config.section.backup_restore.label": "Säkerhetskopiera och återställa",

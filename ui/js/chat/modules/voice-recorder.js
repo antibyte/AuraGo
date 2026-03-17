@@ -73,6 +73,12 @@
         },
 
         async start() {
+            // Check for browser support
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                this.onError('Voice recording not supported in this browser');
+                return;
+            }
+
             try {
                 this.stream = await navigator.mediaDevices.getUserMedia({
                     audio: {

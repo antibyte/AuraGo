@@ -4,6 +4,25 @@
    ======================================== */
 
 /* ----------------------------------------
+   Disabled Button State (HTTP warning)
+   ---------------------------------------- */
+.btn-disabled,
+.btn-voice:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    filter: grayscale(0.8);
+    position: relative;
+}
+
+.btn-disabled:hover,
+.btn-voice:disabled:hover {
+    background: rgba(148, 163, 184, 0.12) !important;
+    color: var(--text-primary, #e2e8f0) !important;
+    border-color: var(--border-color, rgba(148, 163, 184, 0.3)) !important;
+    transform: none !important;
+}
+
+/* ----------------------------------------
    Smart Scroll Button
    ---------------------------------------- */
 .scroll-to-bottom-btn {

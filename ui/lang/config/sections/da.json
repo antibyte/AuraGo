@@ -23,6 +23,8 @@
   "config.section.indexing.desc": "Filindeksering til indlejringer",
   "config.section.web_config.label": "Webkonfiguration og login",
   "config.section.web_config.desc": "Sikkerhedsindstillinger, login-vagt og 2FA",
+  "config.section.security_proxy.label": "Security Proxy",
+  "config.section.security_proxy.desc": "Administreret Caddy reverse proxy med TLS, ratebegrænsning og IP-filtrering",
   "config.section.secrets.label": "Hemmeligheder",
   "config.section.secrets.desc": "Administrer krypterede hemmeligheder i boksen",
   "config.section.backup_restore.label": "Sikkerhedskopiering og gendannelse",

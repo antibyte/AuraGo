@@ -23,6 +23,8 @@
   "config.section.indexing.desc": "Indicizzazione file in embeddings",
   "config.section.web_config.label": "Web Config & Login",
   "config.section.web_config.desc": "Impostazioni sicurezza, login guard e 2FA",
+  "config.section.security_proxy.label": "Security Proxy",
+  "config.section.security_proxy.desc": "Proxy inverso Caddy gestito con TLS, limitazione del traffico e filtro IP",
   "config.section.secrets.label": "Secrets",
   "config.section.secrets.desc": "Gestisci secret crittografati nel vault",
   "config.section.backup_restore.label": "Backup & Ripristino",

@@ -702,6 +702,15 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		s.Logger.Info("Remote Control API registered at /api/remote/...")
 	}
 
+	// ── Security Proxy API ──
+	mux.HandleFunc("/api/proxy/status", handleProxyStatus(s))
+	mux.HandleFunc("/api/proxy/start", handleProxyStart(s))
+	mux.HandleFunc("/api/proxy/stop", handleProxyStop(s))
+	mux.HandleFunc("/api/proxy/destroy", handleProxyDestroy(s))
+	mux.HandleFunc("/api/proxy/reload", handleProxyReload(s))
+	mux.HandleFunc("/api/proxy/logs", handleProxyLogs(s))
+	s.Logger.Info("Security Proxy API registered at /api/proxy/...")
+
 	// Invasion Control UI page (always registered — same pattern as /setup)
 	invasionTmpl, invasionErr := template.ParseFS(uiFS, "invasion_control.html")
 	if invasionErr != nil {

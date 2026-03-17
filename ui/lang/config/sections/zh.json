@@ -23,6 +23,8 @@
   "config.section.indexing.desc": "文件索引到嵌入向量",
   "config.section.web_config.label": "Web 配置与登录",
   "config.section.web_config.desc": "安全设置、登录保护和双因素认证",
+  "config.section.security_proxy.label": "安全代理",
+  "config.section.security_proxy.desc": "托管的 Caddy 反向代理，支持 TLS、速率限制和 IP 过滤",
   "config.section.secrets.label": "密钥",
   "config.section.secrets.desc": "管理 Vault 中的加密密钥",
   "config.section.backup_restore.label": "备份与恢复",

@@ -23,6 +23,8 @@
   "config.section.indexing.desc": "Indexování souborů do embeddings",
   "config.section.web_config.label": "Web Config & Přihlášení",
   "config.section.web_config.desc": "Nastavení zabezpečení, login guard a 2FA",
+  "config.section.security_proxy.label": "Proxy Ασφαλείας",
+  "config.section.security_proxy.desc": "Διαχειριζόμενο Caddy reverse proxy με TLS, περιορισμό ρυθμού και φιλτράρισμα IP",
   "config.section.secrets.label": "Secrets",
   "config.section.secrets.desc": "Správa šifrovaných secrets v trezoru",
   "config.section.backup_restore.label": "Záloha & Obnovení",

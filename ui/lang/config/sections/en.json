@@ -23,6 +23,8 @@
   "config.section.indexing.desc": "File indexing into embeddings",
   "config.section.web_config.label": "Web Config & Login",
   "config.section.web_config.desc": "Security settings, login guard and 2FA",
+  "config.section.security_proxy.label": "Security Proxy",
+  "config.section.security_proxy.desc": "Managed Caddy reverse proxy with TLS, rate limiting and IP filtering",
   "config.section.secrets.label": "Secrets",
   "config.section.secrets.desc": "Manage encrypted secrets in the vault",
   "config.section.backup_restore.label": "Backup & Restore",

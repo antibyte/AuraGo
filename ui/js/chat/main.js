@@ -1036,30 +1036,42 @@ document.addEventListener('DOMContentLoaded', () => {
     // Voice Recorder
     const voiceBtn = document.getElementById('voice-btn');
     if (voiceBtn && window.VoiceRecorder) {
-        window.VoiceRecorder.init({
-            onTranscription: (text) => {
-                const input = document.getElementById('user-input');
-                input.value = text;
-                input.style.height = 'auto';
-                input.style.height = Math.min(input.scrollHeight, 200) + 'px';
-                input.focus();
-            },
-            onError: (msg) => {
-                if (window.showToast) {
-                    window.showToast(msg, 'error');
-                } else {
-                    alert(msg);
-                }
-            }
-        });
+        // Check if HTTPS or localhost - voice recording requires secure context
+        const isSecure = window.location.protocol === 'https:' || 
+                        window.location.hostname === 'localhost' || 
+                        window.location.hostname === '127.0.0.1';
         
-        voiceBtn.addEventListener('click', () => {
-            if (window.VoiceRecorder.isRecording) {
-                window.VoiceRecorder.send();
-            } else {
-                window.VoiceRecorder.start();
-            }
-        });
+        if (!isSecure) {
+            // Disable voice button on HTTP
+            voiceBtn.disabled = true;
+            voiceBtn.classList.add('btn-disabled');
+            voiceBtn.title = 'Voice recording requires HTTPS connection';
+        } else {
+            window.VoiceRecorder.init({
+                onTranscription: (text) => {
+                    const input = document.getElementById('user-input');
+                    input.value = text;
+                    input.style.height = 'auto';
+                    input.style.height = Math.min(input.scrollHeight, 200) + 'px';
+                    input.focus();
+                },
+                onError: (msg) => {
+                    if (window.showToast) {
+                        window.showToast(msg, 'error');
+                    } else {
+                        alert(msg);
+                    }
+                }
+            });
+            
+            voiceBtn.addEventListener('click', () => {
+                if (window.VoiceRecorder.isRecording) {
+                    window.VoiceRecorder.send();
+                } else {
+                    window.VoiceRecorder.start();
+                }
+            });
+        }
     }
     
     // Drag & Drop

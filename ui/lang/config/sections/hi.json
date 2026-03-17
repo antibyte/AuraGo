@@ -23,6 +23,8 @@
   "config.section.indexing.desc": "एम्बेडिंग में फ़ाइल अनुक्रमण",
   "config.section.web_config.label": "वेब कॉन्फ़िगरेशन और लॉगिन",
   "config.section.web_config.desc": "सुरक्षा सेटिंग्स, लॉगिन गार्ड और 2एफए",
+  "config.section.security_proxy.label": "सुरक्षा प्रॉक्सी",
+  "config.section.security_proxy.desc": "TLS, दर सीमित और IP फ़िल्टरिंग के साथ प्रबंधित Caddy रिवर्स प्रॉक्सी",
   "config.section.secrets.label": "रहस्य",
   "config.section.secrets.desc": "तिजोरी में एन्क्रिप्टेड रहस्य प्रबंधित करें",
   "config.section.backup_restore.label": "बैकअप और पुनर्स्थापना",

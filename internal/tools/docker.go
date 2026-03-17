@@ -133,6 +133,11 @@ func dockerRequest(cfg DockerConfig, method, endpoint string, body string) ([]by
 	return data, resp.StatusCode, nil
 }
 
+// DockerRequest is the exported variant of dockerRequest for use by other packages.
+func DockerRequest(cfg DockerConfig, method, endpoint string, body string) ([]byte, int, error) {
+	return dockerRequest(cfg, method, endpoint, body)
+}
+
 // errJSON is a helper that returns a JSON error string.
 // Uses proper marshaling to handle special characters (quotes, newlines, etc.) in messages.
 func errJSON(msg string, args ...interface{}) string {

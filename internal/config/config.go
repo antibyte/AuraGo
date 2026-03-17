@@ -518,6 +518,26 @@ func Load(path string) (*Config, error) {
 		cfg.Sandbox.DockerHost = cfg.Docker.Host
 	}
 
+	// Security Proxy defaults
+	if cfg.SecurityProxy.HTTPSPort <= 0 {
+		cfg.SecurityProxy.HTTPSPort = 443
+	}
+	if cfg.SecurityProxy.HTTPPort <= 0 {
+		cfg.SecurityProxy.HTTPPort = 80
+	}
+	if cfg.SecurityProxy.RateLimiting.RequestsPerSecond <= 0 {
+		cfg.SecurityProxy.RateLimiting.RequestsPerSecond = 10
+	}
+	if cfg.SecurityProxy.RateLimiting.Burst <= 0 {
+		cfg.SecurityProxy.RateLimiting.Burst = 50
+	}
+	if cfg.SecurityProxy.IPFilter.Mode == "" {
+		cfg.SecurityProxy.IPFilter.Mode = "blocklist"
+	}
+	if cfg.SecurityProxy.DockerHost == "" && cfg.Docker.Host != "" {
+		cfg.SecurityProxy.DockerHost = cfg.Docker.Host
+	}
+
 	cfg.ConfigPath = absConfigPath
 
 	return &cfg, nil

@@ -22,6 +22,7 @@ import (
 	"aurago/internal/invasion/bridge"
 	"aurago/internal/llm"
 	"aurago/internal/memory"
+	"aurago/internal/proxy"
 	"aurago/internal/remote"
 	"aurago/internal/security"
 	"aurago/internal/services"
@@ -207,6 +208,7 @@ type Server struct {
 	MissionManagerV2   *tools.MissionManagerV2
 	EggHub             *bridge.EggHub
 	RemoteHub          *remote.RemoteHub
+	ProxyManager       *proxy.Manager
 	FileIndexer        *services.FileIndexer
 	CheatsheetDB       *sql.DB
 	ImageGalleryDB     *sql.DB
@@ -258,6 +260,12 @@ func Start(cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, sh
 			logger.Warn("Failed to trim remote audit log", "error", err)
 		}
 		logger.Info("Remote Control Hub initialized", "insecure_host_key", cfg.RemoteControl.SSHInsecureHostKey)
+	}
+
+	// Initialize Security Proxy Manager
+	s.ProxyManager = proxy.NewManager(cfg, logger)
+	if cfg.SecurityProxy.Enabled {
+		logger.Info("Security proxy enabled in config — use API to start/stop the proxy container")
 	}
 
 	// Initialize runtime debug mode from config
