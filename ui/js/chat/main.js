@@ -179,6 +179,8 @@ let conversation = [];
 // Tracks /files/ paths already rendered via SSE 'image' events
 // so appendMessage() can skip the duplicate markdown image.
 let seenSSEImages = new Set();
+let seenSSEAudios = new Set();
+let seenSSEDocuments = new Set();
 
 /* ── Debug mode ── */
 // If user has explicitly set a preference in localStorage, use it.
@@ -672,6 +674,8 @@ chatForm.addEventListener('submit', async (e) => {
 
         appendMessage('assistant', assistantMessage.content);
         seenSSEImages.clear(); // reset after final response is rendered
+        seenSSEAudios.clear();
+        seenSSEDocuments.clear();
         conversation.push(assistantMessage);
 
     } catch (error) {
@@ -892,6 +896,60 @@ function handleSSEMessage(e) {
                 }
             } catch (e) { /* ignore */ }
             return;
+        } else if (data.event === 'audio') {
+            try {
+                const audioData = JSON.parse(data.detail);
+                if (audioData && audioData.path && !seenSSEAudios.has(audioData.path)) {
+                    seenSSEAudios.add(audioData.path);
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'chat-audio-wrapper';
+                    if (audioData.title) {
+                        const titleEl = document.createElement('div');
+                        titleEl.className = 'chat-audio-title';
+                        titleEl.textContent = audioData.title;
+                        wrapper.appendChild(titleEl);
+                    }
+                    const player = new ChatAudioPlayer(audioData.path);
+                    wrapper.appendChild(player.element);
+                    const row = document.createElement('div');
+                    row.className = 'msg-row bot';
+                    row.innerHTML = '<div class="avatar bot">🤖</div><div class="bubble bot"></div>';
+                    row.querySelector('.bubble').appendChild(wrapper);
+                    chatContent.appendChild(row);
+                    chatBox.scrollTop = chatBox.scrollHeight;
+                }
+            } catch (e) { /* ignore */ }
+            return;
+        } else if (data.event === 'document') {
+            try {
+                const docData = JSON.parse(data.detail);
+                if (docData && docData.path && !seenSSEDocuments.has(docData.path)) {
+                    seenSSEDocuments.add(docData.path);
+                    const title = escapeHtml(docData.title || docData.filename || 'Document');
+                    const fmt = escapeHtml((docData.format || '').toUpperCase() || 'FILE');
+                    const docIcon = docFormatIcon(docData.format);
+                    const openBtn = docData.preview_url
+                        ? `<a href="${escapeHtml(docData.preview_url)}" target="_blank" title="Open">🔍</a>`
+                        : '';
+                    const dlBtn = `<a href="${escapeHtml(docData.path)}" download="${escapeHtml(docData.filename || 'document')}" title="Download">⬇</a>`;
+                    const cardHTML = `
+                        <div class="chat-document-card">
+                            <div class="chat-document-icon">${docIcon}</div>
+                            <div class="chat-document-info">
+                                <div class="chat-document-title">${title}</div>
+                                <div class="chat-document-format">${fmt}</div>
+                            </div>
+                            <div class="chat-document-actions">${openBtn}${dlBtn}</div>
+                        </div>`;
+                    const row = document.createElement('div');
+                    row.className = 'msg-row bot';
+                    row.innerHTML = '<div class="avatar bot">🤖</div><div class="bubble bot"></div>';
+                    row.querySelector('.bubble').insertAdjacentHTML('beforeend', cardHTML);
+                    chatContent.appendChild(row);
+                    chatBox.scrollTop = chatBox.scrollHeight;
+                }
+            } catch (e) { /* ignore */ }
+            return;
         } else if (data.event === 'done') {
             agentStatusDiv.style.display = 'none';
             stopBtn.disabled = true;
@@ -910,6 +968,24 @@ function handleSSEMessage(e) {
     } catch (err) { /* ignore parse errors */ }
 }
 /* ── Image lightbox ── */
+
+/** Returns an emoji icon for common document formats. */
+function docFormatIcon(fmt) {
+    switch ((fmt || '').toLowerCase()) {
+        case 'pdf': return '📄';
+        case 'docx': case 'doc': return '📝';
+        case 'xlsx': case 'xls': return '📊';
+        case 'pptx': case 'ppt': return '📑';
+        case 'csv': return '📋';
+        case 'md': return '📓';
+        case 'txt': return '📃';
+        case 'json': return '🔧';
+        case 'xml': return '🗂️';
+        case 'html': case 'htm': return '🌐';
+        default: return '📎';
+    }
+}
+
 const lightbox = document.getElementById('img-lightbox');
 const lightboxImg = document.getElementById('img-lightbox-img');
 const lightboxClose = document.getElementById('img-lightbox-close');

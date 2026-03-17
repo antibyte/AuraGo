@@ -116,6 +116,16 @@ func handleDashboardMemory(s *Server) http.HandlerFunc {
 			milestones = []memory.MilestoneEntry{}
 		}
 
+		// Extended memory stats: journal, notes, error patterns
+		journalCount := 0
+		if stats, err := s.ShortTermMem.GetJournalStats("", ""); err == nil {
+			for _, c := range stats {
+				journalCount += c
+			}
+		}
+		notesCount, _ := s.ShortTermMem.GetNotesCount()
+		errorPatternsCount, _ := s.ShortTermMem.GetErrorPatternsCount()
+
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"core_memory_facts": coreCount,
@@ -126,7 +136,10 @@ func handleDashboardMemory(s *Server) http.HandlerFunc {
 				"nodes": graphNodes,
 				"edges": graphEdges,
 			},
-			"milestones": milestones,
+			"journal_entries": journalCount,
+			"notes_count":     notesCount,
+			"error_patterns":  errorPatternsCount,
+			"milestones":      milestones,
 		})
 	}
 }

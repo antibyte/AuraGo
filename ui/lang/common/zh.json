@@ -29,5 +29,6 @@
   "login.totp_divider": "验证码",
   "login.totp_label": "6位验证码",
   "common.nav_cheatsheets": "速查表",
-  "common.nav_gallery": "Image Gallery"
+  "common.nav_gallery": "Image Gallery",
+  "common.nav_media": "媒体视图"
 }

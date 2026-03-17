@@ -1,0 +1,11 @@
+{
+  "media.title": "📁 Media View",
+  "media.subtitle": "Media View",
+  "media.search_placeholder": "Search media...",
+  "media.tab_images": "🖼️ Images",
+  "media.tab_audio": "🎵 Audio",
+  "media.tab_documents": "📄 Documents",
+  "media.empty_audio": "No audio files yet. Ask the agent to send an audio file!",
+  "media.empty_documents": "No documents yet. Ask the agent to create or send a document!",
+  "media.doc_open": "Open"
+}

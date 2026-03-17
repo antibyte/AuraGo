@@ -1,0 +1,223 @@
+/* ── Media View Page Styles ─────────────────────────────────────────────────
+   Extends gallery.css for the tabbed Medienansicht (Images / Audio / Documents)
+   ─────────────────────────────────────────────────────────────────────────── */
+
+.media-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 1.5rem;
+}
+
+.media-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.media-header h1 {
+    font-size: 1.4rem;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.media-controls {
+    display: flex;
+    gap: 0.6rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+/* ── Tab Bar ── */
+.media-tabs {
+    display: flex;
+    gap: 0.25rem;
+    border-bottom: 2px solid var(--border, rgba(255,255,255,.1));
+    margin-bottom: 1.25rem;
+    flex-wrap: wrap;
+}
+
+.media-tab {
+    padding: 0.55rem 1.1rem;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    color: var(--text-secondary, #6c7086);
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+    border-radius: 6px 6px 0 0;
+}
+
+.media-tab:hover {
+    color: var(--text-primary, #cdd6f4);
+    background: var(--bg-secondary, rgba(255,255,255,.05));
+}
+
+.media-tab.active {
+    color: var(--accent, #cba6f7);
+    border-bottom-color: var(--accent, #cba6f7);
+}
+
+/* ── Extra controls per tab (e.g. provider filter for images) ── */
+.media-extra-controls {
+    display: flex;
+    gap: 0.6rem;
+    align-items: center;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+
+/* ── Audio grid ── */
+.media-audio-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1rem;
+}
+
+.media-audio-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1rem;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.media-audio-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,0,0,.15);
+}
+
+.media-audio-card-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 0.3rem;
+}
+
+.media-audio-card-meta {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+/* ── Document list ── */
+.media-doc-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.media-doc-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.7rem 1rem;
+    transition: background 0.15s;
+}
+
+.media-doc-row:hover {
+    background: var(--bg-hover, rgba(255,255,255,.04));
+}
+
+.media-doc-row-icon {
+    font-size: 1.6rem;
+    flex-shrink: 0;
+    line-height: 1;
+}
+
+.media-doc-row-info {
+    flex: 1;
+    overflow: hidden;
+}
+
+.media-doc-row-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.media-doc-row-meta {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-top: 0.15rem;
+}
+
+.media-doc-row-actions {
+    display: flex;
+    gap: 0.4rem;
+    flex-shrink: 0;
+}
+
+.media-doc-row-actions a,
+.media-doc-row-actions button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 0.5rem;
+    background: var(--bg-tertiary, rgba(255,255,255,.08));
+    color: var(--text-primary);
+    text-decoration: none;
+    font-size: 0.95rem;
+    border: none;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.media-doc-row-actions a:hover,
+.media-doc-row-actions button:hover {
+    background: var(--accent, #cba6f7);
+    color: var(--bg-primary, #1e1e2e);
+}
+
+.media-doc-row-actions button.btn-danger:hover {
+    background: #f38ba8;
+    color: #1e1e2e;
+}
+
+/* ── Modal overlay for audio details ── */
+.media-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.media-modal-content {
+    background: var(--bg-secondary);
+    border-radius: 16px;
+    padding: 1.5rem;
+    max-width: 480px;
+    width: 90%;
+    position: relative;
+    border: 1px solid var(--border);
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+    .media-audio-grid {
+        grid-template-columns: 1fr;
+    }
+}

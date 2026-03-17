@@ -1,0 +1,11 @@
+{
+  "media.title": "📁 Zobrazení médií",
+  "media.subtitle": "Zobrazení médií",
+  "media.search_placeholder": "Hledat média...",
+  "media.tab_images": "🖼️ Obrázky",
+  "media.tab_audio": "🎵 Zvuk",
+  "media.tab_documents": "📄 Dokumenty",
+  "media.empty_audio": "Zatím žádné zvukové soubory. Požádejte agenta, aby odeslal zvukový soubor!",
+  "media.empty_documents": "Zatím žádné dokumenty. Požádejte agenta, aby vytvořil nebo odeslal dokument!",
+  "media.doc_open": "Otevřít"
+}

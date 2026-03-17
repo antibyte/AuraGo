@@ -1,0 +1,11 @@
+{
+  "media.title": "📁 Mediavisning",
+  "media.subtitle": "Mediavisning",
+  "media.search_placeholder": "Søk i medier...",
+  "media.tab_images": "🖼️ Bilder",
+  "media.tab_audio": "🎵 Lyd",
+  "media.tab_documents": "📄 Dokumenter",
+  "media.empty_audio": "Ingen lydfiler ennå. Be agenten sende en lydfil!",
+  "media.empty_documents": "Ingen dokumenter ennå. Be agenten opprette eller sende et dokument!",
+  "media.doc_open": "Åpne"
+}

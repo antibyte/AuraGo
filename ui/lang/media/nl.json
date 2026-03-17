@@ -1,0 +1,11 @@
+{
+  "media.title": "📁 Mediaoverzicht",
+  "media.subtitle": "Mediaoverzicht",
+  "media.search_placeholder": "Media zoeken...",
+  "media.tab_images": "🖼️ Afbeeldingen",
+  "media.tab_audio": "🎵 Audio",
+  "media.tab_documents": "📄 Documenten",
+  "media.empty_audio": "Nog geen audiobestanden. Vraag de agent een audiobestand te sturen!",
+  "media.empty_documents": "Nog geen documenten. Vraag de agent een document te maken of te sturen!",
+  "media.doc_open": "Openen"
+}

@@ -7,6 +7,7 @@ import (
 	"html/template"
 	"io/fs"
 	"net/http"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -200,6 +201,10 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		mux.HandleFunc("/api/image-generation/test", handleImageGenerationTest(s))
 		mux.HandleFunc("/api/image-gallery", handleImageGalleryList(s))
 		mux.HandleFunc("/api/image-gallery/", handleImageGalleryByID(s))
+
+		// Media Registry endpoints (audio, documents, and agent-sent media)
+		mux.HandleFunc("/api/media", handleMediaList(s))
+		mux.HandleFunc("/api/media/", handleMediaByID(s))
 
 		// AdGuard Home integration endpoints
 		mux.HandleFunc("/api/adguard/status", handleAdGuardStatus(s))
@@ -607,14 +612,14 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		})
 		s.Logger.Info("Cheat Sheet Editor UI enabled at /cheatsheets")
 
-		// ── Image Gallery Page ──
-		galleryTmpl, galleryTmplErr := template.ParseFS(uiFS, "gallery.html")
-		if galleryTmplErr != nil {
-			s.Logger.Error("Failed to parse gallery UI template", "error", galleryTmplErr)
+		// ── Media View Page (replaces Gallery) ──
+		mediaTmpl, mediaTmplErr := template.ParseFS(uiFS, "media.html")
+		if mediaTmplErr != nil {
+			s.Logger.Error("Failed to parse media UI template", "error", mediaTmplErr)
 		}
-		mux.HandleFunc("/gallery", func(w http.ResponseWriter, r *http.Request) {
-			if galleryTmpl == nil {
-				http.Error(w, "Gallery template error", http.StatusInternalServerError)
+		serveMediaPage := func(w http.ResponseWriter, r *http.Request) {
+			if mediaTmpl == nil {
+				http.Error(w, "Media template error", http.StatusInternalServerError)
 				return
 			}
 			lang := normalizeLang(s.Cfg.Server.UILanguage)
@@ -622,12 +627,17 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 				"Lang": lang,
 				"I18N": getI18NJSON(lang),
 			}
-			if err := galleryTmpl.Execute(w, data); err != nil {
-				s.Logger.Error("Failed to execute gallery template", "error", err)
+			if err := mediaTmpl.Execute(w, data); err != nil {
+				s.Logger.Error("Failed to execute media template", "error", err)
 				http.Error(w, "Template render error", http.StatusInternalServerError)
 			}
+		}
+		mux.HandleFunc("/media", serveMediaPage)
+		// Legacy /gallery redirect for backward compatibility
+		mux.HandleFunc("/gallery", func(w http.ResponseWriter, r *http.Request) {
+			http.Redirect(w, r, "/media", http.StatusMovedPermanently)
 		})
-		s.Logger.Info("Image Gallery UI enabled at /gallery")
+		s.Logger.Info("Media View UI enabled at /media (/gallery redirects here)")
 
 		// ── Cheat Sheets API ──
 		mux.HandleFunc("/api/cheatsheets", handleCheatSheets(s))
@@ -820,13 +830,29 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	if docDir == "" {
 		docDir = filepath.Join(s.Cfg.Directories.DataDir, "documents")
 	}
+	os.MkdirAll(docDir, 0755) // ensure directory exists
 	docHandler := http.StripPrefix("/files/documents/", http.FileServer(neuteredFileSystem{http.Dir(docDir)}))
 	mux.HandleFunc("/files/documents/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Cache-Control", "public, max-age=3600")
 		filename := filepath.Base(r.URL.Path)
-		w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
+		// Allow inline display when ?inline=1 is set (e.g. PDF preview)
+		if r.URL.Query().Get("inline") == "1" {
+			w.Header().Set("Content-Disposition", fmt.Sprintf(`inline; filename="%s"`, filename))
+		} else {
+			w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
+		}
 		docHandler.ServeHTTP(w, r)
+	})
+
+	// Serve agent audio files from data/audio directory
+	audioDir := filepath.Join(s.Cfg.Directories.DataDir, "audio")
+	os.MkdirAll(audioDir, 0755) // ensure directory exists
+	audioHandler := http.StripPrefix("/files/audio/", http.FileServer(neuteredFileSystem{http.Dir(audioDir)}))
+	mux.HandleFunc("/files/audio/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("Cache-Control", "public, max-age=86400")
+		audioHandler.ServeHTTP(w, r)
 	})
 
 	// Serve generated images from data directory

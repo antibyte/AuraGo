@@ -1,0 +1,11 @@
+{
+  "media.title": "📁 मीडिया दृश्य",
+  "media.subtitle": "मीडिया दृश्य",
+  "media.search_placeholder": "मीडिया खोजें...",
+  "media.tab_images": "🖼️ चित्र",
+  "media.tab_audio": "🎵 ऑडियो",
+  "media.tab_documents": "📄 दस्तावेज़",
+  "media.empty_audio": "अभी तक कोई ऑडियो फ़ाइल नहीं। एजेंट से ऑडियो फ़ाइल भेजने के लिए कहें!",
+  "media.empty_documents": "अभी तक कोई दस्तावेज़ नहीं। एजेंट से दस्तावेज़ बनाने या भेजने के लिए कहें!",
+  "media.doc_open": "खोलें"
+}

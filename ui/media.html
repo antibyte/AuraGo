@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="{{.Lang}}" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="page-title">AuraGo - Medienansicht</title>
+    <link rel="stylesheet" href="/shared.css">
+    <script src="/shared.js"></script>
+    <script>
+        (function () { var t = localStorage.getItem('aurago-theme'); if (t) document.documentElement.setAttribute('data-theme', t); })();
+    </script>
+    <script>const I18N={{.I18N}};</script>
+    <link rel="stylesheet" href="/css/gallery.css">
+    <link rel="stylesheet" href="/css/media.css">
+</head>
+<body>
+    <header class="app-header">
+        <div class="header-left">
+            <a href="/" class="logo">
+                <div class="logo-icon">🥚</div>
+                <span style="color:var(--accent);">AURA</span><span style="color:var(--text-primary);">GO</span>
+                <span class="logo-subtitle" data-i18n="media.subtitle">Medienansicht</span>
+            </a>
+        </div>
+        <div class="header-actions">
+            <button id="theme-toggle" class="btn-theme" title="Toggle theme"></button>
+        </div>
+    </header>
+
+    <div id="radialMenuAnchor"></div>
+
+    <div class="media-container">
+        <div class="media-header">
+            <h1 data-i18n="media.title">📁 Medienansicht</h1>
+            <div class="media-controls">
+                <input type="text" id="media-search" class="gallery-search"
+                    placeholder="Search..." data-i18n-placeholder="media.search_placeholder">
+            </div>
+        </div>
+
+        <!-- Tab bar -->
+        <div class="media-tabs" role="tablist">
+            <button class="media-tab active" id="tab-images" role="tab" aria-selected="true"
+                onclick="switchTab('images')" data-i18n="media.tab_images">🖼️ Bilder</button>
+            <button class="media-tab" id="tab-audio" role="tab" aria-selected="false"
+                onclick="switchTab('audio')" data-i18n="media.tab_audio">🎵 Audio</button>
+            <button class="media-tab" id="tab-documents" role="tab" aria-selected="false"
+                onclick="switchTab('documents')" data-i18n="media.tab_documents">📄 Dokumente</button>
+        </div>
+
+        <!-- Tab panels -->
+        <div id="panel-images" class="media-panel active">
+            <div id="images-extra-controls" class="media-extra-controls">
+                <select id="gallery-provider-filter" class="gallery-filter">
+                    <option value="" data-i18n="gallery.all_providers">All Providers</option>
+                </select>
+            </div>
+            <div id="gallery-grid" class="gallery-grid">
+                <div class="gallery-loading" data-i18n="gallery.loading">Loading...</div>
+            </div>
+            <div id="gallery-pagination" class="gallery-pagination" style="display:none;">
+                <button id="gallery-prev" class="btn-gallery-nav" onclick="galleryPrev()">← Previous</button>
+                <span id="gallery-page-info"></span>
+                <button id="gallery-next" class="btn-gallery-nav" onclick="galleryNext()">Next →</button>
+            </div>
+        </div>
+
+        <div id="panel-audio" class="media-panel" style="display:none;">
+            <div id="audio-grid" class="media-audio-grid">
+                <div class="gallery-loading" data-i18n="gallery.loading">Loading...</div>
+            </div>
+            <div id="audio-pagination" class="gallery-pagination" style="display:none;">
+                <button id="audio-prev" class="btn-gallery-nav" onclick="audioPrev()">← Previous</button>
+                <span id="audio-page-info"></span>
+                <button id="audio-next" class="btn-gallery-nav" onclick="audioNext()">Next →</button>
+            </div>
+        </div>
+
+        <div id="panel-documents" class="media-panel" style="display:none;">
+            <div id="doc-list" class="media-doc-list">
+                <div class="gallery-loading" data-i18n="gallery.loading">Loading...</div>
+            </div>
+            <div id="doc-pagination" class="gallery-pagination" style="display:none;">
+                <button id="doc-prev" class="btn-gallery-nav" onclick="docPrev()">← Previous</button>
+                <span id="doc-page-info"></span>
+                <button id="doc-next" class="btn-gallery-nav" onclick="docNext()">Next →</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Image lightbox -->
+    <div id="lightbox" class="lightbox" style="display:none;" onclick="closeLightbox(event)">
+        <div class="lightbox-content" onclick="event.stopPropagation()">
+            <button class="lightbox-close" onclick="closeLightbox()">&times;</button>
+            <img id="lightbox-img" src="" alt="">
+            <div class="lightbox-meta" id="lightbox-meta"></div>
+            <div class="lightbox-actions">
+                <a id="lightbox-download" href="" download class="btn-gallery-action" data-i18n="gallery.download">⬇ Download</a>
+                <button id="lightbox-delete" class="btn-gallery-action btn-danger" onclick="galleryDeleteCurrent()" data-i18n="gallery.delete">🗑 Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Audio lightbox overlay with full player -->
+    <div id="audio-modal" class="media-modal" style="display:none;" onclick="closeAudioModal(event)">
+        <div class="media-modal-content" onclick="event.stopPropagation()">
+            <button class="lightbox-close" onclick="closeAudioModal()">&times;</button>
+            <div id="audio-modal-body"></div>
+            <div class="lightbox-actions">
+                <a id="audio-modal-download" href="" download class="btn-gallery-action" data-i18n="gallery.download">⬇ Download</a>
+                <button id="audio-modal-delete" class="btn-gallery-action btn-danger" onclick="audioDeleteCurrent()" data-i18n="gallery.delete">🗑 Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/gallery/main.js"></script>
+    <script src="/js/chat/audio-player.js"></script>
+    <script src="/js/media/main.js"></script>
+</body>
+</html>

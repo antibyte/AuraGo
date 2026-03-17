@@ -372,15 +372,18 @@
             const ctx = document.getElementById(canvasId);
             if (!ctx) return null;
             const embLabel = data.vectordb_disabled ? t('dashboard.memory_embeddings_disabled') : t('dashboard.memory_embeddings');
-            const labels = [t('dashboard.memory_chart_core_memory'), t('dashboard.memory_chart_messages'), embLabel, t('dashboard.memory_chart_graph_nodes'), t('dashboard.memory_chart_graph_edges')];
+            const labels = [t('dashboard.memory_chart_core_memory'), t('dashboard.memory_chart_messages'), embLabel, t('dashboard.memory_chart_graph_nodes'), t('dashboard.memory_chart_graph_edges'), t('dashboard.memory_journal'), t('dashboard.memory_notes'), t('dashboard.memory_error_patterns')];
             const values = [
                 data.core_memory_facts || 0,
                 data.chat_messages || 0,
                 data.vectordb_entries || 0,
                 (data.knowledge_graph || {}).nodes || 0,
                 (data.knowledge_graph || {}).edges || 0,
+                data.journal_entries || 0,
+                data.notes_count || 0,
+                data.error_patterns || 0,
             ];
-            const colors = [cv('--accent'), cv('--success'), '#8b5cf6', '#f59e0b', '#ec4899'];
+            const colors = [cv('--accent'), cv('--success'), '#8b5cf6', '#f59e0b', '#ec4899', '#06b6d4', '#10b981', '#ef4444'];
             return new Chart(ctx, {
                 type: 'bar',
                 data: {
@@ -525,6 +528,9 @@
                 { val: data.chat_messages || 0, lbl: t('dashboard.memory_messages') },
                 { val: embeddingVal, lbl: embeddingLbl },
                 { val: gn + ' / ' + ge, lbl: t('dashboard.memory_graph_label') },
+                { val: data.journal_entries || 0, lbl: t('dashboard.memory_journal') },
+                { val: data.notes_count || 0, lbl: t('dashboard.memory_notes') },
+                { val: data.error_patterns || 0, lbl: t('dashboard.memory_error_patterns') },
             ];
             container.innerHTML = stats.map(s =>
                 `<div class="mem-stat${s.clickable ? ' clickable' : ''}"${s.clickable ? ' onclick="openCoreFactsModal()" title="' + t('dashboard.memory_show_core_facts') + '"' : ''}><div class="mem-stat-val">${s.val}</div><div class="mem-stat-lbl">${s.lbl}${s.clickable ? ' 🔍' : ''}</div></div>`
@@ -1488,6 +1494,9 @@
                             memData.vectordb_entries || 0,
                             (memData.knowledge_graph || {}).nodes || 0,
                             (memData.knowledge_graph || {}).edges || 0,
+                            memData.journal_entries || 0,
+                            memData.notes_count || 0,
+                            memData.error_patterns || 0,
                         ];
                         Charts.memory.update('none');
                     } else {

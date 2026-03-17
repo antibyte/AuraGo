@@ -154,3 +154,13 @@ func (s *SQLiteMemory) LookupErrorResolution(toolName, errorMsg string) (string,
 	}
 	return resolution, nil
 }
+
+// GetErrorPatternsCount returns the total number of distinct error patterns.
+func (s *SQLiteMemory) GetErrorPatternsCount() (int, error) {
+	var count int
+	err := s.db.QueryRow(`SELECT COUNT(*) FROM error_patterns`).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("error patterns count: %w", err)
+	}
+	return count, nil
+}

@@ -29,5 +29,6 @@
   "login.totp_divider": "Authenticatiecode",
   "login.totp_label": "6-cijferige code",
   "common.nav_cheatsheets": "Spiekbriefjes",
-  "common.nav_gallery": "Image Gallery"
+  "common.nav_gallery": "Image Gallery",
+  "common.nav_media": "Mediaoverzicht"
 }

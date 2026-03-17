@@ -455,6 +455,14 @@ func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 		logger.Info("LLM requested image send", "path", tc.Path, "caption", tc.Caption)
 		return handleSendImage(tc, cfg, logger)
 
+	case "send_audio":
+		logger.Info("LLM requested audio send", "path", tc.Path, "title", tc.Title)
+		return handleSendAudio(tc, cfg, logger, mediaRegistryDB)
+
+	case "send_document":
+		logger.Info("LLM requested document send", "path", tc.Path, "title", tc.Title)
+		return handleSendDocument(tc, cfg, logger, mediaRegistryDB)
+
 	case "manage_processes", "process_management":
 		logger.Info("LLM requested process management", "op", tc.Operation)
 		return "Tool Output: " + tools.ManageProcesses(tc.Operation, int32(tc.PID))
@@ -879,6 +887,15 @@ func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 		default:
 			return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Unknown operation: %s"}`, tc.Operation)
 		}
+
+	case "remember":
+		if !cfg.Tools.Memory.Enabled {
+			return `Tool Output: {"status":"error","message":"Memory tools are disabled. Set tools.memory.enabled=true in config.yaml."}`
+		}
+		if cfg.Tools.Memory.ReadOnly {
+			return `Tool Output: {"status":"error","message":"Memory is in read-only mode."}`
+		}
+		return handleRemember(tc, cfg, logger, shortTermMem, kg, sessionID)
 
 	case "manage_notes", "notes", "todo":
 		if !cfg.Tools.Notes.Enabled {

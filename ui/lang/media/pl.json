@@ -1,0 +1,11 @@
+{
+  "media.title": "📁 Widok mediów",
+  "media.subtitle": "Widok mediów",
+  "media.search_placeholder": "Szukaj mediów...",
+  "media.tab_images": "🖼️ Obrazy",
+  "media.tab_audio": "🎵 Audio",
+  "media.tab_documents": "📄 Dokumenty",
+  "media.empty_audio": "Brak plików audio. Poproś agenta o przesłanie pliku audio!",
+  "media.empty_documents": "Brak dokumentów. Poproś agenta o utworzenie lub przesłanie dokumentu!",
+  "media.doc_open": "Otwórz"
+}

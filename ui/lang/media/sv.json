@@ -1,0 +1,11 @@
+{
+  "media.title": "📁 Medievy",
+  "media.subtitle": "Medievy",
+  "media.search_placeholder": "Sök media...",
+  "media.tab_images": "🖼️ Bilder",
+  "media.tab_audio": "🎵 Ljud",
+  "media.tab_documents": "📄 Dokument",
+  "media.empty_audio": "Inga ljudfiler ännu. Be agenten skicka en ljudfil!",
+  "media.empty_documents": "Inga dokument ännu. Be agenten skapa eller skicka ett dokument!",
+  "media.doc_open": "Öppna"
+}

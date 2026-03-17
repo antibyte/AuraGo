@@ -29,5 +29,6 @@
   "login.totp_divider": "Κωδικός Authenticator",
   "login.totp_label": "6-ψήφιος κωδικός",
   "common.nav_cheatsheets": "Σκονάκια",
-  "common.nav_gallery": "Image Gallery"
+  "common.nav_gallery": "Image Gallery",
+  "common.nav_media": "Προβολή πολυμέσων"
 }

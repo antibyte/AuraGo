@@ -182,6 +182,20 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 				"caption": prop("string", "Optional caption or description shown with the image"),
 			}, "path"),
 		),
+		tool("send_audio",
+			"Send an audio file to the user. Shown with an inline audio player in the Web UI (play/pause, progress bar, speed control). Provide a local workspace path or a direct HTTPS URL to an audio file.",
+			schema(map[string]interface{}{
+				"path":  prop("string", "Local file path within the workspace (e.g. 'output.mp3') or a full HTTPS URL to an audio file (MP3, WAV, OGG, FLAC, M4A)"),
+				"title": prop("string", "Optional title shown above the audio player"),
+			}, "path"),
+		),
+		tool("send_document",
+			"Send a document to the user. Shown with Open and Download buttons in the Web UI. PDF files can be viewed inline in the browser. Provide a local workspace path or a direct HTTPS URL.",
+			schema(map[string]interface{}{
+				"path":  prop("string", "Local file path within the workspace or a full HTTPS URL to a document (PDF, DOCX, XLSX, PPTX, TXT, MD, CSV)"),
+				"title": prop("string", "Optional title shown with the document card"),
+			}, "path"),
+		),
 	}
 
 	// ── Conditionally-included built-in tools ────────────────────────────────
@@ -262,7 +276,7 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 				}, "operation"),
 			),
 			tool("query_memory",
-				"Search across ALL memory sources: long-term vector DB, knowledge graph, journal, notes, and core memory. Returns combined results from multiple sources. Use 'sources' to limit search to specific stores.",
+				"Search across ALL memory sources at once: vector DB (long-term facts), knowledge graph (entities/relationships), journal (events/milestones), notes (tasks/todos), core memory (permanent facts), and error patterns (learned failures). By default searches everything — use 'sources' only to narrow results.",
 				schema(map[string]interface{}{
 					"query": prop("string", "Natural language search query"),
 					"sources": map[string]interface{}{
@@ -275,6 +289,22 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 						"description": "Max results per source (default 5)",
 					},
 				}, "query"),
+			),
+
+			// remember — simplified single-entry-point for storing any kind of information
+			tool("remember",
+				"Store information without worrying about which memory system to use. Automatically routes to the right place: core memory (facts/preferences), journal (events/milestones), notes (tasks/todos), or knowledge graph (relationships). Use 'category' to override auto-classification.",
+				schema(map[string]interface{}{
+					"content":    prop("string", "The information to remember (required)"),
+					"category":   prop("string", "Optional routing hint: 'fact' (core memory), 'event' (journal), 'task' (note/todo), 'relationship' (knowledge graph). If omitted, auto-classified from content."),
+					"title":      prop("string", "Optional title (used for journal entries and notes)"),
+					"source":     prop("string", "Source entity (only for relationship: source -[relation]-> target)"),
+					"target":     prop("string", "Target entity (only for relationship)"),
+					"relation":   prop("string", "Relationship type (only for relationship, e.g. 'owns', 'uses')"),
+					"entry_type": prop("string", "Journal entry type when category=event (reflection, milestone, learning, etc.)"),
+					"tags":       prop("string", "Comma-separated tags (for journal entries)"),
+					"importance": prop("integer", "Importance 1-4 (for journal entries, default 2)"),
+				}, "content"),
 			),
 		)
 
@@ -311,18 +341,20 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 
 	if ff.KnowledgeGraphEnabled {
 		tools = append(tools, tool("knowledge_graph",
-			"Store or query relationships between entities in the knowledge graph.",
+			"Manage a structured graph of entities and relationships. Use for tracking people, devices, services, projects, and their connections. Nightly auto-extraction also populates the graph from conversations.",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
 					"type":        "string",
-					"description": "Operation to perform",
-					"enum":        []string{"add_relation", "query", "delete_relation"},
+					"description": "Operation: 'add_node' (create/update entity), 'add_edge' (create relationship), 'delete_node' (remove entity+edges), 'delete_edge' (remove relationship), 'search' (full-text search across nodes and edges)",
+					"enum":        []string{"add_node", "add_edge", "delete_node", "delete_edge", "search"},
 				},
-				"source":     prop("string", "Source entity name"),
-				"target":     prop("string", "Target entity name"),
-				"relation":   prop("string", "Relationship type (e.g. 'owns', 'is_part_of')"),
-				"query":      prop("string", "Natural language query for 'query' operation"),
-				"properties": map[string]interface{}{"type": "object", "description": "Optional properties for the relation"},
+				"id":         prop("string", "Node ID for add_node/delete_node (e.g. 'app_db', 'server_prod')"),
+				"label":      prop("string", "Human-readable label for the node (for add_node)"),
+				"source":     prop("string", "Source node ID (for add_edge/delete_edge)"),
+				"target":     prop("string", "Target node ID (for add_edge/delete_edge)"),
+				"relation":   prop("string", "Relationship type (e.g. 'owns', 'uses', 'manages', 'connected_to')"),
+				"content":    prop("string", "Search query text (for search operation)"),
+				"properties": map[string]interface{}{"type": "object", "description": "Optional metadata properties for the node or edge"},
 			}, "operation"),
 		))
 	}
@@ -381,7 +413,7 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 
 	if ff.JournalEnabled {
 		tools = append(tools, tool("manage_journal",
-			"Add, list, search, or delete journal entries. Journal entries capture important events, milestones, preferences, and reflections. Use get_summary to retrieve a daily summary.",
+			"Add, list, search, or delete journal entries. The system already auto-creates entries for tool errors, task completions, and daily summaries during nightly maintenance. Use this to manually add reflections, milestones, or other important events.",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
 					"type":        "string",

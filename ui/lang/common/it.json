@@ -29,5 +29,6 @@
   "login.totp_divider": "Codice Autenticatore",
   "login.totp_label": "Codice a 6 cifre",
   "common.nav_cheatsheets": "Promemoria",
-  "common.nav_gallery": "Image Gallery"
+  "common.nav_gallery": "Image Gallery",
+  "common.nav_media": "Vista multimediale"
 }

@@ -6,11 +6,23 @@ Manage a structured graph of entities and relations stored in SQLite with full-t
 
 | Operation | Required Parameters | Description |
 |---|---|---|
-| `add_node` | `node_id`, `label` | Create or update a node. Optional: `properties` object |
-| `add_edge` | `source`, `target`, `relation` | Create a directed edge (auto-creates missing nodes) |
-| `delete_node` | `node_id` | Remove a node and all its connected edges |
+| `add_node` | `id`, `label` | Create or update a node. Optional: `properties` object |
+| `add_edge` | `source`, `target`, `relation` | Create a directed edge (auto-creates missing nodes). Optional: `properties` |
+| `delete_node` | `id` | Remove a node and all its connected edges |
 | `delete_edge` | `source`, `target`, `relation` | Remove a specific edge |
 | `search` | `content` | Full-text search across nodes and edges |
+
+### Parameter Reference
+
+| Parameter | Type | Used by | Description |
+|---|---|---|---|
+| `id` | string | add_node, delete_node | Unique node identifier (e.g. `app_db`, `server_prod`) |
+| `label` | string | add_node | Human-readable name for the node |
+| `source` | string | add_edge, delete_edge | Source node ID |
+| `target` | string | add_edge, delete_edge | Target node ID |
+| `relation` | string | add_edge, delete_edge | Relationship type (e.g. `owns`, `uses`, `manages`) |
+| `content` | string | search | Search query text |
+| `properties` | object | add_node, add_edge | Optional metadata (e.g. `{"type": "PostgreSQL"}`) |
 
 ### Behavior
 

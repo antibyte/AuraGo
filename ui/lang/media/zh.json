@@ -1,0 +1,11 @@
+{
+  "media.title": "📁 媒体视图",
+  "media.subtitle": "媒体视图",
+  "media.search_placeholder": "搜索媒体...",
+  "media.tab_images": "🖼️ 图片",
+  "media.tab_audio": "🎵 音频",
+  "media.tab_documents": "📄 文档",
+  "media.empty_audio": "暂无音频文件。请让代理发送一个音频文件！",
+  "media.empty_documents": "暂无文档。请让代理创建或发送一个文档！",
+  "media.doc_open": "打开"
+}

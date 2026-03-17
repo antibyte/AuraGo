@@ -282,3 +282,13 @@ func FormatNotesJSON(notes []Note) string {
 	b, _ := json.Marshal(notes)
 	return string(b)
 }
+
+// GetNotesCount returns the total number of notes.
+func (s *SQLiteMemory) GetNotesCount() (int, error) {
+	var count int
+	err := s.db.QueryRow(`SELECT COUNT(*) FROM notes`).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("notes count: %w", err)
+	}
+	return count, nil
+}

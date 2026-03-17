@@ -404,6 +404,50 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					broker.Send("image", string(evtPayload))
 				}
 			}
+			if ptc.Action == "send_audio" {
+				var audioRes struct {
+					Status   string `json:"status"`
+					WebPath  string `json:"web_path"`
+					Title    string `json:"title"`
+					MimeType string `json:"mime_type"`
+					Filename string `json:"filename"`
+				}
+				raw := strings.TrimPrefix(pResultContent, "[Tool Output]\n")
+				raw = strings.TrimPrefix(raw, "Tool Output: ")
+				if json.Unmarshal([]byte(raw), &audioRes) == nil && audioRes.Status == "success" {
+					evtPayload, _ := json.Marshal(map[string]string{
+						"path":      audioRes.WebPath,
+						"title":     audioRes.Title,
+						"mime_type": audioRes.MimeType,
+						"filename":  audioRes.Filename,
+					})
+					broker.Send("audio", string(evtPayload))
+				}
+			}
+			if ptc.Action == "send_document" {
+				var docRes struct {
+					Status     string `json:"status"`
+					WebPath    string `json:"web_path"`
+					PreviewURL string `json:"preview_url"`
+					Title      string `json:"title"`
+					MimeType   string `json:"mime_type"`
+					Filename   string `json:"filename"`
+					Format     string `json:"format"`
+				}
+				raw := strings.TrimPrefix(pResultContent, "[Tool Output]\n")
+				raw = strings.TrimPrefix(raw, "Tool Output: ")
+				if json.Unmarshal([]byte(raw), &docRes) == nil && docRes.Status == "success" {
+					evtPayload, _ := json.Marshal(map[string]string{
+						"path":        docRes.WebPath,
+						"preview_url": docRes.PreviewURL,
+						"title":       docRes.Title,
+						"mime_type":   docRes.MimeType,
+						"filename":    docRes.Filename,
+						"format":      docRes.Format,
+					})
+					broker.Send("document", string(evtPayload))
+				}
+			}
 			broker.Send("tool_end", ptc.Action)
 			lastActivity = time.Now()
 			// Update session todo from piggybacked _todo field
@@ -1340,6 +1384,50 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 						"caption": imgRes.Caption,
 					})
 					broker.Send("image", string(evtPayload))
+				}
+			}
+			if tc.Action == "send_audio" {
+				var audioRes struct {
+					Status   string `json:"status"`
+					WebPath  string `json:"web_path"`
+					Title    string `json:"title"`
+					MimeType string `json:"mime_type"`
+					Filename string `json:"filename"`
+				}
+				raw := strings.TrimPrefix(resultContent, "[Tool Output]\n")
+				raw = strings.TrimPrefix(raw, "Tool Output: ")
+				if json.Unmarshal([]byte(raw), &audioRes) == nil && audioRes.Status == "success" {
+					evtPayload, _ := json.Marshal(map[string]string{
+						"path":      audioRes.WebPath,
+						"title":     audioRes.Title,
+						"mime_type": audioRes.MimeType,
+						"filename":  audioRes.Filename,
+					})
+					broker.Send("audio", string(evtPayload))
+				}
+			}
+			if tc.Action == "send_document" {
+				var docRes struct {
+					Status     string `json:"status"`
+					WebPath    string `json:"web_path"`
+					PreviewURL string `json:"preview_url"`
+					Title      string `json:"title"`
+					MimeType   string `json:"mime_type"`
+					Filename   string `json:"filename"`
+					Format     string `json:"format"`
+				}
+				raw := strings.TrimPrefix(resultContent, "[Tool Output]\n")
+				raw = strings.TrimPrefix(raw, "Tool Output: ")
+				if json.Unmarshal([]byte(raw), &docRes) == nil && docRes.Status == "success" {
+					evtPayload, _ := json.Marshal(map[string]string{
+						"path":        docRes.WebPath,
+						"preview_url": docRes.PreviewURL,
+						"title":       docRes.Title,
+						"mime_type":   docRes.MimeType,
+						"filename":    docRes.Filename,
+						"format":      docRes.Format,
+					})
+					broker.Send("document", string(evtPayload))
 				}
 			}
 

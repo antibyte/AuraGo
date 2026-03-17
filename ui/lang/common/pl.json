@@ -29,5 +29,6 @@
   "login.totp_divider": "Kod Uwierzytelniający",
   "login.totp_label": "6-cyfrowy kod",
   "common.nav_cheatsheets": "Ściągawki",
-  "common.nav_gallery": "Image Gallery"
+  "common.nav_gallery": "Image Gallery",
+  "common.nav_media": "Widok mediów"
 }

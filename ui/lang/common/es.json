@@ -29,5 +29,6 @@
   "login.totp_divider": "Código de Autenticador",
   "login.totp_label": "Código de 6 dígitos",
   "common.nav_cheatsheets": "Hojas de Trucos",
-  "common.nav_gallery": "Image Gallery"
+  "common.nav_gallery": "Image Gallery",
+  "common.nav_media": "Vista de medios"
 }

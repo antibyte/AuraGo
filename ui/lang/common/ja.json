@@ -29,5 +29,6 @@
   "login.totp_divider": "認証コード",
   "login.totp_label": "6桁のコード",
   "common.nav_cheatsheets": "チートシート",
-  "common.nav_gallery": "Image Gallery"
+  "common.nav_gallery": "Image Gallery",
+  "common.nav_media": "メディアビュー"
 }

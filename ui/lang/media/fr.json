@@ -1,0 +1,11 @@
+{
+  "media.title": "📁 Médiathèque",
+  "media.subtitle": "Médiathèque",
+  "media.search_placeholder": "Rechercher des médias...",
+  "media.tab_images": "🖼️ Images",
+  "media.tab_audio": "🎵 Audio",
+  "media.tab_documents": "📄 Documents",
+  "media.empty_audio": "Pas encore de fichiers audio. Demandez à l'agent d'envoyer un fichier audio !",
+  "media.empty_documents": "Pas encore de documents. Demandez à l'agent de créer ou d'envoyer un document !",
+  "media.doc_open": "Ouvrir"
+}
