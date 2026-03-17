@@ -73,8 +73,14 @@ func (s *SQLiteMemory) GetCoreMemoryFacts() ([]CoreMemoryFact, error) {
 	return facts, nil
 }
 
+// maxCoreMemoryFactLen is the maximum byte length of a single core memory fact.
+const maxCoreMemoryFactLen = 10_000
+
 // AddCoreMemoryFact inserts a new fact and returns its assigned ID.
 func (s *SQLiteMemory) AddCoreMemoryFact(fact string) (int64, error) {
+	if len(fact) > maxCoreMemoryFactLen {
+		fact = fact[:maxCoreMemoryFactLen]
+	}
 	res, err := s.db.Exec("INSERT INTO core_memory (fact) VALUES (?)", fact)
 	if err != nil {
 		return 0, err

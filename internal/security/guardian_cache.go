@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 )
@@ -99,11 +100,13 @@ func GenerateCacheKey(operation string, params map[string]string) string {
 	}
 	sort.Strings(keys)
 
-	var data string
-	data = operation
+	// Use length-prefixed encoding to prevent key/value collisions.
+	// e.g. {a="b:c", d=""} and {a="b", c="d"} must hash differently.
+	var sb strings.Builder
+	sb.WriteString(operation)
 	for _, k := range keys {
-		data += ":" + k + "=" + params[k]
+		fmt.Fprintf(&sb, ":%d:%s=%d:%s", len(k), k, len(params[k]), params[k])
 	}
-	hash := sha256.Sum256([]byte(data))
+	hash := sha256.Sum256([]byte(sb.String()))
 	return fmt.Sprintf("%x", hash[:16]) // 128-bit key is sufficient
 }

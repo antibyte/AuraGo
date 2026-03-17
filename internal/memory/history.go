@@ -111,8 +111,9 @@ func (hm *HistoryManager) save() error {
 	if err != nil {
 		return err
 	}
-	// WriteFile is the slow part on Windows, now done completely outside the lock
-	return os.WriteFile(hm.file, data, 0644)
+	// WriteFile is the slow part on Windows, now done completely outside the lock.
+	// 0600: owner-only read/write — chat history may contain sensitive conversation data.
+	return os.WriteFile(hm.file, data, 0600)
 }
 
 func (hm *HistoryManager) Add(role, content string, id int64, pinned bool, isInternal bool) error {

@@ -41,10 +41,22 @@ func (s *SQLiteMemory) InitNotesTables() error {
 	return nil
 }
 
+// maxNoteContentLen is the maximum byte length for note content.
+const maxNoteContentLen = 100_000
+
+// maxNoteTitleLen is the maximum byte length for a note title.
+const maxNoteTitleLen = 500
+
 // AddNote inserts a new note and returns its ID.
 func (s *SQLiteMemory) AddNote(category, title, content string, priority int, dueDate string) (int64, error) {
 	if title == "" {
 		return 0, fmt.Errorf("title is required")
+	}
+	if len(title) > maxNoteTitleLen {
+		title = title[:maxNoteTitleLen]
+	}
+	if len(content) > maxNoteContentLen {
+		content = content[:maxNoteContentLen]
 	}
 	if category == "" {
 		category = "general"
