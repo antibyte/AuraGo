@@ -86,6 +86,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/v1/chat/completions", handleChatCompletions(s, sse))
 	mux.HandleFunc("/api/memory/archive", handleArchiveMemory(s))
 	mux.HandleFunc("/api/upload", handleUpload(s))
+	mux.HandleFunc("/api/upload-voice", handleVoiceUpload(s))
 	mux.HandleFunc("/api/budget", handleBudgetStatus(s))
 	mux.HandleFunc("/api/credits", handleOpenRouterCredits(s))
 

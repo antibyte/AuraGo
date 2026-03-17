@@ -478,6 +478,846 @@
             overflow-y: auto;
         }
 
+        /* ── Enhanced Code Blocks ─────────────────────────── */
+        .code-block-wrapper {
+            margin: 0.75rem 0;
+            border-radius: 10px;
+            border: 1px solid var(--border-accent);
+            background: var(--code-bg);
+            overflow: hidden;
+        }
+
+        .code-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0.75rem;
+            background: rgba(0, 0, 0, 0.2);
+            border-bottom: 1px solid var(--border-accent);
+        }
+
+        .code-lang {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            color: var(--accent);
+            font-weight: 600;
+            letter-spacing: 0.05em;
+        }
+
+        .code-content {
+            display: flex;
+            background: var(--code-bg);
+        }
+
+        .line-numbers {
+            padding: 0.75rem 0.5rem;
+            background: rgba(0, 0, 0, 0.15);
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            line-height: 1.5;
+            text-align: right;
+            user-select: none;
+            border-right: 1px solid var(--border-accent);
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            min-width: 40px;
+        }
+
+        .code-content pre {
+            flex: 1;
+            margin: 0;
+            padding: 0.75rem;
+            overflow-x: auto;
+            background: transparent;
+        }
+
+        .code-content code {
+            font-size: 0.8rem;
+            line-height: 1.5;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+
+        .copy-btn {
+            padding: 0.25rem 0.6rem;
+            font-size: 0.7rem;
+            border-radius: 6px;
+            background: transparent;
+            border: 1px solid var(--border-subtle);
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
+        .copy-btn:hover {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+
+        .copy-btn.copied {
+            background: var(--success, #22c55e);
+            border-color: var(--success, #22c55e);
+            color: white;
+        }
+
+        /* ── Drag & Drop ──────────────────────────────────── */
+        .drag-drop-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+        }
+
+        .drag-drop-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .drag-drop-message {
+            text-align: center;
+            color: white;
+            padding: 3rem;
+            border: 3px dashed rgba(255, 255, 255, 0.5);
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .drag-drop-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+
+        .drag-drop-text {
+            font-size: 1.5rem;
+            font-weight: 500;
+        }
+
+        .upload-queue-panel {
+            position: fixed;
+            bottom: 100px;
+            left: 24px;
+            width: 320px;
+            max-height: 400px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-accent);
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            z-index: 1000;
+            overflow: hidden;
+            animation: queueSlideIn 0.3s ease;
+        }
+
+        @keyframes queueSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .queue-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            background: var(--bg-tertiary);
+            border-bottom: 1px solid var(--border-accent);
+        }
+
+        .queue-title {
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+        }
+
+        .queue-close {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 1rem;
+            padding: 0.25rem;
+        }
+
+        .queue-items {
+            max-height: 280px;
+            overflow-y: auto;
+            padding: 0.5rem;
+        }
+
+        .queue-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.6rem;
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-subtle);
+            transition: all 0.2s;
+        }
+
+        .queue-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .queue-item.uploading {
+            border-color: var(--accent);
+        }
+
+        .queue-item.complete {
+            border-color: var(--success, #22c55e);
+            opacity: 0.7;
+        }
+
+        .queue-item.error {
+            border-color: var(--error, #ef4444);
+        }
+
+        .queue-item-icon {
+            font-size: 1.5rem;
+            flex-shrink: 0;
+        }
+
+        .queue-item-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .queue-item-name {
+            font-size: 0.8rem;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-weight: 500;
+        }
+
+        .queue-item-meta {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            margin-top: 0.15rem;
+        }
+
+        .queue-item-progress {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 0.4rem;
+        }
+
+        .progress-bar {
+            flex: 1;
+            height: 4px;
+            background: var(--bg-tertiary);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--accent);
+            transition: width 0.2s;
+        }
+
+        .progress-text {
+            font-size: 0.65rem;
+            color: var(--text-secondary);
+            min-width: 30px;
+            text-align: right;
+            font-family: 'SF Mono', monospace;
+        }
+
+        .queue-item-retry,
+        .queue-item-remove {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0.25rem;
+            font-size: 0.9rem;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+
+        .queue-item-retry:hover,
+        .queue-item-remove:hover {
+            opacity: 1;
+        }
+
+        .queue-item-retry {
+            color: var(--accent);
+        }
+
+        .queue-item-remove {
+            color: var(--error, #ef4444);
+        }
+
+        .queue-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            background: var(--bg-tertiary);
+            border-top: 1px solid var(--border-accent);
+        }
+
+        .queue-complete {
+            color: var(--success, #22c55e);
+            font-size: 0.85rem;
+        }
+
+        .queue-clear-btn {
+            padding: 0.35rem 0.75rem;
+            font-size: 0.8rem;
+            border-radius: 6px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-secondary);
+            cursor: pointer;
+        }
+
+        .queue-clear-btn:hover {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+
+        @media (max-width: 640px) {
+            .upload-queue-panel {
+                left: 16px;
+                right: 16px;
+                width: auto;
+                bottom: 90px;
+            }
+        }
+
+        /* ── Voice Recorder ──────────────────────────────── */
+        .voice-recorder {
+            position: absolute;
+            bottom: 100%;
+            left: 0;
+            right: 0;
+            margin-bottom: 8px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-accent);
+            border-radius: 12px;
+            padding: 1rem;
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
+            animation: recorderSlideIn 0.3s ease;
+        }
+
+        @keyframes recorderSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .recorder-inner {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .recording-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-shrink: 0;
+        }
+
+        .recorder-pulse {
+            width: 12px;
+            height: 12px;
+            background: var(--error, #ef4444);
+            border-radius: 50%;
+            animation: recorderPulse 1.5s infinite;
+        }
+
+        @keyframes recorderPulse {
+            0%, 100% { 
+                transform: scale(1);
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+            }
+            50% { 
+                transform: scale(1.1);
+                box-shadow: 0 0 0 8px rgba(239, 68, 68, 0);
+            }
+        }
+
+        .voice-recorder.paused .recorder-pulse {
+            animation: none;
+            background: var(--warning, #f59e0b);
+        }
+
+        .recorder-status {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .recorder-timer {
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 1rem;
+            color: var(--text-primary);
+            font-weight: 600;
+            min-width: 50px;
+            text-align: center;
+        }
+
+        .recorder-waveform {
+            flex: 1;
+            height: 40px;
+            border-radius: 4px;
+            background: var(--bg-primary);
+        }
+
+        .recorder-controls {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .recorder-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            display: grid;
+            place-items: center;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+        }
+
+        .recorder-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .recorder-pause {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-subtle);
+        }
+
+        .recorder-cancel {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--error, #ef4444);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .recorder-cancel:hover {
+            background: var(--error, #ef4444);
+            color: white;
+        }
+
+        .recorder-send {
+            background: var(--accent);
+            color: white;
+        }
+
+        .recorder-send:hover {
+            background: var(--accent-hover, #3b82f6);
+            box-shadow: 0 0 12px var(--accent-dim);
+        }
+
+        @media (max-width: 640px) {
+            .voice-recorder {
+                padding: 0.75rem;
+            }
+            
+            .recorder-inner {
+                flex-wrap: wrap;
+                gap: 0.5rem;
+            }
+            
+            .recorder-waveform {
+                order: 3;
+                width: 100%;
+                flex: none;
+            }
+        }
+
+        /* ── Audio Player ─────────────────────────────────── */
+        .chat-audio-player {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.6rem 0.8rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-accent);
+            border-radius: 10px;
+            margin: 0.5rem 0;
+            min-width: 300px;
+            max-width: 100%;
+        }
+
+        .audio-play-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--accent);
+            color: white;
+            border: none;
+            cursor: pointer;
+            display: grid;
+            place-items: center;
+            font-size: 0.75rem;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .audio-play-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 12px var(--accent-dim);
+        }
+
+        .audio-play-btn:active {
+            transform: scale(0.95);
+        }
+
+        .audio-progress-container {
+            flex: 1;
+            min-width: 80px;
+        }
+
+        .audio-progress-bar {
+            height: 6px;
+            background: var(--bg-tertiary);
+            border-radius: 3px;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .audio-progress-fill {
+            height: 100%;
+            background: var(--accent);
+            border-radius: 3px;
+            transition: width 0.1s linear;
+            position: relative;
+        }
+
+        .audio-progress-fill::after {
+            content: '';
+            position: absolute;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: rgba(255, 255, 255, 0.5);
+        }
+
+        .audio-progress-handle {
+            position: absolute;
+            top: 50%;
+            width: 12px;
+            height: 12px;
+            background: white;
+            border: 2px solid var(--accent);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            opacity: 0;
+            transition: opacity 0.2s;
+            pointer-events: none;
+        }
+
+        .chat-audio-player:hover .audio-progress-handle {
+            opacity: 1;
+        }
+
+        .audio-time {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .audio-time .separator {
+            margin: 0 0.2rem;
+            opacity: 0.5;
+        }
+
+        .audio-speed-btn {
+            padding: 0.2rem 0.5rem;
+            font-size: 0.65rem;
+            border-radius: 4px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s;
+            flex-shrink: 0;
+            font-weight: 600;
+        }
+
+        .audio-speed-btn:hover {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+
+        .audio-download-btn {
+            padding: 0.25rem;
+            font-size: 0.85rem;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            opacity: 0.7;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+
+        .audio-download-btn:hover {
+            opacity: 1;
+            color: var(--accent);
+        }
+
+        .audio-error {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem;
+            color: var(--error, #ef4444);
+            font-size: 0.85rem;
+        }
+
+        @media (max-width: 640px) {
+            .chat-audio-player {
+                min-width: auto;
+                padding: 0.5rem;
+                gap: 0.5rem;
+            }
+            
+            .audio-time {
+                display: none;
+            }
+        }
+
+        /* ── Mermaid Diagrams ─────────────────────────────── */
+        .mermaid-container {
+            margin: 1rem 0;
+            border: 1px solid var(--border-accent);
+            border-radius: 12px;
+            overflow: hidden;
+            background: var(--bg-secondary);
+        }
+
+        .mermaid-diagram {
+            padding: 1rem;
+            overflow: auto;
+            max-height: 500px;
+            display: flex;
+            justify-content: center;
+            cursor: grab;
+        }
+
+        .mermaid-diagram:active {
+            cursor: grabbing;
+        }
+
+        .mermaid-diagram svg {
+            max-width: 100%;
+            height: auto;
+        }
+
+        .mermaid-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0.75rem;
+            background: var(--bg-tertiary);
+            border-top: 1px solid var(--border-accent);
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .mermaid-zoom-controls {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .mermaid-actions {
+            display: flex;
+            gap: 0.25rem;
+            flex-wrap: wrap;
+        }
+
+        .mermaid-btn {
+            padding: 0.35rem 0.6rem;
+            font-size: 0.75rem;
+            border-radius: 6px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
+        .mermaid-btn:hover {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+
+        .zoom-level {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            min-width: 40px;
+            text-align: center;
+            font-family: 'SF Mono', monospace;
+        }
+
+        .mermaid-error {
+            padding: 1rem;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 8px;
+        }
+
+        .mermaid-error .error-title {
+            color: var(--error, #ef4444);
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .mermaid-error .error-message {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            margin-bottom: 0.5rem;
+        }
+
+        /* Modal for fullscreen */
+        .mermaid-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .mermaid-modal-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(4px);
+        }
+
+        .mermaid-modal-content {
+            position: relative;
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 90vw;
+            max-height: 90vh;
+            overflow: auto;
+            z-index: 1;
+        }
+
+        .mermaid-modal-close {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: grid;
+            place-items: center;
+            font-size: 1rem;
+        }
+
+        .mermaid-modal-close:hover {
+            background: var(--error);
+            color: white;
+        }
+
+        /* ── Scroll to Bottom Button ─────────────────────── */
+        .scroll-to-bottom-btn {
+            position: fixed;
+            bottom: 100px;
+            right: 24px;
+            padding: 0.6rem 1rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-accent);
+            border-radius: 999px;
+            color: var(--text-primary);
+            font-size: 0.85rem;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            z-index: 100;
+            transition: all 0.2s ease;
+            backdrop-filter: blur(12px);
+        }
+
+        .scroll-to-bottom-btn:hover {
+            background: var(--accent);
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .scroll-to-bottom-btn.has-new {
+            background: var(--accent);
+            color: white;
+            animation: pulse-new 2s infinite;
+        }
+
+        .scroll-to-bottom-btn .new-count {
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        @keyframes pulse-new {
+            0%, 100% { box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); }
+            50% { box-shadow: 0 4px 20px var(--accent-dim); }
+        }
+
+        @media (max-width: 640px) {
+            .scroll-to-bottom-btn {
+                bottom: 90px;
+                right: 16px;
+                padding: 0.5rem 0.8rem;
+                font-size: 0.8rem;
+            }
+        }
+
         /* ── Thinking / Reasoning block ─────────────────── */
         .thinking-block {
             margin: 0.5rem 0;
@@ -1088,7 +1928,8 @@
             }
         }
 
-        .btn-upload {
+        .btn-upload,
+        .btn-voice {
             width: 44px;
             height: 44px;
             border-radius: 14px;
@@ -1103,13 +1944,15 @@
             flex-shrink: 0;
         }
 
-        .btn-upload:hover {
+        .btn-upload:hover,
+        .btn-voice:hover {
             color: var(--accent, #2dd4bf);
             border-color: var(--border-accent, rgba(45, 212, 191, 0.5));
             background: rgba(45, 212, 191, 0.15);
         }
 
-        .btn-upload:disabled {
+        .btn-upload:disabled,
+        .btn-voice:disabled {
             opacity: 0.4;
             cursor: not-allowed;
         }
@@ -1118,6 +1961,18 @@
             color: var(--accent);
             border-color: var(--border-accent);
             background: var(--accent-dim);
+        }
+
+        .btn-voice.recording {
+            color: var(--error, #ef4444);
+            border-color: var(--error, #ef4444);
+            background: rgba(239, 68, 68, 0.15);
+            animation: voicePulse 1.5s infinite;
+        }
+
+        @keyframes voicePulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+            50% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
         }
 
         .attachment-chip {
@@ -1488,7 +2343,8 @@
         /* Button Press Effect */
         .btn-send:active,
         .btn-stop:active,
-        .btn-upload:active {
+        .btn-upload:active,
+        .btn-voice:active {
             transform: scale(0.92);
         }
 
@@ -1573,7 +2429,8 @@
 
             .btn-send,
             .btn-stop,
-            .btn-upload {
+            .btn-upload,
+            .btn-voice {
                 width: 40px;
                 height: 40px;
                 min-width: 40px;
