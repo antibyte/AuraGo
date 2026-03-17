@@ -265,13 +265,12 @@ func handleAuthSetPassword(s *Server) http.HandlerFunc {
 			return
 		}
 
-		// Ensure session_secret exists (generate if empty)
-		newSecret := secret
-		if newSecret == "" {
-			if newSecret, err = GenerateRandomHex(32); err != nil {
-				http.Error(w, "Failed to generate secret", http.StatusInternalServerError)
-				return
-			}
+		// Always rotate session_secret on password change — this immediately invalidates
+		// all existing sessions signed with the old secret.
+		newSecret, err := GenerateRandomHex(32)
+		if err != nil {
+			http.Error(w, "Failed to generate secret", http.StatusInternalServerError)
+			return
 		}
 
 		// Patch config file

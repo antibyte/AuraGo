@@ -323,6 +323,12 @@ func handleMessage(s *discordgo.Session, m *discordgo.MessageCreate, cfg *config
 // processDiscordAttachment handles a single Discord attachment with proper cleanup.
 // Returns the updated inputText.
 func processDiscordAttachment(att *discordgo.MessageAttachment, inputText string, cfg *config.Config, logger *slog.Logger) string {
+	const maxAttachmentBytes = 50 * 1024 * 1024 // 50 MB
+	if att.Size > maxAttachmentBytes {
+		logger.Warn("[Discord] Attachment too large, skipping", "filename", att.Filename, "size_bytes", att.Size, "limit_bytes", maxAttachmentBytes)
+		return inputText
+	}
+
 	// Voice / Audio attachment
 	if media.IsAudioContentType(att.ContentType) || media.IsAudioFilename(att.Filename) {
 		logger.Info("[Discord] Audio attachment detected", "filename", att.Filename, "content_type", att.ContentType, "size", att.Size)
