@@ -123,6 +123,8 @@
   "config.section.llm_guardian.desc": "Livello di sicurezza basato su LLM per la validazione delle chiamate degli strumenti",
   "config.section.image_generation.label": "Image Generation",
   "config.section.image_generation.desc": "Generate images from text prompts using AI",
+  "config.section.onedrive.label": "OneDrive",
+  "config.section.onedrive.desc": "Microsoft OneDrive cloud storage integration",
   "config.section.prompts_editor.label": "Prompt & Personas",
   "config.section.prompts_editor.desc": "Gestisci profili prompt e personalità aggiuntivi",
   "config.section.danger_zone.label": "Zona Pericolo",

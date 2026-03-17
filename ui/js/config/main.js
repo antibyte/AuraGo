@@ -99,6 +99,7 @@ const SECTIONS = [
         items: [
             { key: 'github', icon: '🐙', label: t('config.section.github.label'), desc: t('config.section.github.desc') },
             { key: 'google_workspace', icon: '📊', label: t('config.section.google_workspace.label'), desc: t('config.section.google_workspace.desc') },
+            { key: 'onedrive', icon: '☁️', label: t('config.section.onedrive.label'), desc: t('config.section.onedrive.desc'), customRender: 'renderOneDriveSection' },
             { key: 'mcp', icon: '🔌', label: t('config.section.mcp.label'), desc: t('config.section.mcp.desc') },
             { key: 'sandbox', icon: '📦', label: t('config.section.sandbox.label'), desc: t('config.section.sandbox.desc') },
             { key: 'mcp_server', icon: '🔗', label: t('config.section.mcp_server.label'), desc: t('config.section.mcp_server.desc') },
@@ -863,7 +864,8 @@ const SECTION_MODULES = {
     remote_control: { m: 'remote_control', fn: 'renderRemoteControlSection' },
     memory_analysis: { m: 'memory_analysis', fn: 'renderMemoryAnalysisSection' },
     llm_guardian: { m: 'llm_guardian', fn: 'renderLLMGuardianSection' },
-    document_creator: { m: 'document_creator', fn: 'renderDocumentCreatorSection' }
+    document_creator: { m: 'document_creator', fn: 'renderDocumentCreatorSection' },
+    onedrive: { m: 'onedrive', fn: 'renderOneDriveSection' }
 };
 
 function loadModule(name) {

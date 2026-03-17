@@ -121,6 +121,8 @@
   "config.section.netlify.desc": "Deploy and manage sites on Netlify",
   "config.section.image_generation.label": "Image Generation",
   "config.section.image_generation.desc": "Generate images from text prompts using AI",
+  "config.section.onedrive.label": "OneDrive",
+  "config.section.onedrive.desc": "Microsoft OneDrive cloud storage integration",
   "config.section.memory_analysis.label": "Memory Analysis",
   "config.section.memory_analysis.desc": "Dedicated LLM for analyzing conversations and extracting memories",
   "config.section.llm_guardian.label": "LLM Guardian",
