@@ -470,10 +470,16 @@ function appendMessage(role, text) {
                     breaks: true,
                     linkify: true,
                     highlight: function (str, lang) {
-                        // Use enhanced code blocks if available
+                        // Handle mermaid diagrams first
+                        if (lang === 'mermaid') {
+                            return `<div class="mermaid-raw">${escapeHtml(str)}</div>`;
+                        }
+                        
+                        // Use enhanced code blocks for other languages
                         if (window.CodeBlocks) {
                             return window.CodeBlocks.createCodeBlock(str, lang);
                         }
+                        
                         // Fallback to basic highlighting
                         if (lang && window.hljs && hljs.getLanguage(lang)) {
                             try {
