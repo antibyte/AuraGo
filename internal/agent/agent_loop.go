@@ -705,7 +705,15 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		if personalityEnabled && shortTermMem != nil {
 			tempDelta = shortTermMem.GetTemperatureDelta()
 		}
-		effectiveTemp := baseTemp + tempDelta
+		// Creative tool boost: raise temperature for homepage design and image generation
+		creativeDelta := 0.0
+		switch lastTool {
+		case "homepage", "homepage_tool":
+			creativeDelta = 0.2
+		case "generate_image":
+			creativeDelta = 0.3
+		}
+		effectiveTemp := baseTemp + tempDelta + creativeDelta
 		// Clamp to safe range [0.05, 1.5] — never fully deterministic, never too wild
 		if effectiveTemp < 0.05 {
 			effectiveTemp = 0.05
@@ -714,8 +722,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			effectiveTemp = 1.5
 		}
 		req.Temperature = float32(effectiveTemp)
-		if tempDelta != 0 {
-			currentLogger.Debug("[Temperature] Personality modulation applied", "base", baseTemp, "delta", tempDelta, "effective", effectiveTemp)
+		if tempDelta != 0 || creativeDelta != 0 {
+			currentLogger.Debug("[Temperature] Modulation applied", "base", baseTemp, "personality_delta", tempDelta, "creative_delta", creativeDelta, "effective", effectiveTemp)
 		}
 
 		// Budget check: block if daily budget exceeded and enforcement = full
