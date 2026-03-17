@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"os"
 	"path/filepath"
@@ -13,6 +14,11 @@ import (
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
 )
+
+// InsecureHostKey disables SSH host key verification when true.
+// Set at startup based on config (remote_control.ssh_insecure_host_key).
+// When false (default) AuraGo uses the user's known_hosts file if available.
+var InsecureHostKey bool
 
 // GetSSHConfig creates an ssh.ClientConfig from a username and a secret (password or private key).
 func GetSSHConfig(user string, secret []byte) (*ssh.ClientConfig, error) {
@@ -27,15 +33,26 @@ func GetSSHConfig(user string, secret []byte) (*ssh.ClientConfig, error) {
 		auth = append(auth, ssh.Password(string(secret)))
 	}
 
-	// Try to use known_hosts for host key verification
-	hostKeyCallback := ssh.InsecureIgnoreHostKey()
-	homeDir, err := os.UserHomeDir()
-	if err == nil {
-		knownHostsFile := filepath.Join(homeDir, ".ssh", "known_hosts")
-		if _, statErr := os.Stat(knownHostsFile); statErr == nil {
-			if cb, khErr := knownhosts.New(knownHostsFile); khErr == nil {
-				hostKeyCallback = cb
+	// Host key verification: use known_hosts when available, warn when falling back to insecure.
+	// If InsecureHostKey is explicitly enabled via config, skip verification entirely.
+	var hostKeyCallback ssh.HostKeyCallback
+	if InsecureHostKey {
+		hostKeyCallback = ssh.InsecureIgnoreHostKey() //nolint:gosec
+	} else {
+		hostKeyCallback = ssh.InsecureIgnoreHostKey() //nolint:gosec // default fallback
+		usingKnownHosts := false
+		homeDir, err := os.UserHomeDir()
+		if err == nil {
+			knownHostsFile := filepath.Join(homeDir, ".ssh", "known_hosts")
+			if _, statErr := os.Stat(knownHostsFile); statErr == nil {
+				if cb, khErr := knownhosts.New(knownHostsFile); khErr == nil {
+					hostKeyCallback = cb
+					usingKnownHosts = true
+				}
 			}
+		}
+		if !usingKnownHosts {
+			slog.Default().Warn("SSH host key verification disabled: no known_hosts file found. Connections are vulnerable to MITM attacks. Enable 'ssh_insecure_host_key' in config to suppress this warning.")
 		}
 	}
 

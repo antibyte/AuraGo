@@ -27,5 +27,6 @@
   "config.remote_control.download_name_placeholder": "ex. meu-laptop",
   "config.remote_control.loading_platforms": "Carregando plataformas disponíveis…",
   "config.remote_control.no_platforms": "Nenhum binário de cliente disponível. Execute make_deploy.sh primeiro.",
+  "config.remote_control.ssh_insecure_host_key_label": "Permitir chave de host SSH insegura (⚠️ desativa proteção MITM, usar apenas em redes confiáveis)",
   "config.remote_control.platforms_error": "Não foi possível carregar a lista de plataformas."
 }

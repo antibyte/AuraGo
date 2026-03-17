@@ -27,5 +27,6 @@
   "config.remote_control.download_name_placeholder": "例如：我的笔记本",
   "config.remote_control.loading_platforms": "正在加载可用平台…",
   "config.remote_control.no_platforms": "没有可用的客户端二进制文件。请先运行make_deploy.sh。",
+  "config.remote_control.ssh_insecure_host_key_label": "允许不安全的SSH主机密钥（⚠️ 禁用MITM防护，仅在受信任网络中使用）",
   "config.remote_control.platforms_error": "无法加载平台列表。"
 }

@@ -535,13 +535,14 @@ type Config struct {
 		ReadOnly bool `yaml:"readonly"` // true = only list/status, block deploy/stop/send_task/send_secret
 	} `yaml:"invasion_control"`
 	RemoteControl struct {
-		Enabled       bool     `yaml:"enabled"`
-		ReadOnly      bool     `yaml:"readonly"`         // global read-only override for all remote devices
-		DiscoveryPort int      `yaml:"discovery_port"`   // UDP broadcast discovery port (default: 8092)
-		MaxFileSizeMB int      `yaml:"max_file_size_mb"` // max file read/write size in MB (default: 50)
-		AutoApprove   bool     `yaml:"auto_approve"`     // auto-approve new devices (NOT recommended)
-		AllowedPaths  []string `yaml:"allowed_paths"`    // global path whitelist (empty = all)
-		AuditLog      bool     `yaml:"audit_log"`        // log all operations (default: true)
+		Enabled            bool     `yaml:"enabled"`
+		ReadOnly           bool     `yaml:"readonly"`              // global read-only override for all remote devices
+		DiscoveryPort      int      `yaml:"discovery_port"`        // UDP broadcast discovery port (default: 8092)
+		MaxFileSizeMB      int      `yaml:"max_file_size_mb"`      // max file read/write size in MB (default: 50)
+		AutoApprove        bool     `yaml:"auto_approve"`          // auto-approve new devices (NOT recommended)
+		AllowedPaths       []string `yaml:"allowed_paths"`         // global path whitelist (empty = all)
+		AuditLog           bool     `yaml:"audit_log"`             // log all operations (default: true)
+		SSHInsecureHostKey bool     `yaml:"ssh_insecure_host_key"` // skip SSH host key verification (disables MITM protection)
 	} `yaml:"remote_control"`
 	EggMode struct {
 		Enabled   bool   `yaml:"enabled"`    // true = this instance is a worker egg

@@ -27,5 +27,6 @@
   "config.remote_control.download_name_placeholder": "z.B. mein-laptop",
   "config.remote_control.loading_platforms": "Verfügbare Plattformen werden geladen…",
   "config.remote_control.no_platforms": "Keine Client-Binaries verfügbar. Zuerst make_deploy.sh ausführen.",
-  "config.remote_control.platforms_error": "Plattformliste konnte nicht geladen werden."
+  "config.remote_control.platforms_error": "Plattformliste konnte nicht geladen werden.",
+  "config.remote_control.ssh_insecure_host_key_label": "Unsicheren SSH-Hostkey erlauben (⚠️ deaktiviert MITM-Schutz, nur in vertrauenswürdigen Netzwerken)"
 }

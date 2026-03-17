@@ -3,6 +3,7 @@ package invasion
 import (
 	"aurago/internal/remote"
 	"context"
+	"encoding/base64"
 	"fmt"
 	"strings"
 )
@@ -43,9 +44,9 @@ func (c *SSHConnector) Deploy(ctx context.Context, nest NestRecord, secret []byt
 
 	// 3. Write config
 	remoteConfig := baseDir + "/config.yaml"
-	// Use a heredoc via SSH to write config content
-	configEscaped := strings.ReplaceAll(string(payload.ConfigYAML), "'", "'\\''")
-	writeCmd := fmt.Sprintf("cat > %s << 'EOFCFG'\n%s\nEOFCFG", remoteConfig, configEscaped)
+	// Use base64 encoding to safely transfer config content without shell escaping issues
+	configB64 := base64.StdEncoding.EncodeToString(payload.ConfigYAML)
+	writeCmd := fmt.Sprintf("echo '%s' | base64 -d > %s", configB64, remoteConfig)
 	if _, err := remote.ExecuteRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, writeCmd); err != nil {
 		return fmt.Errorf("failed to write config: %w", err)
 	}
@@ -67,7 +68,7 @@ func (c *SSHConnector) Deploy(ctx context.Context, nest NestRecord, secret []byt
 	if payload.IncludeVault && len(payload.VaultData) > 0 {
 		remoteVault := baseDir + "/data/vault.enc"
 		// Write vault bytes via base64
-		vaultWriteCmd := fmt.Sprintf("echo '%s' | base64 -d > %s", encodeBase64(payload.VaultData), remoteVault)
+		vaultWriteCmd := fmt.Sprintf("echo '%s' | base64 -d > %s", base64.StdEncoding.EncodeToString(payload.VaultData), remoteVault)
 		if _, err := remote.ExecuteRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, vaultWriteCmd); err != nil {
 			return fmt.Errorf("failed to write vault: %w", err)
 		}
@@ -164,33 +165,4 @@ func (c *SSHConnector) startProcess(ctx context.Context, nest NestRecord, secret
 	}
 	_ = output // PID returned but not stored (we use process detection for status)
 	return nil
-}
-
-// encodeBase64 is a helper to base64-encode bytes for transfer.
-func encodeBase64(data []byte) string {
-	const base64Chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
-	var result []byte
-	for i := 0; i < len(data); i += 3 {
-		var b0, b1, b2 byte
-		b0 = data[i]
-		if i+1 < len(data) {
-			b1 = data[i+1]
-		}
-		if i+2 < len(data) {
-			b2 = data[i+2]
-		}
-		result = append(result, base64Chars[(b0>>2)&0x3f])
-		result = append(result, base64Chars[((b0<<4)|(b1>>4))&0x3f])
-		if i+1 < len(data) {
-			result = append(result, base64Chars[((b1<<2)|(b2>>6))&0x3f])
-		} else {
-			result = append(result, '=')
-		}
-		if i+2 < len(data) {
-			result = append(result, base64Chars[b2&0x3f])
-		} else {
-			result = append(result, '=')
-		}
-	}
-	return string(result)
 }

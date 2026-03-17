@@ -357,3 +357,14 @@ func ListAuditLog(db *sql.DB, deviceID string, limit int) ([]AuditEntry, error) 
 	}
 	return result, rows.Err()
 }
+
+// TrimAuditLog deletes old entries, keeping only the most recent maxRows rows.
+// Call this at startup to prevent unbounded table growth.
+func TrimAuditLog(db *sql.DB, maxRows int) error {
+	_, err := db.Exec(`
+		DELETE FROM remote_audit_log
+		WHERE id NOT IN (
+			SELECT id FROM remote_audit_log ORDER BY id DESC LIMIT ?
+		)`, maxRows)
+	return err
+}

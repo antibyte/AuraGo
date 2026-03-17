@@ -27,5 +27,6 @@
   "config.remote_control.download_name_placeholder": "例: 私のラップトップ",
   "config.remote_control.loading_platforms": "利用可能なプラットフォームを読み込み中…",
   "config.remote_control.no_platforms": "クライアントバイナリがありません。make_deploy.shを先に実行してください。",
+  "config.remote_control.ssh_insecure_host_key_label": "安全でないSSHホストキーを許可（⚠️ MITM保護を無効化、信頼できるネットワークのみ）",
   "config.remote_control.platforms_error": "プラットフォームリストを読み込めませんでした。"
 }

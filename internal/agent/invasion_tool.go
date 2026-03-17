@@ -253,6 +253,36 @@ func invasionLoopbackURL(cfg *config.Config, path string) string {
 	return fmt.Sprintf("http://127.0.0.1:%d%s", cfg.Server.Port, path)
 }
 
+// invasionPost performs an authenticated loopback POST to the server's invasion API.
+// The X-Internal-FollowUp header bypasses session auth for loopback callers.
+func invasionPost(url, contentType string, body *bytes.Reader) (*http.Response, error) {
+	var req *http.Request
+	var err error
+	if body != nil {
+		req, err = http.NewRequest(http.MethodPost, url, body)
+	} else {
+		req, err = http.NewRequest(http.MethodPost, url, nil)
+	}
+	if err != nil {
+		return nil, err
+	}
+	if contentType != "" {
+		req.Header.Set("Content-Type", contentType)
+	}
+	req.Header.Set("X-Internal-FollowUp", "true")
+	return hatchClient.Do(req)
+}
+
+// invasionGet performs an authenticated loopback GET to the server's invasion API.
+func invasionGet(url string) (*http.Response, error) {
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("X-Internal-FollowUp", "true")
+	return hatchClient.Do(req)
+}
+
 // invasionHatchEgg triggers deployment of an egg to a nest.
 func invasionHatchEgg(cfg *config.Config, tc ToolCall, logger *slog.Logger) string {
 	if tc.NestID == "" {
@@ -260,7 +290,7 @@ func invasionHatchEgg(cfg *config.Config, tc ToolCall, logger *slog.Logger) stri
 	}
 
 	url := invasionLoopbackURL(cfg, fmt.Sprintf("/api/invasion/nests/%s/hatch", tc.NestID))
-	resp, err := hatchClient.Post(url, "application/json", nil)
+	resp, err := invasionPost(url, "application/json", nil)
 	if err != nil {
 		logger.Error("[InvasionTool] hatch_egg loopback failed", "error", err)
 		return fmt.Sprintf(`Tool Output: {"status":"error","message":"Hatch request failed: %v"}`, err)
@@ -293,7 +323,7 @@ func invasionStopEgg(cfg *config.Config, tc ToolCall, logger *slog.Logger) strin
 	}
 
 	url := invasionLoopbackURL(cfg, fmt.Sprintf("/api/invasion/nests/%s/stop", tc.NestID))
-	resp, err := hatchClient.Post(url, "application/json", nil)
+	resp, err := invasionPost(url, "application/json", nil)
 	if err != nil {
 		logger.Error("[InvasionTool] stop_egg loopback failed", "error", err)
 		return fmt.Sprintf(`Tool Output: {"status":"error","message":"Stop request failed: %v"}`, err)
@@ -319,7 +349,7 @@ func invasionEggDeployStatus(cfg *config.Config, tc ToolCall, logger *slog.Logge
 	}
 
 	url := invasionLoopbackURL(cfg, fmt.Sprintf("/api/invasion/nests/%s/status", tc.NestID))
-	resp, err := hatchClient.Get(url)
+	resp, err := invasionGet(url)
 	if err != nil {
 		return fmt.Sprintf(`Tool Output: {"status":"error","message":"Status request failed: %v"}`, err)
 	}
@@ -353,7 +383,7 @@ func invasionSendTask(cfg *config.Config, db *sql.DB, tc ToolCall, logger *slog.
 
 	url := invasionLoopbackURL(cfg, fmt.Sprintf("/api/invasion/nests/%s/send-task", tc.NestID))
 	body, _ := json.Marshal(map[string]interface{}{"description": taskDesc, "timeout": 0})
-	resp, err := hatchClient.Post(url, "application/json", bytes.NewReader(body))
+	resp, err := invasionPost(url, "application/json", bytes.NewReader(body))
 	if err != nil {
 		logger.Error("[InvasionTool] send_task loopback failed", "error", err)
 		return fmt.Sprintf(`Tool Output: {"status":"error","message":"Send-task request failed: %v"}`, err)
@@ -387,7 +417,7 @@ func invasionSendSecret(cfg *config.Config, tc ToolCall, logger *slog.Logger) st
 
 	url := invasionLoopbackURL(cfg, fmt.Sprintf("/api/invasion/nests/%s/send-secret", tc.NestID))
 	body, _ := json.Marshal(map[string]string{"key": tc.Key, "value": tc.Value})
-	resp, err := hatchClient.Post(url, "application/json", bytes.NewReader(body))
+	resp, err := invasionPost(url, "application/json", bytes.NewReader(body))
 	if err != nil {
 		return fmt.Sprintf(`Tool Output: {"status":"error","message":"Send-secret request failed: %v"}`, err)
 	}

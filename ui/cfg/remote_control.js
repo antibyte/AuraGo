@@ -70,6 +70,13 @@ async function renderRemoteControlSection(section) {
         <span style="font-size:0.78rem;color:var(--text-secondary);">${t('config.remote_control.audit_log_label')}</span>
         <div class="toggle ${auditLog ? 'on' : ''}" data-path="remote_control.audit_log" onclick="toggleBool(this)"></div>
     </div>`;
+
+    // SSH Insecure Host Key
+    const sshInsecure = cfg.ssh_insecure_host_key === true;
+    html += `<div style="display:flex;align-items:center;gap:0.8rem;margin-bottom:0.6rem;padding:0.5rem 0.7rem;border-radius:6px;background:${sshInsecure ? 'rgba(255,160,0,0.08)' : 'transparent'};">
+        <span style="font-size:0.78rem;color:var(--text-secondary);">${t('config.remote_control.ssh_insecure_host_key_label')}</span>
+        <div class="toggle ${sshInsecure ? 'on' : ''}" data-path="remote_control.ssh_insecure_host_key" onclick="toggleBool(this)"></div>
+    </div>`;
     html += `</div>`;
 
     // ── Limits ──

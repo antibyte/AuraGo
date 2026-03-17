@@ -27,5 +27,6 @@
   "config.remote_control.download_name_placeholder": "जैसे मेरा-लैपटॉप",
   "config.remote_control.loading_platforms": "उपलब्ध प्लेटफ़ॉर्म लोड हो रहे हैं…",
   "config.remote_control.no_platforms": "कोई क्लाइंट बाइनरी उपलब्ध नहीं। पहले make_deploy.sh चलाएं।",
+  "config.remote_control.ssh_insecure_host_key_label": "असुरक्षित SSH होस्ट कुंजी की अनुमति दें (⚠️ MITM सुरक्षा निष्क्रिय, केवल विश्वसनीय नेटवर्क पर)",
   "config.remote_control.platforms_error": "प्लेटफ़ॉर्म सूची लोड नहीं हो सकी।"
 }

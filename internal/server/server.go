@@ -250,10 +250,14 @@ func Start(cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, sh
 	}
 
 	// Initialize Remote Control Hub
+	remote.InsecureHostKey = cfg.RemoteControl.SSHInsecureHostKey
 	if remoteControlDB != nil {
 		s.RemoteHub = remote.NewRemoteHub(remoteControlDB, vault, logger)
 		s.RemoteHub.StartHeartbeatMonitor(30*time.Second, 90*time.Second)
-		logger.Info("Remote Control Hub initialized")
+		if err := remote.TrimAuditLog(remoteControlDB, 10000); err != nil {
+			logger.Warn("Failed to trim remote audit log", "error", err)
+		}
+		logger.Info("Remote Control Hub initialized", "insecure_host_key", cfg.RemoteControl.SSHInsecureHostKey)
 	}
 
 	// Initialize runtime debug mode from config

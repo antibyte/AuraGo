@@ -27,5 +27,6 @@
   "config.remote_control.download_name_placeholder": "t.ex. min-laptop",
   "config.remote_control.loading_platforms": "Laddar tillgängliga plattformar…",
   "config.remote_control.no_platforms": "Inga klientbinärer tillgängliga. Kör make_deploy.sh först.",
+  "config.remote_control.ssh_insecure_host_key_label": "Tillåt osäker SSH-värdnyckel (⚠️ inaktiverar MITM-skydd, använd endast på betrodda nätverk)",
   "config.remote_control.platforms_error": "Det gick inte att ladda plattformslistan."
 }

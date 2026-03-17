@@ -27,5 +27,6 @@
   "config.remote_control.download_name_placeholder": "bijv. mijn-laptop",
   "config.remote_control.loading_platforms": "Beschikbare platforms laden…",
   "config.remote_control.no_platforms": "Geen client-binaries beschikbaar. Voer eerst make_deploy.sh uit.",
+  "config.remote_control.ssh_insecure_host_key_label": "Onveilige SSH-hostsleutel toestaan (⚠️ schakelt MITM-beveiliging uit, alleen gebruiken op vertrouwde netwerken)",
   "config.remote_control.platforms_error": "Kan de platformlijst niet laden."
 }

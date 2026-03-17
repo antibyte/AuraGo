@@ -27,5 +27,6 @@
   "config.remote_control.download_name_placeholder": "π.χ. ο-φορητός-μου",
   "config.remote_control.loading_platforms": "Φόρτωση διαθέσιμων πλατφορμών…",
   "config.remote_control.no_platforms": "Δεν υπάρχουν διαθέσιμα δυαδικά αρχεία πελάτη. Εκτελέστε πρώτα το make_deploy.sh.",
+  "config.remote_control.ssh_insecure_host_key_label": "Αποδοχή μη ασφαλούς κλειδιού SSH (⚠️ απενεργοποιεί προστασία MITM, χρήση μόνο σε αξιόπιστα δίκτυα)",
   "config.remote_control.platforms_error": "Δεν ήταν δυνατή η φόρτωση της λίστας πλατφορμών."
 }
