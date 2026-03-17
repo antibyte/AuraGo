@@ -538,7 +538,32 @@ func handleGitHubReposForUI(s *Server) http.HandlerFunc {
 }
 
 // handleDashboardCoreMemoryMutate handles POST (add), PUT (update), and DELETE (remove) for core memory facts.
-func handleDashboardCoreMemoryMutate(s *Server) http.HandlerFunc {
+func handleDashboardCoreMemoryMutate(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
+	// pushMemoryStats collects current memory stats and broadcasts them to all SSE clients.
+	pushMemoryStats := func() {
+		coreCount, _ := s.ShortTermMem.GetCoreMemoryCount()
+		msgCount, _ := s.ShortTermMem.GetMessageCount()
+		vectorCount, vectorDisabled := 0, false
+		if s.LongTermMem != nil {
+			vectorCount = s.LongTermMem.Count()
+			vectorDisabled = s.LongTermMem.IsDisabled()
+		}
+		graphNodes, graphEdges := 0, 0
+		if s.KG != nil {
+			graphNodes, graphEdges = s.KG.Stats()
+		}
+		sse.BroadcastType(EventMemoryUpdate, map[string]interface{}{
+			"core_memory_facts": coreCount,
+			"chat_messages":     msgCount,
+			"vectordb_entries":  vectorCount,
+			"vectordb_disabled": vectorDisabled,
+			"knowledge_graph": map[string]int{
+				"nodes": graphNodes,
+				"edges": graphEdges,
+			},
+		})
+	}
+
 	return func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodPost:
@@ -554,6 +579,7 @@ func handleDashboardCoreMemoryMutate(s *Server) http.HandlerFunc {
 				http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusInternalServerError)
 				return
 			}
+			go pushMemoryStats()
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusCreated)
 			json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok", "id": id})
@@ -571,6 +597,7 @@ func handleDashboardCoreMemoryMutate(s *Server) http.HandlerFunc {
 				http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusInternalServerError)
 				return
 			}
+			go pushMemoryStats()
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 
@@ -586,6 +613,7 @@ func handleDashboardCoreMemoryMutate(s *Server) http.HandlerFunc {
 				http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusInternalServerError)
 				return
 			}
+			go pushMemoryStats()
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 

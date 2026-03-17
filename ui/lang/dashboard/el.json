@@ -230,5 +230,6 @@
   "dashboard.adaptive_tools_title": "Προσαρμοστικό φιλτράρισμα εργαλείων",
   "dashboard.adaptive_tools_active": "Ενεργά εργαλεία",
   "dashboard.adaptive_tools_total_calls": "Σύνολο κλήσεων",
-  "dashboard.adaptive_tools_max": "Μέγιστα εργαλεία"
+  "dashboard.adaptive_tools_max": "Μέγιστα εργαλεία",
+  "dashboard.sse_reconnecting": "Reconnecting..."
 }

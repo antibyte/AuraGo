@@ -230,5 +230,6 @@
   "dashboard.adaptive_tools_title": "Adaptivní filtrování nástrojů",
   "dashboard.adaptive_tools_active": "Aktivní nástroje",
   "dashboard.adaptive_tools_total_calls": "Celkem volání",
-  "dashboard.adaptive_tools_max": "Max nástrojů"
+  "dashboard.adaptive_tools_max": "Max nástrojů",
+  "dashboard.sse_reconnecting": "Opetovne pripojeni..."
 }

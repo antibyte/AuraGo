@@ -34,6 +34,36 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		serverCancel()
 	}()
 
+	// Push system metrics to all SSE clients every 10 seconds so the dashboard
+	// does not need to poll /api/dashboard/system independently.
+	go func() {
+		ticker := time.NewTicker(10 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				raw := tools.GetSystemMetrics()
+				var metricsResult struct {
+					Status string              `json:"status"`
+					Data   tools.SystemMetrics `json:"data"`
+				}
+				if err := json.Unmarshal([]byte(raw), &metricsResult); err == nil {
+					payload := map[string]interface{}{
+						"cpu":            metricsResult.Data.CPU,
+						"memory":         metricsResult.Data.Memory,
+						"disk":           metricsResult.Data.Disk,
+						"network":        metricsResult.Data.Network,
+						"sse_clients":    sse.ClientCount(),
+						"uptime_seconds": int(time.Since(s.StartedAt).Seconds()),
+					}
+					sse.BroadcastType(EventSystemMetrics, payload)
+				}
+			case <-serverCtx.Done():
+				return
+			}
+		}
+	}()
+
 	// Phase 34: Start the background daily reflection loop
 	tools.StartDailyReflectionLoop(serverCtx, s.Cfg, s.Logger, s.LLMClient, s.HistoryManager, s.ShortTermMem)
 
@@ -280,7 +310,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		mux.HandleFunc("/api/dashboard/mood-history", handleDashboardMoodHistory(s))
 		mux.HandleFunc("/api/dashboard/memory", handleDashboardMemory(s))
 		mux.HandleFunc("/api/dashboard/core-memory", handleDashboardCoreMemory(s))
-		mux.HandleFunc("/api/dashboard/core-memory/mutate", handleDashboardCoreMemoryMutate(s))
+		mux.HandleFunc("/api/dashboard/core-memory/mutate", handleDashboardCoreMemoryMutate(s, sse))
 		mux.HandleFunc("/api/dashboard/profile", handleDashboardProfile(s))
 		mux.HandleFunc("/api/dashboard/activity", handleDashboardActivity(s))
 		mux.HandleFunc("/api/dashboard/prompt-stats", handleDashboardPromptStats())

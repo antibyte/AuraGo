@@ -230,5 +230,6 @@
   "dashboard.adaptive_tools_title": "Adaptiv verktøyfiltrering",
   "dashboard.adaptive_tools_active": "Aktive verktøy",
   "dashboard.adaptive_tools_total_calls": "Totale kall",
-  "dashboard.adaptive_tools_max": "Max verktøy"
+  "dashboard.adaptive_tools_max": "Max verktøy",
+  "dashboard.sse_reconnecting": "Kobler til igjen..."
 }

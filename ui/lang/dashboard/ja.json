@@ -230,5 +230,6 @@
   "dashboard.adaptive_tools_title": "アダプティブツールフィルタリング",
   "dashboard.adaptive_tools_active": "アクティブツール",
   "dashboard.adaptive_tools_total_calls": "合計呼び出し",
-  "dashboard.adaptive_tools_max": "最大ツール"
+  "dashboard.adaptive_tools_max": "最大ツール",
+  "dashboard.sse_reconnecting": "再接続中..."
 }

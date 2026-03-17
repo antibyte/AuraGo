@@ -230,5 +230,6 @@
   "dashboard.adaptive_tools_title": "अनुकूली टूल फ़िल्टरिंग",
   "dashboard.adaptive_tools_active": "सक्रिय टूल",
   "dashboard.adaptive_tools_total_calls": "कुल कॉल",
-  "dashboard.adaptive_tools_max": "अधिकतम टूल"
+  "dashboard.adaptive_tools_max": "अधिकतम टूल",
+  "dashboard.sse_reconnecting": "Reconnecting..."
 }

@@ -1446,16 +1446,8 @@
 
         // ── Auto-Refresh ────────────────────────────────────────────────────────────
         function startAutoRefresh() {
-            // System every 10s
-            setInterval(async () => {
-                const sys = await API.get('/api/dashboard/system');
-                if (sys) {
-                    updateGauge(Charts.cpu, 'cpu-val', sys.cpu?.usage_percent || 0);
-                    updateGauge(Charts.ram, 'ram-val', sys.memory?.used_percent || 0);
-                    updateGauge(Charts.disk, 'disk-val', sys.disk?.used_percent || 0);
-                    renderSystemStats(sys);
-                }
-            }, 10_000);
+            // System metrics are now pushed via SSE (EventSystemMetrics) every 10s.
+            // No polling needed for CPU / RAM / Disk.
 
             // Everything else every 30s
             setInterval(async () => {
@@ -1488,8 +1480,19 @@
 
                 if (memData) {
                     renderMemoryStats(memData);
-                    if (Charts.memory) { Charts.memory.destroy(); }
-                    Charts.memory = createMemoryBarChart('memory-chart', memData);
+                    // Incremental chart update — no destroy/recreate needed
+                    if (Charts.memory) {
+                        Charts.memory.data.datasets[0].data = [
+                            memData.core_memory_facts || 0,
+                            memData.chat_messages || 0,
+                            memData.vectordb_entries || 0,
+                            (memData.knowledge_graph || {}).nodes || 0,
+                            (memData.knowledge_graph || {}).edges || 0,
+                        ];
+                        Charts.memory.update('none');
+                    } else {
+                        Charts.memory = createMemoryBarChart('memory-chart', memData);
+                    }
                     renderMilestones(memData.milestones);
                 }
 
@@ -1581,21 +1584,64 @@
         }
 
         // ── SSE Live Updates ────────────────────────────────────────────────────────
+        let _sseBanner = null;
+        function showSSEBanner(msg) {
+            if (!_sseBanner) {
+                _sseBanner = document.createElement('div');
+                _sseBanner.style.cssText = 'position:fixed;top:0;left:0;right:0;background:var(--warning,#f59e0b);color:#000;text-align:center;padding:6px 12px;font-size:13px;z-index:9999;';
+                document.body.prepend(_sseBanner);
+            }
+            _sseBanner.textContent = msg;
+            _sseBanner.style.display = 'block';
+        }
+        function hideSSEBanner() {
+            if (_sseBanner) _sseBanner.style.display = 'none';
+        }
+
         function connectSSE() {
             const es = new EventSource('/events', { withCredentials: true });
+            es.onopen = function () {
+                hideSSEBanner();
+            };
             es.onmessage = function (event) {
                 try {
                     const data = JSON.parse(event.data);
-                    if (data.event === 'budget_update') {
-                        // Quick update budget display
+                    // Typed events: {type, payload}
+                    if (data.type === 'system_metrics') {
+                        const sys = data.payload;
+                        updateGauge(Charts.cpu, 'cpu-val', sys.cpu?.usage_percent || 0);
+                        updateGauge(Charts.ram, 'ram-val', sys.memory?.used_percent || 0);
+                        updateGauge(Charts.disk, 'disk-val', sys.disk?.used_percent || 0);
+                        renderSystemStats(sys);
+                    } else if (data.type === 'memory_update') {
+                        const mem = data.payload;
+                        if (mem && Charts.memory) {
+                            Charts.memory.data.datasets[0].data = [
+                                mem.core_memory_facts || 0,
+                                mem.chat_messages || 0,
+                                mem.vectordb_entries || 0,
+                                (mem.knowledge_graph || {}).nodes || 0,
+                                (mem.knowledge_graph || {}).edges || 0,
+                            ];
+                            Charts.memory.update('none');
+                            renderMemoryStats(mem);
+                        }
+                    }
+                    // Legacy events: {event, detail}
+                    else if (data.event === 'budget_update') {
                         if (data.spent_usd != null) {
                             document.getElementById('budget-spent').textContent = '$' + (data.spent_usd || 0).toFixed(2);
                         }
+                    } else if (data.event === 'budget_warning') {
+                        if (typeof showToast === 'function') showToast('⚡ ' + (data.detail || t('dashboard.budget_warning')), 'warning', 5000);
+                    } else if (data.event === 'budget_blocked') {
+                        if (typeof showToast === 'function') showToast('🚫 ' + (data.detail || t('dashboard.budget_blocked')), 'error', 0);
                     }
                 } catch (e) { /* ignore non-JSON */ }
             };
             es.onerror = function () {
                 es.close();
+                showSSEBanner('⚠ ' + (t('dashboard.sse_reconnecting') || 'Reconnecting…'));
                 // Check if auth error (401) - redirect to login
                 fetch('/api/auth/status', { credentials: 'same-origin' }).then(r => {
                     if (r.status === 401) {

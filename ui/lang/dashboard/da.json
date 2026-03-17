@@ -230,5 +230,6 @@
   "dashboard.adaptive_tools_title": "Adaptiv værktøjsfiltrering",
   "dashboard.adaptive_tools_active": "Aktive værktøjer",
   "dashboard.adaptive_tools_total_calls": "Samlede kald",
-  "dashboard.adaptive_tools_max": "Max værktøjer"
+  "dashboard.adaptive_tools_max": "Max værktøjer",
+  "dashboard.sse_reconnecting": "Genopretter forbindelsen..."
 }

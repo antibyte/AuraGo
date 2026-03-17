@@ -230,5 +230,6 @@
   "dashboard.adaptive_tools_title": "Adaptive Tool Filtering",
   "dashboard.adaptive_tools_active": "Tools Active",
   "dashboard.adaptive_tools_total_calls": "Total Calls",
-  "dashboard.adaptive_tools_max": "Max Tools"
+  "dashboard.adaptive_tools_max": "Max Tools",
+  "dashboard.sse_reconnecting": "Reconnecting..."
 }

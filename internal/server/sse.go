@@ -9,6 +9,21 @@ import (
 	"aurago/internal/security"
 )
 
+// SSEEventType is a strongly-typed SSE event identifier for typed broadcast messages.
+// Typed events use the format {"type":"<event>","payload":{...}} and are distinct
+// from the legacy {"event":"...","detail":"..."} format used by Send/SendJSON.
+type SSEEventType string
+
+const (
+	EventSystemMetrics SSEEventType = "system_metrics"
+	EventMemoryUpdate  SSEEventType = "memory_update"
+	EventBudgetUpdate  SSEEventType = "budget_update"
+	EventAgentStatus   SSEEventType = "agent_status"
+	EventMissionUpdate SSEEventType = "mission_update"
+	EventLogLine       SSEEventType = "log_line"
+	EventToast         SSEEventType = "toast"
+)
+
 // SSEBroadcaster manages Server-Sent Events connections and broadcasts messages.
 type SSEBroadcaster struct {
 	mu      sync.RWMutex
@@ -52,6 +67,19 @@ func (b *SSEBroadcaster) SendJSON(jsonMsg string) {
 		default:
 		}
 	}
+}
+
+// BroadcastType sends a typed SSE event with a structured payload to all clients.
+// Messages are formatted as {"type":"<eventType>","payload":<payload>}.
+func (b *SSEBroadcaster) BroadcastType(eventType SSEEventType, payload any) {
+	msg, err := json.Marshal(struct {
+		Type    SSEEventType `json:"type"`
+		Payload any          `json:"payload"`
+	}{eventType, payload})
+	if err != nil {
+		return
+	}
+	b.SendJSON(string(msg))
 }
 
 // ClientCount returns the number of currently connected SSE clients.

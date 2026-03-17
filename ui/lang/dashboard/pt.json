@@ -230,5 +230,6 @@
   "dashboard.adaptive_tools_title": "Filtragem adaptativa de ferramentas",
   "dashboard.adaptive_tools_active": "Ferramentas ativas",
   "dashboard.adaptive_tools_total_calls": "Chamadas totais",
-  "dashboard.adaptive_tools_max": "Max ferramentas"
+  "dashboard.adaptive_tools_max": "Max ferramentas",
+  "dashboard.sse_reconnecting": "Reconectando..."
 }

@@ -230,5 +230,6 @@
   "dashboard.adaptive_tools_title": "自适应工具过滤",
   "dashboard.adaptive_tools_active": "活跃工具",
   "dashboard.adaptive_tools_total_calls": "总调用次数",
-  "dashboard.adaptive_tools_max": "最大工具数"
+  "dashboard.adaptive_tools_max": "最大工具数",
+  "dashboard.sse_reconnecting": "正在重新连接..."
 }
