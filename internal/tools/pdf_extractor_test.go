@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -124,7 +125,7 @@ func TestSummaryLLMConfig_Fields(t *testing.T) {
 func TestSummariseContent_ErrorEnvelope(t *testing.T) {
 	// SummariseContent should return an error when the input carries an error envelope
 	errJSON := `{"status":"error","message":"upstream failure"}`
-	_, err := SummariseContent(nil, SummaryLLMConfig{APIKey: "k", Model: "m"}, nil, errJSON, "q", "test")
+	_, err := SummariseContent(context.TODO(), SummaryLLMConfig{APIKey: "k", Model: "m"}, nil, errJSON, "q", "test")
 	if err == nil {
 		t.Fatal("expected error for error envelope, got nil")
 	}
@@ -134,7 +135,7 @@ func TestSummariseContent_ErrorEnvelope(t *testing.T) {
 }
 
 func TestSummariseContent_NoAPIKey(t *testing.T) {
-	_, err := SummariseContent(nil, SummaryLLMConfig{}, nil, "some content", "query", "test")
+	_, err := SummariseContent(context.TODO(), SummaryLLMConfig{}, nil, "some content", "query", "test")
 	if err == nil {
 		t.Fatal("expected error for missing API key, got nil")
 	}

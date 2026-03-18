@@ -107,7 +107,7 @@ func ScanPorts(targetHost, portRange string, timeoutMs int) string {
 			sem <- struct{}{}
 			defer func() { <-sem }()
 
-			addr := fmt.Sprintf("%s:%d", targetHost, p)
+			addr := net.JoinHostPort(targetHost, fmt.Sprintf("%d", p))
 			conn, err := net.DialTimeout("tcp", addr, timeout)
 			entry := portEntry{Port: p}
 			if err != nil {

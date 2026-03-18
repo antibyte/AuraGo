@@ -117,7 +117,7 @@ func runMemoryAnalysis(
 			raw = raw[3+idx+1:]
 		}
 		if strings.HasSuffix(raw, "```") {
-			raw = raw[:len(raw)-3]
+			raw = strings.TrimSuffix(raw, "```")
 		}
 		raw = strings.TrimSpace(raw)
 	}
@@ -305,7 +305,7 @@ func rerankWithLLM(ctx context.Context, cfg *config.Config, logger *slog.Logger,
 			raw = raw[3+idx+1:]
 		}
 		if strings.HasSuffix(raw, "```") {
-			raw = raw[:len(raw)-3]
+			raw = strings.TrimSuffix(raw, "```")
 		}
 		raw = strings.TrimSpace(raw)
 	}
@@ -478,7 +478,7 @@ func generateMemoryReflection(
 			raw = raw[3+idx+1:]
 		}
 		if strings.HasSuffix(raw, "```") {
-			raw = raw[:len(raw)-3]
+			raw = strings.TrimSuffix(raw, "```")
 		}
 		raw = strings.TrimSpace(raw)
 	}

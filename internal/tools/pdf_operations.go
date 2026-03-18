@@ -150,7 +150,7 @@ func pdfWatermark(inputFile, outputFile, text, pages string) string {
 	}
 
 	// pdfcpu watermark descriptor: diagonal text, semi-transparent
-	desc := fmt.Sprintf("font:Helvetica, points:48, col:0.5 0.5 0.5, rot:45, scale:1 rel, opacity:0.3")
+	desc := "font:Helvetica, points:48, col:0.5 0.5 0.5, rot:45, scale:1 rel, opacity:0.3"
 	selectedPages := parseSelectedPages(pages)
 
 	conf := model.NewDefaultConfiguration()
