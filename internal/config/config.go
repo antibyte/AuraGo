@@ -52,6 +52,9 @@ func Load(path string) (*Config, error) {
 	cfg.Tools.DocumentCreator.Gotenberg.URL = "http://gotenberg:3000"
 	cfg.Tools.DocumentCreator.Gotenberg.Timeout = 120
 
+	cfg.Tools.WebCapture.Enabled = true
+	cfg.Tools.NetworkPing.Enabled = true
+
 	// Journal system defaults: auto-entries and daily summaries enabled by default.
 	cfg.Journal.AutoEntries = true
 	cfg.Journal.DailySummary = true

@@ -728,6 +728,12 @@ type Config struct {
 			SummaryModel   string `yaml:"-" json:"-"`
 		} `yaml:"pdf_extractor"`
 		DocumentCreator DocumentCreatorConfig `yaml:"document_creator"`
+		WebCapture      struct {
+			Enabled bool `yaml:"enabled"` // enable web_capture tool (screenshot/pdf via headless Chromium, default true)
+		} `yaml:"web_capture"`
+		NetworkPing struct {
+			Enabled bool `yaml:"enabled"` // enable network_ping tool (ICMP echo, default true)
+		} `yaml:"network_ping"`
 	} `yaml:"tools"`
 	Sandbox struct {
 		Enabled        bool   `yaml:"enabled"`

@@ -32,7 +32,7 @@ func handleDashboardSystem(s *Server, sse *SSEBroadcaster, startedAt time.Time) 
 		}
 
 		// Parse the JSON from GetSystemMetrics
-		raw := tools.GetSystemMetrics()
+		raw := tools.GetSystemMetrics("")
 		var metricsResult struct {
 			Status string              `json:"status"`
 			Data   tools.SystemMetrics `json:"data"`

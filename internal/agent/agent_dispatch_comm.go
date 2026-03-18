@@ -433,8 +433,20 @@ func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 		return tools.InitiateLifeboatHandover(tc.TaskPrompt, cfg)
 
 	case "get_system_metrics", "system_metrics":
-		logger.Info("LLM requested system metrics")
-		return "Tool Output: " + tools.GetSystemMetrics()
+		logger.Info("LLM requested system metrics", "target", tc.Target)
+		return "Tool Output: " + tools.GetSystemMetrics(tc.Target)
+
+	case "web_capture":
+		logger.Info("LLM requested web capture", "operation", tc.Operation, "url", tc.URL)
+		return "Tool Output: " + tools.WebCapture(tc.Operation, tc.URL, tc.Selector, tc.FullPage, tc.OutputDir)
+
+	case "network_ping":
+		logger.Info("LLM requested network ping", "host", tc.Host)
+		return "Tool Output: " + tools.NetworkPing(tc.Host, tc.Count, tc.Timeout)
+
+	case "detect_file_type":
+		logger.Info("LLM requested file type detection", "path", tc.FilePath)
+		return "Tool Output: " + tools.DetectFileType(tc.FilePath, tc.Recursive)
 
 	case "send_notification", "notification_center", "send_push_notification", "web_push":
 		if tc.ToolName == "send_push_notification" || tc.ToolName == "web_push" {

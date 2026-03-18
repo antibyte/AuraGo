@@ -145,6 +145,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		InternetExposed:          cfg.Server.HTTPS.Enabled,
 		IsDocker:                 cfg.Runtime.IsDocker,
 		DocumentCreatorEnabled:   cfg.Tools.DocumentCreator.Enabled,
+		WebCaptureEnabled:        cfg.Tools.WebCapture.Enabled,
+		NetworkPingEnabled:       cfg.Tools.NetworkPing.Enabled,
 		AdditionalPrompt:         cfg.Agent.AdditionalPrompt,
 	}
 	logger.Debug("[Agent] Context flags initialised",
@@ -283,6 +285,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			HomepageRegistryEnabled:  cfg.Homepage.Enabled && homepageRegistryDB != nil,
 			MemoryAnalysisEnabled:    cfg.MemoryAnalysis.Enabled,
 			DocumentCreatorEnabled:   cfg.Tools.DocumentCreator.Enabled,
+			WebCaptureEnabled:        cfg.Tools.WebCapture.Enabled,
+			NetworkPingEnabled:       cfg.Tools.NetworkPing.Enabled,
 			// Danger Zone capability gates
 			AllowShell:           cfg.Agent.AllowShell,
 			AllowPython:          cfg.Agent.AllowPython,

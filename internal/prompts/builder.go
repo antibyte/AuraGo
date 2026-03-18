@@ -150,6 +150,8 @@ type ContextFlags struct {
 	MediaRegistryEnabled     bool
 	HomepageRegistryEnabled  bool
 	DocumentCreatorEnabled   bool
+	WebCaptureEnabled        bool
+	NetworkPingEnabled       bool
 	InternetExposed          bool   // HTTPS is enabled — system is likely reachable from the internet
 	IsDocker                 bool   // Running inside a Docker container
 	UserProfilingEnabled     bool   // User profiling is active — agent should learn about the user

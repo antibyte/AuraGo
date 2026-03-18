@@ -95,6 +95,8 @@ type ToolFeatureFlags struct {
 	JournalEnabled           bool
 	MemoryAnalysisEnabled    bool
 	DocumentCreatorEnabled   bool
+	WebCaptureEnabled        bool
+	NetworkPingEnabled       bool
 }
 
 // builtinToolSchemas returns schemas for all built-in AuraGo tools.
@@ -132,12 +134,12 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 			}, "operation", "file_path"),
 		),
 		tool("system_metrics",
-			"Retrieve current system resource usage: CPU, memory, disk, running processes.",
+			"Retrieve current system resource usage: CPU, memory, disk, running processes, host info, temperatures, per-interface network stats, or active connections.",
 			schema(map[string]interface{}{
 				"target": map[string]interface{}{
 					"type":        "string",
-					"description": "Metrics to retrieve",
-					"enum":        []string{"all", "cpu", "memory", "disk", "processes"},
+					"description": "Metrics category to retrieve",
+					"enum":        []string{"all", "cpu", "memory", "disk", "processes", "host", "sensors", "network_detail", "connections"},
 				},
 			}),
 		),
@@ -1135,6 +1137,48 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 			}, "operation"),
 		))
 	}
+
+	if ff.WebCaptureEnabled {
+		tools = append(tools, tool("web_capture",
+			"Take a screenshot (PNG) or render a PDF of any URL using a headless Chromium browser. "+
+				"Does not require Gotenberg or any external service — uses the embedded go-rod browser. "+
+				"Operations: 'screenshot' saves a PNG image, 'pdf' saves a PDF. "+
+				"Optionally wait for a CSS selector before capture, and capture full scrollable page for screenshots.",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "Capture type",
+					"enum":        []string{"screenshot", "pdf"},
+				},
+				"url":        prop("string", "Page URL to capture (http or https)"),
+				"selector":   prop("string", "Optional CSS selector to wait for before capture"),
+				"full_page":  map[string]interface{}{"type": "boolean", "description": "Capture full scrollable page height (screenshot only, default: false)"},
+				"output_dir": prop("string", "Directory to save the file (default: agent_workspace/workdir)"),
+			}, "operation", "url"),
+		))
+	}
+
+	if ff.NetworkPingEnabled {
+		tools = append(tools, tool("network_ping",
+			"Ping a host using ICMP echo requests and return latency statistics (min/avg/max RTT, packet loss). "+
+				"Requires raw socket access — works without elevation on Windows; on Linux the process needs CAP_NET_RAW or root.",
+			schema(map[string]interface{}{
+				"host":         prop("string", "Hostname or IP address to ping"),
+				"count":        map[string]interface{}{"type": "integer", "description": "Number of packets to send (1–20, default: 4)"},
+				"timeout_secs": map[string]interface{}{"type": "integer", "description": "Total timeout in seconds (1–60, default: 10)"},
+			}, "host"),
+		))
+	}
+
+	tools = append(tools, tool("detect_file_type",
+		"Identify the true file type of one or more files using magic-byte detection (ignores file extension). "+
+			"Returns MIME type, canonical extension, and type group (image, video, audio, application…). "+
+			"Pass a single file path or a directory path. Set recursive to scan sub-directories.",
+		schema(map[string]interface{}{
+			"path":      prop("string", "Absolute or relative path to a file or directory"),
+			"recursive": map[string]interface{}{"type": "boolean", "description": "Recurse into sub-directories (only when path is a directory, default: false)"},
+		}, "path"),
+	))
 
 	return tools
 }

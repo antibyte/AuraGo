@@ -226,6 +226,9 @@ type ToolCall struct {
 	BodyTemplate       string                 `json:"body_template"`
 	Tag                string                 `json:"tag"`
 	Hostname           string                 `json:"hostname"`
+	Host               string                 `json:"host"`       // generic target host (ping, etc.)
+	Selector           string                 `json:"selector"`   // CSS selector (web_capture)
+	OutputDir          string                 `json:"output_dir"` // output directory override
 	ServerID           string                 `json:"server_id"`
 	MemoryKey          string                 `json:"memory_key"`   // Synonym for fact
 	MemoryValue        string                 `json:"memory_value"` // Synonym for fact/content
@@ -336,6 +339,8 @@ type ToolCall struct {
 	// Remote Control fields
 	DeviceID  string `json:"device_id"`
 	Recursive bool   `json:"recursive"`
+	FullPage  bool   `json:"full_page"`
+	Count     int    `json:"count"`
 	// Notification fields
 	Channel string `json:"channel"`
 	// Webhook fields

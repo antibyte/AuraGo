@@ -43,7 +43,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		for {
 			select {
 			case <-ticker.C:
-				raw := tools.GetSystemMetrics()
+				raw := tools.GetSystemMetrics("")
 				var metricsResult struct {
 					Status string              `json:"status"`
 					Data   tools.SystemMetrics `json:"data"`
