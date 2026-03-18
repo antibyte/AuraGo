@@ -204,7 +204,17 @@ func personalityMaintenance(cfg *config.Config, stm *memory.SQLiteMemory, logger
 		logger.Info("[Personality] Daily weighted trait decay applied", "amount", decayAmount, "decay_rate", meta.TraitDecayRate)
 	}
 
-	// 2. Character journal: append today's snapshot to data/character_journal.md
+	// 2. Emotion history cleanup
+	if cfg.Agent.EmotionSynthesizer.Enabled {
+		deleted, err := stm.CleanupEmotionHistory(30, cfg.Agent.EmotionSynthesizer.MaxHistoryEntries)
+		if err != nil {
+			logger.Error("[EmotionSynthesizer] Emotion history cleanup failed", "error", err)
+		} else if deleted > 0 {
+			logger.Info("[EmotionSynthesizer] Emotion history cleaned up", "deleted", deleted)
+		}
+	}
+
+	// 3. Character journal: append today's snapshot to data/character_journal.md
 	traits, err := stm.GetTraits()
 	if err != nil {
 		logger.Error("[Personality] Cannot read traits for journal", "error", err)

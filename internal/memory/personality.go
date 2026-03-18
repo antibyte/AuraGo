@@ -99,6 +99,12 @@ func (s *SQLiteMemory) InitPersonalityTables() error {
 	for _, t := range []string{TraitCuriosity, TraitThoroughness, TraitCreativity, TraitEmpathy, TraitConfidence, TraitAffinity} {
 		_, _ = s.db.Exec(`UPDATE personality_traits SET value = ? WHERE trait = ? AND value = 0.0`, traitDefault, t)
 	}
+
+	// Initialize emotion history tables (Emotion Synthesizer)
+	if err := s.InitEmotionTables(); err != nil {
+		return fmt.Errorf("emotion tables: %w", err)
+	}
+
 	return nil
 }
 

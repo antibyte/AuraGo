@@ -509,6 +509,18 @@
             const nameLocalized = moodNameMap[data.mood] || data.mood;
             if (badge) badge.textContent = '🎭 ' + nameLocalized;
             if (trigger && data.trigger) trigger.textContent = '"' + data.trigger + '"';
+
+            // Emotion Synthesizer display
+            const emotionDisplay = document.getElementById('emotion-display');
+            const emotionText = document.getElementById('emotion-text');
+            if (emotionDisplay && emotionText) {
+                if (data.current_emotion) {
+                    emotionText.textContent = data.current_emotion;
+                    emotionDisplay.style.display = '';
+                } else {
+                    emotionDisplay.style.display = 'none';
+                }
+            }
         }
 
         function renderMemoryStats(data) {

@@ -201,6 +201,35 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 	}
 
+	// Emotion Synthesizer (requires Personality Engine V2)
+	var emotionSynthesizer *memory.EmotionSynthesizer
+	if cfg.Agent.EmotionSynthesizer.Enabled && personalityEnabled && cfg.Agent.PersonalityEngineV2 {
+		// Reuse V2 client setup
+		var esClient memory.PersonalityAnalyzerClient = client
+		if cfg.Agent.PersonalityV2URL != "" {
+			key := cfg.Agent.PersonalityV2APIKey
+			if key == "" {
+				key = "dummy"
+			}
+			v2Cfg := openai.DefaultConfig(key)
+			v2Cfg.BaseURL = cfg.Agent.PersonalityV2URL
+			esClient = openai.NewClientWithConfig(v2Cfg)
+		}
+		esModel := cfg.Agent.PersonalityV2Model
+		if esModel == "" {
+			esModel = cfg.LLM.Model
+		}
+		emotionSynthesizer = memory.NewEmotionSynthesizer(
+			esClient,
+			esModel,
+			cfg.Agent.EmotionSynthesizer.MinIntervalSecs,
+			cfg.Agent.EmotionSynthesizer.MaxHistoryEntries,
+			cfg.Agent.SystemLanguage,
+			currentLogger,
+		)
+		logger.Info("[EmotionSynthesizer] Initialized", "model", esModel, "interval_secs", cfg.Agent.EmotionSynthesizer.MinIntervalSecs)
+	}
+
 	// Native function calling: build tool schemas once and attach to request
 	toolGuidesDir := filepath.Join(cfg.Directories.PromptsDir, "tools_manuals")
 
@@ -633,6 +662,13 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				processBehavioralEvents(shortTermMem, &req.Messages, sessionID, meta, currentLogger)
 			}
 			flags.PersonalityLine = shortTermMem.GetPersonalityLine(cfg.Agent.PersonalityEngineV2)
+
+			// Emotion Synthesizer: inject LLM-generated emotional description
+			if emotionSynthesizer != nil {
+				if es := emotionSynthesizer.GetLastEmotion(); es != nil {
+					flags.EmotionDescription = es.Description
+				}
+			}
 		}
 
 		// User Profiling: inject behavioral instruction + collected profile data
@@ -1575,6 +1611,34 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 						}
 
 						currentLogger.Debug("[Personality V2] Asynchronous mood analysis complete", "mood", mood, "affinity_delta", affDelta)
+
+						// Emotion Synthesizer: generate emotional description after V2 analysis
+						if emotionSynthesizer != nil {
+							prevMood := ""
+							if prev := emotionSynthesizer.GetLastEmotion(); prev != nil {
+								prevMood = string(prev.PrimaryMood)
+							}
+							moodChanged := prevMood != string(mood)
+							shouldSynthesize := cfg.Agent.EmotionSynthesizer.TriggerAlways ||
+								(cfg.Agent.EmotionSynthesizer.TriggerOnMoodChange && moodChanged) ||
+								emotionSynthesizer.GetLastEmotion() == nil
+
+							if shouldSynthesize {
+								traits, _ := shortTermMem.GetTraits()
+								esInput := memory.EmotionInput{
+									UserMessage:  tInfo,
+									CurrentMood:  mood,
+									Traits:       traits,
+									LastEmotion:  emotionSynthesizer.GetLastEmotion(),
+									ErrorCount:   consecutiveErrorCount,
+									SuccessCount: toolCallCount - consecutiveErrorCount,
+									TimeOfDay:    memory.TimeOfDay(),
+								}
+								esCtx, esCancel := context.WithTimeout(context.Background(), 15*time.Second)
+								_, _ = emotionSynthesizer.SynthesizeEmotion(esCtx, shortTermMem, esInput)
+								esCancel()
+							}
+						}
 					}(historyBuilder.String(), userHistoryBuilder.String(), triggerInfo, cfg.Agent.PersonalityV2Model, v2Client, meta, cfg.Agent.UserProfiling)
 
 				} else {
@@ -1586,6 +1650,13 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					}
 				}
 				flags.PersonalityLine = shortTermMem.GetPersonalityLine(cfg.Agent.PersonalityEngineV2)
+
+				// Emotion Synthesizer: update flags with latest emotion if available
+				if emotionSynthesizer != nil {
+					if es := emotionSynthesizer.GetLastEmotion(); es != nil {
+						flags.EmotionDescription = es.Description
+					}
+				}
 			}
 
 			if tc.NotifyOnCompletion {

@@ -314,6 +314,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		// Dashboard API endpoints
 		mux.HandleFunc("/api/dashboard/system", handleDashboardSystem(s, sse, s.StartedAt))
 		mux.HandleFunc("/api/dashboard/mood-history", handleDashboardMoodHistory(s))
+		mux.HandleFunc("/api/dashboard/emotion-history", handleDashboardEmotionHistory(s))
 		mux.HandleFunc("/api/dashboard/memory", handleDashboardMemory(s))
 		mux.HandleFunc("/api/dashboard/core-memory", handleDashboardCoreMemory(s))
 		mux.HandleFunc("/api/dashboard/core-memory/mutate", handleDashboardCoreMemoryMutate(s, sse))

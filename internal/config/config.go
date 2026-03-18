@@ -256,6 +256,18 @@ func Load(path string) (*Config, error) {
 	if cfg.Agent.PersonalityEngineV2 && !cfg.Agent.PersonalityEngine {
 		cfg.Agent.PersonalityEngine = true
 	}
+	// Emotion Synthesizer defaults
+	if cfg.Agent.EmotionSynthesizer.MinIntervalSecs <= 0 {
+		cfg.Agent.EmotionSynthesizer.MinIntervalSecs = 60
+	}
+	if cfg.Agent.EmotionSynthesizer.MaxHistoryEntries <= 0 {
+		cfg.Agent.EmotionSynthesizer.MaxHistoryEntries = 100
+	}
+	// Emotion Synthesizer requires Personality Engine V2
+	if cfg.Agent.EmotionSynthesizer.Enabled && !cfg.Agent.PersonalityEngineV2 {
+		cfg.Agent.PersonalityEngineV2 = true
+		cfg.Agent.PersonalityEngine = true
+	}
 	if cfg.Agent.SystemPromptTokenBudget <= 0 {
 		cfg.Agent.SystemPromptTokenBudget = 12288
 	}

@@ -235,6 +235,30 @@
             text-overflow: ellipsis;
         }
 
+        /* ── Emotion Synthesizer Display ─────────────────────── */
+        .emotion-display {
+            margin-top: 0.75rem;
+            padding: 0.6rem 0.8rem;
+            background: rgba(139, 92, 246, 0.08);
+            border: 1px solid rgba(139, 92, 246, 0.2);
+            border-radius: 0.6rem;
+            text-align: left;
+        }
+
+        .emotion-label {
+            font-size: var(--text-xs);
+            color: var(--text-secondary);
+            font-weight: 500;
+            margin-bottom: 0.25rem;
+        }
+
+        .emotion-text {
+            font-size: var(--text-sm);
+            color: var(--text-primary);
+            line-height: 1.5;
+            font-style: italic;
+        }
+
         /* ── Mood Timeline ───────────────────────────────────── */
         .mood-controls {
             display: flex;

@@ -58,6 +58,7 @@
   "dashboard.core_facts_modal_loading": "加载中…",
   "dashboard.core_facts_modal_save": "保存",
   "dashboard.core_facts_modal_title": "核心事实",
+  "dashboard.emotion_label": "情感状态",
   "dashboard.github_badge_private": "私有",
   "dashboard.github_badge_public": "公开",
   "dashboard.github_badge_tracked": "已追踪",

@@ -58,6 +58,7 @@
   "dashboard.core_facts_modal_loading": "Wird geladen…",
   "dashboard.core_facts_modal_save": "Speichern",
   "dashboard.core_facts_modal_title": "Kernfakten",
+  "dashboard.emotion_label": "Emotionaler Zustand",
   "dashboard.github_badge_private": "Private",
   "dashboard.github_badge_public": "Public",
   "dashboard.github_badge_tracked": "Tracked",

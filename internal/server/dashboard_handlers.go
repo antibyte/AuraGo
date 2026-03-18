@@ -88,6 +88,37 @@ func handleDashboardMoodHistory(s *Server) http.HandlerFunc {
 	}
 }
 
+// handleDashboardEmotionHistory returns synthesized emotion history entries.
+func handleDashboardEmotionHistory(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		hours := 24
+		if h := r.URL.Query().Get("hours"); h != "" {
+			if parsed, err := strconv.Atoi(h); err == nil && parsed > 0 {
+				hours = parsed
+			}
+		}
+
+		entries, err := s.ShortTermMem.GetEmotionHistory(hours)
+		if err != nil {
+			s.Logger.Error("Failed to get emotion history", "error", err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+
+		if entries == nil {
+			entries = []memory.EmotionHistoryEntry{}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(entries)
+	}
+}
+
 // handleDashboardMemory returns memory statistics (core memory, messages, vectordb, graph, milestones).
 func handleDashboardMemory(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

@@ -208,7 +208,14 @@ type Config struct {
 			DecayHalfLifeDays float64  `yaml:"decay_half_life_days"` // usage score halves after this many days (default: 7)
 			AlwaysInclude     []string `yaml:"always_include"`       // tools always included regardless of usage
 		} `yaml:"adaptive_tools"`
-		MaxToolGuides int `yaml:"max_tool_guides"` // maximum tool guide documents injected into prompt (default: 5)
+		MaxToolGuides      int `yaml:"max_tool_guides"` // maximum tool guide documents injected into prompt (default: 5)
+		EmotionSynthesizer struct {
+			Enabled             bool `yaml:"enabled"`                // enable LLM-based emotion synthesis (default: false)
+			MinIntervalSecs     int  `yaml:"min_interval_seconds"`   // minimum seconds between syntheses (default: 60)
+			MaxHistoryEntries   int  `yaml:"max_history_entries"`    // max emotion history entries to retain (default: 100)
+			TriggerOnMoodChange bool `yaml:"trigger_on_mood_change"` // only synthesize when mood changes (default: true)
+			TriggerAlways       bool `yaml:"trigger_always"`         // synthesize on every message (default: false)
+		} `yaml:"emotion_synthesizer"`
 	} `yaml:"agent"`
 	CircuitBreaker struct {
 		MaxToolCalls              int      `yaml:"max_tool_calls"`

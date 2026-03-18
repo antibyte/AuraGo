@@ -159,6 +159,7 @@ type ContextFlags struct {
 	HighPriorityNotes        string // Open high-priority notes injected as reminders
 	KnowledgeContext         string // Relevant KG entities injected from SearchForContext
 	ErrorPatternContext      string // Known error patterns with resolutions for agent learning
+	EmotionDescription       string // LLM-synthesized emotional state description (Emotion Synthesizer)
 }
 
 // DetermineTierAdaptive returns a prompt tier based on both conversation length and
@@ -381,7 +382,13 @@ func BuildSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string,
 	}
 
 	// Personality self-awareness (Phase D micro-traits)
-	if flags.PersonalityLine != "" {
+	if flags.EmotionDescription != "" {
+		// Emotion Synthesizer active: use LLM-generated emotional description
+		finalPrompt.WriteString("\n### Current Emotional State\n")
+		finalPrompt.WriteString(flags.EmotionDescription)
+		finalPrompt.WriteString("\n\n")
+	} else if flags.PersonalityLine != "" {
+		// Fallback to V2 trait directives or V1 numeric line
 		finalPrompt.WriteString(flags.PersonalityLine)
 		finalPrompt.WriteString("\n\n")
 	}

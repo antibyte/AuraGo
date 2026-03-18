@@ -58,6 +58,7 @@
   "dashboard.core_facts_modal_loading": "読み込み中…",
   "dashboard.core_facts_modal_save": "保存",
   "dashboard.core_facts_modal_title": "コアファクト",
+  "dashboard.emotion_label": "感情状態",
   "dashboard.github_badge_private": "プライベート",
   "dashboard.github_badge_public": "パブリック",
   "dashboard.github_badge_tracked": "追跡中",
