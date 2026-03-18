@@ -5,6 +5,8 @@
 /*.so
 /*.dylib
 /aurago.exe
+/tmp_aurago
+/tmp_aurago_*
 # bin/ — all binaries are distributed via GitHub Releases, not tracked in git
 /bin/
 METRICS_DASHBOARD_DATA_SOURCES.md
