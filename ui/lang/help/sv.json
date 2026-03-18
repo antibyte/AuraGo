@@ -208,6 +208,7 @@
   "help.s3.access_key": "Access Key ID for S3 authentication. Stored encrypted in the vault.",
   "help.s3.secret_key": "Secret Access Key for S3 authentication. Stored encrypted in the vault.",
   "help.sqlite.invasion_path": "Cesta pro sqlite.",
+  "help.sqlite.site_monitor_path": "Sökväg till SQLite-databas för Site Monitor (webbplatsändringsdetektering). Standard: './data/site_monitor.db'.",
   "help.tailscale.api_key": "API klic pro tailscale.",
   "help.tailscale.enabled": "Povoluje Tailscale integraci.",
   "help.tailscale.read_only": "Pouze pro cteni pro tailscale.",

@@ -208,6 +208,7 @@
   "help.s3.access_key": "Access Key ID for S3 authentication. Stored encrypted in the vault.",
   "help.s3.secret_key": "Secret Access Key for S3 authentication. Stored encrypted in the vault.",
   "help.sqlite.invasion_path": "आक्रमण नियंत्रण (घोंसले/अंडे) के लिए SQLite डेटाबेस का पथ। डिफ़ॉल्ट: './data/invasion.db'।",
+  "help.sqlite.site_monitor_path": "साइट मॉनिटर (वेबसाइट परिवर्तन पहचान) के लिए SQLite डेटाबेस का पथ। डिफ़ॉल्ट: './data/site_monitor.db'।",
   "help.tailscale.api_key": "टेलस्केल एपीआई कुंजी ('tskey-api-' से शुरू होती है)। https://login.tailscale.com/admin/settings/keys पर बनाएं।",
   "help.tailscale.enabled": "वीपीएन नेटवर्क प्रबंधन के लिए टेलस्केल एकीकरण को सक्षम करता है।",
   "help.tailscale.read_only": "सक्षम होने पर, एजेंट केवल डिवाइस और स्थिति को सूचीबद्ध कर सकता है लेकिन मार्गों को सक्षम या अक्षम नहीं कर सकता है।",

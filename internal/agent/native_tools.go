@@ -1271,6 +1271,82 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 		))
 	}
 
+	// PDF Operations (always available, filesystem write gated)
+	tools = append(tools, tool("pdf_operations",
+		"Manipulate PDF files: merge multiple PDFs, split into pages, add text watermarks, "+
+			"compress/optimize file size, encrypt/decrypt with password, read metadata and page count. "+
+			"Uses local processing (no external service needed).",
+		schema(map[string]interface{}{
+			"operation": map[string]interface{}{
+				"type":        "string",
+				"description": "PDF operation to perform",
+				"enum":        []string{"merge", "split", "watermark", "compress", "encrypt", "decrypt", "metadata", "page_count"},
+			},
+			"file_path":      prop("string", "Input PDF file path (required for all except merge)"),
+			"output_file":    prop("string", "Output file/directory path (auto-generated if omitted)"),
+			"source_files":   prop("string", "JSON array of PDF file paths for merge (e.g. '[\"a.pdf\",\"b.pdf\"]')"),
+			"pages":          prop("string", "Page numbers for split (comma-separated, e.g. '3,5,8')"),
+			"watermark_text": prop("string", "Text to use as watermark (diagonal, semi-transparent)"),
+			"password":       prop("string", "Password for encrypt/decrypt operations"),
+		}, "operation"),
+	))
+
+	// Image Processing (always available, filesystem write gated)
+	tools = append(tools, tool("image_processing",
+		"Process images: resize (with aspect ratio), convert between formats (PNG, JPEG, GIF, BMP, TIFF), "+
+			"compress/optimize quality, crop to rectangle, rotate (90°/180°/270°), get image info.",
+		schema(map[string]interface{}{
+			"operation": map[string]interface{}{
+				"type":        "string",
+				"description": "Image operation to perform",
+				"enum":        []string{"resize", "convert", "compress", "crop", "rotate", "info"},
+			},
+			"file_path":     prop("string", "Input image file path"),
+			"output_file":   prop("string", "Output file path (auto-generated if omitted)"),
+			"output_format": prop("string", "Target format: png, jpeg, gif, bmp, tiff (for convert)"),
+			"width":         map[string]interface{}{"type": "integer", "description": "Target width in pixels (for resize)"},
+			"height":        map[string]interface{}{"type": "integer", "description": "Target height in pixels (for resize)"},
+			"quality_pct":   map[string]interface{}{"type": "integer", "description": "Quality percentage 1-100 (for compress/resize, default: 85)"},
+			"crop_x":        map[string]interface{}{"type": "integer", "description": "Crop start X coordinate"},
+			"crop_y":        map[string]interface{}{"type": "integer", "description": "Crop start Y coordinate"},
+			"crop_width":    map[string]interface{}{"type": "integer", "description": "Crop width in pixels"},
+			"crop_height":   map[string]interface{}{"type": "integer", "description": "Crop height in pixels"},
+			"angle":         map[string]interface{}{"type": "integer", "description": "Rotation angle: 90, 180, or 270 degrees"},
+		}, "operation", "file_path"),
+	))
+
+	// WHOIS Lookup (always available, network read-only)
+	tools = append(tools, tool("whois_lookup",
+		"Look up WHOIS registration information for a domain name. "+
+			"Returns registrar, creation/expiry dates, name servers, domain status, and DNSSEC info. "+
+			"Supports 30+ TLDs with automatic WHOIS server selection.",
+		schema(map[string]interface{}{
+			"domain":      prop("string", "Domain name to look up (e.g. 'example.com')"),
+			"include_raw": map[string]interface{}{"type": "boolean", "description": "Include raw WHOIS response text (default: false)"},
+		}, "domain"),
+	))
+
+	// Site Monitor (gated by WebScraperEnabled)
+	if ff.WebScraperEnabled {
+		tools = append(tools, tool("site_monitor",
+			"Monitor websites for content changes. Add URLs to watch, check for changes manually or via cron, "+
+				"and view change history. Uses content hashing to detect modifications. "+
+				"Operations: add_monitor, remove_monitor, list_monitors, check_now, check_all, get_history.",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "Monitoring operation to perform",
+					"enum":        []string{"add_monitor", "remove_monitor", "list_monitors", "check_now", "check_all", "get_history"},
+				},
+				"url":        prop("string", "URL to monitor (for add_monitor or check_now)"),
+				"monitor_id": prop("string", "Monitor ID (for remove_monitor, check_now, get_history)"),
+				"selector":   prop("string", "Optional CSS selector to focus monitoring on specific content"),
+				"interval":   prop("string", "Suggested check interval description (e.g. 'every 6 hours')"),
+				"limit":      map[string]interface{}{"type": "integer", "description": "Max history entries to return (default: 20, max: 100)"},
+			}, "operation"),
+		))
+	}
+
 	return tools
 }
 

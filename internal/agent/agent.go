@@ -442,6 +442,25 @@ type ToolCall struct {
 	Prefix            string `json:"prefix,omitempty"`             // S3 object key prefix for listing
 	DestinationBucket string `json:"destination_bucket,omitempty"` // target bucket (copy/move)
 	DestinationKey    string `json:"destination_key,omitempty"`    // target key (copy/move)
+	// PDF Operations fields
+	OutputFile    string `json:"output_file,omitempty"`    // output file path
+	Pages         string `json:"pages,omitempty"`          // page numbers (e.g. "1,3,5" or page range)
+	WatermarkText string `json:"watermark_text,omitempty"` // text for PDF watermark
+	// Image Processing fields
+	Width        int    `json:"width,omitempty"`         // image width in pixels
+	Height       int    `json:"height,omitempty"`        // image height in pixels
+	QualityPct   int    `json:"quality_pct,omitempty"`   // quality percentage (1-100)
+	OutputFormat string `json:"output_format,omitempty"` // target format (png, jpeg, gif, bmp, tiff)
+	CropX        int    `json:"crop_x,omitempty"`        // crop start X
+	CropY        int    `json:"crop_y,omitempty"`        // crop start Y
+	CropWidth    int    `json:"crop_width,omitempty"`    // crop width
+	CropHeight   int    `json:"crop_height,omitempty"`   // crop height
+	Angle        int    `json:"angle,omitempty"`         // rotation angle (90, 180, 270)
+	// WHOIS fields
+	IncludeRaw bool `json:"include_raw,omitempty"` // include raw WHOIS response
+	// Site Monitor fields
+	MonitorID string `json:"monitor_id,omitempty"` // site monitor ID
+	Interval  string `json:"interval,omitempty"`   // monitoring interval description
 }
 
 // GetArgs returns Args as a string slice, handling various input types (slice of strings or interface).

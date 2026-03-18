@@ -851,6 +851,38 @@ func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 		}
 		return "Tool Output: " + tools.ExecuteArchive(tc.Operation, fpath, dest, tc.SourceFiles, tc.Format)
 
+	case "pdf_operations":
+		fpath := tc.FilePath
+		if fpath == "" {
+			fpath = tc.Path
+		}
+		op := strings.ToLower(tc.Operation)
+		if !cfg.Agent.AllowFilesystemWrite && (op == "merge" || op == "split" || op == "watermark" || op == "compress" || op == "encrypt" || op == "decrypt") {
+			return "Tool Output: [PERMISSION DENIED] pdf_operations write operations are disabled in Danger Zone settings (agent.allow_filesystem_write: false)."
+		}
+		output := tc.OutputFile
+		if output == "" {
+			output = tc.Destination
+		}
+		logger.Info("LLM requested PDF operation", "op", tc.Operation, "path", fpath)
+		return "Tool Output: " + tools.ExecutePDFOperations(tc.Operation, fpath, output, tc.Pages, tc.Password, tc.WatermarkText, tc.SourceFiles)
+
+	case "image_processing":
+		fpath := tc.FilePath
+		if fpath == "" {
+			fpath = tc.Path
+		}
+		op := strings.ToLower(tc.Operation)
+		if !cfg.Agent.AllowFilesystemWrite && op != "info" {
+			return "Tool Output: [PERMISSION DENIED] image_processing write operations are disabled in Danger Zone settings (agent.allow_filesystem_write: false)."
+		}
+		output := tc.OutputFile
+		if output == "" {
+			output = tc.Destination
+		}
+		logger.Info("LLM requested image processing", "op", tc.Operation, "path", fpath)
+		return "Tool Output: " + tools.ExecuteImageProcessing(tc.Operation, fpath, output, tc.OutputFormat, tc.Width, tc.Height, tc.QualityPct, tc.CropX, tc.CropY, tc.CropWidth, tc.CropHeight, tc.Angle)
+
 	case "filesystem", "filesystem_op":
 		// Parameter robustness: handle 'path' and 'dest' aliases frequently hallucinated by LLMs
 		fpath := tc.FilePath

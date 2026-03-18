@@ -460,6 +460,21 @@ func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 		logger.Info("LLM requested site crawler", "url", tc.URL, "max_depth", tc.MaxDepth, "max_pages", tc.MaxPages)
 		return "Tool Output: " + tools.ExecuteCrawler(tc.URL, tc.MaxDepth, tc.MaxPages, tc.AllowedDomains, tc.Selector)
 
+	case "whois_lookup":
+		logger.Info("LLM requested WHOIS lookup", "domain", tc.Host)
+		domain := tc.Host
+		if domain == "" {
+			domain = tc.URL
+		}
+		return "Tool Output: " + tools.WhoisLookup(domain, tc.IncludeRaw)
+
+	case "site_monitor":
+		if !cfg.Tools.WebScraper.Enabled {
+			return `Tool Output: {"status":"error","message":"Site monitor is disabled. Enable web_scraper in config."}`
+		}
+		logger.Info("LLM requested site monitor", "op", tc.Operation, "url", tc.URL, "monitor_id", tc.MonitorID)
+		return "Tool Output: " + tools.ExecuteSiteMonitor(cfg.SQLite.SiteMonitorPath, tc.Operation, tc.MonitorID, tc.URL, tc.Selector, tc.Interval, tc.Limit)
+
 	case "send_notification", "notification_center", "send_push_notification", "web_push":
 		if tc.ToolName == "send_push_notification" || tc.ToolName == "web_push" {
 			tc.Channel = "push"

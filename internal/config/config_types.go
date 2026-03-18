@@ -146,6 +146,7 @@ type Config struct {
 		RemoteControlPath    string `yaml:"remote_control_path"`
 		MediaRegistryPath    string `yaml:"media_registry_path"`
 		HomepageRegistryPath string `yaml:"homepage_registry_path"`
+		SiteMonitorPath      string `yaml:"site_monitor_path"`
 	} `yaml:"sqlite"`
 	Embeddings struct {
 		Provider      string `yaml:"provider"`          // "disabled" or provider entry ID

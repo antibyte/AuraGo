@@ -149,6 +149,10 @@ func Load(path string) (*Config, error) {
 		cfg.SQLite.HomepageRegistryPath = "./data/homepage_registry.db"
 	}
 	cfg.SQLite.HomepageRegistryPath = resolvePath(configDir, cfg.SQLite.HomepageRegistryPath)
+	if cfg.SQLite.SiteMonitorPath == "" {
+		cfg.SQLite.SiteMonitorPath = "./data/site_monitor.db"
+	}
+	cfg.SQLite.SiteMonitorPath = resolvePath(configDir, cfg.SQLite.SiteMonitorPath)
 
 	// Resolve logging directory
 	cfg.Logging.LogDir = resolvePath(configDir, cfg.Logging.LogDir)

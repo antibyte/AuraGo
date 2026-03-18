@@ -208,6 +208,7 @@
   "help.s3.access_key": "Access Key ID for S3 authentication. Stored encrypted in the vault.",
   "help.s3.secret_key": "Secret Access Key for S3 authentication. Stored encrypted in the vault.",
   "help.sqlite.invasion_path": "Percorso del database SQLite per Invasion Control (Nests/Eggs). Default: './data/invasion.db'.",
+  "help.sqlite.site_monitor_path": "Percorso del database SQLite per il Site Monitor (rilevamento modifiche siti web). Default: './data/site_monitor.db'.",
   "help.tailscale.api_key": "API key Tailscale (inizia con 'tskey-api-'). Crea su https://login.tailscale.com/admin/settings/keys.",
   "help.tailscale.enabled": "Abilita l'integrazione Tailscale per la gestione della rete VPN.",
   "help.tailscale.read_only": "Quando abilitato, l'agente può solo elencare dispositivi e stato ma non abilitare o disabilitare route.",

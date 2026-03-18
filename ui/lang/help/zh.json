@@ -208,6 +208,7 @@
   "help.s3.access_key": "Access Key ID for S3 authentication. Stored encrypted in the vault.",
   "help.s3.secret_key": "Secret Access Key for S3 authentication. Stored encrypted in the vault.",
   "help.sqlite.invasion_path": "Path to SQLite database for Invasion Control (Nests/Eggs).默认值：“./data/invasion.db”。",
+  "help.sqlite.site_monitor_path": "站点监控（网站变更检测）的 SQLite 数据库路径。默认值：'./data/site_monitor.db'。",
   "help.tailscale.api_key": "Tailscale API 密钥（以“tskey-api-”开头）。在 https://login.tailscale.com/admin/settings/keys 创建。",
   "help.tailscale.enabled": "启用用于 VPN 网络管理的 Tailscale 集成。",
   "help.tailscale.read_only": "启用后，代理只能列出设备和状态，但无法启用或禁用路由。",

@@ -208,6 +208,7 @@
   "help.s3.access_key": "Access Key ID for S3 authentication. Stored encrypted in the vault.",
   "help.s3.secret_key": "Secret Access Key for S3 authentication. Stored encrypted in the vault.",
   "help.sqlite.invasion_path": "侵入制御用の SQLite データベースへのパス (ネスト/エッグ)。デフォルト: './data/invasion.db'。",
+  "help.sqlite.site_monitor_path": "サイトモニター（ウェブサイト変更検出）用の SQLite データベースへのパス。デフォルト: './data/site_monitor.db'。",
   "help.tailscale.api_key": "Tailscale API キー (「tskey-api-」で始まる)。 https://login.tailscale.com/admin/settings/keys で作成します。",
   "help.tailscale.enabled": "VPN ネットワーク管理のための Tailscale 統合を有効にします。",
   "help.tailscale.read_only": "有効にすると、エージェントはデバイスとステータスのリストのみを作成できますが、ルートを有効または無効にすることはできません。",

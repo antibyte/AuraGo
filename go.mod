@@ -26,6 +26,7 @@ require (
 	github.com/hashicorp/mdns v1.0.6
 	github.com/johnfercher/maroto/v2 v2.3.4
 	github.com/ledongthuc/pdf v0.0.0-20250511090121-5959a4027728
+	github.com/pdfcpu/pdfcpu v0.11.1
 	github.com/philippgille/chromem-go v0.7.0
 	github.com/pkg/sftp v1.13.10
 	github.com/pkoukk/tiktoken-go v0.1.8
@@ -34,6 +35,7 @@ require (
 	github.com/shirou/gopsutil/v4 v4.26.1
 	github.com/vishen/go-chromecast v0.3.4
 	golang.org/x/crypto v0.49.0
+	golang.org/x/image v0.37.0
 	modernc.org/sqlite v1.28.0
 	tailscale.com v1.96.1
 )
@@ -109,7 +111,6 @@ require (
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/go-ps v1.0.0 // indirect
 	github.com/nlnwa/whatwg-url v0.6.2 // indirect
-	github.com/pdfcpu/pdfcpu v0.11.1 // indirect
 	github.com/phpdave11/gofpdf v1.4.3 // indirect
 	github.com/pires/go-proxyproto v0.8.1 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
@@ -137,7 +138,6 @@ require (
 	go4.org/mem v0.0.0-20240501181205-ae6ca9944745 // indirect
 	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba // indirect
 	golang.org/x/exp v0.0.0-20250620022241-b7579e27df2b // indirect
-	golang.org/x/image v0.37.0 // indirect
 	golang.org/x/mod v0.33.0 // indirect
 	golang.org/x/net v0.51.0 // indirect
 	golang.org/x/oauth2 v0.33.0 // indirect

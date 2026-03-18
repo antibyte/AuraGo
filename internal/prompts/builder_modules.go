@@ -416,6 +416,10 @@ func (m *PromptModule) ShouldInclude(flags ContextFlags) bool {
 			if flags.S3Enabled {
 				return true
 			}
+		case "web_scraper_enabled":
+			if flags.WebScraperEnabled {
+				return true
+			}
 		}
 	}
 
