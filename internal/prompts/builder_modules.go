@@ -412,6 +412,10 @@ func (m *PromptModule) ShouldInclude(flags ContextFlags) bool {
 			if flags.DocumentCreatorEnabled {
 				return true
 			}
+		case "s3_enabled":
+			if flags.S3Enabled {
+				return true
+			}
 		}
 	}
 

@@ -566,6 +566,28 @@ func dispatchServices(ctx context.Context, tc ToolCall, cfg *config.Config, logg
 			return `Tool Output: {"status": "error", "message": "Unknown webdav operation. Use: list, read, write, mkdir, delete, move, info"}`
 		}
 
+	case "s3_storage", "s3":
+		if !cfg.S3.Enabled {
+			return `Tool Output: {"status": "error", "message": "S3 integration is not enabled. Set s3.enabled=true in config.yaml."}`
+		}
+		if cfg.S3.ReadOnly {
+			switch tc.Operation {
+			case "upload", "delete", "copy", "move":
+				return `Tool Output: {"status":"error","message":"S3 is in read-only mode. Disable s3.readonly to allow changes."}`
+			}
+		}
+		s3Cfg := tools.S3Config{
+			Endpoint:     cfg.S3.Endpoint,
+			Region:       cfg.S3.Region,
+			Bucket:       cfg.S3.Bucket,
+			AccessKey:    cfg.S3.AccessKey,
+			SecretKey:    cfg.S3.SecretKey,
+			UsePathStyle: cfg.S3.UsePathStyle,
+			Insecure:     cfg.S3.Insecure,
+		}
+		logger.Info("LLM requested S3 operation", "op", tc.Operation, "bucket", tc.Bucket, "key", tc.Key)
+		return "Tool Output: " + tools.ExecuteS3(s3Cfg, tc.Operation, tc.Bucket, tc.Key, tc.LocalPath, tc.Prefix, tc.DestinationBucket, tc.DestinationKey)
+
 	case "paperless", "paperless_ngx":
 		if !cfg.PaperlessNGX.Enabled {
 			return `Tool Output: {"status": "error", "message": "Paperless-ngx integration is not enabled. Set paperless_ngx.enabled=true in config.yaml."}`

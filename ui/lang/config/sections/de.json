@@ -59,6 +59,8 @@
   "config.section.webdav.desc": "WebDAV Cloud-Sync",
   "config.section.koofr.label": "Koofr",
   "config.section.koofr.desc": "Koofr Cloud-Storage",
+  "config.section.s3.label": "S3-Speicher",
+  "config.section.s3.desc": "S3-kompatibler Objektspeicher",
   "config.section.paperless_ngx.label": "Paperless-ngx",
   "config.section.paperless_ngx.desc": "Paperless-ngx Dokumentenverwaltung",
   "config.section.virustotal.label": "VirusTotal",

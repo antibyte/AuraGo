@@ -96,6 +96,7 @@
   "dashboard.integration_personality_v2": "Personality V2",
   "dashboard.integration_proxmox": "Proxmox",
   "dashboard.integration_rocketchat": "Rocket.Chat",
+  "dashboard.integration_s3": "S3-Speicher",
   "dashboard.integration_tailscale": "Tailscale",
   "dashboard.integration_telegram": "Telegram",
   "dashboard.integration_tts": "TTS",

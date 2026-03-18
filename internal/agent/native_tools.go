@@ -97,6 +97,8 @@ type ToolFeatureFlags struct {
 	DocumentCreatorEnabled   bool
 	WebCaptureEnabled        bool
 	NetworkPingEnabled       bool
+	WebScraperEnabled        bool
+	S3Enabled                bool
 }
 
 // builtinToolSchemas returns schemas for all built-in AuraGo tools.
@@ -1163,9 +1165,9 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 			"Ping a host using ICMP echo requests and return latency statistics (min/avg/max RTT, packet loss). "+
 				"Requires raw socket access — works without elevation on Windows; on Linux the process needs CAP_NET_RAW or root.",
 			schema(map[string]interface{}{
-				"host":         prop("string", "Hostname or IP address to ping"),
-				"count":        map[string]interface{}{"type": "integer", "description": "Number of packets to send (1–20, default: 4)"},
-				"timeout_secs": map[string]interface{}{"type": "integer", "description": "Total timeout in seconds (1–60, default: 10)"},
+				"host":    prop("string", "Hostname or IP address to ping"),
+				"count":   map[string]interface{}{"type": "integer", "description": "Number of packets to send (1–20, default: 4)"},
+				"timeout": map[string]interface{}{"type": "integer", "description": "Total timeout in seconds (1–60, default: 10)"},
 			}, "host"),
 		))
 	}
@@ -1179,6 +1181,95 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 			"recursive": map[string]interface{}{"type": "boolean", "description": "Recurse into sub-directories (only when path is a directory, default: false)"},
 		}, "path"),
 	))
+
+	// Archive (always enabled — uses stdlib only)
+	tools = append(tools, tool("archive",
+		"Create, extract, or list ZIP and TAR.GZ archives. "+
+			"Operations: 'create' (build archive from files/directory), 'extract' (unpack to target directory), 'list' (show contents without extracting). "+
+			"Supports ZIP and TAR.GZ/TGZ formats. Path traversal protection is enforced on extraction.",
+		schema(map[string]interface{}{
+			"operation": map[string]interface{}{
+				"type":        "string",
+				"description": "Archive operation to perform",
+				"enum":        []string{"create", "extract", "list"},
+			},
+			"path":         prop("string", "Path to the archive file (target for create, source for extract/list)"),
+			"destination":  prop("string", "Target directory: extraction destination (extract) or source directory (create)"),
+			"source_files": prop("string", "JSON array of specific file paths to include (create only; alternative to destination)"),
+			"format": map[string]interface{}{
+				"type":        "string",
+				"description": "Archive format (create only; extract/list auto-detect from extension)",
+				"enum":        []string{"zip", "tar.gz"},
+			},
+		}, "operation", "path"),
+	))
+
+	// DNS Lookup (always enabled — uses stdlib only)
+	tools = append(tools, tool("dns_lookup",
+		"Perform DNS record lookups for a hostname. "+
+			"Returns A, AAAA, MX, NS, TXT, CNAME, or PTR records. "+
+			"Use record_type 'all' (default) to query all common record types at once.",
+		schema(map[string]interface{}{
+			"host": prop("string", "Hostname or domain to look up (e.g. 'example.com')"),
+			"record_type": map[string]interface{}{
+				"type":        "string",
+				"description": "DNS record type to query (default: all)",
+				"enum":        []string{"all", "A", "AAAA", "MX", "NS", "TXT", "CNAME", "PTR"},
+			},
+		}, "host"),
+	))
+
+	if ff.NetworkPingEnabled {
+		// Port Scanner (gated with network_ping — same permission scope)
+		tools = append(tools, tool("port_scanner",
+			"Scan TCP ports on a target host using connect probes. "+
+				"Returns open ports with service names and banners. "+
+				"Port range can be: a single port ('80'), comma-separated ('80,443,8080'), a range ('1-1024'), or 'common' for top well-known ports. "+
+				"Maximum 1024 ports per scan.",
+			schema(map[string]interface{}{
+				"host":       prop("string", "Hostname or IP address to scan"),
+				"port_range": prop("string", "Ports to scan: single port, comma-separated, range (e.g. '1-1024'), or 'common' (default: common)"),
+				"timeout_ms": map[string]interface{}{"type": "integer", "description": "Per-port timeout in milliseconds (100–5000, default: 1000)"},
+			}, "host"),
+		))
+	}
+
+	if ff.WebScraperEnabled {
+		// Site Crawler (gated with web_scraper — same permission scope)
+		tools = append(tools, tool("site_crawler",
+			"Crawl a website starting from a URL, following links to discover and extract content from multiple pages. "+
+				"Respects robots.txt and domain restrictions. Returns page titles and text previews. "+
+				"Use for mapping site structure, finding content across pages, or extracting data from multi-page sites.",
+			schema(map[string]interface{}{
+				"url":             prop("string", "Starting URL to crawl (http or https)"),
+				"max_depth":       map[string]interface{}{"type": "integer", "description": "Maximum link depth to follow (1–5, default: 2)"},
+				"max_pages":       map[string]interface{}{"type": "integer", "description": "Maximum pages to crawl (1–100, default: 20)"},
+				"allowed_domains": prop("string", "Comma-separated domain whitelist (default: auto-detect from start URL)"),
+				"selector":        prop("string", "Optional CSS selector to extract specific content from each page"),
+			}, "url"),
+		))
+	}
+
+	if ff.S3Enabled {
+		tools = append(tools, tool("s3_storage",
+			"Manage objects in S3-compatible storage (AWS S3, MinIO, Wasabi, Backblaze B2). "+
+				"Operations: list_buckets, list_objects (with optional prefix filter), upload (local file → S3), "+
+				"download (S3 → local file), delete, copy (within or across buckets), move.",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "S3 operation to perform",
+					"enum":        []string{"list_buckets", "list_objects", "upload", "download", "delete", "copy", "move"},
+				},
+				"bucket":             prop("string", "S3 bucket name (uses default if not specified)"),
+				"key":                prop("string", "S3 object key (path within the bucket)"),
+				"local_path":         prop("string", "Local file path for upload source or download destination"),
+				"prefix":             prop("string", "Key prefix filter for list_objects (e.g. 'backups/2025/')"),
+				"destination_bucket": prop("string", "Target bucket for copy/move (defaults to source bucket)"),
+				"destination_key":    prop("string", "Target key for copy/move"),
+			}, "operation"),
+		))
+	}
 
 	return tools
 }

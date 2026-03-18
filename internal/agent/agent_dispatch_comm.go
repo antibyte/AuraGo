@@ -448,6 +448,18 @@ func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 		logger.Info("LLM requested file type detection", "path", tc.FilePath)
 		return "Tool Output: " + tools.DetectFileType(tc.FilePath, tc.Recursive)
 
+	case "dns_lookup":
+		logger.Info("LLM requested DNS lookup", "host", tc.Host, "record_type", tc.RecordType)
+		return "Tool Output: " + tools.DNSLookup(tc.Host, tc.RecordType)
+
+	case "port_scanner":
+		logger.Info("LLM requested port scan", "host", tc.Host, "port_range", tc.PortRange)
+		return "Tool Output: " + tools.ScanPorts(tc.Host, tc.PortRange, tc.TimeoutMs)
+
+	case "site_crawler":
+		logger.Info("LLM requested site crawler", "url", tc.URL, "max_depth", tc.MaxDepth, "max_pages", tc.MaxPages)
+		return "Tool Output: " + tools.ExecuteCrawler(tc.URL, tc.MaxDepth, tc.MaxPages, tc.AllowedDomains, tc.Selector)
+
 	case "send_notification", "notification_center", "send_push_notification", "web_push":
 		if tc.ToolName == "send_push_notification" || tc.ToolName == "web_push" {
 			tc.Channel = "push"

@@ -402,6 +402,17 @@ type Config struct {
 		AppPassword string `yaml:"-"`
 		BaseURL     string `yaml:"base_url"` // default: https://app.koofr.net
 	} `yaml:"koofr"`
+	S3 struct {
+		Enabled      bool   `yaml:"enabled"`
+		ReadOnly     bool   `yaml:"readonly"`       // true = only list/download, block upload/delete/copy/move
+		Endpoint     string `yaml:"endpoint"`       // e.g. https://s3.amazonaws.com or http://minio.local:9000
+		Region       string `yaml:"region"`         // e.g. us-east-1
+		Bucket       string `yaml:"bucket"`         // default bucket name (optional, can pass per-call)
+		UsePathStyle bool   `yaml:"use_path_style"` // true for MinIO / S3-compatible (path-style vs virtual-hosted)
+		Insecure     bool   `yaml:"insecure"`       // allow HTTP (non-TLS) endpoints
+		AccessKey    string `yaml:"-"`              // resolved from vault at runtime
+		SecretKey    string `yaml:"-"`              // resolved from vault at runtime
+	} `yaml:"s3"`
 	PaperlessNGX struct {
 		Enabled  bool   `yaml:"enabled"`
 		ReadOnly bool   `yaml:"readonly"` // true = only search/get/download/list, block upload/update/delete

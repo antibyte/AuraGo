@@ -59,6 +59,8 @@
   "config.section.webdav.desc": "Integração com WebDAV",
   "config.section.koofr.label": "Koofr",
   "config.section.koofr.desc": "Integração com Koofr",
+  "config.section.s3.label": "S3 Storage",
+  "config.section.s3.desc": "S3-compatible object storage",
   "config.section.paperless_ngx.label": "Paperless-ngx",
   "config.section.paperless_ngx.desc": "Gestão de documentos Paperless-ngx",
   "config.section.virustotal.label": "VirusTotal",

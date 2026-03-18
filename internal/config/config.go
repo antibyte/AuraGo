@@ -318,6 +318,9 @@ func Load(path string) (*Config, error) {
 	if cfg.Koofr.BaseURL == "" {
 		cfg.Koofr.BaseURL = "https://app.koofr.net"
 	}
+	if cfg.S3.Region == "" {
+		cfg.S3.Region = "us-east-1"
+	}
 
 	// Homepage defaults
 	if cfg.Homepage.CircuitBreakerMaxCalls <= 0 {

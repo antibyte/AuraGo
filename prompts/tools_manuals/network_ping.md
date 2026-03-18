@@ -14,7 +14,7 @@ Send ICMP echo requests (ping) to a hostname or IP address and return detailed l
 |-----------|------|----------|-------------|
 | `host` | string | ✅ | Hostname or IP address to ping |
 | `count` | integer | ❌ | Number of ICMP packets to send (1–20, default: 4) |
-| `timeout_secs` | integer | ❌ | Total timeout in seconds (1–60, default: 10) |
+| `timeout` | integer | ❌ | Total timeout in seconds (1–60, default: 10) |
 
 ## Output
 JSON with these fields:
@@ -36,6 +36,6 @@ ICMP raw sockets require elevated privileges on some platforms:
 ## Example Calls
 ```json
 { "host": "192.168.1.1" }
-{ "host": "google.com", "count": 10, "timeout_secs": 15 }
+{ "host": "google.com", "count": 10, "timeout": 15 }
 { "host": "proxmox.lan", "count": 3 }
 ```

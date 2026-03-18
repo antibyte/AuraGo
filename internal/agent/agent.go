@@ -426,6 +426,22 @@ type ToolCall struct {
 	Sections    string `json:"sections,omitempty"`     // JSON array of document sections for Maroto
 	SourceFiles string `json:"source_files,omitempty"` // JSON array of file paths for merge/convert
 	Filename    string `json:"filename,omitempty"`     // output filename without extension
+	// Archive fields
+	Format string `json:"format,omitempty"` // zip or tar.gz
+	// DNS Lookup fields
+	RecordType string `json:"record_type,omitempty"` // A, AAAA, MX, NS, TXT, CNAME, PTR, all
+	// Crawler fields
+	MaxDepth       int    `json:"max_depth,omitempty"`       // link depth to follow (1-5)
+	MaxPages       int    `json:"max_pages,omitempty"`       // max pages to crawl (1-100)
+	AllowedDomains string `json:"allowed_domains,omitempty"` // comma-separated domain whitelist
+	// Port Scanner fields
+	PortRange string `json:"port_range,omitempty"` // e.g. "80", "80,443", "1-1024", "common"
+	TimeoutMs int    `json:"timeout_ms,omitempty"` // per-port timeout in milliseconds
+	// S3 Storage fields
+	Bucket            string `json:"bucket,omitempty"`             // S3 bucket name
+	Prefix            string `json:"prefix,omitempty"`             // S3 object key prefix for listing
+	DestinationBucket string `json:"destination_bucket,omitempty"` // target bucket (copy/move)
+	DestinationKey    string `json:"destination_key,omitempty"`    // target key (copy/move)
 }
 
 // GetArgs returns Args as a string slice, handling various input types (slice of strings or interface).

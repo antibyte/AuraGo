@@ -836,6 +836,21 @@ func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 		}
 		return fmt.Sprintf(`Tool Output: {"status": "success", "message": "Secret '%s' stored safely."}`, tc.Key)
 
+	case "archive":
+		fpath := tc.FilePath
+		if fpath == "" {
+			fpath = tc.Path
+		}
+		if !cfg.Agent.AllowFilesystemWrite && (strings.EqualFold(tc.Operation, "create") || strings.EqualFold(tc.Operation, "extract")) {
+			return "Tool Output: [PERMISSION DENIED] archive create/extract operations are disabled in Danger Zone settings (agent.allow_filesystem_write: false)."
+		}
+		logger.Info("LLM requested archive operation", "op", tc.Operation, "path", fpath, "target_dir", tc.Destination)
+		dest := tc.Destination
+		if dest == "" {
+			dest = tc.Dest
+		}
+		return "Tool Output: " + tools.ExecuteArchive(tc.Operation, fpath, dest, tc.SourceFiles, tc.Format)
+
 	case "filesystem", "filesystem_op":
 		// Parameter robustness: handle 'path' and 'dest' aliases frequently hallucinated by LLMs
 		fpath := tc.FilePath

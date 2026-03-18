@@ -546,6 +546,8 @@ var vaultKeyMap = map[string]string{
 	"home_assistant.access_token":      "home_assistant_access_token",
 	"webdav.password":                  "webdav_password",
 	"koofr.app_password":               "koofr_password",
+	"s3.access_key":                    "s3_access_key",
+	"s3.secret_key":                    "s3_secret_key",
 	"proxmox.secret":                   "proxmox_secret",
 	"github.token":                     "github_token",
 	"rocketchat.auth_token":            "rocketchat_auth_token",

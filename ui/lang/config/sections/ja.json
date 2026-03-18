@@ -59,6 +59,8 @@
   "config.section.webdav.desc": "WebDAV クラウド同期",
   "config.section.koofr.label": "Koofr",
   "config.section.koofr.desc": "Koofr クラウドストレージ",
+  "config.section.s3.label": "S3 Storage",
+  "config.section.s3.desc": "S3-compatible object storage",
   "config.section.paperless_ngx.label": "Paperless-ngx",
   "config.section.paperless_ngx.desc": "Paperless-ngx ドキュメント管理",
   "config.section.virustotal.label": "VirusTotal",

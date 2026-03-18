@@ -96,6 +96,7 @@
   "dashboard.integration_personality_v2": "व्यक्तित्व V2",
   "dashboard.integration_proxmox": "प्रॉक्समोक्स",
   "dashboard.integration_rocketchat": "रॉकेट.चैट",
+  "dashboard.integration_s3": "S3 Storage",
   "dashboard.integration_tailscale": "टेलस्केल",
   "dashboard.integration_telegram": "टेलीग्राम",
   "dashboard.integration_tts": "टी.टी.एस",

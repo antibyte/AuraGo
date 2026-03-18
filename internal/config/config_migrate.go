@@ -565,6 +565,8 @@ func (c *Config) ApplyVaultSecrets(vault SecretReader) {
 	apply("home_assistant_access_token", &c.HomeAssistant.AccessToken)
 	apply("webdav_password", &c.WebDAV.Password)
 	apply("koofr_password", &c.Koofr.AppPassword)
+	apply("s3_access_key", &c.S3.AccessKey)
+	apply("s3_secret_key", &c.S3.SecretKey)
 	apply("proxmox_secret", &c.Proxmox.Secret)
 	apply("github_token", &c.GitHub.Token)
 	apply("rocketchat_auth_token", &c.RocketChat.AuthToken)
