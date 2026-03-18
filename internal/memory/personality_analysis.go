@@ -205,10 +205,11 @@ Extract ONLY stable, reusable facts about the USER — not about the current tas
 - Speculative or inferred information — only what is explicit
 - Trivial or obvious facts (e.g. "uses_computer: yes")
 - Anything inferred from the agent's responses or tool outputs — ONLY use the "User Statements" section below
+- Agent-context artifacts: role, response_format, agent_tone, project_name, current_task, prefers_direct_tool_calls (these describe the agent or session, not the user)
 
-**Keys:** Short, reusable snake_case identifiers (e.g. 'primary_language', 'experience_level', 'preferred_format'). Max 30 chars.
+**Keys:** Use these canonical keys whenever they apply: 'language', 'directness', 'preferred_format', 'experience_level', 'deployment_platform', 'preferred_framework', 'os', 'editor'. For other stable attributes, use a short reusable snake_case identifier. Max 30 chars. NEVER create multiple keys for the same concept (e.g. use 'language' — not 'communication_language', 'preferred_language', or 'primary_language').
 **Values:** Concise, factual, lowercase where possible (e.g. 'python', 'senior', 'german', 'short_answers'). Max 60 chars.
-**Quantity:** Return [] if nothing genuinely new was revealed. Maximum 2 entries per analysis — prefer quality over quantity.`
+**Quantity:** Return [] if nothing genuinely new was revealed. Maximum 1 entry per analysis — prefer quality over quantity.`
 	} else {
 		prompt += `
 }`

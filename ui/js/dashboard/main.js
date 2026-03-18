@@ -692,12 +692,14 @@
                 container.innerHTML = '<div class="empty-state">' + t('dashboard.profile_empty') + '</div>';
                 return;
             }
-            const catIcons = { tech: '💻', preferences: '⭐', interests: '🎯', context: '📋', communication: '💬' };
+            const catIcons = { tech: '💻', prefs: '⭐', preferences: '⭐', interests: '🎯', context: '📋', comm: '💬', communication: '💬' };
             const catNameMap = {
                 tech: t('dashboard.profile_cat_tech'),
+                prefs: t('dashboard.profile_cat_preferences'),
                 preferences: t('dashboard.profile_cat_preferences'),
                 interests: t('dashboard.profile_cat_interests'),
                 context: t('dashboard.profile_cat_context'),
+                comm: t('dashboard.profile_cat_communication'),
                 communication: t('dashboard.profile_cat_communication')
             };
             let html = '';
@@ -717,6 +719,15 @@
                 <span class="profile-key">${esc(e.key)}</span>
                 <span class="profile-val">${esc(e.value)}</span>
                 <span class="confidence-badge ${confClass}" title="${t('dashboard.profile_confidence')} ${e.confidence}">${e.confidence}</span>
+                <span class="profile-actions">
+                    <button class="profile-btn-edit" data-cat="${esc(cat)}" data-key="${esc(e.key)}" onclick="editProfileEntry(this)" title="${t('dashboard.profile_edit_save')}">✏️</button>
+                    <button class="profile-btn-delete" data-cat="${esc(cat)}" data-key="${esc(e.key)}" onclick="deleteProfileEntry(this)" title="${t('dashboard.profile_delete_confirm')}">🗑️</button>
+                </span>
+                <span class="profile-edit-form" style="display:none">
+                    <input type="text" class="profile-edit-input" value="${esc(e.value)}">
+                    <button class="profile-btn-save" onclick="saveProfileEntry(this)" title="${t('dashboard.profile_edit_save')}">✓</button>
+                    <button class="profile-btn-cancel" onclick="cancelProfileEdit(this)" title="${t('dashboard.profile_edit_cancel')}">✗</button>
+                </span>
             </div>`;
                 }
                 html += '</div></div>';
@@ -737,6 +748,44 @@
                 entries.style.display = 'none';
                 toggle.classList.remove('open');
             }
+        }
+
+        function deleteProfileEntry(btn) {
+            const cat = btn.dataset.cat;
+            const key = btn.dataset.key;
+            if (!confirm(t('dashboard.profile_delete_confirm') + ' "' + key + '"?')) return;
+            fetch('/api/dashboard/profile/entry?' + new URLSearchParams({ category: cat, key: key }), {
+                method: 'DELETE', credentials: 'same-origin'
+            }).then(r => { if (r.ok) loadTabUser(); }).catch(() => {});
+        }
+
+        function editProfileEntry(btn) {
+            const entry = btn.closest('.profile-entry');
+            entry.querySelector('.profile-val').style.display = 'none';
+            entry.querySelector('.profile-actions').style.display = 'none';
+            const editForm = entry.querySelector('.profile-edit-form');
+            editForm.style.display = 'inline-flex';
+            editForm.querySelector('.profile-edit-input').focus();
+        }
+
+        function cancelProfileEdit(btn) {
+            const entry = btn.closest('.profile-entry');
+            entry.querySelector('.profile-val').style.display = '';
+            entry.querySelector('.profile-actions').style.display = '';
+            entry.querySelector('.profile-edit-form').style.display = 'none';
+        }
+
+        function saveProfileEntry(btn) {
+            const entry = btn.closest('.profile-entry');
+            const cat = entry.closest('.profile-category').dataset.cat;
+            const key = entry.querySelector('.profile-key').textContent;
+            const newVal = entry.querySelector('.profile-edit-input').value.trim();
+            if (!newVal) return;
+            fetch('/api/dashboard/profile/entry', {
+                method: 'PUT', credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ category: cat, key: key, value: newVal })
+            }).then(r => { if (r.ok) loadTabUser(); }).catch(() => {});
         }
 
         function renderActivity(data) {

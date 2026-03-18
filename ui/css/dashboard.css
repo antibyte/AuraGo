@@ -497,7 +497,7 @@
 
         .profile-entry {
             display: grid;
-            grid-template-columns: 1fr 2fr auto;
+            grid-template-columns: 1fr 2fr auto auto;
             gap: 0.5rem;
             align-items: center;
             padding: 0.3rem 0;
@@ -507,6 +507,59 @@
 
         .profile-entry:last-child {
             border-bottom: none;
+        }
+
+        .profile-actions {
+            display: inline-flex;
+            gap: 0.2rem;
+            opacity: 0;
+            transition: opacity 0.15s;
+        }
+
+        .profile-entry:hover .profile-actions {
+            opacity: 1;
+        }
+
+        .profile-btn-edit,
+        .profile-btn-delete,
+        .profile-btn-save,
+        .profile-btn-cancel {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0.1rem 0.25rem;
+            border-radius: 0.25rem;
+            font-size: 0.75rem;
+            line-height: 1;
+            transition: background 0.15s;
+        }
+
+        .profile-btn-edit:hover { background: var(--border-subtle); }
+        .profile-btn-delete:hover { background: rgba(239, 68, 68, 0.15); }
+        .profile-btn-save:hover { background: rgba(34, 197, 94, 0.15); }
+        .profile-btn-cancel:hover { background: var(--border-subtle); }
+
+        .profile-edit-form {
+            grid-column: 1 / -1;
+            display: none;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
+        .profile-edit-input {
+            flex: 1;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-subtle);
+            border-radius: 0.25rem;
+            color: var(--text-primary);
+            padding: 0.2rem 0.4rem;
+            font-size: var(--text-sm);
+            min-width: 0;
+        }
+
+        .profile-edit-input:focus {
+            outline: none;
+            border-color: var(--accent);
         }
 
         .profile-key {
@@ -1169,7 +1222,7 @@
             }
 
             .profile-entry {
-                grid-template-columns: 1fr 1.5fr auto;
+                grid-template-columns: 1fr 1.5fr auto auto;
             }
 
             .prompt-kpi-grid {

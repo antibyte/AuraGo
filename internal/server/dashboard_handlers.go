@@ -233,6 +233,53 @@ func handleDashboardProfile(s *Server) http.HandlerFunc {
 	}
 }
 
+// handleDashboardProfileEntry handles DELETE and PUT operations on individual
+// user profile entries.
+//
+//	DELETE /api/dashboard/profile/entry?category=X&key=Y  – removes the entry
+//	PUT    /api/dashboard/profile/entry  { category, key, value }  – updates the value
+func handleDashboardProfileEntry(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodDelete:
+			category := r.URL.Query().Get("category")
+			key := r.URL.Query().Get("key")
+			if category == "" || key == "" {
+				http.Error(w, "category and key are required", http.StatusBadRequest)
+				return
+			}
+			if err := s.ShortTermMem.DeleteProfileEntry(category, key); err != nil {
+				s.Logger.Error("Failed to delete profile entry", "error", err)
+				http.Error(w, "Not found", http.StatusNotFound)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+
+		case http.MethodPut:
+			var body struct {
+				Category string `json:"category"`
+				Key      string `json:"key"`
+				Value    string `json:"value"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Category == "" || body.Key == "" || body.Value == "" {
+				http.Error(w, "category, key, and value are required", http.StatusBadRequest)
+				return
+			}
+			if err := s.ShortTermMem.UpsertProfileEntry(body.Category, body.Key, body.Value, "manual"); err != nil {
+				s.Logger.Error("Failed to update profile entry", "error", err)
+				http.Error(w, "Internal server error", http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	}
+}
+
 // handleDashboardActivity returns cron jobs, processes, webhooks, and co-agents.
 func handleDashboardActivity(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

@@ -1619,10 +1619,13 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 							validCategories := map[string]bool{"tech": true, "prefs": true, "interests": true, "context": true, "comm": true}
 							count := 0
 							for _, pu := range profileUpdates {
-								if count >= 2 {
+								if count >= 1 {
 									break // Hard limit (matches prompt)
 								}
-								if validCategories[pu.Category] && pu.Key != "" && pu.Value != "" {
+								trimVal := strings.TrimSpace(pu.Value)
+								if validCategories[pu.Category] && pu.Key != "" && pu.Value != "" &&
+									!strings.EqualFold(pu.Key, trimVal) && len(trimVal) >= 2 &&
+									!strings.ContainsAny(pu.Key, " \t") && pu.Key == strings.ToLower(pu.Key) {
 									if err := shortTermMem.UpsertProfileEntry(pu.Category, pu.Key, pu.Value, "v2"); err != nil {
 										currentLogger.Warn("[User Profiling] Failed to upsert profile entry", "key", pu.Key, "error", err)
 									}
@@ -1630,6 +1633,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 								}
 							}
 							_ = shortTermMem.EnforceProfileSizeLimit(50)
+							if err := shortTermMem.DeduplicateProfileEntries(); err != nil {
+								currentLogger.Warn("[User Profiling] Deduplication failed", "error", err)
+							}
 							if del, down, err := shortTermMem.PruneStaleProfileEntries(); err == nil && (del > 0 || down > 0) {
 								currentLogger.Debug("[User Profiling] Pruned stale entries", "deleted", del, "downgraded", down)
 							}

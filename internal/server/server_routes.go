@@ -324,6 +324,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		mux.HandleFunc("/api/dashboard/core-memory", handleDashboardCoreMemory(s))
 		mux.HandleFunc("/api/dashboard/core-memory/mutate", handleDashboardCoreMemoryMutate(s, sse))
 		mux.HandleFunc("/api/dashboard/profile", handleDashboardProfile(s))
+		mux.HandleFunc("/api/dashboard/profile/entry", handleDashboardProfileEntry(s))
 		mux.HandleFunc("/api/dashboard/activity", handleDashboardActivity(s))
 		mux.HandleFunc("/api/dashboard/prompt-stats", handleDashboardPromptStats())
 		mux.HandleFunc("/api/dashboard/tool-stats", handleDashboardToolStats(s.Cfg))

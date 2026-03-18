@@ -148,10 +148,69 @@ type ProfileEntry struct {
 	FirstSeen  string
 }
 
+// profileKeyCanonicalMap maps known synonym keys to their canonical form.
+// When the LLM generates a synonym, it is silently redirected so all confidence
+// votes accumulate in a single canonical row.
+var profileKeyCanonicalMap = map[string]string{
+	// language synonyms
+	"communication_language":           "language",
+	"preferred_communication_language": "language",
+	"primary_language":                 "language",
+	"preferred_language":               "language",
+	"spoken_language":                  "language",
+	"interaction_language":             "language",
+	// experience level synonyms
+	"expertise_level": "experience_level",
+	"skill_level":     "experience_level",
+	"developer_level": "experience_level",
+	// OS synonyms
+	"operating_system": "os",
+	// format/verbosity synonyms
+	"response_format":     "preferred_format",
+	"output_format":       "preferred_format",
+	"answer_format":       "preferred_format",
+	"communication_style": "preferred_format",
+}
+
+// profileKeyRejectList contains keys that must never be persisted.
+// These are either agent-context artifacts, transient task state, or too vague.
+var profileKeyRejectList = map[string]bool{
+	"role":                      true,
+	"agent_role":                true,
+	"project_name":              true,
+	"current_project":           true,
+	"agent_tone":                true,
+	"prefers_direct_tool_calls": true,
+	"task":                      true,
+	"current_task":              true,
+	"agent_name":                true,
+}
+
+// normalizeProfileKey returns the canonical form of a given key.
+// Keys are lowercased and trimmed before lookup.
+func normalizeProfileKey(key string) string {
+	k := strings.ToLower(strings.TrimSpace(key))
+	if canonical, ok := profileKeyCanonicalMap[k]; ok {
+		return canonical
+	}
+	return k
+}
+
+// isRejectedProfileKey reports whether the key should never be stored.
+func isRejectedProfileKey(key string) bool {
+	return profileKeyRejectList[strings.ToLower(strings.TrimSpace(key))]
+}
+
 // UpsertProfileEntry inserts or updates a user profile attribute.
 // If the same category+key already exists with the same value, confidence is incremented.
 // If the value differs, it's overwritten and confidence resets to 1.
 func (s *SQLiteMemory) UpsertProfileEntry(category, key, value, source string) error {
+	// Normalize key to canonical form and discard rejected keys
+	key = normalizeProfileKey(key)
+	if isRejectedProfileKey(key) {
+		return nil
+	}
+
 	// Enforce length limits
 	if len(key) > 50 {
 		key = key[:50]
@@ -312,6 +371,46 @@ func (s *SQLiteMemory) PruneStaleProfileEntries() (deleted int64, downgraded int
 	}
 	downgraded, _ = res.RowsAffected()
 	return deleted, downgraded, nil
+}
+
+// DeduplicateProfileEntries removes lower-confidence entries that share the same
+// category+value as a higher-confidence entry under a different key.
+// For example: if "comm/language: german" (conf 34) and "comm/preferred_language: german"
+// (conf 4) both exist, the lower-confidence duplicate is deleted.
+func (s *SQLiteMemory) DeduplicateProfileEntries() error {
+	// Find entries that have a higher-confidence sibling with the same category+value
+	rows, err := s.db.Query(`
+		SELECT a.category, a.key
+		FROM user_profile a
+		WHERE EXISTS (
+			SELECT 1 FROM user_profile b
+			WHERE b.category = a.category
+			  AND lower(b.value) = lower(a.value)
+			  AND b.key != a.key
+			  AND b.confidence > a.confidence
+		)`)
+	if err != nil {
+		return fmt.Errorf("profile dedup query: %w", err)
+	}
+	defer rows.Close()
+
+	type dupEntry struct{ cat, key string }
+	var toDelete []dupEntry
+	for rows.Next() {
+		var e dupEntry
+		if err := rows.Scan(&e.cat, &e.key); err != nil {
+			continue
+		}
+		toDelete = append(toDelete, e)
+	}
+	rows.Close()
+
+	for _, e := range toDelete {
+		if _, err := s.db.Exec("DELETE FROM user_profile WHERE category = ? AND key = ?", e.cat, e.key); err != nil {
+			return fmt.Errorf("profile dedup delete %s/%s: %w", e.cat, e.key, err)
+		}
+	}
+	return nil
 }
 
 // EnforceProfileSizeLimit keeps the user_profile table at most maxEntries rows
