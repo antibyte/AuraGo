@@ -194,6 +194,10 @@ tools:
         enabled: true
     wol:
         enabled: false
+    web_capture:
+        enabled: true                                       # enable web_capture tool (screenshot/PDF via headless Chromium)
+    network_ping:
+        enabled: true                                       # enable network_ping (ICMP) and port_scanner tools
     web_scraper:
         enabled: true
         summary_mode: false
@@ -215,6 +219,16 @@ tools:
         gotenberg:
             url: "http://gotenberg:3000"
             timeout: 120
+# ── S3-compatible storage ──────────────────────────────────────────────────────
+s3:
+    enabled: false
+    readonly: false                                         # true = only list/download, no upload/delete/copy
+    endpoint: ""                                            # e.g. https://s3.amazonaws.com or http://minio.local:9000
+    region: "us-east-1"
+    bucket: ""                                              # default bucket (optional)
+    use_path_style: true                                    # required for MinIO and most S3-compatible services
+    insecure: false                                         # allow HTTP (non-TLS) endpoints
+    # access_key and secret_key are stored in the encrypted vault — configure via Config UI
 # LLM Providers — configure via the Setup Wizard or Config UI
 providers: []
 llm:

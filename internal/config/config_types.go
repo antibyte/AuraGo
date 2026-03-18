@@ -405,14 +405,14 @@ type Config struct {
 	} `yaml:"koofr"`
 	S3 struct {
 		Enabled      bool   `yaml:"enabled"`
-		ReadOnly     bool   `yaml:"readonly"`       // true = only list/download, block upload/delete/copy/move
-		Endpoint     string `yaml:"endpoint"`       // e.g. https://s3.amazonaws.com or http://minio.local:9000
-		Region       string `yaml:"region"`         // e.g. us-east-1
-		Bucket       string `yaml:"bucket"`         // default bucket name (optional, can pass per-call)
-		UsePathStyle bool   `yaml:"use_path_style"` // true for MinIO / S3-compatible (path-style vs virtual-hosted)
-		Insecure     bool   `yaml:"insecure"`       // allow HTTP (non-TLS) endpoints
-		AccessKey    string `yaml:"-"`              // resolved from vault at runtime
-		SecretKey    string `yaml:"-"`              // resolved from vault at runtime
+		ReadOnly     bool   `yaml:"readonly"`             // true = only list/download, block upload/delete/copy/move
+		Endpoint     string `yaml:"endpoint"`             // e.g. https://s3.amazonaws.com or http://minio.local:9000
+		Region       string `yaml:"region"`               // e.g. us-east-1
+		Bucket       string `yaml:"bucket"`               // default bucket name (optional, can pass per-call)
+		UsePathStyle bool   `yaml:"use_path_style"`       // true for MinIO / S3-compatible (path-style vs virtual-hosted)
+		Insecure     bool   `yaml:"insecure"`             // allow HTTP (non-TLS) endpoints
+		AccessKey    string `yaml:"-" vault:"access_key"` // S3 Access Key ID (vault: s3_access_key)
+		SecretKey    string `yaml:"-" vault:"secret_key"` // S3 Secret Access Key (vault: s3_secret_key)
 	} `yaml:"s3"`
 	PaperlessNGX struct {
 		Enabled  bool   `yaml:"enabled"`

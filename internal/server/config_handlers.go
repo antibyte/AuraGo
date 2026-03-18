@@ -378,6 +378,8 @@ var sensitiveKeys = map[string]bool{
 	"user_key":       true,
 	"app_token":      true,
 	"login_token":    true, // MeshCentral token
+	"access_key":     true, // S3 access key ID
+	"secret_key":     true, // S3 secret access key
 	"master_key":     true, // vault AES-256 key — never expose
 	"password_hash":  true, // auth: bcrypt hash — never expose
 	"session_secret": true, // auth: HMAC signing key — never expose
