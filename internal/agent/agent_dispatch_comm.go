@@ -475,6 +475,23 @@ func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 		logger.Info("LLM requested site monitor", "op", tc.Operation, "url", tc.URL, "monitor_id", tc.MonitorID)
 		return "Tool Output: " + tools.ExecuteSiteMonitor(cfg.SQLite.SiteMonitorPath, tc.Operation, tc.MonitorID, tc.URL, tc.Selector, tc.Interval, tc.Limit)
 
+	case "form_automation":
+		if !cfg.Tools.FormAutomation.Enabled {
+			return `Tool Output: {"status":"error","message":"form_automation is disabled. Enable tools.form_automation.enabled in config."}`
+		}
+		if !cfg.Tools.WebCapture.Enabled {
+			return `Tool Output: {"status":"error","message":"form_automation requires web_capture (headless browser). Enable tools.web_capture.enabled in config."}`
+		}
+		logger.Info("LLM requested form automation", "op", tc.Operation, "url", tc.URL)
+		return "Tool Output: " + tools.ExecuteFormAutomation(tc.Operation, tc.URL, tc.Fields, tc.Selector, tc.ScreenshotDir)
+
+	case "upnp_scan":
+		if !cfg.Tools.UPnPScan.Enabled {
+			return `Tool Output: {"status":"error","message":"upnp_scan is disabled. Enable tools.upnp_scan.enabled in config."}`
+		}
+		logger.Info("LLM requested UPnP scan", "search_target", tc.SearchTarget, "timeout_secs", tc.TimeoutSecs)
+		return "Tool Output: " + tools.ExecuteUPnPScan(tc.SearchTarget, tc.TimeoutSecs)
+
 	case "send_notification", "notification_center", "send_push_notification", "web_push":
 		if tc.ToolName == "send_push_notification" || tc.ToolName == "web_push" {
 			tc.Channel = "push"

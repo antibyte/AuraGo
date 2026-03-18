@@ -461,6 +461,12 @@ type ToolCall struct {
 	// Site Monitor fields
 	MonitorID string `json:"monitor_id,omitempty"` // site monitor ID
 	Interval  string `json:"interval,omitempty"`   // monitoring interval description
+	// Form Automation fields
+	Fields        string `json:"fields,omitempty"`         // JSON map of CSS selector → value
+	ScreenshotDir string `json:"screenshot_dir,omitempty"` // directory for post-action screenshot
+	// UPnP Scan fields
+	SearchTarget string `json:"search_target,omitempty"` // UPnP search target (e.g. "ssdp:all")
+	TimeoutSecs  int    `json:"timeout_secs,omitempty"`  // discovery timeout in seconds
 }
 
 // GetArgs returns Args as a string slice, handling various input types (slice of strings or interface).

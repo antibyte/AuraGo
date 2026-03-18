@@ -24,6 +24,7 @@ require (
 	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674
 	github.com/h2non/filetype v1.1.3
 	github.com/hashicorp/mdns v1.0.6
+	github.com/huin/goupnp v1.3.0
 	github.com/johnfercher/maroto/v2 v2.3.4
 	github.com/ledongthuc/pdf v0.0.0-20250511090121-5959a4027728
 	github.com/pdfcpu/pdfcpu v0.11.1
@@ -95,7 +96,6 @@ require (
 	github.com/hhrutter/lzw v1.0.0 // indirect
 	github.com/hhrutter/pkcs7 v0.2.0 // indirect
 	github.com/hhrutter/tiff v1.0.2 // indirect
-	github.com/huin/goupnp v1.3.0 // indirect
 	github.com/johnfercher/go-tree v1.1.0 // indirect
 	github.com/jsimonetti/rtnetlink v1.4.0 // indirect
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 // indirect

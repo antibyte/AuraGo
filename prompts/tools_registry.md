@@ -78,7 +78,9 @@ The supervisor loads up to 5 manuals at once into your next prompt. **Always bat
 | `git_backup_restore` | Manage repository backups |
 | `virustotal_scan` | Scan URLs, domains, IPs, or file hashes using VirusTotal |
 | `tts` | Generate audio from text (Google/ElevenLabs) |
-| `mdns_scan` | Discover services on the local network |
+| `mdns_scan` | Discover services on the local network via mDNS/Bonjour |
+| `upnp_scan` | Discover UPnP/SSDP devices on the LAN (routers, TVs, NAS, IoT) |
+| `form_automation` | Fill and submit web forms using a headless Chromium browser |
 
 ### Memory & Knowledge
 | Tool | Purpose |

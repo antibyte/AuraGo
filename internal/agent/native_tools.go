@@ -99,6 +99,9 @@ type ToolFeatureFlags struct {
 	NetworkPingEnabled       bool
 	WebScraperEnabled        bool
 	S3Enabled                bool
+	NetworkScanEnabled       bool
+	FormAutomationEnabled    bool
+	UPnPScanEnabled          bool
 }
 
 // builtinToolSchemas returns schemas for all built-in AuraGo tools.
@@ -136,12 +139,12 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 			}, "operation", "file_path"),
 		),
 		tool("system_metrics",
-			"Retrieve current system resource usage: CPU, memory, disk, running processes, host info, temperatures, per-interface network stats, or active connections.",
+			"Retrieve current system resource usage: CPU, memory, disk, running processes, host info, temperatures, per-interface network stats, active connections, or per-disk I/O counters.",
 			schema(map[string]interface{}{
 				"target": map[string]interface{}{
 					"type":        "string",
 					"description": "Metrics category to retrieve",
-					"enum":        []string{"all", "cpu", "memory", "disk", "processes", "host", "sensors", "network_detail", "connections"},
+					"enum":        []string{"all", "cpu", "memory", "disk", "processes", "host", "sensors", "network_detail", "connections", "disk_io"},
 				},
 			}),
 		),
@@ -1344,6 +1347,56 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 				"interval":   prop("string", "Suggested check interval description (e.g. 'every 6 hours')"),
 				"limit":      map[string]interface{}{"type": "integer", "description": "Max history entries to return (default: 20, max: 100)"},
 			}, "operation"),
+		))
+	}
+
+	// mdns_scan / Network Scanner (gated by NetworkScanEnabled)
+	if ff.NetworkScanEnabled {
+		tools = append(tools, tool("mdns_scan",
+			"Scan the local network for devices and services advertised via mDNS (Multicast DNS / Bonjour / ZeroConf). "+
+				"Discovers Raspberry Pis, NAS devices, Apple devices, Chromecasts, printers, and any service "+
+				"that announces itself via mDNS. Specify a service type (e.g. '_http._tcp', '_ssh._tcp', '_smb._tcp') "+
+				"or use the default '_services._dns-sd._udp' to find all announced service types.",
+			schema(map[string]interface{}{
+				"service_type": prop("string", "mDNS service type to scan for (e.g. '_http._tcp', '_ssh._tcp', '_smb._tcp'). Default: '_services._dns-sd._udp' (discover all service types)"),
+				"timeout":      map[string]interface{}{"type": "integer", "description": "Scan timeout in seconds (1–30, default: 5)"},
+			}),
+		))
+	}
+
+	// form_automation (gated by FormAutomationEnabled + WebCaptureEnabled as they share the headless browser)
+	if ff.FormAutomationEnabled && ff.WebCaptureEnabled {
+		tools = append(tools, tool("form_automation",
+			"Interact with web forms using a headless Chromium browser. "+
+				"Operations: 'get_fields' lists all form inputs on a page; "+
+				"'fill_submit' fills form fields (by CSS selector) and submits; "+
+				"'click' clicks any element by CSS selector. "+
+				"Optionally saves a screenshot of the result page.",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "Form operation to perform",
+					"enum":        []string{"get_fields", "fill_submit", "click"},
+				},
+				"url":            prop("string", "Page URL to load (http or https)"),
+				"fields":         prop("string", "JSON object mapping CSS selector → value for fill_submit (e.g. '{\"#user\":\"alice\",\"#pass\":\"secret\"}')"),
+				"selector":       prop("string", "CSS selector for click operation, or submit button for fill_submit (default: first submit button)"),
+				"screenshot_dir": prop("string", "Directory to save post-action screenshot (optional; default: no screenshot)"),
+			}, "operation", "url"),
+		))
+	}
+
+	// upnp_scan (gated by UPnPScanEnabled)
+	if ff.UPnPScanEnabled {
+		tools = append(tools, tool("upnp_scan",
+			"Discover UPnP/SSDP devices on the local network (routers, Smart TVs, NAS, media renderers, printers, IoT devices). "+
+				"Returns device name, manufacturer, model, type, and exposed services. "+
+				"Use search_target 'ssdp:all' (default) to find everything, or filter by device type "+
+				"(e.g. 'upnp:rootdevice', 'urn:schemas-upnp-org:device:MediaRenderer:1').",
+			schema(map[string]interface{}{
+				"search_target": prop("string", "UPnP search target (default: 'ssdp:all'). Other values: 'upnp:rootdevice', 'urn:schemas-upnp-org:device:MediaRenderer:1', etc."),
+				"timeout_secs":  map[string]interface{}{"type": "integer", "description": "Discovery timeout in seconds (1–30, default: 5)"},
+			}),
 		))
 	}
 

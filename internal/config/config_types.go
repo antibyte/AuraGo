@@ -746,6 +746,15 @@ type Config struct {
 		NetworkPing struct {
 			Enabled bool `yaml:"enabled"` // enable network_ping tool (ICMP echo, default true)
 		} `yaml:"network_ping"`
+		NetworkScan struct {
+			Enabled bool `yaml:"enabled"` // enable network_scan / mdns_scan tool (mDNS/Bonjour discovery)
+		} `yaml:"network_scan"`
+		FormAutomation struct {
+			Enabled bool `yaml:"enabled"` // enable form_automation tool (headless browser form fill/submit)
+		} `yaml:"form_automation"`
+		UPnPScan struct {
+			Enabled bool `yaml:"enabled"` // enable upnp_scan tool (UPnP/SSDP device discovery)
+		} `yaml:"upnp_scan"`
 	} `yaml:"tools"`
 	Sandbox struct {
 		Enabled        bool   `yaml:"enabled"`

@@ -149,6 +149,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		NetworkPingEnabled:       cfg.Tools.NetworkPing.Enabled,
 		WebScraperEnabled:        cfg.Tools.WebScraper.Enabled,
 		S3Enabled:                cfg.S3.Enabled,
+		NetworkScanEnabled:       cfg.Tools.NetworkScan.Enabled,
+		FormAutomationEnabled:    cfg.Tools.FormAutomation.Enabled,
+		UPnPScanEnabled:          cfg.Tools.UPnPScan.Enabled,
 		AdditionalPrompt:         cfg.Agent.AdditionalPrompt,
 	}
 	logger.Debug("[Agent] Context flags initialised",
@@ -291,6 +294,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			NetworkPingEnabled:       cfg.Tools.NetworkPing.Enabled,
 			WebScraperEnabled:        cfg.Tools.WebScraper.Enabled,
 			S3Enabled:                cfg.S3.Enabled,
+			NetworkScanEnabled:       cfg.Tools.NetworkScan.Enabled,
+			FormAutomationEnabled:    cfg.Tools.FormAutomation.Enabled,
+			UPnPScanEnabled:          cfg.Tools.UPnPScan.Enabled,
 			// Danger Zone capability gates
 			AllowShell:           cfg.Agent.AllowShell,
 			AllowPython:          cfg.Agent.AllowPython,

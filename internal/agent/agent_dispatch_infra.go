@@ -109,6 +109,9 @@ func dispatchInfra(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 		}
 
 	case "mdns_scan":
+		if !cfg.Tools.NetworkScan.Enabled {
+			return `Tool Output: {"status":"error","message":"mdns_scan is disabled. Enable tools.network_scan.enabled in config."}`
+		}
 		logger.Info("LLM requested mdns_scan", "service_type", tc.ServiceType, "timeout", tc.Timeout)
 		return "Tool Output: " + tools.MDNSScan(logger, tc.ServiceType, tc.Timeout)
 

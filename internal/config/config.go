@@ -54,6 +54,8 @@ func Load(path string) (*Config, error) {
 
 	cfg.Tools.WebCapture.Enabled = true
 	cfg.Tools.NetworkPing.Enabled = true
+	cfg.Tools.NetworkScan.Enabled = true
+	// form_automation and upnp_scan default to false (opt-in; require headless browser / LAN access)
 
 	// Journal system defaults: auto-entries and daily summaries enabled by default.
 	cfg.Journal.AutoEntries = true

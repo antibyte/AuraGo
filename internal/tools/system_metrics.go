@@ -86,6 +86,17 @@ type NetworkInterfaceStats struct {
 	DropOut     uint64 `json:"drops_out"`
 }
 
+// DiskIOStats holds per-disk I/O counters.
+type DiskIOStats struct {
+	Name       string `json:"name"`
+	ReadCount  uint64 `json:"read_count"`
+	WriteCount uint64 `json:"write_count"`
+	ReadBytes  uint64 `json:"read_bytes"`
+	WriteBytes uint64 `json:"write_bytes"`
+	ReadMs     uint64 `json:"read_ms"`
+	WriteMs    uint64 `json:"write_ms"`
+}
+
 // NetworkConnection represents a single active network connection.
 type NetworkConnection struct {
 	FD     uint32 `json:"fd"`
@@ -110,7 +121,7 @@ func humanUptime(secs uint64) string {
 
 // GetSystemMetrics collects platform-independent system metrics.
 // target selects which metrics to return: "all", "cpu", "memory", "disk",
-// "processes", "host", "sensors", "network_detail", "connections".
+// "processes", "host", "sensors", "network_detail", "connections", "disk_io".
 func GetSystemMetrics(target string) string {
 	encode := func(r MetricsResult) string {
 		b, _ := json.Marshal(r)
@@ -126,6 +137,8 @@ func GetSystemMetrics(target string) string {
 		return encode(MetricsResult{Status: "success", Data: getNetworkDetail()})
 	case "connections":
 		return encode(MetricsResult{Status: "success", Data: getNetworkConnections()})
+	case "disk_io":
+		return encode(MetricsResult{Status: "success", Data: getDiskIOStats()})
 	}
 
 	// "all", "cpu", "memory", "disk", "processes" — original behaviour
@@ -270,6 +283,27 @@ func getNetworkConnections() []NetworkConnection {
 			Laddr:  laddr,
 			Raddr:  raddr,
 			PID:    c.Pid,
+		})
+	}
+	return result
+}
+
+// getDiskIOStats returns per-disk I/O counters.
+func getDiskIOStats() []DiskIOStats {
+	counters, err := disk.IOCounters()
+	if err != nil {
+		return []DiskIOStats{}
+	}
+	result := make([]DiskIOStats, 0, len(counters))
+	for _, c := range counters {
+		result = append(result, DiskIOStats{
+			Name:       c.Name,
+			ReadCount:  c.ReadCount,
+			WriteCount: c.WriteCount,
+			ReadBytes:  c.ReadBytes,
+			WriteBytes: c.WriteBytes,
+			ReadMs:     c.ReadTime,
+			WriteMs:    c.WriteTime,
 		})
 	}
 	return result
