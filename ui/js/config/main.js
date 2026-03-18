@@ -8,16 +8,6 @@ const EYE_CLOSED_SVG = '<svg viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.
 // Section metadata grouped by logical categories
 const SECTIONS = [
     {
-        group: t('config.group.system_basic'),
-        items: [
-            { key: 'server', icon: '🌐', label: t('config.section.server.label'), desc: t('config.section.server.desc') },
-            { key: 'directories', icon: '📁', label: t('config.section.directories.label'), desc: t('config.section.directories.desc') },
-            { key: 'sqlite', icon: '🗄️', label: t('config.section.sqlite.label'), desc: t('config.section.sqlite.desc') },
-            { key: 'web_config', icon: '🛡️', label: t('config.section.web_config.label'), desc: t('config.section.web_config.desc') },
-            { key: 'logging', icon: '📋', label: t('config.section.logging.label'), desc: t('config.section.logging.desc') }
-        ]
-    },
-    {
         group: t('config.group.agent_ai'),
         items: [
             { key: 'agent', icon: '⚙️', label: t('config.section.agent.label'), desc: t('config.section.agent.desc') },
@@ -25,57 +15,109 @@ const SECTIONS = [
             { key: 'llm', icon: '🧠', label: t('config.section.llm.label'), desc: t('config.section.llm.desc') },
             { key: 'fallback_llm', icon: '🔄', label: t('config.section.fallback_llm.label'), desc: t('config.section.fallback_llm.desc') },
             { key: 'embeddings', icon: '🔗', label: t('config.section.embeddings.label'), desc: t('config.section.embeddings.desc') },
-            { key: 'prompts_editor', icon: '🎭', label: t('config.section.prompts_editor.label'), desc: t('config.section.prompts_editor.desc') },
+            { key: 'circuit_breaker', icon: '⚡', label: t('config.section.circuit_breaker.label'), desc: t('config.section.circuit_breaker.desc') },
+            { key: 'budget', icon: '💰', label: t('config.section.budget.label'), desc: t('config.section.budget.desc') },
             { key: 'memory_analysis', icon: '🧬', label: t('config.section.memory_analysis.label'), desc: t('config.section.memory_analysis.desc') },
-            { key: 'vision', icon: '👁️', label: t('config.section.vision.label'), desc: t('config.section.vision.desc') },
-            { key: 'whisper', icon: '🎤', label: t('config.section.whisper.label'), desc: t('config.section.whisper.desc') },
-            { key: 'tts', icon: '🔊', label: t('config.section.tts.label'), desc: t('config.section.tts.desc') }
+            { key: 'co_agents', icon: '🤖', label: t('config.section.co_agents.label'), desc: t('config.section.co_agents.desc') },
+            { key: 'prompts_editor', icon: '🎭', label: t('config.section.prompts_editor.label'), desc: t('config.section.prompts_editor.desc') },
+            { key: 'vision', icon: '👁️', label: t('config.section.vision.label'), desc: t('config.section.vision.desc') }
         ]
     },
     {
-        group: t('config.group.core_tools'),
+        group: t('config.group.server_system'),
         items: [
-            { key: 'tools', icon: '🛠️', label: t('config.section.tools.label'), desc: t('config.section.tools.desc') }
+            { key: 'server', icon: '🌐', label: t('config.section.server.label'), desc: t('config.section.server.desc') },
+            { key: 'directories', icon: '📁', label: t('config.section.directories.label'), desc: t('config.section.directories.desc') },
+            { key: 'sqlite', icon: '🗄️', label: t('config.section.sqlite.label'), desc: t('config.section.sqlite.desc') },
+            { key: 'web_config', icon: '🛡️', label: t('config.section.web_config.label'), desc: t('config.section.web_config.desc') },
+            { key: 'logging', icon: '📋', label: t('config.section.logging.label'), desc: t('config.section.logging.desc') },
+            { key: 'maintenance', icon: '🔧', label: t('config.section.maintenance.label'), desc: t('config.section.maintenance.desc') },
+            { key: 'backup_restore', icon: '💾', label: t('config.section.backup_restore.label'), desc: t('config.section.backup_restore.desc') },
+            { key: 'updates', icon: '🔄', label: t('config.section.updates.label'), desc: t('config.section.updates.desc') },
+            { key: 'indexing', icon: '📇', label: t('config.section.indexing.label'), desc: t('config.section.indexing.desc') },
+            { key: 'firewall', icon: '🧱', label: t('config.section.firewall.label'), desc: t('config.section.firewall.desc') }
         ]
     },
     {
-        group: t('config.group.optional_tools'),
+        group: t('config.group.agent_tools'),
         items: [
-            { key: 'docker', icon: '🐳', label: t('config.section.docker.label'), desc: t('config.section.docker.desc') },
-            { key: 'sandbox', icon: '📦', label: t('config.section.sandbox.label'), desc: t('config.section.sandbox.desc') },
-            { key: 'document_creator', icon: '📄', label: t('config.section.document_creator.label'), desc: t('config.section.document_creator.desc') },
+            { key: 'tools', icon: '🛠️', label: t('config.section.tools.label'), desc: t('config.section.tools.desc') },
             { key: 'web_scraper', icon: '🕷️', label: t('config.section.web_scraper.label'), desc: t('config.section.web_scraper.desc'), customRender: 'renderWebScraperSection' },
+            { key: 'sandbox', icon: '📦', label: t('config.section.sandbox.label'), desc: t('config.section.sandbox.desc') },
             { key: 'info_tools', icon: '🔍', label: t('config.section.info_tools.label'), desc: t('config.section.info_tools.desc') },
             { key: 'network_tools', icon: '📡', label: t('config.section.network_tools.label'), desc: t('config.section.network_tools.desc') },
-            { key: 'brave_search', icon: '🦁', label: t('config.section.brave_search.label'), desc: t('config.section.brave_search.desc') },
+            { key: 'brave_search', icon: '🦁', label: t('config.section.brave_search.label'), desc: t('config.section.brave_search.desc') }
+        ]
+    },
+    {
+        group: t('config.group.media_content'),
+        items: [
+            { key: 'whisper', icon: '🎤', label: t('config.section.whisper.label'), desc: t('config.section.whisper.desc') },
+            { key: 'tts', icon: '🔊', label: t('config.section.tts.label'), desc: t('config.section.tts.desc') },
             { key: 'image_generation', icon: '🎨', label: t('config.section.image_generation.label'), desc: t('config.section.image_generation.desc') },
+            { key: 'document_creator', icon: '📄', label: t('config.section.document_creator.label'), desc: t('config.section.document_creator.desc') }
+        ]
+    },
+    {
+        group: t('config.group.container'),
+        items: [
+            { key: 'docker', icon: '🐳', label: t('config.section.docker.label'), desc: t('config.section.docker.desc') }
+        ]
+    },
+    {
+        group: t('config.group.cloud_storage'),
+        items: [
+            { key: 's3', icon: '🪣', label: t('config.section.s3.label'), desc: t('config.section.s3.desc') },
+            { key: 'webdav', icon: '☁️', label: t('config.section.webdav.label'), desc: t('config.section.webdav.desc') },
+            { key: 'onedrive', icon: '☁️', label: t('config.section.onedrive.label'), desc: t('config.section.onedrive.desc'), customRender: 'renderOneDriveSection' },
+            { key: 'koofr', icon: '📦', label: t('config.section.koofr.label'), desc: t('config.section.koofr.desc') }
+        ]
+    },
+    {
+        group: t('config.group.web_publishing'),
+        items: [
+            { key: 'netlify', icon: '🔺', label: t('config.section.netlify.label'), desc: t('config.section.netlify.desc') },
+            { key: 'cloudflare_tunnel', icon: '🌩️', label: t('config.section.cloudflare_tunnel.label'), desc: t('config.section.cloudflare_tunnel.desc') },
             { key: 'homepage', icon: '🌐', label: t('config.section.homepage.label'), desc: t('config.section.homepage.desc') }
         ]
     },
     {
-        group: t('config.group.cloud_infrastructure'),
+        group: t('config.group.messenger'),
         items: [
-            { key: 's3', icon: '🪣', label: t('config.section.s3.label'), desc: t('config.section.s3.desc') },
-            { key: 'webdav', icon: '☁️', label: t('config.section.webdav.label'), desc: t('config.section.webdav.desc') },
-            { key: 'koofr', icon: '📦', label: t('config.section.koofr.label'), desc: t('config.section.koofr.desc') },
-            { key: 'onedrive', icon: '☁️', label: t('config.section.onedrive.label'), desc: t('config.section.onedrive.desc'), customRender: 'renderOneDriveSection' },
-            { key: 'netlify', icon: '🔺', label: t('config.section.netlify.label'), desc: t('config.section.netlify.desc') },
-            { key: 'cloudflare_tunnel', icon: '🌩️', label: t('config.section.cloudflare_tunnel.label'), desc: t('config.section.cloudflare_tunnel.desc') }
+            { key: 'telegram', icon: '📱', label: t('config.section.telegram.label'), desc: t('config.section.telegram.desc') },
+            { key: 'discord', icon: '💬', label: t('config.section.discord.label'), desc: t('config.section.discord.desc') },
+            { key: 'rocketchat', icon: '🚀', label: t('config.section.rocketchat.label'), desc: t('config.section.rocketchat.desc') }
         ]
     },
     {
-        group: t('config.group.smart_home_network'),
+        group: t('config.group.notifications_group'),
+        items: [
+            { key: 'email', icon: '✉️', label: t('config.section.email.label'), desc: t('config.section.email.desc') },
+            { key: 'webhooks', icon: '🔗', label: t('config.section.webhooks.label'), desc: t('config.section.webhooks.desc') },
+            { key: 'notifications', icon: '🔔', label: t('config.section.notifications.label'), desc: t('config.section.notifications.desc') }
+        ]
+    },
+    {
+        group: t('config.group.productivity'),
+        items: [
+            { key: 'github', icon: '🐙', label: t('config.section.github.label'), desc: t('config.section.github.desc') },
+            { key: 'google_workspace', icon: '📊', label: t('config.section.google_workspace.label'), desc: t('config.section.google_workspace.desc') },
+            { key: 'paperless_ngx', icon: '📄', label: t('config.section.paperless_ngx.label'), desc: t('config.section.paperless_ngx.desc') }
+        ]
+    },
+    {
+        group: t('config.group.smart_home'),
         items: [
             { key: 'home_assistant', icon: '🏠', label: t('config.section.home_assistant.label'), desc: t('config.section.home_assistant.desc') },
             { key: 'mqtt', icon: '📡', label: t('config.section.mqtt.label'), desc: t('config.section.mqtt.desc') },
             { key: 'chromecast', icon: '📺', label: t('config.section.chromecast.label'), desc: t('config.section.chromecast.desc') },
-            { key: 'adguard', icon: '🛡️', label: t('config.section.adguard.label'), desc: t('config.section.adguard.desc') },
-            { key: 'tailscale', icon: '🔒', label: t('config.section.tailscale.label'), desc: t('config.section.tailscale.desc') }
+            { key: 'adguard', icon: '🛡️', label: t('config.section.adguard.label'), desc: t('config.section.adguard.desc') }
         ]
     },
     {
-        group: t('config.group.devices_remote'),
+        group: t('config.group.network_remote'),
         items: [
+            { key: 'tailscale', icon: '🔒', label: t('config.section.tailscale.label'), desc: t('config.section.tailscale.desc') },
             { key: 'devices', icon: '📱', label: t('config.section.devices.label'), desc: t('config.section.devices.desc') },
             { key: 'proxmox', icon: '🖥️', label: t('config.section.proxmox.label'), desc: t('config.section.proxmox.desc') },
             { key: 'remote_control', icon: '📡', label: t('config.section.remote_control.label'), desc: t('config.section.remote_control.desc') },
@@ -84,48 +126,21 @@ const SECTIONS = [
         ]
     },
     {
-        group: t('config.group.integrations'),
-        items: [
-            { key: 'telegram', icon: '📱', label: t('config.section.telegram.label'), desc: t('config.section.telegram.desc') },
-            { key: 'discord', icon: '💬', label: t('config.section.discord.label'), desc: t('config.section.discord.desc') },
-            { key: 'rocketchat', icon: '🚀', label: t('config.section.rocketchat.label'), desc: t('config.section.rocketchat.desc') },
-            { key: 'github', icon: '🐙', label: t('config.section.github.label'), desc: t('config.section.github.desc') },
-            { key: 'google_workspace', icon: '📊', label: t('config.section.google_workspace.label'), desc: t('config.section.google_workspace.desc') },
-            { key: 'paperless_ngx', icon: '📄', label: t('config.section.paperless_ngx.label'), desc: t('config.section.paperless_ngx.desc') }
-        ]
-    },
-    {
-        group: t('config.group.security_notifications'),
+        group: t('config.group.security'),
         items: [
             { key: 'secrets', icon: '🔐', label: t('config.section.secrets.label'), desc: t('config.section.secrets.desc') },
             { key: 'security_proxy', icon: '🔒', label: t('config.section.security_proxy.label'), desc: t('config.section.security_proxy.desc') },
             { key: 'llm_guardian', icon: '🛡️', label: t('config.section.llm_guardian.label'), desc: t('config.section.llm_guardian.desc') },
-            { key: 'webhooks', icon: '🔗', label: t('config.section.webhooks.label'), desc: t('config.section.webhooks.desc') },
-            { key: 'email', icon: '✉️', label: t('config.section.email.label'), desc: t('config.section.email.desc') },
-            { key: 'notifications', icon: '🔔', label: t('config.section.notifications.label'), desc: t('config.section.notifications.desc') },
             { key: 'virustotal', icon: '🦠', label: t('config.section.virustotal.label'), desc: t('config.section.virustotal.desc') }
         ]
     },
     {
-        group: t('config.group.advanced'),
+        group: t('config.group.external_ai'),
         items: [
-            { key: 'budget', icon: '💰', label: t('config.section.budget.label'), desc: t('config.section.budget.desc') },
-            { key: 'circuit_breaker', icon: '🔌', label: t('config.section.circuit_breaker.label'), desc: t('config.section.circuit_breaker.desc') },
-            { key: 'co_agents', icon: '🤖', label: t('config.section.co_agents.label'), desc: t('config.section.co_agents.desc') },
+            { key: 'ai_gateway', icon: '🌩️', label: t('config.section.ai_gateway.label'), desc: t('config.section.ai_gateway.desc') },
             { key: 'mcp', icon: '🔌', label: t('config.section.mcp.label'), desc: t('config.section.mcp.desc') },
             { key: 'mcp_server', icon: '🔗', label: t('config.section.mcp_server.label'), desc: t('config.section.mcp_server.desc') },
-            { key: 'ai_gateway', icon: '🌩️', label: t('config.section.ai_gateway.label'), desc: t('config.section.ai_gateway.desc') },
             { key: 'ollama', icon: '🦙', label: t('config.section.ollama.label'), desc: t('config.section.ollama.desc') }
-        ]
-    },
-    {
-        group: t('config.group.maintenance'),
-        items: [
-            { key: 'backup_restore', icon: '💾', label: t('config.section.backup_restore.label'), desc: t('config.section.backup_restore.desc') },
-            { key: 'updates', icon: '🔄', label: t('config.section.updates.label'), desc: t('config.section.updates.desc') },
-            { key: 'indexing', icon: '📇', label: t('config.section.indexing.label'), desc: t('config.section.indexing.desc') },
-            { key: 'maintenance', icon: '🔧', label: t('config.section.maintenance.label'), desc: t('config.section.maintenance.desc') },
-            { key: 'firewall', icon: '🧱', label: t('config.section.firewall.label'), desc: t('config.section.firewall.desc') }
         ]
     },
     {
