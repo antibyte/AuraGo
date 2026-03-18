@@ -85,8 +85,11 @@ func (m *Manager) Start(handler http.Handler) error {
 		Logf:     func(format string, args ...any) { m.logger.Debug(fmt.Sprintf("[tsnet] "+format, args...)) },
 	}
 
-	// Retrieve auth key from vault if available
-	authKey := os.Getenv("TS_AUTHKEY")
+	// Auth key: vault takes precedence, then TS_AUTHKEY env var
+	authKey := tsCfg.AuthKey
+	if authKey == "" {
+		authKey = os.Getenv("TS_AUTHKEY")
+	}
 	if authKey != "" {
 		srv.AuthKey = authKey
 	}

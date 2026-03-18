@@ -534,6 +534,7 @@ var vaultKeyMap = map[string]string{
 	"meshcentral.password":             "meshcentral_password",
 	"meshcentral.login_token":          "meshcentral_token",
 	"tailscale.api_key":                "tailscale_api_key",
+	"tailscale.tsnet.auth_key":         "tailscale_tsnet_authkey",
 	"ansible.token":                    "ansible_token",
 	"virustotal.api_key":               "virustotal_api_key",
 	"brave_search.api_key":             "brave_search_api_key",

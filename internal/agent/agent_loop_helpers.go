@@ -46,6 +46,7 @@ var systemSecretExact = map[string]struct{}{
 	"meshcentral_password":        {},
 	"meshcentral_token":           {},
 	"tailscale_api_key":           {},
+	"tailscale_tsnet_authkey":     {},
 	"ansible_token":               {},
 	"virustotal_api_key":          {},
 	"brave_search_api_key":        {},

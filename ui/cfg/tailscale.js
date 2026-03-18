@@ -38,10 +38,18 @@ async function renderTailscaleSection(section) {
             placeholder="example.com" style="width:100%;margin-top:0.2rem;">
     </label>`;
 
-    // API Key vault hint
-    html += `<div class="wh-notice" style="margin-top:0.6rem;">
-        <span>🔐</span>
-        <div><small>${t('config.tailscale.api_key_hint')}</small></div>
+    // API Key (vault input)
+    html += `<div class="field-group" style="margin-top:0.8rem;">
+        <div style="font-size:0.78rem;color:var(--text-secondary);margin-bottom:0.3rem;">🔑 ${t('config.tailscale.api_key_label')}</div>
+        <div style="display:flex;gap:0.5rem;align-items:center;">
+            <div class="password-wrap" style="flex:1;">
+                <input class="field-input cfg-input" type="password" id="ts-api-key-input" placeholder="tskey-api-••••••••" autocomplete="off">
+                <button type="button" class="password-toggle" onclick="(function(){var i=document.getElementById('ts-api-key-input');i.type=i.type==='password'?'text':'password';})()">👁</button>
+            </div>
+            <button class="btn-save" style="padding:0.45rem 1rem;font-size:0.82rem;white-space:nowrap;" onclick="tsSaveApiKey()">💾 ${t('config.tailscale.save_vault')}</button>
+        </div>
+        <div id="ts-api-key-status" style="margin-top:0.35rem;font-size:0.78rem;"></div>
+        <div style="font-size:0.72rem;color:var(--text-tertiary);margin-top:0.25rem;">${t('config.tailscale.api_key_hint')}</div>
     </div>`;
 
     html += `</div>`;
@@ -78,10 +86,18 @@ async function renderTailscaleSection(section) {
             <small style="font-size:0.72rem;color:var(--text-tertiary);">${t('config.tailscale.tsnet_state_dir_hint')}</small>
         </label>`;
 
-        // Auth key hint
-        html += `<div class="wh-notice" style="margin-top:0.6rem;">
-            <span>🔑</span>
-            <div><small>${t('config.tailscale.tsnet_auth_key_hint')}</small></div>
+        // Auth key (vault input)
+        html += `<div class="field-group" style="margin-top:0.8rem;">
+            <div style="font-size:0.78rem;color:var(--text-secondary);margin-bottom:0.3rem;">🔑 ${t('config.tailscale.tsnet_auth_key_label')}</div>
+            <div style="display:flex;gap:0.5rem;align-items:center;">
+                <div class="password-wrap" style="flex:1;">
+                    <input class="field-input cfg-input" type="password" id="ts-auth-key-input" placeholder="tskey-auth-••••••••" autocomplete="off">
+                    <button type="button" class="password-toggle" onclick="(function(){var i=document.getElementById('ts-auth-key-input');i.type=i.type==='password'?'text':'password';})()">👁</button>
+                </div>
+                <button class="btn-save" style="padding:0.45rem 1rem;font-size:0.82rem;white-space:nowrap;" onclick="tsSaveAuthKey()">💾 ${t('config.tailscale.save_vault')}</button>
+            </div>
+            <div id="ts-auth-key-status" style="margin-top:0.35rem;font-size:0.78rem;"></div>
+            <div style="font-size:0.72rem;color:var(--text-tertiary);margin-top:0.25rem;">${t('config.tailscale.tsnet_auth_key_hint')}</div>
         </div>`;
 
         // ── Status display ──
@@ -164,4 +180,60 @@ async function _tsnetStop() {
     } catch (e) {
         showToast(e.message, 'error');
     }
+}
+
+function tsSaveApiKey() {
+    const input = document.getElementById('ts-api-key-input');
+    const statusEl = document.getElementById('ts-api-key-status');
+    const key = input ? input.value.trim() : '';
+    if (!key) {
+        if (statusEl) { statusEl.style.color = 'var(--danger)'; statusEl.textContent = t('config.tailscale.key_empty'); }
+        return;
+    }
+    fetch('/api/vault', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'tailscale_api_key', value: key })
+    })
+    .then(r => r.json())
+    .then(res => {
+        if (res.status === 'ok' || res.success) {
+            if (statusEl) { statusEl.style.color = 'var(--success)'; statusEl.textContent = '✓ ' + t('config.tailscale.key_saved'); }
+            if (input) input.value = '';
+        } else {
+            if (statusEl) { statusEl.style.color = 'var(--danger)'; statusEl.textContent = '✗ ' + (res.message || t('config.tailscale.key_save_failed')); }
+        }
+        setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 4000);
+    })
+    .catch(() => {
+        if (statusEl) { statusEl.style.color = 'var(--danger)'; statusEl.textContent = '✗ ' + t('config.tailscale.key_save_failed'); }
+    });
+}
+
+function tsSaveAuthKey() {
+    const input = document.getElementById('ts-auth-key-input');
+    const statusEl = document.getElementById('ts-auth-key-status');
+    const key = input ? input.value.trim() : '';
+    if (!key) {
+        if (statusEl) { statusEl.style.color = 'var(--danger)'; statusEl.textContent = t('config.tailscale.key_empty'); }
+        return;
+    }
+    fetch('/api/vault', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'tailscale_tsnet_authkey', value: key })
+    })
+    .then(r => r.json())
+    .then(res => {
+        if (res.status === 'ok' || res.success) {
+            if (statusEl) { statusEl.style.color = 'var(--success)'; statusEl.textContent = '✓ ' + t('config.tailscale.key_saved'); }
+            if (input) input.value = '';
+        } else {
+            if (statusEl) { statusEl.style.color = 'var(--danger)'; statusEl.textContent = '✗ ' + (res.message || t('config.tailscale.key_save_failed')); }
+        }
+        setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 4000);
+    })
+    .catch(() => {
+        if (statusEl) { statusEl.style.color = 'var(--danger)'; statusEl.textContent = '✗ ' + t('config.tailscale.key_save_failed'); }
+    });
 }

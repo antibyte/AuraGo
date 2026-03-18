@@ -513,6 +513,7 @@ type Config struct {
 			Hostname string `yaml:"hostname"`  // MagicDNS hostname, e.g. "aurago" → aurago.tailnet-name.ts.net
 			StateDir string `yaml:"state_dir"` // persistent state directory (default: data/tsnet)
 			Funnel   bool   `yaml:"funnel"`    // expose via Tailscale Funnel (V2 placeholder)
+			AuthKey  string `yaml:"-"`         // tsnet auth key (vault-only: tailscale_tsnet_authkey)
 		} `yaml:"tsnet"`
 	} `yaml:"tailscale"`
 	CloudflareTunnel struct {

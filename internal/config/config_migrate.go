@@ -543,6 +543,7 @@ func (c *Config) ApplyVaultSecrets(vault SecretReader) {
 
 	// ── Tailscale / Ansible ──
 	apply("tailscale_api_key", &c.Tailscale.APIKey)
+	apply("tailscale_tsnet_authkey", &c.Tailscale.TsNet.AuthKey)
 	apply("ansible_token", &c.Ansible.Token)
 
 	// ── API keys ──
