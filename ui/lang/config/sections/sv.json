@@ -178,5 +178,20 @@
   "config.paperless.save_vault": "Spara i Vault",
   "config.paperless.token_empty": "Token får inte vara tom",
   "config.paperless.token_saved": "Token sparad",
-  "config.paperless.token_save_failed": "Det gick inte att spara token"
+  "config.paperless.token_save_failed": "Det gick inte att spara token",
+  "config.group.system_basic": "System & Inställningar",
+  "config.group.agent_ai": "Agent & AI",
+  "config.group.core_tools": "Kärnverktyg",
+  "config.group.optional_tools": "Valfria verktyg",
+  "config.group.cloud_infrastructure": "Moln & Infrastruktur",
+  "config.group.smart_home_network": "Smart hem & Nätverk",
+  "config.group.devices_remote": "Enheter & Fjärråtkomst",
+  "config.group.integrations": "Integrationer",
+  "config.group.security_notifications": "Säkerhet & Aviseringar",
+  "config.group.advanced": "Avancerat",
+  "config.group.maintenance": "Underhåll",
+  "config.section.info_tools.label": "Informationsverktyg",
+  "config.section.info_tools.desc": "Wikipedia, DuckDuckGo-sökning och PDF-extrahering",
+  "config.section.network_tools.label": "Nätverksverktyg",
+  "config.section.network_tools.desc": "Wake-on-LAN, processkontroll och nätverksverktyg"
 }

@@ -179,4 +179,20 @@
   "config.paperless.token_empty": "Token mag niet leeg zijn",
   "config.paperless.token_saved": "Token opgeslagen",
   "config.paperless.token_save_failed": "Token opslaan mislukt"
+,
+  "config.group.system_basic": "Systeem & Instellingen",
+  "config.group.agent_ai": "Agent & AI",
+  "config.group.core_tools": "Kerntools",
+  "config.group.optional_tools": "Optionele tools",
+  "config.group.cloud_infrastructure": "Cloud & Infrastructuur",
+  "config.group.smart_home_network": "Smart home & Netwerk",
+  "config.group.devices_remote": "Apparaten & Externe toegang",
+  "config.group.integrations": "Integraties",
+  "config.group.security_notifications": "Beveiliging & Meldingen",
+  "config.group.advanced": "Geavanceerd",
+  "config.group.maintenance": "Onderhoud",
+  "config.section.info_tools.label": "Informatietools",
+  "config.section.info_tools.desc": "Wikipedia, DuckDuckGo-zoeken en PDF-extractie",
+  "config.section.network_tools.label": "Netwerktools",
+  "config.section.network_tools.desc": "Wake-on-LAN, procesbesturing en netwerkhulpprogramma's"
 }

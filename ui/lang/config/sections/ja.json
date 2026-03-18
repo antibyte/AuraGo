@@ -179,4 +179,20 @@
   "config.paperless.token_empty": "\u30c8\u30fc\u30af\u30f3\u306f\u7a7a\u306b\u3067\u304d\u307e\u305b\u3093",
   "config.paperless.token_saved": "\u30c8\u30fc\u30af\u30f3\u3092\u4fdd\u5b58\u3057\u307e\u3057\u305f",
   "config.paperless.token_save_failed": "\u30c8\u30fc\u30af\u30f3\u306e\u4fdd\u5b58\u306b\u5931\u6557\u3057\u307e\u3057\u305f"
+,
+  "config.group.system_basic": "\u30b7\u30b9\u30c6\u30e0 & \u8a2d\u5b9a",
+  "config.group.agent_ai": "\u30a8\u30fc\u30b8\u30a7\u30f3\u30c8 & AI",
+  "config.group.core_tools": "\u30b3\u30a2\u30c4\u30fc\u30eb",
+  "config.group.optional_tools": "\u30aa\u30d7\u30b7\u30e7\u30f3\u30c4\u30fc\u30eb",
+  "config.group.cloud_infrastructure": "\u30af\u30e9\u30a6\u30c9 & \u30a4\u30f3\u30d5\u30e9",
+  "config.group.smart_home_network": "\u30b9\u30de\u30fc\u30c8\u30db\u30fc\u30e0 & \u30cd\u30c3\u30c8\u30ef\u30fc\u30af",
+  "config.group.devices_remote": "\u30c7\u30d0\u30a4\u30b9 & \u30ea\u30e2\u30fc\u30c8\u30a2\u30af\u30bb\u30b9",
+  "config.group.integrations": "\u30a4\u30f3\u30c6\u30b0\u30ec\u30fc\u30b7\u30e7\u30f3",
+  "config.group.security_notifications": "\u30bb\u30ad\u30e5\u30ea\u30c6\u30a3 & \u901a\u77e5",
+  "config.group.advanced": "\u8a73\u7d30\u8a2d\u5b9a",
+  "config.group.maintenance": "\u30e1\u30f3\u30c6\u30ca\u30f3\u30b9",
+  "config.section.info_tools.label": "\u60c5\u5831\u30c4\u30fc\u30eb",
+  "config.section.info_tools.desc": "Wikipedia\u3001DuckDuckGo\u691c\u7d22\u3001PDF\u62bd\u51fa",
+  "config.section.network_tools.label": "\u30cd\u30c3\u30c8\u30ef\u30fc\u30af\u30c4\u30fc\u30eb",
+  "config.section.network_tools.desc": "Wake-on-LAN\u3001\u30d7\u30ed\u30bb\u30b9\u5236\u5fa1\u3001\u30cd\u30c3\u30c8\u30ef\u30fc\u30af\u30e6\u30fc\u30c6\u30a3\u30ea\u30c6\u30a3"
 }

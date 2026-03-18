@@ -179,4 +179,20 @@
   "config.paperless.token_empty": "Token nesm\u00ed b\u00fdt pr\u00e1zdn\u00fd",
   "config.paperless.token_saved": "Token ulo\u017een",
   "config.paperless.token_save_failed": "Token se nepoda\u0159ilo ulo\u017eit"
+,
+  "config.group.system_basic": "Syst\u00e9m & Nastaven\u00ed",
+  "config.group.agent_ai": "Agent & AI",
+  "config.group.core_tools": "Z\u00e1kladn\u00ed n\u00e1stroje",
+  "config.group.optional_tools": "Voliteln\u00e9 n\u00e1stroje",
+  "config.group.cloud_infrastructure": "Cloud & Infrastruktura",
+  "config.group.smart_home_network": "Smart Home & S\u00ed\u0165",
+  "config.group.devices_remote": "Za\u0159\u00edzen\u00ed & Vzd\u00e1len\u00fd p\u0159\u00edstup",
+  "config.group.integrations": "Integrace",
+  "config.group.security_notifications": "Zabezpe\u010den\u00ed & Ozn\u00e1men\u00ed",
+  "config.group.advanced": "Pokro\u010dil\u00e9",
+  "config.group.maintenance": "\u00dadr\u017eba",
+  "config.section.info_tools.label": "Informa\u010dn\u00ed n\u00e1stroje",
+  "config.section.info_tools.desc": "Wikipedia, DuckDuckGo vyhled\u00e1v\u00e1n\u00ed a extrakce PDF",
+  "config.section.network_tools.label": "S\u00ed\u0165ov\u00e9 n\u00e1stroje",
+  "config.section.network_tools.desc": "Wake-on-LAN, spr\u00e1va proces\u016f a s\u00ed\u0165ov\u00e9 utility"
 }

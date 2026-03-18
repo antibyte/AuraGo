@@ -178,5 +178,20 @@
   "config.paperless.save_vault": "Lagre i Vault",
   "config.paperless.token_empty": "Token kan ikke være tomt",
   "config.paperless.token_saved": "Token lagret",
-  "config.paperless.token_save_failed": "Kunne ikke lagre token"
+  "config.paperless.token_save_failed": "Kunne ikke lagre token",
+  "config.group.system_basic": "System & Innstillinger",
+  "config.group.agent_ai": "Agent & AI",
+  "config.group.core_tools": "Kjerneverktøy",
+  "config.group.optional_tools": "Valgfrie verktøy",
+  "config.group.cloud_infrastructure": "Sky & Infrastruktur",
+  "config.group.smart_home_network": "Smarthjem & Nettverk",
+  "config.group.devices_remote": "Enheter & Fjerntilgang",
+  "config.group.integrations": "Integrasjoner",
+  "config.group.security_notifications": "Sikkerhet & Varsler",
+  "config.group.advanced": "Avansert",
+  "config.group.maintenance": "Vedlikehold",
+  "config.section.info_tools.label": "Informasjonsverktøy",
+  "config.section.info_tools.desc": "Wikipedia, DuckDuckGo-søk og PDF-utvinning",
+  "config.section.network_tools.label": "Nettverksverktøy",
+  "config.section.network_tools.desc": "Wake-on-LAN, prosesskontroll og nettverksverktøy"
 }

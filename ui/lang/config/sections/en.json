@@ -178,5 +178,20 @@
   "config.paperless.save_vault": "Save to Vault",
   "config.paperless.token_empty": "Token must not be empty",
   "config.paperless.token_saved": "Token saved",
-  "config.paperless.token_save_failed": "Failed to save token"
+  "config.paperless.token_save_failed": "Failed to save token",
+  "config.group.system_basic": "System & Settings",
+  "config.group.agent_ai": "Agent & AI",
+  "config.group.core_tools": "Core Tools",
+  "config.group.optional_tools": "Optional Tools",
+  "config.group.cloud_infrastructure": "Cloud & Infrastructure",
+  "config.group.smart_home_network": "Smart Home & Network",
+  "config.group.devices_remote": "Devices & Remote Access",
+  "config.group.integrations": "Integrations",
+  "config.group.security_notifications": "Security & Notifications",
+  "config.group.advanced": "Advanced",
+  "config.group.maintenance": "Maintenance",
+  "config.section.info_tools.label": "Information Tools",
+  "config.section.info_tools.desc": "Wikipedia, DuckDuckGo search and PDF content extraction",
+  "config.section.network_tools.label": "Network Tools",
+  "config.section.network_tools.desc": "Wake-on-LAN, process control and network utilities"
 }

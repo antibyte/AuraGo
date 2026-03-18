@@ -179,4 +179,20 @@
   "config.paperless.token_empty": "Le token ne doit pas être vide",
   "config.paperless.token_saved": "Token enregistré",
   "config.paperless.token_save_failed": "Impossible d'enregistrer le token"
+,
+  "config.group.system_basic": "Syst\u00e8me & Param\u00e8tres",
+  "config.group.agent_ai": "Agent & IA",
+  "config.group.core_tools": "Outils de base",
+  "config.group.optional_tools": "Outils optionnels",
+  "config.group.cloud_infrastructure": "Cloud & Infrastructure",
+  "config.group.smart_home_network": "Maison connect\u00e9e & R\u00e9seau",
+  "config.group.devices_remote": "Appareils & Acc\u00e8s distant",
+  "config.group.integrations": "Int\u00e9grations",
+  "config.group.security_notifications": "S\u00e9curit\u00e9 & Notifications",
+  "config.group.advanced": "Avanc\u00e9",
+  "config.group.maintenance": "Maintenance",
+  "config.section.info_tools.label": "Outils d'information",
+  "config.section.info_tools.desc": "Wikipedia, recherche DuckDuckGo et extraction PDF",
+  "config.section.network_tools.label": "Outils r\u00e9seau",
+  "config.section.network_tools.desc": "Wake-on-LAN, contr\u00f4le des processus et utilitaires r\u00e9seau"
 }
