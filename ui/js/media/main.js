@@ -9,6 +9,7 @@ let audioItems = [];
 let audioOffset = 0;
 let audioTotal = 0;
 let currentAudioModalId = null;
+let isLoadingAudio = false;
 const MEDIA_LIMIT = 30;
 
 // ── Document tab state ───────────────────────────────────────────────────────
@@ -16,6 +17,7 @@ let docItems = [];
 let docOffset = 0;
 let docTotal = 0;
 let currentDocModalId = null;
+let isLoadingDocs = false;
 
 // ── Init ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', function () {
@@ -48,6 +50,25 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 // ── Tab switching ─────────────────────────────────────────────────────────────
+const MEDIA_TABS_ORDER = ['images', 'audio', 'documents'];
+
+document.addEventListener('keydown', function (e) {
+    // Only handle arrow keys when no modal is open and no input focused
+    if (document.getElementById('audio-modal').style.display === 'flex') return;
+    if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) return;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        const idx = MEDIA_TABS_ORDER.indexOf(currentTab);
+        if (idx < 0) return;
+        const next = e.key === 'ArrowRight'
+            ? MEDIA_TABS_ORDER[(idx + 1) % MEDIA_TABS_ORDER.length]
+            : MEDIA_TABS_ORDER[(idx - 1 + MEDIA_TABS_ORDER.length) % MEDIA_TABS_ORDER.length];
+        switchTab(next);
+        const tabEl = document.getElementById('tab-' + next);
+        if (tabEl) tabEl.focus();
+        e.preventDefault();
+    }
+});
+
 function switchTab(tab) {
     currentTab = tab;
 
@@ -81,6 +102,8 @@ function getSearchQuery() {
 
 // ── Audio tab ─────────────────────────────────────────────────────────────────
 async function loadAudio() {
+    if (isLoadingAudio) return;
+    isLoadingAudio = true;
     const grid = document.getElementById('audio-grid');
     grid.innerHTML = '<div class="gallery-loading">' + t('gallery.loading') + '</div>';
 
@@ -114,6 +137,8 @@ async function loadAudio() {
         updateAudioPagination();
     } catch (e) {
         grid.innerHTML = '<div class="gallery-empty"><div class="gallery-empty-icon">⚠️</div>' + escapeHtml(e.message) + '</div>';
+    } finally {
+        isLoadingAudio = false;
     }
 }
 
@@ -183,8 +208,12 @@ function openAudioModal(id) {
 
 function closeAudioModal(event) {
     if (event && event.target !== document.getElementById('audio-modal')) return;
-    document.getElementById('audio-modal').style.display = 'none';
+    const modal = document.getElementById('audio-modal');
+    modal.style.display = 'none';
     currentAudioModalId = null;
+    // Stop any playing audio when modal closes
+    const player = modal.querySelector('audio');
+    if (player) { player.pause(); player.currentTime = 0; }
 }
 
 async function audioDeleteCurrent() {
@@ -206,6 +235,8 @@ async function audioDeleteCurrent() {
 
 // ── Documents tab ─────────────────────────────────────────────────────────────
 async function loadDocuments() {
+    if (isLoadingDocs) return;
+    isLoadingDocs = true;
     const list = document.getElementById('doc-list');
     list.innerHTML = '<div class="gallery-loading">' + t('gallery.loading') + '</div>';
 
@@ -239,6 +270,8 @@ async function loadDocuments() {
         updateDocPagination();
     } catch (e) {
         list.innerHTML = '<div class="gallery-empty"><div class="gallery-empty-icon">⚠️</div>' + escapeHtml(e.message) + '</div>';
+    } finally {
+        isLoadingDocs = false;
     }
 }
 
