@@ -767,6 +767,17 @@ type Config struct {
 		NetworkEnabled bool   `yaml:"network_enabled"` // allow sandbox containers to access the network
 		KeepAlive      bool   `yaml:"keep_alive"`      // keep sandbox MCP server running between calls
 	} `yaml:"sandbox"`
+	ShellSandbox struct {
+		Enabled       bool `yaml:"enabled"`          // enable Landlock-based shell sandbox (default: false)
+		MaxMemoryMB   int  `yaml:"max_memory_mb"`    // RLIMIT_AS in MiB (default: 512)
+		MaxCPUSeconds int  `yaml:"max_cpu_seconds"`  // RLIMIT_CPU in seconds (default: 30)
+		MaxProcesses  int  `yaml:"max_processes"`    // RLIMIT_NPROC (default: 50)
+		MaxFileSizeMB int  `yaml:"max_file_size_mb"` // RLIMIT_FSIZE in MiB (default: 100)
+		AllowedPaths  []struct {
+			Path     string `yaml:"path"`
+			ReadOnly bool   `yaml:"readonly"`
+		} `yaml:"allowed_paths"` // additional paths beyond defaults
+	} `yaml:"shell_sandbox"`
 	AIGateway struct {
 		Enabled   bool   `yaml:"enabled"`
 		AccountID string `yaml:"account_id"` // Cloudflare account ID

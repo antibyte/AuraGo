@@ -329,9 +329,14 @@ type ToolCall struct {
 	Volume      float64 `json:"volume"`
 	ContentType string  `json:"content_type"`
 	Language    string  `json:"language"`
-	// MDNS fields
+	// MDNS / UPnP fields
 	ServiceType string `json:"service_type"`
 	Timeout     int    `json:"timeout"`
+	// Network scan auto-registration
+	AutoRegister      bool     `json:"auto_register,omitempty"`
+	RegisterType      string   `json:"register_type,omitempty"`
+	RegisterTags      []string `json:"register_tags,omitempty"`
+	OverwriteExisting bool     `json:"overwrite_existing,omitempty"`
 	// MeshCentral fields
 	MeshID      string `json:"mesh_id"`
 	NodeID      string `json:"node_id"`

@@ -1,6 +1,7 @@
 // cfg/sandbox.js — Sandbox section module
 
 let sandboxStatusCache = null;
+let shellSandboxStatusCache = null;
 
         async function renderSandboxSection(section) {
             // Lazy-load sandbox status on first render
@@ -140,6 +141,104 @@ let sandboxStatusCache = null;
             }
 
             if (sbBlocked) html += '</div>'; // End feature-unavailable-fields
+            html += `</div>`;
+
+            // ── Shell Sandbox (Landlock) Panel ─────────────────────────────
+            if (shellSandboxStatusCache === null) {
+                try {
+                    const resp = await fetch('/api/sandbox/shell-status');
+                    shellSandboxStatusCache = resp.ok ? await resp.json() : {};
+                } catch (_) { shellSandboxStatusCache = {}; }
+            }
+            const shCfg = configData.shell_sandbox || {};
+            const shEnabled = shCfg.enabled === true;
+            const shSt = shellSandboxStatusCache || {};
+
+            html += `<div class="cfg-section active" style="margin-top:1.5rem;">
+                <div class="section-header">🛡️ ${t('config.shell_sandbox.title')}</div>
+                <div class="section-desc">${t('config.shell_sandbox.desc')}</div>`;
+
+            // Status banner
+            if (shSt.available && shEnabled) {
+                html += `<div class="wh-notice" style="border-color:var(--success);background:rgba(34,197,94,0.06);">
+                    <span>✅</span>
+                    <div>
+                        <strong>${t('config.shell_sandbox.active')}</strong><br>
+                        <small>Backend: ${escapeAttr(shSt.backend || 'landlock')} · Landlock ABI v${shSt.landlock_abi || 0} · Kernel ${escapeAttr(shSt.kernel || 'N/A')}</small>
+                    </div>
+                </div>`;
+            } else if (shEnabled && !shSt.available) {
+                let reason = '';
+                if (shSt.in_docker) reason = t('config.shell_sandbox.unavail_docker');
+                else if (!shSt.landlock_abi) reason = t('config.shell_sandbox.unavail_kernel');
+                else reason = t('config.shell_sandbox.unavail_platform');
+                html += `<div class="wh-notice" style="border-color:var(--warning);background:rgba(234,179,8,0.06);">
+                    <span>⚠️</span>
+                    <div>
+                        <strong>${t('config.shell_sandbox.not_available')}</strong><br>
+                        <small>${reason}</small>
+                    </div>
+                </div>`;
+            }
+
+            // Enabled toggle
+            html += `<div style="display:flex;align-items:center;gap:0.8rem;margin-bottom:1rem;padding:0.6rem 1rem;border-radius:8px;background:var(--bg-tertiary);">
+                <span style="font-size:0.85rem;color:var(--text-secondary);">${t('config.shell_sandbox.enabled_label')}</span>
+                <div class="toggle ${shEnabled ? 'on' : ''}" data-path="shell_sandbox.enabled" onclick="toggleBool(this)"></div>
+            </div>`;
+
+            if (!shEnabled) {
+                html += `<div class="wh-notice">
+                    <span>🛡️</span>
+                    <div>
+                        <strong>${t('config.shell_sandbox.disabled_notice')}</strong><br>
+                        <small>${t('config.shell_sandbox.disabled_desc')}</small>
+                    </div>
+                </div>`;
+            } else {
+                // Resource limit fields
+                html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.8rem 1.2rem;margin-top:1rem;">`;
+
+                html += `<label style="display:block;">
+                    <span style="font-size:0.78rem;color:var(--text-secondary);">${t('config.shell_sandbox.max_memory')}</span>
+                    <input type="number" class="cfg-input" data-path="shell_sandbox.max_memory_mb" value="${shCfg.max_memory_mb || 512}" min="64" max="8192" style="width:100%;margin-top:0.2rem;"
+                        onchange="setNestedValue(configData,'shell_sandbox.max_memory_mb',parseInt(this.value)||512);setDirty(true)">
+                </label>`;
+
+                html += `<label style="display:block;">
+                    <span style="font-size:0.78rem;color:var(--text-secondary);">${t('config.shell_sandbox.max_cpu')}</span>
+                    <input type="number" class="cfg-input" data-path="shell_sandbox.max_cpu_seconds" value="${shCfg.max_cpu_seconds || 30}" min="5" max="600" style="width:100%;margin-top:0.2rem;"
+                        onchange="setNestedValue(configData,'shell_sandbox.max_cpu_seconds',parseInt(this.value)||30);setDirty(true)">
+                </label>`;
+
+                html += `<label style="display:block;">
+                    <span style="font-size:0.78rem;color:var(--text-secondary);">${t('config.shell_sandbox.max_procs')}</span>
+                    <input type="number" class="cfg-input" data-path="shell_sandbox.max_processes" value="${shCfg.max_processes || 50}" min="5" max="500" style="width:100%;margin-top:0.2rem;"
+                        onchange="setNestedValue(configData,'shell_sandbox.max_processes',parseInt(this.value)||50);setDirty(true)">
+                </label>`;
+
+                html += `<label style="display:block;">
+                    <span style="font-size:0.78rem;color:var(--text-secondary);">${t('config.shell_sandbox.max_fsize')}</span>
+                    <input type="number" class="cfg-input" data-path="shell_sandbox.max_file_size_mb" value="${shCfg.max_file_size_mb || 100}" min="1" max="4096" style="width:100%;margin-top:0.2rem;"
+                        onchange="setNestedValue(configData,'shell_sandbox.max_file_size_mb',parseInt(this.value)||100);setDirty(true)">
+                </label>`;
+
+                html += `</div>`;
+            }
+
+            // System capabilities info
+            if (shSt.kernel || shSt.landlock_abi !== undefined) {
+                html += `<div style="margin-top:1.2rem;padding:0.8rem 1rem;border-radius:8px;background:var(--bg-tertiary);font-size:0.8rem;">
+                    <div style="font-weight:600;margin-bottom:0.4rem;">${t('config.shell_sandbox.system_caps')}</div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.3rem 1rem;">
+                        <div>${shSt.landlock_abi ? '✅' : '❌'} Landlock ABI v${shSt.landlock_abi || 0}</div>
+                        <div>${shSt.in_docker ? '⚠️' : '✅'} ${shSt.in_docker ? t('config.shell_sandbox.in_docker') : t('config.shell_sandbox.native')}</div>
+                        <div>🐧 Kernel ${escapeAttr(shSt.kernel || 'N/A')}</div>
+                        <div>${shSt.available ? '✅' : '❌'} ${t('config.shell_sandbox.ready')}</div>
+                    </div>
+                </div>`;
+            }
+
             html += `</div>`;
             document.getElementById('content').innerHTML = html;
             attachChangeListeners();

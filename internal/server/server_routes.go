@@ -123,6 +123,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		mux.HandleFunc("/api/mcp-servers", handleMCPServers(s))
 		mux.HandleFunc("/api/outgoing-webhooks", handleOutgoingWebhooks(s))
 		mux.HandleFunc("/api/sandbox/status", handleSandboxStatus(s))
+		mux.HandleFunc("/api/sandbox/shell-status", handleShellSandboxStatus(s))
 
 		// MCP Server config API
 		mux.HandleFunc("/api/mcp-server/tools", handleMCPServerTools(s))

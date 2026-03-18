@@ -163,6 +163,34 @@ func UpdateDevice(db *sql.DB, d DeviceRecord) error {
 	return nil
 }
 
+// UpsertDeviceByName inserts a new device or, if a device with the same name
+// already exists (case-insensitive), optionally updates it.
+// Returns (created, updated, error). When overwrite is false and the device
+// already exists, both booleans are false (the entry is silently skipped).
+func UpsertDeviceByName(db *sql.DB, d DeviceRecord, overwrite bool) (created bool, updated bool, err error) {
+	var existingID string
+	err = db.QueryRow(`SELECT id FROM devices WHERE lower(name) = lower(?)`, d.Name).Scan(&existingID)
+	if err == sql.ErrNoRows {
+		d.ID = uuid.New().String()
+		if insertErr := AddDevice(db, d); insertErr != nil {
+			return false, false, insertErr
+		}
+		return true, false, nil
+	}
+	if err != nil {
+		return false, false, fmt.Errorf("failed to check existing device: %w", err)
+	}
+	// Device exists.
+	if !overwrite {
+		return false, false, nil
+	}
+	d.ID = existingID
+	if updateErr := UpdateDevice(db, d); updateErr != nil {
+		return false, false, updateErr
+	}
+	return false, true, nil
+}
+
 // DeleteDevice removes a device record from the database by its ID.
 func DeleteDevice(db *sql.DB, id string) error {
 	res, err := db.Exec(`DELETE FROM devices WHERE id=?`, id)

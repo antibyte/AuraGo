@@ -553,6 +553,20 @@ func Load(path string) (*Config, error) {
 		cfg.Sandbox.DockerHost = cfg.Docker.Host
 	}
 
+	// Shell Sandbox defaults (Landlock-based native OS sandbox)
+	if cfg.ShellSandbox.MaxMemoryMB <= 0 {
+		cfg.ShellSandbox.MaxMemoryMB = 512
+	}
+	if cfg.ShellSandbox.MaxCPUSeconds <= 0 {
+		cfg.ShellSandbox.MaxCPUSeconds = 30
+	}
+	if cfg.ShellSandbox.MaxProcesses <= 0 {
+		cfg.ShellSandbox.MaxProcesses = 50
+	}
+	if cfg.ShellSandbox.MaxFileSizeMB <= 0 {
+		cfg.ShellSandbox.MaxFileSizeMB = 100
+	}
+
 	// Security Proxy defaults
 	if cfg.SecurityProxy.HTTPSPort <= 0 {
 		cfg.SecurityProxy.HTTPSPort = 443

@@ -1356,10 +1356,15 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 			"Scan the local network for devices and services advertised via mDNS (Multicast DNS / Bonjour / ZeroConf). "+
 				"Discovers Raspberry Pis, NAS devices, Apple devices, Chromecasts, printers, and any service "+
 				"that announces itself via mDNS. Specify a service type (e.g. '_http._tcp', '_ssh._tcp', '_smb._tcp') "+
-				"or use the default '_services._dns-sd._udp' to find all announced service types.",
+				"or use the default '_services._dns-sd._udp' to find all announced service types. "+
+				"Set auto_register=true to bulk-import all discovered devices into the device registry in a single call.",
 			schema(map[string]interface{}{
-				"service_type": prop("string", "mDNS service type to scan for (e.g. '_http._tcp', '_ssh._tcp', '_smb._tcp'). Default: '_services._dns-sd._udp' (discover all service types)"),
-				"timeout":      map[string]interface{}{"type": "integer", "description": "Scan timeout in seconds (1–30, default: 5)"},
+				"service_type":       prop("string", "mDNS service type to scan for (e.g. '_http._tcp', '_ssh._tcp', '_smb._tcp'). Default: '_services._dns-sd._udp' (discover all service types)"),
+				"timeout":            map[string]interface{}{"type": "integer", "description": "Scan timeout in seconds (1–30, default: 5)"},
+				"auto_register":      map[string]interface{}{"type": "boolean", "description": "If true, automatically register all discovered devices into the device inventory in one call. Saves many token-costly individual manage_inventory calls."},
+				"register_type":      prop("string", "Device type to assign when auto_register is true (e.g. 'iot', 'printer', 'server'). Defaults to 'mdns-device'."),
+				"register_tags":      map[string]interface{}{"type": "array", "items": map[string]string{"type": "string"}, "description": "Tags to assign to auto-registered devices (e.g. ['mdns', 'home-lab'])."},
+				"overwrite_existing": map[string]interface{}{"type": "boolean", "description": "If true, update an existing device record when the name matches. Default: false (skip duplicates)."},
 			}),
 		))
 	}
@@ -1392,10 +1397,15 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 			"Discover UPnP/SSDP devices on the local network (routers, Smart TVs, NAS, media renderers, printers, IoT devices). "+
 				"Returns device name, manufacturer, model, type, and exposed services. "+
 				"Use search_target 'ssdp:all' (default) to find everything, or filter by device type "+
-				"(e.g. 'upnp:rootdevice', 'urn:schemas-upnp-org:device:MediaRenderer:1').",
+				"(e.g. 'upnp:rootdevice', 'urn:schemas-upnp-org:device:MediaRenderer:1'). "+
+				"Set auto_register=true to bulk-import all discovered devices into the device registry in a single call.",
 			schema(map[string]interface{}{
-				"search_target": prop("string", "UPnP search target (default: 'ssdp:all'). Other values: 'upnp:rootdevice', 'urn:schemas-upnp-org:device:MediaRenderer:1', etc."),
-				"timeout_secs":  map[string]interface{}{"type": "integer", "description": "Discovery timeout in seconds (1–30, default: 5)"},
+				"search_target":      prop("string", "UPnP search target (default: 'ssdp:all'). Other values: 'upnp:rootdevice', 'urn:schemas-upnp-org:device:MediaRenderer:1', etc."),
+				"timeout_secs":       map[string]interface{}{"type": "integer", "description": "Discovery timeout in seconds (1–30, default: 5)"},
+				"auto_register":      map[string]interface{}{"type": "boolean", "description": "If true, automatically register all discovered devices into the device inventory in one call. Saves many token-costly individual manage_inventory calls."},
+				"register_type":      prop("string", "Device type to assign when auto_register is true (e.g. 'router', 'media-server', 'iot'). Defaults to the UPnP device_type field."),
+				"register_tags":      map[string]interface{}{"type": "array", "items": map[string]string{"type": "string"}, "description": "Tags to assign to auto-registered devices."},
+				"overwrite_existing": map[string]interface{}{"type": "boolean", "description": "If true, update an existing device record when the name matches. Default: false (skip duplicates)."},
 			}),
 		))
 	}

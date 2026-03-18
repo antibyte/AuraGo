@@ -8,8 +8,10 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -489,8 +491,12 @@ func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 		if !cfg.Tools.UPnPScan.Enabled {
 			return `Tool Output: {"status":"error","message":"upnp_scan is disabled. Enable tools.upnp_scan.enabled in config."}`
 		}
-		logger.Info("LLM requested UPnP scan", "search_target", tc.SearchTarget, "timeout_secs", tc.TimeoutSecs)
-		return "Tool Output: " + tools.ExecuteUPnPScan(tc.SearchTarget, tc.TimeoutSecs)
+		logger.Info("LLM requested UPnP scan", "search_target", tc.SearchTarget, "timeout_secs", tc.TimeoutSecs, "auto_register", tc.AutoRegister)
+		scanResult := tools.ExecuteUPnPScan(tc.SearchTarget, tc.TimeoutSecs)
+		if tc.AutoRegister && inventoryDB != nil {
+			scanResult = upnpAutoRegister(scanResult, inventoryDB, tc.RegisterType, tc.RegisterTags, tc.OverwriteExisting, logger)
+		}
+		return "Tool Output: " + scanResult
 
 	case "send_notification", "notification_center", "send_push_notification", "web_push":
 		if tc.ToolName == "send_push_notification" || tc.ToolName == "web_push" {
@@ -1120,4 +1126,107 @@ func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 	default:
 		return dispatchNotHandled
 	}
+}
+
+// upnpAutoRegister parses the JSON result from ExecuteUPnPScan, bulk-inserts every
+// discovered device into the inventory, and appends a registration summary.
+func upnpAutoRegister(scanJSON string, db *sql.DB, deviceType string, tags []string, overwrite bool, logger *slog.Logger) string {
+	var result struct {
+		Status  string `json:"status"`
+		Count   int    `json:"count"`
+		Devices []struct {
+			USN          string `json:"usn"`
+			Location     string `json:"location"`
+			FriendlyName string `json:"friendly_name"`
+			DeviceType   string `json:"device_type"`
+			Manufacturer string `json:"manufacturer"`
+			ModelName    string `json:"model_name"`
+		} `json:"devices"`
+		Message string `json:"message,omitempty"`
+	}
+	if err := json.Unmarshal([]byte(scanJSON), &result); err != nil || result.Status != "success" || len(result.Devices) == 0 {
+		return scanJSON
+	}
+
+	var created, updated, skipped int
+	for _, dev := range result.Devices {
+		name := dev.FriendlyName
+		if name == "" {
+			name = dev.ModelName
+		}
+		if name == "" {
+			name = dev.USN
+		}
+
+		ip, port := upnpParseLocation(dev.Location)
+
+		dt := deviceType
+		if dt == "" {
+			dt = dev.DeviceType
+			if dt == "" {
+				dt = "upnp-device"
+			}
+		}
+
+		desc := strings.TrimSpace(dev.Manufacturer + " " + dev.ModelName)
+
+		record := inventory.DeviceRecord{
+			Name:        name,
+			Type:        dt,
+			IPAddress:   ip,
+			Port:        port,
+			Description: desc,
+			Tags:        tags,
+		}
+		c, u, err := inventory.UpsertDeviceByName(db, record, overwrite)
+		if err != nil {
+			logger.Warn("upnp auto-register: failed to upsert device", "name", name, "error", err)
+			skipped++
+			continue
+		}
+		switch {
+		case c:
+			created++
+		case u:
+			updated++
+		default:
+			skipped++
+		}
+	}
+
+	type regSummary struct {
+		Created int `json:"created"`
+		Updated int `json:"updated"`
+		Skipped int `json:"skipped"`
+	}
+	out := map[string]interface{}{
+		"status":        result.Status,
+		"count":         result.Count,
+		"devices":       result.Devices,
+		"auto_register": regSummary{Created: created, Updated: updated, Skipped: skipped},
+	}
+	if result.Message != "" {
+		out["message"] = result.Message
+	}
+	b, _ := json.Marshal(out)
+	return string(b)
+}
+
+// upnpParseLocation extracts the IP address and port from a UPnP location URL.
+// e.g. "http://192.168.1.1:49152/desc.xml" → ("192.168.1.1", 49152)
+func upnpParseLocation(location string) (ip string, port int) {
+	if location == "" {
+		return "", 0
+	}
+	u, err := url.Parse(location)
+	if err != nil {
+		return "", 0
+	}
+	ip = u.Hostname()
+	if p := u.Port(); p != "" {
+		if v, err := strconv.Atoi(p); err == nil {
+			port = v
+		}
+	}
+	return ip, port
 }

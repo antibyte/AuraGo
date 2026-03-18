@@ -19,6 +19,14 @@ The **upnp_scan** tool discovers UPnP (Universal Plug and Play) and SSDP (Simple
 
 - **`timeout_secs`** *(integer, optional)*: How long to wait for responses in seconds (1–30, default: 5). Increase to 10–15 on a large or slow network.
 
+- **`auto_register`** *(boolean, optional)*: If `true`, all discovered devices are automatically saved to the device inventory in a **single tool call**, avoiding token-costly individual `manage_inventory` calls. Default: `false`.
+
+- **`register_type`** *(string, optional)*: Device type label to assign to auto-registered devices (e.g. `"router"`, `"media-server"`, `"iot"`). When omitted, the UPnP `device_type` field is used.
+
+- **`register_tags`** *(array of strings, optional)*: Tags to attach to each auto-registered device.
+
+- **`overwrite_existing`** *(boolean, optional)*: If `true`, update the inventory record when a device with the same display name already exists. Default: `false` (skip duplicates).
+
 ## Usage Examples
 
 Discover all UPnP devices:
@@ -34,6 +42,15 @@ Find only media renderers with a longer timeout:
   "action": "upnp_scan",
   "search_target": "urn:schemas-upnp-org:device:MediaRenderer:1",
   "timeout_secs": 10
+}
+```
+
+Discover all UPnP devices and register them in the device inventory:
+```json
+{
+  "action": "upnp_scan",
+  "auto_register": true,
+  "register_tags": ["upnp", "home-lab"]
 }
 ```
 
@@ -61,6 +78,10 @@ A JSON object with:
   - `serial_number`: device serial number
   - `services`: list of services with `service_type` and `service_id`
 - `message`: present on empty results or errors
+- `auto_register` *(only when `auto_register: true`)*: registration summary:
+  - `created`: new devices added to the inventory.
+  - `updated`: existing devices updated (only when `overwrite_existing: true`).
+  - `skipped`: devices skipped (duplicates or errors).
 
 ## Notes
 

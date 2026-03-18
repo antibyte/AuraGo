@@ -112,8 +112,12 @@ func dispatchInfra(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 		if !cfg.Tools.NetworkScan.Enabled {
 			return `Tool Output: {"status":"error","message":"mdns_scan is disabled. Enable tools.network_scan.enabled in config."}`
 		}
-		logger.Info("LLM requested mdns_scan", "service_type", tc.ServiceType, "timeout", tc.Timeout)
-		return "Tool Output: " + tools.MDNSScan(logger, tc.ServiceType, tc.Timeout)
+		logger.Info("LLM requested mdns_scan", "service_type", tc.ServiceType, "timeout", tc.Timeout, "auto_register", tc.AutoRegister)
+		scanResult := tools.MDNSScan(logger, tc.ServiceType, tc.Timeout)
+		if tc.AutoRegister && inventoryDB != nil {
+			scanResult = mdnsAutoRegister(scanResult, inventoryDB, tc.RegisterType, tc.RegisterTags, tc.OverwriteExisting, logger)
+		}
+		return "Tool Output: " + scanResult
 
 	case "tts":
 		if !cfg.Chromecast.Enabled && cfg.TTS.Provider == "" {
@@ -1147,4 +1151,89 @@ func dispatchInfra(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 	default:
 		return dispatchNotHandled
 	}
+}
+
+// mdnsAutoRegister parses the JSON result from MDNSScan, bulk-inserts every discovered
+// device into the inventory, and appends a registration summary to the result JSON.
+func mdnsAutoRegister(scanJSON string, db *sql.DB, deviceType string, tags []string, overwrite bool, logger *slog.Logger) string {
+	if deviceType == "" {
+		deviceType = "mdns-device"
+	}
+
+	var result struct {
+		Status  string              `json:"status"`
+		Count   int                 `json:"count"`
+		Devices []tools.MDNSService `json:"devices"`
+		Message string              `json:"message,omitempty"`
+	}
+	if err := json.Unmarshal([]byte(scanJSON), &result); err != nil || result.Status != "success" || len(result.Devices) == 0 {
+		return scanJSON // nothing to register
+	}
+
+	var created, updated, skipped int
+	for _, dev := range result.Devices {
+		name := mdnsCleanHostname(dev.Host)
+		if name == "" {
+			name = mdnsCleanName(dev.Name)
+		}
+		ip := ""
+		if len(dev.IPs) > 0 {
+			ip = dev.IPs[0]
+		}
+		desc := dev.Info
+		record := inventory.DeviceRecord{
+			Name:        name,
+			Type:        deviceType,
+			IPAddress:   ip,
+			Port:        dev.Port,
+			Description: desc,
+			Tags:        tags,
+		}
+		c, u, err := inventory.UpsertDeviceByName(db, record, overwrite)
+		if err != nil {
+			logger.Warn("mdns auto-register: failed to upsert device", "name", name, "error", err)
+			skipped++
+			continue
+		}
+		switch {
+		case c:
+			created++
+		case u:
+			updated++
+		default:
+			skipped++
+		}
+	}
+
+	type regSummary struct {
+		Created int `json:"created"`
+		Updated int `json:"updated"`
+		Skipped int `json:"skipped"`
+	}
+	out := map[string]interface{}{
+		"status":        result.Status,
+		"count":         result.Count,
+		"devices":       result.Devices,
+		"auto_register": regSummary{Created: created, Updated: updated, Skipped: skipped},
+	}
+	if result.Message != "" {
+		out["message"] = result.Message
+	}
+	b, _ := json.Marshal(out)
+	return string(b)
+}
+
+// mdnsCleanHostname strips the ".local." suffix from a mDNS hostname.
+func mdnsCleanHostname(host string) string {
+	h := strings.TrimSuffix(host, ".")
+	h = strings.TrimSuffix(h, ".local")
+	return h
+}
+
+// mdnsCleanName strips the service-type suffix from a full mDNS service name.
+func mdnsCleanName(name string) string {
+	if idx := strings.Index(name, "._"); idx > 0 {
+		return name[:idx]
+	}
+	return strings.TrimSuffix(name, ".")
 }

@@ -29,6 +29,7 @@ import (
 	"aurago/internal/memory"
 	promptspkg "aurago/internal/prompts"
 	"aurago/internal/remote"
+	"aurago/internal/sandbox"
 	"aurago/internal/security"
 	"aurago/internal/server"
 	"aurago/internal/setup"
@@ -41,6 +42,14 @@ import (
 var cronHTTPClient = &http.Client{Timeout: 2 * time.Minute}
 
 func main() {
+	// ── Sandbox helper mode ──────────────────────────────────────────────
+	// When invoked with --sandbox-exec, this process applies Landlock + rlimits
+	// and exec's the shell command. Must happen before ANY other initialization.
+	if len(os.Args) > 2 && os.Args[1] == "--sandbox-exec" {
+		sandbox.RunHelper(os.Args[2])
+		os.Exit(126) // only reached if RunHelper's exec fails
+	}
+
 	var debug bool
 	var runSetup bool
 	var checkConfig bool
@@ -422,6 +431,22 @@ func main() {
 
 	// Process Registry for background daemon management
 	registry := tools.NewProcessRegistry(appLog)
+
+	// Shell Sandbox (Landlock + rlimits on Linux)
+	{
+		var allowedPaths []sandbox.PathRule
+		for _, p := range cfg.ShellSandbox.AllowedPaths {
+			allowedPaths = append(allowedPaths, sandbox.PathRule{Path: p.Path, ReadOnly: p.ReadOnly})
+		}
+		sandbox.Init(sandbox.ShellSandboxConfig{
+			Enabled:       cfg.ShellSandbox.Enabled,
+			MaxMemoryMB:   cfg.ShellSandbox.MaxMemoryMB,
+			MaxCPUSeconds: cfg.ShellSandbox.MaxCPUSeconds,
+			MaxProcesses:  cfg.ShellSandbox.MaxProcesses,
+			MaxFileSizeMB: cfg.ShellSandbox.MaxFileSizeMB,
+			AllowedPaths:  allowedPaths,
+		}, cfg.Directories.WorkspaceDir, appLog)
+	}
 
 	// Cron Manager for autonomous triggers
 	cronManager := tools.NewCronManager(cfg.Directories.DataDir)

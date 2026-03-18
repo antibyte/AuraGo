@@ -8,6 +8,8 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"aurago/internal/sandbox"
 )
 
 // ExecuteShell runs a command in the shell (PS on Windows, sh on Unix) and returns stdout/stderr.
@@ -16,13 +18,18 @@ import (
 // (e.g., an ssh process spawned by powershell that holds pipes open indefinitely).
 func ExecuteShell(command, workspaceDir string) (string, string, error) {
 	var cmd *exec.Cmd
+	absWorkDir := getAbsWorkspace(workspaceDir)
+
 	if runtime.GOOS == "windows" {
 		cmd = exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-Command", command)
+	} else if sb := sandbox.Get(); sb.Available() {
+		cmd = sb.PrepareCommand(command, absWorkDir)
+		slog.Debug("[ExecuteShell] using sandbox", "backend", sb.Name())
 	} else {
 		cmd = exec.Command("/bin/sh", "-c", command)
 	}
 
-	cmd.Dir = getAbsWorkspace(workspaceDir)
+	cmd.Dir = absWorkDir
 	SetupCmd(cmd)
 
 	slog.Debug("[ExecuteShell]", "command", command, "dir", cmd.Dir)
@@ -54,13 +61,18 @@ func ExecuteShell(command, workspaceDir string) (string, string, error) {
 // ExecuteShellBackground starts a command in the shell in the background and registers it.
 func ExecuteShellBackground(command, workspaceDir string, registry *ProcessRegistry) (int, error) {
 	var cmd *exec.Cmd
+	absWorkDir := getAbsWorkspace(workspaceDir)
+
 	if runtime.GOOS == "windows" {
 		cmd = exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-Command", command)
+	} else if sb := sandbox.Get(); sb.Available() {
+		cmd = sb.PrepareCommand(command, absWorkDir)
+		slog.Debug("[ExecuteShellBackground] using sandbox", "backend", sb.Name())
 	} else {
 		cmd = exec.Command("/bin/sh", "-c", command)
 	}
 
-	cmd.Dir = getAbsWorkspace(workspaceDir)
+	cmd.Dir = absWorkDir
 	SetupCmd(cmd)
 
 	slog.Debug("[ExecuteShellBackground]", "command", command, "dir", cmd.Dir)
