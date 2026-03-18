@@ -1,4 +1,4 @@
-﻿{
+{
   "config.section.server.label": "Server",
   "config.section.server.desc": "Webserver instellingen",
   "config.section.directories.label": "Mappen",
@@ -85,6 +85,8 @@
   "config.section.chromecast.desc": "Chromecast integratie",
   "config.section.adguard.label": "AdGuard Home",
   "config.section.adguard.desc": "DNS-filtering & netwerkbeveiliging",
+  "config.section.fritzbox.label": "Fritz!Box",
+  "config.section.fritzbox.desc": "Fritz!Box router beheer (systeem, WLAN, Smart Home, telefonie)",
   "config.section.proxmox.label": "Proxmox",
   "config.section.proxmox.desc": "Proxmox integratie",
   "config.section.tailscale.label": "Tailscale",

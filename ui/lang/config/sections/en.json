@@ -85,6 +85,8 @@
   "config.section.chromecast.desc": "Chromecast audio integration",
   "config.section.adguard.label": "AdGuard Home",
   "config.section.adguard.desc": "DNS filtering & network protection",
+  "config.section.fritzbox.label": "Fritz!Box",
+  "config.section.fritzbox.desc": "Fritz!Box router management (system, WLAN, Smart Home, telephony)",
   "config.section.proxmox.label": "Proxmox",
   "config.section.proxmox.desc": "Proxmox VE virtualization",
   "config.section.tailscale.label": "Tailscale",
@@ -172,7 +174,8 @@
   "config.section.info_tools.label": "Information Tools",
   "config.section.info_tools.desc": "Wikipedia, DuckDuckGo search and PDF content extraction",
   "config.section.network_tools.label": "Network Tools",
-  "config.section.network_tools.desc": "Wake-on-LAN, process control and network utilities",
+  "config.section.network_tools.desc": "Wake-on-LAN, process control and network utilities"
+,
   "config.group.agent_ai": "Agent & AI",
   "config.group.server_system": "Server & System",
   "config.group.agent_tools": "Agent Tools",

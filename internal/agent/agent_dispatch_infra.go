@@ -11,6 +11,7 @@ import (
 
 	"aurago/internal/budget"
 	"aurago/internal/config"
+	"aurago/internal/fritzbox"
 	"aurago/internal/inventory"
 	"aurago/internal/llm"
 	"aurago/internal/memory"
@@ -1147,6 +1148,17 @@ func dispatchInfra(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 		default:
 			return fmt.Sprintf(`Tool Output: {"status":"error","message":"Unknown adguard operation '%s'. Use: status, stats, stats_top, query_log, query_log_clear, filtering_status, filtering_toggle, filtering_add_url, filtering_remove_url, filtering_refresh, filtering_set_rules, rewrite_list, rewrite_add, rewrite_delete, blocked_services_list, blocked_services_set, safebrowsing_status, safebrowsing_toggle, parental_status, parental_toggle, dhcp_status, dhcp_set_config, dhcp_add_lease, dhcp_remove_lease, clients, client_add, client_update, client_delete, dns_info, dns_config, test_upstream"}`, op)
 		}
+
+	case "fritzbox", "fritzbox_system", "fritzbox_network", "fritzbox_telephony", "fritzbox_smarthome", "fritzbox_storage", "fritzbox_tv":
+		if !cfg.FritzBox.Enabled {
+			return `Tool Output: {"status":"error","message":"Fritz!Box integration is not enabled. Set fritzbox.enabled=true in config.yaml."}`
+		}
+		fbClient, fbErr := fritzbox.NewClient(*cfg)
+		if fbErr != nil {
+			return fmt.Sprintf(`Tool Output: {"status":"error","message":"Fritz!Box client init failed: %s"}`, fbErr)
+		}
+		defer fbClient.Close()
+		return handleFritzBoxToolCall(tc, fbClient, logger)
 
 	default:
 		return dispatchNotHandled

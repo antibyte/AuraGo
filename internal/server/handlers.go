@@ -359,6 +359,12 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			AllowSelfUpdate:          s.Cfg.Agent.AllowSelfUpdate,
 			IsEgg:                    s.Cfg.EggMode.Enabled,
 			DocumentCreatorEnabled:   s.Cfg.Tools.DocumentCreator.Enabled,
+			FritzBoxSystemEnabled:    s.Cfg.FritzBox.Enabled && s.Cfg.FritzBox.System.Enabled,
+			FritzBoxNetworkEnabled:   s.Cfg.FritzBox.Enabled && s.Cfg.FritzBox.Network.Enabled,
+			FritzBoxTelephonyEnabled: s.Cfg.FritzBox.Enabled && s.Cfg.FritzBox.Telephony.Enabled,
+			FritzBoxSmartHomeEnabled: s.Cfg.FritzBox.Enabled && s.Cfg.FritzBox.SmartHome.Enabled,
+			FritzBoxStorageEnabled:   s.Cfg.FritzBox.Enabled && s.Cfg.FritzBox.Storage.Enabled,
+			FritzBoxTVEnabled:        s.Cfg.FritzBox.Enabled && s.Cfg.FritzBox.TV.Enabled,
 			AdditionalPrompt:         s.Cfg.Agent.AdditionalPrompt,
 		}
 		sysPrompt := prompts.BuildSystemPrompt(s.Cfg.Directories.PromptsDir, flags, coreMem, s.Logger)

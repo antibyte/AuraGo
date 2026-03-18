@@ -97,6 +97,19 @@ func (s *SQLiteMemory) InsertJournalEntry(entry JournalEntry) (int64, error) {
 	return res.LastInsertId()
 }
 
+// JournalEntryExists returns true if a journal entry with the given type and exact title already exists.
+func (s *SQLiteMemory) JournalEntryExists(entryType, title string) (bool, error) {
+	var count int
+	err := s.db.QueryRow(
+		`SELECT COUNT(*) FROM journal_entries WHERE entry_type = ? AND title = ? LIMIT 1`,
+		entryType, title,
+	).Scan(&count)
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
 // GetJournalEntries returns entries filtered by date range and optional types.
 // If from/to are empty, returns all entries. types can be nil for all types.
 func (s *SQLiteMemory) GetJournalEntries(from, to string, types []string, limit int) ([]JournalEntry, error) {

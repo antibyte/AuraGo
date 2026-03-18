@@ -157,6 +157,12 @@ type ContextFlags struct {
 	NetworkScanEnabled       bool
 	FormAutomationEnabled    bool
 	UPnPScanEnabled          bool
+	FritzBoxSystemEnabled    bool
+	FritzBoxNetworkEnabled   bool
+	FritzBoxTelephonyEnabled bool
+	FritzBoxSmartHomeEnabled bool
+	FritzBoxStorageEnabled   bool
+	FritzBoxTVEnabled        bool
 	InternetExposed          bool   // HTTPS is enabled — system is likely reachable from the internet
 	IsDocker                 bool   // Running inside a Docker container
 	UserProfilingEnabled     bool   // User profiling is active — agent should learn about the user

@@ -360,6 +360,12 @@ func mcpFeatureFlags(cfg *config.Config) agent.ToolFeatureFlags {
 		AllowNetworkRequests:     cfg.Agent.AllowNetworkRequests,
 		AllowRemoteShell:         cfg.Agent.AllowRemoteShell,
 		AllowSelfUpdate:          cfg.Agent.AllowSelfUpdate,
+		FritzBoxSystemEnabled:    cfg.FritzBox.Enabled && cfg.FritzBox.System.Enabled,
+		FritzBoxNetworkEnabled:   cfg.FritzBox.Enabled && cfg.FritzBox.Network.Enabled,
+		FritzBoxTelephonyEnabled: cfg.FritzBox.Enabled && cfg.FritzBox.Telephony.Enabled,
+		FritzBoxSmartHomeEnabled: cfg.FritzBox.Enabled && cfg.FritzBox.SmartHome.Enabled,
+		FritzBoxStorageEnabled:   cfg.FritzBox.Enabled && cfg.FritzBox.Storage.Enabled,
+		FritzBoxTVEnabled:        cfg.FritzBox.Enabled && cfg.FritzBox.TV.Enabled,
 	}
 }
 

@@ -1,4 +1,4 @@
-﻿{
+{
   "config.section.server.label": "Server",
   "config.section.server.desc": "Webserver og API-indstillinger",
   "config.section.directories.label": "Vejviser",
@@ -85,6 +85,8 @@
   "config.section.chromecast.desc": "Chromecast lydintegration",
   "config.section.adguard.label": "AdGuard Home",
   "config.section.adguard.desc": "DNS-filtrering & netværksbeskyttelse",
+  "config.section.fritzbox.label": "Fritz!Box",
+  "config.section.fritzbox.desc": "Fritz!Box router-administration (system, WLAN, Smart Home, telefoni)",
   "config.section.proxmox.label": "Proxmox",
   "config.section.proxmox.desc": "Proxmox VE virtualisering",
   "config.section.tailscale.label": "Haleskala",

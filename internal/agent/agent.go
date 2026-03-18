@@ -472,6 +472,18 @@ type ToolCall struct {
 	// UPnP Scan fields
 	SearchTarget string `json:"search_target,omitempty"` // UPnP search target (e.g. "ssdp:all")
 	TimeoutSecs  int    `json:"timeout_secs,omitempty"`  // discovery timeout in seconds
+	// FritzBox fields
+	AIN            string  `json:"ain,omitempty"`             // Actor Identification Number (smart home)
+	TempC          float64 `json:"temp_c,omitempty"`          // target temperature in °C
+	WLANIndex      int     `json:"wlan_index,omitempty"`      // WLAN interface index (1–4)
+	TamIndex       int     `json:"tam_index,omitempty"`       // TAM/answering machine index
+	MsgIndex       int     `json:"msg_index,omitempty"`       // TAM message index
+	PhonebookID    int     `json:"phonebook_id,omitempty"`    // phonebook index
+	Brightness     int     `json:"brightness,omitempty"`      // brightness percentage (0–100)
+	ExternalPort   string  `json:"external_port,omitempty"`   // external port for port forwarding
+	InternalPort   string  `json:"internal_port,omitempty"`   // internal port for port forwarding
+	InternalClient string  `json:"internal_client,omitempty"` // LAN IP for port forwarding
+	Protocol       string  `json:"protocol,omitempty"`        // protocol: TCP or UDP (port forwarding)
 }
 
 // GetArgs returns Args as a string slice, handling various input types (slice of strings or interface).

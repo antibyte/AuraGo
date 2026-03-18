@@ -19,6 +19,7 @@ import (
 	"aurago/internal/agent"
 	"aurago/internal/budget"
 	"aurago/internal/config"
+	"aurago/internal/fritzbox"
 	"aurago/internal/invasion/bridge"
 	"aurago/internal/llm"
 	"aurago/internal/memory"
@@ -463,6 +464,41 @@ func Start(cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, sh
 	// Auto-start local Ollama embeddings container if enabled
 	if cfg.Embeddings.LocalOllama.Enabled {
 		go tools.EnsureOllamaEmbeddingsRunning(cfg, logger)
+	}
+
+	// Start Fritz!Box telephony poller if enabled
+	if cfg.FritzBox.Enabled && cfg.FritzBox.Telephony.Enabled && cfg.FritzBox.Telephony.Polling.Enabled {
+		fbPoller := fritzbox.NewPoller(*cfg, func(kind, summary string) {
+			go func() {
+				url := fmt.Sprintf("http://127.0.0.1:%d/v1/chat/completions", cfg.Server.Port)
+				prompt := fmt.Sprintf("[FRITZ!BOX EVENT: %s] %s", kind, summary)
+				payload := map[string]interface{}{
+					"model":  "aurago",
+					"stream": false,
+					"messages": []map[string]string{
+						{"role": "user", "content": prompt},
+					},
+				}
+				body, _ := json.Marshal(payload)
+				req, err := http.NewRequest("POST", url, strings.NewReader(string(body)))
+				if err != nil {
+					logger.Error("[FritzBox Poller] Failed to create loopback request", "error", err)
+					return
+				}
+				req.Header.Set("Content-Type", "application/json")
+				req.Header.Set("X-Internal-FollowUp", "true")
+				client := &http.Client{Timeout: 10 * time.Minute}
+				if _, err := client.Do(req); err != nil {
+					logger.Error("[FritzBox Poller] Loopback request failed", "error", err)
+				}
+			}()
+		}, logger)
+		fbPoller.Start()
+		logger.Info("[FritzBox Poller] Telephony polling started")
+		go func() {
+			<-shutdownCh
+			fbPoller.Stop()
+		}()
 	}
 
 	return s.run(shutdownCh)

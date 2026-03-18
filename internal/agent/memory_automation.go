@@ -87,8 +87,13 @@ func checkFirstToolUse(cfg *config.Config, stm *memory.SQLiteMemory, logger *slo
 		if err != nil {
 			continue
 		}
-		// count ≤ 1 means this is the first (or very first) use
-		if count <= 1 {
+		// count == 1 means this is the first use (UpsertToolUsage already ran before we check)
+		if count == 1 {
+			// Extra dedup guard: skip if an integration entry for this tool already exists
+			// (protects against any future inconsistency in tool_usage_adaptive)
+			if exists, _ := stm.JournalEntryExists("integration", fmt.Sprintf("First use of %s", toolName)); exists {
+				continue
+			}
 			id, err := stm.InsertJournalEntry(memory.JournalEntry{
 				EntryType:     "integration",
 				Title:         fmt.Sprintf("First use of %s", toolName),

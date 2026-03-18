@@ -1,4 +1,4 @@
-﻿{
+{
   "config.section.server.label": "サーバー",
   "config.section.server.desc": "Web サーバーと API 設定",
   "config.section.directories.label": "ディレクトリ",
@@ -85,6 +85,8 @@
   "config.section.chromecast.desc": "Chromecast オーディオインテグレーション",
   "config.section.adguard.label": "AdGuard Home",
   "config.section.adguard.desc": "DNSフィルタリング & ネットワーク保護",
+  "config.section.fritzbox.label": "Fritz!Box",
+  "config.section.fritzbox.desc": "Fritz!Boxルーター管理（システム、WLAN、スマートホーム、通話）",
   "config.section.proxmox.label": "Proxmox",
   "config.section.proxmox.desc": "Proxmox VE 仮想化",
   "config.section.tailscale.label": "Tailscale",

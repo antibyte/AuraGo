@@ -340,6 +340,37 @@ adguard:
     readonly: false
     url: ""
     username: ""
+fritzbox:
+    enabled: false
+    host: "fritz.box"                       # Fritz!Box hostname or IP (default: fritz.box)
+    port: 49000                             # TR-064 SOAP port (default: 49000)
+    https: false                            # use HTTPS for TR-064 (port 49443)
+    username: "admin"                       # Fritz!Box login username
+    # password stored in vault under key "fritzbox_password"
+    system:
+        enabled: true
+        readonly: false
+    network:
+        enabled: true
+        readonly: false
+    telephony:
+        enabled: false
+        readonly: true                      # read-only by default (call lists, phonebooks)
+        sub_features:
+            call_list: true
+            phonebooks: true
+            tam: true
+        polling:
+            enabled: false
+            interval_seconds: 60            # how often to check for new calls/messages
+    smarthome:
+        enabled: false
+        readonly: false
+    storage:
+        enabled: false
+        readonly: false
+    tv:
+        enabled: false                      # only available on Fritz!Box with built-in TV tuner
 # ── Additional Integrations ── disabled by default for fresh installs
 webhooks:
     enabled: false

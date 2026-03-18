@@ -211,6 +211,10 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		mux.HandleFunc("/api/adguard/status", handleAdGuardStatus(s))
 		mux.HandleFunc("/api/adguard/test", handleAdGuardTest(s))
 
+		// Fritz!Box integration endpoints
+		mux.HandleFunc("/api/fritzbox/status", handleFritzBoxStatus(s))
+		mux.HandleFunc("/api/fritzbox/test", handleFritzBoxTest(s))
+
 		// Document Creator endpoints
 		mux.HandleFunc("/api/document-creator/test", handleGotenbergTest(s))
 

@@ -1,4 +1,4 @@
-﻿{
+{
   "config.section.server.label": "Διακομιστής",
   "config.section.server.desc": "Ρυθμίσεις διακομιστή ιστού και API",
   "config.section.directories.label": "Adresáře",
@@ -85,6 +85,8 @@
   "config.section.chromecast.desc": "Integrace Chromecast audia",
   "config.section.adguard.label": "AdGuard Home",
   "config.section.adguard.desc": "Φιλτράρισμα DNS & προστασία δικτύου",
+  "config.section.fritzbox.label": "Fritz!Box",
+  "config.section.fritzbox.desc": "Διαχείριση δρομολογητή Fritz!Box (σύστημα, WLAN, Smart Home, τηλεφωνία)",
   "config.section.proxmox.label": "Proxmox",
   "config.section.proxmox.desc": "Proxmox VE virtualizace",
   "config.section.tailscale.label": "Tailscale",

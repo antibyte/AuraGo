@@ -811,6 +811,11 @@ function handleSSEMessage(e) {
         const data = JSON.parse(e.data);
         let message = '';
 
+        // Raw OpenAI streaming chunks (broker.SendJSON) and BroadcastType messages
+        // ({"type":"system_metrics",...}) have no "event" field — skip them here;
+        // streaming content is already rendered live via the chunk passthrough.
+        if (!data.event) return;
+
         // Make the status bar visible early so floating icons can render
         if (data.event === 'thinking' || data.event === 'tool_start' || data.event === 'co_agent_spawn' || data.event === 'coding') {
             agentStatusDiv.style.display = 'flex';
@@ -963,8 +968,10 @@ function handleSSEMessage(e) {
             return;
         }
 
-        agentStatusText.textContent = message;
-        agentStatusDiv.style.display = 'flex';
+        if (message) {
+            agentStatusText.textContent = message;
+            agentStatusDiv.style.display = 'flex';
+        }
     } catch (err) { /* ignore parse errors */ }
 }
 /* ── Image lightbox ── */

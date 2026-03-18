@@ -346,6 +346,88 @@ type Config struct {
 		URL         string `yaml:"url"`
 		AccessToken string `yaml:"-" vault:"access_token"` // vault-only
 	} `yaml:"home_assistant"`
+	FritzBox struct {
+		Enabled  bool   `yaml:"enabled"`
+		Host     string `yaml:"host"`                        // hostname or IP, default: fritz.box
+		Port     int    `yaml:"port"`                        // TR-064 port, default: 49000
+		HTTPS    bool   `yaml:"https"`                       // use HTTPS for TR-064, default: true
+		Timeout  int    `yaml:"timeout"`                     // HTTP timeout in seconds, default: 10
+		Username string `yaml:"username"`                    // Fritz!Box username (leave empty to use no username)
+		Password string `yaml:"-" vault:"fritzbox_password"` // vault-only
+
+		// Feature groups – all gated individually
+		System struct {
+			Enabled     bool `yaml:"enabled"`
+			ReadOnly    bool `yaml:"readonly"` // true = only info/log, block reboot
+			SubFeatures struct {
+				DeviceInfo   bool `yaml:"device_info"`
+				Uptime       bool `yaml:"uptime"`
+				Log          bool `yaml:"log"`
+				Temperatures bool `yaml:"temperatures"`
+			} `yaml:"sub_features"`
+		} `yaml:"system"`
+
+		Network struct {
+			Enabled     bool `yaml:"enabled"`
+			ReadOnly    bool `yaml:"readonly"` // true = only read, block wlan toggle/port-forward
+			SubFeatures struct {
+				WLAN           bool `yaml:"wlan"`
+				GuestWLAN      bool `yaml:"guest_wlan"`
+				DECT           bool `yaml:"dect"`
+				Mesh           bool `yaml:"mesh"`
+				Hosts          bool `yaml:"hosts"`
+				WakeOnLAN      bool `yaml:"wake_on_lan"`
+				PortForwarding bool `yaml:"port_forwarding"`
+			} `yaml:"sub_features"`
+		} `yaml:"network"`
+
+		Telephony struct {
+			Enabled     bool `yaml:"enabled"`
+			ReadOnly    bool `yaml:"readonly"` // true = only read lists, block deflection/phonebook changes
+			SubFeatures struct {
+				CallLists      bool `yaml:"call_lists"`
+				Phonebooks     bool `yaml:"phonebooks"`
+				CallDeflection bool `yaml:"call_deflection"`
+				TAM            bool `yaml:"tam"`
+			} `yaml:"sub_features"`
+			Polling struct {
+				Enabled         bool `yaml:"enabled"`
+				IntervalSeconds int  `yaml:"interval_seconds"` // default: 60
+			} `yaml:"polling"`
+		} `yaml:"telephony"`
+
+		SmartHome struct {
+			Enabled     bool `yaml:"enabled"`
+			ReadOnly    bool `yaml:"readonly"` // true = only device status, block switch/temp/color changes
+			SubFeatures struct {
+				Devices   bool `yaml:"devices"`
+				Switches  bool `yaml:"switches"`
+				Heating   bool `yaml:"heating"`
+				Blinds    bool `yaml:"blinds"`
+				Lamps     bool `yaml:"lamps"`
+				Templates bool `yaml:"templates"`
+			} `yaml:"sub_features"`
+		} `yaml:"smart_home"`
+
+		Storage struct {
+			Enabled     bool `yaml:"enabled"`
+			ReadOnly    bool `yaml:"readonly"` // true = only info, block FTP toggle/share changes
+			SubFeatures struct {
+				NAS         bool `yaml:"nas"`
+				FTP         bool `yaml:"ftp"`
+				USBDevices  bool `yaml:"usb_devices"`
+				MediaServer bool `yaml:"media_server"`
+			} `yaml:"sub_features"`
+		} `yaml:"storage"`
+
+		TV struct {
+			Enabled     bool `yaml:"enabled"` // Cable-only: DVB-C channel list & stream URLs
+			SubFeatures struct {
+				ChannelList bool `yaml:"channel_list"`
+				StreamURLs  bool `yaml:"stream_urls"`
+			} `yaml:"sub_features"`
+		} `yaml:"tv"`
+	} `yaml:"fritzbox"`
 	MeshCentral struct {
 		Enabled           bool     `yaml:"enabled"`
 		ReadOnly          bool     `yaml:"readonly"`           // true = only list operations, block wake/power/run_command

@@ -1,4 +1,4 @@
-﻿{
+{
   "config.section.server.label": "服务器",
   "config.section.server.desc": "Web 服务器和 API 设置",
   "config.section.directories.label": "目录",
@@ -85,6 +85,8 @@
   "config.section.chromecast.desc": "Chromecast 音频集成",
   "config.section.adguard.label": "AdGuard Home",
   "config.section.adguard.desc": "DNS 过滤 & 网络保护",
+  "config.section.fritzbox.label": "Fritz!Box",
+  "config.section.fritzbox.desc": "Fritz!Box 路由器管理（系统、WLAN、智能家居、电话）",
   "config.section.proxmox.label": "Proxmox",
   "config.section.proxmox.desc": "Proxmox VE 虚拟化",
   "config.section.tailscale.label": "Tailscale",

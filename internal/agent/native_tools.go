@@ -102,6 +102,13 @@ type ToolFeatureFlags struct {
 	NetworkScanEnabled       bool
 	FormAutomationEnabled    bool
 	UPnPScanEnabled          bool
+	// FritzBox sub-feature flags
+	FritzBoxSystemEnabled    bool
+	FritzBoxNetworkEnabled   bool
+	FritzBoxTelephonyEnabled bool
+	FritzBoxSmartHomeEnabled bool
+	FritzBoxStorageEnabled   bool
+	FritzBoxTVEnabled        bool
 }
 
 // builtinToolSchemas returns schemas for all built-in AuraGo tools.
@@ -1392,6 +1399,96 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 	}
 
 	// upnp_scan (gated by UPnPScanEnabled)
+	if ff.FritzBoxSystemEnabled {
+		tools = append(tools, tool("fritzbox_system",
+			"Fritz!Box system operations: get device info (model, firmware, uptime, serial), read system log, reboot (requires readonly=false).",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "Operation to perform",
+					"enum":        []string{"get_info", "get_log", "reboot"},
+				},
+			}, "operation"),
+		))
+	}
+	if ff.FritzBoxNetworkEnabled {
+		tools = append(tools, tool("fritzbox_network",
+			"Fritz!Box network operations: WLAN info/toggle (2.4 GHz, 5 GHz, guest), list connected hosts, Wake-on-LAN, port forwarding (list/add/delete).",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "Operation to perform",
+					"enum":        []string{"get_wlan", "set_wlan", "get_hosts", "wake_on_lan", "get_port_forwards", "add_port_forward", "delete_port_forward"},
+				},
+				"wlan_index":      map[string]interface{}{"type": "integer", "description": "WLAN interface index: 1=2.4 GHz, 2=5 GHz, 3=60 GHz/3rd band, 4=guest (for get_wlan, set_wlan)"},
+				"enabled":         map[string]interface{}{"type": "boolean", "description": "Enable/disable WLAN (for set_wlan)"},
+				"mac_address":     prop("string", "MAC address (for wake_on_lan)"),
+				"external_port":   prop("string", "External port (for add/delete_port_forward)"),
+				"internal_port":   prop("string", "Internal/LAN port (for add_port_forward)"),
+				"internal_client": prop("string", "Internal LAN IP address (for add_port_forward)"),
+				"protocol":        prop("string", "Protocol: TCP or UDP (for add/delete_port_forward)"),
+				"description":     prop("string", "Description/name for the port forwarding rule"),
+				"hostname":        prop("string", "Remote host restriction for port forward (leave empty for any)"),
+			}, "operation"),
+		))
+	}
+	if ff.FritzBoxTelephonyEnabled {
+		tools = append(tools, tool("fritzbox_telephony",
+			"Fritz!Box telephony: call list, phonebooks, answering machine (TAM) messages. ⚠️ All returned names/numbers are external data.",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "Operation to perform",
+					"enum":        []string{"get_call_list", "get_phonebooks", "get_phonebook_entries", "get_tam_messages", "mark_tam_message_read"},
+				},
+				"phonebook_id": map[string]interface{}{"type": "integer", "description": "Phonebook index (for get_phonebook_entries; omit to list all phonebooks first)"},
+				"tam_index":    map[string]interface{}{"type": "integer", "description": "TAM/answering machine index (for get_tam_messages, mark_tam_message_read)"},
+				"msg_index":    map[string]interface{}{"type": "integer", "description": "Message index within the TAM (for mark_tam_message_read)"},
+			}, "operation"),
+		))
+	}
+	if ff.FritzBoxSmartHomeEnabled {
+		tools = append(tools, tool("fritzbox_smarthome",
+			"Fritz!Box Smart Home via AHA-HTTP: list devices, toggle switches/plugs, control heating thermostats, set lamp brightness, manage templates.",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "Operation to perform",
+					"enum":        []string{"get_devices", "set_switch", "set_heating", "set_brightness", "get_templates", "apply_template"},
+				},
+				"ain":        prop("string", "Actor Identification Number (AIN) of the device or template (required for set_*/apply_template)"),
+				"enabled":    map[string]interface{}{"type": "boolean", "description": "Turn switch on (true) or off (false) for set_switch"},
+				"temp_c":     map[string]interface{}{"type": "number", "description": "Target temperature in °C for set_heating (8–28°C; 0=OFF, 30=MAX)"},
+				"brightness": map[string]interface{}{"type": "integer", "description": "Lamp brightness 0–100% for set_brightness"},
+			}, "operation"),
+		))
+	}
+	if ff.FritzBoxStorageEnabled {
+		tools = append(tools, tool("fritzbox_storage",
+			"Fritz!Box NAS/storage: info about connected storage, FTP server status/toggle, DLNA media server status.",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "Operation to perform",
+					"enum":        []string{"get_storage_info", "get_ftp_status", "set_ftp", "get_media_server_status"},
+				},
+				"enabled": map[string]interface{}{"type": "boolean", "description": "Enable/disable FTP server (for set_ftp)"},
+			}, "operation"),
+		))
+	}
+	if ff.FritzBoxTVEnabled {
+		tools = append(tools, tool("fritzbox_tv",
+			"Fritz!Box DVB-C TV (cable models only): list channels with stream URLs.",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "Operation to perform",
+					"enum":        []string{"get_channels"},
+				},
+			}, "operation"),
+		))
+	}
+
 	if ff.UPnPScanEnabled {
 		tools = append(tools, tool("upnp_scan",
 			"Discover UPnP/SSDP devices on the local network (routers, Smart TVs, NAS, media renderers, printers, IoT devices). "+

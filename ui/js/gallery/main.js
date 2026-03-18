@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const searchInput = document.getElementById('gallery-search');
     let debounce;
-    searchInput.addEventListener('input', function () {
+    if (searchInput) searchInput.addEventListener('input', function () {
         clearTimeout(debounce);
         debounce = setTimeout(function () {
             galleryOffset = 0;
@@ -33,7 +33,7 @@ async function loadGallery() {
     const grid = document.getElementById('gallery-grid');
     grid.innerHTML = '<div class="gallery-loading">' + t('gallery.loading') + '</div>';
 
-    const q = document.getElementById('gallery-search').value;
+    const q = (document.getElementById('gallery-search') || document.getElementById('media-search') || {value: ''}).value;
     const provider = document.getElementById('gallery-provider-filter').value;
 
     const params = new URLSearchParams({

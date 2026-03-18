@@ -659,14 +659,20 @@ func (s *SQLiteMemory) GetTopTransition(from string) (string, error) {
 	return to, err
 }
 
-// GetToolUsageCount returns the total transition count involving a tool (both as source and target).
+// GetToolUsageCount returns the total number of times a tool has been used.
+// Uses tool_usage_adaptive which is incremented on every individual tool call,
+// unlike tool_transitions which only records pairs and misses solo-tool sessions.
 func (s *SQLiteMemory) GetToolUsageCount(toolName string) (int, error) {
 	var count int
 	err := s.db.QueryRow(
-		`SELECT COALESCE(SUM(count), 0) FROM tool_transitions WHERE from_tool = ? OR to_tool = ?`,
-		toolName, toolName,
+		`SELECT COALESCE(total_count, 0) FROM tool_usage_adaptive WHERE tool_name = ?`,
+		toolName,
 	).Scan(&count)
-	return count, err
+	if err != nil {
+		// Row not found: tool has never been used
+		return 0, nil
+	}
+	return count, nil
 }
 
 // ── Adaptive Tool Usage Tracking ───────────────────────────────────────────

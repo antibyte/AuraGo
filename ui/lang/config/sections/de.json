@@ -1,4 +1,4 @@
-﻿{
+{
   "config.section.server.label": "Server",
   "config.section.server.desc": "Webserver und API-Einstellungen",
   "config.section.directories.label": "Verzeichnisse",
@@ -85,6 +85,8 @@
   "config.section.chromecast.desc": "Chromecast-Audio-Integration",
   "config.section.adguard.label": "AdGuard Home",
   "config.section.adguard.desc": "DNS-Filter & Netzwerkschutz",
+  "config.section.fritzbox.label": "Fritz!Box",
+  "config.section.fritzbox.desc": "Fritz!Box Router-Verwaltung (System, WLAN, Smart Home, Telefonie)",
   "config.section.proxmox.label": "Proxmox",
   "config.section.proxmox.desc": "Proxmox VE Virtualisierung",
   "config.section.tailscale.label": "Tailscale",

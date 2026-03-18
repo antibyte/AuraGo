@@ -1,4 +1,4 @@
-﻿{
+{
   "config.section.server.label": "सर्वर",
   "config.section.server.desc": "वेब सर्वर और एपीआई सेटिंग्स",
   "config.section.directories.label": "निर्देशिकाएँ",
@@ -85,6 +85,8 @@
   "config.section.chromecast.desc": "Chromecast ऑडियो एकीकरण",
   "config.section.adguard.label": "AdGuard Home",
   "config.section.adguard.desc": "DNS फ़िल्टरिंग & नेटवर्क सुरक्षा",
+  "config.section.fritzbox.label": "Fritz!Box",
+  "config.section.fritzbox.desc": "Fritz!Box राउटर प्रबंधन (सिस्टम, WLAN, Smart Home, टेलीफोनी)",
   "config.section.proxmox.label": "प्रॉक्समॉक्स",
   "config.section.proxmox.desc": "प्रॉक्समॉक्स वीई वर्चुअलाइजेशन",
   "config.section.tailscale.label": "टेलस्केल",

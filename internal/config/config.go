@@ -46,6 +46,18 @@ func Load(path string) (*Config, error) {
 	cfg.Tools.Journal.Enabled = true
 	cfg.Tools.WebScraper.Enabled = true
 
+	// FritzBox defaults: disabled by default; system group enabled + readonly when fritzbox.enabled is set.
+	cfg.FritzBox.Host = "fritz.box"
+	cfg.FritzBox.Port = 49000
+	cfg.FritzBox.HTTPS = true
+	cfg.FritzBox.Timeout = 10
+	cfg.FritzBox.System.Enabled = true
+	cfg.FritzBox.System.ReadOnly = true
+	cfg.FritzBox.System.SubFeatures.DeviceInfo = true
+	cfg.FritzBox.System.SubFeatures.Uptime = true
+	cfg.FritzBox.System.SubFeatures.Log = true
+	cfg.FritzBox.Telephony.Polling.IntervalSeconds = 60
+
 	// Document Creator defaults: Maroto backend, Gotenberg sidecar URL.
 	cfg.Tools.DocumentCreator.Backend = "maroto"
 	cfg.Tools.DocumentCreator.OutputDir = "data/documents"

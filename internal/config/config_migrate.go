@@ -573,6 +573,9 @@ func (c *Config) ApplyVaultSecrets(vault SecretReader) {
 	apply("mqtt_password", &c.MQTT.Password)
 	apply("adguard_password", &c.AdGuard.Password)
 
+	// ── FritzBox ──
+	apply("fritzbox_password", &c.FritzBox.Password)
+
 	// ── Paperless-ngx ──
 	apply("paperless_ngx_api_token", &c.PaperlessNGX.APIToken)
 
