@@ -84,7 +84,127 @@
         let currentMoodHours = 24;
 
         // ══════════════════════════════════════════════════════════════════════════════
-        // CHART CREATORS
+        // TAB SYSTEM
+        // ══════════════════════════════════════════════════════════════════════════════
+
+        const TabState = { active: 'overview', loaded: {} };
+        const VALID_TABS = ['overview', 'agent', 'user', 'system'];
+
+        function showTab(tabId) {
+            if (!VALID_TABS.includes(tabId)) tabId = 'overview';
+            localStorage.setItem('aurago-dash-tab', tabId);
+            history.replaceState(null, '', '#' + tabId);
+            document.querySelectorAll('.dash-tab').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.tab === tabId);
+            });
+            document.querySelectorAll('.dash-tab-panel').forEach(panel => {
+                panel.style.display = panel.id === 'tab-' + tabId ? '' : 'none';
+            });
+            TabState.active = tabId;
+            if (!TabState.loaded[tabId]) {
+                loadTabContent(tabId);
+            }
+        }
+
+        async function loadTabContent(tabId) {
+            TabState.loaded[tabId] = true;
+            switch (tabId) {
+                case 'overview': return loadTabOverview();
+                case 'agent':    return loadTabAgent();
+                case 'user':     return loadTabUser();
+                case 'system':   return loadTabSystem();
+            }
+        }
+
+        async function loadTabOverview() {
+            const [system, budget, overview, credits] = await Promise.all([
+                API.get('/api/dashboard/system'),
+                API.get('/api/budget'),
+                API.get('/api/dashboard/overview'),
+                API.get('/api/credits'),
+            ]);
+            renderAgentBanner(overview, overview?.context?.total_chars);
+            if (system) {
+                if (!Charts.cpu) Charts.cpu = createGauge('cpu-chart', system.cpu?.usage_percent || 0);
+                updateGauge(Charts.cpu, 'cpu-val', system.cpu?.usage_percent || 0);
+                if (!Charts.ram) Charts.ram = createGauge('ram-chart', system.memory?.used_percent || 0);
+                updateGauge(Charts.ram, 'ram-val', system.memory?.used_percent || 0);
+                if (!Charts.disk) Charts.disk = createGauge('disk-chart', system.disk?.used_percent || 0);
+                updateGauge(Charts.disk, 'disk-val', system.disk?.used_percent || 0);
+                renderSystemStats(system);
+            }
+            if (budget) {
+                renderBudget(budget, credits);
+                if (budget.enabled) {
+                    if (Charts.budget) { Charts.budget.destroy(); Charts.budget = null; }
+                    Charts.budget = createBudgetDoughnut('budget-chart', budget.spent_usd || 0, budget.daily_limit_usd || 0);
+                    if (Charts.budgetModels) { Charts.budgetModels.destroy(); Charts.budgetModels = null; }
+                    Charts.budgetModels = createBudgetModelsChart('budget-models-chart', budget.models || {});
+                }
+            }
+        }
+
+        async function loadTabAgent() {
+            const [personality, moodHistory, memData] = await Promise.all([
+                API.get('/api/personality/state'),
+                API.get('/api/dashboard/mood-history?hours=' + currentMoodHours),
+                API.get('/api/dashboard/memory'),
+            ]);
+            if (personality) {
+                renderMoodBadge(personality);
+                if (personality.enabled) {
+                    if (Charts.traits) { Charts.traits.destroy(); Charts.traits = null; }
+                    Charts.traits = createRadarChart('traits-chart', personality.traits);
+                }
+            }
+            if (Charts.mood) { Charts.mood.destroy(); Charts.mood = null; }
+            Charts.mood = createMoodLineChart('mood-chart', moodHistory || []);
+            if (memData) {
+                renderMemoryStats(memData);
+                if (Charts.memory) { Charts.memory.destroy(); Charts.memory = null; }
+                Charts.memory = createMemoryBarChart('memory-chart', memData);
+                renderMilestones(memData.milestones);
+            }
+            loadErrorPatterns();
+        }
+
+        async function loadTabUser() {
+            const profile = await API.get('/api/dashboard/profile');
+            renderProfile(profile);
+            loadJournal();
+        }
+
+        async function loadTabSystem() {
+            const [activity, promptStats, logResults, githubRepos, overview, toolStats] = await Promise.all([
+                API.get('/api/dashboard/activity'),
+                API.get('/api/dashboard/prompt-stats'),
+                API.get('/api/dashboard/logs?lines=100'),
+                API.get('/api/dashboard/github-repos'),
+                API.get('/api/dashboard/overview'),
+                API.get('/api/dashboard/tool-stats'),
+            ]);
+            renderOperations(overview);
+            renderIntegrations(overview);
+            loadGuardianCard();
+            renderActivity(activity);
+            if (promptStats) {
+                renderPromptStats(promptStats);
+                if (Charts.promptSize) Charts.promptSize.destroy();
+                Charts.promptSize = createPromptSizeChart('prompt-size-chart', promptStats.recent);
+                if (Charts.promptTier) Charts.promptTier.destroy();
+                Charts.promptTier = createPromptTierChart('prompt-tier-chart', promptStats.tier_distribution);
+                if (Charts.promptSavings) Charts.promptSavings.destroy();
+                Charts.promptSavings = createPromptSavingsChart('prompt-savings-chart', promptStats.recent);
+                if (Charts.promptSectionDist) Charts.promptSectionDist.destroy();
+                Charts.promptSectionDist = createPromptSectionDistChart('prompt-section-dist-chart', promptStats.avg_section_sizes);
+            }
+            renderAdaptiveToolStats(toolStats);
+            renderLogs(logResults);
+            scrollLogsToBottom();
+            renderGitHubRepos(githubRepos);
+        }
+
+
         // ══════════════════════════════════════════════════════════════════════════════
 
         function createGauge(canvasId, value, label) {
@@ -1368,95 +1488,30 @@
         }
 
         async function initDashboard() {
-            const [system, budget, personality, moodHistory, memData, profile, activity, promptStats, logResults, githubRepos, overview, credits, toolStats] = await API.fetchAll(currentMoodHours);
+            // Set up tab click listeners
+            document.querySelectorAll('.dash-tab').forEach(btn => {
+                btn.addEventListener('click', () => showTab(btn.dataset.tab));
+            });
 
-            // Agent Status Banner
-            renderAgentBanner(overview, overview?.context?.total_chars);
-
-            // System Health
-            if (system) {
-                Charts.cpu = createGauge('cpu-chart', system.cpu?.usage_percent || 0);
-                updateGauge(Charts.cpu, 'cpu-val', system.cpu?.usage_percent || 0);
-                Charts.ram = createGauge('ram-chart', system.memory?.used_percent || 0);
-                updateGauge(Charts.ram, 'ram-val', system.memory?.used_percent || 0);
-                Charts.disk = createGauge('disk-chart', system.disk?.used_percent || 0);
-                updateGauge(Charts.disk, 'disk-val', system.disk?.used_percent || 0);
-                renderSystemStats(system);
-            }
-
-            // Budget
-            if (budget) {
-                renderBudget(budget, credits);
-                if (budget.enabled) {
-                    Charts.budget = createBudgetDoughnut('budget-chart', budget.spent_usd || 0, budget.daily_limit_usd || 0);
-                    Charts.budgetModels = createBudgetModelsChart('budget-models-chart', budget.models || {});
-                }
-            }
-
-            // Personality
-            if (personality) {
-                renderMoodBadge(personality);
-                if (personality.enabled) {
-                    Charts.traits = createRadarChart('traits-chart', personality.traits);
-                }
-            }
-
-            // Mood Timeline (now inline in personality)
-            Charts.mood = createMoodLineChart('mood-chart', moodHistory || []);
-
-            // Memory
-            if (memData) {
-                renderMemoryStats(memData);
-                Charts.memory = createMemoryBarChart('memory-chart', memData);
-                renderMilestones(memData.milestones);
-            }
-
-            // Profile
-            renderProfile(profile);
-
-            // Journal
-            loadJournal();
-
-            // Error Patterns
-            loadErrorPatterns();
-
-            // Operations & Integrations
-            renderOperations(overview);
-            renderIntegrations(overview);
-
-            // LLM Guardian
-            loadGuardianCard();
-
-            // Activity
-            renderActivity(activity);
-
-            // Prompt Builder Analytics
-            if (promptStats) {
-                renderPromptStats(promptStats);
-                Charts.promptSize = createPromptSizeChart('prompt-size-chart', promptStats.recent);
-                Charts.promptTier = createPromptTierChart('prompt-tier-chart', promptStats.tier_distribution);
-                Charts.promptSavings = createPromptSavingsChart('prompt-savings-chart', promptStats.recent);
-                Charts.promptSectionDist = createPromptSectionDistChart('prompt-section-dist-chart', promptStats.avg_section_sizes);
-            }
-
-            // Adaptive Tool Stats
-            renderAdaptiveToolStats(toolStats);
-
-            // Log Viewer
-            renderLogs(logResults);
-            scrollLogsToBottom();
-
-            // GitHub Repos
-            renderGitHubRepos(githubRepos);
-
-            // Log viewer event listeners
-            document.getElementById('log-filter').addEventListener('input', applyLogFilter);
-            document.getElementById('log-scroll-btn').addEventListener('click', scrollLogsToBottom);
-            document.getElementById('log-refresh-btn').addEventListener('click', async () => {
+            // Set up log viewer listeners (elements are in DOM even when tab is hidden)
+            const logFilter = document.getElementById('log-filter');
+            const logScrollBtn = document.getElementById('log-scroll-btn');
+            const logRefreshBtn = document.getElementById('log-refresh-btn');
+            if (logFilter) logFilter.addEventListener('input', applyLogFilter);
+            if (logScrollBtn) logScrollBtn.addEventListener('click', scrollLogsToBottom);
+            if (logRefreshBtn) logRefreshBtn.addEventListener('click', async () => {
                 const data = await API.get('/api/dashboard/logs?lines=100');
                 renderLogs(data);
                 scrollLogsToBottom();
             });
+
+            // Determine initial tab from hash or localStorage
+            const hashTab = window.location.hash.replace('#', '');
+            const savedTab = localStorage.getItem('aurago-dash-tab') || 'overview';
+            const initialTab = VALID_TABS.includes(hashTab) ? hashTab : (VALID_TABS.includes(savedTab) ? savedTab : 'overview');
+
+            // Show initial tab – triggers lazy load
+            showTab(initialTab);
 
             // Start auto-refresh
             startAutoRefresh();
@@ -1464,96 +1519,14 @@
 
         // ── Auto-Refresh ────────────────────────────────────────────────────────────
         function startAutoRefresh() {
-            // System metrics are now pushed via SSE (EventSystemMetrics) every 10s.
-            // No polling needed for CPU / RAM / Disk.
-
-            // Everything else every 30s
+            // System metrics are pushed via SSE (EventSystemMetrics) every 10s.
+            // Auto-refresh every 30s: always update banner, refresh only the active tab.
             setInterval(async () => {
-                const [, budget, personality, moodHistory, memData, profile, activity, promptStats, logResults, githubRepos, overview, credits, toolStats] = await API.fetchAll(currentMoodHours);
+                const ov = await API.get('/api/dashboard/overview');
+                renderAgentBanner(ov, ov?.context?.total_chars);
 
-                // Agent banner
-                renderAgentBanner(overview, overview?.context?.total_chars);
-
-                if (budget && budget.enabled && Charts.budget) {
-                    const remaining = Math.max(0, (budget.daily_limit_usd || 0) - (budget.spent_usd || 0));
-                    Charts.budget.data.datasets[0].data = [budget.spent_usd || 0, remaining];
-                    Charts.budget.update('none');
-                    renderBudget(budget, credits);
-                    // Rebuild model chart
-                    if (Charts.budgetModels) { Charts.budgetModels.destroy(); }
-                    Charts.budgetModels = createBudgetModelsChart('budget-models-chart', budget.models || {});
-                }
-
-                if (personality && personality.enabled && Charts.traits) {
-                    const traitOrder = ['curiosity', 'thoroughness', 'creativity', 'empathy', 'confidence', 'affinity', 'loneliness'];
-                    Charts.traits.data.datasets[0].data = traitOrder.map(t => personality.traits?.[t] ?? 0.5);
-                    Charts.traits.update('none');
-                    renderMoodBadge(personality);
-                }
-
-                if (moodHistory && Charts.mood) {
-                    Charts.mood.destroy();
-                    Charts.mood = createMoodLineChart('mood-chart', moodHistory);
-                }
-
-                if (memData) {
-                    renderMemoryStats(memData);
-                    // Incremental chart update — no destroy/recreate needed
-                    if (Charts.memory) {
-                        Charts.memory.data.datasets[0].data = [
-                            memData.core_memory_facts || 0,
-                            memData.chat_messages || 0,
-                            memData.vectordb_entries || 0,
-                            (memData.knowledge_graph || {}).nodes || 0,
-                            (memData.knowledge_graph || {}).edges || 0,
-                            memData.journal_entries || 0,
-                            memData.notes_count || 0,
-                            memData.error_patterns || 0,
-                        ];
-                        Charts.memory.update('none');
-                    } else {
-                        Charts.memory = createMemoryBarChart('memory-chart', memData);
-                    }
-                    renderMilestones(memData.milestones);
-                }
-
-                renderProfile(profile);
-                renderActivity(activity);
-
-                // Prompt Builder Analytics
-                if (promptStats) {
-                    renderPromptStats(promptStats);
-                    if (Charts.promptSize) { Charts.promptSize.destroy(); }
-                    Charts.promptSize = createPromptSizeChart('prompt-size-chart', promptStats.recent);
-                    if (Charts.promptTier) { Charts.promptTier.destroy(); }
-                    Charts.promptTier = createPromptTierChart('prompt-tier-chart', promptStats.tier_distribution);
-                    if (Charts.promptSavings) { Charts.promptSavings.destroy(); }
-                    Charts.promptSavings = createPromptSavingsChart('prompt-savings-chart', promptStats.recent);
-                    if (Charts.promptSectionDist) { Charts.promptSectionDist.destroy(); }
-                    Charts.promptSectionDist = createPromptSectionDistChart('prompt-section-dist-chart', promptStats.avg_section_sizes);
-                }
-
-                // Adaptive Tool Stats
-                renderAdaptiveToolStats(toolStats);
-
-                // Logs auto-refresh
-                renderLogs(logResults);
-
-                // GitHub repos
-                renderGitHubRepos(githubRepos);
-
-                // Operations & Integrations
-                renderOperations(overview);
-                renderIntegrations(overview);
-
-                // LLM Guardian
-                loadGuardianCard();
-
-                // Journal
-                loadJournal();
-
-                // Error Patterns
-                loadErrorPatterns();
+                TabState.loaded[TabState.active] = false;
+                await loadTabContent(TabState.active);
             }, 30_000);
         }
 
@@ -1594,14 +1567,16 @@
         // ── Theme Update for Charts ─────────────────────────────────────────────────
         function updateChartColors() {
             setChartDefaults();
-            // Destroy all charts and re-init
+            // Destroy all charts
             for (const key of Object.keys(Charts)) {
                 if (Charts[key] && Charts[key].destroy) {
                     Charts[key].destroy();
                     Charts[key] = null;
                 }
             }
-            initDashboard();
+            // Reset loaded state so tab switch forces re-render
+            Object.keys(TabState.loaded).forEach(k => { TabState.loaded[k] = false; });
+            loadTabContent(TabState.active);
         }
 
         // ── SSE Live Updates ────────────────────────────────────────────────────────

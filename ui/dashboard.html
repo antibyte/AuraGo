@@ -28,10 +28,8 @@
 
     <div id="radialMenuAnchor"></div>
 
-    <!-- Dashboard Grid -->
-    <div class="dash-grid" id="dashGrid">
-
-        <!-- 0. Agent Status Banner (full width) -->
+    <!-- Agent Status Banner – always visible above tabs -->
+    <div class="dash-banner-always">
         <div class="dash-card dash-full-width" id="card-agent-banner">
             <div class="dash-card-header"><span class="card-icon">🤖</span> <span data-i18n="dashboard.agent_banner_title">Agent-Status</span></div>
             <div class="dash-card-body">
@@ -48,6 +46,27 @@
                 </div>
             </div>
         </div>
+    </div><!-- .dash-banner-always -->
+
+    <!-- Tab Navigation -->
+    <nav class="dash-tabs" id="dashTabs">
+        <button class="dash-tab active" data-tab="overview">
+            <span class="tab-icon">🏠</span><span class="tab-label" data-i18n="dashboard.tab_overview">Übersicht</span>
+        </button>
+        <button class="dash-tab" data-tab="agent">
+            <span class="tab-icon">🧠</span><span class="tab-label" data-i18n="dashboard.tab_agent">Agent</span>
+        </button>
+        <button class="dash-tab" data-tab="user">
+            <span class="tab-icon">👤</span><span class="tab-label" data-i18n="dashboard.tab_user">Benutzer</span>
+        </button>
+        <button class="dash-tab" data-tab="system">
+            <span class="tab-icon">⚙️</span><span class="tab-label" data-i18n="dashboard.tab_system">System</span>
+        </button>
+    </nav>
+
+    <!-- ═══ Tab 1: Übersicht ═══════════════════════════════════════════════ -->
+    <div class="dash-tab-panel" id="tab-overview">
+        <div class="dash-grid">
 
         <!-- 1. System Health -->
         <div class="dash-card" id="card-system">
@@ -128,6 +147,13 @@
             </div>
         </div>
 
+        </div><!-- .dash-grid tab-overview -->
+    </div><!-- #tab-overview -->
+
+    <!-- ═══ Tab 2: Agent & Memory ═══════════════════════════════════════════ -->
+    <div class="dash-tab-panel" id="tab-agent" style="display:none;">
+        <div class="dash-grid">
+
         <!-- 3. Personality Traits + Mood Inline -->
         <div class="dash-card" id="card-personality">
             <div class="dash-card-header"><span class="card-icon">🧠</span> <span data-i18n="dashboard.personality_title">Persönlichkeit</span></div>
@@ -178,6 +204,13 @@
             </div>
         </div>
 
+        </div><!-- .dash-grid tab-agent -->
+    </div><!-- #tab-agent -->
+
+    <!-- ═══ Tab 3: Benutzer & Journal ═══════════════════════════════════════ -->
+    <div class="dash-tab-panel" id="tab-user" style="display:none;">
+        <div class="dash-grid">
+
         <!-- 6. User Profile -->
         <div class="dash-card" id="card-profile">
             <div class="dash-card-header"><span class="card-icon">👤</span> <span data-i18n="dashboard.profile_title">Nutzerprofil</span></div>
@@ -203,6 +236,13 @@
                 </div>
             </div>
         </div>
+
+        </div><!-- .dash-grid tab-user -->
+    </div><!-- #tab-user -->
+
+    <!-- ═══ Tab 4: System & Logs ════════════════════════════════════════════ -->
+    <div class="dash-tab-panel" id="tab-system" style="display:none;">
+        <div class="dash-grid">
 
         <!-- 7. Operations Overview -->
         <div class="dash-card" id="card-operations">
@@ -315,7 +355,8 @@
             </div>
         </div>
 
-    </div>
+    </div><!-- .dash-grid tab-system -->
+    </div><!-- #tab-system -->
 
     <script src="/js/dashboard/main.js"></script>
 
