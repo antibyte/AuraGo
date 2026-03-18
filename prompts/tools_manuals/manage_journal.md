@@ -55,9 +55,13 @@ Record and retrieve journal entries that capture important events, milestones, a
 
 ### Auto-Generated Entries
 
-Some journal entries are created automatically:
+Some journal entries are created automatically — do not create duplicates:
 - **Task completions**: When 3+ unique tools are used in a single conversation
 - **Preferences**: When the user updates core memory preferences
+- **Daily summaries**: Generated each night by the maintenance loop (type: `system_event`)
+- **Error recovery**: When a tool error is logged and a resolution is found (type: `error_recovery`)
+
+When detecting an already-summarized day, use `list` with a date filter before adding duplicate reflection entries.
 - **First-time integrations**: When a tool is used for the first time
 
 Auto-generated entries have `auto_generated=true` and can be distinguished from manual entries.

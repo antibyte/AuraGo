@@ -25,9 +25,11 @@ priority: 10
   - Persistent environment facts (infrastructure, key systems)
   - Communication style preferences ("I prefer X", "always do Y")
   **Use the right tool for the right information:**
+  - **`remember`** = when you're unsure *where* to store something — auto-routes to the right layer. Use this as your default write tool.
   - **Core Memory** = permanent identity, preferences, constraints (injected every turn — keep it small!)
   - **Journal** = notable events, learnings, milestones (searchable on demand)
   - **Notes** = temporary tasks, reminders, bookmarks (short-term, actionable)
+  - **Knowledge Graph** = entities, devices, services and their relationships (use for structured facts with source/target)
   When in doubt: if it won't matter in 6 months, it does NOT belong in Core Memory.
   **CRITICAL:** You MUST actually output the `{"action": "manage_memory", ...}` JSON tool call to save it in the same response turn. Do not just politely reply that you will save it without invoking the tool. Do NOT save temporary task lists or session progress notes to core memory — use the `_todo` field instead.
 - **Task Tracking (Session Todo).** Every tool call includes an optional `_todo` field. Use it to maintain a compact task list during multi-step work:

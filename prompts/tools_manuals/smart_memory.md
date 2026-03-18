@@ -1,6 +1,16 @@
-## Tool: Smart Memory (`smart_memory`)
+## Tool: Smart Memory (`smart_memory`) — DEPRECATED
 
-Intelligentes Memory-Tool mit automatischer Erkennung und Speicherempfehlungen. Dieses Tool analysiert Text, erkennt speicherwerte Informationen und schlägt den optimalen Speicherort vor.
+> **This tool does not exist.** Do NOT call `smart_memory` — it will fail with an unknown tool error.
+>
+> The functionality described here is covered by two existing tools:
+> - **Writing** → use `remember` (auto-routes to core memory, journal, notes, or knowledge graph)
+> - **Reading** → use `query_memory` (searches all memory layers at once)
+>
+> See `remember.md` and `query_memory.md` for the current implementation.
+
+---
+
+*Historical note: smart_memory was a planning artifact. The `remember` tool implements the store/auto-route functionality. The `query_memory` tool implements the unified search functionality.*
 
 ### Wann verwenden?
 
