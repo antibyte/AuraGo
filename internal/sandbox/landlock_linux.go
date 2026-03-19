@@ -126,6 +126,9 @@ func (s *LandlockSandbox) buildEnv(workDir string) []string {
 	env = append(env, "AURAGO_SBX_RW="+strings.Join(rwPaths, ":"))
 	env = append(env, "AURAGO_SBX_RO="+strings.Join(roPaths, ":"))
 
+	// Additional env vars requested by the caller (e.g. DOCKER_HOST)
+	env = append(env, s.cfg.ExtraEnv...)
+
 	return env
 }
 

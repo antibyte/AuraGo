@@ -34,6 +34,7 @@ type ShellSandboxConfig struct {
 	MaxProcesses  int
 	MaxFileSizeMB int
 	AllowedPaths  []PathRule
+	ExtraEnv      []string // Additional env vars passed into the sandboxed process (e.g. DOCKER_HOST)
 }
 
 // PathRule defines a filesystem path and its access mode for the sandbox.
