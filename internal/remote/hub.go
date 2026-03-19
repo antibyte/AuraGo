@@ -401,6 +401,12 @@ func (h *RemoteHub) HandleEnrollment(wsConn *websocket.Conn, msg RemoteMessage) 
 			return h.sendAuthResponse(wsConn, "", "", "rejected", "invalid enrollment token")
 		}
 		if enrollment.Used {
+			// Recovery path: the client lost its stored config.json but still has the
+			// original personalized binary with the consumed token. Re-key the device
+			// so the client can reconnect without needing a fresh binary download.
+			if enrollment.UsedByDevice != "" {
+				return h.reKeyDevice(wsConn, auth, enrollment.UsedByDevice)
+			}
 			return h.sendAuthResponse(wsConn, "", "", "rejected", "enrollment token already used")
 		}
 		// Check expiry
@@ -494,6 +500,56 @@ func (h *RemoteHub) completeEnrollment(wsConn *websocket.Conn, auth AuthPayload,
 	_ = UpdateDeviceStatus(h.db, deviceID, "connected")
 
 	return h.sendAuthResponse(wsConn, sharedKey, deviceID, "enrolled", "")
+}
+
+// reKeyDevice re-generates the shared key for an existing device.
+// This is the recovery path when the client's stored config was lost but the
+// original binary (with the consumed enrollment token) is still available.
+func (h *RemoteHub) reKeyDevice(wsConn *websocket.Conn, auth AuthPayload, deviceID string) error {
+	device, err := GetDevice(h.db, deviceID)
+	if err != nil {
+		return h.sendAuthResponse(wsConn, "", "", "rejected", "original device not found")
+	}
+	if device.Status == "revoked" {
+		return h.sendAuthResponse(wsConn, "", "", "rejected", "device has been revoked")
+	}
+
+	newKey, err := GenerateSharedKey()
+	if err != nil {
+		return h.sendAuthResponse(wsConn, "", "", "rejected", "key generation failed")
+	}
+
+	device.SharedKeyHash = hashTokenSHA256(newKey)
+	device.Status = "approved"
+	device.Hostname = auth.Hostname
+	device.OS = auth.OS
+	device.Arch = auth.Arch
+	device.IPAddress = auth.IP
+	if err := UpdateDevice(h.db, device); err != nil {
+		return h.sendAuthResponse(wsConn, "", "", "rejected", "device update failed")
+	}
+
+	if err := h.vault.WriteSecret("remote_shared_key_"+deviceID, newKey); err != nil {
+		h.logger.Error("Failed to store re-keyed shared key", "device_id", deviceID, "error", err)
+	}
+
+	conn := &RemoteConnection{
+		Conn:          wsConn,
+		DeviceID:      deviceID,
+		Name:          device.Name,
+		SharedKey:     newKey,
+		LastHeartbeat: time.Now(),
+		Status:        "connected",
+		ReadOnly:      device.ReadOnly,
+		AllowedPaths:  device.AllowedPaths,
+		Version:       auth.Version,
+	}
+	h.Register(deviceID, conn)
+	_ = UpdateDeviceStatus(h.db, deviceID, "connected")
+
+	h.logger.Info("Device re-keyed after config loss", "device_id", deviceID, "name", device.Name)
+	// Send "enrolled" so the client saves the new shared key and device_id.
+	return h.sendAuthResponse(wsConn, newKey, deviceID, "enrolled", "")
 }
 
 // ApproveDevice approves a pending device and generates credentials.

@@ -134,6 +134,12 @@ func loadConfig(supervisorURL, token, name string) clientConfig {
 		if stored.DeviceName != "" {
 			cfg.DeviceName = stored.DeviceName
 		}
+		// If we already have a device_id the enrollment token has been consumed.
+		// Clear it so we take the reconnect path (Case 1) instead of re-sending
+		// the trailer token and getting "enrollment token already used".
+		if cfg.DeviceID != "" {
+			cfg.EnrollToken = ""
+		}
 	}
 
 	// 3. CLI flags override everything
