@@ -326,6 +326,62 @@ func handleDashboardActivity(s *Server) http.HandlerFunc {
 	}
 }
 
+// handleCronAPI handles DELETE and PUT operations on cron jobs from the dashboard.
+//
+//	DELETE /api/cron?id=xxx                    – removes the cron job
+//	PUT    /api/cron  {id, cron_expr, task_prompt} – updates (remove + re-add)
+func handleCronAPI(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if s.CronManager == nil {
+			http.Error(w, "Cron scheduler not available", http.StatusServiceUnavailable)
+			return
+		}
+		switch r.Method {
+		case http.MethodDelete:
+			id := r.URL.Query().Get("id")
+			if id == "" {
+				http.Error(w, "id required", http.StatusBadRequest)
+				return
+			}
+			result, err := s.CronManager.ManageSchedule("remove", id, "", "")
+			if err != nil {
+				s.Logger.Error("Failed to remove cron job", "id", id, "error", err)
+				http.Error(w, "Internal server error", http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(result)) //nolint:errcheck
+
+		case http.MethodPut:
+			var body struct {
+				ID         string `json:"id"`
+				CronExpr   string `json:"cron_expr"`
+				TaskPrompt string `json:"task_prompt"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.ID == "" || body.CronExpr == "" || body.TaskPrompt == "" {
+				http.Error(w, "id, cron_expr, and task_prompt required", http.StatusBadRequest)
+				return
+			}
+			// Remove old job first (ignore if not found)
+			if _, err := s.CronManager.ManageSchedule("remove", body.ID, "", ""); err != nil {
+				s.Logger.Warn("Failed to remove old cron job before update", "id", body.ID, "error", err)
+			}
+			// Re-add with same ID and updated parameters
+			result, err := s.CronManager.ManageSchedule("add", body.ID, body.CronExpr, body.TaskPrompt)
+			if err != nil {
+				s.Logger.Error("Failed to add updated cron job", "id", body.ID, "error", err)
+				http.Error(w, "Internal server error", http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(result)) //nolint:errcheck
+
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	}
+}
+
 // handleDashboardPromptStats returns aggregated prompt builder metrics.
 func handleDashboardPromptStats() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

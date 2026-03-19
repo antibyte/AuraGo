@@ -378,6 +378,36 @@
         </div>
     </div>
 
+    <!-- Cron Edit Modal -->
+    <div class="cf-overlay" id="cronEditOverlay">
+        <div class="cf-modal">
+            <div class="cf-header">
+                <span class="cf-title">⏰ <span data-i18n="dashboard.cron_edit_title">Aufgabe bearbeiten</span></span>
+                <button class="cf-close" id="cronEditClose">&times;</button>
+            </div>
+            <div class="cf-body">
+                <div class="cron-edit-form">
+                    <div class="cron-form-group">
+                        <label class="cron-form-label" data-i18n="dashboard.cron_edit_id_label">Aufgaben-ID</label>
+                        <input type="text" id="cronEditId" class="cf-add-input cron-edit-id" readonly>
+                    </div>
+                    <div class="cron-form-group">
+                        <label class="cron-form-label" data-i18n="dashboard.cron_edit_expr_label">Cron-Ausdruck</label>
+                        <input type="text" id="cronEditExpr" class="cf-add-input" placeholder="0 0 9 * * *">
+                    </div>
+                    <div class="cron-form-group">
+                        <label class="cron-form-label" data-i18n="dashboard.cron_edit_prompt_label">Aufgaben-Prompt</label>
+                        <textarea id="cronEditPrompt" class="cf-add-input cron-edit-textarea" rows="4"></textarea>
+                    </div>
+                    <div class="cron-form-actions">
+                        <button class="cf-add-btn cron-btn-cancel" onclick="closeCronEditModal()" data-i18n="dashboard.cron_edit_cancel">Abbrechen</button>
+                        <button class="cf-add-btn" id="cronEditSaveBtn" onclick="saveCronEdit()" data-i18n="dashboard.cron_edit_save">Speichern</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </body>
 
 </html>

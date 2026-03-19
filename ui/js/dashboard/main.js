@@ -817,9 +817,26 @@
             if (cronCount > 0) {
                 details += '<div class="activity-section"><div class="activity-section-title">⏰ ' + t('dashboard.activity_scheduled_tasks') + '</div>';
                 for (const job of data.cron_jobs) {
+                    const safeId     = esc(job.id || 'unknown');
+                    const safeExpr   = esc(job.cron_expr || '');
+                    const safePrompt = esc(job.task_prompt || '');
                     details += `<div class="activity-item">
-                <span class="activity-item-name">${esc(job.id || 'unknown')}</span>
-                <span class="activity-item-detail">${esc(job.cron_expr || '')} — ${esc(truncate(job.task_prompt || '', 60))}</span>
+                <span class="activity-item-name">${safeId}</span>
+                <div style="display:flex;align-items:center;gap:0.4rem;">
+                    <span class="activity-item-detail">${safeExpr} — ${esc(truncate(job.task_prompt || '', 60))}</span>
+                    <span style="display:flex;gap:0.2rem;flex-shrink:0;">
+                        <button class="cf-fact-btn"
+                            data-cron-id="${safeId}"
+                            data-cron-expr="${safeExpr}"
+                            data-cron-prompt="${safePrompt}"
+                            onclick="openCronEditModal(this)"
+                            title="${t('dashboard.cron_edit_title')}">✏️</button>
+                        <button class="cf-fact-btn danger"
+                            data-cron-id="${safeId}"
+                            onclick="deleteCronJob(this.dataset.cronId)"
+                            title="${t('dashboard.cron_btn_delete')}">🗑️</button>
+                    </span>
+                </div>
             </div>`;
                 }
                 details += '</div>';
@@ -1762,6 +1779,73 @@
         });
 
         // Radial menu is initialized by shared.js (initRadialMenu)
+
+        // ── Cron Edit Modal ──────────────────────────────────────────────────────────
+        function closeCronEditModal() {
+            document.getElementById('cronEditOverlay').classList.remove('open');
+        }
+
+        function openCronEditModal(btn) {
+            document.getElementById('cronEditId').value     = btn.dataset.cronId    || '';
+            document.getElementById('cronEditExpr').value   = btn.dataset.cronExpr  || '';
+            document.getElementById('cronEditPrompt').value = btn.dataset.cronPrompt || '';
+            document.getElementById('cronEditOverlay').classList.add('open');
+            document.getElementById('cronEditExpr').focus();
+        }
+
+        async function saveCronEdit() {
+            const id     = document.getElementById('cronEditId').value;
+            const expr   = (document.getElementById('cronEditExpr').value || '').trim();
+            const prompt = (document.getElementById('cronEditPrompt').value || '').trim();
+            if (!id || !expr || !prompt) return;
+            const saveBtn = document.getElementById('cronEditSaveBtn');
+            if (saveBtn) saveBtn.disabled = true;
+            try {
+                const resp = await fetch('/api/cron', {
+                    method: 'PUT',
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id, cron_expr: expr, task_prompt: prompt })
+                });
+                if (!resp.ok) throw new Error('Update failed');
+                closeCronEditModal();
+                const activity = await API.get('/api/dashboard/activity');
+                renderActivity(activity);
+            } catch (e) {
+                alert('❌ ' + e.message);
+            } finally {
+                if (saveBtn) saveBtn.disabled = false;
+            }
+        }
+
+        async function deleteCronJob(id) {
+            if (!confirm(t('dashboard.cron_delete_confirm', { id }))) return;
+            try {
+                const resp = await fetch('/api/cron?id=' + encodeURIComponent(id), {
+                    method: 'DELETE',
+                    credentials: 'same-origin'
+                });
+                if (!resp.ok) throw new Error('Delete failed');
+                const activity = await API.get('/api/dashboard/activity');
+                renderActivity(activity);
+            } catch (e) {
+                alert('❌ ' + e.message);
+            }
+        }
+
+        // Attach close handlers for cron edit modal
+        document.addEventListener('DOMContentLoaded', () => {
+            const cronClose   = document.getElementById('cronEditClose');
+            const cronOverlay = document.getElementById('cronEditOverlay');
+            if (cronClose)   cronClose.addEventListener('click', closeCronEditModal);
+            if (cronOverlay) cronOverlay.addEventListener('click', e => {
+                if (e.target === cronOverlay) closeCronEditModal();
+            });
+            document.addEventListener('keydown', e => {
+                if (e.key === 'Escape' && cronOverlay && cronOverlay.classList.contains('open'))
+                    closeCronEditModal();
+            });
+        });
 
         // ── Core-Facts Modal ─────────────────────────────────────────────────────────
         function closeCoreFactsModal() {

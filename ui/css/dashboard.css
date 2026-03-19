@@ -1515,6 +1515,34 @@
             left: 100%;
         }
 
+        /* ── Cron Edit Form ──────────────────────────────── */
+        .cron-edit-form { display: flex; flex-direction: column; gap: 0.9rem; padding-top: 0.4rem; }
+        .cron-form-group { display: flex; flex-direction: column; gap: 0.3rem; }
+        .cron-form-label { font-size: var(--text-sm); font-weight: 600; color: var(--text-secondary); }
+        .cron-edit-id { opacity: 0.6; cursor: default; }
+        .cron-edit-textarea {
+            resize: vertical;
+            min-height: 4.5rem;
+            font-family: inherit;
+        }
+        .cron-form-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.5rem;
+            padding-top: 0.3rem;
+        }
+        .cron-btn-cancel {
+            background: var(--bg-glass);
+            border-color: var(--border-subtle);
+            color: var(--text-secondary);
+        }
+        .cron-btn-cancel:hover {
+            background: var(--bg-glass);
+            color: var(--text-primary);
+            transform: translateY(-1px);
+            box-shadow: none;
+        }
+
         /* ── Agent Status Banner ─────────────────────────────── */
         .agent-banner {
             display: flex;
