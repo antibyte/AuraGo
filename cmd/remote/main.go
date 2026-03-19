@@ -122,9 +122,11 @@ func loadConfig(supervisorURL, token, name string) clientConfig {
 		cfg.DeviceName = trailer.DeviceName
 	}
 
-	// 2. Try stored config (overrides trailer for device_id, shared_key)
+	// 2. Try stored config (restores device_id, shared_key from previous enrollment).
+	// The supervisor_url from stored config is only used when the binary has no trailer
+	// (i.e. not a personalized download). A personalized binary's trailer URL always wins.
 	if stored := loadStoredConfig(); stored != nil {
-		if stored.SupervisorURL != "" {
+		if stored.SupervisorURL != "" && cfg.SupervisorURL == "" {
 			cfg.SupervisorURL = stored.SupervisorURL
 		}
 		cfg.DeviceID = stored.DeviceID
