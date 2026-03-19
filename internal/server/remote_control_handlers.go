@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -390,10 +391,26 @@ func handleRemoteDownload(s *Server) http.HandlerFunc {
 			return
 		}
 
-		// Determine supervisor URL
-		supervisorURL := fmt.Sprintf("ws://localhost:%d/api/remote/ws", s.Cfg.Server.Port)
+		// Determine supervisor URL.
+		// Priority: explicit bridge_address > Host header from the download request > localhost fallback.
+		var supervisorURL string
 		if s.Cfg.Server.BridgeAddress != "" {
 			supervisorURL = fmt.Sprintf("ws://%s/api/remote/ws", s.Cfg.Server.BridgeAddress)
+		} else if host := r.Host; host != "" {
+			// r.Host contains the hostname (and port) the client used to reach this server.
+			// Strip any existing port and re-attach the configured server port so the
+			// WebSocket URL is always correct regardless of proxies or port forwarding.
+			scheme := "ws"
+			if r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" {
+				scheme = "wss"
+			}
+			hostname := host
+			if h, _, err := net.SplitHostPort(host); err == nil {
+				hostname = h
+			}
+			supervisorURL = fmt.Sprintf("%s://%s:%d/api/remote/ws", scheme, hostname, s.Cfg.Server.Port)
+		} else {
+			supervisorURL = fmt.Sprintf("ws://localhost:%d/api/remote/ws", s.Cfg.Server.Port)
 		}
 
 		// Build personalized binary with trailer
