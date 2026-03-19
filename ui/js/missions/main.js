@@ -14,6 +14,21 @@ let gridRendered = false; // Track if grid has been rendered at least once (for 
 let viewMode = localStorage.getItem('missions-view-mode') || 'auto'; // 'grid' | 'list' | 'auto'
 let expandedCards = new Set(); // Track expanded card IDs in grid view
 
+// Extract displayable text from mission last_output.
+// Handles legacy entries where the raw OpenAI-format JSON was stored.
+function extractLastOutput(raw) {
+    if (!raw) return '';
+    // Fast path: if it doesn't start with '{' it's already plain text
+    if (!raw.trimStart().startsWith('{')) return raw;
+    try {
+        const obj = JSON.parse(raw);
+        if (obj.choices && obj.choices.length > 0 && obj.choices[0].message) {
+            return obj.choices[0].message.content || raw;
+        }
+    } catch (_) { /* not JSON */ }
+    return raw;
+}
+
 // Icons
 const icons = {
     play: '▶️',
@@ -291,14 +306,15 @@ function renderMissionGrid(mission, isFirstRender) {
                 <div class="mission-body">
                     <div class="mission-prompt">${escapeHtml(mission.prompt)}</div>
                     ${triggerInfo}
+                    ${mission.last_output ? `
                     <div class="mission-log-wrapper">
-                        <div class="mission-log-toggle" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none'">
+                        <div class="mission-log-toggle" onclick="this.classList.toggle('open'); this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none'">
                             📝 <span>${t('missions.card_view_log')}</span>
                         </div>
-                        <div class="mission-log-content">
-                            ${escapeHtml(mission.last_output || t('missions.card_no_output'))}
+                        <div class="mission-log-content" style="display:none">
+                            ${escapeHtml(extractLastOutput(mission.last_output))}
                         </div>
-                    </div>
+                    </div>` : ''}
                 </div>
                 <div class="mission-footer">
                     <div class="mission-stats">
