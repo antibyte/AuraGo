@@ -1,168 +1,141 @@
 /* AuraGo – invasion_control page styles */
-/* Extracted from invasion_control.html */
 
-        :root,
-        [data-theme="dark"] {
-            --bg-tertiary: #334155;
-            --accent-primary: #2dd4bf;
-            --accent-secondary: #0d9488;
-            --accent-success: #10b981;
-            --accent-warning: #f59e0b;
-            --accent-danger: #ef4444;
-            --border-color: #334155;
-            --shadow: 0 4px 20px rgba(0,0,0,0.3);
-            --card-radius: 12px;
-        }
-        [data-theme="light"] {
-            --bg-tertiary: #e2e8f0;
-            --accent-primary: #0f766e;
-            --accent-secondary: #115e59;
-            --accent-success: #059669;
-            --accent-warning: #d97706;
-            --accent-danger: #dc2626;
-            --border-color: #cbd5e1;
-            --shadow: 0 4px 20px rgba(0,0,0,0.1);
-            --card-radius: 12px;
-        }
+/* Uses standard components from shared.css:
+   - .app-header
+   - .page-header
+   - .btn, .btn-primary, .btn-secondary, .btn-danger, .btn-sm
+   - .card, .card-title, .card-header, .card-meta, .card-actions
+   - .form-group, .form-row
+   - .modal-overlay, .modal, .modal-actions
+   - .toggle, .toggle-wrap
+   - .badge
+   - .empty-state
+   - .container
+*/
 
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+/* Page-specific styles only */
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: var(--bg-primary);
-            color: var(--text-primary);
-            min-height: 100vh;
-            line-height: 1.5;
-            transition: background 0.3s, color 0.3s;
-        }
+/* Cards Grid - specific to invasion */
+.cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    gap: 20px;
+}
 
-        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+/* Card Entrance Animation */
+@keyframes card-enter {
+    from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
 
-        /* Page Header - invasion-specific */
-        .page-header {
-            display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 24px; padding-bottom: 20px;
-            border-bottom: 1px solid var(--border-color);
-            position: relative;
-        }
-        .page-header::after {
-            content: '';
-            position: absolute;
-            bottom: -1px; left: 0;
-            width: 100%; height: 1px;
-            background: linear-gradient(90deg, 
-                transparent 0%, 
-                var(--accent-primary) 20%, 
-                var(--accent-secondary) 50%, 
-                var(--accent-primary) 80%, 
-                transparent 100%);
-            opacity: 0.6;
-        }
-        .page-header h1 {
-            font-size: 1.75rem;
-            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-            -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
-            position: relative;
-            text-shadow: 0 0 30px rgba(45, 212, 191, 0.2);
-        }
-        .page-header h1::after {
-            content: '';
-            position: absolute;
-            bottom: -4px; left: 0;
-            width: 40px; height: 3px;
-            background: linear-gradient(90deg, var(--accent-primary), transparent);
-            border-radius: 2px;
-        }
+.cards-grid .card {
+    animation: card-enter 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+}
 
-        /* Buttons - keep btn-validate, btn-sm modifiers */
-        .btn-validate {
-            background: var(--bg-tertiary);
-            color: var(--text-primary);
-            border: 1px solid var(--border-color);
-        }
-        .btn-validate:hover {
-            background: var(--bg-glass, rgba(255,255,255,0.1));
-            border-color: var(--accent-primary);
-        }
-        .btn-sm { padding: 6px 12px; font-size: 0.8rem; }
+.cards-grid .card:nth-child(1) { animation-delay: 0ms; }
+.cards-grid .card:nth-child(2) { animation-delay: 50ms; }
+.cards-grid .card:nth-child(3) { animation-delay: 100ms; }
+.cards-grid .card:nth-child(4) { animation-delay: 150ms; }
+.cards-grid .card:nth-child(5) { animation-delay: 200ms; }
+.cards-grid .card:nth-child(6) { animation-delay: 250ms; }
+.cards-grid .card:nth-child(7) { animation-delay: 300ms; }
+.cards-grid .card:nth-child(8) { animation-delay: 350ms; }
 
-        /* Cards Grid - invasion-specific layout */
-        .cards-grid {
-            display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-            gap: 20px;
-        }
-        .card-title {
-            font-size: 1.1rem; 
-            font-weight: 600;
-            background: linear-gradient(135deg, var(--text-primary), var(--text-secondary));
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        
-        /* Card Entrance Animation */
-        @keyframes card-enter {
-            from {
-                opacity: 0;
-                transform: translateY(20px) scale(0.98);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0) scale(1);
-            }
-        }
-        .card {
-            animation: card-enter 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
-        }
-        .cards-grid .card:nth-child(1) { animation-delay: 0ms; }
-        .cards-grid .card:nth-child(2) { animation-delay: 50ms; }
-        .cards-grid .card:nth-child(3) { animation-delay: 100ms; }
-        .cards-grid .card:nth-child(4) { animation-delay: 150ms; }
-        .cards-grid .card:nth-child(5) { animation-delay: 200ms; }
-        .cards-grid .card:nth-child(6) { animation-delay: 250ms; }
-        .cards-grid .card:nth-child(7) { animation-delay: 300ms; }
-        .cards-grid .card:nth-child(8) { animation-delay: 350ms; }
-        .card-header {
-            display: flex; justify-content: space-between; align-items: flex-start;
-            margin-bottom: 12px;
-        }
-        .card-meta {
-            display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px;
-            font-size: 0.85rem; color: var(--text-secondary);
-        }
-        .card-meta span { display: flex; align-items: center; gap: 6px; }
-        .card-actions {
-            display: flex; gap: 8px; flex-wrap: wrap; padding-top: 12px;
-            border-top: 1px solid var(--border-color);
-        }
+/* Card content specific to invasion */
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+}
 
-        /* Validation Result */
-        .validate-result {
-            margin-top: 10px; padding: 10px 14px; border-radius: 8px;
-            font-size: 0.85rem; display: none;
-        }
-        .validate-result.success { display: block; background: rgba(16,185,129,0.1); color: var(--accent-success); border: 1px solid rgba(16,185,129,0.3); }
-        .validate-result.error { display: block; background: rgba(239,68,68,0.1); color: var(--accent-danger); border: 1px solid rgba(239,68,68,0.3); }
+.card-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 12px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
 
-        /* Delete Confirm */
-        .delete-confirm-input {
-            width: 100%; padding: 12px 16px; margin-top: 10px;
-            border: 2px solid var(--accent-danger); border-radius: 10px;
-            background: rgba(239, 68, 68, 0.05); color: var(--text-primary);
-            font-size: 0.9rem;
-            transition: all 0.3s;
-        }
-        .delete-confirm-input:focus {
-            outline: none;
-            background: rgba(239, 68, 68, 0.1);
-            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15), 0 0 20px rgba(239, 68, 68, 0.1);
-        }
+.card-meta span {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
 
-        /* Conditional fields */
-        .hidden { display: none !important; }
+.card-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-subtle);
+}
 
-        @media (max-width: 600px) {
-            .cards-grid { grid-template-columns: 1fr; }
-            .form-row { grid-template-columns: 1fr; }
-            .page-header { flex-direction: column; gap: 12px; align-items: flex-start; }
-        }
+/* Validation Result */
+.validate-result {
+    margin-top: 10px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    display: none;
+}
+
+.validate-result.success {
+    display: block;
+    background: rgba(16, 185, 129, 0.1);
+    color: var(--success);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.validate-result.error {
+    display: block;
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--danger);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+/* Delete Confirm */
+.delete-confirm-input {
+    width: 100%;
+    padding: 12px 16px;
+    margin-top: 10px;
+    border: 2px solid var(--danger);
+    border-radius: 10px;
+    background: rgba(239, 68, 68, 0.05);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    transition: all 0.3s;
+}
+
+.delete-confirm-input:focus {
+    outline: none;
+    background: rgba(239, 68, 68, 0.1);
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15), 0 0 20px rgba(239, 68, 68, 0.1);
+}
+
+/* Conditional fields */
+.hidden {
+    display: none !important;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+    .cards-grid {
+        grid-template-columns: 1fr;
+    }
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+    .page-header {
+        flex-direction: column;
+        gap: 12px;
+        align-items: flex-start;
+    }
+}

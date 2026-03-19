@@ -1,9 +1,20 @@
-.gallery-container {
+/* AuraGo – Gallery & Media page styles */
+
+/* Uses standard components from shared.css:
+   - .app-header
+   - .btn, .btn-secondary
+   - .card (for gallery-card)
+   - .empty-state
+*/
+
+.gallery-container,
+.media-container {
     max-width: 1400px;
     margin: 0 auto;
     padding: 1.5rem;
 }
 
+.media-header,
 .gallery-header {
     display: flex;
     justify-content: space-between;
@@ -13,12 +24,14 @@
     margin-bottom: 1.5rem;
 }
 
+.media-header h1,
 .gallery-header h1 {
     font-size: 1.4rem;
     color: var(--text-primary);
     margin: 0;
 }
 
+.media-controls,
 .gallery-controls {
     display: flex;
     gap: 0.6rem;
@@ -28,7 +41,7 @@
 
 .gallery-search {
     padding: 0.45rem 0.8rem;
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-subtle);
     border-radius: 8px;
     background: var(--bg-secondary);
     color: var(--text-primary);
@@ -38,13 +51,14 @@
 
 .gallery-filter {
     padding: 0.45rem 0.8rem;
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-subtle);
     border-radius: 8px;
     background: var(--bg-secondary);
     color: var(--text-primary);
     font-size: 0.85rem;
 }
 
+/* Gallery Grid */
 .gallery-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
@@ -55,14 +69,15 @@
     border-radius: 12px;
     overflow: hidden;
     background: var(--bg-secondary);
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-subtle);
     cursor: pointer;
-    transition: transform 0.15s, box-shadow 0.15s;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .gallery-card:hover {
+    border-color: var(--accent);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(45, 212, 191, 0.1);
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
 }
 
 .gallery-card img {
@@ -87,7 +102,7 @@
 
 .gallery-card-meta {
     font-size: 0.68rem;
-    color: var(--text-tertiary);
+    color: var(--text-secondary);
     display: flex;
     justify-content: space-between;
 }
@@ -96,7 +111,7 @@
     grid-column: 1 / -1;
     text-align: center;
     padding: 3rem;
-    color: var(--text-tertiary);
+    color: var(--text-secondary);
     font-size: 0.9rem;
 }
 
@@ -104,7 +119,7 @@
     grid-column: 1 / -1;
     text-align: center;
     padding: 4rem 2rem;
-    color: var(--text-tertiary);
+    color: var(--text-secondary);
 }
 
 .gallery-empty-icon {
@@ -122,12 +137,17 @@
 
 .btn-gallery-nav {
     padding: 0.4rem 1rem;
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-subtle);
     border-radius: 8px;
     background: var(--bg-secondary);
     color: var(--text-primary);
     font-size: 0.82rem;
     cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-gallery-nav:hover {
+    border-color: var(--accent);
 }
 
 .btn-gallery-nav:disabled {
@@ -156,6 +176,7 @@
     position: relative;
     display: flex;
     flex-direction: column;
+    border: 1px solid var(--border-subtle);
 }
 
 .lightbox-close {
@@ -174,6 +195,11 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: all 0.2s;
+}
+
+.lightbox-close:hover {
+    background: rgba(239, 68, 68, 0.8);
 }
 
 .lightbox-content img {
@@ -200,12 +226,12 @@
     display: flex;
     gap: 0.6rem;
     padding: 0.8rem 1rem;
-    border-top: 1px solid var(--border);
+    border-top: 1px solid var(--border-subtle);
 }
 
 .btn-gallery-action {
     padding: 0.4rem 0.8rem;
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-subtle);
     border-radius: 8px;
     background: var(--bg-secondary);
     color: var(--text-primary);
@@ -213,23 +239,114 @@
     cursor: pointer;
     text-decoration: none;
     text-align: center;
+    transition: all 0.2s;
+}
+
+.btn-gallery-action:hover {
+    border-color: var(--accent);
+    background: var(--bg-glass);
 }
 
 .btn-danger {
-    color: var(--danger, #ef4444);
-    border-color: var(--danger, #ef4444);
+    color: var(--danger);
+    border-color: var(--danger);
 }
 
 .btn-danger:hover {
     background: rgba(239, 68, 68, 0.1);
 }
 
+/* Media page specific */
+.media-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 20px;
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    padding: 4px;
+    border: 1px solid var(--border-subtle);
+}
+
+.media-tab {
+    flex: 1;
+    padding: 10px 20px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: all 0.3s;
+    text-align: center;
+}
+
+.media-tab.active {
+    background: linear-gradient(135deg, var(--accent), #0d9488);
+    color: white;
+    box-shadow: 0 4px 15px rgba(45, 212, 191, 0.3);
+}
+
+.media-tab:hover:not(.active) {
+    background: var(--bg-glass);
+}
+
+.media-panel {
+    display: none;
+}
+
+.media-panel.active {
+    display: block;
+}
+
+.media-extra-controls {
+    margin-bottom: 1rem;
+}
+
+.media-audio-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1rem;
+}
+
+.media-doc-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.media-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+}
+
+.media-modal-content {
+    max-width: 600px;
+    max-height: 90vh;
+    background: var(--bg-primary);
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+    border: 1px solid var(--border-subtle);
+    width: 100%;
+}
+
 @media (max-width: 640px) {
     .gallery-grid {
         grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
     }
-    .gallery-header {
+    .gallery-header,
+    .media-header {
         flex-direction: column;
         align-items: stretch;
+    }
+    .media-tabs {
+        flex-direction: column;
     }
 }

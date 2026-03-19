@@ -264,25 +264,80 @@ function showToast(message, type = 'success', duration = 3000) {
 
 /**
  * Open a modal by ID
+ * Supports both legacy 'open' class and new 'active' class
  * @param {string} id - The modal overlay ID
  */
 function openModal(id) {
     const modal = document.getElementById(id);
     if (modal) {
         modal.classList.add('active');
+        modal.classList.add('open');
         document.body.style.overflow = 'hidden';
     }
 }
 
 /**
  * Close a modal by ID
+ * Supports both legacy 'open' class and new 'active' class
  * @param {string} id - The modal overlay ID
  */
 function closeModal(id) {
     const modal = document.getElementById(id);
     if (modal) {
         modal.classList.remove('active');
+        modal.classList.remove('open');
         document.body.style.overflow = '';
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TOGGLE SWITCH UTILITIES
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Initialize toggle switches with checkbox input
+ * For use with: <label class="toggle"><input type="checkbox"><span class="slider"></span></label>
+ */
+function initToggles() {
+    document.querySelectorAll('.toggle input[type="checkbox"]').forEach(checkbox => {
+        // Ensure the toggle reflects the checkbox state visually
+        checkbox.addEventListener('change', function() {
+            // The CSS handles the visual state via :checked + .slider
+            // This listener is for any additional JS logic
+            const event = new CustomEvent('toggleChange', { 
+                detail: { checked: this.checked, toggle: this.closest('.toggle') }
+            });
+            this.closest('.toggle').dispatchEvent(event);
+        });
+    });
+}
+
+/**
+ * Get the checked state of a toggle
+ * @param {string|Element} toggle - The toggle element or its ID
+ * @returns {boolean}
+ */
+function getToggleState(toggle) {
+    const el = typeof toggle === 'string' ? document.getElementById(toggle) : toggle;
+    if (!el) return false;
+    const checkbox = el.querySelector('input[type="checkbox"]');
+    return checkbox ? checkbox.checked : el.classList.contains('on');
+}
+
+/**
+ * Set the checked state of a toggle
+ * @param {string|Element} toggle - The toggle element or its ID
+ * @param {boolean} checked
+ */
+function setToggleState(toggle, checked) {
+    const el = typeof toggle === 'string' ? document.getElementById(toggle) : toggle;
+    if (!el) return;
+    const checkbox = el.querySelector('input[type="checkbox"]');
+    if (checkbox) {
+        checkbox.checked = checked;
+        checkbox.dispatchEvent(new Event('change'));
+    } else {
+        el.classList.toggle('on', checked);
     }
 }
 
@@ -646,6 +701,7 @@ function initShared() {
     try { injectRadialMenu(); } catch (e) { console.error('[AuraGo] injectRadialMenu failed:', e); }
     try { initRadialMenu(); } catch (e) { console.error('[AuraGo] initRadialMenu failed:', e); }
     try { initModals(); } catch (e) { console.error('[AuraGo] initModals failed:', e); }
+    try { initToggles(); } catch (e) { console.error('[AuraGo] initToggles failed:', e); }
     try { initThemeToggle(); } catch (e) { console.error('[AuraGo] initThemeToggle failed:', e); }
     try { applyI18n(); } catch (e) { console.error('[AuraGo] applyI18n failed:', e); }
     try { injectLanguageSwitcher(); } catch (e) { console.error('[AuraGo] injectLanguageSwitcher failed:', e); }

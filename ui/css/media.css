@@ -1,6 +1,13 @@
-/* ── Media View Page Styles ─────────────────────────────────────────────────
+/* AuraGo – Media View Page Styles
    Extends gallery.css for the tabbed Medienansicht (Images / Audio / Documents)
-   ─────────────────────────────────────────────────────────────────────────── */
+   Uses standard components from shared.css where applicable.
+*/
+
+/* Uses from shared.css:
+   - .app-header
+   - .card, .card-bg variables
+   - Modal styling
+*/
 
 .media-container {
     max-width: 1400px;
@@ -30,37 +37,40 @@
     flex-wrap: wrap;
 }
 
-/* ── Tab Bar ── */
+/* ── Tab Bar (standard tabs style from shared.css) ── */
 .media-tabs {
     display: flex;
-    gap: 0.25rem;
-    border-bottom: 2px solid var(--border, rgba(255,255,255,.1));
-    margin-bottom: 1.25rem;
-    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 20px;
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    padding: 4px;
+    border: 1px solid var(--border-subtle);
 }
 
 .media-tab {
-    padding: 0.55rem 1.1rem;
-    background: transparent;
+    flex: 1;
+    padding: 10px 20px;
     border: none;
-    border-bottom: 2px solid transparent;
-    margin-bottom: -2px;
-    color: var(--text-secondary, #6c7086);
+    background: transparent;
+    color: var(--text-secondary);
     font-size: 0.9rem;
     font-weight: 500;
     cursor: pointer;
-    transition: color 0.15s, border-color 0.15s;
-    border-radius: 6px 6px 0 0;
+    border-radius: 8px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    text-align: center;
 }
 
 .media-tab:hover {
-    color: var(--text-primary, #cdd6f4);
-    background: var(--bg-secondary, rgba(255,255,255,.05));
+    background: var(--bg-glass);
+    color: var(--text-primary);
 }
 
 .media-tab.active {
-    color: var(--accent, #cba6f7);
-    border-bottom-color: var(--accent, #cba6f7);
+    background: linear-gradient(135deg, var(--accent), #0d9488);
+    color: white;
+    box-shadow: 0 4px 15px rgba(45, 212, 191, 0.3);
 }
 
 /* ── Extra controls per tab (e.g. provider filter for images) ── */
@@ -80,17 +90,19 @@
 }
 
 .media-audio-card {
-    background: var(--bg-secondary);
-    border: 1px solid var(--border);
-    border-radius: 12px;
+    background: var(--card-bg);
+    border: 1px solid var(--border-subtle);
+    border-radius: 16px;
     padding: 1rem;
     cursor: pointer;
-    transition: transform 0.15s, box-shadow 0.15s;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    backdrop-filter: blur(10px);
 }
 
 .media-audio-card:hover {
+    border-color: var(--accent);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(45, 212, 191, 0.1);
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(0,0,0,.15);
 }
 
 .media-audio-card-title {
@@ -123,15 +135,16 @@
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    background: var(--bg-secondary);
-    border: 1px solid var(--border);
-    border-radius: 10px;
+    background: var(--card-bg);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
     padding: 0.7rem 1rem;
-    transition: background 0.15s;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .media-doc-row:hover {
-    background: var(--bg-hover, rgba(255,255,255,.04));
+    border-color: var(--border-accent);
+    background: var(--bg-glass);
 }
 
 .media-doc-row-icon {
@@ -173,46 +186,67 @@
     justify-content: center;
     width: 2rem;
     height: 2rem;
-    border-radius: 0.5rem;
-    background: var(--bg-tertiary, rgba(255,255,255,.08));
+    border-radius: 8px;
+    background: var(--bg-glass);
     color: var(--text-primary);
     text-decoration: none;
     font-size: 0.95rem;
-    border: none;
+    border: 1px solid var(--border-subtle);
     cursor: pointer;
-    transition: background 0.15s;
+    transition: all 0.2s;
 }
 
 .media-doc-row-actions a:hover,
 .media-doc-row-actions button:hover {
-    background: var(--accent, #cba6f7);
-    color: var(--bg-primary, #1e1e2e);
+    border-color: var(--accent);
+    background: var(--accent-dim);
+    color: var(--accent);
 }
 
 .media-doc-row-actions button.btn-danger:hover {
-    background: #f38ba8;
-    color: #1e1e2e;
+    border-color: var(--danger);
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--danger);
 }
 
 /* ── Modal overlay for audio details ── */
 .media-modal {
     position: fixed;
     inset: 0;
-    background: rgba(0,0,0,.7);
+    background: var(--modal-bg);
     display: flex;
     align-items: center;
     justify-content: center;
     z-index: 1000;
+    padding: 2rem;
 }
 
 .media-modal-content {
-    background: var(--bg-secondary);
+    background: var(--modal-surface);
+    border: 1px solid var(--modal-border);
     border-radius: 16px;
     padding: 1.5rem;
     max-width: 480px;
     width: 90%;
     position: relative;
-    border: 1px solid var(--border);
+}
+
+/* Tab panels */
+.media-panel {
+    display: none;
+}
+
+.media-panel.active {
+    display: block;
+}
+
+/* Pagination */
+.gallery-pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.5rem 0;
 }
 
 /* Responsive */
@@ -235,7 +269,6 @@
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        border-radius: 4px 4px 0 0;
     }
 
     .media-doc-row {
