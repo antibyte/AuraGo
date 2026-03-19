@@ -7,5 +7,8 @@
   "media.tab_documents": "📄 ドキュメント",
   "media.empty_audio": "まだ音声ファイルがありません。エージェントに音声ファイルを送るよう頼んでください！",
   "media.empty_documents": "まだドキュメントがありません。エージェントにドキュメントを作成または送るよう頼んでください！",
-  "media.doc_open": "開く"
+  "media.doc_open": "開く",
+  "media.audio_type_tts": "音声合成",
+  "media.audio_type_audio": "音声ファイル",
+  "media.audio_type_music": "音楽"
 }

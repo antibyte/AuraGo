@@ -7,5 +7,8 @@
   "media.tab_documents": "📄 Dokumente",
   "media.empty_audio": "Noch keine Audiodateien. Bitte den Agenten, eine Audiodatei zu senden!",
   "media.empty_documents": "Noch keine Dokumente. Bitte den Agenten, ein Dokument zu erstellen oder zu senden!",
-  "media.doc_open": "Öffnen"
+  "media.doc_open": "Öffnen",
+  "media.audio_type_tts": "Sprachausgabe",
+  "media.audio_type_audio": "Audio-Datei",
+  "media.audio_type_music": "Musik"
 }

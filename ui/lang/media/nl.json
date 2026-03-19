@@ -7,5 +7,8 @@
   "media.tab_documents": "📄 Documenten",
   "media.empty_audio": "Nog geen audiobestanden. Vraag de agent een audiobestand te sturen!",
   "media.empty_documents": "Nog geen documenten. Vraag de agent een document te maken of te sturen!",
-  "media.doc_open": "Openen"
+  "media.doc_open": "Openen",
+  "media.audio_type_tts": "Tekst-naar-spraak",
+  "media.audio_type_audio": "Audiobestand",
+  "media.audio_type_music": "Muziek"
 }

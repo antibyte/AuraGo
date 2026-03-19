@@ -148,9 +148,13 @@ function renderAudioGrid(items) {
         const title = escapeHtml(item.description || item.filename || 'Audio');
         const fmt = escapeHtml((item.format || '').toUpperCase());
         const date = item.created_at ? new Date(item.created_at).toLocaleDateString() : '';
+        // Show a sub-type badge so users know if it's TTS, music, or a sent audio file
+        const typeIconMap = { tts: '🗣️', music: '🎶', audio: '🎵' };
+        const typeIcon = typeIconMap[item.media_type] || '🎵';
+        const typeLbl = escapeHtml({ tts: t('media.audio_type_tts'), music: t('media.audio_type_music'), audio: t('media.audio_type_audio') }[item.media_type] || item.media_type);
         html += '<div class="media-audio-card" onclick="openAudioModal(' + item.id + ')">';
-        html += '<div class="media-audio-card-title">🎵 ' + title + '</div>';
-        html += '<div class="media-audio-card-meta"><span>' + fmt + '</span><span>' + escapeHtml(date) + '</span></div>';
+        html += '<div class="media-audio-card-title">' + typeIcon + ' ' + title + '</div>';
+        html += '<div class="media-audio-card-meta"><span class="media-type-badge">' + typeLbl + '</span><span>' + fmt + '</span><span>' + escapeHtml(date) + '</span></div>';
         html += '</div>';
     });
     grid.innerHTML = html;

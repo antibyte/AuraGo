@@ -7,5 +7,8 @@
   "media.tab_documents": "📄 文档",
   "media.empty_audio": "暂无音频文件。请让代理发送一个音频文件！",
   "media.empty_documents": "暂无文档。请让代理创建或发送一个文档！",
-  "media.doc_open": "打开"
+  "media.doc_open": "打开",
+  "media.audio_type_tts": "语音合成",
+  "media.audio_type_audio": "音频文件",
+  "media.audio_type_music": "音乐"
 }

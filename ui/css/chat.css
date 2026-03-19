@@ -242,8 +242,36 @@
         }
 
         @media (max-width: 640px) {
+            /* Mood-Widget: Nur Emoji anzeigen, Text ausblenden */
             .mood-widget {
+                display: flex;
+            }
+            
+            .mood-toggle {
+                padding: 0.35rem;
+                width: 36px;
+                height: 32px;
+                gap: 0;
+            }
+            
+            .mood-toggle .mood-emoji {
+                font-size: 1.1rem;
+                margin: 0 auto;
+            }
+            
+            #moodText,
+            .mood-toggle .mood-chevron {
                 display: none;
+            }
+            
+            /* Mood-Panel auf Mobile zentriert */
+            .mood-panel {
+                position: fixed;
+                top: 60px;
+                right: 10px;
+                left: auto;
+                min-width: 220px;
+                z-index: 1000;
             }
         }
 
@@ -2480,10 +2508,15 @@
             }
 
             .btn-new-chat {
-                padding: 0.5rem 0.75rem;
-                font-size: 0.75rem;
-                height: 36px;
-                width: 100%;
+                width: 44px;
+                height: 44px;
+                min-width: 44px;
+                border-radius: 12px;
+                padding: 0;
+                font-size: 1.2rem;
+                display: flex;
+                align-items: center;
+                justify-content: center;
             }
 
             #logout-btn {
@@ -2493,7 +2526,13 @@
             }
 
             .input-row {
-                gap: 0.35rem;
+                flex-direction: row;
+                gap: 0.5rem;
+                align-items: stretch;
+            }
+
+            .input-wrap {
+                flex: 1;
             }
 
             .btn-send,
@@ -2508,21 +2547,56 @@
 
             .input-wrap textarea {
                 font-size: var(--text-sm);
-                padding: 0.65rem 0.9rem;
-                min-height: 52px;
+                padding: 0.75rem 1rem;
+                min-height: 100px;
                 border-radius: 12px;
             }
 
             .app-footer {
-                padding: 0.6rem 0.75rem;
+                padding: 0.75rem;
             }
 
             .msg-row {
                 gap: 0.4rem;
             }
 
+            /* Mood widget: nur Emoji auf Mobile */
             .mood-widget {
+                padding: 0.3rem 0.5rem;
+                gap: 0.25rem;
+                font-size: 1.2rem;
+            }
+
+            .mood-widget .mood-emoji {
+                font-size: 1.3rem;
+            }
+
+            .mood-widget #moodText,
+            .mood-widget .mood-chevron {
                 display: none;
+            }
+
+            /* Button Grid für Mobile */
+            .input-actions.btn-grid {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                grid-template-rows: repeat(3, 1fr);
+                gap: 0.4rem;
+                width: auto;
+                align-content: center;
+            }
+
+            .input-actions.btn-grid .action-btns {
+                display: contents;
+            }
+
+            .btn-push {
+                width: 44px;
+                height: 44px;
+                min-width: 44px;
+                border-radius: 12px;
+                padding: 0;
+                font-size: 1.1rem;
             }
 
             .bubble pre {
@@ -2558,7 +2632,16 @@
             }
 
             .mood-widget {
+                display: flex;
+            }
+
+            .mood-widget #moodText,
+            .mood-widget .mood-chevron {
                 display: none;
+            }
+
+            .mood-widget .mood-emoji {
+                font-size: 1.4rem;
             }
         }
 

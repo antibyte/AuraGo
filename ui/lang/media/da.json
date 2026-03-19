@@ -7,5 +7,8 @@
   "media.tab_documents": "📄 Dokumenter",
   "media.empty_audio": "Ingen lydfiler endnu. Bed agenten om at sende en lydfil!",
   "media.empty_documents": "Ingen dokumenter endnu. Bed agenten om at oprette eller sende et dokument!",
-  "media.doc_open": "Åbn"
+  "media.doc_open": "Åbn",
+  "media.audio_type_tts": "Tale-til-tekst",
+  "media.audio_type_audio": "Lydfil",
+  "media.audio_type_music": "Musik"
 }

@@ -7,5 +7,8 @@
   "media.tab_documents": "📄 Έγγραφα",
   "media.empty_audio": "Δεν υπάρχουν ακόμη αρχεία ήχου. Ζητήστε από τον πράκτορα να στείλει ένα αρχείο ήχου!",
   "media.empty_documents": "Δεν υπάρχουν ακόμη έγγραφα. Ζητήστε από τον πράκτορα να δημιουργήσει ή να στείλει ένα έγγραφο!",
-  "media.doc_open": "Άνοιγμα"
+  "media.doc_open": "Άνοιγμα",
+  "media.audio_type_tts": "Ομιλία",
+  "media.audio_type_audio": "Αρχείο ήχου",
+  "media.audio_type_music": "Μουσική"
 }

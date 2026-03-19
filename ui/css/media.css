@@ -124,6 +124,16 @@
     flex-wrap: wrap;
 }
 
+.media-type-badge {
+    font-size: 0.68rem;
+    padding: 0.1rem 0.45rem;
+    border-radius: 0.4rem;
+    background: var(--bg-glass);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
 /* ── Document list ── */
 .media-doc-list {
     display: flex;

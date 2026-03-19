@@ -159,8 +159,17 @@ func SearchMedia(db *sql.DB, query, mediaType string, tags []string, limit, offs
 		args = append(args, q, q, q, q)
 	}
 	if mediaType != "" {
-		conditions = append(conditions, "media_type = ?")
-		args = append(args, mediaType)
+		// Map logical UI type groups to the actual media_type values stored in the DB.
+		// "audio"    covers manual audio (send_audio), TTS output, and generated music.
+		// "image"    covers generated images — kept as single type for compatibility.
+		// "document" covers manually sent documents.
+		switch mediaType {
+		case "audio":
+			conditions = append(conditions, "media_type IN ('audio', 'tts', 'music')")
+		default:
+			conditions = append(conditions, "media_type = ?")
+			args = append(args, mediaType)
+		}
 	}
 	for _, t := range tags {
 		conditions = append(conditions, "tags LIKE ?")
