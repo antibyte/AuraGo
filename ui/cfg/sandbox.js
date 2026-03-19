@@ -201,8 +201,8 @@ let shellSandboxStatusCache = null;
 
                 html += `<label style="display:block;">
                     <span style="font-size:0.78rem;color:var(--text-secondary);">${t('config.shell_sandbox.max_memory')}</span>
-                    <input type="number" class="cfg-input" data-path="shell_sandbox.max_memory_mb" value="${shCfg.max_memory_mb || 512}" min="64" max="8192" style="width:100%;margin-top:0.2rem;"
-                        onchange="setNestedValue(configData,'shell_sandbox.max_memory_mb',parseInt(this.value)||512);setDirty(true)">
+                    <input type="number" class="cfg-input" data-path="shell_sandbox.max_memory_mb" value="${shCfg.max_memory_mb || 1024}" min="64" max="8192" style="width:100%;margin-top:0.2rem;"
+                        onchange="setNestedValue(configData,'shell_sandbox.max_memory_mb',parseInt(this.value)||1024);setDirty(true)">
                 </label>`;
 
                 html += `<label style="display:block;">

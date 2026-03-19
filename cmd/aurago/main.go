@@ -468,7 +468,14 @@ func main() {
 			time.AfterFunc(5*time.Minute, func() {
 				appLog.Info("Retrying failed cron task", "prompt", prompt)
 				retryPayload, _ := json.Marshal(msg)
-				retryResp, retryErr := cronHTTPClient.Post(url, "application/json", bytes.NewBuffer(retryPayload))
+				retryReq, retryReqErr := http.NewRequest("POST", url, bytes.NewBuffer(retryPayload))
+				if retryReqErr != nil {
+					appLog.Error("Cron retry request creation failed", "error", retryReqErr)
+					return
+				}
+				retryReq.Header.Set("Content-Type", "application/json")
+				retryReq.Header.Set("X-Internal-FollowUp", "true")
+				retryResp, retryErr := cronHTTPClient.Do(retryReq)
 				if retryErr != nil {
 					appLog.Error("Cron retry also failed", "error", retryErr)
 				} else {
@@ -478,7 +485,14 @@ func main() {
 		}
 
 		payload, _ := json.Marshal(msg)
-		resp, reqErr := cronHTTPClient.Post(url, "application/json", bytes.NewBuffer(payload))
+		req, reqCreateErr := http.NewRequest("POST", url, bytes.NewBuffer(payload))
+		if reqCreateErr != nil {
+			scheduleRetry(reqCreateErr.Error())
+			return
+		}
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-Internal-FollowUp", "true")
+		resp, reqErr := cronHTTPClient.Do(req)
 		if reqErr != nil {
 			scheduleRetry(reqErr.Error())
 		} else {
@@ -555,20 +569,28 @@ func main() {
 			}
 			payload, _ := json.Marshal(taskMsg)
 			url := fmt.Sprintf("http://127.0.0.1:%d/v1/chat/completions", eggPort)
-			resp, err := cronHTTPClient.Post(url, "application/json", bytes.NewBuffer(payload))
+			req, reqErr := http.NewRequest("POST", url, bytes.NewBuffer(payload))
 			result := bridge.ResultPayload{TaskID: task.TaskID}
-			if err != nil {
+			if reqErr != nil {
 				result.Status = "failure"
-				result.Error = err.Error()
+				result.Error = reqErr.Error()
 			} else {
-				defer resp.Body.Close()
-				body, _ := io.ReadAll(resp.Body)
-				if resp.StatusCode == 200 {
-					result.Status = "success"
-					result.Output = string(body)
-				} else {
+				req.Header.Set("Content-Type", "application/json")
+				req.Header.Set("X-Internal-FollowUp", "true")
+				resp, err := cronHTTPClient.Do(req)
+				if err != nil {
 					result.Status = "failure"
-					result.Error = fmt.Sprintf("HTTP %d: %s", resp.StatusCode, string(body))
+					result.Error = err.Error()
+				} else {
+					defer resp.Body.Close()
+					body, _ := io.ReadAll(resp.Body)
+					if resp.StatusCode == 200 {
+						result.Status = "success"
+						result.Output = string(body)
+					} else {
+						result.Status = "failure"
+						result.Error = fmt.Sprintf("HTTP %d: %s", resp.StatusCode, string(body))
+					}
 				}
 			}
 			if err := eggClient.SendResult(result); err != nil {

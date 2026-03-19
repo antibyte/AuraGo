@@ -13,7 +13,7 @@ import (
 
 // SmartHomeDevice represents a Fritz!Box smart home device (DECT-ULE or ZigBee).
 type SmartHomeDevice struct {
-	AIN             string `json:"ain"` // actor identification number (unique ID)
+	AIN             string `json:"ain"`  // actor identification number (unique ID)
 	Name            string `json:"name"` // device name (external – wrap in <external_data>)
 	ProductName     string `json:"product_name"`
 	Manufacturer    string `json:"manufacturer"`

@@ -11,7 +11,7 @@ import (
 
 // WLANInfo holds the status of a WLAN radio (2.4 GHz / 5 GHz / 60 GHz / Guest).
 type WLANInfo struct {
-	Index     int    `json:"index"`     // 1–4
+	Index     int    `json:"index"` // 1–4
 	SSID      string `json:"ssid"`
 	Channel   string `json:"channel"`
 	Enabled   bool   `json:"enabled"`

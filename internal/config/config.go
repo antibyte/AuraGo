@@ -492,7 +492,7 @@ func Load(path string) (*Config, error) {
 		cfg.Ansible.Mode = "sidecar"
 	}
 	if cfg.Ansible.URL == "" {
-		cfg.Ansible.URL = "http://ansible:5001"
+		cfg.Ansible.URL = "http://127.0.0.1:5001"
 	}
 	if cfg.Ansible.Timeout <= 0 {
 		cfg.Ansible.Timeout = 300
@@ -511,6 +511,12 @@ func Load(path string) (*Config, error) {
 		if val := os.Getenv("ANSIBLE_INVENTORY"); val != "" {
 			cfg.Ansible.DefaultInventory = val
 		}
+	}
+	if cfg.Ansible.Image == "" {
+		cfg.Ansible.Image = "aurago-ansible:latest"
+	}
+	if cfg.Ansible.ContainerName == "" {
+		cfg.Ansible.ContainerName = "aurago_ansible"
 	}
 
 	// MQTT defaults
@@ -587,7 +593,7 @@ func Load(path string) (*Config, error) {
 
 	// Shell Sandbox defaults (Landlock-based native OS sandbox)
 	if cfg.ShellSandbox.MaxMemoryMB <= 0 {
-		cfg.ShellSandbox.MaxMemoryMB = 512
+		cfg.ShellSandbox.MaxMemoryMB = 1024
 	}
 	if cfg.ShellSandbox.MaxCPUSeconds <= 0 {
 		cfg.ShellSandbox.MaxCPUSeconds = 30

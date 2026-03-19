@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 )
@@ -197,6 +198,173 @@ func AnsibleGatherFacts(cfg AnsibleConfig, hosts, inventoryPath string) string {
 	}
 	data, code, err := ansibleRequest(cfg, "POST", "/run/facts", body)
 	return ansibleResult(data, code, err)
+}
+
+// ── Sidecar container management ──────────────────────────────────────────────
+
+const ansibleContainerName = "aurago_ansible"
+const ansibleSidecarImage = "aurago-ansible:latest"
+
+// AnsibleSidecarConfig carries the fields needed to auto-manage the
+// Ansible sidecar container via the Docker API.
+type AnsibleSidecarConfig struct {
+	Token         string // ANSIBLE_API_TOKEN inside the container
+	Timeout       int    // ANSIBLE_TIMEOUT (seconds, default 300)
+	Image         string // Docker image (default: aurago-ansible:latest)
+	ContainerName string // Container name (default: aurago_ansible)
+	PlaybooksDir  string // Host path to playbooks dir (mounted into /playbooks)
+	InventoryDir  string // Host path to inventory dir (mounted into /inventory)
+}
+
+// EnsureAnsibleSidecarRunning ensures the Ansible sidecar container is running.
+// It checks the container state via the Docker API and, if missing or stopped,
+// creates/starts it. The image must be pre-built locally:
+//
+//	docker build -f Dockerfile.ansible -t aurago-ansible .
+//
+// Safe to call multiple times.
+func EnsureAnsibleSidecarRunning(dockerHost string, sidecarCfg AnsibleSidecarConfig, logger interface {
+	Info(string, ...any)
+	Warn(string, ...any)
+	Error(string, ...any)
+}) {
+	dockerCfg := DockerConfig{Host: dockerHost}
+
+	image := sidecarCfg.Image
+	if image == "" {
+		image = ansibleSidecarImage
+	}
+	containerName := sidecarCfg.ContainerName
+	if containerName == "" {
+		containerName = ansibleContainerName
+	}
+
+	// Check if ANY ansible sidecar (any name) is already running with the same image.
+	listData, listCode, listErr := dockerRequest(dockerCfg, "GET",
+		`/containers/json?filters={"status":["running"],"ancestor":["`+image+`"]}`, "")
+	if listErr == nil && listCode == 200 {
+		var containers []map[string]interface{}
+		if json.Unmarshal(listData, &containers) == nil && len(containers) > 0 {
+			logger.Info("[Ansible] Sidecar container already running (external)", "count", len(containers))
+			return
+		}
+	}
+
+	// Inspect our managed container
+	data, code, err := dockerRequest(dockerCfg, "GET", "/containers/"+containerName+"/json", "")
+	if err != nil {
+		logger.Warn("[Ansible] Docker unavailable, skipping sidecar auto-start", "error", err)
+		return
+	}
+
+	if code == 200 {
+		// Container exists — check if it's running
+		var info map[string]interface{}
+		if json.Unmarshal(data, &info) == nil {
+			if state, ok := info["State"].(map[string]interface{}); ok {
+				if running, _ := state["Running"].(bool); running {
+					logger.Info("[Ansible] Sidecar container already running")
+					return
+				}
+			}
+		}
+		// Exists but stopped — start it
+		_, startCode, startErr := dockerRequest(dockerCfg, "POST", "/containers/"+containerName+"/start", "")
+		if startErr != nil || (startCode != 204 && startCode != 304) {
+			logger.Error("[Ansible] Failed to start existing sidecar container", "code", startCode, "error", startErr)
+			return
+		}
+		logger.Info("[Ansible] Sidecar container started")
+		return
+	}
+
+	if code != 404 {
+		logger.Warn("[Ansible] Unexpected Docker inspect response, skipping sidecar auto-start", "code", code)
+		return
+	}
+
+	// Container does not exist — check if image is available
+	_, imgCode, imgErr := dockerRequest(dockerCfg, "GET", "/images/"+image+"/json", "")
+	if imgErr != nil || imgCode != 200 {
+		logger.Warn("[Ansible] Image not found locally. Build it first:\n  docker build -f Dockerfile.ansible -t "+image+" .",
+			"image", image)
+		return
+	}
+
+	// Build environment variables
+	env := []string{
+		"PORT=5001",
+		"ANSIBLE_HOST_KEY_CHECKING=False",
+	}
+	if sidecarCfg.Token != "" {
+		env = append(env, "ANSIBLE_API_TOKEN="+sidecarCfg.Token)
+	}
+	if sidecarCfg.Timeout > 0 {
+		env = append(env, fmt.Sprintf("ANSIBLE_TIMEOUT=%d", sidecarCfg.Timeout))
+	}
+
+	// Build volume binds
+	var binds []string
+	// Mount SSH keys (read-only) so Ansible can reach managed hosts
+	sshDir := ansibleSSHDir()
+	if sshDir != "" {
+		binds = append(binds, sshDir+":/root/.ssh:ro")
+	}
+	if sidecarCfg.PlaybooksDir != "" {
+		binds = append(binds, sidecarCfg.PlaybooksDir+":/playbooks")
+	}
+	if sidecarCfg.InventoryDir != "" {
+		binds = append(binds, sidecarCfg.InventoryDir+":/inventory")
+	}
+
+	// Create and start the container
+	hostConfig := map[string]interface{}{
+		"RestartPolicy": map[string]interface{}{"Name": "unless-stopped"},
+		"PortBindings": map[string]interface{}{
+			"5001/tcp": []map[string]string{{"HostIp": "127.0.0.1", "HostPort": "5001"}},
+		},
+	}
+	if len(binds) > 0 {
+		hostConfig["Binds"] = binds
+	}
+
+	payload := map[string]interface{}{
+		"Image": image,
+		"Env":   env,
+		"ExposedPorts": map[string]interface{}{
+			"5001/tcp": struct{}{},
+		},
+		"HostConfig": hostConfig,
+	}
+	body, _ := json.Marshal(payload)
+	_, createCode, createErr := dockerRequest(dockerCfg, "POST", "/containers/create?name="+containerName, string(body))
+	if createErr != nil || createCode != 201 {
+		logger.Error("[Ansible] Failed to create sidecar container", "code", createCode, "error", createErr)
+		return
+	}
+
+	_, startCode, startErr := dockerRequest(dockerCfg, "POST", "/containers/"+containerName+"/start", "")
+	if startErr != nil || (startCode != 204 && startCode != 304) {
+		logger.Error("[Ansible] Failed to start new sidecar container", "code", startCode, "error", startErr)
+		return
+	}
+	logger.Info("[Ansible] Sidecar container created and started", "image", image, "container", containerName)
+}
+
+// ansibleSSHDir returns the host path to the SSH directory (~/.ssh).
+func ansibleSSHDir() string {
+	if runtime.GOOS == "windows" {
+		return "" // Volume mounts from Windows to Linux containers are unreliable
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	dir := filepath.Join(home, ".ssh")
+	if info, err := os.Stat(dir); err == nil && info.IsDir() {
+		return dir
+	}
+	return ""
 }
 
 // ── Local CLI mode ────────────────────────────────────────────────────────────

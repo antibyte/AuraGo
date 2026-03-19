@@ -466,6 +466,22 @@ func Start(cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, sh
 		go tools.EnsureGotenbergRunning(cfg.Docker.Host, logger)
 	}
 
+	// Auto-start Ansible sidecar container if enabled in sidecar mode
+	if cfg.Ansible.Enabled && cfg.Ansible.Mode == "sidecar" {
+		inventoryDir := ""
+		if cfg.Ansible.DefaultInventory != "" {
+			inventoryDir = filepath.Dir(cfg.Ansible.DefaultInventory)
+		}
+		go tools.EnsureAnsibleSidecarRunning(cfg.Docker.Host, tools.AnsibleSidecarConfig{
+			Token:         cfg.Ansible.Token,
+			Timeout:       cfg.Ansible.Timeout,
+			Image:         cfg.Ansible.Image,
+			ContainerName: cfg.Ansible.ContainerName,
+			PlaybooksDir:  cfg.Ansible.PlaybooksDir,
+			InventoryDir:  inventoryDir,
+		}, logger)
+	}
+
 	// Auto-start local Ollama embeddings container if enabled
 	if cfg.Embeddings.LocalOllama.Enabled {
 		go tools.EnsureOllamaEmbeddingsRunning(cfg, logger)

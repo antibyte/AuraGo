@@ -8,11 +8,11 @@ import (
 
 // StorageInfo holds general NAS storage information.
 type StorageInfo struct {
-	Path     string `json:"path"`     // mount path of the primary storage
-	Type     string `json:"type"`     // e.g. "USB", "internal"
-	Size     string `json:"size"`     // total size (human-readable as returned by Fritz!Box)
-	Used     string `json:"used"`     // used space
-	Free     string `json:"free"`     // free space
+	Path     string `json:"path"` // mount path of the primary storage
+	Type     string `json:"type"` // e.g. "USB", "internal"
+	Size     string `json:"size"` // total size (human-readable as returned by Fritz!Box)
+	Used     string `json:"used"` // used space
+	Free     string `json:"free"` // free space
 	Writable bool   `json:"writable"`
 }
 

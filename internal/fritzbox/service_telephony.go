@@ -15,7 +15,7 @@ import (
 
 // CallEntry represents a single call record from the Fritz!Box call list.
 type CallEntry struct {
-	Type     string `json:"type"`     // 1=incoming, 2=missed, 3=outgoing, 9=active
+	Type     string `json:"type"` // 1=incoming, 2=missed, 3=outgoing, 9=active
 	Date     string `json:"date"`
 	Name     string `json:"name"`     // caller name (external – must be wrapped in <external_data>)
 	Number   string `json:"number"`   // caller number
@@ -34,8 +34,8 @@ type PhonebookEntry struct {
 type TAMEntry struct {
 	Index    int    `json:"index"`
 	Date     string `json:"date"`
-	Name     string `json:"name"`     // caller name (external – must be wrapped in <external_data>)
-	Number   string `json:"number"`   // caller number
+	Name     string `json:"name"`   // caller name (external – must be wrapped in <external_data>)
+	Number   string `json:"number"` // caller number
 	Duration string `json:"duration"`
 	Read     bool   `json:"read"`
 	Path     string `json:"path"` // internal path (only for display, no direct access)

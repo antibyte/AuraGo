@@ -36,10 +36,10 @@ type Poller struct {
 	lastTAMTime     time.Time // timestamp of the last TAM callback
 
 	// Rate limiting: sliding window of callback timestamps within the current hour
-	mu              sync.Mutex
-	callbackTimes   []time.Time
-	dedupWindow     time.Duration
-	maxPerHour      int
+	mu            sync.Mutex
+	callbackTimes []time.Time
+	dedupWindow   time.Duration
+	maxPerHour    int
 
 	// Client pooling: reuse the client across poll cycles
 	pooledClient    *Client

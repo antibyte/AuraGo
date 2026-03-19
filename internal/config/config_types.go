@@ -391,10 +391,10 @@ type Config struct {
 				TAM            bool `yaml:"tam"`
 			} `yaml:"sub_features"`
 			Polling struct {
-				Enabled              bool `yaml:"enabled"`
-				IntervalSeconds      int  `yaml:"interval_seconds"`       // default: 60
-				DedupWindowMinutes   int  `yaml:"dedup_window_minutes"`   // default: 5 – ignore duplicate events within this window
-				MaxCallbacksPerHour  int  `yaml:"max_callbacks_per_hour"` // default: 20 – rate limit LLM callbacks
+				Enabled             bool `yaml:"enabled"`
+				IntervalSeconds     int  `yaml:"interval_seconds"`       // default: 60
+				DedupWindowMinutes  int  `yaml:"dedup_window_minutes"`   // default: 5 – ignore duplicate events within this window
+				MaxCallbacksPerHour int  `yaml:"max_callbacks_per_hour"` // default: 20 – rate limit LLM callbacks
 			} `yaml:"polling"`
 		} `yaml:"telephony"`
 
@@ -678,11 +678,13 @@ type Config struct {
 		Enabled          bool   `yaml:"enabled"`
 		ReadOnly         bool   `yaml:"readonly"`          // true = only status/list/inventory/ping/facts, block adhoc/playbook
 		Mode             string `yaml:"mode"`              // "sidecar" (default) or "local" (calls ansible CLI directly)
-		URL              string `yaml:"url"`               // sidecar mode: API URL (e.g. "http://ansible:5001")
+		URL              string `yaml:"url"`               // sidecar mode: API URL (e.g. "http://127.0.0.1:5001")
 		Token            string `yaml:"-" vault:"token"`   // sidecar mode: Bearer token (vault-only)
 		Timeout          int    `yaml:"timeout"`           // max seconds for playbook runs (default 300)
-		PlaybooksDir     string `yaml:"playbooks_dir"`     // local mode: directory containing playbooks
-		DefaultInventory string `yaml:"default_inventory"` // local mode: default inventory file path
+		PlaybooksDir     string `yaml:"playbooks_dir"`     // directory containing playbooks (local mode: path; sidecar mode: host mount)
+		DefaultInventory string `yaml:"default_inventory"` // default inventory file path (local mode: path; sidecar mode: host dir mount)
+		Image            string `yaml:"image"`             // sidecar mode: Docker image (default: aurago-ansible:latest)
+		ContainerName    string `yaml:"container_name"`    // sidecar mode: container name (default: aurago_ansible)
 	} `yaml:"ansible"`
 	InvasionControl struct {
 		Enabled  bool `yaml:"enabled"`  // enable Invasion Control sub-agent management UI
@@ -894,7 +896,7 @@ type Config struct {
 	} `yaml:"sandbox"`
 	ShellSandbox struct {
 		Enabled       bool `yaml:"enabled"`          // enable Landlock-based shell sandbox (default: false)
-		MaxMemoryMB   int  `yaml:"max_memory_mb"`    // RLIMIT_AS in MiB (default: 512)
+		MaxMemoryMB   int  `yaml:"max_memory_mb"`    // RLIMIT_AS in MiB (default: 1024)
 		MaxCPUSeconds int  `yaml:"max_cpu_seconds"`  // RLIMIT_CPU in seconds (default: 30)
 		MaxProcesses  int  `yaml:"max_processes"`    // RLIMIT_NPROC (default: 50)
 		MaxFileSizeMB int  `yaml:"max_file_size_mb"` // RLIMIT_FSIZE in MiB (default: 100)
