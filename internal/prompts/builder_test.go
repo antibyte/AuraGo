@@ -3,6 +3,7 @@ package prompts
 import (
 	"log/slog"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -310,5 +311,127 @@ func TestTruncateGuide(t *testing.T) {
 	}
 	if !strings.HasSuffix(result, "[...truncated]") {
 		t.Error("truncateGuide should append truncation marker")
+	}
+}
+
+// ── ShouldInclude ─────────────────────────────────────────────────────────────────────────────
+func TestShouldInclude_MandatoryAlwaysIncluded(t *testing.T) {
+	mod := PromptModule{Metadata: PromptMetadata{Tags: []string{"mandatory"}}}
+	if !mod.ShouldInclude(ContextFlags{}) {
+		t.Error("mandatory tag should always include regardless of flags")
+	}
+}
+
+func TestShouldInclude_CoreTagNoConditions(t *testing.T) {
+	mod := PromptModule{Metadata: PromptMetadata{Tags: []string{"core"}}}
+	if !mod.ShouldInclude(ContextFlags{}) {
+		t.Error("core tag with no conditions should include")
+	}
+}
+
+func TestShouldInclude_UnknownTagExcluded(t *testing.T) {
+	mod := PromptModule{Metadata: PromptMetadata{Tags: []string{"optional"}}}
+	if mod.ShouldInclude(ContextFlags{}) {
+		t.Error("unknown tag with no conditions should exclude")
+	}
+}
+
+func TestShouldInclude_ConditionIsError(t *testing.T) {
+	mod := PromptModule{Metadata: PromptMetadata{
+		Tags: []string{"ctx"}, Conditions: []string{"is_error"},
+	}}
+	if mod.ShouldInclude(ContextFlags{IsErrorState: false}) {
+		t.Error("is_error condition should exclude when IsErrorState=false")
+	}
+	if !mod.ShouldInclude(ContextFlags{IsErrorState: true}) {
+		t.Error("is_error condition should include when IsErrorState=true")
+	}
+}
+
+func TestShouldInclude_ConditionRequiresCoding(t *testing.T) {
+	mod := PromptModule{Metadata: PromptMetadata{
+		Tags: []string{"ctx"}, Conditions: []string{"requires_coding"},
+	}}
+	if mod.ShouldInclude(ContextFlags{RequiresCoding: false}) {
+		t.Error("requires_coding condition should exclude when RequiresCoding=false")
+	}
+	if !mod.ShouldInclude(ContextFlags{RequiresCoding: true}) {
+		t.Error("requires_coding condition should include when RequiresCoding=true")
+	}
+}
+
+func TestShouldInclude_MultipleConditionsOneMatches(t *testing.T) {
+	mod := PromptModule{Metadata: PromptMetadata{
+		Tags: []string{"ctx"}, Conditions: []string{"is_error", "requires_coding"},
+	}}
+	if !mod.ShouldInclude(ContextFlags{RequiresCoding: true}) {
+		t.Error("should include when at least one of multiple conditions matches")
+	}
+}
+
+func TestShouldInclude_MandatoryOverridesConditions(t *testing.T) {
+	mod := PromptModule{Metadata: PromptMetadata{
+		Tags: []string{"mandatory"}, Conditions: []string{"is_error"},
+	}}
+	if !mod.ShouldInclude(ContextFlags{}) {
+		t.Error("mandatory tag should override condition check and always include")
+	}
+}
+
+// ── parsePromptModule ──────────────────────────────────────────────────────────────────────
+func TestParsePromptModuleWithBOM(t *testing.T) {
+	// UTF-8 BOM (\xEF\xBB\xBF) is prepended by some Windows text editors.
+	withBOM := "\xEF\xBB\xBF---\nid: bom_test\ntags:\n  - core\n---\nContent after BOM"
+	mod, err := parsePromptModule(withBOM)
+	if err != nil {
+		t.Fatalf("parsePromptModule with BOM failed: %v", err)
+	}
+	if mod.Metadata.ID != "bom_test" {
+		t.Errorf("expected id=bom_test, got %q", mod.Metadata.ID)
+	}
+	if mod.Content != "Content after BOM" {
+		t.Errorf("unexpected content: %q", mod.Content)
+	}
+}
+
+func TestParsePromptModuleLeadingNewlines(t *testing.T) {
+	withNewlines := "\n\n---\nid: newline_test\ntags:\n  - core\n---\nBody text"
+	mod, err := parsePromptModule(withNewlines)
+	if err != nil {
+		t.Fatalf("parsePromptModule with leading newlines failed: %v", err)
+	}
+	if mod.Metadata.ID != "newline_test" {
+		t.Errorf("expected id=newline_test, got %q", mod.Metadata.ID)
+	}
+}
+
+// ── PrepareDynamicGuides path traversal ────────────────────────────────────────────
+func TestPrepareDynamicGuidesPathTraversal(t *testing.T) {
+	parent := t.TempDir()
+	toolsDir := filepath.Join(parent, "tools")
+	secretDir := filepath.Join(parent, "secret")
+	for _, d := range []string{toolsDir, secretDir} {
+		if err := os.Mkdir(d, 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// Write sensitive content outside toolsDir — should never be read.
+	const secretContent = "TOP_SECRET_KEY=abc123"
+	if err := os.WriteFile(filepath.Join(secretDir, "secret.md"), []byte(secretContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// "../secret/secret" traverses from toolsDir into secretDir.
+	traversalTool := "../secret/secret"
+	guides := PrepareDynamicGuides(
+		nil, nil, "test query", "", toolsDir,
+		[]string{traversalTool}, // recentTools
+		[]string{traversalTool}, // explicitTools
+		10, testLogger,
+	)
+	for _, g := range guides {
+		if strings.Contains(g, secretContent) {
+			t.Fatal("path traversal attack succeeded — secret content leaked across directory boundary")
+		}
 	}
 }

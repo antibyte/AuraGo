@@ -301,6 +301,16 @@ func Load(path string) (*Config, error) {
 	if cfg.Agent.AdaptiveTools.DecayHalfLifeDays <= 0 {
 		cfg.Agent.AdaptiveTools.DecayHalfLifeDays = 7.0
 	}
+	if cfg.Agent.AdaptiveTools.CleanTransitionsAfterDays <= 0 {
+		cfg.Agent.AdaptiveTools.CleanTransitionsAfterDays = 90
+	}
+	// WeightSuccessRate defaults to true when not explicitly set to false
+	// Note: YAML bool defaults to false on missing key, so we check whether
+	// the user has adaptive tools enabled; if so, default to true.
+	// Users who want the old unweighted behaviour can set weight_success_rate: false.
+	if cfg.Agent.AdaptiveTools.Enabled && !cfg.Agent.AdaptiveTools.WeightSuccessRate {
+		cfg.Agent.AdaptiveTools.WeightSuccessRate = true
+	}
 	if len(cfg.Agent.AdaptiveTools.AlwaysInclude) == 0 && cfg.Agent.AdaptiveTools.Enabled {
 		cfg.Agent.AdaptiveTools.AlwaysInclude = []string{
 			"filesystem", "shell", "manage_memory", "query_memory",

@@ -14,9 +14,13 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-func parseOrFallback(filename, content string) PromptModule {
+func parseOrFallback(filename, content string, logger *slog.Logger) PromptModule {
 	mod, err := parsePromptModule(content)
 	if err != nil {
+		if logger != nil {
+			logger.Warn("Prompt module has no valid YAML frontmatter, using raw content as fallback",
+				"file", filename, "error", err)
+		}
 		return PromptModule{
 			Metadata: PromptMetadata{
 				ID:       strings.TrimSuffix(filepath.Base(filename), ".md"),
@@ -60,7 +64,7 @@ func loadPromptModules(dir string, logger *slog.Logger) []PromptModule {
 		if err != nil {
 			return nil
 		}
-		moduleMap[path] = parseOrFallback(path, string(data))
+		moduleMap[path] = parseOrFallback(path, string(data), logger)
 		return nil
 	})
 
@@ -81,7 +85,7 @@ func loadPromptModules(dir string, logger *slog.Logger) []PromptModule {
 				logger.Warn("Failed to read prompt file", "path", path, "error", err)
 				continue
 			}
-			moduleMap[file.Name()] = parseOrFallback(file.Name(), string(data))
+			moduleMap[file.Name()] = parseOrFallback(file.Name(), string(data), logger)
 		}
 	} else if len(moduleMap) == 0 {
 		logger.Error("Failed to read prompts directory and no embedded modules loaded", "path", dir, "error", err)
@@ -133,6 +137,10 @@ func promptCacheStale(dir string, mtimes map[string]time.Time) bool {
 }
 
 func parsePromptModule(raw string) (*PromptModule, error) {
+	// Strip UTF-8 BOM (\xEF\xBB\xBF) and leading blank lines so files saved by
+	// Windows editors or tools that prepend a BOM are accepted without error.
+	raw = strings.TrimPrefix(raw, "\xEF\xBB\xBF")
+	raw = strings.TrimLeft(raw, "\r\n ")
 	if !strings.HasPrefix(raw, "---") {
 		return nil, fmt.Errorf("no frontmatter found")
 	}
@@ -505,6 +513,16 @@ func truncateGuide(raw string, maxBytes int) string {
 	return content
 }
 
+// isToolPathSafe returns true when path is confirmed to be within baseDir,
+// preventing path traversal via crafted tool names or injected index paths.
+// path must have already been cleaned with filepath.Clean before calling.
+func isToolPathSafe(path, baseDir string) bool {
+	if baseDir == "" {
+		return false
+	}
+	return strings.HasPrefix(path, filepath.Clean(baseDir)+string(filepath.Separator))
+}
+
 // PrepareDynamicGuides orchestrates explicit, semantic, statistical, and recency-based prediction to find relevant tool documents.
 // maxTotalGuides caps the number of guides returned (default: 5 if <= 0).
 func PrepareDynamicGuides(vdb memory.VectorDB, stm *memory.SQLiteMemory, userQuery, lastTool, toolsDir string, recentTools []string, explicitTools []string, maxTotalGuides int, logger *slog.Logger) []string {
@@ -520,6 +538,12 @@ func PrepareDynamicGuides(vdb memory.VectorDB, stm *memory.SQLiteMemory, userQue
 			break
 		}
 		cleanPath := filepath.Clean(filepath.Join(toolsDir, tool+".md"))
+		if !isToolPathSafe(cleanPath, toolsDir) {
+			if logger != nil {
+				logger.Warn("[ToolGuides] Rejected unsafe explicit tool path", "tool", tool)
+			}
+			continue
+		}
 		if !guideMap[cleanPath] {
 			if content, ok := readToolGuide(cleanPath); ok {
 				guides = append(guides, content)
@@ -534,6 +558,9 @@ func PrepareDynamicGuides(vdb memory.VectorDB, stm *memory.SQLiteMemory, userQue
 			break
 		}
 		cleanPath := filepath.Clean(filepath.Join(toolsDir, tool+".md"))
+		if !isToolPathSafe(cleanPath, toolsDir) {
+			continue
+		}
 		if !guideMap[cleanPath] {
 			if content, ok := readToolGuide(cleanPath); ok {
 				guides = append(guides, content)
@@ -568,7 +595,7 @@ func PrepareDynamicGuides(vdb memory.VectorDB, stm *memory.SQLiteMemory, userQue
 		nextTool, err := stm.GetTopTransition(lastTool)
 		if err == nil && nextTool != "" {
 			cleanPath := filepath.Clean(filepath.Join(toolsDir, nextTool+".md"))
-			if !guideMap[cleanPath] {
+			if isToolPathSafe(cleanPath, toolsDir) && !guideMap[cleanPath] {
 				if content, ok := readToolGuide(cleanPath); ok {
 					guides = append(guides, content)
 					guideMap[cleanPath] = true
@@ -585,11 +612,12 @@ func PrepareDynamicGuides(vdb memory.VectorDB, stm *memory.SQLiteMemory, userQue
 				break
 			}
 			cleanPath := filepath.Clean(filepath.Join(toolsDir, tool+".md"))
-			if !guideMap[cleanPath] {
-				if content, ok := readToolGuide(cleanPath); ok {
-					guides = append(guides, content)
-					guideMap[cleanPath] = true
-				}
+			if !isToolPathSafe(cleanPath, toolsDir) || guideMap[cleanPath] {
+				continue
+			}
+			if content, ok := readToolGuide(cleanPath); ok {
+				guides = append(guides, content)
+				guideMap[cleanPath] = true
 			}
 		}
 	}

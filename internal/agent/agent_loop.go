@@ -52,7 +52,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		if entries, err := shortTermMem.LoadToolUsageAdaptive(); err == nil && len(entries) > 0 {
 			converted := make([]prompts.ToolUsageEntry, len(entries))
 			for i, e := range entries {
-				converted[i] = prompts.ToolUsageEntry{ToolName: e.ToolName, TotalCount: e.TotalCount, LastUsed: e.LastUsed}
+				converted[i] = prompts.ToolUsageEntry{ToolName: e.ToolName, TotalCount: e.TotalCount, SuccessCount: e.SuccessCount, LastUsed: e.LastUsed}
 			}
 			prompts.LoadAdaptiveToolState(converted)
 			logger.Info("[AdaptiveTools] Loaded persistent tool usage", "tools_tracked", len(entries))
@@ -326,7 +326,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			if halfLife <= 0 {
 				halfLife = 7.0
 			}
-			frequent := prompts.GetFrequentToolsWeighted(0, halfLife) // 0 = all scored tools
+			frequent := prompts.GetFrequentToolsWeighted(0, halfLife, cfg.Agent.AdaptiveTools.WeightSuccessRate) // 0 = all scored tools
 			maxTools := cfg.Agent.AdaptiveTools.MaxTools
 			alwaysInclude := cfg.Agent.AdaptiveTools.AlwaysInclude
 			if maxTools > 0 && len(frequent) > 0 {
@@ -442,9 +442,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			pResultContent := DispatchToolCall(ctx, ptc, cfg, currentLogger, client, vault, registry, manifest, cronManager, missionManagerV2, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, remoteHub, historyManager, tools.IsBusy(), surgeryPlan, guardian, llmGuardian, sessionID, coAgentRegistry, budgetTracker, lastUserMsg)
 			pResultContent = truncateToolOutput(pResultContent, cfg.Agent.ToolOutputLimit)
 			prompts.RecordToolUsage(ptc.Action, ptc.Operation, !isToolError(pResultContent))
-			prompts.RecordAdaptiveToolUsage(ptc.Action)
+			prompts.RecordAdaptiveToolUsage(ptc.Action, !isToolError(pResultContent))
 			if shortTermMem != nil {
-				_ = shortTermMem.UpsertToolUsage(ptc.Action)
+				_ = shortTermMem.UpsertToolUsage(ptc.Action, !isToolError(pResultContent))
 			}
 			broker.Send("tool_output", pResultContent)
 			if ptc.Action == "send_image" {
@@ -1383,9 +1383,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			resultContent = truncateToolOutput(resultContent, cfg.Agent.ToolOutputLimit)
 			toolFailed := isToolError(resultContent)
 			prompts.RecordToolUsage(tc.Action, tc.Operation, !toolFailed)
-			prompts.RecordAdaptiveToolUsage(tc.Action)
+			prompts.RecordAdaptiveToolUsage(tc.Action, !toolFailed)
 			if shortTermMem != nil {
-				_ = shortTermMem.UpsertToolUsage(tc.Action)
+				_ = shortTermMem.UpsertToolUsage(tc.Action, !toolFailed)
 			}
 
 			// Record error patterns for learning
@@ -1761,9 +1761,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					bResult := DispatchToolCall(ctx, btc, cfg, currentLogger, client, vault, registry, manifest, cronManager, missionManagerV2, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, remoteHub, historyManager, tools.IsBusy(), surgeryPlan, guardian, llmGuardian, sessionID, coAgentRegistry, budgetTracker, lastUserMsg)
 					bResult = truncateToolOutput(bResult, cfg.Agent.ToolOutputLimit)
 					prompts.RecordToolUsage(btc.Action, btc.Operation, !isToolError(bResult))
-					prompts.RecordAdaptiveToolUsage(btc.Action)
+					prompts.RecordAdaptiveToolUsage(btc.Action, !isToolError(bResult))
 					if shortTermMem != nil {
-						_ = shortTermMem.UpsertToolUsage(btc.Action)
+						_ = shortTermMem.UpsertToolUsage(btc.Action, !isToolError(bResult))
 					}
 					broker.Send("tool_output", bResult)
 					broker.Send("tool_end", btc.Action)

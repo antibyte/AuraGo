@@ -118,28 +118,34 @@ func TestToolUsageStatsEmpty(t *testing.T) {
 func TestDecayScore(t *testing.T) {
 	now := time.Now()
 
-	// Tool used 10 times, just now → score ≈ 10
-	s1 := decayScore(10, now, 7)
+	// Tool used 10 times, just now → score ≈ 10 (weightSuccess=false keeps original behaviour)
+	s1 := decayScore(10, 0, now, 7, false)
 	if s1 < 9.9 || s1 > 10.1 {
 		t.Errorf("decayScore(10, now, 7) = %f, want ~10", s1)
 	}
 
 	// Tool used 10 times, 7 days ago → score ≈ 5 (half-life)
-	s2 := decayScore(10, now.Add(-7*24*time.Hour), 7)
+	s2 := decayScore(10, 0, now.Add(-7*24*time.Hour), 7, false)
 	if s2 < 4.9 || s2 > 5.1 {
 		t.Errorf("decayScore(10, 7d ago, 7) = %f, want ~5", s2)
 	}
 
 	// Tool used 10 times, 14 days ago → score ≈ 2.5
-	s3 := decayScore(10, now.Add(-14*24*time.Hour), 7)
+	s3 := decayScore(10, 0, now.Add(-14*24*time.Hour), 7, false)
 	if s3 < 2.4 || s3 > 2.6 {
 		t.Errorf("decayScore(10, 14d ago, 7) = %f, want ~2.5", s3)
 	}
 
 	// Tool used 5 times, 30 days ago → score very low
-	s4 := decayScore(5, now.Add(-30*24*time.Hour), 7)
+	s4 := decayScore(5, 0, now.Add(-30*24*time.Hour), 7, false)
 	if s4 > 0.5 {
 		t.Errorf("decayScore(5, 30d ago, 7) = %f, want <0.5", s4)
+	}
+
+	// weightSuccess=true with all successes should give higher score than without
+	s5 := decayScore(10, 10, now, 7, true)
+	if s5 < s1 {
+		t.Errorf("decayScore with all successes should be >= score without weighting: %f < %f", s5, s1)
 	}
 }
 
@@ -159,7 +165,7 @@ func TestGetFrequentToolsWeighted(t *testing.T) {
 		{ToolName: "forgotten", TotalCount: 5, LastUsed: now.Add(-60 * 24 * time.Hour)}, // very old, low count → should be filtered
 	})
 
-	result := GetFrequentToolsWeighted(3, 7)
+	result := GetFrequentToolsWeighted(3, 7, false)
 	if len(result) < 2 || len(result) > 3 {
 		t.Fatalf("GetFrequentToolsWeighted(3, 7) returned %d tools, want 2-3", len(result))
 	}
@@ -177,7 +183,7 @@ func TestGetFrequentToolsWeightedEmpty(t *testing.T) {
 	adaptiveToolState.entries = make(map[string]*ToolUsageEntry)
 	adaptiveToolState.mu.Unlock()
 
-	result := GetFrequentToolsWeighted(10, 7)
+	result := GetFrequentToolsWeighted(10, 7, false)
 	if len(result) != 0 {
 		t.Errorf("Empty state should return 0 tools, got %d", len(result))
 	}
@@ -188,11 +194,11 @@ func TestRecordAdaptiveToolUsage(t *testing.T) {
 	adaptiveToolState.entries = make(map[string]*ToolUsageEntry)
 	adaptiveToolState.mu.Unlock()
 
-	RecordAdaptiveToolUsage("shell")
-	RecordAdaptiveToolUsage("shell")
-	RecordAdaptiveToolUsage("docker")
+	RecordAdaptiveToolUsage("shell", true)
+	RecordAdaptiveToolUsage("shell", true)
+	RecordAdaptiveToolUsage("docker", false)
 
-	scores := GetAdaptiveToolScores(7)
+	scores := GetAdaptiveToolScores(7, false)
 	if len(scores) != 2 {
 		t.Fatalf("Expected 2 tools, got %d", len(scores))
 	}

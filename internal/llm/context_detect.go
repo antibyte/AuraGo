@@ -1,6 +1,7 @@
 package llm
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -30,9 +31,13 @@ func detectContextWindowOllama(baseURL, model string, logger *slog.Logger) int {
 	ollamaBase := strings.TrimSuffix(strings.TrimSuffix(baseURL, "/"), "/v1")
 	showURL := ollamaBase + "/api/show"
 
-	payload := fmt.Sprintf(`{"name":"%s"}`, model)
+	payloadBytes, err := json.Marshal(map[string]string{"name": model})
+	if err != nil {
+		logger.Debug("[ContextDetect/Ollama] Failed to marshal request payload", "error", err)
+		return 0
+	}
 	client := &http.Client{Timeout: 10 * time.Second}
-	req, err := http.NewRequest("POST", showURL, strings.NewReader(payload))
+	req, err := http.NewRequest("POST", showURL, bytes.NewReader(payloadBytes))
 	if err != nil {
 		logger.Debug("[ContextDetect/Ollama] Failed to create request", "error", err)
 		return 0

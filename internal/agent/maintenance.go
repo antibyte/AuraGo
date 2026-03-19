@@ -92,6 +92,17 @@ func runMaintenanceTask(cfg *config.Config, logger *slog.Logger, client llm.Chat
 		} else if deletedEvents > 0 {
 			logger.Info("[Maintenance] Cleaned old archive events", "deleted", deletedEvents)
 		}
+
+		cleanDays := cfg.Agent.AdaptiveTools.CleanTransitionsAfterDays
+		if cleanDays <= 0 {
+			cleanDays = 90
+		}
+		deletedTrans, err := shortTermMem.CleanOldTransitions(cleanDays)
+		if err != nil {
+			logger.Error("[Maintenance] Failed to clean old tool transitions", "error", err)
+		} else if deletedTrans > 0 {
+			logger.Info("[Maintenance] Cleaned stale tool transitions", "deleted", deletedTrans)
+		}
 	}
 
 	// Phase D8: Personality Engine maintenance — trait decay + journal

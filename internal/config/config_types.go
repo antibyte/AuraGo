@@ -204,10 +204,12 @@ type Config struct {
 		AllowWebScraper      *bool  `yaml:"allow_web_scraper"`      // deprecated: migrated to tools.web_scraper.enabled
 		AdditionalPrompt     string `yaml:"additional_prompt"`      // extra instructions always appended to the system prompt
 		AdaptiveTools        struct {
-			Enabled           bool     `yaml:"enabled"`              // enable adaptive tool filtering (default: false)
-			MaxTools          int      `yaml:"max_tools"`            // maximum tool schemas to send to LLM (0 = unlimited, default: 60)
-			DecayHalfLifeDays float64  `yaml:"decay_half_life_days"` // usage score halves after this many days (default: 7)
-			AlwaysInclude     []string `yaml:"always_include"`       // tools always included regardless of usage
+			Enabled                   bool     `yaml:"enabled"`                      // enable adaptive tool filtering (default: false)
+			MaxTools                  int      `yaml:"max_tools"`                    // maximum tool schemas to send to LLM (0 = unlimited, default: 60)
+			DecayHalfLifeDays         float64  `yaml:"decay_half_life_days"`         // usage score halves after this many days (default: 7)
+			AlwaysInclude             []string `yaml:"always_include"`               // tools always included regardless of usage
+			WeightSuccessRate         bool     `yaml:"weight_success_rate"`          // penalise tools with low success rate in scoring (default: true)
+			CleanTransitionsAfterDays int      `yaml:"clean_transitions_after_days"` // remove stale tool transitions after N days (default: 90)
 		} `yaml:"adaptive_tools"`
 		MaxToolGuides      int `yaml:"max_tool_guides"` // maximum tool guide documents injected into prompt (default: 5)
 		EmotionSynthesizer struct {

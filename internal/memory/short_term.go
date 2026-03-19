@@ -156,7 +156,16 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 	CREATE TABLE IF NOT EXISTS tool_usage_adaptive (
 		tool_name TEXT PRIMARY KEY,
 		total_count INTEGER DEFAULT 0,
+		success_count INTEGER DEFAULT 0,
 		last_used DATETIME DEFAULT CURRENT_TIMESTAMP
+	);
+
+	CREATE TABLE IF NOT EXISTS tool_transitions (
+		from_tool TEXT,
+		to_tool TEXT,
+		count INTEGER DEFAULT 0,
+		last_updated DATETIME DEFAULT CURRENT_TIMESTAMP,
+		PRIMARY KEY (from_tool, to_tool)
 	);`
 
 	if _, err := db.Exec(schema); err != nil {
@@ -210,6 +219,32 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 		_, err = db.Exec("ALTER TABLE user_profile ADD COLUMN first_seen DATETIME DEFAULT NULL")
 		if err != nil {
 			logger.Error("Failed to add first_seen column to user_profile", "error", err)
+		}
+	}
+
+	// Dynamic migration for success_count column in tool_usage_adaptive
+	var hasSuccessCount bool
+	err = db.QueryRow("SELECT count(*) > 0 FROM pragma_table_info('tool_usage_adaptive') WHERE name='success_count'").Scan(&hasSuccessCount)
+	if err != nil {
+		logger.Warn("Failed to check for success_count column", "error", err)
+	} else if !hasSuccessCount {
+		logger.Info("Migrating SQLite: adding success_count column to tool_usage_adaptive")
+		_, err = db.Exec("ALTER TABLE tool_usage_adaptive ADD COLUMN success_count INTEGER DEFAULT 0")
+		if err != nil {
+			logger.Error("Failed to add success_count column", "error", err)
+		}
+	}
+
+	// Dynamic migration for last_updated column in tool_transitions
+	var hasLastUpdated bool
+	err = db.QueryRow("SELECT count(*) > 0 FROM pragma_table_info('tool_transitions') WHERE name='last_updated'").Scan(&hasLastUpdated)
+	if err != nil {
+		logger.Warn("Failed to check for last_updated column in tool_transitions", "error", err)
+	} else if !hasLastUpdated {
+		logger.Info("Migrating SQLite: adding last_updated column to tool_transitions")
+		_, err = db.Exec("ALTER TABLE tool_transitions ADD COLUMN last_updated DATETIME DEFAULT CURRENT_TIMESTAMP")
+		if err != nil {
+			logger.Error("Failed to add last_updated column to tool_transitions", "error", err)
 		}
 	}
 
@@ -638,9 +673,11 @@ func (s *SQLiteMemory) RecordToolTransition(from, to string) error {
 		return nil
 	}
 	stmt := `
-	INSERT INTO tool_transitions (from_tool, to_tool, count)
-	VALUES (?, ?, 1)
-	ON CONFLICT(from_tool, to_tool) DO UPDATE SET count = count + 1;`
+	INSERT INTO tool_transitions (from_tool, to_tool, count, last_updated)
+	VALUES (?, ?, 1, CURRENT_TIMESTAMP)
+	ON CONFLICT(from_tool, to_tool) DO UPDATE SET
+		count        = count + 1,
+		last_updated = CURRENT_TIMESTAMP;`
 	_, err := s.db.Exec(stmt, from, to)
 	return err
 }
@@ -679,25 +716,34 @@ func (s *SQLiteMemory) GetToolUsageCount(toolName string) (int, error) {
 
 // ToolUsageAdaptiveEntry represents a persistent tool usage record with decay support.
 type ToolUsageAdaptiveEntry struct {
-	ToolName   string
-	TotalCount int
-	LastUsed   time.Time
+	ToolName     string
+	TotalCount   int
+	SuccessCount int
+	LastUsed     time.Time
 }
 
 // UpsertToolUsage increments the usage counter for a tool and updates last_used.
-func (s *SQLiteMemory) UpsertToolUsage(toolName string) error {
+// success indicates whether the tool call completed without error.
+func (s *SQLiteMemory) UpsertToolUsage(toolName string, success bool) error {
+	successDelta := 0
+	if success {
+		successDelta = 1
+	}
 	_, err := s.db.Exec(`
-		INSERT INTO tool_usage_adaptive (tool_name, total_count, last_used)
-		VALUES (?, 1, CURRENT_TIMESTAMP)
+		INSERT INTO tool_usage_adaptive (tool_name, total_count, success_count, last_used)
+		VALUES (?, 1, ?, CURRENT_TIMESTAMP)
 		ON CONFLICT(tool_name)
-		DO UPDATE SET total_count = total_count + 1, last_used = CURRENT_TIMESTAMP`,
-		toolName)
+		DO UPDATE SET
+			total_count   = total_count   + 1,
+			success_count = success_count + ?,
+			last_used     = CURRENT_TIMESTAMP`,
+		toolName, successDelta, successDelta)
 	return err
 }
 
 // LoadToolUsageAdaptive returns all tracked tool usage entries.
 func (s *SQLiteMemory) LoadToolUsageAdaptive() ([]ToolUsageAdaptiveEntry, error) {
-	rows, err := s.db.Query(`SELECT tool_name, total_count, last_used FROM tool_usage_adaptive`)
+	rows, err := s.db.Query(`SELECT tool_name, total_count, COALESCE(success_count, 0), last_used FROM tool_usage_adaptive`)
 	if err != nil {
 		return nil, err
 	}
@@ -706,7 +752,7 @@ func (s *SQLiteMemory) LoadToolUsageAdaptive() ([]ToolUsageAdaptiveEntry, error)
 	var entries []ToolUsageAdaptiveEntry
 	for rows.Next() {
 		var e ToolUsageAdaptiveEntry
-		if err := rows.Scan(&e.ToolName, &e.TotalCount, &e.LastUsed); err != nil {
+		if err := rows.Scan(&e.ToolName, &e.TotalCount, &e.SuccessCount, &e.LastUsed); err != nil {
 			continue
 		}
 		entries = append(entries, e)
@@ -769,6 +815,18 @@ func (s *SQLiteMemory) GetTopPatterns(hour, weekday, limit int) ([]string, error
 // CleanOldPatterns removes interaction patterns older than the given number of days.
 func (s *SQLiteMemory) CleanOldPatterns(olderThanDays int) (int64, error) {
 	res, err := s.db.Exec(`DELETE FROM interaction_patterns WHERE last_seen < datetime('now', '-' || ? || ' days');`, olderThanDays)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
+}
+
+// CleanOldTransitions removes rarely-used tool transitions that haven't been
+// updated in the given number of days and have a low count (pruning noise).
+func (s *SQLiteMemory) CleanOldTransitions(olderThanDays int) (int64, error) {
+	res, err := s.db.Exec(
+		`DELETE FROM tool_transitions WHERE last_updated < datetime('now', '-' || ? || ' days') AND count <= 2;`,
+		olderThanDays)
 	if err != nil {
 		return 0, err
 	}

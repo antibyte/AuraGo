@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"strings"
 )
 
@@ -159,6 +160,14 @@ func (c *Config) MigrateEmailAccounts() {
 	c.EmailAccounts = append(c.EmailAccounts, acct)
 }
 
+// knownProviderTypes is the set of valid provider type strings. An entry whose
+// Type field is not in this set most likely has a typo in the config file.
+var knownProviderTypes = map[string]bool{
+	"openai": true, "openrouter": true, "ollama": true,
+	"anthropic": true, "google": true, "workers-ai": true,
+	"custom": true, "stability": true, "ideogram": true,
+}
+
 // ResolveProviders populates the resolved (yaml:"-") fields on every LLM slot
 // from the corresponding ProviderEntry.  It also handles legacy migration: if
 // the Providers list is empty but inline fields exist (old-format config), it
@@ -166,6 +175,15 @@ func (c *Config) MigrateEmailAccounts() {
 func (c *Config) ResolveProviders() {
 	c.migrateInlineProviders()
 	c.migrateBudgetModelsToProviders()
+
+	// Warn about unknown provider types so typos surface immediately at startup.
+	for _, p := range c.Providers {
+		lower := strings.ToLower(p.Type)
+		if lower != "" && !knownProviderTypes[lower] {
+			slog.Warn("[Config] Provider has unknown type — possible typo in config",
+				"provider_id", p.ID, "type", p.Type)
+		}
+	}
 
 	// ── LLM ──
 	if p := c.FindProvider(c.LLM.Provider); p != nil {

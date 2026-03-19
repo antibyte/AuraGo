@@ -359,7 +359,7 @@ func handleDashboardToolStats(cfg *config.Config) http.HandlerFunc {
 			AdaptiveEnabled:     cfg.Agent.AdaptiveTools.Enabled,
 		}
 		if cfg.Agent.AdaptiveTools.Enabled {
-			resp.AdaptiveScores = prompts.GetAdaptiveToolScores(cfg.Agent.AdaptiveTools.DecayHalfLifeDays)
+			resp.AdaptiveScores = prompts.GetAdaptiveToolScores(cfg.Agent.AdaptiveTools.DecayHalfLifeDays, cfg.Agent.AdaptiveTools.WeightSuccessRate)
 			resp.MaxTools = cfg.Agent.AdaptiveTools.MaxTools
 		}
 		json.NewEncoder(w).Encode(resp)

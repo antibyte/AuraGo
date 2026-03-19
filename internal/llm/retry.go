@@ -2,6 +2,7 @@ package llm
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -89,8 +90,9 @@ func ExecuteWithCustomRetry(ctx context.Context, client ChatClient, req openai.C
 		}
 
 		attempt++
-		msg := fmt.Sprintf("API Error (%s). Retrying in %v (Attempt %d)...", err.Error(), waitTime, attempt)
-		logger.Warn("[LLM Retry]", "error", err, "wait", waitTime, "attempt", attempt)
+		safeErrMsg := safeAPIError(err)
+		msg := fmt.Sprintf("API Error (%s). Retrying in %v (Attempt %d)...", safeErrMsg, waitTime, attempt)
+		logger.Warn("[LLM Retry]", "error", safeErrMsg, "wait", waitTime, "attempt", attempt)
 
 		if broker != nil {
 			broker.Send("api_retry", msg)
@@ -143,8 +145,9 @@ func ExecuteStreamWithCustomRetry(ctx context.Context, client ChatClient, req op
 		}
 
 		attempt++
-		msg := fmt.Sprintf("Stream API Error (%s). Retrying in %v (Attempt %d)...", err.Error(), waitTime, attempt)
-		logger.Warn("[LLM Stream Retry]", "error", err, "wait", waitTime, "attempt", attempt)
+		safeErrMsg := safeAPIError(err)
+		msg := fmt.Sprintf("Stream API Error (%s). Retrying in %v (Attempt %d)...", safeErrMsg, waitTime, attempt)
+		logger.Warn("[LLM Stream Retry]", "error", safeErrMsg, "wait", waitTime, "attempt", attempt)
 
 		if broker != nil {
 			broker.Send("api_retry", msg)
@@ -158,4 +161,17 @@ func ExecuteStreamWithCustomRetry(ctx context.Context, client ChatClient, req op
 			return nil, ctx.Err()
 		}
 	}
+}
+
+// safeAPIError returns a user-safe error description that avoids exposing raw
+// HTTP response bodies or URL fragments that might contain credentials.
+// For structured API errors, only the status code and server message are used.
+// For other error types (e.g. network timeouts), the standard message is returned
+// because those do not contain auth material.
+func safeAPIError(err error) string {
+	var apiErr *openai.APIError
+	if errors.As(err, &apiErr) {
+		return fmt.Sprintf("status %d: %s", apiErr.HTTPStatusCode, apiErr.Message)
+	}
+	return err.Error()
 }

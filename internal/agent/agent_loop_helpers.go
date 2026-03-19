@@ -182,32 +182,55 @@ func extractErrorMessage(resultContent string) string {
 
 // filterToolSchemas removes tools that are neither in the frequent-tools list
 // nor in the always-include list, keeping at most maxTools schemas.
+// alwaysInclude tools and skill__/tool__ prefixed tools are never dropped.
+// maxTools is a hard cap applied to frequent tools; alwaysInclude tools do not
+// count against the cap. maxTools=0 disables the cap entirely.
 // This reduces token overhead for rarely-used tools without breaking any dispatch.
 func filterToolSchemas(schemas []openai.Tool, frequentTools, alwaysInclude []string, maxTools int, logger *slog.Logger) []openai.Tool {
-	keep := make(map[string]bool, len(frequentTools)+len(alwaysInclude))
+	keepAlways := make(map[string]bool, len(alwaysInclude))
 	for _, t := range alwaysInclude {
-		keep[t] = true
+		keepAlways[t] = true
 	}
+	keepFrequent := make(map[string]bool, len(frequentTools))
 	for _, t := range frequentTools {
-		keep[t] = true
+		if !keepAlways[t] {
+			keepFrequent[t] = true
+		}
 	}
 
-	var kept, dropped []openai.Tool
+	var keptAlways, keptFrequent, dropped []openai.Tool
 	for _, s := range schemas {
 		if s.Function == nil {
-			kept = append(kept, s)
+			keptAlways = append(keptAlways, s)
 			continue
 		}
 		name := s.Function.Name
-		// Always keep core tools (skill__, tool__ prefixed custom tools)
-		if keep[name] || strings.HasPrefix(name, "skill__") || strings.HasPrefix(name, "tool__") {
-			kept = append(kept, s)
+		// alwaysInclude and skill__/tool__ prefixed tools are never filtered
+		if keepAlways[name] || strings.HasPrefix(name, "skill__") || strings.HasPrefix(name, "tool__") {
+			keptAlways = append(keptAlways, s)
+		} else if keepFrequent[name] {
+			keptFrequent = append(keptFrequent, s)
 		} else {
 			dropped = append(dropped, s)
 		}
 	}
 
-	// If we're already under the limit, done
+	// Enforce maxTools cap on frequent tools (alwaysInclude tools are exempt)
+	if maxTools > 0 {
+		remaining := maxTools - len(keptAlways)
+		if remaining < 0 {
+			remaining = 0
+		}
+		if len(keptFrequent) > remaining {
+			// Push excess frequent tools back to dropped (preserving order)
+			dropped = append(keptFrequent[remaining:], dropped...)
+			keptFrequent = keptFrequent[:remaining]
+		}
+	}
+
+	kept := append(keptAlways, keptFrequent...)
+
+	// If at or over the limit (or no limit), done
 	if maxTools <= 0 || len(kept) >= maxTools {
 		if logger != nil && len(dropped) > 0 {
 			logger.Info("[AdaptiveTools] Filtered tool schemas",
