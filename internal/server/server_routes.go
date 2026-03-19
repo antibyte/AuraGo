@@ -928,13 +928,10 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		}()
 	}
 
-	// Start Phase 1 TCP Bridge (Lifeboat IPC)
-	lifeboatPort := s.Cfg.Maintenance.LifeboatPort
-	if lifeboatPort <= 0 {
-		lifeboatPort = 8089
-	}
-	bridgeAddr := fmt.Sprintf("localhost:%d", lifeboatPort)
-	go s.StartTCPBridge(bridgeAddr)
+	// Start Phase 1 TCP Bridge (Lifeboat IPC — lifeboat dials this on port 8089)
+	// This port is intentionally separate from maintenance.lifeboat_port (8091),
+	// which is the port lifeboat itself listens on.
+	go s.StartTCPBridge("localhost:8089")
 
 	// Start tsnet embedded Tailscale node (serves same handler over Tailscale network)
 	if s.Cfg.Tailscale.TsNet.Enabled && s.TsNetManager != nil {
