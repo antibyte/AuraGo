@@ -77,14 +77,13 @@ function switchTab(tab) {
         btn.setAttribute('aria-selected', 'false');
     });
     document.querySelectorAll('.media-panel').forEach(function (panel) {
-        panel.style.display = 'none';
         panel.classList.remove('active');
     });
 
     const activeTab = document.getElementById('tab-' + tab);
     const activePanel = document.getElementById('panel-' + tab);
     if (activeTab) { activeTab.classList.add('active'); activeTab.setAttribute('aria-selected', 'true'); }
-    if (activePanel) { activePanel.style.display = ''; activePanel.classList.add('active'); }
+    if (activePanel) { activePanel.classList.add('active'); }
 
     if (tab === 'images') {
         loadGallery();
