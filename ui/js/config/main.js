@@ -770,7 +770,7 @@ function setDirty(dirty) {
 }
 
 function attachChangeListeners() {
-    document.querySelectorAll('.field-input, .field-select').forEach(el => {
+    document.querySelectorAll('.field-input, .field-select, .cfg-input').forEach(el => {
         el.addEventListener('input', markDirty);
         el.addEventListener('change', markDirty);
     });
