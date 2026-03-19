@@ -216,7 +216,10 @@ func NewMessage(msgType, deviceID, sharedKeyHex string, seq uint64, payload inte
 }
 
 // MaxTimestampDrift is the maximum allowed clock drift for anti-replay.
-const MaxTimestampDrift = 30 * time.Second
+// 5 minutes accommodates typical home-lab setups where NTP sync may lag
+// (Windows re-syncs every 7 days by default, VMs can drift significantly).
+// Replay attacks still require capturing and replaying within this window.
+const MaxTimestampDrift = 5 * time.Minute
 
 // ValidateTimestamp checks that a message timestamp is within acceptable drift.
 func ValidateTimestamp(ts string) error {
