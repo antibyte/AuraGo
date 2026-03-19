@@ -276,6 +276,8 @@ var authBypassPrefixes = []string{
 	"/api/openrouter/models",
 	"/api/oauth/callback",
 	"/api/ui-language",
+	"/api/remote/ws",       // Remote agent WebSocket — has its own key-based auth
+	"/api/remote/download", // Personalized binary download — generates an enrollment token
 	"/mcp",
 	"/setup",
 	"/shared.css",
