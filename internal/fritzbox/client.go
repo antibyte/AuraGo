@@ -84,6 +84,7 @@ func (c *Client) SmartHomeReadOnly() bool { return c.Cfg.FritzBox.SmartHome.Read
 func (c *Client) StorageEnabled() bool    { return c.Cfg.FritzBox.Storage.Enabled }
 func (c *Client) StorageReadOnly() bool   { return c.Cfg.FritzBox.Storage.ReadOnly }
 func (c *Client) TVEnabled() bool         { return c.Cfg.FritzBox.TV.Enabled }
+func (c *Client) TVReadOnly() bool        { return c.Cfg.FritzBox.TV.ReadOnly }
 
 // ──────────────────────────────────────────────
 // URL helper

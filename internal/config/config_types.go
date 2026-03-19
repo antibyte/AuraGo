@@ -391,8 +391,10 @@ type Config struct {
 				TAM            bool `yaml:"tam"`
 			} `yaml:"sub_features"`
 			Polling struct {
-				Enabled         bool `yaml:"enabled"`
-				IntervalSeconds int  `yaml:"interval_seconds"` // default: 60
+				Enabled              bool `yaml:"enabled"`
+				IntervalSeconds      int  `yaml:"interval_seconds"`       // default: 60
+				DedupWindowMinutes   int  `yaml:"dedup_window_minutes"`   // default: 5 – ignore duplicate events within this window
+				MaxCallbacksPerHour  int  `yaml:"max_callbacks_per_hour"` // default: 20 – rate limit LLM callbacks
 			} `yaml:"polling"`
 		} `yaml:"telephony"`
 
@@ -421,7 +423,8 @@ type Config struct {
 		} `yaml:"storage"`
 
 		TV struct {
-			Enabled     bool `yaml:"enabled"` // Cable-only: DVB-C channel list & stream URLs
+			Enabled     bool `yaml:"enabled"`  // Cable-only: DVB-C channel list & stream URLs
+			ReadOnly    bool `yaml:"readonly"` // true = read-only access (TV is read-only by nature)
 			SubFeatures struct {
 				ChannelList bool `yaml:"channel_list"`
 				StreamURLs  bool `yaml:"stream_urls"`

@@ -13,29 +13,29 @@ import (
 
 // SmartHomeDevice represents a Fritz!Box smart home device (DECT-ULE or ZigBee).
 type SmartHomeDevice struct {
-	AIN             string // actor identification number (unique ID)
-	Name            string // device name (external – wrap in <external_data>)
-	ProductName     string
-	Manufacturer    string
-	FirmwareVersion string
-	Present         bool
+	AIN             string `json:"ain"` // actor identification number (unique ID)
+	Name            string `json:"name"` // device name (external – wrap in <external_data>)
+	ProductName     string `json:"product_name"`
+	Manufacturer    string `json:"manufacturer"`
+	FirmwareVersion string `json:"firmware_version"`
+	Present         bool   `json:"present"`
 
 	// Power/switch state (nil if device has no switch)
-	SwitchState *bool
+	SwitchState *bool `json:"switch_state,omitempty"`
 
 	// Temperature sensor (nil if not available)
-	Temperature *float64 // in °C (Fritz!Box reports in units of 0.1°C)
+	Temperature *float64 `json:"temperature,omitempty"` // in °C (Fritz!Box reports in units of 0.1°C)
 
 	// Heating (DECT 301 etc.)
-	SetTemp    *float64 // target temperature in °C
-	ActualTemp *float64 // current temperature in °C
+	SetTemp    *float64 `json:"set_temp,omitempty"`    // target temperature in °C
+	ActualTemp *float64 `json:"actual_temp,omitempty"` // current temperature in °C
 
 	// Blind/roller shutter (nil if not available)
-	BlindPosition *int // 0–100 %
+	BlindPosition *int `json:"blind_position,omitempty"` // 0–100 %
 
 	// DECT-ULE lamp (nil if not a lamp)
-	LampBrightness *int
-	LampColor      *string
+	LampBrightness *int    `json:"lamp_brightness,omitempty"`
+	LampColor      *string `json:"lamp_color,omitempty"`
 }
 
 // deviceListXML is the top-level XML from AHA getdevicelistinfos.

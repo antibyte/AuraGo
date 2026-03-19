@@ -4,35 +4,38 @@ package fritzbox
 
 import (
 	"fmt"
+	"net"
+	"strconv"
+	"strings"
 )
 
 // WLANInfo holds the status of a WLAN radio (2.4 GHz / 5 GHz / 60 GHz / Guest).
 type WLANInfo struct {
-	Index     int // 1–4
-	SSID      string
-	Channel   string
-	Enabled   bool
-	Frequency string // "2.4 GHz", "5 GHz", etc.
+	Index     int    `json:"index"`     // 1–4
+	SSID      string `json:"ssid"`
+	Channel   string `json:"channel"`
+	Enabled   bool   `json:"enabled"`
+	Frequency string `json:"frequency"` // "2.4 GHz", "5 GHz", etc.
 }
 
 // HostEntry represents a connected or known network host.
 type HostEntry struct {
-	MACAddress string
-	IPAddress  string
-	Name       string
-	Active     bool
-	Interface  string // e.g., "802.11" or "Ethernet"
+	MACAddress string `json:"mac_address"`
+	IPAddress  string `json:"ip_address"`
+	Name       string `json:"name"`
+	Active     bool   `json:"active"`
+	Interface  string `json:"interface"` // e.g., "802.11" or "Ethernet"
 }
 
 // PortForwardEntry holds a NAT/port-forward rule.
 type PortForwardEntry struct {
-	RemoteHost     string
-	ExternalPort   string
-	Protocol       string // "TCP" or "UDP"
-	InternalPort   string
-	InternalClient string
-	Enabled        bool
-	Description    string
+	RemoteHost     string `json:"remote_host"`
+	ExternalPort   string `json:"external_port"`
+	Protocol       string `json:"protocol"` // "TCP" or "UDP"
+	InternalPort   string `json:"internal_port"`
+	InternalClient string `json:"internal_client"`
+	Enabled        bool   `json:"enabled"`
+	Description    string `json:"description"`
 }
 
 // wlanService returns the service URN and control URL for a given WLAN index (1–4).
@@ -162,11 +165,44 @@ func (c *Client) GetPortForwardingList() ([]PortForwardEntry, error) {
 	return entries, nil
 }
 
+// validatePort checks that s is a valid port number string (1–65535).
+func validatePort(s string) error {
+	p, err := strconv.Atoi(s)
+	if err != nil {
+		return fmt.Errorf("invalid port %q: %w", s, err)
+	}
+	if p < 1 || p > 65535 {
+		return fmt.Errorf("port %d out of range (1–65535)", p)
+	}
+	return nil
+}
+
+// ValidatePortForwardEntry checks all fields of a PortForwardEntry for sanity.
+func ValidatePortForwardEntry(e PortForwardEntry) error {
+	if err := validatePort(e.ExternalPort); err != nil {
+		return fmt.Errorf("external port: %w", err)
+	}
+	if err := validatePort(e.InternalPort); err != nil {
+		return fmt.Errorf("internal port: %w", err)
+	}
+	proto := strings.ToUpper(e.Protocol)
+	if proto != "TCP" && proto != "UDP" {
+		return fmt.Errorf("protocol must be TCP or UDP, got %q", e.Protocol)
+	}
+	if ip := net.ParseIP(e.InternalClient); ip == nil {
+		return fmt.Errorf("internal client %q is not a valid IP address", e.InternalClient)
+	}
+	return nil
+}
+
 // AddPortForwarding creates a new port forwarding rule.
-// Blocked when ReadOnly is true.
+// Blocked when ReadOnly is true. Validates inputs before sending to Fritz!Box.
 func (c *Client) AddPortForwarding(e PortForwardEntry) error {
 	if c.NetworkReadOnly() {
 		return fmt.Errorf("fritzbox network: port forwarding add blocked (readonly mode)")
+	}
+	if err := ValidatePortForwardEntry(e); err != nil {
+		return fmt.Errorf("fritzbox network: invalid port forwarding entry: %w", err)
 	}
 	enabled := "0"
 	if e.Enabled {

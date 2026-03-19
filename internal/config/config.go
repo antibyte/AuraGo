@@ -57,6 +57,8 @@ func Load(path string) (*Config, error) {
 	cfg.FritzBox.System.SubFeatures.Uptime = true
 	cfg.FritzBox.System.SubFeatures.Log = true
 	cfg.FritzBox.Telephony.Polling.IntervalSeconds = 60
+	cfg.FritzBox.Telephony.Polling.DedupWindowMinutes = 5
+	cfg.FritzBox.Telephony.Polling.MaxCallbacksPerHour = 20
 
 	// Document Creator defaults: Maroto backend, Gotenberg sidecar URL.
 	cfg.Tools.DocumentCreator.Backend = "maroto"

@@ -10,12 +10,12 @@ import (
 
 // SystemInfo holds general device information from TR-064 DeviceInfo.
 type SystemInfo struct {
-	ModelName       string
-	SoftwareVersion string
-	HardwareVersion string
-	Uptime          int // uptime in seconds
-	Serial          string
-	OEM             string
+	ModelName       string `json:"model_name"`
+	SoftwareVersion string `json:"software_version"`
+	HardwareVersion string `json:"hardware_version"`
+	Uptime          int    `json:"uptime"` // uptime in seconds
+	Serial          string `json:"serial"`
+	OEM             string `json:"oem"`
 }
 
 // GetSystemInfo retrieves general device info via TR-064 DeviceInfo:GetInfo.

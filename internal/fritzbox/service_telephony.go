@@ -15,30 +15,30 @@ import (
 
 // CallEntry represents a single call record from the Fritz!Box call list.
 type CallEntry struct {
-	Type     string // 1=incoming, 2=missed, 3=outgoing, 9=active
-	Date     string
-	Name     string // caller name (external – must be wrapped in <external_data>)
-	Number   string // caller number
-	Called   string // called number
-	Duration string // HH:MM
-	Count    string // number of attempts for missed calls
+	Type     string `json:"type"`     // 1=incoming, 2=missed, 3=outgoing, 9=active
+	Date     string `json:"date"`
+	Name     string `json:"name"`     // caller name (external – must be wrapped in <external_data>)
+	Number   string `json:"number"`   // caller number
+	Called   string `json:"called"`   // called number
+	Duration string `json:"duration"` // HH:MM
+	Count    string `json:"count"`    // number of attempts for missed calls
 }
 
 // PhonebookEntry is a name-to-numbers mapping from the Fritz!Box phonebook.
 type PhonebookEntry struct {
-	Name    string // external – must be wrapped in <external_data>
-	Numbers []string
+	Name    string   `json:"name"` // external – must be wrapped in <external_data>
+	Numbers []string `json:"numbers"`
 }
 
 // TAMEntry represents an answering machine message.
 type TAMEntry struct {
-	Index    int
-	Date     string
-	Name     string // caller name (external – must be wrapped in <external_data>)
-	Number   string // caller number
-	Duration string
-	Read     bool
-	Path     string // internal path (only for display, no direct access)
+	Index    int    `json:"index"`
+	Date     string `json:"date"`
+	Name     string `json:"name"`     // caller name (external – must be wrapped in <external_data>)
+	Number   string `json:"number"`   // caller number
+	Duration string `json:"duration"`
+	Read     bool   `json:"read"`
+	Path     string `json:"path"` // internal path (only for display, no direct access)
 }
 
 // GetCallList retrieves the call list as XML and parses into CallEntry slices.

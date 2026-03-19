@@ -13,12 +13,12 @@ import (
 
 // TVChannel represents a DVB-C TV or radio channel.
 type TVChannel struct {
-	Index     int
-	Name      string
-	Program   string
-	IsHD      bool
-	IsRadio   bool
-	StreamURL string // rtsp:// or http:// stream URL (may be empty if TV is disabled)
+	Index     int    `json:"index"`
+	Name      string `json:"name"`
+	Program   string `json:"program"`
+	IsHD      bool   `json:"is_hd"`
+	IsRadio   bool   `json:"is_radio"`
+	StreamURL string `json:"stream_url"` // rtsp:// or http:// stream URL (may be empty if TV is disabled)
 }
 
 // GetTVChannelList retrieves the DVB-C channel list.

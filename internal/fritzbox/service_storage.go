@@ -8,22 +8,22 @@ import (
 
 // StorageInfo holds general NAS storage information.
 type StorageInfo struct {
-	Path     string // mount path of the primary storage
-	Type     string // e.g. "USB", "internal"
-	Size     string // total size (human-readable as returned by Fritz!Box)
-	Used     string // used space
-	Free     string // free space
-	Writable bool
+	Path     string `json:"path"`     // mount path of the primary storage
+	Type     string `json:"type"`     // e.g. "USB", "internal"
+	Size     string `json:"size"`     // total size (human-readable as returned by Fritz!Box)
+	Used     string `json:"used"`     // used space
+	Free     string `json:"free"`     // free space
+	Writable bool   `json:"writable"`
 }
 
 // USBDevice represents a USB device connected to the Fritz!Box.
 type USBDevice struct {
-	DeviceType    string // e.g. "Storage", "Printer"
-	DeviceName    string
-	PartitionName string
-	FileSystem    string
-	Total         string
-	Free          string
+	DeviceType    string `json:"device_type"` // e.g. "Storage", "Printer"
+	DeviceName    string `json:"device_name"`
+	PartitionName string `json:"partition_name"`
+	FileSystem    string `json:"file_system"`
+	Total         string `json:"total"`
+	Free          string `json:"free"`
 }
 
 // GetStorageInfo returns information about the Fritz!Box NAS storage.
