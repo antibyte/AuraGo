@@ -72,9 +72,22 @@ Media is automatically registered when generated via `generate_image` or `tts`. 
 - `tts` — Text-to-speech audio (auto-registered from `tts`)
 - `audio` — Other audio files
 - `music` — Music files
+- `document` — Documents and PDFs (auto-registered from `document_creator`)
 
 ## Notes
-- Items are auto-registered when created via `generate_image` or `tts`
+- Items are auto-registered when created via `generate_image`, `tts`, or `document_creator`
 - Use `update` to add descriptions and better tags after auto-registration
 - `delete` is a soft-delete; items are hidden but not removed from the DB
 - Tags are stored as JSON arrays; use `tag` operation with modes `add`, `remove`, or `set`
+
+## ⚠️ MANDATORY REGISTRATION RULE
+**You MUST NEVER save or copy files to `data/documents/`, `data/images/`, or any media directory without registering them in the media registry immediately after.**
+
+The Media View in the Web UI only shows items that are registered. Files placed on disk without registration are invisible to the user and create orphaned clutter.
+
+**Correct workflow for any document/file you create:**
+1. Use `document_creator` → auto-registers on success ✅
+2. Use `filesystem` to write a file to a media directory? → immediately call `media_registry` `register` ✅
+3. Use shell/Python to copy or generate a file into a media directory? → immediately call `media_registry` `register` ✅
+
+**Never do this:** Create a file with shell/Python/filesystem and skip registration → ❌ file is invisible in the UI.

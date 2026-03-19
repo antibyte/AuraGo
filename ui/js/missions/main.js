@@ -11,6 +11,8 @@ let currentFilter = 'all';
 let editingId = null;
 let initialLoad = false; // Track if first load completed
 let gridRendered = false; // Track if grid has been rendered at least once (for enter animation)
+let viewMode = localStorage.getItem('missions-view-mode') || 'auto'; // 'grid' | 'list' | 'auto'
+let expandedCards = new Set(); // Track expanded card IDs in grid view
 
 // Icons
 const icons = {
@@ -77,6 +79,47 @@ async function loadData() {
 function render() {
     renderStatusBar();
     renderQueue();
+    renderMissions();
+    updateViewToggle();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// VIEW MODE FUNCTIONS
+// ═══════════════════════════════════════════════════════════════
+
+function getEffectiveViewMode() {
+    if (viewMode !== 'auto') return viewMode;
+    // Auto: use list view when > 8 missions
+    return missions.length > 8 ? 'list' : 'grid';
+}
+
+function setViewMode(mode) {
+    viewMode = mode;
+    localStorage.setItem('missions-view-mode', mode);
+    renderMissions();
+    updateViewToggle();
+}
+
+function updateViewToggle() {
+    const effective = getEffectiveViewMode();
+    document.querySelectorAll('#view-toggle button').forEach(btn => {
+        const isActive = (viewMode === 'auto' && btn.dataset.mode === effective) ||
+                        (viewMode !== 'auto' && btn.dataset.mode === viewMode);
+        btn.classList.toggle('active', isActive);
+    });
+    // Update container class
+    const container = document.getElementById('missions-grid');
+    if (container) {
+        container.classList.toggle('list-view', effective === 'list');
+    }
+}
+
+function toggleCardExpand(id) {
+    if (expandedCards.has(id)) {
+        expandedCards.delete(id);
+    } else {
+        expandedCards.add(id);
+    }
     renderMissions();
 }
 
@@ -160,6 +203,7 @@ function renderQueue() {
 // Missions Grid
 function renderMissions() {
     const container = document.getElementById('missions-grid');
+    const mode = getEffectiveViewMode();
 
     let filtered = missions;
     if (currentFilter !== 'all') {
@@ -168,73 +212,109 @@ function renderMissions() {
 
     if (filtered.length === 0) {
         container.innerHTML = `
-                    <div class="empty-state">
-                        <div class="icon">🚀</div>
-                        <p>${currentFilter === 'all' ? t('missions.empty_create_first') : t('missions.empty_no_missions_of_type')}</p>
-                    </div>
-                `;
+            <div class="empty-state">
+                <div class="icon">🚀</div>
+                <p>${currentFilter === 'all' ? t('missions.empty_create_first') : t('missions.empty_no_missions_of_type')}</p>
+            </div>
+        `;
         return;
     }
 
     const isFirstRender = !gridRendered;
     gridRendered = true;
-    container.innerHTML = filtered.map(mission => {
-        const isRunning = mission.id === queue.running;
-        const isQueued = queue.items.some(i => i.mission_id === mission.id);
-        const statusClass = isRunning ? 'running' : isQueued ? 'queued' : mission.status === 'waiting' ? 'waiting' : '';
 
-        const priorityBadge = `<span class="badge badge-priority-${mission.priority}">${mission.priority}</span>`;
-        const typeBadge = `<span class="badge badge-type-${mission.execution_type}">${mission.execution_type}</span>`;
-        const statusBadge = isRunning ? `<span class="badge badge-running">${t('missions.card_badge_running')}</span>` : '';
+    if (mode === 'list') {
+        container.innerHTML = filtered.map(mission => renderMissionCompact(mission)).join('');
+    } else {
+        container.innerHTML = filtered.map(mission => renderMissionGrid(mission, isFirstRender)).join('');
+    }
+}
 
-        let triggerInfo = '';
-        if (mission.execution_type === 'triggered' && mission.trigger_config) {
-            triggerInfo = renderTriggerInfo(mission);
-        }
+// Compact List View Card
+function renderMissionCompact(mission) {
+    const isRunning = mission.id === queue.running;
+    const isQueued = queue.items.some(i => i.mission_id === mission.id);
+    const typeIcon = icons[mission.execution_type] || icons.manual;
+    const statusBadge = isRunning ? `<span class="badge badge-running">${t('missions.card_badge_running')}</span>` :
+                       isQueued ? `<span class="badge" style="background:var(--warning)">${t('missions.card_badge_queued')}</span>` : '';
 
-        const lastRun = mission.last_run ? formatTime(mission.last_run) : t('missions.card_last_run_never');
-        const resultIcon = mission.last_result === 'success' ? icons.success : mission.last_result === 'error' ? icons.error : '';
+    return `
+        <div class="card-compact" onclick="if(event.target.closest('.card-actions')) return; editMission('${mission.id}')">
+            <span class="card-icon" title="${mission.execution_type}">${typeIcon}</span>
+            <span class="card-name">${escapeHtml(mission.name)}</span>
+            ${mission.locked ? `<span class="card-icon" title="${t('missions.card_locked_title')}">${icons.lock}</span>` : ''}
+            <div class="card-badges">${statusBadge}</div>
+            <div class="card-actions" onclick="event.stopPropagation()">
+                <button class="btn btn-sm ${isRunning ? 'btn-secondary' : 'btn-primary'}" onclick="runMission('${mission.id}')" title="${t('missions.card_btn_run_title')}" ${isRunning ? 'disabled' : ''}>${icons.play}</button>
+                <button class="btn btn-sm btn-secondary" onclick="duplicateMission('${mission.id}')" title="${t('missions.card_btn_duplicate_title')}">${icons.duplicate}</button>
+                <button class="btn btn-sm btn-secondary" onclick="editMission('${mission.id}')" title="${t('missions.card_btn_edit_title')}">${icons.edit}</button>
+                <button class="btn btn-sm btn-danger" onclick="deleteMission('${mission.id}')" title="${t('missions.card_btn_delete_title')}" ${mission.locked ? 'disabled' : ''}>${icons.delete || '🗑️'}</button>
+            </div>
+        </div>
+    `;
+}
 
-        return `
-                    <div class="mission-card ${statusClass}${isFirstRender ? ' entering' : ''}">
-                        <div class="mission-header">
-                            <div class="mission-title">
-                                <span class="mission-name">${escapeHtml(mission.name)}</span>
-                                ${mission.locked ? `<span class="mission-locked" title="${t('missions.card_locked_title')}">${icons.lock}</span>` : ''}
-                            </div>
-                            <div class="mission-badges">
-                                ${priorityBadge}
-                                ${typeBadge}
-                                ${statusBadge}
-                            </div>
+// Grid View Card (Expandable)
+function renderMissionGrid(mission, isFirstRender) {
+    const isRunning = mission.id === queue.running;
+    const isQueued = queue.items.some(i => i.mission_id === mission.id);
+    const statusClass = isRunning ? 'running' : isQueued ? 'queued' : mission.status === 'waiting' ? 'waiting' : '';
+    const isExpanded = expandedCards.has(mission.id);
+
+    const priorityBadge = `<span class="badge badge-priority-${mission.priority}">${mission.priority}</span>`;
+    const typeBadge = `<span class="badge badge-type-${mission.execution_type}">${mission.execution_type}</span>`;
+    const statusBadge = isRunning ? `<span class="badge badge-running">${t('missions.card_badge_running')}</span>` : '';
+
+    let triggerInfo = '';
+    if (mission.execution_type === 'triggered' && mission.trigger_config) {
+        triggerInfo = renderTriggerInfo(mission);
+    }
+
+    const lastRun = mission.last_run ? formatTime(mission.last_run) : t('missions.card_last_run_never');
+    const resultIcon = mission.last_result === 'success' ? icons.success : mission.last_result === 'error' ? icons.error : '';
+
+    return `
+        <div class="mission-card card-expanded ${statusClass}${isFirstRender ? ' entering' : ''}${isExpanded ? ' expanded' : ''}">
+            <div class="mission-header" onclick="toggleCardExpand('${mission.id}')">
+                <span class="card-toggle">▶</span>
+                <div class="mission-title">
+                    <span class="mission-name">${escapeHtml(mission.name)}</span>
+                    ${mission.locked ? `<span class="mission-locked" title="${t('missions.card_locked_title')}">${icons.lock}</span>` : ''}
+                </div>
+                <div class="mission-badges">
+                    ${priorityBadge}
+                    ${typeBadge}
+                    ${statusBadge}
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="mission-body">
+                    <div class="mission-prompt">${escapeHtml(mission.prompt)}</div>
+                    ${triggerInfo}
+                    <div class="mission-log-wrapper">
+                        <div class="mission-log-toggle" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none'">
+                            📝 <span>${t('missions.card_view_log')}</span>
                         </div>
-                        <div class="mission-body">
-                            <div class="mission-prompt">${escapeHtml(mission.prompt)}</div>
-                            ${triggerInfo}
-                            <div class="mission-log-wrapper">
-                                <div class="mission-log-toggle" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none'">
-                                    📝 <span>${t('missions.card_view_log')}</span>
-                                </div>
-                                <div class="mission-log-content">
-                                    ${escapeHtml(mission.last_output || t('missions.card_no_output'))}
-                                </div>
-                            </div>
-                        </div>
-                        <div class="mission-footer">
-                            <div class="mission-stats">
-                                <span>${resultIcon} ${lastRun}</span>
-                                <span>📊 ${t('missions.meta_run_count', { count: mission.run_count })}</span>
-                            </div>
-                            <div class="mission-actions">
-                                <button class="icon-btn" onclick="runMission('${mission.id}')" title="${t('missions.card_btn_run_title')}" ${isRunning ? 'disabled' : ''}>${icons.play}</button>
-                                <button class="icon-btn" onclick="duplicateMission('${mission.id}')" title="${t('missions.card_btn_duplicate_title')}">${icons.duplicate}</button>
-                                <button class="icon-btn" onclick="editMission('${mission.id}')" title="${t('missions.card_btn_edit_title')}">${icons.edit}</button>
-                                <button class="icon-btn" onclick="deleteMission('${mission.id}')" title="${t('missions.card_btn_delete_title')}" ${mission.locked ? 'disabled' : ''}>${icons.delete || '🗑️'}</button>
-                            </div>
+                        <div class="mission-log-content">
+                            ${escapeHtml(mission.last_output || t('missions.card_no_output'))}
                         </div>
                     </div>
-                `;
-    }).join('');
+                </div>
+                <div class="mission-footer">
+                    <div class="mission-stats">
+                        <span>${resultIcon} ${lastRun}</span>
+                        <span>📊 ${t('missions.meta_run_count', { count: mission.run_count })}</span>
+                    </div>
+                    <div class="mission-actions">
+                        <button class="btn btn-sm ${isRunning ? 'btn-secondary' : 'btn-primary'}" onclick="runMission('${mission.id}')" title="${t('missions.card_btn_run_title')}" ${isRunning ? 'disabled' : ''}>${icons.play}</button>
+                        <button class="btn btn-sm btn-secondary" onclick="duplicateMission('${mission.id}')" title="${t('missions.card_btn_duplicate_title')}">${icons.duplicate}</button>
+                        <button class="btn btn-sm btn-secondary" onclick="editMission('${mission.id}')" title="${t('missions.card_btn_edit_title')}">${icons.edit}</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteMission('${mission.id}')" title="${t('missions.card_btn_delete_title')}" ${mission.locked ? 'disabled' : ''}>${icons.delete || '🗑️'}</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
 }
 
 function renderTriggerInfo(mission) {

@@ -1311,7 +1311,32 @@ func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 			return `Tool Output: {"status":"error","message":"Document Creator is disabled. Set tools.document_creator.enabled=true in config.yaml."}`
 		}
 		logger.Info("LLM requested document creation", "operation", tc.Operation, "backend", cfg.Tools.DocumentCreator.Backend)
-		return tools.ExecuteDocumentCreator(ctx, &cfg.Tools.DocumentCreator, tc.Operation, tc.Title, tc.Content, tc.URL, tc.Filename, tc.PaperSize, tc.Landscape, tc.Sections, tc.SourceFiles)
+		docResult := tools.ExecuteDocumentCreator(ctx, &cfg.Tools.DocumentCreator, tc.Operation, tc.Title, tc.Content, tc.URL, tc.Filename, tc.PaperSize, tc.Landscape, tc.Sections, tc.SourceFiles)
+		// Auto-register every successfully created document in the media registry
+		if mediaRegistryDB != nil {
+			var parsed struct {
+				Status   string `json:"status"`
+				FilePath string `json:"file_path"`
+				WebPath  string `json:"web_path"`
+				Filename string `json:"filename"`
+			}
+			if jsonErr := json.Unmarshal([]byte(docResult), &parsed); jsonErr == nil && parsed.Status == "success" {
+				mediaType := "document"
+				if tc.Operation == "screenshot_url" || tc.Operation == "screenshot_html" {
+					mediaType = "image"
+				}
+				tools.RegisterMedia(mediaRegistryDB, tools.MediaItem{
+					MediaType:   mediaType,
+					SourceTool:  "document_creator",
+					Filename:    parsed.Filename,
+					FilePath:    parsed.FilePath,
+					WebPath:     parsed.WebPath,
+					Description: tc.Title,
+					Tags:        []string{"auto-generated"},
+				})
+			}
+		}
+		return docResult
 
 	default:
 		return dispatchNotHandled

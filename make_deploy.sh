@@ -45,7 +45,7 @@ sed \
   -e 's/api_key: "sk-[^"]*"/api_key: ""/' \
   -e 's/bot_token: "[^"]*"/bot_token: ""/' \
   -e 's/access_token: "[^"]*"/access_token: ""/' \
-  config.yaml > "$TMPDIR_RES/config.yaml"
+  config_template.yaml > "$TMPDIR_RES/config.yaml"
 
 # Create empty data structure
 mkdir -p "$TMPDIR_RES/data/vectordb"

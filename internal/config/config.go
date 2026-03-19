@@ -165,6 +165,10 @@ func Load(path string) (*Config, error) {
 		cfg.SQLite.HomepageRegistryPath = "./data/homepage_registry.db"
 	}
 	cfg.SQLite.HomepageRegistryPath = resolvePath(configDir, cfg.SQLite.HomepageRegistryPath)
+	if cfg.SQLite.RemoteControlPath == "" {
+		cfg.SQLite.RemoteControlPath = "./data/remote_control.db"
+	}
+	cfg.SQLite.RemoteControlPath = resolvePath(configDir, cfg.SQLite.RemoteControlPath)
 	if cfg.SQLite.SiteMonitorPath == "" {
 		cfg.SQLite.SiteMonitorPath = "./data/site_monitor.db"
 	}

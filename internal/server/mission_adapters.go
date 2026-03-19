@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"log/slog"
 
 	"aurago/internal/mqtt"
@@ -46,4 +47,21 @@ type missionMQTTAdapter struct {
 func (a *missionMQTTAdapter) RegisterMissionTrigger(topicFilter string, payloadContains string, callback func(topic, payload string)) {
 	mqtt.RegisterMissionTrigger(topicFilter, payloadContains, callback)
 	a.logger.Info("[MissionMQTTAdapter] Registered mission trigger", "topic_filter", topicFilter, "payload_contains", payloadContains)
+}
+
+// extractAssistantContent parses an OpenAI-compatible chat completion JSON and
+// returns the assistant message text from choices[0].message.content.
+// Falls back to the raw body if parsing fails.
+func extractAssistantContent(body []byte) string {
+	var resp struct {
+		Choices []struct {
+			Message struct {
+				Content string `json:"content"`
+			} `json:"message"`
+		} `json:"choices"`
+	}
+	if err := json.Unmarshal(body, &resp); err == nil && len(resp.Choices) > 0 {
+		return resp.Choices[0].Message.Content
+	}
+	return string(body)
 }

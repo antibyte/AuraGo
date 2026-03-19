@@ -703,6 +703,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			flags.UserProfilingEnabled = true
 			if cfg.Agent.PersonalityEngineV2 && shortTermMem != nil {
 				flags.UserProfileSummary = shortTermMem.GetUserProfileSummary(cfg.Agent.UserProfilingThreshold)
+				logger.Debug("User profiling enabled", "summaryLength", len(flags.UserProfileSummary), "threshold", cfg.Agent.UserProfilingThreshold)
+			} else {
+				logger.Debug("User profiling enabled (without profile summary - V2 engine disabled or no memory)")
 			}
 		}
 

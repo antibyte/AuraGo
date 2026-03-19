@@ -388,18 +388,25 @@ func BuildSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string,
 	// User Profiling: behavioral instruction + collected data
 	if flags.UserProfilingEnabled {
 		finalPrompt.WriteString("## USER PROFILING\n")
-		finalPrompt.WriteString("Getting to know the user well helps you provide better, more personalized assistance. " +
-			"Organically pick up on relevant details the user shares — such as their job, location, technical preferences, " +
-			"daily routines, or recurring projects — and store them in core memory. " +
-			"When the user mentions something that could be valuable context (e.g. they talk about work), " +
-			"you may ask a brief follow-up question to learn more (e.g. \"What do you do for work?\"). " +
-			"Keep this lightweight and natural — never interrogate. " +
-			"If the user signals they dislike personal questions, note that preference in core memory and stop asking immediately.\n")
+		finalPrompt.WriteString("Your goal: build a comprehensive user profile over time to provide personalized assistance. " +
+			"Be PROACTIVE about learning: when the user mentions something that hints at useful context " +
+			"(work, location, experience level, preferences), ask ONE brief follow-up question to clarify. " +
+			"Examples: User says \"at my company\" → ask \"What do you do for work?\"; " +
+			"User mentions \"my server\" → ask \"What platform do you usually deploy on?\"\n\n" +
+			"RULES for asking:\n" +
+			"- Ask only when you genuinely need the info to help better (not just to collect data)\n" +
+			"- Maximum ONE question per response\n" +
+			"- Keep it natural and brief - weave it into your helpful response\n" +
+			"- If user deflects or seems private, stop asking and note their preference\n" +
+			"- Space out questions: don't ask in consecutive responses\n\n" +
+			"IMPORTANT: Relevant details the user shares are automatically captured in the background. " +
+			"You do NOT need to explicitly save them - just have natural conversations and ask strategic follow-ups.\n")
 		if flags.UserProfileSummary != "" {
 			finalPrompt.WriteString("\n### Known User Profile\n")
 			finalPrompt.WriteString(flags.UserProfileSummary)
 		}
 		finalPrompt.WriteString("\n")
+		logger.Debug("User profiling prompt section injected", "hasSummary", flags.UserProfileSummary != "")
 	}
 
 	// Personality self-awareness (Phase D micro-traits)

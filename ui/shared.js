@@ -351,7 +351,7 @@ function initModals() {
     document.querySelectorAll('.modal-overlay').forEach(overlay => {
         overlay.addEventListener('click', (e) => {
             if (e.target === overlay) {
-                overlay.classList.remove('active');
+                overlay.classList.remove('active', 'open');
                 document.body.style.overflow = '';
             }
         });
@@ -359,8 +359,8 @@ function initModals() {
 
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
-            document.querySelectorAll('.modal-overlay.active').forEach(modal => {
-                modal.classList.remove('active');
+            document.querySelectorAll('.modal-overlay.active, .modal-overlay.open').forEach(modal => {
+                modal.classList.remove('active', 'open');
             });
             document.body.style.overflow = '';
         }

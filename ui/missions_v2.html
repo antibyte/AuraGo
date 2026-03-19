@@ -42,10 +42,16 @@
             <h1>
                 <script>document.write(t('missions.heading'))</script>
             </h1>
-            <button class="btn btn-primary" onclick="openMissionModal()">
-                <span>+</span>
-                <script>document.write(t('missions.btn_new_mission'))</script>
-            </button>
+            <div class="header-actions">
+                <div class="view-toggle" id="view-toggle">
+                    <button onclick="setViewMode('grid')" title="Grid View" data-mode="grid">▦</button>
+                    <button onclick="setViewMode('list')" title="List View" data-mode="list">☰</button>
+                </div>
+                <button class="btn btn-primary" onclick="openMissionModal()">
+                    <span>+</span>
+                    <script>document.write(t('missions.btn_new_mission'))</script>
+                </button>
+            </div>
         </div>
 
         <!-- Status Bar -->

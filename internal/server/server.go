@@ -349,7 +349,9 @@ func Start(cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, sh
 			respBody, _ := io.ReadAll(resp.Body)
 			if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 				logger.Info("[MissionV2] Mission executed successfully", "mission_id", missionID)
-				s.MissionManagerV2.SetResult(missionID, "success", string(respBody))
+				// Extract the assistant's text from the OpenAI-format response
+				output := extractAssistantContent(respBody)
+				s.MissionManagerV2.SetResult(missionID, "success", output)
 			} else {
 				logger.Error("[MissionV2] Mission returned non-OK status", "status", resp.Status, "mission_id", missionID)
 				s.MissionManagerV2.SetResult(missionID, "error", string(respBody))

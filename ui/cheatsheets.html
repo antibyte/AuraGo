@@ -31,9 +31,15 @@
     <div class="container">
         <div class="page-header">
             <h1 data-i18n="cheatsheets.title">Cheat Sheets</h1>
-            <button class="btn btn-primary" id="btn-create" onclick="openCreate()">
-                <span>+</span> <span data-i18n="cheatsheets.create_new">New Cheat Sheet</span>
-            </button>
+            <div class="header-actions">
+                <div class="view-toggle" id="view-toggle">
+                    <button onclick="setViewMode('grid')" title="Grid View" data-mode="grid">▦</button>
+                    <button onclick="setViewMode('list')" title="List View" data-mode="list">☰</button>
+                </div>
+                <button class="btn btn-primary" id="btn-create" onclick="openCreate()">
+                    <span>+</span> <span data-i18n="cheatsheets.create_new">New Cheat Sheet</span>
+                </button>
+            </div>
         </div>
 
         <!-- Cards grid -->
@@ -48,7 +54,10 @@
     <!-- Edit Modal -->
     <div class="modal-overlay" id="edit-modal">
         <div class="modal modal-wide">
-            <h2 id="modal-title" data-i18n="cheatsheets.create_new">New Cheat Sheet</h2>
+            <div class="modal-header">
+                <h2 id="modal-title" data-i18n="cheatsheets.create_new">New Cheat Sheet</h2>
+                <button class="modal-close" onclick="closeModal('edit-modal')">&times;</button>
+            </div>
             <input type="hidden" id="sheet-id">
             <div class="form-group">
                 <label data-i18n="cheatsheets.name">Name</label>
@@ -84,7 +93,10 @@
     <!-- Delete Confirm Modal -->
     <div class="modal-overlay" id="delete-modal">
         <div class="modal">
-            <h2 style="color:var(--accent-danger);">⚠️ <span data-i18n="cheatsheets.confirm_delete">Confirm Deletion</span></h2>
+            <div class="modal-header">
+                <h2 style="color:var(--accent-danger);">⚠️ <span data-i18n="cheatsheets.confirm_delete">Confirm Deletion</span></h2>
+                <button class="modal-close" onclick="closeModal('delete-modal')">&times;</button>
+            </div>
             <p id="delete-message"></p>
             <input type="text" class="delete-confirm-input" id="delete-confirm-input" oninput="checkDeleteConfirm()" autocomplete="off">
             <div class="modal-actions">

@@ -265,6 +265,37 @@
     gap: 8px;
 }
 
+/* Expandable Card Styles */
+.mission-card.card-expanded .mission-header {
+    cursor: pointer;
+}
+
+.mission-card.card-expanded .card-toggle {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    transition: transform 0.2s ease;
+    width: 20px;
+    text-align: center;
+}
+
+.mission-card.card-expanded.expanded .card-toggle {
+    transform: rotate(90deg);
+}
+
+.mission-card.card-expanded .card-body {
+    display: none;
+}
+
+.mission-card.card-expanded.expanded .card-body {
+    display: block;
+    animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
 .mission-title {
     display: flex;
     align-items: center;

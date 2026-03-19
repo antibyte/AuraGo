@@ -2,6 +2,8 @@
 
 let sheetsData = [];
 let deleteTarget = null;
+let viewMode = localStorage.getItem('cheatsheets-view-mode') || 'auto'; // 'grid' | 'list' | 'auto'
+let expandedCards = new Set(); // Track expanded card IDs
 
 // ── Init ─────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
@@ -50,10 +52,43 @@ async function loadSheets() {
     }
 }
 
+// ── View Mode Functions ──────────────────────────────────
+function getEffectiveViewMode() {
+    if (viewMode !== 'auto') return viewMode;
+    return sheetsData.length > 8 ? 'list' : 'grid';
+}
+
+function setViewMode(mode) {
+    viewMode = mode;
+    localStorage.setItem('cheatsheets-view-mode', mode);
+    renderSheets();
+    updateViewToggle();
+}
+
+function updateViewToggle() {
+    const effective = getEffectiveViewMode();
+    document.querySelectorAll('#view-toggle button').forEach(btn => {
+        const isActive = (viewMode === 'auto' && btn.dataset.mode === effective) ||
+                        (viewMode !== 'auto' && btn.dataset.mode === viewMode);
+        btn.classList.toggle('active', isActive);
+    });
+}
+
+function toggleCardExpand(id) {
+    if (expandedCards.has(id)) {
+        expandedCards.delete(id);
+    } else {
+        expandedCards.add(id);
+    }
+    renderSheets();
+}
+
 // ── Render ───────────────────────────────────────────────
 function renderSheets() {
     const grid = document.getElementById('sheets-grid');
     const empty = document.getElementById('sheets-empty');
+    const mode = getEffectiveViewMode();
+
     if (!sheetsData || sheetsData.length === 0) {
         grid.innerHTML = '';
         empty.style.display = '';
@@ -61,32 +96,67 @@ function renderSheets() {
     }
     empty.style.display = 'none';
 
-    grid.innerHTML = sheetsData.map(s => {
-        const statusBadge = s.active
-            ? `<span class="badge badge-active">${esc(t('cheatsheets.active'))}</span>`
-            : `<span class="badge badge-inactive">${esc(t('cheatsheets.inactive'))}</span>`;
-        const creatorBadge = s.created_by === 'agent'
-            ? `<span class="badge badge-agent">🤖 Agent</span>`
-            : '';
-        const preview = esc((s.content || '').substring(0, 150).replace(/\n/g, ' '));
-        const updated = s.updated_at ? timeAgo(s.updated_at) : '';
-        return `
-        <div class="card">
-            <div class="card-header">
+    grid.classList.toggle('list-view', mode === 'list');
+
+    if (mode === 'list') {
+        grid.innerHTML = sheetsData.map(s => renderSheetCompact(s)).join('');
+    } else {
+        grid.innerHTML = sheetsData.map(s => renderSheetGrid(s)).join('');
+    }
+    updateViewToggle();
+}
+
+// Compact List View
+function renderSheetCompact(s) {
+    const statusIcon = s.active ? '🟢' : '⚪';
+    const creatorIcon = s.created_by === 'agent' ? '🤖' : '';
+
+    return `
+        <div class="card-compact" onclick="if(event.target.closest('.card-actions')) return; openEdit('${esc(s.id)}')">
+            <span class="card-icon" title="${s.active ? t('cheatsheets.active') : t('cheatsheets.inactive')}">${statusIcon}</span>
+            <span class="card-name">${esc(s.name)}</span>
+            ${creatorIcon ? `<span class="card-icon" title="Created by Agent">${creatorIcon}</span>` : ''}
+            <div class="card-actions" onclick="event.stopPropagation()">
+                <button class="btn btn-sm btn-secondary" onclick="openEdit('${esc(s.id)}')" title="${esc(t('cheatsheets.edit'))}">✏️</button>
+                <button class="btn btn-sm ${s.active ? 'btn-secondary' : 'btn-primary'}" onclick="toggleActive('${esc(s.id)}', ${!s.active})" title="${s.active ? esc(t('cheatsheets.deactivate')) : esc(t('cheatsheets.activate'))}">${s.active ? '⏸️' : '▶️'}</button>
+                <button class="btn btn-sm btn-danger" onclick="requestDelete('${esc(s.id)}', '${esc(s.name)}')" title="${esc(t('cheatsheets.delete'))}">🗑️</button>
+            </div>
+        </div>
+    `;
+}
+
+// Grid View (Expandable)
+function renderSheetGrid(s) {
+    const isExpanded = expandedCards.has(s.id);
+    const statusBadge = s.active
+        ? `<span class="badge badge-active">${esc(t('cheatsheets.active'))}</span>`
+        : `<span class="badge badge-inactive">${esc(t('cheatsheets.inactive'))}</span>`;
+    const creatorBadge = s.created_by === 'agent'
+        ? `<span class="badge badge-agent">🤖 Agent</span>`
+        : '';
+    const preview = esc((s.content || '').substring(0, 150).replace(/\n/g, ' '));
+    const updated = s.updated_at ? timeAgo(s.updated_at) : '';
+
+    return `
+        <div class="card card-expanded ${isExpanded ? 'expanded' : ''}">
+            <div class="card-header" onclick="toggleCardExpand('${esc(s.id)}')">
+                <span class="card-toggle">▶</span>
                 <div>
                     <div class="card-title">${esc(s.name)}</div>
                     <div class="card-meta">${updated} ${creatorBadge}</div>
                 </div>
                 ${statusBadge}
             </div>
-            <div class="card-preview">${preview || '<em>' + esc(t('cheatsheets.no_content')) + '</em>'}</div>
-            <div class="card-actions">
-                <button class="btn btn-primary btn-sm" onclick="openEdit('${esc(s.id)}')">${esc(t('cheatsheets.edit'))}</button>
-                <button class="btn btn-secondary btn-sm" onclick="toggleActive('${esc(s.id)}', ${!s.active})">${s.active ? esc(t('cheatsheets.deactivate')) : esc(t('cheatsheets.activate'))}</button>
-                <button class="btn btn-danger btn-sm" onclick="requestDelete('${esc(s.id)}', '${esc(s.name)}')">${esc(t('cheatsheets.delete'))}</button>
+            <div class="card-body">
+                <div class="card-preview">${preview || '<em>' + esc(t('cheatsheets.no_content')) + '</em>'}</div>
+                <div class="card-actions" style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border-subtle)">
+                    <button class="btn btn-primary btn-sm" onclick="openEdit('${esc(s.id)}')">${esc(t('cheatsheets.edit'))}</button>
+                    <button class="btn btn-secondary btn-sm" onclick="toggleActive('${esc(s.id)}', ${!s.active})">${s.active ? esc(t('cheatsheets.deactivate')) : esc(t('cheatsheets.activate'))}</button>
+                    <button class="btn btn-danger btn-sm" onclick="requestDelete('${esc(s.id)}', '${esc(s.name)}')">${esc(t('cheatsheets.delete'))}</button>
+                </div>
             </div>
-        </div>`;
-    }).join('');
+        </div>
+    `;
 }
 
 // ── Create / Edit ────────────────────────────────────────
