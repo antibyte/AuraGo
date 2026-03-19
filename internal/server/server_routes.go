@@ -928,11 +928,12 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		}()
 	}
 
-	// Start Phase 1 TCP Bridge
-	bridgeAddr := s.Cfg.Server.BridgeAddress
-	if bridgeAddr == "" {
-		bridgeAddr = "localhost:8089"
+	// Start Phase 1 TCP Bridge (Lifeboat IPC)
+	lifeboatPort := s.Cfg.Maintenance.LifeboatPort
+	if lifeboatPort <= 0 {
+		lifeboatPort = 8089
 	}
+	bridgeAddr := fmt.Sprintf("localhost:%d", lifeboatPort)
 	go s.StartTCPBridge(bridgeAddr)
 
 	// Start tsnet embedded Tailscale node (serves same handler over Tailscale network)
