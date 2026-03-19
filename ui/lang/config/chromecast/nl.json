@@ -14,7 +14,7 @@
   "config.chromecast.loading": "⏳ Apparaten laden…",
   "config.chromecast.discovering": "Netwerk scannen…",
   "config.chromecast.no_devices_found": "Geen Chromecast-apparaten gevonden op het netwerk. Zorg ervoor dat je apparaten zijn ingeschakeld en verbonden met hetzelfde netwerk.",
-  "config.chromecast.found_devices": "{count} apparaat/apparaten gevonden",
+  "config.chromecast.found_devices": "{{count}} apparaat/apparaten gevonden",
   "config.chromecast.already_added": "Al toegevoegd",
   "config.chromecast.add_device": "Toevoegen",
   "config.chromecast.edit_device": "Apparaat bewerken",

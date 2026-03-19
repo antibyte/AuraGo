@@ -14,7 +14,7 @@
   "config.chromecast.loading": "⏳ Caricamento dispositivi…",
   "config.chromecast.discovering": "Scansione rete…",
   "config.chromecast.no_devices_found": "Nessun dispositivo Chromecast trovato sulla rete. Assicurati che i dispositivi siano accesi e connessi alla stessa rete.",
-  "config.chromecast.found_devices": "{count} dispositivo/i trovato/i",
+  "config.chromecast.found_devices": "{{count}} dispositivo/i trovato/i",
   "config.chromecast.already_added": "Già aggiunto",
   "config.chromecast.add_device": "Aggiungi",
   "config.chromecast.edit_device": "Modifica dispositivo",

@@ -14,7 +14,7 @@
   "config.chromecast.loading": "⏳ Indlæser enheder…",
   "config.chromecast.discovering": "Scanner netværk…",
   "config.chromecast.no_devices_found": "Ingen Chromecast-enheder fundet på netværket. Sørg for, at dine enheder er tændt og forbundet til det samme netværk.",
-  "config.chromecast.found_devices": "{count} enhed(er) fundet",
+  "config.chromecast.found_devices": "{{count}} enhed(er) fundet",
   "config.chromecast.already_added": "Allerede tilføjet",
   "config.chromecast.add_device": "Tilføj",
   "config.chromecast.edit_device": "Rediger enhed",

@@ -14,7 +14,7 @@
   "config.chromecast.loading": "⏳ 正在加载设备...",
   "config.chromecast.discovering": "扫描网络...",
   "config.chromecast.no_devices_found": "网络上未找到 Chromecast 设备。确保您的设备已开机并连接到同一网络。",
-  "config.chromecast.found_devices": "找到 {count} 台设备",
+  "config.chromecast.found_devices": "找到 {{count}} 台设备",
   "config.chromecast.already_added": "已添加",
   "config.chromecast.add_device": "添加",
   "config.chromecast.edit_device": "编辑设备",

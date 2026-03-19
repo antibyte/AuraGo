@@ -14,7 +14,7 @@
   "config.chromecast.loading": "⏳ डिवाइस लोड हो रहे हैं…",
   "config.chromecast.discovering": "नेटवर्क स्कैन हो रहा है…",
   "config.chromecast.no_devices_found": "नेटवर्क पर कोई Chromecast डिवाइस नहीं मिला। सुनिश्चित करें कि आपके डिवाइस चालू हैं और उसी नेटवर्क से जुड़े हैं।",
-  "config.chromecast.found_devices": "{count} डिवाइस मिले",
+  "config.chromecast.found_devices": "{{count}} डिवाइस मिले",
   "config.chromecast.already_added": "पहले से जोड़ा गया",
   "config.chromecast.add_device": "जोड़ें",
   "config.chromecast.edit_device": "डिवाइस संपादित करें",

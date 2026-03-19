@@ -14,7 +14,7 @@
   "config.chromecast.loading": "⏳ デバイスを読み込み中…",
   "config.chromecast.discovering": "ネットワークをスキャン中…",
   "config.chromecast.no_devices_found": "ネットワーク上にChromecastデバイスが見つかりませんでした。デバイスの電源が入っていて、同じネットワークに接続されていることを確認してください。",
-  "config.chromecast.found_devices": "{count}台のデバイスが見つかりました",
+  "config.chromecast.found_devices": "{{count}}台のデバイスが見つかりました",
   "config.chromecast.already_added": "追加済み",
   "config.chromecast.add_device": "追加",
   "config.chromecast.edit_device": "デバイスを編集",

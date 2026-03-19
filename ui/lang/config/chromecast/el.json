@@ -14,7 +14,7 @@
   "config.chromecast.loading": "⏳ Φόρτωση συσκευών…",
   "config.chromecast.discovering": "Σάρωση δικτύου…",
   "config.chromecast.no_devices_found": "Δεν βρέθηκαν συσκευές Chromecast στο δίκτυο. Βεβαιωθείτε ότι οι συσκευές σας είναι ενεργοποιημένες και συνδεδεμένες στο ίδιο δίκτυο.",
-  "config.chromecast.found_devices": "Βρέθηκαν {count} συσκευή(-ές)",
+  "config.chromecast.found_devices": "Βρέθηκαν {{count}} συσκευή(-ές)",
   "config.chromecast.already_added": "Ήδη προστέθηκε",
   "config.chromecast.add_device": "Προσθήκη",
   "config.chromecast.edit_device": "Επεξεργασία συσκευής",

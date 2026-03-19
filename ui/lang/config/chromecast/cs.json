@@ -14,7 +14,7 @@
   "config.chromecast.loading": "⏳ Načítání zařízení…",
   "config.chromecast.discovering": "Skenování sítě…",
   "config.chromecast.no_devices_found": "V síti nebyla nalezena žádná zařízení Chromecast. Ujistěte se, že jsou vaše zařízení zapnutá a připojená ke stejné síti.",
-  "config.chromecast.found_devices": "{count} nalezeno zařízení",
+  "config.chromecast.found_devices": "{{count}} nalezeno zařízení",
   "config.chromecast.already_added": "Již přidáno",
   "config.chromecast.add_device": "Přidat",
   "config.chromecast.edit_device": "Upravit zařízení",
