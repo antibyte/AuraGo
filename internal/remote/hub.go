@@ -56,6 +56,10 @@ type RemoteHub struct {
 	vault       *security.Vault
 	logger      *slog.Logger
 
+	// Config-driven defaults (set by caller after construction)
+	DefaultReadOnly bool // default read-only setting for newly enrolled devices
+	AutoApprove     bool // auto-approve devices with no enrollment token
+
 	// Callbacks
 	OnConnect    func(deviceID, name string)
 	OnDisconnect func(deviceID, name string)
@@ -205,7 +209,8 @@ func (h *RemoteHub) SendCommand(deviceID string, cmd CommandPayload, timeout tim
 	}
 }
 
-// SendConfigUpdate pushes config changes to a remote device.
+// SendConfigUpdate pushes config changes to a remote device and updates the
+// in-memory connection state so server-side enforcement reflects the new values.
 func (h *RemoteHub) SendConfigUpdate(deviceID string, update ConfigUpdatePayload) error {
 	conn := h.GetConnection(deviceID)
 	if conn == nil {
@@ -215,7 +220,19 @@ func (h *RemoteHub) SendConfigUpdate(deviceID string, update ConfigUpdatePayload
 	if err != nil {
 		return fmt.Errorf("failed to create config_update message: %w", err)
 	}
-	return conn.Send(msg)
+	if err := conn.Send(msg); err != nil {
+		return err
+	}
+	// Keep in-memory state in sync so server-side command enforcement reflects the change.
+	conn.mu.Lock()
+	if update.ReadOnly != nil {
+		conn.ReadOnly = *update.ReadOnly
+	}
+	if update.AllowedPaths != nil {
+		conn.AllowedPaths = update.AllowedPaths
+	}
+	conn.mu.Unlock()
+	return nil
 }
 
 // SendRevoke sends a revoke command and unregisters the device.
@@ -395,7 +412,12 @@ func (h *RemoteHub) HandleEnrollment(wsConn *websocket.Conn, msg RemoteMessage) 
 		return h.completeEnrollment(wsConn, auth, enrollment.ID, enrollment.DeviceName)
 	}
 
-	// ── Case 3: Manual approval (pending) ──
+	// ── Case 3: Auto-approve or manual-approval (pending) ──
+	if h.AutoApprove {
+		// Auto-approve: treat like a token enrollment but without a token record.
+		return h.completeEnrollment(wsConn, auth, "", auth.Hostname)
+	}
+
 	deviceName := auth.Hostname
 	if deviceName == "" {
 		deviceName = "Unknown Device"
@@ -407,7 +429,7 @@ func (h *RemoteHub) HandleEnrollment(wsConn *websocket.Conn, msg RemoteMessage) 
 		Arch:      auth.Arch,
 		IPAddress: auth.IP,
 		Status:    "pending",
-		ReadOnly:  true,
+		ReadOnly:  h.DefaultReadOnly,
 	})
 	if err != nil {
 		return h.sendAuthResponse(wsConn, "", "", "rejected", "internal error")
@@ -440,7 +462,7 @@ func (h *RemoteHub) completeEnrollment(wsConn *websocket.Conn, auth AuthPayload,
 		Arch:          auth.Arch,
 		IPAddress:     auth.IP,
 		Status:        "approved",
-		ReadOnly:      true,
+		ReadOnly:      h.DefaultReadOnly,
 		SharedKeyHash: keyHash,
 	})
 	if err != nil {
@@ -465,7 +487,7 @@ func (h *RemoteHub) completeEnrollment(wsConn *websocket.Conn, auth AuthPayload,
 		SharedKey:     sharedKey,
 		LastHeartbeat: time.Now(),
 		Status:        "connected",
-		ReadOnly:      true,
+		ReadOnly:      h.DefaultReadOnly,
 		Version:       auth.Version,
 	}
 	h.Register(deviceID, conn)
