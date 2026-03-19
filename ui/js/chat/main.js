@@ -114,6 +114,8 @@ function applyI18n() {
     document.getElementById('upload-btn').title = t('chat.upload_btn_title');
     document.getElementById('send-btn').title = t('chat.send_btn_title');
     document.getElementById('stop-btn').title = t('chat.stop_btn_title');
+    const pushBtn = document.getElementById('push-btn');
+    if (pushBtn) pushBtn.title = t('pwa.btn_push_title');
     /* Feedback buttons */
     document.querySelectorAll('.mood-btn').forEach(btn => {
         const fb = btn.dataset.feedback;
@@ -1110,6 +1112,68 @@ if (PERSONALITY_ENABLED) {
     });
 }
 
+/* ── Push Notification Bell Button ── */
+function initPushUI() {
+    const btn = document.getElementById('push-btn');
+    if (!btn) return;
+
+    function applyState() {
+        btn.classList.remove('push-granted', 'push-denied', 'push-unavailable');
+        if (!window.getPushStatus) {
+            // PWA not supported
+            btn.classList.add('push-unavailable');
+            btn.title = t('pwa.notifications_unavailable');
+            btn.disabled = true;
+            return;
+        }
+        const { available, permission } = window.getPushStatus();
+        if (!available) {
+            btn.classList.add('push-unavailable');
+            btn.title = t('pwa.notifications_unavailable');
+            btn.disabled = true;
+        } else if (permission === 'granted') {
+            btn.classList.add('push-granted');
+            btn.title = t('pwa.notifications_enabled');
+        } else if (permission === 'denied') {
+            btn.classList.add('push-denied');
+            btn.title = t('pwa.notifications_denied');
+        } else {
+            btn.title = t('pwa.btn_push_title');
+        }
+    }
+
+    applyState();
+
+    btn.addEventListener('click', async () => {
+        const status = window.getPushStatus ? window.getPushStatus() : null;
+        if (!status || !status.available) return;
+
+        if (status.permission === 'denied') {
+            window.showToast ? window.showToast(t('pwa.notifications_denied'), 'warning') : alert(t('pwa.notifications_denied'));
+            return;
+        }
+
+        if (status.permission === 'granted') {
+            // Toggle off — unsubscribe
+            if (window.revokePushPermission) {
+                await window.revokePushPermission();
+                applyState();
+                window.showToast ? window.showToast(t('pwa.notifications_disabled'), 'info') : null;
+            }
+            return;
+        }
+
+        // Default — request permission
+        const result = await window.requestPushPermission();
+        applyState();
+        if (result && result.success) {
+            window.showToast ? window.showToast(t('pwa.notifications_enabled'), 'success') : null;
+        } else if (result && result.reason === 'denied') {
+            window.showToast ? window.showToast(t('pwa.notifications_denied'), 'warning') : null;
+        }
+    });
+}
+
 /* ── Initialize Chat Modules ── */
 document.addEventListener('DOMContentLoaded', () => {
     // Smart Scroller
@@ -1185,4 +1249,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (window.MermaidLoader) {
         window.MermaidLoader.init();
     }
+
+    // Push Notification Bell Button
+    initPushUI();
 });

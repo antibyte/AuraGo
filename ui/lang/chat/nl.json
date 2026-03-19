@@ -78,5 +78,10 @@
   "chat.trait_thoroughness": "Grondigheid",
   "chat.upload_btn_title": "Bestand bijvoegen",
   "chat.upload_failed": "Upload mislukt",
-  "chat.todo_panel_title": "📋 Takenlijst"
+  "chat.todo_panel_title": "📋 Takenlijst",
+  "pwa.btn_push_title": "Pushmeldingen inschakelen",
+  "pwa.notifications_enabled": "Pushmeldingen actief — klik om uit te schakelen",
+  "pwa.notifications_denied": "Pushmeldingen geblokkeerd door de browser",
+  "pwa.notifications_disabled": "Pushmeldingen uitgeschakeld",
+  "pwa.notifications_unavailable": "Pushmeldingen niet ondersteund"
 }

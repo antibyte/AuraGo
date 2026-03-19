@@ -78,5 +78,10 @@
   "chat.trait_thoroughness": "Grundlighet",
   "chat.upload_btn_title": "Bifoga fil",
   "chat.upload_failed": "⚠️ Uppladdning misslyckades: ",
-  "chat.todo_panel_title": "📋 Uppgiftslista"
+  "chat.todo_panel_title": "📋 Uppgiftslista",
+  "pwa.btn_push_title": "Aktivera push-notiser",
+  "pwa.notifications_enabled": "Push-notiser aktiva — klicka för att inaktivera",
+  "pwa.notifications_denied": "Push-notiser blockerade av webbläsaren",
+  "pwa.notifications_disabled": "Push-notiser inaktiverade",
+  "pwa.notifications_unavailable": "Push-notiser stöds inte"
 }

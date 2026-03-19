@@ -78,5 +78,10 @@
   "chat.trait_thoroughness": "Dokładność",
   "chat.upload_btn_title": "Załącz plik",
   "chat.upload_failed": "⚠️ Błąd przesyłania: ",
-  "chat.todo_panel_title": "📋 Lista zadań"
+  "chat.todo_panel_title": "📋 Lista zadań",
+  "pwa.btn_push_title": "Włącz powiadomienia push",
+  "pwa.notifications_enabled": "Powiadomienia push aktywne — kliknij, aby wyłączyć",
+  "pwa.notifications_denied": "Powiadomienia push zablokowane przez przeglądarkę",
+  "pwa.notifications_disabled": "Powiadomienia push wyłączone",
+  "pwa.notifications_unavailable": "Powiadomienia push nieobsługiwane"
 }

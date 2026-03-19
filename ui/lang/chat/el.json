@@ -78,5 +78,10 @@
   "chat.trait_thoroughness": "Επιμέλεια",
   "chat.upload_btn_title": "Επισύναψη αρχείου",
   "chat.upload_failed": "⚠️ Η μεταφόρτωση απέτυχε: ",
-  "chat.todo_panel_title": "📋 Λίστα εργασιών"
+  "chat.todo_panel_title": "📋 Λίστα εργασιών",
+  "pwa.btn_push_title": "Ενεργοποίηση ειδοποιήσεων push",
+  "pwa.notifications_enabled": "Ειδοποιήσεις push ενεργές — κλικ για απενεργοποίηση",
+  "pwa.notifications_denied": "Ειδοποιήσεις push αποκλεισμένες από τον περιηγητή",
+  "pwa.notifications_disabled": "Ειδοποιήσεις push απενεργοποιημένες",
+  "pwa.notifications_unavailable": "Ειδοποιήσεις push δεν υποστηρίζονται"
 }

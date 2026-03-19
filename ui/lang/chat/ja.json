@@ -78,5 +78,10 @@
   "chat.trait_thoroughness": "徹底性",
   "chat.upload_btn_title": "ファイルを添付",
   "chat.upload_failed": "⚠️ アップロード失敗: ",
-  "chat.todo_panel_title": "📋 タスクリスト"
+  "chat.todo_panel_title": "📋 タスクリスト",
+  "pwa.btn_push_title": "プッシュ通知を有効にする",
+  "pwa.notifications_enabled": "プッシュ通知が有効です — クリックで無効化",
+  "pwa.notifications_denied": "プッシュ通知がブラウザによってブロックされています",
+  "pwa.notifications_disabled": "プッシュ通知が無効になりました",
+  "pwa.notifications_unavailable": "プッシュ通知は非対応です"
 }

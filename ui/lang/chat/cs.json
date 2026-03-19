@@ -78,5 +78,10 @@
   "chat.trait_thoroughness": "Pečlivost",
   "chat.upload_btn_title": "Připojit soubor",
   "chat.upload_failed": "Nahrani selhalo",
-  "chat.todo_panel_title": "📋 Seznam úkolů"
+  "chat.todo_panel_title": "📋 Seznam úkolů",
+  "pwa.btn_push_title": "Povolit push notifikace",
+  "pwa.notifications_enabled": "Push notifikace aktivní — klikněte pro deaktivaci",
+  "pwa.notifications_denied": "Push notifikace blokovány prohlížečem",
+  "pwa.notifications_disabled": "Push notifikace deaktivovány",
+  "pwa.notifications_unavailable": "Push notifikace nejsou podporovány"
 }

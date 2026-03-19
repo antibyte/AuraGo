@@ -78,5 +78,10 @@
   "chat.trait_thoroughness": "Grundighed",
   "chat.upload_btn_title": "Vedhæft fil",
   "chat.upload_failed": "⚠️ Upload mislykkedes: ",
-  "chat.todo_panel_title": "📋 Opgaveliste"
+  "chat.todo_panel_title": "📋 Opgaveliste",
+  "pwa.btn_push_title": "Aktivér push-notifikationer",
+  "pwa.notifications_enabled": "Push-notifikationer aktive — klik for at deaktivere",
+  "pwa.notifications_denied": "Push-notifikationer blokeret af browseren",
+  "pwa.notifications_disabled": "Push-notifikationer deaktiveret",
+  "pwa.notifications_unavailable": "Push-notifikationer understøttes ikke"
 }

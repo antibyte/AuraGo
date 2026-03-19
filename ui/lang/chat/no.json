@@ -78,5 +78,10 @@
   "chat.trait_thoroughness": "Grundighet",
   "chat.upload_btn_title": "Legg ved fil",
   "chat.upload_failed": "⚠️ Opplasting mislyktes: ",
-  "chat.todo_panel_title": "📋 Oppgaveliste"
+  "chat.todo_panel_title": "📋 Oppgaveliste",
+  "pwa.btn_push_title": "Aktiver push-varsler",
+  "pwa.notifications_enabled": "Push-varsler aktive — klikk for å deaktivere",
+  "pwa.notifications_denied": "Push-varsler blokkert av nettleseren",
+  "pwa.notifications_disabled": "Push-varsler deaktivert",
+  "pwa.notifications_unavailable": "Push-varsler støttes ikke"
 }

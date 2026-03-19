@@ -78,5 +78,10 @@
   "chat.trait_thoroughness": "Minuciosidade",
   "chat.upload_btn_title": "Anexar arquivo",
   "chat.upload_failed": "Upload falhou",
-  "chat.todo_panel_title": "📋 Lista de tarefas"
+  "chat.todo_panel_title": "📋 Lista de tarefas",
+  "pwa.btn_push_title": "Ativar notificações push",
+  "pwa.notifications_enabled": "Notificações push ativas — clique para desativar",
+  "pwa.notifications_denied": "Notificações push bloqueadas pelo navegador",
+  "pwa.notifications_disabled": "Notificações push desativadas",
+  "pwa.notifications_unavailable": "Notificações push não suportadas"
 }

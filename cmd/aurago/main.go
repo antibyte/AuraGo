@@ -28,6 +28,7 @@ import (
 	"aurago/internal/logger"
 	"aurago/internal/memory"
 	promptspkg "aurago/internal/prompts"
+	"aurago/internal/push"
 	"aurago/internal/remote"
 	"aurago/internal/sandbox"
 	"aurago/internal/security"
@@ -395,6 +396,11 @@ func main() {
 
 	// Apply OAuth2 access tokens from vault into provider API keys
 	cfg.ApplyOAuthTokens(vault)
+
+	// Web Push (PWA notifications) — init after vault so VAPID keys can be stored/loaded
+	if _, err := push.NewManager(cfg.Directories.DataDir, vault, appLog); err != nil {
+		appLog.Warn("Web Push manager initialization failed — push notifications disabled", "error", err)
+	}
 
 	// Initialize Long-Term memory (VectorDB) after vault secrets are applied
 	// so that the embedding provider API key is available.

@@ -78,5 +78,10 @@
   "chat.trait_thoroughness": "सूक्ष्मता",
   "chat.upload_btn_title": "फाइल अटैच करें",
   "chat.upload_failed": "⚠️ अपलोड विफल: ",
-  "chat.todo_panel_title": "📋 कार्य सूची"
+  "chat.todo_panel_title": "📋 कार्य सूची",
+  "pwa.btn_push_title": "पुश नोटिफिकेशन सक्षम करें",
+  "pwa.notifications_enabled": "पुश नोटिफिकेशन सक्रिय — अक्षम करने के लिए क्लिक करें",
+  "pwa.notifications_denied": "पुश नोटिफिकेशन ब्राउज़र द्वारा अवरोधित",
+  "pwa.notifications_disabled": "पुश नोटिफिकेशन अक्षम",
+  "pwa.notifications_unavailable": "पुश नोटिफिकेशन समर्थित नहीं"
 }

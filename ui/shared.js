@@ -499,7 +499,10 @@ function injectLanguageSwitcher() {
 }
 
 /**
- * Initialize Progressive Web App (PWA) and Push Notifications
+ * Initialize Progressive Web App (PWA) and Push Notifications.
+ * Registers the service worker and wires up push subscription helpers,
+ * but does NOT prompt the user — that must be triggered by a user gesture
+ * (e.g. the bell button in the chat UI).
  */
 async function initPWA() {
     // 1. Inject Manifest
@@ -510,40 +513,99 @@ async function initPWA() {
         document.head.appendChild(link);
     }
 
-    // 2. Register Service Worker and Push
-    if ('serviceWorker' in navigator && 'PushManager' in window) {
-        try {
-            const registration = await navigator.serviceWorker.register('/sw.js');
-            console.log('[PWA] Service Worker registered with scope:', registration.scope);
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        window._pushStatus = { available: false, reason: 'not-supported' };
+        return;
+    }
 
-            // Fetch VAPID Key and subscribe if permission is granted
-            if (Notification.permission !== 'denied') {
-                const subResp = await fetch('/api/push/vapid-pubkey');
-                if (subResp.ok) {
-                    const { public_key } = await subResp.json();
-                    if (public_key) {
-                        try {
-                            const subscription = await registration.pushManager.subscribe({
-                                userVisibleOnly: true,
-                                applicationServerKey: urlBase64ToUint8Array(public_key)
-                            });
+    // 2. Register Service Worker
+    let registration;
+    try {
+        registration = await navigator.serviceWorker.register('/sw.js');
+        console.log('[PWA] Service Worker registered, scope:', registration.scope);
+    } catch (err) {
+        console.error('[PWA] Service Worker registration failed:', err);
+        window._pushStatus = { available: false, reason: 'sw-failed' };
+        return;
+    }
 
-                            // Send subscription to server
-                            await fetch('/api/push/subscribe', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify(subscription)
-                            });
-                            console.log('[PWA] Push subscription sent to server.');
-                        } catch (err) {
-                            console.warn('[PWA] Push subscription failed or rejected by user', err);
-                        }
-                    }
-                }
-            }
-        } catch (error) {
-            console.error('[PWA] Service Worker registration failed:', error);
+    // 3. Expose push status and opt-in helpers on window for use by the chat UI
+    window._swRegistration = registration;
+
+    window.getPushStatus = function () {
+        const permission = Notification.permission; // 'granted' | 'denied' | 'default'
+        return { available: true, permission };
+    };
+
+    window.requestPushPermission = async function () {
+        if (Notification.permission === 'denied') {
+            return { success: false, reason: 'denied' };
         }
+
+        let permission = Notification.permission;
+        if (permission === 'default') {
+            permission = await Notification.requestPermission();
+        }
+
+        if (permission !== 'granted') {
+            return { success: false, reason: 'denied' };
+        }
+
+        return _subscribePush(registration);
+    };
+
+    window.revokePushPermission = async function () {
+        try {
+            const sub = await registration.pushManager.getSubscription();
+            if (sub) {
+                await fetch('/api/push/unsubscribe', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ endpoint: sub.endpoint })
+                });
+                await sub.unsubscribe();
+                console.log('[PWA] Push subscription removed.');
+            }
+            return { success: true };
+        } catch (err) {
+            console.warn('[PWA] Failed to unsubscribe:', err);
+            return { success: false };
+        }
+    };
+
+    // 4. Auto-subscribe silently if permission was already granted
+    if (Notification.permission === 'granted') {
+        _subscribePush(registration).catch(err =>
+            console.warn('[PWA] Silent re-subscribe failed:', err)
+        );
+    }
+}
+
+/** Internal: subscribe to push and POST subscription to server. */
+async function _subscribePush(registration) {
+    try {
+        const resp = await fetch('/api/push/vapid-pubkey');
+        if (!resp.ok) throw new Error('vapid-pubkey fetch failed: ' + resp.status);
+        const { public_key } = await resp.json();
+        if (!public_key) throw new Error('no public key returned');
+
+        const subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(public_key)
+        });
+
+        const postResp = await fetch('/api/push/subscribe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(subscription)
+        });
+        if (!postResp.ok) throw new Error('subscribe POST failed: ' + postResp.status);
+
+        console.log('[PWA] Push subscription saved.');
+        return { success: true };
+    } catch (err) {
+        console.warn('[PWA] Push subscription failed:', err);
+        return { success: false, reason: err.message };
     }
 }
 

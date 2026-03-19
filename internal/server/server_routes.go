@@ -479,6 +479,12 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		w.WriteHeader(http.StatusOK)
 	})
 
+	// Web Push (PWA) API
+	mux.HandleFunc("/api/push/vapid-pubkey", handlePushVAPIDPublicKey(s))
+	mux.HandleFunc("/api/push/subscribe", handlePushSubscribe(s))
+	mux.HandleFunc("/api/push/unsubscribe", handlePushUnsubscribe(s))
+	mux.HandleFunc("/api/push/status", handlePushStatus(s))
+
 	mux.HandleFunc("/history", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)

@@ -78,5 +78,10 @@
   "chat.trait_thoroughness": "Completezza",
   "chat.upload_btn_title": "Allega file",
   "chat.upload_failed": "⚠️ Caricamento fallito: ",
-  "chat.todo_panel_title": "📋 Elenco attività"
+  "chat.todo_panel_title": "📋 Elenco attività",
+  "pwa.btn_push_title": "Attiva notifiche push",
+  "pwa.notifications_enabled": "Notifiche push attive — clicca per disattivare",
+  "pwa.notifications_denied": "Notifiche push bloccate dal browser",
+  "pwa.notifications_disabled": "Notifiche push disattivate",
+  "pwa.notifications_unavailable": "Notifiche push non supportate"
 }

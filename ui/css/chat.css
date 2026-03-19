@@ -2000,6 +2000,50 @@
             50% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
         }
 
+        /* Push notification bell button */
+        .btn-push {
+            width: 44px;
+            height: 44px;
+            border-radius: 14px;
+            border: 1px solid var(--border-color, rgba(148, 163, 184, 0.3));
+            background: rgba(148, 163, 184, 0.12);
+            color: var(--text-muted, #94a3b8);
+            font-size: 1.15rem;
+            cursor: pointer;
+            display: grid;
+            place-items: center;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+
+        .btn-push:hover {
+            color: var(--accent, #2dd4bf);
+            border-color: var(--border-accent, rgba(45, 212, 191, 0.5));
+            background: rgba(45, 212, 191, 0.15);
+        }
+
+        /* Notifications enabled — accent color */
+        .btn-push.push-granted {
+            color: var(--accent, #2dd4bf);
+            border-color: var(--border-accent, rgba(45, 212, 191, 0.5));
+            background: var(--accent-dim, rgba(45, 212, 191, 0.08));
+        }
+
+        /* Notifications blocked by browser */
+        .btn-push.push-denied {
+            color: var(--error, #ef4444);
+            border-color: rgba(239, 68, 68, 0.4);
+            background: rgba(239, 68, 68, 0.08);
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        /* Push not supported in this browser */
+        .btn-push.push-unavailable {
+            opacity: 0.35;
+            cursor: not-allowed;
+        }
+
         .attachment-chip {
             max-width: 52rem;
             margin: 0.4rem auto 0;

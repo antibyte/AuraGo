@@ -78,5 +78,10 @@
   "chat.trait_thoroughness": "Thoroughness",
   "chat.upload_btn_title": "Attach file",
   "chat.upload_failed": "⚠️ Upload failed: ",
-  "chat.todo_panel_title": "📋 Agent Task List"
+  "chat.todo_panel_title": "📋 Agent Task List",
+  "pwa.btn_push_title": "Enable push notifications",
+  "pwa.notifications_enabled": "Push notifications active — click to disable",
+  "pwa.notifications_denied": "Push notifications blocked by browser",
+  "pwa.notifications_disabled": "Push notifications disabled",
+  "pwa.notifications_unavailable": "Push notifications not supported"
 }

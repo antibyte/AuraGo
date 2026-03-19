@@ -78,5 +78,10 @@
   "chat.trait_thoroughness": "细致度",
   "chat.upload_btn_title": "附加文件",
   "chat.upload_failed": "⚠️ 上传失败：",
-  "chat.todo_panel_title": "📋 任务列表"
+  "chat.todo_panel_title": "📋 任务列表",
+  "pwa.btn_push_title": "启用推送通知",
+  "pwa.notifications_enabled": "推送通知已启用 — 点击禁用",
+  "pwa.notifications_denied": "推送通知已被浏览器阻止",
+  "pwa.notifications_disabled": "推送通知已禁用",
+  "pwa.notifications_unavailable": "不支持推送通知"
 }

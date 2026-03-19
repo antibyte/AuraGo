@@ -179,3 +179,16 @@ func (m *Manager) SendPush(payload []byte) (int, error) {
 func (m *Manager) Close() error {
 	return m.db.Close()
 }
+
+// CountSubscriptions returns the number of active push subscriptions.
+func (m *Manager) CountSubscriptions() int {
+	var count int
+	m.db.QueryRow("SELECT COUNT(*) FROM subscriptions").Scan(&count)
+	return count
+}
+
+// Unsubscribe removes a push subscription by endpoint URL.
+func (m *Manager) Unsubscribe(endpoint string) error {
+	_, err := m.db.Exec("DELETE FROM subscriptions WHERE endpoint = ?", endpoint)
+	return err
+}

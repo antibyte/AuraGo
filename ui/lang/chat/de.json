@@ -78,5 +78,10 @@
   "chat.trait_thoroughness": "Gründlichkeit",
   "chat.upload_btn_title": "Datei anhängen",
   "chat.upload_failed": "⚠️ Upload fehlgeschlagen: ",
-  "chat.todo_panel_title": "📋 Aufgabenliste"
+  "chat.todo_panel_title": "📋 Aufgabenliste",
+  "pwa.btn_push_title": "Push-Benachrichtigungen aktivieren",
+  "pwa.notifications_enabled": "Push-Benachrichtigungen aktiv — klicken zum Deaktivieren",
+  "pwa.notifications_denied": "Push-Benachrichtigungen vom Browser blockiert",
+  "pwa.notifications_disabled": "Push-Benachrichtigungen deaktiviert",
+  "pwa.notifications_unavailable": "Push-Benachrichtigungen nicht unterstützt"
 }

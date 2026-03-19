@@ -78,5 +78,10 @@
   "chat.trait_thoroughness": "Rigueur",
   "chat.upload_btn_title": "Joindre un fichier",
   "chat.upload_failed": "⚠️ Échec du téléchargement : ",
-  "chat.todo_panel_title": "📋 Liste des tâches"
+  "chat.todo_panel_title": "📋 Liste des tâches",
+  "pwa.btn_push_title": "Activer les notifications push",
+  "pwa.notifications_enabled": "Notifications push actives — cliquer pour désactiver",
+  "pwa.notifications_denied": "Notifications push bloquées par le navigateur",
+  "pwa.notifications_disabled": "Notifications push désactivées",
+  "pwa.notifications_unavailable": "Notifications push non prises en charge"
 }
