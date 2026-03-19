@@ -311,6 +311,9 @@ func (c *Config) ResolveProviders() {
 	if c.A2A.LLM.Model == "" {
 		c.A2A.LLM.Model = c.LLM.Model
 	}
+	if c.A2A.LLM.ProviderType == "" {
+		c.A2A.LLM.ProviderType = c.LLM.ProviderType
+	}
 
 	// ── Personality V2 ── (falls back to main LLM if provider empty)
 	if c.Agent.PersonalityV2Provider != "" {

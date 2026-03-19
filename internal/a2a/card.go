@@ -2,6 +2,7 @@ package a2a
 
 import (
 	"fmt"
+	"net/url"
 
 	"aurago/internal/config"
 
@@ -124,10 +125,12 @@ func resolveBaseURL(cfg *config.Config) string {
 	return fmt.Sprintf("%s://%s:%d", scheme, host, port)
 }
 
-// resolveHost returns the host for non-HTTP transports (gRPC).
+// resolveHost returns the host (without scheme/port) for non-HTTP transports (gRPC).
 func resolveHost(cfg *config.Config) string {
 	if cfg.A2A.Server.AgentURL != "" {
-		return cfg.A2A.Server.AgentURL
+		if u, err := url.Parse(cfg.A2A.Server.AgentURL); err == nil && u.Hostname() != "" {
+			return u.Hostname()
+		}
 	}
 	host := cfg.Server.Host
 	if host == "" || host == "0.0.0.0" {

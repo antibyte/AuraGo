@@ -438,6 +438,20 @@ func main() {
 		for _, p := range cfg.ShellSandbox.AllowedPaths {
 			allowedPaths = append(allowedPaths, sandbox.PathRule{Path: p.Path, ReadOnly: p.ReadOnly})
 		}
+
+		// Automatically grant read-write access to the agent's output directories
+		// so that shell commands and Python scripts can write files that are then
+		// served via the web UI (/files/documents/, /files/audio/, etc.).
+		// We deliberately do NOT expose the entire data/ dir — vault.bin and the
+		// SQLite databases must remain inaccessible from within the sandbox.
+		dataDir := cfg.Directories.DataDir
+		for _, subDir := range []string{"documents", "audio", "generated_images", "tts"} {
+			allowedPaths = append(allowedPaths, sandbox.PathRule{
+				Path:     filepath.Join(dataDir, subDir),
+				ReadOnly: false,
+			})
+		}
+
 		sandbox.Init(sandbox.ShellSandboxConfig{
 			Enabled:       cfg.ShellSandbox.Enabled,
 			MaxMemoryMB:   cfg.ShellSandbox.MaxMemoryMB,
