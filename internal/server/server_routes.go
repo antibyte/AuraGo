@@ -218,6 +218,13 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		// Document Creator endpoints
 		mux.HandleFunc("/api/document-creator/test", handleGotenbergTest(s))
 
+		// A2A Protocol endpoints (config UI management)
+		mux.HandleFunc("/api/a2a/status", handleA2AStatus(s))
+		mux.HandleFunc("/api/a2a/remote-agents", handleA2ARemoteAgents(s))
+		mux.HandleFunc("/api/a2a/card", handleA2ACard(s))
+		mux.HandleFunc("/api/a2a/test", handleA2ATest(s))
+		mux.HandleFunc("/api/a2a/remote-agents/test", handleA2ARemoteAgentTest(s))
+
 		// Device Registry (inventory CRUD)
 		mux.HandleFunc("/api/devices", func(w http.ResponseWriter, r *http.Request) {
 			switch r.Method {
@@ -435,6 +442,12 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		s.WebhookHandler.SetSSE(sse)
 		mux.Handle("/webhook/", s.WebhookHandler)
 		s.Logger.Info("Webhook receiver registered at /webhook/{slug}")
+	}
+
+	// A2A Protocol routes (shared port mode — protocol endpoints on main mux)
+	if s.A2AServer != nil && s.Cfg.A2A.Server.Port == 0 {
+		s.A2AServer.RegisterRoutes(mux)
+		s.Logger.Info("A2A protocol routes registered on main server (shared port)")
 	}
 
 	// Phase 34: Notifications endpoints

@@ -176,6 +176,8 @@
   "config.section.info_tools.desc": "Wikipedia, DuckDuckGo vyhled\u00e1v\u00e1n\u00ed a extrakce PDF",
   "config.section.network_tools.label": "S\u00ed\u0165ov\u00e9 n\u00e1stroje",
   "config.section.network_tools.desc": "Wake-on-LAN, spr\u00e1va proces\u016f a s\u00ed\u0165ov\u00e9 utility",
+  "config.section.a2a.label": "A2A protokol",
+  "config.section.a2a.desc": "Google Agent-to-Agent protokol pro komunikaci mezi agenty",
   "config.group.agent_ai": "Agent & AI",
   "config.group.server_system": "Server & Systém",
   "config.group.agent_tools": "Nástroje agenta",

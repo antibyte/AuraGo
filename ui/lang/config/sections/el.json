@@ -173,6 +173,8 @@
   "config.section.info_tools.label": "\u0395\u03c1\u03b3\u03b1\u03bb\u03b5\u03af\u03b1 \u03a0\u03bb\u03b7\u03c1\u03bf\u03c6\u03bf\u03c1\u03b9\u03ce\u03bd",
   "config.section.info_tools.desc": "Wikipedia, \u03b1\u03bd\u03b1\u03b6\u03ae\u03c4\u03b7\u03c3\u03b7 DuckDuckGo \u03ba\u03b1\u03b9 \u03b5\u03be\u03b1\u03b3\u03c9\u03b3\u03ae PDF",
   "config.section.network_tools.label": "\u0395\u03c1\u03b3\u03b1\u03bb\u03b5\u03af\u03b1 \u0394\u03b9\u03ba\u03c4\u03cd\u03bf\u03c5",
+  "config.section.a2a.label": "Πρωτόκολλο A2A",
+  "config.section.a2a.desc": "Πρωτόκολλο Google Agent-to-Agent για επικοινωνία μεταξύ πρακτόρων",
   "config.section.network_tools.desc": "Wake-on-LAN, \u03ad\u03bb\u03b5\u03b3\u03c7\u03bf\u03c2 \u03b4\u03b9\u03b5\u03c1\u03b3\u03b1\u03c3\u03b9\u03ce\u03bd \u03ba\u03b1\u03b9 \u03b2\u03bf\u03b7\u03b8\u03ae\u03bc\u03b1\u03c4\u03b1 \u03b4\u03b9\u03ba\u03c4\u03cd\u03bf\u03c5",
   "config.group.agent_ai": "Πράκτορας & AI",
   "config.group.server_system": "Διακομιστής & Σύστημα",

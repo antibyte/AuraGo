@@ -289,6 +289,29 @@ func (c *Config) ResolveProviders() {
 		c.CoAgents.LLM.Model = c.LLM.Model
 	}
 
+	// ── A2A.LLM ── (falls back to main LLM if provider empty)
+	if c.A2A.LLM.Provider != "" {
+		if p := c.FindProvider(c.A2A.LLM.Provider); p != nil {
+			c.A2A.LLM.ProviderType = p.Type
+			c.A2A.LLM.BaseURL = p.BaseURL
+			c.A2A.LLM.APIKey = p.APIKey
+			c.A2A.LLM.Model = p.Model
+		} else if c.A2A.LLM.LegacyAPIKey != "" || c.A2A.LLM.LegacyURL != "" {
+			c.A2A.LLM.BaseURL = c.A2A.LLM.LegacyURL
+			c.A2A.LLM.APIKey = c.A2A.LLM.LegacyAPIKey
+			c.A2A.LLM.Model = c.A2A.LLM.LegacyModel
+		}
+	}
+	if c.A2A.LLM.APIKey == "" {
+		c.A2A.LLM.APIKey = c.LLM.APIKey
+	}
+	if c.A2A.LLM.BaseURL == "" {
+		c.A2A.LLM.BaseURL = c.LLM.BaseURL
+	}
+	if c.A2A.LLM.Model == "" {
+		c.A2A.LLM.Model = c.LLM.Model
+	}
+
 	// ── Personality V2 ── (falls back to main LLM if provider empty)
 	if c.Agent.PersonalityV2Provider != "" {
 		if p := c.FindProvider(c.Agent.PersonalityV2Provider); p != nil {
@@ -591,6 +614,15 @@ func (c *Config) ApplyVaultSecrets(vault SecretReader) {
 
 	// ── OneDrive ──
 	apply("onedrive_client_secret", &c.OneDrive.ClientSecret)
+
+	// ── A2A ──
+	apply("a2a_api_key", &c.A2A.Auth.APIKey)
+	apply("a2a_bearer_secret", &c.A2A.Auth.BearerSecret)
+	for i := range c.A2A.Client.RemoteAgents {
+		ra := &c.A2A.Client.RemoteAgents[i]
+		apply("a2a_remote_"+ra.ID+"_api_key", &ra.APIKey)
+		apply("a2a_remote_"+ra.ID+"_bearer_token", &ra.BearerToken)
+	}
 
 	// ── Email account passwords ──
 	apply("email_password", &c.Email.Password)

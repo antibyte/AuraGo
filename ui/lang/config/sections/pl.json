@@ -173,6 +173,8 @@
   "config.section.info_tools.label": "Narz\u0119dzia informacyjne",
   "config.section.info_tools.desc": "Wikipedia, wyszukiwanie DuckDuckGo i wyodr\u0119bnianie PDF",
   "config.section.network_tools.label": "Narz\u0119dzia sieciowe",
+  "config.section.a2a.label": "Protokół A2A",
+  "config.section.a2a.desc": "Protokół Google Agent-to-Agent do komunikacji między agentami",
   "config.section.network_tools.desc": "Wake-on-LAN, kontrola proces\u00f3w i narz\u0119dzia sieciowe",
   "config.group.agent_ai": "Agent & AI",
   "config.group.server_system": "Serwer & System",

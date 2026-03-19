@@ -462,6 +462,46 @@ type Config struct {
 			MaxTokens      int `yaml:"max_tokens"`
 		} `yaml:"circuit_breaker"`
 	} `yaml:"co_agents"`
+	A2A struct {
+		Server struct {
+			Enabled           bool   `yaml:"enabled"`
+			Port              int    `yaml:"port"`               // 0 = use main server port (shared mux), >0 = dedicated A2A port
+			BasePath          string `yaml:"base_path"`          // URL prefix for A2A endpoints (default: "/a2a")
+			AgentName         string `yaml:"agent_name"`         // name in Agent Card
+			AgentDescription  string `yaml:"agent_description"`  // description in Agent Card
+			AgentVersion      string `yaml:"agent_version"`      // version in Agent Card
+			AgentURL          string `yaml:"agent_url"`          // public URL override for Agent Card (auto-detected if empty)
+			Streaming         bool   `yaml:"streaming"`          // enable SSE streaming support
+			PushNotifications bool   `yaml:"push_notifications"` // enable push notification support
+			Bindings          struct {
+				REST     bool `yaml:"rest"`      // enable REST (HTTP+JSON) binding
+				JSONRPC  bool `yaml:"json_rpc"`  // enable JSON-RPC 2.0 binding
+				GRPC     bool `yaml:"grpc"`      // enable gRPC binding
+				GRPCPort int  `yaml:"grpc_port"` // separate port for gRPC (default: 50051)
+			} `yaml:"bindings"`
+			Skills []A2ASkill `yaml:"skills"` // skills advertised in Agent Card
+		} `yaml:"server"`
+		Client struct {
+			Enabled      bool             `yaml:"enabled"`
+			RemoteAgents []A2ARemoteAgent `yaml:"remote_agents"` // configured remote A2A agents
+		} `yaml:"client"`
+		Auth struct {
+			APIKeyEnabled bool   `yaml:"api_key_enabled"`             // enable API Key authentication
+			APIKey        string `yaml:"-" vault:"a2a_api_key"`       // API Key (vault-only)
+			BearerEnabled bool   `yaml:"bearer_enabled"`              // enable Bearer token authentication
+			BearerSecret  string `yaml:"-" vault:"a2a_bearer_secret"` // Bearer token secret (vault-only)
+		} `yaml:"auth"`
+		LLM struct {
+			Provider     string `yaml:"provider"`          // references ProviderEntry ID (empty = use main LLM)
+			ProviderType string `yaml:"-" json:"-"`        // resolved: provider type
+			BaseURL      string `yaml:"-" json:"-"`        // resolved from provider entry
+			APIKey       string `yaml:"-" json:"-"`        // resolved from provider entry
+			Model        string `yaml:"-" json:"-"`        // resolved from provider entry
+			LegacyURL    string `yaml:"base_url" json:"-"` // legacy/compat
+			LegacyAPIKey string `yaml:"api_key"  json:"-"` // legacy/compat
+			LegacyModel  string `yaml:"model"    json:"-"` // legacy/compat
+		} `yaml:"llm"`
+	} `yaml:"a2a"`
 	Budget struct {
 		Enabled          bool           `yaml:"enabled"`
 		DailyLimitUSD    float64        `yaml:"daily_limit_usd"`
@@ -916,6 +956,24 @@ type Config struct {
 
 	// gwProvider is a synthetic ProviderEntry used by FindProvider for Google Workspace OAuth.
 	gwProvider ProviderEntry `yaml:"-" json:"-"`
+}
+
+// A2ASkill describes a skill advertised in the A2A Agent Card.
+type A2ASkill struct {
+	ID          string   `yaml:"id"          json:"id"`
+	Name        string   `yaml:"name"        json:"name"`
+	Description string   `yaml:"description" json:"description"`
+	Tags        []string `yaml:"tags"        json:"tags"`
+}
+
+// A2ARemoteAgent describes a remote A2A agent that AuraGo can connect to.
+type A2ARemoteAgent struct {
+	ID          string `yaml:"id"           json:"id"`
+	Name        string `yaml:"name"         json:"name"`
+	CardURL     string `yaml:"card_url"     json:"card_url"` // URL to fetch the Agent Card (e.g. https://host/.well-known/agent-card.json)
+	APIKey      string `yaml:"-"            json:"-"`        // resolved from vault: a2a_remote_{id}_api_key
+	BearerToken string `yaml:"-"            json:"-"`        // resolved from vault: a2a_remote_{id}_bearer_token
+	Enabled     bool   `yaml:"enabled"      json:"enabled"`
 }
 
 // MCPServer describes one external MCP server in the config.

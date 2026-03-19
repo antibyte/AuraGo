@@ -293,6 +293,7 @@ func processMessage(cfg *config.Config, logger *slog.Logger, client llm.ChatClie
 		FritzBoxSmartHomeEnabled: cfg.FritzBox.Enabled && cfg.FritzBox.SmartHome.Enabled,
 		FritzBoxStorageEnabled:   cfg.FritzBox.Enabled && cfg.FritzBox.Storage.Enabled,
 		FritzBoxTVEnabled:        cfg.FritzBox.Enabled && cfg.FritzBox.TV.Enabled,
+		A2AEnabled:               cfg.A2A.Server.Enabled || cfg.A2A.Client.Enabled,
 		AdditionalPrompt:         cfg.Agent.AdditionalPrompt,
 	}
 

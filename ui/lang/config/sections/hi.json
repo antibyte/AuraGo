@@ -175,6 +175,8 @@
   "config.section.info_tools.label": "\u0938\u0942\u091a\u0928\u093e \u0909\u092a\u0915\u0930\u0923",
   "config.section.info_tools.desc": "Wikipedia, DuckDuckGo \u0916\u094b\u091c \u0914\u0930 PDF \u0928\u093f\u0937\u094d\u0915\u0930\u094d\u0937\u0923",
   "config.section.network_tools.label": "\u0928\u0947\u091f\u0935\u0930\u094d\u0915 \u0909\u092a\u0915\u0930\u0923",
+  "config.section.a2a.label": "A2A प्रोटोकॉल",
+  "config.section.a2a.desc": "एजेंट-टू-एजेंट संचार के लिए Google A2A प्रोटोकॉल",
   "config.section.network_tools.desc": "Wake-on-LAN, \u092a\u094d\u0930\u0915\u094d\u0930\u093f\u092f\u093e \u0928\u093f\u092f\u0902\u0924\u094d\u0930\u0923 \u0914\u0930 \u0928\u0947\u091f\u0935\u0930\u094d\u0915 \u0909\u092a\u092f\u094b\u0917\u093f\u0924\u093e\u090f\u0902",
   "config.group.agent_ai": "एजेंट & AI",
   "config.group.server_system": "सर्वर & सिस्टम",

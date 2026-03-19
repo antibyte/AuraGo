@@ -30,6 +30,8 @@ import (
 	"aurago/internal/tools"
 	"aurago/internal/tsnetnode"
 	"aurago/internal/webhooks"
+
+	a2apkg "aurago/internal/a2a"
 )
 
 // normalizeLang converts the config language string to an ISO code for the frontend
@@ -217,6 +219,9 @@ type Server struct {
 	ImageGalleryDB     *sql.DB
 	MediaRegistryDB    *sql.DB
 	HomepageRegistryDB *sql.DB
+	A2AServer          *a2apkg.Server        // A2A protocol server (nil if disabled)
+	A2AClientMgr       *a2apkg.ClientManager // A2A client manager (nil if disabled)
+	A2ABridge          *a2apkg.Bridge        // A2A co-agent bridge (nil if disabled)
 	// IsFirstStart is true if core_memory.md was just freshly created (no prior data).
 	IsFirstStart   bool
 	StartedAt      time.Time     // server start time for uptime calculation
@@ -499,6 +504,68 @@ func Start(cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, sh
 			<-shutdownCh
 			fbPoller.Stop()
 		}()
+	}
+
+	// Initialize A2A Protocol support
+	if cfg.A2A.Server.Enabled || cfg.A2A.Client.Enabled {
+		serverCtx, serverCancel := context.WithCancel(context.Background())
+		go func() {
+			<-shutdownCh
+			serverCancel()
+		}()
+
+		if cfg.A2A.Server.Enabled {
+			a2aDeps := &a2apkg.ExecutorDeps{
+				Config:       cfg,
+				Logger:       logger,
+				LLMClient:    llmClient,
+				ShortTermMem: shortTermMem,
+				LongTermMem:  longTermMem,
+				Vault:        vault,
+				Registry:     registry,
+				Manifest:     tools.NewManifest(cfg.Directories.ToolsDir),
+				KG:           kg,
+				InventoryDB:  inventoryDB,
+				Budget:       s.BudgetTracker,
+			}
+			s.A2AServer = a2apkg.NewServer(cfg, logger, a2aDeps)
+			s.A2AServer.StartCleanup(serverCtx)
+			logger.Info("A2A server initialized",
+				"bindings_rest", cfg.A2A.Server.Bindings.REST,
+				"bindings_jsonrpc", cfg.A2A.Server.Bindings.JSONRPC,
+				"bindings_grpc", cfg.A2A.Server.Bindings.GRPC,
+			)
+
+			// Start gRPC on dedicated port if enabled
+			if cfg.A2A.Server.Bindings.GRPC {
+				go func() {
+					if err := s.A2AServer.StartGRPCServer(serverCtx); err != nil {
+						logger.Error("A2A gRPC server failed", "error", err)
+					}
+				}()
+			}
+
+			// Start dedicated HTTP server if configured
+			if cfg.A2A.Server.Port > 0 {
+				go func() {
+					if err := s.A2AServer.StartDedicatedServer(serverCtx); err != nil {
+						logger.Error("A2A dedicated server failed", "error", err)
+					}
+				}()
+			}
+		}
+
+		if cfg.A2A.Client.Enabled {
+			s.A2AClientMgr = a2apkg.NewClientManager(cfg, logger)
+			s.A2AClientMgr.Initialize(serverCtx)
+			s.A2AClientMgr.StartHealthCheck(serverCtx, 5*time.Minute)
+			logger.Info("A2A client manager initialized", "remote_agents", len(cfg.A2A.Client.RemoteAgents))
+
+			// Create bridge for co-agent integration
+			if s.CoAgentRegistry != nil {
+				s.A2ABridge = a2apkg.NewBridge(s.A2AClientMgr, s.CoAgentRegistry, logger)
+			}
+		}
 	}
 
 	return s.run(shutdownCh)

@@ -474,6 +474,7 @@ func processDiscordMessage(s *discordgo.Session, m *discordgo.MessageCreate, inp
 		FritzBoxSmartHomeEnabled: cfg.FritzBox.Enabled && cfg.FritzBox.SmartHome.Enabled,
 		FritzBoxStorageEnabled:   cfg.FritzBox.Enabled && cfg.FritzBox.Storage.Enabled,
 		FritzBoxTVEnabled:        cfg.FritzBox.Enabled && cfg.FritzBox.TV.Enabled,
+		A2AEnabled:               cfg.A2A.Server.Enabled || cfg.A2A.Client.Enabled,
 		AdditionalPrompt:         cfg.Agent.AdditionalPrompt,
 	}
 	coreMem := shortTermMem.ReadCoreMemory()

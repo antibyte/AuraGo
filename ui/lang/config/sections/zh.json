@@ -175,6 +175,8 @@
   "config.section.info_tools.label": "\u4fe1\u606f\u5de5\u5177",
   "config.section.info_tools.desc": "Wikipedia\u3001DuckDuckGo\u641c\u7d22\u548cPDF\u63d0\u53d6",
   "config.section.network_tools.label": "\u7f51\u7edc\u5de5\u5177",
+  "config.section.a2a.label": "A2A协议",
+  "config.section.a2a.desc": "Google Agent-to-Agent协议，用于代理间通信",
   "config.section.network_tools.desc": "Wake-on-LAN\u3001\u8fdb\u7a0b\u63a7\u5236\u548c\u7f51\u7edc\u5b9e\u7528\u5de5\u5177",
   "config.group.agent_ai": "智能体 & AI",
   "config.group.server_system": "服务器 & 系统",

@@ -173,6 +173,8 @@
   "config.section.info_tools.label": "Herramientas de informaci\u00f3n",
   "config.section.info_tools.desc": "Wikipedia, b\u00fasqueda DuckDuckGo y extracci\u00f3n de PDF",
   "config.section.network_tools.label": "Herramientas de red",
+  "config.section.a2a.label": "Protocolo A2A",
+  "config.section.a2a.desc": "Protocolo Google Agent-to-Agent para comunicación entre agentes",
   "config.section.network_tools.desc": "Wake-on-LAN, control de procesos y utilidades de red",
   "config.group.agent_ai": "Agente & IA",
   "config.group.server_system": "Servidor & Sistema",

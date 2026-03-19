@@ -84,3 +84,9 @@ co_agents:
     timeout_seconds: 120
     max_tokens: 4096
 ```
+
+## A2A Bridge — Remote Agents
+
+When A2A client mode is enabled, remote A2A-compatible agents can be reached through the co-agent system. Spawned remote tasks appear as co-agents prefixed with `[A2A:<agent_id>]` and can be tracked with `list` / `get_result` like any local co-agent.
+
+Remote agents have no shared context — always provide self-contained, clear task descriptions.

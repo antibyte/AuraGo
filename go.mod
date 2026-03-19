@@ -9,6 +9,7 @@ require github.com/sashabaranov/go-openai v1.41.2
 require (
 	github.com/JohannesKaufmann/html-to-markdown/v2 v2.5.0
 	github.com/SherClockHolmes/webpush-go v1.4.0
+	github.com/a2aproject/a2a-go/v2 v2.0.0
 	github.com/aws/aws-sdk-go-v2 v1.41.4
 	github.com/aws/aws-sdk-go-v2/config v1.32.12
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.12
@@ -38,6 +39,7 @@ require (
 	golang.org/x/crypto v0.49.0
 	golang.org/x/image v0.37.0
 	golang.org/x/sys v0.42.0
+	google.golang.org/grpc v1.78.0
 	modernc.org/sqlite v1.28.0
 	tailscale.com v1.96.1
 )
@@ -150,6 +152,8 @@ require (
 	golang.zx2c4.com/wintun v0.0.0-20230126152724-0fa3db229ce2 // indirect
 	golang.zx2c4.com/wireguard/windows v0.5.3 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20251213004720-97cd9d5aeac2 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20251222181119-0a764e51fe1b // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect

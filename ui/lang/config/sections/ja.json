@@ -175,6 +175,8 @@
   "config.section.info_tools.label": "\u60c5\u5831\u30c4\u30fc\u30eb",
   "config.section.info_tools.desc": "Wikipedia\u3001DuckDuckGo\u691c\u7d22\u3001PDF\u62bd\u51fa",
   "config.section.network_tools.label": "\u30cd\u30c3\u30c8\u30ef\u30fc\u30af\u30c4\u30fc\u30eb",
+  "config.section.a2a.label": "A2Aプロトコル",
+  "config.section.a2a.desc": "エージェント間通信のためのGoogle Agent-to-Agentプロトコル",
   "config.section.network_tools.desc": "Wake-on-LAN\u3001\u30d7\u30ed\u30bb\u30b9\u5236\u5fa1\u3001\u30cd\u30c3\u30c8\u30ef\u30fc\u30af\u30e6\u30fc\u30c6\u30a3\u30ea\u30c6\u30a3",
   "config.group.agent_ai": "エージェント & AI",
   "config.group.server_system": "サーバー & システム",

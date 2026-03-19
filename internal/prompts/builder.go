@@ -163,6 +163,7 @@ type ContextFlags struct {
 	FritzBoxSmartHomeEnabled bool
 	FritzBoxStorageEnabled   bool
 	FritzBoxTVEnabled        bool
+	A2AEnabled               bool
 	InternetExposed          bool   // HTTPS is enabled — system is likely reachable from the internet
 	IsDocker                 bool   // Running inside a Docker container
 	UserProfilingEnabled     bool   // User profiling is active — agent should learn about the user

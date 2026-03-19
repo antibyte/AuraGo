@@ -141,6 +141,7 @@ const SECTIONS = [
             { key: 'ai_gateway', icon: '🌩️', label: t('config.section.ai_gateway.label'), desc: t('config.section.ai_gateway.desc') },
             { key: 'mcp', icon: '🔌', label: t('config.section.mcp.label'), desc: t('config.section.mcp.desc') },
             { key: 'mcp_server', icon: '🔗', label: t('config.section.mcp_server.label'), desc: t('config.section.mcp_server.desc') },
+            { key: 'a2a', icon: '🔀', label: t('config.section.a2a.label'), desc: t('config.section.a2a.desc') },
             { key: 'ollama', icon: '🦙', label: t('config.section.ollama.label'), desc: t('config.section.ollama.desc') }
         ]
     },
@@ -932,7 +933,8 @@ const SECTION_MODULES = {
     document_creator: { m: 'document_creator', fn: 'renderDocumentCreatorSection' },
     onedrive: { m: 'onedrive', fn: 'renderOneDriveSection' },
     tailscale: { m: 'tailscale', fn: 'renderTailscaleSection' },
-    server: { m: 'server', fn: 'renderServerSection' }
+    server: { m: 'server', fn: 'renderServerSection' },
+    a2a: { m: 'a2a', fn: 'renderA2ASection' }
 };
 
 function loadModule(name) {

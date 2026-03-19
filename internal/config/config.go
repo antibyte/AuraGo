@@ -415,6 +415,24 @@ func Load(path string) (*Config, error) {
 		cfg.CoAgents.CircuitBreaker.TimeoutSeconds = 300 // 5 minutes
 	}
 
+	// A2A defaults
+	if cfg.A2A.Server.BasePath == "" {
+		cfg.A2A.Server.BasePath = "/a2a"
+	}
+	if cfg.A2A.Server.AgentName == "" {
+		cfg.A2A.Server.AgentName = "AuraGo"
+	}
+	if cfg.A2A.Server.AgentVersion == "" {
+		cfg.A2A.Server.AgentVersion = "1.0.0"
+	}
+	if cfg.A2A.Server.Bindings.GRPCPort <= 0 {
+		cfg.A2A.Server.Bindings.GRPCPort = 50051
+	}
+	// Default: enable REST binding when server is enabled
+	if cfg.A2A.Server.Enabled && !cfg.A2A.Server.Bindings.REST && !cfg.A2A.Server.Bindings.JSONRPC && !cfg.A2A.Server.Bindings.GRPC {
+		cfg.A2A.Server.Bindings.REST = true
+	}
+
 	// Budget defaults
 	if cfg.Budget.Enforcement == "" {
 		cfg.Budget.Enforcement = "warn"
