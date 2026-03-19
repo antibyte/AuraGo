@@ -89,7 +89,8 @@ function applyI18n() {
     document.getElementById('debug-pill').title = t('chat.debug_pill_title');
     document.getElementById('debug-pill').textContent = t('chat.debug_pill');
     // connectionPill state is managed exclusively by setConnectionState() — do not override here
-    document.getElementById('clear-btn').textContent = t('chat.btn_clear');
+    const clearBtnText = document.querySelector('#clear-btn .btn-text');
+    if (clearBtnText) clearBtnText.textContent = t('chat.btn_clear');
     const logoutBtn = document.getElementById('logout-btn');
     if (logoutBtn) { logoutBtn.title = t('chat.logout_title'); logoutBtn.textContent = t('chat.logout_label'); }
     /* Radial nav */

@@ -1765,6 +1765,15 @@
             white-space: nowrap;
             height: 38px;
             width: 100%;
+            gap: 0.35rem;
+        }
+
+        .btn-new-chat .btn-icon {
+            display: none;
+        }
+
+        .btn-new-chat .btn-text {
+            display: inline;
         }
         .btn-new-chat:hover {
             background: var(--accent-dim);
@@ -2519,6 +2528,17 @@
                 justify-content: center;
             }
 
+            .btn-new-chat .btn-text {
+                display: none;
+            }
+
+            .btn-new-chat .btn-icon {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 1.3rem;
+            }
+
             #logout-btn {
                 padding: 0.3rem 0.6rem;
                 font-size: 0.8rem;
@@ -2533,6 +2553,8 @@
 
             .input-wrap {
                 flex: 1;
+                display: flex;
+                align-items: stretch;
             }
 
             .btn-send,
@@ -2549,6 +2571,7 @@
                 font-size: var(--text-sm);
                 padding: 0.75rem 1rem;
                 min-height: 100px;
+                height: 100%;
                 border-radius: 12px;
             }
 
