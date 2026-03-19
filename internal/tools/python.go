@@ -305,8 +305,16 @@ func ExecutePythonBackground(code, workspaceDir, toolsDir string, registry *Proc
 	return info.PID, nil
 }
 
+// maxScriptBytes is the maximum allowed Python script size. Scripts larger than
+// this are rejected before touching the filesystem to prevent DoS via disk fill.
+const maxScriptBytes = 512 * 1024 // 512 KB
+
 // writeScript creates a temporary Python file and returns its absolute path and a cleanup function.
 func writeScript(code, toolsDir string) (string, func(), error) {
+	if len(code) > maxScriptBytes {
+		return "", nil, fmt.Errorf("script too large: %d bytes (max %d KB)", len(code), maxScriptBytes/1024)
+	}
+
 	tmpFile, err := os.CreateTemp(toolsDir, "aurago_agent_*.py")
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to create temp file: %w", err)

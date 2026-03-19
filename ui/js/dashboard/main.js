@@ -879,7 +879,7 @@
             document.getElementById('prompt-no-data').style.display = 'none';
             document.getElementById('prompt-content').style.display = '';
 
-            // KPI grid
+            // Main KPI grid
             const kpis = document.getElementById('prompt-kpis');
             const optPct = data.avg_optimization_pct ? data.avg_optimization_pct.toFixed(1) : '0';
             const kpiItems = [
@@ -887,16 +887,45 @@
                 { val: data.avg_tokens.toLocaleString(), lbl: t('dashboard.prompt_kpi_avg_tokens') },
                 { val: data.avg_raw_len.toLocaleString(), lbl: t('dashboard.prompt_kpi_avg_raw_chars') },
                 { val: data.avg_optimized_len.toLocaleString(), lbl: t('dashboard.prompt_kpi_avg_opt_chars') },
-                { val: optPct + '%', lbl: t('dashboard.prompt_kpi_avg_saving_pct') },
-                { val: data.total_saved_chars.toLocaleString(), lbl: t('dashboard.prompt_kpi_chars_saved') },
+                { val: optPct + '%', lbl: t('dashboard.prompt_kpi_avg_saving_pct'), highlight: parseFloat(optPct) >= 20 },
+                { val: data.total_saved_chars.toLocaleString(), lbl: t('dashboard.prompt_kpi_total_savings') },
                 { val: data.budget_shed_count, lbl: t('dashboard.prompt_kpi_budget_sheds') },
-                { val: data.avg_guides_count, lbl: t('dashboard.prompt_kpi_avg_guides') },
+                { val: (data.shed_rate_pct || 0).toFixed(1) + '%', lbl: t('dashboard.prompt_kpi_shed_rate') },
                 { val: data.avg_modules_loaded, lbl: t('dashboard.prompt_kpi_avg_modules_loaded') },
                 { val: data.avg_modules_used, lbl: t('dashboard.prompt_kpi_avg_modules_used') },
+                { val: (data.avg_module_filter_rate_pct || 0).toFixed(1) + '%', lbl: t('dashboard.prompt_kpi_filter_rate') },
+                { val: data.avg_guides_count, lbl: t('dashboard.prompt_kpi_avg_guides') },
             ];
             kpis.innerHTML = kpiItems.map(k =>
-                `<div class="prompt-kpi"><div class="prompt-kpi-val">${k.val}</div><div class="prompt-kpi-lbl">${k.lbl}</div></div>`
+                `<div class="prompt-kpi${k.highlight ? ' prompt-kpi-highlight' : ''}"><div class="prompt-kpi-val">${k.val}</div><div class="prompt-kpi-lbl">${k.lbl}</div></div>`
             ).join('');
+
+            // Savings breakdown KPI grid
+            const savingsKpis = document.getElementById('prompt-savings-kpis');
+            if (savingsKpis) {
+                const avgFormat  = (data.avg_format_savings  || 0).toLocaleString();
+                const avgShed    = (data.avg_shed_savings    || 0).toLocaleString();
+                const avgFilter  = (data.avg_filter_savings  || 0).toLocaleString();
+                const totFormat  = (data.total_format_savings  || 0).toLocaleString();
+                const totShed    = (data.total_shed_savings    || 0).toLocaleString();
+                const totFilter  = (data.total_filter_savings  || 0).toLocaleString();
+                const totalSaved = (data.total_saved_chars     || 0).toLocaleString();
+                const rawAvg     = data.avg_raw_len || 1;
+                const fmtPct    = data.avg_raw_len > 0 ? ((data.avg_format_savings  || 0) / rawAvg * 100).toFixed(1) : '0';
+                const shedPct   = data.avg_raw_len > 0 ? ((data.avg_shed_savings    || 0) / rawAvg * 100).toFixed(1) : '0';
+                const filterPct = data.avg_raw_len > 0 ? ((data.avg_filter_savings  || 0) / rawAvg * 100).toFixed(1) : '0';
+                const breakdownItems = [
+                    { val: avgFormat,  sub: fmtPct + '%',    lbl: t('dashboard.prompt_kpi_format_savings'),  color: 'var(--success)' },
+                    { val: avgShed,    sub: shedPct + '%',   lbl: t('dashboard.prompt_kpi_shed_savings'),    color: '#f59e0b' },
+                    { val: avgFilter,  sub: filterPct + '%', lbl: t('dashboard.prompt_kpi_filter_savings'),  color: '#8b5cf6' },
+                    { val: totFormat,  sub: null,            lbl: t('dashboard.prompt_kpi_format_savings') + ' total', color: null },
+                    { val: totShed,    sub: null,            lbl: t('dashboard.prompt_kpi_shed_savings')   + ' total', color: null },
+                    { val: totFilter,  sub: null,            lbl: t('dashboard.prompt_kpi_filter_savings') + ' total', color: null },
+                ];
+                savingsKpis.innerHTML = breakdownItems.map(k =>
+                    `<div class="prompt-kpi">${k.color ? `<div class="prompt-kpi-dot" style="background:${k.color};"></div>` : ''}<div class="prompt-kpi-val">${k.val}${k.sub ? `<span class="prompt-kpi-sub"> (${k.sub})</span>` : ''}</div><div class="prompt-kpi-lbl">${k.lbl}</div></div>`
+                ).join('');
+            }
 
             // Shed section list
             const shedEl = document.getElementById('shed-list');
@@ -1007,22 +1036,51 @@
             const ctx = document.getElementById(canvasId);
             if (!ctx || !recent || recent.length === 0) return null;
             const labels = recent.map((_, i) => '#' + (i + 1));
+            // Stacked: show all three savings components per build
+            // Falls back gracefully for older records where breakdown fields are 0
             return new Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels: labels,
-                    datasets: [{
-                        label: t('dashboard.prompt_chart_chars_saved'),
-                        data: recent.map(r => r.saved_chars),
-                        backgroundColor: cv('--success') + 'aa',
-                        borderRadius: 3,
-                    }]
+                    datasets: [
+                        {
+                            label: t('dashboard.prompt_chart_format_savings'),
+                            data: recent.map(r => r.format_savings || r.saved_chars || 0),
+                            backgroundColor: cv('--success') + 'cc',
+                            borderRadius: 3,
+                            stack: 'savings',
+                        },
+                        {
+                            label: t('dashboard.prompt_chart_shed_savings'),
+                            data: recent.map(r => r.shed_savings || 0),
+                            backgroundColor: '#f59e0b' + 'cc',
+                            borderRadius: 3,
+                            stack: 'savings',
+                        },
+                        {
+                            label: t('dashboard.prompt_chart_filter_savings'),
+                            data: recent.map(r => r.filter_savings || 0),
+                            backgroundColor: '#8b5cf6' + 'cc',
+                            borderRadius: 3,
+                            stack: 'savings',
+                        },
+                    ]
                 },
                 options: {
-                    plugins: { legend: { display: false } },
+                    plugins: {
+                        legend: { display: true, position: 'top', labels: { boxWidth: 10, padding: 6, color: cv('--text-primary'), font: { size: 10 } } },
+                        tooltip: {
+                            callbacks: {
+                                footer: (items) => {
+                                    const total = items.reduce((s, i) => s + i.parsed.y, 0);
+                                    return 'Total: ' + total.toLocaleString();
+                                }
+                            }
+                        }
+                    },
                     scales: {
-                        x: { display: false },
-                        y: { grid: { color: cv('--border-subtle') }, ticks: { color: cv('--text-secondary') } },
+                        x: { display: false, stacked: true },
+                        y: { stacked: true, grid: { color: cv('--border-subtle') }, ticks: { color: cv('--text-secondary') } },
                     }
                 }
             });

@@ -687,6 +687,8 @@ type Config struct {
 		DefaultInventory string `yaml:"default_inventory"` // default inventory file path (local mode: path; sidecar mode: host dir mount)
 		Image            string `yaml:"image"`             // sidecar mode: Docker image (default: aurago-ansible:latest)
 		ContainerName    string `yaml:"container_name"`    // sidecar mode: container name (default: aurago_ansible)
+		AutoBuild        bool   `yaml:"auto_build"`        // sidecar mode: build image automatically at startup if not found locally
+		DockerfileDir    string `yaml:"dockerfile_dir"`    // sidecar mode: directory containing Dockerfile.ansible (default: ".")
 	} `yaml:"ansible"`
 	InvasionControl struct {
 		Enabled  bool `yaml:"enabled"`  // enable Invasion Control sub-agent management UI

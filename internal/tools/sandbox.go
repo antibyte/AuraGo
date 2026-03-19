@@ -59,6 +59,15 @@ func InitSandboxManager(cfg SandboxConfig, workspaceDir string, logger *slog.Log
 		status: SandboxStatus{Backend: cfg.Backend},
 	}
 
+	// Warn about config options that are parsed but not yet implemented, so users
+	// are not misled into thinking they have container pooling or keep-alive active.
+	if cfg.PoolSize > 0 {
+		logger.Warn("[Sandbox] sandbox.pool_size is set but container pooling is not yet implemented — value ignored", "pool_size", cfg.PoolSize)
+	}
+	if cfg.KeepAlive {
+		logger.Warn("[Sandbox] sandbox.keep_alive is set but is not yet implemented — MCP server lifecycle is managed automatically")
+	}
+
 	// 1. Check Docker / Podman availability
 	if cfg.Backend == "podman" {
 		if _, err := exec.LookPath("podman"); err != nil {
@@ -184,8 +193,15 @@ func InitSandboxManager(cfg SandboxConfig, workspaceDir string, logger *slog.Log
 
 func registerSandboxSingleton(mgr *SandboxManager) {
 	sandboxMgrMu.Lock()
+	old := globalSandboxMgr
 	globalSandboxMgr = mgr
 	sandboxMgrMu.Unlock()
+	// Close old manager outside the lock to avoid holding it during MCP shutdown.
+	// This prevents Python subprocess orphans when InitSandboxManager is called again
+	// (e.g. after a config reload or re-initialization).
+	if old != nil && old != mgr {
+		old.Close()
+	}
 }
 
 // GetSandboxManager returns the global SandboxManager singleton.

@@ -145,3 +145,28 @@ var _ ShellSandbox = (*FallbackSandbox)(nil)
 
 // Verify exec.Cmd is the return type (compile-time check).
 var _ *exec.Cmd = (*FallbackSandbox)(nil).PrepareCommand("", "")
+
+func TestInitDoubleInit_ClosesOldFallback(t *testing.T) {
+	// Calling Init twice must not panic and must leave a valid sandbox instance.
+	Init(ShellSandboxConfig{Enabled: false}, "/tmp", testLogger())
+	Init(ShellSandboxConfig{Enabled: false}, "/tmp", testLogger())
+	sb := Get()
+	if sb == nil {
+		t.Fatal("Get() returned nil after double Init")
+	}
+	if sb.Name() != "fallback" {
+		t.Errorf("expected fallback after disabled init, got %q", sb.Name())
+	}
+}
+
+func TestFallbackSandbox_PrepareCommand_HasSh(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping exec-spawning test in short mode")
+	}
+	fb := &FallbackSandbox{}
+	cmd := fb.PrepareCommand("true", "/tmp")
+	// The command must reference a shell, not an empty path.
+	if cmd.Path == "" {
+		t.Error("FallbackSandbox.PrepareCommand returned cmd with empty Path")
+	}
+}

@@ -479,6 +479,8 @@ func Start(cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, sh
 			ContainerName: cfg.Ansible.ContainerName,
 			PlaybooksDir:  cfg.Ansible.PlaybooksDir,
 			InventoryDir:  inventoryDir,
+			AutoBuild:     cfg.Ansible.AutoBuild,
+			DockerfileDir: cfg.Ansible.DockerfileDir,
 		}, logger)
 	}
 

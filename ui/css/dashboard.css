@@ -883,6 +883,27 @@
             margin-top: 0.1rem;
         }
 
+        /* Highlight KPI (e.g. high savings %) */
+        .prompt-kpi-highlight .prompt-kpi-val {
+            color: var(--success);
+        }
+
+        /* Sub-value (percentage in parentheses) */
+        .prompt-kpi-sub {
+            font-size: 0.72rem;
+            font-weight: 400;
+            color: var(--text-secondary);
+        }
+
+        /* Color dot for savings breakdown KPIs */
+        .prompt-kpi-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-bottom: 0.2rem;
+        }
+
         .prompt-details-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;

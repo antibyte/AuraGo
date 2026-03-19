@@ -273,6 +273,13 @@ func BuildSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string,
 		return selectedModules[i].Metadata.Priority < selectedModules[j].Metadata.Priority
 	})
 
+	// Pre-compute the total char count of ALL loaded modules (including filtered-out ones)
+	// so we can report how many chars were saved by module filtering.
+	totalModuleChars := 0
+	for _, m := range modules {
+		totalModuleChars += len(m.Content) + 2 // +2 mirrors the "\n\n" separator written per module
+	}
+
 	// 4. Assemble modules
 	for _, mod := range selectedModules {
 		finalPrompt.WriteString(mod.Content)
@@ -432,12 +439,24 @@ func BuildSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string,
 	rawPrompt := finalPrompt.String()
 	rawLen := len(rawPrompt)
 
+	// Filter savings: chars that were loaded but excluded by filterModules.
+	// sectionModules reflects only the selected modules written to the buffer.
+	filterSavings := totalModuleChars - sectionModules
+	if filterSavings < 0 {
+		filterSavings = 0
+	}
+
 	// 6. Token budget shedding FIRST — shed large sections before spending CPU on optimization
+	var shedSavings int
 	var shedSections []string
 	budgetShedTriggered := false
 	if flags.TokenBudget > 0 {
 		rawPrompt, shedSections = budgetShed(rawPrompt, flags, corePersonalityContent, coreMemory, now, logger)
 		budgetShedTriggered = len(shedSections) > 0
+		shedSavings = rawLen - len(rawPrompt)
+		if shedSavings < 0 {
+			shedSavings = 0
+		}
 	}
 
 	// 7. Optimize after shedding — only minify what remains
@@ -453,6 +472,9 @@ func BuildSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string,
 		RawLen:        rawLen,
 		OptimizedLen:  len(optimized),
 		SavedChars:    saved,
+		FormatSavings: saved,
+		ShedSavings:   shedSavings,
+		FilterSavings: filterSavings,
 		Tokens:        finalTokens,
 		TokenBudget:   flags.TokenBudget,
 		ModulesLoaded: len(modules),

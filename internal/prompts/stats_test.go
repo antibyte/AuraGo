@@ -210,3 +210,169 @@ func TestRecordAdaptiveToolUsage(t *testing.T) {
 		t.Errorf("shell count should be 2, got %d", scores[0].Count)
 	}
 }
+
+// ── Prompt build stats tests ──────────────────────────────────────────────────
+
+func resetPromptStats() {
+	globalStats.mu.Lock()
+	globalStats.records = nil
+	globalStats.mu.Unlock()
+}
+
+func TestPromptBuildRecordSavingsBreakdown(t *testing.T) {
+	resetPromptStats()
+	defer resetPromptStats()
+
+	RecordBuild(PromptBuildRecord{
+		Timestamp:     time.Now(),
+		Tier:          "full",
+		RawLen:        10000,
+		OptimizedLen:  6000,
+		SavedChars:    200,
+		FormatSavings: 200,
+		ShedSavings:   1800,
+		FilterSavings: 2000,
+		Tokens:        1500,
+		ModulesLoaded: 10,
+		ModulesUsed:   7,
+	})
+
+	agg := GetAggregatedStats()
+	if agg.TotalBuilds != 1 {
+		t.Fatalf("TotalBuilds = %d, want 1", agg.TotalBuilds)
+	}
+
+	// True total savings = RawLen - OptimizedLen = 4000
+	wantTrueSaved := 4000
+	if agg.AvgSavedChars != wantTrueSaved {
+		t.Errorf("AvgSavedChars = %d, want %d (true total = RawLen - OptimizedLen)", agg.AvgSavedChars, wantTrueSaved)
+	}
+	if agg.TotalSavedChars != int64(wantTrueSaved) {
+		t.Errorf("TotalSavedChars = %d, want %d", agg.TotalSavedChars, wantTrueSaved)
+	}
+
+	// Breakdown averages
+	if agg.AvgFormatSavings != 200 {
+		t.Errorf("AvgFormatSavings = %d, want 200", agg.AvgFormatSavings)
+	}
+	if agg.AvgShedSavings != 1800 {
+		t.Errorf("AvgShedSavings = %d, want 1800", agg.AvgShedSavings)
+	}
+	if agg.AvgFilterSavings != 2000 {
+		t.Errorf("AvgFilterSavings = %d, want 2000", agg.AvgFilterSavings)
+	}
+}
+
+func TestPromptStatsAvgOptimizationPct(t *testing.T) {
+	resetPromptStats()
+	defer resetPromptStats()
+
+	// Build with 40% true reduction (6000 of 10000 chars removed)
+	RecordBuild(PromptBuildRecord{
+		Timestamp:    time.Now(),
+		Tier:         "full",
+		RawLen:       10000,
+		OptimizedLen: 6000, // 40% removed
+		SavedChars:   200,
+	})
+
+	agg := GetAggregatedStats()
+
+	// avg_optimization_pct should be 40.0 (not 2.0 from SavedChars/RawLen)
+	if agg.AvgOptimizationPct < 39.9 || agg.AvgOptimizationPct > 40.1 {
+		t.Errorf("AvgOptimizationPct = %.2f, want ~40.0 (true RawLen-OptimizedLen/RawLen)", agg.AvgOptimizationPct)
+	}
+}
+
+func TestPromptStatsShedRate(t *testing.T) {
+	resetPromptStats()
+	defer resetPromptStats()
+
+	// 2 builds: 1 with budget shed, 1 without
+	RecordBuild(PromptBuildRecord{
+		Timestamp: time.Now(), Tier: "full",
+		RawLen: 1000, OptimizedLen: 900,
+		BudgetShed: true, ShedSavings: 80,
+	})
+	RecordBuild(PromptBuildRecord{
+		Timestamp: time.Now(), Tier: "full",
+		RawLen: 1000, OptimizedLen: 980,
+		BudgetShed: false,
+	})
+
+	agg := GetAggregatedStats()
+	if agg.BudgetShedCount != 1 {
+		t.Errorf("BudgetShedCount = %d, want 1", agg.BudgetShedCount)
+	}
+	// ShedRate = 1/2 * 100 = 50%
+	if agg.ShedRatePct < 49.9 || agg.ShedRatePct > 50.1 {
+		t.Errorf("ShedRatePct = %.2f, want 50.0", agg.ShedRatePct)
+	}
+}
+
+func TestPromptStatsModuleFilterRate(t *testing.T) {
+	resetPromptStats()
+	defer resetPromptStats()
+
+	// 10 modules loaded, 6 used → 40% filtered
+	RecordBuild(PromptBuildRecord{
+		Timestamp:     time.Now(),
+		Tier:          "full",
+		RawLen:        5000,
+		OptimizedLen:  4000,
+		ModulesLoaded: 10,
+		ModulesUsed:   6,
+	})
+
+	agg := GetAggregatedStats()
+	if agg.AvgModuleFilterRatePct < 39.9 || agg.AvgModuleFilterRatePct > 40.1 {
+		t.Errorf("AvgModuleFilterRatePct = %.2f, want 40.0", agg.AvgModuleFilterRatePct)
+	}
+}
+
+func TestPromptStatsTotalsBreakdown(t *testing.T) {
+	resetPromptStats()
+	defer resetPromptStats()
+
+	RecordBuild(PromptBuildRecord{
+		Timestamp: time.Now(), Tier: "full",
+		RawLen: 10000, OptimizedLen: 5000,
+		FormatSavings: 500, ShedSavings: 2000, FilterSavings: 2500,
+	})
+	RecordBuild(PromptBuildRecord{
+		Timestamp: time.Now(), Tier: "compact",
+		RawLen: 8000, OptimizedLen: 4000,
+		FormatSavings: 300, ShedSavings: 1500, FilterSavings: 2200,
+	})
+
+	agg := GetAggregatedStats()
+	if agg.TotalFormatSavings != 800 {
+		t.Errorf("TotalFormatSavings = %d, want 800", agg.TotalFormatSavings)
+	}
+	if agg.TotalShedSavings != 3500 {
+		t.Errorf("TotalShedSavings = %d, want 3500", agg.TotalShedSavings)
+	}
+	if agg.TotalFilterSavings != 4700 {
+		t.Errorf("TotalFilterSavings = %d, want 4700", agg.TotalFilterSavings)
+	}
+	// TotalSavedChars = sum of (RawLen - OptimizedLen) = 5000 + 4000 = 9000
+	if agg.TotalSavedChars != 9000 {
+		t.Errorf("TotalSavedChars = %d, want 9000", agg.TotalSavedChars)
+	}
+}
+
+func TestPromptStatsEmptyState(t *testing.T) {
+	resetPromptStats()
+	defer resetPromptStats()
+
+	agg := GetAggregatedStats()
+	if agg.TotalBuilds != 0 {
+		t.Errorf("empty: TotalBuilds = %d, want 0", agg.TotalBuilds)
+	}
+	if agg.ShedRatePct != 0 {
+		t.Errorf("empty: ShedRatePct = %.2f, want 0", agg.ShedRatePct)
+	}
+	if agg.AvgModuleFilterRatePct != 0 {
+		t.Errorf("empty: AvgModuleFilterRatePct = %.2f, want 0", agg.AvgModuleFilterRatePct)
+	}
+}

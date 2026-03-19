@@ -214,6 +214,8 @@ type AnsibleSidecarConfig struct {
 	ContainerName string // Container name (default: aurago_ansible)
 	PlaybooksDir  string // Host path to playbooks dir (mounted into /playbooks)
 	InventoryDir  string // Host path to inventory dir (mounted into /inventory)
+	AutoBuild     bool   // Build image automatically if not found locally
+	DockerfileDir string // Directory containing Dockerfile.ansible (default: ".")
 }
 
 // EnsureAnsibleSidecarRunning ensures the Ansible sidecar container is running.
@@ -286,9 +288,20 @@ func EnsureAnsibleSidecarRunning(dockerHost string, sidecarCfg AnsibleSidecarCon
 	// Container does not exist — check if image is available
 	_, imgCode, imgErr := dockerRequest(dockerCfg, "GET", "/images/"+image+"/json", "")
 	if imgErr != nil || imgCode != 200 {
-		logger.Warn("[Ansible] Image not found locally. Build it first:\n  docker build -f Dockerfile.ansible -t "+image+" .",
-			"image", image)
-		return
+		if sidecarCfg.AutoBuild {
+			if err := buildAnsibleImage(image, sidecarCfg.DockerfileDir, logger); err != nil {
+				logger.Error("[Ansible] Auto-build failed. Start the sidecar manually after building the image.",
+					"image", image,
+					"hint", "docker build -f Dockerfile.ansible -t "+image+" .",
+					"error", err)
+				return
+			}
+		} else {
+			logger.Warn("[Ansible] Image not found locally. Build it first.",
+				"image", image,
+				"hint", "docker build -f Dockerfile.ansible -t "+image+" .")
+			return
+		}
 	}
 
 	// Build environment variables
@@ -349,6 +362,40 @@ func EnsureAnsibleSidecarRunning(dockerHost string, sidecarCfg AnsibleSidecarCon
 		return
 	}
 	logger.Info("[Ansible] Sidecar container created and started", "image", image, "container", containerName)
+}
+
+// buildAnsibleImage runs `docker build -f Dockerfile.ansible -t <image> <dir>` to build
+// the Ansible sidecar image. This is called automatically when auto_build is enabled and
+// the image is not found locally. The build can take several minutes on first run.
+func buildAnsibleImage(image, dockerfileDir string, logger interface {
+	Info(string, ...any)
+	Warn(string, ...any)
+	Error(string, ...any)
+}) error {
+	if dockerfileDir == "" {
+		dockerfileDir = "."
+	}
+
+	logger.Info("[Ansible] Building sidecar image (this may take a few minutes)…",
+		"image", image,
+		"context", dockerfileDir)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "docker", "build",
+		"-f", filepath.Join(dockerfileDir, "Dockerfile.ansible"),
+		"-t", image,
+		dockerfileDir,
+	)
+
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("docker build: %w\n%s", err, strings.TrimSpace(string(out)))
+	}
+
+	logger.Info("[Ansible] Image built successfully", "image", image)
+	return nil
 }
 
 // ansibleSSHDir returns the host path to the SSH directory (~/.ssh).

@@ -13,7 +13,10 @@ type PromptBuildRecord struct {
 	Tier          string    `json:"tier"`
 	RawLen        int       `json:"raw_len"`
 	OptimizedLen  int       `json:"optimized_len"`
-	SavedChars    int       `json:"saved_chars"`
+	SavedChars    int       `json:"saved_chars"`    // format-only savings (whitespace/markdown)
+	FormatSavings int       `json:"format_savings"` // same as SavedChars, explicit name
+	ShedSavings   int       `json:"shed_savings"`   // chars removed by budget shedding
+	FilterSavings int       `json:"filter_savings"` // chars in loaded modules that were filtered out
 	Tokens        int       `json:"tokens"`
 	TokenBudget   int       `json:"token_budget"`
 	ModulesLoaded int       `json:"modules_loaded"`
@@ -28,13 +31,16 @@ type PromptBuildRecord struct {
 
 // PromptStatsAggregated is the JSON-friendly aggregate returned by the dashboard API.
 type PromptStatsAggregated struct {
-	TotalBuilds        int                 `json:"total_builds"`
-	AvgRawLen          int                 `json:"avg_raw_len"`
-	AvgOptimizedLen    int                 `json:"avg_optimized_len"`
-	AvgSavedChars      int                 `json:"avg_saved_chars"`
-	AvgTokens          int                 `json:"avg_tokens"`
+	TotalBuilds     int `json:"total_builds"`
+	AvgRawLen       int `json:"avg_raw_len"`
+	AvgOptimizedLen int `json:"avg_optimized_len"`
+	// AvgSavedChars and TotalSavedChars represent true total savings (RawLen - OptimizedLen),
+	// i.e. the combined effect of format optimization + budget shedding + module filtering.
+	AvgSavedChars   int   `json:"avg_saved_chars"`
+	TotalSavedChars int64 `json:"total_saved_chars"`
+	AvgTokens       int   `json:"avg_tokens"`
+	// AvgOptimizationPct = avg((RawLen - OptimizedLen) / RawLen * 100) — true total reduction.
 	AvgOptimizationPct float64             `json:"avg_optimization_pct"`
-	TotalSavedChars    int64               `json:"total_saved_chars"`
 	BudgetShedCount    int                 `json:"budget_shed_count"`
 	TierDistribution   map[string]int      `json:"tier_distribution"`
 	ShedSectionCounts  map[string]int      `json:"shed_section_counts"`
@@ -44,6 +50,16 @@ type PromptStatsAggregated struct {
 	Recent             []PromptBuildRecord `json:"recent"`
 	// AvgSectionSizes maps section name → average character count across all builds
 	AvgSectionSizes map[string]int `json:"avg_section_sizes"`
+	// Savings breakdown: individual components of the total reduction
+	AvgFormatSavings   int   `json:"avg_format_savings"`
+	TotalFormatSavings int64 `json:"total_format_savings"`
+	AvgShedSavings     int   `json:"avg_shed_savings"`
+	TotalShedSavings   int64 `json:"total_shed_savings"`
+	AvgFilterSavings   int   `json:"avg_filter_savings"`
+	TotalFilterSavings int64 `json:"total_filter_savings"`
+	// Derived efficiency metrics
+	ShedRatePct            float64 `json:"shed_rate_pct"`              // % of builds that triggered budget shedding
+	AvgModuleFilterRatePct float64 `json:"avg_module_filter_rate_pct"` // avg % of loaded modules filtered out
 }
 
 // promptStatsCollector is a package-level ring buffer for prompt build metrics.
@@ -89,24 +105,45 @@ func GetAggregatedStats() PromptStatsAggregated {
 		return agg
 	}
 
-	var sumRaw, sumOpt, sumSaved, sumTokens int64
+	var sumRaw, sumOpt, sumTokens int64
+	var sumTrueSaved, sumFormatSavings, sumShedSavings, sumFilterSavings int64
 	var sumModLoaded, sumModUsed, sumGuides int64
-	var sumOptPct float64
+	var sumOptPct, sumModFilterRate float64
 	sectionSums := make(map[string]int64)
 	sectionCounts := make(map[string]int)
 
 	for _, r := range globalStats.records {
 		sumRaw += int64(r.RawLen)
 		sumOpt += int64(r.OptimizedLen)
-		sumSaved += int64(r.SavedChars)
 		sumTokens += int64(r.Tokens)
 		sumModLoaded += int64(r.ModulesLoaded)
 		sumModUsed += int64(r.ModulesUsed)
 		sumGuides += int64(r.GuidesCount)
-		agg.TotalSavedChars += int64(r.SavedChars)
 
+		// True total savings = all reduction combined (format + shed + filter)
+		trueSaved := int64(r.RawLen - r.OptimizedLen)
+		if trueSaved < 0 {
+			trueSaved = 0
+		}
+		sumTrueSaved += trueSaved
+		agg.TotalSavedChars += trueSaved
+
+		// Savings breakdown
+		sumFormatSavings += int64(r.FormatSavings)
+		sumShedSavings += int64(r.ShedSavings)
+		sumFilterSavings += int64(r.FilterSavings)
+		agg.TotalFormatSavings += int64(r.FormatSavings)
+		agg.TotalShedSavings += int64(r.ShedSavings)
+		agg.TotalFilterSavings += int64(r.FilterSavings)
+
+		// True optimization percentage
 		if r.RawLen > 0 {
-			sumOptPct += float64(r.SavedChars) / float64(r.RawLen) * 100.0
+			sumOptPct += float64(r.RawLen-r.OptimizedLen) / float64(r.RawLen) * 100.0
+		}
+
+		// Module filter rate
+		if r.ModulesLoaded > 0 {
+			sumModFilterRate += float64(r.ModulesLoaded-r.ModulesUsed) / float64(r.ModulesLoaded) * 100.0
 		}
 
 		if r.BudgetShed {
@@ -127,12 +164,21 @@ func GetAggregatedStats() PromptStatsAggregated {
 
 	agg.AvgRawLen = int(sumRaw / int64(n))
 	agg.AvgOptimizedLen = int(sumOpt / int64(n))
-	agg.AvgSavedChars = int(sumSaved / int64(n))
+	agg.AvgSavedChars = int(sumTrueSaved / int64(n))
 	agg.AvgTokens = int(sumTokens / int64(n))
 	agg.AvgOptimizationPct = sumOptPct / float64(n)
 	agg.AvgModulesLoaded = int(sumModLoaded / int64(n))
 	agg.AvgModulesUsed = int(sumModUsed / int64(n))
 	agg.AvgGuidesCount = int(sumGuides / int64(n))
+	// Savings breakdown averages
+	agg.AvgFormatSavings = int(sumFormatSavings / int64(n))
+	agg.AvgShedSavings = int(sumShedSavings / int64(n))
+	agg.AvgFilterSavings = int(sumFilterSavings / int64(n))
+	// Efficiency rates
+	if n > 0 {
+		agg.ShedRatePct = float64(agg.BudgetShedCount) / float64(n) * 100.0
+		agg.AvgModuleFilterRatePct = sumModFilterRate / float64(n)
+	}
 
 	agg.AvgSectionSizes = make(map[string]int)
 	for sec, sum := range sectionSums {

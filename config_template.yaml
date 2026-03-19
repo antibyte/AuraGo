@@ -424,6 +424,10 @@ ansible:
     timeout: 300
     playbooks_dir: ""
     default_inventory: ""
+    image: ""              # Docker image for sidecar (default: aurago-ansible:latest)
+    container_name: ""     # Container name (default: aurago_ansible)
+    auto_build: false      # Build image automatically at startup if not found locally
+    dockerfile_dir: ""     # Directory containing Dockerfile.ansible (default: ".")
 egg_mode:
     enabled: false
     master_url: ""
