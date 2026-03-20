@@ -31,6 +31,7 @@
   "config.server.cert_upload_btn": "Prześlij",
   "config.server.cert_upload_missing": "Wybierz zarówno certyfikat, jak i plik klucza.",
   "config.server.cert_upload_success": "Certyfikat przesłany pomyślnie. Uruchom ponownie, aby zastosować.",
+  "config.server.selfsigned_port_warning": "Porty poniżej 1024 wymagają uprawnień root/administratora na Linux/macOS. Aby uzyskać lokalny dostęp bez podwyższonych uprawnień, użyj portu 8443.",
   "config.server.cert_selfsigned_notice": "Samopodpisany certyfikat zostanie wygenerowany automatycznie. Przeglądarki pokażą ostrzeżenie bezpieczeństwa.",
   "config.server.cert_selfsigned_domain_hint": "Używany jako Subject Alternative Name w certyfikacie.",
   "config.server.cert_regen_btn": "Regeneruj certyfikat",

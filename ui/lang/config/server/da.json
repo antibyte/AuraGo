@@ -31,6 +31,7 @@
   "config.server.cert_upload_btn": "Upload",
   "config.server.cert_upload_missing": "Vælg venligst både et certifikat og en nøglefil.",
   "config.server.cert_upload_success": "Certifikat uploadet. Genstart for at anvende.",
+  "config.server.selfsigned_port_warning": "Porte under 1024 kræver root-/administratorrettigheder på Linux/macOS. Brug port 8443 for lokal adgang uden forhøjede rettigheder.",
   "config.server.cert_selfsigned_notice": "Et selvunderskrevet certifikat oprettes automatisk. Browsere viser en sikkerhedsadvarsel.",
   "config.server.cert_selfsigned_domain_hint": "Bruges som Subject Alternative Name i certifikatet.",
   "config.server.cert_regen_btn": "Generer certifikat igen",

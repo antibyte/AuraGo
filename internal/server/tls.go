@@ -276,12 +276,30 @@ func ensureSelfSignedCert(certFile, keyFile, domain string, logger Logger) error
 		BasicConstraintsValid: true,
 	}
 
-	// Add SANs
+	// Add SANs — domain, localhost, loopback and all local network interface IPs
 	if domain != "" {
 		template.DNSNames = append(template.DNSNames, domain)
 	}
 	template.DNSNames = append(template.DNSNames, "localhost")
 	template.IPAddresses = append(template.IPAddresses, net.ParseIP("127.0.0.1"), net.ParseIP("::1"))
+
+	// Enumerate all network interface addresses so browsers accept the cert
+	// when accessed via any local IP (e.g. 192.168.x.x on a LAN).
+	if ifaces, err := net.InterfaceAddrs(); err == nil {
+		for _, addr := range ifaces {
+			var ip net.IP
+			switch v := addr.(type) {
+			case *net.IPNet:
+				ip = v.IP
+			case *net.IPAddr:
+				ip = v.IP
+			}
+			if ip == nil || ip.IsLoopback() {
+				continue
+			}
+			template.IPAddresses = append(template.IPAddresses, ip)
+		}
+	}
 
 	certDER, err := x509.CreateCertificate(rand.Reader, &template, &template, &key.PublicKey, key)
 	if err != nil {

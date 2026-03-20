@@ -31,6 +31,7 @@
   "config.server.cert_upload_btn": "Hochladen",
   "config.server.cert_upload_missing": "Bitte wähle sowohl ein Zertifikat als auch eine Schlüsseldatei aus.",
   "config.server.cert_upload_success": "Zertifikat erfolgreich hochgeladen. Neustart erforderlich.",
+  "config.server.selfsigned_port_warning": "Ports unter 1024 erfordern Root-/Administratorrechte unter Linux/macOS. Für lokalen Zugriff ohne erhöhte Rechte bitte Port 8443 verwenden.",
   "config.server.cert_selfsigned_notice": "Ein selbstsigniertes Zertifikat wird automatisch erstellt. Browser zeigen eine Sicherheitswarnung an.",
   "config.server.cert_selfsigned_domain_hint": "Wird als Subject Alternative Name im Zertifikat verwendet.",
   "config.server.cert_regen_btn": "Zertifikat neu erstellen",

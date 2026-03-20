@@ -31,6 +31,7 @@
   "config.server.cert_upload_btn": "Nahrát",
   "config.server.cert_upload_missing": "Prosím vyberte soubor certifikátu i klíče.",
   "config.server.cert_upload_success": "Certifikát úspěšně nahrán. Restartujte pro použití.",
+  "config.server.selfsigned_port_warning": "Porty pod 1024 vyžadují oprávnění root/administrátor na Linuxu/macOS. Pro místní přístup bez zvýšených oprávnění použijte port 8443.",
   "config.server.cert_selfsigned_notice": "Samopodepsaný certifikát bude automaticky vygenerován. Prohlížeče zobrazí bezpečnostní varování.",
   "config.server.cert_selfsigned_domain_hint": "Použito jako Subject Alternative Name v certifikátu.",
   "config.server.cert_regen_btn": "Přegenerovat certifikát",

@@ -31,6 +31,7 @@
   "config.server.cert_upload_btn": "Ladda upp",
   "config.server.cert_upload_missing": "Välj både ett certifikat och en nyckelfil.",
   "config.server.cert_upload_success": "Certifikat uppladdat. Starta om för att tillämpa.",
+  "config.server.selfsigned_port_warning": "Portar under 1024 kräver root-/administratörsrättigheter på Linux/macOS. För lokal åtkomst utan förhöjda rättigheter, använd port 8443.",
   "config.server.cert_selfsigned_notice": "Ett självsignerat certifikat genereras automatiskt. Webbläsare visar en säkerhetsvarning.",
   "config.server.cert_selfsigned_domain_hint": "Används som Subject Alternative Name i certifikatet.",
   "config.server.cert_regen_btn": "Återgenerera certifikat",

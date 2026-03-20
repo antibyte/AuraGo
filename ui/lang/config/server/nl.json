@@ -31,6 +31,7 @@
   "config.server.cert_upload_btn": "Uploaden",
   "config.server.cert_upload_missing": "Selecteer zowel een certificaat- als een sleutelbestand.",
   "config.server.cert_upload_success": "Certificaat succesvol geüpload. Herstart om toe te passen.",
+  "config.server.selfsigned_port_warning": "Poorten onder 1024 vereisen root-/beheerdersrechten op Linux/macOS. Gebruik poort 8443 voor lokale toegang zonder verhoogde rechten.",
   "config.server.cert_selfsigned_notice": "Er wordt automatisch een zelfondertekend certificaat gegenereerd. Browsers tonen een beveiligingswaarschuwing.",
   "config.server.cert_selfsigned_domain_hint": "Wordt gebruikt als Subject Alternative Name in het certificaat.",
   "config.server.cert_regen_btn": "Certificaat opnieuw genereren",

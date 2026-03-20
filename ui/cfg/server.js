@@ -171,6 +171,14 @@ async function renderServerSection(section) {
                 <span>🔐</span>
                 <div><small>${t('config.server.cert_selfsigned_notice')}</small></div>
             </div>`;
+            // Warn when port 443 is selected — requires root/admin on Linux
+            const httpsPort = parseInt(https.https_port) || 443;
+            if (httpsPort < 1024) {
+                html += `<div class="wh-notice" style="margin-bottom:0.8rem;background:var(--warning-bg,#3d2e00);border-color:var(--warning,#f9a825);">
+                    <span>⚠️</span>
+                    <div><small>${t('config.server.selfsigned_port_warning') || 'Port ' + httpsPort + ' requires root/admin privileges on Linux. For local use without root, consider port 8443.'}</small></div>
+                </div>`;
+            }
 
             html += `<label style="display:block;margin-bottom:0.6rem;">
                 <span style="font-size:0.78rem;color:var(--text-secondary);">${t('config.server.domain_label')}</span>

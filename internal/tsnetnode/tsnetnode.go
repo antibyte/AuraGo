@@ -178,8 +178,18 @@ func (m *Manager) Start(handler http.Handler) error {
 
 	m.logger.Info("Starting tsnet node", "hostname", hostname, "state_dir", stateDir)
 
+	// Store the server reference now (before the blocking ListenTLS call) so that
+	// GetStatus() can query the local Tailscale client to detect when authentication
+	// completes and clear the pending loginURL.
+	m.mu.Lock()
+	m.server = srv
+	m.mu.Unlock()
+
 	// Start the tsnet server
 	if err := srv.Start(); err != nil {
+		m.mu.Lock()
+		m.server = nil
+		m.mu.Unlock()
 		cleanup(err.Error())
 		return fmt.Errorf("failed to start tsnet server: %w", err)
 	}
@@ -189,6 +199,9 @@ func (m *Manager) Start(handler http.Handler) error {
 	ln, err := srv.ListenTLS("tcp", ":443")
 	if err != nil {
 		srv.Close()
+		m.mu.Lock()
+		m.server = nil
+		m.mu.Unlock()
 		cleanup(err.Error())
 		return fmt.Errorf("failed to listen TLS on tsnet: %w", err)
 	}
@@ -267,10 +280,14 @@ func (m *Manager) GetStatus() Status {
 		st.Error = m.lastErr
 	}
 
-	if m.running && m.server != nil {
+	// Query the local Tailscale client whenever we have a server reference,
+	// even while still in the starting phase (waiting for auth / cert issuance).
+	// This allows us to detect when the user completes authentication and clear
+	// the pending loginURL so the browser banner disappears promptly.
+	if m.server != nil {
 		lc, err := m.server.LocalClient()
 		if err == nil {
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 			defer cancel()
 			status, err := lc.Status(ctx)
 			if err == nil && status.Self != nil {

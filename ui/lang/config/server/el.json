@@ -31,6 +31,7 @@
   "config.server.cert_upload_btn": "Μεταφόρτωση",
   "config.server.cert_upload_missing": "Επιλέξτε πιστοποιητικό και αρχείο κλειδιού.",
   "config.server.cert_upload_success": "Το πιστοποιητικό μεταφορτώθηκε. Επανεκκινήστε για εφαρμογή.",
+  "config.server.selfsigned_port_warning": "Οι θύρες κάτω από 1024 απαιτούν δικαιώματα root/διαχειριστή σε Linux/macOS. Για τοπική πρόσβαση χωρίς αυξημένα δικαιώματα, χρησιμοποιήστε τη θύρα 8443.",
   "config.server.cert_selfsigned_notice": "Ένα αυτο-υπογεγραμμένο πιστοποιητικό θα δημιουργηθεί αυτόματα. Οι browsers θα εμφανίσουν προειδοποίηση ασφαλείας.",
   "config.server.cert_selfsigned_domain_hint": "Χρησιμοποιείται ως Subject Alternative Name στο πιστοποιητικό.",
   "config.server.cert_regen_btn": "Αναδημιουργία πιστοποιητικού",

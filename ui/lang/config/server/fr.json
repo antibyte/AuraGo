@@ -31,6 +31,7 @@
   "config.server.cert_upload_btn": "Télécharger",
   "config.server.cert_upload_missing": "Veuillez sélectionner un certificat et un fichier de clé.",
   "config.server.cert_upload_success": "Certificat téléchargé avec succès. Redémarrez pour appliquer.",
+  "config.server.selfsigned_port_warning": "Les ports inférieurs à 1024 nécessitent des privilèges root/administrateur sur Linux/macOS. Pour un accès local sans privilèges élevés, utilisez le port 8443.",
   "config.server.cert_selfsigned_notice": "Un certificat auto-signé sera généré automatiquement. Les navigateurs afficheront un avertissement de sécurité.",
   "config.server.cert_selfsigned_domain_hint": "Utilisé comme Subject Alternative Name dans le certificat.",
   "config.server.cert_regen_btn": "Régénérer le certificat",

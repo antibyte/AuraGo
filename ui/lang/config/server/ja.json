@@ -31,6 +31,7 @@
   "config.server.cert_upload_btn": "アップロード",
   "config.server.cert_upload_missing": "証明書ファイルと鍵ファイルの両方を選択してください。",
   "config.server.cert_upload_success": "証明書のアップロードに成功しました。再起動して適用してください。",
+  "config.server.selfsigned_port_warning": "1024未満のポートはLinux/macOSでroot/管理者権限が必要です。昇格した権限なしでローカルアクセスするには、ポート8443を使用してください。",
   "config.server.cert_selfsigned_notice": "自己署名証明書が自動生成されます。ブラウザはセキュリティ警告を表示します。",
   "config.server.cert_selfsigned_domain_hint": "証明書の Subject Alternative Name として使用されます。",
   "config.server.cert_regen_btn": "証明書を再生成",

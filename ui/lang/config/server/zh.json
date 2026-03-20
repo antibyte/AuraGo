@@ -31,6 +31,7 @@
   "config.server.cert_upload_btn": "上传",
   "config.server.cert_upload_missing": "请同时选择证书和密钥文件。",
   "config.server.cert_upload_success": "证书上传成功。重启以生效。",
+  "config.server.selfsigned_port_warning": "1024以下的端口在Linux/macOS上需要root/管理员权限。若要在无需提升权限的情况下进行本地访问，请使用端口8443。",
   "config.server.cert_selfsigned_notice": "将自动生成自签名证书。浏览器将显示安全警告。",
   "config.server.cert_selfsigned_domain_hint": "在证书中用作 Subject Alternative Name。",
   "config.server.cert_regen_btn": "重新生成证书",

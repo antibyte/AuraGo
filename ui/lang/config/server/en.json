@@ -33,6 +33,7 @@
   "config.server.cert_upload_success": "Certificate uploaded successfully. Restart to apply.",
   "config.server.cert_selfsigned_notice": "A self-signed certificate will be auto-generated. Browsers will show a security warning.",
   "config.server.cert_selfsigned_domain_hint": "Used as Subject Alternative Name in the certificate.",
+  "config.server.selfsigned_port_warning": "Port below 1024 requires root/admin privileges on Linux/macOS. For local access without elevated privileges, use port 8443 instead.",
   "config.server.cert_regen_btn": "Regenerate Certificate",
   "config.server.cert_regen_success": "Self-signed certificate regenerated. Restart to apply.",
   "config.server.cert_status_title": "Certificate Status",
