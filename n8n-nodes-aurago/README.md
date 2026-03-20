@@ -21,30 +21,73 @@
 
 ## Installation
 
-### Via n8n Community Nodes (Recommended)
+### Option A — Install script (recommended for self-hosted)
+
+The repo includes a ready-made script that builds the node and installs it into
+n8n's data directory in one step:
+
+```bash
+# On the n8n server — clone only the node subdirectory (no full repo needed)
+git clone --depth 1 --filter=blob:none --sparse https://github.com/antibyte/aurago.git
+cd aurago
+git sparse-checkout set n8n-nodes-aurago
+cd n8n-nodes-aurago
+
+# Run the installer (detects systemd/pm2 and restarts n8n automatically)
+bash install-n8n-node.sh
+
+# Optional flags:
+#   --n8n-datadir /custom/.n8n   if your n8n data dir is not ~/.n8n
+#   --source /path/to/node       if you want to point at an existing checkout
+```
+
+### Option B — Manual steps
+
+```bash
+# 1. Get the source
+git clone --depth 1 --filter=blob:none --sparse https://github.com/antibyte/aurago.git
+cd aurago && git sparse-checkout set n8n-nodes-aurago
+cd n8n-nodes-aurago
+
+# 2. Build
+npm install
+npm run build
+npm pack                        # creates n8n-nodes-aurago-1.0.0.tgz
+
+# 3. Install into n8n's data directory  ← key step, NOT npm install -g
+N8N_DATA="${HOME}/.n8n"
+mkdir -p "$N8N_DATA"
+[ -f "$N8N_DATA/package.json" ] || echo '{"name":"n8n-custom","private":true}' > "$N8N_DATA/package.json"
+cd "$N8N_DATA" && npm install /path/to/n8n-nodes-aurago-1.0.0.tgz
+
+# 4. Restart
+systemctl restart n8n
+```
+
+> **Why not `npm install -g`?**  
+> n8n does **not** scan the global npm prefix for community nodes.  
+> Nodes must be installed inside the n8n data directory (`~/.n8n/`) 
+> or via the `N8N_CUSTOM_EXTENSIONS` environment variable.
+
+### Option C — Via n8n Community Nodes UI (once published to npm)
 
 1. Open your n8n instance
 2. Go to **Settings** → **Community Nodes**
-3. Click **Install**
-4. Enter `n8n-nodes-aurago`
-5. Agree to the risks and install
+3. Click **Install** → enter `n8n-nodes-aurago`
 
-### Via npm
+### Option D — Docker
 
-```bash
-cd ~/.n8n
-npm install n8n-nodes-aurago
+```dockerfile
+# In your custom Dockerfile:
+FROM n8nio/n8n:latest
+RUN cd /home/node/.n8n && npm install n8n-nodes-aurago
 ```
 
-### Via Docker
-
+Or mount the built package directory and set the environment variable:
 ```bash
-docker run -it --rm \
-  --name n8n \
-  -p 5678:5678 \
-  -v ~/.n8n:/home/node/.n8n \
-  n8nio/n8n:latest \
-  npm install n8n-nodes-aurago && n8n start
+docker run -e N8N_CUSTOM_EXTENSIONS=/home/node/custom-nodes \
+  -v /path/to/n8n-nodes-aurago:/home/node/custom-nodes/n8n-nodes-aurago \
+  n8nio/n8n:latest
 ```
 
 ## Setup
