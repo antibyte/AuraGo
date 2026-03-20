@@ -171,6 +171,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	announcementCount := 0
 	sessionTokens := 0
 	emptyRetried := false // Prevents infinite retry on persistent empty responses
+	retry422Count := 0    // Counts consecutive 422 retries — capped to prevent infinite loops
 	stepsSinceLastFeedback := 0
 	lastToolError := ""          // Tracks the last tool error string for consecutive-error detection
 	consecutiveErrorCount := 0   // Incremented each time the same tool error repeats back-to-back
@@ -856,13 +857,22 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				cancelResp()
 				// Same 422 recovery as the sync path: trim malformed history and retry.
 				if strings.Contains(streamErr.Error(), "422") || strings.Contains(strings.ToLower(streamErr.Error()), "unprocessable") {
-					currentLogger.Warn("[Stream] 422 Unprocessable from provider — trimming malformed history", "error", streamErr)
+					retry422Count++
+					if retry422Count > 3 {
+						currentLogger.Error("[Stream] 422 retry limit reached — aborting", "attempts", retry422Count)
+						return openai.ChatCompletionResponse{}, fmt.Errorf("422 Unprocessable: retry limit exceeded after %d attempts: %w", retry422Count, streamErr)
+					}
+					currentLogger.Warn("[Stream] 422 Unprocessable from provider — trimming malformed history", "error", streamErr, "attempt", retry422Count)
 					broker.Send("thinking", "Context error recovered — retrying...")
 					var trimmed []openai.ChatCompletionMessage
 					for _, m := range req.Messages {
-						if m.Role != openai.ChatMessageRoleTool {
-							trimmed = append(trimmed, m)
+						if m.Role == openai.ChatMessageRoleTool {
+							continue // drop tool responses — their matching assistant ToolCalls are cleared below
 						}
+						if m.Role == openai.ChatMessageRoleAssistant && len(m.ToolCalls) > 0 {
+							m.ToolCalls = nil // orphaned tool_calls without responses cause structural 422
+						}
+						trimmed = append(trimmed, m)
 					}
 					if len(trimmed) > 7 {
 						trimmed = append(trimmed[:1], trimmed[len(trimmed)-6:]...)
@@ -872,7 +882,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 						Content: "SYSTEM: The previous tool call history was trimmed due to a provider error. Summarise the situation for the user and explain what you were doing and what went wrong.",
 					})
 					req.Messages = trimmed
-					currentLogger.Info("[Stream] Context trimmed after 422, retrying", "new_messages_count", len(req.Messages))
+					currentLogger.Info("[Stream] Context trimmed after 422, retrying", "new_messages_count", len(req.Messages), "attempt", retry422Count)
 					continue
 				}
 				return openai.ChatCompletionResponse{}, streamErr
@@ -979,15 +989,25 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				// Instead of killing the session, strip role=tool messages, trim history,
 				// inject an explanatory system note, and retry.
 				if strings.Contains(err.Error(), "422") || strings.Contains(strings.ToLower(err.Error()), "unprocessable") {
-					currentLogger.Warn("[Sync] 422 Unprocessable from provider — trimming malformed history", "error", err)
+					retry422Count++
+					if retry422Count > 3 {
+						currentLogger.Error("[Sync] 422 retry limit reached — aborting", "attempts", retry422Count)
+						return openai.ChatCompletionResponse{}, fmt.Errorf("422 Unprocessable: retry limit exceeded after %d attempts: %w", retry422Count, err)
+					}
+					currentLogger.Warn("[Sync] 422 Unprocessable from provider — trimming malformed history", "error", err, "attempt", retry422Count)
 					broker.Send("thinking", "Context error recovered — retrying...")
-					// Remove all role=tool messages (they need matching tool_call_ids which may
-					// have been invalidated by trimming), keep system + user/assistant only.
+					// Remove all role=tool messages and clear orphaned ToolCalls from assistant
+					// messages. Keeping assistant messages with ToolCalls but no matching tool
+					// responses produces an invalid sequence that the provider rejects with 422.
 					var trimmed []openai.ChatCompletionMessage
 					for _, m := range req.Messages {
-						if m.Role != openai.ChatMessageRoleTool {
-							trimmed = append(trimmed, m)
+						if m.Role == openai.ChatMessageRoleTool {
+							continue // drop tool responses — their matching assistant ToolCalls are cleared below
 						}
+						if m.Role == openai.ChatMessageRoleAssistant && len(m.ToolCalls) > 0 {
+							m.ToolCalls = nil // orphaned tool_calls without responses cause structural 422
+						}
+						trimmed = append(trimmed, m)
 					}
 					// Keep system prompt + last 6 messages to avoid re-triggering 422.
 					if len(trimmed) > 7 {
@@ -998,7 +1018,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 						Content: "SYSTEM: The previous tool call history was trimmed due to a provider error. Summarise the situation for the user and explain what you were doing and what went wrong.",
 					})
 					req.Messages = trimmed
-					currentLogger.Info("[Sync] Context trimmed after 422, retrying", "new_messages_count", len(req.Messages))
+					currentLogger.Info("[Sync] Context trimmed after 422, retrying", "new_messages_count", len(req.Messages), "attempt", retry422Count)
 					continue
 				}
 				return openai.ChatCompletionResponse{}, err
@@ -1011,6 +1031,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 
 		cancelResp()
+
+		retry422Count = 0 // reset on successful LLM response
 
 		// Empty response recovery: if the LLM returns nothing, trim history and retry once.
 		// This typically happens when the total context exceeds the model's window.
