@@ -344,6 +344,26 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				go tools.EnsureOllamaEmbeddingsRunning(newCfg, s.Logger)
 			}
 
+			// Auto-start Ansible sidecar container if just enabled in sidecar mode
+			if newCfg.Ansible.Enabled && newCfg.Ansible.Mode == "sidecar" {
+				if !oldCfg.Ansible.Enabled || oldCfg.Ansible.Mode != "sidecar" {
+					inventoryDir := ""
+					if newCfg.Ansible.DefaultInventory != "" {
+						inventoryDir = filepath.Dir(newCfg.Ansible.DefaultInventory)
+					}
+					go tools.EnsureAnsibleSidecarRunning(newCfg.Docker.Host, tools.AnsibleSidecarConfig{
+						Token:         newCfg.Ansible.Token,
+						Timeout:       newCfg.Ansible.Timeout,
+						Image:         newCfg.Ansible.Image,
+						ContainerName: newCfg.Ansible.ContainerName,
+						PlaybooksDir:  newCfg.Ansible.PlaybooksDir,
+						InventoryDir:  inventoryDir,
+						AutoBuild:     newCfg.Ansible.AutoBuild,
+						DockerfileDir: newCfg.Ansible.DockerfileDir,
+					}, s.Logger)
+				}
+			}
+
 			s.Logger.Info("[Config UI] Configuration hot-reloaded successfully")
 		}
 		s.CfgMu.Unlock()
