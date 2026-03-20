@@ -750,7 +750,7 @@ function initThemeToggle() {
         if (path.includes('/login') || path.includes('/setup')) return;
 
         try {
-            const resp = await fetch('/api/tsnet/status', { signal: AbortSignal.timeout(5000) });
+            const resp = await fetch('/api/tsnet/status', { signal: AbortSignal.timeout(8000) });
             if (!resp.ok) return; // server not ready / not authenticated yet
             const data = await resp.json();
             if (data.login_url) {
@@ -759,10 +759,27 @@ function initThemeToggle() {
                     _tsnetBannerUrl = data.login_url;
                     _tsnetShowBanner(data.login_url);
                 }
+                // While waiting for auth, poll more frequently so the banner
+                // disappears promptly after the user completes authentication.
+                if (_tsnetPollTimer) {
+                    clearInterval(_tsnetPollTimer);
+                    _tsnetPollTimer = setInterval(_tsnetPoll, 10000);
+                }
+            } else if (data.starting) {
+                // Node is starting but no login_url yet — check again soon.
+                if (_tsnetPollTimer) {
+                    clearInterval(_tsnetPollTimer);
+                    _tsnetPollTimer = setInterval(_tsnetPoll, 5000);
+                }
             } else {
                 _tsnetBannerUrl = null;
                 window._tsnetBannerDismissed = false;
                 _tsnetHideBanner();
+                // Back to normal slow polling once authenticated / stopped.
+                if (_tsnetPollTimer) {
+                    clearInterval(_tsnetPollTimer);
+                    _tsnetPollTimer = setInterval(_tsnetPoll, 60000);
+                }
             }
         } catch (_) {
             // Silently ignore network errors (server may be offline)

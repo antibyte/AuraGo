@@ -156,6 +156,8 @@ async function _tsnetRefreshStatus() {
             if (data.dns) info += `<br><strong>DNS:</strong> <code>${escapeHtml(data.dns)}</code>`;
             if (data.ips && data.ips.length) info += `<br><strong>IPs:</strong> ${escapeHtml(data.ips.join(', '))}`;
             if (data.cert_dns && data.cert_dns.length) info += `<br><strong>Cert:</strong> ${escapeHtml(data.cert_dns.join(', '))}`;
+        } else if (data.starting) {
+            info += `<span style="color:var(--warning,#f9a825);">⏳ ${t('config.tailscale.tsnet_status_starting') || 'Waiting for authentication…'}</span>`;
         } else {
             info += `<span style="color:var(--text-muted);">○ ${t('config.tailscale.tsnet_status_stopped')}</span>`;
             if (data.error) info += `<br><small style="color:var(--error);">${escapeHtml(data.error)}</small>`;

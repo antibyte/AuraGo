@@ -20,6 +20,7 @@ import (
 // Status represents the current state of the tsnet node.
 type Status struct {
 	Running  bool     `json:"running"`
+	Starting bool     `json:"starting,omitempty"` // waiting for interactive auth / cert issuance
 	Hostname string   `json:"hostname,omitempty"`
 	DNS      string   `json:"dns,omitempty"`
 	IPs      []string `json:"ips,omitempty"`
@@ -38,6 +39,7 @@ type Manager struct {
 	listener net.Listener
 	httpSrv  *http.Server
 	running  bool
+	starting bool // true while Start() is blocked waiting for tsnet auth / certs
 	lastErr  string
 
 	// loginURL is the Tailscale auth URL when the node needs interactive login.
@@ -63,14 +65,18 @@ func (m *Manager) UpdateConfig(cfg *config.Config) {
 // The provided handler will be served over HTTPS via the Tailscale cert.
 func (m *Manager) Start(handler http.Handler) error {
 	m.mu.Lock()
-	defer m.mu.Unlock()
-
 	if m.running {
+		m.mu.Unlock()
 		return fmt.Errorf("tsnet node is already running")
+	}
+	if m.starting {
+		m.mu.Unlock()
+		return fmt.Errorf("tsnet node is already starting")
 	}
 
 	tsCfg := m.cfg.Tailscale.TsNet
 	if !tsCfg.Enabled {
+		m.mu.Unlock()
 		return fmt.Errorf("tsnet is not enabled in config")
 	}
 
@@ -78,13 +84,40 @@ func (m *Manager) Start(handler http.Handler) error {
 	if stateDir == "" {
 		stateDir = "data/tsnet"
 	}
-	if err := os.MkdirAll(stateDir, 0o750); err != nil {
-		return fmt.Errorf("failed to create tsnet state directory: %w", err)
-	}
 
 	hostname := tsCfg.Hostname
 	if hostname == "" {
 		hostname = "aurago"
+	}
+
+	authKey := tsCfg.AuthKey
+
+	// Mark as starting so GetStatus() can report the state while we wait for auth.
+	// We release m.mu here because srv.ListenTLS blocks until the Tailscale node is
+	// fully authenticated and a TLS cert has been issued — potentially a very long wait
+	// when interactive login is required.  Holding m.mu during that wait would deadlock
+	// every concurrent GetStatus() / Stop() call.
+	m.starting = true
+	m.mu.Unlock()
+
+	// ── From here m.mu is NOT held ─────────────────────────────────────────────
+
+	cleanup := func(err string) {
+		m.mu.Lock()
+		m.starting = false
+		if err != "" {
+			m.lastErr = err
+		}
+		m.mu.Unlock()
+	}
+
+	if err := os.MkdirAll(stateDir, 0o750); err != nil {
+		cleanup(err.Error())
+		return fmt.Errorf("failed to create tsnet state directory: %w", err)
+	}
+
+	if authKey == "" {
+		authKey = os.Getenv("TS_AUTHKEY")
 	}
 
 	srv := &tsnet.Server{
@@ -139,11 +172,6 @@ func (m *Manager) Start(handler http.Handler) error {
 		},
 	}
 
-	// Auth key: vault takes precedence, then TS_AUTHKEY env var
-	authKey := tsCfg.AuthKey
-	if authKey == "" {
-		authKey = os.Getenv("TS_AUTHKEY")
-	}
 	if authKey != "" {
 		srv.AuthKey = authKey
 	}
@@ -152,15 +180,16 @@ func (m *Manager) Start(handler http.Handler) error {
 
 	// Start the tsnet server
 	if err := srv.Start(); err != nil {
-		m.lastErr = err.Error()
+		cleanup(err.Error())
 		return fmt.Errorf("failed to start tsnet server: %w", err)
 	}
 
-	// Get a TLS listener with automatic Tailscale certificates
+	// Get a TLS listener with automatic Tailscale certificates.
+	// This call blocks until the node is authenticated and a cert has been issued.
 	ln, err := srv.ListenTLS("tcp", ":443")
 	if err != nil {
 		srv.Close()
-		m.lastErr = err.Error()
+		cleanup(err.Error())
 		return fmt.Errorf("failed to listen TLS on tsnet: %w", err)
 	}
 
@@ -172,11 +201,15 @@ func (m *Manager) Start(handler http.Handler) error {
 		TLSConfig:    &tls.Config{MinVersion: tls.VersionTLS12},
 	}
 
+	// Re-acquire m.mu to commit the final running state.
+	m.mu.Lock()
 	m.server = srv
 	m.listener = ln
 	m.httpSrv = httpSrv
 	m.running = true
+	m.starting = false
 	m.lastErr = ""
+	m.mu.Unlock()
 
 	go func() {
 		m.logger.Info("tsnet HTTPS server listening", "hostname", hostname)
@@ -226,6 +259,7 @@ func (m *Manager) GetStatus() Status {
 
 	st := Status{
 		Running:  m.running,
+		Starting: m.starting,
 		Hostname: m.cfg.Tailscale.TsNet.Hostname,
 	}
 
