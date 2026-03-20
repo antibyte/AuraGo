@@ -1358,7 +1358,14 @@
                 rocketchat: '💬', tailscale: '🔒', ansible: '🔧', invasion: '🥚',
                 github: '🐙', mqtt: '📡', budget: '💰', indexing: '📂',
                 auth: '🔑', fallback_llm: '🔄', personality_v2: '🎭', user_profiling: '👤', tts: '🔊',
-                paperless_ngx: '📄'
+                paperless_ngx: '📄', cloudflare_tunnel: '☁️',
+                n8n: '🔀', fritzbox: '📡', meshcentral: '🖥️', a2a: '🔗',
+                adguard: '🛡️', s3: '🪣', mcp: '🔌', mcp_server: '🔌',
+                memory_analysis: '🧠', llm_guardian: '🛡️', security_proxy: '🔐',
+                sandbox: '📦', ai_gateway: '🌐', image_generation: '🎨',
+                google_workspace: '📧', onedrive: '☁️', netlify: '🚀',
+                homepage: '🏠', virustotal: '🦠', brave_search: '🔍',
+                firewall: '🔥', remote_control: '🖥️', web_scraper: '🕷️'
             };
             const names = {
                 telegram: t('dashboard.integration_telegram'), discord: t('dashboard.integration_discord'),
@@ -1374,7 +1381,23 @@
                 auth: t('dashboard.integration_auth'), fallback_llm: t('dashboard.integration_fallback_llm'),
                 personality_v2: t('dashboard.integration_personality_v2'), user_profiling: t('dashboard.integration_user_profiling'),
                 tts: t('dashboard.integration_tts'),
-                paperless_ngx: t('dashboard.integration_paperless_ngx')
+                paperless_ngx: t('dashboard.integration_paperless_ngx'),
+                cloudflare_tunnel: t('dashboard.integration_cloudflare_tunnel'),
+                n8n: t('dashboard.integration_n8n'), fritzbox: t('dashboard.integration_fritzbox'),
+                meshcentral: t('dashboard.integration_meshcentral'), a2a: t('dashboard.integration_a2a'),
+                adguard: t('dashboard.integration_adguard'), s3: t('dashboard.integration_s3'),
+                mcp: t('dashboard.integration_mcp'), mcp_server: t('dashboard.integration_mcp_server'),
+                memory_analysis: t('dashboard.integration_memory_analysis'),
+                llm_guardian: t('dashboard.integration_llm_guardian'),
+                security_proxy: t('dashboard.integration_security_proxy'),
+                sandbox: t('dashboard.integration_sandbox'), ai_gateway: t('dashboard.integration_ai_gateway'),
+                image_generation: t('dashboard.integration_image_generation'),
+                google_workspace: t('dashboard.integration_google_workspace'),
+                onedrive: t('dashboard.integration_onedrive'), netlify: t('dashboard.integration_netlify'),
+                homepage: t('dashboard.integration_homepage'), virustotal: t('dashboard.integration_virustotal'),
+                brave_search: t('dashboard.integration_brave_search'), firewall: t('dashboard.integration_firewall'),
+                remote_control: t('dashboard.integration_remote_control'),
+                web_scraper: t('dashboard.integration_web_scraper')
             };
 
             // Sort: active first
