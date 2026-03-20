@@ -242,7 +242,10 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 		logger.Warn("Failed to check for last_updated column in tool_transitions", "error", err)
 	} else if !hasLastUpdated {
 		logger.Info("Migrating SQLite: adding last_updated column to tool_transitions")
-		_, err = db.Exec("ALTER TABLE tool_transitions ADD COLUMN last_updated DATETIME DEFAULT CURRENT_TIMESTAMP")
+		// SQLite's ALTER TABLE only accepts constant defaults, not CURRENT_TIMESTAMP.
+		// Use an empty string as the static default; new rows written after the migration
+		// will have the correct timestamp via INSERT/UPDATE statements.
+		_, err = db.Exec("ALTER TABLE tool_transitions ADD COLUMN last_updated DATETIME DEFAULT ''")
 		if err != nil {
 			logger.Error("Failed to add last_updated column to tool_transitions", "error", err)
 		}
