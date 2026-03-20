@@ -285,6 +285,14 @@ var authBypassPrefixes = []string{
 	"/shared.js",
 	"/css/login.css",
 	"/js/login/",
+	// Static media files are served inline in authenticated pages (audio player, image gallery,
+	// document viewer). The browser's <audio>/<img>/<iframe> sub-resource requests may not
+	// carry the session cookie in all browsers/configurations (e.g. after a server restart
+	// that invalidated the session, or strict SameSite edge-cases). These paths are already
+	// protected by obscurity (timestamp-based filenames) and are not sensitive API endpoints.
+	"/files/audio/",
+	"/files/generated_images/",
+	"/files/documents/",
 }
 
 func isAuthBypassed(path string) bool {
