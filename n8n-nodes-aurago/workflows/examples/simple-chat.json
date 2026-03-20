@@ -1,0 +1,68 @@
+{
+  "name": "AuraGo Simple Chat",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "chat"
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "operation": "sendMessage",
+        "message": "={{ $json.body.message }}",
+        "contextWindow": 5
+      },
+      "id": "aurago",
+      "name": "AuraGo Chat",
+      "type": "n8n-nodes-aurago.auraGo",
+      "typeVersion": 1,
+      "position": [450, 300],
+      "credentials": {
+        "auraGoApi": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "AuraGo API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "response",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [650, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "AuraGo Chat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AuraGo Chat": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

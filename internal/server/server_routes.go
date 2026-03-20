@@ -94,6 +94,15 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	// MCP Server endpoint (handles its own auth via Bearer token / session)
 	mux.HandleFunc("/mcp", handleMCPEndpoint(s))
 
+	// n8n Integration endpoints
+	mux.HandleFunc("/api/n8n/status", handleN8nStatus(s))
+	mux.HandleFunc("/api/n8n/chat", handleN8nChat(s))
+	mux.HandleFunc("/api/n8n/tools", handleN8nToolsList(s))
+	mux.HandleFunc("/api/n8n/tools/", handleN8nToolExecute(s))
+	mux.HandleFunc("/api/n8n/memory/search", handleN8nMemorySearch(s))
+	mux.HandleFunc("/api/n8n/memory/store", handleN8nMemoryStore(s))
+	mux.HandleFunc("/api/n8n/missions", handleN8nMissionCreate(s))
+
 	// Quick Setup wizard endpoints (always available — needed before config is complete)
 	mux.HandleFunc("/api/setup/status", handleSetupStatus(s))
 	mux.HandleFunc("/api/setup", handleSetupSave(s))
@@ -128,6 +137,9 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		// MCP Server config API
 		mux.HandleFunc("/api/mcp-server/tools", handleMCPServerTools(s))
 		mux.HandleFunc("/api/mcp-server/token", handleMCPServerToken(s))
+
+		// n8n Integration config API
+		mux.HandleFunc("/api/n8n/token", handleN8nToken(s))
 
 		// OAuth2 Authorization Code flow endpoints
 		mux.HandleFunc("/api/oauth/start", handleOAuthStart(s))

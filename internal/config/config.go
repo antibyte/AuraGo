@@ -101,6 +101,13 @@ func Load(path string) (*Config, error) {
 	cfg.LLMGuardian.ScanDocuments = false
 	cfg.LLMGuardian.ScanEmails = false
 
+	// n8n integration defaults: disabled by default, token auth required when enabled.
+	cfg.N8n.Enabled = false
+	cfg.N8n.ReadOnly = false
+	cfg.N8n.RequireToken = true
+	cfg.N8n.RateLimitRPS = 10
+	cfg.N8n.AllowedEvents = []string{"agent.response", "agent.error", "mission.completed"}
+
 	// OneDrive defaults: "common" tenant allows both personal and work accounts.
 	cfg.OneDrive.TenantID = "common"
 

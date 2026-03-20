@@ -1,0 +1,71 @@
+{
+  "name": "n8n-nodes-aurago",
+  "version": "1.0.0",
+  "description": "n8n community node for AuraGo AI Agent - integrate your AI agent into n8n workflows",
+  "keywords": [
+    "n8n",
+    "n8n-community-node",
+    "n8n-node",
+    "aurago",
+    "ai",
+    "agent",
+    "automation",
+    "llm",
+    "chatbot"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/antibyte/aurago/tree/main/n8n-nodes-aurago",
+  "author": {
+    "name": "AuraGo Team",
+    "email": "team@aurago.io",
+    "url": "https://github.com/antibyte/aurago"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/antibyte/aurago.git"
+  },
+  "bugs": {
+    "url": "https://github.com/antibyte/aurago/issues"
+  },
+  "engines": {
+    "node": ">=18.10"
+  },
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc && gulp build:icons",
+    "dev": "tsc --watch",
+    "format": "prettier nodes credentials --write",
+    "lint": "eslint nodes credentials package.json",
+    "lintfix": "eslint nodes credentials package.json --fix",
+    "prepublishOnly": "npm run build && npm run lint -s",
+    "test": "jest"
+  },
+  "files": [
+    "dist"
+  ],
+  "n8n": {
+    "n8nNodesApiVersion": 1,
+    "credentials": [
+      "dist/credentials/AuraGoApi.credentials.js"
+    ],
+    "nodes": [
+      "dist/nodes/AuraGo/AuraGo.node.js",
+      "dist/nodes/AuraGo/AuraGoTrigger.node.js"
+    ]
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.0.0",
+    "eslint-config-prettier": "^9.0.0",
+    "eslint-plugin-n8n-nodes-base": "^1.0.0",
+    "gulp": "^4.0.0",
+    "gulp-svgmin": "^4.0.0",
+    "n8n-workflow": "^1.0.0",
+    "prettier": "^3.0.0",
+    "typescript": "^5.0.0"
+  },
+  "peerDependencies": {
+    "n8n-workflow": "*"
+  }
+}

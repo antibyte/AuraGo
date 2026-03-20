@@ -1,0 +1,75 @@
+{
+  "name": "AuraGo Agent Response Handler",
+  "nodes": [
+    {
+      "parameters": {
+        "events": ["agent.response", "agent.error"],
+        "verifySignature": true
+      },
+      "name": "AuraGo Trigger",
+      "type": "n8n-nodes-aurago.auraGoTrigger",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "aurago-events"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition-1",
+              "leftValue": "={{ $json.event }}",
+              "rightValue": "agent.error",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "name": "Is Error?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "subject": "AuraGo Agent Error",
+        "text": "={{ \"An error occurred:\\n\\n\" + JSON.stringify($json.data, null, 2) }}",
+        "toAddresses": ["admin@example.com"]
+      },
+      "name": "Send Alert Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [650, 200]
+    },
+    {
+      "parameters": {
+        "content": "={{ \"# Agent Response\\n\\n## User Message\\n\" + $json.data.message + \"\\n\\n## Agent Response\\n\" + $json.data.response + \"\\n\\n## Tool Calls\\n\" + JSON.stringify($json.data.tool_calls, null, 2) }}",
+        "databasePageId": "YOUR_NOTION_PAGE_ID"
+      },
+      "name": "Log to Notion",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 1,
+      "position": [650, 400]
+    }
+  ],
+  "connections": {
+    "AuraGo Trigger": {
+      "main": [[{ "node": "Is Error?", "type": "main", "index": 0 }]]
+    },
+    "Is Error?": {
+      "main": [
+        [{ "node": "Send Alert Email", "type": "main", "index": 0 }],
+        [{ "node": "Log to Notion", "type": "main", "index": 0 }]
+      ]
+    }
+  }
+}

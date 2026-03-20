@@ -1,0 +1,66 @@
+{
+  "name": "AuraGo PDF Processing",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [{ "mode": "everyMinute" }]
+        },
+        "triggerOn": "specificFolder",
+        "folder": "Inbox",
+        "options": {
+          "mimeType": "application/pdf"
+        }
+      },
+      "name": "Google Drive Trigger",
+      "type": "n8n-nodes-base.googleDriveTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "resource": "tool",
+        "operation": "execute",
+        "toolName": "pdf_extractor",
+        "parameters": "={\"file_path\": \"{{ $json.webViewLink }}\"}"
+      },
+      "name": "Extract PDF",
+      "type": "n8n-nodes-aurago.auraGo",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "operation": "sendMessage",
+        "message": "={{ \"Summarize this document:\\n\\n\" + $json.result }}",
+        "contextWindow": 0
+      },
+      "name": "Summarize Content",
+      "type": "n8n-nodes-aurago.auraGo",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "channel": "documents",
+        "text": "=New document processed: *{{ $json.name }}*\n\nSummary:\n{{ $('Summarize Content').item.json.response }}"
+      },
+      "name": "Send to Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [850, 300]
+    }
+  ],
+  "connections": {
+    "Google Drive Trigger": {
+      "main": [[{ "node": "Extract PDF", "type": "main", "index": 0 }]]
+    },
+    "Extract PDF": {
+      "main": [[{ "node": "Summarize Content", "type": "main", "index": 0 }]]
+    },
+    "Summarize Content": {
+      "main": [[{ "node": "Send to Slack", "type": "main", "index": 0 }]]
+    }
+  }
+}

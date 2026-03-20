@@ -919,6 +919,16 @@ type Config struct {
 		AllowedTools []string `yaml:"allowed_tools"` // tool names to expose; empty = none
 		RequireAuth  bool     `yaml:"require_auth"`  // require Bearer token or session cookie
 	} `yaml:"mcp_server"`
+	N8n struct {
+		Enabled        bool     `yaml:"enabled"`
+		ReadOnly       bool     `yaml:"readonly"`         // true = only read operations, block write
+		WebhookBaseURL string   `yaml:"webhook_base_url"` // n8n webhook base URL for triggers
+		AllowedEvents  []string `yaml:"allowed_events"`   // events that trigger n8n webhooks
+		RequireToken   bool     `yaml:"require_token"`    // require Bearer token auth (default: true)
+		AllowedTools   []string `yaml:"allowed_tools"`    // tools n8n can execute; empty = all enabled
+		RateLimitRPS   int      `yaml:"rate_limit_rps"`   // requests per second limit (0 = unlimited)
+		Scopes         []string `yaml:"scopes"`           // allowed operation scopes; empty = all (n8n:read, n8n:chat, n8n:tools, n8n:memory, n8n:missions, n8n:admin)
+	} `yaml:"n8n"`
 	GoogleWorkspace struct {
 		Enabled       bool   `yaml:"enabled"`
 		ReadOnly      bool   `yaml:"readonly"`       // true = only read operations, block send/create/update/write
