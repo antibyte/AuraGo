@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -22,6 +23,20 @@ import (
 
 // N8n Vault Key for token storage
 const n8nVaultTokenKey = "n8n_api_token"
+
+// Security constants
+const (
+	maxBodySize        = 1 << 20 // 1MB max request body
+	maxSessionIDLength = 64      // Max session ID length
+	maxSessions        = 10000   // Maximum concurrent sessions
+	maxTimeout         = 300     // 5 minutes max tool timeout
+)
+
+// Validators
+var (
+	sessionIDRegex = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
+	toolNameRegex  = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
+)
 
 // N8n scopes
 const (
@@ -184,7 +199,7 @@ func handleN8nChat(s *Server) http.HandlerFunc {
 		}
 
 		var req n8nChatRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := n8nReadJSON(r, &req); err != nil {
 			n8nWriteError(w, http.StatusBadRequest, "Invalid request body", "parse_error")
 			return
 		}
@@ -196,10 +211,16 @@ func handleN8nChat(s *Server) http.HandlerFunc {
 
 		start := time.Now()
 
-		// Generate session ID if not provided
+		// Validate and generate session ID
 		sessionID := req.SessionID
 		if sessionID == "" {
 			sessionID = generateSessionID()
+		} else {
+			// Validate session ID format
+			if !sessionIDRegex.MatchString(sessionID) || len(sessionID) > maxSessionIDLength {
+				n8nWriteError(w, http.StatusBadRequest, "Invalid session ID format", "validation_error")
+				return
+			}
 		}
 
 		// Set context window default
@@ -436,6 +457,12 @@ func handleN8nToolExecute(s *Server) http.HandlerFunc {
 			return
 		}
 
+		// Validate tool name format (prevent path traversal)
+		if !toolNameRegex.MatchString(toolName) {
+			n8nWriteError(w, http.StatusBadRequest, "Invalid tool name format", "validation_error")
+			return
+		}
+
 		// Check readonly mode
 		s.CfgMu.RLock()
 		readonly := s.Cfg.N8n.ReadOnly
@@ -463,15 +490,17 @@ func handleN8nToolExecute(s *Server) http.HandlerFunc {
 		}
 
 		var req n8nToolExecuteRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := n8nReadJSON(r, &req); err != nil {
 			n8nWriteError(w, http.StatusBadRequest, "Invalid request body", "parse_error")
 			return
 		}
 
-		// Set timeout default
+		// Set timeout default and cap
 		timeout := req.Timeout
 		if timeout <= 0 {
 			timeout = 60
+		} else if timeout > maxTimeout {
+			timeout = maxTimeout
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Second)
@@ -544,7 +573,7 @@ func handleN8nMemorySearch(s *Server) http.HandlerFunc {
 		}
 
 		var req n8nMemorySearchRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := n8nReadJSON(r, &req); err != nil {
 			n8nWriteError(w, http.StatusBadRequest, "Invalid request body", "parse_error")
 			return
 		}
@@ -565,6 +594,10 @@ func handleN8nMemorySearch(s *Server) http.HandlerFunc {
 			// Search short term memory (SQLite)
 			history := s.HistoryManager.GetAll()
 			for _, msg := range history {
+				// Skip internal messages for privacy
+				if msg.IsInternal {
+					continue
+				}
 				content := ""
 				if msg.ChatCompletionMessage.Content != "" {
 					content = msg.ChatCompletionMessage.Content
@@ -688,7 +721,7 @@ func handleN8nMemoryStore(s *Server) http.HandlerFunc {
 		}
 
 		var req n8nMemoryStoreRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := n8nReadJSON(r, &req); err != nil {
 			n8nWriteError(w, http.StatusBadRequest, "Invalid request body", "parse_error")
 			return
 		}
@@ -775,7 +808,7 @@ func handleN8nMissionCreate(s *Server) http.HandlerFunc {
 		}
 
 		var req n8nMissionRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := n8nReadJSON(r, &req); err != nil {
 			n8nWriteError(w, http.StatusBadRequest, "Invalid request body", "parse_error")
 			return
 		}
@@ -1207,6 +1240,12 @@ func n8nGetSessionMessages(sessionID string, window int) []openai.ChatCompletion
 func n8nStoreSessionMessages(sessionID, userMsg, assistantMsg string) {
 	n8nSessionMu.Lock()
 	defer n8nSessionMu.Unlock()
+
+	// Check session limit and evict oldest if needed
+	if len(n8nSessions) >= maxSessions {
+		n8nEvictOldestSessionLocked()
+	}
+
 	msgs := n8nSessions[sessionID]
 	msgs = append(msgs, openai.ChatCompletionMessage{
 		Role:    "user",
@@ -1235,4 +1274,27 @@ func n8nPurgeExpiredSessionsLocked() {
 			delete(n8nSessionLast, id)
 		}
 	}
+}
+
+// n8nEvictOldestSessionLocked removes the oldest session when limit is reached.
+// Caller must hold n8nSessionMu.
+func n8nEvictOldestSessionLocked() {
+	var oldestID string
+	var oldestTime time.Time
+	for id, last := range n8nSessionLast {
+		if oldestTime.IsZero() || last.Before(oldestTime) {
+			oldestTime = last
+			oldestID = id
+		}
+	}
+	if oldestID != "" {
+		delete(n8nSessions, oldestID)
+		delete(n8nSessionLast, oldestID)
+	}
+}
+
+// n8nReadJSON reads JSON body with size limit protection
+func n8nReadJSON(r *http.Request, dst interface{}) error {
+	r.Body = http.MaxBytesReader(nil, r.Body, maxBodySize)
+	return json.NewDecoder(r.Body).Decode(dst)
 }

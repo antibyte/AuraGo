@@ -1,5 +1,6 @@
 import type { IExecuteFunctions, IHookFunctions, ILoadOptionsFunctions } from 'n8n-workflow';
 import { NodeApiError } from 'n8n-workflow';
+import * as crypto from 'crypto';
 
 /**
  * Make an authenticated API request to AuraGo.
@@ -59,7 +60,6 @@ export function verifyWebhookSignature(
 	signature: string,
 	secret: string,
 ): boolean {
-	const crypto = require('crypto');
 	const hmac = crypto.createHmac('sha256', secret);
 	const jsonData = JSON.stringify(body.data);
 	hmac.update(jsonData);
