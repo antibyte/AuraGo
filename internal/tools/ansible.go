@@ -388,6 +388,16 @@ func buildAnsibleImage(image, dockerfileDir string, logger interface {
 		"-t", image,
 		dockerfileDir,
 	)
+	// Ensure Docker CLI can write its config/cache without needing /root/.docker.
+	// When running as a non-root user (e.g. systemd service), the default path
+	// /root/.docker is read-only, causing "mkdir /root/.docker: read-only file system".
+	home, _ := os.UserHomeDir()
+	if home == "" {
+		home = os.TempDir()
+	}
+	dockerCfgDir := filepath.Join(home, ".docker")
+	os.MkdirAll(dockerCfgDir, 0o700)
+	cmd.Env = append(os.Environ(), "DOCKER_CONFIG="+dockerCfgDir)
 
 	out, err := cmd.CombinedOutput()
 	if err != nil {
