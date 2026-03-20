@@ -19,14 +19,15 @@ import (
 
 // Status represents the current state of the tsnet node.
 type Status struct {
-	Running  bool     `json:"running"`
-	Starting bool     `json:"starting,omitempty"` // waiting for interactive auth / cert issuance
-	Hostname string   `json:"hostname,omitempty"`
-	DNS      string   `json:"dns,omitempty"`
-	IPs      []string `json:"ips,omitempty"`
-	CertDNS  []string `json:"cert_dns,omitempty"`
-	Error    string   `json:"error,omitempty"`
-	LoginURL string   `json:"login_url,omitempty"`
+	Running      bool     `json:"running"`
+	Starting     bool     `json:"starting,omitempty"`      // waiting for interactive auth / cert issuance
+	HTTPFallback bool     `json:"http_fallback,omitempty"` // true when running HTTP (no TLS) because HTTPS certs not enabled
+	Hostname     string   `json:"hostname,omitempty"`
+	DNS          string   `json:"dns,omitempty"`
+	IPs          []string `json:"ips,omitempty"`
+	CertDNS      []string `json:"cert_dns,omitempty"`
+	Error        string   `json:"error,omitempty"`
+	LoginURL     string   `json:"login_url,omitempty"`
 }
 
 // Manager manages a tsnet embedded Tailscale node.
@@ -34,13 +35,14 @@ type Manager struct {
 	cfg    *config.Config
 	logger *slog.Logger
 
-	mu       sync.Mutex
-	server   *tsnet.Server
-	listener net.Listener
-	httpSrv  *http.Server
-	running  bool
-	starting bool // true while Start() is blocked waiting for tsnet auth / certs
-	lastErr  string
+	mu           sync.Mutex
+	server       *tsnet.Server
+	listener     net.Listener
+	httpSrv      *http.Server
+	running      bool
+	starting     bool // true while Start() is blocked waiting for tsnet auth / certs
+	httpFallback bool // true when serving HTTP instead of HTTPS (TLS certs not available)
+	lastErr      string
 
 	// loginURL is the Tailscale auth URL when the node needs interactive login.
 	// It is set once and shown in the UI instead of spamming the log.
@@ -194,16 +196,27 @@ func (m *Manager) Start(handler http.Handler) error {
 		return fmt.Errorf("failed to start tsnet server: %w", err)
 	}
 
-	// Get a TLS listener with automatic Tailscale certificates.
-	// This call blocks until the node is authenticated and a cert has been issued.
+	// Try HTTPS first (requires Tailscale HTTPS certificates to be enabled in the admin panel).
+	// If that fails with the "must enable HTTPS" error, fall back to plain HTTP on port 80.
+	// This allows AuraGo to be reachable over the Tailscale network even without certs,
+	// at the cost of no TLS encryption (acceptable inside a private Tailnet).
+	usingHTTP := false
 	ln, err := srv.ListenTLS("tcp", ":443")
 	if err != nil {
-		srv.Close()
-		m.mu.Lock()
-		m.server = nil
-		m.mu.Unlock()
-		cleanup(err.Error())
-		return fmt.Errorf("failed to listen TLS on tsnet: %w", err)
+		if strings.Contains(err.Error(), "you must enable HTTPS") || strings.Contains(err.Error(), "enable HTTPS in the admin") {
+			m.logger.Warn("[tsnet] HTTPS certs not available — falling back to HTTP on :80",
+				"hint", "Enable HTTPS at https://tailscale.com/s/https for encrypted access")
+			ln, err = srv.Listen("tcp", ":80")
+			usingHTTP = true
+		}
+		if err != nil {
+			srv.Close()
+			m.mu.Lock()
+			m.server = nil
+			m.mu.Unlock()
+			cleanup(err.Error())
+			return fmt.Errorf("failed to listen on tsnet: %w", err)
+		}
 	}
 
 	httpSrv := &http.Server{
@@ -211,7 +224,9 @@ func (m *Manager) Start(handler http.Handler) error {
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 5 * time.Minute,
 		IdleTimeout:  2 * time.Minute,
-		TLSConfig:    &tls.Config{MinVersion: tls.VersionTLS12},
+	}
+	if !usingHTTP {
+		httpSrv.TLSConfig = &tls.Config{MinVersion: tls.VersionTLS12}
 	}
 
 	// Re-acquire m.mu to commit the final running state.
@@ -222,12 +237,17 @@ func (m *Manager) Start(handler http.Handler) error {
 	m.running = true
 	m.starting = false
 	m.lastErr = ""
+	m.httpFallback = usingHTTP
 	m.mu.Unlock()
 
+	proto := "HTTPS"
+	if usingHTTP {
+		proto = "HTTP (fallback — enable HTTPS in Tailscale admin for encrypted access)"
+	}
 	go func() {
-		m.logger.Info("tsnet HTTPS server listening", "hostname", hostname)
+		m.logger.Info("tsnet server listening", "hostname", hostname, "protocol", proto)
 		if err := httpSrv.Serve(ln); err != nil && err != http.ErrServerClosed {
-			m.logger.Error("tsnet HTTP server error", "error", err)
+			m.logger.Error("tsnet server error", "error", err)
 			m.mu.Lock()
 			m.lastErr = err.Error()
 			m.running = false
@@ -261,6 +281,7 @@ func (m *Manager) Stop() error {
 	m.server = nil
 	m.listener = nil
 	m.httpSrv = nil
+	m.httpFallback = false
 	m.logger.Info("tsnet node stopped")
 	return nil
 }
@@ -271,9 +292,10 @@ func (m *Manager) GetStatus() Status {
 	defer m.mu.Unlock()
 
 	st := Status{
-		Running:  m.running,
-		Starting: m.starting,
-		Hostname: m.cfg.Tailscale.TsNet.Hostname,
+		Running:      m.running,
+		Starting:     m.starting,
+		HTTPFallback: m.httpFallback,
+		Hostname:     m.cfg.Tailscale.TsNet.Hostname,
 	}
 
 	if m.lastErr != "" {

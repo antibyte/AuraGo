@@ -33,5 +33,6 @@
   "config.tailscale.tsnet_disabled_desc": "有効にすると、AuraGo を Tailscale ネットワークのノードとして登録し、自動 DNS と HTTPS 証明書を取得します。",
   "config.tailscale.tsnet_funnel_label": "Tailscale Funnel",
   "config.tailscale.tsnet_funnel_hint": "Tailscale Funnel 経由で AuraGo を公開インターネットに公開（V2 で対応予定）",
-  "config.tailscale.tsnet_needs_login": "認証が必要です – リンクを開いて Tailscale ネットワークに接続してください"
+  "config.tailscale.tsnet_needs_login": "認証が必要です – リンクを開いて Tailscale ネットワークに接続してください",
+  "config.tailscale.tsnet_http_fallback_notice": "HTTPモードで実行中（ポート80）— 暗号化アクセスのためにTailscale管理パネルでHTTPSを有効にしてください。"
 }

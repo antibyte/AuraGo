@@ -33,5 +33,6 @@
   "config.tailscale.tsnet_disabled_desc": "Povolte pro registraci AuraGo jako uzlu ve vaší síti Tailscale s automatickým DNS a HTTPS certifikátem.",
   "config.tailscale.tsnet_funnel_label": "Tailscale Funnel",
   "config.tailscale.tsnet_funnel_hint": "Zpřístupněte AuraGo na veřejném internetu přes Tailscale Funnel (připravujeme ve V2)",
-  "config.tailscale.tsnet_needs_login": "Vyžadováno ověření – otevřete odkaz pro připojení k síti Tailscale"
+  "config.tailscale.tsnet_needs_login": "Vyžadováno ověření – otevřete odkaz pro připojení k síti Tailscale",
+  "config.tailscale.tsnet_http_fallback_notice": "Běží v HTTP režimu (port 80) — pro šifrovaný přístup povolte HTTPS v Tailscale admin panelu."
 }

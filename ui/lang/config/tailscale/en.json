@@ -33,5 +33,6 @@
   "config.tailscale.tsnet_disabled_desc": "Enable to register AuraGo as a node in your Tailscale network with automatic DNS and HTTPS certificate.",
   "config.tailscale.tsnet_funnel_label": "Tailscale Funnel",
   "config.tailscale.tsnet_funnel_hint": "Expose AuraGo to the public internet via Tailscale Funnel (coming in V2)",
-  "config.tailscale.tsnet_needs_login": "Authentication required – open the link to connect to your Tailscale network"
+  "config.tailscale.tsnet_needs_login": "Authentication required – open the link to connect to your Tailscale network",
+  "config.tailscale.tsnet_http_fallback_notice": "Running in HTTP mode (port 80) — enable HTTPS in the Tailscale admin panel for encrypted access."
 }

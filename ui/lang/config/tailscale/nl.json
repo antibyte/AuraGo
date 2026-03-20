@@ -33,5 +33,6 @@
   "config.tailscale.tsnet_disabled_desc": "Schakel in om AuraGo als node in je Tailscale-netwerk te registreren met automatische DNS en HTTPS-certificaat.",
   "config.tailscale.tsnet_funnel_label": "Tailscale Funnel",
   "config.tailscale.tsnet_funnel_hint": "AuraGo blootstellen aan het publieke internet via Tailscale Funnel (binnenkort in V2)",
-  "config.tailscale.tsnet_needs_login": "Verificatie vereist – open de link om verbinding te maken met uw Tailscale-netwerk"
+  "config.tailscale.tsnet_needs_login": "Verificatie vereist – open de link om verbinding te maken met uw Tailscale-netwerk",
+  "config.tailscale.tsnet_http_fallback_notice": "Wordt uitgevoerd in HTTP-modus (poort 80) — schakel HTTPS in het Tailscale-beheerpaneel in."
 }

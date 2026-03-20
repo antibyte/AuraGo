@@ -155,9 +155,15 @@ async function _tsnetRefreshStatus() {
         const startBtn = document.getElementById('tsnet-btn-start');
         if (data.running) {
             info += `<span style="color:var(--success);">● ${t('config.tailscale.tsnet_status_running')}</span>`;
+            if (data.http_fallback) {
+                info += `<div style="margin-top:0.5rem;padding:0.45rem 0.8rem;border-radius:6px;background:var(--warning-bg,#3d2e00);border:1px solid var(--warning,#f9a825);font-size:0.78rem;color:var(--warning,#f9a825);">
+                    ⚠️ ${t('config.tailscale.tsnet_http_fallback_notice') || 'Running in HTTP mode (port 80) — enable HTTPS in the Tailscale admin panel for encrypted access.'}
+                    <a href="https://tailscale.com/s/https" target="_blank" rel="noopener noreferrer" style="color:var(--accent);margin-left:0.4rem;">Enable HTTPS →</a>
+                </div>`;
+            }
             if (data.dns) info += `<br><strong>DNS:</strong> <code>${escapeHtml(data.dns)}</code>`;
             if (data.ips && data.ips.length) info += `<br><strong>IPs:</strong> ${escapeHtml(data.ips.join(', '))}`;
-            if (data.cert_dns && data.cert_dns.length) info += `<br><strong>Cert:</strong> ${escapeHtml(data.cert_dns.join(', '))}`;
+            if (!data.http_fallback && data.cert_dns && data.cert_dns.length) info += `<br><strong>Cert:</strong> ${escapeHtml(data.cert_dns.join(', '))}`;
             if (startBtn) startBtn.style.display = 'none';
         } else if (data.starting) {
             info += `<span style="color:var(--warning,#f9a825);">⏳ ${t('config.tailscale.tsnet_status_starting') || 'Waiting for authentication…'}</span>`;
