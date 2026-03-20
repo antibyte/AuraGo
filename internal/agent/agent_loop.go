@@ -1355,11 +1355,21 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				historyManager.Add(openai.ChatMessageRoleAssistant, histContent, id, false, isMsgInternal)
 			}
 
-			// For SSE: send only the preamble text (without the raw JSON) to prevent
-			// nested-JSON regex failures that leave stray `}` characters in the chat UI.
+			// For SSE: send only the JSON representation of the tool call.
+			// In the non-native (legacy JSON) path the LLM response may include
+			// conversational preamble text before the JSON object. Sending that
+			// preamble would cause the UI to render it as a spurious assistant
+			// message. We therefore always send the raw JSON (or a minimal
+			// synthetic fallback), never the preamble text.
+			// In the native function-calling path histContent is already the
+			// synthetic JSON we built above, so no change is needed there.
 			sseToolContent := histContent
-			if !useNativePath && tc.RawJSON != "" {
-				sseToolContent = strings.TrimSpace(strings.Replace(sseToolContent, tc.RawJSON, "", 1))
+			if !useNativePath {
+				if tc.RawJSON != "" {
+					sseToolContent = tc.RawJSON
+				} else {
+					sseToolContent = fmt.Sprintf(`{"action":"%s"}`, tc.Action)
+				}
 			}
 			broker.Send("tool_call", sseToolContent)
 			broker.Send("tool_start", tc.Action)

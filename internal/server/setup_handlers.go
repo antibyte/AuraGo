@@ -43,6 +43,20 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 			return
 		}
 
+		// Security: refuse setup writes once initial configuration is complete.
+		// The endpoint is unauthenticated (required for first-run wizard), so we
+		// must prevent it from being abused to overwrite a fully-configured instance.
+		// An already-authenticated request (e.g. from the Config UI) can still
+		// reach handleUpdateConfig which IS behind the auth middleware.
+		s.CfgMu.RLock()
+		alreadyConfigured := !needsSetup(s.Cfg)
+		s.CfgMu.RUnlock()
+		if alreadyConfigured {
+			s.Logger.Warn("[Setup] POST to /api/setup rejected — setup already completed")
+			http.Error(w, "Setup already completed", http.StatusForbidden)
+			return
+		}
+
 		configPath := s.Cfg.ConfigPath
 		if configPath == "" {
 			http.Error(w, "Config path not set", http.StatusInternalServerError)

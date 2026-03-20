@@ -244,7 +244,7 @@ function githubSaveToken() {
         return;
     }
 
-    fetch('/api/vault', {
+    fetch('/api/vault/secrets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key: 'github_token', value: token })

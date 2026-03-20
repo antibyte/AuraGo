@@ -334,6 +334,15 @@ func handleRemoteDownload(s *Server) http.HandlerFunc {
 			return
 		}
 
+		// Rate-limit unauthenticated download requests to prevent enrollment token
+		// flooding (max 5 downloads per 10 minutes per IP).
+		clientIP := ClientIP(r)
+		if IsLockedOut(clientIP) {
+			jsonError(w, "Too many download requests — please wait before trying again", http.StatusTooManyRequests)
+			return
+		}
+		RecordFailedLogin(clientIP, 5, 10)
+
 		// Parse /api/remote/download/{os}/{arch}?token=...&name=...
 		path := strings.TrimPrefix(r.URL.Path, "/api/remote/download/")
 		parts := strings.SplitN(path, "/", 2)

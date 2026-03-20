@@ -357,7 +357,7 @@ function a2aSaveVault(vaultKey, inputId) {
         if (statusEl) { statusEl.style.color = 'var(--danger)'; statusEl.textContent = t('config.a2a.value_empty'); }
         return;
     }
-    fetch('/api/vault', {
+    fetch('/api/vault/secrets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key: vaultKey, value: value })

@@ -104,6 +104,7 @@ func handleMCPEndpoint(s *Server) http.HandlerFunc {
 		enabled := s.Cfg.MCPServer.Enabled
 		requireAuth := s.Cfg.MCPServer.RequireAuth
 		sessionSecret := s.Cfg.Auth.SessionSecret
+		mainAuthEnabled := s.Cfg.Auth.Enabled
 		s.CfgMu.RUnlock()
 
 		if !enabled {
@@ -111,8 +112,18 @@ func handleMCPEndpoint(s *Server) http.HandlerFunc {
 			return
 		}
 
-		// Authenticate
-		if requireAuth && !mcpAuthenticate(s, r, sessionSecret) {
+		// Authenticate the caller.
+		// The /mcp route bypasses the main auth middleware so that external MCP clients
+		// (e.g. Claude Desktop, Cursor) can authenticate via Bearer token without needing
+		// a browser session cookie.
+		//
+		// Auth rules:
+		//   - requireAuth=true  → always check Bearer token / session (existing)
+		//   - requireAuth=false AND main auth disabled → open access (home-lab default)
+		//   - requireAuth=false AND main auth enabled  → fallback to session cookie so that
+		//     the endpoint is not reachable from the internet without any credential
+		needsAuth := requireAuth || mainAuthEnabled
+		if needsAuth && !mcpAuthenticate(s, r, sessionSecret) {
 			w.Header().Set("WWW-Authenticate", `Bearer`)
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return

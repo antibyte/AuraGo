@@ -858,13 +858,15 @@ function handleSSEMessage(e) {
             if (debugMode) {
                 appendToolOutput(data.detail, t('chat.tool_call_label'));
             }
-            // Extract human-readable text before/after the JSON tool call block and show it
+            // Extract human-readable text before/after the JSON tool call block and show it.
+            // Only display if it's substantive (≥6 words) to prevent short preamble phrases
+            // like "Ich wechsle in den Maintenance Mode." from leaking into the chat.
             const thinkingText = (data.detail || '')
                 .replace(/```json[\s\S]*?```/g, '')   // strip ```json ... ``` fences
                 .replace(/`[^`]*`/g, '')               // strip inline backtick code
                 .replace(/\{[\s\S]*"action"\s*:[\s\S]*/g, '') // strip from {"action": to end (greedy, handles nested objects)
                 .trim();
-            if (thinkingText) {
+            if (thinkingText && thinkingText.split(/\s+/).filter(Boolean).length >= 6) {
                 appendMessage('assistant', thinkingText);
             }
             return;

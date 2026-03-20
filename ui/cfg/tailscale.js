@@ -190,7 +190,7 @@ function tsSaveApiKey() {
         if (statusEl) { statusEl.style.color = 'var(--danger)'; statusEl.textContent = t('config.tailscale.key_empty'); }
         return;
     }
-    fetch('/api/vault', {
+    fetch('/api/vault/secrets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key: 'tailscale_api_key', value: key })
@@ -218,7 +218,7 @@ function tsSaveAuthKey() {
         if (statusEl) { statusEl.style.color = 'var(--danger)'; statusEl.textContent = t('config.tailscale.key_empty'); }
         return;
     }
-    fetch('/api/vault', {
+    fetch('/api/vault/secrets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key: 'tailscale_tsnet_authkey', value: key })
