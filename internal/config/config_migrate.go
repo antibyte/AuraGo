@@ -4,7 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"os"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
 func (c *Config) FindProvider(id string) *ProviderEntry {
@@ -816,5 +819,80 @@ func (c *Config) migrateInlineProviders() {
 			c.Agent.PersonalityV2Provider = addProvider("personality-v2", "Personality V2", v2Type, v2URL, v2Key, v2Model)
 		}
 		// If no separate URL, V2 uses main LLM provider (resolved in ResolveProviders)
+	}
+}
+
+// MigrateAuthSecretsToVault is a one-time startup migration for deployments that
+// were originally configured before auth secrets moved to the encrypted vault.
+// It reads the raw config.yaml, extracts any auth secrets stored in plaintext
+// (password_hash, session_secret, totp_secret), writes them to the vault, then
+// removes them from config.yaml so they are no longer stored in plaintext.
+// Must be called after the vault is initialised and before ApplyVaultSecrets.
+func MigrateAuthSecretsToVault(configPath string, vault SecretReadWriter, log *slog.Logger) {
+	if vault == nil {
+		return
+	}
+
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return
+	}
+
+	var rawCfg map[string]interface{}
+	if err := yaml.Unmarshal(data, &rawCfg); err != nil {
+		return
+	}
+
+	authSection, ok := rawCfg["auth"].(map[string]interface{})
+	if !ok {
+		return
+	}
+
+	// Fields that must live in the vault, not in config.yaml.
+	migrations := map[string]string{
+		"password_hash":  "auth_password_hash",
+		"session_secret": "auth_session_secret",
+		"totp_secret":    "auth_totp_secret",
+	}
+
+	migrated := false
+	for yamlKey, vaultKey := range migrations {
+		val, exists := authSection[yamlKey]
+		if !exists {
+			continue
+		}
+		strVal, ok := val.(string)
+		if !ok || strVal == "" {
+			delete(authSection, yamlKey)
+			migrated = true
+			continue
+		}
+		// Only write to vault if it doesn't already have a value for this key.
+		existing, _ := vault.ReadSecret(vaultKey)
+		if existing == "" {
+			if err := vault.WriteSecret(vaultKey, strVal); err != nil {
+				log.Error("[Config] Failed to migrate auth secret to vault", "key", vaultKey, "error", err)
+				continue
+			}
+			log.Info("[Config] Migrated auth secret from config.yaml to vault", "key", vaultKey)
+		} else {
+			log.Debug("[Config] Vault already has value for key, skipping YAML migration", "key", vaultKey)
+		}
+		delete(authSection, yamlKey)
+		migrated = true
+	}
+
+	if !migrated {
+		return
+	}
+
+	rawCfg["auth"] = authSection
+	out, err := yaml.Marshal(rawCfg)
+	if err != nil {
+		log.Error("[Config] Failed to marshal cleaned config after auth migration", "error", err)
+		return
+	}
+	if err := os.WriteFile(configPath, out, 0644); err != nil {
+		log.Error("[Config] Failed to write cleaned config after auth migration", "error", err)
 	}
 }

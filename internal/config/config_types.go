@@ -5,6 +5,17 @@ type SecretReader interface {
 	ReadSecret(key string) (string, error)
 }
 
+// SecretWriter is the write side of the vault, used for one-time migrations.
+type SecretWriter interface {
+	WriteSecret(key, value string) error
+}
+
+// SecretReadWriter combines read and write vault access.
+type SecretReadWriter interface {
+	SecretReader
+	SecretWriter
+}
+
 // OAuthToken represents an OAuth2 token stored in the vault.
 type OAuthToken struct {
 	AccessToken  string `json:"access_token"`
