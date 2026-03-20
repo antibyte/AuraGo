@@ -113,6 +113,30 @@ func (m *Manager) Start(handler http.Handler) error {
 			}
 			m.logger.Debug("[tsnet] " + msg)
 		},
+		// UserLogf handles user-facing messages (e.g. "To start this tsnet server, go to: …").
+		// We route them through the same deduplication logic to avoid log spam.
+		UserLogf: func(format string, args ...any) {
+			msg := fmt.Sprintf(format, args...)
+			if strings.Contains(msg, "login.tailscale.com") {
+				url := extractLoginURL(msg)
+				m.loginMu.Lock()
+				newURL := url != "" && url != m.loginURL
+				if newURL {
+					m.loginURL = url
+					m.loginURLSeen = false
+				}
+				should := !m.loginURLSeen
+				if should {
+					m.loginURLSeen = true
+				}
+				m.loginMu.Unlock()
+				if should {
+					m.logger.Warn("[tsnet] Authentication required – visit the URL in Tailscale settings to connect", "url", url)
+				}
+				return
+			}
+			m.logger.Info("[tsnet] " + msg)
+		},
 	}
 
 	// Auth key: vault takes precedence, then TS_AUTHKEY env var
