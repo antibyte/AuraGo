@@ -30,5 +30,6 @@
   "config.tailscale.tsnet_disabled_notice": "tsnet está desactivado",
   "config.tailscale.tsnet_disabled_desc": "Activa para registrar AuraGo como nodo en tu red Tailscale con DNS automático y certificado HTTPS.",
   "config.tailscale.tsnet_funnel_label": "Tailscale Funnel",
-  "config.tailscale.tsnet_funnel_hint": "Exponer AuraGo a internet público a través de Tailscale Funnel (próximamente en V2)"
+  "config.tailscale.tsnet_funnel_hint": "Exponer AuraGo a internet público a través de Tailscale Funnel (próximamente en V2)",
+  "config.tailscale.tsnet_needs_login": "Autenticación requerida – abre el enlace para conectarte a tu red Tailscale"
 }

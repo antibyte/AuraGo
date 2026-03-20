@@ -936,7 +936,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 
 	// Start tsnet embedded Tailscale node (serves same handler over Tailscale network)
 	if s.Cfg.Tailscale.TsNet.Enabled && s.TsNetManager != nil {
-		tsHandler := securityHeadersMiddleware(authMiddleware(s, mux), true, false)
+		tsHandler := accessLogMiddleware(s.Logger, securityHeadersMiddleware(authMiddleware(s, mux), true, false))
 		go func() {
 			if err := s.TsNetManager.Start(tsHandler); err != nil {
 				s.Logger.Error("Failed to start tsnet node", "error", err)

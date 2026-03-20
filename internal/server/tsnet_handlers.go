@@ -25,13 +25,14 @@ func handleTsNetStatus(s *Server) http.HandlerFunc {
 		status := s.TsNetManager.GetStatus()
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"enabled":  s.Cfg.Tailscale.TsNet.Enabled,
-			"running":  status.Running,
-			"hostname": status.Hostname,
-			"dns":      status.DNS,
-			"ips":      status.IPs,
-			"cert_dns": status.CertDNS,
-			"error":    status.Error,
+			"enabled":   s.Cfg.Tailscale.TsNet.Enabled,
+			"running":   status.Running,
+			"hostname":  status.Hostname,
+			"dns":       status.DNS,
+			"ips":       status.IPs,
+			"cert_dns":  status.CertDNS,
+			"error":     status.Error,
+			"login_url": status.LoginURL,
 		})
 	}
 }

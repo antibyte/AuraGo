@@ -599,7 +599,7 @@ func (s *Server) runHTTP(mux *http.ServeMux, ttsServer *http.Server, shutdownCh 
 	s.Logger.Info("Starting HTTP server", "host", s.Cfg.Server.Host, "port", s.Cfg.Server.Port, "tls", false)
 
 	// Apply security headers (relaxed for HTTP, but still present)
-	handler := securityHeadersMiddleware(authMiddleware(s, mux), false, s.Cfg.Server.HTTPS.BehindProxy)
+	handler := accessLogMiddleware(s.Logger, securityHeadersMiddleware(authMiddleware(s, mux), false, s.Cfg.Server.HTTPS.BehindProxy))
 
 	server := &http.Server{
 		Addr:         addr,
@@ -618,7 +618,7 @@ func (s *Server) runHTTPS(mux *http.ServeMux, ttsServer *http.Server, tlsCfg *TL
 	tlsCfg.HTTPPort = s.Cfg.Server.HTTPS.HTTPPort
 
 	// Apply security headers (strict for HTTPS)
-	handler := securityHeadersMiddleware(authMiddleware(s, mux), true, s.Cfg.Server.HTTPS.BehindProxy)
+	handler := accessLogMiddleware(s.Logger, securityHeadersMiddleware(authMiddleware(s, mux), true, s.Cfg.Server.HTTPS.BehindProxy))
 
 	httpsServer, httpServer, err := SetupServers(tlsCfg, handler, s.Logger)
 	if err != nil {
@@ -732,5 +732,68 @@ func securityHeadersMiddleware(next http.Handler, tlsActive, behindProxy bool) h
 		}
 
 		next.ServeHTTP(w, r)
+	})
+}
+
+// statusRecorder wraps http.ResponseWriter to capture the HTTP status code written
+// by the downstream handler so accessLogMiddleware can log it after the response.
+type statusRecorder struct {
+	http.ResponseWriter
+	status int
+}
+
+func (r *statusRecorder) WriteHeader(code int) {
+	r.status = code
+	r.ResponseWriter.WriteHeader(code)
+}
+
+// accessLogMiddleware logs every HTTP request in a structured format useful for
+// security monitoring and incident response.  Static asset requests (JS, CSS,
+// fonts, images) are silently skipped to keep the log concise.
+//
+// Log fields:
+//   - method, path, status, duration_ms, ip, user_agent
+func accessLogMiddleware(logger *slog.Logger, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Skip noisy static assets that are irrelevant for security monitoring.
+		path := r.URL.Path
+		skip := strings.HasSuffix(path, ".js") ||
+			strings.HasSuffix(path, ".css") ||
+			strings.HasSuffix(path, ".png") ||
+			strings.HasSuffix(path, ".ico") ||
+			strings.HasSuffix(path, ".woff2") ||
+			strings.HasSuffix(path, ".woff") ||
+			strings.HasSuffix(path, ".svg") ||
+			strings.HasSuffix(path, ".map") ||
+			path == "/api/health"
+		if skip {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
+		start := time.Now()
+		next.ServeHTTP(rec, r)
+		elapsed := time.Since(start).Milliseconds()
+
+		// Classify log level: 4xx/5xx responses and auth-related paths are
+		// logged at Warn level so they can be filtered easily by monitoring tools.
+		isError := rec.status >= 400
+		isAuthPath := strings.HasPrefix(path, "/auth/") ||
+			strings.HasPrefix(path, "/api/auth/")
+
+		args := []any{
+			"method", r.Method,
+			"path", path,
+			"status", rec.status,
+			"duration_ms", elapsed,
+			"ip", ClientIP(r),
+			"user_agent", r.UserAgent(),
+		}
+		if isError || isAuthPath {
+			logger.Warn("[Access]", args...)
+		} else {
+			logger.Info("[Access]", args...)
+		}
 	})
 }

@@ -161,6 +161,15 @@ async function _tsnetRefreshStatus() {
             if (data.error) info += `<br><small style="color:var(--error);">${escapeHtml(data.error)}</small>`;
         }
 
+        // Show login URL as a prominent action banner when the node needs authentication.
+        if (data.login_url) {
+            info += `<div style="margin-top:0.75rem;padding:0.6rem 0.9rem;border-radius:8px;background:var(--warning-bg,#3d2e00);border:1px solid var(--warning,#f9a825);">
+                <div style="font-size:0.82rem;font-weight:600;color:var(--warning,#f9a825);margin-bottom:0.35rem;">🔐 ${t('config.tailscale.tsnet_needs_login')}</div>
+                <a href="${escapeAttr(data.login_url)}" target="_blank" rel="noopener noreferrer"
+                   style="font-size:0.78rem;color:var(--accent);word-break:break-all;">${escapeHtml(data.login_url)}</a>
+            </div>`;
+        }
+
         el.innerHTML = info;
     } catch (e) {
         el.innerHTML = `<span style="color:var(--error);">${t('config.tailscale.tsnet_status_error')}</span>`;

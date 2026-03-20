@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -24,6 +25,7 @@ type Status struct {
 	IPs      []string `json:"ips,omitempty"`
 	CertDNS  []string `json:"cert_dns,omitempty"`
 	Error    string   `json:"error,omitempty"`
+	LoginURL string   `json:"login_url,omitempty"`
 }
 
 // Manager manages a tsnet embedded Tailscale node.
@@ -37,6 +39,12 @@ type Manager struct {
 	httpSrv  *http.Server
 	running  bool
 	lastErr  string
+
+	// loginURL is the Tailscale auth URL when the node needs interactive login.
+	// It is set once and shown in the UI instead of spamming the log.
+	loginMu      sync.Mutex
+	loginURL     string
+	loginURLSeen bool
 }
 
 // NewManager creates a new tsnet manager.
@@ -82,7 +90,29 @@ func (m *Manager) Start(handler http.Handler) error {
 	srv := &tsnet.Server{
 		Hostname: hostname,
 		Dir:      stateDir,
-		Logf:     func(format string, args ...any) { m.logger.Debug(fmt.Sprintf("[tsnet] "+format, args...)) },
+		Logf: func(format string, args ...any) {
+			msg := fmt.Sprintf(format, args...)
+			// Capture the Tailscale login URL and show it once instead of spamming the log.
+			if strings.Contains(msg, "login.tailscale.com") {
+				url := extractLoginURL(msg)
+				m.loginMu.Lock()
+				newURL := url != "" && url != m.loginURL
+				if newURL {
+					m.loginURL = url
+					m.loginURLSeen = false
+				}
+				should := !m.loginURLSeen
+				if should {
+					m.loginURLSeen = true
+				}
+				m.loginMu.Unlock()
+				if should {
+					m.logger.Warn("[tsnet] Authentication required – visit the URL in Tailscale settings to connect", "url", url)
+				}
+				return
+			}
+			m.logger.Debug("[tsnet] " + msg)
+		},
 	}
 
 	// Auth key: vault takes precedence, then TS_AUTHKEY env var
@@ -193,9 +223,37 @@ func (m *Manager) GetStatus() Status {
 					st.DNS = status.Self.DNSName
 					st.CertDNS = []string{status.Self.DNSName}
 				}
+				// Node is authenticated – clear the pending login URL.
+				if len(st.IPs) > 0 {
+					m.loginMu.Lock()
+					m.loginURL = ""
+					m.loginMu.Unlock()
+				}
 			}
 		}
 	}
 
+	m.loginMu.Lock()
+	st.LoginURL = m.loginURL
+	m.loginMu.Unlock()
+
 	return st
+}
+
+// extractLoginURL pulls a https://login.tailscale.com/… URL out of a log message.
+func extractLoginURL(msg string) string {
+	const prefix = "https://login.tailscale.com"
+	idx := strings.Index(msg, prefix)
+	if idx < 0 {
+		return ""
+	}
+	end := idx + len(prefix)
+	for end < len(msg) {
+		c := msg[end]
+		if c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '"' || c == '\'' {
+			break
+		}
+		end++
+	}
+	return msg[idx:end]
 }
