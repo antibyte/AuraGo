@@ -364,6 +364,11 @@ func main() {
 		appLog.Info("Media Registry DB initialized", "path", cfg.SQLite.MediaRegistryPath)
 	}
 
+	// On first start, seed the media registry with sample files bundled in resources.dat
+	if isFirstStart && mediaRegistryDB != nil {
+		tools.SeedWelcomeMedia(mediaRegistryDB, cfg.Directories.DataDir, installDir, appLog)
+	}
+
 	// Homepage Registry DB
 	homepageRegistryDB, homepageRegistryDBErr := tools.InitHomepageRegistryDB(cfg.SQLite.HomepageRegistryPath)
 	if homepageRegistryDBErr != nil {

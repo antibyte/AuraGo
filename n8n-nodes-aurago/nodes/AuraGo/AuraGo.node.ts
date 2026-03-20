@@ -3,7 +3,6 @@ import type {
 	INodeExecutionData,
 	INodeType,
 	INodeTypeDescription,
-	NodeConnectionType,
 	ILoadOptionsFunctions,
 } from 'n8n-workflow';
 
@@ -25,15 +24,15 @@ export class AuraGo implements INodeType {
 		displayName: 'AuraGo',
 		name: 'auraGo',
 		icon: 'file:aurago.svg',
-		group: ['AI'],
+		group: ['transform'],
 		version: 1,
 		subtitle: '={{ $parameter["operation"] }}',
 		description: 'Interact with AuraGo AI Agent',
 		defaults: {
 			name: 'AuraGo',
 		},
-		inputs: [NodeConnectionType.Main],
-		outputs: [NodeConnectionType.Main],
+		inputs: ['main'],
+		outputs: ['main'],
 		credentials: [
 			{
 				name: 'auraGoApi',
@@ -118,10 +117,10 @@ export class AuraGo implements INodeType {
 					json: response,
 					pairedItem: { item: i },
 				});
-			} catch (error) {
+				} catch (error: any) {
 				if (this.continueOnFail()) {
 					returnData.push({
-						json: { error: error.message },
+						json: { error: error?.message || 'Unknown error' },
 						pairedItem: { item: i },
 					});
 				} else {

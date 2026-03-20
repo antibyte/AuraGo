@@ -1,0 +1,36 @@
+[
+  {
+    "filename": "welcome_guide.pdf",
+    "media_type": "document",
+    "target_dir": "documents",
+    "web_path_prefix": "/files/documents/",
+    "description": "AuraGo Quick Start Guide",
+    "format": "pdf",
+    "tags": ["welcome", "guide"]
+  },
+  {
+    "filename": "astronaut.jpg",
+    "media_type": "image",
+    "target_dir": "generated_images",
+    "web_path_prefix": "/files/generated_images/",
+    "prompt": "Rabbit astronaut floating in space with helmet and suit, cartoon style, stars and planets",
+    "description": "A cartoon rabbit astronaut in a detailed white and silver space suit with reflective helmet visor, floating gracefully in the vastness of space, surrounded by shimmering, multicolored stars and vibrant, stylized planets with ring systems. Soft, ethereal nebula clouds in the background, casting a gentle glow. Playful, whimsical mood with bright, cheerful lighting from a distant sun, creating soft highlights and deep shadows on the suit. Dynamic composition with the rabbit looking curiously at a floating asteroid. Clean lines, smooth shading, and a vivid color palette, reminiscent of modern animated feature films. High detail on the suit textures and helmet reflection, ultra HD, 8k resolution.",
+    "provider": "openrouter",
+    "model": "bytedance-seed/seedream-4.5",
+    "format": "jpg",
+    "size": "1024x1024",
+    "quality": "standard",
+    "generation_time_ms": 19700,
+    "cost_estimate": 0.04,
+    "tags": ["rabbit", "astronaut", "space", "cartoon"]
+  },
+  {
+    "filename": "brain_in_the_machine.mp3",
+    "media_type": "audio",
+    "target_dir": "audio",
+    "web_path_prefix": "/files/audio/",
+    "description": "The official AuraGo Song created by Gemini and Suno AI",
+    "format": "mp3",
+    "tags": ["aurago", "official", "suno", "gemini"]
+  }
+]

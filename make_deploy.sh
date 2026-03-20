@@ -51,6 +51,10 @@ sed \
 mkdir -p "$TMPDIR_RES/data/vectordb"
 mkdir -p "$TMPDIR_RES/log"
 
+# Bundle sample media assets for first-start seeding
+mkdir -p "$TMPDIR_RES/assets/media_samples"
+cp -r assets/media_samples/. "$TMPDIR_RES/assets/media_samples/"
+
 # Pack
 tar -czf "$DEPLOY_DIR/$RESOURCES" -C "$TMPDIR_RES" .
 echo "    → resources.dat ($(du -h "$DEPLOY_DIR/$RESOURCES" | cut -f1))"

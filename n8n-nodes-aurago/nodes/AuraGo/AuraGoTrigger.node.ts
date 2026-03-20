@@ -3,7 +3,6 @@ import type {
 	INodeType,
 	INodeTypeDescription,
 	IWebhookResponseData,
-	NodeConnectionType,
 	IDataObject,
 } from 'n8n-workflow';
 
@@ -21,7 +20,7 @@ export class AuraGoTrigger implements INodeType {
 			name: 'AuraGo Trigger',
 		},
 		inputs: [],
-		outputs: [NodeConnectionType.Main],
+		outputs: ['main'],
 		credentials: [
 			{
 				name: 'auraGoApi',

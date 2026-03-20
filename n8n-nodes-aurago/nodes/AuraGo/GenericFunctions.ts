@@ -27,11 +27,11 @@ export async function auragoApiRequest(
 	};
 
 	if (Object.keys(body).length === 0) {
-		delete options.body;
+		delete (options as any).body;
 	}
 
 	try {
-		return await this.helpers.requestWithAuthentication.call(this, options, 'auraGoApi');
+		return await (this.helpers.requestWithAuthentication as any).call(this, options, 'auraGoApi');
 	} catch (error) {
 		throw new NodeApiError(this.getNode(), error);
 	}
