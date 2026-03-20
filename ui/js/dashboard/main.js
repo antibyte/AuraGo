@@ -1667,14 +1667,14 @@
         // ── Auto-Refresh ────────────────────────────────────────────────────────────
         function startAutoRefresh() {
             // System metrics are pushed via SSE (EventSystemMetrics) every 10s.
-            // Auto-refresh every 30s: always update banner, refresh only the active tab.
+            // Auto-refresh every 10s: always update banner, refresh only the active tab.
             setInterval(async () => {
                 const ov = await API.get('/api/dashboard/overview');
                 renderAgentBanner(ov, ov?.context?.total_chars);
 
                 TabState.loaded[TabState.active] = false;
                 await loadTabContent(TabState.active);
-            }, 30_000);
+            }, 10_000);
         }
 
         // ── Mood Time Range Buttons ─────────────────────────────────────────────────

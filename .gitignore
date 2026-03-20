@@ -4,6 +4,7 @@
 /*.dll
 /*.so
 /*.dylib
+/aurago
 /aurago.exe
 /tmp_aurago
 /tmp_aurago_*

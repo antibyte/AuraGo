@@ -242,14 +242,28 @@ func handlePutProviders(s *Server, w http.ResponseWriter, r *http.Request) {
 	s.Cfg.ApplyVaultSecrets(s.Vault)
 	s.Cfg.ResolveProviders()
 	s.Cfg.ApplyOAuthTokens(s.Vault)
+
+	// Reconfigure LLM client so model/key/URL changes take effect immediately.
+	if fm, ok := s.LLMClient.(*llm.FailoverManager); ok {
+		fm.Reconfigure(s.Cfg)
+		s.Logger.Info("[Providers] LLM client reconfigured",
+			"model", s.Cfg.LLM.Model,
+			"provider", s.Cfg.LLM.ProviderType)
+	}
+
+	// Capture updated agent info before releasing the lock.
+	activeLLMModel := s.Cfg.LLM.Model
+	activeLLMProvider := s.Cfg.LLM.ProviderType
 	s.CfgMu.Unlock()
 
 	s.Logger.Info("[Providers] Updated", "count", len(entries))
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"status": "ok",
-		"count":  len(entries),
+		"status":           "ok",
+		"count":            len(entries),
+		"active_llm_model": activeLLMModel,
+		"active_llm_type":  activeLLMProvider,
 	})
 }
 

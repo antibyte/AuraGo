@@ -1217,10 +1217,17 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                     alert('Error: ' + txt);
                     return;
                 }
+                const result = await resp.json();
                 // Reload providers from server (API keys will be masked)
                 const reload = await fetch('/api/providers');
                 if (reload.ok) providersCache = await reload.json();
                 providerRenderCards();
+
+                // Update dashboard agent banner immediately if model/provider changed.
+                if (result.active_llm_model) {
+                    const modelEl = document.getElementById('ab-model');
+                    if (modelEl) modelEl.textContent = result.active_llm_model;
+                }
             } catch (e) {
                 alert('Error: ' + e.message);
             }
