@@ -691,6 +691,93 @@ function initThemeToggle() {
     console.log('[AuraGo] Theme toggle initialized');
 }
 
+// ═══════════════════════════════════════════════════════════════
+// TAILSCALE LOGIN WATCHER
+// Polls /api/tsnet/status and shows a persistent top banner when
+// the tsnet node needs interactive authentication.
+// ═══════════════════════════════════════════════════════════════
+
+(function () {
+    let _tsnetBannerUrl = null;
+    let _tsnetPollTimer = null;
+
+    function _tsnetBannerId() { return 'tsnet-login-banner'; }
+
+    function _tsnetShowBanner(loginUrl) {
+        if (document.getElementById(_tsnetBannerId())) {
+            // Update link if URL changed
+            const a = document.querySelector('#' + _tsnetBannerId() + ' a');
+            if (a) a.href = loginUrl;
+            return;
+        }
+        const banner = document.createElement('div');
+        banner.id = _tsnetBannerId();
+        banner.style.cssText = [
+            'position:fixed', 'top:0', 'left:0', 'right:0', 'z-index:99999',
+            'background:#7c3300', 'border-bottom:2px solid #f9a825',
+            'color:#ffe082', 'font-size:0.85rem', 'font-weight:600',
+            'padding:0.55rem 1rem', 'display:flex', 'align-items:center',
+            'gap:0.75rem', 'box-shadow:0 2px 12px rgba(0,0,0,0.5)'
+        ].join(';');
+        const label = t('config.tailscale.tsnet_needs_login') !== 'config.tailscale.tsnet_needs_login'
+            ? '🔐 ' + t('config.tailscale.tsnet_needs_login')
+            : '🔐 Tailscale: Authentication required — open the link to connect to your Tailscale network';
+        const linkText = t('shared.tsnet.login_banner_link') !== 'shared.tsnet.login_banner_link'
+            ? t('shared.tsnet.login_banner_link')
+            : 'Open login link';
+        banner.innerHTML =
+            '<span>' + label + '</span>' +
+            '<a href="' + loginUrl + '" target="_blank" rel="noopener noreferrer" ' +
+            'style="color:#fff;text-decoration:underline;">' + linkText + '</a>' +
+            '<span style="margin-left:auto;cursor:pointer;font-size:1rem;opacity:0.7;" ' +
+            'title="Dismiss" onclick="document.getElementById(\'' + _tsnetBannerId() + '\').remove();window._tsnetBannerDismissed=true;">✕</span>';
+        document.body.insertBefore(banner, document.body.firstChild);
+        // Push body down so banner doesn't overlap content
+        document.body.style.paddingTop = 'calc(' + (document.body.style.paddingTop || '0px') + ' + 38px)';
+    }
+
+    function _tsnetHideBanner() {
+        const el = document.getElementById(_tsnetBannerId());
+        if (el) {
+            el.remove();
+            document.body.style.paddingTop = '';
+        }
+    }
+
+    async function _tsnetPoll() {
+        // Skip on login and setup pages — no auth yet
+        const path = window.location.pathname;
+        if (path.includes('/login') || path.includes('/setup')) return;
+
+        try {
+            const resp = await fetch('/api/tsnet/status', { signal: AbortSignal.timeout(5000) });
+            if (!resp.ok) return; // server not ready / not authenticated yet
+            const data = await resp.json();
+            if (data.login_url) {
+                if (!window._tsnetBannerDismissed || data.login_url !== _tsnetBannerUrl) {
+                    window._tsnetBannerDismissed = false;
+                    _tsnetBannerUrl = data.login_url;
+                    _tsnetShowBanner(data.login_url);
+                }
+            } else {
+                _tsnetBannerUrl = null;
+                window._tsnetBannerDismissed = false;
+                _tsnetHideBanner();
+            }
+        } catch (_) {
+            // Silently ignore network errors (server may be offline)
+        }
+    }
+
+    window.initTsnetLoginWatcher = function () {
+        // Initial check after a short delay (let auth complete first)
+        setTimeout(_tsnetPoll, 2000);
+        // Re-check every 60 seconds
+        if (_tsnetPollTimer) clearInterval(_tsnetPollTimer);
+        _tsnetPollTimer = setInterval(_tsnetPoll, 60000);
+    };
+}());
+
 /**
  * Initialize all shared functionality
  */
@@ -707,6 +794,7 @@ function initShared() {
     try { injectLanguageSwitcher(); } catch (e) { console.error('[AuraGo] injectLanguageSwitcher failed:', e); }
     try { checkAuth(); } catch (e) { console.error('[AuraGo] checkAuth failed:', e); }
     try { initPWA(); } catch (e) { console.error('[AuraGo] initPWA failed:', e); }
+    try { initTsnetLoginWatcher(); } catch (e) { console.error('[AuraGo] initTsnetLoginWatcher failed:', e); }
 
     console.log('[AuraGo] Shared components initialized');
 }

@@ -102,7 +102,8 @@ const SECTIONS = [
         items: [
             { key: 'github', icon: '🐙', label: t('config.section.github.label'), desc: t('config.section.github.desc') },
             { key: 'google_workspace', icon: '📊', label: t('config.section.google_workspace.label'), desc: t('config.section.google_workspace.desc') },
-            { key: 'paperless_ngx', icon: '📄', label: t('config.section.paperless_ngx.label'), desc: t('config.section.paperless_ngx.desc') }
+            { key: 'paperless_ngx', icon: '📄', label: t('config.section.paperless_ngx.label'), desc: t('config.section.paperless_ngx.desc') },
+            { key: 'n8n', icon: '🔀', label: t('config.section.n8n.label'), desc: t('config.section.n8n.desc') }
         ]
     },
     {
@@ -1005,7 +1006,8 @@ const SECTION_MODULES = {
     onedrive: { m: 'onedrive', fn: 'renderOneDriveSection' },
     tailscale: { m: 'tailscale', fn: 'renderTailscaleSection' },
     server: { m: 'server', fn: 'renderServerSection' },
-    a2a: { m: 'a2a', fn: 'renderA2ASection' }
+    a2a: { m: 'a2a', fn: 'renderA2ASection' },
+    n8n: { m: 'n8n', fn: 'renderN8nSection' }
 };
 
 function loadModule(name) {
