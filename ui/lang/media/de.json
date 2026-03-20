@@ -10,5 +10,6 @@
   "media.doc_open": "Öffnen",
   "media.audio_type_tts": "Sprachausgabe",
   "media.audio_type_audio": "Audio-Datei",
-  "media.audio_type_music": "Musik"
+  "media.audio_type_music": "Musik",
+  "media.file_not_available": "Datei nicht verfügbar"
 }

@@ -10,5 +10,6 @@
   "media.doc_open": "Άνοιγμα",
   "media.audio_type_tts": "Ομιλία",
   "media.audio_type_audio": "Αρχείο ήχου",
-  "media.audio_type_music": "Μουσική"
+  "media.audio_type_music": "Μουσική",
+  "media.file_not_available": "Το αρχείο δεν είναι διαθέσιμο"
 }

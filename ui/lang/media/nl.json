@@ -10,5 +10,6 @@
   "media.doc_open": "Openen",
   "media.audio_type_tts": "Tekst-naar-spraak",
   "media.audio_type_audio": "Audiobestand",
-  "media.audio_type_music": "Muziek"
+  "media.audio_type_music": "Muziek",
+  "media.file_not_available": "Bestand niet beschikbaar"
 }

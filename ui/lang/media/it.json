@@ -10,5 +10,6 @@
   "media.doc_open": "Apri",
   "media.audio_type_tts": "Sintesi vocale",
   "media.audio_type_audio": "File audio",
-  "media.audio_type_music": "Musica"
+  "media.audio_type_music": "Musica",
+  "media.file_not_available": "File non disponibile"
 }

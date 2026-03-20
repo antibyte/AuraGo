@@ -10,5 +10,6 @@
   "media.doc_open": "Ouvrir",
   "media.audio_type_tts": "Synthèse vocale",
   "media.audio_type_audio": "Fichier audio",
-  "media.audio_type_music": "Musique"
+  "media.audio_type_music": "Musique",
+  "media.file_not_available": "Fichier non disponible"
 }

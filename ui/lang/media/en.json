@@ -10,5 +10,6 @@
   "media.doc_open": "Open",
   "media.audio_type_tts": "Text-to-Speech",
   "media.audio_type_audio": "Audio File",
-  "media.audio_type_music": "Music"
+  "media.audio_type_music": "Music",
+  "media.file_not_available": "File not available"
 }

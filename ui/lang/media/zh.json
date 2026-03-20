@@ -10,5 +10,6 @@
   "media.doc_open": "打开",
   "media.audio_type_tts": "语音合成",
   "media.audio_type_audio": "音频文件",
-  "media.audio_type_music": "音乐"
+  "media.audio_type_music": "音乐",
+  "media.file_not_available": "文件不可用"
 }

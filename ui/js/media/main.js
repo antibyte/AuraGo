@@ -152,8 +152,9 @@ function renderAudioGrid(items) {
         const typeIconMap = { tts: '🗣️', music: '🎶', audio: '🎵' };
         const typeIcon = typeIconMap[item.media_type] || '🎵';
         const typeLbl = escapeHtml({ tts: t('media.audio_type_tts'), music: t('media.audio_type_music'), audio: t('media.audio_type_audio') }[item.media_type] || item.media_type);
-        html += '<div class="media-audio-card" onclick="openAudioModal(' + item.id + ')">';
-        html += '<div class="media-audio-card-title">' + typeIcon + ' ' + title + '</div>';
+        const hasFile = !!(item.web_path || item.filename);
+        html += '<div class="media-audio-card' + (hasFile ? '' : ' media-audio-card--unavailable') + '" onclick="openAudioModal(' + item.id + ')">';
+        html += '<div class="media-audio-card-title">' + typeIcon + ' ' + title + (hasFile ? '' : ' <span style="opacity:0.5;font-size:0.75em">⚠️</span>') + '</div>';
         html += '<div class="media-audio-card-meta"><span class="media-type-badge">' + typeLbl + '</span><span>' + fmt + '</span><span>' + escapeHtml(date) + '</span></div>';
         html += '</div>';
     });
@@ -191,8 +192,17 @@ function openAudioModal(id) {
     titleEl.textContent = title;
     body.appendChild(titleEl);
 
-    const player = new ChatAudioPlayer(item.web_path || ('/files/audio/' + item.filename));
-    body.appendChild(player.element);
+    const audioPath = item.web_path || (item.filename ? '/files/audio/' + item.filename : '');
+    if (audioPath) {
+        const player = new ChatAudioPlayer(audioPath);
+        body.appendChild(player.element);
+    } else {
+        const unavailEl = document.createElement('div');
+        unavailEl.className = 'audio-error';
+        unavailEl.style.padding = '1rem 0';
+        unavailEl.textContent = '⚠️ ' + t('media.file_not_available');
+        body.appendChild(unavailEl);
+    }
 
     const metaEl = document.createElement('div');
     metaEl.className = 'gallery-card-meta';
@@ -202,9 +212,10 @@ function openAudioModal(id) {
     metaEl.innerHTML = '<span>' + escapeHtml((item.format || '').toUpperCase()) + '</span><span>' + escapeHtml(date) + '</span>';
     body.appendChild(metaEl);
 
-    const dlHref = item.web_path || ('/files/audio/' + item.filename);
+    const dlHref = item.web_path || (item.filename ? '/files/audio/' + item.filename : '#');
     document.getElementById('audio-modal-download').href = dlHref;
     document.getElementById('audio-modal-download').download = item.filename || 'audio';
+    document.getElementById('audio-modal-download').style.display = audioPath ? '' : 'none';
 
     modal.style.display = 'flex';
 }

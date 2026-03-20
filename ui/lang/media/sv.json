@@ -10,5 +10,6 @@
   "media.doc_open": "Öppna",
   "media.audio_type_tts": "Text-till-tal",
   "media.audio_type_audio": "Ljudfil",
-  "media.audio_type_music": "Musik"
+  "media.audio_type_music": "Musik",
+  "media.file_not_available": "Fil inte tillgänglig"
 }
