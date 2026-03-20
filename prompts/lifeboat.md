@@ -1,7 +1,7 @@
 ---
 id: "lifeboat_instructions"
 tags: ["conditional"]
-priority: "40"
+priority: 40
 conditions: ["lifeboat"]
 ---
 # LIFEBOAT HANDOVER INSTRUCTIONS

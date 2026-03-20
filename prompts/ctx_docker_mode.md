@@ -1,7 +1,7 @@
 ---
 id: "docker_mode"
 tags: ["conditional"]
-priority: "45"
+priority: 45
 conditions: ["is_docker"]
 ---
 # DOCKER ENVIRONMENT NOTICE

@@ -864,24 +864,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					}
 					currentLogger.Warn("[Stream] 422 Unprocessable from provider — trimming malformed history", "error", streamErr, "attempt", retry422Count)
 					broker.Send("thinking", "Context error recovered — retrying...")
-					var trimmed []openai.ChatCompletionMessage
-					for _, m := range req.Messages {
-						if m.Role == openai.ChatMessageRoleTool {
-							continue // drop tool responses — their matching assistant ToolCalls are cleared below
-						}
-						if m.Role == openai.ChatMessageRoleAssistant && len(m.ToolCalls) > 0 {
-							m.ToolCalls = nil // orphaned tool_calls without responses cause structural 422
-						}
-						trimmed = append(trimmed, m)
-					}
-					if len(trimmed) > 7 {
-						trimmed = append(trimmed[:1], trimmed[len(trimmed)-6:]...)
-					}
-					trimmed = append(trimmed, openai.ChatCompletionMessage{
-						Role:    openai.ChatMessageRoleSystem,
-						Content: "SYSTEM: The previous tool call history was trimmed due to a provider error. Summarise the situation for the user and explain what you were doing and what went wrong.",
-					})
-					req.Messages = trimmed
+					req.Messages = trim422Messages(req.Messages)
 					currentLogger.Info("[Stream] Context trimmed after 422, retrying", "new_messages_count", len(req.Messages), "attempt", retry422Count)
 					continue
 				}
@@ -996,28 +979,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					}
 					currentLogger.Warn("[Sync] 422 Unprocessable from provider — trimming malformed history", "error", err, "attempt", retry422Count)
 					broker.Send("thinking", "Context error recovered — retrying...")
-					// Remove all role=tool messages and clear orphaned ToolCalls from assistant
-					// messages. Keeping assistant messages with ToolCalls but no matching tool
-					// responses produces an invalid sequence that the provider rejects with 422.
-					var trimmed []openai.ChatCompletionMessage
-					for _, m := range req.Messages {
-						if m.Role == openai.ChatMessageRoleTool {
-							continue // drop tool responses — their matching assistant ToolCalls are cleared below
-						}
-						if m.Role == openai.ChatMessageRoleAssistant && len(m.ToolCalls) > 0 {
-							m.ToolCalls = nil // orphaned tool_calls without responses cause structural 422
-						}
-						trimmed = append(trimmed, m)
-					}
-					// Keep system prompt + last 6 messages to avoid re-triggering 422.
-					if len(trimmed) > 7 {
-						trimmed = append(trimmed[:1], trimmed[len(trimmed)-6:]...)
-					}
-					trimmed = append(trimmed, openai.ChatCompletionMessage{
-						Role:    openai.ChatMessageRoleSystem,
-						Content: "SYSTEM: The previous tool call history was trimmed due to a provider error. Summarise the situation for the user and explain what you were doing and what went wrong.",
-					})
-					req.Messages = trimmed
+					req.Messages = trim422Messages(req.Messages)
 					currentLogger.Info("[Sync] Context trimmed after 422, retrying", "new_messages_count", len(req.Messages), "attempt", retry422Count)
 					continue
 				}
@@ -1986,4 +1948,66 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 		return resp, nil
 	}
+}
+
+// trim422Messages produces a structurally valid message sequence after a 422 rejection.
+// It strips all tool-call / tool-response pairs, removes orphaned assistant ToolCalls,
+// keeps the system prompt + the most recent user/assistant exchanges, and appends
+// a recovery user message so the model can reply cleanly.
+func trim422Messages(msgs []openai.ChatCompletionMessage) []openai.ChatCompletionMessage {
+	// Collect IDs of tool responses so we can match assistant->tool pairs.
+	toolResponseIDs := make(map[string]bool, len(msgs))
+	for _, m := range msgs {
+		if m.Role == openai.ChatMessageRoleTool && m.ToolCallID != "" {
+			toolResponseIDs[m.ToolCallID] = true
+		}
+	}
+
+	// Pass 1: keep only system/user/assistant messages. For assistant messages
+	// with ToolCalls, only keep them if ALL their tool call IDs have matching
+	// tool responses AND we also keep those responses. Otherwise drop the
+	// entire tool-call round (assistant + tool responses) to avoid dangling refs.
+	var clean []openai.ChatCompletionMessage
+	for _, m := range msgs {
+		switch m.Role {
+		case openai.ChatMessageRoleTool:
+			continue // always drop — we'll re-add complete pairs below if needed
+		case openai.ChatMessageRoleAssistant:
+			if len(m.ToolCalls) > 0 {
+				// Drop assistant messages that requested tool calls — their tool
+				// responses have been dropped, leaving an orphaned tool_call.
+				continue
+			}
+			// Plain assistant text — keep it.
+			clean = append(clean, m)
+		default:
+			// system, user — keep as-is
+			clean = append(clean, m)
+		}
+	}
+
+	// Pass 2: keep system prompt (first system messages) + last few user/assistant messages.
+	// Find the boundary between leading system messages and the conversation.
+	sysEnd := 0
+	for sysEnd < len(clean) && clean[sysEnd].Role == openai.ChatMessageRoleSystem {
+		sysEnd++
+	}
+	conversation := clean[sysEnd:]
+	if len(conversation) > 4 {
+		conversation = conversation[len(conversation)-4:]
+	}
+	// Ensure the conversation starts with a user message (providers reject leading assistant).
+	for len(conversation) > 0 && conversation[0].Role != openai.ChatMessageRoleUser {
+		conversation = conversation[1:]
+	}
+
+	trimmed := make([]openai.ChatCompletionMessage, 0, sysEnd+len(conversation)+1)
+	trimmed = append(trimmed, clean[:sysEnd]...)
+	trimmed = append(trimmed, conversation...)
+	// Append a user message (not system) so the model can respond naturally.
+	trimmed = append(trimmed, openai.ChatCompletionMessage{
+		Role:    openai.ChatMessageRoleUser,
+		Content: "[The previous tool call history was trimmed due to a provider error. Please summarise what you were doing and continue.]",
+	})
+	return trimmed
 }

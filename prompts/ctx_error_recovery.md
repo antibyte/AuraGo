@@ -1,7 +1,7 @@
 ---
 id: "error_recovery"
 tags: ["conditional"]
-priority: "50"
+priority: 50
 conditions: ["is_error"]
 ---
 # ERROR RECOVERY CODEX

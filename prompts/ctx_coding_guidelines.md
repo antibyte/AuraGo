@@ -1,7 +1,7 @@
 ---
 id: "coding_guidelines"
 tags: ["conditional"]
-priority: "60"
+priority: 60
 conditions: ["requires_coding"]
 ---
 # CODING GUIDELINES

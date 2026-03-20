@@ -1,7 +1,7 @@
 ---
 id: "maintenance_protocol"
 tags: ["conditional", "maintenance"]
-priority: "45"
+priority: 45
 conditions: ["maintenance"]
 ---
 # SYSTEM MAINTENANCE PROTOCOL
