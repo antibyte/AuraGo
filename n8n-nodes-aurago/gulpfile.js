@@ -3,15 +3,15 @@ const svgmin = require('gulp-svgmin');
 
 function minifyIcons() {
 	return gulp
-		.src('nodes/icons/*.svg')
+		.src('nodes/**/*.svg')
 		.pipe(svgmin())
-		.pipe(gulp.dest('dist/nodes/icons'));
+		.pipe(gulp.dest('dist/nodes'));
 }
 
 function copyIcons() {
 	return gulp
-		.src('nodes/icons/*.svg')
-		.pipe(gulp.dest('dist/nodes/icons'));
+		.src('nodes/**/*.svg')
+		.pipe(gulp.dest('dist/nodes'));
 }
 
 exports['build:icons'] = gulp.series(minifyIcons, copyIcons);
