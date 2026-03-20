@@ -31,7 +31,7 @@ export async function auragoApiRequest(
 	}
 
 	try {
-		return await (this.helpers.requestWithAuthentication as any).call(this, options, 'auraGoApi');
+		return await (this.helpers.requestWithAuthentication as any).call(this, 'auraGoApi', options);
 	} catch (error) {
 		throw new NodeApiError(this.getNode(), error);
 	}
