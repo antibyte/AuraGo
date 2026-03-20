@@ -216,6 +216,7 @@ type Server struct {
 	RemoteHub          *remote.RemoteHub
 	ProxyManager       *proxy.Manager
 	TsNetManager       *tsnetnode.Manager
+	tsNetHandler       http.Handler // stored so the UI can restart tsnet without a full server restart
 	FileIndexer        *services.FileIndexer
 	CheatsheetDB       *sql.DB
 	ImageGalleryDB     *sql.DB

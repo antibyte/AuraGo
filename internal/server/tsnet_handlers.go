@@ -38,7 +38,7 @@ func handleTsNetStatus(s *Server) http.HandlerFunc {
 	}
 }
 
-// handleTsNetStart starts the tsnet node.
+// handleTsNetStart (re)starts the tsnet node.
 func handleTsNetStart(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -51,14 +51,35 @@ func handleTsNetStart(s *Server) http.HandlerFunc {
 			return
 		}
 
-		// Use the main mux handler wrapped with security headers
-		// Since we don't have the mux here, we return an error and let the user
-		// enable tsnet via config → restart instead of runtime start
+		if !s.Cfg.Tailscale.TsNet.Enabled {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"status":  "error",
+				"message": "Enable tsnet in config first",
+			})
+			return
+		}
+
+		handler := s.tsNetHandler
+		if handler == nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusServiceUnavailable)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"status":  "error",
+				"message": "tsnet handler not ready — restart AuraGo to initialize",
+			})
+			return
+		}
+
+		// Launch in background — Start() blocks until auth/cert are ready
+		go func() {
+			if err := s.TsNetManager.Start(handler); err != nil {
+				s.Logger.Error("[tsnet] Start via API failed", "error", err)
+			}
+		}()
+
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"status":  "info",
-			"message": "Enable tsnet in config and restart AuraGo to start the Tailscale node",
-		})
+		json.NewEncoder(w).Encode(map[string]string{"status": "starting"})
 	}
 }
 

@@ -108,6 +108,7 @@ async function renderTailscaleSection(section) {
             </div>
             <div style="display:flex;gap:0.5rem;margin-top:0.6rem;">
                 <button class="btn btn-sm btn-secondary" onclick="_tsnetRefreshStatus()">🔄 ${t('config.tailscale.tsnet_btn_refresh')}</button>
+                <button id="tsnet-btn-start" class="btn btn-sm btn-success" onclick="_tsnetStart()" style="display:none;">▶ ${t('config.tailscale.tsnet_btn_start')}</button>
                 <button class="btn btn-sm btn-warning" onclick="_tsnetStop()">⏹ ${t('config.tailscale.tsnet_btn_stop')}</button>
             </div>
         </div>`;
@@ -151,16 +152,20 @@ async function _tsnetRefreshStatus() {
         const data = await resp.json();
 
         let info = '';
+        const startBtn = document.getElementById('tsnet-btn-start');
         if (data.running) {
             info += `<span style="color:var(--success);">● ${t('config.tailscale.tsnet_status_running')}</span>`;
             if (data.dns) info += `<br><strong>DNS:</strong> <code>${escapeHtml(data.dns)}</code>`;
             if (data.ips && data.ips.length) info += `<br><strong>IPs:</strong> ${escapeHtml(data.ips.join(', '))}`;
             if (data.cert_dns && data.cert_dns.length) info += `<br><strong>Cert:</strong> ${escapeHtml(data.cert_dns.join(', '))}`;
+            if (startBtn) startBtn.style.display = 'none';
         } else if (data.starting) {
             info += `<span style="color:var(--warning,#f9a825);">⏳ ${t('config.tailscale.tsnet_status_starting') || 'Waiting for authentication…'}</span>`;
+            if (startBtn) startBtn.style.display = 'none';
         } else {
             info += `<span style="color:var(--text-muted);">○ ${t('config.tailscale.tsnet_status_stopped')}</span>`;
             if (data.error) info += `<br><small style="color:var(--error);">${escapeHtml(data.error)}</small>`;
+            if (startBtn) startBtn.style.display = '';
         }
 
         // Show login URL as a prominent action banner when the node needs authentication.
@@ -188,6 +193,27 @@ async function _tsnetStop() {
             showToast(t('config.tailscale.tsnet_stopped_toast'), 'success');
         }
         setTimeout(_tsnetRefreshStatus, 500);
+    } catch (e) {
+        showToast(e.message, 'error');
+    }
+}
+
+async function _tsnetStart() {
+    try {
+        const resp = await fetch('/api/tsnet/start', { method: 'POST' });
+        const data = await resp.json();
+        if (data.error) {
+            showToast(data.error, 'error');
+        } else {
+            showToast(t('config.tailscale.tsnet_starting_toast') || 'Starting…', 'success');
+            // Poll until the node reports running or error
+            let attempts = 0;
+            const poll = setInterval(async () => {
+                await _tsnetRefreshStatus();
+                attempts++;
+                if (attempts > 120) clearInterval(poll); // give up after ~2 min
+            }, 3000);
+        }
     } catch (e) {
         showToast(e.message, 'error');
     }
