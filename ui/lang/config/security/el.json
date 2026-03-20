@@ -1,0 +1,14 @@
+{
+  "config.security.panel_title": "Έλεγχος ασφάλειας",
+  "config.security.no_issues": "Δεν βρέθηκαν προβλήματα ασφάλειας",
+  "config.security.fix_all_auto": "Διόρθωση {n} αυτόματα επιλύσιμου/επιλύσιμων προβλήματος/προβλημάτων",
+  "config.security.fix_now": "Διόρθωση τώρα",
+  "config.security.applying": "Εφαρμογή…",
+  "config.security.severity.critical": "ΚΡΙΣΙΜΟ",
+  "config.security.severity.warning": "ΠΡΟΕΙΔΟΠΟΙΗΣΗ",
+  "config.security.severity.info": "ΠΛΗΡΟΦΟΡΙΑ",
+  "config.security.modal.title": "Ειδοποίηση ασφάλειας",
+  "config.security.modal.desc": "Αυτή η αλλαγή εισήγαγε κρίσιμα προβλήματα ασφάλειας. Εφαρμογή αυτόματων διορθώσεων τώρα;",
+  "config.security.modal.later": "Επανεξέταση αργότερα",
+  "config.security.modal.apply": "Εφαρμογή διορθώσεων"
+}

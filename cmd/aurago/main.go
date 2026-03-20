@@ -662,6 +662,27 @@ func main() {
 		go eggClient.Start()
 	}
 
+	// Startup security audit — log warnings for any critical/warning issues
+	// so admins notice them immediately in the log even before opening the UI.
+	if secHints := server.CheckSecurity(cfg); len(secHints) > 0 {
+		critCount := 0
+		for _, h := range secHints {
+			if h.Severity == server.SevCritical {
+				critCount++
+			}
+		}
+		if critCount > 0 {
+			appLog.Warn("[Security] CRITICAL security issues detected — open /config to review and fix",
+				"critical", critCount, "total", len(secHints))
+		} else {
+			appLog.Warn("[Security] Security recommendations detected — open /config to review",
+				"total", len(secHints))
+		}
+		for _, h := range secHints {
+			appLog.Warn("[Security] "+h.Title, "id", h.ID, "severity", h.Severity)
+		}
+	}
+
 	if err := server.Start(cfg, appLog, llmClient, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, remoteControlDB, mediaRegistryDB, homepageRegistryDB, isFirstStart, shutdownCh); err != nil {
 		appLog.Error("Server failed", "error", err)
 		os.Exit(1)

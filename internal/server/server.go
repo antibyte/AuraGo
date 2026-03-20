@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"database/sql"
@@ -10,6 +11,7 @@ import (
 	"io"
 	"io/fs"
 	"log/slog"
+	"net"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -745,6 +747,24 @@ type statusRecorder struct {
 func (r *statusRecorder) WriteHeader(code int) {
 	r.status = code
 	r.ResponseWriter.WriteHeader(code)
+}
+
+// Hijack implements http.Hijacker so that WebSocket upgrade requests can pass
+// through the statusRecorder wrapper without losing hijack support.
+func (r *statusRecorder) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	h, ok := r.ResponseWriter.(http.Hijacker)
+	if !ok {
+		return nil, nil, fmt.Errorf("hijack: feature not supported by underlying ResponseWriter")
+	}
+	return h.Hijack()
+}
+
+// Flush implements http.Flusher so SSE / chunked streams work correctly
+// through the statusRecorder wrapper.
+func (r *statusRecorder) Flush() {
+	if f, ok := r.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
 }
 
 // accessLogMiddleware logs every HTTP request in a structured format useful for

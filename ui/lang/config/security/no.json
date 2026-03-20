@@ -1,0 +1,14 @@
+{
+  "config.security.panel_title": "Sikkerhetsrevisjon",
+  "config.security.no_issues": "Ingen sikkerhetsproblemer funnet",
+  "config.security.fix_all_auto": "Fiks {n} automatisk løsbart/løsbare problem(er)",
+  "config.security.fix_now": "Fiks nå",
+  "config.security.applying": "Bruker…",
+  "config.security.severity.critical": "KRITISK",
+  "config.security.severity.warning": "ADVARSEL",
+  "config.security.severity.info": "INFO",
+  "config.security.modal.title": "Sikkerhetsvarsel",
+  "config.security.modal.desc": "Denne endringen introduserte kritiske sikkerhetsproblemer. Bruk automatiske rettelser nå?",
+  "config.security.modal.later": "Gjennomgå senere",
+  "config.security.modal.apply": "Bruk rettelser"
+}

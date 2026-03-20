@@ -1,0 +1,14 @@
+{
+  "config.security.panel_title": "Audit de sécurité",
+  "config.security.no_issues": "Aucun problème de sécurité détecté",
+  "config.security.fix_all_auto": "Corriger {n} problème(s) automatiquement",
+  "config.security.fix_now": "Corriger maintenant",
+  "config.security.applying": "Application en cours…",
+  "config.security.severity.critical": "CRITIQUE",
+  "config.security.severity.warning": "AVERTISSEMENT",
+  "config.security.severity.info": "INFO",
+  "config.security.modal.title": "Alerte de sécurité",
+  "config.security.modal.desc": "Cette modification a introduit des problèmes de sécurité critiques. Appliquer les correctifs automatiques maintenant ?",
+  "config.security.modal.later": "Vérifier plus tard",
+  "config.security.modal.apply": "Appliquer les correctifs"
+}

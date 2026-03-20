@@ -126,6 +126,10 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 
 	// Config UI endpoints (only when explicitly enabled for security)
 	if s.Cfg.WebConfig.Enabled {
+		// Security audit — list hints and apply auto-fixable hardening measures
+		mux.HandleFunc("/api/security/hints", handleSecurityHints(s))
+		mux.HandleFunc("/api/security/harden", handleSecurityHarden(s))
+
 		mux.HandleFunc("/api/providers", handleProviders(s))
 		mux.HandleFunc("/api/providers/pricing", handleProviderPricing(s))
 		mux.HandleFunc("/api/email-accounts", handleEmailAccounts(s))
@@ -923,8 +927,15 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 			ttsFsHandler.ServeHTTP(w, r)
 		})
 
+		// Bind TTS to the configured server host so it doesn’t accidentally
+		// listen on all interfaces when the server is internet-facing.
+		// Chromecasts reach it on the LAN IP the operator put in server.host.
+		ttsHost := s.Cfg.Server.Host
+		if ttsHost == "" {
+			ttsHost = "0.0.0.0"
+		}
 		ttsServer = &http.Server{
-			Addr:    fmt.Sprintf("0.0.0.0:%d", s.Cfg.Chromecast.TTSPort),
+			Addr:    fmt.Sprintf("%s:%d", ttsHost, s.Cfg.Chromecast.TTSPort),
 			Handler: ttsMux,
 		}
 
@@ -934,7 +945,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 					s.Logger.Error("[TTS Server] Goroutine panic recovered", "error", r)
 				}
 			}()
-			s.Logger.Info("Starting Dedicated TTS Server", "host", "0.0.0.0", "port", s.Cfg.Chromecast.TTSPort)
+			s.Logger.Info("Starting Dedicated TTS Server", "host", ttsHost, "port", s.Cfg.Chromecast.TTSPort)
 			if err := ttsServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 				s.Logger.Warn("Dedicated TTS Server failed (Chromecast audio will not be available)", "error", err)
 			}

@@ -1,0 +1,14 @@
+{
+  "config.security.panel_title": "सुरक्षा ऑडिट",
+  "config.security.no_issues": "कोई सुरक्षा समस्या नहीं मिली",
+  "config.security.fix_all_auto": "{n} स्वत: ठीक होने वाली समस्या(ओं) को सुधारें",
+  "config.security.fix_now": "अभी सुधारें",
+  "config.security.applying": "लागू हो रहा है…",
+  "config.security.severity.critical": "गंभीर",
+  "config.security.severity.warning": "चेतावनी",
+  "config.security.severity.info": "जानकारी",
+  "config.security.modal.title": "सुरक्षा अलर्ट",
+  "config.security.modal.desc": "इस बदलाव ने गंभीर सुरक्षा समस्याएं पेश की हैं। अभी स्वचालित सुधार लागू करें?",
+  "config.security.modal.later": "बाद में समीक्षा करें",
+  "config.security.modal.apply": "सुधार लागू करें"
+}

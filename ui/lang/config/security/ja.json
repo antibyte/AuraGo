@@ -1,0 +1,14 @@
+{
+  "config.security.panel_title": "セキュリティ監査",
+  "config.security.no_issues": "セキュリティの問題は見つかりませんでした",
+  "config.security.fix_all_auto": "{n} 個の自動修正可能な問題を修正する",
+  "config.security.fix_now": "今すぐ修正",
+  "config.security.applying": "適用中…",
+  "config.security.severity.critical": "重大",
+  "config.security.severity.warning": "警告",
+  "config.security.severity.info": "情報",
+  "config.security.modal.title": "セキュリティアラート",
+  "config.security.modal.desc": "この変更により重大なセキュリティ問題が発生しました。今すぐ自動修正を適用しますか？",
+  "config.security.modal.later": "後で確認",
+  "config.security.modal.apply": "修正を適用"
+}

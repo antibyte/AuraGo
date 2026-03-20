@@ -95,8 +95,10 @@ func startPythonServer(port int, directory string) (string, int, error) {
 	if port <= 0 {
 		port = 8080
 	}
+	// Always bind to loopback — the URL returned is http://localhost:... and
+	// the workspace directory must not be served to the public network.
 	cmd := exec.Command("python3", "-m", "http.server",
-		strconv.Itoa(port), "--directory", directory)
+		strconv.Itoa(port), "--directory", directory, "--bind", "127.0.0.1")
 	err := cmd.Start()
 	if err != nil {
 		return "", 0, fmt.Errorf("failed to start Python server: %w", err)

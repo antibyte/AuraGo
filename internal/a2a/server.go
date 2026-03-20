@@ -89,7 +89,21 @@ func (s *Server) StartDedicatedServer(ctx context.Context) error {
 	mux := http.NewServeMux()
 	s.RegisterRoutes(mux)
 
-	addr := fmt.Sprintf("%s:%d", s.cfg.Server.Host, port)
+	host := s.cfg.Server.Host
+	if host == "" {
+		host = "0.0.0.0"
+	}
+	addr := fmt.Sprintf("%s:%d", host, port)
+
+	// Warn when the A2A port is bound to all interfaces without authentication.
+	// In this state any internet client can reach the agent-to-agent API.
+	if (host == "0.0.0.0" || host == "") &&
+		!s.cfg.A2A.Auth.APIKeyEnabled && !s.cfg.A2A.Auth.BearerEnabled {
+		s.logger.Warn("[A2A] Dedicated server is listening on all interfaces without authentication — "+
+			"set a2a.auth.api_key_enabled or a2a.auth.bearer_enabled in config",
+			"addr", addr)
+	}
+
 	srv := &http.Server{
 		Addr:         addr,
 		Handler:      mux,

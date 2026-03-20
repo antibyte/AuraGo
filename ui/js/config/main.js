@@ -851,6 +851,8 @@ async function saveConfig() {
             configData = await cfgResp.json();
             initialSnapshot = collectSnapshot();
             setDirty(false);
+            // Check for security issues introduced by this save
+            checkSecurityAfterSave();
         } else {
             status.className = 'save-status error';
             status.textContent = '✗ ' + (result.message || t('config.save_bar.error'));
@@ -862,6 +864,75 @@ async function saveConfig() {
         btn.disabled = false;
     }
     setTimeout(() => { status.textContent = ''; }, 5000);
+}
+
+// ── Post-save security check ────────────────────────────────────────────────
+// Runs silently after any successful config save. If auto-fixable critical
+// security issues are detected, a modal prompts the user to apply them.
+async function checkSecurityAfterSave() {
+    try {
+        const resp = await fetch('/api/security/hints');
+        if (!resp.ok) return;
+        const data = await resp.json();
+        const hints = (data.hints || []);
+        const critFixable = hints.filter(h => h.severity === 'critical' && h.auto_fixable);
+        if (!critFixable.length) return;
+        showSecurityModal(critFixable);
+    } catch (_) { /* silent */ }
+}
+
+function showSecurityModal(critFixable) {
+    // Remove any existing modal first
+    const existing = document.getElementById('sec-harden-modal');
+    if (existing) existing.remove();
+
+    const ids = critFixable.map(h => h.id);
+    const itemsHtml = critFixable.map(h =>
+        `<li style="margin-bottom:0.35rem;">⚠ ${esc(h.title)}</li>`
+    ).join('');
+
+    const modal = document.createElement('div');
+    modal.id = 'sec-harden-modal';
+    modal.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.55);backdrop-filter:blur(4px);';
+    modal.innerHTML = `<div style="background:var(--bg-panel);border:1px solid rgba(239,68,68,0.4);border-radius:14px;padding:1.5rem 1.75rem;max-width:440px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,0.5);">
+        <div style="font-size:1rem;font-weight:700;color:#f87171;margin-bottom:0.75rem;">🔒 ${t('config.security.modal.title')}</div>
+        <div style="font-size:0.83rem;color:var(--text-secondary);margin-bottom:0.75rem;">${t('config.security.modal.desc')}</div>
+        <ul style="font-size:0.82rem;color:var(--text-primary);margin:0 0 1rem 1rem;padding:0;">${itemsHtml}</ul>
+        <div style="display:flex;gap:0.75rem;justify-content:flex-end;">
+            <button id="sec-modal-skip" style="padding:0.45rem 1rem;background:transparent;color:var(--text-secondary);border:1px solid var(--border-subtle);border-radius:8px;font-size:0.82rem;cursor:pointer;">
+                ${t('config.security.modal.later')}
+            </button>
+            <button id="sec-modal-apply" style="padding:0.45rem 1rem;background:linear-gradient(135deg,#f97316,#dc2626);color:#fff;border:none;border-radius:8px;font-size:0.82rem;font-weight:600;cursor:pointer;">
+                🔧 ${t('config.security.modal.apply')}
+            </button>
+        </div>
+    </div>`;
+
+    document.body.appendChild(modal);
+
+    modal.querySelector('#sec-modal-skip').addEventListener('click', () => modal.remove());
+    modal.querySelector('#sec-modal-apply').addEventListener('click', async () => {
+        const applyBtn = modal.querySelector('#sec-modal-apply');
+        applyBtn.disabled = true;
+        applyBtn.textContent = t('config.security.applying') || 'Applying…';
+        try {
+            const resp = await fetch('/api/security/harden', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids })
+            });
+            modal.remove();
+            if (resp.ok) {
+                // Refresh UI for the currently visible section
+                if (typeof renderWebConfigSection === 'function') {
+                    const active = document.querySelector('.sidebar-item.active');
+                    if (active && active.dataset.key === 'web_config') {
+                        selectSection('web_config');
+                    }
+                }
+            }
+        } catch (_) { modal.remove(); }
+    });
 }
 
 async function restartAuraGo() {

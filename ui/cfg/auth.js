@@ -140,10 +140,20 @@ async function renderWebConfigSection(section) {
     }
 
     html += '</div></div>'; // close totp-status-area + field-group
+
+    // ── Security Audit panel (populated async after render) ──
+    html += `<div style="margin-top:1.5rem;margin-bottom:0.5rem;font-weight:600;font-size:0.85rem;color:var(--accent);border-bottom:1px solid var(--border-subtle);padding-bottom:0.3rem;">
+                🔎 ${t('config.security.panel_title')}
+            </div>`;
+    html += '<div id="sec-audit-panel" style="margin-bottom:1rem;">';
+    html += `<div style="color:var(--text-secondary);font-size:0.82rem;">${t('config.common.loading')}</div>`;
+    html += '</div>';
+
     html += '</div>'; // close cfg-section
 
     content.innerHTML = html;
     attachChangeListeners();
+    loadSecurityAuditPanel();
 }
 
 async function authSetPassword() {
@@ -245,3 +255,96 @@ async function authTOTPDisable() {
 }
 
 // Vault delete functions are in config.html core (needed by vault modal HTML + renderField)
+
+// ── Security Audit Panel ─────────────────────────────────────────────────────
+
+async function loadSecurityAuditPanel() {
+    const panel = document.getElementById('sec-audit-panel');
+    if (!panel) return;
+    try {
+        const resp = await fetch('/api/security/hints');
+        if (!resp.ok) {
+            panel.innerHTML = `<div style="color:var(--text-secondary);font-size:0.82rem;">${t('config.common.error')}</div>`;
+            return;
+        }
+        const data = await resp.json();
+        const hints = data.hints || [];
+        renderSecurityAuditPanel(panel, hints);
+    } catch (_) {
+        panel.innerHTML = `<div style="color:var(--text-secondary);font-size:0.82rem;">${t('config.common.network_error')}</div>`;
+    }
+}
+
+function renderSecurityAuditPanel(panel, hints) {
+    if (!hints.length) {
+        panel.innerHTML = `<div style="display:flex;align-items:center;gap:0.5rem;padding:0.6rem 0.8rem;background:rgba(45,212,191,0.08);border:1px solid rgba(45,212,191,0.25);border-radius:8px;font-size:0.83rem;color:var(--success);">
+            ✅ ${t('config.security.no_issues')}
+        </div>`;
+        return;
+    }
+
+    const fixable = hints.filter(h => h.auto_fixable);
+    const criticals = hints.filter(h => h.severity === 'critical');
+
+    const sevColors = {
+        critical: { bg: 'rgba(239,68,68,0.08)', border: 'rgba(239,68,68,0.3)', badge: '#f87171' },
+        warning:  { bg: 'rgba(251,191,36,0.08)', border: 'rgba(251,191,36,0.3)', badge: '#fbbf24' },
+        info:     { bg: 'rgba(99,179,237,0.08)',  border: 'rgba(99,179,237,0.3)',  badge: '#60a5fa' },
+    };
+
+    let html = '';
+    if (fixable.length > 0) {
+        const btnLabel = t('config.security.fix_all_auto').replace('{n}', fixable.length);
+        html += `<div style="margin-bottom:0.75rem;">
+            <button id="btn-fix-all" onclick="securityHardenIds(${JSON.stringify(fixable.map(h => h.id))})"
+                style="padding:0.45rem 1rem;background:linear-gradient(135deg,#f97316,#dc2626);color:#fff;border:none;border-radius:8px;font-size:0.82rem;font-weight:600;cursor:pointer;">
+                🔧 ${btnLabel}
+            </button>
+        </div>`;
+    }
+
+    for (const h of hints) {
+        const c = sevColors[h.severity] || sevColors.info;
+        const sevLabel = t('config.security.severity.' + h.severity) || h.severity.toUpperCase();
+        const desc = esc(h.description);
+        let fixBtn = '';
+        if (h.auto_fixable) {
+            fixBtn = `<button onclick="securityHardenIds(['${h.id}'])"
+                style="margin-top:0.5rem;padding:0.3rem 0.7rem;background:rgba(255,255,255,0.08);color:var(--text-primary);border:1px solid var(--border-accent);border-radius:6px;font-size:0.77rem;font-weight:600;cursor:pointer;">
+                🔧 ${t('config.security.fix_now')}
+            </button>`;
+        }
+        html += `<div style="margin-bottom:0.5rem;padding:0.65rem 0.85rem;background:${c.bg};border:1px solid ${c.border};border-radius:8px;">
+            <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.3rem;">
+                <span style="font-size:0.68rem;font-weight:700;padding:0.1rem 0.45rem;border-radius:4px;background:${c.badge};color:#0f172a;">${sevLabel}</span>
+                <span style="font-size:0.83rem;font-weight:600;color:var(--text-primary);">${esc(h.title)}</span>
+            </div>
+            <div style="font-size:0.78rem;color:var(--text-secondary);">${desc}</div>
+            ${fixBtn}
+        </div>`;
+    }
+
+    panel.innerHTML = html;
+}
+
+async function securityHardenIds(ids) {
+    const btn = document.getElementById('btn-fix-all');
+    if (btn) { btn.disabled = true; btn.textContent = t('config.security.applying') || 'Applying…'; }
+    try {
+        const resp = await fetch('/api/security/harden', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids })
+        });
+        const data = await resp.json();
+        if (resp.ok) {
+            await loadSecurityAuditPanel();
+        } else {
+            alert((data && data.error) || t('config.common.error'));
+            if (btn) { btn.disabled = false; btn.textContent = t('config.security.fix_all_auto').replace('{n}', ids.length); }
+        }
+    } catch (e) {
+        alert(t('config.common.network_error'));
+        if (btn) { btn.disabled = false; }
+    }
+}
