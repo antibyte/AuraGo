@@ -71,21 +71,3 @@ export function verifyWebhookSignature(
 		return false;
 	}
 }
-
-/**
- * Convert session messages to conversation format.
- */
-export function formatConversationHistory(messages: Array<{ role: string; content: string }>): string {
-	return messages.map((msg) => `${msg.role}: ${msg.content}`).join('\n');
-}
-
-/**
- * Parse tool calls from agent response.
- */
-export function parseToolCalls(toolCalls: Array<{ name: string; arguments: object; result?: string }>): object[] {
-	return toolCalls.map((tc) => ({
-		tool: tc.name,
-		parameters: tc.arguments,
-		result: tc.result || 'No result available',
-	}));
-}

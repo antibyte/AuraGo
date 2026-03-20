@@ -791,6 +791,17 @@ func accessLogMiddleware(logger *slog.Logger, next http.Handler) http.Handler {
 			return
 		}
 
+		// High-frequency dashboard polling paths — logged at Debug to avoid log spam.
+		// These are read-only status checks that fire every few seconds from the UI.
+		quietPoll := strings.HasPrefix(path, "/api/dashboard/") ||
+			path == "/api/personality/state" ||
+			path == "/api/tsnet/status" ||
+			path == "/events"
+		if quietPoll {
+			next.ServeHTTP(w, r)
+			return
+		}
+
 		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
 		start := time.Now()
 		next.ServeHTTP(rec, r)

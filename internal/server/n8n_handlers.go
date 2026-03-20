@@ -78,7 +78,6 @@ type n8nChatRequest struct {
 	SystemPrompt  string   `json:"system_prompt,omitempty"`
 	Tools         []string `json:"tools,omitempty"`
 	ContextWindow int      `json:"context_window,omitempty"`
-	Stream        bool     `json:"stream,omitempty"`
 }
 
 // n8nChatResponse represents a chat response to n8n
@@ -99,7 +98,6 @@ type n8nToolCall struct {
 // n8nToolExecuteRequest represents a direct tool execution request
 type n8nToolExecuteRequest struct {
 	Parameters map[string]interface{} `json:"parameters"`
-	Async      bool                   `json:"async,omitempty"`
 	Timeout    int                    `json:"timeout,omitempty"`
 }
 
@@ -107,16 +105,14 @@ type n8nToolExecuteRequest struct {
 type n8nToolExecuteResponse struct {
 	Result string `json:"result"`
 	Status string `json:"status"`
-	TaskID string `json:"task_id,omitempty"`
 	Error  string `json:"error,omitempty"`
 }
 
 // n8nMemorySearchRequest represents a memory search request
 type n8nMemorySearchRequest struct {
-	Query  string `json:"query"`
-	Limit  int    `json:"limit,omitempty"`
-	Type   string `json:"type,omitempty"` // short_term, long_term, knowledge_graph
-	Filter string `json:"filter,omitempty"`
+	Query string `json:"query"`
+	Limit int    `json:"limit,omitempty"`
+	Type  string `json:"type,omitempty"` // short_term, long_term, knowledge_graph
 }
 
 // n8nMemoryStoreRequest represents a memory store request
@@ -506,20 +502,12 @@ func handleN8nToolExecute(s *Server) http.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Second)
 		defer cancel()
 
-		// Build tool call
+		// Build tool call — only set Params; do NOT unmarshal user input into the full ToolCall struct
+		// to prevent unintended field overrides (e.g. Background, URL, Code, Password).
 		tc := agent.ToolCall{
 			IsTool: true,
 			Action: toolName,
 			Params: req.Parameters,
-		}
-
-		// Marshal params for ToolCall fields
-		if len(req.Parameters) > 0 {
-			argBytes, _ := json.Marshal(req.Parameters)
-			json.Unmarshal(argBytes, &tc)
-			tc.Action = toolName
-			tc.IsTool = true
-			tc.Params = req.Parameters
 		}
 
 		// Execute tool
@@ -542,7 +530,7 @@ func handleN8nToolExecute(s *Server) http.HandlerFunc {
 		})
 
 		status := "success"
-		if strings.Contains(result, "ERROR") || strings.Contains(result, "error") {
+		if strings.HasPrefix(result, "ERROR") || strings.HasPrefix(result, "error:") || strings.HasPrefix(result, "Error:") {
 			status = "error"
 		}
 
@@ -743,15 +731,29 @@ func handleN8nMemoryStore(s *Server) http.HandlerFunc {
 		case "long_term":
 			// Store in the vector DB; fall back to conversation history if unavailable.
 			if s.LongTermMem != nil {
-				_, err = s.LongTermMem.StoreDocument(req.Content, req.Content)
+				// Derive a concept label from metadata "concept" key, or use the first 100 chars.
+				concept := req.Content
+				if c, ok := req.Metadata["concept"]; ok {
+					if cs, ok := c.(string); ok && cs != "" {
+						concept = cs
+					}
+				}
+				if len(concept) > 100 && concept == req.Content {
+					concept = concept[:100]
+				}
+				_, err = s.LongTermMem.StoreDocument(concept, req.Content)
 			} else {
 				err = s.HistoryManager.Add("system", req.Content, 0, false, true)
 			}
 			stored = err == nil
 
 		case "core":
-			// Store in core memory - use short term as fallback
-			err = s.HistoryManager.Add("system", req.Content, 0, true, true)
+			// Store in the dedicated core_memory table (always included in every system prompt).
+			if s.ShortTermMem != nil {
+				_, err = s.ShortTermMem.AddCoreMemoryFact(req.Content)
+			} else {
+				err = fmt.Errorf("short-term memory not available")
+			}
 			stored = err == nil
 
 		default:
@@ -838,6 +840,12 @@ func handleN8nMissionCreate(s *Server) http.HandlerFunc {
 			prompt = req.Name
 		}
 
+		// If steps were provided, append them to the prompt so the agent can follow them.
+		if len(req.Steps) > 0 {
+			stepsJSON, _ := json.Marshal(req.Steps)
+			prompt += "\n\nSteps:\n" + string(stepsJSON)
+		}
+
 		m := &tools.MissionV2{
 			ID:            "n8n_" + generateSessionID(),
 			Name:          req.Name,
@@ -862,7 +870,7 @@ func handleN8nMissionCreate(s *Server) http.HandlerFunc {
 			if err := s.MissionManagerV2.RunNow(m.ID); err != nil {
 				s.Logger.Warn("[n8n] Mission RunNow failed", "error", err, "id", m.ID)
 			} else {
-				executionID = "exec_" + generateSessionID()
+				executionID = m.ID // Return the mission ID as the execution reference
 				s.Logger.Info("[n8n] Mission queued for execution", "mission_id", m.ID)
 			}
 		}
@@ -1147,24 +1155,11 @@ func n8nSendWebhook(s *Server, event string, sessionID string, data map[string]i
 		Data:      data,
 	}
 
-	// Compute HMAC over the full payload (event+timestamp+session_id+data) to prevent
-	// tampering with any field, not just the data object.
+	// Compute HMAC over payload.Data — the n8n trigger verifies JSON.stringify(body.data).
 	if s.Vault != nil {
 		secret, _ := s.Vault.ReadSecret(n8nVaultTokenKey)
 		if secret != "" {
-			// Marshal the payload without the signature field first.
-			type payloadForSig struct {
-				Event     string                 `json:"event"`
-				Timestamp string                 `json:"timestamp"`
-				SessionID string                 `json:"session_id,omitempty"`
-				Data      map[string]interface{} `json:"data"`
-			}
-			sigData, _ := json.Marshal(payloadForSig{
-				Event:     payload.Event,
-				Timestamp: payload.Timestamp,
-				SessionID: payload.SessionID,
-				Data:      payload.Data,
-			})
+			sigData, _ := json.Marshal(payload.Data)
 			h := hmac.New(sha256.New, []byte(secret))
 			h.Write(sigData)
 			payload.Signature = hex.EncodeToString(h.Sum(nil))
@@ -1172,11 +1167,12 @@ func n8nSendWebhook(s *Server, event string, sessionID string, data map[string]i
 	}
 
 	// Send async with a bounded timeout so the goroutine cannot leak.
+	// POST directly to webhookURL — the user configures the full n8n webhook URL.
 	go func() {
 		client := &http.Client{Timeout: 10 * time.Second}
 		jsonPayload, _ := json.Marshal(payload)
 		resp, err := client.Post(
-			webhookURL+"/webhook/aurago/"+event,
+			webhookURL,
 			"application/json",
 			strings.NewReader(string(jsonPayload)),
 		)

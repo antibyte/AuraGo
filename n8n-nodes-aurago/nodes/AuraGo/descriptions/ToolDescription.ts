@@ -77,17 +77,4 @@ export const toolFields: INodeProperties[] = [
 		},
 		description: 'Maximum execution time in seconds',
 	},
-	{
-		displayName: 'Async Execution',
-		name: 'async',
-		type: 'boolean',
-		default: false,
-		displayOptions: {
-			show: {
-				resource: ['tool'],
-				operation: ['execute'],
-			},
-		},
-		description: 'Whether to execute asynchronously (returns task ID)',
-	},
 ];

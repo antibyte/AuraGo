@@ -179,7 +179,6 @@ async function executeToolOperation(
 	const toolName = this.getNodeParameter('toolName', index) as string;
 	const parametersJson = this.getNodeParameter('parameters', index, '{}') as string;
 	const timeout = this.getNodeParameter('timeout', index, 60) as number;
-	const async = this.getNodeParameter('async', index, false) as boolean;
 
 	let parameters = {};
 	try {
@@ -191,7 +190,6 @@ async function executeToolOperation(
 	const body = {
 		parameters,
 		timeout,
-		async,
 	};
 
 	return await auragoApiRequest.call(this, 'POST', `/api/n8n/tools/${toolName}`, body);

@@ -922,7 +922,7 @@ type Config struct {
 	N8n struct {
 		Enabled        bool     `yaml:"enabled"`
 		ReadOnly       bool     `yaml:"readonly"`         // true = only read operations, block write
-		WebhookBaseURL string   `yaml:"webhook_base_url"` // n8n webhook base URL for triggers
+		WebhookBaseURL string   `yaml:"webhook_base_url"` // Full n8n webhook URL (e.g. https://n8n.example.com/webhook/abc-123)
 		AllowedEvents  []string `yaml:"allowed_events"`   // events that trigger n8n webhooks
 		RequireToken   bool     `yaml:"require_token"`    // require Bearer token auth (default: true)
 		AllowedTools   []string `yaml:"allowed_tools"`    // tools n8n can execute; empty = all enabled
