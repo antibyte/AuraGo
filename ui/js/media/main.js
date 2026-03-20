@@ -195,6 +195,10 @@ function openAudioModal(id) {
     const audioPath = item.web_path || (item.filename ? '/files/audio/' + item.filename : '');
     if (audioPath) {
         const player = new ChatAudioPlayer(audioPath);
+        // Hide the player's built-in download button — the modal footer button serves this role
+        // and uses the correct filename instead of the generic 'audio-message.mp3'
+        const playerDlBtn = player.element.querySelector('.audio-download-btn');
+        if (playerDlBtn) playerDlBtn.style.display = 'none';
         body.appendChild(player.element);
     } else {
         const unavailEl = document.createElement('div');
@@ -314,7 +318,8 @@ function renderDocList(items) {
     let html = '';
     items.forEach(function (item) {
         const title = escapeHtml(item.description || item.filename || 'Document');
-        const fmt = item.format || '';
+        // Fall back to file extension when format field is empty (agent may not always set it)
+        const fmt = item.format || (item.filename ? item.filename.split('.').pop() : '') || '';
         const icon = docFormatIconMedia(fmt);
         const fmtLabel = escapeHtml(fmt.toUpperCase());
         const date = item.created_at ? new Date(item.created_at).toLocaleDateString() : '';
