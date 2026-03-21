@@ -311,7 +311,7 @@ func mcpCallTool(ctx context.Context, s *Server, params json.RawMessage) mcpCall
 		s.Registry, manifest, s.CronManager, s.MissionManagerV2,
 		s.LongTermMem, s.ShortTermMem, s.KG,
 		s.InventoryDB, s.InvasionDB, s.CheatsheetDB, s.ImageGalleryDB,
-		s.MediaRegistryDB, s.HomepageRegistryDB,
+		s.MediaRegistryDB, s.HomepageRegistryDB, s.ContactsDB,
 		s.RemoteHub, s.HistoryManager, false, "", s.Guardian, s.LLMGuardian,
 		"mcp-server", s.CoAgentRegistry, s.BudgetTracker, "",
 	)
@@ -377,6 +377,7 @@ func mcpFeatureFlags(cfg *config.Config) agent.ToolFeatureFlags {
 		FritzBoxSmartHomeEnabled: cfg.FritzBox.Enabled && cfg.FritzBox.SmartHome.Enabled,
 		FritzBoxStorageEnabled:   cfg.FritzBox.Enabled && cfg.FritzBox.Storage.Enabled,
 		FritzBoxTVEnabled:        cfg.FritzBox.Enabled && cfg.FritzBox.TV.Enabled,
+		ContactsEnabled:          cfg.Tools.Contacts.Enabled,
 	}
 }
 

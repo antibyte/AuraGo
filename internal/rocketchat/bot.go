@@ -340,6 +340,7 @@ func processMessage(cfg *config.Config, logger *slog.Logger, client llm.ChatClie
 			FritzBoxSmartHomeEnabled: cfg.FritzBox.Enabled && cfg.FritzBox.SmartHome.Enabled,
 			FritzBoxStorageEnabled:   cfg.FritzBox.Enabled && cfg.FritzBox.Storage.Enabled,
 			FritzBoxTVEnabled:        cfg.FritzBox.Enabled && cfg.FritzBox.TV.Enabled,
+			ContactsEnabled:          cfg.Tools.Contacts.Enabled,
 		}
 		ntSchemas := agent.BuildNativeToolSchemas(cfg.Directories.SkillsDir, manifest, ff, logger)
 		req.Tools = ntSchemas

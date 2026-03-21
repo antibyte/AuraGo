@@ -30,5 +30,6 @@
   "login.password_show": "Mostrar senha",
   "login.subtitle": "Faça login para continuar",
   "login.totp_divider": "Código autenticador",
-  "login.totp_label": "Código de 6 dígitos"
+  "login.totp_label": "Código de 6 dígitos",
+  "common.nav_knowledge": "Centro de Conhecimento"
 }

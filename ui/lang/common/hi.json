@@ -30,5 +30,6 @@
   "login.password_show": "पासवर्ड दिखाए",
   "login.subtitle": "जारी रखने के लिए कृपया लॉगिन करें",
   "login.totp_divider": "प्रमाणक कोड",
-  "login.totp_label": "6 अंकों का कोड"
+  "login.totp_label": "6 अंकों का कोड",
+  "common.nav_knowledge": "ज्ञान केंद्र"
 }

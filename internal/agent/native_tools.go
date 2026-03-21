@@ -92,6 +92,7 @@ type ToolFeatureFlags struct {
 	WOLEnabled               bool
 	MediaRegistryEnabled     bool
 	HomepageRegistryEnabled  bool
+	ContactsEnabled         bool
 	JournalEnabled           bool
 	MemoryAnalysisEnabled    bool
 	DocumentCreatorEnabled   bool
@@ -493,6 +494,27 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 				"tags":             prop("string", "Comma-separated tags (e.g. 'prod,db')"),
 				"mac_address":      prop("string", "MAC address for Wake-on-LAN (optional)"),
 			}, "hostname", "device_type"),
+		))
+	}
+
+	if ff.ContactsEnabled {
+		tools = append(tools, tool("address_book",
+			"Manage the address book / contacts. Search, list, add, update, and delete contacts with name, email, phone, mobile, address, and relationship.",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "Operation to perform",
+					"enum":        []string{"list", "search", "add", "update", "delete"},
+				},
+				"id":           prop("string", "Contact ID (required for update/delete)"),
+				"name":         prop("string", "Full name of the contact"),
+				"email":        prop("string", "Email address"),
+				"phone":        prop("string", "Phone number"),
+				"mobile":       prop("string", "Mobile phone number"),
+				"address":      prop("string", "Postal address"),
+				"relationship": prop("string", "Relationship (e.g. friend, colleague, family, client)"),
+				"query":        prop("string", "Search query for search operation"),
+			}, "operation"),
 		))
 	}
 

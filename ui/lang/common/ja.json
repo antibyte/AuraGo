@@ -30,5 +30,6 @@
   "login.password_show": "パスワードを表示",
   "login.subtitle": "続行するにはログインしてください",
   "login.totp_divider": "認証コード",
-  "login.totp_label": "6桁のコード"
+  "login.totp_label": "6桁のコード",
+  "common.nav_knowledge": "ナレッジセンター"
 }

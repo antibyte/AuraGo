@@ -62,6 +62,7 @@ COPY --from=builder /deploy /app/deploy
 COPY prompts                        /app/prompts
 COPY agent_workspace/skills         /app/agent_workspace/skills
 COPY documentation                  /app/documentation
+COPY assets/media_samples           /app/assets/media_samples
 
 # Create writable runtime directories.
 # agent_workspace/workdir  – Python venv, generated tools, scratch files

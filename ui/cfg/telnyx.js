@@ -131,7 +131,7 @@ function renderTelnyxSection(section) {
     html += '</div></div>';
 
     html += '</div>'; // close cfg-section
-    return html;
+    document.getElementById('content').innerHTML = html;
 }
 
 function saveTelnyxVault(field) {

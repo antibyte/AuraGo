@@ -157,6 +157,7 @@ type Config struct {
 		RemoteControlPath    string `yaml:"remote_control_path"`
 		MediaRegistryPath    string `yaml:"media_registry_path"`
 		HomepageRegistryPath string `yaml:"homepage_registry_path"`
+		ContactsPath         string `yaml:"contacts_path"`
 		SiteMonitorPath      string `yaml:"site_monitor_path"`
 	} `yaml:"sqlite"`
 	Embeddings struct {
@@ -917,6 +918,9 @@ type Config struct {
 		UPnPScan struct {
 			Enabled bool `yaml:"enabled"` // enable upnp_scan tool (UPnP/SSDP device discovery)
 		} `yaml:"upnp_scan"`
+		Contacts struct {
+			Enabled bool `yaml:"enabled"` // enable address_book tool (contact management)
+		} `yaml:"contacts"`
 	} `yaml:"tools"`
 	Sandbox struct {
 		Enabled        bool   `yaml:"enabled"`

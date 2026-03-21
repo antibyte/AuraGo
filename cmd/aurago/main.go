@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/contacts"
 	"aurago/internal/invasion"
 	"aurago/internal/invasion/bridge"
 	"aurago/internal/inventory"
@@ -389,6 +390,16 @@ func main() {
 		appLog.Info("Homepage Registry DB initialized", "path", cfg.SQLite.HomepageRegistryPath)
 	}
 
+	// Contacts (Address Book) DB
+	contactsDB, contactsDBErr := contacts.InitDB(cfg.SQLite.ContactsPath)
+	if contactsDBErr != nil {
+		appLog.Warn("Failed to initialize Contacts DB", "error", contactsDBErr, "path", cfg.SQLite.ContactsPath)
+		contactsDB = nil
+	} else {
+		defer contactsDB.Close()
+		appLog.Info("Contacts DB initialized", "path", cfg.SQLite.ContactsPath)
+	}
+
 	masterKey := os.Getenv("AURAGO_MASTER_KEY")
 	if masterKey == "" || len(masterKey) != 64 {
 		appLog.Error("CRITICAL: AURAGO_MASTER_KEY environment variable is missing or not exactly 64 hex characters (32 bytes). Refusing to start.")
@@ -703,7 +714,7 @@ func main() {
 		}
 	}
 
-	if err := server.Start(cfg, appLog, llmClient, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, remoteControlDB, mediaRegistryDB, homepageRegistryDB, isFirstStart, shutdownCh); err != nil {
+	if err := server.Start(cfg, appLog, llmClient, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, remoteControlDB, mediaRegistryDB, homepageRegistryDB, contactsDB, isFirstStart, shutdownCh); err != nil {
 		appLog.Error("Server failed", "error", err)
 		os.Exit(1)
 	}

@@ -69,6 +69,7 @@ func Load(path string) (*Config, error) {
 	cfg.Tools.WebCapture.Enabled = true
 	cfg.Tools.NetworkPing.Enabled = true
 	cfg.Tools.NetworkScan.Enabled = true
+	cfg.Tools.Contacts.Enabled = true
 	// form_automation and upnp_scan default to false (opt-in; require headless browser / LAN access)
 
 	// Journal system defaults: auto-entries and daily summaries enabled by default.
@@ -172,6 +173,10 @@ func Load(path string) (*Config, error) {
 		cfg.SQLite.HomepageRegistryPath = "./data/homepage_registry.db"
 	}
 	cfg.SQLite.HomepageRegistryPath = resolvePath(configDir, cfg.SQLite.HomepageRegistryPath)
+	if cfg.SQLite.ContactsPath == "" {
+		cfg.SQLite.ContactsPath = "./data/contacts.db"
+	}
+	cfg.SQLite.ContactsPath = resolvePath(configDir, cfg.SQLite.ContactsPath)
 	if cfg.SQLite.RemoteControlPath == "" {
 		cfg.SQLite.RemoteControlPath = "./data/remote_control.db"
 	}

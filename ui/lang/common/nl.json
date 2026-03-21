@@ -30,5 +30,6 @@
   "login.password_show": "Wachtwoord tonen",
   "login.subtitle": "Log in om door te gaan",
   "login.totp_divider": "Authenticatiecode",
-  "login.totp_label": "6-cijferige code"
+  "login.totp_label": "6-cijferige code",
+  "common.nav_knowledge": "Kenniscentrum"
 }

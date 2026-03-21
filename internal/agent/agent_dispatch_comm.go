@@ -17,6 +17,7 @@ import (
 
 	"aurago/internal/budget"
 	"aurago/internal/config"
+	"aurago/internal/contacts"
 	"aurago/internal/inventory"
 	"aurago/internal/llm"
 	"aurago/internal/memory"
@@ -28,7 +29,7 @@ import (
 )
 
 // dispatchComm handles webhook, skill, notification, email, discord, mission, and notes tool calls.
-func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, missionManagerV2 *tools.MissionManagerV2, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, mediaRegistryDB *sql.DB, homepageRegistryDB *sql.DB, remoteHub *remote.RemoteHub, historyMgr *memory.HistoryManager, isMaintenance bool, surgeryPlan string, guardian *security.Guardian, llmGuardian *security.LLMGuardian, sessionID string, coAgentRegistry *CoAgentRegistry, budgetTracker *budget.Tracker) string {
+func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, missionManagerV2 *tools.MissionManagerV2, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, mediaRegistryDB *sql.DB, homepageRegistryDB *sql.DB, contactsDB *sql.DB, remoteHub *remote.RemoteHub, historyMgr *memory.HistoryManager, isMaintenance bool, surgeryPlan string, guardian *security.Guardian, llmGuardian *security.LLMGuardian, sessionID string, coAgentRegistry *CoAgentRegistry, budgetTracker *budget.Tracker) string {
 	switch tc.Action {
 	case "call_webhook":
 		if !cfg.Webhooks.Enabled {
@@ -1162,6 +1163,93 @@ func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 			return `Tool Output: {"status":"error","message":"Telnyx integration is disabled"}`
 		}
 		return "Tool Output: " + telnyx.DispatchManage(ctx, tc.Operation, tc.Limit, tc.Port, cfg, logger)
+
+	case "address_book":
+		if !cfg.Tools.Contacts.Enabled {
+			return `Tool Output: {"status":"error","message":"Address book is disabled. Enable tools.contacts.enabled in config."}`
+		}
+		if contactsDB == nil {
+			return `Tool Output: {"status":"error","message":"Contacts database not available."}`
+		}
+		logger.Info("LLM requested address book operation", "op", tc.Operation)
+		switch tc.Operation {
+		case "list":
+			list, err := contacts.List(contactsDB, "")
+			if err != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
+			}
+			return "Tool Output: " + contacts.ToJSON(map[string]interface{}{"status": "success", "contacts": list, "count": len(list)})
+		case "search":
+			if tc.Query == "" {
+				return `Tool Output: {"status":"error","message":"'query' is required for search operation"}`
+			}
+			list, err := contacts.List(contactsDB, tc.Query)
+			if err != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
+			}
+			return "Tool Output: " + contacts.ToJSON(map[string]interface{}{"status": "success", "contacts": list, "count": len(list)})
+		case "add":
+			if tc.Name == "" {
+				return `Tool Output: {"status":"error","message":"'name' is required to add a contact"}`
+			}
+			c := contacts.Contact{
+				Name:         tc.Name,
+				Email:        tc.Email,
+				Phone:        tc.Phone,
+				Mobile:       tc.Mobile,
+				Address:      tc.ContactAddress,
+				Relationship: tc.Relationship,
+				Notes:        tc.Notes,
+			}
+			id, err := contacts.Create(contactsDB, c)
+			if err != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
+			}
+			return fmt.Sprintf(`Tool Output: {"status":"success","message":"Contact created","id":"%s"}`, id)
+		case "update":
+			if tc.ID == "" {
+				return `Tool Output: {"status":"error","message":"'id' is required for update operation"}`
+			}
+			existing, err := contacts.GetByID(contactsDB, tc.ID)
+			if err != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
+			}
+			if tc.Name != "" {
+				existing.Name = tc.Name
+			}
+			if tc.Email != "" {
+				existing.Email = tc.Email
+			}
+			if tc.Phone != "" {
+				existing.Phone = tc.Phone
+			}
+			if tc.Mobile != "" {
+				existing.Mobile = tc.Mobile
+			}
+			if tc.ContactAddress != "" {
+				existing.Address = tc.ContactAddress
+			}
+			if tc.Relationship != "" {
+				existing.Relationship = tc.Relationship
+			}
+			if tc.Notes != "" {
+				existing.Notes = tc.Notes
+			}
+			if err := contacts.Update(contactsDB, *existing); err != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
+			}
+			return fmt.Sprintf(`Tool Output: {"status":"success","message":"Contact updated","id":"%s"}`, tc.ID)
+		case "delete":
+			if tc.ID == "" {
+				return `Tool Output: {"status":"error","message":"'id' is required for delete operation"}`
+			}
+			if err := contacts.Delete(contactsDB, tc.ID); err != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
+			}
+			return fmt.Sprintf(`Tool Output: {"status":"success","message":"Contact deleted","id":"%s"}`, tc.ID)
+		default:
+			return `Tool Output: {"status":"error","message":"Unknown operation. Use: list, search, add, update, delete"}`
+		}
 
 	default:
 		return dispatchNotHandled

@@ -456,6 +456,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 					ImageGalleryDB:     s.ImageGalleryDB,
 					MediaRegistryDB:    s.MediaRegistryDB,
 					HomepageRegistryDB: s.HomepageRegistryDB,
+					ContactsDB:         s.ContactsDB,
 					RemoteHub:          s.RemoteHub,
 					Vault:              s.Vault,
 					Registry:           s.Registry,
@@ -735,9 +736,40 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		})
 		s.Logger.Info("Media View UI enabled at /media (/gallery redirects here)")
 
+		// ── Knowledge Center Page ──
+		knowledgeTmpl, knowledgeTmplErr := template.ParseFS(uiFS, "knowledge.html")
+		if knowledgeTmplErr != nil {
+			s.Logger.Error("Failed to parse knowledge UI template", "error", knowledgeTmplErr)
+		}
+		mux.HandleFunc("/knowledge", func(w http.ResponseWriter, r *http.Request) {
+			if knowledgeTmpl == nil {
+				http.Error(w, "Knowledge template error", http.StatusInternalServerError)
+				return
+			}
+			lang := normalizeLang(s.Cfg.Server.UILanguage)
+			data := map[string]interface{}{
+				"Lang": lang,
+				"I18N": getI18NJSON(lang),
+			}
+			if err := knowledgeTmpl.Execute(w, data); err != nil {
+				s.Logger.Error("Failed to execute knowledge template", "error", err)
+				http.Error(w, "Template render error", http.StatusInternalServerError)
+			}
+		})
+		s.Logger.Info("Knowledge Center UI enabled at /knowledge")
+
 		// ── Cheat Sheets API ──
 		mux.HandleFunc("/api/cheatsheets", handleCheatSheets(s))
 		mux.HandleFunc("/api/cheatsheets/", handleCheatSheetByID(s))
+
+		// ── Contacts (Address Book) API ──
+		mux.HandleFunc("/api/contacts", handleContacts(s))
+		mux.HandleFunc("/api/contacts/", handleContactByID(s))
+
+		// ── Knowledge Files API ──
+		mux.HandleFunc("/api/knowledge", handleKnowledgeFiles(s))
+		mux.HandleFunc("/api/knowledge/upload", handleKnowledgeUpload(s))
+		mux.HandleFunc("/api/knowledge/", handleKnowledgeFile(s))
 
 		// ── Invasion Control API (handlers guard themselves with s.InvasionDB == nil check) ──
 		mux.HandleFunc("/api/invasion/nests", handleInvasionNests(s))

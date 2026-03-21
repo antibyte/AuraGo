@@ -30,5 +30,6 @@
   "login.password_show": "Εμφάνιση κωδικού πρόσβασης",
   "login.subtitle": "Παρακαλούμε συνδεθείτε για να συνεχίσετε",
   "login.totp_divider": "Κωδικός ελέγχου ταυτότητας",
-  "login.totp_label": "6ψήφιος κωδικός"
+  "login.totp_label": "6ψήφιος κωδικός",
+  "common.nav_knowledge": "Κέντρο Γνώσεων"
 }

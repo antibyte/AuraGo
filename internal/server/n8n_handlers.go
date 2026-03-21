@@ -317,7 +317,7 @@ func handleN8nChat(s *Server) http.HandlerFunc {
 						s.Registry, manifest, s.CronManager, s.MissionManagerV2,
 						s.LongTermMem, s.ShortTermMem, s.KG,
 						s.InventoryDB, s.InvasionDB, s.CheatsheetDB, s.ImageGalleryDB,
-						s.MediaRegistryDB, s.HomepageRegistryDB,
+						s.MediaRegistryDB, s.HomepageRegistryDB, s.ContactsDB,
 						s.RemoteHub, s.HistoryManager, false, "", s.Guardian, s.LLMGuardian,
 						"n8n", s.CoAgentRegistry, s.BudgetTracker, "",
 					)
@@ -517,7 +517,7 @@ func handleN8nToolExecute(s *Server) http.HandlerFunc {
 			s.Registry, manifest, s.CronManager, s.MissionManagerV2,
 			s.LongTermMem, s.ShortTermMem, s.KG,
 			s.InventoryDB, s.InvasionDB, s.CheatsheetDB, s.ImageGalleryDB,
-			s.MediaRegistryDB, s.HomepageRegistryDB,
+			s.MediaRegistryDB, s.HomepageRegistryDB, s.ContactsDB,
 			s.RemoteHub, s.HistoryManager, false, "", s.Guardian, s.LLMGuardian,
 			"n8n", s.CoAgentRegistry, s.BudgetTracker, "",
 		)
@@ -1122,6 +1122,7 @@ func buildFeatureFlags(cfg *config.Config) agent.ToolFeatureFlags {
 		AllowNetworkRequests:     cfg.Agent.AllowNetworkRequests,
 		AllowRemoteShell:         cfg.Agent.AllowRemoteShell,
 		AllowSelfUpdate:          cfg.Agent.AllowSelfUpdate,
+		ContactsEnabled:          cfg.Tools.Contacts.Enabled,
 	}
 }
 

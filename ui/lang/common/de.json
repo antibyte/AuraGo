@@ -29,6 +29,8 @@
   "login.totp_divider": "Authenticator-Code",
   "login.totp_label": "6-stelliger Code",
   "common.nav_cheatsheets": "Spickzettel",
-  "common.nav_gallery": "Bildergalerie",
-  "common.nav_media": "Medienansicht"
+  "common.nav_gallery": "Bildergalerie"
+,
+  "common.nav_media": "Medienansicht",
+  "common.nav_knowledge": "Wissenszentrale"
 }

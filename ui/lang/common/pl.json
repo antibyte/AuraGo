@@ -30,5 +30,6 @@
   "login.password_show": "Pokaż hasło",
   "login.subtitle": "Zaloguj się, aby kontynuować",
   "login.totp_divider": "Kod uwierzytelniający",
-  "login.totp_label": "6-cyfrowy kod"
+  "login.totp_label": "6-cyfrowy kod",
+  "common.nav_knowledge": "Centrum Wiedzy"
 }

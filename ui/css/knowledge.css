@@ -1,0 +1,211 @@
+/* AuraGo – Knowledge Center page styles */
+
+/* Uses standard components from shared.css:
+   - .app-header
+   - .btn, .btn-primary, .btn-secondary, .btn-danger, .btn-sm
+   - .form-group, .form-row
+   - .modal-overlay, .modal, .modal-actions
+   - .empty-state
+*/
+
+/* Container */
+.kc-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 24px 20px 60px;
+}
+
+/* Tabs */
+.kc-tabs {
+    display: flex;
+    gap: 4px;
+    border-bottom: 2px solid var(--border-subtle);
+    margin-bottom: 20px;
+}
+
+.kc-tab {
+    padding: 10px 20px;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: color 0.2s, border-color 0.2s;
+    white-space: nowrap;
+}
+
+.kc-tab:hover {
+    color: var(--text-primary);
+}
+
+.kc-tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+    font-weight: 600;
+}
+
+/* Panels */
+.kc-panel {
+    display: none;
+}
+
+.kc-panel.active {
+    display: block;
+    animation: kcFadeIn 0.2s ease;
+}
+
+@keyframes kcFadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Panel header with search + action */
+.kc-panel-header {
+    margin-bottom: 16px;
+}
+
+.kc-search-row {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.kc-search {
+    flex: 1;
+    padding: 10px 14px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.kc-search:focus {
+    border-color: var(--accent);
+}
+
+.kc-upload-btn {
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Table */
+.kc-table-wrap {
+    overflow-x: auto;
+    border-radius: 8px;
+    border: 1px solid var(--border-subtle);
+}
+
+.kc-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.kc-table thead {
+    background: var(--bg-tertiary, var(--bg-secondary));
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.kc-table th {
+    padding: 10px 14px;
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    border-bottom: 1px solid var(--border-subtle);
+    white-space: nowrap;
+}
+
+.kc-table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border-subtle);
+    color: var(--text-primary);
+    vertical-align: middle;
+}
+
+.kc-table tbody tr:hover {
+    background: var(--bg-hover, rgba(255,255,255,0.03));
+}
+
+.kc-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Table action buttons */
+.kc-actions {
+    display: flex;
+    gap: 6px;
+    white-space: nowrap;
+}
+
+.kc-actions .btn-sm {
+    padding: 4px 10px;
+    font-size: 0.8rem;
+    border-radius: 6px;
+}
+
+/* Contact name column – primary emphasis */
+.kc-name {
+    font-weight: 500;
+}
+
+/* File icon before filename */
+.kc-file-icon {
+    margin-right: 6px;
+}
+
+/* File size styling */
+.kc-size {
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+/* Modal small variant */
+.modal-small {
+    max-width: 420px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .kc-container {
+        padding: 16px 12px 60px;
+    }
+
+    .kc-search-row {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .kc-search-row .btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .kc-table th:nth-child(4),
+    .kc-table td:nth-child(4) {
+        display: none; /* Hide mobile column on small screens */
+    }
+
+    .kc-tab {
+        padding: 8px 14px;
+        font-size: 0.85rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .kc-table th:nth-child(3),
+    .kc-table td:nth-child(3) {
+        display: none; /* Hide phone column on very small screens */
+    }
+}

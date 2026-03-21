@@ -222,6 +222,7 @@ type Server struct {
 	ImageGalleryDB     *sql.DB
 	MediaRegistryDB    *sql.DB
 	HomepageRegistryDB *sql.DB
+	ContactsDB         *sql.DB
 	A2AServer          *a2apkg.Server        // A2A protocol server (nil if disabled)
 	A2AClientMgr       *a2apkg.ClientManager // A2A client manager (nil if disabled)
 	A2ABridge          *a2apkg.Bridge        // A2A co-agent bridge (nil if disabled)
@@ -233,7 +234,7 @@ type Server struct {
 	muFirstStart   sync.Mutex
 }
 
-func Start(cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, remoteControlDB *sql.DB, mediaRegistryDB *sql.DB, homepageRegistryDB *sql.DB, isFirstStart bool, shutdownCh chan struct{}) error {
+func Start(cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, remoteControlDB *sql.DB, mediaRegistryDB *sql.DB, homepageRegistryDB *sql.DB, contactsDB *sql.DB, isFirstStart bool, shutdownCh chan struct{}) error {
 	s := &Server{
 		Cfg:                cfg,
 		Logger:             logger,
@@ -251,6 +252,7 @@ func Start(cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, sh
 		ImageGalleryDB:     imageGalleryDB,
 		MediaRegistryDB:    mediaRegistryDB,
 		HomepageRegistryDB: homepageRegistryDB,
+		ContactsDB:         contactsDB,
 		Guardian:           security.NewGuardian(logger),
 		LLMGuardian:        security.NewLLMGuardian(cfg, logger),
 		CoAgentRegistry:    agent.NewCoAgentRegistry(cfg.CoAgents.MaxConcurrent, logger),
