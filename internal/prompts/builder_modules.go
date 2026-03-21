@@ -428,6 +428,10 @@ func (m *PromptModule) ShouldInclude(flags ContextFlags) bool {
 			if flags.WebScraperEnabled {
 				return true
 			}
+		case "form_automation_enabled":
+			if flags.FormAutomationEnabled {
+				return true
+			}
 		case "a2a_enabled":
 			if flags.A2AEnabled {
 				return true

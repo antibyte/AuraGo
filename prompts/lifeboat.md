@@ -45,3 +45,11 @@ You may also use `execute_surgery` to ask Gemini questions about the codebase.
 
 > [!IMPORTANT]
 > Use this capability for self-improvement and critical bug fixes. Ensure your plan is precise — you are trapped in the Lifeboat until the supervisor runs again.
+
+### Lifeboat Tool Quick Reference
+| Tool | Purpose |
+|---|---|
+| `initiate_handover` | Propose code changes and switch to Maintenance mode |
+| `execute_surgery` | Apply code modifications (Maintenance mode only) |
+| `exit_lifeboat` | Return to normal Supervisor mode |
+| `optimize_memory` | Compact and clean memory stores |
