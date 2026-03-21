@@ -36,6 +36,9 @@ func HomepageOptimizeImages(cfg HomepageConfig, projectDir string, logger *slog.
 
 // HomepageDev starts the dev server in the container.
 func HomepageDev(cfg HomepageConfig, projectDir string, port int, logger *slog.Logger) string {
+	if strings.Contains(projectDir, "..") {
+		return errJSON("Path traversal detected")
+	}
 	if projectDir == "" {
 		projectDir = "."
 	}
@@ -53,6 +56,9 @@ func HomepageDev(cfg HomepageConfig, projectDir string, port int, logger *slog.L
 
 // HomepageDeploy uploads the build output to a remote server via SFTP.
 func HomepageDeploy(cfg HomepageConfig, deployCfg HomepageDeployConfig, projectDir, buildDir string, logger *slog.Logger) string {
+	if strings.Contains(projectDir, "..") || strings.Contains(buildDir, "..") {
+		return errJSON("Path traversal detected")
+	}
 	if deployCfg.Host == "" || deployCfg.User == "" || deployCfg.Path == "" {
 		return errJSON("Deploy requires host, user, and path to be configured")
 	}
@@ -143,6 +149,9 @@ func HomepageTestConnection(deployCfg HomepageDeployConfig, logger *slog.Logger)
 
 // HomepageWebServerStart starts the Caddy container serving the build output.
 func HomepageWebServerStart(cfg HomepageConfig, projectDir, buildDir string, logger *slog.Logger) string {
+	if strings.Contains(projectDir, "..") || strings.Contains(buildDir, "..") {
+		return errJSON("Path traversal detected")
+	}
 	if buildDir == "" {
 		buildDir = detectBuildDir(cfg, projectDir)
 	}
@@ -301,6 +310,9 @@ func HomepageDeployNetlify(cfg HomepageConfig, nfCfg NetlifyConfig, projectDir, 
 	}
 	if cfg.WorkspacePath == "" {
 		return errJSON("Homepage workspace path is not configured")
+	}
+	if strings.Contains(projectDir, "..") || strings.Contains(buildDir, "..") {
+		return errJSON("Path traversal detected")
 	}
 	if projectDir == "" {
 		projectDir = "."

@@ -280,6 +280,15 @@ func handleOllamaModels(s *Server) http.HandlerFunc {
 			return
 		}
 
+		if !strings.HasPrefix(ollamaHost, "http://") && !strings.HasPrefix(ollamaHost, "https://") {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"available": false,
+				"reason":    "invalid URL scheme (must be http:// or https://)",
+			})
+			return
+		}
+
 		client := &http.Client{Timeout: 5 * time.Second}
 		resp, err := client.Get(ollamaHost + "/api/tags")
 		if err != nil {

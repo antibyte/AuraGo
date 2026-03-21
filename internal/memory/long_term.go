@@ -241,7 +241,10 @@ func (cv *ChromemVectorDB) StoreDocumentWithDomain(concept, content, domain stri
 
 	fullContent := concept + "\n\n" + content
 
-	metadata := map[string]string{"concept": concept}
+	metadata := map[string]string{
+		"concept": concept,
+		"timestamp": fmt.Sprintf("%d", time.Now().Unix()),
+	}
 	if domain != "" {
 		metadata["domain"] = domain
 	}
@@ -273,6 +276,7 @@ func (cv *ChromemVectorDB) StoreDocumentWithDomain(concept, content, domain stri
 		chunkMeta := map[string]string{
 			"concept":     concept,
 			"chunk_index": fmt.Sprintf("%d/%d", i+1, len(chunks)),
+			"timestamp":   fmt.Sprintf("%d", time.Now().Unix()),
 		}
 		if domain != "" {
 			chunkMeta["domain"] = domain
@@ -352,7 +356,10 @@ func (cv *ChromemVectorDB) StoreBatch(items []ArchiveItem) ([]string, error) {
 
 	for _, item := range items {
 		fullContent := item.Concept + "\n\n" + item.Content
-		metadata := map[string]string{"concept": item.Concept}
+		metadata := map[string]string{
+			"concept": item.Concept,
+			"timestamp": fmt.Sprintf("%d", time.Now().Unix()),
+		}
 		if item.Domain != "" {
 			metadata["domain"] = item.Domain
 		}
@@ -474,7 +481,22 @@ func (cv *ChromemVectorDB) SearchSimilar(query string, topK int, excludeCollecti
 			continue
 		}
 		for _, result := range cr.results {
-			if result.Similarity > 0.3 {
+			sim := result.Similarity
+			if tsStr, ok := result.Metadata["timestamp"]; ok {
+				if ts, err := strconv.ParseInt(tsStr, 10, 64); err == nil {
+					ageDays := float32(time.Since(time.Unix(ts, 0)).Hours() / 24.0)
+					if ageDays > 0 {
+						// Gentle decay: -1% per day, max -30%
+						decay := ageDays * 0.01
+						if decay > 0.30 {
+							decay = 0.30
+						}
+						sim = sim * (1.0 - decay)
+					}
+				}
+			}
+
+			if sim > 0.3 {
 				domainHint := ""
 				if d, ok := result.Metadata["domain"]; ok && d != "" {
 					domainHint = fmt.Sprintf(" [Domain: %s]", d)
@@ -484,11 +506,17 @@ func (cv *ChromemVectorDB) SearchSimilar(query string, topK int, excludeCollecti
 					domainHint = fmt.Sprintf(" [%s]", cr.colName)
 				}
 
-				cv.logger.Debug("Retrieved memory", "collection", cr.colName, "id", result.ID, "similarity", result.Similarity)
+				cv.logger.Debug("Retrieved memory", "collection", cr.colName, "id", result.ID, "raw_sim", result.Similarity, "decayed_sim", sim)
+				
+				formattedText := result.Content
+				if domainHint != "" {
+					formattedText = domainHint + " " + result.Content
+				}
+
 				allResults = append(allResults, rankedResult{
-					text:       fmt.Sprintf("[Similarity: %.2f]%s %s", result.Similarity, domainHint, result.Content),
+					text:       formattedText,
 					docID:      result.ID,
-					similarity: result.Similarity,
+					similarity: sim,
 				})
 			}
 		}
@@ -547,8 +575,22 @@ func (cv *ChromemVectorDB) SearchMemoriesOnly(query string, topK int) ([]string,
 	var texts []string
 	var ids []string
 	for _, r := range results {
-		if r.Similarity > 0.3 {
-			texts = append(texts, fmt.Sprintf("[Similarity: %.2f] %s", r.Similarity, r.Content))
+		sim := r.Similarity
+		if tsStr, ok := r.Metadata["timestamp"]; ok {
+			if ts, err := strconv.ParseInt(tsStr, 10, 64); err == nil {
+				ageDays := float32(time.Since(time.Unix(ts, 0)).Hours() / 24.0)
+				if ageDays > 0 {
+					decay := ageDays * 0.01
+					if decay > 0.30 {
+						decay = 0.30
+					}
+					sim = sim * (1.0 - decay)
+				}
+			}
+		}
+
+		if sim > 0.3 {
+			texts = append(texts, r.Content)
 			ids = append(ids, r.ID)
 		}
 	}

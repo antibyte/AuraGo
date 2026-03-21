@@ -239,5 +239,15 @@
   "missions.trigger_webhook_hint": "必须在 Webhook 管理器中创建 webhook",
   "missions.trigger_webhook_label": "Webhook",
   "missions.trigger_webhook_loading": "正在加载 webhooks...",
-  "missions.trigger_webhook_none": "没有可用的 webhooks"
+  "missions.trigger_webhook_none": "没有可用的 webhooks",
+  "missions.trigger_home_assistant_state": "🏠 Home Assistant 状态变化",
+  "missions.trigger_home_assistant_state_hint": "当 Home Assistant 实体改变状态时触发。",
+  "missions.trigger_home_assistant_state_badge": "HA 状态变化",
+  "missions.trigger_ha_entity_id_label": "实体 ID（空 = 任意）",
+  "missions.trigger_ha_entity_id_placeholder": "例如 'binary_sensor.front_door'",
+  "missions.trigger_ha_state_equals_label": "触发条件：状态等于（可选）",
+  "missions.trigger_ha_state_equals_placeholder": "例如 'on', 'off', 'home', 'not_home'",
+  "missions.trigger_info_ha_entity_prefix": "实体:",
+  "missions.trigger_info_ha_state_prefix": "状态:",
+  "missions.trigger_info_ha_any_entity": "任意实体"
 }

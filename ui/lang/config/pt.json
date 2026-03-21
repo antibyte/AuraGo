@@ -1,11 +1,11 @@
 {
+  "config.https.behind_proxy_notice": "Detectado por trás do proxy reverso – os cabeçalhos de segurança são definidos de acordo",
+  "config.https.connection_insecure": "Conexão insegura (HTTP) – Habilite o HTTPS para uso produtivo",
+  "config.https.connection_secure": "Sua conexão é segura (HTTPS)",
   "config.https.status_active": "HTTPS está ativo",
   "config.https.status_inactive": "HTTPS está desativado",
-  "config.https.connection_secure": "A sua conexão é segura (HTTPS)",
-  "config.https.connection_insecure": "Conexão insegura (HTTP) – Ative o HTTPS para uso em produção",
-  "config.https.behind_proxy_notice": "Detectado atrás de proxy reverso – Cabeçalhos de segurança ajustados em conformidade",
-  "config.security.title": "Estado de segurança",
-  "config.security.https_enabled": "HTTPS ativado",
   "config.security.auth_enabled": "Proteção de login ativa",
+  "config.security.https_enabled": "HTTPS ativado",
+  "config.security.title": "Status de segurança",
   "config.security.totp_enabled": "Autenticação de dois fatores (2FA)"
 }

@@ -239,5 +239,15 @@
   "missions.trigger_webhook_hint": "Selecione um webhook configurado",
   "missions.trigger_webhook_label": "Webhook",
   "missions.trigger_webhook_loading": "Carregando webhooks...",
-  "missions.trigger_webhook_none": "Nenhum webhook disponível"
+  "missions.trigger_webhook_none": "Nenhum webhook disponível",
+  "missions.trigger_home_assistant_state": "🏠 Home Assistant tilstandsændring",
+  "missions.trigger_home_assistant_state_hint": "Udløses når en Home Assistant enhed ændrer sin tilstand.",
+  "missions.trigger_home_assistant_state_badge": "HA tilstandsændring",
+  "missions.trigger_ha_entity_id_label": "Enheds-ID (tomt = alle)",
+  "missions.trigger_ha_entity_id_placeholder": "f.eks. 'binary_sensor.front_door'",
+  "missions.trigger_ha_state_equals_label": "Udløs når tilstand er lig med (valgfrit)",
+  "missions.trigger_ha_state_equals_placeholder": "f.eks. 'on', 'off', 'home', 'not_home'",
+  "missions.trigger_info_ha_entity_prefix": "Enhed:",
+  "missions.trigger_info_ha_state_prefix": "Tilstand:",
+  "missions.trigger_info_ha_any_entity": "Enhver enhed"
 }

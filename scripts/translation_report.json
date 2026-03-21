@@ -1,0 +1,112 @@
+{
+  "timestamp": "2026-03-21T13:22:58.279577+00:00",
+  "mode": "force",
+  "stats": {
+    "translations_changed": 126,
+    "translations_kept": 0,
+    "languages": 14,
+    "directories": 1
+  },
+  "details": {
+    "config": {
+      "cs": {
+        "changed": 9,
+        "kept": 0,
+        "reasons": {
+          "force": 9
+        }
+      },
+      "da": {
+        "changed": 9,
+        "kept": 0,
+        "reasons": {
+          "force": 9
+        }
+      },
+      "el": {
+        "changed": 9,
+        "kept": 0,
+        "reasons": {
+          "force": 9
+        }
+      },
+      "es": {
+        "changed": 9,
+        "kept": 0,
+        "reasons": {
+          "force": 9
+        }
+      },
+      "fr": {
+        "changed": 9,
+        "kept": 0,
+        "reasons": {
+          "force": 9
+        }
+      },
+      "hi": {
+        "changed": 9,
+        "kept": 0,
+        "reasons": {
+          "force": 9
+        }
+      },
+      "it": {
+        "changed": 9,
+        "kept": 0,
+        "reasons": {
+          "force": 9
+        }
+      },
+      "ja": {
+        "changed": 9,
+        "kept": 0,
+        "reasons": {
+          "force": 9
+        }
+      },
+      "nl": {
+        "changed": 9,
+        "kept": 0,
+        "reasons": {
+          "force": 9
+        }
+      },
+      "no": {
+        "changed": 9,
+        "kept": 0,
+        "reasons": {
+          "force": 9
+        }
+      },
+      "pl": {
+        "changed": 9,
+        "kept": 0,
+        "reasons": {
+          "force": 9
+        }
+      },
+      "pt": {
+        "changed": 9,
+        "kept": 0,
+        "reasons": {
+          "force": 9
+        }
+      },
+      "sv": {
+        "changed": 9,
+        "kept": 0,
+        "reasons": {
+          "force": 9
+        }
+      },
+      "zh": {
+        "changed": 9,
+        "kept": 0,
+        "reasons": {
+          "force": 9
+        }
+      }
+    }
+  }
+}

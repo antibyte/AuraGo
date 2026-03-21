@@ -1,0 +1,42 @@
+Total High Severity Issues: 41
+1. integer overflow conversion uint64 -> int64 - C:\Users\andre\Documents\repo\AuraGo\internal\tools\archive.go:297
+2. integer overflow conversion uint64 -> int64 - C:\Users\andre\Documents\repo\AuraGo\internal\tools\archive.go:279
+3. integer overflow conversion uint64 -> int64 - C:\Users\andre\Documents\repo\AuraGo\internal\invasion\bridge\client.go:271
+4. integer overflow conversion uint32 -> byte - C:\Users\andre\Documents\repo\AuraGo\internal\remote\hub.go:676
+5. integer overflow conversion uint32 -> byte - C:\Users\andre\Documents\repo\AuraGo\internal\remote\hub.go:675
+6. integer overflow conversion uint32 -> byte - C:\Users\andre\Documents\repo\AuraGo\internal\remote\hub.go:674
+7. integer overflow conversion int64 -> uint32 - C:\Users\andre\Documents\repo\AuraGo\internal\tools\archive.go:357
+8. integer overflow conversion int64 -> uint32 - C:\Users\andre\Documents\repo\AuraGo\internal\setup\setup.go:159
+9. integer overflow conversion int64 -> uint32 - C:\Users\andre\Documents\repo\AuraGo\internal\setup\setup.go:146
+10. integer overflow conversion int -> uint32 - C:\Users\andre\Documents\repo\AuraGo\internal\remote\hub.go:665
+11. integer overflow conversion int -> uint32 - C:\Users\andre\Documents\repo\AuraGo\cmd\remote\executor.go:69
+12. integer overflow conversion int -> int32 - C:\Users\andre\Documents\repo\AuraGo\internal\agent\agent_dispatch_comm.go:530
+13. integer overflow conversion int -> byte - C:\Users\andre\Documents\repo\AuraGo\internal\mqtt\client.go:239
+14. integer overflow conversion int -> byte - C:\Users\andre\Documents\repo\AuraGo\internal\mqtt\client.go:198
+15. integer overflow conversion int -> byte - C:\Users\andre\Documents\repo\AuraGo\internal\mqtt\client.go:177
+16. TLS InsecureSkipVerify may be set to true. - C:\Users\andre\Documents\repo\AuraGo\internal\meshcentral\client.go:213
+17. TLS InsecureSkipVerify may be set to true. - C:\Users\andre\Documents\repo\AuraGo\internal\meshcentral\client.go:158
+18. SSRF via taint analysis - C:\Users\andre\Documents\repo\AuraGo\internal\server\config_handlers_providers.go:284
+19. Potential hardcoded credentials - C:\Users\andre\Documents\repo\AuraGo\internal\server\n8n_handlers.go:25
+20. Potential hardcoded credentials - C:\Users\andre\Documents\repo\AuraGo\internal\server\mcp_server_handler.go:24
+21. Potential hardcoded credentials - C:\Users\andre\Documents\repo\AuraGo\internal\server\config_handlers.go:553-584
+22. Potential hardcoded credentials - C:\Users\andre\Documents\repo\AuraGo\internal\server\auth_handlers.go:419-423
+23. Potential hardcoded credentials - C:\Users\andre\Documents\repo\AuraGo\internal\config\config_migrate.go:852-856
+24. Potential hardcoded credentials - C:\Users\andre\Documents\repo\AuraGo\internal\config\config_migrate.go:23-32
+25. Path traversal via taint analysis - C:\Users\andre\Documents\repo\AuraGo\internal\tools\homepage_deploy.go:837
+26. Path traversal via taint analysis - C:\Users\andre\Documents\repo\AuraGo\internal\setup\setup.go:224
+27. Path traversal via taint analysis - C:\Users\andre\Documents\repo\AuraGo\internal\server\remote_control_handlers.go:376
+28. Path traversal via taint analysis - C:\Users\andre\Documents\repo\AuraGo\internal\server\handlers_personality.go:423
+29. Path traversal via taint analysis - C:\Users\andre\Documents\repo\AuraGo\internal\server\handlers_personality.go:299
+30. Path traversal via taint analysis - C:\Users\andre\Documents\repo\AuraGo\internal\server\handlers.go:639
+31. Path traversal via taint analysis - C:\Users\andre\Documents\repo\AuraGo\internal\config\config.go:135
+32. Goroutine uses context.Background/TODO while request-scoped context is available - C:\Users\andre\Documents\repo\AuraGo\internal\server\handlers.go:216
+33. Goroutine uses context.Background/TODO while request-scoped context is available - C:\Users\andre\Documents\repo\AuraGo\internal\agent\agent_loop.go:1963
+34. Goroutine uses context.Background/TODO while request-scoped context is available - C:\Users\andre\Documents\repo\AuraGo\internal\agent\agent_loop.go:1947
+35. Goroutine uses context.Background/TODO while request-scoped context is available - C:\Users\andre\Documents\repo\AuraGo\internal\agent\agent_loop.go:1616
+36. Goroutine uses context.Background/TODO while request-scoped context is available - C:\Users\andre\Documents\repo\AuraGo\internal\a2a\server.go:119
+37. Filesystem operation in filepath.Walk/WalkDir callback uses race-prone path; consider root-scoped APIs (e.g. os.Root) to prevent symlink TOCTOU traversal - C:\Users\andre\Documents\repo\AuraGo\internal\tools\homepage_deploy.go:773
+38. Filesystem operation in filepath.Walk/WalkDir callback uses race-prone path; consider root-scoped APIs (e.g. os.Root) to prevent symlink TOCTOU traversal - C:\Users\andre\Documents\repo\AuraGo\internal\tools\homepage_deploy.go:425
+39. Filesystem operation in filepath.Walk/WalkDir callback uses race-prone path; consider root-scoped APIs (e.g. os.Root) to prevent symlink TOCTOU traversal - C:\Users\andre\Documents\repo\AuraGo\internal\services\indexer.go:270
+40. Filesystem operation in filepath.Walk/WalkDir callback uses race-prone path; consider root-scoped APIs (e.g. os.Root) to prevent symlink TOCTOU traversal - C:\Users\andre\Documents\repo\AuraGo\internal\services\indexer.go:258
+41. Filesystem operation in filepath.Walk/WalkDir callback uses race-prone path; consider root-scoped APIs (e.g. os.Root) to prevent symlink TOCTOU traversal - C:\Users\andre\Documents\repo\AuraGo\internal\server\backup_handlers.go:328

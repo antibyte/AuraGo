@@ -74,11 +74,13 @@ func HAGetStates(cfg HAConfig, domain string) string {
 		states = filtered
 	}
 
-	// Compact output: entity_id, state, friendly_name
+	// Compact output: entity_id, state, friendly_name, device_class, unit_of_measurement
 	type compactState struct {
-		EntityID string `json:"entity_id"`
-		State    string `json:"state"`
-		Name     string `json:"friendly_name,omitempty"`
+		EntityID          string `json:"entity_id"`
+		State             string `json:"state"`
+		Name              string `json:"friendly_name,omitempty"`
+		DeviceClass       string `json:"device_class,omitempty"`
+		UnitOfMeasurement string `json:"unit_of_measurement,omitempty"`
 	}
 	var result []compactState
 	for _, s := range states {
@@ -89,6 +91,12 @@ func HAGetStates(cfg HAConfig, domain string) string {
 		if attrs, ok := s["attributes"].(map[string]interface{}); ok {
 			if fn, ok := attrs["friendly_name"].(string); ok {
 				cs.Name = fn
+			}
+			if dc, ok := attrs["device_class"].(string); ok {
+				cs.DeviceClass = dc
+			}
+			if uom, ok := attrs["unit_of_measurement"].(string); ok {
+				cs.UnitOfMeasurement = uom
 			}
 		}
 		result = append(result, cs)

@@ -25,18 +25,19 @@ const (
 type TriggerType string
 
 const (
-	TriggerMissionCompleted    TriggerType = "mission_completed"    // Another mission finished
-	TriggerEmailReceived       TriggerType = "email_received"       // Email received
-	TriggerWebhook             TriggerType = "webhook"              // Webhook fired
-	TriggerEggHatched          TriggerType = "egg_hatched"          // Egg deployed to a nest
-	TriggerNestCleared         TriggerType = "nest_cleared"         // Nest removed
-	TriggerMQTTMessage         TriggerType = "mqtt_message"         // MQTT message received
-	TriggerSystemStartup       TriggerType = "system_startup"       // AuraGo Startup
-	TriggerDeviceConnected     TriggerType = "device_connected"     // Remote device connected
-	TriggerDeviceDisconnected  TriggerType = "device_disconnected"  // Remote device disconnected or stale
-	TriggerFritzBoxCall        TriggerType = "fritzbox_call"        // Fritz!Box call or voicemail event
-	TriggerBudgetWarning       TriggerType = "budget_warning"       // Budget warning threshold crossed
-	TriggerBudgetExceeded      TriggerType = "budget_exceeded"      // Budget limit exceeded
+	TriggerMissionCompleted   TriggerType = "mission_completed"   // Another mission finished
+	TriggerEmailReceived      TriggerType = "email_received"      // Email received
+	TriggerWebhook            TriggerType = "webhook"             // Webhook fired
+	TriggerEggHatched         TriggerType = "egg_hatched"         // Egg deployed to a nest
+	TriggerNestCleared        TriggerType = "nest_cleared"        // Nest removed
+	TriggerMQTTMessage        TriggerType = "mqtt_message"        // MQTT message received
+	TriggerSystemStartup      TriggerType = "system_startup"      // AuraGo Startup
+	TriggerDeviceConnected    TriggerType = "device_connected"    // Remote device connected
+	TriggerDeviceDisconnected TriggerType = "device_disconnected" // Remote device disconnected or stale
+	TriggerFritzBoxCall       TriggerType = "fritzbox_call"       // Fritz!Box call or voicemail event
+	TriggerBudgetWarning      TriggerType = "budget_warning"      // Budget warning threshold crossed
+	TriggerBudgetExceeded     TriggerType = "budget_exceeded"     // Budget limit exceeded
+	TriggerHomeAssistantState TriggerType = "home_assistant_state" // HA entity state change
 )
 
 // MissionStatus represents the runtime status of a mission
@@ -85,6 +86,10 @@ type TriggerConfig struct {
 
 	// For TriggerFritzBoxCall
 	CallType string `json:"call_type,omitempty"` // "call", "tam_message", or empty for any
+
+	// For TriggerHomeAssistantState
+	HAEntityID    string `json:"ha_entity_id,omitempty"`    // Entity to watch
+	HAStateEquals string `json:"ha_state_equals,omitempty"` // Trigger when state matches this
 }
 
 // MissionV2 represents an enhanced mission with trigger support
@@ -727,6 +732,42 @@ func (m *MissionManagerV2) NotifyBudgetEvent(eventType string, spentUSD, limitUS
 			"time":       time.Now().Format(time.RFC3339),
 		})
 		m.queue.Enqueue(mission.ID, mission.Priority, eventType, string(triggerData))
+		mission.Status = MissionStatusQueued
+	}
+	m.save()
+}
+
+// NotifyHomeAssistantEvent fires mission triggers for HA state changes.
+func (m *MissionManagerV2) NotifyHomeAssistantEvent(entityID, newState, oldState string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	for _, mission := range m.missions {
+		if !mission.Enabled ||
+			mission.ExecutionType != ExecutionTriggered ||
+			mission.TriggerType != TriggerHomeAssistantState {
+			continue
+		}
+
+		cfg := mission.TriggerConfig
+		if cfg == nil {
+			cfg = &TriggerConfig{}
+		}
+
+		if cfg.HAEntityID != "" && cfg.HAEntityID != entityID {
+			continue
+		}
+		if cfg.HAStateEquals != "" && cfg.HAStateEquals != newState {
+			continue
+		}
+
+		triggerData, _ := json.Marshal(map[string]string{
+			"entity_id": entityID,
+			"new_state": newState,
+			"old_state": oldState,
+			"time":      time.Now().Format(time.RFC3339),
+		})
+		m.queue.Enqueue(mission.ID, mission.Priority, "home_assistant_state", string(triggerData))
 		mission.Status = MissionStatusQueued
 	}
 	m.save()

@@ -397,6 +397,16 @@ func Start(cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, sh
 		logger.Warn("Failed to start MissionManagerV2", "error", err)
 	}
 
+	// Start Home Assistant Poller
+	if cfg.HomeAssistant.Enabled && cfg.HomeAssistant.URL != "" && cfg.HomeAssistant.AccessToken != "" {
+		haCfg := tools.HAConfig{
+			URL:         cfg.HomeAssistant.URL,
+			AccessToken: cfg.HomeAssistant.AccessToken,
+		}
+		// Context from server could be passed, but Background is safe for background daemon
+		go tools.StartHomeAssistantPoller(context.Background(), haCfg, s.MissionManagerV2, logger)
+	}
+
 	// Initialize Notes schema in SQLite (idempotent: CREATE TABLE IF NOT EXISTS)
 	if err := shortTermMem.InitNotesTables(); err != nil {
 		logger.Warn("Failed to initialize notes schema (notes tool may not work)", "error", err)

@@ -239,5 +239,15 @@
   "missions.trigger_webhook_hint": "Le webhook doit être créé dans le Webhook Manager",
   "missions.trigger_webhook_label": "Webhook",
   "missions.trigger_webhook_loading": "Chargement des webhooks...",
-  "missions.trigger_webhook_none": "Aucun webhook disponible"
+  "missions.trigger_webhook_none": "Aucun webhook disponible",
+  "missions.trigger_home_assistant_state": "🏠 Changement d'état Home Assistant",
+  "missions.trigger_home_assistant_state_hint": "Se déclenche quand un entité Home Assistant change d'état.",
+  "missions.trigger_home_assistant_state_badge": "Changement d'état HA",
+  "missions.trigger_ha_entity_id_label": "ID entité (vide = toute entité)",
+  "missions.trigger_ha_entity_id_placeholder": "ex. 'binary_sensor.front_door'",
+  "missions.trigger_ha_state_equals_label": "Déclencher si état = (optionnel)",
+  "missions.trigger_ha_state_equals_placeholder": "ex. 'on', 'off', 'home', 'not_home'",
+  "missions.trigger_info_ha_entity_prefix": "Entité:",
+  "missions.trigger_info_ha_state_prefix": "État:",
+  "missions.trigger_info_ha_any_entity": "Toute entité"
 }

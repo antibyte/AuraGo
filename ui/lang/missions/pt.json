@@ -239,5 +239,15 @@
   "missions.trigger_webhook_hint": "Selecione um webhook configurado",
   "missions.trigger_webhook_label": "Webhook",
   "missions.trigger_webhook_loading": "Carregando webhooks...",
-  "missions.trigger_webhook_none": "Nenhum webhook disponível"
+  "missions.trigger_webhook_none": "Nenhum webhook disponível",
+  "missions.trigger_home_assistant_state": "🏠 Mudança de estado no Home Assistant",
+  "missions.trigger_home_assistant_state_hint": "Acionado quando uma entidade do Home Assistant muda de estado.",
+  "missions.trigger_home_assistant_state_badge": "Mudança de estado HA",
+  "missions.trigger_ha_entity_id_label": "ID da entidade (vazio = qualquer)",
+  "missions.trigger_ha_entity_id_placeholder": "ex. 'binary_sensor.front_door'",
+  "missions.trigger_ha_state_equals_label": "Acionar quando estado for igual a (opcional)",
+  "missions.trigger_ha_state_equals_placeholder": "ex. 'on', 'off', 'home', 'not_home'",
+  "missions.trigger_info_ha_entity_prefix": "Entidade:",
+  "missions.trigger_info_ha_state_prefix": "Estado:",
+  "missions.trigger_info_ha_any_entity": "Qualquer entidade"
 }

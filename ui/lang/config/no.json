@@ -1,11 +1,11 @@
 {
+  "config.https.behind_proxy_notice": "Oppdaget bak omvendt proxy – sikkerhetsoverskrifter settes deretter",
+  "config.https.connection_insecure": "Usikker tilkobling (HTTP) – Aktiver HTTPS for produktiv bruk",
+  "config.https.connection_secure": "Tilkoblingen din er sikker (HTTPS)",
   "config.https.status_active": "HTTPS er aktiv",
   "config.https.status_inactive": "HTTPS er deaktivert",
-  "config.https.connection_secure": "Tilkoblingen din er sikker (HTTPS)",
-  "config.https.connection_insecure": "Usikker tilkobling (HTTP) – Aktiver HTTPS for produksjonsbruk",
-  "config.https.behind_proxy_notice": "Oppdaget bak omvendt proxy – Sikkerhetshoder justert tilsvarende",
-  "config.security.title": "Sikkerhetsstatus",
+  "config.security.auth_enabled": "Påloggingsbeskyttelse aktiv",
   "config.security.https_enabled": "HTTPS aktivert",
-  "config.security.auth_enabled": "Innloggingsbeskyttelse aktiv",
+  "config.security.title": "Sikkerhetsstatus",
   "config.security.totp_enabled": "Tofaktorautentisering (2FA)"
 }

@@ -239,5 +239,15 @@
   "missions.trigger_webhook_hint": "De webhook moet worden aangemaakt in de Webhook Manager",
   "missions.trigger_webhook_label": "Webhook",
   "missions.trigger_webhook_loading": "Webhooks laden...",
-  "missions.trigger_webhook_none": "Geen webhooks beschikbaar"
+  "missions.trigger_webhook_none": "Geen webhooks beschikbaar",
+  "missions.trigger_home_assistant_state": "🏠 Home Assistant Statuswijziging",
+  "missions.trigger_home_assistant_state_hint": "Wordt geactiveerd wanneer een Home Assistant entiteit van status verandert.",
+  "missions.trigger_home_assistant_state_badge": "HA statuswijziging",
+  "missions.trigger_ha_entity_id_label": "Entiteit-ID (leeg = elke entiteit)",
+  "missions.trigger_ha_entity_id_placeholder": "bijv. 'binary_sensor.front_door'",
+  "missions.trigger_ha_state_equals_label": "Activeren als status gelijk is aan (optioneel)",
+  "missions.trigger_ha_state_equals_placeholder": "bijv. 'on', 'off', 'home', 'not_home'",
+  "missions.trigger_info_ha_entity_prefix": "Entiteit:",
+  "missions.trigger_info_ha_state_prefix": "Status:",
+  "missions.trigger_info_ha_any_entity": "Elke entiteit"
 }

@@ -15,8 +15,8 @@ agent:
     core_memory_max_entries: 200
     core_personality: friend
     debug_mode: false
-    max_tool_calls: 12
-    memory_compression_char_limit: 50000
+    max_tool_calls: 15
+    memory_compression_char_limit: 60000
     personality_engine: true
     personality_engine_v2: true
     personality_v2_model: ""
@@ -49,10 +49,10 @@ agent:
     # ── Tool guide injection ──
     max_tool_guides: 5                                              # max tool guide documents injected into prompt (default: 5)
 budget:
-    daily_limit_usd: 1
+    daily_limit_usd: 5
     default_cost:
-        input_per_million: 1
-        output_per_million: 3
+        input_per_million: 0.4
+        output_per_million: 0.7
     enabled: false
     enforcement: warn
     models: []
@@ -190,7 +190,7 @@ tools:
     memory_maintenance:
         enabled: true
     wol:
-        enabled: false
+        enabled: true
     web_capture:
         enabled: true                                       # enable web_capture tool (screenshot/PDF via headless Chromium)
     network_ping:
@@ -200,7 +200,7 @@ tools:
     form_automation:
         enabled: false                                      # enable form_automation tool (headless browser form fill/submit, requires web_capture)
     upnp_scan:
-        enabled: false                                      # enable upnp_scan tool (UPnP/SSDP device discovery on LAN)
+        enabled: true                                      # enable upnp_scan tool (UPnP/SSDP device discovery on LAN)
     web_scraper:
         enabled: true
         summary_mode: false

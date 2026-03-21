@@ -1,11 +1,11 @@
 {
+  "config.https.behind_proxy_notice": "在反向代理后面检测到 - 相应地设置安全标头",
+  "config.https.connection_insecure": "不安全连接 (HTTP) – 启用 HTTPS 进行高效使用",
+  "config.https.connection_secure": "您的连接是安全的 (HTTPS)",
   "config.https.status_active": "HTTPS 已激活",
   "config.https.status_inactive": "HTTPS 已禁用",
-  "config.https.connection_secure": "您的连接是安全的（HTTPS）",
-  "config.https.connection_insecure": "不安全的连接（HTTP） – 生产环境请启用 HTTPS",
-  "config.https.behind_proxy_notice": "检测到反向代理 – 安全头部已相应调整",
-  "config.security.title": "安全状态",
-  "config.security.https_enabled": "HTTPS 已启用",
   "config.security.auth_enabled": "登录保护已激活",
-  "config.security.totp_enabled": "双因素认证 (2FA)"
+  "config.security.https_enabled": "HTTPS已激活",
+  "config.security.title": "安全状况",
+  "config.security.totp_enabled": "双因素身份验证 (2FA)"
 }

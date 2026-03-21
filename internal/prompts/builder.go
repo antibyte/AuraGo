@@ -4,6 +4,8 @@ import (
 	"aurago/internal/memory"
 	"aurago/internal/security"
 	promptsembed "aurago/prompts"
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"log/slog"
@@ -731,25 +733,58 @@ func OptimizePrompt(raw string) (string, int) {
 	lines := strings.Split(raw, "\n")
 	result := make([]string, 0, len(lines))
 	inCodeBlock := false
+	codeBlockLang := ""
+	var jsonBuffer []string
 	emptyLineCount := 0
 
 	for _, line := range lines {
-		// Toggle code block state on ``` delimiters
-		if strings.HasPrefix(strings.TrimSpace(line), "```") {
-			inCodeBlock = !inCodeBlock
-			emptyLineCount = 0
-			result = append(result, line)
-			continue
-		}
-
-		// Inside code blocks: keep as-is (protection)
-		if inCodeBlock {
-			result = append(result, line)
-			continue
-		}
-
-		// Outside code blocks: trim + collapse markers + collapse blank lines
 		trimmed := strings.TrimSpace(line)
+
+		// Toggle code block state on ``` delimiters
+		if strings.HasPrefix(trimmed, "```") {
+			if inCodeBlock {
+				// We are closing a code block
+				if codeBlockLang == "json" && len(jsonBuffer) > 0 {
+					joinedJSON := strings.Join(jsonBuffer, "\n")
+					var minified bytes.Buffer
+					if err := json.Compact(&minified, []byte(joinedJSON)); err == nil {
+						result = append(result, minified.String())
+					} else {
+						result = append(result, jsonBuffer...)
+					}
+					jsonBuffer = nil
+				} else if len(jsonBuffer) > 0 {
+					result = append(result, jsonBuffer...)
+					jsonBuffer = nil
+				}
+				inCodeBlock = false
+				codeBlockLang = ""
+				emptyLineCount = 0
+				result = append(result, line) // closing delimiter
+			} else {
+				// We are opening a code block
+				inCodeBlock = true
+				codeBlockLang = strings.ToLower(strings.TrimPrefix(trimmed, "```"))
+				emptyLineCount = 0
+				result = append(result, line) // opening delimiter
+			}
+			continue
+		}
+
+		// Inside code blocks: buffer JSON or keep as-is
+		if inCodeBlock {
+			if codeBlockLang == "json" {
+				jsonBuffer = append(jsonBuffer, line)
+			} else {
+				result = append(result, line)
+			}
+			continue
+		}
+
+		// Outside code blocks: strip trailing colon from markdown headers to save tokens
+		if strings.HasPrefix(trimmed, "#") && strings.HasSuffix(trimmed, ":") {
+			trimmed = strings.TrimSuffix(trimmed, ":")
+		}
 
 		// Collapse repeated decoration markers (-----, =====, *****)
 		if len(trimmed) > 5 {
@@ -762,16 +797,47 @@ func OptimizePrompt(raw string) (string, int) {
 			}
 		}
 
+		// Preserve leading whitespace for lists to keep structural info, drop else
+		var outLine string
+		strippedLeft := strings.TrimLeft(line, " \t")
+		if strings.HasPrefix(strippedLeft, "- ") || strings.HasPrefix(strippedLeft, "* ") {
+			// Keep leading whitespace but remove trailing space
+			outLine = strings.TrimRight(line, " \t")
+			
+			// Normalize marker inside list to save variant tokens (* to -)
+			if strings.HasPrefix(strippedLeft, "* ") {
+				idx := strings.Index(outLine, "* ")
+				if idx >= 0 {
+					outLine = outLine[:idx] + "- " + outLine[idx+2:]
+				}
+			}
+			// Collapse double spaces inline
+			for strings.Contains(outLine, "  ") {
+				outLine = strings.ReplaceAll(outLine, "  ", " ")
+			}
+		} else {
+			// Free text: collapse double spaces and use trimmed line
+			outLine = trimmed
+			for strings.Contains(outLine, "  ") {
+				outLine = strings.ReplaceAll(outLine, "  ", " ")
+			}
+		}
+
 		// Blank line collapsing: max 1 consecutive empty line
-		if trimmed == "" {
+		if outLine == "" {
 			emptyLineCount++
 			if emptyLineCount <= 1 {
 				result = append(result, "")
 			}
 		} else {
 			emptyLineCount = 0
-			result = append(result, trimmed)
+			result = append(result, outLine)
 		}
+	}
+
+	// Dump any unclosed buffer
+	if len(jsonBuffer) > 0 {
+		result = append(result, jsonBuffer...)
 	}
 
 	optimized := strings.TrimSpace(strings.Join(result, "\n"))

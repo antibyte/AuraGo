@@ -342,6 +342,9 @@ func HomepageInitProject(cfg HomepageConfig, framework, name string, logger *slo
 	if strings.ContainsAny(name, ";|&`$(){}\"' <>") {
 		return errJSON("Invalid project name: %s", name)
 	}
+	if strings.Contains(name, "..") || strings.Contains(name, "/") || strings.Contains(name, "\\") {
+		return errJSON("Path traversal not allowed in project name")
+	}
 	var cmd string
 	switch strings.ToLower(framework) {
 	case "next", "nextjs", "next.js":
@@ -458,6 +461,9 @@ func HomepageInitProject(cfg HomepageConfig, framework, name string, logger *slo
 // HomepageBuild runs the build command in the project directory.
 // Plain HTML projects (no package.json) are detected and skipped — they need no build step.
 func HomepageBuild(cfg HomepageConfig, projectDir string, logger *slog.Logger) string {
+	if strings.Contains(projectDir, "..") {
+		return errJSON("Path traversal detected")
+	}
 	if projectDir == "" {
 		projectDir = "."
 	}
@@ -479,6 +485,9 @@ func HomepageBuild(cfg HomepageConfig, projectDir string, logger *slog.Logger) s
 
 // HomepageInstallDeps installs npm packages inside the container.
 func HomepageInstallDeps(cfg HomepageConfig, projectDir string, packages []string, logger *slog.Logger) string {
+	if strings.Contains(projectDir, "..") {
+		return errJSON("Path traversal detected")
+	}
 	if projectDir == "" {
 		projectDir = "."
 	}
@@ -554,6 +563,9 @@ const {chromium} = require('playwright');
 
 // HomepageLint runs ESLint in the project directory.
 func HomepageLint(cfg HomepageConfig, projectDir string, logger *slog.Logger) string {
+	if strings.Contains(projectDir, "..") {
+		return errJSON("Path traversal detected")
+	}
 	if projectDir == "" {
 		projectDir = "."
 	}

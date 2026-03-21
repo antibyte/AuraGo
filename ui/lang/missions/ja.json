@@ -239,5 +239,15 @@
   "missions.trigger_webhook_hint": "Webhook は Webhook マネージャーで作成する必要があります",
   "missions.trigger_webhook_label": "Webhook",
   "missions.trigger_webhook_loading": "Webhook を読み込み中…",
-  "missions.trigger_webhook_none": "Webhook がありません"
+  "missions.trigger_webhook_none": "Webhook がありません",
+  "missions.trigger_home_assistant_state": "🏠 Home Assistant 状態変化",
+  "missions.trigger_home_assistant_state_hint": "Home Assistantのエンティティが状態を変えた時にトリガーされます。",
+  "missions.trigger_home_assistant_state_badge": "HA 状態変化",
+  "missions.trigger_ha_entity_id_label": "エンティティID (空 = 任意)",
+  "missions.trigger_ha_entity_id_placeholder": "例: 'binary_sensor.front_door'",
+  "missions.trigger_ha_state_equals_label": "この状態のときにトリガー (任意)",
+  "missions.trigger_ha_state_equals_placeholder": "例: 'on', 'off', 'home', 'not_home'",
+  "missions.trigger_info_ha_entity_prefix": "エンティティ:",
+  "missions.trigger_info_ha_state_prefix": "状態:",
+  "missions.trigger_info_ha_any_entity": "任意のエンティティ"
 }

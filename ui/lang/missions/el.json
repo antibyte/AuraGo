@@ -239,5 +239,15 @@
   "missions.trigger_webhook_hint": "Vyberte nakonfigurovany webhook",
   "missions.trigger_webhook_label": "Webhook",
   "missions.trigger_webhook_loading": "Nacitani webhooku...",
-  "missions.trigger_webhook_none": "Zadny webhook dostupny"
+  "missions.trigger_webhook_none": "Zadny webhook dostupny",
+  "missions.trigger_home_assistant_state": "🏠 Αλλαγή κατάστασης Home Assistant",
+  "missions.trigger_home_assistant_state_hint": "Ενεργοποιείται όταν μια οντότητα του Home Assistant αλλάζει κατάσταση.",
+  "missions.trigger_home_assistant_state_badge": "Αλλαγή κατάστασης HA",
+  "missions.trigger_ha_entity_id_label": "ID οντότητας (κενό = οποιαδήποτε)",
+  "missions.trigger_ha_entity_id_placeholder": "π.χ. 'binary_sensor.front_door'",
+  "missions.trigger_ha_state_equals_label": "Ενεργοποίηση όταν η κατάσταση είναι (προαιρετικό)",
+  "missions.trigger_ha_state_equals_placeholder": "π.χ. 'on', 'off', 'home', 'not_home'",
+  "missions.trigger_info_ha_entity_prefix": "Οντότητα:",
+  "missions.trigger_info_ha_state_prefix": "Κατάσταση:",
+  "missions.trigger_info_ha_any_entity": "Οποιαδήποτε οντότητα"
 }

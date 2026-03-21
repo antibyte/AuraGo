@@ -239,5 +239,15 @@
   "missions.trigger_webhook_hint": "Vyberte nakonfigurovany webhook",
   "missions.trigger_webhook_label": "Webhook",
   "missions.trigger_webhook_loading": "Nacitani webhooku...",
-  "missions.trigger_webhook_none": "Zadny webhook dostupny"
+  "missions.trigger_webhook_none": "Zadny webhook dostupny",
+  "missions.trigger_home_assistant_state": "🏠 Změna stavu Home Assistant",
+  "missions.trigger_home_assistant_state_hint": "Spustí se, když entita Home Assistant změní svůj stav.",
+  "missions.trigger_home_assistant_state_badge": "Změna stavu HA",
+  "missions.trigger_ha_entity_id_label": "ID entity (prázdné = libovolná)",
+  "missions.trigger_ha_entity_id_placeholder": "např. 'binary_sensor.front_door'",
+  "missions.trigger_ha_state_equals_label": "Spustit když stav rovná se (volitelné)",
+  "missions.trigger_ha_state_equals_placeholder": "např. 'on', 'off', 'home', 'not_home'",
+  "missions.trigger_info_ha_entity_prefix": "Entita:",
+  "missions.trigger_info_ha_state_prefix": "Stav:",
+  "missions.trigger_info_ha_any_entity": "Libovolná entita"
 }

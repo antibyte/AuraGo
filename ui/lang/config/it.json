@@ -1,11 +1,11 @@
 {
+  "config.https.behind_proxy_notice": "Rilevato dietro proxy inverso: le intestazioni di sicurezza vengono impostate di conseguenza",
+  "config.https.connection_insecure": "Connessione non sicura (HTTP): abilita HTTPS per un uso produttivo",
+  "config.https.connection_secure": "La tua connessione è sicura (HTTPS)",
   "config.https.status_active": "HTTPS è attivo",
   "config.https.status_inactive": "HTTPS è disabilitato",
-  "config.https.connection_secure": "La tua connessione è sicura (HTTPS)",
-  "config.https.connection_insecure": "Connessione non sicura (HTTP) – Abilita HTTPS per l'uso in produzione",
-  "config.https.behind_proxy_notice": "Rilevato proxy inverso – Intestazioni di sicurezza regolate di conseguenza",
-  "config.security.title": "Stato della sicurezza",
-  "config.security.https_enabled": "HTTPS abilitato",
-  "config.security.auth_enabled": "Protezione login attiva",
+  "config.security.auth_enabled": "Protezione accesso attiva",
+  "config.security.https_enabled": "HTTPS attivato",
+  "config.security.title": "Stato di sicurezza",
   "config.security.totp_enabled": "Autenticazione a due fattori (2FA)"
 }

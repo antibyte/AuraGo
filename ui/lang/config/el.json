@@ -1,11 +1,11 @@
 {
+  "config.https.behind_proxy_notice": "Εντοπίστηκε πίσω από τον αντίστροφο διακομιστή μεσολάβησης – οι κεφαλίδες ασφαλείας ορίζονται ανάλογα",
+  "config.https.connection_insecure": "Μη ασφαλής σύνδεση (HTTP) – Ενεργοποιήστε το HTTPS για παραγωγική χρήση",
+  "config.https.connection_secure": "Η σύνδεσή σας είναι ασφαλής (HTTPS)",
   "config.https.status_active": "Το HTTPS είναι ενεργό",
   "config.https.status_inactive": "Το HTTPS είναι απενεργοποιημένο",
-  "config.https.connection_secure": "Η σύνδεσή σας είναι ασφαλής (HTTPS)",
-  "config.https.connection_insecure": "Ανασφαλής σύνδεση (HTTP) – Ενεργοποιήστε το HTTPS για παραγωγική χρήση",
-  "config.https.behind_proxy_notice": "Ανιχνεύθηκε reverse proxy – Οι κεφαλίδες ασφαλείας προσαρμόστηκαν ανάλογα",
+  "config.security.auth_enabled": "Ενεργή προστασία σύνδεσης",
+  "config.security.https_enabled": "Το HTTPS ενεργοποιήθηκε",
   "config.security.title": "Κατάσταση ασφαλείας",
-  "config.security.https_enabled": "HTTPS ενεργοποιημένο",
-  "config.security.auth_enabled": "Προστασία σύνδεσης ενεργή",
   "config.security.totp_enabled": "Έλεγχος ταυτότητας δύο παραγόντων (2FA)"
 }

@@ -276,6 +276,9 @@ func extractZip(archivePath, targetDir string) ([]string, error) {
 		}
 
 		// Size limit check
+		if f.UncompressedSize64 > uint64(maxExtractSize) {
+			return nil, fmt.Errorf("archive exceeds maximum uncompressed size limit (%d bytes)", maxExtractSize)
+		}
 		totalBytes += int64(f.UncompressedSize64)
 		if totalBytes > maxExtractSize {
 			return nil, fmt.Errorf("archive exceeds maximum uncompressed size limit (%d bytes)", maxExtractSize)
@@ -354,7 +357,7 @@ func extractTarGz(archivePath, targetDir string) ([]string, error) {
 			if err := os.MkdirAll(filepath.Dir(dest), 0o750); err != nil {
 				return nil, err
 			}
-			outFile, err := os.OpenFile(dest, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.FileMode(header.Mode))
+			outFile, err := os.OpenFile(dest, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.FileMode(header.Mode&07777))
 			if err != nil {
 				return nil, err
 			}

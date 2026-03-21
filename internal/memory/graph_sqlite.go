@@ -207,6 +207,14 @@ func (kg *KnowledgeGraph) AddNode(id, label string, properties map[string]string
 	if properties == nil {
 		properties = make(map[string]string)
 	}
+	
+	// Enforce 50 char limit per property to protect prompt context
+	for k, v := range properties {
+		if len(v) > 50 {
+			properties[k] = v[:47] + "..."
+		}
+	}
+
 	propsJSON, err := json.Marshal(properties)
 	if err != nil {
 		return fmt.Errorf("marshal node properties: %w", err)
@@ -236,6 +244,13 @@ func (kg *KnowledgeGraph) AddNode(id, label string, properties map[string]string
 func (kg *KnowledgeGraph) AddEdge(source, target, relation string, properties map[string]string) error {
 	if properties == nil {
 		properties = make(map[string]string)
+	}
+
+	// Enforce 50 char limit per property to protect prompt context
+	for k, v := range properties {
+		if len(v) > 50 {
+			properties[k] = v[:47] + "..."
+		}
 	}
 
 	tx, err := kg.db.Begin()
@@ -489,7 +504,7 @@ func (kg *KnowledgeGraph) SearchForContext(query string, maxNodes int, maxChars 
 			continue
 		}
 
-		sb.WriteString(fmt.Sprintf("- **%s** (%s)", nid, label))
+		sb.WriteString(fmt.Sprintf("- %s (%s)", nid, label))
 
 		// Parse properties for relevant context
 		var props map[string]string
@@ -512,7 +527,7 @@ func (kg *KnowledgeGraph) SearchForContext(query string, maxNodes int, maxChars 
 			for edgeRows.Next() {
 				var src, tgt, rel string
 				if edgeRows.Scan(&src, &tgt, &rel) == nil {
-					sb.WriteString(fmt.Sprintf("  → %s -[%s]→ %s\n", src, rel, tgt))
+					sb.WriteString(fmt.Sprintf("  -> %s -[%s]-> %s\n", src, rel, tgt))
 				}
 			}
 			edgeRows.Close()

@@ -239,5 +239,15 @@
   "missions.trigger_webhook_hint": "वेबहुक को वेबहुक मैनेजर",
   "missions.trigger_webhook_label": "में बनाया जाना चाहिए वेबहुक",
   "missions.trigger_webhook_loading": "वेबहुक लोड हो रहा है...",
-  "missions.trigger_webhook_none": "कोई वेबहुक उपलब्ध नहीं है"
+  "missions.trigger_webhook_none": "कोई वेबहुक उपलब्ध नहीं है",
+  "missions.trigger_home_assistant_state": "🏠 Home Assistant स्थिति परिवर्तन",
+  "missions.trigger_home_assistant_state_hint": "जब कोई Home Assistant इकाई अपनी स्थिति बदलती है तो ट्रिगर होता है।",
+  "missions.trigger_home_assistant_state_badge": "HA स्थिति परिवर्तन",
+  "missions.trigger_ha_entity_id_label": "इकाई ID (खाली = कोई भी)",
+  "missions.trigger_ha_entity_id_placeholder": "जैसे 'binary_sensor.front_door'",
+  "missions.trigger_ha_state_equals_label": "ट्रिगर करें जब स्थिति बराबर हो (वैकल्पिक)",
+  "missions.trigger_ha_state_equals_placeholder": "जैसे 'on', 'off', 'home', 'not_home'",
+  "missions.trigger_info_ha_entity_prefix": "इकाई:",
+  "missions.trigger_info_ha_state_prefix": "स्थिति:",
+  "missions.trigger_info_ha_any_entity": "कोई भी इकाई"
 }

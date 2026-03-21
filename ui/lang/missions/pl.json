@@ -239,5 +239,15 @@
   "missions.trigger_webhook_hint": "Webhook musi być utworzony w Webhook Manager",
   "missions.trigger_webhook_label": "Webhook",
   "missions.trigger_webhook_loading": "Ładowanie webhooków...",
-  "missions.trigger_webhook_none": "Brak dostępnych webhooków"
+  "missions.trigger_webhook_none": "Brak dostępnych webhooków",
+  "missions.trigger_home_assistant_state": "🏠 Zmiana stanu Home Assistant",
+  "missions.trigger_home_assistant_state_hint": "Wyzwalany gdy encja Home Assistant zmienia swój stan.",
+  "missions.trigger_home_assistant_state_badge": "Zmiana stanu HA",
+  "missions.trigger_ha_entity_id_label": "ID encji (puste = dowolna)",
+  "missions.trigger_ha_entity_id_placeholder": "np. 'binary_sensor.front_door'",
+  "missions.trigger_ha_state_equals_label": "Wyzwól gdy stan równa się (opcjonalne)",
+  "missions.trigger_ha_state_equals_placeholder": "np. 'on', 'off', 'home', 'not_home'",
+  "missions.trigger_info_ha_entity_prefix": "Encja:",
+  "missions.trigger_info_ha_state_prefix": "Stan:",
+  "missions.trigger_info_ha_any_entity": "Dowolna encja"
 }

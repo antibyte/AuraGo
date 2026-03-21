@@ -609,6 +609,7 @@ func handleUpload(s *Server) http.HandlerFunc {
 		}
 
 		// 32 MB max upload size
+		r.Body = http.MaxBytesReader(w, r.Body, 32<<20)
 		if err := r.ParseMultipartForm(32 << 20); err != nil {
 			http.Error(w, "failed to parse form", http.StatusBadRequest)
 			return
