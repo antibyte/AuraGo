@@ -528,6 +528,7 @@ func processDiscordMessage(s *discordgo.Session, m *discordgo.MessageCreate, inp
 		SessionID:        sessionID,
 		IsMaintenance:    tools.IsBusy(),
 		SurgeryPlan:      "",
+		MessageSource:    "discord",
 	}
 
 	resp, err := agent.ExecuteAgentLoop(ctx, req, runCfg, false, broker)

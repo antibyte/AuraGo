@@ -178,6 +178,7 @@ type ContextFlags struct {
 	ErrorPatternContext      string // Known error patterns with resolutions for agent learning
 	EmotionDescription       string // LLM-synthesized emotional state description (Emotion Synthesizer)
 	IsMission                bool   // true when this is a mission run — skips personality, profiling, emotion
+	MessageSource            string // origin channel: "web_chat", "telegram", "discord", "a2a", "sms", "mission"
 }
 
 // DetermineTierAdaptive returns a prompt tier based on both conversation length and
@@ -429,6 +430,26 @@ func BuildSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string,
 	finalPrompt.WriteString("# NOW\n")
 	finalPrompt.WriteString(now.Format("2006-01-02 15:04"))
 	finalPrompt.WriteString("\n")
+
+	// Message source channel hint
+	if flags.MessageSource != "" {
+		label := flags.MessageSource
+		switch flags.MessageSource {
+		case "web_chat":
+			label = "Web Chat"
+		case "telegram":
+			label = "Telegram"
+		case "discord":
+			label = "Discord"
+		case "a2a":
+			label = "A2A (Agent-to-Agent)"
+		case "sms":
+			label = "SMS"
+		case "mission":
+			label = "Mission (automated)"
+		}
+		finalPrompt.WriteString("> **Channel:** " + label + "\n")
+	}
 
 	// Internet-exposure warning — shown before custom instructions so it is always visible
 	if flags.InternetExposed {

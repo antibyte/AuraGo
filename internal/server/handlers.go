@@ -445,6 +445,12 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			SurgeryPlan:        "", // UI-driven chats don't currently pass a formal surgery plan
 			IsMission:          missionID != "",
 			MissionID:          missionID,
+			MessageSource: func() string {
+				if missionID != "" {
+					return "mission"
+				}
+				return "web_chat"
+			}(),
 		}
 
 		if req.Stream {

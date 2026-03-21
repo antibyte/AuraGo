@@ -117,6 +117,7 @@ func (e *Executor) Execute(ctx context.Context, execCtx *a2asrv.ExecutorContext)
 			BudgetTracker:   e.deps.Budget,
 			SessionID:       sessionID,
 			IsMaintenance:   false,
+			MessageSource:   "a2a",
 		}
 
 		broker := &agent.NoopBroker{}

@@ -467,6 +467,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 					LLMGuardian:        s.LLMGuardian,
 					SessionID:          "default",
 					IsMaintenance:      tools.IsBusy(),
+					MessageSource:      "sms",
 				}
 				go agent.Loopback(runCfg, msg, telnyx.NewSMSBroker(s.Cfg, from, s.Logger))
 			}, nil)

@@ -383,6 +383,7 @@ func processUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Con
 		SessionID:        sessionID,
 		IsMaintenance:    tools.IsBusy(), // Changed from false to tools.IsBusy() based on original RunSyncAgentLoop
 		SurgeryPlan:      "",
+		MessageSource:    "telegram",
 	}
 
 	// Use a NoopBroker for telegram, as we don't stream UI events back

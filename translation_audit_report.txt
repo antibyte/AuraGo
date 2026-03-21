@@ -1,0 +1,594 @@
+================================================================================
+DETAILED TRANSLATION AUDIT RESULTS
+================================================================================
+Total files checked: 45
+Total problems found: 430
+Problematic files: 36
+
+================================================================================
+SUMMARY BY PROBLEM TYPE
+================================================================================
+SUSPICIOUS: File may contain wrong language translations: 1
+Same as English (possibly untranslated): 429
+
+================================================================================
+DETAILED PROBLEMS LIST
+================================================================================
+
+FILE: ui/lang/dashboard/cs.json
+------------------------------------------------------------
+  UNTRANSLATED: "dashboard.guardian_title" = "LLM Guardian"
+  UNTRANSLATED: "dashboard.integration_chromecast" = "Chromecast"
+  UNTRANSLATED: "dashboard.integration_firewall" = "Firewall"
+  UNTRANSLATED: "dashboard.integration_home_assistant" = "Home Assistant"
+  UNTRANSLATED: "dashboard.integration_llm_guardian" = "LLM Guardian"
+  UNTRANSLATED: "dashboard.integration_rocketchat" = "Rocket.Chat"
+
+FILE: ui/lang/dashboard/da.json
+------------------------------------------------------------
+  SUSPICIOUS: 152 values match Portuguese (pt.json)
+  UNTRANSLATED: "dashboard.integration_chromecast" = "Chromecast"
+  UNTRANSLATED: "dashboard.integration_fallback_llm" = "Fallback LLM"
+  UNTRANSLATED: "dashboard.integration_firewall" = "Firewall"
+  UNTRANSLATED: "dashboard.integration_google_workspace" = "Google Workspace"
+  UNTRANSLATED: "dashboard.integration_home_assistant" = "Home Assistant"
+  UNTRANSLATED: "dashboard.integration_rocketchat" = "Rocket.Chat"
+
+FILE: ui/lang/dashboard/de.json
+------------------------------------------------------------
+  UNTRANSLATED: "dashboard.adaptive_tools_max" = "Max Tools"
+  UNTRANSLATED: "dashboard.budget_title" = "Budget & Tokens"
+  UNTRANSLATED: "dashboard.github_badge_private" = "Private"
+  UNTRANSLATED: "dashboard.github_badge_public" = "Public"
+  UNTRANSLATED: "dashboard.github_badge_tracked" = "Tracked"
+  UNTRANSLATED: "dashboard.github_title" = "GitHub Repositories"
+  UNTRANSLATED: "dashboard.guardian_failsafe" = "Fail-Safe"
+  UNTRANSLATED: "dashboard.guardian_title" = "LLM Guardian"
+  UNTRANSLATED: "dashboard.guardian_tokens" = "Tokens"
+  UNTRANSLATED: "dashboard.integration_auth" = "Auth"
+  UNTRANSLATED: "dashboard.integration_brave_search" = "Brave Search"
+  UNTRANSLATED: "dashboard.integration_budget" = "Budget"
+  UNTRANSLATED: "dashboard.integration_chromecast" = "Chromecast"
+  UNTRANSLATED: "dashboard.integration_cloudflare_tunnel" = "Cloudflare Tunnel"
+  UNTRANSLATED: "dashboard.integration_co_agents" = "Co-Agents"
+  UNTRANSLATED: "dashboard.integration_email" = "E-Mail"
+  UNTRANSLATED: "dashboard.integration_fallback_llm" = "Fallback LLM"
+  UNTRANSLATED: "dashboard.integration_firewall" = "Firewall"
+  UNTRANSLATED: "dashboard.integration_google_workspace" = "Google Workspace"
+  UNTRANSLATED: "dashboard.integration_home_assistant" = "Home Assistant"
+  UNTRANSLATED: "dashboard.integration_indexing" = "Indexer"
+  UNTRANSLATED: "dashboard.integration_invasion" = "Invasion"
+  UNTRANSLATED: "dashboard.integration_paperless_ngx" = "Paperless-ngx"
+  UNTRANSLATED: "dashboard.integration_personality_v2" = "Personality V2"
+  UNTRANSLATED: "dashboard.integration_rocketchat" = "Rocket.Chat"
+  UNTRANSLATED: "dashboard.integration_sandbox" = "Sandbox"
+  UNTRANSLATED: "dashboard.integration_user_profiling" = "Profiling"
+  UNTRANSLATED: "dashboard.journal_title" = "Journal"
+  UNTRANSLATED: "dashboard.memory_chart_core_memory" = "Core Memory"
+  UNTRANSLATED: "dashboard.memory_chart_graph_edges" = "Graph Edges"
+  UNTRANSLATED: "dashboard.memory_chart_graph_nodes" = "Graph Nodes"
+  UNTRANSLATED: "dashboard.memory_chart_messages" = "Messages"
+  UNTRANSLATED: "dashboard.memory_embeddings" = "Embeddings"
+  UNTRANSLATED: "dashboard.memory_embeddings_disabled" = "Embeddings ⚠"
+  UNTRANSLATED: "dashboard.memory_journal" = "Journal"
+  UNTRANSLATED: "dashboard.operations_vault_keys" = "Vault Keys"
+  UNTRANSLATED: "dashboard.page_title" = "AuraGo – Dashboard"
+  UNTRANSLATED: "dashboard.personality_mood_neutral" = "Neutral"
+  UNTRANSLATED: "dashboard.prompt_chart_optimized" = "Optimized"
+  UNTRANSLATED: "dashboard.prompt_chart_shed_savings" = "Budget Shed"
+  UNTRANSLATED: "dashboard.system_sse_clients" = "SSE Clients"
+  UNTRANSLATED: "dashboard.tab_agent" = "Agent"
+  UNTRANSLATED: "dashboard.tab_system" = "System"
+
+FILE: ui/lang/dashboard/el.json
+------------------------------------------------------------
+  UNTRANSLATED: "dashboard.guardian_title" = "LLM Guardian"
+  UNTRANSLATED: "dashboard.integration_chromecast" = "Chromecast"
+  UNTRANSLATED: "dashboard.integration_home_assistant" = "Home Assistant"
+  UNTRANSLATED: "dashboard.integration_llm_guardian" = "LLM Guardian"
+  UNTRANSLATED: "dashboard.integration_rocketchat" = "Rocket.Chat"
+  UNTRANSLATED: "dashboard.integration_sandbox" = "Sandbox"
+
+FILE: ui/lang/dashboard/es.json
+------------------------------------------------------------
+  UNTRANSLATED: "dashboard.integration_chromecast" = "Chromecast"
+  UNTRANSLATED: "dashboard.integration_home_assistant" = "Home Assistant"
+  UNTRANSLATED: "dashboard.integration_rocketchat" = "Rocket.Chat"
+  UNTRANSLATED: "dashboard.personality_mood_neutral" = "Neutral"
+
+FILE: ui/lang/dashboard/fr.json
+------------------------------------------------------------
+  UNTRANSLATED: "dashboard.integration_chromecast" = "Chromecast"
+  UNTRANSLATED: "dashboard.integration_home_assistant" = "Home Assistant"
+  UNTRANSLATED: "dashboard.integration_rocketchat" = "Rocket.Chat"
+  UNTRANSLATED: "dashboard.memory_chart_messages" = "Messages"
+  UNTRANSLATED: "dashboard.operations_missions" = "Missions"
+
+FILE: ui/lang/dashboard/hi.json
+------------------------------------------------------------
+  UNTRANSLATED: "dashboard.integration_chromecast" = "Chromecast"
+
+FILE: ui/lang/dashboard/it.json
+------------------------------------------------------------
+  UNTRANSLATED: "dashboard.integration_chromecast" = "Chromecast"
+  UNTRANSLATED: "dashboard.integration_firewall" = "Firewall"
+  UNTRANSLATED: "dashboard.integration_home_assistant" = "Home Assistant"
+  UNTRANSLATED: "dashboard.integration_rocketchat" = "Rocket.Chat"
+
+FILE: ui/lang/dashboard/ja.json
+------------------------------------------------------------
+  UNTRANSLATED: "dashboard.integration_home_assistant" = "Home Assistant"
+  UNTRANSLATED: "dashboard.integration_rocketchat" = "Rocket.Chat"
+
+FILE: ui/lang/dashboard/nl.json
+------------------------------------------------------------
+  UNTRANSLATED: "dashboard.guardian_tokens" = "Tokens"
+  UNTRANSLATED: "dashboard.integration_chromecast" = "Chromecast"
+  UNTRANSLATED: "dashboard.integration_firewall" = "Firewall"
+  UNTRANSLATED: "dashboard.integration_home_assistant" = "Home Assistant"
+  UNTRANSLATED: "dashboard.integration_rocketchat" = "Rocket.Chat"
+  UNTRANSLATED: "dashboard.page_title" = "AuraGo – Dashboard"
+
+FILE: ui/lang/dashboard/no.json
+------------------------------------------------------------
+  UNTRANSLATED: "dashboard.guardian_title" = "LLM Guardian"
+  UNTRANSLATED: "dashboard.guardian_tokens" = "Tokens"
+  UNTRANSLATED: "dashboard.integration_chromecast" = "Chromecast"
+  UNTRANSLATED: "dashboard.integration_google_workspace" = "Google Workspace"
+  UNTRANSLATED: "dashboard.integration_home_assistant" = "Home Assistant"
+  UNTRANSLATED: "dashboard.integration_llm_guardian" = "LLM Guardian"
+  UNTRANSLATED: "dashboard.integration_rocketchat" = "Rocket.Chat"
+
+FILE: ui/lang/dashboard/pl.json
+------------------------------------------------------------
+  UNTRANSLATED: "dashboard.integration_home_assistant" = "Home Assistant"
+  UNTRANSLATED: "dashboard.integration_rocketchat" = "Rocket.Chat"
+
+FILE: ui/lang/dashboard/pt.json
+------------------------------------------------------------
+  UNTRANSLATED: "dashboard.integration_chromecast" = "Chromecast"
+  UNTRANSLATED: "dashboard.integration_firewall" = "Firewall"
+  UNTRANSLATED: "dashboard.integration_home_assistant" = "Home Assistant"
+  UNTRANSLATED: "dashboard.integration_rocketchat" = "Rocket.Chat"
+
+FILE: ui/lang/dashboard/sv.json
+------------------------------------------------------------
+  UNTRANSLATED: "dashboard.activity_running_processes" = "Running Processes"
+  UNTRANSLATED: "dashboard.guardian_cache_rate" = "Cache Rate"
+  UNTRANSLATED: "dashboard.guardian_failsafe" = "Fail-Safe"
+  UNTRANSLATED: "dashboard.guardian_title" = "LLM Guardian"
+  UNTRANSLATED: "dashboard.guardian_tokens" = "Tokens"
+  UNTRANSLATED: "dashboard.integration_ai_gateway" = "AI Gateway"
+  UNTRANSLATED: "dashboard.integration_brave_search" = "Brave Search"
+  UNTRANSLATED: "dashboard.integration_chromecast" = "Chromecast"
+  UNTRANSLATED: "dashboard.integration_cloudflare_tunnel" = "Cloudflare Tunnel"
+  UNTRANSLATED: "dashboard.integration_fallback_llm" = "Fallback LLM"
+  UNTRANSLATED: "dashboard.integration_firewall" = "Firewall"
+  UNTRANSLATED: "dashboard.integration_google_workspace" = "Google Workspace"
+  UNTRANSLATED: "dashboard.integration_home_assistant" = "Home Assistant"
+  UNTRANSLATED: "dashboard.integration_homepage" = "Homepage"
+  UNTRANSLATED: "dashboard.integration_image_generation" = "Image Generation"
+  UNTRANSLATED: "dashboard.integration_llm_guardian" = "LLM Guardian"
+  UNTRANSLATED: "dashboard.integration_mcp" = "MCP Client"
+  UNTRANSLATED: "dashboard.integration_mcp_server" = "MCP Server"
+  UNTRANSLATED: "dashboard.integration_memory_analysis" = "Memory Analysis"
+  UNTRANSLATED: "dashboard.integration_paperless_ngx" = "Paperless-ngx"
+  UNTRANSLATED: "dashboard.integration_remote_control" = "Remote Control"
+  UNTRANSLATED: "dashboard.integration_rocketchat" = "Rocket.Chat"
+  UNTRANSLATED: "dashboard.integration_s3" = "S3 Storage"
+  UNTRANSLATED: "dashboard.integration_sandbox" = "Sandbox"
+  UNTRANSLATED: "dashboard.integration_security_proxy" = "Security Proxy"
+  UNTRANSLATED: "dashboard.integration_web_scraper" = "Web Scraper"
+  UNTRANSLATED: "dashboard.memory_embeddings" = "Embeddings"
+  UNTRANSLATED: "dashboard.memory_journal" = "Journal"
+  UNTRANSLATED: "dashboard.operations_nests" = "Nests"
+  UNTRANSLATED: "dashboard.profile_tooltip_created" = "Created:"
+  UNTRANSLATED: "dashboard.profile_tooltip_updated" = "Last updated:"
+  UNTRANSLATED: "dashboard.prompt_kpi_budget_sheds" = "Budget Sheds"
+  UNTRANSLATED: "dashboard.prompt_kpi_total_builds" = "Total Builds"
+  UNTRANSLATED: "dashboard.tab_agent" = "Agent"
+  UNTRANSLATED: "dashboard.tab_system" = "System"
+
+FILE: ui/lang/dashboard/zh.json
+------------------------------------------------------------
+  UNTRANSLATED: "dashboard.integration_ai_gateway" = "AI Gateway"
+  UNTRANSLATED: "dashboard.integration_brave_search" = "Brave Search"
+  UNTRANSLATED: "dashboard.integration_chromecast" = "Chromecast"
+  UNTRANSLATED: "dashboard.integration_cloudflare_tunnel" = "Cloudflare Tunnel"
+  UNTRANSLATED: "dashboard.integration_firewall" = "Firewall"
+  UNTRANSLATED: "dashboard.integration_google_workspace" = "Google Workspace"
+  UNTRANSLATED: "dashboard.integration_home_assistant" = "Home Assistant"
+  UNTRANSLATED: "dashboard.integration_homepage" = "Homepage"
+  UNTRANSLATED: "dashboard.integration_image_generation" = "Image Generation"
+  UNTRANSLATED: "dashboard.integration_llm_guardian" = "LLM Guardian"
+  UNTRANSLATED: "dashboard.integration_mcp" = "MCP Client"
+  UNTRANSLATED: "dashboard.integration_mcp_server" = "MCP Server"
+  UNTRANSLATED: "dashboard.integration_memory_analysis" = "Memory Analysis"
+  UNTRANSLATED: "dashboard.integration_paperless_ngx" = "Paperless-ngx"
+  UNTRANSLATED: "dashboard.integration_personality_v2" = "Personality V2"
+  UNTRANSLATED: "dashboard.integration_remote_control" = "Remote Control"
+  UNTRANSLATED: "dashboard.integration_rocketchat" = "Rocket.Chat"
+  UNTRANSLATED: "dashboard.integration_s3" = "S3 Storage"
+  UNTRANSLATED: "dashboard.integration_sandbox" = "Sandbox"
+  UNTRANSLATED: "dashboard.integration_security_proxy" = "Security Proxy"
+  UNTRANSLATED: "dashboard.integration_web_scraper" = "Web Scraper"
+  UNTRANSLATED: "dashboard.operations_nests" = "Nests"
+
+FILE: ui/lang/gallery/cs.json
+------------------------------------------------------------
+  UNTRANSLATED: "gallery.all_providers" = "All Providers"
+  UNTRANSLATED: "gallery.confirm_delete" = "Are you sure you want to delete this image?"
+  UNTRANSLATED: "gallery.cost" = "Cost"
+  UNTRANSLATED: "gallery.date" = "Date"
+  UNTRANSLATED: "gallery.delete" = "🗑 Delete"
+  UNTRANSLATED: "gallery.download" = "⬇ Download"
+  UNTRANSLATED: "gallery.duration" = "Duration"
+  UNTRANSLATED: "gallery.empty" = "No images yet. Generate your first image via chat!"
+  UNTRANSLATED: "gallery.enhanced_prompt" = "Enhanced Prompt"
+  UNTRANSLATED: "gallery.images" = "images"
+  UNTRANSLATED: "gallery.loading" = "Loading..."
+  UNTRANSLATED: "gallery.model" = "Model"
+  UNTRANSLATED: "gallery.prompt" = "Prompt"
+  UNTRANSLATED: "gallery.provider" = "Provider"
+  UNTRANSLATED: "gallery.quality" = "Quality"
+  UNTRANSLATED: "gallery.search_placeholder" = "Search prompts..."
+  UNTRANSLATED: "gallery.size" = "Size"
+  UNTRANSLATED: "gallery.subtitle" = "Image Gallery"
+  UNTRANSLATED: "gallery.title" = "🎨 Image Gallery"
+
+FILE: ui/lang/gallery/da.json
+------------------------------------------------------------
+  UNTRANSLATED: "gallery.all_providers" = "All Providers"
+  UNTRANSLATED: "gallery.confirm_delete" = "Are you sure you want to delete this image?"
+  UNTRANSLATED: "gallery.cost" = "Cost"
+  UNTRANSLATED: "gallery.date" = "Date"
+  UNTRANSLATED: "gallery.delete" = "🗑 Delete"
+  UNTRANSLATED: "gallery.download" = "⬇ Download"
+  UNTRANSLATED: "gallery.duration" = "Duration"
+  UNTRANSLATED: "gallery.empty" = "No images yet. Generate your first image via chat!"
+  UNTRANSLATED: "gallery.enhanced_prompt" = "Enhanced Prompt"
+  UNTRANSLATED: "gallery.images" = "images"
+  UNTRANSLATED: "gallery.loading" = "Loading..."
+  UNTRANSLATED: "gallery.model" = "Model"
+  UNTRANSLATED: "gallery.prompt" = "Prompt"
+  UNTRANSLATED: "gallery.provider" = "Provider"
+  UNTRANSLATED: "gallery.quality" = "Quality"
+  UNTRANSLATED: "gallery.search_placeholder" = "Search prompts..."
+  UNTRANSLATED: "gallery.size" = "Size"
+  UNTRANSLATED: "gallery.subtitle" = "Image Gallery"
+  UNTRANSLATED: "gallery.title" = "🎨 Image Gallery"
+
+FILE: ui/lang/gallery/de.json
+------------------------------------------------------------
+  UNTRANSLATED: "gallery.download" = "⬇ Download"
+  UNTRANSLATED: "gallery.prompt" = "Prompt"
+
+FILE: ui/lang/gallery/el.json
+------------------------------------------------------------
+  UNTRANSLATED: "gallery.all_providers" = "All Providers"
+  UNTRANSLATED: "gallery.confirm_delete" = "Are you sure you want to delete this image?"
+  UNTRANSLATED: "gallery.cost" = "Cost"
+  UNTRANSLATED: "gallery.date" = "Date"
+  UNTRANSLATED: "gallery.delete" = "🗑 Delete"
+  UNTRANSLATED: "gallery.download" = "⬇ Download"
+  UNTRANSLATED: "gallery.duration" = "Duration"
+  UNTRANSLATED: "gallery.empty" = "No images yet. Generate your first image via chat!"
+  UNTRANSLATED: "gallery.enhanced_prompt" = "Enhanced Prompt"
+  UNTRANSLATED: "gallery.images" = "images"
+  UNTRANSLATED: "gallery.loading" = "Loading..."
+  UNTRANSLATED: "gallery.model" = "Model"
+  UNTRANSLATED: "gallery.prompt" = "Prompt"
+  UNTRANSLATED: "gallery.provider" = "Provider"
+  UNTRANSLATED: "gallery.quality" = "Quality"
+  UNTRANSLATED: "gallery.search_placeholder" = "Search prompts..."
+  UNTRANSLATED: "gallery.size" = "Size"
+  UNTRANSLATED: "gallery.subtitle" = "Image Gallery"
+  UNTRANSLATED: "gallery.title" = "🎨 Image Gallery"
+
+FILE: ui/lang/gallery/es.json
+------------------------------------------------------------
+  UNTRANSLATED: "gallery.all_providers" = "All Providers"
+  UNTRANSLATED: "gallery.confirm_delete" = "Are you sure you want to delete this image?"
+  UNTRANSLATED: "gallery.cost" = "Cost"
+  UNTRANSLATED: "gallery.date" = "Date"
+  UNTRANSLATED: "gallery.delete" = "🗑 Delete"
+  UNTRANSLATED: "gallery.download" = "⬇ Download"
+  UNTRANSLATED: "gallery.duration" = "Duration"
+  UNTRANSLATED: "gallery.empty" = "No images yet. Generate your first image via chat!"
+  UNTRANSLATED: "gallery.enhanced_prompt" = "Enhanced Prompt"
+  UNTRANSLATED: "gallery.images" = "images"
+  UNTRANSLATED: "gallery.loading" = "Loading..."
+  UNTRANSLATED: "gallery.model" = "Model"
+  UNTRANSLATED: "gallery.prompt" = "Prompt"
+  UNTRANSLATED: "gallery.provider" = "Provider"
+  UNTRANSLATED: "gallery.quality" = "Quality"
+  UNTRANSLATED: "gallery.search_placeholder" = "Search prompts..."
+  UNTRANSLATED: "gallery.size" = "Size"
+  UNTRANSLATED: "gallery.subtitle" = "Image Gallery"
+  UNTRANSLATED: "gallery.title" = "🎨 Image Gallery"
+
+FILE: ui/lang/gallery/fr.json
+------------------------------------------------------------
+  UNTRANSLATED: "gallery.all_providers" = "All Providers"
+  UNTRANSLATED: "gallery.confirm_delete" = "Are you sure you want to delete this image?"
+  UNTRANSLATED: "gallery.cost" = "Cost"
+  UNTRANSLATED: "gallery.date" = "Date"
+  UNTRANSLATED: "gallery.delete" = "🗑 Delete"
+  UNTRANSLATED: "gallery.download" = "⬇ Download"
+  UNTRANSLATED: "gallery.duration" = "Duration"
+  UNTRANSLATED: "gallery.empty" = "No images yet. Generate your first image via chat!"
+  UNTRANSLATED: "gallery.enhanced_prompt" = "Enhanced Prompt"
+  UNTRANSLATED: "gallery.images" = "images"
+  UNTRANSLATED: "gallery.loading" = "Loading..."
+  UNTRANSLATED: "gallery.model" = "Model"
+  UNTRANSLATED: "gallery.prompt" = "Prompt"
+  UNTRANSLATED: "gallery.provider" = "Provider"
+  UNTRANSLATED: "gallery.quality" = "Quality"
+  UNTRANSLATED: "gallery.search_placeholder" = "Search prompts..."
+  UNTRANSLATED: "gallery.size" = "Size"
+  UNTRANSLATED: "gallery.subtitle" = "Image Gallery"
+  UNTRANSLATED: "gallery.title" = "🎨 Image Gallery"
+
+FILE: ui/lang/gallery/hi.json
+------------------------------------------------------------
+  UNTRANSLATED: "gallery.all_providers" = "All Providers"
+  UNTRANSLATED: "gallery.confirm_delete" = "Are you sure you want to delete this image?"
+  UNTRANSLATED: "gallery.cost" = "Cost"
+  UNTRANSLATED: "gallery.date" = "Date"
+  UNTRANSLATED: "gallery.delete" = "🗑 Delete"
+  UNTRANSLATED: "gallery.download" = "⬇ Download"
+  UNTRANSLATED: "gallery.duration" = "Duration"
+  UNTRANSLATED: "gallery.empty" = "No images yet. Generate your first image via chat!"
+  UNTRANSLATED: "gallery.enhanced_prompt" = "Enhanced Prompt"
+  UNTRANSLATED: "gallery.images" = "images"
+  UNTRANSLATED: "gallery.loading" = "Loading..."
+  UNTRANSLATED: "gallery.model" = "Model"
+  UNTRANSLATED: "gallery.prompt" = "Prompt"
+  UNTRANSLATED: "gallery.provider" = "Provider"
+  UNTRANSLATED: "gallery.quality" = "Quality"
+  UNTRANSLATED: "gallery.search_placeholder" = "Search prompts..."
+  UNTRANSLATED: "gallery.size" = "Size"
+  UNTRANSLATED: "gallery.subtitle" = "Image Gallery"
+  UNTRANSLATED: "gallery.title" = "🎨 Image Gallery"
+
+FILE: ui/lang/gallery/it.json
+------------------------------------------------------------
+  UNTRANSLATED: "gallery.all_providers" = "All Providers"
+  UNTRANSLATED: "gallery.confirm_delete" = "Are you sure you want to delete this image?"
+  UNTRANSLATED: "gallery.cost" = "Cost"
+  UNTRANSLATED: "gallery.date" = "Date"
+  UNTRANSLATED: "gallery.delete" = "🗑 Delete"
+  UNTRANSLATED: "gallery.download" = "⬇ Download"
+  UNTRANSLATED: "gallery.duration" = "Duration"
+  UNTRANSLATED: "gallery.empty" = "No images yet. Generate your first image via chat!"
+  UNTRANSLATED: "gallery.enhanced_prompt" = "Enhanced Prompt"
+  UNTRANSLATED: "gallery.images" = "images"
+  UNTRANSLATED: "gallery.loading" = "Loading..."
+  UNTRANSLATED: "gallery.model" = "Model"
+  UNTRANSLATED: "gallery.prompt" = "Prompt"
+  UNTRANSLATED: "gallery.provider" = "Provider"
+  UNTRANSLATED: "gallery.quality" = "Quality"
+  UNTRANSLATED: "gallery.search_placeholder" = "Search prompts..."
+  UNTRANSLATED: "gallery.size" = "Size"
+  UNTRANSLATED: "gallery.subtitle" = "Image Gallery"
+  UNTRANSLATED: "gallery.title" = "🎨 Image Gallery"
+
+FILE: ui/lang/gallery/ja.json
+------------------------------------------------------------
+  UNTRANSLATED: "gallery.all_providers" = "All Providers"
+  UNTRANSLATED: "gallery.confirm_delete" = "Are you sure you want to delete this image?"
+  UNTRANSLATED: "gallery.cost" = "Cost"
+  UNTRANSLATED: "gallery.date" = "Date"
+  UNTRANSLATED: "gallery.delete" = "🗑 Delete"
+  UNTRANSLATED: "gallery.download" = "⬇ Download"
+  UNTRANSLATED: "gallery.duration" = "Duration"
+  UNTRANSLATED: "gallery.empty" = "No images yet. Generate your first image via chat!"
+  UNTRANSLATED: "gallery.enhanced_prompt" = "Enhanced Prompt"
+  UNTRANSLATED: "gallery.images" = "images"
+  UNTRANSLATED: "gallery.loading" = "Loading..."
+  UNTRANSLATED: "gallery.model" = "Model"
+  UNTRANSLATED: "gallery.prompt" = "Prompt"
+  UNTRANSLATED: "gallery.provider" = "Provider"
+  UNTRANSLATED: "gallery.quality" = "Quality"
+  UNTRANSLATED: "gallery.search_placeholder" = "Search prompts..."
+  UNTRANSLATED: "gallery.size" = "Size"
+  UNTRANSLATED: "gallery.subtitle" = "Image Gallery"
+  UNTRANSLATED: "gallery.title" = "🎨 Image Gallery"
+
+FILE: ui/lang/gallery/nl.json
+------------------------------------------------------------
+  UNTRANSLATED: "gallery.all_providers" = "All Providers"
+  UNTRANSLATED: "gallery.confirm_delete" = "Are you sure you want to delete this image?"
+  UNTRANSLATED: "gallery.cost" = "Cost"
+  UNTRANSLATED: "gallery.date" = "Date"
+  UNTRANSLATED: "gallery.delete" = "🗑 Delete"
+  UNTRANSLATED: "gallery.download" = "⬇ Download"
+  UNTRANSLATED: "gallery.duration" = "Duration"
+  UNTRANSLATED: "gallery.empty" = "No images yet. Generate your first image via chat!"
+  UNTRANSLATED: "gallery.enhanced_prompt" = "Enhanced Prompt"
+  UNTRANSLATED: "gallery.images" = "images"
+  UNTRANSLATED: "gallery.loading" = "Loading..."
+  UNTRANSLATED: "gallery.model" = "Model"
+  UNTRANSLATED: "gallery.prompt" = "Prompt"
+  UNTRANSLATED: "gallery.provider" = "Provider"
+  UNTRANSLATED: "gallery.quality" = "Quality"
+  UNTRANSLATED: "gallery.search_placeholder" = "Search prompts..."
+  UNTRANSLATED: "gallery.size" = "Size"
+  UNTRANSLATED: "gallery.subtitle" = "Image Gallery"
+  UNTRANSLATED: "gallery.title" = "🎨 Image Gallery"
+
+FILE: ui/lang/gallery/no.json
+------------------------------------------------------------
+  UNTRANSLATED: "gallery.all_providers" = "All Providers"
+  UNTRANSLATED: "gallery.confirm_delete" = "Are you sure you want to delete this image?"
+  UNTRANSLATED: "gallery.cost" = "Cost"
+  UNTRANSLATED: "gallery.date" = "Date"
+  UNTRANSLATED: "gallery.delete" = "🗑 Delete"
+  UNTRANSLATED: "gallery.download" = "⬇ Download"
+  UNTRANSLATED: "gallery.duration" = "Duration"
+  UNTRANSLATED: "gallery.empty" = "No images yet. Generate your first image via chat!"
+  UNTRANSLATED: "gallery.enhanced_prompt" = "Enhanced Prompt"
+  UNTRANSLATED: "gallery.images" = "images"
+  UNTRANSLATED: "gallery.loading" = "Loading..."
+  UNTRANSLATED: "gallery.model" = "Model"
+  UNTRANSLATED: "gallery.prompt" = "Prompt"
+  UNTRANSLATED: "gallery.provider" = "Provider"
+  UNTRANSLATED: "gallery.quality" = "Quality"
+  UNTRANSLATED: "gallery.search_placeholder" = "Search prompts..."
+  UNTRANSLATED: "gallery.size" = "Size"
+  UNTRANSLATED: "gallery.subtitle" = "Image Gallery"
+  UNTRANSLATED: "gallery.title" = "🎨 Image Gallery"
+
+FILE: ui/lang/gallery/pl.json
+------------------------------------------------------------
+  UNTRANSLATED: "gallery.all_providers" = "All Providers"
+  UNTRANSLATED: "gallery.confirm_delete" = "Are you sure you want to delete this image?"
+  UNTRANSLATED: "gallery.cost" = "Cost"
+  UNTRANSLATED: "gallery.date" = "Date"
+  UNTRANSLATED: "gallery.delete" = "🗑 Delete"
+  UNTRANSLATED: "gallery.download" = "⬇ Download"
+  UNTRANSLATED: "gallery.duration" = "Duration"
+  UNTRANSLATED: "gallery.empty" = "No images yet. Generate your first image via chat!"
+  UNTRANSLATED: "gallery.enhanced_prompt" = "Enhanced Prompt"
+  UNTRANSLATED: "gallery.images" = "images"
+  UNTRANSLATED: "gallery.loading" = "Loading..."
+  UNTRANSLATED: "gallery.model" = "Model"
+  UNTRANSLATED: "gallery.prompt" = "Prompt"
+  UNTRANSLATED: "gallery.provider" = "Provider"
+  UNTRANSLATED: "gallery.quality" = "Quality"
+  UNTRANSLATED: "gallery.search_placeholder" = "Search prompts..."
+  UNTRANSLATED: "gallery.size" = "Size"
+  UNTRANSLATED: "gallery.subtitle" = "Image Gallery"
+  UNTRANSLATED: "gallery.title" = "🎨 Image Gallery"
+
+FILE: ui/lang/gallery/pt.json
+------------------------------------------------------------
+  UNTRANSLATED: "gallery.all_providers" = "All Providers"
+  UNTRANSLATED: "gallery.confirm_delete" = "Are you sure you want to delete this image?"
+  UNTRANSLATED: "gallery.cost" = "Cost"
+  UNTRANSLATED: "gallery.date" = "Date"
+  UNTRANSLATED: "gallery.delete" = "🗑 Delete"
+  UNTRANSLATED: "gallery.download" = "⬇ Download"
+  UNTRANSLATED: "gallery.duration" = "Duration"
+  UNTRANSLATED: "gallery.empty" = "No images yet. Generate your first image via chat!"
+  UNTRANSLATED: "gallery.enhanced_prompt" = "Enhanced Prompt"
+  UNTRANSLATED: "gallery.images" = "images"
+  UNTRANSLATED: "gallery.loading" = "Loading..."
+  UNTRANSLATED: "gallery.model" = "Model"
+  UNTRANSLATED: "gallery.prompt" = "Prompt"
+  UNTRANSLATED: "gallery.provider" = "Provider"
+  UNTRANSLATED: "gallery.quality" = "Quality"
+  UNTRANSLATED: "gallery.search_placeholder" = "Search prompts..."
+  UNTRANSLATED: "gallery.size" = "Size"
+  UNTRANSLATED: "gallery.subtitle" = "Image Gallery"
+  UNTRANSLATED: "gallery.title" = "🎨 Image Gallery"
+
+FILE: ui/lang/gallery/sv.json
+------------------------------------------------------------
+  UNTRANSLATED: "gallery.all_providers" = "All Providers"
+  UNTRANSLATED: "gallery.confirm_delete" = "Are you sure you want to delete this image?"
+  UNTRANSLATED: "gallery.cost" = "Cost"
+  UNTRANSLATED: "gallery.date" = "Date"
+  UNTRANSLATED: "gallery.delete" = "🗑 Delete"
+  UNTRANSLATED: "gallery.download" = "⬇ Download"
+  UNTRANSLATED: "gallery.duration" = "Duration"
+  UNTRANSLATED: "gallery.empty" = "No images yet. Generate your first image via chat!"
+  UNTRANSLATED: "gallery.enhanced_prompt" = "Enhanced Prompt"
+  UNTRANSLATED: "gallery.images" = "images"
+  UNTRANSLATED: "gallery.loading" = "Loading..."
+  UNTRANSLATED: "gallery.model" = "Model"
+  UNTRANSLATED: "gallery.prompt" = "Prompt"
+  UNTRANSLATED: "gallery.provider" = "Provider"
+  UNTRANSLATED: "gallery.quality" = "Quality"
+  UNTRANSLATED: "gallery.search_placeholder" = "Search prompts..."
+  UNTRANSLATED: "gallery.size" = "Size"
+  UNTRANSLATED: "gallery.subtitle" = "Image Gallery"
+  UNTRANSLATED: "gallery.title" = "🎨 Image Gallery"
+
+FILE: ui/lang/gallery/zh.json
+------------------------------------------------------------
+  UNTRANSLATED: "gallery.all_providers" = "All Providers"
+  UNTRANSLATED: "gallery.confirm_delete" = "Are you sure you want to delete this image?"
+  UNTRANSLATED: "gallery.cost" = "Cost"
+  UNTRANSLATED: "gallery.date" = "Date"
+  UNTRANSLATED: "gallery.delete" = "🗑 Delete"
+  UNTRANSLATED: "gallery.download" = "⬇ Download"
+  UNTRANSLATED: "gallery.duration" = "Duration"
+  UNTRANSLATED: "gallery.empty" = "No images yet. Generate your first image via chat!"
+  UNTRANSLATED: "gallery.enhanced_prompt" = "Enhanced Prompt"
+  UNTRANSLATED: "gallery.images" = "images"
+  UNTRANSLATED: "gallery.loading" = "Loading..."
+  UNTRANSLATED: "gallery.model" = "Model"
+  UNTRANSLATED: "gallery.prompt" = "Prompt"
+  UNTRANSLATED: "gallery.provider" = "Provider"
+  UNTRANSLATED: "gallery.quality" = "Quality"
+  UNTRANSLATED: "gallery.search_placeholder" = "Search prompts..."
+  UNTRANSLATED: "gallery.size" = "Size"
+  UNTRANSLATED: "gallery.subtitle" = "Image Gallery"
+  UNTRANSLATED: "gallery.title" = "🎨 Image Gallery"
+
+FILE: ui/lang/media/de.json
+------------------------------------------------------------
+  UNTRANSLATED: "media.tab_audio" = "🎵 Audio"
+
+FILE: ui/lang/media/es.json
+------------------------------------------------------------
+  UNTRANSLATED: "media.tab_audio" = "🎵 Audio"
+
+FILE: ui/lang/media/fr.json
+------------------------------------------------------------
+  UNTRANSLATED: "media.tab_audio" = "🎵 Audio"
+  UNTRANSLATED: "media.tab_documents" = "📄 Documents"
+  UNTRANSLATED: "media.tab_images" = "🖼️ Images"
+
+FILE: ui/lang/media/it.json
+------------------------------------------------------------
+  UNTRANSLATED: "media.tab_audio" = "🎵 Audio"
+
+FILE: ui/lang/media/nl.json
+------------------------------------------------------------
+  UNTRANSLATED: "media.tab_audio" = "🎵 Audio"
+
+FILE: ui/lang/media/pl.json
+------------------------------------------------------------
+  UNTRANSLATED: "media.tab_audio" = "🎵 Audio"
+
+================================================================================
+SUMMARY BY FILE
+================================================================================
+ui/lang/dashboard/cs.json: 6 problems
+ui/lang/dashboard/da.json: 7 problems
+ui/lang/dashboard/de.json: 43 problems
+ui/lang/dashboard/el.json: 6 problems
+ui/lang/dashboard/es.json: 4 problems
+ui/lang/dashboard/fr.json: 5 problems
+ui/lang/dashboard/hi.json: 1 problems
+ui/lang/dashboard/it.json: 4 problems
+ui/lang/dashboard/ja.json: 2 problems
+ui/lang/dashboard/nl.json: 6 problems
+ui/lang/dashboard/no.json: 7 problems
+ui/lang/dashboard/pl.json: 2 problems
+ui/lang/dashboard/pt.json: 4 problems
+ui/lang/dashboard/sv.json: 35 problems
+ui/lang/dashboard/zh.json: 22 problems
+ui/lang/gallery/cs.json: 19 problems
+ui/lang/gallery/da.json: 19 problems
+ui/lang/gallery/de.json: 2 problems
+ui/lang/gallery/el.json: 19 problems
+ui/lang/gallery/es.json: 19 problems
+ui/lang/gallery/fr.json: 19 problems
+ui/lang/gallery/hi.json: 19 problems
+ui/lang/gallery/it.json: 19 problems
+ui/lang/gallery/ja.json: 19 problems
+ui/lang/gallery/nl.json: 19 problems
+ui/lang/gallery/no.json: 19 problems
+ui/lang/gallery/pl.json: 19 problems
+ui/lang/gallery/pt.json: 19 problems
+ui/lang/gallery/sv.json: 19 problems
+ui/lang/gallery/zh.json: 19 problems
+ui/lang/media/de.json: 1 problems
+ui/lang/media/es.json: 1 problems
+ui/lang/media/fr.json: 3 problems
+ui/lang/media/it.json: 1 problems
+ui/lang/media/nl.json: 1 problems
+ui/lang/media/pl.json: 1 problems

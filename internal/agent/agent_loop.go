@@ -163,6 +163,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		A2AEnabled:               cfg.A2A.Server.Enabled || cfg.A2A.Client.Enabled,
 		TelnyxEnabled:            cfg.Telnyx.Enabled,
 		AdditionalPrompt:         cfg.Agent.AdditionalPrompt,
+		MessageSource:            runCfg.MessageSource,
 	}
 	logger.Debug("[Agent] Context flags initialised",
 		"token_budget", flags.TokenBudget,
