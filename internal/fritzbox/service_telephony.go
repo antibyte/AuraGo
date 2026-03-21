@@ -335,7 +335,11 @@ func (c *Client) DownloadTAMMessage(tamIndex, msgIndex int, destPath string) err
 		return err
 	}
 
-	candidates := tamAudioURLCandidates(rawURL)
+	var trURL string
+	if strings.HasPrefix(rawURL, c.webURL) {
+		trURL = strings.Replace(rawURL, c.webURL, c.tr.baseURL, 1)
+	}
+	candidates := tamAudioURLCandidates(rawURL, trURL)
 	var (
 		resp        *http.Response
 		lastErrBody string
@@ -400,7 +404,7 @@ func (c *Client) DownloadTAMMessage(tamIndex, msgIndex int, destPath string) err
 	return nil
 }
 
-func tamAudioURLCandidates(rawURL string) []string {
+func tamAudioURLCandidates(rawURL, trURL string) []string {
 	seen := map[string]struct{}{}
 	add := func(in string, out *[]string) {
 		if in == "" {
@@ -413,34 +417,41 @@ func tamAudioURLCandidates(rawURL string) []string {
 		*out = append(*out, in)
 	}
 
-	candidates := make([]string, 0, 2)
-	add(rawURL, &candidates)
+	candidates := make([]string, 0, 8)
+	
+	processURL := func(baseString string) {
+		add(baseString, &candidates)
+		u, err := url.Parse(baseString)
+		if err != nil {
+			return
+		}
+		query := u.Query()
+		rawPath := strings.TrimSpace(query.Get("path"))
+		if rawPath == "" {
+			return
+		}
+		ext := path.Ext(rawPath)
+		if ext != "" && !looksLikeTamSequenceExt(ext) {
+			return
+		}
 
-	u, err := url.Parse(rawURL)
-	if err != nil {
-		return candidates
-	}
-	query := u.Query()
-	rawPath := strings.TrimSpace(query.Get("path"))
-	if rawPath == "" {
-		return candidates
-	}
-	ext := path.Ext(rawPath)
-	if ext != "" && !looksLikeTamSequenceExt(ext) {
-		return candidates
+		u2 := *u
+		q2 := u2.Query()
+		q2.Set("path", rawPath+".wav")
+		u2.RawQuery = strings.ReplaceAll(q2.Encode(), "%2F", "/")
+		add(u2.String(), &candidates)
+
+		u3 := *u
+		q3 := u3.Query()
+		q3.Set("path", rawPath+".WAV")
+		u3.RawQuery = strings.ReplaceAll(q3.Encode(), "%2F", "/")
+		add(u3.String(), &candidates)
 	}
 
-	u2 := *u
-	q2 := u2.Query()
-	q2.Set("path", rawPath+".wav")
-	u2.RawQuery = strings.ReplaceAll(q2.Encode(), "%2F", "/")
-	add(u2.String(), &candidates)
-
-	u3 := *u
-	q3 := u3.Query()
-	q3.Set("path", rawPath+".WAV")
-	u3.RawQuery = strings.ReplaceAll(q3.Encode(), "%2F", "/")
-	add(u3.String(), &candidates)
+	processURL(rawURL)
+	if trURL != "" {
+		processURL(trURL)
+	}
 
 	return candidates
 }
