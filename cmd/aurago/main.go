@@ -364,8 +364,9 @@ func main() {
 		appLog.Info("Media Registry DB initialized", "path", cfg.SQLite.MediaRegistryPath)
 	}
 
-	// On first start, seed the media registry with sample files bundled in resources.dat
-	if isFirstStart && mediaRegistryDB != nil {
+	// Seed the media registry with sample files bundled in resources.dat.
+	// Runs on every start but is idempotent: existing files and DB entries are skipped.
+	if mediaRegistryDB != nil {
 		tools.SeedWelcomeMedia(mediaRegistryDB, cfg.Directories.DataDir, installDir, appLog)
 	}
 

@@ -510,7 +510,9 @@ fi
 mkdir -p "$BACKUP_DIR/data"
 for f in "${DATA_FILES[@]}"; do
     if [ -f "$DIR/$f" ]; then
-        cp -p "$DIR/$f" "$BACKUP_DIR/data/$(basename "$f")"
+        if ! safe_restore_file "$DIR/$f" "$BACKUP_DIR/data/$(basename "$f")"; then
+            warn "Could not back up $f (permission denied — try running with sudo)"
+        fi
     fi
 done
 ok "Backed up: data/ (critical files)"

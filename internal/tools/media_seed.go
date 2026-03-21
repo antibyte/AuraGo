@@ -31,7 +31,23 @@ type seedEntry struct {
 // SeedWelcomeMedia copies bundled sample files into dataDir and registers them in the
 // media registry on the first start. All errors are non-fatal and only logged as warnings.
 func SeedWelcomeMedia(db *sql.DB, dataDir, installDir string, logger *slog.Logger) {
-	manifestPath := filepath.Join(installDir, "assets", "media_samples", "metadata.json")
+	// Look for assets in installDir first; if binary lives inside a 'bin/' subdirectory
+	// the actual install root (where assets/ is extracted) is one level up.
+	candidates := []string{
+		filepath.Join(installDir, "assets", "media_samples", "metadata.json"),
+		filepath.Join(filepath.Dir(installDir), "assets", "media_samples", "metadata.json"),
+	}
+	var manifestPath string
+	for _, p := range candidates {
+		if _, err := os.Stat(p); err == nil {
+			manifestPath = p
+			break
+		}
+	}
+	if manifestPath == "" {
+		logger.Warn("SeedWelcomeMedia: manifest not found, skipping", "searched", candidates[0])
+		return
+	}
 	raw, err := os.ReadFile(manifestPath)
 	if err != nil {
 		logger.Warn("SeedWelcomeMedia: manifest not found, skipping", "path", manifestPath, "error", err)
@@ -44,7 +60,7 @@ func SeedWelcomeMedia(db *sql.DB, dataDir, installDir string, logger *slog.Logge
 		return
 	}
 
-	srcDir := filepath.Join(installDir, "assets", "media_samples")
+	srcDir := filepath.Dir(manifestPath) // same directory as the manifest
 	for _, e := range entries {
 		if err := seedOneFile(db, srcDir, dataDir, e, logger); err != nil {
 			logger.Warn("SeedWelcomeMedia: failed to seed file", "filename", e.Filename, "error", err)

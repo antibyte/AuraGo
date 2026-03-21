@@ -296,6 +296,7 @@ else
     [ -d "$TMPEXT/prompts" ]           && cp -a "$TMPEXT/prompts"           "$INSTALL_DIR/"
     [ -d "$TMPEXT/agent_workspace" ]   && cp -a "$TMPEXT/agent_workspace"   "$INSTALL_DIR/"
     [ -d "$TMPEXT/ui" ]               && cp -a "$TMPEXT/ui"               "$INSTALL_DIR/" 2>/dev/null || true
+    [ -d "$TMPEXT/assets" ]           && cp -a "$TMPEXT/assets"           "$INSTALL_DIR/"
 
     # Only install config.yaml if none exists (preserve user config on re-install)
     if [ ! -f "$INSTALL_DIR/config.yaml" ]; then
