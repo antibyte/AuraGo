@@ -241,6 +241,7 @@ llm:
     structured_outputs: false
 logging:
     enable_file_log: true
+    enable_prompt_log: false                   # write full LLM requests to log/prompts.log (may contain sensitive data)
     log_dir: ./log
 meshcentral:
     enabled: false

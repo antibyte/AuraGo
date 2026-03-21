@@ -328,8 +328,9 @@ type Config struct {
 		ResolvedModel      string            `yaml:"-" json:"-"`            // resolved
 	} `yaml:"llm_guardian"`
 	Logging struct {
-		LogDir        string `yaml:"log_dir"`
-		EnableFileLog bool   `yaml:"enable_file_log"`
+		LogDir          string `yaml:"log_dir"`
+		EnableFileLog   bool   `yaml:"enable_file_log"`
+		EnablePromptLog bool   `yaml:"enable_prompt_log"`
 	} `yaml:"logging"`
 	Discord struct {
 		Enabled          bool   `yaml:"enabled"`

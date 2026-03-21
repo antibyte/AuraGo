@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -803,6 +804,29 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			logger.Info("[LLM Request]", "role", lastMsg.Role, "content_len", len(lastMsg.Content), "preview", Truncate(lastMsg.Content, 200))
 			currentLogger.Info("[LLM Request Redirected]", "role", lastMsg.Role, "content_len", len(lastMsg.Content))
 			currentLogger.Debug("[LLM Full History]", "messages_count", len(req.Messages))
+		}
+
+		// Prompt log: append full request JSON to prompts.log when enabled
+		if cfg.Logging.EnablePromptLog && cfg.Logging.LogDir != "" {
+			if f, ferr := os.OpenFile(
+				filepath.Join(cfg.Logging.LogDir, "prompts.log"),
+				os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644,
+			); ferr == nil {
+				type promptLogEntry struct {
+					Time       string                         `json:"time"`
+					Model      string                         `json:"model"`
+					ToolsCount int                            `json:"tools_count"`
+					Messages   []openai.ChatCompletionMessage  `json:"messages"`
+				}
+				entry := promptLogEntry{
+					Time:       time.Now().UTC().Format(time.RFC3339),
+					Model:      req.Model,
+					ToolsCount: len(req.Tools),
+					Messages:   req.Messages,
+				}
+				_ = json.NewEncoder(f).Encode(entry)
+				_ = f.Close()
+			}
 		}
 
 		broker.Send("thinking", "")
