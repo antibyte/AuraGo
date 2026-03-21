@@ -239,8 +239,13 @@ func (c *Client) fetchTAMListXML(rawURL string) ([]TAMEntry, error) {
 	}
 	// Prefer SID-authenticated fetch; fall back to Digest for TR-064-hosted URLs.
 	resp, err := c.sid.GetWithSID(rawURL)
+	if err == nil && resp.StatusCode >= 400 {
+		resp.Body.Close()
+		err = fmt.Errorf("http error %d", resp.StatusCode)
+	}
+
 	if err != nil {
-		// SID not available yet – try unauthenticated/Digest
+		// SID not available yet or returned error – try unauthenticated/Digest
 		req, rerr := http.NewRequest(http.MethodGet, rawURL, nil)
 		if rerr != nil {
 			return nil, rerr
@@ -251,6 +256,11 @@ func (c *Client) fetchTAMListXML(rawURL string) ([]TAMEntry, error) {
 		}
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		return nil, fmt.Errorf("fetch tam list failed with http status %d", resp.StatusCode)
+	}
+
 	body, _ := io.ReadAll(resp.Body)
 
 	var doc tamListDoc
@@ -334,14 +344,32 @@ func (c *Client) DownloadTAMMessage(tamIndex, msgIndex int, destPath string) err
 	)
 	for _, candidate := range candidates {
 		resp, err = c.sid.GetWithSID(candidate)
+		if err == nil && resp.StatusCode >= 400 {
+			resp.Body.Close()
+			err = fmt.Errorf("http error %d", resp.StatusCode)
+		}
+
+		if err != nil {
+			req, rerr := http.NewRequest(http.MethodGet, candidate, nil)
+			if rerr == nil {
+				trResp, trErr := c.tr.httpClient.Do(req)
+				if trErr == nil {
+					resp = trResp
+					err = nil
+				}
+			}
+		}
+
 		if err != nil {
 			return fmt.Errorf("download TAM audio: %w", err)
 		}
+
 		if resp.StatusCode == http.StatusOK {
 			defer resp.Body.Close()
 			lastURL = candidate
 			break
 		}
+
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
 		_ = resp.Body.Close()
 		lastErrBody = strings.TrimSpace(string(body))
