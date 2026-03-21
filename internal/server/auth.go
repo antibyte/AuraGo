@@ -306,6 +306,33 @@ func isAuthBypassed(path string) bool {
 	return strings.HasSuffix(path, ".png") || strings.HasSuffix(path, ".ico")
 }
 
+// noPasswordPrefixes lists the only URL prefixes accessible when auth is enabled
+// but no password has been configured yet. Everything else is hard-blocked.
+// This prevents the server from being openly accessible while auth is "enabled"
+// but the vault is missing or the password was lost.
+var noPasswordPrefixes = []string{
+	"/auth/",
+	"/api/auth/status",
+	"/api/auth/password", // allows setting the initial password
+	"/api/security/status",
+	"/api/setup",
+	"/api/ui-language",
+	"/setup",
+	"/shared.css",
+	"/shared.js",
+	"/css/login.css",
+	"/js/login/",
+}
+
+func isAllowedWithoutPassword(path string) bool {
+	for _, prefix := range noPasswordPrefixes {
+		if strings.HasPrefix(path, prefix) {
+			return true
+		}
+	}
+	return strings.HasSuffix(path, ".png") || strings.HasSuffix(path, ".ico")
+}
+
 // authMiddleware wraps a handler and enforces session authentication when
 // auth.enabled is true. API paths return 401 JSON; browser paths redirect to /auth/login.
 func authMiddleware(s *Server, next http.Handler) http.Handler {
@@ -316,11 +343,25 @@ func authMiddleware(s *Server, next http.Handler) http.Handler {
 		passwordHash := s.Cfg.Auth.PasswordHash
 		s.CfgMu.RUnlock()
 
-		// Safety: if auth is enabled but no password has been set, bypass auth to prevent lockout.
-		// This can happen when a user enables auth without first setting a password.
+		// SECURITY: if auth is enabled but no password is set, the server is locked down.
+		// Only the minimal endpoints required to set a password remain accessible.
+		// There is NO bypass — auth.enabled = true means the server is protected, period.
 		if enabled && passwordHash == "" {
-			s.Logger.Warn("[Auth] auth.enabled is true but no password_hash is set — auth bypassed to prevent lockout. Set a password in the Config UI.")
-			enabled = false
+			s.Logger.Error("[Auth] LOCKDOWN: auth.enabled is true but no password is set in the vault. " +
+				"All requests are blocked except the password-setup endpoints. " +
+				"Set a password via /config (local network only) or the /api/auth/password endpoint.")
+			if isAllowedWithoutPassword(r.URL.Path) {
+				next.ServeHTTP(w, r)
+				return
+			}
+			if strings.HasPrefix(r.URL.Path, "/api/") || strings.HasPrefix(r.URL.Path, "/v1/") {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusServiceUnavailable)
+				w.Write([]byte(`{"error":"server_locked","message":"Auth is enabled but no password is set. Access is blocked until a password is configured."}`))
+				return
+			}
+			http.Redirect(w, r, "/auth/login", http.StatusTemporaryRedirect)
+			return
 		}
 
 		if !enabled || isAuthBypassed(r.URL.Path) {
