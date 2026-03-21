@@ -309,6 +309,22 @@ function onProviderChange() {
     }
 }
 
+// ── Whisper Provider Change Handler ─────────
+// Auto-selects the appropriate transcription mode when the user changes the
+// Whisper provider so they don't have to change it manually.
+function onWhisperProviderChange() {
+    const provider = document.getElementById('whisper-provider').value;
+    const modeEl = document.getElementById('whisper-mode');
+    if (!modeEl) return;
+    if (provider === 'openai') {
+        modeEl.value = 'whisper';
+    } else if (provider === 'ollama') {
+        modeEl.value = 'local';
+    } else if (provider === 'openrouter') {
+        modeEl.value = 'multimodal';
+    }
+}
+
 // ── Agent Language Change Handler ────────────
 function onLanguageChange() {
     const sel = document.getElementById('system-language');
@@ -565,10 +581,11 @@ function buildConfigPatch() {
         patch.vision = { provider: 'vision' };
     }
 
-    // Whisper: reference provider entry
+    // Whisper: reference provider entry + transcription mode
     const whisperProvider = document.getElementById('whisper-provider').value;
     if (whisperProvider) {
-        patch.whisper = { provider: 'whisper' };
+        const whisperMode = document.getElementById('whisper-mode').value;
+        patch.whisper = { provider: 'whisper', mode: whisperMode || 'multimodal' };
     }
 
     // Personality V2: reference provider entry
@@ -754,6 +771,11 @@ function applyI18N() {
     whSel.querySelector('[value="ollama"]').textContent = t('setup.step1_whisper_provider_ollama');
     whSel.querySelector('[value=""]').textContent = t('setup.step1_whisper_provider_disabled');
     el('lbl-whisper-model').textContent = t('setup.step1_whisper_model_label');
+    el('lbl-whisper-mode').textContent = t('setup.step1_whisper_mode_label');
+    const whModeSel = el('whisper-mode');
+    whModeSel.querySelector('[value="whisper"]').textContent = t('setup.step1_whisper_mode_whisper');
+    whModeSel.querySelector('[value="multimodal"]').textContent = t('setup.step1_whisper_mode_multimodal');
+    whModeSel.querySelector('[value="local"]').textContent = t('setup.step1_whisper_mode_local');
     // Step 2
     el('badge-step2').textContent = t('setup.step2_badge');
     el('title-step2').textContent = t('setup.step2_title');

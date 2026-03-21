@@ -596,7 +596,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		flags.RetrievedMemories = ""
 		flags.PredictedMemories = ""
 		var topMemories []string
-		if lastUserMsg != "" && longTermMem != nil {
+		if !runCfg.IsMission && lastUserMsg != "" && longTermMem != nil {
 			// Query expansion: enrich user message with LLM-generated keywords for better RAG
 			ragQuery := expandQueryForRAG(ctx, cfg, currentLogger, lastUserMsg)
 
@@ -677,7 +677,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 		// Inject lightweight recent-day anchors and episodic cards, even when
 		// long-term memory retrieval is unavailable/disabled.
-		if lastUserMsg != "" && shortTermMem != nil {
+		if !runCfg.IsMission && lastUserMsg != "" && shortTermMem != nil {
 			anchors, aErr := shortTermMem.GetRecentDayAnchors(2)
 			if aErr == nil && len(anchors) > 0 {
 				prefix := "[Recent Day Anchors]\n- " + strings.Join(anchors, "\n- ")
@@ -699,7 +699,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 
 		// Knowledge Graph context injection: search for relevant entities
-		if cfg.Tools.KnowledgeGraph.Enabled && cfg.Tools.KnowledgeGraph.PromptInjection && kg != nil && lastUserMsg != "" {
+		if !runCfg.IsMission && cfg.Tools.KnowledgeGraph.Enabled && cfg.Tools.KnowledgeGraph.PromptInjection && kg != nil && lastUserMsg != "" {
 			maxNodes := cfg.Tools.KnowledgeGraph.MaxPromptNodes
 			maxChars := cfg.Tools.KnowledgeGraph.MaxPromptChars
 			kgContext := kg.SearchForContext(lastUserMsg, maxNodes, maxChars)
@@ -727,7 +727,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 
 		// Phase D: Inject personality line before building system prompt
-		if personalityEnabled && shortTermMem != nil {
+		if !runCfg.IsMission && personalityEnabled && shortTermMem != nil {
 			if cfg.Agent.PersonalityEngineV2 {
 				// V2 Feature: Narrative Events based on Milestones & Loneliness
 				processBehavioralEvents(shortTermMem, &req.Messages, sessionID, meta, currentLogger)
@@ -743,7 +743,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 
 		// User Profiling: inject behavioral instruction + collected profile data
-		if cfg.Agent.UserProfiling {
+		if !runCfg.IsMission && cfg.Agent.UserProfiling {
 			flags.UserProfilingEnabled = true
 			if cfg.Agent.PersonalityEngineV2 && shortTermMem != nil {
 				flags.UserProfileSummary = shortTermMem.GetUserProfileSummary(cfg.Agent.UserProfilingThreshold)
@@ -757,6 +757,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		flags.MessageCount = len(req.Messages)
 		flags.RecentlyUsedTools = recentTools
 		flags.Tier = prompts.DetermineTierAdaptive(flags)
+		if runCfg.IsMission {
+			flags.IsMission = true
+			flags.Tier = "minimal"
+		}
 		flags.IsDebugMode = cfg.Agent.DebugMode || GetDebugMode() // re-check each iteration (toggleable at runtime)
 
 		// Inject high-priority open notes as reminders

@@ -177,6 +177,7 @@ type ContextFlags struct {
 	KnowledgeContext         string // Relevant KG entities injected from SearchForContext
 	ErrorPatternContext      string // Known error patterns with resolutions for agent learning
 	EmotionDescription       string // LLM-synthesized emotional state description (Emotion Synthesizer)
+	IsMission                bool   // true when this is a mission run — skips personality, profiling, emotion
 }
 
 // DetermineTierAdaptive returns a prompt tier based on both conversation length and
@@ -381,7 +382,7 @@ func BuildSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string,
 
 	// Core Personality Profile (injected near end for maximum LLM attention)
 	posBeforePersonality := finalPrompt.Len()
-	if corePersonalityContent != "" {
+	if !flags.IsMission && corePersonalityContent != "" {
 		finalPrompt.WriteString("# YOUR PERSONALITY (ACTIVE PROFILE: " + strings.ToUpper(flags.CorePersonality) + ")\n")
 		finalPrompt.WriteString("You MUST embody this personality in EVERY response. This overrides any default tone.\n")
 		finalPrompt.WriteString(corePersonalityContent)
@@ -389,7 +390,7 @@ func BuildSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string,
 	}
 
 	// User Profiling: behavioral instruction + collected data
-	if flags.UserProfilingEnabled {
+	if !flags.IsMission && flags.UserProfilingEnabled {
 		finalPrompt.WriteString("## USER PROFILING\n")
 		finalPrompt.WriteString("Your goal: build a comprehensive user profile over time to provide personalized assistance. " +
 			"Be PROACTIVE about learning: when the user mentions something that hints at useful context " +
@@ -413,12 +414,12 @@ func BuildSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string,
 	}
 
 	// Personality self-awareness (Phase D micro-traits)
-	if flags.EmotionDescription != "" {
+	if !flags.IsMission && flags.EmotionDescription != "" {
 		// Emotion Synthesizer active: use LLM-generated emotional description
 		finalPrompt.WriteString("\n### Current Emotional State\n")
 		finalPrompt.WriteString(flags.EmotionDescription)
 		finalPrompt.WriteString("\n\n")
-	} else if flags.PersonalityLine != "" {
+	} else if !flags.IsMission && flags.PersonalityLine != "" {
 		// Fallback to V2 trait directives or V1 numeric line
 		finalPrompt.WriteString(flags.PersonalityLine)
 		finalPrompt.WriteString("\n\n")

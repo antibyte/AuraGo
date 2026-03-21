@@ -22,12 +22,22 @@ import (
 // if the provider is set to "multimodal".
 func TranscribeAudioFile(filePath string, cfg *config.Config) (string, error) {
 	mode := strings.ToLower(cfg.Whisper.Mode)
-	
+
 	// OpenRouter does not support OpenAI's /v1/audio/transcriptions endpoint.
 	// If the user hasn't explicitly specified a mode and uses OpenRouter,
 	// default to multimodal (embedding base64 audio into a chat completion).
-	if mode == "" && cfg.Whisper.ProviderType == "openrouter" {
+	if mode == "" && strings.EqualFold(cfg.Whisper.ProviderType, "openrouter") {
 		mode = "multimodal"
+	}
+
+	// If mode is still not "multimodal" or "local", check whether the configured model is
+	// actually a Whisper-family model. Non-Whisper models (e.g. google/gemini-*, meta-llama/*)
+	// do not implement the /v1/audio/transcriptions endpoint – use multimodal instead.
+	if mode != "multimodal" && mode != "local" {
+		model := strings.ToLower(cfg.Whisper.Model)
+		if model != "" && !strings.Contains(model, "whisper") {
+			mode = "multimodal"
+		}
 	}
 
 	if mode == "multimodal" {

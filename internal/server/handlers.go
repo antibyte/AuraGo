@@ -129,6 +129,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 		// 1. Save User Input to Short-Term Memory
 		lastUserMsg := req.Messages[len(req.Messages)-1]
 		sessionID := "default" // hardcoded until API supports it
+		missionID := r.Header.Get("X-Mission-ID")
 
 		// Guardian: Scan user input for injection patterns (log only, never block)
 		if lastUserMsg.Role == openai.ChatMessageRoleUser && s.Guardian != nil {
@@ -442,6 +443,8 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			SessionID:          sessionID,
 			IsMaintenance:      inMaintenance,
 			SurgeryPlan:        "", // UI-driven chats don't currently pass a formal surgery plan
+			IsMission:          missionID != "",
+			MissionID:          missionID,
 		}
 
 		if req.Stream {

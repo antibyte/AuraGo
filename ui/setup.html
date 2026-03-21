@@ -273,7 +273,7 @@
                             <label id="lbl-whisper-provider" class="field-label">
                                 <script>document.write(t('setup.step1_whisper_provider_label'))</script>
                             </label>
-                            <select class="field-select" id="whisper-provider">
+                            <select class="field-select" id="whisper-provider" onchange="onWhisperProviderChange()">
                                 <option value="openrouter">OpenRouter</option>
                                 <option value="openai">OpenAI</option>
                                 <option value="ollama">Ollama</option>
@@ -287,6 +287,16 @@
                             <input class="field-input" type="text" id="whisper-model"
                                 placeholder="google/gemini-2.5-flash-lite-preview-09-2025"
                                 value="google/gemini-2.5-flash-lite-preview-09-2025">
+                        </div>
+                        <div class="field-group">
+                            <label id="lbl-whisper-mode" class="field-label">
+                                <script>document.write(t('setup.step1_whisper_mode_label'))</script>
+                            </label>
+                            <select class="field-select" id="whisper-mode">
+                                <option value="multimodal">Multimodal (Gemini / LLM)</option>
+                                <option value="whisper">Whisper API (OpenAI)</option>
+                                <option value="local">Local (Ollama)</option>
+                            </select>
                         </div>
                     </div>
                 </div>
