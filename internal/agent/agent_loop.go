@@ -614,8 +614,20 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				if len(ranked) > 3 {
 					ranked = ranked[:3]
 				}
+				wantsDeepDetails := wantsDetailedMemory(lastUserMsg)
 				for _, r := range ranked {
-					topMemories = append(topMemories, r.text)
+					topMemories = append(topMemories, compactMemoryForPrompt(r.text, 260))
+				}
+				if wantsDeepDetails {
+					for i, r := range ranked {
+						if i >= 2 {
+							break
+						}
+						full, ferr := longTermMem.GetByID(r.docID)
+						if ferr == nil && full != "" {
+							topMemories = append(topMemories, "[Detailed Memory]\n"+compactMemoryForPrompt(full, 700))
+						}
+					}
 				}
 				flags.RetrievedMemories = strings.Join(topMemories, "\n---\n")
 				currentLogger.Debug("[Sync] RAG: Retrieved memories (recency-boosted)", "count", len(ranked))
@@ -658,6 +670,30 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 						flags.PredictedMemories = strings.Join(predictedResults, "\n---\n")
 						currentLogger.Debug("[Sync] Predictive RAG: Pre-fetched memories", "count", len(predictedResults), "predictions", predictions)
 					}
+				}
+			}
+
+		}
+
+		// Inject lightweight recent-day anchors and episodic cards, even when
+		// long-term memory retrieval is unavailable/disabled.
+		if lastUserMsg != "" && shortTermMem != nil {
+			anchors, aErr := shortTermMem.GetRecentDayAnchors(2)
+			if aErr == nil && len(anchors) > 0 {
+				prefix := "[Recent Day Anchors]\n- " + strings.Join(anchors, "\n- ")
+				if flags.RetrievedMemories == "" {
+					flags.RetrievedMemories = prefix
+				} else {
+					flags.RetrievedMemories += "\n---\n" + prefix
+				}
+			}
+			episodic, eErr := shortTermMem.GetRecentEpisodicMemories(72, 2)
+			if eErr == nil && len(episodic) > 0 {
+				prefix := "[Last 72h Episodes]\n- " + strings.Join(episodic, "\n- ")
+				if flags.RetrievedMemories == "" {
+					flags.RetrievedMemories = prefix
+				} else {
+					flags.RetrievedMemories += "\n---\n" + prefix
 				}
 			}
 		}
@@ -1978,6 +2014,28 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 		return resp, nil
 	}
+}
+
+func compactMemoryForPrompt(text string, maxLen int) string {
+	text = strings.TrimSpace(text)
+	if maxLen <= 0 || len(text) <= maxLen {
+		return text
+	}
+	return strings.TrimSpace(text[:maxLen]) + "…"
+}
+
+func wantsDetailedMemory(query string) bool {
+	q := strings.ToLower(query)
+	cues := []string{
+		"detail", "details", "exact", "specific", "precise",
+		"genau", "details", "welche", "wann", "konkret",
+	}
+	for _, cue := range cues {
+		if strings.Contains(q, cue) {
+			return true
+		}
+	}
+	return false
 }
 
 // trim422Messages produces a structurally valid message sequence after a 422 rejection.

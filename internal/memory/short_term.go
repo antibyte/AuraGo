@@ -89,13 +89,14 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 		timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
 	);
 	
-	CREATE TABLE IF NOT EXISTS memory_meta (
-		doc_id TEXT PRIMARY KEY,
-		access_count INTEGER DEFAULT 0,
-		last_accessed DATETIME DEFAULT CURRENT_TIMESTAMP,
-		protected BOOLEAN DEFAULT 0,
-		keep_forever BOOLEAN DEFAULT 0
-	);
+		CREATE TABLE IF NOT EXISTS memory_meta (
+			doc_id TEXT PRIMARY KEY,
+			access_count INTEGER DEFAULT 0,
+			last_accessed DATETIME DEFAULT CURRENT_TIMESTAMP,
+			last_event_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			protected BOOLEAN DEFAULT 0,
+			keep_forever BOOLEAN DEFAULT 0
+		);
 	
 	CREATE TABLE IF NOT EXISTS tool_transitions (
 		from_tool TEXT,
@@ -142,16 +143,21 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 	CREATE INDEX IF NOT EXISTS idx_interaction_patterns_last_seen ON interaction_patterns(last_seen);
 	CREATE INDEX IF NOT EXISTS idx_archive_events_session_ts ON archive_events(session_id, timestamp);
 
-	CREATE TABLE IF NOT EXISTS archived_messages (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		session_id TEXT DEFAULT 'default',
-		role TEXT,
-		content TEXT,
-		original_timestamp DATETIME,
-		archived_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-		consolidated BOOLEAN DEFAULT 0
-	);
-	CREATE INDEX IF NOT EXISTS idx_archived_messages_consolidated ON archived_messages(consolidated);
+		CREATE TABLE IF NOT EXISTS archived_messages (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			session_id TEXT DEFAULT 'default',
+			role TEXT,
+			content TEXT,
+			original_timestamp DATETIME,
+			archived_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			consolidated BOOLEAN DEFAULT 0,
+			consolidation_status TEXT DEFAULT 'pending',
+			consolidation_retries INTEGER DEFAULT 0,
+			consolidation_last_error TEXT DEFAULT '',
+			next_retry_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		);
+		CREATE INDEX IF NOT EXISTS idx_archived_messages_consolidated ON archived_messages(consolidated);
+		CREATE INDEX IF NOT EXISTS idx_archived_messages_retry ON archived_messages(consolidation_status, next_retry_at);
 
 	CREATE TABLE IF NOT EXISTS tool_usage_adaptive (
 		tool_name TEXT PRIMARY KEY,
@@ -235,6 +241,75 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 		}
 	}
 
+	// Dynamic migration for last_event_at column in memory_meta
+	var hasLastEventAt bool
+	err = db.QueryRow("SELECT count(*) > 0 FROM pragma_table_info('memory_meta') WHERE name='last_event_at'").Scan(&hasLastEventAt)
+	if err != nil {
+		logger.Warn("Failed to check for last_event_at column in memory_meta", "error", err)
+	} else if !hasLastEventAt {
+		logger.Info("Migrating SQLite: adding last_event_at column to memory_meta")
+		_, err = db.Exec("ALTER TABLE memory_meta ADD COLUMN last_event_at DATETIME DEFAULT CURRENT_TIMESTAMP")
+		if err != nil {
+			logger.Error("Failed to add last_event_at column to memory_meta", "error", err)
+		}
+	}
+
+	// Dynamic migration for consolidation_status in archived_messages
+	var hasConsolidationStatus bool
+	err = db.QueryRow("SELECT count(*) > 0 FROM pragma_table_info('archived_messages') WHERE name='consolidation_status'").Scan(&hasConsolidationStatus)
+	if err != nil {
+		logger.Warn("Failed to check for consolidation_status in archived_messages", "error", err)
+	} else if !hasConsolidationStatus {
+		logger.Info("Migrating SQLite: adding consolidation_status column to archived_messages")
+		_, err = db.Exec("ALTER TABLE archived_messages ADD COLUMN consolidation_status TEXT DEFAULT 'pending'")
+		if err != nil {
+			logger.Error("Failed to add consolidation_status column to archived_messages", "error", err)
+		}
+	}
+
+	var hasConsolidationRetries bool
+	err = db.QueryRow("SELECT count(*) > 0 FROM pragma_table_info('archived_messages') WHERE name='consolidation_retries'").Scan(&hasConsolidationRetries)
+	if err != nil {
+		logger.Warn("Failed to check for consolidation_retries in archived_messages", "error", err)
+	} else if !hasConsolidationRetries {
+		logger.Info("Migrating SQLite: adding consolidation_retries column to archived_messages")
+		_, err = db.Exec("ALTER TABLE archived_messages ADD COLUMN consolidation_retries INTEGER DEFAULT 0")
+		if err != nil {
+			logger.Error("Failed to add consolidation_retries column to archived_messages", "error", err)
+		}
+	}
+
+	var hasConsolidationLastError bool
+	err = db.QueryRow("SELECT count(*) > 0 FROM pragma_table_info('archived_messages') WHERE name='consolidation_last_error'").Scan(&hasConsolidationLastError)
+	if err != nil {
+		logger.Warn("Failed to check for consolidation_last_error in archived_messages", "error", err)
+	} else if !hasConsolidationLastError {
+		logger.Info("Migrating SQLite: adding consolidation_last_error column to archived_messages")
+		_, err = db.Exec("ALTER TABLE archived_messages ADD COLUMN consolidation_last_error TEXT DEFAULT ''")
+		if err != nil {
+			logger.Error("Failed to add consolidation_last_error column to archived_messages", "error", err)
+		}
+	}
+
+	var hasNextRetryAt bool
+	err = db.QueryRow("SELECT count(*) > 0 FROM pragma_table_info('archived_messages') WHERE name='next_retry_at'").Scan(&hasNextRetryAt)
+	if err != nil {
+		logger.Warn("Failed to check for next_retry_at in archived_messages", "error", err)
+	} else if !hasNextRetryAt {
+		logger.Info("Migrating SQLite: adding next_retry_at column to archived_messages")
+		_, err = db.Exec("ALTER TABLE archived_messages ADD COLUMN next_retry_at DATETIME DEFAULT CURRENT_TIMESTAMP")
+		if err != nil {
+			logger.Error("Failed to add next_retry_at column to archived_messages", "error", err)
+		}
+	}
+
+	if _, err := db.Exec("UPDATE archived_messages SET consolidation_status = 'pending' WHERE consolidated = 0 AND (consolidation_status IS NULL OR consolidation_status = '')"); err != nil {
+		logger.Warn("Failed to normalize consolidation_status pending rows", "error", err)
+	}
+	if _, err := db.Exec("UPDATE archived_messages SET consolidation_status = 'done' WHERE consolidated = 1 AND (consolidation_status IS NULL OR consolidation_status = '')"); err != nil {
+		logger.Warn("Failed to normalize consolidation_status done rows", "error", err)
+	}
+
 	// Dynamic migration for last_updated column in tool_transitions
 	var hasLastUpdated bool
 	err = db.QueryRow("SELECT count(*) > 0 FROM pragma_table_info('tool_transitions') WHERE name='last_updated'").Scan(&hasLastUpdated)
@@ -253,7 +328,7 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 
 	// Set user_version so backup/restore can detect schema generation.
 	// Increment this constant whenever a new column or table is added.
-	const shortTermSchemaVersion = 2
+	const shortTermSchemaVersion = 3
 	var currentVer int
 	_ = db.QueryRow("PRAGMA user_version").Scan(&currentVer)
 	if currentVer != shortTermSchemaVersion {
@@ -428,18 +503,36 @@ func (s *SQLiteMemory) DeleteOldMessages(sessionID string, keepN int) error {
 	return nil
 }
 
-// GetUnconsolidatedMessages returns archived messages that haven't been processed by consolidation yet.
+// GetUnconsolidatedMessages returns archived messages that are pending consolidation.
+// Backward-compatible wrapper that includes retryable failed items.
 func (s *SQLiteMemory) GetUnconsolidatedMessages(limit int) ([]ArchivedMessage, error) {
+	return s.GetConsolidationCandidates(limit, 3)
+}
+
+// GetConsolidationCandidates returns archived messages that should be processed now.
+// Includes pending messages and failed messages whose retry cooldown elapsed.
+func (s *SQLiteMemory) GetConsolidationCandidates(limit int, maxRetries int) ([]ArchivedMessage, error) {
 	if limit <= 0 {
 		limit = 200
 	}
+	if maxRetries <= 0 {
+		maxRetries = 3
+	}
 	rows, err := s.db.Query(`
-		SELECT id, session_id, role, content, original_timestamp
+		SELECT id, session_id, role, content, original_timestamp, consolidation_status, consolidation_retries
 		FROM archived_messages
 		WHERE consolidated = 0
+		  AND (
+		    consolidation_status = 'pending'
+		    OR (
+		      consolidation_status = 'failed'
+		      AND consolidation_retries < ?
+		      AND next_retry_at <= CURRENT_TIMESTAMP
+		    )
+		  )
 		ORDER BY original_timestamp ASC
 		LIMIT ?
-	`, limit)
+	`, maxRetries, limit)
 	if err != nil {
 		return nil, fmt.Errorf("query unconsolidated: %w", err)
 	}
@@ -448,7 +541,7 @@ func (s *SQLiteMemory) GetUnconsolidatedMessages(limit int) ([]ArchivedMessage, 
 	var msgs []ArchivedMessage
 	for rows.Next() {
 		var m ArchivedMessage
-		if err := rows.Scan(&m.ID, &m.SessionID, &m.Role, &m.Content, &m.Timestamp); err != nil {
+		if err := rows.Scan(&m.ID, &m.SessionID, &m.Role, &m.Content, &m.Timestamp, &m.ConsolidationStatus, &m.ConsolidationRetries); err != nil {
 			return nil, fmt.Errorf("scan unconsolidated: %w", err)
 		}
 		msgs = append(msgs, m)
@@ -469,6 +562,55 @@ func (s *SQLiteMemory) MarkConsolidated(ids []int64) error {
 	}
 	query := fmt.Sprintf("UPDATE archived_messages SET consolidated = 1 WHERE id IN (%s)",
 		strings.Join(placeholders, ","))
+	_, err := s.db.Exec(query, args...)
+	return err
+}
+
+// MarkConsolidationSuccess marks archived messages as successfully consolidated.
+func (s *SQLiteMemory) MarkConsolidationSuccess(ids []int64) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	placeholders := make([]string, len(ids))
+	args := make([]interface{}, len(ids))
+	for i, id := range ids {
+		placeholders[i] = "?"
+		args[i] = id
+	}
+	query := fmt.Sprintf(`UPDATE archived_messages
+		SET consolidated = 1,
+		    consolidation_status = 'done',
+		    consolidation_last_error = ''
+		WHERE id IN (%s)`, strings.Join(placeholders, ","))
+	_, err := s.db.Exec(query, args...)
+	return err
+}
+
+// MarkConsolidationFailure records a failed consolidation attempt and schedules retry.
+func (s *SQLiteMemory) MarkConsolidationFailure(ids []int64, reason string) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	if len(reason) > 300 {
+		reason = reason[:300]
+	}
+	placeholders := make([]string, len(ids))
+	args := make([]interface{}, 0, len(ids)+1)
+	args = append(args, reason)
+	for i, id := range ids {
+		placeholders[i] = "?"
+		args = append(args, id)
+	}
+	query := fmt.Sprintf(`UPDATE archived_messages
+		SET consolidation_status = 'failed',
+		    consolidation_retries = consolidation_retries + 1,
+		    consolidation_last_error = ?,
+		    next_retry_at = datetime('now', '+' || (CASE
+		    	WHEN consolidation_retries < 1 THEN 5
+		    	WHEN consolidation_retries < 2 THEN 30
+		    	ELSE 120
+		    END) || ' minutes')
+		WHERE id IN (%s)`, strings.Join(placeholders, ","))
 	_, err := s.db.Exec(query, args...)
 	return err
 }
@@ -602,11 +744,13 @@ func (s *SQLiteMemory) MarkNotificationsRead() error {
 
 // ArchivedMessage represents a message that was archived before deletion from STM.
 type ArchivedMessage struct {
-	ID        int64
-	SessionID string
-	Role      string
-	Content   string
-	Timestamp string
+	ID                   int64
+	SessionID            string
+	Role                 string
+	Content              string
+	Timestamp            string
+	ConsolidationStatus  string
+	ConsolidationRetries int
 }
 
 // MemoryMeta models the tracking metadata for a VectorDB chunk.
@@ -614,6 +758,7 @@ type MemoryMeta struct {
 	DocID        string
 	AccessCount  int
 	LastAccessed string
+	LastEventAt  string
 	Protected    bool
 	KeepForever  bool
 }
@@ -621,8 +766,8 @@ type MemoryMeta struct {
 // UpsertMemoryMeta creates or resets a VectorDB chunk's metadata.
 func (s *SQLiteMemory) UpsertMemoryMeta(docID string) error {
 	stmt := `
-	INSERT INTO memory_meta (doc_id, access_count, last_accessed)
-	VALUES (?, 0, CURRENT_TIMESTAMP)
+	INSERT INTO memory_meta (doc_id, access_count, last_accessed, last_event_at)
+	VALUES (?, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 	ON CONFLICT(doc_id) DO UPDATE SET last_accessed=CURRENT_TIMESTAMP;`
 
 	_, err := s.db.Exec(stmt, docID)
@@ -649,7 +794,7 @@ func (s *SQLiteMemory) DeleteMemoryMeta(docID string) error {
 
 // GetAllMemoryMeta retrieves the metadata for all chunks to calculate forgetting priorities.
 func (s *SQLiteMemory) GetAllMemoryMeta() ([]MemoryMeta, error) {
-	query := `SELECT doc_id, access_count, last_accessed, protected, keep_forever FROM memory_meta;`
+	query := `SELECT doc_id, access_count, last_accessed, last_event_at, protected, keep_forever FROM memory_meta;`
 	rows, err := s.db.Query(query)
 	if err != nil {
 		return nil, err
@@ -659,7 +804,7 @@ func (s *SQLiteMemory) GetAllMemoryMeta() ([]MemoryMeta, error) {
 	var metas []MemoryMeta
 	for rows.Next() {
 		var m MemoryMeta
-		if err := rows.Scan(&m.DocID, &m.AccessCount, &m.LastAccessed, &m.Protected, &m.KeepForever); err != nil {
+		if err := rows.Scan(&m.DocID, &m.AccessCount, &m.LastAccessed, &m.LastEventAt, &m.Protected, &m.KeepForever); err != nil {
 			return nil, err
 		}
 		metas = append(metas, m)

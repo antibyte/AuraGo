@@ -58,14 +58,128 @@ func (s *SQLiteMemory) InitJournalTables() error {
 		generated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	);
 
+	CREATE TABLE IF NOT EXISTS day_anchors (
+		date TEXT PRIMARY KEY,
+		anchor TEXT NOT NULL,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	);
+
+	CREATE TABLE IF NOT EXISTS episodic_memories (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		event_date TEXT NOT NULL,
+		title TEXT NOT NULL,
+		summary TEXT NOT NULL,
+		details_json TEXT DEFAULT '{}',
+		importance INTEGER DEFAULT 2,
+		source TEXT DEFAULT 'consolidation',
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	);
+
 	CREATE INDEX IF NOT EXISTS idx_journal_date ON journal_entries(date);
 	CREATE INDEX IF NOT EXISTS idx_journal_type ON journal_entries(entry_type);
-	CREATE INDEX IF NOT EXISTS idx_journal_importance ON journal_entries(importance);`
+	CREATE INDEX IF NOT EXISTS idx_journal_importance ON journal_entries(importance);
+	CREATE INDEX IF NOT EXISTS idx_episodic_date_importance ON episodic_memories(event_date DESC, importance DESC);`
 
 	if _, err := s.db.Exec(schema); err != nil {
 		return fmt.Errorf("journal schema: %w", err)
 	}
 	return nil
+}
+
+// UpsertDayAnchor stores a single-sentence day anchor used for lightweight recent recall.
+func (s *SQLiteMemory) UpsertDayAnchor(date, anchor string) error {
+	if date == "" || anchor == "" {
+		return nil
+	}
+	_, err := s.db.Exec(`
+		INSERT INTO day_anchors (date, anchor, created_at)
+		VALUES (?, ?, CURRENT_TIMESTAMP)
+		ON CONFLICT(date) DO UPDATE SET
+			anchor=excluded.anchor,
+			created_at=CURRENT_TIMESTAMP
+	`, date, anchor)
+	if err != nil {
+		return fmt.Errorf("upsert day anchor: %w", err)
+	}
+	return nil
+}
+
+// GetRecentDayAnchors returns the most recent day anchors.
+func (s *SQLiteMemory) GetRecentDayAnchors(limit int) ([]string, error) {
+	if limit <= 0 {
+		limit = 3
+	}
+	rows, err := s.db.Query(`SELECT date, anchor FROM day_anchors ORDER BY date DESC LIMIT ?`, limit)
+	if err != nil {
+		return nil, fmt.Errorf("query day anchors: %w", err)
+	}
+	defer rows.Close()
+
+	out := make([]string, 0, limit)
+	for rows.Next() {
+		var date, anchor string
+		if err := rows.Scan(&date, &anchor); err != nil {
+			return nil, fmt.Errorf("scan day anchor: %w", err)
+		}
+		out = append(out, fmt.Sprintf("%s: %s", date, anchor))
+	}
+	return out, rows.Err()
+}
+
+// InsertEpisodicMemory stores compact event cards for the recent-days memory layer.
+func (s *SQLiteMemory) InsertEpisodicMemory(eventDate, title, summary string, details map[string]string, importance int, source string) error {
+	if eventDate == "" {
+		eventDate = time.Now().Format("2006-01-02")
+	}
+	if title == "" || summary == "" {
+		return nil
+	}
+	if importance < 1 || importance > 4 {
+		importance = 2
+	}
+	if source == "" {
+		source = "consolidation"
+	}
+	detailsJSON, _ := json.Marshal(details)
+	_, err := s.db.Exec(`
+		INSERT INTO episodic_memories (event_date, title, summary, details_json, importance, source)
+		VALUES (?, ?, ?, ?, ?, ?)
+	`, eventDate, title, summary, string(detailsJSON), importance, source)
+	if err != nil {
+		return fmt.Errorf("insert episodic memory: %w", err)
+	}
+	return nil
+}
+
+// GetRecentEpisodicMemories returns recent event cards (default 72h) as compact prompt lines.
+func (s *SQLiteMemory) GetRecentEpisodicMemories(hoursWindow int, limit int) ([]string, error) {
+	if hoursWindow <= 0 {
+		hoursWindow = 72
+	}
+	if limit <= 0 {
+		limit = 5
+	}
+	rows, err := s.db.Query(`
+		SELECT event_date, title, summary
+		FROM episodic_memories
+		WHERE datetime(created_at) >= datetime('now', '-' || ? || ' hours')
+		ORDER BY created_at DESC, importance DESC
+		LIMIT ?
+	`, hoursWindow, limit)
+	if err != nil {
+		return nil, fmt.Errorf("query episodic memories: %w", err)
+	}
+	defer rows.Close()
+
+	out := make([]string, 0, limit)
+	for rows.Next() {
+		var d, t, ssum string
+		if err := rows.Scan(&d, &t, &ssum); err != nil {
+			return nil, fmt.Errorf("scan episodic memory: %w", err)
+		}
+		out = append(out, fmt.Sprintf("%s | %s — %s", d, t, ssum))
+	}
+	return out, rows.Err()
 }
 
 // InsertJournalEntry adds a new journal entry.
