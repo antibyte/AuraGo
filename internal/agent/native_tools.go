@@ -1639,7 +1639,7 @@ func BuildNativeToolSchemas(skillsDir string, manifest *tools.Manifest, ff ToolF
 	// a session-scoped task list on each tool call (optional, never required).
 	todoProperty := map[string]interface{}{
 		"type":        []string{"string", "null"},
-		"description": "Optional: a compact task list for multi-step work. Format each task as '- [x] done task' or '- [ ] pending task', one per line. Update this on every tool call to track your progress through the current session's objectives. Leave empty or null if not needed.",
+		"description": "Session task list. '- [x] done' / '- [ ] pending', one per line. Update each call. Null if unused.",
 	}
 	for i := range allTools {
 		if allTools[i].Function == nil || allTools[i].Function.Parameters == nil {
