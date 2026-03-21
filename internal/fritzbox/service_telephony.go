@@ -283,39 +283,36 @@ func (c *Client) MarkTAMMessageRead(tamIndex, msgIndex int) error {
 }
 
 // GetTAMMessageURL returns an HTTP URL to download a TAM message's audio file (WAV).
-// Uses the TR-064 SOAP action X_AVM-DE_TAM:1#GetPhoneURL.
+// It reads the path from the TAM message list XML (the Path field), which is more
+// broadly supported than the GetPhoneURL SOAP action (not available on Vodafone cable models).
 func (c *Client) GetTAMMessageURL(tamIndex, msgIndex int) (string, error) {
-	res, err := c.SOAP(svcTAM, ctlTAM, "GetPhoneURL", map[string]string{
-		"NewIndex":        strconv.Itoa(tamIndex),
-		"NewMessageIndex": strconv.Itoa(msgIndex),
-	})
+	msgs, err := c.GetTAMList(tamIndex)
 	if err != nil {
-		return "", fmt.Errorf("fritzbox telephony: TAM%d GetPhoneURL msg %d: %w", tamIndex, msgIndex, err)
+		return "", fmt.Errorf("fritzbox telephony: TAM%d GetTAMMessageURL: %w", tamIndex, err)
 	}
-	phoneURL, ok := res["NewPhoneURL"]
-	if !ok || phoneURL == "" {
-		return "", fmt.Errorf("fritzbox telephony: TAM returned no phone URL")
+	for _, m := range msgs {
+		if m.Index == msgIndex {
+			if m.Path == "" {
+				return "", fmt.Errorf("fritzbox telephony: TAM%d message %d has no audio path", tamIndex, msgIndex)
+			}
+			if strings.HasPrefix(m.Path, "/") {
+				return c.tr.baseURL + m.Path, nil
+			}
+			return m.Path, nil
+		}
 	}
-	return phoneURL, nil
+	return "", fmt.Errorf("fritzbox telephony: TAM%d has no message at index %d", tamIndex, msgIndex)
 }
 
 // DownloadTAMMessage downloads a TAM message's audio file and saves it to destPath.
+// Uses SID authentication, which is required for Fritz!Box audio file resources.
 func (c *Client) DownloadTAMMessage(tamIndex, msgIndex int, destPath string) error {
 	rawURL, err := c.GetTAMMessageURL(tamIndex, msgIndex)
 	if err != nil {
 		return err
 	}
 
-	// Resolve relative URLs against the TR-064 base.
-	if strings.HasPrefix(rawURL, "/") {
-		rawURL = c.tr.baseURL + rawURL
-	}
-
-	req, err := http.NewRequest(http.MethodGet, rawURL, nil)
-	if err != nil {
-		return fmt.Errorf("build TAM download request: %w", err)
-	}
-	resp, err := c.tr.httpClient.Do(req)
+	resp, err := c.sid.GetWithSID(rawURL)
 	if err != nil {
 		return fmt.Errorf("download TAM audio: %w", err)
 	}

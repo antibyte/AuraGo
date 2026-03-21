@@ -96,6 +96,25 @@ func (a *SIDAuth) Logout() {
 	}
 }
 
+// GetWithSID performs an authenticated GET request using the current SID.
+// The SID is appended as a query parameter. Use this to download resources
+// (audio files, etc.) that require session authentication.
+func (a *SIDAuth) GetWithSID(rawURL string) (*http.Response, error) {
+	sid, err := a.SID()
+	if err != nil {
+		return nil, fmt.Errorf("get SID for download: %w", err)
+	}
+	sep := "?"
+	if strings.Contains(rawURL, "?") {
+		sep = "&"
+	}
+	req, err := http.NewRequest(http.MethodGet, rawURL+sep+"sid="+sid, nil)
+	if err != nil {
+		return nil, fmt.Errorf("build SID request: %w", err)
+	}
+	return a.client.Do(req)
+}
+
 // login performs the full challenge-response login and stores the resulting SID.
 // Caller must hold a.mu.
 func (a *SIDAuth) login() (string, error) {
