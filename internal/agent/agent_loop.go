@@ -673,7 +673,11 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				}
 			}
 
-			// Inject lightweight recent-day anchors and episodic cards.
+		}
+
+		// Inject lightweight recent-day anchors and episodic cards, even when
+		// long-term memory retrieval is unavailable/disabled.
+		if lastUserMsg != "" && shortTermMem != nil {
 			anchors, aErr := shortTermMem.GetRecentDayAnchors(2)
 			if aErr == nil && len(anchors) > 0 {
 				prefix := "[Recent Day Anchors]\n- " + strings.Join(anchors, "\n- ")
