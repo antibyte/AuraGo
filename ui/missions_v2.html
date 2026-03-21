@@ -260,6 +260,26 @@
                                 onclick="selectTriggerType('system_startup')">
                                 <script>document.write(t('missions.trigger_system_startup'))</script>
                             </button>
+                            <button type="button" class="trigger-type-btn" data-trigger="device_connected"
+                                onclick="selectTriggerType('device_connected')">
+                                <script>document.write(t('missions.trigger_device_connected'))</script>
+                            </button>
+                            <button type="button" class="trigger-type-btn" data-trigger="device_disconnected"
+                                onclick="selectTriggerType('device_disconnected')">
+                                <script>document.write(t('missions.trigger_device_disconnected'))</script>
+                            </button>
+                            <button type="button" class="trigger-type-btn" data-trigger="fritzbox_call"
+                                onclick="selectTriggerType('fritzbox_call')">
+                                <script>document.write(t('missions.trigger_fritzbox_call'))</script>
+                            </button>
+                            <button type="button" class="trigger-type-btn" data-trigger="budget_warning"
+                                onclick="selectTriggerType('budget_warning')">
+                                <script>document.write(t('missions.trigger_budget_warning'))</script>
+                            </button>
+                            <button type="button" class="trigger-type-btn" data-trigger="budget_exceeded"
+                                onclick="selectTriggerType('budget_exceeded')">
+                                <script>document.write(t('missions.trigger_budget_exceeded'))</script>
+                            </button>
                         </div>
 
                         <!-- System Startup Trigger -->
@@ -408,6 +428,89 @@
                                 <div class="form-hint">
                                     <script>document.write(t('missions.trigger_mqtt_payload_hint'))</script>
                                 </div>
+                            </div>
+                        </div>
+
+                        <!-- Device Connected Trigger -->
+                        <div id="trigger-device_connected" class="trigger-fields">
+                            <div class="form-hint" style="margin-bottom: 12px;">
+                                <script>document.write(t('missions.trigger_device_connected_hint'))</script>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>
+                                        <script>document.write(t('missions.trigger_device_id_label'))</script>
+                                    </label>
+                                    <input type="text" id="device-connected-id">
+                                    <script>document.getElementById('device-connected-id').placeholder = t('missions.trigger_device_id_placeholder')</script>
+                                </div>
+                                <div class="form-group">
+                                    <label>
+                                        <script>document.write(t('missions.trigger_device_name_label'))</script>
+                                    </label>
+                                    <input type="text" id="device-connected-name">
+                                    <script>document.getElementById('device-connected-name').placeholder = t('missions.trigger_device_name_placeholder')</script>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Device Disconnected Trigger -->
+                        <div id="trigger-device_disconnected" class="trigger-fields">
+                            <div class="form-hint" style="margin-bottom: 12px;">
+                                <script>document.write(t('missions.trigger_device_disconnected_hint'))</script>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>
+                                        <script>document.write(t('missions.trigger_device_id_label'))</script>
+                                    </label>
+                                    <input type="text" id="device-disconnected-id">
+                                    <script>document.getElementById('device-disconnected-id').placeholder = t('missions.trigger_device_id_placeholder')</script>
+                                </div>
+                                <div class="form-group">
+                                    <label>
+                                        <script>document.write(t('missions.trigger_device_name_label'))</script>
+                                    </label>
+                                    <input type="text" id="device-disconnected-name">
+                                    <script>document.getElementById('device-disconnected-name').placeholder = t('missions.trigger_device_name_placeholder')</script>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Fritz!Box Call Trigger -->
+                        <div id="trigger-fritzbox_call" class="trigger-fields">
+                            <div class="form-hint" style="margin-bottom: 12px;">
+                                <script>document.write(t('missions.trigger_fritzbox_call_hint'))</script>
+                            </div>
+                            <div class="form-group">
+                                <label>
+                                    <script>document.write(t('missions.trigger_fritzbox_call_type_label'))</script>
+                                </label>
+                                <select id="fritzbox-call-type" class="form-select">
+                                    <option value="">
+                                        <script>document.write(t('missions.trigger_fritzbox_call_type_any'))</script>
+                                    </option>
+                                    <option value="call">
+                                        <script>document.write(t('missions.trigger_fritzbox_call_type_call'))</script>
+                                    </option>
+                                    <option value="tam_message">
+                                        <script>document.write(t('missions.trigger_fritzbox_call_type_tam'))</script>
+                                    </option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Budget Warning Trigger -->
+                        <div id="trigger-budget_warning" class="trigger-fields">
+                            <div class="form-hint" style="margin-bottom: 0;">
+                                <script>document.write(t('missions.trigger_budget_warning_hint'))</script>
+                            </div>
+                        </div>
+
+                        <!-- Budget Exceeded Trigger -->
+                        <div id="trigger-budget_exceeded" class="trigger-fields">
+                            <div class="form-hint" style="margin-bottom: 0;">
+                                <script>document.write(t('missions.trigger_budget_exceeded_hint'))</script>
                             </div>
                         </div>
                     </div>

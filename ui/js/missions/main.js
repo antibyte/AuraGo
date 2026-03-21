@@ -369,6 +369,27 @@ function renderTriggerInfo(mission) {
         case 'system_startup':
             triggerText = `${t('missions.trigger_system_startup_badge')}`;
             break;
+        case 'device_connected': {
+            const devName = cfg.device_name || cfg.device_id || t('missions.trigger_info_any_device');
+            triggerText = `🔌 ${t('missions.trigger_info_device_connected_prefix')} ${escapeHtml(devName)}`;
+            break;
+        }
+        case 'device_disconnected': {
+            const devName2 = cfg.device_name || cfg.device_id || t('missions.trigger_info_any_device');
+            triggerText = `⚡ ${t('missions.trigger_info_device_disconnected_prefix')} ${escapeHtml(devName2)}`;
+            break;
+        }
+        case 'fritzbox_call': {
+            const typeLabel = cfg.call_type ? cfg.call_type : t('missions.trigger_info_fritzbox_any');
+            triggerText = `📞 ${t('missions.trigger_info_fritzbox_prefix')} ${typeLabel}`;
+            break;
+        }
+        case 'budget_warning':
+            triggerText = `💰 ${t('missions.trigger_budget_warning_badge')}`;
+            break;
+        case 'budget_exceeded':
+            triggerText = `🚫 ${t('missions.trigger_budget_exceeded_badge')}`;
+            break;
     }
 
     return `
@@ -560,6 +581,17 @@ function fillTriggerConfig(cfg, type) {
             document.getElementById('mqtt-topic').value = cfg.mqtt_topic || '';
             document.getElementById('mqtt-payload-contains').value = cfg.mqtt_payload_contains || '';
             break;
+        case 'device_connected':
+            document.getElementById('device-connected-id').value = cfg.device_id || '';
+            document.getElementById('device-connected-name').value = cfg.device_name || '';
+            break;
+        case 'device_disconnected':
+            document.getElementById('device-disconnected-id').value = cfg.device_id || '';
+            document.getElementById('device-disconnected-name').value = cfg.device_name || '';
+            break;
+        case 'fritzbox_call':
+            document.getElementById('fritzbox-call-type').value = cfg.call_type || '';
+            break;
     }
 }
 
@@ -697,6 +729,17 @@ function buildTriggerConfig(type) {
             config.mqtt_payload_contains = document.getElementById('mqtt-payload-contains').value.trim();
             break;
         }
+        case 'device_connected':
+            config.device_id = document.getElementById('device-connected-id').value.trim();
+            config.device_name = document.getElementById('device-connected-name').value.trim();
+            break;
+        case 'device_disconnected':
+            config.device_id = document.getElementById('device-disconnected-id').value.trim();
+            config.device_name = document.getElementById('device-disconnected-name').value.trim();
+            break;
+        case 'fritzbox_call':
+            config.call_type = document.getElementById('fritzbox-call-type').value;
+            break;
     }
 
     return config;

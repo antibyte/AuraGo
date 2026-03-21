@@ -268,6 +268,12 @@ func Start(cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, sh
 		s.RemoteHub = remote.NewRemoteHub(remoteControlDB, vault, logger)
 		s.RemoteHub.DefaultReadOnly = cfg.RemoteControl.ReadOnly
 		s.RemoteHub.AutoApprove = cfg.RemoteControl.AutoApprove
+		s.RemoteHub.OnConnect = func(deviceID, name string) {
+			s.MissionManagerV2.NotifyDeviceEvent("device_connected", deviceID, name)
+		}
+		s.RemoteHub.OnDisconnect = func(deviceID, name string) {
+			s.MissionManagerV2.NotifyDeviceEvent("device_disconnected", deviceID, name)
+		}
 		s.RemoteHub.StartHeartbeatMonitor(30*time.Second, 90*time.Second)
 		if err := remote.TrimAuditLog(remoteControlDB, 10000); err != nil {
 			logger.Warn("Failed to trim remote audit log", "error", err)
@@ -378,6 +384,13 @@ func Start(cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, sh
 	// Set cheatsheet DB for mission prompt expansion
 	if s.CheatsheetDB != nil {
 		s.MissionManagerV2.SetCheatsheetDB(s.CheatsheetDB)
+	}
+
+	// Set budget tracker callback for budget threshold mission triggers
+	if s.BudgetTracker != nil {
+		s.BudgetTracker.SetMissionCallback(func(eventType string, spentUSD, limitUSD, percentage float64) {
+			s.MissionManagerV2.NotifyBudgetEvent(eventType, spentUSD, limitUSD, percentage)
+		})
 	}
 
 	if err := s.MissionManagerV2.Start(); err != nil {
@@ -499,6 +512,8 @@ func Start(cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, sh
 	// Start Fritz!Box telephony poller if enabled
 	if cfg.FritzBox.Enabled && cfg.FritzBox.Telephony.Enabled && cfg.FritzBox.Telephony.Polling.Enabled {
 		fbPoller := fritzbox.NewPoller(*cfg, func(kind, summary string) {
+			// Fire mission triggers for Fritz!Box events
+			s.MissionManagerV2.NotifyFritzBoxEvent(kind, summary)
 			go func() {
 				url := fmt.Sprintf("http://127.0.0.1:%d/v1/chat/completions", cfg.Server.Port)
 				prompt := fmt.Sprintf("[FRITZ!BOX EVENT: %s] %s", kind, summary)

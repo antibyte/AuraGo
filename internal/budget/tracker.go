@@ -69,6 +69,9 @@ type Tracker struct {
 	exceeded     bool
 
 	persistPath string
+
+	// Optional mission trigger callback: eventType is "budget_warning" or "budget_exceeded"
+	missionCallback func(eventType string, spentUSD, limitUSD, percentage float64)
 }
 
 // NewTracker creates a budget tracker. If budget is disabled in config, returns nil.
@@ -119,6 +122,16 @@ func NewTracker(cfg *config.Config, logger *slog.Logger, dataDir string) *Tracke
 	return t
 }
 
+// SetMissionCallback sets the callback for budget threshold mission triggers.
+func (t *Tracker) SetMissionCallback(cb func(eventType string, spentUSD, limitUSD, percentage float64)) {
+	if t == nil {
+		return
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.missionCallback = cb
+}
+
 // Record logs token usage for a model after an LLM call.
 // Returns true if a warning threshold was just crossed.
 func (t *Tracker) Record(model string, inputTokens, outputTokens int) bool {
@@ -151,6 +164,7 @@ func (t *Tracker) Record(model string, inputTokens, outputTokens int) bool {
 
 	limit := t.cfg.Budget.DailyLimitUSD
 	crossedWarning := false
+	crossedExceeded := false
 
 	if limit > 0 {
 		pct := t.totalCostUSD / limit
@@ -167,12 +181,26 @@ func (t *Tracker) Record(model string, inputTokens, outputTokens int) bool {
 		// Check exceeded
 		if pct >= 1.0 && !t.exceeded {
 			t.exceeded = true
+			crossedExceeded = true
 			t.logger.Warn("[Budget] Daily budget EXCEEDED",
 				"spent", t.totalCostUSD, "limit", limit, "enforcement", t.cfg.Budget.Enforcement)
 		}
 	}
 
+	cb := t.missionCallback
+	spent := t.totalCostUSD
 	t.persistLocked()
+
+	// Fire mission callbacks outside the hot path (non-blocking)
+	if cb != nil {
+		if crossedWarning {
+			go cb("budget_warning", spent, limit, spent/limit)
+		}
+		if crossedExceeded {
+			go cb("budget_exceeded", spent, limit, spent/limit)
+		}
+	}
+
 	return crossedWarning
 }
 

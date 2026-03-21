@@ -25,13 +25,18 @@ const (
 type TriggerType string
 
 const (
-	TriggerMissionCompleted TriggerType = "mission_completed" // Another mission finished
-	TriggerEmailReceived    TriggerType = "email_received"    // Email received
-	TriggerWebhook          TriggerType = "webhook"           // Webhook fired
-	TriggerEggHatched       TriggerType = "egg_hatched"       // Egg deployed to a nest
-	TriggerNestCleared      TriggerType = "nest_cleared"      // Nest removed
-	TriggerMQTTMessage      TriggerType = "mqtt_message"      // MQTT message received
-	TriggerSystemStartup    TriggerType = "system_startup"    // AuraGo Startup
+	TriggerMissionCompleted    TriggerType = "mission_completed"    // Another mission finished
+	TriggerEmailReceived       TriggerType = "email_received"       // Email received
+	TriggerWebhook             TriggerType = "webhook"              // Webhook fired
+	TriggerEggHatched          TriggerType = "egg_hatched"          // Egg deployed to a nest
+	TriggerNestCleared         TriggerType = "nest_cleared"         // Nest removed
+	TriggerMQTTMessage         TriggerType = "mqtt_message"         // MQTT message received
+	TriggerSystemStartup       TriggerType = "system_startup"       // AuraGo Startup
+	TriggerDeviceConnected     TriggerType = "device_connected"     // Remote device connected
+	TriggerDeviceDisconnected  TriggerType = "device_disconnected"  // Remote device disconnected or stale
+	TriggerFritzBoxCall        TriggerType = "fritzbox_call"        // Fritz!Box call or voicemail event
+	TriggerBudgetWarning       TriggerType = "budget_warning"       // Budget warning threshold crossed
+	TriggerBudgetExceeded      TriggerType = "budget_exceeded"      // Budget limit exceeded
 )
 
 // MissionStatus represents the runtime status of a mission
@@ -73,6 +78,13 @@ type TriggerConfig struct {
 	// For TriggerMQTTMessage
 	MQTTTopic           string `json:"mqtt_topic,omitempty"`            // Topic filter (supports MQTT wildcards + and #)
 	MQTTPayloadContains string `json:"mqtt_payload_contains,omitempty"` // Optional: only trigger if payload contains this string
+
+	// For TriggerDeviceConnected / TriggerDeviceDisconnected
+	DeviceID   string `json:"device_id,omitempty"`   // Filter by device ID (empty = any)
+	DeviceName string `json:"device_name,omitempty"` // Filter by device name (empty = any)
+
+	// For TriggerFritzBoxCall
+	CallType string `json:"call_type,omitempty"` // "call", "tam_message", or empty for any
 }
 
 // MissionV2 represents an enhanced mission with trigger support
@@ -618,6 +630,103 @@ func (m *MissionManagerV2) NotifySystemStartup() {
 			"time":  time.Now().Format(time.RFC3339),
 		})
 		m.queue.Enqueue(mission.ID, mission.Priority, string(TriggerSystemStartup), string(triggerData))
+		mission.Status = MissionStatusQueued
+	}
+	m.save()
+}
+
+// NotifyDeviceEvent fires mission triggers for remote device events (device_connected, device_disconnected).
+func (m *MissionManagerV2) NotifyDeviceEvent(eventType, deviceID, deviceName string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	trigType := TriggerType(eventType)
+	for _, mission := range m.missions {
+		if !mission.Enabled ||
+			mission.ExecutionType != ExecutionTriggered ||
+			mission.TriggerType != trigType {
+			continue
+		}
+
+		cfg := mission.TriggerConfig
+		if cfg == nil {
+			cfg = &TriggerConfig{}
+		}
+
+		if cfg.DeviceID != "" && cfg.DeviceID != deviceID {
+			continue
+		}
+		if cfg.DeviceName != "" && cfg.DeviceName != deviceName {
+			continue
+		}
+
+		triggerData, _ := json.Marshal(map[string]string{
+			"event":       eventType,
+			"device_id":   deviceID,
+			"device_name": deviceName,
+			"time":        time.Now().Format(time.RFC3339),
+		})
+		m.queue.Enqueue(mission.ID, mission.Priority, eventType, string(triggerData))
+		mission.Status = MissionStatusQueued
+	}
+	m.save()
+}
+
+// NotifyFritzBoxEvent fires mission triggers for Fritz!Box telephony events.
+// callType is "call" or "tam_message", summary is the event description.
+func (m *MissionManagerV2) NotifyFritzBoxEvent(callType, summary string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	for _, mission := range m.missions {
+		if !mission.Enabled ||
+			mission.ExecutionType != ExecutionTriggered ||
+			mission.TriggerType != TriggerFritzBoxCall {
+			continue
+		}
+
+		cfg := mission.TriggerConfig
+		if cfg == nil {
+			cfg = &TriggerConfig{}
+		}
+
+		if cfg.CallType != "" && cfg.CallType != callType {
+			continue
+		}
+
+		triggerData, _ := json.Marshal(map[string]string{
+			"call_type": callType,
+			"summary":   summary,
+			"time":      time.Now().Format(time.RFC3339),
+		})
+		m.queue.Enqueue(mission.ID, mission.Priority, "fritzbox_call", string(triggerData))
+		mission.Status = MissionStatusQueued
+	}
+	m.save()
+}
+
+// NotifyBudgetEvent fires mission triggers for budget threshold events.
+// eventType is "budget_warning" or "budget_exceeded".
+func (m *MissionManagerV2) NotifyBudgetEvent(eventType string, spentUSD, limitUSD, percentage float64) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	trigType := TriggerType(eventType)
+	for _, mission := range m.missions {
+		if !mission.Enabled ||
+			mission.ExecutionType != ExecutionTriggered ||
+			mission.TriggerType != trigType {
+			continue
+		}
+
+		triggerData, _ := json.Marshal(map[string]interface{}{
+			"event":      eventType,
+			"spent_usd":  spentUSD,
+			"limit_usd":  limitUSD,
+			"percentage": percentage,
+			"time":       time.Now().Format(time.RFC3339),
+		})
+		m.queue.Enqueue(mission.ID, mission.Priority, eventType, string(triggerData))
 		mission.Status = MissionStatusQueued
 	}
 	m.save()
