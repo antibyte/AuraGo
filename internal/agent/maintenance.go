@@ -340,6 +340,16 @@ Activity log:
 		logger.Error("[Journal] Failed to store daily summary", "error", err)
 	} else {
 		logger.Info("[Journal] Daily summary stored", "date", today)
+		anchor := summary.Summary
+		if idx := strings.Index(anchor, "."); idx > 20 {
+			anchor = strings.TrimSpace(anchor[:idx+1])
+		}
+		if len(anchor) > 220 {
+			anchor = strings.TrimSpace(anchor[:220]) + "…"
+		}
+		if err := stm.UpsertDayAnchor(today, anchor); err != nil {
+			logger.Warn("[Journal] Failed to store day anchor", "error", err)
+		}
 	}
 }
 
@@ -468,7 +478,7 @@ Conversation:
 // consolidateSTMtoLTM extracts knowledge from archived STM messages and stores it in the VectorDB.
 // This bridges the gap between the sliding-window short-term memory and the persistent long-term memory.
 func consolidateSTMtoLTM(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, stm *memory.SQLiteMemory, ltm memory.VectorDB, kg *memory.KnowledgeGraph) {
-	archived, err := stm.GetUnconsolidatedMessages(cfg.Consolidation.MaxBatchMessages)
+	archived, err := stm.GetConsolidationCandidates(cfg.Consolidation.MaxBatchMessages, 3)
 	if err != nil {
 		logger.Error("[Consolidation] Failed to fetch unconsolidated messages", "error", err)
 		return
@@ -548,8 +558,7 @@ Conversation:
 		)
 		if err != nil || len(resp.Choices) == 0 {
 			logger.Warn("[Consolidation] LLM extraction failed for batch", "batch", i+1, "error", err)
-			// Still mark as consolidated to avoid retrying indefinitely
-			allConsolidatedIDs = append(allConsolidatedIDs, batchIDs...)
+			_ = stm.MarkConsolidationFailure(batchIDs, fmt.Sprintf("llm extraction failed: %v", err))
 			continue
 		}
 
@@ -570,7 +579,7 @@ Conversation:
 		}
 		if err := json.Unmarshal([]byte(rawJSON), &extracted); err != nil {
 			logger.Warn("[Consolidation] Failed to parse extraction JSON", "batch", i+1, "error", err)
-			allConsolidatedIDs = append(allConsolidatedIDs, batchIDs...)
+			_ = stm.MarkConsolidationFailure(batchIDs, fmt.Sprintf("json parse failed: %v", err))
 			continue
 		}
 
@@ -591,12 +600,24 @@ Conversation:
 			totalStored++
 		}
 
+		eventDate := time.Now().Format("2006-01-02")
+		if len(batch) > 0 && len(batch[0].Timestamp) >= 10 {
+			eventDate = batch[0].Timestamp[:10]
+		}
+		episodeTitle := "Consolidated conversation batch"
+		episodeSummary := fmt.Sprintf("%d messages, %d facts extracted", len(batch), len(extracted.Facts))
+		episodeDetails := map[string]string{
+			"session_id": batch[0].SessionID,
+			"batch":      fmt.Sprintf("%d/%d", i+1, len(batches)),
+		}
+		_ = stm.InsertEpisodicMemory(eventDate, episodeTitle, episodeSummary, episodeDetails, 2, "consolidation")
+
 		allConsolidatedIDs = append(allConsolidatedIDs, batchIDs...)
 	}
 
 	// Mark all processed messages as consolidated
 	if len(allConsolidatedIDs) > 0 {
-		if err := stm.MarkConsolidated(allConsolidatedIDs); err != nil {
+		if err := stm.MarkConsolidationSuccess(allConsolidatedIDs); err != nil {
 			logger.Error("[Consolidation] Failed to mark messages as consolidated", "error", err)
 		}
 	}

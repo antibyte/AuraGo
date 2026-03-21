@@ -37,13 +37,14 @@ Extract:
 
 For each extracted item, provide:
 - content: The factual statement to remember
-- category: A short category label (e.g., "infrastructure", "personal", "workflow", "preference")
+- category: A short category label (e.g., "infrastructure", "personal", "workflow", "preference", "recent_operational_details")
 - confidence: How confident you are this is worth storing (0.0 to 1.0)
 
 Rules:
 - Only extract genuinely useful, long-term information. Skip transient requests like "show me the logs".
 - Do NOT extract information that is just part of the current task context.
 - Do NOT extract emotions, moods, or temporary states.
+- Use category "recent_operational_details" for details likely needed in the next days (paths, versions, hostnames, ports, identifiers, deadlines).
 - If there is nothing worth remembering, return empty arrays.
 
 Respond ONLY with valid JSON in this exact format:
@@ -133,13 +134,24 @@ func runMemoryAnalysis(
 
 	// Process facts
 	for _, f := range result.Facts {
-		if f.Confidence >= threshold && f.Content != "" {
+		minThreshold := thresholdForMemoryCategory(threshold, f.Category)
+		if f.Confidence >= minThreshold && f.Content != "" {
 			if ltm != nil {
 				concept := fmt.Sprintf("[%s] %s", f.Category, f.Content)
 				if _, err := ltm.StoreDocument(concept, "source:memory_analysis session:"+sessionID); err != nil {
 					logger.Warn("[Memory Analysis] Failed to store fact in LTM", "error", err)
 				} else {
 					stored++
+					if stm != nil && strings.EqualFold(f.Category, "recent_operational_details") {
+						_ = stm.InsertEpisodicMemory(
+							time.Now().Format("2006-01-02"),
+							"Operational detail",
+							Truncate(f.Content, 220),
+							map[string]string{"category": f.Category, "session_id": sessionID},
+							3,
+							"memory_analysis",
+						)
+					}
 				}
 			}
 		}
@@ -147,7 +159,8 @@ func runMemoryAnalysis(
 
 	// Process preferences
 	for _, p := range result.Preferences {
-		if p.Confidence >= threshold && p.Content != "" {
+		minThreshold := thresholdForMemoryCategory(threshold, p.Category)
+		if p.Confidence >= minThreshold && p.Content != "" {
 			if ltm != nil {
 				concept := fmt.Sprintf("[preference:%s] %s", p.Category, p.Content)
 				if _, err := ltm.StoreDocument(concept, "source:memory_analysis session:"+sessionID); err != nil {
@@ -161,7 +174,8 @@ func runMemoryAnalysis(
 
 	// Process corrections — these update core memory
 	for _, c := range result.Corrections {
-		if c.Confidence >= threshold && c.Content != "" {
+		minThreshold := thresholdForMemoryCategory(threshold, c.Category)
+		if c.Confidence >= minThreshold && c.Content != "" {
 			if ltm != nil {
 				concept := fmt.Sprintf("[correction:%s] %s", c.Category, c.Content)
 				if _, err := ltm.StoreDocument(concept, "source:memory_analysis session:"+sessionID); err != nil {
@@ -182,6 +196,15 @@ func runMemoryAnalysis(
 			"session", sessionID,
 		)
 	}
+}
+
+func thresholdForMemoryCategory(defaultThreshold float64, category string) float64 {
+	if strings.EqualFold(strings.TrimSpace(category), "recent_operational_details") {
+		if defaultThreshold > 0.82 {
+			return 0.82
+		}
+	}
+	return defaultThreshold
 }
 
 // expandQueryForRAG uses the MemoryAnalysis LLM to generate optimized search keywords

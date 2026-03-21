@@ -46,13 +46,22 @@ func rerankWithRecency(memories []string, docIDs []string, stm *memory.SQLiteMem
 			sim = 0.5 // fallback for malformed entries
 		}
 
-		// Calculate recency bonus: 0.3 for today, decaying to 0 at 30+ days
+		// Calculate recency bonus:
+		// - event freshness: up to +0.35 for new events (last_event_at)
+		// - utility freshness: up to +0.15 for recently accessed items (last_accessed)
+		// both decay to 0 at 30+ days.
 		recencyBonus := 0.0
 		if meta, ok := metaMap[docIDs[i]]; ok {
+			if eventTime, err := time.Parse("2006-01-02 15:04:05", meta.LastEventAt); err == nil {
+				daysSince := now.Sub(eventTime).Hours() / 24
+				if daysSince < 30 {
+					recencyBonus += 0.35 * (1.0 - daysSince/30.0)
+				}
+			}
 			if lastAccessed, err := time.Parse("2006-01-02 15:04:05", meta.LastAccessed); err == nil {
 				daysSince := now.Sub(lastAccessed).Hours() / 24
 				if daysSince < 30 {
-					recencyBonus = 0.3 * (1.0 - daysSince/30.0)
+					recencyBonus += 0.15 * (1.0 - daysSince/30.0)
 				}
 			}
 		}
