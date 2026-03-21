@@ -10,9 +10,12 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
+	"path"
 	"strconv"
 	"strings"
+	"unicode"
 )
 
 // CallEntry represents a single call record from the Fritz!Box call list.
@@ -322,15 +325,39 @@ func (c *Client) DownloadTAMMessage(tamIndex, msgIndex int, destPath string) err
 		return err
 	}
 
-	resp, err := c.sid.GetWithSID(rawURL)
-	if err != nil {
-		return fmt.Errorf("download TAM audio: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
+	candidates := tamAudioURLCandidates(rawURL)
+	var (
+		resp        *http.Response
+		lastErrBody string
+		lastStatus  int
+		lastURL     string
+	)
+	for _, candidate := range candidates {
+		resp, err = c.sid.GetWithSID(candidate)
+		if err != nil {
+			return fmt.Errorf("download TAM audio: %w", err)
+		}
+		if resp.StatusCode == http.StatusOK {
+			defer resp.Body.Close()
+			lastURL = candidate
+			break
+		}
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
-		return fmt.Errorf("download TAM audio: HTTP %d (url: %s) body: %s", resp.StatusCode, rawURL, strings.TrimSpace(string(body)))
+		_ = resp.Body.Close()
+		lastErrBody = strings.TrimSpace(string(body))
+		lastStatus = resp.StatusCode
+		lastURL = candidate
+
+		// Some Fritz!Box models return Path entries without extension in the TAM
+		// XML list while the downloadable file on disk has ".wav". Retry with
+		// URL variants before failing hard.
+		if resp.StatusCode != http.StatusNotFound {
+			return fmt.Errorf("download TAM audio: HTTP %d (url: %s) body: %s", resp.StatusCode, candidate, lastErrBody)
+		}
+	}
+
+	if resp == nil || resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("download TAM audio: HTTP %d (url: %s) body: %s", lastStatus, lastURL, lastErrBody)
 	}
 
 	f, err := os.Create(destPath)
@@ -343,4 +370,59 @@ func (c *Client) DownloadTAMMessage(tamIndex, msgIndex int, destPath string) err
 		return fmt.Errorf("write TAM audio file: %w", err)
 	}
 	return nil
+}
+
+func tamAudioURLCandidates(rawURL string) []string {
+	seen := map[string]struct{}{}
+	add := func(in string, out *[]string) {
+		if in == "" {
+			return
+		}
+		if _, ok := seen[in]; ok {
+			return
+		}
+		seen[in] = struct{}{}
+		*out = append(*out, in)
+	}
+
+	candidates := make([]string, 0, 2)
+	add(rawURL, &candidates)
+
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return candidates
+	}
+	query := u.Query()
+	rawPath := strings.TrimSpace(query.Get("path"))
+	if rawPath == "" {
+		return candidates
+	}
+	ext := path.Ext(rawPath)
+	if ext != "" && !looksLikeTamSequenceExt(ext) {
+		return candidates
+	}
+
+	u2 := *u
+	q2 := u2.Query()
+	q2.Set("path", rawPath+".wav")
+	u2.RawQuery = q2.Encode()
+	add(u2.String(), &candidates)
+
+	return candidates
+}
+
+func looksLikeTamSequenceExt(ext string) bool {
+	if ext == "" {
+		return false
+	}
+	trimmed := strings.TrimPrefix(ext, ".")
+	if trimmed == "" {
+		return false
+	}
+	for _, r := range trimmed {
+		if !unicode.IsDigit(r) {
+			return false
+		}
+	}
+	return true
 }
