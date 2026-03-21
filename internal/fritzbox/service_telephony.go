@@ -329,7 +329,8 @@ func (c *Client) DownloadTAMMessage(tamIndex, msgIndex int, destPath string) err
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("download TAM audio: HTTP %d (url: %s)", resp.StatusCode, rawURL)
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+		return fmt.Errorf("download TAM audio: HTTP %d (url: %s) body: %s", resp.StatusCode, rawURL, strings.TrimSpace(string(body)))
 	}
 
 	f, err := os.Create(destPath)

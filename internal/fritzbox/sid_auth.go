@@ -97,8 +97,9 @@ func (a *SIDAuth) Logout() {
 }
 
 // GetWithSID performs an authenticated GET request using the current SID.
-// The SID is appended as a query parameter. Use this to download resources
-// (audio files, etc.) that require session authentication.
+// The SID is sent both as a query parameter and as a Cookie header, because
+// Fritz!Box endpoints like download.lua authenticate via cookie rather than
+// the query parameter.
 func (a *SIDAuth) GetWithSID(rawURL string) (*http.Response, error) {
 	sid, err := a.SID()
 	if err != nil {
@@ -112,6 +113,9 @@ func (a *SIDAuth) GetWithSID(rawURL string) (*http.Response, error) {
 	if err != nil {
 		return nil, fmt.Errorf("build SID request: %w", err)
 	}
+	// Send SID as cookie too — download.lua and similar endpoints check the cookie,
+	// not (only) the query parameter.
+	req.AddCookie(&http.Cookie{Name: "sid", Value: sid})
 	return a.client.Do(req)
 }
 
