@@ -645,6 +645,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 						if pErr == nil && len(pMem) > 0 {
 							if _, dup := retrievedSet[pMem[0]]; !dup {
 								predictedResults = append(predictedResults, pMem[0])
+								retrievedSet[pMem[0]] = struct{}{} // prevent intra-prediction duplicates
 							}
 						}
 					}
@@ -816,7 +817,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					Time       string                         `json:"time"`
 					Model      string                         `json:"model"`
 					ToolsCount int                            `json:"tools_count"`
-					Messages   []openai.ChatCompletionMessage  `json:"messages"`
+					Messages   []openai.ChatCompletionMessage `json:"messages"`
 				}
 				entry := promptLogEntry{
 					Time:       time.Now().UTC().Format(time.RFC3339),
