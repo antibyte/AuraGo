@@ -1,137 +1,134 @@
 ## Tool: Memory Reflection (`memory_reflect`)
 
-Reflektiert über vergangene Interaktionen und generiert Erkenntnisse über Patterns, Fehler, Fortschritte und Beziehungen. Nützlich für kontinuierliches Lernen und Verbesserung.
+Reflects on past interactions and generates insights about patterns, errors, progress, and relationships. Useful for continuous learning and proactive improvement.
 
-### Wann verwenden?
+### When to use
 
-- Am Ende einer produktiven Woche
-- Nach wiederholten Fehlern (Pattern-Analyse)
-- Für Fortschrittsberichte
-- Um Beziehungen/Projekte zu analysieren
-- Vor langfristigen Planungen
+- At the end of a productive week or major project
+- After repeated errors (pattern analysis)
+- To generate a progress summary for the user
+- To analyse relationships and active projects in the Knowledge Graph
+- Before long-term planning or goal-setting
 
-### Parameter
+### Schema
 
-| Parameter | Typ | Default | Beschreibung |
-|-----------|-----|---------|--------------|
-| `scope` | string | required | session/day/week/month/project/all_time |
-| `focus` | string | "all" | patterns/errors/progress/relationships/all |
-| `output_format` | string | "summary" | summary/detailed/action_items/insights_only |
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `scope` | string | required | `session` / `day` / `week` / `month` / `project` / `all_time` |
+| `focus` | string | `"all"` | `patterns` / `errors` / `progress` / `relationships` / `all` |
+| `output_format` | string | `"summary"` | `summary` / `detailed` / `action_items` / `insights_only` |
 
 ### Scope
 
-- **session**: Aktuelle Session
-- **day**: Heute
-- **week**: Letzte 7 Tage
-- **month**: Letzte 30 Tage
-- **project**: Aktuelles Projekt (aus KG)
-- **all_time**: Gesamte Historie
+- **session** — current session only
+- **day** — today
+- **week** — last 7 days
+- **month** — last 30 days
+- **project** — active project (from KG context)
+- **all_time** — full history
 
 ### Focus Areas
 
-#### patterns
-Analysiert wiederkehrende Verhaltensmuster:
-- Häufige Anfrage-Themen
-- Uhrzeit-Präferenzen
-- Tool-Nutzungsmuster
-- Session-Dauer
+#### `patterns`
+Analyses recurring behavioural patterns:
+- Most frequent request topics
+- Time-of-day activity preferences
+- Tool usage patterns
+- Session length and frequency
 
-#### errors
-Analysiert Fehler und Lösungen:
-- Häufigste Fehlertypen
-- Erfolgreiche Workarounds
-- Wiederholte Fehler (noch nicht gelernt)
-- Fehler-Trends (↗ ↘)
+#### `errors`
+Analyses errors and resolutions:
+- Most frequent error types
+- Successful workarounds
+- Repeated errors (not yet learned)
+- Error trends (↗ ↘)
 
-#### progress
-Zeigt Fortschritte und Erfolge:
-- Abgeschlossene Projekte/Tasks
-- Gelernte Skills
-- Eingerichtete Integrationen
-- Meilensteine
+#### `progress`
+Shows achievements and completions:
+- Finished projects and tasks
+- Newly learned skills
+- Configured integrations
+- Milestones reached
 
-#### relationships
-Analysiert Knowledge Graph:
-- Neue Entitäten
-- Neue Verbindungen
-- Aktive Projekte
-- Wichtige Beziehungen
+#### `relationships`
+Analyses the Knowledge Graph:
+- New entities and connections added
+- Active projects
+- Important relationships
 
 ### Output Formats
 
-- **summary**: Übersicht mit Highlights
-- **detailed**: Vollständige Analyse mit Beispielen
-- **action_items**: Konkrete Vorschläge
-- **insights_only**: Nur die "Aha!"-Erkenntnisse
+- **summary** — highlights overview
+- **detailed** — full analysis with examples
+- **action_items** — concrete next-step suggestions
+- **insights_only** — only the key "aha" findings
 
-### Beispiele
+### Examples
 
-#### Wochen-Reflektion
+#### Weekly reflection
 
 ```json
 {"action": "memory_reflect", "scope": "week", "focus": "all", "output_format": "summary"}
 ```
 
-**Ergebnis:**
+**Result:**
 ```
-📊 Deine Woche mit AuraGo (09.03 - 15.03.2026)
+📊 Your week (09.03 - 15.03.2026)
 
 🎯 Highlights:
-   ✅ 4 erfolgreiche Docker-Setups
-   ✅ 3 Server im Inventory registriert
-   ✅ 2 Cron-Jobs eingerichtet
-   ✅ 1 Python-Tool erstellt
+   ✅ 4 successful Docker setups
+   ✅ 3 servers registered in inventory
+   ✅ 2 cron jobs configured
+   ✅ 1 Python tool created
 
 🔄 Patterns:
-   • Hauptfokus: Docker/Infrastructure (65% der Zeit)
-   • Aktivste Zeit: 20:00-22:00 Uhr
-   • Durchschnittliche Antwortzeit: 45s
-   • Lieblings-Tools: docker, filesystem, execute_shell
+   • Main focus: Docker/Infrastructure (65% of time)
+   • Most active: 20:00–22:00
+   • Favourite tools: docker, filesystem, execute_shell
 
 ⚠️ Learnings:
-   • 3x Permission-Denied → sudo vergessen
-     💡 Vorschlag: Sudo-Standard immer prüfen?
-   
-   • 2x Container-Name vergeben
-     💡 Vorschlag: Naming-Convention etablieren?
+   • 3× Permission Denied → forgot sudo
+     💡 Suggestion: always check sudo first?
+
+   • 2× container name already in use
+     💡 Suggestion: establish a naming convention?
 
 📈 Knowledge Graph:
-   +5 Entitäten | +8 Relationen
-   Neue: Andre, AuraGo, Proxmox, Docker-Compose
+   +5 entities | +8 relations
 
-🎯 Vorschläge für nächste Woche:
-   1. Docker-Volumes Backup einrichten?
-   2. Proxmox-Templates erstellen?
-   3. SSH-Key-Management automatisieren?
+🎯 Suggestions for next week:
+   1. Set up Docker volumes backup?
+   2. Create Proxmox templates?
+   3. Automate SSH key management?
 ```
 
-#### Fehler-Analyse
+#### Error analysis
 
 ```json
 {"action": "memory_reflect", "scope": "month", "focus": "errors", "output_format": "detailed"}
 ```
 
-**Ergebnis:**
+**Result:**
 ```
-⚠️ Fehler-Analyse (letzter Monat)
+⚠️ Error Analysis (last month)
 
-Top 3 Fehlertypen:
+Top 3 error types:
 
-1. Permission Denied (12x) ↗ +3 vs. Vormonat
-   ├─ Lösung gefunden: 10/12 (83%)
-   ├─ Wiederholt: 2x (noch nicht gelernt)
-   └─ 💡 Empfehlung: execute_sudo bevorzugen
+1. Permission Denied (12×) ↗ +3 vs. previous month
+   ├─ Resolved: 10/12 (83%)
+   ├─ Recurring: 2× (not yet learned)
+   └─ 💡 Recommendation: prefer execute_sudo
 
-2. Container-Port belegt (5x) → gleich
-   ├─ Lösung gefunden: 5/5 (100%)
-   └─ ✅ Gelernt: Prüfung vor Start implementiert
+2. Container port already in use (5×) → unchanged
+   ├─ Resolved: 5/5 (100%)
+   └─ ✅ Learned: added port check before start
 
-3. SSH-Key Fehler (3x) ↘ -2 vs. Vormonat
-   ├─ Lösung gefunden: 3/3 (100%)
-   └─ ✅ Verbesserung erkannt!
+3. SSH key error (3×) ↘ -2 vs. previous month
+   ├─ Resolved: 3/3 (100%)
+   └─ ✅ Improvement detected!
 ```
 
-#### Projektspezifisch
+#### Project-specific
 
 ```json
 {"action": "memory_reflect", "scope": "project", "focus": "progress", "output_format": "action_items"}
@@ -139,50 +136,21 @@ Top 3 Fehlertypen:
 
 ### Best Practices
 
-1. **Regelmäßige Reflektion**
-   - Wöchentlich (Sonntagabend)
-   - Nach großen Projekten
-   - Bei wiederholten Fehlern
+1. **Reflect regularly**
+   - Weekly (e.g. Sunday evening)
+   - After major projects
+   - When you notice repeated errors
 
-2. **Focus wählen nach Bedarf**
-   - Frust mit Fehlern → `focus: "errors"`
-   - Motivation boost → `focus: "progress"`
-   - Überblick verlieren → `focus: "patterns"`
+2. **Choose focus based on need**
+   - Frustrated by errors → `focus: "errors"`
+   - Need motivation → `focus: "progress"`
+   - Lost the overview → `focus: "patterns"`
 
-3. **Action Items umsetzen**
-   - Nicht nur lesen!
-   - Core Memory aktualisieren
-   - Neue Workflows etablieren
+3. **Act on the insights**
+   - Don't just read — update Core Memory with new constraints
+   - Add lessons learned as journal entries
+   - Establish new workflows based on pattern findings
 
-4. **Mit User teilen**
-   - Wochenberichte sind motivierend
-   - Zeigt Fortschritt
-   - Baut Vertrauen
-
-### Auto-Reflektion
-
-Das System kann Reflektionen automatisch generieren:
-
-```yaml
-# config.yaml
-memory:
-  reflection:
-    auto_weekly: true
-    day: sunday
-    time: "20:00"
-    share_with_user: true  # Im Chat posten
-```
-
-**Auto-Post:**
-```
-🤖 AuraGo Weekly Reflection
-
-Diese Woche haben wir:
-✅ 12 Tasks erledigt
-✅ 3 Server eingerichtet  
-⚠️ 2 Fehler behoben
-
-Top-Learning: "Docker Compose über Docker Run bevorzugen"
-
-[Details ansehen] [Ignorieren]
-```
+4. **Share with user**
+   - Weekly summaries are motivating and build trust
+   - Show progress proactively — don't wait to be asked

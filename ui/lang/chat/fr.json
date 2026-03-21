@@ -67,7 +67,7 @@
   "chat.system_briefing_prefix": "🌅 **Briefing système :**",
   "chat.todo_panel_title": "📋 Liste de choses à faire",
   "chat.token_counter_default": "0 jeton",
-  "chat.token_counter_format": "{{count} } jeton",
+  "chat.token_counter_format": "{{count}} jetons",
   "chat.tool_call_label": "Appel d'outil",
   "chat.tool_output_label": "Sortie de l'outil",
   "chat.trait_affinity": "affection",

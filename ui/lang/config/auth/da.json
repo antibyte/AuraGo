@@ -14,7 +14,7 @@
   "config.auth.password_is_set": "✅ Adgangskode er indstillet. Skift det her:",
   "config.auth.password_not_set": "⚠️ Ingen adgangskode angivet — login-vagt kan ikke aktiveres.",
   "config.auth.new_password_placeholder": "Ny adgangskode (min. 8 tegn)",
-  "config.auth.update_password": "Opdatering",
+  "config.auth.update_password": "Opdater",
   "config.auth.set_password": "Sæt",
   "config.auth.password_min_length": "Adgangskoden skal være på mindst 8 tegn.",
   "config.auth.totp_title": "To-faktor-godkendelse (TOTP)",

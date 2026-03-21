@@ -42,3 +42,27 @@ Search **ALL** memory subsystems at once with a single natural-language query. T
 - **Start broad** — don't restrict sources unless you're getting too many irrelevant results
 - Notes and journal entries are included automatically — no need to search them separately
 - Error patterns track tool failures and known resolutions; always check here before retrying a failed operation
+
+### When to upgrade to `context_memory`
+
+`query_memory` covers the vast majority of recall tasks. Use `context_memory` instead when:
+
+| Situation | Better tool |
+|-----------|-------------|
+| Quick fact lookup, most recall tasks | `query_memory` ✅ |
+| Results were too few or off-topic | `context_memory` with `context_depth: deep` |
+| You need KG graph traversal (connected entities) | `context_memory` with `include_related: true` |
+| You need to scope to a specific time window | `context_memory` with `time_range` |
+| You need relationships, not just isolated facts | `context_memory` |
+
+### Background memory operations
+
+The system automatically enriches each turn with memory before you even issue a recall:
+
+- **CORE MEMORY** — permanent user facts always injected into every prompt
+- **RETRIEVED MEMORIES** — top-3 long-term memories most semantically similar to the current message (auto-RAG)
+- **PREDICTED CONTEXT** — memories pre-fetched based on recent tool usage patterns (full tier only)
+- **RELEVANT KNOWLEDGE** — KG entities related to the current message, injected via `SearchForContext`
+- **ACTIVE REMINDERS** — high-priority open notes always shown
+
+This means: in many cases you already have the relevant context **without calling any tool**. Only call `query_memory` when the injected context is incomplete or you need something specific.

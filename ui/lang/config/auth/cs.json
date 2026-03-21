@@ -15,7 +15,7 @@
   "config.auth.password_not_set": "⚠️ Není nastaveno žádné heslo – strážce přihlášení nelze aktivovat.",
   "config.auth.new_password_placeholder": "Nové heslo (min. 8 znaků)",
   "config.auth.update_password": "Aktualizovat",
-  "config.auth.set_password": "Soubor",
+  "config.auth.set_password": "Nastavit",
   "config.auth.password_min_length": "Heslo musí mít alespoň 8 znaků.",
   "config.auth.totp_title": "Dvoufaktorová autentizace (TOTP)",
   "config.auth.totp_desc": "Další zabezpečení pomocí ověřovacích aplikací (Google Authenticator, Authy atd.).",

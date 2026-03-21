@@ -13,6 +13,7 @@ let initialLoad = false; // Track if first load completed
 let gridRendered = false; // Track if grid has been rendered at least once (for enter animation)
 let viewMode = localStorage.getItem('missions-view-mode') || 'auto'; // 'grid' | 'list' | 'auto'
 let expandedCards = new Set(); // Track expanded card IDs in grid view
+let lastRenderedDataHash = ''; // Used to skip re-renders when nothing changed
 
 // Extract displayable text from mission last_output.
 // Handles legacy entries where the raw OpenAI-format JSON was stored.
@@ -92,9 +93,18 @@ async function loadData() {
 
 // Render everything
 function render() {
+    // Build a hash of the current data to avoid unnecessary DOM re-renders.
+    // renderStatusBar() and updateViewToggle() only patch textContent/classes (no flicker).
+    // renderMissions() and renderQueue() replace innerHTML — skip them when nothing changed.
+    const dataHash = JSON.stringify(missions) + '||' + JSON.stringify(queue) + '||' + currentFilter;
+    const dataChanged = dataHash !== lastRenderedDataHash;
+    lastRenderedDataHash = dataHash;
+
     renderStatusBar();
-    renderQueue();
-    renderMissions();
+    if (dataChanged) {
+        renderQueue();
+        renderMissions();
+    }
     updateViewToggle();
 }
 

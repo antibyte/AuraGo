@@ -1,199 +1,814 @@
-================================================================================
-ÜBERSETZUNGSPRÜFUNG - DETAILLIERTER BERICHT
-================================================================================
+====================================================================================================
+UEBERSETZUNGSPRUEFUNG - DETAILLIERTER BERICHT
+====================================================================================================
 
---------------------------------------------------------------------------------
-VERZEICHNIS: ui/lang/config/image_generation
---------------------------------------------------------------------------------
-Referenz (en.json): 25 Keys
-
-  [cs] OK (25 Keys)
-  [da] OK (25 Keys)
-  [de] OK (25 Keys)
-  [el] OK (25 Keys)
-  [es] OK (25 Keys)
-  [fr] OK (25 Keys)
-  [hi] OK (25 Keys)
-  [it] OK (25 Keys)
-  [ja] OK (25 Keys)
-  [nl] OK (25 Keys)
-  [no] OK (25 Keys)
-  [pl] OK (25 Keys)
-  [pt] OK (25 Keys)
-  [sv] OK (25 Keys)
-  [zh] OK (25 Keys)
-
-Zusammenfassung: 0 Probleme gefunden
-
---------------------------------------------------------------------------------
-VERZEICHNIS: ui/lang/config/indexing
---------------------------------------------------------------------------------
-Referenz (en.json): 25 Keys
-
-  [cs] OK (25 Keys)
-  [da] OK (25 Keys)
-  [de] OK (25 Keys)
-  [el] OK (25 Keys)
-  [es] OK (25 Keys)
-  [fr] OK (25 Keys)
-  [hi] OK (25 Keys)
-  [it] OK (25 Keys)
-  [ja] OK (25 Keys)
-  [nl] OK (25 Keys)
-  [no] OK (25 Keys)
-  [pl] OK (25 Keys)
-  [pt] OK (25 Keys)
-  [sv] OK (25 Keys)
-  [zh] OK (25 Keys)
-
-Zusammenfassung: 0 Probleme gefunden
-
---------------------------------------------------------------------------------
-VERZEICHNIS: ui/lang/config/llm_guardian
---------------------------------------------------------------------------------
-Referenz (en.json): 37 Keys
-
-  [cs] OK (37 Keys)
-  [da] OK (37 Keys)
-  [de] OK (37 Keys)
-  [el] OK (37 Keys)
-  [es] OK (37 Keys)
-  [fr] OK (37 Keys)
-  [hi] OK (37 Keys)
-  [it] OK (37 Keys)
-  [ja] OK (37 Keys)
-  [nl] OK (37 Keys)
-  [no] OK (37 Keys)
-  [pl] OK (37 Keys)
-  [pt] OK (37 Keys)
-  [sv] OK (37 Keys)
-  [zh] OK (37 Keys)
-
-Zusammenfassung: 0 Probleme gefunden
-
---------------------------------------------------------------------------------
-VERZEICHNIS: ui/lang/config/mcp
---------------------------------------------------------------------------------
-Referenz (en.json): 27 Keys
-
-  [cs] OK (27 Keys)
-  [da] OK (27 Keys)
-  [de] OK (27 Keys)
-  [el] OK (27 Keys)
-  [es] OK (27 Keys)
-  [fr] OK (27 Keys)
-  [hi] OK (27 Keys)
-  [it] OK (27 Keys)
-  [ja] OK (27 Keys)
-  [nl] OK (27 Keys)
-  [no] OK (27 Keys)
-  [pl] OK (27 Keys)
-  [pt] OK (27 Keys)
-  [sv] OK (27 Keys)
-  [zh] OK (27 Keys)
-
-Zusammenfassung: 0 Probleme gefunden
-
---------------------------------------------------------------------------------
-VERZEICHNIS: ui/lang/config/mcp_server
---------------------------------------------------------------------------------
-Referenz (en.json): 16 Keys
-
-  [cs] OK (16 Keys)
-  [da] OK (16 Keys)
-  [de] OK (16 Keys)
-  [el] OK (16 Keys)
-  [es] OK (16 Keys)
-  [fr] OK (16 Keys)
-  [hi] OK (16 Keys)
-  [it] OK (16 Keys)
-  [ja] OK (16 Keys)
-  [nl] OK (16 Keys)
-  [no] OK (16 Keys)
-  [pl] OK (16 Keys)
-  [pt] OK (16 Keys)
-  [sv] OK (16 Keys)
-  [zh] OK (16 Keys)
-
-Zusammenfassung: 0 Probleme gefunden
-
---------------------------------------------------------------------------------
-VERZEICHNIS: ui/lang/config/memory_analysis
---------------------------------------------------------------------------------
-Referenz (en.json): 26 Keys
-
-  [cs] OK (26 Keys)
-  [da] OK (26 Keys)
-  [de] OK (26 Keys)
-  [el] OK (26 Keys)
-  [es] OK (26 Keys)
-  [fr] OK (26 Keys)
-  [hi] OK (26 Keys)
-  [it] OK (26 Keys)
-  [ja] OK (26 Keys)
-  [nl] OK (26 Keys)
-  [no] OK (26 Keys)
-  [pl] OK (26 Keys)
-  [pt] OK (26 Keys)
-  [sv] OK (26 Keys)
-  [zh] OK (26 Keys)
-
-Zusammenfassung: 0 Probleme gefunden
-
---------------------------------------------------------------------------------
-VERZEICHNIS: ui/lang/config/misc
---------------------------------------------------------------------------------
-Referenz (en.json): 47 Keys
-
-  [cs] OK (47 Keys)
-  [da] OK (47 Keys)
-  [de] OK (47 Keys)
-  [el] OK (47 Keys)
-  [es] OK (47 Keys)
-  [fr] OK (47 Keys)
-  [hi] OK (47 Keys)
-  [it] OK (47 Keys)
-  [ja] OK (47 Keys)
-  [nl] OK (47 Keys)
-  [no] OK (47 Keys)
-  [pl] OK (47 Keys)
-  [pt] OK (47 Keys)
-  [sv] OK (47 Keys)
-  [zh] OK (47 Keys)
-
-Zusammenfassung: 0 Probleme gefunden
-
---------------------------------------------------------------------------------
-VERZEICHNIS: ui/lang/config/netlify
---------------------------------------------------------------------------------
-Referenz (en.json): 31 Keys
-
-  [cs] OK (31 Keys)
-  [da] OK (31 Keys)
-  [de] OK (31 Keys)
-  [el] OK (31 Keys)
-  [es] OK (31 Keys)
-  [fr] OK (31 Keys)
-  [hi] OK (31 Keys)
-  [it] OK (31 Keys)
-  [ja] OK (31 Keys)
-  [nl] OK (31 Keys)
-  [no] OK (31 Keys)
-  [pl] OK (31 Keys)
-  [pt] OK (31 Keys)
-  [sv] OK (31 Keys)
-  [zh] OK (31 Keys)
-
-Zusammenfassung: 0 Probleme gefunden
-
-================================================================================
-GESAMTZAHL DER PROBLEME: 0
-================================================================================
-================================================================================
 ZUSAMMENFASSUNG
-================================================================================
-Geprüfte Dateien:     120
-Vollständig (OK):     120
-Unvollständig:        0
-Fehler:               0
-================================================================================
+----------------------------------------------------------------------------------------------------
+Gepruefte Dateien: 30
+Gefundene Probleme: 178
+Dateien mit Problemen: 20
+
+PROBLEME NACH DATEI
+----------------------------------------------------------------------------------------------------
+
+
+ui/lang/cheatsheets/cs.json
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  [WRONG_CASE] Key: cheatsheets.name
+    Aktuell:    jméno
+    Empfohlen:  Jméno
+
+
+ui/lang/cheatsheets/da.json
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  [WRONG_TRANSLATION] Key: cheatsheets.save
+    Aktuell:    Spare
+    Empfohlen:  Gem
+
+  [WRONG_CASE] Key: cheatsheets.name
+    Aktuell:    navn
+    Empfohlen:  Navn
+
+
+ui/lang/cheatsheets/el.json
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  [WRONG_CASE] Key: cheatsheets.name
+    Aktuell:    όνομα
+    Empfohlen:  Όνομα
+
+
+ui/lang/cheatsheets/es.json
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  [WRONG_TRANSLATION] Key: cheatsheets.save
+    Aktuell:    Ahorrar
+    Empfohlen:  Guardar
+
+  [WRONG_CASE] Key: cheatsheets.name
+    Aktuell:    nombre
+    Empfohlen:  Nombre
+
+
+ui/lang/cheatsheets/fr.json
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  [WRONG_CASE] Key: cheatsheets.name
+    Aktuell:    nom
+    Empfohlen:  Nom
+
+
+ui/lang/cheatsheets/hi.json
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  [WRONG_TRANSLATION] Key: cheatsheets.save
+    Aktuell:    बचाना
+    Empfohlen:  सहेजें
+
+
+ui/lang/cheatsheets/it.json
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  [WRONG_CASE] Key: cheatsheets.name
+    Aktuell:    nome
+    Empfohlen:  Nome
+
+
+ui/lang/cheatsheets/nl.json
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  [WRONG_TRANSLATION] Key: cheatsheets.save
+    Aktuell:    Redden
+    Empfohlen:  Opslaan
+
+  [WRONG_CASE] Key: cheatsheets.name
+    Aktuell:    naam
+    Empfohlen:  Naam
+
+
+ui/lang/cheatsheets/no.json
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  [WRONG_TRANSLATION] Key: cheatsheets.save
+    Aktuell:    Spare
+    Empfohlen:  Lagre
+
+  [WRONG_CASE] Key: cheatsheets.name
+    Aktuell:    navn
+    Empfohlen:  Navn
+
+
+ui/lang/cheatsheets/pl.json
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  [WRONG_TRANSLATION] Key: cheatsheets.save
+    Aktuell:    Ratować
+    Empfohlen:  Zapisz
+
+  [WRONG_TRANSLATION] Key: cheatsheets.name_required
+    Aktuell:    Imię i nazwisko jest wymagane.
+    Empfohlen:  Nazwa jest wymagana.
+
+  [WRONG_CASE] Key: cheatsheets.name
+    Aktuell:    nazwa
+    Empfohlen:  Nazwa
+
+
+ui/lang/cheatsheets/pt.json
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  [WRONG_CASE] Key: cheatsheets.name
+    Aktuell:    nome
+    Empfohlen:  Nome
+
+
+ui/lang/cheatsheets/sv.json
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  [WRONG_CASE] Key: cheatsheets.name
+    Aktuell:    namn
+    Empfohlen:  Namn
+
+
+ui/lang/cheatsheets/zh.json
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  [WRONG_TRANSLATION] Key: cheatsheets.save
+    Aktuell:    节省
+    Empfohlen:  保存
+
+  [WRONG_TRANSLATION] Key: cheatsheets.name
+    Aktuell:    姓名
+    Empfohlen:  名称
+
+
+ui/lang/invasion/cs.json
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  [WRONG_TRANSLATION] Key: invasion.cancel
+    Aktuell:    Zrusit
+    Empfohlen:  Zrušit
+
+  [WRONG_TRANSLATION] Key: invasion.save
+    Aktuell:    Ulozit
+    Empfohlen:  Uložit
+
+
+ui/lang/invasion/da.json
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  [WRONG_TRANSLATION] Key: invasion.cancel
+    Aktuell:    Zrusit
+    Empfohlen:  Annuller
+
+  [WRONG_TRANSLATION] Key: invasion.delete
+    Aktuell:    Smazat
+    Empfohlen:  Slet
+
+  [WRONG_TRANSLATION] Key: invasion.edit
+    Aktuell:    Upravit
+    Empfohlen:  Rediger
+
+  [WRONG_TRANSLATION] Key: invasion.save
+    Aktuell:    Ulozit
+    Empfohlen:  Gem
+
+  [NOT_TRANSLATED] Key: invasion.access_type
+    Aktuell:    Toegangstype
+    Empfohlen:  [AUF DA UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.apikey_set
+    Aktuell:    API Key is al ingesteld. Leeg laten om te behouden
+    Empfohlen:  [AUF DA UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.assign_egg
+    Aktuell:    Egg Toewijzen
+    Empfohlen:  [AUF DA UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.badge_llm_inherit
+    Aktuell:    LLM Overerven
+    Empfohlen:  [AUF DA UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.confirm_delete
+    Aktuell:    Verwijderen Bevestigen
+    Empfohlen:  [AUF DA UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.description
+    Aktuell:    Beschrijving
+    Empfohlen:  [AUF DA UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.edit_egg
+    Aktuell:    Egg Bewerken
+    Empfohlen:  [AUF DA UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.edit_nest
+    Aktuell:    Nest Bewerken
+    Empfohlen:  [AUF DA UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.egg_port
+    Aktuell:    Egg Poort
+    Empfohlen:  [AUF DA UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.notes
+    Aktuell:    Notities
+    Empfohlen:  [AUF DA UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.ph_nest_name
+    Aktuell:    Productie Server
+    Empfohlen:  [AUF DA UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.ph_nest_notes
+    Aktuell:    Optionele notities...
+    Empfohlen:  [AUF DA UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.ph_secret
+    Aktuell:    Wachtwoord of SSH Private Key...
+    Empfohlen:  [AUF DA UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.provider
+    Aktuell:    Provider
+    Empfohlen:  [AUF DA UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.route_custom
+    Aktuell:    Aangepast
+    Empfohlen:  [AUF DA UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.secret
+    Aktuell:    Secret (Wachtwoord / SSH Key)
+    Empfohlen:  [AUF DA UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.secret_set
+    Aktuell:    Secret is al ingesteld. Leeg laten om te behouden.
+    Empfohlen:  [AUF DA UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.stop_signal_sent
+    Aktuell:    Stop signaal verstuurd
+    Empfohlen:  [AUF DA UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.target_arch
+    Aktuell:    Doel Architectuur
+    Empfohlen:  [AUF DA UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.test_connection
+    Aktuell:    🔗 Test Verbinding
+    Empfohlen:  [AUF DA UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.will_delete_egg
+    Aktuell:    wordt permanent verwijderd. De bijbehorende API ke
+    Empfohlen:  [AUF DA UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.will_delete_nest
+    Aktuell:    wordt permanent verwijderd. De bijbehorende secret
+    Empfohlen:  [AUF DA UEBERSETZEN]
+
+
+ui/lang/invasion/el.json
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  [WRONG_TRANSLATION] Key: invasion.cancel
+    Aktuell:    Ακυρωση
+    Empfohlen:  Ακύρωση
+
+  [WRONG_TRANSLATION] Key: invasion.delete
+    Aktuell:    Διαγραφη
+    Empfohlen:  Διαγραφή
+
+  [WRONG_TRANSLATION] Key: invasion.edit
+    Aktuell:    Επεξεργασια
+    Empfohlen:  Επεξεργασία
+
+  [WRONG_TRANSLATION] Key: invasion.save
+    Aktuell:    Αποθηκευση
+    Empfohlen:  Αποθήκευση
+
+  [NOT_TRANSLATED] Key: invasion.access_type
+    Aktuell:    Toegangstype
+    Empfohlen:  [AUF EL UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.apikey_set
+    Aktuell:    API Key is al ingesteld. Leeg laten om te behouden
+    Empfohlen:  [AUF EL UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.assign_egg
+    Aktuell:    Egg Toewijzen
+    Empfohlen:  [AUF EL UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.badge_llm_inherit
+    Aktuell:    LLM Overerven
+    Empfohlen:  [AUF EL UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.confirm_delete
+    Aktuell:    Verwijderen Bevestigen
+    Empfohlen:  [AUF EL UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.description
+    Aktuell:    Beschrijving
+    Empfohlen:  [AUF EL UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.edit_egg
+    Aktuell:    Egg Bewerken
+    Empfohlen:  [AUF EL UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.edit_nest
+    Aktuell:    Nest Bewerken
+    Empfohlen:  [AUF EL UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.egg_port
+    Aktuell:    Egg Poort
+    Empfohlen:  [AUF EL UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.notes
+    Aktuell:    Notities
+    Empfohlen:  [AUF EL UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.ph_nest_name
+    Aktuell:    Productie Server
+    Empfohlen:  [AUF EL UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.ph_nest_notes
+    Aktuell:    Optionele notities...
+    Empfohlen:  [AUF EL UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.ph_secret
+    Aktuell:    Wachtwoord of SSH Private Key...
+    Empfohlen:  [AUF EL UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.provider
+    Aktuell:    Provider
+    Empfohlen:  [AUF EL UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.route_custom
+    Aktuell:    Aangepast
+    Empfohlen:  [AUF EL UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.secret
+    Aktuell:    Secret (Wachtwoord / SSH Key)
+    Empfohlen:  [AUF EL UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.secret_set
+    Aktuell:    Secret is al ingesteld. Leeg laten om te behouden.
+    Empfohlen:  [AUF EL UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.stop_signal_sent
+    Aktuell:    Stop signaal verstuurd
+    Empfohlen:  [AUF EL UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.target_arch
+    Aktuell:    Doel Architectuur
+    Empfohlen:  [AUF EL UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.test_connection
+    Aktuell:    🔗 Test Verbinding
+    Empfohlen:  [AUF EL UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.will_delete_egg
+    Aktuell:    wordt permanent verwijderd. De bijbehorende API ke
+    Empfohlen:  [AUF EL UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.will_delete_nest
+    Aktuell:    wordt permanent verwijderd. De bijbehorende secret
+    Empfohlen:  [AUF EL UEBERSETZEN]
+
+
+ui/lang/invasion/hi.json
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  [WRONG_TRANSLATION] Key: invasion.cancel
+    Aktuell:    Zrusit
+    Empfohlen:  रद्द करें
+
+  [WRONG_TRANSLATION] Key: invasion.delete
+    Aktuell:    Smazat
+    Empfohlen:  हटाएं
+
+  [WRONG_TRANSLATION] Key: invasion.edit
+    Aktuell:    Upravit
+    Empfohlen:  संपादित करें
+
+  [WRONG_TRANSLATION] Key: invasion.save
+    Aktuell:    Ulozit
+    Empfohlen:  सहेजें
+
+  [NOT_TRANSLATED] Key: invasion.access_type
+    Aktuell:    Toegangstype
+    Empfohlen:  [AUF HI UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.apikey_set
+    Aktuell:    API Key is al ingesteld. Leeg laten om te behouden
+    Empfohlen:  [AUF HI UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.assign_egg
+    Aktuell:    Egg Toewijzen
+    Empfohlen:  [AUF HI UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.badge_llm_inherit
+    Aktuell:    LLM Overerven
+    Empfohlen:  [AUF HI UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.confirm_delete
+    Aktuell:    Verwijderen Bevestigen
+    Empfohlen:  [AUF HI UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.description
+    Aktuell:    Beschrijving
+    Empfohlen:  [AUF HI UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.edit_egg
+    Aktuell:    Egg Bewerken
+    Empfohlen:  [AUF HI UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.edit_nest
+    Aktuell:    Nest Bewerken
+    Empfohlen:  [AUF HI UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.egg_port
+    Aktuell:    Egg Poort
+    Empfohlen:  [AUF HI UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.notes
+    Aktuell:    Notities
+    Empfohlen:  [AUF HI UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.ph_nest_name
+    Aktuell:    Productie Server
+    Empfohlen:  [AUF HI UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.ph_nest_notes
+    Aktuell:    Optionele notities...
+    Empfohlen:  [AUF HI UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.ph_secret
+    Aktuell:    Wachtwoord of SSH Private Key...
+    Empfohlen:  [AUF HI UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.provider
+    Aktuell:    Provider
+    Empfohlen:  [AUF HI UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.route_custom
+    Aktuell:    Aangepast
+    Empfohlen:  [AUF HI UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.secret
+    Aktuell:    Secret (Wachtwoord / SSH Key)
+    Empfohlen:  [AUF HI UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.secret_set
+    Aktuell:    Secret is al ingesteld. Leeg laten om te behouden.
+    Empfohlen:  [AUF HI UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.stop_signal_sent
+    Aktuell:    Stop signaal verstuurd
+    Empfohlen:  [AUF HI UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.target_arch
+    Aktuell:    Doel Architectuur
+    Empfohlen:  [AUF HI UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.test_connection
+    Aktuell:    🔗 Test Verbinding
+    Empfohlen:  [AUF HI UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.will_delete_egg
+    Aktuell:    wordt permanent verwijderd. De bijbehorende API ke
+    Empfohlen:  [AUF HI UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.will_delete_nest
+    Aktuell:    wordt permanent verwijderd. De bijbehorende secret
+    Empfohlen:  [AUF HI UEBERSETZEN]
+
+
+ui/lang/invasion/nl.json
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  [NOT_TRANSLATED] Key: invasion.access_type
+    Aktuell:    Toegangstype
+    Empfohlen:  [AUF NL UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.apikey_set
+    Aktuell:    API Key is al ingesteld. Leeg laten om te behouden
+    Empfohlen:  [AUF NL UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.assign_egg
+    Aktuell:    Egg Toewijzen
+    Empfohlen:  [AUF NL UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.badge_llm_inherit
+    Aktuell:    LLM Overerven
+    Empfohlen:  [AUF NL UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.confirm_delete
+    Aktuell:    Verwijderen Bevestigen
+    Empfohlen:  [AUF NL UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.description
+    Aktuell:    Beschrijving
+    Empfohlen:  [AUF NL UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.edit
+    Aktuell:    Bewerken
+    Empfohlen:  [AUF NL UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.edit_egg
+    Aktuell:    Egg Bewerken
+    Empfohlen:  [AUF NL UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.edit_nest
+    Aktuell:    Nest Bewerken
+    Empfohlen:  [AUF NL UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.egg_port
+    Aktuell:    Egg Poort
+    Empfohlen:  [AUF NL UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.notes
+    Aktuell:    Notities
+    Empfohlen:  [AUF NL UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.ph_nest_name
+    Aktuell:    Productie Server
+    Empfohlen:  [AUF NL UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.ph_nest_notes
+    Aktuell:    Optionele notities...
+    Empfohlen:  [AUF NL UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.ph_secret
+    Aktuell:    Wachtwoord of SSH Private Key...
+    Empfohlen:  [AUF NL UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.port
+    Aktuell:    Poort
+    Empfohlen:  [AUF NL UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.provider
+    Aktuell:    Provider
+    Empfohlen:  [AUF NL UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.route_custom
+    Aktuell:    Aangepast
+    Empfohlen:  [AUF NL UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.secret
+    Aktuell:    Secret (Wachtwoord / SSH Key)
+    Empfohlen:  [AUF NL UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.secret_set
+    Aktuell:    Secret is al ingesteld. Leeg laten om te behouden.
+    Empfohlen:  [AUF NL UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.stop_signal_sent
+    Aktuell:    Stop signaal verstuurd
+    Empfohlen:  [AUF NL UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.target_arch
+    Aktuell:    Doel Architectuur
+    Empfohlen:  [AUF NL UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.test_connection
+    Aktuell:    🔗 Test Verbinding
+    Empfohlen:  [AUF NL UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.username
+    Aktuell:    Gebruikersnaam
+    Empfohlen:  [AUF NL UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.will_delete_egg
+    Aktuell:    wordt permanent verwijderd. De bijbehorende API ke
+    Empfohlen:  [AUF NL UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.will_delete_nest
+    Aktuell:    wordt permanent verwijderd. De bijbehorende secret
+    Empfohlen:  [AUF NL UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.ws_disconnected
+    Aktuell:    Verbinding verbroken
+    Empfohlen:  [AUF NL UEBERSETZEN]
+
+
+ui/lang/invasion/no.json
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  [WRONG_TRANSLATION] Key: invasion.cancel
+    Aktuell:    Zrusit
+    Empfohlen:  Avbryt
+
+  [WRONG_TRANSLATION] Key: invasion.delete
+    Aktuell:    Smazat
+    Empfohlen:  Slett
+
+  [WRONG_TRANSLATION] Key: invasion.edit
+    Aktuell:    Upravit
+    Empfohlen:  Rediger
+
+  [WRONG_TRANSLATION] Key: invasion.save
+    Aktuell:    Ulozit
+    Empfohlen:  Lagre
+
+  [NOT_TRANSLATED] Key: invasion.access_type
+    Aktuell:    Toegangstype
+    Empfohlen:  [AUF NO UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.apikey_set
+    Aktuell:    API Key is al ingesteld. Leeg laten om te behouden
+    Empfohlen:  [AUF NO UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.assign_egg
+    Aktuell:    Egg Toewijzen
+    Empfohlen:  [AUF NO UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.badge_llm_inherit
+    Aktuell:    LLM Overerven
+    Empfohlen:  [AUF NO UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.confirm_delete
+    Aktuell:    Verwijderen Bevestigen
+    Empfohlen:  [AUF NO UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.description
+    Aktuell:    Beschrijving
+    Empfohlen:  [AUF NO UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.edit_egg
+    Aktuell:    Egg Bewerken
+    Empfohlen:  [AUF NO UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.edit_nest
+    Aktuell:    Nest Bewerken
+    Empfohlen:  [AUF NO UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.egg_port
+    Aktuell:    Egg Poort
+    Empfohlen:  [AUF NO UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.notes
+    Aktuell:    Notities
+    Empfohlen:  [AUF NO UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.ph_nest_name
+    Aktuell:    Productie Server
+    Empfohlen:  [AUF NO UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.ph_nest_notes
+    Aktuell:    Optionele notities...
+    Empfohlen:  [AUF NO UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.ph_secret
+    Aktuell:    Wachtwoord of SSH Private Key...
+    Empfohlen:  [AUF NO UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.provider
+    Aktuell:    Provider
+    Empfohlen:  [AUF NO UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.route_custom
+    Aktuell:    Aangepast
+    Empfohlen:  [AUF NO UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.secret
+    Aktuell:    Secret (Wachtwoord / SSH Key)
+    Empfohlen:  [AUF NO UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.secret_set
+    Aktuell:    Secret is al ingesteld. Leeg laten om te behouden.
+    Empfohlen:  [AUF NO UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.stop_signal_sent
+    Aktuell:    Stop signaal verstuurd
+    Empfohlen:  [AUF NO UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.target_arch
+    Aktuell:    Doel Architectuur
+    Empfohlen:  [AUF NO UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.test_connection
+    Aktuell:    🔗 Test Verbinding
+    Empfohlen:  [AUF NO UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.will_delete_egg
+    Aktuell:    wordt permanent verwijderd. De bijbehorende API ke
+    Empfohlen:  [AUF NO UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.will_delete_nest
+    Aktuell:    wordt permanent verwijderd. De bijbehorende secret
+    Empfohlen:  [AUF NO UEBERSETZEN]
+
+
+ui/lang/invasion/sv.json
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  [WRONG_TRANSLATION] Key: invasion.cancel
+    Aktuell:    Zrusit
+    Empfohlen:  Avbryt
+
+  [WRONG_TRANSLATION] Key: invasion.delete
+    Aktuell:    Smazat
+    Empfohlen:  Ta bort
+
+  [WRONG_TRANSLATION] Key: invasion.edit
+    Aktuell:    Upravit
+    Empfohlen:  Redigera
+
+  [WRONG_TRANSLATION] Key: invasion.save
+    Aktuell:    Ulozit
+    Empfohlen:  Spara
+
+  [NOT_TRANSLATED] Key: invasion.access_type
+    Aktuell:    Toegangstype
+    Empfohlen:  [AUF SV UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.apikey_set
+    Aktuell:    API Key is al ingesteld. Leeg laten om te behouden
+    Empfohlen:  [AUF SV UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.assign_egg
+    Aktuell:    Egg Toewijzen
+    Empfohlen:  [AUF SV UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.badge_llm_inherit
+    Aktuell:    LLM Overerven
+    Empfohlen:  [AUF SV UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.confirm_delete
+    Aktuell:    Verwijderen Bevestigen
+    Empfohlen:  [AUF SV UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.description
+    Aktuell:    Beschrijving
+    Empfohlen:  [AUF SV UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.edit_egg
+    Aktuell:    Egg Bewerken
+    Empfohlen:  [AUF SV UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.edit_nest
+    Aktuell:    Nest Bewerken
+    Empfohlen:  [AUF SV UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.egg_port
+    Aktuell:    Egg Poort
+    Empfohlen:  [AUF SV UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.notes
+    Aktuell:    Notities
+    Empfohlen:  [AUF SV UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.ph_nest_name
+    Aktuell:    Productie Server
+    Empfohlen:  [AUF SV UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.ph_nest_notes
+    Aktuell:    Optionele notities...
+    Empfohlen:  [AUF SV UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.ph_secret
+    Aktuell:    Wachtwoord of SSH Private Key...
+    Empfohlen:  [AUF SV UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.provider
+    Aktuell:    Provider
+    Empfohlen:  [AUF SV UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.route_custom
+    Aktuell:    Aangepast
+    Empfohlen:  [AUF SV UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.secret
+    Aktuell:    Secret (Wachtwoord / SSH Key)
+    Empfohlen:  [AUF SV UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.secret_set
+    Aktuell:    Secret is al ingesteld. Leeg laten om te behouden.
+    Empfohlen:  [AUF SV UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.stop_signal_sent
+    Aktuell:    Stop signaal verstuurd
+    Empfohlen:  [AUF SV UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.target_arch
+    Aktuell:    Doel Architectuur
+    Empfohlen:  [AUF SV UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.test_connection
+    Aktuell:    🔗 Test Verbinding
+    Empfohlen:  [AUF SV UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.will_delete_egg
+    Aktuell:    wordt permanent verwijderd. De bijbehorende API ke
+    Empfohlen:  [AUF SV UEBERSETZEN]
+
+  [NOT_TRANSLATED] Key: invasion.will_delete_nest
+    Aktuell:    wordt permanent verwijderd. De bijbehorende secret
+    Empfohlen:  [AUF SV UEBERSETZEN]
+
+
+====================================================================================================
+STATISTIK
+====================================================================================================
+NOT_TRANSLATED: 136
+WRONG_CASE: 11
+WRONG_TRANSLATION: 31
+
+Dateien mit Problemen:
+  - ui/lang/cheatsheets/cs.json: 1 Probleme
+  - ui/lang/cheatsheets/da.json: 2 Probleme
+  - ui/lang/cheatsheets/el.json: 1 Probleme
+  - ui/lang/cheatsheets/es.json: 2 Probleme
+  - ui/lang/cheatsheets/fr.json: 1 Probleme
+  - ui/lang/cheatsheets/hi.json: 1 Probleme
+  - ui/lang/cheatsheets/it.json: 1 Probleme
+  - ui/lang/cheatsheets/nl.json: 2 Probleme
+  - ui/lang/cheatsheets/no.json: 2 Probleme
+  - ui/lang/cheatsheets/pl.json: 3 Probleme
+  - ui/lang/cheatsheets/pt.json: 1 Probleme
+  - ui/lang/cheatsheets/sv.json: 1 Probleme
+  - ui/lang/cheatsheets/zh.json: 2 Probleme
+  - ui/lang/invasion/cs.json: 2 Probleme
+  - ui/lang/invasion/da.json: 26 Probleme
+  - ui/lang/invasion/el.json: 26 Probleme
+  - ui/lang/invasion/hi.json: 26 Probleme
+  - ui/lang/invasion/nl.json: 26 Probleme
+  - ui/lang/invasion/no.json: 26 Probleme
+  - ui/lang/invasion/sv.json: 26 Probleme

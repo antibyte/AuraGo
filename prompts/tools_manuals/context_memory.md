@@ -1,90 +1,87 @@
 ## Tool: Context Memory (`context_memory`)
 
-Kontext-bewusste Memory-Abfrage über alle Speicherebenen hinweg. Kombiniert Long-Term Memory, Knowledge Graph, Journal und Notizen in einer intelligenten Suche.
+Context-aware memory search across all storage layers. Combines Long-Term Memory (VectorDB), Knowledge Graph, Journal, and Notes into a single intelligent query.
 
-### Wann verwenden?
+Use this when `query_memory` is not enough — specifically when you need **relationships, connections, or time-scoped** results rather than isolated facts.
 
-- Wenn `query_memory` nicht genug liefert
-- Wenn du Zusammenhänge brauchst (nicht nur einzelne Fakten)
-- Wenn du Zeit-Relevanz berücksichtigen willst
-- Wenn du Beziehungen zwischen Entitäten finden willst
+### When to use vs. `query_memory`
 
-### Parameter
+| Use `query_memory` when... | Use `context_memory` when... |
+|---|---|
+| You need a quick fact lookup | You need connected context, not just a fact |
+| You want results from all sources at once | You want to restrict to specific layers or time ranges |
+| Default go-to for most recall tasks | `query_memory` returned too few or irrelevant results |
+| You need error patterns | You need relationships between entities (KG traversal) |
+| — | You need to understand what happened in a specific period |
 
-| Parameter | Typ | Default | Beschreibung |
-|-----------|-----|---------|--------------|
-| `query` | string | required | Natürlichsprachige Suchanfrage |
-| `context_depth` | string | "normal" | shallow/normal/deep |
-| `sources` | array | ["ltm", "kg"] | Welche Ebenen durchsuchen |
-| `time_range` | string | "all" | all/today/last_week/last_month |
-| `include_related` | boolean | true | KG-Nachbarn einbeziehen |
+### Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `query` | string | required | Natural-language search query |
+| `context_depth` | string | `"normal"` | `shallow` / `normal` / `deep` |
+| `sources` | array | `["ltm", "kg"]` | Which layers to search |
+| `time_range` | string | `"all"` | `all` / `today` / `last_week` / `last_month` |
+| `include_related` | boolean | `true` | Expand to connected KG neighbours |
 
 ### Context Depth
 
-- **shallow**: Direkte Treffer nur
-  - Schnell, präzise
-  - Nutze für: Schnelle Fakten-Prüfung
-
-- **normal**: Treffer + direkte KG-Nachbarn
-  - Balanciert
-  - Nutze für: Standard-Recherchen
-
-- **deep**: Volle Graph-Expansion + temporale Suche
-  - Gründlich
-  - Nutze für: Komplexe Zusammenhänge
+- **shallow**: Direct matches only — fast and precise. Use for: quick fact checks.
+- **normal**: Matches + direct KG neighbours — balanced. Use for: standard research.
+- **deep**: Full graph expansion + temporal search — thorough. Use for: troubleshooting, complex relationships.
 
 ### Sources
 
-| Source | Enthält | Nutzen |
-|--------|---------|--------|
-| `ltm` | VectorDB-Dokumente | Fakten, Setups, Learnings |
-| `kg` | Knowledge Graph | Beziehungen, Entitäten |
-| `journal` | Journal-Einträge | Meilensteine, Reflektionen |
-| `notes` | Notizen/Todos | Aktuelle Tasks |
-| `core` | Core Memory | Präferenzen, Identität |
+| Source | Contains | Best for |
+|--------|----------|----------|
+| `ltm` | VectorDB documents | Facts, setups, past learnings |
+| `kg` | Knowledge Graph | Relationships, entities, topology |
+| `journal` | Journal entries | Milestones, reflections, events |
+| `notes` | Notes / to-dos | Current tasks, bookmarks |
+| `core` | Core Memory | Preferences, identity facts |
 
-### Beispiele
+### Examples
 
-#### Suche nach Projektzusammenhang
+#### Search for project context
 
 ```json
-{"action": "context_memory", "query": "AuraGo Projekt", "context_depth": "deep", "sources": ["ltm", "kg", "journal"]}
+{"action": "context_memory", "query": "AuraGo project", "context_depth": "deep", "sources": ["ltm", "kg", "journal"]}
 ```
 
-**Ergebnis:**
+**Result:**
 ```
-📚 LTM (3 Treffer):
+📚 LTM (3 hits):
    • "AuraGo Docker Setup" [Score: 0.94]
-   • "AuraGo Projektstruktur" [Score: 0.87]
-   • "AuraGo GitHub Integration" [Score: 0.82]
+   • "AuraGo project structure" [Score: 0.87]
+   • "AuraGo GitHub integration" [Score: 0.82]
 
 🔗 Knowledge Graph:
-   Andre ──arbeitet_an──► AuraGo ──nutzt──► Docker
-                              │
-                              ├──nutzt──► SQLite
-                              │
-                              └──nutzt──► Go 1.26
+   User ──works_on──► AuraGo ──uses──► Docker
+                          │
+                          ├──uses──► SQLite
+                          │
+                          └──uses──► Go 1.26
 
 📔 Journal:
-   • [15.03] Meilenstein: "AuraGo initial setup completed"
-   • [14.03] Task: "AuraGo Docker Compose erstellt"
+   • [15.03] Milestone: "AuraGo initial setup completed"
+   • [14.03] Task: "Created AuraGo Docker Compose file"
 ```
 
-#### Zeitlich eingeschränkte Suche
+#### Time-scoped search
 
 ```json
-{"action": "context_memory", "query": "Docker Fehler", "time_range": "last_week", "sources": ["journal", "ltm"]}
+{"action": "context_memory", "query": "Docker errors", "time_range": "last_week", "sources": ["journal", "ltm"]}
 ```
 
-#### Schnelle Fakten-Prüfung
+#### Quick fact check
 
 ```json
-{"action": "context_memory", "query": "Server IP", "context_depth": "shallow", "sources": ["core", "kg"]}
+{"action": "context_memory", "query": "server IP", "context_depth": "shallow", "sources": ["core", "kg"]}
 ```
 
-### Kombinierte Ergebnisse
+### Combined Results
 
-Das Tool liefert ein **kombiniertes Ranking**:
+The tool returns a **combined ranked result** across all queried sources:
 
 ```json
 {
@@ -95,8 +92,8 @@ Das Tool liefert ein **kombiniertes Ranking**:
       "source": "kg",
       "type": "entity_network",
       "relevance": 0.96,
-      "content": "Andre → arbeitet_an → AuraGo → läuft_auf → Proxmox",
-      "reasoning": "Direkte Verbindung zum User"
+      "content": "User → works_on → AuraGo → runs_on → Proxmox",
+      "reasoning": "Direct connection to user"
     },
     {
       "rank": 2,
@@ -111,7 +108,7 @@ Das Tool liefert ein **kombiniertes Ranking**:
       "source": "journal",
       "type": "milestone",
       "relevance": 0.88,
-      "content": "AuraGo erfolgreich auf Proxmox deployed",
+      "content": "AuraGo successfully deployed on Proxmox",
       "date": "2026-03-10"
     }
   ]
@@ -120,21 +117,21 @@ Das Tool liefert ein **kombiniertes Ranking**:
 
 ### Best Practices
 
-1. **Tiefe nach Komplexität wählen**
-   - Einfache Fakten → shallow
-   - Standard-Suche → normal
-   - Troubleshooting → deep
+1. **Choose depth by complexity**
+   - Simple fact lookup → `shallow`
+   - Standard research → `normal`
+   - Troubleshooting or complex topic → `deep`
 
-2. **Sources einschränken für Fokus**
-   - Technische Fragen → ["ltm", "notes"]
-   - Organisatorisches → ["journal", "notes"]
-   - Alles → ["ltm", "kg", "journal", "notes", "core"]
+2. **Restrict sources for focus**
+   - Technical questions → `["ltm", "notes"]`
+   - Timeline / organisational → `["journal", "notes"]`
+   - Full picture → `["ltm", "kg", "journal", "notes", "core"]`
 
-3. **Time Range für Frische**
-   - "Was haben wir gestern..." → "last_week"
-   - Aktuelle Todos → "today"
-   - Historisches → "all"
+3. **Use time range for recency**
+   - "What did we do yesterday?" → `"last_week"`
+   - Open to-dos right now → `"today"`
+   - Historical reference → `"all"`
 
-4. **Related Entities für Kontext**
-   - `include_related: true` → Findet verbundene Infos
-   - z.B. Suche nach "Docker" findet auch "AuraGo" wenn verknüpft
+4. **Related entities for context**
+   - `include_related: true` finds connected nodes automatically
+   - e.g. searching "Docker" also surfaces "AuraGo" if linked in KG
