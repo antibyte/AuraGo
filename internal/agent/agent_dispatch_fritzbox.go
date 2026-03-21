@@ -242,7 +242,7 @@ func fbTelephonyOp(c *fritzbox.Client, tc ToolCall, op string, cfg *config.Confi
 		raw, _ := json.Marshal(calls)
 		return fbOK(map[string]interface{}{
 			"count": len(calls),
-			"calls": json.RawMessage("<external_data>" + string(raw) + "</external_data>"),
+			"calls": "<external_data>" + string(raw) + "</external_data>",
 		})
 
 	case "get_phonebooks":
@@ -262,7 +262,7 @@ func fbTelephonyOp(c *fritzbox.Client, tc ToolCall, op string, cfg *config.Confi
 		raw, _ := json.Marshal(entries)
 		return fbOK(map[string]interface{}{
 			"count":   len(entries),
-			"entries": json.RawMessage("<external_data>" + string(raw) + "</external_data>"),
+			"entries": "<external_data>" + string(raw) + "</external_data>",
 		})
 
 	case "get_tam_messages":
@@ -274,7 +274,7 @@ func fbTelephonyOp(c *fritzbox.Client, tc ToolCall, op string, cfg *config.Confi
 		raw, _ := json.Marshal(msgs)
 		return fbOK(map[string]interface{}{
 			"count":    len(msgs),
-			"messages": json.RawMessage("<external_data>" + string(raw) + "</external_data>"),
+			"messages": "<external_data>" + string(raw) + "</external_data>",
 		})
 
 	case "mark_tam_message_read":
