@@ -201,6 +201,8 @@ tools:
         enabled: false                                      # enable form_automation tool (headless browser form fill/submit, requires web_capture)
     upnp_scan:
         enabled: true                                      # enable upnp_scan tool (UPnP/SSDP device discovery on LAN)
+    contacts:
+        enabled: true                                      # enable address_book tool (contact management)
     web_scraper:
         enabled: true
         summary_mode: false
@@ -280,6 +282,7 @@ sqlite:
     short_term_path: ./data/short_term.db
     media_registry_path: ./data/media_registry.db
     homepage_registry_path: ./data/homepage_registry.db
+    contacts_path: ./data/contacts.db
     site_monitor_path: ./data/site_monitor.db
 telegram:
     bot_token: ""
