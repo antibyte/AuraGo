@@ -259,6 +259,12 @@ if $BUILD_FROM_SOURCE; then
         go build -trimpath -ldflags="-s -w" -o bin/aurago-remote_linux ./cmd/remote
     ok "bin/aurago-remote_linux built."
 
+    # Install config.yaml from template if none exists (source build has config_template.yaml in repo)
+    if [ ! -f "$INSTALL_DIR/config.yaml" ] && [ -f "$INSTALL_DIR/config_template.yaml" ]; then
+        cp "$INSTALL_DIR/config_template.yaml" "$INSTALL_DIR/config.yaml"
+        ok "config.yaml created from template."
+    fi
+
 # ══════════════════════════════════════════════════════════════════════════
 #  MODE B: Binary install — download from GitHub Releases (no clone)
 # ══════════════════════════════════════════════════════════════════════════
@@ -438,7 +444,21 @@ if [ -f "$CONFIG_FILE" ]; then
         ok "config.yaml → server.host set to $SERVER_HOST"
     fi
 else
-    warn "config.yaml not found — skipping host configuration."
+    # config.yaml still missing — create from template as last resort
+    TEMPLATE_FILE="$INSTALL_DIR/config_template.yaml"
+    if [ -f "$TEMPLATE_FILE" ]; then
+        cp "$TEMPLATE_FILE" "$CONFIG_FILE"
+        # Apply chosen host binding directly via awk
+        awk -v host="$SERVER_HOST" '
+            /^server:/ { in_server=1 }
+            /^[a-z]/ && !/^server:/ { in_server=0 }
+            in_server && /^[[:space:]]+host:/ { sub(/host:.*/, "host: " host) }
+            { print }
+        ' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+        ok "config.yaml created from template (server.host=$SERVER_HOST)."
+    else
+        warn "config.yaml not found and no template available — skipping host configuration."
+    fi
 fi
 
 
