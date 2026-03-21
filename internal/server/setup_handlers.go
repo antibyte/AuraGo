@@ -97,6 +97,30 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 			return
 		}
 
+		// Extract and persist provider API keys into the vault BEFORE merging
+		// into the YAML. ProviderEntry.APIKey has yaml:"-" so it is vault-only
+		// and must never be stored as plaintext in config.yaml.
+		if s.Vault != nil {
+			if providers, ok := patch["providers"].([]interface{}); ok {
+				for _, item := range providers {
+					if prov, ok := item.(map[string]interface{}); ok {
+						id, _ := prov["id"].(string)
+						key, _ := prov["api_key"].(string)
+						if id != "" && key != "" {
+							vaultKey := "provider_" + id + "_api_key"
+							if werr := s.Vault.WriteSecret(vaultKey, key); werr != nil {
+								s.Logger.Warn("[Setup] Failed to write API key to vault", "provider", id, "error", werr)
+							} else {
+								s.Logger.Info("[Setup] Provider API key stored in vault", "provider", id)
+							}
+						}
+						// Remove api_key from the map so it is never written to YAML
+						delete(prov, "api_key")
+					}
+				}
+			}
+		}
+
 		// Deep merge the setup patch into existing config
 		deepMerge(rawCfg, patch, "")
 
@@ -132,8 +156,13 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 			*s.Cfg = *newCfg
 			s.Cfg.ConfigPath = savedPath
 
+			// Apply vault secrets (including the provider API keys just saved above)
+			// so the in-memory config reflects the full resolved configuration and
+			// needsSetup() returns false on the next request.
+			s.Cfg.ApplyVaultSecrets(s.Vault)
+
 			// Re-create BudgetTracker
-			s.BudgetTracker = budget.NewTracker(newCfg, s.Logger, newCfg.Directories.DataDir)
+			s.BudgetTracker = budget.NewTracker(s.Cfg, s.Logger, s.Cfg.Directories.DataDir)
 
 			// Reconfigure the live LLM client with the new API key / base URL / model.
 			// Without this the old client (created at startup with an empty key from
@@ -141,8 +170,8 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 			if fm, ok := s.LLMClient.(*llm.FailoverManager); ok {
 				fm.Reconfigure(s.Cfg)
 				s.Logger.Info("[Setup] LLM client reconfigured",
-					"provider", newCfg.LLM.ProviderType,
-					"base_url", newCfg.LLM.BaseURL)
+					"provider", s.Cfg.LLM.ProviderType,
+					"base_url", s.Cfg.LLM.BaseURL)
 			}
 
 			s.Logger.Info("[Setup] Configuration hot-reloaded successfully")
