@@ -1,11 +1,14 @@
 package tools
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -18,34 +21,46 @@ type ProxmoxConfig struct {
 	Insecure bool   // skip TLS verification
 }
 
-// proxmoxHTTPClient is a shared HTTP client for Proxmox API calls.
-var proxmoxHTTPClient *http.Client
+var proxmoxClientCache sync.Map
 
 func getProxmoxClient(cfg ProxmoxConfig) *http.Client {
-	if proxmoxHTTPClient != nil {
-		return proxmoxHTTPClient
+	if cached, ok := proxmoxClientCache.Load(cfg.Insecure); ok {
+		return cached.(*http.Client)
 	}
 	transport := http.DefaultTransport.(*http.Transport).Clone()
-	if cfg.Insecure {
-		transport.TLSClientConfig.InsecureSkipVerify = true
+	transport.TLSClientConfig = &tls.Config{
+		MinVersion:         tls.VersionTLS12,
+		InsecureSkipVerify: cfg.Insecure,
 	}
-	proxmoxHTTPClient = &http.Client{
+	client := &http.Client{
 		Timeout:   30 * time.Second,
 		Transport: transport,
 	}
-	return proxmoxHTTPClient
+	actual, _ := proxmoxClientCache.LoadOrStore(cfg.Insecure, client)
+	return actual.(*http.Client)
 }
 
 // proxmoxRequest performs a generic HTTP request against the Proxmox VE API.
 func proxmoxRequest(cfg ProxmoxConfig, method, endpoint string, body string) ([]byte, int, error) {
-	url := strings.TrimRight(cfg.URL, "/") + "/api2/json" + endpoint
+	baseURL := strings.TrimRight(cfg.URL, "/")
+	parsedURL, err := url.Parse(baseURL)
+	if err != nil {
+		return nil, 0, fmt.Errorf("invalid proxmox url %q: %w", cfg.URL, err)
+	}
+	if parsedURL.Scheme != "https" {
+		return nil, 0, fmt.Errorf("invalid proxmox url scheme %q: only https is supported", parsedURL.Scheme)
+	}
+	if parsedURL.Host == "" {
+		return nil, 0, fmt.Errorf("invalid proxmox url %q: host is required", cfg.URL)
+	}
+	requestURL := baseURL + "/api2/json" + endpoint
 
 	var reqBody io.Reader
 	if body != "" {
 		reqBody = strings.NewReader(body)
 	}
 
-	req, err := http.NewRequest(method, url, reqBody)
+	req, err := http.NewRequest(method, requestURL, reqBody)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to create request: %w", err)
 	}
