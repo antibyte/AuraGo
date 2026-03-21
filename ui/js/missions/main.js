@@ -430,6 +430,7 @@ function openMissionModal(missionId = null) {
 
             if (mission.execution_type === 'scheduled') {
                 document.getElementById('cron-schedule').value = mission.schedule || '';
+                syncCronPreset(mission.schedule || '');
             } else if (mission.execution_type === 'triggered') {
                 selectTriggerType(mission.trigger_type);
                 fillTriggerConfig(mission.trigger_config, mission.trigger_type);
@@ -438,6 +439,7 @@ function openMissionModal(missionId = null) {
     } else {
         document.getElementById('mission-form').reset();
         document.getElementById('mission-id').value = '';
+        syncCronPreset('');
         selectExecType('manual');
     }
 
@@ -465,6 +467,20 @@ function selectExecType(type) {
 
     document.getElementById('config-scheduled').style.display = type === 'scheduled' ? 'block' : 'none';
     document.getElementById('config-triggered').style.display = type === 'triggered' ? 'block' : 'none';
+}
+
+// Cron Preset Selection
+function applyCronPreset(value) {
+    if (value) {
+        document.getElementById('cron-schedule').value = value;
+    }
+}
+
+function syncCronPreset(schedule) {
+    const sel = document.getElementById('cron-preset');
+    if (!sel) return;
+    const match = Array.from(sel.options).find(o => o.value === schedule);
+    sel.value = match ? schedule : '';
 }
 
 // Trigger Type Selection
@@ -783,6 +799,7 @@ function duplicateMission(id) {
     selectExecType(m.execution_type);
     if (m.execution_type === 'scheduled') {
         document.getElementById('cron-schedule').value = m.schedule || '';
+        syncCronPreset(m.schedule || '');
     } else if (m.execution_type === 'triggered') {
         selectTriggerType(m.trigger_type);
         fillTriggerConfig(m.trigger_config, m.trigger_type);

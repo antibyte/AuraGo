@@ -219,6 +219,43 @@
                     <div id="config-scheduled" class="trigger-config" style="display: none;">
                         <div class="form-group">
                             <label>
+                                <script>document.write(t('missions.form_cron_preset_label'))</script>
+                            </label>
+                            <select id="cron-preset" onchange="applyCronPreset(this.value)">
+                                <option value="">
+                                    <script>document.write(t('missions.form_cron_preset_custom'))</script>
+                                </option>
+                                <option value="*/5 * * * *">
+                                    <script>document.write(t('missions.cron_preset_every_5min'))</script>
+                                </option>
+                                <option value="*/15 * * * *">
+                                    <script>document.write(t('missions.cron_preset_every_15min'))</script>
+                                </option>
+                                <option value="*/30 * * * *">
+                                    <script>document.write(t('missions.cron_preset_every_30min'))</script>
+                                </option>
+                                <option value="0 * * * *">
+                                    <script>document.write(t('missions.cron_preset_every_hour'))</script>
+                                </option>
+                                <option value="0 */6 * * *">
+                                    <script>document.write(t('missions.cron_preset_every_6hours'))</script>
+                                </option>
+                                <option value="0 0 * * *">
+                                    <script>document.write(t('missions.cron_preset_daily_midnight'))</script>
+                                </option>
+                                <option value="0 9 * * *">
+                                    <script>document.write(t('missions.cron_preset_daily_9am'))</script>
+                                </option>
+                                <option value="0 9 * * 1">
+                                    <script>document.write(t('missions.cron_preset_weekly_monday'))</script>
+                                </option>
+                                <option value="0 0 1 * *">
+                                    <script>document.write(t('missions.cron_preset_monthly_first'))</script>
+                                </option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>
                                 <script>document.write(t('missions.form_cron_label'))</script>
                             </label>
                             <input type="text" id="cron-schedule">
