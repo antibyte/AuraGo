@@ -231,15 +231,20 @@ type tamMsgXML struct {
 
 func (c *Client) fetchTAMListXML(rawURL string) ([]TAMEntry, error) {
 	if strings.HasPrefix(rawURL, "/") {
-		rawURL = c.tr.baseURL + rawURL
+		rawURL = c.webURL + rawURL
 	}
-	req, err := http.NewRequest(http.MethodGet, rawURL, nil)
+	// Prefer SID-authenticated fetch; fall back to Digest for TR-064-hosted URLs.
+	resp, err := c.sid.GetWithSID(rawURL)
 	if err != nil {
-		return nil, err
-	}
-	resp, err := c.tr.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("fetch tam list: %w", err)
+		// SID not available yet – try unauthenticated/Digest
+		req, rerr := http.NewRequest(http.MethodGet, rawURL, nil)
+		if rerr != nil {
+			return nil, rerr
+		}
+		resp, err = c.tr.httpClient.Do(req)
+		if err != nil {
+			return nil, fmt.Errorf("fetch tam list: %w", err)
+		}
 	}
 	defer resp.Body.Close()
 	body, _ := io.ReadAll(resp.Body)
@@ -319,7 +324,7 @@ func (c *Client) DownloadTAMMessage(tamIndex, msgIndex int, destPath string) err
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("download TAM audio: HTTP %d", resp.StatusCode)
+		return fmt.Errorf("download TAM audio: HTTP %d (url: %s)", resp.StatusCode, rawURL)
 	}
 
 	f, err := os.Create(destPath)
