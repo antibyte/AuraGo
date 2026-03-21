@@ -8,6 +8,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"strconv"
@@ -300,10 +301,14 @@ func (c *Client) GetTAMMessageURL(tamIndex, msgIndex int) (string, error) {
 			if m.Path == "" {
 				return "", fmt.Errorf("fritzbox telephony: TAM%d message %d has no audio path", tamIndex, msgIndex)
 			}
+			var audioURL string
 			if strings.HasPrefix(m.Path, "/") {
-				return c.webURL + m.Path, nil
+				audioURL = c.webURL + m.Path
+			} else {
+				audioURL = m.Path
 			}
-			return m.Path, nil
+			slog.Info("Fritz!Box TAM audio URL resolved", "tam", tamIndex, "msg", msgIndex, "raw_path", m.Path, "url", audioURL)
+			return audioURL, nil
 		}
 	}
 	return "", fmt.Errorf("fritzbox telephony: TAM%d has no message at index %d", tamIndex, msgIndex)

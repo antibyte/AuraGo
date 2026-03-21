@@ -287,6 +287,19 @@ func fbTelephonyOp(c *fritzbox.Client, tc ToolCall, op string, cfg *config.Confi
 		}
 		return fbOK(map[string]interface{}{"marked_read": true})
 
+	case "get_tam_message_url":
+		logger.Info("LLM requested Fritz!Box TAM message URL (diagnostic)", "tam", tc.TamIndex, "msg", tc.MsgIndex)
+		audioURL, err := c.GetTAMMessageURL(tc.TamIndex, tc.MsgIndex)
+		if err != nil {
+			return fbError("get_tam_message_url", err)
+		}
+		return fbOK(map[string]interface{}{
+			"url":       audioURL,
+			"tam_index": tc.TamIndex,
+			"msg_index": tc.MsgIndex,
+			"note":      "This is the URL that download_tam_message/transcribe_tam_message will request (with SID appended as ?sid=...)",
+		})
+
 	case "download_tam_message":
 		logger.Info("LLM requested Fritz!Box TAM audio download", "tam", tc.TamIndex, "msg", tc.MsgIndex)
 		destDir := filepath.Join(cfg.Directories.WorkspaceDir, "workdir", "tam")
@@ -325,7 +338,7 @@ func fbTelephonyOp(c *fritzbox.Client, tc ToolCall, op string, cfg *config.Confi
 		})
 
 	default:
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"Unknown fritzbox_telephony operation %q. Use: get_call_list, get_phonebooks, get_phonebook_entries, get_tam_messages, mark_tam_message_read, download_tam_message, transcribe_tam_message"}`, op)
+		return fmt.Sprintf(`Tool Output: {"status":"error","message":"Unknown fritzbox_telephony operation %q. Use: get_call_list, get_phonebooks, get_phonebook_entries, get_tam_messages, mark_tam_message_read, download_tam_message, transcribe_tam_message, get_tam_message_url"}`, op)
 	}
 }
 
