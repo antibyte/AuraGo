@@ -1,3 +1,6 @@
+---
+conditions: ["fritzbox_system_enabled"]
+---
 # Fritz!Box System Tool (`fritzbox_system`)
 
 Query and manage the Fritz!Box router's core system functions: hardware info, system log, and reboot.

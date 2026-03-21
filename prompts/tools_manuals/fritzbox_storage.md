@@ -1,3 +1,6 @@
+---
+conditions: ["fritzbox_storage_enabled"]
+---
 # Fritz!Box Storage Tool (`fritzbox_storage`)
 
 Query and configure the Fritz!Box NAS (FRITZ!NAS) storage features: USB drives, FTP server, and DLNA/UPnP media server.

@@ -1,3 +1,6 @@
+---
+conditions: ["fritzbox_telephony_enabled"]
+---
 # Fritz!Box Telephony Tool (`fritzbox_telephony`)
 
 Access the Fritz!Box call history, phonebooks, and answering machine (TAM) inbox.

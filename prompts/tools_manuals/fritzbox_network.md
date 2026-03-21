@@ -1,3 +1,6 @@
+---
+conditions: ["fritzbox_network_enabled"]
+---
 # Fritz!Box Network Tool (`fritzbox_network`)
 
 Manage the Fritz!Box router's network features: WLAN radios, connected hosts, Wake-on-LAN, and port forwarding (NAT).

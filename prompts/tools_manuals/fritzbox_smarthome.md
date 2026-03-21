@@ -1,3 +1,6 @@
+---
+conditions: ["fritzbox_smarthome_enabled"]
+---
 # Fritz!Box Smart Home Tool (`fritzbox_smarthome`)
 
 Control Fritz!DECT smart home devices: smart plugs (switches), thermostats (FRITZ!DECT 301/302), colour lamps (FRITZ!DECT 500), and automation templates.

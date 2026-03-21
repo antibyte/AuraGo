@@ -1,3 +1,6 @@
+---
+conditions: ["fritzbox_tv_enabled"]
+---
 # Fritz!Box TV Tool (`fritzbox_tv`)
 
 List DVB-C/DVB-T TV channels configured on a Fritz!Box with a built-in TV tuner (e.g., FRITZ!Box 6490 Cable).

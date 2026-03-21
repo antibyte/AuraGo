@@ -436,6 +436,30 @@ func (m *PromptModule) ShouldInclude(flags ContextFlags) bool {
 			if flags.A2AEnabled {
 				return true
 			}
+		case "fritzbox_system_enabled":
+			if flags.FritzBoxSystemEnabled {
+				return true
+			}
+		case "fritzbox_network_enabled":
+			if flags.FritzBoxNetworkEnabled {
+				return true
+			}
+		case "fritzbox_telephony_enabled":
+			if flags.FritzBoxTelephonyEnabled {
+				return true
+			}
+		case "fritzbox_smarthome_enabled":
+			if flags.FritzBoxSmartHomeEnabled {
+				return true
+			}
+		case "fritzbox_storage_enabled":
+			if flags.FritzBoxStorageEnabled {
+				return true
+			}
+		case "fritzbox_tv_enabled":
+			if flags.FritzBoxTVEnabled {
+				return true
+			}
 		}
 	}
 
