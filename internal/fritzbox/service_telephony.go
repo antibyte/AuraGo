@@ -436,6 +436,12 @@ func tamAudioURLCandidates(rawURL string) []string {
 	u2.RawQuery = strings.ReplaceAll(q2.Encode(), "%2F", "/")
 	add(u2.String(), &candidates)
 
+	u3 := *u
+	q3 := u3.Query()
+	q3.Set("path", rawPath+".WAV")
+	u3.RawQuery = strings.ReplaceAll(q3.Encode(), "%2F", "/")
+	add(u3.String(), &candidates)
+
 	return candidates
 }
 
