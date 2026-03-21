@@ -433,7 +433,7 @@ func tamAudioURLCandidates(rawURL string) []string {
 	u2 := *u
 	q2 := u2.Query()
 	q2.Set("path", rawPath+".wav")
-	u2.RawQuery = q2.Encode()
+	u2.RawQuery = strings.ReplaceAll(q2.Encode(), "%2F", "/")
 	add(u2.String(), &candidates)
 
 	return candidates
