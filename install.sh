@@ -419,23 +419,16 @@ fi
 CONFIG_FILE="$INSTALL_DIR/config.yaml"
 if [ -f "$CONFIG_FILE" ]; then
     INFO_PASSWORD=$(openssl rand -base64 12 2>/dev/null || python3 -c "import secrets; print(secrets.token_urlsafe(12))")
-    
-    # Always set password if setup runs
-    echo "password: $INFO_PASSWORD" > "$INSTALL_DIR/firstpassword.txt"
-    echo ""
-    echo -e " ${GREEN}╭──────────────────────────────────────────────────────────────╮${NC}"
-    echo -e " ${GREEN}│${NC}  ${BOLD}🔐 INITIAL PASSWORD GENERATED${NC}                               ${GREEN}│${NC}"
-    echo -e " ${GREEN}│${NC}  Dein initiales Passwort lautet: ${BOLD}${INFO_PASSWORD}${NC}   ${GREEN}│${NC}"
-    echo -e " ${GREEN}│${NC}  Bitte nutze dieses Passwort für den ersten Login.           ${GREEN}│${NC}"
-    echo -e " ${GREEN}│${NC}  (Gespeichert in: firstpassword.txt)                         ${GREEN}│${NC}"
-    echo -e " ${GREEN}╰──────────────────────────────────────────────────────────────╯${NC}"
-    echo ""
+
+    # Save first-use password (owner-readable only)
+    printf '%s\n' "$INFO_PASSWORD" > "$INSTALL_DIR/firstpassword.txt"
+    chmod 600 "$INSTALL_DIR/firstpassword.txt"
 
     if [ "$HTTPS_ENABLED" = "true" ]; then
-        ./bin/aurago_linux --config "$CONFIG_FILE" -setup -password "$INFO_PASSWORD" -https -domain "$HTTPS_DOMAIN" -email "$HTTPS_EMAIL" > /dev/null 2>&1 || true
+        ./bin/aurago_linux --config "$CONFIG_FILE" --init-only -password "$INFO_PASSWORD" -https -domain "$HTTPS_DOMAIN" -email "$HTTPS_EMAIL"
         ok "config.yaml → HTTPS enabled for $HTTPS_DOMAIN"
     else
-        ./bin/aurago_linux --config "$CONFIG_FILE" -setup -password "$INFO_PASSWORD" > /dev/null 2>&1 || true
+        ./bin/aurago_linux --config "$CONFIG_FILE" --init-only -password "$INFO_PASSWORD"
         awk -v host="$SERVER_HOST" '
             /^server:/ { in_server=1 }
             /^[a-z]/ && !/^server:/ { in_server=0 }
@@ -543,6 +536,18 @@ echo -e " ${GREEN}│${NC}  ${BOLD}🎉 AuraGo successfully installed!${NC}"
 echo -e " ${GREEN}│${NC}  ${DIM}Location:${NC} $INSTALL_DIR"
 echo -e " ${GREEN}╰───────────────────────────────────────────────────────────────${NC}"
 echo ""
+
+if [ -n "${INFO_PASSWORD:-}" ]; then
+    echo ""
+    echo -e " ${GREEN}╭──────────────────────────────────────────────────────────────╮${NC}"
+    echo -e " ${GREEN}│${NC}  ${BOLD}🔐 FIRST-USE PASSWORD${NC}                                        ${GREEN}│${NC}"
+    echo -e " ${GREEN}│${NC}  Password: ${BOLD}${INFO_PASSWORD}${NC}"
+    echo -e " ${GREEN}│${NC}  Use this to log in to the Web UI for the first time.        ${GREEN}│${NC}"
+    echo -e " ${GREEN}│${NC}  ${YELLOW}Change it immediately via Settings → Login Guard.${NC}           ${GREEN}│${NC}"
+    echo -e " ${GREEN}│${NC}  ${DIM}Also saved to: firstpassword.txt (delete after first login)${NC}  ${GREEN}│${NC}"
+    echo -e " ${GREEN}╰──────────────────────────────────────────────────────────────╯${NC}"
+    echo ""
+fi
 
 if [ "$SERVICE_INSTALLED" = "true" ]; then
     echo "  Next steps:"

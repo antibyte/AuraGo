@@ -4,13 +4,13 @@
 #  Setup Wizard will guide you through the initial configuration.
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 auth:
-    enabled: false
+    enabled: true                 # login protection active by default
     session_timeout_hours: 24
     totp_enabled: false
     max_login_attempts: 5
     lockout_minutes: 15
 agent:
-    context_window: 131000
+    context_window: 0             # 0 = auto-detect from provider API at startup
     core_memory_cap_mode: soft
     core_memory_max_entries: 200
     core_personality: friend

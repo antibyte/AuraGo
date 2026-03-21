@@ -53,6 +53,7 @@ func main() {
 
 	var debug bool
 	var runSetup bool
+	var initOnly bool
 	var checkConfig bool
 	var configFile string
 	var recoveryContext string
@@ -62,6 +63,7 @@ func main() {
 	var initialPassword string
 	flag.BoolVar(&debug, "debug", false, "Enable debug mode")
 	flag.BoolVar(&runSetup, "setup", false, "Extract resources.dat, install service, and exit")
+	flag.BoolVar(&initOnly, "init-only", false, "Apply -password/-https flags to config/vault, then exit immediately (used by installer)")
 	flag.BoolVar(&checkConfig, "check-config", false, "Validate config file syntax and exit (used by Docker entrypoint)")
 	flag.StringVar(&configFile, "config", "config.yaml", "Path to config file (default: config.yaml)")
 	flag.StringVar(&recoveryContext, "recovery-context", "", "Recovery context after maintenance (Base64)")
@@ -160,6 +162,13 @@ func main() {
 		} else {
 			appLog.Warn("AURAGO_MASTER_KEY missing or invalid to set initial password")
 		}
+	}
+
+	// ── Init-only mode: apply flags and exit without starting the server ──
+	// Used by the installer to set the initial password / HTTPS config.
+	if initOnly {
+		appLog.Info("Init-only mode: configuration applied, exiting.")
+		os.Exit(0)
 	}
 
 	// ── Robust File Locking ──────────────────────────────────────────────
