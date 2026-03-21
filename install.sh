@@ -514,7 +514,6 @@ EnvironmentFile=${CREDENTIAL_FILE}
 NoNewPrivileges=true
 ProtectSystem=strict
 ReadWritePaths=${INSTALL_DIR} ${CREDENTIAL_DIR}
-ProtectHome=read-only
 PrivateTmp=true
 
 [Install]
