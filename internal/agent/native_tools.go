@@ -1442,11 +1442,11 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 				"operation": map[string]interface{}{
 					"type":        "string",
 					"description": "Operation to perform",
-					"enum":        []string{"get_call_list", "get_phonebooks", "get_phonebook_entries", "get_tam_messages", "mark_tam_message_read"},
+					"enum":        []string{"get_call_list", "get_phonebooks", "get_phonebook_entries", "get_tam_messages", "mark_tam_message_read", "download_tam_message", "transcribe_tam_message"},
 				},
 				"phonebook_id": map[string]interface{}{"type": "integer", "description": "Phonebook index (for get_phonebook_entries; omit to list all phonebooks first)"},
-				"tam_index":    map[string]interface{}{"type": "integer", "description": "TAM/answering machine index (for get_tam_messages, mark_tam_message_read)"},
-				"msg_index":    map[string]interface{}{"type": "integer", "description": "Message index within the TAM (for mark_tam_message_read)"},
+				"tam_index":    map[string]interface{}{"type": "integer", "description": "TAM/answering machine index (for TAM operations, default 0)"},
+				"msg_index":    map[string]interface{}{"type": "integer", "description": "Message index within the TAM (for mark_tam_message_read, download_tam_message, transcribe_tam_message)"},
 			}, "operation"),
 		))
 	}

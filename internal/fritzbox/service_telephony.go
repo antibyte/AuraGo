@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 )
@@ -277,6 +278,61 @@ func (c *Client) MarkTAMMessageRead(tamIndex, msgIndex int) error {
 	})
 	if err != nil {
 		return fmt.Errorf("fritzbox telephony: TAM MarkMessage: %w", err)
+	}
+	return nil
+}
+
+// GetTAMMessageURL returns an HTTP URL to download a TAM message's audio file (WAV).
+// Uses the TR-064 SOAP action X_AVM-DE_TAM:1#GetPhoneURL.
+func (c *Client) GetTAMMessageURL(tamIndex, msgIndex int) (string, error) {
+	res, err := c.SOAP(svcTAM, ctlTAM, "GetPhoneURL", map[string]string{
+		"NewIndex":        strconv.Itoa(tamIndex),
+		"NewMessageIndex": strconv.Itoa(msgIndex),
+	})
+	if err != nil {
+		return "", fmt.Errorf("fritzbox telephony: TAM%d GetPhoneURL msg %d: %w", tamIndex, msgIndex, err)
+	}
+	phoneURL, ok := res["NewPhoneURL"]
+	if !ok || phoneURL == "" {
+		return "", fmt.Errorf("fritzbox telephony: TAM returned no phone URL")
+	}
+	return phoneURL, nil
+}
+
+// DownloadTAMMessage downloads a TAM message's audio file and saves it to destPath.
+func (c *Client) DownloadTAMMessage(tamIndex, msgIndex int, destPath string) error {
+	rawURL, err := c.GetTAMMessageURL(tamIndex, msgIndex)
+	if err != nil {
+		return err
+	}
+
+	// Resolve relative URLs against the TR-064 base.
+	if strings.HasPrefix(rawURL, "/") {
+		rawURL = c.tr.baseURL + rawURL
+	}
+
+	req, err := http.NewRequest(http.MethodGet, rawURL, nil)
+	if err != nil {
+		return fmt.Errorf("build TAM download request: %w", err)
+	}
+	resp, err := c.tr.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("download TAM audio: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("download TAM audio: HTTP %d", resp.StatusCode)
+	}
+
+	f, err := os.Create(destPath)
+	if err != nil {
+		return fmt.Errorf("create TAM audio file: %w", err)
+	}
+	defer f.Close()
+
+	if _, err := io.Copy(f, resp.Body); err != nil {
+		return fmt.Errorf("write TAM audio file: %w", err)
 	}
 	return nil
 }

@@ -9,14 +9,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"os"
+	"path/filepath"
 	"strings"
 
+	"aurago/internal/config"
 	"aurago/internal/fritzbox"
+	"aurago/internal/tools"
 )
 
 // handleFritzBoxToolCall routes the tool call to the appropriate Fritz!Box service method.
 // tc.Action determines the feature group; tc.Operation determines the specific action.
-func handleFritzBoxToolCall(tc ToolCall, c *fritzbox.Client, logger *slog.Logger) string {
+func handleFritzBoxToolCall(tc ToolCall, c *fritzbox.Client, cfg *config.Config, logger *slog.Logger) string {
 	op := strings.ToLower(strings.TrimSpace(tc.Operation))
 
 	// Route by action name (e.g. "fritzbox_system") or via op prefix.
@@ -32,7 +36,7 @@ func handleFritzBoxToolCall(tc ToolCall, c *fritzbox.Client, logger *slog.Logger
 	case "fritzbox_network":
 		return fbNetworkOp(c, tc, op, logger)
 	case "fritzbox_telephony":
-		return fbTelephonyOp(c, tc, op, logger)
+		return fbTelephonyOp(c, tc, op, cfg, logger)
 	case "fritzbox_smarthome":
 		return fbSmartHomeOp(c, tc, op, logger)
 	case "fritzbox_storage":
@@ -56,7 +60,7 @@ routeByOp:
 		return fbNetworkOp(c, tc, op, logger)
 	case strings.Contains(op, "call") || strings.Contains(op, "phonebook") ||
 		strings.Contains(op, "tam"):
-		return fbTelephonyOp(c, tc, op, logger)
+		return fbTelephonyOp(c, tc, op, cfg, logger)
 	case strings.HasPrefix(op, "get_device") || strings.HasPrefix(op, "set_switch") ||
 		strings.HasPrefix(op, "set_heat") || strings.HasPrefix(op, "set_bright") ||
 		strings.Contains(op, "template"):
@@ -223,7 +227,7 @@ func fbNetworkOp(c *fritzbox.Client, tc ToolCall, op string, logger *slog.Logger
 // Telephony group
 // ────────────────────────────────────────────────────────────────
 
-func fbTelephonyOp(c *fritzbox.Client, tc ToolCall, op string, logger *slog.Logger) string {
+func fbTelephonyOp(c *fritzbox.Client, tc ToolCall, op string, cfg *config.Config, logger *slog.Logger) string {
 	if !c.TelephonyEnabled() {
 		return `Tool Output: {"status":"error","message":"Fritz!Box telephony integration is not enabled."}`
 	}
@@ -283,8 +287,45 @@ func fbTelephonyOp(c *fritzbox.Client, tc ToolCall, op string, logger *slog.Logg
 		}
 		return fbOK(map[string]interface{}{"marked_read": true})
 
+	case "download_tam_message":
+		logger.Info("LLM requested Fritz!Box TAM audio download", "tam", tc.TamIndex, "msg", tc.MsgIndex)
+		destDir := filepath.Join(cfg.Directories.WorkspaceDir, "workdir", "tam")
+		if err := os.MkdirAll(destDir, 0o750); err != nil {
+			return fbError("download_tam_message", fmt.Errorf("create tam dir: %w", err))
+		}
+		destPath := filepath.Join(destDir, fmt.Sprintf("tam%d_msg%d.wav", tc.TamIndex, tc.MsgIndex))
+		if err := c.DownloadTAMMessage(tc.TamIndex, tc.MsgIndex, destPath); err != nil {
+			return fbError("download_tam_message", err)
+		}
+		return fbOK(map[string]interface{}{
+			"file_path": destPath,
+			"message":   fmt.Sprintf("TAM message %d from TAM %d saved to %s", tc.MsgIndex, tc.TamIndex, destPath),
+		})
+
+	case "transcribe_tam_message":
+		logger.Info("LLM requested Fritz!Box TAM transcription", "tam", tc.TamIndex, "msg", tc.MsgIndex)
+		tmpDir := filepath.Join(cfg.Directories.WorkspaceDir, "workdir", "tam")
+		if err := os.MkdirAll(tmpDir, 0o750); err != nil {
+			return fbError("transcribe_tam_message", fmt.Errorf("create tam dir: %w", err))
+		}
+		tmpPath := filepath.Join(tmpDir, fmt.Sprintf("tam%d_msg%d_tmp.wav", tc.TamIndex, tc.MsgIndex))
+		if err := c.DownloadTAMMessage(tc.TamIndex, tc.MsgIndex, tmpPath); err != nil {
+			return fbError("transcribe_tam_message", err)
+		}
+		defer os.Remove(tmpPath)
+
+		text, err := tools.TranscribeAudioFile(tmpPath, cfg)
+		if err != nil {
+			return fbError("transcribe_tam_message", fmt.Errorf("transcription failed: %w", err))
+		}
+		return fbOK(map[string]interface{}{
+			"transcription": "<external_data>" + text + "</external_data>",
+			"tam_index":     tc.TamIndex,
+			"msg_index":     tc.MsgIndex,
+		})
+
 	default:
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"Unknown fritzbox_telephony operation %q. Use: get_call_list, get_phonebooks, get_phonebook_entries, get_tam_messages, mark_tam_message_read"}`, op)
+		return fmt.Sprintf(`Tool Output: {"status":"error","message":"Unknown fritzbox_telephony operation %q. Use: get_call_list, get_phonebooks, get_phonebook_entries, get_tam_messages, mark_tam_message_read, download_tam_message, transcribe_tam_message"}`, op)
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"aurago/internal/budget"
 	"aurago/internal/config"
 	"aurago/internal/llm"
+	"aurago/internal/memory"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -160,6 +161,9 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 			// so the in-memory config reflects the full resolved configuration and
 			// needsSetup() returns false on the next request.
 			s.Cfg.ApplyVaultSecrets(s.Vault)
+			// Re-resolve providers so vault API keys propagate into cfg.LLM.APIKey etc.
+			// (same sequence as main.go: ApplyVaultSecrets → ResolveProviders)
+			s.Cfg.ResolveProviders()
 
 			// Re-create BudgetTracker
 			s.BudgetTracker = budget.NewTracker(s.Cfg, s.Logger, s.Cfg.Directories.DataDir)
@@ -172,6 +176,21 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 				s.Logger.Info("[Setup] LLM client reconfigured",
 					"provider", s.Cfg.LLM.ProviderType,
 					"base_url", s.Cfg.LLM.BaseURL)
+			}
+
+			// Re-initialize the VectorDB (LTM / embeddings) if it was disabled at
+			// startup because no API key was available yet, but the setup wizard
+			// has now configured one.  Without this, long-term memory stays broken
+			// until the next process restart.
+			if s.LongTermMem != nil && s.LongTermMem.IsDisabled() &&
+				s.Cfg.Embeddings.Provider != "" && s.Cfg.Embeddings.Provider != "disabled" {
+				if newVDB, vdbErr := memory.NewChromemVectorDB(s.Cfg, s.Logger); vdbErr == nil {
+					s.LongTermMem = newVDB
+					s.Logger.Info("[Setup] VectorDB re-initialized with embedding provider",
+						"provider", s.Cfg.Embeddings.Provider)
+				} else {
+					s.Logger.Warn("[Setup] VectorDB re-initialization failed — embeddings unavailable until restart", "error", vdbErr)
+				}
 			}
 
 			s.Logger.Info("[Setup] Configuration hot-reloaded successfully")

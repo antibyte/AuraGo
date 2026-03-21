@@ -108,6 +108,17 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/setup/status", handleSetupStatus(s))
 	mux.HandleFunc("/api/setup", handleSetupSave(s))
 
+	// i18n translations endpoint (always available — used by setup wizard pre-auth)
+	mux.HandleFunc("/api/i18n", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		lang := normalizeLang(r.URL.Query().Get("lang"))
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, `{"data":%s}`, string(getI18NJSON(lang)))
+	})
+
 	// OpenRouter model browser (always available — needed in both setup wizard and config UI)
 	mux.HandleFunc("/api/openrouter/models", handleOpenRouterModels(s))
 

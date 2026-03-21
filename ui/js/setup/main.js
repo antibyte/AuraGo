@@ -318,7 +318,21 @@ function onLanguageChange() {
         customInput.focus();
     } else {
         customInput.style.display = 'none';
+        // Fetch and apply translations for the selected language immediately
+        fetchAndApplyLang(sel.value);
     }
+}
+
+function fetchAndApplyLang(langValue) {
+    fetch('/api/i18n?lang=' + encodeURIComponent(langValue))
+        .then(r => r.ok ? r.json() : null)
+        .then(json => {
+            if (json && json.data && typeof json.data === 'object') {
+                I18N = json.data;
+                applyI18N();
+            }
+        })
+        .catch(() => { /* silently ignore — UI stays in current language */ });
 }
 
 // ── Personality V2 Toggle ────────────────────
@@ -668,7 +682,7 @@ function showToast(message, type = 'info') {
 })();
 
 // ── i18n: populate text ──
-(function applyI18N() {
+function applyI18N() {
     const el = id => document.getElementById(id);
     // Page title
     document.title = t('setup.page_title');
@@ -776,8 +790,9 @@ function showToast(message, type = 'info') {
     el('btn-back').textContent = t('setup.nav_back');
     el('btn-skip-step').textContent = t('setup.nav_skip_step');
     el('btn-next').textContent = t('setup.nav_next');
-})();
+}
 
 // ── Init ─────────────────────────────────────
+applyI18N();
 onProviderChange();
 updateUI();
