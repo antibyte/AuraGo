@@ -157,7 +157,6 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 			next_retry_at DATETIME DEFAULT CURRENT_TIMESTAMP
 		);
 		CREATE INDEX IF NOT EXISTS idx_archived_messages_consolidated ON archived_messages(consolidated);
-		CREATE INDEX IF NOT EXISTS idx_archived_messages_retry ON archived_messages(consolidation_status, next_retry_at);
 
 	CREATE TABLE IF NOT EXISTS tool_usage_adaptive (
 		tool_name TEXT PRIMARY KEY,
@@ -265,6 +264,10 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 		if err != nil {
 			logger.Error("Failed to add consolidation_status column to archived_messages", "error", err)
 		}
+	}
+	// Create the retry index after the column exists (handles both fresh and migrated DBs).
+	if _, err = db.Exec("CREATE INDEX IF NOT EXISTS idx_archived_messages_retry ON archived_messages(consolidation_status, next_retry_at)"); err != nil {
+		logger.Warn("Failed to create idx_archived_messages_retry", "error", err)
 	}
 
 	var hasConsolidationRetries bool
