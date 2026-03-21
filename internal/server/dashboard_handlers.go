@@ -444,7 +444,7 @@ func handleDashboardLogs(s *Server) http.HandlerFunc {
 			logDir = "./log"
 		}
 
-		logPath := filepath.Join(logDir, "supervisor.log")
+		logPath := filepath.Join(logDir, "aurago.log")
 		lines, err := tailFile(logPath, maxLines)
 		if err != nil {
 			// Try lifeboat.log as fallback
@@ -1066,7 +1066,7 @@ func tailFile(path string, n int) ([]string, error) {
 	}
 	defer file.Close()
 
-	// Read all lines (supervisor.log is truncated on restart, so it's bounded)
+	// Read all lines (aurago.log is truncated on restart, so it's bounded)
 	scanner := bufio.NewScanner(file)
 	scanner.Buffer(make([]byte, 0, 256*1024), 256*1024) // 256KB max line
 	var allLines []string

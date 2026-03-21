@@ -679,6 +679,9 @@ func (c *Config) Save(path string) error {
 	if serverSection, ok := rawCfg["server"].(map[string]interface{}); ok {
 		serverSection["ui_language"] = c.Server.UILanguage
 	}
+	if authSection, ok := rawCfg["auth"].(map[string]interface{}); ok {
+		authSection["enabled"] = c.Auth.Enabled
+	}
 
 	// 3. Write back with all original fields (including API keys) intact
 	data, err := yaml.Marshal(rawCfg)

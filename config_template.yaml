@@ -5,10 +5,7 @@
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 auth:
     enabled: false
-    password_hash: ""
-    session_secret: ""
     session_timeout_hours: 24
-    totp_secret: ""
     totp_enabled: false
     max_login_attempts: 5
     lockout_minutes: 15

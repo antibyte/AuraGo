@@ -225,7 +225,7 @@ func main() {
 
 	// Phase 82: Re-initialize logger with file support if enabled
 	if cfg.Logging.EnableFileLog {
-		logPath := filepath.Join(cfg.Logging.LogDir, "supervisor.log")
+		logPath := filepath.Join(cfg.Logging.LogDir, "aurago.log")
 		if lf, err := logger.SetupWithFile(debug, logPath, false); err == nil {
 			appLog = lf.Logger
 			slog.SetDefault(appLog)
