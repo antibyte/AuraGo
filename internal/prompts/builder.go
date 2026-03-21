@@ -166,6 +166,7 @@ type ContextFlags struct {
 	FritzBoxStorageEnabled   bool
 	FritzBoxTVEnabled        bool
 	A2AEnabled               bool
+	TelnyxEnabled            bool
 	InternetExposed          bool   // HTTPS is enabled — system is likely reachable from the internet
 	IsDocker                 bool   // Running inside a Docker container
 	UserProfilingEnabled     bool   // User profiling is active — agent should learn about the user
@@ -803,7 +804,7 @@ func OptimizePrompt(raw string) (string, int) {
 		if strings.HasPrefix(strippedLeft, "- ") || strings.HasPrefix(strippedLeft, "* ") {
 			// Keep leading whitespace but remove trailing space
 			outLine = strings.TrimRight(line, " \t")
-			
+
 			// Normalize marker inside list to save variant tokens (* to -)
 			if strings.HasPrefix(strippedLeft, "* ") {
 				idx := strings.Index(outLine, "* ")

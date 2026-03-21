@@ -23,6 +23,7 @@ import (
 	"aurago/internal/remote"
 	"aurago/internal/security"
 	"aurago/internal/services"
+	"aurago/internal/telnyx"
 	"aurago/internal/tools"
 )
 
@@ -510,8 +511,16 @@ func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 				return tools.DiscordSend(channelID, content, logger)
 			}
 		}
+		var telnyxSend tools.TelnyxSendFunc
+		if cfg.Telnyx.Enabled && cfg.Telnyx.PhoneNumber != "" {
+			telnyxSend = func(to, message string) error {
+				client := telnyx.NewClient(cfg.Telnyx.APIKey, logger)
+				_, err := client.SendSMS(ctx, cfg.Telnyx.PhoneNumber, to, message, cfg.Telnyx.MessagingProfileID)
+				return err
+			}
+		}
 		priority := tc.Tag // reuse existing Tag field for priority
-		return "Tool Output: " + tools.SendNotification(cfg, logger, tc.Channel, tc.Title, tc.Message, priority, discordSend)
+		return "Tool Output: " + tools.SendNotification(cfg, logger, tc.Channel, tc.Title, tc.Message, priority, discordSend, telnyxSend)
 
 	case "send_image":
 		logger.Info("LLM requested image send", "path", tc.Path, "caption", tc.Caption)
@@ -1122,6 +1131,37 @@ func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 		default:
 			return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Unknown journal operation: %s. Use add, list, search, delete, or get_summary"}`, tc.Operation)
 		}
+
+	case "telnyx_sms":
+		if !cfg.Telnyx.Enabled {
+			return `Tool Output: {"status":"error","message":"Telnyx integration is disabled"}`
+		}
+		if cfg.Telnyx.ReadOnly {
+			return `Tool Output: {"status":"error","message":"Telnyx is in read-only mode"}`
+		}
+		if cfg.Telnyx.PhoneNumber == "" {
+			return `Tool Output: {"status":"error","message":"Telnyx phone number not configured"}`
+		}
+		msgID := tc.ID
+		if msgID == "" {
+			msgID = tc.MessageID
+		}
+		return "Tool Output: " + telnyx.DispatchSMS(ctx, tc.Operation, tc.To, tc.Message, msgID, tc.MediaURLs, cfg, logger)
+
+	case "telnyx_call":
+		if !cfg.Telnyx.Enabled {
+			return `Tool Output: {"status":"error","message":"Telnyx integration is disabled"}`
+		}
+		if cfg.Telnyx.ReadOnly && tc.Operation != "list_active" {
+			return `Tool Output: {"status":"error","message":"Telnyx is in read-only mode"}`
+		}
+		return "Tool Output: " + telnyx.DispatchCall(ctx, tc.Operation, tc.To, tc.CallControlID, tc.Text, tc.AudioURL, tc.MaxDigits, tc.TimeoutSecs, cfg, logger)
+
+	case "telnyx_manage":
+		if !cfg.Telnyx.Enabled {
+			return `Tool Output: {"status":"error","message":"Telnyx integration is disabled"}`
+		}
+		return "Tool Output: " + telnyx.DispatchManage(ctx, tc.Operation, tc.Limit, tc.Port, cfg, logger)
 
 	default:
 		return dispatchNotHandled

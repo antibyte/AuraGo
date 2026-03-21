@@ -73,6 +73,8 @@
   "config.section.discord.desc": "Discord Bot インテグレーション",
   "config.section.rocketchat.label": "Rocket.Chat",
   "config.section.rocketchat.desc": "Rocket.Chat Bot インテグレーション",
+  "config.section.telnyx.label": "Telnyx",
+  "config.section.telnyx.desc": "Telnyx SMS・音声通話連携",
   "config.section.notifications.label": "通知",
   "config.section.notifications.desc": "プッシュ通知チャネル",
   "config.section.webhooks.label": "Webhook",

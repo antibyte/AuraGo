@@ -73,6 +73,8 @@
   "config.section.discord.desc": "Ενσωμάτωση bot Discord",
   "config.section.rocketchat.label": "Rocket.Chat",
   "config.section.rocketchat.desc": "Integrace Rocket.Chat bota",
+  "config.section.telnyx.label": "Telnyx",
+  "config.section.telnyx.desc": "Ενσωμάτωση SMS και φωνής Telnyx",
   "config.section.notifications.label": "Notifikace",
   "config.section.notifications.desc": "Kanály push notifikací",
   "config.section.webhooks.label": "Webhooks",

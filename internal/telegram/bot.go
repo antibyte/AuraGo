@@ -321,6 +321,7 @@ func processUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Con
 		FritzBoxStorageEnabled:   cfg.FritzBox.Enabled && cfg.FritzBox.Storage.Enabled,
 		FritzBoxTVEnabled:        cfg.FritzBox.Enabled && cfg.FritzBox.TV.Enabled,
 		A2AEnabled:               cfg.A2A.Server.Enabled || cfg.A2A.Client.Enabled,
+		TelnyxEnabled:            cfg.Telnyx.Enabled,
 		AdditionalPrompt:         cfg.Agent.AdditionalPrompt,
 	}
 	coreMem := shortTermMem.ReadCoreMemory()

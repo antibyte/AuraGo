@@ -73,6 +73,8 @@
   "config.section.discord.desc": "कलह बॉट एकीकरण",
   "config.section.rocketchat.label": "रॉकेट.चैट",
   "config.section.rocketchat.desc": "रॉकेट.चैट बॉट एकीकरण",
+  "config.section.telnyx.label": "Telnyx",
+  "config.section.telnyx.desc": "Telnyx SMS और वॉइस एकीकरण",
   "config.section.notifications.label": "सूचनाएं",
   "config.section.notifications.desc": "पुश अधिसूचना चैनल",
   "config.section.webhooks.label": "वेबहुक",

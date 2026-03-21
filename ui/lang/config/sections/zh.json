@@ -73,6 +73,8 @@
   "config.section.discord.desc": "Discord 机器人集成",
   "config.section.rocketchat.label": "Rocket.Chat",
   "config.section.rocketchat.desc": "Rocket.Chat 机器人集成",
+  "config.section.telnyx.label": "Telnyx",
+  "config.section.telnyx.desc": "Telnyx 短信和语音集成",
   "config.section.notifications.label": "通知",
   "config.section.notifications.desc": "推送通知渠道",
   "config.section.webhooks.label": "Webhooks",

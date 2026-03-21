@@ -86,7 +86,8 @@ const SECTIONS = [
         items: [
             { key: 'telegram', icon: '📱', label: t('config.section.telegram.label'), desc: t('config.section.telegram.desc') },
             { key: 'discord', icon: '💬', label: t('config.section.discord.label'), desc: t('config.section.discord.desc') },
-            { key: 'rocketchat', icon: '🚀', label: t('config.section.rocketchat.label'), desc: t('config.section.rocketchat.desc') }
+            { key: 'rocketchat', icon: '🚀', label: t('config.section.rocketchat.label'), desc: t('config.section.rocketchat.desc') },
+            { key: 'telnyx', icon: '📞', label: t('config.section.telnyx.label'), desc: t('config.section.telnyx.desc') }
         ]
     },
     {
@@ -986,6 +987,7 @@ const SECTION_MODULES = {
     chromecast: { m: 'chromecast', fn: 'renderChromecastSection' },
     adguard: { m: 'adguard', fn: 'renderAdGuardSection' },
     fritzbox: { m: 'fritzbox', fn: 'renderFritzBoxSection' },
+    telnyx: { m: 'telnyx', fn: 'renderTelnyxSection' },
     paperless_ngx: { m: 'paperless', fn: 'renderPaperlessSection' },
     homepage: { m: 'homepage', fn: 'renderHomepageSection' },
     netlify: { m: 'netlify', fn: 'renderNetlifySection' },

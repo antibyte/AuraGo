@@ -445,6 +445,25 @@ type Config struct {
 			} `yaml:"sub_features"`
 		} `yaml:"tv"`
 	} `yaml:"fritzbox"`
+	Telnyx struct {
+		Enabled            bool     `yaml:"enabled"`
+		ReadOnly           bool     `yaml:"readonly"`                // true = receive only, no outbound
+		APIKey             string   `yaml:"-" vault:"telnyx_api_key"` // vault-only
+		APISecret          string   `yaml:"-" vault:"telnyx_api_secret"` // webhook signature verification
+		PhoneNumber        string   `yaml:"phone_number"`             // primary Telnyx number (E.164)
+		MessagingProfileID string   `yaml:"messaging_profile_id"`     // Telnyx messaging profile
+		ConnectionID       string   `yaml:"connection_id"`            // SIP connection ID for voice calls
+		WebhookPath        string   `yaml:"webhook_path"`             // default: /api/telnyx/webhook
+		AllowedNumbers     []string `yaml:"allowed_numbers"`          // E.164 whitelist (empty = allow all)
+		MaxConcurrentCalls int      `yaml:"max_concurrent_calls"`     // default: 3
+		MaxSMSPerMinute    int      `yaml:"max_sms_per_minute"`       // rate limit, default: 10
+		VoiceLanguage      string   `yaml:"voice_language"`           // BCP-47, default: en
+		VoiceGender        string   `yaml:"voice_gender"`             // male/female, default: female
+		RecordCalls        bool     `yaml:"record_calls"`             // auto-record all calls
+		TranscribeVoicemail bool    `yaml:"transcribe_voicemail"`     // auto-transcribe via LLM
+		RelayToAgent       bool     `yaml:"relay_to_agent"`           // forward incoming SMS to agent loop
+		CallTimeout        int      `yaml:"call_timeout"`             // max call duration seconds, default: 300
+	} `yaml:"telnyx"`
 	MeshCentral struct {
 		Enabled           bool     `yaml:"enabled"`
 		ReadOnly          bool     `yaml:"readonly"`           // true = only list operations, block wake/power/run_command

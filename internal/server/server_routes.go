@@ -20,6 +20,7 @@ import (
 	"aurago/internal/mqtt"
 	"aurago/internal/rocketchat"
 	"aurago/internal/telegram"
+	"aurago/internal/telnyx"
 	"aurago/internal/tools"
 	"aurago/ui"
 )
@@ -419,6 +420,47 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 
 		// MQTT Client: connect to broker and register bridge
 		mqtt.StartClient(s.Cfg, s.Logger)
+
+		// Telnyx: register webhook endpoint for incoming SMS/calls
+		if s.Cfg.Telnyx.Enabled {
+			webhookPath := s.Cfg.Telnyx.WebhookPath
+			if webhookPath == "" {
+				webhookPath = "/api/telnyx/webhook"
+			}
+			telnyxHandler := telnyx.NewWebhookHandler(s.Cfg, s.Logger, func(from, text string, mediaURLs []string) {
+				// Relay incoming SMS to agent via loopback
+				msg := telnyx.FormatSMSForAgent(from, text, mediaURLs)
+				s.Logger.Info("Telnyx SMS relayed to agent", "from", from)
+				runCfg := agent.RunConfig{
+					Config:             s.Cfg,
+					Logger:             s.Logger,
+					LLMClient:          s.LLMClient,
+					ShortTermMem:       s.ShortTermMem,
+					HistoryManager:     s.HistoryManager,
+					LongTermMem:        s.LongTermMem,
+					KG:                 s.KG,
+					InventoryDB:        s.InventoryDB,
+					InvasionDB:         s.InvasionDB,
+					CheatsheetDB:       s.CheatsheetDB,
+					ImageGalleryDB:     s.ImageGalleryDB,
+					MediaRegistryDB:    s.MediaRegistryDB,
+					HomepageRegistryDB: s.HomepageRegistryDB,
+					RemoteHub:          s.RemoteHub,
+					Vault:              s.Vault,
+					Registry:           s.Registry,
+					CronManager:        s.CronManager,
+					MissionManagerV2:   s.MissionManagerV2,
+					CoAgentRegistry:    s.CoAgentRegistry,
+					BudgetTracker:      s.BudgetTracker,
+					LLMGuardian:        s.LLMGuardian,
+					SessionID:          "default",
+					IsMaintenance:      tools.IsBusy(),
+				}
+				go agent.Loopback(runCfg, msg, telnyx.NewSMSBroker(s.Cfg, from, s.Logger))
+			}, nil)
+			mux.HandleFunc(webhookPath, telnyxHandler.HandleWebhook)
+			s.Logger.Info("Telnyx webhook registered", "path", webhookPath)
+		}
 
 		// MCP: start external MCP server connections (only when both gates are open)
 		if s.Cfg.Agent.AllowMCP && s.Cfg.MCP.Enabled && len(s.Cfg.MCP.Servers) > 0 {

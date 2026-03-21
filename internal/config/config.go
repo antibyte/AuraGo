@@ -387,6 +387,26 @@ func Load(path string) (*Config, error) {
 		cfg.Telegram.MaxConcurrentWorkers = 5
 	}
 
+	// Telnyx defaults
+	if cfg.Telnyx.WebhookPath == "" {
+		cfg.Telnyx.WebhookPath = "/api/telnyx/webhook"
+	}
+	if cfg.Telnyx.MaxConcurrentCalls <= 0 {
+		cfg.Telnyx.MaxConcurrentCalls = 3
+	}
+	if cfg.Telnyx.MaxSMSPerMinute <= 0 {
+		cfg.Telnyx.MaxSMSPerMinute = 10
+	}
+	if cfg.Telnyx.VoiceLanguage == "" {
+		cfg.Telnyx.VoiceLanguage = "en"
+	}
+	if cfg.Telnyx.VoiceGender == "" {
+		cfg.Telnyx.VoiceGender = "female"
+	}
+	if cfg.Telnyx.CallTimeout <= 0 {
+		cfg.Telnyx.CallTimeout = 300
+	}
+
 	// Email defaults
 	if cfg.Email.IMAPPort <= 0 {
 		cfg.Email.IMAPPort = 993

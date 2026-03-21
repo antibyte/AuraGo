@@ -341,6 +341,22 @@ adguard:
     readonly: false
     url: ""
     username: ""
+telnyx:
+    enabled: false
+    readonly: false
+    phone_number: ""                        # Your Telnyx number in E.164 format (+1234567890)
+    messaging_profile_id: ""                # From Telnyx portal
+    connection_id: ""                       # SIP connection ID for voice calls
+    webhook_path: "/api/telnyx/webhook"
+    allowed_numbers: []                     # E.164 whitelist (empty = allow all)
+    max_concurrent_calls: 3
+    max_sms_per_minute: 10
+    voice_language: "en"
+    voice_gender: "female"
+    record_calls: false
+    transcribe_voicemail: false
+    relay_to_agent: true
+    call_timeout: 300                       # Max call duration in seconds
 fritzbox:
     enabled: false
     host: "fritz.box"                       # Fritz!Box hostname or IP (default: fritz.box)

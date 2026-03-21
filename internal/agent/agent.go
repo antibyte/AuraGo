@@ -267,6 +267,11 @@ type ToolCall struct {
 	Account            string                 `json:"account"` // email account ID (multi-account)
 	ChannelID          string                 `json:"channel_id"`
 	Message            string                 `json:"message"`
+	// Telnyx fields
+	CallControlID string   `json:"call_control_id,omitempty"`
+	MaxDigits     int      `json:"max_digits,omitempty"`
+	AudioURL      string   `json:"audio_url,omitempty"`
+	MediaURLs     []string `json:"media_urls,omitempty"`
 	// Notes / To-Do fields
 	Title    string `json:"title"`
 	Priority int    `json:"priority"`

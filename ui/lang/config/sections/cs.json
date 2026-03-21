@@ -73,6 +73,8 @@
   "config.section.discord.desc": "Discord integrace",
   "config.section.rocketchat.label": "Rocket.Chat",
   "config.section.rocketchat.desc": "Rocket.Chat integrace",
+  "config.section.telnyx.label": "Telnyx",
+  "config.section.telnyx.desc": "Integrace SMS a hlasových služeb Telnyx",
   "config.section.notifications.label": "Notifikace",
   "config.section.notifications.desc": "Notifikacni kanaly",
   "config.section.webhooks.label": "Webhooks",

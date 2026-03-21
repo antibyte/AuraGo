@@ -22,6 +22,7 @@ const (
 	ChannelTelegram NotificationChannel = "telegram"
 	ChannelDiscord  NotificationChannel = "discord"
 	ChannelPush     NotificationChannel = "push"
+	ChannelTelnyx   NotificationChannel = "telnyx"
 	ChannelAll      NotificationChannel = "all"
 )
 
@@ -32,10 +33,14 @@ var notifyHTTPClient = &http.Client{Timeout: 15 * time.Second}
 // It sends a message to the given Discord channel.
 type DiscordSendFunc func(channelID, content string) error
 
+// TelnyxSendFunc is injected by the agent dispatch layer to avoid an import cycle.
+// It sends an SMS to the given number.
+type TelnyxSendFunc func(to, message string) error
+
 // SendNotification dispatches a notification to the specified channel(s).
-// channel may be "ntfy", "pushover", "telegram", "discord", or "all".
+// channel may be "ntfy", "pushover", "telegram", "discord", "telnyx", or "all".
 // discordSend may be nil if Discord is not available.
-func SendNotification(cfg *config.Config, logger *slog.Logger, channel, title, message, priority string, discordSend DiscordSendFunc) string {
+func SendNotification(cfg *config.Config, logger *slog.Logger, channel, title, message, priority string, discordSend DiscordSendFunc, telnyxSend ...TelnyxSendFunc) string {
 	encode := func(r map[string]interface{}) string {
 		b, _ := json.Marshal(r)
 		return string(b)
@@ -74,6 +79,8 @@ func SendNotification(cfg *config.Config, logger *slog.Logger, channel, title, m
 			err = sendDiscordNotification(cfg, discordSend, title, message)
 		case ChannelPush:
 			err = sendPushNotification(title, message, priority)
+		case ChannelTelnyx:
+			err = sendTelnyxNotification(cfg, title, message, telnyxSend...)
 		default:
 			results = append(results, result{Channel: string(c), Status: "error", Detail: "unknown channel"})
 			return
@@ -103,6 +110,9 @@ func SendNotification(cfg *config.Config, logger *slog.Logger, channel, title, m
 		}
 		if push.GlobalManager != nil {
 			send(ChannelPush)
+		}
+		if cfg.Telnyx.Enabled && cfg.Telnyx.PhoneNumber != "" && len(telnyxSend) > 0 && telnyxSend[0] != nil {
+			send(ChannelTelnyx)
 		}
 		if len(results) == 0 {
 			return encode(map[string]interface{}{"status": "error", "message": "no notification channels are enabled"})
@@ -275,6 +285,25 @@ func sendDiscordNotification(cfg *config.Config, discordSend DiscordSendFunc, ti
 }
 
 // ── Web Push (PWA) ───────────────────────────────────────────────────────────
+
+// sendTelnyxNotification sends a notification via Telnyx SMS.
+func sendTelnyxNotification(cfg *config.Config, title, message string, telnyxSend ...TelnyxSendFunc) error {
+	if !cfg.Telnyx.Enabled {
+		return fmt.Errorf("telnyx is not enabled in config")
+	}
+	if len(cfg.Telnyx.AllowedNumbers) == 0 {
+		return fmt.Errorf("no allowed numbers configured for telnyx notifications")
+	}
+	if len(telnyxSend) == 0 || telnyxSend[0] == nil {
+		return fmt.Errorf("telnyx send function not available")
+	}
+	text := title + "\n" + message
+	if len(text) > 1500 {
+		text = text[:1497] + "..."
+	}
+	// Send to the first allowed number as the primary notification target
+	return telnyxSend[0](cfg.Telnyx.AllowedNumbers[0], text)
+}
 
 func sendPushNotification(title, message, priority string) error {
 	if push.GlobalManager == nil {

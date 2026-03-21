@@ -109,6 +109,9 @@ type ToolFeatureFlags struct {
 	FritzBoxSmartHomeEnabled bool
 	FritzBoxStorageEnabled   bool
 	FritzBoxTVEnabled        bool
+	// Telnyx integration flags
+	TelnyxSMSEnabled  bool
+	TelnyxCallEnabled bool
 }
 
 // builtinToolSchemas returns schemas for all built-in AuraGo tools.
@@ -1485,6 +1488,60 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 					"description": "Operation to perform",
 					"enum":        []string{"get_channels"},
 				},
+			}, "operation"),
+		))
+	}
+
+	// ── Telnyx SMS & Voice ──────────────────────────────────────────
+	if ff.TelnyxSMSEnabled {
+		tools = append(tools, tool("telnyx_sms",
+			"Send and manage SMS/MMS messages via Telnyx. Can send text messages and multimedia messages to phone numbers.",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "Operation to perform",
+					"enum":        []string{"send", "send_mms", "status"},
+				},
+				"to":      prop("string", "Recipient phone number in E.164 format (e.g. +491511234567). Required for send/send_mms."),
+				"message": prop("string", "Text message content. Required for send/send_mms. Max 1600 chars."),
+				"media_urls": map[string]interface{}{
+					"type":        "array",
+					"items":       map[string]interface{}{"type": "string"},
+					"description": "URLs of media files to attach (for send_mms only). Max 10 items.",
+				},
+				"message_id": prop("string", "Message ID to check status (for status operation)."),
+			}, "operation"),
+		))
+	}
+	if ff.TelnyxCallEnabled {
+		tools = append(tools, tool("telnyx_call",
+			"Initiate and control voice calls via Telnyx. Can make calls, speak text (TTS), gather DTMF input, transfer, and record.",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "Call operation to perform",
+					"enum":        []string{"initiate", "speak", "play_audio", "gather_dtmf", "transfer", "record_start", "record_stop", "hangup", "list_active"},
+				},
+				"to":              prop("string", "Phone number to call in E.164 format. Required for initiate/transfer."),
+				"call_control_id": prop("string", "Call control ID of active call. Required for speak/play_audio/gather_dtmf/transfer/record_*/hangup."),
+				"text":            prop("string", "Text to speak via TTS during the call. Required for speak/gather_dtmf."),
+				"audio_url":       prop("string", "URL of audio file to play. Required for play_audio."),
+				"max_digits":      map[string]interface{}{"type": "integer", "description": "Maximum DTMF digits to collect (for gather_dtmf). Default: 1."},
+				"timeout_secs":    map[string]interface{}{"type": "integer", "description": "Timeout in seconds for DTMF gathering. Default: 10."},
+			}, "operation"),
+		))
+	}
+	if ff.TelnyxSMSEnabled || ff.TelnyxCallEnabled {
+		tools = append(tools, tool("telnyx_manage",
+			"Manage Telnyx phone resources: list phone numbers, check balance, view call/message history.",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "Management operation",
+					"enum":        []string{"list_numbers", "check_balance", "message_history", "call_history"},
+				},
+				"limit": map[string]interface{}{"type": "integer", "description": "Max results to return. Default: 20."},
+				"page":  map[string]interface{}{"type": "integer", "description": "Page number for pagination. Default: 1."},
 			}, "operation"),
 		))
 	}

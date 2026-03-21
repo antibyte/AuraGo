@@ -1,0 +1,199 @@
+================================================================================
+ÜBERSETZUNGSPRÜFUNG - DETAILLIERTER BERICHT
+================================================================================
+
+--------------------------------------------------------------------------------
+VERZEICHNIS: ui/lang/config/image_generation
+--------------------------------------------------------------------------------
+Referenz (en.json): 25 Keys
+
+  [cs] OK (25 Keys)
+  [da] OK (25 Keys)
+  [de] OK (25 Keys)
+  [el] OK (25 Keys)
+  [es] OK (25 Keys)
+  [fr] OK (25 Keys)
+  [hi] OK (25 Keys)
+  [it] OK (25 Keys)
+  [ja] OK (25 Keys)
+  [nl] OK (25 Keys)
+  [no] OK (25 Keys)
+  [pl] OK (25 Keys)
+  [pt] OK (25 Keys)
+  [sv] OK (25 Keys)
+  [zh] OK (25 Keys)
+
+Zusammenfassung: 0 Probleme gefunden
+
+--------------------------------------------------------------------------------
+VERZEICHNIS: ui/lang/config/indexing
+--------------------------------------------------------------------------------
+Referenz (en.json): 25 Keys
+
+  [cs] OK (25 Keys)
+  [da] OK (25 Keys)
+  [de] OK (25 Keys)
+  [el] OK (25 Keys)
+  [es] OK (25 Keys)
+  [fr] OK (25 Keys)
+  [hi] OK (25 Keys)
+  [it] OK (25 Keys)
+  [ja] OK (25 Keys)
+  [nl] OK (25 Keys)
+  [no] OK (25 Keys)
+  [pl] OK (25 Keys)
+  [pt] OK (25 Keys)
+  [sv] OK (25 Keys)
+  [zh] OK (25 Keys)
+
+Zusammenfassung: 0 Probleme gefunden
+
+--------------------------------------------------------------------------------
+VERZEICHNIS: ui/lang/config/llm_guardian
+--------------------------------------------------------------------------------
+Referenz (en.json): 37 Keys
+
+  [cs] OK (37 Keys)
+  [da] OK (37 Keys)
+  [de] OK (37 Keys)
+  [el] OK (37 Keys)
+  [es] OK (37 Keys)
+  [fr] OK (37 Keys)
+  [hi] OK (37 Keys)
+  [it] OK (37 Keys)
+  [ja] OK (37 Keys)
+  [nl] OK (37 Keys)
+  [no] OK (37 Keys)
+  [pl] OK (37 Keys)
+  [pt] OK (37 Keys)
+  [sv] OK (37 Keys)
+  [zh] OK (37 Keys)
+
+Zusammenfassung: 0 Probleme gefunden
+
+--------------------------------------------------------------------------------
+VERZEICHNIS: ui/lang/config/mcp
+--------------------------------------------------------------------------------
+Referenz (en.json): 27 Keys
+
+  [cs] OK (27 Keys)
+  [da] OK (27 Keys)
+  [de] OK (27 Keys)
+  [el] OK (27 Keys)
+  [es] OK (27 Keys)
+  [fr] OK (27 Keys)
+  [hi] OK (27 Keys)
+  [it] OK (27 Keys)
+  [ja] OK (27 Keys)
+  [nl] OK (27 Keys)
+  [no] OK (27 Keys)
+  [pl] OK (27 Keys)
+  [pt] OK (27 Keys)
+  [sv] OK (27 Keys)
+  [zh] OK (27 Keys)
+
+Zusammenfassung: 0 Probleme gefunden
+
+--------------------------------------------------------------------------------
+VERZEICHNIS: ui/lang/config/mcp_server
+--------------------------------------------------------------------------------
+Referenz (en.json): 16 Keys
+
+  [cs] OK (16 Keys)
+  [da] OK (16 Keys)
+  [de] OK (16 Keys)
+  [el] OK (16 Keys)
+  [es] OK (16 Keys)
+  [fr] OK (16 Keys)
+  [hi] OK (16 Keys)
+  [it] OK (16 Keys)
+  [ja] OK (16 Keys)
+  [nl] OK (16 Keys)
+  [no] OK (16 Keys)
+  [pl] OK (16 Keys)
+  [pt] OK (16 Keys)
+  [sv] OK (16 Keys)
+  [zh] OK (16 Keys)
+
+Zusammenfassung: 0 Probleme gefunden
+
+--------------------------------------------------------------------------------
+VERZEICHNIS: ui/lang/config/memory_analysis
+--------------------------------------------------------------------------------
+Referenz (en.json): 26 Keys
+
+  [cs] OK (26 Keys)
+  [da] OK (26 Keys)
+  [de] OK (26 Keys)
+  [el] OK (26 Keys)
+  [es] OK (26 Keys)
+  [fr] OK (26 Keys)
+  [hi] OK (26 Keys)
+  [it] OK (26 Keys)
+  [ja] OK (26 Keys)
+  [nl] OK (26 Keys)
+  [no] OK (26 Keys)
+  [pl] OK (26 Keys)
+  [pt] OK (26 Keys)
+  [sv] OK (26 Keys)
+  [zh] OK (26 Keys)
+
+Zusammenfassung: 0 Probleme gefunden
+
+--------------------------------------------------------------------------------
+VERZEICHNIS: ui/lang/config/misc
+--------------------------------------------------------------------------------
+Referenz (en.json): 47 Keys
+
+  [cs] OK (47 Keys)
+  [da] OK (47 Keys)
+  [de] OK (47 Keys)
+  [el] OK (47 Keys)
+  [es] OK (47 Keys)
+  [fr] OK (47 Keys)
+  [hi] OK (47 Keys)
+  [it] OK (47 Keys)
+  [ja] OK (47 Keys)
+  [nl] OK (47 Keys)
+  [no] OK (47 Keys)
+  [pl] OK (47 Keys)
+  [pt] OK (47 Keys)
+  [sv] OK (47 Keys)
+  [zh] OK (47 Keys)
+
+Zusammenfassung: 0 Probleme gefunden
+
+--------------------------------------------------------------------------------
+VERZEICHNIS: ui/lang/config/netlify
+--------------------------------------------------------------------------------
+Referenz (en.json): 31 Keys
+
+  [cs] OK (31 Keys)
+  [da] OK (31 Keys)
+  [de] OK (31 Keys)
+  [el] OK (31 Keys)
+  [es] OK (31 Keys)
+  [fr] OK (31 Keys)
+  [hi] OK (31 Keys)
+  [it] OK (31 Keys)
+  [ja] OK (31 Keys)
+  [nl] OK (31 Keys)
+  [no] OK (31 Keys)
+  [pl] OK (31 Keys)
+  [pt] OK (31 Keys)
+  [sv] OK (31 Keys)
+  [zh] OK (31 Keys)
+
+Zusammenfassung: 0 Probleme gefunden
+
+================================================================================
+GESAMTZAHL DER PROBLEME: 0
+================================================================================
+================================================================================
+ZUSAMMENFASSUNG
+================================================================================
+Geprüfte Dateien:     120
+Vollständig (OK):     120
+Unvollständig:        0
+Fehler:               0
+================================================================================

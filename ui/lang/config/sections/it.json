@@ -73,6 +73,8 @@
   "config.section.discord.desc": "Integrazione bot Discord",
   "config.section.rocketchat.label": "Rocket.Chat",
   "config.section.rocketchat.desc": "Integrazione bot Rocket.Chat",
+  "config.section.telnyx.label": "Telnyx",
+  "config.section.telnyx.desc": "Integrazione SMS e voce Telnyx",
   "config.section.notifications.label": "Notifiche",
   "config.section.notifications.desc": "Canali notifica push",
   "config.section.webhooks.label": "Webhook",

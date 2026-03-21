@@ -160,6 +160,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		FritzBoxStorageEnabled:   cfg.FritzBox.Enabled && cfg.FritzBox.Storage.Enabled,
 		FritzBoxTVEnabled:        cfg.FritzBox.Enabled && cfg.FritzBox.TV.Enabled,
 		A2AEnabled:               cfg.A2A.Server.Enabled || cfg.A2A.Client.Enabled,
+		TelnyxEnabled:            cfg.Telnyx.Enabled,
 		AdditionalPrompt:         cfg.Agent.AdditionalPrompt,
 	}
 	logger.Debug("[Agent] Context flags initialised",
@@ -312,6 +313,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			FritzBoxSmartHomeEnabled: cfg.FritzBox.Enabled && cfg.FritzBox.SmartHome.Enabled,
 			FritzBoxStorageEnabled:   cfg.FritzBox.Enabled && cfg.FritzBox.Storage.Enabled,
 			FritzBoxTVEnabled:        cfg.FritzBox.Enabled && cfg.FritzBox.TV.Enabled,
+			TelnyxSMSEnabled:         cfg.Telnyx.Enabled && !cfg.Telnyx.ReadOnly,
+			TelnyxCallEnabled:        cfg.Telnyx.Enabled && !cfg.Telnyx.ReadOnly,
 			// Danger Zone capability gates
 			AllowShell:           cfg.Agent.AllowShell,
 			AllowPython:          cfg.Agent.AllowPython,
