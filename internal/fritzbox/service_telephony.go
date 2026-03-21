@@ -296,7 +296,7 @@ func (c *Client) GetTAMMessageURL(tamIndex, msgIndex int) (string, error) {
 				return "", fmt.Errorf("fritzbox telephony: TAM%d message %d has no audio path", tamIndex, msgIndex)
 			}
 			if strings.HasPrefix(m.Path, "/") {
-				return c.tr.baseURL + m.Path, nil
+				return c.webURL + m.Path, nil
 			}
 			return m.Path, nil
 		}

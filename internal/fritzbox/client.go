@@ -13,10 +13,11 @@ import (
 // Client is the unified Fritz!Box client.
 // Use NewClient to construct it; call Close when done to logout the SID session.
 type Client struct {
-	Cfg config.Config // full config available for feature checks
-	tr  *TR064Client
-	aha *AHAClient
-	sid *SIDAuth // kept for explicit logout
+	Cfg    config.Config // full config available for feature checks
+	webURL string        // web interface base URL (port 80/443) for SID-authenticated requests
+	tr     *TR064Client
+	aha    *AHAClient
+	sid    *SIDAuth // kept for explicit logout
 }
 
 // NewClient constructs a Client from the application config.
@@ -31,16 +32,18 @@ func NewClient(cfg config.Config) (*Client, error) {
 	}
 
 	baseURL := buildBaseURL(fb.Host, fb.Port, fb.HTTPS)
+	webURL := buildWebURL(fb.Host, fb.HTTPS) // SID/AHA use the web interface port (80/443), not TR-064 (49000)
 	timeout := time.Duration(fb.Timeout) * time.Second
 
 	tr := newTR064Client(baseURL, fb.Username, fb.Password, timeout)
-	aha := newAHAClient(baseURL, fb.Username, fb.Password, timeout)
+	aha := newAHAClient(webURL, fb.Username, fb.Password, timeout)
 
 	return &Client{
-		Cfg: cfg,
-		tr:  tr,
-		aha: aha,
-		sid: aha.sid,
+		Cfg:    cfg,
+		webURL: webURL,
+		tr:     tr,
+		aha:    aha,
+		sid:    aha.sid,
 	}, nil
 }
 
@@ -90,11 +93,20 @@ func (c *Client) TVReadOnly() bool        { return c.Cfg.FritzBox.TV.ReadOnly }
 // URL helper
 // ──────────────────────────────────────────────
 
-// buildBaseURL constructs the scheme+host base URL for Fritz!Box calls.
+// buildBaseURL constructs the scheme+host base URL for Fritz!Box TR-064 calls.
 func buildBaseURL(host string, port int, useHTTPS bool) string {
 	scheme := "http"
 	if useHTTPS {
 		scheme = "https"
 	}
 	return fmt.Sprintf("%s://%s:%d", scheme, host, port)
+}
+
+// buildWebURL constructs the base URL for the Fritz!Box web interface (login_sid.lua, AHA-HTTP).
+// The web interface always runs on the standard port (80 for HTTP, 443 for HTTPS).
+func buildWebURL(host string, useHTTPS bool) string {
+	if useHTTPS {
+		return fmt.Sprintf("https://%s", host)
+	}
+	return fmt.Sprintf("http://%s", host)
 }
