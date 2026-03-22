@@ -9,31 +9,20 @@
 ### Key Characteristics
 - **Single binary deployment** - Pure Go with embedded SQLite (no CGO)
 - **Self-contained** - Web UI baked in via `go:embed`
-- **Home lab focused** - Docker, Proxmox, Home Assistant, SSH device management
+- **Home lab focused** - Docker, Proxmox, Home Assistant, SSH device management, and 50+ integrations
 - **Multi-platform** - Linux, macOS, Windows (amd64, arm64)
-- **30+ built-in tools** - Shell, Python execution, file system, HTTP requests, cron, and many more
+- **50+ built-in tools** - Shell, Python execution, file system, HTTP requests, cron, and many more
 
 ## Technology Stack
 
 | Component | Technology |
 |-----------|------------|
-| Language | Go 1.26+ |
+| Language | Go 1.26.1+ |
 | Web Framework | Standard library `net/http` with gorilla/mux patterns |
 | Database | SQLite (modernc.org/sqlite - pure Go, no CGO) |
 | Vector DB | chromem-go (embedded) |
-| Frontend | Vanilla JavaScript SPA (embedded) |
-| Python Runtime | Python 3.10+ (for sandboxed execution) |
-| Container | Docker, Docker Compose |
-
-### Core Technologies
-| Component | Technology |
-|-----------|------------|
-| Language | Go 1.26+ |
-| Web Framework | Standard library `net/http` with gorilla/mux patterns |
-| Database | SQLite (modernc.org/sqlite - pure Go, no CGO) |
-| Vector DB | chromem-go (embedded) |
-| Frontend | Vanilla JavaScript SPA (embedded) |
-| Python Runtime | Python 3.10+ (for sandboxed execution) |
+| Frontend | Vanilla JavaScript SPA (embedded via go:embed) |
+| Python Runtime | Python 3.10+ (for sandboxed execution in venv) |
 | Container | Docker, Docker Compose |
 
 ### Key Dependencies
@@ -45,6 +34,8 @@
 - `github.com/robfig/cron/v3` - Cron scheduler
 - `golang.org/x/crypto` - SSH client, bcrypt, ACME/Let's Encrypt
 - `github.com/gofrs/flock` - File-based locking
+- `tailscale.com` - Tailscale VPN integration
+- `github.com/aws/aws-sdk-go-v2` - AWS S3 SDK
 
 ## Project Structure
 
@@ -52,64 +43,101 @@
 AuraGo/
 ├── cmd/                          # Application entry points
 │   ├── aurago/                   # Main agent binary
-│   │   ├── main.go               # Entry point with full initialization
+│   │   ├── main.go               # Entry point with full initialization (~860 lines)
 │   │   ├── platform_unix.go      # Unix-specific code
 │   │   └── platform_windows.go   # Windows-specific code
 │   ├── lifeboat/                 # Self-update companion binary
 │   ├── remote/                   # Remote execution agent
 │   └── config-merger/            # Configuration merging utility
 ├── internal/                     # Private application code
-│   ├── agent/                    # Core agent loop, tool dispatch, co-agents
+│   ├── agent/                    # Core agent loop, tool dispatch, co-agents (30 files)
 │   ├── budget/                   # Token cost tracking
 │   ├── commands/                 # Slash commands (/reset, /budget, etc.)
 │   ├── config/                   # YAML config parsing & defaults
+│   ├── contacts/                 # Address book / contacts management
 │   ├── discord/                  # Discord bot integration
-│   ├── invasion/                 # Invasion Control (egg/nest system)
+│   ├── fritzbox/                 # Fritz!Box TR-064 integration
+│   ├── invasion/                 # Invasion Control (egg/nest distributed system)
 │   ├── inventory/                # SSH device inventory (SQLite)
-│   ├── llm/                      # LLM client, failover, retry
+│   ├── llm/                      # LLM client, failover, retry, pricing
 │   ├── logger/                   # Structured logging setup
+│   ├── media/                    # Media file handling
 │   ├── memory/                   # STM, LTM, knowledge graph, personality
+│   ├── meshcentral/              # MeshCentral remote desktop integration
+│   ├── mqtt/                     # MQTT client integration
 │   ├── prompts/                  # Dynamic system prompt builder
-│   ├── remote/                   # SSH remote execution
-│   ├── security/                 # AES-GCM vault & token manager
-│   ├── server/                   # HTTP/HTTPS server, REST handlers
+│   ├── remote/                   # SSH remote execution and protocol
+│   ├── rocketchat/               # Rocket.Chat bot integration
+│   ├── sandbox/                  # Sandboxed execution (Landlock on Linux)
+│   ├── scraper/                  # Web scraping utilities
+│   ├── security/                 # AES-GCM vault & token manager, LLM Guardian
+│   ├── server/                   # HTTP/HTTPS server, REST handlers (60+ files)
+│   ├── services/                 # Background services (indexer, ingestion)
+│   ├── setup/                    # First-time setup wizard
+│   ├── sqlconnections/           # External SQL database connections
 │   ├── telegram/                 # Telegram bot (text, voice, vision)
-│   ├── tools/                    # All tool implementations
+│   ├── telnyx/                   # Telnyx SMS/voice integration
+│   ├── tools/                    # All tool implementations (90+ files)
+│   ├── tsnetnode/                # Tailscale tsnet embedded node
 │   └── webhooks/                 # Incoming & outgoing webhooks
 ├── agent_workspace/              # Runtime workspace
 │   ├── skills/                   # Pre-built Python skills
 │   ├── tools/                    # Agent-created tools + manifest
-│   └── workdir/                  # Sandboxed execution directory
+│   └── workdir/                  # Sandboxed execution directory (venv)
 ├── prompts/                      # System prompt markdown files
 │   ├── identity.md               # Core identity prompt
+│   ├── rules.md                  # Agent behavior rules
+│   ├── lifeboat.md               # Self-update system prompt
 │   ├── personalities/            # Personality profiles
 │   ├── templates/                # Prompt templates
 │   └── tools_manuals/            # Tool documentation for RAG
 ├── ui/                           # Embedded Web UI (single-file SPA)
+│   ├── *.html                    # Page templates (index.html, config.html, etc.)
+│   ├── css/                      # Stylesheets
+│   ├── js/                       # JavaScript modules
+│   ├── lang/                     # i18n translations (15 languages)
+│   └── embed.go                  # go:embed directives
 ├── data/                         # Runtime data (databases, vault, state)
 ├── documentation/                # Detailed setup guides
+├── bin/                          # Compiled binaries (git-ignored)
+├── deploy/                       # Deployment artifacts (git-ignored)
+├── reports/                      # Analysis reports (git-ignored, do not commit)
 ├── config.yaml                   # Main configuration file
-├── config_template.yaml          # Configuration template
+├── config_template.yaml          # Configuration template (~600 lines)
 ├── Dockerfile                    # Multi-stage build
-├── docker-compose.yml            # Docker Compose setup
-└── install.sh                    # Quick installer script
+├── docker-compose.yml            # Docker Compose setup with sidecars
+├── Dockerfile.ansible            # Ansible sidecar image
+├── install.sh                    # Quick installer script
+├── update.sh                     # Self-update script
+├── make_deploy.sh                # Build script for Linux/macOS
+└── make_release.bat              # Build script for Windows
 ```
 
 ## Build Commands
 
 ### Development Build
 ```bash
-# Build main binary
+# Build main binary (requires Go 1.26+)
 go build -o aurago ./cmd/aurago
 
 # Build with lifeboat (recommended for development)
 ./start.sh
+
+# Build all binaries
+mkdir -p bin
+go build -o bin/aurago ./cmd/aurago
+go build -o bin/lifeboat ./cmd/lifeboat
+go build -o bin/aurago-remote ./cmd/remote
+go build -o bin/config-merger ./cmd/config-merger
 ```
 
 ### Production Build
 ```bash
-# Cross-compile for all platforms
+# Cross-compile for all platforms (Linux/macOS)
 ./make_deploy.sh
+
+# Cross-compile for all platforms (Windows)
+make_release.bat
 
 # Individual platform build
 CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o aurago ./cmd/aurago
@@ -120,8 +148,11 @@ CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o aurago ./cmd/
 # Build image
 docker build -t aurago:latest .
 
-# Or use docker-compose
+# Or use docker-compose (recommended)
 docker-compose up -d
+
+# View logs
+docker-compose logs -f aurago
 ```
 
 ### Test Commands
@@ -132,9 +163,19 @@ go test ./...
 # Run tests for specific package
 go test ./internal/config/...
 go test ./internal/agent/...
+go test ./internal/memory/...
 
 # Run with verbose output
 go test -v ./internal/tools/...
+
+# Run with coverage
+go test -cover ./internal/...
+
+# Race detection
+go test -race ./...
+
+# Benchmarks
+go test -bench=. ./internal/...
 ```
 
 ## Configuration
@@ -156,7 +197,7 @@ llm:
 ### Environment Variables
 | Variable | Purpose |
 |----------|---------|
-| `AURAGO_MASTER_KEY` | 64-character hex key for vault encryption |
+| `AURAGO_MASTER_KEY` | 64-character hex key for vault encryption (32 bytes) |
 | `AURAGO_SERVER_HOST` | Override server bind address (Docker: `0.0.0.0`) |
 | `LLM_API_KEY` | Override LLM API key |
 | `OPENAI_API_KEY` | Alternative LLM API key |
@@ -243,23 +284,26 @@ See existing test files:
 - `internal/config/config_test.go` - Configuration testing
 - `internal/tools/shell_test.go` - Tool testing
 - `internal/memory/history_test.go` - Memory subsystem testing
+- `internal/agent/agent_test.go` - Agent loop testing
 
 ## Security Considerations
 
 ### Vault System
 - AES-256-GCM encryption for all secrets
-- Master key (64 hex chars = 32 bytes) required at startup
+- Master key (64 hex chars = 32 bytes) required at startup via `AURAGO_MASTER_KEY`
 - Vault file: `data/vault.bin`
 - Never commit `.env` or vault files
 
 ### Danger Zone Capabilities
-All potentially dangerous operations are gated:
+All potentially dangerous operations are gated via config:
 - `allow_shell` - Shell command execution
 - `allow_python` - Python code execution
 - `allow_filesystem_write` - File write operations
 - `allow_network_requests` - HTTP requests
 - `allow_remote_shell` - SSH to remote devices
 - `allow_self_update` - Binary self-updates
+- `allow_mcp` - Model Context Protocol
+- `allow_web_scraper` - Web scraping
 
 ### Sensitive Data Scrubbing
 Use `security.RegisterSensitive(value)` to prevent values from appearing in logs or LLM outputs.
@@ -369,7 +413,8 @@ Tools are defined in `internal/tools/`:
 3. Add config types to `internal/config/config_types.go`
 4. Add config loading defaults in `internal/config/config.go`
 5. Add Web UI handlers in `internal/server/` if needed
-6. Document in `documentation/`
+6. Add translations for all 15 supported languages in `ui/lang/`
+7. Document in `documentation/`
 
 ### Database Migrations
 - SQLite migrations are handled automatically on startup
@@ -390,6 +435,11 @@ rm -f data/aurago.lock data/maintenance.lock
 # Linux/macOS
 export AURAGO_MASTER_KEY="$(openssl rand -hex 32)"
 echo "AURAGO_MASTER_KEY=$AURAGO_MASTER_KEY" > .env
+
+# Windows (PowerShell)
+$bytes = New-Object byte[] 32
+(New-Object System.Security.Cryptography.RNGCryptoServiceProvider).GetBytes($bytes)
+$AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 ```
 
 ### Debug Mode
@@ -404,13 +454,14 @@ echo "AURAGO_MASTER_KEY=$AURAGO_MASTER_KEY" > .env
 
 ### GitHub Actions
 - **docker-publish.yml**: Builds and publishes Docker images to GHCR
-- Triggered on push to `main` branch
+- Triggered on push to `main` branch and version tags `v*`
+- Multi-arch builds: linux/amd64, linux/arm64
 
 ### Release Process
-1. Run `./make_deploy.sh` to build cross-platform binaries
-2. Commit changes (script auto-commits)
-3. Push to trigger Docker build
-4. Create GitHub Release with binary artifacts
+1. Run `./make_deploy.sh` (Linux/macOS) or `make_release.bat` (Windows) to build cross-platform binaries
+2. Scripts auto-commit and push to trigger Docker build
+3. GitHub Release created with binary artifacts
+4. Old releases are cleaned up (keeping latest 3)
 
 ## Agent Rules & Guidelines
 
@@ -461,7 +512,7 @@ echo "AURAGO_MASTER_KEY=$AURAGO_MASTER_KEY" > .env
 - **Always check if new features are relevant to the dashboard** and add them there if applicable
 
 #### Translations
-- **Always update translation files** in `ui/lang/` for **ALL supported languages**
+- **Always update translation files** in `ui/lang/` for **ALL supported languages** (15 languages: cs, da, de, el, en, es, fr, hi, it, ja, nl, no, pl, pt, sv, zh)
 - Keep translations up to date and consistent with UI changes
 - If you add new features requiring new UI elements, provide translations for all supported languages
 
@@ -510,5 +561,6 @@ echo "AURAGO_MASTER_KEY=$AURAGO_MASTER_KEY" > .env
 
 - **README.md** - User-facing documentation
 - **documentation/** - Detailed guides
-- **config_template.yaml** - Full configuration reference
+- **config_template.yaml** - Full configuration reference (~600 lines)
 - **prompts/tools_manuals/** - Tool documentation (RAG-indexed)
+- **ui/lang/** - Translation files for 15 languages
