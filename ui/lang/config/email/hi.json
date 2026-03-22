@@ -26,7 +26,7 @@
   "config.email.interval_seconds": "अंतराल (सेकंड)",
   "config.email.id_exists": "इस आईडी वाला एक खाता पहले से मौजूद है.",
   "config.email.host_required": "कम से कम एक IMAP या SMTP होस्ट प्रदान करें.",
-  "config.email.delete_confirm": "क्या वाकई ईमेल खाता \"{नाम}\" हटा दिया गया है?",
+  "config.email.delete_confirm": "क्या वाकई ईमेल खाता \"{name}\" हटा दिया गया है?",
   "config.email.id_empty": "आईडी खाली नहीं होनी चाहिए.",
   "config.email.field_id": "आईडी",
   "config.email.field_name": "नाम",

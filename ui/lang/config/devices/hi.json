@@ -23,7 +23,7 @@
   "config.devices.vault_read_only": "केवल पढ़ने के लिए",
   "config.devices.new_device": "＋नया उपकरण",
   "config.devices.name_required": "नाम आवश्यक है।",
-  "config.devices.delete_confirm": "क्या सचमुच डिवाइस \"{नाम}\" हटा दिया गया है? इसे असंपादित नहीं किया जा सकता है।",
+  "config.devices.delete_confirm": "क्या सचमुच डिवाइस \"{name}\" हटा दिया गया है? इसे असंपादित नहीं किया जा सकता है।",
   "config.devices.edit_tooltip": "संपादन करना",
   "config.devices.delete_tooltip": "मिटाना",
   "config.devices.type_server": "सर्वर",

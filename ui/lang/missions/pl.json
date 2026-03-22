@@ -221,7 +221,7 @@
   "missions.trigger_mqtt_message": "📡 Wiadomość MQTT",
   "missions.trigger_mqtt_payload_hint": "Tylko wyzwól, jeśli treść wiadomości zawiera ten tekst",
   "missions.trigger_mqtt_payload_label": "Payload zawiera (opcjonalnie)",
-  "missions.trigger_mqtt_payload_placeholder": "np. 'alarm' lub '{\\\"state\\\":\\\"on\\\"}'",
+  "missions.trigger_mqtt_payload_placeholder": "np. 'alarm' lub '{\"state\":\"on\"}'",
   "missions.trigger_mqtt_topic_hint": "Obsługuje wildcardy MQTT: + (pojedynczy poziom), # (wszystkie poziomy)",
   "missions.trigger_mqtt_topic_label": "Filtr Tematu *",
   "missions.trigger_mqtt_topic_placeholder": "np. home/sensors/# lub devices/+/status",
