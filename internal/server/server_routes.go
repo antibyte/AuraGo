@@ -1030,15 +1030,33 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		fsHandler.ServeHTTP(w, r)
 	})
 
+	// Serve TTS audio files from data/tts/ on the main server
+	ttsDir := tools.TTSAudioDir(s.Cfg.Directories.DataDir)
+	os.MkdirAll(ttsDir, 0755)
+	mainTTSHandler := http.StripPrefix("/tts/", http.FileServer(http.Dir(ttsDir)))
+	mux.HandleFunc("/tts/", func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, ".wav") {
+			w.Header().Set("Content-Type", "audio/wav")
+		} else {
+			w.Header().Set("Content-Type", "audio/mpeg")
+		}
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		mainTTSHandler.ServeHTTP(w, r)
+	})
+
 	// Phase X: Dedicated TTS Server for Chromecast
 	// Declared outside the if-block so the graceful shutdown goroutine can close it.
 	var ttsServer *http.Server
 	if s.Cfg.Chromecast.Enabled && s.Cfg.Chromecast.TTSPort > 0 {
-		ttsDir := tools.TTSAudioDir(s.Cfg.Directories.DataDir)
+		ccTTSDir := tools.TTSAudioDir(s.Cfg.Directories.DataDir)
 		ttsMux := http.NewServeMux()
-		ttsFsHandler := http.StripPrefix("/tts/", http.FileServer(http.Dir(ttsDir)))
+		ttsFsHandler := http.StripPrefix("/tts/", http.FileServer(http.Dir(ccTTSDir)))
 		ttsMux.HandleFunc("/tts/", func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "audio/mpeg")
+			if strings.HasSuffix(r.URL.Path, ".wav") {
+				w.Header().Set("Content-Type", "audio/wav")
+			} else {
+				w.Header().Set("Content-Type", "audio/mpeg")
+			}
 			w.Header().Set("Access-Control-Allow-Origin", "*")
 			ttsFsHandler.ServeHTTP(w, r)
 		})

@@ -171,9 +171,9 @@ func dispatchInfra(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 			})
 		}
 
-		ttsPort := cfg.Chromecast.TTSPort
-		if ttsPort == 0 {
-			ttsPort = cfg.Server.Port // Fallback if chromecast integration is disabled
+		ttsPort := cfg.Server.Port // TTS is always served on the main server
+		if cfg.Chromecast.Enabled && cfg.Chromecast.TTSPort > 0 {
+			ttsPort = cfg.Chromecast.TTSPort // Chromecast has its own dedicated TTS server
 		}
 		audioURL := fmt.Sprintf("http://%s:%d/tts/%s", getLocalIP(cfg), ttsPort, filename)
 		return fmt.Sprintf(`Tool Output: {"status": "success", "file": "%s", "url": "%s"}`, filename, audioURL)
