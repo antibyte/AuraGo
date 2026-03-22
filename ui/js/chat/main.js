@@ -276,7 +276,7 @@ async function initPage() {
             if (authData.enabled) {
                 const lb = document.getElementById('logout-btn');
                 const rl = document.getElementById('radialLogout');
-                if (lb) lb.style.display = '';
+                if (lb) lb.classList.remove('is-hidden');
                 if (rl) rl.style.display = '';
             }
         }
