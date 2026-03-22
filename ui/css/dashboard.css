@@ -7,7 +7,9 @@
    ─────────────────────────────────────────────────────────────────────────────── */
 
 :root {
-  --aura-accent: #7c3aed;
+  --aura-accent: #2dd4bf;
+  --aura-accent-dim: rgba(45, 212, 191, 0.15);
+  --aura-accent-glow: rgba(45, 212, 191, 0.3);
   --aura-bg-primary: #0f0f0f;
   --aura-bg-secondary: #1a1a1a;
   --aura-text-primary: #e5e5e5;

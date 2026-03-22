@@ -8,7 +8,9 @@
    ─────────────────────────────────────────────────────────────────────────────── */
 
 :root {
-  --accent: #7c3aed;
+  --accent: #2dd4bf;
+  --accent-dim: rgba(45, 212, 191, 0.15);
+  --accent-glow: rgba(45, 212, 191, 0.3);
   --bg-primary: #0f0f0f;
   --bg-secondary: #1a1a1a;
   --bg-tertiary: #232323;
