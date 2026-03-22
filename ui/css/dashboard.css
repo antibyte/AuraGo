@@ -61,6 +61,38 @@
             animation: dashTabIn 0.18s ease;
         }
 
+        .stats-grid-single {
+            grid-template-columns: 1fr;
+            margin-top: 0.5rem;
+        }
+
+        .dash-subheading {
+            margin: 0 0 0.5rem;
+            font-size: var(--text-sm);
+            color: var(--text-secondary);
+        }
+
+        .chart-wrap-sm {
+            position: relative;
+            height: 130px;
+        }
+
+        .prompt-chart-wrap-lg {
+            height: 200px;
+        }
+
+        .mt-sm {
+            margin-top: 0.75rem;
+        }
+
+        .mt-xs {
+            margin-top: 0.5rem;
+        }
+
+        .text-secondary {
+            color: var(--text-secondary);
+        }
+
         @keyframes dashTabIn {
             from { opacity: 0; transform: translateY(6px); }
             to   { opacity: 1; transform: translateY(0); }
@@ -1643,6 +1675,7 @@
             overflow: hidden;
         }
         .context-gauge-fill {
+            width: 0%;
             height: 100%;
             border-radius: 3px;
             background: var(--accent);

@@ -198,6 +198,22 @@ body {
     flex-shrink: 0;
 }
 
+.logo-wordmark-accent {
+    color: var(--accent);
+}
+
+.logo-wordmark-base {
+    color: var(--text-primary);
+}
+
+.logo-subtitle {
+    font-size: var(--text-xs);
+    font-weight: 300;
+    opacity: 0.55;
+    margin-left: 0.3rem;
+    color: var(--text-secondary);
+}
+
 .logo-icon {
     width: 32px;
     height: 32px;
@@ -238,6 +254,10 @@ a.logo {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+}
+
+.is-hidden {
+    display: none;
 }
 
 /* ── Buttons with Shine Effect ─────────────────────────────── */
@@ -349,6 +369,15 @@ a.logo {
     white-space: nowrap;
     position: relative;
     overflow: hidden;
+}
+
+.btn-header-link {
+    text-decoration: none;
+    color: var(--text-secondary);
+}
+
+.credits-pill-action {
+    cursor: pointer;
 }
 
 .btn-header::before {

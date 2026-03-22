@@ -1120,7 +1120,7 @@
             const activeCount = maxTools > 0 ? Math.min(totalTracked, maxTools) : totalTracked;
             const totalCalls = data.total_calls || 0;
 
-            if (card) card.style.display = '';
+            if (card) card.style.display = 'block';
 
             const kpis = document.getElementById('adaptive-tools-kpis');
             if (kpis) {
@@ -1208,7 +1208,7 @@
                 card.style.display = 'none';
                 return;
             }
-            card.style.display = '';
+            card.style.display = 'block';
 
             if (data.error) {
                 container.innerHTML = `<div class="empty-state">⚠️ ${esc(data.error)}</div>`;
@@ -1423,7 +1423,7 @@
                 if (card) card.style.display = 'none';
                 return;
             }
-            if (card) card.style.display = '';
+            if (card) card.style.display = 'block';
             renderGuardianCard(data);
         }
 

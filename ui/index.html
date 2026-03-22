@@ -52,7 +52,7 @@
     <header class="app-header">
         <a href="/" class="logo">
             <div class="logo-icon">🤖</div>
-            <span style="color: var(--accent);">AURA</span><span style="color: var(--text-primary);">GO</span>
+            <span class="logo-wordmark-accent">AURA</span><span class="logo-wordmark-base">GO</span>
         </a>
         <div class="header-actions">
             <!-- Theme toggle first (consistent across all pages) -->
@@ -61,8 +61,7 @@
             <span id="tokenCounter" class="pill pill-tokens"></span>
 
             <span id="budgetPill" class="pill pill-budget">$0.00</span>
-            <span id="creditsPill" class="pill pill-budget"
-                style="display:none;cursor:pointer;">💳 $0.00</span>
+            <span id="creditsPill" class="pill pill-budget is-hidden credits-pill-action">💳 $0.00</span>
             <div class="personality-select-wrapper">
                 <select id="personality-select" class="select-personality">
                     <option value="" disabled selected></option>
@@ -85,8 +84,7 @@
             </div>
             <span id="debug-pill" class="pill pill-debug"></span>
             <span id="connectionPill" class="pill pill-active"></span>
-            <a id="logout-btn" href="/auth/logout" class="btn-header"
-                style="text-decoration:none;display:none;color:var(--text-secondary);"></a>
+            <a id="logout-btn" href="/auth/logout" class="btn-header btn-header-link"></a>
         </div>
     </header>
 
@@ -110,7 +108,7 @@
 
     <footer class="app-footer">
         <form id="chat-form" class="input-row">
-            <input type="file" id="file-input" style="display:none">
+            <input type="file" id="file-input" class="is-hidden">
             <div class="input-wrap">
                 <textarea id="user-input" name="aura-chat-input" autocomplete="off" spellcheck="true" rows="2"
                     placeholder=""></textarea>
