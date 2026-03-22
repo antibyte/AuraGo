@@ -452,6 +452,26 @@ notifications:
 
 ---
 
+## Zusätzliche Integrationen (Vollständigkeits-Ergänzung)
+
+Neben den oben beschriebenen Kernintegrationen umfasst die aktuelle Plattform weitere Integrationen/Features:
+
+| Integration/Feature | Typischer Zweck | Wichtige Config-Blöcke |
+|---|---|---|
+| Cloudflare Tunnel + AI Gateway | sicherer Internetzugang und AI-Traffic-Routing | `cloudflare_tunnel`, `ai_gateway` |
+| AdGuard / FRITZ!Box / MQTT | Heimnetz- und Smart-Home-Anbindung | `adguard`, `fritzbox`, `mqtt` |
+| Paperless NGX + Media Registry + Homepage | Dokumenten-/Medien-/Site-Verwaltung | `paperless_ngx`, `media_registry`, `homepage` |
+| Netlify | Deployment statischer Seiten | `netlify` |
+| S3 + OneDrive + WebDAV/Koofr | Multi-Backend Cloud-Storage | `s3`, `onedrive`, `webdav`, `koofr` |
+| Telnyx + Rocket.Chat | Telefonie und Self-Hosted-Chat | `telnyx`, `rocketchat` |
+| Image Generation / TTS / Whisper | multimodale Generierung und Sprach-Pipelines | `image_generation`, `tts`, `whisper` |
+| MCP-Server-Modus | AuraGo-Funktionen für externe MCP-Clients bereitstellen | `mcp_server` |
+| LLM Guardian | Sicherheits- und Policy-Kontrollen | `llm_guardian` |
+
+> Best Practice: Integrationen zuerst read-only (`read_only`/`readonly`) aktivieren und Schreibzugriffe erst nach erfolgreichen Tests freischalten.
+
+---
+
 ## Integrationen testen
 
 ### Test über Chat

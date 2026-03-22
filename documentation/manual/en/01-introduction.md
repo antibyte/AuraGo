@@ -36,7 +36,7 @@ Imagine a personal assistant that:
 ## Key Features Overview
 
 ### 🤖 Agent Core
-- **30+ built-in tools** – From filesystem to Docker, from WebDAV to Proxmox
+- **50+ built-in tools** – From filesystem to Docker, from WebDAV to Proxmox
 - **Native Function Calling** – OpenAI-compatible tool calls
 - **Dynamic tool creation** – Agent can write new Python tools at runtime
 - **Multi-step reasoning** – Automatic tool dispatch, error recovery
@@ -84,7 +84,7 @@ Imagine a personal assistant that:
 │  AuraGo Core                                            │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐     │
 │  │   Agent     │  │   Memory    │  │   Tools     │     │
-│  │   Loop      │  │   System    │  │   (30+)     │     │
+│  │   Loop      │  │   System    │  │   (50+)     │     │
 │  └─────────────┘  └─────────────┘  └─────────────┘     │
 │  ┌─────────────┐  ┌─────────────┐                       │
 │  │ Personality │  │   Vault     │                       │

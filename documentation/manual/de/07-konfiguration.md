@@ -535,6 +535,28 @@ AuraGo validiert die Konfiguration beim Start:
 
 ---
 
+## Vollständigkeits-Check der Konfiguration (aktueller Stand)
+
+Für eine vollständige Abdeckung von `config_template.yaml` sollten zusätzlich diese Blöcke geprüft werden:
+
+| Block | Zweck | Weiterführende Kapitel |
+|---|---|---|
+| `circuit_breaker`, `fallback_llm` | Resilienz, Retry, Failover | [Kapitel 14: Sicherheit](14-sicherheit.md), [Kapitel 16: Troubleshooting](16-troubleshooting.md) |
+| `co_agents`, `invasion_control`, `remote_control`, `egg_mode` | verteilte/parallele Agenten-Orchestrierung | [Kapitel 12: Invasion](12-invasion.md), [Kapitel 15: Co-Agenten](15-coagents.md) |
+| `maintenance`, `indexing` | autonome Wartung und Wissensindexierung | [Kapitel 9: Memory](09-memory.md), [Kapitel 13: Dashboard](13-dashboard.md) |
+| `llm_guardian` | Sicherheitsprüfung für Tool- und Dokument-Workflows | [Kapitel 14: Sicherheit](14-sicherheit.md), [Kapitel 13: Dashboard](13-dashboard.md) |
+| `mcp_server`, `ai_gateway` | MCP-Interoperabilität und Gateway-Routing | [Kapitel 8: Integrationen](08-integrations.md) |
+| `sandbox`, `whisper`, `tts`, `image_generation` | isolierte Ausführung und Media-Pipelines | [Kapitel 6: Werkzeuge](06-tools.md), [Kapitel 8: Integrationen](08-integrations.md) |
+| `paperless_ngx`, `media_registry`, `homepage`, `netlify` | Dokument-, Medien- und Site-Workflows | [Kapitel 8: Integrationen](08-integrations.md) |
+| `cloudflare_tunnel`, `adguard`, `fritzbox`, `mqtt` | Netzwerk- und Edge-Integrationen | [Kapitel 8: Integrationen](08-integrations.md), [Kapitel 14: Sicherheit](14-sicherheit.md) |
+| `brave_search`, `virustotal` | Web-Recherche und Threat Intelligence | [Kapitel 6: Werkzeuge](06-tools.md), [Kapitel 14: Sicherheit](14-sicherheit.md) |
+| `s3`, `onedrive` | Cloud-/Objektspeicher | [Kapitel 8: Integrationen](08-integrations.md) |
+| `telnyx`, `rocketchat` | Telefonie und Chat-Kanäle | [Kapitel 8: Integrationen](08-integrations.md) |
+
+> Empfehlung: `config_template.yaml` als maßgebliche Schlüssel-Referenz behandeln und dieses Kapitel bei neuen Blöcken mitpflegen.
+
+---
+
 ## Zusammenfassung
 
 | Abschnitt | Zweck |

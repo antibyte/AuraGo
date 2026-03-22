@@ -27,7 +27,7 @@ AuraGo is a fully autonomous AI agent shipped as a single portable binary with a
 5. [Chat Basics](05-chat-basics.md) – Communication
 
 ### Part 2: Features in Detail
-6. [Tools](06-tools.md) – Using 30+ tools
+6. [Tools](06-tools.md) – Using 50+ tools
 7. [Configuration](07-configuration.md) – Fine-tuning
 8. [Integrations](08-integrations.md) – Telegram, Discord, etc.
 9. [Memory & Knowledge](09-memory.md) – Understanding storage
@@ -57,9 +57,11 @@ AuraGo is a fully autonomous AI agent shipped as a single portable binary with a
 ```
 
 ### Quick Links
-- [Complete configuration reference](../configuration.md)
-- [Telegram Setup](../telegram_setup.md)
-- [Docker Guide](../docker.md)
+- [Manual Start Page](../README.md)
+- [FAQ](faq.md)
+- [Complete configuration reference](../../configuration.md)
+- [Telegram Setup](../../telegram_setup.md)
+- [Docker Guide](../../docker_installation.md)
 
 ## Security Notice
 
