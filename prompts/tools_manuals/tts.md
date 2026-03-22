@@ -19,7 +19,11 @@ Generate speech audio from text. Max 200 characters per call.
 | `language` | ❌ | BCP-47 code (e.g. "de", "en"). Default: from config |
 
 ## Notes
-- Provider is configured in `config.yaml` → `tts.provider` ("google" or "elevenlabs")
-- Returns `{"status": "success", "file": "hash.mp3", "url": "http://..."}` 
+- Provider is configured in `config.yaml` → `tts.provider` ("google", "elevenlabs", or "piper")
+- If `tts.piper.enabled` is true and no provider is set, Piper is used automatically
+- Piper TTS runs as a Docker container (auto-managed) and produces `.wav` files
+- Google/ElevenLabs produce `.mp3` files
+- Returns `{"status": "success", "file": "hash.ext", "url": "http://..."}`
 - Audio files are cached by content hash
+- Audio is automatically sent as native attachment in Telegram/Discord
 - Combine with `chromecast` action `speak` to play on speakers

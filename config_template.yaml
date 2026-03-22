@@ -294,6 +294,13 @@ tts:
         model_id: eleven_multilingual_v2
         voice_id: ""
     language: en
+    piper:
+        container_port: 10200
+        data_path: data/piper
+        enabled: false
+        image: rhasspy/wyoming-piper:latest
+        speaker_id: 0
+        voice: de_DE-thorsten-high
     provider: google
 media_registry:
     enabled: true

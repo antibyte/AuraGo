@@ -121,15 +121,19 @@ func dispatchInfra(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 		return "Tool Output: " + scanResult
 
 	case "tts":
-		if !cfg.Chromecast.Enabled && cfg.TTS.Provider == "" {
+		if !cfg.Chromecast.Enabled && cfg.TTS.Provider == "" && !cfg.TTS.Piper.Enabled {
 			return `Tool Output: {"status": "error", "message": "TTS is not configured. Set tts.provider in config.yaml."}`
 		}
 		text := tc.Text
 		if text == "" {
 			text = tc.Content
 		}
+		provider := cfg.TTS.Provider
+		if provider == "" && cfg.TTS.Piper.Enabled {
+			provider = "piper"
+		}
 		ttsCfg := tools.TTSConfig{
-			Provider: cfg.TTS.Provider,
+			Provider: provider,
 			Language: tc.Language,
 			DataDir:  cfg.Directories.DataDir,
 		}
@@ -139,6 +143,9 @@ func dispatchInfra(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 		ttsCfg.ElevenLabs.APIKey = cfg.TTS.ElevenLabs.APIKey
 		ttsCfg.ElevenLabs.VoiceID = cfg.TTS.ElevenLabs.VoiceID
 		ttsCfg.ElevenLabs.ModelID = cfg.TTS.ElevenLabs.ModelID
+		ttsCfg.Piper.Port = cfg.TTS.Piper.ContainerPort
+		ttsCfg.Piper.Voice = cfg.TTS.Piper.Voice
+		ttsCfg.Piper.SpeakerID = cfg.TTS.Piper.SpeakerID
 		filename, err := tools.TTSSynthesize(ttsCfg, text)
 		if err != nil {
 			return fmt.Sprintf(`Tool Output: {"status": "error", "message": "TTS failed: %v"}`, err)
@@ -146,13 +153,17 @@ func dispatchInfra(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 
 		// Auto-register in media registry
 		if mediaRegistryDB != nil {
+			format := "mp3"
+			if strings.ToLower(provider) == "piper" {
+				format = "wav"
+			}
 			tools.RegisterMedia(mediaRegistryDB, tools.MediaItem{
 				MediaType:  "tts",
 				SourceTool: "tts",
 				Filename:   filename,
 				FilePath:   filepath.Join(cfg.Directories.DataDir, "tts", filename),
-				Format:     "mp3",
-				Provider:   cfg.TTS.Provider,
+				Format:     format,
+				Provider:   provider,
 				Prompt:     text,
 				Language:   ttsCfg.Language,
 				VoiceID:    ttsCfg.ElevenLabs.VoiceID,

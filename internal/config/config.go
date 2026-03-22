@@ -98,6 +98,12 @@ func Load(path string) (*Config, error) {
 	cfg.Embeddings.LocalOllama.ContainerPort = 11435
 	cfg.Embeddings.LocalOllama.GPUBackend = "auto"
 
+	// Piper TTS container defaults
+	cfg.TTS.Piper.ContainerPort = 10200
+	cfg.TTS.Piper.DataPath = "data/piper"
+	cfg.TTS.Piper.Image = "rhasspy/wyoming-piper:latest"
+	cfg.TTS.Piper.Voice = "de_DE-thorsten-high"
+
 	cfg.LLMGuardian.TimeoutSecs = 30
 	cfg.LLMGuardian.ScanDocuments = false
 	cfg.LLMGuardian.ScanEmails = false

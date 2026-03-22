@@ -246,6 +246,10 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		// Document Creator endpoints
 		mux.HandleFunc("/api/document-creator/test", handleGotenbergTest(s))
 
+		// Piper TTS endpoints
+		mux.HandleFunc("/api/piper/status", handlePiperStatus(s))
+		mux.HandleFunc("/api/piper/voices", handlePiperVoices(s))
+
 		// A2A Protocol endpoints (config UI management)
 		mux.HandleFunc("/api/a2a/status", handleA2AStatus(s))
 		mux.HandleFunc("/api/a2a/remote-agents", handleA2ARemoteAgents(s))

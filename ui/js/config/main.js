@@ -1009,7 +1009,8 @@ const SECTION_MODULES = {
     tailscale: { m: 'tailscale', fn: 'renderTailscaleSection' },
     server: { m: 'server', fn: 'renderServerSection' },
     a2a: { m: 'a2a', fn: 'renderA2ASection' },
-    n8n: { m: 'n8n', fn: 'renderN8nSection' }
+    n8n: { m: 'n8n', fn: 'renderN8nSection' },
+    tts: { m: 'tts', fn: 'renderTTSSection' }
 };
 
 function loadModule(name) {

@@ -488,6 +488,28 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					broker.Send("audio", string(evtPayload))
 				}
 			}
+			if ptc.Action == "tts" {
+				var ttsRes struct {
+					Status string `json:"status"`
+					File   string `json:"file"`
+				}
+				raw := strings.TrimPrefix(pResultContent, "[Tool Output]\n")
+				raw = strings.TrimPrefix(raw, "Tool Output: ")
+				if json.Unmarshal([]byte(raw), &ttsRes) == nil && ttsRes.Status == "success" {
+					mimeType := "audio/mpeg"
+					if strings.HasSuffix(ttsRes.File, ".wav") {
+						mimeType = "audio/wav"
+					}
+					evtPayload, _ := json.Marshal(map[string]string{
+						"path":      "/tts/" + ttsRes.File,
+						"title":     "TTS Audio",
+						"mime_type": mimeType,
+						"filename":  ttsRes.File,
+						"file_path": filepath.Join(cfg.Directories.DataDir, "tts", ttsRes.File),
+					})
+					broker.Send("audio", string(evtPayload))
+				}
+			}
 			if ptc.Action == "send_document" {
 				var docRes struct {
 					Status     string `json:"status"`
@@ -1533,6 +1555,28 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 						"title":     audioRes.Title,
 						"mime_type": audioRes.MimeType,
 						"filename":  audioRes.Filename,
+					})
+					broker.Send("audio", string(evtPayload))
+				}
+			}
+			if tc.Action == "tts" {
+				var ttsRes struct {
+					Status string `json:"status"`
+					File   string `json:"file"`
+				}
+				raw := strings.TrimPrefix(resultContent, "[Tool Output]\n")
+				raw = strings.TrimPrefix(raw, "Tool Output: ")
+				if json.Unmarshal([]byte(raw), &ttsRes) == nil && ttsRes.Status == "success" {
+					mimeType := "audio/mpeg"
+					if strings.HasSuffix(ttsRes.File, ".wav") {
+						mimeType = "audio/wav"
+					}
+					evtPayload, _ := json.Marshal(map[string]string{
+						"path":      "/tts/" + ttsRes.File,
+						"title":     "TTS Audio",
+						"mime_type": mimeType,
+						"filename":  ttsRes.File,
+						"file_path": filepath.Join(cfg.Directories.DataDir, "tts", ttsRes.File),
 					})
 					broker.Send("audio", string(evtPayload))
 				}

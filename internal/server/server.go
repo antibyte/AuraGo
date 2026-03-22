@@ -521,6 +521,11 @@ func Start(cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, sh
 		go tools.EnsureOllamaEmbeddingsRunning(cfg, logger)
 	}
 
+	// Auto-start Piper TTS container if enabled
+	if cfg.TTS.Piper.Enabled {
+		go tools.EnsurePiperRunning(cfg, logger)
+	}
+
 	// Start Fritz!Box telephony poller if enabled
 	if cfg.FritzBox.Enabled && cfg.FritzBox.Telephony.Enabled && cfg.FritzBox.Telephony.Polling.Enabled {
 		fbPoller := fritzbox.NewPoller(*cfg, func(kind, summary string) {

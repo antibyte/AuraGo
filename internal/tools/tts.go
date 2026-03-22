@@ -14,13 +14,18 @@ import (
 
 // TTSConfig holds TTS provider configuration.
 type TTSConfig struct {
-	Provider   string // "google" or "elevenlabs"
+	Provider   string // "google", "elevenlabs", or "piper"
 	Language   string // BCP-47 language code (e.g. "de", "en")
 	DataDir    string // base data directory for storing audio files
 	ElevenLabs struct {
 		APIKey  string
 		VoiceID string
 		ModelID string
+	}
+	Piper struct {
+		Port      int    // Wyoming TCP port (default 10200)
+		Voice     string // e.g. "de_DE-thorsten-high"
+		SpeakerID int    // multi-speaker model index
 	}
 }
 
@@ -45,7 +50,11 @@ func TTSSynthesize(cfg TTSConfig, text string) (string, error) {
 
 	// Generate a hash-based filename for caching
 	hash := fmt.Sprintf("%x", md5.Sum([]byte(cfg.Provider+cfg.Language+text)))
-	filename := hash + ".mp3"
+	ext := ".mp3"
+	if strings.ToLower(cfg.Provider) == "piper" {
+		ext = ".wav"
+	}
+	filename := hash + ext
 	filePath := filepath.Join(ttsDir, filename)
 
 	// Return cached file if it exists
@@ -59,6 +68,8 @@ func TTSSynthesize(cfg TTSConfig, text string) (string, error) {
 	switch strings.ToLower(cfg.Provider) {
 	case "elevenlabs":
 		audioData, err = ttsElevenLabs(cfg, text)
+	case "piper":
+		audioData, err = ttsPiper(cfg, text)
 	default: // "google" or fallback
 		audioData, err = ttsGoogle(text, cfg.Language)
 	}
@@ -156,4 +167,29 @@ func ttsElevenLabs(cfg TTSConfig, text string) ([]byte, error) {
 // TTSAudioDir returns the path to the TTS audio directory.
 func TTSAudioDir(dataDir string) string {
 	return filepath.Join(dataDir, "tts")
+}
+
+// ttsPiper uses a local Piper container via the Wyoming protocol.
+func ttsPiper(cfg TTSConfig, text string) ([]byte, error) {
+	port := cfg.Piper.Port
+	if port <= 0 {
+		port = 10200
+	}
+	addr := fmt.Sprintf("127.0.0.1:%d", port)
+
+	conn, err := WyomingConnect(addr)
+	if err != nil {
+		return nil, fmt.Errorf("piper connect: %w", err)
+	}
+	defer conn.Close()
+
+	pcm, rate, width, channels, err := WyomingSynthesize(conn, text, cfg.Piper.Voice, cfg.Piper.SpeakerID)
+	if err != nil {
+		return nil, fmt.Errorf("piper synthesize: %w", err)
+	}
+	if len(pcm) == 0 {
+		return nil, fmt.Errorf("piper returned empty audio")
+	}
+
+	return PCMToWAV(pcm, rate, width, channels), nil
 }

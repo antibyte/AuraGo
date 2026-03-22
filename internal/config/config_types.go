@@ -447,23 +447,23 @@ type Config struct {
 		} `yaml:"tv"`
 	} `yaml:"fritzbox"`
 	Telnyx struct {
-		Enabled            bool     `yaml:"enabled"`
-		ReadOnly           bool     `yaml:"readonly"`                // true = receive only, no outbound
-		APIKey             string   `yaml:"-" vault:"telnyx_api_key"` // vault-only
-		APISecret          string   `yaml:"-" vault:"telnyx_api_secret"` // webhook signature verification
-		PhoneNumber        string   `yaml:"phone_number"`             // primary Telnyx number (E.164)
-		MessagingProfileID string   `yaml:"messaging_profile_id"`     // Telnyx messaging profile
-		ConnectionID       string   `yaml:"connection_id"`            // SIP connection ID for voice calls
-		WebhookPath        string   `yaml:"webhook_path"`             // default: /api/telnyx/webhook
-		AllowedNumbers     []string `yaml:"allowed_numbers"`          // E.164 whitelist (empty = allow all)
-		MaxConcurrentCalls int      `yaml:"max_concurrent_calls"`     // default: 3
-		MaxSMSPerMinute    int      `yaml:"max_sms_per_minute"`       // rate limit, default: 10
-		VoiceLanguage      string   `yaml:"voice_language"`           // BCP-47, default: en
-		VoiceGender        string   `yaml:"voice_gender"`             // male/female, default: female
-		RecordCalls        bool     `yaml:"record_calls"`             // auto-record all calls
-		TranscribeVoicemail bool    `yaml:"transcribe_voicemail"`     // auto-transcribe via LLM
-		RelayToAgent       bool     `yaml:"relay_to_agent"`           // forward incoming SMS to agent loop
-		CallTimeout        int      `yaml:"call_timeout"`             // max call duration seconds, default: 300
+		Enabled             bool     `yaml:"enabled"`
+		ReadOnly            bool     `yaml:"readonly"`                    // true = receive only, no outbound
+		APIKey              string   `yaml:"-" vault:"telnyx_api_key"`    // vault-only
+		APISecret           string   `yaml:"-" vault:"telnyx_api_secret"` // webhook signature verification
+		PhoneNumber         string   `yaml:"phone_number"`                // primary Telnyx number (E.164)
+		MessagingProfileID  string   `yaml:"messaging_profile_id"`        // Telnyx messaging profile
+		ConnectionID        string   `yaml:"connection_id"`               // SIP connection ID for voice calls
+		WebhookPath         string   `yaml:"webhook_path"`                // default: /api/telnyx/webhook
+		AllowedNumbers      []string `yaml:"allowed_numbers"`             // E.164 whitelist (empty = allow all)
+		MaxConcurrentCalls  int      `yaml:"max_concurrent_calls"`        // default: 3
+		MaxSMSPerMinute     int      `yaml:"max_sms_per_minute"`          // rate limit, default: 10
+		VoiceLanguage       string   `yaml:"voice_language"`              // BCP-47, default: en
+		VoiceGender         string   `yaml:"voice_gender"`                // male/female, default: female
+		RecordCalls         bool     `yaml:"record_calls"`                // auto-record all calls
+		TranscribeVoicemail bool     `yaml:"transcribe_voicemail"`        // auto-transcribe via LLM
+		RelayToAgent        bool     `yaml:"relay_to_agent"`              // forward incoming SMS to agent loop
+		CallTimeout         int      `yaml:"call_timeout"`                // max call duration seconds, default: 300
 	} `yaml:"telnyx"`
 	MeshCentral struct {
 		Enabled           bool     `yaml:"enabled"`
@@ -580,13 +580,21 @@ type Config struct {
 		APIToken string `yaml:"-"`
 	} `yaml:"paperless_ngx"`
 	TTS struct {
-		Provider   string `yaml:"provider"` // "google" or "elevenlabs"
+		Provider   string `yaml:"provider"` // "google", "elevenlabs", or "piper"
 		Language   string `yaml:"language"` // BCP-47 language code for Google TTS (e.g. "de", "en")
 		ElevenLabs struct {
 			APIKey  string `yaml:"-" vault:"api_key"` // vault-only
 			VoiceID string `yaml:"voice_id"`          // default voice ID
 			ModelID string `yaml:"model_id"`          // e.g. "eleven_multilingual_v2"
 		} `yaml:"elevenlabs"`
+		Piper struct {
+			Enabled       bool   `yaml:"enabled"`        // auto-manage a Piper TTS container
+			Voice         string `yaml:"voice"`          // e.g. "de_DE-thorsten-high"
+			SpeakerID     int    `yaml:"speaker_id"`     // multi-speaker model speaker index
+			ContainerPort int    `yaml:"container_port"` // host port mapped to container 10200 (default 10200)
+			DataPath      string `yaml:"data_path"`      // voice model storage directory (default "data/piper")
+			Image         string `yaml:"image"`          // Docker image (default "rhasspy/wyoming-piper:latest")
+		} `yaml:"piper"`
 	} `yaml:"tts"`
 	MediaRegistry struct {
 		Enabled bool `yaml:"enabled"`

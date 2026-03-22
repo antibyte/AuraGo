@@ -139,6 +139,7 @@
   "dashboard.integration_tailscale": "टेलस्केल",
   "dashboard.integration_telegram": "टेलीग्राम",
   "dashboard.integration_tts": "टी.टी.एस",
+  "dashboard.integration_piper_tts": "Piper TTS",
   "dashboard.integration_user_profiling": "रूपरेखा",
   "dashboard.integration_virustotal": "वायरसटोटल",
   "dashboard.integration_web_scraper": "वेब खुरचनी",

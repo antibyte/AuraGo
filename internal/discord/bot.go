@@ -3,6 +3,7 @@ package discord
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
@@ -161,6 +162,37 @@ func SendDiscordImage(channelID, localPath, caption string, logger *slog.Logger)
 		return fmt.Errorf("failed to send Discord image: %w", err)
 	}
 	logger.Info("[Discord] Image sent", "channel", channelID, "file", filepath.Base(localPath))
+	return nil
+}
+
+// SendDiscordAudio sends a local audio file as a Discord file attachment with an optional title.
+func SendDiscordAudio(channelID, localPath, title string, logger *slog.Logger) error {
+	s := GetSession()
+	if s == nil {
+		return fmt.Errorf("discord bot is not connected")
+	}
+	f, err := os.Open(localPath)
+	if err != nil {
+		return fmt.Errorf("failed to open audio file: %w", err)
+	}
+	defer f.Close()
+
+	msg := &discordgo.MessageSend{
+		Files: []*discordgo.File{
+			{
+				Name:   filepath.Base(localPath),
+				Reader: f,
+			},
+		},
+	}
+	if title != "" {
+		msg.Content = title
+	}
+	_, err = s.ChannelMessageSendComplex(channelID, msg)
+	if err != nil {
+		return fmt.Errorf("failed to send Discord audio: %w", err)
+	}
+	logger.Info("[Discord] Audio sent", "channel", channelID, "file", filepath.Base(localPath))
 	return nil
 }
 
@@ -503,7 +535,7 @@ func processDiscordMessage(s *discordgo.Session, m *discordgo.MessageCreate, inp
 
 	// Run the agent loop
 	ctx := context.Background()
-	broker := DiscordBroker{
+	broker := &DiscordBroker{
 		session:   s,
 		channelID: m.ChannelID,
 		logger:    logger,
@@ -537,6 +569,13 @@ func processDiscordMessage(s *discordgo.Session, m *discordgo.MessageCreate, inp
 		logger.Error("[Discord] Agent loop failed", "error", err)
 		s.ChannelMessageSend(m.ChannelID, "⚠️ Sorry, I encountered an error processing your request.")
 		return
+	}
+
+	// Send captured audio files as native Discord audio messages
+	for _, af := range broker.AudioFiles {
+		if err := SendDiscordAudio(m.ChannelID, af.FilePath, af.Title, logger); err != nil {
+			logger.Warn("[Discord] Failed to send audio", "path", af.FilePath, "error", err)
+		}
 	}
 
 	// Send result back to Discord
@@ -579,12 +618,31 @@ func processDiscordMessage(s *discordgo.Session, m *discordgo.MessageCreate, inp
 
 // DiscordBroker implements agent.FeedbackBroker for real-time Discord feedback.
 type DiscordBroker struct {
-	session   *discordgo.Session
-	channelID string
-	logger    *slog.Logger
+	session    *discordgo.Session
+	channelID  string
+	logger     *slog.Logger
+	AudioFiles []telegram.CapturedAudio
 }
 
-func (b DiscordBroker) Send(event, message string) {
+func (b *DiscordBroker) Send(event, message string) {
+	// Capture audio events for native sending after the loop
+	if event == "audio" {
+		var audio struct {
+			FilePath string `json:"file_path"`
+			Title    string `json:"title"`
+			MimeType string `json:"mime_type"`
+			Filename string `json:"filename"`
+		}
+		if json.Unmarshal([]byte(message), &audio) == nil && audio.FilePath != "" {
+			b.AudioFiles = append(b.AudioFiles, telegram.CapturedAudio{
+				FilePath: audio.FilePath,
+				Title:    audio.Title,
+				MimeType: audio.MimeType,
+				Filename: audio.Filename,
+			})
+		}
+		return
+	}
 	// Only send high-level status events to avoid spamming
 	if event == "tool_start" || event == "error_recovery" || event == "api_retry" {
 		b.logger.Info("[Discord Status]", "event", event, "message", message)
@@ -599,6 +657,6 @@ func (b DiscordBroker) Send(event, message string) {
 	}
 }
 
-func (b DiscordBroker) SendJSON(jsonStr string) {
+func (b *DiscordBroker) SendJSON(jsonStr string) {
 	// Token usage etc. — skip for Discord
 }
