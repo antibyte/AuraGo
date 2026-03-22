@@ -64,8 +64,12 @@ func (a *AgentScraper) FetchStatic(rawURL string) (*ScrapeResult, error) {
 	var rawHTML strings.Builder
 	var links []string
 
+	if err := security.ValidateSSRF(rawURL); err != nil {
+		return nil, fmt.Errorf("URL not allowed: %w", err)
+	}
+
 	c := colly.NewCollector(
-		colly.UserAgent("Mozilla/5.0 (compatible; AuraGoBot/1.0)"),
+		colly.UserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"),
 		colly.MaxDepth(1),
 	)
 	c.SetRequestTimeout(20 * time.Second)
@@ -108,6 +112,10 @@ func (a *AgentScraper) FetchStatic(rawURL string) (*ScrapeResult, error) {
 // waits for a CSS selector, then captures the fully-rendered HTML.
 func (a *AgentScraper) FetchDynamic(rawURL string, waitForSelector string) (*ScrapeResult, error) {
 	result := &ScrapeResult{}
+
+	if err := security.ValidateSSRF(rawURL); err != nil {
+		return nil, fmt.Errorf("URL not allowed: %w", err)
+	}
 
 	// Launch a headless browser; prefer a system Chrome/Chromium installation,
 	// fall back to rod's auto-download mechanism.

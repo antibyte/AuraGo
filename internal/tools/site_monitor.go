@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"aurago/internal/security"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
@@ -375,6 +376,9 @@ func siteMonitorHistory(db *sql.DB, monitorID string, limit int) string {
 // --- helpers ---
 
 func fetchSiteContent(url string) (string, error) {
+	if err := security.ValidateSSRF(url); err != nil {
+		return "", fmt.Errorf("URL not allowed: %w", err)
+	}
 	client := &http.Client{Timeout: 15 * time.Second}
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {

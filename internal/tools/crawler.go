@@ -79,10 +79,14 @@ func ExecuteCrawler(startURL string, maxDepth, maxPages int, allowedDomains, sel
 	linkSet := make(map[string]bool)
 	pageCount := 0
 
+	if err := security.ValidateSSRF(startURL); err != nil {
+		return encode(crawlResult{Status: "error", Message: fmt.Sprintf("URL not allowed: %v", err)})
+	}
+
 	c := colly.NewCollector(
 		colly.AllowedDomains(domains...),
 		colly.MaxDepth(maxDepth),
-		colly.UserAgent("Mozilla/5.0 (compatible; AuraGoBot/1.0)"),
+		colly.UserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"),
 	)
 	c.Limit(&colly.LimitRule{
 		Parallelism: 2,

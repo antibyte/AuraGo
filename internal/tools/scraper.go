@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"regexp"
 	"strings"
 	"time"
@@ -31,17 +30,16 @@ var scraperGuardian = security.NewGuardian(nil)
 // ExecuteWebScraper fetches a URL, removes script/style tags, extracts plain text,
 // then scans for prompt injection and isolates the content in <external_data> tags.
 func ExecuteWebScraper(rawURL string) string {
-	// Basic URL validation — reject non-HTTP(S) schemes to avoid SSRF via file://
-	parsed, err := url.Parse(rawURL)
-	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") {
-		return formatError(fmt.Sprintf("Invalid or disallowed URL scheme: %s", rawURL))
+	// SSRF protection: reject private/internal addresses and non-HTTP(S) schemes.
+	if err := security.ValidateSSRF(rawURL); err != nil {
+		return formatError(fmt.Sprintf("URL not allowed: %v", err))
 	}
 
 	req, err := http.NewRequest("GET", rawURL, nil)
 	if err != nil {
 		return formatError(fmt.Sprintf("Failed to create request: %v", err))
 	}
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
 
 	resp, err := scraperHTTPClient.Do(req)
 	if err != nil {
@@ -53,7 +51,16 @@ func ExecuteWebScraper(rawURL string) string {
 		return formatError(fmt.Sprintf("HTTP Error %d: %s", resp.StatusCode, resp.Status))
 	}
 
-	bodyBytes, err := io.ReadAll(resp.Body)
+	// Reject non-text content types to avoid wasting resources on binary files.
+	if ct := resp.Header.Get("Content-Type"); ct != "" &&
+		!strings.HasPrefix(ct, "text/") &&
+		!strings.HasPrefix(ct, "application/xhtml") &&
+		!strings.HasPrefix(ct, "application/json") {
+		return formatError(fmt.Sprintf("Unsupported content type: %s", ct))
+	}
+
+	// Limit body reads to 5 MB to prevent memory exhaustion.
+	bodyBytes, err := io.ReadAll(io.LimitReader(resp.Body, 5<<20))
 	if err != nil {
 		return formatError(fmt.Sprintf("Failed to read body: %v", err))
 	}
