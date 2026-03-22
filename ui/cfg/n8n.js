@@ -11,7 +11,7 @@ async function renderN8nSection(section) {
     html += '<div class="section-desc">' + section.desc + '</div>';
 
     // ── Info banner ──
-    html += '<div style="margin-bottom:1.25rem;padding:0.75rem 1rem;border-radius:8px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);font-size:0.82rem;color:var(--text-secondary);line-height:1.6;">';
+    html += '<div class="n8n-info-banner">';
     html += t('config.n8n.info_text');
     html += '</div>';
 
@@ -54,19 +54,19 @@ async function renderN8nSection(section) {
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.n8n.rate_limit_label') + '</div>';
     html += '<div class="field-help">' + t('config.n8n.rate_limit_hint') + '</div>';
-    html += '<input class="field-input" type="number" min="0" max="1000" data-path="n8n.rate_limit_rps" value="' + escapeAttr(String(data.rate_limit_rps ?? 10)) + '" oninput="markDirty()" style="max-width:100px;">';
+    html += '<input class="field-input n8n-rate-input" type="number" min="0" max="1000" data-path="n8n.rate_limit_rps" value="' + escapeAttr(String(data.rate_limit_rps ?? 10)) + '" oninput="markDirty()">';
     html += '</div>';
 
     // ── API Token (vault) ──
     html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.n8n.token_label') + ' <span style="font-size:0.65rem;color:var(--warning);">🔒</span></div>';
+    html += '<div class="field-label">' + t('config.n8n.token_label') + ' <span class="n8n-lock-icon">🔒</span></div>';
     html += '<div class="field-help">' + t('config.n8n.token_hint') + '</div>';
-    html += '<div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;margin-top:0.35rem;">';
-    html += '<code id="n8n-token-display" style="background:var(--surface-elevated);padding:0.35rem 0.6rem;border-radius:6px;font-size:0.82rem;color:var(--text-secondary);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + t('config.n8n.token_loading') + '</code>';
-    html += '<button class="btn-save" style="padding:0.4rem 0.9rem;font-size:0.8rem;white-space:nowrap;" onclick="n8nGenerateToken()">⚡ ' + t('config.n8n.token_generate') + '</button>';
-    html += '<button style="padding:0.4rem 0.9rem;font-size:0.8rem;white-space:nowrap;background:transparent;border:1px solid rgba(239,68,68,0.4);color:#f87171;border-radius:8px;cursor:pointer;" onclick="n8nDeleteToken()">🗑️ ' + t('config.n8n.token_delete') + '</button>';
+    html += '<div class="n8n-token-actions">';
+    html += '<code id="n8n-token-display" class="n8n-token-display">' + t('config.n8n.token_loading') + '</code>';
+    html += '<button class="btn-save n8n-token-btn" onclick="n8nGenerateToken()">⚡ ' + t('config.n8n.token_generate') + '</button>';
+    html += '<button class="n8n-token-delete-btn" onclick="n8nDeleteToken()">🗑️ ' + t('config.n8n.token_delete') + '</button>';
     html += '</div>';
-    html += '<div id="n8n-token-status" style="margin-top:0.35rem;font-size:0.78rem;"></div>';
+    html += '<div id="n8n-token-status" class="n8n-token-status"></div>';
     html += '</div>';
 
     html += '</div>'; // end cfg-section
@@ -101,13 +101,13 @@ async function n8nGenerateToken() {
         const data = await resp.json();
         if (display) display.textContent = data.token || '•••';
         if (status) {
-            status.style.color = 'var(--success)';
+            status.className = 'n8n-token-status n8n-token-status-success';
             status.textContent = '✓ ' + t('config.n8n.token_generated');
             setTimeout(() => { if (status) status.textContent = ''; }, 4000);
         }
     } catch (e) {
         if (status) {
-            status.style.color = 'var(--danger)';
+            status.className = 'n8n-token-status n8n-token-status-error';
             status.textContent = '✗ ' + t('config.n8n.token_error');
         }
     }
@@ -121,13 +121,13 @@ async function n8nDeleteToken() {
         if (!resp.ok && resp.status !== 204) throw new Error(resp.statusText);
         if (display) display.textContent = t('config.n8n.token_none');
         if (status) {
-            status.style.color = 'var(--text-muted)';
+            status.className = 'n8n-token-status n8n-token-status-muted';
             status.textContent = t('config.n8n.token_deleted');
             setTimeout(() => { if (status) status.textContent = ''; }, 3000);
         }
     } catch (e) {
         if (status) {
-            status.style.color = 'var(--danger)';
+            status.className = 'n8n-token-status n8n-token-status-error';
             status.textContent = '✗ ' + t('config.n8n.token_error');
         }
     }

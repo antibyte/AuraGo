@@ -45,7 +45,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const gallerySearchEl = document.getElementById('gallery-search');
     if (gallerySearchEl) {
         // Keep gallery-search hidden/synced with the unified search bar
-        gallerySearchEl.style.display = 'none';
+        gallerySearchEl.classList.add('is-hidden');
     }
 });
 
@@ -54,7 +54,7 @@ const MEDIA_TABS_ORDER = ['images', 'audio', 'documents'];
 
 document.addEventListener('keydown', function (e) {
     // Only handle arrow keys when no modal is open and no input focused
-    if (document.getElementById('audio-modal').style.display === 'flex') return;
+    if (!document.getElementById('audio-modal').classList.contains('is-hidden')) return;
     if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) return;
     if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
         const idx = MEDIA_TABS_ORDER.indexOf(currentTab);
@@ -128,7 +128,7 @@ async function loadAudio() {
 
         if (audioItems.length === 0) {
             grid.innerHTML = '<div class="gallery-empty"><div class="gallery-empty-icon">🎵</div><div>' + t('media.empty_audio') + '</div></div>';
-            document.getElementById('audio-pagination').style.display = 'none';
+            document.getElementById('audio-pagination').classList.add('is-hidden');
             return;
         }
 
@@ -154,7 +154,7 @@ function renderAudioGrid(items) {
         const typeLbl = escapeHtml({ tts: t('media.audio_type_tts'), music: t('media.audio_type_music'), audio: t('media.audio_type_audio') }[item.media_type] || item.media_type);
         const hasFile = !!(item.web_path || item.filename);
         html += '<div class="media-audio-card' + (hasFile ? '' : ' media-audio-card--unavailable') + '" onclick="openAudioModal(' + item.id + ')">';
-        html += '<div class="media-audio-card-title">' + typeIcon + ' ' + title + (hasFile ? '' : ' <span style="opacity:0.5;font-size:0.75em">⚠️</span>') + '</div>';
+        html += '<div class="media-audio-card-title">' + typeIcon + ' ' + title + (hasFile ? '' : ' <span class="media-inline-warning-icon">⚠️</span>') + '</div>';
         html += '<div class="media-audio-card-meta"><span class="media-type-badge">' + typeLbl + '</span><span>' + fmt + '</span><span>' + escapeHtml(date) + '</span></div>';
         html += '</div>';
     });
@@ -163,8 +163,8 @@ function renderAudioGrid(items) {
 
 function updateAudioPagination() {
     const pag = document.getElementById('audio-pagination');
-    if (audioTotal <= MEDIA_LIMIT) { pag.style.display = 'none'; return; }
-    pag.style.display = 'flex';
+    if (audioTotal <= MEDIA_LIMIT) { pag.classList.add('is-hidden'); return; }
+    pag.classList.remove('is-hidden');
     document.getElementById('audio-prev').disabled = audioOffset === 0;
     document.getElementById('audio-next').disabled = audioOffset + MEDIA_LIMIT >= audioTotal;
     const page = Math.floor(audioOffset / MEDIA_LIMIT) + 1;
@@ -187,8 +187,7 @@ function openAudioModal(id) {
     const title = item.description || item.filename || 'Audio';
     const titleEl = document.createElement('div');
     titleEl.className = 'media-doc-row-title';
-    titleEl.style.marginBottom = '0.75rem';
-    titleEl.style.fontSize = '1rem';
+    titleEl.classList.add('media-modal-title');
     titleEl.textContent = title;
     body.appendChild(titleEl);
 
@@ -198,20 +197,18 @@ function openAudioModal(id) {
         // Hide the player's built-in download button — the modal footer button serves this role
         // and uses the correct filename instead of the generic 'audio-message.mp3'
         const playerDlBtn = player.element.querySelector('.audio-download-btn');
-        if (playerDlBtn) playerDlBtn.style.display = 'none';
+        if (playerDlBtn) playerDlBtn.classList.add('is-hidden');
         body.appendChild(player.element);
     } else {
         const unavailEl = document.createElement('div');
-        unavailEl.className = 'audio-error';
-        unavailEl.style.padding = '1rem 0';
+        unavailEl.className = 'audio-error media-audio-unavailable';
         unavailEl.textContent = '⚠️ ' + t('media.file_not_available');
         body.appendChild(unavailEl);
     }
 
     const metaEl = document.createElement('div');
     metaEl.className = 'gallery-card-meta';
-    metaEl.style.marginTop = '0.75rem';
-    metaEl.style.fontSize = '0.8rem';
+    metaEl.classList.add('media-modal-meta');
     const date = item.created_at ? new Date(item.created_at).toLocaleString() : '';
     metaEl.innerHTML = '<span>' + escapeHtml((item.format || '').toUpperCase()) + '</span><span>' + escapeHtml(date) + '</span>';
     body.appendChild(metaEl);
@@ -219,15 +216,15 @@ function openAudioModal(id) {
     const dlHref = item.web_path || (item.filename ? '/files/audio/' + item.filename : '#');
     document.getElementById('audio-modal-download').href = dlHref;
     document.getElementById('audio-modal-download').download = item.filename || 'audio';
-    document.getElementById('audio-modal-download').style.display = audioPath ? '' : 'none';
+    document.getElementById('audio-modal-download').classList.toggle('is-hidden', !audioPath);
 
-    modal.style.display = 'flex';
+    modal.classList.remove('is-hidden');
 }
 
 function closeAudioModal(event) {
     if (event && event.target !== document.getElementById('audio-modal')) return;
     const modal = document.getElementById('audio-modal');
-    modal.style.display = 'none';
+    modal.classList.add('is-hidden');
     currentAudioModalId = null;
     // Stop any playing audio when modal closes
     const player = modal.querySelector('audio');
@@ -280,7 +277,7 @@ async function loadDocuments() {
 
         if (docItems.length === 0) {
             list.innerHTML = '<div class="gallery-empty"><div class="gallery-empty-icon">📄</div><div>' + t('media.empty_documents') + '</div></div>';
-            document.getElementById('doc-pagination').style.display = 'none';
+            document.getElementById('doc-pagination').classList.add('is-hidden');
             return;
         }
 
@@ -348,8 +345,8 @@ function renderDocList(items) {
 
 function updateDocPagination() {
     const pag = document.getElementById('doc-pagination');
-    if (docTotal <= MEDIA_LIMIT) { pag.style.display = 'none'; return; }
-    pag.style.display = 'flex';
+    if (docTotal <= MEDIA_LIMIT) { pag.classList.add('is-hidden'); return; }
+    pag.classList.remove('is-hidden');
     document.getElementById('doc-prev').disabled = docOffset === 0;
     document.getElementById('doc-next').disabled = docOffset + MEDIA_LIMIT >= docTotal;
     const page = Math.floor(docOffset / MEDIA_LIMIT) + 1;

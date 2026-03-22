@@ -21,8 +21,8 @@
         <div class="header-left">
             <a href="/" class="logo">
                 <div class="logo-icon">🚀</div>
-                <span style="color: var(--accent);">AURA</span><span style="color: var(--text-primary);">GO</span>
-                <span style="font-weight:300;opacity:0.5;margin-left:0.3rem;" class="logo-subtitle">
+                <span class="logo-wordmark-accent">AURA</span><span class="logo-wordmark-base">GO</span>
+                <span class="logo-subtitle">
                     <script>document.write(t('missions.logo_subtitle'))</script>
                 </span>
             </a>
@@ -83,7 +83,7 @@
         </div>
 
         <!-- Queue Section -->
-        <div class="queue-section" id="queue-section" style="display: none;">
+        <div class="queue-section is-hidden" id="queue-section">
             <div class="queue-header">
                 <h3>
                     <script>document.write(t('missions.queue_title'))</script>
@@ -113,9 +113,9 @@
 
         <!-- Missions Grid -->
         <div class="missions-grid" id="missions-grid">
-            <div class="mission-card skeleton" style="height: 120px;"></div>
-            <div class="mission-card skeleton" style="height: 120px;"></div>
-            <div class="mission-card skeleton" style="height: 120px;"></div>
+            <div class="mission-card skeleton mission-card-skeleton"></div>
+            <div class="mission-card skeleton mission-card-skeleton"></div>
+            <div class="mission-card skeleton mission-card-skeleton"></div>
         </div>
     </div>
 
@@ -216,7 +216,7 @@
                     </div>
 
                     <!-- Scheduled Config -->
-                    <div id="config-scheduled" class="trigger-config" style="display: none;">
+                    <div id="config-scheduled" class="trigger-config is-hidden">
                         <div class="form-group">
                             <label>
                                 <script>document.write(t('missions.form_cron_preset_label'))</script>
@@ -267,7 +267,7 @@
                     </div>
 
                     <!-- Triggered Config -->
-                    <div id="config-triggered" class="trigger-config" style="display: none;">
+                    <div id="config-triggered" class="trigger-config is-hidden">
                         <div class="trigger-type-selector">
                             <button type="button" class="trigger-type-btn" data-trigger="mission_completed"
                                 onclick="selectTriggerType('mission_completed')">
@@ -321,7 +321,7 @@
 
                         <!-- System Startup Trigger -->
                         <div id="trigger-system_startup" class="trigger-fields">
-                            <div class="form-hint" style="margin-bottom: 0;">
+                            <div class="form-hint form-hint-tight">
                                 <script>document.write(t('missions.trigger_system_startup_hint'))</script>
                             </div>
                         </div>
@@ -339,7 +339,7 @@
                                     <input type="checkbox" id="require-success">
                                     <span class="slider"></span>
                                 </label>
-                                <span style="margin-left: 12px; font-size: 0.9rem;">
+                                <span class="inline-note">
                                     <script>document.write(t('missions.trigger_require_success'))</script>
                                 </span>
                             </div>
@@ -397,7 +397,7 @@
 
                         <!-- Egg Hatched Trigger -->
                         <div id="trigger-egg_hatched" class="trigger-fields">
-                            <div class="form-hint" style="margin-bottom: 12px;">
+                            <div class="form-hint form-hint-spaced">
                                 <script>document.write(t('missions.trigger_egg_hatched_hint'))</script>
                             </div>
                             <div class="form-row">
@@ -426,7 +426,7 @@
 
                         <!-- Nest Cleared Trigger -->
                         <div id="trigger-nest_cleared" class="trigger-fields">
-                            <div class="form-hint" style="margin-bottom: 12px;">
+                            <div class="form-hint form-hint-spaced">
                                 <script>document.write(t('missions.trigger_nest_cleared_hint'))</script>
                             </div>
                             <div class="form-group">
@@ -443,7 +443,7 @@
 
                         <!-- MQTT Message Trigger -->
                         <div id="trigger-mqtt_message" class="trigger-fields">
-                            <div class="form-hint" style="margin-bottom: 12px;">
+                            <div class="form-hint form-hint-spaced">
                                 <script>document.write(t('missions.trigger_mqtt_hint'))</script>
                             </div>
                             <div class="form-group">
@@ -470,7 +470,7 @@
 
                         <!-- Device Connected Trigger -->
                         <div id="trigger-device_connected" class="trigger-fields">
-                            <div class="form-hint" style="margin-bottom: 12px;">
+                            <div class="form-hint form-hint-spaced">
                                 <script>document.write(t('missions.trigger_device_connected_hint'))</script>
                             </div>
                             <div class="form-row">
@@ -493,7 +493,7 @@
 
                         <!-- Device Disconnected Trigger -->
                         <div id="trigger-device_disconnected" class="trigger-fields">
-                            <div class="form-hint" style="margin-bottom: 12px;">
+                            <div class="form-hint form-hint-spaced">
                                 <script>document.write(t('missions.trigger_device_disconnected_hint'))</script>
                             </div>
                             <div class="form-row">
@@ -516,7 +516,7 @@
 
                         <!-- Fritz!Box Call Trigger -->
                         <div id="trigger-fritzbox_call" class="trigger-fields">
-                            <div class="form-hint" style="margin-bottom: 12px;">
+                            <div class="form-hint form-hint-spaced">
                                 <script>document.write(t('missions.trigger_fritzbox_call_hint'))</script>
                             </div>
                             <div class="form-group">
@@ -539,26 +539,26 @@
 
                         <!-- Budget Warning Trigger -->
                         <div id="trigger-budget_warning" class="trigger-fields">
-                            <div class="form-hint" style="margin-bottom: 0;">
+                            <div class="form-hint form-hint-tight">
                                 <script>document.write(t('missions.trigger_budget_warning_hint'))</script>
                             </div>
                         </div>
 
                         <!-- Budget Exceeded Trigger -->
                         <div id="trigger-budget_exceeded" class="trigger-fields">
-                            <div class="form-hint" style="margin-bottom: 0;">
+                            <div class="form-hint form-hint-tight">
                                 <script>document.write(t('missions.trigger_budget_exceeded_hint'))</script>
                             </div>
                         </div>
                     </div>
 
-                    <div class="form-group" style="display: flex; align-items: center; gap: 12px; margin-top: 24px;">
+                    <div class="form-group form-group-inline mt-lg">
                         <label class="toggle">
                             <input type="checkbox" id="mission-locked">
                             <span class="slider"></span>
                         </label>
                         <div>
-                            <div style="font-weight: 500;">
+                            <div class="font-medium">
                                 <script>document.write(t('missions.form_lock_label'))</script>
                             </div>
                             <div class="form-hint">

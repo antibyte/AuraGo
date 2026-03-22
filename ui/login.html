@@ -33,7 +33,7 @@
 
 <body>
     <!-- Epic Background -->
-    <canvas id="bg-canvas" style="display:none"></canvas>
+    <canvas id="bg-canvas" class="is-hidden"></canvas>
     
     <!-- CSS Fallback (shown by default, hidden when WebGL starts successfully) -->
     <div id="css-bg" class="css-fallback-bg">
@@ -73,7 +73,7 @@
         </div>
 
         <!-- TOTP Code (shown only when TOTP is enabled) -->
-        <div id="totpSection" style="display:none;">
+        <div id="totpSection" class="is-hidden">
             <div class="totp-divider" id="totpDivider"></div>
             <div class="login-field">
                 <label class="login-label" for="totpCode" id="lblTotp"></label>

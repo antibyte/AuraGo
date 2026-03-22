@@ -120,6 +120,44 @@
     box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15), 0 0 20px rgba(239, 68, 68, 0.1);
 }
 
+.resize-vertical {
+    resize: vertical;
+}
+
+.delete-modal-title {
+    color: var(--danger);
+}
+
+.delete-message {
+    margin: 12px 0;
+}
+
+.delete-modal-hint {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.hint-subtle {
+    color: var(--text-secondary);
+}
+
+.inv-telemetry-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 6px;
+    opacity: 0.8;
+    font-size: 0.8rem;
+}
+
+.inv-hatch-error {
+    color: var(--accent-danger);
+}
+
+.inv-note-text {
+    opacity: 0.7;
+    font-style: italic;
+}
+
 /* Conditional fields */
 .hidden {
     display: none !important;

@@ -17,7 +17,7 @@
         <div class="header-left">
             <a href="/" class="logo">
                 <div class="logo-icon">🥚</div>
-                <span style="color:var(--accent);">AURA</span><span style="color:var(--text-primary);">GO</span>
+                <span class="logo-wordmark-accent">AURA</span><span class="logo-wordmark-base">GO</span>
                 <span class="logo-subtitle" data-i18n="knowledge.subtitle">Knowledge Center</span>
             </a>
         </div>
@@ -64,7 +64,7 @@
                     <tbody id="contacts-tbody"></tbody>
                 </table>
             </div>
-            <div class="empty-state" id="contacts-empty" style="display:none;">
+            <div class="empty-state is-hidden" id="contacts-empty">
                 <div class="empty-icon">📇</div>
                 <h3 data-i18n="knowledge.contacts_empty_title">No Contacts Yet</h3>
                 <p data-i18n="knowledge.contacts_empty_desc">Add contacts to your address book.</p>
@@ -80,7 +80,7 @@
                         oninput="filterFiles()">
                     <label class="btn btn-primary kc-upload-btn">
                         <span>⬆</span> <span data-i18n="knowledge.files_upload">Upload File</span>
-                        <input type="file" id="file-upload-input" style="display:none" onchange="uploadFile(this)">
+                        <input type="file" id="file-upload-input" class="is-hidden" onchange="uploadFile(this)">
                     </label>
                 </div>
             </div>
@@ -97,7 +97,7 @@
                     <tbody id="files-tbody"></tbody>
                 </table>
             </div>
-            <div class="empty-state" id="files-empty" style="display:none;">
+            <div class="empty-state is-hidden" id="files-empty">
                 <div class="empty-icon">📂</div>
                 <h3 data-i18n="knowledge.files_empty_title">No Knowledge Files</h3>
                 <p data-i18n="knowledge.files_empty_desc">Upload files to the knowledge directory.</p>

@@ -166,6 +166,7 @@
 .queue-item.priority-high { border-left-color: var(--danger); }
 .queue-item.priority-medium { border-left-color: var(--warning); }
 .queue-item.priority-low { border-left-color: var(--success); }
+.queue-item-running { border-left-color: var(--accent); }
 
 .queue-position {
     width: 28px;
@@ -201,6 +202,10 @@
     color: var(--accent);
 }
 
+.queue-trigger-active {
+    background: var(--accent);
+}
+
 /* Mission Grid */
 .missions-grid {
     display: grid;
@@ -234,6 +239,38 @@
 .mission-card.waiting {
     border-color: var(--text-secondary);
     opacity: 0.9;
+}
+
+.mission-card-skeleton {
+    height: 120px;
+}
+
+.form-hint-tight {
+    margin-bottom: 0;
+}
+
+.form-hint-spaced {
+    margin-bottom: 12px;
+}
+
+.inline-note {
+    margin-left: 12px;
+    font-size: 0.9rem;
+}
+
+.mission-trigger-empty {
+    padding: 12px;
+    color: var(--text-secondary);
+}
+
+.form-group-inline {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.font-medium {
+    font-weight: 500;
 }
 
 @keyframes card-enter {

@@ -186,6 +186,48 @@
             gap: 1rem;
         }
 
+        .setup-inline-row {
+            display: flex;
+            gap: 0.4rem;
+            align-items: stretch;
+        }
+
+        .setup-flex-1 {
+            flex: 1;
+        }
+
+        .setup-or-browse {
+            padding: 0.4rem 0.7rem;
+            font-size: 0.75rem;
+            white-space: nowrap;
+            border-radius: 8px;
+            background: rgba(72, 199, 142, 0.15);
+            color: #48c78e;
+            border: 1px solid rgba(72, 199, 142, 0.3);
+            cursor: pointer;
+        }
+
+        .setup-section-heading {
+            font-size: var(--text-base);
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+        }
+
+        .setup-divider {
+            border-bottom: 1px solid var(--border-subtle);
+            padding-bottom: 1rem;
+        }
+
+        .setup-warning-text {
+            color: var(--warning);
+        }
+
+        .setup-inline-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
         @media (max-width: 560px) {
             .field-row {
                 grid-template-columns: 1fr;
@@ -401,3 +443,273 @@
             color: var(--text-secondary);
             margin-bottom: 1.5rem;
         }
+
+/* ── OpenRouter browser modal ─────────────────────── */
+.or-browser-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 1100;
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.or-browser-modal {
+    background: var(--bg-secondary, #1a1a2e);
+    border-radius: 16px;
+    width: min(760px, 95vw);
+    height: min(85vh, 720px);
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border-subtle, #2a2a3e);
+    overflow: hidden;
+}
+
+.or-browser-header {
+    padding: 1rem 1.2rem;
+    border-bottom: 1px solid var(--border-subtle, #2a2a3e);
+    flex-shrink: 0;
+}
+
+.or-browser-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.7rem;
+}
+
+.or-browser-title {
+    font-weight: 700;
+    font-size: 1rem;
+}
+
+.or-browser-close-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary, #888);
+    font-size: 1.2rem;
+    cursor: pointer;
+}
+
+.or-browser-controls {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.or-search-input {
+    flex: 1;
+    min-width: 180px;
+    font-size: 0.82rem;
+    padding: 0.4rem 0.7rem;
+}
+
+.or-free-btn {
+    padding: 0.35rem 0.8rem;
+    font-size: 0.75rem;
+    background: var(--bg-tertiary, #252538);
+    color: var(--text-primary, #eee);
+    border: 1px solid var(--border-subtle, #2a2a3e);
+    border-radius: 8px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.or-free-btn.is-active {
+    background: rgba(72, 199, 142, 0.2);
+    color: #48c78e;
+    border-color: rgba(72, 199, 142, 0.4);
+}
+
+.or-count {
+    font-size: 0.72rem;
+    color: var(--text-tertiary, #666);
+    white-space: nowrap;
+}
+
+.or-browser-body {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+}
+
+.or-list-wrap {
+    flex: 1;
+    overflow-y: auto;
+    min-width: 0;
+}
+
+.or-list {
+    padding: 0.3rem;
+}
+
+.or-detail {
+    width: 280px;
+    flex-shrink: 0;
+    border-left: 1px solid var(--border-subtle, #2a2a3e);
+    overflow-y: auto;
+    display: none;
+    padding: 1rem;
+    font-size: 0.8rem;
+}
+
+.or-detail.is-open {
+    display: block;
+}
+
+.or-loading {
+    padding: 2rem;
+    text-align: center;
+    color: var(--text-secondary, #888);
+    font-size: 0.85rem;
+}
+
+.or-loading-error {
+    color: #e74c3c;
+}
+
+.or-empty-list {
+    padding: 1.5rem;
+    text-align: center;
+    color: var(--text-tertiary, #666);
+    font-size: 0.82rem;
+}
+
+.or-model-row {
+    padding: 0.5rem 0.7rem;
+    border-bottom: 1px solid var(--border-subtle, #2a2a3e);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    transition: background 0.12s;
+}
+
+.or-model-row:hover {
+    background: var(--bg-tertiary, #252538);
+}
+
+.or-model-row.is-selected {
+    background: rgba(99, 179, 237, 0.1);
+}
+
+.or-model-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.or-model-name {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-primary, #eee);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.or-model-id {
+    font-size: 0.68rem;
+    color: var(--text-tertiary, #666);
+    font-family: monospace;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.or-model-meta {
+    flex-shrink: 0;
+    display: flex;
+    gap: 0.4rem;
+    align-items: center;
+}
+
+.or-meta-text {
+    font-size: 0.65rem;
+    color: var(--text-tertiary, #666);
+}
+
+.or-free-badge {
+    font-size: 0.65rem;
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+    background: rgba(72, 199, 142, 0.15);
+    color: #48c78e;
+    font-weight: 600;
+}
+
+.or-detail-name {
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--text-primary, #eee);
+    margin-bottom: 0.3rem;
+}
+
+.or-detail-id {
+    font-family: monospace;
+    font-size: 0.7rem;
+    color: var(--accent, #63b3ed);
+    margin-bottom: 0.7rem;
+    word-break: break-all;
+}
+
+.or-detail-desc {
+    font-size: 0.75rem;
+    color: var(--text-secondary, #aaa);
+    margin-bottom: 0.8rem;
+    line-height: 1.4;
+    max-height: 120px;
+    overflow-y: auto;
+}
+
+.or-detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.4rem 0.8rem;
+    font-size: 0.75rem;
+    margin-bottom: 0.8rem;
+}
+
+.or-detail-key {
+    color: var(--text-tertiary, #666);
+}
+
+.or-detail-val {
+    font-weight: 600;
+}
+
+.or-detail-val.is-free {
+    color: #48c78e;
+}
+
+.or-free-detail-note {
+    padding: 0.4rem 0.6rem;
+    border-radius: 7px;
+    background: rgba(72, 199, 142, 0.1);
+    border: 1px solid rgba(72, 199, 142, 0.2);
+    font-size: 0.72rem;
+    color: #48c78e;
+    margin-bottom: 0.8rem;
+}
+
+.or-apply-btn {
+    width: 100%;
+    padding: 0.5rem;
+    font-size: 0.82rem;
+    border-radius: 8px;
+    background: var(--accent, #63b3ed);
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.setup-toast-icon {
+    font-weight: 700;
+}
+
+.setup-dimmed {
+    opacity: 0.4;
+}

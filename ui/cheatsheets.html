@@ -17,7 +17,7 @@
         <div class="header-left">
             <a href="/" class="logo">
                 <div class="logo-icon">🥚</div>
-                <span style="color:var(--accent);">AURA</span><span style="color:var(--text-primary);">GO</span>
+                <span class="logo-wordmark-accent">AURA</span><span class="logo-wordmark-base">GO</span>
                 <span class="logo-subtitle" data-i18n="cheatsheets.subtitle">Cheat Sheets</span>
             </a>
         </div>
@@ -44,7 +44,7 @@
 
         <!-- Cards grid -->
         <div class="cards-grid" id="sheets-grid"></div>
-        <div class="empty-state" id="sheets-empty" style="display:none;">
+        <div class="empty-state is-hidden" id="sheets-empty">
             <div class="empty-icon">📋</div>
             <h3 data-i18n="cheatsheets.empty_title">No Cheat Sheets Yet</h3>
             <p data-i18n="cheatsheets.empty_desc">Create reusable workflow instructions for the agent.</p>
@@ -70,7 +70,7 @@
                     <button class="editor-tab" onclick="switchEditorTab('preview')" data-i18n="cheatsheets.tab_preview">Preview</button>
                 </div>
                 <textarea id="sheet-content" rows="16" placeholder="# Steps&#10;1. First do this&#10;2. Then do that"></textarea>
-                <div id="sheet-preview" class="md-preview" style="display:none;"></div>
+                <div id="sheet-preview" class="md-preview is-hidden"></div>
             </div>
             <div class="form-row">
                 <div class="form-group">
@@ -94,7 +94,7 @@
     <div class="modal-overlay" id="delete-modal">
         <div class="modal">
             <div class="modal-header">
-                <h2 style="color:var(--accent-danger);">⚠️ <span data-i18n="cheatsheets.confirm_delete">Confirm Deletion</span></h2>
+                <h2 class="cheatsheets-danger-title">⚠️ <span data-i18n="cheatsheets.confirm_delete">Confirm Deletion</span></h2>
                 <button class="modal-close" onclick="closeModal('delete-modal')">&times;</button>
             </div>
             <p id="delete-message"></p>

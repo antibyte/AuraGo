@@ -17,7 +17,7 @@
         <div class="header-left">
             <a href="/" class="logo">
                 <div class="logo-icon">🥚</div>
-                <span style="color:var(--accent);">AURA</span><span style="color:var(--text-primary);">GO</span>
+                <span class="logo-wordmark-accent">AURA</span><span class="logo-wordmark-base">GO</span>
                 <span class="logo-subtitle" data-i18n="gallery.subtitle">Image Gallery</span>
             </a>
         </div>
@@ -44,7 +44,7 @@
             <div class="gallery-loading" data-i18n="gallery.loading">Loading...</div>
         </div>
 
-        <div id="gallery-pagination" class="gallery-pagination" style="display:none;">
+        <div id="gallery-pagination" class="gallery-pagination is-hidden">
             <button id="gallery-prev" class="btn-gallery-nav" onclick="galleryPrev()">← Previous</button>
             <span id="gallery-page-info"></span>
             <button id="gallery-next" class="btn-gallery-nav" onclick="galleryNext()">Next →</button>
@@ -52,7 +52,7 @@
     </div>
 
     <!-- Lightbox -->
-    <div id="lightbox" class="lightbox" style="display:none;" onclick="closeLightbox(event)">
+    <div id="lightbox" class="lightbox is-hidden" onclick="closeLightbox(event)">
         <div class="lightbox-content" onclick="event.stopPropagation()">
             <button class="lightbox-close" onclick="closeLightbox()">&times;</button>
             <img id="lightbox-img" src="" alt="">

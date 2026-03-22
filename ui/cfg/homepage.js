@@ -1,5 +1,20 @@
 // cfg/homepage.js — Homepage tool section module
 
+function hpSetHidden(el, hidden) {
+    if (!el) return;
+    el.classList.toggle('is-hidden', !!hidden);
+}
+
+function hpSetStatusState(el, state, text) {
+    if (!el) return;
+    el.classList.remove('is-success', 'is-error', 'is-warning', 'is-muted');
+    if (state === 'success') el.classList.add('is-success');
+    if (state === 'error') el.classList.add('is-error');
+    if (state === 'warning') el.classList.add('is-warning');
+    if (state === 'muted') el.classList.add('is-muted');
+    el.textContent = text || '';
+}
+
 async function renderHomepageSection(section) {
     // Always fetch fresh status — stale cache would persist docker_available:false
     // across the session even after Docker becomes accessible again.
@@ -92,21 +107,21 @@ async function renderHomepageSection(section) {
 
     // ── Permission toggles ──
     if (dockerEnabled) {
-        html += `<div style="margin-top:1.2rem;margin-bottom:0.5rem;font-weight:600;font-size:0.9rem;color:var(--accent);border-bottom:1px solid var(--border-subtle);padding-bottom:0.4rem;">🔐 ${t('config.homepage.permissions_title')}</div>`;
-        html += `<div class="field-help" style="margin-bottom:0.8rem;">${t('config.homepage.permissions_desc')}</div>`;
+        html += `<div class="hp-section-title hp-section-title-sm-top">🔐 ${t('config.homepage.permissions_title')}</div>`;
+        html += `<div class="field-help hp-help-spaced">${t('config.homepage.permissions_desc')}</div>`;
 
-        html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem 1.2rem;">`;
+        html += `<div class="hp-grid-two hp-grid-tight">`;
 
         // Allow Deploy
-        html += `<div style="display:flex;align-items:center;gap:0.6rem;padding:0.5rem 0;">
+        html += `<div class="hp-toggle-row">
             <div class="toggle ${cfg.allow_deploy ? 'on' : ''}" data-path="homepage.allow_deploy" onclick="toggleBool(this)"></div>
-            <span style="font-size:0.82rem;color:var(--text-secondary);">${t('config.homepage.allow_deploy')}</span>
+            <span class="hp-toggle-label">${t('config.homepage.allow_deploy')}</span>
         </div>`;
 
         // Allow Container Management
-        html += `<div style="display:flex;align-items:center;gap:0.6rem;padding:0.5rem 0;">
+        html += `<div class="hp-toggle-row">
             <div class="toggle ${cfg.allow_container_management ? 'on' : ''}" data-path="homepage.allow_container_management" onclick="toggleBool(this)"></div>
-            <span style="font-size:0.82rem;color:var(--text-secondary);">${t('config.homepage.allow_container')}</span>
+            <span class="hp-toggle-label">${t('config.homepage.allow_container')}</span>
         </div>`;
 
         html += `</div>`;
@@ -114,36 +129,36 @@ async function renderHomepageSection(section) {
 
     // ── Deploy configuration ──
     if (dockerEnabled) {
-        html += `<div style="margin-top:1.5rem;margin-bottom:0.5rem;font-weight:600;font-size:0.9rem;color:var(--accent);border-bottom:1px solid var(--border-subtle);padding-bottom:0.4rem;">🚀 ${t('config.homepage.deploy_title')}</div>`;
-        html += `<div class="field-help" style="margin-bottom:0.8rem;">${t('config.homepage.deploy_desc')}</div>`;
+        html += `<div class="hp-section-title hp-section-title-lg-top">🚀 ${t('config.homepage.deploy_title')}</div>`;
+        html += `<div class="field-help hp-help-spaced">${t('config.homepage.deploy_desc')}</div>`;
 
-        html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.8rem 1.2rem;">`;
+        html += `<div class="hp-grid-two hp-grid-wide">`;
 
         // Deploy Host
-        html += `<label style="display:block;">
-            <span style="font-size:0.78rem;color:var(--text-secondary);">${t('config.homepage.deploy_host')}</span>
-            <input class="cfg-input" data-path="homepage.deploy_host" value="${escapeAttr(cfg.deploy_host || '')}" placeholder="webserver.example.com" style="width:100%;margin-top:0.2rem;"
+        html += `<label class="hp-label-block">
+            <span class="hp-input-label">${t('config.homepage.deploy_host')}</span>
+            <input class="cfg-input hp-input-top" data-path="homepage.deploy_host" value="${escapeAttr(cfg.deploy_host || '')}" placeholder="webserver.example.com"
                 onchange="setNestedValue(configData,'homepage.deploy_host',this.value);setDirty(true)">
         </label>`;
 
         // Deploy Port
-        html += `<label style="display:block;">
-            <span style="font-size:0.78rem;color:var(--text-secondary);">${t('config.homepage.deploy_port')}</span>
-            <input type="number" class="cfg-input" data-path="homepage.deploy_port" value="${cfg.deploy_port || 22}" min="1" max="65535" style="width:100%;margin-top:0.2rem;"
+        html += `<label class="hp-label-block">
+            <span class="hp-input-label">${t('config.homepage.deploy_port')}</span>
+            <input type="number" class="cfg-input hp-input-top" data-path="homepage.deploy_port" value="${cfg.deploy_port || 22}" min="1" max="65535"
                 onchange="setNestedValue(configData,'homepage.deploy_port',parseInt(this.value)||22);setDirty(true)">
         </label>`;
 
         // Deploy User
-        html += `<label style="display:block;">
-            <span style="font-size:0.78rem;color:var(--text-secondary);">${t('config.homepage.deploy_user')}</span>
-            <input class="cfg-input" data-path="homepage.deploy_user" value="${escapeAttr(cfg.deploy_user || '')}" placeholder="deploy" style="width:100%;margin-top:0.2rem;"
+        html += `<label class="hp-label-block">
+            <span class="hp-input-label">${t('config.homepage.deploy_user')}</span>
+            <input class="cfg-input hp-input-top" data-path="homepage.deploy_user" value="${escapeAttr(cfg.deploy_user || '')}" placeholder="deploy"
                 onchange="setNestedValue(configData,'homepage.deploy_user',this.value);setDirty(true)">
         </label>`;
 
         // Deploy Method
-        html += `<label style="display:block;">
-            <span style="font-size:0.78rem;color:var(--text-secondary);">${t('config.homepage.deploy_method')}</span>
-            <select class="cfg-input" data-path="homepage.deploy_method" style="width:100%;margin-top:0.2rem;" onchange="setNestedValue(configData,'homepage.deploy_method',this.value);setDirty(true)">
+        html += `<label class="hp-label-block">
+            <span class="hp-input-label">${t('config.homepage.deploy_method')}</span>
+            <select class="cfg-input hp-input-top" data-path="homepage.deploy_method" onchange="setNestedValue(configData,'homepage.deploy_method',this.value);setDirty(true)">
                 <option value="sftp" ${(cfg.deploy_method || 'sftp') === 'sftp' ? 'selected' : ''}>SFTP</option>
                 <option value="scp" ${cfg.deploy_method === 'scp' ? 'selected' : ''}>SCP</option>
             </select>
@@ -151,20 +166,20 @@ async function renderHomepageSection(section) {
 
         // Deploy Path (full width)
         html += `</div>`;
-        html += `<div style="margin-top:0.8rem;">
-            <label style="display:block;">
-                <span style="font-size:0.78rem;color:var(--text-secondary);">${t('config.homepage.deploy_path')}</span>
-                <input class="cfg-input" data-path="homepage.deploy_path" value="${escapeAttr(cfg.deploy_path || '')}" placeholder="/var/www/html" style="width:100%;margin-top:0.2rem;"
+        html += `<div class="hp-block-top">
+            <label class="hp-label-block">
+                <span class="hp-input-label">${t('config.homepage.deploy_path')}</span>
+                <input class="cfg-input hp-input-top" data-path="homepage.deploy_path" value="${escapeAttr(cfg.deploy_path || '')}" placeholder="/var/www/html"
                     onchange="setNestedValue(configData,'homepage.deploy_path',this.value);setDirty(true)">
             </label>
         </div>`;
 
         // ── Deploy credentials (vault-stored) ──
-        html += `<div style="margin-top:1.2rem;padding:0.8rem 1rem;border-radius:10px;border:1px dashed var(--border-subtle);background:var(--bg-tertiary);">`;
-        html += `<div style="font-size:0.82rem;font-weight:600;color:var(--text-secondary);margin-bottom:0.6rem;">🔑 ${t('config.homepage.credentials_title')}</div>`;
-        html += `<div class="field-help" style="margin-bottom:0.8rem;">${t('config.homepage.credentials_desc')}</div>`;
+        html += `<div class="hp-credentials-box">`;
+        html += `<div class="hp-credentials-title">🔑 ${t('config.homepage.credentials_title')}</div>`;
+        html += `<div class="field-help hp-help-spaced">${t('config.homepage.credentials_desc')}</div>`;
 
-        html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.8rem 1.2rem;">`;
+        html += `<div class="hp-grid-two hp-grid-wide">`;
 
         // Password field (vault)
         html += `<label style="display:block;">
@@ -187,9 +202,9 @@ async function renderHomepageSection(section) {
         html += `</div>`;
 
         // Save credentials button
-        html += `<div style="display:flex;gap:0.6rem;align-items:center;margin-top:0.8rem;flex-wrap:wrap;">
-            <button class="btn-save" style="padding:0.4rem 1.1rem;font-size:0.78rem;" onclick="hpSaveCredentials()">${t('config.homepage.save_credentials')}</button>
-            <span id="hp-cred-status" style="font-size:0.75rem;color:var(--text-tertiary);"></span>
+        html += `<div class="hp-credentials-actions">
+            <button class="btn-save hp-btn-small" onclick="hpSaveCredentials()">${t('config.homepage.save_credentials')}</button>
+            <span id="hp-cred-status" class="hp-cred-status hp-cred-status-inline is-muted"></span>
         </div>`;
 
         html += `</div>`; // end credentials box
@@ -200,10 +215,10 @@ async function renderHomepageSection(section) {
             <div style="font-size:0.78rem;color:var(--text-secondary);margin-bottom:0.8rem;">${t('config.homepage.test_desc')}</div>
             <div style="display:flex;gap:0.6rem;align-items:center;flex-wrap:wrap;">
                 <button class="btn-save" style="padding:0.4rem 1.1rem;font-size:0.78rem;" onclick="hpTestConnection()">${t('config.homepage.test_btn')}</button>
-                <span id="hp-test-spinner" style="display:none;font-size:0.75rem;color:var(--text-secondary);">⏳ ${t('config.homepage.connecting')}</span>
+                <span id="hp-test-spinner" class="hp-test-spinner is-hidden">⏳ ${t('config.homepage.connecting')}</span>
             </div>
-            <div id="hp-test-result" style="margin-top:0.8rem;display:none;">
-                <div id="hp-test-msg" style="font-size:0.82rem;padding:0.45rem 0.7rem;border-radius:7px;"></div>
+            <div id="hp-test-result" class="hp-test-result is-hidden">
+                <div id="hp-test-msg" class="hp-test-msg"></div>
             </div>
         </div>`;
     }
@@ -278,7 +293,7 @@ async function hpSaveCredentials() {
     const key = document.getElementById('hp-deploy-key').value;
 
     if (!pw && !key) {
-        if (statusEl) { statusEl.textContent = '⚠️ ' + t('config.homepage.cred_empty'); statusEl.style.color = 'var(--warning)'; }
+        hpSetStatusState(statusEl, 'warning', '⚠️ ' + t('config.homepage.cred_empty'));
         return;
     }
 
@@ -304,15 +319,15 @@ async function hpSaveCredentials() {
         }
     }
 
-    if (statusEl) { statusEl.textContent = '⏳ ' + t('config.homepage.saving'); statusEl.style.color = 'var(--text-tertiary)'; }
+    hpSetStatusState(statusEl, 'muted', '⏳ ' + t('config.homepage.saving'));
 
     await saveOne('homepage_deploy_password', pw);
     await saveOne('homepage_deploy_key', key);
 
     if (errors.length > 0) {
-        if (statusEl) { statusEl.textContent = '❌ ' + errors.join('; '); statusEl.style.color = 'var(--danger)'; }
+        hpSetStatusState(statusEl, 'error', '❌ ' + errors.join('; '));
     } else {
-        if (statusEl) { statusEl.textContent = '✅ ' + t('config.homepage.cred_saved', { count: saved }); statusEl.style.color = 'var(--success)'; }
+        hpSetStatusState(statusEl, 'success', '✅ ' + t('config.homepage.cred_saved', { count: saved }));
         // Clear inputs after successful save
         document.getElementById('hp-deploy-password').value = '';
         document.getElementById('hp-deploy-key').value = '';
@@ -326,8 +341,8 @@ async function hpTestConnection() {
     const msgDiv = document.getElementById('hp-test-msg');
     if (!spinner) return;
 
-    spinner.style.display = 'inline';
-    resultDiv.style.display = 'none';
+    hpSetHidden(spinner, false);
+    hpSetHidden(resultDiv, true);
 
     const getField = (path) => {
         const el = document.querySelector('[data-path="' + path + '"]');
@@ -351,25 +366,22 @@ async function hpTestConnection() {
         });
         const json = await resp.json();
 
-        resultDiv.style.display = 'block';
+        hpSetHidden(resultDiv, false);
         if (json.status === 'ok') {
-            msgDiv.style.background = 'rgba(34,197,94,0.12)';
-            msgDiv.style.color = 'var(--success, #22c55e)';
-            msgDiv.style.border = '1px solid rgba(34,197,94,0.3)';
+            msgDiv.classList.remove('is-error');
+            msgDiv.classList.add('is-success');
             msgDiv.textContent = '✅ ' + (json.message || t('config.homepage.test_success'));
         } else {
-            msgDiv.style.background = 'rgba(239,68,68,0.10)';
-            msgDiv.style.color = 'var(--danger, #ef4444)';
-            msgDiv.style.border = '1px solid rgba(239,68,68,0.25)';
+            msgDiv.classList.remove('is-success');
+            msgDiv.classList.add('is-error');
             msgDiv.textContent = '❌ ' + (json.message || t('config.homepage.test_failed'));
         }
     } catch (e) {
-        resultDiv.style.display = 'block';
-        msgDiv.style.background = 'rgba(239,68,68,0.10)';
-        msgDiv.style.color = 'var(--danger, #ef4444)';
-        msgDiv.style.border = '1px solid rgba(239,68,68,0.25)';
+        hpSetHidden(resultDiv, false);
+        msgDiv.classList.remove('is-success');
+        msgDiv.classList.add('is-error');
         msgDiv.textContent = '❌ ' + e.message;
     } finally {
-        spinner.style.display = 'none';
+        hpSetHidden(spinner, true);
     }
 }

@@ -12,8 +12,8 @@ async function renderRemoteControlSection(section) {
         <div class="section-desc">${section.desc}</div>`;
 
     // ── Enabled toggle ──
-    html += `<div style="display:flex;align-items:center;gap:0.8rem;margin-bottom:1rem;padding:0.6rem 1rem;border-radius:8px;background:var(--bg-tertiary);">
-        <span style="font-size:0.85rem;color:var(--text-secondary);">${t('config.remote_control.enabled_label')}</span>
+    html += `<div class="rc-toggle-row rc-toggle-row-main">
+        <span class="rc-toggle-label-main">${t('config.remote_control.enabled_label')}</span>
         <div class="toggle ${enabled ? 'on' : ''}" data-path="remote_control.enabled" onclick="toggleBool(this);setNestedValue(configData,'remote_control.enabled',this.classList.contains('on'));renderRemoteControlSection(null)"></div>
     </div>`;
 
@@ -33,8 +33,8 @@ async function renderRemoteControlSection(section) {
 
     // ── Read-Only toggle ──
     const readOnly = cfg.read_only === true;
-    html += `<div style="display:flex;align-items:center;gap:0.8rem;margin-bottom:1rem;padding:0.6rem 1rem;border-radius:8px;background:var(--bg-tertiary);">
-        <span style="font-size:0.85rem;color:var(--text-secondary);">${t('config.remote_control.read_only_label')}</span>
+    html += `<div class="rc-toggle-row rc-toggle-row-main">
+        <span class="rc-toggle-label-main">${t('config.remote_control.read_only_label')}</span>
         <div class="toggle ${readOnly ? 'on' : ''}" data-path="remote_control.read_only" onclick="toggleBool(this)"></div>
     </div>`;
 
@@ -45,10 +45,9 @@ async function renderRemoteControlSection(section) {
 
     // Discovery Port
     const curPort = cfg.discovery_port || 8092;
-    html += `<label style="display:block;margin-bottom:0.6rem;">
-        <span style="font-size:0.78rem;color:var(--text-secondary);">${t('config.remote_control.discovery_port_label')}</span>
-        <input type="number" class="cfg-input" data-path="remote_control.discovery_port" value="${curPort}" min="1024" max="65535"
-            style="width:100%;margin-top:0.2rem;">
+    html += `<label class="rc-label-block">
+        <span class="rc-label-text">${t('config.remote_control.discovery_port_label')}</span>
+        <input type="number" class="cfg-input rc-input-spaced" data-path="remote_control.discovery_port" value="${curPort}" min="1024" max="65535">
     </label>`;
     html += `</div>`;
 
@@ -59,22 +58,22 @@ async function renderRemoteControlSection(section) {
 
     // Auto Approve
     const autoApprove = cfg.auto_approve === true;
-    html += `<div style="display:flex;align-items:center;gap:0.8rem;margin-bottom:0.6rem;">
-        <span style="font-size:0.78rem;color:var(--text-secondary);">${t('config.remote_control.auto_approve_label')}</span>
+    html += `<div class="rc-toggle-row">
+        <span class="rc-label-text">${t('config.remote_control.auto_approve_label')}</span>
         <div class="toggle ${autoApprove ? 'on' : ''}" data-path="remote_control.auto_approve" onclick="toggleBool(this)"></div>
     </div>`;
 
     // Audit Log
     const auditLog = cfg.audit_log !== false;
-    html += `<div style="display:flex;align-items:center;gap:0.8rem;margin-bottom:0.6rem;">
-        <span style="font-size:0.78rem;color:var(--text-secondary);">${t('config.remote_control.audit_log_label')}</span>
+    html += `<div class="rc-toggle-row">
+        <span class="rc-label-text">${t('config.remote_control.audit_log_label')}</span>
         <div class="toggle ${auditLog ? 'on' : ''}" data-path="remote_control.audit_log" onclick="toggleBool(this)"></div>
     </div>`;
 
     // SSH Insecure Host Key
     const sshInsecure = cfg.ssh_insecure_host_key === true;
-    html += `<div style="display:flex;align-items:center;gap:0.8rem;margin-bottom:0.6rem;padding:0.5rem 0.7rem;border-radius:6px;background:${sshInsecure ? 'rgba(255,160,0,0.08)' : 'transparent'};">
-        <span style="font-size:0.78rem;color:var(--text-secondary);">${t('config.remote_control.ssh_insecure_host_key_label')}</span>
+    html += `<div class="rc-toggle-row rc-toggle-insecure${sshInsecure ? ' is-on' : ''}">
+        <span class="rc-label-text">${t('config.remote_control.ssh_insecure_host_key_label')}</span>
         <div class="toggle ${sshInsecure ? 'on' : ''}" data-path="remote_control.ssh_insecure_host_key" onclick="toggleBool(this)"></div>
     </div>`;
     html += `</div>`;
@@ -86,18 +85,16 @@ async function renderRemoteControlSection(section) {
 
     // Max File Size MB
     const curMaxFile = cfg.max_file_size_mb || 50;
-    html += `<label style="display:block;margin-bottom:0.6rem;">
-        <span style="font-size:0.78rem;color:var(--text-secondary);">${t('config.remote_control.max_file_size_label')}</span>
-        <input type="number" class="cfg-input" data-path="remote_control.max_file_size_mb" value="${curMaxFile}" min="1" max="500"
-            style="width:100%;margin-top:0.2rem;">
+    html += `<label class="rc-label-block">
+        <span class="rc-label-text">${t('config.remote_control.max_file_size_label')}</span>
+        <input type="number" class="cfg-input rc-input-spaced" data-path="remote_control.max_file_size_mb" value="${curMaxFile}" min="1" max="500">
     </label>`;
 
     // Allowed Paths
     const curPaths = (cfg.allowed_paths || []).join('\n');
-    html += `<label style="display:block;margin-bottom:0.6rem;">
-        <span style="font-size:0.78rem;color:var(--text-secondary);">${t('config.remote_control.allowed_paths_label')} <small style="color:var(--text-tertiary);">(${t('config.remote_control.allowed_paths_hint')})</small></span>
-        <textarea class="cfg-input" data-path="remote_control.allowed_paths" data-type="array-lines" rows="3"
-            style="width:100%;margin-top:0.2rem;font-family:monospace;font-size:0.8rem;"
+    html += `<label class="rc-label-block">
+        <span class="rc-label-text">${t('config.remote_control.allowed_paths_label')} <small class="rc-label-hint">(${t('config.remote_control.allowed_paths_hint')})</small></span>
+        <textarea class="cfg-input rc-input-spaced rc-paths-textarea" data-path="remote_control.allowed_paths" data-type="array-lines" rows="3"
             onchange="setNestedValue(configData,'remote_control.allowed_paths',this.value.split('\\n').filter(l=>l.trim()));setDirty(true)">${escapeAttr(curPaths)}</textarea>
     </label>`;
     html += `</div>`;
@@ -106,15 +103,14 @@ async function renderRemoteControlSection(section) {
     html += `<div class="field-group">
         <div class="field-group-title">${t('config.remote_control.download_title')}</div>
         <div class="field-group-desc">${t('config.remote_control.download_desc')}</div>
-        <div style="margin-bottom:0.6rem;">
-            <label style="display:block;margin-bottom:0.3rem;">
-                <span style="font-size:0.78rem;color:var(--text-secondary);">${t('config.remote_control.download_name_label')}</span>
-                <input type="text" id="rc-device-name" class="cfg-input" placeholder="${t('config.remote_control.download_name_placeholder')}"
-                    style="width:100%;margin-top:0.2rem;">
+        <div class="rc-download-name-wrap">
+            <label class="rc-download-name-label">
+                <span class="rc-label-text">${t('config.remote_control.download_name_label')}</span>
+                <input type="text" id="rc-device-name" class="cfg-input rc-input-spaced" placeholder="${t('config.remote_control.download_name_placeholder')}">
             </label>
         </div>
-        <div id="rc-platform-list" style="margin-top:0.5rem;">
-            <span style="font-size:0.8rem;color:var(--text-tertiary);">${t('config.remote_control.loading_platforms')}</span>
+        <div id="rc-platform-list" class="rc-platform-list">
+            <span class="rc-muted-text">${t('config.remote_control.loading_platforms')}</span>
         </div>
     </div>`;
 
@@ -122,8 +118,8 @@ async function renderRemoteControlSection(section) {
     html += `<div class="field-group">
         <div class="field-group-title">${t('config.remote_control.devices_title')}</div>
         <div class="field-group-desc">${t('config.remote_control.devices_desc')}</div>
-        <div id="rc-devices-list" style="margin-top:0.5rem;">
-            <span style="font-size:0.8rem;color:var(--text-tertiary);">${t('config.remote_control.loading_devices')}</span>
+        <div id="rc-devices-list" class="rc-devices-list">
+            <span class="rc-muted-text">${t('config.remote_control.loading_devices')}</span>
         </div>
     </div>`;
 
@@ -142,22 +138,22 @@ async function loadRemotePlatforms() {
     try {
         const resp = await fetch('/api/remote/platforms');
         if (!resp.ok) {
-            container.innerHTML = `<span style="color:var(--danger);font-size:0.8rem;">${t('config.remote_control.platforms_error')}</span>`;
+            container.innerHTML = `<span class="rc-error-text">${t('config.remote_control.platforms_error')}</span>`;
             return;
         }
         const platforms = await resp.json();
         const available = platforms.filter(p => p.available);
         if (!available.length) {
-            container.innerHTML = `<span style="color:var(--text-tertiary);font-size:0.8rem;">${t('config.remote_control.no_platforms')}</span>`;
+            container.innerHTML = `<span class="rc-muted-text">${t('config.remote_control.no_platforms')}</span>`;
             return;
         }
 
         const osIcons = { linux: '🐧', darwin: '🍎', windows: '🪟' };
-        let html = '<div style="display:flex;flex-wrap:wrap;gap:0.5rem;">';
+        let html = '<div class="rc-platform-grid">';
         available.forEach(p => {
             const icon = osIcons[p.os] || '💻';
             const label = `${icon} ${p.os} / ${p.arch}`;
-            html += `<button class="btn-save" style="padding:0.4rem 0.9rem;font-size:0.8rem;"
+            html += `<button class="btn-save rc-platform-btn"
                 onclick="rcDownload('${escapeAttr(p.os)}','${escapeAttr(p.arch)}')">
                 ⬇ ${label}
             </button>`;
@@ -165,7 +161,7 @@ async function loadRemotePlatforms() {
         html += '</div>';
         container.innerHTML = html;
     } catch (e) {
-        container.innerHTML = `<span style="color:var(--danger);font-size:0.8rem;">Error: ${e.message}</span>`;
+        container.innerHTML = `<span class="rc-error-text">Error: ${e.message}</span>`;
     }
 }
 
@@ -182,31 +178,30 @@ async function loadRemoteDevices() {
     try {
         const resp = await fetch('/api/remote/devices');
         if (!resp.ok) {
-            container.innerHTML = `<span style="color:var(--text-tertiary);font-size:0.8rem;">${t('config.remote_control.no_devices')}</span>`;
+            container.innerHTML = `<span class="rc-muted-text">${t('config.remote_control.no_devices')}</span>`;
             return;
         }
         const devices = await resp.json();
         if (!devices || devices.length === 0) {
-            container.innerHTML = `<span style="color:var(--text-tertiary);font-size:0.8rem;">${t('config.remote_control.no_devices')}</span>`;
+            container.innerHTML = `<span class="rc-muted-text">${t('config.remote_control.no_devices')}</span>`;
             return;
         }
-        let html = '<div style="display:flex;flex-direction:column;gap:0.5rem;">';
+        let html = '<div class="rc-device-list">';
         devices.forEach(d => {
-            const statusColor = d.is_connected ? 'var(--success)' : 'var(--text-tertiary)';
             const statusIcon = d.is_connected ? '🟢' : '⚪';
             const statusText = d.is_connected ? t('config.remote_control.status_connected') : t('config.remote_control.status_offline');
-            html += `<div style="display:flex;align-items:center;gap:0.8rem;padding:0.5rem 0.8rem;border-radius:6px;background:var(--bg-tertiary);">
+            html += `<div class="rc-device-item">
                 <span>${statusIcon}</span>
-                <div style="flex:1;">
-                    <div style="font-size:0.85rem;font-weight:500;">${escapeAttr(d.name || d.hostname || d.id)}</div>
-                    <div style="font-size:0.72rem;color:var(--text-tertiary);">${escapeAttr(d.os || '')} ${escapeAttr(d.arch || '')} — ${escapeAttr(d.ip_address || '')}</div>
+                <div class="rc-device-meta">
+                    <div class="rc-device-name">${escapeAttr(d.name || d.hostname || d.id)}</div>
+                    <div class="rc-device-subline">${escapeAttr(d.os || '')} ${escapeAttr(d.arch || '')} — ${escapeAttr(d.ip_address || '')}</div>
                 </div>
-                <span style="font-size:0.75rem;color:${statusColor};">${statusText}</span>
+                <span class="rc-device-status ${d.is_connected ? 'is-connected' : ''}">${statusText}</span>
             </div>`;
         });
         html += '</div>';
         container.innerHTML = html;
     } catch (e) {
-        container.innerHTML = `<span style="color:var(--danger);font-size:0.8rem;">Error: ${e.message}</span>`;
+        container.innerHTML = `<span class="rc-error-text">Error: ${e.message}</span>`;
     }
 }

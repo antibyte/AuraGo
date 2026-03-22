@@ -6,7 +6,7 @@ function renderUpdatesSection(section) {
     <div class="cfg-section active">
         <div class="section-header">${section.icon} ${section.label}</div>
         <div class="section-desc">${section.desc}</div>
-        <div id="updates-body" style="margin-top:1.5rem;"></div>
+        <div id="updates-body" class="updates-body"></div>
     </div>`;
 
     renderUpdatesBody();
@@ -17,22 +17,22 @@ async function renderUpdatesBody() {
     if (!body) return;
 
     body.innerHTML = `
-    <div style="background:var(--bg-secondary);border:1px solid var(--border-subtle);border-radius:12px;padding:1.25rem;margin-bottom:1.25rem;">
-        <div style="font-size:0.8rem;color:var(--text-secondary);line-height:1.6;">
+    <div class="updates-warning-card">
+        <div class="updates-warning-text">
             ⚠️ ${t('config.updates.warning_banner')}
         </div>
     </div>
 
-    <div id="updates-check-result" style="margin-bottom:1.25rem;"></div>
+    <div id="updates-check-result" class="updates-check-result"></div>
 
-    <div style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap;">
-        <button class="btn-save" style="padding:0.55rem 1.4rem;font-size:0.85rem;" id="updates-check-btn" onclick="updatesCheck()">
+    <div class="updates-actions">
+        <button class="btn-save updates-btn" id="updates-check-btn" onclick="updatesCheck()">
             ${t('config.updates.check_button')}
         </button>
-        <button class="btn-save" style="padding:0.55rem 1.4rem;font-size:0.85rem;display:none;" id="updates-install-btn" onclick="updatesInstall()">
+        <button class="btn-save updates-btn is-hidden" id="updates-install-btn" onclick="updatesInstall()">
             ${t('config.updates.install_button')}
         </button>
-        <span id="updates-status" style="font-size:0.8rem;color:var(--text-secondary);"></span>
+        <span id="updates-status" class="updates-status"></span>
     </div>`;
 }
 
@@ -46,7 +46,7 @@ async function updatesCheck() {
     btn.disabled = true;
     btn.textContent = t('config.updates.checking');
     status.textContent = '';
-    if (installBtn) installBtn.style.display = 'none';
+    if (installBtn) installBtn.classList.add('is-hidden');
 
     try {
         const resp = await fetch('/api/updates/check');
@@ -54,45 +54,45 @@ async function updatesCheck() {
 
         if (data.error) {
             resultDiv.innerHTML = `
-            <div style="border:1px solid var(--border-subtle);border-radius:10px;padding:1rem 1.2rem;background:rgba(239,68,68,0.07);">
-                <div style="font-weight:600;color:var(--danger);">❌ ${t('config.updates.error')}</div>
-                <div style="font-size:0.82rem;color:var(--text-secondary);margin-top:0.3rem;">${data.error}</div>
+            <div class="updates-result-card updates-result-error">
+                <div class="updates-result-title">❌ ${t('config.updates.error')}</div>
+                <div class="updates-result-detail">${data.error}</div>
             </div>`;
         } else if (data.update_available) {
             let changelogHtml = '';
             if (data.changelog) {
                 const lines = data.changelog.split('\n').filter(l => l.trim());
                 changelogHtml = `
-                <div style="margin-top:0.75rem;">
-                    <div style="font-size:0.78rem;font-weight:600;color:var(--text-secondary);margin-bottom:0.4rem;">${t('config.updates.changelog')}</div>
-                    <div style="font-family:monospace;font-size:0.77rem;color:var(--text-secondary);background:var(--bg-secondary);border-radius:7px;padding:0.65rem 0.85rem;max-height:120px;overflow-y:auto;line-height:1.55;">
+                <div class="updates-changelog-wrap">
+                    <div class="updates-changelog-title">${t('config.updates.changelog')}</div>
+                    <div class="updates-changelog-box">
                         ${lines.map(l => `<div>${l}</div>`).join('')}
                     </div>
                 </div>`;
             }
             resultDiv.innerHTML = `
-            <div style="border:1px solid rgba(245,158,11,0.35);border-radius:10px;padding:1rem 1.2rem;background:rgba(245,158,11,0.07);">
-                <div style="font-weight:600;color:var(--warning);">🆕 ${t('config.updates.available')}</div>
-                <div style="display:flex;gap:1.2rem;margin-top:0.5rem;font-size:0.82rem;color:var(--text-secondary);">
+            <div class="updates-result-card updates-result-warn">
+                <div class="updates-result-title updates-result-title-warn">🆕 ${t('config.updates.available')}</div>
+                <div class="updates-meta-row">
                     ${data.current_version ? `<span>${t('config.updates.current')}: <strong>${data.current_version}</strong></span>` : ''}
-                    ${data.latest_version ? `<span>${t('config.updates.latest')}: <strong style="color:var(--accent);">${data.latest_version}</strong></span>` : ''}
+                    ${data.latest_version ? `<span>${t('config.updates.latest')}: <strong class="updates-latest-version">${data.latest_version}</strong></span>` : ''}
                     ${data.commit_count ? `<span>${data.commit_count} commit(s)</span>` : ''}
                 </div>
                 ${changelogHtml}
             </div>`;
-            if (installBtn) installBtn.style.display = '';
+            if (installBtn) installBtn.classList.remove('is-hidden');
         } else {
             resultDiv.innerHTML = `
-            <div style="border:1px solid rgba(34,197,94,0.3);border-radius:10px;padding:1rem 1.2rem;background:rgba(34,197,94,0.07);">
-                <div style="font-weight:600;color:var(--success,#22c55e);">✅ ${t('config.updates.up_to_date')}</div>
-                <div style="display:flex;gap:1.2rem;margin-top:0.4rem;font-size:0.82rem;color:var(--text-secondary);">
+            <div class="updates-result-card updates-result-success">
+                <div class="updates-result-title updates-result-title-success">✅ ${t('config.updates.up_to_date')}</div>
+                <div class="updates-meta-row updates-meta-row-tight">
                     ${data.current_version ? `<span>${t('config.updates.version')}: <strong>${data.current_version}</strong></span>` : ''}
                     <span>${data.message || ''}</span>
                 </div>
             </div>`;
         }
     } catch (e) {
-        resultDiv.innerHTML = `<div style="color:var(--danger);font-size:0.85rem;">❌ ${e.message}</div>`;
+        resultDiv.innerHTML = `<div class="updates-inline-error">❌ ${e.message}</div>`;
     } finally {
         btn.disabled = false;
         btn.textContent = t('config.updates.check_button');

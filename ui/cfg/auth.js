@@ -2,9 +2,23 @@
 
 let _totpNewSecret = '';
 
+function authSetHidden(el, hidden) {
+    if (!el) return;
+    el.classList.toggle('is-hidden', !!hidden);
+}
+
+function authSetStatus(el, level, text) {
+    if (!el) return;
+    el.classList.remove('is-success', 'is-error');
+    if (level === 'success') el.classList.add('is-success');
+    if (level === 'error') el.classList.add('is-error');
+    el.textContent = text || '';
+    authSetHidden(el, !text);
+}
+
 async function renderWebConfigSection(section) {
     const content = document.getElementById('content');
-    content.innerHTML = '<div class="cfg-section active"><div style="text-align:center;padding:3rem;color:var(--text-secondary);">' + t('config.common.loading') + '</div></div>';
+    content.innerHTML = '<div class="cfg-section active"><div class="auth-loading">' + t('config.common.loading') + '</div></div>';
 
     let authStatus = { enabled: false, password_set: false, totp_enabled: false };
     try {
@@ -22,7 +36,7 @@ async function renderWebConfigSection(section) {
     html += '<div class="section-desc">' + section.desc + '</div>';
 
     // ── Web Config Toggle ──
-    html += `<div style="margin-bottom:0.5rem;font-weight:600;font-size:0.85rem;color:var(--accent);border-bottom:1px solid var(--border-subtle);padding-bottom:0.3rem;">
+    html += `<div class="auth-section-title">
                 🛡️ ${t('config.auth.web_config_title')}
             </div>`;
     const wcHelp = (helpTexts['web_config.enabled'] || {})[lang] || '';
@@ -36,37 +50,36 @@ async function renderWebConfigSection(section) {
             </div>`;
 
     // ── Login-Schutz ──
-    html += `<div style="margin-top:1.5rem;margin-bottom:0.5rem;font-weight:600;font-size:0.85rem;color:var(--accent);border-bottom:1px solid var(--border-subtle);padding-bottom:0.3rem;">
+    html += `<div class="auth-section-title auth-section-title-spaced">
                 🔐 ${t('config.auth.login_guard_title')}
             </div>`;
 
     // Enable toggle
     const isHttpsEnabled = (configData.server && configData.server.https && configData.server.https.enabled) === true;
-    const authToggleStyle = isHttpsEnabled ? ' opacity: 0.6; pointer-events: none;' : '';
     const authHelpText = isHttpsEnabled ? (t('config.auth.https_forces_auth') || 'HTTPS is active. Login cannot be disabled.') : t('config.auth.enable_desc');
 
     html += `<div class="field-group">
                 <div class="field-label">🔐 ${t('config.auth.enable_login_guard')}</div>
                 <div class="field-help">${authHelpText}</div>
-                <div class="toggle-wrap" style="${authToggleStyle}">
+                <div class="toggle-wrap ${isHttpsEnabled ? 'auth-toggle-wrap-disabled' : ''}">
                     <div class="toggle ${isAuthEnabled ? 'on' : ''}" data-path="auth.enabled" onclick="toggleBool(this)"></div>
                     <span class="toggle-label">${isAuthEnabled ? t('config.common.active') : t('config.common.inactive')}</span>
                 </div>
             </div>`;
 
     // Session / rate limit settings
-    html += `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.75rem;margin-bottom:0.75rem;">
-                <div class="field-group" style="margin-bottom:0;">
+    html += `<div class="auth-session-grid">
+                <div class="field-group auth-field-group-flat">
                     <div class="field-label">${t('config.auth.session_hours')}</div>
                     <div class="field-help">${t('config.auth.session_validity')}</div>
                     <input class="field-input" type="number" min="1" max="8760" data-path="auth.session_timeout_hours" value="${authCfg.session_timeout_hours || 24}">
                 </div>
-                <div class="field-group" style="margin-bottom:0;">
+                <div class="field-group auth-field-group-flat">
                     <div class="field-label">${t('config.auth.max_attempts')}</div>
                     <div class="field-help">${t('config.auth.before_lockout')}</div>
                     <input class="field-input" type="number" min="1" max="100" data-path="auth.max_login_attempts" value="${authCfg.max_login_attempts || 5}">
                 </div>
-                <div class="field-group" style="margin-bottom:0;">
+                <div class="field-group auth-field-group-flat">
                     <div class="field-label">${t('config.auth.lockout_minutes')}</div>
                     <div class="field-help">${t('config.auth.lockout_duration')}</div>
                     <input class="field-input" type="number" min="1" max="10080" data-path="auth.lockout_minutes" value="${authCfg.lockout_minutes || 15}">
@@ -80,73 +93,72 @@ async function renderWebConfigSection(section) {
             ? t('config.auth.password_is_set')
             : t('config.auth.password_not_set')
         }</div>
-                <div style="display:flex;gap:0.5rem;align-items:center;margin-top:0.4rem;">
-                    <div class="password-wrap" style="flex:1;margin-bottom:0;">
+                <div class="auth-password-row">
+                    <div class="password-wrap auth-password-wrap">
                         <input class="field-input" type="password" id="auth-new-pw"
                             placeholder="${t('config.auth.new_password_placeholder')}"
                             autocomplete="new-password"
                             onkeydown="if(event.key==='Enter')authSetPassword()">
                         <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">${EYE_OPEN_SVG}</button>
                     </div>
-                    <button onclick="authSetPassword()" style="padding:0.5rem 1rem;background:linear-gradient(135deg,#2dd4bf,#0d9488);color:#fff;border:none;border-radius:8px;font-size:0.82rem;font-weight:600;cursor:pointer;white-space:nowrap;">
+                    <button onclick="authSetPassword()" class="auth-primary-btn">
                         ${authStatus.password_set ? t('config.auth.update_password') : t('config.auth.set_password')}
                     </button>
                 </div>
-                <div id="auth-pw-msg" style="margin-top:0.5rem;font-size:0.8rem;display:none;"></div>
+                <div id="auth-pw-msg" class="auth-inline-msg is-hidden"></div>
             </div>`;
 
     // ── TOTP card
     html += `<div class="field-group">
                 <div class="field-label">📱 ${t('config.auth.totp_title')}</div>
                 <div class="field-help">${t('config.auth.totp_desc')}</div>
-                <div id="auth-totp-status-area" style="margin-top:0.5rem;">`;
+                <div id="auth-totp-status-area" class="auth-totp-status-area">`;
 
     if (authStatus.totp_enabled) {
-        html += `<div style="display:flex;align-items:center;gap:0.75rem;">
-                    <span style="color:var(--success);font-weight:600;">✅ ${t('config.auth.totp_active')}</span>
-                    <button onclick="authTOTPDisable()" style="padding:0.35rem 0.75rem;background:rgba(239,68,68,0.1);color:#f87171;border:1px solid rgba(239,68,68,0.3);border-radius:8px;font-size:0.78rem;font-weight:600;cursor:pointer;">
+        html += `<div class="auth-totp-active-row">
+                    <span class="auth-totp-active-text">✅ ${t('config.auth.totp_active')}</span>
+                    <button onclick="authTOTPDisable()" class="auth-totp-disable-btn">
                         ${t('config.auth.totp_disable')}
                     </button>
                 </div>`;
     } else {
-        html += `<div style="margin-bottom:0.5rem;font-size:0.82rem;color:var(--text-secondary);">${t('config.auth.totp_not_active')}.</div>
-                <button onclick="authTOTPStartSetup()" id="btn-totp-start" style="padding:0.45rem 1rem;background:var(--bg-glass);color:var(--text-primary);border:1px solid var(--border-accent);border-radius:8px;font-size:0.82rem;font-weight:600;cursor:pointer;">
+        html += `<div class="auth-totp-inactive-text">${t('config.auth.totp_not_active')}.</div>
+                <button onclick="authTOTPStartSetup()" id="btn-totp-start" class="auth-totp-start-btn">
                     ${t('config.auth.totp_setup')}
                 </button>
-                <div id="auth-totp-setup" style="display:none;margin-top:1.25rem;">
-                    <div style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:0.85rem;">
+                <div id="auth-totp-setup" class="auth-totp-setup is-hidden">
+                    <div class="auth-totp-instructions">
                         ${t('config.auth.totp_instructions')}
                     </div>
-                    <div style="display:flex;gap:1.5rem;align-items:flex-start;flex-wrap:wrap;margin-bottom:1rem;">
-                        <div id="totp-qr" style="background:#fff;padding:8px;border-radius:10px;flex-shrink:0;"></div>
-                        <div style="flex:1;min-width:180px;">
-                            <div style="font-size:0.72rem;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.35rem;">${t('config.auth.manual_key')}:</div>
-                            <div id="totp-secret-display" style="font-family:monospace;font-size:0.85rem;word-break:break-all;padding:0.6rem 0.75rem;background:var(--bg-glass);border:1px solid var(--border-subtle);border-radius:8px;letter-spacing:0.08em;"></div>
+                    <div class="auth-totp-setup-row">
+                        <div id="totp-qr" class="auth-totp-qr"></div>
+                        <div class="auth-totp-manual-wrap">
+                            <div class="auth-totp-manual-label">${t('config.auth.manual_key')}:</div>
+                            <div id="totp-secret-display" class="auth-totp-secret"></div>
                         </div>
                     </div>
                     <div>
-                        <div style="font-size:0.78rem;color:var(--text-secondary);margin-bottom:0.35rem;">${t('config.auth.confirmation_code')}</div>
-                        <div style="display:flex;gap:0.5rem;align-items:center;">
-                            <input id="totp-confirm-code" type="number" class="field-input" placeholder="000000"
-                                style="font-family:monospace;letter-spacing:0.3em;text-align:center;font-size:1.1rem;max-width:160px;"
+                        <div class="auth-totp-confirm-label">${t('config.auth.confirmation_code')}</div>
+                        <div class="auth-totp-confirm-row">
+                            <input id="totp-confirm-code" type="number" class="field-input auth-totp-confirm-input" placeholder="000000"
                                 onkeydown="if(event.key==='Enter')authTOTPConfirm()">
-                            <button onclick="authTOTPConfirm()" style="padding:0.5rem 1rem;background:linear-gradient(135deg,#2dd4bf,#0d9488);color:#fff;border:none;border-radius:8px;font-size:0.82rem;font-weight:600;cursor:pointer;">
+                            <button onclick="authTOTPConfirm()" class="auth-primary-btn auth-totp-activate-btn">
                                 ${t('config.auth.activate')}
                             </button>
                         </div>
                     </div>
-                    <div id="auth-totp-msg" style="margin-top:0.5rem;font-size:0.8rem;display:none;"></div>
+                    <div id="auth-totp-msg" class="auth-inline-msg is-hidden"></div>
                 </div>`;
     }
 
     html += '</div></div>'; // close totp-status-area + field-group
 
     // ── Security Audit panel (populated async after render) ──
-    html += `<div style="margin-top:1.5rem;margin-bottom:0.5rem;font-weight:600;font-size:0.85rem;color:var(--accent);border-bottom:1px solid var(--border-subtle);padding-bottom:0.3rem;">
+    html += `<div class="auth-section-title auth-section-title-spaced">
                 🔎 ${t('config.security.panel_title')}
             </div>`;
-    html += '<div id="sec-audit-panel" style="margin-bottom:1rem;">';
-    html += `<div style="color:var(--text-secondary);font-size:0.82rem;">${t('config.common.loading')}</div>`;
+    html += '<div id="sec-audit-panel" class="auth-sec-audit-panel">';
+    html += `<div class="auth-sec-audit-loading">${t('config.common.loading')}</div>`;
     html += '</div>';
 
     html += '</div>'; // close cfg-section
@@ -159,11 +171,9 @@ async function renderWebConfigSection(section) {
 async function authSetPassword() {
     const pw = (document.getElementById('auth-new-pw') || {}).value || '';
     const msgEl = document.getElementById('auth-pw-msg');
-    msgEl.style.display = 'none';
+    authSetStatus(msgEl, null, '');
     if (!pw || pw.length < 8) {
-        msgEl.style.display = '';
-        msgEl.style.color = 'var(--danger)';
-        msgEl.textContent = t('config.auth.password_min_length');
+        authSetStatus(msgEl, 'error', t('config.auth.password_min_length'));
         return;
     }
     try {
@@ -173,19 +183,14 @@ async function authSetPassword() {
             body: JSON.stringify({ new_password: pw })
         });
         const data = await resp.json();
-        msgEl.style.display = '';
         if (resp.ok && data.ok) {
-            msgEl.style.color = 'var(--success)';
-            msgEl.textContent = '✓ ' + (data.message || t('config.common.saved'));
+            authSetStatus(msgEl, 'success', '✓ ' + (data.message || t('config.common.saved')));
             document.getElementById('auth-new-pw').value = '';
         } else {
-            msgEl.style.color = 'var(--danger)';
-            msgEl.textContent = data.error || t('config.common.error');
+            authSetStatus(msgEl, 'error', data.error || t('config.common.error'));
         }
     } catch (e) {
-        msgEl.style.display = '';
-        msgEl.style.color = 'var(--danger)';
-        msgEl.textContent = t('config.common.network_error');
+        authSetStatus(msgEl, 'error', t('config.common.network_error'));
     }
 }
 
@@ -196,8 +201,8 @@ async function authTOTPStartSetup() {
         const data = await resp.json();
         _totpNewSecret = data.secret;
         document.getElementById('totp-secret-display').textContent = data.secret;
-        document.getElementById('auth-totp-setup').style.display = '';
-        document.getElementById('btn-totp-start').style.display = 'none';
+        authSetHidden(document.getElementById('auth-totp-setup'), false);
+        authSetHidden(document.getElementById('btn-totp-start'), true);
         // Render QR code (qrcodejs library)
         const qrEl = document.getElementById('totp-qr');
         qrEl.innerHTML = '';
@@ -205,8 +210,8 @@ async function authTOTPStartSetup() {
             new QRCode(qrEl, { text: data.uri, width: 180, height: 180, colorDark: '#000000', colorLight: '#ffffff' });
         } else {
             // Fallback: display URI as text
-            qrEl.style.cssText = 'background:none;padding:0;';
-            qrEl.innerHTML = '<div style="font-size:0.65rem;word-break:break-all;max-width:220px;color:var(--text-primary);">' + esc(data.uri) + '</div>';
+            qrEl.classList.add('auth-totp-qr-fallback');
+            qrEl.innerHTML = '<div class="auth-totp-uri-fallback">' + esc(data.uri) + '</div>';
         }
     } catch (e) {
         alert(t('config.common.error') + ': ' + e.message);
@@ -223,19 +228,14 @@ async function authTOTPConfirm() {
             body: JSON.stringify({ secret: _totpNewSecret, code })
         });
         const data = await resp.json();
-        msgEl.style.display = '';
         if (resp.ok && data.ok) {
-            msgEl.style.color = 'var(--success)';
-            msgEl.textContent = '✓ ' + (data.message || t('config.auth.totp_activated'));
+            authSetStatus(msgEl, 'success', '✓ ' + (data.message || t('config.auth.totp_activated')));
             setTimeout(() => selectSection('web_config'), 1200);
         } else {
-            msgEl.style.color = 'var(--danger)';
-            msgEl.textContent = data.error || t('config.auth.invalid_code');
+            authSetStatus(msgEl, 'error', data.error || t('config.auth.invalid_code'));
         }
     } catch (e) {
-        msgEl.style.display = '';
-        msgEl.style.color = 'var(--danger)';
-        msgEl.textContent = t('config.common.network_error');
+        authSetStatus(msgEl, 'error', t('config.common.network_error'));
     }
 }
 
@@ -264,20 +264,20 @@ async function loadSecurityAuditPanel() {
     try {
         const resp = await fetch('/api/security/hints');
         if (!resp.ok) {
-            panel.innerHTML = `<div style="color:var(--text-secondary);font-size:0.82rem;">${t('config.common.error')}</div>`;
+            panel.innerHTML = `<div class="auth-sec-audit-loading">${t('config.common.error')}</div>`;
             return;
         }
         const data = await resp.json();
         const hints = data.hints || [];
         renderSecurityAuditPanel(panel, hints);
     } catch (_) {
-        panel.innerHTML = `<div style="color:var(--text-secondary);font-size:0.82rem;">${t('config.common.network_error')}</div>`;
+        panel.innerHTML = `<div class="auth-sec-audit-loading">${t('config.common.network_error')}</div>`;
     }
 }
 
 function renderSecurityAuditPanel(panel, hints) {
     if (!hints.length) {
-        panel.innerHTML = `<div style="display:flex;align-items:center;gap:0.5rem;padding:0.6rem 0.8rem;background:rgba(45,212,191,0.08);border:1px solid rgba(45,212,191,0.25);border-radius:8px;font-size:0.83rem;color:var(--success);">
+        panel.innerHTML = `<div class="auth-sec-ok">
             ✅ ${t('config.security.no_issues')}
         </div>`;
         return;
@@ -286,40 +286,36 @@ function renderSecurityAuditPanel(panel, hints) {
     const fixable = hints.filter(h => h.auto_fixable);
     const criticals = hints.filter(h => h.severity === 'critical');
 
-    const sevColors = {
-        critical: { bg: 'rgba(239,68,68,0.08)', border: 'rgba(239,68,68,0.3)', badge: '#f87171' },
-        warning:  { bg: 'rgba(251,191,36,0.08)', border: 'rgba(251,191,36,0.3)', badge: '#fbbf24' },
-        info:     { bg: 'rgba(99,179,237,0.08)',  border: 'rgba(99,179,237,0.3)',  badge: '#60a5fa' },
-    };
+    const supportedSeverities = new Set(['critical', 'warning', 'info']);
 
     let html = '';
     if (fixable.length > 0) {
         const btnLabel = t('config.security.fix_all_auto').replace('{n}', fixable.length);
-        html += `<div style="margin-bottom:0.75rem;">
+        html += `<div class="auth-sec-fix-wrap">
             <button id="btn-fix-all" onclick="securityHardenIds(${JSON.stringify(fixable.map(h => h.id))})"
-                style="padding:0.45rem 1rem;background:linear-gradient(135deg,#f97316,#dc2626);color:#fff;border:none;border-radius:8px;font-size:0.82rem;font-weight:600;cursor:pointer;">
+                class="auth-sec-fix-all-btn">
                 🔧 ${btnLabel}
             </button>
         </div>`;
     }
 
     for (const h of hints) {
-        const c = sevColors[h.severity] || sevColors.info;
+        const sevKey = supportedSeverities.has(h.severity) ? h.severity : 'info';
         const sevLabel = t('config.security.severity.' + h.severity) || h.severity.toUpperCase();
         const desc = esc(h.description);
         let fixBtn = '';
         if (h.auto_fixable) {
             fixBtn = `<button onclick="securityHardenIds(['${h.id}'])"
-                style="margin-top:0.5rem;padding:0.3rem 0.7rem;background:rgba(255,255,255,0.08);color:var(--text-primary);border:1px solid var(--border-accent);border-radius:6px;font-size:0.77rem;font-weight:600;cursor:pointer;">
+                class="auth-sec-fix-now-btn">
                 🔧 ${t('config.security.fix_now')}
             </button>`;
         }
-        html += `<div style="margin-bottom:0.5rem;padding:0.65rem 0.85rem;background:${c.bg};border:1px solid ${c.border};border-radius:8px;">
-            <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.3rem;">
-                <span style="font-size:0.68rem;font-weight:700;padding:0.1rem 0.45rem;border-radius:4px;background:${c.badge};color:#0f172a;">${sevLabel}</span>
-                <span style="font-size:0.83rem;font-weight:600;color:var(--text-primary);">${esc(h.title)}</span>
+        html += `<div class="auth-sec-hint-card is-${sevKey}">
+            <div class="auth-sec-hint-head">
+                <span class="auth-sec-hint-badge is-${sevKey}">${sevLabel}</span>
+                <span class="auth-sec-hint-title">${esc(h.title)}</span>
             </div>
-            <div style="font-size:0.78rem;color:var(--text-secondary);">${desc}</div>
+            <div class="auth-sec-hint-desc">${desc}</div>
             ${fixBtn}
         </div>`;
     }

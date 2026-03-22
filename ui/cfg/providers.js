@@ -5,6 +5,11 @@ let _orModelsCache = null;
 let _orModelsCacheTime = 0;
 const OR_CACHE_TTL = 5 * 60 * 1000;
 
+function providerSetHidden(el, hidden) {
+    if (!el) return;
+    el.classList.toggle('is-hidden', !!hidden);
+}
+
         async function queryOllamaModelsInModal() {
             const spinner = document.getElementById('prov-ollama-spinner');
             const resultDiv = document.getElementById('prov-ollama-result');
@@ -12,9 +17,9 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
             const errorDiv = document.getElementById('prov-ollama-error');
             if (!spinner) return;
 
-            spinner.style.display = 'inline';
-            resultDiv.style.display = 'none';
-            errorDiv.style.display = 'none';
+            providerSetHidden(spinner, false);
+            providerSetHidden(resultDiv, true);
+            providerSetHidden(errorDiv, true);
             modelsDiv.innerHTML = '';
 
             const baseUrl = (document.getElementById('prov-url') || {}).value || '';
@@ -23,25 +28,25 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
             try {
                 const resp = await fetch(url);
                 const json = await resp.json();
-                resultDiv.style.display = 'block';
+                providerSetHidden(resultDiv, false);
 
                 if (!resp.ok || json.available === false) {
                     errorDiv.textContent = json.reason || t('config.ollama.fetch_error');
-                    errorDiv.style.display = 'block';
+                    providerSetHidden(errorDiv, false);
                 } else if (!json.models || json.models.length === 0) {
                     errorDiv.textContent = t('config.ollama.no_models');
-                    errorDiv.style.display = 'block';
+                    providerSetHidden(errorDiv, false);
                 } else {
                     modelsDiv.innerHTML = json.models.map(m =>
-                        `<span style="display:inline-block;padding:0.2rem 0.6rem;border-radius:6px;background:var(--bg-primary);border:1px solid var(--border-subtle);font-family:monospace;font-size:0.75rem;color:var(--accent);cursor:pointer;transition:background 0.15s;" title="${t('config.ollama.click_to_apply')}" onmouseover="this.style.background='var(--accent)';this.style.color='#fff'" onmouseout="this.style.background='var(--bg-primary)';this.style.color='var(--accent)'" onclick="applyOllamaModelInModal(this.textContent)">${m}</span>`
+                        `<button type="button" class="prov-ollama-chip" title="${t('config.ollama.click_to_apply')}" onclick="applyOllamaModelInModal(this.textContent)">${m}</button>`
                     ).join('');
                 }
             } catch (e) {
-                resultDiv.style.display = 'block';
+                providerSetHidden(resultDiv, false);
                 errorDiv.textContent = t('config.ollama.connection_error') + e.message;
-                errorDiv.style.display = 'block';
+                providerSetHidden(errorDiv, false);
             } finally {
-                spinner.style.display = 'none';
+                providerSetHidden(spinner, true);
             }
         }
 
@@ -67,36 +72,36 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
 
             const overlay = document.createElement('div');
             overlay.id = 'or-browser-overlay';
-            overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:1100;backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;';
+            overlay.className = 'prov-or-overlay';
             overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
 
             overlay.innerHTML = `
-            <div style="background:var(--bg-secondary);border-radius:16px;width:min(760px,95vw);height:min(85vh,720px);display:flex;flex-direction:column;border:1px solid var(--border-subtle);overflow:hidden;" onclick="event.stopPropagation()">
+            <div class="prov-or-panel" onclick="event.stopPropagation()">
                 <!-- Header -->
-                <div style="padding:1rem 1.2rem;border-bottom:1px solid var(--border-subtle);flex-shrink:0;">
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.7rem;">
-                        <div style="font-weight:700;font-size:1rem;">🌐 OpenRouter ${t('config.openrouter.model_browser')}</div>
-                        <button onclick="document.getElementById('or-browser-overlay').remove()" style="background:none;border:none;color:var(--text-secondary);font-size:1.2rem;cursor:pointer;">✕</button>
+                <div class="prov-or-header">
+                    <div class="prov-or-header-row">
+                        <div class="prov-or-title">🌐 OpenRouter ${t('config.openrouter.model_browser')}</div>
+                        <button onclick="document.getElementById('or-browser-overlay').remove()" class="prov-or-close">✕</button>
                     </div>
-                    <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
-                        <input id="or-search" class="field-input" type="text" placeholder="${t('config.openrouter.search_placeholder')}" style="flex:1;min-width:180px;font-size:0.82rem;padding:0.4rem 0.7rem;">
-                        <button id="or-free-btn" class="btn-save" style="padding:0.35rem 0.8rem;font-size:0.75rem;background:var(--bg-tertiary);color:var(--text-primary);border:1px solid var(--border-subtle);white-space:nowrap;" title="${t('config.openrouter.free_tooltip')}">
+                    <div class="prov-or-controls">
+                        <input id="or-search" class="field-input prov-or-search" type="text" placeholder="${t('config.openrouter.search_placeholder')}">
+                        <button id="or-free-btn" class="btn-save prov-or-free-btn" title="${t('config.openrouter.free_tooltip')}">
                             🆓 ${t('config.openrouter.free_button')}
                         </button>
-                        <div id="or-count" style="font-size:0.72rem;color:var(--text-tertiary);white-space:nowrap;"></div>
+                        <div id="or-count" class="prov-or-count"></div>
                     </div>
                 </div>
                 <!-- Content area: list + detail -->
-                <div style="flex:1;display:flex;overflow:hidden;">
+                <div class="prov-or-content">
                     <!-- Model list -->
-                    <div id="or-list-wrap" style="flex:1;overflow-y:auto;min-width:0;">
-                        <div id="or-list" style="padding:0.3rem;"></div>
+                    <div id="or-list-wrap" class="prov-or-list-wrap is-hidden">
+                        <div id="or-list" class="prov-or-list"></div>
                     </div>
                     <!-- Detail panel (hidden by default) -->
-                    <div id="or-detail" style="width:280px;flex-shrink:0;border-left:1px solid var(--border-subtle);overflow-y:auto;display:none;padding:1rem;font-size:0.8rem;"></div>
+                    <div id="or-detail" class="prov-or-detail is-hidden"></div>
                 </div>
                 <!-- Loading / error -->
-                <div id="or-loading" style="padding:2rem;text-align:center;color:var(--text-secondary);font-size:0.85rem;">
+                <div id="or-loading" class="prov-or-loading">
                     ⏳ ${t('config.openrouter.loading')}
                 </div>
             </div>`;
@@ -123,7 +128,7 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                     const resp = await fetch('/api/openrouter/models');
                     const json = await resp.json();
                     if (json.available === false) {
-                        loadingDiv.innerHTML = '<span style="color:var(--danger);">❌ ' + (json.reason || 'Error') + '</span>';
+                        loadingDiv.innerHTML = '<span class="prov-text-danger">❌ ' + (json.reason || 'Error') + '</span>';
                         return;
                     }
                     allModels = (json.data || []).map(m => ({
@@ -141,11 +146,11 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                     _orModelsCacheTime = now;
                 }
             } catch (e) {
-                loadingDiv.innerHTML = '<span style="color:var(--danger);">❌ ' + t('config.openrouter.connection_error') + e.message + '</span>';
+                loadingDiv.innerHTML = '<span class="prov-text-danger">❌ ' + t('config.openrouter.connection_error') + e.message + '</span>';
                 return;
             }
-            loadingDiv.style.display = 'none';
-            listWrap.style.display = 'block';
+            providerSetHidden(loadingDiv, true);
+            providerSetHidden(listWrap, false);
 
             function isFree(m) {
                 return m.pricing && parseFloat(m.pricing.prompt || '1') === 0 && parseFloat(m.pricing.completion || '1') === 0;
@@ -180,7 +185,7 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                 countDiv.textContent = filtered.length + t('config.openrouter.models_count') + (freeOnly ? t('config.openrouter.free_only') : '');
 
                 if (filtered.length === 0) {
-                    listDiv.innerHTML = '<div style="padding:1.5rem;text-align:center;color:var(--text-tertiary);font-size:0.82rem;">' + t('config.openrouter.no_models') + '</div>';
+                    listDiv.innerHTML = '<div class="prov-or-empty">' + t('config.openrouter.no_models') + '</div>';
                     return;
                 }
 
@@ -190,56 +195,54 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                     const promptCost = formatCost(m.pricing.prompt);
                     const completionCost = formatCost(m.pricing.completion);
                     const isSelected = selectedModel && selectedModel.id === m.id;
-                    return `<div class="or-model-row" data-id="${escapeAttr(m.id)}" style="padding:0.5rem 0.7rem;border-bottom:1px solid var(--border-subtle);cursor:pointer;display:flex;align-items:center;gap:0.6rem;transition:background 0.12s;${isSelected?'background:var(--accent-dim);':''}">
-                        <div style="flex:1;min-width:0;">
-                            <div style="font-size:0.8rem;font-weight:600;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${escapeAttr(m.id)}">${escapeHtml(m.name)}</div>
-                            <div style="font-size:0.68rem;color:var(--text-tertiary);font-family:monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(m.id)}</div>
+                    return `<div class="or-model-row ${isSelected ? 'is-selected' : ''}" data-id="${escapeAttr(m.id)}">
+                        <div class="prov-or-row-main">
+                            <div class="prov-or-row-name" title="${escapeAttr(m.id)}">${escapeHtml(m.name)}</div>
+                            <div class="prov-or-row-id">${escapeHtml(m.id)}</div>
                         </div>
-                        <div style="flex-shrink:0;display:flex;gap:0.4rem;align-items:center;">
-                            ${free ? '<span style="font-size:0.65rem;padding:0.1rem 0.4rem;border-radius:4px;background:rgba(72,199,142,0.15);color:#48c78e;font-weight:600;">FREE</span>' : '<span style="font-size:0.65rem;color:var(--text-tertiary);" title="Input / Output">'+promptCost+' · '+completionCost+'</span>'}
-                            <span style="font-size:0.65rem;color:var(--text-tertiary);" title="Context">${formatContext(m.context_length)}</span>
+                        <div class="prov-or-row-meta">
+                            ${free ? '<span class="prov-or-free-pill">FREE</span>' : '<span class="prov-or-meta-text" title="Input / Output">'+promptCost+' · '+completionCost+'</span>'}
+                            <span class="prov-or-meta-text" title="Context">${formatContext(m.context_length)}</span>
                         </div>
                     </div>`;
                 }).join('');
 
                 // Attach click handlers
                 listDiv.querySelectorAll('.or-model-row').forEach(row => {
-                    row.onmouseover = () => { if (!row.style.background.includes('accent')) row.style.background='var(--bg-tertiary)'; };
-                    row.onmouseout = () => { if (selectedModel && selectedModel.id === row.dataset.id) row.style.background='var(--accent-dim)'; else row.style.background=''; };
                     row.onclick = () => {
                         const m = allModels.find(x => x.id === row.dataset.id);
                         if (!m) return;
                         selectedModel = m;
                         showDetail(m);
                         // Highlight selected
-                        listDiv.querySelectorAll('.or-model-row').forEach(r => r.style.background='');
-                        row.style.background = 'var(--accent-dim)';
+                        listDiv.querySelectorAll('.or-model-row').forEach(r => r.classList.remove('is-selected'));
+                        row.classList.add('is-selected');
                     };
                 });
             }
 
             function showDetail(m) {
-                detailDiv.style.display = 'block';
+                detailDiv.classList.remove('is-hidden');
                 const free = isFree(m);
                 const promptPerM = (parseFloat(m.pricing.prompt || '0') * 1000000);
                 const completionPerM = (parseFloat(m.pricing.completion || '0') * 1000000);
                 detailDiv.innerHTML = `
-                    <div style="font-weight:700;font-size:0.9rem;color:var(--text-primary);margin-bottom:0.3rem;">${escapeHtml(m.name)}</div>
-                    <div style="font-family:monospace;font-size:0.7rem;color:var(--accent);margin-bottom:0.7rem;word-break:break-all;">${escapeHtml(m.id)}</div>
-                    ${m.description ? '<div style="font-size:0.75rem;color:var(--text-secondary);margin-bottom:0.8rem;line-height:1.4;max-height:120px;overflow-y:auto;">' + escapeHtml(m.description) + '</div>' : ''}
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem 0.8rem;font-size:0.75rem;margin-bottom:0.8rem;">
-                        <div><span style="color:var(--text-tertiary);">Context:</span></div>
-                        <div style="font-weight:600;">${formatContext(m.context_length)} tokens</div>
-                        <div><span style="color:var(--text-tertiary);">Input:</span></div>
-                        <div style="font-weight:600;${free?'color:#48c78e;':''}">${free ? t('config.openrouter.free_cost') : '$'+promptPerM.toFixed(4)+'/M'}</div>
-                        <div><span style="color:var(--text-tertiary);">Output:</span></div>
-                        <div style="font-weight:600;${free?'color:#48c78e;':''}">${free ? t('config.openrouter.free_cost') : '$'+completionPerM.toFixed(4)+'/M'}</div>
+                    <div class="prov-or-detail-title">${escapeHtml(m.name)}</div>
+                    <div class="prov-or-detail-id">${escapeHtml(m.id)}</div>
+                    ${m.description ? '<div class="prov-or-detail-desc">' + escapeHtml(m.description) + '</div>' : ''}
+                    <div class="prov-or-detail-grid">
+                        <div><span class="prov-or-detail-label">Context:</span></div>
+                        <div class="prov-or-detail-value">${formatContext(m.context_length)} tokens</div>
+                        <div><span class="prov-or-detail-label">Input:</span></div>
+                        <div class="prov-or-detail-value ${free ? 'is-free' : ''}">${free ? t('config.openrouter.free_cost') : '$'+promptPerM.toFixed(4)+'/M'}</div>
+                        <div><span class="prov-or-detail-label">Output:</span></div>
+                        <div class="prov-or-detail-value ${free ? 'is-free' : ''}">${free ? t('config.openrouter.free_cost') : '$'+completionPerM.toFixed(4)+'/M'}</div>
                     </div>
-                    ${free ? '<div style="padding:0.4rem 0.6rem;border-radius:7px;background:rgba(72,199,142,0.1);border:1px solid rgba(72,199,142,0.2);font-size:0.72rem;color:#48c78e;margin-bottom:0.8rem;">🆓 '+t('config.openrouter.model_is_free')+'</div>' : ''}
-                    <button id="or-apply-btn" class="btn-save" style="width:100%;padding:0.5rem;font-size:0.82rem;">
+                    ${free ? '<div class="prov-or-free-banner">🆓 '+t('config.openrouter.model_is_free')+'</div>' : ''}
+                    <button id="or-apply-btn" class="btn-save prov-or-apply-btn">
                         ✅ ${t('config.openrouter.apply_model')}
                     </button>
-                    <div style="font-size:0.68rem;color:var(--text-tertiary);margin-top:0.5rem;text-align:center;">
+                    <div class="prov-or-detail-footnote">
                         ${!free ? t('config.openrouter.costs_auto_imported') : ''}
                     </div>
                 `;
@@ -266,9 +269,7 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
             // Free toggle
             freeBtn.onclick = () => {
                 freeOnly = !freeOnly;
-                freeBtn.style.background = freeOnly ? 'rgba(72,199,142,0.2)' : 'var(--bg-tertiary)';
-                freeBtn.style.color = freeOnly ? '#48c78e' : 'var(--text-primary)';
-                freeBtn.style.borderColor = freeOnly ? 'rgba(72,199,142,0.4)' : 'var(--border-subtle)';
+                freeBtn.classList.toggle('is-active', freeOnly);
                 renderList();
             };
 
@@ -319,12 +320,11 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
             if (existing) existing.remove();
             const toast = document.createElement('div');
             toast.id = 'budget-toast';
-            toast.style.cssText = 'position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);background:var(--bg-secondary);color:var(--text-primary);padding:0.6rem 1.2rem;border-radius:10px;font-size:0.8rem;border:1px solid rgba(72,199,142,0.3);box-shadow:0 4px 16px rgba(0,0,0,0.3);z-index:1200;animation:fadeInUp 0.3s;';
+            toast.className = 'prov-budget-toast';
             toast.textContent = message;
             document.body.appendChild(toast);
             setTimeout(() => {
-                toast.style.opacity = '0';
-                toast.style.transition = 'opacity 0.3s';
+                toast.classList.add('is-fading');
                 setTimeout(() => toast.remove(), 300);
             }, 3500);
         }
@@ -348,7 +348,7 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
             if (!tbody) return;
 
             // Show filter bar only when enough rows to be useful
-            if (searchWrap) searchWrap.style.display = _provModalModels.length >= 5 ? '' : 'none';
+            if (searchWrap) providerSetHidden(searchWrap, _provModalModels.length < 5);
 
             const filterQ = filterEl ? filterEl.value.toLowerCase().trim() : '';
             const visible = filterQ
@@ -359,38 +359,38 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                 countEl.textContent = filterQ
                     ? `${visible.length} / ${_provModalModels.length}`
                     : `${_provModalModels.length} model${_provModalModels.length !== 1 ? 's' : ''}`;
-                countEl.style.display = '';
+                providerSetHidden(countEl, false);
             } else if (countEl) {
-                countEl.style.display = 'none';
+                providerSetHidden(countEl, true);
             }
 
             if (_provModalModels.length === 0) {
                 tbody.innerHTML = '';
-                if (empty) empty.style.display = '';
+                if (empty) providerSetHidden(empty, false);
                 return;
             }
-            if (empty) empty.style.display = 'none';
+            if (empty) providerSetHidden(empty, true);
 
             if (visible.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="4" style="padding:0.8rem;text-align:center;color:var(--text-tertiary);font-size:0.75rem;">${escapeHtml(t('config.providers.no_filter_results', { q: filterQ }))}</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="4" class="prov-no-filter-results">${escapeHtml(t('config.providers.no_filter_results', { q: filterQ }))}</td></tr>`;
                 return;
             }
 
             tbody.innerHTML = visible.map(m => {
                 const i = _provModalModels.indexOf(m);
                 return `
-                <tr style="border-bottom:1px solid var(--border-subtle);">
-                    <td style="padding:0.3rem 0.4rem;">
-                        <input class="field-input" style="font-size:0.75rem;padding:0.2rem 0.4rem;" value="${escapeAttr(m.name)}" onchange="providerUpdateModelRow(${i},'name',this.value)">
+                <tr class="prov-model-row">
+                    <td class="prov-model-cell">
+                        <input class="field-input prov-model-input" value="${escapeAttr(m.name)}" onchange="providerUpdateModelRow(${i},'name',this.value)">
                     </td>
-                    <td style="padding:0.3rem 0.4rem;">
-                        <input class="field-input" type="number" step="0.001" min="0" style="font-size:0.75rem;padding:0.2rem 0.4rem;text-align:right;width:90px;" value="${m.input_per_million}" onchange="providerUpdateModelRow(${i},'input_per_million',parseFloat(this.value)||0)">
+                    <td class="prov-model-cell">
+                        <input class="field-input prov-model-input prov-model-input-num" type="number" step="0.001" min="0" value="${m.input_per_million}" onchange="providerUpdateModelRow(${i},'input_per_million',parseFloat(this.value)||0)">
                     </td>
-                    <td style="padding:0.3rem 0.4rem;">
-                        <input class="field-input" type="number" step="0.001" min="0" style="font-size:0.75rem;padding:0.2rem 0.4rem;text-align:right;width:90px;" value="${m.output_per_million}" onchange="providerUpdateModelRow(${i},'output_per_million',parseFloat(this.value)||0)">
+                    <td class="prov-model-cell">
+                        <input class="field-input prov-model-input prov-model-input-num" type="number" step="0.001" min="0" value="${m.output_per_million}" onchange="providerUpdateModelRow(${i},'output_per_million',parseFloat(this.value)||0)">
                     </td>
-                    <td style="padding:0.3rem 0;text-align:center;">
-                        <button type="button" style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:0.8rem;" onclick="providerDeleteModelRow(${i})" title="Delete">✕</button>
+                    <td class="prov-model-cell prov-model-cell-del">
+                        <button type="button" class="prov-model-del-btn" onclick="providerDeleteModelRow(${i})" title="Delete">✕</button>
                     </td>
                 </tr>`;
             }).join('');
@@ -461,7 +461,7 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
 
             const overlay = document.createElement('div');
             overlay.id = 'pricing-picker-overlay';
-            overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9100;display:flex;align-items:center;justify-content:center;padding:1rem;';
+            overlay.className = 'prov-pricing-overlay';
 
             function getVisible() {
                 const q = filterQuery.toLowerCase();
@@ -474,39 +474,39 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                 const allVisibleSelected = visible.length > 0 && visible.every(m => selected.has(m.name));
 
                 overlay.innerHTML = `
-                    <div style="background:var(--bg-secondary);border:1px solid var(--border-subtle);border-radius:14px;width:min(580px,96vw);max-height:84vh;display:flex;flex-direction:column;box-shadow:0 24px 64px rgba(0,0,0,0.55);">
-                        <div style="padding:0.9rem 1.1rem 0.6rem;border-bottom:1px solid var(--border-subtle);flex-shrink:0;">
-                            <div style="font-size:0.9rem;font-weight:700;color:var(--text-primary);margin-bottom:0.55rem;">📡 ${escapeHtml(t('config.providers.pricing_picker_title'))}</div>
+                    <div class="prov-pricing-panel">
+                        <div class="prov-pricing-head">
+                            <div class="prov-pricing-title">📡 ${escapeHtml(t('config.providers.pricing_picker_title'))}</div>
                             <input id="pricing-picker-search" class="field-input" type="search" autocomplete="off"
                                    placeholder="🔍 ${escapeHtml(t('config.providers.pricing_picker_search'))}"
-                                   style="width:100%;font-size:0.8rem;padding:0.32rem 0.55rem;" value="${escapeAttr(filterQuery)}">
-                            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:0.35rem;">
-                                <span style="font-size:0.7rem;color:var(--text-tertiary);">${visible.length} / ${allPricing.length} ${escapeHtml(t('config.providers.pricing_picker_total'))}</span>
-                                <span id="pp-sel-count" style="font-size:0.7rem;color:var(--accent);font-weight:600;">${selCount} ${escapeHtml(t('config.providers.pricing_picker_selected'))}</span>
+                                   value="${escapeAttr(filterQuery)}">
+                            <div class="prov-pricing-meta">
+                                <span class="prov-pricing-total">${visible.length} / ${allPricing.length} ${escapeHtml(t('config.providers.pricing_picker_total'))}</span>
+                                <span id="pp-sel-count" class="prov-pricing-selected">${selCount} ${escapeHtml(t('config.providers.pricing_picker_selected'))}</span>
                             </div>
                         </div>
-                        <div style="overflow-y:auto;flex:1;" id="pricing-picker-list">
+                        <div class="prov-pricing-list" id="pricing-picker-list">
                             ${visible.length === 0
-                                ? `<div style="padding:2rem;text-align:center;color:var(--text-tertiary);font-size:0.82rem;">${escapeHtml(t('config.providers.no_pricing_found'))}</div>`
+                                ? `<div class="prov-pricing-empty">${escapeHtml(t('config.providers.no_pricing_found'))}</div>`
                                 : visible.map(m => {
                                     const ck = selected.has(m.name);
                                     const fmt = v => v > 0 ? '$' + v.toFixed(3) : (v === 0 ? 'free' : '—');
-                                    return `<label style="display:flex;align-items:center;gap:0.55rem;padding:0.36rem 1rem;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.04);" onmouseover="this.style.background='var(--bg-tertiary)'" onmouseout="this.style.background=''">
-                                        <input type="checkbox" data-name="${escapeAttr(m.name)}" data-in="${m.input_per_million}" data-out="${m.output_per_million}" ${ck ? 'checked' : ''} style="width:14px;height:14px;flex-shrink:0;cursor:pointer;accent-color:var(--accent);">
-                                        <span style="flex:1;min-width:0;font-size:0.78rem;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${escapeAttr(m.name)}">${escapeHtml(m.name)}</span>
-                                        <span style="font-size:0.67rem;color:var(--text-tertiary);flex-shrink:0;font-family:monospace;">${escapeHtml(fmt(m.input_per_million))} · ${escapeHtml(fmt(m.output_per_million))}</span>
+                                    return `<label class="prov-pricing-row">
+                                        <input type="checkbox" class="prov-pricing-checkbox" data-name="${escapeAttr(m.name)}" data-in="${m.input_per_million}" data-out="${m.output_per_million}" ${ck ? 'checked' : ''}>
+                                        <span class="prov-pricing-name" title="${escapeAttr(m.name)}">${escapeHtml(m.name)}</span>
+                                        <span class="prov-pricing-cost">${escapeHtml(fmt(m.input_per_million))} · ${escapeHtml(fmt(m.output_per_million))}</span>
                                     </label>`;
                                 }).join('')
                             }
                         </div>
-                        <div style="padding:0.6rem 1rem;border-top:1px solid var(--border-subtle);display:flex;justify-content:space-between;align-items:center;gap:0.5rem;flex-shrink:0;">
-                            <label style="display:flex;align-items:center;gap:0.4rem;font-size:0.75rem;color:var(--text-secondary);cursor:pointer;">
-                                <input type="checkbox" id="pp-select-all" ${allVisibleSelected ? 'checked' : ''} style="cursor:pointer;accent-color:var(--accent);">
+                        <div class="prov-pricing-foot">
+                            <label class="prov-pricing-select-all-label">
+                                <input type="checkbox" class="prov-pricing-select-all" id="pp-select-all" ${allVisibleSelected ? 'checked' : ''}>
                                 ${escapeHtml(t('config.providers.pricing_picker_select_all'))}
                             </label>
-                            <div style="display:flex;gap:0.45rem;">
-                                <button class="btn-save" style="padding:0.32rem 0.9rem;font-size:0.77rem;background:var(--bg-tertiary);color:var(--text-primary);" onclick="document.getElementById('pricing-picker-overlay').remove()">${escapeHtml(t('config.providers.cancel'))}</button>
-                                <button class="btn-save" id="pp-confirm" style="padding:0.32rem 0.9rem;font-size:0.77rem;">${escapeHtml(t('config.providers.pricing_picker_import', { count: selCount }))}</button>
+                            <div class="prov-pricing-actions">
+                                <button class="btn-save prov-btn-muted prov-btn-xs" onclick="document.getElementById('pricing-picker-overlay').remove()">${escapeHtml(t('config.providers.cancel'))}</button>
+                                <button class="btn-save prov-btn-xs" id="pp-confirm">${escapeHtml(t('config.providers.pricing_picker_import', { count: selCount }))}</button>
                             </div>
                         </div>
                     </div>`;
@@ -618,15 +618,15 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
             const labelTest = t('config.meshcentral.test_label');
             const labelDesc = t('config.meshcentral.test_desc');
             return `
-            <div id="mc-test-block" style="margin-top:1.5rem;padding:1rem 1.2rem;border:1px solid var(--border-subtle);border-radius:12px;background:var(--bg-secondary);">
-                <div style="font-size:0.8rem;font-weight:600;color:var(--accent);margin-bottom:0.5rem;">🔌 MeshCentral Test</div>
-                <div style="font-size:0.78rem;color:var(--text-secondary);margin-bottom:0.8rem;">${labelDesc}</div>
-                <div style="display:flex;gap:0.6rem;align-items:center;flex-wrap:wrap;">
-                    <button class="btn-save" style="padding:0.4rem 1.1rem;font-size:0.78rem;" onclick="testMeshCentral()">${labelTest}</button>
-                    <span id="mc-test-spinner" style="display:none;font-size:0.75rem;color:var(--text-secondary);">⏳ ${t('config.meshcentral.connecting')}</span>
+            <div id="mc-test-block" class="prov-mc-block">
+                <div class="prov-mc-title">🔌 MeshCentral Test</div>
+                <div class="prov-mc-desc">${labelDesc}</div>
+                <div class="prov-mc-actions">
+                    <button class="btn-save prov-btn-sm" onclick="testMeshCentral()">${labelTest}</button>
+                    <span id="mc-test-spinner" class="prov-mc-spinner is-hidden">⏳ ${t('config.meshcentral.connecting')}</span>
                 </div>
-                <div id="mc-test-result" style="margin-top:0.8rem;display:none;">
-                    <div id="mc-test-msg" style="font-size:0.82rem;padding:0.45rem 0.7rem;border-radius:7px;"></div>
+                <div id="mc-test-result" class="prov-mc-result is-hidden">
+                    <div id="mc-test-msg" class="prov-mc-msg"></div>
                 </div>
             </div>`;
         }
@@ -637,8 +637,8 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
             const msgDiv    = document.getElementById('mc-test-msg');
             if (!spinner) return;
 
-            spinner.style.display = 'inline';
-            resultDiv.style.display = 'none';
+            providerSetHidden(spinner, false);
+            providerSetHidden(resultDiv, true);
 
             // Read values from the existing config fields on the page.
             // If the user edited them, those values are sent; otherwise they're
@@ -667,26 +667,23 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                 });
                 const json = await resp.json();
 
-                resultDiv.style.display = 'block';
+                providerSetHidden(resultDiv, false);
                 if (json.status === 'ok') {
-                    msgDiv.style.background = 'rgba(34,197,94,0.12)';
-                    msgDiv.style.color = 'var(--success, #22c55e)';
-                    msgDiv.style.border = '1px solid rgba(34,197,94,0.3)';
+                    msgDiv.classList.remove('is-error');
+                    msgDiv.classList.add('is-success');
                     msgDiv.textContent = '✅ ' + (json.message || t('config.meshcentral.success'));
                 } else {
-                    msgDiv.style.background = 'rgba(239,68,68,0.10)';
-                    msgDiv.style.color = 'var(--danger, #ef4444)';
-                    msgDiv.style.border = '1px solid rgba(239,68,68,0.25)';
+                    msgDiv.classList.remove('is-success');
+                    msgDiv.classList.add('is-error');
                     msgDiv.textContent = '❌ ' + (json.message || t('config.meshcentral.failed'));
                 }
             } catch (e) {
-                resultDiv.style.display = 'block';
-                msgDiv.style.background = 'rgba(239,68,68,0.10)';
-                msgDiv.style.color = 'var(--danger, #ef4444)';
-                msgDiv.style.border = '1px solid rgba(239,68,68,0.25)';
+                providerSetHidden(resultDiv, false);
+                msgDiv.classList.remove('is-success');
+                msgDiv.classList.add('is-error');
                 msgDiv.textContent = '❌ ' + e.message;
             } finally {
-                spinner.style.display = 'none';
+                providerSetHidden(spinner, true);
             }
         }
 
@@ -694,13 +691,13 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
             let html = `<div class="cfg-section active">
                 <div class="section-header">${section.icon} ${section.label}</div>
                 <div class="section-desc">${section.desc}</div>
-                <div style="display:flex;justify-content:flex-end;margin-bottom:1rem;">
-                    <button class="btn-save" style="padding:0.45rem 1.1rem;font-size:0.82rem;" onclick="providerAdd()">
+                <div class="prov-section-actions">
+                    <button class="btn-save prov-btn-sm" onclick="providerAdd()">
                         ＋ ${t('config.providers.new_provider')}
                     </button>
                 </div>
                 <div id="providers-list"></div>
-                <div id="providers-empty" style="display:none;text-align:center;padding:2rem;color:var(--text-tertiary);font-size:0.85rem;">
+                <div id="providers-empty" class="prov-empty-state is-hidden">
                     ${t('config.providers.empty')}
                 </div>
             </div>`;
@@ -714,45 +711,45 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
             if (!wrap) return;
             if (providersCache.length === 0) {
                 wrap.innerHTML = '';
-                if (empty) empty.style.display = '';
+                if (empty) providerSetHidden(empty, false);
                 return;
             }
-            if (empty) empty.style.display = 'none';
+            if (empty) providerSetHidden(empty, true);
 
             let html = '';
             providersCache.forEach((p, idx) => {
                 const typeBadge = p.type
-                    ? `<span style="display:inline-block;padding:0.15rem 0.5rem;border-radius:6px;font-size:0.7rem;font-weight:600;background:var(--accent);color:#fff;margin-left:0.4rem;">${escapeAttr(p.type)}</span>`
+                    ? `<span class="prov-provider-pill">${escapeAttr(p.type)}</span>`
                     : '';
                 const isOAuth = p.auth_type === 'oauth2';
                 const authBadge = isOAuth
-                    ? '<span style="display:inline-block;padding:0.15rem 0.5rem;border-radius:6px;font-size:0.7rem;font-weight:600;background:#8e44ad;color:#fff;margin-left:0.4rem;">🔑 OAuth2</span>'
+                    ? '<span class="prov-provider-pill prov-provider-pill-oauth">🔑 OAuth2</span>'
                     : '';
                 let authInfo;
                 if (isOAuth) {
-                    authInfo = `<span style="color:var(--text-tertiary);" id="oauth-status-${idx}">🔑 OAuth2</span>`;
+                    authInfo = `<span class="prov-text-muted" id="oauth-status-${idx}">🔑 OAuth2</span>`;
                 } else {
                     const maskedKey = p.api_key === '••••••••'
-                        ? '<span style="color:var(--text-tertiary);">••••••••</span>'
-                        : (p.api_key ? '<span style="color:var(--success);">' + t('config.providers.key_set') + '</span>' : '<span style="color:var(--text-tertiary);">—</span>');
+                        ? '<span class="prov-text-muted">••••••••</span>'
+                        : (p.api_key ? '<span class="prov-text-success">' + t('config.providers.key_set') + '</span>' : '<span class="prov-text-muted">—</span>');
                     authInfo = maskedKey;
                 }
                 html += `
-                <div class="provider-card" data-idx="${idx}" style="border:1px solid var(--border-subtle);border-radius:12px;padding:1rem 1.2rem;margin-bottom:0.75rem;background:var(--bg-secondary);transition:border-color 0.15s;">
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.6rem;">
-                        <div style="font-weight:600;font-size:0.9rem;">
+                <div class="provider-card prov-provider-card" data-idx="${idx}">
+                    <div class="prov-provider-head">
+                        <div class="prov-provider-title">
                             ${escapeAttr(p.name || p.id)}${typeBadge}${authBadge}
-                            <span style="font-size:0.72rem;color:var(--text-tertiary);margin-left:0.5rem;">ID: ${escapeAttr(p.id)}</span>
+                            <span class="prov-provider-id">ID: ${escapeAttr(p.id)}</span>
                         </div>
-                        <div style="display:flex;gap:0.4rem;">
-                            <button onclick="providerEdit(${idx})" style="background:none;border:none;cursor:pointer;color:var(--accent);font-size:0.85rem;" title="Edit">✏️</button>
-                            <button onclick="providerDelete(${idx})" style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:0.85rem;" title="Delete">🗑️</button>
+                        <div class="prov-provider-head-actions">
+                            <button onclick="providerEdit(${idx})" class="prov-icon-btn is-edit" title="Edit">✏️</button>
+                            <button onclick="providerDelete(${idx})" class="prov-icon-btn is-delete" title="Delete">🗑️</button>
                         </div>
                     </div>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.3rem 1rem;font-size:0.78rem;">
-                        <div><span style="color:var(--text-tertiary);">Base URL:</span> ${escapeAttr(p.base_url || '—')}</div>
-                        <div><span style="color:var(--text-tertiary);">Model:</span> ${escapeAttr(p.model || '—')}</div>
-                        <div><span style="color:var(--text-tertiary);">${isOAuth ? 'Auth:' : 'API Key:'}</span> ${authInfo}</div>
+                    <div class="prov-provider-grid">
+                        <div><span class="prov-text-muted">Base URL:</span> ${escapeAttr(p.base_url || '—')}</div>
+                        <div><span class="prov-text-muted">Model:</span> ${escapeAttr(p.model || '—')}</div>
+                        <div><span class="prov-text-muted">${isOAuth ? 'Auth:' : 'API Key:'}</span> ${authInfo}</div>
                     </div>
                 </div>`;
             });
@@ -767,11 +764,11 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                             const el = document.getElementById('oauth-status-' + idx);
                             if (!el) return;
                             if (st.authorized && !st.expired) {
-                                el.innerHTML = '<span style="color:var(--success);">✅ ' + t('config.providers.authorized') + '</span>';
+                                el.innerHTML = '<span class="prov-text-success">✅ ' + t('config.providers.authorized') + '</span>';
                             } else if (st.authorized && st.expired) {
-                                el.innerHTML = '<span style="color:var(--warning);">⚠️ ' + t('config.providers.token_expired') + '</span>';
+                                el.innerHTML = '<span class="prov-text-warning">⚠️ ' + t('config.providers.token_expired') + '</span>';
                             } else {
-                                el.innerHTML = '<span style="color:var(--danger);">❌ ' + t('config.providers.not_authorized') + '</span>';
+                                el.innerHTML = '<span class="prov-text-danger">❌ ' + t('config.providers.not_authorized') + '</span>';
                             }
                         }).catch(() => {});
                 }
@@ -806,22 +803,22 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
 
             const overlay = document.createElement('div');
             overlay.id = 'provider-modal-overlay';
-            overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:1000;backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;';
+            overlay.className = 'prov-modal-overlay';
             overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
 
             const currentAuthType = data.auth_type || 'api_key';
             const isOAuth = currentAuthType === 'oauth2';
 
             overlay.innerHTML = `
-            <div style="background:var(--bg-secondary);border-radius:16px;padding:1.5rem;width:min(520px,92vw);max-height:85vh;overflow-y:auto;border:1px solid var(--border-subtle);" onclick="event.stopPropagation()">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;">
-                    <div style="font-weight:700;font-size:1rem;">${title}</div>
-                    <button onclick="document.getElementById('provider-modal-overlay').remove()" style="background:none;border:none;color:var(--text-secondary);font-size:1.2rem;cursor:pointer;">✕</button>
+            <div class="prov-modal-panel" onclick="event.stopPropagation()">
+                <div class="prov-modal-header">
+                    <div class="prov-modal-title">${title}</div>
+                    <button onclick="document.getElementById('provider-modal-overlay').remove()" class="prov-modal-close-btn">✕</button>
                 </div>
                 <div class="field-group">
                     <div class="field-label">ID</div>
                     <div class="field-help">${t('config.providers.id_help')}</div>
-                    <input class="field-input" id="prov-id" value="${escapeAttr(data.id || '')}" placeholder="my-provider" ${data._editMode ? 'disabled style="opacity:0.55;cursor:not-allowed;"' : ''}>
+                    <input class="field-input ${data._editMode ? 'is-disabled' : ''}" id="prov-id" value="${escapeAttr(data.id || '')}" placeholder="my-provider" ${data._editMode ? 'disabled' : ''}>
                 </div>
                 <div class="field-group">
                     <div class="field-label">Name</div>
@@ -838,12 +835,12 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                 </div>
                 <div class="field-group">
                     <div class="field-label">Base URL</div>
-                    <input class="field-input" id="prov-url" value="${escapeAttr(data.base_url || '')}" placeholder="${PROVIDER_BASE_URLS[data.type] || PROVIDER_BASE_URLS.openrouter}" ${(data.type || '') === 'workers-ai' ? 'disabled style="opacity:0.55;cursor:not-allowed;"' : ''}>
-                    <div id="prov-url-auto-hint" style="font-size:0.7rem;color:var(--text-tertiary);margin-top:0.2rem;display:${(data.type || '') === 'workers-ai' ? 'block' : 'none'};">${t('config.providers.workers_ai_url_auto')}</div>
+                    <input class="field-input ${(data.type || '') === 'workers-ai' ? 'is-disabled' : ''}" id="prov-url" value="${escapeAttr(data.base_url || '')}" placeholder="${PROVIDER_BASE_URLS[data.type] || PROVIDER_BASE_URLS.openrouter}" ${(data.type || '') === 'workers-ai' ? 'disabled' : ''}>
+                    <div id="prov-url-auto-hint" class="prov-field-hint ${(data.type || '') === 'workers-ai' ? '' : 'is-hidden'}">${t('config.providers.workers_ai_url_auto')}</div>
                 </div>
 
                 <!-- Workers AI Account ID (only visible when type = workers-ai) -->
-                <div id="prov-account-id-block" class="field-group" style="display:${(data.type || '') === 'workers-ai' ? 'block' : 'none'};">
+                <div id="prov-account-id-block" class="field-group ${(data.type || '') === 'workers-ai' ? '' : 'is-hidden'}">
                     <div class="field-label">${t('config.providers.account_id')}</div>
                     <div class="field-help">${t('config.providers.account_id_help')}</div>
                     <input class="field-input" id="prov-account-id" value="${escapeAttr(data.account_id || '')}" placeholder="e.g. a1b2c3d4e5f6...">
@@ -854,70 +851,69 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                 </div>
 
                 <!-- Ollama model query (only visible when type = ollama) -->
-                <div id="prov-ollama-block" class="field-group" style="display:${(data.type || 'openai') === 'ollama' ? 'block' : 'none'};margin-top:0;padding:0.7rem 0.9rem;border-radius:9px;background:rgba(99,179,237,0.06);border:1px solid rgba(99,179,237,0.18);">
-                    <div style="display:flex;gap:0.6rem;align-items:center;flex-wrap:wrap;">
-                        <button type="button" class="btn-save" style="padding:0.3rem 0.9rem;font-size:0.75rem;" onclick="queryOllamaModelsInModal()">
+                <div id="prov-ollama-block" class="field-group prov-provider-type-block is-ollama ${(data.type || 'openai') === 'ollama' ? '' : 'is-hidden'}">
+                    <div class="prov-type-block-actions">
+                        <button type="button" class="btn-save prov-btn-xs" onclick="queryOllamaModelsInModal()">
                             🦙 ${t('config.providers.query_models')}
                         </button>
-                        <span id="prov-ollama-spinner" style="display:none;font-size:0.72rem;color:var(--text-secondary);">⏳ ${t('config.providers.loading')}</span>
+                        <span id="prov-ollama-spinner" class="prov-inline-muted is-hidden">⏳ ${t('config.providers.loading')}</span>
                     </div>
-                    <div id="prov-ollama-result" style="margin-top:0.6rem;display:none;">
-                        <div style="font-size:0.72rem;font-weight:600;color:var(--text-secondary);margin-bottom:0.35rem;">${t('config.providers.available_models')}</div>
-                        <div id="prov-ollama-models" style="display:flex;flex-wrap:wrap;gap:0.35rem;"></div>
-                        <div id="prov-ollama-error" style="font-size:0.75rem;color:var(--danger);margin-top:0.35rem;display:none;"></div>
+                    <div id="prov-ollama-result" class="prov-ollama-result is-hidden">
+                        <div class="prov-ollama-label">${t('config.providers.available_models')}</div>
+                        <div id="prov-ollama-models" class="prov-ollama-models"></div>
+                        <div id="prov-ollama-error" class="prov-ollama-error is-hidden"></div>
                     </div>
                 </div>
 
                 <!-- OpenRouter model browser (only visible when type = openrouter) -->
-                <div id="prov-openrouter-block" class="field-group" style="display:${(data.type || 'openai') === 'openrouter' ? 'block' : 'none'};margin-top:0;padding:0.7rem 0.9rem;border-radius:9px;background:rgba(72,199,142,0.06);border:1px solid rgba(72,199,142,0.18);">
-                    <div style="display:flex;gap:0.6rem;align-items:center;flex-wrap:wrap;">
-                        <button type="button" class="btn-save" style="padding:0.3rem 0.9rem;font-size:0.75rem;background:rgba(72,199,142,0.15);color:#48c78e;border:1px solid rgba(72,199,142,0.3);" onclick="openOpenRouterBrowser(function(m){document.getElementById('prov-model').value=m.id;document.getElementById('prov-model').dispatchEvent(new Event('input',{bubbles:true}));updateProviderModelCost(m);})">
+                <div id="prov-openrouter-block" class="field-group prov-provider-type-block is-openrouter ${(data.type || 'openai') === 'openrouter' ? '' : 'is-hidden'}">
+                    <div class="prov-type-block-actions">
+                        <button type="button" class="btn-save prov-openrouter-btn" onclick="openOpenRouterBrowser(function(m){document.getElementById('prov-model').value=m.id;document.getElementById('prov-model').dispatchEvent(new Event('input',{bubbles:true}));updateProviderModelCost(m);})">
                             🌐 ${t('config.providers.open_model_browser')}
                         </button>
-                        <span style="font-size:0.72rem;color:var(--text-tertiary);">${t('config.providers.browse_openrouter')}</span>
+                        <span class="prov-inline-muted">${t('config.providers.browse_openrouter')}</span>
                     </div>
                 </div>
 
                 <!-- Model Pricing Table -->
-                <div class="field-group" style="margin-top:0.8rem;padding-top:0.8rem;border-top:1px solid var(--border-subtle);">
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
-                        <div class="field-label" style="margin-bottom:0;">💰 ${t('config.providers.model_pricing')}</div>
-                        <div style="display:flex;gap:0.4rem;">
-                            <button type="button" class="btn-save" id="prov-fetch-pricing-btn" style="padding:0.25rem 0.65rem;font-size:0.72rem;background:rgba(72,199,142,0.12);color:#48c78e;border:1px solid rgba(72,199,142,0.25);display:${['openrouter','openai','anthropic','google','ollama'].includes(data.type || 'openai') ? 'inline-block' : 'none'};">
+                <div class="field-group prov-group-divider">
+                    <div class="prov-model-pricing-head">
+                        <div class="field-label prov-model-pricing-title">💰 ${t('config.providers.model_pricing')}</div>
+                        <div class="prov-model-pricing-actions">
+                            <button type="button" class="btn-save prov-fetch-pricing-btn ${['openrouter','openai','anthropic','google','ollama'].includes(data.type || 'openai') ? '' : 'is-hidden'}" id="prov-fetch-pricing-btn">
                                 📡 ${t('config.providers.fetch_pricing')}
                             </button>
-                            <button type="button" class="btn-save" style="padding:0.25rem 0.65rem;font-size:0.72rem;background:var(--bg-tertiary);color:var(--text-primary);" onclick="providerAddModelRow()">
+                            <button type="button" class="btn-save prov-btn-muted prov-btn-xs" onclick="providerAddModelRow()">
                                 + ${t('config.providers.add_model')}
                             </button>
                         </div>
                     </div>
                     <div id="prov-models-table-wrap">
-                        <div id="prov-models-search-wrap" style="display:none;margin-bottom:0.4rem;">
-                            <input class="field-input" id="prov-models-filter" type="search" autocomplete="off"
+                        <div id="prov-models-search-wrap" class="is-hidden prov-model-search-wrap">
+                            <input class="field-input prov-model-search-input" id="prov-models-filter" type="search" autocomplete="off"
                                    placeholder="🔍 ${escapeHtml(t('config.providers.filter_models'))}"
-                                   style="width:100%;font-size:0.77rem;padding:0.28rem 0.5rem;"
                                    oninput="providerRenderModelsTable()">
-                            <div id="prov-models-count" style="font-size:0.7rem;color:var(--text-tertiary);text-align:right;margin-top:0.18rem;display:none;"></div>
+                            <div id="prov-models-count" class="prov-model-count is-hidden"></div>
                         </div>
-                        <table style="width:100%;border-collapse:collapse;font-size:0.78rem;" id="prov-models-table">
+                        <table class="prov-model-table" id="prov-models-table">
                             <thead>
-                                <tr style="border-bottom:1px solid var(--border-subtle);color:var(--text-tertiary);font-size:0.7rem;">
-                                    <th style="text-align:left;padding:0.3rem 0.4rem;">${t('config.providers.model_name')}</th>
-                                    <th style="text-align:right;padding:0.3rem 0.4rem;">${t('config.providers.input_cost')}</th>
-                                    <th style="text-align:right;padding:0.3rem 0.4rem;">${t('config.providers.output_cost')}</th>
-                                    <th style="width:2rem;"></th>
+                                <tr class="prov-model-head-row">
+                                    <th class="prov-model-head-cell">${t('config.providers.model_name')}</th>
+                                    <th class="prov-model-head-cell is-right">${t('config.providers.input_cost')}</th>
+                                    <th class="prov-model-head-cell is-right">${t('config.providers.output_cost')}</th>
+                                    <th class="prov-model-head-cell is-actions"></th>
                                 </tr>
                             </thead>
                             <tbody id="prov-models-body"></tbody>
                         </table>
-                        <div id="prov-models-empty" style="text-align:center;padding:0.8rem;color:var(--text-tertiary);font-size:0.75rem;display:none;">
+                        <div id="prov-models-empty" class="prov-model-empty is-hidden">
                             ${t('config.providers.no_models_configured')}
                         </div>
                     </div>
                 </div>
 
                 <!-- Auth Type Toggle -->
-                <div class="field-group" style="margin-top:0.8rem;padding-top:0.8rem;border-top:1px solid var(--border-subtle);">
+                <div class="field-group prov-group-divider">
                     <div class="field-label">${t('config.providers.authentication')}</div>
                     <select class="field-select" id="prov-auth-type">
                         <option value="api_key"${currentAuthType !== 'oauth2' ? ' selected' : ''}>🔑 API Key</option>
@@ -926,20 +922,20 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                 </div>
 
                 <!-- API Key section (visible when auth_type = api_key) -->
-                <div id="prov-apikey-section" style="display:${isOAuth ? 'none' : 'block'};">
+                <div id="prov-apikey-section" class="${isOAuth ? 'is-hidden' : ''}">
                     <div class="field-group">
                         <div class="field-label">API Key</div>
-                        <div id="prov-key-hint" style="font-size:0.72rem;color:var(--text-tertiary);margin-bottom:0.3rem;">${PROVIDER_HINTS[data.type || 'openai'] ? t(PROVIDER_HINTS[data.type || 'openai']) : t(PROVIDER_HINTS.openai)}</div>
+                        <div id="prov-key-hint" class="prov-field-hint">${PROVIDER_HINTS[data.type || 'openai'] ? t(PROVIDER_HINTS[data.type || 'openai']) : t(PROVIDER_HINTS.openai)}</div>
                         <div class="password-wrap">
                             <input class="field-input" id="prov-key" type="password" value="${escapeAttr(data.api_key === '••••••••' ? '' : (data.api_key || ''))}" placeholder="${data.api_key === '••••••••' ? t('config.providers.key_placeholder_existing') : 'sk-...'}" autocomplete="off">
                             <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">${EYE_OPEN_SVG}</button>
                         </div>
-                        ${data.api_key === '••••••••' ? `<div style="font-size:0.72rem;color:var(--text-tertiary);margin-top:0.2rem;">${t('config.providers.keep_existing_key')}</div>` : ''}
+                        ${data.api_key === '••••••••' ? `<div class="prov-field-hint">${t('config.providers.keep_existing_key')}</div>` : ''}
                     </div>
                 </div>
 
                 <!-- OAuth2 section (visible when auth_type = oauth2) -->
-                <div id="prov-oauth-section" style="display:${isOAuth ? 'block' : 'none'};">
+                <div id="prov-oauth-section" class="${isOAuth ? '' : 'is-hidden'}">
                     <div class="field-group">
                         <div class="field-label">Authorization URL</div>
                         <div class="field-help">${t('config.providers.oauth_auth_url_help')}</div>
@@ -960,7 +956,7 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                             <input class="field-input" id="prov-oauth-client-secret" type="password" value="${escapeAttr(data.oauth_client_secret === '••••••••' ? '' : (data.oauth_client_secret || ''))}" placeholder="${data.oauth_client_secret === '••••••••' ? t('config.providers.key_placeholder_existing') : 'GOCSPX-...'}" autocomplete="off">
                             <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">${EYE_OPEN_SVG}</button>
                         </div>
-                        ${data.oauth_client_secret === '••••••••' ? `<div style="font-size:0.72rem;color:var(--text-tertiary);margin-top:0.2rem;">${t('config.providers.keep_existing_secret')}</div>` : ''}
+                        ${data.oauth_client_secret === '••••••••' ? `<div class="prov-field-hint">${t('config.providers.keep_existing_secret')}</div>` : ''}
                     </div>
                     <div class="field-group">
                         <div class="field-label">Scopes</div>
@@ -968,13 +964,13 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                         <input class="field-input" id="prov-oauth-scopes" value="${escapeAttr(data.oauth_scopes || '')}" placeholder="openid email https://www.googleapis.com/auth/cloud-platform">
                     </div>
                     ${data._editMode && currentAuthType === 'oauth2' ? `
-                    <div class="field-group" style="margin-top:0.5rem;">
-                        <div id="prov-oauth-status" style="font-size:0.8rem;color:var(--text-tertiary);">⏳ ${t('config.providers.checking_status')}</div>
-                        <div style="display:flex;gap:0.5rem;margin-top:0.5rem;">
-                            <button class="btn-save" style="padding:0.35rem 1rem;font-size:0.78rem;background:#8e44ad;" id="prov-oauth-authorize-btn">
+                    <div class="field-group prov-oauth-group">
+                        <div id="prov-oauth-status" class="prov-oauth-status">⏳ ${t('config.providers.checking_status')}</div>
+                        <div class="prov-oauth-actions">
+                            <button class="btn-save prov-oauth-authorize-btn" id="prov-oauth-authorize-btn">
                                 🔐 ${t('config.providers.authorize')}
                             </button>
-                            <button class="btn-save" style="padding:0.35rem 1rem;font-size:0.78rem;background:var(--danger);" id="prov-oauth-revoke-btn">
+                            <button class="btn-save prov-oauth-revoke-btn" id="prov-oauth-revoke-btn">
                                 🗑️ ${t('config.providers.revoke_token')}
                             </button>
                         </div>
@@ -982,11 +978,11 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                     ` : ''}
                 </div>
 
-                <div style="display:flex;justify-content:flex-end;gap:0.6rem;margin-top:1.2rem;">
-                    <button class="btn-save" style="padding:0.45rem 1.4rem;font-size:0.82rem;background:var(--bg-tertiary);color:var(--text-primary);" onclick="document.getElementById('provider-modal-overlay').remove()">
+                <div class="prov-modal-actions">
+                    <button class="btn-save prov-btn-muted prov-btn-md" onclick="document.getElementById('provider-modal-overlay').remove()">
                         ${t('config.providers.cancel')}
                     </button>
-                    <button class="btn-save" style="padding:0.45rem 1.4rem;font-size:0.82rem;" id="prov-save-btn">
+                    <button class="btn-save prov-btn-md" id="prov-save-btn">
                         ${t('config.providers.save')}
                     </button>
                 </div>
@@ -1017,12 +1013,10 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                 if (isWorkersAI) {
                     urlInput.value = '';
                     urlInput.disabled = true;
-                    urlInput.style.opacity = '0.55';
-                    urlInput.style.cursor = 'not-allowed';
+                    urlInput.classList.add('is-disabled');
                 } else {
                     urlInput.disabled = false;
-                    urlInput.style.opacity = '';
-                    urlInput.style.cursor = '';
+                    urlInput.classList.remove('is-disabled');
                     if ((!currentUrl || knownUrls.has(currentUrl)) && PROVIDER_BASE_URLS[typ]) {
                         urlInput.value = PROVIDER_BASE_URLS[typ];
                     }
@@ -1035,15 +1029,15 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                     hintEl.textContent = hintKey ? t(hintKey) : '';
                 }
                 // Show/hide Workers AI account ID + URL auto hint
-                if (accountIdBlock) accountIdBlock.style.display = isWorkersAI ? 'block' : 'none';
-                if (urlAutoHint) urlAutoHint.style.display = isWorkersAI ? 'block' : 'none';
+                if (accountIdBlock) providerSetHidden(accountIdBlock, !isWorkersAI);
+                if (urlAutoHint) providerSetHidden(urlAutoHint, !isWorkersAI);
                 // Show/hide Ollama model query block
-                if (ollamaBlock) ollamaBlock.style.display = typ === 'ollama' ? 'block' : 'none';
+                if (ollamaBlock) providerSetHidden(ollamaBlock, typ !== 'ollama');
                 // Show/hide OpenRouter model browser block
-                if (openrouterBlock) openrouterBlock.style.display = typ === 'openrouter' ? 'block' : 'none';
+                if (openrouterBlock) providerSetHidden(openrouterBlock, typ !== 'openrouter');
                 // Show/hide fetch pricing button
                 if (fetchPricingBtn) {
-                    fetchPricingBtn.style.display = ['openrouter','openai','anthropic','google','ollama','workers-ai'].includes(typ) ? 'inline-block' : 'none';
+                    providerSetHidden(fetchPricingBtn, !['openrouter','openai','anthropic','google','ollama','workers-ai'].includes(typ));
                 }
             });
 
@@ -1053,8 +1047,8 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
             const oauthSection = document.getElementById('prov-oauth-section');
             authTypeSelect.addEventListener('change', () => {
                 const isOA = authTypeSelect.value === 'oauth2';
-                apikeySection.style.display = isOA ? 'none' : 'block';
-                oauthSection.style.display = isOA ? 'block' : 'none';
+                providerSetHidden(apikeySection, isOA);
+                providerSetHidden(oauthSection, !isOA);
             });
 
             // ── OAuth Authorize button ──
@@ -1080,7 +1074,7 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                     try {
                         await fetch('/api/oauth/revoke?provider=' + encodeURIComponent(data.id), { method: 'DELETE' });
                         const statusEl = document.getElementById('prov-oauth-status');
-                        if (statusEl) statusEl.innerHTML = '<span style="color:var(--danger);">❌ ' + t('config.providers.not_authorized') + '</span>';
+                        if (statusEl) statusEl.innerHTML = '<span class="prov-text-danger">❌ ' + t('config.providers.not_authorized') + '</span>';
                     } catch (e) { alert('Error: ' + e.message); }
                 };
             }
@@ -1093,12 +1087,12 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                         const statusEl = document.getElementById('prov-oauth-status');
                         if (!statusEl) return;
                         if (st.authorized && !st.expired) {
-                            statusEl.innerHTML = '<span style="color:var(--success);">✅ ' + t('config.providers.authorized') + '</span>'
-                                + (st.expiry ? `<span style="margin-left:0.5rem;font-size:0.72rem;color:var(--text-tertiary);">(${t('config.providers.expires')}: ${new Date(st.expiry).toLocaleString()})</span>` : '');
+                            statusEl.innerHTML = '<span class="prov-text-success">✅ ' + t('config.providers.authorized') + '</span>'
+                                + (st.expiry ? `<span class="prov-oauth-expiry">(${t('config.providers.expires')}: ${new Date(st.expiry).toLocaleString()})</span>` : '');
                         } else if (st.authorized && st.expired) {
-                            statusEl.innerHTML = '<span style="color:var(--warning);">⚠️ ' + t('config.providers.token_expired_reauth') + '</span>';
+                            statusEl.innerHTML = '<span class="prov-text-warning">⚠️ ' + t('config.providers.token_expired_reauth') + '</span>';
                         } else {
-                            statusEl.innerHTML = '<span style="color:var(--danger);">❌ ' + t('config.providers.not_authorized_click') + '</span>';
+                            statusEl.innerHTML = '<span class="prov-text-danger">❌ ' + t('config.providers.not_authorized_click') + '</span>';
                         }
                     }).catch(() => {});
             }

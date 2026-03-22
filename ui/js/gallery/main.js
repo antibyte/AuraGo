@@ -60,7 +60,7 @@ async function loadGallery() {
 
         if (galleryImages.length === 0) {
             grid.innerHTML = '<div class="gallery-empty"><div class="gallery-empty-icon">🎨</div><div>' + t('gallery.empty') + '</div></div>';
-            document.getElementById('gallery-pagination').style.display = 'none';
+            document.getElementById('gallery-pagination').classList.add('is-hidden');
             return;
         }
 
@@ -96,11 +96,11 @@ function updatePagination() {
     const info = document.getElementById('gallery-page-info');
 
     if (galleryTotal <= GALLERY_LIMIT) {
-        pag.style.display = 'none';
+        pag.classList.add('is-hidden');
         return;
     }
 
-    pag.style.display = 'flex';
+    pag.classList.remove('is-hidden');
     prevBtn.disabled = galleryOffset === 0;
     nextBtn.disabled = galleryOffset + GALLERY_LIMIT >= galleryTotal;
 
@@ -162,12 +162,12 @@ function openLightbox(id) {
     }
     document.getElementById('lightbox-meta').innerHTML = meta;
 
-    document.getElementById('lightbox').style.display = 'flex';
+    document.getElementById('lightbox').classList.remove('is-hidden');
 }
 
 function closeLightbox(event) {
     if (event && event.target !== document.getElementById('lightbox')) return;
-    document.getElementById('lightbox').style.display = 'none';
+    document.getElementById('lightbox').classList.add('is-hidden');
     currentLightboxId = null;
 }
 

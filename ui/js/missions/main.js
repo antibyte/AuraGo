@@ -59,9 +59,9 @@ document.addEventListener('DOMContentLoaded', () => {
 function showLoading() {
     const container = document.getElementById('missions-grid');
     container.innerHTML = `
-                <div class="mission-card skeleton" style="height: 120px;"></div>
-                <div class="mission-card skeleton" style="height: 120px;"></div>
-                <div class="mission-card skeleton" style="height: 120px;"></div>
+                <div class="mission-card skeleton mission-card-skeleton"></div>
+                <div class="mission-card skeleton mission-card-skeleton"></div>
+                <div class="mission-card skeleton mission-card-skeleton"></div>
             `;
 }
 
@@ -148,6 +148,13 @@ function toggleCardExpand(id) {
     renderMissions();
 }
 
+function missionToggleLog(toggleEl) {
+    if (!toggleEl) return;
+    toggleEl.classList.toggle('open');
+    const log = toggleEl.nextElementSibling;
+    if (log) log.classList.toggle('is-hidden');
+}
+
 // Status Bar
 function renderStatusBar() {
     const total = missions.length;
@@ -175,11 +182,11 @@ function renderQueue() {
     const container = document.getElementById('queue-items');
 
     if (queue.items.length === 0 && !queue.running) {
-        section.style.display = 'none';
+        section.classList.add('is-hidden');
         return;
     }
 
-    section.style.display = 'block';
+    section.classList.remove('is-hidden');
     let html = '';
 
     // Show running mission first
@@ -187,13 +194,13 @@ function renderQueue() {
         const runningMission = missions.find(m => m.id === queue.running);
         if (runningMission) {
             html += `
-                        <div class="queue-item priority-${runningMission.priority}" style="border-left-color: var(--accent-primary);">
+                        <div class="queue-item queue-item-running priority-${runningMission.priority}">
                             <div class="queue-position">${icons.running}</div>
                             <div class="queue-info">
                                 <div class="queue-name">${escapeHtml(runningMission.name)}</div>
                                 <div class="queue-meta">${t('missions.queue_running_now')} | ${t('missions.queue_priority_prefix')} ${runningMission.priority}</div>
                             </div>
-                            <span class="queue-trigger" style="background: var(--accent-primary);">${t('missions.queue_active_badge')}</span>
+                            <span class="queue-trigger queue-trigger-active">${t('missions.queue_active_badge')}</span>
                         </div>
                     `;
         }
@@ -261,7 +268,7 @@ function renderMissionCompact(mission) {
     const isQueued = queue.items.some(i => i.mission_id === mission.id);
     const typeIcon = icons[mission.execution_type] || icons.manual;
     const statusBadge = isRunning ? `<span class="badge badge-running">${t('missions.card_badge_running')}</span>` :
-                       isQueued ? `<span class="badge" style="background:var(--warning)">${t('missions.card_badge_queued')}</span>` : '';
+                       isQueued ? `<span class="badge badge-warning">${t('missions.card_badge_queued')}</span>` : '';
 
     return `
         <div class="card-compact" onclick="if(event.target.closest('.card-actions')) return; editMission('${mission.id}')">
@@ -318,10 +325,10 @@ function renderMissionGrid(mission, isFirstRender) {
                     ${triggerInfo}
                     ${mission.last_output ? `
                     <div class="mission-log-wrapper">
-                        <div class="mission-log-toggle" onclick="this.classList.toggle('open'); this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none'">
+                        <div class="mission-log-toggle" onclick="missionToggleLog(this)">
                             📝 <span>${t('missions.card_view_log')}</span>
                         </div>
-                        <div class="mission-log-content" style="display:none">
+                        <div class="mission-log-content is-hidden">
                             ${escapeHtml(extractLastOutput(mission.last_output))}
                         </div>
                     </div>` : ''}
@@ -475,8 +482,8 @@ function selectExecType(type) {
         }
     });
 
-    document.getElementById('config-scheduled').style.display = type === 'scheduled' ? 'block' : 'none';
-    document.getElementById('config-triggered').style.display = type === 'triggered' ? 'block' : 'none';
+    document.getElementById('config-scheduled').classList.toggle('is-hidden', type !== 'scheduled');
+    document.getElementById('config-triggered').classList.toggle('is-hidden', type !== 'triggered');
 }
 
 // Cron Preset Selection
@@ -519,7 +526,7 @@ function loadMissionSelector() {
     const manualMissions = missions.filter(m => m.execution_type === 'manual' || m.execution_type === 'scheduled');
 
     if (manualMissions.length === 0) {
-        container.innerHTML = '<div style="padding: 12px; color: var(--text-secondary);">' + t('missions.trigger_no_suitable_missions') + '</div>';
+        container.innerHTML = '<div class="mission-trigger-empty">' + t('missions.trigger_no_suitable_missions') + '</div>';
         return;
     }
 

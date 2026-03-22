@@ -2,6 +2,11 @@
 
 let persState = { personalities: [], active: '', editName: undefined, isCore: false };
 
+        function persSetHidden(el, hidden) {
+            if (!el) return;
+            el.classList.toggle('is-hidden', hidden);
+        }
+
         async function renderPromptsSection(section) {
             const agentCfg = configData.agent || {};
             const additionalPromptVal = agentCfg.additional_prompt || '';
@@ -28,42 +33,40 @@ let persState = { personalities: [], active: '', editName: undefined, isCore: fa
 
             // Additional Prompt
             html += `
-            <div style="margin-bottom:0.5rem;font-weight:600;font-size:0.85rem;color:var(--accent);border-bottom:1px solid var(--border-subtle);padding-bottom:0.3rem;">
+            <div class="pers-section-title">
                 📝 ${t('config.prompts.additional_prompt_title')}
             </div>
             <div class="field-group">
                 <div class="field-label">${t('config.prompts.additional_prompt_label')}</div>
                 ${addHelp ? `<div class="field-help">${addHelp}</div>` : ''}
-                <textarea class="field-input" data-path="agent.additional_prompt" rows="6"
-                    style="resize:vertical;font-family:monospace;font-size:0.82rem;margin-top:0.35rem;"
+                <textarea class="field-input pers-textarea-additional" data-path="agent.additional_prompt" rows="6"
                     oninput="markDirty()" onchange="markDirty()">${esc(additionalPromptVal)}</textarea>
             </div>`;
 
             // Personalities
             html += `
-            <div style="margin-top:1.5rem;margin-bottom:0.5rem;font-weight:600;font-size:0.85rem;color:var(--accent);border-bottom:1px solid var(--border-subtle);padding-bottom:0.3rem;">
+            <div class="pers-section-title pers-section-title-spaced">
                 🎭 ${t('config.prompts.personalities_title')}
             </div>
             <div class="field-group">
                 <div class="pers-toolbar">
-                    <span class="field-help" style="margin:0;">${t('config.prompts.active_label')}<strong style="color:var(--accent);">${esc(active)}</strong></span>
+                    <span class="field-help pers-active-label">${t('config.prompts.active_label')}<strong class="pers-active-name">${esc(active)}</strong></span>
                     <button class="wh-btn wh-btn-primary wh-btn-sm" onclick="persNew()">+ ${t('config.prompts.new_personality')}</button>
                 </div>
                 <div class="pers-chips" id="pers-chips">`;
             for (const p of personalities) {
                 const isActive = p.name === active;
-                const coreLock = p.core ? ` <span style="font-size:0.7rem;opacity:0.7;" title="${t('config.prompts.core_tooltip')}">🔒</span>` : '';
+                const coreLock = p.core ? ` <span class="pers-core-lock" title="${t('config.prompts.core_tooltip')}">🔒</span>` : '';
                 html += `<div class="pers-chip${isActive ? ' pers-chip-active' : ''}" onclick="persSelectForEdit('${escapeAttr(p.name)}')" title="${escapeAttr(p.name)}">${esc(p.name)}${coreLock}${isActive ? ' ✦' : ''}</div>`;
             }
             html += `</div>
-                <div id="pers-editor" class="pers-editor" style="display:none;">
-                    <div id="pers-editor-name-row" style="margin-bottom:0.75rem;">
+                <div id="pers-editor" class="pers-editor is-hidden">
+                    <div id="pers-editor-name-row" class="pers-editor-name-row">
                         <div class="field-label">${t('config.prompts.name_label')}</div>
-                        <input id="pers-name-input" class="field-input" type="text"
-                            placeholder="${t('config.prompts.name_placeholder')}"
-                            style="margin-top:0.25rem;">
+                        <input id="pers-name-input" class="field-input pers-name-input" type="text"
+                            placeholder="${t('config.prompts.name_placeholder')}">
                     </div>
-                    <div style="font-weight:600;font-size:0.78rem;color:var(--accent);margin-bottom:0.5rem;">
+                    <div class="pers-params-title">
                         ${t('config.prompts.params_title')}
                     </div>
                     <div class="pers-meta-grid">
@@ -113,17 +116,16 @@ let persState = { personalities: [], active: '', editName: undefined, isCore: fa
                             </select>
                         </div>
                     </div>
-                    <div class="field-label" style="margin-bottom:0.25rem;">${t('config.prompts.prompt_text_label')}</div>
-                    <div class="field-help" style="margin-bottom:0.35rem;">${t('config.prompts.metadata_hint')}</div>
-                    <textarea id="pers-content-input" class="field-input" rows="12"
-                        style="resize:vertical;font-family:monospace;font-size:0.82rem;"></textarea>
+                    <div class="field-label pers-field-label-tight">${t('config.prompts.prompt_text_label')}</div>
+                    <div class="field-help pers-field-help-tight">${t('config.prompts.metadata_hint')}</div>
+                    <textarea id="pers-content-input" class="field-input pers-textarea-main" rows="12"></textarea>
                     <div class="pers-editor-actions">
                         <button class="wh-btn wh-btn-primary wh-btn-sm" onclick="persSave()">💾 ${t('config.prompts.save')}</button>
-                        <button class="wh-btn wh-btn-sm" id="pers-activate-btn" onclick="persActivate()" style="display:none;">⚡ ${t('config.prompts.set_active')}</button>
-                        <button class="wh-btn wh-btn-sm" id="pers-delete-btn" onclick="persDelete()" style="color:#f87171;border-color:rgba(239,68,68,0.3);display:none;">🗑 ${t('config.prompts.delete')}</button>
+                        <button class="wh-btn wh-btn-sm is-hidden" id="pers-activate-btn" onclick="persActivate()">⚡ ${t('config.prompts.set_active')}</button>
+                        <button class="wh-btn wh-btn-sm pers-delete-btn is-hidden" id="pers-delete-btn" onclick="persDelete()">🗑 ${t('config.prompts.delete')}</button>
                         <button class="wh-btn wh-btn-sm" onclick="persCancel()">✕ ${t('config.prompts.cancel')}</button>
                     </div>
-                    <div id="pers-editor-status" class="field-help" style="margin-top:0.5rem;min-height:1.2em;"></div>
+                    <div id="pers-editor-status" class="field-help pers-editor-status"></div>
                 </div>
             </div>`;
 
@@ -164,15 +166,15 @@ let persState = { personalities: [], active: '', editName: undefined, isCore: fa
             persState.isCore = false;
             const editor = document.getElementById('pers-editor');
             if (!editor) return;
-            document.getElementById('pers-editor-name-row').style.display = 'block';
-            document.getElementById('pers-activate-btn').style.display = 'none';
-            document.getElementById('pers-delete-btn').style.display = 'none';
+            persSetHidden(document.getElementById('pers-editor-name-row'), false);
+            persSetHidden(document.getElementById('pers-activate-btn'), true);
+            persSetHidden(document.getElementById('pers-delete-btn'), true);
             document.getElementById('pers-name-input').value = '';
             document.getElementById('pers-content-input').value = '';
             document.getElementById('pers-editor-status').textContent = '';
             persSetMetaDefaults();
             persApplyCoreMode(false);
-            editor.style.display = 'block';
+            persSetHidden(editor, false);
             document.querySelectorAll('.pers-chip').forEach(c => c.classList.remove('selected'));
             document.getElementById('pers-name-input').focus();
         }
@@ -189,13 +191,13 @@ let persState = { personalities: [], active: '', editName: undefined, isCore: fa
             });
             const editor = document.getElementById('pers-editor');
             if (!editor) return;
-            document.getElementById('pers-editor-name-row').style.display = 'none';
-            document.getElementById('pers-activate-btn').style.display = name === persState.active ? 'none' : 'inline-block';
-            document.getElementById('pers-delete-btn').style.display = name === persState.active ? 'none' : 'inline-block';
+            persSetHidden(document.getElementById('pers-editor-name-row'), true);
+            persSetHidden(document.getElementById('pers-activate-btn'), name === persState.active);
+            persSetHidden(document.getElementById('pers-delete-btn'), name === persState.active);
             document.getElementById('pers-content-input').value = '';
             const status = document.getElementById('pers-editor-status');
             status.textContent = t('config.prompts.loading');
-            editor.style.display = 'block';
+            persSetHidden(editor, false);
             try {
                 const resp = await fetch('/api/config/personality-files?name=' + encodeURIComponent(name));
                 if (!resp.ok) throw new Error('HTTP ' + resp.status);
@@ -218,14 +220,13 @@ let persState = { personalities: [], active: '', editName: undefined, isCore: fa
                 if (el) el.disabled = isCore;
             });
             const saveBtn = document.querySelector('.pers-editor-actions .wh-btn-primary');
-            if (saveBtn) saveBtn.style.display = isCore ? 'none' : '';
+            if (saveBtn) persSetHidden(saveBtn, isCore);
             const delBtn = document.getElementById('pers-delete-btn');
-            if (delBtn && isCore) delBtn.style.display = 'none';
+            if (delBtn && isCore) persSetHidden(delBtn, true);
             const statusEl = document.getElementById('pers-editor-status');
             if (statusEl) {
                 if (isCore) {
-                    statusEl.innerHTML = '<span style="color:var(--text-secondary);">🔒 ' +
-                        t('config.prompts.core_readonly') + '</span>';
+                    statusEl.innerHTML = '<span class="pers-core-readonly">🔒 ' + t('config.prompts.core_readonly') + '</span>';
                 } else {
                     // Only clear if it currently shows the lock message
                     if (statusEl.textContent.includes('🔒')) statusEl.textContent = '';
@@ -307,7 +308,7 @@ let persState = { personalities: [], active: '', editName: undefined, isCore: fa
 
         function persCancel() {
             const editor = document.getElementById('pers-editor');
-            if (editor) editor.style.display = 'none';
+            persSetHidden(editor, true);
             document.querySelectorAll('.pers-chip').forEach(c => c.classList.remove('selected'));
             persState.editName = undefined;
         }

@@ -1,61 +1,66 @@
 // cfg/devices.js — Device Registry section module
 let devicesCache = [];
 
+function devicesSetHidden(element, hidden) {
+    if (!element) return;
+    element.classList.toggle('is-hidden', !!hidden);
+}
+
         function renderDevicesSection(section) {
             let html = '<div class="cfg-section active">';
             html += '<div class="section-header">' + section.icon + ' ' + section.label + '</div>';
             html += '<div class="section-desc">' + section.desc + '</div>';
 
             html += `
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:1.5rem;margin-bottom:1rem;">
-                <div style="display:flex;gap:0.5rem;align-items:center;">
-                    <input type="text" id="devices-filter" class="field-input" placeholder="${t('config.devices.filter_placeholder')}" style="width:220px;padding:0.4rem 0.7rem;font-size:0.82rem;" oninput="devicesApplyFilter()">
+            <div class="devices-toolbar">
+                <div class="devices-toolbar-left">
+                    <input type="text" id="devices-filter" class="field-input devices-filter-input" placeholder="${t('config.devices.filter_placeholder')}" oninput="devicesApplyFilter()">
                 </div>
-                <button class="btn-save" style="padding:0.45rem 1.1rem;font-size:0.82rem;" onclick="devicesShowModal()">
+                <button class="btn-save devices-add-btn" onclick="devicesShowModal()">
                     ＋ ${t('config.devices.add_device')}
                 </button>
             </div>
-            <div id="devices-table-wrap" style="overflow-x:auto;">
-                <table style="width:100%;border-collapse:collapse;font-size:0.82rem;">
+            <div id="devices-table-wrap" class="devices-table-wrap is-hidden">
+                <table class="devices-table">
                     <thead>
-                        <tr style="border-bottom:2px solid var(--border-subtle);text-align:left;">
-                            <th style="padding:0.5rem 0.6rem;">${t('config.devices.col_name')}</th>
-                            <th style="padding:0.5rem 0.6rem;">${t('config.devices.col_type')}</th>
-                            <th style="padding:0.5rem 0.6rem;">${t('config.devices.col_ip')}</th>
-                            <th style="padding:0.5rem 0.6rem;">${t('config.devices.col_port')}</th>
-                            <th style="padding:0.5rem 0.6rem;">${t('config.devices.col_user')}</th>
-                            <th style="padding:0.5rem 0.6rem;">${t('config.devices.col_mac')}</th>
-                            <th style="padding:0.5rem 0.6rem;">${t('config.devices.col_tags')}</th>
-                            <th style="padding:0.5rem 0.6rem;text-align:right;">${t('config.devices.col_actions')}</th>
+                        <tr class="devices-table-head-row">
+                            <th class="devices-cell">${t('config.devices.col_name')}</th>
+                            <th class="devices-cell">${t('config.devices.col_type')}</th>
+                            <th class="devices-cell">${t('config.devices.col_ip')}</th>
+                            <th class="devices-cell">${t('config.devices.col_port')}</th>
+                            <th class="devices-cell">${t('config.devices.col_user')}</th>
+                            <th class="devices-cell">${t('config.devices.col_mac')}</th>
+                            <th class="devices-cell">${t('config.devices.col_tags')}</th>
+                            <th class="devices-cell devices-cell-actions">${t('config.devices.col_actions')}</th>
                         </tr>
                     </thead>
                     <tbody id="devices-tbody"></tbody>
                 </table>
             </div>
-            <div id="devices-empty" style="display:none;text-align:center;padding:2rem;color:var(--text-tertiary);font-size:0.85rem;">
+            <div id="devices-empty" class="devices-empty is-hidden">
                 ${t('config.devices.empty')}
             </div>
-            <div id="devices-loading" style="text-align:center;padding:2rem;color:var(--text-secondary);font-size:0.85rem;">
+            <div id="devices-loading" class="devices-loading">
                 ${t('config.devices.loading')}
             </div>`;
 
             // Modal overlay
             html += `
-            <div id="device-modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:1000;backdrop-filter:blur(4px);" onclick="devicesCloseModal(event)">
-                <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--bg-primary);border:1px solid var(--border-subtle);border-radius:14px;padding:1.5rem;width:min(520px,90vw);max-height:85vh;overflow-y:auto;" onclick="event.stopPropagation()">
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;">
-                        <span id="device-modal-title" style="font-size:1rem;font-weight:600;"></span>
-                        <button onclick="devicesCloseModal()" style="background:none;border:none;color:var(--text-secondary);font-size:1.2rem;cursor:pointer;">✕</button>
+            <div id="device-modal-overlay" class="devices-modal-overlay is-hidden" onclick="devicesCloseModal(event)">
+                <div class="devices-modal-card" onclick="event.stopPropagation()">
+                    <div class="devices-modal-header">
+                        <span id="device-modal-title" class="devices-modal-title"></span>
+                        <button onclick="devicesCloseModal()" class="devices-modal-close">✕</button>
                     </div>
                     <input type="hidden" id="device-edit-id">
-                    <div class="field-group" style="margin-bottom:0.8rem;">
+                    <div class="field-group devices-field-group-bottom">
                         <div class="field-label">Name *</div>
                         <input type="text" id="device-field-name" class="field-input" placeholder="${t('config.devices.name_placeholder')}">
                     </div>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.8rem;">
+                    <div class="devices-grid devices-grid-two">
                         <div class="field-group">
                             <div class="field-label">${t('config.devices.type_label')}</div>
-                            <select id="device-field-type" class="field-input" style="padding:0.45rem 0.6rem;">
+                            <select id="device-field-type" class="field-input devices-select-compact">
                                 <option value="server">Server</option>
                                 <option value="router">Router</option>
                                 <option value="switch">Switch</option>
@@ -73,7 +78,7 @@ let devicesCache = [];
                             <input type="number" id="device-field-port" class="field-input" placeholder="22" value="22">
                         </div>
                     </div>
-                    <div style="display:grid;grid-template-columns:2fr 1fr;gap:0.8rem;margin-top:0.8rem;">
+                    <div class="devices-grid devices-grid-ip-user">
                         <div class="field-group">
                             <div class="field-label">${t('config.devices.ip_address')}</div>
                             <input type="text" id="device-field-ip" class="field-input" placeholder="192.168.1.100">
@@ -83,26 +88,26 @@ let devicesCache = [];
                             <input type="text" id="device-field-username" class="field-input" placeholder="root">
                         </div>
                     </div>
-                    <div class="field-group" style="margin-top:0.8rem;">
+                    <div class="field-group devices-field-group-top">
                         <div class="field-label">${t('config.devices.description')}</div>
                         <input type="text" id="device-field-desc" class="field-input" placeholder="${t('config.devices.desc_placeholder')}">
                     </div>
-                    <div class="field-group" style="margin-top:0.8rem;">
-                        <div class="field-label">${t('config.devices.mac_address')} <span style="color:var(--text-tertiary);font-weight:400;">(${t('config.devices.mac_hint')})</span></div>
+                    <div class="field-group devices-field-group-top">
+                        <div class="field-label">${t('config.devices.mac_address')} <span class="devices-field-hint">(${t('config.devices.mac_hint')})</span></div>
                         <input type="text" id="device-field-mac" class="field-input" placeholder="AA:BB:CC:DD:EE:FF">
                     </div>
-                    <div class="field-group" style="margin-top:0.8rem;">
-                        <div class="field-label">Tags <span style="color:var(--text-tertiary);font-weight:400;">(${t('config.devices.tags_hint')})</span></div>
+                    <div class="field-group devices-field-group-top">
+                        <div class="field-label">Tags <span class="devices-field-hint">(${t('config.devices.tags_hint')})</span></div>
                         <input type="text" id="device-field-tags" class="field-input" placeholder="${t('config.devices.tags_placeholder')}">
                     </div>
-                    <div class="field-group" style="margin-top:0.8rem;">
-                        <div class="field-label">Vault Secret ID <span style="color:var(--text-tertiary);font-weight:400;">(${t('config.devices.vault_read_only')})</span></div>
-                        <input type="text" id="device-field-vault" class="field-input" disabled style="opacity:0.6;">
+                    <div class="field-group devices-field-group-top">
+                        <div class="field-label">Vault Secret ID <span class="devices-field-hint">(${t('config.devices.vault_read_only')})</span></div>
+                        <input type="text" id="device-field-vault" class="field-input devices-vault-input" disabled>
                     </div>
-                    <div id="device-modal-error" style="display:none;margin-top:0.7rem;padding:0.5rem 0.8rem;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;font-size:0.8rem;color:var(--danger);"></div>
-                    <div style="display:flex;justify-content:flex-end;gap:0.6rem;margin-top:1.2rem;">
-                        <button class="btn-save" style="padding:0.45rem 1rem;font-size:0.82rem;background:var(--bg-secondary);color:var(--text-primary);box-shadow:none;" onclick="devicesCloseModal()">${t('config.devices.cancel')}</button>
-                        <button class="btn-save" style="padding:0.45rem 1.2rem;font-size:0.82rem;" id="device-modal-save" onclick="devicesSave()">${t('config.devices.save')}</button>
+                    <div id="device-modal-error" class="devices-modal-error is-hidden"></div>
+                    <div class="devices-modal-actions">
+                        <button class="btn-save devices-modal-cancel" onclick="devicesCloseModal()">${t('config.devices.cancel')}</button>
+                        <button class="btn-save devices-modal-save" id="device-modal-save" onclick="devicesSave()">${t('config.devices.save')}</button>
                     </div>
                 </div>
             </div>`;
@@ -117,9 +122,9 @@ let devicesCache = [];
             const empty = document.getElementById('devices-empty');
             const loading = document.getElementById('devices-loading');
             const table = document.getElementById('devices-table-wrap');
-            loading.style.display = 'block';
-            table.style.display = 'none';
-            empty.style.display = 'none';
+            devicesSetHidden(loading, false);
+            devicesSetHidden(table, true);
+            devicesSetHidden(empty, true);
 
             try {
                 const resp = await fetch('/api/devices');
@@ -130,12 +135,12 @@ let devicesCache = [];
                 return;
             }
 
-            loading.style.display = 'none';
+            devicesSetHidden(loading, true);
             if (devicesCache.length === 0) {
-                empty.style.display = 'block';
+                devicesSetHidden(empty, false);
                 return;
             }
-            table.style.display = 'block';
+            devicesSetHidden(table, false);
             devicesRenderRows(devicesCache);
         }
 
@@ -143,21 +148,21 @@ let devicesCache = [];
             const tbody = document.getElementById('devices-tbody');
             tbody.innerHTML = '';
             devices.forEach(d => {
-                const tags = (d.tags || []).map(tag => `<span style="display:inline-block;background:var(--bg-secondary);border:1px solid var(--border-subtle);border-radius:6px;padding:0.1rem 0.45rem;font-size:0.72rem;margin-right:0.25rem;">${escapeHtml(tag)}</span>`).join('');
+                const tags = (d.tags || []).map(tag => `<span class="devices-tag">${escapeHtml(tag)}</span>`).join('');
                 const tr = document.createElement('tr');
-                tr.style.borderBottom = '1px solid var(--border-subtle)';
+                tr.className = 'devices-row';
                 tr.dataset.id = d.id;
                 tr.innerHTML = `
-                    <td style="padding:0.5rem 0.6rem;font-weight:500;">${escapeHtml(d.name)}</td>
-                    <td style="padding:0.5rem 0.6rem;"><span style="background:var(--bg-secondary);border:1px solid var(--border-subtle);border-radius:6px;padding:0.15rem 0.5rem;font-size:0.75rem;">${escapeHtml(d.type)}</span></td>
-                    <td style="padding:0.5rem 0.6rem;font-family:monospace;font-size:0.8rem;">${escapeHtml(d.ip_address || '—')}</td>
-                    <td style="padding:0.5rem 0.6rem;">${d.port || '—'}</td>
-                    <td style="padding:0.5rem 0.6rem;">${escapeHtml(d.username || '—')}</td>
-                    <td style="padding:0.5rem 0.6rem;font-family:monospace;font-size:0.78rem;">${escapeHtml(d.mac_address || '—')}</td>
-                    <td style="padding:0.5rem 0.6rem;">${tags || '—'}</td>
-                    <td style="padding:0.5rem 0.6rem;text-align:right;white-space:nowrap;">
-                        <button onclick="devicesShowModal('${d.id}')" style="background:none;border:none;cursor:pointer;font-size:0.9rem;" title="${t('config.devices.edit_tooltip')}">✏️</button>
-                        <button onclick="devicesDelete('${d.id}','${escapeHtml(d.name)}')" style="background:none;border:none;cursor:pointer;font-size:0.9rem;margin-left:0.3rem;" title="${t('config.devices.delete_tooltip')}">🗑️</button>
+                    <td class="devices-cell devices-cell-name">${escapeHtml(d.name)}</td>
+                    <td class="devices-cell"><span class="devices-type-pill">${escapeHtml(d.type)}</span></td>
+                    <td class="devices-cell devices-cell-mono devices-cell-ip">${escapeHtml(d.ip_address || '—')}</td>
+                    <td class="devices-cell">${d.port || '—'}</td>
+                    <td class="devices-cell">${escapeHtml(d.username || '—')}</td>
+                    <td class="devices-cell devices-cell-mono devices-cell-mac">${escapeHtml(d.mac_address || '—')}</td>
+                    <td class="devices-cell">${tags || '—'}</td>
+                    <td class="devices-cell devices-cell-actions">
+                        <button onclick="devicesShowModal('${d.id}')" class="devices-action-btn" title="${t('config.devices.edit_tooltip')}">✏️</button>
+                        <button onclick="devicesDelete('${d.id}','${escapeHtml(d.name)}')" class="devices-action-btn devices-action-btn-delete" title="${t('config.devices.delete_tooltip')}">🗑️</button>
                     </td>`;
                 tbody.appendChild(tr);
             });
@@ -170,14 +175,14 @@ let devicesCache = [];
                 return hay.includes(q);
             });
             devicesRenderRows(filtered);
-            document.getElementById('devices-empty').style.display = filtered.length === 0 ? 'block' : 'none';
-            document.getElementById('devices-table-wrap').style.display = filtered.length > 0 ? 'block' : 'none';
+            devicesSetHidden(document.getElementById('devices-empty'), filtered.length !== 0);
+            devicesSetHidden(document.getElementById('devices-table-wrap'), filtered.length === 0);
         }
 
         function devicesShowModal(id) {
             const overlay = document.getElementById('device-modal-overlay');
             const title = document.getElementById('device-modal-title');
-            document.getElementById('device-modal-error').style.display = 'none';
+            devicesSetHidden(document.getElementById('device-modal-error'), true);
 
             if (id) {
                 const d = devicesCache.find(x => x.id === id);
@@ -206,22 +211,22 @@ let devicesCache = [];
                 document.getElementById('device-field-tags').value = '';
                 document.getElementById('device-field-vault').value = '';
             }
-            overlay.style.display = 'block';
+            devicesSetHidden(overlay, false);
         }
 
         function devicesCloseModal(e) {
             if (e && e.target !== e.currentTarget) return;
-            document.getElementById('device-modal-overlay').style.display = 'none';
+            devicesSetHidden(document.getElementById('device-modal-overlay'), true);
         }
 
         async function devicesSave() {
             const errBox = document.getElementById('device-modal-error');
-            errBox.style.display = 'none';
+            devicesSetHidden(errBox, true);
 
             const name = document.getElementById('device-field-name').value.trim();
             if (!name) {
                 errBox.textContent = t('config.devices.name_required');
-                errBox.style.display = 'block';
+                devicesSetHidden(errBox, false);
                 return;
             }
 
@@ -261,7 +266,7 @@ let devicesCache = [];
                 await devicesLoad();
             } catch (e) {
                 errBox.textContent = '❌ ' + e.message;
-                errBox.style.display = 'block';
+                devicesSetHidden(errBox, false);
             } finally {
                 btn.disabled = false;
             }
