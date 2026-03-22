@@ -403,7 +403,10 @@ func main() {
 
 	var sqlConnectionsDB *sql.DB
 	var sqlConnectionPool *sqlconnections.ConnectionPool
-	if cfg.SQLConnections.Enabled {
+	// Always initialize the metadata DB so the UI can manage connection configs
+	// regardless of whether the feature is enabled. The pool (external DB connections)
+	// is only created when explicitly enabled.
+	{
 		var scErr error
 		sqlConnectionsDB, scErr = sqlconnections.InitDB(cfg.SQLite.SQLConnectionsPath)
 		if scErr != nil {
@@ -431,7 +434,9 @@ func main() {
 	}
 
 	// Initialize SQL Connections pool now that vault is available.
-	if sqlConnectionsDB != nil {
+	// Pool is only created when the feature is explicitly enabled — it manages
+	// live connections to external databases, which should be opt-in.
+	if sqlConnectionsDB != nil && cfg.SQLConnections.Enabled {
 		sqlConnectionPool = sqlconnections.NewConnectionPool(
 			sqlConnectionsDB, vault,
 			cfg.SQLConnections.MaxPoolSize,
