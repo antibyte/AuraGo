@@ -1,0 +1,359 @@
+/* AuraGo – Containers page styles */
+
+/* Uses standard components from shared.css:
+   - .app-header
+   - .btn, .btn-primary, .btn-secondary, .btn-danger, .btn-sm
+   - .modal-overlay, .modal, .modal-actions
+   - .empty-state
+*/
+
+/* Container */
+.ct-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 24px 20px 60px;
+}
+
+/* ── Status Bar ── */
+.ct-status-bar {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.ct-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 12px 24px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    min-width: 100px;
+}
+
+.ct-stat-value {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1;
+}
+
+.ct-stat-running .ct-stat-value {
+    color: var(--success, #22c55e);
+}
+
+.ct-stat-stopped .ct-stat-value {
+    color: var(--text-secondary);
+}
+
+.ct-stat-label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-top: 4px;
+}
+
+/* ── Toolbar ── */
+.ct-toolbar {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.ct-search {
+    flex: 1;
+    min-width: 200px;
+    padding: 10px 14px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.ct-search:focus {
+    border-color: var(--accent);
+}
+
+.ct-filter-group {
+    display: flex;
+    gap: 4px;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    padding: 3px;
+    border: 1px solid var(--border-subtle);
+}
+
+.ct-filter-btn {
+    padding: 6px 14px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.ct-filter-btn:hover {
+    color: var(--text-primary);
+}
+
+.ct-filter-btn.active {
+    background: var(--accent);
+    color: #fff;
+    font-weight: 600;
+}
+
+/* ── Container Card Grid ── */
+.ct-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 16px;
+}
+
+/* ── Container Card ── */
+.ct-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    padding: 16px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.ct-card:hover {
+    border-color: var(--accent);
+    box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+}
+
+.ct-card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.ct-card-status {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.ct-card-status.running {
+    background: var(--success, #22c55e);
+    box-shadow: 0 0 6px rgba(34,197,94,0.5);
+}
+
+.ct-card-status.exited,
+.ct-card-status.stopped {
+    background: var(--text-secondary);
+}
+
+.ct-card-status.paused {
+    background: var(--warning, #f59e0b);
+}
+
+.ct-card-status.restarting {
+    background: var(--info, #3b82f6);
+    animation: ctPulse 1s ease-in-out infinite;
+}
+
+.ct-card-status.created {
+    background: var(--text-secondary);
+    opacity: 0.5;
+}
+
+@keyframes ctPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+
+.ct-card-name {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+}
+
+.ct-card-id {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    font-family: monospace;
+    flex-shrink: 0;
+}
+
+.ct-card-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+}
+
+.ct-card-meta span {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.ct-card-meta .ct-meta-icon {
+    width: 16px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.ct-card-state {
+    font-size: 0.78rem;
+    padding: 2px 8px;
+    border-radius: 4px;
+    display: inline-block;
+    font-weight: 500;
+    text-transform: capitalize;
+}
+
+.ct-card-state.running {
+    background: rgba(34,197,94,0.15);
+    color: var(--success, #22c55e);
+}
+
+.ct-card-state.exited,
+.ct-card-state.stopped {
+    background: rgba(150,150,150,0.15);
+    color: var(--text-secondary);
+}
+
+.ct-card-state.paused {
+    background: rgba(245,158,11,0.15);
+    color: var(--warning, #f59e0b);
+}
+
+.ct-card-state.restarting {
+    background: rgba(59,130,246,0.15);
+    color: var(--info, #3b82f6);
+}
+
+.ct-card-actions {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: auto;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-subtle);
+}
+
+.ct-card-actions .btn {
+    font-size: 0.78rem;
+    padding: 4px 10px;
+}
+
+/* ── Log Modal ── */
+.modal-wide {
+    max-width: 900px;
+    width: 95%;
+}
+
+.ct-log-output,
+.ct-inspect-output {
+    background: var(--bg-primary, #0d1117);
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    padding: 16px;
+    font-family: 'Fira Code', 'Cascadia Code', monospace;
+    font-size: 0.8rem;
+    line-height: 1.5;
+    color: var(--text-primary);
+    max-height: 500px;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+/* ── Delete confirmation ── */
+.ct-delete-name {
+    font-weight: 600;
+    color: var(--accent);
+    font-family: monospace;
+    font-size: 0.95rem;
+    margin: 8px 0;
+}
+
+.ct-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.ct-checkbox-label input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+/* ── Toast notification ── */
+.ct-toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    color: #fff;
+    z-index: 10000;
+    animation: ctSlideIn 0.3s ease, ctSlideOut 0.3s ease 2.7s;
+    pointer-events: none;
+}
+
+.ct-toast.success {
+    background: var(--success, #22c55e);
+}
+
+.ct-toast.error {
+    background: var(--error, #ef4444);
+}
+
+@keyframes ctSlideIn {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes ctSlideOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
+/* ── Responsive ── */
+@media (max-width: 600px) {
+    .ct-status-bar {
+        flex-wrap: wrap;
+    }
+    .ct-stat {
+        flex: 1;
+        min-width: 80px;
+        padding: 10px 12px;
+    }
+    .ct-grid {
+        grid-template-columns: 1fr;
+    }
+    .ct-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .ct-filter-group {
+        justify-content: center;
+    }
+}

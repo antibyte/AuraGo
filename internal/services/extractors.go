@@ -11,6 +11,8 @@ import (
 	"regexp"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/ledongthuc/pdf"
 )
 
 // ── Binary file detection ────────────────────────────────────────────────────
@@ -146,126 +148,36 @@ func ExtractText(path string) (string, error) {
 	}
 }
 
-// ── PDF text extraction (pure Go, stream-based) ─────────────────────────────
+// ── PDF text extraction (ledongthuc/pdf) ────────────────────────────────────
 
-// extractPDFText extracts text from a PDF file by parsing content streams.
-// This is a lightweight implementation that handles common PDF text encodings.
+// extractPDFText extracts text from a PDF file using ledongthuc/pdf,
+// which properly parses PDF cross-reference tables and content streams.
 func extractPDFText(path string) (string, error) {
-	data, err := os.ReadFile(path)
+	f, r, err := pdf.Open(path)
 	if err != nil {
-		return "", fmt.Errorf("failed to read PDF: %w", err)
+		return "", fmt.Errorf("failed to open PDF: %w", err)
 	}
+	defer f.Close()
 
-	content := string(data)
-	var textParts []string
-
-	// Strategy 1: Extract text between BT (Begin Text) and ET (End Text) operators
-	btPattern := regexp.MustCompile(`BT\s(.*?)\sET`)
-	matches := btPattern.FindAllStringSubmatch(content, -1)
-	for _, m := range matches {
-		if len(m) > 1 {
-			extracted := extractPDFTextOperands(m[1])
-			if extracted != "" {
-				textParts = append(textParts, extracted)
-			}
+	var sb strings.Builder
+	for i := 1; i <= r.NumPage(); i++ {
+		page := r.Page(i)
+		if page.V.IsNull() {
+			continue
 		}
-	}
-
-	// Strategy 2: Extract text from parenthesized strings (Tj/TJ operators)
-	if len(textParts) == 0 {
-		tjPattern := regexp.MustCompile(`\(([^)]+)\)\s*Tj`)
-		matches := tjPattern.FindAllStringSubmatch(content, -1)
-		for _, m := range matches {
-			if len(m) > 1 {
-				textParts = append(textParts, decodePDFString(m[1]))
-			}
+		text, err := page.GetPlainText(nil)
+		if err != nil {
+			continue
 		}
+		sb.WriteString(text)
+		sb.WriteString("\n")
 	}
 
-	// Strategy 3: Look for /Contents streams between stream/endstream
-	if len(textParts) == 0 {
-		streamPattern := regexp.MustCompile(`stream\r?\n([\s\S]*?)endstream`)
-		streamMatches := streamPattern.FindAllStringSubmatch(content, -1)
-		for _, sm := range streamMatches {
-			if len(sm) > 1 {
-				extracted := extractPDFTextOperands(sm[1])
-				if extracted != "" {
-					textParts = append(textParts, extracted)
-				}
-			}
-		}
+	result := cleanExtractedText(strings.TrimSpace(sb.String()))
+	if len(result) < 10 {
+		return "", fmt.Errorf("PDF contains no extractable text (possibly scanned/image-based)")
 	}
-
-	result := strings.Join(textParts, "\n")
-	result = cleanExtractedText(result)
-
-	if len(strings.TrimSpace(result)) < 10 {
-		return "", fmt.Errorf("PDF text extraction yielded insufficient content (possibly scanned/image-based PDF)")
-	}
-
 	return result, nil
-}
-
-// extractPDFTextOperands extracts readable text from PDF text operators.
-func extractPDFTextOperands(block string) string {
-	var parts []string
-
-	// Match text in parentheses (Tj, ', " operators)
-	parenPattern := regexp.MustCompile(`\(([^)]*)\)`)
-	matches := parenPattern.FindAllStringSubmatch(block, -1)
-	for _, m := range matches {
-		if len(m) > 1 {
-			decoded := decodePDFString(m[1])
-			if decoded != "" {
-				parts = append(parts, decoded)
-			}
-		}
-	}
-
-	// Match hex strings <...>
-	hexPattern := regexp.MustCompile(`<([0-9A-Fa-f]+)>`)
-	hexMatches := hexPattern.FindAllStringSubmatch(block, -1)
-	for _, m := range hexMatches {
-		if len(m) > 1 {
-			decoded := decodePDFHexString(m[1])
-			if decoded != "" {
-				parts = append(parts, decoded)
-			}
-		}
-	}
-
-	return strings.Join(parts, "")
-}
-
-// decodePDFString decodes a PDF literal string, handling common escape sequences.
-func decodePDFString(s string) string {
-	s = strings.ReplaceAll(s, "\\n", "\n")
-	s = strings.ReplaceAll(s, "\\r", "\r")
-	s = strings.ReplaceAll(s, "\\t", "\t")
-	s = strings.ReplaceAll(s, "\\(", "(")
-	s = strings.ReplaceAll(s, "\\)", ")")
-	s = strings.ReplaceAll(s, "\\\\", "\\")
-	return s
-}
-
-// decodePDFHexString decodes a PDF hex string like <48656C6C6F>.
-func decodePDFHexString(hex string) string {
-	if len(hex)%2 != 0 {
-		hex += "0" // pad
-	}
-	var buf bytes.Buffer
-	for i := 0; i+1 < len(hex); i += 2 {
-		var b byte
-		fmt.Sscanf(hex[i:i+2], "%02x", &b)
-		if b >= 32 && b < 127 { // printable ASCII only
-			buf.WriteByte(b)
-		} else if b == 0 {
-			// skip null
-		} else {
-			buf.WriteByte(b)
-		}
-	}
-	return buf.String()
 }
 
 // ── DOCX text extraction ─────────────────────────────────────────────────────

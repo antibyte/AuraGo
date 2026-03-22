@@ -759,6 +759,32 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		})
 		s.Logger.Info("Knowledge Center UI enabled at /knowledge")
 
+		// ── Containers Page ──
+		containersTmpl, containersTmplErr := template.ParseFS(uiFS, "containers.html")
+		if containersTmplErr != nil {
+			s.Logger.Error("Failed to parse containers UI template", "error", containersTmplErr)
+		}
+		mux.HandleFunc("/containers", func(w http.ResponseWriter, r *http.Request) {
+			if containersTmpl == nil {
+				http.Error(w, "Containers template error", http.StatusInternalServerError)
+				return
+			}
+			lang := normalizeLang(s.Cfg.Server.UILanguage)
+			data := map[string]interface{}{
+				"Lang": lang,
+				"I18N": getI18NJSON(lang),
+			}
+			if err := containersTmpl.Execute(w, data); err != nil {
+				s.Logger.Error("Failed to execute containers template", "error", err)
+				http.Error(w, "Template render error", http.StatusInternalServerError)
+			}
+		})
+		s.Logger.Info("Containers UI enabled at /containers")
+
+		// ── Containers API ──
+		mux.HandleFunc("/api/containers", handleContainersList(s))
+		mux.HandleFunc("/api/containers/", handleContainerAction(s))
+
 		// ── Cheat Sheets API ──
 		mux.HandleFunc("/api/cheatsheets", handleCheatSheets(s))
 		mux.HandleFunc("/api/cheatsheets/", handleCheatSheetByID(s))

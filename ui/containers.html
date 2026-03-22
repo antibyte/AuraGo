@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="{{.Lang}}" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="page-title">AuraGo - Containers</title>
+    <link rel="stylesheet" href="/shared.css">
+    <script src="/shared.js"></script>
+    <script>
+        (function () { var t = localStorage.getItem('aurago-theme'); if (t) document.documentElement.setAttribute('data-theme', t); })();
+    </script>
+    <script>const I18N={{.I18N}};</script>
+    <link rel="stylesheet" href="/css/containers.css">
+</head>
+<body>
+    <header class="app-header">
+        <div class="header-left">
+            <a href="/" class="logo">
+                <div class="logo-icon">🥚</div>
+                <span style="color:var(--accent);">AURA</span><span style="color:var(--text-primary);">GO</span>
+                <span class="logo-subtitle" data-i18n="containers.subtitle">Containers</span>
+            </a>
+        </div>
+        <div class="header-actions">
+            <button id="theme-toggle" class="btn-theme" title="Toggle theme"></button>
+        </div>
+    </header>
+
+    <div id="radialMenuAnchor"></div>
+
+    <div class="ct-container">
+        <!-- Status bar -->
+        <div class="ct-status-bar" id="ct-status-bar">
+            <div class="ct-stat">
+                <span class="ct-stat-value" id="ct-total">0</span>
+                <span class="ct-stat-label" data-i18n="containers.stat_total">Total</span>
+            </div>
+            <div class="ct-stat ct-stat-running">
+                <span class="ct-stat-value" id="ct-running">0</span>
+                <span class="ct-stat-label" data-i18n="containers.stat_running">Running</span>
+            </div>
+            <div class="ct-stat ct-stat-stopped">
+                <span class="ct-stat-value" id="ct-stopped">0</span>
+                <span class="ct-stat-label" data-i18n="containers.stat_stopped">Stopped</span>
+            </div>
+        </div>
+
+        <!-- Search + filter bar -->
+        <div class="ct-toolbar">
+            <input type="text" id="ct-search" class="ct-search"
+                placeholder="Search containers..." data-i18n-placeholder="containers.search_placeholder"
+                oninput="filterContainers()">
+            <div class="ct-filter-group">
+                <button class="ct-filter-btn active" data-filter="all" onclick="setFilter('all')" data-i18n="containers.filter_all">All</button>
+                <button class="ct-filter-btn" data-filter="running" onclick="setFilter('running')" data-i18n="containers.filter_running">Running</button>
+                <button class="ct-filter-btn" data-filter="stopped" onclick="setFilter('stopped')" data-i18n="containers.filter_stopped">Stopped</button>
+            </div>
+        </div>
+
+        <!-- Container cards -->
+        <div class="ct-grid" id="ct-grid"></div>
+
+        <!-- Empty state -->
+        <div class="empty-state" id="ct-empty" style="display:none;">
+            <div class="empty-icon">🐳</div>
+            <h3 data-i18n="containers.empty_title">No Containers Found</h3>
+            <p data-i18n="containers.empty_desc">No Docker containers match your current filter.</p>
+        </div>
+
+        <!-- Error state (Docker disabled) -->
+        <div class="empty-state" id="ct-disabled" style="display:none;">
+            <div class="empty-icon">⚠️</div>
+            <h3 data-i18n="containers.disabled_title">Docker Not Enabled</h3>
+            <p data-i18n="containers.disabled_desc">Enable Docker in the configuration to manage containers.</p>
+        </div>
+    </div>
+
+    <!-- ═══════ LOG MODAL ═══════ -->
+    <div class="modal-overlay" id="log-modal">
+        <div class="modal modal-wide">
+            <div class="modal-header">
+                <h2 id="log-modal-title" data-i18n="containers.logs_title">Container Logs</h2>
+                <button class="modal-close" onclick="closeLogModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <pre class="ct-log-output" id="log-output"></pre>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeLogModal()" data-i18n="common.btn_close">Close</button>
+                <button class="btn btn-primary" onclick="refreshLogs()" data-i18n="containers.logs_refresh">Refresh</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════ INSPECT MODAL ═══════ -->
+    <div class="modal-overlay" id="inspect-modal">
+        <div class="modal modal-wide">
+            <div class="modal-header">
+                <h2 id="inspect-modal-title" data-i18n="containers.inspect_title">Container Details</h2>
+                <button class="modal-close" onclick="closeInspectModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <pre class="ct-inspect-output" id="inspect-output"></pre>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeInspectModal()" data-i18n="common.btn_close">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════ CONFIRM DELETE MODAL ═══════ -->
+    <div class="modal-overlay" id="delete-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 data-i18n="containers.delete_title">Remove Container</h2>
+                <button class="modal-close" onclick="closeDeleteModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p data-i18n="containers.delete_confirm">Are you sure you want to remove this container?</p>
+                <p class="ct-delete-name" id="delete-container-name"></p>
+                <label class="ct-checkbox-label">
+                    <input type="checkbox" id="delete-force"> <span data-i18n="containers.delete_force">Force remove (kill if running)</span>
+                </label>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeDeleteModal()" data-i18n="common.btn_cancel">Cancel</button>
+                <button class="btn btn-danger" onclick="confirmDelete()" data-i18n="common.btn_delete">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/containers/main.js"></script>
+</body>
+</html>

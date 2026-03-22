@@ -31,5 +31,6 @@
   "login.subtitle": "Pro pokračování se prosím přihlaste",
   "login.totp_divider": "Authenticator kód",
   "login.totp_label": "6místný kód",
-  "common.nav_knowledge": "Centrum znalostí"
+  "common.nav_knowledge": "Centrum znalostí",
+  "common.nav_containers": "Kontejnery"
 }
