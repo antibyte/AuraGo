@@ -168,7 +168,7 @@ async function containerAction(id, action) {
             lastDataHash = ''; // force refresh
             await loadContainers();
         } else {
-            showToast(data.message || t('common.error') || 'Error', 'error');
+            showToast(dockerErrMsg(data.message), 'error');
         }
     } catch (e) {
         showToast(t('common.error') || 'Error', 'error');
@@ -181,7 +181,7 @@ async function containerAction(id, action) {
 async function showLogs(id) {
     currentLogContainer = id;
     document.getElementById('log-output').textContent = t('common.loading') || 'Loading...';
-    document.getElementById('log-modal').classList.add('open');
+    document.getElementById('log-modal').classList.add('active');
     try {
         const resp = await fetch(`/api/containers/${encodeURIComponent(id)}/logs?tail=500`);
         const data = await resp.json();
@@ -205,7 +205,7 @@ function refreshLogs() {
 
 // eslint-disable-next-line no-unused-vars
 function closeLogModal() {
-    document.getElementById('log-modal').classList.remove('open');
+    document.getElementById('log-modal').classList.remove('active');
     currentLogContainer = '';
 }
 
@@ -214,7 +214,7 @@ function closeLogModal() {
 // eslint-disable-next-line no-unused-vars
 async function showInspect(id) {
     document.getElementById('inspect-output').textContent = t('common.loading') || 'Loading...';
-    document.getElementById('inspect-modal').classList.add('open');
+    document.getElementById('inspect-modal').classList.add('active');
     try {
         const resp = await fetch(`/api/containers/${encodeURIComponent(id)}/inspect`);
         const data = await resp.json();
@@ -226,7 +226,7 @@ async function showInspect(id) {
 
 // eslint-disable-next-line no-unused-vars
 function closeInspectModal() {
-    document.getElementById('inspect-modal').classList.remove('open');
+    document.getElementById('inspect-modal').classList.remove('active');
 }
 
 // ── Delete Modal ────────────────────────────────────────────────────────────
@@ -238,12 +238,12 @@ function showDeleteModal(id, name) {
     deleteTarget = id;
     document.getElementById('delete-container-name').textContent = name;
     document.getElementById('delete-force').checked = false;
-    document.getElementById('delete-modal').classList.add('open');
+    document.getElementById('delete-modal').classList.add('active');
 }
 
 // eslint-disable-next-line no-unused-vars
 function closeDeleteModal() {
-    document.getElementById('delete-modal').classList.remove('open');
+    document.getElementById('delete-modal').classList.remove('active');
     deleteTarget = '';
 }
 
@@ -260,7 +260,7 @@ async function confirmDelete() {
             lastDataHash = '';
             await loadContainers();
         } else {
-            showToast(data.message || t('common.error') || 'Error', 'error');
+            showToast(dockerErrMsg(data.message), 'error');
         }
     } catch (e) {
         showToast(t('common.error') || 'Error', 'error');
@@ -268,7 +268,26 @@ async function confirmDelete() {
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
-
+// dockerErrMsg extracts human-readable text from Docker API error responses.
+// Docker wraps errors as {"message":"..."}; our Go handler may also JSON-encode
+// them further. We unwrap up to two layers.
+function dockerErrMsg(msg) {
+    if (!msg) return t('common.error') || 'Error';
+    let text = msg;
+    for (let i = 0; i < 2; i++) {
+        try {
+            const obj = JSON.parse(text);
+            if (obj && typeof obj.message === 'string') {
+                text = obj.message;
+            } else {
+                break;
+            }
+        } catch {
+            break;
+        }
+    }
+    return text.length > 200 ? text.slice(0, 197) + '…' : text;
+}
 function escHtml(s) {
     if (!s) return '';
     const div = document.createElement('div');
@@ -285,5 +304,5 @@ function showToast(msg, type) {
     el.className = `ct-toast ${type}`;
     el.textContent = msg;
     document.body.appendChild(el);
-    setTimeout(() => el.remove(), 3000);
+    setTimeout(() => el.remove(), 5000);
 }

@@ -146,6 +146,19 @@ func errJSON(msg string, args ...interface{}) string {
 	return string(b)
 }
 
+// dockerBodyErr extracts the human-readable message from a Docker Engine API error body
+// (which wraps errors as {"message":"..."}) and returns a safe JSON error string.
+// Falls back to a generic message if the body cannot be parsed.
+func dockerBodyErr(code int, body []byte) string {
+	var dockerMsg struct {
+		Message string `json:"message"`
+	}
+	if json.Unmarshal(body, &dockerMsg) == nil && dockerMsg.Message != "" {
+		return errJSON("Docker error (HTTP %d): %s", code, dockerMsg.Message)
+	}
+	return errJSON("Docker error (HTTP %d)", code)
+}
+
 // ---------- Operations ----------
 
 // DockerListContainers returns a list of containers (optionally all, not just running).
@@ -159,7 +172,7 @@ func DockerListContainers(cfg DockerConfig, all bool) string {
 		return errJSON("Failed to list containers: %v", err)
 	}
 	if code != 200 {
-		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+		return dockerBodyErr(code, data)
 	}
 
 	var containers []map[string]interface{}
@@ -212,7 +225,7 @@ func DockerInspectContainer(cfg DockerConfig, containerID string) string {
 		return errJSON("Container '%s' not found", containerID)
 	}
 	if code != 200 {
-		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+		return dockerBodyErr(code, data)
 	}
 
 	// Parse and return a trimmed version
@@ -287,7 +300,7 @@ func DockerContainerAction(cfg DockerConfig, containerID, action string, force b
 	if code == 404 {
 		return errJSON("Container '%s' not found", containerID)
 	}
-	return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+	return dockerBodyErr(code, data)
 }
 
 // DockerContainerLogs retrieves the last N lines of container logs.
@@ -307,7 +320,7 @@ func DockerContainerLogs(cfg DockerConfig, containerID string, tail int) string 
 		return errJSON("Container '%s' not found", containerID)
 	}
 	if code != 200 {
-		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+		return dockerBodyErr(code, data)
 	}
 
 	// Docker log stream has 8-byte header per frame — strip it for readability
@@ -351,7 +364,7 @@ func DockerListImages(cfg DockerConfig) string {
 		return errJSON("Failed to list images: %v", err)
 	}
 	if code != 200 {
-		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+		return dockerBodyErr(code, data)
 	}
 
 	var images []map[string]interface{}
@@ -403,7 +416,7 @@ func DockerPullImage(cfg DockerConfig, image string) string {
 		return errJSON("Failed to pull image: %v", err)
 	}
 	if code != 200 {
-		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+		return dockerBodyErr(code, data)
 	}
 	return fmt.Sprintf(`{"status":"ok","message":"Image '%s' pulled successfully"}`, image)
 }
@@ -427,5 +440,5 @@ func DockerRemoveImage(cfg DockerConfig, image string, force bool) string {
 	if code == 404 {
 		return errJSON("Image '%s' not found", image)
 	}
-	return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+	return dockerBodyErr(code, data)
 }
