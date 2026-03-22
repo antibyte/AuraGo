@@ -12,6 +12,10 @@ import (
 	"time"
 )
 
+// dockerAPIVersion is the Docker Engine API version used for all requests.
+// Increment when requiring features from a newer Docker Engine.
+const dockerAPIVersion = "v1.45"
+
 // DockerConnector deploys eggs as Docker containers, either on a remote host
 // or on the local Docker daemon.
 type DockerConnector struct{}
@@ -73,6 +77,9 @@ func (c *DockerConnector) Deploy(ctx context.Context, nest NestRecord, secret []
 			// host-gateway resolves to the Docker bridge gateway (typically 172.17.0.1).
 			// Safe no-op on Docker Desktop (Windows/Mac) where the name already resolves.
 			"ExtraHosts": []string{"host.docker.internal:host-gateway"},
+			// Security hardening — mirror the main AuraGo container's security profile.
+			"SecurityOpt": []string{"no-new-privileges:true"},
+			"CapDrop":     []string{"ALL"},
 		},
 	}
 
@@ -191,17 +198,27 @@ func (c *DockerConnector) httpClient(nest NestRecord) *http.Client {
 
 func (c *DockerConnector) apiURL(nest NestRecord, path string) string {
 	if nest.DeployMethod == "docker_local" {
-		return fmt.Sprintf("http://localhost/v1.45%s", path)
+		return fmt.Sprintf("http://localhost/%s%s", dockerAPIVersion, path)
 	}
 	port := nest.Port
 	if port == 0 {
 		port = 2375
 	}
-	return fmt.Sprintf("http://%s:%d/v1.45%s", nest.Host, port, path)
+	return fmt.Sprintf("http://%s:%d/%s%s", nest.Host, port, dockerAPIVersion, path)
+}
+
+// pullClient returns an HTTP client with an extended timeout suitable for
+// image pull operations, which can take minutes on slow connections.
+func (c *DockerConnector) pullClient(nest NestRecord) *http.Client {
+	base := c.httpClient(nest)
+	return &http.Client{
+		Timeout:   10 * time.Minute,
+		Transport: base.Transport,
+	}
 }
 
 func (c *DockerConnector) pullImage(ctx context.Context, nest NestRecord, image string) error {
-	client := c.httpClient(nest)
+	client := c.pullClient(nest)
 	url := c.apiURL(nest, fmt.Sprintf("/images/create?fromImage=%s", image))
 	req, err := http.NewRequestWithContext(ctx, "POST", url, nil)
 	if err != nil {

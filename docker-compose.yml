@@ -71,6 +71,9 @@ services:
       - ALL
 
     # --- Resource limits (adjust to your hardware) ---
+    # Without limits AuraGo may consume unlimited CPU/RAM, which can affect
+    # host stability under heavy AI workloads.  Uncomment and tune to your machine.
+    # Minimum recommended: 1 CPU / 512 MB RAM.
     # deploy:
     #   resources:
     #     limits:

@@ -26,6 +26,12 @@ var dockerHTTPClientHost string
 // reDockerSafeName validates Docker container/image identifiers.
 var reDockerSafeName = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_.:\-/]*$`)
 
+// dockerAPIVersion is the Docker Engine API version used for all requests.
+const dockerAPIVersion = "v1.45"
+
+// maxDockerNameLength is Docker's maximum allowed length for container/image names.
+const maxDockerNameLength = 255
+
 // getDockerClient returns a shared *http.Client that talks to the Docker Engine API.
 // The client is reused across requests for connection pooling.
 func getDockerClient(cfg DockerConfig) *http.Client {
@@ -70,7 +76,7 @@ func getDockerClient(cfg DockerConfig) *http.Client {
 func DockerPing(host string) error {
 	cfg := DockerConfig{Host: host}
 	client := getDockerClient(cfg)
-	reqURL := "http://localhost/v1.45/_ping"
+	reqURL := "http://localhost/" + dockerAPIVersion + "/_ping"
 	req, err := http.NewRequest(http.MethodGet, reqURL, nil)
 	if err != nil {
 		return fmt.Errorf("build ping request: %w", err)
@@ -94,6 +100,9 @@ func validateDockerName(name string) error {
 	if name == "" {
 		return fmt.Errorf("name/ID is required")
 	}
+	if len(name) > maxDockerNameLength {
+		return fmt.Errorf("Docker name exceeds maximum length of %d characters", maxDockerNameLength)
+	}
 	if !reDockerSafeName.MatchString(name) {
 		return fmt.Errorf("invalid Docker name/ID: contains unsafe characters")
 	}
@@ -113,7 +122,7 @@ func dockerRequest(cfg DockerConfig, method, endpoint string, body string) ([]by
 	}
 
 	// Docker Engine API is accessed via http://localhost but routed through the Unix socket.
-	reqURL := "http://localhost/v1.45" + endpoint
+	reqURL := "http://localhost/" + dockerAPIVersion + endpoint
 	req, err := http.NewRequest(method, reqURL, reqBody)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to create request: %w", err)
