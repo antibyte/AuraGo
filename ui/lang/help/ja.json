@@ -104,6 +104,8 @@
   "help.email_accounts.watch_folder": "新着メールをチェックするメールボックス フォルダー (通常は INBOX)。",
   "help.email_accounts.watch_interval_seconds": "このアカウントのメールボックスをチェックする間隔 (秒単位)。",
   "help.embeddings.provider": "埋め込みに使用されるプロバイダー管理のプロバイダー。モデルと URL はプロバイダーのエントリから取得されます。 「無効」は長期記憶を完全にオフにします。",
+  "help.embeddings.multimodal": "マルチモーダルエンベディングを有効にします。有効な場合、画像と音声ファイルがベクトルとして直接埋め込まれます。エンベディングモデルがマルチモーダル入力をサポートする場合のみ有効にしてください。テキストが少ないスキャン済みPDFは自動的に画像として処理されます。",
+  "help.embeddings.multimodal_format": "マルチモーダルエンベディングリクエストのAPIフォーマット。'auto'はプロバイダータイプに基づいてフォーマットを検出します。'openai'はOpenAI互換フォーマット、'vertex'はGoogle Vertex AIフォーマットを使用します。",
   "help.fallback_llm.enabled": "エラー発生時にバックアップ LLM への自動フェイルオーバーを有効にします。",
   "help.fallback_llm.error_threshold": "フォールバック モデルに切り替える前の連続エラーの数。",
   "help.fallback_llm.probe_interval_seconds": "プライマリ モデルをプローブして復元を試行する間隔 (秒単位)。",

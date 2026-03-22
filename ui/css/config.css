@@ -417,7 +417,41 @@ select.cfg-input option {
     color: var(--danger);
 }
 
-/* Button styling is in shared.css */
+/* Save / action button (used across config modules) */
+.btn-save {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.5rem 1.2rem;
+    font-size: 0.85rem;
+    font-weight: 500;
+    font-family: inherit;
+    color: #fff;
+    background: linear-gradient(135deg, var(--accent), #0d9488);
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 12px rgba(45, 212, 191, 0.25);
+    white-space: nowrap;
+}
+
+.btn-save:hover {
+    filter: brightness(1.12);
+    box-shadow: 0 4px 18px rgba(45, 212, 191, 0.35);
+    transform: translateY(-1px);
+}
+
+.btn-save:active {
+    transform: translateY(0);
+    filter: brightness(0.95);
+}
+
+.btn-save:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    pointer-events: none;
+}
 
 /* Unsaved changes indicator */
 .changes-pill {

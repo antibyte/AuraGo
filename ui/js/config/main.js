@@ -29,6 +29,7 @@ const SECTIONS = [
             { key: 'server', icon: '🌐', label: t('config.section.server.label'), desc: t('config.section.server.desc') },
             { key: 'directories', icon: '📁', label: t('config.section.directories.label'), desc: t('config.section.directories.desc') },
             { key: 'sqlite', icon: '🗄️', label: t('config.section.sqlite.label'), desc: t('config.section.sqlite.desc') },
+            { key: 'sql_connections', icon: '🔗', label: t('config.section.sql_connections.label'), desc: t('config.section.sql_connections.desc') },
             { key: 'web_config', icon: '🛡️', label: t('config.section.web_config.label'), desc: t('config.section.web_config.desc') },
             { key: 'logging', icon: '📋', label: t('config.section.logging.label'), desc: t('config.section.logging.desc') },
             { key: 'maintenance', icon: '🔧', label: t('config.section.maintenance.label'), desc: t('config.section.maintenance.desc') },
@@ -121,7 +122,6 @@ const SECTIONS = [
         group: t('config.group.network_remote'),
         items: [
             { key: 'tailscale', icon: '🔒', label: t('config.section.tailscale.label'), desc: t('config.section.tailscale.desc') },
-            { key: 'devices', icon: '📱', label: t('config.section.devices.label'), desc: t('config.section.devices.desc') },
             { key: 'proxmox', icon: '🖥️', label: t('config.section.proxmox.label'), desc: t('config.section.proxmox.desc') },
             { key: 'remote_control', icon: '📡', label: t('config.section.remote_control.label'), desc: t('config.section.remote_control.desc') },
             { key: 'meshcentral', icon: '🖥️', label: t('config.section.meshcentral.label'), desc: t('config.section.meshcentral.desc') },
@@ -535,6 +535,28 @@ async function renderSection(key) {
     html += '</div>';
 
     document.getElementById('content').innerHTML = html;
+
+    // ── Embeddings: multimodal_format visibility depends on multimodal toggle ──
+    if (key === 'embeddings') {
+        _embeddingsBindMultimodal();
+    }
+}
+
+/** Wire the multimodal toggle to show/hide the format selector. */
+function _embeddingsBindMultimodal() {
+    const toggle = document.querySelector('[data-path="embeddings.multimodal"]');
+    const formatEl = document.querySelector('[data-path="embeddings.multimodal_format"]');
+    if (!toggle || !formatEl) return;
+    const formatField = formatEl.closest('.field-group');
+    if (!formatField) return;
+
+    function sync() {
+        formatField.style.display = toggle.classList.contains('on') ? '' : 'none';
+    }
+    sync();
+
+    // Observe class changes on the toggle to react to toggleBool()
+    new MutationObserver(sync).observe(toggle, { attributes: true, attributeFilter: ['class'] });
 }
 
 
@@ -989,7 +1011,6 @@ const SECTION_MODULES = {
     indexing: { m: 'indexing', fn: 'renderIndexingSection' },
     backup_restore: { m: 'backup', fn: 'renderBackupSection' },
     updates: { m: 'updates', fn: 'renderUpdatesSection' },
-    devices: { m: 'devices', fn: 'renderDevicesSection' },
     chromecast: { m: 'chromecast', fn: 'renderChromecastSection' },
     adguard: { m: 'adguard', fn: 'renderAdGuardSection' },
     fritzbox: { m: 'fritzbox', fn: 'renderFritzBoxSection' },
@@ -1015,7 +1036,10 @@ const SECTION_MODULES = {
     tailscale: { m: 'tailscale', fn: 'renderTailscaleSection' },
     server: { m: 'server', fn: 'renderServerSection' },
     a2a: { m: 'a2a', fn: 'renderA2ASection' },
-    n8n: { m: 'n8n', fn: 'renderN8nSection' }
+    n8n: { m: 'n8n', fn: 'renderN8nSection' },
+    tts: { m: 'tts', fn: 'renderTTSSection' },
+    co_agents: { m: 'co_agents', fn: 'renderCoAgentsSection' },
+    sql_connections: { m: 'sql_connections', fn: 'renderSQLConnectionsSection' }
 };
 
 function loadModule(name) {

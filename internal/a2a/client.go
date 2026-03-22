@@ -27,6 +27,12 @@ type RemoteAgentStatus struct {
 	Card      *a2a.AgentCard `json:"card,omitempty"`
 }
 
+// backoffState tracks exponential backoff for a failed remote agent.
+type backoffState struct {
+	failCount int
+	nextRetry time.Time
+}
+
 // ClientManager manages A2A client connections to remote agents.
 type ClientManager struct {
 	cfg      *config.Config
@@ -37,6 +43,7 @@ type ClientManager struct {
 	clients map[string]*a2aclient.Client // keyed by remote agent ID
 	cards   map[string]*a2a.AgentCard    // cached agent cards
 	status  map[string]*RemoteAgentStatus
+	backoff map[string]*backoffState // exponential backoff per agent
 }
 
 // NewClientManager creates a new A2A client manager.
@@ -49,6 +56,7 @@ func NewClientManager(cfg *config.Config, logger *slog.Logger) *ClientManager {
 		clients:  make(map[string]*a2aclient.Client),
 		cards:    make(map[string]*a2a.AgentCard),
 		status:   make(map[string]*RemoteAgentStatus),
+		backoff:  make(map[string]*backoffState),
 	}
 }
 
@@ -90,6 +98,7 @@ func (m *ClientManager) resolveAndConnect(ctx context.Context, ra config.A2ARemo
 		status.LastCheck = time.Now()
 		m.mu.Lock()
 		m.status[ra.ID] = status
+		m.updateBackoffLocked(ra.ID, false)
 		m.mu.Unlock()
 		return
 	}
@@ -105,6 +114,7 @@ func (m *ClientManager) resolveAndConnect(ctx context.Context, ra config.A2ARemo
 		m.mu.Lock()
 		m.status[ra.ID] = status
 		m.cards[ra.ID] = card
+		m.updateBackoffLocked(ra.ID, false)
 		m.mu.Unlock()
 		return
 	}
@@ -116,9 +126,36 @@ func (m *ClientManager) resolveAndConnect(ctx context.Context, ra config.A2ARemo
 	status.Card = card
 	status.LastCheck = time.Now()
 	m.status[ra.ID] = status
+	m.updateBackoffLocked(ra.ID, true)
 	m.mu.Unlock()
 
 	m.logger.Info("A2A remote agent connected", "agent", ra.ID, "name", card.Name)
+}
+
+// updateBackoffLocked updates the backoff state for an agent.
+// success=true resets the failure counter; success=false increments it.
+// Must be called with m.mu held.
+func (m *ClientManager) updateBackoffLocked(id string, success bool) {
+	if success {
+		delete(m.backoff, id)
+		return
+	}
+	b := m.backoff[id]
+	if b == nil {
+		b = &backoffState{}
+		m.backoff[id] = b
+	}
+	b.failCount++
+	shift := b.failCount - 1 // first failure → 30s, second → 60s, ...
+	if shift > 6 {
+		shift = 6 // cap exponent: 30s * 2^6 = 32 min
+	}
+	delay := (30 * time.Second) << shift
+	const maxBackoff = 30 * time.Minute
+	if delay > maxBackoff {
+		delay = maxBackoff
+	}
+	b.nextRetry = time.Now().Add(delay)
 }
 
 // SendMessage sends a message to a remote A2A agent.
@@ -193,12 +230,35 @@ func (m *ClientManager) StartHealthCheck(ctx context.Context, interval time.Dura
 }
 
 func (m *ClientManager) checkHealth(ctx context.Context) {
+	// At most 3 concurrent reconnect attempts to avoid hammering the network.
+	const maxConcurrent = 3
+	sem := make(chan struct{}, maxConcurrent)
+	var wg sync.WaitGroup
+
 	for _, ra := range m.cfg.A2A.Client.RemoteAgents {
 		if !ra.Enabled {
 			continue
 		}
-		m.resolveAndConnect(ctx, ra)
+
+		// Skip agents that are currently unavailable and still within their
+		// exponential backoff window.
+		m.mu.RLock()
+		status := m.status[ra.ID]
+		b := m.backoff[ra.ID]
+		m.mu.RUnlock()
+		if status != nil && !status.Available && b != nil && time.Now().Before(b.nextRetry) {
+			continue
+		}
+
+		wg.Add(1)
+		go func(ra config.A2ARemoteAgent) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+			m.resolveAndConnect(ctx, ra)
+		}(ra)
 	}
+	wg.Wait()
 }
 
 // IsAvailable returns whether a remote agent is available.

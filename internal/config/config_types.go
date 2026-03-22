@@ -24,6 +24,33 @@ type OAuthToken struct {
 	Expiry       string `json:"expiry"` // RFC3339
 }
 
+// SpecialistConfig holds per-role configuration for a specialist co-agent.
+// Empty LLM.Provider inherits from co_agents.llm, which in turn falls back to the main LLM.
+type SpecialistConfig struct {
+	Enabled bool `yaml:"enabled"`
+	LLM     struct {
+		Provider     string `yaml:"provider"`         // provider entry ID (empty = inherit co_agents.llm)
+		ProviderType string `yaml:"-"       json:"-"` // resolved
+		BaseURL      string `yaml:"-"       json:"-"` // resolved
+		APIKey       string `yaml:"-"       json:"-"` // resolved
+		Model        string `yaml:"-"       json:"-"` // resolved
+	} `yaml:"llm"`
+	CircuitBreaker struct {
+		MaxToolCalls   int `yaml:"max_tool_calls"`  // 0 = inherit co_agents value
+		TimeoutSeconds int `yaml:"timeout_seconds"` // 0 = inherit co_agents value
+		MaxTokens      int `yaml:"max_tokens"`      // 0 = inherit co_agents value
+	} `yaml:"circuit_breaker"`
+}
+
+// ValidSpecialistRoles lists all recognized specialist role names.
+var ValidSpecialistRoles = map[string]bool{
+	"researcher": true,
+	"coder":      true,
+	"designer":   true,
+	"security":   true,
+	"writer":     true,
+}
+
 // ProviderEntry defines a named LLM provider connection that can be referenced
 // by multiple config slots (LLM, Fallback, Vision, Whisper, Embeddings, etc.).
 type ProviderEntry struct {
@@ -159,18 +186,21 @@ type Config struct {
 		HomepageRegistryPath string `yaml:"homepage_registry_path"`
 		ContactsPath         string `yaml:"contacts_path"`
 		SiteMonitorPath      string `yaml:"site_monitor_path"`
+		SQLConnectionsPath   string `yaml:"sql_connections_path"`
 	} `yaml:"sqlite"`
 	Embeddings struct {
-		Provider      string `yaml:"provider"`          // "disabled" or provider entry ID
-		ProviderType  string `yaml:"-"       json:"-"`  // resolved
-		BaseURL       string `yaml:"-"       json:"-"`  // resolved from provider
-		APIKey        string `yaml:"-"       json:"-"`  // resolved from provider
-		Model         string `yaml:"-"       json:"-"`  // resolved from provider
-		InternalModel string `yaml:"internal_model"`    // legacy/compat: model when using main LLM provider
-		ExternalURL   string `yaml:"external_url"`      // legacy/compat: dedicated endpoint URL
-		ExternalModel string `yaml:"external_model"`    // legacy/compat: dedicated endpoint model
-		LegacyAPIKey  string `yaml:"api_key"  json:"-"` // legacy/compat: separate API key
-		LocalOllama   struct {
+		Provider         string `yaml:"provider"`          // "disabled" or provider entry ID
+		ProviderType     string `yaml:"-"       json:"-"`  // resolved
+		BaseURL          string `yaml:"-"       json:"-"`  // resolved from provider
+		APIKey           string `yaml:"-"       json:"-"`  // resolved from provider
+		Model            string `yaml:"-"       json:"-"`  // resolved from provider
+		InternalModel    string `yaml:"internal_model"`    // legacy/compat: model when using main LLM provider
+		ExternalURL      string `yaml:"external_url"`      // legacy/compat: dedicated endpoint URL
+		ExternalModel    string `yaml:"external_model"`    // legacy/compat: dedicated endpoint model
+		LegacyAPIKey     string `yaml:"api_key"  json:"-"` // legacy/compat: separate API key
+		Multimodal       bool   `yaml:"multimodal"`        // enable multimodal embeddings (images, audio)
+		MultimodalFormat string `yaml:"multimodal_format"` // "auto", "openai", "vertex" — API format for multimodal
+		LocalOllama      struct {
 			Enabled       bool   `yaml:"enabled"`        // auto-manage an Ollama container for local embeddings
 			Model         string `yaml:"model"`          // embedding model (default: "nomic-embed-text")
 			ContainerPort int    `yaml:"container_port"` // host port for the managed container (default: 11435)
@@ -447,23 +477,23 @@ type Config struct {
 		} `yaml:"tv"`
 	} `yaml:"fritzbox"`
 	Telnyx struct {
-		Enabled            bool     `yaml:"enabled"`
-		ReadOnly           bool     `yaml:"readonly"`                // true = receive only, no outbound
-		APIKey             string   `yaml:"-" vault:"telnyx_api_key"` // vault-only
-		APISecret          string   `yaml:"-" vault:"telnyx_api_secret"` // webhook signature verification
-		PhoneNumber        string   `yaml:"phone_number"`             // primary Telnyx number (E.164)
-		MessagingProfileID string   `yaml:"messaging_profile_id"`     // Telnyx messaging profile
-		ConnectionID       string   `yaml:"connection_id"`            // SIP connection ID for voice calls
-		WebhookPath        string   `yaml:"webhook_path"`             // default: /api/telnyx/webhook
-		AllowedNumbers     []string `yaml:"allowed_numbers"`          // E.164 whitelist (empty = allow all)
-		MaxConcurrentCalls int      `yaml:"max_concurrent_calls"`     // default: 3
-		MaxSMSPerMinute    int      `yaml:"max_sms_per_minute"`       // rate limit, default: 10
-		VoiceLanguage      string   `yaml:"voice_language"`           // BCP-47, default: en
-		VoiceGender        string   `yaml:"voice_gender"`             // male/female, default: female
-		RecordCalls        bool     `yaml:"record_calls"`             // auto-record all calls
-		TranscribeVoicemail bool    `yaml:"transcribe_voicemail"`     // auto-transcribe via LLM
-		RelayToAgent       bool     `yaml:"relay_to_agent"`           // forward incoming SMS to agent loop
-		CallTimeout        int      `yaml:"call_timeout"`             // max call duration seconds, default: 300
+		Enabled             bool     `yaml:"enabled"`
+		ReadOnly            bool     `yaml:"readonly"`                    // true = receive only, no outbound
+		APIKey              string   `yaml:"-" vault:"telnyx_api_key"`    // vault-only
+		APISecret           string   `yaml:"-" vault:"telnyx_api_secret"` // webhook signature verification
+		PhoneNumber         string   `yaml:"phone_number"`                // primary Telnyx number (E.164)
+		MessagingProfileID  string   `yaml:"messaging_profile_id"`        // Telnyx messaging profile
+		ConnectionID        string   `yaml:"connection_id"`               // SIP connection ID for voice calls
+		WebhookPath         string   `yaml:"webhook_path"`                // default: /api/telnyx/webhook
+		AllowedNumbers      []string `yaml:"allowed_numbers"`             // E.164 whitelist (empty = allow all)
+		MaxConcurrentCalls  int      `yaml:"max_concurrent_calls"`        // default: 3
+		MaxSMSPerMinute     int      `yaml:"max_sms_per_minute"`          // rate limit, default: 10
+		VoiceLanguage       string   `yaml:"voice_language"`              // BCP-47, default: en
+		VoiceGender         string   `yaml:"voice_gender"`                // male/female, default: female
+		RecordCalls         bool     `yaml:"record_calls"`                // auto-record all calls
+		TranscribeVoicemail bool     `yaml:"transcribe_voicemail"`        // auto-transcribe via LLM
+		RelayToAgent        bool     `yaml:"relay_to_agent"`              // forward incoming SMS to agent loop
+		CallTimeout         int      `yaml:"call_timeout"`                // max call duration seconds, default: 300
 	} `yaml:"telnyx"`
 	MeshCentral struct {
 		Enabled           bool     `yaml:"enabled"`
@@ -498,6 +528,13 @@ type Config struct {
 			TimeoutSeconds int `yaml:"timeout_seconds"`
 			MaxTokens      int `yaml:"max_tokens"`
 		} `yaml:"circuit_breaker"`
+		Specialists struct {
+			Researcher SpecialistConfig `yaml:"researcher"`
+			Coder      SpecialistConfig `yaml:"coder"`
+			Designer   SpecialistConfig `yaml:"designer"`
+			Security   SpecialistConfig `yaml:"security"`
+			Writer     SpecialistConfig `yaml:"writer"`
+		} `yaml:"specialists"`
 	} `yaml:"co_agents"`
 	A2A struct {
 		Server struct {
@@ -580,13 +617,21 @@ type Config struct {
 		APIToken string `yaml:"-"`
 	} `yaml:"paperless_ngx"`
 	TTS struct {
-		Provider   string `yaml:"provider"` // "google" or "elevenlabs"
+		Provider   string `yaml:"provider"` // "google", "elevenlabs", or "piper"
 		Language   string `yaml:"language"` // BCP-47 language code for Google TTS (e.g. "de", "en")
 		ElevenLabs struct {
 			APIKey  string `yaml:"-" vault:"api_key"` // vault-only
 			VoiceID string `yaml:"voice_id"`          // default voice ID
 			ModelID string `yaml:"model_id"`          // e.g. "eleven_multilingual_v2"
 		} `yaml:"elevenlabs"`
+		Piper struct {
+			Enabled       bool   `yaml:"enabled"`        // auto-manage a Piper TTS container
+			Voice         string `yaml:"voice"`          // e.g. "de_DE-thorsten-high"
+			SpeakerID     int    `yaml:"speaker_id"`     // multi-speaker model speaker index
+			ContainerPort int    `yaml:"container_port"` // host port mapped to container 10200 (default 10200)
+			DataPath      string `yaml:"data_path"`      // voice model storage directory (default "data/piper")
+			Image         string `yaml:"image"`          // Docker image (default "rhasspy/wyoming-piper:latest")
+		} `yaml:"piper"`
 	} `yaml:"tts"`
 	MediaRegistry struct {
 		Enabled bool `yaml:"enabled"`
@@ -964,6 +1009,13 @@ type Config struct {
 		RateLimitRPS   int      `yaml:"rate_limit_rps"`   // requests per second limit (0 = unlimited)
 		Scopes         []string `yaml:"scopes"`           // allowed operation scopes; empty = all (n8n:read, n8n:chat, n8n:tools, n8n:memory, n8n:missions, n8n:admin)
 	} `yaml:"n8n"`
+	SQLConnections struct {
+		Enabled              bool `yaml:"enabled"`
+		MaxPoolSize          int  `yaml:"max_pool_size"`
+		ConnectionTimeoutSec int  `yaml:"connection_timeout_sec"`
+		QueryTimeoutSec      int  `yaml:"query_timeout_sec"`
+		MaxResultRows        int  `yaml:"max_result_rows"`
+	} `yaml:"sql_connections"`
 	GoogleWorkspace struct {
 		Enabled       bool   `yaml:"enabled"`
 		ReadOnly      bool   `yaml:"readonly"`       // true = only read operations, block send/create/update/write
@@ -1064,4 +1116,23 @@ type ModelCost struct {
 type ModelCostRates struct {
 	InputPerMillion  float64 `yaml:"input_per_million"`
 	OutputPerMillion float64 `yaml:"output_per_million"`
+}
+
+// GetSpecialist returns a pointer to the SpecialistConfig for the given role.
+// Returns nil if the role is unknown.
+func (c *Config) GetSpecialist(role string) *SpecialistConfig {
+	switch role {
+	case "researcher":
+		return &c.CoAgents.Specialists.Researcher
+	case "coder":
+		return &c.CoAgents.Specialists.Coder
+	case "designer":
+		return &c.CoAgents.Specialists.Designer
+	case "security":
+		return &c.CoAgents.Specialists.Security
+	case "writer":
+		return &c.CoAgents.Specialists.Writer
+	default:
+		return nil
+	}
 }

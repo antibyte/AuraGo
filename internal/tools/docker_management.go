@@ -62,7 +62,7 @@ func DockerCreateContainer(cfg DockerConfig, name, image string, env []string, p
 		json.Unmarshal(data, &resp)
 		return fmt.Sprintf(`{"status":"ok","message":"Container created","id":"%v"}`, resp["Id"])
 	}
-	return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+	return dockerBodyErr(code, data)
 }
 
 // DockerListNetworks returns all Docker networks.
@@ -72,7 +72,7 @@ func DockerListNetworks(cfg DockerConfig) string {
 		return errJSON("Failed to list networks: %v", err)
 	}
 	if code != 200 {
-		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+		return dockerBodyErr(code, data)
 	}
 
 	var networks []map[string]interface{}
@@ -110,7 +110,7 @@ func DockerListVolumes(cfg DockerConfig) string {
 		return errJSON("Failed to list volumes: %v", err)
 	}
 	if code != 200 {
-		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+		return dockerBodyErr(code, data)
 	}
 
 	var resp map[string]interface{}
@@ -147,7 +147,7 @@ func DockerSystemInfo(cfg DockerConfig) string {
 		return errJSON("Failed to get Docker info: %v", err)
 	}
 	if code != 200 {
-		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+		return dockerBodyErr(code, data)
 	}
 
 	var info map[string]interface{}
@@ -196,7 +196,7 @@ func DockerExec(cfg DockerConfig, containerID, cmd, user string) string {
 		return errJSON("Failed to map exec: %v", err)
 	}
 	if code != 201 {
-		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+		return dockerBodyErr(code, data)
 	}
 
 	var execResp map[string]interface{}
@@ -213,7 +213,7 @@ func DockerExec(cfg DockerConfig, containerID, cmd, user string) string {
 		return errJSON("Failed to start exec: %v", err)
 	}
 	if outCode != 200 {
-		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, outCode, string(outData))
+		return dockerBodyErr(outCode, outData)
 	}
 
 	outputStr := stripDockerLogHeaders(outData)
@@ -251,7 +251,7 @@ func DockerStats(cfg DockerConfig, containerID string) string {
 		return errJSON("Failed to get stats: %v", err)
 	}
 	if code != 200 {
-		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+		return dockerBodyErr(code, data)
 	}
 	return string(data)
 }
@@ -266,7 +266,7 @@ func DockerTop(cfg DockerConfig, containerID string) string {
 		return errJSON("Failed to get top: %v", err)
 	}
 	if code != 200 {
-		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+		return dockerBodyErr(code, data)
 	}
 	return string(data)
 }
@@ -281,7 +281,7 @@ func DockerPort(cfg DockerConfig, containerID string) string {
 		return errJSON("Failed to get port info: %v", err)
 	}
 	if code != 200 {
-		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+		return dockerBodyErr(code, data)
 	}
 	var full map[string]interface{}
 	json.Unmarshal(data, &full)
@@ -314,7 +314,7 @@ func DockerCreateNetwork(cfg DockerConfig, name, driver string) string {
 		json.Unmarshal(data, &r)
 		return fmt.Sprintf(`{"status":"ok","message":"Network created","id":"%v"}`, r["Id"])
 	}
-	return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+	return dockerBodyErr(code, data)
 }
 
 // DockerRemoveNetwork removes a network.
@@ -329,7 +329,7 @@ func DockerRemoveNetwork(cfg DockerConfig, name string) string {
 	if code == 204 || code == 200 {
 		return `{"status":"ok","message":"Network removed"}`
 	}
-	return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+	return dockerBodyErr(code, data)
 }
 
 // DockerConnectNetwork connects a container to a network.
@@ -345,7 +345,7 @@ func DockerConnectNetwork(cfg DockerConfig, containerID, network string) string 
 	if code == 200 || code == 204 {
 		return fmt.Sprintf(`{"status":"ok","message":"Connected to %s"}`, network)
 	}
-	return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+	return dockerBodyErr(code, data)
 }
 
 // DockerDisconnectNetwork disconnects a container from a network.
@@ -361,7 +361,7 @@ func DockerDisconnectNetwork(cfg DockerConfig, containerID, network string) stri
 	if code == 200 || code == 204 {
 		return fmt.Sprintf(`{"status":"ok","message":"Disconnected from %s"}`, network)
 	}
-	return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+	return dockerBodyErr(code, data)
 }
 
 // DockerCreateVolume creates a volume.
@@ -380,7 +380,7 @@ func DockerCreateVolume(cfg DockerConfig, name, driver string) string {
 	if code == 201 || code == 200 {
 		return fmt.Sprintf(`{"status":"ok","message":"Volume created","name":"%s"}`, name)
 	}
-	return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+	return dockerBodyErr(code, data)
 }
 
 // DockerRemoveVolume removes a volume.
@@ -399,7 +399,7 @@ func DockerRemoveVolume(cfg DockerConfig, name string, force bool) string {
 	if code == 204 || code == 200 {
 		return `{"status":"ok","message":"Volume removed"}`
 	}
-	return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+	return dockerBodyErr(code, data)
 }
 
 // runDockerCLIHelper is used for operations like cp and compose which are notoriously difficult strictly via REST API.

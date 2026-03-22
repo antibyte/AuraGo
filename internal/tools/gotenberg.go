@@ -204,23 +204,53 @@ func EnsureGotenbergRunning(dockerHost string, logger interface {
 	logger.Info("[Gotenberg] Container created and started", "image", gotenbergImage)
 }
 
+// gotenbergErrJSON returns a properly JSON-encoded error response.
+// Using json.Marshal avoids broken JSON when error messages contain '"' (e.g. Go
+// http errors: Get "http://host:3000/health": dial tcp ...: connection refused).
+func gotenbergErrJSON(msg string) string {
+	b, _ := json.Marshal(map[string]string{"status": "error", "message": msg})
+	return string(b)
+}
+
+// gotenbergOKJSON returns a properly JSON-encoded success response with file metadata.
+func gotenbergOKJSON(filePath, webPath, filename string) string {
+	b, _ := json.Marshal(map[string]string{
+		"status":    "success",
+		"file_path": filePath,
+		"web_path":  webPath,
+		"filename":  filename,
+	})
+	return string(b)
+}
+
 // GotenbergHealth checks if the Gotenberg sidecar is reachable.
 func GotenbergHealth(ctx context.Context, cfg *config.GotenbergConfig) string {
 	url := strings.TrimRight(cfg.URL, "/") + "/health"
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return fmt.Sprintf(`{"status":"error","message":"create request: %v"}`, err)
+		return gotenbergErrJSON("create request: " + err.Error())
 	}
 	resp, err := getGotenbergClient(cfg.Timeout).Do(req)
 	if err != nil {
-		return fmt.Sprintf(`{"status":"error","message":"Gotenberg unreachable: %v"}`, err)
+		return gotenbergErrJSON("Gotenberg unreachable: " + err.Error())
 	}
 	defer resp.Body.Close()
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode == 200 {
-		return fmt.Sprintf(`{"status":"success","message":"Gotenberg is healthy","details":%s}`, string(body))
+		// body is already valid JSON from Gotenberg; embed it as-is under "details".
+		// If it's not valid JSON, fall back to a plain string field.
+		var detailsRaw json.RawMessage
+		if json.Unmarshal(body, &detailsRaw) != nil {
+			detailsRaw, _ = json.Marshal(string(body))
+		}
+		out, _ := json.Marshal(map[string]interface{}{
+			"status":  "success",
+			"message": "Gotenberg is healthy",
+			"details": detailsRaw,
+		})
+		return string(out)
 	}
-	return fmt.Sprintf(`{"status":"error","message":"Gotenberg returned HTTP %d: %s"}`, resp.StatusCode, gotenbergTruncate(string(body), 300))
+	return gotenbergErrJSON(fmt.Sprintf("Gotenberg returned HTTP %d: %s", resp.StatusCode, gotenbergTruncate(string(body), 300)))
 }
 
 // GotenbergURLToPDF converts a URL to PDF via Chromium.
@@ -234,15 +264,14 @@ func GotenbergURLToPDF(ctx context.Context, cfg *config.GotenbergConfig, outputD
 
 	data, err := gotenbergRequest(ctx, cfg, "/forms/chromium/convert/url", fields, nil)
 	if err != nil {
-		return fmt.Sprintf(`{"status":"error","message":"%v"}`, err)
+		return gotenbergErrJSON(err.Error())
 	}
 
 	filePath, webPath, err := saveGotenbergOutput(data, outputDir, filename, ".pdf")
 	if err != nil {
-		return fmt.Sprintf(`{"status":"error","message":"%v"}`, err)
+		return gotenbergErrJSON(err.Error())
 	}
-	return fmt.Sprintf(`{"status":"success","file_path":"%s","web_path":"%s","filename":"%s"}`,
-		filePath, webPath, filepath.Base(filePath))
+	return gotenbergOKJSON(filePath, webPath, filepath.Base(filePath))
 }
 
 // GotenbergHTMLToPDF converts HTML content to PDF via Chromium.
@@ -259,15 +288,14 @@ func GotenbergHTMLToPDF(ctx context.Context, cfg *config.GotenbergConfig, output
 
 	data, err := gotenbergRequest(ctx, cfg, "/forms/chromium/convert/html", fields, files)
 	if err != nil {
-		return fmt.Sprintf(`{"status":"error","message":"%v"}`, err)
+		return gotenbergErrJSON(err.Error())
 	}
 
 	filePath, webPath, err := saveGotenbergOutput(data, outputDir, filename, ".pdf")
 	if err != nil {
-		return fmt.Sprintf(`{"status":"error","message":"%v"}`, err)
+		return gotenbergErrJSON(err.Error())
 	}
-	return fmt.Sprintf(`{"status":"success","file_path":"%s","web_path":"%s","filename":"%s"}`,
-		filePath, webPath, filepath.Base(filePath))
+	return gotenbergOKJSON(filePath, webPath, filepath.Base(filePath))
 }
 
 // GotenbergMarkdownToPDF converts Markdown content to PDF via Chromium.
@@ -298,15 +326,14 @@ th { background: #f2f2f2; }
 
 	data, err := gotenbergRequest(ctx, cfg, "/forms/chromium/convert/markdown", fields, files)
 	if err != nil {
-		return fmt.Sprintf(`{"status":"error","message":"%v"}`, err)
+		return gotenbergErrJSON(err.Error())
 	}
 
 	filePath, webPath, err := saveGotenbergOutput(data, outputDir, filename, ".pdf")
 	if err != nil {
-		return fmt.Sprintf(`{"status":"error","message":"%v"}`, err)
+		return gotenbergErrJSON(err.Error())
 	}
-	return fmt.Sprintf(`{"status":"success","file_path":"%s","web_path":"%s","filename":"%s"}`,
-		filePath, webPath, filepath.Base(filePath))
+	return gotenbergOKJSON(filePath, webPath, filepath.Base(filePath))
 }
 
 // GotenbergConvertDocument converts office documents (docx, xlsx, pptx, etc.) to PDF via LibreOffice.
@@ -314,7 +341,7 @@ func GotenbergConvertDocument(ctx context.Context, cfg *config.GotenbergConfig, 
 	// Read the source file
 	srcData, err := os.ReadFile(sourceFilePath)
 	if err != nil {
-		return fmt.Sprintf(`{"status":"error","message":"read source file: %v"}`, err)
+		return gotenbergErrJSON("read source file: " + err.Error())
 	}
 
 	fields := paperSizeFields(paperSize)
@@ -329,7 +356,7 @@ func GotenbergConvertDocument(ctx context.Context, cfg *config.GotenbergConfig, 
 
 	data, err := gotenbergRequest(ctx, cfg, "/forms/libreoffice/convert", fields, files)
 	if err != nil {
-		return fmt.Sprintf(`{"status":"error","message":"%v"}`, err)
+		return gotenbergErrJSON(err.Error())
 	}
 
 	if filename == "" {
@@ -338,10 +365,16 @@ func GotenbergConvertDocument(ctx context.Context, cfg *config.GotenbergConfig, 
 
 	filePath, webPath, err := saveGotenbergOutput(data, outputDir, filename, ".pdf")
 	if err != nil {
-		return fmt.Sprintf(`{"status":"error","message":"%v"}`, err)
+		return gotenbergErrJSON(err.Error())
 	}
-	return fmt.Sprintf(`{"status":"success","file_path":"%s","web_path":"%s","filename":"%s","source":"%s"}`,
-		filePath, webPath, filepath.Base(filePath), srcName)
+	b, _ := json.Marshal(map[string]string{
+		"status":    "success",
+		"file_path": filePath,
+		"web_path":  webPath,
+		"filename":  filepath.Base(filePath),
+		"source":    srcName,
+	})
+	return string(b)
 }
 
 // GotenbergMergePDFs merges multiple PDF files into one.
@@ -354,7 +387,7 @@ func GotenbergMergePDFs(ctx context.Context, cfg *config.GotenbergConfig, output
 	for i, p := range sourcePaths {
 		data, err := os.ReadFile(p)
 		if err != nil {
-			return fmt.Sprintf(`{"status":"error","message":"read file %s: %v"}`, filepath.Base(p), err)
+			return gotenbergErrJSON("read file " + filepath.Base(p) + ": " + err.Error())
 		}
 		// Gotenberg merges in alphabetical order of filenames
 		name := fmt.Sprintf("%02d_%s", i+1, filepath.Base(p))
@@ -363,15 +396,21 @@ func GotenbergMergePDFs(ctx context.Context, cfg *config.GotenbergConfig, output
 
 	data, err := gotenbergRequest(ctx, cfg, "/forms/pdf-engines/merge", nil, files)
 	if err != nil {
-		return fmt.Sprintf(`{"status":"error","message":"%v"}`, err)
+		return gotenbergErrJSON(err.Error())
 	}
 
 	filePath, webPath, err := saveGotenbergOutput(data, outputDir, filename, ".pdf")
 	if err != nil {
-		return fmt.Sprintf(`{"status":"error","message":"%v"}`, err)
+		return gotenbergErrJSON(err.Error())
 	}
-	return fmt.Sprintf(`{"status":"success","file_path":"%s","web_path":"%s","filename":"%s","merged_count":%d}`,
-		filePath, webPath, filepath.Base(filePath), len(sourcePaths))
+	b, _ := json.Marshal(map[string]interface{}{
+		"status":       "success",
+		"file_path":    filePath,
+		"web_path":     webPath,
+		"filename":     filepath.Base(filePath),
+		"merged_count": len(sourcePaths),
+	})
+	return string(b)
 }
 
 // GotenbergScreenshotURL takes a screenshot of a URL via Chromium.
@@ -383,15 +422,14 @@ func GotenbergScreenshotURL(ctx context.Context, cfg *config.GotenbergConfig, ou
 
 	data, err := gotenbergRequest(ctx, cfg, "/forms/chromium/screenshot/url", fields, nil)
 	if err != nil {
-		return fmt.Sprintf(`{"status":"error","message":"%v"}`, err)
+		return gotenbergErrJSON(err.Error())
 	}
 
 	filePath, webPath, err := saveGotenbergOutput(data, outputDir, filename, ".png")
 	if err != nil {
-		return fmt.Sprintf(`{"status":"error","message":"%v"}`, err)
+		return gotenbergErrJSON(err.Error())
 	}
-	return fmt.Sprintf(`{"status":"success","file_path":"%s","web_path":"%s","filename":"%s"}`,
-		filePath, webPath, filepath.Base(filePath))
+	return gotenbergOKJSON(filePath, webPath, filepath.Base(filePath))
 }
 
 // GotenbergScreenshotHTML takes a screenshot of HTML content via Chromium.
@@ -405,15 +443,14 @@ func GotenbergScreenshotHTML(ctx context.Context, cfg *config.GotenbergConfig, o
 
 	data, err := gotenbergRequest(ctx, cfg, "/forms/chromium/screenshot/html", fields, files)
 	if err != nil {
-		return fmt.Sprintf(`{"status":"error","message":"%v"}`, err)
+		return gotenbergErrJSON(err.Error())
 	}
 
 	filePath, webPath, err := saveGotenbergOutput(data, outputDir, filename, ".png")
 	if err != nil {
-		return fmt.Sprintf(`{"status":"error","message":"%v"}`, err)
+		return gotenbergErrJSON(err.Error())
 	}
-	return fmt.Sprintf(`{"status":"success","file_path":"%s","web_path":"%s","filename":"%s"}`,
-		filePath, webPath, filepath.Base(filePath))
+	return gotenbergOKJSON(filePath, webPath, filepath.Base(filePath))
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────

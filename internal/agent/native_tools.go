@@ -92,7 +92,7 @@ type ToolFeatureFlags struct {
 	WOLEnabled               bool
 	MediaRegistryEnabled     bool
 	HomepageRegistryEnabled  bool
-	ContactsEnabled         bool
+	ContactsEnabled          bool
 	JournalEnabled           bool
 	MemoryAnalysisEnabled    bool
 	DocumentCreatorEnabled   bool
@@ -113,6 +113,8 @@ type ToolFeatureFlags struct {
 	// Telnyx integration flags
 	TelnyxSMSEnabled  bool
 	TelnyxCallEnabled bool
+	// SQL Connections flag
+	SQLConnectionsEnabled bool
 }
 
 // builtinToolSchemas returns schemas for all built-in AuraGo tools.
@@ -158,6 +160,21 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 					"enum":        []string{"all", "cpu", "memory", "disk", "processes", "host", "sensors", "network_detail", "connections", "disk_io"},
 				},
 			}),
+		),
+		tool("process_analyzer",
+			"Analyze running OS processes. Find top CPU/memory consumers, search processes by name, "+
+				"inspect a single process in detail, or view process trees (parent/child relationships). "+
+				"Unlike process_management (which manages AuraGo background tasks), this tool queries ALL system processes.",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "Analysis operation to perform",
+					"enum":        []string{"top_cpu", "top_memory", "find", "tree", "info"},
+				},
+				"name":  prop("string", "Process name to search for (required for find)"),
+				"pid":   prop("integer", "Process ID (required for tree and info)"),
+				"limit": map[string]interface{}{"type": "integer", "description": "Max results to return (1-100, default: 10)"},
+			}, "operation"),
 		),
 		tool("process_management",
 			"List, kill, or inspect running background processes managed by AuraGo.",
@@ -594,16 +611,17 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 
 	if ff.CoAgentEnabled {
 		tools = append(tools, tool("co_agent",
-			"Spawn and manage parallel co-agents that work on sub-tasks independently. Co-agents run in background goroutines with their own LLM context and return results when done.",
+			"Spawn and manage parallel co-agents that work on sub-tasks independently. Co-agents run in background goroutines with their own LLM context and return results when done. Use 'spawn_specialist' to dispatch tasks to specialized experts (researcher, coder, designer, security, writer).",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
 					"type":        "string",
 					"description": "Operation to perform",
-					"enum":        []string{"spawn", "list", "get_result", "stop", "stop_all"},
+					"enum":        []string{"spawn", "spawn_specialist", "list", "get_result", "stop", "stop_all"},
 				},
-				"task":          prop("string", "Task description for the co-agent to work on (required for 'spawn')"),
+				"task":          prop("string", "Task description for the co-agent to work on (required for 'spawn' and 'spawn_specialist')"),
+				"specialist":    prop("string", "Specialist role (required for 'spawn_specialist'). One of: researcher, coder, designer, security, writer"),
 				"co_agent_id":   prop("string", "Co-agent ID (required for 'get_result' and 'stop')"),
-				"context_hints": map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Optional keywords or topics for RAG context injection (for 'spawn')"},
+				"context_hints": map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Optional keywords or topics for RAG context injection (for 'spawn' and 'spawn_specialist')"},
 			}, "operation"),
 		))
 	}
@@ -1193,6 +1211,17 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 				"output_dir": prop("string", "Directory to save the file (default: agent_workspace/workdir)"),
 			}, "operation", "url"),
 		))
+
+		tools = append(tools, tool("web_performance_audit",
+			"Measure page load performance of any URL using a headless Chromium browser. "+
+				"Returns Core Web Vitals and related metrics: TTFB, First Contentful Paint, DOM Content Loaded, "+
+				"full Load time, DOM element count, resource count, total transfer size, JS heap usage, "+
+				"and the 5 largest resources by size. Useful for diagnosing slow pages or comparing performance.",
+			schema(map[string]interface{}{
+				"url":      prop("string", "Page URL to audit (http or https)"),
+				"viewport": prop("string", "Browser viewport size as 'WIDTHxHEIGHT' (default: '1280x720')"),
+			}, "url"),
+		))
 	}
 
 	if ff.NetworkPingEnabled {
@@ -1310,16 +1339,17 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 	tools = append(tools, tool("pdf_operations",
 		"Manipulate PDF files: merge multiple PDFs, split into pages, add text watermarks, "+
 			"compress/optimize file size, encrypt/decrypt with password, read metadata and page count. "+
-			"Uses local processing (no external service needed).",
+			"Form operations: list form fields, fill forms programmatically, export form data to JSON, "+
+			"reset form fields, lock form fields. Uses local processing (no external service needed).",
 		schema(map[string]interface{}{
 			"operation": map[string]interface{}{
 				"type":        "string",
 				"description": "PDF operation to perform",
-				"enum":        []string{"merge", "split", "watermark", "compress", "encrypt", "decrypt", "metadata", "page_count"},
+				"enum":        []string{"merge", "split", "watermark", "compress", "encrypt", "decrypt", "metadata", "page_count", "form_fields", "fill_form", "export_form", "reset_form", "lock_form"},
 			},
 			"file_path":      prop("string", "Input PDF file path (required for all except merge)"),
 			"output_file":    prop("string", "Output file/directory path (auto-generated if omitted)"),
-			"source_files":   prop("string", "JSON array of PDF file paths for merge (e.g. '[\"a.pdf\",\"b.pdf\"]')"),
+			"source_files":   prop("string", "JSON array of PDF file paths for merge, or JSON object {field:value} for fill_form"),
 			"pages":          prop("string", "Page numbers for split (comma-separated, e.g. '3,5,8')"),
 			"watermark_text": prop("string", "Text to use as watermark (diagonal, semi-transparent)"),
 			"password":       prop("string", "Password for encrypt/decrypt operations"),
@@ -1583,6 +1613,59 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 				"register_tags":      map[string]interface{}{"type": "array", "items": map[string]string{"type": "string"}, "description": "Tags to assign to auto-registered devices."},
 				"overwrite_existing": map[string]interface{}{"type": "boolean", "description": "If true, update an existing device record when the name matches. Default: false (skip duplicates)."},
 			}),
+		))
+	}
+
+	if ff.SQLConnectionsEnabled {
+		tools = append(tools, tool("sql_query",
+			"Execute a SQL query against a registered database connection. Supports SELECT, INSERT, UPDATE, DELETE, and DDL statements. "+
+				"Permissions are enforced per connection (read/write/change/delete). "+
+				"Use operation 'query' to run SQL, 'describe' to get table structure, 'list_tables' to list all tables.",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "Operation to perform",
+					"enum":        []string{"query", "describe", "list_tables"},
+				},
+				"connection_name": prop("string", "Name of the database connection to use"),
+				"sql_query":       prop("string", "SQL statement to execute (for 'query' operation)"),
+				"table_name":      prop("string", "Table name (for 'describe' operation)"),
+			}, "operation", "connection_name"),
+		))
+
+		tools = append(tools, tool("manage_sql_connections",
+			"Manage external database connections. Create, update, delete, list, and test database connections. "+
+				"Supports PostgreSQL, MySQL/MariaDB, and SQLite. Credentials are stored securely in the vault. "+
+				"Use 'docker_create' to spin up a new database container via Docker.",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "Operation to perform",
+					"enum":        []string{"list", "get", "create", "update", "delete", "test", "docker_create"},
+				},
+				"connection_name": prop("string", "Connection name (unique identifier)"),
+				"driver": map[string]interface{}{
+					"type":        "string",
+					"description": "Database driver",
+					"enum":        []string{"postgres", "mysql", "sqlite"},
+				},
+				"host":          prop("string", "Database host (IP or hostname)"),
+				"port":          map[string]interface{}{"type": "integer", "description": "Database port (default: 5432 for postgres, 3306 for mysql)"},
+				"database_name": prop("string", "Database name or SQLite file path"),
+				"description":   prop("string", "Short description of the database purpose"),
+				"username":      prop("string", "Database username (stored in vault)"),
+				"password":      prop("string", "Database password (stored in vault)"),
+				"ssl_mode":      prop("string", "SSL mode: disable, require, verify-ca, verify-full (default: disable)"),
+				"allow_read":    map[string]interface{}{"type": "boolean", "description": "Allow SELECT queries (default: true)"},
+				"allow_write":   map[string]interface{}{"type": "boolean", "description": "Allow INSERT queries (default: false)"},
+				"allow_change":  map[string]interface{}{"type": "boolean", "description": "Allow UPDATE queries (default: false)"},
+				"allow_delete":  map[string]interface{}{"type": "boolean", "description": "Allow DELETE queries (default: false)"},
+				"docker_template": map[string]interface{}{
+					"type":        "string",
+					"description": "Docker template for docker_create: postgres, mysql, mariadb",
+					"enum":        []string{"postgres", "mysql", "mariadb"},
+				},
+			}, "operation"),
 		))
 	}
 

@@ -29,6 +29,7 @@ import (
 	"aurago/internal/remote"
 	"aurago/internal/security"
 	"aurago/internal/services"
+	"aurago/internal/sqlconnections"
 	"aurago/internal/tools"
 	"aurago/internal/tsnetnode"
 	"aurago/internal/webhooks"
@@ -223,6 +224,8 @@ type Server struct {
 	MediaRegistryDB    *sql.DB
 	HomepageRegistryDB *sql.DB
 	ContactsDB         *sql.DB
+	SQLConnectionsDB   *sql.DB
+	SQLConnectionPool  *sqlconnections.ConnectionPool
 	A2AServer          *a2apkg.Server        // A2A protocol server (nil if disabled)
 	A2AClientMgr       *a2apkg.ClientManager // A2A client manager (nil if disabled)
 	A2ABridge          *a2apkg.Bridge        // A2A co-agent bridge (nil if disabled)
@@ -234,7 +237,7 @@ type Server struct {
 	muFirstStart   sync.Mutex
 }
 
-func Start(cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, remoteControlDB *sql.DB, mediaRegistryDB *sql.DB, homepageRegistryDB *sql.DB, contactsDB *sql.DB, isFirstStart bool, shutdownCh chan struct{}) error {
+func Start(cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, remoteControlDB *sql.DB, mediaRegistryDB *sql.DB, homepageRegistryDB *sql.DB, contactsDB *sql.DB, sqlConnectionsDB *sql.DB, sqlConnectionPool *sqlconnections.ConnectionPool, isFirstStart bool, shutdownCh chan struct{}) error {
 	s := &Server{
 		Cfg:                cfg,
 		Logger:             logger,
@@ -253,6 +256,8 @@ func Start(cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, sh
 		MediaRegistryDB:    mediaRegistryDB,
 		HomepageRegistryDB: homepageRegistryDB,
 		ContactsDB:         contactsDB,
+		SQLConnectionsDB:   sqlConnectionsDB,
+		SQLConnectionPool:  sqlConnectionPool,
 		Guardian:           security.NewGuardian(logger),
 		LLMGuardian:        security.NewLLMGuardian(cfg, logger),
 		CoAgentRegistry:    agent.NewCoAgentRegistry(cfg.CoAgents.MaxConcurrent, logger),
@@ -519,6 +524,11 @@ func Start(cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, sh
 	// Auto-start local Ollama embeddings container if enabled
 	if cfg.Embeddings.LocalOllama.Enabled {
 		go tools.EnsureOllamaEmbeddingsRunning(cfg, logger)
+	}
+
+	// Auto-start Piper TTS container if enabled
+	if cfg.TTS.Piper.Enabled {
+		go tools.EnsurePiperRunning(cfg, logger)
 	}
 
 	// Start Fritz!Box telephony poller if enabled

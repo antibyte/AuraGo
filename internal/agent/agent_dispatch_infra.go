@@ -17,6 +17,7 @@ import (
 	"aurago/internal/memory"
 	"aurago/internal/remote"
 	"aurago/internal/security"
+	"aurago/internal/sqlconnections"
 	"aurago/internal/tools"
 	"aurago/internal/webhooks"
 )
@@ -26,7 +27,7 @@ const dispatchNotHandled = "\x00__DISPATCH_NOT_HANDLED__"
 
 // dispatchInfra handles network, cloud platform, and external service tool calls
 // (co_agent, mdns, tts, chromecast, proxmox, ollama, tailscale, ansible, invasion, github, netlify, mqtt, mcp, adguard).
-func dispatchInfra(ctx context.Context, tc ToolCall, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, missionManagerV2 *tools.MissionManagerV2, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, mediaRegistryDB *sql.DB, homepageRegistryDB *sql.DB, contactsDB *sql.DB, remoteHub *remote.RemoteHub, historyMgr *memory.HistoryManager, isMaintenance bool, surgeryPlan string, guardian *security.Guardian, sessionID string, coAgentRegistry *CoAgentRegistry, budgetTracker *budget.Tracker) string {
+func dispatchInfra(ctx context.Context, tc ToolCall, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, missionManagerV2 *tools.MissionManagerV2, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, mediaRegistryDB *sql.DB, homepageRegistryDB *sql.DB, contactsDB *sql.DB, sqlConnectionsDB *sql.DB, sqlConnectionPool *sqlconnections.ConnectionPool, remoteHub *remote.RemoteHub, historyMgr *memory.HistoryManager, isMaintenance bool, surgeryPlan string, guardian *security.Guardian, sessionID string, coAgentRegistry *CoAgentRegistry, budgetTracker *budget.Tracker) string {
 	switch tc.Action {
 	case "co_agent", "co_agents":
 		if budgetTracker != nil && budgetTracker.IsBlocked("coagent") {
@@ -58,6 +59,31 @@ func dispatchInfra(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 			}
 			slots := coAgentRegistry.AvailableSlots()
 			return fmt.Sprintf(`Tool Output: {"status": "ok", "co_agent_id": "%s", "available_slots": %d, "message": "Co-Agent started. Use operation 'list' to check status and 'get_result' when completed."}`, id, slots)
+
+		case "spawn_specialist":
+			task := tc.Task
+			if task == "" {
+				task = tc.Content
+			}
+			if task == "" {
+				return `Tool Output: {"status": "error", "message": "'task' is required to spawn a specialist."}`
+			}
+			specialist := tc.Specialist
+			if specialist == "" {
+				return `Tool Output: {"status": "error", "message": "'specialist' is required. Choose: researcher, coder, designer, security, writer."}`
+			}
+			coReq := CoAgentRequest{
+				Task:         task,
+				ContextHints: tc.ContextHints,
+				Specialist:   specialist,
+			}
+			id, err := SpawnCoAgent(cfg, ctx, logger, coAgentRegistry,
+				shortTermMem, longTermMem, vault, registry, manifest, kg, inventoryDB, coReq, budgetTracker)
+			if err != nil {
+				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
+			}
+			slots := coAgentRegistry.AvailableSlots()
+			return fmt.Sprintf(`Tool Output: {"status": "ok", "co_agent_id": "%s", "specialist": "%s", "available_slots": %d, "message": "Specialist '%s' started. Use 'list' to check status and 'get_result' when completed."}`, id, specialist, slots, specialist)
 
 		case "list", "status":
 			list := coAgentRegistry.List()
@@ -106,7 +132,7 @@ func dispatchInfra(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 			return fmt.Sprintf(`Tool Output: {"status": "ok", "message": "Stopped %d co-agent(s)."}`, n)
 
 		default:
-			return `Tool Output: {"status": "error", "message": "Unknown co_agent operation. Use: spawn, list, get_result, stop, stop_all"}`
+			return `Tool Output: {"status": "error", "message": "Unknown co_agent operation. Use: spawn, spawn_specialist, list, get_result, stop, stop_all"}`
 		}
 
 	case "mdns_scan":
@@ -121,15 +147,19 @@ func dispatchInfra(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 		return "Tool Output: " + scanResult
 
 	case "tts":
-		if !cfg.Chromecast.Enabled && cfg.TTS.Provider == "" {
+		if !cfg.Chromecast.Enabled && cfg.TTS.Provider == "" && !cfg.TTS.Piper.Enabled {
 			return `Tool Output: {"status": "error", "message": "TTS is not configured. Set tts.provider in config.yaml."}`
 		}
 		text := tc.Text
 		if text == "" {
 			text = tc.Content
 		}
+		provider := cfg.TTS.Provider
+		if provider == "" && cfg.TTS.Piper.Enabled {
+			provider = "piper"
+		}
 		ttsCfg := tools.TTSConfig{
-			Provider: cfg.TTS.Provider,
+			Provider: provider,
 			Language: tc.Language,
 			DataDir:  cfg.Directories.DataDir,
 		}
@@ -139,6 +169,9 @@ func dispatchInfra(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 		ttsCfg.ElevenLabs.APIKey = cfg.TTS.ElevenLabs.APIKey
 		ttsCfg.ElevenLabs.VoiceID = cfg.TTS.ElevenLabs.VoiceID
 		ttsCfg.ElevenLabs.ModelID = cfg.TTS.ElevenLabs.ModelID
+		ttsCfg.Piper.Port = cfg.TTS.Piper.ContainerPort
+		ttsCfg.Piper.Voice = cfg.TTS.Piper.Voice
+		ttsCfg.Piper.SpeakerID = cfg.TTS.Piper.SpeakerID
 		filename, err := tools.TTSSynthesize(ttsCfg, text)
 		if err != nil {
 			return fmt.Sprintf(`Tool Output: {"status": "error", "message": "TTS failed: %v"}`, err)
@@ -146,13 +179,17 @@ func dispatchInfra(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 
 		// Auto-register in media registry
 		if mediaRegistryDB != nil {
+			format := "mp3"
+			if strings.ToLower(provider) == "piper" {
+				format = "wav"
+			}
 			tools.RegisterMedia(mediaRegistryDB, tools.MediaItem{
 				MediaType:  "tts",
 				SourceTool: "tts",
 				Filename:   filename,
 				FilePath:   filepath.Join(cfg.Directories.DataDir, "tts", filename),
-				Format:     "mp3",
-				Provider:   cfg.TTS.Provider,
+				Format:     format,
+				Provider:   provider,
 				Prompt:     text,
 				Language:   ttsCfg.Language,
 				VoiceID:    ttsCfg.ElevenLabs.VoiceID,
@@ -160,9 +197,9 @@ func dispatchInfra(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 			})
 		}
 
-		ttsPort := cfg.Chromecast.TTSPort
-		if ttsPort == 0 {
-			ttsPort = cfg.Server.Port // Fallback if chromecast integration is disabled
+		ttsPort := cfg.Server.Port // TTS is always served on the main server
+		if cfg.Chromecast.Enabled && cfg.Chromecast.TTSPort > 0 {
+			ttsPort = cfg.Chromecast.TTSPort // Chromecast has its own dedicated TTS server
 		}
 		audioURL := fmt.Sprintf("http://%s:%d/tts/%s", getLocalIP(cfg), ttsPort, filename)
 		return fmt.Sprintf(`Tool Output: {"status": "success", "file": "%s", "url": "%s"}`, filename, audioURL)

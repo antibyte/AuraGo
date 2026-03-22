@@ -24,12 +24,13 @@ import (
 	"aurago/internal/remote"
 	"aurago/internal/security"
 	"aurago/internal/services"
+	"aurago/internal/sqlconnections"
 	"aurago/internal/telnyx"
 	"aurago/internal/tools"
 )
 
 // dispatchComm handles webhook, skill, notification, email, discord, mission, and notes tool calls.
-func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, missionManagerV2 *tools.MissionManagerV2, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, mediaRegistryDB *sql.DB, homepageRegistryDB *sql.DB, contactsDB *sql.DB, remoteHub *remote.RemoteHub, historyMgr *memory.HistoryManager, isMaintenance bool, surgeryPlan string, guardian *security.Guardian, llmGuardian *security.LLMGuardian, sessionID string, coAgentRegistry *CoAgentRegistry, budgetTracker *budget.Tracker) string {
+func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, missionManagerV2 *tools.MissionManagerV2, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, mediaRegistryDB *sql.DB, homepageRegistryDB *sql.DB, contactsDB *sql.DB, sqlConnectionsDB *sql.DB, sqlConnectionPool *sqlconnections.ConnectionPool, remoteHub *remote.RemoteHub, historyMgr *memory.HistoryManager, isMaintenance bool, surgeryPlan string, guardian *security.Guardian, llmGuardian *security.LLMGuardian, sessionID string, coAgentRegistry *CoAgentRegistry, budgetTracker *budget.Tracker) string {
 	switch tc.Action {
 	case "call_webhook":
 		if !cfg.Webhooks.Enabled {
@@ -440,9 +441,17 @@ func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 		logger.Info("LLM requested system metrics", "target", tc.Target)
 		return "Tool Output: " + tools.GetSystemMetrics(tc.Target)
 
+	case "process_analyzer":
+		logger.Info("LLM requested process analysis", "operation", tc.Operation, "name", tc.Name, "pid", tc.PID)
+		return "Tool Output: " + tools.AnalyzeProcesses(tc.Operation, tc.Name, int(tc.PID), tc.Limit)
+
 	case "web_capture":
 		logger.Info("LLM requested web capture", "operation", tc.Operation, "url", tc.URL)
 		return "Tool Output: " + tools.WebCapture(tc.Operation, tc.URL, tc.Selector, tc.FullPage, tc.OutputDir)
+
+	case "web_performance_audit":
+		logger.Info("LLM requested web performance audit", "url", tc.URL, "viewport", tc.Viewport)
+		return "Tool Output: " + tools.WebPerformanceAudit(tc.URL, tc.Viewport)
 
 	case "network_ping":
 		logger.Info("LLM requested network ping", "host", tc.Host)

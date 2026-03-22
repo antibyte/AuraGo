@@ -35,47 +35,47 @@ Unlike cloud AI services, AuraGo runs **on your hardware**, has **direct access 
 
 ---
 
-## 🔥 Teste unbedingt diese Features
+## 🔥 Must-Try Features
 
 ### Personality Engine V2 + User Profiling
-**Ein Agent, der dich wirklich kennt.** AuraGo lernt deine Vorlieben, deinen Tech-Stack und deinen Kommunikationsstil kennen – und passt sich vollständig an dich an. Durch kontinuierliches User Profiling entsteht im Laufe der Zeit ein individuelles Benutzerprofil, das die Art und Weise beeinflusst, wie der Agent mit dir interagiert:
+**An agent that truly knows you.** AuraGo learns your preferences, tech stack, and communication style — and fully adapts to you. Through continuous user profiling, an individual user profile develops over time that influences how the agent interacts with you:
 
-- **Automatische Präferenz-Erkennung** – Merkt sich, welche Tools du bevorzugst, welche Antwortlängen du magst, ob du Code-Beispiele willst
-- **Tech-Stack Tracking** – Lernt, welche Technologien du nutzt (Docker, Kubernetes, Proxmox, Home Assistant…) und gibt kontextbezogene Antworten
-- **Kommunikationsstil-Anpassung** – Ob professionell, locker, detailliert oder kurz & knackig: Der Agent passt sich deinem Stil an
-- **Emotionale Affinität** – Affinity-Tracking sorgt für eine "Beziehung", die sich über Zeit aufbaut
+- **Automatic preference detection** — Remembers which tools you prefer, answer lengths you like, whether you want code examples
+- **Tech stack tracking** — Learns which technologies you use (Docker, Kubernetes, Proxmox, Home Assistant…) and provides contextual responses
+- **Communication style adaptation** — Whether professional, casual, detailed, or short & snappy: the agent adapts to your style
+- **Emotional affinity** — Affinity tracking builds a "relationship" that develops over time
 
-> 💡 **Tipp:** Aktiviere Personality Engine V2 in den Einstellungen und chatte eine Weile mit dem Agent. Du wirst merken, wie die Antworten immer persönlicher werden.
+> 💡 **Tip:** Enable Personality Engine V2 in the settings and chat with the agent for a while. You'll notice how responses become more personal.
 
-### Adaptive Tools – Intelligente Tool-Filterung
-**Spare Token, bleibe fokussiert.** Das Adaptive Tools System analysiert den Gesprächskontext und filtert die verfügbaren Tools intelligent, bevor sie an das LLM gesendet werden:
+### Adaptive Tools – Intelligent Tool Filtering
+**Save tokens, stay focused.** The Adaptive Tools system analyzes the conversation context and intelligently filters available tools before sending them to the LLM:
 
-- **Kontextbewusste Filterung** – Weniger relevante Tools werden basierend auf dem Gesprächsthema ausgeblendet
-- **Nutzungsbasiertes Scoring** – Häufig genutzte Tools werden priorisiert, seltene nach unten sortiert
-- **Konfigurierbare Grenzen** – Setze ein maximales Limit für Tools, die gleichzeitig verfügbar sein sollen
-- **Always-Include Liste** – Wichtige Tools können von der Filterung ausgenommen werden
+- **Context-aware filtering** — Less relevant tools are hidden based on the conversation topic
+- **Usage-based scoring** — Frequently used tools are prioritized, rare ones sorted down
+- **Configurable limits** — Set a maximum limit for tools available simultaneously
+- **Always-Include list** — Important tools can be excluded from filtering
 
-> 💡 **Warum das wichtig ist:** Weniger Tools im Kontext = niedrigere Kosten, schnellere Antworten und präzisere Tool-Auswahl durch das LLM.
+> 💡 **Why this matters:** Fewer tools in context = lower costs, faster responses, and more precise tool selection by the LLM.
 
-### Document Creator & PDF Extractor – Dokumenten-Management
-**Erstelle und verarbeite PDFs wie ein Profi.** AuraGo bringt jetzt umfassende PDF-Funktionen mit:
+### Document Creator & PDF Extractor – Document Management
+**Create and process PDFs like a pro.** AuraGo now includes comprehensive PDF functionality:
 
-- **PDF-Erstellung** – Generiere Rechnungen, Berichte und Dokumente via maroto (eingebaut) oder Gotenberg (Docker Sidecar)
-- **PDF-Extraktion** – Extrahiere Text aus PDFs mit optionaler LLM-Zusammenfassung für große Dokumente
-- **Template-basiert** – Wiederverwendbare Dokumentvorlagen für wiederkehrende Formate
-- **Cloud-Ready** – Integration mit Paperless NGX für Dokumenten-Archivierung
+- **PDF creation** — Generate invoices, reports, and documents via maroto (built-in) or Gotenberg (Docker sidecar)
+- **PDF extraction** — Extract text from PDFs with optional LLM summarization for large documents
+- **Template-based** — Reusable document templates for recurring formats
+- **Cloud-ready** — Integration with Paperless NGX for document archiving
 
-> 📄 **Use Cases:** Automatisierte Rechnungsgenerierung, Vertragsverarbeitung, Dokumenten-Archivierung, PDF-Analyse aus E-Mails oder Downloads.
+> 📄 **Use cases:** Automated invoice generation, contract processing, document archiving, PDF analysis from emails or downloads.
 
-### LLM Guardian – Dein AI-Sicherheits-Babysitter
-**Sicherheit wird großgeschrieben.** Der LLM Guardian überwacht alles, was dein Agent tut, und schützt vor potenziell gefährlichen oder unerwünschten Aktionen:
+### LLM Guardian – Your AI Security Guard
+**Security is paramount.** The LLM Guardian monitors everything your agent does and protects against potentially dangerous or unwanted actions:
 
-- **Tool-Call-Scanning** – Jeder Tool-Aufruf wird vor der Ausführung auf Risiken geprüft (z. B. gefährliche Shell-Befehle, Datenlöschungen, sensible Bereiche)
-- **Dokumenten- & E-Mail-Analyse** – Erkennt bösartige Inhalte, Phishing-Versuche oder verdächtige Anhänge vor der Weiterverarbeitung
-- **Prompt-Injection-Protection** – Isoliert externe Daten mit `<external_data>`-Wrappers, um Prompt-Injection-Angriffe zu verhindern
-- **Granulare Kontrolle** – Vollständig konfigurierbar: Schutzstufe, Ausnahmen, Logging
+- **Tool call scanning** — Every tool call is checked for risks before execution (e.g., dangerous shell commands, data deletion, sensitive areas)
+- **Document & email analysis** — Detects malicious content, phishing attempts, or suspicious attachments before further processing
+- **Prompt injection protection** — Isolates external data with `<external_data>` wrappers to prevent prompt injection attacks
+- **Granular control** — Fully configurable: protection level, exceptions, logging
 
-> 🛡️ **Sicherheit by Design:** Der Guardian ist dein ständiger Begleiter, der darauf achtet, dass der Agent niemals über die Stränge schlägt – besonders wichtig bei Shell-Zugriff, Datei-Operationen oder Remote-Execution.
+> 🛡️ **Security by design:** The Guardian is your constant companion, ensuring the agent never oversteps boundaries — especially important for shell access, file operations, or remote execution.
 
 ---
 
@@ -153,6 +153,8 @@ Unlike cloud AI services, AuraGo runs **on your hardware**, has **direct access 
 | **Cheatsheets** | Quick-reference command snippets and personal cheat sheet management |
 | **Sudo Execution** | Execute privileged commands with stored sudo password (vault-secured) |
 | **Image Generation** | Multi-provider support (OpenAI, Stability, Ideogram, Google, OpenRouter) |
+| **n8n Integration** | Bidirectional n8n workflow automation — trigger workflows and control the agent from n8n |
+| **Telnyx** | SMS/voice calls — send/receive SMS, make calls, voicemail, IVR system |
 | **Media Registry** | Local media file indexing and metadata management |
 | **Homepage Registry** | Dashboard homepage site management |
 | **Sandbox** | Isolated Python execution environment (Docker/Podman backend) |
@@ -160,6 +162,8 @@ Unlike cloud AI services, AuraGo runs **on your hardware**, has **direct access 
 | **Transcription** | Audio transcription via Whisper (OpenAI or local) |
 | **TTS** | Text-to-speech via Google or ElevenLabs |
 | **Gotenberg** | PDF generation sidecar for document creation |
+| **n8n Node** | Official community node for n8n integration — chat, tools, memory, missions |
+| **Telnyx Voice/SMS** | Full telephony integration — outbound/inbound calls, SMS, voicemail, call routing |
 
 ### Security
 - **AES-256-GCM encrypted vault** for API keys — manageable via Web UI with key rotation
@@ -544,6 +548,8 @@ Detailed guides are available in the [`documentation/`](documentation/) folder:
 - [Cloudflare Tunnel Setup](documentation/cloudflare_tunnel.md) *(coming soon)*
 - [Image Generation](documentation/image_generation.md) *(coming soon)*
 - [Sandbox Setup](documentation/sandbox.md) *(coming soon)*
+- [n8n Integration](documentation/n8n-node-plan.md) – Workflow automation with n8n
+- [Telnyx Integration](documentation/telnyx_integration_plan.md) – SMS and voice call integration
 - [Adaptive Tool Schemas](documentation/adaptive_tool_schema_plan.md) – Context-aware tool filtering
 - [Tool Context Optimization](documentation/tool_context_optimization_plan_v2.md) – Efficient context usage
 - [Security Introduction](documentation/security_introduction.md) – Security concepts and best practices

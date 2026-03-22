@@ -311,6 +311,13 @@ func (c *Config) ResolveProviders() {
 		c.CoAgents.LLM.Model = c.LLM.Model
 	}
 
+	// ── Specialist LLMs ── (cascade: specialist → co_agents → main LLM)
+	c.resolveSpecialistLLM(&c.CoAgents.Specialists.Researcher)
+	c.resolveSpecialistLLM(&c.CoAgents.Specialists.Coder)
+	c.resolveSpecialistLLM(&c.CoAgents.Specialists.Designer)
+	c.resolveSpecialistLLM(&c.CoAgents.Specialists.Security)
+	c.resolveSpecialistLLM(&c.CoAgents.Specialists.Writer)
+
 	// ── A2A.LLM ── (falls back to main LLM if provider empty)
 	if c.A2A.LLM.Provider != "" {
 		if p := c.FindProvider(c.A2A.LLM.Provider); p != nil {
@@ -493,6 +500,32 @@ func (c *Config) ResolveProviders() {
 				c.ImageGeneration.ResolvedModel = c.ImageGeneration.Model
 			}
 		}
+	}
+}
+
+// resolveSpecialistLLM resolves a single specialist's LLM fields.
+// Cascade: specialist.llm.provider → co_agents.llm (already resolved) fallback.
+func (c *Config) resolveSpecialistLLM(spec *SpecialistConfig) {
+	if spec.LLM.Provider != "" {
+		if p := c.FindProvider(spec.LLM.Provider); p != nil {
+			spec.LLM.ProviderType = p.Type
+			spec.LLM.BaseURL = p.BaseURL
+			spec.LLM.APIKey = p.APIKey
+			spec.LLM.Model = p.Model
+		}
+	}
+	// Inherit from co_agents.llm for any unresolved fields
+	if spec.LLM.APIKey == "" {
+		spec.LLM.APIKey = c.CoAgents.LLM.APIKey
+	}
+	if spec.LLM.BaseURL == "" {
+		spec.LLM.BaseURL = c.CoAgents.LLM.BaseURL
+	}
+	if spec.LLM.Model == "" {
+		spec.LLM.Model = c.CoAgents.LLM.Model
+	}
+	if spec.LLM.ProviderType == "" {
+		spec.LLM.ProviderType = c.CoAgents.LLM.ProviderType
 	}
 }
 

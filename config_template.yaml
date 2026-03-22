@@ -81,6 +81,47 @@ co_agents:
         model: ""
         provider: ""
     max_concurrent: 3
+    specialists:
+        researcher:
+            enabled: false
+            llm:
+                provider: ""
+            circuit_breaker:
+                max_tool_calls: 0
+                timeout_seconds: 0
+                max_tokens: 0
+        coder:
+            enabled: false
+            llm:
+                provider: ""
+            circuit_breaker:
+                max_tool_calls: 0
+                timeout_seconds: 0
+                max_tokens: 0
+        designer:
+            enabled: false
+            llm:
+                provider: ""
+            circuit_breaker:
+                max_tool_calls: 0
+                timeout_seconds: 0
+                max_tokens: 0
+        security:
+            enabled: false
+            llm:
+                provider: ""
+            circuit_breaker:
+                max_tool_calls: 0
+                timeout_seconds: 0
+                max_tokens: 0
+        writer:
+            enabled: false
+            llm:
+                provider: ""
+            circuit_breaker:
+                max_tool_calls: 0
+                timeout_seconds: 0
+                max_tokens: 0
 directories:
     data_dir: ./data
     prompts_dir: ./prompts
@@ -115,6 +156,8 @@ embeddings:
     external_url: ""
     internal_model: ""
     provider: internal
+    multimodal: false
+    multimodal_format: auto
 fallback_llm:
     api_key: ""
     base_url: ""
@@ -284,6 +327,21 @@ sqlite:
     homepage_registry_path: ./data/homepage_registry.db
     contacts_path: ./data/contacts.db
     site_monitor_path: ./data/site_monitor.db
+    sql_connections_path: ./data/sql_connections.db
+
+# SQL Connections — External database connections managed by the agent
+# Supports PostgreSQL, MySQL/MariaDB, and SQLite
+sql_connections:
+    enabled: false
+    # Maximum number of open connections per database
+    max_pool_size: 5
+    # Connection timeout in seconds
+    connection_timeout_sec: 30
+    # Query timeout in seconds
+    query_timeout_sec: 120
+    # Maximum number of rows returned per query
+    max_result_rows: 1000
+
 telegram:
     bot_token: ""
     telegram_user_id: 0
@@ -294,6 +352,13 @@ tts:
         model_id: eleven_multilingual_v2
         voice_id: ""
     language: en
+    piper:
+        container_port: 10200
+        data_path: data/piper
+        enabled: false
+        image: rhasspy/wyoming-piper:latest
+        speaker_id: 0
+        voice: de_DE-thorsten-high
     provider: google
 media_registry:
     enabled: true

@@ -211,13 +211,21 @@ async function ccDiscoverDevices() {
             if (alreadyAdded) {
                 dhtml += '<span class="cc-discovery-added">✓ ' + t('config.chromecast.already_added') + '</span>';
             } else {
-                dhtml += '<button class="btn-save cc-btn-compact" onclick="ccAddDiscovered(' + i + ')">＋ ' + t('config.chromecast.add_device') + '</button>';
+                dhtml += '<button class="btn-save cc-btn-compact" data-cc-idx="' + i + '">＋ ' + t('config.chromecast.add_device') + '</button>';
             }
             dhtml += '</div>';
         });
 
         dhtml += '</div></div>';
         area.innerHTML = dhtml;
+
+        // Attach click handlers via JS — inline onclick on dynamically created
+        // innerHTML elements can be unreliable; event listeners are always safe.
+        area.querySelectorAll('button[data-cc-idx]').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                ccAddDiscovered(parseInt(this.getAttribute('data-cc-idx'), 10));
+            });
+        });
 
     } catch (e) {
         ccRenderDiscoveryState(area, 'error', '❌ ' + escapeHtml(e.message));
@@ -335,8 +343,8 @@ async function ccSaveDevice() {
         if (area && !area.classList.contains('is-hidden') && ccDiscoveredCache.length > 0) {
             // Trigger a soft re-render of the discovery panel
             const existingIPs = new Set(ccDevicesCache.map(d => d.ip_address));
-            document.querySelectorAll('#cc-discover-area button[onclick^="ccAddDiscovered"]').forEach(btn => {
-                const idx = parseInt(btn.getAttribute('onclick').match(/\d+/)[0]);
+            area.querySelectorAll('button[data-cc-idx]').forEach(btn => {
+                const idx = parseInt(btn.getAttribute('data-cc-idx'), 10);
                 const d = ccDiscoveredCache[idx];
                 if (d && existingIPs.has(d.addr)) {
                     const parent = btn.parentElement;

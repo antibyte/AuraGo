@@ -37,6 +37,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	mediaRegistryDB := runCfg.MediaRegistryDB
 	homepageRegistryDB := runCfg.HomepageRegistryDB
 	contactsDB := runCfg.ContactsDB
+	sqlConnectionsDB := runCfg.SQLConnectionsDB
+	sqlConnectionPool := runCfg.SQLConnectionPool
 	remoteHub := runCfg.RemoteHub
 	vault := runCfg.Vault
 	registry := runCfg.Registry
@@ -88,7 +90,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		CorePersonality:   cfg.Agent.CorePersonality,
 		TokenBudget:       cfg.Agent.SystemPromptTokenBudget,
 		IsDebugMode:       cfg.Agent.DebugMode || GetDebugMode(),
-		IsCoAgent:         strings.HasPrefix(sessionID, "coagent-"),
+		IsCoAgent:         strings.HasPrefix(sessionID, "coagent-") || strings.HasPrefix(sessionID, "specialist-"),
 		DiscordEnabled:    cfg.Discord.Enabled,
 		EmailEnabled:      cfg.Email.Enabled || len(cfg.EmailAccounts) > 0,
 		// Docker-socket-dependent tools: only gate when actually inside Docker
@@ -164,6 +166,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		TelnyxEnabled:            cfg.Telnyx.Enabled,
 		AdditionalPrompt:         cfg.Agent.AdditionalPrompt,
 		MessageSource:            runCfg.MessageSource,
+		SpecialistsAvailable:     specialistsAvailable(cfg),
+		SpecialistsStatus:        buildSpecialistsStatus(cfg),
 	}
 	logger.Debug("[Agent] Context flags initialised",
 		"token_budget", flags.TokenBudget,
@@ -318,6 +322,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			FritzBoxTVEnabled:        cfg.FritzBox.Enabled && cfg.FritzBox.TV.Enabled,
 			TelnyxSMSEnabled:         cfg.Telnyx.Enabled && !cfg.Telnyx.ReadOnly,
 			TelnyxCallEnabled:        cfg.Telnyx.Enabled && !cfg.Telnyx.ReadOnly,
+			SQLConnectionsEnabled:    cfg.SQLConnections.Enabled && sqlConnectionsDB != nil,
 			// Danger Zone capability gates
 			AllowShell:           cfg.Agent.AllowShell,
 			AllowPython:          cfg.Agent.AllowPython,
@@ -447,7 +452,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 			broker.Send("tool_call", ptcJSON)
 			broker.Send("tool_start", ptc.Action)
-			pResultContent := DispatchToolCall(ctx, ptc, cfg, currentLogger, client, vault, registry, manifest, cronManager, missionManagerV2, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, contactsDB, remoteHub, historyManager, tools.IsBusy(), surgeryPlan, guardian, llmGuardian, sessionID, coAgentRegistry, budgetTracker, lastUserMsg)
+			pResultContent := DispatchToolCall(ctx, ptc, cfg, currentLogger, client, vault, registry, manifest, cronManager, missionManagerV2, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, contactsDB, sqlConnectionsDB, sqlConnectionPool, remoteHub, historyManager, tools.IsBusy(), surgeryPlan, guardian, llmGuardian, sessionID, coAgentRegistry, budgetTracker, lastUserMsg)
 			pResultContent = truncateToolOutput(pResultContent, cfg.Agent.ToolOutputLimit)
 			prompts.RecordToolUsage(ptc.Action, ptc.Operation, !isToolError(pResultContent))
 			prompts.RecordAdaptiveToolUsage(ptc.Action, !isToolError(pResultContent))
@@ -484,6 +489,28 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 						"title":     audioRes.Title,
 						"mime_type": audioRes.MimeType,
 						"filename":  audioRes.Filename,
+					})
+					broker.Send("audio", string(evtPayload))
+				}
+			}
+			if ptc.Action == "tts" {
+				var ttsRes struct {
+					Status string `json:"status"`
+					File   string `json:"file"`
+				}
+				raw := strings.TrimPrefix(pResultContent, "[Tool Output]\n")
+				raw = strings.TrimPrefix(raw, "Tool Output: ")
+				if json.Unmarshal([]byte(raw), &ttsRes) == nil && ttsRes.Status == "success" {
+					mimeType := "audio/mpeg"
+					if strings.HasSuffix(ttsRes.File, ".wav") {
+						mimeType = "audio/wav"
+					}
+					evtPayload, _ := json.Marshal(map[string]string{
+						"path":      "/tts/" + ttsRes.File,
+						"title":     "TTS Audio",
+						"mime_type": mimeType,
+						"filename":  ttsRes.File,
+						"file_path": filepath.Join(cfg.Directories.DataDir, "tts", ttsRes.File),
 					})
 					broker.Send("audio", string(evtPayload))
 				}
@@ -597,7 +624,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		flags.RetrievedMemories = ""
 		flags.PredictedMemories = ""
 		var topMemories []string
-		if !runCfg.IsMission && lastUserMsg != "" && longTermMem != nil {
+		if !runCfg.IsMission && lastUserMsg != "" && longTermMem != nil && !isAmbiguousShortCommand(lastUserMsg) {
 			// Query expansion: enrich user message with LLM-generated keywords for better RAG
 			ragQuery := expandQueryForRAG(ctx, cfg, currentLogger, lastUserMsg)
 
@@ -608,6 +635,22 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 				// LLM re-ranking: blend LLM relevance scores with recency-boosted scores
 				ranked = rerankWithLLM(ctx, cfg, currentLogger, ranked, lastUserMsg)
+
+				// For short queries (<40 chars), apply stricter score filtering to
+				// avoid injecting semantically-similar but contextually-irrelevant
+				// old memories (e.g. "versuche es erneut" matching old error messages).
+				if len(lastUserMsg) < 40 {
+					var filtered []rankedMemory
+					for _, r := range ranked {
+						if r.score >= 0.65 {
+							filtered = append(filtered, r)
+						}
+					}
+					ranked = filtered
+					if len(ranked) > 0 {
+						currentLogger.Debug("[RAG] Short-query filter applied", "before", len(memories), "after", len(ranked))
+					}
+				}
 
 				for _, r := range ranked {
 					_ = shortTermMem.UpdateMemoryAccess(r.docID)
@@ -1447,7 +1490,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				broker.Send("co_agent_spawn", taskPreview)
 			}
 
-			resultContent := DispatchToolCall(ctx, tc, cfg, currentLogger, client, vault, registry, manifest, cronManager, missionManagerV2, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, contactsDB, remoteHub, historyManager, tools.IsBusy(), surgeryPlan, guardian, llmGuardian, sessionID, coAgentRegistry, budgetTracker, lastUserMsg)
+			resultContent := DispatchToolCall(ctx, tc, cfg, currentLogger, client, vault, registry, manifest, cronManager, missionManagerV2, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, contactsDB, sqlConnectionsDB, sqlConnectionPool, remoteHub, historyManager, tools.IsBusy(), surgeryPlan, guardian, llmGuardian, sessionID, coAgentRegistry, budgetTracker, lastUserMsg)
 			resultContent = truncateToolOutput(resultContent, cfg.Agent.ToolOutputLimit)
 			toolFailed := isToolError(resultContent)
 			prompts.RecordToolUsage(tc.Action, tc.Operation, !toolFailed)
@@ -1533,6 +1576,28 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 						"title":     audioRes.Title,
 						"mime_type": audioRes.MimeType,
 						"filename":  audioRes.Filename,
+					})
+					broker.Send("audio", string(evtPayload))
+				}
+			}
+			if tc.Action == "tts" {
+				var ttsRes struct {
+					Status string `json:"status"`
+					File   string `json:"file"`
+				}
+				raw := strings.TrimPrefix(resultContent, "[Tool Output]\n")
+				raw = strings.TrimPrefix(raw, "Tool Output: ")
+				if json.Unmarshal([]byte(raw), &ttsRes) == nil && ttsRes.Status == "success" {
+					mimeType := "audio/mpeg"
+					if strings.HasSuffix(ttsRes.File, ".wav") {
+						mimeType = "audio/wav"
+					}
+					evtPayload, _ := json.Marshal(map[string]string{
+						"path":      "/tts/" + ttsRes.File,
+						"title":     "TTS Audio",
+						"mime_type": mimeType,
+						"filename":  ttsRes.File,
+						"file_path": filepath.Join(cfg.Directories.DataDir, "tts", ttsRes.File),
 					})
 					broker.Send("audio", string(evtPayload))
 				}
@@ -1826,7 +1891,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					broker.Send("thinking", fmt.Sprintf("[%d] Running %s (batched)...", toolCallCount, btc.Action))
 					broker.Send("tool_start", btc.Action)
 
-					bResult := DispatchToolCall(ctx, btc, cfg, currentLogger, client, vault, registry, manifest, cronManager, missionManagerV2, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, contactsDB, remoteHub, historyManager, tools.IsBusy(), surgeryPlan, guardian, llmGuardian, sessionID, coAgentRegistry, budgetTracker, lastUserMsg)
+					bResult := DispatchToolCall(ctx, btc, cfg, currentLogger, client, vault, registry, manifest, cronManager, missionManagerV2, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, contactsDB, sqlConnectionsDB, sqlConnectionPool, remoteHub, historyManager, tools.IsBusy(), surgeryPlan, guardian, llmGuardian, sessionID, coAgentRegistry, budgetTracker, lastUserMsg)
 					bResult = truncateToolOutput(bResult, cfg.Agent.ToolOutputLimit)
 					prompts.RecordToolUsage(btc.Action, btc.Operation, !isToolError(bResult))
 					prompts.RecordAdaptiveToolUsage(btc.Action, !isToolError(bResult))

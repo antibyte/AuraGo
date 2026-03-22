@@ -108,6 +108,7 @@
   "dashboard.integration_tailscale": "Tailscale",
   "dashboard.integration_telegram": "Telegram",
   "dashboard.integration_tts": "TTS",
+  "dashboard.integration_piper_tts": "Piper TTS",
   "dashboard.integration_user_profiling": "用户画像",
   "dashboard.integration_webdav": "WebDAV",
   "dashboard.integration_webhooks": "Webhooks",
@@ -285,5 +286,12 @@
   "dashboard.integration_homepage": "Homepage",
   "dashboard.integration_mcp_server": "MCP Server",
   "dashboard.integration_fritzbox": "FritzBox",
-  "dashboard.integration_cloudflare_tunnel": "Cloudflare Tunnel"
+  "dashboard.integration_cloudflare_tunnel": "Cloudflare Tunnel",
+  "dashboard.operations_tunnel": "隧道",
+  "dashboard.quickstatus_title": "快速状态",
+  "dashboard.quickstatus_connected": "已连接",
+  "dashboard.quickstatus_not_connected": "已断开",
+  "dashboard.quickstatus_online": "在线",
+  "dashboard.quickstatus_offline": "离线",
+  "dashboard.quickstatus_integrations": "集成"
 }

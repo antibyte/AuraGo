@@ -31,5 +31,6 @@
   "login.subtitle": "Log venligst ind for at fortsætte",
   "login.totp_divider": "Autentificeringskode",
   "login.totp_label": "6-cifret kode",
-  "common.nav_knowledge": "Videncenter"
+  "common.nav_knowledge": "Videncenter",
+  "common.nav_containers": "Containere"
 }

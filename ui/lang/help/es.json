@@ -104,6 +104,8 @@
   "help.email_accounts.watch_folder": "La carpeta del buzón para comprobar si hay correos nuevos (normalmente INBOX).",
   "help.email_accounts.watch_interval_seconds": "Intervalo en segundos para consultar el buzón de esta cuenta.",
   "help.embeddings.provider": "Proveedor de la gestión de proveedores utilizado para incrustaciones. El modelo y la URL se toman de la entrada del proveedor. 'disabled' desactiva por completo la memoria a largo plazo.",
+  "help.embeddings.multimodal": "Activa embeddings multimodales. Cuando está activo, las imágenes y archivos de audio se incrustan directamente como vectores. Solo activar si el modelo de embedding soporta entradas multimodales (ej. Voyage AI, Google multimodal-embedding). Los PDF escaneados con poco texto extraíble se procesan automáticamente como imágenes.",
+  "help.embeddings.multimodal_format": "Formato de API para solicitudes de embedding multimodal. 'auto' detecta el formato según el tipo de proveedor. 'openai' usa el formato compatible con OpenAI, 'vertex' el formato Google Vertex AI.",
   "help.fallback_llm.enabled": "Habilita la conmutación por error automática a un LLM de respaldo en caso de errores.",
   "help.fallback_llm.error_threshold": "Número de errores secuenciales antes de cambiar al modelo alternativo.",
   "help.fallback_llm.probe_interval_seconds": "Intervalo en segundos para sondear e intentar restaurar el modelo primario.",

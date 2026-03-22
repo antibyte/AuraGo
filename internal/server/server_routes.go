@@ -246,6 +246,10 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		// Document Creator endpoints
 		mux.HandleFunc("/api/document-creator/test", handleGotenbergTest(s))
 
+		// Piper TTS endpoints
+		mux.HandleFunc("/api/piper/status", handlePiperStatus(s))
+		mux.HandleFunc("/api/piper/voices", handlePiperVoices(s))
+
 		// A2A Protocol endpoints (config UI management)
 		mux.HandleFunc("/api/a2a/status", handleA2AStatus(s))
 		mux.HandleFunc("/api/a2a/remote-agents", handleA2ARemoteAgents(s))
@@ -457,6 +461,8 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 					MediaRegistryDB:    s.MediaRegistryDB,
 					HomepageRegistryDB: s.HomepageRegistryDB,
 					ContactsDB:         s.ContactsDB,
+					SQLConnectionsDB:   s.SQLConnectionsDB,
+					SQLConnectionPool:  s.SQLConnectionPool,
 					RemoteHub:          s.RemoteHub,
 					Vault:              s.Vault,
 					Registry:           s.Registry,
@@ -759,6 +765,32 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		})
 		s.Logger.Info("Knowledge Center UI enabled at /knowledge")
 
+		// ── Containers Page ──
+		containersTmpl, containersTmplErr := template.ParseFS(uiFS, "containers.html")
+		if containersTmplErr != nil {
+			s.Logger.Error("Failed to parse containers UI template", "error", containersTmplErr)
+		}
+		mux.HandleFunc("/containers", func(w http.ResponseWriter, r *http.Request) {
+			if containersTmpl == nil {
+				http.Error(w, "Containers template error", http.StatusInternalServerError)
+				return
+			}
+			lang := normalizeLang(s.Cfg.Server.UILanguage)
+			data := map[string]interface{}{
+				"Lang": lang,
+				"I18N": getI18NJSON(lang),
+			}
+			if err := containersTmpl.Execute(w, data); err != nil {
+				s.Logger.Error("Failed to execute containers template", "error", err)
+				http.Error(w, "Template render error", http.StatusInternalServerError)
+			}
+		})
+		s.Logger.Info("Containers UI enabled at /containers")
+
+		// ── Containers API ──
+		mux.HandleFunc("/api/containers", handleContainersList(s))
+		mux.HandleFunc("/api/containers/", handleContainerAction(s))
+
 		// ── Cheat Sheets API ──
 		mux.HandleFunc("/api/cheatsheets", handleCheatSheets(s))
 		mux.HandleFunc("/api/cheatsheets/", handleCheatSheetByID(s))
@@ -766,6 +798,17 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		// ── Contacts (Address Book) API ──
 		mux.HandleFunc("/api/contacts", handleContacts(s))
 		mux.HandleFunc("/api/contacts/", handleContactByID(s))
+
+		// ── SQL Connections API ──
+		mux.HandleFunc("/api/sql-connections", handleSQLConnections(s))
+		mux.HandleFunc("/api/sql-connections/", func(w http.ResponseWriter, r *http.Request) {
+			path := strings.TrimPrefix(r.URL.Path, "/api/sql-connections/")
+			if strings.HasSuffix(path, "/test") {
+				handleSQLConnectionTest(s)(w, r)
+			} else {
+				handleSQLConnectionByID(s)(w, r)
+			}
+		})
 
 		// ── Knowledge Files API ──
 		mux.HandleFunc("/api/knowledge", handleKnowledgeFiles(s))
@@ -1000,15 +1043,33 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		fsHandler.ServeHTTP(w, r)
 	})
 
+	// Serve TTS audio files from data/tts/ on the main server
+	ttsDir := tools.TTSAudioDir(s.Cfg.Directories.DataDir)
+	os.MkdirAll(ttsDir, 0755)
+	mainTTSHandler := http.StripPrefix("/tts/", http.FileServer(http.Dir(ttsDir)))
+	mux.HandleFunc("/tts/", func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, ".wav") {
+			w.Header().Set("Content-Type", "audio/wav")
+		} else {
+			w.Header().Set("Content-Type", "audio/mpeg")
+		}
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		mainTTSHandler.ServeHTTP(w, r)
+	})
+
 	// Phase X: Dedicated TTS Server for Chromecast
 	// Declared outside the if-block so the graceful shutdown goroutine can close it.
 	var ttsServer *http.Server
 	if s.Cfg.Chromecast.Enabled && s.Cfg.Chromecast.TTSPort > 0 {
-		ttsDir := tools.TTSAudioDir(s.Cfg.Directories.DataDir)
+		ccTTSDir := tools.TTSAudioDir(s.Cfg.Directories.DataDir)
 		ttsMux := http.NewServeMux()
-		ttsFsHandler := http.StripPrefix("/tts/", http.FileServer(http.Dir(ttsDir)))
+		ttsFsHandler := http.StripPrefix("/tts/", http.FileServer(http.Dir(ccTTSDir)))
 		ttsMux.HandleFunc("/tts/", func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "audio/mpeg")
+			if strings.HasSuffix(r.URL.Path, ".wav") {
+				w.Header().Set("Content-Type", "audio/wav")
+			} else {
+				w.Header().Set("Content-Type", "audio/mpeg")
+			}
 			w.Header().Set("Access-Control-Allow-Origin", "*")
 			ttsFsHandler.ServeHTTP(w, r)
 		})

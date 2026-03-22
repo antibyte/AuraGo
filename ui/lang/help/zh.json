@@ -104,6 +104,8 @@
   "help.email_accounts.watch_folder": "用于检查新邮件的邮箱文件夹（通常是收件箱）。",
   "help.email_accounts.watch_interval_seconds": "检查此帐户邮箱的时间间隔（以秒为单位）。",
   "help.embeddings.provider": "来自用于嵌入的提供者管理的提供者。模型和 URL 取自提供商条目。 “禁用”完全关闭长期记忆。",
+  "help.embeddings.multimodal": "启用多模态嵌入。启用后，图像和音频文件将直接作为向量嵌入。仅在嵌入模型支持多模态输入时启用。文本较少的扫描版PDF将自动作为图像处理。",
+  "help.embeddings.multimodal_format": "多模态嵌入请求的API格式。'auto'根据提供者类型自动检测格式。'openai'使用OpenAI兼容格式，'vertex'使用Google Vertex AI格式。",
   "help.fallback_llm.enabled": "出现错误时启用自动故障转移到备份 LLM。",
   "help.fallback_llm.error_threshold": "切换到后备模型之前的连续错误数。",
   "help.fallback_llm.probe_interval_seconds": "探测并尝试恢复主模型的时间间隔（以秒为单位）。",

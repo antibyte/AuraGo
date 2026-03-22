@@ -821,7 +821,8 @@ func handleDashboardOverview(s *Server) http.HandlerFunc {
 			"fallback_llm":      cfg.FallbackLLM.Enabled,
 			"personality_v2":    cfg.Agent.PersonalityEngineV2,
 			"user_profiling":    cfg.Agent.UserProfiling,
-			"tts":               cfg.TTS.Provider != "",
+			"tts":               cfg.TTS.Provider != "" || cfg.TTS.Piper.Enabled,
+			"piper_tts":         cfg.TTS.Piper.Enabled,
 			// extended integrations
 			"n8n":              cfg.N8n.Enabled,
 			"fritzbox":         cfg.FritzBox.Enabled,

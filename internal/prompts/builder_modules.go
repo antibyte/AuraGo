@@ -460,6 +460,10 @@ func (m *PromptModule) ShouldInclude(flags ContextFlags) bool {
 			if flags.FritzBoxTVEnabled {
 				return true
 			}
+		case "specialists_available":
+			if flags.SpecialistsAvailable {
+				return true
+			}
 		}
 	}
 

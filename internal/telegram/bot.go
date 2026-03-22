@@ -3,6 +3,7 @@ package telegram
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
@@ -386,8 +387,8 @@ func processUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Con
 		MessageSource:    "telegram",
 	}
 
-	// Use a NoopBroker for telegram, as we don't stream UI events back
-	broker := &agent.NoopBroker{}
+	// Use TelegramBroker to capture audio events for native sending
+	broker := &TelegramBroker{bot: bot, chatID: msg.From.ID, logger: logger}
 	resp, err := agent.ExecuteAgentLoop(ctx, req, runCfg, false, broker)
 	stopTyping() // Stop the indicator as soon as the agent is done
 
@@ -395,6 +396,13 @@ func processUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Con
 		logger.Error("Telegram agent loop failed", "error", err)
 		sendTelegramMessage(bot, msg.From.ID, "⚠️ Sorry, I encountered an error processing your request.")
 		return
+	}
+
+	// Send captured audio files as native Telegram audio messages
+	for _, af := range broker.AudioFiles {
+		if err := sendTelegramAudio(bot, msg.From.ID, af.FilePath, af.Title); err != nil {
+			logger.Warn("[Telegram] Failed to send audio", "path", af.FilePath, "error", err)
+		}
 	}
 
 	// Send result back to Telegram
@@ -446,14 +454,49 @@ func sendTelegramPhoto(bot *tgbotapi.BotAPI, chatID int64, localPath, caption st
 	return err
 }
 
-// TelegramBroker implements agent.FeedbackProvider for Telegram
-type TelegramBroker struct {
-	bot    *tgbotapi.BotAPI
-	chatID int64
-	logger *slog.Logger
+// sendTelegramAudio sends a local audio file as a native Telegram audio attachment.
+func sendTelegramAudio(bot *tgbotapi.BotAPI, chatID int64, localPath, title string) error {
+	audio := tgbotapi.NewAudio(chatID, tgbotapi.FilePath(localPath))
+	audio.Title = title
+	_, err := bot.Send(audio)
+	return err
 }
 
-func (b TelegramBroker) Send(event, message string) {
+// CapturedAudio represents an audio file captured during the agent loop for native sending.
+type CapturedAudio struct {
+	FilePath string
+	Title    string
+	MimeType string
+	Filename string
+}
+
+// TelegramBroker implements agent.FeedbackProvider for Telegram
+type TelegramBroker struct {
+	bot        *tgbotapi.BotAPI
+	chatID     int64
+	logger     *slog.Logger
+	AudioFiles []CapturedAudio
+}
+
+func (b *TelegramBroker) Send(event, message string) {
+	// Capture audio events for native sending after the loop
+	if event == "audio" {
+		var audio struct {
+			FilePath string `json:"file_path"`
+			Title    string `json:"title"`
+			MimeType string `json:"mime_type"`
+			Filename string `json:"filename"`
+		}
+		if json.Unmarshal([]byte(message), &audio) == nil && audio.FilePath != "" {
+			b.AudioFiles = append(b.AudioFiles, CapturedAudio{
+				FilePath: audio.FilePath,
+				Title:    audio.Title,
+				MimeType: audio.MimeType,
+				Filename: audio.Filename,
+			})
+		}
+		return
+	}
 	// For now, we only send high-level events to avoid spamming the user
 	if event == "tool_start" || event == "error_recovery" || event == "api_retry" || event == "progress" {
 		b.logger.Info("[Telegram Status]", "event", event, "message", message)
@@ -475,7 +518,7 @@ func (b TelegramBroker) Send(event, message string) {
 	}
 }
 
-func (b TelegramBroker) SendJSON(jsonStr string) {
+func (b *TelegramBroker) SendJSON(jsonStr string) {
 	// Usually for token usage etc. - skip for Telegram
 }
 

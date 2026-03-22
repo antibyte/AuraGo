@@ -128,6 +128,7 @@
                 API.get('/api/credits'),
             ]);
             renderAgentBanner(overview, overview?.context?.total_chars);
+            renderQuickStatus(overview);
             if (system) {
                 if (!Charts.cpu) Charts.cpu = createGauge('cpu-chart', system.cpu?.usage_percent || 0);
                 updateGauge(Charts.cpu, 'cpu-val', system.cpu?.usage_percent || 0);
@@ -875,8 +876,10 @@
                     const stateClass = ca.state === 'running' ? 'pill-running' :
                         ca.state === 'completed' ? 'pill-completed' :
                             ca.state === 'failed' ? 'pill-failed' : 'pill-idle';
+                    const specIcons = { researcher: '\uD83D\uDD0D', coder: '\uD83D\uDCBB', designer: '\uD83C\uDFA8', security: '\uD83D\uDEE1\uFE0F', writer: '\u270D\uFE0F' };
+                    const specBadge = ca.specialist && specIcons[ca.specialist] ? '<span title="' + esc(ca.specialist) + '" style="margin-right:0.3rem;">' + specIcons[ca.specialist] + '</span>' : '';
                     details += `<div class="activity-item">
-                <span class="activity-item-name">${esc(truncate(ca.task || ca.id, 50))}</span>
+                <span class="activity-item-name">${specBadge}${esc(truncate(ca.task || ca.id, 50))}</span>
                 <span><span class="pill-status ${stateClass}">${esc(stateMap[ca.state] || ca.state)}</span>
                 <span class="activity-item-detail activity-item-detail-spaced">${esc(ca.runtime || '')}</span></span>
             </div>`;
@@ -1341,6 +1344,7 @@
                 { icon: '📱', val: overview.devices || 0, lbl: t('dashboard.operations_devices'), sub: t('dashboard.operations_inventory') },
                 { icon: '🧠', val: overview.context?.has_summary ? '✓' : '✗', lbl: t('dashboard.operations_summary'), sub: t('dashboard.operations_chars_count', {n: ((overview.context?.total_chars || 0) / 1000).toFixed(1)}) },
                 { icon: '📋', val: (overview.cheatsheets?.total || 0), lbl: t('dashboard.operations_cheatsheets'), sub: t('dashboard.operations_cheatsheets_active', {n: overview.cheatsheets?.active || 0}) },
+                { icon: '🌐', val: overview.tunnel?.running ? '✓' : '✗', lbl: t('dashboard.operations_tunnel'), sub: overview.tunnel?.url ? truncate(overview.tunnel.url, 24) : t('dashboard.operations_disabled') },
             ];
 
             grid.innerHTML = items.map(s =>
@@ -1349,6 +1353,74 @@
                     <div class="ops-stat-val">${s.val}</div>
                     <div class="ops-stat-lbl">${s.lbl}</div>
                     <div class="ops-stat-sub">${s.sub}</div>
+                </div>`
+            ).join('');
+        }
+
+        function renderQuickStatus(overview) {
+            const el = document.getElementById('qs-grid');
+            if (!el || !overview) return;
+
+            const tunnel = overview.tunnel || {};
+            const mqtt = overview.mqtt || {};
+            const sec = overview.security || {};
+            const m = overview.missions || {};
+            const integrations = overview.integrations || {};
+
+            const activeInts = Object.values(integrations).filter(v => v).length;
+            const totalInts = Object.keys(integrations).length;
+
+            const items = [
+                {
+                    icon: '🌐',
+                    lbl: t('dashboard.operations_tunnel'),
+                    val: tunnel.running ? t('dashboard.quickstatus_online') : t('dashboard.quickstatus_offline'),
+                    status: tunnel.running ? 'ok' : 'offline',
+                    info: tunnel.running && tunnel.url ? truncate(tunnel.url, 24) : ''
+                },
+                {
+                    icon: '📡',
+                    lbl: t('dashboard.integration_mqtt'),
+                    val: mqtt.enabled ? (mqtt.connected ? t('dashboard.quickstatus_connected') : t('dashboard.quickstatus_not_connected')) : t('dashboard.operations_disabled'),
+                    status: mqtt.enabled ? (mqtt.connected ? 'ok' : 'warning') : 'neutral',
+                    info: (mqtt.enabled && mqtt.buffer) ? `${mqtt.buffer} buffered` : ''
+                },
+                {
+                    icon: '🔗',
+                    lbl: t('dashboard.quickstatus_integrations'),
+                    val: `${activeInts} / ${totalInts}`,
+                    status: 'neutral',
+                    info: ''
+                },
+                {
+                    icon: '🚀',
+                    lbl: t('dashboard.operations_missions'),
+                    val: `${m.running || 0} / ${m.total || 0}`,
+                    status: (m.running || 0) > 0 ? 'ok' : 'neutral',
+                    info: m.queued ? `${m.queued} queued` : ''
+                },
+                {
+                    icon: '🔐',
+                    lbl: t('dashboard.operations_vault_keys'),
+                    val: sec.vault_keys || 0,
+                    status: 'neutral',
+                    info: sec.tokens ? `${sec.tokens} tokens` : ''
+                },
+                {
+                    icon: '📱',
+                    lbl: t('dashboard.operations_devices'),
+                    val: overview.devices || 0,
+                    status: 'neutral',
+                    info: ''
+                },
+            ];
+
+            el.innerHTML = items.map(s =>
+                `<div class="qs-item ${s.status}">
+                    <div class="qs-icon">${s.icon}</div>
+                    <div class="qs-label">${s.lbl}</div>
+                    <div class="qs-val">${s.val}</div>
+                    ${s.info ? `<div class="qs-info">${esc(s.info)}</div>` : ''}
                 </div>`
             ).join('');
         }
@@ -1363,6 +1435,7 @@
                 rocketchat: '💬', tailscale: '🔒', ansible: '🔧', invasion: '🥚',
                 github: '🐙', mqtt: '📡', budget: '💰', indexing: '📂',
                 auth: '🔑', fallback_llm: '🔄', personality_v2: '🎭', user_profiling: '👤', tts: '🔊',
+                piper_tts: '🗣️',
                 paperless_ngx: '📄', cloudflare_tunnel: '☁️',
                 n8n: '🔀', fritzbox: '📡', meshcentral: '🖥️', a2a: '🔗',
                 adguard: '🛡️', s3: '🪣', mcp: '🔌', mcp_server: '🔌',
@@ -1386,6 +1459,7 @@
                 auth: t('dashboard.integration_auth'), fallback_llm: t('dashboard.integration_fallback_llm'),
                 personality_v2: t('dashboard.integration_personality_v2'), user_profiling: t('dashboard.integration_user_profiling'),
                 tts: t('dashboard.integration_tts'),
+                piper_tts: t('dashboard.integration_piper_tts'),
                 paperless_ngx: t('dashboard.integration_paperless_ngx'),
                 cloudflare_tunnel: t('dashboard.integration_cloudflare_tunnel'),
                 n8n: t('dashboard.integration_n8n'), fritzbox: t('dashboard.integration_fritzbox'),
@@ -1407,9 +1481,12 @@
 
             // Sort: active first
             const sorted = Object.entries(overview.integrations).sort((a, b) => (b[1] ? 1 : 0) - (a[1] ? 1 : 0));
-            grid.innerHTML = sorted.map(([key, active]) =>
-                `<span class="int-badge ${active ? 'active' : 'inactive'}">${icons[key] || '•'} ${names[key] || key}</span>`
-            ).join('');
+            grid.innerHTML = sorted.map(([key, active]) => {
+                let cls = active ? 'active' : 'inactive';
+                // MQTT: distinguish "enabled but disconnected" from "enabled and connected"
+                if (key === 'mqtt' && active && overview.mqtt && overview.mqtt.connected === false) cls = 'active-warning';
+                return `<span class="int-badge ${cls}">${icons[key] || '•'} ${names[key] || key}</span>`;
+            }).join('');
         }
 
         // ── Helpers (esc() is now provided by shared.js) ─────────────────────

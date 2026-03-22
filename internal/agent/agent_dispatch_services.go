@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"aurago/internal/budget"
 	"aurago/internal/config"
@@ -16,12 +17,13 @@ import (
 	"aurago/internal/meshcentral"
 	"aurago/internal/remote"
 	"aurago/internal/security"
+	"aurago/internal/sqlconnections"
 	"aurago/internal/tools"
 )
 
 // dispatchServices handles media, infrastructure management, and platform tool calls
 // (vision, transcribe, meshcentral, docker, homepage, webdav, home_assistant).
-func dispatchServices(ctx context.Context, tc ToolCall, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, missionManagerV2 *tools.MissionManagerV2, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, mediaRegistryDB *sql.DB, homepageRegistryDB *sql.DB, contactsDB *sql.DB, remoteHub *remote.RemoteHub, historyMgr *memory.HistoryManager, isMaintenance bool, surgeryPlan string, guardian *security.Guardian, sessionID string, coAgentRegistry *CoAgentRegistry, budgetTracker *budget.Tracker) string {
+func dispatchServices(ctx context.Context, tc ToolCall, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, missionManagerV2 *tools.MissionManagerV2, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, mediaRegistryDB *sql.DB, homepageRegistryDB *sql.DB, contactsDB *sql.DB, sqlConnectionsDB *sql.DB, sqlConnectionPool *sqlconnections.ConnectionPool, remoteHub *remote.RemoteHub, historyMgr *memory.HistoryManager, isMaintenance bool, surgeryPlan string, guardian *security.Guardian, sessionID string, coAgentRegistry *CoAgentRegistry, budgetTracker *budget.Tracker) string {
 	switch tc.Action {
 	case "analyze_image", "vision":
 		if budgetTracker != nil && budgetTracker.IsBlocked("vision") {
@@ -740,6 +742,308 @@ func dispatchServices(ctx context.Context, tc ToolCall, cfg *config.Config, logg
 		}
 		logger.Info("LLM requested homepage_registry", "operation", op, "name", tc.Name)
 		return "Tool Output: " + tools.DispatchHomepageRegistry(homepageRegistryDB, op, tc.Query, tc.Name, tc.Description, tc.Framework, tc.ProjectDir, tc.URL, tc.Status, tc.Reason, tc.Problem, tc.Notes, tags, projectID, "", tc.Limit, tc.Offset)
+
+	case "sql_query":
+		if !cfg.SQLConnections.Enabled {
+			return `Tool Output: {"status":"error","message":"SQL Connections feature is disabled. Enable sql_connections.enabled in config."}`
+		}
+		if sqlConnectionsDB == nil || sqlConnectionPool == nil {
+			return `Tool Output: {"status":"error","message":"SQL Connections database not available."}`
+		}
+		if tc.ConnectionName == "" {
+			return `Tool Output: {"status":"error","message":"'connection_name' is required"}`
+		}
+		logger.Info("LLM requested sql_query", "op", tc.Operation, "connection", tc.ConnectionName)
+		queryTimeout := time.Duration(cfg.SQLConnections.QueryTimeoutSec) * time.Second
+		maxRows := cfg.SQLConnections.MaxResultRows
+
+		switch tc.Operation {
+		case "query":
+			if tc.SQLQuery == "" {
+				return `Tool Output: {"status":"error","message":"'sql_query' is required for query operation"}`
+			}
+			result, err := sqlconnections.ExecuteQuery(ctx, sqlConnectionPool, sqlConnectionsDB, tc.ConnectionName, tc.SQLQuery, maxRows, queryTimeout)
+			if err != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+			}
+			b, _ := json.Marshal(map[string]interface{}{"status": "success", "result": result})
+			return "Tool Output: " + string(b)
+		case "describe":
+			if tc.TableName == "" {
+				return `Tool Output: {"status":"error","message":"'table_name' is required for describe operation"}`
+			}
+			cols, err := sqlconnections.DescribeTable(ctx, sqlConnectionPool, sqlConnectionsDB, tc.ConnectionName, tc.TableName, queryTimeout)
+			if err != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+			}
+			b, _ := json.Marshal(map[string]interface{}{"status": "success", "table": tc.TableName, "columns": cols})
+			return "Tool Output: " + string(b)
+		case "list_tables":
+			tables, err := sqlconnections.ListTables(ctx, sqlConnectionPool, sqlConnectionsDB, tc.ConnectionName, queryTimeout)
+			if err != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+			}
+			b, _ := json.Marshal(map[string]interface{}{"status": "success", "tables": tables, "count": len(tables)})
+			return "Tool Output: " + string(b)
+		default:
+			return `Tool Output: {"status":"error","message":"Unknown operation. Use: query, describe, list_tables"}`
+		}
+
+	case "manage_sql_connections":
+		if !cfg.SQLConnections.Enabled {
+			return `Tool Output: {"status":"error","message":"SQL Connections feature is disabled. Enable sql_connections.enabled in config."}`
+		}
+		if sqlConnectionsDB == nil || sqlConnectionPool == nil {
+			return `Tool Output: {"status":"error","message":"SQL Connections database not available."}`
+		}
+		logger.Info("LLM requested manage_sql_connections", "op", tc.Operation)
+
+		switch tc.Operation {
+		case "list":
+			list, err := sqlconnections.List(sqlConnectionsDB)
+			if err != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+			}
+			// Redact sensitive fields before returning
+			type safeConn struct {
+				ID          string `json:"id"`
+				Name        string `json:"name"`
+				Driver      string `json:"driver"`
+				Host        string `json:"host"`
+				Port        int    `json:"port"`
+				Database    string `json:"database_name"`
+				Description string `json:"description"`
+				AllowRead   bool   `json:"allow_read"`
+				AllowWrite  bool   `json:"allow_write"`
+				AllowChange bool   `json:"allow_change"`
+				AllowDelete bool   `json:"allow_delete"`
+				SSLMode     string `json:"ssl_mode"`
+			}
+			var safe []safeConn
+			for _, c := range list {
+				safe = append(safe, safeConn{
+					ID: c.ID, Name: c.Name, Driver: c.Driver,
+					Host: c.Host, Port: c.Port, Database: c.DatabaseName,
+					Description: c.Description, AllowRead: c.AllowRead,
+					AllowWrite: c.AllowWrite, AllowChange: c.AllowChange,
+					AllowDelete: c.AllowDelete, SSLMode: c.SSLMode,
+				})
+			}
+			b, _ := json.Marshal(map[string]interface{}{"status": "success", "connections": safe, "count": len(safe)})
+			return "Tool Output: " + string(b)
+
+		case "get":
+			if tc.ConnectionName == "" {
+				return `Tool Output: {"status":"error","message":"'connection_name' is required"}`
+			}
+			c, err := sqlconnections.GetByName(sqlConnectionsDB, tc.ConnectionName)
+			if err != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+			}
+			b, _ := json.Marshal(map[string]interface{}{
+				"status": "success", "id": c.ID, "name": c.Name, "driver": c.Driver,
+				"host": c.Host, "port": c.Port, "database_name": c.DatabaseName,
+				"description": c.Description, "allow_read": c.AllowRead,
+				"allow_write": c.AllowWrite, "allow_change": c.AllowChange,
+				"allow_delete": c.AllowDelete, "ssl_mode": c.SSLMode,
+			})
+			return "Tool Output: " + string(b)
+
+		case "create":
+			if tc.ConnectionName == "" || tc.Driver == "" {
+				return `Tool Output: {"status":"error","message":"'connection_name' and 'driver' are required for create"}`
+			}
+			allowRead := true
+			if tc.AllowRead != nil {
+				allowRead = *tc.AllowRead
+			}
+			allowWrite := false
+			if tc.AllowWrite != nil {
+				allowWrite = *tc.AllowWrite
+			}
+			allowChange := false
+			if tc.AllowChange != nil {
+				allowChange = *tc.AllowChange
+			}
+			allowDelete := false
+			if tc.AllowDelete != nil {
+				allowDelete = *tc.AllowDelete
+			}
+
+			sslMode := tc.SSLMode
+			if sslMode == "" {
+				sslMode = "disable"
+			}
+
+			// Store credentials in vault
+			vaultKey := ""
+			username := ""
+			password := ""
+			if tc.Params != nil {
+				if u, ok := tc.Params["username"].(string); ok {
+					username = u
+				}
+				if p, ok := tc.Params["password"].(string); ok {
+					password = p
+				}
+			}
+			if username != "" || password != "" {
+				credJSON, marshalErr := sqlconnections.MarshalCredentials(username, password)
+				if marshalErr != nil {
+					return fmt.Sprintf(`Tool Output: {"status":"error","message":"failed to marshal credentials: %s"}`, marshalErr.Error())
+				}
+				vaultKey = "sqlconn_" + tc.ConnectionName
+				if err := vault.WriteSecret(vaultKey, credJSON); err != nil {
+					return fmt.Sprintf(`Tool Output: {"status":"error","message":"failed to store credentials: %s"}`, err.Error())
+				}
+			}
+
+			id, err := sqlconnections.Create(sqlConnectionsDB,
+				tc.ConnectionName, tc.Driver, tc.Host, tc.Port, tc.DatabaseName, tc.Description,
+				allowRead, allowWrite, allowChange, allowDelete, vaultKey, sslMode)
+			if err != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+			}
+			return fmt.Sprintf(`Tool Output: {"status":"success","message":"Connection created","id":"%s","name":"%s"}`, id, tc.ConnectionName)
+
+		case "update":
+			if tc.ConnectionName == "" {
+				return `Tool Output: {"status":"error","message":"'connection_name' is required for update"}`
+			}
+			existing, err := sqlconnections.GetByName(sqlConnectionsDB, tc.ConnectionName)
+			if err != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+			}
+			if tc.Description != "" {
+				existing.Description = tc.Description
+			}
+			if tc.Host != "" {
+				existing.Host = tc.Host
+			}
+			if tc.Port > 0 {
+				existing.Port = tc.Port
+			}
+			if tc.DatabaseName != "" {
+				existing.DatabaseName = tc.DatabaseName
+			}
+			if tc.SSLMode != "" {
+				existing.SSLMode = tc.SSLMode
+			}
+			if tc.AllowRead != nil {
+				existing.AllowRead = *tc.AllowRead
+			}
+			if tc.AllowWrite != nil {
+				existing.AllowWrite = *tc.AllowWrite
+			}
+			if tc.AllowChange != nil {
+				existing.AllowChange = *tc.AllowChange
+			}
+			if tc.AllowDelete != nil {
+				existing.AllowDelete = *tc.AllowDelete
+			}
+
+			// Update credentials if provided
+			username := ""
+			password := ""
+			if tc.Params != nil {
+				if u, ok := tc.Params["username"].(string); ok {
+					username = u
+				}
+				if p, ok := tc.Params["password"].(string); ok {
+					password = p
+				}
+			}
+			if username != "" || password != "" {
+				credJSON, marshalErr := sqlconnections.MarshalCredentials(username, password)
+				if marshalErr != nil {
+					return fmt.Sprintf(`Tool Output: {"status":"error","message":"failed to marshal credentials: %s"}`, marshalErr.Error())
+				}
+				vaultKey := existing.VaultSecretID
+				if vaultKey == "" {
+					vaultKey = "sqlconn_" + tc.ConnectionName
+				}
+				if err := vault.WriteSecret(vaultKey, credJSON); err != nil {
+					return fmt.Sprintf(`Tool Output: {"status":"error","message":"failed to update credentials: %s"}`, err.Error())
+				}
+				existing.VaultSecretID = vaultKey
+			}
+
+			// Close existing pool connection to force reconnect with new settings
+			sqlConnectionPool.CloseConnection(existing.ID)
+
+			if err := sqlconnections.Update(sqlConnectionsDB,
+				existing.ID, existing.Name, existing.Driver, existing.Host, existing.Port,
+				existing.DatabaseName, existing.Description,
+				existing.AllowRead, existing.AllowWrite, existing.AllowChange, existing.AllowDelete,
+				existing.VaultSecretID, existing.SSLMode); err != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+			}
+			return fmt.Sprintf(`Tool Output: {"status":"success","message":"Connection updated","name":"%s"}`, tc.ConnectionName)
+
+		case "delete":
+			if tc.ConnectionName == "" {
+				return `Tool Output: {"status":"error","message":"'connection_name' is required for delete"}`
+			}
+			existing, err := sqlconnections.GetByName(sqlConnectionsDB, tc.ConnectionName)
+			if err != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+			}
+			sqlConnectionPool.CloseConnection(existing.ID)
+			if err := sqlconnections.Delete(sqlConnectionsDB, existing.ID); err != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+			}
+			// Clean up vault secret
+			if existing.VaultSecretID != "" {
+				_ = vault.DeleteSecret(existing.VaultSecretID)
+			}
+			return fmt.Sprintf(`Tool Output: {"status":"success","message":"Connection deleted","name":"%s"}`, tc.ConnectionName)
+
+		case "test":
+			if tc.ConnectionName == "" {
+				return `Tool Output: {"status":"error","message":"'connection_name' is required for test"}`
+			}
+			rec, err := sqlconnections.GetByName(sqlConnectionsDB, tc.ConnectionName)
+			if err != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+			}
+			if err := sqlConnectionPool.TestConnection(rec); err != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"Connection test failed: %s"}`, err.Error())
+			}
+			return fmt.Sprintf(`Tool Output: {"status":"success","message":"Connection test successful","name":"%s","driver":"%s"}`, tc.ConnectionName, rec.Driver)
+
+		case "docker_create":
+			if tc.ConnectionName == "" {
+				return `Tool Output: {"status":"error","message":"'connection_name' is required for docker_create"}`
+			}
+			templateName := tc.DockerTemplate
+			if templateName == "" {
+				if tc.Params != nil {
+					if t, ok := tc.Params["docker_template"].(string); ok {
+						templateName = t
+					}
+				}
+			}
+			if templateName == "" {
+				return `Tool Output: {"status":"error","message":"'docker_template' is required (postgres, mysql, mariadb)"}`
+			}
+			dbName := tc.DatabaseName
+			if dbName == "" {
+				dbName = tc.ConnectionName
+			}
+			dockerReq, err := sqlconnections.PrepareDockerDB(templateName, tc.ConnectionName, dbName)
+			if err != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+			}
+			b, _ := json.Marshal(map[string]interface{}{
+				"status":  "success",
+				"message": "Docker database prepared. Use the 'docker' tool with operation 'run' to start the container, then create the connection with 'manage_sql_connections' create.",
+				"docker":  dockerReq,
+			})
+			return "Tool Output: " + string(b)
+
+		default:
+			return `Tool Output: {"status":"error","message":"Unknown operation. Use: list, get, create, update, delete, test, docker_create"}`
+		}
 
 	default:
 		return dispatchNotHandled

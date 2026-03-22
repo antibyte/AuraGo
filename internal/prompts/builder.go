@@ -97,6 +97,9 @@ type ContextFlags struct {
 	IsDebugMode       bool     // When true, inject a debugging instruction into the system prompt
 	IsCoAgent         bool     // True if the current LLM call is for a co-agent
 	IsEgg             bool     // True if this instance runs in egg worker mode
+	// Specialist co-agent fields
+	SpecialistsAvailable bool   // True if at least one specialist is enabled
+	SpecialistsStatus    string // Dynamic status text listing enabled specialists
 	// Feature toggles — control which conditional tool descriptions are included
 	DiscordEnabled           bool
 	EmailEnabled             bool
@@ -287,7 +290,12 @@ func BuildSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string,
 
 	// 4. Assemble modules
 	for _, mod := range selectedModules {
-		finalPrompt.WriteString(mod.Content)
+		content := mod.Content
+		// Replace specialist status placeholder in the awareness module
+		if flags.SpecialistsAvailable && flags.SpecialistsStatus != "" && strings.Contains(content, "{{SPECIALISTS_STATUS}}") {
+			content = strings.ReplaceAll(content, "{{SPECIALISTS_STATUS}}", flags.SpecialistsStatus)
+		}
+		finalPrompt.WriteString(content)
 		finalPrompt.WriteString("\n\n")
 	}
 	sectionModules := finalPrompt.Len()

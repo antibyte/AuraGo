@@ -116,3 +116,50 @@ func TestRerankWithLLM_EmptyCandidates(t *testing.T) {
 		t.Errorf("rerankWithLLM() with empty candidates returned %d items, want 0", len(got))
 	}
 }
+
+func TestIsAmbiguousShortCommand(t *testing.T) {
+	tests := []struct {
+		name string
+		msg  string
+		want bool
+	}{
+		// Exact match ambiguous commands
+		{"yes", "ja", true},
+		{"ok", "ok", true},
+		{"continue", "weiter", true},
+		{"thanks", "danke", true},
+		{"yes_en", "yes", true},
+		{"go_ahead", "go ahead", true},
+
+		// Pattern match retry commands
+		{"retry_de", "versuche es erneut", true},
+		{"retry_en", "try again", true},
+		{"nochmal", "nochmal", true},
+		{"wiederholen", "wiederholen", true},
+		{"repeat", "repeat", true},
+		{"do_it_again", "do it again", true},
+		{"mach_das_nochmal", "mach das nochmal", true},
+		{"nochmals", "nochmals", true},
+
+		// Non-ambiguous — specific enough for RAG
+		{"specific_retry", "versuche die PDF-Erstellung erneut", false},
+		{"specific_topic", "Wie funktioniert die FritzBox Integration?", false},
+		{"long_message", "Erstelle mir bitte ein Python Script das die CPU Auslastung überwacht und bei hoher Last eine Warnung gibt", false},
+		{"normal_question", "Was ist der aktuelle Status der Docker Container?", false},
+		{"code_request", "Schreib mir eine Funktion die Fibonacci berechnet", false},
+
+		// Edge cases
+		{"empty", "", false},
+		{"whitespace", "   ", false},
+		{"long_retry", "versuche es erneut aber diesmal mit den richtigen parametern und der neuen konfiguration", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isAmbiguousShortCommand(tt.msg)
+			if got != tt.want {
+				t.Errorf("isAmbiguousShortCommand(%q) = %v, want %v", tt.msg, got, tt.want)
+			}
+		})
+	}
+}

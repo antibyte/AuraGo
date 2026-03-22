@@ -344,6 +344,11 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				go tools.EnsureOllamaEmbeddingsRunning(newCfg, s.Logger)
 			}
 
+			// Auto-start Piper TTS container if just enabled
+			if newCfg.TTS.Piper.Enabled && !oldCfg.TTS.Piper.Enabled {
+				go tools.EnsurePiperRunning(newCfg, s.Logger)
+			}
+
 			// Auto-start Ansible sidecar container if just enabled in sidecar mode
 			if newCfg.Ansible.Enabled && newCfg.Ansible.Mode == "sidecar" {
 				if !oldCfg.Ansible.Enabled || oldCfg.Ansible.Mode != "sidecar" {

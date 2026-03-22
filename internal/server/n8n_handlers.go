@@ -318,6 +318,7 @@ func handleN8nChat(s *Server) http.HandlerFunc {
 						s.LongTermMem, s.ShortTermMem, s.KG,
 						s.InventoryDB, s.InvasionDB, s.CheatsheetDB, s.ImageGalleryDB,
 						s.MediaRegistryDB, s.HomepageRegistryDB, s.ContactsDB,
+						s.SQLConnectionsDB, s.SQLConnectionPool,
 						s.RemoteHub, s.HistoryManager, false, "", s.Guardian, s.LLMGuardian,
 						"n8n", s.CoAgentRegistry, s.BudgetTracker, "",
 					)
@@ -518,6 +519,7 @@ func handleN8nToolExecute(s *Server) http.HandlerFunc {
 			s.LongTermMem, s.ShortTermMem, s.KG,
 			s.InventoryDB, s.InvasionDB, s.CheatsheetDB, s.ImageGalleryDB,
 			s.MediaRegistryDB, s.HomepageRegistryDB, s.ContactsDB,
+			s.SQLConnectionsDB, s.SQLConnectionPool,
 			s.RemoteHub, s.HistoryManager, false, "", s.Guardian, s.LLMGuardian,
 			"n8n", s.CoAgentRegistry, s.BudgetTracker, "",
 		)

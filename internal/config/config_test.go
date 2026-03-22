@@ -57,3 +57,47 @@ sqlite:
 		t.Errorf("expected ShortTermPath %s, got %s", expectedShortTermPath, cfg.SQLite.ShortTermPath)
 	}
 }
+
+func TestGetSpecialist(t *testing.T) {
+	cfg := &Config{}
+	cfg.CoAgents.Specialists.Coder.Enabled = true
+
+	tests := []struct {
+		role    string
+		wantNil bool
+	}{
+		{"researcher", false},
+		{"coder", false},
+		{"designer", false},
+		{"security", false},
+		{"writer", false},
+		{"unknown", true},
+		{"", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.role, func(t *testing.T) {
+			got := cfg.GetSpecialist(tt.role)
+			if (got == nil) != tt.wantNil {
+				t.Errorf("GetSpecialist(%q) nil=%v, wantNil=%v", tt.role, got == nil, tt.wantNil)
+			}
+		})
+	}
+
+	// Verify the coder specialist we set is actually enabled
+	coder := cfg.GetSpecialist("coder")
+	if coder == nil || !coder.Enabled {
+		t.Error("expected coder specialist to be enabled")
+	}
+}
+
+func TestValidSpecialistRoles(t *testing.T) {
+	expected := []string{"researcher", "coder", "designer", "security", "writer"}
+	for _, role := range expected {
+		if !ValidSpecialistRoles[role] {
+			t.Errorf("expected %q in ValidSpecialistRoles", role)
+		}
+	}
+	if ValidSpecialistRoles["unknown"] {
+		t.Error("unexpected role 'unknown' in ValidSpecialistRoles")
+	}
+}

@@ -29,8 +29,9 @@ type Edge struct {
 // KnowledgeGraph implements the same interface as the old JSON-backed graph
 // but stores all data in SQLite with FTS5 for full-text search.
 type KnowledgeGraph struct {
-	db     *sql.DB
-	logger *slog.Logger
+	db          *sql.DB
+	logger      *slog.Logger
+	accessQueue chan string // buffered channel for async access-count updates
 }
 
 // NewKnowledgeGraph creates a new SQLite-backed knowledge graph.
@@ -43,6 +44,8 @@ func NewKnowledgeGraph(dbPath string, jsonMigratePath string, logger *slog.Logge
 	}
 
 	kg := &KnowledgeGraph{db: db, logger: logger}
+	kg.accessQueue = make(chan string, 1000) // buffer for 1000 node IDs
+	go kg.accessCountWorker()
 	if err := kg.initTables(); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("init knowledge graph tables: %w", err)
@@ -58,7 +61,20 @@ func NewKnowledgeGraph(dbPath string, jsonMigratePath string, logger *slog.Logge
 
 // Close closes the underlying database connection.
 func (kg *KnowledgeGraph) Close() error {
+	if kg.accessQueue != nil {
+		close(kg.accessQueue)
+	}
 	return kg.db.Close()
+}
+
+// accessCountWorker drains the access queue and increments node access counts.
+// Runs as a single goroutine for the lifetime of the KnowledgeGraph.
+func (kg *KnowledgeGraph) accessCountWorker() {
+	for id := range kg.accessQueue {
+		if _, err := kg.db.Exec("UPDATE kg_nodes SET access_count = access_count + 1 WHERE id = ?", id); err != nil {
+			kg.logger.Warn("KG access count update failed", "id", id, "error", err)
+		}
+	}
 }
 
 func (kg *KnowledgeGraph) initTables() error {
@@ -207,7 +223,7 @@ func (kg *KnowledgeGraph) AddNode(id, label string, properties map[string]string
 	if properties == nil {
 		properties = make(map[string]string)
 	}
-	
+
 	// Enforce 50 char limit per property to protect prompt context
 	for k, v := range properties {
 		if len(v) > 50 {
@@ -279,8 +295,8 @@ func (kg *KnowledgeGraph) AddEdge(source, target, relation string, properties ma
 }
 
 // Search returns a JSON string of nodes and edges matching the query.
-// Uses FTS5 for node search and substring matching for edges.
-// Access counts are updated inline.
+// Uses a single UNION query combining FTS5 and LIKE to avoid two database round-trips.
+// Access counts are updated asynchronously via a worker pool.
 func (kg *KnowledgeGraph) Search(query string) string {
 	if query == "" {
 		return "[]"
@@ -290,17 +306,19 @@ func (kg *KnowledgeGraph) Search(query string) string {
 	var matchedEdges []Edge
 	var matchedNodeIDs []string
 
-	// FTS5 search on nodes — try exact match first, fall back to prefix + substring
+	// Combined FTS5 + LIKE UNION: one round-trip instead of two.
+	// FTS5 results are preferred; LIKE catches non-indexed partial matches.
 	ftsQuery := escapeFTS5(query)
+	likePattern := "%" + query + "%"
 	rows, err := kg.db.Query(`
-		SELECT n.id, n.label, n.properties
-		FROM kg_nodes_fts f
-		JOIN kg_nodes n ON n.rowid = f.rowid
-		WHERE kg_nodes_fts MATCH ?
+		SELECT id, label, properties FROM kg_nodes
+		WHERE rowid IN (SELECT rowid FROM kg_nodes_fts WHERE kg_nodes_fts MATCH ?)
+		UNION
+		SELECT id, label, properties FROM kg_nodes
+		WHERE id LIKE ? OR label LIKE ? OR properties LIKE ?
 		LIMIT 50
-	`, ftsQuery)
+	`, ftsQuery, likePattern, likePattern, likePattern)
 	if err == nil {
-		defer rows.Close()
 		for rows.Next() {
 			var n Node
 			var propsJSON string
@@ -316,32 +334,6 @@ func (kg *KnowledgeGraph) Search(query string) string {
 		rows.Close()
 	}
 
-	// If FTS5 returned nothing, fall back to LIKE substring search
-	if len(matchedNodes) == 0 {
-		likePattern := "%" + query + "%"
-		rows, err := kg.db.Query(`
-			SELECT id, label, properties FROM kg_nodes
-			WHERE id LIKE ? OR label LIKE ? OR properties LIKE ?
-			LIMIT 50
-		`, likePattern, likePattern, likePattern)
-		if err == nil {
-			defer rows.Close()
-			for rows.Next() {
-				var n Node
-				var propsJSON string
-				if err := rows.Scan(&n.ID, &n.Label, &propsJSON); err == nil {
-					json.Unmarshal([]byte(propsJSON), &n.Properties)
-					if n.Properties == nil {
-						n.Properties = make(map[string]string)
-					}
-					matchedNodes = append(matchedNodes, n)
-					matchedNodeIDs = append(matchedNodeIDs, n.ID)
-				}
-			}
-			rows.Close()
-		}
-	}
-
 	// Edge search — substring match on source, target, relation
 	likeQ := "%" + strings.ToLower(query) + "%"
 	edgeRows, err := kg.db.Query(`
@@ -350,7 +342,6 @@ func (kg *KnowledgeGraph) Search(query string) string {
 		LIMIT 50
 	`, likeQ, likeQ, likeQ)
 	if err == nil {
-		defer edgeRows.Close()
 		for edgeRows.Next() {
 			var e Edge
 			var propsJSON string
@@ -375,13 +366,13 @@ func (kg *KnowledgeGraph) Search(query string) string {
 	}
 	data, _ := json.Marshal(result)
 
-	// Update access counts inline
-	if len(matchedNodeIDs) > 0 {
-		go func() {
-			for _, id := range matchedNodeIDs {
-				kg.db.Exec("UPDATE kg_nodes SET access_count = access_count + 1 WHERE id = ?", id)
-			}
-		}()
+	// Queue access count updates — non-blocking, drops if buffer is full
+	for _, id := range matchedNodeIDs {
+		select {
+		case kg.accessQueue <- id:
+		default:
+			kg.logger.Debug("KG access queue full, dropping update", "id", id)
+		}
 	}
 
 	return string(data)

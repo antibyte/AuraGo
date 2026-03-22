@@ -104,6 +104,8 @@
   "help.email_accounts.watch_folder": "Slozka pro email_accounts.",
   "help.email_accounts.watch_interval_seconds": "Interval pro email_accounts.",
   "help.embeddings.provider": "Poskytovatel pro embeddings.",
+  "help.embeddings.multimodal": "Aktivuje multimodální embeddings. Když je aktivní, obrázky a zvukové soubory jsou vloženy přímo jako vektory. Aktivujte pouze pokud model embeddingů podporuje multimodální vstupy (např. Voyage AI, Google multimodal-embedding). Naskenované PDF s málo extrahovatelným textem jsou automaticky zpracovány jako obrázky.",
+  "help.embeddings.multimodal_format": "Formát API pro multimodální embedding požadavky. 'auto' detekuje formát na základě typu poskytovatele. 'openai' používá formát kompatibilní s OpenAI, 'vertex' formát Google Vertex AI.",
   "help.fallback_llm.enabled": "Povoluje Fallback LLM.",
   "help.fallback_llm.error_threshold": "Prahova hodnota pro fallback_llm.",
   "help.fallback_llm.probe_interval_seconds": "Interval pro fallback_llm.",

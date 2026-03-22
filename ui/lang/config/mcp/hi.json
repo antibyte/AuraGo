@@ -12,7 +12,7 @@
   "config.mcp.args_hint": "प्रति पंक्ति एक तर्क",
   "config.mcp.env_hint": "प्रति पंक्ति एक",
   "config.mcp.enabled_checkbox": "सक्षम",
-  "config.mcp.delete_confirm": "क्या वास्तव में MCP सर्वर \"{नाम}\" हटा दिया गया है?",
+  "config.mcp.delete_confirm": "क्या वास्तव में MCP सर्वर \"{name}\" हटा दिया गया है?",
   "config.mcp.name_command_required": "नाम और कमांड आवश्यक हैं.",
   "config.mcp.name_exists": "इस नाम का एक सर्वर पहले से मौजूद है.",
   "config.mcp.cancel": "रद्द करें",

@@ -14,7 +14,9 @@ MERGER_BIN="/app/config-merger"
 normalize_file() {
     local file="$1"
     if [ -f "$file" ]; then
-        sed -i 's/\r$//' "$file" 2>/dev/null || true
+        if ! sed -i 's/\r$//' "$file" 2>/dev/null; then
+            echo "[Entrypoint] WARNING: Could not normalize line endings for $file"
+        fi
     fi
 }
 
@@ -85,6 +87,11 @@ VALIDATE_ERR=$(/app/aurago --config "$CONFIG_FILE" --check-config 2>&1)
 if [ $? -ne 0 ]; then
     echo "[Entrypoint] WARNING: Config has YAML errors — restoring from factory defaults!"
     echo "[Entrypoint] Error was: $VALIDATE_ERR"
+    # Back up the corrupt config so the user can inspect it later.
+    CORRUPT_BACKUP="${CONFIG_FILE}.corrupt.$(date +%s)"
+    if cp "$CONFIG_FILE" "$CORRUPT_BACKUP" 2>/dev/null; then
+        echo "[Entrypoint] Previous config backed up to $CORRUPT_BACKUP"
+    fi
     echo "[Entrypoint] Your previous settings have been reset. Reconfigure via the Web UI."
     cp "$TEMPLATE_FILE" "$CONFIG_FILE"
     normalize_file "$CONFIG_FILE"

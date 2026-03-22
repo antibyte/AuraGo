@@ -31,5 +31,6 @@
   "login.subtitle": "Logga in för att fortsätta",
   "login.totp_divider": "Autentiseringskod",
   "login.totp_label": "6-siffrig kod",
-  "common.nav_knowledge": "Kunskapscenter"
+  "common.nav_knowledge": "Kunskapscenter",
+  "common.nav_containers": "Behållare"
 }

@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"os"
 	"testing"
+	"time"
 )
 
 func newTestKG(t *testing.T) *KnowledgeGraph {
@@ -290,5 +291,53 @@ func TestKGMigrateFromJSON(t *testing.T) {
 	// Original file should be renamed
 	if _, err := os.Stat(jsonPath + ".migrated"); os.IsNotExist(err) {
 		t.Error("expected .migrated file to exist after migration")
+	}
+}
+
+// TestKGSearchUnionFindsLIKEOnlyNode verifies that the UNION query finds nodes that
+// would only be matched by LIKE (not FTS5), e.g. numeric IDs.
+func TestKGSearchUnionFindsLIKEOnlyNode(t *testing.T) {
+	kg := newTestKG(t)
+
+	// Add a node whose label will only be found via LIKE (pure number, not indexed by FTS5).
+	if err := kg.AddNode("node-42", "42", map[string]string{"kind": "number"}); err != nil {
+		t.Fatal(err)
+	}
+	// Add a normal textual node
+	if err := kg.AddNode("alice", "Alice Smith", map[string]string{}); err != nil {
+		t.Fatal(err)
+	}
+
+	result := kg.Search("Alice")
+	if result == "[]" {
+		t.Error("Search('Alice') returned empty result — expected node found via FTS5 or LIKE")
+	}
+}
+
+// TestKGSearchAccessCountWorker verifies access counts are updated via the worker pool
+// (no goroutine explosion: only one background worker is running).
+func TestKGSearchAccessCountWorker(t *testing.T) {
+	kg := newTestKG(t)
+
+	if err := kg.AddNode("cat", "Cat", map[string]string{}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Perform multiple searches to push IDs into the access queue
+	for i := 0; i < 5; i++ {
+		kg.Search("Cat")
+	}
+
+	// Wait for the worker goroutine to drain the queue (poll up to 500ms).
+	var accessCount int
+	for i := 0; i < 50; i++ {
+		time.Sleep(10 * time.Millisecond)
+		_ = kg.db.QueryRow("SELECT access_count FROM kg_nodes WHERE id = 'cat'").Scan(&accessCount)
+		if accessCount > 0 {
+			break
+		}
+	}
+	if accessCount == 0 {
+		t.Error("access_count was not updated by worker pool after multiple searches")
 	}
 }

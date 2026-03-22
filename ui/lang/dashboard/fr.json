@@ -139,6 +139,7 @@
   "dashboard.integration_tailscale": "Tailscale",
   "dashboard.integration_telegram": "Telegram",
   "dashboard.integration_tts": "TTS",
+  "dashboard.integration_piper_tts": "Piper TTS",
   "dashboard.integration_user_profiling": "Profilage",
   "dashboard.integration_virustotal": "VirusTotal",
   "dashboard.integration_web_scraper": "Grattoir Web",
@@ -285,5 +286,12 @@
   "dashboard.tab_agent": "agent",
   "dashboard.tab_overview": "Vue d'ensemble",
   "dashboard.tab_system": "Système",
-  "dashboard.tab_user": "Utilisateur"
+  "dashboard.tab_user": "Utilisateur",
+  "dashboard.operations_tunnel": "Tunnel",
+  "dashboard.quickstatus_title": "Statut Rapide",
+  "dashboard.quickstatus_connected": "Connecté",
+  "dashboard.quickstatus_not_connected": "Déconnecté",
+  "dashboard.quickstatus_online": "En ligne",
+  "dashboard.quickstatus_offline": "Hors ligne",
+  "dashboard.quickstatus_integrations": "Intégrations"
 }
