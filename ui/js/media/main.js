@@ -143,22 +143,84 @@ async function loadAudio() {
 
 function renderAudioGrid(items) {
     const grid = document.getElementById('audio-grid');
-    let html = '';
+    grid.innerHTML = '';
+
     items.forEach(function (item) {
-        const title = escapeHtml(item.description || item.filename || 'Audio');
-        const fmt = escapeHtml((item.format || '').toUpperCase());
+        const title = item.description || item.filename || 'Audio';
+        const fmt = (item.format || '').toUpperCase();
         const date = item.created_at ? new Date(item.created_at).toLocaleDateString() : '';
-        // Show a sub-type badge so users know if it's TTS, music, or a sent audio file
         const typeIconMap = { tts: '🗣️', music: '🎶', audio: '🎵' };
         const typeIcon = typeIconMap[item.media_type] || '🎵';
-        const typeLbl = escapeHtml({ tts: t('media.audio_type_tts'), music: t('media.audio_type_music'), audio: t('media.audio_type_audio') }[item.media_type] || item.media_type);
-        const hasFile = !!(item.web_path || item.filename);
-        html += '<div class="media-audio-card' + (hasFile ? '' : ' media-audio-card--unavailable') + '" onclick="openAudioModal(' + item.id + ')">';
-        html += '<div class="media-audio-card-title">' + typeIcon + ' ' + title + (hasFile ? '' : ' <span class="media-inline-warning-icon">⚠️</span>') + '</div>';
-        html += '<div class="media-audio-card-meta"><span class="media-type-badge">' + typeLbl + '</span><span>' + fmt + '</span><span>' + escapeHtml(date) + '</span></div>';
-        html += '</div>';
+        const typeLbl = ({ tts: t('media.audio_type_tts'), music: t('media.audio_type_music'), audio: t('media.audio_type_audio') })[item.media_type] || item.media_type;
+        const audioPath = item.web_path || (item.filename ? '/files/audio/' + item.filename : '');
+        const hasFile = !!audioPath;
+
+        const card = document.createElement('div');
+        card.className = 'media-audio-card' + (hasFile ? '' : ' media-audio-card--unavailable');
+
+        // Title
+        const titleEl = document.createElement('div');
+        titleEl.className = 'media-audio-card-title';
+        titleEl.textContent = typeIcon + ' ' + title;
+        if (!hasFile) {
+            const warn = document.createElement('span');
+            warn.className = 'media-inline-warning-icon';
+            warn.textContent = ' ⚠️';
+            titleEl.appendChild(warn);
+        }
+        card.appendChild(titleEl);
+
+        // Meta
+        const metaEl = document.createElement('div');
+        metaEl.className = 'media-audio-card-meta';
+        const badge = document.createElement('span');
+        badge.className = 'media-type-badge';
+        badge.textContent = typeLbl;
+        metaEl.appendChild(badge);
+        const fmtSpan = document.createElement('span');
+        fmtSpan.textContent = fmt;
+        metaEl.appendChild(fmtSpan);
+        const dateSpan = document.createElement('span');
+        dateSpan.textContent = date;
+        metaEl.appendChild(dateSpan);
+        card.appendChild(metaEl);
+
+        if (hasFile) {
+            // Inline player
+            const player = new ChatAudioPlayer(audioPath);
+            const playerDlBtn = player.element.querySelector('.audio-download-btn');
+            if (playerDlBtn) playerDlBtn.classList.add('is-hidden');
+            card.appendChild(player.element);
+
+            // Actions: download + delete
+            const actionsEl = document.createElement('div');
+            actionsEl.className = 'media-audio-card-actions';
+
+            const dlBtn = document.createElement('a');
+            dlBtn.href = audioPath;
+            dlBtn.download = item.filename || 'audio';
+            dlBtn.className = 'btn-gallery-action';
+            dlBtn.textContent = '⬇ ' + t('gallery.download');
+            actionsEl.appendChild(dlBtn);
+
+            const delBtn = document.createElement('button');
+            delBtn.className = 'btn-gallery-action btn-danger';
+            delBtn.textContent = '🗑 ' + t('gallery.delete');
+            delBtn.addEventListener('click', (function (id) {
+                return function () { deleteAudioItem(id); };
+            }(item.id)));
+            actionsEl.appendChild(delBtn);
+
+            card.appendChild(actionsEl);
+        } else {
+            const unavailEl = document.createElement('div');
+            unavailEl.className = 'audio-error media-audio-unavailable';
+            unavailEl.textContent = '⚠️ ' + t('media.file_not_available');
+            card.appendChild(unavailEl);
+        }
+
+        grid.appendChild(card);
     });
-    grid.innerHTML = html;
 }
 
 function updateAudioPagination() {
@@ -174,6 +236,21 @@ function updateAudioPagination() {
 
 function audioPrev() { audioOffset = Math.max(0, audioOffset - MEDIA_LIMIT); loadAudio(); }
 function audioNext() { audioOffset += MEDIA_LIMIT; loadAudio(); }
+
+async function deleteAudioItem(id) {
+    if (!confirm(t('gallery.confirm_delete'))) return;
+    try {
+        const resp = await fetch('/api/media/' + id, { method: 'DELETE' });
+        const data = await resp.json();
+        if (data.status === 'ok') {
+            audioItems = [];
+            audioOffset = 0;
+            loadAudio();
+        } else {
+            alert(data.message || 'Delete failed');
+        }
+    } catch (e) { alert(e.message); }
+}
 
 function openAudioModal(id) {
     const item = audioItems.find(function (i) { return i.id === id; });

@@ -94,7 +94,6 @@
     border: 1px solid var(--border-subtle);
     border-radius: 16px;
     padding: 1rem;
-    cursor: pointer;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     backdrop-filter: blur(10px);
 }
@@ -102,7 +101,13 @@
 .media-audio-card:hover {
     border-color: var(--accent);
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(45, 212, 191, 0.1);
-    transform: translateY(-2px);
+}
+
+.media-audio-card-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.6rem;
+    flex-wrap: wrap;
 }
 
 .media-audio-card-title {
@@ -320,4 +325,149 @@
         width: 100%;
         justify-content: flex-end;
     }
+}
+
+/* ── Inline audio player (ChatAudioPlayer) inside media cards ──────────────── */
+.chat-audio-player {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.6rem 0.8rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-accent);
+    border-radius: 10px;
+    margin: 0.5rem 0 0;
+    max-width: 100%;
+}
+
+.audio-play-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: white;
+    border: none;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    font-size: 0.75rem;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.audio-play-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 0 12px var(--accent-dim);
+}
+
+.audio-play-btn:active {
+    transform: scale(0.95);
+}
+
+.audio-progress-container {
+    flex: 1;
+    min-width: 60px;
+}
+
+.audio-progress-bar {
+    height: 6px;
+    background: var(--bg-tertiary);
+    border-radius: 3px;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+}
+
+.audio-progress-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 3px;
+    transition: width 0.1s linear;
+    position: relative;
+}
+
+.audio-progress-fill::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: rgba(255, 255, 255, 0.5);
+}
+
+.audio-progress-handle {
+    position: absolute;
+    top: 50%;
+    width: 12px;
+    height: 12px;
+    background: white;
+    border: 2px solid var(--accent);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    opacity: 0;
+    transition: opacity 0.2s;
+    pointer-events: none;
+}
+
+.chat-audio-player:hover .audio-progress-handle {
+    opacity: 1;
+}
+
+.audio-time {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.audio-time .separator {
+    margin: 0 0.2rem;
+    opacity: 0.5;
+}
+
+.audio-speed-btn {
+    padding: 0.2rem 0.5rem;
+    font-size: 0.65rem;
+    border-radius: 4px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+    font-weight: 600;
+}
+
+.audio-speed-btn:hover {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+}
+
+.audio-download-btn {
+    padding: 0.25rem;
+    font-size: 0.85rem;
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    opacity: 0.7;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.audio-download-btn:hover {
+    opacity: 1;
+    color: var(--accent);
+}
+
+.audio-error {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    color: var(--error, #ef4444);
+    font-size: 0.85rem;
 }
