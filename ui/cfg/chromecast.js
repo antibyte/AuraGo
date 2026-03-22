@@ -211,21 +211,13 @@ async function ccDiscoverDevices() {
             if (alreadyAdded) {
                 dhtml += '<span class="cc-discovery-added">✓ ' + t('config.chromecast.already_added') + '</span>';
             } else {
-                dhtml += '<button class="btn-save cc-btn-compact" data-cc-idx="' + i + '">＋ ' + t('config.chromecast.add_device') + '</button>';
+                dhtml += '<button class="btn-save cc-btn-compact" data-cc-idx="' + i + '" onclick="ccAddDiscovered(' + i + ')">＋ ' + t('config.chromecast.add_device') + '</button>';
             }
             dhtml += '</div>';
         });
 
         dhtml += '</div></div>';
         area.innerHTML = dhtml;
-
-        // Attach click handlers via JS — inline onclick on dynamically created
-        // innerHTML elements can be unreliable; event listeners are always safe.
-        area.querySelectorAll('button[data-cc-idx]').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                ccAddDiscovered(parseInt(this.getAttribute('data-cc-idx'), 10));
-            });
-        });
 
     } catch (e) {
         ccRenderDiscoveryState(area, 'error', '❌ ' + escapeHtml(e.message));

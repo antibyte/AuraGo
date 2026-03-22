@@ -61,9 +61,14 @@ func Load(path string) (*Config, error) {
 	cfg.FritzBox.Telephony.Polling.MaxCallbacksPerHour = 20
 
 	// Document Creator defaults: Maroto backend, Gotenberg sidecar URL.
+	// Use Docker-internal hostname when running inside a container, otherwise localhost.
 	cfg.Tools.DocumentCreator.Backend = "maroto"
 	cfg.Tools.DocumentCreator.OutputDir = "data/documents"
-	cfg.Tools.DocumentCreator.Gotenberg.URL = "http://gotenberg:3000"
+	if _, err := os.Stat("/.dockerenv"); err == nil {
+		cfg.Tools.DocumentCreator.Gotenberg.URL = "http://gotenberg:3000"
+	} else {
+		cfg.Tools.DocumentCreator.Gotenberg.URL = "http://127.0.0.1:3000"
+	}
 	cfg.Tools.DocumentCreator.Gotenberg.Timeout = 120
 
 	cfg.Tools.WebCapture.Enabled = true

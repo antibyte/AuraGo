@@ -4,20 +4,49 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title id="page-title">AuraGo - Containers</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'aura': {
+                            'accent': 'var(--accent)',
+                            'bg': 'var(--bg-primary)',
+                            'surface': 'var(--bg-secondary)',
+                            'text': 'var(--text-primary)',
+                            'muted': 'var(--text-secondary)',
+                            'border': 'var(--border-subtle)',
+                            'success': 'var(--success)',
+                            'warning': 'var(--warning)',
+                            'danger': 'var(--danger)',
+                        }
+                    },
+                    fontFamily: {
+                        'sans': ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+                        'mono': ['Fira Code', 'Cascadia Code', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/shared.css">
     <script src="/shared.js"></script>
     <script>
         (function () { var t = localStorage.getItem('aurago-theme'); if (t) document.documentElement.setAttribute('data-theme', t); })();
     </script>
     <script>const I18N={{.I18N}};</script>
-    <link rel="stylesheet" href="/css/containers.css">
 </head>
-<body>
+<body class="min-h-screen bg-aura-bg text-aura-text font-sans">
+
+    <!-- Header -->
     <header class="app-header">
         <div class="header-left">
             <a href="/" class="logo">
                 <div class="logo-icon">🥚</div>
-                <span style="color:var(--accent);">AURA</span><span style="color:var(--text-primary);">GO</span>
+                <span class="logo-wordmark-accent">AURA</span><span class="logo-wordmark-base">GO</span>
                 <span class="logo-subtitle" data-i18n="containers.subtitle">Containers</span>
             </a>
         </div>
@@ -28,64 +57,72 @@
 
     <div id="radialMenuAnchor"></div>
 
-    <div class="ct-container">
-        <!-- Status bar -->
-        <div class="ct-status-bar" id="ct-status-bar">
-            <div class="ct-stat">
-                <span class="ct-stat-value" id="ct-total">0</span>
-                <span class="ct-stat-label" data-i18n="containers.stat_total">Total</span>
+    <!-- Main Container -->
+    <div class="max-w-[1400px] mx-auto px-5 py-6 pb-16">
+        
+        <!-- Status Bar -->
+        <div class="flex flex-wrap gap-4 mb-5" id="ct-status-bar">
+            <div class="flex flex-col items-center px-6 py-3 bg-aura-surface border border-aura-border rounded-xl min-w-[100px]">
+                <span class="text-3xl font-bold text-aura-text leading-none" id="ct-total">0</span>
+                <span class="text-xs text-aura-muted uppercase tracking-wider mt-1" data-i18n="containers.stat_total">Total</span>
             </div>
-            <div class="ct-stat ct-stat-running">
-                <span class="ct-stat-value" id="ct-running">0</span>
-                <span class="ct-stat-label" data-i18n="containers.stat_running">Running</span>
+            <div class="flex flex-col items-center px-6 py-3 bg-aura-surface border border-aura-border rounded-xl min-w-[100px]">
+                <span class="text-3xl font-bold text-emerald-500 leading-none" id="ct-running">0</span>
+                <span class="text-xs text-aura-muted uppercase tracking-wider mt-1" data-i18n="containers.stat_running">Running</span>
             </div>
-            <div class="ct-stat ct-stat-stopped">
-                <span class="ct-stat-value" id="ct-stopped">0</span>
-                <span class="ct-stat-label" data-i18n="containers.stat_stopped">Stopped</span>
+            <div class="flex flex-col items-center px-6 py-3 bg-aura-surface border border-aura-border rounded-xl min-w-[100px]">
+                <span class="text-3xl font-bold text-aura-muted leading-none" id="ct-stopped">0</span>
+                <span class="text-xs text-aura-muted uppercase tracking-wider mt-1" data-i18n="containers.stat_stopped">Stopped</span>
             </div>
         </div>
 
-        <!-- Search + filter bar -->
-        <div class="ct-toolbar">
-            <input type="text" id="ct-search" class="ct-search"
+        <!-- Search + Filter Toolbar -->
+        <div class="flex flex-wrap gap-3 items-center mb-5">
+            <input type="text" id="ct-search" 
+                class="flex-1 min-w-[200px] px-4 py-2.5 bg-aura-surface border border-aura-border rounded-lg text-aura-text text-sm outline-none focus:border-aura-accent transition-colors"
                 placeholder="Search containers..." data-i18n-placeholder="containers.search_placeholder"
                 oninput="filterContainers()">
-            <div class="ct-filter-group">
-                <button class="ct-filter-btn active" data-filter="all" onclick="setFilter('all')" data-i18n="containers.filter_all">All</button>
-                <button class="ct-filter-btn" data-filter="running" onclick="setFilter('running')" data-i18n="containers.filter_running">Running</button>
-                <button class="ct-filter-btn" data-filter="stopped" onclick="setFilter('stopped')" data-i18n="containers.filter_stopped">Stopped</button>
+            <div class="flex gap-1 bg-aura-surface rounded-lg p-1 border border-aura-border">
+                <button class="ct-filter-btn active px-4 py-1.5 rounded-md text-sm transition-all bg-aura-accent text-white font-semibold" 
+                    data-filter="all" onclick="setFilter('all')" data-i18n="containers.filter_all">All</button>
+                <button class="ct-filter-btn px-4 py-1.5 rounded-md text-sm text-aura-muted hover:text-aura-text transition-all" 
+                    data-filter="running" onclick="setFilter('running')" data-i18n="containers.filter_running">Running</button>
+                <button class="ct-filter-btn px-4 py-1.5 rounded-md text-sm text-aura-muted hover:text-aura-text transition-all" 
+                    data-filter="stopped" onclick="setFilter('stopped')" data-i18n="containers.filter_stopped">Stopped</button>
             </div>
         </div>
 
-        <!-- Container cards -->
-        <div class="ct-grid" id="ct-grid"></div>
+        <!-- Container Cards Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" id="ct-grid"></div>
 
-        <!-- Empty state -->
-        <div class="empty-state" id="ct-empty" style="display:none;">
-            <div class="empty-icon">🐳</div>
-            <h3 data-i18n="containers.empty_title">No Containers Found</h3>
+        <!-- Empty State -->
+        <div class="hidden text-center py-20 text-aura-muted bg-aura-surface rounded-2xl border border-dashed border-aura-border relative overflow-hidden" id="ct-empty">
+            <div class="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(45,212,191,0.05),transparent_70%)] pointer-events-none"></div>
+            <div class="text-6xl mb-4 grayscale-[30%] opacity-80 animate-[float_3s_ease-in-out_infinite]">🐳</div>
+            <h3 class="text-lg font-semibold text-aura-text mb-2" data-i18n="containers.empty_title">No Containers Found</h3>
             <p data-i18n="containers.empty_desc">No Docker containers match your current filter.</p>
         </div>
 
-        <!-- Error state (Docker disabled) -->
-        <div class="empty-state" id="ct-disabled" style="display:none;">
-            <div class="empty-icon">⚠️</div>
-            <h3 data-i18n="containers.disabled_title">Docker Not Enabled</h3>
+        <!-- Error State (Docker Disabled) -->
+        <div class="hidden text-center py-20 text-aura-muted bg-aura-surface rounded-2xl border border-dashed border-aura-border relative overflow-hidden" id="ct-disabled">
+            <div class="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(45,212,191,0.05),transparent_70%)] pointer-events-none"></div>
+            <div class="text-6xl mb-4">⚠️</div>
+            <h3 class="text-lg font-semibold text-aura-text mb-2" data-i18n="containers.disabled_title">Docker Not Enabled</h3>
             <p data-i18n="containers.disabled_desc">Enable Docker in the configuration to manage containers.</p>
         </div>
     </div>
 
     <!-- ═══════ LOG MODAL ═══════ -->
-    <div class="modal-overlay" id="log-modal">
-        <div class="modal modal-wide">
-            <div class="modal-header">
-                <h2 id="log-modal-title" data-i18n="containers.logs_title">Container Logs</h2>
-                <button class="modal-close" onclick="closeLogModal()">&times;</button>
+    <div class="modal-overlay hidden fixed inset-0 bg-black/60 items-start justify-center z-[200] p-5 backdrop-blur-sm transition-opacity" id="log-modal">
+        <div class="bg-[var(--modal-surface)] border border-[var(--modal-border)] rounded-2xl p-7 w-[95%] max-w-[900px] shadow-2xl my-auto transform scale-[0.95] opacity-0 transition-all duration-300">
+            <div class="flex justify-between items-start mb-5 gap-4">
+                <h2 class="text-xl font-semibold bg-gradient-to-r from-aura-text to-aura-accent bg-clip-text text-transparent" data-i18n="containers.logs_title">Container Logs</h2>
+                <button class="w-8 h-8 flex items-center justify-center rounded-lg bg-aura-surface border border-aura-border text-aura-muted hover:text-aura-accent hover:border-aura-accent transition-all" onclick="closeLogModal()">&times;</button>
             </div>
-            <div class="modal-body">
-                <pre class="ct-log-output" id="log-output"></pre>
+            <div class="mb-5">
+                <pre class="bg-aura-bg border border-aura-border rounded-lg p-4 font-mono text-xs leading-relaxed text-aura-text max-h-[500px] overflow-auto whitespace-pre-wrap break-all" id="log-output"></pre>
             </div>
-            <div class="modal-actions">
+            <div class="flex justify-end gap-3 pt-4 border-t border-aura-border">
                 <button class="btn btn-secondary" onclick="closeLogModal()" data-i18n="common.btn_close">Close</button>
                 <button class="btn btn-primary" onclick="refreshLogs()" data-i18n="containers.logs_refresh">Refresh</button>
             </div>
@@ -93,36 +130,37 @@
     </div>
 
     <!-- ═══════ INSPECT MODAL ═══════ -->
-    <div class="modal-overlay" id="inspect-modal">
-        <div class="modal modal-wide">
-            <div class="modal-header">
-                <h2 id="inspect-modal-title" data-i18n="containers.inspect_title">Container Details</h2>
-                <button class="modal-close" onclick="closeInspectModal()">&times;</button>
+    <div class="modal-overlay hidden fixed inset-0 bg-black/60 items-start justify-center z-[200] p-5 backdrop-blur-sm transition-opacity" id="inspect-modal">
+        <div class="bg-[var(--modal-surface)] border border-[var(--modal-border)] rounded-2xl p-7 w-[95%] max-w-[900px] shadow-2xl my-auto transform scale-[0.95] opacity-0 transition-all duration-300">
+            <div class="flex justify-between items-start mb-5 gap-4">
+                <h2 class="text-xl font-semibold bg-gradient-to-r from-aura-text to-aura-accent bg-clip-text text-transparent" data-i18n="containers.inspect_title">Container Details</h2>
+                <button class="w-8 h-8 flex items-center justify-center rounded-lg bg-aura-surface border border-aura-border text-aura-muted hover:text-aura-accent hover:border-aura-accent transition-all" onclick="closeInspectModal()">&times;</button>
             </div>
-            <div class="modal-body">
-                <pre class="ct-inspect-output" id="inspect-output"></pre>
+            <div class="mb-5">
+                <pre class="bg-aura-bg border border-aura-border rounded-lg p-4 font-mono text-xs leading-relaxed text-aura-text max-h-[500px] overflow-auto whitespace-pre-wrap break-all" id="inspect-output"></pre>
             </div>
-            <div class="modal-actions">
+            <div class="flex justify-end gap-3 pt-4 border-t border-aura-border">
                 <button class="btn btn-secondary" onclick="closeInspectModal()" data-i18n="common.btn_close">Close</button>
             </div>
         </div>
     </div>
 
     <!-- ═══════ CONFIRM DELETE MODAL ═══════ -->
-    <div class="modal-overlay" id="delete-modal">
-        <div class="modal">
-            <div class="modal-header">
-                <h2 data-i18n="containers.delete_title">Remove Container</h2>
-                <button class="modal-close" onclick="closeDeleteModal()">&times;</button>
+    <div class="modal-overlay hidden fixed inset-0 bg-black/60 items-start justify-center z-[200] p-5 backdrop-blur-sm transition-opacity" id="delete-modal">
+        <div class="bg-[var(--modal-surface)] border border-[var(--modal-border)] rounded-2xl p-7 w-[95%] max-w-[560px] shadow-2xl my-auto transform scale-[0.95] opacity-0 transition-all duration-300">
+            <div class="flex justify-between items-start mb-5 gap-4">
+                <h2 class="text-xl font-semibold bg-gradient-to-r from-aura-text to-aura-accent bg-clip-text text-transparent" data-i18n="containers.delete_title">Remove Container</h2>
+                <button class="w-8 h-8 flex items-center justify-center rounded-lg bg-aura-surface border border-aura-border text-aura-muted hover:text-aura-accent hover:border-aura-accent transition-all" onclick="closeDeleteModal()">&times;</button>
             </div>
-            <div class="modal-body">
-                <p data-i18n="containers.delete_confirm">Are you sure you want to remove this container?</p>
-                <p class="ct-delete-name" id="delete-container-name"></p>
-                <label class="ct-checkbox-label">
-                    <input type="checkbox" id="delete-force"> <span data-i18n="containers.delete_force">Force remove (kill if running)</span>
+            <div class="mb-5">
+                <p class="text-aura-muted mb-2" data-i18n="containers.delete_confirm">Are you sure you want to remove this container?</p>
+                <p class="font-semibold text-aura-accent font-mono text-base my-2" id="delete-container-name"></p>
+                <label class="flex items-center gap-2 text-sm text-aura-muted cursor-pointer mt-4">
+                    <input type="checkbox" id="delete-force" class="w-4 h-4 cursor-pointer accent-aura-accent"> 
+                    <span data-i18n="containers.delete_force">Force remove (kill if running)</span>
                 </label>
             </div>
-            <div class="modal-actions">
+            <div class="flex justify-end gap-3 pt-4 border-t border-aura-border">
                 <button class="btn btn-secondary" onclick="closeDeleteModal()" data-i18n="common.btn_cancel">Cancel</button>
                 <button class="btn btn-danger" onclick="confirmDelete()" data-i18n="common.btn_delete">Delete</button>
             </div>
@@ -130,5 +168,63 @@
     </div>
 
     <script src="/js/containers/main.js"></script>
+    
+    <style>
+        /* Modal active states */
+        .modal-overlay.active {
+            display: flex;
+            opacity: 1;
+        }
+        .modal-overlay.active > div {
+            transform: scale(1);
+            opacity: 1;
+        }
+        
+        /* Float animation for empty state */
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+        
+        /* Card status indicator animations */
+        .ct-card-status.running {
+            box-shadow: 0 0 6px rgba(34, 197, 94, 0.5);
+        }
+        .ct-card-status.restarting {
+            animation: ctPulse 1s ease-in-out infinite;
+        }
+        @keyframes ctPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+        
+        /* Toast notification */
+        .ct-toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            color: #fff;
+            z-index: 10000;
+            animation: ctSlideIn 0.3s ease, ctSlideOut 0.3s ease 2.7s;
+            pointer-events: none;
+        }
+        .ct-toast.success {
+            background: var(--success, #22c55e);
+        }
+        .ct-toast.error {
+            background: var(--danger, #ef4444);
+        }
+        @keyframes ctSlideIn {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes ctSlideOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+    </style>
 </body>
 </html>

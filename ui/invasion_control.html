@@ -4,67 +4,187 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title id="page-title">AuraGo - Invasion Control</title>
-    <link rel="stylesheet" href="/shared.css">
     <script src="/shared.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'aura': {
+                            'accent': 'var(--accent)',
+                            'bg': 'var(--bg-primary)',
+                            'surface': 'var(--bg-secondary)',
+                            'text': 'var(--text-primary)',
+                            'muted': 'var(--text-secondary)',
+                            'border': 'var(--border)',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Base CSS variables */
+        :root {
+            --accent: #6366f1;
+            --accent-hover: #4f46e5;
+            --bg-primary: #0f0f0f;
+            --bg-secondary: #1a1a1a;
+            --bg-tertiary: #252525;
+            --text-primary: #f0f0f0;
+            --text-secondary: #888;
+            --border: #333;
+            --border-focus: #555;
+            --danger: #dc2626;
+            --danger-hover: #b91c1c;
+            --success: #16a34a;
+            --warning: #ca8a04;
+        }
+        [data-theme="light"] {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f5f5f5;
+            --bg-tertiary: #e5e5e5;
+            --text-primary: #1a1a1a;
+            --text-secondary: #666;
+            --border: #ddd;
+            --border-focus: #999;
+        }
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+        }
+        /* Custom toggle switch */
+        .toggle {
+            position: relative;
+            display: inline-block;
+            width: 48px;
+            height: 24px;
+        }
+        .toggle input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            inset: 0;
+            background-color: var(--border);
+            transition: .3s;
+            border-radius: 24px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: var(--accent);
+        }
+        input:checked + .slider:before {
+            transform: translateX(24px);
+        }
+        /* Modal overlay */
+        .modal-overlay {
+            background-color: rgba(0, 0, 0, 0.7);
+        }
+        /* Theme toggle icon */
+        #theme-toggle::before {
+            content: "☀️";
+        }
+        [data-theme="light"] #theme-toggle::before {
+            content: "🌙";
+        }
+        /* Resize textarea */
+        .resize-vertical {
+            resize: vertical;
+            min-height: 60px;
+        }
+        /* Toast animation */
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+        .toast.show {
+            animation: slideIn 0.3s ease;
+        }
+        .toast.hide {
+            animation: fadeOut 0.3s ease forwards;
+        }
+    </style>
     <script>
         (function () { var t = localStorage.getItem('aurago-theme'); if (t) document.documentElement.setAttribute('data-theme', t); })();
     </script>
     <script>const I18N={{.I18N}};</script>
-    <link rel="stylesheet" href="/css/invasion.css">
-<body>
+</head>
+<body class="min-h-screen bg-aura-bg text-aura-text antialiased">
     <!-- Header -->
-    <header class="app-header">
-        <div class="header-left">
-            <a href="/" class="logo">
-                <div class="logo-icon">🥚</div>
-                <span class="logo-wordmark-accent">AURA</span><span class="logo-wordmark-base">GO</span>
-                <span class="logo-subtitle"><script>document.write(t('invasion.logo_subtitle'))</script></span>
+    <header class="flex items-center justify-between px-6 py-4 border-b border-aura-border bg-aura-surface/50 backdrop-blur-sm sticky top-0 z-40">
+        <div class="flex items-center">
+            <a href="/" class="flex items-center gap-3 no-underline">
+                <div class="w-10 h-10 flex items-center justify-center text-2xl bg-aura-accent/10 rounded-xl border border-aura-accent/20">🥚</div>
+                <div class="flex items-baseline gap-2">
+                    <span class="text-xl font-bold tracking-tight text-aura-accent">AURA</span>
+                    <span class="text-xl font-bold tracking-tight text-aura-text">GO</span>
+                    <span class="text-sm text-aura-muted font-normal ml-2"><script>document.write(t('invasion.logo_subtitle'))</script></span>
+                </div>
             </a>
         </div>
-        <div class="header-actions">
-            <button id="theme-toggle" class="btn-theme" data-i18n-title="common.toggle_theme" title="Toggle theme"></button>
+        <div class="flex items-center gap-3">
+            <button id="theme-toggle" class="w-10 h-10 flex items-center justify-center rounded-lg bg-aura-surface border border-aura-border text-lg hover:border-aura-accent/50 hover:bg-aura-accent/10 transition-all" data-i18n-title="common.toggle_theme" title="Toggle theme"></button>
         </div>
     </header>
 
     <div id="radialMenuAnchor"></div>
 
-    <div class="container">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         <!-- Page Header -->
-        <div class="page-header">
-            <h1><script>document.write(t('invasion.title'))</script></h1>
-            <button class="btn btn-primary" id="btn-create" onclick="openCreateModal()">
-                <span>+</span> <span><script>document.write(t('invasion.create_new'))</script></span>
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+            <h1 class="text-3xl font-bold text-aura-text"><script>document.write(t('invasion.title'))</script></h1>
+            <button class="inline-flex items-center gap-2 px-4 py-2 bg-aura-accent hover:bg-[var(--accent-hover)] text-white font-medium rounded-lg transition-colors" id="btn-create" onclick="openCreateModal()">
+                <span class="text-lg">+</span> <span><script>document.write(t('invasion.create_new'))</script></span>
             </button>
         </div>
 
         <!-- Tabs -->
-        <div class="tabs">
-            <button class="tab active" data-tab="nests" onclick="switchTab('nests')">
-                🪺 <span><script>document.write(t('invasion.nests'))</script></span>
+        <div class="flex gap-1 p-1 bg-aura-surface rounded-xl border border-aura-border mb-6 w-fit">
+            <button class="tab active px-4 py-2 rounded-lg font-medium text-sm transition-all bg-aura-accent text-white" data-tab="nests" onclick="switchTab('nests')">
+                🪺 <span class="ml-1"><script>document.write(t('invasion.nests'))</script></span>
             </button>
-            <button class="tab" data-tab="eggs" onclick="switchTab('eggs')">
-                🥚 <span><script>document.write(t('invasion.eggs'))</script></span>
+            <button class="tab px-4 py-2 rounded-lg font-medium text-sm transition-all text-aura-muted hover:text-aura-text hover:bg-aura-bg" data-tab="eggs" onclick="switchTab('eggs')">
+                🥚 <span class="ml-1"><script>document.write(t('invasion.eggs'))</script></span>
             </button>
         </div>
 
         <!-- Content -->
         <div id="content-nests" class="tab-content">
-            <div class="cards-grid" id="nests-grid"></div>
-            <div class="empty-state is-hidden" id="nests-empty">
-                <div class="icon">🪺</div>
-                <p><script>document.write(t('invasion.no_nests'))</script></p>
-                <button class="btn btn-primary" onclick="openCreateModal()">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="nests-grid"></div>
+            <div class="hidden flex flex-col items-center justify-center py-16 text-center" id="nests-empty">
+                <div class="text-6xl mb-4">🪺</div>
+                <p class="text-aura-muted text-lg mb-6"><script>document.write(t('invasion.no_nests'))</script></p>
+                <button class="inline-flex items-center gap-2 px-4 py-2 bg-aura-accent hover:bg-[var(--accent-hover)] text-white font-medium rounded-lg transition-colors" onclick="openCreateModal()">
                     <span><script>document.write(t('invasion.create_first_nest'))</script></span>
                 </button>
             </div>
         </div>
 
-        <div id="content-eggs" class="tab-content is-hidden">
-            <div class="cards-grid" id="eggs-grid"></div>
-            <div class="empty-state is-hidden" id="eggs-empty">
-                <div class="icon">🥚</div>
-                <p><script>document.write(t('invasion.no_eggs'))</script></p>
-                <button class="btn btn-primary" onclick="openCreateModal()">
+        <div id="content-eggs" class="tab-content hidden">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="eggs-grid"></div>
+            <div class="hidden flex flex-col items-center justify-center py-16 text-center" id="eggs-empty">
+                <div class="text-6xl mb-4">🥚</div>
+                <p class="text-aura-muted text-lg mb-6"><script>document.write(t('invasion.no_eggs'))</script></p>
+                <button class="inline-flex items-center gap-2 px-4 py-2 bg-aura-accent hover:bg-[var(--accent-hover)] text-white font-medium rounded-lg transition-colors" onclick="openCreateModal()">
                     <span><script>document.write(t('invasion.create_first_egg'))</script></span>
                 </button>
             </div>
@@ -72,205 +192,218 @@
     </div>
 
     <!-- Nest Modal -->
-    <div class="modal-overlay" id="nest-modal">
-        <div class="modal">
-            <h2 id="nest-modal-title"><script>document.write(t('invasion.create_nest'))</script></h2>
-            <input type="hidden" id="nest-id">
-            <div class="form-group">
-                <label><script>document.write(t('invasion.name'))</script></label>
-                <input type="text" id="nest-name" data-i18n-ph="invasion.ph_nest_name" placeholder="Produktionsserver">
+    <div class="modal-overlay fixed inset-0 z-50 hidden items-center justify-center p-4" id="nest-modal">
+        <div class="bg-aura-surface border border-aura-border rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div class="p-6 border-b border-aura-border">
+                <h2 class="text-xl font-bold text-aura-text" id="nest-modal-title"><script>document.write(t('invasion.create_nest'))</script></h2>
             </div>
-            <div class="form-group">
-                <label><script>document.write(t('invasion.notes'))</script></label>
-                <textarea id="nest-notes" data-i18n-ph="invasion.ph_nest_notes" placeholder="Optionale Notizen..." rows="2" class="resize-vertical"></textarea>
-            </div>
-            <div class="form-group">
-                <label><script>document.write(t('invasion.access_type'))</script></label>
-                <select id="nest-access-type" class="form-select" onchange="onAccessTypeChange()">
-                    <option value="ssh" data-i18n="invasion.access_ssh">SSH</option>
-                    <option value="docker" data-i18n="invasion.access_docker">Docker API</option>
-                    <option value="local" data-i18n="invasion.access_local">Lokal</option>
-                </select>
-            </div>
-            <div id="nest-remote-fields">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label><script>document.write(t('invasion.host'))</script></label>
-                        <input type="text" id="nest-host" data-i18n-ph="invasion.ph_host" placeholder="192.168.1.100">
+            <div class="p-6 space-y-4">
+                <input type="hidden" id="nest-id">
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium text-aura-text"><script>document.write(t('invasion.name'))</script></label>
+                    <input type="text" id="nest-name" data-i18n-ph="invasion.ph_nest_name" placeholder="Produktionsserver" class="w-full px-3 py-2 bg-aura-bg border border-aura-border rounded-lg text-aura-text placeholder:text-aura-muted focus:outline-none focus:border-aura-accent focus:ring-1 focus:ring-aura-accent transition-colors">
+                </div>
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium text-aura-text"><script>document.write(t('invasion.notes'))</script></label>
+                    <textarea id="nest-notes" data-i18n-ph="invasion.ph_nest_notes" placeholder="Optionale Notizen..." rows="2" class="resize-vertical w-full px-3 py-2 bg-aura-bg border border-aura-border rounded-lg text-aura-text placeholder:text-aura-muted focus:outline-none focus:border-aura-accent focus:ring-1 focus:ring-aura-accent transition-colors"></textarea>
+                </div>
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium text-aura-text"><script>document.write(t('invasion.access_type'))</script></label>
+                    <select id="nest-access-type" class="w-full px-3 py-2 bg-aura-bg border border-aura-border rounded-lg text-aura-text focus:outline-none focus:border-aura-accent focus:ring-1 focus:ring-aura-accent transition-colors" onchange="onAccessTypeChange()">
+                        <option value="ssh" data-i18n="invasion.access_ssh">SSH</option>
+                        <option value="docker" data-i18n="invasion.access_docker">Docker API</option>
+                        <option value="local" data-i18n="invasion.access_local">Lokal</option>
+                    </select>
+                </div>
+                <div id="nest-remote-fields" class="space-y-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="space-y-2">
+                            <label class="block text-sm font-medium text-aura-text"><script>document.write(t('invasion.host'))</script></label>
+                            <input type="text" id="nest-host" data-i18n-ph="invasion.ph_host" placeholder="192.168.1.100" class="w-full px-3 py-2 bg-aura-bg border border-aura-border rounded-lg text-aura-text placeholder:text-aura-muted focus:outline-none focus:border-aura-accent focus:ring-1 focus:ring-aura-accent transition-colors">
+                        </div>
+                        <div class="space-y-2">
+                            <label class="block text-sm font-medium text-aura-text"><script>document.write(t('invasion.port'))</script></label>
+                            <input type="number" id="nest-port" value="22" class="w-full px-3 py-2 bg-aura-bg border border-aura-border rounded-lg text-aura-text focus:outline-none focus:border-aura-accent focus:ring-1 focus:ring-aura-accent transition-colors">
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label><script>document.write(t('invasion.port'))</script></label>
-                        <input type="number" id="nest-port" value="22">
+                    <div class="space-y-2">
+                        <label class="block text-sm font-medium text-aura-text"><script>document.write(t('invasion.username'))</script></label>
+                        <input type="text" id="nest-username" data-i18n-ph="invasion.ph_username" placeholder="deploy" class="w-full px-3 py-2 bg-aura-bg border border-aura-border rounded-lg text-aura-text placeholder:text-aura-muted focus:outline-none focus:border-aura-accent focus:ring-1 focus:ring-aura-accent transition-colors">
+                    </div>
+                    <div class="space-y-2">
+                        <label id="nest-secret-label" class="block text-sm font-medium text-aura-text"><script>document.write(t('invasion.secret'))</script></label>
+                        <textarea id="nest-secret" data-i18n-ph="invasion.ph_secret" placeholder="Passwort oder SSH Private Key..." rows="3" class="resize-vertical w-full px-3 py-2 bg-aura-bg border border-aura-border rounded-lg text-aura-text placeholder:text-aura-muted focus:outline-none focus:border-aura-accent focus:ring-1 focus:ring-aura-accent transition-colors font-mono text-sm"></textarea>
+                        <small id="nest-secret-hint" class="hidden text-sm text-[var(--success)]">
+                            <script>document.write(t('invasion.secret_set'))</script>
+                        </small>
                     </div>
                 </div>
-                <div class="form-group">
-                    <label><script>document.write(t('invasion.username'))</script></label>
-                    <input type="text" id="nest-username" data-i18n-ph="invasion.ph_username" placeholder="deploy">
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium text-aura-text"><script>document.write(t('invasion.assign_egg'))</script></label>
+                    <select id="nest-egg-id" class="w-full px-3 py-2 bg-aura-bg border border-aura-border rounded-lg text-aura-text focus:outline-none focus:border-aura-accent focus:ring-1 focus:ring-aura-accent transition-colors">
+                        <option value="" data-i18n="invasion.no_egg">— Kein Egg —</option>
+                    </select>
                 </div>
-                <div class="form-group">
-                    <label id="nest-secret-label"><script>document.write(t('invasion.secret'))</script></label>
-                    <textarea id="nest-secret" data-i18n-ph="invasion.ph_secret" placeholder="Passwort oder SSH Private Key..." rows="3" class="resize-vertical"></textarea>
-                    <small id="nest-secret-hint" class="hint-subtle is-hidden">
-                        <script>document.write(t('invasion.secret_set'))</script>
-                    </small>
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium text-aura-text"><script>document.write(t('invasion.deploy_method'))</script></label>
+                    <select id="nest-deploy-method" class="w-full px-3 py-2 bg-aura-bg border border-aura-border rounded-lg text-aura-text focus:outline-none focus:border-aura-accent focus:ring-1 focus:ring-aura-accent transition-colors" onchange="onDeployMethodChange()">
+                        <option value="ssh" data-i18n="invasion.deploy_ssh">SSH</option>
+                        <option value="docker_remote" data-i18n="invasion.deploy_docker_remote">Docker (Remote)</option>
+                        <option value="docker_local" data-i18n="invasion.deploy_docker_local">Docker (Lokal)</option>
+                    </select>
+                    <small id="deploy-docker-local-hint" class="hidden text-xs text-aura-muted mt-1"><script>document.write(t('invasion.docker_local_hint'))</script></small>
                 </div>
-            </div>
-            <div class="form-group">
-                <label><script>document.write(t('invasion.assign_egg'))</script></label>
-                <select id="nest-egg-id" class="form-select">
-                    <option value="" data-i18n="invasion.no_egg">— Kein Egg —</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label><script>document.write(t('invasion.deploy_method'))</script></label>
-                <select id="nest-deploy-method" class="form-select" onchange="onDeployMethodChange()">
-                    <option value="ssh" data-i18n="invasion.deploy_ssh">SSH</option>
-                    <option value="docker_remote" data-i18n="invasion.deploy_docker_remote">Docker (Remote)</option>
-                    <option value="docker_local" data-i18n="invasion.deploy_docker_local">Docker (Lokal)</option>
-                </select>
-                <small id="deploy-docker-local-hint" class="hint-subtle is-hidden mt-xs"><script>document.write(t('invasion.docker_local_hint'))</script></small>
-            </div>
-            <div class="form-group">
-                <label><script>document.write(t('invasion.target_arch'))</script></label>
-                <select id="nest-target-arch" class="form-select">
-                    <option value="linux/amd64">linux/amd64</option>
-                    <option value="linux/arm64">linux/arm64</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label><script>document.write(t('invasion.route'))</script></label>
-                <select id="nest-route" class="form-select">
-                    <option value="direct" data-i18n="invasion.route_direct">Direct</option>
-                    <option value="ssh_tunnel" data-i18n="invasion.route_ssh_tunnel">SSH Tunnel</option>
-                    <option value="tailscale" data-i18n="invasion.route_tailscale">Tailscale</option>
-                    <option value="wireguard" data-i18n="invasion.route_wireguard">WireGuard</option>
-                    <option value="custom" data-i18n="invasion.route_custom">Custom</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label><script>document.write(t('invasion.route_config'))</script></label>
-                <textarea id="nest-route-config" placeholder='{"tunnel_port":8443}' rows="2" class="resize-vertical"></textarea>
-            </div>
-            <div class="form-group">
-                <div class="toggle-wrap">
-                    <label class="toggle">
-                        <input type="checkbox" id="nest-active" checked>
-                        <span class="slider"></span>
-                    </label>
-                    <span class="toggle-label"><script>document.write(t('invasion.active'))</script></span>
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium text-aura-text"><script>document.write(t('invasion.target_arch'))</script></label>
+                    <select id="nest-target-arch" class="w-full px-3 py-2 bg-aura-bg border border-aura-border rounded-lg text-aura-text focus:outline-none focus:border-aura-accent focus:ring-1 focus:ring-aura-accent transition-colors">
+                        <option value="linux/amd64">linux/amd64</option>
+                        <option value="linux/arm64">linux/arm64</option>
+                    </select>
+                </div>
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium text-aura-text"><script>document.write(t('invasion.route'))</script></label>
+                    <select id="nest-route" class="w-full px-3 py-2 bg-aura-bg border border-aura-border rounded-lg text-aura-text focus:outline-none focus:border-aura-accent focus:ring-1 focus:ring-aura-accent transition-colors">
+                        <option value="direct" data-i18n="invasion.route_direct">Direct</option>
+                        <option value="ssh_tunnel" data-i18n="invasion.route_ssh_tunnel">SSH Tunnel</option>
+                        <option value="tailscale" data-i18n="invasion.route_tailscale">Tailscale</option>
+                        <option value="wireguard" data-i18n="invasion.route_wireguard">WireGuard</option>
+                        <option value="custom" data-i18n="invasion.route_custom">Custom</option>
+                    </select>
+                </div>
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium text-aura-text"><script>document.write(t('invasion.route_config'))</script></label>
+                    <textarea id="nest-route-config" placeholder='{"tunnel_port":8443}' rows="2" class="resize-vertical w-full px-3 py-2 bg-aura-bg border border-aura-border rounded-lg text-aura-text placeholder:text-aura-muted focus:outline-none focus:border-aura-accent focus:ring-1 focus:ring-aura-accent transition-colors font-mono text-sm"></textarea>
+                </div>
+                <div class="space-y-2">
+                    <div class="flex items-center gap-3">
+                        <label class="toggle">
+                            <input type="checkbox" id="nest-active" checked>
+                            <span class="slider"></span>
+                        </label>
+                        <span class="text-sm text-aura-text"><script>document.write(t('invasion.active'))</script></span>
+                    </div>
+                </div>
+                <div id="nest-validate-area" class="hidden">
+                    <button class="inline-flex items-center gap-2 px-3 py-1.5 text-sm bg-aura-surface hover:bg-aura-bg border border-aura-border hover:border-aura-accent text-aura-text rounded-lg transition-colors" id="btn-validate" onclick="validateNest()">
+                        <script>document.write(t('invasion.test_connection'))</script>
+                    </button>
+                    <div class="validate-result mt-2 text-sm" id="validate-result"></div>
                 </div>
             </div>
-            <div id="nest-validate-area" class="is-hidden">
-                <button class="btn btn-sm btn-secondary" id="btn-validate" onclick="validateNest()">
-                    <script>document.write(t('invasion.test_connection'))</script>
-                </button>
-                <div class="validate-result" id="validate-result"></div>
-            </div>
-            <div class="modal-actions">
-                <button class="btn btn-secondary" onclick="closeModal('nest-modal')"><script>document.write(t('invasion.cancel'))</script></button>
-                <button class="btn btn-primary" onclick="saveNest()"><script>document.write(t('invasion.save'))</script></button>
+            <div class="flex justify-end gap-3 p-6 border-t border-aura-border bg-aura-bg/30">
+                <button class="px-4 py-2 bg-aura-surface hover:bg-aura-bg border border-aura-border text-aura-text font-medium rounded-lg transition-colors" onclick="closeModal('nest-modal')"><script>document.write(t('invasion.cancel'))</script></button>
+                <button class="px-4 py-2 bg-aura-accent hover:bg-[var(--accent-hover)] text-white font-medium rounded-lg transition-colors" onclick="saveNest()"><script>document.write(t('invasion.save'))</script></button>
             </div>
         </div>
     </div>
 
     <!-- Egg Modal -->
-    <div class="modal-overlay" id="egg-modal">
-        <div class="modal">
-            <h2 id="egg-modal-title"><script>document.write(t('invasion.create_egg'))</script></h2>
-            <input type="hidden" id="egg-id">
-            <div class="form-group">
-                <label><script>document.write(t('invasion.name'))</script></label>
-                <input type="text" id="egg-name" data-i18n-ph="invasion.ph_egg_name" placeholder="Analytics Agent">
+    <div class="modal-overlay fixed inset-0 z-50 hidden items-center justify-center p-4" id="egg-modal">
+        <div class="bg-aura-surface border border-aura-border rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div class="p-6 border-b border-aura-border">
+                <h2 class="text-xl font-bold text-aura-text" id="egg-modal-title"><script>document.write(t('invasion.create_egg'))</script></h2>
             </div>
-            <div class="form-group">
-                <label><script>document.write(t('invasion.description'))</script></label>
-                <textarea id="egg-description" data-i18n-ph="invasion.ph_egg_description" placeholder="Was macht dieser Sub-Agent?" rows="2" class="resize-vertical"></textarea>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label><script>document.write(t('invasion.provider'))</script></label>
-                    <input type="text" id="egg-provider" placeholder="openrouter">
+            <div class="p-6 space-y-4">
+                <input type="hidden" id="egg-id">
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium text-aura-text"><script>document.write(t('invasion.name'))</script></label>
+                    <input type="text" id="egg-name" data-i18n-ph="invasion.ph_egg_name" placeholder="Analytics Agent" class="w-full px-3 py-2 bg-aura-bg border border-aura-border rounded-lg text-aura-text placeholder:text-aura-muted focus:outline-none focus:border-aura-accent focus:ring-1 focus:ring-aura-accent transition-colors">
                 </div>
-                <div class="form-group">
-                    <label><script>document.write(t('invasion.model'))</script></label>
-                    <input type="text" id="egg-model" placeholder="gpt-4o-mini">
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium text-aura-text"><script>document.write(t('invasion.description'))</script></label>
+                    <textarea id="egg-description" data-i18n-ph="invasion.ph_egg_description" placeholder="Was macht dieser Sub-Agent?" rows="2" class="resize-vertical w-full px-3 py-2 bg-aura-bg border border-aura-border rounded-lg text-aura-text placeholder:text-aura-muted focus:outline-none focus:border-aura-accent focus:ring-1 focus:ring-aura-accent transition-colors"></textarea>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="space-y-2">
+                        <label class="block text-sm font-medium text-aura-text"><script>document.write(t('invasion.provider'))</script></label>
+                        <input type="text" id="egg-provider" placeholder="openrouter" class="w-full px-3 py-2 bg-aura-bg border border-aura-border rounded-lg text-aura-text placeholder:text-aura-muted focus:outline-none focus:border-aura-accent focus:ring-1 focus:ring-aura-accent transition-colors">
+                    </div>
+                    <div class="space-y-2">
+                        <label class="block text-sm font-medium text-aura-text"><script>document.write(t('invasion.model'))</script></label>
+                        <input type="text" id="egg-model" placeholder="gpt-4o-mini" class="w-full px-3 py-2 bg-aura-bg border border-aura-border rounded-lg text-aura-text placeholder:text-aura-muted focus:outline-none focus:border-aura-accent focus:ring-1 focus:ring-aura-accent transition-colors">
+                    </div>
+                </div>
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium text-aura-text"><script>document.write(t('invasion.base_url'))</script></label>
+                    <input type="text" id="egg-base-url" placeholder="https://openrouter.ai/api/v1" class="w-full px-3 py-2 bg-aura-bg border border-aura-border rounded-lg text-aura-text placeholder:text-aura-muted focus:outline-none focus:border-aura-accent focus:ring-1 focus:ring-aura-accent transition-colors">
+                </div>
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium text-aura-text"><script>document.write(t('invasion.api_key'))</script></label>
+                    <input type="password" id="egg-api-key" placeholder="sk-..." class="w-full px-3 py-2 bg-aura-bg border border-aura-border rounded-lg text-aura-text placeholder:text-aura-muted focus:outline-none focus:border-aura-accent focus:ring-1 focus:ring-aura-accent transition-colors font-mono text-sm">
+                    <small id="egg-apikey-hint" class="hidden text-sm text-[var(--success)]">
+                        <script>document.write(t('invasion.apikey_set'))</script>
+                    </small>
+                </div>
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium text-aura-text"><script>document.write(t('invasion.egg_port'))</script></label>
+                    <input type="number" id="egg-port" value="8099" min="1024" max="65535" class="w-full px-3 py-2 bg-aura-bg border border-aura-border rounded-lg text-aura-text focus:outline-none focus:border-aura-accent focus:ring-1 focus:ring-aura-accent transition-colors">
+                </div>
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium text-aura-text"><script>document.write(t('invasion.allowed_tools'))</script></label>
+                    <input type="text" id="egg-allowed-tools" placeholder='["shell","python"]' class="w-full px-3 py-2 bg-aura-bg border border-aura-border rounded-lg text-aura-text placeholder:text-aura-muted focus:outline-none focus:border-aura-accent focus:ring-1 focus:ring-aura-accent transition-colors font-mono text-sm">
+                </div>
+                <div class="space-y-2">
+                    <div class="flex items-center gap-3">
+                        <label class="toggle">
+                            <input type="checkbox" id="egg-permanent">
+                            <span class="slider"></span>
+                        </label>
+                        <span class="text-sm text-aura-text"><script>document.write(t('invasion.permanent'))</script></span>
+                    </div>
+                </div>
+                <div class="space-y-2">
+                    <div class="flex items-center gap-3">
+                        <label class="toggle">
+                            <input type="checkbox" id="egg-include-vault">
+                            <span class="slider"></span>
+                        </label>
+                        <span class="text-sm text-aura-text"><script>document.write(t('invasion.include_vault'))</script></span>
+                    </div>
+                </div>
+                <div class="space-y-2">
+                    <div class="flex items-center gap-3">
+                        <label class="toggle">
+                            <input type="checkbox" id="egg-inherit-llm" checked>
+                            <span class="slider"></span>
+                        </label>
+                        <span class="text-sm text-aura-text"><script>document.write(t('invasion.inherit_llm'))</script></span>
+                    </div>
+                </div>
+                <div class="space-y-2">
+                    <div class="flex items-center gap-3">
+                        <label class="toggle">
+                            <input type="checkbox" id="egg-active" checked>
+                            <span class="slider"></span>
+                        </label>
+                        <span class="text-sm text-aura-text"><script>document.write(t('invasion.active'))</script></span>
+                    </div>
                 </div>
             </div>
-            <div class="form-group">
-                <label><script>document.write(t('invasion.base_url'))</script></label>
-                <input type="text" id="egg-base-url" placeholder="https://openrouter.ai/api/v1">
-            </div>
-            <div class="form-group">
-                <label><script>document.write(t('invasion.api_key'))</script></label>
-                <input type="password" id="egg-api-key" placeholder="sk-...">
-                <small id="egg-apikey-hint" class="hint-subtle is-hidden">
-                    <script>document.write(t('invasion.apikey_set'))</script>
-                </small>
-            </div>
-            <div class="form-group">
-                <label><script>document.write(t('invasion.egg_port'))</script></label>
-                <input type="number" id="egg-port" value="8099" min="1024" max="65535">
-            </div>
-            <div class="form-group">
-                <label><script>document.write(t('invasion.allowed_tools'))</script></label>
-                <input type="text" id="egg-allowed-tools" placeholder='["shell","python"]'>
-            </div>
-            <div class="form-group">
-                <div class="toggle-wrap">
-                    <label class="toggle">
-                        <input type="checkbox" id="egg-permanent">
-                        <span class="slider"></span>
-                    </label>
-                    <span class="toggle-label"><script>document.write(t('invasion.permanent'))</script></span>
-                </div>
-            </div>
-            <div class="form-group">
-                <div class="toggle-wrap">
-                    <label class="toggle">
-                        <input type="checkbox" id="egg-include-vault">
-                        <span class="slider"></span>
-                    </label>
-                    <span class="toggle-label"><script>document.write(t('invasion.include_vault'))</script></span>
-                </div>
-            </div>
-            <div class="form-group">
-                <div class="toggle-wrap">
-                    <label class="toggle">
-                        <input type="checkbox" id="egg-inherit-llm" checked>
-                        <span class="slider"></span>
-                    </label>
-                    <span class="toggle-label"><script>document.write(t('invasion.inherit_llm'))</script></span>
-                </div>
-            </div>
-            <div class="form-group">
-                <div class="toggle-wrap">
-                    <label class="toggle">
-                        <input type="checkbox" id="egg-active" checked>
-                        <span class="slider"></span>
-                    </label>
-                    <span class="toggle-label"><script>document.write(t('invasion.active'))</script></span>
-                </div>
-            </div>
-            <div class="modal-actions">
-                <button class="btn btn-secondary" onclick="closeModal('egg-modal')"><script>document.write(t('invasion.cancel'))</script></button>
-                <button class="btn btn-primary" onclick="saveEgg()"><script>document.write(t('invasion.save'))</script></button>
+            <div class="flex justify-end gap-3 p-6 border-t border-aura-border bg-aura-bg/30">
+                <button class="px-4 py-2 bg-aura-surface hover:bg-aura-bg border border-aura-border text-aura-text font-medium rounded-lg transition-colors" onclick="closeModal('egg-modal')"><script>document.write(t('invasion.cancel'))</script></button>
+                <button class="px-4 py-2 bg-aura-accent hover:bg-[var(--accent-hover)] text-white font-medium rounded-lg transition-colors" onclick="saveEgg()"><script>document.write(t('invasion.save'))</script></button>
             </div>
         </div>
     </div>
 
     <!-- Delete Confirm Modal -->
-    <div class="modal-overlay" id="delete-modal">
-        <div class="modal">
-            <h2 class="delete-modal-title">⚠️ <span><script>document.write(t('invasion.confirm_delete'))</script></span></h2>
-            <p id="delete-message" class="delete-message"></p>
-            <p class="delete-modal-hint">
-                <script>document.write(t('invasion.type_name_confirm'))</script>
-            </p>
-            <input type="text" class="delete-confirm-input" id="delete-confirm-input"
-                   oninput="checkDeleteConfirm()" autocomplete="off">
-            <div class="modal-actions">
-                <button class="btn btn-secondary" onclick="closeModal('delete-modal')"><script>document.write(t('invasion.cancel'))</script></button>
-                <button class="btn btn-danger" id="btn-delete-confirm" disabled onclick="confirmDelete()">
+    <div class="modal-overlay fixed inset-0 z-50 hidden items-center justify-center p-4" id="delete-modal">
+        <div class="bg-aura-surface border border-[var(--danger)] rounded-2xl w-full max-w-md shadow-2xl">
+            <div class="p-6 border-b border-aura-border">
+                <h2 class="text-xl font-bold text-[var(--danger)] flex items-center gap-2">
+                    <span>⚠️</span> <span><script>document.write(t('invasion.confirm_delete'))</script></span>
+                </h2>
+            </div>
+            <div class="p-6 space-y-4">
+                <p id="delete-message" class="text-aura-text"></p>
+                <p class="text-sm text-aura-muted">
+                    <script>document.write(t('invasion.type_name_confirm'))</script>
+                </p>
+                <input type="text" id="delete-confirm-input" class="w-full px-3 py-2 bg-aura-bg border border-aura-border rounded-lg text-aura-text focus:outline-none focus:border-[var(--danger)] focus:ring-1 focus:ring-[var(--danger)] transition-colors" oninput="checkDeleteConfirm()" autocomplete="off">
+            </div>
+            <div class="flex justify-end gap-3 p-6 border-t border-aura-border bg-aura-bg/30">
+                <button class="px-4 py-2 bg-aura-surface hover:bg-aura-bg border border-aura-border text-aura-text font-medium rounded-lg transition-colors" onclick="closeModal('delete-modal')"><script>document.write(t('invasion.cancel'))</script></button>
+                <button class="px-4 py-2 bg-[var(--danger)] hover:bg-[var(--danger-hover)] text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed" id="btn-delete-confirm" disabled onclick="confirmDelete()">
                     <script>document.write(t('invasion.delete_permanent'))</script>
                 </button>
             </div>
@@ -278,7 +411,7 @@
     </div>
 
     <!-- Toast -->
-    <div class="toast" id="toast"></div>
+    <div class="fixed bottom-6 right-6 z-50 px-4 py-3 bg-aura-surface border border-aura-border rounded-xl shadow-2xl text-aura-text hidden" id="toast"></div>
 
     <script src="/js/invasion/main.js"></script>
 </body>

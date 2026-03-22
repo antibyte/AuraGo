@@ -339,6 +339,27 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				}
 			}
 
+			// Auto-start / stop Security Proxy (Caddy) container when enabled flag changes
+			if oldCfg.SecurityProxy.Enabled != newCfg.SecurityProxy.Enabled {
+				if newCfg.SecurityProxy.Enabled {
+					go func() {
+						if err := s.ProxyManager.Start(); err != nil {
+							s.Logger.Error("[Config UI] Failed to auto-start security proxy", "error", err)
+						} else {
+							s.Logger.Info("[Config UI] Security proxy auto-started")
+						}
+					}()
+				} else {
+					go func() {
+						if err := s.ProxyManager.Stop(); err != nil {
+							s.Logger.Warn("[Config UI] Failed to stop security proxy", "error", err)
+						} else {
+							s.Logger.Info("[Config UI] Security proxy stopped")
+						}
+					}()
+				}
+			}
+
 			// Auto-start local Ollama embeddings container if just enabled
 			if newCfg.Embeddings.LocalOllama.Enabled && !oldCfg.Embeddings.LocalOllama.Enabled {
 				go tools.EnsureOllamaEmbeddingsRunning(newCfg, s.Logger)

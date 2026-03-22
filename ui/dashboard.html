@@ -1,18 +1,40 @@
 <!DOCTYPE html>
-<html lang="{{.Lang}}">
+<html lang="{{.Lang}}" data-theme="dark">
 
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AuraGo – Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            'aura': {
+              'accent': 'var(--accent)',
+              'bg': 'var(--bg-primary)',
+              'surface': 'var(--bg-secondary)',
+              'text': 'var(--text-primary)',
+              'muted': 'var(--text-secondary)',
+              'border': 'var(--border)',
+            }
+          },
+          fontFamily: {
+            'sans': ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/shared.css">
   <script src="/shared.js"></script>
   <script>const I18N={{.I18N}};</script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
-  <link rel="stylesheet" href="/css/dashboard.css">
 
-<body>
+<body class="min-h-screen bg-aura-bg text-aura-text font-sans">
 
   <!-- Header -->
   <header class="app-header">
@@ -29,388 +51,424 @@
   <div id="radialMenuAnchor"></div>
 
   <!-- Agent Status Banner – always visible above tabs -->
-  <div class="dash-banner-always">
-    <div class="dash-card dash-full-width" id="card-agent-banner">
-      <div class="dash-card-header"><span class="card-icon">🤖</span> <span data-i18n="dashboard.agent_banner_title">Agent-Status</span></div>
-      <div class="dash-card-body">
-        <div class="agent-banner" id="agent-banner">
-          <div class="agent-banner-item"><span class="status-dot gray" id="ab-status-dot"></span> <strong id="ab-model">—</strong></div>
-          <div class="agent-banner-sep"></div>
-          <div class="agent-banner-item">🎭 <strong id="ab-personality">—</strong></div>
-          <div class="agent-banner-sep"></div>
-          <div class="agent-banner-item context-gauge">📐 <span data-i18n="dashboard.agent_banner_context">Kontext:</span> <div class="context-gauge-bar"><div class="context-gauge-fill" id="ab-ctx-fill"></div></div> <span id="ab-ctx-pct">—</span></div>
-          <div class="agent-banner-sep"></div>
-          <div class="agent-banner-item" id="ab-integrations">🔌 <strong>—</strong> <span data-i18n="dashboard.agent_banner_integrations">Integrationen</span></div>
-          <div class="agent-banner-sep"></div>
-          <div class="agent-banner-item" id="ab-last-activity">💬 <span>—</span></div>
+  <div class="px-4 py-3">
+    <div class="bg-aura-surface rounded-xl p-4 shadow-lg border border-aura-border" id="card-agent-banner">
+      <div class="flex items-center gap-2 mb-3 text-lg font-semibold">
+        <span>🤖</span> <span data-i18n="dashboard.agent_banner_title">Agent-Status</span>
+      </div>
+      <div class="flex flex-wrap items-center gap-4 text-sm" id="agent-banner">
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-gray-400" id="ab-status-dot"></span> 
+          <strong id="ab-model">—</strong>
         </div>
+        <div class="w-px h-4 bg-aura-border"></div>
+        <div class="flex items-center gap-2">🎭 <strong id="ab-personality">—</strong></div>
+        <div class="w-px h-4 bg-aura-border"></div>
+        <div class="flex items-center gap-2">
+          📐 <span data-i18n="dashboard.agent_banner_context">Kontext:</span>
+          <div class="w-24 h-2 bg-aura-border rounded-full overflow-hidden">
+            <div class="h-full bg-aura-accent transition-all" id="ab-ctx-fill" style="width: 0%"></div>
+          </div>
+          <span id="ab-ctx-pct">—</span>
+        </div>
+        <div class="w-px h-4 bg-aura-border"></div>
+        <div class="flex items-center gap-2" id="ab-integrations">🔌 <strong>—</strong> <span data-i18n="dashboard.agent_banner_integrations">Integrationen</span></div>
+        <div class="w-px h-4 bg-aura-border"></div>
+        <div class="flex items-center gap-2" id="ab-last-activity">💬 <span>—</span></div>
       </div>
     </div>
-  </div><!-- .dash-banner-always -->
+  </div>
 
   <!-- Tab Navigation -->
-  <nav class="dash-tabs" id="dashTabs">
-    <button class="dash-tab active" data-tab="overview">
-      <span class="tab-icon">🏠</span><span class="tab-label" data-i18n="dashboard.tab_overview">Übersicht</span>
-    </button>
-    <button class="dash-tab" data-tab="agent">
-      <span class="tab-icon">🧠</span><span class="tab-label" data-i18n="dashboard.tab_agent">Agent</span>
-    </button>
-    <button class="dash-tab" data-tab="user">
-      <span class="tab-icon">👤</span><span class="tab-label" data-i18n="dashboard.tab_user">Benutzer</span>
-    </button>
-    <button class="dash-tab" data-tab="system">
-      <span class="tab-icon">⚙️</span><span class="tab-label" data-i18n="dashboard.tab_system">System</span>
-    </button>
+  <nav class="px-4 mb-4">
+    <div class="flex gap-1 bg-aura-surface rounded-lg p-1 border border-aura-border" id="dashTabs">
+      <button class="dash-tab active flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors hover:bg-aura-accent/10 data-[active]:bg-aura-accent data-[active]:text-white" data-tab="overview">
+        <span>🏠</span><span data-i18n="dashboard.tab_overview">Übersicht</span>
+      </button>
+      <button class="dash-tab flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors hover:bg-aura-accent/10 data-[active]:bg-aura-accent data-[active]:text-white" data-tab="agent">
+        <span>🧠</span><span data-i18n="dashboard.tab_agent">Agent</span>
+      </button>
+      <button class="dash-tab flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors hover:bg-aura-accent/10 data-[active]:bg-aura-accent data-[active]:text-white" data-tab="user">
+        <span>👤</span><span data-i18n="dashboard.tab_user">Benutzer</span>
+      </button>
+      <button class="dash-tab flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors hover:bg-aura-accent/10 data-[active]:bg-aura-accent data-[active]:text-white" data-tab="system">
+        <span>⚙️</span><span data-i18n="dashboard.tab_system">System</span>
+      </button>
+    </div>
   </nav>
 
-  <!-- ═══ Tab 1: Übersicht ═══════════════════════════════════════════════ -->
-  <div class="dash-tab-panel" id="tab-overview">
-    <div class="dash-grid">
+  <!-- Tab Content -->
+  <div class="px-4 pb-8">
+    <!-- ═══ Tab 1: Übersicht ═══════════════════════════════════════════════ -->
+    <div class="dash-tab-panel" id="tab-overview">
+      <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
 
-    <!-- 1. System Health -->
-    <div class="dash-card" id="card-system">
-      <div class="dash-card-header"><span class="card-icon">🖥️</span> <span data-i18n="dashboard.system_title">Systemstatus</span></div>
-      <div class="dash-card-body">
-        <div class="gauge-grid">
-          <div class="gauge-item">
-            <canvas id="cpu-chart"></canvas>
-            <div class="gauge-value" id="cpu-val">—</div>
-            <div class="gauge-label" data-i18n="dashboard.system_cpu">CPU</div>
+        <!-- 1. System Health -->
+        <div class="bg-aura-surface rounded-xl p-6 shadow-lg border border-aura-border" id="card-system">
+          <div class="flex items-center gap-2 mb-4 text-lg font-semibold">
+            <span>🖥️</span> <span data-i18n="dashboard.system_title">Systemstatus</span>
           </div>
-          <div class="gauge-item">
-            <canvas id="ram-chart"></canvas>
-            <div class="gauge-value" id="ram-val">—</div>
-            <div class="gauge-label" data-i18n="dashboard.system_ram">RAM</div>
-          </div>
-          <div class="gauge-item">
-            <canvas id="disk-chart"></canvas>
-            <div class="gauge-value" id="disk-val">—</div>
-            <div class="gauge-label" data-i18n="dashboard.system_disk">Festplatte</div>
-          </div>
-        </div>
-        <div class="stats-grid" id="system-stats">
-          <div class="stat-item">
-            <div class="stat-value" id="net-sent">—</div>
-            <div class="stat-label" data-i18n="dashboard.system_net_sent">Netz ↑</div>
-          </div>
-          <div class="stat-item">
-            <div class="stat-value" id="net-recv">—</div>
-            <div class="stat-label" data-i18n="dashboard.system_net_recv">Netz ↓</div>
-          </div>
-          <div class="stat-item">
-            <div class="stat-value" id="sse-clients">—</div>
-            <div class="stat-label" data-i18n="dashboard.system_sse_clients">SSE Clients</div>
-          </div>
-        </div>
-        <div class="stats-grid stats-grid-single">
-          <div class="stat-item">
-            <div class="stat-value" id="uptime-val">—</div>
-            <div class="stat-label" data-i18n="dashboard.system_uptime">Betriebszeit</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 2. Quick Status -->
-    <div class="dash-card" id="card-quickstatus">
-      <div class="dash-card-header"><span class="card-icon">⚡</span> <span data-i18n="dashboard.quickstatus_title">Quick Status</span></div>
-      <div class="dash-card-body">
-        <div class="qs-grid" id="qs-grid"></div>
-      </div>
-    </div>
-
-    <!-- 3. Budget & Tokens -->
-    <div class="dash-card" id="card-budget">
-      <div class="dash-card-header"><span class="card-icon">💰</span> <span data-i18n="dashboard.budget_title">Budget & Tokens</span></div>
-      <div class="dash-card-body">
-        <div id="budget-content">
-          <div class="budget-badges" id="budget-badges"></div>
-          <div class="budget-layout">
-            <div class="budget-doughnut-wrap">
-              <canvas id="budget-chart"></canvas>
-              <div class="budget-center">
-                <div class="amount" id="budget-spent">$0.00</div>
-                <div class="sublabel" id="budget-sublabel">of $0.00</div>
+          <div class="space-y-4">
+            <div class="grid grid-cols-3 gap-4">
+              <div class="text-center">
+                <canvas id="cpu-chart" class="mx-auto" style="max-width: 80px;"></canvas>
+                <div class="text-2xl font-bold mt-2" id="cpu-val">—</div>
+                <div class="text-sm text-aura-muted" data-i18n="dashboard.system_cpu">CPU</div>
+              </div>
+              <div class="text-center">
+                <canvas id="ram-chart" class="mx-auto" style="max-width: 80px;"></canvas>
+                <div class="text-2xl font-bold mt-2" id="ram-val">—</div>
+                <div class="text-sm text-aura-muted" data-i18n="dashboard.system_ram">RAM</div>
+              </div>
+              <div class="text-center">
+                <canvas id="disk-chart" class="mx-auto" style="max-width: 80px;"></canvas>
+                <div class="text-2xl font-bold mt-2" id="disk-val">—</div>
+                <div class="text-sm text-aura-muted" data-i18n="dashboard.system_disk">Festplatte</div>
               </div>
             </div>
-            <div class="budget-bar-wrap">
-              <canvas id="budget-models-chart"></canvas>
-            </div>
-          </div>
-          <div class="budget-reset" id="budget-reset"></div>
-          <div class="credits-row" id="credits-row">
-            <span data-i18n="dashboard.budget_openrouter_credits">OpenRouter Guthaben</span>
-            <span class="credits-val" id="credits-balance">—</span>
-          </div>
-          <!-- Per-LLM average token consumption -->
-          <div id="budget-llm-avg-wrap" class="mt-sm">
-            <h4 class="dash-subheading" data-i18n="dashboard.budget_llm_avg_title">Ø Token-Verbrauch / Anfrage</h4>
-            <div class="chart-wrap-sm">
-              <canvas id="budget-llm-avg-chart"></canvas>
-            </div>
-          </div>
-        </div>
-        <div id="budget-disabled" class="empty-state" data-i18n="dashboard.budget_disabled">Budget-Tracking deaktiviert.</div>
-      </div>
-    </div>
-
->    </div><!-- .dash-grid tab-overview -->
-  </div><!-- #tab-overview -->
-
-  <!-- ═══ Tab 2: Agent & Memory ═══════════════════════════════════════════ -->
-  <div class="dash-tab-panel" id="tab-agent">
-    <div class="dash-grid">
-
-    <!-- 3. Personality Traits + Mood Inline -->
-    <div class="dash-card" id="card-personality">
-      <div class="dash-card-header"><span class="card-icon">🧠</span> <span data-i18n="dashboard.personality_title">Persönlichkeit</span></div>
-      <div class="dash-card-body">
-        <div id="personality-content" class="personality-layout">
-          <canvas id="traits-chart"></canvas>
-          <div class="mood-badge" id="mood-badge" data-i18n="dashboard.personality_default_mood">Neugierig</div>
-          <div class="mood-trigger-text" id="mood-trigger"></div>
-          <div class="emotion-display" id="emotion-display">
-            <div class="emotion-label">💭 <span data-i18n="dashboard.emotion_label">Emotionaler Zustand</span></div>
-            <div class="emotion-text" id="emotion-text"></div>
-          </div>
-          <!-- Inline Mood Mini-Chart -->
-          <div class="mood-mini-wrap">
-            <div class="mood-mini-header">
-              <span>📈 <span data-i18n="dashboard.personality_mood_timeline">Stimmungsverlauf</span></span>
-              <div class="mood-mini-btns">
-                <button class="mood-btn" data-hours="1" data-i18n="dashboard.personality_btn_1h">1h</button>
-                <button class="mood-btn" data-hours="6" data-i18n="dashboard.personality_btn_6h">6h</button>
-                <button class="mood-btn active" data-hours="24" data-i18n="dashboard.personality_btn_24h">24h</button>
-                <button class="mood-btn" data-hours="168" data-i18n="dashboard.personality_btn_7d">7d</button>
-                <button class="mood-btn" data-hours="720" data-i18n="dashboard.personality_btn_30d">30d</button>
+            <div class="grid grid-cols-3 gap-4 pt-4 border-t border-aura-border" id="system-stats">
+              <div class="text-center">
+                <div class="text-xl font-semibold" id="net-sent">—</div>
+                <div class="text-xs text-aura-muted" data-i18n="dashboard.system_net_sent">Netz ↑</div>
+              </div>
+              <div class="text-center">
+                <div class="text-xl font-semibold" id="net-recv">—</div>
+                <div class="text-xs text-aura-muted" data-i18n="dashboard.system_net_recv">Netz ↓</div>
+              </div>
+              <div class="text-center">
+                <div class="text-xl font-semibold" id="sse-clients">—</div>
+                <div class="text-xs text-aura-muted" data-i18n="dashboard.system_sse_clients">SSE Clients</div>
               </div>
             </div>
-            <div class="mood-mini-chart-wrap">
-              <canvas id="mood-chart"></canvas>
+            <div class="pt-4 border-t border-aura-border text-center">
+              <div class="text-xl font-semibold" id="uptime-val">—</div>
+              <div class="text-xs text-aura-muted" data-i18n="dashboard.system_uptime">Betriebszeit</div>
             </div>
           </div>
         </div>
-        <div id="personality-disabled" class="empty-state" data-i18n="dashboard.personality_disabled">Persönlichkeits-Engine deaktiviert.</div>
-      </div>
-    </div>
 
-    <!-- 5. Memory & Knowledge -->
-    <div class="dash-card" id="card-memory">
-      <div class="dash-card-header"><span class="card-icon">🧩</span> <span data-i18n="dashboard.memory_title">Gedächtnis</span></div>
-      <div class="dash-card-body">
-        <div class="memory-stats-grid" id="memory-stats"></div>
-        <div class="memory-bar-wrap">
-          <canvas id="memory-chart"></canvas>
+        <!-- 2. Quick Status -->
+        <div class="bg-aura-surface rounded-xl p-6 shadow-lg border border-aura-border" id="card-quickstatus">
+          <div class="flex items-center gap-2 mb-4 text-lg font-semibold">
+            <span>⚡</span> <span data-i18n="dashboard.quickstatus_title">Quick Status</span>
+          </div>
+          <div class="grid grid-cols-2 gap-3" id="qs-grid"></div>
         </div>
-        <div class="milestone-list" id="milestone-list"></div>
-        <!-- Error Patterns -->
-        <div id="error-patterns-wrap" class="mt-sm">
-          <h4 class="card-section-title" data-i18n="dashboard.errors_title">Fehler-Muster</h4>
-          <div id="error-patterns-list"></div>
-        </div>
-      </div>
-    </div>
 
-    </div><!-- .dash-grid tab-agent -->
-  </div><!-- #tab-agent -->
-
-  <!-- ═══ Tab 3: Benutzer & Journal ═══════════════════════════════════════ -->
-  <div class="dash-tab-panel" id="tab-user">
-    <div class="dash-grid">
-
-    <!-- 6. User Profile -->
-    <div class="dash-card" id="card-profile">
-      <div class="dash-card-header"><span class="card-icon">👤</span> <span data-i18n="dashboard.profile_title">Nutzerprofil</span></div>
-      <div class="dash-card-body">
-        <input type="text" class="profile-search" id="profile-search" data-i18n-placeholder="dashboard.profile_search_placeholder" placeholder="Profil durchsuchen...">
-        <div class="profile-scroll" id="profile-content"></div>
-      </div>
-    </div>
-
-    <!-- 6b. Journal Timeline -->
-    <div class="dash-card" id="card-journal">
-      <div class="dash-card-header"><span class="card-icon">📔</span> <span data-i18n="dashboard.journal_title">Journal</span></div>
-      <div class="dash-card-body">
-        <div class="journal-summary" id="journal-summary"></div>
-        <!-- Sentiment Trend -->
-        <div id="journal-sentiment-wrap" class="mt-xs">
-          <h4 class="card-section-title" data-i18n="dashboard.journal_sentiment_trend">Stimmungs-Verlauf</h4>
-          <div class="journal-sentiment-row" id="journal-sentiment-row"></div>
-          <div id="journal-key-topics-wrap" class="mt-xs"></div>
-        </div>
-        <div class="journal-timeline" id="journal-timeline">
-          <div class="empty-state" data-i18n="dashboard.journal_empty">Noch keine Einträge.</div>
-        </div>
-      </div>
-    </div>
-
-    </div><!-- .dash-grid tab-user -->
-  </div><!-- #tab-user -->
-
-  <!-- ═══ Tab 4: System & Logs ════════════════════════════════════════════ -->
-  <div class="dash-tab-panel" id="tab-system">
-    <div class="dash-grid">
-
-    <!-- 7. Operations Overview -->
-    <div class="dash-card" id="card-operations">
-      <div class="dash-card-header"><span class="card-icon">⚙️</span> <span data-i18n="dashboard.operations_title">Betrieb & Dienste</span></div>
-      <div class="dash-card-body">
-        <div class="ops-grid" id="ops-grid"></div>
-        <div class="integration-grid" id="integration-grid"></div>
-      </div>
-    </div>
-
-    <!-- 7b. LLM Guardian Security -->
-        <div class="dash-card is-hidden" id="card-guardian">
-      <div class="dash-card-header"><span class="card-icon">🛡️</span> <span data-i18n="dashboard.guardian_title">LLM Guardian</span></div>
-      <div class="dash-card-body">
-        <div id="guardian-status"></div>
-        <div id="guardian-metrics"></div>
-      </div>
-    </div>
-
-    <!-- 8. Activity & Automations (full width) -->
-    <div class="dash-card dash-full-width" id="card-activity">
-      <div class="dash-card-header"><span class="card-icon">⚡</span> <span data-i18n="dashboard.activity_title">Aktivität</span> <span class="collapse-toggle" data-card="card-activity" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
-      <div class="dash-card-body">
-        <div class="activity-grid" id="activity-stats"></div>
-        <div id="activity-details"></div>
-      </div>
-    </div>
-
-    <!-- 9. Prompt Builder Analytics (full width) -->
-    <div class="dash-card dash-full-width" id="card-prompt">
-      <div class="dash-card-header"><span class="card-icon">📝</span> <span data-i18n="dashboard.prompt_title">Prompt-Analyse</span> <span class="collapse-toggle" data-card="card-prompt" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
-      <div class="dash-card-body">
-        <div id="prompt-no-data" class="empty-state" data-i18n="dashboard.prompt_no_data">Noch keine Daten. Statistiken erscheinen nach dem ersten
-          Gespräch und werden bei Serverneustart gelöscht.</div>
-        <div id="prompt-content">
-          <div class="prompt-kpi-grid" id="prompt-kpis"></div>
-          <div class="prompt-details-grid">
-            <div>
-              <h4 class="dash-subheading" data-i18n="dashboard.prompt_history">Prompt-Verlauf</h4>
-              <div class="prompt-chart-wrap">
-                <canvas id="prompt-size-chart"></canvas>
+        <!-- 3. Budget & Tokens -->
+        <div class="bg-aura-surface rounded-xl p-6 shadow-lg border border-aura-border" id="card-budget">
+          <div class="flex items-center gap-2 mb-4 text-lg font-semibold">
+            <span>💰</span> <span data-i18n="dashboard.budget_title">Budget & Tokens</span>
+          </div>
+          <div id="budget-content">
+            <div class="flex flex-wrap gap-2 mb-4" id="budget-badges"></div>
+            <div class="flex flex-col lg:flex-row gap-4">
+              <div class="relative w-32 h-32 mx-auto lg:mx-0 flex-shrink-0">
+                <canvas id="budget-chart"></canvas>
+                <div class="absolute inset-0 flex flex-col items-center justify-center">
+                  <div class="text-lg font-bold" id="budget-spent">$0.00</div>
+                  <div class="text-xs text-aura-muted" id="budget-sublabel">of $0.00</div>
+                </div>
+              </div>
+              <div class="flex-1 min-h-32">
+                <canvas id="budget-models-chart"></canvas>
               </div>
             </div>
-            <div>
-              <h4 class="dash-subheading" data-i18n="dashboard.prompt_tier_distribution">Tier-Verteilung</h4>
-              <div class="prompt-chart-wrap">
-                <canvas id="prompt-tier-chart"></canvas>
+            <div class="mt-4 text-center" id="budget-reset"></div>
+            <div class="flex justify-between items-center mt-4 pt-4 border-t border-aura-border" id="credits-row">
+              <span data-i18n="dashboard.budget_openrouter_credits">OpenRouter Guthaben</span>
+              <span class="font-semibold text-aura-accent" id="credits-balance">—</span>
+            </div>
+            <div class="mt-4" id="budget-llm-avg-wrap">
+              <h4 class="text-sm font-medium mb-2" data-i18n="dashboard.budget_llm_avg_title">Ø Token-Verbrauch / Anfrage</h4>
+              <div class="h-32">
+                <canvas id="budget-llm-avg-chart"></canvas>
               </div>
             </div>
           </div>
-          <div class="prompt-details-grid mt-sm">
-            <div>
-              <h4 class="dash-subheading" data-i18n="dashboard.prompt_budget_shed_sections">Budget Shed Bereiche</h4>
-              <div class="shed-list" id="shed-list"></div>
+          <div id="budget-disabled" class="hidden text-center py-8 text-aura-muted" data-i18n="dashboard.budget_disabled">Budget-Tracking deaktiviert.</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ═══ Tab 2: Agent & Memory ═══════════════════════════════════════════ -->
+    <div class="dash-tab-panel hidden" id="tab-agent">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        <!-- Personality -->
+        <div class="bg-aura-surface rounded-xl p-6 shadow-lg border border-aura-border" id="card-personality">
+          <div class="flex items-center gap-2 mb-4 text-lg font-semibold">
+            <span>🧠</span> <span data-i18n="dashboard.personality_title">Persönlichkeit</span>
+          </div>
+          <div id="personality-content" class="space-y-4">
+            <canvas id="traits-chart" class="max-h-48"></canvas>
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-aura-accent/20 text-aura-accent text-sm font-medium" id="mood-badge" data-i18n="dashboard.personality_default_mood">Neugierig</div>
+            <div class="text-sm text-aura-muted" id="mood-trigger"></div>
+            <div class="p-3 bg-aura-bg rounded-lg" id="emotion-display">
+              <div class="text-sm font-medium mb-1">💭 <span data-i18n="dashboard.emotion_label">Emotionaler Zustand</span></div>
+              <div class="text-sm text-aura-muted" id="emotion-text"></div>
             </div>
-            <div>
-              <h4 class="dash-subheading" data-i18n="dashboard.prompt_savings">Einsparungen</h4>
-              <div class="prompt-chart-wrap">
-                <canvas id="prompt-savings-chart"></canvas>
+            <div class="border-t border-aura-border pt-4">
+              <div class="flex items-center justify-between mb-3">
+                <span class="text-sm font-medium">📈 <span data-i18n="dashboard.personality_mood_timeline">Stimmungsverlauf</span></span>
+                <div class="flex gap-1">
+                  <button class="mood-btn px-2 py-1 text-xs rounded bg-aura-bg hover:bg-aura-accent/20 data-[active]:bg-aura-accent data-[active]:text-white" data-hours="1">1h</button>
+                  <button class="mood-btn px-2 py-1 text-xs rounded bg-aura-bg hover:bg-aura-accent/20 data-[active]:bg-aura-accent data-[active]:text-white" data-hours="6">6h</button>
+                  <button class="mood-btn px-2 py-1 text-xs rounded bg-aura-accent text-white" data-hours="24">24h</button>
+                  <button class="mood-btn px-2 py-1 text-xs rounded bg-aura-bg hover:bg-aura-accent/20 data-[active]:bg-aura-accent data-[active]:text-white" data-hours="168">7d</button>
+                  <button class="mood-btn px-2 py-1 text-xs rounded bg-aura-bg hover:bg-aura-accent/20 data-[active]:bg-aura-accent data-[active]:text-white" data-hours="720">30d</button>
+                </div>
+              </div>
+              <div class="h-32">
+                <canvas id="mood-chart"></canvas>
               </div>
             </div>
           </div>
-          <!-- Savings breakdown KPIs -->
-          <div class="mt-sm">
-            <h4 class="dash-subheading" data-i18n="dashboard.prompt_savings_breakdown_title">Einspar-Analyse</h4>
-            <div class="prompt-kpi-grid" id="prompt-savings-kpis"></div>
+          <div id="personality-disabled" class="hidden text-center py-8 text-aura-muted" data-i18n="dashboard.personality_disabled">Persönlichkeits-Engine deaktiviert.</div>
+        </div>
+
+        <!-- Memory & Knowledge -->
+        <div class="bg-aura-surface rounded-xl p-6 shadow-lg border border-aura-border" id="card-memory">
+          <div class="flex items-center gap-2 mb-4 text-lg font-semibold">
+            <span>🧩</span> <span data-i18n="dashboard.memory_title">Gedächtnis</span>
           </div>
-          <!-- Prompt section distribution -->
-          <div class="prompt-details-grid mt-sm">
-            <div>
-              <h4 class="dash-subheading" data-i18n="dashboard.prompt_section_dist">Ø Prompt-Verteilung</h4>
-              <div class="prompt-chart-wrap prompt-chart-wrap-lg">
-                <canvas id="prompt-section-dist-chart"></canvas>
+          <div class="space-y-4">
+            <div class="grid grid-cols-2 gap-4" id="memory-stats"></div>
+            <div class="h-48">
+              <canvas id="memory-chart"></canvas>
+            </div>
+            <div class="space-y-2" id="milestone-list"></div>
+            <div class="border-t border-aura-border pt-4" id="error-patterns-wrap">
+              <h4 class="text-sm font-medium mb-3" data-i18n="dashboard.errors_title">Fehler-Muster</h4>
+              <div id="error-patterns-list" class="space-y-2"></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ═══ Tab 3: Benutzer & Journal ═══════════════════════════════════════ -->
+    <div class="dash-tab-panel hidden" id="tab-user">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        <!-- User Profile -->
+        <div class="bg-aura-surface rounded-xl p-6 shadow-lg border border-aura-border" id="card-profile">
+          <div class="flex items-center gap-2 mb-4 text-lg font-semibold">
+            <span>👤</span> <span data-i18n="dashboard.profile_title">Nutzerprofil</span>
+          </div>
+          <input type="text" class="w-full px-4 py-2 mb-4 bg-aura-bg border border-aura-border rounded-lg focus:outline-none focus:ring-2 focus:ring-aura-accent" id="profile-search" data-i18n-placeholder="dashboard.profile_search_placeholder" placeholder="Profil durchsuchen...">
+          <div class="max-h-96 overflow-y-auto space-y-2" id="profile-content"></div>
+        </div>
+
+        <!-- Journal -->
+        <div class="bg-aura-surface rounded-xl p-6 shadow-lg border border-aura-border" id="card-journal">
+          <div class="flex items-center gap-2 mb-4 text-lg font-semibold">
+            <span>📔</span> <span data-i18n="dashboard.journal_title">Journal</span>
+          </div>
+          <div class="space-y-4">
+            <div id="journal-summary"></div>
+            <div class="border-t border-aura-border pt-4" id="journal-sentiment-wrap">
+              <h4 class="text-sm font-medium mb-2" data-i18n="dashboard.journal_sentiment_trend">Stimmungs-Verlauf</h4>
+              <div class="flex gap-1" id="journal-sentiment-row"></div>
+              <div class="mt-2" id="journal-key-topics-wrap"></div>
+            </div>
+            <div class="max-h-96 overflow-y-auto space-y-3" id="journal-timeline">
+              <div class="text-center py-8 text-aura-muted" data-i18n="dashboard.journal_empty">Noch keine Einträge.</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ═══ Tab 4: System & Logs ════════════════════════════════════════════ -->
+    <div class="dash-tab-panel hidden" id="tab-system">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        <!-- Operations -->
+        <div class="bg-aura-surface rounded-xl p-6 shadow-lg border border-aura-border" id="card-operations">
+          <div class="flex items-center gap-2 mb-4 text-lg font-semibold">
+            <span>⚙️</span> <span data-i18n="dashboard.operations_title">Betrieb & Dienste</span>
+          </div>
+          <div class="space-y-4">
+            <div class="grid grid-cols-2 gap-3" id="ops-grid"></div>
+            <div class="border-t border-aura-border pt-4">
+              <div class="grid grid-cols-3 gap-3" id="integration-grid"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- LLM Guardian -->
+        <div class="hidden bg-aura-surface rounded-xl p-6 shadow-lg border border-aura-border" id="card-guardian">
+          <div class="flex items-center gap-2 mb-4 text-lg font-semibold">
+            <span>🛡️</span> <span data-i18n="dashboard.guardian_title">LLM Guardian</span>
+          </div>
+          <div id="guardian-status"></div>
+          <div id="guardian-metrics" class="mt-4"></div>
+        </div>
+
+        <!-- Activity -->
+        <div class="lg:col-span-2 bg-aura-surface rounded-xl p-6 shadow-lg border border-aura-border" id="card-activity">
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-2 text-lg font-semibold">
+              <span>⚡</span> <span data-i18n="dashboard.activity_title">Aktivität</span>
+            </div>
+            <button class="collapse-toggle text-aura-muted hover:text-aura-text" data-card="card-activity" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</button>
+          </div>
+          <div class="card-body">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4" id="activity-stats"></div>
+            <div id="activity-details"></div>
+          </div>
+        </div>
+
+        <!-- Prompt Analytics -->
+        <div class="lg:col-span-2 bg-aura-surface rounded-xl p-6 shadow-lg border border-aura-border" id="card-prompt">
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-2 text-lg font-semibold">
+              <span>📝</span> <span data-i18n="dashboard.prompt_title">Prompt-Analyse</span>
+            </div>
+            <button class="collapse-toggle text-aura-muted hover:text-aura-text" data-card="card-prompt" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</button>
+          </div>
+          <div class="card-body">
+            <div id="prompt-no-data" class="hidden text-center py-8 text-aura-muted" data-i18n="dashboard.prompt_no_data">Noch keine Daten.</div>
+            <div id="prompt-content" class="space-y-6">
+              <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4" id="prompt-kpis"></div>
+              <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div>
+                  <h4 class="text-sm font-medium mb-2" data-i18n="dashboard.prompt_history">Prompt-Verlauf</h4>
+                  <div class="h-48">
+                    <canvas id="prompt-size-chart"></canvas>
+                  </div>
+                </div>
+                <div>
+                  <h4 class="text-sm font-medium mb-2" data-i18n="dashboard.prompt_tier_distribution">Tier-Verteilung</h4>
+                  <div class="h-48">
+                    <canvas id="prompt-tier-chart"></canvas>
+                  </div>
+                </div>
+              </div>
+              <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div>
+                  <h4 class="text-sm font-medium mb-2" data-i18n="dashboard.prompt_budget_shed_sections">Budget Shed Bereiche</h4>
+                  <div id="shed-list" class="space-y-1 max-h-48 overflow-y-auto"></div>
+                </div>
+                <div>
+                  <h4 class="text-sm font-medium mb-2" data-i18n="dashboard.prompt_savings">Einsparungen</h4>
+                  <div class="h-48">
+                    <canvas id="prompt-savings-chart"></canvas>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <h4 class="text-sm font-medium mb-2" data-i18n="dashboard.prompt_savings_breakdown_title">Einspar-Analyse</h4>
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4" id="prompt-savings-kpis"></div>
+              </div>
+              <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div>
+                  <h4 class="text-sm font-medium mb-2" data-i18n="dashboard.prompt_section_dist">Ø Prompt-Verteilung</h4>
+                  <div class="h-64">
+                    <canvas id="prompt-section-dist-chart"></canvas>
+                  </div>
+                </div>
+                <div>
+                  <h4 class="text-sm font-medium mb-2" data-i18n="dashboard.prompt_section_dist_hint">Zeichen je Bereich (Durchschnitt)</h4>
+                  <div id="prompt-section-legend" class="space-y-2"></div>
+                </div>
               </div>
             </div>
-            <div>
-              <h4 class="dash-subheading" data-i18n="dashboard.prompt_section_dist_hint">Zeichen je Bereich (Durchschnitt)</h4>
-              <div class="prompt-section-legend" id="prompt-section-legend"></div>
-            </div>
           </div>
         </div>
-      </div>
-    </div>
 
-    <!-- 10. GitHub Repositories (full width) -->
-        <div class="dash-card dash-full-width is-hidden" id="card-adaptive-tools">
-      <div class="dash-card-header"><span class="card-icon">🔧</span> <span data-i18n="dashboard.adaptive_tools_title">Adaptive Tool-Filterung</span> <span class="collapse-toggle" data-card="card-adaptive-tools" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
-      <div class="dash-card-body">
-        <div class="prompt-kpi-grid" id="adaptive-tools-kpis"></div>
-        <div id="adaptive-tools-list" class="mt-sm"></div>
-      </div>
-    </div>
-
-    <!-- 11. GitHub Repositories (full width) -->
-        <div class="dash-card dash-full-width is-hidden" id="card-github">
-      <div class="dash-card-header"><span class="card-icon">🐙</span> <span data-i18n="dashboard.github_title">GitHub Repositories</span> <span class="collapse-toggle" data-card="card-github" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
-      <div class="dash-card-body">
-        <div id="github-content"></div>
-      </div>
-    </div>
-
-    <!-- 11. Log Viewer (full width) -->
-    <div class="dash-card dash-full-width" id="card-logs">
-      <div class="dash-card-header"><span class="card-icon">📋</span> <span data-i18n="dashboard.logs_title">Live-Log</span> <span class="collapse-toggle" data-card="card-logs" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
-      <div class="dash-card-body">
-        <div class="log-controls">
-          <input type="text" id="log-filter" data-i18n-placeholder="dashboard.logs_filter_placeholder" placeholder="Logs filtern (Regex unterstützt)...">
-          <button class="log-btn" id="log-scroll-btn" data-i18n-title="dashboard.logs_scroll_to_bottom_title" title="Zum Ende springen" data-i18n="dashboard.logs_scroll_to_bottom">⬇ Aktuell</button>
-          <button class="log-btn" id="log-refresh-btn" data-i18n-title="dashboard.logs_refresh_title" title="Logs neu laden" data-i18n="dashboard.logs_refresh">🔄 Aktualisieren</button>
+        <!-- Adaptive Tools -->
+        <div class="hidden lg:col-span-2 bg-aura-surface rounded-xl p-6 shadow-lg border border-aura-border" id="card-adaptive-tools">
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-2 text-lg font-semibold">
+              <span>🔧</span> <span data-i18n="dashboard.adaptive_tools_title">Adaptive Tool-Filterung</span>
+            </div>
+            <button class="collapse-toggle text-aura-muted hover:text-aura-text" data-card="card-adaptive-tools" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</button>
+          </div>
+          <div class="card-body space-y-4">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4" id="adaptive-tools-kpis"></div>
+            <div id="adaptive-tools-list"></div>
+          </div>
         </div>
-        <div class="log-viewer" id="log-viewer">
-          <div class="log-line text-secondary" data-i18n="dashboard.logs_loading">Logs werden geladen...</div>
+
+        <!-- GitHub -->
+        <div class="hidden lg:col-span-2 bg-aura-surface rounded-xl p-6 shadow-lg border border-aura-border" id="card-github">
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-2 text-lg font-semibold">
+              <span>🐙</span> <span data-i18n="dashboard.github_title">GitHub Repositories</span>
+            </div>
+            <button class="collapse-toggle text-aura-muted hover:text-aura-text" data-card="card-github" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</button>
+          </div>
+          <div id="github-content"></div>
         </div>
-        <div class="log-meta" id="log-meta"></div>
+
+        <!-- Logs -->
+        <div class="lg:col-span-2 bg-aura-surface rounded-xl p-6 shadow-lg border border-aura-border" id="card-logs">
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-2 text-lg font-semibold">
+              <span>📋</span> <span data-i18n="dashboard.logs_title">Live-Log</span>
+            </div>
+            <button class="collapse-toggle text-aura-muted hover:text-aura-text" data-card="card-logs" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</button>
+          </div>
+          <div class="card-body space-y-3">
+            <div class="flex flex-wrap gap-2">
+              <input type="text" id="log-filter" class="flex-1 min-w-48 px-4 py-2 bg-aura-bg border border-aura-border rounded-lg focus:outline-none focus:ring-2 focus:ring-aura-accent" data-i18n-placeholder="dashboard.logs_filter_placeholder" placeholder="Logs filtern (Regex unterstützt)...">
+              <button class="px-4 py-2 bg-aura-bg border border-aura-border rounded-lg hover:bg-aura-accent/20" id="log-scroll-btn" data-i18n-title="dashboard.logs_scroll_to_bottom_title" title="Zum Ende springen" data-i18n="dashboard.logs_scroll_to_bottom">⬇ Aktuell</button>
+              <button class="px-4 py-2 bg-aura-bg border border-aura-border rounded-lg hover:bg-aura-accent/20" id="log-refresh-btn" data-i18n-title="dashboard.logs_refresh_title" title="Logs neu laden" data-i18n="dashboard.logs_refresh">🔄 Aktualisieren</button>
+            </div>
+            <div class="h-96 overflow-y-auto font-mono text-sm bg-aura-bg rounded-lg p-4 border border-aura-border" id="log-viewer">
+              <div class="text-aura-muted" data-i18n="dashboard.logs_loading">Logs werden geladen...</div>
+            </div>
+            <div class="text-xs text-aura-muted" id="log-meta"></div>
+          </div>
+        </div>
+
       </div>
     </div>
-
-  </div><!-- .dash-grid tab-system -->
-  </div><!-- #tab-system -->
+  </div>
 
   <script src="/js/dashboard/main.js"></script>
 
   <!-- Core-Facts Modal -->
-  <div class="cf-overlay" id="cfOverlay">
-    <div class="cf-modal">
-      <div class="cf-header">
-        <span class="cf-title">🧠 <span data-i18n="dashboard.core_facts_modal_title">Kernfakten</span></span>
-        <button class="cf-close" id="cfClose" data-i18n-title="common.btn_close" title="Schließen">&times;</button>
+  <div class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50" id="cfOverlay">
+    <div class="bg-aura-surface rounded-xl p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto shadow-2xl border border-aura-border">
+      <div class="flex items-center justify-between mb-4">
+        <span class="text-lg font-semibold">🧠 <span data-i18n="dashboard.core_facts_modal_title">Kernfakten</span></span>
+        <button class="cf-close text-2xl text-aura-muted hover:text-aura-text" id="cfClose" data-i18n-title="common.btn_close" title="Schließen">&times;</button>
       </div>
-      <div class="cf-body" id="cfBody">
-        <div class="empty-state" data-i18n="dashboard.core_facts_modal_loading">Wird geladen…</div>
+      <div id="cfBody">
+        <div class="text-center py-8 text-aura-muted" data-i18n="dashboard.core_facts_modal_loading">Wird geladen…</div>
       </div>
     </div>
   </div>
 
   <!-- Cron Edit Modal -->
-  <div class="cf-overlay" id="cronEditOverlay">
-    <div class="cf-modal">
-      <div class="cf-header">
-        <span class="cf-title">⏰ <span data-i18n="dashboard.cron_edit_title">Aufgabe bearbeiten</span></span>
-        <button class="cf-close" id="cronEditClose">&times;</button>
+  <div class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50" id="cronEditOverlay">
+    <div class="bg-aura-surface rounded-xl p-6 max-w-lg w-full mx-4 shadow-2xl border border-aura-border">
+      <div class="flex items-center justify-between mb-4">
+        <span class="text-lg font-semibold">⏰ <span data-i18n="dashboard.cron_edit_title">Aufgabe bearbeiten</span></span>
+        <button class="cf-close text-2xl text-aura-muted hover:text-aura-text" id="cronEditClose">&times;</button>
       </div>
-      <div class="cf-body">
-        <div class="cron-edit-form">
-          <div class="cron-form-group">
-            <label class="cron-form-label" data-i18n="dashboard.cron_edit_id_label">Aufgaben-ID</label>
-            <input type="text" id="cronEditId" class="cf-add-input cron-edit-id" readonly>
-          </div>
-          <div class="cron-form-group">
-            <label class="cron-form-label" data-i18n="dashboard.cron_edit_expr_label">Cron-Ausdruck</label>
-            <input type="text" id="cronEditExpr" class="cf-add-input" placeholder="0 0 9 * * *">
-          </div>
-          <div class="cron-form-group">
-            <label class="cron-form-label" data-i18n="dashboard.cron_edit_prompt_label">Aufgaben-Prompt</label>
-            <textarea id="cronEditPrompt" class="cf-add-input cron-edit-textarea" rows="4"></textarea>
-          </div>
-          <div class="cron-form-actions">
-            <button class="cf-add-btn cron-btn-cancel" onclick="closeCronEditModal()" data-i18n="dashboard.cron_edit_cancel">Abbrechen</button>
-            <button class="cf-add-btn" id="cronEditSaveBtn" onclick="saveCronEdit()" data-i18n="dashboard.cron_edit_save">Speichern</button>
-          </div>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium mb-1" data-i18n="dashboard.cron_edit_id_label">Aufgaben-ID</label>
+          <input type="text" id="cronEditId" class="w-full px-4 py-2 bg-aura-bg border border-aura-border rounded-lg opacity-60" readonly>
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1" data-i18n="dashboard.cron_edit_expr_label">Cron-Ausdruck</label>
+          <input type="text" id="cronEditExpr" class="w-full px-4 py-2 bg-aura-bg border border-aura-border rounded-lg focus:outline-none focus:ring-2 focus:ring-aura-accent" placeholder="0 0 9 * * *">
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1" data-i18n="dashboard.cron_edit_prompt_label">Aufgaben-Prompt</label>
+          <textarea id="cronEditPrompt" class="w-full px-4 py-2 bg-aura-bg border border-aura-border rounded-lg focus:outline-none focus:ring-2 focus:ring-aura-accent" rows="4"></textarea>
+        </div>
+        <div class="flex gap-3 pt-2">
+          <button class="flex-1 px-4 py-2 bg-aura-bg border border-aura-border rounded-lg hover:bg-aura-accent/20" onclick="closeCronEditModal()" data-i18n="dashboard.cron_edit_cancel">Abbrechen</button>
+          <button class="flex-1 px-4 py-2 bg-aura-accent text-white rounded-lg hover:opacity-90" id="cronEditSaveBtn" onclick="saveCronEdit()" data-i18n="dashboard.cron_edit_save">Speichern</button>
         </div>
       </div>
     </div>

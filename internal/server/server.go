@@ -291,7 +291,14 @@ func Start(cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, sh
 	// Initialize Security Proxy Manager
 	s.ProxyManager = proxy.NewManager(cfg, logger)
 	if cfg.SecurityProxy.Enabled {
-		logger.Info("Security proxy enabled in config — use API to start/stop the proxy container")
+		logger.Info("Security proxy enabled — starting container automatically")
+		go func() {
+			if err := s.ProxyManager.Start(); err != nil {
+				logger.Warn("Security proxy auto-start failed", "error", err)
+			} else {
+				logger.Info("Security proxy started")
+			}
+		}()
 	}
 
 	// Initialize tsnet Manager (Tailscale embedded node)
