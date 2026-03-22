@@ -21,6 +21,7 @@ import (
 type Status struct {
 	Running      bool     `json:"running"`
 	Starting     bool     `json:"starting,omitempty"`      // waiting for interactive auth / cert issuance
+	ServingHTTP  bool     `json:"serving_http"`            // true only when an HTTP/HTTPS listener is active
 	HTTPFallback bool     `json:"http_fallback,omitempty"` // true when running HTTP (no TLS) because HTTPS certs not enabled
 	Hostname     string   `json:"hostname,omitempty"`
 	DNS          string   `json:"dns,omitempty"`
@@ -41,7 +42,8 @@ type Manager struct {
 	httpSrv      *http.Server
 	running      bool
 	starting     bool // true while Start() is blocked waiting for tsnet auth / certs
-	httpFallback bool // true when serving HTTP instead of HTTPS (TLS certs not available)
+	servingHTTP  bool // true when an HTTP/HTTPS listener is active
+	httpFallback bool // true when serving HTTP (no TLS) instead of HTTPS
 	lastErr      string
 
 	// loginURL is the Tailscale auth URL when the node needs interactive login.
@@ -196,10 +198,31 @@ func (m *Manager) Start(handler http.Handler) error {
 		return fmt.Errorf("failed to start tsnet server: %w", err)
 	}
 
+	// ── Node is now in the Tailscale network ──────────────────────────────────
+	// By default (serve_http: false) we just joined the network — no HTTP
+	// listener is started and AuraGo is NOT exposed to other nodes.
+	// Set serve_http: true in the config to also bind an HTTP/HTTPS server on
+	// the Tailscale interface (the behaviour that existed before this feature).
+
+	if !tsCfg.ServeHTTP {
+		// Network-only mode: node is connected, no listener.
+		m.mu.Lock()
+		m.server = srv
+		m.listener = nil
+		m.httpSrv = nil
+		m.running = true
+		m.starting = false
+		m.lastErr = ""
+		m.servingHTTP = false
+		m.httpFallback = false
+		m.mu.Unlock()
+		m.logger.Info("tsnet node connected (network-only mode — web UI not exposed over Tailscale)", "hostname", hostname)
+		return nil
+	}
+
+	// serve_http: true — also start an HTTP/HTTPS listener.
 	// Try HTTPS first (requires Tailscale HTTPS certificates to be enabled in the admin panel).
 	// If that fails with the "must enable HTTPS" error, fall back to plain HTTP on port 80.
-	// This allows AuraGo to be reachable over the Tailscale network even without certs,
-	// at the cost of no TLS encryption (acceptable inside a private Tailnet).
 	usingHTTP := false
 	ln, err := srv.ListenTLS("tcp", ":443")
 	if err != nil {
@@ -237,6 +260,7 @@ func (m *Manager) Start(handler http.Handler) error {
 	m.running = true
 	m.starting = false
 	m.lastErr = ""
+	m.servingHTTP = true
 	m.httpFallback = usingHTTP
 	m.mu.Unlock()
 
@@ -281,6 +305,7 @@ func (m *Manager) Stop() error {
 	m.server = nil
 	m.listener = nil
 	m.httpSrv = nil
+	m.servingHTTP = false
 	m.httpFallback = false
 	m.logger.Info("tsnet node stopped")
 	return nil
@@ -294,6 +319,7 @@ func (m *Manager) GetStatus() Status {
 	st := Status{
 		Running:      m.running,
 		Starting:     m.starting,
+		ServingHTTP:  m.servingHTTP,
 		HTTPFallback: m.httpFallback,
 		Hostname:     m.cfg.Tailscale.TsNet.Hostname,
 	}

@@ -86,6 +86,16 @@ async function renderTailscaleSection(section) {
             <small style="font-size:0.72rem;color:var(--text-tertiary);">${t('config.tailscale.tsnet_state_dir_hint')}</small>
         </label>`;
 
+        // ── serve_http toggle ──
+        const serveHTTP = tsnet.serve_http === true;
+        html += `<div style="margin-bottom:0.8rem;padding:0.75rem 1rem;border-radius:8px;border:1px solid var(--border-subtle);background:var(--bg-secondary);">
+            <div style="display:flex;align-items:center;gap:0.8rem;">
+                <span style="font-size:0.85rem;color:var(--text-secondary);">${t('config.tailscale.tsnet_serve_http_label')}</span>
+                <div class="toggle ${serveHTTP ? 'on' : ''}" data-path="tailscale.tsnet.serve_http" onclick="toggleBool(this)"></div>
+            </div>
+            <small style="font-size:0.72rem;color:var(--text-tertiary);margin-top:0.3rem;display:block;">${t('config.tailscale.tsnet_serve_http_hint')}</small>
+        </div>`;
+
         // Auth key (vault input)
         html += `<div class="field-group" style="margin-top:0.8rem;">
             <div style="font-size:0.78rem;color:var(--text-secondary);margin-bottom:0.3rem;">🔑 ${t('config.tailscale.tsnet_auth_key_label')}</div>
@@ -113,7 +123,7 @@ async function renderTailscaleSection(section) {
             </div>
         </div>`;
 
-        // Funnel (V2 placeholder)
+        // Funnel (V2 placeholder — greyed out)
         html += `<div style="margin-top:1rem;opacity:0.5;pointer-events:none;">
             <div style="display:flex;align-items:center;gap:0.8rem;">
                 <span style="font-size:0.78rem;color:var(--text-secondary);">${t('config.tailscale.tsnet_funnel_label')}</span>
@@ -154,16 +164,24 @@ async function _tsnetRefreshStatus() {
         let info = '';
         const startBtn = document.getElementById('tsnet-btn-start');
         if (data.running) {
-            info += `<span style="color:var(--success);">● ${t('config.tailscale.tsnet_status_running')}</span>`;
-            if (data.http_fallback) {
-                info += `<div style="margin-top:0.5rem;padding:0.45rem 0.8rem;border-radius:6px;background:var(--warning-bg,#3d2e00);border:1px solid var(--warning,#f9a825);font-size:0.78rem;color:var(--warning,#f9a825);">
-                    ⚠️ ${t('config.tailscale.tsnet_http_fallback_notice') || 'Running in HTTP mode (port 80) — enable HTTPS in the Tailscale admin panel for encrypted access.'}
-                    <a href="https://tailscale.com/s/https" target="_blank" rel="noopener noreferrer" style="color:var(--accent);margin-left:0.4rem;">Enable HTTPS →</a>
-                </div>`;
+            if (data.serving_http) {
+                info += `<span style="color:var(--success);">● ${t('config.tailscale.tsnet_status_running')}</span>`;
+                if (data.http_fallback) {
+                    info += `<div style="margin-top:0.5rem;padding:0.45rem 0.8rem;border-radius:6px;background:var(--warning-bg,#3d2e00);border:1px solid var(--warning,#f9a825);font-size:0.78rem;color:var(--warning,#f9a825);">
+                        ⚠️ ${t('config.tailscale.tsnet_http_fallback_notice') || 'Running in HTTP mode (port 80) — enable HTTPS in the Tailscale admin panel for encrypted access.'}
+                        <a href="https://tailscale.com/s/https" target="_blank" rel="noopener noreferrer" style="color:var(--accent);margin-left:0.4rem;">Enable HTTPS →</a>
+                    </div>`;
+                }
+                if (data.dns) info += `<br><strong>DNS:</strong> <code>${escapeHtml(data.dns)}</code>`;
+                if (data.ips && data.ips.length) info += `<br><strong>IPs:</strong> ${escapeHtml(data.ips.join(', '))}`;
+                if (!data.http_fallback && data.cert_dns && data.cert_dns.length) info += `<br><strong>Cert:</strong> ${escapeHtml(data.cert_dns.join(', '))}`;
+            } else {
+                // Network-only mode
+                info += `<span style="color:var(--success);">● ${t('config.tailscale.tsnet_status_running')}</span> <span style="font-size:0.78rem;color:var(--text-secondary);">(${t('config.tailscale.tsnet_network_only')})</span>`;
+                if (data.dns) info += `<br><strong>DNS:</strong> <code>${escapeHtml(data.dns)}</code>`;
+                if (data.ips && data.ips.length) info += `<br><strong>IPs:</strong> ${escapeHtml(data.ips.join(', '))}`;
+                info += `<div style="margin-top:0.5rem;padding:0.45rem 0.8rem;border-radius:6px;background:var(--bg-glass);border:1px solid var(--border-subtle);font-size:0.78rem;color:var(--text-secondary);">💡 ${t('config.tailscale.tsnet_network_only_hint')}</div>`;
             }
-            if (data.dns) info += `<br><strong>DNS:</strong> <code>${escapeHtml(data.dns)}</code>`;
-            if (data.ips && data.ips.length) info += `<br><strong>IPs:</strong> ${escapeHtml(data.ips.join(', '))}`;
-            if (!data.http_fallback && data.cert_dns && data.cert_dns.length) info += `<br><strong>Cert:</strong> ${escapeHtml(data.cert_dns.join(', '))}`;
             if (startBtn) startBtn.style.display = 'none';
         } else if (data.starting) {
             info += `<span style="color:var(--warning,#f9a825);">⏳ ${t('config.tailscale.tsnet_status_starting') || 'Waiting for authentication…'}</span>`;

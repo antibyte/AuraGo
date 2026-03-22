@@ -26,8 +26,10 @@ func handleTsNetStatus(s *Server) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"enabled":       s.Cfg.Tailscale.TsNet.Enabled,
+			"serve_http":    s.Cfg.Tailscale.TsNet.ServeHTTP,
 			"running":       status.Running,
 			"starting":      status.Starting,
+			"serving_http":  status.ServingHTTP,
 			"http_fallback": status.HTTPFallback,
 			"hostname":      status.Hostname,
 			"dns":           status.DNS,

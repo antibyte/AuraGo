@@ -732,11 +732,12 @@ type Config struct {
 		APIKey   string `yaml:"-" vault:"api_key"` // Tailscale API key (vault-only)
 		Tailnet  string `yaml:"tailnet"`           // Tailnet name, e.g. "example.com" or "-" for default
 		TsNet    struct {
-			Enabled  bool   `yaml:"enabled"`   // enable tsnet embedded Tailscale node (independent of API integration)
-			Hostname string `yaml:"hostname"`  // MagicDNS hostname, e.g. "aurago" → aurago.tailnet-name.ts.net
-			StateDir string `yaml:"state_dir"` // persistent state directory (default: data/tsnet)
-			Funnel   bool   `yaml:"funnel"`    // expose via Tailscale Funnel (V2 placeholder)
-			AuthKey  string `yaml:"-"`         // tsnet auth key (vault-only: tailscale_tsnet_authkey)
+			Enabled   bool   `yaml:"enabled"`    // enable tsnet embedded Tailscale node (independent of API integration)
+			Hostname  string `yaml:"hostname"`   // MagicDNS hostname, e.g. "aurago" → aurago.tailnet-name.ts.net
+			StateDir  string `yaml:"state_dir"`  // persistent state directory (default: data/tsnet)
+			ServeHTTP bool   `yaml:"serve_http"` // also start an HTTP/HTTPS listener (default: false = join network only)
+			Funnel    bool   `yaml:"funnel"`     // expose via Tailscale Funnel (V2 placeholder)
+			AuthKey   string `yaml:"-"`          // tsnet auth key (vault-only: tailscale_tsnet_authkey)
 		} `yaml:"tsnet"`
 	} `yaml:"tailscale"`
 	CloudflareTunnel struct {
