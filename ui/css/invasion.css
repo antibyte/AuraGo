@@ -1,6 +1,3 @@
-
-/* Compatibility: is-hidden for JS */
-.is-hidden { display: none !important; }
 /* AuraGo – invasion_control page styles */
 
 /* Uses standard components from shared.css:
@@ -180,4 +177,3 @@
         align-items: flex-start;
     }
 }
-

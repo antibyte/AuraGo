@@ -1,6 +1,3 @@
-
-/* Compatibility: is-hidden for JS */
-.is-hidden { display: none !important; }
 /* AuraGo – Gallery & Media page styles */
 
 /* Uses standard components from shared.css:
@@ -353,4 +350,3 @@
         flex-direction: column;
     }
 }
-

@@ -4,71 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title id="page-title">AuraGo - Cheat Sheets</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        'aura': {
-                            'accent': 'var(--accent)',
-                            'bg': 'var(--bg-primary)',
-                            'surface': 'var(--bg-secondary)',
-                            'text': 'var(--text-primary)',
-                            'muted': 'var(--text-secondary)',
-                            'border': 'var(--border-subtle)',
-                            'danger': 'var(--danger)',
-                            'success': 'var(--success)',
-                        }
-                    },
-                    fontFamily: {
-                        'sans': ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
-                        'mono': ['SF Mono', 'Fira Code', 'Cascadia Code', 'monospace'],
-                    }
-                }
-            }
-        }
-    </script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/shared.css">`n  <link rel="stylesheet" href="/css/tailwind-compat.css">
+    <link rel="stylesheet" href="/shared.css">
     <script src="/shared.js"></script>
     <script>
         (function () { var t = localStorage.getItem('aurago-theme'); if (t) document.documentElement.setAttribute('data-theme', t); })();
     </script>
     <script>const I18N={{.I18N}};</script>
-    <style>
-        /* Page-specific styles that can't be done with Tailwind utilities */
-        .cards-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-            gap: 20px;
-        }
-        .list-view .cards-grid {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-        .card-preview {
-            font-size: 0.85rem;
-            color: var(--text-secondary);
-            margin: 8px 0 12px;
-            max-height: 4.5em;
-            overflow: hidden;
-            line-height: 1.5;
-            white-space: pre-wrap;
-            word-break: break-word;
-        }
-        @media (max-width: 768px) {
-            .cards-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="/css/cheatsheets.css">
 </head>
-<body class="min-h-screen bg-aura-bg text-aura-text font-sans">
-
-    <!-- Header -->
+<body>
     <header class="app-header">
         <div class="header-left">
             <a href="/" class="logo">
@@ -84,151 +28,87 @@
 
     <div id="radialMenuAnchor"></div>
 
-    <!-- Main Container -->
-    <div class="max-w-7xl mx-auto px-4 py-6">
-        <!-- Page Header -->
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 pb-5 border-b border-aura-border relative">
-            <h1 class="text-2xl font-bold bg-gradient-to-r from-aura-accent to-teal-600 bg-clip-text text-transparent relative">
-                <span data-i18n="cheatsheets.title">Cheat Sheets</span>
-                <span class="absolute bottom-[-4px] left-0 w-10 h-[3px] bg-gradient-to-r from-aura-accent to-transparent rounded-full"></span>
-            </h1>
-            <div class="flex items-center gap-3">
-                <!-- View Toggle -->
-                <div class="flex gap-1 bg-aura-surface/50 p-1 rounded-lg border border-aura-border" id="view-toggle">
-                    <button onclick="setViewMode('grid')" data-mode="grid" 
-                        class="px-3 py-2 rounded-md text-sm transition-all hover:bg-aura-surface hover:text-aura-text text-aura-muted"
-                        title="Grid View">▦</button>
-                    <button onclick="setViewMode('list')" data-mode="list"
-                        class="px-3 py-2 rounded-md text-sm transition-all hover:bg-aura-surface hover:text-aura-text text-aura-muted"
-                        title="List View">☰</button>
+    <div class="container">
+        <div class="page-header">
+            <h1 data-i18n="cheatsheets.title">Cheat Sheets</h1>
+            <div class="header-actions">
+                <div class="view-toggle" id="view-toggle">
+                    <button onclick="setViewMode('grid')" title="Grid View" data-mode="grid">▦</button>
+                    <button onclick="setViewMode('list')" title="List View" data-mode="list">☰</button>
                 </div>
-                <!-- Create Button -->
-                <button id="btn-create" onclick="openCreate()" 
-                    class="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium text-white bg-gradient-to-r from-aura-accent to-teal-600 shadow-lg shadow-teal-500/25 hover:shadow-teal-500/40 hover:-translate-y-0.5 active:translate-y-0 transition-all">
+                <button class="btn btn-primary" id="btn-create" onclick="openCreate()">
                     <span>+</span> <span data-i18n="cheatsheets.create_new">New Cheat Sheet</span>
                 </button>
             </div>
-            <!-- Glow underline -->
-            <div class="absolute bottom-[-1px] left-0 w-full h-px bg-gradient-to-r from-transparent via-aura-accent to-transparent opacity-60"></div>
         </div>
 
-        <!-- Cards Grid -->
+        <!-- Cards grid -->
         <div class="cards-grid" id="sheets-grid"></div>
-        
-        <!-- Empty State -->
-        <div class="hidden text-center py-20 px-5 bg-aura-surface rounded-2xl border border-dashed border-aura-border relative overflow-hidden" id="sheets-empty">
-            <div class="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(45,212,191,0.05),transparent_70%)] pointer-events-none"></div>
-            <div class="text-6xl mb-4 grayscale-[0.3] opacity-80 animate-[bounce_3s_ease-in-out_infinite]">📋</div>
-            <h3 class="text-lg font-semibold mb-2 text-aura-text" data-i18n="cheatsheets.empty_title">No Cheat Sheets Yet</h3>
-            <p class="text-aura-muted" data-i18n="cheatsheets.empty_desc">Create reusable workflow instructions for the agent.</p>
+        <div class="empty-state is-hidden" id="sheets-empty">
+            <div class="empty-icon">📋</div>
+            <h3 data-i18n="cheatsheets.empty_title">No Cheat Sheets Yet</h3>
+            <p data-i18n="cheatsheets.empty_desc">Create reusable workflow instructions for the agent.</p>
         </div>
     </div>
 
     <!-- Edit Modal -->
-    <div class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden items-start justify-center z-[200] opacity-0 transition-opacity duration-300 py-5 px-4" id="edit-modal">
-        <div class="bg-aura-surface border border-aura-border rounded-2xl p-7 w-full max-w-3xl shadow-2xl shadow-black/50 relative overflow-hidden scale-95 opacity-0 transition-all duration-300" 
-             style="margin: auto; transform-origin: center top;">
-            <!-- Top glow line -->
-            <div class="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-aura-accent/30 to-transparent"></div>
-            
-            <div class="flex items-start justify-between gap-4 mb-5">
-                <h2 id="modal-title" class="text-xl font-semibold bg-gradient-to-r from-aura-text to-aura-accent bg-clip-text text-transparent" data-i18n="cheatsheets.create_new">New Cheat Sheet</h2>
-                <button onclick="closeModal('edit-modal')" 
-                    class="w-8 h-8 flex items-center justify-center rounded-lg border border-aura-border bg-aura-bg/50 text-aura-muted hover:text-aura-accent hover:border-aura-accent hover:scale-105 transition-all text-xl leading-none -mt-1 -mr-1">
-                    &times;
-                </button>
+    <div class="modal-overlay" id="edit-modal">
+        <div class="modal modal-wide">
+            <div class="modal-header">
+                <h2 id="modal-title" data-i18n="cheatsheets.create_new">New Cheat Sheet</h2>
+                <button class="modal-close" onclick="closeModal('edit-modal')">&times;</button>
             </div>
-            
             <input type="hidden" id="sheet-id">
-            
-            <!-- Name Field -->
-            <div class="mb-4">
-                <label class="block text-sm font-medium mb-1.5 text-aura-muted transition-colors group-focus-within:text-aura-accent" data-i18n="cheatsheets.name">Name</label>
-                <input type="text" id="sheet-name" placeholder="e.g. Deploy Website" maxlength="200"
-                    class="w-full px-4 py-3 bg-aura-bg/50 border border-aura-border rounded-xl text-aura-text placeholder:text-aura-muted/50 focus:outline-none focus:border-aura-accent focus:ring-2 focus:ring-aura-accent/15 transition-all">
+            <div class="form-group">
+                <label data-i18n="cheatsheets.name">Name</label>
+                <input type="text" id="sheet-name" placeholder="e.g. Deploy Website" maxlength="200">
             </div>
-            
-            <!-- Content Field -->
-            <div class="mb-4">
-                <label class="block text-sm font-medium mb-1.5 text-aura-muted" data-i18n="cheatsheets.content">Content (Markdown)</label>
-                <!-- Editor Tabs -->
-                <div class="flex gap-0 relative z-10">
-                    <button onclick="switchEditorTab('edit')" id="tab-edit"
-                        class="editor-tab-active px-4 py-1.5 text-sm border border-aura-accent border-b-0 bg-aura-surface text-aura-accent rounded-t-md transition-all">
-                        <span data-i18n="cheatsheets.tab_edit">Edit</span>
-                    </button>
-                    <button onclick="switchEditorTab('preview')" id="tab-preview"
-                        class="px-4 py-1.5 text-sm border border-aura-border border-b-0 bg-transparent text-aura-muted rounded-t-md hover:text-aura-text transition-all">
-                        <span data-i18n="cheatsheets.tab_preview">Preview</span>
-                    </button>
+            <div class="form-group">
+                <label data-i18n="cheatsheets.content">Content (Markdown)</label>
+                <div class="editor-tabs">
+                    <button class="editor-tab active" onclick="switchEditorTab('edit')" data-i18n="cheatsheets.tab_edit">Edit</button>
+                    <button class="editor-tab" onclick="switchEditorTab('preview')" data-i18n="cheatsheets.tab_preview">Preview</button>
                 </div>
-                <!-- Textarea -->
-                <textarea id="sheet-content" rows="12" placeholder="# Steps&#10;1. First do this&#10;2. Then do that"
-                    class="w-full min-h-[300px] px-4 py-3 bg-aura-bg border border-aura-border rounded-b-lg rounded-tr-lg font-mono text-sm leading-relaxed text-aura-text placeholder:text-aura-muted/50 focus:outline-none focus:border-aura-accent focus:ring-2 focus:ring-aura-accent/20 resize-y tab-2"></textarea>
-                <!-- Preview -->
-                <div id="sheet-preview" class="hidden min-h-[300px] max-h-[500px] overflow-y-auto px-4 py-3 bg-aura-bg border border-aura-border rounded-b-lg rounded-tr-lg text-sm leading-relaxed prose prose-invert max-w-none"></div>
+                <textarea id="sheet-content" rows="16" placeholder="# Steps&#10;1. First do this&#10;2. Then do that"></textarea>
+                <div id="sheet-preview" class="md-preview is-hidden"></div>
             </div>
-            
-            <!-- Active Toggle -->
-            <div class="mb-4">
-                <label class="flex items-center gap-3 cursor-pointer">
-                    <div class="relative w-12 h-6">
-                        <input type="checkbox" id="sheet-active" checked class="peer sr-only">
-                        <div class="absolute inset-0 bg-aura-surface border border-aura-border rounded-full transition-all peer-checked:bg-gradient-to-r peer-checked:from-green-500 peer-checked:to-green-600 peer-checked:border-transparent peer-checked:shadow-lg peer-checked:shadow-green-500/40"></div>
-                        <div class="absolute left-0.5 bottom-0.5 w-5 h-5 bg-white rounded-full shadow-md transition-all peer-checked:translate-x-6"></div>
-                    </div>
-                    <span class="text-sm text-aura-text" data-i18n="cheatsheets.active">Active</span>
-                </label>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="toggle-wrap">
+                        <label class="toggle">
+                            <input type="checkbox" id="sheet-active" checked>
+                            <span class="slider"></span>
+                        </label>
+                        <span class="toggle-label" data-i18n="cheatsheets.active">Active</span>
+                    </label>
+                </div>
             </div>
-            
-            <!-- Modal Actions -->
-            <div class="flex justify-end gap-2.5 mt-5 pt-4 border-t border-aura-border">
-                <button onclick="closeModal('edit-modal')" 
-                    class="px-5 py-2.5 rounded-lg font-medium border border-aura-border bg-aura-bg/50 text-aura-text hover:bg-aura-muted/10 hover:border-aura-accent/50 transition-all"
-                    data-i18n="cheatsheets.cancel">Cancel</button>
-                <button onclick="saveSheet()" 
-                    class="px-5 py-2.5 rounded-lg font-medium text-white bg-gradient-to-r from-aura-accent to-teal-600 shadow-lg shadow-teal-500/25 hover:shadow-teal-500/40 hover:-translate-y-0.5 active:translate-y-0 transition-all"
-                    data-i18n="cheatsheets.save">Save</button>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal('edit-modal')" data-i18n="cheatsheets.cancel">Cancel</button>
+                <button class="btn btn-primary" onclick="saveSheet()" data-i18n="cheatsheets.save">Save</button>
             </div>
         </div>
     </div>
 
     <!-- Delete Confirm Modal -->
-    <div class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden items-start justify-center z-[200] opacity-0 transition-opacity duration-300 py-5 px-4" id="delete-modal">
-        <div class="bg-aura-surface border border-aura-border rounded-2xl p-7 w-full max-w-md shadow-2xl shadow-black/50 relative overflow-hidden scale-95 opacity-0 transition-all duration-300"
-             style="margin: auto; transform-origin: center top;">
-            <!-- Top glow line -->
-            <div class="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-aura-accent/30 to-transparent"></div>
-            
-            <div class="flex items-start justify-between gap-4 mb-5">
-                <h2 class="text-xl font-semibold text-aura-danger flex items-center gap-2">
-                    ⚠️ <span data-i18n="cheatsheets.confirm_delete">Confirm Deletion</span>
-                </h2>
-                <button onclick="closeModal('delete-modal')" 
-                    class="w-8 h-8 flex items-center justify-center rounded-lg border border-aura-border bg-aura-bg/50 text-aura-muted hover:text-aura-accent hover:border-aura-accent hover:scale-105 transition-all text-xl leading-none -mt-1 -mr-1">
-                    &times;
-                </button>
+    <div class="modal-overlay" id="delete-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 class="cheatsheets-danger-title">⚠️ <span data-i18n="cheatsheets.confirm_delete">Confirm Deletion</span></h2>
+                <button class="modal-close" onclick="closeModal('delete-modal')">&times;</button>
             </div>
-            
-            <p id="delete-message" class="text-aura-text mb-4"></p>
-            <input type="text" id="delete-confirm-input" oninput="checkDeleteConfirm()" autocomplete="off"
-                class="w-full px-4 py-3 mb-4 bg-aura-bg/50 border border-aura-border rounded-xl text-aura-text placeholder:text-aura-muted/50 focus:outline-none focus:border-aura-danger focus:ring-2 focus:ring-red-500/15 transition-all">
-            
-            <div class="flex justify-end gap-2.5 mt-5 pt-4 border-t border-aura-border">
-                <button onclick="closeModal('delete-modal')" 
-                    class="px-5 py-2.5 rounded-lg font-medium border border-aura-border bg-aura-bg/50 text-aura-text hover:bg-aura-muted/10 hover:border-aura-accent/50 transition-all"
-                    data-i18n="cheatsheets.cancel">Cancel</button>
-                <button id="btn-delete-confirm" disabled onclick="confirmDelete()" 
-                    class="px-5 py-2.5 rounded-lg font-medium text-white bg-gradient-to-r from-red-500 to-red-600 shadow-lg shadow-red-500/25 opacity-50 cursor-not-allowed transition-all"
-                    data-i18n="cheatsheets.delete">Delete</button>
+            <p id="delete-message"></p>
+            <input type="text" class="delete-confirm-input" id="delete-confirm-input" oninput="checkDeleteConfirm()" autocomplete="off">
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal('delete-modal')" data-i18n="cheatsheets.cancel">Cancel</button>
+                <button class="btn btn-danger" id="btn-delete-confirm" disabled onclick="confirmDelete()" data-i18n="cheatsheets.delete">Delete</button>
             </div>
         </div>
     </div>
 
     <!-- Toast -->
-    <div id="toast" class="fixed bottom-6 right-6 z-[300] px-6 py-3.5 rounded-xl text-white opacity-0 translate-y-5 scale-95 transition-all duration-400 pointer-events-none backdrop-blur-md border border-white/10 shadow-2xl"></div>
+    <div class="toast" id="toast"></div>
 
     <script src="/js/cheatsheets/main.js"></script>
 </body>
 </html>
-

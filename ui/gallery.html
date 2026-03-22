@@ -4,41 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title id="page-title">AuraGo - Image Gallery</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        'aura': {
-                            'accent': 'var(--accent)',
-                            'bg': 'var(--bg-primary)',
-                            'surface': 'var(--bg-secondary)',
-                            'text': 'var(--text-primary)',
-                            'muted': 'var(--text-secondary)',
-                            'border': 'var(--border-subtle)',
-                            'danger': 'var(--danger)',
-                        }
-                    },
-                    fontFamily: {
-                        'sans': ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
-                    }
-                }
-            }
-        }
-    </script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/shared.css">`n  <link rel="stylesheet" href="/css/tailwind-compat.css">
+    <link rel="stylesheet" href="/shared.css">
     <script src="/shared.js"></script>
     <script>
         (function () { var t = localStorage.getItem('aurago-theme'); if (t) document.documentElement.setAttribute('data-theme', t); })();
     </script>
     <script>const I18N={{.I18N}};</script>
+    <link rel="stylesheet" href="/css/gallery.css">
 </head>
-<body class="min-h-screen bg-aura-bg text-aura-text font-sans">
-
-    <!-- Header -->
+<body>
     <header class="app-header">
         <div class="header-left">
             <a href="/" class="logo">
@@ -54,95 +28,38 @@
 
     <div id="radialMenuAnchor"></div>
 
-    <!-- Main Content -->
-    <main class="max-w-[1400px] mx-auto p-6">
-        <!-- Gallery Header -->
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-            <h1 class="text-xl font-semibold text-aura-text" data-i18n="gallery.title">🎨 Image Gallery</h1>
-            <div class="flex flex-wrap items-center gap-3">
-                <input 
-                    type="text" 
-                    id="gallery-search" 
-                    class="px-3 py-2 bg-aura-surface border border-aura-border rounded-lg text-sm min-w-[200px] focus:outline-none focus:ring-2 focus:ring-aura-accent focus:border-transparent transition-all"
-                    data-i18n-placeholder="gallery.search_placeholder"
-                    placeholder="Search prompts...">
-                <select 
-                    id="gallery-provider-filter" 
-                    class="px-3 py-2 bg-aura-surface border border-aura-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-aura-accent focus:border-transparent transition-all cursor-pointer">
+    <div class="gallery-container">
+        <div class="gallery-header">
+            <h1 data-i18n="gallery.title">🎨 Image Gallery</h1>
+            <div class="gallery-controls">
+                <input type="text" id="gallery-search" class="gallery-search"
+                    placeholder="Search prompts..." data-i18n-placeholder="gallery.search_placeholder">
+                <select id="gallery-provider-filter" class="gallery-filter">
                     <option value="" data-i18n="gallery.all_providers">All Providers</option>
                 </select>
             </div>
         </div>
 
-        <!-- Gallery Grid -->
-        <div id="gallery-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            <div class="col-span-full text-center py-12 text-aura-muted text-sm" data-i18n="gallery.loading">
-                Loading...
-            </div>
+        <div id="gallery-grid" class="gallery-grid">
+            <div class="gallery-loading" data-i18n="gallery.loading">Loading...</div>
         </div>
 
-        <!-- Pagination -->
-        <div id="gallery-pagination" class="hidden flex items-center justify-center gap-4 py-6">
-            <button 
-                id="gallery-prev" 
-                onclick="galleryPrev()"
-                class="px-4 py-2 bg-aura-surface border border-aura-border rounded-lg text-sm hover:border-aura-accent transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-aura-border">
-                ← <span data-i18n="gallery.previous">Previous</span>
-            </button>
-            <span id="gallery-page-info" class="text-sm text-aura-muted"></span>
-            <button 
-                id="gallery-next" 
-                onclick="galleryNext()"
-                class="px-4 py-2 bg-aura-surface border border-aura-border rounded-lg text-sm hover:border-aura-accent transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-aura-border">
-                <span data-i18n="gallery.next">Next</span> →
-            </button>
+        <div id="gallery-pagination" class="gallery-pagination is-hidden">
+            <button id="gallery-prev" class="btn-gallery-nav" onclick="galleryPrev()">← Previous</button>
+            <span id="gallery-page-info"></span>
+            <button id="gallery-next" class="btn-gallery-nav" onclick="galleryNext()">Next →</button>
         </div>
-    </main>
+    </div>
 
-    <!-- Lightbox Modal -->
-    <div 
-        id="lightbox" 
-        class="fixed inset-0 z-[1000] bg-black/85 hidden items-center justify-center p-4 sm:p-8"
-        onclick="closeLightbox(event)">
-        <div 
-            class="relative max-w-[900px] max-h-[90vh] w-full bg-aura-bg rounded-xl overflow-hidden flex flex-col border border-aura-border shadow-2xl"
-            onclick="event.stopPropagation()">
-            <!-- Close Button -->
-            <button 
-                onclick="closeLightbox()"
-                class="absolute top-2 right-2 sm:top-3 sm:right-3 z-10 w-8 h-8 flex items-center justify-center bg-black/60 hover:bg-red-500/80 text-white rounded-full text-xl transition-colors">
-                &times;
-            </button>
-            
-            <!-- Image -->
-            <div class="flex-1 flex items-center justify-center bg-black/50">
-                <img 
-                    id="lightbox-img" 
-                    src="" 
-                    alt=""
-                    class="max-w-full max-h-[60vh] object-contain">
-            </div>
-            
-            <!-- Meta Info -->
-            <div id="lightbox-meta" class="p-4 text-sm text-aura-muted max-h-[200px] overflow-y-auto leading-relaxed"></div>
-            
-            <!-- Actions -->
-            <div class="flex items-center gap-3 p-4 border-t border-aura-border">
-                <a 
-                    id="lightbox-download" 
-                    href="" 
-                    download 
-                    class="flex-1 sm:flex-none px-4 py-2 bg-aura-surface border border-aura-border rounded-lg text-sm text-center hover:border-aura-accent transition-colors"
-                    data-i18n="gallery.download">
-                    ⬇ Download
-                </a>
-                <button 
-                    id="lightbox-delete" 
-                    onclick="galleryDeleteCurrent()"
-                    class="flex-1 sm:flex-none px-4 py-2 bg-aura-surface border border-red-500/50 text-red-400 rounded-lg text-sm hover:bg-red-500/10 transition-colors"
-                    data-i18n="gallery.delete">
-                    🗑 Delete
-                </button>
+    <!-- Lightbox -->
+    <div id="lightbox" class="lightbox is-hidden" onclick="closeLightbox(event)">
+        <div class="lightbox-content" onclick="event.stopPropagation()">
+            <button class="lightbox-close" onclick="closeLightbox()">&times;</button>
+            <img id="lightbox-img" src="" alt="">
+            <div class="lightbox-meta" id="lightbox-meta"></div>
+            <div class="lightbox-actions">
+                <a id="lightbox-download" href="" download class="btn-gallery-action" data-i18n="gallery.download">⬇ Download</a>
+                <button id="lightbox-delete" class="btn-gallery-action btn-danger" onclick="galleryDeleteCurrent()" data-i18n="gallery.delete">🗑 Delete</button>
             </div>
         </div>
     </div>
@@ -150,4 +67,3 @@
     <script src="/js/gallery/main.js"></script>
 </body>
 </html>
-

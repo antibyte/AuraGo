@@ -4,51 +4,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title id="page-title">AuraGo - Containers</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        'aura': {
-                            'accent': 'var(--accent)',
-                            'bg': 'var(--bg-primary)',
-                            'surface': 'var(--bg-secondary)',
-                            'text': 'var(--text-primary)',
-                            'muted': 'var(--text-secondary)',
-                            'border': 'var(--border-subtle)',
-                            'success': 'var(--success)',
-                            'warning': 'var(--warning)',
-                            'danger': 'var(--danger)',
-                        }
-                    },
-                    fontFamily: {
-                        'sans': ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
-                        'mono': ['Fira Code', 'Cascadia Code', 'monospace'],
-                    }
-                }
-            }
-        }
-    </script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/shared.css">
-  <link rel="stylesheet" href="/css/tailwind-compat.css">
     <script src="/shared.js"></script>
     <script>
         (function () { var t = localStorage.getItem('aurago-theme'); if (t) document.documentElement.setAttribute('data-theme', t); })();
     </script>
     <script>const I18N={{.I18N}};</script>
+    <link rel="stylesheet" href="/css/containers.css">
 </head>
 <body>
-
-    <!-- Header -->
     <header class="app-header">
-        <a href="/" class="logo">
-            <div class="logo-icon">🥚</div>
-            <span class="logo-wordmark-accent">AURA</span><span class="logo-wordmark-base">GO</span>
-            <span class="logo-subtitle" data-i18n="containers.subtitle">Containers</span>
-        </a>
+        <div class="header-left">
+            <a href="/" class="logo">
+                <div class="logo-icon">🥚</div>
+                <span style="color:var(--accent);">AURA</span><span style="color:var(--text-primary);">GO</span>
+                <span class="logo-subtitle" data-i18n="containers.subtitle">Containers</span>
+            </a>
+        </div>
         <div class="header-actions">
             <button id="theme-toggle" class="btn-theme" title="Toggle theme"></button>
         </div>
@@ -56,10 +28,8 @@
 
     <div id="radialMenuAnchor"></div>
 
-    <!-- Main Container -->
     <div class="ct-container">
-        
-        <!-- Status Bar -->
+        <!-- Status bar -->
         <div class="ct-status-bar" id="ct-status-bar">
             <div class="ct-stat">
                 <span class="ct-stat-value" id="ct-total">0</span>
@@ -75,45 +45,41 @@
             </div>
         </div>
 
-        <!-- Search + Filter Toolbar -->
+        <!-- Search + filter bar -->
         <div class="ct-toolbar">
-            <input type="text" id="ct-search" 
-                class="ct-search"
+            <input type="text" id="ct-search" class="ct-search"
                 placeholder="Search containers..." data-i18n-placeholder="containers.search_placeholder"
                 oninput="filterContainers()">
             <div class="ct-filter-group">
-                <button class="ct-filter-btn active" 
-                    data-filter="all" onclick="setFilter('all')" data-i18n="containers.filter_all">All</button>
-                <button class="ct-filter-btn" 
-                    data-filter="running" onclick="setFilter('running')" data-i18n="containers.filter_running">Running</button>
-                <button class="ct-filter-btn" 
-                    data-filter="stopped" onclick="setFilter('stopped')" data-i18n="containers.filter_stopped">Stopped</button>
+                <button class="ct-filter-btn active" data-filter="all" onclick="setFilter('all')" data-i18n="containers.filter_all">All</button>
+                <button class="ct-filter-btn" data-filter="running" onclick="setFilter('running')" data-i18n="containers.filter_running">Running</button>
+                <button class="ct-filter-btn" data-filter="stopped" onclick="setFilter('stopped')" data-i18n="containers.filter_stopped">Stopped</button>
             </div>
         </div>
 
-        <!-- Container Cards Grid -->
+        <!-- Container cards -->
         <div class="ct-grid" id="ct-grid"></div>
 
-        <!-- Empty State -->
-        <div class="empty-state is-hidden" id="ct-empty">
-            <div class="text-6xl mb-4">🐳</div>
+        <!-- Empty state -->
+        <div class="empty-state" id="ct-empty" style="display:none;">
+            <div class="empty-icon">🐳</div>
             <h3 data-i18n="containers.empty_title">No Containers Found</h3>
             <p data-i18n="containers.empty_desc">No Docker containers match your current filter.</p>
         </div>
 
-        <!-- Error State (Docker Disabled) -->
-        <div class="empty-state is-hidden" id="ct-disabled">
-            <div class="text-6xl mb-4">⚠️</div>
+        <!-- Error state (Docker disabled) -->
+        <div class="empty-state" id="ct-disabled" style="display:none;">
+            <div class="empty-icon">⚠️</div>
             <h3 data-i18n="containers.disabled_title">Docker Not Enabled</h3>
             <p data-i18n="containers.disabled_desc">Enable Docker in the configuration to manage containers.</p>
         </div>
     </div>
 
     <!-- ═══════ LOG MODAL ═══════ -->
-    <div class="modal-overlay is-hidden" id="log-modal">
+    <div class="modal-overlay" id="log-modal">
         <div class="modal modal-wide">
             <div class="modal-header">
-                <h2 data-i18n="containers.logs_title">Container Logs</h2>
+                <h2 id="log-modal-title" data-i18n="containers.logs_title">Container Logs</h2>
                 <button class="modal-close" onclick="closeLogModal()">&times;</button>
             </div>
             <div class="modal-body">
@@ -127,10 +93,10 @@
     </div>
 
     <!-- ═══════ INSPECT MODAL ═══════ -->
-    <div class="modal-overlay is-hidden" id="inspect-modal">
+    <div class="modal-overlay" id="inspect-modal">
         <div class="modal modal-wide">
             <div class="modal-header">
-                <h2 data-i18n="containers.inspect_title">Container Details</h2>
+                <h2 id="inspect-modal-title" data-i18n="containers.inspect_title">Container Details</h2>
                 <button class="modal-close" onclick="closeInspectModal()">&times;</button>
             </div>
             <div class="modal-body">
@@ -143,7 +109,7 @@
     </div>
 
     <!-- ═══════ CONFIRM DELETE MODAL ═══════ -->
-    <div class="modal-overlay is-hidden" id="delete-modal">
+    <div class="modal-overlay" id="delete-modal">
         <div class="modal">
             <div class="modal-header">
                 <h2 data-i18n="containers.delete_title">Remove Container</h2>
@@ -153,8 +119,7 @@
                 <p data-i18n="containers.delete_confirm">Are you sure you want to remove this container?</p>
                 <p class="ct-delete-name" id="delete-container-name"></p>
                 <label class="ct-checkbox-label">
-                    <input type="checkbox" id="delete-force"> 
-                    <span data-i18n="containers.delete_force">Force remove (kill if running)</span>
+                    <input type="checkbox" id="delete-force"> <span data-i18n="containers.delete_force">Force remove (kill if running)</span>
                 </label>
             </div>
             <div class="modal-actions">
@@ -164,8 +129,6 @@
         </div>
     </div>
 
-    <link rel="stylesheet" href="/css/containers.css">
     <script src="/js/containers/main.js"></script>
 </body>
 </html>
-

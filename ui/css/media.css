@@ -1,6 +1,3 @@
-
-/* Compatibility: is-hidden for JS */
-.is-hidden { display: none !important; }
 /* AuraGo – Media View Page Styles
    Extends gallery.css for the tabbed Medienansicht (Images / Audio / Documents)
    Uses standard components from shared.css where applicable.
@@ -318,4 +315,3 @@
         justify-content: flex-end;
     }
 }
-

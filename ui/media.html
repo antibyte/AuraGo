@@ -4,49 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title id="page-title">AuraGo - Medienansicht</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        'aura': {
-                            'accent': 'var(--accent)',
-                            'bg': 'var(--bg-primary)',
-                            'surface': 'var(--bg-secondary)',
-                            'glass': 'var(--bg-glass)',
-                            'text': 'var(--text-primary)',
-                            'muted': 'var(--text-secondary)',
-                            'border': 'var(--border-subtle)',
-                            'border-accent': 'var(--border-accent)',
-                            'danger': 'var(--danger)',
-                            'card': 'var(--card-bg)',
-                            'modal-bg': 'var(--modal-bg)',
-                            'modal-surface': 'var(--modal-surface)',
-                            'modal-border': 'var(--modal-border)',
-                        }
-                    },
-                    fontFamily: {
-                        'sans': ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
-                    }
-                }
-            }
-        }
-    </script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/shared.css">`n  <link rel="stylesheet" href="/css/tailwind-compat.css">
+    <link rel="stylesheet" href="/shared.css">
     <script src="/shared.js"></script>
     <script>
         (function () { var t = localStorage.getItem('aurago-theme'); if (t) document.documentElement.setAttribute('data-theme', t); })();
     </script>
     <script>const I18N={{.I18N}};</script>
+    <link rel="stylesheet" href="/css/gallery.css">
+    <link rel="stylesheet" href="/css/media.css">
 </head>
-<body class="min-h-screen bg-aura-bg text-aura-text font-sans">
-
-    <!-- Header -->
+<body>
     <header class="app-header">
-        <div class="flex items-center gap-2">
+        <div class="header-left">
             <a href="/" class="logo">
                 <div class="logo-icon">🥚</div>
                 <span class="logo-wordmark-accent">AURA</span><span class="logo-wordmark-base">GO</span>
@@ -60,137 +29,86 @@
 
     <div id="radialMenuAnchor"></div>
 
-    <!-- Main Container -->
-    <div class="max-w-[1400px] mx-auto p-6">
-        
-        <!-- Page Header -->
-        <div class="flex flex-wrap justify-between items-center gap-4 mb-6">
-            <h1 class="text-xl font-semibold text-aura-text m-0" data-i18n="media.title">📁 Medienansicht</h1>
-            <div class="flex flex-wrap items-center gap-2.5">
-                <input type="text" id="media-search" 
-                    class="px-3.5 py-2 text-sm border border-aura-border rounded-lg bg-aura-surface text-aura-text min-w-[200px] focus:outline-none focus:ring-2 focus:ring-aura-accent/50 focus:border-aura-accent transition-all"
+    <div class="media-container">
+        <div class="media-header">
+            <h1 data-i18n="media.title">📁 Medienansicht</h1>
+            <div class="media-controls">
+                <input type="text" id="media-search" class="gallery-search"
                     placeholder="Search..." data-i18n-placeholder="media.search_placeholder">
             </div>
         </div>
 
-        <!-- Tab Navigation -->
-        <div class="flex gap-1 bg-aura-surface rounded-xl p-1 border border-aura-border mb-5" role="tablist">
-            <button class="flex-1 px-5 py-2.5 text-sm font-medium text-center rounded-lg transition-all duration-300
-                hover:bg-aura-glass hover:text-aura-text
-                data-[active=true]:bg-gradient-to-br data-[active=true]:from-aura-accent data-[active=true]:to-teal-600 
-                data-[active=true]:text-white data-[active=true]:shadow-lg data-[active=true]:shadow-aura-accent/30" 
-                id="tab-images" role="tab" aria-selected="true" data-active="true"
+        <!-- Tab bar -->
+        <div class="media-tabs" role="tablist">
+            <button class="media-tab active" id="tab-images" role="tab" aria-selected="true"
                 onclick="switchTab('images')" data-i18n="media.tab_images">🖼️ Bilder</button>
-            <button class="flex-1 px-5 py-2.5 text-sm font-medium text-center rounded-lg transition-all duration-300
-                hover:bg-aura-glass hover:text-aura-text
-                data-[active=true]:bg-gradient-to-br data-[active=true]:from-aura-accent data-[active=true]:to-teal-600 
-                data-[active=true]:text-white data-[active=true]:shadow-lg data-[active=true]:shadow-aura-accent/30" 
-                id="tab-audio" role="tab" aria-selected="false" data-active="false"
+            <button class="media-tab" id="tab-audio" role="tab" aria-selected="false"
                 onclick="switchTab('audio')" data-i18n="media.tab_audio">🎵 Audio</button>
-            <button class="flex-1 px-5 py-2.5 text-sm font-medium text-center rounded-lg transition-all duration-300
-                hover:bg-aura-glass hover:text-aura-text
-                data-[active=true]:bg-gradient-to-br data-[active=true]:from-aura-accent data-[active=true]:to-teal-600 
-                data-[active=true]:text-white data-[active=true]:shadow-lg data-[active=true]:shadow-aura-accent/30" 
-                id="tab-documents" role="tab" aria-selected="false" data-active="false"
+            <button class="media-tab" id="tab-documents" role="tab" aria-selected="false"
                 onclick="switchTab('documents')" data-i18n="media.tab_documents">📄 Dokumente</button>
         </div>
 
-        <!-- Tab Panels -->
-        
-        <!-- Images Panel -->
-        <div id="panel-images" class="block" role="tabpanel">
-            <div class="flex flex-wrap items-center gap-2.5 mb-4">
-                <select id="gallery-provider-filter" 
-                    class="px-3.5 py-2 text-sm border border-aura-border rounded-lg bg-aura-surface text-aura-text
-                    focus:outline-none focus:ring-2 focus:ring-aura-accent/50 focus:border-aura-accent cursor-pointer transition-all
-                    hover:border-aura-accent/50 hover:bg-aura-surface hover:shadow-md hover:-translate-y-0.5">
+        <!-- Tab panels -->
+        <div id="panel-images" class="media-panel active">
+            <div id="images-extra-controls" class="media-extra-controls">
+                <select id="gallery-provider-filter" class="gallery-filter">
                     <option value="" data-i18n="gallery.all_providers">All Providers</option>
                 </select>
             </div>
-            <div id="gallery-grid" class="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4">
-                <div class="col-span-full text-center py-12 text-aura-muted text-sm" data-i18n="gallery.loading">Loading...</div>
+            <div id="gallery-grid" class="gallery-grid">
+                <div class="gallery-loading" data-i18n="gallery.loading">Loading...</div>
             </div>
-            <div id="gallery-pagination" class="hidden flex justify-center items-center gap-4 py-6">
-                <button id="gallery-prev" 
-                    class="px-4 py-2 text-sm border border-aura-border rounded-lg bg-aura-surface text-aura-text 
-                    cursor-pointer transition-all hover:border-aura-accent disabled:opacity-40 disabled:cursor-not-allowed" 
-                    onclick="galleryPrev()">← Previous</button>
-                <span id="gallery-page-info" class="text-sm text-aura-muted"></span>
-                <button id="gallery-next" 
-                    class="px-4 py-2 text-sm border border-aura-border rounded-lg bg-aura-surface text-aura-text 
-                    cursor-pointer transition-all hover:border-aura-accent disabled:opacity-40 disabled:cursor-not-allowed" 
-                    onclick="galleryNext()">Next →</button>
+            <div id="gallery-pagination" class="gallery-pagination is-hidden">
+                <button id="gallery-prev" class="btn-gallery-nav" onclick="galleryPrev()">← Previous</button>
+                <span id="gallery-page-info"></span>
+                <button id="gallery-next" class="btn-gallery-nav" onclick="galleryNext()">Next →</button>
             </div>
         </div>
 
-        <!-- Audio Panel -->
-        <div id="panel-audio" class="hidden" role="tabpanel">
-            <div id="audio-grid" class="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-4">
-                <div class="col-span-full text-center py-12 text-aura-muted text-sm" data-i18n="gallery.loading">Loading...</div>
+        <div id="panel-audio" class="media-panel">
+            <div id="audio-grid" class="media-audio-grid">
+                <div class="gallery-loading" data-i18n="gallery.loading">Loading...</div>
             </div>
-            <div id="audio-pagination" class="hidden flex justify-center items-center gap-4 py-6">
-                <button id="audio-prev" 
-                    class="px-4 py-2 text-sm border border-aura-border rounded-lg bg-aura-surface text-aura-text 
-                    cursor-pointer transition-all hover:border-aura-accent disabled:opacity-40 disabled:cursor-not-allowed" 
-                    onclick="audioPrev()">← Previous</button>
-                <span id="audio-page-info" class="text-sm text-aura-muted"></span>
-                <button id="audio-next" 
-                    class="px-4 py-2 text-sm border border-aura-border rounded-lg bg-aura-surface text-aura-text 
-                    cursor-pointer transition-all hover:border-aura-accent disabled:opacity-40 disabled:cursor-not-allowed" 
-                    onclick="audioNext()">Next →</button>
+            <div id="audio-pagination" class="gallery-pagination is-hidden">
+                <button id="audio-prev" class="btn-gallery-nav" onclick="audioPrev()">← Previous</button>
+                <span id="audio-page-info"></span>
+                <button id="audio-next" class="btn-gallery-nav" onclick="audioNext()">Next →</button>
             </div>
         </div>
 
-        <!-- Documents Panel -->
-        <div id="panel-documents" class="hidden" role="tabpanel">
-            <div id="doc-list" class="flex flex-col gap-2">
-                <div class="text-center py-12 text-aura-muted text-sm" data-i18n="gallery.loading">Loading...</div>
+        <div id="panel-documents" class="media-panel">
+            <div id="doc-list" class="media-doc-list">
+                <div class="gallery-loading" data-i18n="gallery.loading">Loading...</div>
             </div>
-            <div id="doc-pagination" class="hidden flex justify-center items-center gap-4 py-6">
-                <button id="doc-prev" 
-                    class="px-4 py-2 text-sm border border-aura-border rounded-lg bg-aura-surface text-aura-text 
-                    cursor-pointer transition-all hover:border-aura-accent disabled:opacity-40 disabled:cursor-not-allowed" 
-                    onclick="docPrev()">← Previous</button>
-                <span id="doc-page-info" class="text-sm text-aura-muted"></span>
-                <button id="doc-next" 
-                    class="px-4 py-2 text-sm border border-aura-border rounded-lg bg-aura-surface text-aura-text 
-                    cursor-pointer transition-all hover:border-aura-accent disabled:opacity-40 disabled:cursor-not-allowed" 
-                    onclick="docNext()">Next →</button>
+            <div id="doc-pagination" class="gallery-pagination is-hidden">
+                <button id="doc-prev" class="btn-gallery-nav" onclick="docPrev()">← Previous</button>
+                <span id="doc-page-info"></span>
+                <button id="doc-next" class="btn-gallery-nav" onclick="docNext()">Next →</button>
             </div>
         </div>
     </div>
 
-    <!-- Image Lightbox -->
-    <div id="lightbox" class="fixed inset-0 z-[1000] bg-black/85 hidden items-center justify-center p-8" onclick="closeLightbox(event)">
-        <div class="max-w-[900px] max-h-[90vh] bg-aura-bg rounded-xl overflow-hidden relative flex flex-col border border-aura-border" onclick="event.stopPropagation()">
-            <button class="absolute top-2 right-2.5 bg-black/60 text-white border-none rounded-full w-8 h-8 text-xl flex items-center justify-center cursor-pointer z-10 transition-all hover:bg-red-500/80" 
-                onclick="closeLightbox()">&times;</button>
-            <img id="lightbox-img" src="" alt="" class="max-w-full max-h-[60vh] object-contain block">
-            <div id="lightbox-meta" class="p-4 text-xs text-aura-muted leading-relaxed max-h-[200px] overflow-y-auto"></div>
-            <div class="flex gap-2.5 px-4 py-3 border-t border-aura-border">
-                <a id="lightbox-download" href="" download 
-                    class="px-3.5 py-2 text-xs border border-aura-border rounded-lg bg-aura-surface text-aura-text no-underline text-center transition-all hover:border-aura-accent hover:bg-aura-glass" 
-                    data-i18n="gallery.download">⬇ Download</a>
-                <button id="lightbox-delete" 
-                    class="px-3.5 py-2 text-xs border border-red-500/50 rounded-lg bg-aura-surface text-red-400 cursor-pointer transition-all hover:bg-red-500/10" 
-                    onclick="galleryDeleteCurrent()" data-i18n="gallery.delete">🗑 Delete</button>
+    <!-- Image lightbox -->
+    <div id="lightbox" class="lightbox is-hidden" onclick="closeLightbox(event)">
+        <div class="lightbox-content" onclick="event.stopPropagation()">
+            <button class="lightbox-close" onclick="closeLightbox()">&times;</button>
+            <img id="lightbox-img" src="" alt="">
+            <div class="lightbox-meta" id="lightbox-meta"></div>
+            <div class="lightbox-actions">
+                <a id="lightbox-download" href="" download class="btn-gallery-action" data-i18n="gallery.download">⬇ Download</a>
+                <button id="lightbox-delete" class="btn-gallery-action btn-danger" onclick="galleryDeleteCurrent()" data-i18n="gallery.delete">🗑 Delete</button>
             </div>
         </div>
     </div>
 
-    <!-- Audio Modal -->
-    <div id="audio-modal" class="fixed inset-0 z-[1000] bg-aura-modal-bg hidden items-center justify-center p-8 backdrop-blur-sm" onclick="closeAudioModal(event)">
-        <div class="max-w-[600px] max-h-[90vh] w-full bg-aura-modal-surface border border-aura-modal-border rounded-2xl p-6 relative overflow-hidden" onclick="event.stopPropagation()">
-            <button class="absolute top-2 right-2.5 bg-black/60 text-white border-none rounded-full w-8 h-8 text-xl flex items-center justify-center cursor-pointer z-10 transition-all hover:bg-red-500/80" 
-                onclick="closeAudioModal()">&times;</button>
+    <!-- Audio lightbox overlay with full player -->
+    <div id="audio-modal" class="media-modal is-hidden" onclick="closeAudioModal(event)">
+        <div class="media-modal-content" onclick="event.stopPropagation()">
+            <button class="lightbox-close" onclick="closeAudioModal()">&times;</button>
             <div id="audio-modal-body"></div>
-            <div class="flex gap-2.5 mt-4 pt-4 border-t border-aura-border">
-                <a id="audio-modal-download" href="" download 
-                    class="px-3.5 py-2 text-xs border border-aura-border rounded-lg bg-aura-surface text-aura-text no-underline text-center transition-all hover:border-aura-accent hover:bg-aura-glass" 
-                    data-i18n="gallery.download">⬇ Download</a>
-                <button id="audio-modal-delete" 
-                    class="px-3.5 py-2 text-xs border border-red-500/50 rounded-lg bg-aura-surface text-red-400 cursor-pointer transition-all hover:bg-red-500/10" 
-                    onclick="audioDeleteCurrent()" data-i18n="gallery.delete">🗑 Delete</button>
+            <div class="lightbox-actions">
+                <a id="audio-modal-download" href="" download class="btn-gallery-action" data-i18n="gallery.download">⬇ Download</a>
+                <button id="audio-modal-delete" class="btn-gallery-action btn-danger" onclick="audioDeleteCurrent()" data-i18n="gallery.delete">🗑 Delete</button>
             </div>
         </div>
     </div>
@@ -200,4 +118,3 @@
     <script src="/js/media/main.js"></script>
 </body>
 </html>
-
