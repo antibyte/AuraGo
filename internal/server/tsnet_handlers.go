@@ -56,6 +56,7 @@ func handleTsNetStart(s *Server) http.HandlerFunc {
 
 		if !s.Cfg.Tailscale.TsNet.Enabled {
 			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status":  "error",
 				"message": "Enable tsnet in config first",

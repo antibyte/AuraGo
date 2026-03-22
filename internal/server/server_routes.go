@@ -1104,15 +1104,18 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	// which is the port lifeboat itself listens on.
 	go s.StartTCPBridge("localhost:8089")
 
-	// Start tsnet embedded Tailscale node (serves same handler over Tailscale network)
-	if s.Cfg.Tailscale.TsNet.Enabled && s.TsNetManager != nil {
+	// Always build and store the tsnet handler so it is available even when tsnet
+	// is enabled later via the config UI without a restart.
+	if s.TsNetManager != nil {
 		tsHandler := accessLogMiddleware(s.Logger, securityHeadersMiddleware(authMiddleware(s, mux), true, false))
-		s.tsNetHandler = tsHandler // store for runtime restart via /api/tsnet/start
-		go func() {
-			if err := s.TsNetManager.Start(tsHandler); err != nil {
-				s.Logger.Error("Failed to start tsnet node", "error", err)
-			}
-		}()
+		s.tsNetHandler = tsHandler // stored for /api/tsnet/start (runtime start after hot-reload)
+		if s.Cfg.Tailscale.TsNet.Enabled {
+			go func() {
+				if err := s.TsNetManager.Start(tsHandler); err != nil {
+					s.Logger.Error("Failed to start tsnet node", "error", err)
+				}
+			}()
+		}
 	}
 
 	// Determine server mode: HTTPS auto, HTTPS custom, HTTPS self-signed, or HTTP
