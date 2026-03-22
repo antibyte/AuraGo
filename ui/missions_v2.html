@@ -4,8 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="/shared.css">
-    <link rel="stylesheet" href="/missions.css">
+    <link rel="stylesheet" href="/shared.css">`n  <link rel="stylesheet" href="/css/tailwind-compat.css">
     <script src="/shared.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -37,13 +36,13 @@
 
 <body class="bg-aura-bg text-aura-text min-h-screen">
     <!-- App Header -->
-    <header class="app-header sticky top-0 z-50 bg-aura-surface/80 backdrop-blur-md border-b border-aura-border">
+    <header class="sticky top-0 z-50 bg-aura-surface/80 backdrop-blur-md border-b border-aura-border">
         <div class="container mx-auto px-4 h-16 flex items-center justify-between">
             <div class="flex items-center gap-4">
-                <a href="/" class="logo flex items-center gap-3 text-lg font-semibold no-underline hover:opacity-80 transition-opacity">
-                    <div class="logo-icon w-9 h-9 rounded-lg bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-lg">🚀</div>
+                <a href="/" class="flex items-center gap-3 text-lg font-semibold no-underline hover:opacity-80 transition-opacity">
+                    <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-lg">🚀</div>
                     <span class="text-aura-accent">AURA</span><span class="text-aura-text">GO</span>
-                    <span class="logo-subtitle text-xs text-aura-muted font-normal ml-1">
+                    <span class="text-xs text-aura-muted font-normal ml-1">
                         <script>document.write(t('missions.logo_subtitle'))</script>
                     </span>
                 </a>
@@ -60,16 +59,16 @@
 
     <div class="container mx-auto px-4 py-6">
         <!-- Page Header -->
-        <div class="page-header flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-            <h1 class="page-title text-2xl font-bold text-aura-text">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+            <h1 class="text-2xl font-bold text-aura-text">
                 <script>document.write(t('missions.heading'))</script>
             </h1>
-            <div class="page-actions flex items-center gap-3">
-                <div class="view-toggle flex bg-aura-surface rounded-lg p-1 border border-aura-border" id="view-toggle">
+            <div class="flex items-center gap-3">
+                <div class="flex bg-aura-surface rounded-lg p-1 border border-aura-border" id="view-toggle">
                     <button onclick="setViewMode('grid')" title="Grid View" data-mode="grid" class="px-3 py-1.5 rounded-md text-sm font-medium hover:bg-aura-accent/10 hover:text-aura-accent transition-all">▦</button>
                     <button onclick="setViewMode('list')" title="List View" data-mode="list" class="px-3 py-1.5 rounded-md text-sm font-medium hover:bg-aura-accent/10 hover:text-aura-accent transition-all">☰</button>
                 </div>
-                <button class="btn-primary px-4 py-2 bg-aura-accent text-white rounded-lg font-medium hover:opacity-90 transition-opacity flex items-center gap-2" onclick="openMissionModal()">
+                <button class="px-4 py-2 bg-aura-accent text-white rounded-lg font-medium hover:opacity-90 transition-opacity flex items-center gap-2" onclick="openMissionModal()">
                     <span>+</span>
                     <script>document.write(t('missions.btn_new_mission'))</script>
                 </button>
@@ -77,48 +76,48 @@
         </div>
 
         <!-- Status Bar -->
-        <div class="status-bar grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <div class="status-card bg-aura-surface rounded-xl p-4 border border-aura-border" id="status-total">
-                <div class="status-label text-sm text-aura-muted mb-1">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-aura-surface rounded-xl p-4 border border-aura-border" id="status-total">
+                <div class="text-sm text-aura-muted mb-1">
                     <script>document.write(t('missions.status_total'))</script>
                 </div>
-                <div class="status-value text-2xl font-bold text-aura-text">-</div>
+                <div class="text-2xl font-bold text-aura-text">-</div>
             </div>
-            <div class="status-card bg-aura-surface rounded-xl p-4 border border-aura-border" id="status-running">
-                <div class="status-label text-sm text-aura-muted mb-1">
+            <div class="bg-aura-surface rounded-xl p-4 border border-aura-border" id="status-running">
+                <div class="text-sm text-aura-muted mb-1">
                     <script>document.write(t('missions.status_running'))</script>
                 </div>
-                <div class="status-value text-2xl font-bold text-aura-text">-</div>
+                <div class="text-2xl font-bold text-aura-text">-</div>
             </div>
-            <div class="status-card bg-aura-surface rounded-xl p-4 border border-aura-border" id="status-queued">
-                <div class="status-label text-sm text-aura-muted mb-1">
+            <div class="bg-aura-surface rounded-xl p-4 border border-aura-border" id="status-queued">
+                <div class="text-sm text-aura-muted mb-1">
                     <script>document.write(t('missions.status_queue'))</script>
                 </div>
-                <div class="status-value text-2xl font-bold text-aura-text">-</div>
+                <div class="text-2xl font-bold text-aura-text">-</div>
             </div>
-            <div class="status-card bg-aura-surface rounded-xl p-4 border border-aura-border" id="status-triggered">
-                <div class="status-label text-sm text-aura-muted mb-1">
+            <div class="bg-aura-surface rounded-xl p-4 border border-aura-border" id="status-triggered">
+                <div class="text-sm text-aura-muted mb-1">
                     <script>document.write(t('missions.status_triggered'))</script>
                 </div>
-                <div class="status-value text-2xl font-bold text-aura-text">-</div>
+                <div class="text-2xl font-bold text-aura-text">-</div>
             </div>
         </div>
 
         <!-- Queue Section -->
-        <div class="queue-section is-hidden bg-aura-surface rounded-xl p-6 border border-aura-border mb-6" id="queue-section">
-            <div class="queue-header flex items-center justify-between mb-4">
-                <h3 class="queue-title text-lg font-semibold text-aura-text">
+        <div class="hidden bg-aura-surface rounded-xl p-6 border border-aura-border mb-6" id="queue-section">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-aura-text">
                     <script>document.write(t('missions.queue_title'))</script>
                 </h3>
-                <span class="queue-badge px-2.5 py-1 bg-blue-500/20 text-blue-400 text-xs font-medium rounded-full">
+                <span class="px-2.5 py-1 bg-blue-500/20 text-blue-400 text-xs font-medium rounded-full">
                     <script>document.write(t('missions.queue_serial_badge'))</script>
                 </span>
             </div>
-            <div id="queue-items" class="queue-items space-y-2"></div>
+            <div id="queue-items" class="space-y-2"></div>
         </div>
 
         <!-- Tabs -->
-        <div class="tabs flex gap-1 bg-aura-surface p-1 rounded-xl border border-aura-border mb-6 overflow-x-auto">
+        <div class="flex gap-1 bg-aura-surface p-1 rounded-xl border border-aura-border mb-6 overflow-x-auto">
             <button class="tab active px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap bg-aura-accent text-white" onclick="filterMissions('all')" id="tab-all">
                 <script>document.write(t('missions.filter_all'))</script>
             </button>
@@ -134,18 +133,18 @@
         </div>
 
         <!-- Missions Grid -->
-        <div class="missions-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="missions-grid">
-            <div class="mission-card bg-aura-surface rounded-xl p-6 border border-aura-border animate-pulse">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="missions-grid">
+            <div class="bg-aura-surface rounded-xl p-6 border border-aura-border animate-pulse">
                 <div class="h-4 bg-aura-border/50 rounded w-3/4 mb-3"></div>
                 <div class="h-3 bg-aura-border/50 rounded w-1/2 mb-2"></div>
                 <div class="h-3 bg-aura-border/50 rounded w-2/3"></div>
             </div>
-            <div class="mission-card bg-aura-surface rounded-xl p-6 border border-aura-border animate-pulse">
+            <div class="bg-aura-surface rounded-xl p-6 border border-aura-border animate-pulse">
                 <div class="h-4 bg-aura-border/50 rounded w-3/4 mb-3"></div>
                 <div class="h-3 bg-aura-border/50 rounded w-1/2 mb-2"></div>
                 <div class="h-3 bg-aura-border/50 rounded w-2/3"></div>
             </div>
-            <div class="mission-card bg-aura-surface rounded-xl p-6 border border-aura-border animate-pulse">
+            <div class="bg-aura-surface rounded-xl p-6 border border-aura-border animate-pulse">
                 <div class="h-4 bg-aura-border/50 rounded w-3/4 mb-3"></div>
                 <div class="h-3 bg-aura-border/50 rounded w-1/2 mb-2"></div>
                 <div class="h-3 bg-aura-border/50 rounded w-2/3"></div>
@@ -154,51 +153,51 @@
     </div>
 
     <!-- Modal -->
-    <div class="modal fixed inset-0 bg-black/50 backdrop-blur-sm is-hidden items-center justify-center z-50 p-4" id="modal">
-        <div class="modal-content bg-aura-surface rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl border border-aura-border">
-            <div class="modal-header flex items-center justify-between p-6 border-b border-aura-border">
-                <h2 id="modal-title" class="modal-title text-xl font-bold text-aura-text"></h2>
-                <button class="modal-close w-8 h-8 flex items-center justify-center rounded-lg hover:bg-aura-border/50 text-aura-muted hover:text-aura-text transition-all text-2xl" onclick="closeModal('modal')">&times;</button>
+    <div class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden items-center justify-center z-50 p-4" id="modal">
+        <div class="bg-aura-surface rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl border border-aura-border">
+            <div class="flex items-center justify-between p-6 border-b border-aura-border">
+                <h2 id="modal-title" class="text-xl font-bold text-aura-text"></h2>
+                <button class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-aura-border/50 text-aura-muted hover:text-aura-text transition-all text-2xl" onclick="closeModal('modal')">&times;</button>
             </div>
-            <div class="modal-body p-6 overflow-y-auto">
-                <form id="mission-form" class="mission-form" onsubmit="return false;">
+            <div class="p-6 overflow-y-auto">
+                <form id="mission-form" onsubmit="return false;">
                     <input type="hidden" id="mission-id">
 
-                    <div class="form-group mb-4">
-                        <label class="form-label block text-sm font-medium text-aura-text mb-2">
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-aura-text mb-2">
                             <script>document.write(t('missions.form_name_label'))</script>
                         </label>
-                        <input type="text" id="mission-name" required class="form-input w-full px-4 py-2 bg-aura-bg border border-aura-border rounded-lg text-aura-text placeholder-aura-muted focus:outline-none focus:border-aura-accent transition-colors">
+                        <input type="text" id="mission-name" required class="w-full px-4 py-2 bg-aura-bg border border-aura-border rounded-lg text-aura-text placeholder-aura-muted focus:outline-none focus:border-aura-accent transition-colors">
                         <script>document.getElementById('mission-name').placeholder = t('missions.form_name_placeholder')</script>
                     </div>
 
-                    <div class="form-group mb-4">
-                        <label class="form-label block text-sm font-medium text-aura-text mb-2">
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-aura-text mb-2">
                             <script>document.write(t('missions.form_prompt_label'))</script>
                         </label>
-                        <textarea id="mission-prompt" required class="form-textarea w-full px-4 py-2 bg-aura-bg border border-aura-border rounded-lg text-aura-text placeholder-aura-muted focus:outline-none focus:border-aura-accent transition-colors min-h-[120px] resize-y"></textarea>
+                        <textarea id="mission-prompt" required class="w-full px-4 py-2 bg-aura-bg border border-aura-border rounded-lg text-aura-text placeholder-aura-muted focus:outline-none focus:border-aura-accent transition-colors min-h-[120px] resize-y"></textarea>
                         <script>document.getElementById('mission-prompt').placeholder = t('missions.form_prompt_placeholder')</script>
                     </div>
 
-                    <div class="form-group mb-4">
-                        <label class="form-label block text-sm font-medium text-aura-text mb-2">
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-aura-text mb-2">
                             <script>document.write(t('missions.form_cheatsheets_label'))</script>
                         </label>
-                        <div id="cheatsheet-picker" class="cheatsheet-picker bg-aura-bg border border-aura-border rounded-lg p-4 max-h-48 overflow-y-auto">
+                        <div id="cheatsheet-picker" class="bg-aura-bg border border-aura-border rounded-lg p-4 max-h-48 overflow-y-auto">
                             <div class="text-aura-muted text-sm">
                                 <script>document.write(t('missions.form_cheatsheets_loading'))</script>
                             </div>
                         </div>
-                        <div class="form-hint text-xs text-aura-muted mt-1">
+                        <div class="text-xs text-aura-muted mt-1">
                             <script>document.write(t('missions.form_cheatsheets_hint'))</script>
                         </div>
                     </div>
 
-                    <div class="form-group mb-4">
-                        <label class="form-label block text-sm font-medium text-aura-text mb-2">
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-aura-text mb-2">
                             <script>document.write(t('missions.form_priority_label'))</script>
                         </label>
-                        <select id="mission-priority" class="form-select w-full px-4 py-2 bg-aura-bg border border-aura-border rounded-lg text-aura-text focus:outline-none focus:border-aura-accent transition-colors">
+                        <select id="mission-priority" class="w-full px-4 py-2 bg-aura-bg border border-aura-border rounded-lg text-aura-text focus:outline-none focus:border-aura-accent transition-colors">
                             <option value="low">
                                 <script>document.write(t('missions.form_priority_low'))</script>
                             </option>
@@ -211,12 +210,12 @@
                         </select>
                     </div>
 
-                    <div class="form-group mb-4">
-                        <label class="form-label block text-sm font-medium text-aura-text mb-2">
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-aura-text mb-2">
                             <script>document.write(t('missions.form_exec_type_label'))</script>
                         </label>
-                        <div class="exec-type-grid grid grid-cols-1 sm:grid-cols-3 gap-3">
-                            <label class="exec-type-option relative flex flex-col items-center p-4 bg-aura-bg border border-aura-border rounded-xl cursor-pointer hover:border-aura-accent/50 transition-all group" onclick="selectExecType('manual')">
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <label class="relative flex flex-col items-center p-4 bg-aura-bg border border-aura-border rounded-xl cursor-pointer hover:border-aura-accent/50 transition-all group" onclick="selectExecType('manual')">
                                 <input type="radio" name="exec-type" value="manual" checked class="sr-only peer">
                                 <span class="text-2xl mb-2 group-hover:scale-110 transition-transform">👆</span>
                                 <span class="font-medium text-aura-text text-sm">
@@ -227,7 +226,7 @@
                                 </span>
                                 <div class="absolute inset-0 border-2 border-aura-accent rounded-xl opacity-0 peer-checked:opacity-100 pointer-events-none"></div>
                             </label>
-                            <label class="exec-type-option relative flex flex-col items-center p-4 bg-aura-bg border border-aura-border rounded-xl cursor-pointer hover:border-aura-accent/50 transition-all group" onclick="selectExecType('scheduled')">
+                            <label class="relative flex flex-col items-center p-4 bg-aura-bg border border-aura-border rounded-xl cursor-pointer hover:border-aura-accent/50 transition-all group" onclick="selectExecType('scheduled')">
                                 <input type="radio" name="exec-type" value="scheduled" class="sr-only peer">
                                 <span class="text-2xl mb-2 group-hover:scale-110 transition-transform">📅</span>
                                 <span class="font-medium text-aura-text text-sm">
@@ -238,7 +237,7 @@
                                 </span>
                                 <div class="absolute inset-0 border-2 border-aura-accent rounded-xl opacity-0 peer-checked:opacity-100 pointer-events-none"></div>
                             </label>
-                            <label class="exec-type-option relative flex flex-col items-center p-4 bg-aura-bg border border-aura-border rounded-xl cursor-pointer hover:border-aura-accent/50 transition-all group" onclick="selectExecType('triggered')">
+                            <label class="relative flex flex-col items-center p-4 bg-aura-bg border border-aura-border rounded-xl cursor-pointer hover:border-aura-accent/50 transition-all group" onclick="selectExecType('triggered')">
                                 <input type="radio" name="exec-type" value="triggered" class="sr-only peer">
                                 <span class="text-2xl mb-2 group-hover:scale-110 transition-transform">⚡</span>
                                 <span class="font-medium text-aura-text text-sm">
@@ -253,12 +252,12 @@
                     </div>
 
                     <!-- Scheduled Config -->
-                    <div id="config-scheduled" class="config-section is-hidden space-y-4 p-4 bg-aura-bg/50 rounded-xl border border-aura-border/50">
-                        <div class="form-group mb-4">
-                            <label class="form-label block text-sm font-medium text-aura-text mb-2">
+                    <div id="config-scheduled" class="hidden space-y-4 p-4 bg-aura-bg/50 rounded-xl border border-aura-border/50">
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-aura-text mb-2">
                                 <script>document.write(t('missions.form_cron_preset_label'))</script>
                             </label>
-                            <select id="cron-preset" onchange="applyCronPreset(this.value)" class="form-select w-full px-4 py-2 bg-aura-bg border border-aura-border rounded-lg text-aura-text focus:outline-none focus:border-aura-accent transition-colors">
+                            <select id="cron-preset" onchange="applyCronPreset(this.value)" class="w-full px-4 py-2 bg-aura-bg border border-aura-border rounded-lg text-aura-text focus:outline-none focus:border-aura-accent transition-colors">
                                 <option value="">
                                     <script>document.write(t('missions.form_cron_preset_custom'))</script>
                                 </option>
@@ -291,21 +290,21 @@
                                 </option>
                             </select>
                         </div>
-                        <div class="form-group mb-4">
-                            <label class="form-label block text-sm font-medium text-aura-text mb-2">
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-aura-text mb-2">
                                 <script>document.write(t('missions.form_cron_label'))</script>
                             </label>
-                            <input type="text" id="cron-schedule" class="form-input w-full px-4 py-2 bg-aura-bg border border-aura-border rounded-lg text-aura-text placeholder-aura-muted focus:outline-none focus:border-aura-accent transition-colors font-mono text-sm">
+                            <input type="text" id="cron-schedule" class="w-full px-4 py-2 bg-aura-bg border border-aura-border rounded-lg text-aura-text placeholder-aura-muted focus:outline-none focus:border-aura-accent transition-colors font-mono text-sm">
                             <script>document.getElementById('cron-schedule').placeholder = t('missions.form_cron_placeholder')</script>
-                            <div class="form-hint text-xs text-aura-muted mt-1">
+                            <div class="text-xs text-aura-muted mt-1">
                                 <script>document.write(t('missions.form_cron_hint'))</script>
                             </div>
                         </div>
                     </div>
 
                     <!-- Triggered Config -->
-                    <div id="config-triggered" class="config-section is-hidden space-y-4">
-                        <div class="trigger-types flex flex-wrap gap-2">
+                    <div id="config-triggered" class="hidden space-y-4">
+                        <div class="flex flex-wrap gap-2">
                             <button type="button" class="trigger-type-btn px-3 py-1.5 bg-aura-bg border border-aura-border rounded-lg text-sm text-aura-text hover:border-aura-accent hover:text-aura-accent transition-all" data-trigger="mission_completed" onclick="selectTriggerType('mission_completed')">
                                 <script>document.write(t('missions.trigger_mission_completed'))</script>
                             </button>
@@ -345,22 +344,22 @@
                         </div>
 
                         <!-- System Startup Trigger -->
-                        <div id="trigger-system_startup" class="trigger-fields is-hidden">
+                        <div id="trigger-system_startup" class="trigger-fields hidden">
                             <div class="text-sm text-aura-muted">
                                 <script>document.write(t('missions.trigger_system_startup_hint'))</script>
                             </div>
                         </div>
 
                         <!-- Mission Completed Trigger -->
-                        <div id="trigger-mission_completed" class="trigger-fields is-hidden space-y-4">
-                            <div class="form-group mb-4">
-                                <label class="form-label block text-sm font-medium text-aura-text mb-2">
+                        <div id="trigger-mission_completed" class="trigger-fields hidden space-y-4">
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-aura-text mb-2">
                                     <script>document.write(t('missions.trigger_source_mission_label'))</script>
                                 </label>
-                                <div id="mission-selector" class="mission-selector bg-aura-bg border border-aura-border rounded-lg p-4"></div>
+                                <div id="mission-selector" class="bg-aura-bg border border-aura-border rounded-lg p-4"></div>
                             </div>
-                            <div class="form-group flex items-center gap-3">
-                                <label class="toggle-switch relative inline-flex items-center cursor-pointer">
+                            <div class="flex items-center gap-3">
+                                <label class="relative inline-flex items-center cursor-pointer">
                                     <input type="checkbox" id="require-success" class="sr-only peer">
                                     <div class="w-11 h-6 bg-aura-border peer-focus:ring-2 peer-focus:ring-aura-accent/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-aura-accent"></div>
                                 </label>
@@ -371,13 +370,13 @@
                         </div>
 
                         <!-- Email Trigger -->
-                        <div id="trigger-email_received" class="trigger-fields is-hidden space-y-4">
-                            <div class="form-row grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div class="form-group mb-4">
-                                    <label class="form-label block text-sm font-medium text-aura-text mb-2">
+                        <div id="trigger-email_received" class="trigger-fields hidden space-y-4">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div class="mb-4">
+                                    <label class="block text-sm font-medium text-aura-text mb-2">
                                         <script>document.write(t('missions.trigger_email_folder_label'))</script>
                                     </label>
-                                    <select id="email-folder" class="form-select w-full px-4 py-2 bg-aura-bg border border-aura-border rounded-lg text-aura-text focus:outline-none focus:border-aura-accent transition-colors">
+                                    <select id="email-folder" class="w-full px-4 py-2 bg-aura-bg border border-aura-border rounded-lg text-aura-text focus:outline-none focus:border-aura-accent transition-colors">
                                         <option value="INBOX">
                                             <script>document.write(t('missions.trigger_email_folder_inbox'))</script>
                                         </option>
@@ -386,61 +385,61 @@
                                         </option>
                                     </select>
                                 </div>
-                                <div class="form-group mb-4">
-                                    <label class="form-label block text-sm font-medium text-aura-text mb-2">
+                                <div class="mb-4">
+                                    <label class="block text-sm font-medium text-aura-text mb-2">
                                         <script>document.write(t('missions.trigger_email_subject_label'))</script>
                                     </label>
-                                    <input type="text" id="email-subject" class="form-input w-full px-4 py-2 bg-aura-bg border border-aura-border rounded-lg text-aura-text placeholder-aura-muted focus:outline-none focus:border-aura-accent transition-colors">
+                                    <input type="text" id="email-subject" class="w-full px-4 py-2 bg-aura-bg border border-aura-border rounded-lg text-aura-text placeholder-aura-muted focus:outline-none focus:border-aura-accent transition-colors">
                                     <script>document.getElementById('email-subject').placeholder = t('missions.trigger_email_subject_placeholder')</script>
                                 </div>
                             </div>
-                            <div class="form-group mb-4">
-                                <label class="form-label block text-sm font-medium text-aura-text mb-2">
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-aura-text mb-2">
                                     <script>document.write(t('missions.trigger_email_from_label'))</script>
                                 </label>
-                                <input type="text" id="email-from" class="form-input w-full px-4 py-2 bg-aura-bg border border-aura-border rounded-lg text-aura-text placeholder-aura-muted focus:outline-none focus:border-aura-accent transition-colors">
+                                <input type="text" id="email-from" class="w-full px-4 py-2 bg-aura-bg border border-aura-border rounded-lg text-aura-text placeholder-aura-muted focus:outline-none focus:border-aura-accent transition-colors">
                                 <script>document.getElementById('email-from').placeholder = t('missions.trigger_email_from_placeholder')</script>
                             </div>
                         </div>
 
                         <!-- Webhook Trigger -->
-                        <div id="trigger-webhook" class="trigger-fields is-hidden space-y-4">
-                            <div class="form-group mb-4">
-                                <label class="form-label block text-sm font-medium text-aura-text mb-2">
+                        <div id="trigger-webhook" class="trigger-fields hidden space-y-4">
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-aura-text mb-2">
                                     <script>document.write(t('missions.trigger_webhook_label'))</script>
                                 </label>
-                                <select id="webhook-select" class="form-select w-full px-4 py-2 bg-aura-bg border border-aura-border rounded-lg text-aura-text focus:outline-none focus:border-aura-accent transition-colors">
+                                <select id="webhook-select" class="w-full px-4 py-2 bg-aura-bg border border-aura-border rounded-lg text-aura-text focus:outline-none focus:border-aura-accent transition-colors">
                                     <option value="">
                                         <script>document.write(t('missions.trigger_webhook_loading'))</script>
                                     </option>
                                 </select>
-                                <div class="form-hint text-xs text-aura-muted mt-1">
+                                <div class="text-xs text-aura-muted mt-1">
                                     <script>document.write(t('missions.trigger_webhook_hint'))</script>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Egg Hatched Trigger -->
-                        <div id="trigger-egg_hatched" class="trigger-fields is-hidden space-y-4">
+                        <div id="trigger-egg_hatched" class="trigger-fields hidden space-y-4">
                             <div class="text-sm text-aura-muted mb-4">
                                 <script>document.write(t('missions.trigger_egg_hatched_hint'))</script>
                             </div>
-                            <div class="form-row grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div class="form-group mb-4">
-                                    <label class="form-label block text-sm font-medium text-aura-text mb-2">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div class="mb-4">
+                                    <label class="block text-sm font-medium text-aura-text mb-2">
                                         <script>document.write(t('missions.trigger_egg_select_label'))</script>
                                     </label>
-                                    <select id="egg-hatched-egg-select" class="form-select w-full px-4 py-2 bg-aura-bg border border-aura-border rounded-lg text-aura-text focus:outline-none focus:border-aura-accent transition-colors">
+                                    <select id="egg-hatched-egg-select" class="w-full px-4 py-2 bg-aura-bg border border-aura-border rounded-lg text-aura-text focus:outline-none focus:border-aura-accent transition-colors">
                                         <option value="">
                                             <script>document.write(t('missions.trigger_egg_any'))</script>
                                         </option>
                                     </select>
                                 </div>
-                                <div class="form-group mb-4">
-                                    <label class="form-label block text-sm font-medium text-aura-text mb-2">
+                                <div class="mb-4">
+                                    <label class="block text-sm font-medium text-aura-text mb-2">
                                         <script>document.write(t('missions.trigger_nest_select_label'))</script>
                                     </label>
-                                    <select id="egg-hatched-nest-select" class="form-select w-full px-4 py-2 bg-aura-bg border border-aura-border rounded-lg text-aura-text focus:outline-none focus:border-aura-accent transition-colors">
+                                    <select id="egg-hatched-nest-select" class="w-full px-4 py-2 bg-aura-bg border border-aura-border rounded-lg text-aura-text focus:outline-none focus:border-aura-accent transition-colors">
                                         <option value="">
                                             <script>document.write(t('missions.trigger_nest_any'))</script>
                                         </option>
@@ -450,15 +449,15 @@
                         </div>
 
                         <!-- Nest Cleared Trigger -->
-                        <div id="trigger-nest_cleared" class="trigger-fields is-hidden space-y-4">
+                        <div id="trigger-nest_cleared" class="trigger-fields hidden space-y-4">
                             <div class="text-sm text-aura-muted mb-4">
                                 <script>document.write(t('missions.trigger_nest_cleared_hint'))</script>
                             </div>
-                            <div class="form-group mb-4">
-                                <label class="form-label block text-sm font-medium text-aura-text mb-2">
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-aura-text mb-2">
                                     <script>document.write(t('missions.trigger_nest_select_label'))</script>
                                 </label>
-                                <select id="nest-cleared-nest-select" class="form-select w-full px-4 py-2 bg-aura-bg border border-aura-border rounded-lg text-aura-text focus:outline-none focus:border-aura-accent transition-colors">
+                                <select id="nest-cleared-nest-select" class="w-full px-4 py-2 bg-aura-bg border border-aura-border rounded-lg text-aura-text focus:outline-none focus:border-aura-accent transition-colors">
                                     <option value="">
                                         <script>document.write(t('missions.trigger_nest_any'))</script>
                                     </option>
@@ -467,88 +466,88 @@
                         </div>
 
                         <!-- MQTT Message Trigger -->
-                        <div id="trigger-mqtt_message" class="trigger-fields is-hidden space-y-4">
+                        <div id="trigger-mqtt_message" class="trigger-fields hidden space-y-4">
                             <div class="text-sm text-aura-muted mb-4">
                                 <script>document.write(t('missions.trigger_mqtt_hint'))</script>
                             </div>
-                            <div class="form-group mb-4">
-                                <label class="form-label block text-sm font-medium text-aura-text mb-2">
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-aura-text mb-2">
                                     <script>document.write(t('missions.trigger_mqtt_topic_label'))</script>
                                 </label>
-                                <input type="text" id="mqtt-topic" class="form-input w-full px-4 py-2 bg-aura-bg border border-aura-border rounded-lg text-aura-text placeholder-aura-muted focus:outline-none focus:border-aura-accent transition-colors">
+                                <input type="text" id="mqtt-topic" class="w-full px-4 py-2 bg-aura-bg border border-aura-border rounded-lg text-aura-text placeholder-aura-muted focus:outline-none focus:border-aura-accent transition-colors">
                                 <script>document.getElementById('mqtt-topic').placeholder = t('missions.trigger_mqtt_topic_placeholder')</script>
-                                <div class="form-hint text-xs text-aura-muted mt-1">
+                                <div class="text-xs text-aura-muted mt-1">
                                     <script>document.write(t('missions.trigger_mqtt_topic_hint'))</script>
                                 </div>
                             </div>
-                            <div class="form-group mb-4">
-                                <label class="form-label block text-sm font-medium text-aura-text mb-2">
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-aura-text mb-2">
                                     <script>document.write(t('missions.trigger_mqtt_payload_label'))</script>
                                 </label>
-                                <input type="text" id="mqtt-payload-contains" class="form-input w-full px-4 py-2 bg-aura-bg border border-aura-border rounded-lg text-aura-text placeholder-aura-muted focus:outline-none focus:border-aura-accent transition-colors">
+                                <input type="text" id="mqtt-payload-contains" class="w-full px-4 py-2 bg-aura-bg border border-aura-border rounded-lg text-aura-text placeholder-aura-muted focus:outline-none focus:border-aura-accent transition-colors">
                                 <script>document.getElementById('mqtt-payload-contains').placeholder = t('missions.trigger_mqtt_payload_placeholder')</script>
-                                <div class="form-hint text-xs text-aura-muted mt-1">
+                                <div class="text-xs text-aura-muted mt-1">
                                     <script>document.write(t('missions.trigger_mqtt_payload_hint'))</script>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Device Connected Trigger -->
-                        <div id="trigger-device_connected" class="trigger-fields is-hidden space-y-4">
+                        <div id="trigger-device_connected" class="trigger-fields hidden space-y-4">
                             <div class="text-sm text-aura-muted mb-4">
                                 <script>document.write(t('missions.trigger_device_connected_hint'))</script>
                             </div>
-                            <div class="form-row grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div class="form-group mb-4">
-                                    <label class="form-label block text-sm font-medium text-aura-text mb-2">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div class="mb-4">
+                                    <label class="block text-sm font-medium text-aura-text mb-2">
                                         <script>document.write(t('missions.trigger_device_id_label'))</script>
                                     </label>
-                                    <input type="text" id="device-connected-id" class="form-input w-full px-4 py-2 bg-aura-bg border border-aura-border rounded-lg text-aura-text placeholder-aura-muted focus:outline-none focus:border-aura-accent transition-colors">
+                                    <input type="text" id="device-connected-id" class="w-full px-4 py-2 bg-aura-bg border border-aura-border rounded-lg text-aura-text placeholder-aura-muted focus:outline-none focus:border-aura-accent transition-colors">
                                     <script>document.getElementById('device-connected-id').placeholder = t('missions.trigger_device_id_placeholder')</script>
                                 </div>
-                                <div class="form-group mb-4">
-                                    <label class="form-label block text-sm font-medium text-aura-text mb-2">
+                                <div class="mb-4">
+                                    <label class="block text-sm font-medium text-aura-text mb-2">
                                         <script>document.write(t('missions.trigger_device_name_label'))</script>
                                     </label>
-                                    <input type="text" id="device-connected-name" class="form-input w-full px-4 py-2 bg-aura-bg border border-aura-border rounded-lg text-aura-text placeholder-aura-muted focus:outline-none focus:border-aura-accent transition-colors">
+                                    <input type="text" id="device-connected-name" class="w-full px-4 py-2 bg-aura-bg border border-aura-border rounded-lg text-aura-text placeholder-aura-muted focus:outline-none focus:border-aura-accent transition-colors">
                                     <script>document.getElementById('device-connected-name').placeholder = t('missions.trigger_device_name_placeholder')</script>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Device Disconnected Trigger -->
-                        <div id="trigger-device_disconnected" class="trigger-fields is-hidden space-y-4">
+                        <div id="trigger-device_disconnected" class="trigger-fields hidden space-y-4">
                             <div class="text-sm text-aura-muted mb-4">
                                 <script>document.write(t('missions.trigger_device_disconnected_hint'))</script>
                             </div>
-                            <div class="form-row grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div class="form-group mb-4">
-                                    <label class="form-label block text-sm font-medium text-aura-text mb-2">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div class="mb-4">
+                                    <label class="block text-sm font-medium text-aura-text mb-2">
                                         <script>document.write(t('missions.trigger_device_id_label'))</script>
                                     </label>
-                                    <input type="text" id="device-disconnected-id" class="form-input w-full px-4 py-2 bg-aura-bg border border-aura-border rounded-lg text-aura-text placeholder-aura-muted focus:outline-none focus:border-aura-accent transition-colors">
+                                    <input type="text" id="device-disconnected-id" class="w-full px-4 py-2 bg-aura-bg border border-aura-border rounded-lg text-aura-text placeholder-aura-muted focus:outline-none focus:border-aura-accent transition-colors">
                                     <script>document.getElementById('device-disconnected-id').placeholder = t('missions.trigger_device_id_placeholder')</script>
                                 </div>
-                                <div class="form-group mb-4">
-                                    <label class="form-label block text-sm font-medium text-aura-text mb-2">
+                                <div class="mb-4">
+                                    <label class="block text-sm font-medium text-aura-text mb-2">
                                         <script>document.write(t('missions.trigger_device_name_label'))</script>
                                     </label>
-                                    <input type="text" id="device-disconnected-name" class="form-input w-full px-4 py-2 bg-aura-bg border border-aura-border rounded-lg text-aura-text placeholder-aura-muted focus:outline-none focus:border-aura-accent transition-colors">
+                                    <input type="text" id="device-disconnected-name" class="w-full px-4 py-2 bg-aura-bg border border-aura-border rounded-lg text-aura-text placeholder-aura-muted focus:outline-none focus:border-aura-accent transition-colors">
                                     <script>document.getElementById('device-disconnected-name').placeholder = t('missions.trigger_device_name_placeholder')</script>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Fritz!Box Call Trigger -->
-                        <div id="trigger-fritzbox_call" class="trigger-fields is-hidden space-y-4">
+                        <div id="trigger-fritzbox_call" class="trigger-fields hidden space-y-4">
                             <div class="text-sm text-aura-muted mb-4">
                                 <script>document.write(t('missions.trigger_fritzbox_call_hint'))</script>
                             </div>
-                            <div class="form-group mb-4">
-                                <label class="form-label block text-sm font-medium text-aura-text mb-2">
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-aura-text mb-2">
                                     <script>document.write(t('missions.trigger_fritzbox_call_type_label'))</script>
                                 </label>
-                                <select id="fritzbox-call-type" class="form-select w-full px-4 py-2 bg-aura-bg border border-aura-border rounded-lg text-aura-text focus:outline-none focus:border-aura-accent transition-colors">
+                                <select id="fritzbox-call-type" class="w-full px-4 py-2 bg-aura-bg border border-aura-border rounded-lg text-aura-text focus:outline-none focus:border-aura-accent transition-colors">
                                     <option value="">
                                         <script>document.write(t('missions.trigger_fritzbox_call_type_any'))</script>
                                     </option>
@@ -563,22 +562,22 @@
                         </div>
 
                         <!-- Budget Warning Trigger -->
-                        <div id="trigger-budget_warning" class="trigger-fields is-hidden">
+                        <div id="trigger-budget_warning" class="trigger-fields hidden">
                             <div class="text-sm text-aura-muted">
                                 <script>document.write(t('missions.trigger_budget_warning_hint'))</script>
                             </div>
                         </div>
 
                         <!-- Budget Exceeded Trigger -->
-                        <div id="trigger-budget_exceeded" class="trigger-fields is-hidden">
+                        <div id="trigger-budget_exceeded" class="trigger-fields hidden">
                             <div class="text-sm text-aura-muted">
                                 <script>document.write(t('missions.trigger_budget_exceeded_hint'))</script>
                             </div>
                         </div>
                     </div>
 
-                    <div class="form-group flex items-center gap-4 mt-6">
-                        <label class="toggle-switch relative inline-flex items-center cursor-pointer">
+                    <div class="flex items-center gap-4 mt-6">
+                        <label class="relative inline-flex items-center cursor-pointer">
                             <input type="checkbox" id="mission-locked" class="sr-only peer">
                             <div class="w-11 h-6 bg-aura-border peer-focus:ring-2 peer-focus:ring-aura-accent/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-aura-accent"></div>
                         </label>
@@ -586,18 +585,18 @@
                             <div class="font-medium text-aura-text">
                                 <script>document.write(t('missions.form_lock_label'))</script>
                             </div>
-                            <div class="form-hint text-xs text-aura-muted">
+                            <div class="text-xs text-aura-muted">
                                 <script>document.write(t('missions.form_lock_hint'))</script>
                             </div>
                         </div>
                     </div>
                 </form>
             </div>
-            <div class="modal-footer flex items-center justify-end gap-3 p-6 border-t border-aura-border">
-                <button type="button" class="btn-secondary px-4 py-2 bg-aura-border/50 text-aura-text rounded-lg font-medium hover:bg-aura-border transition-colors" onclick="closeModal('modal')">
+            <div class="flex items-center justify-end gap-3 p-6 border-t border-aura-border">
+                <button type="button" class="px-4 py-2 bg-aura-border/50 text-aura-text rounded-lg font-medium hover:bg-aura-border transition-colors" onclick="closeModal('modal')">
                     <script>document.write(t('missions.modal_btn_cancel'))</script>
                 </button>
-                <button type="button" class="btn-primary px-4 py-2 bg-aura-accent text-white rounded-lg font-medium hover:opacity-90 transition-opacity" onclick="saveMission()">
+                <button type="button" class="px-4 py-2 bg-aura-accent text-white rounded-lg font-medium hover:opacity-90 transition-opacity" onclick="saveMission()">
                     <script>document.write(t('missions.modal_btn_save'))</script>
                 </button>
             </div>

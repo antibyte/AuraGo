@@ -29,7 +29,7 @@
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/shared.css">
+    <link rel="stylesheet" href="/shared.css">`n  <link rel="stylesheet" href="/css/tailwind-compat.css">
     <script src="/shared.js"></script>
     <script>
         (function () { var t = localStorage.getItem('aurago-theme'); if (t) document.documentElement.setAttribute('data-theme', t); })();
@@ -82,7 +82,7 @@
         </div>
 
         <!-- Pagination -->
-        <div id="gallery-pagination" class="is-hidden flex items-center justify-center gap-4 py-6">
+        <div id="gallery-pagination" class="hidden flex items-center justify-center gap-4 py-6">
             <button 
                 id="gallery-prev" 
                 onclick="galleryPrev()"
@@ -102,7 +102,7 @@
     <!-- Lightbox Modal -->
     <div 
         id="lightbox" 
-        class="fixed inset-0 z-[1000] bg-black/85 is-hidden items-center justify-center p-4 sm:p-8"
+        class="fixed inset-0 z-[1000] bg-black/85 hidden items-center justify-center p-4 sm:p-8"
         onclick="closeLightbox(event)">
         <div 
             class="relative max-w-[900px] max-h-[90vh] w-full bg-aura-bg rounded-xl overflow-hidden flex flex-col border border-aura-border shadow-2xl"

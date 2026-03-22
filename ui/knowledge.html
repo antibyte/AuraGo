@@ -110,7 +110,7 @@
         </div>
 
         <!-- ═══════ FILES PANEL ═══════ -->
-        <div id="panel-files" class="is-hidden">
+        <div id="panel-files" class="hidden">
             <div class="bg-aura-surface rounded-xl p-6 shadow-lg border border-aura-border mb-6">
                 <div class="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
                     <input type="text" id="files-search" 
@@ -119,7 +119,7 @@
                         oninput="filterFiles()">
                     <label class="btn btn-primary whitespace-nowrap cursor-pointer">
                         <span>⬆</span> <span data-i18n="knowledge.files_upload">Upload File</span>
-                        <input type="file" id="file-upload-input" class="is-hidden" onchange="uploadFile(this)">
+                        <input type="file" id="file-upload-input" class="hidden" onchange="uploadFile(this)">
                     </label>
                 </div>
             </div>
@@ -146,7 +146,7 @@
         </div>
 
         <!-- ═══════ DEVICES PANEL ═══════ -->
-        <div id="panel-devices" class="is-hidden">
+        <div id="panel-devices" class="hidden">
             <div class="bg-aura-surface rounded-xl p-6 shadow-lg border border-aura-border mb-6">
                 <div class="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
                     <input type="text" id="devices-search" 
@@ -344,4 +344,3 @@
     <script src="/js/knowledge/main.js"></script>
 </body>
 </html>
-
