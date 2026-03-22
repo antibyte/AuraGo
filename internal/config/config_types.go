@@ -24,6 +24,33 @@ type OAuthToken struct {
 	Expiry       string `json:"expiry"` // RFC3339
 }
 
+// SpecialistConfig holds per-role configuration for a specialist co-agent.
+// Empty LLM.Provider inherits from co_agents.llm, which in turn falls back to the main LLM.
+type SpecialistConfig struct {
+	Enabled bool `yaml:"enabled"`
+	LLM     struct {
+		Provider     string `yaml:"provider"`         // provider entry ID (empty = inherit co_agents.llm)
+		ProviderType string `yaml:"-"       json:"-"` // resolved
+		BaseURL      string `yaml:"-"       json:"-"` // resolved
+		APIKey       string `yaml:"-"       json:"-"` // resolved
+		Model        string `yaml:"-"       json:"-"` // resolved
+	} `yaml:"llm"`
+	CircuitBreaker struct {
+		MaxToolCalls   int `yaml:"max_tool_calls"`  // 0 = inherit co_agents value
+		TimeoutSeconds int `yaml:"timeout_seconds"` // 0 = inherit co_agents value
+		MaxTokens      int `yaml:"max_tokens"`      // 0 = inherit co_agents value
+	} `yaml:"circuit_breaker"`
+}
+
+// ValidSpecialistRoles lists all recognized specialist role names.
+var ValidSpecialistRoles = map[string]bool{
+	"researcher": true,
+	"coder":      true,
+	"designer":   true,
+	"security":   true,
+	"writer":     true,
+}
+
 // ProviderEntry defines a named LLM provider connection that can be referenced
 // by multiple config slots (LLM, Fallback, Vision, Whisper, Embeddings, etc.).
 type ProviderEntry struct {
@@ -161,16 +188,18 @@ type Config struct {
 		SiteMonitorPath      string `yaml:"site_monitor_path"`
 	} `yaml:"sqlite"`
 	Embeddings struct {
-		Provider      string `yaml:"provider"`          // "disabled" or provider entry ID
-		ProviderType  string `yaml:"-"       json:"-"`  // resolved
-		BaseURL       string `yaml:"-"       json:"-"`  // resolved from provider
-		APIKey        string `yaml:"-"       json:"-"`  // resolved from provider
-		Model         string `yaml:"-"       json:"-"`  // resolved from provider
-		InternalModel string `yaml:"internal_model"`    // legacy/compat: model when using main LLM provider
-		ExternalURL   string `yaml:"external_url"`      // legacy/compat: dedicated endpoint URL
-		ExternalModel string `yaml:"external_model"`    // legacy/compat: dedicated endpoint model
-		LegacyAPIKey  string `yaml:"api_key"  json:"-"` // legacy/compat: separate API key
-		LocalOllama   struct {
+		Provider         string `yaml:"provider"`          // "disabled" or provider entry ID
+		ProviderType     string `yaml:"-"       json:"-"`  // resolved
+		BaseURL          string `yaml:"-"       json:"-"`  // resolved from provider
+		APIKey           string `yaml:"-"       json:"-"`  // resolved from provider
+		Model            string `yaml:"-"       json:"-"`  // resolved from provider
+		InternalModel    string `yaml:"internal_model"`    // legacy/compat: model when using main LLM provider
+		ExternalURL      string `yaml:"external_url"`      // legacy/compat: dedicated endpoint URL
+		ExternalModel    string `yaml:"external_model"`    // legacy/compat: dedicated endpoint model
+		LegacyAPIKey     string `yaml:"api_key"  json:"-"` // legacy/compat: separate API key
+		Multimodal       bool   `yaml:"multimodal"`        // enable multimodal embeddings (images, audio)
+		MultimodalFormat string `yaml:"multimodal_format"` // "auto", "openai", "vertex" — API format for multimodal
+		LocalOllama      struct {
 			Enabled       bool   `yaml:"enabled"`        // auto-manage an Ollama container for local embeddings
 			Model         string `yaml:"model"`          // embedding model (default: "nomic-embed-text")
 			ContainerPort int    `yaml:"container_port"` // host port for the managed container (default: 11435)
@@ -498,6 +527,13 @@ type Config struct {
 			TimeoutSeconds int `yaml:"timeout_seconds"`
 			MaxTokens      int `yaml:"max_tokens"`
 		} `yaml:"circuit_breaker"`
+		Specialists struct {
+			Researcher SpecialistConfig `yaml:"researcher"`
+			Coder      SpecialistConfig `yaml:"coder"`
+			Designer   SpecialistConfig `yaml:"designer"`
+			Security   SpecialistConfig `yaml:"security"`
+			Writer     SpecialistConfig `yaml:"writer"`
+		} `yaml:"specialists"`
 	} `yaml:"co_agents"`
 	A2A struct {
 		Server struct {
@@ -1072,4 +1108,23 @@ type ModelCost struct {
 type ModelCostRates struct {
 	InputPerMillion  float64 `yaml:"input_per_million"`
 	OutputPerMillion float64 `yaml:"output_per_million"`
+}
+
+// GetSpecialist returns a pointer to the SpecialistConfig for the given role.
+// Returns nil if the role is unknown.
+func (c *Config) GetSpecialist(role string) *SpecialistConfig {
+	switch role {
+	case "researcher":
+		return &c.CoAgents.Specialists.Researcher
+	case "coder":
+		return &c.CoAgents.Specialists.Coder
+	case "designer":
+		return &c.CoAgents.Specialists.Designer
+	case "security":
+		return &c.CoAgents.Specialists.Security
+	case "writer":
+		return &c.CoAgents.Specialists.Writer
+	default:
+		return nil
+	}
 }

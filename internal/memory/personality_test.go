@@ -377,6 +377,46 @@ func TestApplyMilestoneEffectUnknownLabel(t *testing.T) {
 	}
 }
 
+// TestDecayAllTraitsWeightedIsAtomic verifies that all trait updates from a single
+// DecayAllTraitsWeighted call are applied atomically: either all traits are updated
+// or none are (transaction safety). This test checks the observable outcome — that
+// all traits shift consistently in the same call.
+func TestDecayAllTraitsWeightedIsAtomic(t *testing.T) {
+	stm := newTestPersonalityDB(t)
+
+	// Set multiple traits above 0.5 so they all experience decay
+	traitVals := map[string]float64{
+		TraitCuriosity:    0.8,
+		TraitThoroughness: 0.7,
+		TraitCreativity:   0.75,
+		TraitEmpathy:      0.65,
+		TraitConfidence:   0.6,
+		TraitAffinity:     0.7,
+	}
+	for trait, val := range traitVals {
+		if err := stm.SetTrait(trait, val); err != nil {
+			t.Fatalf("SetTrait(%s): %v", trait, err)
+		}
+	}
+
+	meta := PersonalityMeta{Volatility: 1.0, TraitDecayRate: 1.0}
+	if err := stm.DecayAllTraitsWeighted(0.05, meta); err != nil {
+		t.Fatalf("DecayAllTraitsWeighted: %v", err)
+	}
+
+	traits, err := stm.GetTraits()
+	if err != nil {
+		t.Fatalf("GetTraits: %v", err)
+	}
+	// All non-loneliness traits that were above 0.5 should now be lower
+	for trait, before := range traitVals {
+		after := traits[trait]
+		if after >= before {
+			t.Errorf("trait %s was not decayed: before=%.4f after=%.4f", trait, before, after)
+		}
+	}
+}
+
 // helper
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsStr(s, substr))

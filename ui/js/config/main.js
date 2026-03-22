@@ -535,6 +535,28 @@ async function renderSection(key) {
     html += '</div>';
 
     document.getElementById('content').innerHTML = html;
+
+    // ── Embeddings: multimodal_format visibility depends on multimodal toggle ──
+    if (key === 'embeddings') {
+        _embeddingsBindMultimodal();
+    }
+}
+
+/** Wire the multimodal toggle to show/hide the format selector. */
+function _embeddingsBindMultimodal() {
+    const toggle = document.querySelector('[data-path="embeddings.multimodal"]');
+    const formatEl = document.querySelector('[data-path="embeddings.multimodal_format"]');
+    if (!toggle || !formatEl) return;
+    const formatField = formatEl.closest('.field-group');
+    if (!formatField) return;
+
+    function sync() {
+        formatField.style.display = toggle.classList.contains('on') ? '' : 'none';
+    }
+    sync();
+
+    // Observe class changes on the toggle to react to toggleBool()
+    new MutationObserver(sync).observe(toggle, { attributes: true, attributeFilter: ['class'] });
 }
 
 
@@ -1010,7 +1032,8 @@ const SECTION_MODULES = {
     server: { m: 'server', fn: 'renderServerSection' },
     a2a: { m: 'a2a', fn: 'renderA2ASection' },
     n8n: { m: 'n8n', fn: 'renderN8nSection' },
-    tts: { m: 'tts', fn: 'renderTTSSection' }
+    tts: { m: 'tts', fn: 'renderTTSSection' },
+    co_agents: { m: 'co_agents', fn: 'renderCoAgentsSection' }
 };
 
 function loadModule(name) {

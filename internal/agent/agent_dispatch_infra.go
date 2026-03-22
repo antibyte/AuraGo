@@ -59,6 +59,31 @@ func dispatchInfra(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 			slots := coAgentRegistry.AvailableSlots()
 			return fmt.Sprintf(`Tool Output: {"status": "ok", "co_agent_id": "%s", "available_slots": %d, "message": "Co-Agent started. Use operation 'list' to check status and 'get_result' when completed."}`, id, slots)
 
+		case "spawn_specialist":
+			task := tc.Task
+			if task == "" {
+				task = tc.Content
+			}
+			if task == "" {
+				return `Tool Output: {"status": "error", "message": "'task' is required to spawn a specialist."}`
+			}
+			specialist := tc.Specialist
+			if specialist == "" {
+				return `Tool Output: {"status": "error", "message": "'specialist' is required. Choose: researcher, coder, designer, security, writer."}`
+			}
+			coReq := CoAgentRequest{
+				Task:         task,
+				ContextHints: tc.ContextHints,
+				Specialist:   specialist,
+			}
+			id, err := SpawnCoAgent(cfg, ctx, logger, coAgentRegistry,
+				shortTermMem, longTermMem, vault, registry, manifest, kg, inventoryDB, coReq, budgetTracker)
+			if err != nil {
+				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
+			}
+			slots := coAgentRegistry.AvailableSlots()
+			return fmt.Sprintf(`Tool Output: {"status": "ok", "co_agent_id": "%s", "specialist": "%s", "available_slots": %d, "message": "Specialist '%s' started. Use 'list' to check status and 'get_result' when completed."}`, id, specialist, slots, specialist)
+
 		case "list", "status":
 			list := coAgentRegistry.List()
 			data, _ := json.Marshal(map[string]interface{}{
@@ -106,7 +131,7 @@ func dispatchInfra(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 			return fmt.Sprintf(`Tool Output: {"status": "ok", "message": "Stopped %d co-agent(s)."}`, n)
 
 		default:
-			return `Tool Output: {"status": "error", "message": "Unknown co_agent operation. Use: spawn, list, get_result, stop, stop_all"}`
+			return `Tool Output: {"status": "error", "message": "Unknown co_agent operation. Use: spawn, spawn_specialist, list, get_result, stop, stop_all"}`
 		}
 
 	case "mdns_scan":

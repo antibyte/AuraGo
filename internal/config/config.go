@@ -97,6 +97,7 @@ func Load(path string) (*Config, error) {
 	cfg.Embeddings.LocalOllama.Model = "nomic-embed-text"
 	cfg.Embeddings.LocalOllama.ContainerPort = 11435
 	cfg.Embeddings.LocalOllama.GPUBackend = "auto"
+	cfg.Embeddings.MultimodalFormat = "auto"
 
 	// Piper TTS container defaults
 	cfg.TTS.Piper.ContainerPort = 10200

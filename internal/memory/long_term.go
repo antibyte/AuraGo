@@ -26,6 +26,7 @@ type ArchiveItem struct {
 // VectorDB represents a generic vector database for long term storage
 type VectorDB interface {
 	StoreDocument(concept, content string) ([]string, error)
+	StoreDocumentWithEmbedding(concept, content string, embedding []float32) (string, error)
 	StoreBatch(items []ArchiveItem) ([]string, error)
 	SearchSimilar(query string, topK int, excludeCollections ...string) ([]string, []string, error)
 	// SearchMemoriesOnly searches only the aurago_memories collection.
@@ -242,7 +243,7 @@ func (cv *ChromemVectorDB) StoreDocumentWithDomain(concept, content, domain stri
 	fullContent := concept + "\n\n" + content
 
 	metadata := map[string]string{
-		"concept": concept,
+		"concept":   concept,
 		"timestamp": fmt.Sprintf("%d", time.Now().Unix()),
 	}
 	if domain != "" {
@@ -301,6 +302,44 @@ func (cv *ChromemVectorDB) StoreDocumentWithDomain(concept, content, domain stri
 	return storedIDs, nil
 }
 
+// StoreDocumentWithEmbedding stores a document with a pre-computed embedding vector.
+// This bypasses the text embedding function, allowing multimodal content (images, audio)
+// to be stored with externally computed embeddings.
+func (cv *ChromemVectorDB) StoreDocumentWithEmbedding(concept, content string, embedding []float32) (string, error) {
+	if cv.disabled.Load() {
+		return "", fmt.Errorf("VectorDB is disabled (embedding pipeline failed at startup)")
+	}
+	if len(embedding) == 0 {
+		return "", fmt.Errorf("embedding vector is empty")
+	}
+
+	cv.mu.Lock()
+	defer cv.mu.Unlock()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	docID := fmt.Sprintf("mm_%d_%d", time.Now().UnixMilli(), cv.idCounter.Add(1))
+	doc := chromem.Document{
+		ID: docID,
+		Metadata: map[string]string{
+			"concept":    concept,
+			"timestamp":  fmt.Sprintf("%d", time.Now().Unix()),
+			"multimodal": "true",
+		},
+		Content:   content,
+		Embedding: embedding,
+	}
+
+	if err := cv.collection.AddDocument(ctx, doc); err != nil {
+		cv.logger.Error("Failed to store multimodal document", "error", err, "concept", concept)
+		return "", fmt.Errorf("failed to add multimodal document: %w", err)
+	}
+
+	cv.logger.Info("Stored multimodal document", "id", docID, "concept", concept)
+	return docID, nil
+}
+
 // chunkText splits a large text into smaller segments of roughly chunkSize characters,
 // preferring paragraph (\n\n) or sentence boundaries. Adds overlap characters between chunks.
 func chunkText(text string, chunkSize, overlap int) []string {
@@ -357,7 +396,7 @@ func (cv *ChromemVectorDB) StoreBatch(items []ArchiveItem) ([]string, error) {
 	for _, item := range items {
 		fullContent := item.Concept + "\n\n" + item.Content
 		metadata := map[string]string{
-			"concept": item.Concept,
+			"concept":   item.Concept,
 			"timestamp": fmt.Sprintf("%d", time.Now().Unix()),
 		}
 		if item.Domain != "" {
@@ -507,7 +546,7 @@ func (cv *ChromemVectorDB) SearchSimilar(query string, topK int, excludeCollecti
 				}
 
 				cv.logger.Debug("Retrieved memory", "collection", cr.colName, "id", result.ID, "raw_sim", result.Similarity, "decayed_sim", sim)
-				
+
 				formattedText := result.Content
 				if domainHint != "" {
 					formattedText = domainHint + " " + result.Content

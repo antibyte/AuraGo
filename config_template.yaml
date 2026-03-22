@@ -81,6 +81,47 @@ co_agents:
         model: ""
         provider: ""
     max_concurrent: 3
+    specialists:
+        researcher:
+            enabled: false
+            llm:
+                provider: ""
+            circuit_breaker:
+                max_tool_calls: 0
+                timeout_seconds: 0
+                max_tokens: 0
+        coder:
+            enabled: false
+            llm:
+                provider: ""
+            circuit_breaker:
+                max_tool_calls: 0
+                timeout_seconds: 0
+                max_tokens: 0
+        designer:
+            enabled: false
+            llm:
+                provider: ""
+            circuit_breaker:
+                max_tool_calls: 0
+                timeout_seconds: 0
+                max_tokens: 0
+        security:
+            enabled: false
+            llm:
+                provider: ""
+            circuit_breaker:
+                max_tool_calls: 0
+                timeout_seconds: 0
+                max_tokens: 0
+        writer:
+            enabled: false
+            llm:
+                provider: ""
+            circuit_breaker:
+                max_tool_calls: 0
+                timeout_seconds: 0
+                max_tokens: 0
 directories:
     data_dir: ./data
     prompts_dir: ./prompts
@@ -115,6 +156,8 @@ embeddings:
     external_url: ""
     internal_model: ""
     provider: internal
+    multimodal: false
+    multimodal_format: auto
 fallback_llm:
     api_key: ""
     base_url: ""

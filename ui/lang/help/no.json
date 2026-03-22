@@ -104,6 +104,8 @@
   "help.email_accounts.watch_folder": "Slozka pro email_accounts.",
   "help.email_accounts.watch_interval_seconds": "Interval pro email_accounts.",
   "help.embeddings.provider": "Poskytovatel pro embeddings.",
+  "help.embeddings.multimodal": "Aktiverer multimodale embeddings. Når aktiv, bygges bilder og lydfiler direkte inn som vektorer. Aktiver bare hvis embedding-modellen støtter multimodal inndata (f.eks. Voyage AI, Google multimodal-embedding). Skannede PDF-er med lite utvinnbar tekst behandles automatisk som bilder.",
+  "help.embeddings.multimodal_format": "API-format for multimodale embedding-forespørsler. 'auto' oppdager formatet basert på leverandørtype. 'openai' bruker det OpenAI-kompatible formatet, 'vertex' Google Vertex AI-formatet.",
   "help.fallback_llm.enabled": "Povoluje Fallback LLM.",
   "help.fallback_llm.error_threshold": "Prahova hodnota pro fallback_llm.",
   "help.fallback_llm.probe_interval_seconds": "Interval pro fallback_llm.",

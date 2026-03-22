@@ -104,6 +104,8 @@
   "help.email_accounts.watch_folder": "Der Mailbox-Ordner, der auf neue Mails geprüft wird (üblicherweise INBOX).",
   "help.email_accounts.watch_interval_seconds": "Intervall in Sekunden für den Mailbox-Check dieses Kontos.",
   "help.embeddings.provider": "Provider aus der Provider-Verwaltung, der für Embeddings genutzt wird. Modell und URL werden aus dem Provider-Eintrag übernommen. 'disabled' deaktiviert das Langzeitgedächtnis vollständig.",
+  "help.embeddings.multimodal": "Aktiviert multimodale Embeddings. Wenn aktiv, werden Bilder und Audiodateien direkt als Vektoren eingebettet. Nur aktivieren, wenn das Embedding-Modell multimodale Eingaben unterstützt (z.B. Voyage AI, Google multimodal-embedding). Gescannte PDFs mit wenig Text werden automatisch als Bild verarbeitet.",
+  "help.embeddings.multimodal_format": "API-Format für multimodale Embedding-Anfragen. 'auto' erkennt das Format anhand des Provider-Typs. 'openai' verwendet das OpenAI-kompatible Format, 'vertex' das Google Vertex AI-Format.",
   "help.fallback_llm.enabled": "Aktiviert die automatische Umschaltung auf einen Backup-LLM bei Fehlern.",
   "help.fallback_llm.error_threshold": "Anzahl der Fehler, nach denen auf das Fallback-Modell gewechselt wird.",
   "help.fallback_llm.probe_interval_seconds": "Intervall in Sekunden, nach dem versucht wird, das Hauptmodell wiederherzustellen.",

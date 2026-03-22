@@ -176,6 +176,13 @@ func (s *SQLiteMemory) DecayAllTraitsWeighted(baseAmount float64, meta Personali
 	}
 	bounds := s.GetAllTraitBounds()
 
+	// Compute all new values before touching the DB
+	type traitUpdate struct {
+		trait string
+		value float64
+	}
+	var updates []traitUpdate
+
 	for trait, val := range traits {
 		if trait == TraitLoneliness {
 			continue // loneliness is managed by time-based logic, not decay
@@ -233,11 +240,28 @@ func (s *SQLiteMemory) DecayAllTraitsWeighted(baseAmount float64, meta Personali
 		}
 		newVal = math.Max(floor, math.Min(ceiling, newVal))
 
-		if err := s.SetTrait(trait, newVal); err != nil {
-			return fmt.Errorf("weighted decay for %s: %w", trait, err)
+		updates = append(updates, traitUpdate{trait: trait, value: newVal})
+	}
+
+	if len(updates) == 0 {
+		return nil
+	}
+
+	// Apply all updates atomically so a crash mid-loop never leaves traits inconsistent
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("begin trait decay transaction: %w", err)
+	}
+	stmt := `UPDATE personality_traits
+	         SET value = MIN(1.0, MAX(0.0, ?)), updated_at = CURRENT_TIMESTAMP
+	         WHERE trait = ?`
+	for _, u := range updates {
+		if _, execErr := tx.Exec(stmt, u.value, u.trait); execErr != nil {
+			tx.Rollback()
+			return fmt.Errorf("weighted decay for %s: %w", u.trait, execErr)
 		}
 	}
-	return nil
+	return tx.Commit()
 }
 
 // ── Trait Bounds ─────────────────────────────────────────────────────────────

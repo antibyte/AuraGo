@@ -185,6 +185,9 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 	if _, err := db.Exec("PRAGMA synchronous=NORMAL"); err != nil {
 		logger.Warn("Failed to set synchronous=NORMAL", "error", err)
 	}
+	if _, err := db.Exec("PRAGMA foreign_keys = ON"); err != nil {
+		logger.Warn("Failed to enable foreign key constraints", "error", err)
+	}
 	db.SetMaxOpenConns(1)
 
 	// Dynamic migration for is_pinned column

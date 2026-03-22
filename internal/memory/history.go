@@ -8,6 +8,13 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
+// maxEphemeralMessages is the upper bound on the number of messages held by an
+// ephemeral (co-agent) HistoryManager. When the limit is reached the oldest
+// non-pinned messages are trimmed to 75 % of the limit.
+const (
+	maxEphemeralMessages = 200
+)
+
 type HistoryMessage struct {
 	openai.ChatCompletionMessage
 	Pinned     bool  `json:"pinned"`
@@ -127,10 +134,35 @@ func (hm *HistoryManager) Add(role, content string, id int64, pinned bool, isInt
 		Pinned:     pinned,
 		IsInternal: isInternal,
 	})
+	// For ephemeral (co-agent) history, enforce a message-count ceiling to
+	// prevent unbounded memory growth in long-running co-agent loops.
+	if hm.file == "" && len(hm.Messages) > maxEphemeralMessages {
+		hm.trimEphemeralLocked()
+	}
 	hm.mu.Unlock()
 
 	hm.triggerSave()
 	return nil
+}
+
+// trimEphemeralLocked removes the oldest non-pinned messages until the slice is
+// at 75 % of maxEphemeralMessages. Must be called with hm.mu held.
+func (hm *HistoryManager) trimEphemeralLocked() {
+	targetLen := maxEphemeralMessages * 3 / 4
+	if len(hm.Messages) <= targetLen {
+		return
+	}
+	result := make([]HistoryMessage, 0, targetLen+16)
+	toRemove := len(hm.Messages) - targetLen
+	removed := 0
+	for _, m := range hm.Messages {
+		if removed < toRemove && !m.Pinned {
+			removed++
+			continue
+		}
+		result = append(result, m)
+	}
+	hm.Messages = result
 }
 
 func (hm *HistoryManager) SetPinned(id int64, pinned bool) error {

@@ -406,6 +406,8 @@
     "help.email_accounts.watch_folder": "Der Mailbox-Ordner, der auf neue Mails geprüft wird (üblicherweise INBOX).",
     "help.email_accounts.watch_interval_seconds": "Intervall in Sekunden für den Mailbox-Check dieses Kontos.",
     "help.embeddings.provider": "Provider aus der Provider-Verwaltung, der für Embeddings genutzt wird. Modell und URL werden aus dem Provider-Eintrag übernommen. 'disabled' deaktiviert das Langzeitgedächtnis vollständig.",
+    "help.embeddings.multimodal": "Aktiviert multimodale Embeddings. Wenn aktiv, werden Bilder und Audiodateien direkt als Vektoren eingebettet, statt nur als Text. Nur aktivieren, wenn das verwendete Embedding-Modell multimodale Eingaben unterstützt (z.B. Voyage AI, Google multimodal-embedding). Gescannte PDFs mit wenig Text werden automatisch als Bild verarbeitet.",
+    "help.embeddings.multimodal_format": "API-Format für multimodale Embedding-Anfragen. 'auto' erkennt das Format anhand des Provider-Typs. 'openai' verwendet das OpenAI-kompatible Format, 'vertex' das Google Vertex AI-Format.",
     "help.fallback_llm.enabled": "Aktiviert die automatische Umschaltung auf einen Backup-LLM bei Fehlern.",
     "help.fallback_llm.error_threshold": "Anzahl der Fehler, nach denen auf das Fallback-Modell gewechselt wird.",
     "help.fallback_llm.probe_interval_seconds": "Intervall in Sekunden, nach dem versucht wird, das Hauptmodell wiederherzustellen.",
@@ -2063,6 +2065,8 @@
     "help.email_accounts.watch_folder": "The mailbox folder to check for new mails (usually INBOX).",
     "help.email_accounts.watch_interval_seconds": "Interval in seconds to check this account's mailbox.",
     "help.embeddings.provider": "Provider from the provider management used for embeddings. Model and URL are taken from the provider entry. 'disabled' turns off long-term memory entirely.",
+    "help.embeddings.multimodal": "Enables multimodal embeddings. When active, images and audio files are embedded directly as vectors instead of text only. Only enable if your embedding model supports multimodal input (e.g. Voyage AI, Google multimodal-embedding). Scanned PDFs with little extractable text are automatically processed as images.",
+    "help.embeddings.multimodal_format": "API format for multimodal embedding requests. 'auto' detects the format based on the provider type. 'openai' uses the OpenAI-compatible format, 'vertex' uses the Google Vertex AI format.",
     "help.fallback_llm.enabled": "Enables automatic failover to a backup LLM on errors.",
     "help.fallback_llm.error_threshold": "Number of sequential errors before switching to fallback model.",
     "help.fallback_llm.probe_interval_seconds": "Interval in seconds to probe and try restoring the primary model.",
@@ -3371,6 +3375,13 @@
     "help.embeddings.provider": {
       "provider_ref": true,
       "allow_disabled": true
+    },
+    "help.embeddings.multimodal_format": {
+      "options": [
+        "auto",
+        "openai",
+        "vertex"
+      ]
     },
     "help.whisper.provider": {
       "provider_ref": true

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 	"sync"
 	"time"
 )
@@ -22,6 +23,7 @@ const (
 type CoAgentInfo struct {
 	ID          string
 	Task        string
+	Specialist  string // Specialist role ("researcher","coder", etc.) or empty for generic
 	State       CoAgentState
 	StartedAt   time.Time
 	CompletedAt time.Time
@@ -88,6 +90,12 @@ func (r *CoAgentRegistry) AvailableSlots() int {
 // Register creates a new co-agent entry and returns its ID.
 // Returns an error if all slots are occupied.
 func (r *CoAgentRegistry) Register(task string, cancel context.CancelFunc) (string, error) {
+	return r.RegisterWithPrefix("coagent", task, cancel)
+}
+
+// RegisterWithPrefix creates a new co-agent entry with a custom ID prefix.
+// The prefix determines the session ID used for tool blacklist filtering.
+func (r *CoAgentRegistry) RegisterWithPrefix(prefix, task string, cancel context.CancelFunc) (string, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -102,15 +110,26 @@ func (r *CoAgentRegistry) Register(task string, cancel context.CancelFunc) (stri
 	}
 
 	r.counter++
-	id := fmt.Sprintf("coagent-%d", r.counter)
-	r.agents[id] = &CoAgentInfo{
-		ID:        id,
-		Task:      task,
-		State:     CoAgentRunning,
-		StartedAt: time.Now(),
-		Cancel:    cancel,
+	id := fmt.Sprintf("%s-%d", prefix, r.counter)
+
+	// Derive specialist role from prefix
+	specialist := ""
+	if prefix != "coagent" {
+		// prefix is "specialist-<role>", extract the role
+		if after, found := strings.CutPrefix(prefix, "specialist-"); found {
+			specialist = after
+		}
 	}
-	r.logger.Info("Co-Agent registered", "id", id, "task", truncateStr(task, 80))
+
+	r.agents[id] = &CoAgentInfo{
+		ID:         id,
+		Task:       task,
+		Specialist: specialist,
+		State:      CoAgentRunning,
+		StartedAt:  time.Now(),
+		Cancel:     cancel,
+	}
+	r.logger.Info("Co-Agent registered", "id", id, "specialist", specialist, "task", truncateStr(task, 80))
 	return id, nil
 }
 
@@ -192,6 +211,7 @@ func (r *CoAgentRegistry) List() []map[string]interface{} {
 		entry := map[string]interface{}{
 			"id":          a.ID,
 			"task":        truncateStr(a.Task, 120),
+			"specialist":  a.Specialist,
 			"state":       string(a.State),
 			"started_at":  a.StartedAt.Format(time.RFC3339),
 			"runtime":     fmt.Sprintf("%.1fs", a.Runtime().Seconds()),

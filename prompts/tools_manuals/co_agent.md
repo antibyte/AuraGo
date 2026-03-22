@@ -9,7 +9,7 @@ Assume that the co-agents may be less capable than you, so you should double che
 
 ## Operations
 
-### spawn — Start a new co-agent with a task
+### spawn — Start a new generic co-agent with a task
 ```json
 {"action": "co_agent", "operation": "spawn", "task": "Research the current weather in Berlin and summarize it"}
 {"action": "co_agent", "operation": "spawn", "task": "Analyze the server logs for errors", "context_hints": ["server", "logs", "errors"]}
@@ -17,22 +17,44 @@ Assume that the co-agents may be less capable than you, so you should double che
 - `task` (required): Natural language description of what the co-agent should do
 - `context_hints` (optional): Keywords for RAG context injection — helps the co-agent find relevant memories
 
+### spawn_specialist — Start a specialized expert co-agent
+```json
+{"action": "co_agent", "operation": "spawn_specialist", "specialist": "researcher", "task": "Find the latest CVE vulnerabilities for OpenSSL 3.x"}
+{"action": "co_agent", "operation": "spawn_specialist", "specialist": "coder", "task": "Write a Go function that parses the config file and returns all enabled providers"}
+{"action": "co_agent", "operation": "spawn_specialist", "specialist": "designer", "task": "Create a modern logo for the AuraGo project, minimalist style"}
+{"action": "co_agent", "operation": "spawn_specialist", "specialist": "security", "task": "Audit the authentication middleware for common vulnerabilities"}
+{"action": "co_agent", "operation": "spawn_specialist", "specialist": "writer", "task": "Write a professional blog post about home lab automation"}
+```
+- `specialist` (required): One of `researcher`, `coder`, `designer`, `security`, `writer`
+- `task` (required): The task suited to the specialist's expertise
+- `context_hints` (optional): Keywords for RAG context injection
+
+#### Specialist Roles
+
+| Specialist | Best For | Key Tools |
+|-----------|----------|-----------|
+| **researcher** | Internet research, fact-finding, source verification | Web search skills, API requests, memory/RAG |
+| **coder** | Code writing, debugging, testing, architecture | Shell, Python, filesystem, git |
+| **designer** | Image generation, layouts, visual concepts | Image generation, filesystem |
+| **security** | Vulnerability audits, code review, system hardening | Shell (read), Python, filesystem (read) |
+| **writer** | Articles, docs, creative writing, communication | Memory/RAG, filesystem |
+
 ### list — Show all co-agents and their status
 ```json
 {"action": "co_agent", "operation": "list"}
 ```
-Returns: list of co-agents with ID, task, state (running/completed/failed/cancelled), timestamps, and available slots.
+Returns: list of co-agents with ID, task, specialist role, state (running/completed/failed/cancelled), timestamps, and available slots.
 
 ### get_result — Retrieve the result of a completed co-agent
 ```json
-{"action": "co_agent", "operation": "get_result", "co_agent_id": "coagent-1"}
+{"action": "co_agent", "operation": "get_result", "co_agent_id": "specialist-researcher-1"}
 ```
 - Returns the final text output from the co-agent
 - Only works for completed co-agents (returns error if still running)
 
 ### stop — Cancel a running co-agent
 ```json
-{"action": "co_agent", "operation": "stop", "co_agent_id": "coagent-1"}
+{"action": "co_agent", "operation": "stop", "co_agent_id": "specialist-coder-2"}
 ```
 
 ### stop_all — Cancel all running co-agents
@@ -42,32 +64,34 @@ Returns: list of co-agents with ID, task, state (running/completed/failed/cancel
 
 ## Workflow Pattern
 
-1. **Spawn** one or more co-agents with specific tasks
+1. **Spawn** one or more co-agents/specialists with specific tasks
 2. **Continue** working on other things while they run
 3. **Check status** with `list` periodically
 4. **Retrieve results** with `get_result` once completed
 5. **Integrate** results into your response
 
+## When to Use Specialists vs Generic Co-Agents
+
+- **Use specialists** when the task clearly falls into one domain (research, coding, design, security, writing)
+- **Use generic co-agents** for general-purpose tasks that don't need specialized expertise
+- **Combine specialists** for complex projects: e.g., researcher finds info → writer creates docs
+- **Always check results** — specialists may need guidance refinement
+
 ## Concurrency
 - Maximum concurrent co-agents: configured via `co_agents.max_concurrent` (default: 3)
+- Specialists and generic co-agents share the same slot pool
 - Each co-agent has its own circuit breaker (max tool calls, timeout)
 - Stale entries are automatically cleaned up after 30 minutes
 
 ## Restrictions
-Co-agents **cannot**:
+All co-agents and specialists **cannot**:
 - Modify core memory (read/query only)
 - Write to the knowledge graph (read only)
 - Modify notes (list only)
 - Spawn sub-agents (no recursion)
 - Schedule follow-ups or cron jobs
 
-Co-agents **can**:
-- Execute Python/shell commands
-- Use the filesystem
-- Make API requests
-- Query memory and knowledge graph
-- Use skills and custom tools
-- Access the secrets vault (read-only)
+Each specialist has additional role-specific tool restrictions (e.g., designer cannot run shell commands).
 
 ## Configuration (config.yaml)
 ```yaml
@@ -76,13 +100,31 @@ co_agents:
   max_concurrent: 3
   llm:
     provider: ""      # Falls back to main LLM if empty
-    base_url: ""
-    api_key: ""
-    model: ""
   circuit_breaker:
     max_tool_calls: 10
     timeout_seconds: 120
     max_tokens: 4096
+  specialists:
+    researcher:
+      enabled: true
+      llm:
+        provider: ""  # Empty = inherit co_agents LLM
+    coder:
+      enabled: true
+      llm:
+        provider: ""
+    designer:
+      enabled: true
+      llm:
+        provider: ""
+    security:
+      enabled: true
+      llm:
+        provider: ""
+    writer:
+      enabled: true
+      llm:
+        provider: ""
 ```
 
 ## A2A Bridge — Remote Agents

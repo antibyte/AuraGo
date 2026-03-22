@@ -51,7 +51,7 @@ func IsBinaryFile(path string) bool {
 	}
 
 	// Office/PDF documents are "binary" containers but contain extractable text
-	if IsDocumentFile(ext) || IsImageFile(ext) {
+	if IsDocumentFile(ext) || IsImageFile(ext) || IsAudioFile(ext) {
 		return false
 	}
 
@@ -122,6 +122,17 @@ var imageExtensions = map[string]bool{
 // IsImageFile returns true if the extension indicates an image file.
 func IsImageFile(ext string) bool {
 	return imageExtensions[strings.ToLower(ext)]
+}
+
+// audioExtensions lists audio file extensions.
+var audioExtensions = map[string]bool{
+	".mp3": true, ".wav": true, ".ogg": true, ".flac": true,
+	".aac": true, ".m4a": true, ".wma": true,
+}
+
+// IsAudioFile returns true if the extension indicates an audio file.
+func IsAudioFile(ext string) bool {
+	return audioExtensions[strings.ToLower(ext)]
 }
 
 // ── Text extraction ──────────────────────────────────────────────────────────

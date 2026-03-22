@@ -326,6 +326,7 @@ type ToolCall struct {
 	CoAgentID    string   `json:"co_agent_id"`
 	Task         string   `json:"task"`
 	ContextHints []string `json:"context_hints"`
+	Specialist   string   `json:"specialist"` // specialist role for spawn_specialist
 	// TTS / Chromecast fields
 	Text        string  `json:"text"`
 	DeviceAddr  string  `json:"device_addr"`
@@ -555,7 +556,7 @@ type RunConfig struct {
 
 func dispatchInner(ctx context.Context, tc ToolCall, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, missionManagerV2 *tools.MissionManagerV2, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, mediaRegistryDB *sql.DB, homepageRegistryDB *sql.DB, contactsDB *sql.DB, remoteHub *remote.RemoteHub, historyMgr *memory.HistoryManager, isMaintenance bool, surgeryPlan string, guardian *security.Guardian, llmGuardian *security.LLMGuardian, sessionID string, coAgentRegistry *CoAgentRegistry, budgetTracker *budget.Tracker) string {
 	// Co-Agent blacklist: co-agents (identified by sessionID prefix) cannot modify memory, notes, KG, or spawn sub-agents
-	isCoAgent := strings.HasPrefix(sessionID, "coagent-")
+	isCoAgent := strings.HasPrefix(sessionID, "coagent-") || strings.HasPrefix(sessionID, "specialist-")
 	if isCoAgent {
 		switch tc.Action {
 		case "manage_memory":
@@ -580,6 +581,14 @@ func dispatchInner(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 			return `Tool Output: {"status": "error", "message": "Co-Agents cannot schedule follow-ups."}`
 		case "cron_scheduler":
 			return `Tool Output: {"status": "error", "message": "Co-Agents cannot manage cron jobs."}`
+		}
+	}
+
+	// Specialist-specific tool restrictions (additional to the generic co-agent blacklist)
+	specialistRole := extractSpecialistRole(sessionID)
+	if specialistRole != "" {
+		if blocked := checkSpecialistToolRestriction(specialistRole, tc.Action, tc.Operation); blocked != "" {
+			return blocked
 		}
 	}
 

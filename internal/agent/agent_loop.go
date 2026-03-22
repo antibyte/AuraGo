@@ -88,7 +88,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		CorePersonality:   cfg.Agent.CorePersonality,
 		TokenBudget:       cfg.Agent.SystemPromptTokenBudget,
 		IsDebugMode:       cfg.Agent.DebugMode || GetDebugMode(),
-		IsCoAgent:         strings.HasPrefix(sessionID, "coagent-"),
+		IsCoAgent:         strings.HasPrefix(sessionID, "coagent-") || strings.HasPrefix(sessionID, "specialist-"),
 		DiscordEnabled:    cfg.Discord.Enabled,
 		EmailEnabled:      cfg.Email.Enabled || len(cfg.EmailAccounts) > 0,
 		// Docker-socket-dependent tools: only gate when actually inside Docker
@@ -164,6 +164,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		TelnyxEnabled:            cfg.Telnyx.Enabled,
 		AdditionalPrompt:         cfg.Agent.AdditionalPrompt,
 		MessageSource:            runCfg.MessageSource,
+		SpecialistsAvailable:     specialistsAvailable(cfg),
+		SpecialistsStatus:        buildSpecialistsStatus(cfg),
 	}
 	logger.Debug("[Agent] Context flags initialised",
 		"token_budget", flags.TokenBudget,

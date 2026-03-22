@@ -104,6 +104,8 @@
   "help.email_accounts.watch_folder": "Slozka pro email_accounts.",
   "help.email_accounts.watch_interval_seconds": "Interval pro email_accounts.",
   "help.embeddings.provider": "Poskytovatel pro embeddings.",
+  "help.embeddings.multimodal": "Ενεργοποιεί πολυτροπικά embeddings. Όταν ενεργό, εικόνες και αρχεία ήχου ενσωματώνονται απευθείας ως διανύσματα. Ενεργοποιήστε μόνο εάν το μοντέλο embedding υποστηρίζει πολυτροπική είσοδο. Σαρωμένα PDF με λίγο εξαγώγιμο κείμενο επεξεργάζονται αυτόματα ως εικόνες.",
+  "help.embeddings.multimodal_format": "Μορφή API για πολυτροπικά αιτήματα embedding. 'αυτόματο' ανιχνεύει τη μορφή με βάση τον τύπο παρόχου. 'openai' χρησιμοποιεί τη μορφή συμβατή με OpenAI, 'vertex' τη μορφή Google Vertex AI.",
   "help.fallback_llm.enabled": "Povoluje Fallback LLM.",
   "help.fallback_llm.error_threshold": "Prahova hodnota pro fallback_llm.",
   "help.fallback_llm.probe_interval_seconds": "Interval pro fallback_llm.",

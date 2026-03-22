@@ -77,6 +77,13 @@
     "provider_ref": true,
     "allow_disabled": true
   },
+  "help.embeddings.multimodal_format": {
+    "options": [
+      "auto",
+      "openai",
+      "vertex"
+    ]
+  },
   "help.whisper.provider": {
     "provider_ref": true
   },

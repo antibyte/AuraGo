@@ -92,7 +92,7 @@ type ToolFeatureFlags struct {
 	WOLEnabled               bool
 	MediaRegistryEnabled     bool
 	HomepageRegistryEnabled  bool
-	ContactsEnabled         bool
+	ContactsEnabled          bool
 	JournalEnabled           bool
 	MemoryAnalysisEnabled    bool
 	DocumentCreatorEnabled   bool
@@ -594,16 +594,17 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 
 	if ff.CoAgentEnabled {
 		tools = append(tools, tool("co_agent",
-			"Spawn and manage parallel co-agents that work on sub-tasks independently. Co-agents run in background goroutines with their own LLM context and return results when done.",
+			"Spawn and manage parallel co-agents that work on sub-tasks independently. Co-agents run in background goroutines with their own LLM context and return results when done. Use 'spawn_specialist' to dispatch tasks to specialized experts (researcher, coder, designer, security, writer).",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
 					"type":        "string",
 					"description": "Operation to perform",
-					"enum":        []string{"spawn", "list", "get_result", "stop", "stop_all"},
+					"enum":        []string{"spawn", "spawn_specialist", "list", "get_result", "stop", "stop_all"},
 				},
-				"task":          prop("string", "Task description for the co-agent to work on (required for 'spawn')"),
+				"task":          prop("string", "Task description for the co-agent to work on (required for 'spawn' and 'spawn_specialist')"),
+				"specialist":    prop("string", "Specialist role (required for 'spawn_specialist'). One of: researcher, coder, designer, security, writer"),
 				"co_agent_id":   prop("string", "Co-agent ID (required for 'get_result' and 'stop')"),
-				"context_hints": map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Optional keywords or topics for RAG context injection (for 'spawn')"},
+				"context_hints": map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Optional keywords or topics for RAG context injection (for 'spawn' and 'spawn_specialist')"},
 			}, "operation"),
 		))
 	}

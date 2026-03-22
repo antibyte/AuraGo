@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 // Note represents a single note or to-do item.
@@ -41,10 +42,10 @@ func (s *SQLiteMemory) InitNotesTables() error {
 	return nil
 }
 
-// maxNoteContentLen is the maximum byte length for note content.
+// maxNoteContentLen is the maximum rune count for note content.
 const maxNoteContentLen = 100_000
 
-// maxNoteTitleLen is the maximum byte length for a note title.
+// maxNoteTitleLen is the maximum rune count for a note title.
 const maxNoteTitleLen = 500
 
 // AddNote inserts a new note and returns its ID.
@@ -52,11 +53,11 @@ func (s *SQLiteMemory) AddNote(category, title, content string, priority int, du
 	if title == "" {
 		return 0, fmt.Errorf("title is required")
 	}
-	if len(title) > maxNoteTitleLen {
-		title = title[:maxNoteTitleLen]
+	if utf8.RuneCountInString(title) > maxNoteTitleLen {
+		title = string([]rune(title)[:maxNoteTitleLen])
 	}
-	if len(content) > maxNoteContentLen {
-		content = content[:maxNoteContentLen]
+	if utf8.RuneCountInString(content) > maxNoteContentLen {
+		content = string([]rune(content)[:maxNoteContentLen])
 	}
 	if category == "" {
 		category = "general"

@@ -104,6 +104,8 @@
   "help.email_accounts.watch_folder": "Folder skrzynki do sprawdzania pod kątem nowych maili (zazwyczaj INBOX).",
   "help.email_accounts.watch_interval_seconds": "Interwał w sekundach do sprawdzania skrzynki tego konta.",
   "help.embeddings.provider": "Dostawca z zarządzania dostawcami używany dla embeddingów. Model i URL są pobierane z wpisu dostawcy. 'disabled' wyłącza pamięć długoterminową całkowicie.",
+  "help.embeddings.multimodal": "Włącza multimodalne embeddingi. Gdy aktywne, obrazy i pliki audio są osadzane bezpośrednio jako wektory. Włącz tylko jeśli model embeddingów obsługuje multimodalne dane wejściowe (np. Voyage AI, Google multimodal-embedding). Zeskanowane PDF-y z niewielką ilością tekstu są automatycznie przetwarzane jako obrazy.",
+  "help.embeddings.multimodal_format": "Format API dla multimodalnych zapytań embedding. 'auto' wykrywa format na podstawie typu dostawcy. 'openai' używa formatu kompatybilnego z OpenAI, 'vertex' formatu Google Vertex AI.",
   "help.fallback_llm.enabled": "Włącza automatyczne przełączanie na zapasowy LLM przy błędach.",
   "help.fallback_llm.error_threshold": "Liczba kolejnych błędów przed przełączeniem na model zapasowy.",
   "help.fallback_llm.probe_interval_seconds": "Interwał w sekundach do sondowania i próby przywrócenia modelu podstawowego.",

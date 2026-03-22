@@ -868,8 +868,10 @@
                     const stateClass = ca.state === 'running' ? 'pill-running' :
                         ca.state === 'completed' ? 'pill-completed' :
                             ca.state === 'failed' ? 'pill-failed' : 'pill-idle';
+                    const specIcons = { researcher: '\uD83D\uDD0D', coder: '\uD83D\uDCBB', designer: '\uD83C\uDFA8', security: '\uD83D\uDEE1\uFE0F', writer: '\u270D\uFE0F' };
+                    const specBadge = ca.specialist && specIcons[ca.specialist] ? '<span title="' + esc(ca.specialist) + '" style="margin-right:0.3rem;">' + specIcons[ca.specialist] + '</span>' : '';
                     details += `<div class="activity-item">
-                <span class="activity-item-name">${esc(truncate(ca.task || ca.id, 50))}</span>
+                <span class="activity-item-name">${specBadge}${esc(truncate(ca.task || ca.id, 50))}</span>
                 <span><span class="pill-status ${stateClass}">${esc(stateMap[ca.state] || ca.state)}</span>
                 <span class="activity-item-detail" style="margin-left:0.4rem;">${esc(ca.runtime || '')}</span></span>
             </div>`;

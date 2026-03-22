@@ -104,6 +104,8 @@
   "help.email_accounts.watch_folder": "The mailbox folder to check for new mails (usually INBOX).",
   "help.email_accounts.watch_interval_seconds": "Interval in seconds to check this account's mailbox.",
   "help.embeddings.provider": "Provider from the provider management used for embeddings. Model and URL are taken from the provider entry. 'disabled' turns off long-term memory entirely.",
+  "help.embeddings.multimodal": "Enables multimodal embeddings. When active, images and audio files are embedded directly as vectors. Only enable if your embedding model supports multimodal input (e.g. Voyage AI, Google multimodal-embedding). Scanned PDFs with little extractable text are automatically processed as images.",
+  "help.embeddings.multimodal_format": "API format for multimodal embedding requests. 'auto' detects the format based on the provider type. 'openai' uses the OpenAI-compatible format, 'vertex' uses the Google Vertex AI format.",
   "help.fallback_llm.enabled": "Enables automatic failover to a backup LLM on errors.",
   "help.fallback_llm.error_threshold": "Number of sequential errors before switching to fallback model.",
   "help.fallback_llm.probe_interval_seconds": "Interval in seconds to probe and try restoring the primary model.",

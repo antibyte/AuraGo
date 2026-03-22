@@ -2,8 +2,30 @@ package memory
 
 import (
 	"fmt"
+	"regexp"
 	"time"
+	"unicode/utf8"
 )
+
+// Compiled regexp patterns for error message normalization.
+// Variable parts such as paths, timestamps, and IDs are replaced with
+// stable placeholders so similar errors group together correctly.
+var (
+	reErrorPath      = regexp.MustCompile(`(/[a-zA-Z0-9_.\-/]+){2,}`)               // file/directory paths
+	reErrorTimestamp = regexp.MustCompile(`\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}`) // ISO timestamps
+	reErrorNumber    = regexp.MustCompile(`\b\d{4,}\b`)                             // long numbers / IDs
+	reErrorHex       = regexp.MustCompile(`\b[0-9a-fA-F]{8,}\b`)                    // hex digests / UUIDs
+)
+
+// normalizeErrorMsg replaces variable parts of an error message with placeholders
+// so that semantically identical errors with different paths/IDs/timestamps match.
+func normalizeErrorMsg(msg string) string {
+	msg = reErrorPath.ReplaceAllString(msg, "<PATH>")
+	msg = reErrorTimestamp.ReplaceAllString(msg, "<TIMESTAMP>")
+	msg = reErrorNumber.ReplaceAllString(msg, "<ID>")
+	msg = reErrorHex.ReplaceAllString(msg, "<HEX>")
+	return msg
+}
 
 // ErrorPattern represents a learned error pattern with resolution info.
 type ErrorPattern struct {
@@ -37,14 +59,18 @@ func (s *SQLiteMemory) InitErrorLearningTable() error {
 }
 
 // RecordError logs a tool error. If a similar pattern exists, it increments the count.
+// The error message is normalized before storage so variable parts (paths, IDs, timestamps)
+// do not prevent grouping of semantically identical errors.
 func (s *SQLiteMemory) RecordError(toolName, errorMsg string) error {
 	if toolName == "" || errorMsg == "" {
 		return nil
 	}
-	// Truncate long error messages
-	if len(errorMsg) > 500 {
-		errorMsg = errorMsg[:500]
+	// Truncate long error messages (rune-safe)
+	const maxErrorMsgLen = 500
+	if utf8.RuneCountInString(errorMsg) > maxErrorMsgLen {
+		errorMsg = string([]rune(errorMsg)[:maxErrorMsgLen])
 	}
+	errorMsg = normalizeErrorMsg(errorMsg)
 
 	now := time.Now().UTC().Format(time.RFC3339)
 
@@ -74,6 +100,7 @@ func (s *SQLiteMemory) RecordError(toolName, errorMsg string) error {
 
 // RecordResolution attaches a resolution to an error pattern.
 func (s *SQLiteMemory) RecordResolution(toolName, errorMsg, resolution string) error {
+	errorMsg = normalizeErrorMsg(errorMsg)
 	_, err := s.db.Exec(
 		`UPDATE error_patterns SET resolution = ? WHERE tool_name = ? AND error_message = ?`,
 		resolution, toolName, errorMsg,
@@ -144,6 +171,7 @@ func (s *SQLiteMemory) GetRecentErrors(limit int) ([]ErrorPattern, error) {
 
 // LookupErrorResolution returns the resolution for a matching error pattern, if any.
 func (s *SQLiteMemory) LookupErrorResolution(toolName, errorMsg string) (string, error) {
+	errorMsg = normalizeErrorMsg(errorMsg)
 	var resolution string
 	err := s.db.QueryRow(
 		`SELECT resolution FROM error_patterns WHERE tool_name = ? AND error_message = ? AND resolution != ''`,

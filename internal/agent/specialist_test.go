@@ -1,0 +1,300 @@
+package agent
+
+import (
+	"log/slog"
+	"os"
+	"testing"
+
+	"aurago/internal/config"
+)
+
+// ══════════════════════════════════════════════
+// extractSpecialistRole
+// ══════════════════════════════════════════════
+
+func TestExtractSpecialistRole(t *testing.T) {
+	tests := []struct {
+		name      string
+		sessionID string
+		want      string
+	}{
+		{"generic co-agent", "coagent-5", ""},
+		{"researcher", "specialist-researcher-1", "researcher"},
+		{"coder", "specialist-coder-23", "coder"},
+		{"designer", "specialist-designer-100", "designer"},
+		{"security", "specialist-security-3", "security"},
+		{"writer", "specialist-writer-42", "writer"},
+		{"empty string", "", ""},
+		{"main session", "main", ""},
+		{"prefix only", "specialist-", ""},
+		{"no counter", "specialist-coder", "coder"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := extractSpecialistRole(tt.sessionID)
+			if got != tt.want {
+				t.Errorf("extractSpecialistRole(%q) = %q, want %q", tt.sessionID, got, tt.want)
+			}
+		})
+	}
+}
+
+// ══════════════════════════════════════════════
+// checkSpecialistToolRestriction
+// ══════════════════════════════════════════════
+
+func TestCheckSpecialistToolRestriction(t *testing.T) {
+	tests := []struct {
+		name      string
+		role      string
+		action    string
+		operation string
+		blocked   bool
+	}{
+		// Researcher
+		{"researcher can search", "researcher", "api_request", "", false},
+		{"researcher blocked shell", "researcher", "execute_shell", "", true},
+		{"researcher blocked imagegen", "researcher", "image_generation", "", true},
+		{"researcher blocked remote", "researcher", "remote_control", "", true},
+		{"researcher blocked homepage", "researcher", "homepage", "", true},
+		{"researcher can query memory", "researcher", "query_memory", "", false},
+		{"researcher can use python", "researcher", "execute_python", "", false},
+
+		// Coder
+		{"coder can shell", "coder", "execute_shell", "", false},
+		{"coder can python", "coder", "execute_python", "", false},
+		{"coder can filesystem", "coder", "filesystem", "write", false},
+		{"coder blocked imagegen", "coder", "image_generation", "", true},
+		{"coder blocked remote", "coder", "remote_control", "", true},
+
+		// Designer
+		{"designer can imagegen", "designer", "image_generation", "", false},
+		{"designer blocked shell", "designer", "execute_shell", "", true},
+		{"designer blocked python", "designer", "execute_python", "", true},
+		{"designer blocked remote", "designer", "remote_control", "", true},
+		{"designer can filesystem", "designer", "filesystem", "read", false},
+
+		// Security
+		{"security can shell", "security", "execute_shell", "", false},
+		{"security can python", "security", "execute_python", "", false},
+		{"security blocked imagegen", "security", "image_generation", "", true},
+		{"security blocked remote", "security", "remote_control", "", true},
+		{"security can read fs", "security", "filesystem", "read", false},
+		{"security blocked write fs", "security", "filesystem", "write", true},
+		{"security blocked delete fs", "security", "filesystem", "delete", true},
+		{"security blocked move fs", "security", "filesystem", "move", true},
+		{"security blocked copy fs", "security", "filesystem", "copy", true},
+
+		// Writer
+		{"writer can query memory", "writer", "query_memory", "", false},
+		{"writer can filesystem read", "writer", "filesystem", "read", false},
+		{"writer can filesystem write", "writer", "filesystem", "write", false},
+		{"writer blocked shell", "writer", "execute_shell", "", true},
+		{"writer blocked python", "writer", "execute_python", "", true},
+		{"writer blocked imagegen", "writer", "image_generation", "", true},
+		{"writer blocked remote", "writer", "remote_control", "", true},
+		{"writer blocked homepage", "writer", "homepage", "", true},
+
+		// Unknown role passes everything
+		{"unknown role passes", "unknown", "execute_shell", "", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := checkSpecialistToolRestriction(tt.role, tt.action, tt.operation)
+			gotBlocked := result != ""
+			if gotBlocked != tt.blocked {
+				t.Errorf("checkSpecialistToolRestriction(%q, %q, %q) blocked=%v, want blocked=%v (msg=%q)",
+					tt.role, tt.action, tt.operation, gotBlocked, tt.blocked, result)
+			}
+		})
+	}
+}
+
+// ══════════════════════════════════════════════
+// stripYAMLFrontmatter
+// ══════════════════════════════════════════════
+
+func TestStripYAMLFrontmatter(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{
+			"no frontmatter",
+			"Hello world",
+			"Hello world",
+		},
+		{
+			"with frontmatter",
+			"---\ntitle: test\n---\n# Content here",
+			"# Content here",
+		},
+		{
+			"frontmatter with CRLF",
+			"---\r\ntitle: test\r\n---\r\n# Content",
+			"# Content",
+		},
+		{
+			"unclosed frontmatter",
+			"---\ntitle: test\nno close",
+			"---\ntitle: test\nno close",
+		},
+		{
+			"empty frontmatter passes through",
+			"---\n---\nBody",
+			"---\n---\nBody",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := stripYAMLFrontmatter(tt.input)
+			if got != tt.want {
+				t.Errorf("stripYAMLFrontmatter() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+// ══════════════════════════════════════════════
+// specialistsAvailable / buildSpecialistsStatus
+// ══════════════════════════════════════════════
+
+func TestSpecialistsAvailable(t *testing.T) {
+	cfg := specialistTestConfig()
+	cfg.CoAgents.Enabled = false
+	if specialistsAvailable(cfg) {
+		t.Error("expected false when co_agents disabled")
+	}
+
+	cfg.CoAgents.Enabled = true
+	if specialistsAvailable(cfg) {
+		t.Error("expected false when no specialists enabled")
+	}
+
+	cfg.CoAgents.Specialists.Researcher.Enabled = true
+	if !specialistsAvailable(cfg) {
+		t.Error("expected true when researcher enabled")
+	}
+}
+
+func TestBuildSpecialistsStatus(t *testing.T) {
+	cfg := specialistTestConfig()
+	cfg.CoAgents.Enabled = false
+	if s := buildSpecialistsStatus(cfg); s != "" {
+		t.Errorf("expected empty when disabled, got %q", s)
+	}
+
+	cfg.CoAgents.Enabled = true
+	s := buildSpecialistsStatus(cfg)
+	if s != "No specialists are currently enabled." {
+		t.Errorf("expected no-specialists message, got %q", s)
+	}
+
+	cfg.CoAgents.Specialists.Coder.Enabled = true
+	cfg.CoAgents.Specialists.Security.Enabled = true
+	s = buildSpecialistsStatus(cfg)
+	if s == "" || s == "No specialists are currently enabled." {
+		t.Errorf("expected specialist listing, got %q", s)
+	}
+	if !contains(s, "coder") || !contains(s, "security") {
+		t.Errorf("expected coder and security in status, got %q", s)
+	}
+	if contains(s, "researcher") || contains(s, "designer") || contains(s, "writer") {
+		t.Errorf("expected only enabled specialists, got %q", s)
+	}
+}
+
+// ══════════════════════════════════════════════
+// CoAgentRegistry with specialists
+// ══════════════════════════════════════════════
+
+func TestRegistrySpecialistPrefix(t *testing.T) {
+	logger := specialistTestLogger()
+	reg := NewCoAgentRegistry(5, logger)
+
+	id, err := reg.RegisterWithPrefix("specialist-researcher", "research task", nil)
+	if err != nil {
+		t.Fatalf("RegisterWithPrefix failed: %v", err)
+	}
+	if id != "specialist-researcher-1" {
+		t.Errorf("expected specialist-researcher-1, got %s", id)
+	}
+
+	// Check the specialist field
+	reg.mu.RLock()
+	info := reg.agents[id]
+	reg.mu.RUnlock()
+	if info.Specialist != "researcher" {
+		t.Errorf("expected specialist=researcher, got %q", info.Specialist)
+	}
+
+	// Generic co-agent should have empty specialist
+	id2, err := reg.Register("generic task", nil)
+	if err != nil {
+		t.Fatalf("Register failed: %v", err)
+	}
+	reg.mu.RLock()
+	info2 := reg.agents[id2]
+	reg.mu.RUnlock()
+	if info2.Specialist != "" {
+		t.Errorf("expected empty specialist for generic, got %q", info2.Specialist)
+	}
+}
+
+func TestRegistryList(t *testing.T) {
+	logger := specialistTestLogger()
+	reg := NewCoAgentRegistry(5, logger)
+
+	reg.RegisterWithPrefix("specialist-coder", "code task", nil)
+	reg.Register("general task", nil)
+
+	list := reg.List()
+	if len(list) != 2 {
+		t.Fatalf("expected 2 agents, got %d", len(list))
+	}
+
+	// Check specialist field in list output
+	foundSpecialist := false
+	foundGeneric := false
+	for _, m := range list {
+		if m["specialist"] == "coder" {
+			foundSpecialist = true
+		}
+		if m["specialist"] == "" {
+			foundGeneric = true
+		}
+	}
+	if !foundSpecialist {
+		t.Error("expected coder specialist in list output")
+	}
+	if !foundGeneric {
+		t.Error("expected generic co-agent in list output")
+	}
+}
+
+// ══════════════════════════════════════════════
+// helpers
+// ══════════════════════════════════════════════
+
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsStr(s, substr))
+}
+
+func containsStr(s, sub string) bool {
+	for i := 0; i <= len(s)-len(sub); i++ {
+		if s[i:i+len(sub)] == sub {
+			return true
+		}
+	}
+	return false
+}
+
+func specialistTestConfig() *config.Config {
+	return &config.Config{}
+}
+
+func specialistTestLogger() *slog.Logger {
+	return slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+}

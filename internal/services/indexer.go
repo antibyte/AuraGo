@@ -199,14 +199,20 @@ func (fi *FileIndexer) scanDirectory(dir string) (totalFiles, indexedFiles int, 
 		// Check extension
 		ext := strings.ToLower(filepath.Ext(info.Name()))
 		isImage := IsImageFile(ext)
+		isAudio := IsAudioFile(ext)
 
-		// Determine if IndexImages is on (read under lock since cfg can change)
+		// Determine config flags (read under lock since cfg can change)
 		fi.cfgMu.RLock()
 		indexImages := fi.cfg.Indexing.IndexImages
+		multimodal := fi.cfg.Embeddings.Multimodal
 		fi.cfgMu.RUnlock()
 
-		// Accept: configured text/document extension, OR image when IndexImages is enabled
-		if !fi.extensions[ext] && !(isImage && indexImages) {
+		// Accept: configured text/document extension, OR image when IndexImages or multimodal is enabled,
+		// OR audio when multimodal is enabled
+		accepted := fi.extensions[ext] ||
+			(isImage && (indexImages || multimodal)) ||
+			(isAudio && multimodal)
+		if !accepted {
 			return nil
 		}
 
@@ -231,10 +237,30 @@ func (fi *FileIndexer) scanDirectory(dir string) (totalFiles, indexedFiles int, 
 		}
 
 		var content string
+		var precomputedEmbedding []float32
 
-		// ── Image indexing via Vision LLM ──
-		if isImage {
-			// indexImages is guaranteed true here (extension filter above ensures this)
+		// ── Multimodal path: images and audio via multimodal embedding API ──
+		if multimodal && (isImage || isAudio) {
+			embedder := fi.getMultimodalEmbedder()
+			if embedder == nil {
+				errors = append(errors, fmt.Sprintf("multimodal embedder unavailable for %s", path))
+				return nil
+			}
+			vec, embedErr := embedder.EmbedFile(context.Background(), path)
+			if embedErr != nil {
+				errors = append(errors, fmt.Sprintf("multimodal embed error %s: %v", path, embedErr))
+				fi.logger.Warn("[Indexer] Multimodal embedding failed", "path", path, "error", embedErr)
+				return nil
+			}
+			precomputedEmbedding = vec
+			kind := "Bild"
+			if isAudio {
+				kind = "Audio"
+			}
+			content = fmt.Sprintf("%s-Datei: %s (Pfad: %s)", kind, info.Name(), relPath)
+
+		} else if isImage {
+			// ── Image indexing via Vision LLM (non-multimodal fallback) ──
 			prompt := fmt.Sprintf(
 				"Analysiere dieses Bild detailliert. Beschreibe den Inhalt, erkennbare Texte, Objekte und relevante Details. "+
 					"Dateiname: %s, Pfad: %s", info.Name(), relPath,
@@ -265,6 +291,22 @@ func (fi *FileIndexer) scanDirectory(dir string) (totalFiles, indexedFiles int, 
 				content = extracted
 			}
 
+			// PDF auto-fallback: if text extraction yielded almost nothing and
+			// multimodal is enabled, treat the PDF as an image (scanned document)
+			if multimodal && ext == ".pdf" && len(strings.TrimSpace(content)) < 10 {
+				embedder := fi.getMultimodalEmbedder()
+				if embedder != nil {
+					vec, embedErr := embedder.EmbedFile(context.Background(), path)
+					if embedErr == nil {
+						precomputedEmbedding = vec
+						content = fmt.Sprintf("PDF (gescannt): %s (Pfad: %s)", info.Name(), relPath)
+						fi.logger.Info("[Indexer] PDF auto-fallback to multimodal embedding", "path", relPath)
+					} else {
+						fi.logger.Warn("[Indexer] PDF multimodal fallback failed", "path", path, "error", embedErr)
+					}
+				}
+			}
+
 		} else {
 			// ── Plain text files ──
 			data, readErr := os.ReadFile(path)
@@ -275,7 +317,7 @@ func (fi *FileIndexer) scanDirectory(dir string) (totalFiles, indexedFiles int, 
 			content = strings.TrimSpace(string(data))
 		}
 
-		if len(content) == 0 {
+		if len(content) == 0 && precomputedEmbedding == nil {
 			return nil
 		}
 
@@ -283,8 +325,13 @@ func (fi *FileIndexer) scanDirectory(dir string) (totalFiles, indexedFiles int, 
 		concept := fmt.Sprintf("Datei: %s (Pfad: %s, Geändert: %s)",
 			info.Name(), relPath, info.ModTime().Format("2006-01-02 15:04"))
 
-		// Store in VectorDB — embed file path in concept for retrieval
-		_, storeErr := fi.vectorDB.StoreDocument(concept, content)
+		// Store in VectorDB — use pre-computed embedding when available
+		var storeErr error
+		if precomputedEmbedding != nil {
+			_, storeErr = fi.vectorDB.StoreDocumentWithEmbedding(concept, content, precomputedEmbedding)
+		} else {
+			_, storeErr = fi.vectorDB.StoreDocument(concept, content)
+		}
 		if storeErr != nil {
 			errors = append(errors, fmt.Sprintf("index error %s: %v", path, storeErr))
 			fi.logger.Warn("[Indexer] Failed to index file", "path", path, "error", storeErr)
@@ -303,4 +350,22 @@ func (fi *FileIndexer) scanDirectory(dir string) (totalFiles, indexedFiles int, 
 	}
 
 	return totalFiles, indexedFiles, errors
+}
+
+// getMultimodalEmbedder creates a MultimodalEmbedder from the current config.
+// Returns nil if the embedding provider is not configured.
+func (fi *FileIndexer) getMultimodalEmbedder() *memory.MultimodalEmbedder {
+	fi.cfgMu.RLock()
+	baseURL := fi.cfg.Embeddings.BaseURL
+	apiKey := fi.cfg.Embeddings.APIKey
+	model := fi.cfg.Embeddings.Model
+	format := fi.cfg.Embeddings.MultimodalFormat
+	provType := fi.cfg.Embeddings.ProviderType
+	fi.cfgMu.RUnlock()
+
+	if baseURL == "" || model == "" {
+		return nil
+	}
+
+	return memory.NewMultimodalEmbedder(baseURL, apiKey, model, format, provType, fi.logger)
 }
