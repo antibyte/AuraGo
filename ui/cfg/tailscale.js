@@ -171,6 +171,19 @@ async function _tsnetRefreshStatus() {
                         ⚠️ ${t('config.tailscale.tsnet_http_fallback_notice') || 'Running in HTTP mode (port 80) — enable HTTPS in the Tailscale admin panel for encrypted access.'}
                         <a href="https://tailscale.com/s/https" target="_blank" rel="noopener noreferrer" style="color:var(--accent);margin-left:0.4rem;">Enable HTTPS →</a>
                     </div>`;
+                    // Show a direct clickable link to the HTTP access URL
+                    const httpBase = data.dns ? data.dns.replace(/\.$/, '') : (data.ips && data.ips.length ? data.ips[0] : null);
+                    if (httpBase) {
+                        const httpUrl = `http://${httpBase}`;
+                        info += `<div style="margin-top:0.4rem;font-size:0.82rem;">🌐 <strong>URL:</strong> <a href="${escapeAttr(httpUrl)}" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">${escapeHtml(httpUrl)}</a></div>`;
+                    }
+                } else {
+                    // HTTPS mode — show the https:// URL
+                    const httpsHost = (data.cert_dns && data.cert_dns.length ? data.cert_dns[0] : data.dns || '').replace(/\.$/, '');
+                    if (httpsHost) {
+                        const httpsUrl = `https://${httpsHost}`;
+                        info += `<div style="margin-top:0.4rem;font-size:0.82rem;">🌐 <strong>URL:</strong> <a href="${escapeAttr(httpsUrl)}" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">${escapeHtml(httpsUrl)}</a></div>`;
+                    }
                 }
                 if (data.dns) info += `<br><strong>DNS:</strong> <code>${escapeHtml(data.dns)}</code>`;
                 if (data.ips && data.ips.length) info += `<br><strong>IPs:</strong> ${escapeHtml(data.ips.join(', '))}`;
