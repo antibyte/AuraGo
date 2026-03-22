@@ -122,7 +122,6 @@ const SECTIONS = [
         group: t('config.group.network_remote'),
         items: [
             { key: 'tailscale', icon: '🔒', label: t('config.section.tailscale.label'), desc: t('config.section.tailscale.desc') },
-            { key: 'devices', icon: '📱', label: t('config.section.devices.label'), desc: t('config.section.devices.desc') },
             { key: 'proxmox', icon: '🖥️', label: t('config.section.proxmox.label'), desc: t('config.section.proxmox.desc') },
             { key: 'remote_control', icon: '📡', label: t('config.section.remote_control.label'), desc: t('config.section.remote_control.desc') },
             { key: 'meshcentral', icon: '🖥️', label: t('config.section.meshcentral.label'), desc: t('config.section.meshcentral.desc') },
@@ -1006,7 +1005,6 @@ const SECTION_MODULES = {
     indexing: { m: 'indexing', fn: 'renderIndexingSection' },
     backup_restore: { m: 'backup', fn: 'renderBackupSection' },
     updates: { m: 'updates', fn: 'renderUpdatesSection' },
-    devices: { m: 'devices', fn: 'renderDevicesSection' },
     chromecast: { m: 'chromecast', fn: 'renderChromecastSection' },
     adguard: { m: 'adguard', fn: 'renderAdGuardSection' },
     fritzbox: { m: 'fritzbox', fn: 'renderFritzBoxSection' },

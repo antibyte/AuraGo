@@ -6,6 +6,7 @@
 // ═══════════════════════════════════════════════════════════════
 let allContacts = [];
 let allFiles = [];
+let allDevices = [];
 let contactSearchTimer = null;
 
 // ═══════════════════════════════════════════════════════════════
@@ -14,6 +15,7 @@ let contactSearchTimer = null;
 document.addEventListener('DOMContentLoaded', () => {
     loadContacts();
     loadFiles();
+    loadDevices();
 });
 
 // ═══════════════════════════════════════════════════════════════
@@ -244,6 +246,150 @@ function askDeleteFile(name) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// DEVICES
+// ═══════════════════════════════════════════════════════════════
+
+async function loadDevices() {
+    try {
+        const resp = await fetch('/api/devices');
+        if (!resp.ok) throw new Error(await resp.text());
+        allDevices = await resp.json() || [];
+        renderDevices();
+    } catch (e) {
+        console.error('Failed to load devices:', e);
+        showToast(t('common.error') + ': ' + e.message, 'error');
+    }
+}
+
+function filterDevices() {
+    renderDevices();
+}
+
+function renderDevices() {
+    const tbody = document.getElementById('devices-tbody');
+    const empty = document.getElementById('devices-empty');
+    const tableWrap = tbody.closest('.kc-table-wrap');
+    const q = (document.getElementById('devices-search')?.value || '').toLowerCase();
+
+    const filtered = q ? allDevices.filter(d => {
+        const hay = [d.name, d.type, d.ip_address, d.username, d.description, d.mac_address, ...(d.tags || [])].join(' ').toLowerCase();
+        return hay.includes(q);
+    }) : allDevices;
+
+    if (!filtered.length) {
+        tbody.innerHTML = '';
+        tableWrap.style.display = 'none';
+        empty.style.display = '';
+        return;
+    }
+    tableWrap.style.display = '';
+    empty.style.display = 'none';
+
+    tbody.innerHTML = filtered.map(d => {
+        const tags = (d.tags || []).map(tag =>
+            '<span class="kc-tag">' + esc(tag) + '</span>'
+        ).join('') || '—';
+        return `
+        <tr>
+            <td class="kc-name">${esc(d.name)}</td>
+            <td><span class="kc-type-badge">${esc(d.type)}</span></td>
+            <td class="kc-mono">${esc(d.ip_address || '—')}</td>
+            <td>${d.port || '—'}</td>
+            <td>${esc(d.username || '—')}</td>
+            <td class="kc-mono kc-size">${esc(d.mac_address || '—')}</td>
+            <td>${tags}</td>
+            <td class="kc-actions">
+                <button class="btn btn-sm btn-secondary" onclick="editDevice('${esc(d.id)}')" title="${t('common.btn_edit')}">✏️</button>
+                <button class="btn btn-sm btn-danger" onclick="askDeleteDevice('${esc(d.id)}', '${esc(d.name)}')" title="${t('common.btn_delete')}">🗑️</button>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+function openDeviceModal(device) {
+    const modal = document.getElementById('device-modal');
+    const title = document.getElementById('device-modal-title');
+
+    document.getElementById('device-id').value = device ? device.id : '';
+    document.getElementById('device-name').value = device ? device.name : '';
+    document.getElementById('device-type').value = device ? (device.type || 'server') : 'server';
+    document.getElementById('device-ip').value = device ? device.ip_address : '';
+    document.getElementById('device-port').value = device ? (device.port || 22) : 22;
+    document.getElementById('device-username').value = device ? device.username : '';
+    document.getElementById('device-description').value = device ? device.description : '';
+    document.getElementById('device-mac').value = device ? device.mac_address : '';
+    document.getElementById('device-tags').value = device ? (device.tags || []).join(', ') : '';
+    document.getElementById('device-vault').value = device ? (device.vault_secret_id || '') : '';
+
+    title.textContent = device ? t('knowledge.devices_edit') : t('knowledge.devices_add');
+    modal.classList.add('active');
+}
+
+function editDevice(id) {
+    const d = allDevices.find(x => x.id === id);
+    if (d) openDeviceModal(d);
+}
+
+async function saveDevice() {
+    const name = document.getElementById('device-name').value.trim();
+    if (!name) {
+        showToast(t('knowledge.devices_name_required'), 'error');
+        return;
+    }
+
+    const tagsRaw = document.getElementById('device-tags').value.trim();
+    const tags = tagsRaw ? tagsRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
+
+    const data = {
+        name: name,
+        type: document.getElementById('device-type').value,
+        ip_address: document.getElementById('device-ip').value.trim(),
+        port: parseInt(document.getElementById('device-port').value) || 22,
+        username: document.getElementById('device-username').value.trim(),
+        description: document.getElementById('device-description').value.trim(),
+        mac_address: document.getElementById('device-mac').value.trim(),
+        tags: tags,
+        vault_secret_id: document.getElementById('device-vault').value || ''
+    };
+
+    const id = document.getElementById('device-id').value;
+    try {
+        let resp;
+        if (id) {
+            resp = await fetch('/api/devices/' + encodeURIComponent(id), {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data),
+            });
+        } else {
+            resp = await fetch('/api/devices', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data),
+            });
+        }
+        if (!resp.ok) {
+            const err = await resp.json().catch(() => ({}));
+            throw new Error(err.error || 'Request failed');
+        }
+        closeModal('device-modal');
+        showToast(t('common.success'), 'success');
+        loadDevices();
+    } catch (e) {
+        console.error('Save device failed:', e);
+        showToast(t('common.error') + ': ' + e.message, 'error');
+    }
+}
+
+function askDeleteDevice(id, name) {
+    document.getElementById('delete-target-id').value = id;
+    document.getElementById('delete-target-type').value = 'device';
+    document.getElementById('delete-confirm-text').textContent =
+        t('knowledge.devices_delete_confirm').replace('{name}', name);
+    document.getElementById('delete-modal').classList.add('active');
+}
+
+// ═══════════════════════════════════════════════════════════════
 // DELETE CONFIRM
 // ═══════════════════════════════════════════════════════════════
 
@@ -255,6 +401,8 @@ async function confirmDelete() {
         let resp;
         if (type === 'contact') {
             resp = await fetch('/api/contacts/' + encodeURIComponent(id), { method: 'DELETE' });
+        } else if (type === 'device') {
+            resp = await fetch('/api/devices/' + encodeURIComponent(id), { method: 'DELETE' });
         } else {
             resp = await fetch('/api/knowledge/' + encodeURIComponent(id), { method: 'DELETE' });
         }
@@ -265,6 +413,7 @@ async function confirmDelete() {
         closeModal('delete-modal');
         showToast(t('common.success'), 'success');
         if (type === 'contact') loadContacts();
+        else if (type === 'device') loadDevices();
         else loadFiles();
     } catch (e) {
         console.error('Delete failed:', e);

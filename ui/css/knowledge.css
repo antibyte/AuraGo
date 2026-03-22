@@ -171,6 +171,40 @@
     white-space: nowrap;
 }
 
+/* Device type badge */
+.kc-type-badge {
+    display: inline-block;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-subtle);
+    border-radius: 6px;
+    padding: 2px 8px;
+    font-size: 0.78rem;
+}
+
+/* Device tag chip */
+.kc-tag {
+    display: inline-block;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-subtle);
+    border-radius: 6px;
+    padding: 1px 7px;
+    font-size: 0.75rem;
+    margin-right: 4px;
+    margin-bottom: 2px;
+}
+
+/* Monospace cells (IP, MAC) */
+.kc-mono {
+    font-family: monospace;
+    font-size: 0.82rem;
+}
+
+/* Form hint small text */
+.form-hint {
+    color: var(--text-tertiary);
+    font-weight: 400;
+}
+
 /* Modal small variant */
 .modal-small {
     max-width: 420px;
@@ -195,6 +229,14 @@
     .kc-table th:nth-child(4),
     .kc-table td:nth-child(4) {
         display: none; /* Hide mobile column on small screens */
+    }
+
+    /* Hide MAC and Tags columns in devices table on small screens */
+    #devices-table th:nth-child(6),
+    #devices-table td:nth-child(6),
+    #devices-table th:nth-child(7),
+    #devices-table td:nth-child(7) {
+        display: none;
     }
 
     .kc-tab {

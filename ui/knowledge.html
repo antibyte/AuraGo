@@ -35,6 +35,8 @@
                 onclick="switchKCTab('contacts')" data-i18n="knowledge.tab_contacts">📇 Address Book</button>
             <button class="kc-tab" id="tab-files" role="tab" aria-selected="false"
                 onclick="switchKCTab('files')" data-i18n="knowledge.tab_files">📂 Knowledge Files</button>
+            <button class="kc-tab" id="tab-devices" role="tab" aria-selected="false"
+                onclick="switchKCTab('devices')" data-i18n="knowledge.tab_devices">📱 Devices</button>
         </div>
 
         <!-- ═══════ CONTACTS PANEL ═══════ -->
@@ -101,6 +103,112 @@
                 <div class="empty-icon">📂</div>
                 <h3 data-i18n="knowledge.files_empty_title">No Knowledge Files</h3>
                 <p data-i18n="knowledge.files_empty_desc">Upload files to the knowledge directory.</p>
+            </div>
+        </div>
+
+        <!-- ═══════ DEVICES PANEL ═══════ -->
+        <div id="panel-devices" class="kc-panel">
+            <div class="kc-panel-header">
+                <div class="kc-search-row">
+                    <input type="text" id="devices-search" class="kc-search"
+                        placeholder="Filter devices..." data-i18n-placeholder="knowledge.devices_search_placeholder"
+                        oninput="filterDevices()">
+                    <button class="btn btn-primary" onclick="openDeviceModal()">
+                        <span>+</span> <span data-i18n="knowledge.devices_add">Add Device</span>
+                    </button>
+                </div>
+            </div>
+            <div class="kc-table-wrap">
+                <table class="kc-table" id="devices-table">
+                    <thead>
+                        <tr>
+                            <th data-i18n="knowledge.devices_col_name">Name</th>
+                            <th data-i18n="knowledge.devices_col_type">Type</th>
+                            <th data-i18n="knowledge.devices_col_ip">IP</th>
+                            <th data-i18n="knowledge.devices_col_port">Port</th>
+                            <th data-i18n="knowledge.devices_col_user">User</th>
+                            <th data-i18n="knowledge.devices_col_mac">MAC</th>
+                            <th data-i18n="knowledge.devices_col_tags">Tags</th>
+                            <th data-i18n="knowledge.col_actions">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="devices-tbody"></tbody>
+                </table>
+            </div>
+            <div class="empty-state" id="devices-empty" style="display:none;">
+                <div class="empty-icon">📱</div>
+                <h3 data-i18n="knowledge.devices_empty_title">No Devices Registered</h3>
+                <p data-i18n="knowledge.devices_empty_desc">Add devices to your device registry.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════ DEVICE MODAL ═══════ -->
+    <div class="modal-overlay" id="device-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="device-modal-title" data-i18n="knowledge.devices_add">Add Device</h2>
+                <button class="modal-close" onclick="closeModal('device-modal')">&times;</button>
+            </div>
+            <input type="hidden" id="device-id">
+            <div class="form-group">
+                <label data-i18n="knowledge.devices_col_name">Name</label>
+                <input type="text" id="device-name" maxlength="200" required
+                    placeholder="e.g. Web Server" data-i18n-placeholder="knowledge.devices_name_placeholder">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label data-i18n="knowledge.devices_type_label">Type</label>
+                    <select id="device-type">
+                        <option value="server">Server</option>
+                        <option value="router">Router</option>
+                        <option value="switch">Switch</option>
+                        <option value="printer">Printer</option>
+                        <option value="nas">NAS</option>
+                        <option value="camera">Camera</option>
+                        <option value="iot">IoT</option>
+                        <option value="vm">VM</option>
+                        <option value="container">Container</option>
+                        <option value="generic">Generic</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Port</label>
+                    <input type="number" id="device-port" placeholder="22" value="22">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label data-i18n="knowledge.devices_ip_address">IP Address</label>
+                    <input type="text" id="device-ip" maxlength="200" placeholder="192.168.1.100">
+                </div>
+                <div class="form-group">
+                    <label data-i18n="knowledge.devices_username">Username</label>
+                    <input type="text" id="device-username" maxlength="200" placeholder="root">
+                </div>
+            </div>
+            <div class="form-group">
+                <label data-i18n="knowledge.devices_description">Description</label>
+                <input type="text" id="device-description" maxlength="500"
+                    placeholder="Optional description..." data-i18n-placeholder="knowledge.devices_desc_placeholder">
+            </div>
+            <div class="form-group">
+                <label><span data-i18n="knowledge.devices_mac_address">MAC Address</span>
+                    <small class="form-hint" data-i18n="knowledge.devices_mac_hint">(optional, required for Wake-on-LAN)</small></label>
+                <input type="text" id="device-mac" maxlength="17" placeholder="AA:BB:CC:DD:EE:FF">
+            </div>
+            <div class="form-group">
+                <label>Tags <small class="form-hint" data-i18n="knowledge.devices_tags_hint">(comma-separated)</small></label>
+                <input type="text" id="device-tags" maxlength="500"
+                    placeholder="e.g. production, linux, docker" data-i18n-placeholder="knowledge.devices_tags_placeholder">
+            </div>
+            <div class="form-group">
+                <label>Vault Secret ID <small class="form-hint" data-i18n="knowledge.devices_vault_read_only">(read-only)</small></label>
+                <input type="text" id="device-vault" disabled style="opacity:0.6;">
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal('device-modal')" data-i18n="common.btn_cancel">Cancel</button>
+                <button class="btn btn-primary" onclick="saveDevice()" data-i18n="common.btn_save">Save</button>
             </div>
         </div>
     </div>
