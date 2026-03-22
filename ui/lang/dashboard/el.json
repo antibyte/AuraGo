@@ -286,5 +286,12 @@
   "dashboard.tab_agent": "μέσο",
   "dashboard.tab_overview": "Επισκόπηση",
   "dashboard.tab_system": "Σύστημα",
-  "dashboard.tab_user": "Χρήστης"
+  "dashboard.tab_user": "Χρήστης",
+  "dashboard.operations_tunnel": "Τούνελ",
+  "dashboard.quickstatus_title": "Γρήγορη Κατάσταση",
+  "dashboard.quickstatus_connected": "Συνδεδεμένο",
+  "dashboard.quickstatus_not_connected": "Αποσυνδεδεμένο",
+  "dashboard.quickstatus_online": "Σε σύνδεση",
+  "dashboard.quickstatus_offline": "Εκτός σύνδεσης",
+  "dashboard.quickstatus_integrations": "Ενσωματώσεις"
 }

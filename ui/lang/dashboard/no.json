@@ -286,5 +286,12 @@
   "dashboard.tab_agent": "agent",
   "dashboard.tab_overview": "Oversikt",
   "dashboard.tab_system": "system",
-  "dashboard.tab_user": "Bruker"
+  "dashboard.tab_user": "Bruker",
+  "dashboard.operations_tunnel": "Tunnel",
+  "dashboard.quickstatus_title": "Rask Status",
+  "dashboard.quickstatus_connected": "Tilkoblet",
+  "dashboard.quickstatus_not_connected": "Frakoblet",
+  "dashboard.quickstatus_online": "Online",
+  "dashboard.quickstatus_offline": "Offline",
+  "dashboard.quickstatus_integrations": "Integrasjoner"
 }

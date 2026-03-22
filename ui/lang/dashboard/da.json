@@ -286,5 +286,12 @@
   "dashboard.tab_agent": "Agent",
   "dashboard.tab_overview": "Oversigt",
   "dashboard.tab_system": "System",
-  "dashboard.tab_user": "Bruger"
+  "dashboard.tab_user": "Bruger",
+  "dashboard.operations_tunnel": "Tunnel",
+  "dashboard.quickstatus_title": "Hurtigstatus",
+  "dashboard.quickstatus_connected": "Forbundet",
+  "dashboard.quickstatus_not_connected": "Afbrudt",
+  "dashboard.quickstatus_online": "Online",
+  "dashboard.quickstatus_offline": "Offline",
+  "dashboard.quickstatus_integrations": "Integrationer"
 }

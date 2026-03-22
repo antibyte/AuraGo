@@ -286,5 +286,12 @@
   "dashboard.tab_agent": "एजेंट",
   "dashboard.tab_overview": "अवलोकन",
   "dashboard.tab_system": "सिस्टम",
-  "dashboard.tab_user": "उपयोगकर्ता"
+  "dashboard.tab_user": "उपयोगकर्ता",
+  "dashboard.operations_tunnel": "टनल",
+  "dashboard.quickstatus_title": "त्वरित स्थिति",
+  "dashboard.quickstatus_connected": "जुड़ा हुआ",
+  "dashboard.quickstatus_not_connected": "डिस्कनेक्ट",
+  "dashboard.quickstatus_online": "ऑनलाइन",
+  "dashboard.quickstatus_offline": "ऑफलाइन",
+  "dashboard.quickstatus_integrations": "एकीकरण"
 }

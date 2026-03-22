@@ -286,5 +286,12 @@
   "dashboard.tab_agent": "činidlo",
   "dashboard.tab_overview": "Přehled",
   "dashboard.tab_system": "Systém",
-  "dashboard.tab_user": "Uživatel"
+  "dashboard.tab_user": "Uživatel",
+  "dashboard.operations_tunnel": "Tunel",
+  "dashboard.quickstatus_title": "Rychlý stav",
+  "dashboard.quickstatus_connected": "Připojen",
+  "dashboard.quickstatus_not_connected": "Odpojen",
+  "dashboard.quickstatus_online": "Online",
+  "dashboard.quickstatus_offline": "Offline",
+  "dashboard.quickstatus_integrations": "Integrace"
 }

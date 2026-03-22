@@ -286,5 +286,12 @@
   "dashboard.tab_agent": "tussenpersoon",
   "dashboard.tab_overview": "Overzicht",
   "dashboard.tab_system": "Systeem",
-  "dashboard.tab_user": "Gebruiker"
+  "dashboard.tab_user": "Gebruiker",
+  "dashboard.operations_tunnel": "Tunnel",
+  "dashboard.quickstatus_title": "Snelstatus",
+  "dashboard.quickstatus_connected": "Verbonden",
+  "dashboard.quickstatus_not_connected": "Verbroken",
+  "dashboard.quickstatus_online": "Online",
+  "dashboard.quickstatus_offline": "Offline",
+  "dashboard.quickstatus_integrations": "Integraties"
 }

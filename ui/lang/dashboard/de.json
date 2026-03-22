@@ -286,5 +286,12 @@
   "dashboard.adaptive_tools_active": "Tools aktiv",
   "dashboard.adaptive_tools_total_calls": "Aufrufe gesamt",
   "dashboard.adaptive_tools_max": "Max Tools",
-  "dashboard.sse_reconnecting": "Verbindung wird wiederhergestellt..."
+  "dashboard.sse_reconnecting": "Verbindung wird wiederhergestellt...",
+  "dashboard.operations_tunnel": "Tunnel",
+  "dashboard.quickstatus_title": "Schnellstatus",
+  "dashboard.quickstatus_connected": "Verbunden",
+  "dashboard.quickstatus_not_connected": "Getrennt",
+  "dashboard.quickstatus_online": "Online",
+  "dashboard.quickstatus_offline": "Offline",
+  "dashboard.quickstatus_integrations": "Integrationen"
 }

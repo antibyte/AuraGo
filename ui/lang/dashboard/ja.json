@@ -286,5 +286,12 @@
   "dashboard.tab_agent": "エージェント",
   "dashboard.tab_overview": "概要",
   "dashboard.tab_system": "システム",
-  "dashboard.tab_user": "ユーザー"
+  "dashboard.tab_user": "ユーザー",
+  "dashboard.operations_tunnel": "トンネル",
+  "dashboard.quickstatus_title": "クイックステータス",
+  "dashboard.quickstatus_connected": "接続済み",
+  "dashboard.quickstatus_not_connected": "切断済み",
+  "dashboard.quickstatus_online": "オンライン",
+  "dashboard.quickstatus_offline": "オフライン",
+  "dashboard.quickstatus_integrations": "連携"
 }

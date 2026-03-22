@@ -286,5 +286,12 @@
   "dashboard.integration_homepage": "Homepage",
   "dashboard.integration_mcp_server": "MCP Server",
   "dashboard.integration_fritzbox": "FritzBox",
-  "dashboard.integration_cloudflare_tunnel": "Cloudflare Tunnel"
+  "dashboard.integration_cloudflare_tunnel": "Cloudflare Tunnel",
+  "dashboard.operations_tunnel": "Tunnel",
+  "dashboard.quickstatus_title": "Snabbstatus",
+  "dashboard.quickstatus_connected": "Ansluten",
+  "dashboard.quickstatus_not_connected": "Frånkopplad",
+  "dashboard.quickstatus_online": "Online",
+  "dashboard.quickstatus_offline": "Offline",
+  "dashboard.quickstatus_integrations": "Integrationer"
 }

@@ -286,5 +286,12 @@
   "dashboard.tab_agent": "Agente",
   "dashboard.tab_overview": "Visão geral",
   "dashboard.tab_system": "Sistema",
-  "dashboard.tab_user": "Usuário"
+  "dashboard.tab_user": "Usuário",
+  "dashboard.operations_tunnel": "Túnel",
+  "dashboard.quickstatus_title": "Status Rápido",
+  "dashboard.quickstatus_connected": "Conectado",
+  "dashboard.quickstatus_not_connected": "Desconectado",
+  "dashboard.quickstatus_online": "Online",
+  "dashboard.quickstatus_offline": "Offline",
+  "dashboard.quickstatus_integrations": "Integrações"
 }

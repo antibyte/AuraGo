@@ -124,6 +124,7 @@
                 API.get('/api/credits'),
             ]);
             renderAgentBanner(overview, overview?.context?.total_chars);
+            renderQuickStatus(overview);
             if (system) {
                 if (!Charts.cpu) Charts.cpu = createGauge('cpu-chart', system.cpu?.usage_percent || 0);
                 updateGauge(Charts.cpu, 'cpu-val', system.cpu?.usage_percent || 0);
@@ -1338,6 +1339,7 @@
                 { icon: '📱', val: overview.devices || 0, lbl: t('dashboard.operations_devices'), sub: t('dashboard.operations_inventory') },
                 { icon: '🧠', val: overview.context?.has_summary ? '✓' : '✗', lbl: t('dashboard.operations_summary'), sub: t('dashboard.operations_chars_count', {n: ((overview.context?.total_chars || 0) / 1000).toFixed(1)}) },
                 { icon: '📋', val: (overview.cheatsheets?.total || 0), lbl: t('dashboard.operations_cheatsheets'), sub: t('dashboard.operations_cheatsheets_active', {n: overview.cheatsheets?.active || 0}) },
+                { icon: '🌐', val: overview.tunnel?.running ? '✓' : '✗', lbl: t('dashboard.operations_tunnel'), sub: overview.tunnel?.url ? truncate(overview.tunnel.url, 24) : t('dashboard.operations_disabled') },
             ];
 
             grid.innerHTML = items.map(s =>
@@ -1346,6 +1348,74 @@
                     <div class="ops-stat-val">${s.val}</div>
                     <div class="ops-stat-lbl">${s.lbl}</div>
                     <div class="ops-stat-sub">${s.sub}</div>
+                </div>`
+            ).join('');
+        }
+
+        function renderQuickStatus(overview) {
+            const el = document.getElementById('qs-grid');
+            if (!el || !overview) return;
+
+            const tunnel = overview.tunnel || {};
+            const mqtt = overview.mqtt || {};
+            const sec = overview.security || {};
+            const m = overview.missions || {};
+            const integrations = overview.integrations || {};
+
+            const activeInts = Object.values(integrations).filter(v => v).length;
+            const totalInts = Object.keys(integrations).length;
+
+            const items = [
+                {
+                    icon: '🌐',
+                    lbl: t('dashboard.operations_tunnel'),
+                    val: tunnel.running ? t('dashboard.quickstatus_online') : t('dashboard.quickstatus_offline'),
+                    status: tunnel.running ? 'ok' : 'offline',
+                    info: tunnel.running && tunnel.url ? truncate(tunnel.url, 24) : ''
+                },
+                {
+                    icon: '📡',
+                    lbl: t('dashboard.integration_mqtt'),
+                    val: mqtt.enabled ? (mqtt.connected ? t('dashboard.quickstatus_connected') : t('dashboard.quickstatus_not_connected')) : t('dashboard.operations_disabled'),
+                    status: mqtt.enabled ? (mqtt.connected ? 'ok' : 'warning') : 'neutral',
+                    info: (mqtt.enabled && mqtt.buffer) ? `${mqtt.buffer} buffered` : ''
+                },
+                {
+                    icon: '🔗',
+                    lbl: t('dashboard.quickstatus_integrations'),
+                    val: `${activeInts} / ${totalInts}`,
+                    status: 'neutral',
+                    info: ''
+                },
+                {
+                    icon: '🚀',
+                    lbl: t('dashboard.operations_missions'),
+                    val: `${m.running || 0} / ${m.total || 0}`,
+                    status: (m.running || 0) > 0 ? 'ok' : 'neutral',
+                    info: m.queued ? `${m.queued} queued` : ''
+                },
+                {
+                    icon: '🔐',
+                    lbl: t('dashboard.operations_vault_keys'),
+                    val: sec.vault_keys || 0,
+                    status: 'neutral',
+                    info: sec.tokens ? `${sec.tokens} tokens` : ''
+                },
+                {
+                    icon: '📱',
+                    lbl: t('dashboard.operations_devices'),
+                    val: overview.devices || 0,
+                    status: 'neutral',
+                    info: ''
+                },
+            ];
+
+            el.innerHTML = items.map(s =>
+                `<div class="qs-item ${s.status}">
+                    <div class="qs-icon">${s.icon}</div>
+                    <div class="qs-label">${s.lbl}</div>
+                    <div class="qs-val">${s.val}</div>
+                    ${s.info ? `<div class="qs-info">${esc(s.info)}</div>` : ''}
                 </div>`
             ).join('');
         }
@@ -1406,9 +1476,12 @@
 
             // Sort: active first
             const sorted = Object.entries(overview.integrations).sort((a, b) => (b[1] ? 1 : 0) - (a[1] ? 1 : 0));
-            grid.innerHTML = sorted.map(([key, active]) =>
-                `<span class="int-badge ${active ? 'active' : 'inactive'}">${icons[key] || '•'} ${names[key] || key}</span>`
-            ).join('');
+            grid.innerHTML = sorted.map(([key, active]) => {
+                let cls = active ? 'active' : 'inactive';
+                // MQTT: distinguish "enabled but disconnected" from "enabled and connected"
+                if (key === 'mqtt' && active && overview.mqtt && overview.mqtt.connected === false) cls = 'active-warning';
+                return `<span class="int-badge ${cls}">${icons[key] || '•'} ${names[key] || key}</span>`;
+            }).join('');
         }
 
         // ── Helpers (esc() is now provided by shared.js) ─────────────────────

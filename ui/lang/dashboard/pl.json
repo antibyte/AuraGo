@@ -286,5 +286,12 @@
   "dashboard.tab_agent": "agent",
   "dashboard.tab_overview": "Przeġląd",
   "dashboard.tab_system": "system",
-  "dashboard.tab_user": "Użytkownik"
+  "dashboard.tab_user": "Użytkownik",
+  "dashboard.operations_tunnel": "Tunel",
+  "dashboard.quickstatus_title": "Szybki Status",
+  "dashboard.quickstatus_connected": "Połączony",
+  "dashboard.quickstatus_not_connected": "Rozłączony",
+  "dashboard.quickstatus_online": "Online",
+  "dashboard.quickstatus_offline": "Offline",
+  "dashboard.quickstatus_integrations": "Integracje"
 }
