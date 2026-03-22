@@ -543,7 +543,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			lastActivity = time.Now()
 			// Update session todo from piggybacked _todo field
 			if ptc.Todo != "" {
-				sessionTodoList = ptc.Todo
+				sessionTodoList = string(ptc.Todo)
 				broker.Send("todo_update", sessionTodoList)
 			}
 			if ptc.Action == "manage_memory" || ptc.Action == "core_memory" {
@@ -1632,7 +1632,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 			// Update session todo from piggybacked _todo field
 			if tc.Todo != "" {
-				sessionTodoList = tc.Todo
+				sessionTodoList = string(tc.Todo)
 				broker.Send("todo_update", sessionTodoList)
 			}
 

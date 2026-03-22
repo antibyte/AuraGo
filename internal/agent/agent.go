@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -184,6 +185,34 @@ type NoopBroker struct{}
 func (n NoopBroker) Send(event, message string) {}
 func (n NoopBroker) SendJSON(jsonStr string)    {}
 
+// StringOrArray is a ToolCall field type that accepts both a JSON string
+// and a JSON array (the LLM sometimes sends _todo as ["item1","item2",...]
+// instead of a plain string, which would cause json.Unmarshal to fail and
+// break tool-call detection entirely).
+type StringOrArray string
+
+func (s *StringOrArray) UnmarshalJSON(data []byte) error {
+	// Try plain string first.
+	var str string
+	if err := json.Unmarshal(data, &str); err == nil {
+		*s = StringOrArray(str)
+		return nil
+	}
+	// Fall back to array-of-anything and join to a newline-separated string.
+	var arr []interface{}
+	if err := json.Unmarshal(data, &arr); err == nil {
+		parts := make([]string, 0, len(arr))
+		for _, v := range arr {
+			parts = append(parts, fmt.Sprintf("%v", v))
+		}
+		*s = StringOrArray(strings.Join(parts, "\n"))
+		return nil
+	}
+	// Last resort: store raw JSON.
+	*s = StringOrArray(string(data))
+	return nil
+}
+
 // ToolCall represents a parsed tool invocation from the LLM.
 type ToolCall struct {
 	Action             string                 `json:"action"`
@@ -200,7 +229,7 @@ type ToolCall struct {
 	RawCodeDetected    bool                   `json:"-"`
 	RawJSON            string                 `json:"-"`
 	NativeCallID       string                 `json:"-"`               // Native API tool call ID for role=tool responses
-	Todo               string                 `json:"_todo,omitempty"` // Session-scoped task list piggybacked on every tool call
+	Todo               StringOrArray          `json:"_todo,omitempty"` // Session-scoped task list piggybacked on every tool call
 	Operation          string                 `json:"operation"`
 	Fact               string                 `json:"fact"`
 	ID                 string                 `json:"id"`
