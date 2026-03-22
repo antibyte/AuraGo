@@ -30,6 +30,7 @@
   "knowledge.delete_confirm_file": "Είστε σίγουροι ότι θέλετε να διαγράψετε το αρχείο \"{name}\";",
   "knowledge.error_name_required": "Το όνομα είναι υποχρεωτικό.",
   "knowledge.relationship_placeholder": "π.χ. φίλος, συνάδελφος",
+  "knowledge.tab_secrets": "🔐 Μυστικά",
   "knowledge.tab_devices": "📱 Συσκευές",
   "knowledge.devices_search_placeholder": "Φιλτράρισμα συσκευών...",
   "knowledge.devices_add": "Προσθήκη Συσκευής",

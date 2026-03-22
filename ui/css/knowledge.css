@@ -251,3 +251,118 @@
         display: none; /* Hide phone column on very small screens */
     }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   Secrets panel — CSS for dynamically-loaded cfg/secrets.js module
+   (mirrors subset of config.css for use outside the config page)
+   ══════════════════════════════════════════════════════════════ */
+
+.field-group {
+    background: var(--card-bg);
+    border: 1px solid var(--border-subtle);
+    border-radius: 14px;
+    padding: 1rem 1.2rem;
+    margin-bottom: 0.75rem;
+}
+
+.field-label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.15rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.field-help {
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+    line-height: 1.4;
+}
+
+.field-input {
+    width: 100%;
+    background: var(--input-bg, var(--bg-tertiary));
+    border: 1px solid var(--input-border, var(--border-subtle));
+    border-radius: 10px;
+    padding: 0.55rem 0.85rem;
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    box-sizing: border-box;
+}
+
+.field-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.15);
+}
+
+.field-input::placeholder { color: var(--text-secondary); opacity: 0.5; }
+.field-input:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.password-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.password-wrap .field-input { padding-right: 2.8rem; }
+
+.password-toggle {
+    position: absolute;
+    right: 0.6rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0.2rem;
+    line-height: 1;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    transition: color 0.2s, background 0.2s;
+}
+
+.password-toggle:hover { color: var(--accent); background: var(--accent-dim, rgba(45,212,191,0.1)); }
+
+.password-toggle svg {
+    width: 16px;
+    height: 16px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.btn-save {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.5rem 1.2rem;
+    font-size: 0.85rem;
+    font-weight: 500;
+    font-family: inherit;
+    color: #fff;
+    background: linear-gradient(135deg, var(--accent), #0d9488);
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: filter 0.2s, box-shadow 0.2s, transform 0.2s;
+    box-shadow: 0 2px 12px rgba(45, 212, 191, 0.25);
+    white-space: nowrap;
+}
+
+.btn-save:hover { filter: brightness(1.12); transform: translateY(-1px); }
+.btn-save:active { transform: translateY(0); filter: brightness(0.95); }
+.btn-save:disabled { opacity: 0.45; cursor: not-allowed; pointer-events: none; }

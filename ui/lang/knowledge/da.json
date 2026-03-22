@@ -30,6 +30,7 @@
   "knowledge.delete_confirm_file": "Er du sikker på, at du vil slette filen \"{name}\"?",
   "knowledge.error_name_required": "Navn er påkrævet.",
   "knowledge.relationship_placeholder": "f.eks. ven, kollega",
+  "knowledge.tab_secrets": "🔐 Hemmeligheder",
   "knowledge.tab_devices": "📱 Enheder",
   "knowledge.devices_search_placeholder": "Filtrer enheder...",
   "knowledge.devices_add": "Tilføj enhed",

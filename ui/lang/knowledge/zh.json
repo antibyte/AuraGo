@@ -30,6 +30,7 @@
   "knowledge.delete_confirm_file": "您确定要删除文件\"{name}\"吗？",
   "knowledge.error_name_required": "姓名为必填项。",
   "knowledge.relationship_placeholder": "例如：朋友、同事",
+  "knowledge.tab_secrets": "🔐 密钥",
   "knowledge.tab_devices": "📱 设备",
   "knowledge.devices_search_placeholder": "过滤设备...",
   "knowledge.devices_add": "添加设备",

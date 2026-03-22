@@ -131,7 +131,6 @@ const SECTIONS = [
     {
         group: t('config.group.security'),
         items: [
-            { key: 'secrets', icon: '🔐', label: t('config.section.secrets.label'), desc: t('config.section.secrets.desc') },
             { key: 'security_proxy', icon: '🔒', label: t('config.section.security_proxy.label'), desc: t('config.section.security_proxy.desc') },
             { key: 'llm_guardian', icon: '🛡️', label: t('config.section.llm_guardian.label'), desc: t('config.section.llm_guardian.desc') },
             { key: 'virustotal', icon: '🦠', label: t('config.section.virustotal.label'), desc: t('config.section.virustotal.desc') }
@@ -1005,7 +1004,6 @@ const SECTION_MODULES = {
     mcp: { m: 'mcp', fn: 'renderMCPSection' },
     sandbox: { m: 'sandbox', fn: 'renderSandboxSection' },
     web_scraper: { m: 'scraper', fn: 'renderWebScraperSection' },
-    secrets: { m: 'secrets', fn: 'renderSecretsSection' },
     webhooks: { m: 'webhooks', fn: 'renderWebhooksSection' },
     prompts_editor: { m: 'prompts', fn: 'renderPromptsSection' },
     indexing: { m: 'indexing', fn: 'renderIndexingSection' },

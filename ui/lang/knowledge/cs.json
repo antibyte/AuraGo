@@ -30,6 +30,7 @@
   "knowledge.delete_confirm_file": "Opravdu chcete smazat soubor \"{name}\"?",
   "knowledge.error_name_required": "Jméno je povinné.",
   "knowledge.relationship_placeholder": "např. přítel, kolega",
+  "knowledge.tab_secrets": "🔐 Tajemství",
   "knowledge.tab_devices": "📱 Zařízení",
   "knowledge.devices_search_placeholder": "Filtrovat zařízení...",
   "knowledge.devices_add": "Přidat zařízení",

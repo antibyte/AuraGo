@@ -30,6 +30,7 @@
   "knowledge.delete_confirm_file": "क्या आप वाकई फ़ाइल \"{name}\" को हटाना चाहते हैं?",
   "knowledge.error_name_required": "नाम आवश्यक है।",
   "knowledge.relationship_placeholder": "जैसे मित्र, सहकर्मी",
+  "knowledge.tab_secrets": "🔐 रहस्य",
   "knowledge.tab_devices": "📱 उपकरण",
   "knowledge.devices_search_placeholder": "उपकरण વिल्टर करें...",
   "knowledge.devices_add": "डिवाइस जोड़ें",

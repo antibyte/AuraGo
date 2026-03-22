@@ -1,18 +1,61 @@
 // cfg/secrets.js — Secrets / Vault Management section module
 
+        // Fallbacks for globals defined in config/main.js (not available in other pages)
+        if (typeof window.EYE_OPEN_SVG === 'undefined') {
+            window.EYE_OPEN_SVG = '<svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+        }
+        if (typeof window.EYE_CLOSED_SVG === 'undefined') {
+            window.EYE_CLOSED_SVG = '<svg viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+        }
+        if (typeof window.escapeAttr === 'undefined') {
+            window.escapeAttr = function(s) { return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); };
+        }
+        if (typeof window.togglePassword === 'undefined') {
+            window.togglePassword = function(btn) {
+                const wrap = btn.closest('.password-wrap');
+                const inp = wrap && wrap.querySelector('input');
+                if (!inp) return;
+                const show = btn.getAttribute('data-visible') !== 'true';
+                btn.setAttribute('data-visible', show ? 'true' : 'false');
+                inp.type = show ? 'text' : 'password';
+                btn.innerHTML = show ? window.EYE_CLOSED_SVG : window.EYE_OPEN_SVG;
+            };
+        }
+
         let secretsCache = [];
 
         async function renderSecretsSection(section) {
-            const content = document.getElementById('content');
-            content.innerHTML = `<div class="cfg-section active">
+            // Support rendering into a custom container (e.g. knowledge center)
+            const containerId = section.container || 'content';
+            const content = document.getElementById(containerId);
+            if (!content) return;
+
+            if (section.container) {
+                // Knowledge center context: render without cfg-specific wrapper
+                content.innerHTML = `
+                <div style="padding:0.5rem 0;">
+                    <div id="secrets-vault-status" style="margin-bottom:1rem;"></div>
+                    <div id="secrets-main"></div>
+                </div>`;
+            } else {
+                content.innerHTML = `<div class="cfg-section active">
                 <div class="section-header">${section.icon} ${section.label}</div>
                 <div class="section-desc">${section.desc}</div>
                 <div id="secrets-vault-status" style="margin-bottom:1rem;"></div>
                 <div id="secrets-main"></div>
             </div>`;
+            }
 
-            // Check vault availability
-            if (!vaultExists) {
+            // Check vault availability — use global if set, otherwise fetch
+            let vaultReady = typeof vaultExists !== 'undefined' ? vaultExists : false;
+            if (!vaultReady) {
+                try {
+                    const vResp = await fetch('/api/vault/status');
+                    if (vResp.ok) { vaultReady = (await vResp.json()).exists === true; }
+                } catch (_) {}
+            }
+
+            if (!vaultReady) {
                 document.getElementById('secrets-vault-status').innerHTML = `
                     <div style="text-align:center;padding:2rem;border:1px dashed var(--border-subtle);border-radius:12px;color:var(--warning);">
                         <div style="font-size:1.5rem;margin-bottom:0.5rem;">⚠️</div>

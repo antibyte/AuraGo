@@ -30,6 +30,7 @@
   "knowledge.delete_confirm_file": "ファイル「{name}」を削除してもよろしいですか？",
   "knowledge.error_name_required": "名前は必須です。",
   "knowledge.relationship_placeholder": "例：友人、同僚",
+  "knowledge.tab_secrets": "🔐 シークレット",
   "knowledge.tab_devices": "📱 デバイス",
   "knowledge.devices_search_placeholder": "デバイスをフィルター...",
   "knowledge.devices_add": "デバイスの追加",

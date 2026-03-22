@@ -30,6 +30,7 @@
   "knowledge.delete_confirm_file": "¿Está seguro de que desea eliminar el archivo \"{name}\"?",
   "knowledge.error_name_required": "El nombre es obligatorio.",
   "knowledge.relationship_placeholder": "p.ej. amigo, colega",
+  "knowledge.tab_secrets": "🔐 Secretos",
   "knowledge.tab_devices": "📱 Dispositivos",
   "knowledge.devices_search_placeholder": "Filtrar dispositivos...",
   "knowledge.devices_add": "Añadir Dispositivo",

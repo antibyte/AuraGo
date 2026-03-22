@@ -31,6 +31,32 @@ function switchKCTab(tab) {
     document.getElementById('tab-' + tab).classList.add('active');
     document.getElementById('tab-' + tab).setAttribute('aria-selected', 'true');
     document.getElementById('panel-' + tab).classList.add('active');
+
+    if (tab === 'secrets') {
+        if (!window._secretsModuleLoaded) {
+            window._secretsModuleLoaded = true;
+            const s = document.createElement('script');
+            s.src = '/cfg/secrets.js';
+            s.onload = () => {
+                if (typeof renderSecretsSection === 'function') {
+                    renderSecretsSection({
+                        key: 'secrets',
+                        icon: '🔐',
+                        label: window.t ? window.t('knowledge.tab_secrets') : 'Secrets',
+                        container: 'secrets-section-content'
+                    });
+                }
+            };
+            document.head.appendChild(s);
+        } else if (typeof renderSecretsSection === 'function') {
+            renderSecretsSection({
+                key: 'secrets',
+                icon: '🔐',
+                label: window.t ? window.t('knowledge.tab_secrets') : 'Secrets',
+                container: 'secrets-section-content'
+            });
+        }
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════

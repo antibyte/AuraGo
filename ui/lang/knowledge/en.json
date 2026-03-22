@@ -31,6 +31,7 @@
   "knowledge.error_name_required": "Name is required.",
   "knowledge.relationship_placeholder": "e.g. friend, colleague",
   "knowledge.tab_devices": "📱 Devices",
+  "knowledge.tab_secrets": "🔐 Secrets",
   "knowledge.devices_search_placeholder": "Filter devices...",
   "knowledge.devices_add": "Add Device",
   "knowledge.devices_edit": "Edit Device",

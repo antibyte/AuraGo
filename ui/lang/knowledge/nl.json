@@ -30,6 +30,7 @@
   "knowledge.delete_confirm_file": "Weet u zeker dat u het bestand \"{name}\" wilt verwijderen?",
   "knowledge.error_name_required": "Naam is verplicht.",
   "knowledge.relationship_placeholder": "bijv. vriend, collega",
+  "knowledge.tab_secrets": "🔐 Geheimen",
   "knowledge.tab_devices": "📱 Apparaten",
   "knowledge.devices_search_placeholder": "Apparaten filteren...",
   "knowledge.devices_add": "Apparaat Toevoegen",

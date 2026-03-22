@@ -39,6 +39,8 @@
                 onclick="switchKCTab('files')" data-i18n="knowledge.tab_files">📂 Knowledge Files</button>
             <button class="kc-tab" id="tab-devices" role="tab" aria-selected="false"
                 onclick="switchKCTab('devices')" data-i18n="knowledge.tab_devices">📱 Devices</button>
+            <button class="kc-tab" id="tab-secrets" role="tab" aria-selected="false"
+                onclick="switchKCTab('secrets')" data-i18n="knowledge.tab_secrets">🔐 Secrets</button>
         </div>
 
         <!-- ═══════ CONTACTS PANEL ═══════ -->
@@ -142,6 +144,11 @@
                 <h3 data-i18n="knowledge.devices_empty_title">No Devices Registered</h3>
                 <p data-i18n="knowledge.devices_empty_desc">Add devices to your device registry.</p>
             </div>
+        </div>
+
+        <!-- ═══════ SECRETS PANEL ═══════ -->
+        <div id="panel-secrets" class="kc-panel">
+            <div id="secrets-section-content"></div>
         </div>
     </div>
 
