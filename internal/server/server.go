@@ -755,7 +755,7 @@ func securityHeadersMiddleware(next http.Handler, tlsActive, behindProxy bool) h
 
 		// Content Security Policy - strict but allows necessary CDNs
 		csp := "default-src 'self'; " +
-			"script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com; " +
+			"script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com; " +
 			"style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; " +
 			"img-src 'self' data: blob:; " +
 			"font-src 'self' https://fonts.gstatic.com; " +
