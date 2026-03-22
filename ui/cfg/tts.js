@@ -101,8 +101,8 @@ function renderTTSSection(section) {
     html += '</div>';
 
     // Voice browser modal (hidden by default)
-    html += '<div id="piper-voice-modal" class="modal">';
-    html += '<div class="modal-content" style="max-width:600px;">';
+    html += '<div id="piper-voice-modal" class="modal-overlay" onclick="if(event.target===this)piperCloseVoiceModal()">';
+    html += '<div class="modal" style="max-width:600px;">';
     html += '<div class="modal-header"><span>' + t('config.tts.piper_voice_browser_title') + '</span><span class="modal-close" onclick="piperCloseVoiceModal()">&times;</span></div>';
     html += '<div class="modal-body" style="max-height:400px;overflow-y:auto;">';
     html += '<div id="piper-voice-list" style="padding:0.5rem;">' + t('config.tts.piper_loading_voices') + '</div>';
@@ -165,9 +165,9 @@ function piperCheckStatus() {
 }
 
 function piperBrowseVoices() {
-    const modal = document.getElementById('piper-voice-modal');
-    if (!modal) return;
-    modal.classList.add('active');
+    const overlay = document.getElementById('piper-voice-modal');
+    if (!overlay) return;
+    overlay.classList.add('active');
     const list = document.getElementById('piper-voice-list');
     if (list) list.innerHTML = '<div style="text-align:center;padding:1rem;">' + t('config.tts.piper_loading_voices') + '</div>';
 
@@ -210,6 +210,6 @@ function piperSelectVoice(name) {
 }
 
 function piperCloseVoiceModal() {
-    const modal = document.getElementById('piper-voice-modal');
-    if (modal) modal.classList.remove('active');
+    const overlay = document.getElementById('piper-voice-modal');
+    if (overlay) overlay.classList.remove('active');
 }
