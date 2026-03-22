@@ -222,23 +222,23 @@ func (m *Manager) Start(handler http.Handler) error {
 
 	// serve_http: true — also start an HTTP/HTTPS listener.
 	// Try HTTPS first (requires Tailscale HTTPS certificates to be enabled in the admin panel).
-	// If that fails with the "must enable HTTPS" error, fall back to plain HTTP on port 80.
+	// Fall back to plain HTTP on port 80 on any error — the exact error text from
+	// the Tailscale control plane is not stable and string-matching is unreliable.
 	usingHTTP := false
-	ln, err := srv.ListenTLS("tcp", ":443")
+	ln, err := listenTLSWithTimeout(srv, ":443", 15*time.Second)
 	if err != nil {
-		if strings.Contains(err.Error(), "you must enable HTTPS") || strings.Contains(err.Error(), "enable HTTPS in the admin") {
-			m.logger.Warn("[tsnet] HTTPS certs not available — falling back to HTTP on :80",
-				"hint", "Enable HTTPS at https://tailscale.com/s/https for encrypted access")
-			ln, err = srv.Listen("tcp", ":80")
-			usingHTTP = true
-		}
+		m.logger.Warn("[tsnet] HTTPS not available — falling back to HTTP on :80",
+			"reason", err,
+			"hint", "Enable HTTPS in the Tailscale admin panel for encrypted access")
+		ln, err = srv.Listen("tcp", ":80")
+		usingHTTP = true
 		if err != nil {
 			srv.Close()
 			m.mu.Lock()
 			m.server = nil
 			m.mu.Unlock()
 			cleanup(err.Error())
-			return fmt.Errorf("failed to listen on tsnet: %w", err)
+			return fmt.Errorf("failed to listen on tsnet (HTTP fallback also failed): %w", err)
 		}
 	}
 
@@ -384,16 +384,15 @@ func (m *Manager) UpgradeToHTTP(handler http.Handler) error {
 	m.mu.Unlock()
 
 	usingHTTP := false
-	ln, err := srv.ListenTLS("tcp", ":443")
+	ln, err := listenTLSWithTimeout(srv, ":443", 15*time.Second)
 	if err != nil {
-		if strings.Contains(err.Error(), "you must enable HTTPS") || strings.Contains(err.Error(), "enable HTTPS in the admin") {
-			m.logger.Warn("[tsnet] HTTPS certs not available — falling back to HTTP on :80",
-				"hint", "Enable HTTPS at https://tailscale.com/s/https for encrypted access")
-			ln, err = srv.Listen("tcp", ":80")
-			usingHTTP = true
-		}
+		m.logger.Warn("[tsnet] HTTPS not available — falling back to HTTP on :80",
+			"reason", err,
+			"hint", "Enable HTTPS in the Tailscale admin panel for encrypted access")
+		ln, err = srv.Listen("tcp", ":80")
+		usingHTTP = true
 		if err != nil {
-			return fmt.Errorf("failed to start tsnet listener: %w", err)
+			return fmt.Errorf("failed to start tsnet listener (HTTP fallback also failed): %w", err)
 		}
 	}
 
@@ -457,6 +456,26 @@ func (m *Manager) DowngradeToNetworkOnly() error {
 	m.httpFallback = false
 	m.logger.Info("[tsnet] Downgraded to network-only mode (HTTP listener stopped)")
 	return nil
+}
+
+// listenTLSWithTimeout calls srv.ListenTLS with a timeout so that a slow or
+// blocked cert-provisioning call does not stall the entire Start() goroutine.
+func listenTLSWithTimeout(srv *tsnet.Server, addr string, timeout time.Duration) (net.Listener, error) {
+	type result struct {
+		ln  net.Listener
+		err error
+	}
+	ch := make(chan result, 1)
+	go func() {
+		ln, err := srv.ListenTLS("tcp", addr)
+		ch <- result{ln, err}
+	}()
+	select {
+	case r := <-ch:
+		return r.ln, r.err
+	case <-time.After(timeout):
+		return nil, fmt.Errorf("ListenTLS timed out after %s (HTTPS cert not ready)", timeout)
+	}
 }
 
 // extractLoginURL pulls a https://login.tailscale.com/… URL out of a log message.
