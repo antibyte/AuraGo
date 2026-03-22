@@ -166,6 +166,11 @@
     justify-content: center;
     padding: 2rem;
 }
+/* .lightbox {display:flex} overrides .is-hidden {display:none} (same specificity, gallery.css
+   loads after shared.css). Higher specificity rule needed to properly hide the lightbox. */
+.lightbox.is-hidden {
+    display: none;
+}
 
 .lightbox-content {
     max-width: 900px;

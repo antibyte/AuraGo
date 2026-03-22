@@ -297,6 +297,7 @@ var authBypassPrefixes = []string{
 	"/manifest.json",
 	"/sw.js",
 	"/tailwind.min.js",
+	"/chart.min.js",
 }
 
 func isAuthBypassed(path string) bool {
