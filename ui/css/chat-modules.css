@@ -1,3 +1,6 @@
+
+/* Compatibility: is-hidden for JS */
+.is-hidden { display: none !important; }
 /* ========================================
    AuraGo Chat Modules CSS
    Mobile-first responsive design
@@ -664,3 +667,4 @@
 .mm-diagram {
     min-width: 200px;
 }
+

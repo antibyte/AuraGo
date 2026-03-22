@@ -110,7 +110,7 @@
             <div id="gallery-grid" class="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4">
                 <div class="col-span-full text-center py-12 text-aura-muted text-sm" data-i18n="gallery.loading">Loading...</div>
             </div>
-            <div id="gallery-pagination" class="hidden flex justify-center items-center gap-4 py-6">
+            <div id="gallery-pagination" class="is-hidden flex justify-center items-center gap-4 py-6">
                 <button id="gallery-prev" 
                     class="px-4 py-2 text-sm border border-aura-border rounded-lg bg-aura-surface text-aura-text 
                     cursor-pointer transition-all hover:border-aura-accent disabled:opacity-40 disabled:cursor-not-allowed" 
@@ -124,11 +124,11 @@
         </div>
 
         <!-- Audio Panel -->
-        <div id="panel-audio" class="hidden" role="tabpanel">
+        <div id="panel-audio" class="is-hidden" role="tabpanel">
             <div id="audio-grid" class="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-4">
                 <div class="col-span-full text-center py-12 text-aura-muted text-sm" data-i18n="gallery.loading">Loading...</div>
             </div>
-            <div id="audio-pagination" class="hidden flex justify-center items-center gap-4 py-6">
+            <div id="audio-pagination" class="is-hidden flex justify-center items-center gap-4 py-6">
                 <button id="audio-prev" 
                     class="px-4 py-2 text-sm border border-aura-border rounded-lg bg-aura-surface text-aura-text 
                     cursor-pointer transition-all hover:border-aura-accent disabled:opacity-40 disabled:cursor-not-allowed" 
@@ -142,11 +142,11 @@
         </div>
 
         <!-- Documents Panel -->
-        <div id="panel-documents" class="hidden" role="tabpanel">
+        <div id="panel-documents" class="is-hidden" role="tabpanel">
             <div id="doc-list" class="flex flex-col gap-2">
                 <div class="text-center py-12 text-aura-muted text-sm" data-i18n="gallery.loading">Loading...</div>
             </div>
-            <div id="doc-pagination" class="hidden flex justify-center items-center gap-4 py-6">
+            <div id="doc-pagination" class="is-hidden flex justify-center items-center gap-4 py-6">
                 <button id="doc-prev" 
                     class="px-4 py-2 text-sm border border-aura-border rounded-lg bg-aura-surface text-aura-text 
                     cursor-pointer transition-all hover:border-aura-accent disabled:opacity-40 disabled:cursor-not-allowed" 
@@ -161,7 +161,7 @@
     </div>
 
     <!-- Image Lightbox -->
-    <div id="lightbox" class="fixed inset-0 z-[1000] bg-black/85 hidden items-center justify-center p-8" onclick="closeLightbox(event)">
+    <div id="lightbox" class="fixed inset-0 z-[1000] bg-black/85 is-hidden items-center justify-center p-8" onclick="closeLightbox(event)">
         <div class="max-w-[900px] max-h-[90vh] bg-aura-bg rounded-xl overflow-hidden relative flex flex-col border border-aura-border" onclick="event.stopPropagation()">
             <button class="absolute top-2 right-2.5 bg-black/60 text-white border-none rounded-full w-8 h-8 text-xl flex items-center justify-center cursor-pointer z-10 transition-all hover:bg-red-500/80" 
                 onclick="closeLightbox()">&times;</button>
@@ -179,7 +179,7 @@
     </div>
 
     <!-- Audio Modal -->
-    <div id="audio-modal" class="fixed inset-0 z-[1000] bg-aura-modal-bg hidden items-center justify-center p-8 backdrop-blur-sm" onclick="closeAudioModal(event)">
+    <div id="audio-modal" class="fixed inset-0 z-[1000] bg-aura-modal-bg is-hidden items-center justify-center p-8 backdrop-blur-sm" onclick="closeAudioModal(event)">
         <div class="max-w-[600px] max-h-[90vh] w-full bg-aura-modal-surface border border-aura-modal-border rounded-2xl p-6 relative overflow-hidden" onclick="event.stopPropagation()">
             <button class="absolute top-2 right-2.5 bg-black/60 text-white border-none rounded-full w-8 h-8 text-xl flex items-center justify-center cursor-pointer z-10 transition-all hover:bg-red-500/80" 
                 onclick="closeAudioModal()">&times;</button>
@@ -200,3 +200,4 @@
     <script src="/js/media/main.js"></script>
 </body>
 </html>
+

@@ -1,3 +1,6 @@
+
+/* Compatibility: is-hidden for JS */
+.is-hidden { display: none !important; }
 /* AuraGo – Cheat Sheets page styles */
 
 /* Uses standard components from shared.css:
@@ -202,3 +205,4 @@
         max-width: 95vw;
     }
 }
+

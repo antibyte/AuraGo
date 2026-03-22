@@ -116,7 +116,7 @@
         <div class="cards-grid" id="sheets-grid"></div>
         
         <!-- Empty State -->
-        <div class="hidden text-center py-20 px-5 bg-aura-surface rounded-2xl border border-dashed border-aura-border relative overflow-hidden" id="sheets-empty">
+        <div class="is-hidden text-center py-20 px-5 bg-aura-surface rounded-2xl border border-dashed border-aura-border relative overflow-hidden" id="sheets-empty">
             <div class="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(45,212,191,0.05),transparent_70%)] pointer-events-none"></div>
             <div class="text-6xl mb-4 grayscale-[0.3] opacity-80 animate-[bounce_3s_ease-in-out_infinite]">📋</div>
             <h3 class="text-lg font-semibold mb-2 text-aura-text" data-i18n="cheatsheets.empty_title">No Cheat Sheets Yet</h3>
@@ -125,7 +125,7 @@
     </div>
 
     <!-- Edit Modal -->
-    <div class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden items-start justify-center z-[200] opacity-0 transition-opacity duration-300 py-5 px-4" id="edit-modal">
+    <div class="fixed inset-0 bg-black/60 backdrop-blur-sm is-hidden items-start justify-center z-[200] opacity-0 transition-opacity duration-300 py-5 px-4" id="edit-modal">
         <div class="bg-aura-surface border border-aura-border rounded-2xl p-7 w-full max-w-3xl shadow-2xl shadow-black/50 relative overflow-hidden scale-95 opacity-0 transition-all duration-300" 
              style="margin: auto; transform-origin: center top;">
             <!-- Top glow line -->
@@ -166,7 +166,7 @@
                 <textarea id="sheet-content" rows="12" placeholder="# Steps&#10;1. First do this&#10;2. Then do that"
                     class="w-full min-h-[300px] px-4 py-3 bg-aura-bg border border-aura-border rounded-b-lg rounded-tr-lg font-mono text-sm leading-relaxed text-aura-text placeholder:text-aura-muted/50 focus:outline-none focus:border-aura-accent focus:ring-2 focus:ring-aura-accent/20 resize-y tab-2"></textarea>
                 <!-- Preview -->
-                <div id="sheet-preview" class="hidden min-h-[300px] max-h-[500px] overflow-y-auto px-4 py-3 bg-aura-bg border border-aura-border rounded-b-lg rounded-tr-lg text-sm leading-relaxed prose prose-invert max-w-none"></div>
+                <div id="sheet-preview" class="is-hidden min-h-[300px] max-h-[500px] overflow-y-auto px-4 py-3 bg-aura-bg border border-aura-border rounded-b-lg rounded-tr-lg text-sm leading-relaxed prose prose-invert max-w-none"></div>
             </div>
             
             <!-- Active Toggle -->
@@ -194,7 +194,7 @@
     </div>
 
     <!-- Delete Confirm Modal -->
-    <div class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden items-start justify-center z-[200] opacity-0 transition-opacity duration-300 py-5 px-4" id="delete-modal">
+    <div class="fixed inset-0 bg-black/60 backdrop-blur-sm is-hidden items-start justify-center z-[200] opacity-0 transition-opacity duration-300 py-5 px-4" id="delete-modal">
         <div class="bg-aura-surface border border-aura-border rounded-2xl p-7 w-full max-w-md shadow-2xl shadow-black/50 relative overflow-hidden scale-95 opacity-0 transition-all duration-300"
              style="margin: auto; transform-origin: center top;">
             <!-- Top glow line -->
@@ -231,3 +231,4 @@
     <script src="/js/cheatsheets/main.js"></script>
 </body>
 </html>
+

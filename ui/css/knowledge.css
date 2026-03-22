@@ -1,3 +1,6 @@
+
+/* Compatibility: is-hidden for JS */
+.is-hidden { display: none !important; }
 /* AuraGo – Knowledge Center page styles */
 
 /* Uses standard components from shared.css:
@@ -251,3 +254,4 @@
         display: none; /* Hide phone column on very small screens */
     }
 }
+

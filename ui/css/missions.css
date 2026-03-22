@@ -1,3 +1,6 @@
+
+/* Compatibility: is-hidden for JS */
+.is-hidden { display: none !important; }
 /* AuraGo – missions_v2 page styles */
 
 /* Uses standard components from shared.css:
@@ -600,3 +603,4 @@
         padding: 12px;
     }
 }
+

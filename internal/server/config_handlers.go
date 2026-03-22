@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"math"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -569,7 +570,15 @@ func deepMerge(dst, src map[string]interface{}, path string) {
 			}
 			dst[key] = srcVal
 		default:
-			dst[key] = srcVal
+			// JSON numbers decode as float64 in Go. If the value is an exact integer,
+			// store it as int so yaml.Marshal writes it as an integer (e.g. 123456789)
+			// rather than scientific notation (1.23456789e+08). The latter cannot be
+			// unmarshaled back into int64 config fields, causing them to reset to 0.
+			if f, ok := srcVal.(float64); ok && !math.IsInf(f, 0) && !math.IsNaN(f) && math.Trunc(f) == f {
+				dst[key] = int(f)
+			} else {
+				dst[key] = srcVal
+			}
 		}
 	}
 }

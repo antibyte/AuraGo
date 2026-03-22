@@ -96,7 +96,7 @@
         <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" id="ct-grid"></div>
 
         <!-- Empty State -->
-        <div class="hidden text-center py-20 text-aura-muted bg-aura-surface rounded-2xl border border-dashed border-aura-border relative overflow-hidden" id="ct-empty">
+        <div class="is-hidden text-center py-20 text-aura-muted bg-aura-surface rounded-2xl border border-dashed border-aura-border relative overflow-hidden" id="ct-empty">
             <div class="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(45,212,191,0.05),transparent_70%)] pointer-events-none"></div>
             <div class="text-6xl mb-4 grayscale-[30%] opacity-80 animate-[float_3s_ease-in-out_infinite]">🐳</div>
             <h3 class="text-lg font-semibold text-aura-text mb-2" data-i18n="containers.empty_title">No Containers Found</h3>
@@ -104,7 +104,7 @@
         </div>
 
         <!-- Error State (Docker Disabled) -->
-        <div class="hidden text-center py-20 text-aura-muted bg-aura-surface rounded-2xl border border-dashed border-aura-border relative overflow-hidden" id="ct-disabled">
+        <div class="is-hidden text-center py-20 text-aura-muted bg-aura-surface rounded-2xl border border-dashed border-aura-border relative overflow-hidden" id="ct-disabled">
             <div class="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(45,212,191,0.05),transparent_70%)] pointer-events-none"></div>
             <div class="text-6xl mb-4">⚠️</div>
             <h3 class="text-lg font-semibold text-aura-text mb-2" data-i18n="containers.disabled_title">Docker Not Enabled</h3>
@@ -113,7 +113,7 @@
     </div>
 
     <!-- ═══════ LOG MODAL ═══════ -->
-    <div class="modal-overlay hidden fixed inset-0 bg-black/60 items-start justify-center z-[200] p-5 backdrop-blur-sm transition-opacity" id="log-modal">
+    <div class="modal-overlay is-hidden fixed inset-0 bg-black/60 items-start justify-center z-[200] p-5 backdrop-blur-sm transition-opacity" id="log-modal">
         <div class="bg-[var(--modal-surface)] border border-[var(--modal-border)] rounded-2xl p-7 w-[95%] max-w-[900px] shadow-2xl my-auto transform scale-[0.95] opacity-0 transition-all duration-300">
             <div class="flex justify-between items-start mb-5 gap-4">
                 <h2 class="text-xl font-semibold bg-gradient-to-r from-aura-text to-aura-accent bg-clip-text text-transparent" data-i18n="containers.logs_title">Container Logs</h2>
@@ -130,7 +130,7 @@
     </div>
 
     <!-- ═══════ INSPECT MODAL ═══════ -->
-    <div class="modal-overlay hidden fixed inset-0 bg-black/60 items-start justify-center z-[200] p-5 backdrop-blur-sm transition-opacity" id="inspect-modal">
+    <div class="modal-overlay is-hidden fixed inset-0 bg-black/60 items-start justify-center z-[200] p-5 backdrop-blur-sm transition-opacity" id="inspect-modal">
         <div class="bg-[var(--modal-surface)] border border-[var(--modal-border)] rounded-2xl p-7 w-[95%] max-w-[900px] shadow-2xl my-auto transform scale-[0.95] opacity-0 transition-all duration-300">
             <div class="flex justify-between items-start mb-5 gap-4">
                 <h2 class="text-xl font-semibold bg-gradient-to-r from-aura-text to-aura-accent bg-clip-text text-transparent" data-i18n="containers.inspect_title">Container Details</h2>
@@ -146,7 +146,7 @@
     </div>
 
     <!-- ═══════ CONFIRM DELETE MODAL ═══════ -->
-    <div class="modal-overlay hidden fixed inset-0 bg-black/60 items-start justify-center z-[200] p-5 backdrop-blur-sm transition-opacity" id="delete-modal">
+    <div class="modal-overlay is-hidden fixed inset-0 bg-black/60 items-start justify-center z-[200] p-5 backdrop-blur-sm transition-opacity" id="delete-modal">
         <div class="bg-[var(--modal-surface)] border border-[var(--modal-border)] rounded-2xl p-7 w-[95%] max-w-[560px] shadow-2xl my-auto transform scale-[0.95] opacity-0 transition-all duration-300">
             <div class="flex justify-between items-start mb-5 gap-4">
                 <h2 class="text-xl font-semibold bg-gradient-to-r from-aura-text to-aura-accent bg-clip-text text-transparent" data-i18n="containers.delete_title">Remove Container</h2>
@@ -228,3 +228,4 @@
     </style>
 </body>
 </html>
+

@@ -1,3 +1,6 @@
+
+/* Compatibility: is-hidden for JS */
+.is-hidden { display: none !important; }
 /* AuraGo – index page styles */
 /* Extracted from index.html */
 
@@ -2854,3 +2857,4 @@
 .w-pct-98 { width: 98%; }
 .w-pct-99 { width: 99%; }
 .w-pct-100 { width: 100%; }
+

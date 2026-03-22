@@ -1,3 +1,6 @@
+
+/* Compatibility: is-hidden for JS */
+.is-hidden { display: none !important; }
 /* AuraGo – setup page styles */
 /* Extracted from setup.html */
 
@@ -713,3 +716,4 @@
 .setup-dimmed {
     opacity: 0.4;
 }
+

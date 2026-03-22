@@ -1,3 +1,6 @@
+
+/* Compatibility: is-hidden for JS */
+.is-hidden { display: none !important; }
 /* AuraGo – login page styles */
 /* Extracted from login.html */
 
@@ -452,3 +455,4 @@
             0% { transform: translateY(-100vh); }
             100% { transform: translateY(100vh); }
         }
+

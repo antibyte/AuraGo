@@ -1,3 +1,6 @@
+
+/* Compatibility: is-hidden for JS */
+.is-hidden { display: none !important; }
 /* AuraGo – Containers page styles */
 
 /* Uses standard components from shared.css:
@@ -357,3 +360,4 @@
         justify-content: center;
     }
 }
+
