@@ -186,7 +186,7 @@ Phase 1 is complete when:
 ### B. Standard definitions (design-system-level)
 - [x] Define canonical header pattern (logo title, subtitle, action area).
 - [x] Define standard state utility classes and migration notes.
-- [ ] Define standard form spacing scale (`xs/sm/md/lg`) for labels, hints, errors.
+- [x] Define standard form spacing scale (`xs/sm/md/lg`) for labels, hints, errors.
 
 ### C. Implementation preparation (handoff-ready)
 - [x] Generate P0 implementation tickets (header unification, modal extraction, state utilities).
@@ -211,3 +211,19 @@ Reaching these targets means the design baseline is not only documented but also
 
 Detailed scorecards for the first three audited pages are documented in:
 - `documentation/web_ui_scorecards_phase1_1.md`
+
+## 12) Phase 5 guardrail implemented
+
+To prevent regressions, an inline-style check script is now available:
+
+```bash
+scripts/check_no_inline_styles.sh
+```
+
+It fails if `style="..."` appears in baseline target templates (`index/config/dashboard/setup/missions_v2/invasion_control`), unless explicitly allowlisted.
+
+## 13) Phase 2 continuation (in progress)
+
+Additional refactor work has started in dynamic config-render modules:
+- `ui/cfg/n8n.js` migrated from inline styles to semantic CSS classes.
+- Supporting styles live in `ui/css/config.css` (`n8n-*` classes).

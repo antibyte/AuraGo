@@ -36,8 +36,8 @@ function applyI18n() {
 function switchTab(tab) {
     currentTab = tab;
     document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
-    document.getElementById('content-nests').style.display = tab === 'nests' ? '' : 'none';
-    document.getElementById('content-eggs').style.display = tab === 'eggs' ? '' : 'none';
+    document.getElementById('content-nests').classList.toggle('is-hidden', tab !== 'nests');
+    document.getElementById('content-eggs').classList.toggle('is-hidden', tab !== 'eggs');
 }
 
 // ── API ──────────────────────────────────────────────────
@@ -74,10 +74,10 @@ function renderNests() {
     const empty = document.getElementById('nests-empty');
     if (!nestsData || nestsData.length === 0) {
         grid.innerHTML = '';
-        empty.style.display = '';
+        empty.classList.remove('is-hidden');
         return;
     }
-    empty.style.display = 'none';
+    empty.classList.add('is-hidden');
     grid.innerHTML = nestsData.map(n => {
         const eggName = n.egg_id ? (eggsData.find(e => e.id === n.egg_id)?.name || n.egg_id) : '—';
         const hs = n.hatch_status || 'idle';
@@ -92,7 +92,7 @@ function renderNests() {
             const cpu = Math.round(n.telemetry.cpu_percent || 0);
             const mem = Math.round(n.telemetry.mem_percent || 0);
             const hrs = Math.floor((n.telemetry.uptime_seconds || 0) / 3600);
-            telBadge = `<div style="margin-top: 6px; display: flex; gap: 8px; font-size: 0.8rem; opacity: 0.8;">
+            telBadge = `<div class="inv-telemetry-row">
                     <span>📊 ${t('invasion.telemetry_cpu')}: ${cpu}%</span>
                     <span>🧠 ${t('invasion.telemetry_mem')}: ${mem}%</span>
                     <span>⏱ ${hrs}h</span>
@@ -117,8 +117,8 @@ function renderNests() {
                     ${n.deploy_method ? '<span>🚀 ' + esc(n.deploy_method) + '</span>' : ''}
                     ${n.route ? '<span>🔗 ' + esc(n.route) + '</span>' : ''}
                     ${n.target_arch ? '<span>💻 ' + esc(n.target_arch) + '</span>' : ''}
-                    ${n.hatch_error ? '<span style="color:var(--accent-danger);">⚠️ ' + esc(n.hatch_error) + '</span>' : ''}
-                    ${n.notes ? '<span style="opacity:0.7;font-style:italic;">📝 ' + esc(n.notes) + '</span>' : ''}
+                    ${n.hatch_error ? '<span class="inv-hatch-error">⚠️ ' + esc(n.hatch_error) + '</span>' : ''}
+                    ${n.notes ? '<span class="inv-note-text">📝 ' + esc(n.notes) + '</span>' : ''}
                     ${telBadge}
                 </div>
                 <div class="card-actions">
@@ -139,10 +139,10 @@ function renderEggs() {
     const empty = document.getElementById('eggs-empty');
     if (!eggsData || eggsData.length === 0) {
         grid.innerHTML = '';
-        empty.style.display = '';
+        empty.classList.remove('is-hidden');
         return;
     }
-    empty.style.display = 'none';
+    empty.classList.add('is-hidden');
     grid.innerHTML = eggsData.map(e => `
             <div class="card">
                 <div class="card-header">
@@ -186,7 +186,7 @@ function openNestModal(nest = null) {
         const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; else console.warn('[IC] missing element:', id); };
         const setChk = (id, val) => { const el = document.getElementById(id); if (el) el.checked = val; else console.warn('[IC] missing element:', id); };
         const setTxt = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; else console.warn('[IC] missing element:', id); };
-        const setDisp = (id, val) => { const el = document.getElementById(id); if (el) el.style.display = val; else console.warn('[IC] missing element:', id); };
+        const setHidden = (id, hidden) => { const el = document.getElementById(id); if (el) el.classList.toggle('is-hidden', hidden); else console.warn('[IC] missing element:', id); };
 
         setTxt('nest-modal-title', t(isEdit ? 'invasion.edit_nest' : 'invasion.create_nest'));
         setVal('nest-id', nest?.id || '');
@@ -198,7 +198,7 @@ function openNestModal(nest = null) {
         setVal('nest-username', nest?.username || '');
         setVal('nest-secret', '');
         setChk('nest-active', nest?.active !== false);
-        setDisp('nest-secret-hint', (isEdit && nest?.has_secret) ? '' : 'none');
+        setHidden('nest-secret-hint', !(isEdit && nest?.has_secret));
 
         const eggSelect = document.getElementById('nest-egg-id');
         if (eggSelect) {
@@ -211,7 +211,7 @@ function openNestModal(nest = null) {
         setVal('nest-route', nest?.route || 'direct');
         setVal('nest-route-config', nest?.route_config || '');
 
-        setDisp('nest-validate-area', isEdit ? '' : 'none');
+        setHidden('nest-validate-area', !isEdit);
         const vr = document.getElementById('validate-result');
         if (vr) { vr.className = 'validate-result'; vr.textContent = ''; }
 
@@ -235,7 +235,7 @@ function openEggModal(egg = null) {
     document.getElementById('egg-base-url').value = egg?.base_url || '';
     document.getElementById('egg-api-key').value = '';
     document.getElementById('egg-active').checked = egg?.active !== false;
-    document.getElementById('egg-apikey-hint').style.display = (isEdit && egg?.has_api_key) ? '' : 'none';
+    document.getElementById('egg-apikey-hint').classList.toggle('is-hidden', !(isEdit && egg?.has_api_key));
 
     document.getElementById('egg-port').value = egg?.egg_port || 8099;
     document.getElementById('egg-allowed-tools').value = egg?.allowed_tools || '';
@@ -260,7 +260,7 @@ function editEgg(id) {
 function onDeployMethodChange() {
     const method = document.getElementById('nest-deploy-method').value;
     const hint = document.getElementById('deploy-docker-local-hint');
-    if (hint) hint.style.display = method === 'docker_local' ? 'block' : 'none';
+    if (hint) hint.classList.toggle('is-hidden', method !== 'docker_local');
 }
 
 function onAccessTypeChange() {

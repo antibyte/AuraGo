@@ -13,13 +13,13 @@
         let time = 0;
 
         function showCSSFallback() {
-            canvas.style.display = 'none';
-            cssFallback.style.display = 'block';
+            canvas.classList.add('is-hidden');
+            cssFallback.classList.remove('is-hidden');
         }
 
         function showWebGL() {
-            canvas.style.display = 'block';
-            cssFallback.style.display = 'none';
+            canvas.classList.remove('is-hidden');
+            cssFallback.classList.add('is-hidden');
         }
         
         // Check WebGL support
@@ -64,7 +64,7 @@
             el('totpDivider').textContent           = t('login.totp_divider');
             el('lblTotp').textContent               = t('login.totp_label');
             el('btnText').textContent               = t('login.btn_submit');
-            if (TOTP_ENABLED) el('totpSection').style.display = '';
+            if (TOTP_ENABLED) el('totpSection').classList.remove('is-hidden');
         })();
         
         function initWebGL() {

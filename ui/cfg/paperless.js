@@ -39,17 +39,17 @@ function renderPaperlessSection(section) {
 
     // ── API Token (vault) ──
     html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.paperless.token_label') + ' <span style="font-size:0.65rem;color:var(--warning);">🔒</span></div>';
+    html += '<div class="field-label">' + t('config.paperless.token_label') + ' <span class="pl-lock-icon">🔒</span></div>';
     const helpToken = t('help.paperless_ngx.api_token');
     if (helpToken) html += '<div class="field-help">' + helpToken + '</div>';
-    html += '<div style="display:flex;gap:0.5rem;align-items:center;">';
-    html += '<div class="password-wrap" style="flex:1;">';
+    html += '<div class="pl-token-row">';
+    html += '<div class="password-wrap pl-password-wrap">';
     html += '<input class="field-input" type="password" id="paperless-token-input" placeholder="••••••••••••••••••••" autocomplete="off">';
     html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
     html += '</div>';
-    html += '<button class="btn-save" style="padding:0.45rem 1rem;font-size:0.82rem;white-space:nowrap;" onclick="paperlessSaveToken()">💾 ' + t('config.paperless.save_vault') + '</button>';
+    html += '<button class="btn-save pl-save-btn" onclick="paperlessSaveToken()">💾 ' + t('config.paperless.save_vault') + '</button>';
     html += '</div>';
-    html += '<div id="paperless-token-status" style="margin-top:0.4rem;font-size:0.78rem;display:none;"></div>';
+    html += '<div id="paperless-token-status" class="pl-token-status is-hidden"></div>';
     html += '</div>';
 
     html += '</div>';
@@ -76,7 +76,7 @@ function paperlessSaveToken() {
         if (res.status === 'ok' || res.success) {
             showToast(t('config.paperless.token_saved'), 'success');
             if (input) input.value = '';
-            if (status) { status.style.display = 'none'; }
+            if (status) status.classList.add('is-hidden');
         } else {
             showToast(res.message || t('config.paperless.token_save_failed'), 'error');
         }

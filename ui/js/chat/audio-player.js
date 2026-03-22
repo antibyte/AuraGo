@@ -43,7 +43,7 @@ class ChatAudioPlayer {
         container.innerHTML = `
             <button class="audio-play-btn" title="Play/Pause (Space)">
                 <span class="play-icon">▶</span>
-                <span class="pause-icon" style="display:none">⏸</span>
+                <span class="pause-icon is-hidden">⏸</span>
             </button>
             <div class="audio-progress-container">
                 <div class="audio-progress-bar">
@@ -185,11 +185,11 @@ class ChatAudioPlayer {
         const pauseIcon = this.element.querySelector('.pause-icon');
         
         if (this.isPlaying) {
-            playIcon.style.display = 'none';
-            pauseIcon.style.display = 'inline';
+            playIcon.classList.add('is-hidden');
+            pauseIcon.classList.remove('is-hidden');
         } else {
-            playIcon.style.display = 'inline';
-            pauseIcon.style.display = 'none';
+            playIcon.classList.remove('is-hidden');
+            pauseIcon.classList.add('is-hidden');
         }
     }
 

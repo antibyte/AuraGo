@@ -31,8 +31,8 @@ function renderTelnyxSection(section) {
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.telnyx.api_key_label') + '</div>';
     html += '<div class="field-help">' + t('help.telnyx.api_key') + '</div>';
-    html += '<div style="display:flex;gap:0.5rem;align-items:center;">';
-    html += '<input class="field-input" type="password" id="telnyx-api-key" placeholder="' + t('config.telnyx.api_key_placeholder') + '" style="flex:1;">';
+    html += '<div class="telnyx-api-row">';
+    html += '<input class="field-input telnyx-api-input" type="password" id="telnyx-api-key" placeholder="' + t('config.telnyx.api_key_placeholder') + '">';
     html += '<button class="btn btn-sm" onclick="saveTelnyxVault(\'api_key\')">' + t('config.telnyx.save_vault') + '</button>';
     html += '</div></div>';
 
@@ -73,8 +73,8 @@ function renderTelnyxSection(section) {
     html += '</div>';
 
     // ── Voice Settings ──
-    html += '<div class="field-group" style="margin-top:1.5rem;">';
-    html += '<div class="field-label" style="font-weight:600;font-size:0.95rem;">' + t('config.telnyx.voice_settings_title') + '</div>';
+    html += '<div class="field-group telnyx-voice-group">';
+    html += '<div class="field-label telnyx-voice-title">' + t('config.telnyx.voice_settings_title') + '</div>';
     html += '</div>';
 
     // Voice Language

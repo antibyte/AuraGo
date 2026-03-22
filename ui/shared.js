@@ -96,7 +96,7 @@ function injectRadialMenu() {
         </button>
         <div class="radial-items">
             ${items}
-            <a id="radialLogout" href="/auth/logout" class="radial-item" style="display:none;"><span class="radial-item-label" data-i18n="common.nav_logout">${t('common.nav_logout')}</span><span class="radial-item-icon">🔓</span></a>
+            <a id="radialLogout" href="/auth/logout" class="radial-item is-hidden"><span class="radial-item-label" data-i18n="common.nav_logout">${t('common.nav_logout')}</span><span class="radial-item-icon">🔓</span></a>
         </div>
     </nav>
     <div class="radial-backdrop" id="radialBackdrop"></div>`;
@@ -212,12 +212,12 @@ async function checkAuth() {
                 // Show radial logout
                 const radialLogout = document.getElementById('radialLogout');
                 if (radialLogout) {
-                    radialLogout.style.display = '';
+                    radialLogout.classList.remove('is-hidden');
                 }
                 // Show header logout if exists
                 const headerLogout = document.getElementById('logout-btn');
                 if (headerLogout) {
-                    headerLogout.style.display = '';
+                    headerLogout.classList.remove('is-hidden');
                 }
             }
         }
@@ -714,25 +714,33 @@ function initThemeToggle() {
         }
         const banner = document.createElement('div');
         banner.id = _tsnetBannerId();
-        banner.style.cssText = [
-            'position:fixed', 'top:0', 'left:0', 'right:0', 'z-index:99999',
-            'background:#7c3300', 'border-bottom:2px solid #f9a825',
-            'color:#ffe082', 'font-size:0.85rem', 'font-weight:600',
-            'padding:0.55rem 1rem', 'display:flex', 'align-items:center',
-            'gap:0.75rem', 'box-shadow:0 2px 12px rgba(0,0,0,0.5)'
-        ].join(';');
+        banner.className = 'tsnet-login-banner';
         const label = t('config.tailscale.tsnet_needs_login') !== 'config.tailscale.tsnet_needs_login'
             ? '🔐 ' + t('config.tailscale.tsnet_needs_login')
             : '🔐 Tailscale: Authentication required — open the link to connect to your Tailscale network';
         const linkText = t('shared.tsnet.login_banner_link') !== 'shared.tsnet.login_banner_link'
             ? t('shared.tsnet.login_banner_link')
             : 'Open login link';
-        banner.innerHTML =
-            '<span>' + label + '</span>' +
-            '<a href="' + loginUrl + '" target="_blank" rel="noopener noreferrer" ' +
-            'style="color:#fff;text-decoration:underline;">' + linkText + '</a>' +
-            '<span style="margin-left:auto;cursor:pointer;font-size:1rem;opacity:0.7;" ' +
-            'title="Dismiss" onclick="document.getElementById(\'' + _tsnetBannerId() + '\').remove();window._tsnetBannerDismissed=true;">✕</span>';
+        const labelEl = document.createElement('span');
+        labelEl.textContent = label;
+        const linkEl = document.createElement('a');
+        linkEl.href = loginUrl;
+        linkEl.target = '_blank';
+        linkEl.rel = 'noopener noreferrer';
+        linkEl.className = 'tsnet-login-banner-link';
+        linkEl.textContent = linkText;
+        const closeEl = document.createElement('button');
+        closeEl.type = 'button';
+        closeEl.className = 'tsnet-login-banner-close';
+        closeEl.title = 'Dismiss';
+        closeEl.textContent = '✕';
+        closeEl.addEventListener('click', () => {
+            document.getElementById(_tsnetBannerId())?.remove();
+            window._tsnetBannerDismissed = true;
+        });
+        banner.appendChild(labelEl);
+        banner.appendChild(linkEl);
+        banner.appendChild(closeEl);
         document.body.insertBefore(banner, document.body.firstChild);
         // Push body down so banner doesn't overlap content
         document.body.style.paddingTop = 'calc(' + (document.body.style.paddingTop || '0px') + ' + 38px)';

@@ -62,7 +62,7 @@ class DragDropManager {
     createQueuePanel() {
         this.queuePanel = document.createElement('div');
         this.queuePanel.className = 'upload-queue-panel';
-        this.queuePanel.style.display = 'none';
+        this.queuePanel.classList.add('is-hidden');
         document.body.appendChild(this.queuePanel);
     }
 
@@ -126,11 +126,11 @@ class DragDropManager {
 
     renderQueue() {
         if (this.uploadQueue.length === 0) {
-            this.queuePanel.style.display = 'none';
+            this.queuePanel.classList.add('is-hidden');
             return;
         }
 
-        this.queuePanel.style.display = 'block';
+        this.queuePanel.classList.remove('is-hidden');
         
         const pending = this.uploadQueue.filter(f => f.status === 'pending').length;
         const uploading = this.uploadQueue.filter(f => f.status === 'uploading').length;
@@ -164,7 +164,7 @@ class DragDropManager {
                         ${item.status === 'uploading' ? `
                             <div class="queue-item-progress">
                                 <div class="progress-bar">
-                                    <div class="progress-fill" style="width: ${item.progress}%"></div>
+                                    <div class="progress-fill" data-progress="${item.progress}"></div>
                                 </div>
                                 <span class="progress-text">${item.progress}%</span>
                             </div>
@@ -190,6 +190,9 @@ class DragDropManager {
         }
 
         this.queuePanel.innerHTML = html;
+        this.queuePanel.querySelectorAll('.progress-fill').forEach(fill => {
+            fill.style.width = (fill.dataset.progress || 0) + '%';
+        });
     }
 
     async processQueue() {
@@ -342,7 +345,7 @@ class DragDropManager {
         if (hasActive) {
             if (!confirm('Uploads in progress. Close anyway?')) return;
         }
-        this.queuePanel.style.display = 'none';
+        this.queuePanel.classList.add('is-hidden');
     }
 
     destroy() {

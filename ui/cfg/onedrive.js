@@ -29,9 +29,9 @@ async function renderOneDriveSection(section) {
     </div>`;
 
     // ── Authentication section ──
-    html += `<div style="margin-top:1.5rem;padding-top:1.2rem;border-top:1px solid var(--border-subtle);">
-        <div style="font-weight:600;font-size:0.95rem;color:var(--accent);margin-bottom:0.6rem;">🔐 ${t('config.onedrive.auth_title')}</div>
-        <div style="font-size:0.82rem;color:var(--text-secondary);line-height:1.6;margin-bottom:1.2rem;">
+    html += `<div class="od-section-block">
+        <div class="od-section-title">🔐 ${t('config.onedrive.auth_title')}</div>
+        <div class="od-section-desc od-section-desc-spacious">
             ${t('config.onedrive.auth_desc')}
         </div>`;
 
@@ -52,25 +52,25 @@ async function renderOneDriveSection(section) {
     html += `</div>`; // close auth section
 
     // ── Connection ──
-    html += `<div style="margin-top:1.5rem;padding-top:1.2rem;border-top:1px solid var(--border-subtle);">
-        <div style="font-weight:600;font-size:0.95rem;color:var(--accent);margin-bottom:0.6rem;">🔗 ${t('config.onedrive.connection_label')}</div>
-        <div style="font-size:0.82rem;color:var(--text-secondary);line-height:1.5;margin-bottom:1rem;">
+    html += `<div class="od-section-block">
+        <div class="od-section-title">🔗 ${t('config.onedrive.connection_label')}</div>
+        <div class="od-section-desc">
             ${t('config.onedrive.auth_instructions')}
         </div>
-        <div id="od-status-bar" style="margin-bottom:1rem;"></div>
-        <div style="display:flex;gap:0.6rem;flex-wrap:wrap;align-items:center;">
+        <div id="od-status-bar" class="od-status-wrap"></div>
+        <div class="od-btn-row">
             <button class="btn-save" id="od-connect-btn" onclick="odConnect()">${t('config.onedrive.connect_btn')}</button>
-            <button class="btn-secondary" id="od-disconnect-btn" onclick="odDisconnect()" style="display:none;">${t('config.onedrive.disconnect_btn')}</button>
+            <button class="btn-secondary is-hidden" id="od-disconnect-btn" onclick="odDisconnect()">${t('config.onedrive.disconnect_btn')}</button>
             <button class="btn-secondary" onclick="odTestConnection()">${t('config.onedrive.test_btn')}</button>
         </div>
         <!-- Device code display (shown after pressing Connect) -->
-        <div id="od-device-code-box" style="display:none;margin-top:1.2rem;padding:1rem 1.2rem;border-radius:10px;background:var(--bg-tertiary);border:1px solid var(--border);">
-            <div style="font-size:0.85rem;font-weight:600;color:var(--text-primary);margin-bottom:0.5rem;">📋 ${t('config.onedrive.device_code_title')}</div>
-            <div id="od-device-code-value" style="font-size:2rem;font-weight:700;letter-spacing:0.25em;color:var(--accent);font-family:monospace;margin:0.5rem 0;"></div>
-            <a id="od-device-code-link" href="#" target="_blank" rel="noopener" class="btn-save" style="display:inline-block;margin-top:0.4rem;text-decoration:none;font-size:0.82rem;">🌐 ${t('config.onedrive.device_code_link')}</a>
-            <div style="margin-top:0.8rem;font-size:0.8rem;color:var(--text-secondary);">${t('config.onedrive.auth_waiting')}</div>
+        <div id="od-device-code-box" class="od-device-code-box is-hidden">
+            <div class="od-device-code-title">📋 ${t('config.onedrive.device_code_title')}</div>
+            <div id="od-device-code-value" class="od-device-code-value"></div>
+            <a id="od-device-code-link" href="#" target="_blank" rel="noopener" class="btn-save od-device-code-link">🌐 ${t('config.onedrive.device_code_link')}</a>
+            <div class="od-device-code-hint">${t('config.onedrive.auth_waiting')}</div>
         </div>
-        <div id="od-auth-result" style="margin-top:0.8rem;font-size:0.82rem;"></div>
+        <div id="od-auth-result" class="od-auth-result"></div>
     </div>`;
 
     html += `</div>`; // close cfg-section
@@ -85,10 +85,19 @@ async function renderOneDriveSection(section) {
 
 let _odPollTimer = null;
 
+function odSetHidden(el, hidden) {
+    if (!el) return;
+    el.classList.toggle('is-hidden', hidden);
+}
+
 function odSetStatus(msg, color) {
     const bar = document.getElementById('od-status-bar');
     if (!bar) return;
-    bar.innerHTML = `<div style="padding:0.5rem 0.9rem;border-radius:8px;background:var(--bg-tertiary);font-size:0.82rem;color:${color || 'var(--text-secondary)'};">${msg}</div>`;
+    let klass = 'od-status-pill';
+    if (color === 'var(--success)') klass += ' is-success';
+    else if (color === 'var(--warning)') klass += ' is-warning';
+    else if (color === 'var(--danger)') klass += ' is-danger';
+    bar.innerHTML = `<div class="${klass}">${msg}</div>`;
 }
 
 async function odRefreshStatus() {
@@ -102,12 +111,12 @@ async function odRefreshStatus() {
             if (data.token_expired && data.has_refresh) statusText += ` (${t('config.onedrive.token_expired')}, ${t('config.onedrive.has_refresh')})`;
             else if (data.token_expired) statusText += ` (${t('config.onedrive.token_expired')})`;
             odSetStatus('✅ ' + statusText, 'var(--success)');
-            if (disconnectBtn) disconnectBtn.style.display = '';
-            if (connectBtn) connectBtn.style.display = 'none';
+            odSetHidden(disconnectBtn, false);
+            odSetHidden(connectBtn, true);
         } else {
             odSetStatus('⚪ ' + t('config.onedrive.auth_not_connected'), 'var(--text-secondary)');
-            if (disconnectBtn) disconnectBtn.style.display = 'none';
-            if (connectBtn) connectBtn.style.display = '';
+            odSetHidden(disconnectBtn, true);
+            odSetHidden(connectBtn, false);
         }
     } catch (_) {}
 }
@@ -119,13 +128,13 @@ async function odConnect() {
     const resultDiv = document.getElementById('od-auth-result');
     const codeBox = document.getElementById('od-device-code-box');
     if (resultDiv) resultDiv.innerHTML = '';
-    if (codeBox) codeBox.style.display = 'none';
+    odSetHidden(codeBox, true);
 
     try {
         const resp = await fetch('/api/onedrive/auth/start', { method: 'POST' });
         const data = await resp.json();
         if (data.error) {
-            if (resultDiv) resultDiv.innerHTML = `<span style="color:var(--danger);">❌ ${esc(data.error)}</span>`;
+            if (resultDiv) resultDiv.innerHTML = `<span class="od-inline-error">❌ ${esc(data.error)}</span>`;
             return;
         }
         // Show device code
@@ -133,7 +142,7 @@ async function odConnect() {
         const linkEl = document.getElementById('od-device-code-link');
         if (codeEl) codeEl.textContent = data.user_code || '';
         if (linkEl) linkEl.href = data.verification_uri || 'https://microsoft.com/devicelogin';
-        if (codeBox) codeBox.style.display = '';
+        odSetHidden(codeBox, false);
         odSetStatus('⏳ ' + t('config.onedrive.auth_waiting'), 'var(--warning)');
 
         // Start polling
@@ -141,7 +150,7 @@ async function odConnect() {
         const expiresAt = Date.now() + (data.expires_in || 900) * 1000;
         _odPollTimer = setInterval(() => odPoll(expiresAt), (data.interval || 5) * 1000);
     } catch (e) {
-        if (resultDiv) resultDiv.innerHTML = `<span style="color:var(--danger);">❌ ${esc(String(e))}</span>`;
+        if (resultDiv) resultDiv.innerHTML = `<span class="od-inline-error">❌ ${esc(String(e))}</span>`;
     }
 }
 
@@ -149,7 +158,7 @@ async function odPoll(expiresAt) {
     if (Date.now() > expiresAt) {
         clearInterval(_odPollTimer);
         const codeBox = document.getElementById('od-device-code-box');
-        if (codeBox) codeBox.style.display = 'none';
+        odSetHidden(codeBox, true);
         odSetStatus('⏰ ' + t('config.onedrive.auth_timeout'), 'var(--danger)');
         return;
     }
@@ -160,12 +169,12 @@ async function odPoll(expiresAt) {
             case 'authorized':
                 clearInterval(_odPollTimer);
                 const codeBox = document.getElementById('od-device-code-box');
-                if (codeBox) codeBox.style.display = 'none';
+                odSetHidden(codeBox, true);
                 odSetStatus('✅ ' + t('config.onedrive.auth_connected'), 'var(--success)');
                 const disconnectBtn = document.getElementById('od-disconnect-btn');
                 const connectBtn = document.getElementById('od-connect-btn');
-                if (disconnectBtn) disconnectBtn.style.display = '';
-                if (connectBtn) connectBtn.style.display = 'none';
+                odSetHidden(disconnectBtn, false);
+                odSetHidden(connectBtn, true);
                 break;
             case 'declined':
                 clearInterval(_odPollTimer);
@@ -191,8 +200,8 @@ async function odDisconnect() {
         odSetStatus('⚪ ' + t('config.onedrive.auth_disconnected'), 'var(--text-secondary)');
         const disconnectBtn = document.getElementById('od-disconnect-btn');
         const connectBtn = document.getElementById('od-connect-btn');
-        if (disconnectBtn) disconnectBtn.style.display = 'none';
-        if (connectBtn) connectBtn.style.display = '';
+        odSetHidden(disconnectBtn, true);
+        odSetHidden(connectBtn, false);
     } catch (_) {}
 }
 

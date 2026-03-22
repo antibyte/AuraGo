@@ -43,9 +43,9 @@
     <header class="cfg-header">
         <div class="logo">
             <div class="logo-icon">✦</div>
-            <span>AURAGO</span>
+            <span class="logo-wordmark-accent">AURA</span><span class="logo-wordmark-base">GO</span>
             <span id="header-subtitle"
-                style="font-size:var(--text-xs); font-weight:400; color:var(--text-secondary); margin-left:0.3rem">
+                class="logo-subtitle">
                 <script>document.write(t('setup.header_subtitle'))</script>
             </span>
         </div>
@@ -136,11 +136,10 @@
                             <script>document.write(t('setup.step0_model_label'))</script> <span
                                 class="required-star">*</span>
                         </label>
-                        <div style="display:flex;gap:0.4rem;align-items:stretch;">
-                            <input class="field-input" type="text" id="llm-model"
-                                placeholder="z.B. gpt-4o, claude-sonnet-4-20250514" style="flex:1;">
-                            <button type="button" id="or-browse-btn" class="btn-primary"
-                                style="display:none;padding:0.4rem 0.7rem;font-size:0.75rem;white-space:nowrap;border-radius:8px;background:rgba(72,199,142,0.15);color:#48c78e;border:1px solid rgba(72,199,142,0.3);cursor:pointer;"
+                        <div class="setup-inline-row">
+                            <input class="field-input setup-flex-1" type="text" id="llm-model"
+                                placeholder="z.B. gpt-4o, claude-sonnet-4-20250514">
+                            <button type="button" id="or-browse-btn" class="btn-primary setup-or-browse is-hidden"
                                 onclick="openOpenRouterBrowser(function(m){document.getElementById('llm-model').value=m.id;document.getElementById('err-model').style.display='none';})">
                                 <script>document.write(t('setup.step0_model_browse'))</script>
                             </button>
@@ -171,8 +170,7 @@
                             <option value="Čeština">Čeština</option>
                             <option value="Other / Custom">Other / Custom</option>
                         </select>
-                        <input class="field-input" type="text" id="system-language-custom" placeholder="e.g. Klingon"
-                            style="display:none; margin-top:0.4rem;">
+                        <input class="field-input is-hidden mt-xs" type="text" id="system-language-custom" placeholder="e.g. Klingon">
                     </div>
                 </div>
 
@@ -207,9 +205,8 @@
                 </div>
 
                 <!-- Embeddings -->
-                <div style="margin-bottom: 1.5rem;">
-                    <h3 id="heading-embeddings"
-                        style="font-size: var(--text-base); font-weight: 600; margin-bottom: 0.75rem;">
+                <div class="mb-lg">
+                    <h3 id="heading-embeddings" class="setup-section-heading">
                         <script>document.write(t('setup.step1_embeddings_heading'))</script>
                     </h3>
                     <div class="field-row">
@@ -234,9 +231,8 @@
                 </div>
 
                 <!-- Vision -->
-                <div style="margin-bottom: 1.5rem;">
-                    <h3 id="heading-vision"
-                        style="font-size: var(--text-base); font-weight: 600; margin-bottom: 0.75rem;">
+                <div class="mb-lg">
+                    <h3 id="heading-vision" class="setup-section-heading">
                         <script>document.write(t('setup.step1_vision_heading'))</script>
                     </h3>
                     <div class="field-row">
@@ -264,8 +260,7 @@
 
                 <!-- Whisper / STT -->
                 <div>
-                    <h3 id="heading-whisper"
-                        style="font-size: var(--text-base); font-weight: 600; margin-bottom: 0.75rem;">
+                    <h3 id="heading-whisper" class="setup-section-heading">
                         <script>document.write(t('setup.step1_whisper_heading'))</script>
                     </h3>
                     <div class="field-row">
@@ -317,8 +312,7 @@
                 </div>
 
                 <!-- Personality Engine V2 -->
-                <div class="toggle-row"
-                    style="border-bottom: 1px solid var(--border-subtle); padding-bottom: 1rem; margin-bottom: 1rem;">
+                <div class="toggle-row setup-divider mb-md">
                     <div>
                         <div id="lbl-personality-v2" class="toggle-label">
                             <script>document.write(t('setup.step2_personality_v2_label'))</script>
@@ -347,7 +341,7 @@
                 </div>
 
                 <!-- Core Personality -->
-                <div class="field-group" style="margin-top: 1.25rem;">
+                <div class="field-group mt-lg">
                     <label id="lbl-core-personality" class="field-label">
                         <script>document.write(t('setup.step2_core_personality_label'))</script>
                     </label>
@@ -360,7 +354,7 @@
                 </div>
 
                 <!-- Maintenance -->
-                <div class="toggle-row" style="margin-top: 0.5rem;">
+                <div class="toggle-row mt-sm">
                     <div>
                         <div id="lbl-maintenance" class="toggle-label">
                             <script>document.write(t('setup.step2_maintenance_label'))</script>
@@ -401,7 +395,7 @@
                 <p id="success-desc" class="success-desc">
                     <script>document.write(t('setup.success_description').replace(/\n/g, '<br>'))</script>
                 </p>
-                <p class="success-desc" id="restart-notice" style="display:none; color: var(--warning);">
+                <p class="success-desc is-hidden setup-warning-text" id="restart-notice">
                     <script>document.write(t('setup.success_restart_notice'))</script>
                 </p>
                 <button id="btn-go-to-chat" class="btn-setup btn-next" onclick="window.location.href='/'">
@@ -412,11 +406,11 @@
             <!-- Footer -->
             <div class="setup-footer" id="setup-footer">
                 <div class="footer-left">
-                    <button class="btn-setup btn-back" id="btn-back" style="display:none" onclick="prevStep()">
+                    <button class="btn-setup btn-back is-hidden" id="btn-back" onclick="prevStep()">
                         <script>document.write(t('setup.nav_back'))</script>
                     </button>
                 </div>
-                <div style="display:flex; align-items:center; gap:0.75rem;">
+                <div class="setup-inline-actions">
                     <button class="btn-skip" id="btn-skip-step" onclick="nextStep(true)">
                         <script>document.write(t('setup.nav_skip_step'))</script>
                     </button>

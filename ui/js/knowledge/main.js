@@ -62,12 +62,12 @@ function renderContacts() {
 
     if (!allContacts.length) {
         tbody.innerHTML = '';
-        tableWrap.style.display = 'none';
-        empty.style.display = '';
+        tableWrap.classList.add('is-hidden');
+        empty.classList.remove('is-hidden');
         return;
     }
-    tableWrap.style.display = '';
-    empty.style.display = 'none';
+    tableWrap.classList.remove('is-hidden');
+    empty.classList.add('is-hidden');
 
     tbody.innerHTML = allContacts.map(c => `
         <tr>
@@ -190,12 +190,12 @@ function renderFiles() {
 
     if (!filtered.length) {
         tbody.innerHTML = '';
-        tableWrap.style.display = 'none';
-        empty.style.display = '';
+        tableWrap.classList.add('is-hidden');
+        empty.classList.remove('is-hidden');
         return;
     }
-    tableWrap.style.display = '';
-    empty.style.display = 'none';
+    tableWrap.classList.remove('is-hidden');
+    empty.classList.add('is-hidden');
 
     tbody.innerHTML = filtered.map(f => {
         const icon = fileIcon(f.name);

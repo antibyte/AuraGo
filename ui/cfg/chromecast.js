@@ -2,6 +2,16 @@
 let ccDevicesCache = [];
 let ccDiscoveredCache = [];
 
+function ccSetHidden(element, hidden) {
+    if (!element) return;
+    element.classList.toggle('is-hidden', hidden);
+}
+
+function ccRenderDiscoveryState(area, type, message) {
+    if (!area) return;
+    area.innerHTML = `<div class="cc-discovery-state cc-discovery-state-${type}">${message}</div>`;
+}
+
 function renderChromecastSection(section) {
     const data = configData['chromecast'] || {};
     const enabledOn = data.enabled === true;
@@ -31,60 +41,60 @@ function renderChromecastSection(section) {
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.chromecast.tts_port_label') + '</div>';
     if (helpPort) html += '<div class="field-help">' + helpPort + '</div>';
-    html += '<input class="field-input" type="number" data-path="chromecast.tts_port" value="' + ttsPort + '" style="width:120px;">';
+    html += '<input class="field-input cc-tts-port-input" type="number" data-path="chromecast.tts_port" value="' + ttsPort + '">';
     html += '</div>';
 
     // ── Devices section ──
-    html += '<div style="margin-top:2rem;margin-bottom:0.5rem;font-weight:600;font-size:0.95rem;color:var(--accent);border-bottom:1px solid var(--border-subtle);padding-bottom:0.4rem;">📺 ' + t('config.chromecast.devices_title') + '</div>';
-    html += '<div class="field-help" style="margin-bottom:1rem;">' + t('config.chromecast.devices_desc') + '</div>';
+    html += '<div class="cc-section-title">📺 ' + t('config.chromecast.devices_title') + '</div>';
+    html += '<div class="field-help cc-section-help">' + t('config.chromecast.devices_desc') + '</div>';
 
     // Action buttons row
-    html += '<div style="display:flex;gap:0.6rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap;">';
-    html += '<button class="btn-save" style="padding:0.45rem 1.1rem;font-size:0.82rem;' + (ccDiscBlocked ? 'opacity:0.45;pointer-events:none;' : '') + '" onclick="ccDiscoverDevices()" id="cc-discover-btn">🔍 ' + t('config.chromecast.discover_btn') + '</button>';
-    html += '<button class="btn-save" style="padding:0.45rem 1.1rem;font-size:0.82rem;background:var(--bg-tertiary);color:var(--text-primary);border:1px solid var(--border-subtle);" onclick="ccShowAddManual()">＋ ' + t('config.chromecast.add_manual_btn') + '</button>';
+    html += '<div class="cc-actions-row">';
+    html += '<button class="btn-save cc-btn-primary ' + (ccDiscBlocked ? 'cc-btn-disabled' : '') + '" onclick="ccDiscoverDevices()" id="cc-discover-btn">🔍 ' + t('config.chromecast.discover_btn') + '</button>';
+    html += '<button class="btn-save cc-btn-secondary" onclick="ccShowAddManual()">＋ ' + t('config.chromecast.add_manual_btn') + '</button>';
     html += '</div>';
 
     // Discovery results area (hidden initially)
-    html += '<div id="cc-discover-area" style="display:none;margin-bottom:1.2rem;"></div>';
+    html += '<div id="cc-discover-area" class="cc-discover-area is-hidden"></div>';
 
     // Device table
     html += `
-    <div id="cc-table-wrap" style="overflow-x:auto;display:none;">
-        <table style="width:100%;border-collapse:collapse;font-size:0.82rem;">
+    <div id="cc-table-wrap" class="cc-table-wrap is-hidden">
+        <table class="cc-table">
             <thead>
-                <tr style="border-bottom:2px solid var(--border-subtle);text-align:left;">
-                    <th style="padding:0.5rem 0.6rem;">${t('config.chromecast.col_name')}</th>
-                    <th style="padding:0.5rem 0.6rem;">${t('config.chromecast.col_ip')}</th>
-                    <th style="padding:0.5rem 0.6rem;">${t('config.chromecast.col_port')}</th>
-                    <th style="padding:0.5rem 0.6rem;">${t('config.chromecast.col_desc')}</th>
-                    <th style="padding:0.5rem 0.6rem;text-align:right;">${t('config.chromecast.col_actions')}</th>
+                <tr class="cc-table-head">
+                    <th>${t('config.chromecast.col_name')}</th>
+                    <th>${t('config.chromecast.col_ip')}</th>
+                    <th>${t('config.chromecast.col_port')}</th>
+                    <th>${t('config.chromecast.col_desc')}</th>
+                    <th class="cc-th-actions">${t('config.chromecast.col_actions')}</th>
                 </tr>
             </thead>
             <tbody id="cc-tbody"></tbody>
         </table>
     </div>
-    <div id="cc-empty" style="display:none;text-align:center;padding:2rem;color:var(--text-tertiary);font-size:0.85rem;">
+    <div id="cc-empty" class="cc-empty is-hidden">
         ${t('config.chromecast.no_devices')}
     </div>
-    <div id="cc-loading" style="text-align:center;padding:2rem;color:var(--text-secondary);font-size:0.85rem;">
+    <div id="cc-loading" class="cc-loading">
         ${t('config.chromecast.loading')}
     </div>`;
 
     // ── Edit modal ──
     html += `
-    <div id="cc-modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:1000;backdrop-filter:blur(4px);" onclick="ccCloseModal(event)">
-        <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--bg-primary);border:1px solid var(--border-subtle);border-radius:14px;padding:1.5rem;width:min(480px,90vw);max-height:85vh;overflow-y:auto;" onclick="event.stopPropagation()">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;">
-                <span id="cc-modal-title" style="font-size:1rem;font-weight:600;"></span>
-                <button onclick="ccCloseModal()" style="background:none;border:none;color:var(--text-secondary);font-size:1.2rem;cursor:pointer;">✕</button>
+    <div id="cc-modal-overlay" class="cc-modal-overlay is-hidden" onclick="ccCloseModal(event)">
+        <div class="cc-modal-card" onclick="event.stopPropagation()">
+            <div class="cc-modal-header">
+                <span id="cc-modal-title" class="cc-modal-title"></span>
+                <button onclick="ccCloseModal()" class="cc-modal-close">✕</button>
             </div>
             <input type="hidden" id="cc-edit-id">
-            <div class="field-group" style="margin-bottom:0.8rem;">
+            <div class="field-group cc-field-group-sm">
                 <div class="field-label">${t('config.chromecast.field_name')} *</div>
                 <div class="field-help">${t('config.chromecast.field_name_help')}</div>
                 <input type="text" id="cc-field-name" class="field-input" placeholder="${t('config.chromecast.name_placeholder')}">
             </div>
-            <div style="display:grid;grid-template-columns:2fr 1fr;gap:0.8rem;">
+            <div class="cc-grid-ip-port">
                 <div class="field-group">
                     <div class="field-label">${t('config.chromecast.field_ip')}</div>
                     <input type="text" id="cc-field-ip" class="field-input" placeholder="192.168.1.50">
@@ -94,14 +104,14 @@ function renderChromecastSection(section) {
                     <input type="number" id="cc-field-port" class="field-input" placeholder="8009" value="8009">
                 </div>
             </div>
-            <div class="field-group" style="margin-top:0.8rem;">
+            <div class="field-group mt-sm">
                 <div class="field-label">${t('config.chromecast.field_desc')}</div>
                 <input type="text" id="cc-field-desc" class="field-input" placeholder="${t('config.chromecast.desc_placeholder')}">
             </div>
-            <div id="cc-modal-error" style="display:none;margin-top:0.7rem;padding:0.5rem 0.8rem;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;font-size:0.8rem;color:var(--danger);"></div>
-            <div style="display:flex;justify-content:flex-end;gap:0.6rem;margin-top:1.2rem;">
-                <button class="btn-save" style="padding:0.45rem 1rem;font-size:0.82rem;background:var(--bg-tertiary);color:var(--text-primary);border:1px solid var(--border-subtle);" onclick="ccCloseModal()">${t('config.chromecast.cancel')}</button>
-                <button class="btn-save" style="padding:0.45rem 1.2rem;font-size:0.82rem;" id="cc-modal-save" onclick="ccSaveDevice()">${t('config.chromecast.save')}</button>
+            <div id="cc-modal-error" class="cc-modal-error is-hidden"></div>
+            <div class="cc-modal-actions">
+                <button class="btn-save cc-btn-secondary" onclick="ccCloseModal()">${t('config.chromecast.cancel')}</button>
+                <button class="btn-save cc-btn-primary" id="cc-modal-save" onclick="ccSaveDevice()">${t('config.chromecast.save')}</button>
             </div>
         </div>
     </div>`;
@@ -113,13 +123,12 @@ function renderChromecastSection(section) {
 
 // ── Load chromecast devices from registry ──
 async function ccLoadDevices() {
-    const tbody = document.getElementById('cc-tbody');
     const empty = document.getElementById('cc-empty');
     const loading = document.getElementById('cc-loading');
     const table = document.getElementById('cc-table-wrap');
-    loading.style.display = 'block';
-    table.style.display = 'none';
-    empty.style.display = 'none';
+    ccSetHidden(loading, false);
+    ccSetHidden(table, true);
+    ccSetHidden(empty, true);
 
     try {
         const resp = await fetch('/api/devices');
@@ -131,12 +140,12 @@ async function ccLoadDevices() {
         return;
     }
 
-    loading.style.display = 'none';
+    ccSetHidden(loading, true);
     if (ccDevicesCache.length === 0) {
-        empty.style.display = 'block';
+        ccSetHidden(empty, false);
         return;
     }
-    table.style.display = 'block';
+    ccSetHidden(table, false);
     ccRenderRows(ccDevicesCache);
 }
 
@@ -145,16 +154,16 @@ function ccRenderRows(devices) {
     tbody.innerHTML = '';
     devices.forEach(d => {
         const tr = document.createElement('tr');
-        tr.style.borderBottom = '1px solid var(--border-subtle)';
+        tr.className = 'cc-device-row';
         tr.dataset.id = d.id;
         tr.innerHTML = `
-            <td style="padding:0.5rem 0.6rem;font-weight:500;">${escapeHtml(d.name)}</td>
-            <td style="padding:0.5rem 0.6rem;font-family:monospace;font-size:0.8rem;">${escapeHtml(d.ip_address || '—')}</td>
-            <td style="padding:0.5rem 0.6rem;">${d.port || 8009}</td>
-            <td style="padding:0.5rem 0.6rem;color:var(--text-secondary);font-size:0.8rem;">${escapeHtml(d.description || '—')}</td>
-            <td style="padding:0.5rem 0.6rem;text-align:right;white-space:nowrap;">
-                <button onclick="ccShowEditModal('${d.id}')" style="background:none;border:none;cursor:pointer;font-size:0.9rem;" title="${t('config.chromecast.edit_tooltip')}">✏️</button>
-                <button onclick="ccDeleteDevice('${d.id}','${escapeHtml(d.name)}')" style="background:none;border:none;cursor:pointer;font-size:0.9rem;margin-left:0.3rem;" title="${t('config.chromecast.delete_tooltip')}">🗑️</button>
+            <td class="cc-cell cc-cell-name">${escapeHtml(d.name)}</td>
+            <td class="cc-cell cc-cell-ip">${escapeHtml(d.ip_address || '—')}</td>
+            <td class="cc-cell">${d.port || 8009}</td>
+            <td class="cc-cell cc-cell-desc">${escapeHtml(d.description || '—')}</td>
+            <td class="cc-cell cc-cell-actions">
+                <button onclick="ccShowEditModal('${d.id}')" class="cc-icon-btn" title="${t('config.chromecast.edit_tooltip')}">✏️</button>
+                <button onclick="ccDeleteDevice('${d.id}','${escapeHtml(d.name)}')" class="cc-icon-btn cc-icon-btn-danger" title="${t('config.chromecast.delete_tooltip')}">🗑️</button>
             </td>`;
         tbody.appendChild(tr);
     });
@@ -166,8 +175,8 @@ async function ccDiscoverDevices() {
     const area = document.getElementById('cc-discover-area');
     btn.disabled = true;
     btn.textContent = '⏳ ' + t('config.chromecast.discovering');
-    area.style.display = 'block';
-    area.innerHTML = '<div style="text-align:center;padding:1rem;color:var(--text-secondary);font-size:0.85rem;">⏳ ' + t('config.chromecast.discovering') + '</div>';
+    ccSetHidden(area, false);
+    ccRenderDiscoveryState(area, 'loading', '⏳ ' + t('config.chromecast.discovering'));
 
     try {
         const resp = await fetch('/api/chromecast/discover');
@@ -180,7 +189,7 @@ async function ccDiscoverDevices() {
 
         const devices = result.devices || [];
         if (devices.length === 0) {
-            area.innerHTML = '<div style="padding:0.8rem 1rem;border-radius:9px;background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.28);font-size:0.82rem;color:var(--text-secondary);">⚠️ ' + t('config.chromecast.no_devices_found') + '</div>';
+            ccRenderDiscoveryState(area, 'warn', '⚠️ ' + t('config.chromecast.no_devices_found'));
             return;
         }
 
@@ -188,22 +197,21 @@ async function ccDiscoverDevices() {
         const existingIPs = new Set(ccDevicesCache.map(d => d.ip_address));
         ccDiscoveredCache = devices;
 
-        let dhtml = '<div style="padding:0.8rem 1rem;border-radius:9px;background:rgba(99,179,237,0.08);border:1px solid rgba(99,179,237,0.22);font-size:0.82rem;">';
-        dhtml += '<div style="font-weight:600;margin-bottom:0.6rem;">' + t('config.chromecast.found_devices', { count: devices.length }) + '</div>';
-        dhtml += '<div style="display:flex;flex-direction:column;gap:0.4rem;">';
+        let dhtml = '<div class="cc-discovery-list">';
+        dhtml += '<div class="cc-discovery-list-title">' + t('config.chromecast.found_devices', { count: devices.length }) + '</div>';
+        dhtml += '<div class="cc-discovery-items">';
 
         devices.forEach((d, i) => {
-            const alreadyAdded = existingIPs.has(d.addr);
-            const opacity = alreadyAdded ? 'opacity:0.5;' : '';
-            dhtml += '<div style="display:flex;align-items:center;justify-content:space-between;padding:0.4rem 0.6rem;border-radius:8px;background:var(--bg-secondary);border:1px solid var(--border-subtle);' + opacity + '">';
+            const alreadyAdded = existingIPs.has(d.addr || '');
+            dhtml += '<div class="cc-discovery-item' + (alreadyAdded ? ' is-added' : '') + '">';
             dhtml += '<div>';
-            dhtml += '<span style="font-weight:500;">' + escapeHtml(d.name || 'Unknown') + '</span>';
-            dhtml += ' <span style="color:var(--text-tertiary);font-family:monospace;font-size:0.78rem;margin-left:0.5rem;">' + escapeHtml(d.addr) + ':' + d.port + '</span>';
+            dhtml += '<span class="cc-discovery-name">' + escapeHtml(d.name || 'Unknown') + '</span>';
+            dhtml += '<span class="cc-discovery-meta">' + escapeHtml(d.addr || '—') + ':' + (d.port || 8009) + '</span>';
             dhtml += '</div>';
             if (alreadyAdded) {
-                dhtml += '<span style="font-size:0.78rem;color:var(--text-tertiary);">✓ ' + t('config.chromecast.already_added') + '</span>';
+                dhtml += '<span class="cc-discovery-added">✓ ' + t('config.chromecast.already_added') + '</span>';
             } else {
-                dhtml += '<button class="btn-save" style="padding:0.3rem 0.8rem;font-size:0.78rem;" data-cc-idx="' + i + '">＋ ' + t('config.chromecast.add_device') + '</button>';
+                dhtml += '<button class="btn-save cc-btn-compact" data-cc-idx="' + i + '">＋ ' + t('config.chromecast.add_device') + '</button>';
             }
             dhtml += '</div>';
         });
@@ -220,7 +228,7 @@ async function ccDiscoverDevices() {
         });
 
     } catch (e) {
-        area.innerHTML = '<div style="padding:0.8rem 1rem;border-radius:9px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);font-size:0.82rem;color:var(--danger);">❌ ' + escapeHtml(e.message) + '</div>';
+        ccRenderDiscoveryState(area, 'error', '❌ ' + escapeHtml(e.message));
     } finally {
         btn.disabled = false;
         btn.textContent = '🔍 ' + t('config.chromecast.discover_btn');
@@ -243,7 +251,7 @@ function ccShowAddManual() {
 function ccShowEditModal(id, prefill) {
     const overlay = document.getElementById('cc-modal-overlay');
     const title = document.getElementById('cc-modal-title');
-    document.getElementById('cc-modal-error').style.display = 'none';
+    ccSetHidden(document.getElementById('cc-modal-error'), true);
 
     if (id) {
         // Editing existing device
@@ -272,30 +280,30 @@ function ccShowEditModal(id, prefill) {
         document.getElementById('cc-field-port').value = '8009';
         document.getElementById('cc-field-desc').value = '';
     }
-    overlay.style.display = 'block';
+    ccSetHidden(overlay, false);
 }
 
 function ccCloseModal(e) {
     if (e && e.target !== e.currentTarget) return;
-    document.getElementById('cc-modal-overlay').style.display = 'none';
+    ccSetHidden(document.getElementById('cc-modal-overlay'), true);
 }
 
 // ── Save device (create/update via device registry API) ──
 async function ccSaveDevice() {
     const errBox = document.getElementById('cc-modal-error');
-    errBox.style.display = 'none';
+    ccSetHidden(errBox, true);
 
     const name = document.getElementById('cc-field-name').value.trim();
     if (!name) {
         errBox.textContent = t('config.chromecast.name_required');
-        errBox.style.display = 'block';
+        ccSetHidden(errBox, false);
         return;
     }
 
     const ip = document.getElementById('cc-field-ip').value.trim();
     if (!ip) {
         errBox.textContent = t('config.chromecast.ip_required');
-        errBox.style.display = 'block';
+        ccSetHidden(errBox, false);
         return;
     }
 
@@ -332,7 +340,7 @@ async function ccSaveDevice() {
         await ccLoadDevices();
         // Re-render discovery results to update "already added" state
         const area = document.getElementById('cc-discover-area');
-        if (area.style.display !== 'none' && ccDiscoveredCache.length > 0) {
+        if (area && !area.classList.contains('is-hidden') && ccDiscoveredCache.length > 0) {
             // Trigger a soft re-render of the discovery panel
             const existingIPs = new Set(ccDevicesCache.map(d => d.ip_address));
             area.querySelectorAll('button[data-cc-idx]').forEach(btn => {
@@ -340,9 +348,9 @@ async function ccSaveDevice() {
                 const d = ccDiscoveredCache[idx];
                 if (d && existingIPs.has(d.addr)) {
                     const parent = btn.parentElement;
-                    parent.style.opacity = '0.5';
+                    parent.classList.add('is-added');
                     btn.replaceWith(Object.assign(document.createElement('span'), {
-                        style: 'font-size:0.78rem;color:var(--text-tertiary);',
+                        className: 'cc-discovery-added',
                         textContent: '✓ ' + t('config.chromecast.already_added')
                     }));
                 }
@@ -350,7 +358,7 @@ async function ccSaveDevice() {
         }
     } catch (e) {
         errBox.textContent = '❌ ' + e.message;
-        errBox.style.display = 'block';
+        ccSetHidden(errBox, false);
     } finally {
         btn.disabled = false;
     }

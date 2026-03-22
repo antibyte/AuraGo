@@ -81,6 +81,10 @@ const providerConfig = {
 // ── Helpers ───────────────────────────────────
 function escapeAttr(s) { return String(s).replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
 function escapeHtml(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function setupSetHidden(el, hidden) {
+    if (!el) return;
+    el.classList.toggle('is-hidden', hidden);
+}
 
 /* ── OpenRouter Model Browser (reusable modal) ── */
 let _orModelsCache = null;
@@ -94,31 +98,31 @@ async function openOpenRouterBrowser(onSelect) {
 
     const overlay = document.createElement('div');
     overlay.id = 'or-browser-overlay';
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:1100;backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;';
+    overlay.className = 'or-browser-overlay';
     overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
 
     overlay.innerHTML = `
-            <div style="background:var(--bg-secondary, #1a1a2e);border-radius:16px;width:min(760px,95vw);height:min(85vh,720px);display:flex;flex-direction:column;border:1px solid var(--border-subtle, #2a2a3e);overflow:hidden;" onclick="event.stopPropagation()">
-                <div style="padding:1rem 1.2rem;border-bottom:1px solid var(--border-subtle, #2a2a3e);flex-shrink:0;">
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.7rem;">
-                        <div style="font-weight:700;font-size:1rem;">${t('setup.or_browser_title')}</div>
-                        <button onclick="document.getElementById('or-browser-overlay').remove()" style="background:none;border:none;color:var(--text-secondary, #888);font-size:1.2rem;cursor:pointer;">✕</button>
+            <div class="or-browser-modal" onclick="event.stopPropagation()">
+                <div class="or-browser-header">
+                    <div class="or-browser-title-row">
+                        <div class="or-browser-title">${t('setup.or_browser_title')}</div>
+                        <button onclick="document.getElementById('or-browser-overlay').remove()" class="or-browser-close-btn">✕</button>
                     </div>
-                    <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
-                        <input id="or-search" class="field-input" type="text" placeholder="${t('setup.or_browser_search_placeholder')}" style="flex:1;min-width:180px;font-size:0.82rem;padding:0.4rem 0.7rem;">
-                        <button id="or-free-btn" style="padding:0.35rem 0.8rem;font-size:0.75rem;background:var(--bg-tertiary, #252538);color:var(--text-primary, #eee);border:1px solid var(--border-subtle, #2a2a3e);border-radius:8px;cursor:pointer;white-space:nowrap;" title="${t('setup.or_browser_free_button_title')}">
+                    <div class="or-browser-controls">
+                        <input id="or-search" class="field-input or-search-input" type="text" placeholder="${t('setup.or_browser_search_placeholder')}">
+                        <button id="or-free-btn" class="or-free-btn" title="${t('setup.or_browser_free_button_title')}">
                             ${t('setup.or_browser_free_button')}
                         </button>
-                        <div id="or-count" style="font-size:0.72rem;color:var(--text-tertiary, #666);white-space:nowrap;"></div>
+                        <div id="or-count" class="or-count"></div>
                     </div>
                 </div>
-                <div style="flex:1;display:flex;overflow:hidden;">
-                    <div id="or-list-wrap" style="flex:1;overflow-y:auto;min-width:0;">
-                        <div id="or-list" style="padding:0.3rem;"></div>
+                <div class="or-browser-body">
+                    <div id="or-list-wrap" class="or-list-wrap">
+                        <div id="or-list" class="or-list"></div>
                     </div>
-                    <div id="or-detail" style="width:280px;flex-shrink:0;border-left:1px solid var(--border-subtle, #2a2a3e);overflow-y:auto;display:none;padding:1rem;font-size:0.8rem;"></div>
+                    <div id="or-detail" class="or-detail"></div>
                 </div>
-                <div id="or-loading" style="padding:2rem;text-align:center;color:var(--text-secondary, #888);font-size:0.85rem;">
+                <div id="or-loading" class="or-loading">
                     ${t('setup.or_browser_loading')}
                 </div>
             </div>`;
@@ -144,7 +148,7 @@ async function openOpenRouterBrowser(onSelect) {
             const resp = await fetch('/api/openrouter/models');
             const json = await resp.json();
             if (json.available === false) {
-                loadingDiv.innerHTML = '<span style="color:#e74c3c;">❌ ' + (json.reason || t('common.error')) + '</span>';
+                loadingDiv.innerHTML = '<span class="or-loading-error">❌ ' + (json.reason || t('common.error')) + '</span>';
                 return;
             }
             allModels = (json.data || []).map(m => ({
@@ -159,11 +163,11 @@ async function openOpenRouterBrowser(onSelect) {
             _orModelsCacheTime = now;
         }
     } catch (e) {
-        loadingDiv.innerHTML = '<span style="color:#e74c3c;">❌ ' + t('setup.or_browser_connection_error') + e.message + '</span>';
+        loadingDiv.innerHTML = '<span class="or-loading-error">❌ ' + t('setup.or_browser_connection_error') + e.message + '</span>';
         return;
     }
-    loadingDiv.style.display = 'none';
-    listWrap.style.display = 'block';
+    setupSetHidden(loadingDiv, true);
+    setupSetHidden(listWrap, false);
 
     function isFree(m) {
         return m.pricing && parseFloat(m.pricing.prompt || '1') === 0 && parseFloat(m.pricing.completion || '1') === 0;
@@ -192,7 +196,7 @@ async function openOpenRouterBrowser(onSelect) {
         });
         countDiv.textContent = filtered.length + ' ' + t('setup.or_browser_model_count') + (freeOnly ? ' ' + t('setup.or_browser_model_count_free_only') : '');
         if (filtered.length === 0) {
-            listDiv.innerHTML = '<div style="padding:1.5rem;text-align:center;color:var(--text-tertiary, #666);font-size:0.82rem;">' + t('setup.or_browser_no_models_found') + '</div>';
+            listDiv.innerHTML = '<div class="or-empty-list">' + t('setup.or_browser_no_models_found') + '</div>';
             return;
         }
         listDiv.innerHTML = filtered.map(m => {
@@ -200,50 +204,48 @@ async function openOpenRouterBrowser(onSelect) {
             const promptCost = formatCost(m.pricing.prompt);
             const completionCost = formatCost(m.pricing.completion);
             const isSelected = selectedModel && selectedModel.id === m.id;
-            return `<div class="or-model-row" data-id="${escapeAttr(m.id)}" style="padding:0.5rem 0.7rem;border-bottom:1px solid var(--border-subtle, #2a2a3e);cursor:pointer;display:flex;align-items:center;gap:0.6rem;transition:background 0.12s;${isSelected ? 'background:rgba(99,179,237,0.1);' : ''}">
-                        <div style="flex:1;min-width:0;">
-                            <div style="font-size:0.8rem;font-weight:600;color:var(--text-primary, #eee);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${escapeAttr(m.id)}">${escapeHtml(m.name)}</div>
-                            <div style="font-size:0.68rem;color:var(--text-tertiary, #666);font-family:monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(m.id)}</div>
+            return `<div class="or-model-row ${isSelected ? 'is-selected' : ''}" data-id="${escapeAttr(m.id)}">
+                        <div class="or-model-main">
+                            <div class="or-model-name" title="${escapeAttr(m.id)}">${escapeHtml(m.name)}</div>
+                            <div class="or-model-id">${escapeHtml(m.id)}</div>
                         </div>
-                        <div style="flex-shrink:0;display:flex;gap:0.4rem;align-items:center;">
-                            ${free ? '<span style="font-size:0.65rem;padding:0.1rem 0.4rem;border-radius:4px;background:rgba(72,199,142,0.15);color:#48c78e;font-weight:600;">' + t('setup.or_browser_free_badge') + '</span>' : '<span style="font-size:0.65rem;color:var(--text-tertiary, #666);" title="Input / Output">' + promptCost + ' · ' + completionCost + '</span>'}
-                            <span style="font-size:0.65rem;color:var(--text-tertiary, #666);" title="Context">${formatContext(m.context_length)}</span>
+                        <div class="or-model-meta">
+                            ${free ? '<span class="or-free-badge">' + t('setup.or_browser_free_badge') + '</span>' : '<span class="or-meta-text" title="Input / Output">' + promptCost + ' · ' + completionCost + '</span>'}
+                            <span class="or-meta-text" title="Context">${formatContext(m.context_length)}</span>
                         </div>
                     </div>`;
         }).join('');
         listDiv.querySelectorAll('.or-model-row').forEach(row => {
-            row.onmouseover = () => { if (!row.style.background.includes('237')) row.style.background = 'var(--bg-tertiary, #252538)'; };
-            row.onmouseout = () => { if (selectedModel && selectedModel.id === row.dataset.id) row.style.background = 'rgba(99,179,237,0.1)'; else row.style.background = ''; };
             row.onclick = () => {
                 const m = allModels.find(x => x.id === row.dataset.id);
                 if (!m) return;
                 selectedModel = m;
                 showDetail(m);
-                listDiv.querySelectorAll('.or-model-row').forEach(r => r.style.background = '');
-                row.style.background = 'rgba(99,179,237,0.1)';
+                listDiv.querySelectorAll('.or-model-row').forEach(r => r.classList.remove('is-selected'));
+                row.classList.add('is-selected');
             };
         });
     }
 
     function showDetail(m) {
-        detailDiv.style.display = 'block';
+        detailDiv.classList.add('is-open');
         const free = isFree(m);
         const promptPerM = (parseFloat(m.pricing.prompt || '0') * 1000000);
         const completionPerM = (parseFloat(m.pricing.completion || '0') * 1000000);
         detailDiv.innerHTML = `
-                    <div style="font-weight:700;font-size:0.9rem;color:var(--text-primary, #eee);margin-bottom:0.3rem;">${escapeHtml(m.name)}</div>
-                    <div style="font-family:monospace;font-size:0.7rem;color:var(--accent, #63b3ed);margin-bottom:0.7rem;word-break:break-all;">${escapeHtml(m.id)}</div>
-                    ${m.description ? '<div style="font-size:0.75rem;color:var(--text-secondary, #aaa);margin-bottom:0.8rem;line-height:1.4;max-height:120px;overflow-y:auto;">' + escapeHtml(m.description) + '</div>' : ''}
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem 0.8rem;font-size:0.75rem;margin-bottom:0.8rem;">
-                        <div><span style="color:var(--text-tertiary, #666);">${t('setup.or_browser_detail_context')}</span></div>
-                        <div style="font-weight:600;">${formatContext(m.context_length)} ${t('setup.or_browser_detail_tokens')}</div>
-                        <div><span style="color:var(--text-tertiary, #666);">${t('setup.or_browser_detail_input')}</span></div>
-                        <div style="font-weight:600;${free ? 'color:#48c78e;' : ''}">${free ? t('setup.or_browser_free_cost') : '$' + promptPerM.toFixed(4) + '/M'}</div>
-                        <div><span style="color:var(--text-tertiary, #666);">${t('setup.or_browser_detail_output')}</span></div>
-                        <div style="font-weight:600;${free ? 'color:#48c78e;' : ''}">${free ? t('setup.or_browser_free_cost') : '$' + completionPerM.toFixed(4) + '/M'}</div>
+                    <div class="or-detail-name">${escapeHtml(m.name)}</div>
+                    <div class="or-detail-id">${escapeHtml(m.id)}</div>
+                    ${m.description ? '<div class="or-detail-desc">' + escapeHtml(m.description) + '</div>' : ''}
+                    <div class="or-detail-grid">
+                        <div><span class="or-detail-key">${t('setup.or_browser_detail_context')}</span></div>
+                        <div class="or-detail-val">${formatContext(m.context_length)} ${t('setup.or_browser_detail_tokens')}</div>
+                        <div><span class="or-detail-key">${t('setup.or_browser_detail_input')}</span></div>
+                        <div class="or-detail-val ${free ? 'is-free' : ''}">${free ? t('setup.or_browser_free_cost') : '$' + promptPerM.toFixed(4) + '/M'}</div>
+                        <div><span class="or-detail-key">${t('setup.or_browser_detail_output')}</span></div>
+                        <div class="or-detail-val ${free ? 'is-free' : ''}">${free ? t('setup.or_browser_free_cost') : '$' + completionPerM.toFixed(4) + '/M'}</div>
                     </div>
-                    ${free ? '<div style="padding:0.4rem 0.6rem;border-radius:7px;background:rgba(72,199,142,0.1);border:1px solid rgba(72,199,142,0.2);font-size:0.72rem;color:#48c78e;margin-bottom:0.8rem;">' + t('setup.or_browser_free_model_badge') + '</div>' : ''}
-                    <button id="or-apply-btn" style="width:100%;padding:0.5rem;font-size:0.82rem;border-radius:8px;background:var(--accent, #63b3ed);color:#fff;border:none;cursor:pointer;font-weight:600;">
+                    ${free ? '<div class="or-free-detail-note">' + t('setup.or_browser_free_model_badge') + '</div>' : ''}
+                    <button id="or-apply-btn" class="or-apply-btn">
                         ${t('setup.or_browser_apply_model')}
                     </button>
                 `;
@@ -267,9 +269,7 @@ async function openOpenRouterBrowser(onSelect) {
     };
     freeBtn.onclick = () => {
         freeOnly = !freeOnly;
-        freeBtn.style.background = freeOnly ? 'rgba(72,199,142,0.2)' : 'var(--bg-tertiary, #252538)';
-        freeBtn.style.color = freeOnly ? '#48c78e' : 'var(--text-primary, #eee)';
-        freeBtn.style.borderColor = freeOnly ? 'rgba(72,199,142,0.4)' : 'var(--border-subtle, #2a2a3e)';
+        freeBtn.classList.toggle('is-active', freeOnly);
         renderList();
     };
     renderList();
@@ -296,16 +296,16 @@ function onProviderChange() {
     // Show/hide API key field for Ollama
     const apiKeyGroup = document.getElementById('group-api-key');
     if (!cfg.needsKey) {
-        apiKeyGroup.style.opacity = '0.4';
+        apiKeyGroup.classList.add('setup-dimmed');
         document.getElementById('llm-api-key').removeAttribute('required');
     } else {
-        apiKeyGroup.style.opacity = '1';
+        apiKeyGroup.classList.remove('setup-dimmed');
     }
 
     // Show/hide OpenRouter browse button
     const orBrowseBtn = document.getElementById('or-browse-btn');
     if (orBrowseBtn) {
-        orBrowseBtn.style.display = provider === 'openrouter' ? 'block' : 'none';
+        setupSetHidden(orBrowseBtn, provider !== 'openrouter');
     }
 }
 
@@ -330,10 +330,10 @@ function onLanguageChange() {
     const sel = document.getElementById('system-language');
     const customInput = document.getElementById('system-language-custom');
     if (sel.value === 'Other / Custom') {
-        customInput.style.display = 'block';
+        setupSetHidden(customInput, false);
         customInput.focus();
     } else {
-        customInput.style.display = 'none';
+        setupSetHidden(customInput, true);
         // Fetch and apply translations for the selected language immediately
         fetchAndApplyLang(sel.value);
     }
@@ -408,8 +408,8 @@ function updateUI() {
     }
 
     // Update buttons
-    document.getElementById('btn-back').style.display = currentStep > 0 ? '' : 'none';
-    document.getElementById('btn-skip-step').style.display = currentStep > 0 ? '' : 'none';
+    setupSetHidden(document.getElementById('btn-back'), currentStep <= 0);
+    setupSetHidden(document.getElementById('btn-skip-step'), currentStep <= 0);
 
     const btnNext = document.getElementById('btn-next');
     if (currentStep === totalSteps - 1) {
@@ -625,12 +625,12 @@ async function saveConfig() {
 
         // Show success screen
         document.querySelectorAll('.setup-section').forEach(s => s.classList.remove('active'));
-        document.getElementById('setup-footer').style.display = 'none';
-        document.querySelector('.step-indicator').style.display = 'none';
+        setupSetHidden(document.getElementById('setup-footer'), true);
+        setupSetHidden(document.querySelector('.step-indicator'), true);
         document.getElementById('success-screen').classList.add('active');
 
         if (result.needs_restart) {
-            document.getElementById('restart-notice').style.display = '';
+            setupSetHidden(document.getElementById('restart-notice'), false);
         }
 
         showToast(t('setup.toast_config_saved'), 'success');
@@ -665,7 +665,7 @@ function showToast(message, type = 'info') {
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
     const icons = { success: '✓', error: '✕', warning: '⚠', info: 'ℹ' };
-    toast.innerHTML = `<span style="font-weight:700">${icons[type] || ''}</span> ${message}`;
+    toast.innerHTML = `<span class="setup-toast-icon">${icons[type] || ''}</span> ${message}`;
     container.appendChild(toast);
     setTimeout(() => {
         toast.classList.add('toast-exit');

@@ -133,6 +133,11 @@ function applyI18n() {
     if (lbc) lbc.title = t('chat.lightbox_close_title');
 }
 
+function chatSetHidden(el, hidden) {
+    if (!el) return;
+    el.classList.toggle('is-hidden', hidden);
+}
+
 
 /* ── Modal (replaces confirm / alert) ── */
 function showModal(title, message, isConfirm) {
@@ -145,13 +150,11 @@ function showModal(title, message, isConfirm) {
 
         titleEl.textContent = title;
         msgEl.textContent = message;
-        cancelBtn.style.display = isConfirm ? '' : 'none';
-        overlay.style.display = 'flex';
-        overlay.style.opacity = '1';
+        chatSetHidden(cancelBtn, !isConfirm);
+        overlay.classList.add('active');
 
         function cleanup(result) {
-            overlay.style.display = 'none';
-            overlay.style.opacity = '0';
+            overlay.classList.remove('active');
             confirmBtn.removeEventListener('click', onConfirm);
             cancelBtn.removeEventListener('click', onCancel);
             overlay.removeEventListener('click', onOverlay);
@@ -256,12 +259,12 @@ function updateTodoPanel(todoText) {
                 + (done ? '✅' : '⬜') + ' ' + escapeHtml(text) + '</div>';
         }).join('');
     }
-    panel.style.display = 'block';
+    chatSetHidden(panel, false);
 }
 
 function hideTodoPanel() {
     const panel = document.getElementById('todo-debug-panel');
-    if (panel) panel.style.display = 'none';
+    chatSetHidden(panel, true);
 }
 
 /* ── Load history & notifications ── */
@@ -276,8 +279,8 @@ async function initPage() {
             if (authData.enabled) {
                 const lb = document.getElementById('logout-btn');
                 const rl = document.getElementById('radialLogout');
-                if (lb) lb.classList.remove('is-hidden');
-                if (rl) rl.style.display = '';
+                chatSetHidden(lb, false);
+                chatSetHidden(rl, false);
             }
         }
     } catch (e) { /* auth endpoint unavailable, hide button */ }
@@ -574,7 +577,7 @@ uploadBtn.addEventListener('click', () => fileInput.click());
 attachClear.addEventListener('click', () => {
     pendingAttachment = null;
     fileInput.value = '';
-    attachChip.style.display = 'none';
+    chatSetHidden(attachChip, true);
     uploadBtn.classList.remove('has-file');
 });
 
@@ -590,7 +593,7 @@ fileInput.addEventListener('change', async () => {
         const data = await res.json();
         pendingAttachment = { path: data.path, filename: data.filename };
         attachName.textContent = data.filename;
-        attachChip.style.display = 'flex';
+        chatSetHidden(attachChip, false);
         uploadBtn.classList.add('has-file');
     } catch (err) {
         console.error('Upload error:', err);
@@ -614,7 +617,7 @@ chatForm.addEventListener('submit', async (e) => {
             '\n' + t('chat.file_attached_instructions');
         pendingAttachment = null;
         fileInput.value = '';
-        attachChip.style.display = 'none';
+        chatSetHidden(attachChip, true);
         uploadBtn.classList.remove('has-file');
     }
 
@@ -650,7 +653,7 @@ chatForm.addEventListener('submit', async (e) => {
 
     /* Show status bar immediately for instant feedback */
     agentStatusText.textContent = t('chat.sse_thinking');
-    agentStatusDiv.style.display = 'flex';
+    chatSetHidden(agentStatusDiv, false);
 
     try {
         const controller = new AbortController();
@@ -691,7 +694,7 @@ chatForm.addEventListener('submit', async (e) => {
         userInput.disabled = false;
         sendBtn.disabled = false;
         userInput.focus();
-        document.getElementById('agentStatusContainer').style.display = 'none';
+        chatSetHidden(document.getElementById('agentStatusContainer'), true);
         stopBtn.disabled = true;
     }
 });
@@ -728,7 +731,7 @@ const TOOL_ICONS = {
 
 function spawnFloatingIcon(toolName) {
     const pill = agentStatusDiv.querySelector('.status-pill');
-    if (!pill || agentStatusDiv.style.display === 'none') return;
+    if (!pill || agentStatusDiv.classList.contains('is-hidden')) return;
     // Throttle: max one icon per 800ms per tool
     const now = Date.now();
     const key = '_lastIcon_' + toolName;
@@ -821,7 +824,7 @@ function handleSSEMessage(e) {
 
         // Make the status bar visible early so floating icons can render
         if (data.event === 'thinking' || data.event === 'tool_start' || data.event === 'co_agent_spawn' || data.event === 'coding') {
-            agentStatusDiv.style.display = 'flex';
+            chatSetHidden(agentStatusDiv, false);
         }
 
         if (data.event === 'thinking') {
@@ -899,7 +902,7 @@ function handleSSEMessage(e) {
                     const imgHTML = `
                                 <div class="msg-row bot">
                                     <div class="avatar bot">🤖</div>
-                                    <div class="bubble bot"><img src="${imgData.path}" alt="${cap}" title="${cap}" loading="lazy" style="cursor:zoom-in;"></div>
+                                    <div class="bubble bot"><img class="chat-zoomable-image" src="${imgData.path}" alt="${cap}" title="${cap}" loading="lazy"></div>
                                 </div>`;
                     chatContent.insertAdjacentHTML('beforeend', imgHTML);
                     chatBox.scrollTop = chatBox.scrollHeight;
@@ -961,7 +964,7 @@ function handleSSEMessage(e) {
             } catch (e) { /* ignore */ }
             return;
         } else if (data.event === 'done') {
-            agentStatusDiv.style.display = 'none';
+            chatSetHidden(agentStatusDiv, true);
             stopBtn.disabled = true;
             hideTodoPanel();
             return;
@@ -975,7 +978,7 @@ function handleSSEMessage(e) {
 
         if (message) {
             agentStatusText.textContent = message;
-            agentStatusDiv.style.display = 'flex';
+            chatSetHidden(agentStatusDiv, false);
         }
     } catch (err) { /* ignore parse errors */ }
 }
@@ -1020,7 +1023,7 @@ function updateBudgetPills(b) {
     const limit = (b.daily_limit_usd || 0).toFixed(2);
     const bp = document.getElementById('budgetPill');
     if (bp) {
-        bp.style.display = 'inline-flex';
+        chatSetHidden(bp, false);
         bp.textContent = t('chat.budget_pill_format', { cost: cost, limit: limit });
         bp.title = t('chat.budget_tooltip_template', { cost: cost, limit: limit, enforcement: b.enforcement });
         bp.classList.remove('budget-warning', 'budget-exceeded');
@@ -1041,7 +1044,7 @@ function updateCreditsPills(c) {
     if (c.error) return;
     const el = document.getElementById('creditsPill');
     if (el) {
-        el.style.display = 'inline-flex';
+        chatSetHidden(el, false);
         if (c.limit > 0) {
             el.textContent = t('chat.credits_pill_text', { amount: c.balance.toFixed(2) });
             el.title = t('chat.credits_tooltip_used_limit', { usage: c.usage.toFixed(2), limit: c.limit.toFixed(2) });
@@ -1088,11 +1091,13 @@ function updateMoodWidget(data) {
         const row = document.createElement('div');
         row.className = 'trait-row';
         row.innerHTML = `<span class="trait-label">${t('chat.trait_' + tr)}</span>` +
-            `<div class="trait-bar-bg"><div class="trait-bar-fill" data-trait="${tr}" style="width:${pct}%"></div></div>` +
+            `<div class="trait-bar-bg"><div class="trait-bar-fill" data-trait="${tr}" data-percent="${pct}"></div></div>` +
             `<span class="trait-value">${v.toFixed(2)}</span>`;
+        const barFill = row.querySelector('.trait-bar-fill');
+        if (barFill) barFill.classList.add('w-pct-' + (barFill.dataset.percent || 0));
         traitsEl.appendChild(row);
     });
-    toggle.style.display = 'inline-flex';
+    chatSetHidden(toggle, false);
 }
 
 if (PERSONALITY_ENABLED) {
@@ -1237,7 +1242,7 @@ document.addEventListener('DOMContentLoaded', () => {
             onUpload: (data) => {
                 pendingAttachment = { path: data.path, filename: data.filename };
                 attachName.textContent = data.filename;
-                attachChip.style.display = 'flex';
+                chatSetHidden(attachChip, false);
                 uploadBtn.classList.add('has-file');
             },
             onError: (msg) => {

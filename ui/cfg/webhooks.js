@@ -8,6 +8,11 @@ let whEditingId = null; // null = new, string = editing
 let ogWebhooks = [];    // outgoing webhooks
 let ogEditingIdx = -1;  // -1 = new, >= 0 = editing index
 
+function whSetHidden(el, hidden) {
+    if (!el) return;
+    el.classList.toggle('is-hidden', hidden);
+}
+
 async function whFetchAll() {
     try {
         const [wResp, tResp, pResp, ogResp] = await Promise.all([
@@ -22,7 +27,7 @@ async function whFetchAll() {
 
 async function renderWebhooksSection(section) {
     const content = document.getElementById('content');
-    content.innerHTML = '<div class="cfg-section active"><div style="text-align:center;padding:3rem;color:var(--text-secondary);">' + t('config.webhooks.loading') + '</div></div>';
+    content.innerHTML = '<div class="cfg-section active"><div class="wh-loading-state">' + t('config.webhooks.loading') + '</div></div>';
     await whFetchAll();
 
     // Check if webhooks are enabled in config
@@ -70,8 +75,8 @@ async function renderWebhooksSection(section) {
     }
 
     // Outgoing webhooks — always visible, independent of incoming webhook server
-    html += `<div style="margin-top:2rem;">
-        <div style="font-weight:600;font-size:0.85rem;color:var(--accent);margin-bottom:0.75rem;border-bottom:1px solid var(--border-subtle);padding-bottom:0.3rem;">
+    html += `<div class="wh-outgoing-wrap">
+        <div class="wh-section-title">
             ${t('config.webhooks.tab_outgoing') || '📤 Outgoing Webhooks'}
         </div>`;
     html += ogRenderList();
@@ -87,8 +92,8 @@ async function renderWebhooksSection(section) {
 function whRenderConfigSettings() {
     const wh = configData.webhooks || {};
     return `
-            <div style="margin-top:1.5rem;margin-bottom:1rem;">
-                <div style="font-weight:600;font-size:0.85rem;color:var(--accent);margin-bottom:0.75rem;border-bottom:1px solid var(--border-subtle);padding-bottom:0.3rem;">
+            <div class="wh-settings-wrap">
+                <div class="wh-section-title">
                     ${t('config.webhooks.settings_title')}
                 </div>
                 <div class="field-group">
@@ -161,7 +166,7 @@ function whRenderWebhookList() {
     }
 
     // Hidden editor form
-    html += '<div id="wh-editor" class="wh-editor" style="display:none;"></div>';
+    html += '<div id="wh-editor" class="wh-editor is-hidden"></div>';
     return html;
 }
 
@@ -224,7 +229,7 @@ function whShowEditor(id) {
                     <label>${t('config.webhooks.preset_label')}</label>
                     <select id="wh-f-preset" class="field-select" onchange="whApplyPreset(this.value)">${presetsHtml}</select>
                 </div>
-                <div style="font-weight:600;font-size:0.8rem;color:var(--accent);margin-top:1rem;margin-bottom:0.5rem;">${t('config.webhooks.format_section')}</div>
+                <div class="wh-subsection-title">${t('config.webhooks.format_section')}</div>
                 <div class="wh-form-row">
                     <label>${t('config.webhooks.content_types_label')}</label>
                     <input id="wh-f-ct" class="field-input" value="${(format.accepted_content_types || []).join(', ')}" placeholder="${t('config.webhooks.ct_placeholder')}">
@@ -250,12 +255,12 @@ function whShowEditor(id) {
                     <label>${t('config.webhooks.signature_secret_label')}</label>
                     <input id="wh-f-sigsec" class="field-input" type="password" value="${esc(format.signature_secret || '')}" placeholder="${t('config.webhooks.sig_secret_placeholder')}">
                 </div>
-                <div style="font-weight:600;font-size:0.8rem;color:var(--accent);margin-top:1rem;margin-bottom:0.5rem;">
+                <div class="wh-subsection-title">
                     ${t('config.webhooks.field_mappings_label')}
-                    <button class="wh-btn wh-btn-sm" onclick="whAddFieldRow()" style="margin-left:0.5rem;">${t('config.webhooks.add_field_button')}</button>
+                    <button class="wh-btn wh-btn-sm wh-field-add-btn" onclick="whAddFieldRow()">${t('config.webhooks.add_field_button')}</button>
                 </div>
                 <div id="wh-fields-list">${fieldsHtml}</div>
-                <div style="font-weight:600;font-size:0.8rem;color:var(--accent);margin-top:1rem;margin-bottom:0.5rem;">${t('config.webhooks.delivery_section')}</div>
+                <div class="wh-subsection-title">${t('config.webhooks.delivery_section')}</div>
                 <div class="wh-form-row">
                     <label>${t('config.webhooks.mode_label')}</label>
                     <select id="wh-f-mode" class="field-select">
@@ -280,13 +285,13 @@ function whShowEditor(id) {
                 <button class="wh-btn" onclick="whHideEditor()">${t('config.webhooks.cancel')}</button>
                 <button class="wh-btn wh-btn-primary" onclick="whSaveWebhook()">${t('config.webhooks.save')}</button>
             </div>`;
-    ed.style.display = 'block';
+    whSetHidden(ed, false);
     ed.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function whHideEditor() {
     const ed = document.getElementById('wh-editor');
-    if (ed) ed.style.display = 'none';
+    whSetHidden(ed, true);
     whEditingId = null;
 }
 
@@ -424,7 +429,7 @@ function whRenderTokenList() {
                 <span class="wh-count">${whTokens.length} Tokens</span>
                 <button class="wh-btn wh-btn-primary" onclick="whCreateToken()">+ ${t('config.tokens.new_token')}</button>
             </div>`;
-    html += '<div id="wh-token-created" style="display:none;" class="wh-token-reveal"></div>';
+    html += '<div id="wh-token-created" class="wh-token-reveal is-hidden"></div>';
 
     if (whTokens.length === 0) {
         html += `<div class="wh-empty">${t('config.tokens.empty')}</div>`;
@@ -445,7 +450,7 @@ function whRenderTokenList() {
                                 <button class="wh-btn-icon wh-btn-danger" title="${t('config.webhooks.action_delete')}" onclick="whDeleteToken('${tok.id}','${esc(tok.name)}')">🗑️</button>
                             </div>
                         </div>
-                        <div class="wh-card-meta" style="margin-top:0.4rem;">
+                        <div class="wh-card-meta wh-card-meta-spaced">
                             <span>${t('config.tokens.scopes_label')} <strong>${(tok.scopes || ['webhook']).join(', ')}</strong></span>
                             <span>${t('config.tokens.expires')}: <strong>${exp}</strong></span>
                             <span>${t('config.tokens.last_used')}: ${lastUsed}</span>
@@ -533,7 +538,7 @@ async function whDeleteToken(id, name) {
 /* ── Webhook Log ── */
 function whRenderLog() {
     return `<div id="wh-log-content" class="wh-log-content">
-                <div style="text-align:center;padding:1rem;color:var(--text-secondary);">${t('config.webhooks.log_loading')}</div>
+                <div class="wh-log-loading">${t('config.webhooks.log_loading')}</div>
             </div>`;
 }
 
@@ -565,7 +570,7 @@ async function whLoadLog() {
         el.innerHTML = html;
     } catch (e) {
         const el = document.getElementById('wh-log-content');
-        if (el) el.innerHTML = '<div class="wh-empty" style="color:var(--danger);">' + t('config.webhooks.log_error_prefix') + esc(e.message) + '</div>';
+        if (el) el.innerHTML = '<div class="wh-empty wh-empty-danger">' + t('config.webhooks.log_error_prefix') + esc(e.message) + '</div>';
     }
 }
 
@@ -613,7 +618,7 @@ function ogRenderList() {
                     </div>
                 </div>
                 <div class="wh-card-body">
-                    <div class="wh-card-url" style="cursor:default;"><code>${esc(w.url || '')}</code></div>
+                    <div class="wh-card-url wh-card-url-static"><code>${esc(w.url || '')}</code></div>
                     <div class="wh-card-meta">
                         <span>${esc(w.description || '')}</span>
                         <span>${paramCount} Param(s)</span>
@@ -624,7 +629,7 @@ function ogRenderList() {
         }
         html += '</div>';
     }
-    html += '<div id="og-modal-overlay" class="og-modal-overlay" style="display:none;"></div>';
+    html += '<div id="og-modal-overlay" class="og-modal-overlay is-hidden"></div>';
     return html;
 }
 
@@ -666,7 +671,7 @@ function ogShowModal(idx) {
                         <option value="DELETE" ${method === 'DELETE' ? 'selected' : ''}>DELETE</option>
                     </select>
                 </div>
-                <div style="flex:3;"><label>URL</label>
+                <div class="og-col-url"><label>URL</label>
                     <input id="og-f-url" class="field-input" value="${esc(url)}" placeholder="https://hooks.slack.com/services/...">
                 </div>
             </div>
@@ -674,19 +679,19 @@ function ogShowModal(idx) {
                 <label>Headers <small>(one per line: Key: Value)</small></label>
                 <textarea id="og-f-headers" class="field-input wh-textarea" rows="3" placeholder="Authorization: Bearer xxx">${esc(headersStr)}</textarea>
             </div>
-            <div style="font-weight:600;font-size:0.8rem;color:var(--accent);margin-top:1rem;margin-bottom:0.5rem;display:flex;align-items:center;gap:0.5rem;">
+            <div class="wh-subsection-title wh-subsection-title-inline">
                 Parameters
                 <button class="wh-btn wh-btn-sm" onclick="ogAddParam()">+ Add</button>
             </div>
             <div id="og-params-list">${paramsHtml}</div>
-            <div class="wh-form-row og-form-split" style="margin-top:1rem;">
+            <div class="wh-form-row og-form-split og-form-row-spaced">
                 <div><label>Payload Type</label>
                     <select id="og-f-ptype" class="field-select" onchange="ogToggleTemplate()">
                         <option value="json" ${payloadType === 'json' ? 'selected' : ''}>Auto JSON</option>
                         <option value="custom" ${payloadType === 'custom' ? 'selected' : ''}>Custom Template</option>
                     </select>
                 </div>
-                <div style="flex:2;"><label>Body Template</label>
+                <div class="og-col-body"><label>Body Template</label>
                     <textarea id="og-f-body" class="field-input wh-textarea" rows="3" placeholder='{"text":"{{message}}"}' ${payloadType !== 'custom' ? 'disabled' : ''}>${esc(bodyTemplate)}</textarea>
                 </div>
             </div>
@@ -713,10 +718,10 @@ function ogParamRow(idx, p) {
             <option value="number" ${p.type === 'number' ? 'selected' : ''}>number</option>
             <option value="boolean" ${p.type === 'boolean' ? 'selected' : ''}>boolean</option>
         </select>
-        <input class="field-input og-p-desc" value="${esc(p.description || '')}" placeholder="description" style="flex:2;">
-        <div class="toggle-wrap" style="min-width:60px;">
+        <input class="field-input og-p-desc og-p-desc-wide" value="${esc(p.description || '')}" placeholder="description">
+        <div class="toggle-wrap og-toggle-wrap">
             <div class="toggle ${p.required ? 'on' : ''}" onclick="this.classList.toggle('on')" title="Required"></div>
-            <span style="font-size:0.7rem;color:var(--text-secondary);">Req</span>
+            <span class="og-required-label">Req</span>
         </div>
         <button class="wh-btn-icon wh-btn-danger" onclick="this.parentElement.remove()">\u2715</button>
     </div>`;

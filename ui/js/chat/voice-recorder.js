@@ -24,7 +24,7 @@ class VoiceRecorder {
     createUI() {
         const container = document.createElement('div');
         container.className = 'voice-recorder';
-        container.style.display = 'none';
+        container.classList.add('is-hidden');
         
         container.innerHTML = `
             <div class="recorder-inner">
@@ -37,7 +37,7 @@ class VoiceRecorder {
                 <div class="recorder-controls">
                     <button class="recorder-btn recorder-pause" title="Pause/Resume">
                         <span class="pause-icon">⏸</span>
-                        <span class="resume-icon" style="display:none">▶</span>
+                        <span class="resume-icon is-hidden">▶</span>
                     </button>
                     <button class="recorder-btn recorder-cancel" title="Cancel">✕</button>
                     <button class="recorder-btn recorder-send" title="Send">➤</button>
@@ -275,13 +275,13 @@ class VoiceRecorder {
         const resumeIcon = pauseBtn.querySelector('.resume-icon');
         
         if (this.isPaused) {
-            pauseIcon.style.display = 'none';
-            resumeIcon.style.display = 'inline';
+            pauseIcon.classList.add('is-hidden');
+            resumeIcon.classList.remove('is-hidden');
             this.statusEl.textContent = 'Paused';
             this.element.classList.add('paused');
         } else {
-            pauseIcon.style.display = 'inline';
-            resumeIcon.style.display = 'none';
+            pauseIcon.classList.remove('is-hidden');
+            resumeIcon.classList.add('is-hidden');
             this.statusEl.textContent = 'Recording...';
             this.element.classList.remove('paused');
         }
@@ -339,14 +339,14 @@ class VoiceRecorder {
 
     show() {
         if (this.element) {
-            this.element.style.display = 'block';
+            this.element.classList.remove('is-hidden');
             this.element.classList.add('active');
         }
     }
 
     hide() {
         if (this.element) {
-            this.element.style.display = 'none';
+            this.element.classList.add('is-hidden');
             this.element.classList.remove('active');
         }
     }

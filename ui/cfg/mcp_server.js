@@ -10,14 +10,14 @@ async function renderMCPServerSection(section) {
         <div class="section-desc">${section.desc}</div>`;
 
     // Info banner
-    html += `<div class="wh-notice" style="border-color:var(--accent);background:rgba(99,102,241,0.06);">
+    html += `<div class="wh-notice mcp-srv-notice-info">
         <span>🔗</span>
         <div><small>${t('config.mcp_server.info')}</small></div>
     </div>`;
 
     // Enabled toggle
-    html += `<div style="display:flex;align-items:center;gap:0.8rem;margin-bottom:1rem;padding:0.6rem 1rem;border-radius:8px;background:var(--bg-tertiary);">
-        <span style="font-size:0.85rem;color:var(--text-secondary);">${t('config.mcp_server.enabled_label')}</span>
+    html += `<div class="mcp-srv-toggle-row">
+        <span class="mcp-srv-toggle-label">${t('config.mcp_server.enabled_label')}</span>
         <div class="toggle ${enabled ? 'on' : ''}" data-path="mcp_server.enabled" onclick="toggleBool(this)"></div>
     </div>`;
 
@@ -32,14 +32,14 @@ async function renderMCPServerSection(section) {
     }
 
     // Require Auth toggle
-    html += `<div style="display:flex;align-items:center;gap:0.8rem;margin-bottom:1rem;padding:0.6rem 1rem;border-radius:8px;background:var(--bg-tertiary);">
-        <span style="font-size:0.85rem;color:var(--text-secondary);">${t('config.mcp_server.require_auth')}</span>
+    html += `<div class="mcp-srv-toggle-row">
+        <span class="mcp-srv-toggle-label">${t('config.mcp_server.require_auth')}</span>
         <div class="toggle ${requireAuth ? 'on' : ''}" data-path="mcp_server.require_auth" onclick="toggleBool(this)"></div>
     </div>`;
 
     // Auth warning when disabled
     if (!requireAuth) {
-        html += `<div class="wh-notice" style="border-color:var(--warning);background:rgba(234,179,8,0.06);">
+        html += `<div class="wh-notice mcp-srv-notice-warn">
             <span>⚠️</span>
             <div><small>${t('config.mcp_server.auth_warning')}</small></div>
         </div>`;
@@ -50,11 +50,11 @@ async function renderMCPServerSection(section) {
         const proto = location.protocol;
         const host = location.host;
         const endpointUrl = proto + '//' + host + '/mcp';
-        html += `<div style="margin:1rem 0;">
-            <label style="display:block;">
-                <span style="font-size:0.78rem;color:var(--text-secondary);">${t('config.mcp_server.endpoint_url')}</span>
-                <div style="display:flex;gap:0.5rem;margin-top:0.2rem;">
-                    <input class="cfg-input" value="${escapeAttr(endpointUrl)}" readonly style="flex:1;opacity:0.8;cursor:default;" id="mcp-endpoint-url">
+        html += `<div class="mcp-srv-block">
+            <label class="mcp-srv-field-label">
+                <span class="mcp-srv-caption">${t('config.mcp_server.endpoint_url')}</span>
+                <div class="mcp-srv-action-row">
+                    <input class="cfg-input mcp-srv-endpoint-input" value="${escapeAttr(endpointUrl)}" readonly id="mcp-endpoint-url">
                     <button class="btn" onclick="navigator.clipboard.writeText(document.getElementById('mcp-endpoint-url').value).then(()=>{this.textContent='${escapeAttr(t('config.mcp_server.copied'))}';setTimeout(()=>{this.textContent='${escapeAttr(t('config.mcp_server.copy_url'))}'},1500)})">${t('config.mcp_server.copy_url')}</button>
                 </div>
             </label>
@@ -63,11 +63,11 @@ async function renderMCPServerSection(section) {
 
     // Token section (only when auth enabled)
     if (requireAuth && enabled) {
-        html += `<div style="margin:1rem 0;" id="mcp-token-section">
-            <label style="display:block;">
-                <span style="font-size:0.78rem;color:var(--text-secondary);">${t('config.mcp_server.token')}</span>
-                <div style="display:flex;gap:0.5rem;margin-top:0.2rem;">
-                    <input class="cfg-input" id="mcp-token-value" value="" readonly style="flex:1;font-family:monospace;font-size:0.8rem;" placeholder="••••••••">
+        html += `<div class="mcp-srv-block" id="mcp-token-section">
+            <label class="mcp-srv-field-label">
+                <span class="mcp-srv-caption">${t('config.mcp_server.token')}</span>
+                <div class="mcp-srv-action-row">
+                    <input class="cfg-input mcp-srv-token-input" id="mcp-token-value" value="" readonly placeholder="••••••••">
                     <button class="btn" id="mcp-gen-token" onclick="mcpGenerateToken()">${t('config.mcp_server.generate_token')}</button>
                     <button class="btn" id="mcp-copy-token" onclick="navigator.clipboard.writeText(document.getElementById('mcp-token-value').value).then(()=>{this.textContent='${escapeAttr(t('config.mcp_server.copied'))}';setTimeout(()=>{this.textContent='${escapeAttr(t('config.mcp_server.copy_token'))}'},1500)})">${t('config.mcp_server.copy_token')}</button>
                 </div>
@@ -78,10 +78,10 @@ async function renderMCPServerSection(section) {
     }
 
     // Allowed tools
-    html += `<div style="margin-top:1.2rem;">
-        <span style="font-size:0.85rem;font-weight:600;color:var(--text-primary);">${t('config.mcp_server.allowed_tools')}</span>
-        <div style="font-size:0.75rem;color:var(--text-secondary);margin-bottom:0.6rem;">${t('config.mcp_server.allowed_tools_desc')}</div>
-        <div id="mcp-tools-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:0.4rem;"></div>
+    html += `<div class="mcp-srv-tools-wrap">
+        <span class="mcp-srv-tools-title">${t('config.mcp_server.allowed_tools')}</span>
+        <div class="mcp-srv-tools-desc">${t('config.mcp_server.allowed_tools_desc')}</div>
+        <div id="mcp-tools-list" class="mcp-srv-tools-list"></div>
     </div>`;
 
     html += `</div>`; // close section
@@ -106,14 +106,14 @@ async function mcpLoadToolList(allowed) {
         let listHtml = '';
         for (const name of toolNames) {
             const checked = allowSet.size === 0 || allowSet.has(name) ? 'checked' : '';
-            listHtml += `<label style="display:flex;align-items:center;gap:0.4rem;font-size:0.8rem;padding:0.3rem 0.5rem;border-radius:6px;background:var(--bg-tertiary);cursor:pointer;">
+            listHtml += `<label class="mcp-srv-tool-item">
                 <input type="checkbox" class="mcp-tool-cb" value="${escapeAttr(name)}" ${checked} onchange="mcpUpdateAllowedTools()">
-                <code style="font-size:0.75rem;">${escapeAttr(name)}</code>
+                <code class="mcp-srv-tool-code">${escapeAttr(name)}</code>
             </label>`;
         }
         container.innerHTML = listHtml;
     } catch (e) {
-        container.innerHTML = '<span style="color:var(--danger);font-size:0.8rem;">Error loading tools</span>';
+        container.innerHTML = '<span class="mcp-srv-error">Error loading tools</span>';
     }
 }
 

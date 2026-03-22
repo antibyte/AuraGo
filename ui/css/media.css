@@ -115,6 +115,11 @@
     margin-bottom: 0.3rem;
 }
 
+.media-inline-warning-icon {
+    opacity: 0.5;
+    font-size: 0.75em;
+}
+
 .media-audio-card-meta {
     font-size: 0.75rem;
     color: var(--text-secondary);
@@ -239,6 +244,20 @@
     max-width: 480px;
     width: 90%;
     position: relative;
+}
+
+.media-modal-title {
+    margin-bottom: 0.75rem;
+    font-size: 1rem;
+}
+
+.media-modal-meta {
+    margin-top: 0.75rem;
+    font-size: 0.8rem;
+}
+
+.media-audio-unavailable {
+    padding: 1rem 0;
 }
 
 /* Tab panels */

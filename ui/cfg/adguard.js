@@ -10,7 +10,7 @@ function renderAdGuardSection(section) {
     html += '<div class="section-desc">' + section.desc + '</div>';
 
     // ── Connection status banner ──
-    html += '<div id="adg-status-banner" style="margin-bottom:1rem;padding:0.8rem 1rem;border-radius:10px;font-size:0.84rem;background:var(--bg-tertiary);color:var(--text-secondary);">' + t('config.adguard.checking') + '</div>';
+    html += '<div id="adg-status-banner" class="adg-status-banner">' + t('config.adguard.checking') + '</div>';
 
     // ── Enabled toggle ──
     const helpEnabled = t('help.adguard.enabled');
@@ -53,21 +53,21 @@ function renderAdGuardSection(section) {
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.adguard.password_label') + '</div>';
     if (helpPass) html += '<div class="field-help">' + helpPass + '</div>';
-    html += '<div style="display:flex;gap:0.5rem;align-items:center;">';
-    html += '<input class="field-input" type="password" id="adg-password" placeholder="' + t('config.adguard.password_placeholder') + '" style="flex:1;">';
-    html += '<button class="btn-save" style="padding:0.45rem 1rem;font-size:0.82rem;" onclick="adgSavePassword()">💾 ' + t('config.adguard.save_vault') + '</button>';
+    html += '<div class="adg-password-row">';
+    html += '<input class="field-input adg-password-input" type="password" id="adg-password" placeholder="' + t('config.adguard.password_placeholder') + '">';
+    html += '<button class="btn-save adg-save-btn" onclick="adgSavePassword()">💾 ' + t('config.adguard.save_vault') + '</button>';
     html += '</div></div>';
 
     // ── Test connection button ──
     html += '<div class="field-group">';
-    html += '<button class="btn-save" style="padding:0.5rem 1.2rem;font-size:0.85rem;" onclick="adgTestConnection()" id="adg-test-btn">🔌 ' + t('config.adguard.test_btn') + '</button>';
-    html += '<span id="adg-test-result" style="margin-left:0.8rem;font-size:0.83rem;"></span>';
+    html += '<button class="btn-save adg-test-btn" onclick="adgTestConnection()" id="adg-test-btn">🔌 ' + t('config.adguard.test_btn') + '</button>';
+    html += '<span id="adg-test-result" class="adg-test-result"></span>';
     html += '</div>';
 
     // ── Quick stats (populated when connected) ──
-    html += '<div id="adg-quick-stats" style="display:none;margin-top:1.5rem;">';
-    html += '<div style="font-weight:600;font-size:0.95rem;color:var(--accent);border-bottom:1px solid var(--border-subtle);padding-bottom:0.4rem;margin-bottom:0.8rem;">📊 ' + t('config.adguard.stats_title') + '</div>';
-    html += '<div id="adg-stats-content" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:0.8rem;"></div>';
+    html += '<div id="adg-quick-stats" class="adg-quick-stats is-hidden">';
+    html += '<div class="adg-stats-title">📊 ' + t('config.adguard.stats_title') + '</div>';
+    html += '<div id="adg-stats-content" class="adg-stats-grid"></div>';
     html += '</div>';
 
     html += '</div>';
@@ -80,44 +80,47 @@ function renderAdGuardSection(section) {
     }
 }
 
+function adgSetBannerState(banner, state, text) {
+    if (!banner) return;
+    banner.className = 'adg-status-banner';
+    if (state) banner.classList.add('is-' + state);
+    banner.textContent = text;
+}
+
 function adgCheckStatus() {
     const banner = document.getElementById('adg-status-banner');
     if (!banner) return;
-    banner.style.background = 'var(--bg-tertiary)';
-    banner.style.color = 'var(--text-secondary)';
-    banner.textContent = t('config.adguard.checking');
+    adgSetBannerState(banner, 'neutral', t('config.adguard.checking'));
 
     fetch('/api/adguard/status')
         .then(r => r.json())
         .then(res => {
             if (res.status === 'disabled') {
-                banner.textContent = '⚪ ' + t('config.adguard.status_disabled');
+                adgSetBannerState(banner, 'neutral', '⚪ ' + t('config.adguard.status_disabled'));
                 return;
             }
             if (res.status === 'no_url') {
-                banner.textContent = '⚪ ' + t('config.adguard.status_no_url');
+                adgSetBannerState(banner, 'neutral', '⚪ ' + t('config.adguard.status_no_url'));
                 return;
             }
             if (res.status === 'ok' && res.data) {
                 const d = res.data;
                 const version = d.version || '?';
                 const running = d.running === true;
-                banner.style.background = running ? 'rgba(52,199,89,0.12)' : 'rgba(255,149,0,0.12)';
-                banner.style.color = running ? 'var(--success, #34c759)' : 'var(--warning, #ff9500)';
-                banner.textContent = (running ? '🟢' : '🟡') + ' AdGuard Home v' + version + ' — ' + (running ? t('config.adguard.running') : t('config.adguard.not_running'));
+                adgSetBannerState(
+                    banner,
+                    running ? 'success' : 'warning',
+                    (running ? '🟢' : '🟡') + ' AdGuard Home v' + version + ' — ' + (running ? t('config.adguard.running') : t('config.adguard.not_running'))
+                );
 
                 // Load quick stats
                 adgLoadQuickStats();
                 return;
             }
-            banner.style.background = 'rgba(255,59,48,0.1)';
-            banner.style.color = 'var(--error, #ff3b30)';
-            banner.textContent = '🔴 ' + (res.message || t('config.adguard.connection_failed'));
+            adgSetBannerState(banner, 'danger', '🔴 ' + (res.message || t('config.adguard.connection_failed')));
         })
         .catch(() => {
-            banner.style.background = 'rgba(255,59,48,0.1)';
-            banner.style.color = 'var(--error, #ff3b30)';
-            banner.textContent = '🔴 ' + t('config.adguard.connection_failed');
+            adgSetBannerState(banner, 'danger', '🔴 ' + t('config.adguard.connection_failed'));
         });
 }
 
@@ -126,15 +129,15 @@ function adgLoadQuickStats() {
     const wrap = document.getElementById('adg-quick-stats');
     const content = document.getElementById('adg-stats-content');
     if (!wrap || !content) return;
-    wrap.style.display = 'block';
-    content.innerHTML = '<div style="color:var(--text-tertiary);font-size:0.83rem;">' + t('config.adguard.stats_loaded') + '</div>';
+    wrap.classList.remove('is-hidden');
+    content.innerHTML = '<div class="adg-stats-loaded">' + t('config.adguard.stats_loaded') + '</div>';
 }
 
 function adgTestConnection() {
     const btn = document.getElementById('adg-test-btn');
     const result = document.getElementById('adg-test-result');
     if (btn) btn.disabled = true;
-    if (result) { result.textContent = '⏳ ...'; result.style.color = 'var(--text-secondary)'; }
+    if (result) { result.textContent = '⏳ ...'; result.className = 'adg-test-result'; }
 
     fetch('/api/adguard/test', { method: 'POST' })
         .then(r => r.json())
@@ -142,18 +145,18 @@ function adgTestConnection() {
             if (btn) btn.disabled = false;
             if (!result) return;
             if (res.status === 'ok') {
-                result.style.color = 'var(--success, #34c759)';
+                result.className = 'adg-test-result is-success';
                 result.textContent = '✅ ' + t('config.adguard.test_ok');
                 adgCheckStatus();
             } else {
-                result.style.color = 'var(--error, #ff3b30)';
+                result.className = 'adg-test-result is-danger';
                 result.textContent = '❌ ' + (res.message || t('config.adguard.test_fail'));
             }
         })
         .catch(() => {
             if (btn) btn.disabled = false;
             if (result) {
-                result.style.color = 'var(--error, #ff3b30)';
+                result.className = 'adg-test-result is-danger';
                 result.textContent = '❌ ' + t('config.adguard.test_fail');
             }
         });

@@ -41,6 +41,10 @@
     border-top: 1px solid var(--border-subtle);
 }
 
+.cheatsheets-danger-title {
+    color: var(--accent-danger);
+}
+
 /* Card Header with Toggle */
 .card-expanded .card-header {
     cursor: pointer;

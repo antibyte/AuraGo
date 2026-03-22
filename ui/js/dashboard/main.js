@@ -89,6 +89,10 @@
 
         const TabState = { active: 'overview', loaded: {} };
         const VALID_TABS = ['overview', 'agent', 'user', 'system'];
+        function dashSetHidden(el, hidden) {
+            if (!el) return;
+            el.classList.toggle('is-hidden', hidden);
+        }
 
         function showTab(tabId) {
             if (!VALID_TABS.includes(tabId)) tabId = 'overview';
@@ -98,7 +102,7 @@
                 btn.classList.toggle('active', btn.dataset.tab === tabId);
             });
             document.querySelectorAll('.dash-tab-panel').forEach(panel => {
-                panel.style.display = panel.id === 'tab-' + tabId ? '' : 'none';
+                dashSetHidden(panel, panel.id !== 'tab-' + tabId);
             });
             TabState.active = tabId;
             if (!TabState.loaded[tabId]) {
@@ -551,12 +555,12 @@
 
         function renderBudget(data, credits) {
             if (!data || !data.enabled) {
-                document.getElementById('budget-content').style.display = 'none';
-                document.getElementById('budget-disabled').style.display = 'block';
+                dashSetHidden(document.getElementById('budget-content'), true);
+                dashSetHidden(document.getElementById('budget-disabled'), false);
                 return;
             }
-            document.getElementById('budget-content').style.display = '';
-            document.getElementById('budget-disabled').style.display = 'none';
+            dashSetHidden(document.getElementById('budget-content'), false);
+            dashSetHidden(document.getElementById('budget-disabled'), true);
             document.getElementById('budget-spent').textContent = '$' + (data.spent_usd || 0).toFixed(2);
             document.getElementById('budget-sublabel').textContent = t('dashboard.budget_sublabel', {amount: '$' + (data.daily_limit_usd || 0).toFixed(2)});
 
@@ -592,10 +596,10 @@
             // OpenRouter credits
             const creditsRow = document.getElementById('credits-row');
             if (credits && credits.available && !credits.error) {
-                creditsRow.style.display = '';
+                dashSetHidden(creditsRow, false);
                 document.getElementById('credits-balance').textContent = '$' + (credits.balance || 0).toFixed(2);
             } else {
-                creditsRow.style.display = 'none';
+                dashSetHidden(creditsRow, true);
             }
 
             // Per-LLM average token consumption chart
@@ -603,18 +607,18 @@
             const models = data.models || {};
             const hasCallData = Object.values(models).some(m => (m.calls || 0) > 0);
             if (hasCallData && llmAvgWrap) {
-                llmAvgWrap.style.display = '';
+                dashSetHidden(llmAvgWrap, false);
                 if (Charts.llmAvg) { Charts.llmAvg.destroy(); Charts.llmAvg = null; }
                 Charts.llmAvg = createLLMAvgChart('budget-llm-avg-chart', models);
             } else if (llmAvgWrap) {
-                llmAvgWrap.style.display = 'none';
+                dashSetHidden(llmAvgWrap, true);
             }
         }
 
         function renderMoodBadge(data) {
             if (!data || !data.enabled) {
-                document.getElementById('personality-content').style.display = 'none';
-                document.getElementById('personality-disabled').style.display = 'block';
+                dashSetHidden(document.getElementById('personality-content'), true);
+                dashSetHidden(document.getElementById('personality-disabled'), false);
                 return;
             }
             const moodNameMap = {
@@ -637,9 +641,9 @@
             if (emotionDisplay && emotionText) {
                 if (data.current_emotion) {
                     emotionText.textContent = data.current_emotion;
-                    emotionDisplay.style.display = '';
+                    dashSetHidden(emotionDisplay, false);
                 } else {
-                    emotionDisplay.style.display = 'none';
+                    dashSetHidden(emotionDisplay, true);
                 }
             }
         }
@@ -710,7 +714,7 @@
                 <span class="profile-cat-toggle">▶</span>
                 ${catIcons[cat] || '📦'} ${catNameMap[cat] || esc(cat)} (${entries.length})
             </div>
-            <div class="profile-entries" style="display:none;">`;
+            <div class="profile-entries is-hidden">`;
                 for (const e of entries) {
                     const confClass = 'conf-' + Math.min(3, Math.max(1, e.confidence || 1));
                     const firstSeen = e.first_seen ? e.first_seen.replace('T', ' ').slice(0, 16) : '';
@@ -724,7 +728,7 @@
                     <button class="profile-btn-edit" data-cat="${esc(cat)}" data-key="${esc(e.key)}" onclick="editProfileEntry(this)" title="${t('dashboard.profile_edit_save')}">✏️</button>
                     <button class="profile-btn-delete" data-cat="${esc(cat)}" data-key="${esc(e.key)}" onclick="deleteProfileEntry(this)" title="${t('dashboard.profile_delete_confirm')}">🗑️</button>
                 </span>
-                <span class="profile-edit-form" style="display:none">
+                <span class="profile-edit-form is-hidden">
                     <input type="text" class="profile-edit-input" value="${esc(e.value)}">
                     <button class="profile-btn-save" onclick="saveProfileEntry(this)" title="${t('dashboard.profile_edit_save')}">✓</button>
                     <button class="profile-btn-cancel" onclick="cancelProfileEdit(this)" title="${t('dashboard.profile_edit_cancel')}">✗</button>
@@ -742,11 +746,11 @@
         function toggleCategory(header) {
             const entries = header.nextElementSibling;
             const toggle = header.querySelector('.profile-cat-toggle');
-            if (entries.style.display === 'none') {
-                entries.style.display = 'block';
+            if (entries.classList.contains('is-hidden')) {
+                entries.classList.remove('is-hidden');
                 toggle.classList.add('open');
             } else {
-                entries.style.display = 'none';
+                entries.classList.add('is-hidden');
                 toggle.classList.remove('open');
             }
         }
@@ -762,18 +766,21 @@
 
         function editProfileEntry(btn) {
             const entry = btn.closest('.profile-entry');
-            entry.querySelector('.profile-val').style.display = 'none';
-            entry.querySelector('.profile-actions').style.display = 'none';
+            dashSetHidden(entry.querySelector('.profile-val'), true);
+            dashSetHidden(entry.querySelector('.profile-actions'), true);
             const editForm = entry.querySelector('.profile-edit-form');
-            editForm.style.display = 'inline-flex';
+            editForm.classList.remove('is-hidden');
+            editForm.classList.add('profile-edit-form-open');
             editForm.querySelector('.profile-edit-input').focus();
         }
 
         function cancelProfileEdit(btn) {
             const entry = btn.closest('.profile-entry');
-            entry.querySelector('.profile-val').style.display = '';
-            entry.querySelector('.profile-actions').style.display = '';
-            entry.querySelector('.profile-edit-form').style.display = 'none';
+            dashSetHidden(entry.querySelector('.profile-val'), false);
+            dashSetHidden(entry.querySelector('.profile-actions'), false);
+            const editForm = entry.querySelector('.profile-edit-form');
+            editForm.classList.remove('profile-edit-form-open');
+            editForm.classList.add('is-hidden');
         }
 
         function saveProfileEntry(btn) {
@@ -823,9 +830,9 @@
                     const safePrompt = esc(job.task_prompt || '');
                     details += `<div class="activity-item">
                 <span class="activity-item-name">${safeId}</span>
-                <div style="display:flex;align-items:center;gap:0.4rem;">
+                <div class="activity-item-row">
                     <span class="activity-item-detail">${safeExpr} — ${esc(truncate(job.task_prompt || '', 60))}</span>
-                    <span style="display:flex;gap:0.2rem;flex-shrink:0;">
+                    <span class="activity-item-actions-inline">
                         <button class="cf-fact-btn"
                             data-cron-id="${safeId}"
                             data-cron-expr="${safeExpr}"
@@ -851,7 +858,7 @@
                     details += `<div class="activity-item">
                 <span class="activity-item-name">PID ${p.pid}</span>
                 <span><span class="pill-status ${alive}">${p.alive ? t('dashboard.activity_process_active') : t('dashboard.activity_process_stopped')}</span>
-                <span class="activity-item-detail" style="margin-left:0.4rem;">${esc(p.uptime || '')}</span></span>
+                <span class="activity-item-detail activity-item-detail-spaced">${esc(p.uptime || '')}</span></span>
             </div>`;
                 }
                 details += '</div>';
@@ -874,7 +881,7 @@
                     details += `<div class="activity-item">
                 <span class="activity-item-name">${specBadge}${esc(truncate(ca.task || ca.id, 50))}</span>
                 <span><span class="pill-status ${stateClass}">${esc(stateMap[ca.state] || ca.state)}</span>
-                <span class="activity-item-detail" style="margin-left:0.4rem;">${esc(ca.runtime || '')}</span></span>
+                <span class="activity-item-detail activity-item-detail-spaced">${esc(ca.runtime || '')}</span></span>
             </div>`;
                 }
                 details += '</div>';
@@ -892,12 +899,12 @@
 
         function renderPromptStats(data) {
             if (!data || data.total_builds === 0) {
-                document.getElementById('prompt-no-data').style.display = '';
-                document.getElementById('prompt-content').style.display = 'none';
+                dashSetHidden(document.getElementById('prompt-no-data'), false);
+                dashSetHidden(document.getElementById('prompt-content'), true);
                 return;
             }
-            document.getElementById('prompt-no-data').style.display = 'none';
-            document.getElementById('prompt-content').style.display = '';
+            dashSetHidden(document.getElementById('prompt-no-data'), true);
+            dashSetHidden(document.getElementById('prompt-content'), false);
 
             // Main KPI grid
             const kpis = document.getElementById('prompt-kpis');
@@ -935,15 +942,15 @@
                 const shedPct   = data.avg_raw_len > 0 ? ((data.avg_shed_savings    || 0) / rawAvg * 100).toFixed(1) : '0';
                 const filterPct = data.avg_raw_len > 0 ? ((data.avg_filter_savings  || 0) / rawAvg * 100).toFixed(1) : '0';
                 const breakdownItems = [
-                    { val: avgFormat,  sub: fmtPct + '%',    lbl: t('dashboard.prompt_kpi_format_savings'),  color: 'var(--success)' },
-                    { val: avgShed,    sub: shedPct + '%',   lbl: t('dashboard.prompt_kpi_shed_savings'),    color: '#f59e0b' },
-                    { val: avgFilter,  sub: filterPct + '%', lbl: t('dashboard.prompt_kpi_filter_savings'),  color: '#8b5cf6' },
-                    { val: totFormat,  sub: null,            lbl: t('dashboard.prompt_kpi_format_savings') + ' total', color: null },
-                    { val: totShed,    sub: null,            lbl: t('dashboard.prompt_kpi_shed_savings')   + ' total', color: null },
-                    { val: totFilter,  sub: null,            lbl: t('dashboard.prompt_kpi_filter_savings') + ' total', color: null },
+                    { val: avgFormat,  sub: fmtPct + '%',    lbl: t('dashboard.prompt_kpi_format_savings'),  colorClass: 'prompt-kpi-dot-success' },
+                    { val: avgShed,    sub: shedPct + '%',   lbl: t('dashboard.prompt_kpi_shed_savings'),    colorClass: 'prompt-kpi-dot-warn' },
+                    { val: avgFilter,  sub: filterPct + '%', lbl: t('dashboard.prompt_kpi_filter_savings'),  colorClass: 'prompt-kpi-dot-violet' },
+                    { val: totFormat,  sub: null,            lbl: t('dashboard.prompt_kpi_format_savings') + ' total', colorClass: null },
+                    { val: totShed,    sub: null,            lbl: t('dashboard.prompt_kpi_shed_savings')   + ' total', colorClass: null },
+                    { val: totFilter,  sub: null,            lbl: t('dashboard.prompt_kpi_filter_savings') + ' total', colorClass: null },
                 ];
                 savingsKpis.innerHTML = breakdownItems.map(k =>
-                    `<div class="prompt-kpi">${k.color ? `<div class="prompt-kpi-dot" style="background:${k.color};"></div>` : ''}<div class="prompt-kpi-val">${k.val}${k.sub ? `<span class="prompt-kpi-sub"> (${k.sub})</span>` : ''}</div><div class="prompt-kpi-lbl">${k.lbl}</div></div>`
+                    `<div class="prompt-kpi">${k.colorClass ? `<div class="prompt-kpi-dot ${k.colorClass}"></div>` : ''}<div class="prompt-kpi-val">${k.val}${k.sub ? `<span class="prompt-kpi-sub"> (${k.sub})</span>` : ''}</div><div class="prompt-kpi-lbl">${k.lbl}</div></div>`
                 ).join('');
             }
 
@@ -952,7 +959,7 @@
             const shedCounts = data.shed_section_counts || {};
             const shedKeys = Object.keys(shedCounts).sort((a, b) => shedCounts[b] - shedCounts[a]);
             if (shedKeys.length === 0) {
-                shedEl.innerHTML = '<div class="empty-state" style="padding:0.5rem 0;">' + t('dashboard.prompt_no_sections_shed') + '</div>';
+                shedEl.innerHTML = '<div class="empty-state dash-empty-tight">' + t('dashboard.prompt_no_sections_shed') + '</div>';
             } else {
                 shedEl.innerHTML = shedKeys.map(k =>
                     `<div class="shed-item"><span>${esc(k)}</span><span class="shed-count">${shedCounts[k]}×</span></div>`
@@ -969,7 +976,6 @@
                 personality: t('dashboard.prompt_section_personality'),
                 context:     t('dashboard.prompt_section_context'),
             };
-            const sectionColors = ['var(--accent)', '#8b5cf6', '#f59e0b', '#ec4899', 'var(--text-secondary)'];
             const legendEl = document.getElementById('prompt-section-legend');
             if (legendEl && Object.keys(avgSections).length > 0) {
                 const total = sectionOrder.reduce((s, k) => s + (avgSections[k] || 0), 0);
@@ -977,10 +983,11 @@
                     .filter(k => (avgSections[k] || 0) > 0)
                     .map((k, i) => {
                         const pct = total > 0 ? ((avgSections[k] / total) * 100).toFixed(1) : 0;
+                        const colorIdx = sectionOrder.indexOf(k);
                         return `<div class="prompt-section-legend-item">
-                            <span class="prompt-section-legend-dot" style="background:${sectionColors[sectionOrder.indexOf(k)]};"></span>
+                            <span class="prompt-section-legend-dot prompt-section-legend-dot-${colorIdx}"></span>
                             <span class="prompt-section-legend-label">${esc(sectionNameMap[k] || k)}</span>
-                            <span class="prompt-section-legend-val">${(avgSections[k] || 0).toLocaleString()} <span style="opacity:.6;">(${pct}%)</span></span>
+                            <span class="prompt-section-legend-val">${(avgSections[k] || 0).toLocaleString()} <span class="prompt-section-legend-pct">(${pct}%)</span></span>
                         </div>`;
                     }).join('');
             }
@@ -1113,7 +1120,7 @@
         function renderAdaptiveToolStats(data) {
             const card = document.getElementById('card-adaptive-tools');
             if (!data || !data.adaptive_enabled) {
-                if (card) card.style.display = 'none';
+                dashSetHidden(card, true);
                 return;
             }
 
@@ -1123,7 +1130,7 @@
             const activeCount = maxTools > 0 ? Math.min(totalTracked, maxTools) : totalTracked;
             const totalCalls = data.total_calls || 0;
 
-            if (card) card.style.display = 'block';
+            dashSetHidden(card, false);
 
             const kpis = document.getElementById('adaptive-tools-kpis');
             if (kpis) {
@@ -1140,17 +1147,16 @@
             const list = document.getElementById('adaptive-tools-list');
             if (list && scores.length > 0) {
                 const maxScore = scores[0]?.score || 1;
-                list.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:0.4rem;">` +
+                list.innerHTML = `<div class="adaptive-tools-grid">` +
                     scores.slice(0, 30).map((s, i) => {
                         const pct = maxScore > 0 ? Math.round((s.score / maxScore) * 100) : 0;
                         const isActive = maxTools <= 0 || i < maxTools;
-                        const opacity = isActive ? '1' : '0.4';
-                        return `<div style="display:flex;align-items:center;gap:0.5rem;opacity:${opacity};">
-                            <span style="flex:0 0 120px;font-size:var(--text-xs);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(s.tool)}">${esc(s.tool)}</span>
-                            <div style="flex:1;height:6px;background:var(--border-subtle);border-radius:3px;overflow:hidden;">
-                                <div style="height:100%;width:${pct}%;background:var(--accent);border-radius:3px;"></div>
+                        return `<div class="adaptive-tool-row ${isActive ? '' : 'adaptive-tool-row-inactive'}">
+                            <span class="adaptive-tool-name" title="${esc(s.tool)}">${esc(s.tool)}</span>
+                            <div class="adaptive-tool-bar-bg">
+                                <div class="adaptive-tool-bar-fill w-pct-${pct}"></div>
                             </div>
-                            <span style="flex:0 0 40px;font-size:var(--text-xs);text-align:right;color:var(--text-secondary);">${s.count}×</span>
+                            <span class="adaptive-tool-count">${s.count}×</span>
                         </div>`;
                     }).join('') + `</div>`;
             }
@@ -1181,7 +1187,7 @@
             const lines = regex ? logData.filter(l => regex.test(l)) : logData;
 
             if (lines.length === 0) {
-                viewer.innerHTML = '<div class="log-line" style="color:var(--text-secondary);">' + t('dashboard.logs_no_match') + '</div>';
+                viewer.innerHTML = '<div class="log-line log-line-muted">' + t('dashboard.logs_no_match') + '</div>';
                 return;
             }
 
@@ -1208,10 +1214,10 @@
             const card = document.getElementById('card-github');
             const container = document.getElementById('github-content');
             if (!data || !data.enabled) {
-                card.style.display = 'none';
+                dashSetHidden(card, true);
                 return;
             }
-            card.style.display = 'block';
+            dashSetHidden(card, false);
 
             if (data.error) {
                 container.innerHTML = `<div class="empty-state">⚠️ ${esc(data.error)}</div>`;
@@ -1232,8 +1238,8 @@
             });
 
             const owner = data.owner || '';
-            let countInfo = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;">
-                <span style="font-size:var(--text-sm);color:var(--text-secondary);">
+            let countInfo = `<div class="gh-count-row">
+                <span class="gh-count-text">
                     👤 <strong>${esc(owner)}</strong> — ${t('dashboard.github_repositories_count', {n: repos.length})}
                 </span>
             </div>`;
@@ -1291,8 +1297,7 @@
             const ctxFill = document.getElementById('ab-ctx-fill');
             const ctxPctEl = document.getElementById('ab-ctx-pct');
             if (ctxFill) {
-                ctxFill.style.width = ctxPct + '%';
-                ctxFill.style.background = ctxPct > 80 ? 'var(--danger)' : ctxPct > 60 ? 'var(--warning)' : 'var(--accent)';
+                ctxFill.className = 'agent-banner-ctx-fill w-pct-' + ctxPct + (ctxPct > 80 ? ' ctx-level-high' : ctxPct > 60 ? ' ctx-level-med' : ' ctx-level-ok');
             }
             if (ctxPctEl) ctxPctEl.textContent = ctxPct + '%';
 
@@ -1497,10 +1502,10 @@
             const data = await API.get('/api/dashboard/guardian');
             const card = document.getElementById('card-guardian');
             if (!data || !data.enabled) {
-                if (card) card.style.display = 'none';
+                dashSetHidden(card, true);
                 return;
             }
-            if (card) card.style.display = 'block';
+            dashSetHidden(card, false);
             renderGuardianCard(data);
         }
 
@@ -1567,7 +1572,7 @@
                         <div class="guardian-metric-lbl">${t('dashboard.guardian_errors')}</div>
                     </div>` : ''}
                 </div>
-                ${m.last_check_time > 0 ? `<div style="font-size:var(--text-xs);color:var(--text-secondary);margin-top:0.35rem;">${t('dashboard.guardian_last_check')}: ${relativeTime(m.last_check_time)}</div>` : ''}`;
+                ${m.last_check_time > 0 ? `<div class="guardian-last-check">${t('dashboard.guardian_last_check')}: ${relativeTime(m.last_check_time)}</div>` : ''}`;
         }
 
         // ══════════════════════════════════════════════════════════════════════════════
@@ -1626,18 +1631,18 @@
                 const sentimentEmoji = { positive: '😊', neutral: '😐', frustrated: '😤' };
                 const withSentiment = summaries.filter(s => s.sentiment);
                 if (withSentiment.length > 0) {
-                    sentimentWrap.style.display = '';
+                    dashSetHidden(sentimentWrap, false);
                     sentimentRow.innerHTML = withSentiment.map(s =>
                         `<span class="sentiment-day-badge ${esc(s.sentiment)}">${sentimentEmoji[s.sentiment] || '•'} ${esc(s.date)}</span>`
                     ).join('');
                 } else {
-                    sentimentWrap.style.display = 'none';
+                    dashSetHidden(sentimentWrap, true);
                 }
                 // Key topics from latest summary
                 if (topicsWrap) {
                     const topics = latest.key_topics && latest.key_topics.length > 0 ? latest.key_topics : [];
                     if (topics.length > 0) {
-                        topicsWrap.innerHTML = `<div style="font-size:var(--text-xs);color:var(--text-secondary);margin-bottom:0.25rem;">${t('dashboard.journal_key_topics')}:</div><div class="journal-key-topics">${topics.map(tp => `<span class="journal-topic-chip">${esc(tp)}</span>`).join('')}</div>`;
+                        topicsWrap.innerHTML = `<div class="journal-key-topics-label">${t('dashboard.journal_key_topics')}:</div><div class="journal-key-topics">${topics.map(tp => `<span class="journal-topic-chip">${esc(tp)}</span>`).join('')}</div>`;
                     } else {
                         topicsWrap.innerHTML = '';
                     }
@@ -1652,10 +1657,10 @@
             const frequent = data?.frequent || [];
             const recent = data?.recent || [];
             if (frequent.length === 0 && recent.length === 0) {
-                wrap.style.display = 'none';
+                dashSetHidden(wrap, true);
                 return;
             }
-            wrap.style.display = '';
+            dashSetHidden(wrap, false);
             let html = '';
             const renderItem = (p) => {
                 const resolved = p.resolution ? `<div class="error-pattern-resolution">✓ ${esc(p.resolution.substring(0, 80))}${p.resolution.length > 80 ? '…' : ''}</div>` : '';
@@ -1771,17 +1776,17 @@
             const q = this.value.toLowerCase();
             document.querySelectorAll('.profile-entry').forEach(el => {
                 const match = !q || (el.dataset.search || '').toLowerCase().includes(q);
-                el.style.display = match ? '' : 'none';
+                dashSetHidden(el, !match);
             });
             // Show categories that have visible entries
             document.querySelectorAll('.profile-category').forEach(cat => {
                 const entries = cat.querySelectorAll('.profile-entry');
-                const hasVisible = Array.from(entries).some(e => e.style.display !== 'none');
-                cat.style.display = hasVisible ? '' : 'none';
+                const hasVisible = Array.from(entries).some(e => !e.classList.contains('is-hidden'));
+                dashSetHidden(cat, !hasVisible);
                 // Auto-open when searching
                 if (q && hasVisible) {
                     const entriesDiv = cat.querySelector('.profile-entries');
-                    if (entriesDiv) entriesDiv.style.display = 'block';
+                    if (entriesDiv) entriesDiv.classList.remove('is-hidden');
                     const toggle = cat.querySelector('.profile-cat-toggle');
                     if (toggle) toggle.classList.add('open');
                 }
@@ -1808,14 +1813,15 @@
         function showSSEBanner(msg) {
             if (!_sseBanner) {
                 _sseBanner = document.createElement('div');
-                _sseBanner.style.cssText = 'position:fixed;top:0;left:0;right:0;background:var(--warning,#f59e0b);color:#000;text-align:center;padding:6px 12px;font-size:13px;z-index:9999;';
+                _sseBanner.className = 'dash-sse-banner';
+                _sseBanner.classList.add('is-hidden');
                 document.body.prepend(_sseBanner);
             }
             _sseBanner.textContent = msg;
-            _sseBanner.style.display = 'block';
+            dashSetHidden(_sseBanner, false);
         }
         function hideSSEBanner() {
-            if (_sseBanner) _sseBanner.style.display = 'none';
+            dashSetHidden(_sseBanner, true);
         }
 
         function connectSSE() {
@@ -2015,9 +2021,9 @@
             const actionsEl = factDiv.querySelector('.cf-fact-actions');
 
             // Replace text with inline input
-            textEl.outerHTML = `<input type="text" class="cf-add-input" id="cf-edit-${id}" value="${esc(currentText)}" style="flex:1;" onkeydown="if(event.key==='Enter')cfSaveEdit(${id});if(event.key==='Escape')openCoreFactsModal();">`;
+            textEl.outerHTML = `<input type="text" class="cf-add-input cf-edit-input" id="cf-edit-${id}" value="${esc(currentText)}" onkeydown="if(event.key==='Enter')cfSaveEdit(${id});if(event.key==='Escape')openCoreFactsModal();">`;
             actionsEl.innerHTML = `
-                <button class="cf-fact-btn" onclick="cfSaveEdit(${id})" title="${t('dashboard.core_facts_modal_save')}" style="color:var(--success);">✅</button>
+                <button class="cf-fact-btn cf-fact-btn-success" onclick="cfSaveEdit(${id})" title="${t('dashboard.core_facts_modal_save')}">✅</button>
                 <button class="cf-fact-btn" onclick="openCoreFactsModal()" title="${t('dashboard.core_facts_modal_cancel')}">❌</button>`;
             document.getElementById('cf-edit-' + id).focus();
         }

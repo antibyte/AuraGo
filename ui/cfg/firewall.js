@@ -3,12 +3,12 @@
  */
 
 window.renderFirewallSection = function (sectionParam) {
-    let html = '<div class="cfg-section active" style="margin-bottom:2rem;">';
+    let html = '<div class="cfg-section active fw-section">';
     html += '<div class="section-header">' + sectionParam.icon + ' ' + sectionParam.label + '</div>';
     html += '<div class="section-desc">' + sectionParam.desc + '</div>';
 
     // Banner for non-Linux OS
-    html += `<div id="firewallOsBanner" style="display:none;margin-bottom:1.2rem;padding:0.65rem 0.9rem;border-radius:9px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.22);font-size:0.78rem;color:var(--danger);line-height:1.55;">
+    html += `<div id="firewallOsBanner" class="fw-os-banner is-hidden">
                 ${t('config.firewall.os_banner')}
             </div>`;
 
@@ -26,14 +26,14 @@ window.renderFirewallSection = function (sectionParam) {
     // Enabled Toggle
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.firewall.enable_label') + '</div>';
-    html += '<div class="field-help" style="margin-bottom:0.5rem;">' + t('config.firewall.enable_help') + '</div>';
+    html += '<div class="field-help fw-enable-help">' + t('config.firewall.enable_help') + '</div>';
     html += '<div class="toggle-wrap" id="fwToggleWrap">';
     html += '<div class="toggle' + (isOn ? ' on' : '') + '" id="fwEnabledToggle" data-path="firewall.enabled" onclick="if(!this.disabled) { toggleBool(this); toggleFwOptions(this.classList.contains(\'on\')); }"></div>';
     html += '<span class="toggle-label" id="fwEnabledLabel">' + (isOn ? t('config.firewall.active') : t('config.firewall.inactive')) + '</span>';
     html += '</div>';
     html += '</div>';
 
-    html += '<div id="firewallOptionsWrapper" style="transition:opacity 0.2s;' + (isOn ? 'opacity:1;' : 'opacity:0.5;pointer-events:none;') + '">';
+    html += '<div id="firewallOptionsWrapper" class="fw-options-wrap' + (isOn ? '' : ' is-disabled') + '">';
 
     // Firewall Mode
     html += renderField('firewall.mode', 'mode', fwConfig.mode || 'readonly', 'firewall', {
@@ -41,7 +41,7 @@ window.renderFirewallSection = function (sectionParam) {
         sensitive: false
     });
 
-    html += '<div style="margin-top:-0.5rem;margin-bottom:1rem;font-size:0.75rem;color:var(--text-secondary);">' + t('help.config.firewall.mode') + '</div>';
+    html += '<div class="fw-field-help fw-field-help-spaced">' + t('help.config.firewall.mode') + '</div>';
 
     // Poll Interval
     html += renderField('firewall.poll_interval_seconds', 'poll_interval_seconds', fwConfig.poll_interval_seconds || 60, 'firewall', {
@@ -49,7 +49,7 @@ window.renderFirewallSection = function (sectionParam) {
         sensitive: false
     });
 
-    html += '<div style="margin-top:-0.5rem;font-size:0.75rem;color:var(--text-secondary);">' + t('help.config.firewall.poll_interval_seconds') + '</div>';
+    html += '<div class="fw-field-help">' + t('help.config.firewall.poll_interval_seconds') + '</div>';
 
     html += '</div>'; // End wrapper
     if (fwBlocked) html += '</div>'; // End feature-unavailable-fields
@@ -73,15 +73,14 @@ window.renderFirewallSection = function (sectionParam) {
                     if (label) label.textContent = t('config.firewall.inactive');
                 }
                 if (options) {
-                    options.style.opacity = '0.4';
-                    options.style.pointerEvents = 'none';
+                    options.classList.add('is-disabled', 'is-locked');
                     // also disable inner inputs
                     options.querySelectorAll('.field-input, .field-select').forEach(el => {
                         el.disabled = true;
                     });
                 }
                 if (banner) {
-                    banner.style.display = 'block';
+                    banner.classList.remove('is-hidden');
                 }
             } else {
                 // Attach option syncing function for the readonly/guard select to update the layout if needed.
@@ -94,7 +93,6 @@ window.renderFirewallSection = function (sectionParam) {
 window.toggleFwOptions = function (enabled) {
     const wrap = document.getElementById('firewallOptionsWrapper');
     if (wrap) {
-        wrap.style.opacity = enabled ? '1' : '0.5';
-        wrap.style.pointerEvents = enabled ? 'auto' : 'none';
+        wrap.classList.toggle('is-disabled', !enabled);
     }
 };

@@ -205,7 +205,7 @@ async function init() {
             if (rtResp.ok) runtimeData = await rtResp.json();
         } catch (_) { }
     } catch (e) {
-        document.getElementById('content').innerHTML = '<div style="text-align:center;padding:4rem;color:var(--danger);">❌ ' + t('config.loading_error') + '<br><small>' + e.message + '</small></div>';
+        document.getElementById('content').innerHTML = '<div class="cfg-error-state cfg-error-state-lg">❌ ' + t('config.loading_error') + '<br><small>' + e.message + '</small></div>';
         return;
     }
     buildSidebar();
@@ -377,7 +377,7 @@ async function renderSection(key) {
     const modInfo = SECTION_MODULES[key];
     if (modInfo) {
         try { await loadModule(modInfo.m); } catch (e) {
-            document.getElementById('content').innerHTML = '<div style="text-align:center;padding:3rem;color:var(--danger);">\u274c Module load error: ' + e.message + '</div>';
+            document.getElementById('content').innerHTML = '<div class="cfg-error-state cfg-error-state-md">\u274c Module load error: ' + e.message + '</div>';
             return;
         }
         const fn = window[modInfo.fn];
@@ -438,28 +438,28 @@ async function renderSection(key) {
 
     // LLM settings explanation
     if (key === 'llm') {
-        html += `<div style="margin-bottom:1.2rem;padding:0.65rem 0.9rem;border-radius:9px;background:rgba(99,179,237,0.08);border:1px solid rgba(99,179,237,0.22);font-size:0.78rem;color:var(--text-secondary);line-height:1.55;">
+        html += `<div class="cfg-note-banner cfg-note-banner-info">
                     \u{1F9E0} ${t('config.llm.info_banner')}
                 </div>`;
     }
 
     // Embeddings explanation
     if (key === 'embeddings') {
-        html += `<div style="margin-bottom:1.2rem;padding:0.65rem 0.9rem;border-radius:9px;background:rgba(99,179,237,0.08);border:1px solid rgba(99,179,237,0.22);font-size:0.78rem;color:var(--text-secondary);line-height:1.55;">
+        html += `<div class="cfg-note-banner cfg-note-banner-info">
                     \u{1F9E0} ${t('config.embeddings.info_banner')}
                 </div>`;
     }
 
     // Budget disclaimer
     if (key === 'budget') {
-        html += `<div style="margin-bottom:1.2rem;padding:0.65rem 0.9rem;border-radius:9px;background:rgba(99,179,237,0.08);border:1px solid rgba(99,179,237,0.22);font-size:0.78rem;color:var(--text-secondary);line-height:1.55;">
+        html += `<div class="cfg-note-banner cfg-note-banner-info">
                     ℹ️ ${t('config.budget.info_banner')}
                 </div>`;
     }
 
     // Tools permissions warning
     if (key === 'tools') {
-        html += `<div style="margin-bottom:1.2rem;padding:0.65rem 0.9rem;border-radius:9px;background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.28);font-size:0.78rem;color:var(--text-secondary);line-height:1.55;">
+        html += `<div class="cfg-note-banner cfg-note-banner-warning">
                     ⚠️ ${t('config.tools.warning_banner')}
                 </div>`;
     }
@@ -514,7 +514,7 @@ async function renderSection(key) {
             if ((key === 'llm' || key === 'fallback_llm') && LLM_SKIP_KEYS.has(k)) continue;
             if (PROVIDER_MANAGED_SECTIONS.has(key) && LLM_SKIP_KEYS.has(k)) continue;
             if (typeof v === 'object' && v !== null && !Array.isArray(v)) {
-                html += '<div style="margin-top:1rem;margin-bottom:0.5rem;font-weight:600;font-size:0.85rem;color:var(--accent);">' + formatKey(k) + '</div>';
+                html += '<div class="cfg-group-title cfg-group-title-top">' + formatKey(k) + '</div>';
                 for (const [sk, sv] of Object.entries(v)) {
                     if (key === 'co_agents' && k === 'llm' && LLM_SKIP_KEYS.has(sk)) continue;
                     html += renderField(key + '.' + k + '.' + sk, sk, sv, key + '.' + k);
@@ -567,7 +567,7 @@ function renderFields(fields, data, parentPath) {
         const fullPath = parentPath + '.' + field.yaml_key;
 
         if (field.type === 'object' && field.children) {
-            html += '<div style="margin-top:1.2rem;margin-bottom:0.5rem;font-weight:600;font-size:0.85rem;color:var(--accent);border-bottom:1px solid var(--border-subtle);padding-bottom:0.3rem;">' + formatKey(field.yaml_key) + '</div>';
+            html += '<div class="cfg-group-title cfg-group-title-underlined">' + formatKey(field.yaml_key) + '</div>';
             html += renderFields(field.children, val || {}, fullPath);
         } else {
             html += renderField(fullPath, field.yaml_key, val, parentPath, field);
@@ -602,20 +602,20 @@ function renderField(fullPath, key, value, parentPath, fieldSchema) {
         const help = helpTexts[fullPath];
         const helpText = help ? (help[lang] || help['en'] || '') : '';
         let h = '<div class="field-group">';
-        h += '<div class="field-label">Master Key <span style="font-size:0.65rem;color:var(--warning);">🔒</span></div>';
+        h += '<div class="field-label">Master Key <span class="cfg-sensitive-icon">🔒</span></div>';
         if (helpText) h += '<div class="field-help">' + helpText + '</div>';
         if (vaultExists) {
             h += '<div class="password-wrap">';
-            h += '<input class="field-input" type="password" value="\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022" disabled style="opacity:0.55;cursor:not-allowed;flex:1;">';
-            h += '<button type="button" class="password-toggle" title="' + t('config.master_key.vault_delete_tooltip') + '" onclick="vaultDeletePrompt()" style="color:#f87171;font-size:1rem;">🗑️</button>';
+            h += '<input class="field-input cfg-master-key-locked-input" type="password" value="\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022" disabled>';
+            h += '<button type="button" class="password-toggle cfg-master-key-delete-btn" title="' + t('config.master_key.vault_delete_tooltip') + '" onclick="vaultDeletePrompt()">🗑️</button>';
             h += '</div>';
-            h += '<div style="font-size:0.75rem;color:var(--text-secondary);margin-top:0.3rem;">🔐 ' + t('config.master_key.vault_exists') + '</div>';
+            h += '<div class="cfg-master-key-note">🔐 ' + t('config.master_key.vault_exists') + '</div>';
         } else {
             h += '<div class="password-wrap">';
             h += '<input class="field-input" type="password" data-path="server.master_key" value="" placeholder="' + t('config.master_key.placeholder') + '" autocomplete="off">';
             h += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
             h += '</div>';
-            h += '<div style="font-size:0.75rem;color:var(--warning);margin-top:0.3rem;">⚠️ ' + t('config.master_key.no_vault') + '</div>';
+            h += '<div class="cfg-master-key-note cfg-master-key-note-warning">⚠️ ' + t('config.master_key.no_vault') + '</div>';
         }
         h += '</div>';
         return h;
@@ -630,7 +630,7 @@ function renderField(fullPath, key, value, parentPath, fieldSchema) {
 
     let html = '<div class="field-group">';
     html += '<div class="field-label">' + formatKey(key);
-    if (isSensitive) html += ' <span style="font-size:0.65rem;color:var(--warning);">🔒</span>';
+    if (isSensitive) html += ' <span class="cfg-sensitive-icon">🔒</span>';
     html += '</div>';
     if (helpText) html += '<div class="field-help">' + helpText + '</div>';
 
@@ -663,7 +663,7 @@ function renderField(fullPath, key, value, parentPath, fieldSchema) {
         const hasCustom = helpOptions.includes('Other / Custom');
         const isCustomVal = hasCustom && value && !helpOptions.includes(value) && value !== 'Other / Custom';
 
-        html += '<select class="field-select" data-path="' + fullPath + '" onchange="if(this.value===\'Other / Custom\'){this.nextElementSibling.style.display=\'block\';this.nextElementSibling.focus();}else if(this.nextElementSibling){this.nextElementSibling.style.display=\'none\';}">';
+        html += '<select class="field-select" data-path="' + fullPath + '" onchange="cfgToggleCustomInput(this)">';
         helpOptions.forEach(opt => {
             const selected = (String(value) === String(opt) || (opt === 'Other / Custom' && isCustomVal)) ? ' selected' : '';
             html += '<option value="' + escapeAttr(opt) + '"' + selected + '>' + escapeAttr(opt) + '</option>';
@@ -671,9 +671,9 @@ function renderField(fullPath, key, value, parentPath, fieldSchema) {
         html += '</select>';
 
         if (hasCustom) {
-            const display = isCustomVal ? 'block' : 'none';
+            const hiddenCls = isCustomVal ? '' : ' is-hidden';
             const customVal = isCustomVal ? value : '';
-            html += '<input class="field-input" type="text" data-custom-for="' + fullPath + '" value="' + escapeAttr(customVal) + '" placeholder="Type custom value..." style="display:' + display + '; margin-top:0.4rem;" oninput="markDirty()">';
+            html += '<input class="field-input cfg-custom-input' + hiddenCls + '" type="text" data-custom-for="' + fullPath + '" value="' + escapeAttr(customVal) + '" placeholder="Type custom value..." oninput="markDirty()">';
         }
     } else if (isSensitive) {
         const displayVal = (value === '••••••••' || !value) ? '' : value;
@@ -692,15 +692,15 @@ function renderField(fullPath, key, value, parentPath, fieldSchema) {
     } else if (fieldType === 'array') {
         // budget.models is now managed in Provider settings
         if (fullPath === 'budget.models') {
-            html += '<div style="padding:0.6rem 0.8rem;border-radius:8px;background:rgba(72,199,142,0.06);border:1px solid rgba(72,199,142,0.18);font-size:0.78rem;color:var(--text-secondary);">'
+            html += '<div class="cfg-budget-models-hint">'
                 + '💰 ' + t('config.budget.models_moved_hint')
                 + '</div>';
         } else {
         const isObjArray = (Array.isArray(value) && value.length > 0 && typeof value[0] === 'object' && value[0] !== null);
         if (isObjArray) {
             const jsonVal = Array.isArray(value) ? JSON.stringify(value, null, 2) : '[]';
-            html += '<textarea class="field-input" data-path="' + fullPath + '" data-type="json" rows="6" style="font-family:monospace;font-size:0.78rem;resize:vertical;white-space:pre;">' + escapeHtml(jsonVal) + '</textarea>';
-            html += '<div style="font-size:0.72rem;color:var(--text-secondary);margin-top:0.3rem;">' + t('config.field.json_array_hint') + '</div>';
+            html += '<textarea class="field-input cfg-json-array-input" data-path="' + fullPath + '" data-type="json" rows="6">' + escapeHtml(jsonVal) + '</textarea>';
+            html += '<div class="cfg-json-array-hint">' + t('config.field.json_array_hint') + '</div>';
         } else {
             const arrVal = Array.isArray(value) ? value.join(', ') : (value || '');
             html += '<input class="field-input" type="text" data-path="' + fullPath + '" data-type="array" value="' + escapeAttr(arrVal) + '" placeholder="' + t('config.field.comma_separated') + '">';
@@ -746,6 +746,14 @@ function toggleBool(el) {
         el.nextElementSibling.textContent = on ? t('config.toggle.active') : t('config.toggle.inactive');
     }
     markDirty();
+}
+
+function cfgToggleCustomInput(selectEl) {
+    const customInput = selectEl.nextElementSibling;
+    if (!customInput || !customInput.classList.contains('cfg-custom-input')) return;
+    const showCustom = selectEl.value === 'Other / Custom';
+    customInput.classList.toggle('is-hidden', !showCustom);
+    if (showCustom) customInput.focus();
 }
 
 function togglePassword(btn) {
@@ -863,8 +871,7 @@ async function saveConfig() {
         const result = await resp.json();
         if (resp.ok) {
             if (result.needs_restart) {
-                status.className = 'save-status';
-                status.style.color = 'var(--warning)';
+                status.className = 'save-status warning';
                 status.textContent = '⚠ ' + (result.message || t('config.save_bar.restart_needed'));
             } else {
                 status.className = 'save-status success';
@@ -912,21 +919,21 @@ function showSecurityModal(critFixable) {
 
     const ids = critFixable.map(h => h.id);
     const itemsHtml = critFixable.map(h =>
-        `<li style="margin-bottom:0.35rem;">⚠ ${esc(h.title)}</li>`
+        `<li class="sec-modal-item">⚠ ${esc(h.title)}</li>`
     ).join('');
 
     const modal = document.createElement('div');
     modal.id = 'sec-harden-modal';
-    modal.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.55);backdrop-filter:blur(4px);';
-    modal.innerHTML = `<div style="background:var(--bg-panel);border:1px solid rgba(239,68,68,0.4);border-radius:14px;padding:1.5rem 1.75rem;max-width:440px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,0.5);">
-        <div style="font-size:1rem;font-weight:700;color:#f87171;margin-bottom:0.75rem;">🔒 ${t('config.security.modal.title')}</div>
-        <div style="font-size:0.83rem;color:var(--text-secondary);margin-bottom:0.75rem;">${t('config.security.modal.desc')}</div>
-        <ul style="font-size:0.82rem;color:var(--text-primary);margin:0 0 1rem 1rem;padding:0;">${itemsHtml}</ul>
-        <div style="display:flex;gap:0.75rem;justify-content:flex-end;">
-            <button id="sec-modal-skip" style="padding:0.45rem 1rem;background:transparent;color:var(--text-secondary);border:1px solid var(--border-subtle);border-radius:8px;font-size:0.82rem;cursor:pointer;">
+    modal.className = 'sec-modal-overlay';
+    modal.innerHTML = `<div class="sec-modal-panel">
+        <div class="sec-modal-title">🔒 ${t('config.security.modal.title')}</div>
+        <div class="sec-modal-desc">${t('config.security.modal.desc')}</div>
+        <ul class="sec-modal-list">${itemsHtml}</ul>
+        <div class="sec-modal-actions">
+            <button id="sec-modal-skip" class="sec-modal-btn sec-modal-btn-skip">
                 ${t('config.security.modal.later')}
             </button>
-            <button id="sec-modal-apply" style="padding:0.45rem 1rem;background:linear-gradient(135deg,#f97316,#dc2626);color:#fff;border:none;border-radius:8px;font-size:0.82rem;font-weight:600;cursor:pointer;">
+            <button id="sec-modal-apply" class="sec-modal-btn sec-modal-btn-apply">
                 🔧 ${t('config.security.modal.apply')}
             </button>
         </div>
@@ -967,11 +974,10 @@ async function restartAuraGo() {
         if (resp.ok) {
             const res = await resp.json();
             document.body.innerHTML = `
-                        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:var(--bg-primary);color:var(--text-primary);">
-                            <div style="font-size:4rem;margin-bottom:1.5rem;animation:spin 2s linear infinite;">↻</div>
-                            <h2 style="font-size:1.5rem;font-weight:600;">${res.message}</h2>
-                            <p style="color:var(--text-secondary);margin-top:0.75rem;">${t('config.restart.reloading')}</p>
-                            <style>@keyframes spin { 100% { transform: rotate(360deg); } }</style>
+                        <div class="cfg-restart-screen">
+                            <div class="cfg-restart-spinner">↻</div>
+                            <h2 class="cfg-restart-title">${res.message}</h2>
+                            <p class="cfg-restart-desc">${t('config.restart.reloading')}</p>
                         </div>
                     `;
             // Attempt to reload after 4 seconds to give the service time to restart
@@ -982,7 +988,7 @@ async function restartAuraGo() {
     } catch (e) {
         // If the fetch fails immediately, it might be that the server died instantly.
         // We'll still show the reloading screen.
-        document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;color:var(--text-secondary);">' + t('config.restart.disconnected') + '</div>';
+        document.body.innerHTML = '<div class="cfg-restart-disconnected">' + t('config.restart.disconnected') + '</div>';
         setTimeout(() => window.location.reload(), 4000);
     }
 }
@@ -1061,7 +1067,7 @@ function vaultDeletePrompt() {
     document.getElementById('vault-modal-desc').innerHTML = t('config.vault.delete_desc');
     document.getElementById('vault-confirm-btn').textContent = t('config.vault.destroy_button');
     document.getElementById('vault-cancel-btn').textContent = t('config.vault.cancel');
-    document.getElementById('vault-delete-overlay').style.display = 'flex';
+    document.getElementById('vault-delete-overlay').classList.remove('is-hidden');
     setTimeout(() => document.getElementById('vault-confirm-input').focus(), 100);
 }
 
@@ -1072,7 +1078,7 @@ function vaultCheckWord() {
 }
 
 function vaultDeleteCancel() {
-    document.getElementById('vault-delete-overlay').style.display = 'none';
+    document.getElementById('vault-delete-overlay').classList.add('is-hidden');
 }
 
 async function vaultDeleteConfirm() {
@@ -1082,12 +1088,12 @@ async function vaultDeleteConfirm() {
         const data = await resp.json();
         if (resp.ok) {
             vaultExists = false;
-            document.getElementById('vault-delete-overlay').style.display = 'none';
+            document.getElementById('vault-delete-overlay').classList.add('is-hidden');
             const cfgResp = await fetch('/api/config');
             configData = await cfgResp.json();
             selectSection('server');
             const toast = document.createElement('div');
-            toast.style.cssText = 'position:fixed;top:1rem;right:1rem;z-index:9999;background:var(--surface-elevated);border:1px solid rgba(239,68,68,0.35);border-radius:10px;padding:0.75rem 1.25rem;font-size:0.85rem;color:#fca5a5;box-shadow:0 8px 30px rgba(0,0,0,0.3);max-width:420px;';
+            toast.className = 'cfg-vault-toast';
             toast.textContent = t('config.vault.deleted_toast');
             document.body.appendChild(toast);
             setTimeout(() => toast.remove(), 6000);
@@ -1100,4 +1106,3 @@ async function vaultDeleteConfirm() {
         document.getElementById('vault-confirm-btn').disabled = false;
     }
 }
-

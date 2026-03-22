@@ -91,10 +91,10 @@ function renderSheets() {
 
     if (!sheetsData || sheetsData.length === 0) {
         grid.innerHTML = '';
-        empty.style.display = '';
+        empty.classList.remove('is-hidden');
         return;
     }
-    empty.style.display = 'none';
+    empty.classList.add('is-hidden');
 
     grid.classList.toggle('list-view', mode === 'list');
 
@@ -149,7 +149,7 @@ function renderSheetGrid(s) {
             </div>
             <div class="card-body">
                 <div class="card-preview">${preview || '<em>' + esc(t('cheatsheets.no_content')) + '</em>'}</div>
-                <div class="card-actions" style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border-subtle)">
+                <div class="card-actions">
                     <button class="btn btn-primary btn-sm" onclick="openEdit('${esc(s.id)}')">${esc(t('cheatsheets.edit'))}</button>
                     <button class="btn btn-secondary btn-sm" onclick="toggleActive('${esc(s.id)}', ${!s.active})">${s.active ? esc(t('cheatsheets.deactivate')) : esc(t('cheatsheets.activate'))}</button>
                     <button class="btn btn-danger btn-sm" onclick="requestDelete('${esc(s.id)}', '${esc(s.name)}')">${esc(t('cheatsheets.delete'))}</button>
@@ -268,11 +268,11 @@ function switchEditorTab(tab) {
     const editor = document.getElementById('sheet-content');
     const preview = document.getElementById('sheet-preview');
     if (tab === 'edit') {
-        editor.style.display = '';
-        preview.style.display = 'none';
+        editor.classList.remove('is-hidden');
+        preview.classList.add('is-hidden');
     } else {
-        editor.style.display = 'none';
-        preview.style.display = '';
+        editor.classList.add('is-hidden');
+        preview.classList.remove('is-hidden');
         preview.innerHTML = renderMarkdown(editor.value);
     }
 }

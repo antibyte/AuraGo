@@ -17,8 +17,8 @@
         <div class="header-left">
             <a href="/" class="logo">
                 <div class="logo-icon">🥚</div>
-                <span style="color: var(--accent);">AURA</span><span style="color: var(--text-primary);">GO</span>
-                <span style="font-weight:300;opacity:0.5;margin-left:0.3rem;" class="logo-subtitle"><script>document.write(t('invasion.logo_subtitle'))</script></span>
+                <span class="logo-wordmark-accent">AURA</span><span class="logo-wordmark-base">GO</span>
+                <span class="logo-subtitle"><script>document.write(t('invasion.logo_subtitle'))</script></span>
             </a>
         </div>
         <div class="header-actions">
@@ -50,7 +50,7 @@
         <!-- Content -->
         <div id="content-nests" class="tab-content">
             <div class="cards-grid" id="nests-grid"></div>
-            <div class="empty-state" id="nests-empty" style="display:none;">
+            <div class="empty-state is-hidden" id="nests-empty">
                 <div class="icon">🪺</div>
                 <p><script>document.write(t('invasion.no_nests'))</script></p>
                 <button class="btn btn-primary" onclick="openCreateModal()">
@@ -59,9 +59,9 @@
             </div>
         </div>
 
-        <div id="content-eggs" class="tab-content" style="display:none;">
+        <div id="content-eggs" class="tab-content is-hidden">
             <div class="cards-grid" id="eggs-grid"></div>
-            <div class="empty-state" id="eggs-empty" style="display:none;">
+            <div class="empty-state is-hidden" id="eggs-empty">
                 <div class="icon">🥚</div>
                 <p><script>document.write(t('invasion.no_eggs'))</script></p>
                 <button class="btn btn-primary" onclick="openCreateModal()">
@@ -82,7 +82,7 @@
             </div>
             <div class="form-group">
                 <label><script>document.write(t('invasion.notes'))</script></label>
-                <textarea id="nest-notes" data-i18n-ph="invasion.ph_nest_notes" placeholder="Optionale Notizen..." rows="2" style="resize:vertical;"></textarea>
+                <textarea id="nest-notes" data-i18n-ph="invasion.ph_nest_notes" placeholder="Optionale Notizen..." rows="2" class="resize-vertical"></textarea>
             </div>
             <div class="form-group">
                 <label><script>document.write(t('invasion.access_type'))</script></label>
@@ -109,8 +109,8 @@
                 </div>
                 <div class="form-group">
                     <label id="nest-secret-label"><script>document.write(t('invasion.secret'))</script></label>
-                    <textarea id="nest-secret" data-i18n-ph="invasion.ph_secret" placeholder="Passwort oder SSH Private Key..." rows="3" style="resize:vertical;"></textarea>
-                    <small id="nest-secret-hint" style="color:var(--text-secondary);display:none;">
+                    <textarea id="nest-secret" data-i18n-ph="invasion.ph_secret" placeholder="Passwort oder SSH Private Key..." rows="3" class="resize-vertical"></textarea>
+                    <small id="nest-secret-hint" class="hint-subtle is-hidden">
                         <script>document.write(t('invasion.secret_set'))</script>
                     </small>
                 </div>
@@ -128,7 +128,7 @@
                     <option value="docker_remote" data-i18n="invasion.deploy_docker_remote">Docker (Remote)</option>
                     <option value="docker_local" data-i18n="invasion.deploy_docker_local">Docker (Lokal)</option>
                 </select>
-                <small id="deploy-docker-local-hint" style="display:none;color:var(--text-secondary);margin-top:0.35rem;"><script>document.write(t('invasion.docker_local_hint'))</script></small>
+                <small id="deploy-docker-local-hint" class="hint-subtle is-hidden mt-xs"><script>document.write(t('invasion.docker_local_hint'))</script></small>
             </div>
             <div class="form-group">
                 <label><script>document.write(t('invasion.target_arch'))</script></label>
@@ -149,7 +149,7 @@
             </div>
             <div class="form-group">
                 <label><script>document.write(t('invasion.route_config'))</script></label>
-                <textarea id="nest-route-config" placeholder='{"tunnel_port":8443}' rows="2" style="resize:vertical;"></textarea>
+                <textarea id="nest-route-config" placeholder='{"tunnel_port":8443}' rows="2" class="resize-vertical"></textarea>
             </div>
             <div class="form-group">
                 <div class="toggle-wrap">
@@ -160,7 +160,7 @@
                     <span class="toggle-label"><script>document.write(t('invasion.active'))</script></span>
                 </div>
             </div>
-            <div id="nest-validate-area" style="display:none;">
+            <div id="nest-validate-area" class="is-hidden">
                 <button class="btn btn-sm btn-secondary" id="btn-validate" onclick="validateNest()">
                     <script>document.write(t('invasion.test_connection'))</script>
                 </button>
@@ -184,7 +184,7 @@
             </div>
             <div class="form-group">
                 <label><script>document.write(t('invasion.description'))</script></label>
-                <textarea id="egg-description" data-i18n-ph="invasion.ph_egg_description" placeholder="Was macht dieser Sub-Agent?" rows="2" style="resize:vertical;"></textarea>
+                <textarea id="egg-description" data-i18n-ph="invasion.ph_egg_description" placeholder="Was macht dieser Sub-Agent?" rows="2" class="resize-vertical"></textarea>
             </div>
             <div class="form-row">
                 <div class="form-group">
@@ -203,7 +203,7 @@
             <div class="form-group">
                 <label><script>document.write(t('invasion.api_key'))</script></label>
                 <input type="password" id="egg-api-key" placeholder="sk-...">
-                <small id="egg-apikey-hint" style="color:var(--text-secondary);display:none;">
+                <small id="egg-apikey-hint" class="hint-subtle is-hidden">
                     <script>document.write(t('invasion.apikey_set'))</script>
                 </small>
             </div>
@@ -261,9 +261,9 @@
     <!-- Delete Confirm Modal -->
     <div class="modal-overlay" id="delete-modal">
         <div class="modal">
-            <h2 style="color: var(--accent-danger);">⚠️ <span><script>document.write(t('invasion.confirm_delete'))</script></span></h2>
-            <p id="delete-message" style="margin:12px 0;"></p>
-            <p style="font-size:0.85rem; color:var(--text-secondary);">
+            <h2 class="delete-modal-title">⚠️ <span><script>document.write(t('invasion.confirm_delete'))</script></span></h2>
+            <p id="delete-message" class="delete-message"></p>
+            <p class="delete-modal-hint">
                 <script>document.write(t('invasion.type_name_confirm'))</script>
             </p>
             <input type="text" class="delete-confirm-input" id="delete-confirm-input"

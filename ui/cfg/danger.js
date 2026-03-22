@@ -71,7 +71,7 @@
             ];
 
             let html = '<div class="cfg-section active">';
-            html += '<div class="section-header" style="color:#f87171;">' + section.icon + ' ' + section.label + '</div>';
+            html += '<div class="section-header danger-section-header">' + section.icon + ' ' + section.label + '</div>';
             html += '<div class="section-desc">' + section.desc + '</div>';
 
             html += `<div class="danger-banner">
@@ -94,15 +94,15 @@
                 html += `<div class="danger-card">`;
                 if (capBlocked) {
                     const sudoFa = (runtimeData.features || {}).sudo;
-                    html += `<div class="feature-unavailable-banner fub-blocked" style="margin-bottom:0.5rem;"><span class="fub-icon">🚫</span><span>${escapeHtml(sudoFa.reason || t('config.feature_unavailable'))}</span></div>`;
+                    html += `<div class="feature-unavailable-banner fub-blocked danger-fub"><span class="fub-icon">🚫</span><span>${escapeHtml(sudoFa.reason || t('config.feature_unavailable'))}</span></div>`;
                 }
-                html += `<div class="danger-card-header"${capBlocked ? ' style="opacity:0.45;pointer-events:none;"' : ''}>
+                html += `<div class="danger-card-header${capBlocked ? ' danger-card-header-blocked' : ''}">
                         <div>
                             <div class="danger-card-title">${cap.icon} ${cap.title}</div>
                             <div class="danger-card-desc">${cap.desc}</div>
-                            ${helpText ? `<div class="danger-card-desc" style="margin-top:0.3rem;opacity:0.7;">${helpText}</div>` : ''}
+                            ${helpText ? `<div class="danger-card-desc danger-card-help">${helpText}</div>` : ''}
                         </div>
-                        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.4rem;flex-shrink:0;">
+                        <div class="danger-card-controls">
                             <span class="danger-card-badge">${cap.badge}</span>
                             <div class="toggle ${isOn ? 'on' : ''}" data-path="${cap.path}" onclick="toggleBool(this)"></div>
                         </div>
