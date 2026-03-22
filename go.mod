@@ -39,7 +39,7 @@ require (
 	golang.org/x/crypto v0.49.0
 	golang.org/x/image v0.37.0
 	golang.org/x/sys v0.42.0
-	google.golang.org/grpc v1.78.0
+	google.golang.org/grpc v1.79.3
 	modernc.org/sqlite v1.28.0
 	tailscale.com v1.96.1
 )
@@ -143,7 +143,7 @@ require (
 	golang.org/x/exp v0.0.0-20250620022241-b7579e27df2b // indirect
 	golang.org/x/mod v0.33.0 // indirect
 	golang.org/x/net v0.51.0 // indirect
-	golang.org/x/oauth2 v0.33.0 // indirect
+	golang.org/x/oauth2 v0.34.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/term v0.41.0 // indirect
 	golang.org/x/text v0.35.0 // indirect
