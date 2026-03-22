@@ -31,7 +31,7 @@
   "config.providers.revoke_confirm": "वास्तव में OAuth टोकन रद्द करें?",
   "config.providers.id_exists": "इस आईडी वाला एक प्रदाता पहले से मौजूद है।",
   "config.providers.edit_provider": "प्रदाता संपादित करें",
-  "config.providers.delete_confirm": "क्या वास्तव में प्रदाता \"{नाम}\" को हटा दिया गया है?",
+  "config.providers.delete_confirm": "क्या वास्तव में प्रदाता \"{name}\" को हटा दिया गया है?",
   "config.providers.cancel": "रद्द करें",
   "config.providers.save": "सहेजें",
   "config.providers.hint.openrouter": "एपीआई कुंजी sk-or-...",
@@ -85,9 +85,9 @@
   "config.providers.filter_models": "कॉन्फ़िगर किए गए मॉडल फ़िल्टर करें...",
   "config.providers.no_filter_results": "\"{{q}}\" से कोई मॉडल मेल नहीं खाता",
   "config.providers.type_workers_ai": "workers-ai",
-  "config.providers.hint.workers_ai": "Workers AI \u0905\u0928\u0941\u092e\u0924\u093f\u092f\u094b\u0902 \u0915\u0947 \u0938\u093e\u0925 Cloudflare API \u091f\u094b\u0915\u0928\u0964",
-  "config.providers.account_id": "\u0916\u093e\u0924\u093e ID",
-  "config.providers.account_id_help": "\u0906\u092a\u0915\u093e Cloudflare \u0916\u093e\u0924\u093e ID (\u0921\u0948\u0936\u092c\u094b\u0930\u094d\u0921 URL \u092f\u093e API \u0938\u0947\u091f\u093f\u0902\u0917\u094d\u0938 \u092e\u0947\u0902 \u092e\u093f\u0932\u0947\u0917\u093e)\u0964",
-  "config.providers.account_id_empty_error": "Workers AI \u0915\u0947 \u0932\u093f\u090f \u0916\u093e\u0924\u093e ID \u0906\u0935\u0936\u094d\u092f\u0915 \u0939\u0948\u0964",
-  "config.providers.workers_ai_url_auto": "URL \u0916\u093e\u0924\u093e ID \u0938\u0947 \u0938\u094d\u0935\u091a\u093e\u0932\u093f\u0924 \u0930\u0942\u092a \u0938\u0947 \u0909\u0924\u094d\u092a\u0928\u094d\u0928 \u0939\u094b\u0924\u093e \u0939\u0948\u0964"
+  "config.providers.hint.workers_ai": "Workers AI अनुमतियों के साथ Cloudflare API टोकन।",
+  "config.providers.account_id": "खाता ID",
+  "config.providers.account_id_help": "आपका Cloudflare खाता ID (डैशबोर्ड URL या API सेटिंग्स में मिलेगा)।",
+  "config.providers.account_id_empty_error": "Workers AI के लिए खाता ID आवश्यक है।",
+  "config.providers.workers_ai_url_auto": "URL खाता ID से स्वचालित रूप से उत्पन्न होता है।"
 }

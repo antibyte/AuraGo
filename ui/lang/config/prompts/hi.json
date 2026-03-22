@@ -34,6 +34,6 @@
   "config.prompts.name_required": "नाम आवश्यक है।",
   "config.prompts.saved": "सहेजा गया.",
   "config.prompts.setting_active": "सक्रिय सेटिंग हो रही है...",
-  "config.prompts.delete_confirm": "वास्तव में व्यक्तित्व \"{नाम}\" हटा दें?",
+  "config.prompts.delete_confirm": "वास्तव में व्यक्तित्व \"{name}\" हटा दें?",
   "config.prompts.deleting": "हटाया जा रहा है..."
 }

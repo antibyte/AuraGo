@@ -38,7 +38,7 @@
   "config.openrouter.apply_model": "मॉडल लागू करें",
   "config.openrouter.costs_auto_imported": "बजट प्रबंधन के लिए लागतें स्वचालित रूप से आयात की जाएंगी।",
   "config.openrouter.connection_error": "कनेक्शन त्रुटि:",
-  "config.budget.model_cost_updated": "💰 बजट प्रबंधन में \"{मॉडल}\" के लिए मॉडल लागत अपडेट की गई।",
+  "config.budget.model_cost_updated": "💰 बजट प्रबंधन में \"{model}\" के लिए मॉडल लागत अपडेट की गई।",
   "config.vault.delete_title": "⚠️ वॉल्ट को स्थायी रूप से हटाएं",
   "config.vault.delete_desc": "इससे वॉल्ट<strong>स्थायी रूप से</strong>हट जाएगा. सभी संग्रहीत एपीआई कुंजी, पासवर्ड और क्रेडेंशियल हमेशा के लिए खो जाएंगे!<br><br>जारी रखने के लिए <strong style=\"color:#f87171;\">delete</strong> टाइप करें:",
   "config.vault.confirm_word_de": "हटाएं",
