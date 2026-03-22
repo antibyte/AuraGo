@@ -75,6 +75,20 @@ func handleTsNetStart(s *Server) http.HandlerFunc {
 			return
 		}
 
+		// If the node is already running in network-only mode but serve_http was
+		// just enabled in config, upgrade the live node to serving mode in-place
+		// instead of failing with "already running".
+		if st := s.TsNetManager.GetStatus(); st.Running && !st.ServingHTTP && s.Cfg.Tailscale.TsNet.ServeHTTP {
+			go func() {
+				if err := s.TsNetManager.UpgradeToHTTP(handler); err != nil {
+					s.Logger.Error("[tsnet] HTTP upgrade failed", "error", err)
+				}
+			}()
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]string{"status": "starting"})
+			return
+		}
+
 		// Launch in background — Start() blocks until auth/cert are ready
 		go func() {
 			if err := s.TsNetManager.Start(handler); err != nil {

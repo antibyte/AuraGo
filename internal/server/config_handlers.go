@@ -391,6 +391,33 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				}
 			}
 
+			// Auto-upgrade/downgrade tsnet HTTP serving when serve_http changes
+			// while the node is already connected to the Tailscale network.
+			if s.TsNetManager != nil && oldCfg.Tailscale.TsNet.ServeHTTP != newCfg.Tailscale.TsNet.ServeHTTP {
+				tsStatus := s.TsNetManager.GetStatus()
+				if tsStatus.Running {
+					if newCfg.Tailscale.TsNet.ServeHTTP && !tsStatus.ServingHTTP {
+						if s.tsNetHandler != nil {
+							go func() {
+								if err := s.TsNetManager.UpgradeToHTTP(s.tsNetHandler); err != nil {
+									s.Logger.Warn("[Config UI] tsnet HTTP upgrade failed", "error", err)
+								} else {
+									s.Logger.Info("[Config UI] tsnet upgraded to HTTP-serving mode")
+								}
+							}()
+						}
+					} else if !newCfg.Tailscale.TsNet.ServeHTTP && tsStatus.ServingHTTP {
+						go func() {
+							if err := s.TsNetManager.DowngradeToNetworkOnly(); err != nil {
+								s.Logger.Warn("[Config UI] tsnet downgrade to network-only failed", "error", err)
+							} else {
+								s.Logger.Info("[Config UI] tsnet downgraded to network-only mode")
+							}
+						}()
+					}
+				}
+			}
+
 			s.Logger.Info("[Config UI] Configuration hot-reloaded successfully")
 		}
 		s.CfgMu.Unlock()

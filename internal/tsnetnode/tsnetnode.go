@@ -363,6 +363,102 @@ func (m *Manager) GetStatus() Status {
 	return st
 }
 
+// UpgradeToHTTP attaches an HTTP/HTTPS listener to an already-running
+// network-only tsnet node without disconnecting from Tailscale.
+// It is a no-op when the node is already serving HTTP.
+func (m *Manager) UpgradeToHTTP(handler http.Handler) error {
+	m.mu.Lock()
+	if !m.running {
+		m.mu.Unlock()
+		return fmt.Errorf("tsnet node is not running")
+	}
+	if m.servingHTTP {
+		m.mu.Unlock()
+		return nil // already serving, nothing to do
+	}
+	srv := m.server
+	if srv == nil {
+		m.mu.Unlock()
+		return fmt.Errorf("tsnet server reference is nil")
+	}
+	m.mu.Unlock()
+
+	usingHTTP := false
+	ln, err := srv.ListenTLS("tcp", ":443")
+	if err != nil {
+		if strings.Contains(err.Error(), "you must enable HTTPS") || strings.Contains(err.Error(), "enable HTTPS in the admin") {
+			m.logger.Warn("[tsnet] HTTPS certs not available — falling back to HTTP on :80",
+				"hint", "Enable HTTPS at https://tailscale.com/s/https for encrypted access")
+			ln, err = srv.Listen("tcp", ":80")
+			usingHTTP = true
+		}
+		if err != nil {
+			return fmt.Errorf("failed to start tsnet listener: %w", err)
+		}
+	}
+
+	httpSrv := &http.Server{
+		Handler:      handler,
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 5 * time.Minute,
+		IdleTimeout:  2 * time.Minute,
+	}
+	if !usingHTTP {
+		httpSrv.TLSConfig = &tls.Config{MinVersion: tls.VersionTLS12}
+	}
+
+	m.mu.Lock()
+	m.listener = ln
+	m.httpSrv = httpSrv
+	m.servingHTTP = true
+	m.httpFallback = usingHTTP
+	m.mu.Unlock()
+
+	proto := "HTTPS"
+	if usingHTTP {
+		proto = "HTTP (fallback — enable HTTPS in Tailscale admin for encrypted access)"
+	}
+	go func() {
+		m.logger.Info("tsnet HTTP server started (upgraded from network-only)", "protocol", proto)
+		if err := httpSrv.Serve(ln); err != nil && err != http.ErrServerClosed {
+			m.logger.Error("tsnet HTTP server error", "error", err)
+			m.mu.Lock()
+			m.lastErr = err.Error()
+			m.servingHTTP = false
+			m.mu.Unlock()
+		}
+	}()
+	return nil
+}
+
+// DowngradeToNetworkOnly stops the HTTP/HTTPS listener but keeps the tsnet
+// node connected to the Tailscale network.  It is a no-op when the node is
+// already running in network-only mode.
+func (m *Manager) DowngradeToNetworkOnly() error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if !m.servingHTTP {
+		return nil // already network-only
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if m.httpSrv != nil {
+		m.httpSrv.Shutdown(ctx) //nolint:errcheck
+		m.httpSrv = nil
+	}
+	if m.listener != nil {
+		m.listener.Close()
+		m.listener = nil
+	}
+	m.servingHTTP = false
+	m.httpFallback = false
+	m.logger.Info("[tsnet] Downgraded to network-only mode (HTTP listener stopped)")
+	return nil
+}
+
 // extractLoginURL pulls a https://login.tailscale.com/… URL out of a log message.
 func extractLoginURL(msg string) string {
 	const prefix = "https://login.tailscale.com"
