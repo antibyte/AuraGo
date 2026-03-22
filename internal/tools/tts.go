@@ -183,7 +183,13 @@ func ttsPiper(cfg TTSConfig, text string) ([]byte, error) {
 	}
 	defer conn.Close()
 
-	pcm, rate, width, channels, err := WyomingSynthesize(conn, text, cfg.Piper.Voice, cfg.Piper.SpeakerID)
+	// If voice is "piper" (TTS system name, not a real voice), clear it so Piper uses its default.
+	voice := cfg.Piper.Voice
+	if voice == "piper" {
+		voice = ""
+	}
+
+	pcm, rate, width, channels, err := WyomingSynthesize(conn, text, voice, cfg.Piper.SpeakerID)
 	if err != nil {
 		return nil, fmt.Errorf("piper synthesize: %w", err)
 	}

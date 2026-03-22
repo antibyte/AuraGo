@@ -213,45 +213,59 @@ func WyomingDescribe(conn net.Conn) ([]WyomingVoice, error) {
 		Description string `json:"description"`
 		Installed   bool   `json:"installed"`
 		Version     string `json:"version"`
-		Languages   []string
-		Speakers    []struct {
-			Name string `json:"name"`
-		}
-		Attribution interface{} `json:"attribution"`
-		// Languages might come as []string or []{"name":"..."}; handle both
-		RawLanguages json.RawMessage `json:"languages"`
+		Voices      []struct {
+			Name         string          `json:"name"`
+			Description  string          `json:"description"`
+			Installed    bool            `json:"installed"`
+			Version      string          `json:"version"`
+			RawLanguages json.RawMessage `json:"languages"`
+			Speakers     []struct {
+				Name string `json:"name"`
+			} `json:"speakers"`
+		} `json:"voices"`
 	}
 	if err := json.Unmarshal(b, &ttsList); err != nil {
 		return nil, fmt.Errorf("unmarshal tts list: %w", err)
 	}
 
-	voices := make([]WyomingVoice, 0, len(ttsList))
-	for _, t := range ttsList {
-		v := WyomingVoice{
-			Name:        t.Name,
-			Description: t.Description,
-			Installed:   t.Installed,
-			Version:     t.Version,
+	var voices []WyomingVoice
+	for _, sys := range ttsList {
+		if len(sys.Voices) == 0 {
+			// Fallback: treat the system entry itself as a voice (no nested voices)
+			voices = append(voices, WyomingVoice{
+				Name:        sys.Name,
+				Description: sys.Description,
+				Installed:   sys.Installed,
+				Version:     sys.Version,
+			})
+			continue
 		}
-		// Parse languages (could be strings or objects)
-		if t.RawLanguages != nil {
-			var langStrings []string
-			if json.Unmarshal(t.RawLanguages, &langStrings) != nil {
-				var langObjs []struct {
-					Name string `json:"name"`
-				}
-				if json.Unmarshal(t.RawLanguages, &langObjs) == nil {
-					for _, lo := range langObjs {
-						langStrings = append(langStrings, lo.Name)
+		for _, sv := range sys.Voices {
+			v := WyomingVoice{
+				Name:        sv.Name,
+				Description: sv.Description,
+				Installed:   sv.Installed,
+				Version:     sv.Version,
+			}
+			if sv.RawLanguages != nil {
+				var langStrings []string
+				if json.Unmarshal(sv.RawLanguages, &langStrings) != nil {
+					var langObjs []struct {
+						Name string `json:"name"`
+					}
+					if json.Unmarshal(sv.RawLanguages, &langObjs) == nil {
+						for _, lo := range langObjs {
+							langStrings = append(langStrings, lo.Name)
+						}
 					}
 				}
+				v.Languages = langStrings
 			}
-			v.Languages = langStrings
+			for _, sp := range sv.Speakers {
+				v.Speakers = append(v.Speakers, sp.Name)
+			}
+			voices = append(voices, v)
 		}
-		for _, sp := range t.Speakers {
-			v.Speakers = append(v.Speakers, sp.Name)
-		}
-		voices = append(voices, v)
 	}
 
 	return voices, nil
