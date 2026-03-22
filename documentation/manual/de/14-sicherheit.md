@@ -517,4 +517,4 @@ hmac = SHA256(secret + payload)
 > 💡 **Nächste Schritte:**
 > - **[Co-Agenten](15-coagents.md)** – Parallele Agenten sicher nutzen
 > - **[Konfiguration](07-konfiguration.md)** – Feintuning aller Parameter
-> - **[Docker-Deployment](../docker.md)** – Isolierte Produktivumgebung
+> - **[Docker-Deployment](../../docker_installation.md)** – Isolierte Produktivumgebung

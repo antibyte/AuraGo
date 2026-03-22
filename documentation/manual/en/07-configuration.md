@@ -14,6 +14,7 @@ AuraGo's behavior is controlled through a central configuration file (`config.ya
 8. [Configuration Validation](#configuration-validation)
 9. [Environment Variables](#environment-variables)
 10. [Common Configuration Examples](#common-configuration-examples)
+11. [Configuration Coverage Check](#configuration-coverage-check-current-codebase)
 
 ---
 
@@ -607,12 +608,33 @@ auth:
 
 ---
 
+## Configuration Coverage Check (current codebase)
+
+To cover the current `config_template.yaml` more completely, also review these blocks that are often missed:
+
+| Block | Purpose | Where to continue |
+|---|---|---|
+| `circuit_breaker`, `fallback_llm` | resilience, retries, failover | [Security](14-security.md), [Troubleshooting](16-troubleshooting.md) |
+| `co_agents`, `invasion_control`, `remote_control`, `egg_mode` | distributed/parallel agent orchestration | [Invasion](12-invasion.md), [Co-Agents](15-coagents.md) |
+| `maintenance`, `indexing` | autonomous housekeeping and knowledge indexing | [Memory](09-memory.md), [Dashboard](13-dashboard.md) |
+| `llm_guardian` | tool/document safety scanning and policy guardrails | [Security](14-security.md), [Dashboard](13-dashboard.md) |
+| `mcp_server`, `ai_gateway` | MCP interoperability and AI gateway routing | [Integrations](08-integrations.md) |
+| `sandbox`, `whisper`, `tts`, `image_generation` | isolated execution and media pipelines | [Tools](06-tools.md), [Integrations](08-integrations.md) |
+| `paperless_ngx`, `media_registry`, `homepage`, `netlify` | content/document/site management | [Integrations](08-integrations.md) |
+| `cloudflare_tunnel`, `adguard`, `fritzbox`, `mqtt` | network and edge integrations | [Integrations](08-integrations.md), [Security](14-security.md) |
+| `brave_search`, `virustotal` | web discovery and threat intelligence | [Tools](06-tools.md), [Security](14-security.md) |
+| `s3`, `onedrive` | object/cloud storage providers | [Integrations](08-integrations.md) |
+| `telnyx`, `rocketchat` | telephony and chat channels | [Integrations](08-integrations.md) |
+
+> Recommendation: treat `config_template.yaml` as the definitive key inventory and keep this chapter aligned whenever new blocks are added.
+---
+
 ## Next Steps
 
 Now that you understand AuraGo configuration:
 
 1. **[Integrations](08-integrations.md)** – Configure Telegram, Discord, Email, and more
-2. **[Security](09-security.md)** – Harden your AuraGo installation
-3. **[Troubleshooting](10-troubleshooting.md)** – Fix common configuration issues
+2. **[Security](14-security.md)** – Harden your AuraGo installation
+3. **[Troubleshooting](16-troubleshooting.md)** – Fix common configuration issues
 
 > 💡 **Pro Tip:** Keep a backup of your working `config.yaml` before making major changes. Configuration errors can prevent AuraGo from starting.

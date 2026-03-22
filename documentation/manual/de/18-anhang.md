@@ -412,7 +412,7 @@ $env:AURAGO_MASTER_KEY = -join ((1..32) | ForEach-Object { '{0:x2}' -f (Get-Rand
 
 ### v1.0.0 (Template)
 - ✨ Initiale Version
-- 🤖 Agent Core mit 30+ Tools
+- 🤖 Agent Core mit 50+ Tools
 - 🧠 Memory System (STM, LTM, Knowledge Graph)
 - 🎭 Personality Engine V1/V2
 - 🔐 AES-256 Vault

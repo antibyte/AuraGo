@@ -1,8 +1,8 @@
 # Chapter 6: Tools
 
-AuraGo's 30+ built-in tools transform it from a chatbot into an autonomous agent. This chapter covers all available tools, how to use them, and how to create your own.
+AuraGo's 50+ built-in tools transform it from a chatbot into an autonomous agent. This chapter covers all available tools, how to use them, and how to create your own.
 
-## Overview of 30+ Built-in Tools
+## Overview of 50+ Built-in Tools
 
 AuraGo comes with a comprehensive toolkit organized into logical categories. Each tool is a capability the agent can invoke to interact with the world.
 
@@ -47,6 +47,21 @@ AuraGo comes with a comprehensive toolkit organized into logical categories. Eac
 
 ---
 
+
+## Recent platform additions
+
+The current codebase includes several newer capabilities that are easy to miss when reading older docs:
+
+- **LLM Guardian** for tool-call and content risk screening before execution.
+- **Adaptive Tools** to reduce token usage by selecting context-relevant tools.
+- **Document Creator + PDF Extractor** for PDF generation and extraction workflows.
+- **MCP client + MCP server mode** for Model Context Protocol interoperability.
+- **Invasion Control + Remote Control** for distributed multi-host orchestration.
+- **Sudo execution tooling** with vault-backed credential handling and explicit gating.
+
+> See also: [Chapter 8: Integrations](08-integrations.md), [Chapter 13: Dashboard](13-dashboard.md), and [Chapter 14: Security](14-security.md).
+
+---
 ## Tool Categories
 
 ### Filesystem Tools
@@ -240,7 +255,7 @@ Agent: 📅 Today's Events:
    16:30 - 1:1 with Sarah
 ```
 
-> 💡 **Tip:** Google Workspace requires OAuth setup. See [Google Setup Guide](../google_setup.md) for configuration.
+> 💡 **Tip:** Google Workspace requires OAuth setup. See [Google Setup Guide](../../google_setup.md) for configuration.
 
 ### Email Tools
 

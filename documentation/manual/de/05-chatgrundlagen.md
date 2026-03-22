@@ -578,4 +578,4 @@ Agent: 🛠️ Erstelle neues Tool "weather_check"...
 
 - **[Werkzeuge](06-tools.md)** – Alle verfügbaren Tools im Detail
 - **[Konfiguration](07-konfiguration.md)** – Feintuning deines Agents
-- **[Integrationen](08-integrationen.md)** – Telegram, Discord, Email einrichten
+- **[Integrationen](08-integrations.md)** – Telegram, Discord, Email einrichten

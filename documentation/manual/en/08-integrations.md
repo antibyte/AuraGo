@@ -14,7 +14,8 @@ AuraGo connects with numerous external services to extend its capabilities. This
 8. [Budget Tracking](#budget-tracking)
 9. [Google Workspace](#google-workspace)
 10. [WebDAV/Koofr Setup](#webdavkoofr-setup)
-11. [Testing Integrations](#testing-integrations)
+11. [Additional Integrations Coverage](#additional-integrations-coverage-beyond-core-setup)
+12. [Testing Integrations](#testing-integrations)
 
 ---
 
@@ -618,6 +619,26 @@ koofr:
 
 ---
 
+## Additional Integrations Coverage (beyond core setup)
+
+The current platform includes additional integrations/features that should be considered in production rollouts:
+
+| Integration/Feature | Typical use case | Key config blocks |
+|---|---|---|
+| Cloudflare Tunnel + AI Gateway | secure public exposure and AI traffic routing | `cloudflare_tunnel`, `ai_gateway` |
+| AdGuard / FRITZ!Box / MQTT | home network and smart-home connectivity | `adguard`, `fritzbox`, `mqtt` |
+| Paperless NGX + Media Registry + Homepage | document/media/site registry workflows | `paperless_ngx`, `media_registry`, `homepage` |
+| Netlify | static site deployment workflows | `netlify` |
+| S3 + OneDrive + WebDAV/Koofr | multi-backend cloud storage access | `s3`, `onedrive`, `webdav`, `koofr` |
+| Telnyx + Rocket.Chat | telephony and self-hosted chat channels | `telnyx`, `rocketchat` |
+| Image generation / TTS / Whisper | multimodal generation and speech pipelines | `image_generation`, `tts`, `whisper` |
+| MCP server mode | expose AuraGo capabilities to external MCP clients | `mcp_server` |
+| LLM Guardian | policy and risk controls across tool/doc workflows | `llm_guardian` |
+
+> Keep integrations in read-only mode first (`read_only`/`readonly`) and unlock write operations incrementally after validation.
+
+---
+
 ## Testing Integrations
 
 ### Health Check Commands
@@ -693,8 +714,8 @@ Before relying on any integration:
 
 Now that your integrations are set up:
 
-1. **[Security](09-security.md)** – Secure your AuraGo installation
-2. **[Advanced Usage](10-advanced-usage.md)** – Workflows, co-agents, and automation
-3. **[Troubleshooting](11-troubleshooting.md)** – Solve common issues
+1. **[Security](14-security.md)** – Secure your AuraGo installation
+2. **[Advanced Usage](15-coagents.md)** – Workflows, co-agents, and automation
+3. **[Troubleshooting](16-troubleshooting.md)** – Solve common issues
 
 > 💡 **Pro Tip:** Start with one integration at a time. Test thoroughly before adding more. This makes debugging much easier.

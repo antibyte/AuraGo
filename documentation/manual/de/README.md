@@ -34,11 +34,11 @@ AuraGo ist ein vollständig autonomer KI-Agent, der als einzelne portable Binary
 5. [Chat-Grundlagen](05-chatgrundlagen.md) – Kommunikation
 
 ### Teil 2: Features im Detail
-6. [Werkzeuge](06-tools.md) – 60+ Tools nutzen
+6. [Werkzeuge](06-tools.md) – 50+ Tools nutzen
 7. [Konfiguration](07-konfiguration.md) – Feintuning mit Provider-System
 8. [Integrationen](08-integrations.md) – Telegram, Discord, Email, etc.
 9. [Gedächtnis & Wissen](09-memory.md) – Speicher verstehen
-10. [Persönlichkeit](10-personality.md) – Character anpassen
+10. [Persönlichkeit](10-personality.md) – Charakter anpassen
 
 ### Teil 3: Fortgeschritten (Web-UI/API)
 11. [Mission Control](11-missions.md) – Automatisierung ⚠️ *Web-UI/API*
@@ -86,11 +86,13 @@ Die Konfiguration verwendet jetzt ein zentrales Provider-System für LLM-Verbind
 ```
 
 ### Schnell-Links
+- [Handbuch-Startseite](../README.md)
+- [FAQ](faq.md)
 - [Vollständige Konfigurationsreferenz](../../configuration.md)
-- [Telegram Setup](../../telegram_setup.md)
-- [Docker Guide](../../docker.md)
+- [Telegram-Einrichtung](../../telegram_setup.md)
+- [Docker-Installationsguide](../../docker_installation.md)
 - [Personality Engine V2](../../personality_engine_v2.md)
-- [Co-Agent Concept](../../co_agent_concept.md)
+- [Co-Agenten](15-coagents.md)
 
 ---
 

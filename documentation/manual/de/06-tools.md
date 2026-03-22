@@ -1,6 +1,6 @@
 # Kapitel 6: Werkzeuge
 
-Das Herzstück von AuraGo: Über 30 eingebaute Werkzeuge für nahezu jede Aufgabe.
+Das Herzstück von AuraGo: Über 50 eingebaute Werkzeuge für nahezu jede Aufgabe.
 
 ---
 
@@ -22,6 +22,21 @@ AuraGo besitzt ein modulares Tool-System:
 
 ---
 
+
+## Neuere Plattform-Erweiterungen
+
+Die aktuelle Codebasis enthält mehrere neue Fähigkeiten, die in älteren Dokumenten oft fehlen:
+
+- **LLM Guardian** für Risiko-Scanning von Tool-Calls und externen Inhalten vor der Ausführung.
+- **Adaptive Tools** zur Token-Optimierung durch kontextabhängige Tool-Auswahl.
+- **Document Creator + PDF Extractor** für PDF-Erstellung und PDF-Extraktion.
+- **MCP Client + MCP Server Modus** für Interoperabilität über das Model Context Protocol.
+- **Invasion Control + Remote Control** für verteilte Orchestrierung über mehrere Hosts.
+- **Sudo-Execution** mit Vault-gestütztem Credential-Handling und separater Freigabe.
+
+> Siehe auch: [Kapitel 8: Integrationen](08-integrations.md), [Kapitel 13: Dashboard](13-dashboard.md) und [Kapitel 14: Sicherheit](14-sicherheit.md).
+
+---
 ## Tool-Kategorien
 
 ### 1. Dateisystem-Tools
