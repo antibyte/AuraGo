@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title id="page-title">AuraGo - Invasion Control</title>
+    <link rel="stylesheet" href="/shared.css">
+    <link rel="stylesheet" href="/css/tailwind-compat.css">
+    <link rel="stylesheet" href="/css/invasion.css">
     <script src="/shared.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -25,30 +28,16 @@
         }
     </script>
     <style>
-        /* Base CSS variables */
+        /* Base CSS variables - using shared.css values */
         :root {
-            --accent: #6366f1;
-            --accent-hover: #4f46e5;
-            --bg-primary: #0f0f0f;
-            --bg-secondary: #1a1a1a;
-            --bg-tertiary: #252525;
-            --text-primary: #f0f0f0;
-            --text-secondary: #888;
-            --border: #333;
-            --border-focus: #555;
-            --danger: #dc2626;
-            --danger-hover: #b91c1c;
-            --success: #16a34a;
-            --warning: #ca8a04;
+            --accent: #2dd4bf;
+            --accent-hover: #0d9488;
+            --accent-dim: rgba(45, 212, 191, 0.15);
+            --accent-glow: rgba(45, 212, 191, 0.3);
         }
         [data-theme="light"] {
-            --bg-primary: #ffffff;
-            --bg-secondary: #f5f5f5;
-            --bg-tertiary: #e5e5e5;
-            --text-primary: #1a1a1a;
-            --text-secondary: #666;
-            --border: #ddd;
-            --border-focus: #999;
+            --accent: #0d9488;
+            --accent-hover: #0f766e;
         }
         body {
             background-color: var(--bg-primary);
