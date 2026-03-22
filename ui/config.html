@@ -45,18 +45,17 @@
 <body>
     <!-- Header -->
     <div class="cfg-header">
-        <div style="display:flex;align-items:center;gap:0.5rem;min-width:0;">
+        <div class="cfg-logo-wrap">
             <button id="cfg-hamburger" class="hamburger-btn cfg-hamburger" title="Menu"
                 aria-label="Toggle sidebar">☰</button>
             <a href="/" class="logo">
                 <div class="logo-icon">⚡</div>
-                <span style="color: var(--accent);">AURA</span><span style="color: var(--text-primary);">GO</span>
-                <span style="font-weight:300;opacity:0.5;margin-left:0.3rem;" class="logo-subtitle"><script>document.write(t('config.logo_subtitle'))</script></span>
+                <span class="logo-wordmark-accent">AURA</span><span class="logo-wordmark-base">GO</span>
+                <span class="logo-subtitle"><script>document.write(t('config.logo_subtitle'))</script></span>
             </a>
         </div>
         <div class="header-actions">
-            <button class="btn-header cfg-restart-btn" onclick="restartAuraGo()"
-                style="color:var(--danger);border-color:rgba(239,68,68,0.3);">
+            <button class="btn-header cfg-restart-btn cfg-restart-danger" onclick="restartAuraGo()">
                 <span class="cfg-restart-full"><script>document.write(t('config.header.restart_full'))</script></span>
                 <span class="cfg-restart-short">↻</span>
             </button>
@@ -76,9 +75,9 @@
 
         <!-- Content -->
         <div class="cfg-content" id="content">
-            <div style="text-align:center;padding:4rem 1rem;color:var(--text-secondary);">
-                <div style="font-size:2.5rem;margin-bottom:1rem;">⚙️</div>
-                <div style="font-size:1rem;"><script>document.write(t('config.loading'))</script></div>
+            <div class="cfg-loading-state">
+                <div class="cfg-loading-icon">⚙️</div>
+                <div class="cfg-loading-text"><script>document.write(t('config.loading'))</script></div>
             </div>
         </div>
     </div>
@@ -93,24 +92,20 @@
     <script src="/js/config/main.js"></script>
 
     <!-- Vault delete confirmation modal -->
-    <div id="vault-delete-overlay"
-        style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,0.7);align-items:center;justify-content:center;">
-        <div
-            style="background:var(--surface);border:1px solid rgba(239,68,68,0.4);border-radius:14px;padding:2rem;max-width:480px;width:90%;box-shadow:0 24px 64px rgba(0,0,0,0.5);">
-            <div style="font-size:3rem;text-align:center;margin-bottom:0.5rem;">☠️</div>
-            <h2 id="vault-modal-title" style="color:#f87171;text-align:center;margin:0 0 1rem;font-size:1.15rem;"></h2>
-            <div id="vault-modal-desc"
-                style="color:var(--text-secondary);font-size:0.85rem;line-height:1.65;margin-bottom:1.25rem;text-align:center;">
+    <div id="vault-delete-overlay" class="vault-modal-overlay is-hidden">
+        <div class="vault-modal-card">
+            <div class="vault-modal-icon">☠️</div>
+            <h2 id="vault-modal-title" class="vault-modal-title"></h2>
+            <div id="vault-modal-desc" class="vault-modal-desc">
             </div>
-            <input id="vault-confirm-input" type="text" class="field-input"
-                style="text-align:center;letter-spacing:0.12em;font-size:1rem;" oninput="vaultCheckWord()"
+            <input id="vault-confirm-input" type="text" class="field-input vault-confirm-input" oninput="vaultCheckWord()"
                 autocomplete="off">
-            <div id="vault-confirm-word" style="display:none;"></div>
-            <div style="display:flex;gap:0.75rem;margin-top:1.25rem;">
+            <div id="vault-confirm-word" class="is-hidden"></div>
+            <div class="vault-modal-actions">
                 <button id="vault-cancel-btn" type="button" onclick="vaultDeleteCancel()"
-                    style="flex:1;padding:0.6rem 1rem;border-radius:8px;border:1px solid var(--border-subtle);background:var(--surface-elevated);color:var(--text-primary);cursor:pointer;font-size:0.9rem;"></button>
+                    class="vault-btn vault-btn-cancel"></button>
                 <button id="vault-confirm-btn" type="button" onclick="vaultDeleteConfirm()" disabled
-                    style="flex:1;padding:0.6rem 1rem;border-radius:8px;border:1px solid rgba(239,68,68,0.4);background:rgba(239,68,68,0.12);color:#f87171;cursor:pointer;font-size:0.9rem;font-weight:600;"></button>
+                    class="vault-btn vault-btn-confirm"></button>
             </div>
         </div>
     </div>

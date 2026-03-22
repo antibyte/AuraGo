@@ -543,6 +543,106 @@ select.cfg-input option {
     display: inline;
 }
 
+.cfg-logo-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+}
+
+.cfg-restart-danger {
+    color: var(--danger);
+    border-color: rgba(239, 68, 68, 0.3);
+}
+
+.cfg-loading-state {
+    text-align: center;
+    padding: 4rem 1rem;
+    color: var(--text-secondary);
+}
+
+.cfg-loading-icon {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+}
+
+.cfg-loading-text {
+    font-size: 1rem;
+}
+
+.vault-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9000;
+    background: rgba(0, 0, 0, 0.7);
+    align-items: center;
+    justify-content: center;
+}
+
+.vault-modal-card {
+    background: var(--modal-surface);
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    border-radius: 14px;
+    padding: 2rem;
+    max-width: 480px;
+    width: 90%;
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+}
+
+.vault-modal-icon {
+    font-size: 3rem;
+    text-align: center;
+    margin-bottom: 0.5rem;
+}
+
+.vault-modal-title {
+    color: #f87171;
+    text-align: center;
+    margin: 0 0 1rem;
+    font-size: 1.15rem;
+}
+
+.vault-modal-desc {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    line-height: 1.65;
+    margin-bottom: 1.25rem;
+    text-align: center;
+}
+
+.vault-confirm-input {
+    text-align: center;
+    letter-spacing: 0.12em;
+    font-size: 1rem;
+}
+
+.vault-modal-actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 1.25rem;
+}
+
+.vault-btn {
+    flex: 1;
+    padding: 0.6rem 1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+.vault-btn-cancel {
+    border: 1px solid var(--border-subtle);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+.vault-btn-confirm {
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    background: rgba(239, 68, 68, 0.12);
+    color: #f87171;
+    font-weight: 600;
+}
+
 @media (max-width: 767px) {
     .cfg-hamburger {
         display: grid !important;

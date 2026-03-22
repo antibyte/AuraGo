@@ -2,411 +2,411 @@
 <html lang="{{.Lang}}">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AuraGo – Dashboard</title>
-    <link rel="stylesheet" href="/shared.css">
-    <script src="/shared.js"></script>
-    <script>const I18N={{.I18N}};</script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
-    <link rel="stylesheet" href="/css/dashboard.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AuraGo – Dashboard</title>
+  <link rel="stylesheet" href="/shared.css">
+  <script src="/shared.js"></script>
+  <script>const I18N={{.I18N}};</script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="/css/dashboard.css">
 
 <body>
 
-    <!-- Header -->
-    <header class="app-header">
-        <a href="/" class="logo">
-            <div class="logo-icon">📊</div>
-            <span style="color: var(--accent);">AURA</span><span style="color: var(--text-primary);">GO</span>
-            <span style="font-weight:300;opacity:0.5;margin-left:0.3rem;" class="logo-subtitle" data-i18n="dashboard.logo_subtitle">DASHBOARD</span>
-        </a>
-        <div class="header-actions">
-            <button id="theme-toggle" class="btn-theme" data-i18n-title="common.toggle_theme" title="Toggle theme"></button>
+  <!-- Header -->
+  <header class="app-header">
+    <a href="/" class="logo">
+      <div class="logo-icon">📊</div>
+      <span class="logo-wordmark-accent">AURA</span><span class="logo-wordmark-base">GO</span>
+      <span class="logo-subtitle" data-i18n="dashboard.logo_subtitle">DASHBOARD</span>
+    </a>
+    <div class="header-actions">
+      <button id="theme-toggle" class="btn-theme" data-i18n-title="common.toggle_theme" title="Toggle theme"></button>
+    </div>
+  </header>
+
+  <div id="radialMenuAnchor"></div>
+
+  <!-- Agent Status Banner – always visible above tabs -->
+  <div class="dash-banner-always">
+    <div class="dash-card dash-full-width" id="card-agent-banner">
+      <div class="dash-card-header"><span class="card-icon">🤖</span> <span data-i18n="dashboard.agent_banner_title">Agent-Status</span></div>
+      <div class="dash-card-body">
+        <div class="agent-banner" id="agent-banner">
+          <div class="agent-banner-item"><span class="status-dot gray" id="ab-status-dot"></span> <strong id="ab-model">—</strong></div>
+          <div class="agent-banner-sep"></div>
+          <div class="agent-banner-item">🎭 <strong id="ab-personality">—</strong></div>
+          <div class="agent-banner-sep"></div>
+          <div class="agent-banner-item context-gauge">📐 <span data-i18n="dashboard.agent_banner_context">Kontext:</span> <div class="context-gauge-bar"><div class="context-gauge-fill" id="ab-ctx-fill"></div></div> <span id="ab-ctx-pct">—</span></div>
+          <div class="agent-banner-sep"></div>
+          <div class="agent-banner-item" id="ab-integrations">🔌 <strong>—</strong> <span data-i18n="dashboard.agent_banner_integrations">Integrationen</span></div>
+          <div class="agent-banner-sep"></div>
+          <div class="agent-banner-item" id="ab-last-activity">💬 <span>—</span></div>
         </div>
-    </header>
+      </div>
+    </div>
+  </div><!-- .dash-banner-always -->
 
-    <div id="radialMenuAnchor"></div>
+  <!-- Tab Navigation -->
+  <nav class="dash-tabs" id="dashTabs">
+    <button class="dash-tab active" data-tab="overview">
+      <span class="tab-icon">🏠</span><span class="tab-label" data-i18n="dashboard.tab_overview">Übersicht</span>
+    </button>
+    <button class="dash-tab" data-tab="agent">
+      <span class="tab-icon">🧠</span><span class="tab-label" data-i18n="dashboard.tab_agent">Agent</span>
+    </button>
+    <button class="dash-tab" data-tab="user">
+      <span class="tab-icon">👤</span><span class="tab-label" data-i18n="dashboard.tab_user">Benutzer</span>
+    </button>
+    <button class="dash-tab" data-tab="system">
+      <span class="tab-icon">⚙️</span><span class="tab-label" data-i18n="dashboard.tab_system">System</span>
+    </button>
+  </nav>
 
-    <!-- Agent Status Banner – always visible above tabs -->
-    <div class="dash-banner-always">
-        <div class="dash-card dash-full-width" id="card-agent-banner">
-            <div class="dash-card-header"><span class="card-icon">🤖</span> <span data-i18n="dashboard.agent_banner_title">Agent-Status</span></div>
-            <div class="dash-card-body">
-                <div class="agent-banner" id="agent-banner">
-                    <div class="agent-banner-item"><span class="status-dot gray" id="ab-status-dot"></span> <strong id="ab-model">—</strong></div>
-                    <div class="agent-banner-sep"></div>
-                    <div class="agent-banner-item">🎭 <strong id="ab-personality">—</strong></div>
-                    <div class="agent-banner-sep"></div>
-                    <div class="agent-banner-item context-gauge">📐 <span data-i18n="dashboard.agent_banner_context">Kontext:</span> <div class="context-gauge-bar"><div class="context-gauge-fill" id="ab-ctx-fill" style="width:0%"></div></div> <span id="ab-ctx-pct">—</span></div>
-                    <div class="agent-banner-sep"></div>
-                    <div class="agent-banner-item" id="ab-integrations">🔌 <strong>—</strong> <span data-i18n="dashboard.agent_banner_integrations">Integrationen</span></div>
-                    <div class="agent-banner-sep"></div>
-                    <div class="agent-banner-item" id="ab-last-activity">💬 <span>—</span></div>
-                </div>
-            </div>
+  <!-- ═══ Tab 1: Übersicht ═══════════════════════════════════════════════ -->
+  <div class="dash-tab-panel" id="tab-overview">
+    <div class="dash-grid">
+
+    <!-- 1. System Health -->
+    <div class="dash-card" id="card-system">
+      <div class="dash-card-header"><span class="card-icon">🖥️</span> <span data-i18n="dashboard.system_title">Systemstatus</span></div>
+      <div class="dash-card-body">
+        <div class="gauge-grid">
+          <div class="gauge-item">
+            <canvas id="cpu-chart"></canvas>
+            <div class="gauge-value" id="cpu-val">—</div>
+            <div class="gauge-label" data-i18n="dashboard.system_cpu">CPU</div>
+          </div>
+          <div class="gauge-item">
+            <canvas id="ram-chart"></canvas>
+            <div class="gauge-value" id="ram-val">—</div>
+            <div class="gauge-label" data-i18n="dashboard.system_ram">RAM</div>
+          </div>
+          <div class="gauge-item">
+            <canvas id="disk-chart"></canvas>
+            <div class="gauge-value" id="disk-val">—</div>
+            <div class="gauge-label" data-i18n="dashboard.system_disk">Festplatte</div>
+          </div>
         </div>
-    </div><!-- .dash-banner-always -->
-
-    <!-- Tab Navigation -->
-    <nav class="dash-tabs" id="dashTabs">
-        <button class="dash-tab active" data-tab="overview">
-            <span class="tab-icon">🏠</span><span class="tab-label" data-i18n="dashboard.tab_overview">Übersicht</span>
-        </button>
-        <button class="dash-tab" data-tab="agent">
-            <span class="tab-icon">🧠</span><span class="tab-label" data-i18n="dashboard.tab_agent">Agent</span>
-        </button>
-        <button class="dash-tab" data-tab="user">
-            <span class="tab-icon">👤</span><span class="tab-label" data-i18n="dashboard.tab_user">Benutzer</span>
-        </button>
-        <button class="dash-tab" data-tab="system">
-            <span class="tab-icon">⚙️</span><span class="tab-label" data-i18n="dashboard.tab_system">System</span>
-        </button>
-    </nav>
-
-    <!-- ═══ Tab 1: Übersicht ═══════════════════════════════════════════════ -->
-    <div class="dash-tab-panel" id="tab-overview">
-        <div class="dash-grid">
-
-        <!-- 1. System Health -->
-        <div class="dash-card" id="card-system">
-            <div class="dash-card-header"><span class="card-icon">🖥️</span> <span data-i18n="dashboard.system_title">Systemstatus</span></div>
-            <div class="dash-card-body">
-                <div class="gauge-grid">
-                    <div class="gauge-item">
-                        <canvas id="cpu-chart"></canvas>
-                        <div class="gauge-value" id="cpu-val">—</div>
-                        <div class="gauge-label" data-i18n="dashboard.system_cpu">CPU</div>
-                    </div>
-                    <div class="gauge-item">
-                        <canvas id="ram-chart"></canvas>
-                        <div class="gauge-value" id="ram-val">—</div>
-                        <div class="gauge-label" data-i18n="dashboard.system_ram">RAM</div>
-                    </div>
-                    <div class="gauge-item">
-                        <canvas id="disk-chart"></canvas>
-                        <div class="gauge-value" id="disk-val">—</div>
-                        <div class="gauge-label" data-i18n="dashboard.system_disk">Festplatte</div>
-                    </div>
-                </div>
-                <div class="stats-grid" id="system-stats">
-                    <div class="stat-item">
-                        <div class="stat-value" id="net-sent">—</div>
-                        <div class="stat-label" data-i18n="dashboard.system_net_sent">Netz ↑</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-value" id="net-recv">—</div>
-                        <div class="stat-label" data-i18n="dashboard.system_net_recv">Netz ↓</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-value" id="sse-clients">—</div>
-                        <div class="stat-label" data-i18n="dashboard.system_sse_clients">SSE Clients</div>
-                    </div>
-                </div>
-                <div class="stats-grid" style="grid-template-columns:1fr;margin-top:0.5rem;">
-                    <div class="stat-item">
-                        <div class="stat-value" id="uptime-val">—</div>
-                        <div class="stat-label" data-i18n="dashboard.system_uptime">Betriebszeit</div>
-                    </div>
-                </div>
-            </div>
+        <div class="stats-grid" id="system-stats">
+          <div class="stat-item">
+            <div class="stat-value" id="net-sent">—</div>
+            <div class="stat-label" data-i18n="dashboard.system_net_sent">Netz ↑</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value" id="net-recv">—</div>
+            <div class="stat-label" data-i18n="dashboard.system_net_recv">Netz ↓</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value" id="sse-clients">—</div>
+            <div class="stat-label" data-i18n="dashboard.system_sse_clients">SSE Clients</div>
+          </div>
         </div>
-
-        <!-- 2. Budget & Tokens -->
-        <div class="dash-card" id="card-budget">
-            <div class="dash-card-header"><span class="card-icon">💰</span> <span data-i18n="dashboard.budget_title">Budget & Tokens</span></div>
-            <div class="dash-card-body">
-                <div id="budget-content">
-                    <div class="budget-badges" id="budget-badges"></div>
-                    <div class="budget-layout">
-                        <div class="budget-doughnut-wrap">
-                            <canvas id="budget-chart"></canvas>
-                            <div class="budget-center">
-                                <div class="amount" id="budget-spent">$0.00</div>
-                                <div class="sublabel" id="budget-sublabel">of $0.00</div>
-                            </div>
-                        </div>
-                        <div class="budget-bar-wrap">
-                            <canvas id="budget-models-chart"></canvas>
-                        </div>
-                    </div>
-                    <div class="budget-reset" id="budget-reset"></div>
-                    <div class="credits-row" id="credits-row" style="display:none;">
-                        <span data-i18n="dashboard.budget_openrouter_credits">OpenRouter Guthaben</span>
-                        <span class="credits-val" id="credits-balance">—</span>
-                    </div>
-                    <!-- Per-LLM average token consumption -->
-                    <div id="budget-llm-avg-wrap" style="margin-top:0.75rem;display:none;">
-                        <h4 style="margin:0 0 0.5rem;font-size:var(--text-sm);color:var(--text-secondary);" data-i18n="dashboard.budget_llm_avg_title">Ø Token-Verbrauch / Anfrage</h4>
-                        <div style="position:relative;height:130px;">
-                            <canvas id="budget-llm-avg-chart"></canvas>
-                        </div>
-                    </div>
-                </div>
-                <div id="budget-disabled" class="empty-state" style="display:none;" data-i18n="dashboard.budget_disabled">Budget-Tracking deaktiviert.</div>
-            </div>
+        <div class="stats-grid stats-grid-single">
+          <div class="stat-item">
+            <div class="stat-value" id="uptime-val">—</div>
+            <div class="stat-label" data-i18n="dashboard.system_uptime">Betriebszeit</div>
+          </div>
         </div>
-
-        </div><!-- .dash-grid tab-overview -->
-    </div><!-- #tab-overview -->
-
-    <!-- ═══ Tab 2: Agent & Memory ═══════════════════════════════════════════ -->
-    <div class="dash-tab-panel" id="tab-agent" style="display:none;">
-        <div class="dash-grid">
-
-        <!-- 3. Personality Traits + Mood Inline -->
-        <div class="dash-card" id="card-personality">
-            <div class="dash-card-header"><span class="card-icon">🧠</span> <span data-i18n="dashboard.personality_title">Persönlichkeit</span></div>
-            <div class="dash-card-body">
-                <div id="personality-content" class="personality-layout">
-                    <canvas id="traits-chart"></canvas>
-                    <div class="mood-badge" id="mood-badge" data-i18n="dashboard.personality_default_mood">Neugierig</div>
-                    <div class="mood-trigger-text" id="mood-trigger"></div>
-                    <div class="emotion-display" id="emotion-display" style="display:none;">
-                        <div class="emotion-label">💭 <span data-i18n="dashboard.emotion_label">Emotionaler Zustand</span></div>
-                        <div class="emotion-text" id="emotion-text"></div>
-                    </div>
-                    <!-- Inline Mood Mini-Chart -->
-                    <div class="mood-mini-wrap">
-                        <div class="mood-mini-header">
-                            <span>📈 <span data-i18n="dashboard.personality_mood_timeline">Stimmungsverlauf</span></span>
-                            <div class="mood-mini-btns">
-                                <button class="mood-btn" data-hours="1" data-i18n="dashboard.personality_btn_1h">1h</button>
-                                <button class="mood-btn" data-hours="6" data-i18n="dashboard.personality_btn_6h">6h</button>
-                                <button class="mood-btn active" data-hours="24" data-i18n="dashboard.personality_btn_24h">24h</button>
-                                <button class="mood-btn" data-hours="168" data-i18n="dashboard.personality_btn_7d">7d</button>
-                                <button class="mood-btn" data-hours="720" data-i18n="dashboard.personality_btn_30d">30d</button>
-                            </div>
-                        </div>
-                        <div class="mood-mini-chart-wrap">
-                            <canvas id="mood-chart"></canvas>
-                        </div>
-                    </div>
-                </div>
-                <div id="personality-disabled" class="empty-state" style="display:none;" data-i18n="dashboard.personality_disabled">Persönlichkeits-Engine deaktiviert.</div>
-            </div>
-        </div>
-
-        <!-- 5. Memory & Knowledge -->
-        <div class="dash-card" id="card-memory">
-            <div class="dash-card-header"><span class="card-icon">🧩</span> <span data-i18n="dashboard.memory_title">Gedächtnis</span></div>
-            <div class="dash-card-body">
-                <div class="memory-stats-grid" id="memory-stats"></div>
-                <div class="memory-bar-wrap">
-                    <canvas id="memory-chart"></canvas>
-                </div>
-                <div class="milestone-list" id="milestone-list"></div>
-                <!-- Error Patterns -->
-                <div id="error-patterns-wrap" style="display:none;margin-top:0.75rem;">
-                    <h4 class="card-section-title" data-i18n="dashboard.errors_title">Fehler-Muster</h4>
-                    <div id="error-patterns-list"></div>
-                </div>
-            </div>
-        </div>
-
-        </div><!-- .dash-grid tab-agent -->
-    </div><!-- #tab-agent -->
-
-    <!-- ═══ Tab 3: Benutzer & Journal ═══════════════════════════════════════ -->
-    <div class="dash-tab-panel" id="tab-user" style="display:none;">
-        <div class="dash-grid">
-
-        <!-- 6. User Profile -->
-        <div class="dash-card" id="card-profile">
-            <div class="dash-card-header"><span class="card-icon">👤</span> <span data-i18n="dashboard.profile_title">Nutzerprofil</span></div>
-            <div class="dash-card-body">
-                <input type="text" class="profile-search" id="profile-search" data-i18n-placeholder="dashboard.profile_search_placeholder" placeholder="Profil durchsuchen...">
-                <div class="profile-scroll" id="profile-content"></div>
-            </div>
-        </div>
-
-        <!-- 6b. Journal Timeline -->
-        <div class="dash-card" id="card-journal">
-            <div class="dash-card-header"><span class="card-icon">📔</span> <span data-i18n="dashboard.journal_title">Journal</span></div>
-            <div class="dash-card-body">
-                <div class="journal-summary" id="journal-summary"></div>
-                <!-- Sentiment Trend -->
-                <div id="journal-sentiment-wrap" style="display:none;margin-top:0.5rem;">
-                    <h4 class="card-section-title" data-i18n="dashboard.journal_sentiment_trend">Stimmungs-Verlauf</h4>
-                    <div class="journal-sentiment-row" id="journal-sentiment-row"></div>
-                    <div id="journal-key-topics-wrap" style="margin-top:0.5rem;"></div>
-                </div>
-                <div class="journal-timeline" id="journal-timeline">
-                    <div class="empty-state" data-i18n="dashboard.journal_empty">Noch keine Einträge.</div>
-                </div>
-            </div>
-        </div>
-
-        </div><!-- .dash-grid tab-user -->
-    </div><!-- #tab-user -->
-
-    <!-- ═══ Tab 4: System & Logs ════════════════════════════════════════════ -->
-    <div class="dash-tab-panel" id="tab-system" style="display:none;">
-        <div class="dash-grid">
-
-        <!-- 7. Operations Overview -->
-        <div class="dash-card" id="card-operations">
-            <div class="dash-card-header"><span class="card-icon">⚙️</span> <span data-i18n="dashboard.operations_title">Betrieb & Dienste</span></div>
-            <div class="dash-card-body">
-                <div class="ops-grid" id="ops-grid"></div>
-                <div class="integration-grid" id="integration-grid"></div>
-            </div>
-        </div>
-
-        <!-- 7b. LLM Guardian Security -->
-        <div class="dash-card" id="card-guardian" style="display:none;">
-            <div class="dash-card-header"><span class="card-icon">🛡️</span> <span data-i18n="dashboard.guardian_title">LLM Guardian</span></div>
-            <div class="dash-card-body">
-                <div id="guardian-status"></div>
-                <div id="guardian-metrics"></div>
-            </div>
-        </div>
-
-        <!-- 8. Activity & Automations (full width) -->
-        <div class="dash-card dash-full-width" id="card-activity">
-            <div class="dash-card-header"><span class="card-icon">⚡</span> <span data-i18n="dashboard.activity_title">Aktivität</span> <span class="collapse-toggle" data-card="card-activity" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
-            <div class="dash-card-body">
-                <div class="activity-grid" id="activity-stats"></div>
-                <div id="activity-details"></div>
-            </div>
-        </div>
-
-        <!-- 9. Prompt Builder Analytics (full width) -->
-        <div class="dash-card dash-full-width" id="card-prompt">
-            <div class="dash-card-header"><span class="card-icon">📝</span> <span data-i18n="dashboard.prompt_title">Prompt-Analyse</span> <span class="collapse-toggle" data-card="card-prompt" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
-            <div class="dash-card-body">
-                <div id="prompt-no-data" class="empty-state" data-i18n="dashboard.prompt_no_data">Noch keine Daten. Statistiken erscheinen nach dem ersten
-                    Gespräch und werden bei Serverneustart gelöscht.</div>
-                <div id="prompt-content" style="display:none;">
-                    <div class="prompt-kpi-grid" id="prompt-kpis"></div>
-                    <div class="prompt-details-grid">
-                        <div>
-                            <h4 style="margin:0 0 0.5rem;font-size:var(--text-sm);color:var(--text-secondary);" data-i18n="dashboard.prompt_history">Prompt-Verlauf</h4>
-                            <div class="prompt-chart-wrap">
-                                <canvas id="prompt-size-chart"></canvas>
-                            </div>
-                        </div>
-                        <div>
-                            <h4 style="margin:0 0 0.5rem;font-size:var(--text-sm);color:var(--text-secondary);" data-i18n="dashboard.prompt_tier_distribution">Tier-Verteilung</h4>
-                            <div class="prompt-chart-wrap">
-                                <canvas id="prompt-tier-chart"></canvas>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="prompt-details-grid" style="margin-top:0.75rem;">
-                        <div>
-                            <h4 style="margin:0 0 0.5rem;font-size:var(--text-sm);color:var(--text-secondary);" data-i18n="dashboard.prompt_budget_shed_sections">Budget Shed Bereiche</h4>
-                            <div class="shed-list" id="shed-list"></div>
-                        </div>
-                        <div>
-                            <h4 style="margin:0 0 0.5rem;font-size:var(--text-sm);color:var(--text-secondary);" data-i18n="dashboard.prompt_savings">Einsparungen</h4>
-                            <div class="prompt-chart-wrap">
-                                <canvas id="prompt-savings-chart"></canvas>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- Savings breakdown KPIs -->
-                    <div style="margin-top:0.75rem;">
-                        <h4 style="margin:0 0 0.5rem;font-size:var(--text-sm);color:var(--text-secondary);" data-i18n="dashboard.prompt_savings_breakdown_title">Einspar-Analyse</h4>
-                        <div class="prompt-kpi-grid" id="prompt-savings-kpis"></div>
-                    </div>
-                    <!-- Prompt section distribution -->
-                    <div class="prompt-details-grid" style="margin-top:0.75rem;">
-                        <div>
-                            <h4 style="margin:0 0 0.5rem;font-size:var(--text-sm);color:var(--text-secondary);" data-i18n="dashboard.prompt_section_dist">Ø Prompt-Verteilung</h4>
-                            <div class="prompt-chart-wrap" style="height:200px;">
-                                <canvas id="prompt-section-dist-chart"></canvas>
-                            </div>
-                        </div>
-                        <div>
-                            <h4 style="margin:0 0 0.5rem;font-size:var(--text-sm);color:var(--text-secondary);" data-i18n="dashboard.prompt_section_dist_hint">Zeichen je Bereich (Durchschnitt)</h4>
-                            <div class="prompt-section-legend" id="prompt-section-legend"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 10. GitHub Repositories (full width) -->
-        <div class="dash-card dash-full-width" id="card-adaptive-tools" style="display:none;">
-            <div class="dash-card-header"><span class="card-icon">🔧</span> <span data-i18n="dashboard.adaptive_tools_title">Adaptive Tool-Filterung</span> <span class="collapse-toggle" data-card="card-adaptive-tools" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
-            <div class="dash-card-body">
-                <div class="prompt-kpi-grid" id="adaptive-tools-kpis"></div>
-                <div id="adaptive-tools-list" style="margin-top:0.75rem;"></div>
-            </div>
-        </div>
-
-        <!-- 11. GitHub Repositories (full width) -->
-        <div class="dash-card dash-full-width" id="card-github" style="display:none;">
-            <div class="dash-card-header"><span class="card-icon">🐙</span> <span data-i18n="dashboard.github_title">GitHub Repositories</span> <span class="collapse-toggle" data-card="card-github" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
-            <div class="dash-card-body">
-                <div id="github-content"></div>
-            </div>
-        </div>
-
-        <!-- 11. Log Viewer (full width) -->
-        <div class="dash-card dash-full-width" id="card-logs">
-            <div class="dash-card-header"><span class="card-icon">📋</span> <span data-i18n="dashboard.logs_title">Live-Log</span> <span class="collapse-toggle" data-card="card-logs" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
-            <div class="dash-card-body">
-                <div class="log-controls">
-                    <input type="text" id="log-filter" data-i18n-placeholder="dashboard.logs_filter_placeholder" placeholder="Logs filtern (Regex unterstützt)...">
-                    <button class="log-btn" id="log-scroll-btn" data-i18n-title="dashboard.logs_scroll_to_bottom_title" title="Zum Ende springen" data-i18n="dashboard.logs_scroll_to_bottom">⬇ Aktuell</button>
-                    <button class="log-btn" id="log-refresh-btn" data-i18n-title="dashboard.logs_refresh_title" title="Logs neu laden" data-i18n="dashboard.logs_refresh">🔄 Aktualisieren</button>
-                </div>
-                <div class="log-viewer" id="log-viewer">
-                    <div class="log-line" style="color:var(--text-secondary);" data-i18n="dashboard.logs_loading">Logs werden geladen...</div>
-                </div>
-                <div class="log-meta" id="log-meta"></div>
-            </div>
-        </div>
-
-    </div><!-- .dash-grid tab-system -->
-    </div><!-- #tab-system -->
-
-    <script src="/js/dashboard/main.js"></script>
-
-    <!-- Core-Facts Modal -->
-    <div class="cf-overlay" id="cfOverlay">
-        <div class="cf-modal">
-            <div class="cf-header">
-                <span class="cf-title">🧠 <span data-i18n="dashboard.core_facts_modal_title">Kernfakten</span></span>
-                <button class="cf-close" id="cfClose" data-i18n-title="common.btn_close" title="Schließen">&times;</button>
-            </div>
-            <div class="cf-body" id="cfBody">
-                <div class="empty-state" data-i18n="dashboard.core_facts_modal_loading">Wird geladen…</div>
-            </div>
-        </div>
+      </div>
     </div>
 
-    <!-- Cron Edit Modal -->
-    <div class="cf-overlay" id="cronEditOverlay">
-        <div class="cf-modal">
-            <div class="cf-header">
-                <span class="cf-title">⏰ <span data-i18n="dashboard.cron_edit_title">Aufgabe bearbeiten</span></span>
-                <button class="cf-close" id="cronEditClose">&times;</button>
+    <!-- 2. Budget & Tokens -->
+    <div class="dash-card" id="card-budget">
+      <div class="dash-card-header"><span class="card-icon">💰</span> <span data-i18n="dashboard.budget_title">Budget & Tokens</span></div>
+      <div class="dash-card-body">
+        <div id="budget-content">
+          <div class="budget-badges" id="budget-badges"></div>
+          <div class="budget-layout">
+            <div class="budget-doughnut-wrap">
+              <canvas id="budget-chart"></canvas>
+              <div class="budget-center">
+                <div class="amount" id="budget-spent">$0.00</div>
+                <div class="sublabel" id="budget-sublabel">of $0.00</div>
+              </div>
             </div>
-            <div class="cf-body">
-                <div class="cron-edit-form">
-                    <div class="cron-form-group">
-                        <label class="cron-form-label" data-i18n="dashboard.cron_edit_id_label">Aufgaben-ID</label>
-                        <input type="text" id="cronEditId" class="cf-add-input cron-edit-id" readonly>
-                    </div>
-                    <div class="cron-form-group">
-                        <label class="cron-form-label" data-i18n="dashboard.cron_edit_expr_label">Cron-Ausdruck</label>
-                        <input type="text" id="cronEditExpr" class="cf-add-input" placeholder="0 0 9 * * *">
-                    </div>
-                    <div class="cron-form-group">
-                        <label class="cron-form-label" data-i18n="dashboard.cron_edit_prompt_label">Aufgaben-Prompt</label>
-                        <textarea id="cronEditPrompt" class="cf-add-input cron-edit-textarea" rows="4"></textarea>
-                    </div>
-                    <div class="cron-form-actions">
-                        <button class="cf-add-btn cron-btn-cancel" onclick="closeCronEditModal()" data-i18n="dashboard.cron_edit_cancel">Abbrechen</button>
-                        <button class="cf-add-btn" id="cronEditSaveBtn" onclick="saveCronEdit()" data-i18n="dashboard.cron_edit_save">Speichern</button>
-                    </div>
-                </div>
+            <div class="budget-bar-wrap">
+              <canvas id="budget-models-chart"></canvas>
             </div>
+          </div>
+          <div class="budget-reset" id="budget-reset"></div>
+          <div class="credits-row" id="credits-row">
+            <span data-i18n="dashboard.budget_openrouter_credits">OpenRouter Guthaben</span>
+            <span class="credits-val" id="credits-balance">—</span>
+          </div>
+          <!-- Per-LLM average token consumption -->
+          <div id="budget-llm-avg-wrap" class="mt-sm">
+            <h4 class="dash-subheading" data-i18n="dashboard.budget_llm_avg_title">Ø Token-Verbrauch / Anfrage</h4>
+            <div class="chart-wrap-sm">
+              <canvas id="budget-llm-avg-chart"></canvas>
+            </div>
+          </div>
         </div>
+        <div id="budget-disabled" class="empty-state" data-i18n="dashboard.budget_disabled">Budget-Tracking deaktiviert.</div>
+      </div>
     </div>
+
+    </div><!-- .dash-grid tab-overview -->
+  </div><!-- #tab-overview -->
+
+  <!-- ═══ Tab 2: Agent & Memory ═══════════════════════════════════════════ -->
+  <div class="dash-tab-panel" id="tab-agent">
+    <div class="dash-grid">
+
+    <!-- 3. Personality Traits + Mood Inline -->
+    <div class="dash-card" id="card-personality">
+      <div class="dash-card-header"><span class="card-icon">🧠</span> <span data-i18n="dashboard.personality_title">Persönlichkeit</span></div>
+      <div class="dash-card-body">
+        <div id="personality-content" class="personality-layout">
+          <canvas id="traits-chart"></canvas>
+          <div class="mood-badge" id="mood-badge" data-i18n="dashboard.personality_default_mood">Neugierig</div>
+          <div class="mood-trigger-text" id="mood-trigger"></div>
+          <div class="emotion-display" id="emotion-display">
+            <div class="emotion-label">💭 <span data-i18n="dashboard.emotion_label">Emotionaler Zustand</span></div>
+            <div class="emotion-text" id="emotion-text"></div>
+          </div>
+          <!-- Inline Mood Mini-Chart -->
+          <div class="mood-mini-wrap">
+            <div class="mood-mini-header">
+              <span>📈 <span data-i18n="dashboard.personality_mood_timeline">Stimmungsverlauf</span></span>
+              <div class="mood-mini-btns">
+                <button class="mood-btn" data-hours="1" data-i18n="dashboard.personality_btn_1h">1h</button>
+                <button class="mood-btn" data-hours="6" data-i18n="dashboard.personality_btn_6h">6h</button>
+                <button class="mood-btn active" data-hours="24" data-i18n="dashboard.personality_btn_24h">24h</button>
+                <button class="mood-btn" data-hours="168" data-i18n="dashboard.personality_btn_7d">7d</button>
+                <button class="mood-btn" data-hours="720" data-i18n="dashboard.personality_btn_30d">30d</button>
+              </div>
+            </div>
+            <div class="mood-mini-chart-wrap">
+              <canvas id="mood-chart"></canvas>
+            </div>
+          </div>
+        </div>
+        <div id="personality-disabled" class="empty-state" data-i18n="dashboard.personality_disabled">Persönlichkeits-Engine deaktiviert.</div>
+      </div>
+    </div>
+
+    <!-- 5. Memory & Knowledge -->
+    <div class="dash-card" id="card-memory">
+      <div class="dash-card-header"><span class="card-icon">🧩</span> <span data-i18n="dashboard.memory_title">Gedächtnis</span></div>
+      <div class="dash-card-body">
+        <div class="memory-stats-grid" id="memory-stats"></div>
+        <div class="memory-bar-wrap">
+          <canvas id="memory-chart"></canvas>
+        </div>
+        <div class="milestone-list" id="milestone-list"></div>
+        <!-- Error Patterns -->
+        <div id="error-patterns-wrap" class="mt-sm">
+          <h4 class="card-section-title" data-i18n="dashboard.errors_title">Fehler-Muster</h4>
+          <div id="error-patterns-list"></div>
+        </div>
+      </div>
+    </div>
+
+    </div><!-- .dash-grid tab-agent -->
+  </div><!-- #tab-agent -->
+
+  <!-- ═══ Tab 3: Benutzer & Journal ═══════════════════════════════════════ -->
+  <div class="dash-tab-panel" id="tab-user">
+    <div class="dash-grid">
+
+    <!-- 6. User Profile -->
+    <div class="dash-card" id="card-profile">
+      <div class="dash-card-header"><span class="card-icon">👤</span> <span data-i18n="dashboard.profile_title">Nutzerprofil</span></div>
+      <div class="dash-card-body">
+        <input type="text" class="profile-search" id="profile-search" data-i18n-placeholder="dashboard.profile_search_placeholder" placeholder="Profil durchsuchen...">
+        <div class="profile-scroll" id="profile-content"></div>
+      </div>
+    </div>
+
+    <!-- 6b. Journal Timeline -->
+    <div class="dash-card" id="card-journal">
+      <div class="dash-card-header"><span class="card-icon">📔</span> <span data-i18n="dashboard.journal_title">Journal</span></div>
+      <div class="dash-card-body">
+        <div class="journal-summary" id="journal-summary"></div>
+        <!-- Sentiment Trend -->
+        <div id="journal-sentiment-wrap" class="mt-xs">
+          <h4 class="card-section-title" data-i18n="dashboard.journal_sentiment_trend">Stimmungs-Verlauf</h4>
+          <div class="journal-sentiment-row" id="journal-sentiment-row"></div>
+          <div id="journal-key-topics-wrap" class="mt-xs"></div>
+        </div>
+        <div class="journal-timeline" id="journal-timeline">
+          <div class="empty-state" data-i18n="dashboard.journal_empty">Noch keine Einträge.</div>
+        </div>
+      </div>
+    </div>
+
+    </div><!-- .dash-grid tab-user -->
+  </div><!-- #tab-user -->
+
+  <!-- ═══ Tab 4: System & Logs ════════════════════════════════════════════ -->
+  <div class="dash-tab-panel" id="tab-system">
+    <div class="dash-grid">
+
+    <!-- 7. Operations Overview -->
+    <div class="dash-card" id="card-operations">
+      <div class="dash-card-header"><span class="card-icon">⚙️</span> <span data-i18n="dashboard.operations_title">Betrieb & Dienste</span></div>
+      <div class="dash-card-body">
+        <div class="ops-grid" id="ops-grid"></div>
+        <div class="integration-grid" id="integration-grid"></div>
+      </div>
+    </div>
+
+    <!-- 7b. LLM Guardian Security -->
+        <div class="dash-card is-hidden" id="card-guardian">
+      <div class="dash-card-header"><span class="card-icon">🛡️</span> <span data-i18n="dashboard.guardian_title">LLM Guardian</span></div>
+      <div class="dash-card-body">
+        <div id="guardian-status"></div>
+        <div id="guardian-metrics"></div>
+      </div>
+    </div>
+
+    <!-- 8. Activity & Automations (full width) -->
+    <div class="dash-card dash-full-width" id="card-activity">
+      <div class="dash-card-header"><span class="card-icon">⚡</span> <span data-i18n="dashboard.activity_title">Aktivität</span> <span class="collapse-toggle" data-card="card-activity" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
+      <div class="dash-card-body">
+        <div class="activity-grid" id="activity-stats"></div>
+        <div id="activity-details"></div>
+      </div>
+    </div>
+
+    <!-- 9. Prompt Builder Analytics (full width) -->
+    <div class="dash-card dash-full-width" id="card-prompt">
+      <div class="dash-card-header"><span class="card-icon">📝</span> <span data-i18n="dashboard.prompt_title">Prompt-Analyse</span> <span class="collapse-toggle" data-card="card-prompt" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
+      <div class="dash-card-body">
+        <div id="prompt-no-data" class="empty-state" data-i18n="dashboard.prompt_no_data">Noch keine Daten. Statistiken erscheinen nach dem ersten
+          Gespräch und werden bei Serverneustart gelöscht.</div>
+        <div id="prompt-content">
+          <div class="prompt-kpi-grid" id="prompt-kpis"></div>
+          <div class="prompt-details-grid">
+            <div>
+              <h4 class="dash-subheading" data-i18n="dashboard.prompt_history">Prompt-Verlauf</h4>
+              <div class="prompt-chart-wrap">
+                <canvas id="prompt-size-chart"></canvas>
+              </div>
+            </div>
+            <div>
+              <h4 class="dash-subheading" data-i18n="dashboard.prompt_tier_distribution">Tier-Verteilung</h4>
+              <div class="prompt-chart-wrap">
+                <canvas id="prompt-tier-chart"></canvas>
+              </div>
+            </div>
+          </div>
+          <div class="prompt-details-grid mt-sm">
+            <div>
+              <h4 class="dash-subheading" data-i18n="dashboard.prompt_budget_shed_sections">Budget Shed Bereiche</h4>
+              <div class="shed-list" id="shed-list"></div>
+            </div>
+            <div>
+              <h4 class="dash-subheading" data-i18n="dashboard.prompt_savings">Einsparungen</h4>
+              <div class="prompt-chart-wrap">
+                <canvas id="prompt-savings-chart"></canvas>
+              </div>
+            </div>
+          </div>
+          <!-- Savings breakdown KPIs -->
+          <div class="mt-sm">
+            <h4 class="dash-subheading" data-i18n="dashboard.prompt_savings_breakdown_title">Einspar-Analyse</h4>
+            <div class="prompt-kpi-grid" id="prompt-savings-kpis"></div>
+          </div>
+          <!-- Prompt section distribution -->
+          <div class="prompt-details-grid mt-sm">
+            <div>
+              <h4 class="dash-subheading" data-i18n="dashboard.prompt_section_dist">Ø Prompt-Verteilung</h4>
+              <div class="prompt-chart-wrap prompt-chart-wrap-lg">
+                <canvas id="prompt-section-dist-chart"></canvas>
+              </div>
+            </div>
+            <div>
+              <h4 class="dash-subheading" data-i18n="dashboard.prompt_section_dist_hint">Zeichen je Bereich (Durchschnitt)</h4>
+              <div class="prompt-section-legend" id="prompt-section-legend"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 10. GitHub Repositories (full width) -->
+        <div class="dash-card dash-full-width is-hidden" id="card-adaptive-tools">
+      <div class="dash-card-header"><span class="card-icon">🔧</span> <span data-i18n="dashboard.adaptive_tools_title">Adaptive Tool-Filterung</span> <span class="collapse-toggle" data-card="card-adaptive-tools" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
+      <div class="dash-card-body">
+        <div class="prompt-kpi-grid" id="adaptive-tools-kpis"></div>
+        <div id="adaptive-tools-list" class="mt-sm"></div>
+      </div>
+    </div>
+
+    <!-- 11. GitHub Repositories (full width) -->
+        <div class="dash-card dash-full-width is-hidden" id="card-github">
+      <div class="dash-card-header"><span class="card-icon">🐙</span> <span data-i18n="dashboard.github_title">GitHub Repositories</span> <span class="collapse-toggle" data-card="card-github" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
+      <div class="dash-card-body">
+        <div id="github-content"></div>
+      </div>
+    </div>
+
+    <!-- 11. Log Viewer (full width) -->
+    <div class="dash-card dash-full-width" id="card-logs">
+      <div class="dash-card-header"><span class="card-icon">📋</span> <span data-i18n="dashboard.logs_title">Live-Log</span> <span class="collapse-toggle" data-card="card-logs" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
+      <div class="dash-card-body">
+        <div class="log-controls">
+          <input type="text" id="log-filter" data-i18n-placeholder="dashboard.logs_filter_placeholder" placeholder="Logs filtern (Regex unterstützt)...">
+          <button class="log-btn" id="log-scroll-btn" data-i18n-title="dashboard.logs_scroll_to_bottom_title" title="Zum Ende springen" data-i18n="dashboard.logs_scroll_to_bottom">⬇ Aktuell</button>
+          <button class="log-btn" id="log-refresh-btn" data-i18n-title="dashboard.logs_refresh_title" title="Logs neu laden" data-i18n="dashboard.logs_refresh">🔄 Aktualisieren</button>
+        </div>
+        <div class="log-viewer" id="log-viewer">
+          <div class="log-line text-secondary" data-i18n="dashboard.logs_loading">Logs werden geladen...</div>
+        </div>
+        <div class="log-meta" id="log-meta"></div>
+      </div>
+    </div>
+
+  </div><!-- .dash-grid tab-system -->
+  </div><!-- #tab-system -->
+
+  <script src="/js/dashboard/main.js"></script>
+
+  <!-- Core-Facts Modal -->
+  <div class="cf-overlay" id="cfOverlay">
+    <div class="cf-modal">
+      <div class="cf-header">
+        <span class="cf-title">🧠 <span data-i18n="dashboard.core_facts_modal_title">Kernfakten</span></span>
+        <button class="cf-close" id="cfClose" data-i18n-title="common.btn_close" title="Schließen">&times;</button>
+      </div>
+      <div class="cf-body" id="cfBody">
+        <div class="empty-state" data-i18n="dashboard.core_facts_modal_loading">Wird geladen…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cron Edit Modal -->
+  <div class="cf-overlay" id="cronEditOverlay">
+    <div class="cf-modal">
+      <div class="cf-header">
+        <span class="cf-title">⏰ <span data-i18n="dashboard.cron_edit_title">Aufgabe bearbeiten</span></span>
+        <button class="cf-close" id="cronEditClose">&times;</button>
+      </div>
+      <div class="cf-body">
+        <div class="cron-edit-form">
+          <div class="cron-form-group">
+            <label class="cron-form-label" data-i18n="dashboard.cron_edit_id_label">Aufgaben-ID</label>
+            <input type="text" id="cronEditId" class="cf-add-input cron-edit-id" readonly>
+          </div>
+          <div class="cron-form-group">
+            <label class="cron-form-label" data-i18n="dashboard.cron_edit_expr_label">Cron-Ausdruck</label>
+            <input type="text" id="cronEditExpr" class="cf-add-input" placeholder="0 0 9 * * *">
+          </div>
+          <div class="cron-form-group">
+            <label class="cron-form-label" data-i18n="dashboard.cron_edit_prompt_label">Aufgaben-Prompt</label>
+            <textarea id="cronEditPrompt" class="cf-add-input cron-edit-textarea" rows="4"></textarea>
+          </div>
+          <div class="cron-form-actions">
+            <button class="cf-add-btn cron-btn-cancel" onclick="closeCronEditModal()" data-i18n="dashboard.cron_edit_cancel">Abbrechen</button>
+            <button class="cf-add-btn" id="cronEditSaveBtn" onclick="saveCronEdit()" data-i18n="dashboard.cron_edit_save">Speichern</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
 </body>
 
