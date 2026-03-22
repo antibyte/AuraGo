@@ -235,6 +235,12 @@
     z-index: 1000;
     padding: 2rem;
 }
+/* .media-modal {display:flex} and shared.css .is-hidden {display:none} have
+   equal selector specificity. Because media.css loads after shared.css,
+   flex wins — the modal is always shown. This higher-specificity rule fixes it. */
+.media-modal.is-hidden {
+    display: none;
+}
 
 .media-modal-content {
     background: var(--modal-surface);

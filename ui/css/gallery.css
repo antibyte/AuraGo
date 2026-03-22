@@ -265,6 +265,11 @@
     border-radius: 12px;
     padding: 4px;
     border: 1px solid var(--border-subtle);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
 }
 
 .media-tab {
