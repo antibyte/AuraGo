@@ -29,6 +29,7 @@ const SECTIONS = [
             { key: 'server', icon: '🌐', label: t('config.section.server.label'), desc: t('config.section.server.desc') },
             { key: 'directories', icon: '📁', label: t('config.section.directories.label'), desc: t('config.section.directories.desc') },
             { key: 'sqlite', icon: '🗄️', label: t('config.section.sqlite.label'), desc: t('config.section.sqlite.desc') },
+            { key: 'sql_connections', icon: '🔗', label: t('config.section.sql_connections.label'), desc: t('config.section.sql_connections.desc') },
             { key: 'web_config', icon: '🛡️', label: t('config.section.web_config.label'), desc: t('config.section.web_config.desc') },
             { key: 'logging', icon: '📋', label: t('config.section.logging.label'), desc: t('config.section.logging.desc') },
             { key: 'maintenance', icon: '🔧', label: t('config.section.maintenance.label'), desc: t('config.section.maintenance.desc') },
@@ -1033,7 +1034,8 @@ const SECTION_MODULES = {
     a2a: { m: 'a2a', fn: 'renderA2ASection' },
     n8n: { m: 'n8n', fn: 'renderN8nSection' },
     tts: { m: 'tts', fn: 'renderTTSSection' },
-    co_agents: { m: 'co_agents', fn: 'renderCoAgentsSection' }
+    co_agents: { m: 'co_agents', fn: 'renderCoAgentsSection' },
+    sql_connections: { m: 'sql_connections', fn: 'renderSQLConnectionsSection' }
 };
 
 function loadModule(name) {

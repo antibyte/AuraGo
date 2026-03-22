@@ -239,5 +239,7 @@
   "config.tts.piper_status_disabled": "Piper TTS is disabled",
   "config.tts.piper_status_running": "Piper TTS is running",
   "config.tts.piper_status_stopped": "Piper container is stopped",
-  "config.tts.piper_status_error": "Piper TTS error"
+  "config.tts.piper_status_error": "Piper TTS error",
+  "config.section.sql_connections.label": "SQL Connections",
+  "config.section.sql_connections.desc": "Manage external database connections for the agent"
 }

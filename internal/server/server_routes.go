@@ -461,6 +461,8 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 					MediaRegistryDB:    s.MediaRegistryDB,
 					HomepageRegistryDB: s.HomepageRegistryDB,
 					ContactsDB:         s.ContactsDB,
+					SQLConnectionsDB:   s.SQLConnectionsDB,
+					SQLConnectionPool:  s.SQLConnectionPool,
 					RemoteHub:          s.RemoteHub,
 					Vault:              s.Vault,
 					Registry:           s.Registry,
@@ -796,6 +798,17 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		// ── Contacts (Address Book) API ──
 		mux.HandleFunc("/api/contacts", handleContacts(s))
 		mux.HandleFunc("/api/contacts/", handleContactByID(s))
+
+		// ── SQL Connections API ──
+		mux.HandleFunc("/api/sql-connections", handleSQLConnections(s))
+		mux.HandleFunc("/api/sql-connections/", func(w http.ResponseWriter, r *http.Request) {
+			path := strings.TrimPrefix(r.URL.Path, "/api/sql-connections/")
+			if strings.HasSuffix(path, "/test") {
+				handleSQLConnectionTest(s)(w, r)
+			} else {
+				handleSQLConnectionByID(s)(w, r)
+			}
+		})
 
 		// ── Knowledge Files API ──
 		mux.HandleFunc("/api/knowledge", handleKnowledgeFiles(s))

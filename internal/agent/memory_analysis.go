@@ -207,6 +207,43 @@ func thresholdForMemoryCategory(defaultThreshold float64, category string) float
 	return defaultThreshold
 }
 
+// isAmbiguousShortCommand returns true if the message is a short, context-dependent
+// follow-up command that references previous actions without specifying a topic.
+// These messages cause poor RAG results because they match unrelated old memories.
+func isAmbiguousShortCommand(msg string) bool {
+	if len(msg) > 60 {
+		return false
+	}
+	lower := strings.ToLower(strings.TrimSpace(msg))
+
+	// Direct match for very common short follow-up commands
+	ambiguousExact := []string{
+		"ja", "nein", "ok", "yes", "no", "sure", "klar",
+		"weiter", "continue", "go", "go ahead", "mach weiter",
+		"danke", "thanks", "thank you", "thx",
+	}
+	for _, a := range ambiguousExact {
+		if lower == a {
+			return true
+		}
+	}
+
+	// Pattern match for retry/repeat commands that lack topic specificity
+	ambiguousPatterns := []string{
+		"versuche es erneut", "versuch es nochmal", "versuch es noch mal",
+		"try again", "retry", "nochmal", "noch mal", "noch einmal",
+		"wiederholen", "repeat", "do it again", "mach das nochmal",
+		"mach das noch mal", "erneut versuchen", "nochmals",
+		"das gleiche nochmal", "the same again",
+	}
+	for _, pattern := range ambiguousPatterns {
+		if strings.Contains(lower, pattern) {
+			return true
+		}
+	}
+	return false
+}
+
 // expandQueryForRAG uses the MemoryAnalysis LLM to generate optimized search keywords
 // from the user's message for better RAG retrieval. Returns the expanded query string
 // or the original message on failure/timeout.

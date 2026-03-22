@@ -236,5 +236,7 @@
   "config.tts.piper_status_disabled": "Piper TTS är inaktiverat",
   "config.tts.piper_status_running": "Piper TTS körs",
   "config.tts.piper_status_stopped": "Piper-container är stoppad",
-  "config.tts.piper_status_error": "Piper TTS-fel"
+  "config.tts.piper_status_error": "Piper TTS-fel",
+  "config.section.sql_connections.label": "SQL-anslutningar",
+  "config.section.sql_connections.desc": "Hantera externa databasanslutningar för agenten"
 }

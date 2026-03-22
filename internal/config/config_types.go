@@ -186,6 +186,7 @@ type Config struct {
 		HomepageRegistryPath string `yaml:"homepage_registry_path"`
 		ContactsPath         string `yaml:"contacts_path"`
 		SiteMonitorPath      string `yaml:"site_monitor_path"`
+		SQLConnectionsPath   string `yaml:"sql_connections_path"`
 	} `yaml:"sqlite"`
 	Embeddings struct {
 		Provider         string `yaml:"provider"`          // "disabled" or provider entry ID
@@ -1008,6 +1009,13 @@ type Config struct {
 		RateLimitRPS   int      `yaml:"rate_limit_rps"`   // requests per second limit (0 = unlimited)
 		Scopes         []string `yaml:"scopes"`           // allowed operation scopes; empty = all (n8n:read, n8n:chat, n8n:tools, n8n:memory, n8n:missions, n8n:admin)
 	} `yaml:"n8n"`
+	SQLConnections struct {
+		Enabled              bool `yaml:"enabled"`
+		MaxPoolSize          int  `yaml:"max_pool_size"`
+		ConnectionTimeoutSec int  `yaml:"connection_timeout_sec"`
+		QueryTimeoutSec      int  `yaml:"query_timeout_sec"`
+		MaxResultRows        int  `yaml:"max_result_rows"`
+	} `yaml:"sql_connections"`
 	GoogleWorkspace struct {
 		Enabled       bool   `yaml:"enabled"`
 		ReadOnly      bool   `yaml:"readonly"`       // true = only read operations, block send/create/update/write

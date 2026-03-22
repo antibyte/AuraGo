@@ -238,5 +238,7 @@
   "config.tts.piper_status_disabled": "Piper TTS je deaktivován",
   "config.tts.piper_status_running": "Piper TTS běží",
   "config.tts.piper_status_stopped": "Piper kontejner je zastaven",
-  "config.tts.piper_status_error": "Chyba Piper TTS"
+  "config.tts.piper_status_error": "Chyba Piper TTS",
+  "config.section.sql_connections.label": "SQL připojení",
+  "config.section.sql_connections.desc": "Spravovat externí databázová připojení pro agenta"
 }

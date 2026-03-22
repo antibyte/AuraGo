@@ -21,11 +21,12 @@ import (
 	"aurago/internal/memory"
 	"aurago/internal/remote"
 	"aurago/internal/security"
+	"aurago/internal/sqlconnections"
 	"aurago/internal/tools"
 )
 
 // dispatchExec handles execution, memory, security, filesystem, API, remote, and scheduling tool calls.
-func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, missionManagerV2 *tools.MissionManagerV2, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, mediaRegistryDB *sql.DB, homepageRegistryDB *sql.DB, contactsDB *sql.DB, remoteHub *remote.RemoteHub, historyMgr *memory.HistoryManager, isMaintenance bool, surgeryPlan string, guardian *security.Guardian, sessionID string, coAgentRegistry *CoAgentRegistry, budgetTracker *budget.Tracker) string {
+func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, missionManagerV2 *tools.MissionManagerV2, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, mediaRegistryDB *sql.DB, homepageRegistryDB *sql.DB, contactsDB *sql.DB, sqlConnectionsDB *sql.DB, sqlConnectionPool *sqlconnections.ConnectionPool, remoteHub *remote.RemoteHub, historyMgr *memory.HistoryManager, isMaintenance bool, surgeryPlan string, guardian *security.Guardian, sessionID string, coAgentRegistry *CoAgentRegistry, budgetTracker *budget.Tracker) string {
 	switch tc.Action {
 	case "execute_sandbox":
 		if !cfg.Sandbox.Enabled {
@@ -857,7 +858,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 			fpath = tc.Path
 		}
 		op := strings.ToLower(tc.Operation)
-		if !cfg.Agent.AllowFilesystemWrite && (op == "merge" || op == "split" || op == "watermark" || op == "compress" || op == "encrypt" || op == "decrypt") {
+		if !cfg.Agent.AllowFilesystemWrite && (op == "merge" || op == "split" || op == "watermark" || op == "compress" || op == "encrypt" || op == "decrypt" || op == "fill_form" || op == "export_form" || op == "reset_form" || op == "lock_form") {
 			return "Tool Output: [PERMISSION DENIED] pdf_operations write operations are disabled in Danger Zone settings (agent.allow_filesystem_write: false)."
 		}
 		output := tc.OutputFile

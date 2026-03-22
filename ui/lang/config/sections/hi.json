@@ -238,5 +238,7 @@
   "config.tts.piper_status_disabled": "Piper TTS अक्षम है",
   "config.tts.piper_status_running": "Piper TTS चल रहा है",
   "config.tts.piper_status_stopped": "Piper कंटेनर रुका हुआ है",
-  "config.tts.piper_status_error": "Piper TTS त्रुटि"
+  "config.tts.piper_status_error": "Piper TTS त्रुटि",
+  "config.section.sql_connections.label": "SQL कनेक्शन",
+  "config.section.sql_connections.desc": "एजेंट के लिए बाहरी डेटाबेस कनेक्शन प्रबंधित करें"
 }

@@ -119,6 +119,13 @@ func Load(path string) (*Config, error) {
 	// OneDrive defaults: "common" tenant allows both personal and work accounts.
 	cfg.OneDrive.TenantID = "common"
 
+	// SQL Connections defaults: disabled by default; agent must opt-in.
+	cfg.SQLConnections.Enabled = false
+	cfg.SQLConnections.MaxPoolSize = 5
+	cfg.SQLConnections.ConnectionTimeoutSec = 30
+	cfg.SQLConnections.QueryTimeoutSec = 120
+	cfg.SQLConnections.MaxResultRows = 1000
+
 	// Danger-zone capabilities default to false (opt-in) for new installations.
 	// Existing configs with explicit true/false values will be read from YAML unchanged.
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
@@ -192,6 +199,10 @@ func Load(path string) (*Config, error) {
 		cfg.SQLite.SiteMonitorPath = "./data/site_monitor.db"
 	}
 	cfg.SQLite.SiteMonitorPath = resolvePath(configDir, cfg.SQLite.SiteMonitorPath)
+	if cfg.SQLite.SQLConnectionsPath == "" {
+		cfg.SQLite.SQLConnectionsPath = "./data/sql_connections.db"
+	}
+	cfg.SQLite.SQLConnectionsPath = resolvePath(configDir, cfg.SQLite.SQLConnectionsPath)
 
 	// Resolve logging directory
 	cfg.Logging.LogDir = resolvePath(configDir, cfg.Logging.LogDir)

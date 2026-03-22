@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/pdfcpu/pdfcpu/pkg/api"
+	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu/form"
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu/model"
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu/types"
 )
@@ -43,10 +44,20 @@ func ExecutePDFOperations(operation, inputFile, outputFile, pages, password, wat
 		return pdfMetadata(inputFile)
 	case "page_count":
 		return pdfPageCount(inputFile)
+	case "form_fields":
+		return pdfFormFields(inputFile)
+	case "fill_form":
+		return pdfFillForm(inputFile, outputFile, sourceFiles)
+	case "export_form":
+		return pdfExportForm(inputFile, outputFile)
+	case "reset_form":
+		return pdfResetForm(inputFile, outputFile)
+	case "lock_form":
+		return pdfLockForm(inputFile, outputFile)
 	default:
 		return pdfOpsJSON(pdfOpsResult{
 			Status:  "error",
-			Message: fmt.Sprintf("unknown operation: %s (valid: merge, split, watermark, compress, encrypt, decrypt, metadata, page_count)", operation),
+			Message: fmt.Sprintf("unknown operation: %s (valid: merge, split, watermark, compress, encrypt, decrypt, metadata, page_count, form_fields, fill_form, export_form, reset_form, lock_form)", operation),
 		})
 	}
 }
@@ -338,6 +349,238 @@ func pdfPageCount(inputFile string) string {
 		Status:  "success",
 		Message: fmt.Sprintf("%s has %d pages", filepath.Base(inputFile), count),
 		Pages:   count,
+	})
+}
+
+// --- form operations ---
+
+type pdfFormFieldInfo struct {
+	Name    string `json:"name"`
+	ID      string `json:"id"`
+	Type    string `json:"type"`
+	Value   string `json:"value,omitempty"`
+	Default string `json:"default,omitempty"`
+	Options string `json:"options,omitempty"`
+	Pages   []int  `json:"pages"`
+	Locked  bool   `json:"locked"`
+}
+
+type pdfFormFieldsResult struct {
+	Status string             `json:"status"`
+	Fields []pdfFormFieldInfo `json:"fields"`
+	Count  int                `json:"count"`
+}
+
+func fieldTypeName(ft form.FieldType) string {
+	switch ft {
+	case form.FTText:
+		return "text"
+	case form.FTDate:
+		return "date"
+	case form.FTCheckBox:
+		return "checkbox"
+	case form.FTComboBox:
+		return "combobox"
+	case form.FTListBox:
+		return "listbox"
+	case form.FTRadioButtonGroup:
+		return "radio"
+	default:
+		return "unknown"
+	}
+}
+
+func pdfFormFields(inputFile string) string {
+	if inputFile == "" {
+		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: "file_path is required"})
+	}
+	f, err := os.Open(inputFile)
+	if err != nil {
+		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: fmt.Sprintf("cannot open file: %v", err)})
+	}
+	defer f.Close()
+
+	conf := model.NewDefaultConfiguration()
+	fields, err := api.FormFields(f, conf)
+	if err != nil {
+		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: fmt.Sprintf("form_fields failed: %v", err)})
+	}
+
+	infos := make([]pdfFormFieldInfo, 0, len(fields))
+	for _, fld := range fields {
+		infos = append(infos, pdfFormFieldInfo{
+			Name:    fld.Name,
+			ID:      fld.ID,
+			Type:    fieldTypeName(fld.Typ),
+			Value:   fld.V,
+			Default: fld.Dv,
+			Options: fld.Opts,
+			Pages:   fld.Pages,
+			Locked:  fld.Locked,
+		})
+	}
+
+	result := pdfFormFieldsResult{
+		Status: "success",
+		Fields: infos,
+		Count:  len(infos),
+	}
+	b, _ := json.Marshal(result)
+	return string(b)
+}
+
+func pdfFillForm(inputFile, outputFile, formDataJSON string) string {
+	if inputFile == "" {
+		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: "file_path is required"})
+	}
+	if formDataJSON == "" {
+		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: "source_files is required (JSON object mapping field names to values)"})
+	}
+	if outputFile == "" {
+		outputFile = addSuffix(inputFile, "_filled")
+	}
+
+	if _, err := os.Stat(inputFile); err != nil {
+		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: fmt.Sprintf("file not found: %s", inputFile)})
+	}
+
+	if err := os.MkdirAll(filepath.Dir(outputFile), 0o750); err != nil {
+		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: fmt.Sprintf("cannot create output directory: %v", err)})
+	}
+
+	// pdfcpu FillForm expects JSON in pdfcpu's own format.
+	// We accept a simple {field: value} map and convert to pdfcpu format:
+	// {"pages": [{"fields": {"fieldname": {"value": "val"}}}]}
+	var simpleMap map[string]string
+	if err := json.Unmarshal([]byte(formDataJSON), &simpleMap); err != nil {
+		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: fmt.Sprintf("invalid form data JSON (expected {\"field\": \"value\"}): %v", err)})
+	}
+
+	// Build pdfcpu-compatible JSON
+	fieldsMap := make(map[string]map[string]string, len(simpleMap))
+	for k, v := range simpleMap {
+		fieldsMap[k] = map[string]string{"value": v}
+	}
+	pdfcpuData := map[string]interface{}{
+		"pages": []map[string]interface{}{
+			{"fields": fieldsMap},
+		},
+	}
+	jsonBytes, err := json.Marshal(pdfcpuData)
+	if err != nil {
+		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: fmt.Sprintf("failed to build form data: %v", err)})
+	}
+
+	// Write temp JSON and use FillFormFile
+	tmpFile, err := os.CreateTemp("", "pdfform-*.json")
+	if err != nil {
+		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: fmt.Sprintf("failed to create temp file: %v", err)})
+	}
+	tmpPath := tmpFile.Name()
+	defer os.Remove(tmpPath)
+
+	if _, err := tmpFile.Write(jsonBytes); err != nil {
+		tmpFile.Close()
+		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: fmt.Sprintf("failed to write temp file: %v", err)})
+	}
+	tmpFile.Close()
+
+	conf := model.NewDefaultConfiguration()
+	if err := api.FillFormFile(inputFile, tmpPath, outputFile, conf); err != nil {
+		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: fmt.Sprintf("fill_form failed: %v", err)})
+	}
+
+	return pdfOpsJSON(pdfOpsResult{
+		Status:  "success",
+		Message: fmt.Sprintf("filled %d form fields in %s → %s", len(simpleMap), filepath.Base(inputFile), filepath.Base(outputFile)),
+		Files:   []string{outputFile},
+	})
+}
+
+func pdfExportForm(inputFile, outputFile string) string {
+	if inputFile == "" {
+		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: "file_path is required"})
+	}
+	if outputFile == "" {
+		outputFile = addSuffix(inputFile, "_formdata") + ".json"
+		outputFile = strings.TrimSuffix(outputFile, ".pdf.json") + ".json"
+	}
+
+	if _, err := os.Stat(inputFile); err != nil {
+		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: fmt.Sprintf("file not found: %s", inputFile)})
+	}
+
+	if err := os.MkdirAll(filepath.Dir(outputFile), 0o750); err != nil {
+		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: fmt.Sprintf("cannot create output directory: %v", err)})
+	}
+
+	conf := model.NewDefaultConfiguration()
+	if err := api.ExportFormFile(inputFile, outputFile, conf); err != nil {
+		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: fmt.Sprintf("export_form failed: %v", err)})
+	}
+
+	return pdfOpsJSON(pdfOpsResult{
+		Status:  "success",
+		Message: fmt.Sprintf("exported form data from %s → %s", filepath.Base(inputFile), filepath.Base(outputFile)),
+		Files:   []string{outputFile},
+	})
+}
+
+func pdfResetForm(inputFile, outputFile string) string {
+	if inputFile == "" {
+		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: "file_path is required"})
+	}
+
+	if _, err := os.Stat(inputFile); err != nil {
+		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: fmt.Sprintf("file not found: %s", inputFile)})
+	}
+
+	if outputFile == "" {
+		outputFile = addSuffix(inputFile, "_reset")
+	}
+
+	if err := os.MkdirAll(filepath.Dir(outputFile), 0o750); err != nil {
+		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: fmt.Sprintf("cannot create output directory: %v", err)})
+	}
+
+	conf := model.NewDefaultConfiguration()
+	if err := api.ResetFormFieldsFile(inputFile, outputFile, nil, conf); err != nil {
+		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: fmt.Sprintf("reset_form failed: %v", err)})
+	}
+
+	return pdfOpsJSON(pdfOpsResult{
+		Status:  "success",
+		Message: fmt.Sprintf("reset all form fields in %s → %s", filepath.Base(inputFile), filepath.Base(outputFile)),
+		Files:   []string{outputFile},
+	})
+}
+
+func pdfLockForm(inputFile, outputFile string) string {
+	if inputFile == "" {
+		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: "file_path is required"})
+	}
+
+	if _, err := os.Stat(inputFile); err != nil {
+		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: fmt.Sprintf("file not found: %s", inputFile)})
+	}
+
+	if outputFile == "" {
+		outputFile = addSuffix(inputFile, "_locked")
+	}
+
+	if err := os.MkdirAll(filepath.Dir(outputFile), 0o750); err != nil {
+		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: fmt.Sprintf("cannot create output directory: %v", err)})
+	}
+
+	conf := model.NewDefaultConfiguration()
+	if err := api.LockFormFieldsFile(inputFile, outputFile, nil, conf); err != nil {
+		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: fmt.Sprintf("lock_form failed: %v", err)})
+	}
+
+	return pdfOpsJSON(pdfOpsResult{
+		Status:  "success",
+		Message: fmt.Sprintf("locked all form fields in %s → %s", filepath.Base(inputFile), filepath.Base(outputFile)),
+		Files:   []string{outputFile},
 	})
 }
 

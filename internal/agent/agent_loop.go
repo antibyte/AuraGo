@@ -37,6 +37,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	mediaRegistryDB := runCfg.MediaRegistryDB
 	homepageRegistryDB := runCfg.HomepageRegistryDB
 	contactsDB := runCfg.ContactsDB
+	sqlConnectionsDB := runCfg.SQLConnectionsDB
+	sqlConnectionPool := runCfg.SQLConnectionPool
 	remoteHub := runCfg.RemoteHub
 	vault := runCfg.Vault
 	registry := runCfg.Registry
@@ -320,6 +322,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			FritzBoxTVEnabled:        cfg.FritzBox.Enabled && cfg.FritzBox.TV.Enabled,
 			TelnyxSMSEnabled:         cfg.Telnyx.Enabled && !cfg.Telnyx.ReadOnly,
 			TelnyxCallEnabled:        cfg.Telnyx.Enabled && !cfg.Telnyx.ReadOnly,
+			SQLConnectionsEnabled:    cfg.SQLConnections.Enabled && sqlConnectionsDB != nil,
 			// Danger Zone capability gates
 			AllowShell:           cfg.Agent.AllowShell,
 			AllowPython:          cfg.Agent.AllowPython,
@@ -449,7 +452,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 			broker.Send("tool_call", ptcJSON)
 			broker.Send("tool_start", ptc.Action)
-			pResultContent := DispatchToolCall(ctx, ptc, cfg, currentLogger, client, vault, registry, manifest, cronManager, missionManagerV2, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, contactsDB, remoteHub, historyManager, tools.IsBusy(), surgeryPlan, guardian, llmGuardian, sessionID, coAgentRegistry, budgetTracker, lastUserMsg)
+			pResultContent := DispatchToolCall(ctx, ptc, cfg, currentLogger, client, vault, registry, manifest, cronManager, missionManagerV2, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, contactsDB, sqlConnectionsDB, sqlConnectionPool, remoteHub, historyManager, tools.IsBusy(), surgeryPlan, guardian, llmGuardian, sessionID, coAgentRegistry, budgetTracker, lastUserMsg)
 			pResultContent = truncateToolOutput(pResultContent, cfg.Agent.ToolOutputLimit)
 			prompts.RecordToolUsage(ptc.Action, ptc.Operation, !isToolError(pResultContent))
 			prompts.RecordAdaptiveToolUsage(ptc.Action, !isToolError(pResultContent))
@@ -621,7 +624,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		flags.RetrievedMemories = ""
 		flags.PredictedMemories = ""
 		var topMemories []string
-		if !runCfg.IsMission && lastUserMsg != "" && longTermMem != nil {
+		if !runCfg.IsMission && lastUserMsg != "" && longTermMem != nil && !isAmbiguousShortCommand(lastUserMsg) {
 			// Query expansion: enrich user message with LLM-generated keywords for better RAG
 			ragQuery := expandQueryForRAG(ctx, cfg, currentLogger, lastUserMsg)
 
@@ -632,6 +635,22 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 				// LLM re-ranking: blend LLM relevance scores with recency-boosted scores
 				ranked = rerankWithLLM(ctx, cfg, currentLogger, ranked, lastUserMsg)
+
+				// For short queries (<40 chars), apply stricter score filtering to
+				// avoid injecting semantically-similar but contextually-irrelevant
+				// old memories (e.g. "versuche es erneut" matching old error messages).
+				if len(lastUserMsg) < 40 {
+					var filtered []rankedMemory
+					for _, r := range ranked {
+						if r.score >= 0.65 {
+							filtered = append(filtered, r)
+						}
+					}
+					ranked = filtered
+					if len(ranked) > 0 {
+						currentLogger.Debug("[RAG] Short-query filter applied", "before", len(memories), "after", len(ranked))
+					}
+				}
 
 				for _, r := range ranked {
 					_ = shortTermMem.UpdateMemoryAccess(r.docID)
@@ -1471,7 +1490,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				broker.Send("co_agent_spawn", taskPreview)
 			}
 
-			resultContent := DispatchToolCall(ctx, tc, cfg, currentLogger, client, vault, registry, manifest, cronManager, missionManagerV2, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, contactsDB, remoteHub, historyManager, tools.IsBusy(), surgeryPlan, guardian, llmGuardian, sessionID, coAgentRegistry, budgetTracker, lastUserMsg)
+			resultContent := DispatchToolCall(ctx, tc, cfg, currentLogger, client, vault, registry, manifest, cronManager, missionManagerV2, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, contactsDB, sqlConnectionsDB, sqlConnectionPool, remoteHub, historyManager, tools.IsBusy(), surgeryPlan, guardian, llmGuardian, sessionID, coAgentRegistry, budgetTracker, lastUserMsg)
 			resultContent = truncateToolOutput(resultContent, cfg.Agent.ToolOutputLimit)
 			toolFailed := isToolError(resultContent)
 			prompts.RecordToolUsage(tc.Action, tc.Operation, !toolFailed)
@@ -1872,7 +1891,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					broker.Send("thinking", fmt.Sprintf("[%d] Running %s (batched)...", toolCallCount, btc.Action))
 					broker.Send("tool_start", btc.Action)
 
-					bResult := DispatchToolCall(ctx, btc, cfg, currentLogger, client, vault, registry, manifest, cronManager, missionManagerV2, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, contactsDB, remoteHub, historyManager, tools.IsBusy(), surgeryPlan, guardian, llmGuardian, sessionID, coAgentRegistry, budgetTracker, lastUserMsg)
+					bResult := DispatchToolCall(ctx, btc, cfg, currentLogger, client, vault, registry, manifest, cronManager, missionManagerV2, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, contactsDB, sqlConnectionsDB, sqlConnectionPool, remoteHub, historyManager, tools.IsBusy(), surgeryPlan, guardian, llmGuardian, sessionID, coAgentRegistry, budgetTracker, lastUserMsg)
 					bResult = truncateToolOutput(bResult, cfg.Agent.ToolOutputLimit)
 					prompts.RecordToolUsage(btc.Action, btc.Operation, !isToolError(bResult))
 					prompts.RecordAdaptiveToolUsage(btc.Action, !isToolError(bResult))

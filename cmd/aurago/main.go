@@ -35,6 +35,7 @@ import (
 	"aurago/internal/security"
 	"aurago/internal/server"
 	"aurago/internal/setup"
+	"aurago/internal/sqlconnections"
 	"aurago/internal/tools"
 
 	"github.com/gofrs/flock"
@@ -400,6 +401,20 @@ func main() {
 		appLog.Info("Contacts DB initialized", "path", cfg.SQLite.ContactsPath)
 	}
 
+	var sqlConnectionsDB *sql.DB
+	var sqlConnectionPool *sqlconnections.ConnectionPool
+	if cfg.SQLConnections.Enabled {
+		var scErr error
+		sqlConnectionsDB, scErr = sqlconnections.InitDB(cfg.SQLite.SQLConnectionsPath)
+		if scErr != nil {
+			appLog.Warn("Failed to initialize SQL Connections DB; feature disabled", "error", scErr, "path", cfg.SQLite.SQLConnectionsPath)
+			sqlConnectionsDB = nil
+		} else {
+			defer sqlConnectionsDB.Close()
+			appLog.Info("SQL Connections DB initialized", "path", cfg.SQLite.SQLConnectionsPath)
+		}
+	}
+
 	masterKey := os.Getenv("AURAGO_MASTER_KEY")
 	if masterKey == "" || len(masterKey) != 64 {
 		appLog.Error("CRITICAL: AURAGO_MASTER_KEY environment variable is missing or not exactly 64 hex characters (32 bytes). Refusing to start.")
@@ -413,6 +428,17 @@ func main() {
 	if err != nil {
 		appLog.Error("Failed to initialize security vault", "error", err)
 		os.Exit(1)
+	}
+
+	// Initialize SQL Connections pool now that vault is available.
+	if sqlConnectionsDB != nil {
+		sqlConnectionPool = sqlconnections.NewConnectionPool(
+			sqlConnectionsDB, vault,
+			cfg.SQLConnections.MaxPoolSize,
+			cfg.SQLConnections.ConnectionTimeoutSec,
+			appLog,
+		)
+		defer sqlConnectionPool.CloseAll()
 	}
 
 	// One-time migration: auth secrets (password_hash, session_secret) may have been
@@ -714,7 +740,7 @@ func main() {
 		}
 	}
 
-	if err := server.Start(cfg, appLog, llmClient, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, remoteControlDB, mediaRegistryDB, homepageRegistryDB, contactsDB, isFirstStart, shutdownCh); err != nil {
+	if err := server.Start(cfg, appLog, llmClient, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, remoteControlDB, mediaRegistryDB, homepageRegistryDB, contactsDB, sqlConnectionsDB, sqlConnectionPool, isFirstStart, shutdownCh); err != nil {
 		appLog.Error("Server failed", "error", err)
 		os.Exit(1)
 	}

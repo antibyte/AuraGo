@@ -238,5 +238,7 @@
   "config.tts.piper_status_disabled": "Piper TTS 已禁用",
   "config.tts.piper_status_running": "Piper TTS 正在运行",
   "config.tts.piper_status_stopped": "Piper 容器已停止",
-  "config.tts.piper_status_error": "Piper TTS 错误"
+  "config.tts.piper_status_error": "Piper TTS 错误",
+  "config.section.sql_connections.label": "SQL 连接",
+  "config.section.sql_connections.desc": "管理代理的外部数据库连接"
 }

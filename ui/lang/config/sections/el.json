@@ -238,5 +238,7 @@
   "config.tts.piper_status_disabled": "Το Piper TTS είναι απενεργοποιημένο",
   "config.tts.piper_status_running": "Το Piper TTS εκτελείται",
   "config.tts.piper_status_stopped": "Το Piper container είναι σταματημένο",
-  "config.tts.piper_status_error": "Σφάλμα Piper TTS"
+  "config.tts.piper_status_error": "Σφάλμα Piper TTS",
+  "config.section.sql_connections.label": "Συνδέσεις SQL",
+  "config.section.sql_connections.desc": "Διαχείριση εξωτερικών συνδέσεων βάσεων δεδομένων για τον agent"
 }

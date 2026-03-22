@@ -20,6 +20,11 @@ Manipulate PDF files locally without external services.
 | `decrypt` | Remove password protection | `file_path`, `password` |
 | `metadata` | Read page count, properties, keywords | `file_path` |
 | `page_count` | Get number of pages | `file_path` |
+| `form_fields` | List all form fields in a PDF | `file_path` |
+| `fill_form` | Fill PDF form fields with values | `file_path`, `source_files` (JSON object) |
+| `export_form` | Export form data to JSON file | `file_path` |
+| `reset_form` | Reset all form fields to defaults | `file_path` |
+| `lock_form` | Lock all form fields (read-only) | `file_path` |
 
 ## Parameters
 
@@ -28,7 +33,7 @@ Manipulate PDF files locally without external services.
 | `operation` | string | **Required.** Operation to perform |
 | `file_path` | string | Input PDF file path |
 | `output_file` | string | Output file/directory (auto-generated if omitted) |
-| `source_files` | string | JSON array of PDF paths for merge |
+| `source_files` | string | JSON array of PDF paths for merge, or JSON object `{"field":"value"}` for fill_form |
 | `pages` | string | Comma-separated page numbers for split |
 | `watermark_text` | string | Text for watermark overlay |
 | `password` | string | Password for encrypt/decrypt |
@@ -63,4 +68,24 @@ Encrypt with password:
 Get metadata:
 ```json
 {"operation": "metadata", "file_path": "document.pdf"}
+```
+
+List form fields:
+```json
+{"operation": "form_fields", "file_path": "application.pdf"}
+```
+
+Fill a PDF form:
+```json
+{"operation": "fill_form", "file_path": "application.pdf", "source_files": "{\"first_name\":\"John\",\"last_name\":\"Doe\",\"email\":\"john@example.com\"}", "output_file": "filled_application.pdf"}
+```
+
+Export form data to JSON:
+```json
+{"operation": "export_form", "file_path": "filled_form.pdf", "output_file": "form_data.json"}
+```
+
+Lock form fields (make read-only):
+```json
+{"operation": "lock_form", "file_path": "filled_form.pdf"}
 ```

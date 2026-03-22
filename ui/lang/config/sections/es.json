@@ -236,5 +236,7 @@
   "config.tts.piper_status_disabled": "Piper TTS está desactivado",
   "config.tts.piper_status_running": "Piper TTS está en ejecución",
   "config.tts.piper_status_stopped": "El contenedor Piper está detenido",
-  "config.tts.piper_status_error": "Error de Piper TTS"
+  "config.tts.piper_status_error": "Error de Piper TTS",
+  "config.section.sql_connections.label": "Conexiones SQL",
+  "config.section.sql_connections.desc": "Gestionar conexiones de bases de datos externas para el agente"
 }

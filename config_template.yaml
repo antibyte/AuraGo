@@ -327,6 +327,21 @@ sqlite:
     homepage_registry_path: ./data/homepage_registry.db
     contacts_path: ./data/contacts.db
     site_monitor_path: ./data/site_monitor.db
+    sql_connections_path: ./data/sql_connections.db
+
+# SQL Connections — External database connections managed by the agent
+# Supports PostgreSQL, MySQL/MariaDB, and SQLite
+sql_connections:
+    enabled: false
+    # Maximum number of open connections per database
+    max_pool_size: 5
+    # Connection timeout in seconds
+    connection_timeout_sec: 30
+    # Query timeout in seconds
+    query_timeout_sec: 120
+    # Maximum number of rows returned per query
+    max_result_rows: 1000
+
 telegram:
     bot_token: ""
     telegram_user_id: 0
