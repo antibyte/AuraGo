@@ -42,6 +42,11 @@
   "config.homepage.optional": "optioneel",
   "config.homepage.workspace_title": "Werkruimte",
   "config.homepage.workspace_path": "Werkruimtepad",
+  "config.homepage.workspace_path_missing_warning": "De webserver is ingeschakeld maar er is geen werkruimtepad ingesteld. Voer het absolute hostpad in naar uw project (bijv. /home/aurago/aurago/agent_workspace/homepage) of gebruik automatische detectie.",
+  "config.homepage.workspace_autodetect_btn": "Auto-detect",
+  "config.homepage.workspace_autodetect_title": "Werkruimtepad automatisch detecteren vanuit de actieve homepage-container",
+  "config.homepage.workspace_autodetect_loading": "Detecteren…",
+  "config.homepage.workspace_autodetect_failed": "Automatische detectie mislukt — voer het pad handmatig in.",
   "config.homepage.circuit_breaker_title": "Circuit Breaker",
   "config.homepage.circuit_breaker_desc": "De homepage tool heeft vaak veel opeenvolgende tool-aanroepen nodig. Dit stelt een apart, hoger limiet in dat tijdelijk geldt vanaf de eerste homepage-aanroep tot het einde van de huidige actieketen.",
   "config.homepage.circuit_breaker_max_calls": "Max. tool-aanroepen"

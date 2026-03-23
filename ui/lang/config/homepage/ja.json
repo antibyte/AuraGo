@@ -42,6 +42,11 @@
   "config.homepage.optional": "任意",
   "config.homepage.workspace_title": "ワークスペース",
   "config.homepage.workspace_path": "ワークスペースパス",
+  "config.homepage.workspace_path_missing_warning": "Webサーバーが有効ですがワークスペースパスが設定されていません。プロジェクトの絶対ホストパスを入力してください（例: /home/aurago/aurago/agent_workspace/homepage）、または自動検出を使用してください。",
+  "config.homepage.workspace_autodetect_btn": "自動検出",
+  "config.homepage.workspace_autodetect_title": "実行中のhomepageコンテナからワークスペースパスを自動検出",
+  "config.homepage.workspace_autodetect_loading": "検出中…",
+  "config.homepage.workspace_autodetect_failed": "自動検出に失敗しました。手動でパスを入力してください。",
   "config.homepage.circuit_breaker_title": "サーキットブレーカー",
   "config.homepage.circuit_breaker_desc": "ホームページツールは多数の連続ツール呼び出しが必要です。最初のホームページ呼び出しからアクションチェーン終了まで一時的に適用される、より高い制限を設定します。",
   "config.homepage.circuit_breaker_max_calls": "最大ツール呼び出し数"

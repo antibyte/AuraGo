@@ -42,6 +42,11 @@
   "config.homepage.optional": "opcjonalne",
   "config.homepage.workspace_title": "Przestrzeń robocza",
   "config.homepage.workspace_path": "Ścieżka przestrzeni roboczej",
+  "config.homepage.workspace_path_missing_warning": "Serwer WWW jest włączony, ale ścieżka przestrzeni roboczej nie jest ustawiona. Podaj bezwzględną ścieżkę hosta do projektu (np. /home/aurago/aurago/agent_workspace/homepage) lub użyj autodetekcji.",
+  "config.homepage.workspace_autodetect_btn": "Wykryj",
+  "config.homepage.workspace_autodetect_title": "Wykryj ścieżkę przestrzeni roboczej z działającego kontenera homepage",
+  "config.homepage.workspace_autodetect_loading": "Wykrywanie…",
+  "config.homepage.workspace_autodetect_failed": "Autodetekcja nie powiodła się — podaj ścieżkę ręcznie.",
   "config.homepage.circuit_breaker_title": "Circuit Breaker",
   "config.homepage.circuit_breaker_desc": "Narzędzie homepage często wymaga wielu kolejnych wywołań narzędzi. Ustawia to oddzielny, wyższy limit, który obowiązuje tymczasowo od pierwszego wywołania homepage do końca bieżącego łańcucha akcji.",
   "config.homepage.circuit_breaker_max_calls": "Maks. wywołań narzędzi"

@@ -24,6 +24,50 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
+// HomepageDetectWorkspacePath inspects the running homepage dev container and
+// returns the host path that is bind-mounted as the workspace (/workspace inside
+// the container).  This lets the Config UI auto-fill the workspace_path field
+// without the user having to look up the path manually.
+func HomepageDetectWorkspacePath(cfg HomepageConfig, logger *slog.Logger) string {
+	dockerCfg := DockerConfig{Host: cfg.DockerHost}
+	if !checkDockerAvailable(cfg.DockerHost) {
+		return errJSON("Docker not available — cannot auto-detect workspace path")
+	}
+
+	data, code, err := dockerRequest(dockerCfg, "GET", "/containers/"+homepageContainerName+"/json", "")
+	if err != nil {
+		return errJSON("Failed to inspect container: %v", err)
+	}
+	if code == 404 {
+		return errJSON("Homepage dev container (%s) is not running — start it first", homepageContainerName)
+	}
+	if code != 200 {
+		return errJSON("Unexpected Docker response (code %d) while inspecting container", code)
+	}
+
+	var inspect struct {
+		Mounts []struct {
+			Type        string `json:"Type"`
+			Source      string `json:"Source"`
+			Destination string `json:"Destination"`
+		} `json:"Mounts"`
+	}
+	if err := json.Unmarshal(data, &inspect); err != nil {
+		return errJSON("Failed to parse container inspect data: %v", err)
+	}
+
+	// The homepage container mounts the workspace at homepageWorkspaceMount ("/workspace").
+	for _, m := range inspect.Mounts {
+		if m.Type == "bind" && (m.Destination == homepageWorkspaceMount ||
+			strings.HasSuffix(m.Destination, "/workspace")) {
+			logger.Info("[Homepage] Auto-detected workspace path", "host_path", m.Source)
+			return okJSON("Workspace path auto-detected", "path", m.Source)
+		}
+	}
+
+	return errJSON("No workspace bind-mount found in container '%s' — the container may not have been created by AuraGo", homepageContainerName)
+}
+
 func HomepageOptimizeImages(cfg HomepageConfig, projectDir string, logger *slog.Logger) string {
 	if projectDir == "" {
 		projectDir = "."

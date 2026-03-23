@@ -42,6 +42,11 @@
   "config.homepage.optional": "opcional",
   "config.homepage.workspace_title": "Espacio de trabajo",
   "config.homepage.workspace_path": "Ruta del espacio de trabajo",
+  "config.homepage.workspace_path_missing_warning": "El servidor web está habilitado pero no se ha establecido una ruta de espacio de trabajo. Ingresa la ruta absoluta del host (ej. /home/aurago/aurago/agent_workspace/homepage) o usa la detección automática.",
+  "config.homepage.workspace_autodetect_btn": "Auto-detectar",
+  "config.homepage.workspace_autodetect_title": "Detectar la ruta del espacio de trabajo desde el contenedor en ejecución",
+  "config.homepage.workspace_autodetect_loading": "Detectando…",
+  "config.homepage.workspace_autodetect_failed": "Detección automática fallida — ingresa la ruta manualmente.",
   "config.homepage.circuit_breaker_title": "Circuit Breaker",
   "config.homepage.circuit_breaker_desc": "La herramienta de homepage a menudo necesita muchas llamadas consecutivas. Esto establece un límite separado y más alto que se aplica temporalmente desde la primera llamada de homepage hasta el final de la cadena de acciones actual.",
   "config.homepage.circuit_breaker_max_calls": "Máx. llamadas de herramientas"

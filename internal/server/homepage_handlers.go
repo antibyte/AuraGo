@@ -61,6 +61,25 @@ func handleHomepageStatus(s *Server) http.HandlerFunc {
 	}
 }
 
+// handleHomepageDetectWorkspace inspects the running homepage dev container and returns
+// the host path that is bind-mounted as the workspace, so the UI can auto-fill the field.
+func handleHomepageDetectWorkspace(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+
+		s.CfgMu.RLock()
+		dockerHost := s.Cfg.Docker.Host
+		s.CfgMu.RUnlock()
+
+		cfg := tools.HomepageConfig{DockerHost: dockerHost}
+		w.Write([]byte(tools.HomepageDetectWorkspacePath(cfg, s.Logger)))
+	}
+}
+
 // handleHomepageTestConnection tests the SFTP/SCP connection for homepage deployment.
 func handleHomepageTestConnection(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

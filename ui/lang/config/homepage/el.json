@@ -42,6 +42,11 @@
   "config.homepage.optional": "προαιρετικό",
   "config.homepage.workspace_title": "Χώρος εργασίας",
   "config.homepage.workspace_path": "Διαδρομή χώρου εργασίας",
+  "config.homepage.workspace_path_missing_warning": "Ο διακομιστής ιστού είναι ενεργός αλλά δεν έχει οριστεί διαδρομή χώρου εργασίας. Εισάγετε την απόλυτη διαδρομή κεντρικού υπολογιστή (π.χ. /home/aurago/aurago/agent_workspace/homepage) ή χρησιμοποιήστε αυτόματη ανίχνευση.",
+  "config.homepage.workspace_autodetect_btn": "Αυτόματος εντοπισμός",
+  "config.homepage.workspace_autodetect_title": "Αυτόματος εντοπισμός διαδρομής από το τρέχον container",
+  "config.homepage.workspace_autodetect_loading": "Εντοπισμός…",
+  "config.homepage.workspace_autodetect_failed": "Ο αυτόματος εντοπισμός απέτυχε — εισάγετε τη διαδρομή χειροκίνητα.",
   "config.homepage.circuit_breaker_title": "Circuit Breaker",
   "config.homepage.circuit_breaker_desc": "Το εργαλείο ιστοσελίδας χρειάζεται συχνά πολλές διαδοχικές κλήσεις εργαλείων. Αυτό ορίζει ένα ξεχωριστό, υψηλότερο όριο που ισχύει προσωρινά από την πρώτη κλήση ιστοσελίδας μέχρι το τέλος της τρέχουσας αλυσίδας ενεργειών.",
   "config.homepage.circuit_breaker_max_calls": "Μέγ. κλήσεις εργαλείων"

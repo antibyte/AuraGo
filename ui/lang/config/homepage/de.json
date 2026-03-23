@@ -42,6 +42,11 @@
   "config.homepage.optional": "optional",
   "config.homepage.workspace_title": "Arbeitsbereich",
   "config.homepage.workspace_path": "Arbeitsbereich-Pfad",
+  "config.homepage.workspace_path_missing_warning": "Der Webserver ist aktiviert, aber kein Arbeitsbereich-Pfad gesetzt. Trag den absoluten Host-Pfad zum Homepage-Projekt ein (z.B. /home/aurago/aurago/agent_workspace/homepage) oder nutze die automatische Erkennung.",
+  "config.homepage.workspace_autodetect_btn": "Auto-erkennen",
+  "config.homepage.workspace_autodetect_title": "Arbeitsbereich-Pfad aus dem laufenden Homepage-Container erkennen",
+  "config.homepage.workspace_autodetect_loading": "Wird erkannt…",
+  "config.homepage.workspace_autodetect_failed": "Automatische Erkennung fehlgeschlagen — bitte Pfad manuell eingeben.",
   "config.homepage.circuit_breaker_title": "Circuit Breaker",
   "config.homepage.circuit_breaker_desc": "Das Homepage-Tool benötigt oft viele aufeinanderfolgende Tool-Aufrufe. Hier wird ein separates, höheres Limit gesetzt, das temporär ab dem ersten Homepage-Aufruf bis zum Ende der aktuellen Aktionskette gilt.",
   "config.homepage.circuit_breaker_max_calls": "Max. Tool-Aufrufe"

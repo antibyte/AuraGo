@@ -42,6 +42,11 @@
   "config.homepage.optional": "optional",
   "config.homepage.workspace_title": "Workspace",
   "config.homepage.workspace_path": "Workspace path",
+  "config.homepage.workspace_path_missing_warning": "The web server is enabled but no workspace path is set. Enter the absolute host path to your homepage project (e.g. /home/aurago/aurago/agent_workspace/homepage) or click Auto-detect to find it automatically.",
+  "config.homepage.workspace_autodetect_btn": "Auto-detect",
+  "config.homepage.workspace_autodetect_title": "Auto-detect workspace path from the running homepage container",
+  "config.homepage.workspace_autodetect_loading": "Detecting…",
+  "config.homepage.workspace_autodetect_failed": "Auto-detection failed — please enter the path manually.",
   "config.homepage.circuit_breaker_title": "Circuit Breaker",
   "config.homepage.circuit_breaker_desc": "The homepage tool often needs many consecutive tool calls. This sets a separate, higher limit that applies temporarily from the first homepage call until the end of the current action chain.",
   "config.homepage.circuit_breaker_max_calls": "Max Tool Calls"

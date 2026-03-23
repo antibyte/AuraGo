@@ -42,6 +42,11 @@
   "config.homepage.optional": "optionnel",
   "config.homepage.workspace_title": "Espace de travail",
   "config.homepage.workspace_path": "Chemin de l'espace de travail",
+  "config.homepage.workspace_path_missing_warning": "Le serveur web est activé mais aucun chemin d'espace de travail n'est défini. Entrez le chemin hôte absolu vers votre projet (ex. /home/aurago/aurago/agent_workspace/homepage) ou utilisez la détection automatique.",
+  "config.homepage.workspace_autodetect_btn": "Détecter",
+  "config.homepage.workspace_autodetect_title": "Détecter le chemin depuis le conteneur homepage en cours d'exécution",
+  "config.homepage.workspace_autodetect_loading": "Détection…",
+  "config.homepage.workspace_autodetect_failed": "Détection automatique échouée — veuillez entrer le chemin manuellement.",
   "config.homepage.circuit_breaker_title": "Circuit Breaker",
   "config.homepage.circuit_breaker_desc": "L'outil homepage nécessite souvent de nombreux appels d'outils consécutifs. Ceci définit une limite séparée et plus élevée qui s'applique temporairement du premier appel homepage jusqu'à la fin de la chaîne d'actions en cours.",
   "config.homepage.circuit_breaker_max_calls": "Appels d'outils max."

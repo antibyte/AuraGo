@@ -42,6 +42,11 @@
   "config.homepage.optional": "वैकल्पिक",
   "config.homepage.workspace_title": "कार्यस्थान",
   "config.homepage.workspace_path": "कार्यस्थान पथ",
+  "config.homepage.workspace_path_missing_warning": "वेब सर्वर सक्षम है लेकिन कार्यस्थान पथ सेट नहीं है। अपने प्रोजेक्ट का पूर्ण होस्ट पथ दर्ज करें (जैसे /home/aurago/aurago/agent_workspace/homepage) या स्वतः पहचान का उपयोग करें।",
+  "config.homepage.workspace_autodetect_btn": "स्वतः पहचानें",
+  "config.homepage.workspace_autodetect_title": "चल रहे homepage कंटेनर से कार्यस्थान पथ स्वतः पहचानें",
+  "config.homepage.workspace_autodetect_loading": "पहचान हो रही है…",
+  "config.homepage.workspace_autodetect_failed": "स्वतः पहचान विफल — कृपया पथ मैन्युअल रूप से दर्ज करें।",
   "config.homepage.circuit_breaker_title": "सर्किट ब्रेकर",
   "config.homepage.circuit_breaker_desc": "होमपेज टूल को अक्सर कई लगातार टूल कॉल की आवश्यकता होती है। यह एक अलग, उच्च सीमा सेट करता है जो पहले होमपेज कॉल से वर्तमान एक्शन चेन के अंत तक अस्थायी रूप से लागू होती है।",
   "config.homepage.circuit_breaker_max_calls": "अधिकतम टूल कॉल"

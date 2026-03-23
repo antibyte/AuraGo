@@ -49,10 +49,21 @@ const icons = {
     error: '❌'
 };
 
+// Adaptive polling: fast (2 s) when something is running/queued, slow (10 s) when idle.
+let _pollTimer = null;
+
+function schedulePoll() {
+    clearTimeout(_pollTimer);
+    const active = queue.running || (queue.items && queue.items.length > 0);
+    _pollTimer = setTimeout(async () => {
+        await loadData();
+        schedulePoll();
+    }, active ? 2000 : 10000);
+}
+
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
-    loadData();
-    setInterval(loadData, 2000); // Refresh every 2 seconds
+    loadData().then(schedulePoll);
 });
 
 // Show loading skeleton

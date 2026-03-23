@@ -42,6 +42,11 @@
   "config.homepage.optional": "valgfrit",
   "config.homepage.workspace_title": "Arbejdsområde",
   "config.homepage.workspace_path": "Arbejdsområdesti",
+  "config.homepage.workspace_path_missing_warning": "Webserveren er aktiveret, men arbejdsområdestien er ikke angivet. Angiv den absolutte værtsti til dit projekt (f.eks. /home/aurago/aurago/agent_workspace/homepage) eller brug automatisk registrering.",
+  "config.homepage.workspace_autodetect_btn": "Auto-registrer",
+  "config.homepage.workspace_autodetect_title": "Registrer automatisk arbejdsområdestien fra den kørende homepage-container",
+  "config.homepage.workspace_autodetect_loading": "Registrerer…",
+  "config.homepage.workspace_autodetect_failed": "Automatisk registrering mislykkedes — angiv stien manuelt.",
   "config.homepage.circuit_breaker_title": "Circuit Breaker",
   "config.homepage.circuit_breaker_desc": "Hjemmesideværktøjet kræver ofte mange på hinanden følgende værktøjskald. Dette sætter en separat, højere grænse der gælder midlertidigt fra det første hjemmesidekald til slutningen af den aktuelle handlingskæde.",
   "config.homepage.circuit_breaker_max_calls": "Maks. værktøjskald"

@@ -206,6 +206,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 
 		// Homepage tool endpoints
 		mux.HandleFunc("/api/homepage/status", handleHomepageStatus(s))
+		mux.HandleFunc("/api/homepage/detect-workspace", handleHomepageDetectWorkspace(s))
 		mux.HandleFunc("/api/homepage/test-connection", handleHomepageTestConnection(s))
 
 		// Cloudflare Tunnel endpoints

@@ -262,10 +262,24 @@ async function renderHomepageSection(section) {
     // ── Workspace Path ──
     if (dockerEnabled) {
         html += `<div style="margin-top:1.5rem;margin-bottom:0.5rem;font-weight:600;font-size:0.9rem;color:var(--accent);border-bottom:1px solid var(--border-subtle);padding-bottom:0.4rem;">📁 ${t('config.homepage.workspace_title')}</div>`;
+
+        // Warning: webserver enabled but no workspace_path
+        if (cfg.webserver_enabled && !cfg.workspace_path) {
+            html += `<div style="background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.4);border-radius:8px;padding:0.7rem 0.9rem;margin-bottom:0.8rem;display:flex;align-items:flex-start;gap:0.6rem;">
+                <span style="font-size:1.1rem;flex-shrink:0;">⚠️</span>
+                <span style="font-size:0.82rem;color:var(--text-primary);line-height:1.5;">${t('config.homepage.workspace_path_missing_warning')}</span>
+            </div>`;
+        }
+
         html += `<label style="display:block;margin-top:0.6rem;">
             <span style="font-size:0.78rem;color:var(--text-secondary);">${t('config.homepage.workspace_path')}</span>
-            <input class="cfg-input" data-path="homepage.workspace_path" value="${escapeAttr(cfg.workspace_path || '')}" placeholder="./agent_workspace/homepage" style="width:100%;margin-top:0.2rem;"
-                onchange="setNestedValue(configData,'homepage.workspace_path',this.value);setDirty(true)">
+            <div style="display:flex;gap:0.5rem;align-items:center;margin-top:0.2rem;">
+                <input id="hp-workspace-path-input" class="cfg-input" data-path="homepage.workspace_path" value="${escapeAttr(cfg.workspace_path || '')}" placeholder="/home/aurago/aurago/agent_workspace/homepage" style="flex:1;"
+                    onchange="setNestedValue(configData,'homepage.workspace_path',this.value);setDirty(true)">
+                <button class="btn btn-secondary btn-sm" onclick="hpAutoDetectWorkspace()" title="${t('config.homepage.workspace_autodetect_title')}" style="white-space:nowrap;flex-shrink:0;">
+                    🔍 ${t('config.homepage.workspace_autodetect_btn')}
+                </button>
+            </div>
         </label>`;
     }
 
@@ -331,6 +345,34 @@ async function hpSaveCredentials() {
         // Clear inputs after successful save
         document.getElementById('hp-deploy-password').value = '';
         document.getElementById('hp-deploy-key').value = '';
+    }
+}
+
+// ── Auto-detect workspace path from running homepage container ──
+async function hpAutoDetectWorkspace() {
+    const input = document.getElementById('hp-workspace-path-input');
+    if (!input) return;
+    const origText = input.value;
+    input.disabled = true;
+    input.value = t('config.homepage.workspace_autodetect_loading');
+    try {
+        const resp = await fetch('/api/homepage/detect-workspace');
+        const data = await resp.json();
+        if (data.status === 'ok' && data.path) {
+            input.value = data.path;
+            setNestedValue(configData, 'homepage.workspace_path', data.path);
+            setDirty(true);
+            // Re-render to clear the warning banner now that a path is set
+            renderSection();
+        } else {
+            input.value = origText;
+            alert('⚠️ ' + (data.message || t('config.homepage.workspace_autodetect_failed')));
+        }
+    } catch (e) {
+        input.value = origText;
+        alert('⚠️ ' + t('config.homepage.workspace_autodetect_failed'));
+    } finally {
+        input.disabled = false;
     }
 }
 

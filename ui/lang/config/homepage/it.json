@@ -42,6 +42,11 @@
   "config.homepage.optional": "opzionale",
   "config.homepage.workspace_title": "Area di lavoro",
   "config.homepage.workspace_path": "Percorso area di lavoro",
+  "config.homepage.workspace_path_missing_warning": "Il server web è abilitato ma nessun percorso dell'area di lavoro è impostato. Inserisci il percorso host assoluto del progetto (es. /home/aurago/aurago/agent_workspace/homepage) o usa il rilevamento automatico.",
+  "config.homepage.workspace_autodetect_btn": "Rileva auto",
+  "config.homepage.workspace_autodetect_title": "Rileva percorso dell'area di lavoro dal contenitore homepage in esecuzione",
+  "config.homepage.workspace_autodetect_loading": "Rilevamento…",
+  "config.homepage.workspace_autodetect_failed": "Rilevamento automatico non riuscito — inserire il percorso manualmente.",
   "config.homepage.circuit_breaker_title": "Circuit Breaker",
   "config.homepage.circuit_breaker_desc": "Lo strumento homepage richiede spesso molte chiamate consecutive. Questo imposta un limite separato e più alto che si applica temporaneamente dalla prima chiamata homepage fino alla fine della catena di azioni corrente.",
   "config.homepage.circuit_breaker_max_calls": "Chiamate strumenti max."
