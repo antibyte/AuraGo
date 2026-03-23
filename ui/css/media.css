@@ -291,8 +291,22 @@
 
 /* Responsive */
 @media (max-width: 640px) {
+    .media-container {
+        padding: 1rem;
+        overflow-x: hidden;
+    }
+
     .media-audio-grid {
         grid-template-columns: 1fr;
+    }
+
+    .media-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .media-controls {
+        width: 100%;
     }
 }
 

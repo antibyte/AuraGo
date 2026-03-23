@@ -12,6 +12,7 @@
     max-width: 1400px;
     margin: 0 auto;
     padding: 1.5rem;
+    overflow-x: hidden;
 }
 
 .media-header,
@@ -47,6 +48,7 @@
     color: var(--text-primary);
     font-size: 0.85rem;
     min-width: 200px;
+    max-width: 100%;
 }
 
 .gallery-filter {
@@ -348,6 +350,10 @@
 }
 
 @media (max-width: 640px) {
+    .gallery-container,
+    .media-container {
+        padding: 1rem;
+    }
     .gallery-grid {
         grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
     }
@@ -356,7 +362,14 @@
         flex-direction: column;
         align-items: stretch;
     }
-    .media-tabs {
-        flex-direction: column;
+    .gallery-search {
+        min-width: 0;
+        width: 100%;
+    }
+    .gallery-filter {
+        width: 100%;
+    }
+    .media-audio-grid {
+        grid-template-columns: 1fr;
     }
 }

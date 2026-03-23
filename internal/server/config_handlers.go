@@ -361,6 +361,30 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				}
 			}
 
+			// Auto-start / stop Homepage web server (Caddy) when webserver_enabled flag changes
+			if oldCfg.Homepage.WebServerEnabled != newCfg.Homepage.WebServerEnabled {
+				if newCfg.Homepage.WebServerEnabled {
+					go func() {
+						homepageCfg := tools.HomepageConfig{
+							DockerHost:            newCfg.Docker.Host,
+							WorkspacePath:         newCfg.Homepage.WorkspacePath,
+							WebServerPort:         newCfg.Homepage.WebServerPort,
+							WebServerDomain:       newCfg.Homepage.WebServerDomain,
+							WebServerInternalOnly: newCfg.Homepage.WebServerInternalOnly,
+							AllowLocalServer:      newCfg.Homepage.AllowLocalServer,
+						}
+						result := tools.HomepageWebServerStart(homepageCfg, "", "", s.Logger)
+						s.Logger.Info("[Config UI] Homepage web server auto-started", "result", result)
+					}()
+				} else {
+					go func() {
+						homepageCfg := tools.HomepageConfig{DockerHost: newCfg.Docker.Host}
+						tools.HomepageWebServerStop(homepageCfg, s.Logger)
+						s.Logger.Info("[Config UI] Homepage web server stopped")
+					}()
+				}
+			}
+
 			// Auto-start local Ollama embeddings container if just enabled
 			if newCfg.Embeddings.LocalOllama.Enabled && !oldCfg.Embeddings.LocalOllama.Enabled {
 				go tools.EnsureOllamaEmbeddingsRunning(newCfg, s.Logger)

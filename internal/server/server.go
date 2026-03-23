@@ -301,6 +301,23 @@ func Start(cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, sh
 		}()
 	}
 
+	// Auto-start Homepage web server (Caddy) if enabled
+	if cfg.Homepage.Enabled && cfg.Homepage.WebServerEnabled {
+		logger.Info("Homepage web server enabled — starting container automatically")
+		go func() {
+			homepageCfg := tools.HomepageConfig{
+				DockerHost:            cfg.Docker.Host,
+				WorkspacePath:         cfg.Homepage.WorkspacePath,
+				WebServerPort:         cfg.Homepage.WebServerPort,
+				WebServerDomain:       cfg.Homepage.WebServerDomain,
+				WebServerInternalOnly: cfg.Homepage.WebServerInternalOnly,
+				AllowLocalServer:      cfg.Homepage.AllowLocalServer,
+			}
+			result := tools.HomepageWebServerStart(homepageCfg, "", "", logger)
+			logger.Info("Homepage web server auto-start result", "result", result)
+		}()
+	}
+
 	// Initialize tsnet Manager (Tailscale embedded node)
 	s.TsNetManager = tsnetnode.NewManager(cfg, logger)
 	if cfg.Tailscale.TsNet.Enabled {
