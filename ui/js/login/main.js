@@ -66,11 +66,84 @@
             el('btnText').textContent               = t('login.btn_submit');
             if (TOTP_ENABLED) el('totpSection').classList.remove('is-hidden');
         })();
+
+        function getCurrentTheme() {
+            return document.documentElement.getAttribute('data-theme') || 'dark';
+        }
+
+        function getWebGLTheme(theme) {
+            if (theme === 'light') {
+                return {
+                    clearColor: 0xe8efec,
+                    fogColor: 0xe8efec,
+                    particleStart: 0x0f766e,
+                    particleEnd: 0x0d9488,
+                    lineColor: 0x0f766e,
+                    orbColors: [0x5eead4, 0x2dd4bf, 0x115e59]
+                };
+            }
+            return {
+                clearColor: 0x0b0f1a,
+                fogColor: 0x0b0f1a,
+                particleStart: 0x2dd4bf,
+                particleEnd: 0x0d9488,
+                lineColor: 0x2dd4bf,
+                orbColors: [0x2dd4bf, 0x0d9488, 0x115e59]
+            };
+        }
+
+        function applyThemeToWebGL(theme) {
+            if (!renderer || !scene) return;
+            const palette = getWebGLTheme(theme);
+
+            renderer.setClearColor(palette.clearColor, 1);
+            if (scene.fog) scene.fog.color.setHex(palette.fogColor);
+
+            if (particles && particles.geometry && particles.geometry.attributes.color) {
+                const colors = particles.geometry.attributes.color.array;
+                const particleCount = colors.length / 3;
+                const color1 = new THREE.Color(palette.particleStart);
+                const color2 = new THREE.Color(palette.particleEnd);
+
+                for (let i = 0; i < particleCount; i++) {
+                    const mixRatio = particleCount > 1 ? i / (particleCount - 1) : 0;
+                    const color = color1.clone().lerp(color2, mixRatio);
+                    colors[i * 3] = color.r;
+                    colors[i * 3 + 1] = color.g;
+                    colors[i * 3 + 2] = color.b;
+                }
+                particles.geometry.attributes.color.needsUpdate = true;
+            }
+
+            if (lines && lines.material && lines.material.color) {
+                lines.material.color.setHex(palette.lineColor);
+                lines.material.needsUpdate = true;
+            }
+
+            scene.children.forEach(child => {
+                if (
+                    child.userData &&
+                    typeof child.userData.orbIndex === 'number' &&
+                    child.material &&
+                    child.material.color
+                ) {
+                    const orbColor = palette.orbColors[child.userData.orbIndex] || palette.orbColors[0];
+                    child.material.color.setHex(orbColor);
+                    child.material.needsUpdate = true;
+                }
+            });
+        }
+
+        window.addEventListener('aurago:themechange', (event) => {
+            applyThemeToWebGL((event.detail && event.detail.theme) || getCurrentTheme());
+        });
         
         function initWebGL() {
+            const palette = getWebGLTheme(getCurrentTheme());
+
             // Scene setup
             scene = new THREE.Scene();
-            scene.fog = new THREE.FogExp2(0x0b0f1a, 0.001);
+            scene.fog = new THREE.FogExp2(palette.fogColor, 0.001);
             
             // Camera
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -84,12 +157,13 @@
             });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-            renderer.setClearColor(0x0b0f1a, 1);
+            renderer.setClearColor(palette.clearColor, 1);
             
             // Create particle system
             createParticles();
             createConnections();
             createFloatingOrbs();
+            applyThemeToWebGL(getCurrentTheme());
 
             // WebGL ready — show canvas, hide CSS fallback
             showWebGL();
@@ -108,9 +182,10 @@
             const positions = new Float32Array(particleCount * 3);
             const colors = new Float32Array(particleCount * 3);
             const sizes = new Float32Array(particleCount);
-            
-            const color1 = new THREE.Color(0x2dd4bf); // Teal
-            const color2 = new THREE.Color(0x0d9488); // Darker teal
+
+            const palette = getWebGLTheme(getCurrentTheme());
+            const color1 = new THREE.Color(palette.particleStart);
+            const color2 = new THREE.Color(palette.particleEnd);
             
             for (let i = 0; i < particleCount; i++) {
                 // Position
@@ -182,9 +257,11 @@
         }
         
         function createConnections() {
+            const palette = getWebGLTheme(getCurrentTheme());
+
             // Create lines between nearby particles
             const lineMaterial = new THREE.LineBasicMaterial({
-                color: 0x2dd4bf,
+                color: palette.lineColor,
                 transparent: true,
                 opacity: 0.15,
                 blending: THREE.AdditiveBlending
@@ -203,11 +280,12 @@
         function createFloatingOrbs() {
             // Large glowing orbs in background
             const orbGeometry = new THREE.SphereGeometry(1, 32, 32);
-            
+            const palette = getWebGLTheme(getCurrentTheme());
+
             const orbPositions = [
-                { x: -30, y: 20, z: -20, scale: 8, color: 0x2dd4bf },
-                { x: 35, y: -15, z: -30, scale: 6, color: 0x0d9488 },
-                { x: 0, y: -25, z: -10, scale: 10, color: 0x115e59 }
+                { x: -30, y: 20, z: -20, scale: 8, color: palette.orbColors[0] },
+                { x: 35, y: -15, z: -30, scale: 6, color: palette.orbColors[1] },
+                { x: 0, y: -25, z: -10, scale: 10, color: palette.orbColors[2] }
             ];
             
             orbPositions.forEach((orb, i) => {
@@ -223,7 +301,8 @@
                 mesh.scale.setScalar(orb.scale);
                 mesh.userData = { 
                     originalPos: { ...orb },
-                    phase: i * Math.PI / 3 
+                    phase: i * Math.PI / 3,
+                    orbIndex: i
                 };
                 
                 scene.add(mesh);
@@ -238,7 +317,11 @@
                 const halo = new THREE.Mesh(orbGeometry, haloMaterial);
                 halo.position.copy(mesh.position);
                 halo.scale.setScalar(orb.scale * 1.5);
-                halo.userData = mesh.userData;
+                halo.userData = {
+                    originalPos: { ...orb },
+                    phase: i * Math.PI / 3,
+                    orbIndex: i
+                };
                 scene.add(halo);
             });
         }
@@ -355,32 +438,6 @@
             } else {
                 inp.type = 'password';
                 btn.textContent = '👁';
-            }
-        }
-        
-        function toggleTheme() {
-            const html = document.documentElement;
-            const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-            html.setAttribute('data-theme', next);
-            localStorage.setItem('aurago-theme', next);
-            
-            // Update WebGL clear color for theme
-            if (renderer) {
-                renderer.setClearColor(next === 'dark' ? 0x0b0f1a : 0xe8efec, 1);
-                if (particles) {
-                    const colors = particles.geometry.attributes.color.array;
-                    const color1 = new THREE.Color(next === 'dark' ? 0x2dd4bf : 0x0f766e);
-                    const color2 = new THREE.Color(next === 'dark' ? 0x0d9488 : 0x0d9488);
-                    
-                    for (let i = 0; i < 150; i++) {
-                        const mixRatio = Math.random();
-                        const color = color1.clone().lerp(color2, mixRatio);
-                        colors[i * 3] = color.r;
-                        colors[i * 3 + 1] = color.g;
-                        colors[i * 3 + 2] = color.b;
-                    }
-                    particles.geometry.attributes.color.needsUpdate = true;
-                }
             }
         }
         

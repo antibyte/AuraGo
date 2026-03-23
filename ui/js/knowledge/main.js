@@ -451,13 +451,6 @@ async function confirmDelete() {
 // HELPERS
 // ═══════════════════════════════════════════════════════════════
 
-function esc(s) {
-    if (!s) return '';
-    const el = document.createElement('span');
-    el.textContent = s;
-    return el.innerHTML;
-}
-
 function formatSize(bytes) {
     if (!bytes || bytes === 0) return '0 B';
     const units = ['B', 'KB', 'MB', 'GB'];

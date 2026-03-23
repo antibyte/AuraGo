@@ -41,9 +41,14 @@ function applyI18n() {
             el.textContent = translated;
         }
     });
-    // Also handle data-i18n-placeholder, data-i18n-title, data-i18n-aria-label
+    // Also handle data-i18n-placeholder, data-i18n-title, data-i18n-aria-label.
+    // Keep data-i18n-ph as a temporary compatibility alias during refactors.
     document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
         const v = dict[el.getAttribute('data-i18n-placeholder')];
+        if (v) el.placeholder = v;
+    });
+    document.querySelectorAll('[data-i18n-ph]').forEach(el => {
+        const v = dict[el.getAttribute('data-i18n-ph')];
         if (v) el.placeholder = v;
     });
     document.querySelectorAll('[data-i18n-title]').forEach(el => {
@@ -407,6 +412,15 @@ function esc(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+/**
+ * Escape text for safe attribute usage
+ * @param {string} text
+ * @returns {string}
+ */
+function escAttr(text) {
+    return esc(text).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
 }
 
 /**

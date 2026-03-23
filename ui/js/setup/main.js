@@ -650,15 +650,6 @@ function skipSetup() {
     }
 }
 
-// ── Theme Toggle ─────────────────────────────
-function toggleTheme() {
-    const html = document.documentElement;
-    const current = html.getAttribute('data-theme') || 'dark';
-    const next = current === 'dark' ? 'light' : 'dark';
-    html.setAttribute('data-theme', next);
-    localStorage.setItem('aurago-theme', next);
-}
-
 // ── Toast Notifications ──────────────────────
 function showToast(message, type = 'info') {
     const container = document.getElementById('toastContainer');

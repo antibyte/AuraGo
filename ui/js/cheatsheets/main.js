@@ -7,27 +7,9 @@ let expandedCards = new Set(); // Track expanded card IDs
 
 // ── Init ─────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-    applyI18n();
-    initModals();
-    injectRadialMenu();
-    checkAuth();
-    injectLanguageSwitcher();
+    document.title = t('cheatsheets.page_title') || 'AuraGo - Cheat Sheets';
     loadSheets();
 });
-
-function applyI18n() {
-    document.querySelectorAll('[data-i18n]').forEach(el => {
-        const key = el.getAttribute('data-i18n');
-        const val = t(key);
-        if (val && val !== key) el.textContent = val;
-    });
-    document.querySelectorAll('[data-i18n-ph]').forEach(el => {
-        const key = el.getAttribute('data-i18n-ph');
-        const val = t(key);
-        if (val && val !== key) el.placeholder = val;
-    });
-    document.title = t('cheatsheets.page_title') || 'AuraGo - Cheat Sheets';
-}
 
 // ── API ──────────────────────────────────────────────────
 async function api(path, options = {}) {

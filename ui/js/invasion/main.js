@@ -8,29 +8,10 @@ let deleteTarget = null; // { type: 'nest'|'egg', id, name }
 
 // ── Init ─────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-    applyI18n();
+    document.title = t('invasion.page_title');
     loadNests();
     loadEggs();
 });
-
-function applyI18n() {
-    document.querySelectorAll('[data-i18n]').forEach(el => {
-        const key = el.getAttribute('data-i18n');
-        const val = t(key);
-        if (val && val !== key) el.textContent = val;
-    });
-    document.querySelectorAll('[data-i18n-ph]').forEach(el => {
-        const key = el.getAttribute('data-i18n-ph');
-        const val = t(key);
-        if (val && val !== key) el.placeholder = val;
-    });
-    document.querySelectorAll('[data-i18n-title]').forEach(el => {
-        const key = el.getAttribute('data-i18n-title');
-        const val = t(key);
-        if (val && val !== key) el.title = val;
-    });
-    document.title = t('invasion.page_title');
-}
 
 // ── Tabs ─────────────────────────────────────────────────
 function switchTab(tab) {

@@ -1,5 +1,5 @@
 /* AuraGo – Containers page JS */
-/* global I18N, t, applyI18N */
+/* global I18N, t, applyI18n, esc */
 'use strict';
 
 let allContainers = [];
@@ -90,7 +90,7 @@ function renderContainers() {
     grid.style.display = '';
 
     grid.innerHTML = filtered.map(c => renderCard(c)).join('');
-    if (typeof applyI18N === 'function') applyI18N();
+    if (typeof applyI18n === 'function') applyI18n();
 }
 
 function renderCard(c) {
@@ -98,6 +98,8 @@ function renderCard(c) {
     const state = (c.state || 'unknown').toLowerCase();
     const isRunning = state === 'running';
     const isPaused = state === 'paused';
+    const deleteId = JSON.stringify(c.id || '').replace(/"/g, '&quot;');
+    const deleteName = JSON.stringify(name).replace(/"/g, '&quot;');
 
     let actionBtns = '';
     if (isRunning) {
@@ -116,18 +118,18 @@ function renderCard(c) {
     <div class="ct-card" data-id="${c.id}" data-state="${state}">
         <div class="ct-card-header">
             <div class="ct-card-status ${state}"></div>
-            <div class="ct-card-name" title="${escHtml(name)}">${escHtml(name)}</div>
-            <span class="ct-card-id">${escHtml(c.id)}</span>
+            <div class="ct-card-name" title="${esc(name)}">${esc(name)}</div>
+            <span class="ct-card-id">${esc(c.id)}</span>
         </div>
         <div class="ct-card-meta">
-            <span><span class="ct-meta-icon">📦</span> ${escHtml(c.image)}</span>
-            <span><span class="ct-meta-icon">📋</span> <span class="ct-card-state ${state}">${escHtml(c.status)}</span></span>
+            <span><span class="ct-meta-icon">📦</span> ${esc(c.image)}</span>
+            <span><span class="ct-meta-icon">📋</span> <span class="ct-card-state ${state}">${esc(c.status)}</span></span>
         </div>
         <div class="ct-card-actions">
             ${actionBtns}
             <button class="btn btn-sm btn-secondary" onclick="showLogs('${c.id}')" data-i18n="containers.btn_logs">📄 Logs</button>
             <button class="btn btn-sm btn-secondary" onclick="showInspect('${c.id}')" data-i18n="containers.btn_inspect">🔍 Inspect</button>
-            <button class="btn btn-sm btn-danger" onclick="showDeleteModal('${c.id}','${escAttr(name)}')" data-i18n="containers.btn_remove">🗑 Remove</button>
+            <button class="btn btn-sm btn-danger" onclick="showDeleteModal(${deleteId}, ${deleteName})" data-i18n="containers.btn_remove">🗑 Remove</button>
         </div>
     </div>`;
 }
@@ -297,17 +299,6 @@ function dockerErrMsg(msg) {
     }
     return text.length > 200 ? text.slice(0, 197) + '…' : text;
 }
-function escHtml(s) {
-    if (!s) return '';
-    const div = document.createElement('div');
-    div.textContent = s;
-    return div.innerHTML;
-}
-
-function escAttr(s) {
-    return escHtml(s).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
-}
-
 function showToast(msg, type) {
     const el = document.createElement('div');
     el.className = `ct-toast ${type}`;
