@@ -28,13 +28,19 @@ func handleAuthStatus(s *Server) http.HandlerFunc {
 		enabled := s.Cfg.Auth.Enabled
 		passwordSet := s.Cfg.Auth.PasswordHash != ""
 		totpEnabled := s.Cfg.Auth.TOTPEnabled && s.Cfg.Auth.TOTPSecret != ""
+		secret := s.Cfg.Auth.SessionSecret
 		s.CfgMu.RUnlock()
+		authenticated := false
+		if enabled && secret != "" {
+			authenticated = IsAuthenticated(r, secret)
+		}
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"enabled":      enabled,
-			"password_set": passwordSet,
-			"totp_enabled": totpEnabled,
+			"enabled":       enabled,
+			"password_set":  passwordSet,
+			"totp_enabled":  totpEnabled,
+			"authenticated": authenticated,
 		})
 	}
 }

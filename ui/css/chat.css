@@ -2563,6 +2563,14 @@
                 min-width: max-content;
             }
 
+            .app-header .header-actions {
+                padding-right: 44px;
+            }
+
+            .app-header .header-actions::after {
+                min-width: 44px;
+            }
+
             .input-row {
                 flex-direction: row;
                 gap: 0.5rem;

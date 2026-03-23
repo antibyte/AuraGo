@@ -1485,6 +1485,15 @@ select.large,
     transition: transform 0.2s ease, opacity 0.2s ease;
 }
 
+.view-toggle-glyph {
+    display: block;
+    font-size: 1rem;
+    line-height: 1;
+    color: currentColor;
+    opacity: 0.95;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
 .view-toggle button svg * {
     stroke: currentColor;
 }
@@ -1505,6 +1514,10 @@ select.large,
     transform: scale(1.04);
 }
 
+.view-toggle button:hover .view-toggle-glyph {
+    transform: scale(1.04);
+}
+
 .view-toggle button.active {
     background: linear-gradient(135deg, rgba(45, 212, 191, 0.18), rgba(13, 148, 136, 0.28));
     border-color: var(--border-accent);
@@ -1515,6 +1528,10 @@ select.large,
 }
 
 .view-toggle button.active svg {
+    opacity: 1;
+}
+
+.view-toggle button.active .view-toggle-glyph {
     opacity: 1;
 }
 
@@ -2639,6 +2656,10 @@ select.large,
     .view-toggle button svg {
         width: 15px;
         height: 15px;
+    }
+
+    .view-toggle-glyph {
+        font-size: 0.95rem;
     }
 
     /* Hide logo text on mobile – keep only the icon to save space */

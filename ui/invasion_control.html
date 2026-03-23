@@ -75,7 +75,10 @@
     <!-- Nest Modal -->
     <div class="modal-overlay" id="nest-modal">
         <div class="modal">
-            <h2 id="nest-modal-title"><script>document.write(t('invasion.create_nest'))</script></h2>
+            <div class="modal-header">
+                <h2 id="nest-modal-title"><script>document.write(t('invasion.create_nest'))</script></h2>
+                <button class="modal-close" onclick="closeModal('nest-modal')">&times;</button>
+            </div>
             <input type="hidden" id="nest-id">
             <div class="form-group">
                 <label><script>document.write(t('invasion.name'))</script></label>
@@ -177,7 +180,10 @@
     <!-- Egg Modal -->
     <div class="modal-overlay" id="egg-modal">
         <div class="modal">
-            <h2 id="egg-modal-title"><script>document.write(t('invasion.create_egg'))</script></h2>
+            <div class="modal-header">
+                <h2 id="egg-modal-title"><script>document.write(t('invasion.create_egg'))</script></h2>
+                <button class="modal-close" onclick="closeModal('egg-modal')">&times;</button>
+            </div>
             <input type="hidden" id="egg-id">
             <div class="form-group">
                 <label><script>document.write(t('invasion.name'))</script></label>
@@ -262,7 +268,10 @@
     <!-- Delete Confirm Modal -->
     <div class="modal-overlay" id="delete-modal">
         <div class="modal">
-            <h2 class="delete-modal-title">⚠️ <span><script>document.write(t('invasion.confirm_delete'))</script></span></h2>
+            <div class="modal-header">
+                <h2 class="delete-modal-title">⚠️ <span><script>document.write(t('invasion.confirm_delete'))</script></span></h2>
+                <button class="modal-close" onclick="closeModal('delete-modal')">&times;</button>
+            </div>
             <p id="delete-message" class="delete-message"></p>
             <p class="delete-modal-hint">
                 <script>document.write(t('invasion.type_name_confirm'))</script>

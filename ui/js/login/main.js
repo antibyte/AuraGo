@@ -803,6 +803,26 @@
             document.getElementById('password').classList.remove('error-field');
             document.getElementById('totpCode').classList.remove('error-field');
         }
+
+        async function waitForAuthenticatedSession(maxChecks = 6, delayMs = 120) {
+            for (let i = 0; i < maxChecks; i++) {
+                try {
+                    const resp = await fetch('/api/auth/status', {
+                        credentials: 'same-origin',
+                        cache: 'no-store',
+                        headers: { 'Accept': 'application/json' }
+                    });
+                    if (resp.ok) {
+                        const data = await resp.json();
+                        if (data && data.authenticated) {
+                            return true;
+                        }
+                    }
+                } catch (_) { }
+                await new Promise(resolve => setTimeout(resolve, delayMs));
+            }
+            return false;
+        }
         
         async function submitLogin() {
             clearError();
@@ -824,13 +844,16 @@
                 const resp = await fetch('/auth/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    cache: 'no-store',
                     body: JSON.stringify({ password, totp_code: totpCode, redirect }),
                 });
                 
                 const data = await resp.json();
                 
                 if (resp.ok && data.ok) {
-                    window.location.href = data.redirect || '/';
+                    await waitForAuthenticatedSession();
+                    window.location.replace(data.redirect || '/');
                 } else {
                     showError(data.error || t('login.error_failed'));
                     document.getElementById('password').classList.add('error-field');
