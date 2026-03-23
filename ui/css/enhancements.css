@@ -1,0 +1,775 @@
+/* ══════════════════════════════════════════════════════════════
+   AuraGo – UI Enhancements
+   Dezente zusätzliche Effekte für ein noch hübscheres UI
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── Smooth Scroll Behavior ─────────────────────────────────── */
+html {
+    scroll-behavior: smooth;
+}
+
+/* ── Enhanced Selection Color ───────────────────────────────── */
+::selection {
+    background: rgba(45, 212, 191, 0.3);
+    color: var(--text-primary);
+    text-shadow: 0 0 10px rgba(45, 212, 191, 0.3);
+}
+
+::-moz-selection {
+    background: rgba(45, 212, 191, 0.3);
+    color: var(--text-primary);
+}
+
+/* ── Typing Indicator Animation ─────────────────────────────── */
+.typing-indicator {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 12px 16px;
+    background: var(--bot-bubble);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius) var(--radius) var(--radius) 4px;
+    width: fit-content;
+    backdrop-filter: blur(12px);
+}
+
+.typing-indicator .dot {
+    width: 8px;
+    height: 8px;
+    background: var(--accent);
+    border-radius: 50%;
+    animation: typingBounce 1.4s ease-in-out infinite;
+    box-shadow: 0 0 8px var(--accent-glow);
+}
+
+.typing-indicator .dot:nth-child(1) {
+    animation-delay: 0s;
+}
+
+.typing-indicator .dot:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.typing-indicator .dot:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+@keyframes typingBounce {
+    0%, 60%, 100% {
+        transform: translateY(0);
+        opacity: 0.4;
+    }
+    30% {
+        transform: translateY(-6px);
+        opacity: 1;
+        box-shadow: 0 0 12px var(--accent);
+    }
+}
+
+/* ── Enhanced Focus Ring with Glow ──────────────────────────── */
+*:focus-visible {
+    outline: none;
+    box-shadow: 
+        0 0 0 2px var(--bg-primary),
+        0 0 0 4px var(--accent),
+        0 0 20px var(--accent-glow);
+    transition: box-shadow 0.2s ease;
+}
+
+/* ── Button Micro-interactions ───────────────────────────────── */
+.btn, .btn-header, .dash-tab, .mood-btn {
+    position: relative;
+    overflow: hidden;
+}
+
+.btn::after, .btn-header::after, .dash-tab::after, .mood-btn::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at var(--x, 50%) var(--y, 50%), 
+        rgba(255, 255, 255, 0.15) 0%, 
+        transparent 50%);
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+}
+
+.btn:hover::after, .btn-header:hover::after, .dash-tab:hover::after, .mood-btn:hover::after {
+    opacity: 1;
+}
+
+/* ── Sparkle Animation für wichtige Buttons ─────────────────── */
+@keyframes sparkle {
+    0%, 100% { 
+        opacity: 0; 
+        transform: scale(0) rotate(0deg); 
+    }
+    50% { 
+        opacity: 1; 
+        transform: scale(1) rotate(180deg); 
+    }
+}
+
+.btn-sparkle {
+    position: relative;
+}
+
+.btn-sparkle::before,
+.btn-sparkle::after {
+    content: '✦';
+    position: absolute;
+    color: white;
+    font-size: 0.6rem;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.btn-sparkle::before {
+    top: 20%;
+    right: 15%;
+    animation: sparkle 2s ease-in-out infinite;
+}
+
+.btn-sparkle::after {
+    bottom: 20%;
+    left: 15%;
+    animation: sparkle 2s ease-in-out infinite 0.5s;
+}
+
+.btn-sparkle:hover::before,
+.btn-sparkle:hover::after {
+    opacity: 1;
+}
+
+/* ── Enhanced Card Hover with Lift & Glow ───────────────────── */
+.card, .dash-card {
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: transform, box-shadow;
+}
+
+.card:hover, .dash-card:hover {
+    transform: translateY(-6px) scale(1.01);
+}
+
+/* ── Link Hover Underline Animation ─────────────────────────── */
+a:not(.btn):not(.logo):not(.card-compact) {
+    position: relative;
+    text-decoration: none;
+}
+
+a:not(.btn):not(.logo):not(.card-compact)::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 0;
+    height: 1px;
+    background: linear-gradient(90deg, var(--accent), transparent);
+    transition: width 0.3s ease;
+}
+
+a:not(.btn):not(.logo):not(.card-compact):hover::after {
+    width: 100%;
+}
+
+/* ── Pulsing Status Dot Enhancement ─────────────────────────── */
+.status-dot {
+    position: relative;
+}
+
+.status-dot::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    border: 2px solid currentColor;
+    opacity: 0;
+    animation: statusPulse 2s ease-out infinite;
+}
+
+@keyframes statusPulse {
+    0% {
+        transform: scale(0.8);
+        opacity: 0.6;
+    }
+    100% {
+        transform: scale(2);
+        opacity: 0;
+    }
+}
+
+.status-dot.green::after {
+    border-color: var(--success);
+}
+
+.status-dot.red::after {
+    border-color: var(--danger);
+}
+
+.status-dot.yellow::after {
+    border-color: var(--warning);
+}
+
+.status-dot.gray::after {
+    border-color: var(--text-secondary);
+}
+
+/* ── Loading Shimmer Enhancement ────────────────────────────── */
+.shimmer {
+    background: linear-gradient(
+        90deg,
+        var(--bg-glass) 0%,
+        rgba(255, 255, 255, 0.08) 50%,
+        var(--bg-glass) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+
+/* ── Smooth Tab Panel Transitions ───────────────────────────── */
+.dash-tab-panel {
+    animation: panelFadeIn 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes panelFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ── Message Bubble Entrance ────────────────────────────────── */
+.msg-row {
+    animation: messageSlideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes messageSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* ── Toast Notification Enhancement ──────────────────────────── */
+.toast {
+    animation: toastSlideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes toastSlideIn {
+    from {
+        opacity: 0;
+        transform: translateX(100px) scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+    }
+}
+
+/* ── Input Focus Glow Animation ─────────────────────────────── */
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus,
+#user-input:focus {
+    animation: inputGlow 0.3s ease forwards;
+}
+
+@keyframes inputGlow {
+    from {
+        box-shadow: 0 0 0 0 rgba(45, 212, 191, 0);
+    }
+    to {
+        box-shadow: 
+            0 0 0 3px rgba(45, 212, 191, 0.15), 
+            0 0 25px rgba(45, 212, 191, 0.15),
+            inset 0 1px 2px rgba(255, 255, 255, 0.05);
+    }
+}
+
+/* ── Scrollbar Enhancement ──────────────────────────────────── */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, 
+        rgba(128, 128, 128, 0.2) 0%, 
+        rgba(45, 212, 191, 0.2) 50%,
+        rgba(128, 128, 128, 0.2) 100%);
+    border-radius: 4px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, 
+        rgba(128, 128, 128, 0.35) 0%, 
+        rgba(45, 212, 191, 0.35) 50%,
+        rgba(128, 128, 128, 0.35) 100%);
+    border: 1px solid transparent;
+    background-clip: padding-box;
+}
+
+/* ── Modal Backdrop Blur Enhancement ────────────────────────── */
+.modal-overlay {
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+/* ── Hover Glow Effect for Interactive Elements ─────────────── */
+.interactive-glow {
+    transition: all 0.3s ease;
+}
+
+.interactive-glow:hover {
+    box-shadow: 0 0 20px var(--accent-glow);
+}
+
+/* ── Text Gradient Animation ────────────────────────────────── */
+.gradient-text-animated {
+    background: linear-gradient(
+        90deg, 
+        var(--accent), 
+        #0d9488, 
+        var(--accent)
+    );
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: gradientShift 3s ease infinite;
+}
+
+@keyframes gradientShift {
+    0%, 100% { background-position: 0% center; }
+    50% { background-position: 100% center; }
+}
+
+/* ── Send Button Special Effect ─────────────────────────────── */
+.btn-send {
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-send::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+}
+
+.btn-send:active::before {
+    width: 200%;
+    height: 200%;
+}
+
+/* ── Avatar Glow on New Message ─────────────────────────────── */
+.avatar {
+    transition: all 0.3s ease;
+}
+
+.msg-row:hover .avatar {
+    transform: scale(1.05);
+    box-shadow: 0 0 15px var(--accent-dim);
+}
+
+/* ── Code Block Syntax Highlight Glow ───────────────────────── */
+.code-block-wrapper {
+    transition: all 0.3s ease;
+}
+
+.code-block-wrapper:hover {
+    box-shadow: 
+        0 4px 20px rgba(0, 0, 0, 0.3),
+        0 0 0 1px var(--border-accent),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* ── Badge Hover Pop Effect ─────────────────────────────────── */
+.badge, .pill {
+    transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.badge:hover, .pill:hover {
+    transform: scale(1.05);
+}
+
+/* ── Gauge Value Counter Animation ─────────────────────────── */
+.gauge-value {
+    transition: all 0.3s ease;
+}
+
+.gauge-value.changed {
+    animation: valuePop 0.3s ease;
+}
+
+@keyframes valuePop {
+    0% { transform: translate(-50%, -60%) scale(1); }
+    50% { transform: translate(-50%, -60%) scale(1.3); color: var(--accent); }
+    100% { transform: translate(-50%, -60%) scale(1); }
+}
+
+/* ── Memory Stat Card Hover ─────────────────────────────────── */
+.mem-stat, .stat-item, .activity-stat, .prompt-kpi {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.mem-stat:hover, .stat-item:hover, .activity-stat:hover, .prompt-kpi:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+}
+
+/* ── Mood Badge Pulse ───────────────────────────────────────── */
+.mood-badge {
+    animation: moodPulse 3s ease-in-out infinite;
+}
+
+@keyframes moodPulse {
+    0%, 100% { 
+        box-shadow: 0 0 10px rgba(45, 212, 191, 0.15);
+    }
+    50% { 
+        box-shadow: 0 0 20px rgba(45, 212, 191, 0.3);
+    }
+}
+
+/* ── Empty State Icon Float ─────────────────────────────────── */
+.empty-state .icon {
+    animation: gentleFloat 4s ease-in-out infinite;
+}
+
+@keyframes gentleFloat {
+    0%, 100% { 
+        transform: translateY(0) rotate(0deg); 
+    }
+    50% { 
+        transform: translateY(-10px) rotate(2deg); 
+    }
+}
+
+/* ── Connection Status Pulse Enhancement ────────────────────── */
+.pill-active {
+    position: relative;
+}
+
+.pill-active::after {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: inherit;
+    border: 1px solid var(--success);
+    opacity: 0;
+    animation: connectionPulse 2s ease-out infinite;
+}
+
+@keyframes connectionPulse {
+    0% {
+        transform: scale(1);
+        opacity: 0.5;
+    }
+    100% {
+        transform: scale(1.1);
+        opacity: 0;
+    }
+}
+
+/* ── Stagger Animation for Lists ───────────────────────────── */
+.stagger-list > * {
+    opacity: 0;
+    animation: listItemEnter 0.4s ease forwards;
+}
+
+.stagger-list > *:nth-child(1) { animation-delay: 0ms; }
+.stagger-list > *:nth-child(2) { animation-delay: 50ms; }
+.stagger-list > *:nth-child(3) { animation-delay: 100ms; }
+.stagger-list > *:nth-child(4) { animation-delay: 150ms; }
+.stagger-list > *:nth-child(5) { animation-delay: 200ms; }
+.stagger-list > *:nth-child(6) { animation-delay: 250ms; }
+.stagger-list > *:nth-child(7) { animation-delay: 300ms; }
+.stagger-list > *:nth-child(8) { animation-delay: 350ms; }
+
+@keyframes listItemEnter {
+    from {
+        opacity: 0;
+        transform: translateX(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* ── Subtle Background Gradient Animation ───────────────────── */
+body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: -1;
+    background: 
+        radial-gradient(ellipse at 20% 20%, rgba(45, 212, 191, 0.03) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 80%, rgba(99, 102, 241, 0.03) 0%, transparent 50%);
+    animation: bgShift 30s ease-in-out infinite;
+}
+
+@keyframes bgShift {
+    0%, 100% {
+        transform: translate(0, 0) scale(1);
+    }
+    33% {
+        transform: translate(2%, -2%) scale(1.05);
+    }
+    66% {
+        transform: translate(-1%, 1%) scale(0.95);
+    }
+}
+
+/* ── Tooltip Enhancement ────────────────────────────────────── */
+[title]:hover::after {
+    content: attr(title);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 6px 12px;
+    background: var(--modal-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    font-size: 0.75rem;
+    color: var(--text-primary);
+    white-space: nowrap;
+    z-index: 1000;
+    opacity: 0;
+    animation: tooltipFadeIn 0.2s ease forwards;
+    pointer-events: none;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+@keyframes tooltipFadeIn {
+    to { opacity: 1; }
+}
+
+/* ── Voice Recorder Waveform Glow ───────────────────────────── */
+.recorder-pulse {
+    animation: voicePulse 1.5s ease-in-out infinite;
+}
+
+@keyframes voicePulse {
+    0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+    }
+    50% {
+        transform: scale(1.1);
+        box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+    }
+}
+
+/* ── Profile Entry Slide In ─────────────────────────────────── */
+.profile-entry {
+    animation: profileEntry 0.3s ease forwards;
+    opacity: 0;
+}
+
+@keyframes profileEntry {
+    from {
+        opacity: 0;
+        transform: translateX(-15px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* ── Send Button Ripple Effect ──────────────────────────────── */
+.btn-send {
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-send::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: width 0.5s, height 0.5s;
+}
+
+.btn-send:active::after {
+    width: 300%;
+    height: 300%;
+}
+
+/* ── Enhanced Input Glow ─────────────────────────────────────── */
+.input-wrap textarea {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.input-wrap textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 
+        0 0 0 3px rgba(45, 212, 191, 0.15),
+        0 0 30px rgba(45, 212, 191, 0.1);
+    background: var(--bg-secondary);
+}
+
+/* ── Card Shine Effect on Hover ──────────────────────────────── */
+.card::before,
+.dash-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.05),
+        transparent
+    );
+    transition: left 0.7s ease;
+    pointer-events: none;
+}
+
+.card:hover::before,
+.dash-card:hover::before {
+    left: 100%;
+}
+
+/* ── Tab Active Glow ─────────────────────────────────────────── */
+.dash-tab.active {
+    box-shadow: 
+        0 0 15px rgba(45, 212, 191, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* ── Logo Text Shimmer ───────────────────────────────────────── */
+.logo-wordmark-accent {
+    position: relative;
+    display: inline-block;
+}
+
+.logo:hover .logo-wordmark-accent {
+    animation: textShimmer 2s ease-in-out infinite;
+}
+
+@keyframes textShimmer {
+    0%, 100% {
+        filter: brightness(1);
+    }
+    50% {
+        filter: brightness(1.2);
+    }
+}
+
+/* ── Button Group Hover Effect ───────────────────────────────── */
+.action-btns {
+    position: relative;
+}
+
+.action-btns::before {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    background: linear-gradient(135deg, 
+        rgba(45, 212, 191, 0.1), 
+        transparent,
+        rgba(99, 102, 241, 0.1));
+    border-radius: 16px;
+    opacity: 0;
+    transition: opacity 0.3s;
+    z-index: -1;
+}
+
+.action-btns:hover::before {
+    opacity: 1;
+}
+
+/* ── Upload Button Special Hover ─────────────────────────────── */
+.btn-upload:hover {
+    background: var(--accent-dim);
+    border-color: var(--accent);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(45, 212, 191, 0.2);
+}
+
+/* ── Voice Button Recording Glow ─────────────────────────────── */
+.btn-voice.recording {
+    animation: voiceRecording 1.5s ease-in-out infinite;
+}
+
+@keyframes voiceRecording {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+    }
+    50% {
+        box-shadow: 0 0 0 8px rgba(239, 68, 68, 0);
+    }
+}
+
+/* ── Image Hover Zoom ─────────────────────────────────────────── */
+.bubble img {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.bubble img:hover {
+    transform: scale(1.02);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+/* ── Responsive: Reduce animations on mobile ────────────────── */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+@media (max-width: 768px) {
+    body::before {
+        animation: none;
+    }
+    
+    .gradient-text-animated {
+        animation: none;
+    }
+    
+    .card::before,
+    .dash-card::before {
+        display: none;
+    }
+}
