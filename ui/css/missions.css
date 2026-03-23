@@ -593,10 +593,26 @@
 }
 
 @media (max-width: 480px) {
+    /* Two-column status cards instead of one per row */
     .status-bar {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
     }
     .container {
         padding: 12px;
+        overflow-x: hidden;
+    }
+    /* Stack headline above action buttons so "Neue Mission" doesn't overflow right */
+    .page-header {
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    .page-header h1 {
+        width: 100%;
+    }
+    .page-header .header-actions {
+        width: 100%;
+        justify-content: flex-end;
+        flex-wrap: wrap;
     }
 }
