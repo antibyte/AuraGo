@@ -3,6 +3,22 @@
    Dezente zusätzliche Effekte für ein noch hübscheres UI
    ══════════════════════════════════════════════════════════════ */
 
+/* ══════════════════════════════════════════════════════════════
+   RADIAL MENU FIX: Exclude radial menu from enhancement effects
+   ══════════════════════════════════════════════════════════════ */
+/* Prevent enhancement pseudo-elements from affecting radial items */
+.radial-item::before,
+.radial-item::after {
+    display: none !important;
+}
+
+.radial-item-icon::before,
+.radial-item-icon::after,
+.radial-item-label::before,
+.radial-item-label::after {
+    display: none !important;
+}
+
 /* ── Smooth Scroll Behavior ─────────────────────────────────── */
 html {
     scroll-behavior: smooth;
@@ -77,12 +93,18 @@ html {
 }
 
 /* ── Button Micro-interactions ───────────────────────────────── */
-.btn, .btn-header, .dash-tab, .mood-btn {
+.btn:not(.radial-item):not(.radial-item-icon):not(.radial-item-label), 
+.btn-header:not(.radial-item):not(.radial-item-icon):not(.radial-item-label), 
+.dash-tab:not(.radial-item):not(.radial-item-icon):not(.radial-item-label), 
+.mood-btn:not(.radial-item):not(.radial-item-icon):not(.radial-item-label) {
     position: relative;
     overflow: hidden;
 }
 
-.btn::after, .btn-header::after, .dash-tab::after, .mood-btn::after {
+.btn:not(.radial-item):not(.radial-item-icon):not(.radial-item-label)::after, 
+.btn-header:not(.radial-item):not(.radial-item-icon):not(.radial-item-label)::after, 
+.dash-tab:not(.radial-item):not(.radial-item-icon):not(.radial-item-label)::after, 
+.mood-btn:not(.radial-item):not(.radial-item-icon):not(.radial-item-label)::after {
     content: '';
     position: absolute;
     inset: 0;
@@ -94,7 +116,10 @@ html {
     pointer-events: none;
 }
 
-.btn:hover::after, .btn-header:hover::after, .dash-tab:hover::after, .mood-btn:hover::after {
+.btn:not(.radial-item):not(.radial-item-icon):not(.radial-item-label):hover::after, 
+.btn-header:not(.radial-item):not(.radial-item-icon):not(.radial-item-label):hover::after, 
+.dash-tab:not(.radial-item):not(.radial-item-icon):not(.radial-item-label):hover::after, 
+.mood-btn:not(.radial-item):not(.radial-item-icon):not(.radial-item-label):hover::after {
     opacity: 1;
 }
 
@@ -110,12 +135,12 @@ html {
     }
 }
 
-.btn-sparkle {
+.btn-sparkle:not(.radial-item):not(.radial-item-icon):not(.radial-item-label) {
     position: relative;
 }
 
-.btn-sparkle::before,
-.btn-sparkle::after {
+.btn-sparkle:not(.radial-item):not(.radial-item-icon):not(.radial-item-label)::before,
+.btn-sparkle:not(.radial-item):not(.radial-item-icon):not(.radial-item-label)::after {
     content: '✦';
     position: absolute;
     color: white;
@@ -124,40 +149,42 @@ html {
     pointer-events: none;
 }
 
-.btn-sparkle::before {
+.btn-sparkle:not(.radial-item):not(.radial-item-icon):not(.radial-item-label)::before {
     top: 20%;
     right: 15%;
     animation: sparkle 2s ease-in-out infinite;
 }
 
-.btn-sparkle::after {
+.btn-sparkle:not(.radial-item):not(.radial-item-icon):not(.radial-item-label)::after {
     bottom: 20%;
     left: 15%;
     animation: sparkle 2s ease-in-out infinite 0.5s;
 }
 
-.btn-sparkle:hover::before,
-.btn-sparkle:hover::after {
+.btn-sparkle:not(.radial-item):not(.radial-item-icon):not(.radial-item-label):hover::before,
+.btn-sparkle:not(.radial-item):not(.radial-item-icon):not(.radial-item-label):hover::after {
     opacity: 1;
 }
 
 /* ── Enhanced Card Hover with Lift & Glow ───────────────────── */
-.card, .dash-card {
+.card:not(.radial-item):not(.radial-item-icon):not(.radial-item-label), 
+.dash-card:not(.radial-item):not(.radial-item-icon):not(.radial-item-label) {
     transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     will-change: transform, box-shadow;
 }
 
-.card:hover, .dash-card:hover {
+.card:not(.radial-item):not(.radial-item-icon):not(.radial-item-label):hover, 
+.dash-card:not(.radial-item):not(.radial-item-icon):not(.radial-item-label):hover {
     transform: translateY(-6px) scale(1.01);
 }
 
 /* ── Link Hover Underline Animation ─────────────────────────── */
-a:not(.btn):not(.logo):not(.card-compact) {
+a:not(.btn):not(.logo):not(.card-compact):not(.radial-item):not(.radial-item-icon):not(.radial-item-label) {
     position: relative;
     text-decoration: none;
 }
 
-a:not(.btn):not(.logo):not(.card-compact)::after {
+a:not(.btn):not(.logo):not(.card-compact):not(.radial-item):not(.radial-item-icon):not(.radial-item-label)::after {
     content: '';
     position: absolute;
     bottom: -2px;
@@ -168,7 +195,7 @@ a:not(.btn):not(.logo):not(.card-compact)::after {
     transition: width 0.3s ease;
 }
 
-a:not(.btn):not(.logo):not(.card-compact):hover::after {
+a:not(.btn):not(.logo):not(.card-compact):not(.radial-item):not(.radial-item-icon):not(.radial-item-label):hover::after {
     width: 100%;
 }
 
@@ -388,11 +415,11 @@ a:not(.btn):not(.logo):not(.card-compact):hover::after {
 }
 
 /* ── Avatar Glow on New Message ─────────────────────────────── */
-.avatar {
+.avatar:not(.radial-item):not(.radial-item-icon):not(.radial-item-label) {
     transition: all 0.3s ease;
 }
 
-.msg-row:hover .avatar {
+.msg-row:hover .avatar:not(.radial-item):not(.radial-item-icon):not(.radial-item-label) {
     transform: scale(1.05);
     box-shadow: 0 0 15px var(--accent-dim);
 }
@@ -410,11 +437,13 @@ a:not(.btn):not(.logo):not(.card-compact):hover::after {
 }
 
 /* ── Badge Hover Pop Effect ─────────────────────────────────── */
-.badge, .pill {
+.badge:not(.radial-item):not(.radial-item-icon):not(.radial-item-label), 
+.pill:not(.radial-item):not(.radial-item-icon):not(.radial-item-label) {
     transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.badge:hover, .pill:hover {
+.badge:not(.radial-item):not(.radial-item-icon):not(.radial-item-label):hover, 
+.pill:not(.radial-item):not(.radial-item-icon):not(.radial-item-label):hover {
     transform: scale(1.05);
 }
 
@@ -590,7 +619,7 @@ body::before {
 }
 
 /* ── Profile Entry Slide In ─────────────────────────────────── */
-.profile-entry {
+.profile-entry:not(.radial-item):not(.radial-item-icon):not(.radial-item-label) {
     animation: profileEntry 0.3s ease forwards;
     opacity: 0;
 }
@@ -607,12 +636,12 @@ body::before {
 }
 
 /* ── Send Button Ripple Effect ──────────────────────────────── */
-.btn-send {
+.btn-send:not(.radial-item):not(.radial-item-icon):not(.radial-item-label) {
     position: relative;
     overflow: hidden;
 }
 
-.btn-send::after {
+.btn-send:not(.radial-item):not(.radial-item-icon):not(.radial-item-label)::after {
     content: '';
     position: absolute;
     top: 50%;
@@ -625,7 +654,7 @@ body::before {
     transition: width 0.5s, height 0.5s;
 }
 
-.btn-send:active::after {
+.btn-send:not(.radial-item):not(.radial-item-icon):not(.radial-item-label):active::after {
     width: 300%;
     height: 300%;
 }
@@ -644,8 +673,8 @@ body::before {
 }
 
 /* ── Card Shine Effect on Hover ──────────────────────────────── */
-.card::before,
-.dash-card::before {
+.card:not(.radial-item):not(.radial-item-icon):not(.radial-item-label)::before,
+.dash-card:not(.radial-item):not(.radial-item-icon):not(.radial-item-label)::before {
     content: '';
     position: absolute;
     top: 0;
@@ -662,8 +691,8 @@ body::before {
     pointer-events: none;
 }
 
-.card:hover::before,
-.dash-card:hover::before {
+.card:not(.radial-item):not(.radial-item-icon):not(.radial-item-label):hover::before,
+.dash-card:not(.radial-item):not(.radial-item-icon):not(.radial-item-label):hover::before {
     left: 100%;
 }
 
@@ -717,7 +746,7 @@ body::before {
 }
 
 /* ── Upload Button Special Hover ─────────────────────────────── */
-.btn-upload:hover {
+.btn-upload:not(.radial-item):not(.radial-item-icon):not(.radial-item-label):hover {
     background: var(--accent-dim);
     border-color: var(--accent);
     transform: translateY(-2px);
@@ -725,7 +754,7 @@ body::before {
 }
 
 /* ── Voice Button Recording Glow ─────────────────────────────── */
-.btn-voice.recording {
+.btn-voice:not(.radial-item):not(.radial-item-icon):not(.radial-item-label).recording {
     animation: voiceRecording 1.5s ease-in-out infinite;
 }
 
