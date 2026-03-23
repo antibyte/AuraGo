@@ -84,10 +84,12 @@
     font-size: 0.9rem;
     outline: none;
     transition: border-color 0.2s;
+    box-shadow: inset 0 1px 0 var(--surface-highlight);
 }
 
 .kc-search:focus {
     border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-dim), inset 0 1px 0 var(--surface-highlight);
 }
 
 .kc-upload-btn {
@@ -102,6 +104,10 @@
     overflow-x: auto;
     border-radius: 8px;
     border: 1px solid var(--border-subtle);
+    background: var(--card-bg);
+    box-shadow:
+        var(--surface-shadow),
+        inset 0 1px 0 var(--surface-highlight);
 }
 
 .kc-table {
@@ -140,6 +146,17 @@
     background: var(--bg-hover, rgba(255,255,255,0.03));
 }
 
+.kc-tab:focus-visible,
+.kc-search:focus-visible,
+.kc-actions .btn-sm:focus-visible,
+.password-toggle:focus-visible,
+.btn-save:focus-visible {
+    outline: none;
+    box-shadow:
+        0 0 0 3px var(--accent-dim),
+        0 0 0 1px var(--accent);
+}
+
 .kc-table tbody tr:last-child td {
     border-bottom: none;
 }
@@ -176,7 +193,7 @@
 /* Device type badge */
 .kc-type-badge {
     display: inline-block;
-    background: var(--bg-secondary);
+    background: var(--bg-glass);
     border: 1px solid var(--border-subtle);
     border-radius: 6px;
     padding: 2px 8px;
@@ -186,7 +203,7 @@
 /* Device tag chip */
 .kc-tag {
     display: inline-block;
-    background: var(--bg-secondary);
+    background: var(--bg-glass);
     border: 1px solid var(--border-subtle);
     border-radius: 6px;
     padding: 1px 7px;
@@ -386,3 +403,21 @@
 .btn-save:hover { filter: brightness(1.12); transform: translateY(-1px); }
 .btn-save:active { transform: translateY(0); filter: brightness(0.95); }
 .btn-save:disabled { opacity: 0.45; cursor: not-allowed; pointer-events: none; }
+
+[data-theme="light"] .kc-tabs {
+    border-bottom-color: rgba(71, 85, 105, 0.12);
+}
+
+[data-theme="light"] .kc-search,
+[data-theme="light"] .kc-table-wrap,
+[data-theme="light"] .field-group {
+    border-color: rgba(71, 85, 105, 0.1);
+}
+
+[data-theme="light"] .kc-table thead {
+    background: rgba(237, 243, 240, 0.95);
+}
+
+[data-theme="light"] .kc-table tbody tr:hover {
+    background: rgba(15, 143, 132, 0.05);
+}

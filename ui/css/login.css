@@ -452,3 +452,144 @@
             0% { transform: translateY(-100vh); }
             100% { transform: translateY(100vh); }
         }
+
+        [data-theme="light"] .css-fallback-bg {
+            background:
+                radial-gradient(ellipse 80% 50% at 50% -20%, rgba(15, 143, 132, 0.12), transparent),
+                radial-gradient(ellipse 60% 42% at 84% 82%, rgba(56, 189, 248, 0.09), transparent),
+                radial-gradient(ellipse 48% 30% at 16% 100%, rgba(250, 204, 21, 0.06), transparent);
+        }
+
+        [data-theme="light"] .css-fallback-bg::before {
+            background:
+                radial-gradient(circle at 30% 30%, rgba(15, 143, 132, 0.16) 0%, transparent 40%),
+                radial-gradient(circle at 70% 70%, rgba(56, 189, 248, 0.11) 0%, transparent 45%),
+                radial-gradient(circle at 50% 50%, rgba(250, 204, 21, 0.07) 0%, transparent 50%);
+        }
+
+        [data-theme="light"] .particle-grid {
+            background-image:
+                linear-gradient(rgba(15, 143, 132, 0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(15, 143, 132, 0.04) 1px, transparent 1px);
+        }
+
+        [data-theme="light"] .vignette {
+            background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.08) 0%, rgba(232, 239, 236, 0.85) 100%);
+            opacity: 1;
+        }
+
+        [data-theme="light"] .scan-line {
+            background: linear-gradient(90deg, transparent, rgba(15, 143, 132, 0.16), transparent);
+            opacity: 0.6;
+        }
+
+        [data-theme="light"] .login-card {
+            background: rgba(255, 255, 255, 0.78);
+            border-color: rgba(15, 143, 132, 0.16);
+            box-shadow:
+                0 24px 64px rgba(148, 163, 184, 0.24),
+                0 0 0 1px rgba(15, 143, 132, 0.08),
+                inset 0 1px 0 rgba(255, 255, 255, 0.8);
+        }
+
+        [data-theme="light"] .login-card::before {
+            background: linear-gradient(135deg, rgba(15, 143, 132, 0.18), transparent 40%, transparent 60%, rgba(56, 189, 248, 0.08));
+        }
+
+        [data-theme="light"] .login-title {
+            background: linear-gradient(135deg, #0f172a, #0f8f84);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        [data-theme="light"] .login-input {
+            background: rgba(255, 255, 255, 0.84);
+            border-color: rgba(71, 85, 105, 0.16);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+        }
+
+        [data-theme="light"] .login-input:focus {
+            box-shadow:
+                0 0 0 3px rgba(15, 143, 132, 0.16),
+                0 0 24px rgba(15, 143, 132, 0.1);
+        }
+
+        [data-theme="light"] .eye-btn {
+            color: #5b6c7e;
+        }
+
+        [data-theme="light"] .login-error {
+            background: rgba(220, 38, 38, 0.08);
+            border-color: rgba(220, 38, 38, 0.16);
+            color: #b91c1c;
+        }
+
+        @media (max-width: 640px) {
+            body {
+                padding: 4.5rem 0.9rem 1rem;
+                justify-content: flex-start;
+            }
+
+            .corner-theme {
+                top: 0.85rem;
+                right: 0.85rem;
+            }
+
+            .login-card {
+                max-width: 100%;
+                padding: 1.65rem 1.15rem;
+                border-radius: 20px;
+            }
+
+            .login-logo {
+                margin-bottom: 1.4rem;
+                gap: 0.55rem;
+            }
+
+            .login-logo-icon {
+                width: 56px;
+                height: 56px;
+                border-radius: 18px;
+                font-size: 1.5rem;
+            }
+
+            .login-title {
+                font-size: 1.18rem;
+                letter-spacing: 0.11em;
+            }
+
+            .orb-1 {
+                width: 280px;
+                height: 280px;
+            }
+
+            .orb-2 {
+                width: 220px;
+                height: 220px;
+            }
+
+            .orb-3 {
+                width: 180px;
+                height: 180px;
+            }
+
+            .particle-grid {
+                background-size: 34px 34px;
+            }
+        }
+
+        @media (max-width: 420px) {
+            .scan-line {
+                display: none;
+            }
+
+            .login-input {
+                padding: 0.68rem 0.9rem;
+            }
+
+            #totpCode {
+                letter-spacing: 0.2em;
+                font-size: 1.05rem;
+            }
+        }

@@ -18,6 +18,7 @@
     color-scheme: dark;
     --bg-primary: #0b0f1a;
     --bg-secondary: #111827;
+    --bg-tertiary: #0f172a;
     --bg-glass: rgba(255, 255, 255, 0.04);
     --header-bg: rgba(11, 15, 26, 0.85);
     --accent: #2dd4bf;
@@ -33,7 +34,7 @@
     --border-subtle: rgba(148, 163, 184, 0.08);
     --border-accent: rgba(45, 212, 191, 0.2);
     --radius: 20px;
-    --bg-logo: url('../aurago_logo_dark.png');
+    --bg-logo: url('aurago_logo_dark.png');
     --modal-bg: rgba(0, 0, 0, 0.6);
     --modal-surface: #1e293b;
     --modal-border: rgba(148, 163, 184, 0.1);
@@ -47,6 +48,18 @@
     --success: #22c55e;
     --warning: #f59e0b;
     --danger: #ef4444;
+    --surface-shadow: 0 18px 40px rgba(2, 6, 23, 0.32);
+    --surface-shadow-strong: 0 24px 56px rgba(2, 6, 23, 0.4);
+    --surface-highlight: rgba(255, 255, 255, 0.05);
+    --page-orb-1: rgba(45, 212, 191, 0.08);
+    --page-orb-2: rgba(59, 130, 246, 0.06);
+    --page-orb-3: rgba(14, 165, 233, 0.05);
+    --page-orb-opacity: 1;
+    --page-image-opacity: 0.055;
+    --chat-image-opacity: 0.045;
+    --bg-logo-position: center top;
+    --bg-logo-size: cover;
+    --bg-logo-filter: saturate(1) contrast(1.02);
 
     /* Fluid typography */
     --text-base: clamp(0.875rem, 0.8rem + 0.25vw, 1rem);
@@ -59,56 +72,69 @@
 [data-theme="light"] {
     color-scheme: light;
     /* Warme Hintergrundfarben - modernes Mint-Grau */
-    --bg-primary: #eef2f1;
-    --bg-secondary: #f5f7f6;
-    --bg-glass: rgba(255, 255, 255, 0.6);
-    --header-bg: rgba(238, 242, 241, 0.92);
+    --bg-primary: #e8efec;
+    --bg-secondary: #f5f9f7;
+    --bg-tertiary: #edf3f0;
+    --bg-glass: rgba(255, 255, 255, 0.72);
+    --header-bg: rgba(232, 239, 236, 0.82);
     
     /* AuraGo Akzentfarben - lebhafteres Türkis */
-    --accent: #0d9488;
-    --accent-dim: rgba(13, 148, 136, 0.15);
-    --accent-glow: rgba(13, 148, 136, 0.3);
+    --accent: #0f8f84;
+    --accent-dim: rgba(15, 143, 132, 0.14);
+    --accent-glow: rgba(15, 143, 132, 0.24);
     
     /* Chat Bubbles */
-    --user-bubble: linear-gradient(135deg, #14b8a6, #0d9488);
-    --user-bubble-tail: #0d9488;
-    --user-bubble-shadow: rgba(13, 148, 136, 0.25);
-    --bot-bubble: rgba(255, 255, 255, 0.85);
-    --bot-bubble-tail: rgba(255, 255, 255, 0.85);
+    --user-bubble: linear-gradient(135deg, #14b8a6, #0f8f84);
+    --user-bubble-tail: #0f8f84;
+    --user-bubble-shadow: rgba(15, 143, 132, 0.22);
+    --bot-bubble: rgba(255, 255, 255, 0.88);
+    --bot-bubble-tail: rgba(255, 255, 255, 0.88);
     
     /* Text - angenehme Grautöne */
-    --text-primary: #1e293b;
-    --text-secondary: #64748b;
-    --strong-color: #0f172a;
+    --text-primary: #112133;
+    --text-secondary: #59687a;
+    --strong-color: #0b1726;
     
     /* Borders & Effekte */
-    --border-subtle: rgba(100, 116, 139, 0.12);
-    --border-accent: rgba(13, 148, 136, 0.4);
+    --border-subtle: rgba(71, 85, 105, 0.14);
+    --border-accent: rgba(15, 143, 132, 0.32);
     
     /* Logo */
     --bg-logo: url('aurago_logo.png');
     
     /* Modal & Overlays */
-    --modal-bg: rgba(30, 41, 59, 0.35);
-    --modal-surface: #f8faf9;
-    --modal-border: rgba(100, 116, 139, 0.15);
+    --modal-bg: rgba(15, 23, 42, 0.28);
+    --modal-surface: rgba(249, 252, 250, 0.95);
+    --modal-border: rgba(71, 85, 105, 0.14);
     
     /* Code & Spezial */
-    --code-bg: rgba(100, 116, 139, 0.08);
-    --inline-code-bg: rgba(100, 116, 139, 0.1);
+    --code-bg: rgba(148, 163, 184, 0.12);
+    --inline-code-bg: rgba(148, 163, 184, 0.14);
     
     /* Sidebar & Cards - milchige Transparenz */
-    --sidebar-bg: rgba(245, 247, 246, 0.95);
-    --card-bg: rgba(255, 255, 255, 0.65);
+    --sidebar-bg: rgba(247, 250, 248, 0.8);
+    --card-bg: rgba(255, 255, 255, 0.78);
     
     /* Inputs - besserer Kontrast */
-    --input-bg: rgba(255, 255, 255, 0.7);
-    --input-border: rgba(100, 116, 139, 0.2);
+    --input-bg: rgba(255, 255, 255, 0.86);
+    --input-border: rgba(71, 85, 105, 0.24);
     
     /* Status Farben */
     --success: #059669;
     --warning: #d97706;
     --danger: #dc2626;
+    --surface-shadow: 0 16px 40px rgba(148, 163, 184, 0.18);
+    --surface-shadow-strong: 0 20px 48px rgba(148, 163, 184, 0.24);
+    --surface-highlight: rgba(255, 255, 255, 0.7);
+    --page-orb-1: rgba(15, 143, 132, 0.14);
+    --page-orb-2: rgba(56, 189, 248, 0.11);
+    --page-orb-3: rgba(250, 204, 21, 0.08);
+    --page-orb-opacity: 0.9;
+    --page-image-opacity: 0.08;
+    --chat-image-opacity: 0.11;
+    --bg-logo-position: center top;
+    --bg-logo-size: cover;
+    --bg-logo-filter: saturate(1.05) contrast(1.02);
 }
 
 html,
@@ -122,7 +148,35 @@ body {
     background: var(--bg-primary);
     color: var(--text-primary);
     margin: 0;
+    position: relative;
+    isolation: isolate;
+    overflow-x: hidden;
     transition: background 0.3s, color 0.3s;
+}
+
+body::before,
+body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+}
+
+body::before {
+    background: var(--bg-logo) var(--bg-logo-position) / var(--bg-logo-size) no-repeat;
+    opacity: var(--page-image-opacity);
+    filter: var(--bg-logo-filter);
+    z-index: -2;
+}
+
+body::after {
+    background:
+        radial-gradient(ellipse 55rem 38rem at -10% 8%, var(--page-orb-1), transparent 62%),
+        radial-gradient(ellipse 48rem 34rem at 112% 14%, var(--page-orb-2), transparent 58%),
+        radial-gradient(ellipse 42rem 26rem at 48% 108%, var(--page-orb-3), transparent 62%);
+    opacity: var(--page-orb-opacity);
+    filter: blur(10px);
+    z-index: -1;
 }
 
 /* ── Scrollbar ─────────────────────────────────────────────── */
@@ -199,16 +253,17 @@ body {
 .app-header,
 .cfg-header {
     background: var(--header-bg);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px) saturate(1.15);
+    -webkit-backdrop-filter: blur(20px) saturate(1.15);
     border-bottom: 1px solid var(--border-subtle);
     padding: 0.75rem 1.5rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
     z-index: 10;
-    transition: background 0.3s;
+    transition: background 0.3s, border-color 0.3s, box-shadow 0.3s;
     position: relative;
+    box-shadow: 0 10px 26px rgba(15, 23, 42, 0.08);
 }
 
 .logo {
@@ -437,6 +492,7 @@ a.logo {
     white-space: nowrap;
     position: relative;
     overflow: hidden;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.05);
 }
 
 .btn-header-link {
@@ -487,6 +543,7 @@ a.logo {
     display: grid;
     place-items: center;
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.05);
 }
 
 .btn-theme::after {
@@ -516,6 +573,9 @@ a.logo {
     overflow: hidden;
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
+    box-shadow:
+        var(--surface-shadow),
+        inset 0 1px 0 var(--surface-highlight);
 }
 
 .card::before {
@@ -546,10 +606,92 @@ a.logo {
 .card:hover {
     border-color: var(--accent);
     box-shadow:
-        0 20px 40px rgba(0, 0, 0, 0.3),
-        0 0 0 1px rgba(45, 212, 191, 0.2),
-        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        var(--surface-shadow-strong),
+        0 0 0 1px var(--border-accent),
+        inset 0 1px 0 var(--surface-highlight);
     transform: translateY(-4px);
+}
+
+:where(button, a, input, textarea, select):focus-visible {
+    outline: none;
+    box-shadow:
+        0 0 0 3px var(--accent-dim),
+        0 0 0 1px var(--accent);
+}
+
+[data-theme="light"] .app-header,
+[data-theme="light"] .cfg-header {
+    border-bottom-color: rgba(71, 85, 105, 0.12);
+    box-shadow: 0 14px 30px rgba(148, 163, 184, 0.16);
+}
+
+[data-theme="light"] .btn-header,
+[data-theme="light"] .btn-theme {
+    border-color: rgba(71, 85, 105, 0.12);
+    background: rgba(255, 255, 255, 0.76);
+}
+
+@media (max-width: 768px) {
+    body::before {
+        opacity: calc(var(--page-image-opacity) * 0.78);
+        background-size: cover;
+        background-position: center top;
+    }
+
+    body::after {
+        filter: blur(12px);
+        opacity: calc(var(--page-orb-opacity) * 0.9);
+    }
+
+    .app-header,
+    .cfg-header {
+        padding: 0.7rem 0.9rem;
+    }
+
+    .header-actions {
+        gap: 0.35rem;
+    }
+
+    .logo {
+        gap: 0.4rem;
+        font-size: 1.05rem;
+    }
+
+    .logo-icon {
+        width: 30px;
+        height: 30px;
+        border-radius: 9px;
+        font-size: 0.95rem;
+    }
+
+    .logo-subtitle {
+        display: none;
+    }
+
+    .btn-header {
+        padding: 0.3rem 0.7rem;
+    }
+
+    .btn-theme {
+        width: 30px;
+        height: 30px;
+        min-width: 30px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html {
+        scroll-behavior: auto;
+    }
+
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
 }
 
 .card:hover::before,

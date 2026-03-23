@@ -339,6 +339,19 @@
             transition: background-color 0.3s;
         }
 
+        #chat-box::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: linear-gradient(180deg,
+                rgba(11, 15, 26, 0.18) 0%,
+                transparent 22%,
+                transparent 76%,
+                rgba(11, 15, 26, 0.12) 100%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
         /* Background watermark logo */
         #chat-box::after {
             content: '';
@@ -347,8 +360,9 @@
             left: 0;
             width: 100vw;
             height: 100vh;
-            background: var(--bg-logo) center / cover no-repeat;
-            opacity: 0.04;
+            background: var(--bg-logo) var(--bg-logo-position) / var(--bg-logo-size) no-repeat;
+            opacity: var(--chat-image-opacity);
+            filter: var(--bg-logo-filter);
             pointer-events: none;
             z-index: 0;
         }
@@ -2866,8 +2880,57 @@
 /* ── Chat area gradient ── */
 [data-theme="light"] #chat-box {
     background-image:
-        radial-gradient(ellipse 600px 400px at 20% 50%, rgba(13, 148, 136, 0.04), transparent),
-        radial-gradient(ellipse 500px 500px at 80% 30%, rgba(99, 102, 241, 0.04), transparent);
+        radial-gradient(ellipse 720px 440px at 14% 18%, rgba(15, 143, 132, 0.08), transparent 60%),
+        radial-gradient(ellipse 520px 420px at 86% 22%, rgba(56, 189, 248, 0.08), transparent 58%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.22), transparent 32%);
+}
+
+[data-theme="light"] #chat-box::before {
+    background: linear-gradient(180deg,
+        rgba(232, 239, 236, 0.28) 0%,
+        transparent 20%,
+        transparent 80%,
+        rgba(232, 239, 236, 0.18) 100%);
+}
+
+[data-theme="light"] .bubble.bot {
+    border-color: rgba(71, 85, 105, 0.1);
+    box-shadow:
+        0 14px 28px rgba(148, 163, 184, 0.16),
+        inset 0 1px 0 rgba(255, 255, 255, 0.78);
+}
+
+[data-theme="light"] .greeting-icon,
+[data-theme="light"] .avatar.bot {
+    box-shadow:
+        0 16px 30px rgba(56, 189, 248, 0.12),
+        0 0 0 1px rgba(15, 143, 132, 0.08);
+}
+
+@media (max-width: 640px) {
+    #chat-box::after {
+        opacity: calc(var(--chat-image-opacity) * 0.72);
+    }
+
+    #chat-content {
+        padding: 1rem 0.75rem 1.5rem;
+    }
+
+    .greeting-row {
+        padding: 2rem 0.5rem;
+    }
+
+    .bubble {
+        max-width: min(88%, 32rem);
+        padding: 0.72rem 0.9rem;
+    }
+
+    .avatar {
+        width: 30px;
+        height: 30px;
+        border-radius: 10px;
+        font-size: 1rem;
+    }
 }
 
 /* ── Code blocks ── */

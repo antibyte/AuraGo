@@ -366,7 +366,7 @@
             
             // Update WebGL clear color for theme
             if (renderer) {
-                renderer.setClearColor(next === 'dark' ? 0x0b0f1a : 0xf8fafc, 1);
+                renderer.setClearColor(next === 'dark' ? 0x0b0f1a : 0xe8efec, 1);
                 if (particles) {
                     const colors = particles.geometry.attributes.color.array;
                     const color1 = new THREE.Color(next === 'dark' ? 0x2dd4bf : 0x0f766e);
