@@ -28,6 +28,7 @@ import (
 func (s *Server) run(shutdownCh chan struct{}) error {
 	mux := http.NewServeMux()
 	sse := NewSSEBroadcaster()
+	s.SSE = sse // expose broadcaster for use by handlers and callbacks
 
 	// Create a context that cancels on shutdown
 	serverCtx, serverCancel := context.WithCancel(context.Background())
@@ -60,6 +61,114 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 					}
 					sse.BroadcastType(EventSystemMetrics, payload)
 				}
+			case <-serverCtx.Done():
+				return
+			}
+		}
+	}()
+
+	// Push container state changes via SSE so the containers page does not need
+	// to poll /api/containers every 5 seconds. Only broadcasts on hash change.
+	go func() {
+		s.CfgMu.RLock()
+		dockerEnabled := s.Cfg.Docker.Enabled
+		s.CfgMu.RUnlock()
+		if !dockerEnabled {
+			return
+		}
+		ticker := time.NewTicker(5 * time.Second)
+		defer ticker.Stop()
+		var lastRaw string
+		for {
+			select {
+			case <-ticker.C:
+				s.CfgMu.RLock()
+				dockerCfg := tools.DockerConfig{Host: s.Cfg.Docker.Host}
+				s.CfgMu.RUnlock()
+				raw := tools.DockerListContainers(dockerCfg, true)
+				if raw == lastRaw {
+					continue
+				}
+				lastRaw = raw
+				var parsed struct {
+					Status     string        `json:"status"`
+					Containers []interface{} `json:"containers"`
+				}
+				if err := json.Unmarshal([]byte(raw), &parsed); err == nil && parsed.Status == "ok" {
+					sse.BroadcastType(EventContainerUpdate, parsed.Containers)
+				}
+			case <-serverCtx.Done():
+				return
+			}
+		}
+	}()
+
+	// Push personality state changes via SSE so the chat mood widget does not
+	// need to poll /api/personality/state every 30 seconds.
+	go func() {
+		s.CfgMu.RLock()
+		personalityEnabled := s.Cfg.Agent.PersonalityEngine
+		s.CfgMu.RUnlock()
+		if !personalityEnabled {
+			return
+		}
+		ticker := time.NewTicker(15 * time.Second)
+		defer ticker.Stop()
+		var lastMoodTrigger string
+		for {
+			select {
+			case <-ticker.C:
+				mood := string(s.ShortTermMem.GetCurrentMood())
+				trigger := s.ShortTermMem.GetLastMoodTrigger()
+				key := mood + "|" + trigger
+				if key == lastMoodTrigger {
+					continue
+				}
+				lastMoodTrigger = key
+				traits, _ := s.ShortTermMem.GetTraits()
+				sse.BroadcastType(EventPersonalityUpdate, map[string]interface{}{
+					"enabled": true,
+					"mood":    mood,
+					"trigger": trigger,
+					"traits":  traits,
+				})
+			case <-serverCtx.Done():
+				return
+			}
+		}
+	}()
+
+	// Push tsnet status changes via SSE so shared.js does not need to poll
+	// /api/tsnet/status. Only broadcasts when login_url / running state changes.
+	go func() {
+		if s.TsNetManager == nil {
+			return
+		}
+		ticker := time.NewTicker(10 * time.Second)
+		defer ticker.Stop()
+		var lastState string
+		for {
+			select {
+			case <-ticker.C:
+				status := s.TsNetManager.GetStatus()
+				state := fmt.Sprintf("%v|%v|%s|%s", status.Running, status.Starting, status.LoginURL, status.Error)
+				if state == lastState {
+					continue
+				}
+				lastState = state
+				s.CfgMu.RLock()
+				enabled := s.Cfg.Tailscale.TsNet.Enabled
+				s.CfgMu.RUnlock()
+				sse.BroadcastType(EventTsnetStatus, map[string]interface{}{
+					"enabled":   enabled,
+					"running":   status.Running,
+					"starting":  status.Starting,
+					"login_url": status.LoginURL,
+					"hostname":  status.Hostname,
+					"dns":       status.DNS,
+					"ips":       status.IPs,
+					"error":     status.Error,
+				})
 			case <-serverCtx.Done():
 				return
 			}

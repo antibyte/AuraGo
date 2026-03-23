@@ -12,7 +12,16 @@ let currentLogContainer = '';
 
 document.addEventListener('DOMContentLoaded', () => {
     loadContainers();
-    pollTimer = setInterval(loadContainers, 5000);
+    // Live updates pushed via SSE — no more polling.
+    window.AuraSSE.on('container_update', function (containers) {
+        if (!Array.isArray(containers)) return;
+        const hash = JSON.stringify(containers);
+        if (hash === lastDataHash) return;
+        lastDataHash = hash;
+        allContainers = containers;
+        updateStats();
+        renderContainers();
+    });
 });
 
 // ── Data fetching ───────────────────────────────────────────────────────────

@@ -694,6 +694,85 @@ function initThemeToggle() {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// AURA SSE — Shared single EventSource connection
+// All pages share one /events connection. Register typed-event
+// handlers with AuraSSE.on(type, fn) and legacy {event,detail}
+// handlers with AuraSSE.onLegacy(fn). Auto-reconnects on error.
+// Special internal types: '_open', '_error'
+// ═══════════════════════════════════════════════════════════════
+window.AuraSSE = (function () {
+    'use strict';
+    var _typed = {};
+    var _legacy = [];
+    var _es = null;
+    var _retryTimer = null;
+    var _connected = false;
+
+    function _dispatch(e) {
+        var data;
+        try { data = JSON.parse(e.data); } catch (_) { return; }
+        if (typeof data.type === 'string') {
+            var handlers = _typed[data.type];
+            if (handlers) {
+                handlers.slice().forEach(function (fn) {
+                    try { fn(data.payload, data); } catch (_) { }
+                });
+            }
+        } else if (typeof data.event === 'string') {
+            _legacy.slice().forEach(function (fn) {
+                try { fn(e); } catch (_) { }
+            });
+        }
+    }
+
+    function _fireInternal(type, arg) {
+        var handlers = _typed[type];
+        if (handlers) handlers.slice().forEach(function (fn) { try { fn(arg); } catch (_) { } });
+    }
+
+    function _connect() {
+        var path = window.location.pathname;
+        if (path.indexOf('/login') !== -1 || path.indexOf('/setup') !== -1) return;
+        if (_es) { _es.close(); _es = null; }
+        _es = new EventSource('/events', { withCredentials: true });
+        _es.onopen = function () {
+            _connected = true;
+            if (_retryTimer) { clearTimeout(_retryTimer); _retryTimer = null; }
+            _fireInternal('_open');
+        };
+        _es.onerror = function () {
+            _connected = false;
+            _fireInternal('_error', _es ? _es.readyState : -1);
+            if (!_retryTimer) {
+                _retryTimer = setTimeout(function () {
+                    _retryTimer = null;
+                    _connect();
+                }, 5000);
+            }
+        };
+        _es.onmessage = _dispatch;
+    }
+
+    return {
+        connect: _connect,
+        isConnected: function () { return _connected; },
+        on: function (type, fn) {
+            if (!_typed[type]) _typed[type] = [];
+            _typed[type].push(fn);
+        },
+        off: function (type, fn) {
+            if (!_typed[type]) return;
+            _typed[type] = _typed[type].filter(function (f) { return f !== fn; });
+        },
+        onLegacy: function (fn) { _legacy.push(fn); },
+        offLegacy: function (fn) {
+            var i = _legacy.indexOf(fn);
+            if (i >= 0) _legacy.splice(i, 1);
+        }
+    };
+}());
+
+// ═══════════════════════════════════════════════════════════════
 // TAILSCALE LOGIN WATCHER
 // Polls /api/tsnet/status and shows a persistent top banner when
 // the tsnet node needs interactive authentication.
@@ -797,13 +876,38 @@ function initThemeToggle() {
     }
 
     window.initTsnetLoginWatcher = function () {
-        // Initial check after a short delay (let auth complete first)
-        setTimeout(_tsnetPoll, 2000);
-        // Re-check every 60 seconds
-        if (_tsnetPollTimer) clearInterval(_tsnetPollTimer);
-        _tsnetPollTimer = setInterval(_tsnetPoll, 60000);
-    };
-}());
+        // Register SSE handler for real-time tsnet status pushes (no more polling).
+        window.AuraSSE.on('tsnet_status', function (payload) {
+            if (!payload) return;
+            if (payload.login_url) {
+                if (!window._tsnetBannerDismissed || payload.login_url !== _tsnetBannerUrl) {
+                    window._tsnetBannerDismissed = false;
+                    _tsnetBannerUrl = payload.login_url;
+                    _tsnetShowBanner(payload.login_url);
+                }
+            } else {
+                _tsnetBannerUrl = null;
+                window._tsnetBannerDismissed = false;
+                _tsnetHideBanner();
+            }
+        });
+        // Do one immediate check so the banner appears right away on page load
+        // without waiting for the first SSE push (~10s server interval).
+        setTimeout(function () {
+            var path = window.location.pathname;
+            if (path.indexOf('/login') !== -1 || path.indexOf('/setup') !== -1) return;
+            fetch('/api/tsnet/status', { signal: AbortSignal.timeout(5000) })
+                .then(function (r) { return r.ok ? r.json() : null; })
+                .then(function (data) {
+                    if (!data || !data.login_url) return;
+                    if (!window._tsnetBannerDismissed) {
+                        _tsnetBannerUrl = data.login_url;
+                        _tsnetShowBanner(data.login_url);
+                    }
+                })
+                .catch(function () { });
+        }, 1000);
+    };}());
 
 /**
  * Initialize all shared functionality
@@ -821,6 +925,7 @@ function initShared() {
     try { injectLanguageSwitcher(); } catch (e) { console.error('[AuraGo] injectLanguageSwitcher failed:', e); }
     try { checkAuth(); } catch (e) { console.error('[AuraGo] checkAuth failed:', e); }
     try { initPWA(); } catch (e) { console.error('[AuraGo] initPWA failed:', e); }
+    try { window.AuraSSE.connect(); } catch (e) { console.error('[AuraGo] AuraSSE.connect failed:', e); }
     try { initTsnetLoginWatcher(); } catch (e) { console.error('[AuraGo] initTsnetLoginWatcher failed:', e); }
 
     console.log('[AuraGo] Shared components initialized');

@@ -15,13 +15,16 @@ import (
 type SSEEventType string
 
 const (
-	EventSystemMetrics SSEEventType = "system_metrics"
-	EventMemoryUpdate  SSEEventType = "memory_update"
-	EventBudgetUpdate  SSEEventType = "budget_update"
-	EventAgentStatus   SSEEventType = "agent_status"
-	EventMissionUpdate SSEEventType = "mission_update"
-	EventLogLine       SSEEventType = "log_line"
-	EventToast         SSEEventType = "toast"
+	EventSystemMetrics    SSEEventType = "system_metrics"
+	EventMemoryUpdate     SSEEventType = "memory_update"
+	EventBudgetUpdate     SSEEventType = "budget_update"
+	EventAgentStatus      SSEEventType = "agent_status"
+	EventMissionUpdate    SSEEventType = "mission_update"
+	EventContainerUpdate  SSEEventType = "container_update"
+	EventPersonalityUpdate SSEEventType = "personality_update"
+	EventTsnetStatus      SSEEventType = "tsnet_status"
+	EventLogLine          SSEEventType = "log_line"
+	EventToast            SSEEventType = "toast"
 )
 
 // SSEBroadcaster manages Server-Sent Events connections and broadcasts messages.

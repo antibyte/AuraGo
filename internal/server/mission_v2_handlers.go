@@ -14,6 +14,22 @@ const (
 	maxMissionPromptLen = 10000
 )
 
+// broadcastMissionState pushes current mission list + queue state to all SSE clients.
+func broadcastMissionState(s *Server) {
+	if s.SSE == nil {
+		return
+	}
+	missions := s.MissionManagerV2.List()
+	queue, running := s.MissionManagerV2.GetQueue()
+	s.SSE.BroadcastType(EventMissionUpdate, map[string]interface{}{
+		"missions": missions,
+		"queue": map[string]interface{}{
+			"items":   queue.List(),
+			"running": running,
+		},
+	})
+}
+
 // validateCronExpr checks whether expr is a valid cron expression.
 func validateCronExpr(expr string) bool {
 	parser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow | cron.Descriptor)
@@ -113,6 +129,7 @@ func handleCreateMissionV2(s *Server) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		broadcastMissionState(s)
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
@@ -199,6 +216,7 @@ func handleMissionUpdateV2(s *Server, w http.ResponseWriter, r *http.Request, id
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	broadcastMissionState(s)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
@@ -209,6 +227,7 @@ func handleMissionDeleteV2(s *Server, w http.ResponseWriter, r *http.Request, id
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
+	broadcastMissionState(s)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 }
@@ -223,6 +242,7 @@ func handleMissionRunV2(s *Server, w http.ResponseWriter, r *http.Request, id st
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
+	broadcastMissionState(s)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"status": "queued"})
@@ -243,6 +263,7 @@ func handleMissionTriggerV2(s *Server, w http.ResponseWriter, r *http.Request, i
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	broadcastMissionState(s)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"status": "queued"})
@@ -255,6 +276,7 @@ func handleMissionRemoveFromQueue(s *Server, w http.ResponseWriter, r *http.Requ
 		return
 	}
 	if removed := queue.Remove(id); removed {
+		broadcastMissionState(s)
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{"status": "removed"})
 		return

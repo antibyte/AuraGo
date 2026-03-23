@@ -768,49 +768,43 @@ function setConnectionState(state) {
 }
 
 let sseReconnectTimer = null;
-let currentEventSource = null;
 
 function connectSSE() {
-    if (currentEventSource) {
-        currentEventSource.close();
-    }
-    const es = new EventSource('/events');
-    currentEventSource = es;
+    // Use the shared AuraSSE singleton instead of a dedicated EventSource.
+    setConnectionState(window.AuraSSE.isConnected() ? 'connected' : 'reconnecting');
 
-    es.onopen = function () {
+    window.AuraSSE.on('_open', function () {
         setConnectionState('connected');
-        if (sseReconnectTimer) {
-            clearTimeout(sseReconnectTimer);
-            sseReconnectTimer = null;
-        }
-    };
+        if (sseReconnectTimer) { clearTimeout(sseReconnectTimer); sseReconnectTimer = null; }
+    });
 
-    es.onerror = function () {
-        if (es.readyState === EventSource.CLOSED) {
+    window.AuraSSE.on('_error', function (readyState) {
+        if (readyState === EventSource.CLOSED) {
             setConnectionState('disconnected');
         } else {
-            // CONNECTING — browser is already trying to reconnect
             setConnectionState('reconnecting');
         }
-        // Force a clean reconnect after 5 s if still not back
+        // AuraSSE handles reconnection internally; just track UI timer.
         if (!sseReconnectTimer) {
-            sseReconnectTimer = setTimeout(() => {
-                sseReconnectTimer = null;
-                if (currentEventSource.readyState !== EventSource.OPEN) {
-                    setConnectionState('reconnecting');
-                    connectSSE();
-                }
-            }, 5000);
+            sseReconnectTimer = setTimeout(function () { sseReconnectTimer = null; }, 5000);
         }
-    };
+    });
 
-    es.onmessage = handleSSEMessage;
-    return es;
+    window.AuraSSE.onLegacy(handleSSEMessage);
+
+    // Check auth on SSE error (may indicate 401)
+    window.AuraSSE.on('_error', function () {
+        fetch('/api/auth/status', { credentials: 'same-origin' }).then(function (r) {
+            if (r.status === 401) {
+                window.location.href = '/auth/login?redirect=' + encodeURIComponent(window.location.pathname);
+            }
+        }).catch(function () { });
+    });
 }
 
 // Start in connecting state until onopen fires
 setConnectionState('reconnecting');
-const eventSource = connectSSE();
+connectSSE();
 
 function handleSSEMessage(e) {
     try {
@@ -1102,9 +1096,10 @@ function updateMoodWidget(data) {
 
 if (PERSONALITY_ENABLED) {
     fetch('/api/personality/state').then(r => r.json()).then(updateMoodWidget).catch(() => { });
-    setInterval(() => {
-        fetch('/api/personality/state').then(r => r.json()).then(updateMoodWidget).catch(() => { });
-    }, 30000);
+    // Live mood updates via SSE — no more 30s polling.
+    window.AuraSSE.on('personality_update', function (payload) {
+        updateMoodWidget(payload);
+    });
 
     document.getElementById('moodToggle').addEventListener('click', (e) => {
         e.stopPropagation();

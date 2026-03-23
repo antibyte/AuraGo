@@ -1748,15 +1748,9 @@
 
         // ── Auto-Refresh ────────────────────────────────────────────────────────────
         function startAutoRefresh() {
-            // System metrics are pushed via SSE (EventSystemMetrics) every 10s.
-            // Auto-refresh every 10s: always update banner, refresh only the active tab.
-            setInterval(async () => {
-                const ov = await API.get('/api/dashboard/overview');
-                renderAgentBanner(ov, ov?.context?.total_chars);
-
-                TabState.loaded[TabState.active] = false;
-                await loadTabContent(TabState.active);
-            }, 10_000);
+            // System metrics are now pushed via SSE (EventSystemMetrics) every 10s.
+            // Mission updates are pushed via SSE (EventMissionUpdate) on state change.
+            // No interval polling needed; SSE handles all live updates.
         }
 
         // ── Mood Time Range Buttons ─────────────────────────────────────────────────
@@ -1825,36 +1819,39 @@
         }
 
         function connectSSE() {
-            const es = new EventSource('/events', { withCredentials: true });
-            es.onopen = function () {
-                hideSSEBanner();
-            };
-            es.onmessage = function (event) {
+            // Use the shared AuraSSE singleton — no dedicated EventSource needed.
+            window.AuraSSE.on('_open', hideSSEBanner);
+            window.AuraSSE.on('_error', function () {
+                showSSEBanner('⚠ ' + (t('dashboard.sse_reconnecting') || 'Reconnecting…'));
+                fetch('/api/auth/status', { credentials: 'same-origin' }).then(function (r) {
+                    if (r.status === 401) {
+                        window.location.href = '/auth/login?redirect=' + encodeURIComponent(window.location.pathname);
+                    }
+                }).catch(function () { });
+            });
+            window.AuraSSE.on('system_metrics', function (sys) {
+                updateGauge(Charts.cpu, 'cpu-val', (sys.cpu && sys.cpu.usage_percent) || 0);
+                updateGauge(Charts.ram, 'ram-val', (sys.memory && sys.memory.used_percent) || 0);
+                updateGauge(Charts.disk, 'disk-val', (sys.disk && sys.disk.used_percent) || 0);
+                renderSystemStats(sys);
+            });
+            window.AuraSSE.on('memory_update', function (mem) {
+                if (mem && Charts.memory) {
+                    Charts.memory.data.datasets[0].data = [
+                        mem.core_memory_facts || 0,
+                        mem.chat_messages || 0,
+                        mem.vectordb_entries || 0,
+                        (mem.knowledge_graph || {}).nodes || 0,
+                        (mem.knowledge_graph || {}).edges || 0,
+                    ];
+                    Charts.memory.update('none');
+                    renderMemoryStats(mem);
+                }
+            });
+            window.AuraSSE.onLegacy(function (event) {
                 try {
                     const data = JSON.parse(event.data);
-                    // Typed events: {type, payload}
-                    if (data.type === 'system_metrics') {
-                        const sys = data.payload;
-                        updateGauge(Charts.cpu, 'cpu-val', sys.cpu?.usage_percent || 0);
-                        updateGauge(Charts.ram, 'ram-val', sys.memory?.used_percent || 0);
-                        updateGauge(Charts.disk, 'disk-val', sys.disk?.used_percent || 0);
-                        renderSystemStats(sys);
-                    } else if (data.type === 'memory_update') {
-                        const mem = data.payload;
-                        if (mem && Charts.memory) {
-                            Charts.memory.data.datasets[0].data = [
-                                mem.core_memory_facts || 0,
-                                mem.chat_messages || 0,
-                                mem.vectordb_entries || 0,
-                                (mem.knowledge_graph || {}).nodes || 0,
-                                (mem.knowledge_graph || {}).edges || 0,
-                            ];
-                            Charts.memory.update('none');
-                            renderMemoryStats(mem);
-                        }
-                    }
-                    // Legacy events: {event, detail}
-                    else if (data.event === 'budget_update') {
+                    if (data.event === 'budget_update') {
                         if (data.spent_usd != null) {
                             document.getElementById('budget-spent').textContent = '$' + (data.spent_usd || 0).toFixed(2);
                         }
@@ -1864,18 +1861,7 @@
                         if (typeof showToast === 'function') showToast('🚫 ' + (data.detail || t('dashboard.budget_blocked')), 'error', 0);
                     }
                 } catch (e) { /* ignore non-JSON */ }
-            };
-            es.onerror = function () {
-                es.close();
-                showSSEBanner('⚠ ' + (t('dashboard.sse_reconnecting') || 'Reconnecting…'));
-                // Check if auth error (401) - redirect to login
-                fetch('/api/auth/status', { credentials: 'same-origin' }).then(r => {
-                    if (r.status === 401) {
-                        window.location.href = '/auth/login?redirect=' + encodeURIComponent(window.location.pathname);
-                    }
-                }).catch(() => {});
-                setTimeout(connectSSE, 5000);
-            };
+            });
         }
 
         // ── Boot ────────────────────────────────────────────────────────────────────

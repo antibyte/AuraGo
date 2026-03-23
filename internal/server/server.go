@@ -212,6 +212,7 @@ type Server struct {
 	TokenManager       *security.TokenManager
 	WebhookManager     *webhooks.Manager
 	WebhookHandler     *webhooks.Handler
+	SSE                *SSEBroadcaster // shared SSE broadcaster, set by run()
 	MissionManagerV2   *tools.MissionManagerV2
 	EggHub             *bridge.EggHub
 	RemoteHub          *remote.RemoteHub
@@ -379,6 +380,7 @@ func Start(cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, sh
 			if err != nil {
 				logger.Error("[MissionV2] Failed to create request", "error", err, "mission_id", missionID)
 				s.MissionManagerV2.SetResult(missionID, "error", err.Error())
+				broadcastMissionState(s)
 				return
 			}
 			req.Header.Set("Content-Type", "application/json")
@@ -390,6 +392,7 @@ func Start(cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, sh
 			if err != nil {
 				logger.Error("[MissionV2] Execution failed", "error", err, "mission_id", missionID)
 				s.MissionManagerV2.SetResult(missionID, "error", err.Error())
+				broadcastMissionState(s)
 				return
 			}
 			defer resp.Body.Close()
@@ -404,6 +407,7 @@ func Start(cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, sh
 				logger.Error("[MissionV2] Mission returned non-OK status", "status", resp.Status, "mission_id", missionID)
 				s.MissionManagerV2.SetResult(missionID, "error", string(respBody))
 			}
+			broadcastMissionState(s)
 		}()
 	}
 	s.MissionManagerV2.SetCallback(missionCallbackV2)
