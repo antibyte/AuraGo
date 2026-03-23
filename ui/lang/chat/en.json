@@ -83,5 +83,14 @@
   "pwa.notifications_enabled": "Push notifications active — click to disable",
   "pwa.notifications_denied": "Push notifications blocked by browser",
   "pwa.notifications_disabled": "Push notifications disabled",
-  "pwa.notifications_unavailable": "Push notifications not supported"
+  "pwa.notifications_unavailable": "Push notifications not supported",
+  "chat.stt_listening": "Listening...",
+  "chat.stt_processing": "Processing...",
+  "chat.stt_tap_to_stop": "Tap to stop",
+  "chat.stt_no_speech": "No speech detected",
+  "chat.stt_error": "Speech recognition error",
+  "chat.stt_not_supported": "Speech recognition not supported in this browser",
+  "chat.stt_permission_denied": "Microphone permission denied",
+  "chat.stt_cancel": "Cancel",
+  "chat.stt_done": "Done"
 }

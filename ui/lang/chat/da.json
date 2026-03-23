@@ -83,5 +83,14 @@
   "pwa.notifications_denied": "Push-meddelelser blokeret af browseren",
   "pwa.notifications_disabled": "Push-meddelelser deaktiveret",
   "pwa.notifications_enabled": "Push-meddelelser aktive - klik for at deaktivere",
-  "pwa.notifications_unavailable": "Push-meddelelser understøttes ikke"
+  "pwa.notifications_unavailable": "Push-meddelelser understøttes ikke",
+  "chat.stt_listening": "Lytter...",
+  "chat.stt_processing": "Behandler...",
+  "chat.stt_tap_to_stop": "Tryk for at stoppe",
+  "chat.stt_no_speech": "Ingen tale registreret",
+  "chat.stt_error": "Fejl ved talegenkendelse",
+  "chat.stt_not_supported": "Talegenkendelse understøttes ikke i denne browser",
+  "chat.stt_permission_denied": "Mikrofontilladelse nægtet",
+  "chat.stt_cancel": "Annuller",
+  "chat.stt_done": "Færdig"
 }

@@ -384,9 +384,9 @@
 [data-theme="light"] .ct-search,
 [data-theme="light"] .ct-filter-group,
 [data-theme="light"] .ct-card {
-    border-color: rgba(71, 85, 105, 0.1);
+    border-color: rgba(71, 85, 105, 0.14);
 }
 
 [data-theme="light"] .ct-filter-group {
-    background: rgba(255, 255, 255, 0.62);
+    background: rgba(232, 241, 236, 0.78);
 }

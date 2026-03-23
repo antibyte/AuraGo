@@ -474,7 +474,7 @@
         }
 
         [data-theme="light"] .vignette {
-            background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.08) 0%, rgba(232, 239, 236, 0.85) 100%);
+            background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.03) 0%, rgba(216, 228, 223, 0.92) 100%);
             opacity: 1;
         }
 
@@ -484,16 +484,16 @@
         }
 
         [data-theme="light"] .login-card {
-            background: rgba(255, 255, 255, 0.78);
-            border-color: rgba(15, 143, 132, 0.16);
+            background: rgba(237, 245, 240, 0.88);
+            border-color: rgba(15, 118, 110, 0.18);
             box-shadow:
-                0 24px 64px rgba(148, 163, 184, 0.24),
-                0 0 0 1px rgba(15, 143, 132, 0.08),
-                inset 0 1px 0 rgba(255, 255, 255, 0.8);
+                0 24px 64px rgba(83, 97, 122, 0.22),
+                0 0 0 1px rgba(15, 118, 110, 0.1),
+                inset 0 1px 0 rgba(255, 255, 255, 0.5);
         }
 
         [data-theme="light"] .login-card::before {
-            background: linear-gradient(135deg, rgba(15, 143, 132, 0.18), transparent 40%, transparent 60%, rgba(56, 189, 248, 0.08));
+            background: linear-gradient(135deg, rgba(15, 118, 110, 0.16), transparent 40%, transparent 60%, rgba(14, 165, 233, 0.07));
         }
 
         [data-theme="light"] .login-title {
@@ -504,9 +504,14 @@
         }
 
         [data-theme="light"] .login-input {
-            background: rgba(255, 255, 255, 0.84);
-            border-color: rgba(71, 85, 105, 0.16);
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+            background: rgba(228, 238, 232, 0.92);
+            border-color: rgba(71, 85, 105, 0.2);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
+        }
+
+        [data-theme="light"] .login-input:hover {
+            border-color: rgba(15, 118, 110, 0.22);
+            box-shadow: 0 8px 18px rgba(83, 97, 122, 0.1);
         }
 
         [data-theme="light"] .login-input:focus {
@@ -517,6 +522,22 @@
 
         [data-theme="light"] .eye-btn {
             color: #5b6c7e;
+        }
+
+        [data-theme="light"] .eye-btn:hover {
+            color: #0f766e;
+        }
+
+        [data-theme="light"] .login-subtitle,
+        [data-theme="light"] .login-label {
+            color: #4b5e71;
+        }
+
+        [data-theme="light"] .btn-login:hover {
+            box-shadow:
+                0 10px 26px rgba(15, 118, 110, 0.24),
+                0 0 0 1px rgba(15, 118, 110, 0.16),
+                inset 0 1px 0 rgba(255, 255, 255, 0.18);
         }
 
         [data-theme="light"] .login-error {

@@ -83,5 +83,14 @@
   "pwa.notifications_denied": "Push-meddelanden blockerade av webbläsaren",
   "pwa.notifications_disabled": "Push-aviseringar inaktiverade",
   "pwa.notifications_enabled": "Pushnotiser aktiva – klicka för att inaktivera",
-  "pwa.notifications_unavailable": "Push-meddelanden stöds inte"
+  "pwa.notifications_unavailable": "Push-meddelanden stöds inte",
+  "chat.stt_listening": "Lyssnar...",
+  "chat.stt_processing": "Bearbetar...",
+  "chat.stt_tap_to_stop": "Tryck för att stoppa",
+  "chat.stt_no_speech": "Inget tal upptäckt",
+  "chat.stt_error": "Taligenkänningsfel",
+  "chat.stt_not_supported": "Taligenkänning stöds inte i denna webbläsare",
+  "chat.stt_permission_denied": "Mikrofonåtkomst nekad",
+  "chat.stt_cancel": "Avbryt",
+  "chat.stt_done": "Klar"
 }

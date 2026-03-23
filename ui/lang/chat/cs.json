@@ -83,5 +83,14 @@
   "pwa.notifications_denied": "Oznámení push blokována prohlížečem",
   "pwa.notifications_disabled": "Push notifikace jsou zakázány",
   "pwa.notifications_enabled": "Push upozornění jsou aktivní – kliknutím je deaktivujete",
-  "pwa.notifications_unavailable": "Push notifikace nejsou podporovány"
+  "pwa.notifications_unavailable": "Push notifikace nejsou podporovány",
+  "chat.stt_listening": "Naslouchám...",
+  "chat.stt_processing": "Zpracování...",
+  "chat.stt_tap_to_stop": "Klepněte pro zastavení",
+  "chat.stt_no_speech": "Nebyla rozpoznána žádná řeč",
+  "chat.stt_error": "Chyba rozpoznávání řeči",
+  "chat.stt_not_supported": "Rozpoznávání řeči není v tomto prohlížeči podporováno",
+  "chat.stt_permission_denied": "Přístup k mikrofonu zamítnut",
+  "chat.stt_cancel": "Zrušit",
+  "chat.stt_done": "Hotovo"
 }

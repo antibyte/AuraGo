@@ -83,5 +83,14 @@
   "pwa.notifications_denied": "Powiadomienia push blokowane przez przeglądarkę",
   "pwa.notifications_disabled": "Powiadomienia push wyłączone",
   "pwa.notifications_enabled": "Powiadomienia push aktywne — kliknij, aby wyłączyć",
-  "pwa.notifications_unavailable": "Powiadomienia push nie są obsługiwane"
+  "pwa.notifications_unavailable": "Powiadomienia push nie są obsługiwane",
+  "chat.stt_listening": "Słucham...",
+  "chat.stt_processing": "Przetwarzanie...",
+  "chat.stt_tap_to_stop": "Dotknij, aby zatrzymać",
+  "chat.stt_no_speech": "Nie wykryto mowy",
+  "chat.stt_error": "Błąd rozpoznawania mowy",
+  "chat.stt_not_supported": "Rozpoznawanie mowy nie jest obsługiwane w tej przeglądarce",
+  "chat.stt_permission_denied": "Odmowa dostępu do mikrofonu",
+  "chat.stt_cancel": "Anuluj",
+  "chat.stt_done": "Gotowe"
 }

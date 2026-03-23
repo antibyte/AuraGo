@@ -747,26 +747,67 @@
 }
 
 [data-theme="light"] .setup-card {
-    border-color: rgba(71, 85, 105, 0.12);
+    border-color: rgba(71, 85, 105, 0.16);
+    box-shadow:
+        0 24px 56px rgba(83, 97, 122, 0.16),
+        inset 0 1px 0 rgba(255, 255, 255, 0.42);
 }
 
 [data-theme="light"] .setup-card::before {
     background:
-        radial-gradient(circle at 50% 0%, rgba(15, 143, 132, 0.1), transparent 68%),
-        linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 24%);
+        radial-gradient(circle at 50% 0%, rgba(15, 118, 110, 0.11), transparent 68%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent 24%);
 }
 
 [data-theme="light"] .step-dot.active {
-    box-shadow: 0 0 0 5px rgba(15, 143, 132, 0.1), 0 0 18px rgba(15, 143, 132, 0.16);
+    box-shadow: 0 0 0 5px rgba(15, 118, 110, 0.1), 0 0 18px rgba(15, 118, 110, 0.16);
 }
 
 [data-theme="light"] .setup-footer {
-    background: rgba(255, 255, 255, 0.62);
+    background: rgba(231, 239, 234, 0.78);
 }
 
 [data-theme="light"] .or-browser-modal {
-    background: rgba(249, 252, 250, 0.96);
-    box-shadow: 0 24px 60px rgba(148, 163, 184, 0.22);
+    background: rgba(234, 242, 237, 0.96);
+    box-shadow: 0 24px 60px rgba(83, 97, 122, 0.2);
+}
+
+[data-theme="light"] .field-input {
+    background: rgba(229, 238, 233, 0.94);
+}
+
+[data-theme="light"] .field-input:hover {
+    border-color: rgba(15, 118, 110, 0.22);
+    box-shadow: 0 8px 18px rgba(83, 97, 122, 0.1);
+}
+
+[data-theme="light"] .field-input:focus {
+    background: rgba(239, 246, 242, 0.98);
+    box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.14), 0 0 22px rgba(15, 118, 110, 0.08);
+}
+
+[data-theme="light"] .setup-or-browse {
+    background: rgba(15, 118, 110, 0.12);
+    color: #0f766e;
+    border-color: rgba(15, 118, 110, 0.22);
+}
+
+[data-theme="light"] .setup-or-browse:hover {
+    background: rgba(15, 118, 110, 0.18);
+    box-shadow: 0 8px 18px rgba(83, 97, 122, 0.1);
+}
+
+[data-theme="light"] .btn-next:hover {
+    box-shadow: 0 10px 24px rgba(15, 118, 110, 0.22);
+}
+
+[data-theme="light"] .btn-back:hover {
+    background: rgba(15, 118, 110, 0.08);
+    box-shadow: 0 8px 18px rgba(83, 97, 122, 0.1);
+}
+
+[data-theme="light"] .btn-skip:hover {
+    color: #0f766e;
 }
 
 @media (max-width: 768px) {

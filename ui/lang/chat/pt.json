@@ -83,5 +83,14 @@
   "pwa.notifications_denied": "Notificações push bloqueadas pelo navegador",
   "pwa.notifications_disabled": "Notificações push desativadas",
   "pwa.notifications_enabled": "Notificações push ativas – clique para desativar",
-  "pwa.notifications_unavailable": "Notificações push não suportadas"
+  "pwa.notifications_unavailable": "Notificações push não suportadas",
+  "chat.stt_listening": "Ouvindo...",
+  "chat.stt_processing": "Processando...",
+  "chat.stt_tap_to_stop": "Toque para parar",
+  "chat.stt_no_speech": "Nenhuma fala detectada",
+  "chat.stt_error": "Erro de reconhecimento de fala",
+  "chat.stt_not_supported": "O reconhecimento de fala não é compatível neste navegador",
+  "chat.stt_permission_denied": "Permissão do microfone negada",
+  "chat.stt_cancel": "Cancelar",
+  "chat.stt_done": "Concluído"
 }

@@ -83,5 +83,14 @@
   "pwa.notifications_denied": "Pushmeldingen geblokkeerd door browser",
   "pwa.notifications_disabled": "Pushmeldingen uitgeschakeld",
   "pwa.notifications_enabled": "Pushmeldingen actief: klik om uit te schakelen",
-  "pwa.notifications_unavailable": "Pushmeldingen worden niet ondersteund"
+  "pwa.notifications_unavailable": "Pushmeldingen worden niet ondersteund",
+  "chat.stt_listening": "Luisteren...",
+  "chat.stt_processing": "Verwerken...",
+  "chat.stt_tap_to_stop": "Tik om te stoppen",
+  "chat.stt_no_speech": "Geen spraak gedetecteerd",
+  "chat.stt_error": "Spraakherkenningsfout",
+  "chat.stt_not_supported": "Spraakherkenning wordt niet ondersteund in deze browser",
+  "chat.stt_permission_denied": "Microfoontoegang geweigerd",
+  "chat.stt_cancel": "Annuleren",
+  "chat.stt_done": "Klaar"
 }

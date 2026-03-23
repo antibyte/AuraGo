@@ -83,5 +83,14 @@
   "pwa.notifications_denied": "Push-varsler blokkert av nettleseren",
   "pwa.notifications_disabled": "Push-varsler er deaktivert",
   "pwa.notifications_enabled": "Push-varsler aktive – klikk for å deaktivere",
-  "pwa.notifications_unavailable": "Push-varsler støttes ikke"
+  "pwa.notifications_unavailable": "Push-varsler støttes ikke",
+  "chat.stt_listening": "Lytter...",
+  "chat.stt_processing": "Behandler...",
+  "chat.stt_tap_to_stop": "Trykk for å stoppe",
+  "chat.stt_no_speech": "Ingen tale oppdaget",
+  "chat.stt_error": "Talegjenkjenningsfeil",
+  "chat.stt_not_supported": "Talegjenkjenning støttes ikke i denne nettleseren",
+  "chat.stt_permission_denied": "Mikrofontilgang nektet",
+  "chat.stt_cancel": "Avbryt",
+  "chat.stt_done": "Ferdig"
 }

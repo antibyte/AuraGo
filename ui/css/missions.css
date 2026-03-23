@@ -567,7 +567,7 @@
 [data-theme="light"] .trigger-type-btn,
 [data-theme="light"] .mission-option,
 [data-theme="light"] .cheatsheet-picker {
-    border-color: rgba(71, 85, 105, 0.1);
+    border-color: rgba(71, 85, 105, 0.14);
 }
 
 [data-theme="light"] .mission-card.running {

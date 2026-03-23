@@ -83,5 +83,14 @@
   "pwa.notifications_denied": "पुश सूचनाएं ब्राउज़र द्वारा अवरुद्ध कर दी गईं",
   "pwa.notifications_disabled": "पुश सूचनाएँ अक्षम",
   "pwa.notifications_enabled": "पुश सूचनाएं सक्रिय - अक्षम करने के लिए क्लिक करें",
-  "pwa.notifications_unavailable": "पुश सूचनाएँ समर्थित नहीं हैं"
+  "pwa.notifications_unavailable": "पुश सूचनाएँ समर्थित नहीं हैं",
+  "chat.stt_listening": "सुन रहा है...",
+  "chat.stt_processing": "प्रसंस्करण...",
+  "chat.stt_tap_to_stop": "रोकने के लिए टैप करें",
+  "chat.stt_no_speech": "कोई वाक् नहीं मिला",
+  "chat.stt_error": "वाक् पहचान त्रुटि",
+  "chat.stt_not_supported": "इस ब्राउज़र में वाक् पहचान समर्थित नहीं है",
+  "chat.stt_permission_denied": "माइक्रोफ़ोन अनुमति अस्वीकृत",
+  "chat.stt_cancel": "रद्द करें",
+  "chat.stt_done": "पूर्ण"
 }

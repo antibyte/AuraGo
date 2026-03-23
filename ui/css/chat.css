@@ -2880,31 +2880,63 @@
 /* ── Chat area gradient ── */
 [data-theme="light"] #chat-box {
     background-image:
-        radial-gradient(ellipse 720px 440px at 14% 18%, rgba(15, 143, 132, 0.08), transparent 60%),
-        radial-gradient(ellipse 520px 420px at 86% 22%, rgba(56, 189, 248, 0.08), transparent 58%),
-        linear-gradient(180deg, rgba(255, 255, 255, 0.22), transparent 32%);
+        radial-gradient(ellipse 720px 440px at 14% 18%, rgba(15, 118, 110, 0.1), transparent 60%),
+        radial-gradient(ellipse 520px 420px at 86% 22%, rgba(56, 189, 248, 0.09), transparent 58%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.12), transparent 32%);
 }
 
 [data-theme="light"] #chat-box::before {
     background: linear-gradient(180deg,
-        rgba(232, 239, 236, 0.28) 0%,
+        rgba(216, 228, 223, 0.22) 0%,
         transparent 20%,
         transparent 80%,
-        rgba(232, 239, 236, 0.18) 100%);
+        rgba(216, 228, 223, 0.14) 100%);
 }
 
 [data-theme="light"] .bubble.bot {
-    border-color: rgba(71, 85, 105, 0.1);
+    background: rgba(241, 247, 244, 0.92);
+    border-color: rgba(71, 85, 105, 0.14);
     box-shadow:
-        0 14px 28px rgba(148, 163, 184, 0.16),
-        inset 0 1px 0 rgba(255, 255, 255, 0.78);
+        0 16px 30px rgba(83, 97, 122, 0.14),
+        inset 0 1px 0 rgba(255, 255, 255, 0.48);
 }
 
 [data-theme="light"] .greeting-icon,
 [data-theme="light"] .avatar.bot {
+    background: linear-gradient(135deg, rgba(15, 118, 110, 0.16), rgba(14, 165, 233, 0.08));
     box-shadow:
         0 16px 30px rgba(56, 189, 248, 0.12),
         0 0 0 1px rgba(15, 143, 132, 0.08);
+}
+
+[data-theme="light"] .mood-toggle:hover,
+[data-theme="light"] .select-personality:hover,
+[data-theme="light"] .btn-new-chat:hover {
+    background: rgba(15, 118, 110, 0.1);
+    box-shadow: 0 8px 18px rgba(83, 97, 122, 0.1);
+}
+
+[data-theme="light"] .input-wrap textarea:hover {
+    border-color: rgba(15, 118, 110, 0.2);
+    background: rgba(235, 243, 238, 0.94);
+}
+
+[data-theme="light"] .input-wrap textarea:focus {
+    background: rgba(239, 246, 242, 0.98);
+}
+
+[data-theme="light"] .btn-send:hover {
+    box-shadow: 0 8px 22px rgba(15, 118, 110, 0.24);
+}
+
+[data-theme="light"] .btn-upload:hover,
+[data-theme="light"] .btn-voice:hover,
+[data-theme="light"] .btn-push:hover {
+    box-shadow: 0 8px 18px rgba(83, 97, 122, 0.12);
+}
+
+[data-theme="light"] .btn-stop:hover:not(:disabled) {
+    box-shadow: 0 8px 18px rgba(220, 38, 38, 0.14);
 }
 
 @media (max-width: 640px) {

@@ -83,5 +83,14 @@
   "pwa.notifications_denied": "Οι ειδοποιήσεις push έχουν αποκλειστεί από το πρόγραμμα περιήγησης",
   "pwa.notifications_disabled": "Οι ειδοποιήσεις push απενεργοποιημένες",
   "pwa.notifications_enabled": "Οι ειδοποιήσεις push ενεργές — κάντε κλικ για απενεργοποίηση",
-  "pwa.notifications_unavailable": "Οι ειδοποιήσεις push δεν υποστηρίζονται"
+  "pwa.notifications_unavailable": "Οι ειδοποιήσεις push δεν υποστηρίζονται",
+  "chat.stt_listening": "Ακρόαση...",
+  "chat.stt_processing": "Επεξεργασία...",
+  "chat.stt_tap_to_stop": "Πατήστε για διακοπή",
+  "chat.stt_no_speech": "Δεν εντοπίστηκε ομιλία",
+  "chat.stt_error": "Σφάλμα αναγνώρισης ομιλίας",
+  "chat.stt_not_supported": "Η αναγνώριση ομιλίας δεν υποστηρίζεται σε αυτό το πρόγραμμα περιήγησης",
+  "chat.stt_permission_denied": "Η πρόσβαση στο μικρόφωνο απορρίφθηκε",
+  "chat.stt_cancel": "Ακύρωση",
+  "chat.stt_done": "Τέλος"
 }

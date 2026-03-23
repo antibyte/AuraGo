@@ -83,5 +83,14 @@
   "pwa.notifications_denied": "プッシュ通知がブラウザによってブロックされている",
   "pwa.notifications_disabled": "プッシュ通知が無効になっています",
   "pwa.notifications_enabled": "プッシュ通知がアクティブ - クリックして無効にします",
-  "pwa.notifications_unavailable": "プッシュ通知はサポートされていません"
+  "pwa.notifications_unavailable": "プッシュ通知はサポートされていません",
+  "chat.stt_listening": "聞いています...",
+  "chat.stt_processing": "処理中...",
+  "chat.stt_tap_to_stop": "タップして停止",
+  "chat.stt_no_speech": "音声が検出されませんでした",
+  "chat.stt_error": "音声認識エラー",
+  "chat.stt_not_supported": "このブラウザでは音声認識がサポートされていません",
+  "chat.stt_permission_denied": "マイクの許可が拒否されました",
+  "chat.stt_cancel": "キャンセル",
+  "chat.stt_done": "完了"
 }

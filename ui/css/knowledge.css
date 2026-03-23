@@ -411,11 +411,11 @@
 [data-theme="light"] .kc-search,
 [data-theme="light"] .kc-table-wrap,
 [data-theme="light"] .field-group {
-    border-color: rgba(71, 85, 105, 0.1);
+    border-color: rgba(71, 85, 105, 0.14);
 }
 
 [data-theme="light"] .kc-table thead {
-    background: rgba(237, 243, 240, 0.95);
+    background: rgba(220, 230, 224, 0.92);
 }
 
 [data-theme="light"] .kc-table tbody tr:hover {

@@ -1,0 +1,349 @@
+/* ══════════════════════════════════════════════════════════════
+   AuraGo – Speech-to-Text Overlay
+   Full-screen overlay with pulsing rings, live transcript,
+   and audio-reactive animation for browser-native STT.
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── Overlay Container ─────────────────────────────────────── */
+.stt-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.88);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    opacity: 0;
+    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.stt-overlay.active {
+    display: flex;
+}
+
+.stt-overlay.visible {
+    opacity: 1;
+}
+
+/* ── Inner Layout ──────────────────────────────────────────── */
+.stt-overlay-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    max-width: 440px;
+    width: 90%;
+    transform: scale(0.92) translateY(12px);
+    opacity: 0;
+    transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.stt-overlay.visible .stt-overlay-inner {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+}
+
+/* ── Microphone Area with Rings ────────────────────────────── */
+.stt-mic-area {
+    position: relative;
+    width: 180px;
+    height: 180px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.stt-ring {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    border: 1.5px solid var(--accent, #2dd4bf);
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0.15;
+    pointer-events: none;
+    will-change: transform, opacity;
+    transition: transform 0.15s ease-out, opacity 0.15s ease-out;
+}
+
+/* Baseline CSS pulsing (overridden by JS audio-reactive values) */
+.stt-ring-1 {
+    animation: stt-ring-pulse 2.4s ease-in-out infinite;
+}
+.stt-ring-2 {
+    animation: stt-ring-pulse 2.4s ease-in-out infinite 0.4s;
+}
+.stt-ring-3 {
+    animation: stt-ring-pulse 2.4s ease-in-out infinite 0.8s;
+}
+.stt-ring-4 {
+    animation: stt-ring-pulse 2.4s ease-in-out infinite 1.2s;
+}
+
+@keyframes stt-ring-pulse {
+    0%, 100% {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 0.12;
+    }
+    50% {
+        transform: translate(-50%, -50%) scale(1.3);
+        opacity: 0.22;
+    }
+}
+
+/* Mic Icon */
+.stt-mic-icon {
+    position: relative;
+    z-index: 2;
+    width: 64px;
+    height: 64px;
+    background: var(--accent, #2dd4bf);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow:
+        0 0 30px rgba(45, 212, 191, 0.4),
+        0 0 60px rgba(45, 212, 191, 0.15),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    animation: stt-mic-glow 2s ease-in-out infinite;
+}
+
+.stt-mic-icon svg {
+    width: 28px;
+    height: 28px;
+    color: #000;
+}
+
+@keyframes stt-mic-glow {
+    0%, 100% {
+        box-shadow:
+            0 0 30px rgba(45, 212, 191, 0.4),
+            0 0 60px rgba(45, 212, 191, 0.15);
+    }
+    50% {
+        box-shadow:
+            0 0 40px rgba(45, 212, 191, 0.6),
+            0 0 80px rgba(45, 212, 191, 0.25);
+    }
+}
+
+/* ── Status Text ───────────────────────────────────────────── */
+.stt-status {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--accent, #2dd4bf);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    animation: stt-status-pulse 2s ease-in-out infinite;
+}
+
+@keyframes stt-status-pulse {
+    0%, 100% { opacity: 0.7; }
+    50% { opacity: 1; }
+}
+
+/* ── Timer ─────────────────────────────────────────────────── */
+.stt-timer {
+    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-size: 14px;
+    color: var(--text-secondary, #94a3b8);
+    opacity: 0.8;
+}
+
+/* ── Live Transcript ───────────────────────────────────────── */
+.stt-transcript {
+    width: 100%;
+    min-height: 48px;
+    max-height: 150px;
+    overflow-y: auto;
+    padding: 16px 20px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(148, 163, 184, 0.1);
+    border-radius: 14px;
+    font-size: var(--text-base, 0.95rem);
+    line-height: 1.6;
+    text-align: center;
+    scroll-behavior: smooth;
+}
+
+.stt-transcript::-webkit-scrollbar {
+    width: 4px;
+}
+.stt-transcript::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.2);
+    border-radius: 4px;
+}
+
+.stt-transcript-final {
+    color: var(--text-primary, #f1f5f9);
+}
+
+.stt-transcript-interim {
+    color: var(--text-secondary, #94a3b8);
+    opacity: 0.7;
+}
+
+/* Blinking cursor after interim text */
+.stt-cursor {
+    display: inline-block;
+    width: 2px;
+    height: 1.1em;
+    background: var(--accent, #2dd4bf);
+    margin-left: 2px;
+    vertical-align: text-bottom;
+    animation: stt-blink 1s step-end infinite;
+}
+
+@keyframes stt-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+}
+
+/* ── Language Badge ────────────────────────────────────────── */
+.stt-lang-badge {
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(148, 163, 184, 0.12);
+    color: var(--text-secondary, #94a3b8);
+    letter-spacing: 0.5px;
+}
+
+/* ── Controls ──────────────────────────────────────────────── */
+.stt-controls {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    margin-top: 8px;
+}
+
+.stt-btn {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    -webkit-tap-highlight-color: transparent;
+}
+
+.stt-btn span {
+    pointer-events: none;
+}
+
+.stt-cancel {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    border: 2px solid rgba(239, 68, 68, 0.3);
+}
+
+.stt-cancel:hover,
+.stt-cancel:active {
+    background: #ef4444;
+    color: white;
+    transform: scale(1.08);
+    box-shadow: 0 4px 20px rgba(239, 68, 68, 0.35);
+}
+
+.stt-done {
+    background: var(--accent, #2dd4bf);
+    color: #000;
+    box-shadow: 0 4px 16px rgba(45, 212, 191, 0.3);
+}
+
+.stt-done:hover,
+.stt-done:active {
+    background: var(--accent-hover, #14b8a6);
+    transform: scale(1.08);
+    box-shadow: 0 6px 24px rgba(45, 212, 191, 0.45);
+}
+
+/* ── Light Theme ───────────────────────────────────────────── */
+[data-theme="light"] .stt-overlay {
+    background: rgba(30, 41, 59, 0.55);
+}
+
+[data-theme="light"] .stt-transcript {
+    background: rgba(0, 0, 0, 0.04);
+    border-color: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="light"] .stt-lang-badge {
+    background: rgba(0, 0, 0, 0.05);
+    border-color: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="light"] .stt-ring {
+    border-color: var(--accent, #0d9488);
+}
+
+[data-theme="light"] .stt-mic-icon {
+    box-shadow:
+        0 0 24px rgba(13, 148, 136, 0.3),
+        0 0 48px rgba(13, 148, 136, 0.1);
+}
+
+/* ── Mobile Responsive ─────────────────────────────────────── */
+@media (max-width: 480px) {
+    .stt-mic-area {
+        width: 140px;
+        height: 140px;
+    }
+
+    .stt-mic-icon {
+        width: 52px;
+        height: 52px;
+    }
+
+    .stt-mic-icon svg {
+        width: 24px;
+        height: 24px;
+    }
+
+    .stt-overlay-inner {
+        gap: 16px;
+    }
+
+    .stt-transcript {
+        max-height: 120px;
+        font-size: 0.9rem;
+        padding: 12px 16px;
+    }
+
+    .stt-btn {
+        width: 50px;
+        height: 50px;
+        font-size: 18px;
+    }
+}
+
+@media (max-height: 500px) {
+    .stt-mic-area {
+        width: 100px;
+        height: 100px;
+    }
+
+    .stt-mic-icon {
+        width: 44px;
+        height: 44px;
+    }
+
+    .stt-transcript {
+        max-height: 80px;
+    }
+
+    .stt-overlay-inner {
+        gap: 10px;
+    }
+}

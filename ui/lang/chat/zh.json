@@ -83,5 +83,14 @@
   "pwa.notifications_denied": "推送通知被浏览器阻止",
   "pwa.notifications_disabled": "推送通知已禁用",
   "pwa.notifications_enabled": "推送通知处于活动状态 — 单击以禁用",
-  "pwa.notifications_unavailable": "不支持推送通知"
+  "pwa.notifications_unavailable": "不支持推送通知",
+  "chat.stt_listening": "正在聆听...",
+  "chat.stt_processing": "处理中...",
+  "chat.stt_tap_to_stop": "点击停止",
+  "chat.stt_no_speech": "未检测到语音",
+  "chat.stt_error": "语音识别错误",
+  "chat.stt_not_supported": "此浏览器不支持语音识别",
+  "chat.stt_permission_denied": "麦克风权限被拒绝",
+  "chat.stt_cancel": "取消",
+  "chat.stt_done": "完成"
 }

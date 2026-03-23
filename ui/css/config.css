@@ -4987,16 +4987,46 @@ select.cfg-input option {
 }
 
 [data-theme="light"] .cfg-sidebar {
-    background: rgba(247, 250, 248, 0.72);
-    border-right-color: rgba(71, 85, 105, 0.1);
+    background: rgba(224, 234, 228, 0.84);
+    border-right-color: rgba(71, 85, 105, 0.14);
+}
+
+[data-theme="light"] .sidebar-item:hover {
+    background: rgba(15, 118, 110, 0.08);
 }
 
 [data-theme="light"] .sidebar-item.active {
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
+    background: rgba(15, 118, 110, 0.12);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.45),
+        0 10px 22px rgba(15, 118, 110, 0.1);
 }
 
 [data-theme="light"] .field-group {
-    border-color: rgba(71, 85, 105, 0.1);
+    border-color: rgba(71, 85, 105, 0.14);
+}
+
+[data-theme="light"] .field-input,
+[data-theme="light"] .field-select,
+[data-theme="light"] .cfg-input {
+    background: rgba(229, 238, 233, 0.94);
+}
+
+[data-theme="light"] .field-input:hover,
+[data-theme="light"] .field-select:hover,
+[data-theme="light"] .cfg-input:hover {
+    border-color: rgba(15, 118, 110, 0.22);
+    box-shadow: 0 8px 18px rgba(83, 97, 122, 0.1);
+}
+
+[data-theme="light"] .field-input:focus,
+[data-theme="light"] .field-select:focus,
+[data-theme="light"] .cfg-input:focus {
+    background: rgba(239, 246, 242, 0.98);
+}
+
+[data-theme="light"] .btn-save:hover {
+    box-shadow: 0 10px 24px rgba(15, 118, 110, 0.22);
 }
 
 @media (max-width: 768px) {

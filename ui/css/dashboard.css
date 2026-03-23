@@ -249,22 +249,28 @@
         }
 
         [data-theme="light"] .dash-tabs {
-            background: rgba(232, 239, 236, 0.76);
-            border-bottom-color: rgba(71, 85, 105, 0.1);
+            background: rgba(219, 229, 223, 0.82);
+            border-bottom-color: rgba(71, 85, 105, 0.14);
         }
 
         [data-theme="light"] .dash-tab {
             color: #516172;
         }
 
+        [data-theme="light"] .dash-tab:hover {
+            background: rgba(233, 241, 236, 0.88);
+            border-color: rgba(71, 85, 105, 0.12);
+        }
+
         [data-theme="light"] .dash-tab.active {
-            background: rgba(15, 143, 132, 0.12);
-            box-shadow: 0 10px 22px rgba(15, 143, 132, 0.12);
+            background: rgba(15, 118, 110, 0.14);
+            box-shadow: 0 10px 22px rgba(15, 118, 110, 0.14);
         }
 
         [data-theme="light"] .stat-item {
-            background: rgba(255, 255, 255, 0.66);
-            border-color: rgba(71, 85, 105, 0.1);
+            background: rgba(237, 245, 240, 0.82);
+            border-color: rgba(71, 85, 105, 0.14);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
         }
 
         @media (max-width: 768px) {

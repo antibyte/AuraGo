@@ -74,8 +74,8 @@
         function getWebGLTheme(theme) {
             if (theme === 'light') {
                 return {
-                    clearColor: 0xe8efec,
-                    fogColor: 0xe8efec,
+                    clearColor: 0xd8e4df,
+                    fogColor: 0xd8e4df,
                     particleStart: 0x0f766e,
                     particleEnd: 0x0d9488,
                     lineColor: 0x0f766e,

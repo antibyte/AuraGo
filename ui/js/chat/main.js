@@ -1189,42 +1189,71 @@ document.addEventListener('DOMContentLoaded', () => {
         window.CodeBlocks.init();
     }
     
-    // Voice Recorder
+    // Voice / Speech-to-Text
     const voiceBtn = document.getElementById('voice-btn');
-    if (voiceBtn && window.VoiceRecorder) {
-        // Check if HTTPS or localhost - voice recording requires secure context
+    if (voiceBtn) {
         const isSecure = window.location.protocol === 'https:' || 
                         window.location.hostname === 'localhost' || 
                         window.location.hostname === '127.0.0.1';
         
         if (!isSecure) {
-            // Disable voice button on HTTP
             voiceBtn.disabled = true;
             voiceBtn.classList.add('btn-disabled');
             voiceBtn.title = 'Voice recording requires HTTPS connection';
         } else {
-            window.VoiceRecorder.init({
-                onTranscription: (text) => {
-                    const input = document.getElementById('user-input');
-                    input.value = text;
-                    input.style.height = 'auto';
-                    input.style.height = Math.min(input.scrollHeight, 200) + 'px';
-                    input.focus();
-                },
-                onError: (msg) => {
-                    if (window.showToast) {
-                        window.showToast(msg, 'error');
-                    } else {
-                        alert(msg);
+            const _populateInput = (text) => {
+                const input = document.getElementById('user-input');
+                input.value = text;
+                input.style.height = 'auto';
+                input.style.height = Math.min(input.scrollHeight, 200) + 'px';
+                input.focus();
+            };
+            const _showError = (msg) => {
+                if (window.showToast) { window.showToast(msg, 'error'); } else { alert(msg); }
+            };
+
+            // Prefer browser-native Speech-to-Text (Chrome, Edge, Android)
+            const useBrowserSTT = window.SpeechToText && window.SpeechToText.isSupported;
+
+            if (useBrowserSTT) {
+                window.SpeechToText.init({
+                    onInterimResult: _populateInput,
+                    onFinalResult: _populateInput,
+                    onEnd: () => { voiceBtn.classList.remove('btn-active'); },
+                    onError: (msg) => {
+                        voiceBtn.classList.remove('btn-active');
+                        _showError(msg);
+                        // Graceful fallback: start server-side recorder on STT error
+                        if (window.VoiceRecorder && window.VoiceRecorder.isRecording === false) {
+                            window.VoiceRecorder.start();
+                        }
                     }
-                }
-            });
-            
+                });
+            }
+
+            // Always init VoiceRecorder as fallback
+            if (window.VoiceRecorder) {
+                window.VoiceRecorder.init({
+                    onTranscription: _populateInput,
+                    onError: _showError
+                });
+            }
+
             voiceBtn.addEventListener('click', () => {
-                if (window.VoiceRecorder.isRecording) {
-                    window.VoiceRecorder.send();
-                } else {
-                    window.VoiceRecorder.start();
+                if (useBrowserSTT) {
+                    if (window.SpeechToText.isActive) {
+                        window.SpeechToText.stop();
+                        voiceBtn.classList.remove('btn-active');
+                    } else {
+                        window.SpeechToText.start();
+                        voiceBtn.classList.add('btn-active');
+                    }
+                } else if (window.VoiceRecorder) {
+                    if (window.VoiceRecorder.isRecording) {
+                        window.VoiceRecorder.send();
+                    } else {
+                        window.VoiceRecorder.start();
+                    }
                 }
             });
         }
