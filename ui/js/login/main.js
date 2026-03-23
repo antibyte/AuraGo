@@ -11,9 +11,9 @@
         const NETWORK_NODE_COUNT = 72;
         const MAX_NODE_CONNECTIONS = 3;
         const MAX_CONNECTION_DISTANCE = 28;
-        const MAX_IMPULSES = 48;
-        const IMPULSE_TRAIL_SEGMENTS = 5;
-        const MIN_IMPULSE_ENERGY = 0.12;
+        const MAX_IMPULSES = 56;
+        const IMPULSE_TRAIL_SEGMENTS = 10;
+        const MIN_IMPULSE_ENERGY = 0.08;
 
         let scene, camera, renderer, particles, lines, impulseTrails, impulseHeads;
         let nodeBasePositions, nodeCurrentPositions, nodeBaseSizes, nodeFlashLevels, nodeColorMixes, nodeSeeds;
@@ -368,9 +368,10 @@
             const trailMaterial = new THREE.LineBasicMaterial({
                 vertexColors: true,
                 transparent: true,
-                opacity: 0.8,
+                opacity: 0.96,
                 blending: THREE.AdditiveBlending,
-                depthWrite: false
+                depthWrite: false,
+                depthTest: false
             });
 
             impulseTrails = new THREE.LineSegments(trailGeometry, trailMaterial);
@@ -411,14 +412,19 @@
                         vec2 center = gl_PointCoord - vec2(0.5);
                         float dist = length(center);
                         float glow = 1.0 - smoothstep(0.0, 0.5, dist);
-                        float core = 1.0 - smoothstep(0.0, 0.18, dist);
-                        
-                        gl_FragColor = vec4(vColor * (0.95 + core * 0.45), glow * vAlpha);
+                        float core = 1.0 - smoothstep(0.0, 0.08, dist);
+                        float ring = smoothstep(0.07, 0.2, dist) * (1.0 - smoothstep(0.22, 0.46, dist));
+                        float sparkle = smoothstep(0.0, 0.12, 1.0 - abs(center.x * center.y * 6.0));
+                        float alpha = (glow * 0.28 + ring * 0.46 + core * 0.92 + sparkle * core * 0.22) * vAlpha;
+                        vec3 color = vColor * (0.88 + ring * 0.42 + core * 0.75);
+
+                        gl_FragColor = vec4(color, alpha);
                     }
                 `,
                 transparent: true,
                 blending: THREE.AdditiveBlending,
-                depthWrite: false
+                depthWrite: false,
+                depthTest: false
             });
 
             impulseHeads = new THREE.Points(headGeometry, headMaterial);
@@ -572,8 +578,8 @@
                 to: toNode,
                 energy,
                 progress: 0,
-                speed: 0.28 + Math.random() * 0.2 + energy * 0.18,
-                tailLength: 0.16 + energy * 0.12
+                speed: 0.18 + Math.random() * 0.1 + energy * 0.1,
+                tailLength: 0.28 + energy * 0.22
             });
         }
 
@@ -588,7 +594,7 @@
             }
             if (targets.length === 0) return;
 
-            const branchEnergy = energy * 0.78 / Math.max(1, Math.sqrt(targets.length));
+            const branchEnergy = energy * 0.82 / Math.max(1, Math.sqrt(targets.length));
             if (branchEnergy < MIN_IMPULSE_ENERGY) return;
 
             targets.forEach(target => spawnImpulse(nodeIndex, target, branchEnergy));
@@ -617,11 +623,11 @@
 
             for (let i = impulses.length - 1; i >= 0; i--) {
                 const impulse = impulses[i];
-                impulse.energy = Math.max(0, impulse.energy - delta * 0.06);
+                impulse.energy = Math.max(0, impulse.energy - delta * 0.03);
                 impulse.progress += impulse.speed * delta;
 
                 if (impulse.progress >= 1 || impulse.energy < MIN_IMPULSE_ENERGY) {
-                    const deliveredEnergy = impulse.energy * 0.9;
+                    const deliveredEnergy = impulse.energy * 0.92;
                     const targetNode = impulse.to;
                     const sourceNode = impulse.from;
                     impulses.splice(i, 1);
@@ -642,7 +648,7 @@
                 const headX = lerp(x1, x2, impulse.progress);
                 const headY = lerp(y1, y2, impulse.progress);
                 const headZ = lerp(z1, z2, impulse.progress);
-                const headStrength = Math.min(1, 0.6 + impulse.energy * 0.7);
+                const headStrength = Math.min(1.18, 0.52 + impulse.energy * 0.82);
 
                 if (headCount < MAX_IMPULSES) {
                     const headOffset = headCount * 3;
@@ -652,8 +658,8 @@
                     headColors[headOffset] = activePalette.pulse.r * headStrength;
                     headColors[headOffset + 1] = activePalette.pulse.g * headStrength;
                     headColors[headOffset + 2] = activePalette.pulse.b * headStrength;
-                    headSizes[headCount] = 2.5 + impulse.energy * 4.8;
-                    headAlpha[headCount] = 0.35 + impulse.energy * 0.65;
+                    headSizes[headCount] = 1.2 + impulse.energy * 2.8;
+                    headAlpha[headCount] = 0.16 + impulse.energy * 0.36;
                     headCount++;
                 }
 
@@ -669,8 +675,10 @@
                     const currentX = lerp(x1, x2, segmentT);
                     const currentY = lerp(y1, y2, segmentT);
                     const currentZ = lerp(z1, z2, segmentT);
-                    const startStrength = impulse.energy * ((segment - 1) / IMPULSE_TRAIL_SEGMENTS) * 0.55;
-                    const endStrength = impulse.energy * (segment / IMPULSE_TRAIL_SEGMENTS) * 0.95;
+                    const startRatio = (segment - 1) / IMPULSE_TRAIL_SEGMENTS;
+                    const endRatio = segment / IMPULSE_TRAIL_SEGMENTS;
+                    const startStrength = impulse.energy * (0.12 + Math.pow(startRatio, 1.6) * 0.7);
+                    const endStrength = impulse.energy * (0.24 + Math.pow(endRatio, 1.08) * 1.15);
 
                     trailPositions[trailFloatIndex] = previousX;
                     trailPositions[trailFloatIndex + 1] = previousY;
