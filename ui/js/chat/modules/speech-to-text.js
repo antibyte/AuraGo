@@ -23,8 +23,9 @@
         _animFrameId: null,
         _timerInterval: null,
         _startTime: 0,
+        _prevSessionText: '',
         _finalTranscript: '',
-        _interimTranscript: '',
+        _interimTranscript: '',,
         _intentionalStop: false,
         _restartCount: 0,
         _maxRestarts: 50,
@@ -157,6 +158,7 @@
                 return;
             }
 
+            this._prevSessionText = '';
             this._finalTranscript = '';
             this._interimTranscript = '';
             this._intentionalStop = false;
@@ -177,15 +179,19 @@
             }
 
             this._recognition.onresult = (event) => {
+                // Rebuild transcript from ALL results to avoid duplication.
+                // Chrome can re-emit resultIndex=0 for already-finalized results.
+                let sessionFinal = '';
                 let interim = '';
-                for (let i = event.resultIndex; i < event.results.length; i++) {
+                for (let i = 0; i < event.results.length; i++) {
                     const transcript = event.results[i][0].transcript;
                     if (event.results[i].isFinal) {
-                        this._finalTranscript += transcript;
+                        sessionFinal += transcript;
                     } else {
                         interim += transcript;
                     }
                 }
+                this._finalTranscript = this._prevSessionText + sessionFinal;
                 this._interimTranscript = interim;
                 this._updateTranscript();
 
@@ -218,6 +224,8 @@
                 // Auto-restart if we didn't intentionally stop it
                 if (!this._intentionalStop && this.isActive && this._restartCount < this._maxRestarts) {
                     this._restartCount++;
+                    // Carry over finalized text from this session before restart
+                    this._prevSessionText = this._finalTranscript;
                     try {
                         this._recognition.start();
                     } catch (e) {
