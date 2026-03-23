@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/url"
@@ -412,6 +413,52 @@ func DockerListImages(cfg DockerConfig) string {
 
 	out, _ := json.Marshal(map[string]interface{}{"status": "ok", "count": len(result), "images": result})
 	return string(out)
+}
+
+// PullImageWait pulls a Docker image and blocks until the pull completes (or the
+// context expires). Unlike the shared HTTP client's 60-second timeout this uses a
+// per-request context so long pulls don't get killed prematurely.
+// It returns nil if the image already exists locally.
+func PullImageWait(ctx context.Context, cfg DockerConfig, image string, logger *slog.Logger) error {
+	// Check if image already exists.
+	filterURL := fmt.Sprintf("/images/json?filters=%%7B%%22reference%%22%%3A%%5B%%22%s%%22%%5D%%7D", url.QueryEscape(image))
+	data, code, err := dockerRequest(cfg, "GET", filterURL, "")
+	if err == nil && code == 200 {
+		var images []interface{}
+		if json.Unmarshal(data, &images) == nil && len(images) > 0 {
+			return nil // already present
+		}
+	}
+
+	logger.Info("Pulling Docker image", "image", image)
+
+	// Build the pull request with the caller-supplied context so long pulls
+	// are not cut short by the 60-second client timeout.
+	client := getDockerClient(cfg)
+	reqURL := "http://localhost/" + dockerAPIVersion + "/images/create?fromImage=" + url.QueryEscape(image)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, reqURL, nil)
+	if err != nil {
+		return fmt.Errorf("create pull request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("pull image %s: %w", image, err)
+	}
+	defer resp.Body.Close()
+
+	// Drain the streaming response (progress JSON) so we block until the
+	// pull is fully complete.
+	if _, err := io.Copy(io.Discard, resp.Body); err != nil {
+		return fmt.Errorf("pull image %s (reading stream): %w", image, err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("pull image %s: HTTP %d", image, resp.StatusCode)
+	}
+
+	logger.Info("Docker image pulled successfully", "image", image)
+	return nil
 }
 
 // DockerPullImage pulls an image from a registry.

@@ -243,8 +243,12 @@ func HomepageWebServerStart(cfg HomepageConfig, projectDir, buildDir string, log
 
 	// Docker is available - use Caddy
 	// Pull image first so we never fail with "image not found" on first run.
-	logger.Info("[Homepage] Pulling Caddy image", "image", homepageWebImage)
-	pullImage(dockerCfg, homepageWebImage, logger)
+	// Use a 5-minute context because first-time pulls can be slow.
+	pullCtx, pullCancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer pullCancel()
+	if err := PullImageWait(pullCtx, dockerCfg, homepageWebImage, logger); err != nil {
+		return errJSON("Failed to pull Caddy image: %v", err)
+	}
 
 	// Check if already running
 	_, code, _ := dockerRequest(dockerCfg, "GET", "/containers/"+homepageWebContainer+"/json", "")

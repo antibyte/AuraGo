@@ -318,8 +318,22 @@ func Start(cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, sh
 			}
 			// Pass "" for projectDir and buildDir so detectBuildDir auto-detects
 			// the build output (out/dist/build/…) from the workspace filesystem.
-			result := tools.HomepageWebServerStart(homepageCfg, "", "", logger)
-			logger.Info("Homepage web server auto-start result", "result", result)
+			// Retry up to 5 times with increasing delay — Docker may not be ready
+			// immediately after a system reboot.
+			const maxRetries = 5
+			for attempt := 1; attempt <= maxRetries; attempt++ {
+				result := tools.HomepageWebServerStart(homepageCfg, "", "", logger)
+				if strings.Contains(result, `"status":"ok"`) || strings.Contains(result, `"status": "ok"`) {
+					logger.Info("Homepage web server auto-start succeeded", "attempt", attempt, "result", result)
+					return
+				}
+				logger.Warn("Homepage web server auto-start failed",
+					"attempt", attempt, "max", maxRetries, "result", result)
+				if attempt < maxRetries {
+					time.Sleep(time.Duration(attempt*5) * time.Second) // 5s, 10s, 15s, 20s
+				}
+			}
+			logger.Error("Homepage web server auto-start exhausted all retries")
 		}()
 	} else if cfg.Homepage.WebServerEnabled && cfg.Homepage.WorkspacePath == "" {
 		logger.Warn("Homepage web server is enabled but homepage.workspace_path is not set — skipping auto-start")
