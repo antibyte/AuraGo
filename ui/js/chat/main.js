@@ -1217,9 +1217,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (useBrowserSTT) {
                 window.SpeechToText.init({
-                    onInterimResult: _populateInput,
-                    onFinalResult: _populateInput,
-                    onEnd: () => { voiceBtn.classList.remove('btn-active'); },
+                    // Don't touch textarea during live recognition —
+                    // the overlay displays the streaming transcript.
+                    // Only populate the textarea when STT finishes.
+                    onInterimResult: () => {},
+                    onFinalResult: () => {},
+                    onEnd: (text) => {
+                        voiceBtn.classList.remove('btn-active');
+                        if (text) { _populateInput(text); }
+                    },
                     onError: (msg) => {
                         voiceBtn.classList.remove('btn-active');
                         _showError(msg);
