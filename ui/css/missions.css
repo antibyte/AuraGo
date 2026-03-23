@@ -213,6 +213,10 @@
     gap: 20px;
 }
 
+.missions-grid > .empty-state {
+    grid-column: 1 / -1;
+}
+
 .mission-card {
     background: var(--card-bg);
     border-radius: 16px;

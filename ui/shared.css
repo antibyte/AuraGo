@@ -235,6 +235,8 @@ body {
     opacity: 0.55;
     margin-left: 0.3rem;
     color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
 }
 
 .logo-icon {
@@ -1222,7 +1224,9 @@ select.large,
 }
 
 .view-toggle button {
-    padding: 8px 14px;
+    padding: 8px;
+    width: 36px;
+    height: 36px;
     border: none;
     background: transparent;
     color: var(--text-secondary);
