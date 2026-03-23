@@ -34,7 +34,7 @@
     --border-subtle: rgba(148, 163, 184, 0.08);
     --border-accent: rgba(45, 212, 191, 0.2);
     --radius: 20px;
-    --bg-logo: url('aurago_logo_dark.png');
+    --bg-logo: url('/aurago_logo_dark.png');
     --modal-bg: rgba(0, 0, 0, 0.6);
     --modal-surface: #1e293b;
     --modal-border: rgba(148, 163, 184, 0.1);
@@ -56,7 +56,7 @@
     --page-orb-3: rgba(14, 165, 233, 0.05);
     --page-orb-opacity: 1;
     --page-image-opacity: 0.055;
-    --chat-image-opacity: 0.045;
+    --chat-image-opacity: 0.06;
     --bg-logo-position: center top;
     --bg-logo-size: cover;
     --bg-logo-filter: saturate(1) contrast(1.02);
@@ -100,7 +100,7 @@
     --border-accent: rgba(15, 118, 110, 0.28);
     
     /* Logo */
-    --bg-logo: url('aurago_logo.png');
+    --bg-logo: url('/aurago_logo.png');
     
     /* Modal & Overlays */
     --modal-bg: rgba(15, 23, 42, 0.34);
@@ -131,7 +131,7 @@
     --page-orb-3: rgba(245, 158, 11, 0.07);
     --page-orb-opacity: 0.78;
     --page-image-opacity: 0;
-    --chat-image-opacity: 0.1;
+    --chat-image-opacity: 0.12;
     --bg-logo-position: center top;
     --bg-logo-size: cover;
     --bg-logo-filter: saturate(0.92) contrast(0.98);
