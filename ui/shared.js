@@ -111,15 +111,27 @@ function injectRadialMenu() {
 // THEME MANAGEMENT
 // ═══════════════════════════════════════════════════════════════
 
+// Debounce lock: prevents double-click from toggling back immediately
+let _themeToggleLock = false;
+
 /**
  * Toggle between dark and light theme
  */
 function toggleTheme() {
+    if (_themeToggleLock) return;
+    _themeToggleLock = true;
+    setTimeout(function () { _themeToggleLock = false; }, 400);
+
     const html = document.documentElement;
-    const current = html.getAttribute('data-theme');
+    const current = html.getAttribute('data-theme') || 'dark';
     const next = current === 'dark' ? 'light' : 'dark';
     html.setAttribute('data-theme', next);
     localStorage.setItem('aurago-theme', next);
+
+    // Notify other components (e.g. charts) that the theme changed
+    try {
+        window.dispatchEvent(new CustomEvent('aurago:themechange', { detail: { theme: next } }));
+    } catch (_) { }
 }
 
 /**

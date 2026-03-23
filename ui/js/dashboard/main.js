@@ -7,11 +7,7 @@
 
         const LANG = document.documentElement.lang || 'en';
 
-        // Theme handled by shared.js; just need to apply initial theme and update charts
-        (function initDashboardTheme() {
-            const saved = localStorage.getItem('aurago-theme') || 'dark';
-            document.documentElement.setAttribute('data-theme', saved);
-        })();
+        // Theme is handled by shared.js (initTheme/toggleTheme); no separate init needed here.
 
         // ── CSS Variable Helper ─────────────────────────────────────────────────────
         function cv(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }

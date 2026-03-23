@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{.Lang}}">
+<html lang="{{.Lang}}" data-theme="dark">
 
 <head>
   <meta charset="UTF-8">
@@ -7,7 +7,11 @@
   <title>AuraGo – Dashboard</title>
   <link rel="stylesheet" href="/shared.css">
   <script src="/shared.js"></script>
-  <script>const I18N={{.I18N}};</script>
+  <script>
+    const I18N={{.I18N}};
+    /* Prevent theme-flash: apply saved theme before first paint */
+    (function () { var t = localStorage.getItem('aurago-theme'); if (t) document.documentElement.setAttribute('data-theme', t); })();
+  </script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/dashboard.css">
   <link rel="stylesheet" href="/css/enhancements.css">
@@ -23,7 +27,7 @@
       <span class="logo-subtitle" data-i18n="dashboard.logo_subtitle">DASHBOARD</span>
     </a>
     <div class="header-actions">
-      <button id="theme-toggle" class="btn-theme" data-i18n-title="common.toggle_theme" title="Toggle theme"></button>
+      <button id="theme-toggle" type="button" class="btn-theme" data-i18n-title="common.toggle_theme" title="Toggle theme"></button>
     </div>
   </header>
 
