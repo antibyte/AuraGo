@@ -97,6 +97,7 @@ body {
 .cfg-section {
     display: none;
     animation: fadeIn 0.3s ease;
+    overflow: hidden;
 }
 
 .cfg-section.active {
@@ -731,6 +732,7 @@ select.cfg-input option {
     padding: 1rem;
     margin-top: 1rem;
     font-size: var(--text-sm);
+    overflow-wrap: anywhere;
 }
 
 .wh-tabs {

@@ -265,9 +265,9 @@ async function renderHomepageSection(section) {
 
         // Warning: webserver enabled but no workspace_path
         if (cfg.webserver_enabled && !cfg.workspace_path) {
-            html += `<div style="background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.4);border-radius:8px;padding:0.7rem 0.9rem;margin-bottom:0.8rem;display:flex;align-items:flex-start;gap:0.6rem;">
+            html += `<div style="background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.4);border-radius:8px;padding:0.7rem 0.9rem;margin-bottom:0.8rem;display:flex;align-items:flex-start;gap:0.6rem;overflow:hidden;">
                 <span style="font-size:1.1rem;flex-shrink:0;">⚠️</span>
-                <span style="font-size:0.82rem;color:var(--text-primary);line-height:1.5;">${t('config.homepage.workspace_path_missing_warning')}</span>
+                <span style="font-size:0.82rem;color:var(--text-primary);line-height:1.5;overflow-wrap:anywhere;min-width:0;">${t('config.homepage.workspace_path_missing_warning')}</span>
             </div>`;
         }
 
