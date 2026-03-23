@@ -27,6 +27,7 @@
         _finalTranscript: '',
         _interimTranscript: '',
         _intentionalStop: false,
+        _finalized: false,
         _restartCount: 0,
         _maxRestarts: 50,
 
@@ -162,10 +163,14 @@
             this._finalTranscript = '';
             this._interimTranscript = '';
             this._intentionalStop = false;
+            this._finalized = false;
             this._restartCount = 0;
 
             this._recognition = new SpeechRecognitionAPI();
-            this._recognition.continuous = true;
+            // Use continuous=false to avoid Chrome carrying over previous session
+            // results into the new session's event.results after auto-restart.
+            // We restart manually in onend when the user is still recording.
+            this._recognition.continuous = false;
             this._recognition.interimResults = true;
             this._recognition.maxAlternatives = 1;
 
@@ -179,8 +184,8 @@
             }
 
             this._recognition.onresult = (event) => {
-                // Rebuild transcript from ALL results to avoid duplication.
-                // Chrome can re-emit resultIndex=0 for already-finalized results.
+                // With continuous=false each session is standalone — no cross-session
+                // result carry-over from Chrome, so iterating from 0 is safe and correct.
                 let sessionFinal = '';
                 let interim = '';
                 for (let i = 0; i < event.results.length; i++) {
@@ -191,7 +196,9 @@
                         interim += transcript;
                     }
                 }
-                this._finalTranscript = this._prevSessionText + sessionFinal;
+                // Add a space between accumulated previous sessions and the current one.
+                const sep = (this._prevSessionText && sessionFinal) ? ' ' : '';
+                this._finalTranscript = this._prevSessionText + sep + sessionFinal;
                 this._interimTranscript = interim;
                 this._updateTranscript();
 
@@ -220,12 +227,17 @@
             };
 
             this._recognition.onend = () => {
-                // Chrome stops recognition after ~60s of silence or after getting results
-                // Auto-restart if we didn't intentionally stop it
+                // Guard: _finalize() sets _finalized=true; ignore stale onend events.
+                if (this._finalized) return;
+                // Auto-restart when the user is still recording (continuous=false fires
+                // onend after each utterance).
                 if (!this._intentionalStop && this.isActive && this._restartCount < this._maxRestarts) {
                     this._restartCount++;
-                    // Carry over finalized text from this session before restart
-                    this._prevSessionText = this._finalTranscript;
+                    // Carry over everything (finals + any unfinalised interim) before restart.
+                    const interimTrim = this._interimTranscript.trim();
+                    const sep = (this._finalTranscript && interimTrim) ? ' ' : '';
+                    this._prevSessionText = (this._finalTranscript + sep + interimTrim).trim();
+                    this._interimTranscript = '';
                     try {
                         this._recognition.start();
                     } catch (e) {
@@ -266,16 +278,23 @@
         cancel() {
             if (!this.isActive) return;
             this._intentionalStop = true;
+            this._finalized = true;  // Prevent _finalize() from running
             this._finalTranscript = '';
             this._interimTranscript = '';
             if (this._recognition) {
                 try { this._recognition.abort(); } catch (_) { /* ignore */ }
             }
             this._cleanup();
+            // Notify so callers can reset button state etc.
+            this.onEnd('');
         },
 
         _finalize() {
-            const text = (this._finalTranscript + this._interimTranscript).trim();
+            if (this._finalized) return;  // Guard against double-execution
+            this._finalized = true;
+            const interimTrim = this._interimTranscript.trim();
+            const sep = (this._finalTranscript && interimTrim) ? ' ' : '';
+            const text = (this._finalTranscript + sep + interimTrim).trim();
             this._cleanup();
             if (text) {
                 this.onFinalResult(text);
@@ -285,6 +304,14 @@
 
         _cleanup() {
             this.isActive = false;
+            // Detach all handlers BEFORE aborting so stale Chrome callbacks
+            // (e.g. a second onend) don't trigger _finalize() again.
+            if (this._recognition) {
+                this._recognition.onresult = null;
+                this._recognition.onerror = null;
+                this._recognition.onend = null;
+                try { this._recognition.abort(); } catch (_) {}
+            }
             this._stopTimer();
             this._stopVisualization();
             this._stopStream();
