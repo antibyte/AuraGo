@@ -19,16 +19,14 @@
 .gallery-header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-end;
     flex-wrap: wrap;
     gap: 1rem;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1.25rem;
 }
 
 .media-header h1,
 .gallery-header h1 {
-    font-size: 1.4rem;
-    color: var(--text-primary);
     margin: 0;
 }
 

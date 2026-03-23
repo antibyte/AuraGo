@@ -198,52 +198,76 @@ body::after {
    SHARED UI COMPONENTS - Glassmorphism & Eye Candy
    ══════════════════════════════════════════════════════════════ */
 
-/* ── Page Header with Glow Underline ───────────────────────── */
-.page-header {
+/* ── Page Header with Compact Accent Rail ─────────────────── */
+.page-header,
+.media-header,
+.gallery-header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    margin-bottom: 24px;
-    padding-bottom: 20px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
     border-bottom: 1px solid var(--border-subtle);
     position: relative;
 }
 
-.page-header::after {
+.page-header::after,
+.media-header::after,
+.gallery-header::after {
     content: '';
     position: absolute;
     bottom: -1px;
     left: 0;
-    width: 100%;
-    height: 1px;
+    width: min(220px, 42%);
+    height: 2px;
     background: linear-gradient(90deg,
-            transparent 0%,
-            var(--accent) 20%,
-            #0d9488 50%,
-            var(--accent) 80%,
-            transparent 100%);
-    opacity: 0.6;
+        var(--accent) 0%,
+        rgba(13, 148, 136, 0.88) 45%,
+        transparent 100%);
+    border-radius: 999px;
+    box-shadow: 0 0 16px var(--accent-glow);
+    opacity: 0.9;
 }
 
-.page-header h1 {
-    font-size: 1.75rem;
-    background: linear-gradient(135deg, var(--accent), #0d9488);
+.page-header h1,
+.media-header h1,
+.gallery-header h1 {
+    margin: 0;
+    font-size: clamp(1.2rem, 1.05rem + 0.55vw, 1.45rem);
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    line-height: 1.15;
+    background: linear-gradient(135deg, var(--text-primary) 0%, var(--accent) 140%);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
     position: relative;
-    text-shadow: 0 0 30px rgba(45, 212, 191, 0.2);
+    text-shadow: 0 0 22px rgba(45, 212, 191, 0.12);
 }
 
-.page-header h1::after {
+.page-header h1::after,
+.media-header h1::after,
+.gallery-header h1::after {
     content: '';
     position: absolute;
-    bottom: -4px;
+    bottom: -8px;
     left: 0;
-    width: 40px;
-    height: 3px;
-    background: linear-gradient(90deg, var(--accent), transparent);
-    border-radius: 2px;
+    width: 56px;
+    height: 2px;
+    background: linear-gradient(90deg, rgba(45, 212, 191, 0.8), transparent);
+    border-radius: 999px;
+    opacity: 0.8;
+}
+
+.page-header .header-actions,
+.media-header .media-controls,
+.gallery-header .gallery-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    flex-wrap: wrap;
 }
 
 /* ── Shared Header ─────────────────────────────────────────── */
@@ -1396,39 +1420,103 @@ select.large,
 /* View Toggle Button Group */
 .view-toggle {
     display: flex;
-    gap: 4px;
-    background: var(--bg-glass);
-    padding: 4px;
-    border-radius: 10px;
+    gap: 6px;
+    padding: 5px;
+    border-radius: 14px;
     border: 1px solid var(--border-subtle);
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent),
+        var(--bg-glass);
+    box-shadow:
+        inset 0 1px 0 var(--surface-highlight),
+        0 10px 20px rgba(15, 23, 42, 0.08);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
 }
 
 .view-toggle button {
-    padding: 8px;
-    width: 36px;
-    height: 36px;
-    border: none;
-    background: transparent;
+    padding: 0;
+    width: 38px;
+    height: 38px;
+    border: 1px solid transparent;
+    background: rgba(255, 255, 255, 0.02);
     color: var(--text-secondary);
-    border-radius: 6px;
+    border-radius: 10px;
     cursor: pointer;
-    font-size: 1rem;
+    font-size: 0;
     line-height: 1;
-    transition: all 0.2s ease;
+    transition: all 0.22s ease;
     display: flex;
     align-items: center;
     justify-content: center;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.view-toggle button svg {
+    width: 16px;
+    height: 16px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 1.9;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    opacity: 0.92;
+    transition: transform 0.2s ease, opacity 0.2s ease;
 }
 
 .view-toggle button:hover {
     color: var(--text-primary);
-    background: var(--bg-secondary);
+    background: rgba(128, 128, 128, 0.12);
+    border-color: var(--border-accent);
+    transform: translateY(-1px);
+}
+
+.view-toggle button:hover svg {
+    transform: scale(1.04);
 }
 
 .view-toggle button.active {
-    background: var(--accent);
-    color: var(--bg-primary);
-    box-shadow: 0 2px 8px rgba(45, 212, 191, 0.3);
+    background: linear-gradient(135deg, rgba(45, 212, 191, 0.18), rgba(13, 148, 136, 0.28));
+    border-color: var(--border-accent);
+    color: var(--accent);
+    box-shadow:
+        0 8px 16px rgba(45, 212, 191, 0.16),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.view-toggle button.active svg {
+    opacity: 1;
+}
+
+[data-theme="light"] .page-header::after,
+[data-theme="light"] .media-header::after,
+[data-theme="light"] .gallery-header::after {
+    box-shadow: 0 0 14px rgba(15, 118, 110, 0.16);
+}
+
+[data-theme="light"] .view-toggle {
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.5), transparent),
+        rgba(232, 241, 236, 0.88);
+    border-color: rgba(71, 85, 105, 0.16);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.65),
+        0 10px 20px rgba(83, 97, 122, 0.1);
+}
+
+[data-theme="light"] .view-toggle button {
+    background: rgba(255, 255, 255, 0.22);
+}
+
+[data-theme="light"] .view-toggle button:hover {
+    background: rgba(15, 118, 110, 0.08);
+}
+
+[data-theme="light"] .view-toggle button.active {
+    background: linear-gradient(135deg, rgba(15, 118, 110, 0.12), rgba(20, 184, 166, 0.2));
+    box-shadow:
+        0 8px 18px rgba(83, 97, 122, 0.12),
+        inset 0 1px 0 rgba(255, 255, 255, 0.7);
 }
 
 /* Compact Card (List View) */

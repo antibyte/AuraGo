@@ -36,8 +36,24 @@
             <h1 data-i18n="cheatsheets.title">Cheat Sheets</h1>
             <div class="header-actions">
                 <div class="view-toggle" id="view-toggle">
-                    <button onclick="setViewMode('grid')" title="Grid View" data-mode="grid">▦</button>
-                    <button onclick="setViewMode('list')" title="List View" data-mode="list">☰</button>
+                    <button onclick="setViewMode('grid')" title="Grid View" data-mode="grid" aria-label="Grid View">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <rect x="4" y="4" width="6" height="6" rx="1"></rect>
+                            <rect x="14" y="4" width="6" height="6" rx="1"></rect>
+                            <rect x="4" y="14" width="6" height="6" rx="1"></rect>
+                            <rect x="14" y="14" width="6" height="6" rx="1"></rect>
+                        </svg>
+                    </button>
+                    <button onclick="setViewMode('list')" title="List View" data-mode="list" aria-label="List View">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <line x1="7" y1="7" x2="20" y2="7"></line>
+                            <line x1="7" y1="12" x2="20" y2="12"></line>
+                            <line x1="7" y1="17" x2="20" y2="17"></line>
+                            <circle cx="4" cy="7" r="1"></circle>
+                            <circle cx="4" cy="12" r="1"></circle>
+                            <circle cx="4" cy="17" r="1"></circle>
+                        </svg>
+                    </button>
                 </div>
                 <button class="btn btn-primary" id="btn-create" onclick="openCreate()">
                     <span>+</span> <span data-i18n="cheatsheets.create_new">New Cheat Sheet</span>
