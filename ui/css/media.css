@@ -96,6 +96,8 @@
     padding: 1rem;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     backdrop-filter: blur(10px);
+    min-width: 0;
+    overflow: hidden;
 }
 
 .media-audio-card:hover {
@@ -300,6 +302,16 @@
         grid-template-columns: 1fr;
     }
 
+    .media-audio-card {
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+
+    .chat-audio-player {
+        gap: 0.4rem;
+        padding: 0.5rem 0.6rem;
+    }
+
     .media-header {
         flex-direction: column;
         align-items: stretch;
@@ -352,6 +364,8 @@
     border-radius: 10px;
     margin: 0.5rem 0 0;
     max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
 }
 
 .audio-play-btn {
