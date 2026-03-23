@@ -713,3 +713,12 @@
 .setup-dimmed {
     opacity: 0.4;
 }
+
+/* ══════════════════════════════════════════════════════════════
+   LIGHT THEME OVERRIDES
+   ══════════════════════════════════════════════════════════════ */
+
+[data-theme="light"] .modal-backdrop,
+[data-theme="light"] .or-browser-overlay {
+    background: rgba(30, 41, 59, 0.35);
+}

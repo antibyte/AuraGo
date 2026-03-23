@@ -15,6 +15,7 @@
 /* ── Dark Theme (default) ─────────────────────────────────── */
 :root,
 [data-theme="dark"] {
+    color-scheme: dark;
     --bg-primary: #0b0f1a;
     --bg-secondary: #111827;
     --bg-glass: rgba(255, 255, 255, 0.04);
@@ -56,6 +57,7 @@
 
 /* ── Light Theme ──────────────────────────────────────────── */
 [data-theme="light"] {
+    color-scheme: light;
     /* Warme Hintergrundfarben - modernes Mint-Grau */
     --bg-primary: #eef2f1;
     --bg-secondary: #f5f7f6;

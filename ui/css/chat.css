@@ -2858,3 +2858,42 @@
 .w-pct-98 { width: 98%; }
 .w-pct-99 { width: 99%; }
 .w-pct-100 { width: 100%; }
+
+/* ══════════════════════════════════════════════════════════════
+   LIGHT THEME OVERRIDES
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── Chat area gradient ── */
+[data-theme="light"] #chat-box {
+    background-image:
+        radial-gradient(ellipse 600px 400px at 20% 50%, rgba(13, 148, 136, 0.04), transparent),
+        radial-gradient(ellipse 500px 500px at 80% 30%, rgba(99, 102, 241, 0.04), transparent);
+}
+
+/* ── Code blocks ── */
+[data-theme="light"] .code-header {
+    background: rgba(100, 116, 139, 0.08);
+}
+
+[data-theme="light"] .line-numbers {
+    background: rgba(100, 116, 139, 0.06);
+}
+
+/* Override highlight.js github-dark theme */
+[data-theme="light"] .hljs {
+    background: #f6f8fa;
+    color: #24292e;
+}
+
+/* ── Overlays ── */
+[data-theme="light"] .drag-drop-overlay {
+    background: rgba(30, 41, 59, 0.5);
+}
+
+[data-theme="light"] .mermaid-modal-overlay {
+    background: rgba(30, 41, 59, 0.5);
+}
+
+[data-theme="light"] #img-lightbox {
+    background: rgba(30, 41, 59, 0.7);
+}

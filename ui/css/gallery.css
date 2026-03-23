@@ -373,3 +373,16 @@
         grid-template-columns: 1fr;
     }
 }
+
+/* ══════════════════════════════════════════════════════════════
+   LIGHT THEME OVERRIDES
+   ══════════════════════════════════════════════════════════════ */
+
+[data-theme="light"] .lightbox,
+[data-theme="light"] .media-modal {
+    background: rgba(30, 41, 59, 0.7);
+}
+
+[data-theme="light"] .lightbox-close {
+    background: rgba(30, 41, 59, 0.4);
+}

@@ -127,11 +127,22 @@ function toggleTheme() {
     const next = current === 'dark' ? 'light' : 'dark';
     html.setAttribute('data-theme', next);
     localStorage.setItem('aurago-theme', next);
+    _updateHljsTheme(next);
 
     // Notify other components (e.g. charts) that the theme changed
     try {
         window.dispatchEvent(new CustomEvent('aurago:themechange', { detail: { theme: next } }));
     } catch (_) { }
+}
+
+/**
+ * Swap highlight.js theme stylesheet between github-dark and github
+ */
+function _updateHljsTheme(theme) {
+    var link = document.getElementById('hljs-theme');
+    if (!link) return;
+    var base = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/';
+    link.href = theme === 'light' ? base + 'github.min.css' : base + 'github-dark.min.css';
 }
 
 /**
@@ -143,6 +154,7 @@ function initTheme() {
     const saved = localStorage.getItem('aurago-theme');
     if (saved) {
         document.documentElement.setAttribute('data-theme', saved);
+        _updateHljsTheme(saved);
     }
 }
 

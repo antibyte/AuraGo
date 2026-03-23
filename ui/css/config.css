@@ -4965,3 +4965,19 @@ select.cfg-input option {
 .prov-oauth-revoke-btn { padding: 0.35rem 1rem; font-size: 0.78rem; background: var(--danger); }
 .prov-oauth-expiry { margin-left: 0.5rem; font-size: 0.72rem; color: var(--text-tertiary); }
 .prov-modal-actions { display: flex; justify-content: flex-end; gap: 0.6rem; margin-top: 1.2rem; }
+
+/* ══════════════════════════════════════════════════════════════
+   LIGHT THEME OVERRIDES
+   ══════════════════════════════════════════════════════════════ */
+
+[data-theme="light"] .sidebar-backdrop,
+[data-theme="light"] .vault-modal-overlay,
+[data-theme="light"] .og-modal-overlay,
+[data-theme="light"] .cc-modal-overlay,
+[data-theme="light"] .devices-modal-overlay,
+[data-theme="light"] .sec-modal-overlay,
+[data-theme="light"] .prov-or-overlay,
+[data-theme="light"] .prov-pricing-overlay,
+[data-theme="light"] .prov-modal-overlay {
+    background: rgba(30, 41, 59, 0.35);
+}
