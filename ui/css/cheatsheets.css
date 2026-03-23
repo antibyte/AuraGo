@@ -26,6 +26,20 @@
     margin-top: 6px;
 }
 
+.page-header .header-actions {
+    align-items: stretch;
+}
+
+.page-header .header-actions .view-toggle,
+.page-header .header-actions #btn-create {
+    min-height: 48px;
+}
+
+.page-header .header-actions #btn-create {
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
 /* Cards Grid */
 .cards-grid {
     display: grid;

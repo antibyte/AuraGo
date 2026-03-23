@@ -270,6 +270,9 @@ body::after {
     justify-content: center;
     font-size: 0.95em;
     line-height: 1;
+    color: var(--accent);
+    background: none;
+    -webkit-text-fill-color: currentColor;
     filter: saturate(1.05);
     text-shadow: none;
 }

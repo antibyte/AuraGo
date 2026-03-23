@@ -91,13 +91,15 @@
             const wrap = document.getElementById('secrets-main');
             if (!wrap) return;
 
-            let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;">
-                <div style="font-size:0.82rem;color:var(--text-secondary);">
+            let html = `<div class="kc-panel-header">
+                <div class="kc-search-row">
+                    <div style="font-size:0.82rem;color:var(--text-secondary);">
                     ${secretsCache.length} ${t('config.secrets.count')}
-                </div>
-                <button class="btn-save" style="padding:0.45rem 1.1rem;font-size:0.82rem;" onclick="secretsShowAddModal()">
+                    </div>
+                    <button class="btn-save" style="padding:0.45rem 1.1rem;font-size:0.82rem;" onclick="secretsShowAddModal()">
                     ＋ ${t('config.secrets.new_secret')}
-                </button>
+                    </button>
+                </div>
             </div>`;
 
             if (secretsCache.length === 0) {
@@ -105,18 +107,18 @@
                     ${t('config.secrets.empty')}
                 </div>`;
             } else {
-                html += `<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:0.82rem;">
-                    <thead><tr style="border-bottom:2px solid var(--border-subtle);text-align:left;">
-                        <th style="padding:0.5rem 0.75rem;color:var(--text-secondary);font-weight:600;">Key</th>
-                        <th style="padding:0.5rem 0.75rem;color:var(--text-secondary);font-weight:600;width:100px;text-align:right;">${t('config.secrets.actions')}</th>
+                html += `<div class="kc-table-wrap"><table class="kc-table">
+                    <thead><tr>
+                        <th>Key</th>
+                        <th style="width:100px;text-align:right;">${t('config.secrets.actions')}</th>
                     </tr></thead>
                     <tbody>`;
                 secretsCache.forEach((s, idx) => {
                     const isSystem = s.key.startsWith('egg_') || s.key.startsWith('nest_') || s.key.startsWith('dev-') || s.key.startsWith('egg_shared_');
                     const badge = isSystem ? `<span style="display:inline-block;padding:0.1rem 0.4rem;border-radius:4px;font-size:0.65rem;font-weight:600;background:rgba(99,102,241,0.15);color:var(--accent);margin-left:0.5rem;">system</span>` : '';
-                    html += `<tr style="border-bottom:1px solid var(--border-subtle);">
-                        <td style="padding:0.55rem 0.75rem;font-family:var(--font-mono,'SF Mono',monospace);">${escapeAttr(s.key)}${badge}</td>
-                        <td style="padding:0.55rem 0.75rem;text-align:right;white-space:nowrap;">
+                    html += `<tr>
+                        <td style="font-family:var(--font-mono,'SF Mono',monospace);">${escapeAttr(s.key)}${badge}</td>
+                        <td style="text-align:right;white-space:nowrap;">
                             <button onclick="secretsEdit(${idx})" style="background:none;border:none;cursor:pointer;color:var(--accent);font-size:0.85rem;padding:0.2rem;" title="${t('config.secrets.edit')}">✏️</button>
                             <button onclick="secretsDelete(${idx})" style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:0.85rem;padding:0.2rem;" title="${t('config.secrets.delete')}">🗑️</button>
                         </td>
