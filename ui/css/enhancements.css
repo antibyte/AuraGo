@@ -15,14 +15,24 @@ html {
 }
 
 /* ── Enhanced Selection Color ───────────────────────────────── */
-::selection {
+[data-theme="dark"] ::selection {
     background: rgba(45, 212, 191, 0.3);
     color: var(--text-primary);
     text-shadow: 0 0 10px rgba(45, 212, 191, 0.3);
 }
 
-::-moz-selection {
+[data-theme="dark"] ::-moz-selection {
     background: rgba(45, 212, 191, 0.3);
+    color: var(--text-primary);
+}
+
+[data-theme="light"] ::selection {
+    background: rgba(13, 148, 136, 0.25);
+    color: var(--text-primary);
+}
+
+[data-theme="light"] ::-moz-selection {
+    background: rgba(13, 148, 136, 0.25);
     color: var(--text-primary);
 }
 
@@ -156,9 +166,9 @@ html {
     transform: translateY(-6px) scale(1.01);
 }
 
-/* Shine-Effekt auf Karten */
-.card:not(.radial-item)::before,
-.dash-card:not(.radial-item)::before {
+/* Shine-Effekt auf Karten - Dark Mode */
+[data-theme="dark"] .card:not(.radial-item)::before,
+[data-theme="dark"] .dash-card:not(.radial-item)::before {
     content: '';
     position: absolute;
     top: 0;
@@ -170,8 +180,27 @@ html {
     pointer-events: none;
 }
 
-.card:not(.radial-item):hover::before,
-.dash-card:not(.radial-item):hover::before {
+[data-theme="dark"] .card:not(.radial-item):hover::before,
+[data-theme="dark"] .dash-card:not(.radial-item):hover::before {
+    left: 100%;
+}
+
+/* Shine-Effekt auf Karten - Light Mode */
+[data-theme="light"] .card:not(.radial-item)::before,
+[data-theme="light"] .dash-card:not(.radial-item)::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(0,0,0,0.03), transparent);
+    transition: left 0.7s ease;
+    pointer-events: none;
+}
+
+[data-theme="light"] .card:not(.radial-item):hover::before,
+[data-theme="light"] .dash-card:not(.radial-item):hover::before {
     left: 100%;
 }
 
@@ -212,13 +241,31 @@ html {
    INPUT-EFFEKTE
    ══════════════════════════════════════════════════════════════ */
 
-/* Enhanced Input Focus Glow */
-.input-wrap textarea:focus {
+/* Enhanced Input Focus Glow - Dark Mode */
+[data-theme="dark"] .input-wrap textarea:focus {
     border-color: var(--accent);
     box-shadow: 
         0 0 0 3px rgba(45, 212, 191, 0.15),
         0 0 30px rgba(45, 212, 191, 0.1);
     background: var(--bg-secondary);
+}
+
+/* Enhanced Input Focus - Light Mode (stärkerer Kontrast) */
+[data-theme="light"] .input-wrap textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 
+        0 0 0 3px rgba(13, 148, 136, 0.2),
+        0 0 20px rgba(13, 148, 136, 0.15);
+    background: var(--bg-secondary);
+}
+
+/* Bessere Lesbarkeit im Light Mode für Eingabefelder */
+[data-theme="light"] .input-wrap textarea {
+    border-color: rgba(71, 85, 105, 0.35);
+}
+
+[data-theme="light"] .input-wrap textarea:hover {
+    border-color: rgba(13, 148, 136, 0.5);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -258,7 +305,7 @@ html {
 
 .bubble img:hover {
     transform: scale(1.02);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
 /* Code Block Hover */
@@ -268,9 +315,8 @@ html {
 
 .code-block-wrapper:hover {
     box-shadow: 
-        0 4px 20px rgba(0, 0, 0, 0.3),
-        0 0 0 1px var(--border-accent),
-        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        0 4px 20px rgba(0, 0, 0, 0.2),
+        0 0 0 1px var(--border-accent);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -278,10 +324,15 @@ html {
    ══════════════════════════════════════════════════════════════ */
 
 /* Tab Active Glow */
-.dash-tab.active {
+[data-theme="dark"] .dash-tab.active {
     box-shadow: 
         0 0 15px rgba(45, 212, 191, 0.3),
         inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="light"] .dash-tab.active {
+    box-shadow: 
+        0 0 15px rgba(13, 148, 136, 0.25);
 }
 
 /* Tab Panel Fade In */
@@ -307,7 +358,7 @@ html {
 .activity-stat:hover,
 .prompt-kpi:hover {
     transform: translateY(-3px);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 8px 25px var(--accent-glow);
 }
 
 /* Gauge Value Pop Animation */
@@ -385,8 +436,8 @@ html {
    HINTERGRUND & ATMOSPHÄRE
    ══════════════════════════════════════════════════════════════ */
 
-/* Subtle Background Animation */
-body::before {
+/* Subtle Background Animation - NUR im dunklen Modus */
+[data-theme="dark"] body::before {
     content: '';
     position: fixed;
     inset: 0;
@@ -431,7 +482,7 @@ body::before {
 
 /* Mobile Optimizations */
 @media (max-width: 768px) {
-    body::before {
+    [data-theme="dark"] body::before {
         animation: none;
     }
     
