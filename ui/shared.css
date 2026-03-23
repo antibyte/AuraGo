@@ -56,34 +56,55 @@
 
 /* ── Light Theme ──────────────────────────────────────────── */
 [data-theme="light"] {
-    --bg-primary: #f8fafc;
-    --bg-secondary: #ffffff;
-    --bg-glass: rgba(0, 0, 0, 0.04);
-    --header-bg: rgba(248, 250, 252, 0.95);
-    --accent: #0f766e;
-    --accent-dim: rgba(13, 148, 136, 0.12);
-    --accent-glow: rgba(13, 148, 136, 0.25);
-    --user-bubble: linear-gradient(135deg, #0d9488, #0f766e);
-    --user-bubble-tail: #0f766e;
-    --user-bubble-shadow: rgba(13, 148, 136, 0.2);
-    --bot-bubble: #ffffff;
-    --bot-bubble-tail: #ffffff;
-    --text-primary: #0f172a;
-    --text-secondary: #334155;
-    --border-subtle: rgba(71, 85, 105, 0.18);
-    --border-accent: rgba(13, 148, 136, 0.35);
-    --bg-logo: url('aurago_logo.png');
-    --modal-bg: rgba(0, 0, 0, 0.4);
-    --modal-surface: #ffffff;
-    --modal-border: rgba(71, 85, 105, 0.2);
-    --code-bg: rgba(0, 0, 0, 0.06);
-    --inline-code-bg: rgba(0, 0, 0, 0.08);
+    /* Warme Hintergrundfarben - modernes Mint-Grau */
+    --bg-primary: #eef2f1;
+    --bg-secondary: #f5f7f6;
+    --bg-glass: rgba(255, 255, 255, 0.6);
+    --header-bg: rgba(238, 242, 241, 0.92);
+    
+    /* AuraGo Akzentfarben - lebhafteres Türkis */
+    --accent: #0d9488;
+    --accent-dim: rgba(13, 148, 136, 0.15);
+    --accent-glow: rgba(13, 148, 136, 0.3);
+    
+    /* Chat Bubbles */
+    --user-bubble: linear-gradient(135deg, #14b8a6, #0d9488);
+    --user-bubble-tail: #0d9488;
+    --user-bubble-shadow: rgba(13, 148, 136, 0.25);
+    --bot-bubble: rgba(255, 255, 255, 0.85);
+    --bot-bubble-tail: rgba(255, 255, 255, 0.85);
+    
+    /* Text - angenehme Grautöne */
+    --text-primary: #1e293b;
+    --text-secondary: #64748b;
     --strong-color: #0f172a;
-    --sidebar-bg: rgba(255, 255, 255, 0.98);
-    --card-bg: rgba(255, 255, 255, 0.9);
-    --input-bg: rgba(0, 0, 0, 0.04);
-    --input-border: rgba(71, 85, 105, 0.25);
-    --success: #16a34a;
+    
+    /* Borders & Effekte */
+    --border-subtle: rgba(100, 116, 139, 0.12);
+    --border-accent: rgba(13, 148, 136, 0.4);
+    
+    /* Logo */
+    --bg-logo: url('aurago_logo.png');
+    
+    /* Modal & Overlays */
+    --modal-bg: rgba(30, 41, 59, 0.35);
+    --modal-surface: #f8faf9;
+    --modal-border: rgba(100, 116, 139, 0.15);
+    
+    /* Code & Spezial */
+    --code-bg: rgba(100, 116, 139, 0.08);
+    --inline-code-bg: rgba(100, 116, 139, 0.1);
+    
+    /* Sidebar & Cards - milchige Transparenz */
+    --sidebar-bg: rgba(245, 247, 246, 0.95);
+    --card-bg: rgba(255, 255, 255, 0.65);
+    
+    /* Inputs - besserer Kontrast */
+    --input-bg: rgba(255, 255, 255, 0.7);
+    --input-border: rgba(100, 116, 139, 0.2);
+    
+    /* Status Farben */
+    --success: #059669;
     --warning: #d97706;
     --danger: #dc2626;
 }
