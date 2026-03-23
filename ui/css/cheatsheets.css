@@ -26,18 +26,37 @@
     margin-top: 6px;
 }
 
+.page-title-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.7rem;
+}
+
+.page-title-badge {
+    width: 2rem;
+    height: 2rem;
+    min-width: 2rem;
+    border-radius: 0.75rem;
+    display: grid;
+    place-items: center;
+    font-size: 1rem;
+    background: linear-gradient(135deg, rgba(45, 212, 191, 0.18), rgba(13, 148, 136, 0.32));
+    border: 1px solid var(--border-accent);
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+}
+
 .page-header .header-actions {
-    align-items: stretch;
+    align-items: center;
 }
 
-.page-header .header-actions .view-toggle,
-.page-header .header-actions #btn-create {
-    min-height: 48px;
+.page-header .header-actions .view-toggle {
+    height: 44px;
+    padding: 3px 4px;
 }
 
 .page-header .header-actions #btn-create {
-    padding-top: 0;
-    padding-bottom: 0;
+    height: 44px;
+    padding: 0 18px;
 }
 
 /* Cards Grid */

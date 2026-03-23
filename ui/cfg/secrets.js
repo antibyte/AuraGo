@@ -117,10 +117,12 @@
                     const isSystem = s.key.startsWith('egg_') || s.key.startsWith('nest_') || s.key.startsWith('dev-') || s.key.startsWith('egg_shared_');
                     const badge = isSystem ? `<span style="display:inline-block;padding:0.1rem 0.4rem;border-radius:4px;font-size:0.65rem;font-weight:600;background:rgba(99,102,241,0.15);color:var(--accent);margin-left:0.5rem;">system</span>` : '';
                     html += `<tr>
-                        <td style="font-family:var(--font-mono,'SF Mono',monospace);">${escapeAttr(s.key)}${badge}</td>
+                        <td class="kc-mono">${escapeAttr(s.key)}${badge}</td>
                         <td style="text-align:right;white-space:nowrap;">
-                            <button onclick="secretsEdit(${idx})" style="background:none;border:none;cursor:pointer;color:var(--accent);font-size:0.85rem;padding:0.2rem;" title="${t('config.secrets.edit')}">✏️</button>
-                            <button onclick="secretsDelete(${idx})" style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:0.85rem;padding:0.2rem;" title="${t('config.secrets.delete')}">🗑️</button>
+                            <div class="kc-actions" style="justify-content:flex-end;">
+                                <button class="btn btn-secondary btn-sm" onclick="secretsEdit(${idx})" title="${t('config.secrets.edit')}">✏️</button>
+                                <button class="btn btn-danger btn-sm" onclick="secretsDelete(${idx})" title="${t('config.secrets.delete')}">🗑️</button>
+                            </div>
                         </td>
                     </tr>`;
                 });
