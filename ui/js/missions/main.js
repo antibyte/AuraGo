@@ -51,6 +51,7 @@ const icons = {
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
+    updateViewToggle();
     loadData();
     // Live updates pushed via SSE — no more polling.
     window.AuraSSE.on('mission_update', function (payload) {

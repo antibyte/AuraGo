@@ -88,11 +88,19 @@ function injectRadialMenu() {
         { href: '/invasion', icon: '🥚', key: 'common.nav_invasion' },
     ];
 
-    const items = pages.map(p => {
+    const totalItems = pages.length + 1;
+    const renderItem = (p, index) => {
         const active = (p.href === '/' && path === '/') ||
             (p.href !== '/' && path.startsWith(p.href)) ? ' active' : '';
-        return `<a href="${p.href}" class="radial-item${active}"><span class="radial-item-label" data-i18n="${p.key}">${t(p.key)}</span><span class="radial-item-icon">${p.icon}</span></a>`;
-    }).join('\n            ');
+        const itemIndex = index + 1;
+        const openDelay = (itemIndex * 0.03).toFixed(2);
+        const closeDelay = ((totalItems - itemIndex + 1) * 0.03).toFixed(2);
+        return `<a href="${p.href}" class="radial-item${active}" style="--radial-index:${itemIndex};--radial-open-delay:${openDelay}s;--radial-close-delay:${closeDelay}s"><span class="radial-item-label" data-i18n="${p.key}">${t(p.key)}</span><span class="radial-item-icon">${p.icon}</span></a>`;
+    };
+    const items = pages.map((p, index) => renderItem(p, index)).join('\n            ');
+    const logoutIndex = totalItems;
+    const logoutOpenDelay = (logoutIndex * 0.03).toFixed(2);
+    const logoutCloseDelay = (0.03).toFixed(2);
 
     anchor.innerHTML = `
     <nav class="radial-menu" id="radialMenu">
@@ -101,7 +109,7 @@ function injectRadialMenu() {
         </button>
         <div class="radial-items">
             ${items}
-            <a id="radialLogout" href="/auth/logout" class="radial-item is-hidden"><span class="radial-item-label" data-i18n="common.nav_logout">${t('common.nav_logout')}</span><span class="radial-item-icon">🔓</span></a>
+            <a id="radialLogout" href="/auth/logout" class="radial-item is-hidden" style="--radial-index:${logoutIndex};--radial-open-delay:${logoutOpenDelay}s;--radial-close-delay:${logoutCloseDelay}s"><span class="radial-item-label" data-i18n="common.nav_logout">${t('common.nav_logout')}</span><span class="radial-item-icon">🔓</span></a>
         </div>
     </nav>
     <div class="radial-backdrop" id="radialBackdrop"></div>`;
@@ -253,6 +261,21 @@ async function checkAuth() {
     } catch (e) {
         // Auth check failed, ignore
     }
+}
+
+function initLogoutLinks() {
+    document.querySelectorAll('a[href="/auth/logout"]').forEach(link => {
+        if (link.dataset.logoutBound === 'true') return;
+        link.dataset.logoutBound = 'true';
+        link.addEventListener('click', function (e) {
+            e.preventDefault();
+            const menu = document.getElementById('radialMenu');
+            const backdrop = document.getElementById('radialBackdrop');
+            if (menu) menu.classList.remove('open');
+            if (backdrop) backdrop.classList.remove('open');
+            window.location.assign('/auth/logout');
+        });
+    });
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -956,6 +979,7 @@ function initShared() {
     try { initTheme(); } catch (e) { console.error('[AuraGo] initTheme failed:', e); }
     try { injectRadialMenu(); } catch (e) { console.error('[AuraGo] injectRadialMenu failed:', e); }
     try { initRadialMenu(); } catch (e) { console.error('[AuraGo] initRadialMenu failed:', e); }
+    try { initLogoutLinks(); } catch (e) { console.error('[AuraGo] initLogoutLinks failed:', e); }
     try { initModals(); } catch (e) { console.error('[AuraGo] initModals failed:', e); }
     try { initToggles(); } catch (e) { console.error('[AuraGo] initToggles failed:', e); }
     try { initThemeToggle(); } catch (e) { console.error('[AuraGo] initThemeToggle failed:', e); }

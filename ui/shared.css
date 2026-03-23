@@ -739,6 +739,27 @@ a.logo {
         height: 30px;
         min-width: 30px;
     }
+
+    .page-header,
+    .media-header,
+    .gallery-header {
+        align-items: stretch;
+        gap: 0.85rem;
+        margin-bottom: 18px;
+    }
+
+    .page-header h1,
+    .media-header h1,
+    .gallery-header h1 {
+        width: 100%;
+    }
+
+    .page-header .header-actions,
+    .media-header .media-controls,
+    .gallery-header .gallery-controls {
+        width: 100%;
+        justify-content: space-between;
+    }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1464,6 +1485,15 @@ select.large,
     transition: transform 0.2s ease, opacity 0.2s ease;
 }
 
+.view-toggle button svg * {
+    stroke: currentColor;
+}
+
+.view-toggle button svg circle {
+    fill: currentColor;
+    stroke: none;
+}
+
 .view-toggle button:hover {
     color: var(--text-primary);
     background: rgba(128, 128, 128, 0.12);
@@ -1761,12 +1791,15 @@ select.large,
     pointer-events: none;
 }
 
-.empty-state .icon {
+.empty-state .icon,
+.empty-state .empty-icon,
+.gallery-empty-icon {
     font-size: 4rem;
     margin-bottom: 16px;
     filter: grayscale(0.3);
     opacity: 0.8;
     animation: float 3s ease-in-out infinite;
+    display: inline-block;
 }
 
 .empty-state p {
@@ -2244,6 +2277,7 @@ select.large,
 .radial-item {
     position: absolute;
     right: 0;
+    top: calc(var(--radial-index, 1) * 40px);
     display: flex;
     align-items: center;
     gap: 0.6rem;
@@ -2293,6 +2327,7 @@ select.large,
     opacity: 1;
     transform: scale(1) translate(0, 0);
     pointer-events: all;
+    transition-delay: var(--radial-open-delay, 0s);
 }
 
 .radial-item-icon {
@@ -2431,6 +2466,10 @@ select.large,
     transition-delay: 0.01s;
 }
 
+.radial-menu:not(.open) .radial-item {
+    transition-delay: var(--radial-close-delay, 0s);
+}
+
 /* Glow ring on trigger when menu is open */
 @keyframes radialGlow {
 
@@ -2549,37 +2588,57 @@ select.large,
     }
 
     /* Allow remaining header items to scroll horizontally on mobile */
-    .header-actions {
+    .app-header .header-actions,
+    .cfg-header .header-actions {
         overflow-x: auto;
         overflow-y: hidden;
         -webkit-overflow-scrolling: touch;
         scrollbar-width: none;
         flex-wrap: nowrap;
         /* trailing gap so last item isn't hidden behind the radial menu button */
-        padding-right: 0;
+        padding-right: 54px;
     }
 
-    .header-actions::-webkit-scrollbar {
+    .app-header .header-actions::-webkit-scrollbar,
+    .cfg-header .header-actions::-webkit-scrollbar {
         display: none;
     }
 
     /* Prevent children from shrinking — they must keep their natural size
        so the container scrolls rather than squishing them to nothing */
-    .header-actions > * {
+    .app-header .header-actions > *,
+    .cfg-header .header-actions > * {
         flex-shrink: 0;
     }
 
     /* Spacer after last item to clear the fixed radial-menu trigger button */
-    .header-actions::after {
+    .app-header .header-actions::after,
+    .cfg-header .header-actions::after {
         content: '';
         display: block;
-        min-width: 42px;
+        min-width: 54px;
         flex-shrink: 0;
     }
 
     .app-header,
     .cfg-header {
         padding: 0.6rem 1rem;
+    }
+
+    .view-toggle {
+        gap: 4px;
+        padding: 4px;
+        border-radius: 12px;
+    }
+
+    .view-toggle button {
+        width: 34px;
+        height: 34px;
+    }
+
+    .view-toggle button svg {
+        width: 15px;
+        height: 15px;
     }
 
     /* Hide logo text on mobile – keep only the icon to save space */
@@ -2608,8 +2667,48 @@ select.large,
     }
 
     /* Clearance for radial menu trigger at top-right */
-    .header-actions {
+    .app-header .header-actions,
+    .cfg-header .header-actions {
         padding-right: 42px;
+    }
+}
+
+@media (max-width: 640px) {
+    .modal-overlay {
+        padding: 10px 10px max(10px, env(safe-area-inset-bottom));
+        align-items: flex-start;
+    }
+
+    .modal,
+    .modal-card {
+        width: 100%;
+        max-width: none;
+        border-radius: 16px;
+        padding: 18px 16px;
+        margin: 0;
+    }
+
+    .modal-header {
+        margin-bottom: 16px;
+        gap: 12px;
+    }
+
+    .modal h2,
+    .modal-header h2 {
+        font-size: 1.1rem;
+    }
+
+    .modal-actions {
+        flex-direction: column-reverse;
+        align-items: stretch;
+        gap: 8px;
+    }
+
+    .modal-actions .btn,
+    .modal-actions button,
+    .modal-actions a {
+        width: 100%;
+        justify-content: center;
     }
 }
 

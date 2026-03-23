@@ -8,6 +8,7 @@ let expandedCards = new Set(); // Track expanded card IDs
 // ── Init ─────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
     document.title = t('cheatsheets.page_title') || 'AuraGo - Cheat Sheets';
+    updateViewToggle();
     loadSheets();
 });
 
