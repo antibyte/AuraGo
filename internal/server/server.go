@@ -301,8 +301,10 @@ func Start(cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, sh
 		}()
 	}
 
-	// Auto-start Homepage web server (Caddy) if enabled
-	if cfg.Homepage.Enabled && cfg.Homepage.WebServerEnabled {
+	// Auto-start Homepage web server (Caddy) if enabled.
+	// Note: webserver_enabled is independent of homepage.enabled (the dev container feature).
+	// We only require WorkspacePath to be set so the Docker bind mount has an absolute path.
+	if cfg.Homepage.WebServerEnabled && cfg.Homepage.WorkspacePath != "" {
 		logger.Info("Homepage web server enabled — starting container automatically")
 		go func() {
 			homepageCfg := tools.HomepageConfig{
@@ -313,9 +315,13 @@ func Start(cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, sh
 				WebServerInternalOnly: cfg.Homepage.WebServerInternalOnly,
 				AllowLocalServer:      cfg.Homepage.AllowLocalServer,
 			}
+			// Pass "" for projectDir and buildDir so detectBuildDir auto-detects
+			// the build output (out/dist/build/…) from the workspace filesystem.
 			result := tools.HomepageWebServerStart(homepageCfg, "", "", logger)
 			logger.Info("Homepage web server auto-start result", "result", result)
 		}()
+	} else if cfg.Homepage.WebServerEnabled && cfg.Homepage.WorkspacePath == "" {
+		logger.Warn("Homepage web server is enabled but homepage.workspace_path is not set — skipping auto-start")
 	}
 
 	// Initialize tsnet Manager (Tailscale embedded node)

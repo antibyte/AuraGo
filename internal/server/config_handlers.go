@@ -361,9 +361,12 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				}
 			}
 
-			// Auto-start / stop Homepage web server (Caddy) when webserver_enabled flag changes
-			if oldCfg.Homepage.WebServerEnabled != newCfg.Homepage.WebServerEnabled {
-				if newCfg.Homepage.WebServerEnabled {
+			// Auto-start / stop Homepage web server (Caddy) when webserver_enabled flag changes.
+			// Also restart if workspace_path changed while webserver is enabled.
+			webserverToggled := oldCfg.Homepage.WebServerEnabled != newCfg.Homepage.WebServerEnabled
+			webserverPathChanged := newCfg.Homepage.WebServerEnabled && oldCfg.Homepage.WorkspacePath != newCfg.Homepage.WorkspacePath
+			if webserverToggled || webserverPathChanged {
+				if newCfg.Homepage.WebServerEnabled && newCfg.Homepage.WorkspacePath != "" {
 					go func() {
 						homepageCfg := tools.HomepageConfig{
 							DockerHost:            newCfg.Docker.Host,
@@ -376,6 +379,8 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 						result := tools.HomepageWebServerStart(homepageCfg, "", "", s.Logger)
 						s.Logger.Info("[Config UI] Homepage web server auto-started", "result", result)
 					}()
+				} else if newCfg.Homepage.WebServerEnabled && newCfg.Homepage.WorkspacePath == "" {
+					s.Logger.Warn("[Config UI] Homepage web server enabled but workspace_path is not set — cannot start")
 				} else {
 					go func() {
 						homepageCfg := tools.HomepageConfig{DockerHost: newCfg.Docker.Host}
