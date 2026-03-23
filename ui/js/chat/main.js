@@ -1223,10 +1223,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     onError: (msg) => {
                         voiceBtn.classList.remove('btn-active');
                         _showError(msg);
-                        // Graceful fallback: start server-side recorder on STT error
-                        if (window.VoiceRecorder && window.VoiceRecorder.isRecording === false) {
-                            window.VoiceRecorder.start();
-                        }
                     }
                 });
             }

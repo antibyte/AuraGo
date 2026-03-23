@@ -25,7 +25,7 @@
         _startTime: 0,
         _prevSessionText: '',
         _finalTranscript: '',
-        _interimTranscript: '',,
+        _interimTranscript: '',
         _intentionalStop: false,
         _restartCount: 0,
         _maxRestarts: 50,
