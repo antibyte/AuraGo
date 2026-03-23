@@ -163,6 +163,58 @@
     display: none !important;
 }
 
+/* Invasion tabs aligned with Knowledge Center / Missions */
+.tabs {
+    display: flex;
+    gap: 4px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    margin-bottom: 20px;
+    padding: 0 0 2px;
+    background: none;
+    border: none;
+    border-bottom: 2px solid var(--border-subtle);
+    border-radius: 0;
+}
+
+.tabs::-webkit-scrollbar {
+    display: none;
+}
+
+.tab {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 10px 18px;
+    margin-bottom: -2px;
+    border: none;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    background: none;
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    font-weight: 500;
+    white-space: nowrap;
+    transition: color 0.2s, border-color 0.2s;
+}
+
+.tab:hover:not(.active) {
+    color: var(--text-primary);
+}
+
+.tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+    font-weight: 600;
+}
+
+[data-theme="light"] .tabs {
+    border-bottom-color: rgba(71, 85, 105, 0.12);
+}
+
 /* Responsive */
 @media (max-width: 600px) {
     .cards-grid {
@@ -175,5 +227,9 @@
         flex-direction: column;
         gap: 12px;
         align-items: flex-start;
+    }
+    .tab {
+        padding: 8px 14px;
+        font-size: 0.85rem;
     }
 }
