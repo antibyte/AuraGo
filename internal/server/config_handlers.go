@@ -71,6 +71,18 @@ func handleGetConfig(s *Server) http.HandlerFunc {
 			}
 		}
 
+		// Strip legacy personality fields that are no longer shown in the UI.
+		// These fields (v2_model, v2_url, v2_api_key, v2_timeout_secs) may still
+		// exist in the raw YAML of older configs but must not be rendered by the UI.
+		if pSection, ok := rawCfg["personality"]; ok {
+			if pMap, ok := pSection.(map[string]interface{}); ok {
+				delete(pMap, "v2_model")
+				delete(pMap, "v2_url")
+				delete(pMap, "v2_api_key")
+				delete(pMap, "v2_timeout_secs")
+			}
+		}
+
 		// Mask sensitive fields
 		maskSensitiveFields(rawCfg)
 

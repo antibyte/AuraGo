@@ -655,8 +655,8 @@ function renderField(fullPath, key, value, parentPath, fieldSchema) {
         const emptySelected = (!value || value === '') ? ' selected' : '';
         html += '<option value=""' + emptySelected + '>' + emptyLabel + '</option>';
         personalitiesCache.forEach(p => {
-            const selected = (String(value) === String(p.Name)) ? ' selected' : '';
-            html += '<option value="' + escapeAttr(p.Name) + '"' + selected + '>' + escapeAttr(p.Name) + '</option>';
+            const selected = (String(value) === String(p.name)) ? ' selected' : '';
+            html += '<option value="' + escapeAttr(p.name) + '"' + selected + '>' + escapeAttr(p.name) + '</option>';
         });
         html += '</select>';
     } else if (help && help.provider_ref) {
