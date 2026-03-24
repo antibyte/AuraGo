@@ -1270,6 +1270,112 @@ func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 			return `Tool Output: {"status":"error","message":"Unknown operation. Use: list, search, add, update, delete"}`
 		}
 
+	// Built-in search/scrape tools — also callable as direct actions (no execute_skill wrapper needed)
+	case "ddg_search":
+		queryStr := tc.Query
+		if queryStr == "" {
+			queryStr, _ = tc.Params["query"].(string)
+		}
+		maxRes, ok := tc.Params["max_results"].(float64)
+		if !ok {
+			maxRes = 5
+		}
+		result := tools.ExecuteDDGSearch(queryStr, int(maxRes))
+		if cfg.Tools.DDGSearch.SummaryMode {
+			searchQuery, _ := tc.Params["search_query"].(string)
+			if searchQuery == "" {
+				searchQuery = "synthesise the most relevant findings for: " + queryStr
+			}
+			summary, err := tools.SummariseContent(ctx, tools.SummaryLLMConfig{
+				APIKey:  cfg.Tools.DDGSearch.SummaryAPIKey,
+				BaseURL: cfg.Tools.DDGSearch.SummaryBaseURL,
+				Model:   cfg.Tools.DDGSearch.SummaryModel,
+			}, logger, result, searchQuery, "search results")
+			if err != nil {
+				logger.Warn("ddg_search summary failed, returning raw content", "error", err)
+			} else {
+				result = summary
+			}
+		}
+		return result
+
+	case "web_scraper":
+		if !cfg.Tools.WebScraper.Enabled {
+			return "Tool Output: [PERMISSION DENIED] web_scraper is disabled in settings (tools.web_scraper.enabled: false)."
+		}
+		urlStr := tc.URL
+		if urlStr == "" {
+			urlStr, _ = tc.Params["url"].(string)
+		}
+		scraped := tools.ExecuteWebScraper(urlStr)
+		if cfg.Tools.WebScraper.SummaryMode {
+			searchQuery, _ := tc.Params["search_query"].(string)
+			if searchQuery == "" {
+				searchQuery = "general summary of the page content"
+			}
+			summary, err := tools.SummariseScrapedContent(ctx, cfg, logger, scraped, searchQuery)
+			if err != nil {
+				logger.Warn("web_scraper summary failed, returning raw content", "error", err)
+			} else {
+				scraped = summary
+			}
+		}
+		return scraped
+
+	case "wikipedia_search":
+		queryStr := tc.Query
+		if queryStr == "" {
+			queryStr, _ = tc.Params["query"].(string)
+		}
+		langStr, _ := tc.Params["language"].(string)
+		result := tools.ExecuteWikipediaSearch(queryStr, langStr)
+		if cfg.Tools.Wikipedia.SummaryMode {
+			searchQuery, _ := tc.Params["search_query"].(string)
+			if searchQuery == "" {
+				searchQuery = "summarise the key facts about: " + queryStr
+			}
+			summary, err := tools.SummariseContent(ctx, tools.SummaryLLMConfig{
+				APIKey:  cfg.Tools.Wikipedia.SummaryAPIKey,
+				BaseURL: cfg.Tools.Wikipedia.SummaryBaseURL,
+				Model:   cfg.Tools.Wikipedia.SummaryModel,
+			}, logger, result, searchQuery, "Wikipedia article")
+			if err != nil {
+				logger.Warn("wikipedia summary failed, returning raw content", "error", err)
+			} else {
+				result = summary
+			}
+		}
+		return result
+
+	case "virustotal_scan":
+		if !cfg.VirusTotal.Enabled {
+			return `Tool Output: {"status": "error", "message": "VirusTotal integration is not enabled. Set virustotal.enabled=true in config.yaml."}`
+		}
+		resource, _ := tc.Params["resource"].(string)
+		return tools.ExecuteVirusTotalScan(cfg.VirusTotal.APIKey, resource)
+
+	case "brave_search":
+		if !cfg.BraveSearch.Enabled {
+			return `Tool Output: {"status": "error", "message": "Brave Search integration is not enabled. Enable it in Settings › Brave Search."}`
+		}
+		queryStr := tc.Query
+		if queryStr == "" {
+			queryStr, _ = tc.Params["query"].(string)
+		}
+		count, ok := tc.Params["count"].(float64)
+		if !ok {
+			count = 10
+		}
+		country, _ := tc.Params["country"].(string)
+		if country == "" {
+			country = cfg.BraveSearch.Country
+		}
+		lang, _ := tc.Params["lang"].(string)
+		if lang == "" {
+			lang = cfg.BraveSearch.Lang
+		}
+		return tools.ExecuteBraveSearch(cfg.BraveSearch.APIKey, queryStr, int(count), country, lang)
+
 	default:
 		return dispatchNotHandled
 	}

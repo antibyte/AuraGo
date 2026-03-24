@@ -2,8 +2,6 @@
 
 Search the web using the Brave Search API. Returns real search results including titles, URLs, descriptions and publication dates.
 
-This is a **built-in skill** — invoke it via `execute_skill` (NOT as a direct action). It is not a Python file or external binary.
-
 Requires a **Brave Search API key** configured under `brave_search.api_key` in the settings.
 Get a free or paid key at https://brave.com/search/api/
 
@@ -15,13 +13,13 @@ Get a free or paid key at https://brave.com/search/api/
 ### Usage
 
 ```json
-{"action": "execute_skill", "skill": "brave_search", "params": {"query": "latest Go 1.26 release notes"}}
+{"action": "brave_search", "query": "latest Go 1.26 release notes"}
 ```
 
 With optional parameters:
 
 ```json
-{"action": "execute_skill", "skill": "brave_search", "params": {"query": "Nachrichten heute", "count": 5, "country": "DE", "lang": "de"}}
+{"action": "brave_search", "query": "Nachrichten heute", "count": 5, "country": "DE", "lang": "de"}
 ```
 
 ### Parameters
