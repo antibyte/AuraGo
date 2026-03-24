@@ -625,7 +625,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		flags.RetrievedMemories = ""
 		flags.PredictedMemories = ""
 		var topMemories []string
-		if !runCfg.IsMission && lastUserMsg != "" && longTermMem != nil && !isAmbiguousShortCommand(lastUserMsg) {
+		if !runCfg.IsMission && lastUserMsg != "" && longTermMem != nil && shouldUseRAGForMessage(lastUserMsg) {
 			// Query expansion: enrich user message with LLM-generated keywords for better RAG
 			ragQuery := expandQueryForRAG(ctx, cfg, currentLogger, lastUserMsg)
 

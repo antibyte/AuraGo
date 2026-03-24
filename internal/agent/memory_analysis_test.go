@@ -140,6 +140,9 @@ func TestIsAmbiguousShortCommand(t *testing.T) {
 		{"do_it_again", "do it again", true},
 		{"mach_das_nochmal", "mach das nochmal", true},
 		{"nochmals", "nochmals", true},
+		{"teste_erneut", "teste erneut", true},
+		{"teste_nochmal", "teste nochmal", true},
+		{"test_again", "test again", true},
 
 		// Non-ambiguous — specific enough for RAG
 		{"specific_retry", "versuche die PDF-Erstellung erneut", false},
@@ -159,6 +162,92 @@ func TestIsAmbiguousShortCommand(t *testing.T) {
 			got := isAmbiguousShortCommand(tt.msg)
 			if got != tt.want {
 				t.Errorf("isAmbiguousShortCommand(%q) = %v, want %v", tt.msg, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestShouldStoreExtractedMemory(t *testing.T) {
+	tests := []struct {
+		name     string
+		content  string
+		category string
+		want     bool
+	}{
+		{
+			name:     "keeps useful operational detail",
+			content:  "Homepage web server listens on port 8080.",
+			category: "recent_operational_details",
+			want:     true,
+		},
+		{
+			name:     "drops unavailable integration claim english",
+			content:  "VirusTotal integration is not available or not configured.",
+			category: "recent_operational_details",
+			want:     false,
+		},
+		{
+			name:     "drops tool list claim german",
+			content:  "Die Integration steht nicht zur Verfügung, da das Tool nicht in der Werkzeugliste auftaucht.",
+			category: "recent_operational_details",
+			want:     false,
+		},
+		{
+			name:     "drops disabled tool statement",
+			content:  "The web scraper tool is disabled.",
+			category: "workflow",
+			want:     false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := shouldStoreExtractedMemory(tt.content, tt.category)
+			if got != tt.want {
+				t.Errorf("shouldStoreExtractedMemory(%q, %q) = %v, want %v", tt.content, tt.category, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestShouldUseRAGForMessage(t *testing.T) {
+	tests := []struct {
+		name string
+		msg  string
+		want bool
+	}{
+		{
+			name: "very short disabled",
+			msg:  "teste erneut",
+			want: false,
+		},
+		{
+			name: "short even if not ambiguous disabled",
+			msg:  "docker status",
+			want: false,
+		},
+		{
+			name: "exactly twenty chars enabled",
+			msg:  "status aller container",
+			want: true,
+		},
+		{
+			name: "long ambiguous still disabled",
+			msg:  "versuche es erneut bitte",
+			want: false,
+		},
+		{
+			name: "substantial query enabled",
+			msg:  "Wie ist der Status der Docker Container?",
+			want: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := shouldUseRAGForMessage(tt.msg)
+			if got != tt.want {
+				t.Errorf("shouldUseRAGForMessage(%q) = %v, want %v", tt.msg, got, tt.want)
 			}
 		})
 	}

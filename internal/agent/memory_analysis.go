@@ -71,6 +71,9 @@ func runMemoryAnalysis(
 	if userMsg == "" || len(userMsg) < 10 {
 		return // too short to analyze
 	}
+	if isAmbiguousShortCommand(userMsg) {
+		return
+	}
 
 	// Create analysis client (uses dedicated provider or falls back to main LLM)
 	analysisClient := llm.NewClientFromProvider(
@@ -135,7 +138,7 @@ func runMemoryAnalysis(
 	// Process facts
 	for _, f := range result.Facts {
 		minThreshold := thresholdForMemoryCategory(threshold, f.Category)
-		if f.Confidence >= minThreshold && f.Content != "" {
+		if f.Confidence >= minThreshold && f.Content != "" && shouldStoreExtractedMemory(f.Content, f.Category) {
 			if ltm != nil {
 				concept := fmt.Sprintf("[%s] %s", f.Category, f.Content)
 				if _, err := ltm.StoreDocument(concept, "source:memory_analysis session:"+sessionID); err != nil {
@@ -160,7 +163,7 @@ func runMemoryAnalysis(
 	// Process preferences
 	for _, p := range result.Preferences {
 		minThreshold := thresholdForMemoryCategory(threshold, p.Category)
-		if p.Confidence >= minThreshold && p.Content != "" {
+		if p.Confidence >= minThreshold && p.Content != "" && shouldStoreExtractedMemory(p.Content, p.Category) {
 			if ltm != nil {
 				concept := fmt.Sprintf("[preference:%s] %s", p.Category, p.Content)
 				if _, err := ltm.StoreDocument(concept, "source:memory_analysis session:"+sessionID); err != nil {
@@ -175,7 +178,7 @@ func runMemoryAnalysis(
 	// Process corrections — these update core memory
 	for _, c := range result.Corrections {
 		minThreshold := thresholdForMemoryCategory(threshold, c.Category)
-		if c.Confidence >= minThreshold && c.Content != "" {
+		if c.Confidence >= minThreshold && c.Content != "" && shouldStoreExtractedMemory(c.Content, c.Category) {
 			if ltm != nil {
 				concept := fmt.Sprintf("[correction:%s] %s", c.Category, c.Content)
 				if _, err := ltm.StoreDocument(concept, "source:memory_analysis session:"+sessionID); err != nil {
@@ -207,6 +210,60 @@ func thresholdForMemoryCategory(defaultThreshold float64, category string) float
 	return defaultThreshold
 }
 
+func shouldUseRAGForMessage(msg string) bool {
+	trimmed := strings.TrimSpace(msg)
+	if len(trimmed) < 20 {
+		return false
+	}
+	return !isAmbiguousShortCommand(trimmed)
+}
+
+func shouldStoreExtractedMemory(content, category string) bool {
+	text := strings.ToLower(strings.TrimSpace(content))
+	if text == "" {
+		return false
+	}
+
+	transientPhrases := []string{
+		"integration is not available",
+		"integration is unavailable",
+		"integration is not configured",
+		"tool is not available",
+		"tool is unavailable",
+		"tool does not appear in the tool list",
+		"does not appear in the tool list",
+		"not in the tool list",
+		"is not enabled",
+		"is disabled",
+		"api key is missing",
+		"steht dir nicht zur verfügung",
+		"steht nicht zur verfügung",
+		"ist nicht verfügbar",
+		"ist nicht konfiguriert",
+		"nicht in der werkzeugliste auftaucht",
+		"taucht nicht in der werkzeugliste auf",
+		"taucht nicht in der toolliste auf",
+		"api-schlüssel fehlt",
+	}
+	for _, phrase := range transientPhrases {
+		if strings.Contains(text, phrase) {
+			return false
+		}
+	}
+
+	if strings.EqualFold(strings.TrimSpace(category), "recent_operational_details") {
+		if strings.Contains(text, "integration") || strings.Contains(text, "tool") {
+			if strings.Contains(text, "available") || strings.Contains(text, "verfügbar") ||
+				strings.Contains(text, "configured") || strings.Contains(text, "konfiguriert") ||
+				strings.Contains(text, "enabled") || strings.Contains(text, "aktiviert") {
+				return false
+			}
+		}
+	}
+
+	return true
+}
+
 // isAmbiguousShortCommand returns true if the message is a short, context-dependent
 // follow-up command that references previous actions without specifying a topic.
 // These messages cause poor RAG results because they match unrelated old memories.
@@ -235,6 +292,8 @@ func isAmbiguousShortCommand(msg string) bool {
 		"wiederholen", "repeat", "do it again", "mach das nochmal",
 		"mach das noch mal", "erneut versuchen", "nochmals",
 		"das gleiche nochmal", "the same again",
+		"teste erneut", "teste nochmal", "teste noch mal",
+		"nochmal testen", "noch mal testen", "test again",
 	}
 	for _, pattern := range ambiguousPatterns {
 		if strings.Contains(lower, pattern) {
