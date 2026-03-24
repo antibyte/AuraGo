@@ -50,6 +50,31 @@ func handleGetConfig(s *Server) http.HandlerFunc {
 			return
 		}
 
+		// Inject personality section from in-memory config when it is absent
+		// from the raw YAML (migration scenario: old config only has agent.personality_*).
+		if _, ok := rawCfg["personality"]; !ok {
+			p := s.Cfg.Personality
+			rawCfg["personality"] = map[string]interface{}{
+				"engine":                   p.Engine,
+				"engine_v2":                p.EngineV2,
+				"v2_provider":              p.V2Provider,
+				"v2_model":                 p.V2Model,
+				"v2_url":                   p.V2URL,
+				"v2_api_key":               p.V2APIKey,
+				"v2_timeout_secs":          p.V2TimeoutSecs,
+				"core_personality":         p.CorePersonality,
+				"user_profiling":           p.UserProfiling,
+				"user_profiling_threshold": p.UserProfilingThreshold,
+				"emotion_synthesizer": map[string]interface{}{
+					"enabled":                p.EmotionSynthesizer.Enabled,
+					"min_interval_seconds":   p.EmotionSynthesizer.MinIntervalSecs,
+					"max_history_entries":    p.EmotionSynthesizer.MaxHistoryEntries,
+					"trigger_on_mood_change": p.EmotionSynthesizer.TriggerOnMoodChange,
+					"trigger_always":         p.EmotionSynthesizer.TriggerAlways,
+				},
+			}
+		}
+
 		// Mask sensitive fields
 		maskSensitiveFields(rawCfg)
 

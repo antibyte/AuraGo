@@ -1,4 +1,4 @@
-{
+﻿{
   "help.agent.additional_prompt": "Extra tekst toegevoegd aan systeemprompt.",
   "help.agent.allow_filesystem_write": "Wanneer uitgeschakeld, alleen leesbewerkingen toegestaan.",
   "help.agent.allow_mcp": "⚠️ Permite ao agente conectar-se a servidores MCP externos.",
@@ -277,5 +277,20 @@
   "help.paperless_ngx.enabled": "Enables the Paperless-ngx integration for document management.",
   "help.paperless_ngx.read_only": "When enabled, the agent can only search and read documents but cannot upload, update, or delete them.",
   "help.paperless_ngx.url": "URL of the Paperless-ngx instance (e.g. https://paperless.example.com).",
-  "help.paperless_ngx.api_token": "API token for the Paperless-ngx instance. Stored in the vault."
+  "help.paperless_ngx.api_token": "API token for the Paperless-ngx instance. Stored in the vault.",
+  "help.personality.engine": "Activeert het persoonlijkheidssysteem met stemming en micro-kenmerken.",
+  "help.personality.engine_v2": "Activeert de geavanceerde V2-motor met asynchrone LLM-stemmingsanalyse.",
+  "help.personality.v2_provider": "Kies een provider voor V2-persoonlijkheidsanalyse. Leeg = hoofd-LLM.",
+  "help.personality.v2_model": "Modelnaam voor Personality Engine V2.",
+  "help.personality.v2_url": "Optionele basis-URL voor V2, bijv. voor een lokale Ollama.",
+  "help.personality.v2_api_key": "Optionele API-sleutel voor de V2-motor.",
+  "help.personality.v2_timeout_secs": "Time-out in seconden voor de asynchrone V2 LLM-aanroep. Standaard: 30.",
+  "help.personality.core_personality": "Actief persoonlijkheidsprofiel, bijv. neutral, punk, zen.",
+  "help.personality.user_profiling": "Activeert automatische gebruikersprofiling uit het gesprek (vereist V2).",
+  "help.personality.user_profiling_threshold": "Minimale betrouwbaarheid voordat een eigenschap wordt ingevoegd. Standaard: 2.",
+  "help.personality.emotion_synthesizer.enabled": "Activeert de Emotion Synthesizer. Vereist Personality Engine V2.",
+  "help.personality.emotion_synthesizer.min_interval_seconds": "Minimuminterval in seconden tussen syntheses. Standaard: 60.",
+  "help.personality.emotion_synthesizer.max_history_entries": "Maximum aantal emotiegeschiedenisitems. Standaard: 100.",
+  "help.personality.emotion_synthesizer.trigger_on_mood_change": "Synthese activeren bij stemmingsverandering.",
+  "help.personality.emotion_synthesizer.trigger_always": "Synthese activeren na elke V2-analyse.",
 }

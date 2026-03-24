@@ -1,4 +1,4 @@
-{
+﻿{
   "help.agent.additional_prompt": "मनमाना पाठ जो हमेशा सिस्टम प्रॉम्प्ट के अंत में जोड़ा जाता है। उपयोगकर्ता-विशिष्ट नियमों, संदर्भ जानकारी या निश्चित निर्देशों के लिए आदर्श जो हर अनुरोध पर लागू होने चाहिए।",
   "help.agent.allow_filesystem_write": "अक्षम होने पर, केवल पढ़ने के संचालन (सूची, पढ़ें) की अनुमति है। लिखने के कार्य (लिखना, हटाना, स्थानांतरित करना, mkdir...) अवरुद्ध हैं।",
   "help.agent.allow_mcp": "⚠️ डेंजर ज़ोन: एजेंट को बाहरी एमसीपी सर्वर (मॉडल कॉन्टेक्स्ट प्रोटोकॉल) से कनेक्ट करने और उनके टूल का उपयोग करने की अनुमति देता है। एमसीपी सर्वर बाहरी प्रक्रियाएं हैं जो मनमाना कोड निष्पादित कर सकते हैं - केवल विश्वसनीय सर्वर जोड़ें!",
@@ -279,5 +279,20 @@
   "help.paperless_ngx.enabled": "Enables the Paperless-ngx integration for document management.",
   "help.paperless_ngx.read_only": "When enabled, the agent can only search and read documents but cannot upload, update, or delete them.",
   "help.paperless_ngx.url": "URL of the Paperless-ngx instance (e.g. https://paperless.example.com).",
-  "help.paperless_ngx.api_token": "API token for the Paperless-ngx instance. Stored in the vault."
+  "help.paperless_ngx.api_token": "API token for the Paperless-ngx instance. Stored in the vault.",
+  "help.personality.engine": "मूड और माइक्रो-ट्रेट्स के साथ पर्सनैलिटी सिस्टम को सक्रिय करता है।",
+  "help.personality.engine_v2": "असिंक्रोनस LLM मूड विश्लेषण के साथ उन्नत V2 इंजन सक्रिय करता है।",
+  "help.personality.v2_provider": "V2 विश्लेषण के लिए प्रोवाइडर चुनें। खाली = मुख्य LLM।",
+  "help.personality.v2_model": "Personality Engine V2 के लिए मॉडल नाम।",
+  "help.personality.v2_url": "V2 के लिए वैकल्पिक बेस URL।",
+  "help.personality.v2_api_key": "V2 इंजन के लिए वैकल्पिक API की।",
+  "help.personality.v2_timeout_secs": "असिंक्रोनस V2 LLM कॉल का टाइमआउट। डिफ़ॉल्ट: 30।",
+  "help.personality.core_personality": "सक्रिय पर्सनैलिटी प्रोफाइल, जैसे neutral, punk, zen।",
+  "help.personality.user_profiling": "बातचीत से स्वचालित यूज़र प्रोफाइलिंग (V2 आवश्यक)।",
+  "help.personality.user_profiling_threshold": "प्रॉम्प्ट में इंजेक्शन से पहले न्यूनतम विश्वास। डिफ़ॉल्ट: 2।",
+  "help.personality.emotion_synthesizer.enabled": "Emotion Synthesizer सक्रिय करें। V2 आवश्यक।",
+  "help.personality.emotion_synthesizer.min_interval_seconds": "सिंथेसिस के बीच न्यूनतम अंतराल सेकंड में। डिफ़ॉल्ट: 60।",
+  "help.personality.emotion_synthesizer.max_history_entries": "इतिहास प्रविष्टियों की अधिकतम संख्या। डिफ़ॉल्ट: 100।",
+  "help.personality.emotion_synthesizer.trigger_on_mood_change": "मूड बदलने पर सिंथेसिस ट्रिगर करें।",
+  "help.personality.emotion_synthesizer.trigger_always": "हर V2 विश्लेषण के बाद सिंथेसिस ट्रिगर करें।",
 }

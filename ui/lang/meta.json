@@ -103,6 +103,9 @@
   "help.agent.personality_v2_provider": {
     "provider_ref": true
   },
+  "help.personality.v2_provider": {
+    "provider_ref": true
+  },
   "help.fallback_llm.provider": {
     "provider_ref": true
   },

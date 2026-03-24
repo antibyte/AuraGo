@@ -1,4 +1,4 @@
-{
+﻿{
   "help.agent.additional_prompt": "Dodatecny text k promptu.",
   "help.agent.allow_filesystem_write": "Kdyz zakazano, pouze cteni.",
   "help.agent.allow_mcp": "Povoluje MCP servery.",
@@ -279,5 +279,20 @@
   "help.paperless_ngx.enabled": "Enables the Paperless-ngx integration for document management.",
   "help.paperless_ngx.read_only": "When enabled, the agent can only search and read documents but cannot upload, update, or delete them.",
   "help.paperless_ngx.url": "URL of the Paperless-ngx instance (e.g. https://paperless.example.com).",
-  "help.paperless_ngx.api_token": "API token for the Paperless-ngx instance. Stored in the vault."
+  "help.paperless_ngx.api_token": "API token for the Paperless-ngx instance. Stored in the vault.",
+  "help.personality.engine": "Aktivuje systém osobnosti s náladou a mikro-vlastnostmi.",
+  "help.personality.engine_v2": "Aktivuje pokročilý motor V2 s asynchronní LLM analýzou nálady.",
+  "help.personality.v2_provider": "Vyberte poskytovatele pro V2 analýzu osobnosti. Prázdné = hlavní LLM.",
+  "help.personality.v2_model": "Název modelu pro Personality Engine V2.",
+  "help.personality.v2_url": "Volitelná URL pro V2, např. pro lokální Ollama.",
+  "help.personality.v2_api_key": "Volitelný API klíč pro V2 engine.",
+  "help.personality.v2_timeout_secs": "Časový limit pro asynchronní V2 LLM volání v sekundách. Výchozí: 30.",
+  "help.personality.core_personality": "Aktivní profil osobnosti, např. neutral, punk, zen.",
+  "help.personality.user_profiling": "Aktivuje automatické profilování uživatele z konverzace (vyžaduje V2).",
+  "help.personality.user_profiling_threshold": "Minimální počet potvrzení před vložením vlastnosti do promptu. Výchozí: 2.",
+  "help.personality.emotion_synthesizer.enabled": "Aktivuje Emotion Synthesizer. Vyžaduje Personality Engine V2.",
+  "help.personality.emotion_synthesizer.min_interval_seconds": "Minimální interval v sekundách mezi syntézami emocí. Výchozí: 60.",
+  "help.personality.emotion_synthesizer.max_history_entries": "Maximální počet záznamů historie emocí. Výchozí: 100.",
+  "help.personality.emotion_synthesizer.trigger_on_mood_change": "Spustit syntézu při změně nálady.",
+  "help.personality.emotion_synthesizer.trigger_always": "Spustit syntézu po každé V2 analýze nálady.",
 }

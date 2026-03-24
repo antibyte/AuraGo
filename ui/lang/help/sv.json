@@ -1,4 +1,4 @@
-{
+﻿{
   "help.agent.additional_prompt": "Dodatecny text pridany k systemovemu promptu.",
   "help.agent.allow_filesystem_write": "Kdyz zakazano, povoleny pouze operace cteni.",
   "help.agent.allow_mcp": "Umoznuje agentovi pripojit se k externim MCP serverum.",
@@ -279,5 +279,20 @@
   "help.paperless_ngx.enabled": "Enables the Paperless-ngx integration for document management.",
   "help.paperless_ngx.read_only": "When enabled, the agent can only search and read documents but cannot upload, update, or delete them.",
   "help.paperless_ngx.url": "URL of the Paperless-ngx instance (e.g. https://paperless.example.com).",
-  "help.paperless_ngx.api_token": "API token for the Paperless-ngx instance. Stored in the vault."
+  "help.paperless_ngx.api_token": "API token for the Paperless-ngx instance. Stored in the vault.",
+  "help.personality.engine": "Aktiverar personlighetssystemet med stämning och mikro-egenskaper.",
+  "help.personality.engine_v2": "Aktiverar den avancerade V2-motorn med asynkron LLM-stämningsanalys.",
+  "help.personality.v2_provider": "Välj en leverantör för V2-personlighetsanalys. Tom = huvud-LLM.",
+  "help.personality.v2_model": "Modellnamn för Personality Engine V2.",
+  "help.personality.v2_url": "Valfri bas-URL för V2, t.ex. för en lokal Ollama.",
+  "help.personality.v2_api_key": "Valfri API-nyckel för V2-motorn.",
+  "help.personality.v2_timeout_secs": "Tidsgräns i sekunder för det asynkrona V2 LLM-anropet. Standard: 30.",
+  "help.personality.core_personality": "Aktivt personlighetsprofil, t.ex. neutral, punk, zen.",
+  "help.personality.user_profiling": "Aktiverar automatisk användarprofil från konversationen (kräver V2).",
+  "help.personality.user_profiling_threshold": "Minsta förtroende innan ett drag injiceras i prompten. Standard: 2.",
+  "help.personality.emotion_synthesizer.enabled": "Aktiverar Emotion Synthesizer. Kräver Personality Engine V2.",
+  "help.personality.emotion_synthesizer.min_interval_seconds": "Minsta intervall i sekunder mellan synteser. Standard: 60.",
+  "help.personality.emotion_synthesizer.max_history_entries": "Maximalt antal känsloohistorikposter. Standard: 100.",
+  "help.personality.emotion_synthesizer.trigger_on_mood_change": "Utlös syntes vid stämningsförändring.",
+  "help.personality.emotion_synthesizer.trigger_always": "Utlös syntes efter varje V2-analys.",
 }

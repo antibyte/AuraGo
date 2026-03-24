@@ -1,4 +1,4 @@
-{
+﻿{
   "help.agent.additional_prompt": "Dodatecny text k promptu.",
   "help.agent.allow_filesystem_write": "Kdyz zakazano, pouze cteni.",
   "help.agent.allow_mcp": "Povoluje MCP servery.",
@@ -277,5 +277,20 @@
   "help.paperless_ngx.enabled": "Enables the Paperless-ngx integration for document management.",
   "help.paperless_ngx.read_only": "When enabled, the agent can only search and read documents but cannot upload, update, or delete them.",
   "help.paperless_ngx.url": "URL of the Paperless-ngx instance (e.g. https://paperless.example.com).",
-  "help.paperless_ngx.api_token": "API token for the Paperless-ngx instance. Stored in the vault."
+  "help.paperless_ngx.api_token": "API token for the Paperless-ngx instance. Stored in the vault.",
+  "help.personality.engine": "Ενεργοποιεί το σύστημα προσωπικότητας με διάθεση και μικρο-χαρακτηριστικά.",
+  "help.personality.engine_v2": "Ενεργοποιεί τον προηγμένο κινητήρα V2 με ασύγχρονη ανάλυση διάθεσης.",
+  "help.personality.v2_provider": "Επιλέξτε πάροχο για ανάλυση V2. Κενό = κύριο LLM.",
+  "help.personality.v2_model": "Όνομα μοντέλου για το Personality Engine V2.",
+  "help.personality.v2_url": "Προαιρετικό URL βάσης για V2.",
+  "help.personality.v2_api_key": "Προαιρετικό κλειδί API για τον κινητήρα V2.",
+  "help.personality.v2_timeout_secs": "Χρονικό όριο σε δευτερόλεπτα για την ασύγχρονη κλήση V2. Προεπιλογή: 30.",
+  "help.personality.core_personality": "Ενεργό προφίλ προσωπικότητας, π.χ. neutral, punk, zen.",
+  "help.personality.user_profiling": "Ενεργοποιεί αυτόματη δημιουργία προφίλ χρήστη (απαιτεί V2).",
+  "help.personality.user_profiling_threshold": "Ελάχιστο επίπεδο εμπιστοσύνης πριν εισαχθεί γνώρισμα. Προεπιλογή: 2.",
+  "help.personality.emotion_synthesizer.enabled": "Ενεργοποιεί τον Emotion Synthesizer. Απαιτεί Personality Engine V2.",
+  "help.personality.emotion_synthesizer.min_interval_seconds": "Ελάχιστο διάστημα σε δευτερόλεπτα. Προεπιλογή: 60.",
+  "help.personality.emotion_synthesizer.max_history_entries": "Μέγιστος αριθμός εγγραφών ιστορικού. Προεπιλογή: 100.",
+  "help.personality.emotion_synthesizer.trigger_on_mood_change": "Ενεργοποίηση σύνθεσης κατά αλλαγή διάθεσης.",
+  "help.personality.emotion_synthesizer.trigger_always": "Ενεργοποίηση σύνθεσης μετά από κάθε ανάλυση V2.",
 }

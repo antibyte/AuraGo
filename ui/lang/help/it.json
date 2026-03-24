@@ -1,4 +1,4 @@
-{
+﻿{
   "help.agent.additional_prompt": "Testo arbitrario che viene sempre aggiunto alla fine del system prompt. Ideale per regole specifiche dell'utente, informazioni di contesto o istruzioni fisse che dovrebbero applicarsi a ogni richiesta.",
   "help.agent.allow_filesystem_write": "Quando disabilitato, sono consentite solo operazioni di lettura (list, read). Le operazioni di scrittura (write, delete, move, mkdir…) sono bloccate.",
   "help.agent.allow_mcp": "⚠️ Zona Pericolo: Consente all'agente di connettersi a server MCP esterni (Model Context Protocol) e utilizzare i loro tool. I server MCP sono processi esterni che possono eseguire codice arbitrario — aggiungi solo server fidati!",
@@ -279,5 +279,20 @@
   "help.paperless_ngx.enabled": "Enables the Paperless-ngx integration for document management.",
   "help.paperless_ngx.read_only": "When enabled, the agent can only search and read documents but cannot upload, update, or delete them.",
   "help.paperless_ngx.url": "URL of the Paperless-ngx instance (e.g. https://paperless.example.com).",
-  "help.paperless_ngx.api_token": "API token for the Paperless-ngx instance. Stored in the vault."
+  "help.paperless_ngx.api_token": "API token for the Paperless-ngx instance. Stored in the vault.",
+  "help.personality.engine": "Abilita il sistema di personalità con umore e micro-tratti.",
+  "help.personality.engine_v2": "Abilita il motore V2 avanzato con analisi LLM asincrona dell umore.",
+  "help.personality.v2_provider": "Scegli un provider per l analisi V2. Vuoto = LLM principale.",
+  "help.personality.v2_model": "Nome del modello per Personality Engine V2.",
+  "help.personality.v2_url": "URL base opzionale per V2, es. per un Ollama locale.",
+  "help.personality.v2_api_key": "Chiave API opzionale per il motore V2.",
+  "help.personality.v2_timeout_secs": "Timeout in secondi per la chiamata LLM asincrona V2. Predefinito: 30.",
+  "help.personality.core_personality": "Profilo personalità attivo, es. neutral, punk, zen.",
+  "help.personality.user_profiling": "Abilita il profilo automatico utente dalla conversazione (richiede V2).",
+  "help.personality.user_profiling_threshold": "Fiducia minima prima di iniettare un tratto nel prompt. Predefinito: 2.",
+  "help.personality.emotion_synthesizer.enabled": "Abilita il sintetizzatore emotivo. Richiede Personality Engine V2.",
+  "help.personality.emotion_synthesizer.min_interval_seconds": "Intervallo minimo in secondi tra sintesi. Predefinito: 60.",
+  "help.personality.emotion_synthesizer.max_history_entries": "Numero massimo di voci nella cronologia. Predefinito: 100.",
+  "help.personality.emotion_synthesizer.trigger_on_mood_change": "Attiva sintesi al cambio di umore.",
+  "help.personality.emotion_synthesizer.trigger_always": "Attiva sintesi dopo ogni analisi V2.",
 }

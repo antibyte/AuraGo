@@ -1,4 +1,4 @@
-{
+﻿{
   "help.agent.additional_prompt": "始终附加在系统提示符末尾的任意文本。非常适合用户特定的规则、上下文信息或应适用于每个请求的固定指令。",
   "help.agent.allow_filesystem_write": "禁用时，仅允许读取操作（列表、读取）。写入操作（写入、删除、移动、mkdir...）被阻止。",
   "help.agent.allow_mcp": "⚠️ 危险区域：允许代理连接到外部 MCP 服务器（模型上下文协议）并使用其工具。 MCP 服务器是可以执行任意代码的外部进程 - 仅添加受信任的服务器！",
@@ -279,5 +279,20 @@
   "help.paperless_ngx.enabled": "Enables the Paperless-ngx integration for document management.",
   "help.paperless_ngx.read_only": "When enabled, the agent can only search and read documents but cannot upload, update, or delete them.",
   "help.paperless_ngx.url": "URL of the Paperless-ngx instance (e.g. https://paperless.example.com).",
-  "help.paperless_ngx.api_token": "API token for the Paperless-ngx instance. Stored in the vault."
+  "help.paperless_ngx.api_token": "API token for the Paperless-ngx instance. Stored in the vault.",
+  "help.personality.engine": "启用带有情绪和微特征的个性系统。",
+  "help.personality.engine_v2": "启用具有异步LLM情绪分析的高级V2引擎。",
+  "help.personality.v2_provider": "选择V2个性分析提供商。留空 = 主LLM。",
+  "help.personality.v2_model": "Personality Engine V2的模型名称。",
+  "help.personality.v2_url": "V2的可选基础URL，例如本地Ollama。",
+  "help.personality.v2_api_key": "V2引擎的可选API密钥。",
+  "help.personality.v2_timeout_secs": "异步V2 LLM调用的超时（秒）。默认：30。",
+  "help.personality.core_personality": "活跃性格档案，例如 neutral、punk、zen。",
+  "help.personality.user_profiling": "从对话中自动创建用户档案（需要V2）。",
+  "help.personality.user_profiling_threshold": "在注入提示词前的最低置信度。默认：2。",
+  "help.personality.emotion_synthesizer.enabled": "启用情绪合成器。需要Personality Engine V2。",
+  "help.personality.emotion_synthesizer.min_interval_seconds": "合成之间的最小间隔（秒）。默认：60。",
+  "help.personality.emotion_synthesizer.max_history_entries": "情绪历史记录的最大条目数。默认：100。",
+  "help.personality.emotion_synthesizer.trigger_on_mood_change": "情绪变化时触发合成。",
+  "help.personality.emotion_synthesizer.trigger_always": "每次V2分析后触发合成。",
 }

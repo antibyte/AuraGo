@@ -1,4 +1,4 @@
-{
+﻿{
   "help.agent.additional_prompt": "システム プロンプトの最後に常に追加される任意のテキスト。すべてのリクエストに適用する必要があるユーザー固有のルール、コンテキスト情報、または固定命令に最適です。",
   "help.agent.allow_filesystem_write": "無効にすると、読み取り操作 (リスト、読み取り) のみが許可されます。書き込み操作 (書き込み、削除、移動、mkdir など) はブロックされます。",
   "help.agent.allow_mcp": "⚠️ 危険ゾーン: エージェントが外部 MCP サーバー (モデル コンテキスト プロトコル) に接続し、そのツールを使用できるようにします。 MCP サーバーは、任意のコードを実行できる外部プロセスです。信頼できるサーバーのみを追加してください。",
@@ -279,5 +279,20 @@
   "help.paperless_ngx.enabled": "Enables the Paperless-ngx integration for document management.",
   "help.paperless_ngx.read_only": "When enabled, the agent can only search and read documents but cannot upload, update, or delete them.",
   "help.paperless_ngx.url": "URL of the Paperless-ngx instance (e.g. https://paperless.example.com).",
-  "help.paperless_ngx.api_token": "API token for the Paperless-ngx instance. Stored in the vault."
+  "help.paperless_ngx.api_token": "API token for the Paperless-ngx instance. Stored in the vault.",
+  "help.personality.engine": "ムードとマイクロトレイトを持つパーソナリティシステムを有効にします。",
+  "help.personality.engine_v2": "非同期LLMムード分析による高度なV2エンジンを有効にします。",
+  "help.personality.v2_provider": "V2分析用プロバイダーを選択。空欄 = メインLLM。",
+  "help.personality.v2_model": "Personality Engine V2のモデル名。",
+  "help.personality.v2_url": "V2用オプションのベースURL。",
+  "help.personality.v2_api_key": "V2エンジン用オプションのAPIキー。",
+  "help.personality.v2_timeout_secs": "非同期V2 LLMコールのタイムアウト（秒）。デフォルト：30。",
+  "help.personality.core_personality": "アクティブなパーソナリティプロファイル（例：neutral, punk, zen）。",
+  "help.personality.user_profiling": "会話からの自動ユーザープロファイリング（V2が必要）。",
+  "help.personality.user_profiling_threshold": "プロンプトに特性を注入するまでの最小確信度。デフォルト：2。",
+  "help.personality.emotion_synthesizer.enabled": "Emotion Synthesizerを有効にします。Personality Engine V2が必要。",
+  "help.personality.emotion_synthesizer.min_interval_seconds": "感情合成間の最小間隔（秒）。デフォルト：60。",
+  "help.personality.emotion_synthesizer.max_history_entries": "感情履歴エントリの最大数。デフォルト：100。",
+  "help.personality.emotion_synthesizer.trigger_on_mood_change": "ムード変化时に合成をトリガー。",
+  "help.personality.emotion_synthesizer.trigger_always": "全V2分析後に合成をトリガー。",
 }

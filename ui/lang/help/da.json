@@ -1,4 +1,4 @@
-{
+﻿{
   "help.agent.additional_prompt": "Dodatecny text pridany k systemovemu promptu.",
   "help.agent.allow_filesystem_write": "Kdyz zakazano, povoleny pouze operace cteni.",
   "help.agent.allow_mcp": "Umoznuje agentovi pripojit se k externim MCP serverum.",
@@ -279,5 +279,20 @@
   "help.paperless_ngx.enabled": "Enables the Paperless-ngx integration for document management.",
   "help.paperless_ngx.read_only": "When enabled, the agent can only search and read documents but cannot upload, update, or delete them.",
   "help.paperless_ngx.url": "URL of the Paperless-ngx instance (e.g. https://paperless.example.com).",
-  "help.paperless_ngx.api_token": "API token for the Paperless-ngx instance. Stored in the vault."
+  "help.paperless_ngx.api_token": "API token for the Paperless-ngx instance. Stored in the vault.",
+  "help.personality.engine": "Aktiverer personlighedssystemet med stemning og mikro-træk.",
+  "help.personality.engine_v2": "Aktiverer den avancerede V2-motor med asynkron LLM-stemningsanalyse.",
+  "help.personality.v2_provider": "Vælg en udbyder til V2-personlighedsanalyse. Tom = hoved-LLM.",
+  "help.personality.v2_model": "Modelnavn til Personality Engine V2.",
+  "help.personality.v2_url": "Valgfri basis-URL til V2, f.eks. til en lokal Ollama.",
+  "help.personality.v2_api_key": "Valgfri API-nøgle til V2-motoren.",
+  "help.personality.v2_timeout_secs": "Timeout i sekunder for det asynkrone V2 LLM-kald. Standard: 30.",
+  "help.personality.core_personality": "Aktiv personlighedsprofil, f.eks. neutral, punk, zen.",
+  "help.personality.user_profiling": "Aktiverer automatisk brugerprofil fra samtalen (kræver V2).",
+  "help.personality.user_profiling_threshold": "Mindste antal bekræftelser før et profiltræk injiceres. Standard: 2.",
+  "help.personality.emotion_synthesizer.enabled": "Aktiverer Emotion Synthesizer. Kræver Personality Engine V2.",
+  "help.personality.emotion_synthesizer.min_interval_seconds": "Minimalt interval i sekunder mellem emotionssyntese. Standard: 60.",
+  "help.personality.emotion_synthesizer.max_history_entries": "Maksimalt antal emotionshistorikposter. Standard: 100.",
+  "help.personality.emotion_synthesizer.trigger_on_mood_change": "Udløs syntese ved stemningsskift.",
+  "help.personality.emotion_synthesizer.trigger_always": "Udløs syntese efter hver V2-stemningsanalyse.",
 }

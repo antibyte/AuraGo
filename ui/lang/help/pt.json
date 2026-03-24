@@ -1,4 +1,4 @@
-{
+﻿{
   "help.agent.additional_prompt": "Texto adicional sempre anexado ao final do prompt do sistema.",
   "help.agent.allow_filesystem_write": "Quando desabilitado, apenas operações de leitura são permitidas.",
   "help.agent.allow_mcp": "⚠️ Permite ao agente conectar-se a servidores MCP externos.",
@@ -279,5 +279,20 @@
   "help.paperless_ngx.enabled": "Enables the Paperless-ngx integration for document management.",
   "help.paperless_ngx.read_only": "When enabled, the agent can only search and read documents but cannot upload, update, or delete them.",
   "help.paperless_ngx.url": "URL of the Paperless-ngx instance (e.g. https://paperless.example.com).",
-  "help.paperless_ngx.api_token": "API token for the Paperless-ngx instance. Stored in the vault."
+  "help.paperless_ngx.api_token": "API token for the Paperless-ngx instance. Stored in the vault.",
+  "help.personality.engine": "Ativa o sistema de personalidade com humor e micro-traços.",
+  "help.personality.engine_v2": "Ativa o motor V2 avançado com análise LLM assíncrona de humor.",
+  "help.personality.v2_provider": "Escolha um provedor para análise V2. Vazio = LLM principal.",
+  "help.personality.v2_model": "Nome do modelo para o Personality Engine V2.",
+  "help.personality.v2_url": "URL base opcional para V2, p.ex. para um Ollama local.",
+  "help.personality.v2_api_key": "Chave de API opcional para o motor V2.",
+  "help.personality.v2_timeout_secs": "Tempo limite em segundos para a chamada LLM assíncrona V2. Padrão: 30.",
+  "help.personality.core_personality": "Perfil de personalidade ativo, p.ex. neutral, punk, zen.",
+  "help.personality.user_profiling": "Ativa o perfil automático do usuário a partir da conversa (requer V2).",
+  "help.personality.user_profiling_threshold": "Confiança mínima antes de injetar um traço no prompt. Padrão: 2.",
+  "help.personality.emotion_synthesizer.enabled": "Ativa o Sintetizador de Emoções. Requer Personality Engine V2.",
+  "help.personality.emotion_synthesizer.min_interval_seconds": "Intervalo mínimo em segundos entre sínteses. Padrão: 60.",
+  "help.personality.emotion_synthesizer.max_history_entries": "Número máximo de entradas no histórico. Padrão: 100.",
+  "help.personality.emotion_synthesizer.trigger_on_mood_change": "Acionar síntese ao mudar de humor.",
+  "help.personality.emotion_synthesizer.trigger_always": "Acionar síntese após cada análise V2.",
 }

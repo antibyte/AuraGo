@@ -1,4 +1,4 @@
-{
+﻿{
   "help.agent.additional_prompt": "Texte arbitraire qui est toujours ajouté à la fin de l'invite système. Idéal pour les règles spécifiques à l'utilisateur, les informations contextuelles ou les instructions fixes qui doivent s'appliquer à chaque demande.",
   "help.agent.allow_filesystem_write": "Lorsqu'elle est désactivée, seules les opérations de lecture (liste, lecture) sont autorisées. Les opérations d'écriture (écriture, suppression, déplacement, mkdir…) sont bloquées.",
   "help.agent.allow_mcp": "⚠️ Zone de danger : Permet à l'agent de se connecter à des serveurs MCP externes (Model Context Protocol) et d'utiliser leurs outils. Les serveurs MCP sont des processus externes qui peuvent exécuter du code arbitraire : ajoutez uniquement des serveurs de confiance !",
@@ -277,5 +277,20 @@
   "help.paperless_ngx.enabled": "Enables the Paperless-ngx integration for document management.",
   "help.paperless_ngx.read_only": "When enabled, the agent can only search and read documents but cannot upload, update, or delete them.",
   "help.paperless_ngx.url": "URL of the Paperless-ngx instance (e.g. https://paperless.example.com).",
-  "help.paperless_ngx.api_token": "API token for the Paperless-ngx instance. Stored in the vault."
+  "help.paperless_ngx.api_token": "API token for the Paperless-ngx instance. Stored in the vault.",
+  "help.personality.engine": "Active le système de personnalité avec humeur et micro-traits.",
+  "help.personality.engine_v2": "Active le moteur V2 avancé avec analyse LLM asynchrone de l'humeur.",
+  "help.personality.v2_provider": "Choisissez un fournisseur pour l'analyse V2. Vide = LLM principal.",
+  "help.personality.v2_model": "Nom du modèle pour Personality Engine V2.",
+  "help.personality.v2_url": "URL de base optionnelle pour V2, p.ex. Ollama local.",
+  "help.personality.v2_api_key": "Clé API optionnelle pour le moteur V2.",
+  "help.personality.v2_timeout_secs": "Délai en secondes pour l'appel LLM asynchrone V2. Défaut : 30.",
+  "help.personality.core_personality": "Profil de personnalité actif, p.ex. neutral, punk, zen.",
+  "help.personality.user_profiling": "Active le profilage automatique des utilisateurs (nécessite V2).",
+  "help.personality.user_profiling_threshold": "Confiance minimale avant d'injecter un trait dans le prompt. Défaut : 2.",
+  "help.personality.emotion_synthesizer.enabled": "Active le synthétiseur émotionnel. Nécessite Personality Engine V2.",
+  "help.personality.emotion_synthesizer.min_interval_seconds": "Intervalle minimum en secondes entre synthèses. Défaut : 60.",
+  "help.personality.emotion_synthesizer.max_history_entries": "Nombre maximum d'entrées dans l'historique. Défaut : 100.",
+  "help.personality.emotion_synthesizer.trigger_on_mood_change": "Déclencher la synthèse lors d'un changement d'humeur.",
+  "help.personality.emotion_synthesizer.trigger_always": "Déclencher la synthèse après chaque analyse V2.",
 }
