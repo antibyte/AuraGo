@@ -893,11 +893,14 @@ func accessLogMiddleware(logger *slog.Logger, next http.Handler) http.Handler {
 		next.ServeHTTP(rec, r)
 		elapsed := time.Since(start).Milliseconds()
 
-		// Classify log level: 4xx/5xx responses and auth-related paths are
-		// logged at Warn level so they can be filtered easily by monitoring tools.
+		// Classify log level: 4xx/5xx responses and mutating auth-related
+		// requests (login, logout, totp) are logged at Warn level so they can
+		// be filtered easily by monitoring tools. Read-only GET requests to
+		// auth paths (e.g. /api/auth/status) are Info to avoid log noise.
 		isError := rec.status >= 400
 		isAuthPath := strings.HasPrefix(path, "/auth/") ||
 			strings.HasPrefix(path, "/api/auth/")
+		isAuthWarn := isAuthPath && (r.Method != http.MethodGet || isError)
 
 		args := []any{
 			"method", r.Method,
@@ -907,7 +910,7 @@ func accessLogMiddleware(logger *slog.Logger, next http.Handler) http.Handler {
 			"ip", ClientIP(r),
 			"user_agent", r.UserAgent(),
 		}
-		if isError || isAuthPath {
+		if isError || isAuthWarn {
 			logger.Warn("[Access]", args...)
 		} else {
 			logger.Info("[Access]", args...)

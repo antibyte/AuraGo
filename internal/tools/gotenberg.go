@@ -9,6 +9,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/textproto"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -191,6 +192,16 @@ func EnsureGotenbergRunning(dockerHost string, logger interface {
 	}
 	body, _ := json.Marshal(payload)
 	_, createCode, createErr := dockerRequest(dockerCfg, "POST", "/containers/create?name="+gotenbergContainerName, string(body))
+	if createCode == 404 {
+		// Image not present locally — pull it, then retry the create once.
+		logger.Info("[Gotenberg] Image not found locally, pulling...", "image", gotenbergImage)
+		if pullErr := pullDockerImage(dockerCfg, gotenbergImage); pullErr != nil {
+			logger.Error("[Gotenberg] Image pull failed", "image", gotenbergImage, "error", pullErr)
+			return
+		}
+		logger.Info("[Gotenberg] Image pulled successfully", "image", gotenbergImage)
+		_, createCode, createErr = dockerRequest(dockerCfg, "POST", "/containers/create?name="+gotenbergContainerName, string(body))
+	}
 	if createErr != nil || createCode != 201 {
 		logger.Error("[Gotenberg] Failed to create container", "code", createCode, "error", createErr)
 		return
@@ -202,6 +213,43 @@ func EnsureGotenbergRunning(dockerHost string, logger interface {
 		return
 	}
 	logger.Info("[Gotenberg] Container created and started", "image", gotenbergImage)
+}
+
+// pullDockerImage pulls a Docker image via the Docker Engine API.
+// Uses a dedicated HTTP client with a long timeout (10 min) since image
+// downloads can take considerable time on slow connections.
+func pullDockerImage(cfg DockerConfig, image string) error {
+	parts := strings.SplitN(image, ":", 2)
+	fromImage := parts[0]
+	tag := "latest"
+	if len(parts) == 2 {
+		tag = parts[1]
+	}
+	endpoint := "/images/create?fromImage=" + url.QueryEscape(fromImage) + "&tag=" + url.QueryEscape(tag)
+
+	// Build a dedicated long-timeout client — the shared dockerHTTPClient is
+	// only 60 s which is too short for a real image pull.
+	client := getDockerClient(cfg)
+	pullClient := &http.Client{
+		Transport: client.Transport,
+		Timeout:   10 * time.Minute,
+	}
+
+	reqURL := "http://localhost/" + dockerAPIVersion + endpoint
+	req, err := http.NewRequest(http.MethodPost, reqURL, nil)
+	if err != nil {
+		return fmt.Errorf("build pull request: %w", err)
+	}
+	resp, err := pullClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("pull request failed: %w", err)
+	}
+	defer resp.Body.Close()
+	io.ReadAll(resp.Body) // consume the streaming progress output
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("Docker returned HTTP %d during image pull", resp.StatusCode)
+	}
+	return nil
 }
 
 // gotenbergErrJSON returns a properly JSON-encoded error response.

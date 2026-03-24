@@ -23,3 +23,4 @@ Always create easy to use menus.
 All LLMs that can be choosen have to use the provider system.
 Do not use alert, use a modal instead.
 Fields that have defaut values should show those or be empty if a remark is in the describing text that default value x is used if field is empty.
+All Docker container are created and managed by the aurago backend fully automatically. Never assume the user could manage this.
