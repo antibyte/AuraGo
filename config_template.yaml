@@ -492,7 +492,8 @@ tailscale:
         hostname: aurago                    # MagicDNS hostname → aurago.tailnet-name.ts.net
         state_dir: ""                       # persistent state directory (default: data/tsnet)
         serve_http: false                   # also expose AuraGo web UI over Tailscale (default: join network only)
-        funnel: false                       # expose via Tailscale Funnel (V2 placeholder)
+        expose_homepage: false              # also expose the Homepage/Caddy web server over Tailscale on :8443
+        funnel: false                       # expose AuraGo publicly via Tailscale Funnel on :443
 cloudflare_tunnel:
     enabled: false
     readonly: false

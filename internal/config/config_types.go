@@ -726,12 +726,12 @@ type Config struct {
 	} `yaml:"webhooks"`
 	Proxmox struct {
 		Enabled  bool   `yaml:"enabled"`
-		ReadOnly bool   `yaml:"readonly"` // true = only list/status, block start/stop/reboot/suspend/snapshot
-		URL      string `yaml:"url"`      // e.g. "https://pve.example.com:8006"
-		TokenID  string `yaml:"token_id"` // e.g. "user@pam!tokenname"
-		Secret   string `yaml:"-"`        // API token secret (from vault)
-		Node     string `yaml:"node"`     // default node name (e.g. "pve")
-		Insecure bool   `yaml:"insecure"` // skip TLS verification for self-signed certs
+		ReadOnly bool   `yaml:"readonly"`         // true = only list/status, block start/stop/reboot/suspend/snapshot
+		URL      string `yaml:"url"`              // e.g. "https://pve.example.com:8006"
+		TokenID  string `yaml:"token_id"`         // e.g. "user@pam!tokenname"
+		Secret   string `yaml:"-" vault:"secret"` // API token secret (from vault)
+		Node     string `yaml:"node"`             // default node name (e.g. "pve")
+		Insecure bool   `yaml:"insecure"`         // skip TLS verification for self-signed certs
 	} `yaml:"proxmox"`
 	Ollama struct {
 		Enabled  bool   `yaml:"enabled"`
@@ -752,12 +752,13 @@ type Config struct {
 		APIKey   string `yaml:"-" vault:"api_key"` // Tailscale API key (vault-only)
 		Tailnet  string `yaml:"tailnet"`           // Tailnet name, e.g. "example.com" or "-" for default
 		TsNet    struct {
-			Enabled   bool   `yaml:"enabled"`    // enable tsnet embedded Tailscale node (independent of API integration)
-			Hostname  string `yaml:"hostname"`   // MagicDNS hostname, e.g. "aurago" → aurago.tailnet-name.ts.net
-			StateDir  string `yaml:"state_dir"`  // persistent state directory (default: data/tsnet)
-			ServeHTTP bool   `yaml:"serve_http"` // also start an HTTP/HTTPS listener (default: false = join network only)
-			Funnel    bool   `yaml:"funnel"`     // expose via Tailscale Funnel (V2 placeholder)
-			AuthKey   string `yaml:"-"`          // tsnet auth key (vault-only: tailscale_tsnet_authkey)
+			Enabled        bool   `yaml:"enabled"`         // enable tsnet embedded Tailscale node (independent of API integration)
+			Hostname       string `yaml:"hostname"`        // MagicDNS hostname, e.g. "aurago" → aurago.tailnet-name.ts.net
+			StateDir       string `yaml:"state_dir"`       // persistent state directory (default: data/tsnet)
+			ServeHTTP      bool   `yaml:"serve_http"`      // expose AuraGo's web UI over the tailnet on 443/80
+			ExposeHomepage bool   `yaml:"expose_homepage"` // expose the Homepage/Caddy web server over the tailnet on 8443
+			Funnel         bool   `yaml:"funnel"`          // expose AuraGo publicly via Tailscale Funnel on 443
+			AuthKey        string `yaml:"-"`               // tsnet auth key (vault-only: tailscale_tsnet_authkey)
 		} `yaml:"tsnet"`
 	} `yaml:"tailscale"`
 	CloudflareTunnel struct {

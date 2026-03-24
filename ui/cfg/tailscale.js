@@ -86,14 +86,41 @@ async function renderTailscaleSection(section) {
             <small style="font-size:0.72rem;color:var(--text-tertiary);">${t('config.tailscale.tsnet_state_dir_hint')}</small>
         </label>`;
 
-        // ── serve_http toggle ──
+        // ── exposure toggles ──
         const serveHTTP = tsnet.serve_http === true;
-        html += `<div style="margin-bottom:0.8rem;padding:0.75rem 1rem;border-radius:8px;border:1px solid var(--border-subtle);background:var(--bg-secondary);">
-            <div style="display:flex;align-items:center;gap:0.8rem;">
+        const exposeHomepage = tsnet.expose_homepage === true;
+        const funnel = tsnet.funnel === true;
+        const homepageCfg = configData.homepage || {};
+        html += `<div style="margin-bottom:0.8rem;padding:0.85rem 1rem;border-radius:8px;border:1px solid var(--border-subtle);background:var(--bg-secondary);">
+            <div style="font-size:0.82rem;font-weight:600;color:var(--text-primary);margin-bottom:0.55rem;">${t('config.tailscale.tsnet_exposure_title')}</div>
+            <div style="display:flex;align-items:center;gap:0.8rem;margin-bottom:0.5rem;">
                 <span style="font-size:0.85rem;color:var(--text-secondary);">${t('config.tailscale.tsnet_serve_http_label')}</span>
-                <div class="toggle ${serveHTTP ? 'on' : ''}" data-path="tailscale.tsnet.serve_http" onclick="toggleBool(this)"></div>
+                <div class="toggle ${serveHTTP ? 'on' : ''}" data-path="tailscale.tsnet.serve_http" onclick="toggleBool(this);setNestedValue(configData,'tailscale.tsnet.serve_http',this.classList.contains('on'));renderTailscaleSection(null)"></div>
             </div>
-            <small style="font-size:0.72rem;color:var(--text-tertiary);margin-top:0.3rem;display:block;">${t('config.tailscale.tsnet_serve_http_hint')}</small>
+            <small style="font-size:0.72rem;color:var(--text-tertiary);margin-bottom:0.7rem;display:block;">${t('config.tailscale.tsnet_serve_http_hint')}</small>
+
+            <div style="display:flex;align-items:center;gap:0.8rem;margin-bottom:0.5rem;">
+                <span style="font-size:0.85rem;color:var(--text-secondary);">${t('config.tailscale.tsnet_expose_homepage_label')}</span>
+                <div class="toggle ${exposeHomepage ? 'on' : ''}" data-path="tailscale.tsnet.expose_homepage" onclick="toggleBool(this);setNestedValue(configData,'tailscale.tsnet.expose_homepage',this.classList.contains('on'));renderTailscaleSection(null)"></div>
+            </div>
+            <small style="font-size:0.72rem;color:var(--text-tertiary);display:block;">${t('config.tailscale.tsnet_expose_homepage_hint')}</small>
+            ${homepageCfg.webserver_enabled ? '' : `<div style="margin-top:0.55rem;padding:0.45rem 0.7rem;border-radius:6px;background:var(--warning-bg,#3d2e00);border:1px solid var(--warning,#f9a825);font-size:0.76rem;color:var(--warning,#f9a825);">${t('config.tailscale.tsnet_homepage_requires_webserver')}</div>`}
+
+            <div style="display:flex;align-items:center;gap:0.8rem;margin-top:0.9rem;margin-bottom:0.5rem;">
+                <span style="font-size:0.85rem;color:var(--text-secondary);">${t('config.tailscale.tsnet_funnel_label')}</span>
+                <div class="toggle ${funnel ? 'on' : ''}" data-path="tailscale.tsnet.funnel" onclick="toggleBool(this);setNestedValue(configData,'tailscale.tsnet.funnel',this.classList.contains('on'));renderTailscaleSection(null)"></div>
+            </div>
+            <small style="font-size:0.72rem;color:var(--text-tertiary);display:block;">${t('config.tailscale.tsnet_funnel_hint')}</small>
+            ${serveHTTP ? '' : `<div style="margin-top:0.55rem;padding:0.45rem 0.7rem;border-radius:6px;background:var(--bg-glass);border:1px solid var(--border-subtle);font-size:0.76rem;color:var(--text-secondary);">${t('config.tailscale.tsnet_funnel_requires_web')}</div>`}
+        </div>`;
+
+        html += `<div class="wh-notice" style="margin-top:0.8rem;">
+            <span>ℹ️</span>
+            <div>
+                <strong>${t('config.tailscale.tsnet_requirements_title')}</strong><br>
+                <small>${t('config.tailscale.tsnet_https_requirements')}</small><br>
+                <small>${t('config.tailscale.tsnet_funnel_requirements')}</small>
+            </div>
         </div>`;
 
         // Auth key (vault input)
@@ -123,14 +150,6 @@ async function renderTailscaleSection(section) {
             </div>
         </div>`;
 
-        // Funnel (V2 placeholder — greyed out)
-        html += `<div style="margin-top:1rem;opacity:0.5;pointer-events:none;">
-            <div style="display:flex;align-items:center;gap:0.8rem;">
-                <span style="font-size:0.78rem;color:var(--text-secondary);">${t('config.tailscale.tsnet_funnel_label')}</span>
-                <div class="toggle" data-path="tailscale.tsnet.funnel"></div>
-            </div>
-            <small style="font-size:0.72rem;color:var(--text-tertiary);">${t('config.tailscale.tsnet_funnel_hint')}</small>
-        </div>`;
     } else {
         html += `<div class="wh-notice">
             <span>📡</span>
@@ -166,6 +185,9 @@ async function _tsnetRefreshStatus() {
         if (data.running) {
             if (data.serving_http) {
                 info += `<span style="color:var(--success);">● ${t('config.tailscale.tsnet_status_running')}</span>`;
+                if (data.funnel_active && data.public_url) {
+                    info += `<div style="margin-top:0.45rem;padding:0.45rem 0.8rem;border-radius:6px;background:var(--bg-glass);border:1px solid var(--border-subtle);font-size:0.78rem;color:var(--text-secondary);">🌍 <strong>${escapeHtml(t('config.tailscale.tsnet_public_url_label'))}:</strong> <a href="${escapeAttr(data.public_url)}" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">${escapeHtml(data.public_url)}</a></div>`;
+                }
                 if (data.http_fallback) {
                     info += `<div style="margin-top:0.5rem;padding:0.45rem 0.8rem;border-radius:6px;background:var(--warning-bg,#3d2e00);border:1px solid var(--warning,#f9a825);font-size:0.78rem;color:var(--warning,#f9a825);">
                         ⚠️ ${t('config.tailscale.tsnet_http_fallback_notice') || 'Running in HTTP mode (port 80) — enable HTTPS in the Tailscale admin panel for encrypted access.'}
@@ -178,11 +200,8 @@ async function _tsnetRefreshStatus() {
                         info += `<div style="margin-top:0.4rem;font-size:0.82rem;">🌐 <strong>URL:</strong> <a href="${escapeAttr(httpUrl)}" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">${escapeHtml(httpUrl)}</a></div>`;
                     }
                 } else {
-                    // HTTPS mode — show the https:// URL
-                    const httpsHost = (data.cert_dns && data.cert_dns.length ? data.cert_dns[0] : data.dns || '').replace(/\.$/, '');
-                    if (httpsHost) {
-                        const httpsUrl = `https://${httpsHost}`;
-                        info += `<div style="margin-top:0.4rem;font-size:0.82rem;">🌐 <strong>URL:</strong> <a href="${escapeAttr(httpsUrl)}" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">${escapeHtml(httpsUrl)}</a></div>`;
+                    if (data.web_ui_url) {
+                        info += `<div style="margin-top:0.4rem;font-size:0.82rem;">🌐 <strong>URL:</strong> <a href="${escapeAttr(data.web_ui_url)}" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">${escapeHtml(data.web_ui_url)}</a></div>`;
                     }
                 }
                 if (data.dns) info += `<br><strong>DNS:</strong> <code>${escapeHtml(data.dns)}</code>`;
@@ -194,6 +213,11 @@ async function _tsnetRefreshStatus() {
                 if (data.dns) info += `<br><strong>DNS:</strong> <code>${escapeHtml(data.dns)}</code>`;
                 if (data.ips && data.ips.length) info += `<br><strong>IPs:</strong> ${escapeHtml(data.ips.join(', '))}`;
                 info += `<div style="margin-top:0.5rem;padding:0.45rem 0.8rem;border-radius:6px;background:var(--bg-glass);border:1px solid var(--border-subtle);font-size:0.78rem;color:var(--text-secondary);">💡 ${t('config.tailscale.tsnet_network_only_hint')}</div>`;
+            }
+            if (data.homepage_serving && data.homepage_url) {
+                info += `<div style="margin-top:0.5rem;font-size:0.82rem;">🏠 <strong>${escapeHtml(t('config.tailscale.tsnet_homepage_url_label'))}:</strong> <a href="${escapeAttr(data.homepage_url)}" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">${escapeHtml(data.homepage_url)}</a></div>`;
+            } else if (data.expose_homepage) {
+                info += `<div style="margin-top:0.5rem;padding:0.45rem 0.8rem;border-radius:6px;background:var(--bg-glass);border:1px solid var(--border-subtle);font-size:0.78rem;color:var(--text-secondary);">🏠 ${t('config.tailscale.tsnet_homepage_pending_hint')}</div>`;
             }
             if (startBtn) startBtn.style.display = 'none';
         } else if (data.starting) {

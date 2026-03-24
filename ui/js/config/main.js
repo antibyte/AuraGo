@@ -71,7 +71,6 @@ const SECTIONS = [
         items: [
             { key: 's3', icon: '🪣', label: t('config.section.s3.label'), desc: t('config.section.s3.desc') },
             { key: 'webdav', icon: '☁️', label: t('config.section.webdav.label'), desc: t('config.section.webdav.desc') },
-            { key: 'onedrive', icon: '☁️', label: t('config.section.onedrive.label'), desc: t('config.section.onedrive.desc'), customRender: 'renderOneDriveSection' },
             { key: 'koofr', icon: '📦', label: t('config.section.koofr.label'), desc: t('config.section.koofr.desc') }
         ]
     },
@@ -175,7 +174,11 @@ let activeSection = localStorage.getItem('aurago-cfg-section') || 'server';
 let isDirty = false;
 let initialSnapshot = '';
 let vaultExists = false;
-const SENSITIVE_KEYS = ['api_key', 'bot_token', 'password', 'app_password', 'access_token', 'token', 'user_key', 'app_token', 'master_key'];
+const SENSITIVE_KEYS = ['api_key', 'bot_token', 'password', 'app_password', 'access_token', 'token', 'user_key', 'app_token', 'secret', 'master_key'];
+
+function hasVisibleSection(key) {
+    return SECTIONS.some(group => group.items.some(item => item.key === key));
+}
 
 // Provider management state (loaded from /api/providers)
 let providersCache = [];
@@ -216,8 +219,12 @@ async function init() {
         document.getElementById('content').innerHTML = '<div class="cfg-error-state cfg-error-state-lg">❌ ' + t('config.loading_error') + '<br><small>' + e.message + '</small></div>';
         return;
     }
+    if (!hasVisibleSection(activeSection)) {
+        activeSection = 'server';
+        localStorage.setItem('aurago-cfg-section', activeSection);
+    }
     buildSidebar();
-    selectSection(activeSection);
+    selectSection(activeSection, { scrollBehavior: 'auto' });
     // Take initial snapshot for dirty tracking after first render
     setTimeout(() => { initialSnapshot = collectSnapshot(); setDirty(false); }, 100);
 }
@@ -271,6 +278,23 @@ function saveCollapsedGroups() {
 }
 
 const collapsedGroups = loadCollapsedGroups();
+
+function scrollActiveSidebarItemIntoView(behavior = 'smooth', delay = 0) {
+    const scrollFn = () => {
+        const activeItem = document.querySelector('.sidebar-item.active');
+        if (!activeItem) return;
+        activeItem.scrollIntoView({
+            block: 'nearest',
+            inline: 'nearest',
+            behavior
+        });
+    };
+    if (delay > 0) {
+        setTimeout(scrollFn, delay);
+        return;
+    }
+    requestAnimationFrame(scrollFn);
+}
 
 function buildSidebar() {
     const sb = document.getElementById('sidebar');
@@ -348,21 +372,28 @@ function toggleGroup(groupName, groupDiv) {
     saveCollapsedGroups();
 }
 
-async function selectSection(key) {
+async function selectSection(key, options = {}) {
+    const { scrollBehavior = 'smooth' } = options;
+    if (!hasVisibleSection(key)) key = 'server';
     activeSection = key;
     localStorage.setItem('aurago-cfg-section', key);
     document.querySelectorAll('.sidebar-item').forEach(el => el.classList.toggle('active', el.dataset.section === key));
     // Auto-expand the group containing this section if it is collapsed
+    let expandedTargetGroup = false;
     for (const group of SECTIONS) {
         if (group.items.some(s => s.key === key) && collapsedGroups.has(group.group)) {
             const groupDiv = [...document.querySelectorAll('.sidebar-group')].find(
                 el => el.querySelector('.sidebar-group-title') &&
                     el.querySelector('.sidebar-group-title').textContent.trim() === group.group
             );
-            if (groupDiv) toggleGroup(group.group, groupDiv);
+            if (groupDiv) {
+                toggleGroup(group.group, groupDiv);
+                expandedTargetGroup = true;
+            }
             break;
         }
     }
+    scrollActiveSidebarItemIntoView(scrollBehavior, expandedTargetGroup ? 320 : 0);
     await renderSection(key);
     // Re-attach change listeners after rendering
     attachChangeListeners();
@@ -1071,7 +1102,6 @@ const SECTION_MODULES = {
     memory_analysis: { m: 'memory_analysis', fn: 'renderMemoryAnalysisSection' },
     llm_guardian: { m: 'llm_guardian', fn: 'renderLLMGuardianSection' },
     document_creator: { m: 'document_creator', fn: 'renderDocumentCreatorSection' },
-    onedrive: { m: 'onedrive', fn: 'renderOneDriveSection' },
     tailscale: { m: 'tailscale', fn: 'renderTailscaleSection' },
     server: { m: 'server', fn: 'renderServerSection' },
     a2a: { m: 'a2a', fn: 'renderA2ASection' },

@@ -6,6 +6,7 @@
         // ══════════════════════════════════════════════════════════════════════════════
 
         const LANG = document.documentElement.lang || 'en';
+        const HIDDEN_INTEGRATIONS = new Set(['onedrive']);
 
         // Theme is handled by shared.js (initTheme/toggleTheme); no separate init needed here.
 
@@ -1300,8 +1301,9 @@
             // Integration count
             const intEl = document.getElementById('ab-integrations');
             if (intEl && overview.integrations) {
-                const active = Object.values(overview.integrations).filter(v => v).length;
-                const total = Object.keys(overview.integrations).length;
+                const visibleIntegrations = Object.entries(overview.integrations).filter(([key]) => !HIDDEN_INTEGRATIONS.has(key));
+                const active = visibleIntegrations.filter(([, value]) => value).length;
+                const total = visibleIntegrations.length;
                 intEl.innerHTML = `🔌 <strong>${active}</strong>/${total} ${t('dashboard.agent_banner_integrations')}`;
             }
 
@@ -1362,9 +1364,9 @@
             const sec = overview.security || {};
             const m = overview.missions || {};
             const integrations = overview.integrations || {};
-
-            const activeInts = Object.values(integrations).filter(v => v).length;
-            const totalInts = Object.keys(integrations).length;
+            const visibleIntegrations = Object.entries(integrations).filter(([key]) => !HIDDEN_INTEGRATIONS.has(key));
+            const activeInts = visibleIntegrations.filter(([, value]) => value).length;
+            const totalInts = visibleIntegrations.length;
 
             const items = [
                 {
@@ -1437,7 +1439,7 @@
                 adguard: '🛡️', s3: '🪣', mcp: '🔌', mcp_server: '🔌',
                 memory_analysis: '🧠', llm_guardian: '🛡️', security_proxy: '🔐',
                 sandbox: '📦', ai_gateway: '🌐', image_generation: '🎨',
-                google_workspace: '📧', onedrive: '☁️', netlify: '🚀',
+                google_workspace: '📧', netlify: '🚀',
                 homepage: '🏠', virustotal: '🦠', brave_search: '🔍',
                 firewall: '🔥', remote_control: '🖥️', web_scraper: '🕷️'
             };
@@ -1468,7 +1470,7 @@
                 sandbox: t('dashboard.integration_sandbox'), ai_gateway: t('dashboard.integration_ai_gateway'),
                 image_generation: t('dashboard.integration_image_generation'),
                 google_workspace: t('dashboard.integration_google_workspace'),
-                onedrive: t('dashboard.integration_onedrive'), netlify: t('dashboard.integration_netlify'),
+                netlify: t('dashboard.integration_netlify'),
                 homepage: t('dashboard.integration_homepage'), virustotal: t('dashboard.integration_virustotal'),
                 brave_search: t('dashboard.integration_brave_search'), firewall: t('dashboard.integration_firewall'),
                 remote_control: t('dashboard.integration_remote_control'),
@@ -1476,7 +1478,9 @@
             };
 
             // Sort: active first
-            const sorted = Object.entries(overview.integrations).sort((a, b) => (b[1] ? 1 : 0) - (a[1] ? 1 : 0));
+            const sorted = Object.entries(overview.integrations)
+                .filter(([key]) => !HIDDEN_INTEGRATIONS.has(key))
+                .sort((a, b) => (b[1] ? 1 : 0) - (a[1] ? 1 : 0));
             grid.innerHTML = sorted.map(([key, active]) => {
                 let cls = active ? 'active' : 'inactive';
                 // MQTT: distinguish "enabled but disconnected" from "enabled and connected"

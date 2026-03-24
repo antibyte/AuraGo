@@ -7,7 +7,10 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -19,16 +22,18 @@ import (
 
 // Status represents the current state of the tsnet node.
 type Status struct {
-	Running      bool     `json:"running"`
-	Starting     bool     `json:"starting,omitempty"`      // waiting for interactive auth / cert issuance
-	ServingHTTP  bool     `json:"serving_http"`            // true only when an HTTP/HTTPS listener is active
-	HTTPFallback bool     `json:"http_fallback,omitempty"` // true when running HTTP (no TLS) because HTTPS certs not enabled
-	Hostname     string   `json:"hostname,omitempty"`
-	DNS          string   `json:"dns,omitempty"`
-	IPs          []string `json:"ips,omitempty"`
-	CertDNS      []string `json:"cert_dns,omitempty"`
-	Error        string   `json:"error,omitempty"`
-	LoginURL     string   `json:"login_url,omitempty"`
+	Running         bool     `json:"running"`
+	Starting        bool     `json:"starting,omitempty"`         // waiting for interactive auth / cert issuance
+	ServingHTTP     bool     `json:"serving_http"`               // true when AuraGo itself is exposed on 443/80
+	HomepageServing bool     `json:"homepage_serving,omitempty"` // true when Homepage/Caddy is exposed on 8443
+	HTTPFallback    bool     `json:"http_fallback,omitempty"`    // true when AuraGo runs HTTP (no TLS) because HTTPS certs not enabled
+	FunnelActive    bool     `json:"funnel_active,omitempty"`    // true when the AuraGo listener is exposed via Funnel
+	Hostname        string   `json:"hostname,omitempty"`
+	DNS             string   `json:"dns,omitempty"`
+	IPs             []string `json:"ips,omitempty"`
+	CertDNS         []string `json:"cert_dns,omitempty"`
+	Error           string   `json:"error,omitempty"`
+	LoginURL        string   `json:"login_url,omitempty"`
 }
 
 // Manager manages a tsnet embedded Tailscale node.
@@ -40,10 +45,14 @@ type Manager struct {
 	server       *tsnet.Server
 	listener     net.Listener
 	httpSrv      *http.Server
+	homepageLn   net.Listener
+	homepageSrv  *http.Server
 	running      bool
 	starting     bool // true while Start() is blocked waiting for tsnet auth / certs
 	servingHTTP  bool // true when an HTTP/HTTPS listener is active
+	homepageUp   bool // true when the homepage proxy listener is active
 	httpFallback bool // true when serving HTTP (no TLS) instead of HTTPS
+	funnelActive bool // true when the AuraGo listener is exposed via Tailscale Funnel
 	lastErr      string
 
 	// loginURL is the Tailscale auth URL when the node needs interactive login.
@@ -66,7 +75,7 @@ func (m *Manager) UpdateConfig(cfg *config.Config) {
 }
 
 // Start initializes the tsnet server and begins serving.
-// The provided handler will be served over HTTPS via the Tailscale cert.
+// The provided handler is AuraGo's authenticated web UI/API handler.
 func (m *Manager) Start(handler http.Handler) error {
 	m.mu.Lock()
 	if m.running {
@@ -205,79 +214,47 @@ func (m *Manager) Start(handler http.Handler) error {
 	// the Tailscale interface (the behaviour that existed before this feature).
 
 	if !tsCfg.ServeHTTP {
-		// Network-only mode: node is connected, no listener.
+		// Network-only mode: node is connected, no listener yet unless Homepage
+		// exposure is enabled below via ReconfigureExposure.
 		m.mu.Lock()
 		m.server = srv
 		m.listener = nil
 		m.httpSrv = nil
+		m.homepageLn = nil
+		m.homepageSrv = nil
 		m.running = true
 		m.starting = false
 		m.lastErr = ""
 		m.servingHTTP = false
+		m.homepageUp = false
 		m.httpFallback = false
+		m.funnelActive = false
 		m.mu.Unlock()
-		m.logger.Info("tsnet node connected (network-only mode — web UI not exposed over Tailscale)", "hostname", hostname)
-		return nil
+	} else {
+		m.mu.Lock()
+		m.server = srv
+		m.running = true
+		m.starting = false
+		m.lastErr = ""
+		m.mu.Unlock()
 	}
 
-	// serve_http: true — also start an HTTP/HTTPS listener.
-	// Try HTTPS first (requires Tailscale HTTPS certificates to be enabled in the admin panel).
-	// Fall back to plain HTTP on port 80 on any error — the exact error text from
-	// the Tailscale control plane is not stable and string-matching is unreliable.
-	usingHTTP := false
-	ln, err := listenTLSWithTimeout(srv, ":443", 15*time.Second)
-	if err != nil {
-		m.logger.Warn("[tsnet] HTTPS not available — falling back to HTTP on :80",
-			"reason", err,
-			"hint", "Enable HTTPS in the Tailscale admin panel for encrypted access")
-		ln, err = srv.Listen("tcp", ":80")
-		usingHTTP = true
-		if err != nil {
-			srv.Close()
-			m.mu.Lock()
-			m.server = nil
-			m.mu.Unlock()
-			cleanup(err.Error())
-			return fmt.Errorf("failed to listen on tsnet (HTTP fallback also failed): %w", err)
+	if err := m.ReconfigureExposure(handler); err != nil {
+		m.mu.Lock()
+		if m.server != nil {
+			m.server.Close()
 		}
+		m.server = nil
+		m.running = false
+		m.starting = false
+		m.mu.Unlock()
+		cleanup(err.Error())
+		return err
 	}
 
-	httpSrv := &http.Server{
-		Handler:      handler,
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 5 * time.Minute,
-		IdleTimeout:  2 * time.Minute,
+	if !tsCfg.ServeHTTP && !tsCfg.ExposeHomepage {
+		m.logger.Info("tsnet node connected (network-only mode — no web services exposed over Tailscale)", "hostname", hostname)
 	}
-	if !usingHTTP {
-		httpSrv.TLSConfig = &tls.Config{MinVersion: tls.VersionTLS12}
-	}
-
-	// Re-acquire m.mu to commit the final running state.
-	m.mu.Lock()
-	m.server = srv
-	m.listener = ln
-	m.httpSrv = httpSrv
-	m.running = true
-	m.starting = false
-	m.lastErr = ""
-	m.servingHTTP = true
-	m.httpFallback = usingHTTP
-	m.mu.Unlock()
-
-	proto := "HTTPS"
-	if usingHTTP {
-		proto = "HTTP (fallback — enable HTTPS in Tailscale admin for encrypted access)"
-	}
-	go func() {
-		m.logger.Info("tsnet server listening", "hostname", hostname, "protocol", proto)
-		if err := httpSrv.Serve(ln); err != nil && err != http.ErrServerClosed {
-			m.logger.Error("tsnet server error", "error", err)
-			m.mu.Lock()
-			m.lastErr = err.Error()
-			m.running = false
-			m.mu.Unlock()
-		}
-	}()
 
 	return nil
 }
@@ -297,6 +274,9 @@ func (m *Manager) Stop() error {
 	if m.httpSrv != nil {
 		m.httpSrv.Shutdown(ctx)
 	}
+	if m.homepageSrv != nil {
+		m.homepageSrv.Shutdown(ctx)
+	}
 	if m.server != nil {
 		m.server.Close()
 	}
@@ -305,8 +285,12 @@ func (m *Manager) Stop() error {
 	m.server = nil
 	m.listener = nil
 	m.httpSrv = nil
+	m.homepageLn = nil
+	m.homepageSrv = nil
 	m.servingHTTP = false
+	m.homepageUp = false
 	m.httpFallback = false
+	m.funnelActive = false
 	m.logger.Info("tsnet node stopped")
 	return nil
 }
@@ -317,11 +301,13 @@ func (m *Manager) GetStatus() Status {
 	defer m.mu.Unlock()
 
 	st := Status{
-		Running:      m.running,
-		Starting:     m.starting,
-		ServingHTTP:  m.servingHTTP,
-		HTTPFallback: m.httpFallback,
-		Hostname:     m.cfg.Tailscale.TsNet.Hostname,
+		Running:         m.running,
+		Starting:        m.starting,
+		ServingHTTP:     m.servingHTTP,
+		HomepageServing: m.homepageUp,
+		HTTPFallback:    m.httpFallback,
+		FunnelActive:    m.funnelActive,
+		Hostname:        m.cfg.Tailscale.TsNet.Hostname,
 	}
 
 	if m.lastErr != "" {
@@ -363,36 +349,127 @@ func (m *Manager) GetStatus() Status {
 	return st
 }
 
-// UpgradeToHTTP attaches an HTTP/HTTPS listener to an already-running
-// network-only tsnet node without disconnecting from Tailscale.
-// It is a no-op when the node is already serving HTTP.
-func (m *Manager) UpgradeToHTTP(handler http.Handler) error {
+// ReconfigureExposure reconciles the active Tailscale listeners with the
+// current config without disconnecting the node from the tailnet.
+func (m *Manager) ReconfigureExposure(handler http.Handler) error {
 	m.mu.Lock()
 	if !m.running {
 		m.mu.Unlock()
 		return fmt.Errorf("tsnet node is not running")
-	}
-	if m.servingHTTP {
-		m.mu.Unlock()
-		return nil // already serving, nothing to do
 	}
 	srv := m.server
 	if srv == nil {
 		m.mu.Unlock()
 		return fmt.Errorf("tsnet server reference is nil")
 	}
+	servingHTTP := m.servingHTTP
+	homepageUp := m.homepageUp
+	funnelActive := m.funnelActive
 	m.mu.Unlock()
 
+	wantMain := m.cfg.Tailscale.TsNet.ServeHTTP
+	wantFunnel := wantMain && m.cfg.Tailscale.TsNet.Funnel
+	wantHomepage := m.cfg.Tailscale.TsNet.ExposeHomepage && m.cfg.Homepage.WebServerEnabled && m.cfg.Homepage.WebServerPort > 0
+
+	if servingHTTP && (!wantMain || funnelActive != wantFunnel) {
+		if err := m.stopMainListener(); err != nil {
+			return err
+		}
+		servingHTTP = false
+		funnelActive = false
+	}
+	if homepageUp && !wantHomepage {
+		if err := m.stopHomepageListener(); err != nil {
+			return err
+		}
+		homepageUp = false
+	}
+
+	if wantMain && !servingHTTP {
+		if err := m.startMainListener(srv, handler); err != nil {
+			return err
+		}
+	}
+	if wantHomepage && !homepageUp {
+		if err := m.startHomepageListener(srv); err != nil {
+			m.logger.Warn("[tsnet] Homepage exposure could not be started", "error", err)
+			m.mu.Lock()
+			m.lastErr = err.Error()
+			m.mu.Unlock()
+		}
+	}
+
+	m.mu.Lock()
+	if (!wantMain || m.servingHTTP) && (!wantHomepage || m.homepageUp) && (!wantFunnel || m.funnelActive) {
+		m.lastErr = ""
+	}
+	m.mu.Unlock()
+
+	return nil
+}
+
+// UpgradeToHTTP keeps backward compatibility for the existing callers.
+func (m *Manager) UpgradeToHTTP(handler http.Handler) error {
+	return m.ReconfigureExposure(handler)
+}
+
+// DowngradeToNetworkOnly stops the HTTP/HTTPS listener but keeps the tsnet
+// node connected to the Tailscale network.  It is a no-op when the node is
+// already running in network-only mode.
+func (m *Manager) DowngradeToNetworkOnly() error {
+	m.mu.Lock()
+	servingHTTP := m.servingHTTP
+	homepageUp := m.homepageUp
+	m.mu.Unlock()
+
+	if !servingHTTP && !homepageUp {
+		return nil
+	}
+	if err := m.stopMainListener(); err != nil {
+		return err
+	}
+	if err := m.stopHomepageListener(); err != nil {
+		return err
+	}
+	m.logger.Info("[tsnet] Downgraded to network-only mode (HTTP listener stopped)")
+	return nil
+}
+
+func (m *Manager) startMainListener(srv *tsnet.Server, handler http.Handler) error {
+	wantFunnel := m.cfg.Tailscale.TsNet.Funnel
 	usingHTTP := false
-	ln, err := listenTLSWithTimeout(srv, ":443", 15*time.Second)
-	if err != nil {
-		m.logger.Warn("[tsnet] HTTPS not available — falling back to HTTP on :80",
-			"reason", err,
-			"hint", "Enable HTTPS in the Tailscale admin panel for encrypted access")
-		ln, err = srv.Listen("tcp", ":80")
-		usingHTTP = true
+	usingFunnel := false
+
+	var (
+		ln  net.Listener
+		err error
+	)
+
+	if wantFunnel {
+		ln, err = listenFunnelWithTimeout(srv, ":443", 20*time.Second)
 		if err != nil {
-			return fmt.Errorf("failed to start tsnet listener (HTTP fallback also failed): %w", err)
+			m.logger.Warn("[tsnet] Funnel not available — falling back to tailnet-only HTTPS/HTTP exposure",
+				"reason", err,
+				"hint", "Enable Funnel in Tailscale and HTTPS certificates in the admin panel for public access")
+			m.mu.Lock()
+			m.lastErr = err.Error()
+			m.mu.Unlock()
+		} else {
+			usingFunnel = true
+		}
+	}
+
+	if ln == nil {
+		ln, err = listenTLSWithTimeout(srv, ":443", 15*time.Second)
+		if err != nil {
+			m.logger.Warn("[tsnet] HTTPS not available — falling back to HTTP on :80",
+				"reason", err,
+				"hint", "Enable HTTPS in the Tailscale admin panel for encrypted access")
+			ln, err = srv.Listen("tcp", ":80")
+			usingHTTP = true
+			if err != nil {
+				return fmt.Errorf("failed to listen on tsnet (HTTP fallback also failed): %w", err)
+			}
 		}
 	}
 
@@ -411,50 +488,126 @@ func (m *Manager) UpgradeToHTTP(handler http.Handler) error {
 	m.httpSrv = httpSrv
 	m.servingHTTP = true
 	m.httpFallback = usingHTTP
+	m.funnelActive = usingFunnel
+	if !usingFunnel && !wantFunnel {
+		m.lastErr = ""
+	}
 	m.mu.Unlock()
 
 	proto := "HTTPS"
-	if usingHTTP {
+	if usingFunnel {
+		proto = "HTTPS + Funnel"
+	} else if usingHTTP {
 		proto = "HTTP (fallback — enable HTTPS in Tailscale admin for encrypted access)"
 	}
 	go func() {
-		m.logger.Info("tsnet HTTP server started (upgraded from network-only)", "protocol", proto)
+		m.logger.Info("tsnet AuraGo listener started", "protocol", proto)
 		if err := httpSrv.Serve(ln); err != nil && err != http.ErrServerClosed {
-			m.logger.Error("tsnet HTTP server error", "error", err)
+			m.logger.Error("tsnet AuraGo listener error", "error", err)
 			m.mu.Lock()
 			m.lastErr = err.Error()
 			m.servingHTTP = false
+			m.httpFallback = false
+			m.funnelActive = false
 			m.mu.Unlock()
 		}
 	}()
+
 	return nil
 }
 
-// DowngradeToNetworkOnly stops the HTTP/HTTPS listener but keeps the tsnet
-// node connected to the Tailscale network.  It is a no-op when the node is
-// already running in network-only mode.
-func (m *Manager) DowngradeToNetworkOnly() error {
+func (m *Manager) stopMainListener() error {
 	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if !m.servingHTTP {
-		return nil // already network-only
-	}
+	httpSrv := m.httpSrv
+	ln := m.listener
+	m.httpSrv = nil
+	m.listener = nil
+	m.servingHTTP = false
+	m.httpFallback = false
+	m.funnelActive = false
+	m.mu.Unlock()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+	if httpSrv != nil {
+		if err := httpSrv.Shutdown(ctx); err != nil {
+			return fmt.Errorf("shutdown tsnet AuraGo listener: %w", err)
+		}
+	}
+	if ln != nil {
+		if err := ln.Close(); err != nil && !strings.Contains(strings.ToLower(err.Error()), "closed") {
+			return fmt.Errorf("close tsnet AuraGo listener: %w", err)
+		}
+	}
+	return nil
+}
 
-	if m.httpSrv != nil {
-		m.httpSrv.Shutdown(ctx) //nolint:errcheck
-		m.httpSrv = nil
+func (m *Manager) startHomepageListener(srv *tsnet.Server) error {
+	targetURL, err := url.Parse("http://127.0.0.1:" + strconv.Itoa(m.cfg.Homepage.WebServerPort))
+	if err != nil {
+		return fmt.Errorf("invalid homepage proxy target: %w", err)
 	}
-	if m.listener != nil {
-		m.listener.Close()
-		m.listener = nil
+
+	ln, err := listenTLSWithTimeout(srv, ":8443", 15*time.Second)
+	if err != nil {
+		return fmt.Errorf("homepage exposure requires Tailscale HTTPS on :8443: %w", err)
 	}
-	m.servingHTTP = false
-	m.httpFallback = false
-	m.logger.Info("[tsnet] Downgraded to network-only mode (HTTP listener stopped)")
+
+	proxy := httputil.NewSingleHostReverseProxy(targetURL)
+	proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, proxyErr error) {
+		m.logger.Warn("[tsnet] Homepage reverse proxy failed", "error", proxyErr)
+		http.Error(w, "Homepage backend unavailable", http.StatusBadGateway)
+	}
+
+	homepageSrv := &http.Server{
+		Handler:      proxy,
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 5 * time.Minute,
+		IdleTimeout:  2 * time.Minute,
+		TLSConfig:    &tls.Config{MinVersion: tls.VersionTLS12},
+	}
+
+	m.mu.Lock()
+	m.homepageLn = ln
+	m.homepageSrv = homepageSrv
+	m.homepageUp = true
+	m.mu.Unlock()
+
+	go func() {
+		m.logger.Info("tsnet Homepage listener started", "protocol", "HTTPS", "target", targetURL.String(), "port", 8443)
+		if err := homepageSrv.Serve(ln); err != nil && err != http.ErrServerClosed {
+			m.logger.Error("tsnet Homepage listener error", "error", err)
+			m.mu.Lock()
+			m.lastErr = err.Error()
+			m.homepageUp = false
+			m.mu.Unlock()
+		}
+	}()
+
+	return nil
+}
+
+func (m *Manager) stopHomepageListener() error {
+	m.mu.Lock()
+	httpSrv := m.homepageSrv
+	ln := m.homepageLn
+	m.homepageSrv = nil
+	m.homepageLn = nil
+	m.homepageUp = false
+	m.mu.Unlock()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if httpSrv != nil {
+		if err := httpSrv.Shutdown(ctx); err != nil {
+			return fmt.Errorf("shutdown tsnet Homepage listener: %w", err)
+		}
+	}
+	if ln != nil {
+		if err := ln.Close(); err != nil && !strings.Contains(strings.ToLower(err.Error()), "closed") {
+			return fmt.Errorf("close tsnet Homepage listener: %w", err)
+		}
+	}
 	return nil
 }
 
@@ -475,6 +628,24 @@ func listenTLSWithTimeout(srv *tsnet.Server, addr string, timeout time.Duration)
 		return r.ln, r.err
 	case <-time.After(timeout):
 		return nil, fmt.Errorf("ListenTLS timed out after %s (HTTPS cert not ready)", timeout)
+	}
+}
+
+func listenFunnelWithTimeout(srv *tsnet.Server, addr string, timeout time.Duration) (net.Listener, error) {
+	type result struct {
+		ln  net.Listener
+		err error
+	}
+	ch := make(chan result, 1)
+	go func() {
+		ln, err := srv.ListenFunnel("tcp", addr)
+		ch <- result{ln, err}
+	}()
+	select {
+	case r := <-ch:
+		return r.ln, r.err
+	case <-time.After(timeout):
+		return nil, fmt.Errorf("ListenFunnel timed out after %s", timeout)
 	}
 }
 

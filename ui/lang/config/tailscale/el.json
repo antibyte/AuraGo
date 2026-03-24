@@ -36,7 +36,18 @@
   "config.tailscale.tsnet_disabled_notice": "Το tsnet είναι απενεργοποιημένο",
   "config.tailscale.tsnet_disabled_desc": "Ενεργοποιήστε για εγγραφή του AuraGo ως κόμβο στο δίκτυο Tailscale σας. Προαιρετικά εκθέστε το Web UI μέσω Tailscale ενεργοποιώντας \"Έκθεση Web UI μέσω Tailscale\".",
   "config.tailscale.tsnet_funnel_label": "Tailscale Funnel",
-  "config.tailscale.tsnet_funnel_hint": "Εκθέστε το AuraGo στο δημόσιο διαδίκτυο μέσω Tailscale Funnel (σύντομα στο V2)",
+  "config.tailscale.tsnet_funnel_hint": "Expose AuraGo securely on the public internet via Tailscale Funnel. AuraGo login stays active.",
   "config.tailscale.tsnet_needs_login": "Απαιτείται σύνδεση – ανοίξτε τον σύνδεσμο για να συνδεθείτε στο δίκτυο Tailscale",
-  "config.tailscale.tsnet_http_fallback_notice": "Εκτελείται σε λειτουργία HTTP (θύρα 80) — ενεργοποιήστε το HTTPS στον πίνακα διαχείρισης Tailscale."
+  "config.tailscale.tsnet_http_fallback_notice": "Εκτελείται σε λειτουργία HTTP (θύρα 80) — ενεργοποιήστε το HTTPS στον πίνακα διαχείρισης Tailscale.",
+  "config.tailscale.tsnet_exposure_title": "Service Exposure",
+  "config.tailscale.tsnet_expose_homepage_label": "Expose Homepage over Tailscale",
+  "config.tailscale.tsnet_expose_homepage_hint": "Publishes the Homepage/Caddy web server on your tailnet via HTTPS on port 8443.",
+  "config.tailscale.tsnet_homepage_requires_webserver": "Homepage exposure needs the Homepage web server to be enabled first.",
+  "config.tailscale.tsnet_funnel_requires_web": "Funnel only applies to the AuraGo web UI exposure on port 443.",
+  "config.tailscale.tsnet_public_url_label": "Public URL",
+  "config.tailscale.tsnet_homepage_url_label": "Homepage URL",
+  "config.tailscale.tsnet_homepage_pending_hint": "Homepage exposure is enabled. If no URL appears, make sure the Homepage web server is running and Tailscale HTTPS is enabled.",
+  "config.tailscale.tsnet_requirements_title": "Requirements for HTTPS and Funnel",
+  "config.tailscale.tsnet_https_requirements": "HTTPS over Tailscale needs MagicDNS plus HTTPS certificates to be enabled for this node in the Tailscale admin panel. If certificates are not available yet, AuraGo falls back to HTTP on port 80.",
+  "config.tailscale.tsnet_funnel_requirements": "Funnel additionally needs Tailscale Funnel to be enabled for this tailnet and node. Funnel only applies to the AuraGo web UI on port 443 and keeps AuraGo login protection active."
 }

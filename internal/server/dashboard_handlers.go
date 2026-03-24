@@ -839,7 +839,6 @@ func handleDashboardOverview(s *Server) http.HandlerFunc {
 			"ai_gateway":       cfg.AIGateway.Enabled,
 			"image_generation": cfg.ImageGeneration.Enabled,
 			"google_workspace": cfg.GoogleWorkspace.Enabled,
-			"onedrive":         cfg.OneDrive.Enabled,
 			"netlify":          cfg.Netlify.Enabled,
 			"homepage":         cfg.Homepage.Enabled,
 			"virustotal":       cfg.VirusTotal.Enabled,

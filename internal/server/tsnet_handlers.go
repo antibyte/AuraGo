@@ -2,7 +2,9 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"strings"
 )
 
 // handleTsNetStatus returns the current status of the tsnet embedded node.
@@ -23,20 +25,50 @@ func handleTsNetStatus(s *Server) http.HandlerFunc {
 		}
 
 		status := s.TsNetManager.GetStatus()
+		host := ""
+		if len(status.CertDNS) > 0 {
+			host = status.CertDNS[0]
+		} else if status.DNS != "" {
+			host = status.DNS
+		}
+		host = strings.TrimSuffix(host, ".")
+		webUIURL := ""
+		homepageURL := ""
+		publicURL := ""
+		if host != "" && status.ServingHTTP {
+			scheme := "https"
+			if status.HTTPFallback {
+				scheme = "http"
+			}
+			webUIURL = fmt.Sprintf("%s://%s", scheme, host)
+			if status.FunnelActive {
+				publicURL = "https://" + host
+			}
+		}
+		if host != "" && status.HomepageServing {
+			homepageURL = fmt.Sprintf("https://%s:8443", host)
+		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"enabled":       s.Cfg.Tailscale.TsNet.Enabled,
-			"serve_http":    s.Cfg.Tailscale.TsNet.ServeHTTP,
-			"running":       status.Running,
-			"starting":      status.Starting,
-			"serving_http":  status.ServingHTTP,
-			"http_fallback": status.HTTPFallback,
-			"hostname":      status.Hostname,
-			"dns":           status.DNS,
-			"ips":           status.IPs,
-			"cert_dns":      status.CertDNS,
-			"error":         status.Error,
-			"login_url":     status.LoginURL,
+			"enabled":          s.Cfg.Tailscale.TsNet.Enabled,
+			"serve_http":       s.Cfg.Tailscale.TsNet.ServeHTTP,
+			"expose_homepage":  s.Cfg.Tailscale.TsNet.ExposeHomepage,
+			"funnel":           s.Cfg.Tailscale.TsNet.Funnel,
+			"running":          status.Running,
+			"starting":         status.Starting,
+			"serving_http":     status.ServingHTTP,
+			"homepage_serving": status.HomepageServing,
+			"http_fallback":    status.HTTPFallback,
+			"funnel_active":    status.FunnelActive,
+			"hostname":         status.Hostname,
+			"dns":              status.DNS,
+			"ips":              status.IPs,
+			"cert_dns":         status.CertDNS,
+			"web_ui_url":       webUIURL,
+			"homepage_url":     homepageURL,
+			"public_url":       publicURL,
+			"error":            status.Error,
+			"login_url":        status.LoginURL,
 		})
 	}
 }
@@ -75,13 +107,12 @@ func handleTsNetStart(s *Server) http.HandlerFunc {
 			return
 		}
 
-		// If the node is already running in network-only mode but serve_http was
-		// just enabled in config, upgrade the live node to serving mode in-place
-		// instead of failing with "already running".
-		if st := s.TsNetManager.GetStatus(); st.Running && !st.ServingHTTP && s.Cfg.Tailscale.TsNet.ServeHTTP {
+		// If the node is already running, reconcile the active listeners with the
+		// current config in-place instead of failing with "already running".
+		if st := s.TsNetManager.GetStatus(); st.Running {
 			go func() {
-				if err := s.TsNetManager.UpgradeToHTTP(handler); err != nil {
-					s.Logger.Error("[tsnet] HTTP upgrade failed", "error", err)
+				if err := s.TsNetManager.ReconfigureExposure(handler); err != nil {
+					s.Logger.Error("[tsnet] exposure reconfigure failed", "error", err)
 				}
 			}()
 			w.Header().Set("Content-Type", "application/json")

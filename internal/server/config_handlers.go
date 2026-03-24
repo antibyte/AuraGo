@@ -460,22 +460,25 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				}
 			}
 
-			// Auto-upgrade/downgrade tsnet HTTP serving when serve_http changes
+			// Reconcile tsnet exposure live when the web exposure toggles change
 			// while the node is already connected to the Tailscale network.
-			if s.TsNetManager != nil && oldCfg.Tailscale.TsNet.ServeHTTP != newCfg.Tailscale.TsNet.ServeHTTP {
+			tsExposeChanged := oldCfg.Tailscale.TsNet.ServeHTTP != newCfg.Tailscale.TsNet.ServeHTTP ||
+				oldCfg.Tailscale.TsNet.ExposeHomepage != newCfg.Tailscale.TsNet.ExposeHomepage ||
+				oldCfg.Tailscale.TsNet.Funnel != newCfg.Tailscale.TsNet.Funnel ||
+				oldCfg.Homepage.WebServerEnabled != newCfg.Homepage.WebServerEnabled ||
+				oldCfg.Homepage.WebServerPort != newCfg.Homepage.WebServerPort
+			if s.TsNetManager != nil && tsExposeChanged {
 				tsStatus := s.TsNetManager.GetStatus()
 				if tsStatus.Running {
-					if newCfg.Tailscale.TsNet.ServeHTTP && !tsStatus.ServingHTTP {
-						if s.tsNetHandler != nil {
-							go func() {
-								if err := s.TsNetManager.UpgradeToHTTP(s.tsNetHandler); err != nil {
-									s.Logger.Warn("[Config UI] tsnet HTTP upgrade failed", "error", err)
-								} else {
-									s.Logger.Info("[Config UI] tsnet upgraded to HTTP-serving mode")
-								}
-							}()
-						}
-					} else if !newCfg.Tailscale.TsNet.ServeHTTP && tsStatus.ServingHTTP {
+					if s.tsNetHandler != nil {
+						go func() {
+							if err := s.TsNetManager.ReconfigureExposure(s.tsNetHandler); err != nil {
+								s.Logger.Warn("[Config UI] tsnet exposure reconfigure failed", "error", err)
+							} else {
+								s.Logger.Info("[Config UI] tsnet exposure reconfigured")
+							}
+						}()
+					} else if !newCfg.Tailscale.TsNet.ServeHTTP && !newCfg.Tailscale.TsNet.ExposeHomepage {
 						go func() {
 							if err := s.TsNetManager.DowngradeToNetworkOnly(); err != nil {
 								s.Logger.Warn("[Config UI] tsnet downgrade to network-only failed", "error", err)
@@ -523,6 +526,7 @@ var sensitiveKeys = map[string]bool{
 	"login_token":    true, // MeshCentral token
 	"access_key":     true, // S3 access key ID
 	"secret_key":     true, // S3 secret access key
+	"secret":         true, // Proxmox token secret and similar vault-backed secrets
 	"master_key":     true, // vault AES-256 key — never expose
 	"password_hash":  true, // auth: bcrypt hash — never expose
 	"session_secret": true, // auth: HMAC signing key — never expose
