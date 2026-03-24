@@ -1,4 +1,4 @@
-﻿{
+{
   "help.agent.additional_prompt": "Dodatecny text k promptu.",
   "help.agent.allow_filesystem_write": "Kdyz zakazano, pouze cteni.",
   "help.agent.allow_mcp": "Povoluje MCP servery.",
@@ -299,5 +299,5 @@
   "help.personality.emotion_synthesizer.min_interval_seconds": "Minimální interval v sekundách mezi syntézami emocí. Výchozí: 60.",
   "help.personality.emotion_synthesizer.max_history_entries": "Maximální počet záznamů historie emocí. Výchozí: 100.",
   "help.personality.emotion_synthesizer.trigger_on_mood_change": "Spustit syntézu při změně nálady.",
-  "help.personality.emotion_synthesizer.trigger_always": "Spustit syntézu po každé V2 analýze nálady.",
+  "help.personality.emotion_synthesizer.trigger_always": "Spustit syntézu po každé V2 analýze nálady."
 }

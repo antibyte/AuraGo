@@ -1,4 +1,4 @@
-﻿{
+{
   "help.agent.additional_prompt": "Texto adicional sempre anexado ao final do prompt do sistema.",
   "help.agent.allow_filesystem_write": "Quando desabilitado, apenas operações de leitura são permitidas.",
   "help.agent.allow_mcp": "⚠️ Permite ao agente conectar-se a servidores MCP externos.",
@@ -299,5 +299,5 @@
   "help.personality.emotion_synthesizer.min_interval_seconds": "Intervalo mínimo em segundos entre sínteses. Padrão: 60.",
   "help.personality.emotion_synthesizer.max_history_entries": "Número máximo de entradas no histórico. Padrão: 100.",
   "help.personality.emotion_synthesizer.trigger_on_mood_change": "Acionar síntese ao mudar de humor.",
-  "help.personality.emotion_synthesizer.trigger_always": "Acionar síntese após cada análise V2.",
+  "help.personality.emotion_synthesizer.trigger_always": "Acionar síntese após cada análise V2."
 }

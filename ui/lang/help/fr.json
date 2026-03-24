@@ -1,4 +1,4 @@
-﻿{
+{
   "help.agent.additional_prompt": "Texte arbitraire qui est toujours ajouté à la fin de l'invite système. Idéal pour les règles spécifiques à l'utilisateur, les informations contextuelles ou les instructions fixes qui doivent s'appliquer à chaque demande.",
   "help.agent.allow_filesystem_write": "Lorsqu'elle est désactivée, seules les opérations de lecture (liste, lecture) sont autorisées. Les opérations d'écriture (écriture, suppression, déplacement, mkdir…) sont bloquées.",
   "help.agent.allow_mcp": "⚠️ Zone de danger : Permet à l'agent de se connecter à des serveurs MCP externes (Model Context Protocol) et d'utiliser leurs outils. Les serveurs MCP sont des processus externes qui peuvent exécuter du code arbitraire : ajoutez uniquement des serveurs de confiance !",
@@ -297,5 +297,5 @@
   "help.personality.emotion_synthesizer.min_interval_seconds": "Intervalle minimum en secondes entre synthèses. Défaut : 60.",
   "help.personality.emotion_synthesizer.max_history_entries": "Nombre maximum d'entrées dans l'historique. Défaut : 100.",
   "help.personality.emotion_synthesizer.trigger_on_mood_change": "Déclencher la synthèse lors d'un changement d'humeur.",
-  "help.personality.emotion_synthesizer.trigger_always": "Déclencher la synthèse après chaque analyse V2.",
+  "help.personality.emotion_synthesizer.trigger_always": "Déclencher la synthèse après chaque analyse V2."
 }

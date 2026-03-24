@@ -1,4 +1,4 @@
-﻿{
+{
   "help.agent.additional_prompt": "Dodatecny text k promptu.",
   "help.agent.allow_filesystem_write": "Kdyz zakazano, pouze cteni.",
   "help.agent.allow_mcp": "Povoluje MCP servery.",
@@ -297,5 +297,5 @@
   "help.personality.emotion_synthesizer.min_interval_seconds": "Ελάχιστο διάστημα σε δευτερόλεπτα. Προεπιλογή: 60.",
   "help.personality.emotion_synthesizer.max_history_entries": "Μέγιστος αριθμός εγγραφών ιστορικού. Προεπιλογή: 100.",
   "help.personality.emotion_synthesizer.trigger_on_mood_change": "Ενεργοποίηση σύνθεσης κατά αλλαγή διάθεσης.",
-  "help.personality.emotion_synthesizer.trigger_always": "Ενεργοποίηση σύνθεσης μετά από κάθε ανάλυση V2.",
+  "help.personality.emotion_synthesizer.trigger_always": "Ενεργοποίηση σύνθεσης μετά από κάθε ανάλυση V2."
 }

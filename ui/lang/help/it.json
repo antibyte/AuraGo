@@ -1,4 +1,4 @@
-﻿{
+{
   "help.agent.additional_prompt": "Testo arbitrario che viene sempre aggiunto alla fine del system prompt. Ideale per regole specifiche dell'utente, informazioni di contesto o istruzioni fisse che dovrebbero applicarsi a ogni richiesta.",
   "help.agent.allow_filesystem_write": "Quando disabilitato, sono consentite solo operazioni di lettura (list, read). Le operazioni di scrittura (write, delete, move, mkdir…) sono bloccate.",
   "help.agent.allow_mcp": "⚠️ Zona Pericolo: Consente all'agente di connettersi a server MCP esterni (Model Context Protocol) e utilizzare i loro tool. I server MCP sono processi esterni che possono eseguire codice arbitrario — aggiungi solo server fidati!",
@@ -299,5 +299,5 @@
   "help.personality.emotion_synthesizer.min_interval_seconds": "Intervallo minimo in secondi tra sintesi. Predefinito: 60.",
   "help.personality.emotion_synthesizer.max_history_entries": "Numero massimo di voci nella cronologia. Predefinito: 100.",
   "help.personality.emotion_synthesizer.trigger_on_mood_change": "Attiva sintesi al cambio di umore.",
-  "help.personality.emotion_synthesizer.trigger_always": "Attiva sintesi dopo ogni analisi V2.",
+  "help.personality.emotion_synthesizer.trigger_always": "Attiva sintesi dopo ogni analisi V2."
 }

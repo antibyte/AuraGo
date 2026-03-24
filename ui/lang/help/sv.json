@@ -1,4 +1,4 @@
-﻿{
+{
   "help.agent.additional_prompt": "Dodatecny text pridany k systemovemu promptu.",
   "help.agent.allow_filesystem_write": "Kdyz zakazano, povoleny pouze operace cteni.",
   "help.agent.allow_mcp": "Umoznuje agentovi pripojit se k externim MCP serverum.",
@@ -299,5 +299,5 @@
   "help.personality.emotion_synthesizer.min_interval_seconds": "Minsta intervall i sekunder mellan synteser. Standard: 60.",
   "help.personality.emotion_synthesizer.max_history_entries": "Maximalt antal känsloohistorikposter. Standard: 100.",
   "help.personality.emotion_synthesizer.trigger_on_mood_change": "Utlös syntes vid stämningsförändring.",
-  "help.personality.emotion_synthesizer.trigger_always": "Utlös syntes efter varje V2-analys.",
+  "help.personality.emotion_synthesizer.trigger_always": "Utlös syntes efter varje V2-analys."
 }

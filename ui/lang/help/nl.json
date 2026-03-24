@@ -1,4 +1,4 @@
-﻿{
+{
   "help.agent.additional_prompt": "Extra tekst toegevoegd aan systeemprompt.",
   "help.agent.allow_filesystem_write": "Wanneer uitgeschakeld, alleen leesbewerkingen toegestaan.",
   "help.agent.allow_mcp": "⚠️ Permite ao agente conectar-se a servidores MCP externos.",
@@ -297,5 +297,5 @@
   "help.personality.emotion_synthesizer.min_interval_seconds": "Minimuminterval in seconden tussen syntheses. Standaard: 60.",
   "help.personality.emotion_synthesizer.max_history_entries": "Maximum aantal emotiegeschiedenisitems. Standaard: 100.",
   "help.personality.emotion_synthesizer.trigger_on_mood_change": "Synthese activeren bij stemmingsverandering.",
-  "help.personality.emotion_synthesizer.trigger_always": "Synthese activeren na elke V2-analyse.",
+  "help.personality.emotion_synthesizer.trigger_always": "Synthese activeren na elke V2-analyse."
 }

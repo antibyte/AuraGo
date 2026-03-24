@@ -45,7 +45,7 @@
   "config.sql_connections.new_connection": "＋ 新建连接",
   "config.sql_connections.name_required": "连接名称为必填项。",
   "config.sql_connections.database_required": "数据库名称为必填项。",
-  "config.sql_connections.delete_confirm": "确定要删除连接"{name}"吗？此操作无法撤消。",
+  "config.sql_connections.delete_confirm": "确定要删除连接\"{name}\"吗？此操作无法撤消。",
   "config.sql_connections.test_tooltip": "测试连接",
   "config.sql_connections.edit_tooltip": "编辑",
   "config.sql_connections.delete_tooltip": "删除"

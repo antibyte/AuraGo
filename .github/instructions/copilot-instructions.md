@@ -21,3 +21,5 @@ Always check if new features are relevant to the dashboard and if so, add them t
 If a field has options to choose provide a dropdown, no tect input field.
 Always create easy to use menus.
 All LLMs that can be choosen have to use the provider system.
+Do not use alert, use a modal instead.
+Fields that have defaut values should show those or be empty if a remark is in the describing text that default value x is used if field is empty.
