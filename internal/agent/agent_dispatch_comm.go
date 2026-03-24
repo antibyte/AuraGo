@@ -88,10 +88,20 @@ func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 		if err != nil {
 			return fmt.Sprintf("Tool Output: ERROR listing skills: %v", err)
 		}
-		if len(skills) == 0 {
+		// Filter out built-in skills whose backing integration is disabled in config.
+		// This prevents the agent from trying (and failing) to use skills that are
+		// not configured, and then reporting them as "not working".
+		var availableSkills []tools.SkillManifest
+		for _, s := range skills {
+			if s.Executable == "__builtin__" && !isBuiltinSkillEnabled(s.Name, cfg) {
+				continue
+			}
+			availableSkills = append(availableSkills, s)
+		}
+		if len(availableSkills) == 0 {
 			return "Tool Output: No internal skills found."
 		}
-		b, err := json.MarshalIndent(skills, "", "  ")
+		b, err := json.MarshalIndent(availableSkills, "", "  ")
 		if err != nil {
 			return fmt.Sprintf("Tool Output: ERROR serializing skills list: %v", err)
 		}
@@ -216,7 +226,7 @@ func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 			return tools.ExecuteVirusTotalScan(cfg.VirusTotal.APIKey, resource)
 		case "brave_search":
 			if !cfg.BraveSearch.Enabled {
-				return `Tool Output: {"status": "error", "message": "Brave Search integration is not enabled. Set brave_search.enabled=true in config.yaml."}`
+				return `Tool Output: {"status": "error", "message": "Brave Search integration is not enabled. Enable it in Settings \u203a Brave Search."}`
 			}
 			queryStr, _ := args["query"].(string)
 			count, ok := args["count"].(float64)
@@ -1347,6 +1357,28 @@ func upnpAutoRegister(scanJSON string, db *sql.DB, deviceType string, tags []str
 	}
 	b, _ := json.Marshal(out)
 	return string(b)
+}
+
+// isBuiltinSkillEnabled returns false for built-in skills whose backing
+// integration is disabled in config. This lets list_skills filter them out so
+// the agent never attempts to call an integration that is not available.
+func isBuiltinSkillEnabled(skillName string, cfg *config.Config) bool {
+	switch skillName {
+	case "brave_search":
+		return cfg.BraveSearch.Enabled
+	case "virustotal_scan":
+		return cfg.VirusTotal.Enabled
+	case "web_scraper":
+		return cfg.Tools.WebScraper.Enabled
+	case "pdf_extractor":
+		return cfg.Tools.PDFExtractor.Enabled
+	case "paperless":
+		return cfg.PaperlessNGX.Enabled
+	// ddg_search, wikipedia_search, git_backup_restore have no dedicated enabled flag
+	// and are always available.
+	default:
+		return true
+	}
 }
 
 // upnpParseLocation extracts the IP address and port from a UPnP location URL.

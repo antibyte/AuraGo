@@ -7,11 +7,20 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 )
 
 var braveHTTPClient = &http.Client{Timeout: 15 * time.Second}
+
+// braveStripHTML removes HTML tags from a string.
+// The Brave Search API returns descriptions with <strong> etc. markup.
+var braveHTMLTag = regexp.MustCompile(`<[^>]+>`)
+
+func braveStripHTML(s string) string {
+	return strings.TrimSpace(braveHTMLTag.ReplaceAllString(s, ""))
+}
 
 // braveWebResult is a single search result from the Brave API.
 type braveWebResult struct {
@@ -42,7 +51,7 @@ type braveResponse struct {
 // lang is the search language code (e.g. "de", "en"; empty = default).
 func ExecuteBraveSearch(apiKey, query string, count int, country, lang string) string {
 	if apiKey == "" {
-		return formatError("Brave Search API key is missing. Configure it under brave_search.api_key in the settings.")
+		return formatError("Brave Search API key is missing. Set it in Settings › Brave Search (the key is stored securely in the vault).")
 	}
 	if query == "" {
 		return formatError("query is required")
@@ -124,9 +133,9 @@ func ExecuteBraveSearch(apiKey, query string, count int, country, lang string) s
 	results := make([]map[string]interface{}, 0, len(apiResp.Web.Results))
 	for _, r := range apiResp.Web.Results {
 		entry := map[string]interface{}{
-			"title":       fmt.Sprintf("<external_data>%s</external_data>", r.Title),
+			"title":       fmt.Sprintf("<external_data>%s</external_data>", braveStripHTML(r.Title)),
 			"url":         r.URL,
-			"description": fmt.Sprintf("<external_data>%s</external_data>", r.Description),
+			"description": fmt.Sprintf("<external_data>%s</external_data>", braveStripHTML(r.Description)),
 		}
 		if r.Published != "" {
 			entry["published"] = r.Published
