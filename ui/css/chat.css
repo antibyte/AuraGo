@@ -1826,8 +1826,8 @@
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
             border-top: 1px solid var(--border-subtle);
-            padding: 0.55rem 0.85rem;
-            transition: background 0.3s;
+            padding: 0.45rem 0.75rem;
+            transition: background 0.3s, box-shadow 0.25s ease;
             position: relative;
         }
 
@@ -1835,13 +1835,18 @@
             max-width: 52rem;
             margin: 0 auto;
             display: flex;
-            gap: 0.5rem;
+            gap: 0.42rem;
             align-items: flex-end;
         }
 
         .input-wrap {
             flex: 1;
             position: relative;
+            transition: transform 0.2s ease;
+        }
+
+        .input-row:focus-within .input-wrap {
+            transform: translateY(-1px);
         }
 
         .input-wrap textarea {
@@ -1849,17 +1854,16 @@
             background: var(--bg-glass);
             border: 1px solid var(--border-subtle);
             border-radius: 14px;
-            padding: 0.72rem 1rem;
+            padding: 0.64rem 0.95rem;
             color: var(--text-primary);
             font-size: 0.9rem;
             font-family: inherit;
-            transition: border-color 0.2s, box-shadow 0.2s;
+            transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
             outline: none;
             resize: none;
             overflow-y: auto;
-            min-height: 48px;
-            max-height: calc(4 * 1.5em + 1.4rem);
-            /* 5 lines */
+            min-height: 44px;
+            max-height: calc(3 * 1.5em + 1.2rem);
             line-height: 1.5;
             box-sizing: border-box;
             scrollbar-width: thin;
@@ -1876,28 +1880,31 @@
         }
 
         .btn-send {
-            width: 44px;
-            height: 44px;
-            border-radius: 14px;
+            width: 42px;
+            height: 42px;
+            border-radius: 13px;
             border: none;
             background: linear-gradient(135deg, #2dd4bf, #0d9488);
             color: #0b0f1a;
-            font-size: 1.2rem;
+            font-size: 1.08rem;
             cursor: pointer;
             display: grid;
             place-items: center;
-            transition: transform 0.15s, box-shadow 0.2s;
+            transition: transform 0.15s, box-shadow 0.2s, filter 0.2s;
             flex-shrink: 0;
             box-shadow: 0 2px 12px rgba(45, 212, 191, 0.25);
+            position: relative;
+            overflow: hidden;
         }
 
         .btn-send:hover {
-            transform: scale(1.05);
-            box-shadow: 0 4px 20px rgba(45, 212, 191, 0.35);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 18px rgba(45, 212, 191, 0.26);
+            filter: saturate(1.05);
         }
 
         .btn-send:active {
-            transform: scale(0.95);
+            transform: scale(0.96);
         }
 
         .btn-send:disabled {
@@ -1907,13 +1914,13 @@
         }
 
         .btn-more {
-            width: 44px;
-            height: 44px;
-            border-radius: 14px;
+            width: 42px;
+            height: 42px;
+            border-radius: 13px;
             border: 1px solid var(--border-color, rgba(148, 163, 184, 0.3));
             background: rgba(148, 163, 184, 0.12);
             color: var(--text-primary, #e2e8f0);
-            font-size: 1.35rem;
+            font-size: 1.2rem;
             line-height: 1;
             cursor: pointer;
             display: grid;
@@ -1949,30 +1956,35 @@
             margin: 0;
             display: grid;
             grid-template-columns: repeat(4, minmax(0, 1fr));
-            gap: 0.55rem;
-            padding: 0.55rem;
+            gap: 0.45rem;
+            padding: 0.45rem;
             border: 1px solid var(--border-subtle);
-            border-radius: 16px;
+            border-radius: 15px;
             background: var(--bg-glass);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.14);
+            box-shadow: 0 12px 34px rgba(0, 0, 0, 0.16);
             position: absolute;
             left: 50%;
             bottom: calc(100% + 0.45rem);
             transform: translateX(-50%);
             z-index: 20;
+            animation: composerPopoverIn 0.18s ease;
+        }
+
+        .composer-panel.is-hidden {
+            display: none;
         }
 
         .composer-tool-btn {
-            min-height: 48px;
-            border-radius: 14px;
+            min-height: 44px;
+            border-radius: 13px;
             border: 1px solid var(--border-subtle);
             background: rgba(148, 163, 184, 0.1);
             color: var(--text-primary);
             display: inline-flex;
             align-items: center;
             justify-content: flex-start;
-            gap: 0.65rem;
-            padding: 0.7rem 0.85rem;
+            gap: 0.55rem;
+            padding: 0.62rem 0.78rem;
             text-align: left;
             cursor: pointer;
             transition: all 0.2s ease;
@@ -2032,26 +2044,31 @@
             margin: 0;
             display: flex;
             flex-wrap: wrap;
-            gap: 0.5rem;
+            gap: 0.4rem;
             justify-content: center;
-            padding: 0.55rem;
+            padding: 0.45rem;
             border: 1px solid var(--border-subtle);
-            border-radius: 16px;
+            border-radius: 15px;
             background: var(--bg-glass);
             position: absolute;
             left: 50%;
             bottom: calc(100% + 0.45rem);
             transform: translateX(-50%);
             z-index: 20;
+            animation: composerPopoverIn 0.18s ease;
+        }
+
+        .mood-feedback-row.is-hidden {
+            display: none;
         }
 
         .mood-btn {
-            width: 38px;
-            height: 38px;
+            width: 36px;
+            height: 36px;
             border-radius: 50%;
             border: 1px solid var(--border-subtle);
             background: var(--bg-glass);
-            font-size: 1.15rem;
+            font-size: 1.05rem;
             cursor: pointer;
             display: grid;
             place-items: center;
@@ -2116,17 +2133,17 @@
 
         .btn-upload,
         .btn-voice {
-            width: 44px;
-            height: 44px;
-            border-radius: 14px;
+            width: 42px;
+            height: 42px;
+            border-radius: 13px;
             border: 1px solid var(--border-color, rgba(148, 163, 184, 0.3));
             background: rgba(148, 163, 184, 0.12);
             color: var(--text-primary, #e2e8f0);
-            font-size: 1.2rem;
+            font-size: 1.08rem;
             cursor: pointer;
             display: grid;
             place-items: center;
-            transition: all 0.2s;
+            transition: all 0.2s ease;
             flex-shrink: 0;
         }
 
@@ -2135,6 +2152,8 @@
             color: var(--accent, #2dd4bf);
             border-color: var(--border-accent, rgba(45, 212, 191, 0.5));
             background: rgba(45, 212, 191, 0.15);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.12);
         }
 
         .btn-upload:disabled,
@@ -2207,8 +2226,7 @@
 
         .attachment-chip {
             max-width: 52rem;
-            margin: 0.4rem auto 0;
-            display: none;
+            margin: 0;
             align-items: center;
             gap: 6px;
             background: var(--accent-dim);
@@ -2217,6 +2235,21 @@
             padding: 4px 10px 4px 12px;
             font-size: 0.78rem;
             color: var(--accent);
+            position: absolute;
+            left: 50%;
+            bottom: calc(100% + 0.45rem);
+            transform: translateX(-50%);
+            z-index: 21;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.14);
+            animation: composerPopoverIn 0.18s ease;
+        }
+
+        .attachment-chip.is-hidden {
+            display: none;
+        }
+
+        .attachment-chip:not(.is-hidden) {
+            display: inline-flex;
         }
 
         .attachment-chip-name {
@@ -2224,6 +2257,17 @@
             text-overflow: ellipsis;
             white-space: nowrap;
             max-width: 260px;
+        }
+
+        @keyframes composerPopoverIn {
+            from {
+                opacity: 0;
+                transform: translateX(-50%) translateY(6px) scale(0.98);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0) scale(1);
+            }
         }
 
         .chip-clear {
@@ -2676,15 +2720,15 @@
 
             .input-wrap textarea {
                 font-size: var(--text-sm);
-                padding: 0.72rem 0.95rem;
-                min-height: 48px;
+                padding: 0.66rem 0.9rem;
+                min-height: 44px;
                 height: 100%;
                 border-radius: 12px;
-                max-height: min(7.5rem, 28vh);
+                max-height: min(7rem, 28vh);
             }
 
             .app-footer {
-                padding: 0.5rem 0.6rem;
+                padding: 0.42rem 0.55rem;
             }
 
             .composer-panel {
@@ -2731,9 +2775,9 @@
             }
 
             .mood-btn {
-                width: 38px;
-                height: 38px;
-                min-width: 38px;
+                width: 36px;
+                height: 36px;
+                min-width: 36px;
                 border-radius: 11px;
             }
 
