@@ -2,6 +2,8 @@ package memory
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -38,10 +40,20 @@ func (cv *ChromemVectorDB) IndexToolGuides(toolsDir string, force bool) error {
 		return fmt.Errorf("failed to get/create tool_guides collection: %w", err)
 	}
 
-	// Skip if already indexed and not forced
+	// Skip if already indexed and content hasn't changed.
+	// We compute a SHA-256 hash of every .md file's content (sorted by name) and
+	// store it in <dataDir>/.tool_guides_hash. On redeploy with changed content
+	// the hash differs → full re-index. Pure count-based check was insufficient
+	// because it could not detect file content updates when the count stayed the same.
 	if !force && collection.Count() > 0 {
-		cv.logger.Info("Tool guides already indexed, skipping", "count", collection.Count())
-		return nil
+		currentHash := cv.computeToolGuidesHash(toolsDir)
+		hashFile := filepath.Join(cv.dataDir, ".tool_guides_hash")
+		storedHashBytes, _ := os.ReadFile(hashFile)
+		if strings.TrimSpace(string(storedHashBytes)) == currentHash {
+			cv.logger.Info("Tool guides already indexed, skipping", "count", collection.Count())
+			return nil
+		}
+		cv.logger.Info("Tool guides content changed, re-indexing", "old_hash", strings.TrimSpace(string(storedHashBytes)), "new_hash", currentHash)
 	}
 
 	files, err := os.ReadDir(toolsDir)
@@ -111,6 +123,11 @@ func (cv *ChromemVectorDB) IndexToolGuides(toolsDir string, force bool) error {
 	if err := collection.AddDocuments(ctx, docs, concurrency); err != nil {
 		return fmt.Errorf("failed to batch index tool guides: %w", err)
 	}
+
+	// Persist the content hash so subsequent startups can skip re-indexing.
+	newHash := cv.computeToolGuidesHash(toolsDir)
+	hashFile := filepath.Join(cv.dataDir, ".tool_guides_hash")
+	_ = os.WriteFile(hashFile, []byte(newHash), 0o644)
 
 	cv.logger.Info("Tool guides indexing completed", "count", collection.Count())
 	return nil
@@ -271,6 +288,29 @@ func (cv *ChromemVectorDB) IndexDirectory(dir, collectionName string, stm *SQLit
 
 	cv.logger.Info("Directory indexing completed", "dir", dir, "new_count", len(newDocs))
 	return nil
+}
+
+// computeToolGuidesHash computes a SHA-256 hash of all .md files in toolsDir,
+// combining file names and their contents in sorted order. Returns an empty
+// string on error so a missing/unreadable directory always forces re-indexing.
+func (cv *ChromemVectorDB) computeToolGuidesHash(toolsDir string) string {
+	files, err := os.ReadDir(toolsDir)
+	if err != nil {
+		return ""
+	}
+	h := sha256.New()
+	for _, f := range files {
+		if f.IsDir() || !strings.HasSuffix(f.Name(), ".md") {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(toolsDir, f.Name()))
+		if err != nil {
+			continue
+		}
+		h.Write([]byte(f.Name()))
+		h.Write(data)
+	}
+	return hex.EncodeToString(h.Sum(nil))
 }
 
 // splitFrontmatter splits a YAML frontmatter document (---\n...\n---\n...) into

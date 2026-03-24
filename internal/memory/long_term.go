@@ -49,6 +49,7 @@ type queryCacheEntry struct {
 // ChromemVectorDB implements VectorDB using chromem-go with persistence.
 type ChromemVectorDB struct {
 	db            *chromem.DB
+	dataDir       string // persistent directory for the vector DB (used for version files)
 	collection    *chromem.Collection
 	logger        *slog.Logger
 	mu            sync.RWMutex // Protects indexing operations; reads use RLock
@@ -101,6 +102,7 @@ func NewChromemVectorDB(cfg *config.Config, logger *slog.Logger) (*ChromemVector
 	if err != nil {
 		return nil, fmt.Errorf("failed to create persistent vector DB: %w", err)
 	}
+	dataDir := cfg.Directories.VectorDBDir
 
 	// Dynamic embedding function factory using chromem-go's native constructors
 	var embeddingFunc chromem.EmbeddingFunc
@@ -163,6 +165,7 @@ func NewChromemVectorDB(cfg *config.Config, logger *slog.Logger) (*ChromemVector
 
 	vdb := &ChromemVectorDB{
 		db:            db,
+		dataDir:       dataDir,
 		collection:    collection,
 		logger:        logger,
 		embeddingFunc: embeddingFunc,
