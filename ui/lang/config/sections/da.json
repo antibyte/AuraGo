@@ -1,4 +1,4 @@
-{
+﻿{
   "config.section.server.label": "Server",
   "config.section.server.desc": "Webserver og API-indstillinger",
   "config.section.directories.label": "Vejviser",
@@ -123,6 +123,8 @@
   "config.section.onedrive.desc": "Microsoft OneDrive cloud storage integration",
   "config.section.prompts_editor.label": "Forespørgsler og personas",
   "config.section.prompts_editor.desc": "Administrer yderligere prompt- og personlighedsprofiler",
+  "config.section.personality.label": "Personlighed",
+  "config.section.personality.desc": "Personality engine, stemningsanalyse og brugerprofil",
   "config.section.danger_zone.label": "Farezone",
   "config.section.danger_zone.desc": "Skift god-mode agent-kapaciteter",
   "config.section.n8n.label": "n8n",

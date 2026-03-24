@@ -311,7 +311,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			RequiresCoding:           false,
 			RetrievedMemories:        retrievedMemories,
 			SystemLanguage:           s.Cfg.Agent.SystemLanguage,
-			CorePersonality:          s.Cfg.Agent.CorePersonality,
+			CorePersonality:          s.Cfg.Personality.CorePersonality,
 			LifeboatEnabled:          s.Cfg.Maintenance.LifeboatEnabled,
 			IsMaintenanceMode:        inMaintenance,
 			TokenBudget:              s.Cfg.Agent.SystemPromptTokenBudget,

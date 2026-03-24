@@ -1010,7 +1010,7 @@ func calculateEffectiveMaxCalls(cfg *config.Config, tc ToolCall, homepageActiveI
 	effectiveMaxCalls := cfg.CircuitBreaker.MaxToolCalls
 
 	// 1. Personality Engine V2: Thoroughness Trait
-	if personalityEnabled && cfg.Agent.PersonalityEngineV2 && shortTermMem != nil {
+	if personalityEnabled && cfg.Personality.EngineV2 && shortTermMem != nil {
 		if traits, err := shortTermMem.GetTraits(); err == nil {
 			if thoroughness, ok := traits[memory.TraitThoroughness]; ok && thoroughness > 0.8 {
 				effectiveMaxCalls = int(float64(effectiveMaxCalls) * 1.5)

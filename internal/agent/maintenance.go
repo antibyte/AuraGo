@@ -106,12 +106,12 @@ func runMaintenanceTask(cfg *config.Config, logger *slog.Logger, client llm.Chat
 	}
 
 	// Phase D8: Personality Engine maintenance — trait decay + journal
-	if cfg.Agent.PersonalityEngine && shortTermMem != nil {
+	if cfg.Personality.Engine && shortTermMem != nil {
 		personalityMaintenance(cfg, shortTermMem, logger)
 	}
 
 	// User Profile cleanup: remove stale low-confidence entries
-	if cfg.Agent.UserProfiling && shortTermMem != nil {
+	if cfg.Personality.UserProfiling && shortTermMem != nil {
 		removed, err := shortTermMem.CleanupStaleProfileEntries(30)
 		if err != nil {
 			logger.Error("[Maintenance] Failed to clean stale profile entries", "error", err)
@@ -207,7 +207,7 @@ func runMaintenanceTask(cfg *config.Config, logger *slog.Logger, client llm.Chat
 // personalityMaintenance performs daily trait decay and appends a character journal entry.
 func personalityMaintenance(cfg *config.Config, stm *memory.SQLiteMemory, logger *slog.Logger) {
 	// 1. Trait decay: nudge all traits toward 0.5, respecting the personality profile's decay rate
-	meta := prompts.GetCorePersonalityMeta(cfg.Directories.PromptsDir, cfg.Agent.CorePersonality)
+	meta := prompts.GetCorePersonalityMeta(cfg.Directories.PromptsDir, cfg.Personality.CorePersonality)
 	decayAmount := 0.002 * meta.TraitDecayRate
 	if err := stm.DecayAllTraitsWeighted(decayAmount, meta); err != nil {
 		logger.Error("[Personality] Trait decay failed", "error", err)
@@ -216,8 +216,8 @@ func personalityMaintenance(cfg *config.Config, stm *memory.SQLiteMemory, logger
 	}
 
 	// 2. Emotion history cleanup
-	if cfg.Agent.EmotionSynthesizer.Enabled {
-		deleted, err := stm.CleanupEmotionHistory(30, cfg.Agent.EmotionSynthesizer.MaxHistoryEntries)
+	if cfg.Personality.EmotionSynthesizer.Enabled {
+		deleted, err := stm.CleanupEmotionHistory(30, cfg.Personality.EmotionSynthesizer.MaxHistoryEntries)
 		if err != nil {
 			logger.Error("[EmotionSynthesizer] Emotion history cleanup failed", "error", err)
 		} else if deleted > 0 {

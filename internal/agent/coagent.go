@@ -137,8 +137,8 @@ func SpawnCoAgent(
 			}
 		}
 		coCfg.CircuitBreaker.MaxToolCalls = maxToolCalls
-		coCfg.Agent.PersonalityEngine = false // No personality influence
-		coCfg.LLM.Model = coModel             // Use co-agent model for loop
+		coCfg.Personality.Engine = false // No personality influence
+		coCfg.LLM.Model = coModel        // Use co-agent model for loop
 		if maxTokensBudget > 0 {
 			coCfg.Agent.SystemPromptTokenBudget = maxTokensBudget
 		} else {

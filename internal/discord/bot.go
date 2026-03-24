@@ -451,7 +451,7 @@ func processDiscordMessage(s *discordgo.Session, m *discordgo.MessageCreate, inp
 		IsMaintenanceMode:        tools.IsBusy(),
 		LifeboatEnabled:          cfg.Maintenance.LifeboatEnabled,
 		SystemLanguage:           cfg.Agent.SystemLanguage,
-		CorePersonality:          cfg.Agent.CorePersonality,
+		CorePersonality:          cfg.Personality.CorePersonality,
 		TokenBudget:              cfg.Agent.SystemPromptTokenBudget,
 		IsDebugMode:              cfg.Agent.DebugMode,
 		DiscordEnabled:           cfg.Discord.Enabled,

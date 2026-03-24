@@ -1,4 +1,4 @@
-{
+﻿{
   "config.section.server.label": "Server",
   "config.section.server.desc": "Nastaveni weboveho serveru",
   "config.section.directories.label": "Adresare",
@@ -125,6 +125,8 @@
   "config.section.onedrive.desc": "Microsoft OneDrive cloud storage integration",
   "config.section.prompts_editor.label": "Editor Promptu",
   "config.section.prompts_editor.desc": "Uprava promptu",
+  "config.section.personality.label": "Osobnost",
+  "config.section.personality.desc": "Personality engine, analýza nálady a uživatelské profilování",
   "config.section.danger_zone.label": "Nebezpecna Zona",
   "config.section.danger_zone.desc": "Nebezpecna nastaveni",
   "config.section.n8n.label": "n8n",

@@ -87,7 +87,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		LifeboatEnabled:   cfg.Maintenance.LifeboatEnabled,
 		IsMaintenanceMode: isMaintenance,
 		SurgeryPlan:       surgeryPlan,
-		CorePersonality:   cfg.Agent.CorePersonality,
+		CorePersonality:   cfg.Personality.CorePersonality,
 		TokenBudget:       cfg.Agent.SystemPromptTokenBudget,
 		IsDebugMode:       cfg.Agent.DebugMode || GetDebugMode(),
 		IsCoAgent:         strings.HasPrefix(sessionID, "coagent-") || strings.HasPrefix(sessionID, "specialist-"),
@@ -216,7 +216,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	sessionTodoList := ""
 
 	// Phase D: Personality Engine (opt-in)
-	personalityEnabled := cfg.Agent.PersonalityEngine
+	personalityEnabled := cfg.Personality.Engine
 	if personalityEnabled && shortTermMem != nil {
 		if err := shortTermMem.InitPersonalityTables(); err != nil {
 			logger.Error("[Personality] Failed to init tables, disabling", "error", err)
@@ -226,31 +226,31 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 	// Emotion Synthesizer (requires Personality Engine V2)
 	var emotionSynthesizer *memory.EmotionSynthesizer
-	if cfg.Agent.EmotionSynthesizer.Enabled && personalityEnabled && cfg.Agent.PersonalityEngineV2 {
+	if cfg.Personality.EmotionSynthesizer.Enabled && personalityEnabled && cfg.Personality.EngineV2 {
 		// Reuse V2 client setup
 		var esClient memory.PersonalityAnalyzerClient = client
-		if cfg.Agent.PersonalityV2URL != "" {
-			key := cfg.Agent.PersonalityV2APIKey
+		if cfg.Personality.V2URL != "" {
+			key := cfg.Personality.V2APIKey
 			if key == "" {
 				key = "dummy"
 			}
 			v2Cfg := openai.DefaultConfig(key)
-			v2Cfg.BaseURL = cfg.Agent.PersonalityV2URL
+			v2Cfg.BaseURL = cfg.Personality.V2URL
 			esClient = openai.NewClientWithConfig(v2Cfg)
 		}
-		esModel := cfg.Agent.PersonalityV2Model
+		esModel := cfg.Personality.V2Model
 		if esModel == "" {
 			esModel = cfg.LLM.Model
 		}
 		emotionSynthesizer = memory.NewEmotionSynthesizer(
 			esClient,
 			esModel,
-			cfg.Agent.EmotionSynthesizer.MinIntervalSecs,
-			cfg.Agent.EmotionSynthesizer.MaxHistoryEntries,
+			cfg.Personality.EmotionSynthesizer.MinIntervalSecs,
+			cfg.Personality.EmotionSynthesizer.MaxHistoryEntries,
 			cfg.Agent.SystemLanguage,
 			currentLogger,
 		)
-		logger.Info("[EmotionSynthesizer] Initialized", "model", esModel, "interval_secs", cfg.Agent.EmotionSynthesizer.MinIntervalSecs)
+		logger.Info("[EmotionSynthesizer] Initialized", "model", esModel, "interval_secs", cfg.Personality.EmotionSynthesizer.MinIntervalSecs)
 	}
 
 	// Native function calling: build tool schemas once and attach to request
@@ -772,11 +772,11 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 		// Phase D: Inject personality line before building system prompt
 		if !runCfg.IsMission && personalityEnabled && shortTermMem != nil {
-			if cfg.Agent.PersonalityEngineV2 {
+			if cfg.Personality.EngineV2 {
 				// V2 Feature: Narrative Events based on Milestones & Loneliness
 				processBehavioralEvents(shortTermMem, &req.Messages, sessionID, meta, currentLogger)
 			}
-			flags.PersonalityLine = shortTermMem.GetPersonalityLine(cfg.Agent.PersonalityEngineV2)
+			flags.PersonalityLine = shortTermMem.GetPersonalityLine(cfg.Personality.EngineV2)
 
 			// Emotion Synthesizer: inject LLM-generated emotional description
 			if emotionSynthesizer != nil {
@@ -787,11 +787,11 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 
 		// User Profiling: inject behavioral instruction + collected profile data
-		if !runCfg.IsMission && cfg.Agent.UserProfiling {
+		if !runCfg.IsMission && cfg.Personality.UserProfiling {
 			flags.UserProfilingEnabled = true
-			if cfg.Agent.PersonalityEngineV2 && shortTermMem != nil {
-				flags.UserProfileSummary = shortTermMem.GetUserProfileSummary(cfg.Agent.UserProfilingThreshold)
-				logger.Debug("User profiling enabled", "summaryLength", len(flags.UserProfileSummary), "threshold", cfg.Agent.UserProfilingThreshold)
+			if cfg.Personality.EngineV2 && shortTermMem != nil {
+				flags.UserProfileSummary = shortTermMem.GetUserProfileSummary(cfg.Personality.UserProfilingThreshold)
+				logger.Debug("User profiling enabled", "summaryLength", len(flags.UserProfileSummary), "threshold", cfg.Personality.UserProfilingThreshold)
 			} else {
 				logger.Debug("User profiling enabled (without profile summary - V2 engine disabled or no memory)")
 			}
@@ -1687,7 +1687,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					triggerInfo = moodTrigger() + " [tool error]"
 				}
 
-				if cfg.Agent.PersonalityEngineV2 {
+				if cfg.Personality.EngineV2 {
 					// ── V2: Asynchronous LLM-Based Mood Analysis ──
 					// Extract recent context (e.g. last 5 messages) for the analyzer
 					recentMsgs := req.Messages
@@ -1714,23 +1714,23 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					// Note: Tool Results are intentionally excluded from userHistory
 
 					var v2Client memory.PersonalityAnalyzerClient = client
-					if cfg.Agent.PersonalityV2URL != "" {
-						key := cfg.Agent.PersonalityV2APIKey
+					if cfg.Personality.V2URL != "" {
+						key := cfg.Personality.V2APIKey
 						if key == "" {
 							key = "dummy" // Ollama sometimes requires a non-empty string
 						}
 						v2Cfg := openai.DefaultConfig(key)
-						v2Cfg.BaseURL = cfg.Agent.PersonalityV2URL
+						v2Cfg.BaseURL = cfg.Personality.V2URL
 						v2Client = openai.NewClientWithConfig(v2Cfg)
 					}
 
 					go func(contextHistory string, userHistory string, tInfo string, modelName string, analyzerClient memory.PersonalityAnalyzerClient, m memory.PersonalityMeta, profilingEnabled bool) {
-						v2Ctx, cancel := context.WithTimeout(context.Background(), time.Duration(cfg.Agent.PersonalityV2TimeoutSecs)*time.Second)
+						v2Ctx, cancel := context.WithTimeout(context.Background(), time.Duration(cfg.Personality.V2TimeoutSecs)*time.Second)
 						defer cancel()
 
 						mood, affDelta, traitDeltas, profileUpdates, err := shortTermMem.AnalyzeMoodV2(v2Ctx, analyzerClient, modelName, contextHistory, userHistory, m, profilingEnabled)
 						if err != nil {
-							v2URL := cfg.Agent.PersonalityV2URL
+							v2URL := cfg.Personality.V2URL
 							if v2URL == "" {
 								v2URL = "(main LLM endpoint)"
 							}
@@ -1738,8 +1738,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 								"error", err,
 								"model", modelName,
 								"url", v2URL,
-								"timeout_secs", cfg.Agent.PersonalityV2TimeoutSecs,
-								"hint", "increase agent.personality_v2_timeout_secs in config if this is a timeout")
+								"timeout_secs", cfg.Personality.V2TimeoutSecs,
+								"hint", "increase personality.v2_timeout_secs in config if this is a timeout")
 						}
 
 						_ = shortTermMem.LogMood(mood, tInfo)
@@ -1785,8 +1785,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 								prevMood = string(prev.PrimaryMood)
 							}
 							moodChanged := prevMood != string(mood)
-							shouldSynthesize := cfg.Agent.EmotionSynthesizer.TriggerAlways ||
-								(cfg.Agent.EmotionSynthesizer.TriggerOnMoodChange && moodChanged) ||
+							shouldSynthesize := cfg.Personality.EmotionSynthesizer.TriggerAlways ||
+								(cfg.Personality.EmotionSynthesizer.TriggerOnMoodChange && moodChanged) ||
 								emotionSynthesizer.GetLastEmotion() == nil
 
 							if shouldSynthesize {
@@ -1805,7 +1805,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 								esCancel()
 							}
 						}
-					}(historyBuilder.String(), userHistoryBuilder.String(), triggerInfo, cfg.Agent.PersonalityV2Model, v2Client, meta, cfg.Agent.UserProfiling)
+					}(historyBuilder.String(), userHistoryBuilder.String(), triggerInfo, cfg.Personality.V2Model, v2Client, meta, cfg.Personality.UserProfiling)
 
 				} else {
 					// ── V1: Synchronous Heuristic-Based Mood Analysis ──
@@ -1815,7 +1815,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 						_ = shortTermMem.UpdateTrait(trait, delta)
 					}
 				}
-				flags.PersonalityLine = shortTermMem.GetPersonalityLine(cfg.Agent.PersonalityEngineV2)
+				flags.PersonalityLine = shortTermMem.GetPersonalityLine(cfg.Personality.EngineV2)
 
 				// Emotion Synthesizer: update flags with latest emotion if available
 				if emotionSynthesizer != nil {

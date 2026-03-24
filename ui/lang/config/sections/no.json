@@ -1,4 +1,4 @@
-{
+﻿{
   "config.section.server.label": "Server",
   "config.section.server.desc": "Nettserver og API-innstillinger",
   "config.section.directories.label": "Kataloger",
@@ -123,6 +123,8 @@
   "config.section.onedrive.desc": "Microsoft OneDrive cloud storage integration",
   "config.section.prompts_editor.label": "Forespørsler og personas",
   "config.section.prompts_editor.desc": "Administrer flere spørsmål og personlighetsprofiler",
+  "config.section.personality.label": "Personlighet",
+  "config.section.personality.desc": "Personality engine, stemningsanalyse og brukerprofil",
   "config.section.danger_zone.label": "Faresone",
   "config.section.danger_zone.desc": "Veksle mellom gude-modus agentfunksjoner",
   "config.section.n8n.label": "n8n",

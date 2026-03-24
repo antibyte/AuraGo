@@ -212,29 +212,15 @@ type Config struct {
 		SystemLanguage             string `yaml:"system_language"`
 		StepDelaySeconds           int    `yaml:"step_delay_seconds"`
 		MemoryCompressionCharLimit int    `yaml:"memory_compression_char_limit"`
-		PersonalityEngine          bool   `yaml:"personality_engine"`
-		PersonalityEngineV2        bool   `yaml:"personality_engine_v2"`
-		PersonalityV2Provider      string `yaml:"personality_v2_provider"` // provider entry ID for V2 analysis
-		PersonalityV2Model         string `yaml:"personality_v2_model"`    // legacy: model name
-		PersonalityV2URL           string `yaml:"personality_v2_url"`      // legacy: base URL
-		PersonalityV2APIKey        string `yaml:"personality_v2_api_key"`  // legacy: API key
-		PersonalityV2ProviderType  string `yaml:"-"       json:"-"`        // resolved
-		PersonalityV2ResolvedURL   string `yaml:"-"       json:"-"`        // resolved
-		PersonalityV2ResolvedKey   string `yaml:"-"       json:"-"`        // resolved
-		PersonalityV2ResolvedModel string `yaml:"-"       json:"-"`        // resolved
-		CorePersonality            string `yaml:"core_personality"`
 		SystemPromptTokenBudget    int    `yaml:"system_prompt_token_budget"`
 		ContextWindow              int    `yaml:"context_window"`
 		ShowToolResults            bool   `yaml:"show_tool_results"`
 		WorkflowFeedback           bool   `yaml:"workflow_feedback"`
 		DebugMode                  bool   `yaml:"debug_mode"`
-		CoreMemoryMaxEntries       int    `yaml:"core_memory_max_entries"`     // 0 = unlimited; default 200
-		CoreMemoryCapMode          string `yaml:"core_memory_cap_mode"`        // "soft" (default) | "hard"
-		UserProfiling              bool   `yaml:"user_profiling"`              // opt-in: collect user profile via V2 analysis
-		UserProfilingThreshold     int    `yaml:"user_profiling_threshold"`    // min confidence for profile summary (default: 3)
-		PersonalityV2TimeoutSecs   int    `yaml:"personality_v2_timeout_secs"` // timeout for V2 mood analysis LLM call (default: 30)
-		ToolOutputLimit            int    `yaml:"tool_output_limit"`           // max characters of a single tool result added to context (0 = unlimited, default: 50000)
-		SudoEnabled                bool   `yaml:"sudo_enabled"`                // allow execute_sudo tool (password must be stored in vault as "sudo_password")
+		CoreMemoryMaxEntries       int    `yaml:"core_memory_max_entries"` // 0 = unlimited; default 200
+		CoreMemoryCapMode          string `yaml:"core_memory_cap_mode"`    // "soft" (default) | "hard"
+		ToolOutputLimit            int    `yaml:"tool_output_limit"`       // max characters of a single tool result added to context (0 = unlimited, default: 50000)
+		SudoEnabled                bool   `yaml:"sudo_enabled"`            // allow execute_sudo tool (password must be stored in vault as "sudo_password")
 		// ── Danger Zone: tool capability gates (all default true) ──
 		AllowShell           bool   `yaml:"allow_shell"`            // allow execute_shell
 		AllowPython          bool   `yaml:"allow_python"`           // allow execute_python / save_tool / execute_skill
@@ -253,15 +239,47 @@ type Config struct {
 			WeightSuccessRate         bool     `yaml:"weight_success_rate"`          // penalise tools with low success rate in scoring (default: true)
 			CleanTransitionsAfterDays int      `yaml:"clean_transitions_after_days"` // remove stale tool transitions after N days (default: 90)
 		} `yaml:"adaptive_tools"`
-		MaxToolGuides      int `yaml:"max_tool_guides"` // maximum tool guide documents injected into prompt (default: 5)
-		EmotionSynthesizer struct {
+		MaxToolGuides int `yaml:"max_tool_guides"` // maximum tool guide documents injected into prompt (default: 5)
+
+		// ── Legacy personality fields — read-only for YAML migration to Personality section ──
+		LegacyPersonalityEngine         bool   `yaml:"personality_engine"         json:"-"`  // migrated → Personality.Engine
+		LegacyPersonalityEngineV2       bool   `yaml:"personality_engine_v2"      json:"-"`  // migrated → Personality.EngineV2
+		LegacyPersonalityV2Provider     string `yaml:"personality_v2_provider"    json:"-"`  // migrated → Personality.V2Provider
+		LegacyPersonalityV2Model        string `yaml:"personality_v2_model"       json:"-"`  // migrated → Personality.V2Model
+		LegacyPersonalityV2URL          string `yaml:"personality_v2_url"         json:"-"`  // migrated → Personality.V2URL
+		LegacyPersonalityV2APIKey       string `yaml:"personality_v2_api_key"     json:"-"`  // migrated → Personality.V2APIKey
+		LegacyPersonalityV2TimeoutSecs  int    `yaml:"personality_v2_timeout_secs" json:"-"` // migrated → Personality.V2TimeoutSecs
+		LegacyCorePersonality           string `yaml:"core_personality"           json:"-"`  // migrated → Personality.CorePersonality
+		LegacyUserProfiling             bool   `yaml:"user_profiling"             json:"-"`  // migrated → Personality.UserProfiling
+		LegacyUserProfilingThreshold    int    `yaml:"user_profiling_threshold"   json:"-"`  // migrated → Personality.UserProfilingThreshold
+		LegacyEmotionSynthesizerEnabled bool   `yaml:"emotion_synthesizer_enabled" json:"-"` // not a real field – unused, kept for zero-value detection
+	} `yaml:"agent"`
+
+	// Personality holds all settings related to the personality engine and user profiling.
+	// Fields were previously part of the Agent section.
+	Personality struct {
+		Engine                 bool   `yaml:"engine"`                   // enable personality engine (mood, micro-traits)
+		EngineV2               bool   `yaml:"engine_v2"`                // enable V2 engine with async LLM mood analysis
+		V2Provider             string `yaml:"v2_provider"`              // provider entry ID for V2 analysis (empty = main LLM)
+		V2Model                string `yaml:"v2_model"`                 // legacy: model name
+		V2URL                  string `yaml:"v2_url"`                   // legacy: base URL
+		V2APIKey               string `yaml:"v2_api_key"`               // legacy: API key
+		V2ProviderType         string `yaml:"-"       json:"-"`         // resolved
+		V2ResolvedURL          string `yaml:"-"       json:"-"`         // resolved
+		V2ResolvedKey          string `yaml:"-"       json:"-"`         // resolved
+		V2ResolvedModel        string `yaml:"-"       json:"-"`         // resolved
+		CorePersonality        string `yaml:"core_personality"`         // active personality profile name
+		UserProfiling          bool   `yaml:"user_profiling"`           // opt-in: collect user profile via V2 analysis
+		UserProfilingThreshold int    `yaml:"user_profiling_threshold"` // min confidence for profile summary (default: 3)
+		V2TimeoutSecs          int    `yaml:"v2_timeout_secs"`          // timeout for V2 mood analysis LLM call (default: 30)
+		EmotionSynthesizer     struct {
 			Enabled             bool `yaml:"enabled"`                // enable LLM-based emotion synthesis (default: false)
 			MinIntervalSecs     int  `yaml:"min_interval_seconds"`   // minimum seconds between syntheses (default: 60)
 			MaxHistoryEntries   int  `yaml:"max_history_entries"`    // max emotion history entries to retain (default: 100)
 			TriggerOnMoodChange bool `yaml:"trigger_on_mood_change"` // only synthesize when mood changes (default: true)
 			TriggerAlways       bool `yaml:"trigger_always"`         // synthesize on every message (default: false)
 		} `yaml:"emotion_synthesizer"`
-	} `yaml:"agent"`
+	} `yaml:"personality"`
 	CircuitBreaker struct {
 		MaxToolCalls              int      `yaml:"max_tool_calls"`
 		LLMTimeoutSeconds         int      `yaml:"llm_timeout_seconds"`

@@ -94,7 +94,7 @@ func (e *Executor) Execute(ctx context.Context, execCtx *a2asrv.ExecutorContext)
 		a2aCfg.LLM.APIKey = e.deps.Config.A2A.LLM.APIKey
 		a2aCfg.LLM.BaseURL = e.deps.Config.A2A.LLM.BaseURL
 		a2aCfg.LLM.Model = model
-		a2aCfg.Agent.PersonalityEngine = false
+		a2aCfg.Personality.Engine = false
 		a2aCfg.FallbackLLM.Enabled = false
 		if a2aCfg.CircuitBreaker.MaxToolCalls <= 0 {
 			a2aCfg.CircuitBreaker.MaxToolCalls = 10

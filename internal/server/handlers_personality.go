@@ -58,7 +58,7 @@ func handleListPersonalities(s *Server) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"active":        s.Cfg.Agent.CorePersonality,
+			"active":        s.Cfg.Personality.CorePersonality,
 			"personalities": profiles,
 		})
 	}
@@ -71,7 +71,7 @@ func handlePersonalityState(s *Server) http.HandlerFunc {
 			return
 		}
 
-		if !s.Cfg.Agent.PersonalityEngine {
+		if !s.Cfg.Personality.Engine {
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(map[string]interface{}{"enabled": false})
 			return
@@ -95,7 +95,7 @@ func handlePersonalityState(s *Server) http.HandlerFunc {
 		}
 
 		// Include latest synthesized emotion if available
-		if s.Cfg.Agent.EmotionSynthesizer.Enabled {
+		if s.Cfg.Personality.EmotionSynthesizer.Enabled {
 			if latest, err := s.ShortTermMem.GetLatestEmotion(); err == nil && latest != nil {
 				response["current_emotion"] = latest.Description
 				response["emotion_timestamp"] = latest.Timestamp
@@ -137,7 +137,7 @@ func handleUpdatePersonality(s *Server) http.HandlerFunc {
 		}
 
 		// Update config
-		s.Cfg.Agent.CorePersonality = req.ID
+		s.Cfg.Personality.CorePersonality = req.ID
 
 		// Save config
 		configPath := s.Cfg.ConfigPath
@@ -166,7 +166,7 @@ func handlePersonalityFeedback(s *Server) http.HandlerFunc {
 			return
 		}
 
-		if !s.Cfg.Agent.PersonalityEngine {
+		if !s.Cfg.Personality.Engine {
 			http.Error(w, "Personality engine is disabled", http.StatusBadRequest)
 			return
 		}
@@ -415,7 +415,7 @@ func handleDeletePersonalityFile(s *Server) http.HandlerFunc {
 			return
 		}
 		// Prevent deleting the currently active personality
-		if strings.EqualFold(name, s.Cfg.Agent.CorePersonality) {
+		if strings.EqualFold(name, s.Cfg.Personality.CorePersonality) {
 			http.Error(w, "Cannot delete the currently active personality", http.StatusConflict)
 			return
 		}

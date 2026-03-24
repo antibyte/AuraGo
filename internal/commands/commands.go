@@ -168,7 +168,7 @@ func (c *PersonalityCommand) Execute(args []string, ctx Context) (string, error)
 			if !f.IsDir() && strings.HasSuffix(f.Name(), ".md") {
 				name := strings.TrimSuffix(f.Name(), ".md")
 				activeMarker := ""
-				if name == ctx.Cfg.Agent.CorePersonality {
+				if name == ctx.Cfg.Personality.CorePersonality {
 					activeMarker = " ✅ (aktiv)"
 				}
 				sb.WriteString("• " + name + activeMarker + "\n")
@@ -185,7 +185,7 @@ func (c *PersonalityCommand) Execute(args []string, ctx Context) (string, error)
 		return "❌ Persönlichkeit '" + target + "' nicht gefunden.", nil
 	}
 
-	ctx.Cfg.Agent.CorePersonality = target
+	ctx.Cfg.Personality.CorePersonality = target
 	configPath := ctx.Cfg.ConfigPath
 	if configPath == "" {
 		configPath = "config.yaml"

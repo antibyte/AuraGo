@@ -1,4 +1,4 @@
-{
+﻿{
   "config.section.server.label": "サーバー",
   "config.section.server.desc": "Web サーバーと API 設定",
   "config.section.directories.label": "ディレクトリ",
@@ -125,6 +125,8 @@
   "config.section.onedrive.desc": "Microsoft OneDrive cloud storage integration",
   "config.section.prompts_editor.label": "プロンプトとペルソナ",
   "config.section.prompts_editor.desc": "追加のプロンプトとパーソナリティプロファイルの管理",
+  "config.section.personality.label": "パーソナリティ",
+  "config.section.personality.desc": "パーソナリティエンジン、気分分析、ユーザープロファイリング",
   "config.section.danger_zone.label": "危険ゾーン",
   "config.section.danger_zone.desc": "ゴッドモードエージェント機能の切り替え",
   "config.section.n8n.label": "n8n",

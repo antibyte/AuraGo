@@ -233,6 +233,9 @@ func Load(path string) (*Config, error) {
 		cfg.Tools.WebScraper.Enabled = false
 	}
 
+	// Migrate legacy agent.personality_* fields → new personality section.
+	cfg.MigrateAgentToPersonality()
+
 	// Resolve provider references → populates all yaml:"-" fields.
 	// Legacy migration creates provider entries from inline fields if Providers is empty.
 	cfg.ResolveProviders()
@@ -296,8 +299,8 @@ func Load(path string) (*Config, error) {
 	if cfg.Agent.MemoryCompressionCharLimit <= 0 {
 		cfg.Agent.MemoryCompressionCharLimit = 100000
 	}
-	if cfg.Agent.CorePersonality == "" {
-		cfg.Agent.CorePersonality = "neutral"
+	if cfg.Personality.CorePersonality == "" {
+		cfg.Personality.CorePersonality = "neutral"
 	}
 	if cfg.Agent.CoreMemoryMaxEntries <= 0 {
 		cfg.Agent.CoreMemoryMaxEntries = 200
@@ -305,30 +308,30 @@ func Load(path string) (*Config, error) {
 	if cfg.Agent.CoreMemoryCapMode == "" {
 		cfg.Agent.CoreMemoryCapMode = "soft"
 	}
-	if cfg.Agent.UserProfilingThreshold <= 0 {
-		cfg.Agent.UserProfilingThreshold = 3
+	if cfg.Personality.UserProfilingThreshold <= 0 {
+		cfg.Personality.UserProfilingThreshold = 3
 	}
-	if cfg.Agent.PersonalityV2TimeoutSecs <= 0 {
-		cfg.Agent.PersonalityV2TimeoutSecs = 30
+	if cfg.Personality.V2TimeoutSecs <= 0 {
+		cfg.Personality.V2TimeoutSecs = 30
 	}
 	if cfg.Agent.ToolOutputLimit <= 0 {
 		cfg.Agent.ToolOutputLimit = 50000
 	}
 	// V2 requires V1 — automatically enable V1 when V2 is on.
-	if cfg.Agent.PersonalityEngineV2 && !cfg.Agent.PersonalityEngine {
-		cfg.Agent.PersonalityEngine = true
+	if cfg.Personality.EngineV2 && !cfg.Personality.Engine {
+		cfg.Personality.Engine = true
 	}
 	// Emotion Synthesizer defaults
-	if cfg.Agent.EmotionSynthesizer.MinIntervalSecs <= 0 {
-		cfg.Agent.EmotionSynthesizer.MinIntervalSecs = 60
+	if cfg.Personality.EmotionSynthesizer.MinIntervalSecs <= 0 {
+		cfg.Personality.EmotionSynthesizer.MinIntervalSecs = 60
 	}
-	if cfg.Agent.EmotionSynthesizer.MaxHistoryEntries <= 0 {
-		cfg.Agent.EmotionSynthesizer.MaxHistoryEntries = 100
+	if cfg.Personality.EmotionSynthesizer.MaxHistoryEntries <= 0 {
+		cfg.Personality.EmotionSynthesizer.MaxHistoryEntries = 100
 	}
 	// Emotion Synthesizer requires Personality Engine V2
-	if cfg.Agent.EmotionSynthesizer.Enabled && !cfg.Agent.PersonalityEngineV2 {
-		cfg.Agent.PersonalityEngineV2 = true
-		cfg.Agent.PersonalityEngine = true
+	if cfg.Personality.EmotionSynthesizer.Enabled && !cfg.Personality.EngineV2 {
+		cfg.Personality.EngineV2 = true
+		cfg.Personality.Engine = true
 	}
 	if cfg.Agent.SystemPromptTokenBudget <= 0 {
 		cfg.Agent.SystemPromptTokenBudget = 12288
@@ -721,8 +724,11 @@ func (c *Config) Save(path string) error {
 	}
 
 	// 2. Patch only the fields that are safe to change at runtime
-	if agentSection, ok := rawCfg["agent"].(map[string]interface{}); ok {
-		agentSection["core_personality"] = c.Agent.CorePersonality
+	if _, ok := rawCfg["personality"]; !ok {
+		rawCfg["personality"] = map[string]interface{}{}
+	}
+	if personalitySection, ok := rawCfg["personality"].(map[string]interface{}); ok {
+		personalitySection["core_personality"] = c.Personality.CorePersonality
 	}
 	if serverSection, ok := rawCfg["server"].(map[string]interface{}); ok {
 		serverSection["ui_language"] = c.Server.UILanguage

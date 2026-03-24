@@ -786,7 +786,7 @@ func handleDashboardOverview(s *Server) http.HandlerFunc {
 		agentInfo := map[string]interface{}{
 			"model":          cfg.LLM.Model,
 			"provider":       cfg.LLM.ProviderType,
-			"personality":    cfg.Agent.CorePersonality,
+			"personality":    cfg.Personality.CorePersonality,
 			"context_window": cfg.Agent.ContextWindow,
 			"busy":           tools.IsBusy(),
 			"debug":          agent.GetDebugMode(),
@@ -819,8 +819,8 @@ func handleDashboardOverview(s *Server) http.HandlerFunc {
 			"indexing":          cfg.Indexing.Enabled,
 			"auth":              cfg.Auth.Enabled,
 			"fallback_llm":      cfg.FallbackLLM.Enabled,
-			"personality_v2":    cfg.Agent.PersonalityEngineV2,
-			"user_profiling":    cfg.Agent.UserProfiling,
+			"personality_v2":    cfg.Personality.EngineV2,
+			"user_profiling":    cfg.Personality.UserProfiling,
 			"tts":               cfg.TTS.Provider != "" || cfg.TTS.Piper.Enabled,
 			"piper_tts":         cfg.TTS.Piper.Enabled,
 			// extended integrations

@@ -1,4 +1,4 @@
-{
+﻿{
   "config.section.server.label": "Server",
   "config.section.server.desc": "Webbserver och API-inställningar",
   "config.section.directories.label": "Kataloger",
@@ -123,6 +123,8 @@
   "config.section.onedrive.desc": "Microsoft OneDrive cloud storage integration",
   "config.section.prompts_editor.label": "Uppmaningar och personas",
   "config.section.prompts_editor.desc": "Hantera ytterligare meddelanden och personlighetsprofiler",
+  "config.section.personality.label": "Personlighet",
+  "config.section.personality.desc": "Personlighetsmotor, stämningsanalys och användarprofil",
   "config.section.danger_zone.label": "Farozon",
   "config.section.danger_zone.desc": "Växla god-mode agent kapacitet",
   "config.section.n8n.label": "n8n",

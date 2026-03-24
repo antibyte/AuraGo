@@ -107,7 +107,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	// need to poll /api/personality/state every 30 seconds.
 	go func() {
 		s.CfgMu.RLock()
-		personalityEnabled := s.Cfg.Agent.PersonalityEngine
+		personalityEnabled := s.Cfg.Personality.Engine
 		s.CfgMu.RUnlock()
 		if !personalityEnabled {
 			return
@@ -1091,7 +1091,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 					"I18N":               getI18NJSON(lang),
 					"ShowToolResults":    s.Cfg.Agent.ShowToolResults,
 					"DebugMode":          agent.GetDebugMode(),
-					"PersonalityEnabled": s.Cfg.Agent.PersonalityEngine,
+					"PersonalityEnabled": s.Cfg.Personality.Engine,
 				}
 				if err := tmpl.Execute(w, data); err != nil {
 					s.Logger.Error("Failed to execute UI template", "error", err)

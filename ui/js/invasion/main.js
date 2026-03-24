@@ -4,14 +4,37 @@
 let currentTab = 'nests';
 let nestsData = [];
 let eggsData = [];
+let providersData = [];
 let deleteTarget = null; // { type: 'nest'|'egg', id, name }
 
 // ── Init ─────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
     document.title = t('invasion.page_title');
+    loadProviders();
     loadNests();
     loadEggs();
 });
+
+async function loadProviders() {
+    try {
+        const data = await fetch('/api/providers').then(r => r.ok ? r.json() : []);
+        providersData = Array.isArray(data) ? data : [];
+        const sel = document.getElementById('egg-provider');
+        if (!sel) return;
+        // set placeholder text on the first empty option
+        sel.options[0].textContent = '— ' + t('invasion.inherit_llm') + ' —';
+        // remove any previously populated provider options
+        while (sel.options.length > 1) sel.remove(1);
+        providersData.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.id;
+            opt.textContent = p.name || p.id;
+            sel.appendChild(opt);
+        });
+    } catch (e) {
+        console.warn('[IC] Could not load providers:', e.message);
+    }
+}
 
 // ── Tabs ─────────────────────────────────────────────────
 function switchTab(tab) {

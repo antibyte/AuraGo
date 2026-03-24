@@ -1,4 +1,4 @@
-{
+﻿{
   "config.section.server.label": "सर्वर",
   "config.section.server.desc": "वेब सर्वर और एपीआई सेटिंग्स",
   "config.section.directories.label": "निर्देशिकाएँ",
@@ -125,6 +125,8 @@
   "config.section.onedrive.desc": "Microsoft OneDrive cloud storage integration",
   "config.section.prompts_editor.label": "संकेत और व्यक्तित्व",
   "config.section.prompts_editor.desc": "अतिरिक्त संकेत और व्यक्तित्व प्रोफ़ाइल प्रबंधित करें",
+  "config.section.personality.label": "व्यक्तित्व",
+  "config.section.personality.desc": "पर्सनैलिटी इंजन, मूड विश्लेषण और यूज़र प्रोफाइलिंग",
   "config.section.danger_zone.label": "खतरे का क्षेत्र",
   "config.section.danger_zone.desc": "गॉड-मोड एजेंट क्षमताओं को टॉगल करें",
   "config.section.n8n.label": "n8n",

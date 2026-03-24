@@ -1,4 +1,4 @@
-{
+﻿{
   "config.section.server.label": "Servidor",
   "config.section.server.desc": "Configurações do servidor web",
   "config.section.directories.label": "Diretórios",
@@ -123,6 +123,8 @@
   "config.section.onedrive.desc": "Microsoft OneDrive cloud storage integration",
   "config.section.prompts_editor.label": "Editor de Prompts",
   "config.section.prompts_editor.desc": "Edição de prompts",
+  "config.section.personality.label": "Personalidade",
+  "config.section.personality.desc": "Motor de personalidade, análise de humor e criação de perfil de usuário",
   "config.section.danger_zone.label": "Zona de Perigo",
   "config.section.danger_zone.desc": "Configurações perigosas",
   "config.section.n8n.label": "n8n",

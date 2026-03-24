@@ -1,4 +1,4 @@
-{
+﻿{
   "config.section.server.label": "Server",
   "config.section.server.desc": "Impostazioni server web e API",
   "config.section.directories.label": "Directory",
@@ -125,6 +125,8 @@
   "config.section.onedrive.desc": "Microsoft OneDrive cloud storage integration",
   "config.section.prompts_editor.label": "Prompt & Personas",
   "config.section.prompts_editor.desc": "Gestisci profili prompt e personalità aggiuntivi",
+  "config.section.personality.label": "Personalità",
+  "config.section.personality.desc": "Motore di personalità, analisi dell umore e profilazione utente",
   "config.section.danger_zone.label": "Zona Pericolo",
   "config.section.danger_zone.desc": "Attiva/disattiva capacità agente god-mode",
   "config.section.n8n.label": "n8n",

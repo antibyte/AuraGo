@@ -1,4 +1,4 @@
-{
+﻿{
   "config.section.server.label": "服务器",
   "config.section.server.desc": "Web 服务器和 API 设置",
   "config.section.directories.label": "目录",
@@ -125,6 +125,8 @@
   "config.section.onedrive.desc": "Microsoft OneDrive cloud storage integration",
   "config.section.prompts_editor.label": "提示与角色",
   "config.section.prompts_editor.desc": "管理额外的提示和个性配置文件",
+  "config.section.personality.label": "个性",
+  "config.section.personality.desc": "个性引擎、情绪分析和用户画像",
   "config.section.danger_zone.label": "危险区域",
   "config.section.danger_zone.desc": "切换上帝模式代理功能",
   "config.section.n8n.label": "n8n",

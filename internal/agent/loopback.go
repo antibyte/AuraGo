@@ -51,7 +51,7 @@ func Loopback(runCfg RunConfig, message string, broker FeedbackBroker) {
 		IsMaintenanceMode:        tools.IsBusy(),
 		LifeboatEnabled:          cfg.Maintenance.LifeboatEnabled,
 		SystemLanguage:           cfg.Agent.SystemLanguage,
-		CorePersonality:          cfg.Agent.CorePersonality,
+		CorePersonality:          cfg.Personality.CorePersonality,
 		TokenBudget:              cfg.Agent.SystemPromptTokenBudget,
 		IsDebugMode:              cfg.Agent.DebugMode || GetDebugMode(),
 		DiscordEnabled:           cfg.Discord.Enabled,

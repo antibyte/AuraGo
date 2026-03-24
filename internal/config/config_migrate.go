@@ -345,23 +345,23 @@ func (c *Config) ResolveProviders() {
 	}
 
 	// ── Personality V2 ── (falls back to main LLM if provider empty)
-	if c.Agent.PersonalityV2Provider != "" {
-		if p := c.FindProvider(c.Agent.PersonalityV2Provider); p != nil {
-			c.Agent.PersonalityV2ProviderType = p.Type
-			c.Agent.PersonalityV2ResolvedURL = p.BaseURL
-			c.Agent.PersonalityV2ResolvedKey = p.APIKey
-			c.Agent.PersonalityV2ResolvedModel = p.Model
+	if c.Personality.V2Provider != "" {
+		if p := c.FindProvider(c.Personality.V2Provider); p != nil {
+			c.Personality.V2ProviderType = p.Type
+			c.Personality.V2ResolvedURL = p.BaseURL
+			c.Personality.V2ResolvedKey = p.APIKey
+			c.Personality.V2ResolvedModel = p.Model
 		}
 	}
 	// Legacy fallback: use inline fields if provider ref resolved nothing
-	if c.Agent.PersonalityV2ResolvedModel == "" && c.Agent.PersonalityV2Model != "" {
-		c.Agent.PersonalityV2ResolvedModel = c.Agent.PersonalityV2Model
+	if c.Personality.V2ResolvedModel == "" && c.Personality.V2Model != "" {
+		c.Personality.V2ResolvedModel = c.Personality.V2Model
 	}
-	if c.Agent.PersonalityV2ResolvedURL == "" && c.Agent.PersonalityV2URL != "" {
-		c.Agent.PersonalityV2ResolvedURL = c.Agent.PersonalityV2URL
+	if c.Personality.V2ResolvedURL == "" && c.Personality.V2URL != "" {
+		c.Personality.V2ResolvedURL = c.Personality.V2URL
 	}
-	if c.Agent.PersonalityV2ResolvedKey == "" && c.Agent.PersonalityV2APIKey != "" {
-		c.Agent.PersonalityV2ResolvedKey = c.Agent.PersonalityV2APIKey
+	if c.Personality.V2ResolvedKey == "" && c.Personality.V2APIKey != "" {
+		c.Personality.V2ResolvedKey = c.Personality.V2APIKey
 	}
 
 	// ── WebScraper summary ── (falls back to main LLM if provider empty)
@@ -570,7 +570,7 @@ func (c *Config) ApplyOAuthTokens(vault SecretReader) {
 	applyIfOAuth(c.Whisper.Provider, &c.Whisper.APIKey)
 	applyIfOAuth(c.Embeddings.Provider, &c.Embeddings.APIKey)
 	applyIfOAuth(c.CoAgents.LLM.Provider, &c.CoAgents.LLM.APIKey)
-	applyIfOAuth(c.Agent.PersonalityV2Provider, &c.Agent.PersonalityV2ResolvedKey)
+	applyIfOAuth(c.Agent.LegacyPersonalityV2Provider, &c.Personality.V2ResolvedKey)
 
 	// ── Google Workspace OAuth token ──
 	if raw, err := vault.ReadSecret("oauth_google_workspace"); err == nil && raw != "" {
@@ -842,16 +842,54 @@ func (c *Config) migrateInlineProviders() {
 		c.CoAgents.LLM.Provider = "main"
 	}
 
-	// Migrate Personality V2
-	if c.Agent.PersonalityV2URL != "" || c.Agent.PersonalityV2Model != "" {
-		v2URL := c.Agent.PersonalityV2URL
-		v2Key := c.Agent.PersonalityV2APIKey
-		v2Model := c.Agent.PersonalityV2Model
+	// Migrate Personality V2 legacy inline fields → provider entry
+	if c.Personality.V2URL != "" || c.Personality.V2Model != "" {
+		v2URL := c.Personality.V2URL
+		v2Key := c.Personality.V2APIKey
+		v2Model := c.Personality.V2Model
 		if v2URL != "" && (v2URL != c.LLM.LegacyURL || v2Key != c.LLM.LegacyAPIKey) {
 			v2Type := inferType(v2URL, "")
-			c.Agent.PersonalityV2Provider = addProvider("personality-v2", "Personality V2", v2Type, v2URL, v2Key, v2Model)
+			c.Personality.V2Provider = addProvider("personality-v2", "Personality V2", v2Type, v2URL, v2Key, v2Model)
 		}
 		// If no separate URL, V2 uses main LLM provider (resolved in ResolveProviders)
+	}
+}
+
+// MigrateAgentToPersonality copies legacy personality/user-profiling fields from
+// the Agent section (where they lived before) to the new Personality section.
+// It is called once on startup, before defaults are applied.
+func (c *Config) MigrateAgentToPersonality() {
+	// Only migrate if Personality section is still at zero-value defaults,
+	// meaning the user hasn't yet switched to the new personality: key in YAML.
+	if c.Personality.CorePersonality == "" && c.Agent.LegacyCorePersonality != "" {
+		c.Personality.CorePersonality = c.Agent.LegacyCorePersonality
+	}
+	if !c.Personality.Engine && c.Agent.LegacyPersonalityEngine {
+		c.Personality.Engine = c.Agent.LegacyPersonalityEngine
+	}
+	if !c.Personality.EngineV2 && c.Agent.LegacyPersonalityEngineV2 {
+		c.Personality.EngineV2 = c.Agent.LegacyPersonalityEngineV2
+	}
+	if c.Personality.V2Provider == "" && c.Agent.LegacyPersonalityV2Provider != "" {
+		c.Personality.V2Provider = c.Agent.LegacyPersonalityV2Provider
+	}
+	if c.Personality.V2Model == "" && c.Agent.LegacyPersonalityV2Model != "" {
+		c.Personality.V2Model = c.Agent.LegacyPersonalityV2Model
+	}
+	if c.Personality.V2URL == "" && c.Agent.LegacyPersonalityV2URL != "" {
+		c.Personality.V2URL = c.Agent.LegacyPersonalityV2URL
+	}
+	if c.Personality.V2APIKey == "" && c.Agent.LegacyPersonalityV2APIKey != "" {
+		c.Personality.V2APIKey = c.Agent.LegacyPersonalityV2APIKey
+	}
+	if c.Personality.V2TimeoutSecs == 0 && c.Agent.LegacyPersonalityV2TimeoutSecs > 0 {
+		c.Personality.V2TimeoutSecs = c.Agent.LegacyPersonalityV2TimeoutSecs
+	}
+	if !c.Personality.UserProfiling && c.Agent.LegacyUserProfiling {
+		c.Personality.UserProfiling = c.Agent.LegacyUserProfiling
+	}
+	if c.Personality.UserProfilingThreshold == 0 && c.Agent.LegacyUserProfilingThreshold > 0 {
+		c.Personality.UserProfilingThreshold = c.Agent.LegacyUserProfilingThreshold
 	}
 }
 

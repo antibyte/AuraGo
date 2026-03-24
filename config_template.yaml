@@ -13,16 +13,9 @@ agent:
     context_window: 0             # 0 = auto-detect from provider API at startup
     core_memory_cap_mode: soft
     core_memory_max_entries: 200
-    core_personality: friend
     debug_mode: false
     max_tool_calls: 15
     memory_compression_char_limit: 60000
-    personality_engine: true
-    personality_engine_v2: true
-    personality_v2_model: ""
-    personality_v2_url: ""
-    personality_v2_api_key: ""
-    personality_v2_timeout_secs: 120
     tool_output_limit: 50000  # max characters of a single tool result fed into context (0 = unlimited)
     show_tool_results: false
     step_delay_seconds: 0
@@ -473,6 +466,20 @@ ollama:
     enabled: false
     readonly: false
     url: ""
+personality:
+    core_personality: friend           # active personality profile, e.g. 'neutral', 'punk', 'zen'
+    engine: true                       # enable personality engine (mood, micro-traits)
+    engine_v2: true                    # enable advanced V2 engine with async LLM mood analysis
+    v2_provider: ""                    # provider ID for V2 analysis (empty = main LLM)
+    v2_model: ""                       # model name for V2 (empty = provider default)
+    v2_url: ""                         # custom base URL for V2 (e.g. local Ollama)
+    v2_api_key: ""                     # custom API key for V2
+    v2_timeout_secs: 120               # timeout for V2 async LLM call in seconds
+    user_profiling: false              # auto-detect user preferences from conversation
+    user_profiling_threshold: 2        # confirmations needed before injecting a trait into prompt
+    emotion_synthesizer:
+        enabled: false                 # enable emotion synthesis
+        max_history_entries: 100       # max emotion history entries to keep
 rocketchat:
     enabled: false
     url: ""

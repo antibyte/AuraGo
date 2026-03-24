@@ -1078,7 +1078,7 @@ func generateSessionID() string {
 }
 
 func buildDefaultSystemPrompt(cfg *config.Config) string {
-	return fmt.Sprintf("You are %s, an AI assistant. Be helpful and concise.", cfg.Agent.CorePersonality)
+	return fmt.Sprintf("You are %s, an AI assistant. Be helpful and concise.", cfg.Personality.CorePersonality)
 }
 
 func buildFeatureFlags(cfg *config.Config) agent.ToolFeatureFlags {
