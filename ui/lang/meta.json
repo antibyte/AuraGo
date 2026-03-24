@@ -84,6 +84,14 @@
       "vertex"
     ]
   },
+  "help.embeddings.local_ollama.gpu_backend": {
+    "options": [
+      "auto",
+      "nvidia",
+      "amd",
+      "intel"
+    ]
+  },
   "help.whisper.provider": {
     "provider_ref": true
   },
