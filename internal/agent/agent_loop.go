@@ -1739,7 +1739,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 								"model", modelName,
 								"url", v2URL,
 								"timeout_secs", cfg.Personality.V2TimeoutSecs,
-								"hint", "increase personality.v2_timeout_secs in config if this is a timeout")
+								"hint", "check personality engine config or use a dedicated v2_provider")
 						}
 
 						_ = shortTermMem.LogMood(mood, tInfo)

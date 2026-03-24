@@ -463,6 +463,12 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 					http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 				}
 			})
+		} else {
+			// Return empty list when webhooks are disabled so the UI doesn't get a 404.
+			mux.HandleFunc("/api/webhooks", func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				w.Write([]byte("[]"))
+			})
 		}
 
 		// Dashboard API endpoints
