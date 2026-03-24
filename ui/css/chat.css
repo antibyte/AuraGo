@@ -1966,8 +1966,10 @@
             padding: 0.3rem;
             border: 1px solid var(--border-subtle);
             border-radius: 13px;
-            background: var(--bg-glass);
-            box-shadow: 0 12px 34px rgba(0, 0, 0, 0.16);
+            background: color-mix(in srgb, var(--bg-secondary, #111827) 92%, transparent);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            box-shadow: 0 14px 34px rgba(0, 0, 0, 0.22);
             position: absolute;
             left: 50%;
             bottom: calc(100% + 0.45rem);
@@ -2056,7 +2058,9 @@
             padding: 0.35rem;
             border: 1px solid var(--border-subtle);
             border-radius: 13px;
-            background: var(--bg-glass);
+            background: color-mix(in srgb, var(--bg-secondary, #111827) 92%, transparent);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
             position: absolute;
             left: 50%;
             bottom: calc(100% + 0.45rem);
@@ -2237,7 +2241,7 @@
             margin: 0;
             align-items: center;
             gap: 6px;
-            background: var(--accent-dim);
+            background: color-mix(in srgb, var(--bg-secondary, #111827) 88%, var(--accent-dim) 12%);
             border: 1px solid var(--border-accent);
             border-radius: 20px;
             padding: 4px 10px 4px 12px;
@@ -2248,7 +2252,9 @@
             bottom: calc(100% + 0.45rem);
             transform: translateX(-50%);
             z-index: 55;
-            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.14);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            box-shadow: 0 12px 26px rgba(15, 23, 42, 0.2);
             animation: composerPopoverIn 0.18s ease;
             pointer-events: auto;
         }
