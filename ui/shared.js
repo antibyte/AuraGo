@@ -22,6 +22,56 @@ function t(k, p) {
     return s;
 }
 
+function ensureHeadAsset(tagName, attrs) {
+    const selectorParts = [tagName];
+    if (attrs.rel) selectorParts.push(`[rel="${attrs.rel}"]`);
+    if (attrs.href) selectorParts.push(`[href="${attrs.href}"]`);
+    if (attrs.name) selectorParts.push(`[name="${attrs.name}"]`);
+    if (attrs.sizes) selectorParts.push(`[sizes="${attrs.sizes}"]`);
+    const selector = selectorParts.join('');
+    if (document.head.querySelector(selector)) return;
+
+    const el = document.createElement(tagName);
+    Object.entries(attrs).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+            el.setAttribute(key, value);
+        }
+    });
+    document.head.appendChild(el);
+}
+
+function ensureBrandIcons() {
+    ensureHeadAsset('link', {
+        rel: 'apple-touch-icon',
+        sizes: '180x180',
+        href: '/apple-touch-icon.png'
+    });
+    ensureHeadAsset('link', {
+        rel: 'icon',
+        type: 'image/png',
+        sizes: '32x32',
+        href: '/favicon-32x32.png'
+    });
+    ensureHeadAsset('link', {
+        rel: 'icon',
+        type: 'image/png',
+        sizes: '16x16',
+        href: '/favicon-16x16.png'
+    });
+    ensureHeadAsset('link', {
+        rel: 'shortcut icon',
+        href: '/favicon.ico'
+    });
+    ensureHeadAsset('link', {
+        rel: 'manifest',
+        href: '/manifest.json'
+    });
+    ensureHeadAsset('meta', {
+        name: 'theme-color',
+        content: '#111827'
+    });
+}
+
 /**
  * Apply translations to all elements with data-i18n attributes.
  * Supports data-i18n-attr to set a specific attribute instead of textContent.
@@ -623,13 +673,8 @@ function injectLanguageSwitcher() {
  * (e.g. the bell button in the chat UI).
  */
 async function initPWA() {
-    // 1. Inject Manifest
-    if (!document.querySelector('link[rel="manifest"]')) {
-        const link = document.createElement('link');
-        link.rel = 'manifest';
-        link.href = '/manifest.json';
-        document.head.appendChild(link);
-    }
+    // 1. Ensure the manifest and favicon set is present for all pages.
+    ensureBrandIcons();
 
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
         window._pushStatus = { available: false, reason: 'not-supported' };
@@ -976,6 +1021,7 @@ window.AuraSSE = (function () {
 function initShared() {
     console.log('[AuraGo] Initializing shared components...');
 
+    try { ensureBrandIcons(); } catch (e) { console.error('[AuraGo] ensureBrandIcons failed:', e); }
     try { initTheme(); } catch (e) { console.error('[AuraGo] initTheme failed:', e); }
     try { injectRadialMenu(); } catch (e) { console.error('[AuraGo] injectRadialMenu failed:', e); }
     try { initRadialMenu(); } catch (e) { console.error('[AuraGo] initRadialMenu failed:', e); }

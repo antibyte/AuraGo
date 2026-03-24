@@ -21,8 +21,8 @@ self.addEventListener('push', function (event) {
     const title = data.title || 'AuraGo';
     const options = {
         body: data.message || data.body || 'You have a new message.',
-        icon: data.icon || '/aurago_logo.png',
-        badge: '/aurago_logo.png',
+        icon: data.icon || '/android-chrome-192x192.png',
+        badge: '/android-chrome-192x192.png',
         tag: 'aurago-notification',
         renotify: true,
         data: { url: data.url || '/' },
