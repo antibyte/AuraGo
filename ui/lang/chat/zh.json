@@ -92,5 +92,7 @@
   "chat.stt_not_supported": "此浏览器不支持语音识别",
   "chat.stt_permission_denied": "麦克风权限被拒绝",
   "chat.stt_cancel": "取消",
-  "chat.stt_done": "完成"
+  "chat.stt_done": "完成",
+  "chat.more_actions_title": "Geng duo cao zuo",
+  "chat.feedback_toggle_title": "Fan kui"
 }

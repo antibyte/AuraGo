@@ -92,5 +92,7 @@
   "chat.stt_not_supported": "Il riconoscimento vocale non è supportato in questo browser",
   "chat.stt_permission_denied": "Accesso al microfono negato",
   "chat.stt_cancel": "Annulla",
-  "chat.stt_done": "Fatto"
+  "chat.stt_done": "Fatto",
+  "chat.more_actions_title": "Altre azioni",
+  "chat.feedback_toggle_title": "Feedback"
 }

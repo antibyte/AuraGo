@@ -92,5 +92,7 @@
   "chat.stt_not_supported": "Taligenkänning stöds inte i denna webbläsare",
   "chat.stt_permission_denied": "Mikrofonåtkomst nekad",
   "chat.stt_cancel": "Avbryt",
-  "chat.stt_done": "Klar"
+  "chat.stt_done": "Klar",
+  "chat.more_actions_title": "Fler atgarder",
+  "chat.feedback_toggle_title": "Feedback"
 }

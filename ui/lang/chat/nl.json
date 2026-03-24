@@ -92,5 +92,7 @@
   "chat.stt_not_supported": "Spraakherkenning wordt niet ondersteund in deze browser",
   "chat.stt_permission_denied": "Microfoontoegang geweigerd",
   "chat.stt_cancel": "Annuleren",
-  "chat.stt_done": "Klaar"
+  "chat.stt_done": "Klaar",
+  "chat.more_actions_title": "Meer acties",
+  "chat.feedback_toggle_title": "Feedback"
 }

@@ -92,5 +92,7 @@
   "chat.stt_not_supported": "Spracherkennung wird in diesem Browser nicht unterstützt",
   "chat.stt_permission_denied": "Mikrofonzugriff verweigert",
   "chat.stt_cancel": "Abbrechen",
-  "chat.stt_done": "Fertig"
+  "chat.stt_done": "Fertig",
+  "chat.more_actions_title": "Mehr Aktionen",
+  "chat.feedback_toggle_title": "Feedback"
 }

@@ -92,5 +92,7 @@
   "chat.stt_not_supported": "इस ब्राउज़र में वाक् पहचान समर्थित नहीं है",
   "chat.stt_permission_denied": "माइक्रोफ़ोन अनुमति अस्वीकृत",
   "chat.stt_cancel": "रद्द करें",
-  "chat.stt_done": "पूर्ण"
+  "chat.stt_done": "पूर्ण",
+  "chat.more_actions_title": "Aur karvaaiyan",
+  "chat.feedback_toggle_title": "Feedbak"
 }

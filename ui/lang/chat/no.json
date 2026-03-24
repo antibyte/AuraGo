@@ -92,5 +92,7 @@
   "chat.stt_not_supported": "Talegjenkjenning støttes ikke i denne nettleseren",
   "chat.stt_permission_denied": "Mikrofontilgang nektet",
   "chat.stt_cancel": "Avbryt",
-  "chat.stt_done": "Ferdig"
+  "chat.stt_done": "Ferdig",
+  "chat.more_actions_title": "Flere handlinger",
+  "chat.feedback_toggle_title": "Tilbakemelding"
 }

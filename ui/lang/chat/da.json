@@ -92,5 +92,7 @@
   "chat.stt_not_supported": "Talegenkendelse understøttes ikke i denne browser",
   "chat.stt_permission_denied": "Mikrofontilladelse nægtet",
   "chat.stt_cancel": "Annuller",
-  "chat.stt_done": "Færdig"
+  "chat.stt_done": "Færdig",
+  "chat.more_actions_title": "Flere handlinger",
+  "chat.feedback_toggle_title": "Feedback"
 }

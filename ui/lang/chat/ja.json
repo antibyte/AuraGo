@@ -92,5 +92,7 @@
   "chat.stt_not_supported": "このブラウザでは音声認識がサポートされていません",
   "chat.stt_permission_denied": "マイクの許可が拒否されました",
   "chat.stt_cancel": "キャンセル",
-  "chat.stt_done": "完了"
+  "chat.stt_done": "完了",
+  "chat.more_actions_title": "Sonota no sosa",
+  "chat.feedback_toggle_title": "Fiidobakku"
 }

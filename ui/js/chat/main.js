@@ -8,6 +8,10 @@ const chatForm = document.getElementById('chat-form');
 const userInput = document.getElementById('user-input');
 const sendBtn = document.getElementById('send-btn');
 const stopBtn = document.getElementById('stop-btn');
+const composerMoreBtn = document.getElementById('composer-more-btn');
+const composerPanel = document.getElementById('composer-panel');
+const feedbackToggleBtn = document.getElementById('feedback-toggle-btn');
+const moodFeedbackRow = document.getElementById('mood-feedback-row');
 
 
 /* ── Mood Feedback Buttons (insert emoji + personality feedback) ── */
@@ -89,8 +93,16 @@ function applyI18n() {
     document.getElementById('debug-pill').title = t('chat.debug_pill_title');
     document.getElementById('debug-pill').textContent = t('chat.debug_pill');
     // connectionPill state is managed exclusively by setConnectionState() — do not override here
-    const clearBtnText = document.querySelector('#clear-btn .btn-text');
-    if (clearBtnText) clearBtnText.textContent = t('chat.btn_clear');
+    const clearBtnLabel = document.querySelector('#clear-btn .tool-label');
+    if (clearBtnLabel) clearBtnLabel.textContent = t('chat.btn_clear');
+    const uploadBtnLabel = document.querySelector('#upload-btn .tool-label');
+    if (uploadBtnLabel) uploadBtnLabel.textContent = t('chat.upload_btn_title');
+    const pushBtnLabel = document.querySelector('#push-btn .tool-label');
+    if (pushBtnLabel) pushBtnLabel.textContent = t('pwa.btn_push_title');
+    const stopBtnLabel = document.querySelector('#stop-btn .tool-label');
+    if (stopBtnLabel) stopBtnLabel.textContent = t('chat.stop_btn_title');
+    const feedbackBtnLabel = document.querySelector('#feedback-toggle-btn .tool-label');
+    if (feedbackBtnLabel) feedbackBtnLabel.textContent = t('chat.feedback_toggle_title');
     const logoutBtn = document.getElementById('logout-btn');
     if (logoutBtn) { logoutBtn.title = t('chat.logout_title'); logoutBtn.textContent = t('chat.logout_label'); }
     /* Radial nav */
@@ -115,8 +127,10 @@ function applyI18n() {
     document.getElementById('upload-btn').title = t('chat.upload_btn_title');
     document.getElementById('send-btn').title = t('chat.send_btn_title');
     document.getElementById('stop-btn').title = t('chat.stop_btn_title');
+    if (composerMoreBtn) composerMoreBtn.title = t('chat.more_actions_title');
     const pushBtn = document.getElementById('push-btn');
     if (pushBtn) pushBtn.title = t('pwa.btn_push_title');
+    if (feedbackToggleBtn) feedbackToggleBtn.title = t('chat.feedback_toggle_title');
     /* Feedback buttons */
     document.querySelectorAll('.mood-btn').forEach(btn => {
         const fb = btn.dataset.feedback;
@@ -136,6 +150,21 @@ function applyI18n() {
 function chatSetHidden(el, hidden) {
     if (!el) return;
     el.classList.toggle('is-hidden', hidden);
+}
+
+function closeComposerPanel() {
+    if (!composerMoreBtn || !composerPanel) return;
+    composerPanel.classList.add('is-hidden');
+    composerMoreBtn.classList.remove('is-open');
+    composerMoreBtn.setAttribute('aria-expanded', 'false');
+}
+
+function toggleComposerPanel(forceOpen) {
+    if (!composerMoreBtn || !composerPanel) return;
+    const shouldOpen = typeof forceOpen === 'boolean' ? forceOpen : composerPanel.classList.contains('is-hidden');
+    composerPanel.classList.toggle('is-hidden', !shouldOpen);
+    composerMoreBtn.classList.toggle('is-open', shouldOpen);
+    composerMoreBtn.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
 }
 
 
@@ -388,6 +417,7 @@ document.getElementById('personality-select').addEventListener('change', functio
 
 /* ── Clear session ── */
 document.getElementById('clear-btn').addEventListener('click', async () => {
+    closeComposerPanel();
     const ok = await showConfirm(
         t('chat.confirm_clear_title'),
         t('chat.confirm_clear_msg')
@@ -409,6 +439,7 @@ document.getElementById('clear-btn').addEventListener('click', async () => {
 
 /* ── Stop agent ── */
 document.getElementById('stop-btn').addEventListener('click', async () => {
+    closeComposerPanel();
     const ok = await showConfirm(
         t('chat.confirm_stop_title'),
         t('chat.confirm_stop_msg')
@@ -572,7 +603,10 @@ const attachName = document.getElementById('attachment-name');
 const attachClear = document.getElementById('attachment-clear');
 let pendingAttachment = null; // { path, filename }
 
-uploadBtn.addEventListener('click', () => fileInput.click());
+uploadBtn.addEventListener('click', () => {
+    closeComposerPanel();
+    fileInput.click();
+});
 
 attachClear.addEventListener('click', () => {
     pendingAttachment = null;
@@ -580,6 +614,29 @@ attachClear.addEventListener('click', () => {
     chatSetHidden(attachChip, true);
     uploadBtn.classList.remove('has-file');
 });
+
+if (composerMoreBtn && composerPanel) {
+    composerMoreBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleComposerPanel();
+    });
+    document.addEventListener('click', (e) => {
+        if (composerPanel.classList.contains('is-hidden')) return;
+        if (e.target.closest('#composer-panel') || e.target.closest('#composer-more-btn')) return;
+        closeComposerPanel();
+    });
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeComposerPanel();
+    });
+}
+
+if (feedbackToggleBtn && moodFeedbackRow) {
+    feedbackToggleBtn.addEventListener('click', () => {
+        const willOpen = moodFeedbackRow.classList.contains('is-hidden');
+        chatSetHidden(moodFeedbackRow, !willOpen);
+        closeComposerPanel();
+    });
+}
 
 fileInput.addEventListener('change', async () => {
     const file = fileInput.files[0];
@@ -606,6 +663,7 @@ fileInput.addEventListener('change', async () => {
 /* ── Form submit ── */
 chatForm.addEventListener('submit', async (e) => {
     e.preventDefault();
+    closeComposerPanel();
     let message = userInput.value.trim();
     if (!message && !pendingAttachment) return;
     if (!message) message = t('chat.file_sent');
@@ -1148,6 +1206,7 @@ function initPushUI() {
     applyState();
 
     btn.addEventListener('click', async () => {
+        closeComposerPanel();
         const status = window.getPushStatus ? window.getPushStatus() : null;
         if (!status || !status.available) return;
 

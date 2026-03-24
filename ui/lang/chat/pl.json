@@ -92,5 +92,7 @@
   "chat.stt_not_supported": "Rozpoznawanie mowy nie jest obsługiwane w tej przeglądarce",
   "chat.stt_permission_denied": "Odmowa dostępu do mikrofonu",
   "chat.stt_cancel": "Anuluj",
-  "chat.stt_done": "Gotowe"
+  "chat.stt_done": "Gotowe",
+  "chat.more_actions_title": "Wiecej akcji",
+  "chat.feedback_toggle_title": "Opinie"
 }

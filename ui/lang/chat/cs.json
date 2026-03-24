@@ -92,5 +92,7 @@
   "chat.stt_not_supported": "Rozpoznávání řeči není v tomto prohlížeči podporováno",
   "chat.stt_permission_denied": "Přístup k mikrofonu zamítnut",
   "chat.stt_cancel": "Zrušit",
-  "chat.stt_done": "Hotovo"
+  "chat.stt_done": "Hotovo",
+  "chat.more_actions_title": "Dalsi akce",
+  "chat.feedback_toggle_title": "Zpetna vazba"
 }

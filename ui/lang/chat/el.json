@@ -92,5 +92,7 @@
   "chat.stt_not_supported": "Η αναγνώριση ομιλίας δεν υποστηρίζεται σε αυτό το πρόγραμμα περιήγησης",
   "chat.stt_permission_denied": "Η πρόσβαση στο μικρόφωνο απορρίφθηκε",
   "chat.stt_cancel": "Ακύρωση",
-  "chat.stt_done": "Τέλος"
+  "chat.stt_done": "Τέλος",
+  "chat.more_actions_title": "Perissoteres energeies",
+  "chat.feedback_toggle_title": "Anatrofodotisi"
 }
