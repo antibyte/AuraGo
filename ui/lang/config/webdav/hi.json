@@ -1,0 +1,23 @@
+{
+  "config.webdav.enabled_label": "सक्रिय",
+  "config.webdav.readonly_label": "केवल-पढ़ने योग्य",
+  "config.webdav.url_label": "WebDAV URL",
+  "config.webdav.username_label": "उपयोगकर्ता नाम",
+  "config.webdav.secret_label": "लॉगिन सीक्रेट (Vault)",
+  "config.webdav.secret_placeholder": "पासवर्ड या ऐप टोकन दर्ज करें…",
+  "config.webdav.save_vault": "Vault में सहेजें",
+  "config.webdav.secret_empty": "पहले पासवर्ड या टोकन दर्ज करें।",
+  "config.webdav.secret_saved": "WebDAV सीक्रेट Vault में सहेजा गया।",
+  "config.webdav.secret_save_failed": "WebDAV सीक्रेट Vault में सहेजा नहीं जा सका।",
+  "config.webdav.auth_type_label": "प्रमाणीकरण प्रकार",
+  "config.webdav.auth_type_basic": "Basic Auth",
+  "config.webdav.auth_type_bearer": "Bearer Token",
+  "config.webdav.password_label": "पासवर्ड / ऐप पासवर्ड (Vault)",
+  "config.webdav.password_placeholder": "पासवर्ड या ऐप पासवर्ड दर्ज करें…",
+  "config.webdav.password_saved": "WebDAV पासवर्ड Vault में सहेजा गया।",
+  "config.webdav.password_save_failed": "WebDAV पासवर्ड Vault में सहेजा नहीं जा सका।",
+  "config.webdav.token_label": "Bearer टोकन (Vault)",
+  "config.webdav.token_placeholder": "Bearer टोकन दर्ज करें…",
+  "config.webdav.token_saved": "WebDAV Bearer टोकन Vault में सहेजा गया।",
+  "config.webdav.token_save_failed": "WebDAV Bearer टोकन Vault में सहेजा नहीं जा सका।"
+}

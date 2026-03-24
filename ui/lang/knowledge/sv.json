@@ -56,5 +56,9 @@
   "knowledge.devices_tags_placeholder": "t.ex. produktion, linux, docker",
   "knowledge.devices_vault_read_only": "(skrivskyddad)",
   "knowledge.devices_name_required": "Namn krävs.",
-  "knowledge.devices_delete_confirm": "Är du säker på att du vill ta bort enheten \"{name}\"?"
+  "knowledge.devices_delete_confirm": "Är du säker på att du vill ta bort enheten \"{name}\"?",
+  "knowledge.files_preview": "Förhandsgranska",
+  "knowledge.files_preview_unavailable_title": "Förhandsvisning är inte tillgänglig",
+  "knowledge.files_preview_unavailable_desc": "Den här filtypen kan inte förhandsvisas direkt. Du kan fortfarande ladda ner den.",
+  "knowledge.files_preview_render_error": "Webbläsaren kunde inte visa dokumentet direkt. Försök att ladda ner det i stället."
 }

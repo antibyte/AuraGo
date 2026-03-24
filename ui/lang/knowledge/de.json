@@ -56,5 +56,9 @@
   "knowledge.devices_tags_placeholder": "z.B. produktion, linux, docker",
   "knowledge.devices_vault_read_only": "(nur Anzeige)",
   "knowledge.devices_name_required": "Name ist erforderlich.",
-  "knowledge.devices_delete_confirm": "Sind Sie sicher, dass Sie das Gerät \"{name}\" löschen möchten?"
+  "knowledge.devices_delete_confirm": "Sind Sie sicher, dass Sie das Gerät \"{name}\" löschen möchten?",
+  "knowledge.files_preview": "Vorschau",
+  "knowledge.files_preview_unavailable_title": "Vorschau nicht verfügbar",
+  "knowledge.files_preview_unavailable_desc": "Dieser Dateityp kann nicht direkt in der Vorschau angezeigt werden. Du kannst ihn aber herunterladen.",
+  "knowledge.files_preview_render_error": "Der Browser konnte dieses Dokument nicht direkt darstellen. Versuche stattdessen den Download."
 }

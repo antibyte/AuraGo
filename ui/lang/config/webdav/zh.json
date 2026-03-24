@@ -1,0 +1,23 @@
+{
+  "config.webdav.enabled_label": "已启用",
+  "config.webdav.readonly_label": "只读",
+  "config.webdav.url_label": "WebDAV URL",
+  "config.webdav.username_label": "用户名",
+  "config.webdav.secret_label": "登录密钥（Vault）",
+  "config.webdav.secret_placeholder": "输入密码或应用令牌…",
+  "config.webdav.save_vault": "保存到 Vault",
+  "config.webdav.secret_empty": "请先输入密码或令牌。",
+  "config.webdav.secret_saved": "WebDAV 密钥已保存到 Vault。",
+  "config.webdav.secret_save_failed": "无法将 WebDAV 密钥保存到 Vault。",
+  "config.webdav.auth_type_label": "认证类型",
+  "config.webdav.auth_type_basic": "Basic Auth",
+  "config.webdav.auth_type_bearer": "Bearer Token",
+  "config.webdav.password_label": "密码 / 应用密码（Vault）",
+  "config.webdav.password_placeholder": "输入密码或应用密码…",
+  "config.webdav.password_saved": "WebDAV 密码已保存到 Vault。",
+  "config.webdav.password_save_failed": "无法将 WebDAV 密码保存到 Vault。",
+  "config.webdav.token_label": "Bearer Token（Vault）",
+  "config.webdav.token_placeholder": "输入 Bearer Token…",
+  "config.webdav.token_saved": "WebDAV Bearer Token 已保存到 Vault。",
+  "config.webdav.token_save_failed": "无法将 WebDAV Bearer Token 保存到 Vault。"
+}

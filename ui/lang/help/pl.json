@@ -260,7 +260,7 @@
   "help.vision.provider": "Wybierz dostawcę z zarządzania dostawcami dla analizy obrazów.",
   "help.web_config.enabled": "Włącza stronę konfiguracji web pod adresem /config. Domyślnie wyłączone ze względów bezpieczeństwa.",
   "help.webdav.enabled": "Włącza integrację WebDAV.",
-  "help.webdav.password": "Hasło dla serwera WebDAV.",
+  "help.webdav.password": "Hasło lub hasło aplikacji dla Basic Auth. Jest bezpiecznie przechowywane w Vault.",
   "help.webdav.read_only": "Gdy włączone, agent może tylko czytać i listować pliki, ale nie może ich zapisywać, usuwać ani przenosić.",
   "help.webdav.url": "URL serwera WebDAV.",
   "help.webdav.username": "Nazwa użytkownika dla serwera WebDAV.",
@@ -299,5 +299,7 @@
   "help.personality.emotion_synthesizer.min_interval_seconds": "Minimalny interwał w sekundach między syntezami. Domyślnie: 60.",
   "help.personality.emotion_synthesizer.max_history_entries": "Maksymalna liczba wpisów historii emocji. Domyślnie: 100.",
   "help.personality.emotion_synthesizer.trigger_on_mood_change": "Wyzwól syntezę przy zmianie nastroju.",
-  "help.personality.emotion_synthesizer.trigger_always": "Wyzwól syntezę po każdej analizie V2."
+  "help.personality.emotion_synthesizer.trigger_always": "Wyzwól syntezę po każdej analizie V2.",
+  "help.webdav.auth_type": "Wybierz, czy AuraGo ma używać Basic Auth z nazwą użytkownika i hasłem, czy tokenu Bearer.",
+  "help.webdav.token": "Token Bearer dla serwerów oczekujących nagłówka Authorization: Bearer …. Jest bezpiecznie przechowywany w Vault."
 }

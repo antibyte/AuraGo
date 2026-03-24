@@ -384,6 +384,7 @@ indexing:
         - .yml
 webdav:
     enabled: false
+    auth_type: basic
     password: ""
     url: ""
     username: ""

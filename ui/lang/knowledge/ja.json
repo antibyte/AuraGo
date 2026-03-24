@@ -56,5 +56,9 @@
   "knowledge.devices_tags_placeholder": "例えば本番環境、Linux、Docker",
   "knowledge.devices_vault_read_only": "(読み取り専用)",
   "knowledge.devices_name_required": "名前は必須です。",
-  "knowledge.devices_delete_confirm": "デバイス「{name}」を削除してもよろしいですか？"
+  "knowledge.devices_delete_confirm": "デバイス「{name}」を削除してもよろしいですか？",
+  "knowledge.files_preview": "プレビュー",
+  "knowledge.files_preview_unavailable_title": "プレビューを利用できません",
+  "knowledge.files_preview_unavailable_desc": "この種類のファイルはインラインでプレビューできません。ダウンロードは可能です。",
+  "knowledge.files_preview_render_error": "ブラウザでこの文書を直接表示できませんでした。代わりにダウンロードしてください。"
 }

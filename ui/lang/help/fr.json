@@ -134,7 +134,9 @@
   "help.homepage.deploy_method": "Méthode de transfert : SFTP (par défaut) ou SCP.",
   "help.homepage.webserver_enabled": "Démarre un serveur web Caddy local dans Docker pour prévisualiser les sites web. Prend en charge le HTTPS automatique avec un domaine.",
   "help.homepage.webserver_port": "Port du serveur web Caddy local. Par défaut : 8080.",
-  "help.homepage.webserver_domain": "Domaine optionnel pour le HTTPS automatique via Let's Encrypt.",  "help.homepage.webserver_internal_only": "Lorsqu'il est activé, le conteneur Caddy se lie uniquement à 127.0.0.1 (localhost). Le serveur web n'est alors accessible que localement, pas depuis des réseaux externes.",  "help.homepage.workspace_path": "Répertoire local pour les projets web, monté dans le conteneur Docker.",
+  "help.homepage.webserver_domain": "Domaine optionnel pour le HTTPS automatique via Let's Encrypt.",
+  "help.homepage.webserver_internal_only": "Lorsqu'il est activé, le conteneur Caddy se lie uniquement à 127.0.0.1 (localhost). Le serveur web n'est alors accessible que localement, pas depuis des réseaux externes.",
+  "help.homepage.workspace_path": "Répertoire local pour les projets web, monté dans le conteneur Docker.",
   "help.indexing.directories": "Liste des répertoires à surveiller et à indexer. Les chemins relatifs sont résolus à partir du répertoire de configuration. Par défaut : ./knowledge.",
   "help.indexing.enabled": "Permet l'indexation automatique des fichiers. Les fichiers dans les dossiers configurés sont périodiquement analysés, convertis en intégrations et disponibles pour l'agent en tant que base de connaissances.",
   "help.indexing.extensions": "Liste des extensions de fichiers à indexer. Les fichiers texte sont lus directement, les documents (.pdf, .docx, .xlsx, .pptx, .odt, .rtf) sont automatiquement extraits. Les fichiers binaires (exécutables) sont automatiquement rejetés. Par défaut : .txt, .md, .json, .csv, .log, .yaml, .yml, .pdf, .docx, .xlsx, .pptx, .odt, .rtf.",
@@ -258,7 +260,7 @@
   "help.vision.provider": "Sélectionnez un fournisseur dans la gestion des fournisseurs pour l'analyse d'images.",
   "help.web_config.enabled": "Active la page de configuration Web dans /config. Désactivé par défaut pour des raisons de sécurité.",
   "help.webdav.enabled": "Active l'intégration WebDAV.",
-  "help.webdav.password": "Mot de passe du serveur WebDAV.",
+  "help.webdav.password": "Mot de passe ou mot de passe applicatif pour Basic Auth. Stocké en toute sécurité dans le Vault.",
   "help.webdav.read_only": "Lorsqu'il est activé, l'agent peut uniquement lire et répertorier les fichiers, mais ne peut pas les écrire, les supprimer ou les déplacer.",
   "help.webdav.url": "URL du serveur WebDAV.",
   "help.webdav.username": "Nom d'utilisateur pour le serveur WebDAV.",
@@ -297,5 +299,7 @@
   "help.personality.emotion_synthesizer.min_interval_seconds": "Intervalle minimum en secondes entre synthèses. Défaut : 60.",
   "help.personality.emotion_synthesizer.max_history_entries": "Nombre maximum d'entrées dans l'historique. Défaut : 100.",
   "help.personality.emotion_synthesizer.trigger_on_mood_change": "Déclencher la synthèse lors d'un changement d'humeur.",
-  "help.personality.emotion_synthesizer.trigger_always": "Déclencher la synthèse après chaque analyse V2."
+  "help.personality.emotion_synthesizer.trigger_always": "Déclencher la synthèse après chaque analyse V2.",
+  "help.webdav.auth_type": "Choisissez si AuraGo doit utiliser Basic Auth avec nom d’utilisateur et mot de passe, ou un jeton Bearer.",
+  "help.webdav.token": "Jeton Bearer pour les serveurs qui attendent un en-tête Authorization: Bearer …. Stocké en toute sécurité dans le Vault."
 }

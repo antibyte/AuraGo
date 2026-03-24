@@ -105,11 +105,13 @@
   "help.email_accounts.watch_interval_seconds": "检查此帐户邮箱的时间间隔（以秒为单位）。",
   "help.embeddings.provider": "来自用于嵌入的提供者管理的提供者。模型和 URL 取自提供商条目。 “禁用”完全关闭长期记忆。",
   "help.embeddings.multimodal": "启用多模态嵌入。启用后，图像和音频文件将直接作为向量嵌入。仅在嵌入模型支持多模态输入时启用。文本较少的扫描版PDF将自动作为图像处理。",
-  "help.embeddings.multimodal_format": "多模态嵌入请求的API格式。'auto'根据提供者类型自动检测格式。'openai'使用OpenAI兼容格式，'vertex'使用Google Vertex AI格式。",  "help.embeddings.local_ollama.enabled": "自动启动本地Ollama容器用于嵌入。适合完全本地化、无需外部API的环境。",
+  "help.embeddings.multimodal_format": "多模态嵌入请求的API格式。'auto'根据提供者类型自动检测格式。'openai'使用OpenAI兼容格式，'vertex'使用Google Vertex AI格式。",
+  "help.embeddings.local_ollama.enabled": "自动启动本地Ollama容器用于嵌入。适合完全本地化、无需外部API的环境。",
   "help.embeddings.local_ollama.model": "加载到Ollama的嵌入模型（默认：'nomic-embed-text'）。首次启动时会自动下载模型。",
   "help.embeddings.local_ollama.container_port": "托管Ollama容器的主机端口（默认：11435）。必须空闲且与其他Ollama实例不同。",
   "help.embeddings.local_ollama.use_host_gpu": "将主机GPU设备传递给容器（仅Linux）。开启以使用GPU加速嵌入。",
-  "help.embeddings.local_ollama.gpu_backend": "Ollama容器的GPU后端。'auto'自动检测NVIDIA、AMD或Intel。如果自动检测失败，请手动设置。",  "help.fallback_llm.enabled": "出现错误时启用自动故障转移到备份 LLM。",
+  "help.embeddings.local_ollama.gpu_backend": "Ollama容器的GPU后端。'auto'自动检测NVIDIA、AMD或Intel。如果自动检测失败，请手动设置。",
+  "help.fallback_llm.enabled": "出现错误时启用自动故障转移到备份 LLM。",
   "help.fallback_llm.error_threshold": "切换到后备模型之前的连续错误数。",
   "help.fallback_llm.probe_interval_seconds": "探测并尝试恢复主模型的时间间隔（以秒为单位）。",
   "help.fallback_llm.provider": "来自提供者管理的提供者，用于后备法学硕士。模型、URL 和 API 密钥取自提供商条目。",
@@ -258,7 +260,7 @@
   "help.vision.provider": "从提供商管理中选择一个提供商进行图像分析。",
   "help.web_config.enabled": "启用位于 /config 的 Web 配置页面。为了安全起见，默认情况下禁用。",
   "help.webdav.enabled": "启用 WebDAV 集成。",
-  "help.webdav.password": "WebDAV 服务器的密码。",
+  "help.webdav.password": "用于 Basic Auth 的密码或应用密码。会安全地存储在 Vault 中。",
   "help.webdav.read_only": "启用后，代理只能读取和列出文件，而不能写入、删除或移动它们。",
   "help.webdav.url": "WebDAV 服务器的 URL。",
   "help.webdav.username": "WebDAV 服务器的用户名。",
@@ -297,5 +299,7 @@
   "help.personality.emotion_synthesizer.min_interval_seconds": "合成之间的最小间隔（秒）。默认：60。",
   "help.personality.emotion_synthesizer.max_history_entries": "情绪历史记录的最大条目数。默认：100。",
   "help.personality.emotion_synthesizer.trigger_on_mood_change": "情绪变化时触发合成。",
-  "help.personality.emotion_synthesizer.trigger_always": "每次V2分析后触发合成。"
+  "help.personality.emotion_synthesizer.trigger_always": "每次V2分析后触发合成。",
+  "help.webdav.auth_type": "选择 AuraGo 应使用带用户名和密码的 Basic Auth，还是 Bearer Token。",
+  "help.webdav.token": "用于需要 Authorization: Bearer … 头的服务器的 Bearer Token。会安全地存储在 Vault 中。"
 }

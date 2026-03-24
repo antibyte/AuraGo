@@ -1,0 +1,23 @@
+{
+  "config.webdav.enabled_label": "Activé",
+  "config.webdav.readonly_label": "Lecture seule",
+  "config.webdav.url_label": "URL WebDAV",
+  "config.webdav.username_label": "Nom d’utilisateur",
+  "config.webdav.secret_label": "Secret de connexion (Vault)",
+  "config.webdav.secret_placeholder": "Saisissez le mot de passe ou le jeton applicatif…",
+  "config.webdav.save_vault": "Enregistrer dans le Vault",
+  "config.webdav.secret_empty": "Veuillez d’abord saisir un mot de passe ou un jeton.",
+  "config.webdav.secret_saved": "Le secret WebDAV a été enregistré dans le Vault.",
+  "config.webdav.secret_save_failed": "Impossible d’enregistrer le secret WebDAV dans le Vault.",
+  "config.webdav.auth_type_label": "Type d’authentification",
+  "config.webdav.auth_type_basic": "Basic Auth",
+  "config.webdav.auth_type_bearer": "Jeton Bearer",
+  "config.webdav.password_label": "Mot de passe / mot de passe applicatif (Vault)",
+  "config.webdav.password_placeholder": "Saisissez le mot de passe ou le mot de passe applicatif…",
+  "config.webdav.password_saved": "Le mot de passe WebDAV a été enregistré dans le Vault.",
+  "config.webdav.password_save_failed": "Impossible d’enregistrer le mot de passe WebDAV dans le Vault.",
+  "config.webdav.token_label": "Jeton Bearer (Vault)",
+  "config.webdav.token_placeholder": "Saisissez le jeton Bearer…",
+  "config.webdav.token_saved": "Le jeton Bearer WebDAV a été enregistré dans le Vault.",
+  "config.webdav.token_save_failed": "Impossible d’enregistrer le jeton Bearer WebDAV dans le Vault."
+}

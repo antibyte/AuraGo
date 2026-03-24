@@ -1,0 +1,23 @@
+{
+  "config.webdav.enabled_label": "有効",
+  "config.webdav.readonly_label": "読み取り専用",
+  "config.webdav.url_label": "WebDAV URL",
+  "config.webdav.username_label": "ユーザー名",
+  "config.webdav.secret_label": "ログインシークレット（Vault）",
+  "config.webdav.secret_placeholder": "パスワードまたはアプリトークンを入力…",
+  "config.webdav.save_vault": "Vaultに保存",
+  "config.webdav.secret_empty": "先にパスワードまたはトークンを入力してください。",
+  "config.webdav.secret_saved": "WebDAV シークレットを Vault に保存しました。",
+  "config.webdav.secret_save_failed": "WebDAV シークレットを Vault に保存できませんでした。",
+  "config.webdav.auth_type_label": "認証方式",
+  "config.webdav.auth_type_basic": "Basic Auth",
+  "config.webdav.auth_type_bearer": "Bearer トークン",
+  "config.webdav.password_label": "パスワード / アプリパスワード（Vault）",
+  "config.webdav.password_placeholder": "パスワードまたはアプリパスワードを入力…",
+  "config.webdav.password_saved": "WebDAV パスワードを Vault に保存しました。",
+  "config.webdav.password_save_failed": "WebDAV パスワードを Vault に保存できませんでした。",
+  "config.webdav.token_label": "Bearer トークン（Vault）",
+  "config.webdav.token_placeholder": "Bearer トークンを入力…",
+  "config.webdav.token_saved": "WebDAV Bearer トークンを Vault に保存しました。",
+  "config.webdav.token_save_failed": "WebDAV Bearer トークンを Vault に保存できませんでした。"
+}

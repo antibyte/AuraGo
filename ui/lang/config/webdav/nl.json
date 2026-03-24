@@ -1,0 +1,23 @@
+{
+  "config.webdav.enabled_label": "Ingeschakeld",
+  "config.webdav.readonly_label": "Alleen-lezen",
+  "config.webdav.url_label": "WebDAV-URL",
+  "config.webdav.username_label": "Gebruikersnaam",
+  "config.webdav.secret_label": "Aanmeldgeheim (Vault)",
+  "config.webdav.secret_placeholder": "Voer wachtwoord of app-token in…",
+  "config.webdav.save_vault": "Opslaan in Vault",
+  "config.webdav.secret_empty": "Voer eerst een wachtwoord of token in.",
+  "config.webdav.secret_saved": "WebDAV-geheim opgeslagen in Vault.",
+  "config.webdav.secret_save_failed": "Kon het WebDAV-geheim niet opslaan in Vault.",
+  "config.webdav.auth_type_label": "Authenticatietype",
+  "config.webdav.auth_type_basic": "Basic Auth",
+  "config.webdav.auth_type_bearer": "Bearer-token",
+  "config.webdav.password_label": "Wachtwoord / app-wachtwoord (Vault)",
+  "config.webdav.password_placeholder": "Voer wachtwoord of app-wachtwoord in…",
+  "config.webdav.password_saved": "WebDAV-wachtwoord opgeslagen in Vault.",
+  "config.webdav.password_save_failed": "Kon WebDAV-wachtwoord niet opslaan in Vault.",
+  "config.webdav.token_label": "Bearer-token (Vault)",
+  "config.webdav.token_placeholder": "Voer Bearer-token in…",
+  "config.webdav.token_saved": "WebDAV Bearer-token opgeslagen in Vault.",
+  "config.webdav.token_save_failed": "Kon WebDAV Bearer-token niet opslaan in Vault."
+}

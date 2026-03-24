@@ -9,12 +9,24 @@ Add or update the `webdav` section in your `config.yaml`:
 ```yaml
 webdav:
   enabled: true
+  auth_type: "basic" # or "bearer"
   url: "https://your-cloud.example.com/remote.php/dav/files/username/"
   username: "your_username"
-  password: "your_app_password" # Use an app-specific password if possible
+  # Store the password/app password via the Web UI Vault field
+```
+
+For Bearer-token based servers:
+
+```yaml
+webdav:
+  enabled: true
+  auth_type: "bearer"
+  url: "https://storage.example.com/webdav/"
+  # Store the bearer token via the Web UI Vault field
 ```
 
 > **Note for Nextcloud/ownCloud:** Use the "WebDAV URL" provided in the web interface (Files → Settings).
+> **Secret storage:** WebDAV passwords and bearer tokens are stored in AuraGo's Vault, not persisted in plain text config output.
 
 ## Available Operations
 
@@ -43,3 +55,4 @@ AuraGo implements its own WebDAV client using standard Go `net/http` primitives.
 - **DELETE** for removal.
 - **MOVE** for renaming/moving.
 - **Basic Authentication**.
+- **Bearer Token Authentication**.

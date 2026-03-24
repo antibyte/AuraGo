@@ -260,7 +260,7 @@
   "help.vision.provider": "Poskytovatel pro vision.",
   "help.web_config.enabled": "Habilita configuração via web.",
   "help.webdav.enabled": "Habilita WebDAV.",
-  "help.webdav.password": "Heslo pro webdav.",
+  "help.webdav.password": "Senha ou senha de aplicativo para Basic Auth. Armazenada com segurança no Vault.",
   "help.webdav.read_only": "Pouze pro cteni pro webdav.",
   "help.webdav.url": "URL pro webdav.",
   "help.webdav.username": "Uzivatelske jmeno pro webdav.",
@@ -299,5 +299,7 @@
   "help.personality.emotion_synthesizer.min_interval_seconds": "Intervalo mínimo em segundos entre sínteses. Padrão: 60.",
   "help.personality.emotion_synthesizer.max_history_entries": "Número máximo de entradas no histórico. Padrão: 100.",
   "help.personality.emotion_synthesizer.trigger_on_mood_change": "Acionar síntese ao mudar de humor.",
-  "help.personality.emotion_synthesizer.trigger_always": "Acionar síntese após cada análise V2."
+  "help.personality.emotion_synthesizer.trigger_always": "Acionar síntese após cada análise V2.",
+  "help.webdav.auth_type": "Escolha se o AuraGo deve usar Basic Auth com nome de usuário e senha, ou um token Bearer.",
+  "help.webdav.token": "Token Bearer para servidores que esperam um cabeçalho Authorization: Bearer …. Armazenado com segurança no Vault."
 }

@@ -56,5 +56,9 @@
   "knowledge.devices_tags_placeholder": "bijv. productie, linux, docker",
   "knowledge.devices_vault_read_only": "(alleen-lezen)",
   "knowledge.devices_name_required": "Naam is verplicht.",
-  "knowledge.devices_delete_confirm": "Weet u zeker dat u het apparaat \"{name}\" wilt verwijderen?"
+  "knowledge.devices_delete_confirm": "Weet u zeker dat u het apparaat \"{name}\" wilt verwijderen?",
+  "knowledge.files_preview": "Voorbeeld",
+  "knowledge.files_preview_unavailable_title": "Voorbeeld niet beschikbaar",
+  "knowledge.files_preview_unavailable_desc": "Dit bestandstype kan niet direct inline worden weergegeven. Je kunt het nog steeds downloaden.",
+  "knowledge.files_preview_render_error": "De browser kon dit document niet direct weergeven. Probeer het in plaats daarvan te downloaden."
 }

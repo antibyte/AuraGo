@@ -260,7 +260,7 @@
   "help.vision.provider": "छवि विश्लेषण के लिए प्रदाता प्रबंधन से एक प्रदाता का चयन करें।",
   "help.web_config.enabled": "वेब कॉन्फ़िगरेशन पृष्ठ को /config पर सक्षम करता है। सुरक्षा के लिए डिफ़ॉल्ट रूप से अक्षम.",
   "help.webdav.enabled": "WebDAV एकीकरण सक्षम करता है.",
-  "help.webdav.password": "WebDAV सर्वर के लिए पासवर्ड.",
+  "help.webdav.password": "Basic Auth के लिए पासवर्ड या ऐप पासवर्ड। Vault में सुरक्षित रूप से संग्रहीत होता है।",
   "help.webdav.read_only": "सक्षम होने पर, एजेंट केवल फ़ाइलों को पढ़ और सूचीबद्ध कर सकता है, लेकिन उन्हें लिख नहीं सकता, हटा नहीं सकता या स्थानांतरित नहीं कर सकता।",
   "help.webdav.url": "WebDAV सर्वर का URL.",
   "help.webdav.username": "WebDAV सर्वर के लिए उपयोगकर्ता नाम.",
@@ -299,5 +299,7 @@
   "help.personality.emotion_synthesizer.min_interval_seconds": "सिंथेसिस के बीच न्यूनतम अंतराल सेकंड में। डिफ़ॉल्ट: 60।",
   "help.personality.emotion_synthesizer.max_history_entries": "इतिहास प्रविष्टियों की अधिकतम संख्या। डिफ़ॉल्ट: 100।",
   "help.personality.emotion_synthesizer.trigger_on_mood_change": "मूड बदलने पर सिंथेसिस ट्रिगर करें।",
-  "help.personality.emotion_synthesizer.trigger_always": "हर V2 विश्लेषण के बाद सिंथेसिस ट्रिगर करें।"
+  "help.personality.emotion_synthesizer.trigger_always": "हर V2 विश्लेषण के बाद सिंथेसिस ट्रिगर करें।",
+  "help.webdav.auth_type": "चुनें कि AuraGo को उपयोगकर्ता नाम और पासवर्ड के साथ Basic Auth उपयोग करना है या Bearer token।",
+  "help.webdav.token": "उन सर्वरों के लिए Bearer token जो Authorization: Bearer … हेडर की अपेक्षा करते हैं। Vault में सुरक्षित रूप से संग्रहीत होता है।"
 }

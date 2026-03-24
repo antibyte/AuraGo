@@ -184,6 +184,28 @@
     margin-right: 6px;
 }
 
+.kc-file-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-primary);
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.2s ease, opacity 0.2s ease;
+}
+
+.kc-file-link:hover {
+    color: var(--accent);
+}
+
+.kc-file-link:focus-visible {
+    outline: none;
+    border-radius: 8px;
+    box-shadow:
+        0 0 0 3px var(--accent-dim),
+        0 0 0 1px var(--accent);
+}
+
 /* File size styling */
 .kc-size {
     color: var(--text-secondary);
@@ -227,6 +249,64 @@
 /* Modal small variant */
 .modal-small {
     max-width: 420px;
+}
+
+.kc-preview-modal {
+    width: min(1100px, calc(100vw - 32px));
+    max-width: 1100px;
+    min-height: min(82vh, 860px);
+    display: flex;
+    flex-direction: column;
+}
+
+.kc-preview-heading {
+    min-width: 0;
+}
+
+.kc-preview-heading h2 {
+    margin-bottom: 4px;
+}
+
+.kc-preview-subtitle {
+    color: var(--text-secondary);
+    font-size: 0.84rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.kc-preview-body {
+    min-height: 0;
+    flex: 1;
+    display: flex;
+    position: relative;
+    border: 1px solid var(--border-subtle);
+    border-radius: 14px;
+    background:
+        linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0)),
+        var(--bg-tertiary, var(--bg-secondary));
+    overflow: hidden;
+}
+
+.kc-preview-frame {
+    width: 100%;
+    min-height: 60vh;
+    border: 0;
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.kc-preview-fallback {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    text-align: center;
+    padding: 28px;
+    background: linear-gradient(180deg, rgba(5, 8, 12, 0.18), rgba(5, 8, 12, 0.06));
+}
+
+.kc-preview-fallback .empty-icon {
+    margin-bottom: 10px;
 }
 
 /* Responsive */
@@ -279,6 +359,15 @@
     .kc-tab {
         padding: 8px 14px;
         font-size: 0.85rem;
+    }
+
+    .kc-preview-modal {
+        width: min(calc(100vw - 16px), 1100px);
+        min-height: calc(100dvh - 24px);
+    }
+
+    .kc-preview-frame {
+        min-height: 52vh;
     }
 }
 

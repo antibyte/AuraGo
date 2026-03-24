@@ -54,6 +54,7 @@ var systemSecretExact = map[string]struct{}{
 	"ntfy_token":                  {},
 	"home_assistant_access_token": {},
 	"webdav_password":             {},
+	"webdav_token":                {},
 	"koofr_password":              {},
 	"proxmox_secret":              {},
 	"github_token":                {},

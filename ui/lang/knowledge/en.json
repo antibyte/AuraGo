@@ -56,5 +56,9 @@
   "knowledge.devices_tags_placeholder": "e.g. production, linux, docker",
   "knowledge.devices_vault_read_only": "(read-only)",
   "knowledge.devices_name_required": "Name is required.",
-  "knowledge.devices_delete_confirm": "Are you sure you want to delete the device \"{name}\"?"
+  "knowledge.devices_delete_confirm": "Are you sure you want to delete the device \"{name}\"?",
+  "knowledge.files_preview": "Preview",
+  "knowledge.files_preview_unavailable_title": "Preview unavailable",
+  "knowledge.files_preview_unavailable_desc": "This file type cannot be previewed inline. You can still download it.",
+  "knowledge.files_preview_render_error": "The browser could not render this document inline. Try downloading it instead."
 }

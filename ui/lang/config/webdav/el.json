@@ -1,0 +1,23 @@
+{
+  "config.webdav.enabled_label": "Ενεργό",
+  "config.webdav.readonly_label": "Μόνο ανάγνωση",
+  "config.webdav.url_label": "URL WebDAV",
+  "config.webdav.username_label": "Όνομα χρήστη",
+  "config.webdav.secret_label": "Μυστικό σύνδεσης (Vault)",
+  "config.webdav.secret_placeholder": "Εισαγάγετε κωδικό ή app token…",
+  "config.webdav.save_vault": "Αποθήκευση στο Vault",
+  "config.webdav.secret_empty": "Εισαγάγετε πρώτα κωδικό ή token.",
+  "config.webdav.secret_saved": "Το μυστικό WebDAV αποθηκεύτηκε στο Vault.",
+  "config.webdav.secret_save_failed": "Αποτυχία αποθήκευσης του μυστικού WebDAV στο Vault.",
+  "config.webdav.auth_type_label": "Τύπος αυθεντικοποίησης",
+  "config.webdav.auth_type_basic": "Basic Auth",
+  "config.webdav.auth_type_bearer": "Bearer Token",
+  "config.webdav.password_label": "Κωδικός / κωδικός εφαρμογής (Vault)",
+  "config.webdav.password_placeholder": "Εισαγάγετε κωδικό ή app password…",
+  "config.webdav.password_saved": "Ο κωδικός WebDAV αποθηκεύτηκε στο Vault.",
+  "config.webdav.password_save_failed": "Αποτυχία αποθήκευσης κωδικού WebDAV στο Vault.",
+  "config.webdav.token_label": "Bearer token (Vault)",
+  "config.webdav.token_placeholder": "Εισαγάγετε Bearer token…",
+  "config.webdav.token_saved": "Το Bearer token WebDAV αποθηκεύτηκε στο Vault.",
+  "config.webdav.token_save_failed": "Αποτυχία αποθήκευσης Bearer token WebDAV στο Vault."
+}

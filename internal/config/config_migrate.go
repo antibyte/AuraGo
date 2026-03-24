@@ -645,6 +645,7 @@ func (c *Config) ApplyVaultSecrets(vault SecretReader) {
 	// ── Existing vault-only fields ──
 	apply("home_assistant_access_token", &c.HomeAssistant.AccessToken)
 	apply("webdav_password", &c.WebDAV.Password)
+	apply("webdav_token", &c.WebDAV.Token)
 	apply("koofr_password", &c.Koofr.AppPassword)
 	apply("s3_access_key", &c.S3.AccessKey)
 	apply("s3_secret_key", &c.S3.SecretKey)

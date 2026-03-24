@@ -260,7 +260,7 @@
   "help.vision.provider": "Poskytovatel pro vision.",
   "help.web_config.enabled": "Povoluje webovou konfiguraci.",
   "help.webdav.enabled": "Povoluje WebDAV integraci.",
-  "help.webdav.password": "Heslo pro webdav.",
+  "help.webdav.password": "Adgangskode eller app-adgangskode til Basic Auth. Gemmes sikkert i Vault.",
   "help.webdav.read_only": "Pouze pro cteni pro webdav.",
   "help.webdav.url": "URL pro webdav.",
   "help.webdav.username": "Uzivatelske jmeno pro webdav.",
@@ -299,5 +299,7 @@
   "help.personality.emotion_synthesizer.min_interval_seconds": "Minimalt interval i sekunder mellem emotionssyntese. Standard: 60.",
   "help.personality.emotion_synthesizer.max_history_entries": "Maksimalt antal emotionshistorikposter. Standard: 100.",
   "help.personality.emotion_synthesizer.trigger_on_mood_change": "Udløs syntese ved stemningsskift.",
-  "help.personality.emotion_synthesizer.trigger_always": "Udløs syntese efter hver V2-stemningsanalyse."
+  "help.personality.emotion_synthesizer.trigger_always": "Udløs syntese efter hver V2-stemningsanalyse.",
+  "help.webdav.auth_type": "Vælg om AuraGo skal bruge Basic Auth med brugernavn og adgangskode eller en Bearer-token.",
+  "help.webdav.token": "Bearer-token til servere der forventer Authorization: Bearer …. Gemmes sikkert i Vault."
 }

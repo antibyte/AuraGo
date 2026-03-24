@@ -56,5 +56,9 @@
   "knowledge.devices_tags_placeholder": "f.eks. produktion, linux, docker",
   "knowledge.devices_vault_read_only": "(skrivebeskyttet)",
   "knowledge.devices_name_required": "Navn er påkrævet.",
-  "knowledge.devices_delete_confirm": "Er du sikker på, at du vil slette enheden \"{name}\"?"
+  "knowledge.devices_delete_confirm": "Er du sikker på, at du vil slette enheden \"{name}\"?",
+  "knowledge.files_preview": "Forhåndsvis",
+  "knowledge.files_preview_unavailable_title": "Forhåndsvisning er ikke tilgængelig",
+  "knowledge.files_preview_unavailable_desc": "Denne filtype kan ikke vises direkte i en forhåndsvisning. Du kan stadig downloade den.",
+  "knowledge.files_preview_render_error": "Browseren kunne ikke gengive dokumentet direkte. Prøv at downloade det i stedet."
 }

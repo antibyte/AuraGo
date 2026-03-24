@@ -56,5 +56,9 @@
   "knowledge.devices_tags_placeholder": "ex. produção, linux, docker",
   "knowledge.devices_vault_read_only": "(apenas leitura)",
   "knowledge.devices_name_required": "O nome é obrigatório.",
-  "knowledge.devices_delete_confirm": "Tem a certeza de que deseja eliminar o dispositivo \"{name}\"?"
+  "knowledge.devices_delete_confirm": "Tem a certeza de que deseja eliminar o dispositivo \"{name}\"?",
+  "knowledge.files_preview": "Pré-visualizar",
+  "knowledge.files_preview_unavailable_title": "Pré-visualização indisponível",
+  "knowledge.files_preview_unavailable_desc": "Esse tipo de arquivo não pode ser exibido diretamente em linha. Você ainda pode baixá-lo.",
+  "knowledge.files_preview_render_error": "O navegador não conseguiu renderizar este documento diretamente. Tente baixá-lo."
 }

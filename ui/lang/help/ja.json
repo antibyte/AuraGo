@@ -260,7 +260,7 @@
   "help.vision.provider": "画像解析を行うプロバイダー管理からプロバイダーを選択します。",
   "help.web_config.enabled": "/config で Web 構成ページを有効にします。セキュリティのため、デフォルトでは無効になっています。",
   "help.webdav.enabled": "WebDAV 統合を有効にします。",
-  "help.webdav.password": "WebDAVサーバーのパスワード。",
+  "help.webdav.password": "Basic Auth 用のパスワードまたはアプリパスワードです。Vault に安全に保存されます。",
   "help.webdav.read_only": "有効にすると、エージェントはファイルの読み取りと一覧表示のみが可能ですが、書き込み、削除、移動はできません。",
   "help.webdav.url": "WebDAVサーバーのURL。",
   "help.webdav.username": "WebDAV サーバーのユーザー名。",
@@ -299,5 +299,7 @@
   "help.personality.emotion_synthesizer.min_interval_seconds": "感情合成間の最小間隔（秒）。デフォルト：60。",
   "help.personality.emotion_synthesizer.max_history_entries": "感情履歴エントリの最大数。デフォルト：100。",
   "help.personality.emotion_synthesizer.trigger_on_mood_change": "ムード変化时に合成をトリガー。",
-  "help.personality.emotion_synthesizer.trigger_always": "全V2分析後に合成をトリガー。"
+  "help.personality.emotion_synthesizer.trigger_always": "全V2分析後に合成をトリガー。",
+  "help.webdav.auth_type": "AuraGo がユーザー名とパスワードによる Basic Auth を使うか、Bearer トークンを使うかを選択します。",
+  "help.webdav.token": "Authorization: Bearer … ヘッダーを要求するサーバー向けの Bearer トークンです。Vault に安全に保存されます。"
 }

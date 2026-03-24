@@ -56,5 +56,9 @@
   "knowledge.devices_tags_placeholder": "es. production, linux, docker",
   "knowledge.devices_vault_read_only": "(sola-lettura)",
   "knowledge.devices_name_required": "Il nome è richiesto.",
-  "knowledge.devices_delete_confirm": "Sei sicuro di voler eliminare il dispositivo \"{name}\"?"
+  "knowledge.devices_delete_confirm": "Sei sicuro di voler eliminare il dispositivo \"{name}\"?",
+  "knowledge.files_preview": "Anteprima",
+  "knowledge.files_preview_unavailable_title": "Anteprima non disponibile",
+  "knowledge.files_preview_unavailable_desc": "Questo tipo di file non può essere visualizzato direttamente in anteprima. Puoi comunque scaricarlo.",
+  "knowledge.files_preview_render_error": "Il browser non è riuscito a visualizzare questo documento direttamente. Prova invece a scaricarlo."
 }

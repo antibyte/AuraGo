@@ -12,9 +12,11 @@ import (
 
 // WebDAVConfig holds the WebDAV connection parameters.
 type WebDAVConfig struct {
+	AuthType string
 	URL      string // Base URL, e.g. https://cloud.example.com/remote.php/dav/files/user/
 	Username string
 	Password string
+	Token    string
 }
 
 // webdavHTTPClient is a shared HTTP client for WebDAV calls.
@@ -65,7 +67,12 @@ func webdavRequest(cfg WebDAVConfig, method, url string, body io.Reader, extraHe
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
-	req.SetBasicAuth(cfg.Username, cfg.Password)
+	switch strings.ToLower(strings.TrimSpace(cfg.AuthType)) {
+	case "bearer":
+		req.Header.Set("Authorization", "Bearer "+cfg.Token)
+	default:
+		req.SetBasicAuth(cfg.Username, cfg.Password)
+	}
 	for k, v := range extraHeaders {
 		req.Header.Set(k, v)
 	}

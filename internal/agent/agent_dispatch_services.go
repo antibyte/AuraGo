@@ -523,9 +523,11 @@ func dispatchServices(ctx context.Context, tc ToolCall, cfg *config.Config, logg
 			}
 		}
 		davCfg := tools.WebDAVConfig{
+			AuthType: cfg.WebDAV.AuthType,
 			URL:      cfg.WebDAV.URL,
 			Username: cfg.WebDAV.Username,
 			Password: cfg.WebDAV.Password,
+			Token:    cfg.WebDAV.Token,
 		}
 		path := tc.Path
 		if path == "" {

@@ -124,6 +124,9 @@ func Load(path string) (*Config, error) {
 	// OneDrive defaults: "common" tenant allows both personal and work accounts.
 	cfg.OneDrive.TenantID = "common"
 
+	// WebDAV defaults: use classic Basic Auth unless explicitly switched to Bearer.
+	cfg.WebDAV.AuthType = "basic"
+
 	// SQL Connections defaults: disabled by default; agent must opt-in.
 	cfg.SQLConnections.Enabled = false
 	cfg.SQLConnections.MaxPoolSize = 5
@@ -155,6 +158,15 @@ func Load(path string) (*Config, error) {
 		_ = os.WriteFile(backupPath, data, 0644)
 
 		return nil, fmt.Errorf("failed to unmarshal config (backup saved to %s): %w", backupPath, err)
+	}
+
+	switch strings.ToLower(strings.TrimSpace(cfg.WebDAV.AuthType)) {
+	case "", "basic":
+		cfg.WebDAV.AuthType = "basic"
+	case "bearer":
+		cfg.WebDAV.AuthType = "bearer"
+	default:
+		cfg.WebDAV.AuthType = "basic"
 	}
 
 	// Resolve absolute paths for directories

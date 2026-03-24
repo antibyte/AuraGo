@@ -8,6 +8,7 @@ let allContacts = [];
 let allFiles = [];
 let allDevices = [];
 let contactSearchTimer = null;
+let previewResetTimer = null;
 
 // ═══════════════════════════════════════════════════════════════
 // INIT
@@ -225,17 +226,82 @@ function renderFiles() {
 
     tbody.innerHTML = filtered.map(f => {
         const icon = fileIcon(f.name);
+        const previewName = escAttr(f.name);
         return `
         <tr>
-            <td><span class="kc-file-icon">${icon}</span>${esc(f.name)}</td>
+            <td>
+                <a class="kc-file-link" href="#" onclick="openFilePreview('${previewName}'); return false;">
+                    <span class="kc-file-icon">${icon}</span><span>${esc(f.name)}</span>
+                </a>
+            </td>
             <td class="kc-size">${formatSize(f.size)}</td>
             <td>${formatDate(f.modified)}</td>
             <td class="kc-actions">
+                <a class="btn btn-sm btn-secondary" href="#" onclick="openFilePreview('${previewName}'); return false;" title="${t('knowledge.files_preview')}">👁️</a>
                 <a class="btn btn-sm btn-secondary" href="/api/knowledge/${encodeURIComponent(f.name)}" target="_blank" title="${t('knowledge.files_download')}">⬇️</a>
                 <button class="btn btn-sm btn-danger" onclick="askDeleteFile('${esc(f.name)}')" title="${t('common.btn_delete')}">🗑️</button>
             </td>
         </tr>`;
     }).join('');
+}
+
+function openFilePreview(name) {
+    const modal = document.getElementById('file-preview-modal');
+    const title = document.getElementById('file-preview-title');
+    const subtitle = document.getElementById('file-preview-subtitle');
+    const frame = document.getElementById('file-preview-frame');
+    const fallback = document.getElementById('file-preview-fallback');
+    const fallbackTitle = document.getElementById('file-preview-fallback-title');
+    const fallbackText = document.getElementById('file-preview-fallback-text');
+    const download = document.getElementById('file-preview-download');
+
+    const previewURL = '/api/knowledge/' + encodeURIComponent(name) + '?inline=1';
+    const downloadURL = '/api/knowledge/' + encodeURIComponent(name);
+    const ext = (name.split('.').pop() || '').toLowerCase();
+    const previewable = isPreviewableFile(ext);
+
+    title.textContent = name;
+    subtitle.textContent = formatPreviewSubtitle(name);
+    download.href = downloadURL;
+
+    clearTimeout(previewResetTimer);
+    frame.src = 'about:blank';
+    fallback.classList.add('is-hidden');
+
+    if (!previewable) {
+        fallbackTitle.textContent = t('knowledge.files_preview_unavailable_title');
+        fallbackText.textContent = t('knowledge.files_preview_unavailable_desc');
+        fallback.classList.remove('is-hidden');
+        modal.classList.add('active');
+        return;
+    }
+
+    frame.onload = () => {
+        clearTimeout(previewResetTimer);
+        fallback.classList.add('is-hidden');
+    };
+
+    frame.src = previewURL;
+    modal.classList.add('active');
+
+    previewResetTimer = setTimeout(() => {
+        fallbackTitle.textContent = t('knowledge.files_preview_unavailable_title');
+        fallbackText.textContent = t('knowledge.files_preview_render_error');
+        fallback.classList.remove('is-hidden');
+    }, 2200);
+}
+
+function closeFilePreview() {
+    const modal = document.getElementById('file-preview-modal');
+    const frame = document.getElementById('file-preview-frame');
+    const fallback = document.getElementById('file-preview-fallback');
+
+    clearTimeout(previewResetTimer);
+    previewResetTimer = null;
+    frame.onload = null;
+    frame.src = 'about:blank';
+    fallback.classList.add('is-hidden');
+    modal.classList.remove('active');
 }
 
 async function uploadFile(input) {
@@ -476,4 +542,26 @@ function fileIcon(name) {
         py: '🐍', go: '🔷', js: '🟨', sh: '🖥️',
     };
     return icons[ext] || '📄';
+}
+
+function isPreviewableFile(ext) {
+    return new Set([
+        'pdf', 'txt', 'md', 'json', 'yaml', 'yml', 'csv', 'log', 'xml',
+        'html', 'htm', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'
+    ]).has(ext);
+}
+
+function formatPreviewSubtitle(name) {
+    const file = allFiles.find(f => f.name === name);
+    if (!file) return '';
+    return [formatSize(file.size), formatDate(file.modified)].filter(Boolean).join(' • ');
+}
+
+function escAttr(value) {
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/'/g, '&#39;')
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
 }

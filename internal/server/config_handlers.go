@@ -698,6 +698,7 @@ var vaultKeyMap = map[string]string{
 	"auth.totp_secret":                 "auth_totp_secret",
 	"home_assistant.access_token":      "home_assistant_access_token",
 	"webdav.password":                  "webdav_password",
+	"webdav.token":                     "webdav_token",
 	"koofr.app_password":               "koofr_password",
 	"s3.access_key":                    "s3_access_key",
 	"s3.secret_key":                    "s3_secret_key",

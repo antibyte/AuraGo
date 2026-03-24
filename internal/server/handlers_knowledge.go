@@ -151,7 +151,11 @@ func handleKnowledgeFile(s *Server) http.HandlerFunc {
 				http.Error(w, `{"error":"file not found"}`, http.StatusNotFound)
 				return
 			}
-			w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, safeName))
+			if r.URL.Query().Get("inline") == "1" {
+				w.Header().Set("Content-Disposition", fmt.Sprintf(`inline; filename="%s"`, safeName))
+			} else {
+				w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, safeName))
+			}
 			w.Header().Set("Content-Length", fmt.Sprintf("%d", info.Size()))
 			http.ServeFile(w, r, fullPath)
 

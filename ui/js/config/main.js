@@ -1051,6 +1051,7 @@ const SECTION_MODULES = {
     chromecast: { m: 'chromecast', fn: 'renderChromecastSection' },
     adguard: { m: 'adguard', fn: 'renderAdGuardSection' },
     fritzbox: { m: 'fritzbox', fn: 'renderFritzBoxSection' },
+    webdav: { m: 'webdav', fn: 'renderWebDAVSection' },
     telnyx: { m: 'telnyx', fn: 'renderTelnyxSection' },
     paperless_ngx: { m: 'paperless', fn: 'renderPaperlessSection' },
     homepage: { m: 'homepage', fn: 'renderHomepageSection' },

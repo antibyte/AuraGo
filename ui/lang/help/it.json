@@ -260,7 +260,7 @@
   "help.vision.provider": "Seleziona un provider dalla gestione provider per l'analisi delle immagini.",
   "help.web_config.enabled": "Abilita la pagina di configurazione web su /config. Disabilitato di default per sicurezza.",
   "help.webdav.enabled": "Abilita l'integrazione WebDAV.",
-  "help.webdav.password": "Password per il server WebDAV.",
+  "help.webdav.password": "Password o password app per Basic Auth. Salvata in modo sicuro nel Vault.",
   "help.webdav.read_only": "Quando abilitato, l'agente può solo leggere ed elencare i file ma non scrivere, eliminare o spostarli.",
   "help.webdav.url": "URL del server WebDAV.",
   "help.webdav.username": "Username per il server WebDAV.",
@@ -299,5 +299,7 @@
   "help.personality.emotion_synthesizer.min_interval_seconds": "Intervallo minimo in secondi tra sintesi. Predefinito: 60.",
   "help.personality.emotion_synthesizer.max_history_entries": "Numero massimo di voci nella cronologia. Predefinito: 100.",
   "help.personality.emotion_synthesizer.trigger_on_mood_change": "Attiva sintesi al cambio di umore.",
-  "help.personality.emotion_synthesizer.trigger_always": "Attiva sintesi dopo ogni analisi V2."
+  "help.personality.emotion_synthesizer.trigger_always": "Attiva sintesi dopo ogni analisi V2.",
+  "help.webdav.auth_type": "Scegli se AuraGo deve usare Basic Auth con nome utente e password oppure un token Bearer.",
+  "help.webdav.token": "Token Bearer per server che si aspettano l’header Authorization: Bearer …. Salvato in modo sicuro nel Vault."
 }

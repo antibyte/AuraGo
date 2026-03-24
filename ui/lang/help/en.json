@@ -7,7 +7,7 @@
   "help.agent.allow_remote_shell": "When disabled, execute_remote_shell / remote_execution are blocked.",
   "help.agent.allow_self_update": "When disabled, the agent cannot run manage_updates (no automatic self-updates).",
   "help.agent.allow_shell": "When disabled, the agent blocks all execute_shell requests with a PERMISSION DENIED error.",
-  "help.agent.allow_web_scraper": "Deprecated — use tools.web_scraper.enabled in the 'Tools \u0026 Services' section instead.",
+  "help.agent.allow_web_scraper": "Deprecated — use tools.web_scraper.enabled in the 'Tools & Services' section instead.",
   "help.agent.context_window": "Context window size in tokens. 0 = auto-detect.",
   "help.agent.core_memory_cap_mode": "Behavior when the cap is reached: 'soft' adds the entry and returns a warning, 'hard' rejects new entries. Default: soft.",
   "help.agent.core_memory_max_entries": "Maximum number of core memory entries. 0 = unlimited. Default: 200.",
@@ -206,7 +206,7 @@
   "help.rocketchat.channel": "Default channel to listen on, e.g. 'general'.",
   "help.rocketchat.enabled": "Enables the Rocket.Chat bot integration.",
   "help.rocketchat.url": "URL of the Rocket.Chat instance, e.g. 'https://chat.example.com'.",
-  "help.rocketchat.user_id": "Bot user ID from Rocket.Chat (Profile \u003e Personal Access Tokens).",
+  "help.rocketchat.user_id": "Bot user ID from Rocket.Chat (Profile > Personal Access Tokens).",
   "help.sandbox.auto_install": "Automatically install the llm-sandbox Python package (with MCP extras) on startup. Installs 'llm-sandbox[mcp-docker]' or 'llm-sandbox[mcp-podman]' depending on the backend. Requires a working Python/pip environment.",
   "help.sandbox.backend": "Container backend: 'docker' (default) or 'podman'. Docker must be installed and reachable.",
   "help.sandbox.docker_host": "Docker host address (e.g. 'unix:///var/run/docker.sock' or 'tcp://localhost:2375'). Empty = auto-detect or inherit from docker.host.",
@@ -276,7 +276,7 @@
   "help.vision.provider": "Select a provider from the provider management for image analysis.",
   "help.web_config.enabled": "Enables the web configuration page at /config. Disabled by default for security.",
   "help.webdav.enabled": "Enables the WebDAV integration.",
-  "help.webdav.password": "Password for the WebDAV server.",
+  "help.webdav.password": "Password or app password for Basic Auth. Stored securely in the vault.",
   "help.webdav.read_only": "When enabled, the agent can only read and list files but cannot write, delete, or move them.",
   "help.webdav.url": "URL of the WebDAV server.",
   "help.webdav.username": "Username for the WebDAV server.",
@@ -299,5 +299,7 @@
   "help.paperless_ngx.enabled": "Enables the Paperless-ngx integration for document management.",
   "help.paperless_ngx.read_only": "When enabled, the agent can only search and read documents but cannot upload, update, or delete them.",
   "help.paperless_ngx.url": "URL of the Paperless-ngx instance (e.g. https://paperless.example.com).",
-  "help.paperless_ngx.api_token": "API token for the Paperless-ngx instance. Stored in the vault."
+  "help.paperless_ngx.api_token": "API token for the Paperless-ngx instance. Stored in the vault.",
+  "help.webdav.auth_type": "Choose whether AuraGo should use Basic Auth with username and password, or a Bearer token.",
+  "help.webdav.token": "Bearer token for servers that expect an Authorization: Bearer … header. Stored securely in the vault."
 }

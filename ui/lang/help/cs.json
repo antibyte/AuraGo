@@ -260,7 +260,7 @@
   "help.vision.provider": "Poskytovatel pro vision.",
   "help.web_config.enabled": "Povoluje webovou konfiguraci.",
   "help.webdav.enabled": "Povoluje WebDAV integraci.",
-  "help.webdav.password": "Heslo pro webdav.",
+  "help.webdav.password": "Heslo nebo app heslo pro Basic Auth. Ukládá se bezpečně do Vaultu.",
   "help.webdav.read_only": "Pouze pro cteni pro webdav.",
   "help.webdav.url": "URL pro webdav.",
   "help.webdav.username": "Uzivatelske jmeno pro webdav.",
@@ -299,5 +299,7 @@
   "help.personality.emotion_synthesizer.min_interval_seconds": "Minimální interval v sekundách mezi syntézami emocí. Výchozí: 60.",
   "help.personality.emotion_synthesizer.max_history_entries": "Maximální počet záznamů historie emocí. Výchozí: 100.",
   "help.personality.emotion_synthesizer.trigger_on_mood_change": "Spustit syntézu při změně nálady.",
-  "help.personality.emotion_synthesizer.trigger_always": "Spustit syntézu po každé V2 analýze nálady."
+  "help.personality.emotion_synthesizer.trigger_always": "Spustit syntézu po každé V2 analýze nálady.",
+  "help.webdav.auth_type": "Vyberte, zda má AuraGo použít Basic Auth s uživatelským jménem a heslem, nebo Bearer token.",
+  "help.webdav.token": "Bearer token pro servery, které očekávají hlavičku Authorization: Bearer …. Ukládá se bezpečně do Vaultu."
 }

@@ -56,5 +56,9 @@
   "knowledge.devices_tags_placeholder": "जैसे उत्पादन, लिनक्स, डॉकर",
   "knowledge.devices_vault_read_only": "(केवल पढ़ने के लिए)",
   "knowledge.devices_name_required": "नाम आवश्यक है।",
-  "knowledge.devices_delete_confirm": "क्या आप वाकई डिवाइस \"{name}\" हटाना चाहते हैं?"
+  "knowledge.devices_delete_confirm": "क्या आप वाकई डिवाइस \"{name}\" हटाना चाहते हैं?",
+  "knowledge.files_preview": "पूर्वावलोकन",
+  "knowledge.files_preview_unavailable_title": "पूर्वावलोकन उपलब्ध नहीं है",
+  "knowledge.files_preview_unavailable_desc": "इस फ़ाइल प्रकार का इनलाइन पूर्वावलोकन उपलब्ध नहीं है। आप इसे फिर भी डाउनलोड कर सकते हैं।",
+  "knowledge.files_preview_render_error": "ब्राउज़र इस दस्तावेज़ को सीधे रेंडर नहीं कर सका। कृपया इसे डाउनलोड करके देखें।"
 }

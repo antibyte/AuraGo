@@ -605,10 +605,12 @@ type Config struct {
 	} `yaml:"budget"`
 	WebDAV struct {
 		Enabled  bool   `yaml:"enabled"`
-		ReadOnly bool   `yaml:"readonly"` // true = only list/read/info, block write/delete/move/mkdir
-		URL      string `yaml:"url"`      // e.g. https://cloud.example.com/remote.php/dav/files/user/
+		ReadOnly bool   `yaml:"readonly"`  // true = only list/read/info, block write/delete/move/mkdir
+		AuthType string `yaml:"auth_type"` // basic | bearer
+		URL      string `yaml:"url"`       // e.g. https://cloud.example.com/remote.php/dav/files/user/
 		Username string `yaml:"username"`
 		Password string `yaml:"-"`
+		Token    string `yaml:"-"`
 	} `yaml:"webdav"`
 	Koofr struct {
 		Enabled     bool   `yaml:"enabled"`

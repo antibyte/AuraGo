@@ -134,7 +134,9 @@
   "help.homepage.deploy_method": "Overdrachtsmethode: SFTP (standaard) of SCP.",
   "help.homepage.webserver_enabled": "Start een lokale Caddy-webserver in Docker voor het bekijken van websites. Ondersteunt automatisch HTTPS met een domein.",
   "help.homepage.webserver_port": "Poort voor de lokale Caddy-webserver. Standaard: 8080.",
-  "help.homepage.webserver_domain": "Optioneel domein voor automatisch HTTPS via Let's Encrypt.",  "help.homepage.webserver_internal_only": "Indien ingeschakeld, bindt de Caddy-container alleen aan 127.0.0.1 (localhost). De webserver is dan alleen lokaal bereikbaar, niet vanuit externe netwerken.",  "help.homepage.workspace_path": "Lokale map voor webprojecten, gemount in de Docker-container.",
+  "help.homepage.webserver_domain": "Optioneel domein voor automatisch HTTPS via Let's Encrypt.",
+  "help.homepage.webserver_internal_only": "Indien ingeschakeld, bindt de Caddy-container alleen aan 127.0.0.1 (localhost). De webserver is dan alleen lokaal bereikbaar, niet vanuit externe netwerken.",
+  "help.homepage.workspace_path": "Lokale map voor webprojecten, gemount in de Docker-container.",
   "help.indexing.directories": "Adresar pro indexing.",
   "help.indexing.enabled": "Bestandsindexering inschakelen.",
   "help.indexing.extensions": "Index pro indexing.",
@@ -258,7 +260,7 @@
   "help.vision.provider": "Poskytovatel pro vision.",
   "help.web_config.enabled": "Webconfiguratie inschakelen.",
   "help.webdav.enabled": "WebDAV-integratie inschakelen.",
-  "help.webdav.password": "Heslo pro webdav.",
+  "help.webdav.password": "Wachtwoord of app-wachtwoord voor Basic Auth. Wordt veilig opgeslagen in Vault.",
   "help.webdav.read_only": "Pouze pro cteni pro webdav.",
   "help.webdav.url": "URL pro webdav.",
   "help.webdav.username": "Uzivatelske jmeno pro webdav.",
@@ -297,5 +299,7 @@
   "help.personality.emotion_synthesizer.min_interval_seconds": "Minimuminterval in seconden tussen syntheses. Standaard: 60.",
   "help.personality.emotion_synthesizer.max_history_entries": "Maximum aantal emotiegeschiedenisitems. Standaard: 100.",
   "help.personality.emotion_synthesizer.trigger_on_mood_change": "Synthese activeren bij stemmingsverandering.",
-  "help.personality.emotion_synthesizer.trigger_always": "Synthese activeren na elke V2-analyse."
+  "help.personality.emotion_synthesizer.trigger_always": "Synthese activeren na elke V2-analyse.",
+  "help.webdav.auth_type": "Kies of AuraGo Basic Auth met gebruikersnaam en wachtwoord moet gebruiken, of een Bearer-token.",
+  "help.webdav.token": "Bearer-token voor servers die een Authorization: Bearer …-header verwachten. Wordt veilig opgeslagen in Vault."
 }

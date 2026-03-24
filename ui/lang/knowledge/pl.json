@@ -56,5 +56,9 @@
   "knowledge.devices_tags_placeholder": "np. produkcja, linux, docker",
   "knowledge.devices_vault_read_only": "(tylko do odczytu)",
   "knowledge.devices_name_required": "Nazwa jest wymagana.",
-  "knowledge.devices_delete_confirm": "Czy na pewno chcesz usunąć urządzenie \"{name}\"?"
+  "knowledge.devices_delete_confirm": "Czy na pewno chcesz usunąć urządzenie \"{name}\"?",
+  "knowledge.files_preview": "Podgląd",
+  "knowledge.files_preview_unavailable_title": "Podgląd niedostępny",
+  "knowledge.files_preview_unavailable_desc": "Tego typu pliku nie można wyświetlić bezpośrednio w podglądzie. Nadal możesz go pobrać.",
+  "knowledge.files_preview_render_error": "Przeglądarka nie mogła wyświetlić tego dokumentu bezpośrednio. Spróbuj go pobrać."
 }

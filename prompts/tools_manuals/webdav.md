@@ -5,7 +5,9 @@ Access files on a WebDAV-compatible cloud storage (Nextcloud, ownCloud, Synology
 ## Prerequisites
 - `webdav.enabled: true` in config.yaml
 - `webdav.url` set to the WebDAV endpoint (e.g. `https://cloud.example.com/remote.php/dav/files/user/`)
-- `webdav.username` and `webdav.password` configured
+- either:
+  - `webdav.auth_type: basic` with `webdav.username` and a password/app password stored in the Vault
+  - or `webdav.auth_type: bearer` with a bearer token stored in the Vault
 
 ## Operations
 
@@ -47,6 +49,7 @@ Access files on a WebDAV-compatible cloud storage (Nextcloud, ownCloud, Synology
 
 ## Important Notes
 - All `path` values are relative to the configured `webdav.url` base
+- Authentication is configured globally in the WebDAV section; the agent does not pass credentials manually per tool call
 - `read` output is truncated to ~8000 chars for large files
 - `write` creates a new file or overwrites an existing one
 - `move` will fail if the destination already exists (no overwrite by default)

@@ -1,0 +1,23 @@
+{
+  "config.webdav.enabled_label": "Aktiveret",
+  "config.webdav.readonly_label": "Skrivebeskyttet",
+  "config.webdav.url_label": "WebDAV-URL",
+  "config.webdav.username_label": "Brugernavn",
+  "config.webdav.secret_label": "Login-hemmelighed (Vault)",
+  "config.webdav.secret_placeholder": "Indtast adgangskode eller app-token…",
+  "config.webdav.save_vault": "Gem i Vault",
+  "config.webdav.secret_empty": "Indtast først en adgangskode eller et token.",
+  "config.webdav.secret_saved": "WebDAV-hemmeligheden blev gemt i Vault.",
+  "config.webdav.secret_save_failed": "Kunne ikke gemme WebDAV-hemmeligheden i Vault.",
+  "config.webdav.auth_type_label": "Godkendelsestype",
+  "config.webdav.auth_type_basic": "Basic Auth",
+  "config.webdav.auth_type_bearer": "Bearer-token",
+  "config.webdav.password_label": "Adgangskode / app-adgangskode (Vault)",
+  "config.webdav.password_placeholder": "Indtast adgangskode eller app-adgangskode…",
+  "config.webdav.password_saved": "WebDAV-adgangskoden blev gemt i Vault.",
+  "config.webdav.password_save_failed": "Kunne ikke gemme WebDAV-adgangskoden i Vault.",
+  "config.webdav.token_label": "Bearer-token (Vault)",
+  "config.webdav.token_placeholder": "Indtast Bearer-token…",
+  "config.webdav.token_saved": "WebDAV Bearer-token blev gemt i Vault.",
+  "config.webdav.token_save_failed": "Kunne ikke gemme WebDAV Bearer-token i Vault."
+}

@@ -1,0 +1,23 @@
+{
+  "config.webdav.enabled_label": "Povoleno",
+  "config.webdav.readonly_label": "Jen pro čtení",
+  "config.webdav.url_label": "WebDAV URL",
+  "config.webdav.username_label": "Uživatelské jméno",
+  "config.webdav.secret_label": "Přihlašovací tajemství (Vault)",
+  "config.webdav.secret_placeholder": "Zadejte heslo nebo app token…",
+  "config.webdav.save_vault": "Uložit do Vaultu",
+  "config.webdav.secret_empty": "Nejprve zadejte heslo nebo token.",
+  "config.webdav.secret_saved": "WebDAV tajemství bylo uloženo do Vaultu.",
+  "config.webdav.secret_save_failed": "WebDAV tajemství se nepodařilo uložit do Vaultu.",
+  "config.webdav.auth_type_label": "Typ autentizace",
+  "config.webdav.auth_type_basic": "Basic Auth",
+  "config.webdav.auth_type_bearer": "Bearer Token",
+  "config.webdav.password_label": "Heslo / App heslo (Vault)",
+  "config.webdav.password_placeholder": "Zadejte heslo nebo app heslo…",
+  "config.webdav.password_saved": "Heslo WebDAV bylo uloženo do Vaultu.",
+  "config.webdav.password_save_failed": "Heslo WebDAV se nepodařilo uložit do Vaultu.",
+  "config.webdav.token_label": "Bearer token (Vault)",
+  "config.webdav.token_placeholder": "Zadejte Bearer token…",
+  "config.webdav.token_saved": "Bearer token WebDAV byl uložen do Vaultu.",
+  "config.webdav.token_save_failed": "Bearer token WebDAV se nepodařilo uložit do Vaultu."
+}

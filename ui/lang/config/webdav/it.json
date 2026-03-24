@@ -1,0 +1,23 @@
+{
+  "config.webdav.enabled_label": "Abilitato",
+  "config.webdav.readonly_label": "Sola lettura",
+  "config.webdav.url_label": "URL WebDAV",
+  "config.webdav.username_label": "Nome utente",
+  "config.webdav.secret_label": "Segreto di accesso (Vault)",
+  "config.webdav.secret_placeholder": "Inserisci password o token app…",
+  "config.webdav.save_vault": "Salva nel Vault",
+  "config.webdav.secret_empty": "Inserisci prima una password o un token.",
+  "config.webdav.secret_saved": "Il segreto WebDAV è stato salvato nel Vault.",
+  "config.webdav.secret_save_failed": "Impossibile salvare il segreto WebDAV nel Vault.",
+  "config.webdav.auth_type_label": "Tipo di autenticazione",
+  "config.webdav.auth_type_basic": "Basic Auth",
+  "config.webdav.auth_type_bearer": "Token Bearer",
+  "config.webdav.password_label": "Password / password app (Vault)",
+  "config.webdav.password_placeholder": "Inserisci password o password app…",
+  "config.webdav.password_saved": "La password WebDAV è stata salvata nel Vault.",
+  "config.webdav.password_save_failed": "Impossibile salvare la password WebDAV nel Vault.",
+  "config.webdav.token_label": "Token Bearer (Vault)",
+  "config.webdav.token_placeholder": "Inserisci token Bearer…",
+  "config.webdav.token_saved": "Il token Bearer WebDAV è stato salvato nel Vault.",
+  "config.webdav.token_save_failed": "Impossibile salvare il token Bearer WebDAV nel Vault."
+}

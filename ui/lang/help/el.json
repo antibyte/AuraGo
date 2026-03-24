@@ -134,7 +134,9 @@
   "help.homepage.deploy_method": "Μέθοδος μεταφοράς: SFTP (προεπιλογή) ή SCP.",
   "help.homepage.webserver_enabled": "Εκκινεί έναν τοπικό διακομιστή Caddy σε Docker για προεπισκόπηση ιστοσελίδων. Υποστηρίζει αυτόματο HTTPS με domain.",
   "help.homepage.webserver_port": "Θύρα για τον τοπικό διακομιστή Caddy. Προεπιλογή: 8080.",
-  "help.homepage.webserver_domain": "Προαιρετικό domain για αυτόματο HTTPS μέσω Let's Encrypt.",  "help.homepage.webserver_internal_only": "Όταν είναι ενεργό, το container Caddy συνδέεται μόνο στο 127.0.0.1 (localhost). Ο διακομιστής web είναι τότε προσβάσιμος μόνο τοπικά, όχι από εξωτερικά δίκτυα.",  "help.homepage.workspace_path": "Τοπικός κατάλογος για web projects, προσαρτημένος στο Docker container.",
+  "help.homepage.webserver_domain": "Προαιρετικό domain για αυτόματο HTTPS μέσω Let's Encrypt.",
+  "help.homepage.webserver_internal_only": "Όταν είναι ενεργό, το container Caddy συνδέεται μόνο στο 127.0.0.1 (localhost). Ο διακομιστής web είναι τότε προσβάσιμος μόνο τοπικά, όχι από εξωτερικά δίκτυα.",
+  "help.homepage.workspace_path": "Τοπικός κατάλογος για web projects, προσαρτημένος στο Docker container.",
   "help.indexing.directories": "Adresar pro indexing.",
   "help.indexing.enabled": "Povoluje indexovani souboru.",
   "help.indexing.extensions": "Index pro indexing.",
@@ -258,7 +260,7 @@
   "help.vision.provider": "Poskytovatel pro vision.",
   "help.web_config.enabled": "Povoluje webovou konfiguraci.",
   "help.webdav.enabled": "Povoluje WebDAV integraci.",
-  "help.webdav.password": "Heslo pro webdav.",
+  "help.webdav.password": "Κωδικός ή app password για Basic Auth. Αποθηκεύεται με ασφάλεια στο Vault.",
   "help.webdav.read_only": "Pouze pro cteni pro webdav.",
   "help.webdav.url": "URL pro webdav.",
   "help.webdav.username": "Uzivatelske jmeno pro webdav.",
@@ -297,5 +299,7 @@
   "help.personality.emotion_synthesizer.min_interval_seconds": "Ελάχιστο διάστημα σε δευτερόλεπτα. Προεπιλογή: 60.",
   "help.personality.emotion_synthesizer.max_history_entries": "Μέγιστος αριθμός εγγραφών ιστορικού. Προεπιλογή: 100.",
   "help.personality.emotion_synthesizer.trigger_on_mood_change": "Ενεργοποίηση σύνθεσης κατά αλλαγή διάθεσης.",
-  "help.personality.emotion_synthesizer.trigger_always": "Ενεργοποίηση σύνθεσης μετά από κάθε ανάλυση V2."
+  "help.personality.emotion_synthesizer.trigger_always": "Ενεργοποίηση σύνθεσης μετά από κάθε ανάλυση V2.",
+  "help.webdav.auth_type": "Επιλέξτε αν το AuraGo θα χρησιμοποιεί Basic Auth με όνομα χρήστη και κωδικό ή Bearer token.",
+  "help.webdav.token": "Bearer token για διακομιστές που περιμένουν κεφαλίδα Authorization: Bearer …. Αποθηκεύεται με ασφάλεια στο Vault."
 }
