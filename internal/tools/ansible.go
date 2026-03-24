@@ -405,6 +405,31 @@ func buildAnsibleImage(image, dockerfileDir string, logger interface {
 	return nil
 }
 
+// ReapplyAnsibleToken stops and removes the managed Ansible sidecar container, then
+// recreates it with the updated token in AnsibleSidecarConfig. This is called whenever
+// the token changes so the running container picks up the new value immediately.
+func ReapplyAnsibleToken(dockerHost string, sidecarCfg AnsibleSidecarConfig, logger interface {
+	Info(string, ...any)
+	Warn(string, ...any)
+	Error(string, ...any)
+}) {
+	containerName := sidecarCfg.ContainerName
+	if containerName == "" {
+		containerName = ansibleContainerName
+	}
+	dockerCfg := DockerConfig{Host: dockerHost}
+
+	logger.Info("[Ansible] Reapplying token — recreating sidecar container", "container", containerName)
+
+	// Stop (best-effort, ignore errors if already stopped)
+	dockerRequest(dockerCfg, "POST", "/containers/"+containerName+"/stop?t=5", "") //nolint:errcheck
+	// Remove (best-effort)
+	dockerRequest(dockerCfg, "DELETE", "/containers/"+containerName, "") //nolint:errcheck
+
+	// Recreate with updated token
+	EnsureAnsibleSidecarRunning(dockerHost, sidecarCfg, logger)
+}
+
 // ansibleSSHDir returns the host path to the SSH directory (~/.ssh).
 func ansibleSSHDir() string {
 	if runtime.GOOS == "windows" {

@@ -539,6 +539,25 @@ async function renderSection(key) {
         html += renderMeshCentralTestBlock();
     }
 
+    // Ansible — inject "Generate Token" button block below the token field
+    if (key === 'ansible') {
+        html += `
+        <div class="cfg-action-block" id="ansible-token-block">
+            <div class="cfg-action-block-title">⚙️ ${t('config.ansible.generate_token_btn')}</div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                <button id="ansible-gen-token-btn" class="cfg-btn cfg-btn-primary" onclick="ansibleGenerateToken()">
+                    🔑 ${t('config.ansible.generate_token_btn')}
+                </button>
+                <span id="ansible-gen-token-result" style="font-size:0.85em;color:var(--color-text-muted)"></span>
+            </div>
+            <div id="ansible-token-preview" style="display:none;margin-top:8px">
+                <code id="ansible-token-value" style="font-size:0.78em;word-break:break-all;background:var(--input-bg);padding:6px 10px;border-radius:6px;display:block"></code>
+                <button class="cfg-btn cfg-btn-sm" style="margin-top:6px" onclick="ansibleCopyToken()">${t('config.ansible.generate_token_copy')}</button>
+                <span id="ansible-copy-feedback" style="font-size:0.8em;margin-left:8px;color:var(--color-success)"></span>
+            </div>
+        </div>`;
+    }
+
     if (sectionBlocked) html += '</div>'; // End feature-unavailable-fields
     html += '</div>';
 
@@ -1123,4 +1142,55 @@ async function vaultDeleteConfirm() {
         alert(t('config.common.network_error') + ' ' + e.message);
         document.getElementById('vault-confirm-btn').disabled = false;
     }
+}
+
+// ── Ansible: generate token ────────────────────────────────────────────────
+let _ansibleGeneratedToken = '';
+
+async function ansibleGenerateToken() {
+    const btn = document.getElementById('ansible-gen-token-btn');
+    const result = document.getElementById('ansible-gen-token-result');
+    const preview = document.getElementById('ansible-token-preview');
+    const tokenVal = document.getElementById('ansible-token-value');
+    if (!btn) return;
+
+    btn.disabled = true;
+    btn.textContent = '⏳ ' + t('config.ansible.generate_token_generating');
+    result.textContent = '';
+    preview.style.display = 'none';
+
+    try {
+        const resp = await fetch('/api/ansible/generate-token', { method: 'POST' });
+        const data = await resp.json();
+        if (resp.ok && data.status === 'ok') {
+            _ansibleGeneratedToken = data.token;
+            tokenVal.textContent = data.token;
+            preview.style.display = '';
+            result.textContent = t('config.ansible.generate_token_ok');
+            result.style.color = 'var(--color-success)';
+            // Show masked marker in the token config field if visible
+            const tokenField = document.querySelector('[data-path="ansible.token"]');
+            if (tokenField) tokenField.value = '••••••••';
+        } else {
+            result.textContent = data.error || t('config.ansible.generate_token_fail');
+            result.style.color = 'var(--color-danger)';
+        }
+    } catch (e) {
+        result.textContent = t('config.ansible.generate_token_fail') + ' ' + e.message;
+        result.style.color = 'var(--color-danger)';
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '🔑 ' + t('config.ansible.generate_token_btn');
+    }
+}
+
+function ansibleCopyToken() {
+    if (!_ansibleGeneratedToken) return;
+    navigator.clipboard.writeText(_ansibleGeneratedToken).then(() => {
+        const fb = document.getElementById('ansible-copy-feedback');
+        if (fb) {
+            fb.textContent = t('config.ansible.generate_token_copied');
+            setTimeout(() => { fb.textContent = ''; }, 3000);
+        }
+    });
 }

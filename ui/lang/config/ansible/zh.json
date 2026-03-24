@@ -1,0 +1,8 @@
+{
+  "config.ansible.generate_token_btn": "生成令牌",
+  "config.ansible.generate_token_generating": "生成中…",
+  "config.ansible.generate_token_ok": "令牌已生成并保存至 vault。容器将重新启动。",
+  "config.ansible.generate_token_fail": "生成令牌失败。",
+  "config.ansible.generate_token_copy": "复制",
+  "config.ansible.generate_token_copied": "已复制！"
+}

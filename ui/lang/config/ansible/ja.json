@@ -1,0 +1,8 @@
+{
+  "config.ansible.generate_token_btn": "トークンを生成",
+  "config.ansible.generate_token_generating": "生成中…",
+  "config.ansible.generate_token_ok": "トークンが生成され、vaultに保存されました。コンテナが再起動されます。",
+  "config.ansible.generate_token_fail": "トークンの生成に失敗しました。",
+  "config.ansible.generate_token_copy": "コピー",
+  "config.ansible.generate_token_copied": "コピー済み！"
+}

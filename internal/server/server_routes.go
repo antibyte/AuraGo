@@ -356,6 +356,9 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		// Document Creator endpoints
 		mux.HandleFunc("/api/document-creator/test", handleGotenbergTest(s))
 
+		// Ansible endpoints
+		mux.HandleFunc("/api/ansible/generate-token", handleAnsibleGenerateToken(s))
+
 		// Piper TTS endpoints
 		mux.HandleFunc("/api/piper/status", handlePiperStatus(s))
 		mux.HandleFunc("/api/piper/voices", handlePiperVoices(s))

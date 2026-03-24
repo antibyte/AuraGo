@@ -1,0 +1,8 @@
+{
+  "config.ansible.generate_token_btn": "Generovat token",
+  "config.ansible.generate_token_generating": "Generování…",
+  "config.ansible.generate_token_ok": "Token vygenerován a uložen do trezoru. Kontejner bude restartován.",
+  "config.ansible.generate_token_fail": "Nepodařilo se vygenerovat token.",
+  "config.ansible.generate_token_copy": "Kopírovat",
+  "config.ansible.generate_token_copied": "Zkopírováno!"
+}

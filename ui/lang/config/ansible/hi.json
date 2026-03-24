@@ -1,0 +1,8 @@
+{
+  "config.ansible.generate_token_btn": "टोकन जनरेट करें",
+  "config.ansible.generate_token_generating": "जनरेट हो रहा है…",
+  "config.ansible.generate_token_ok": "टोकन जनरेट किया गया और vault में सहेजा गया। Container पुनः प्रारंभ होगा।",
+  "config.ansible.generate_token_fail": "टोकन जनरेट करने में विफल।",
+  "config.ansible.generate_token_copy": "कॉपी करें",
+  "config.ansible.generate_token_copied": "कॉपी हो गया!"
+}

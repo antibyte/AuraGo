@@ -9,6 +9,8 @@ import (
 	"aurago/internal/services"
 	"aurago/internal/tools"
 	"context"
+	crand "crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -433,23 +435,28 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				go tools.EnsurePiperRunning(newCfg, s.Logger)
 			}
 
-			// Auto-start Ansible sidecar container if just enabled in sidecar mode
+			// Ansible sidecar lifecycle management
 			if newCfg.Ansible.Enabled && newCfg.Ansible.Mode == "sidecar" {
+				inventoryDir := ""
+				if newCfg.Ansible.DefaultInventory != "" {
+					inventoryDir = filepath.Dir(newCfg.Ansible.DefaultInventory)
+				}
+				sidecarCfg := tools.AnsibleSidecarConfig{
+					Token:         newCfg.Ansible.Token,
+					Timeout:       newCfg.Ansible.Timeout,
+					Image:         newCfg.Ansible.Image,
+					ContainerName: newCfg.Ansible.ContainerName,
+					PlaybooksDir:  newCfg.Ansible.PlaybooksDir,
+					InventoryDir:  inventoryDir,
+					AutoBuild:     newCfg.Ansible.AutoBuild,
+					DockerfileDir: newCfg.Ansible.DockerfileDir,
+				}
 				if !oldCfg.Ansible.Enabled || oldCfg.Ansible.Mode != "sidecar" {
-					inventoryDir := ""
-					if newCfg.Ansible.DefaultInventory != "" {
-						inventoryDir = filepath.Dir(newCfg.Ansible.DefaultInventory)
-					}
-					go tools.EnsureAnsibleSidecarRunning(newCfg.Docker.Host, tools.AnsibleSidecarConfig{
-						Token:         newCfg.Ansible.Token,
-						Timeout:       newCfg.Ansible.Timeout,
-						Image:         newCfg.Ansible.Image,
-						ContainerName: newCfg.Ansible.ContainerName,
-						PlaybooksDir:  newCfg.Ansible.PlaybooksDir,
-						InventoryDir:  inventoryDir,
-						AutoBuild:     newCfg.Ansible.AutoBuild,
-						DockerfileDir: newCfg.Ansible.DockerfileDir,
-					}, s.Logger)
+					// Newly enabled — create/start container
+					go tools.EnsureAnsibleSidecarRunning(newCfg.Docker.Host, sidecarCfg, s.Logger)
+				} else if newCfg.Ansible.Token != oldCfg.Ansible.Token && newCfg.Ansible.Token != "" {
+					// Token changed while already running — recreate container to apply new token
+					go tools.ReapplyAnsibleToken(newCfg.Docker.Host, sidecarCfg, s.Logger)
 				}
 			}
 
@@ -836,6 +843,71 @@ func handleSecurityHarden(s *Server) http.HandlerFunc {
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"applied": applied,
 			"message": fmt.Sprintf("%d hardening measure(s) applied.", len(applied)),
+		})
+	}
+}
+
+// handleAnsibleGenerateToken generates a cryptographically secure random token,
+// saves it to the vault, and (if the sidecar is already running) recreates the
+// container so the new token is active immediately.
+func handleAnsibleGenerateToken(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		// Generate a 32-byte cryptographically secure random token
+		b := make([]byte, 32)
+		if _, err := crand.Read(b); err != nil {
+			s.Logger.Error("[Ansible] Failed to generate token", "error", err)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]string{"error": "Failed to generate token"})
+			return
+		}
+		token := hex.EncodeToString(b)
+
+		// Persist to vault
+		if s.Vault != nil {
+			if err := s.Vault.WriteSecret("ansible_token", token); err != nil {
+				s.Logger.Error("[Ansible] Failed to save token to vault", "error", err)
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusInternalServerError)
+				json.NewEncoder(w).Encode(map[string]string{"error": "Failed to save token to vault"})
+				return
+			}
+			s.Logger.Info("[Config] Secret saved to vault", "key", "ansible_token")
+		}
+
+		// Update live config
+		s.CfgMu.Lock()
+		s.Cfg.Ansible.Token = token
+		cfg := *s.Cfg
+		s.CfgMu.Unlock()
+
+		// If sidecar is enabled, recreate the container with the new token
+		if cfg.Ansible.Enabled && cfg.Ansible.Mode == "sidecar" {
+			inventoryDir := ""
+			if cfg.Ansible.DefaultInventory != "" {
+				inventoryDir = filepath.Dir(cfg.Ansible.DefaultInventory)
+			}
+			go tools.ReapplyAnsibleToken(cfg.Docker.Host, tools.AnsibleSidecarConfig{
+				Token:         token,
+				Timeout:       cfg.Ansible.Timeout,
+				Image:         cfg.Ansible.Image,
+				ContainerName: cfg.Ansible.ContainerName,
+				PlaybooksDir:  cfg.Ansible.PlaybooksDir,
+				InventoryDir:  inventoryDir,
+				AutoBuild:     cfg.Ansible.AutoBuild,
+				DockerfileDir: cfg.Ansible.DockerfileDir,
+			}, s.Logger)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{
+			"status": "ok",
+			"token":  token,
 		})
 	}
 }

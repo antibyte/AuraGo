@@ -1,0 +1,8 @@
+{
+  "config.ansible.generate_token_btn": "Générer un token",
+  "config.ansible.generate_token_generating": "Génération…",
+  "config.ansible.generate_token_ok": "Token généré et sauvegardé dans le vault. Le conteneur sera redémarré.",
+  "config.ansible.generate_token_fail": "Échec de la génération du token.",
+  "config.ansible.generate_token_copy": "Copier",
+  "config.ansible.generate_token_copied": "Copié !"
+}
