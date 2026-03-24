@@ -7,9 +7,10 @@ conditions: ["proxmox_enabled"]
 ### Proxmox VE Management
 | Tool | Purpose |
 |---|---|
-| `proxmox` | Manage Proxmox VE: list nodes, VMs, containers, start/stop/reboot VMs/CTs, snapshots, storage info, cluster resources |
+| `proxmox` | Manage Proxmox VE: overview, list nodes, VMs, containers, start/stop/reboot VMs/CTs, snapshots, storage info, cluster resources |
 
 **Operations:**
+- `overview` — Best default for monitoring: combined node, VM, and container overview with summaries
 - `list_nodes` — List all cluster nodes
 - `list_vms` — List QEMU VMs on a node
 - `list_containers` — List LXC containers on a node
@@ -23,3 +24,7 @@ conditions: ["proxmox_enabled"]
 - `task_log` — Get task log (requires upid)
 
 **Parameters:** `operation`, `node` (optional, uses default), `vmid`, `vm_type` ("qemu" or "lxc"), `name` (snapshot name), `description`, `upid`, `resource_type`
+
+**Agent guidance:**
+- For monitoring, health checks, or general situational awareness, prefer `operation: "overview"` first.
+- Use `list_vms`, `list_containers`, `node_status`, or `status` only when you need a narrower follow-up view or a single resource detail.

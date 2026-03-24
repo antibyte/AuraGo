@@ -305,6 +305,9 @@ func dispatchInfra(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 		}
 		vmType := tc.VMType
 		switch tc.Operation {
+		case "overview":
+			logger.Info("LLM requested Proxmox overview", "node", node)
+			return "Tool Output: " + tools.ProxmoxOverview(pxCfg, node)
 		case "list_nodes":
 			logger.Info("LLM requested Proxmox list_nodes")
 			return "Tool Output: " + tools.ProxmoxListNodes(pxCfg)
@@ -344,7 +347,7 @@ func dispatchInfra(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 			logger.Info("LLM requested Proxmox task_log", "upid", upid)
 			return "Tool Output: " + tools.ProxmoxGetTaskLog(pxCfg, node, upid)
 		default:
-			return `Tool Output: {"status":"error","message":"Unknown proxmox operation. Use: list_nodes, list_vms, list_containers, status, start, stop, shutdown, reboot, node_status, cluster_resources, storage, create_snapshot, list_snapshots, task_log"}`
+			return `Tool Output: {"status":"error","message":"Unknown proxmox operation. Use: overview, list_nodes, list_vms, list_containers, status, start, stop, shutdown, reboot, node_status, cluster_resources, storage, create_snapshot, list_snapshots, task_log"}`
 		}
 
 	case "ollama", "ollama_management":

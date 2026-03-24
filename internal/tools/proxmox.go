@@ -146,6 +146,116 @@ func proxmoxFilterClusterResources(resources []map[string]interface{}, resourceT
 	return filtered
 }
 
+func proxmoxNormalizeResourceList(items []map[string]interface{}, resourceType, defaultNode string) []map[string]interface{} {
+	normalized := make([]map[string]interface{}, 0, len(items))
+	for _, item := range items {
+		entryType := strings.TrimSpace(fmt.Sprint(item["type"]))
+		if entryType == "" || entryType == "<nil>" {
+			entryType = resourceType
+		}
+		if resourceType != "" && entryType != resourceType {
+			continue
+		}
+
+		node := strings.TrimSpace(fmt.Sprint(item["node"]))
+		if node == "" {
+			node = defaultNode
+		}
+
+		status := strings.TrimSpace(fmt.Sprint(item["status"]))
+		name := strings.TrimSpace(fmt.Sprint(item["name"]))
+		vmid := strings.TrimSpace(fmt.Sprint(item["vmid"]))
+		if vmid == "<nil>" {
+			vmid = ""
+		}
+
+		normalized = append(normalized, map[string]interface{}{
+			"type":    entryType,
+			"node":    node,
+			"vmid":    vmid,
+			"name":    name,
+			"status":  status,
+			"running": status == "running",
+			"cpu":     item["cpu"],
+			"mem":     item["mem"],
+			"maxmem":  item["maxmem"],
+			"disk":    item["disk"],
+			"maxdisk": item["maxdisk"],
+			"uptime":  item["uptime"],
+			"tags":    item["tags"],
+		})
+	}
+	return normalized
+}
+
+func proxmoxBuildStateSummary(items []map[string]interface{}) map[string]interface{} {
+	summary := map[string]interface{}{
+		"total":   len(items),
+		"running": 0,
+		"stopped": 0,
+		"paused":  0,
+		"unknown": 0,
+	}
+	for _, item := range items {
+		status := strings.ToLower(strings.TrimSpace(fmt.Sprint(item["status"])))
+		switch status {
+		case "running":
+			summary["running"] = summary["running"].(int) + 1
+		case "stopped":
+			summary["stopped"] = summary["stopped"].(int) + 1
+		case "paused", "suspended":
+			summary["paused"] = summary["paused"].(int) + 1
+		default:
+			summary["unknown"] = summary["unknown"].(int) + 1
+		}
+	}
+	return summary
+}
+
+func proxmoxNormalizeNodeList(items []map[string]interface{}) []map[string]interface{} {
+	normalized := make([]map[string]interface{}, 0, len(items))
+	for _, item := range items {
+		node := strings.TrimSpace(fmt.Sprint(item["node"]))
+		status := strings.TrimSpace(fmt.Sprint(item["status"]))
+		normalized = append(normalized, map[string]interface{}{
+			"type":    "node",
+			"node":    node,
+			"status":  status,
+			"online":  status == "online",
+			"level":   item["level"],
+			"cpu":     item["cpu"],
+			"mem":     item["mem"],
+			"maxmem":  item["maxmem"],
+			"disk":    item["disk"],
+			"maxdisk": item["maxdisk"],
+			"uptime":  item["uptime"],
+			"maxcpu":  item["maxcpu"],
+		})
+	}
+	return normalized
+}
+
+func proxmoxBuildNodeSummary(items []map[string]interface{}) map[string]interface{} {
+	summary := map[string]interface{}{
+		"total":   len(items),
+		"online":  0,
+		"offline": 0,
+		"unknown": 0,
+	}
+	for _, item := range items {
+		status := strings.ToLower(strings.TrimSpace(fmt.Sprint(item["status"])))
+		switch status {
+		case "online":
+			summary["online"] = summary["online"].(int) + 1
+		case "offline":
+			summary["offline"] = summary["offline"].(int) + 1
+		default:
+			summary["unknown"] = summary["unknown"].(int) + 1
+		}
+	}
+	return summary
+}
+
 // ProxmoxListNodes returns all nodes in the cluster.
 func ProxmoxListNodes(cfg ProxmoxConfig) string {
 	data, code, err := proxmoxRequest(cfg, "GET", "/nodes", "")
@@ -169,7 +279,16 @@ func ProxmoxListVMs(cfg ProxmoxConfig, node string) string {
 			return fmt.Sprintf(`{"status":"error","message":"Failed to list VMs: %v"}`, err)
 		}
 		if code == 200 {
-			return fmt.Sprintf(`{"status":"ok","vms":%s}`, proxmoxExtractData(data))
+			var raw []map[string]interface{}
+			if err := json.Unmarshal(proxmoxExtractData(data), &raw); err != nil {
+				return fmt.Sprintf(`{"status":"error","message":"Failed to parse VMs: %v"}`, err)
+			}
+			normalized := proxmoxNormalizeResourceList(raw, "qemu", node)
+			summary := proxmoxBuildStateSummary(normalized)
+			rawOut, _ := json.Marshal(raw)
+			normalizedOut, _ := json.Marshal(normalized)
+			summaryOut, _ := json.Marshal(summary)
+			return fmt.Sprintf(`{"status":"ok","scope":"node","node":%q,"vms":%s,"monitoring":%s,"summary":%s}`, node, rawOut, normalizedOut, summaryOut)
 		}
 		if code != http.StatusForbidden {
 			return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
@@ -184,8 +303,16 @@ func ProxmoxListVMs(cfg ProxmoxConfig, node string) string {
 		return fmt.Sprintf(`{"status":"error","message":"Failed to list VMs: %v"}`, err)
 	}
 	filtered := proxmoxFilterClusterResources(resources, "qemu", node, "")
-	out, _ := json.Marshal(filtered)
-	return fmt.Sprintf(`{"status":"ok","source":"cluster_resources","vms":%s}`, out)
+	normalized := proxmoxNormalizeResourceList(filtered, "qemu", node)
+	summary := proxmoxBuildStateSummary(normalized)
+	rawOut, _ := json.Marshal(filtered)
+	normalizedOut, _ := json.Marshal(normalized)
+	summaryOut, _ := json.Marshal(summary)
+	scope := "cluster"
+	if node != "" {
+		scope = "node"
+	}
+	return fmt.Sprintf(`{"status":"ok","source":"cluster_resources","scope":%q,"node":%q,"vms":%s,"monitoring":%s,"summary":%s}`, scope, node, rawOut, normalizedOut, summaryOut)
 }
 
 // ProxmoxListContainers returns all LXC containers on a node.
@@ -199,7 +326,16 @@ func ProxmoxListContainers(cfg ProxmoxConfig, node string) string {
 			return fmt.Sprintf(`{"status":"error","message":"Failed to list containers: %v"}`, err)
 		}
 		if code == 200 {
-			return fmt.Sprintf(`{"status":"ok","containers":%s}`, proxmoxExtractData(data))
+			var raw []map[string]interface{}
+			if err := json.Unmarshal(proxmoxExtractData(data), &raw); err != nil {
+				return fmt.Sprintf(`{"status":"error","message":"Failed to parse containers: %v"}`, err)
+			}
+			normalized := proxmoxNormalizeResourceList(raw, "lxc", node)
+			summary := proxmoxBuildStateSummary(normalized)
+			rawOut, _ := json.Marshal(raw)
+			normalizedOut, _ := json.Marshal(normalized)
+			summaryOut, _ := json.Marshal(summary)
+			return fmt.Sprintf(`{"status":"ok","scope":"node","node":%q,"containers":%s,"monitoring":%s,"summary":%s}`, node, rawOut, normalizedOut, summaryOut)
 		}
 		if code != http.StatusForbidden {
 			return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
@@ -214,8 +350,16 @@ func ProxmoxListContainers(cfg ProxmoxConfig, node string) string {
 		return fmt.Sprintf(`{"status":"error","message":"Failed to list containers: %v"}`, err)
 	}
 	filtered := proxmoxFilterClusterResources(resources, "lxc", node, "")
-	out, _ := json.Marshal(filtered)
-	return fmt.Sprintf(`{"status":"ok","source":"cluster_resources","containers":%s}`, out)
+	normalized := proxmoxNormalizeResourceList(filtered, "lxc", node)
+	summary := proxmoxBuildStateSummary(normalized)
+	rawOut, _ := json.Marshal(filtered)
+	normalizedOut, _ := json.Marshal(normalized)
+	summaryOut, _ := json.Marshal(summary)
+	scope := "cluster"
+	if node != "" {
+		scope = "node"
+	}
+	return fmt.Sprintf(`{"status":"ok","source":"cluster_resources","scope":%q,"node":%q,"containers":%s,"monitoring":%s,"summary":%s}`, scope, node, rawOut, normalizedOut, summaryOut)
 }
 
 // ProxmoxGetStatus returns the status of a VM or container.
@@ -311,6 +455,43 @@ func ProxmoxNodeStatus(cfg ProxmoxConfig, node string) string {
 	}
 	out, _ := json.Marshal(filtered[0])
 	return fmt.Sprintf(`{"status":"ok","source":"cluster_resources","data":%s}`, out)
+}
+
+// ProxmoxOverview returns a monitoring-oriented overview of nodes, VMs, and containers.
+func ProxmoxOverview(cfg ProxmoxConfig, node string) string {
+	nodeResources, _, err := proxmoxGetClusterResourceList(cfg, "node")
+	if err != nil {
+		return fmt.Sprintf(`{"status":"error","message":"Failed to get node overview: %v"}`, err)
+	}
+	filteredNodes := proxmoxFilterClusterResources(nodeResources, "node", node, "")
+	normalizedNodes := proxmoxNormalizeNodeList(filteredNodes)
+	nodeSummary := proxmoxBuildNodeSummary(normalizedNodes)
+
+	vmResources, _, err := proxmoxGetClusterResourceList(cfg, "vm")
+	if err != nil {
+		return fmt.Sprintf(`{"status":"error","message":"Failed to get VM/container overview: %v"}`, err)
+	}
+	filteredVMs := proxmoxFilterClusterResources(vmResources, "qemu", node, "")
+	filteredContainers := proxmoxFilterClusterResources(vmResources, "lxc", node, "")
+	normalizedVMs := proxmoxNormalizeResourceList(filteredVMs, "qemu", node)
+	normalizedContainers := proxmoxNormalizeResourceList(filteredContainers, "lxc", node)
+	vmSummary := proxmoxBuildStateSummary(normalizedVMs)
+	containerSummary := proxmoxBuildStateSummary(normalizedContainers)
+
+	scope := "cluster"
+	if strings.TrimSpace(node) != "" {
+		scope = "node"
+	}
+
+	nodesOut, _ := json.Marshal(normalizedNodes)
+	vmsOut, _ := json.Marshal(normalizedVMs)
+	containersOut, _ := json.Marshal(normalizedContainers)
+	nodeSummaryOut, _ := json.Marshal(nodeSummary)
+	vmSummaryOut, _ := json.Marshal(vmSummary)
+	containerSummaryOut, _ := json.Marshal(containerSummary)
+
+	return fmt.Sprintf(`{"status":"ok","source":"cluster_resources","scope":%q,"node":%q,"nodes":%s,"vms":%s,"containers":%s,"summary":{"nodes":%s,"vms":%s,"containers":%s}}`,
+		scope, node, nodesOut, vmsOut, containersOut, nodeSummaryOut, vmSummaryOut, containerSummaryOut)
 }
 
 // ProxmoxClusterResources returns a unified list of all resources (VMs, CTs, storage, nodes).
