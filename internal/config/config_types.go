@@ -258,20 +258,20 @@ type Config struct {
 	// Personality holds all settings related to the personality engine and user profiling.
 	// Fields were previously part of the Agent section.
 	Personality struct {
-		Engine                 bool   `yaml:"engine"`                   // enable personality engine (mood, micro-traits)
-		EngineV2               bool   `yaml:"engine_v2"`                // enable V2 engine with async LLM mood analysis
-		V2Provider             string `yaml:"v2_provider"`              // provider entry ID for V2 analysis (empty = main LLM)
-		V2Model                string `yaml:"v2_model"`                 // legacy: model name
-		V2URL                  string `yaml:"v2_url"`                   // legacy: base URL
-		V2APIKey               string `yaml:"v2_api_key"`               // legacy: API key
-		V2ProviderType         string `yaml:"-"       json:"-"`         // resolved
-		V2ResolvedURL          string `yaml:"-"       json:"-"`         // resolved
-		V2ResolvedKey          string `yaml:"-"       json:"-"`         // resolved
-		V2ResolvedModel        string `yaml:"-"       json:"-"`         // resolved
-		CorePersonality        string `yaml:"core_personality"`         // active personality profile name
-		UserProfiling          bool   `yaml:"user_profiling"`           // opt-in: collect user profile via V2 analysis
-		UserProfilingThreshold int    `yaml:"user_profiling_threshold"` // min confidence for profile summary (default: 3)
-		V2TimeoutSecs          int    `yaml:"v2_timeout_secs"`          // timeout for V2 mood analysis LLM call (default: 30)
+		Engine                 bool   `yaml:"engine"`                     // enable personality engine (mood, micro-traits)
+		EngineV2               bool   `yaml:"engine_v2"`                  // enable V2 engine with async LLM mood analysis
+		V2Provider             string `yaml:"v2_provider"`                // provider entry ID for V2 analysis (empty = main LLM)
+		V2Model                string `yaml:"v2_model"          json:"-"` // legacy: model name (hidden from UI, used for migration)
+		V2URL                  string `yaml:"v2_url"            json:"-"` // legacy: base URL (hidden from UI, used for migration)
+		V2APIKey               string `yaml:"v2_api_key"        json:"-"` // legacy: API key (hidden from UI, used for migration)
+		V2ProviderType         string `yaml:"-"                 json:"-"` // resolved
+		V2ResolvedURL          string `yaml:"-"                 json:"-"` // resolved
+		V2ResolvedKey          string `yaml:"-"                 json:"-"` // resolved
+		V2ResolvedModel        string `yaml:"-"                 json:"-"` // resolved
+		CorePersonality        string `yaml:"core_personality"`           // active personality profile name
+		UserProfiling          bool   `yaml:"user_profiling"`             // opt-in: collect user profile via V2 analysis
+		UserProfilingThreshold int    `yaml:"user_profiling_threshold"`   // min confidence for profile summary (default: 3)
+		V2TimeoutSecs          int    `yaml:"v2_timeout_secs"  json:"-"`  // timeout for V2 mood analysis LLM call (default: 30)
 		EmotionSynthesizer     struct {
 			Enabled             bool `yaml:"enabled"`                // enable LLM-based emotion synthesis (default: false)
 			MinIntervalSecs     int  `yaml:"min_interval_seconds"`   // minimum seconds between syntheses (default: 60)

@@ -180,6 +180,9 @@ const SENSITIVE_KEYS = ['api_key', 'bot_token', 'password', 'app_password', 'acc
 // Provider management state (loaded from /api/providers)
 let providersCache = [];
 
+// Personality profiles cache (loaded from /api/personalities)
+let personalitiesCache = [];
+
 // Runtime environment detection (loaded from /api/runtime)
 let runtimeData = { runtime: {}, features: {} };
 
@@ -198,6 +201,11 @@ async function init() {
         try {
             const provResp = await fetch('/api/providers');
             if (provResp.ok) providersCache = await provResp.json();
+        } catch (_) { }
+        // Load personality profiles
+        try {
+            const persResp = await fetch('/api/personalities');
+            if (persResp.ok) { const d = await persResp.json(); personalitiesCache = d.personalities || []; }
         } catch (_) { }
         // Load runtime environment capabilities (Docker mode, socket, broadcast, etc.)
         try {
@@ -640,6 +648,17 @@ function renderField(fullPath, key, value, parentPath, fieldSchema) {
         html += '<div class="toggle' + (isOn ? ' on' : '') + '" data-path="' + fullPath + '" onclick="toggleBool(this)"></div>';
         html += '<span class="toggle-label">' + (isOn ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
         html += '</div>';
+    } else if (help && help.personalities_ref) {
+        // Dynamic personality profile dropdown — populated from /api/personalities
+        html += '<select class="field-select" data-path="' + fullPath + '">';
+        const emptyLabel = t('config.field.no_personality') || '— default —';
+        const emptySelected = (!value || value === '') ? ' selected' : '';
+        html += '<option value=""' + emptySelected + '>' + emptyLabel + '</option>';
+        personalitiesCache.forEach(p => {
+            const selected = (String(value) === String(p.Name)) ? ' selected' : '';
+            html += '<option value="' + escapeAttr(p.Name) + '"' + selected + '>' + escapeAttr(p.Name) + '</option>';
+        });
+        html += '</select>';
     } else if (help && help.provider_ref) {
         // Dynamic provider dropdown — populated from /api/providers
         html += '<select class="field-select" data-path="' + fullPath + '">';

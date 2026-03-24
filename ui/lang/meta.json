@@ -106,6 +106,9 @@
   "help.personality.v2_provider": {
     "provider_ref": true
   },
+  "help.personality.core_personality": {
+    "personalities_ref": true
+  },
   "help.fallback_llm.provider": {
     "provider_ref": true
   },
