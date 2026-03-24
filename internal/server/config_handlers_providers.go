@@ -126,6 +126,11 @@ func injectVaultIndicators(rawCfg map[string]interface{}, vault *security.Vault)
 	}
 }
 
+func isVaultMappedPath(fullPath string) bool {
+	_, ok := vaultKeyMap[fullPath]
+	return ok
+}
+
 // getConfigSchema returns a JSON schema describing the config structure for the UI.
 // It reflects the Config struct to produce field metadata (type, yaml key).
 func handleGetConfigSchema(s *Server) http.HandlerFunc {
@@ -202,8 +207,10 @@ func buildSchema(t reflect.Type, prefix string) []SchemaField {
 			sf.Type = "string"
 		}
 
-		// Mark sensitive fields
-		if sensitiveKeys[yamlTag] || vaultTag != "" {
+		// Mark sensitive fields. Besides explicit vault tags, also respect the
+		// static vault path map so generic sections render fields like
+		// rocketchat.auth_token or google_workspace.client_secret as secrets.
+		if sensitiveKeys[yamlTag] || vaultTag != "" || isVaultMappedPath(fullKey) {
 			sf.Sensitive = true
 		}
 

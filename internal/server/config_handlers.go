@@ -744,7 +744,8 @@ func extractRecursive(m map[string]interface{}, prefix string, vault *security.V
 				firstErr = err
 			}
 		case string:
-			if !sensitiveKeys[key] {
+			_, isMappedVaultPath := vaultKeyMap[fullPath]
+			if !sensitiveKeys[key] && !isMappedVaultPath {
 				continue
 			}
 			// Always remove from patch — sensitive fields must never reach config.yaml.

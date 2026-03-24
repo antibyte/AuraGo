@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -93,6 +94,58 @@ func proxmoxExtractData(raw []byte) json.RawMessage {
 	return raw
 }
 
+func proxmoxGetClusterResourceList(cfg ProxmoxConfig, resType string) ([]map[string]interface{}, int, error) {
+	endpoint := "/cluster/resources"
+	if resType != "" {
+		endpoint += "?type=" + url.QueryEscape(resType)
+	}
+	data, code, err := proxmoxRequest(cfg, "GET", endpoint, "")
+	if err != nil {
+		return nil, code, err
+	}
+	if code != 200 {
+		return nil, code, fmt.Errorf("cluster resources returned HTTP %d: %s", code, string(data))
+	}
+	var resources []map[string]interface{}
+	if err := json.Unmarshal(proxmoxExtractData(data), &resources); err != nil {
+		return nil, code, fmt.Errorf("failed to parse cluster resources: %w", err)
+	}
+	return resources, code, nil
+}
+
+func proxmoxFilterClusterResources(resources []map[string]interface{}, resourceType, node, vmid string) []map[string]interface{} {
+	filtered := make([]map[string]interface{}, 0, len(resources))
+	wantVMID := strings.TrimSpace(vmid)
+	wantNode := strings.TrimSpace(node)
+	for _, item := range resources {
+		itemType := strings.TrimSpace(fmt.Sprint(item["type"]))
+		if resourceType != "" && itemType != resourceType {
+			continue
+		}
+		if wantNode != "" && strings.TrimSpace(fmt.Sprint(item["node"])) != wantNode {
+			continue
+		}
+		if wantVMID != "" {
+			switch raw := item["vmid"].(type) {
+			case float64:
+				if strconv.FormatInt(int64(raw), 10) != wantVMID {
+					continue
+				}
+			case string:
+				if strings.TrimSpace(raw) != wantVMID {
+					continue
+				}
+			default:
+				if strings.TrimSpace(fmt.Sprint(raw)) != wantVMID {
+					continue
+				}
+			}
+		}
+		filtered = append(filtered, item)
+	}
+	return filtered
+}
+
 // ProxmoxListNodes returns all nodes in the cluster.
 func ProxmoxListNodes(cfg ProxmoxConfig) string {
 	data, code, err := proxmoxRequest(cfg, "GET", "/nodes", "")
@@ -110,17 +163,29 @@ func ProxmoxListVMs(cfg ProxmoxConfig, node string) string {
 	if node == "" {
 		node = cfg.Node
 	}
-	if node == "" {
-		return `{"status":"error","message":"No node specified. Set proxmox.node in config or provide node parameter."}`
+	if node != "" {
+		data, code, err := proxmoxRequest(cfg, "GET", fmt.Sprintf("/nodes/%s/qemu", node), "")
+		if err != nil {
+			return fmt.Sprintf(`{"status":"error","message":"Failed to list VMs: %v"}`, err)
+		}
+		if code == 200 {
+			return fmt.Sprintf(`{"status":"ok","vms":%s}`, proxmoxExtractData(data))
+		}
+		if code != http.StatusForbidden {
+			return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+		}
 	}
-	data, code, err := proxmoxRequest(cfg, "GET", fmt.Sprintf("/nodes/%s/qemu", node), "")
+
+	resources, _, err := proxmoxGetClusterResourceList(cfg, "vm")
 	if err != nil {
+		if node == "" {
+			return `{"status":"error","message":"No node specified. Set proxmox.node in config or provide node parameter."}`
+		}
 		return fmt.Sprintf(`{"status":"error","message":"Failed to list VMs: %v"}`, err)
 	}
-	if code != 200 {
-		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
-	}
-	return fmt.Sprintf(`{"status":"ok","vms":%s}`, proxmoxExtractData(data))
+	filtered := proxmoxFilterClusterResources(resources, "qemu", node, "")
+	out, _ := json.Marshal(filtered)
+	return fmt.Sprintf(`{"status":"ok","source":"cluster_resources","vms":%s}`, out)
 }
 
 // ProxmoxListContainers returns all LXC containers on a node.
@@ -128,17 +193,29 @@ func ProxmoxListContainers(cfg ProxmoxConfig, node string) string {
 	if node == "" {
 		node = cfg.Node
 	}
-	if node == "" {
-		return `{"status":"error","message":"No node specified."}`
+	if node != "" {
+		data, code, err := proxmoxRequest(cfg, "GET", fmt.Sprintf("/nodes/%s/lxc", node), "")
+		if err != nil {
+			return fmt.Sprintf(`{"status":"error","message":"Failed to list containers: %v"}`, err)
+		}
+		if code == 200 {
+			return fmt.Sprintf(`{"status":"ok","containers":%s}`, proxmoxExtractData(data))
+		}
+		if code != http.StatusForbidden {
+			return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+		}
 	}
-	data, code, err := proxmoxRequest(cfg, "GET", fmt.Sprintf("/nodes/%s/lxc", node), "")
+
+	resources, _, err := proxmoxGetClusterResourceList(cfg, "vm")
 	if err != nil {
+		if node == "" {
+			return `{"status":"error","message":"No node specified."}`
+		}
 		return fmt.Sprintf(`{"status":"error","message":"Failed to list containers: %v"}`, err)
 	}
-	if code != 200 {
-		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
-	}
-	return fmt.Sprintf(`{"status":"ok","containers":%s}`, proxmoxExtractData(data))
+	filtered := proxmoxFilterClusterResources(resources, "lxc", node, "")
+	out, _ := json.Marshal(filtered)
+	return fmt.Sprintf(`{"status":"ok","source":"cluster_resources","containers":%s}`, out)
 }
 
 // ProxmoxGetStatus returns the status of a VM or container.
@@ -157,10 +234,23 @@ func ProxmoxGetStatus(cfg ProxmoxConfig, node string, vmType string, vmid string
 	if err != nil {
 		return fmt.Sprintf(`{"status":"error","message":"Failed to get status: %v"}`, err)
 	}
-	if code != 200 {
+	if code == 200 {
+		return fmt.Sprintf(`{"status":"ok","data":%s}`, proxmoxExtractData(data))
+	}
+	if code != http.StatusForbidden {
 		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
 	}
-	return fmt.Sprintf(`{"status":"ok","data":%s}`, proxmoxExtractData(data))
+
+	resources, _, err := proxmoxGetClusterResourceList(cfg, "vm")
+	if err != nil {
+		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+	}
+	filtered := proxmoxFilterClusterResources(resources, vmType, node, vmid)
+	if len(filtered) == 0 {
+		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":"status endpoint forbidden and resource not found in cluster overview"}`, code)
+	}
+	out, _ := json.Marshal(filtered[0])
+	return fmt.Sprintf(`{"status":"ok","source":"cluster_resources","data":%s}`, out)
 }
 
 // ProxmoxVMAction performs start/stop/shutdown/reboot/suspend/resume on a VM or container.
@@ -204,10 +294,23 @@ func ProxmoxNodeStatus(cfg ProxmoxConfig, node string) string {
 	if err != nil {
 		return fmt.Sprintf(`{"status":"error","message":"Failed to get node status: %v"}`, err)
 	}
-	if code != 200 {
+	if code == 200 {
+		return fmt.Sprintf(`{"status":"ok","data":%s}`, proxmoxExtractData(data))
+	}
+	if code != http.StatusForbidden {
 		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
 	}
-	return fmt.Sprintf(`{"status":"ok","data":%s}`, proxmoxExtractData(data))
+
+	resources, _, err := proxmoxGetClusterResourceList(cfg, "node")
+	if err != nil {
+		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+	}
+	filtered := proxmoxFilterClusterResources(resources, "node", node, "")
+	if len(filtered) == 0 {
+		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":"node status endpoint forbidden and node not found in cluster overview"}`, code)
+	}
+	out, _ := json.Marshal(filtered[0])
+	return fmt.Sprintf(`{"status":"ok","source":"cluster_resources","data":%s}`, out)
 }
 
 // ProxmoxClusterResources returns a unified list of all resources (VMs, CTs, storage, nodes).
