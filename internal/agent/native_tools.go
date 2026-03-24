@@ -69,6 +69,7 @@ type ToolFeatureFlags struct {
 	CloudflareTunnelEnabled bool
 	GoogleWorkspaceEnabled  bool
 	OneDriveEnabled         bool
+	VirusTotalEnabled       bool
 	ImageGenerationEnabled  bool
 	RemoteControlEnabled    bool
 	// Danger Zone toggles
@@ -127,6 +128,10 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 	}
 
 	tools := []openai.Tool{
+		tool("list_skills",
+			"List available pre-built skills and integrations that can be executed via execute_skill. Use this to discover capabilities like virustotal_scan, brave_search, pdf_extractor, wikipedia_search, or web_scraper.",
+			schema(map[string]interface{}{}),
+		),
 		tool("execute_skill",
 			"Run a pre-built registered skill (e.g. web_search, ddg_search, pdf_extractor, wikipedia_search, virustotal_scan). Use for external data retrieval.",
 			schema(map[string]interface{}{
@@ -231,6 +236,15 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 				"title": prop("string", "Optional title shown with the document card"),
 			}, "path"),
 		),
+	}
+
+	if ff.VirusTotalEnabled {
+		tools = append(tools, tool("virustotal_scan",
+			"Scan a URL, domain, IP address, or file hash using VirusTotal threat intelligence. Use for malware reputation and security checks.",
+			schema(map[string]interface{}{
+				"resource": prop("string", "The URL, domain, IP address, or file hash to scan with VirusTotal"),
+			}, "resource"),
+		))
 	}
 
 	// ── Conditionally-included built-in tools ────────────────────────────────
@@ -1766,6 +1780,9 @@ func BuildNativeToolSchemas(skillsDir string, manifest *tools.Manifest, ff ToolF
 	// Add skills as sub-variants of execute_skill (informational context; already handled by execute_skill schema)
 	if skills, err := tools.ListSkills(skillsDir); err == nil {
 		for _, skill := range skills {
+			if skill.Executable == "__builtin__" && skill.Name == "virustotal_scan" && !ff.VirusTotalEnabled {
+				continue
+			}
 			allTools = append(allTools, tool(
 				"skill__"+skill.Name,
 				"(Skill) "+skill.Description+". Use execute_skill with skill='"+skill.Name+"'.",

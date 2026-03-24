@@ -1093,6 +1093,7 @@ func buildFeatureFlags(cfg *config.Config) agent.ToolFeatureFlags {
 		TailscaleEnabled:         cfg.Tailscale.Enabled,
 		CloudflareTunnelEnabled:  cfg.CloudflareTunnel.Enabled,
 		GoogleWorkspaceEnabled:   cfg.GoogleWorkspace.Enabled,
+		VirusTotalEnabled:        cfg.VirusTotal.Enabled,
 		AnsibleEnabled:           cfg.Ansible.Enabled,
 		InvasionControlEnabled:   cfg.InvasionControl.Enabled,
 		GitHubEnabled:            cfg.GitHub.Enabled,

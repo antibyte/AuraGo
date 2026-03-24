@@ -12,6 +12,17 @@ import (
 	"time"
 )
 
+type sandboxConn interface {
+	initialize(logger *slog.Logger) error
+	discoverTools(logger *slog.Logger) error
+	callTool(toolName string, arguments map[string]interface{}) (string, error)
+	close()
+	markReady()
+	toolCount() int
+}
+
+type sandboxConnFactory func() (sandboxConn, error)
+
 // ── LLM-Sandbox Integration ────────────────────────────────────────────────
 //
 // Launches the llm-sandbox MCP server (`python3 -m llm_sandbox.mcp_server.server`)
@@ -39,10 +50,15 @@ type SandboxStatus struct {
 
 // SandboxManager manages the llm-sandbox MCP server process.
 type SandboxManager struct {
-	mu     sync.RWMutex
-	conn   *mcpConn
-	logger *slog.Logger
-	status SandboxStatus
+	mu           sync.RWMutex
+	conn         sandboxConn
+	logger       *slog.Logger
+	status       SandboxStatus
+	cfg          SandboxConfig
+	workspaceDir string
+	pythonBin    string
+	env          map[string]string
+	connFactory  sandboxConnFactory
 }
 
 var (
@@ -55,17 +71,16 @@ var (
 // so the agent can fall back to execute_python.
 func InitSandboxManager(cfg SandboxConfig, workspaceDir string, logger *slog.Logger) *SandboxManager {
 	mgr := &SandboxManager{
-		logger: logger,
-		status: SandboxStatus{Backend: cfg.Backend},
+		logger:       logger,
+		status:       SandboxStatus{Backend: cfg.Backend},
+		cfg:          cfg,
+		workspaceDir: workspaceDir,
 	}
 
 	// Warn about config options that are parsed but not yet implemented, so users
-	// are not misled into thinking they have container pooling or keep-alive active.
+	// are not misled into thinking they have container pooling active.
 	if cfg.PoolSize > 0 {
 		logger.Warn("[Sandbox] sandbox.pool_size is set but container pooling is not yet implemented — value ignored", "pool_size", cfg.PoolSize)
-	}
-	if cfg.KeepAlive {
-		logger.Warn("[Sandbox] sandbox.keep_alive is set but is not yet implemented — MCP server lifecycle is managed automatically")
 	}
 
 	// 1. Check Docker / Podman availability
@@ -105,6 +120,7 @@ func InitSandboxManager(cfg SandboxConfig, workspaceDir string, logger *slog.Log
 		}
 	}
 	mgr.status.PythonAvailable = true
+	mgr.pythonBin = pythonBin
 
 	// 3. Auto-install llm-sandbox if configured
 	if cfg.AutoInstall {
@@ -118,6 +134,7 @@ func InitSandboxManager(cfg SandboxConfig, workspaceDir string, logger *slog.Log
 			}
 			// Recheck after install — use the venv python which now has the package
 			pythonBin = GetPythonBin(workspaceDir)
+			mgr.pythonBin = pythonBin
 		}
 	}
 
@@ -146,49 +163,100 @@ func InitSandboxManager(cfg SandboxConfig, workspaceDir string, logger *slog.Log
 	} else {
 		env["ENABLE_NETWORKING"] = "true"
 	}
-
-	// 5. Start the MCP server process
+	mgr.env = env
 	args := []string{"-m", "llm_sandbox.mcp_server.server"}
-	conn, err := newMCPConn("llm-sandbox", pythonBin, args, env, logger)
+	mgr.connFactory = func() (sandboxConn, error) {
+		return newMCPConn("llm-sandbox", mgr.pythonBin, args, mgr.env, logger)
+	}
+
+	// 5. Validate the MCP server and optionally keep it warm.
+	conn, err := mgr.openConn()
 	if err != nil {
-		mgr.status.Error = fmt.Sprintf("Failed to start sandbox MCP server: %v", err)
+		mgr.status.Error = err.Error()
 		logger.Error("[Sandbox] MCP server start failed", "error", err)
 		registerSandboxSingleton(mgr)
 		return mgr
 	}
-
-	// 6. Initialize JSON-RPC handshake
-	if err := conn.initialize(logger); err != nil {
-		mgr.status.Error = fmt.Sprintf("MCP initialization failed: %v", err)
-		logger.Error("[Sandbox] MCP init failed", "error", err)
-		conn.close()
-		registerSandboxSingleton(mgr)
-		return mgr
-	}
-
-	// 7. Discover tools
-	if err := conn.discoverTools(logger); err != nil {
-		mgr.status.Error = fmt.Sprintf("Tool discovery failed: %v", err)
-		logger.Error("[Sandbox] Tool discovery failed", "error", err)
-		conn.close()
-		registerSandboxSingleton(mgr)
-		return mgr
-	}
-
-	conn.ready = true
-	mgr.conn = conn
 	mgr.status.Ready = true
-
-	// Try to fetch supported languages
-	mgr.status.Languages = mgr.fetchLanguages()
+	mgr.status.Languages = mgr.fetchLanguagesFromConn(conn)
+	toolCount := conn.toolCount()
+	if cfg.KeepAlive {
+		mgr.conn = conn
+	} else {
+		conn.close()
+	}
 
 	logger.Info("[Sandbox] Manager initialized",
 		"backend", cfg.Backend,
+		"keep_alive", cfg.KeepAlive,
 		"languages", len(mgr.status.Languages),
-		"tools", len(conn.tools))
+		"tools", toolCount)
 
 	registerSandboxSingleton(mgr)
 	return mgr
+}
+
+func (m *SandboxManager) openConn() (sandboxConn, error) {
+	if m.connFactory == nil {
+		return nil, fmt.Errorf("sandbox connection factory not configured")
+	}
+
+	conn, err := m.connFactory()
+	if err != nil {
+		return nil, fmt.Errorf("failed to start sandbox MCP server: %w", err)
+	}
+	if err := conn.initialize(m.logger); err != nil {
+		conn.close()
+		return nil, fmt.Errorf("MCP initialization failed: %w", err)
+	}
+	if err := conn.discoverTools(m.logger); err != nil {
+		conn.close()
+		return nil, fmt.Errorf("tool discovery failed: %w", err)
+	}
+
+	conn.markReady()
+	return conn, nil
+}
+
+func (m *SandboxManager) borrowConn() (sandboxConn, func(), error) {
+	m.mu.RLock()
+	ready := m.status.Ready
+	errMsg := m.status.Error
+	keepAlive := m.cfg.KeepAlive
+	conn := m.conn
+	m.mu.RUnlock()
+
+	if !ready {
+		if errMsg == "" {
+			errMsg = "sandbox not ready"
+		}
+		return nil, nil, fmt.Errorf("sandbox not ready: %s", errMsg)
+	}
+
+	if !keepAlive {
+		conn, err := m.openConn()
+		if err != nil {
+			return nil, nil, err
+		}
+		return conn, func() { conn.close() }, nil
+	}
+
+	if conn != nil {
+		return conn, func() {}, nil
+	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.conn == nil {
+		conn, err := m.openConn()
+		if err != nil {
+			return nil, nil, err
+		}
+		m.conn = conn
+	}
+
+	return m.conn, func() {}, nil
 }
 
 func registerSandboxSingleton(mgr *SandboxManager) {
@@ -238,13 +306,11 @@ func (m *SandboxManager) IsReady() bool {
 
 // ExecuteCode runs code in the sandbox via the MCP execute_code tool.
 func (m *SandboxManager) ExecuteCode(code, language string, libraries []string, timeoutSecs int) (string, error) {
-	m.mu.RLock()
-	conn := m.conn
-	m.mu.RUnlock()
-
-	if conn == nil || !conn.ready {
-		return "", fmt.Errorf("sandbox not ready: %s", m.status.Error)
+	conn, cleanup, err := m.borrowConn()
+	if err != nil {
+		return "", err
 	}
+	defer cleanup()
 
 	args := map[string]interface{}{
 		"code":     code,
@@ -282,13 +348,11 @@ func (m *SandboxManager) ExecuteCode(code, language string, libraries []string, 
 
 // GetSupportedLanguages calls get_supported_languages on the sandbox.
 func (m *SandboxManager) GetSupportedLanguages() ([]string, error) {
-	m.mu.RLock()
-	conn := m.conn
-	m.mu.RUnlock()
-
-	if conn == nil || !conn.ready {
-		return nil, fmt.Errorf("sandbox not ready")
+	conn, cleanup, err := m.borrowConn()
+	if err != nil {
+		return nil, err
 	}
+	defer cleanup()
 
 	out, err := conn.callTool("get_supported_languages", map[string]interface{}{})
 	if err != nil {
@@ -329,6 +393,29 @@ func (m *SandboxManager) fetchLanguages() []string {
 	if err != nil {
 		m.logger.Debug("[Sandbox] Could not fetch languages", "error", err)
 		return []string{"python"} // safe default
+	}
+	if len(langs) == 0 {
+		return []string{"python"}
+	}
+	return langs
+}
+
+func (m *SandboxManager) fetchLanguagesFromConn(conn sandboxConn) []string {
+	out, err := conn.callTool("get_supported_languages", map[string]interface{}{})
+	if err != nil {
+		m.logger.Debug("[Sandbox] Could not fetch languages", "error", err)
+		return []string{"python"}
+	}
+
+	var langs []string
+	if json.Unmarshal([]byte(out), &langs) == nil && len(langs) > 0 {
+		return langs
+	}
+	for _, line := range strings.Split(out, "\n") {
+		line = strings.TrimSpace(line)
+		if line != "" {
+			langs = append(langs, line)
+		}
 	}
 	if len(langs) == 0 {
 		return []string{"python"}

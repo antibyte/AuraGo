@@ -289,6 +289,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			CloudflareTunnelEnabled:  cfg.CloudflareTunnel.Enabled,
 			GoogleWorkspaceEnabled:   cfg.GoogleWorkspace.Enabled,
 			OneDriveEnabled:          cfg.OneDrive.Enabled,
+			VirusTotalEnabled:        cfg.VirusTotal.Enabled,
 			ImageGenerationEnabled:   cfg.ImageGeneration.Enabled,
 			RemoteControlEnabled:     cfg.RemoteControl.Enabled && remoteHub != nil,
 			MemoryEnabled:            cfg.Tools.Memory.Enabled,

@@ -332,6 +332,7 @@ func processMessage(cfg *config.Config, logger *slog.Logger, client llm.ChatClie
 			HomepageAllowLocalServer: cfg.Homepage.AllowLocalServer,
 			NetlifyEnabled:           cfg.Netlify.Enabled,
 			ImageGenerationEnabled:   cfg.ImageGeneration.Enabled,
+			VirusTotalEnabled:        cfg.VirusTotal.Enabled,
 			AdGuardEnabled:           cfg.AdGuard.Enabled,
 			GoogleWorkspaceEnabled:   cfg.GoogleWorkspace.Enabled,
 			FritzBoxSystemEnabled:    cfg.FritzBox.Enabled && cfg.FritzBox.System.Enabled,

@@ -71,6 +71,14 @@ type mcpConn struct {
 	closeCh chan struct{}
 }
 
+func (c *mcpConn) markReady() {
+	c.ready = true
+}
+
+func (c *mcpConn) toolCount() int {
+	return len(c.tools)
+}
+
 func newMCPConn(name, command string, args []string, env map[string]string, logger *slog.Logger) (*mcpConn, error) {
 	cmd := exec.Command(command, args...)
 

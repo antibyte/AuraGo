@@ -155,6 +155,7 @@ func TestToolSchemaManualSync(t *testing.T) {
 	// Tools that are intentionally simple / don't need a manual,
 	// or whose manual uses a different filename.
 	knownNoManual := map[string]bool{
+		"list_skills":              true, // covered by skills_engine.md
 		"execute_sudo":             true, // single-param wrapper around shell
 		"save_tool":                true, // simple tool registration
 		"wake_on_lan":              true, // simple WOL packet
@@ -192,5 +193,63 @@ func TestToolSchemaManualSync(t *testing.T) {
 	if len(missing) > 0 {
 		t.Errorf("Tool schemas without a manual in prompts/tools_manuals/ (add a .md file or add to knownNoManual):\n  %s",
 			strings.Join(missing, "\n  "))
+	}
+}
+
+func TestBuildNativeToolSchemasIncludesVirusTotalAndListSkills(t *testing.T) {
+	skillsDir := t.TempDir()
+	skillManifest := `{
+  "name": "virustotal_scan",
+  "description": "Scan a URL, domain, IP address, or file hash against VirusTotal.",
+  "executable": "__builtin__",
+  "parameters": {"resource": "Resource to scan"}
+}`
+	if err := os.WriteFile(filepath.Join(skillsDir, "virustotal_scan.json"), []byte(skillManifest), 0o644); err != nil {
+		t.Fatalf("write skill manifest: %v", err)
+	}
+
+	schemas := BuildNativeToolSchemas(skillsDir, nil, ToolFeatureFlags{VirusTotalEnabled: true}, nil)
+	names := make(map[string]bool, len(schemas))
+	for _, s := range schemas {
+		if s.Function != nil {
+			names[s.Function.Name] = true
+		}
+	}
+
+	for _, name := range []string{"list_skills", "execute_skill", "virustotal_scan", "skill__virustotal_scan"} {
+		if !names[name] {
+			t.Fatalf("expected schema %q to be present", name)
+		}
+	}
+}
+
+func TestBuildNativeToolSchemasOmitsVirusTotalWhenDisabled(t *testing.T) {
+	skillsDir := t.TempDir()
+	skillManifest := `{
+  "name": "virustotal_scan",
+  "description": "Scan a URL, domain, IP address, or file hash against VirusTotal.",
+  "executable": "__builtin__",
+  "parameters": {"resource": "Resource to scan"}
+}`
+	if err := os.WriteFile(filepath.Join(skillsDir, "virustotal_scan.json"), []byte(skillManifest), 0o644); err != nil {
+		t.Fatalf("write skill manifest: %v", err)
+	}
+
+	schemas := BuildNativeToolSchemas(skillsDir, nil, ToolFeatureFlags{VirusTotalEnabled: false}, nil)
+	names := make(map[string]bool, len(schemas))
+	for _, s := range schemas {
+		if s.Function != nil {
+			names[s.Function.Name] = true
+		}
+	}
+
+	if names["virustotal_scan"] {
+		t.Fatal("did not expect virustotal_scan schema when integration is disabled")
+	}
+	if names["skill__virustotal_scan"] {
+		t.Fatal("did not expect skill__virustotal_scan schema when integration is disabled")
+	}
+	if !names["list_skills"] {
+		t.Fatal("expected list_skills schema to remain available")
 	}
 }
