@@ -214,7 +214,9 @@ func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 			}
 		}
 
-		sb.WriteString("\n[NOTE] Core capabilities like 'filesystem', 'execute_python', 'core_memory', 'query_memory', 'execute_surgery' (Maintenance only) are built-in and always available. See your system prompt and 'get_tool_manual' for details.")
+		sb.WriteString("\n[NOTE] 'list_tools' ONLY lists custom reusable Python tools saved in tools/manifest.json. It does NOT list built-in AuraGo tools or pre-built skills.\n")
+		sb.WriteString("[NOTE] For built-in skills/integrations such as 'virustotal_scan', 'brave_search', 'web_scraper', 'wikipedia_search', or 'pdf_extractor', use the direct built-in action if available in your prompt/tool list, or use {\"action\":\"list_skills\"} followed by {\"action\":\"execute_skill\", ...}. Do NOT assume an integration is unavailable just because it does not appear in 'list_tools'.\n")
+		sb.WriteString("[NOTE] Core capabilities like 'filesystem', 'execute_python', 'core_memory', 'query_memory', and other built-in tools are separate from custom tools. See your system prompt and tool manuals for details.")
 		return sb.String()
 
 	case "run_tool":

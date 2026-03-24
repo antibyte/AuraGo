@@ -159,6 +159,10 @@ function closeComposerPanel() {
     composerMoreBtn.setAttribute('aria-expanded', 'false');
 }
 
+function closeMoodFeedbackRow() {
+    chatSetHidden(moodFeedbackRow, true);
+}
+
 function toggleComposerPanel(forceOpen) {
     if (!composerMoreBtn || !composerPanel) return;
     const shouldOpen = typeof forceOpen === 'boolean' ? forceOpen : composerPanel.classList.contains('is-hidden');
@@ -618,6 +622,7 @@ attachClear.addEventListener('click', () => {
 if (composerMoreBtn && composerPanel) {
     composerMoreBtn.addEventListener('click', (e) => {
         e.stopPropagation();
+        closeMoodFeedbackRow();
         toggleComposerPanel();
     });
     document.addEventListener('click', (e) => {
@@ -626,7 +631,10 @@ if (composerMoreBtn && composerPanel) {
         closeComposerPanel();
     });
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') closeComposerPanel();
+        if (e.key === 'Escape') {
+            closeComposerPanel();
+            closeMoodFeedbackRow();
+        }
     });
 }
 
@@ -635,6 +643,11 @@ if (feedbackToggleBtn && moodFeedbackRow) {
         const willOpen = moodFeedbackRow.classList.contains('is-hidden');
         chatSetHidden(moodFeedbackRow, !willOpen);
         closeComposerPanel();
+    });
+    document.addEventListener('click', (e) => {
+        if (moodFeedbackRow.classList.contains('is-hidden')) return;
+        if (e.target.closest('#mood-feedback-row') || e.target.closest('#feedback-toggle-btn')) return;
+        closeMoodFeedbackRow();
     });
 }
 
@@ -664,6 +677,7 @@ fileInput.addEventListener('change', async () => {
 chatForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     closeComposerPanel();
+    closeMoodFeedbackRow();
     let message = userInput.value.trim();
     if (!message && !pendingAttachment) return;
     if (!message) message = t('chat.file_sent');

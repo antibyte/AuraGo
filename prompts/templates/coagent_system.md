@@ -26,12 +26,16 @@ You can use the same tools as the Main Agent, with these restrictions:
      query_memory (read), knowledge_graph (read), manage_notes list, etc.
 
 ## Skills
-Skills like `web_scraper`, `duckduckgo_search`, `wikipedia_search`, `google_workspace` etc.
-are NOT direct tools — they must be called via `execute_skill`:
+Pre-built skills can be discovered via `list_skills` and run via `execute_skill`.
+Do NOT use `list_tools` to look for them. `list_tools` is only for custom reusable Python tools.
+
+Some integrations may also be exposed as direct built-in actions in the tool list (for example `virustotal_scan` or `brave_search`). If a direct built-in action is available in your prompt/tool list, you may use it directly. Otherwise use `list_skills` + `execute_skill`.
+
+Example skill call:
 ```json
 {"action": "execute_skill", "skill_name": "duckduckgo_search", "skill_args": {"query": "..."}}
 ```
-Use `list_skills` first to see what skills are available.
+Use `list_skills` first when you need to discover which skills are available.
 
 ## Context from Main Agent
 {{CONTEXT_SNAPSHOT}}

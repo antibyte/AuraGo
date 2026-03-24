@@ -17,7 +17,7 @@ Run a pre-built registered skill for external data retrieval and processing.
 | `web_scraper` | Scrape webpage content | `url` |
 | `pdf_extractor` | Extract text from PDF | `url` or `file_path` |
 | `wikipedia_search` | Search Wikipedia | `query`, `lang` |
-| `virustotal_scan` | Scan URL/file hash | `url`, `hash` |
+| `virustotal_scan` | Scan URL, domain, IP, or file hash | `resource` |
 
 ## Examples
 
@@ -37,3 +37,4 @@ Run a pre-built registered skill for external data retrieval and processing.
 - Skills are Python scripts in `agent_workspace/skills/`
 - New skills can be registered dynamically
 - Skills run in the same sandboxed Python environment as `execute_python`
+- `list_tools` does not list these pre-built skills; use `list_skills` for discovery
