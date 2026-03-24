@@ -238,7 +238,9 @@ type ToolCall struct {
 	Skill              string                 `json:"skill"`
 	SkillArgs          map[string]interface{} `json:"skill_args"`
 	Content            string                 `json:"content"`
-	Query              string                 `json:"query"`   // Alias for content in query_memory
+	Query              string                 `json:"query"` // Alias for content in query_memory
+	Resource           string                 `json:"resource"`
+	Mode               string                 `json:"mode"`
 	Sources            []string               `json:"sources"` // Memory sources filter for query_memory (vector_db, knowledge_graph, journal, notes, core_memory)
 	Scope              string                 `json:"scope"`   // Scope for memory_reflect (recent, monthly, full)
 	Metadata           map[string]interface{} `json:"metadata"`

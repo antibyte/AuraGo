@@ -1360,18 +1360,24 @@ func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 		if !cfg.VirusTotal.Enabled {
 			return `Tool Output: {"status": "error", "message": "VirusTotal integration is not enabled. Set virustotal.enabled=true in config.yaml."}`
 		}
-		resource, _ := tc.Params["resource"].(string)
-		filePath, _ := tc.Params["file_path"].(string)
+		resource := tc.Resource
+		if resource == "" {
+			resource, _ = tc.Params["resource"].(string)
+		}
+		filePath := tc.FilePath
+		if filePath == "" {
+			filePath, _ = tc.Params["file_path"].(string)
+		}
 		if filePath == "" {
 			filePath, _ = tc.Params["path"].(string)
 		}
 		if filePath == "" {
-			filePath = tc.FilePath
-		}
-		if filePath == "" {
 			filePath = tc.Path
 		}
-		mode, _ := tc.Params["mode"].(string)
+		mode := tc.Mode
+		if mode == "" {
+			mode, _ = tc.Params["mode"].(string)
+		}
 		return tools.ExecuteVirusTotalScanWithOptions(cfg.VirusTotal.APIKey, tools.VirusTotalOptions{
 			Resource: resource,
 			FilePath: filePath,

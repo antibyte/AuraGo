@@ -253,3 +253,30 @@ func TestBuildNativeToolSchemasOmitsVirusTotalWhenDisabled(t *testing.T) {
 		t.Fatal("expected list_skills schema to remain available")
 	}
 }
+
+func TestNativeToolCallToToolCallVirusTotalFields(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+
+	native := openai.ToolCall{
+		ID:   "call_vt",
+		Type: openai.ToolTypeFunction,
+		Function: openai.FunctionCall{
+			Name:      "virustotal_scan",
+			Arguments: `{"resource":"example.com","file_path":"sample.txt","mode":"auto"}`,
+		},
+	}
+
+	tc := NativeToolCallToToolCall(native, logger)
+	if tc.Action != "virustotal_scan" {
+		t.Fatalf("Action = %q, want virustotal_scan", tc.Action)
+	}
+	if tc.Resource != "example.com" {
+		t.Fatalf("Resource = %q, want example.com", tc.Resource)
+	}
+	if tc.FilePath != "sample.txt" {
+		t.Fatalf("FilePath = %q, want sample.txt", tc.FilePath)
+	}
+	if tc.Mode != "auto" {
+		t.Fatalf("Mode = %q, want auto", tc.Mode)
+	}
+}
