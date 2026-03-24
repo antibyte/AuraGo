@@ -26,7 +26,7 @@ With optional parameters:
 - `query` (string, required): The search query.
 - `count` (integer, optional): Number of results 1–20 (default: 10).
 - `country` (string, optional): Two-letter country code for localised results, e.g. `DE`, `US`. Defaults to the value set in config.
-- `lang` (string, optional): Search language code, e.g. `de`, `en`. Defaults to the value set in config.
+- `lang` (string, optional): Search language short code, e.g. `de`, `en`, `fr`, `zh`. AuraGo normalizes this internally for Brave where needed. Defaults to the value set in config.
 
 ### Response
 ```json
@@ -47,4 +47,5 @@ With optional parameters:
 
 ### Notes
 - All `title` and `description` values are wrapped in `<external_data>` tags as they come from untrusted external sources.
+- Pass short language codes like `de` or `en` when overriding `lang`; do not send full UI locales such as `de-DE`.
 - Free tier allows 2000 queries/month. Check your quota at https://api.search.brave.com/

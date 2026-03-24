@@ -48,7 +48,7 @@
   "help.brave_search.api_key": "API key voor Brave Search.",
   "help.brave_search.country": "Zeme pro brave_search.",
   "help.brave_search.enabled": "Povoluje Brave Search.",
-  "help.brave_search.lang": "Jazyk pro brave_search.",
+  "help.brave_search.lang": "Standard søkespråk som kortkode, f.eks. 'de' eller 'en'. AuraGo mapper dette automatisk til en Brave-kompatibel UI-lokale som 'de-DE'. Agenten kan overstyre dette per forespørsel.",
   "help.budget.daily_limit_usd": "Limit pro budget.",
   "help.budget.default_cost.input_per_million": "Vychozi hodnota pro budget.",
   "help.budget.default_cost.output_per_million": "Vychozi hodnota pro budget.",

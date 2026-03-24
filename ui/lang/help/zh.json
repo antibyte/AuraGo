@@ -48,7 +48,7 @@
   "help.brave_search.api_key": "Brave Search 订阅令牌（X-Subscription-Token）。在 https://brave.com/search/api/ 获取免费或付费密钥 — 免费套餐每月允许 2000 个请求。",
   "help.brave_search.country": "本地化结果的默认国家/地区代码，例如“德国”或“美国”。为全局搜索留空。",
   "help.brave_search.enabled": "启用 Brave Search 集成。允许通过 Brave Search API 进行网络搜索，并获得高质量、最新的结果。",
-  "help.brave_search.lang": "默认搜索语言，例如“德”或“恩”。代理可以在每次查询时覆盖此设置。",
+  "help.brave_search.lang": "默认搜索语言请使用短代码，例如 'de' 或 'en'。AuraGo 会自动将其转换为 Brave 兼容的界面区域设置，例如 'de-DE'。代理可按查询覆盖该值。",
   "help.budget.daily_limit_usd": "每日支出限额（美元）。",
   "help.budget.default_cost.input_per_million": "如果未列出型号，则默认成本为 100 万个输入令牌。",
   "help.budget.default_cost.output_per_million": "如果未列出型号，则默认成本为 100 万个输出代币。",

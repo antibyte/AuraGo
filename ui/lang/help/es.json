@@ -48,7 +48,7 @@
   "help.brave_search.api_key": "Token de suscripción de Brave Search (Token de suscripción X). Obtenga una clave gratuita o de pago en https://brave.com/search/api/: el nivel gratuito permite 2000 solicitudes al mes.",
   "help.brave_search.country": "Código de país predeterminado para resultados localizados, p. 'DE' o 'US'. Déjelo en blanco para búsqueda global.",
   "help.brave_search.enabled": "Habilite la integración de Brave Search. Permite búsquedas web a través de Brave Search API con resultados actualizados y de alta calidad.",
-  "help.brave_search.lang": "Idioma de búsqueda predeterminado, p. 'de' o 'en'. El agente puede anular esto por consulta.",
+  "help.brave_search.lang": "Idioma de búsqueda predeterminado en formato corto, p. ej. 'de' o 'en'. AuraGo lo convierte automáticamente a una configuración regional de interfaz compatible con Brave, como 'de-DE'. El agente puede anularlo por consulta.",
   "help.budget.daily_limit_usd": "Límite de gasto diario en USD.",
   "help.budget.default_cost.input_per_million": "Costo predeterminado de 1 millón de tokens de entrada si el modelo no figura en la lista.",
   "help.budget.default_cost.output_per_million": "Costo predeterminado de 1 millón de tokens de salida si el modelo no figura en la lista.",
