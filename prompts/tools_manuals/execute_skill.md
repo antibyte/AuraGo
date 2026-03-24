@@ -17,7 +17,7 @@ Run a pre-built registered skill for external data retrieval and processing.
 | `web_scraper` | Scrape webpage content | `url` |
 | `pdf_extractor` | Extract text from PDF | `url` or `file_path` |
 | `wikipedia_search` | Search Wikipedia | `query`, `lang` |
-| `virustotal_scan` | Scan URL, domain, IP, or file hash | `resource` |
+| `virustotal_scan` | Scan URL, domain, IP, file hash, or local file | `resource` or `file_path`, optional `mode` |
 
 ## Examples
 

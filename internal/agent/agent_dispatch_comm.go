@@ -223,7 +223,16 @@ func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 				return `Tool Output: {"status": "error", "message": "VirusTotal integration is not enabled. Set virustotal.enabled=true in config.yaml."}`
 			}
 			resource, _ := args["resource"].(string)
-			return tools.ExecuteVirusTotalScan(cfg.VirusTotal.APIKey, resource)
+			filePath, _ := args["file_path"].(string)
+			if filePath == "" {
+				filePath, _ = args["path"].(string)
+			}
+			mode, _ := args["mode"].(string)
+			return tools.ExecuteVirusTotalScanWithOptions(cfg.VirusTotal.APIKey, tools.VirusTotalOptions{
+				Resource: resource,
+				FilePath: filePath,
+				Mode:     mode,
+			})
 		case "brave_search":
 			if !cfg.BraveSearch.Enabled {
 				return `Tool Output: {"status": "error", "message": "Brave Search integration is not enabled. Enable it in Settings \u203a Brave Search."}`
@@ -1352,7 +1361,22 @@ func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 			return `Tool Output: {"status": "error", "message": "VirusTotal integration is not enabled. Set virustotal.enabled=true in config.yaml."}`
 		}
 		resource, _ := tc.Params["resource"].(string)
-		return tools.ExecuteVirusTotalScan(cfg.VirusTotal.APIKey, resource)
+		filePath, _ := tc.Params["file_path"].(string)
+		if filePath == "" {
+			filePath, _ = tc.Params["path"].(string)
+		}
+		if filePath == "" {
+			filePath = tc.FilePath
+		}
+		if filePath == "" {
+			filePath = tc.Path
+		}
+		mode, _ := tc.Params["mode"].(string)
+		return tools.ExecuteVirusTotalScanWithOptions(cfg.VirusTotal.APIKey, tools.VirusTotalOptions{
+			Resource: resource,
+			FilePath: filePath,
+			Mode:     mode,
+		})
 
 	case "brave_search":
 		if !cfg.BraveSearch.Enabled {

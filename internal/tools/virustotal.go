@@ -1,61 +1,331 @@
 package tools
 
 import (
+	"bytes"
+	"crypto/md5"
+	"crypto/sha1"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 )
 
-// ExecuteVirusTotalScan performs a search using the VirusTotal API (v3)
+var virustotalHTTPClient = &http.Client{Timeout: 30 * time.Second}
+var virustotalBaseURL = "https://www.virustotal.com/api/v3"
+
+type VirusTotalOptions struct {
+	Resource string
+	FilePath string
+	Mode     string
+}
+
+type virustotalHashes struct {
+	MD5    string `json:"md5"`
+	SHA1   string `json:"sha1"`
+	SHA256 string `json:"sha256"`
+}
+
+type virustotalAPIError struct {
+	StatusCode int
+	Body       string
+}
+
+func (e *virustotalAPIError) Error() string {
+	if strings.TrimSpace(e.Body) == "" {
+		return fmt.Sprintf("VirusTotal HTTP Error %d", e.StatusCode)
+	}
+	return fmt.Sprintf("VirusTotal HTTP Error %d: %s", e.StatusCode, e.Body)
+}
+
+func (e *virustotalAPIError) NotFound() bool {
+	return e.StatusCode == http.StatusNotFound
+}
+
+// ExecuteVirusTotalScan performs a VirusTotal lookup for a URL/domain/IP/hash resource.
 func ExecuteVirusTotalScan(apiKey string, resource string) string {
+	return ExecuteVirusTotalScanWithOptions(apiKey, VirusTotalOptions{Resource: resource})
+}
+
+// ExecuteVirusTotalScanWithOptions supports resource lookups, local file hashing,
+// and optional file uploads to VirusTotal.
+func ExecuteVirusTotalScanWithOptions(apiKey string, opts VirusTotalOptions) string {
 	if apiKey == "" {
 		return formatError("VirusTotal API Key is missing. Please configure it in settings.")
 	}
 
-	if resource == "" {
-		return formatError("Resource to scan is required")
+	resource := strings.TrimSpace(opts.Resource)
+	filePath := strings.TrimSpace(opts.FilePath)
+	mode := normalizeVirusTotalMode(opts.Mode)
+
+	if resource == "" && filePath == "" {
+		return formatError("Either resource or file_path is required")
+	}
+	if resource != "" && filePath != "" {
+		return formatError("Provide either resource or file_path, not both")
 	}
 
-	client := &http.Client{Timeout: 15 * time.Second}
+	if filePath != "" {
+		out, err := executeVirusTotalFileFlow(apiKey, filePath, mode)
+		if err != nil {
+			return formatError(err.Error())
+		}
+		return out
+	}
 
-	endpoint := fmt.Sprintf("https://www.virustotal.com/api/v3/search?query=%s", url.QueryEscape(resource))
-	req, err := http.NewRequest("GET", endpoint, nil)
+	out, err := virustotalLookupResource(apiKey, resource)
 	if err != nil {
-		return formatError(fmt.Sprintf("Failed to create request: %v", err))
+		return formatError(err.Error())
+	}
+	return out
+}
+
+func normalizeVirusTotalMode(mode string) string {
+	switch strings.ToLower(strings.TrimSpace(mode)) {
+	case "", "auto":
+		return "auto"
+	case "hash":
+		return "hash"
+	case "upload":
+		return "upload"
+	default:
+		return "auto"
+	}
+}
+
+func executeVirusTotalFileFlow(apiKey, filePath, mode string) (string, error) {
+	hashes, size, err := computeVirusTotalFileHashes(filePath)
+	if err != nil {
+		return "", err
+	}
+
+	result := map[string]interface{}{
+		"status": "success",
+		"input": map[string]interface{}{
+			"file_path": filepath.Clean(filePath),
+			"mode":      mode,
+			"size":      size,
+		},
+		"hashes": hashes,
+	}
+
+	lookupJSON, lookupPayload, err := virustotalLookupFileHash(apiKey, hashes.SHA256)
+	if err == nil {
+		result["lookup"] = lookupPayload
+		result["used"] = "hash_lookup"
+		return marshalVirusTotalResult(result), nil
+	}
+
+	var apiErr *virustotalAPIError
+	if !strings.EqualFold(mode, "upload") && (!isVirusTotalNotFound(err, &apiErr) || mode == "hash") {
+		if isVirusTotalNotFound(err, &apiErr) {
+			result["lookup"] = map[string]interface{}{
+				"status":  "not_found",
+				"message": "No existing VirusTotal record was found for the file hash.",
+			}
+			result["used"] = "hash_lookup"
+			return marshalVirusTotalResult(result), nil
+		}
+		return "", fmt.Errorf("VirusTotal hash lookup failed: %w", err)
+	}
+
+	result["lookup"] = map[string]interface{}{
+		"status":  "not_found",
+		"message": "No existing VirusTotal record was found for the file hash. Uploading file instead.",
+	}
+
+	uploadPayload, err := virustotalUploadFile(apiKey, filePath, size)
+	if err != nil {
+		return "", fmt.Errorf("VirusTotal file upload failed: %w", err)
+	}
+
+	result["upload"] = uploadPayload
+	result["used"] = "file_upload"
+	result["upload_hint"] = "VirusTotal may still be analyzing the file. Re-run a hash lookup with the SHA-256 if you need final verdict details."
+
+	// If upload response already includes a detailed data object, expose it directly.
+	if lookupJSON != "" {
+		result["lookup_raw"] = lookupJSON
+	}
+	return marshalVirusTotalResult(result), nil
+}
+
+func isVirusTotalNotFound(err error, target **virustotalAPIError) bool {
+	var apiErr *virustotalAPIError
+	if !errors.As(err, &apiErr) {
+		return false
+	}
+	if target != nil {
+		*target = apiErr
+	}
+	return apiErr.NotFound()
+}
+
+func virustotalLookupResource(apiKey, resource string) (string, error) {
+	endpoint := fmt.Sprintf("%s/search?query=%s", virustotalBaseURL, url.QueryEscape(resource))
+	bodyBytes, err := virustotalDoRequest(apiKey, http.MethodGet, endpoint, nil, "application/json")
+	if err != nil {
+		return "", err
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(bodyBytes, &result); err != nil {
+		return "", fmt.Errorf("failed to parse VirusTotal response JSON")
+	}
+
+	return marshalVirusTotalResult(map[string]interface{}{
+		"status": "success",
+		"result": result,
+		"used":   "resource_lookup",
+	}), nil
+}
+
+func virustotalLookupFileHash(apiKey, sha256Hash string) (string, map[string]interface{}, error) {
+	endpoint := fmt.Sprintf("%s/files/%s", virustotalBaseURL, url.PathEscape(sha256Hash))
+	bodyBytes, err := virustotalDoRequest(apiKey, http.MethodGet, endpoint, nil, "application/json")
+	if err != nil {
+		return "", nil, err
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(bodyBytes, &result); err != nil {
+		return "", nil, fmt.Errorf("failed to parse VirusTotal file lookup JSON")
+	}
+	return string(bodyBytes), result, nil
+}
+
+func virustotalUploadFile(apiKey, filePath string, size int64) (map[string]interface{}, error) {
+	uploadURL := fmt.Sprintf("%s/files", virustotalBaseURL)
+	if size > 32*1024*1024 {
+		customURL, err := virustotalGetLargeUploadURL(apiKey)
+		if err != nil {
+			return nil, err
+		}
+		uploadURL = customURL
+	}
+
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open file for upload: %w", err)
+	}
+	defer file.Close()
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	part, err := writer.CreateFormFile("file", filepath.Base(filePath))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create multipart form: %w", err)
+	}
+	if _, err := io.Copy(part, file); err != nil {
+		return nil, fmt.Errorf("failed to attach file to upload: %w", err)
+	}
+	if err := writer.Close(); err != nil {
+		return nil, fmt.Errorf("failed to finalize upload body: %w", err)
+	}
+
+	bodyBytes, err := virustotalDoRequest(apiKey, http.MethodPost, uploadURL, &body, writer.FormDataContentType())
+	if err != nil {
+		return nil, err
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(bodyBytes, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse VirusTotal upload response JSON")
+	}
+	return result, nil
+}
+
+func virustotalGetLargeUploadURL(apiKey string) (string, error) {
+	endpoint := fmt.Sprintf("%s/files/upload_url", virustotalBaseURL)
+	bodyBytes, err := virustotalDoRequest(apiKey, http.MethodGet, endpoint, nil, "application/json")
+	if err != nil {
+		return "", err
+	}
+
+	var payload struct {
+		Data string `json:"data"`
+	}
+	if err := json.Unmarshal(bodyBytes, &payload); err != nil {
+		return "", fmt.Errorf("failed to parse VirusTotal large upload URL response")
+	}
+	if strings.TrimSpace(payload.Data) == "" {
+		return "", fmt.Errorf("VirusTotal did not return an upload URL for large file upload")
+	}
+	return payload.Data, nil
+}
+
+func virustotalDoRequest(apiKey, method, endpoint string, body io.Reader, contentType string) ([]byte, error) {
+	req, err := http.NewRequest(method, endpoint, body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create VirusTotal request: %w", err)
 	}
 	req.Header.Set("x-apikey", apiKey)
 	req.Header.Set("Accept", "application/json")
+	if contentType != "" {
+		req.Header.Set("Content-Type", contentType)
+	}
 
-	resp, err := client.Do(req)
+	resp, err := virustotalHTTPClient.Do(req)
 	if err != nil {
-		return formatError(fmt.Sprintf("VirusTotal request failed: %v", err))
+		return nil, fmt.Errorf("VirusTotal request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
+	bodyBytes, readErr := io.ReadAll(resp.Body)
+	if readErr != nil {
+		return nil, fmt.Errorf("failed to read VirusTotal response: %w", readErr)
+	}
+
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return formatError(fmt.Sprintf("VirusTotal HTTP Error %d", resp.StatusCode))
+		return nil, &virustotalAPIError{
+			StatusCode: resp.StatusCode,
+			Body:       strings.TrimSpace(string(bodyBytes)),
+		}
 	}
 
-	bodyBytes, err := io.ReadAll(resp.Body)
+	return bodyBytes, nil
+}
+
+func computeVirusTotalFileHashes(filePath string) (virustotalHashes, int64, error) {
+	file, err := os.Open(filePath)
 	if err != nil {
-		return formatError(fmt.Sprintf("Failed to read VirusTotal response: %v", err))
+		return virustotalHashes{}, 0, fmt.Errorf("failed to open file: %w", err)
+	}
+	defer file.Close()
+
+	info, err := file.Stat()
+	if err != nil {
+		return virustotalHashes{}, 0, fmt.Errorf("failed to stat file: %w", err)
+	}
+	if info.IsDir() {
+		return virustotalHashes{}, 0, fmt.Errorf("file_path must point to a file, not a directory")
 	}
 
-	// Unmarshal and re-marshal to ensure pretty formatting and valid JSON
-	var result map[string]interface{}
-	if err := json.Unmarshal(bodyBytes, &result); err != nil {
-		return formatError("Failed to parse VirusTotal response JSON")
+	md5Hash := md5.New()
+	sha1Hash := sha1.New()
+	sha256Hash := sha256.New()
+
+	writer := io.MultiWriter(md5Hash, sha1Hash, sha256Hash)
+	if _, err := io.Copy(writer, file); err != nil {
+		return virustotalHashes{}, 0, fmt.Errorf("failed to read file for hashing: %w", err)
 	}
 
-	// Wrap in a standard tool execution format
-	resultMap := map[string]interface{}{
-		"status": "success",
-		"result": result,
-	}
+	return virustotalHashes{
+		MD5:    hex.EncodeToString(md5Hash.Sum(nil)),
+		SHA1:   hex.EncodeToString(sha1Hash.Sum(nil)),
+		SHA256: hex.EncodeToString(sha256Hash.Sum(nil)),
+	}, info.Size(), nil
+}
 
-	b, _ := json.MarshalIndent(resultMap, "", "  ")
+func marshalVirusTotalResult(result map[string]interface{}) string {
+	b, _ := json.MarshalIndent(result, "", "  ")
 	return string(b)
 }

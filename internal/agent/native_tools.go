@@ -240,10 +240,16 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 
 	if ff.VirusTotalEnabled {
 		tools = append(tools, tool("virustotal_scan",
-			"Scan a URL, domain, IP address, or file hash using VirusTotal threat intelligence. Use for malware reputation and security checks.",
+			"Scan a URL, domain, IP address, file hash, or local file using VirusTotal threat intelligence. For local files, you can hash only or upload the file.",
 			schema(map[string]interface{}{
-				"resource": prop("string", "The URL, domain, IP address, or file hash to scan with VirusTotal"),
-			}, "resource"),
+				"resource":  prop("string", "The URL, domain, IP address, or file hash to scan with VirusTotal"),
+				"file_path": prop("string", "Optional local file path to hash or upload to VirusTotal"),
+				"mode": map[string]interface{}{
+					"type":        "string",
+					"description": "Optional scan mode for local files: auto=hash lookup then upload if unknown, hash=only calculate and look up hashes, upload=force file upload",
+					"enum":        []string{"auto", "hash", "upload"},
+				},
+			}),
 		))
 	}
 
