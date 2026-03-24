@@ -164,6 +164,10 @@ func buildSchema(t reflect.Type, prefix string) []SchemaField {
 			}
 			yamlTag = vaultTag // use vault key name as display key
 		}
+		// Skip fields explicitly excluded from JSON (hidden from UI)
+		if f.Tag.Get("json") == "-" {
+			continue
+		}
 		if yamlTag == "" {
 			yamlTag = strings.ToLower(f.Name)
 		}
