@@ -1,0 +1,12 @@
+{
+  "config.koofr.enabled_label": "सक्रिय",
+  "config.koofr.readonly_label": "केवल-पढ़ने योग्य",
+  "config.koofr.base_url_label": "बेस URL",
+  "config.koofr.username_label": "उपयोगकर्ता नाम",
+  "config.koofr.app_password_label": "ऐप पासवर्ड (Vault)",
+  "config.koofr.app_password_placeholder": "ऐप पासवर्ड दर्ज करें…",
+  "config.koofr.save_vault": "Vault में सहेजें",
+  "config.koofr.app_password_empty": "पहले ऐप पासवर्ड दर्ज करें।",
+  "config.koofr.app_password_saved": "Koofr ऐप पासवर्ड Vault में सहेजा गया।",
+  "config.koofr.app_password_save_failed": "Koofr ऐप पासवर्ड Vault में सहेजा नहीं जा सका।"
+}

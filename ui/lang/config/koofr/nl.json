@@ -1,0 +1,12 @@
+{
+  "config.koofr.enabled_label": "Ingeschakeld",
+  "config.koofr.readonly_label": "Alleen-lezen",
+  "config.koofr.base_url_label": "Basis-URL",
+  "config.koofr.username_label": "Gebruikersnaam",
+  "config.koofr.app_password_label": "App-wachtwoord (Vault)",
+  "config.koofr.app_password_placeholder": "Voer app-wachtwoord in…",
+  "config.koofr.save_vault": "Opslaan in Vault",
+  "config.koofr.app_password_empty": "Voer eerst een app-wachtwoord in.",
+  "config.koofr.app_password_saved": "Koofr app-wachtwoord opgeslagen in Vault.",
+  "config.koofr.app_password_save_failed": "Kon Koofr app-wachtwoord niet opslaan in Vault."
+}

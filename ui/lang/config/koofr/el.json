@@ -1,0 +1,12 @@
+{
+  "config.koofr.enabled_label": "Ενεργό",
+  "config.koofr.readonly_label": "Μόνο ανάγνωση",
+  "config.koofr.base_url_label": "Βασικό URL",
+  "config.koofr.username_label": "Όνομα χρήστη",
+  "config.koofr.app_password_label": "Κωδικός εφαρμογής (Vault)",
+  "config.koofr.app_password_placeholder": "Εισαγάγετε κωδικό εφαρμογής…",
+  "config.koofr.save_vault": "Αποθήκευση στο Vault",
+  "config.koofr.app_password_empty": "Εισαγάγετε πρώτα κωδικό εφαρμογής.",
+  "config.koofr.app_password_saved": "Ο κωδικός εφαρμογής Koofr αποθηκεύτηκε στο Vault.",
+  "config.koofr.app_password_save_failed": "Αποτυχία αποθήκευσης κωδικού εφαρμογής Koofr στο Vault."
+}

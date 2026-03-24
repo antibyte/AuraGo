@@ -1,0 +1,12 @@
+{
+  "config.koofr.enabled_label": "Activé",
+  "config.koofr.readonly_label": "Lecture seule",
+  "config.koofr.base_url_label": "URL de base",
+  "config.koofr.username_label": "Nom d’utilisateur",
+  "config.koofr.app_password_label": "Mot de passe applicatif (Vault)",
+  "config.koofr.app_password_placeholder": "Saisissez le mot de passe applicatif…",
+  "config.koofr.save_vault": "Enregistrer dans le Vault",
+  "config.koofr.app_password_empty": "Veuillez d’abord saisir un mot de passe applicatif.",
+  "config.koofr.app_password_saved": "Le mot de passe applicatif Koofr a été enregistré dans le Vault.",
+  "config.koofr.app_password_save_failed": "Impossible d’enregistrer le mot de passe applicatif Koofr dans le Vault."
+}

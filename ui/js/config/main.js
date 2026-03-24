@@ -1052,6 +1052,7 @@ const SECTION_MODULES = {
     adguard: { m: 'adguard', fn: 'renderAdGuardSection' },
     fritzbox: { m: 'fritzbox', fn: 'renderFritzBoxSection' },
     webdav: { m: 'webdav', fn: 'renderWebDAVSection' },
+    koofr: { m: 'koofr', fn: 'renderKoofrSection' },
     telnyx: { m: 'telnyx', fn: 'renderTelnyxSection' },
     paperless_ngx: { m: 'paperless', fn: 'renderPaperlessSection' },
     homepage: { m: 'homepage', fn: 'renderHomepageSection' },

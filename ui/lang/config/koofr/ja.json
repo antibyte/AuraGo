@@ -1,0 +1,12 @@
+{
+  "config.koofr.enabled_label": "有効",
+  "config.koofr.readonly_label": "読み取り専用",
+  "config.koofr.base_url_label": "ベース URL",
+  "config.koofr.username_label": "ユーザー名",
+  "config.koofr.app_password_label": "アプリパスワード（Vault）",
+  "config.koofr.app_password_placeholder": "アプリパスワードを入力…",
+  "config.koofr.save_vault": "Vaultに保存",
+  "config.koofr.app_password_empty": "先にアプリパスワードを入力してください。",
+  "config.koofr.app_password_saved": "Koofr アプリパスワードを Vault に保存しました。",
+  "config.koofr.app_password_save_failed": "Koofr アプリパスワードを Vault に保存できませんでした。"
+}

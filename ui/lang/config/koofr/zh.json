@@ -1,0 +1,12 @@
+{
+  "config.koofr.enabled_label": "已启用",
+  "config.koofr.readonly_label": "只读",
+  "config.koofr.base_url_label": "基础 URL",
+  "config.koofr.username_label": "用户名",
+  "config.koofr.app_password_label": "应用密码（Vault）",
+  "config.koofr.app_password_placeholder": "输入应用密码…",
+  "config.koofr.save_vault": "保存到 Vault",
+  "config.koofr.app_password_empty": "请先输入应用密码。",
+  "config.koofr.app_password_saved": "Koofr 应用密码已保存到 Vault。",
+  "config.koofr.app_password_save_failed": "无法将 Koofr 应用密码保存到 Vault。"
+}

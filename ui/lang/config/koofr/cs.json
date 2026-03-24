@@ -1,0 +1,12 @@
+{
+  "config.koofr.enabled_label": "Povoleno",
+  "config.koofr.readonly_label": "Jen pro čtení",
+  "config.koofr.base_url_label": "Základní URL",
+  "config.koofr.username_label": "Uživatelské jméno",
+  "config.koofr.app_password_label": "App heslo (Vault)",
+  "config.koofr.app_password_placeholder": "Zadejte app heslo…",
+  "config.koofr.save_vault": "Uložit do Vaultu",
+  "config.koofr.app_password_empty": "Nejprve zadejte app heslo.",
+  "config.koofr.app_password_saved": "Koofr app heslo bylo uloženo do Vaultu.",
+  "config.koofr.app_password_save_failed": "Koofr app heslo se nepodařilo uložit do Vaultu."
+}

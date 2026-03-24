@@ -1,0 +1,12 @@
+{
+  "config.koofr.enabled_label": "Aktivert",
+  "config.koofr.readonly_label": "Skrivebeskyttet",
+  "config.koofr.base_url_label": "Base-URL",
+  "config.koofr.username_label": "Brukernavn",
+  "config.koofr.app_password_label": "App-passord (Vault)",
+  "config.koofr.app_password_placeholder": "Skriv inn app-passord…",
+  "config.koofr.save_vault": "Lagre i Vault",
+  "config.koofr.app_password_empty": "Skriv inn et app-passord først.",
+  "config.koofr.app_password_saved": "Koofr app-passordet ble lagret i Vault.",
+  "config.koofr.app_password_save_failed": "Kunne ikke lagre Koofr app-passordet i Vault."
+}

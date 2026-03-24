@@ -1,0 +1,12 @@
+{
+  "config.koofr.enabled_label": "Ativado",
+  "config.koofr.readonly_label": "Somente leitura",
+  "config.koofr.base_url_label": "URL base",
+  "config.koofr.username_label": "Nome de usuário",
+  "config.koofr.app_password_label": "Senha de app (Vault)",
+  "config.koofr.app_password_placeholder": "Digite a senha de app…",
+  "config.koofr.save_vault": "Salvar no Vault",
+  "config.koofr.app_password_empty": "Digite uma senha de app primeiro.",
+  "config.koofr.app_password_saved": "A senha de app do Koofr foi salva no Vault.",
+  "config.koofr.app_password_save_failed": "Falha ao salvar a senha de app do Koofr no Vault."
+}

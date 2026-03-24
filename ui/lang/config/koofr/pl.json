@@ -1,0 +1,12 @@
+{
+  "config.koofr.enabled_label": "Włączone",
+  "config.koofr.readonly_label": "Tylko do odczytu",
+  "config.koofr.base_url_label": "Bazowy URL",
+  "config.koofr.username_label": "Nazwa użytkownika",
+  "config.koofr.app_password_label": "Hasło aplikacji (Vault)",
+  "config.koofr.app_password_placeholder": "Wprowadź hasło aplikacji…",
+  "config.koofr.save_vault": "Zapisz w Vault",
+  "config.koofr.app_password_empty": "Najpierw wprowadź hasło aplikacji.",
+  "config.koofr.app_password_saved": "Hasło aplikacji Koofr zapisano w Vault.",
+  "config.koofr.app_password_save_failed": "Nie udało się zapisać hasła aplikacji Koofr w Vault."
+}

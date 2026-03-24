@@ -1,0 +1,12 @@
+{
+  "config.koofr.enabled_label": "Aktiverad",
+  "config.koofr.readonly_label": "Skrivskyddad",
+  "config.koofr.base_url_label": "Bas-URL",
+  "config.koofr.username_label": "Användarnamn",
+  "config.koofr.app_password_label": "Applösenord (Vault)",
+  "config.koofr.app_password_placeholder": "Ange applösenord…",
+  "config.koofr.save_vault": "Spara i Vault",
+  "config.koofr.app_password_empty": "Ange först ett applösenord.",
+  "config.koofr.app_password_saved": "Koofr applösenord sparades i Vault.",
+  "config.koofr.app_password_save_failed": "Kunde inte spara Koofr applösenord i Vault."
+}
