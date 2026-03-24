@@ -583,7 +583,13 @@ async function api(url, options = {}) {
 /**
  * Inject the UI language switcher widget
  */
+function shouldShowLanguageSwitcher() {
+    const path = window.location.pathname || '';
+    return path.includes('/config') || path.includes('/login');
+}
+
 function injectLanguageSwitcher() {
+    if (!shouldShowLanguageSwitcher()) return;
     if (document.getElementById('ui-lang-switcher')) return;
 
     const langs = [

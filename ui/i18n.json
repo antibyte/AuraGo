@@ -1669,7 +1669,8 @@
     "config.mcp.save_failed": "MCP-Speichern fehlgeschlagen: ",
     "config.email.password_set": "gesetzt",
     "config.email.password_unchanged": "unverändert",
-    "config.providers.key_placeholder_existing": "•••••••• (unverändert)"
+    "config.providers.key_placeholder_existing": "•••••••• (unverändert)",
+    "chat.input_placeholder_mobile": "Aufgabe eingeben..."
   },
   "en": {
     "chat.agent_active": "Agent Active",
@@ -3341,7 +3342,8 @@
     "config.mcp.save_failed": "MCP save failed: ",
     "config.email.password_set": "set",
     "config.email.password_unchanged": "unchanged",
-    "config.providers.key_placeholder_existing": "•••••••• (unchanged)"
+    "config.providers.key_placeholder_existing": "•••••••• (unchanged)",
+    "chat.input_placeholder_mobile": "Enter a task..."
   },
   "_meta": {
     "help.server.host": {
@@ -3465,5 +3467,47 @@
         "2"
       ]
     }
+  },
+  "cs": {
+    "chat.input_placeholder_mobile": "Zadejte ukol..."
+  },
+  "da": {
+    "chat.input_placeholder_mobile": "Skriv en opgave..."
+  },
+  "el": {
+    "chat.input_placeholder_mobile": "Γράψτε μια εργασία..."
+  },
+  "es": {
+    "chat.input_placeholder_mobile": "Escribe una tarea..."
+  },
+  "fr": {
+    "chat.input_placeholder_mobile": "Saisir une tache..."
+  },
+  "hi": {
+    "chat.input_placeholder_mobile": "कार्य लिखें..."
+  },
+  "it": {
+    "chat.input_placeholder_mobile": "Inserisci un compito..."
+  },
+  "ja": {
+    "chat.input_placeholder_mobile": "タスクを入力..."
+  },
+  "nl": {
+    "chat.input_placeholder_mobile": "Voer een taak in..."
+  },
+  "no": {
+    "chat.input_placeholder_mobile": "Skriv en oppgave..."
+  },
+  "pl": {
+    "chat.input_placeholder_mobile": "Wpisz zadanie..."
+  },
+  "pt": {
+    "chat.input_placeholder_mobile": "Escreva uma tarefa..."
+  },
+  "sv": {
+    "chat.input_placeholder_mobile": "Skriv en uppgift..."
+  },
+  "zh": {
+    "chat.input_placeholder_mobile": "输入任务..."
   }
 }

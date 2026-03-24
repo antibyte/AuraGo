@@ -94,5 +94,6 @@
   "chat.stt_cancel": "रद्द करें",
   "chat.stt_done": "पूर्ण",
   "chat.more_actions_title": "Aur karvaaiyan",
-  "chat.feedback_toggle_title": "Feedbak"
+  "chat.feedback_toggle_title": "Feedbak",
+  "chat.input_placeholder_mobile": "कार्य लिखें..."
 }

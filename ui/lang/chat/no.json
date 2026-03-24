@@ -94,5 +94,6 @@
   "chat.stt_cancel": "Avbryt",
   "chat.stt_done": "Ferdig",
   "chat.more_actions_title": "Flere handlinger",
-  "chat.feedback_toggle_title": "Tilbakemelding"
+  "chat.feedback_toggle_title": "Tilbakemelding",
+  "chat.input_placeholder_mobile": "Skriv en oppgave..."
 }

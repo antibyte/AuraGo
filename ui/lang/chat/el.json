@@ -94,5 +94,6 @@
   "chat.stt_cancel": "Ακύρωση",
   "chat.stt_done": "Τέλος",
   "chat.more_actions_title": "Perissoteres energeies",
-  "chat.feedback_toggle_title": "Anatrofodotisi"
+  "chat.feedback_toggle_title": "Anatrofodotisi",
+  "chat.input_placeholder_mobile": "Γράψτε μια εργασία..."
 }

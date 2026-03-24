@@ -94,5 +94,6 @@
   "chat.stt_cancel": "Cancelar",
   "chat.stt_done": "Listo",
   "chat.more_actions_title": "Mas acciones",
-  "chat.feedback_toggle_title": "Feedback"
+  "chat.feedback_toggle_title": "Feedback",
+  "chat.input_placeholder_mobile": "Escribe una tarea..."
 }

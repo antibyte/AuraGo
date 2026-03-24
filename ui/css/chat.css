@@ -1966,7 +1966,7 @@
             padding: 0.3rem;
             border: 1px solid var(--border-subtle);
             border-radius: 13px;
-            background: color-mix(in srgb, var(--bg-secondary, #111827) 92%, transparent);
+            background: color-mix(in srgb, var(--bg-secondary, #111827) 97%, transparent);
             backdrop-filter: blur(14px);
             -webkit-backdrop-filter: blur(14px);
             box-shadow: 0 14px 34px rgba(0, 0, 0, 0.22);
@@ -2058,7 +2058,7 @@
             padding: 0.35rem;
             border: 1px solid var(--border-subtle);
             border-radius: 13px;
-            background: color-mix(in srgb, var(--bg-secondary, #111827) 92%, transparent);
+            background: color-mix(in srgb, var(--bg-secondary, #111827) 97%, transparent);
             backdrop-filter: blur(14px);
             -webkit-backdrop-filter: blur(14px);
             position: absolute;
@@ -2241,7 +2241,7 @@
             margin: 0;
             align-items: center;
             gap: 6px;
-            background: color-mix(in srgb, var(--bg-secondary, #111827) 88%, var(--accent-dim) 12%);
+            background: color-mix(in srgb, var(--bg-secondary, #111827) 94%, var(--accent-dim) 6%);
             border: 1px solid var(--border-accent);
             border-radius: 20px;
             padding: 4px 10px 4px 12px;

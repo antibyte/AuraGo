@@ -94,5 +94,6 @@
   "chat.stt_cancel": "Avbryt",
   "chat.stt_done": "Klar",
   "chat.more_actions_title": "Fler atgarder",
-  "chat.feedback_toggle_title": "Feedback"
+  "chat.feedback_toggle_title": "Feedback",
+  "chat.input_placeholder_mobile": "Skriv en uppgift..."
 }

@@ -94,5 +94,6 @@
   "chat.stt_cancel": "Zrušit",
   "chat.stt_done": "Hotovo",
   "chat.more_actions_title": "Dalsi akce",
-  "chat.feedback_toggle_title": "Zpetna vazba"
+  "chat.feedback_toggle_title": "Zpetna vazba",
+  "chat.input_placeholder_mobile": "Zadejte ukol..."
 }

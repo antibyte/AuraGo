@@ -94,5 +94,6 @@
   "chat.stt_cancel": "Anuluj",
   "chat.stt_done": "Gotowe",
   "chat.more_actions_title": "Wiecej akcji",
-  "chat.feedback_toggle_title": "Opinie"
+  "chat.feedback_toggle_title": "Opinie",
+  "chat.input_placeholder_mobile": "Wpisz zadanie..."
 }

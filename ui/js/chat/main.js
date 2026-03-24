@@ -75,6 +75,14 @@ userInput.addEventListener('keydown', (e) => {
     }
 });
 
+function updateChatInputPlaceholder() {
+    if (!userInput) return;
+    const isMobile = window.matchMedia && window.matchMedia('(max-width: 639px)').matches;
+    userInput.placeholder = isMobile ? t('chat.input_placeholder_mobile') : t('chat.input_placeholder');
+}
+
+window.addEventListener('resize', updateChatInputPlaceholder);
+
 /* ── i18n — I18N and t() now provided by page head + shared.js ── */
 
 function applyI18n() {
@@ -123,7 +131,7 @@ function applyI18n() {
     const greetText = document.querySelector('.greeting-text');
     if (greetText) greetText.textContent = t('chat.greeting');
     /* Input area */
-    document.getElementById('user-input').placeholder = t('chat.input_placeholder');
+    updateChatInputPlaceholder();
     document.getElementById('upload-btn').title = t('chat.upload_btn_title');
     document.getElementById('send-btn').title = t('chat.send_btn_title');
     document.getElementById('stop-btn').title = t('chat.stop_btn_title');

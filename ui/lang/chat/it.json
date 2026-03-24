@@ -94,5 +94,6 @@
   "chat.stt_cancel": "Annulla",
   "chat.stt_done": "Fatto",
   "chat.more_actions_title": "Altre azioni",
-  "chat.feedback_toggle_title": "Feedback"
+  "chat.feedback_toggle_title": "Feedback",
+  "chat.input_placeholder_mobile": "Inserisci un compito..."
 }

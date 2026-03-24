@@ -94,5 +94,6 @@
   "chat.stt_cancel": "Annuleren",
   "chat.stt_done": "Klaar",
   "chat.more_actions_title": "Meer acties",
-  "chat.feedback_toggle_title": "Feedback"
+  "chat.feedback_toggle_title": "Feedback",
+  "chat.input_placeholder_mobile": "Voer een taak in..."
 }
