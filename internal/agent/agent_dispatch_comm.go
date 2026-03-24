@@ -114,6 +114,9 @@ func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 		if args == nil {
 			args = tc.Params
 		}
+		if len(args) == 0 {
+			args = synthesizeExecuteSkillArgs(tc)
+		}
 
 		skillName := tc.Skill
 		if skillName == "" && args != nil {
@@ -146,8 +149,8 @@ func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 			}
 			args = cleanArgs
 		}
-
 		cleanSkillName := strings.TrimSuffix(skillName, ".py")
+		args = filterExecuteSkillArgs(cfg.Directories.SkillsDir, cleanSkillName, args)
 		switch cleanSkillName {
 		case "web_scraper":
 			if !cfg.Tools.WebScraper.Enabled {
@@ -1409,6 +1412,79 @@ func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 	default:
 		return dispatchNotHandled
 	}
+}
+
+func synthesizeExecuteSkillArgs(tc ToolCall) map[string]interface{} {
+	raw, err := json.Marshal(tc)
+	if err != nil {
+		return map[string]interface{}{}
+	}
+
+	var args map[string]interface{}
+	if err := json.Unmarshal(raw, &args); err != nil {
+		return map[string]interface{}{}
+	}
+
+	for _, key := range []string{
+		"action", "skill", "skill_args", "params", "_todo",
+		"raw_json", "native_call_id",
+	} {
+		delete(args, key)
+	}
+
+	cleaned := make(map[string]interface{}, len(args))
+	for k, v := range args {
+		if isEmptySkillArgValue(v) {
+			continue
+		}
+		cleaned[k] = v
+	}
+	return cleaned
+}
+
+func isEmptySkillArgValue(v interface{}) bool {
+	switch x := v.(type) {
+	case nil:
+		return true
+	case string:
+		return strings.TrimSpace(x) == ""
+	case []interface{}:
+		return len(x) == 0
+	case map[string]interface{}:
+		return len(x) == 0
+	default:
+		return false
+	}
+}
+
+func filterExecuteSkillArgs(skillsDir, skillName string, args map[string]interface{}) map[string]interface{} {
+	if len(args) == 0 || strings.TrimSpace(skillName) == "" {
+		return args
+	}
+
+	skills, err := tools.ListSkills(skillsDir)
+	if err != nil {
+		return args
+	}
+
+	var manifest *tools.SkillManifest
+	for i := range skills {
+		if strings.EqualFold(skills[i].Name, skillName) {
+			manifest = &skills[i]
+			break
+		}
+	}
+	if manifest == nil || len(manifest.Parameters) == 0 {
+		return args
+	}
+
+	filtered := make(map[string]interface{}, len(manifest.Parameters))
+	for key := range manifest.Parameters {
+		if v, ok := args[key]; ok && !isEmptySkillArgValue(v) {
+			filtered[key] = v
+		}
+	}
+	return filtered
 }
 
 // upnpAutoRegister parses the JSON result from ExecuteUPnPScan, bulk-inserts every
