@@ -487,6 +487,9 @@ async function renderSection(key) {
         html += `<div class="cfg-note-banner cfg-note-banner-info">
                     \u{1F9E0} ${t('config.embeddings.info_banner')}
                 </div>`;
+        html += `<div class="cfg-note-banner cfg-note-banner-warning">
+                    ⚠️ ${t('config.embeddings.change_warning_banner')}
+                </div>`;
     }
 
     // Tools permissions warning
@@ -848,6 +851,122 @@ function collectSnapshot() {
     return parts.join('|');
 }
 
+function getNestedValue(obj, path) {
+    if (!obj || !path) return undefined;
+    return path.split('.').reduce((cur, part) => (cur && cur[part] !== undefined) ? cur[part] : undefined, obj);
+}
+
+function buildConfigPatchFromForm() {
+    const patch = {};
+    document.querySelectorAll('[data-path]').forEach(el => {
+        if (el.type === 'radio' && !el.checked) return;
+
+        const path = el.dataset.path;
+        const parts = path.split('.');
+        let val;
+
+        if (el.classList.contains('toggle')) {
+            val = el.classList.contains('on');
+        } else if (el.type === 'number' || el.type === 'range') {
+            val = el.value === '' ? 0 : (el.step && parseFloat(el.step) < 1 ? parseFloat(el.value) : parseInt(el.value));
+        } else if (el.dataset.type === 'array') {
+            if (path === 'budget.models' || el.value.trim().startsWith('[')) {
+                try { val = JSON.parse(el.value); } catch (e) {
+                    val = el.value.split(',').map(s => s.trim()).filter(Boolean);
+                }
+            } else {
+                val = el.value.split(',').map(s => s.trim()).filter(Boolean);
+            }
+        } else if (el.dataset.type === 'array-lines') {
+            val = el.value.split('\n').map(s => s.trim()).filter(Boolean);
+        } else if (el.dataset.type === 'json') {
+            try { val = JSON.parse(el.value); } catch (e) { val = el.value; }
+        } else if (el.tagName === 'SELECT' && el.value === 'Other / Custom') {
+            const customInput = document.querySelector('[data-custom-for="' + path + '"]');
+            val = customInput ? customInput.value.trim() : el.value;
+        } else {
+            val = el.value;
+        }
+
+        let obj = patch;
+        for (let i = 0; i < parts.length - 1; i++) {
+            if (!obj[parts[i]]) obj[parts[i]] = {};
+            obj = obj[parts[i]];
+        }
+        obj[parts[parts.length - 1]] = val;
+    });
+    return patch;
+}
+
+function embeddingsConfigWillLikelyChange(patch) {
+    const nextEmbeddings = patch && patch.embeddings;
+    if (!nextEmbeddings) return false;
+
+    const current = configData.embeddings || {};
+    const currentLocal = current.local_ollama || {};
+    const nextLocal = nextEmbeddings.local_ollama || {};
+
+    const comparePaths = [
+        ['provider', current.provider, nextEmbeddings.provider],
+        ['internal_model', current.internal_model, nextEmbeddings.internal_model],
+        ['external_url', current.external_url, nextEmbeddings.external_url],
+        ['external_model', current.external_model, nextEmbeddings.external_model],
+        ['multimodal', current.multimodal, nextEmbeddings.multimodal],
+        ['multimodal_format', current.multimodal_format, nextEmbeddings.multimodal_format],
+        ['local_ollama.enabled', currentLocal.enabled, nextLocal.enabled],
+        ['local_ollama.model', currentLocal.model, nextLocal.model],
+        ['local_ollama.container_port', currentLocal.container_port, nextLocal.container_port],
+        ['local_ollama.use_host_gpu', currentLocal.use_host_gpu, nextLocal.use_host_gpu],
+        ['local_ollama.gpu_backend', currentLocal.gpu_backend, nextLocal.gpu_backend]
+    ];
+
+    return comparePaths.some(([, before, after]) => JSON.stringify(before) !== JSON.stringify(after));
+}
+
+function showEmbeddingsResetModal(options = {}) {
+    const { postSave = false } = options;
+    return new Promise(resolve => {
+        const existing = document.getElementById('embeddings-reset-modal');
+        if (existing) existing.remove();
+
+        const modal = document.createElement('div');
+        modal.id = 'embeddings-reset-modal';
+        modal.className = 'sec-modal-overlay';
+        modal.innerHTML = `<div class="sec-modal-panel emb-modal-panel">
+            <div class="sec-modal-title emb-modal-title">🧠 ${t('config.embeddings.reset_title')}</div>
+            <div class="sec-modal-desc">${t(postSave ? 'config.embeddings.reset_desc_postsave' : 'config.embeddings.reset_desc')}</div>
+            <ul class="sec-modal-list">
+                <li class="sec-modal-item">${t('config.embeddings.reset_point_vectors')}</li>
+                <li class="sec-modal-item">${t('config.embeddings.reset_point_rebuild')}</li>
+                <li class="sec-modal-item">${t('config.embeddings.reset_point_memories')}</li>
+            </ul>
+            <div class="sec-modal-actions">
+                <button id="embeddings-reset-cancel" class="sec-modal-btn sec-modal-btn-skip">${t('config.embeddings.reset_cancel')}</button>
+                <button id="embeddings-reset-continue" class="sec-modal-btn emb-modal-btn-danger">${t('config.embeddings.reset_continue')}</button>
+            </div>
+        </div>`;
+
+        function close(result) {
+            modal.remove();
+            resolve(result);
+        }
+
+        modal.addEventListener('click', e => {
+            if (e.target === modal) close(false);
+        });
+        modal.querySelector('#embeddings-reset-cancel').addEventListener('click', () => close(false));
+        modal.querySelector('#embeddings-reset-continue').addEventListener('click', () => close(true));
+        document.body.appendChild(modal);
+    });
+}
+
+async function scheduleEmbeddingsReset() {
+    const resp = await fetch('/api/embeddings/reset', { method: 'POST' });
+    let data = {};
+    try { data = await resp.json(); } catch (_) { }
+    return { ok: resp.ok, data };
+}
+
 function markDirty() {
     if (!isDirty) {
         isDirty = true;
@@ -878,51 +997,28 @@ async function saveConfig() {
     status.className = 'save-status';
     status.textContent = t('config.save_bar.saving');
 
-    // Collect all field values
-    const patch = {};
-    document.querySelectorAll('[data-path]').forEach(el => {
-        // Skip unchecked radio buttons — only the selected radio should write its value
-        if (el.type === 'radio' && !el.checked) return;
+    const patch = buildConfigPatchFromForm();
+    const likelyEmbeddingsChange = embeddingsConfigWillLikelyChange(patch);
+    let scheduleResetAfterSave = false;
 
-        const path = el.dataset.path;
-        const parts = path.split('.');
-        let val;
-
-        if (el.classList.contains('toggle')) {
-            val = el.classList.contains('on');
-        } else if (el.type === 'number' || el.type === 'range') {
-            val = el.value === '' ? 0 : (el.step && parseFloat(el.step) < 1 ? parseFloat(el.value) : parseInt(el.value));
-        } else if (el.dataset.type === 'array') {
-            // Check if this is an object array (budget.models) or string array
-            if (path === 'budget.models' || el.value.trim().startsWith('[')) {
-                // Object array - parse as JSON
-                try { val = JSON.parse(el.value); } catch (e) {
-                    val = el.value.split(',').map(s => s.trim()).filter(Boolean);
-                }
-            } else {
-                // Simple string array
-                val = el.value.split(',').map(s => s.trim()).filter(Boolean);
-            }
-        } else if (el.dataset.type === 'array-lines') {
-            // Newline-separated string array
-            val = el.value.split('\n').map(s => s.trim()).filter(Boolean);
-        } else if (el.dataset.type === 'json') {
-            try { val = JSON.parse(el.value); } catch (e) { val = el.value; }
-        } else if (el.tagName === 'SELECT' && el.value === 'Other / Custom') {
-            const customInput = document.querySelector('[data-custom-for="' + path + '"]');
-            val = customInput ? customInput.value.trim() : el.value;
-        } else {
-            val = el.value;
+    if (likelyEmbeddingsChange) {
+        const wantsReset = await showEmbeddingsResetModal();
+        if (!wantsReset) {
+            status.className = 'save-status warning';
+            status.textContent = '⚠ ' + t('config.embeddings.reset_cancelled');
+            btn.disabled = false;
+            setTimeout(() => { status.textContent = ''; }, 5000);
+            return;
         }
-
-        // Build nested object from dotted path
-        let obj = patch;
-        for (let i = 0; i < parts.length - 1; i++) {
-            if (!obj[parts[i]]) obj[parts[i]] = {};
-            obj = obj[parts[i]];
+        if (!confirm(t('config.embeddings.reset_confirm_final'))) {
+            status.className = 'save-status warning';
+            status.textContent = '⚠ ' + t('config.embeddings.reset_cancelled');
+            btn.disabled = false;
+            setTimeout(() => { status.textContent = ''; }, 5000);
+            return;
         }
-        obj[parts[parts.length - 1]] = val;
-    });
+        scheduleResetAfterSave = true;
+    }
 
     try {
         const resp = await fetch('/api/config', {
@@ -932,6 +1028,27 @@ async function saveConfig() {
         });
         const result = await resp.json();
         if (resp.ok) {
+            const embeddingsChanged = result.embeddings_changed === true;
+            let shouldScheduleResetNow = scheduleResetAfterSave;
+
+            if (embeddingsChanged && !shouldScheduleResetNow) {
+                const wantsReset = await showEmbeddingsResetModal({ postSave: true });
+                if (wantsReset && confirm(t('config.embeddings.reset_confirm_final'))) {
+                    shouldScheduleResetNow = true;
+                }
+            }
+
+            if (shouldScheduleResetNow) {
+                const resetResult = await scheduleEmbeddingsReset();
+                if (!resetResult.ok) {
+                    status.className = 'save-status error';
+                    status.textContent = '✗ ' + (resetResult.data.message || t('config.embeddings.reset_error'));
+                    btn.disabled = false;
+                    setTimeout(() => { status.textContent = ''; }, 7000);
+                    return;
+                }
+            }
+
             if (result.needs_restart) {
                 status.className = 'save-status warning';
                 status.textContent = '⚠ ' + (result.message || t('config.save_bar.restart_needed'));
@@ -946,6 +1063,16 @@ async function saveConfig() {
             setDirty(false);
             // Check for security issues introduced by this save
             checkSecurityAfterSave();
+            if (shouldScheduleResetNow) {
+                status.className = 'save-status warning';
+                status.textContent = '⚠ ' + t('config.embeddings.reset_restarting');
+                await restartAuraGo(true);
+                return;
+            }
+            if (embeddingsChanged) {
+                status.className = 'save-status warning';
+                status.textContent = '⚠ ' + t('config.embeddings.reset_pending_warning');
+            }
         } else {
             status.className = 'save-status error';
             status.textContent = '✗ ' + (result.message || t('config.save_bar.error'));
@@ -1028,8 +1155,8 @@ function showSecurityModal(critFixable) {
     });
 }
 
-async function restartAuraGo() {
-    if (!confirm(t('config.restart.confirm'))) return;
+async function restartAuraGo(skipConfirm = false) {
+    if (!skipConfirm && !confirm(t('config.restart.confirm'))) return;
 
     try {
         const resp = await fetch('/api/restart', { method: 'POST' });

@@ -292,6 +292,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		// Tests MeshCentral connectivity using saved or provided credentials.
 		mux.HandleFunc("/api/meshcentral/test", handleMeshCentralTest(s))
 		mux.HandleFunc("/api/restart", handleRestart(s))
+		mux.HandleFunc("/api/embeddings/reset", handleEmbeddingsReset(s))
 		mux.HandleFunc("/api/updates/check", handleUpdateCheck(s))
 		mux.HandleFunc("/api/updates/install", handleUpdateInstall(s))
 		mux.HandleFunc("/api/vault/status", handleVaultStatus(s))

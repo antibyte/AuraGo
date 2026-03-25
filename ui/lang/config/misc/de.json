@@ -45,5 +45,19 @@
   "config.vault.destroy_button": "Vernichten",
   "config.vault.cancel": "Abbrechen",
   "config.vault.deleted_toast": "✓ Vault gelöscht. Neuen Master Key eingeben, speichern und AuraGo neu starten.",
-  "config.budget.models_moved_hint": "Modellkosten werden jetzt in den Provider-Einstellungen verwaltet."
+  "config.budget.models_moved_hint": "Modellkosten werden jetzt in den Provider-Einstellungen verwaltet.",
+  "config.embeddings.change_warning_banner": "Wenn du das Embedding-Modell oder den Provider wechselst, werden bestehende Embeddings voraussichtlich inkompatibel. AuraGo kann die alten Embeddings löschen und sie nach dem Neustart neu aufbauen.",
+  "config.embeddings.reset_title": "Embedding-Wechsel erkannt",
+  "config.embeddings.reset_desc": "Diese Änderung macht die vorhandenen Embeddings sehr wahrscheinlich inkompatibel. AuraGo kann die alten Embeddings löschen und den Wissensindex nach dem Neustart neu aufbauen.",
+  "config.embeddings.reset_desc_postsave": "Die Konfiguration ist bereits gespeichert. Damit keine unpassenden Embeddings aktiv bleiben, sollte AuraGo die alten Embeddings jetzt löschen und sie nach dem Neustart neu aufbauen.",
+  "config.embeddings.reset_point_vectors": "Vorhandene Langzeitgedächtnis-Vektoren passen möglicherweise nicht mehr zum neuen Embedding-Modell.",
+  "config.embeddings.reset_point_rebuild": "Tool-Guides, Dokumentation und indexierte Wissensdateien werden nach dem Neustart neu aufgebaut.",
+  "config.embeddings.reset_point_memories": "Gespeicherte Gesprächserinnerungen in der Vektor-Datenbank werden gelöscht und erst bei neuer Archivierung wieder aufgebaut.",
+  "config.embeddings.reset_cancel": "Abbrechen",
+  "config.embeddings.reset_continue": "Alte Embeddings löschen",
+  "config.embeddings.reset_confirm_final": "Vorhandene Embeddings wirklich löschen und nach dem Neustart neu aufbauen?",
+  "config.embeddings.reset_cancelled": "Embedding-Wechsel abgebrochen. Es wurde nichts gespeichert.",
+  "config.embeddings.reset_restarting": "Alte Embeddings sind zum Löschen vorgemerkt. AuraGo startet jetzt neu…",
+  "config.embeddings.reset_pending_warning": "Embedding-Wechsel gespeichert. Die alten Embeddings bleiben aktiv, bis du das Löschen und den Neustart bestätigst.",
+  "config.embeddings.reset_error": "Der Embeddings-Reset konnte nicht vorgemerkt werden."
 }

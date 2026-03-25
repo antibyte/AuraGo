@@ -309,6 +309,11 @@ func main() {
 	}
 	defer shortTermMem.Close()
 
+	if _, err := server.ApplyPendingEmbeddingsReset(cfg, shortTermMem, appLog); err != nil {
+		appLog.Error("Failed to apply pending embeddings reset", "error", err)
+		os.Exit(1)
+	}
+
 	// Migrate core_memory.md → SQLite (no-op if already done); returns true on first start
 	isFirstStart := shortTermMem.MigrateCoreMemoryFromMarkdown(cfg.Directories.DataDir, appLog)
 

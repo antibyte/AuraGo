@@ -235,6 +235,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 
 		needsRestart := false
 		restartReasons := []string{}
+		embeddingsChanged := false
 
 		if loadErr != nil {
 			s.Logger.Warn("[Config UI] Hot-reload failed, changes saved but require restart", "error", loadErr)
@@ -269,6 +270,11 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			if oldCfg.Directories != newCfg.Directories {
 				needsRestart = true
 				restartReasons = append(restartReasons, "Verzeichnisse")
+			}
+			if embeddingsConfigChanged(oldCfg, *newCfg) {
+				embeddingsChanged = true
+				needsRestart = true
+				restartReasons = append(restartReasons, "Embeddings / Langzeitgedächtnis")
 			}
 			if oldCfg.Chromecast != newCfg.Chromecast {
 				needsRestart = true
@@ -498,16 +504,18 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 		if needsRestart {
 			msg := fmt.Sprintf("Gespeichert. Neustart nötig für: %s", strings.Join(restartReasons, ", "))
 			json.NewEncoder(w).Encode(map[string]interface{}{
-				"status":         "saved",
-				"message":        msg,
-				"needs_restart":  true,
-				"restart_reason": restartReasons,
+				"status":             "saved",
+				"message":            msg,
+				"needs_restart":      true,
+				"restart_reason":     restartReasons,
+				"embeddings_changed": embeddingsChanged,
 			})
 		} else {
 			json.NewEncoder(w).Encode(map[string]interface{}{
-				"status":        "saved",
-				"message":       "Konfiguration gespeichert und sofort angewendet.",
-				"needs_restart": false,
+				"status":             "saved",
+				"message":            "Konfiguration gespeichert und sofort angewendet.",
+				"needs_restart":      false,
+				"embeddings_changed": embeddingsChanged,
 			})
 		}
 	}

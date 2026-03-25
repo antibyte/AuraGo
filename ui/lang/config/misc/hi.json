@@ -45,5 +45,19 @@
   "config.vault.destroy_button": "नष्ट करो",
   "config.vault.cancel": "रद्द करें",
   "config.vault.deleted_toast": "✓ वॉल्ट हटा दिया गया. एक नई मास्टर कुंजी दर्ज करें, सहेजें और AuraGo को पुनरारंभ करें।",
-  "config.budget.models_moved_hint": "मॉडल लागत अब प्रदाता सेटिंग्स में प्रबंधित की जाती हैं।"
+  "config.budget.models_moved_hint": "मॉडल लागत अब प्रदाता सेटिंग्स में प्रबंधित की जाती हैं।",
+  "config.embeddings.change_warning_banner": "Changing the embeddings model or provider can make existing embeddings incompatible. AuraGo can delete the old embeddings and rebuild them after restart.",
+  "config.embeddings.reset_title": "Embedding change detected",
+  "config.embeddings.reset_desc": "This change will likely make existing embeddings incompatible. AuraGo can delete the old embeddings and rebuild the knowledge index after restart.",
+  "config.embeddings.reset_desc_postsave": "The configuration is already saved. To avoid mismatched embeddings, AuraGo should now delete the old embeddings and rebuild them after restart.",
+  "config.embeddings.reset_point_vectors": "Existing long-term memory vectors may no longer match the new embeddings model.",
+  "config.embeddings.reset_point_rebuild": "Tool guides, documentation and indexed knowledge files will be rebuilt after restart.",
+  "config.embeddings.reset_point_memories": "Stored conversation memories in the vector database will be deleted and rebuilt only when new content is archived again.",
+  "config.embeddings.reset_cancel": "Cancel",
+  "config.embeddings.reset_continue": "Delete old embeddings",
+  "config.embeddings.reset_confirm_final": "Really delete the existing embeddings and rebuild them after restart?",
+  "config.embeddings.reset_cancelled": "Embedding change aborted. Nothing was saved.",
+  "config.embeddings.reset_restarting": "Old embeddings scheduled for deletion. AuraGo is restarting now…",
+  "config.embeddings.reset_pending_warning": "Embedding change saved. The old embeddings are still present until you confirm deletion and restart.",
+  "config.embeddings.reset_error": "The embeddings reset could not be scheduled."
 }

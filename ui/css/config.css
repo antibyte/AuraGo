@@ -4668,6 +4668,21 @@ select.cfg-input option {
     font-weight: 600;
 }
 
+.emb-modal-panel {
+    border-color: rgba(245, 158, 11, 0.38);
+}
+
+.emb-modal-title {
+    color: #f59e0b;
+}
+
+.emb-modal-btn-danger {
+    background: linear-gradient(135deg, #f59e0b, #dc2626);
+    color: #fff;
+    border: none;
+    font-weight: 700;
+}
+
 .save-status.warning {
     color: var(--warning);
 }

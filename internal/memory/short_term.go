@@ -1051,6 +1051,21 @@ func (s *SQLiteMemory) UpdateFileIndex(path, collection string, modTime time.Tim
 	return err
 }
 
+// ClearFileIndices removes all persisted file-index timestamps so the indexer
+// treats knowledge/doc files as new and rebuilds their embeddings.
+func (s *SQLiteMemory) ClearFileIndices() error {
+	_, err := s.db.Exec(`DELETE FROM file_indices`)
+	return err
+}
+
+// ClearMemoryMeta removes all long-term memory metadata. This is needed when
+// the embedding database is rebuilt from scratch so stale chunk references do
+// not remain in SQLite.
+func (s *SQLiteMemory) ClearMemoryMeta() error {
+	_, err := s.db.Exec(`DELETE FROM memory_meta`)
+	return err
+}
+
 // ── Core Memory (SQLite) ──────────────────────────────────────────────────────
 
 // GetMessageCount returns the total number of chat messages.
