@@ -5,22 +5,27 @@ import (
 	"crypto/md5"
 	"crypto/sha1"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 )
 
 var virustotalHTTPClient = &http.Client{Timeout: 30 * time.Second}
 var virustotalBaseURL = "https://www.virustotal.com/api/v3"
+var virustotalHashPattern = regexp.MustCompile(`(?i)^[a-f0-9]{32}$|^[a-f0-9]{40}$|^[a-f0-9]{64}$`)
+var virustotalDomainPattern = regexp.MustCompile(`(?i)^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$`)
 
 type VirusTotalOptions struct {
 	Resource string
@@ -170,22 +175,161 @@ func isVirusTotalNotFound(err error, target **virustotalAPIError) bool {
 }
 
 func virustotalLookupResource(apiKey, resource string) (string, error) {
-	endpoint := fmt.Sprintf("%s/search?query=%s", virustotalBaseURL, url.QueryEscape(resource))
+	resource = strings.TrimSpace(resource)
+	resourceType := classifyVirusTotalResource(resource)
+	if resourceType == "" {
+		return "", fmt.Errorf("unsupported VirusTotal resource type: provide a URL, domain, IP address, or file hash")
+	}
+
+	result := map[string]interface{}{
+		"status": "success",
+		"input": map[string]interface{}{
+			"resource":      resource,
+			"resource_type": resourceType,
+		},
+	}
+
+	switch resourceType {
+	case "file_hash":
+		payload, err := virustotalLookupJSON(apiKey, fmt.Sprintf("%s/files/%s", virustotalBaseURL, url.PathEscape(strings.ToLower(resource))))
+		if err != nil {
+			return "", fmt.Errorf("VirusTotal file lookup failed: %w", err)
+		}
+		result["used"] = "file_report"
+		result["result"] = payload
+	case "domain":
+		payload, err := virustotalLookupJSON(apiKey, fmt.Sprintf("%s/domains/%s", virustotalBaseURL, url.PathEscape(strings.ToLower(resource))))
+		if err != nil {
+			return "", fmt.Errorf("VirusTotal domain lookup failed: %w", err)
+		}
+		result["used"] = "domain_report"
+		result["result"] = payload
+	case "ip_address":
+		payload, err := virustotalLookupJSON(apiKey, fmt.Sprintf("%s/ip_addresses/%s", virustotalBaseURL, url.PathEscape(resource)))
+		if err != nil {
+			return "", fmt.Errorf("VirusTotal IP lookup failed: %w", err)
+		}
+		result["used"] = "ip_report"
+		result["result"] = payload
+	case "url":
+		urlID := base64.RawURLEncoding.EncodeToString([]byte(resource))
+		payload, err := virustotalLookupJSON(apiKey, fmt.Sprintf("%s/urls/%s", virustotalBaseURL, url.PathEscape(urlID)))
+		if err == nil {
+			result["used"] = "url_report"
+			result["result"] = payload
+			return marshalVirusTotalResult(result), nil
+		}
+
+		var apiErr *virustotalAPIError
+		if !isVirusTotalNotFound(err, &apiErr) {
+			return "", fmt.Errorf("VirusTotal URL lookup failed: %w", err)
+		}
+
+		analysis, analysisErr := virustotalSubmitURL(apiKey, resource)
+		if analysisErr != nil {
+			return "", fmt.Errorf("VirusTotal URL submission failed: %w", analysisErr)
+		}
+		result["used"] = "url_submission"
+		result["submission"] = analysis
+
+		if analysisID := virustotalAnalysisID(analysis); analysisID != "" {
+			if analysisPayload, reportPayload, pollErr := virustotalPollAnalysisAndFetchURL(apiKey, analysisID, urlID); pollErr == nil {
+				result["analysis"] = analysisPayload
+				if reportPayload != nil {
+					result["result"] = reportPayload
+					result["used"] = "url_report_after_submission"
+				}
+			}
+		}
+	default:
+		return "", fmt.Errorf("unsupported VirusTotal resource type: %s", resourceType)
+	}
+
+	return marshalVirusTotalResult(result), nil
+}
+
+func classifyVirusTotalResource(resource string) string {
+	resource = strings.TrimSpace(resource)
+	if resource == "" {
+		return ""
+	}
+	if virustotalHashPattern.MatchString(resource) {
+		return "file_hash"
+	}
+	if parsed, err := url.Parse(resource); err == nil && parsed.Scheme != "" && parsed.Host != "" {
+		return "url"
+	}
+	if net.ParseIP(resource) != nil {
+		return "ip_address"
+	}
+	if virustotalDomainPattern.MatchString(strings.ToLower(resource)) {
+		return "domain"
+	}
+	return ""
+}
+
+func virustotalLookupJSON(apiKey, endpoint string) (map[string]interface{}, error) {
 	bodyBytes, err := virustotalDoRequest(apiKey, http.MethodGet, endpoint, nil, "application/json")
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	var result map[string]interface{}
 	if err := json.Unmarshal(bodyBytes, &result); err != nil {
-		return "", fmt.Errorf("failed to parse VirusTotal response JSON")
+		return nil, fmt.Errorf("failed to parse VirusTotal response JSON")
+	}
+	return result, nil
+}
+
+func virustotalSubmitURL(apiKey, resource string) (map[string]interface{}, error) {
+	form := url.Values{}
+	form.Set("url", resource)
+
+	bodyBytes, err := virustotalDoRequest(apiKey, http.MethodPost, fmt.Sprintf("%s/urls", virustotalBaseURL), strings.NewReader(form.Encode()), "application/x-www-form-urlencoded")
+	if err != nil {
+		return nil, err
 	}
 
-	return marshalVirusTotalResult(map[string]interface{}{
-		"status": "success",
-		"result": result,
-		"used":   "resource_lookup",
-	}), nil
+	var result map[string]interface{}
+	if err := json.Unmarshal(bodyBytes, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse VirusTotal URL submission JSON")
+	}
+	return result, nil
+}
+
+func virustotalAnalysisID(payload map[string]interface{}) string {
+	data, _ := payload["data"].(map[string]interface{})
+	id, _ := data["id"].(string)
+	return id
+}
+
+func virustotalPollAnalysisAndFetchURL(apiKey, analysisID, urlID string) (map[string]interface{}, map[string]interface{}, error) {
+	for attempt := 0; attempt < 3; attempt++ {
+		analysis, err := virustotalLookupJSON(apiKey, fmt.Sprintf("%s/analyses/%s", virustotalBaseURL, url.PathEscape(analysisID)))
+		if err != nil {
+			return nil, nil, err
+		}
+		if virustotalAnalysisCompleted(analysis) {
+			report, err := virustotalLookupJSON(apiKey, fmt.Sprintf("%s/urls/%s", virustotalBaseURL, url.PathEscape(urlID)))
+			if err != nil {
+				return analysis, nil, err
+			}
+			return analysis, report, nil
+		}
+		time.Sleep(2 * time.Second)
+	}
+	analysis, err := virustotalLookupJSON(apiKey, fmt.Sprintf("%s/analyses/%s", virustotalBaseURL, url.PathEscape(analysisID)))
+	if err != nil {
+		return nil, nil, err
+	}
+	return analysis, nil, nil
+}
+
+func virustotalAnalysisCompleted(payload map[string]interface{}) bool {
+	data, _ := payload["data"].(map[string]interface{})
+	attrs, _ := data["attributes"].(map[string]interface{})
+	status, _ := attrs["status"].(string)
+	return strings.EqualFold(status, "completed")
 }
 
 func virustotalLookupFileHash(apiKey, sha256Hash string) (string, map[string]interface{}, error) {

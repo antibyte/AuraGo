@@ -3,7 +3,10 @@ package agent
 import (
 	"os"
 	"path/filepath"
+	"sort"
 	"testing"
+
+	"aurago/internal/tools"
 )
 
 func TestSynthesizeExecuteSkillArgsPromotesTopLevelFields(t *testing.T) {
@@ -61,5 +64,58 @@ func TestFilterExecuteSkillArgsUsesManifestParameters(t *testing.T) {
 	}
 	if _, ok := filtered["title"]; ok {
 		t.Fatal("did not expect unrelated field 'title' to survive filtering")
+	}
+}
+
+func TestBuiltinSkillManifestParametersStayInSync(t *testing.T) {
+	skillsDir := filepath.Join("..", "..", "agent_workspace", "skills")
+	skills, err := tools.ListSkills(skillsDir)
+	if err != nil {
+		t.Fatalf("ListSkills: %v", err)
+	}
+
+	expected := map[string][]string{
+		"brave_search":       {"count", "country", "lang", "query"},
+		"ddg_search":         {"max_results", "query", "search_query"},
+		"git_backup_restore": {"action", "commit_hash", "commit_message", "limit", "mode"},
+		"paperless":          {"category", "content", "document_id", "limit", "name", "operation", "query", "tags", "title"},
+		"pdf_extractor":      {"filepath", "search_query"},
+		"virustotal_scan":    {"file_path", "mode", "path", "resource"},
+		"web_scraper":        {"search_query", "url"},
+		"wikipedia_search":   {"language", "query", "search_query"},
+	}
+
+	found := map[string]bool{}
+	for _, skill := range skills {
+		if skill.Executable != "__builtin__" {
+			continue
+		}
+		want, ok := expected[skill.Name]
+		if !ok {
+			continue
+		}
+		found[skill.Name] = true
+
+		var got []string
+		for key := range skill.Parameters {
+			got = append(got, key)
+		}
+		sort.Strings(got)
+		sort.Strings(want)
+
+		if len(got) != len(want) {
+			t.Fatalf("skill %q parameters = %v, want %v", skill.Name, got, want)
+		}
+		for i := range want {
+			if got[i] != want[i] {
+				t.Fatalf("skill %q parameters = %v, want %v", skill.Name, got, want)
+			}
+		}
+	}
+
+	for name := range expected {
+		if !found[name] {
+			t.Fatalf("expected builtin skill manifest %q in %s", name, skillsDir)
+		}
 	}
 }

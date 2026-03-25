@@ -3,9 +3,11 @@
   "description": "Backs up or restores the agent workspace using Git. Supports committing current workspace state (backup) or reverting to a previous commit (restore). Useful for versioning agent work.",
   "executable": "__builtin__",
   "parameters": {
-    "operation": "'backup' to commit and push current state, 'restore' to revert to a previous commit, 'log' to list recent commits",
-    "message": "Commit message for backup operation",
-    "commit": "Commit hash to restore to (for restore operation)"
+    "action": "Git action to perform: create_backup, list_backups, restore, rollback_to_previous, or show_diff",
+    "commit_message": "Commit message for create_backup",
+    "commit_hash": "Commit hash for restore or show_diff",
+    "limit": "Maximum number of backups to list for list_backups (default: 10)",
+    "mode": "Restore mode for restore action, e.g. revert or hard"
   },
   "returns": "Status of the git operation and relevant output"
 }

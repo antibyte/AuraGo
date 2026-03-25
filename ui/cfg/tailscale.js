@@ -41,12 +41,12 @@ async function renderTailscaleSection(section) {
     // API Key (vault input)
     html += `<div class="field-group" style="margin-top:0.8rem;">
         <div style="font-size:0.78rem;color:var(--text-secondary);margin-bottom:0.3rem;">🔑 ${t('config.tailscale.api_key_label')}</div>
-        <div style="display:flex;gap:0.5rem;align-items:center;">
+        <div class="cfg-secret-row">
             <div class="password-wrap" style="flex:1;">
                 <input class="field-input cfg-input" type="password" id="ts-api-key-input" placeholder="tskey-api-••••••••" autocomplete="off">
                 <button type="button" class="password-toggle" onclick="(function(){var i=document.getElementById('ts-api-key-input');i.type=i.type==='password'?'text':'password';})()">👁</button>
             </div>
-            <button class="btn-save" style="padding:0.45rem 1rem;font-size:0.82rem;white-space:nowrap;" onclick="tsSaveApiKey()">💾 ${t('config.tailscale.save_vault')}</button>
+            <button class="btn-save" style="padding:0.45rem 1rem;font-size:0.82rem;" onclick="tsSaveApiKey()">💾 ${t('config.tailscale.save_vault')}</button>
         </div>
         <div id="ts-api-key-status" style="margin-top:0.35rem;font-size:0.78rem;"></div>
         <div style="font-size:0.72rem;color:var(--text-tertiary);margin-top:0.25rem;">${t('config.tailscale.api_key_hint')}</div>
@@ -126,12 +126,12 @@ async function renderTailscaleSection(section) {
         // Auth key (vault input)
         html += `<div class="field-group" style="margin-top:0.8rem;">
             <div style="font-size:0.78rem;color:var(--text-secondary);margin-bottom:0.3rem;">🔑 ${t('config.tailscale.tsnet_auth_key_label')}</div>
-            <div style="display:flex;gap:0.5rem;align-items:center;">
+            <div class="cfg-secret-row">
                 <div class="password-wrap" style="flex:1;">
                     <input class="field-input cfg-input" type="password" id="ts-auth-key-input" placeholder="tskey-auth-••••••••" autocomplete="off">
                     <button type="button" class="password-toggle" onclick="(function(){var i=document.getElementById('ts-auth-key-input');i.type=i.type==='password'?'text':'password';})()">👁</button>
                 </div>
-                <button class="btn-save" style="padding:0.45rem 1rem;font-size:0.82rem;white-space:nowrap;" onclick="tsSaveAuthKey()">💾 ${t('config.tailscale.save_vault')}</button>
+                <button class="btn-save" style="padding:0.45rem 1rem;font-size:0.82rem;" onclick="tsSaveAuthKey()">💾 ${t('config.tailscale.save_vault')}</button>
             </div>
             <div id="ts-auth-key-status" style="margin-top:0.35rem;font-size:0.78rem;"></div>
             <div style="font-size:0.72rem;color:var(--text-tertiary);margin-top:0.25rem;">${t('config.tailscale.tsnet_auth_key_hint')}</div>

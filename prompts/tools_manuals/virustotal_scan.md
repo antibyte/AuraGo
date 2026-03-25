@@ -1,6 +1,6 @@
 ## Tool: VirusTotal Scan
 
-Scan a resource (URL, domain, IP address, or file hash) or a local file using the VirusTotal v3 API.
+Look up a resource (URL, domain, IP address, or file hash) or a local file using the VirusTotal v3 API.
 Requires a configured VirusTotal API Key in the settings.
 
 ### WARNING
@@ -31,3 +31,11 @@ Files may be made available to security researchers and your submissions may be 
 - `mode` (string, optional): For local files only. `auto` = hash lookup first, upload if unknown. `hash` = only calculate hashes and look them up. `upload` = force file upload.
 
 Provide either `resource` or `file_path`.
+
+### Behavior
+- `resource` uses VirusTotal object/report endpoints:
+  - file hash -> file report
+  - domain -> domain report
+  - IP -> IP report
+  - URL -> URL report, with URL submission fallback if VirusTotal has not seen it yet
+- `file_path` can hash a local file and optionally upload it to VirusTotal.

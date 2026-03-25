@@ -5,6 +5,7 @@
   "parameters": {
     "resource": "The URL, domain, IP address, or file hash (MD5/SHA1/SHA256) to scan",
     "file_path": "Optional local file path to hash or upload to VirusTotal",
+    "path": "Optional alias for file_path",
     "mode": "Optional scan mode for local files: auto, hash, or upload"
   },
   "returns": "Scan results showing detection ratio and vendor results from VirusTotal"
