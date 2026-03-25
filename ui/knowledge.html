@@ -133,7 +133,7 @@
                             <th data-i18n="knowledge.devices_col_type">Type</th>
                             <th data-i18n="knowledge.devices_col_ip">IP</th>
                             <th data-i18n="knowledge.devices_col_port">Port</th>
-                            <th data-i18n="knowledge.devices_col_user">User</th>
+                            <th data-i18n="knowledge.devices_col_access">Access</th>
                             <th data-i18n="knowledge.devices_col_mac">MAC</th>
                             <th data-i18n="knowledge.devices_col_tags">Tags</th>
                             <th data-i18n="knowledge.col_actions">Actions</th>
@@ -230,8 +230,8 @@
                     <input type="text" id="device-ip" maxlength="200" placeholder="192.168.1.100">
                 </div>
                 <div class="form-group">
-                    <label data-i18n="knowledge.devices_username">Username</label>
-                    <input type="text" id="device-username" maxlength="200" placeholder="root">
+                    <label data-i18n="knowledge.devices_access_label">Access Credential</label>
+                    <select id="device-credential"></select>
                 </div>
             </div>
             <div class="form-group">
@@ -248,10 +248,6 @@
                 <label>Tags <small class="form-hint" data-i18n="knowledge.devices_tags_hint">(comma-separated)</small></label>
                 <input type="text" id="device-tags" maxlength="500"
                     placeholder="e.g. production, linux, docker" data-i18n-placeholder="knowledge.devices_tags_placeholder">
-            </div>
-            <div class="form-group">
-                <label>Vault Secret ID <small class="form-hint" data-i18n="knowledge.devices_vault_read_only">(read-only)</small></label>
-                <input type="text" id="device-vault" disabled style="opacity:0.6;">
             </div>
             <div class="modal-actions">
                 <button class="btn btn-secondary" onclick="closeModal('device-modal')" data-i18n="common.btn_cancel">Cancel</button>

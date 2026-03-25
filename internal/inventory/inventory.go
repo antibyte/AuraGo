@@ -20,6 +20,7 @@ type DeviceRecord struct {
 	Port          int      `json:"port"`
 	Username      string   `json:"username"`
 	VaultSecretID string   `json:"vault_secret_id"`
+	CredentialID  string   `json:"credential_id"`
 	Description   string   `json:"description"`
 	Tags          []string `json:"tags"`
 	MACAddress    string   `json:"mac_address,omitempty"` // Optional – required for Wake-on-LAN
@@ -42,6 +43,7 @@ func InitDB(dbPath string) (*sql.DB, error) {
 		port INTEGER NOT NULL,
 		username TEXT,
 		vault_secret_id TEXT,
+		credential_id TEXT,
 		description TEXT,
 		tags TEXT,
 		mac_address TEXT
@@ -59,6 +61,14 @@ func InitDB(dbPath string) (*sql.DB, error) {
 		if _, err := db.Exec("ALTER TABLE devices ADD COLUMN mac_address TEXT"); err != nil {
 			db.Close()
 			return nil, fmt.Errorf("failed to add mac_address column: %w", err)
+		}
+	}
+	var hasCredentialCol bool
+	_ = db.QueryRow("SELECT count(*) > 0 FROM pragma_table_info('devices') WHERE name='credential_id'").Scan(&hasCredentialCol)
+	if !hasCredentialCol {
+		if _, err := db.Exec("ALTER TABLE devices ADD COLUMN credential_id TEXT"); err != nil {
+			db.Close()
+			return nil, fmt.Errorf("failed to add credential_id column: %w", err)
 		}
 	}
 
@@ -95,7 +105,7 @@ func InitDB(dbPath string) (*sql.DB, error) {
 	}
 
 	// Set user_version so backup/restore can detect schema generation.
-	const inventorySchemaVersion = 1
+	const inventorySchemaVersion = 2
 	var currentVer int
 	_ = db.QueryRow("PRAGMA user_version").Scan(&currentVer)
 	if currentVer != inventorySchemaVersion {
@@ -106,7 +116,7 @@ func InitDB(dbPath string) (*sql.DB, error) {
 }
 
 // CreateDevice generates a new UUID and adds a device record to the database.
-func CreateDevice(db *sql.DB, name, deviceType, ipAddress string, port int, username, vaultSecretID, description string, tags []string, macAddress string) (string, error) {
+func CreateDevice(db *sql.DB, name, deviceType, ipAddress string, port int, username, vaultSecretID, credentialID, description string, tags []string, macAddress string) (string, error) {
 	id := uuid.New().String()
 	d := DeviceRecord{
 		ID:            id,
@@ -116,6 +126,7 @@ func CreateDevice(db *sql.DB, name, deviceType, ipAddress string, port int, user
 		Port:          port,
 		Username:      username,
 		VaultSecretID: vaultSecretID,
+		CredentialID:  credentialID,
 		Description:   description,
 		Tags:          tags,
 		MACAddress:    macAddress,
@@ -135,8 +146,8 @@ func AddDevice(db *sql.DB, d DeviceRecord) error {
 		return fmt.Errorf("failed to marshal tags: %w", err)
 	}
 
-	query := `INSERT INTO devices (id, name, type, ip_address, port, username, vault_secret_id, description, tags, mac_address) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-	_, err = db.Exec(query, d.ID, d.Name, d.Type, d.IPAddress, d.Port, d.Username, d.VaultSecretID, d.Description, string(tagsJSON), d.MACAddress)
+	query := `INSERT INTO devices (id, name, type, ip_address, port, username, vault_secret_id, credential_id, description, tags, mac_address) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	_, err = db.Exec(query, d.ID, d.Name, d.Type, d.IPAddress, d.Port, d.Username, d.VaultSecretID, d.CredentialID, d.Description, string(tagsJSON), d.MACAddress)
 	if err != nil {
 		return fmt.Errorf("failed to add device: %w", err)
 	}
@@ -151,8 +162,8 @@ func UpdateDevice(db *sql.DB, d DeviceRecord) error {
 		return fmt.Errorf("failed to marshal tags: %w", err)
 	}
 
-	query := `UPDATE devices SET name=?, type=?, ip_address=?, port=?, username=?, vault_secret_id=?, description=?, tags=?, mac_address=? WHERE id=?`
-	res, err := db.Exec(query, d.Name, d.Type, d.IPAddress, d.Port, d.Username, d.VaultSecretID, d.Description, string(tagsJSON), d.MACAddress, d.ID)
+	query := `UPDATE devices SET name=?, type=?, ip_address=?, port=?, username=?, vault_secret_id=?, credential_id=?, description=?, tags=?, mac_address=? WHERE id=?`
+	res, err := db.Exec(query, d.Name, d.Type, d.IPAddress, d.Port, d.Username, d.VaultSecretID, d.CredentialID, d.Description, string(tagsJSON), d.MACAddress, d.ID)
 	if err != nil {
 		return fmt.Errorf("failed to update device: %w", err)
 	}
@@ -206,7 +217,7 @@ func DeleteDevice(db *sql.DB, id string) error {
 
 // ListAllDevices returns all device records in the database.
 func ListAllDevices(db *sql.DB) ([]DeviceRecord, error) {
-	rows, err := db.Query(`SELECT id, name, type, ip_address, port, username, vault_secret_id, description, tags, COALESCE(mac_address,'') FROM devices`)
+	rows, err := db.Query(`SELECT id, name, type, ip_address, port, username, vault_secret_id, COALESCE(credential_id,''), description, tags, COALESCE(mac_address,'') FROM devices`)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list devices: %w", err)
 	}
@@ -245,8 +256,8 @@ func GetDeviceByID(db *sql.DB, id string) (DeviceRecord, error) {
 	var descNull sql.NullString
 	var macNull sql.NullString
 
-	query := `SELECT id, name, type, ip_address, port, username, vault_secret_id, description, tags, COALESCE(mac_address,'') FROM devices WHERE id = ?`
-	err := db.QueryRow(query, id).Scan(&d.ID, &d.Name, &d.Type, &ipNull, &d.Port, &userNull, &secretNull, &descNull, &tagsJSON, &macNull)
+	query := `SELECT id, name, type, ip_address, port, username, vault_secret_id, COALESCE(credential_id,''), description, tags, COALESCE(mac_address,'') FROM devices WHERE id = ?`
+	err := db.QueryRow(query, id).Scan(&d.ID, &d.Name, &d.Type, &ipNull, &d.Port, &userNull, &secretNull, &d.CredentialID, &descNull, &tagsJSON, &macNull)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return DeviceRecord{}, fmt.Errorf("device not found: %s", id)
@@ -279,7 +290,7 @@ func GetDeviceByID(db *sql.DB, id string) (DeviceRecord, error) {
 // ListDevicesByTag returns all devices that have the specified tag.
 func ListDevicesByTag(db *sql.DB, tag string) ([]DeviceRecord, error) {
 	query := `
-	SELECT d.id, d.name, d.type, d.ip_address, d.port, d.username, d.vault_secret_id, d.description, d.tags, COALESCE(d.mac_address,'')
+	SELECT d.id, d.name, d.type, d.ip_address, d.port, d.username, d.vault_secret_id, COALESCE(d.credential_id,''), d.description, d.tags, COALESCE(d.mac_address,'')
 	FROM devices d, json_each(d.tags) as t
 	WHERE t.value = ?`
 
@@ -294,7 +305,7 @@ func ListDevicesByTag(db *sql.DB, tag string) ([]DeviceRecord, error) {
 
 // QueryDevices returns devices matching the optional tag, type, and/or name.
 func QueryDevices(db *sql.DB, tag, deviceType, name string) ([]DeviceRecord, error) {
-	query := `SELECT d.id, d.name, d.type, d.ip_address, d.port, d.username, d.vault_secret_id, d.description, d.tags, COALESCE(d.mac_address,'') FROM devices d`
+	query := `SELECT d.id, d.name, d.type, d.ip_address, d.port, d.username, d.vault_secret_id, COALESCE(d.credential_id,''), d.description, d.tags, COALESCE(d.mac_address,'') FROM devices d`
 	var conditions []string
 	var args []interface{}
 
@@ -337,7 +348,7 @@ func scanDevices(rows *sql.Rows) ([]DeviceRecord, error) {
 		var secretNull sql.NullString
 		var descNull sql.NullString
 		var macNull sql.NullString
-		if err := rows.Scan(&d.ID, &d.Name, &d.Type, &ipNull, &d.Port, &userNull, &secretNull, &descNull, &tagsJSON, &macNull); err != nil {
+		if err := rows.Scan(&d.ID, &d.Name, &d.Type, &ipNull, &d.Port, &userNull, &secretNull, &d.CredentialID, &descNull, &tagsJSON, &macNull); err != nil {
 			return nil, fmt.Errorf("failed to scan device row: %w", err)
 		}
 		if ipNull.Valid {

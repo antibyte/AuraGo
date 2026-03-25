@@ -16,6 +16,7 @@ import (
 
 	"aurago/internal/budget"
 	"aurago/internal/config"
+	"aurago/internal/credentials"
 	"aurago/internal/inventory"
 	"aurago/internal/llm"
 	"aurago/internal/memory"
@@ -1208,13 +1209,13 @@ func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 		if err != nil {
 			return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Device not found: %v"}`, err)
 		}
-		secret, err := vault.ReadSecret(device.VaultSecretID)
+		access, err := resolveDeviceSSHAccess(device, inventoryDB, vault)
 		if err != nil {
-			return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Failed to fetch secret: %v"}`, err)
+			return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Failed to resolve SSH access: %v"}`, err)
 		}
 		rCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		defer cancel()
-		output, err := remote.ExecuteRemoteCommand(rCtx, device.Name, device.Port, device.Username, []byte(secret), tc.Command)
+		output, err := remote.ExecuteRemoteCommand(rCtx, access.Host, access.Port, access.Username, access.Secret, tc.Command)
 		if err != nil {
 			safeOutput, mErr := json.Marshal(output)
 			if mErr != nil {
@@ -1250,13 +1251,13 @@ func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 		if err != nil {
 			return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Device not found: %v"}`, err)
 		}
-		secret, err := vault.ReadSecret(device.VaultSecretID)
+		access, err := resolveDeviceSSHAccess(device, inventoryDB, vault)
 		if err != nil {
-			return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Failed to fetch secret: %v"}`, err)
+			return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Failed to resolve SSH access: %v"}`, err)
 		}
 		rCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
 		defer cancel()
-		err = remote.TransferFile(rCtx, device.Name, device.Port, device.Username, []byte(secret), absLocal, tc.RemotePath, tc.Direction)
+		err = remote.TransferFile(rCtx, access.Host, access.Port, access.Username, access.Secret, absLocal, tc.RemotePath, tc.Direction)
 		if err != nil {
 			return fmt.Sprintf(`Tool Output: {"status": "error", "message": "File transfer failed: %v"}`, err)
 		}
@@ -1347,6 +1348,72 @@ func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 	default:
 		return dispatchNotHandled
 	}
+}
+
+type resolvedDeviceSSHAccess struct {
+	Host     string
+	Port     int
+	Username string
+	Secret   []byte
+}
+
+func resolveDeviceSSHAccess(device inventory.DeviceRecord, inventoryDB *sql.DB, vault *security.Vault) (resolvedDeviceSSHAccess, error) {
+	host := strings.TrimSpace(device.IPAddress)
+	if host == "" {
+		host = strings.TrimSpace(device.Name)
+	}
+	username := strings.TrimSpace(device.Username)
+	port := device.Port
+	if port <= 0 {
+		port = 22
+	}
+	secretID := strings.TrimSpace(device.VaultSecretID)
+
+	if strings.TrimSpace(device.CredentialID) != "" {
+		cred, err := credentials.GetByID(inventoryDB, device.CredentialID)
+		if err != nil {
+			return resolvedDeviceSSHAccess{}, fmt.Errorf("linked credential %q could not be loaded: %w", device.CredentialID, err)
+		}
+		if strings.TrimSpace(cred.Host) != "" {
+			host = strings.TrimSpace(cred.Host)
+		}
+		if strings.TrimSpace(cred.Username) != "" {
+			username = strings.TrimSpace(cred.Username)
+		}
+		switch {
+		case strings.TrimSpace(cred.CertificateVaultID) != "":
+			secretID = strings.TrimSpace(cred.CertificateVaultID)
+		case strings.TrimSpace(cred.PasswordVaultID) != "":
+			secretID = strings.TrimSpace(cred.PasswordVaultID)
+		default:
+			return resolvedDeviceSSHAccess{}, fmt.Errorf("linked credential %q has neither password nor certificate stored in the vault", cred.Name)
+		}
+	}
+
+	if host == "" {
+		return resolvedDeviceSSHAccess{}, fmt.Errorf("device host is missing")
+	}
+	if username == "" {
+		return resolvedDeviceSSHAccess{}, fmt.Errorf("SSH username is missing")
+	}
+	if secretID == "" {
+		return resolvedDeviceSSHAccess{}, fmt.Errorf("SSH secret is missing")
+	}
+	if vault == nil {
+		return resolvedDeviceSSHAccess{}, fmt.Errorf("vault is not available")
+	}
+
+	secret, err := vault.ReadSecret(secretID)
+	if err != nil {
+		return resolvedDeviceSSHAccess{}, fmt.Errorf("read vault secret %q: %w", secretID, err)
+	}
+
+	return resolvedDeviceSSHAccess{
+		Host:     host,
+		Port:     port,
+		Username: username,
+		Secret:   []byte(secret),
+	}, nil
 }
 
 // isBlockedEnvRead returns true if the shell command appears to read an AURAGO_*

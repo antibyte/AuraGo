@@ -367,7 +367,15 @@ function renderDevices() {
     const q = (document.getElementById('devices-search')?.value || '').toLowerCase();
 
     const filtered = q ? allDevices.filter(d => {
-        const hay = [d.name, d.type, d.ip_address, d.username, d.description, d.mac_address, ...(d.tags || [])].join(' ').toLowerCase();
+        const hay = [
+            d.name,
+            d.type,
+            d.ip_address,
+            getDeviceAccessSearchText(d),
+            d.description,
+            d.mac_address,
+            ...(d.tags || [])
+        ].join(' ').toLowerCase();
         return hay.includes(q);
     }) : allDevices;
 
@@ -390,7 +398,7 @@ function renderDevices() {
             <td><span class="kc-type-badge">${esc(d.type)}</span></td>
             <td class="kc-mono">${esc(d.ip_address || '—')}</td>
             <td>${d.port || '—'}</td>
-            <td>${esc(d.username || '—')}</td>
+            <td>${esc(getDeviceAccessLabel(d))}</td>
             <td class="kc-mono kc-size">${esc(d.mac_address || '—')}</td>
             <td>${tags}</td>
             <td class="kc-actions">
@@ -410,11 +418,10 @@ function openDeviceModal(device) {
     document.getElementById('device-type').value = device ? (device.type || 'server') : 'server';
     document.getElementById('device-ip').value = device ? device.ip_address : '';
     document.getElementById('device-port').value = device ? (device.port || 22) : 22;
-    document.getElementById('device-username').value = device ? device.username : '';
     document.getElementById('device-description').value = device ? device.description : '';
     document.getElementById('device-mac').value = device ? device.mac_address : '';
     document.getElementById('device-tags').value = device ? (device.tags || []).join(', ') : '';
-    document.getElementById('device-vault').value = device ? (device.vault_secret_id || '') : '';
+    document.getElementById('device-credential').innerHTML = renderDeviceCredentialOptions(device ? (device.credential_id || '') : '');
 
     title.textContent = device ? t('knowledge.devices_edit') : t('knowledge.devices_add');
     modal.classList.add('active');
@@ -440,11 +447,10 @@ async function saveDevice() {
         type: document.getElementById('device-type').value,
         ip_address: document.getElementById('device-ip').value.trim(),
         port: parseInt(document.getElementById('device-port').value) || 22,
-        username: document.getElementById('device-username').value.trim(),
+        credential_id: document.getElementById('device-credential').value || '',
         description: document.getElementById('device-description').value.trim(),
         mac_address: document.getElementById('device-mac').value.trim(),
-        tags: tags,
-        vault_secret_id: document.getElementById('device-vault').value || ''
+        tags: tags
     };
 
     const id = document.getElementById('device-id').value;
@@ -494,10 +500,52 @@ async function loadCredentials() {
         if (!resp.ok) throw new Error(await resp.text());
         allCredentials = await resp.json() || [];
         renderCredentials();
+        renderDevices();
     } catch (e) {
         console.error('Failed to load credentials:', e);
         showToast(t('common.error') + ': ' + e.message, 'error');
     }
+}
+
+function getCredentialById(id) {
+    return allCredentials.find(c => c.id === id) || null;
+}
+
+function getCredentialOptionLabel(credential) {
+    if (!credential) return t('knowledge.devices_access_none');
+    const details = [credential.username, credential.host].filter(Boolean).join('@');
+    return details ? `${credential.name} - ${details}` : credential.name;
+}
+
+function renderDeviceCredentialOptions(selectedId) {
+    const options = [
+        `<option value="">${esc(t('knowledge.devices_access_placeholder'))}</option>`
+    ];
+    allCredentials.forEach(credential => {
+        const selected = credential.id === selectedId ? ' selected' : '';
+        options.push(`<option value="${escAttr(credential.id)}"${selected}>${esc(getCredentialOptionLabel(credential))}</option>`);
+    });
+    return options.join('');
+}
+
+function getDeviceAccessLabel(device) {
+    if (!device || !device.credential_id) {
+        return t('knowledge.devices_access_none');
+    }
+    const credential = getCredentialById(device.credential_id);
+    if (!credential) {
+        return t('knowledge.devices_access_missing');
+    }
+    return credential.name;
+}
+
+function getDeviceAccessSearchText(device) {
+    if (!device) return '';
+    const credential = getCredentialById(device.credential_id);
+    if (!credential) {
+        return '';
+    }
+    return [credential.name, credential.host, credential.username, credential.description].join(' ');
 }
 
 function filterCredentials() {

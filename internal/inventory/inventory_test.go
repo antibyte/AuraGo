@@ -22,6 +22,7 @@ func TestInventory(t *testing.T) {
 		Port:          80,
 		Username:      "admin",
 		VaultSecretID: "vault/web-01",
+		CredentialID:  "cred-1",
 		Tags:          []string{"production", "web"},
 	}
 
@@ -38,6 +39,9 @@ func TestInventory(t *testing.T) {
 	}
 	if retrieved.Name != "web-01" {
 		t.Errorf("Expected name web-01, got %s", retrieved.Name)
+	}
+	if retrieved.CredentialID != "cred-1" {
+		t.Errorf("Expected credential_id cred-1, got %s", retrieved.CredentialID)
 	}
 	if len(retrieved.Tags) != 2 || retrieved.Tags[0] != "production" {
 		t.Errorf("Tags mismatch: %v", retrieved.Tags)

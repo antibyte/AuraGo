@@ -99,5 +99,10 @@
   "knowledge.credentials_delete_confirm": "Möchtest du die Zugangsdaten \"{name}\" wirklich löschen?",
   "knowledge.credentials_state_present": "Gespeichert",
   "knowledge.credentials_state_missing": "Fehlt",
-  "knowledge.credentials_description": "Beschreibung"
+  "knowledge.credentials_description": "Beschreibung",
+  "knowledge.devices_col_access": "Zugang",
+  "knowledge.devices_access_label": "Zugangsdaten",
+  "knowledge.devices_access_placeholder": "Zugangsdaten auswählen...",
+  "knowledge.devices_access_none": "Kein Verweis",
+  "knowledge.devices_access_missing": "Verknüpfter Eintrag fehlt"
 }

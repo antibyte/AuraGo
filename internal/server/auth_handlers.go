@@ -202,7 +202,7 @@ func handleAuthLogin(s *Server) http.HandlerFunc {
 // purge its cache for this origin so the back button cannot reveal old pages.
 func handleAuthLogout(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		ClearSessionCookie(w)
+		ClearSessionCookie(w, r)
 		// Discard cached page content so the back button cannot reveal old pages.
 		// Only "cache" is cleared here — the cookie is already expired via Set-Cookie MaxAge:-1
 		// above. Including "cookies" here can cause a race where the browser forwards the old

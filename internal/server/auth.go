@@ -170,15 +170,22 @@ func SetSessionCookie(w http.ResponseWriter, r *http.Request, secret string, tim
 }
 
 // ClearSessionCookie expires the session cookie immediately.
-func ClearSessionCookie(w http.ResponseWriter) {
-	http.SetCookie(w, &http.Cookie{
+// The cookie attributes must match the login cookie closely enough for browsers
+// to actually delete it, especially for HTTPS sessions.
+func ClearSessionCookie(w http.ResponseWriter, r *http.Request) {
+	cookie := &http.Cookie{
 		Name:     sessionCookieName,
 		Value:    "",
 		Path:     "/",
 		MaxAge:   -1,
+		Expires:  time.Unix(0, 0),
 		HttpOnly: true,
 		SameSite: http.SameSiteStrictMode,
-	})
+	}
+	if IsSecureRequest(r) {
+		cookie.Secure = true
+	}
+	http.SetCookie(w, cookie)
 }
 
 // IsAuthenticated returns true if the request carries a valid session cookie.

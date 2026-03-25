@@ -99,5 +99,10 @@
   "knowledge.credentials_delete_confirm": "Are you sure you want to delete the access credential \"{name}\"?",
   "knowledge.credentials_state_present": "Stored",
   "knowledge.credentials_state_missing": "Missing",
-  "knowledge.credentials_description": "Description"
+  "knowledge.credentials_description": "Description",
+  "knowledge.devices_col_access": "Access",
+  "knowledge.devices_access_label": "Access Credential",
+  "knowledge.devices_access_placeholder": "Select access credential...",
+  "knowledge.devices_access_none": "No reference",
+  "knowledge.devices_access_missing": "Linked entry missing"
 }

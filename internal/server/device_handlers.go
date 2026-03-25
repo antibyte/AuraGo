@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 
+	"aurago/internal/credentials"
 	"aurago/internal/inventory"
 )
 
@@ -94,8 +95,16 @@ func handleCreateDevice(s *Server) http.HandlerFunc {
 		if req.Tags == nil {
 			req.Tags = []string{}
 		}
+		if strings.TrimSpace(req.CredentialID) != "" {
+			if _, err := credentials.GetByID(s.InventoryDB, req.CredentialID); err != nil {
+				http.Error(w, `{"error":"linked credential not found"}`, http.StatusBadRequest)
+				return
+			}
+			req.Username = ""
+			req.VaultSecretID = ""
+		}
 
-		id, err := inventory.CreateDevice(s.InventoryDB, req.Name, req.Type, req.IPAddress, req.Port, req.Username, req.VaultSecretID, req.Description, req.Tags, req.MACAddress)
+		id, err := inventory.CreateDevice(s.InventoryDB, req.Name, req.Type, req.IPAddress, req.Port, req.Username, req.VaultSecretID, req.CredentialID, req.Description, req.Tags, req.MACAddress)
 		if err != nil {
 			http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusInternalServerError)
 			return
@@ -140,6 +149,28 @@ func handleUpdateDevice(s *Server) http.HandlerFunc {
 		}
 		if req.Tags == nil {
 			req.Tags = []string{}
+		}
+		existing, err := inventory.GetDeviceByID(s.InventoryDB, id)
+		if err != nil {
+			if strings.Contains(err.Error(), "not found") {
+				http.Error(w, `{"error":"device not found"}`, http.StatusNotFound)
+			} else {
+				http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusInternalServerError)
+			}
+			return
+		}
+		if strings.TrimSpace(req.CredentialID) != "" {
+			if _, err := credentials.GetByID(s.InventoryDB, req.CredentialID); err != nil {
+				http.Error(w, `{"error":"linked credential not found"}`, http.StatusBadRequest)
+				return
+			}
+			req.Username = ""
+			req.VaultSecretID = ""
+		} else if existing.CredentialID == "" {
+			// Preserve legacy inline access data for older device entries until they
+			// are explicitly migrated to a credential reference.
+			req.Username = existing.Username
+			req.VaultSecretID = existing.VaultSecretID
 		}
 
 		if err := inventory.UpdateDevice(s.InventoryDB, req); err != nil {

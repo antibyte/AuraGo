@@ -39,7 +39,7 @@ func RegisterDevice(db *sql.DB, v *security.Vault, name string, deviceType strin
 	}
 
 	// Store in Inventory DB
-	id, err := inventory.CreateDevice(db, name, deviceType, ipAddress, port, username, vaultSecretID, description, tags, macAddress)
+	id, err := inventory.CreateDevice(db, name, deviceType, ipAddress, port, username, vaultSecretID, "", description, tags, macAddress)
 	if err != nil {
 		return "", fmt.Errorf("failed to create device record: %w", err)
 	}
