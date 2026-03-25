@@ -40,6 +40,8 @@
                 onclick="switchKCTab('files')" data-i18n="knowledge.tab_files">📂 Knowledge Files</button>
             <button class="kc-tab" id="tab-devices" role="tab" aria-selected="false"
                 onclick="switchKCTab('devices')" data-i18n="knowledge.tab_devices">📱 Devices</button>
+            <button class="kc-tab" id="tab-credentials" role="tab" aria-selected="false"
+                onclick="switchKCTab('credentials')" data-i18n="knowledge.tab_credentials">🔑 Access Credentials</button>
             <button class="kc-tab" id="tab-secrets" role="tab" aria-selected="false"
                 onclick="switchKCTab('secrets')" data-i18n="knowledge.tab_secrets">🔐 Secrets</button>
         </div>
@@ -144,6 +146,41 @@
                 <div class="empty-icon">📱</div>
                 <h3 data-i18n="knowledge.devices_empty_title">No Devices Registered</h3>
                 <p data-i18n="knowledge.devices_empty_desc">Add devices to your device registry.</p>
+            </div>
+        </div>
+
+        <!-- ═══════ CREDENTIALS PANEL ═══════ -->
+        <div id="panel-credentials" class="kc-panel">
+            <div class="kc-panel-header">
+                <div class="kc-search-row">
+                    <input type="text" id="credentials-search" class="kc-search"
+                        placeholder="Filter access credentials..." data-i18n-placeholder="knowledge.credentials_search_placeholder"
+                        oninput="filterCredentials()">
+                    <button class="btn btn-primary" onclick="openCredentialModal()">
+                        <span>+</span> <span data-i18n="knowledge.credentials_add">Add Access Credential</span>
+                    </button>
+                </div>
+            </div>
+            <div class="kc-table-wrap">
+                <table class="kc-table" id="credentials-table">
+                    <thead>
+                        <tr>
+                            <th data-i18n="knowledge.credentials_col_name">Name</th>
+                            <th data-i18n="knowledge.credentials_col_type">Type</th>
+                            <th data-i18n="knowledge.credentials_col_host">Host / IP</th>
+                            <th data-i18n="knowledge.credentials_col_username">Username</th>
+                            <th data-i18n="knowledge.credentials_col_password">Password</th>
+                            <th data-i18n="knowledge.credentials_col_certificate">Certificate</th>
+                            <th data-i18n="knowledge.col_actions">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="credentials-tbody"></tbody>
+                </table>
+            </div>
+            <div class="empty-state is-hidden" id="credentials-empty">
+                <div class="empty-icon">🔑</div>
+                <h3 data-i18n="knowledge.credentials_empty_title">No Access Credentials Yet</h3>
+                <p data-i18n="knowledge.credentials_empty_desc">Store SSH access data with vault-backed secrets.</p>
             </div>
         </div>
 
@@ -267,6 +304,75 @@
             <div class="modal-actions">
                 <button class="btn btn-secondary" onclick="closeModal('contact-modal')" data-i18n="common.btn_cancel">Cancel</button>
                 <button class="btn btn-primary" onclick="saveContact()" data-i18n="common.btn_save">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════ CREDENTIAL MODAL ═══════ -->
+    <div class="modal-overlay" id="credential-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="credential-modal-title" data-i18n="knowledge.credentials_add">Add Access Credential</h2>
+                <button class="modal-close" onclick="closeModal('credential-modal')">&times;</button>
+            </div>
+            <input type="hidden" id="credential-id">
+            <div class="form-group">
+                <label data-i18n="knowledge.credentials_col_name">Name</label>
+                <input type="text" id="credential-name" maxlength="200" required
+                    placeholder="e.g. Proxmox SSH" data-i18n-placeholder="knowledge.credentials_name_placeholder">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label data-i18n="knowledge.credentials_type_label">Type</label>
+                    <select id="credential-type">
+                        <option value="ssh" data-i18n="knowledge.credentials_type_ssh">SSH</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label data-i18n="knowledge.credentials_host_label">Host / IP</label>
+                    <input type="text" id="credential-host" maxlength="200"
+                        placeholder="192.168.1.50" data-i18n-placeholder="knowledge.credentials_host_placeholder">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label data-i18n="knowledge.credentials_username_label">Username</label>
+                    <input type="text" id="credential-username" maxlength="200"
+                        placeholder="root" data-i18n-placeholder="knowledge.credentials_username_placeholder">
+                </div>
+                <div class="form-group">
+                    <label data-i18n="knowledge.credentials_password_label">Password</label>
+                    <input type="password" id="credential-password" maxlength="1000"
+                        placeholder="Optional - stored only in vault" data-i18n-placeholder="knowledge.credentials_password_placeholder">
+                    <div class="kc-secret-state is-hidden" id="credential-password-state" data-i18n="knowledge.credentials_password_stored">Password already stored in vault.</div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label data-i18n="knowledge.credentials_certificate_mode_label">Certificate Input</label>
+                <select id="credential-certificate-mode" onchange="updateCredentialCertificateMode()">
+                    <option value="text" data-i18n="knowledge.credentials_certificate_mode_text">Paste as text</option>
+                    <option value="upload" data-i18n="knowledge.credentials_certificate_mode_upload">Upload file</option>
+                </select>
+            </div>
+            <div class="form-group" id="credential-certificate-text-group">
+                <label data-i18n="knowledge.credentials_certificate_label">Certificate</label>
+                <textarea id="credential-certificate-text" rows="5"
+                    placeholder="Paste PEM/private key/certificate text here..." data-i18n-placeholder="knowledge.credentials_certificate_text_placeholder"></textarea>
+            </div>
+            <div class="form-group is-hidden" id="credential-certificate-file-group">
+                <label data-i18n="knowledge.credentials_certificate_upload">Upload Certificate File</label>
+                <input type="file" id="credential-certificate-file" accept=".pem,.key,.pub,.crt,.cer,.txt" onchange="handleCredentialCertificateUpload(event)">
+                <div class="kc-upload-state" id="credential-certificate-file-state"></div>
+            </div>
+            <div class="kc-secret-state is-hidden" id="credential-certificate-state" data-i18n="knowledge.credentials_certificate_stored">Certificate already stored in vault.</div>
+            <div class="form-group">
+                <label data-i18n="knowledge.credentials_description">Description</label>
+                <input type="text" id="credential-description" maxlength="500"
+                    placeholder="Optional notes..." data-i18n-placeholder="knowledge.credentials_desc_placeholder">
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal('credential-modal')" data-i18n="common.btn_cancel">Cancel</button>
+                <button class="btn btn-primary" onclick="saveCredential()" data-i18n="common.btn_save">Save</button>
             </div>
         </div>
     </div>

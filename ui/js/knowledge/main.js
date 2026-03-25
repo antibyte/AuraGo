@@ -7,8 +7,10 @@
 let allContacts = [];
 let allFiles = [];
 let allDevices = [];
+let allCredentials = [];
 let contactSearchTimer = null;
 let previewResetTimer = null;
+let pendingCredentialCertificateText = '';
 
 // ═══════════════════════════════════════════════════════════════
 // INIT
@@ -17,6 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadContacts();
     loadFiles();
     loadDevices();
+    loadCredentials();
 });
 
 // ═══════════════════════════════════════════════════════════════
@@ -482,6 +485,172 @@ function askDeleteDevice(id, name) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// CREDENTIALS
+// ═══════════════════════════════════════════════════════════════
+
+async function loadCredentials() {
+    try {
+        const resp = await fetch('/api/credentials');
+        if (!resp.ok) throw new Error(await resp.text());
+        allCredentials = await resp.json() || [];
+        renderCredentials();
+    } catch (e) {
+        console.error('Failed to load credentials:', e);
+        showToast(t('common.error') + ': ' + e.message, 'error');
+    }
+}
+
+function filterCredentials() {
+    renderCredentials();
+}
+
+function renderCredentials() {
+    const tbody = document.getElementById('credentials-tbody');
+    const empty = document.getElementById('credentials-empty');
+    const tableWrap = tbody.closest('.kc-table-wrap');
+    const q = (document.getElementById('credentials-search')?.value || '').toLowerCase();
+
+    const filtered = q ? allCredentials.filter(c => {
+        const hay = [c.name, c.type, c.host, c.username, c.description].join(' ').toLowerCase();
+        return hay.includes(q);
+    }) : allCredentials;
+
+    if (!filtered.length) {
+        tbody.innerHTML = '';
+        tableWrap.classList.add('is-hidden');
+        empty.classList.remove('is-hidden');
+        return;
+    }
+    tableWrap.classList.remove('is-hidden');
+    empty.classList.add('is-hidden');
+
+    tbody.innerHTML = filtered.map(c => `
+        <tr>
+            <td class="kc-name">${esc(c.name)}</td>
+            <td><span class="kc-type-badge">${esc((c.type || 'ssh').toUpperCase())}</span></td>
+            <td class="kc-mono">${esc(c.host || '—')}</td>
+            <td>${esc(c.username || '—')}</td>
+            <td>${c.has_password ? '<span class="kc-state-chip kc-state-ok">' + esc(t('knowledge.credentials_state_present')) + '</span>' : '<span class="kc-state-chip">' + esc(t('knowledge.credentials_state_missing')) + '</span>'}</td>
+            <td>${c.has_certificate ? '<span class="kc-state-chip kc-state-ok">' + esc(t('knowledge.credentials_state_present')) + '</span>' : '<span class="kc-state-chip">' + esc(t('knowledge.credentials_state_missing')) + '</span>'}</td>
+            <td class="kc-actions">
+                <button class="btn btn-sm btn-secondary" onclick="editCredential('${esc(c.id)}')" title="${t('common.btn_edit')}">✏️</button>
+                <button class="btn btn-sm btn-danger" onclick="askDeleteCredential('${esc(c.id)}', '${esc(c.name)}')" title="${t('common.btn_delete')}">🗑️</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function openCredentialModal(credential) {
+    const modal = document.getElementById('credential-modal');
+    document.getElementById('credential-modal-title').textContent = credential ? t('knowledge.credentials_edit') : t('knowledge.credentials_add');
+    document.getElementById('credential-id').value = credential ? credential.id : '';
+    document.getElementById('credential-name').value = credential ? credential.name : '';
+    document.getElementById('credential-type').value = credential ? (credential.type || 'ssh') : 'ssh';
+    document.getElementById('credential-host').value = credential ? credential.host : '';
+    document.getElementById('credential-username').value = credential ? credential.username : '';
+    document.getElementById('credential-password').value = '';
+    document.getElementById('credential-description').value = credential ? (credential.description || '') : '';
+    document.getElementById('credential-certificate-mode').value = credential ? (credential.certificate_mode || 'text') : 'text';
+    document.getElementById('credential-certificate-text').value = '';
+    document.getElementById('credential-certificate-file').value = '';
+    document.getElementById('credential-certificate-file-state').textContent = '';
+    pendingCredentialCertificateText = '';
+
+    document.getElementById('credential-password-state').classList.toggle('is-hidden', !(credential && credential.has_password));
+    document.getElementById('credential-certificate-state').classList.toggle('is-hidden', !(credential && credential.has_certificate));
+
+    updateCredentialCertificateMode();
+    modal.classList.add('active');
+}
+
+function editCredential(id) {
+    const credential = allCredentials.find(x => x.id === id);
+    if (credential) openCredentialModal(credential);
+}
+
+function updateCredentialCertificateMode() {
+    const mode = document.getElementById('credential-certificate-mode').value;
+    document.getElementById('credential-certificate-text-group').classList.toggle('is-hidden', mode !== 'text');
+    document.getElementById('credential-certificate-file-group').classList.toggle('is-hidden', mode !== 'upload');
+}
+
+async function handleCredentialCertificateUpload(event) {
+    const file = event.target.files && event.target.files[0];
+    const state = document.getElementById('credential-certificate-file-state');
+    pendingCredentialCertificateText = '';
+    state.textContent = '';
+    if (!file) return;
+
+    try {
+        pendingCredentialCertificateText = await file.text();
+        state.textContent = t('knowledge.credentials_certificate_loaded').replace('{name}', file.name);
+    } catch (e) {
+        console.error('Failed to read certificate file:', e);
+        state.textContent = t('knowledge.credentials_certificate_load_failed');
+        showToast(t('common.error') + ': ' + e.message, 'error');
+    }
+}
+
+async function saveCredential() {
+    const name = document.getElementById('credential-name').value.trim();
+    const host = document.getElementById('credential-host').value.trim();
+    const username = document.getElementById('credential-username').value.trim();
+    if (!name) {
+        showToast(t('knowledge.credentials_name_required'), 'error');
+        return;
+    }
+    if (!host) {
+        showToast(t('knowledge.credentials_host_required'), 'error');
+        return;
+    }
+    if (!username) {
+        showToast(t('knowledge.credentials_username_required'), 'error');
+        return;
+    }
+
+    const mode = document.getElementById('credential-certificate-mode').value;
+    const data = {
+        name,
+        type: document.getElementById('credential-type').value || 'ssh',
+        host,
+        username,
+        description: document.getElementById('credential-description').value.trim(),
+        password: document.getElementById('credential-password').value,
+        certificate_mode: mode,
+        certificate_text: mode === 'upload'
+            ? pendingCredentialCertificateText
+            : document.getElementById('credential-certificate-text').value
+    };
+
+    const id = document.getElementById('credential-id').value;
+    try {
+        const resp = await fetch(id ? '/api/credentials/' + encodeURIComponent(id) : '/api/credentials', {
+            method: id ? 'PUT' : 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+        });
+        if (!resp.ok) {
+            const err = await resp.json().catch(() => ({}));
+            throw new Error(err.error || 'Request failed');
+        }
+        closeModal('credential-modal');
+        showToast(t('common.success'), 'success');
+        loadCredentials();
+    } catch (e) {
+        console.error('Save credential failed:', e);
+        showToast(t('common.error') + ': ' + e.message, 'error');
+    }
+}
+
+function askDeleteCredential(id, name) {
+    document.getElementById('delete-target-id').value = id;
+    document.getElementById('delete-target-type').value = 'credential';
+    document.getElementById('delete-confirm-text').textContent =
+        t('knowledge.credentials_delete_confirm').replace('{name}', name);
+    document.getElementById('delete-modal').classList.add('active');
+}
+
+// ═══════════════════════════════════════════════════════════════
 // DELETE CONFIRM
 // ═══════════════════════════════════════════════════════════════
 
@@ -495,6 +664,8 @@ async function confirmDelete() {
             resp = await fetch('/api/contacts/' + encodeURIComponent(id), { method: 'DELETE' });
         } else if (type === 'device') {
             resp = await fetch('/api/devices/' + encodeURIComponent(id), { method: 'DELETE' });
+        } else if (type === 'credential') {
+            resp = await fetch('/api/credentials/' + encodeURIComponent(id), { method: 'DELETE' });
         } else {
             resp = await fetch('/api/knowledge/' + encodeURIComponent(id), { method: 'DELETE' });
         }
@@ -506,6 +677,7 @@ async function confirmDelete() {
         showToast(t('common.success'), 'success');
         if (type === 'contact') loadContacts();
         else if (type === 'device') loadDevices();
+        else if (type === 'credential') loadCredentials();
         else loadFiles();
     } catch (e) {
         console.error('Delete failed:', e);

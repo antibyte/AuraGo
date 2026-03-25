@@ -234,6 +234,40 @@
     margin-bottom: 2px;
 }
 
+.kc-state-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    border: 1px solid var(--border-subtle);
+    background: var(--bg-glass);
+    color: var(--text-secondary);
+    font-size: 0.76rem;
+    white-space: nowrap;
+}
+
+.kc-state-ok {
+    color: var(--accent);
+    border-color: color-mix(in srgb, var(--accent) 28%, transparent);
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.kc-secret-state,
+.kc-upload-state {
+    margin-top: 0.45rem;
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+}
+
+.kc-secret-state {
+    padding: 0.6rem 0.8rem;
+    border: 1px dashed var(--border-subtle);
+    border-radius: 10px;
+    background: var(--bg-glass);
+    margin-bottom: 0.9rem;
+}
+
 /* Monospace cells (IP, MAC) */
 .kc-mono {
     font-family: monospace;
@@ -356,6 +390,13 @@
         display: none;
     }
 
+    #credentials-table th:nth-child(5),
+    #credentials-table td:nth-child(5),
+    #credentials-table th:nth-child(6),
+    #credentials-table td:nth-child(6) {
+        display: none;
+    }
+
     .kc-tab {
         padding: 8px 14px;
         font-size: 0.85rem;
@@ -375,6 +416,11 @@
     .kc-table th:nth-child(3),
     .kc-table td:nth-child(3) {
         display: none; /* Hide phone column on very small screens */
+    }
+
+    #credentials-table th:nth-child(2),
+    #credentials-table td:nth-child(2) {
+        display: none;
     }
 }
 

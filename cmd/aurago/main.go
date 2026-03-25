@@ -22,6 +22,7 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/contacts"
+	"aurago/internal/credentials"
 	"aurago/internal/invasion"
 	"aurago/internal/invasion/bridge"
 	"aurago/internal/inventory"
@@ -317,6 +318,10 @@ func main() {
 		os.Exit(1)
 	}
 	defer inventoryDB.Close()
+	if err := credentials.EnsureSchema(inventoryDB); err != nil {
+		appLog.Error("Failed to initialize Credentials schema", "error", err)
+		os.Exit(1)
+	}
 
 	// Invasion Control DB (nests & eggs) — always initialized so the UI works
 	// after binary updates even if the server's config.yaml predates the feature.

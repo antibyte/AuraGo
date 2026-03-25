@@ -394,6 +394,30 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 			}
 		})
 
+		// Credentials Registry (vault-backed access data)
+		mux.HandleFunc("/api/credentials", func(w http.ResponseWriter, r *http.Request) {
+			switch r.Method {
+			case http.MethodGet:
+				handleListCredentials(s)(w, r)
+			case http.MethodPost:
+				handleCreateCredential(s)(w, r)
+			default:
+				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			}
+		})
+		mux.HandleFunc("/api/credentials/", func(w http.ResponseWriter, r *http.Request) {
+			switch r.Method {
+			case http.MethodGet:
+				handleGetCredential(s)(w, r)
+			case http.MethodPut:
+				handleUpdateCredential(s)(w, r)
+			case http.MethodDelete:
+				handleDeleteCredential(s)(w, r)
+			default:
+				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			}
+		})
+
 		// Personality file management (create / read / delete .md files)
 		mux.HandleFunc("/api/config/personality-files", func(w http.ResponseWriter, r *http.Request) {
 			switch r.Method {

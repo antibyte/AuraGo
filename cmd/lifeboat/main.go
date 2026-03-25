@@ -20,6 +20,7 @@ import (
 
 	"aurago/internal/agent"
 	"aurago/internal/config"
+	"aurago/internal/credentials"
 	"aurago/internal/inventory"
 	"aurago/internal/llm"
 	"aurago/internal/logger"
@@ -199,6 +200,9 @@ func runOperation(cfg *config.Config, statePath, planPath string, l *slog.Logger
 		return fmt.Errorf("inventory init failed: %w", err)
 	}
 	defer inventoryDB.Close()
+	if err := credentials.EnsureSchema(inventoryDB); err != nil {
+		return fmt.Errorf("credentials schema init failed: %w", err)
+	}
 
 	// 2. Plan laden
 	planContent, err := os.ReadFile(planPath)
