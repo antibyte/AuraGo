@@ -324,6 +324,7 @@ function initLogoutLinks() {
         };
         link.addEventListener('click', handler);
         link.addEventListener('pointerup', handler);
+        link.addEventListener('touchend', handler, { passive: false });
     });
 }
 

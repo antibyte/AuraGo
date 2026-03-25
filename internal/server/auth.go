@@ -169,10 +169,7 @@ func SetSessionCookie(w http.ResponseWriter, r *http.Request, secret string, tim
 	http.SetCookie(w, cookie)
 }
 
-// ClearSessionCookie expires the session cookie immediately.
-// The cookie attributes must match the login cookie closely enough for browsers
-// to actually delete it, especially for HTTPS sessions.
-func ClearSessionCookie(w http.ResponseWriter, r *http.Request) {
+func clearSessionCookieVariant(w http.ResponseWriter, secure bool) {
 	cookie := &http.Cookie{
 		Name:     sessionCookieName,
 		Value:    "",
@@ -182,10 +179,18 @@ func ClearSessionCookie(w http.ResponseWriter, r *http.Request) {
 		HttpOnly: true,
 		SameSite: http.SameSiteStrictMode,
 	}
-	if IsSecureRequest(r) {
-		cookie.Secure = true
-	}
+	cookie.Secure = secure
 	http.SetCookie(w, cookie)
+}
+
+// ClearSessionCookie expires the session cookie immediately.
+// We expire both insecure and secure variants so logout remains reliable when
+// users switch between plain HTTP and HTTPS/Tailscale access on the same host.
+func ClearSessionCookie(w http.ResponseWriter, r *http.Request) {
+	clearSessionCookieVariant(w, false)
+	if IsSecureRequest(r) {
+		clearSessionCookieVariant(w, true)
+	}
 }
 
 // IsAuthenticated returns true if the request carries a valid session cookie.

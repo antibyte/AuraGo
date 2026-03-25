@@ -19,24 +19,32 @@ func TestClearSessionCookieIncludesSecureOnHTTPS(t *testing.T) {
 	defer res.Body.Close()
 
 	cookies := res.Cookies()
-	if len(cookies) != 1 {
-		t.Fatalf("expected exactly one cookie, got %d", len(cookies))
+	if len(cookies) != 2 {
+		t.Fatalf("expected two cookies for HTTPS logout, got %d", len(cookies))
 	}
-	c := cookies[0]
-	if c.Name != sessionCookieName {
-		t.Fatalf("expected cookie %q, got %q", sessionCookieName, c.Name)
+	var foundSecure bool
+	var foundInsecure bool
+	for _, c := range cookies {
+		if c.Name != sessionCookieName {
+			t.Fatalf("expected cookie %q, got %q", sessionCookieName, c.Name)
+		}
+		if c.Secure {
+			foundSecure = true
+		} else {
+			foundInsecure = true
+		}
+		if c.MaxAge != -1 {
+			t.Fatalf("expected MaxAge -1, got %d", c.MaxAge)
+		}
+		if c.Path != "/" {
+			t.Fatalf("expected path '/', got %q", c.Path)
+		}
+		if c.Expires.IsZero() {
+			t.Fatalf("expected explicit expiry in the past")
+		}
 	}
-	if !c.Secure {
-		t.Fatalf("expected secure cookie on HTTPS logout")
-	}
-	if c.MaxAge != -1 {
-		t.Fatalf("expected MaxAge -1, got %d", c.MaxAge)
-	}
-	if c.Path != "/" {
-		t.Fatalf("expected path '/', got %q", c.Path)
-	}
-	if c.Expires.IsZero() {
-		t.Fatalf("expected explicit expiry in the past")
+	if !foundSecure || !foundInsecure {
+		t.Fatalf("expected both secure and insecure logout cookies, got secure=%v insecure=%v", foundSecure, foundInsecure)
 	}
 }
 
@@ -49,9 +57,19 @@ func TestClearSessionCookieIncludesProxySecureAttribute(t *testing.T) {
 
 	ClearSessionCookie(rec, req)
 
-	header := rec.Header().Get("Set-Cookie")
-	if !strings.Contains(header, "Secure") {
-		t.Fatalf("expected secure flag in Set-Cookie header, got %q", header)
+	headers := rec.Header().Values("Set-Cookie")
+	if len(headers) != 2 {
+		t.Fatalf("expected two Set-Cookie headers, got %d", len(headers))
+	}
+	foundSecure := false
+	for _, header := range headers {
+		if strings.Contains(header, "Secure") {
+			foundSecure = true
+			break
+		}
+	}
+	if !foundSecure {
+		t.Fatalf("expected at least one secure Set-Cookie header, got %v", headers)
 	}
 }
 
