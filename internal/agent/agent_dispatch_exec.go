@@ -322,7 +322,10 @@ func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 
 		// ── Vector DB (long-term memory) ──
 		if sourceMap["vector_db"] && longTermMem != nil {
-			results, _, err := longTermMem.SearchSimilar(searchContent, perSourceLimit)
+			// query_memory should search actual long-term memories only.
+			// Tool guides and documentation are injected elsewhere in the agent loop
+			// and pollute direct user memory lookups for names/files like "Vincenzo".
+			results, _, err := longTermMem.SearchMemoriesOnly(searchContent, perSourceLimit)
 			if err != nil {
 				errors = append(errors, fmt.Sprintf("vector_db: %v", err))
 			} else if len(results) > 0 {
