@@ -164,6 +164,44 @@ func RunTool(name string, args []string, workspaceDir, toolsDir string) (string,
 	return stdout.String(), stderr.String(), err
 }
 
+// RunToolWithSecrets is like RunTool but injects vault secrets and credential secrets
+// as environment variables and scrubs secrets from the output.
+func RunToolWithSecrets(name string, args []string, workspaceDir, toolsDir string, secrets map[string]string, creds []CredentialFields) (string, string, error) {
+	if strings.ContainsAny(name, "/\\") || strings.Contains(name, "..") || name == "" {
+		return "", "", fmt.Errorf("invalid tool name: must be a simple filename without path separators")
+	}
+	toolPath := filepath.Join(toolsDir, name)
+	if _, err := os.Stat(toolPath); os.IsNotExist(err) {
+		return "", "", fmt.Errorf("tool '%s' not found in %s", name, toolsDir)
+	}
+
+	absToolPath, err := filepath.Abs(toolPath)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to resolve tool path: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), ForegroundTimeout)
+	defer cancel()
+
+	pythonCmd := GetPythonBin(workspaceDir)
+	cmdArgs := append([]string{absToolPath}, args...)
+	cmd := exec.CommandContext(ctx, pythonCmd, cmdArgs...)
+	cmd.Dir = getAbsWorkspace(workspaceDir)
+	InjectSecretsEnv(cmd, secrets)
+	InjectCredentialEnv(cmd, creds)
+
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	err = cmd.Run()
+	so, se := ScrubSecretOutput(stdout.String(), stderr.String())
+	if ctx.Err() == context.DeadlineExceeded {
+		return so, se, fmt.Errorf("TIMEOUT: tool '%s' exceeded %s limit and was killed", name, ForegroundTimeout)
+	}
+	return so, se, err
+}
+
 // RunToolBackground starts a saved tool in the background and registers it in the process registry.
 func RunToolBackground(name string, args []string, workspaceDir, toolsDir string, registry *ProcessRegistry) (int, error) {
 	if strings.ContainsAny(name, "/\\") || strings.Contains(name, "..") || name == "" {
@@ -185,6 +223,59 @@ func RunToolBackground(name string, args []string, workspaceDir, toolsDir string
 	cmd.Dir = getAbsWorkspace(workspaceDir)
 
 	slog.Debug("[RunToolBackground]", "cmd", pythonCmd, "args", cmd.Args)
+
+	info := &ProcessInfo{
+		Output:    &bytes.Buffer{},
+		StartedAt: time.Now(),
+		Alive:     true,
+	}
+	cmd.Stdout = info
+	cmd.Stderr = info
+
+	if err := cmd.Start(); err != nil {
+		return 0, fmt.Errorf("failed to start background tool: %w", err)
+	}
+
+	info.PID = cmd.Process.Pid
+	info.Process = cmd.Process
+	registry.Register(info)
+
+	go func() {
+		err := cmd.Wait()
+		info.mu.Lock()
+		info.Alive = false
+		if err != nil {
+			info.Output.WriteString(fmt.Sprintf("\n[process exited with error: %v]", err))
+		}
+		info.mu.Unlock()
+		registry.Remove(info.PID)
+	}()
+
+	return info.PID, nil
+}
+
+// RunToolBackgroundWithSecrets is like RunToolBackground but injects vault secrets
+// and credential secrets as environment variables. Output scrubbing happens at read_process_logs time.
+func RunToolBackgroundWithSecrets(name string, args []string, workspaceDir, toolsDir string, registry *ProcessRegistry, secrets map[string]string, creds []CredentialFields) (int, error) {
+	if strings.ContainsAny(name, "/\\") || strings.Contains(name, "..") || name == "" {
+		return 0, fmt.Errorf("invalid tool name: must be a simple filename without path separators")
+	}
+	toolPath := filepath.Join(toolsDir, name)
+	if _, err := os.Stat(toolPath); os.IsNotExist(err) {
+		return 0, fmt.Errorf("tool '%s' not found in %s", name, toolsDir)
+	}
+
+	absToolPath, err := filepath.Abs(toolPath)
+	if err != nil {
+		return 0, fmt.Errorf("failed to resolve tool path: %w", err)
+	}
+
+	pythonCmd := GetPythonBin(workspaceDir)
+	cmdArgs := append([]string{absToolPath}, args...)
+	cmd := exec.Command(pythonCmd, cmdArgs...)
+	cmd.Dir = getAbsWorkspace(workspaceDir)
+	InjectSecretsEnv(cmd, secrets)
+	InjectCredentialEnv(cmd, creds)
 
 	info := &ProcessInfo{
 		Output:    &bytes.Buffer{},
@@ -257,6 +348,48 @@ func ExecutePython(code, workspaceDir, toolsDir string) (string, string, error) 
 	}
 }
 
+// ExecutePythonWithSecrets is like ExecutePython but injects vault secrets and credential secrets
+// as environment variables and scrubs secrets from the output.
+func ExecutePythonWithSecrets(code, workspaceDir, toolsDir string, secrets map[string]string, creds []CredentialFields) (string, string, error) {
+	scriptPath, cleanup, err := writeScript(code, toolsDir)
+	if err != nil {
+		return "", "", err
+	}
+	defer cleanup()
+
+	pythonCmd := GetPythonBin(workspaceDir)
+	cmd := exec.Command(pythonCmd, scriptPath)
+	cmd.Dir = getAbsWorkspace(workspaceDir)
+	SetupCmd(cmd)
+	InjectSecretsEnv(cmd, secrets)
+	InjectCredentialEnv(cmd, creds)
+
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	if err := cmd.Start(); err != nil {
+		return "", "", err
+	}
+
+	done := make(chan error, 1)
+	go func() { done <- cmd.Wait() }()
+
+	timer := time.NewTimer(ForegroundTimeout)
+	defer timer.Stop()
+
+	select {
+	case err := <-done:
+		so, se := ScrubSecretOutput(stdout.String(), stderr.String())
+		return so, se, err
+	case <-timer.C:
+		KillProcessTree(cmd.Process.Pid)
+		<-done
+		so, se := ScrubSecretOutput(stdout.String(), stderr.String())
+		return so, se, fmt.Errorf("TIMEOUT: script exceeded %s limit and was killed", ForegroundTimeout)
+	}
+}
+
 // ExecutePythonBackground starts a Python script in the background,
 // registers it in the process registry, and returns the PID immediately.
 func ExecutePythonBackground(code, workspaceDir, toolsDir string, registry *ProcessRegistry) (int, error) {
@@ -300,6 +433,52 @@ func ExecutePythonBackground(code, workspaceDir, toolsDir string, registry *Proc
 		info.mu.Unlock()
 		registry.Remove(info.PID)
 		os.Remove(scriptPath) // Clean up script after process exits
+	}()
+
+	return info.PID, nil
+}
+
+// ExecutePythonBackgroundWithSecrets is like ExecutePythonBackground but injects vault secrets
+// and credential secrets as environment variables. Output scrubbing happens via ReadOutput + security.Scrub at read time.
+func ExecutePythonBackgroundWithSecrets(code, workspaceDir, toolsDir string, registry *ProcessRegistry, secrets map[string]string, creds []CredentialFields) (int, error) {
+	scriptPath, _, err := writeScript(code, toolsDir)
+	if err != nil {
+		return 0, err
+	}
+
+	pythonCmd := GetPythonBin(workspaceDir)
+	cmd := exec.Command(pythonCmd, scriptPath)
+	cmd.Dir = getAbsWorkspace(workspaceDir)
+	InjectSecretsEnv(cmd, secrets)
+	InjectCredentialEnv(cmd, creds)
+
+	info := &ProcessInfo{
+		Output:    &bytes.Buffer{},
+		StartedAt: time.Now(),
+		Alive:     true,
+	}
+	cmd.Stdout = info
+	cmd.Stderr = info
+
+	if err := cmd.Start(); err != nil {
+		os.Remove(scriptPath)
+		return 0, fmt.Errorf("failed to start background process: %w", err)
+	}
+
+	info.PID = cmd.Process.Pid
+	info.Process = cmd.Process
+	registry.Register(info)
+
+	go func() {
+		err := cmd.Wait()
+		info.mu.Lock()
+		info.Alive = false
+		if err != nil {
+			info.Output.WriteString(fmt.Sprintf("\n[process exited with error: %v]", err))
+		}
+		info.mu.Unlock()
+		registry.Remove(info.PID)
+		os.Remove(scriptPath)
 	}()
 
 	return info.PID, nil

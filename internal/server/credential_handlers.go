@@ -21,6 +21,8 @@ type credentialRequest struct {
 	CertificateMode string `json:"certificate_mode"`
 	Password        string `json:"password"`
 	CertificateText string `json:"certificate_text"`
+	Token           string `json:"token"`
+	AllowPython     bool   `json:"allow_python"`
 }
 
 func handleListCredentials(s *Server) http.HandlerFunc {
@@ -108,6 +110,7 @@ func handleCreateCredential(s *Server) http.HandlerFunc {
 			Username:        strings.TrimSpace(req.Username),
 			Description:     strings.TrimSpace(req.Description),
 			CertificateMode: strings.TrimSpace(req.CertificateMode),
+			AllowPython:     req.AllowPython,
 		}
 		if err := validateCredentialRequest(rec); err != nil {
 			http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusBadRequest)
@@ -116,6 +119,7 @@ func handleCreateCredential(s *Server) http.HandlerFunc {
 
 		password := strings.TrimSpace(req.Password)
 		certificate := strings.TrimSpace(req.CertificateText)
+		token := strings.TrimSpace(req.Token)
 		if password != "" {
 			rec.PasswordVaultID = "credential_password_" + uuid.NewString()
 			security.RegisterSensitive(password)
@@ -135,6 +139,20 @@ func handleCreateCredential(s *Server) http.HandlerFunc {
 				return
 			}
 		}
+		if token != "" {
+			rec.TokenVaultID = "credential_token_" + uuid.NewString()
+			security.RegisterSensitive(token)
+			if err := s.Vault.WriteSecret(rec.TokenVaultID, token); err != nil {
+				if rec.PasswordVaultID != "" {
+					_ = s.Vault.DeleteSecret(rec.PasswordVaultID)
+				}
+				if rec.CertificateVaultID != "" {
+					_ = s.Vault.DeleteSecret(rec.CertificateVaultID)
+				}
+				http.Error(w, `{"error":"failed to store token in vault"}`, http.StatusInternalServerError)
+				return
+			}
+		}
 
 		id, err := credentials.Create(s.InventoryDB, rec)
 		if err != nil {
@@ -143,6 +161,9 @@ func handleCreateCredential(s *Server) http.HandlerFunc {
 			}
 			if rec.CertificateVaultID != "" {
 				_ = s.Vault.DeleteSecret(rec.CertificateVaultID)
+			}
+			if rec.TokenVaultID != "" {
+				_ = s.Vault.DeleteSecret(rec.TokenVaultID)
 			}
 			http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusInternalServerError)
 			return
@@ -197,6 +218,7 @@ func handleUpdateCredential(s *Server) http.HandlerFunc {
 		existing.Username = strings.TrimSpace(req.Username)
 		existing.Description = strings.TrimSpace(req.Description)
 		existing.CertificateMode = strings.TrimSpace(req.CertificateMode)
+		existing.AllowPython = req.AllowPython
 		if err := validateCredentialRequest(existing); err != nil {
 			http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusBadRequest)
 			return
@@ -220,6 +242,17 @@ func handleUpdateCredential(s *Server) http.HandlerFunc {
 			security.RegisterSensitive(certificate)
 			if err := s.Vault.WriteSecret(existing.CertificateVaultID, certificate); err != nil {
 				http.Error(w, `{"error":"failed to store certificate in vault"}`, http.StatusInternalServerError)
+				return
+			}
+		}
+
+		if token := strings.TrimSpace(req.Token); token != "" {
+			if existing.TokenVaultID == "" {
+				existing.TokenVaultID = "credential_token_" + uuid.NewString()
+			}
+			security.RegisterSensitive(token)
+			if err := s.Vault.WriteSecret(existing.TokenVaultID, token); err != nil {
+				http.Error(w, `{"error":"failed to store token in vault"}`, http.StatusInternalServerError)
 				return
 			}
 		}
@@ -281,6 +314,9 @@ func handleDeleteCredential(s *Server) http.HandlerFunc {
 			if item.CertificateVaultID != "" {
 				_ = s.Vault.DeleteSecret(item.CertificateVaultID)
 			}
+			if item.TokenVaultID != "" {
+				_ = s.Vault.DeleteSecret(item.TokenVaultID)
+			}
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -292,14 +328,43 @@ func validateCredentialRequest(rec credentials.Record) error {
 	if strings.TrimSpace(rec.Name) == "" {
 		return fmt.Errorf("name is required")
 	}
-	if strings.TrimSpace(rec.Host) == "" {
-		return fmt.Errorf("host is required")
+	typ := strings.ToLower(strings.TrimSpace(rec.Type))
+	if typ == "" {
+		typ = "ssh"
+	}
+	if !credentials.ValidCredentialTypes[typ] {
+		return fmt.Errorf("unsupported credential type")
+	}
+	if typ == "ssh" && strings.TrimSpace(rec.Host) == "" {
+		return fmt.Errorf("host is required for SSH credentials")
 	}
 	if strings.TrimSpace(rec.Username) == "" {
 		return fmt.Errorf("username is required")
 	}
-	if strings.ToLower(strings.TrimSpace(rec.Type)) != "ssh" && strings.TrimSpace(rec.Type) != "" {
-		return fmt.Errorf("unsupported credential type")
-	}
 	return nil
+}
+
+func handleListPythonAccessibleCredentials(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if s.InventoryDB == nil {
+			http.Error(w, `{"error":"inventory database not configured"}`, http.StatusServiceUnavailable)
+			return
+		}
+
+		items, err := credentials.ListPythonAccessible(s.InventoryDB)
+		if err != nil {
+			http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusInternalServerError)
+			return
+		}
+		if items == nil {
+			items = []credentials.Record{}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(items)
+	}
 }

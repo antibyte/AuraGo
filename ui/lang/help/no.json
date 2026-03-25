@@ -254,6 +254,7 @@
   "help.tools.network_scan.enabled": "Aktiverer mDNS-nettverksskannings-verktøyet (mdns_scan). Oppdager enheter på det lokale nettverket via Bonjour/ZeroConf.",
   "help.tools.form_automation.enabled": "Aktiverer skjemaautomatiseringsverktøyet (form_automation). Bruker en headless Chromium-nettleser til å fylle ut og sende inn nettskjemaer. Krever tools.web_capture.enabled: true.",
   "help.tools.upnp_scan.enabled": "Aktiverer UPnP-skanneverktøyet (upnp_scan). Oppdager UPnP/SSDP-enheter på det lokale nettverket.",
+  "help.tools.python_secret_injection.enabled": "Tillater Python-verktøy (execute_python, execute_sandbox, execute_skill, run_tool) å be om vault-hemmeligheter via vault_keys-parameteren. Hemmeligheter injiseres som AURAGO_SECRET_&lt;KEY&gt;-miljøvariabler. Bare bruker- eller agentopprettede hemmeligheter er tilgjengelige — system- og integrasjonshemmeligheter er blokkert. Deaktivert som standard for sikkerhet.",
   "help.tts.elevenlabs.api_key": "API klic pro tts.",
   "help.tts.elevenlabs.model_id": "Model pro tts.",
   "help.tts.elevenlabs.voice_id": "ID pro tts.",

@@ -580,6 +580,7 @@ function renderCredentials() {
             <td>${esc(c.username || '—')}</td>
             <td>${c.has_password ? '<span class="kc-state-chip kc-state-ok">' + esc(t('knowledge.credentials_state_present')) + '</span>' : '<span class="kc-state-chip">' + esc(t('knowledge.credentials_state_missing')) + '</span>'}</td>
             <td>${c.has_certificate ? '<span class="kc-state-chip kc-state-ok">' + esc(t('knowledge.credentials_state_present')) + '</span>' : '<span class="kc-state-chip">' + esc(t('knowledge.credentials_state_missing')) + '</span>'}</td>
+            <td>${c.allow_python ? '<span class="kc-state-chip kc-state-ok">✓</span>' : '<span class="kc-state-chip">—</span>'}</td>
             <td class="kc-actions">
                 <button class="btn btn-sm btn-secondary" onclick="editCredential('${esc(c.id)}')" title="${t('common.btn_edit')}">✏️</button>
                 <button class="btn btn-sm btn-danger" onclick="askDeleteCredential('${esc(c.id)}', '${esc(c.name)}')" title="${t('common.btn_delete')}">🗑️</button>
@@ -597,17 +598,21 @@ function openCredentialModal(credential) {
     document.getElementById('credential-host').value = credential ? credential.host : '';
     document.getElementById('credential-username').value = credential ? credential.username : '';
     document.getElementById('credential-password').value = '';
+    document.getElementById('credential-token').value = '';
     document.getElementById('credential-description').value = credential ? (credential.description || '') : '';
     document.getElementById('credential-certificate-mode').value = credential ? (credential.certificate_mode || 'text') : 'text';
     document.getElementById('credential-certificate-text').value = '';
     document.getElementById('credential-certificate-file').value = '';
     document.getElementById('credential-certificate-file-state').textContent = '';
+    document.getElementById('credential-allow-python').checked = credential ? !!credential.allow_python : false;
     pendingCredentialCertificateText = '';
 
     document.getElementById('credential-password-state').classList.toggle('is-hidden', !(credential && credential.has_password));
     document.getElementById('credential-certificate-state').classList.toggle('is-hidden', !(credential && credential.has_certificate));
+    document.getElementById('credential-token-state').classList.toggle('is-hidden', !(credential && credential.has_token));
 
     updateCredentialCertificateMode();
+    updateCredentialTypeFields();
     modal.classList.add('active');
 }
 
@@ -620,6 +625,20 @@ function updateCredentialCertificateMode() {
     const mode = document.getElementById('credential-certificate-mode').value;
     document.getElementById('credential-certificate-text-group').classList.toggle('is-hidden', mode !== 'text');
     document.getElementById('credential-certificate-file-group').classList.toggle('is-hidden', mode !== 'upload');
+}
+
+function updateCredentialTypeFields() {
+    const type = document.getElementById('credential-type').value;
+    const isSSH = type === 'ssh';
+    const isToken = type === 'token';
+    // Certificate section: only for SSH
+    document.getElementById('credential-certificate-section').classList.toggle('is-hidden', !isSSH);
+    // Password group: for SSH and Login, hidden for Token
+    document.getElementById('credential-password-group').classList.toggle('is-hidden', isToken);
+    // Token group: only for Token type
+    document.getElementById('credential-token-group').classList.toggle('is-hidden', !isToken);
+    // Host hint: optional for Login and Token types
+    document.getElementById('credential-host-hint').classList.toggle('is-hidden', isSSH);
 }
 
 async function handleCredentialCertificateUpload(event) {
@@ -641,13 +660,14 @@ async function handleCredentialCertificateUpload(event) {
 
 async function saveCredential() {
     const name = document.getElementById('credential-name').value.trim();
+    const type = document.getElementById('credential-type').value || 'ssh';
     const host = document.getElementById('credential-host').value.trim();
     const username = document.getElementById('credential-username').value.trim();
     if (!name) {
         showToast(t('knowledge.credentials_name_required'), 'error');
         return;
     }
-    if (!host) {
+    if (type === 'ssh' && !host) {
         showToast(t('knowledge.credentials_host_required'), 'error');
         return;
     }
@@ -659,11 +679,13 @@ async function saveCredential() {
     const mode = document.getElementById('credential-certificate-mode').value;
     const data = {
         name,
-        type: document.getElementById('credential-type').value || 'ssh',
+        type,
         host,
         username,
         description: document.getElementById('credential-description').value.trim(),
         password: document.getElementById('credential-password').value,
+        token: document.getElementById('credential-token').value,
+        allow_python: document.getElementById('credential-allow-python').checked,
         certificate_mode: mode,
         certificate_text: mode === 'upload'
             ? pendingCredentialCertificateText

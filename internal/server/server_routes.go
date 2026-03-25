@@ -407,6 +407,9 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			}
 		})
+		mux.HandleFunc("/api/credentials/python-accessible", func(w http.ResponseWriter, r *http.Request) {
+			handleListPythonAccessibleCredentials(s)(w, r)
+		})
 		mux.HandleFunc("/api/credentials/", func(w http.ResponseWriter, r *http.Request) {
 			switch r.Method {
 			case http.MethodGet:

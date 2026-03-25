@@ -116,6 +116,8 @@ type ToolFeatureFlags struct {
 	TelnyxCallEnabled bool
 	// SQL Connections flag
 	SQLConnectionsEnabled bool
+	// Python secret injection
+	PythonSecretInjectionEnabled bool
 }
 
 // builtinToolSchemas returns schemas for all built-in AuraGo tools.
@@ -127,6 +129,26 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 		executePythonDesc = "Save and execute a Python script on the HOST system (unsandboxed). Use ONLY for persistent tools (save_tool), registered skills, or when execute_sandbox is unavailable. Prefer execute_sandbox for all other code execution."
 	}
 
+	execSkillProps := map[string]interface{}{
+		"skill": prop("string", "Name of the skill to execute (e.g. 'ddg_search', 'web_scraper', 'pdf_extractor', 'virustotal_scan')"),
+		"skill_args": map[string]interface{}{
+			"type":        "object",
+			"description": "Arguments to pass to the skill as key-value pairs",
+		},
+	}
+	if ff.PythonSecretInjectionEnabled {
+		execSkillProps["vault_keys"] = map[string]interface{}{
+			"type":        "array",
+			"description": "List of vault secret key names to inject as AURAGO_SECRET_<KEY> environment variables. Only user/agent-created secrets are accessible.",
+			"items":       map[string]interface{}{"type": "string"},
+		}
+		execSkillProps["credential_ids"] = map[string]interface{}{
+			"type":        "array",
+			"description": "List of credential UUIDs to inject as AURAGO_CRED_<NAME>_USERNAME / _PASSWORD / _TOKEN environment variables. Only credentials with 'allow_python' enabled are accessible.",
+			"items":       map[string]interface{}{"type": "string"},
+		}
+	}
+
 	tools := []openai.Tool{
 		tool("list_skills",
 			"List available pre-built skills and integrations that can be executed via execute_skill. Use this to discover capabilities like virustotal_scan, brave_search, pdf_extractor, wikipedia_search, or web_scraper.",
@@ -134,13 +156,7 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 		),
 		tool("execute_skill",
 			"Run a pre-built registered skill (e.g. web_search, ddg_search, pdf_extractor, wikipedia_search, virustotal_scan). Use for external data retrieval.",
-			schema(map[string]interface{}{
-				"skill": prop("string", "Name of the skill to execute (e.g. 'ddg_search', 'web_scraper', 'pdf_extractor', 'virustotal_scan')"),
-				"skill_args": map[string]interface{}{
-					"type":        "object",
-					"description": "Arguments to pass to the skill as key-value pairs",
-				},
-			}, "skill"),
+			schema(execSkillProps, "skill"),
 		),
 		tool("filesystem",
 			"Read, write, move, copy, delete files and directories, or list directory contents.",
@@ -266,12 +282,26 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 	}
 
 	if ff.AllowPython {
+		execPythonProps := map[string]interface{}{
+			"code":        prop("string", "The complete Python code to execute"),
+			"description": prop("string", "Brief description of what this script does"),
+			"background":  prop("boolean", "Run as background process (default false)"),
+		}
+		if ff.PythonSecretInjectionEnabled {
+			execPythonProps["vault_keys"] = map[string]interface{}{
+				"type":        "array",
+				"description": "List of vault secret key names to inject as AURAGO_SECRET_<KEY> environment variables. Only user/agent-created secrets are accessible.",
+				"items":       map[string]interface{}{"type": "string"},
+			}
+			execPythonProps["credential_ids"] = map[string]interface{}{
+				"type":        "array",
+				"description": "List of credential UUIDs to inject as AURAGO_CRED_<NAME>_USERNAME / _PASSWORD / _TOKEN environment variables. Only credentials with 'allow_python' enabled are accessible.",
+				"items":       map[string]interface{}{"type": "string"},
+			}
+		}
 		tools = append(tools, tool("execute_python",
 			executePythonDesc,
-			schema(map[string]interface{}{
-				"code":        prop("string", "The complete Python code to execute"),
-				"description": prop("string", "Brief description of what this script does"),
-			}, "code"),
+			schema(execPythonProps, "code"),
 		))
 
 		tools = append(tools, tool("save_tool",
@@ -1014,14 +1044,27 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 		))
 	}
 	if ff.SandboxEnabled {
+		sandboxProps := map[string]interface{}{
+			"code":         prop("string", "The complete source code to execute"),
+			"sandbox_lang": prop("string", "Programming language: python (default), javascript, go, java, cpp, r"),
+			"libraries":    map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Optional packages to install before running (e.g. ['requests', 'pandas'])"},
+			"description":  prop("string", "Brief description of what this code does"),
+		}
+		if ff.PythonSecretInjectionEnabled {
+			sandboxProps["vault_keys"] = map[string]interface{}{
+				"type":        "array",
+				"description": "List of vault secret key names to inject as AURAGO_SECRET_<KEY> environment variables. Only user/agent-created secrets are accessible.",
+				"items":       map[string]interface{}{"type": "string"},
+			}
+			sandboxProps["credential_ids"] = map[string]interface{}{
+				"type":        "array",
+				"description": "List of credential UUIDs to inject as AURAGO_CRED_<NAME>_USERNAME / _PASSWORD / _TOKEN environment variables. Only credentials with 'allow_python' enabled are accessible.",
+				"items":       map[string]interface{}{"type": "string"},
+			}
+		}
 		tools = append(tools, tool("execute_sandbox",
 			"Execute code in an isolated Docker sandbox. Supports multiple languages (Python, JavaScript, Go, Java, C++, R). Use this as the DEFAULT tool for writing and running code — it is safer than execute_python because code runs in an isolated container with no host access.",
-			schema(map[string]interface{}{
-				"code":         prop("string", "The complete source code to execute"),
-				"sandbox_lang": prop("string", "Programming language: python (default), javascript, go, java, cpp, r"),
-				"libraries":    map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Optional packages to install before running (e.g. ['requests', 'pandas'])"},
-				"description":  prop("string", "Brief description of what this code does"),
-			}, "code"),
+			schema(sandboxProps, "code"),
 		))
 	}
 	if ff.AdGuardEnabled {
@@ -1810,15 +1853,28 @@ func BuildNativeToolSchemas(skillsDir string, manifest *tools.Manifest, ff ToolF
 	if manifest != nil {
 		if entries, err := manifest.Load(); err == nil {
 			for name, description := range entries {
+				customToolProps := map[string]interface{}{
+					"params": map[string]interface{}{
+						"type":        "object",
+						"description": "Parameters to pass to the tool",
+					},
+				}
+				if ff.PythonSecretInjectionEnabled {
+					customToolProps["vault_keys"] = map[string]interface{}{
+						"type":        "array",
+						"description": "List of vault secret key names to inject as AURAGO_SECRET_<KEY> environment variables.",
+						"items":       map[string]interface{}{"type": "string"},
+					}
+					customToolProps["credential_ids"] = map[string]interface{}{
+						"type":        "array",
+						"description": "List of credential UUIDs to inject as AURAGO_CRED_<NAME>_USERNAME / _PASSWORD / _TOKEN environment variables.",
+						"items":       map[string]interface{}{"type": "string"},
+					}
+				}
 				allTools = append(allTools, tool(
 					"tool__"+name,
 					"(Custom tool) "+description,
-					schema(map[string]interface{}{
-						"params": map[string]interface{}{
-							"type":        "object",
-							"description": "Parameters to pass to the tool",
-						},
-					}),
+					schema(customToolProps),
 				))
 			}
 		}

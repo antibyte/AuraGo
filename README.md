@@ -82,7 +82,7 @@ Unlike cloud AI services, AuraGo runs **on your hardware**, has **direct access 
 ## Key Features
 
 ### Agent Core
-- **50+ built-in tools** — shell & Python execution, file system, HTTP requests, cron scheduling, process management, system metrics, Docker, Proxmox, Ollama, Home Assistant, Tailscale, Ansible, MeshCentral, GitHub, Netlify, Paperless NGX, PDF processing, document creation, and many more
+- **50+ built-in tools** — shell & Python execution, file system, HTTP requests, cron scheduling, process management, system metrics, Docker, Proxmox, TrueNAS, Ollama, Home Assistant, Tailscale, Ansible, MeshCentral, GitHub, Netlify, Paperless NGX, PDF processing, document creation, and many more
 - **Native Function Calling** — OpenAI-style tool calls with auto-detection for DeepSeek and compatible models; optional **Structured Outputs** mode for constrained decoding
 - **Dynamic tool creation** — the agent can write, save, and register new Python tools at runtime
 - **Multi-step reasoning loop** with automatic tool dispatch, error recovery, and corrective feedback
@@ -143,6 +143,7 @@ Unlike cloud AI services, AuraGo runs **on your hardware**, has **direct access 
 | **Cloudflare Tunnel** | Built-in Cloudflare tunnel integration (quick, token, or named tunnels) |
 | **Cloudflare AI Gateway** | Unified AI gateway for request routing and observability |
 | **AdGuard Home** | DNS filtering management and statistics |
+| **TrueNAS** | ZFS storage management - pools, datasets, snapshots, SMB/NFS shares |
 | **GitHub** | Repository management, issues, pull requests, projects |
 | **Netlify** | Static site deployment and management |
 | **Paperless NGX** | Document management integration |

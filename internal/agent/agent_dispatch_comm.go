@@ -29,6 +29,37 @@ import (
 	"aurago/internal/tools"
 )
 
+// mergeSkillVaultKeys combines vault_keys from a skill manifest with vault_keys from the tool call.
+// Duplicates are removed. Returns nil if no keys.
+func mergeSkillVaultKeys(skillsDir, skillName string, tcKeys []string) []string {
+	seen := make(map[string]bool, len(tcKeys))
+	var merged []string
+	for _, k := range tcKeys {
+		k = strings.TrimSpace(k)
+		if k != "" && !seen[k] {
+			seen[k] = true
+			merged = append(merged, k)
+		}
+	}
+	// Try to load manifest vault_keys
+	skills, err := tools.ListSkills(skillsDir)
+	if err == nil {
+		for _, s := range skills {
+			if s.Name == skillName {
+				for _, k := range s.VaultKeys {
+					k = strings.TrimSpace(k)
+					if k != "" && !seen[k] {
+						seen[k] = true
+						merged = append(merged, k)
+					}
+				}
+				break
+			}
+		}
+	}
+	return merged
+}
+
 // dispatchComm handles webhook, skill, notification, email, discord, mission, and notes tool calls.
 func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, missionManagerV2 *tools.MissionManagerV2, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, mediaRegistryDB *sql.DB, homepageRegistryDB *sql.DB, contactsDB *sql.DB, sqlConnectionsDB *sql.DB, sqlConnectionPool *sqlconnections.ConnectionPool, remoteHub *remote.RemoteHub, historyMgr *memory.HistoryManager, isMaintenance bool, surgeryPlan string, guardian *security.Guardian, llmGuardian *security.LLMGuardian, sessionID string, coAgentRegistry *CoAgentRegistry, budgetTracker *budget.Tracker) string {
 	switch tc.Action {
@@ -348,9 +379,34 @@ func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 		if !cfg.Agent.AllowPython {
 			return fmt.Sprintf("Tool Output: [PERMISSION DENIED] Skill '%s' requires Python execution which is disabled (agent.allow_python: false).", skillName)
 		}
-		res, err := tools.ExecuteSkill(cfg.Directories.SkillsDir, cfg.Directories.WorkspaceDir, skillName, args)
-		if err != nil {
-			return fmt.Sprintf("Tool Output: ERROR executing skill: %v\nOutput: %s", err, res)
+		// Resolve vault secrets: merge skill manifest vault_keys with tool call vault_keys
+		allVaultKeys := mergeSkillVaultKeys(cfg.Directories.SkillsDir, skillName, tc.VaultKeys)
+		secrets, rejectedInfo := resolveVaultKeys(cfg, vault, allVaultKeys, logger)
+		// Resolve credential secrets
+		creds, credRejInfo := resolveCredentials(cfg, vault, inventoryDB, tc.CredentialIDs, logger)
+		if credRejInfo != "" {
+			if rejectedInfo != "" {
+				rejectedInfo += "\n" + credRejInfo
+			} else {
+				rejectedInfo = credRejInfo
+			}
+		}
+		var res string
+		var skillErr error
+		if len(secrets) > 0 || len(creds) > 0 {
+			res, skillErr = tools.ExecuteSkillWithSecrets(cfg.Directories.SkillsDir, cfg.Directories.WorkspaceDir, skillName, args, secrets, creds)
+		} else {
+			res, skillErr = tools.ExecuteSkill(cfg.Directories.SkillsDir, cfg.Directories.WorkspaceDir, skillName, args)
+		}
+		if skillErr != nil {
+			msg := fmt.Sprintf("Tool Output: ERROR executing skill: %v\nOutput: %s", skillErr, res)
+			if rejectedInfo != "" {
+				msg = rejectedInfo + "\n" + msg
+			}
+			return msg
+		}
+		if rejectedInfo != "" {
+			return rejectedInfo + "\nTool Output: " + res
 		}
 		return fmt.Sprintf("Tool Output: %s", res)
 

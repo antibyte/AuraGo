@@ -619,6 +619,369 @@ koofr:
 
 ---
 
+## TrueNAS Integration
+
+Manage ZFS storage pools, datasets, snapshots, and SMB/NFS shares on TrueNAS SCALE or CORE systems.
+
+### Configuration
+
+```yaml
+truenas:
+    enabled: true
+    host: "truenas.local"        # Hostname or IP address
+    port: 443                    # API port (default: 443)
+    use_https: true              # Use HTTPS (recommended)
+    insecure_ssl: false          # Skip certificate validation (test only)
+    readonly: false              # Only read operations
+    allow_destructive: false     # Allow delete/rollback operations
+```
+
+### Creating a TrueNAS API Key
+
+1. In TrueNAS Web UI, go to **System → API Keys**
+2. Click **Add**
+3. Name it "AuraGo" and copy the generated key
+4. Save the key to AuraGo vault via Web UI → Configuration → TrueNAS
+
+### Available Operations
+
+| Operation | Description | Permission Required |
+|-----------|-------------|---------------------|
+| List pools | Show storage pools with health and capacity | Read |
+| Pool scrub | Start data integrity check | Write |
+| List datasets | Show all ZFS datasets | Read |
+| Create dataset | Create new ZFS dataset | Write |
+| Delete dataset | Remove dataset (destructive) | Destructive |
+| List snapshots | Show dataset snapshots | Read |
+| Create snapshot | Create point-in-time snapshot | Write |
+| Delete snapshot | Remove snapshot (destructive) | Destructive |
+| Rollback | Restore dataset to snapshot (destructive) | Destructive |
+| SMB shares | Create and manage SMB shares | Write |
+| NFS shares | Create and manage NFS shares | Write |
+| Check space | Monitor pool/dataset capacity | Read |
+
+### Example Commands
+
+```
+"Show me all storage pools on TrueNAS"
+"Create a new dataset called tank/backups"
+"Take a snapshot of tank/media"
+"Create an SMB share for tank/media called Media"
+"How much free space is left on the tank pool?"
+```
+
+> 💡 **Tip:** Use `readonly: true` for monitoring-only access. Enable `allow_destructive` only when you need to delete datasets or rollback snapshots.
+
+---
+
+## Proxmox Integration
+
+Manage VMs and LXC containers on Proxmox VE servers.
+
+### Configuration
+
+```yaml
+proxmox:
+    enabled: true
+    host: "proxmox.local"
+    port: 8006
+    username: "root@pam"
+    password: "your-password"      # Or use token_auth
+    verify_ssl: true
+    readonly: false
+```
+
+Or with API token authentication (recommended):
+
+```yaml
+proxmox:
+    enabled: true
+    host: "proxmox.local"
+    token_auth:
+        token_id: "aurago"
+        token_secret: "your-api-token"
+    verify_ssl: true
+    readonly: false
+```
+
+### Creating a Proxmox API Token
+
+1. In Proxmox Web UI, go to **Datacenter → Permissions → API Tokens**
+2. Click **Add**
+3. Select user (e.g., `root@pam`)
+4. Set Token ID (e.g., `aurago`)
+5. Uncheck "Privilege Separation" (or grant specific permissions)
+6. Copy the generated secret
+
+### Available Operations
+
+| Operation | Description |
+|-----------|-------------|
+| List VMs | Show all virtual machines |
+| List LXCs | Show all containers |
+| Start/Stop/Reboot | VM/Container lifecycle |
+| Get status | Check VM/container state and resources |
+| Create snapshot | Snapshot VMs for backup |
+| View config | Show VM/container configuration |
+
+> 💡 **Tip:** Use `readonly: true` for monitoring dashboards without modification rights.
+
+---
+
+## Tailscale Integration
+
+Manage your Tailscale VPN network and connected devices.
+
+### Configuration
+
+```yaml
+tailscale:
+    enabled: true
+    api_key: "tskey-api-..."       # From Tailscale admin console
+    tailnet: "your-tailnet.ts.net" # Your Tailscale network
+```
+
+### Getting Your API Key
+
+1. Go to [Tailscale Admin Console](https://login.tailscale.com/admin/settings/keys)
+2. Click **Generate API key**
+3. Copy the key (starts with `tskey-api-`)
+
+### Available Operations
+
+| Operation | Description |
+|-----------|-------------|
+| List devices | Show all connected devices |
+| Get device info | IP addresses, OS, online status |
+| Check ACLs | View network access rules |
+| View subnets | Show advertised subnet routes |
+
+> 💡 **Tip:** Use this to monitor your VPN network or find device IPs for SSH connections.
+
+---
+
+## FritzBox Integration
+
+Control AVM Fritz!Box home routers via TR-064 protocol.
+
+### Configuration
+
+```yaml
+fritzbox:
+    enabled: true
+    host: "fritz.box"
+    username: "admin"              # If set in FritzBox
+    password: "your-password"
+    insecure: false                # Allow self-signed certs
+```
+
+### Available Operations
+
+| Operation | Description |
+|-----------|-------------|
+| Device info | Get model, firmware, uptime |
+| Online status | Check internet connection |
+| Connected devices | List LAN/WiFi clients |
+| Bandwidth | Current up/down speeds |
+| Reconnect | Force new WAN connection |
+| Port forwarding | List port forwarding rules |
+| WiFi settings | Get WiFi configuration |
+
+> ⚠️ **Note:** Some features require a user with admin privileges in the FritzBox.
+
+---
+
+## AdGuard Home Integration
+
+Manage DNS filtering and blocking with AdGuard Home.
+
+### Configuration
+
+```yaml
+adguard:
+    enabled: true
+    host: "adguard.local"
+    port: 3000
+    username: "admin"
+    password: "your-password"
+    use_https: false
+    readonly: false
+```
+
+### Available Operations
+
+| Operation | Description | Permission |
+|-----------|-------------|------------|
+| Status | Get filtering status and stats | Read |
+| Query log | View recent DNS queries | Read |
+| Top clients | Most active devices | Read |
+| Blocklists | Manage filter lists | Write |
+| Custom rules | Add DNS rewrites | Write |
+| Safe search | Toggle safe search | Write |
+| Services | Block specific services | Write |
+
+> 💡 **Tip:** Use `readonly: true` to monitor network activity without changing filter rules.
+
+---
+
+## n8n Integration
+
+Connect with n8n workflow automation platform.
+
+### Configuration
+
+```yaml
+n8n:
+    enabled: true
+    base_url: "https://n8n.yourdomain.com"
+    api_key: "n8n_api_..."
+    readonly: false
+```
+
+### Available Operations
+
+| Operation | Description |
+|-----------|-------------|
+| List workflows | Show all n8n workflows |
+| Get workflow | View specific workflow details |
+| Activate/Deactivate | Toggle workflow state |
+| Execute workflow | Trigger workflow manually |
+| Get executions | View execution history |
+
+### n8n Node for AuraGo
+
+AuraGo also provides an official n8n community node:
+- Chat with AuraGo from n8n workflows
+- Trigger tools and missions
+- Access memory and knowledge
+
+Install via n8n community nodes: `@antibyte/n8n-nodes-aurago`
+
+---
+
+## Telnyx Integration
+
+Send/receive SMS and make voice calls via Telnyx telephony.
+
+### Configuration
+
+```yaml
+telnyx:
+    enabled: true
+    api_key: "KEY..."
+    public_key: "PUBKEY..."
+    phone_number: "+1234567890"
+    messaging_enabled: true
+    voice_enabled: true
+    webhook_secret: "whsec_..."
+```
+
+### Available Operations
+
+| Operation | Description |
+|-----------|-------------|
+| Send SMS | Send text messages |
+| Receive SMS | Process incoming messages |
+| Make calls | Initiate voice calls |
+| Voicemail | Manage voicemail messages |
+| Call routing | Route calls based on rules |
+
+---
+
+## VirusTotal Integration
+
+Scan files and URLs for malware using VirusTotal API.
+
+### Configuration
+
+```yaml
+virustotal:
+    enabled: true
+    api_key: "your-api-key"
+```
+
+### Getting Your API Key
+
+1. Sign up at [VirusTotal](https://www.virustotal.com)
+2. Go to your profile → API Key
+3. Copy the key
+
+### Available Operations
+
+| Operation | Description |
+|-----------|-------------|
+| Scan URL | Check URL reputation |
+| Scan file | Upload and scan file hash |
+| Get report | Retrieve scan results |
+
+> 💡 **Tip:** The agent uses this automatically when analyzing suspicious links or files.
+
+---
+
+## Brave Search Integration
+
+Web search via Brave Search API.
+
+### Configuration
+
+```yaml
+brave_search:
+    enabled: true
+    api_key: "BS..."
+    default_count: 10
+```
+
+### Getting Your API Key
+
+1. Sign up at [Brave Search API](https://api.search.brave.com)
+2. Generate an API key in the dashboard
+
+### Available Operations
+
+| Operation | Description |
+|-----------|-------------|
+| Web search | Search the web |
+| News search | Find recent news articles |
+| Image search | Search for images |
+
+---
+
+## MCP (Model Context Protocol)
+
+Connect external MCP servers or expose AuraGo as an MCP server.
+
+### MCP Client (connect to external servers)
+
+```yaml
+mcp:
+    enabled: true
+    allowed_tools:
+      - "fetch"
+      - "filesystem"
+    servers:
+      fetch:
+        command: "uvx"
+        args: ["mcp-server-fetch"]
+      filesystem:
+        command: "npx"
+        args: ["-y", "@modelcontextprotocol/server-filesystem", "/allowed/path"]
+```
+
+### MCP Server (expose AuraGo to other clients)
+
+```yaml
+mcp_server:
+    enabled: true
+    allowed_tools:
+      - "shell"
+      - "docker_*"
+    auth_token: "secure-token"
+```
+
+Connect from Claude Desktop, Cursor, or other MCP clients to use AuraGo's tools.
+
+---
+
 ## Additional Integrations Coverage (beyond core setup)
 
 The current platform includes additional integrations/features that should be considered in production rollouts:

@@ -998,6 +998,9 @@ type Config struct {
 		Contacts struct {
 			Enabled bool `yaml:"enabled"` // enable address_book tool (contact management)
 		} `yaml:"contacts"`
+		PythonSecretInjection struct {
+			Enabled bool `yaml:"enabled"` // allow Python tools to request vault secrets via vault_keys parameter
+		} `yaml:"python_secret_injection"`
 	} `yaml:"tools"`
 	Sandbox struct {
 		Enabled        bool   `yaml:"enabled"`
@@ -1101,29 +1104,29 @@ type Config struct {
 
 // TrueNASConfig holds configuration for TrueNAS integration.
 type TrueNASConfig struct {
-		Enabled          bool   `yaml:"enabled"`
-		ReadOnly         bool   `yaml:"readonly"`          // true = only list/read, block create/update/delete/rollback
-		AllowDestructive bool   `yaml:"allow_destructive"` // allow dataset deletion, snapshot rollback, pool scrub
-		Host             string `yaml:"host"`              // TrueNAS hostname or IP (e.g. "truenas.local")
-		Port             int    `yaml:"port"`              // API port (default: 443)
-		UseHTTPS         bool   `yaml:"use_https"`         // use HTTPS (default: true)
-		APIKey           string `yaml:"-"`                 // vault-only: truenas_api_key
-		InsecureSSL      bool   `yaml:"insecure_ssl"`      // skip TLS verification for self-signed certs (default: false)
-		ConnectTimeout   int    `yaml:"connect_timeout"`   // connection timeout in seconds (default: 30)
-		RequestTimeout   int    `yaml:"request_timeout"`   // request timeout in seconds (default: 60)
-		// Default settings for new shares
-		DefaultShares struct {
-			SMBEnabled    bool `yaml:"smb_enabled"`    // enable SMB by default
-			NFSEnabled    bool `yaml:"nfs_enabled"`    // enable NFS by default
-			AtimeEnabled  bool `yaml:"atime_enabled"`  // enable access time tracking
-			Compression   string `yaml:"compression"`  // default compression: "lz4", "gzip", "zle", "off"
-		} `yaml:"default_shares,omitempty"`
-		// Snapshot retention policies
-		SnapshotRetention struct {
-			Enabled         bool `yaml:"enabled"`          // enable automatic snapshot cleanup
-			DefaultDays     int  `yaml:"default_days"`     // default retention in days (0 = forever)
-			MaxSnapshots    int  `yaml:"max_snapshots"`    // maximum snapshots per dataset (0 = unlimited)
-		} `yaml:"snapshot_retention,omitempty"`
+	Enabled          bool   `yaml:"enabled"`
+	ReadOnly         bool   `yaml:"readonly"`          // true = only list/read, block create/update/delete/rollback
+	AllowDestructive bool   `yaml:"allow_destructive"` // allow dataset deletion, snapshot rollback, pool scrub
+	Host             string `yaml:"host"`              // TrueNAS hostname or IP (e.g. "truenas.local")
+	Port             int    `yaml:"port"`              // API port (default: 443)
+	UseHTTPS         bool   `yaml:"use_https"`         // use HTTPS (default: true)
+	APIKey           string `yaml:"-"`                 // vault-only: truenas_api_key
+	InsecureSSL      bool   `yaml:"insecure_ssl"`      // skip TLS verification for self-signed certs (default: false)
+	ConnectTimeout   int    `yaml:"connect_timeout"`   // connection timeout in seconds (default: 30)
+	RequestTimeout   int    `yaml:"request_timeout"`   // request timeout in seconds (default: 60)
+	// Default settings for new shares
+	DefaultShares struct {
+		SMBEnabled   bool   `yaml:"smb_enabled"`   // enable SMB by default
+		NFSEnabled   bool   `yaml:"nfs_enabled"`   // enable NFS by default
+		AtimeEnabled bool   `yaml:"atime_enabled"` // enable access time tracking
+		Compression  string `yaml:"compression"`   // default compression: "lz4", "gzip", "zle", "off"
+	} `yaml:"default_shares,omitempty"`
+	// Snapshot retention policies
+	SnapshotRetention struct {
+		Enabled      bool `yaml:"enabled"`       // enable automatic snapshot cleanup
+		DefaultDays  int  `yaml:"default_days"`  // default retention in days (0 = forever)
+		MaxSnapshots int  `yaml:"max_snapshots"` // maximum snapshots per dataset (0 = unlimited)
+	} `yaml:"snapshot_retention,omitempty"`
 }
 
 // A2ASkill describes a skill advertised in the A2A Agent Card.

@@ -254,6 +254,7 @@
   "help.tools.network_scan.enabled": "mDNS नेटवर्क स्कैन टूल (mdns_scan) सक्षम करता है। Bonjour/ZeroConf के माध्यम से लोकल नेटवर्क पर डिवाइस खोजता है।",
   "help.tools.form_automation.enabled": "फॉर्म ऑटोमेशन टूल (form_automation) सक्षम करता है। हेडलेस Chromium ब्राउज़र से वेब फॉर्म भरता और सबमिट करता है। tools.web_capture.enabled: true आवश्यक है।",
   "help.tools.upnp_scan.enabled": "UPnP स्कैन टूल (upnp_scan) सक्षम करता है। लोकल नेटवर्क पर UPnP/SSDP डिवाइस खोजता है – राउटर, Smart TV, NAS, IoT डिवाइस।",
+  "help.tools.python_secret_injection.enabled": "Python टूल्स (execute_python, execute_sandbox, execute_skill, run_tool) को vault_keys पैरामीटर के माध्यम से vault secrets का अनुरोध करने की अनुमति देता है। Secrets AURAGO_SECRET_&lt;KEY&gt; एनवायरनमेंट वैरिएबल्स के रूप में इंजेक्ट किए जाते हैं। केवल उपयोगकर्ता या एजेंट द्वारा बनाए गए secrets सुलभ हैं — सिस्टम और इंटीग्रेशन secrets अवरुद्ध हैं। सुरक्षा के लिए डिफ़ॉल्ट रूप से अक्षम।",
   "help.tts.elevenlabs.api_key": "इलेवनलैब्स एपीआई कुंजी।",
   "help.tts.elevenlabs.model_id": "इलेवनलैब्स मॉडल आईडी, उदा. 'ग्यारह_बहुभाषी_v2'.",
   "help.tts.elevenlabs.voice_id": "स्पीकर की इलेवनलैब्स वॉयस आईडी।",

@@ -254,6 +254,7 @@
   "help.tools.network_scan.enabled": "Schakelt het mDNS-netwerkscan-hulpmiddel in (mdns_scan). Ontdekt apparaten op het lokale netwerk via Bonjour/ZeroConf.",
   "help.tools.form_automation.enabled": "Schakelt het formulierautomatiserings-hulpmiddel in (form_automation). Gebruikt een headless Chromium-browser om webformulieren in te vullen en in te dienen. Vereist tools.web_capture.enabled: true.",
   "help.tools.upnp_scan.enabled": "Schakelt het UPnP-scan-hulpmiddel in (upnp_scan). Ontdekt UPnP/SSDP-apparaten op het lokale netwerk.",
+  "help.tools.python_secret_injection.enabled": "Staat Python-tools (execute_python, execute_sandbox, execute_skill, run_tool) toe om vault-secrets aan te vragen via de vault_keys-parameter. Secrets worden geïnjecteerd als AURAGO_SECRET_&lt;KEY&gt;-omgevingsvariabelen. Alleen door de gebruiker of agent aangemaakte secrets zijn toegankelijk — systeem- en integratie-secrets zijn geblokkeerd. Standaard uitgeschakeld voor veiligheid.",
   "help.tts.elevenlabs.api_key": "API klic pro tts.",
   "help.tts.elevenlabs.model_id": "Model pro tts.",
   "help.tts.elevenlabs.voice_id": "ID pro tts.",

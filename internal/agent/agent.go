@@ -425,6 +425,9 @@ type ToolCall struct {
 	// Sandbox fields
 	SandboxLang string   `json:"sandbox_lang"` // language for execute_sandbox (python, javascript, go, etc.)
 	Libraries   []string `json:"libraries"`    // optional packages to install before running sandbox code
+	// Vault secret injection for Python tools
+	VaultKeys     []string `json:"vault_keys,omitempty"`     // vault secret keys to inject as AURAGO_SECRET_<KEY> env vars
+	CredentialIDs []string `json:"credential_ids,omitempty"` // credential UUIDs to inject as AURAGO_CRED_<NAME>_* env vars
 	// Homepage fields
 	Framework  string   `json:"framework"`   // web framework: next, vite, astro, svelte, vue, html
 	Viewport   string   `json:"viewport"`    // screenshot viewport: "1280x720"

@@ -254,6 +254,7 @@
   "help.tools.network_scan.enabled": "Włącza narzędzie skanowania sieci mDNS (mdns_scan). Wykrywa urządzenia w sieci lokalnej ogłaszające się przez Bonjour/ZeroConf: Raspberry Pi, NAS, drukarki, urządzenia Apple i inne.",
   "help.tools.form_automation.enabled": "Włącza narzędzie automatyzacji formularzy (form_automation). Używa przeglądarki Chromium bez interfejsu do wypełniania, wysyłania i inspekcji formularzy internetowych. Wymaga tools.web_capture.enabled: true.",
   "help.tools.upnp_scan.enabled": "Włącza narzędzie skanowania UPnP (upnp_scan). Wykrywa urządzenia UPnP/SSDP w sieci lokalnej: routery, Smart TV, NAS, renderery mediów, drukarki i urządzenia IoT.",
+  "help.tools.python_secret_injection.enabled": "Pozwala narzędziom Python (execute_python, execute_sandbox, execute_skill, run_tool) na żądanie sekretów z vault za pomocą parametru vault_keys. Sekrety są wstrzykiwane jako zmienne środowiskowe AURAGO_SECRET_&lt;KEY&gt;. Dostępne są tylko sekrety utworzone przez użytkownika lub agenta — sekrety systemowe i integracyjne są zablokowane. Domyślnie wyłączone ze względów bezpieczeństwa.",
   "help.tts.elevenlabs.api_key": "Klucz API ElevenLabs.",
   "help.tts.elevenlabs.model_id": "ID modelu ElevenLabs, np. 'eleven_multilingual_v2'.",
   "help.tts.elevenlabs.voice_id": "ID głosu ElevenLabs mówcy.",

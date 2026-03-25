@@ -254,6 +254,7 @@
   "help.tools.network_scan.enabled": "Activa a ferramenta de scan de rede mDNS (mdns_scan). Descobre dispositivos na rede local anunciados via Bonjour/ZeroConf.",
   "help.tools.form_automation.enabled": "Activa a ferramenta de automação de formulários (form_automation). Usa um navegador Chromium sem interface para preencher e enviar formulários web. Requer tools.web_capture.enabled: true.",
   "help.tools.upnp_scan.enabled": "Activa a ferramenta de scan UPnP (upnp_scan). Descobre dispositivos UPnP/SSDP na rede local.",
+  "help.tools.python_secret_injection.enabled": "Permite que ferramentas Python (execute_python, execute_sandbox, execute_skill, run_tool) solicitem segredos do vault através do parâmetro vault_keys. Os segredos são injetados como variáveis de ambiente AURAGO_SECRET_&lt;KEY&gt;. Apenas segredos criados pelo utilizador ou agente são acessíveis — segredos do sistema e integrações são bloqueados. Desativado por padrão por segurança.",
   "help.tts.elevenlabs.api_key": "API klic pro tts.",
   "help.tts.elevenlabs.model_id": "Model pro tts.",
   "help.tts.elevenlabs.voice_id": "ID pro tts.",

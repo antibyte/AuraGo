@@ -501,6 +501,7 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 - **Do not forget to update tool manuals** in `prompts/tools_manuals/` when adding new tools
 - Update prompts if you add new integrations or tools for the agent
 - Keep documentation consistent with implementation
+- **For the Web-UI there is a help text file** - Keep it up to date
 
 ### Web UI Guidelines
 
@@ -510,11 +511,18 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 - Aim for **masterpiece UX design** that feels native to the existing interface
 - If you see bad UX in the existing UI, feel free to improve it while keeping overall style consistent
 - **Always check if new features are relevant to the dashboard** and add them there if applicable
+- **User-friendly system design**: Always think ahead for the user and also add test connection buttons if this could help the user to diagnose issues with new tools or integrations
+- The system should be designed to be as user-friendly and intuitive as possible, with clear instructions and feedback for the user. Always consider the user experience when designing and implementing new features and tools for the agent
 
 #### Translations
 - **Always update translation files** in `ui/lang/` for **ALL supported languages** (15 languages: cs, da, de, el, en, es, fr, hi, it, ja, nl, no, pl, pt, sv, zh)
 - Keep translations up to date and consistent with UI changes
 - If you add new features requiring new UI elements, provide translations for all supported languages
+
+#### Form Design
+- **If a field has options to choose, provide a dropdown**, not a text input field
+- **Fields that have default values should show those**, or be empty if a remark in the describing text states that default value X is used if field is empty
+- **Always create easy to use menus**
 
 ### Code Organization & Quality
 
@@ -527,6 +535,10 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 #### Temporary Files
 - **Always cleanup temporary files and logs** after use
 - Don't leave behind orphaned temporary resources
+
+#### UI Components
+- **Do not use `alert()`**, use a modal instead
+- **All LLMs that can be chosen must use the provider system**
 
 ### Testing & Quality Assurance
 
@@ -552,10 +564,15 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 - Keep **update scripts**, **install scripts**, and **Dockerfiles** up to date
 - Ensure consistency between system changes and deployment scripts
 - If you add new tools/integrations requiring installation changes, update relevant scripts accordingly
+- **All Docker containers are created and managed by the AuraGo backend fully automatically** - Never assume the user could manage this
 
 #### Build Process
 - **Use `make_deploy` script** to build binaries and upload to test server
 - Don't use manual build commands for production builds
+
+#### Vault Integration
+- **If you add a new tool or integration that uses the vault, add it to the list of secrets that are forbidden to be exported to Python tools!**
+- Always ensure sensitive data is properly protected from exposure to the agent environment
 
 ## Resources
 

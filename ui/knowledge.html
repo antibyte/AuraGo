@@ -171,6 +171,7 @@
                             <th data-i18n="knowledge.credentials_col_username">Username</th>
                             <th data-i18n="knowledge.credentials_col_password">Password</th>
                             <th data-i18n="knowledge.credentials_col_certificate">Certificate</th>
+                            <th data-i18n="knowledge.credentials_col_python">Python</th>
                             <th data-i18n="knowledge.col_actions">Actions</th>
                         </tr>
                     </thead>
@@ -320,14 +321,17 @@
             <div class="form-row">
                 <div class="form-group">
                     <label data-i18n="knowledge.credentials_type_label">Type</label>
-                    <select id="credential-type">
+                    <select id="credential-type" onchange="updateCredentialTypeFields()">
                         <option value="ssh" data-i18n="knowledge.credentials_type_ssh">SSH</option>
+                        <option value="login" data-i18n="knowledge.credentials_type_login">Login</option>
+                        <option value="token" data-i18n="knowledge.credentials_type_token">Token / Key</option>
                     </select>
                 </div>
-                <div class="form-group">
-                    <label data-i18n="knowledge.credentials_host_label">Host / IP</label>
+                <div class="form-group" id="credential-host-group">
+                    <label id="credential-host-label" data-i18n="knowledge.credentials_host_label">Host / IP</label>
                     <input type="text" id="credential-host" maxlength="200"
                         placeholder="192.168.1.50" data-i18n-placeholder="knowledge.credentials_host_placeholder">
+                    <small class="form-hint is-hidden" id="credential-host-hint" data-i18n="knowledge.credentials_host_optional_hint">Optional for this credential type</small>
                 </div>
             </div>
             <div class="form-row">
@@ -336,35 +340,53 @@
                     <input type="text" id="credential-username" maxlength="200"
                         placeholder="root" data-i18n-placeholder="knowledge.credentials_username_placeholder">
                 </div>
-                <div class="form-group">
+                <div class="form-group" id="credential-password-group">
                     <label data-i18n="knowledge.credentials_password_label">Password</label>
                     <input type="password" id="credential-password" maxlength="1000"
                         placeholder="Optional - stored only in vault" data-i18n-placeholder="knowledge.credentials_password_placeholder">
                     <div class="kc-secret-state is-hidden" id="credential-password-state" data-i18n="knowledge.credentials_password_stored">Password already stored in vault.</div>
                 </div>
             </div>
-            <div class="form-group">
-                <label data-i18n="knowledge.credentials_certificate_mode_label">Certificate Input</label>
-                <select id="credential-certificate-mode" onchange="updateCredentialCertificateMode()">
-                    <option value="text" data-i18n="knowledge.credentials_certificate_mode_text">Paste as text</option>
-                    <option value="upload" data-i18n="knowledge.credentials_certificate_mode_upload">Upload file</option>
-                </select>
+            <div class="form-group is-hidden" id="credential-token-group">
+                <label data-i18n="knowledge.credentials_token_label">Token / API Key</label>
+                <input type="password" id="credential-token" maxlength="2000"
+                    placeholder="Paste token or API key here..." data-i18n-placeholder="knowledge.credentials_token_placeholder">
+                <div class="kc-secret-state is-hidden" id="credential-token-state" data-i18n="knowledge.credentials_token_stored">Token already stored in vault.</div>
             </div>
-            <div class="form-group" id="credential-certificate-text-group">
-                <label data-i18n="knowledge.credentials_certificate_label">Certificate</label>
-                <textarea id="credential-certificate-text" rows="5"
-                    placeholder="Paste PEM/private key/certificate text here..." data-i18n-placeholder="knowledge.credentials_certificate_text_placeholder"></textarea>
+            <div id="credential-certificate-section">
+                <div class="form-group">
+                    <label data-i18n="knowledge.credentials_certificate_mode_label">Certificate Input</label>
+                    <select id="credential-certificate-mode" onchange="updateCredentialCertificateMode()">
+                        <option value="text" data-i18n="knowledge.credentials_certificate_mode_text">Paste as text</option>
+                        <option value="upload" data-i18n="knowledge.credentials_certificate_mode_upload">Upload file</option>
+                    </select>
+                </div>
+                <div class="form-group" id="credential-certificate-text-group">
+                    <label data-i18n="knowledge.credentials_certificate_label">Certificate</label>
+                    <textarea id="credential-certificate-text" rows="5"
+                        placeholder="Paste PEM/private key/certificate text here..." data-i18n-placeholder="knowledge.credentials_certificate_text_placeholder"></textarea>
+                </div>
+                <div class="form-group is-hidden" id="credential-certificate-file-group">
+                    <label data-i18n="knowledge.credentials_certificate_upload">Upload Certificate File</label>
+                    <input type="file" id="credential-certificate-file" accept=".pem,.key,.pub,.crt,.cer,.txt" onchange="handleCredentialCertificateUpload(event)">
+                    <div class="kc-upload-state" id="credential-certificate-file-state"></div>
+                </div>
+                <div class="kc-secret-state is-hidden" id="credential-certificate-state" data-i18n="knowledge.credentials_certificate_stored">Certificate already stored in vault.</div>
             </div>
-            <div class="form-group is-hidden" id="credential-certificate-file-group">
-                <label data-i18n="knowledge.credentials_certificate_upload">Upload Certificate File</label>
-                <input type="file" id="credential-certificate-file" accept=".pem,.key,.pub,.crt,.cer,.txt" onchange="handleCredentialCertificateUpload(event)">
-                <div class="kc-upload-state" id="credential-certificate-file-state"></div>
-            </div>
-            <div class="kc-secret-state is-hidden" id="credential-certificate-state" data-i18n="knowledge.credentials_certificate_stored">Certificate already stored in vault.</div>
             <div class="form-group">
                 <label data-i18n="knowledge.credentials_description">Description</label>
                 <input type="text" id="credential-description" maxlength="500"
                     placeholder="Optional notes..." data-i18n-placeholder="knowledge.credentials_desc_placeholder">
+            </div>
+            <div class="form-group">
+                <div class="toggle-wrap">
+                    <label class="toggle">
+                        <input type="checkbox" id="credential-allow-python">
+                        <span class="slider"></span>
+                    </label>
+                    <span class="toggle-label" data-i18n="knowledge.credentials_allow_python">Allow use in Python tools</span>
+                </div>
+                <small class="form-hint" data-i18n="knowledge.credentials_allow_python_hint">When enabled, the agent can inject these credentials as environment variables into Python scripts.</small>
             </div>
             <div class="modal-actions">
                 <button class="btn btn-secondary" onclick="closeModal('credential-modal')" data-i18n="common.btn_cancel">Cancel</button>

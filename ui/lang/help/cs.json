@@ -254,6 +254,7 @@
   "help.tools.network_scan.enabled": "Aktivuje nástroj mDNS sítěového skenu (mdns_scan). Vyhledává zařízení v lokální síti oznamující se přes Bonjour/ZeroConf.",
   "help.tools.form_automation.enabled": "Aktivuje nástroj automatizace formulářů (form_automation). Používá bezhlavý prohlížeč Chromium k vyplnění a odeslání webových formulářů. Vyžaduje tools.web_capture.enabled: true.",
   "help.tools.upnp_scan.enabled": "Aktivuje nástroj UPnP skenování (upnp_scan). Vyhledává zařízení UPnP/SSDP v lokální síti.",
+  "help.tools.python_secret_injection.enabled": "Umožňuje nástrojům Python (execute_python, execute_sandbox, execute_skill, run_tool) vyžádat si tajemství z trezoru pomocí parametru vault_keys. Tajemství se vkládají jako proměnné prostředí AURAGO_SECRET_&lt;KEY&gt;. Přístupná jsou pouze tajemství vytvořená uživatelem nebo agentem — systémová a integrační tajemství jsou blokována. Ve výchozím nastavení z bezpečnostních důvodů zakázáno.",
   "help.tts.elevenlabs.api_key": "API klic pro tts.",
   "help.tts.elevenlabs.model_id": "Model pro tts.",
   "help.tts.elevenlabs.voice_id": "ID pro tts.",

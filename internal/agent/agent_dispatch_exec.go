@@ -26,6 +26,60 @@ import (
 	"aurago/internal/tools"
 )
 
+// resolveVaultKeys resolves vault secret keys for Python secret injection.
+// Returns the resolved secrets map (may be empty) and an info message for rejected keys.
+// If the feature is disabled or no keys requested, returns nil/empty.
+func resolveVaultKeys(cfg *config.Config, vault *security.Vault, keys []string, logger *slog.Logger) (map[string]string, string) {
+	if !cfg.Tools.PythonSecretInjection.Enabled || len(keys) == 0 || vault == nil {
+		return nil, ""
+	}
+	resolved, rejected, err := tools.ResolveVaultSecrets(vault, keys)
+	if err != nil {
+		logger.Error("Failed to resolve vault secrets for Python", "error", err)
+		return nil, ""
+	}
+	var info string
+	if len(rejected) > 0 {
+		info = fmt.Sprintf("[NOTE] The following vault keys were rejected (system/integration secrets cannot be accessed by Python tools): %s", strings.Join(rejected, ", "))
+		logger.Warn("Vault keys rejected for Python injection", "rejected", rejected)
+	}
+	if len(resolved) > 0 {
+		keyNames := make([]string, 0, len(resolved))
+		for k := range resolved {
+			keyNames = append(keyNames, k)
+		}
+		logger.Info("Vault secrets injected for Python execution", "keys", keyNames)
+	}
+	return resolved, info
+}
+
+// resolveCredentials resolves credential IDs for Python injection.
+// Returns the resolved credential fields (may be empty) and an info message for rejected IDs.
+// If python secret injection is disabled or no IDs requested, returns nil/empty.
+func resolveCredentials(cfg *config.Config, vault *security.Vault, inventoryDB *sql.DB, ids []string, logger *slog.Logger) ([]tools.CredentialFields, string) {
+	if !cfg.Tools.PythonSecretInjection.Enabled || len(ids) == 0 || vault == nil || inventoryDB == nil {
+		return nil, ""
+	}
+	resolved, rejected, err := tools.ResolveCredentialSecrets(inventoryDB, vault, ids)
+	if err != nil {
+		logger.Error("Failed to resolve credentials for Python", "error", err)
+		return nil, ""
+	}
+	var info string
+	if len(rejected) > 0 {
+		info = fmt.Sprintf("[NOTE] The following credential IDs were rejected (not found or python access not allowed): %s", strings.Join(rejected, ", "))
+		logger.Warn("Credentials rejected for Python injection", "rejected", rejected)
+	}
+	if len(resolved) > 0 {
+		names := make([]string, 0, len(resolved))
+		for _, cf := range resolved {
+			names = append(names, cf.Name)
+		}
+		logger.Info("Credentials injected for Python execution", "names", names)
+	}
+	return resolved, info
+}
+
 // dispatchExec handles execution, memory, security, filesystem, API, remote, and scheduling tool calls.
 func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, missionManagerV2 *tools.MissionManagerV2, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, mediaRegistryDB *sql.DB, homepageRegistryDB *sql.DB, contactsDB *sql.DB, sqlConnectionsDB *sql.DB, sqlConnectionPool *sqlconnections.ConnectionPool, remoteHub *remote.RemoteHub, historyMgr *memory.HistoryManager, isMaintenance bool, surgeryPlan string, guardian *security.Guardian, sessionID string, coAgentRegistry *CoAgentRegistry, budgetTracker *budget.Tracker) string {
 	switch tc.Action {
@@ -43,15 +97,42 @@ func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 		if lang == "" {
 			lang = "python"
 		}
+		// Resolve vault secrets for injection
+		secrets, rejectedInfo := resolveVaultKeys(cfg, vault, tc.VaultKeys, logger)
+		// Resolve credential secrets for injection
+		creds, credRejInfo := resolveCredentials(cfg, vault, inventoryDB, tc.CredentialIDs, logger)
+		if credRejInfo != "" {
+			if rejectedInfo != "" {
+				rejectedInfo += "\n" + credRejInfo
+			} else {
+				rejectedInfo = credRejInfo
+			}
+		}
+		codeToRun := tc.Code
+		if len(secrets) > 0 {
+			codeToRun = tools.BuildSecretPrelude(secrets) + codeToRun
+		}
+		if len(creds) > 0 {
+			codeToRun = tools.BuildCredentialPrelude(creds) + codeToRun
+		}
 		logger.Info("LLM requested sandbox execution", "language", lang, "code_len", len(tc.Code), "libraries", len(tc.Libraries))
-		result, err := tools.SandboxExecuteCode(tc.Code, lang, tc.Libraries, cfg.Sandbox.TimeoutSeconds, logger)
+		result, err := tools.SandboxExecuteCode(codeToRun, lang, tc.Libraries, cfg.Sandbox.TimeoutSeconds, logger)
 		if err != nil {
 			// Fall back to execute_python if sandbox not ready and Python is allowed
 			if cfg.Agent.AllowPython && lang == "python" {
 				logger.Warn("Sandbox execution failed, falling back to execute_python", "error", err)
-				stdout, stderr, pyErr := tools.ExecutePython(tc.Code, cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir)
+				var stdout, stderr string
+				var pyErr error
+				if len(secrets) > 0 || len(creds) > 0 {
+					stdout, stderr, pyErr = tools.ExecutePythonWithSecrets(tc.Code, cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir, secrets, creds)
+				} else {
+					stdout, stderr, pyErr = tools.ExecutePython(tc.Code, cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir)
+				}
 				var sb strings.Builder
 				sb.WriteString("Tool Output (sandbox unavailable — ran via local Python):\n")
+				if rejectedInfo != "" {
+					sb.WriteString(rejectedInfo + "\n")
+				}
 				if stdout != "" {
 					sb.WriteString(fmt.Sprintf("STDOUT:\n%s\n", stdout))
 				}
@@ -65,7 +146,11 @@ func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 			}
 			return fmt.Sprintf("Tool Output: [EXECUTION ERROR] sandbox: %v", err)
 		}
-		return "Tool Output:\n" + result
+		scrubbedResult := security.Scrub(result)
+		if rejectedInfo != "" {
+			return "Tool Output:\n" + rejectedInfo + "\n" + scrubbedResult
+		}
+		return "Tool Output:\n" + scrubbedResult
 
 	case "execute_python":
 		if !cfg.Agent.AllowPython {
@@ -75,28 +160,59 @@ func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 		if tc.Code == "" {
 			return "Tool Output: [EXECUTION ERROR] 'code' field is empty. You MUST provide Python source code in the 'code' field. Do NOT use execute_python for SSH or remote tasks — use query_inventory / execute_remote_shell instead."
 		}
+		// Resolve vault secrets
+		secrets, rejectedInfo := resolveVaultKeys(cfg, vault, tc.VaultKeys, logger)
+		// Resolve credential secrets
+		creds, credRejInfo := resolveCredentials(cfg, vault, inventoryDB, tc.CredentialIDs, logger)
+		if credRejInfo != "" {
+			if rejectedInfo != "" {
+				rejectedInfo += "\n" + credRejInfo
+			} else {
+				rejectedInfo = credRejInfo
+			}
+		}
+		hasSecrets := len(secrets) > 0 || len(creds) > 0
 		if tc.Background {
 			logger.Info("LLM requested background Python execution", "code_len", len(tc.Code))
-			pid, err := tools.ExecutePythonBackground(tc.Code, cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir, registry)
-			if err != nil {
-				return fmt.Sprintf("Tool Output: [EXECUTION ERROR] starting background process: %v", err)
+			var pid int
+			var bgErr error
+			if hasSecrets {
+				pid, bgErr = tools.ExecutePythonBackgroundWithSecrets(tc.Code, cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir, registry, secrets, creds)
+			} else {
+				pid, bgErr = tools.ExecutePythonBackground(tc.Code, cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir, registry)
 			}
-			return fmt.Sprintf("Tool Output: Process started in background. PID=%d. Use {\"action\": \"read_process_logs\", \"pid\": %d} to check output.", pid, pid)
+			if bgErr != nil {
+				return fmt.Sprintf("Tool Output: [EXECUTION ERROR] starting background process: %v", bgErr)
+			}
+			msg := fmt.Sprintf("Tool Output: Process started in background. PID=%d. Use {\"action\": \"read_process_logs\", \"pid\": %d} to check output.", pid, pid)
+			if rejectedInfo != "" {
+				msg = rejectedInfo + "\n" + msg
+			}
+			return msg
 		}
 		logger.Debug("Executing Python (foreground)", "code_preview", Truncate(tc.Code, 300))
 		logger.Info("LLM requested python execution", "code_len", len(tc.Code))
-		stdout, stderr, err := tools.ExecutePython(tc.Code, cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir)
+		var stdout, stderr string
+		var pyErr error
+		if hasSecrets {
+			stdout, stderr, pyErr = tools.ExecutePythonWithSecrets(tc.Code, cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir, secrets, creds)
+		} else {
+			stdout, stderr, pyErr = tools.ExecutePython(tc.Code, cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir)
+		}
 
 		var sb strings.Builder
 		sb.WriteString("Tool Output:\n")
+		if rejectedInfo != "" {
+			sb.WriteString(rejectedInfo + "\n")
+		}
 		if stdout != "" {
 			sb.WriteString(fmt.Sprintf("STDOUT:\n%s\n", stdout))
 		}
 		if stderr != "" {
 			sb.WriteString(fmt.Sprintf("STDERR:\n%s\n", stderr))
 		}
-		if err != nil {
-			sb.WriteString(fmt.Sprintf("[EXECUTION ERROR]: %v\n", err))
+		if pyErr != nil {
+			sb.WriteString(fmt.Sprintf("[EXECUTION ERROR]: %v\n", pyErr))
 		}
 		return sb.String()
 
@@ -240,19 +356,61 @@ func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 
 		if tc.Background {
 			logger.Info("LLM requested background tool execution", "name", tc.Name)
-			pid, err := tools.RunToolBackground(tc.Name, tc.GetArgs(), cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir, registry)
-			if err != nil {
-				return fmt.Sprintf("Tool Output: ERROR starting background tool: %v", err)
+			// Resolve vault secrets
+			secrets, rejInfo := resolveVaultKeys(cfg, vault, tc.VaultKeys, logger)
+			// Resolve credential secrets
+			creds, credRejInfo := resolveCredentials(cfg, vault, inventoryDB, tc.CredentialIDs, logger)
+			if credRejInfo != "" {
+				if rejInfo != "" {
+					rejInfo += "\n" + credRejInfo
+				} else {
+					rejInfo = credRejInfo
+				}
 			}
-			return fmt.Sprintf("Tool Output: Tool started in background. PID=%d. Use {\"action\": \"read_process_logs\", \"pid\": %d} to check output.", pid, pid)
+			var pid int
+			var bgErr error
+			if len(secrets) > 0 || len(creds) > 0 {
+				pid, bgErr = tools.RunToolBackgroundWithSecrets(tc.Name, tc.GetArgs(), cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir, registry, secrets, creds)
+			} else {
+				pid, bgErr = tools.RunToolBackground(tc.Name, tc.GetArgs(), cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir, registry)
+			}
+			if bgErr != nil {
+				return fmt.Sprintf("Tool Output: ERROR starting background tool: %v", bgErr)
+			}
+			msg := fmt.Sprintf("Tool Output: Tool started in background. PID=%d. Use {\"action\": \"read_process_logs\", \"pid\": %d} to check output.", pid, pid)
+			if rejInfo != "" {
+				msg = rejInfo + "\n" + msg
+			}
+			return msg
 		}
 		logger.Info("LLM requested tool execution", "name", tc.Name)
-		stdout, stderr, err := tools.RunTool(tc.Name, tc.GetArgs(), cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir)
-		errStr := ""
-		if err != nil {
-			errStr = err.Error()
+		// Resolve vault secrets
+		secrets, rejectedInfo := resolveVaultKeys(cfg, vault, tc.VaultKeys, logger)
+		// Resolve credential secrets
+		creds, credRejInfo := resolveCredentials(cfg, vault, inventoryDB, tc.CredentialIDs, logger)
+		if credRejInfo != "" {
+			if rejectedInfo != "" {
+				rejectedInfo += "\n" + credRejInfo
+			} else {
+				rejectedInfo = credRejInfo
+			}
 		}
-		return fmt.Sprintf("Tool Output:\nSTDOUT:\n%s\nSTDERR:\n%s\nERROR:\n%s\n", stdout, stderr, errStr)
+		var stdout, stderr string
+		var runErr error
+		if len(secrets) > 0 || len(creds) > 0 {
+			stdout, stderr, runErr = tools.RunToolWithSecrets(tc.Name, tc.GetArgs(), cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir, secrets, creds)
+		} else {
+			stdout, stderr, runErr = tools.RunTool(tc.Name, tc.GetArgs(), cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir)
+		}
+		errStr := ""
+		if runErr != nil {
+			errStr = runErr.Error()
+		}
+		result := fmt.Sprintf("Tool Output:\nSTDOUT:\n%s\nSTDERR:\n%s\nERROR:\n%s\n", stdout, stderr, errStr)
+		if rejectedInfo != "" {
+			result = rejectedInfo + "\n" + result
+		}
+		return result
 
 	case "list_processes":
 		logger.Info("LLM requested process list")
@@ -285,7 +443,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 		if !ok {
 			return fmt.Sprintf("Tool Output: ERROR process %d not found", tc.PID)
 		}
-		return fmt.Sprintf("Tool Output: [LOGS for PID %d]\n%s", tc.PID, proc.ReadOutput())
+		return fmt.Sprintf("Tool Output: [LOGS for PID %d]\n%s", tc.PID, security.Scrub(proc.ReadOutput()))
 
 	case "query_memory":
 		if !cfg.Tools.Memory.Enabled {

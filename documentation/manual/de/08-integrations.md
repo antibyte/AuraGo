@@ -452,6 +452,249 @@ notifications:
 
 ---
 
+## TrueNAS Integration
+
+Verwalte ZFS-Storage-Pools, Datasets, Snapshots und SMB/NFS-Shares auf TrueNAS SCALE oder CORE.
+
+### Konfiguration
+
+```yaml
+truenas:
+  enabled: true
+  host: "truenas.local"        # Hostname oder IP
+  port: 443                    # API-Port (Standard: 443)
+  use_https: true              # HTTPS verwenden (empfohlen)
+  insecure_ssl: false          # Zertifikatsprüfung überspringen (nur Test)
+  readonly: false              # Nur Lesezugriff
+  allow_destructive: false     # Löschen/Rollback erlauben
+```
+
+### API-Key erstellen
+
+1. In TrueNAS Web-UI: **System → API Keys**
+2. Auf **Add** klicken
+3. Name: "AuraGo" und Key kopieren
+4. In AuraGo Vault speichern (Web-UI → Konfiguration → TrueNAS)
+
+### Verfügbare Operationen
+
+| Operation | Beschreibung | Berechtigung |
+|-----------|--------------|--------------|
+| Pools anzeigen | Storage-Pools mit Status und Kapazität | Lesen |
+| Pool scrub | Datenintegritätsprüfung starten | Schreiben |
+| Datasets anzeigen | Alle ZFS-Datasets auflisten | Lesen |
+| Dataset erstellen | Neues ZFS-Dataset anlegen | Schreiben |
+| Dataset löschen | Dataset entfernen (destructive) | Destructive |
+| Snapshots anzeigen | Snapshots eines Datasets | Lesen |
+| Snapshot erstellen | Point-in-Time Snapshot | Schreiben |
+| Snapshot löschen | Snapshot entfernen | Destructive |
+| Rollback | Dataset zu Snapshot wiederherstellen | Destructive |
+| SMB-Shares | SMB-Freigaben verwalten | Schreiben |
+| NFS-Shares | NFS-Freigaben verwalten | Schreiben |
+| Speicherplatz | Pool/Dataset-Kapazität prüfen | Lesen |
+
+### Beispiel-Befehle
+
+```
+Zeige mir alle Storage-Pools auf TrueNAS
+Erstelle ein neues Dataset namens tank/backups
+Erstelle einen Snapshot von tank/media
+Erstelle eine SMB-Freigabe für tank/media namens Media
+Wie viel freier Speicher ist auf dem tank-Pool?
+```
+
+> 💡 **Tipp:** `readonly: true` für rein monitoring. `allow_destructive` nur aktivieren wenn nötig.
+
+---
+
+## FritzBox Integration
+
+Steuere AVM Fritz!Box-Router über TR-064-Protokoll.
+
+### Konfiguration
+
+```yaml
+fritzbox:
+  enabled: true
+  host: "fritz.box"
+  username: "admin"              # Falls in FritzBox gesetzt
+  password: ""                   # Wird im Vault gespeichert
+  insecure: false                # Selbstsignierte Zertifikate erlauben
+```
+
+### Verfügbare Operationen
+
+| Operation | Beschreibung |
+|-----------|--------------|
+| Geräteinfo | Modell, Firmware, Uptime |
+| Online-Status | Internet-Verbindung prüfen |
+| Verbundene Geräte | LAN/WiFi-Clients anzeigen |
+| Bandbreite | Aktuelle Up/Down-Geschwindigkeit |
+| Neu verbinden | Neue WAN-Verbindung erzwingen |
+| Portfreigaben | Port-Forwarding-Regeln anzeigen |
+
+---
+
+## AdGuard Home Integration
+
+DNS-Filterung und -Blockierung mit AdGuard Home verwalten.
+
+### Konfiguration
+
+```yaml
+adguard:
+  enabled: true
+  host: "adguard.local"
+  port: 3000
+  username: "admin"
+  password: ""                   # Wird im Vault gespeichert
+  use_https: false
+  readonly: false
+```
+
+### Verfügbare Operationen
+
+| Operation | Beschreibung | Berechtigung |
+|-----------|--------------|--------------|
+| Status | Filter-Status und Statistiken | Lesen |
+| Query-Log | DNS-Abfragen anzeigen | Lesen |
+| Top-Clients | Aktivste Geräte | Lesen |
+| Blocklisten | Filterlisten verwalten | Schreiben |
+| Custom Rules | DNS-Rewrites hinzufügen | Schreiben |
+| Safe Search | Safe Search umschalten | Schreiben |
+
+> 💡 **Tipp:** `readonly: true` um Netzwerkaktivität zu überwachen ohne Filter zu ändern.
+
+---
+
+## n8n Integration
+
+Verbindung mit n8n Workflow-Automatisierungsplattform.
+
+### Konfiguration
+
+```yaml
+n8n:
+  enabled: true
+  base_url: "https://n8n.deinedomain.com"
+  api_key: ""                    # Wird im Vault gespeichert
+  readonly: false
+```
+
+### Verfügbare Operationen
+
+| Operation | Beschreibung |
+|-----------|--------------|
+| Workflows anzeigen | Alle n8n-Workflows auflisten |
+| Workflow-Details | Spezifische Workflow-Details |
+| Aktivieren/Deaktivieren | Workflow-Status umschalten |
+| Workflow ausführen | Manuell auslösen |
+| Ausführungen anzeigen | Ausführungsverlauf |
+
+### n8n Node für AuraGo
+
+AuraGo bietet einen offiziellen n8n Community Node:
+- Chatte mit AuraGo aus n8n-Workflows
+- Trigger Tools und Missions
+- Zugriff auf Memory und Knowledge
+
+Installation: `@antibyte/n8n-nodes-aurago`
+
+---
+
+## Telnyx Integration
+
+SMS senden/empfangen und Sprachanrufe über Telnyx-Telefonie.
+
+### Konfiguration
+
+```yaml
+telnyx:
+  enabled: true
+  api_key: ""                    # Wird im Vault gespeichert
+  public_key: ""
+  phone_number: "+491234567890"
+  messaging_enabled: true
+  voice_enabled: true
+```
+
+### Verfügbare Operationen
+
+| Operation | Beschreibung |
+|-----------|--------------|
+| SMS senden | Textnachrichten versenden |
+| SMS empfangen | Eingehende Nachrichten verarbeiten |
+| Anrufe tätigen | Sprachanrufe initiieren |
+| Voicemail | Voicemail-Nachrichten verwalten |
+
+---
+
+## VirusTotal Integration
+
+Dateien und URLs auf Malware prüfen mit VirusTotal API.
+
+### Konfiguration
+
+```yaml
+virustotal:
+  enabled: true
+  api_key: ""                    # Wird im Vault gespeichert
+```
+
+### API-Key erhalten
+
+1. Bei [VirusTotal](https://www.virustotal.com) registrieren
+2. Profil → API Key
+3. Key kopieren
+
+### Verfügbare Operationen
+
+| Operation | Beschreibung |
+|-----------|--------------|
+| URL scannen | URL-Reputation prüfen |
+| Datei scannen | Datei-Hash analysieren |
+| Report abrufen | Scan-Ergebnisse anzeigen |
+
+> 💡 **Tipp:** Der Agent verwendet dies automatisch bei verdächtigen Links oder Dateien.
+
+---
+
+## MCP (Model Context Protocol)
+
+Verbinde externe MCP-Server oder stelle AuraGo als MCP-Server bereit.
+
+### MCP Client (externe Server)
+
+```yaml
+mcp:
+  enabled: true
+  allowed_tools:
+    - "fetch"
+    - "filesystem"
+  servers:
+    fetch:
+      command: "uvx"
+      args: ["mcp-server-fetch"]
+    filesystem:
+      command: "npx"
+      args: ["-y", "@modelcontextprotocol/server-filesystem", "/allowed/path"]
+```
+
+### MCP Server (AuraGo für andere Clients)
+
+```yaml
+mcp_server:
+  enabled: true
+  allowed_tools:
+    - "shell"
+    - "docker_*"
+  auth_token: "secure-token"
+```
+
+Verbindung von Claude Desktop, Cursor oder anderen MCP-Clients möglich.
+
+---
+
 ## Zusätzliche Integrationen (Vollständigkeits-Ergänzung)
 
 Neben den oben beschriebenen Kernintegrationen umfasst die aktuelle Plattform weitere Integrationen/Features:
