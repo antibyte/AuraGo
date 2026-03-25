@@ -2871,6 +2871,17 @@ select.cfg-input option {
 
 .auth-field-group-flat {
     margin-bottom: 0;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.auth-field-group-flat .field-help {
+    flex: 1;
+}
+
+.auth-field-group-flat .field-input {
+    margin-top: auto;
 }
 
 .auth-password-row {
