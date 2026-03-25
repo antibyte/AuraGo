@@ -449,6 +449,128 @@ select.cfg-input option {
     align-items: center;
 }
 
+/* SQL Connections */
+.sqlconn-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.8rem;
+    margin-top: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.sqlconn-toolbar-left {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    min-width: 0;
+    flex: 1;
+}
+
+.sqlconn-filter-input {
+    width: 220px;
+    max-width: 100%;
+    padding: 0.4rem 0.7rem;
+    font-size: 0.82rem;
+}
+
+.sqlconn-add-btn,
+.sqlconn-test-btn,
+.sqlconn-secondary-btn,
+.sqlconn-primary-btn {
+    padding: 0.45rem 1rem;
+    font-size: 0.82rem;
+}
+
+.sqlconn-modal {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--bg-primary);
+    border: 1px solid var(--border-subtle);
+    border-radius: 14px;
+    padding: 1.5rem;
+    width: min(560px, 90vw);
+    max-height: 85vh;
+    overflow-y: auto;
+}
+
+.sqlconn-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.2rem;
+    gap: 0.75rem;
+}
+
+.sqlconn-grid-two {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.8rem;
+}
+
+.sqlconn-grid-host {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 0.8rem;
+    margin-top: 0.8rem;
+}
+
+.sqlconn-creds-row {
+    margin-top: 0.8rem;
+}
+
+.sqlconn-permissions-card {
+    margin-top: 1rem;
+    padding: 0.8rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+}
+
+.sqlconn-permissions-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+}
+
+.sqlconn-permission-item {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.82rem;
+    cursor: pointer;
+}
+
+.sqlconn-modal-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 1.2rem;
+}
+
+.sqlconn-modal-actions-right {
+    display: flex;
+    gap: 0.6rem;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+}
+
+.sqlconn-test-btn {
+    background: var(--bg-secondary);
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    box-shadow: none;
+}
+
+.sqlconn-secondary-btn {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    box-shadow: none;
+}
+
 .btn-save:hover {
     filter: brightness(1.12);
     box-shadow: 0 4px 18px rgba(45, 212, 191, 0.35);
@@ -553,6 +675,45 @@ select.cfg-input option {
     }
 
     .cfg-secret-row .btn-save {
+        width: 100%;
+        white-space: normal;
+        line-height: 1.2;
+        min-height: 44px;
+    }
+
+    .sqlconn-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .sqlconn-filter-input,
+    .sqlconn-add-btn {
+        width: 100%;
+    }
+
+    .sqlconn-modal {
+        width: min(560px, calc(100vw - 1rem));
+        padding: 1rem;
+    }
+
+    .sqlconn-grid-two,
+    .sqlconn-grid-host,
+    .sqlconn-permissions-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .sqlconn-modal-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .sqlconn-modal-actions-right {
+        width: 100%;
+    }
+
+    .sqlconn-test-btn,
+    .sqlconn-secondary-btn,
+    .sqlconn-primary-btn {
         width: 100%;
         white-space: normal;
         line-height: 1.2;

@@ -489,13 +489,6 @@ async function renderSection(key) {
                 </div>`;
     }
 
-    // Budget disclaimer
-    if (key === 'budget') {
-        html += `<div class="cfg-note-banner cfg-note-banner-info">
-                    ℹ️ ${t('config.budget.info_banner')}
-                </div>`;
-    }
-
     // Tools permissions warning
     if (key === 'tools') {
         html += `<div class="cfg-note-banner cfg-note-banner-warning">

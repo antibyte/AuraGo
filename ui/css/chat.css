@@ -30,6 +30,7 @@
         /* Logo text gradient */
         .logo {
             position: relative;
+            margin-right: 0.85rem;
         }
         .logo span:first-of-type {
             background: linear-gradient(135deg, var(--accent), var(--accent-secondary, #0d9488));
@@ -73,6 +74,12 @@
         @keyframes float {
             0%, 100% { transform: translateY(0); }
             50% { transform: translateY(-8px); }
+        }
+
+        @media (max-width: 767px) {
+            .app-header .logo {
+                margin-right: 0.55rem;
+            }
         }
 
         /* ── Mood Widget (page-specific enhancements) ───────── */

@@ -740,11 +740,11 @@ type Config struct {
 	} `yaml:"ollama"`
 	RocketChat struct {
 		Enabled   bool   `yaml:"enabled"`
-		URL       string `yaml:"url"`     // e.g. "https://chat.example.com"
-		UserID    string `yaml:"user_id"` // bot user ID
-		AuthToken string `yaml:"-"`       // auth token (from vault)
-		Channel   string `yaml:"channel"` // default channel to listen on
-		Alias     string `yaml:"alias"`   // display name
+		URL       string `yaml:"url"`                  // e.g. "https://chat.example.com"
+		UserID    string `yaml:"user_id"`              // bot user ID
+		AuthToken string `yaml:"-" vault:"auth_token"` // auth token (vault-only)
+		Channel   string `yaml:"channel"`              // default channel to listen on
+		Alias     string `yaml:"alias"`                // display name
 	} `yaml:"rocketchat"`
 	Tailscale struct {
 		Enabled  bool   `yaml:"enabled"`

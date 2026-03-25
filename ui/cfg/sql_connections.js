@@ -7,11 +7,11 @@ function renderSQLConnectionsSection(section) {
     html += '<div class="section-desc">' + section.desc + '</div>';
 
     html += `
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:1.5rem;margin-bottom:1rem;">
-        <div style="display:flex;gap:0.5rem;align-items:center;">
-            <input type="text" id="sqlconn-filter" class="field-input" placeholder="${t('config.sql_connections.filter_placeholder')}" style="width:220px;padding:0.4rem 0.7rem;font-size:0.82rem;" oninput="sqlConnApplyFilter()">
+    <div class="sqlconn-toolbar">
+        <div class="sqlconn-toolbar-left">
+            <input type="text" id="sqlconn-filter" class="field-input sqlconn-filter-input" placeholder="${t('config.sql_connections.filter_placeholder')}" oninput="sqlConnApplyFilter()">
         </div>
-        <button class="btn-save" style="padding:0.45rem 1.1rem;font-size:0.82rem;" onclick="sqlConnShowModal()">
+        <button class="btn-save sqlconn-add-btn" onclick="sqlConnShowModal()">
             ＋ ${t('config.sql_connections.add_connection')}
         </button>
     </div>
@@ -41,8 +41,8 @@ function renderSQLConnectionsSection(section) {
     // Modal overlay
     html += `
     <div id="sqlconn-modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:1000;backdrop-filter:blur(4px);" onclick="sqlConnCloseModal(event)">
-        <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--bg-primary);border:1px solid var(--border-subtle);border-radius:14px;padding:1.5rem;width:min(560px,90vw);max-height:85vh;overflow-y:auto;" onclick="event.stopPropagation()">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;">
+        <div class="sqlconn-modal" onclick="event.stopPropagation()">
+            <div class="sqlconn-modal-header">
                 <span id="sqlconn-modal-title" style="font-size:1rem;font-weight:600;"></span>
                 <button onclick="sqlConnCloseModal()" style="background:none;border:none;color:var(--text-secondary);font-size:1.2rem;cursor:pointer;">✕</button>
             </div>
@@ -53,7 +53,7 @@ function renderSQLConnectionsSection(section) {
                 <input type="text" id="sqlconn-field-name" class="field-input" placeholder="${t('config.sql_connections.name_placeholder')}">
             </div>
 
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.8rem;">
+            <div class="sqlconn-grid-two">
                 <div class="field-group">
                     <div class="field-label">${t('config.sql_connections.driver_label')} *</div>
                     <select id="sqlconn-field-driver" class="field-input" style="padding:0.45rem 0.6rem;" onchange="sqlConnDriverChanged()">
@@ -68,7 +68,7 @@ function renderSQLConnectionsSection(section) {
                 </div>
             </div>
 
-            <div style="display:grid;grid-template-columns:2fr 1fr;gap:0.8rem;margin-top:0.8rem;" id="sqlconn-host-row">
+            <div class="sqlconn-grid-host" id="sqlconn-host-row">
                 <div class="field-group">
                     <div class="field-label">${t('config.sql_connections.host_label')}</div>
                     <input type="text" id="sqlconn-field-host" class="field-input" placeholder="localhost">
@@ -95,7 +95,7 @@ function renderSQLConnectionsSection(section) {
                 <input type="text" id="sqlconn-field-desc" class="field-input" placeholder="${t('config.sql_connections.description_placeholder')}">
             </div>
 
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.8rem;margin-top:0.8rem;" id="sqlconn-creds-row">
+            <div class="sqlconn-grid-two sqlconn-creds-row" id="sqlconn-creds-row">
                 <div class="field-group">
                     <div class="field-label">${t('config.sql_connections.username_label')}</div>
                     <input type="text" id="sqlconn-field-username" class="field-input" placeholder="${t('config.sql_connections.username_placeholder')}">
@@ -106,19 +106,19 @@ function renderSQLConnectionsSection(section) {
                 </div>
             </div>
 
-            <div style="margin-top:1rem;padding:0.8rem;background:var(--bg-secondary);border:1px solid var(--border-subtle);border-radius:10px;">
+            <div class="sqlconn-permissions-card">
                 <div class="field-label" style="margin-bottom:0.5rem;font-weight:600;">${t('config.sql_connections.permissions_title')}</div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;">
-                    <label style="display:flex;align-items:center;gap:0.4rem;font-size:0.82rem;cursor:pointer;">
+                <div class="sqlconn-permissions-grid">
+                    <label class="sqlconn-permission-item">
                         <input type="checkbox" id="sqlconn-perm-read" checked> ${t('config.sql_connections.perm_read')}
                     </label>
-                    <label style="display:flex;align-items:center;gap:0.4rem;font-size:0.82rem;cursor:pointer;">
+                    <label class="sqlconn-permission-item">
                         <input type="checkbox" id="sqlconn-perm-write"> ${t('config.sql_connections.perm_write')}
                     </label>
-                    <label style="display:flex;align-items:center;gap:0.4rem;font-size:0.82rem;cursor:pointer;">
+                    <label class="sqlconn-permission-item">
                         <input type="checkbox" id="sqlconn-perm-change"> ${t('config.sql_connections.perm_change')}
                     </label>
-                    <label style="display:flex;align-items:center;gap:0.4rem;font-size:0.82rem;cursor:pointer;">
+                    <label class="sqlconn-permission-item">
                         <input type="checkbox" id="sqlconn-perm-delete"> ${t('config.sql_connections.perm_delete')}
                     </label>
                 </div>
@@ -128,13 +128,13 @@ function renderSQLConnectionsSection(section) {
             <div id="sqlconn-modal-error" style="display:none;margin-top:0.7rem;padding:0.5rem 0.8rem;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;font-size:0.8rem;color:var(--danger);"></div>
             <div id="sqlconn-modal-success" style="display:none;margin-top:0.7rem;padding:0.5rem 0.8rem;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:8px;font-size:0.8rem;color:var(--success);"></div>
 
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:1.2rem;">
-                <button class="btn-save" style="padding:0.45rem 1rem;font-size:0.82rem;background:var(--bg-secondary);color:var(--accent);border:1px solid var(--accent);box-shadow:none;" id="sqlconn-test-btn" onclick="sqlConnTest()">
+            <div class="sqlconn-modal-actions">
+                <button class="btn-save sqlconn-test-btn" id="sqlconn-test-btn" onclick="sqlConnTest()">
                     🔌 ${t('config.sql_connections.test_connection')}
                 </button>
-                <div style="display:flex;gap:0.6rem;">
-                    <button class="btn-save" style="padding:0.45rem 1rem;font-size:0.82rem;background:var(--bg-secondary);color:var(--text-primary);box-shadow:none;" onclick="sqlConnCloseModal()">${t('config.sql_connections.cancel')}</button>
-                    <button class="btn-save" style="padding:0.45rem 1.2rem;font-size:0.82rem;" id="sqlconn-modal-save" onclick="sqlConnSave()">${t('config.sql_connections.save')}</button>
+                <div class="sqlconn-modal-actions-right">
+                    <button class="btn-save sqlconn-secondary-btn" onclick="sqlConnCloseModal()">${t('config.sql_connections.cancel')}</button>
+                    <button class="btn-save sqlconn-primary-btn" id="sqlconn-modal-save" onclick="sqlConnSave()">${t('config.sql_connections.save')}</button>
                 </div>
             </div>
         </div>
