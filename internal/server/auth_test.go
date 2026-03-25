@@ -93,3 +93,24 @@ func TestHandleAuthLogoutReturnsJSONForAjaxRequests(t *testing.T) {
 		t.Fatalf("unexpected JSON body: %s", body)
 	}
 }
+
+func TestHandleAuthLogoutAPIReturnsJSON(t *testing.T) {
+	t.Parallel()
+
+	req := httptest.NewRequest(http.MethodPost, "/api/auth/logout", nil)
+	req.Header.Set("Accept", "application/json")
+	rec := httptest.NewRecorder()
+
+	handleAuthLogoutAPI(&Server{}).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d", rec.Code)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "\"ok\":true") || !strings.Contains(body, "\"redirect\":\"/auth/login\"") {
+		t.Fatalf("unexpected JSON body: %s", body)
+	}
+	if rec.Header().Get("Location") != "" {
+		t.Fatalf("did not expect redirect location for API logout")
+	}
+}

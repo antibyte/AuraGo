@@ -224,6 +224,26 @@ func handleAuthLogout(s *Server) http.HandlerFunc {
 	}
 }
 
+// handleAuthLogoutAPI clears the session cookie without browser redirect logic.
+// This is used by the Web UI on mobile/PWA to avoid brittle navigation behavior
+// around redirects and Clear-Site-Data handling.
+func handleAuthLogoutAPI(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost && r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		ClearSessionCookie(w, r)
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, private")
+		w.Header().Set("Pragma", "no-cache")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"ok":       true,
+			"redirect": "/auth/login",
+		})
+	}
+}
+
 // ── Password Management ──────────────────────────────────────────────────────
 
 // handleAuthSetPassword sets or changes the login password.

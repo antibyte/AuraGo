@@ -283,6 +283,7 @@ var authBypassPrefixes = []string{
 	"/api/health",
 	"/auth/",
 	"/api/auth/status",
+	"/api/auth/logout",
 	"/api/security/status",
 	"/api/setup",
 	"/api/openrouter/models",
@@ -329,6 +330,7 @@ func isAuthBypassed(path string) bool {
 var noPasswordPrefixes = []string{
 	"/auth/",
 	"/api/auth/status",
+	"/api/auth/logout",
 	"/api/auth/password", // allows setting the initial password
 	"/api/security/status",
 	"/api/setup",

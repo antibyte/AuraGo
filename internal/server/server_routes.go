@@ -233,6 +233,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 
 	// Auth endpoints — always reachable (whitelisted in authMiddleware)
 	mux.HandleFunc("/api/auth/status", handleAuthStatus(s))
+	mux.HandleFunc("/api/auth/logout", handleAuthLogoutAPI(s))
 	mux.HandleFunc("/api/security/status", handleSecurityStatus(s))
 	mux.HandleFunc("/api/auth/password", handleAuthSetPassword(s))
 	mux.HandleFunc("/api/auth/totp/setup", handleAuthTOTPSetup(s))

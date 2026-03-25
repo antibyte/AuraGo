@@ -338,6 +338,7 @@ async function performLogout() {
     if (backdrop) backdrop.classList.remove('open');
 
     const fallbackURL = '/auth/logout?ts=' + Date.now();
+    const apiLogoutURL = '/api/auth/logout?ts=' + Date.now();
     const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
     const fallbackTimer = setTimeout(() => {
         if (controller) controller.abort();
@@ -345,11 +346,10 @@ async function performLogout() {
     }, 1800);
 
     try {
-        const resp = await fetch(fallbackURL, {
-            method: 'GET',
+        const resp = await fetch(apiLogoutURL, {
+            method: 'POST',
             credentials: 'same-origin',
             cache: 'no-store',
-            redirect: 'follow',
             signal: controller ? controller.signal : undefined,
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
