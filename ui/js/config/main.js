@@ -121,6 +121,7 @@ const SECTIONS = [
     {
         group: t('config.group.network_remote'),
         items: [
+            { key: 'truenas', icon: '💾', label: t('config.section.truenas.label'), desc: t('config.section.truenas.desc') },
             { key: 'tailscale', icon: '🔒', label: t('config.section.tailscale.label'), desc: t('config.section.tailscale.desc') },
             { key: 'proxmox', icon: '🖥️', label: t('config.section.proxmox.label'), desc: t('config.section.proxmox.desc') },
             { key: 'remote_control', icon: '📡', label: t('config.section.remote_control.label'), desc: t('config.section.remote_control.desc') },
@@ -1209,6 +1210,7 @@ const SECTION_MODULES = {
     homepage: { m: 'homepage', fn: 'renderHomepageSection' },
     netlify: { m: 'netlify', fn: 'renderNetlifySection' },
     danger_zone: { m: 'danger', fn: 'renderDangerZoneSection' },
+    truenas: { m: 'truenas', fn: 'renderTrueNASSection' },
     web_config: { m: 'auth', fn: 'renderWebConfigSection' },
     firewall: { m: 'firewall', fn: 'renderFirewallSection' },
     github: { m: 'github', fn: 'renderGitHubSection' },

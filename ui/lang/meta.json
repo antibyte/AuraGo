@@ -92,6 +92,14 @@
       "intel"
     ]
   },
+  "help.ollama.managed_instance.gpu_backend": {
+    "options": [
+      "auto",
+      "nvidia",
+      "amd",
+      "intel"
+    ]
+  },
   "help.whisper.provider": {
     "provider_ref": true
   },

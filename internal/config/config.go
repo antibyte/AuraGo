@@ -554,6 +554,16 @@ func Load(path string) (*Config, error) {
 	if cfg.Ollama.URL == "" {
 		cfg.Ollama.URL = "http://localhost:11434"
 	}
+	if cfg.Ollama.ManagedInstance.ContainerPort <= 0 {
+		cfg.Ollama.ManagedInstance.ContainerPort = 11434
+	}
+	if cfg.Ollama.ManagedInstance.GPUBackend == "" {
+		cfg.Ollama.ManagedInstance.GPUBackend = "auto"
+	}
+	// When managed instance is active, point the Ollama URL to the local container.
+	if cfg.Ollama.ManagedInstance.Enabled {
+		cfg.Ollama.URL = fmt.Sprintf("http://localhost:%d", cfg.Ollama.ManagedInstance.ContainerPort)
+	}
 
 	// RocketChat defaults
 	if cfg.RocketChat.Alias == "" {

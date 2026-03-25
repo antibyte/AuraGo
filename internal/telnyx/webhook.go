@@ -32,21 +32,24 @@ type WebhookHandler struct {
 	onSMS       func(from, text string, mediaURLs []string) // callback for incoming SMS
 	onCallEvent func(event *WebhookEvent)                   // callback for call events
 
-	activeCalls map[string]*CallSession
-	mu          sync.RWMutex
-	smsLimiter  *rateLimiter
+	activeCalls  map[string]*CallSession
+	mu           sync.RWMutex
+	smsLimiter   *rateLimiter
+	seenEventIDs map[string]time.Time
+	seenMu       sync.Mutex
 }
 
 // NewWebhookHandler creates a webhook handler.
 func NewWebhookHandler(cfg *config.Config, logger *slog.Logger, onSMS func(string, string, []string), onCallEvent func(*WebhookEvent)) *WebhookHandler {
 	h := &WebhookHandler{
-		cfg:         cfg,
-		logger:      logger,
-		client:      NewClient(cfg.Telnyx.APIKey, logger),
-		onSMS:       onSMS,
-		onCallEvent: onCallEvent,
-		activeCalls: make(map[string]*CallSession),
-		smsLimiter:  newRateLimiter(cfg.Telnyx.MaxSMSPerMinute, time.Minute),
+		cfg:          cfg,
+		logger:       logger,
+		client:       NewClient(cfg.Telnyx.APIKey, logger),
+		onSMS:        onSMS,
+		onCallEvent:  onCallEvent,
+		activeCalls:  make(map[string]*CallSession),
+		smsLimiter:   newRateLimiter(cfg.Telnyx.MaxSMSPerMinute, time.Minute),
+		seenEventIDs: make(map[string]time.Time),
 	}
 	return h
 }
@@ -66,13 +69,16 @@ func (h *WebhookHandler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
-	// Verify signature if API secret is available
-	if h.cfg.Telnyx.APISecret != "" {
-		if !verifyWebhookSignature(r, body) {
-			h.logger.Warn("Telnyx webhook: invalid signature")
-			http.Error(w, "Forbidden", http.StatusForbidden)
-			return
-		}
+	// Signature verification is mandatory — reject if not configured.
+	if h.cfg.Telnyx.APISecret == "" {
+		h.logger.Warn("Telnyx webhook: API secret not configured, rejecting webhook")
+		http.Error(w, "Webhook verification not configured", http.StatusServiceUnavailable)
+		return
+	}
+	if !verifyWebhookSignature(r, body) {
+		h.logger.Warn("Telnyx webhook: invalid signature")
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
 	}
 
 	// Always respond 200 immediately; process async
@@ -88,6 +94,12 @@ func (h *WebhookHandler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
 		"event_type", event.Data.EventType,
 		"id", event.Data.ID,
 	)
+
+	// Deduplicate events by ID within the signature replay window.
+	if event.Data.ID != "" && h.isDuplicateEvent(event.Data.ID) {
+		h.logger.Info("Telnyx webhook: duplicate event, skipping", "id", event.Data.ID)
+		return
+	}
 
 	go h.processEvent(&event)
 }
@@ -266,21 +278,48 @@ func (h *WebhookHandler) GetActiveCalls() []CallSession {
 	return calls
 }
 
+// normalizePhone strips all formatting characters, keeping only '+' and digits.
+func normalizePhone(number string) string {
+	return strings.Map(func(r rune) rune {
+		if r == '+' || (r >= '0' && r <= '9') {
+			return r
+		}
+		return -1
+	}, number)
+}
+
 // isAllowedNumber checks if a phone number is in the allowed list.
 func (h *WebhookHandler) isAllowedNumber(number string) bool {
 	if len(h.cfg.Telnyx.AllowedNumbers) == 0 {
 		return true // empty list = allow all
 	}
-	// Normalize: strip formatting
-	clean := strings.ReplaceAll(number, " ", "")
-	clean = strings.ReplaceAll(clean, "-", "")
+	clean := normalizePhone(number)
 	for _, allowed := range h.cfg.Telnyx.AllowedNumbers {
-		norm := strings.ReplaceAll(allowed, " ", "")
-		norm = strings.ReplaceAll(norm, "-", "")
-		if clean == norm {
+		if clean == normalizePhone(allowed) {
 			return true
 		}
 	}
+	return false
+}
+
+// isDuplicateEvent checks the in-memory dedup cache for a previously processed event ID.
+// Returns true if the event was already seen within the signature replay window.
+func (h *WebhookHandler) isDuplicateEvent(eventID string) bool {
+	h.seenMu.Lock()
+	defer h.seenMu.Unlock()
+
+	now := time.Now()
+	// Prune expired entries.
+	for id, seen := range h.seenEventIDs {
+		if now.Sub(seen) > signatureMaxAge {
+			delete(h.seenEventIDs, id)
+		}
+	}
+
+	if _, exists := h.seenEventIDs[eventID]; exists {
+		return true
+	}
+	h.seenEventIDs[eventID] = now
 	return false
 }
 

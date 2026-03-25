@@ -49,5 +49,7 @@
   "config.tailscale.tsnet_homepage_pending_hint": "Homepage exposure is enabled. If no URL appears, make sure the Homepage web server is running and Tailscale HTTPS is enabled.",
   "config.tailscale.tsnet_requirements_title": "Requirements for HTTPS and Funnel",
   "config.tailscale.tsnet_https_requirements": "HTTPS over Tailscale needs MagicDNS plus HTTPS certificates to be enabled for this node in the Tailscale admin panel. If certificates are not available yet, AuraGo falls back to HTTP on port 80.",
+  "config.tailscale.tsnet_allow_http_fallback_label": "允许 HTTP 回退",
+  "config.tailscale.tsnet_allow_http_fallback_hint": "如果 HTTPS 不可用，则退回至端口 80 的 HTTP。默认禁用 — 仅当无法获取 Tailscale HTTPS 证书时才启用。",
   "config.tailscale.tsnet_funnel_requirements": "Funnel additionally needs Tailscale Funnel to be enabled for this tailnet and node. Funnel only applies to the AuraGo web UI on port 443 and keeps AuraGo login protection active."
 }

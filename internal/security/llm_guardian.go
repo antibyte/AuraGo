@@ -127,8 +127,13 @@ func (g *LLMGuardian) ShouldCheck(toolName string, regexLevel ThreatLevel) bool 
 func (g *LLMGuardian) Evaluate(ctx context.Context, check GuardianCheck) GuardianResult {
 	start := time.Now()
 
-	// Check cache first
-	cacheKey := GenerateCacheKey(check.Operation, check.Parameters)
+	// Check cache first — include a short context snippet so that the same tool call
+	// in different user-message contexts is not incorrectly served the same cached verdict.
+	ctxSnippet := check.Context
+	if len(ctxSnippet) > 80 {
+		ctxSnippet = ctxSnippet[:80]
+	}
+	cacheKey := GenerateCacheKey(check.Operation+"|"+ctxSnippet, check.Parameters)
 	if result, hit := g.cache.Get(cacheKey); hit {
 		result.Duration = time.Since(start)
 		g.Metrics.Record(result)
@@ -303,6 +308,13 @@ var riskyTools = map[string]bool{
 	"netlify":              true,
 	"home_assistant":       true,
 	"homepage":             true,
+	"tailscale":            true,
+	"cloudflare_tunnel":    true,
+	"network_ping":         true,
+	"port_scanner":         true,
+	"mdns_scan":            true,
+	"upnp_scan":            true,
+	"meshcentral":          true,
 }
 
 func isHighRiskTool(name string) bool { return highRiskTools[name] }
@@ -328,6 +340,11 @@ func buildGuardianPrompt(check GuardianCheck) string {
 			if len(v) > 200 {
 				v = v[:200] + "..."
 			}
+			// Escape newlines and "DECISION:" to prevent prompt injection via parameter values.
+			v = strings.ReplaceAll(v, "\r", " ")
+			v = strings.ReplaceAll(v, "\n", " ")
+			v = strings.ReplaceAll(v, "DECISION:", "DECISION_")
+			v = strings.ReplaceAll(v, "CLASSIFY:", "CLASSIFY_")
 			sb.WriteString(k)
 			sb.WriteString("=")
 			sb.WriteString(v)

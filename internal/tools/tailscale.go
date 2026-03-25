@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -220,6 +221,17 @@ func TailscaleSetRoutes(cfg TailscaleConfig, query string, routes []string, enab
 		EnabledRoutes []string `json:"enabledRoutes"`
 	}
 	_ = json.Unmarshal(current, &routeData)
+
+	// Validate each provided CIDR before touching the API.
+	for _, r := range routes {
+		r = strings.TrimSpace(r)
+		if r == "" {
+			continue
+		}
+		if _, _, cidrErr := net.ParseCIDR(r); cidrErr != nil {
+			return fmt.Sprintf(`{"status":"error","message":"Invalid CIDR %q: %v"}`, r, cidrErr)
+		}
+	}
 
 	// Build the new enabled set.
 	set := make(map[string]bool)

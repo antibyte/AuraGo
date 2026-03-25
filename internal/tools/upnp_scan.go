@@ -56,6 +56,19 @@ func ExecuteUPnPScan(searchTarget string, timeoutSecs int) string {
 	if searchTarget == "" {
 		searchTarget = "ssdp:all"
 	}
+	// Whitelist search targets to prevent SSRF-style abuse via SSDP.
+	allowedPrefix := false
+	switch searchTarget {
+	case "ssdp:all", "upnp:rootdevice":
+		allowedPrefix = true
+	default:
+		if strings.HasPrefix(searchTarget, "urn:schemas-upnp-org:") || strings.HasPrefix(searchTarget, "urn:dial-multiscreen-org:") {
+			allowedPrefix = true
+		}
+	}
+	if !allowedPrefix {
+		return upnpJSON(upnpResult{Status: "error", Message: "invalid search target: must be 'ssdp:all', 'upnp:rootdevice', or a urn:schemas-upnp-org: URN"})
+	}
 	if timeoutSecs <= 0 {
 		timeoutSecs = 5
 	}

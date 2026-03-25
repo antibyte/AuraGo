@@ -60,19 +60,22 @@ type jsonRPCError struct {
 // ── Single MCP server connection ────────────────────────────────────────────
 
 type mcpConn struct {
-	name    string
-	cmd     *exec.Cmd
-	stdin   io.WriteCloser
-	stdout  *bufio.Reader
-	mu      sync.Mutex
-	nextID  int64
-	tools   []MCPToolInfo
-	ready   bool
-	closeCh chan struct{}
+	name      string
+	cmd       *exec.Cmd
+	stdin     io.WriteCloser
+	stdout    *bufio.Reader
+	mu        sync.Mutex
+	nextID    int64
+	tools     []MCPToolInfo
+	ready     bool
+	closeCh   chan struct{}
+	closeOnce sync.Once // ensures close() is idempotent
 }
 
 func (c *mcpConn) markReady() {
+	c.mu.Lock()
 	c.ready = true
+	c.mu.Unlock()
 }
 
 func (c *mcpConn) toolCount() int {
@@ -206,10 +209,17 @@ func (c *mcpConn) initialize(logger *slog.Logger) error {
 		ID:      0, // notifications can have id=0 or none, but for safety we use 0
 		Method:  "notifications/initialized",
 	}
-	data, _ := json.Marshal(notif)
+	data, err := json.Marshal(notif)
+	if err != nil {
+		logger.Warn("[MCP] Failed to marshal notifications/initialized", "name", c.name, "error", err)
+		return nil // non-fatal: server already initialized
+	}
 	c.mu.Lock()
-	c.stdin.Write(append(data, '\n'))
+	_, writeErr := c.stdin.Write(append(data, '\n'))
 	c.mu.Unlock()
+	if writeErr != nil {
+		logger.Warn("[MCP] Failed to send notifications/initialized", "name", c.name, "error", writeErr)
+	}
 
 	return nil
 }
@@ -235,17 +245,20 @@ func (c *mcpConn) discoverTools(logger *slog.Logger) error {
 		return fmt.Errorf("parse tools/list result: %w", err)
 	}
 
-	c.tools = make([]MCPToolInfo, len(result.Tools))
+	newTools := make([]MCPToolInfo, len(result.Tools))
 	for i, t := range result.Tools {
-		c.tools[i] = MCPToolInfo{
+		newTools[i] = MCPToolInfo{
 			Server:      c.name,
 			Name:        t.Name,
 			Description: t.Description,
 			InputSchema: t.InputSchema,
 		}
 	}
+	c.mu.Lock()
+	c.tools = newTools
+	c.mu.Unlock()
 
-	logger.Info("[MCP] Tools discovered", "server", c.name, "count", len(c.tools))
+	logger.Info("[MCP] Tools discovered", "server", c.name, "count", len(newTools))
 	return nil
 }
 
@@ -300,16 +313,18 @@ func (c *mcpConn) callTool(toolName string, arguments map[string]interface{}) (s
 }
 
 func (c *mcpConn) close() {
-	close(c.closeCh)
-	c.stdin.Close()
-	// Give the process a moment to exit gracefully
-	done := make(chan error, 1)
-	go func() { done <- c.cmd.Wait() }()
-	select {
-	case <-done:
-	case <-time.After(5 * time.Second):
-		c.cmd.Process.Kill()
-	}
+	c.closeOnce.Do(func() {
+		close(c.closeCh)
+		c.stdin.Close()
+		// Give the process a moment to exit gracefully
+		done := make(chan error, 1)
+		go func() { done <- c.cmd.Wait() }()
+		select {
+		case <-done:
+		case <-time.After(5 * time.Second):
+			c.cmd.Process.Kill()
+		}
+	})
 }
 
 // ── MCPManager — global manager ─────────────────────────────────────────────
@@ -403,10 +418,11 @@ func (m *MCPManager) ListTools(serverName string) []MCPToolInfo {
 		if serverName != "" && name != serverName {
 			continue
 		}
-		if !conn.ready {
-			continue
+		conn.mu.Lock()
+		if conn.ready {
+			result = append(result, conn.tools...)
 		}
-		result = append(result, conn.tools...)
+		conn.mu.Unlock()
 	}
 	return result
 }
@@ -418,16 +434,23 @@ func (m *MCPManager) ListServers() []map[string]interface{} {
 
 	var result []map[string]interface{}
 	for name, conn := range m.conns {
+		conn.mu.Lock()
+		ready := conn.ready
+		count := len(conn.tools)
+		conn.mu.Unlock()
 		result = append(result, map[string]interface{}{
 			"name":       name,
-			"ready":      conn.ready,
-			"tool_count": len(conn.tools),
+			"ready":      ready,
+			"tool_count": count,
 		})
 	}
 	return result
 }
 
-// CallTool invokes a tool on a specific MCP server.
+// mcpCallToolTimeout is the maximum duration for a single MCP tool call.
+const mcpCallToolTimeout = 60 * time.Second
+
+// CallTool invokes a tool on a specific MCP server with a timeout.
 func (m *MCPManager) CallTool(serverName, toolName string, arguments map[string]interface{}) (string, error) {
 	m.mu.RLock()
 	conn, ok := m.conns[serverName]
@@ -436,11 +459,28 @@ func (m *MCPManager) CallTool(serverName, toolName string, arguments map[string]
 	if !ok {
 		return "", fmt.Errorf("MCP server %q not found or not connected", serverName)
 	}
-	if !conn.ready {
+	conn.mu.Lock()
+	ready := conn.ready
+	conn.mu.Unlock()
+	if !ready {
 		return "", fmt.Errorf("MCP server %q is not ready", serverName)
 	}
 
-	return conn.callTool(toolName, arguments)
+	type result struct {
+		s   string
+		err error
+	}
+	ch := make(chan result, 1)
+	go func() {
+		s, err := conn.callTool(toolName, arguments)
+		ch <- result{s, err}
+	}()
+	select {
+	case r := <-ch:
+		return r.s, r.err
+	case <-time.After(mcpCallToolTimeout):
+		return "", fmt.Errorf("MCP tool call timed out after %s (server=%s, tool=%s)", mcpCallToolTimeout, serverName, toolName)
+	}
 }
 
 // Close shuts down all MCP server connections.
@@ -470,7 +510,12 @@ func MCPCallTool(serverName, toolName string, arguments map[string]interface{}, 
 	if mgr == nil {
 		return "", fmt.Errorf("MCP manager not initialized")
 	}
-	return mgr.CallTool(serverName, toolName, arguments)
+	logger.Info("[MCP] Tool call", "server", serverName, "tool", toolName)
+	result, err := mgr.CallTool(serverName, toolName, arguments)
+	if err != nil {
+		logger.Warn("[MCP] Tool call failed", "server", serverName, "tool", toolName, "error", err)
+	}
+	return result, err
 }
 
 // MCPListServers is a package-level shorthand for agent dispatch.

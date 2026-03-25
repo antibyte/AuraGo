@@ -13,7 +13,7 @@ func init() {
 	for _, cidr := range []string{
 		"0.0.0.0/8",      // This network (RFC 1122)
 		"10.0.0.0/8",     // RFC 1918 private
-		"100.64.0.0/10",  // CGNAT (RFC 6598) — also used by Tailscale
+		"100.64.0.0/10",  // CGNAT (RFC 6598); also used by Tailscale VPN IPs — blocked for api_request; the Tailscale tool uses its own dedicated HTTP client
 		"127.0.0.0/8",    // Loopback
 		"169.254.0.0/16", // Link-local / cloud metadata (AWS 169.254.169.254, GCP, Azure)
 		"172.16.0.0/12",  // RFC 1918 private

@@ -90,6 +90,7 @@ async function renderTailscaleSection(section) {
         const serveHTTP = tsnet.serve_http === true;
         const exposeHomepage = tsnet.expose_homepage === true;
         const funnel = tsnet.funnel === true;
+        const allowHTTPFallback = tsnet.allow_http_fallback === true;
         const homepageCfg = configData.homepage || {};
         html += `<div style="margin-bottom:0.8rem;padding:0.85rem 1rem;border-radius:8px;border:1px solid var(--border-subtle);background:var(--bg-secondary);">
             <div style="font-size:0.82rem;font-weight:600;color:var(--text-primary);margin-bottom:0.55rem;">${t('config.tailscale.tsnet_exposure_title')}</div>
@@ -112,6 +113,12 @@ async function renderTailscaleSection(section) {
             </div>
             <small style="font-size:0.72rem;color:var(--text-tertiary);display:block;">${t('config.tailscale.tsnet_funnel_hint')}</small>
             ${serveHTTP ? '' : `<div style="margin-top:0.55rem;padding:0.45rem 0.7rem;border-radius:6px;background:var(--bg-glass);border:1px solid var(--border-subtle);font-size:0.76rem;color:var(--text-secondary);">${t('config.tailscale.tsnet_funnel_requires_web')}</div>`}
+
+            <div style="display:flex;align-items:center;gap:0.8rem;margin-top:0.9rem;margin-bottom:0.5rem;">
+                <span style="font-size:0.85rem;color:var(--text-secondary);">${t('config.tailscale.tsnet_allow_http_fallback_label')}</span>
+                <div class="toggle ${allowHTTPFallback ? 'on' : ''}" data-path="tailscale.tsnet.allow_http_fallback" onclick="toggleBool(this)"></div>
+            </div>
+            <small style="font-size:0.72rem;color:var(--text-tertiary);display:block;">${t('config.tailscale.tsnet_allow_http_fallback_hint')}</small>
         </div>`;
 
         html += `<div class="wh-notice" style="margin-top:0.8rem;">

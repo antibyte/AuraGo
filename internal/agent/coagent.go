@@ -312,19 +312,14 @@ func loadPromptTemplateExists(path string) (string, bool) {
 }
 
 // buildCoAgentSystemPrompt assembles the system prompt for a co-agent.
-func buildCoAgentSystemPrompt(cfg *config.Config, req CoAgentRequest, ltm memory.VectorDB, stm *memory.SQLiteMemory) string {
-	// 1. Load template (cached after first read)
-	const coAgentFallbackTmpl = "You are a Co-Agent helper. Complete the task and return the result.\nLanguage: {{LANGUAGE}}\n\n{{CONTEXT_SNAPSHOT}}\n\nTask: {{TASK}}"
-	tmplPath := filepath.Join(cfg.Directories.PromptsDir, "templates", "coagent_system.md")
-	tmpl := stripYAMLFrontmatter(loadPromptTemplate(tmplPath, coAgentFallbackTmpl))
-
-	// 2. Core memory snapshot (read-only)
+// buildContextSnapshot assembles the shared context block (core memory, RAG, hints)
+// used in both co-agent and specialist system prompts.
+func buildContextSnapshot(req CoAgentRequest, ltm memory.VectorDB, stm *memory.SQLiteMemory) string {
 	var coreMem []byte
 	if stm != nil {
 		coreMem = []byte(stm.ReadCoreMemory())
 	}
 
-	// 3. RAG search for task context
 	var ragContext string
 	if ltm != nil {
 		results, _, err := ltm.SearchSimilar(req.Task, 3)
@@ -333,10 +328,8 @@ func buildCoAgentSystemPrompt(cfg *config.Config, req CoAgentRequest, ltm memory
 		}
 	}
 
-	// 4. User-provided context hints
 	hintsStr := strings.Join(req.ContextHints, "\n")
 
-	// 5. Assemble context snapshot
 	var sb strings.Builder
 	if len(coreMem) > 0 {
 		sb.WriteString("## Core Memory\n")
@@ -353,19 +346,23 @@ func buildCoAgentSystemPrompt(cfg *config.Config, req CoAgentRequest, ltm memory
 		sb.WriteString(hintsStr)
 		sb.WriteString("\n")
 	}
+	return sb.String()
+}
 
-	// 6. Fill template
+func buildCoAgentSystemPrompt(cfg *config.Config, req CoAgentRequest, ltm memory.VectorDB, stm *memory.SQLiteMemory) string {
+	const coAgentFallbackTmpl = "You are a Co-Agent helper. Complete the task and return the result.\nLanguage: {{LANGUAGE}}\n\n{{CONTEXT_SNAPSHOT}}\n\nTask: {{TASK}}"
+	tmplPath := filepath.Join(cfg.Directories.PromptsDir, "templates", "coagent_system.md")
+	tmpl := stripYAMLFrontmatter(loadPromptTemplate(tmplPath, coAgentFallbackTmpl))
+
 	prompt := strings.ReplaceAll(tmpl, "{{LANGUAGE}}", cfg.Agent.SystemLanguage)
-	prompt = strings.ReplaceAll(prompt, "{{CONTEXT_SNAPSHOT}}", sb.String())
+	prompt = strings.ReplaceAll(prompt, "{{CONTEXT_SNAPSHOT}}", buildContextSnapshot(req, ltm, stm))
 	prompt = strings.ReplaceAll(prompt, "{{TASK}}", req.Task)
-
 	return prompt
 }
 
 // buildSpecialistSystemPrompt assembles the system prompt for a specialist co-agent.
 // It loads the specialist-specific template, falling back to the generic co-agent template.
 func buildSpecialistSystemPrompt(cfg *config.Config, role string, req CoAgentRequest, ltm memory.VectorDB, stm *memory.SQLiteMemory) string {
-	// 1. Load specialist template (cached), fallback to generic co-agent template
 	tmplPath := filepath.Join(cfg.Directories.PromptsDir, "templates", "specialist_"+role+".md")
 	rawTmpl, ok := loadPromptTemplateExists(tmplPath)
 	if !ok {
@@ -373,47 +370,9 @@ func buildSpecialistSystemPrompt(cfg *config.Config, role string, req CoAgentReq
 	}
 	tmpl := stripYAMLFrontmatter(rawTmpl)
 
-	// 2. Core memory snapshot (read-only)
-	var coreMem []byte
-	if stm != nil {
-		coreMem = []byte(stm.ReadCoreMemory())
-	}
-
-	// 3. RAG search for task context
-	var ragContext string
-	if ltm != nil {
-		results, _, err := ltm.SearchSimilar(req.Task, 3)
-		if err == nil && len(results) > 0 {
-			ragContext = strings.Join(results, "\n---\n")
-		}
-	}
-
-	// 4. User-provided context hints
-	hintsStr := strings.Join(req.ContextHints, "\n")
-
-	// 5. Assemble context snapshot
-	var sb strings.Builder
-	if len(coreMem) > 0 {
-		sb.WriteString("## Core Memory\n")
-		sb.Write(coreMem)
-		sb.WriteString("\n\n")
-	}
-	if ragContext != "" {
-		sb.WriteString("## Relevant Context (RAG)\n")
-		sb.WriteString(ragContext)
-		sb.WriteString("\n\n")
-	}
-	if hintsStr != "" {
-		sb.WriteString("## Additional Hints\n")
-		sb.WriteString(hintsStr)
-		sb.WriteString("\n")
-	}
-
-	// 6. Fill template
 	prompt := strings.ReplaceAll(tmpl, "{{LANGUAGE}}", cfg.Agent.SystemLanguage)
-	prompt = strings.ReplaceAll(prompt, "{{CONTEXT_SNAPSHOT}}", sb.String())
+	prompt = strings.ReplaceAll(prompt, "{{CONTEXT_SNAPSHOT}}", buildContextSnapshot(req, ltm, stm))
 	prompt = strings.ReplaceAll(prompt, "{{TASK}}", req.Task)
-
 	return prompt
 }
 

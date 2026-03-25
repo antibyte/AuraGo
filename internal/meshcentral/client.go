@@ -33,6 +33,7 @@ type Client struct {
 	reqID       int
 	mu          sync.Mutex
 	done        chan struct{} // Signals goroutines to stop
+	closeOnce   sync.Once     // Ensures Close() is idempotent
 
 	// Channels for routing responses
 	pendingReqs map[string]chan map[string]interface{}
@@ -172,6 +173,13 @@ func (c *Client) Connect() error {
 	c.ws = ws
 	c.wsMu.Unlock()
 
+	// Session keepalive timeout: connection closes if server stops responding to pings within 90s.
+	const sessionTimeout = 90 * time.Second
+	ws.SetReadDeadline(time.Now().Add(sessionTimeout))
+	ws.SetPongHandler(func(string) error {
+		return ws.SetReadDeadline(time.Now().Add(sessionTimeout))
+	})
+
 	go c.readPump()
 	go c.pingPump()
 
@@ -298,24 +306,26 @@ func (c *Client) addAuthCookies(header http.Header) {
 	}
 }
 
-// Close gracefully closes the WebSocket connection.
+// Close gracefully closes the WebSocket connection. Safe to call multiple times.
 func (c *Client) Close() {
-	close(c.done)
+	c.closeOnce.Do(func() {
+		close(c.done)
 
-	c.wsMu.Lock()
-	if c.ws != nil {
-		_ = c.ws.Close()
-		c.ws = nil
-	}
-	c.wsMu.Unlock()
+		c.wsMu.Lock()
+		if c.ws != nil {
+			_ = c.ws.Close()
+			c.ws = nil
+		}
+		c.wsMu.Unlock()
 
-	// Clean up pending request channels
-	c.reqsMu.Lock()
-	for _, ch := range c.pendingReqs {
-		close(ch)
-	}
-	c.pendingReqs = make(map[string]chan map[string]interface{})
-	c.reqsMu.Unlock()
+		// Clean up pending request channels
+		c.reqsMu.Lock()
+		for _, ch := range c.pendingReqs {
+			close(ch)
+		}
+		c.pendingReqs = make(map[string]chan map[string]interface{})
+		c.reqsMu.Unlock()
+	})
 }
 
 // readPump reads messages from the WebSocket and routes them to registered channels.
@@ -351,7 +361,7 @@ func (c *Client) readPump() {
 		}
 
 		action, _ := data["action"].(string)
-		
+
 		// Debug logging for troubleshooting
 		if action != "" && action != "ping" && action != "pong" {
 			c.log("[MeshCentral] Received message", "action", action)
@@ -445,9 +455,12 @@ func (c *Client) pingPump() {
 				return
 			}
 
+			_ = ws.SetWriteDeadline(time.Now().Add(10 * time.Second))
 			if err := ws.WriteMessage(websocket.PingMessage, nil); err != nil {
+				_ = ws.SetWriteDeadline(time.Time{})
 				return
 			}
+			_ = ws.SetWriteDeadline(time.Time{})
 		}
 	}
 }
@@ -543,13 +556,13 @@ func (c *Client) RunCommand(nodeID, command string) (map[string]interface{}, err
 	}); err != nil {
 		return nil, err
 	}
-	
+
 	// Wait for runcommand response (MeshCentral sends response with same action)
 	res, err := c.WaitForAction("runcommand", 30*time.Second)
 	if err != nil {
 		return nil, fmt.Errorf("timeout waiting for command response: %w", err)
 	}
-	
+
 	return res, nil
 }
 
@@ -564,12 +577,12 @@ func (c *Client) Shell(nodeID, command string) (map[string]interface{}, error) {
 	}); err != nil {
 		return nil, err
 	}
-	
+
 	// Wait for shell response
 	res, err := c.WaitForAction("shell", 30*time.Second)
 	if err != nil {
 		return nil, fmt.Errorf("timeout waiting for shell response: %w", err)
 	}
-	
+
 	return res, nil
 }

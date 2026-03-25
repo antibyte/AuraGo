@@ -154,6 +154,10 @@ func dispatchServices(ctx context.Context, tc ToolCall, cfg *config.Config, logg
 			if tc.NodeID == "" {
 				return `Tool Output: {"status": "error", "message": "'node_id' is required for wake"}`
 			}
+			if !strings.HasPrefix(tc.NodeID, "node//") {
+				return `Tool Output: {"status": "error", "message": "invalid node_id: must start with 'node//'"}`
+			}
+			logger.Info("MeshCentral wake_on_lan", "node_id", tc.NodeID, "session_id", sessionID)
 			result, err := mcClient.WakeOnLan([]string{tc.NodeID})
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Failed to send wake magic packet: %v"}`, err)
@@ -164,9 +168,13 @@ func dispatchServices(ctx context.Context, tc ToolCall, cfg *config.Config, logg
 			if tc.NodeID == "" {
 				return `Tool Output: {"status": "error", "message": "'node_id' is required for power_action"}`
 			}
+			if !strings.HasPrefix(tc.NodeID, "node//") {
+				return `Tool Output: {"status": "error", "message": "invalid node_id: must start with 'node//'"}`
+			}
 			if tc.PowerAction < 1 || tc.PowerAction > 4 {
 				return `Tool Output: {"status": "error", "message": "Invalid power action. 1=Sleep, 2=Hibernate, 3=PowerOff, 4=Reset"}`
 			}
+			logger.Info("MeshCentral power_action", "node_id", tc.NodeID, "power_action", tc.PowerAction, "session_id", sessionID)
 			result, err := mcClient.PowerAction([]string{tc.NodeID}, tc.PowerAction)
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Failed to send power action: %v"}`, err)
@@ -177,6 +185,10 @@ func dispatchServices(ctx context.Context, tc ToolCall, cfg *config.Config, logg
 			if tc.NodeID == "" || tc.Command == "" {
 				return `Tool Output: {"status": "error", "message": "'node_id' and 'command' are required for run_command"}`
 			}
+			if !strings.HasPrefix(tc.NodeID, "node//") {
+				return `Tool Output: {"status": "error", "message": "invalid node_id: must start with 'node//'"}`
+			}
+			logger.Info("MeshCentral run_command", "node_id", tc.NodeID, "command", tc.Command, "session_id", sessionID)
 			result, err := mcClient.RunCommand(tc.NodeID, tc.Command)
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Failed to run command: %v"}`, err)
@@ -189,6 +201,10 @@ func dispatchServices(ctx context.Context, tc ToolCall, cfg *config.Config, logg
 			if tc.NodeID == "" || tc.Command == "" {
 				return `Tool Output: {"status": "error", "message": "'node_id' and 'command' are required for shell"}`
 			}
+			if !strings.HasPrefix(tc.NodeID, "node//") {
+				return `Tool Output: {"status": "error", "message": "invalid node_id: must start with 'node//'"}`
+			}
+			logger.Info("MeshCentral shell", "node_id", tc.NodeID, "command", tc.Command, "session_id", sessionID)
 			result, err := mcClient.Shell(tc.NodeID, tc.Command)
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Failed to execute shell command: %v"}`, err)
@@ -713,7 +729,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, cfg *config.Config, logg
 			itemID = int64(v)
 		}
 		logger.Info("LLM requested media_registry", "operation", op, "media_type", tc.MediaType)
-		return "Tool Output: " + tools.DispatchMediaRegistry(mediaRegistryDB, op, tc.Query, tc.MediaType, tc.Description, tags, tc.TagMode, itemID, tc.Limit, tc.Offset)
+		return "Tool Output: " + tools.DispatchMediaRegistry(mediaRegistryDB, op, tc.Query, tc.MediaType, tc.Description, tags, tc.TagMode, itemID, tc.Limit, tc.Offset, tc.Filename, tc.FilePath)
 
 	case "homepage_registry":
 		if homepageRegistryDB == nil {

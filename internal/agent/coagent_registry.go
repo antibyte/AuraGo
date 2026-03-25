@@ -80,7 +80,10 @@ func (r *CoAgentRegistry) AvailableSlots() int {
 	defer r.mu.RUnlock()
 	running := 0
 	for _, a := range r.agents {
-		if a.State == CoAgentRunning {
+		a.mu.Lock()
+		isRunning := a.State == CoAgentRunning
+		a.mu.Unlock()
+		if isRunning {
 			running++
 		}
 	}

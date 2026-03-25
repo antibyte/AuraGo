@@ -1150,6 +1150,8 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 					"enum":        []string{"register", "search", "get", "list", "update", "tag", "delete", "stats"},
 				},
 				"media_type":  prop("string", "Media type filter: image, tts, audio, music"),
+				"filename":    prop("string", "Filename of the media file (required for register)"),
+				"file_path":   prop("string", "File path of the media file (required for register)"),
 				"query":       prop("string", "Search query (searches description, prompt, tags, filename)"),
 				"id":          map[string]interface{}{"type": "integer", "description": "Media item ID (for get/update/tag/delete)"},
 				"description": prop("string", "Short description of the media item"),
@@ -1714,8 +1716,10 @@ func NativeToolCallToToolCall(native openai.ToolCall, logger *slog.Logger) ToolC
 		return tc
 	}
 
-	// Unmarshal the arguments JSON into the ToolCall struct
-	if err := json.Unmarshal([]byte(native.Function.Arguments), &tc); err != nil {
+	// Unmarshal the arguments JSON into the ToolCall struct.
+	// Pre-normalize arrays in string fields (e.g. "tags") to avoid type-mismatch errors.
+	normalizedArgs := normalizeTagsInJSON(native.Function.Arguments)
+	if err := json.Unmarshal([]byte(normalizedArgs), &tc); err != nil {
 		if logger != nil {
 			logger.Warn("[NativeTools] Failed to unmarshal native tool arguments, using raw",
 				"name", native.Function.Name, "error", err)

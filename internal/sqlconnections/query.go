@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log/slog"
+	"strings"
 	"time"
 )
 
@@ -30,6 +32,7 @@ func ExecuteQuery(ctx context.Context, pool *ConnectionPool, metaDB *sql.DB, con
 	if err := CheckPermission(rec, stmtType); err != nil {
 		return nil, err
 	}
+	slog.Default().Info("SQL query executed", "connection", connName, "type", stmtType.String())
 
 	db, err := pool.GetConnection(rec.ID)
 	if err != nil {
@@ -107,7 +110,10 @@ func executeExec(ctx context.Context, db *sql.DB, query string) (*QueryResult, e
 	if err != nil {
 		return nil, fmt.Errorf("execution error: %w", err)
 	}
-	affected, _ := result.RowsAffected()
+	affected, rowErr := result.RowsAffected()
+	if rowErr != nil {
+		slog.Default().Warn("failed to retrieve rows affected", "error", rowErr)
+	}
 	return &QueryResult{
 		RowsAffected: affected,
 		Message:      fmt.Sprintf("%d row(s) affected", affected),
@@ -227,7 +233,8 @@ func describePostgres(ctx context.Context, db *sql.DB, table string) ([]ColumnIn
 }
 
 func describeMySQL(ctx context.Context, db *sql.DB, table string) ([]ColumnInfo, error) {
-	rows, err := db.QueryContext(ctx, "DESCRIBE "+table) //nolint:gosec // table name validated by isValidIdentifier
+	quotedTable := "`" + strings.ReplaceAll(table, "`", "``") + "`"
+	rows, err := db.QueryContext(ctx, "DESCRIBE "+quotedTable)
 	if err != nil {
 		return nil, err
 	}
@@ -252,7 +259,8 @@ func describeMySQL(ctx context.Context, db *sql.DB, table string) ([]ColumnInfo,
 }
 
 func describeSQLite(ctx context.Context, db *sql.DB, table string) ([]ColumnInfo, error) {
-	rows, err := db.QueryContext(ctx, "PRAGMA table_info("+table+")") //nolint:gosec // table name validated
+	quotedTable := `"` + strings.ReplaceAll(table, `"`, `""`) + `"`
+	rows, err := db.QueryContext(ctx, "PRAGMA table_info("+quotedTable+")")
 	if err != nil {
 		return nil, err
 	}

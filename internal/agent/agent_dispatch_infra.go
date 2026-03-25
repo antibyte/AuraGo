@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"net"
 	"path/filepath"
 	"strings"
 
@@ -395,8 +396,23 @@ func dispatchInfra(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 		case "unload":
 			logger.Info("LLM requested Ollama unload model", "model", modelName)
 			return "Tool Output: " + tools.OllamaUnloadModel(olCfg, modelName)
+		case "container_status":
+			logger.Info("LLM requested Ollama managed container status")
+			return "Tool Output: " + tools.OllamaManagedContainerStatus(cfg.Docker.Host)
+		case "container_start":
+			logger.Info("LLM requested Ollama managed container start")
+			return "Tool Output: " + tools.StartOllamaManagedContainer(cfg.Docker.Host)
+		case "container_stop":
+			logger.Info("LLM requested Ollama managed container stop")
+			return "Tool Output: " + tools.StopOllamaManagedContainer(cfg.Docker.Host)
+		case "container_restart":
+			logger.Info("LLM requested Ollama managed container restart")
+			return "Tool Output: " + tools.RestartOllamaManagedContainer(cfg.Docker.Host)
+		case "container_logs":
+			logger.Info("LLM requested Ollama managed container logs")
+			return "Tool Output: " + tools.OllamaManagedContainerLogs(cfg.Docker.Host, 100)
 		default:
-			return `Tool Output: {"status":"error","message":"Unknown ollama operation. Use: list, running, show, pull, delete, copy, load, unload"}`
+			return `Tool Output: {"status":"error","message":"Unknown ollama operation. Use: list, running, show, pull, delete, copy, load, unload, container_status, container_start, container_stop, container_restart, container_logs"}`
 		}
 
 	case "tailscale":
@@ -1200,6 +1216,28 @@ func dispatchInfra(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 		defer fbClient.Close()
 		return handleFritzBoxToolCall(tc, fbClient, cfg, logger)
 
+	// ── TrueNAS Storage Management ──
+	case "truenas_health", "truenas_pool_list", "truenas_pool_scrub",
+		"truenas_dataset_list", "truenas_dataset_create", "truenas_dataset_delete",
+		"truenas_snapshot_list", "truenas_snapshot_create", "truenas_snapshot_delete", "truenas_snapshot_rollback",
+		"truenas_smb_list", "truenas_smb_create", "truenas_smb_delete",
+		"truenas_fs_space":
+		if !cfg.TrueNAS.Enabled {
+			return `Tool Output: {"status":"error","message":"TrueNAS integration is not enabled. Set truenas.enabled=true in config.yaml."}`
+		}
+		// Read-only check for mutating operations
+		if cfg.TrueNAS.ReadOnly {
+			switch tc.Action {
+			case "truenas_pool_scrub",
+				"truenas_dataset_create", "truenas_dataset_delete",
+				"truenas_snapshot_create", "truenas_snapshot_delete", "truenas_snapshot_rollback",
+				"truenas_smb_create", "truenas_smb_delete":
+				return `Tool Output: {"status":"error","message":"TrueNAS is in read-only mode. Disable truenas.readonly to allow changes."}`
+			}
+		}
+		logger.Info("LLM requested TrueNAS operation", "action", tc.Action)
+		return "Tool Output: " + tools.DispatchTrueNASTool(tc.Action, toolCallParams(tc), cfg, nil, logger)
+
 	default:
 		return dispatchNotHandled
 	}
@@ -1231,6 +1269,11 @@ func mdnsAutoRegister(scanJSON string, db *sql.DB, deviceType string, tags []str
 		ip := ""
 		if len(dev.IPs) > 0 {
 			ip = dev.IPs[0]
+			if net.ParseIP(ip) == nil {
+				logger.Warn("mdns auto-register: skipping device with invalid IP", "host", name, "ip", ip)
+				skipped++
+				continue
+			}
 		}
 		desc := dev.Info
 		record := inventory.DeviceRecord{

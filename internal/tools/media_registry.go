@@ -345,13 +345,15 @@ func MediaStats(db *sql.DB) (map[string]interface{}, error) {
 }
 
 // DispatchMediaRegistry handles tool calls for the media_registry action.
-func DispatchMediaRegistry(db *sql.DB, operation, query, mediaType, description string, tags []string, tagMode string, id int64, limit, offset int) string {
+func DispatchMediaRegistry(db *sql.DB, operation, query, mediaType, description string, tags []string, tagMode string, id int64, limit, offset int, filename, filePath string) string {
 	switch operation {
 	case "register":
 		item := MediaItem{
 			MediaType:   mediaType,
 			SourceTool:  "manual",
 			Description: description,
+			Filename:    filename,
+			FilePath:    filePath,
 		}
 		if item.MediaType == "" {
 			item.MediaType = "image"

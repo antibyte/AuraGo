@@ -932,6 +932,28 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		})
 		s.Logger.Info("Containers UI enabled at /containers")
 
+		// ── TrueNAS Storage Page ──
+		truenasTmpl, truenasTmplErr := template.ParseFS(uiFS, "truenas.html")
+		if truenasTmplErr != nil {
+			s.Logger.Error("Failed to parse TrueNAS UI template", "error", truenasTmplErr)
+		}
+		mux.HandleFunc("/truenas", func(w http.ResponseWriter, r *http.Request) {
+			if truenasTmpl == nil {
+				http.Error(w, "TrueNAS template error", http.StatusInternalServerError)
+				return
+			}
+			lang := normalizeLang(s.Cfg.Server.UILanguage)
+			data := map[string]interface{}{
+				"Lang": lang,
+				"I18N": getI18NJSON(lang),
+			}
+			if err := truenasTmpl.Execute(w, data); err != nil {
+				s.Logger.Error("Failed to execute TrueNAS template", "error", err)
+				http.Error(w, "Template render error", http.StatusInternalServerError)
+			}
+		})
+		s.Logger.Info("TrueNAS Storage UI enabled at /truenas")
+
 		// ── Containers API ──
 		mux.HandleFunc("/api/containers", handleContainersList(s))
 		mux.HandleFunc("/api/containers/", handleContainerAction(s))
@@ -1049,6 +1071,12 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/cert/regenerate", handleCertRegenerate(s))
 	mux.HandleFunc("/api/cert/upload", handleCertUpload(s))
 	s.Logger.Info("Certificate API registered at /api/cert/...")
+
+	// TrueNAS Storage Management API
+	if s.Cfg.TrueNAS.Enabled {
+		registerTrueNASHandlers(mux, s)
+		s.Logger.Info("TrueNAS API registered at /api/truenas/...")
+	}
 
 	// Invasion Control UI page (always registered — same pattern as /setup)
 	invasionTmpl, invasionErr := template.ParseFS(uiFS, "invasion_control.html")

@@ -133,56 +133,42 @@ func (m *Manager) Start(handler http.Handler) error {
 		authKey = os.Getenv("TS_AUTHKEY")
 	}
 
+	// makeLoginAwareLogFunc returns a tsnet log callback that deduplicates login URLs
+	// and routes ordinary messages to the structured logger at the given level
+	// (debug=true → Debug, debug=false → Info).
+	makeLoginAwareLogFunc := func(debug bool) func(string, ...any) {
+		return func(format string, args ...any) {
+			msg := fmt.Sprintf(format, args...)
+			if strings.Contains(msg, "login.tailscale.com") {
+				url := extractLoginURL(msg)
+				m.loginMu.Lock()
+				if url != "" && url != m.loginURL {
+					m.loginURL = url
+					m.loginURLSeen = false
+				}
+				should := !m.loginURLSeen
+				if should {
+					m.loginURLSeen = true
+				}
+				m.loginMu.Unlock()
+				if should {
+					m.logger.Warn("[tsnet] Authentication required – visit the URL in Tailscale settings to connect", "url", url)
+				}
+				return
+			}
+			if debug {
+				m.logger.Debug("[tsnet] " + msg)
+			} else {
+				m.logger.Info("[tsnet] " + msg)
+			}
+		}
+	}
+
 	srv := &tsnet.Server{
 		Hostname: hostname,
 		Dir:      stateDir,
-		Logf: func(format string, args ...any) {
-			msg := fmt.Sprintf(format, args...)
-			// Capture the Tailscale login URL and show it once instead of spamming the log.
-			if strings.Contains(msg, "login.tailscale.com") {
-				url := extractLoginURL(msg)
-				m.loginMu.Lock()
-				newURL := url != "" && url != m.loginURL
-				if newURL {
-					m.loginURL = url
-					m.loginURLSeen = false
-				}
-				should := !m.loginURLSeen
-				if should {
-					m.loginURLSeen = true
-				}
-				m.loginMu.Unlock()
-				if should {
-					m.logger.Warn("[tsnet] Authentication required – visit the URL in Tailscale settings to connect", "url", url)
-				}
-				return
-			}
-			m.logger.Debug("[tsnet] " + msg)
-		},
-		// UserLogf handles user-facing messages (e.g. "To start this tsnet server, go to: …").
-		// We route them through the same deduplication logic to avoid log spam.
-		UserLogf: func(format string, args ...any) {
-			msg := fmt.Sprintf(format, args...)
-			if strings.Contains(msg, "login.tailscale.com") {
-				url := extractLoginURL(msg)
-				m.loginMu.Lock()
-				newURL := url != "" && url != m.loginURL
-				if newURL {
-					m.loginURL = url
-					m.loginURLSeen = false
-				}
-				should := !m.loginURLSeen
-				if should {
-					m.loginURLSeen = true
-				}
-				m.loginMu.Unlock()
-				if should {
-					m.logger.Warn("[tsnet] Authentication required – visit the URL in Tailscale settings to connect", "url", url)
-				}
-				return
-			}
-			m.logger.Info("[tsnet] " + msg)
-		},
+		Logf:     makeLoginAwareLogFunc(true),
+		UserLogf: makeLoginAwareLogFunc(false),
 	}
 
 	if authKey != "" {
@@ -462,9 +448,12 @@ func (m *Manager) startMainListener(srv *tsnet.Server, handler http.Handler) err
 	if ln == nil {
 		ln, err = listenTLSWithTimeout(srv, ":443", 15*time.Second)
 		if err != nil {
+			if !m.cfg.Tailscale.TsNet.AllowHTTPFallback {
+				return fmt.Errorf("[tsnet] HTTPS not available and allow_http_fallback is disabled: %w", err)
+			}
 			m.logger.Warn("[tsnet] HTTPS not available — falling back to HTTP on :80",
 				"reason", err,
-				"hint", "Enable HTTPS in the Tailscale admin panel for encrypted access")
+				"hint", "Enable HTTPS in the Tailscale admin panel, or set allow_http_fallback: true in config")
 			ln, err = srv.Listen("tcp", ":80")
 			usingHTTP = true
 			if err != nil {

@@ -49,5 +49,7 @@
   "config.tailscale.tsnet_homepage_pending_hint": "Die Homepage-Freigabe ist aktiviert. Wenn keine URL erscheint, prüfe ob der Homepage-Webserver läuft und Tailscale-HTTPS aktiviert ist.",
   "config.tailscale.tsnet_requirements_title": "Voraussetzungen für HTTPS und Funnel",
   "config.tailscale.tsnet_https_requirements": "HTTPS über Tailscale benötigt aktiviertes MagicDNS und HTTPS-Zertifikate für diesen Knoten im Tailscale-Adminbereich. Wenn noch keine Zertifikate verfügbar sind, fällt AuraGo auf HTTP auf Port 80 zurück.",
+  "config.tailscale.tsnet_allow_http_fallback_label": "HTTP-Fallback erlauben",
+  "config.tailscale.tsnet_allow_http_fallback_hint": "Falls kein HTTPS-Zertifikat verfügbar ist, auf einfaches HTTP auf Port 80 zurückfallen. Standardmäßig deaktiviert — nur aktivieren, wenn kein Tailscale-HTTPS-Zertifikat ausgestellt werden kann.",
   "config.tailscale.tsnet_funnel_requirements": "Für Funnel muss zusätzlich Tailscale Funnel für dieses Tailnet und diesen Knoten aktiviert sein. Funnel gilt nur für die AuraGo-Web-UI auf Port 443 und der AuraGo-Login bleibt dabei aktiv geschützt."
 }

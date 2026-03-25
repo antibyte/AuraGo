@@ -1403,6 +1403,12 @@ func resolveDeviceSSHAccess(device inventory.DeviceRecord, inventoryDB *sql.DB, 
 		return resolvedDeviceSSHAccess{}, fmt.Errorf("vault is not available")
 	}
 
+	resolvedVia := "legacy_vault_secret"
+	if strings.TrimSpace(device.CredentialID) != "" {
+		resolvedVia = "linked_credential"
+	}
+	slog.Info("SSH access resolved", "device", device.Name, "host", host, "user", username, "port", port, "resolved_via", resolvedVia)
+
 	secret, err := vault.ReadSecret(secretID)
 	if err != nil {
 		return resolvedDeviceSSHAccess{}, fmt.Errorf("read vault secret %q: %w", secretID, err)

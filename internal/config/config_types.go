@@ -734,9 +734,18 @@ type Config struct {
 		Insecure bool   `yaml:"insecure"`         // skip TLS verification for self-signed certs
 	} `yaml:"proxmox"`
 	Ollama struct {
-		Enabled  bool   `yaml:"enabled"`
-		ReadOnly bool   `yaml:"readonly"` // true = only list/show/running, block pull/delete/copy
-		URL      string `yaml:"url"`      // e.g. "http://localhost:11434"
+		Enabled         bool   `yaml:"enabled"`
+		ReadOnly        bool   `yaml:"readonly"` // true = only list/show/running, block pull/delete/copy
+		URL             string `yaml:"url"`      // e.g. "http://localhost:11434"
+		ManagedInstance struct {
+			Enabled       bool     `yaml:"enabled"`        // auto-manage an Ollama Docker container
+			ContainerPort int      `yaml:"container_port"` // host port for the managed container (default: 11434)
+			UseHostGPU    bool     `yaml:"use_host_gpu"`   // pass GPU devices into the container (Linux only)
+			GPUBackend    string   `yaml:"gpu_backend"`    // "auto", "nvidia", "amd", "intel" (default: "auto")
+			DefaultModels []string `yaml:"default_models"` // models to auto-pull after container start
+			MemoryLimit   string   `yaml:"memory_limit"`   // Docker memory limit, e.g. "8g" (empty = unlimited)
+			VolumePath    string   `yaml:"volume_path"`    // host path for persistent model storage (empty = Docker volume)
+		} `yaml:"managed_instance"`
 	} `yaml:"ollama"`
 	RocketChat struct {
 		Enabled   bool   `yaml:"enabled"`
@@ -752,13 +761,14 @@ type Config struct {
 		APIKey   string `yaml:"-" vault:"api_key"` // Tailscale API key (vault-only)
 		Tailnet  string `yaml:"tailnet"`           // Tailnet name, e.g. "example.com" or "-" for default
 		TsNet    struct {
-			Enabled        bool   `yaml:"enabled"`         // enable tsnet embedded Tailscale node (independent of API integration)
-			Hostname       string `yaml:"hostname"`        // MagicDNS hostname, e.g. "aurago" → aurago.tailnet-name.ts.net
-			StateDir       string `yaml:"state_dir"`       // persistent state directory (default: data/tsnet)
-			ServeHTTP      bool   `yaml:"serve_http"`      // expose AuraGo's web UI over the tailnet on 443/80
-			ExposeHomepage bool   `yaml:"expose_homepage"` // expose the Homepage/Caddy web server over the tailnet on 8443
-			Funnel         bool   `yaml:"funnel"`          // expose AuraGo publicly via Tailscale Funnel on 443
-			AuthKey        string `yaml:"-"`               // tsnet auth key (vault-only: tailscale_tsnet_authkey)
+			Enabled           bool   `yaml:"enabled"`             // enable tsnet embedded Tailscale node (independent of API integration)
+			Hostname          string `yaml:"hostname"`            // MagicDNS hostname, e.g. "aurago" → aurago.tailnet-name.ts.net
+			StateDir          string `yaml:"state_dir"`           // persistent state directory (default: data/tsnet)
+			ServeHTTP         bool   `yaml:"serve_http"`          // expose AuraGo's web UI over the tailnet on 443/80
+			ExposeHomepage    bool   `yaml:"expose_homepage"`     // expose the Homepage/Caddy web server over the tailnet on 8443
+			Funnel            bool   `yaml:"funnel"`              // expose AuraGo publicly via Tailscale Funnel on 443
+			AllowHTTPFallback bool   `yaml:"allow_http_fallback"` // fall back to HTTP on :80 when HTTPS cert is unavailable (default: false)
+			AuthKey           string `yaml:"-"`                   // tsnet auth key (vault-only: tailscale_tsnet_authkey)
 		} `yaml:"tsnet"`
 	} `yaml:"tailscale"`
 	CloudflareTunnel struct {
@@ -1082,8 +1092,38 @@ type Config struct {
 		TokenExpiry  string `yaml:"-" json:"-"` // resolved: RFC3339 expiry
 	} `yaml:"onedrive"`
 
+	// TrueNAS integration for ZFS storage management
+	TrueNAS TrueNASConfig `yaml:"truenas"`
+
 	// gwProvider is a synthetic ProviderEntry used by FindProvider for Google Workspace OAuth.
 	gwProvider ProviderEntry `yaml:"-" json:"-"`
+}
+
+// TrueNASConfig holds configuration for TrueNAS integration.
+type TrueNASConfig struct {
+		Enabled          bool   `yaml:"enabled"`
+		ReadOnly         bool   `yaml:"readonly"`          // true = only list/read, block create/update/delete/rollback
+		AllowDestructive bool   `yaml:"allow_destructive"` // allow dataset deletion, snapshot rollback, pool scrub
+		Host             string `yaml:"host"`              // TrueNAS hostname or IP (e.g. "truenas.local")
+		Port             int    `yaml:"port"`              // API port (default: 443)
+		UseHTTPS         bool   `yaml:"use_https"`         // use HTTPS (default: true)
+		APIKey           string `yaml:"-"`                 // vault-only: truenas_api_key
+		InsecureSSL      bool   `yaml:"insecure_ssl"`      // skip TLS verification for self-signed certs (default: false)
+		ConnectTimeout   int    `yaml:"connect_timeout"`   // connection timeout in seconds (default: 30)
+		RequestTimeout   int    `yaml:"request_timeout"`   // request timeout in seconds (default: 60)
+		// Default settings for new shares
+		DefaultShares struct {
+			SMBEnabled    bool `yaml:"smb_enabled"`    // enable SMB by default
+			NFSEnabled    bool `yaml:"nfs_enabled"`    // enable NFS by default
+			AtimeEnabled  bool `yaml:"atime_enabled"`  // enable access time tracking
+			Compression   string `yaml:"compression"`  // default compression: "lz4", "gzip", "zle", "off"
+		} `yaml:"default_shares,omitempty"`
+		// Snapshot retention policies
+		SnapshotRetention struct {
+			Enabled         bool `yaml:"enabled"`          // enable automatic snapshot cleanup
+			DefaultDays     int  `yaml:"default_days"`     // default retention in days (0 = forever)
+			MaxSnapshots    int  `yaml:"max_snapshots"`    // maximum snapshots per dataset (0 = unlimited)
+		} `yaml:"snapshot_retention,omitempty"`
 }
 
 // A2ASkill describes a skill advertised in the A2A Agent Card.

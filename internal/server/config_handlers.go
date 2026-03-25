@@ -436,6 +436,18 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				go tools.EnsureOllamaEmbeddingsRunning(newCfg, s.Logger)
 			}
 
+			// Auto-start managed Ollama container if just enabled
+			if newCfg.Ollama.ManagedInstance.Enabled && !oldCfg.Ollama.ManagedInstance.Enabled {
+				go tools.EnsureOllamaManagedRunning(newCfg, s.Logger)
+			}
+			// Stop managed Ollama container if just disabled
+			if !newCfg.Ollama.ManagedInstance.Enabled && oldCfg.Ollama.ManagedInstance.Enabled {
+				go func() {
+					tools.StopOllamaManagedContainer(newCfg.Docker.Host)
+					s.Logger.Info("[Config UI] Managed Ollama container stopped")
+				}()
+			}
+
 			// Auto-start Piper TTS container if just enabled
 			if newCfg.TTS.Piper.Enabled && !oldCfg.TTS.Piper.Enabled {
 				go tools.EnsurePiperRunning(newCfg, s.Logger)

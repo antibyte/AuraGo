@@ -808,6 +808,7 @@ func handleDashboardOverview(s *Server) http.HandlerFunc {
 			"chromecast":        cfg.Chromecast.Enabled,
 			"proxmox":           cfg.Proxmox.Enabled,
 			"ollama":            cfg.Ollama.Enabled,
+			"ollama_managed":    cfg.Ollama.ManagedInstance.Enabled,
 			"rocketchat":        cfg.RocketChat.Enabled,
 			"tailscale":         cfg.Tailscale.Enabled,
 			"cloudflare_tunnel": cfg.CloudflareTunnel.Enabled,

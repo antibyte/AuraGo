@@ -4,12 +4,14 @@ import (
 	"aurago/internal/security"
 	"bytes"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -104,7 +106,7 @@ func CloudflareTunnelStop(cfg CloudflareTunnelConfig, registry *ProcessRegistry,
 	case "docker":
 		return stopDockerTunnel(cfg, logger)
 	case "native", "quick":
-		return stopNativeTunnel(registry, logger)
+		return stopNativeTunnel(cfg, registry, logger)
 	default:
 		tunnelMode = ""
 		return errJSON("Unknown tunnel mode: %s", tunnelMode)
@@ -256,9 +258,11 @@ func startTokenTunnel(cfg CloudflareTunnelConfig, vault *security.Vault, registr
 
 	switch mode {
 	case "docker":
-		return startDockerTunnel(cfg, []string{"tunnel", "run", "--token", token}, logger)
+		// Pass token as env var to avoid exposure in process listings (ps aux / /proc)
+		return startDockerTunnel(cfg, []string{"tunnel", "run"}, []string{"TUNNEL_TOKEN=" + token}, logger)
 	case "native":
-		return startNativeTunnel(cfg, registry, []string{"tunnel", "run", "--token", token}, logger)
+		// Pass token as env var to avoid exposure in process listings (ps aux / /proc)
+		return startNativeTunnel(cfg, registry, []string{"tunnel", "run"}, []string{"TUNNEL_TOKEN=" + token}, logger)
 	default:
 		return errJSON("Could not determine runtime mode. Docker not available and native binary not found.")
 	}
@@ -304,7 +308,7 @@ func startNamedTunnel(cfg CloudflareTunnelConfig, vault *security.Vault, registr
 	case "native":
 		return startNativeTunnel(cfg, registry, []string{
 			"tunnel", "--config", configPath, "run", cfg.TunnelName,
-		}, logger)
+		}, nil, logger)
 	default:
 		return errJSON("Could not determine runtime mode. Docker not available and native binary not found.")
 	}
@@ -337,7 +341,7 @@ func startQuickTunnel(cfg CloudflareTunnelConfig, registry *ProcessRegistry, log
 // Docker Backend
 // ──────────────────────────────────────────────────────────────────────────
 
-func startDockerTunnel(cfg CloudflareTunnelConfig, cmd []string, logger *slog.Logger) string {
+func startDockerTunnel(cfg CloudflareTunnelConfig, cmd []string, containerEnv []string, logger *slog.Logger) string {
 	dockerCfg := DockerConfig{Host: cfg.DockerHost}
 
 	// Pull image if not present
@@ -353,6 +357,9 @@ func startDockerTunnel(cfg CloudflareTunnelConfig, cmd []string, logger *slog.Lo
 			"NetworkMode":   "host",
 			"RestartPolicy": map[string]string{"Name": "unless-stopped"},
 		},
+	}
+	if len(containerEnv) > 0 {
+		payload["Env"] = containerEnv
 	}
 	if cfg.MetricsPort > 0 {
 		payload["Cmd"] = append(cmd, "--metrics", fmt.Sprintf("localhost:%d", cfg.MetricsPort))
@@ -459,6 +466,17 @@ func stopDockerTunnel(cfg CloudflareTunnelConfig, logger *slog.Logger) string {
 	tunnelMode = ""
 	tunnelURL = ""
 	tunnelPID = 0
+
+	// Clean up credential file written for named tunnel auth
+	credPath := filepath.Join(cfg.DataDir, "cloudflared", "credentials.json")
+	if _, err := os.Stat(credPath); err == nil {
+		if err := os.Remove(credPath); err != nil {
+			logger.Warn("[CloudflareTunnel] Failed to remove credential file", "path", credPath, "error", err)
+		} else {
+			logger.Info("[CloudflareTunnel] Credential file removed", "path", credPath)
+		}
+	}
+
 	logger.Info("[CloudflareTunnel] Docker tunnel stopped")
 
 	out, _ := json.Marshal(map[string]interface{}{
@@ -472,7 +490,7 @@ func stopDockerTunnel(cfg CloudflareTunnelConfig, logger *slog.Logger) string {
 // Native Binary Backend
 // ──────────────────────────────────────────────────────────────────────────
 
-func startNativeTunnel(cfg CloudflareTunnelConfig, registry *ProcessRegistry, args []string, logger *slog.Logger) string {
+func startNativeTunnel(cfg CloudflareTunnelConfig, registry *ProcessRegistry, args []string, extraEnv []string, logger *slog.Logger) string {
 	binPath := findCloudflaredBinary(cfg.DataDir)
 	if binPath == "" {
 		// Try auto-install
@@ -505,6 +523,9 @@ func startNativeTunnel(cfg CloudflareTunnelConfig, registry *ProcessRegistry, ar
 	}
 	cmd.Stdout = info
 	cmd.Stderr = info
+	if len(extraEnv) > 0 {
+		cmd.Env = append(os.Environ(), extraEnv...)
+	}
 
 	if err := cmd.Start(); err != nil {
 		return errJSON("Failed to start cloudflared: %v", err)
@@ -546,7 +567,7 @@ func startNativeTunnel(cfg CloudflareTunnelConfig, registry *ProcessRegistry, ar
 }
 
 func startNativeQuickTunnel(cfg CloudflareTunnelConfig, registry *ProcessRegistry, args []string, logger *slog.Logger) string {
-	result := startNativeTunnel(cfg, registry, args, logger)
+	result := startNativeTunnel(cfg, registry, args, nil, logger)
 
 	// Parse to check success
 	var r map[string]interface{}
@@ -580,7 +601,7 @@ func startNativeQuickTunnel(cfg CloudflareTunnelConfig, registry *ProcessRegistr
 	return result
 }
 
-func stopNativeTunnel(registry *ProcessRegistry, logger *slog.Logger) string {
+func stopNativeTunnel(cfg CloudflareTunnelConfig, registry *ProcessRegistry, logger *slog.Logger) string {
 	if tunnelPID > 0 {
 		if err := registry.Terminate(tunnelPID); err != nil {
 			logger.Warn("[CloudflareTunnel] Failed to terminate process", "pid", tunnelPID, "error", err)
@@ -590,6 +611,17 @@ func stopNativeTunnel(registry *ProcessRegistry, logger *slog.Logger) string {
 	tunnelMode = ""
 	tunnelURL = ""
 	tunnelPID = 0
+
+	// Clean up credential file written for named tunnel auth
+	credPath := filepath.Join(cfg.DataDir, "cloudflared", "credentials.json")
+	if _, err := os.Stat(credPath); err == nil {
+		if err := os.Remove(credPath); err != nil {
+			logger.Warn("[CloudflareTunnel] Failed to remove credential file", "path", credPath, "error", err)
+		} else {
+			logger.Info("[CloudflareTunnel] Credential file removed", "path", credPath)
+		}
+	}
+
 	logger.Info("[CloudflareTunnel] Native tunnel stopped")
 
 	out, _ := json.Marshal(map[string]interface{}{
@@ -638,7 +670,34 @@ func buildIngressRules(cfg CloudflareTunnelConfig) []map[string]string {
 	return rules
 }
 
+func validateCustomIngress(rules []CloudflareIngress) error {
+	for _, r := range rules {
+		if r.Service == "" {
+			return fmt.Errorf("ingress rule is missing a service URL")
+		}
+		u, err := url.Parse(r.Service)
+		if err != nil {
+			return fmt.Errorf("invalid service URL %q: %w", r.Service, err)
+		}
+		if u.Scheme != "http" && u.Scheme != "https" {
+			return fmt.Errorf("service URL %q must use http or https scheme", r.Service)
+		}
+		if u.Host == "" {
+			return fmt.Errorf("service URL %q is missing a host", r.Service)
+		}
+		// Block well-known sensitive ports to prevent accidental direct exposure
+		switch u.Port() {
+		case "22", "23", "3389", "5900", "5901":
+			return fmt.Errorf("service URL %q targets sensitive port %s; expose such services via a reverse proxy instead", r.Service, u.Port())
+		}
+	}
+	return nil
+}
+
 func writeNamedTunnelConfig(cfg CloudflareTunnelConfig, credPath, configPath string) error {
+	if err := validateCustomIngress(cfg.CustomIngress); err != nil {
+		return fmt.Errorf("invalid ingress configuration: %w", err)
+	}
 	var sb strings.Builder
 	sb.WriteString("tunnel: " + cfg.TunnelName + "\n")
 	sb.WriteString("credentials-file: " + credPath + "\n")
@@ -714,12 +773,14 @@ func installCloudflaredBinary(destPath string, logger *slog.Logger) string {
 	arch := runtime.GOARCH
 	goos := runtime.GOOS
 
-	var downloadURL string
+	var downloadURL, checksumURL string
 	switch {
 	case goos == "linux" && arch == "amd64":
 		downloadURL = "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64"
+		checksumURL = "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.sha256sum"
 	case goos == "linux" && arch == "arm64":
 		downloadURL = "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64"
+		checksumURL = "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64.sha256sum"
 	case goos == "darwin" && arch == "amd64":
 		downloadURL = "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-darwin-amd64.tgz"
 	case goos == "darwin" && arch == "arm64":
@@ -762,6 +823,14 @@ func installCloudflaredBinary(destPath string, logger *slog.Logger) string {
 		return errJSON("Failed to write binary: %v", err)
 	}
 
+	// Verify integrity before installing (Linux only — sha256sum files available)
+	if checksumURL != "" {
+		if err := verifyCloudflaredChecksum(client, checksumURL, tmpPath, logger); err != nil {
+			os.Remove(tmpPath)
+			return errJSON("Binary integrity check failed: %v", err)
+		}
+	}
+
 	// Make executable
 	if goos != "windows" {
 		if err := os.Chmod(tmpPath, 0755); err != nil {
@@ -790,6 +859,51 @@ func installCloudflaredBinary(destPath string, logger *slog.Logger) string {
 // ──────────────────────────────────────────────────────────────────────────
 // Helpers
 // ──────────────────────────────────────────────────────────────────────────
+
+// verifyCloudflaredChecksum downloads the .sha256sum file for the given URL and validates
+// the already-downloaded binary at filePath. Best-effort: logs a warning and proceeds if
+// the checksum file cannot be fetched (e.g. network issue or missing file for the platform).
+func verifyCloudflaredChecksum(client *http.Client, checksumURL, filePath string, logger *slog.Logger) error {
+	resp, err := client.Get(checksumURL)
+	if err != nil {
+		logger.Warn("[CloudflareTunnel] Could not download checksum file — skipping integrity check", "error", err)
+		return nil
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		logger.Warn("[CloudflareTunnel] Checksum file unavailable — skipping integrity check", "status", resp.StatusCode)
+		return nil
+	}
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		logger.Warn("[CloudflareTunnel] Failed to read checksum file — skipping integrity check", "error", err)
+		return nil
+	}
+	// Format: "<sha256hash>  <filename>"
+	parts := strings.Fields(string(data))
+	if len(parts) == 0 {
+		logger.Warn("[CloudflareTunnel] Checksum file empty or unparseable — skipping integrity check")
+		return nil
+	}
+	expectedHash := strings.ToLower(strings.TrimSpace(parts[0]))
+
+	f, err := os.Open(filePath)
+	if err != nil {
+		return fmt.Errorf("cannot open downloaded file for checksum verification: %w", err)
+	}
+	defer f.Close()
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return fmt.Errorf("failed to hash downloaded file: %w", err)
+	}
+	actualHash := hex.EncodeToString(h.Sum(nil))
+
+	if actualHash != expectedHash {
+		return fmt.Errorf("checksum mismatch (expected %s, got %s) — possible tampering detected", expectedHash, actualHash)
+	}
+	logger.Info("[CloudflareTunnel] Binary checksum verified", "sha256", actualHash)
+	return nil
+}
 
 // resolveMode determines whether to use Docker or native binary.
 func resolveMode(cfg CloudflareTunnelConfig) string {

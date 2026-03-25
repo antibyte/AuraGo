@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/hashicorp/mdns"
@@ -28,6 +30,12 @@ func MDNSScan(logger *slog.Logger, serviceType string, timeout int) string {
 	if serviceType == "" {
 		serviceType = "_services._dns-sd._udp" // Default fallback to discover services
 	}
+	// Validate service type: only allow safe label characters to prevent injection.
+	validServiceType := regexp.MustCompile(`^[a-zA-Z0-9_\-]+(\.[a-zA-Z0-9_\-]+)*$`)
+	base := strings.TrimSuffix(strings.TrimSuffix(strings.TrimSuffix(serviceType, "local."), "local"), ".")
+	if !strings.Contains(base, "_dns-sd") && !validServiceType.MatchString(strings.ReplaceAll(base, ".", "-")) {
+		return `{"status":"error","message":"invalid service type"}`
+	}
 	// Add .local. if it's missing (hashicorp/mdns usually appends it or needs it based on context, but let's be safe if they only provide prefix)
 	if !strings.HasSuffix(serviceType, "local.") && !strings.HasSuffix(serviceType, "local") && !strings.Contains(serviceType, "_dns-sd") {
 		if !strings.HasSuffix(serviceType, ".") {
@@ -40,7 +48,10 @@ func MDNSScan(logger *slog.Logger, serviceType string, timeout int) string {
 
 	// Channel to receive responses
 	entriesCh := make(chan *mdns.ServiceEntry, 50)
-	var services []MDNSService
+	var (
+		services   []MDNSService
+		servicesMu sync.Mutex
+	)
 
 	// Start a goroutine to process entries
 	go func() {
@@ -53,6 +64,7 @@ func MDNSScan(logger *slog.Logger, serviceType string, timeout int) string {
 				ips = append(ips, entry.AddrV6.String())
 			}
 
+			servicesMu.Lock()
 			services = append(services, MDNSService{
 				Name: entry.Name,
 				Host: entry.Host,
@@ -60,6 +72,7 @@ func MDNSScan(logger *slog.Logger, serviceType string, timeout int) string {
 				Port: entry.Port,
 				Info: strings.Join(entry.InfoFields, ", "),
 			})
+			servicesMu.Unlock()
 		}
 	}()
 

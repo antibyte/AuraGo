@@ -307,8 +307,9 @@ func extractExtraToolCalls(content, firstRawJSON string) []ToolCall {
 		found := false
 		for j := strings.LastIndex(bStr, "}"); j > 0; {
 			candidate := bStr[:j+1]
+			normalized := normalizeTagsInJSON(candidate)
 			var tmp ToolCall
-			if json.Unmarshal([]byte(candidate), &tmp) == nil && tmp.Action != "" {
+			if json.Unmarshal([]byte(normalized), &tmp) == nil && tmp.Action != "" {
 				tmp.IsTool = true
 				tmp.RawJSON = candidate
 				results = append(results, tmp)
@@ -326,6 +327,34 @@ func extractExtraToolCalls(content, firstRawJSON string) []ToolCall {
 		}
 	}
 	return results
+}
+
+// normalizeTagsInJSON pre-processes a JSON string before unmarshaling into ToolCall.
+// It converts a JSON array in the "tags" field to a comma-separated string so that
+// json.Unmarshal doesn't fail with a type mismatch (ToolCall.Tags is a string).
+func normalizeTagsInJSON(s string) string {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(s), &raw); err != nil {
+		return s
+	}
+	tagsRaw, ok := raw["tags"]
+	if !ok || len(tagsRaw) == 0 || tagsRaw[0] != '[' {
+		return s
+	}
+	var arr []string
+	if err := json.Unmarshal(tagsRaw, &arr); err != nil {
+		return s
+	}
+	joined, err := json.Marshal(strings.Join(arr, ","))
+	if err != nil {
+		return s
+	}
+	raw["tags"] = json.RawMessage(joined)
+	b, err := json.Marshal(raw)
+	if err != nil {
+		return s
+	}
+	return string(b)
 }
 
 func ParseToolCall(content string) ToolCall {
@@ -401,8 +430,9 @@ func ParseToolCall(content string) ToolCall {
 				if end := strings.Index(after, "```"); end != -1 {
 					candidate := strings.TrimSpace(after[:end])
 					if strings.HasPrefix(candidate, "{") {
+						normalized := normalizeTagsInJSON(candidate)
 						var tmp ToolCall
-						if json.Unmarshal([]byte(candidate), &tmp) == nil && (tmp.Action != "" || tmp.Operation != "" || tmp.Name != "" || tmp.Tool != "" || tmp.Command != "") {
+						if json.Unmarshal([]byte(normalized), &tmp) == nil && (tmp.Action != "" || tmp.Operation != "" || tmp.Name != "" || tmp.Tool != "" || tmp.Command != "") {
 							tc = tmp
 							extractedFromFence = true
 							tc.RawJSON = candidate
@@ -422,8 +452,9 @@ func ParseToolCall(content string) ToolCall {
 					// Search from the end for the furthest '}' that yields a valid ToolCall
 					for j := strings.LastIndex(bStr, "}"); j != -1; j = strings.LastIndex(bStr[:j], "}") {
 						candidate := bStr[:j+1]
+						normalized := normalizeTagsInJSON(candidate)
 						var tmp ToolCall
-						if json.Unmarshal([]byte(candidate), &tmp) == nil && (tmp.Action != "" || tmp.Operation != "" || tmp.Name != "" || tmp.Tool != "" || tmp.Command != "") {
+						if json.Unmarshal([]byte(normalized), &tmp) == nil && (tmp.Action != "" || tmp.Operation != "" || tmp.Name != "" || tmp.Tool != "" || tmp.Command != "") {
 							tc = tmp
 							extractedFromFence = true
 							tc.RawJSON = candidate

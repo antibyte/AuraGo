@@ -467,6 +467,14 @@ ollama:
     enabled: false
     readonly: false
     url: ""
+    managed_instance:
+        enabled: false                 # auto-manage a local Ollama Docker container
+        container_port: 11434          # host port for the managed container
+        use_host_gpu: false            # pass GPU devices into the container (Linux only)
+        gpu_backend: "auto"            # "auto", "nvidia", "amd", "intel"
+        default_models: []             # models to auto-pull after start, e.g. ["llama3", "mistral"]
+        memory_limit: ""               # Docker memory limit, e.g. "8g" (empty = unlimited)
+        volume_path: ""                # host path for persistent model storage (empty = Docker volume)
 personality:
     core_personality: friend           # active personality profile, e.g. 'neutral', 'punk', 'zen'
     engine: true                       # enable personality engine (mood, micro-traits)
@@ -494,6 +502,7 @@ tailscale:
         serve_http: false                   # also expose AuraGo web UI over Tailscale (default: join network only)
         expose_homepage: false              # also expose the Homepage/Caddy web server over Tailscale on :8443
         funnel: false                       # expose AuraGo publicly via Tailscale Funnel on :443
+        allow_http_fallback: false           # fall back to HTTP on :80 if HTTPS cert is unavailable (disabled by default for security)
 cloudflare_tunnel:
     enabled: false
     readonly: false

@@ -141,6 +141,7 @@ func (p *ConnectionPool) openConnection(rec ConnectionRecord) (*sql.DB, error) {
 	db.SetMaxOpenConns(2)
 	db.SetMaxIdleConns(1)
 	db.SetConnMaxLifetime(30 * time.Minute)
+	db.SetConnMaxIdleTime(5 * time.Minute)
 
 	ctx, cancel := context.WithTimeout(context.Background(), p.timeout)
 	defer cancel()

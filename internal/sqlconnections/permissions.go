@@ -18,10 +18,59 @@ const (
 	StmtDDL                   // CREATE, DROP, ALTER
 )
 
+// String returns a human-readable name for the statement type.
+func (s StatementType) String() string {
+	switch s {
+	case StmtSelect:
+		return "SELECT"
+	case StmtInsert:
+		return "INSERT"
+	case StmtUpdate:
+		return "UPDATE"
+	case StmtDelete:
+		return "DELETE"
+	case StmtDDL:
+		return "DDL"
+	default:
+		return "UNKNOWN"
+	}
+}
+
+// stripSQLComments removes SQL line comments (--) and block comments (/* ... */) from a query string.
+func stripSQLComments(s string) string {
+	var result strings.Builder
+	i := 0
+	for i < len(s) {
+		// Block comment /* ... */
+		if i+1 < len(s) && s[i] == '/' && s[i+1] == '*' {
+			end := strings.Index(s[i+2:], "*/")
+			if end == -1 {
+				break // unterminated block comment: discard rest
+			}
+			i = i + 2 + end + 2
+			result.WriteByte(' ')
+			continue
+		}
+		// Line comment --
+		if i+1 < len(s) && s[i] == '-' && s[i+1] == '-' {
+			nl := strings.IndexByte(s[i:], '\n')
+			if nl == -1 {
+				break // comment to end of string
+			}
+			i = i + nl + 1
+			result.WriteByte(' ')
+			continue
+		}
+		result.WriteByte(s[i])
+		i++
+	}
+	return result.String()
+}
+
 // DetectStatementType parses the leading keyword(s) of a SQL string to classify it.
 // Only single statements are allowed — semicolons are rejected.
 func DetectStatementType(query string) (StatementType, error) {
-	trimmed := strings.TrimSpace(query)
+	trimmed := strings.TrimSpace(stripSQLComments(query))
 	if trimmed == "" {
 		return StmtUnknown, fmt.Errorf("empty query")
 	}

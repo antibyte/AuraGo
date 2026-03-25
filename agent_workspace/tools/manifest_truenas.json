@@ -1,0 +1,217 @@
+{
+  "name": "truenas",
+  "version": "1.0.0",
+  "description": "TrueNAS SCALE/Core integration for ZFS storage management",
+  "enabled_by_default": false,
+  "config_required": ["host", "api_key"],
+  "tools": [
+    {
+      "name": "truenas_health",
+      "description": "Get TrueNAS system health status, pool states, and alerts",
+      "dangerous": false,
+      "parameters": {}
+    },
+    {
+      "name": "truenas_pool_list",
+      "description": "List all ZFS pools with capacity and status information",
+      "dangerous": false,
+      "parameters": {}
+    },
+    {
+      "name": "truenas_pool_scrub",
+      "description": "Start a scrub operation on a pool to verify data integrity",
+      "dangerous": false,
+      "parameters": {
+        "pool_id": {
+          "type": "integer",
+          "description": "The ID of the pool to scrub",
+          "required": true
+        }
+      }
+    },
+    {
+      "name": "truenas_dataset_list",
+      "description": "List all ZFS datasets, optionally filtered by pool",
+      "dangerous": false,
+      "parameters": {
+        "pool": {
+          "type": "string",
+          "description": "Filter by pool name",
+          "required": false
+        }
+      }
+    },
+    {
+      "name": "truenas_dataset_create",
+      "description": "Create a new ZFS dataset",
+      "dangerous": false,
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "Full dataset path (e.g., 'tank/share')",
+          "required": true
+        },
+        "compression": {
+          "type": "string",
+          "description": "Compression algorithm: lz4 (default), gzip, zle, off",
+          "required": false,
+          "default": "lz4"
+        },
+        "quota_gb": {
+          "type": "integer",
+          "description": "Maximum size in GB (0 = unlimited)",
+          "required": false,
+          "default": 0
+        }
+      }
+    },
+    {
+      "name": "truenas_dataset_delete",
+      "description": "Delete a ZFS dataset (DESTRUCTIVE - requires allow_destructive)",
+      "dangerous": true,
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "Dataset name to delete",
+          "required": true
+        },
+        "recursive": {
+          "type": "boolean",
+          "description": "Delete children datasets too",
+          "required": false,
+          "default": false
+        }
+      }
+    },
+    {
+      "name": "truenas_snapshot_list",
+      "description": "List ZFS snapshots",
+      "dangerous": false,
+      "parameters": {
+        "dataset": {
+          "type": "string",
+          "description": "Filter by dataset name",
+          "required": false
+        }
+      }
+    },
+    {
+      "name": "truenas_snapshot_create",
+      "description": "Create a ZFS snapshot for backup/recovery",
+      "dangerous": false,
+      "parameters": {
+        "dataset": {
+          "type": "string",
+          "description": "Dataset to snapshot",
+          "required": true
+        },
+        "name": {
+          "type": "string",
+          "description": "Snapshot name (auto-generated if empty)",
+          "required": false
+        },
+        "recursive": {
+          "type": "boolean",
+          "description": "Include child datasets",
+          "required": false,
+          "default": false
+        },
+        "retention_days": {
+          "type": "integer",
+          "description": "Auto-delete after N days (0 = keep forever)",
+          "required": false,
+          "default": 0
+        }
+      }
+    },
+    {
+      "name": "truenas_snapshot_delete",
+      "description": "Delete a ZFS snapshot (DESTRUCTIVE - requires allow_destructive)",
+      "dangerous": true,
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "Full snapshot name (e.g., 'tank/docs@snapshot-1')",
+          "required": true
+        }
+      }
+    },
+    {
+      "name": "truenas_snapshot_rollback",
+      "description": "Rollback dataset to a snapshot (DESTRUCTIVE - requires allow_destructive, destroys all data after snapshot)",
+      "dangerous": true,
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "Full snapshot name (e.g., 'tank/docs@pre-update')",
+          "required": true
+        },
+        "force": {
+          "type": "boolean",
+          "description": "Force rollback even with clones",
+          "required": false,
+          "default": false
+        }
+      }
+    },
+    {
+      "name": "truenas_smb_list",
+      "description": "List all SMB shares",
+      "dangerous": false,
+      "parameters": {}
+    },
+    {
+      "name": "truenas_smb_create",
+      "description": "Create an SMB share for Windows/macOS access",
+      "dangerous": false,
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "Share name (displayed in network)",
+          "required": true
+        },
+        "path": {
+          "type": "string",
+          "description": "Dataset path to share",
+          "required": true
+        },
+        "guest_ok": {
+          "type": "boolean",
+          "description": "Allow guest access",
+          "required": false,
+          "default": false
+        },
+        "timemachine": {
+          "type": "boolean",
+          "description": "Enable Time Machine support for Mac backups",
+          "required": false,
+          "default": false
+        }
+      }
+    },
+    {
+      "name": "truenas_smb_delete",
+      "description": "Delete an SMB share (only removes share, not data)",
+      "dangerous": false,
+      "parameters": {
+        "share_id": {
+          "type": "integer",
+          "description": "The SMB share ID",
+          "required": true
+        }
+      }
+    },
+    {
+      "name": "truenas_fs_space",
+      "description": "Get filesystem space usage information",
+      "dangerous": false,
+      "parameters": {
+        "dataset": {
+          "type": "string",
+          "description": "Filter by specific dataset",
+          "required": false
+        }
+      }
+    }
+  ]
+}

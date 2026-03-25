@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TrueNAS - AuraGo</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .truenas-container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+        .truenas-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        .truenas-header h1 { margin: 0; display: flex; align-items: center; gap: 10px; }
+        .connection-status { display: flex; align-items: center; gap: 10px; }
+        .status-online { color: #4caf50; }
+        .status-offline { color: #f44336; }
+        .status-error { color: #ff9800; }
+        .status-unknown { color: #9e9e9e; }
+        
+        .truenas-nav { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid var(--border-color); }
+        .nav-btn { 
+            padding: 10px 20px; 
+            border: none; 
+            background: transparent; 
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            font-size: 14px;
+        }
+        .nav-btn.active { border-bottom-color: var(--accent-color); font-weight: bold; }
+        
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        
+        .stats-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); 
+            gap: 20px; 
+            margin-bottom: 30px;
+        }
+        .stat-card { 
+            background: var(--bg-secondary); 
+            padding: 20px; 
+            border-radius: 8px; 
+            border: 1px solid var(--border-color);
+        }
+        .stat-card h3 { margin: 0 0 10px 0; font-size: 14px; color: var(--text-muted); }
+        .stat-value { font-size: 32px; font-weight: bold; margin: 10px 0; }
+        .stat-detail { font-size: 12px; color: var(--text-muted); }
+        
+        .progress-bar { 
+            height: 8px; 
+            background: var(--bg-tertiary); 
+            border-radius: 4px; 
+            overflow: hidden;
+            margin-top: 10px;
+        }
+        .progress-fill { 
+            height: 100%; 
+            background: var(--accent-color); 
+            transition: width 0.3s;
+        }
+        .progress-fill.warning { background: #ff9800; }
+        .progress-fill.danger { background: #f44336; }
+        
+        .section-header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            margin-bottom: 20px;
+        }
+        .section-header h2 { margin: 0; }
+        
+        .pools-grid, .datasets-list, .snapshots-list, .shares-list {
+            display: grid;
+            gap: 15px;
+        }
+        
+        .pool-card {
+            background: var(--bg-secondary);
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+        .pool-card.online { border-left: 4px solid #4caf50; }
+        .pool-card.degraded { border-left: 4px solid #ff9800; }
+        .pool-card.faulted { border-left: 4px solid #f44336; }
+        
+        .pool-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .pool-header h3 { margin: 0; }
+        .status-badge { 
+            padding: 4px 12px; 
+            border-radius: 12px; 
+            font-size: 12px; 
+            font-weight: bold;
+        }
+        .status-badge.online { background: #4caf50; color: white; }
+        .status-badge.degraded { background: #ff9800; color: white; }
+        .status-badge.faulted { background: #f44336; color: white; }
+        
+        .pool-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin: 15px 0; }
+        .pool-stats .stat { text-align: center; }
+        .pool-stats .stat label { display: block; font-size: 12px; color: var(--text-muted); }
+        .pool-stats .stat value { display: block; font-size: 18px; font-weight: bold; margin-top: 5px; }
+        
+        .pool-actions { display: flex; gap: 10px; margin-top: 15px; }
+        
+        .dataset-item, .snapshot-item, .share-item {
+            background: var(--bg-secondary);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .dataset-info, .snapshot-info, .share-info { flex: 1; }
+        .dataset-info h4, .snapshot-info h4, .share-info h4 { margin: 0 0 5px 0; }
+        .dataset-info p, .snapshot-info p, .share-info p { margin: 0; font-size: 12px; color: var(--text-muted); }
+        
+        .dataset-actions, .snapshot-actions, .share-actions { display: flex; gap: 5px; }
+        
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: 500; }
+        .form-group input, .form-group select { 
+            width: 100%; 
+            padding: 10px; 
+            border: 1px solid var(--border-color); 
+            border-radius: 4px;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+        }
+        .form-group small { display: block; margin-top: 5px; font-size: 12px; color: var(--text-muted); }
+        
+        .form-group.checkbox { display: flex; align-items: center; gap: 10px; }
+        .form-group.checkbox input { width: auto; }
+        .form-group.checkbox label { margin: 0; }
+        
+        .btn { 
+            padding: 10px 20px; 
+            border: none; 
+            border-radius: 4px; 
+            cursor: pointer;
+            font-size: 14px;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .btn-primary { background: var(--accent-color); color: white; }
+        .btn-secondary { background: var(--bg-tertiary); color: var(--text-primary); }
+        .btn-danger { background: #f44336; color: white; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        
+        .modal { 
+            display: none; 
+            position: fixed; 
+            top: 0; left: 0; right: 0; bottom: 0; 
+            background: rgba(0,0,0,0.5); 
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal.active { display: flex; }
+        .modal-content { 
+            background: var(--bg-primary); 
+            padding: 30px; 
+            border-radius: 8px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .modal-content h3 { margin-top: 0; }
+        
+        .form-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+        
+        .alert { 
+            padding: 15px; 
+            border-radius: 4px; 
+            margin-bottom: 20px;
+        }
+        .alert.error { background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
+        .alert.success { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+        .alert.warning { background: #fff3e0; color: #ef6c00; border: 1px solid #ffcc80; }
+        
+        .alerts-section { margin-top: 30px; }
+        .alerts-section h2 { margin-bottom: 15px; }
+        .alert-item { 
+            padding: 15px; 
+            border-radius: 4px; 
+            margin-bottom: 10px;
+            border-left: 4px solid;
+        }
+        .alert-item.critical { background: #ffebee; border-left-color: #c62828; }
+        .alert-item.error { background: #ffebee; border-left-color: #f44336; }
+        .alert-item.warning { background: #fff3e0; border-left-color: #ff9800; }
+        .alert-item.info { background: #e3f2fd; border-left-color: #2196f3; }
+        
+        .alert-item h4 { margin: 0 0 5px 0; }
+        .alert-item p { margin: 0; font-size: 14px; }
+        .alert-item .alert-date { font-size: 12px; color: var(--text-muted); margin-top: 5px; }
+        
+        .empty-state { 
+            text-align: center; 
+            padding: 60px 20px; 
+            color: var(--text-muted);
+        }
+        
+        .loading { 
+            text-align: center; 
+            padding: 40px; 
+            color: var(--text-muted);
+        }
+        
+        .spinner { 
+            display: inline-block; 
+            width: 20px; 
+            height: 20px; 
+            border: 2px solid var(--border-color); 
+            border-top-color: var(--accent-color); 
+            border-radius: 50%; 
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div class="truenas-container">
+        <!-- Header -->
+        <header class="truenas-header">
+            <h1>
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="2" y="2" width="20" height="8" rx="2"/>
+                    <rect x="2" y="14" width="20" height="8" rx="2"/>
+                    <line x1="6" y1="6" x2="6" y2="6"/>
+                    <line x1="6" y1="18" x2="6" y2="18"/>
+                </svg>
+                TrueNAS
+            </h1>
+            <div class="connection-status">
+                <span id="status-indicator" class="status-unknown">
+                    <span class="spinner"></span> Prüfe Verbindung...
+                </span>
+            </div>
+        </header>
+        
+        <!-- Navigation -->
+        <nav class="truenas-nav">
+            <button class="nav-btn active" data-tab="overview">Übersicht</button>
+            <button class="nav-btn" data-tab="pools">Pools</button>
+            <button class="nav-btn" data-tab="datasets">Datasets</button>
+            <button class="nav-btn" data-tab="snapshots">Snapshots</button>
+            <button class="nav-btn" data-tab="shares">Freigaben</button>
+            <button class="nav-btn" data-tab="settings">Einstellungen</button>
+        </nav>
+        
+        <!-- Content -->
+        <main class="truenas-content">
+            <!-- Overview Tab -->
+            <div id="tab-overview" class="tab-content active">
+                <div id="overview-error"></div>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h3>Pools</h3>
+                        <div class="stat-value" id="pool-count">-</div>
+                        <div class="stat-detail" id="pool-status"></div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Speicher</h3>
+                        <div class="stat-value" id="total-storage">-</div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="storage-progress"></div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Snapshots</h3>
+                        <div class="stat-value" id="snapshot-count">-</div>
+                        <div class="stat-detail">Letzte 24h: <span id="recent-snapshots">-</span></div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Freigaben</h3>
+                        <div class="stat-value" id="share-count">-</div>
+                        <div class="stat-detail">SMB: <span id="smb-count">-</span></div>
+                    </div>
+                </div>
+                
+                <!-- Health Alerts -->
+                <div class="alerts-section" id="alerts-section" style="display: none;">
+                    <h2>System Alerts</h2>
+                    <div id="alerts-container"></div>
+                </div>
+            </div>
+            
+            <!-- Pools Tab -->
+            <div id="tab-pools" class="tab-content">
+                <div class="section-header">
+                    <h2>Storage Pools</h2>
+                    <button class="btn btn-secondary" onclick="refreshPools()">
+                        Aktualisieren
+                    </button>
+                </div>
+                <div id="pools-container" class="pools-grid">
+                    <div class="loading">Lade Pools...</div>
+                </div>
+            </div>
+            
+            <!-- Datasets Tab -->
+            <div id="tab-datasets" class="tab-content">
+                <div class="section-header">
+                    <h2>Datasets</h2>
+                    <button class="btn btn-primary" onclick="showCreateDataset()">
+                        + Neues Dataset
+                    </button>
+                </div>
+                <div id="datasets-container" class="datasets-list">
+                    <div class="loading">Lade Datasets...</div>
+                </div>
+            </div>
+            
+            <!-- Snapshots Tab -->
+            <div id="tab-snapshots" class="tab-content">
+                <div class="section-header">
+                    <h2>Snapshots</h2>
+                    <div>
+                        <select id="snapshot-filter" onchange="filterSnapshots()">
+                            <option value="">Alle Datasets</option>
+                        </select>
+                        <button class="btn btn-primary" onclick="showCreateSnapshot()">
+                            + Snapshot erstellen
+                        </button>
+                    </div>
+                </div>
+                <div id="snapshots-container" class="snapshots-list">
+                    <div class="loading">Lade Snapshots...</div>
+                </div>
+            </div>
+            
+            <!-- Shares Tab -->
+            <div id="tab-shares" class="tab-content">
+                <div class="section-header">
+                    <h2>SMB Freigaben</h2>
+                    <button class="btn btn-primary" onclick="showCreateShare()">
+                        + Neue Freigabe
+                    </button>
+                </div>
+                <div id="shares-container" class="shares-list">
+                    <div class="loading">Lade Freigaben...</div>
+                </div>
+            </div>
+            
+            <!-- Settings Tab -->
+            <div id="tab-settings" class="tab-content">
+                <h2>TrueNAS Einstellungen</h2>
+                <div id="settings-error"></div>
+                <form id="truenas-settings-form">
+                    <div class="form-group">
+                        <label>Host</label>
+                        <input type="text" id="setting-host" placeholder="truenas.local">
+                        <small>Hostname oder IP-Adresse Ihres TrueNAS Servers</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>API Key</label>
+                        <input type="password" id="setting-apikey" placeholder="API Key aus TrueNAS">
+                        <small>Erstellen Sie einen API Key unter System → API Keys in TrueNAS</small>
+                    </div>
+                    
+                    <div class="form-group checkbox">
+                        <input type="checkbox" id="setting-https" checked>
+                        <label for="setting-https">HTTPS verwenden</label>
+                    </div>
+                    
+                    <div class="form-group checkbox">
+                        <input type="checkbox" id="setting-insecure">
+                        <label for="setting-insecure">Self-Signed Zertifikate akzeptieren (unsicher)</label>
+                    </div>
+                    
+                    <div class="form-group checkbox">
+                        <input type="checkbox" id="setting-readonly">
+                        <label for="setting-readonly">Read-Only Modus (keine Änderungen erlauben)</label>
+                    </div>
+                    
+                    <div class="form-group checkbox">
+                        <input type="checkbox" id="setting-destructive">
+                        <label for="setting-destructive">Destruktive Operationen erlauben (Löschen, Rollback)</label>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" onclick="testConnection()">
+                            Verbindung testen
+                        </button>
+                        <button type="submit" class="btn btn-primary">Speichern</button>
+                    </div>
+                </form>
+            </div>
+        </main>
+    </div>
+    
+    <!-- Modal: Create Dataset -->
+    <div id="modal-dataset" class="modal">
+        <div class="modal-content">
+            <h3>Neues Dataset erstellen</h3>
+            <div id="dataset-error"></div>
+            <form id="dataset-form">
+                <div class="form-group">
+                    <label>Name (z.B. tank/share)</label>
+                    <input type="text" id="dataset-name" required placeholder="tank/mein-share">
+                </div>
+                <div class="form-group">
+                    <label>Kompression</label>
+                    <select id="dataset-compression">
+                        <option value="lz4" selected>LZ4 (empfohlen)</option>
+                        <option value="gzip">GZIP</option>
+                        <option value="zle">ZLE</option>
+                        <option value="off">Aus</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Quota (GB, optional - 0 = unbegrenzt)</label>
+                    <input type="number" id="dataset-quota" min="0" value="0">
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary">Erstellen</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Modal: Create Snapshot -->
+    <div id="modal-snapshot" class="modal">
+        <div class="modal-content">
+            <h3>Snapshot erstellen</h3>
+            <div id="snapshot-error"></div>
+            <form id="snapshot-form">
+                <div class="form-group">
+                    <label>Dataset</label>
+                    <select id="snapshot-dataset" required>
+                        <option value="">Wählen...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Name (optional, auto-generiert)</label>
+                    <input type="text" id="snapshot-name" placeholder="aura-20240101-120000">
+                </div>
+                <div class="form-group checkbox">
+                    <input type="checkbox" id="snapshot-recursive">
+                    <label for="snapshot-recursive">Rekursiv (inkl. Unter-Datasets)</label>
+                </div>
+                <div class="form-group">
+                    <label>Aufbewahrung (Tage, 0 = für immer)</label>
+                    <input type="number" id="snapshot-retention" min="0" value="0">
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary">Erstellen</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Modal: Create Share -->
+    <div id="modal-share" class="modal">
+        <div class="modal-content">
+            <h3>SMB Freigabe erstellen</h3>
+            <div id="share-error"></div>
+            <form id="share-form">
+                <div class="form-group">
+                    <label>Name</label>
+                    <input type="text" id="share-name" required placeholder="MeineFreigabe">
+                </div>
+                <div class="form-group">
+                    <label>Pfad</label>
+                    <input type="text" id="share-path" required placeholder="/mnt/tank/share">
+                </div>
+                <div class="form-group checkbox">
+                    <input type="checkbox" id="share-guest">
+                    <label for="share-guest">Gast-Zugriff erlauben</label>
+                </div>
+                <div class="form-group checkbox">
+                    <input type="checkbox" id="share-timemachine">
+                    <label for="share-timemachine">Time Machine Support (Mac)</label>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary">Erstellen</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script src="/js/truenas.js"></script>
+</body>
+</html>
