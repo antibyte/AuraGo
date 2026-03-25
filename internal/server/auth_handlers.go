@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -211,6 +212,14 @@ func handleAuthLogout(s *Server) http.HandlerFunc {
 		w.Header().Set("Clear-Site-Data", `"cache"`)
 		w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, private")
 		w.Header().Set("Pragma", "no-cache")
+		if strings.Contains(r.Header.Get("Accept"), "application/json") || r.Header.Get("X-Requested-With") == "XMLHttpRequest" {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"ok":       true,
+				"redirect": "/auth/login",
+			})
+			return
+		}
 		http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
 	}
 }

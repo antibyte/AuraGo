@@ -54,3 +54,24 @@ func TestClearSessionCookieIncludesProxySecureAttribute(t *testing.T) {
 		t.Fatalf("expected secure flag in Set-Cookie header, got %q", header)
 	}
 }
+
+func TestHandleAuthLogoutReturnsJSONForAjaxRequests(t *testing.T) {
+	t.Parallel()
+
+	req := httptest.NewRequest(http.MethodGet, "/auth/logout", nil)
+	req.Header.Set("Accept", "application/json")
+	rec := httptest.NewRecorder()
+
+	handleAuthLogout(&Server{}).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d", rec.Code)
+	}
+	if !strings.Contains(rec.Header().Get("Set-Cookie"), sessionCookieName+"=") {
+		t.Fatalf("expected logout response to clear session cookie")
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "\"ok\":true") || !strings.Contains(body, "\"redirect\":\"/auth/login\"") {
+		t.Fatalf("unexpected JSON body: %s", body)
+	}
+}

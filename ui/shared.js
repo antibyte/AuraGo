@@ -317,15 +317,47 @@ function initLogoutLinks() {
     document.querySelectorAll('a[href="/auth/logout"]').forEach(link => {
         if (link.dataset.logoutBound === 'true') return;
         link.dataset.logoutBound = 'true';
-        link.addEventListener('click', function (e) {
+        const handler = function (e) {
             e.preventDefault();
-            const menu = document.getElementById('radialMenu');
-            const backdrop = document.getElementById('radialBackdrop');
-            if (menu) menu.classList.remove('open');
-            if (backdrop) backdrop.classList.remove('open');
-            window.location.assign('/auth/logout');
-        });
+            e.stopPropagation();
+            performLogout();
+        };
+        link.addEventListener('click', handler);
+        link.addEventListener('pointerup', handler);
     });
+}
+
+async function performLogout() {
+    if (window._logoutInProgress) return;
+    window._logoutInProgress = true;
+
+    const menu = document.getElementById('radialMenu');
+    const backdrop = document.getElementById('radialBackdrop');
+    if (menu) menu.classList.remove('open');
+    if (backdrop) backdrop.classList.remove('open');
+
+    try {
+        const resp = await fetch('/auth/logout', {
+            method: 'GET',
+            credentials: 'same-origin',
+            cache: 'no-store',
+            redirect: 'follow',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            }
+        });
+        if (resp.ok) {
+            const data = await resp.json().catch(() => ({}));
+            const redirect = data.redirect || '/auth/login';
+            window.location.replace(redirect);
+            return;
+        }
+    } catch (_) {
+        // Fallback below
+    }
+
+    window.location.replace('/auth/logout');
 }
 
 // ═══════════════════════════════════════════════════════════════
