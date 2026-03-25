@@ -2323,6 +2323,18 @@ select.large,
     transform-origin: right top;
 }
 
+.radial-item-button {
+    border: none;
+    background: transparent;
+    padding: 0;
+    margin: 0;
+    font: inherit;
+    text-align: inherit;
+    -webkit-appearance: none;
+    appearance: none;
+    cursor: pointer;
+}
+
 /* Vertical position for each item (below trigger: 32px + 8px gap, then 40px spacing) */
 .radial-item:nth-child(1) {
     top: 40px;

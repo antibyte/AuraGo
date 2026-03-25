@@ -159,7 +159,7 @@ function injectRadialMenu() {
         </button>
         <div class="radial-items">
             ${items}
-            <a id="radialLogout" href="/auth/logout" class="radial-item is-hidden" style="--radial-index:${logoutIndex};--radial-open-delay:${logoutOpenDelay}s;--radial-close-delay:${logoutCloseDelay}s"><span class="radial-item-label" data-i18n="common.nav_logout">${t('common.nav_logout')}</span><span class="radial-item-icon">🔓</span></a>
+            <button id="radialLogout" type="button" class="radial-item radial-item-button is-hidden" data-logout-action="true" onclick="performLogout(); return false;" ontouchend="event.preventDefault(); performLogout(); return false;" style="--radial-index:${logoutIndex};--radial-open-delay:${logoutOpenDelay}s;--radial-close-delay:${logoutCloseDelay}s"><span class="radial-item-label" data-i18n="common.nav_logout">${t('common.nav_logout')}</span><span class="radial-item-icon">🔓</span></button>
         </div>
     </nav>
     <div class="radial-backdrop" id="radialBackdrop"></div>`;
@@ -314,7 +314,7 @@ async function checkAuth() {
 }
 
 function initLogoutLinks() {
-    document.querySelectorAll('a[href="/auth/logout"]').forEach(link => {
+    document.querySelectorAll('[data-logout-action="true"]').forEach(link => {
         if (link.dataset.logoutBound === 'true') return;
         link.dataset.logoutBound = 'true';
         const handler = function (e) {
@@ -337,18 +337,27 @@ async function performLogout() {
     if (menu) menu.classList.remove('open');
     if (backdrop) backdrop.classList.remove('open');
 
+    const fallbackURL = '/auth/logout?ts=' + Date.now();
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const fallbackTimer = setTimeout(() => {
+        if (controller) controller.abort();
+        window.location.replace(fallbackURL);
+    }, 1800);
+
     try {
-        const resp = await fetch('/auth/logout', {
+        const resp = await fetch(fallbackURL, {
             method: 'GET',
             credentials: 'same-origin',
             cache: 'no-store',
             redirect: 'follow',
+            signal: controller ? controller.signal : undefined,
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
                 'Accept': 'application/json'
             }
         });
         if (resp.ok) {
+            clearTimeout(fallbackTimer);
             const data = await resp.json().catch(() => ({}));
             const redirect = data.redirect || '/auth/login';
             window.location.replace(redirect);
@@ -358,7 +367,8 @@ async function performLogout() {
         // Fallback below
     }
 
-    window.location.replace('/auth/logout');
+    clearTimeout(fallbackTimer);
+    window.location.replace(fallbackURL);
 }
 
 // ═══════════════════════════════════════════════════════════════

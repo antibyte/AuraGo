@@ -86,7 +86,10 @@
             </div>
             <span id="debug-pill" class="pill pill-debug"></span>
             <span id="connectionPill" class="pill pill-active"></span>
-            <a id="logout-btn" href="/auth/logout" class="btn-header btn-header-link is-hidden"></a>
+            <a id="logout-btn" href="/auth/logout" class="btn-header btn-header-link is-hidden"
+                data-logout-action="true"
+                onclick="performLogout(); return false;"
+                ontouchend="event.preventDefault(); performLogout(); return false;"></a>
         </div>
     </header>
 
