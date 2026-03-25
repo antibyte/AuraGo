@@ -690,8 +690,8 @@ type Config struct {
 		} `yaml:"ntfy"`
 		Pushover struct {
 			Enabled  bool   `yaml:"enabled"`
-			UserKey  string `yaml:"-"` // from vault
-			AppToken string `yaml:"-"` // from vault
+			UserKey  string `yaml:"-" vault:"user_key"`  // from vault
+			AppToken string `yaml:"-" vault:"app_token"` // from vault
 		} `yaml:"pushover"`
 	} `yaml:"notifications"`
 	Auth struct {

@@ -5,11 +5,15 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
 	"gopkg.in/yaml.v3"
 )
+
+var defaultIndexingExtensions = []string{".txt", ".md", ".json", ".csv", ".log", ".yaml", ".yml", ".pdf", ".docx", ".xlsx", ".pptx", ".odt", ".rtf"}
+var legacyIndexingExtensions = []string{".txt", ".md", ".json", ".csv", ".log", ".yaml", ".yml"}
 
 func Load(path string) (*Config, error) {
 	absConfigPath, err := filepath.Abs(path)
@@ -638,7 +642,9 @@ func Load(path string) (*Config, error) {
 		cfg.Indexing.PollIntervalSeconds = 60
 	}
 	if len(cfg.Indexing.Extensions) == 0 {
-		cfg.Indexing.Extensions = []string{".txt", ".md", ".json", ".csv", ".log", ".yaml", ".yml", ".pdf", ".docx", ".xlsx", ".pptx", ".odt", ".rtf"}
+		cfg.Indexing.Extensions = append([]string(nil), defaultIndexingExtensions...)
+	} else if usesLegacyDefaultIndexingExtensions(cfg.Indexing.Extensions) {
+		cfg.Indexing.Extensions = append([]string(nil), defaultIndexingExtensions...)
 	}
 	if len(cfg.Indexing.Directories) == 0 {
 		cfg.Indexing.Directories = []string{"./knowledge"}
@@ -712,6 +718,23 @@ func Load(path string) (*Config, error) {
 	cfg.ConfigPath = absConfigPath
 
 	return &cfg, nil
+}
+
+func usesLegacyDefaultIndexingExtensions(exts []string) bool {
+	if len(exts) != len(legacyIndexingExtensions) {
+		return false
+	}
+
+	normalized := make([]string, len(exts))
+	for i, ext := range exts {
+		normalized[i] = strings.ToLower(strings.TrimSpace(ext))
+	}
+	slices.Sort(normalized)
+
+	expected := append([]string(nil), legacyIndexingExtensions...)
+	slices.Sort(expected)
+
+	return slices.Equal(normalized, expected)
 }
 
 // Save persists the configuration to the specified path using a targeted patch

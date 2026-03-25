@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 )
 
@@ -99,5 +100,74 @@ func TestValidSpecialistRoles(t *testing.T) {
 	}
 	if ValidSpecialistRoles["unknown"] {
 		t.Error("unexpected role 'unknown' in ValidSpecialistRoles")
+	}
+}
+
+func TestLoadUpgradesLegacyIndexingExtensions(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "config_test")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	configContent := `
+indexing:
+  enabled: true
+  directories:
+    - ./knowledge
+  extensions:
+    - .txt
+    - .md
+    - .json
+    - .csv
+    - .log
+    - .yaml
+    - .yml
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("failed to load config: %v", err)
+	}
+
+	for _, want := range []string{".pdf", ".docx", ".xlsx", ".pptx", ".odt", ".rtf"} {
+		if !slices.Contains(cfg.Indexing.Extensions, want) {
+			t.Fatalf("expected upgraded indexing extensions to include %s, got %v", want, cfg.Indexing.Extensions)
+		}
+	}
+}
+
+func TestLoadKeepsCustomIndexingExtensions(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "config_test")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	configContent := `
+indexing:
+  enabled: true
+  directories:
+    - ./knowledge
+  extensions:
+    - .txt
+    - .md
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("failed to load config: %v", err)
+	}
+
+	if len(cfg.Indexing.Extensions) != 2 || cfg.Indexing.Extensions[0] != ".txt" || cfg.Indexing.Extensions[1] != ".md" {
+		t.Fatalf("expected custom indexing extensions to stay unchanged, got %v", cfg.Indexing.Extensions)
 	}
 }
