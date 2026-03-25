@@ -459,6 +459,22 @@ func dispatchServices(ctx context.Context, tc ToolCall, cfg *config.Config, logg
 		case "write_file":
 			logger.Info("LLM requested homepage write_file", "path", tc.Path)
 			return "Tool Output: " + tools.HomepageWriteFile(homepageCfg, tc.Path, tc.Content, logger)
+		case "edit_file":
+			logger.Info("LLM requested homepage edit_file", "path", tc.Path, "op", tc.Action)
+			return "Tool Output: " + tools.HomepageEditFile(homepageCfg, tc.Path, tc.Action, tc.Old, tc.New, tc.Marker, tc.Content, tc.StartLine, tc.EndLine, logger)
+		case "json_edit":
+			logger.Info("LLM requested homepage json_edit", "path", tc.Path, "op", tc.Action)
+			return "Tool Output: " + tools.HomepageJsonEdit(homepageCfg, tc.Path, tc.Action, tc.JsonPath, tc.SetValue, tc.Content, logger)
+		case "yaml_edit":
+			logger.Info("LLM requested homepage yaml_edit", "path", tc.Path, "op", tc.Action)
+			return "Tool Output: " + tools.HomepageYamlEdit(homepageCfg, tc.Path, tc.Action, tc.JsonPath, tc.SetValue, logger)
+		case "xml_edit":
+			logger.Info("LLM requested homepage xml_edit", "path", tc.Path, "op", tc.Action)
+			xpath := tc.Xpath
+			if xpath == "" {
+				xpath = tc.JsonPath
+			}
+			return "Tool Output: " + tools.HomepageXmlEdit(homepageCfg, tc.Path, tc.Action, xpath, tc.SetValue, logger)
 		case "optimize_images":
 			logger.Info("LLM requested homepage optimize_images", "dir", tc.ProjectDir)
 			return "Tool Output: " + tools.HomepageOptimizeImages(homepageCfg, tc.ProjectDir, logger)

@@ -1083,6 +1083,114 @@ func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 		logger.Info("LLM requested filesystem operation", "op", op, "path", fpath, "dest", fdest)
 		return tools.ExecuteFilesystem(op, fpath, fdest, tc.Content, cfg.Directories.WorkspaceDir)
 
+	case "file_editor":
+		fpath := tc.FilePath
+		if fpath == "" {
+			fpath = tc.Path
+		}
+
+		op := strings.TrimSpace(strings.ToLower(tc.Operation))
+
+		// Block access to system-sensitive files
+		wsDir := cfg.Directories.WorkspaceDir
+		if isProtectedSystemPath(fpath, wsDir, cfg) {
+			logger.Warn("LLM attempted file_editor access to protected system file — blocked",
+				"op", op, "path", fpath)
+			return "Tool Output: [PERMISSION DENIED] Access to this file is not allowed. System configuration, database and credential files are off-limits."
+		}
+
+		if !cfg.Agent.AllowFilesystemWrite {
+			return "Tool Output: [PERMISSION DENIED] file_editor operations are disabled in Danger Zone settings (agent.allow_filesystem_write: false)."
+		}
+		logger.Info("LLM requested file_editor operation", "op", op, "path", fpath)
+		return tools.ExecuteFileEditor(op, fpath, tc.Old, tc.New, tc.Marker, tc.Content, tc.StartLine, tc.EndLine, tc.LineCount, cfg.Directories.WorkspaceDir)
+
+	case "json_editor":
+		fpath := tc.FilePath
+		if fpath == "" {
+			fpath = tc.Path
+		}
+		op := strings.TrimSpace(strings.ToLower(tc.Operation))
+		wsDir := cfg.Directories.WorkspaceDir
+		if isProtectedSystemPath(fpath, wsDir, cfg) {
+			logger.Warn("LLM attempted json_editor access to protected system file — blocked",
+				"op", op, "path", fpath)
+			return "Tool Output: [PERMISSION DENIED] Access to this file is not allowed. System configuration, database and credential files are off-limits."
+		}
+		// Write operations need permission
+		switch op {
+		case "set", "delete", "format":
+			if !cfg.Agent.AllowFilesystemWrite {
+				return "Tool Output: [PERMISSION DENIED] json_editor write operations are disabled in Danger Zone settings (agent.allow_filesystem_write: false)."
+			}
+		}
+		logger.Info("LLM requested json_editor operation", "op", op, "path", fpath)
+		return tools.ExecuteJsonEditor(op, fpath, tc.JsonPath, tc.SetValue, tc.Content, wsDir)
+
+	case "yaml_editor":
+		fpath := tc.FilePath
+		if fpath == "" {
+			fpath = tc.Path
+		}
+		op := strings.TrimSpace(strings.ToLower(tc.Operation))
+		wsDir := cfg.Directories.WorkspaceDir
+		if isProtectedSystemPath(fpath, wsDir, cfg) {
+			logger.Warn("LLM attempted yaml_editor access to protected system file — blocked",
+				"op", op, "path", fpath)
+			return "Tool Output: [PERMISSION DENIED] Access to this file is not allowed. System configuration, database and credential files are off-limits."
+		}
+		switch op {
+		case "set", "delete":
+			if !cfg.Agent.AllowFilesystemWrite {
+				return "Tool Output: [PERMISSION DENIED] yaml_editor write operations are disabled in Danger Zone settings (agent.allow_filesystem_write: false)."
+			}
+		}
+		logger.Info("LLM requested yaml_editor operation", "op", op, "path", fpath)
+		return tools.ExecuteYamlEditor(op, fpath, tc.JsonPath, tc.SetValue, wsDir)
+
+	case "xml_editor":
+		fpath := tc.FilePath
+		if fpath == "" {
+			fpath = tc.Path
+		}
+		op := strings.TrimSpace(strings.ToLower(tc.Operation))
+		wsDir := cfg.Directories.WorkspaceDir
+		if isProtectedSystemPath(fpath, wsDir, cfg) {
+			logger.Warn("LLM attempted xml_editor access to protected system file — blocked",
+				"op", op, "path", fpath)
+			return "Tool Output: [PERMISSION DENIED] Access to this file is not allowed. System configuration, database and credential files are off-limits."
+		}
+		switch op {
+		case "set_text", "set_attribute", "add_element", "delete", "format":
+			if !cfg.Agent.AllowFilesystemWrite {
+				return "Tool Output: [PERMISSION DENIED] xml_editor write operations are disabled in Danger Zone settings (agent.allow_filesystem_write: false)."
+			}
+		}
+		logger.Info("LLM requested xml_editor operation", "op", op, "path", fpath)
+		xpath := tc.Xpath
+		if xpath == "" {
+			xpath = tc.JsonPath
+		}
+		return tools.ExecuteXmlEditor(op, fpath, xpath, tc.SetValue, wsDir)
+
+	case "file_search":
+		op := strings.TrimSpace(strings.ToLower(tc.Operation))
+		fpath := tc.FilePath
+		if fpath == "" {
+			fpath = tc.Path
+		}
+		logger.Info("LLM requested file_search", "op", op, "pattern", tc.Pattern)
+		return tools.ExecuteFileSearch(op, tc.Pattern, fpath, tc.Glob, tc.OutputMode, cfg.Directories.WorkspaceDir)
+
+	case "file_reader_advanced":
+		op := strings.TrimSpace(strings.ToLower(tc.Operation))
+		fpath := tc.FilePath
+		if fpath == "" {
+			fpath = tc.Path
+		}
+		logger.Info("LLM requested file_reader_advanced", "op", op, "path", fpath)
+		return tools.ExecuteFileReaderAdvanced(op, fpath, tc.Pattern, tc.StartLine, tc.EndLine, tc.LineCount, cfg.Directories.WorkspaceDir)
+
 	case "api_request":
 		if !cfg.Agent.AllowNetworkRequests {
 			return "Tool Output: [PERMISSION DENIED] api_request is disabled in Danger Zone settings (agent.allow_network_requests: false)."

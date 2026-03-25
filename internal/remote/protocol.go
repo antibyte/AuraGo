@@ -37,12 +37,18 @@ const (
 	OpFileDelete      = "file_delete"
 	OpShellExec       = "shell_exec"
 	OpShellExecStream = "shell_exec_stream"
+	OpFileEdit        = "file_edit"
+	OpJsonEdit        = "json_edit"
+	OpYamlEdit        = "yaml_edit"
+	OpXmlEdit         = "xml_edit"
+	OpFileSearch      = "file_search"
+	OpFileReadAdv     = "file_read_advanced"
 )
 
 // ReadOnlySafe reports whether an operation is safe in read-only mode.
 func ReadOnlySafe(op string) bool {
 	switch op {
-	case OpSysinfo, OpFileRead, OpFileList:
+	case OpSysinfo, OpFileRead, OpFileList, OpFileSearch, OpFileReadAdv:
 		return true
 	default:
 		return false

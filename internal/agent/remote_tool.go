@@ -16,7 +16,7 @@ func handleRemoteControl(tc ToolCall, cfg *config.Config, hub *remote.RemoteHub,
 	}
 	if cfg.RemoteControl.ReadOnly {
 		switch tc.Operation {
-		case "execute_command", "write_file", "revoke_device":
+		case "execute_command", "write_file", "revoke_device", "edit_file", "json_edit", "yaml_edit", "xml_edit":
 			return `Tool Output: {"status":"error","message":"Remote Control is in read-only mode. Disable remote_control.read_only to allow changes."}`
 		}
 	}
@@ -38,8 +38,20 @@ func handleRemoteControl(tc ToolCall, cfg *config.Config, hub *remote.RemoteHub,
 		return remoteSysinfo(hub, tc, logger)
 	case "revoke_device":
 		return remoteRevokeDevice(hub, tc, logger)
+	case "edit_file":
+		return remoteEditFile(hub, tc, logger)
+	case "json_edit":
+		return remoteJsonEdit(hub, tc, logger)
+	case "yaml_edit":
+		return remoteYamlEdit(hub, tc, logger)
+	case "xml_edit":
+		return remoteXmlEdit(hub, tc, logger)
+	case "file_search":
+		return remoteFileSearch(hub, tc, logger)
+	case "file_read_advanced":
+		return remoteFileReadAdvanced(hub, tc, logger)
 	default:
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"Unknown remote_control operation '%s'. Use: list_devices, device_status, execute_command, read_file, write_file, list_files, sysinfo, revoke_device"}`, tc.Operation)
+		return fmt.Sprintf(`Tool Output: {"status":"error","message":"Unknown remote_control operation '%s'. Use: list_devices, device_status, execute_command, read_file, write_file, list_files, sysinfo, revoke_device, edit_file, json_edit, yaml_edit, xml_edit, file_search, file_read_advanced"}`, tc.Operation)
 	}
 }
 
@@ -332,4 +344,324 @@ func remoteRevokeDevice(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger)
 		"message": fmt.Sprintf("device %s has been revoked", deviceID),
 	})
 	return "Tool Output: " + string(data)
+}
+
+func remoteEditFile(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
+	deviceID, err := resolveRemoteDevice(hub, tc)
+	if err != nil {
+		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+	}
+	if !hub.IsConnected(deviceID) {
+		return fmt.Sprintf(`Tool Output: {"status":"error","message":"device %s is not connected"}`, deviceID)
+	}
+	path := tc.Path
+	if path == "" {
+		path = tc.FilePath
+	}
+	if path == "" {
+		return `Tool Output: {"status":"error","message":"'path' is required for edit_file"}`
+	}
+	editOp := tc.Action
+	if editOp == "" {
+		return `Tool Output: {"status":"error","message":"'action' is required for edit_file (str_replace, insert_after, append, etc.)"}`
+	}
+
+	args := map[string]interface{}{
+		"path":      path,
+		"operation": editOp,
+	}
+	if tc.Old != "" {
+		args["old"] = tc.Old
+	}
+	if tc.New != "" {
+		args["new"] = tc.New
+	}
+	if tc.Marker != "" {
+		args["marker"] = tc.Marker
+	}
+	if tc.Content != "" {
+		args["content"] = tc.Content
+	}
+	if tc.StartLine > 0 {
+		args["start_line"] = tc.StartLine
+	}
+	if tc.EndLine > 0 {
+		args["end_line"] = tc.EndLine
+	}
+
+	result, err := hub.SendCommand(deviceID, remote.CommandPayload{
+		Operation: remote.OpFileEdit,
+		Args:      args,
+	}, 30*time.Second)
+	if err != nil {
+		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+	}
+	if result.Error != "" {
+		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, result.Error)
+	}
+
+	data, _ := json.Marshal(map[string]interface{}{
+		"status":  "ok",
+		"message": result.Output,
+	})
+	return "Tool Output: " + string(data)
+}
+
+func remoteJsonEdit(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
+	deviceID, err := resolveRemoteDevice(hub, tc)
+	if err != nil {
+		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+	}
+	if !hub.IsConnected(deviceID) {
+		return fmt.Sprintf(`Tool Output: {"status":"error","message":"device %s is not connected"}`, deviceID)
+	}
+	path := tc.Path
+	if path == "" {
+		path = tc.FilePath
+	}
+	if path == "" {
+		return `Tool Output: {"status":"error","message":"'path' is required for json_edit"}`
+	}
+	editOp := tc.Action
+	if editOp == "" {
+		return `Tool Output: {"status":"error","message":"'action' is required for json_edit (get, set, delete, keys, validate, format)"}`
+	}
+
+	args := map[string]interface{}{
+		"path":      path,
+		"operation": editOp,
+	}
+	if tc.JsonPath != "" {
+		args["json_path"] = tc.JsonPath
+	}
+	if tc.SetValue != nil {
+		args["set_value"] = tc.SetValue
+	}
+
+	result, err := hub.SendCommand(deviceID, remote.CommandPayload{
+		Operation: remote.OpJsonEdit,
+		Args:      args,
+	}, 30*time.Second)
+	if err != nil {
+		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+	}
+	if result.Error != "" {
+		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, result.Error)
+	}
+
+	data, _ := json.Marshal(map[string]interface{}{
+		"status": "ok",
+		"result": result.Output,
+	})
+	return "Tool Output: " + string(data)
+}
+
+func remoteYamlEdit(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
+	deviceID, err := resolveRemoteDevice(hub, tc)
+	if err != nil {
+		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+	}
+	if !hub.IsConnected(deviceID) {
+		return fmt.Sprintf(`Tool Output: {"status":"error","message":"device %s is not connected"}`, deviceID)
+	}
+	path := tc.Path
+	if path == "" {
+		path = tc.FilePath
+	}
+	if path == "" {
+		return `Tool Output: {"status":"error","message":"'path' is required for yaml_edit"}`
+	}
+	editOp := tc.Action
+	if editOp == "" {
+		return `Tool Output: {"status":"error","message":"'action' is required for yaml_edit (get, set, delete, keys, validate)"}`
+	}
+
+	args := map[string]interface{}{
+		"path":      path,
+		"operation": editOp,
+	}
+	if tc.JsonPath != "" {
+		args["json_path"] = tc.JsonPath
+	}
+	if tc.SetValue != nil {
+		args["set_value"] = tc.SetValue
+	}
+
+	result, err := hub.SendCommand(deviceID, remote.CommandPayload{
+		Operation: remote.OpYamlEdit,
+		Args:      args,
+	}, 30*time.Second)
+	if err != nil {
+		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+	}
+	if result.Error != "" {
+		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, result.Error)
+	}
+
+	data, _ := json.Marshal(map[string]interface{}{
+		"status": "ok",
+		"result": result.Output,
+	})
+	return "Tool Output: " + string(data)
+}
+
+func remoteXmlEdit(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
+	deviceID, err := resolveRemoteDevice(hub, tc)
+	if err != nil {
+		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+	}
+	if !hub.IsConnected(deviceID) {
+		return fmt.Sprintf(`Tool Output: {"status":"error","message":"device %s is not connected"}`, deviceID)
+	}
+
+	path := tc.Path
+	if path == "" {
+		path = tc.FilePath
+	}
+	if path == "" {
+		return `Tool Output: {"status":"error","message":"'path' is required for xml_edit"}`
+	}
+
+	op := tc.Action
+	if op == "" {
+		return `Tool Output: {"status":"error","message":"'action' is required for xml_edit (get, set_text, set_attribute, add_element, delete, validate, format)"}`
+	}
+
+	args := map[string]interface{}{
+		"path":      path,
+		"operation": op,
+	}
+	xpath := tc.Xpath
+	if xpath == "" {
+		xpath = tc.JsonPath
+	}
+	if xpath != "" {
+		args["xpath"] = xpath
+	}
+	if tc.SetValue != nil {
+		args["set_value"] = tc.SetValue
+	}
+
+	result, err := hub.SendCommand(deviceID, remote.CommandPayload{
+		Operation: remote.OpXmlEdit,
+		Args:      args,
+	}, 30*time.Second)
+	if err != nil {
+		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+	}
+	if result.Error != "" {
+		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, result.Error)
+	}
+
+	respData, _ := json.Marshal(map[string]interface{}{
+		"status": "ok",
+		"result": result.Output,
+	})
+	return "Tool Output: " + string(respData)
+}
+
+func remoteFileSearch(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
+	deviceID, err := resolveRemoteDevice(hub, tc)
+	if err != nil {
+		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+	}
+	if !hub.IsConnected(deviceID) {
+		return fmt.Sprintf(`Tool Output: {"status":"error","message":"device %s is not connected"}`, deviceID)
+	}
+
+	op := tc.Action
+	if op == "" {
+		op = "grep"
+	}
+
+	args := map[string]interface{}{
+		"operation": op,
+		"pattern":   tc.Pattern,
+	}
+	path := tc.Path
+	if path == "" {
+		path = tc.FilePath
+	}
+	if path != "" {
+		args["path"] = path
+	}
+	if tc.Glob != "" {
+		args["glob"] = tc.Glob
+	}
+	if tc.OutputMode != "" {
+		args["output_mode"] = tc.OutputMode
+	}
+
+	cmdResult, err := hub.SendCommand(deviceID, remote.CommandPayload{
+		Operation: remote.OpFileSearch,
+		Args:      args,
+	}, 30*time.Second)
+	if err != nil {
+		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+	}
+	if cmdResult.Error != "" {
+		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, cmdResult.Error)
+	}
+
+	respData, _ := json.Marshal(map[string]interface{}{
+		"status": "ok",
+		"result": cmdResult.Output,
+	})
+	return "Tool Output: " + string(respData)
+}
+
+func remoteFileReadAdvanced(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
+	deviceID, err := resolveRemoteDevice(hub, tc)
+	if err != nil {
+		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+	}
+	if !hub.IsConnected(deviceID) {
+		return fmt.Sprintf(`Tool Output: {"status":"error","message":"device %s is not connected"}`, deviceID)
+	}
+	path := tc.Path
+	if path == "" {
+		path = tc.FilePath
+	}
+	if path == "" {
+		return `Tool Output: {"status":"error","message":"'path' is required for file_read_advanced"}`
+	}
+
+	op := tc.Action
+	if op == "" {
+		op = "read_lines"
+	}
+
+	args := map[string]interface{}{
+		"path":      path,
+		"operation": op,
+	}
+	if tc.Pattern != "" {
+		args["pattern"] = tc.Pattern
+	}
+	if tc.StartLine > 0 {
+		args["start_line"] = tc.StartLine
+	}
+	if tc.EndLine > 0 {
+		args["end_line"] = tc.EndLine
+	}
+	if tc.LineCount > 0 {
+		args["line_count"] = tc.LineCount
+	}
+
+	cmdResult, err := hub.SendCommand(deviceID, remote.CommandPayload{
+		Operation: remote.OpFileReadAdv,
+		Args:      args,
+	}, 30*time.Second)
+	if err != nil {
+		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+	}
+	if cmdResult.Error != "" {
+		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, cmdResult.Error)
+	}
+
+	respData, _ := json.Marshal(map[string]interface{}{
+		"status": "ok",
+		"result": cmdResult.Output,
+	})
+	return "Tool Output: " + string(respData)
 }
