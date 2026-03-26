@@ -481,7 +481,7 @@ ollama:
         enabled: false                 # auto-manage a local Ollama Docker container
         container_port: 11434          # host port for the managed container
         use_host_gpu: false            # pass GPU devices into the container (Linux only)
-        gpu_backend: "auto"            # "auto", "nvidia", "amd", "intel"
+        gpu_backend: "auto"            # "auto", "nvidia", "amd", "intel", "vulkan" — use "vulkan" for older iGPUs/APUs without ROCm support
         default_models: []             # models to auto-pull after start, e.g. ["llama3", "mistral"]
         memory_limit: ""               # Docker memory limit, e.g. "8g" (empty = unlimited)
         volume_path: ""                # host path for persistent model storage (empty = Docker volume)

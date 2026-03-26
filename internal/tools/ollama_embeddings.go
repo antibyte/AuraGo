@@ -16,9 +16,10 @@ const ollamaEmbContainerName = "aurago_ollama_embeddings"
 
 // GPUInfo describes a detected GPU backend for container passthrough.
 type GPUInfo struct {
-	Backend string // "nvidia", "amd", "intel", "none"
+	Backend string // "nvidia", "amd", "intel", "vulkan", "none"
 	Devices []string
-	Name    string // human-readable GPU name if detected
+	Name    string   // human-readable GPU name if detected
+	Env     []string // extra environment variables to pass into the container
 }
 
 // DetectGPU probes the host for available GPU hardware.
@@ -43,6 +44,10 @@ func DetectGPU(preferred string) GPUInfo {
 			if info, ok := detectIntel(); ok {
 				return info
 			}
+		case "vulkan":
+			if info, ok := detectVulkan(); ok {
+				return info
+			}
 		}
 		return GPUInfo{Backend: "none"}
 	}
@@ -55,6 +60,10 @@ func DetectGPU(preferred string) GPUInfo {
 		return info
 	}
 	if info, ok := detectIntel(); ok {
+		return info
+	}
+	// Vulkan: generic DRI fallback for older GPUs (pre-ROCm AMD, older iGPUs, etc.)
+	if info, ok := detectVulkan(); ok {
 		return info
 	}
 	return GPUInfo{Backend: "none"}
@@ -123,13 +132,37 @@ func detectIntel() (GPUInfo, bool) {
 	return GPUInfo{}, false
 }
 
+// detectVulkan detects any DRI render node as a generic Vulkan-capable GPU.
+// This covers older AMD GPUs (pre-ROCm / pre-RDNA), older integrated GPUs,
+// and any other GPU that supports Vulkan 1.2+ but not vendor-specific compute APIs.
+func detectVulkan() (GPUInfo, bool) {
+	entries, err := os.ReadDir("/dev/dri")
+	if err != nil {
+		return GPUInfo{}, false
+	}
+	var devices []string
+	for _, e := range entries {
+		devices = append(devices, "/dev/dri/"+e.Name())
+	}
+	if len(devices) == 0 {
+		return GPUInfo{}, false
+	}
+	return GPUInfo{
+		Backend: "vulkan",
+		Devices: devices,
+		Name:    "Vulkan GPU (DRI)",
+		Env:     []string{"OLLAMA_INTEL_GPU=1", "OLLAMA_GPU_BACKEND=vulkan"},
+	}, true
+}
+
 // ollamaImageForGPU returns the appropriate Ollama Docker image tag for the GPU backend.
 func ollamaImageForGPU(gpu GPUInfo) string {
 	switch gpu.Backend {
 	case "amd":
 		return "ollama/ollama:rocm"
 	default:
-		// NVIDIA and Intel both work with the standard image.
+		// NVIDIA, Intel, Vulkan, and CPU all work with the standard image.
+		// Vulkan uses OLLAMA_GPU_BACKEND=vulkan env var (set in GPUInfo.Env).
 		return "ollama/ollama:latest"
 	}
 }
@@ -236,6 +269,10 @@ func EnsureOllamaEmbeddingsRunning(cfg *config.Config, logger interface {
 			"11434/tcp": struct{}{},
 		},
 	}
+	// Pass backend-specific environment variables (e.g. OLLAMA_GPU_BACKEND=vulkan).
+	if len(gpu.Env) > 0 {
+		payload["Env"] = gpu.Env
+	}
 	body, _ := json.Marshal(payload)
 	_, createCode, createErr := dockerRequest(dockerCfg, "POST", "/containers/create?name="+ollamaEmbContainerName, string(body))
 	if createCode == 404 {
@@ -299,6 +336,21 @@ func applyGPUConfig(gpu GPUInfo, hostConfig map[string]interface{}) {
 			})
 		}
 		hostConfig["Devices"] = devices
+		hostConfig["GroupAdd"] = []string{"video", "render"}
+	case "vulkan":
+		// Vulkan compute: bind DRI devices, no vendor-specific toolkit needed.
+		// The OLLAMA_GPU_BACKEND=vulkan env var is passed via GPUInfo.Env.
+		var devices []map[string]string
+		for _, d := range gpu.Devices {
+			devices = append(devices, map[string]string{
+				"PathOnHost":        d,
+				"PathInContainer":   d,
+				"CgroupPermissions": "rwm",
+			})
+		}
+		if len(devices) > 0 {
+			hostConfig["Devices"] = devices
+		}
 		hostConfig["GroupAdd"] = []string{"video", "render"}
 	}
 }

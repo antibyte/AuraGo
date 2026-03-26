@@ -131,6 +131,10 @@ func EnsureOllamaManagedRunning(cfg *config.Config, logger interface {
 			"11434/tcp": struct{}{},
 		},
 	}
+	// Pass backend-specific environment variables (e.g. OLLAMA_GPU_BACKEND=vulkan).
+	if len(gpu.Env) > 0 {
+		payload["Env"] = gpu.Env
+	}
 	body, _ := json.Marshal(payload)
 	_, createCode, createErr := dockerRequest(dockerCfg, "POST", "/containers/create?name="+ollamaManagedContainerName, string(body))
 	if createCode == 404 {

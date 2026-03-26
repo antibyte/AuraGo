@@ -206,7 +206,7 @@ type Config struct {
 			Model         string `yaml:"model"`          // embedding model (default: "nomic-embed-text")
 			ContainerPort int    `yaml:"container_port"` // host port for the managed container (default: 11435)
 			UseHostGPU    bool   `yaml:"use_host_gpu"`   // pass GPU devices into the container (Linux only)
-			GPUBackend    string `yaml:"gpu_backend"`    // "auto", "nvidia", "amd", "intel" (default: "auto")
+			GPUBackend    string `yaml:"gpu_backend"`    // "auto", "nvidia", "amd", "intel", "vulkan" (default: "auto")
 		} `yaml:"local_ollama"`
 	} `yaml:"embeddings"`
 	Agent struct {
@@ -742,7 +742,7 @@ type Config struct {
 			Enabled       bool     `yaml:"enabled"`        // auto-manage an Ollama Docker container
 			ContainerPort int      `yaml:"container_port"` // host port for the managed container (default: 11434)
 			UseHostGPU    bool     `yaml:"use_host_gpu"`   // pass GPU devices into the container (Linux only)
-			GPUBackend    string   `yaml:"gpu_backend"`    // "auto", "nvidia", "amd", "intel" (default: "auto")
+			GPUBackend    string   `yaml:"gpu_backend"`    // "auto", "nvidia", "amd", "intel", "vulkan" (default: "auto")
 			DefaultModels []string `yaml:"default_models"` // models to auto-pull after container start
 			MemoryLimit   string   `yaml:"memory_limit"`   // Docker memory limit, e.g. "8g" (empty = unlimited)
 			VolumePath    string   `yaml:"volume_path"`    // host path for persistent model storage (empty = Docker volume)

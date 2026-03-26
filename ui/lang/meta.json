@@ -89,7 +89,8 @@
       "auto",
       "nvidia",
       "amd",
-      "intel"
+      "intel",
+      "vulkan"
     ]
   },
   "help.ollama.managed_instance.gpu_backend": {
@@ -97,7 +98,8 @@
       "auto",
       "nvidia",
       "amd",
-      "intel"
+      "intel",
+      "vulkan"
     ]
   },
   "help.whisper.provider": {
