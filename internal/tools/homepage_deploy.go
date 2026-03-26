@@ -857,13 +857,15 @@ func homepageCaddyfile(domain string, port int) string {
 }
 `, domain)
 	}
-	return fmt.Sprintf(`:%d {
+	// The container always binds host port → container port 80.
+	// Caddy must therefore listen on :80 regardless of the host-side port.
+	return `:80 {
     root * /srv
     file_server
     encode gzip
     try_files {path} /index.html
 }
-`, port)
+`
 }
 
 func okJSON(message string, kvPairs ...string) string {

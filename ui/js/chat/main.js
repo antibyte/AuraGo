@@ -334,6 +334,14 @@ async function initPage() {
                 chatContent.innerHTML = '';
                 history.forEach(msg => {
                     if (msg.role === 'user' || msg.role === 'assistant') {
+                        // Skip tool output user messages — they are internal context,
+                        // not conversational. Still push to conversation array for LLM context.
+                        if (msg.role === 'user' && msg.content &&
+                            (msg.content.startsWith('[Tool Output]') ||
+                             msg.content.startsWith('Tool Output:'))) {
+                            conversation.push(msg);
+                            return;
+                        }
                         appendMessage(msg.role, msg.content);
                         conversation.push(msg);
                     }
@@ -488,6 +496,8 @@ function appendMessage(role, text) {
             .replace(/<tool_call>[\s\S]*?<\/tool_call>/g, '')
             .replace(/```(?:json)?\s*\{\s*"action"[\s\S]*?\}\s*```/g, '')
             .replace(/^```(?:json)?\n\{[\s\S]*?\}\n```$/gm, '')
+            .replace(/^\{"action"\s*:[^\n]*\}\s*$/gm, '')  // inline single-line action JSON
+            .replace(/^\[Tool Output\]\s*$/gm, '')           // [Tool Output] header lines
             .replace(/^Tool Output:.*$/gm, '')
             .trim();
 
