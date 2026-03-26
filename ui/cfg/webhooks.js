@@ -629,7 +629,7 @@ function ogRenderList() {
         }
         html += '</div>';
     }
-    html += '<div id="og-modal-overlay" class="og-modal-overlay is-hidden"></div>';
+    html += '<div id="og-modal-overlay" class="og-modal-overlay"></div>';
     return html;
 }
 

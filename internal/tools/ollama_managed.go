@@ -22,6 +22,7 @@ func EnsureOllamaManagedRunning(cfg *config.Config, logger interface {
 }) {
 	mi := cfg.Ollama.ManagedInstance
 	if !mi.Enabled {
+		logger.Info("[Ollama Managed] Skipping auto-start (disabled in config)")
 		return
 	}
 
@@ -45,6 +46,19 @@ func EnsureOllamaManagedRunning(cfg *config.Config, logger interface {
 	}
 
 	image := ollamaImageForGPU(gpu)
+
+	// Check if ANY ollama container is already serving on our port
+	listData, listCode, listErr := dockerRequest(dockerCfg, "GET",
+		fmt.Sprintf(`/containers/json?filters={"status":["running"],"ancestor":[%q]}`, image), "")
+	if listErr == nil && listCode == 200 {
+		var containers []map[string]interface{}
+		if json.Unmarshal(listData, &containers) == nil && len(containers) > 0 {
+			logger.Info("[Ollama Managed] Container already running (external)", "count", len(containers))
+			waitForOllamaReady(port, logger)
+			pullManagedModels(port, mi.DefaultModels, logger)
+			return
+		}
+	}
 
 	// Inspect our managed container
 	data, code, err := dockerRequest(dockerCfg, "GET", "/containers/"+ollamaManagedContainerName+"/json", "")
@@ -87,7 +101,7 @@ func EnsureOllamaManagedRunning(cfg *config.Config, logger interface {
 	hostConfig := map[string]interface{}{
 		"RestartPolicy": map[string]interface{}{"Name": "unless-stopped"},
 		"PortBindings": map[string]interface{}{
-			"11434/tcp": []map[string]string{{"HostIp": "0.0.0.0", "HostPort": portStr}},
+			"11434/tcp": []map[string]string{{"HostIp": "127.0.0.1", "HostPort": portStr}},
 		},
 	}
 
@@ -119,6 +133,16 @@ func EnsureOllamaManagedRunning(cfg *config.Config, logger interface {
 	}
 	body, _ := json.Marshal(payload)
 	_, createCode, createErr := dockerRequest(dockerCfg, "POST", "/containers/create?name="+ollamaManagedContainerName, string(body))
+	if createCode == 404 {
+		// Image not present locally — pull it, then retry the create once.
+		logger.Info("[Ollama Managed] Image not found locally, pulling...", "image", image)
+		if pullErr := pullDockerImage(dockerCfg, image); pullErr != nil {
+			logger.Error("[Ollama Managed] Image pull failed", "image", image, "error", pullErr)
+			return
+		}
+		logger.Info("[Ollama Managed] Image pulled successfully", "image", image)
+		_, createCode, createErr = dockerRequest(dockerCfg, "POST", "/containers/create?name="+ollamaManagedContainerName, string(body))
+	}
 	if createErr != nil || createCode != 201 {
 		logger.Error("[Ollama Managed] Failed to create container", "code", createCode, "error", createErr)
 		return

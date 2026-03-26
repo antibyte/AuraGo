@@ -19,6 +19,7 @@ const piperContainerName = "aurago-piper-tts"
 func EnsurePiperRunning(cfg *config.Config, logger *slog.Logger) {
 	p := cfg.TTS.Piper
 	if !p.Enabled {
+		logger.Info("[Piper TTS] Skipping auto-start (disabled in config)")
 		return
 	}
 	if p.Voice == "" {
@@ -46,6 +47,18 @@ func EnsurePiperRunning(cfg *config.Config, logger *slog.Logger) {
 	if err != nil {
 		logger.Error("[Piper TTS] Failed to resolve data path", "path", dataPath, "error", err)
 		return
+	}
+
+	// Check if ANY piper container is already serving on our port
+	listData, listCode, listErr := dockerRequest(dockerCfg, "GET",
+		fmt.Sprintf(`/containers/json?filters={"status":["running"],"ancestor":[%q]}`, image), "")
+	if listErr == nil && listCode == 200 {
+		var containers []map[string]interface{}
+		if json.Unmarshal(listData, &containers) == nil && len(containers) > 0 {
+			logger.Info("[Piper TTS] Container already running (external)", "count", len(containers))
+			waitForPiperReady(port, logger)
+			return
+		}
 	}
 
 	// Inspect our managed container

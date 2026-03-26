@@ -596,6 +596,11 @@ func Start(cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, sh
 		go tools.EnsurePiperRunning(cfg, logger)
 	}
 
+	// Auto-start managed Ollama container if enabled
+	if cfg.Ollama.ManagedInstance.Enabled {
+		go tools.EnsureOllamaManagedRunning(cfg, logger)
+	}
+
 	// Start Fritz!Box telephony poller if enabled
 	if cfg.FritzBox.Enabled && cfg.FritzBox.Telephony.Enabled && cfg.FritzBox.Telephony.Polling.Enabled {
 		fbPoller := fritzbox.NewPoller(*cfg, func(kind, summary string) {

@@ -143,6 +143,7 @@ func EnsureOllamaEmbeddingsRunning(cfg *config.Config, logger interface {
 }) {
 	lo := cfg.Embeddings.LocalOllama
 	if !lo.Enabled {
+		logger.Info("[Ollama Embeddings] Skipping auto-start (disabled in config)")
 		return
 	}
 
@@ -237,6 +238,16 @@ func EnsureOllamaEmbeddingsRunning(cfg *config.Config, logger interface {
 	}
 	body, _ := json.Marshal(payload)
 	_, createCode, createErr := dockerRequest(dockerCfg, "POST", "/containers/create?name="+ollamaEmbContainerName, string(body))
+	if createCode == 404 {
+		// Image not present locally — pull it, then retry the create once.
+		logger.Info("[Ollama Embeddings] Image not found locally, pulling...", "image", image)
+		if pullErr := pullDockerImage(dockerCfg, image); pullErr != nil {
+			logger.Error("[Ollama Embeddings] Image pull failed", "image", image, "error", pullErr)
+			return
+		}
+		logger.Info("[Ollama Embeddings] Image pulled successfully", "image", image)
+		_, createCode, createErr = dockerRequest(dockerCfg, "POST", "/containers/create?name="+ollamaEmbContainerName, string(body))
+	}
 	if createErr != nil || createCode != 201 {
 		logger.Error("[Ollama Embeddings] Failed to create container", "code", createCode, "error", createErr)
 		return
