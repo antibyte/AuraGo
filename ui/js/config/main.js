@@ -1232,7 +1232,8 @@ const SECTION_MODULES = {
     tts: { m: 'tts', fn: 'renderTTSSection' },
     co_agents: { m: 'co_agents', fn: 'renderCoAgentsSection' },
     sql_connections: { m: 'sql_connections', fn: 'renderSQLConnectionsSection' },
-    skill_manager: { m: 'skill_manager', fn: 'renderSkillManagerSection' }
+    skill_manager: { m: 'skill_manager', fn: 'renderSkillManagerSection' },
+    ollama: { m: 'ollama', fn: 'renderOllamaSection' }
 };
 
 function loadModule(name) {

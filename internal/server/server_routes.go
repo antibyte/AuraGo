@@ -289,6 +289,10 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		// Lists models available on the configured Ollama instance.
 		// Returns the model names as JSON so the UI can offer a model picker.
 		mux.HandleFunc("/api/ollama/models", handleOllamaModels(s))
+		// Returns status of the managed Ollama container.
+		mux.HandleFunc("/api/ollama/managed/status", handleOllamaManagedStatus(s))
+		// Creates/starts the managed Ollama container (recovery after manual deletion).
+		mux.HandleFunc("/api/ollama/managed/recreate", handleOllamaManagedRecreate(s))
 		// Tests MeshCentral connectivity using saved or provided credentials.
 		mux.HandleFunc("/api/meshcentral/test", handleMeshCentralTest(s))
 		mux.HandleFunc("/api/restart", handleRestart(s))

@@ -937,3 +937,56 @@ func handleAnsibleGenerateToken(s *Server) http.HandlerFunc {
 		})
 	}
 }
+
+// handleOllamaManagedStatus returns the current status of the managed Ollama container.
+func handleOllamaManagedStatus(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		s.CfgMu.RLock()
+		dockerHost := s.Cfg.Docker.Host
+		managed := s.Cfg.Ollama.ManagedInstance.Enabled
+		s.CfgMu.RUnlock()
+
+		w.Header().Set("Content-Type", "application/json")
+		if !managed {
+			json.NewEncoder(w).Encode(map[string]interface{}{"status": "disabled"})
+			return
+		}
+		result := tools.OllamaManagedContainerStatus(dockerHost)
+		w.Write([]byte(result))
+	}
+}
+
+// handleOllamaManagedRecreate calls EnsureOllamaManagedRunning to create/start
+// the managed Ollama container. This allows the user to recover after the
+// container was manually deleted via the container management page.
+func handleOllamaManagedRecreate(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		s.CfgMu.RLock()
+		cfg := *s.Cfg
+		s.CfgMu.RUnlock()
+
+		if !cfg.Ollama.ManagedInstance.Enabled {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "Managed Ollama instance is not enabled."})
+			return
+		}
+
+		s.Logger.Info("[Config UI] Ollama managed container recreate requested via Web UI")
+		go tools.EnsureOllamaManagedRunning(&cfg, s.Logger)
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{
+			"status":  "ok",
+			"message": "Container creation started in background.",
+		})
+	}
+}
