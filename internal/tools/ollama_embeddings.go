@@ -304,6 +304,33 @@ func EnsureOllamaEmbeddingsRunning(cfg *config.Config, logger interface {
 	pullModelIfNeeded(port, lo.Model, logger)
 }
 
+// hostGroupIDs resolves group names to their numeric GIDs from the host's
+// /etc/group file. Using numeric GIDs avoids "no matching entries in group
+// file" errors when the group name does not exist inside the container image.
+// Groups that are not present on the host are silently skipped.
+func hostGroupIDs(names []string) []string {
+	data, err := os.ReadFile("/etc/group")
+	if err != nil {
+		return nil
+	}
+	want := make(map[string]bool, len(names))
+	for _, n := range names {
+		want[n] = true
+	}
+	var ids []string
+	for _, line := range strings.Split(string(data), "\n") {
+		// Format: name:password:gid:members
+		parts := strings.SplitN(line, ":", 4)
+		if len(parts) < 3 {
+			continue
+		}
+		if want[parts[0]] {
+			ids = append(ids, parts[2])
+		}
+	}
+	return ids
+}
+
 // applyGPUConfig adds GPU-specific HostConfig fields based on the detected GPU.
 func applyGPUConfig(gpu GPUInfo, hostConfig map[string]interface{}) {
 	switch gpu.Backend {
@@ -327,7 +354,9 @@ func applyGPUConfig(gpu GPUInfo, hostConfig map[string]interface{}) {
 			})
 		}
 		hostConfig["Devices"] = devices
-		hostConfig["GroupAdd"] = []string{"video", "render"}
+		if gids := hostGroupIDs([]string{"video", "render"}); len(gids) > 0 {
+			hostConfig["GroupAdd"] = gids
+		}
 	case "intel":
 		// Intel iGPU/Arc: bind /dev/dri/* as devices
 		var devices []map[string]string
@@ -339,7 +368,9 @@ func applyGPUConfig(gpu GPUInfo, hostConfig map[string]interface{}) {
 			})
 		}
 		hostConfig["Devices"] = devices
-		hostConfig["GroupAdd"] = []string{"video", "render"}
+		if gids := hostGroupIDs([]string{"video", "render"}); len(gids) > 0 {
+			hostConfig["GroupAdd"] = gids
+		}
 	case "vulkan":
 		// Vulkan compute: bind DRI devices, no vendor-specific toolkit needed.
 		// The OLLAMA_GPU_BACKEND=vulkan env var is passed via GPUInfo.Env.
@@ -354,7 +385,9 @@ func applyGPUConfig(gpu GPUInfo, hostConfig map[string]interface{}) {
 		if len(devices) > 0 {
 			hostConfig["Devices"] = devices
 		}
-		hostConfig["GroupAdd"] = []string{"video", "render"}
+		if gids := hostGroupIDs([]string{"video", "render"}); len(gids) > 0 {
+			hostConfig["GroupAdd"] = gids
+		}
 	}
 }
 
