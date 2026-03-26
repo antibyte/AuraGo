@@ -330,26 +330,42 @@ func extractExtraToolCalls(content, firstRawJSON string) []ToolCall {
 }
 
 // normalizeTagsInJSON pre-processes a JSON string before unmarshaling into ToolCall.
-// It converts a JSON array in the "tags" field to a comma-separated string so that
-// json.Unmarshal doesn't fail with a type mismatch (ToolCall.Tags is a string).
+// It handles two type mismatches that prevent clean unmarshaling:
+//   - "tags" sent as a JSON array  → converted to comma-separated string
+//   - "body" sent as a JSON object → re-serialized as a JSON string so that
+//     the Body string field is populated (LLMs often send nested objects for
+//     api_request body instead of a pre-serialized JSON string)
 func normalizeTagsInJSON(s string) string {
 	var raw map[string]json.RawMessage
 	if err := json.Unmarshal([]byte(s), &raw); err != nil {
 		return s
 	}
-	tagsRaw, ok := raw["tags"]
-	if !ok || len(tagsRaw) == 0 || tagsRaw[0] != '[' {
+	changed := false
+
+	// tags: array → comma-separated string
+	if tagsRaw, ok := raw["tags"]; ok && len(tagsRaw) > 0 && tagsRaw[0] == '[' {
+		var arr []string
+		if err := json.Unmarshal(tagsRaw, &arr); err == nil {
+			if joined, err := json.Marshal(strings.Join(arr, ",")); err == nil {
+				raw["tags"] = json.RawMessage(joined)
+				changed = true
+			}
+		}
+	}
+
+	// body: object or array → JSON string
+	// ToolCall.Body is string; if the LLM sends an object literal, json.Unmarshal
+	// would fail on the whole struct and IsTool would never be set.
+	if bodyRaw, ok := raw["body"]; ok && len(bodyRaw) > 0 && bodyRaw[0] != '"' {
+		if encoded, err := json.Marshal(string(bodyRaw)); err == nil {
+			raw["body"] = json.RawMessage(encoded)
+			changed = true
+		}
+	}
+
+	if !changed {
 		return s
 	}
-	var arr []string
-	if err := json.Unmarshal(tagsRaw, &arr); err != nil {
-		return s
-	}
-	joined, err := json.Marshal(strings.Join(arr, ","))
-	if err != nil {
-		return s
-	}
-	raw["tags"] = json.RawMessage(joined)
 	b, err := json.Marshal(raw)
 	if err != nil {
 		return s
