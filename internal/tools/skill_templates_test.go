@@ -1,0 +1,289 @@
+package tools
+
+import (
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"testing"
+)
+
+func TestAvailableSkillTemplates(t *testing.T) {
+	templates := AvailableSkillTemplates()
+	if len(templates) != 4 {
+		t.Fatalf("expected 4 templates, got %d", len(templates))
+	}
+	names := map[string]bool{}
+	for _, tmpl := range templates {
+		if tmpl.Name == "" {
+			t.Error("template has empty name")
+		}
+		if tmpl.Description == "" {
+			t.Errorf("template %s has empty description", tmpl.Name)
+		}
+		if tmpl.Code == "" {
+			t.Errorf("template %s has empty code", tmpl.Name)
+		}
+		if len(tmpl.Parameters) == 0 {
+			t.Errorf("template %s has no parameters", tmpl.Name)
+		}
+		names[tmpl.Name] = true
+	}
+	for _, expected := range []string{"api_client", "file_processor", "data_transformer", "scraper"} {
+		if !names[expected] {
+			t.Errorf("missing expected template '%s'", expected)
+		}
+	}
+}
+
+func TestToFunctionName(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"weather_api", "weather_api"},
+		{"my-skill", "my_skill"},
+		{"123start", "skill_123start"},
+		{"hello world", "hello_world"},
+		{"", "skill_main"},
+		{"valid_name_123", "valid_name_123"},
+		{"--dashes--", "dashes"},
+		{"a.b.c", "a_b_c"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			got := toFunctionName(tt.input)
+			if got != tt.expected {
+				t.Errorf("toFunctionName(%q) = %q, want %q", tt.input, got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestCreateSkillFromTemplate(t *testing.T) {
+	dir := t.TempDir()
+
+	result, err := CreateSkillFromTemplate(dir, "api_client", "test_api", "Test API skill", "https://api.example.com", nil, []string{"API_KEY"})
+	if err != nil {
+		t.Fatalf("CreateSkillFromTemplate failed: %v", err)
+	}
+	if result == "" {
+		t.Fatal("expected non-empty result")
+	}
+
+	// Check manifest was written
+	jsonPath := filepath.Join(dir, "test_api.json")
+	data, err := os.ReadFile(jsonPath)
+	if err != nil {
+		t.Fatalf("failed to read manifest: %v", err)
+	}
+	var manifest SkillManifest
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		t.Fatalf("failed to parse manifest: %v", err)
+	}
+	if manifest.Name != "test_api" {
+		t.Errorf("manifest name = %q, want %q", manifest.Name, "test_api")
+	}
+	if manifest.Executable != "test_api.py" {
+		t.Errorf("manifest executable = %q, want %q", manifest.Executable, "test_api.py")
+	}
+	if len(manifest.Dependencies) == 0 {
+		t.Error("expected dependencies from template")
+	}
+	if len(manifest.VaultKeys) != 1 || manifest.VaultKeys[0] != "API_KEY" {
+		t.Errorf("vault_keys = %v, want [API_KEY]", manifest.VaultKeys)
+	}
+
+	// Check Python file was written
+	pyPath := filepath.Join(dir, "test_api.py")
+	pyData, err := os.ReadFile(pyPath)
+	if err != nil {
+		t.Fatalf("failed to read Python file: %v", err)
+	}
+	pyCode := string(pyData)
+	if !contains(pyCode, "def test_api(") {
+		t.Error("Python code does not contain expected function name")
+	}
+	if !contains(pyCode, "import requests") {
+		t.Error("Python code does not contain 'import requests'")
+	}
+	if !contains(pyCode, "https://api.example.com") {
+		t.Error("Python code does not contain base URL")
+	}
+}
+
+func TestCreateSkillFromTemplate_AllTemplates(t *testing.T) {
+	for _, tmpl := range AvailableSkillTemplates() {
+		t.Run(tmpl.Name, func(t *testing.T) {
+			dir := t.TempDir()
+			_, err := CreateSkillFromTemplate(dir, tmpl.Name, "test_"+tmpl.Name, "Test skill", "https://example.com", nil, nil)
+			if err != nil {
+				t.Fatalf("CreateSkillFromTemplate(%s) failed: %v", tmpl.Name, err)
+			}
+			// Verify both files exist
+			if _, err := os.Stat(filepath.Join(dir, "test_"+tmpl.Name+".json")); err != nil {
+				t.Errorf("manifest not created for %s", tmpl.Name)
+			}
+			if _, err := os.Stat(filepath.Join(dir, "test_"+tmpl.Name+".py")); err != nil {
+				t.Errorf("script not created for %s", tmpl.Name)
+			}
+		})
+	}
+}
+
+func TestCreateSkillFromTemplate_Conflict(t *testing.T) {
+	dir := t.TempDir()
+
+	// Create first
+	_, err := CreateSkillFromTemplate(dir, "file_processor", "my_skill", "", "", nil, nil)
+	if err != nil {
+		t.Fatalf("first create failed: %v", err)
+	}
+
+	// Try duplicate
+	_, err = CreateSkillFromTemplate(dir, "file_processor", "my_skill", "", "", nil, nil)
+	if err == nil {
+		t.Fatal("expected error on duplicate skill name, got nil")
+	}
+}
+
+func TestCreateSkillFromTemplate_PathTraversal(t *testing.T) {
+	dir := t.TempDir()
+
+	badNames := []string{
+		"../etc/passwd",
+		"foo/bar",
+		`foo\bar`,
+		"skill..name",
+	}
+	for _, name := range badNames {
+		_, err := CreateSkillFromTemplate(dir, "api_client", name, "", "", nil, nil)
+		if err == nil {
+			t.Errorf("expected error for malicious name %q, got nil", name)
+		}
+	}
+}
+
+func TestCreateSkillFromTemplate_UnknownTemplate(t *testing.T) {
+	dir := t.TempDir()
+	_, err := CreateSkillFromTemplate(dir, "nonexistent", "test", "", "", nil, nil)
+	if err == nil {
+		t.Fatal("expected error for unknown template")
+	}
+}
+
+func TestCreateSkillFromTemplate_MergesDependencies(t *testing.T) {
+	dir := t.TempDir()
+	_, err := CreateSkillFromTemplate(dir, "api_client", "merged_deps", "test", "", []string{"pandas", "numpy"}, nil)
+	if err != nil {
+		t.Fatalf("failed: %v", err)
+	}
+
+	data, _ := os.ReadFile(filepath.Join(dir, "merged_deps.json"))
+	var manifest SkillManifest
+	json.Unmarshal(data, &manifest)
+
+	// Should have template deps (requests) + user deps (pandas, numpy)
+	depSet := map[string]bool{}
+	for _, d := range manifest.Dependencies {
+		depSet[d] = true
+	}
+	if !depSet["requests"] {
+		t.Error("missing template dep 'requests'")
+	}
+	if !depSet["pandas"] {
+		t.Error("missing user dep 'pandas'")
+	}
+	if !depSet["numpy"] {
+		t.Error("missing user dep 'numpy'")
+	}
+}
+
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsSubstr(s, substr))
+}
+
+func containsSubstr(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Auto-dependency detection tests
+// ──────────────────────────────────────────────────────────────────────────────
+
+func TestExtractImports(t *testing.T) {
+	dir := t.TempDir()
+	pyFile := filepath.Join(dir, "test.py")
+	code := `import sys
+import json
+import os
+import requests
+from bs4 import BeautifulSoup
+from PIL import Image
+import yaml
+from sklearn.ensemble import RandomForestClassifier
+# import commented_out
+    import indented_ignored
+`
+	os.WriteFile(pyFile, []byte(code), 0644)
+
+	imports, err := extractImports(pyFile)
+	if err != nil {
+		t.Fatalf("extractImports failed: %v", err)
+	}
+
+	expected := map[string]bool{
+		"sys":      true,
+		"json":     true,
+		"os":       true,
+		"requests": true,
+		"bs4":      true,
+		"PIL":      true,
+		"yaml":     true,
+		"sklearn":  true,
+	}
+	for mod := range expected {
+		if !imports[mod] {
+			t.Errorf("expected import %q not found", mod)
+		}
+	}
+	// Should NOT include commented or indented imports
+	if imports["commented_out"] {
+		t.Error("should not detect commented import")
+	}
+}
+
+func TestImportToPyPIMapping(t *testing.T) {
+	mappings := map[string]string{
+		"PIL":     "Pillow",
+		"cv2":     "opencv-python",
+		"bs4":     "beautifulsoup4",
+		"yaml":    "pyyaml",
+		"sklearn": "scikit-learn",
+	}
+	for imp, expectedPkg := range mappings {
+		pkg, ok := importToPyPI[imp]
+		if !ok {
+			t.Errorf("missing mapping for import %q", imp)
+			continue
+		}
+		if pkg != expectedPkg {
+			t.Errorf("importToPyPI[%q] = %q, want %q", imp, pkg, expectedPkg)
+		}
+	}
+}
+
+func TestPythonStdlibCompleteness(t *testing.T) {
+	// Verify common stdlib modules are in the set
+	essentials := []string{"os", "sys", "json", "re", "io", "csv", "pathlib", "collections",
+		"datetime", "math", "hashlib", "subprocess", "threading", "typing", "unittest"}
+	for _, mod := range essentials {
+		if !pythonStdlib[mod] {
+			t.Errorf("stdlib module %q missing from pythonStdlib set", mod)
+		}
+	}
+}

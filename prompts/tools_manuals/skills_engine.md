@@ -26,3 +26,7 @@ Run a skill discovered via `list_skills`. Map arguments exactly to the skill's `
 ```json
 {"action": "execute_skill", "skill": "pdf_reader", "skill_args": {"filepath": "doc.pdf"}}
 ```
+
+### Create New Skills from Templates
+
+If no existing skill fits your need, use `list_skill_templates` and `create_skill_from_template` to scaffold a new skill from a built-in template (api_client, file_processor, data_transformer, scraper). See the **Skill Templates** tool manual for details.

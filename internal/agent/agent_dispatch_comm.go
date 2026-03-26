@@ -113,6 +113,71 @@ func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 
 		return tools.ManageOutgoingWebhooks(tc.Operation, tc.ID, tc.Name, tc.Description, tc.Method, tc.URL, tc.PayloadType, tc.BodyTemplate, tc.Headers, rawParams, cfg)
 
+	case "list_skill_templates":
+		logger.Info("LLM requested to list skill templates")
+		templates := tools.AvailableSkillTemplates()
+		type templateInfo struct {
+			Name        string            `json:"name"`
+			Description string            `json:"description"`
+			Parameters  map[string]string `json:"parameters"`
+		}
+		infos := make([]templateInfo, len(templates))
+		for i, t := range templates {
+			infos[i] = templateInfo{Name: t.Name, Description: t.Description, Parameters: t.Parameters}
+		}
+		b, err := json.MarshalIndent(infos, "", "  ")
+		if err != nil {
+			return fmt.Sprintf("Tool Output: ERROR serializing templates: %v", err)
+		}
+		return fmt.Sprintf("Tool Output: Available Skill Templates:\n%s\n\nUse create_skill_from_template with template=<name> and name=<skill_name> to create a skill.", string(b))
+
+	case "create_skill_from_template":
+		if !cfg.Agent.AllowPython {
+			return "Tool Output: [PERMISSION DENIED] create_skill_from_template is disabled in Danger Zone settings (agent.allow_python: false)."
+		}
+		templateName := tc.Template
+		skillName := tc.Name
+		if templateName == "" {
+			return "Tool Output: ERROR 'template' is required. Use list_skill_templates to see available templates."
+		}
+		if skillName == "" {
+			return "Tool Output: ERROR 'name' is required for the new skill."
+		}
+
+		// Extract optional array fields from Params or SkillArgs
+		var deps []string
+		if rawDeps, ok := tc.Params["dependencies"]; ok {
+			if arr, ok := rawDeps.([]interface{}); ok {
+				for _, v := range arr {
+					if s, ok := v.(string); ok {
+						deps = append(deps, s)
+					}
+				}
+			}
+		}
+
+		result, err := tools.CreateSkillFromTemplate(
+			cfg.Directories.SkillsDir,
+			templateName,
+			skillName,
+			tc.Description,
+			tc.URL,
+			deps,
+			tc.VaultKeys,
+		)
+		if err != nil {
+			return fmt.Sprintf("Tool Output: ERROR creating skill from template: %v", err)
+		}
+
+		// Provision dependencies immediately
+		tools.ProvisionSkillDependencies(cfg.Directories.SkillsDir, cfg.Directories.WorkspaceDir, logger)
+
+		logger.Info("Skill created from template",
+			"template", templateName,
+			"skill", skillName,
+		)
+		return "Tool Output: " + result
+
 	case "list_skills":
 		logger.Info("LLM requested to list skills")
 		skills, err := tools.ListSkills(cfg.Directories.SkillsDir)

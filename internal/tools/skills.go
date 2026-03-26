@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -8,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 
@@ -109,6 +111,10 @@ func ExecuteSkill(skillsDir, workspaceDir, skillName string, argsJSON map[string
 
 	var cmd *exec.Cmd
 	if strings.HasSuffix(manifest.Executable, ".py") {
+		// Auto-install missing dependencies for Python skills without manifest deps
+		if len(manifest.Dependencies) == 0 {
+			detectAndInstallMissingDeps(absExecPath, workspaceDir)
+		}
 		cfgPythonBin := GetPythonBin(workspaceDir)
 		cmd = exec.CommandContext(ctx, cfgPythonBin, "-u", absExecPath)
 	} else if strings.HasSuffix(manifest.Executable, ".sh") && runtime.GOOS != "windows" {
@@ -202,6 +208,10 @@ func ExecuteSkillWithSecrets(skillsDir, workspaceDir, skillName string, argsJSON
 
 	var cmd *exec.Cmd
 	if strings.HasSuffix(manifest.Executable, ".py") {
+		// Auto-install missing dependencies for Python skills without manifest deps
+		if len(manifest.Dependencies) == 0 {
+			detectAndInstallMissingDeps(absExecPath, workspaceDir)
+		}
 		cfgPythonBin := GetPythonBin(workspaceDir)
 		cmd = exec.CommandContext(ctx, cfgPythonBin, "-u", absExecPath)
 	} else if strings.HasSuffix(manifest.Executable, ".sh") && runtime.GOOS != "windows" {
@@ -290,4 +300,156 @@ func ProvisionSkillDependencies(skillsDir, workspaceDir string, logger *slog.Log
 		return
 	}
 	logger.Info("Skill dependencies provisioned successfully.")
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Auto-dependency detection
+// ──────────────────────────────────────────────────────────────────────────────
+
+// importRe matches Python import statements at the start of a line.
+var importRe = regexp.MustCompile(`^(?:import\s+(\w+)|from\s+(\w+)[\s.])`)
+
+// pythonStdlib contains common Python stdlib module names that never need pip install.
+var pythonStdlib = map[string]bool{
+	"abc": true, "argparse": true, "ast": true, "asyncio": true, "base64": true,
+	"binascii": true, "builtins": true, "bz2": true, "calendar": true, "cgi": true,
+	"codecs": true, "collections": true, "colorsys": true, "concurrent": true,
+	"configparser": true, "contextlib": true, "copy": true, "csv": true,
+	"ctypes": true, "dataclasses": true, "datetime": true, "decimal": true,
+	"difflib": true, "dis": true, "email": true, "enum": true, "errno": true,
+	"fcntl": true, "fileinput": true, "fnmatch": true, "fractions": true,
+	"ftplib": true, "functools": true, "getpass": true, "glob": true, "gzip": true,
+	"hashlib": true, "heapq": true, "hmac": true, "html": true, "http": true,
+	"imaplib": true, "importlib": true, "inspect": true, "io": true, "ipaddress": true,
+	"itertools": true, "json": true, "keyword": true, "linecache": true,
+	"locale": true, "logging": true, "lzma": true, "math": true, "mimetypes": true,
+	"msvcrt": true, "multiprocessing": true, "netrc": true, "numbers": true,
+	"operator": true, "os": true, "pathlib": true, "pickle": true, "platform": true,
+	"plistlib": true, "pprint": true, "queue": true, "quopri": true, "random": true,
+	"re": true, "readline": true, "reprlib": true, "resource": true, "rlcompleter": true,
+	"sched": true, "secrets": true, "select": true, "selectors": true, "shelve": true,
+	"shlex": true, "shutil": true, "signal": true, "site": true, "smtplib": true,
+	"socket": true, "socketserver": true, "sqlite3": true, "ssl": true, "stat": true,
+	"statistics": true, "string": true, "struct": true, "subprocess": true,
+	"sys": true, "sysconfig": true, "syslog": true, "tarfile": true, "tempfile": true,
+	"termios": true, "textwrap": true, "threading": true, "time": true, "timeit": true,
+	"tkinter": true, "token": true, "tokenize": true, "tomllib": true, "trace": true,
+	"traceback": true, "tracemalloc": true, "tty": true, "turtle": true, "types": true,
+	"typing": true, "unicodedata": true, "unittest": true, "urllib": true, "uuid": true,
+	"venv": true, "warnings": true, "wave": true, "webbrowser": true, "winreg": true,
+	"xml": true, "xmlrpc": true, "zipfile": true, "zipimport": true, "zlib": true,
+	"_thread": true, "__future__": true,
+}
+
+// importToPyPI maps Python import names to their PyPI package names
+// when they differ from the import name.
+var importToPyPI = map[string]string{
+	"PIL":                "Pillow",
+	"cv2":                "opencv-python",
+	"bs4":                "beautifulsoup4",
+	"yaml":               "pyyaml",
+	"sklearn":            "scikit-learn",
+	"dotenv":             "python-dotenv",
+	"Crypto":             "pycryptodome",
+	"serial":             "pyserial",
+	"usb":                "pyusb",
+	"gi":                 "PyGObject",
+	"attr":               "attrs",
+	"dateutil":           "python-dateutil",
+	"jose":               "python-jose",
+	"magic":              "python-magic",
+	"docx":               "python-docx",
+	"pptx":               "python-pptx",
+	"lxml":               "lxml",
+	"wx":                 "wxPython",
+	"skimage":            "scikit-image",
+	"fitz":               "PyMuPDF",
+	"telegram":           "python-telegram-bot",
+	"discord":            "discord.py",
+	"flask":              "Flask",
+	"django":             "Django",
+	"fastapi":            "fastapi",
+	"pydantic":           "pydantic",
+	"sqlalchemy":         "SQLAlchemy",
+	"toml":               "toml",
+	"zmq":                "pyzmq",
+	"nacl":               "PyNaCl",
+	"git":                "GitPython",
+	"paramiko":           "paramiko",
+	"socks":              "PySocks",
+	"chardet":            "chardet",
+	"certifi":            "certifi",
+	"idna":               "idna",
+	"charset_normalizer": "charset-normalizer",
+}
+
+// extractImports scans a Python file and returns the set of top-level imported module names.
+func extractImports(pyFilePath string) (map[string]bool, error) {
+	f, err := os.Open(pyFilePath)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	imports := make(map[string]bool)
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		matches := importRe.FindStringSubmatch(line)
+		if matches == nil {
+			continue
+		}
+		// matches[1] is from "import X", matches[2] is from "from X import ..."
+		mod := matches[1]
+		if mod == "" {
+			mod = matches[2]
+		}
+		if mod != "" {
+			imports[mod] = true
+		}
+	}
+	return imports, scanner.Err()
+}
+
+// detectAndInstallMissingDeps scans a Python file for imports and auto-installs
+// any missing third-party packages. Designed to fail gracefully.
+func detectAndInstallMissingDeps(pyFilePath, workspaceDir string) {
+	imports, err := extractImports(pyFilePath)
+	if err != nil {
+		slog.Debug("[AutoDeps] Failed to scan imports", "file", pyFilePath, "error", err)
+		return
+	}
+
+	// Determine which imports are third-party and need pip packages
+	var missing []string
+	pipBin := GetPipBin(workspaceDir)
+
+	for mod := range imports {
+		if pythonStdlib[mod] {
+			continue
+		}
+		// Resolve PyPI package name
+		pkg := mod
+		if pypi, ok := importToPyPI[mod]; ok {
+			pkg = pypi
+		}
+		// Check if already installed
+		check := exec.Command(pipBin, "show", pkg)
+		check.Dir = workspaceDir
+		if err := check.Run(); err != nil {
+			missing = append(missing, pkg)
+		}
+	}
+
+	if len(missing) == 0 {
+		return
+	}
+
+	slog.Info("[AutoDeps] Installing missing packages", "packages", strings.Join(missing, ", "), "file", filepath.Base(pyFilePath))
+	args := append([]string{"install", "--quiet"}, missing...)
+	install := exec.Command(pipBin, args...)
+	install.Dir = workspaceDir
+	if output, err := install.CombinedOutput(); err != nil {
+		slog.Warn("[AutoDeps] Failed to install packages", "packages", missing, "error", err, "output", string(output))
+	}
 }

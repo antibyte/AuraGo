@@ -397,6 +397,23 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 				"code":        prop("string", "Complete Python code for the tool"),
 			}, "name", "description", "code"),
 		))
+
+		tools = append(tools, tool("list_skill_templates",
+			"List available skill templates that can be used with create_skill_from_template. Templates provide ready-made Python skill scaffolding for common patterns.",
+			schema(map[string]interface{}{}),
+		))
+
+		tools = append(tools, tool("create_skill_from_template",
+			"Create a new Python skill from a built-in template. The skill is immediately usable via execute_skill. Available templates: api_client, file_processor, data_transformer, scraper.",
+			schema(map[string]interface{}{
+				"template":     prop("string", "Template to use: api_client, file_processor, data_transformer, scraper"),
+				"name":         prop("string", "Unique name for the new skill (e.g. 'weather_api', 'log_parser')"),
+				"description":  prop("string", "What this skill does"),
+				"url":          prop("string", "Base URL for the API (api_client template only)"),
+				"dependencies": map[string]interface{}{"type": "array", "description": "Additional pip packages to install", "items": map[string]interface{}{"type": "string"}},
+				"vault_keys":   map[string]interface{}{"type": "array", "description": "Vault secret keys this skill needs at runtime (e.g. API_KEY)", "items": map[string]interface{}{"type": "string"}},
+			}, "template", "name"),
+		))
 	}
 
 	if ff.AllowRemoteShell {
