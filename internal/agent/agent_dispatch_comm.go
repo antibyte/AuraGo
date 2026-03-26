@@ -440,6 +440,16 @@ func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 			}
 		}
 
+		// If the skill manifest doesn't exist in SkillsDir but a matching .py is in ToolsDir,
+		// redirect the agent to run_tool (mirror of the run_tool → execute_skill redirect).
+		skillManifestPath := filepath.Join(cfg.Directories.SkillsDir, cleanSkillName+".json")
+		if _, statErr := os.Stat(skillManifestPath); os.IsNotExist(statErr) {
+			toolPyName := cleanSkillName + ".py"
+			if _, toolErr := os.Stat(filepath.Join(cfg.Directories.ToolsDir, toolPyName)); toolErr == nil {
+				return fmt.Sprintf("Tool Output: ERROR '%s' is a custom tool, not a skill. Use {\"action\": \"run_tool\", \"name\": \"%s\"} instead.", cleanSkillName, toolPyName)
+			}
+		}
+
 		// Generic Python skill fallback — gate on AllowPython
 		if !cfg.Agent.AllowPython {
 			return fmt.Sprintf("Tool Output: [PERMISSION DENIED] Skill '%s' requires Python execution which is disabled (agent.allow_python: false).", skillName)

@@ -81,6 +81,11 @@ func ExecuteSkill(skillsDir, workspaceDir, skillName string, argsJSON map[string
 		return "", fmt.Errorf("skill '%s' not found", skillName)
 	}
 
+	// Validate manifest executable — must be a relative path within skillsDir (no traversal or absolute paths).
+	if filepath.IsAbs(manifest.Executable) || strings.Contains(manifest.Executable, "..") {
+		return "", fmt.Errorf("skill '%s' has invalid executable path '%s': must be a relative filename inside the skills directory", skillName, manifest.Executable)
+	}
+
 	// Ensure the skill executable path is absolute.
 	// This is CRITICAL because cmd.Dir is set to workspaceDir, which would break relative paths.
 	absExecPath, err := filepath.Abs(filepath.Join(skillsDir, manifest.Executable))
