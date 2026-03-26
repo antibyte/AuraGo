@@ -13,6 +13,7 @@ import (
 	"math"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -399,6 +400,13 @@ func authMiddleware(s *Server, next http.Handler) http.Handler {
 		}
 
 		if IsAuthenticated(r, secret) {
+			// CSRF: reject state-changing requests whose Origin does not match our host.
+			if !isSafeMethod(r.Method) && !checkCSRFOrigin(r) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusForbidden)
+				w.Write([]byte(`{"error":"csrf_check_failed","message":"Request origin does not match server host."}`))
+				return
+			}
 			// Prevent browser from caching authenticated pages.
 			// Without this, pressing Back after logout shows the cached page.
 			w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, private")
@@ -425,6 +433,51 @@ func authMiddleware(s *Server, next http.Handler) http.Handler {
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
+
+// isSafeMethod returns true for HTTP methods that are read-only and cannot cause state changes.
+func isSafeMethod(method string) bool {
+	switch method {
+	case http.MethodGet, http.MethodHead, http.MethodOptions:
+		return true
+	}
+	return false
+}
+
+// checkCSRFOrigin validates that the request Origin header matches the server's host.
+// Returns true (allow) when:
+//   - The Origin header is absent (non-browser clients, or same-origin requests
+//     where some browsers omit it for first-party fetches).
+//   - The Origin host matches the Host header (or X-Forwarded-Host when behind a proxy).
+//
+// An attacker-controlled page on a different origin cannot forge matching cookies with
+// SameSite=Strict, but this check adds defence-in-depth for edge cases.
+func checkCSRFOrigin(r *http.Request) bool {
+	originHeader := r.Header.Get("Origin")
+	if originHeader == "" {
+		// Absent Origin is accepted — same-origin navigations and non-browser clients
+		// (curl, internal service calls) legitimately omit it.
+		return true
+	}
+
+	parsed, err := url.Parse(originHeader)
+	if err != nil || parsed.Host == "" {
+		// Malformed Origin header — reject.
+		return false
+	}
+
+	// Determine the canonical server host: prefer X-Forwarded-Host (set by trusted
+	// reverse proxies) then fall back to the Host header.
+	serverHost := r.Header.Get("X-Forwarded-Host")
+	if serverHost == "" {
+		serverHost = r.Host
+	}
+	// Keep only the first host when X-Forwarded-Host contains a comma-separated list.
+	if idx := strings.IndexByte(serverHost, ','); idx >= 0 {
+		serverHost = strings.TrimSpace(serverHost[:idx])
+	}
+
+	return strings.EqualFold(parsed.Host, serverHost)
+}
 
 // GenerateRandomHex returns a cryptographically random hex string of n bytes (2n hex chars).
 func GenerateRandomHex(n int) (string, error) {

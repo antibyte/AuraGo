@@ -973,10 +973,11 @@ function handleSSEMessage(e) {
                 if (imgData && imgData.path) {
                     seenSSEImages.add(imgData.path); // remember to skip duplicate in appendMessage
                     const cap = imgData.caption ? escapeHtml(imgData.caption) : '';
+                    const safePath = escapeHtml(imgData.path);
                     const imgHTML = `
                                 <div class="msg-row bot">
                                     <div class="avatar bot">🤖</div>
-                                    <div class="bubble bot"><img class="chat-zoomable-image" src="${imgData.path}" alt="${cap}" title="${cap}" loading="lazy"></div>
+                                    <div class="bubble bot"><img class="chat-zoomable-image" src="${safePath}" alt="${cap}" title="${cap}" loading="lazy"></div>
                                 </div>`;
                     chatContent.insertAdjacentHTML('beforeend', imgHTML);
                     chatBox.scrollTop = chatBox.scrollHeight;

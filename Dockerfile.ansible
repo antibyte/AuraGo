@@ -41,8 +41,14 @@ ENV PORT=5001
 ENV PLAYBOOKS_DIR=/playbooks
 ENV DEFAULT_INVENTORY=/inventory/hosts
 ENV ANSIBLE_TIMEOUT=300
-# Disable SSH host-key checking by default so first-time connections work without
-# pre-populating known_hosts. Override with ANSIBLE_HOST_KEY_CHECKING=True if needed.
-ENV ANSIBLE_HOST_KEY_CHECKING=False
+# SSH host-key checking is ENABLED by default (security best practice).
+# Set ANSIBLE_HOST_KEY_CHECKING=False in docker-compose.yml / docker run -e if you
+# need to connect to hosts whose keys are not yet in known_hosts.
+ENV ANSIBLE_HOST_KEY_CHECKING=True
+
+# Run as a non-root user
+RUN useradd -r -u 1001 -s /sbin/nologin ansibleuser
+RUN chown -R ansibleuser:ansibleuser /app /playbooks /inventory
+USER ansibleuser
 
 CMD ["python", "/app/server.py"]
