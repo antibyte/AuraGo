@@ -40,5 +40,12 @@
   "config.devices.col_port": "Poort",
   "config.devices.col_mac": "MAC",
   "config.devices.col_tags": "Tags",
+  "config.devices.find_mac": "MAC zoeken",
+  "config.devices.find_mac_tooltip": "MAC-adres opzoeken via de lokale ARP-tabel (apparaat moet actief zijn)",
+  "config.devices.find_mac_no_ip": "Voer eerst een IP-adres in.",
+  "config.devices.find_mac_searching": "ARP-tabel doorzoeken…",
+  "config.devices.find_mac_found": "Gevonden: {mac}",
+  "config.devices.find_mac_not_found": "Niet gevonden in ARP-cache. Zorg ervoor dat het apparaat bereikbaar is.",
+  "config.devices.find_mac_error": "Opzoeken mislukt.",
   "config.devices.delete_failed": "Verwijderen mislukt"
 }

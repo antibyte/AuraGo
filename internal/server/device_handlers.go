@@ -7,6 +7,7 @@ import (
 
 	"aurago/internal/credentials"
 	"aurago/internal/inventory"
+	"aurago/internal/tools"
 )
 
 // handleListDevices returns all devices (GET /api/devices).
@@ -216,5 +217,28 @@ func handleDeleteDevice(s *Server) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+	}
+}
+
+// handleMACLookup performs an ARP-table MAC address lookup for a given IP
+// (POST /api/tools/mac_lookup).
+func handleMACLookup(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		var req struct {
+			IP string `json:"ip"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil || strings.TrimSpace(req.IP) == "" {
+			http.Error(w, `{"error":"ip field required"}`, http.StatusBadRequest)
+			return
+		}
+
+		result := tools.LookupMACAddress(strings.TrimSpace(req.IP), "")
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(result)) //nolint:errcheck
 	}
 }

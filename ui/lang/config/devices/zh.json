@@ -40,5 +40,12 @@
   "config.devices.col_port": "端口",
   "config.devices.col_mac": "MAC",
   "config.devices.col_tags": "标签",
+  "config.devices.find_mac": "查找MAC",
+  "config.devices.find_mac_tooltip": "通过本地ARP表查找MAC地址（设备必须处于活动状态）",
+  "config.devices.find_mac_no_ip": "请先输入IP地址。",
+  "config.devices.find_mac_searching": "正在搜索ARP表…",
+  "config.devices.find_mac_found": "已找到：{mac}",
+  "config.devices.find_mac_not_found": "在ARP缓存中未找到。请确保设备可访问。",
+  "config.devices.find_mac_error": "查找失败。",
   "config.devices.delete_failed": "删除失败"
 }

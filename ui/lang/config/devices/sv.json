@@ -40,5 +40,12 @@
   "config.devices.col_port": "Port",
   "config.devices.col_mac": "MAC",
   "config.devices.col_tags": "Taggar",
+  "config.devices.find_mac": "Hitta MAC",
+  "config.devices.find_mac_tooltip": "Slå upp MAC-adress via den lokala ARP-tabellen (enheten måste vara aktiv)",
+  "config.devices.find_mac_no_ip": "Ange en IP-adress först.",
+  "config.devices.find_mac_searching": "Söker i ARP-tabell…",
+  "config.devices.find_mac_found": "Hittad: {mac}",
+  "config.devices.find_mac_not_found": "Hittades inte i ARP-cache. Kontrollera att enheten är nåbar.",
+  "config.devices.find_mac_error": "Sökning misslyckades.",
   "config.devices.delete_failed": "Det gick inte att ta bort"
 }

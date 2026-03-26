@@ -40,5 +40,12 @@
   "config.devices.col_port": "Přístav",
   "config.devices.col_mac": "MAC",
   "config.devices.col_tags": "Štítky",
+  "config.devices.find_mac": "Najít MAC",
+  "config.devices.find_mac_tooltip": "Vyhledat MAC adresu v lokální ARP tabulce (zařízení musí být aktivní)",
+  "config.devices.find_mac_no_ip": "Nejprve zadejte IP adresu.",
+  "config.devices.find_mac_searching": "Prohledávám ARP tabulku…",
+  "config.devices.find_mac_found": "Nalezeno: {mac}",
+  "config.devices.find_mac_not_found": "Nenalezeno v ARP cache. Ujistěte se, že zařízení je dostupné.",
+  "config.devices.find_mac_error": "Vyhledávání selhalo.",
   "config.devices.delete_failed": "Smazání se nezdařilo"
 }

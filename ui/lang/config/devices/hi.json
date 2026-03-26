@@ -40,5 +40,12 @@
   "config.devices.col_port": "पत्तन",
   "config.devices.col_mac": "मैक",
   "config.devices.col_tags": "टैग",
+  "config.devices.find_mac": "MAC खोजें",
+  "config.devices.find_mac_tooltip": "स्थानीय ARP तालिका से MAC पता खोजें (डिवाइस सक्रिय होना चाहिए)",
+  "config.devices.find_mac_no_ip": "कृपया पहले एक IP पता दर्ज करें।",
+  "config.devices.find_mac_searching": "ARP तालिका में खोज रहे हैं…",
+  "config.devices.find_mac_found": "मिला: {mac}",
+  "config.devices.find_mac_not_found": "ARP कैश में नहीं मिला। सुनिश्चित करें कि डिवाइस पहुँचयोग्य है।",
+  "config.devices.find_mac_error": "खोज विफल।",
   "config.devices.delete_failed": "हटाना विफल"
 }

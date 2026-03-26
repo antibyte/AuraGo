@@ -434,6 +434,9 @@ type ToolCall struct {
 	Packages   []string `json:"packages"`    // npm packages to install
 	ProjectDir string   `json:"project_dir"` // subdirectory within /workspace
 	BuildDir   string   `json:"build_dir"`   // build output directory (auto-detected if empty)
+	Template   string   `json:"template"`    // project template: portfolio, blog, landing, dashboard
+	AutoFix    bool     `json:"auto_fix"`    // attempt auto-fix on build failure
+	GitMessage string   `json:"git_message"` // commit message for git operations
 	// Circuit Breaker Override - ermöglicht temporäre Erhöhung des Limits für komplexe Operationen
 	CircuitBreakerOverride int    `json:"circuit_breaker_override,omitempty"`
 	GuardianJustification  string `json:"_guardian_justification,omitempty"` // agent explains why a blocked tool call is needed

@@ -147,6 +147,20 @@ func dispatchInfra(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 		}
 		return "Tool Output: " + scanResult
 
+	case "mac_lookup":
+		if !cfg.Tools.NetworkScan.Enabled {
+			return `Tool Output: {"status":"error","message":"mac_lookup is disabled. Enable tools.network_scan.enabled in config."}`
+		}
+		ip := tc.IP
+		if ip == "" {
+			ip = tc.IPAddress
+		}
+		if ip == "" {
+			return `Tool Output: {"status":"error","message":"'ip' parameter is required"}`
+		}
+		logger.Info("LLM requested mac_lookup", "ip", ip)
+		return "Tool Output: " + tools.LookupMACAddress(ip, "")
+
 	case "tts":
 		if !cfg.Chromecast.Enabled && cfg.TTS.Provider == "" && !cfg.TTS.Piper.Enabled {
 			return `Tool Output: {"status": "error", "message": "TTS is not configured. Set tts.provider in config.yaml."}`
@@ -1276,6 +1290,17 @@ func mdnsAutoRegister(scanJSON string, db *sql.DB, deviceType string, tags []str
 			}
 		}
 		desc := dev.Info
+		// Try to enrich with MAC address from ARP cache (best-effort, non-blocking).
+		mac := ""
+		if ip != "" {
+			var macResult struct {
+				Status string `json:"status"`
+				MAC    string `json:"mac_address"`
+			}
+			if merr := json.Unmarshal([]byte(tools.LookupMACAddress(ip, "")), &macResult); merr == nil && macResult.Status == "success" {
+				mac = macResult.MAC
+			}
+		}
 		record := inventory.DeviceRecord{
 			Name:        name,
 			Type:        deviceType,
@@ -1283,6 +1308,7 @@ func mdnsAutoRegister(scanJSON string, db *sql.DB, deviceType string, tags []str
 			Port:        dev.Port,
 			Description: desc,
 			Tags:        tags,
+			MACAddress:  mac,
 		}
 		c, u, err := inventory.UpsertDeviceByName(db, record, overwrite)
 		if err != nil {

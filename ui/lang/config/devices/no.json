@@ -40,5 +40,12 @@
   "config.devices.col_port": "Port",
   "config.devices.col_mac": "MAC",
   "config.devices.col_tags": "Merker",
+  "config.devices.find_mac": "Finn MAC",
+  "config.devices.find_mac_tooltip": "Slå opp MAC-adresse via den lokale ARP-tabellen (enheten må være aktiv)",
+  "config.devices.find_mac_no_ip": "Vennligst skriv inn en IP-adresse først.",
+  "config.devices.find_mac_searching": "Søker i ARP-tabell…",
+  "config.devices.find_mac_found": "Funnet: {mac}",
+  "config.devices.find_mac_not_found": "Ikke funnet i ARP-cache. Sørg for at enheten er tilgjengelig.",
+  "config.devices.find_mac_error": "Oppslag mislyktes.",
   "config.devices.delete_failed": "Sletting mislyktes"
 }

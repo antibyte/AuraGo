@@ -40,5 +40,12 @@
   "config.devices.col_port": "Havn",
   "config.devices.col_mac": "MAC",
   "config.devices.col_tags": "Tags",
+  "config.devices.find_mac": "Find MAC",
+  "config.devices.find_mac_tooltip": "Slå MAC-adresse op via den lokale ARP-tabel (enheden skal være aktiv)",
+  "config.devices.find_mac_no_ip": "Indtast venligst en IP-adresse først.",
+  "config.devices.find_mac_searching": "Søger i ARP-tabel…",
+  "config.devices.find_mac_found": "Fundet: {mac}",
+  "config.devices.find_mac_not_found": "Ikke fundet i ARP-cache. Sørg for at enheden er tilgængelig.",
+  "config.devices.find_mac_error": "Opslag mislykkedes.",
   "config.devices.delete_failed": "Sletning mislykkedes"
 }

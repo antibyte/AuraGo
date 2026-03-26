@@ -40,5 +40,12 @@
   "config.devices.col_port": "Port",
   "config.devices.col_mac": "MAC",
   "config.devices.col_tags": "Tags",
+  "config.devices.find_mac": "Trouver MAC",
+  "config.devices.find_mac_tooltip": "Rechercher l'adresse MAC dans la table ARP locale (l'appareil doit être actif)",
+  "config.devices.find_mac_no_ip": "Veuillez d'abord saisir une adresse IP.",
+  "config.devices.find_mac_searching": "Recherche dans la table ARP…",
+  "config.devices.find_mac_found": "Trouvé : {mac}",
+  "config.devices.find_mac_not_found": "Introuvable dans le cache ARP. Assurez-vous que l'appareil est accessible.",
+  "config.devices.find_mac_error": "Échec de la recherche.",
   "config.devices.delete_failed": "Échec de la suppression"
 }

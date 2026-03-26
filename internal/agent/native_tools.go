@@ -772,13 +772,17 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 				"operation": map[string]interface{}{
 					"type":        "string",
 					"description": "Operation to perform",
-					"enum":        []string{"init", "start", "stop", "status", "rebuild", "destroy", "exec", "init_project", "build", "install_deps", "lighthouse", "screenshot", "lint", "list_files", "read_file", "write_file", "edit_file", "json_edit", "yaml_edit", "xml_edit", "optimize_images", "dev", "deploy", "test_connection", "webserver_start", "webserver_stop", "webserver_status", "publish_local"},
+					"enum":        []string{"init", "start", "stop", "status", "rebuild", "destroy", "exec", "init_project", "build", "install_deps", "lighthouse", "screenshot", "lint", "list_files", "read_file", "write_file", "edit_file", "json_edit", "yaml_edit", "xml_edit", "optimize_images", "dev", "deploy", "test_connection", "webserver_start", "webserver_stop", "webserver_status", "publish_local", "tunnel", "git_init", "git_commit", "git_status", "git_diff", "git_log", "git_rollback"},
 				},
 				"command":     prop("string", "Shell command to execute (for 'exec')"),
 				"framework":   prop("string", "Web framework: next, vite, astro, svelte, vue, html (for 'init_project')"),
 				"name":        prop("string", "Project name (for 'init_project')"),
 				"project_dir": prop("string", "Project subdirectory within /workspace (default: '.')"),
 				"build_dir":   prop("string", "Build output directory (auto-detected if empty)"),
+				"template":    prop("string", "Project template for init_project: portfolio, blog, landing, dashboard (optional — applies starter content after scaffolding)"),
+				"auto_fix":    map[string]interface{}{"type": "boolean", "description": "If true, attempt to auto-fix common build errors (missing deps, lint issues) and retry once (for 'build')"},
+				"git_message": prop("string", "Commit message (for 'git_commit')"),
+				"count":       prop("integer", "Number of entries (for 'git_log': default 10) or commits to revert (for 'git_rollback': default 1)"),
 				"path":        prop("string", "File path relative to /workspace — MUST include the project subdirectory prefix (e.g. 'my-project/index.html', NOT just 'index.html'). Applies to 'read_file', 'write_file', 'list_files', 'edit_file', 'json_edit', 'yaml_edit', 'xml_edit'."),
 				"content":     prop("string", "File content to write (for 'write_file') or text to insert (for 'edit_file' insert_after/insert_before/append/prepend)"),
 				"url":         prop("string", "URL for lighthouse audit or screenshot"),
@@ -1600,6 +1604,17 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 				"register_tags":      map[string]interface{}{"type": "array", "items": map[string]string{"type": "string"}, "description": "Tags to assign to auto-registered devices (e.g. ['mdns', 'home-lab'])."},
 				"overwrite_existing": map[string]interface{}{"type": "boolean", "description": "If true, update an existing device record when the name matches. Default: false (skip duplicates)."},
 			}),
+		))
+
+		// mac_lookup — uses the OS ARP table; same permission gate as mdns_scan (network-scan feature).
+		tools = append(tools, tool("mac_lookup",
+			"Look up the MAC (hardware) address of a device on the local network using the OS ARP table. "+
+				"Does NOT require root/admin privileges and works in Docker without NET_RAW. "+
+				"The device must be reachable and recently active (present in the ARP cache). "+
+				"Use this after an mDNS scan or network ping to enrich device records with MAC addresses.",
+			schema(map[string]interface{}{
+				"ip": prop("string", "IPv4 address of the device to look up (e.g. '192.168.1.42')"),
+			}, "ip"),
 		))
 	}
 

@@ -200,13 +200,124 @@ For plain HTML projects (no `package.json`), the build step is automatically ski
 ## Recommended Workflow
 
 1. **Initialize:** `init` → creates the Docker dev environment
-2. **Scaffold:** `init_project` → creates a new project with chosen framework
-3. **Develop:** Use `write_file` to create/edit files, `install_deps` for packages
-4. **Preview:** `dev` to start the dev server, `screenshot` to capture preview
-5. **Test:** `lighthouse` for performance audit, `lint` for code quality
-6. **Optimize:** `optimize_images` for SVG optimization
-7. **Build:** `build` to create production output
-8. **Deploy:** Either `deploy` (upload to remote server) or `publish_local` (serve locally with Caddy)
+2. **Scaffold:** `init_project` → creates a new project with chosen framework (optionally with a template)
+3. **Version Control:** `git_init` → initialize git repository for the project
+4. **Develop:** Use `write_file` to create/edit files, `install_deps` for packages
+5. **Commit:** `git_commit` → save progress with a meaningful message
+6. **Preview:** `dev` to start the dev server, `tunnel` to share externally, `screenshot` to capture preview
+7. **Test:** `lighthouse` for performance audit, `lint` for code quality
+8. **Optimize:** `optimize_images` for SVG optimization
+9. **Build:** `build` (with `auto_fix: true` for automatic error recovery)
+10. **Deploy:** Either `deploy` (upload to remote server), `deploy_netlify`, or `publish_local` (serve locally with Caddy)
+
+## Version Control (Git)
+
+Git operations run inside the Docker container. Initialize a repository to track changes, rollback mistakes, and maintain project history.
+
+### git_init — Initialize a git repository
+Creates a repository with an initial commit.
+```json
+{"action": "homepage", "operation": "git_init", "project_dir": "my-site"}
+```
+
+### git_commit — Commit all changes
+Stages all modifications and commits.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `git_message` | string | no | Commit message (default: "Update") |
+| `project_dir` | string | no | Project subdirectory |
+
+```json
+{"action": "homepage", "operation": "git_commit", "project_dir": "my-site", "git_message": "Add hero section and navigation"}
+```
+
+### git_status — View changed files
+```json
+{"action": "homepage", "operation": "git_status", "project_dir": "my-site"}
+```
+
+### git_diff — View current changes
+```json
+{"action": "homepage", "operation": "git_diff", "project_dir": "my-site"}
+```
+
+### git_log — View commit history
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `count` | integer | no | Number of commits to show (default: 10, max: 100) |
+
+```json
+{"action": "homepage", "operation": "git_log", "project_dir": "my-site", "count": 5}
+```
+
+### git_rollback — Revert recent commits
+Creates new revert commits (safe — never rewrites history).
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `count` | integer | no | Number of commits to revert (default: 1, max: 10) |
+
+```json
+{"action": "homepage", "operation": "git_rollback", "project_dir": "my-site", "count": 1}
+```
+
+## Build with Auto-Fix
+
+The `build` operation supports automatic error recovery when `auto_fix` is set to `true`.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `auto_fix` | boolean | no | If true, attempt to fix common build errors and retry once |
+
+```json
+{"action": "homepage", "operation": "build", "project_dir": "my-site", "auto_fix": true}
+```
+
+**Auto-fixable errors:**
+- Missing npm modules → auto-installs the package
+- Webpack module resolution failures → auto-installs the module
+- ESLint fixable errors → runs `eslint --fix`
+- Missing dependencies / node_modules → runs `npm install`
+
+The response includes `auto_fix_applied: true` and `auto_fix_pattern` when a fix was applied.
+
+## Project Templates
+
+When using `init_project`, you can specify a `template` to get pre-built CSS layouts and a README:
+
+| Template | Description |
+|----------|-------------|
+| `portfolio` | Dark-theme portfolio with hero, project cards, skills grid |
+| `blog` | Clean serif blog with article list, tags, metadata |
+| `landing` | Marketing landing page with hero, features, testimonials, CTA |
+| `dashboard` | Admin dashboard with sidebar, stats cards, data table |
+
+```json
+{"action": "homepage", "operation": "init_project", "framework": "next", "name": "my-portfolio", "template": "portfolio"}
+```
+
+Templates write CSS files into `src/styles/` and a `TEMPLATE_README.md`. Import the CSS in your layout and use the documented class names.
+
+## Sharing & Tunnels
+
+### tunnel — Create a public URL for sharing
+Starts a Cloudflare quick tunnel to expose a local port to the internet via a temporary `*.trycloudflare.com` URL.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `port` | integer | no | Local port to expose (default: 3000) |
+
+```json
+{"action": "homepage", "operation": "tunnel", "port": 3000}
+```
+
+**Notes:**
+- Requires `cloudflared` in the Docker container (included since container rebuild)
+- The URL is temporary and changes each time
+- Also returns a `lan_url` for accessing from other devices on the same network
+- The `webserver_start` response now automatically includes a `lan_url` when binding to all interfaces
 
 ## Important Notes
 

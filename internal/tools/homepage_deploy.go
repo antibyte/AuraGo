@@ -80,11 +80,13 @@ func HomepageOptimizeImages(cfg HomepageConfig, projectDir string, logger *slog.
 
 // HomepageDev starts the dev server in the container.
 func HomepageDev(cfg HomepageConfig, projectDir string, port int, logger *slog.Logger) string {
-	if strings.Contains(projectDir, "..") {
-		return errJSON("Path traversal detected")
-	}
 	if projectDir == "" {
 		projectDir = "."
+	}
+	if projectDir != "." {
+		if err := sanitizeProjectDir(projectDir); err != nil {
+			return errJSON("%v", err)
+		}
 	}
 	if port == 0 {
 		port = 3000
@@ -100,8 +102,15 @@ func HomepageDev(cfg HomepageConfig, projectDir string, port int, logger *slog.L
 
 // HomepageDeploy uploads the build output to a remote server via SFTP.
 func HomepageDeploy(cfg HomepageConfig, deployCfg HomepageDeployConfig, projectDir, buildDir string, logger *slog.Logger) string {
-	if strings.Contains(projectDir, "..") || strings.Contains(buildDir, "..") {
-		return errJSON("Path traversal detected")
+	if projectDir != "" && projectDir != "." {
+		if err := sanitizeProjectDir(projectDir); err != nil {
+			return errJSON("%v", err)
+		}
+	}
+	if buildDir != "" && buildDir != "." {
+		if err := sanitizeProjectDir(buildDir); err != nil {
+			return errJSON("%v", err)
+		}
 	}
 	if deployCfg.Host == "" || deployCfg.User == "" || deployCfg.Path == "" {
 		return errJSON("Deploy requires host, user, and path to be configured")
@@ -193,8 +202,15 @@ func HomepageTestConnection(deployCfg HomepageDeployConfig, logger *slog.Logger)
 
 // HomepageWebServerStart starts the Caddy container serving the build output.
 func HomepageWebServerStart(cfg HomepageConfig, projectDir, buildDir string, logger *slog.Logger) string {
-	if strings.Contains(projectDir, "..") || strings.Contains(buildDir, "..") {
-		return errJSON("Path traversal detected")
+	if projectDir != "" && projectDir != "." {
+		if err := sanitizeProjectDir(projectDir); err != nil {
+			return errJSON("%v", err)
+		}
+	}
+	if buildDir != "" && buildDir != "." {
+		if err := sanitizeProjectDir(buildDir); err != nil {
+			return errJSON("%v", err)
+		}
 	}
 	if buildDir == "" {
 		buildDir = detectBuildDir(cfg, projectDir)
@@ -318,7 +334,12 @@ func HomepageWebServerStart(cfg HomepageConfig, projectDir, buildDir string, log
 	if cfg.WebServerDomain != "" {
 		url = "https://" + cfg.WebServerDomain
 	}
-	return okJSON("Web server started", "url", url, "port", fmt.Sprintf("%d", port))
+	lanIP := getLocalLANIP()
+	args := []string{"url", url, "port", fmt.Sprintf("%d", port)}
+	if lanIP != "" && !cfg.WebServerInternalOnly {
+		args = append(args, "lan_url", fmt.Sprintf("http://%s:%d", lanIP, port))
+	}
+	return okJSON("Web server started", args...)
 }
 
 // HomepageWebServerStop stops the Caddy container.
@@ -353,6 +374,67 @@ func HomepageWebServerStatus(cfg HomepageConfig, logger *slog.Logger) string {
 	return containerStatus(dockerCfg, homepageWebContainer)
 }
 
+// getLocalLANIP returns the first non-loopback IPv4 address of the host,
+// or empty string if none found.
+func getLocalLANIP() string {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return ""
+	}
+	for _, addr := range addrs {
+		if ipNet, ok := addr.(*net.IPNet); ok && !ipNet.IP.IsLoopback() && ipNet.IP.To4() != nil {
+			return ipNet.IP.String()
+		}
+	}
+	return ""
+}
+
+// HomepageTunnel starts a Cloudflare quick tunnel inside the Docker container
+// that exposes a local port to the internet with a temporary *.trycloudflare.com URL.
+// The tunnel runs in the background; use HomepageExec to check its status.
+func HomepageTunnel(cfg HomepageConfig, port int, logger *slog.Logger) string {
+	if port <= 0 {
+		port = 3000
+	}
+	logger.Info("[Homepage] Starting Cloudflare tunnel", "port", port)
+	dockerCfg := DockerConfig{Host: cfg.DockerHost}
+
+	// Check if cloudflared is available
+	checkResult := DockerExec(dockerCfg, homepageContainerName, "which cloudflared 2>/dev/null && echo FOUND || echo MISSING", "")
+	if !strings.Contains(checkResult, "FOUND") {
+		// Provide LAN IP as fallback
+		lanIP := getLocalLANIP()
+		msg := "cloudflared not available in container. Rebuild the homepage container to get tunnel support."
+		if lanIP != "" {
+			msg += fmt.Sprintf(" LAN URL: http://%s:%d", lanIP, port)
+		}
+		return errJSON("%s", msg)
+	}
+
+	// Start tunnel in background, capture the URL from stderr
+	cmd := fmt.Sprintf("nohup cloudflared tunnel --url http://localhost:%d > /tmp/tunnel.log 2>&1 & sleep 3 && grep -oP 'https://[a-z0-9-]+\\.trycloudflare\\.com' /tmp/tunnel.log | head -1", port)
+	result := DockerExec(dockerCfg, homepageContainerName, cmd, "")
+
+	// Try to extract the tunnel URL from the output
+	output := extractOutput(result)
+	if strings.Contains(output, "trycloudflare.com") {
+		lines := strings.Split(strings.TrimSpace(output), "\n")
+		for _, line := range lines {
+			line = strings.TrimSpace(line)
+			if strings.Contains(line, "trycloudflare.com") {
+				return okJSON("Cloudflare tunnel started", "tunnel_url", line, "local_port", fmt.Sprintf("%d", port))
+			}
+		}
+	}
+
+	// Tunnel might still be starting — return what we have
+	lanIP := getLocalLANIP()
+	return okJSON("Tunnel started (URL may take a moment to appear). Check /tmp/tunnel.log inside the container.",
+		"local_port", fmt.Sprintf("%d", port),
+		"lan_ip", lanIP,
+		"check_cmd", "cat /tmp/tunnel.log | grep trycloudflare")
+}
+
 // HomepageDeployNetlify builds the project (if a build script exists) and deploys it to
 // Netlify by creating an in-memory ZIP of the build/project directory and calling the
 // Netlify Deploy API. The caller supplies a fully-resolved NetlifyConfig.
@@ -363,8 +445,15 @@ func HomepageDeployNetlify(cfg HomepageConfig, nfCfg NetlifyConfig, projectDir, 
 	if cfg.WorkspacePath == "" {
 		return errJSON("Homepage workspace path is not configured")
 	}
-	if strings.Contains(projectDir, "..") || strings.Contains(buildDir, "..") {
-		return errJSON("Path traversal detected")
+	if projectDir != "" && projectDir != "." {
+		if err := sanitizeProjectDir(projectDir); err != nil {
+			return errJSON("%v", err)
+		}
+	}
+	if buildDir != "" && buildDir != "." {
+		if err := sanitizeProjectDir(buildDir); err != nil {
+			return errJSON("%v", err)
+		}
 	}
 	if projectDir == "" {
 		projectDir = "."

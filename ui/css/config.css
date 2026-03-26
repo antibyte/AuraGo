@@ -2833,6 +2833,69 @@ select.cfg-input option {
     margin-left: 0.3rem;
 }
 
+/* MAC lookup row ── input + "Find MAC" button side by side */
+.devices-mac-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.devices-mac-input {
+    flex: 1;
+}
+
+.devices-find-mac-btn {
+    white-space: nowrap;
+    padding: 0.42rem 0.8rem;
+    font-size: 0.8rem;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.devices-find-mac-btn:hover:not(:disabled) {
+    background: var(--bg-tertiary);
+}
+
+.devices-find-mac-btn:disabled {
+    opacity: 0.55;
+    cursor: default;
+}
+
+.devices-mac-status {
+    margin-top: 0.35rem;
+    font-size: 0.78rem;
+    padding: 0.3rem 0.6rem;
+    border-radius: 6px;
+}
+
+.devices-mac-ok {
+    background: rgba(34,197,94,0.12);
+    color: #16a34a;
+    border: 1px solid rgba(34,197,94,0.25);
+}
+
+.devices-mac-warn {
+    background: rgba(234,179,8,0.12);
+    color: #ca8a04;
+    border: 1px solid rgba(234,179,8,0.25);
+}
+
+.devices-mac-error {
+    background: rgba(239,68,68,0.1);
+    color: var(--danger);
+    border: 1px solid rgba(239,68,68,0.25);
+}
+
+.devices-mac-info {
+    background: rgba(99,102,241,0.1);
+    color: var(--text-secondary);
+    border: 1px solid rgba(99,102,241,0.2);
+}
+
 .auth-inline-msg {
     margin-top: 0.5rem;
     font-size: 0.8rem;

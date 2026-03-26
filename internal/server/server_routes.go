@@ -395,6 +395,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			}
 		})
+		mux.HandleFunc("/api/tools/mac_lookup", handleMACLookup(s))
 
 		// Credentials Registry (vault-backed access data)
 		mux.HandleFunc("/api/credentials", func(w http.ResponseWriter, r *http.Request) {

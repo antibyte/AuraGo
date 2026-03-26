@@ -43,6 +43,9 @@ const homepageDockerfile = `FROM mcr.microsoft.com/playwright:v1.50.0-noble
 WORKDIR /workspace
 RUN apt-get update && apt-get install -y \
     git curl wget jq libvips-dev \
+    && curl -fsSL https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb -o /tmp/cloudflared.deb \
+    && dpkg -i /tmp/cloudflared.deb || true \
+    && rm -f /tmp/cloudflared.deb \
     && rm -rf /var/lib/apt/lists/*
 RUN npm install -g \
     vercel netlify-cli \
@@ -67,6 +70,45 @@ type HomepageDeployConfig struct {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
+
+// isValidHomepageURL validates that a URL is a well-formed HTTP(S) URL
+// and does not contain shell metacharacters that could lead to command injection.
+func isValidHomepageURL(u string) bool {
+	if u == "" {
+		return false
+	}
+	// Must start with http:// or https://
+	lower := strings.ToLower(u)
+	if !strings.HasPrefix(lower, "http://") && !strings.HasPrefix(lower, "https://") {
+		return false
+	}
+	// Reject shell metacharacters
+	for _, c := range u {
+		switch c {
+		case ';', '|', '&', '`', '$', '(', ')', '{', '}', '<', '>', '\\', '!', '\n', '\r', '"', '\'':
+			return false
+		}
+	}
+	return true
+}
+
+// sanitizeProjectDir validates a project directory name for use in shell commands.
+// It rejects path traversal, shell metacharacters, and absolute paths.
+func sanitizeProjectDir(projectDir string) error {
+	if strings.Contains(projectDir, "..") {
+		return fmt.Errorf("path traversal detected")
+	}
+	if strings.HasPrefix(projectDir, "/") || strings.HasPrefix(projectDir, "\\") {
+		return fmt.Errorf("absolute paths not allowed")
+	}
+	for _, c := range projectDir {
+		switch c {
+		case ';', '|', '&', '`', '$', '(', ')', '{', '}', '<', '>', '\\', '!', '"', '\'', '\n', '\r', ' ':
+			return fmt.Errorf("invalid character %q in project directory", c)
+		}
+	}
+	return nil
+}
 
 // truncateStr returns s truncated to maxLen characters with "…" suffix.
 func truncateStr(s string, maxLen int) string {
@@ -339,7 +381,8 @@ func HomepageExec(cfg HomepageConfig, command string, logger *slog.Logger) strin
 }
 
 // HomepageInitProject scaffolds a new web project inside the container.
-func HomepageInitProject(cfg HomepageConfig, framework, name string, logger *slog.Logger) string {
+// If template is non-empty, starter content is applied after scaffolding.
+func HomepageInitProject(cfg HomepageConfig, framework, name, template string, logger *slog.Logger) string {
 	if name == "" {
 		name = "my-site"
 	}
@@ -409,6 +452,9 @@ func HomepageInitProject(cfg HomepageConfig, framework, name string, logger *slo
 				"path":    name,
 				"files":   []string{name + "/index.html"},
 			})
+			if template != "" {
+				applyHomepageTemplate(cfg, name, template, logger)
+			}
 			return string(out)
 
 		default:
@@ -433,6 +479,9 @@ func HomepageInitProject(cfg HomepageConfig, framework, name string, logger *slo
 					"path":    name,
 					"output":  strings.TrimSpace(string(out)),
 				})
+				if template != "" {
+					applyHomepageTemplate(cfg, name, template, logger)
+				}
 				return string(res)
 			}
 			// Neither Docker nor npx available
@@ -460,17 +509,24 @@ func HomepageInitProject(cfg HomepageConfig, framework, name string, logger *slo
 		}
 	}
 
+	// Apply template if requested
+	if template != "" {
+		applyHomepageTemplate(cfg, name, template, logger)
+	}
+
 	return scaffoldResult
 }
 
 // HomepageBuild runs the build command in the project directory.
 // Plain HTML projects (no package.json) are detected and skipped — they need no build step.
 func HomepageBuild(cfg HomepageConfig, projectDir string, logger *slog.Logger) string {
-	if strings.Contains(projectDir, "..") {
-		return errJSON("Path traversal detected")
-	}
 	if projectDir == "" {
 		projectDir = "."
+	}
+	if projectDir != "." {
+		if err := sanitizeProjectDir(projectDir); err != nil {
+			return errJSON("%v", err)
+		}
 	}
 	logger.Info("[Homepage] Build", "dir", projectDir)
 
@@ -490,11 +546,13 @@ func HomepageBuild(cfg HomepageConfig, projectDir string, logger *slog.Logger) s
 
 // HomepageInstallDeps installs npm packages inside the container.
 func HomepageInstallDeps(cfg HomepageConfig, projectDir string, packages []string, logger *slog.Logger) string {
-	if strings.Contains(projectDir, "..") {
-		return errJSON("Path traversal detected")
-	}
 	if projectDir == "" {
 		projectDir = "."
+	}
+	if projectDir != "." {
+		if err := sanitizeProjectDir(projectDir); err != nil {
+			return errJSON("%v", err)
+		}
 	}
 	cmd := "npm install"
 	if len(packages) > 0 {
@@ -526,6 +584,9 @@ func HomepageLighthouse(cfg HomepageConfig, url string, logger *slog.Logger) str
 	if url == "" {
 		return errJSON("url is required for lighthouse audit")
 	}
+	if !isValidHomepageURL(url) {
+		return errJSON("invalid URL: must be a valid http:// or https:// URL without shell metacharacters")
+	}
 	logger.Info("[Homepage] Lighthouse", "url", url)
 	dockerCfg := DockerConfig{Host: cfg.DockerHost}
 	// Run lighthouse with JSON output, extract key scores
@@ -537,6 +598,9 @@ func HomepageLighthouse(cfg HomepageConfig, url string, logger *slog.Logger) str
 func HomepageScreenshot(cfg HomepageConfig, url, viewport string, logger *slog.Logger) string {
 	if url == "" {
 		return errJSON("url is required for screenshot")
+	}
+	if !isValidHomepageURL(url) {
+		return errJSON("invalid URL: must be a valid http:// or https:// URL without shell metacharacters")
 	}
 	if viewport == "" {
 		viewport = "1280x720"
@@ -568,11 +632,13 @@ const {chromium} = require('playwright');
 
 // HomepageLint runs ESLint in the project directory.
 func HomepageLint(cfg HomepageConfig, projectDir string, logger *slog.Logger) string {
-	if strings.Contains(projectDir, "..") {
-		return errJSON("Path traversal detected")
-	}
 	if projectDir == "" {
 		projectDir = "."
+	}
+	if projectDir != "." {
+		if err := sanitizeProjectDir(projectDir); err != nil {
+			return errJSON("%v", err)
+		}
 	}
 	logger.Info("[Homepage] Lint", "dir", projectDir)
 	dockerCfg := DockerConfig{Host: cfg.DockerHost}

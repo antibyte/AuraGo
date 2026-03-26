@@ -40,5 +40,12 @@
   "config.devices.col_port": "ポート",
   "config.devices.col_mac": "マック",
   "config.devices.col_tags": "タグ",
+  "config.devices.find_mac": "MACを検索",
+  "config.devices.find_mac_tooltip": "ローカルARPテーブルからMACアドレスを検索します（デバイスがアクティブである必要があります）",
+  "config.devices.find_mac_no_ip": "最初にIPアドレスを入力してください。",
+  "config.devices.find_mac_searching": "ARPテーブルを検索中…",
+  "config.devices.find_mac_found": "見つかりました: {mac}",
+  "config.devices.find_mac_not_found": "ARPキャッシュに見つかりません。デバイスが到達可能であることを確認してください。",
+  "config.devices.find_mac_error": "検索に失敗しました。",
   "config.devices.delete_failed": "削除に失敗しました"
 }

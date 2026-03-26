@@ -406,8 +406,8 @@ func dispatchServices(ctx context.Context, tc ToolCall, cfg *config.Config, logg
 			logger.Info("LLM requested homepage exec", "cmd", tc.Command)
 			return "Tool Output: " + tools.HomepageExec(homepageCfg, tc.Command, logger)
 		case "init_project":
-			logger.Info("LLM requested homepage init_project", "framework", tc.Framework, "name", tc.Name)
-			result := tools.HomepageInitProject(homepageCfg, tc.Framework, tc.Name, logger)
+			logger.Info("LLM requested homepage init_project", "framework", tc.Framework, "name", tc.Name, "template", tc.Template)
+			result := tools.HomepageInitProject(homepageCfg, tc.Framework, tc.Name, tc.Template, logger)
 			// Auto-register project in homepage registry
 			if homepageRegistryDB != nil && tc.Name != "" {
 				tools.RegisterProject(homepageRegistryDB, tools.HomepageProject{
@@ -419,8 +419,13 @@ func dispatchServices(ctx context.Context, tc ToolCall, cfg *config.Config, logg
 			}
 			return "Tool Output: " + result
 		case "build":
-			logger.Info("LLM requested homepage build", "dir", tc.ProjectDir)
-			result := tools.HomepageBuild(homepageCfg, tc.ProjectDir, logger)
+			logger.Info("LLM requested homepage build", "dir", tc.ProjectDir, "auto_fix", tc.AutoFix)
+			var result string
+			if tc.AutoFix {
+				result = tools.HomepageBuildWithAutoFix(homepageCfg, tc.ProjectDir, logger)
+			} else {
+				result = tools.HomepageBuild(homepageCfg, tc.ProjectDir, logger)
+			}
 			// Auto-log edit in homepage registry
 			if homepageRegistryDB != nil && tc.ProjectDir != "" {
 				if proj, err := tools.GetProjectByDir(homepageRegistryDB, tc.ProjectDir); err == nil {
@@ -503,6 +508,13 @@ func dispatchServices(ctx context.Context, tc ToolCall, cfg *config.Config, logg
 		case "webserver_status":
 			logger.Info("LLM requested homepage webserver_status")
 			return "Tool Output: " + tools.HomepageWebServerStatus(homepageCfg, logger)
+		case "tunnel":
+			logger.Info("LLM requested homepage tunnel", "port", tc.Port)
+			port := tc.Port
+			if port <= 0 {
+				port = 3000
+			}
+			return "Tool Output: " + tools.HomepageTunnel(homepageCfg, port, logger)
 		case "publish_local":
 			logger.Info("LLM requested homepage publish_local")
 			return "Tool Output: " + tools.HomepagePublishToLocal(homepageCfg, tc.ProjectDir, logger)
@@ -540,8 +552,39 @@ func dispatchServices(ctx context.Context, tc ToolCall, cfg *config.Config, logg
 				}
 			}
 			return "Tool Output: " + result
+		// ─── Git operations ─────────────────────────────────────
+		case "git_init":
+			logger.Info("LLM requested homepage git_init", "dir", tc.ProjectDir)
+			return "Tool Output: " + tools.HomepageGitInit(homepageCfg, tc.ProjectDir, logger)
+		case "git_commit":
+			msg := tc.GitMessage
+			if msg == "" {
+				msg = tc.Message
+			}
+			logger.Info("LLM requested homepage git_commit", "dir", tc.ProjectDir, "message", msg)
+			return "Tool Output: " + tools.HomepageGitCommit(homepageCfg, tc.ProjectDir, msg, logger)
+		case "git_status":
+			logger.Info("LLM requested homepage git_status", "dir", tc.ProjectDir)
+			return "Tool Output: " + tools.HomepageGitStatus(homepageCfg, tc.ProjectDir, logger)
+		case "git_diff":
+			logger.Info("LLM requested homepage git_diff", "dir", tc.ProjectDir)
+			return "Tool Output: " + tools.HomepageGitDiff(homepageCfg, tc.ProjectDir, logger)
+		case "git_log":
+			count := tc.Count
+			if count <= 0 {
+				count = 10
+			}
+			logger.Info("LLM requested homepage git_log", "dir", tc.ProjectDir, "count", count)
+			return "Tool Output: " + tools.HomepageGitLog(homepageCfg, tc.ProjectDir, count, logger)
+		case "git_rollback":
+			count := tc.Count
+			if count <= 0 {
+				count = 1
+			}
+			logger.Info("LLM requested homepage git_rollback", "dir", tc.ProjectDir, "steps", count)
+			return "Tool Output: " + tools.HomepageGitRollback(homepageCfg, tc.ProjectDir, count, logger)
 		default:
-			return `Tool Output: {"status":"error","message":"Unknown homepage operation. Use: init, start, stop, status, rebuild, destroy, exec, init_project, build, install_deps, lighthouse, screenshot, lint, list_files, read_file, write_file, optimize_images, dev, deploy, deploy_netlify, test_connection, webserver_start, webserver_stop, webserver_status, publish_local"}`
+			return `Tool Output: {"status":"error","message":"Unknown homepage operation. Use: init, start, stop, status, rebuild, destroy, exec, init_project, build, install_deps, lighthouse, screenshot, lint, list_files, read_file, write_file, optimize_images, dev, deploy, deploy_netlify, test_connection, webserver_start, webserver_stop, webserver_status, publish_local, tunnel, git_init, git_commit, git_status, git_diff, git_log, git_rollback"}`
 		}
 
 	case "webdav", "webdav_storage":
