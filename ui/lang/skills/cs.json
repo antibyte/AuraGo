@@ -74,6 +74,7 @@
   "skills.vault_modal_desc": "Vyberte tajemství trezoru, která tato dovednost obdrží za běhu jako proměnné prostředí.",
   "skills.vault_modal_empty": "V trezoru nejsou žádná dostupná tajemství.",
   "skills.vault_modal_save": "Uložit",
+  "skills.vault_none": "Žádná tajemství přiřazena",
   "skills.vault_save_success": "Tajemství aktualizována",
   "skills.scan_complete": "Skenování dokončeno"
 }

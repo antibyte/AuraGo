@@ -74,6 +74,7 @@
   "skills.vault_modal_desc": "Sélectionnez les secrets du coffre que cette compétence recevra comme variables d'environnement à l'exécution.",
   "skills.vault_modal_empty": "Aucun secret disponible dans le coffre.",
   "skills.vault_modal_save": "Enregistrer",
+  "skills.vault_none": "Aucun secret assigné",
   "skills.vault_save_success": "Secrets mis à jour",
   "skills.scan_complete": "Analyse terminée"
 }

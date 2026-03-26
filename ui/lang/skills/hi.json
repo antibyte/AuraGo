@@ -74,6 +74,7 @@
   "skills.vault_modal_desc": "उन वॉल्ट रहस्यों का चयन करें जो यह कौशल रनटाइम पर पर्यावरण चर के रूप में प्राप्त करेगा।",
   "skills.vault_modal_empty": "वॉल्ट में कोई रहस्य उपलब्ध नहीं है।",
   "skills.vault_modal_save": "सहेजें",
+  "skills.vault_none": "कोई रहस्य असाइन नहीं",
   "skills.vault_save_success": "रहस्य अपडेट किए गए",
   "skills.scan_complete": "स्कैन पूर्ण"
 }

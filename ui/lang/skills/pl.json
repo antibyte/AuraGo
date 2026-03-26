@@ -74,6 +74,7 @@
   "skills.vault_modal_desc": "Wybierz sekrety sejfu, które ta umiejętność otrzyma jako zmienne środowiskowe w czasie działania.",
   "skills.vault_modal_empty": "Brak dostępnych sekretów w sejfie.",
   "skills.vault_modal_save": "Zapisz",
+  "skills.vault_none": "Brak przypisanych sekretów",
   "skills.vault_save_success": "Sekrety zaktualizowane",
   "skills.scan_complete": "Skanowanie zakończone"
 }

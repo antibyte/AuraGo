@@ -120,8 +120,10 @@ function renderCard(skill) {
     }
 
     let vaultRow = '';
-    if (vaultKeys.length > 0) {
-        const keyTags = vaultKeys.map(k => `<code class="sk-vault-key-tag">${esc(k)}</code>`).join('');
+    {
+        const keyTags = vaultKeys.length > 0
+            ? vaultKeys.map(k => `<code class="sk-vault-key-tag">${esc(k)}</code>`).join('')
+            : `<span class="sk-vault-none">${t('skills.vault_none') || 'No secrets assigned'}</span>`;
         vaultRow = `<div class="sk-card-vault">
             <span class="sk-vault-icon" title="${t('skills.vault_keys_label') || 'Vault Keys'}">🔑</span>
             <span class="sk-vault-keys">${keyTags}</span>

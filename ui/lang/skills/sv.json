@@ -74,6 +74,7 @@
   "skills.vault_modal_desc": "Välj de vault-hemligheter som denna färdighet erhåller som miljövariabler vid körning.",
   "skills.vault_modal_empty": "Inga hemligheter tillgängliga i vault.",
   "skills.vault_modal_save": "Spara",
+  "skills.vault_none": "Inga hemligheter tilldelade",
   "skills.vault_save_success": "Hemligheter uppdaterade",
   "skills.scan_complete": "Skanning klar"
 }

@@ -74,6 +74,7 @@
   "skills.vault_modal_desc": "Selecteer de vault-geheimen die deze vaardigheid tijdens uitvoering als omgevingsvariabelen ontvangt.",
   "skills.vault_modal_empty": "Geen geheimen beschikbaar in de vault.",
   "skills.vault_modal_save": "Opslaan",
+  "skills.vault_none": "Geen secrets toegewezen",
   "skills.vault_save_success": "Geheimen bijgewerkt",
   "skills.scan_complete": "Scan voltooid"
 }

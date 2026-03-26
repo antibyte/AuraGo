@@ -74,6 +74,7 @@
   "skills.vault_modal_desc": "选择此技能在运行时将作为环境变量接收的保险库密钥。",
   "skills.vault_modal_empty": "保险库中没有可用的密钥。",
   "skills.vault_modal_save": "保存",
+  "skills.vault_none": "未分配密钥",
   "skills.vault_save_success": "密钥已更新",
   "skills.scan_complete": "扫描完成"
 }
