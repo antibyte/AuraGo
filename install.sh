@@ -489,6 +489,34 @@ if command -v systemctl >/dev/null 2>&1; then
             ok "Removed $ENV_FILE (no longer needed — key is in $CREDENTIAL_FILE)."
         fi
 
+        # ── Determine service user ─────────────────────────────────────────
+        # When invoked via 'sudo ./install.sh', SUDO_USER is the real user.
+        # When run directly as a non-root user, use the current user.
+        # Avoid running the service as root if at all possible.
+        if [ -n "${SUDO_USER:-}" ]; then
+            SERVICE_USER="$SUDO_USER"
+            SERVICE_GROUP="$(id -gn "$SUDO_USER")"
+        elif [ "$(id -u)" -ne 0 ]; then
+            SERVICE_USER="$(id -un)"
+            SERVICE_GROUP="$(id -gn)"
+        else
+            # Running directly as root — derive user from install directory owner
+            _dir_owner=$(stat -c '%U' "$INSTALL_DIR" 2>/dev/null || echo '')
+            if [ -n "$_dir_owner" ] && [ "$_dir_owner" != "root" ]; then
+                SERVICE_USER="$_dir_owner"
+                SERVICE_GROUP=$(id -gn "$_dir_owner" 2>/dev/null || echo "$_dir_owner")
+            else
+                SERVICE_USER="root"
+                SERVICE_GROUP="root"
+                warn "Could not determine a non-root service user. Service will run as root."
+                warn "For better security, create a dedicated user: useradd -r -s /bin/false aurago"
+            fi
+        fi
+        ok "Service will run as: ${SERVICE_USER}:${SERVICE_GROUP}"
+
+        # Ensure install directory and data are owned by the service user
+        $SUDO chown -R "${SERVICE_USER}:${SERVICE_GROUP}" "${INSTALL_DIR}" 2>/dev/null || true
+
         # ── Create systemd unit ──────────────────────────────────────────
         $SUDO tee /etc/systemd/system/${SYSTEMD_SERVICE}.service > /dev/null <<EOF
 [Unit]
@@ -498,6 +526,8 @@ StartLimitIntervalSec=0
 
 [Service]
 Type=simple
+User=${SERVICE_USER}
+Group=${SERVICE_GROUP}
 WorkingDirectory=${INSTALL_DIR}
 ExecStart=${INSTALL_DIR}/bin/aurago_linux --config ${INSTALL_DIR}/config.yaml
 Restart=on-failure

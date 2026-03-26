@@ -998,6 +998,33 @@ fi
 chmod +x "$DIR/bin/"* 2>/dev/null || sudo chmod +x "$DIR/bin/"* 2>/dev/null || true
 chmod +x "$DIR/"*.sh 2>/dev/null || sudo chmod +x "$DIR/"*.sh 2>/dev/null || true
 
+# ── Patch service file: ensure User= / Group= are set (migration for root-installs) ──
+SVC_FILE="/etc/systemd/system/aurago.service"
+if [ -f "$SVC_FILE" ] && ! grep -q '^User=' "$SVC_FILE"; then
+    # Detect the right user: prefer install directory owner, then SUDO_USER
+    _svc_user=""
+    _dir_owner=$(stat -c '%U' "$DIR" 2>/dev/null || echo '')
+    if [ -n "$_dir_owner" ] && [ "$_dir_owner" != "root" ]; then
+        _svc_user="$_dir_owner"
+    elif [ -n "${SUDO_USER:-}" ]; then
+        _svc_user="$SUDO_USER"
+    fi
+
+    if [ -n "$_svc_user" ]; then
+        _svc_group=$(id -gn "$_svc_user" 2>/dev/null || echo "$_svc_user")
+        warn "Service file missing User= — was running as root. Patching to User=${_svc_user}..."
+        # Insert User=/Group= after Type= line
+        sudo sed -i "/^Type=/a User=${_svc_user}\nGroup=${_svc_group}" "$SVC_FILE"
+        # Fix ownership of data and bin so the new user can write them
+        sudo chown -R "${_svc_user}:${_svc_group}" "${DIR}/data" "${DIR}/bin" "${DIR}/agent_workspace" 2>/dev/null || true
+        sudo systemctl daemon-reload
+        ok "Service patched: now runs as ${_svc_user}:${_svc_group}. Data directory re-owned."
+    else
+        warn "Service file has no User= and could not determine a non-root user."
+        warn "Consider adding 'User=<youruser>' to $SVC_FILE manually."
+    fi
+fi
+
 # ── Service restart ────────────────────────────────────────────────────
 section "Restart"
 
