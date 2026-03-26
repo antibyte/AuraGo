@@ -199,11 +199,14 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	var currentLogger *slog.Logger = logger
 	lastActivity := time.Now()
 	lastTool := ""
-	recentTools := make([]string, 0, 5) // Track last 5 tools for lazy schema injection
-	explicitTools := make([]string, 0)  // Explicit tool guides requested via <workflow_plan> tag
-	workflowPlanCount := 0              // Prevent infinite workflow_plan loops
-	lastResponseWasTool := false        // True when the previous iteration was a tool call; suppresses announcement detector on completion messages
-	pendingTCs := make([]ToolCall, 0)   // Queued tool calls from multi-tool responses (processed without a new LLM call)
+	lastToolCallSig := ""                     // Fingerprint of the last tool call for consecutive duplicate detection
+	duplicateToolCount := 0                   // Consecutive identical tool call counter
+	toolCallFrequency := make(map[string]int) // Counts total calls per sig within a single agent run
+	recentTools := make([]string, 0, 5)       // Track last 5 tools for lazy schema injection
+	explicitTools := make([]string, 0)        // Explicit tool guides requested via <workflow_plan> tag
+	workflowPlanCount := 0                    // Prevent infinite workflow_plan loops
+	lastResponseWasTool := false              // True when the previous iteration was a tool call; suppresses announcement detector on completion messages
+	pendingTCs := make([]ToolCall, 0)         // Queued tool calls from multi-tool responses (processed without a new LLM call)
 
 	// Context compression: tracks message count at last compression for cooldown
 	lastCompressionMsg := 0
@@ -1341,16 +1344,30 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				return false
 			}
 			// A response ending with '?' is a conversational reply, not an action announcement
-			if strings.HasSuffix(strings.TrimRight(strings.TrimSpace(content), "\"'"), "?") {
+			trimmedContent := strings.TrimSpace(content)
+			if strings.HasSuffix(strings.TrimRight(trimmedContent, "\"'"), "?") {
 				return false
 			}
 			// If the LLM just completed a tool call, a text response is a completion confirmation, not an announcement
 			if lastResponseWasTool {
 				return false
 			}
-			lc := strings.ToLower(content)
+			// Language-agnostic check: if the user message ends with '?' it's a question and
+			// the LLM is expected to answer conversationally.
+			if lastUserMsg != "" && strings.HasSuffix(strings.TrimSpace(lastUserMsg), "?") {
+				return false
+			}
+			// Core heuristic (language-agnostic): announcement phrases only count when they appear
+			// near the START of the response (first 250 chars). A phrase buried in a longer
+			// explanation paragraph is NOT an action announcement — it's part of a conversational
+			// clarification. This works for all 15 supported languages without per-language lists.
+			lc := strings.ToLower(trimmedContent)
+			leadIn := lc
+			if len(leadIn) > 250 {
+				leadIn = leadIn[:250]
+			}
 			for _, phrase := range announcementPhrases {
-				if strings.Contains(lc, phrase) {
+				if strings.Contains(leadIn, phrase) {
 					return true
 				}
 			}
@@ -1473,6 +1490,38 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 			broker.Send("tool_call", sseToolContent)
 			broker.Send("tool_start", tc.Action)
+
+			// Duplicate tool call detection: if the agent is about to run the exact same
+			// tool with the same key parameter again (regardless of error status), break the
+			// loop. Two complementary checks:
+			// 1. Consecutive: same sig back-to-back (catches immediate re-attempts)
+			// 2. Frequency: same sig called >= 3 times in the same run (catches interleaved loops)
+			toolSig := tc.Action + "|" + tc.Command + "|" + tc.Code + "|" + tc.Operation + "|" + tc.Path
+			if toolSig == lastToolCallSig && toolSig != tc.Action+"|||||" {
+				duplicateToolCount++
+			} else {
+				duplicateToolCount = 0
+				lastToolCallSig = toolSig
+			}
+			toolCallFrequency[toolSig]++
+			freqCount := toolCallFrequency[toolSig]
+			if (duplicateToolCount >= 2 || freqCount >= 3) && toolSig != tc.Action+"|||||" {
+				currentLogger.Warn("[Sync] Duplicate tool call detected — circuit breaker triggered",
+					"action", tc.Action, "consecutive", duplicateToolCount, "total", freqCount)
+				abortMsg := fmt.Sprintf(
+					"CIRCUIT BREAKER: You are calling '%s' with the exact same parameters for the %d. time. "+
+						"Repeating it will produce the same result. Do NOT call it again. "+
+						"Either try a completely DIFFERENT approach (different command, different tool) or "+
+						"inform the user about the situation and ask what they want to do next.",
+					tc.Action, freqCount)
+				req.Messages = append(req.Messages,
+					openai.ChatCompletionMessage{Role: openai.ChatMessageRoleSystem, Content: abortMsg})
+				duplicateToolCount = 0
+				lastToolCallSig = ""
+				delete(toolCallFrequency, toolSig)
+				lastResponseWasTool = false
+				continue
+			}
 
 			if tc.Action == "execute_python" {
 				flags.RequiresCoding = true

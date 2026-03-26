@@ -200,6 +200,12 @@ func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 			stdout, stderr, pyErr = tools.ExecutePython(tc.Code, cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir)
 		}
 
+		// Always scrub sensitive values from Python output, regardless of whether
+		// vault keys were explicitly requested (defence-in-depth: the LLM may have
+		// recalled sensitive values from its context window and embedded them in code)
+		stdout = security.Scrub(stdout)
+		stderr = security.Scrub(stderr)
+
 		var sb strings.Builder
 		sb.WriteString("Tool Output:\n")
 		if rejectedInfo != "" {

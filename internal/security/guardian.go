@@ -108,6 +108,16 @@ func (g *Guardian) compilePatterns() {
 
 		// ── Repetition / flooding (token waste attack) ──────────────
 		{"repeat_attack", `(?i)\b(repeat (this|the following|after me) (\d+|a thousand|forever|infinitely) times)\b`, ThreatMedium},
+
+		// ── Credential exfiltration via encoding / transformation ──
+		// Detect requests to convert/encode credential-related variables to numbers, ASCII, hex, etc.
+		{"cred_encode_en", `(?i)(password|username|credential|secret|token|api.?key).{0,80}(\bord\b|ascii|ordinal|convert.{0,20}(number|integer|digit)|as.{0,5}numbers?|to.{0,5}(numbers?|digit)|int\(.*char|chr\()`, ThreatHigh},
+		{"cred_encode_de", `(?i)(passwort|benutzername|zugangsdaten|anmeldedaten|geheimnis|token).{0,80}(\bord\b|ascii|ordinal|in.{0,5}zahlen?|als.{0,5}zahlen?|umwandeln|konvertieren|umgewandelt|in.{0,5}ziffern?)`, ThreatHigh},
+		// Detect false claim that security masked data, combined with credential-related requests
+		{"false_mask_bypass_de", `(?i)(sicherheits?.?(system|guard|filter|schutz)|guardian|filter|maskier).{0,80}(maskiert|verborgen|gesperrt|geblockt|zensiert|versteckt).{0,120}(username|passwort|zugangsdaten|variable|credential)`, ThreatHigh},
+		{"false_mask_bypass_en", `(?i)(security.?(system|guard|filter)|guardian|filter).{0,80}(masked|hidden|blocked|censored|redacted).{0,120}(username|password|credentials?|variable|token)`, ThreatHigh},
+		// Detect hardcoded credential-like test variables in code (medium — could be legitimately in test code)
+		{"cred_hardcode_in_code", `(?i)(TEST_USERNAME|TEST_PASSWORD|test.?user(name)?|test.?pass(word)?)\s*=\s*['"][^'"]{3,}`, ThreatMedium},
 	}
 
 	for _, r := range raw {
