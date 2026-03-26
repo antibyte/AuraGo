@@ -3,7 +3,7 @@
 
 // ── State ────────────────────────────────────
 let currentStep = 0;
-const totalSteps = 3;
+const totalSteps = 4;
 let saving = false;
 
 // ── Load Personality Profiles on startup ─────
@@ -544,6 +544,122 @@ function buildProviderEntries() {
     return providers;
 }
 
+// ── Build Trust Level Patch ──────────────────
+// Returns a config patch based on the selected trust level (1-4).
+// Base tools (Memory, Knowledge Graph, Secrets Vault, Scheduler, Notes,
+// Missions, Inventory, Memory Maintenance, Journal, Contacts) are always
+// enabled at every level — they are harmless and essential.
+function buildTrustLevelPatch(level) {
+    const n = parseInt(level, 10) || 1;
+
+    // Base tools — always enabled at all levels
+    const baseTools = {
+        memory:             { enabled: true, readonly: n <= 1 },
+        knowledge_graph:    { enabled: true, readonly: n <= 1 },
+        secrets_vault:      { enabled: true, readonly: n <= 1 },
+        scheduler:          { enabled: true, readonly: n <= 1 },
+        notes:              { enabled: true, readonly: n <= 1 },
+        missions:           { enabled: true, readonly: n <= 1 },
+        inventory:          { enabled: true },
+        memory_maintenance: { enabled: true },
+        journal:            { enabled: true, readonly: n <= 1 },
+        contacts:           { enabled: true },
+    };
+
+    // Extended tools — vary by level
+    const extTools = {
+        web_scraper:              { enabled: n >= 2 },
+        web_capture:              { enabled: n >= 2 },
+        network_ping:             { enabled: true },
+        network_scan:             { enabled: n >= 2 },
+        stop_process:             { enabled: n >= 3 },
+        form_automation:          { enabled: n >= 3 },
+        wol:                      { enabled: n >= 3 },
+        upnp_scan:                { enabled: n >= 3 },
+        skill_manager:            { enabled: n >= 2, readonly: n <= 2 },
+        python_secret_injection:  { enabled: n >= 3 },
+        document_creator:         { enabled: true },
+    };
+
+    const patch = {
+        agent: {
+            allow_shell:            n >= 3,
+            allow_python:           n >= 3,
+            allow_filesystem_write: n >= 3,
+            allow_network_requests: n >= 3,
+            allow_remote_shell:     n >= 4,
+            allow_self_update:      n >= 4,
+            allow_mcp:              n >= 4,
+            sudo_enabled:           n >= 4,
+        },
+        tools: Object.assign({}, baseTools, extTools),
+        sandbox: {
+            enabled:         n >= 2,
+            network_enabled: n >= 3,
+        },
+        shell_sandbox: {
+            enabled: n >= 3,
+        },
+        homepage: {
+            enabled:                    n >= 3,
+            allow_deploy:               n >= 4,
+            allow_container_management: n >= 3,
+            allow_local_server:         n >= 4,
+        },
+        co_agents: {
+            enabled: n >= 3,
+        },
+        // Integration readonly flags — true for L1/L2, false for L3/L4
+        discord:          { readonly: n <= 2 },
+        email:            { readonly: n <= 2 },
+        home_assistant:   { readonly: n <= 2 },
+        fritzbox:         { readonly: n <= 2 },
+        telnyx:           { readonly: n <= 2 },
+        meshcentral:      { readonly: n <= 2 },
+        docker:           { readonly: n <= 2 },
+        proxmox:          { readonly: n <= 2 },
+        ollama:           { readonly: n <= 2 },
+        ansible:          { readonly: n <= 2 },
+        webdav:           { readonly: n <= 2 },
+        koofr:            { readonly: n <= 2 },
+        s3:               { readonly: n <= 2 },
+        paperless_ngx:    { readonly: n <= 2 },
+        onedrive:         { readonly: n <= 2 },
+        truenas:          { readonly: n <= 2, allow_destructive: n >= 4 },
+        mqtt:             { readonly: n <= 2 },
+        adguard:          { readonly: n <= 2 },
+        tailscale:        { readonly: n <= 2 },
+        cloudflare_tunnel:{ readonly: n <= 2 },
+        github:           { readonly: n <= 2 },
+        webhooks:         { readonly: n <= 2 },
+        n8n:              { readonly: n <= 2 },
+        google_workspace: { readonly: n <= 2 },
+        netlify:          { readonly: n <= 2 },
+        invasion_control: { readonly: n <= 2 },
+        remote_control:   { readonly: n <= 2 },
+    };
+
+    // Level 4: enable lifeboat self-update
+    if (n >= 4) {
+        patch.maintenance = { lifeboat_enabled: true };
+    }
+
+    return patch;
+}
+
+// ── Deep merge helper for trust level patch ──
+function deepMergePatch(target, source) {
+    for (const key of Object.keys(source)) {
+        if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+            if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+            deepMergePatch(target[key], source[key]);
+        } else {
+            target[key] = source[key];
+        }
+    }
+    return target;
+}
+
 // ── Build Config Patch ───────────────────────
 // Returns the config patch with provider references (no inline API keys/URLs).
 // Provider entries carry all connection details separately.
@@ -594,6 +710,13 @@ function buildConfigPatch() {
         if (v2Model) {
             patch.agent.personality_v2_provider = 'personality-v2';
         }
+    }
+
+    // Trust level (Mutprobe): merge permission config
+    const trustRadio = document.querySelector('input[name="trust-level"]:checked');
+    if (trustRadio) {
+        const trustPatch = buildTrustLevelPatch(trustRadio.value);
+        deepMergePatch(patch, trustPatch);
     }
 
     return patch;
@@ -794,6 +917,18 @@ function applyI18N() {
     // Web Config
     el('lbl-web-config').textContent = t('setup.step2_web_config_label');
     el('desc-web-config').textContent = t('setup.step2_web_config_desc');
+    // Step 3 — Mutprobe (Trust Level)
+    el('badge-step3').textContent = t('setup.step3_badge');
+    el('title-step3').textContent = t('setup.step3_title');
+    el('desc-step3').textContent = t('setup.step3_description');
+    el('trust-title-1').textContent = t('setup.step3_level1_title');
+    el('trust-desc-1').textContent = t('setup.step3_level1_desc');
+    el('trust-title-2').textContent = t('setup.step3_level2_title');
+    el('trust-desc-2').textContent = t('setup.step3_level2_desc');
+    el('trust-title-3').textContent = t('setup.step3_level3_title');
+    el('trust-desc-3').textContent = t('setup.step3_level3_desc');
+    el('trust-title-4').textContent = t('setup.step3_level4_title');
+    el('trust-desc-4').textContent = t('setup.step3_level4_desc');
     // Success
     el('success-title').textContent = t('setup.success_title');
     el('success-desc').innerHTML = t('setup.success_description').replace(/\n/g, '<br>');

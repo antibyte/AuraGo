@@ -737,6 +737,87 @@
     opacity: 0.4;
 }
 
+/* ── Trust Level Cards (Mutprobe) ───────────── */
+.badge-trust {
+    background: rgba(139, 92, 246, 0.12);
+    color: #a78bfa;
+    border: 1px solid rgba(139, 92, 246, 0.2);
+}
+
+.trust-level-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+}
+
+.trust-level-card {
+    position: relative;
+    cursor: pointer;
+    display: block;
+}
+
+.trust-level-card input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+}
+
+.trust-card-inner {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 1rem;
+    border-radius: 14px;
+    border: 1.5px solid var(--border-subtle);
+    background: var(--bg-glass);
+    transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+    min-height: 100%;
+}
+
+.trust-level-card:hover .trust-card-inner {
+    border-color: var(--text-secondary);
+}
+
+.trust-level-card input[type="radio"]:checked ~ .trust-card-inner {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-dim), 0 4px 16px rgba(45, 212, 191, 0.15);
+    background: rgba(45, 212, 191, 0.04);
+}
+
+.trust-card-icon {
+    font-size: 1.5rem;
+    flex-shrink: 0;
+    line-height: 1;
+    margin-top: 0.1rem;
+}
+
+.trust-card-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.trust-card-title {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+    line-height: 1.3;
+}
+
+.trust-card-desc {
+    font-size: var(--text-xs);
+    color: var(--text-secondary);
+    line-height: 1.45;
+}
+
+@media (max-width: 560px) {
+    .trust-level-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 /* ══════════════════════════════════════════════════════════════
    LIGHT THEME OVERRIDES
    ══════════════════════════════════════════════════════════════ */
@@ -799,6 +880,21 @@
 
 [data-theme="light"] .btn-next:hover {
     box-shadow: 0 10px 24px rgba(15, 118, 110, 0.22);
+}
+
+[data-theme="light"] .trust-level-card input[type="radio"]:checked ~ .trust-card-inner {
+    box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.14), 0 4px 16px rgba(15, 118, 110, 0.1);
+    background: rgba(15, 118, 110, 0.04);
+}
+
+[data-theme="light"] .trust-level-card:hover .trust-card-inner {
+    border-color: rgba(15, 118, 110, 0.3);
+}
+
+[data-theme="light"] .badge-trust {
+    background: rgba(109, 40, 217, 0.1);
+    color: #7c3aed;
+    border-color: rgba(109, 40, 217, 0.18);
 }
 
 [data-theme="light"] .btn-back:hover {

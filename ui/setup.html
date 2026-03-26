@@ -72,6 +72,8 @@
                 <div class="step-dot" data-step="1" onclick="goToStep(1)"></div>
                 <div class="step-line" id="line-1-2"></div>
                 <div class="step-dot" data-step="2" onclick="goToStep(2)"></div>
+                <div class="step-line" id="line-2-3"></div>
+                <div class="step-dot" data-step="3" onclick="goToStep(3)"></div>
             </div>
 
             <!-- ═══ Section 1: Minimum Config ═══ -->
@@ -383,6 +385,87 @@
                     <label class="toggle-switch">
                         <input type="checkbox" id="web-config-enabled" checked>
                         <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- ═══ Section 4: Mutprobe (Trust Level) ═══ -->
+            <div class="setup-section" id="step-3">
+                <div class="section-header">
+                    <div id="badge-step3" class="section-badge badge-trust">
+                        <script>document.write(t('setup.step3_badge'))</script>
+                    </div>
+                    <h2 id="title-step3" class="section-title">
+                        <script>document.write(t('setup.step3_title'))</script>
+                    </h2>
+                    <p id="desc-step3" class="section-desc">
+                        <script>document.write(t('setup.step3_description'))</script>
+                    </p>
+                </div>
+
+                <div class="trust-level-grid">
+                    <!-- Level 1: Minimal -->
+                    <label class="trust-level-card" id="trust-card-1">
+                        <input type="radio" name="trust-level" value="1" checked>
+                        <div class="trust-card-inner">
+                            <div class="trust-card-icon">🛡️</div>
+                            <div class="trust-card-text">
+                                <div class="trust-card-title" id="trust-title-1">
+                                    <script>document.write(t('setup.step3_level1_title'))</script>
+                                </div>
+                                <div class="trust-card-desc" id="trust-desc-1">
+                                    <script>document.write(t('setup.step3_level1_desc'))</script>
+                                </div>
+                            </div>
+                        </div>
+                    </label>
+
+                    <!-- Level 2: Careful -->
+                    <label class="trust-level-card" id="trust-card-2">
+                        <input type="radio" name="trust-level" value="2">
+                        <div class="trust-card-inner">
+                            <div class="trust-card-icon">🔍</div>
+                            <div class="trust-card-text">
+                                <div class="trust-card-title" id="trust-title-2">
+                                    <script>document.write(t('setup.step3_level2_title'))</script>
+                                </div>
+                                <div class="trust-card-desc" id="trust-desc-2">
+                                    <script>document.write(t('setup.step3_level2_desc'))</script>
+                                </div>
+                            </div>
+                        </div>
+                    </label>
+
+                    <!-- Level 3: Brave -->
+                    <label class="trust-level-card" id="trust-card-3">
+                        <input type="radio" name="trust-level" value="3">
+                        <div class="trust-card-inner">
+                            <div class="trust-card-icon">🚀</div>
+                            <div class="trust-card-text">
+                                <div class="trust-card-title" id="trust-title-3">
+                                    <script>document.write(t('setup.step3_level3_title'))</script>
+                                </div>
+                                <div class="trust-card-desc" id="trust-desc-3">
+                                    <script>document.write(t('setup.step3_level3_desc'))</script>
+                                </div>
+                            </div>
+                        </div>
+                    </label>
+
+                    <!-- Level 4: YOLO -->
+                    <label class="trust-level-card" id="trust-card-4">
+                        <input type="radio" name="trust-level" value="4">
+                        <div class="trust-card-inner">
+                            <div class="trust-card-icon">🔥</div>
+                            <div class="trust-card-text">
+                                <div class="trust-card-title" id="trust-title-4">
+                                    <script>document.write(t('setup.step3_level4_title'))</script>
+                                </div>
+                                <div class="trust-card-desc" id="trust-desc-4">
+                                    <script>document.write(t('setup.step3_level4_desc'))</script>
+                                </div>
+                            </div>
+                        </div>
                     </label>
                 </div>
             </div>

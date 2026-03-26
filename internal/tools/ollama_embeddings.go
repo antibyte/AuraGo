@@ -80,19 +80,34 @@ func detectNVIDIA() (GPUInfo, bool) {
 	}, true
 }
 
+// driDeviceNodes returns only true character-device paths under /dev/dri,
+// skipping subdirectories such as by-path and by-id.
+func driDeviceNodes() []string {
+	entries, err := os.ReadDir("/dev/dri")
+	if err != nil {
+		return nil
+	}
+	var nodes []string
+	for _, e := range entries {
+		p := "/dev/dri/" + e.Name()
+		fi, err := os.Stat(p) // follows symlinks
+		if err != nil {
+			continue
+		}
+		if fi.Mode()&os.ModeDevice == 0 {
+			continue // skip directories (by-path, by-id) and other non-devices
+		}
+		nodes = append(nodes, p)
+	}
+	return nodes
+}
+
 func detectAMD() (GPUInfo, bool) {
 	// AMD ROCm uses /dev/kfd (kernel fusion driver) and /dev/dri/*.
 	if _, err := os.Stat("/dev/kfd"); err != nil {
 		return GPUInfo{}, false
 	}
-	devices := []string{"/dev/kfd"}
-	// Collect all DRI render nodes
-	entries, err := os.ReadDir("/dev/dri")
-	if err == nil {
-		for _, e := range entries {
-			devices = append(devices, "/dev/dri/"+e.Name())
-		}
-	}
+	devices := append([]string{"/dev/kfd"}, driDeviceNodes()...)
 	return GPUInfo{
 		Backend: "amd",
 		Devices: devices,
@@ -117,14 +132,9 @@ func detectIntel() (GPUInfo, bool) {
 			continue
 		}
 		if strings.TrimSpace(string(data)) == "0x8086" {
-			var devices []string
-			driEntries, _ := os.ReadDir("/dev/dri")
-			for _, d := range driEntries {
-				devices = append(devices, "/dev/dri/"+d.Name())
-			}
 			return GPUInfo{
 				Backend: "intel",
-				Devices: devices,
+				Devices: driDeviceNodes(),
 				Name:    "Intel GPU",
 			}, true
 		}
@@ -136,14 +146,7 @@ func detectIntel() (GPUInfo, bool) {
 // This covers older AMD GPUs (pre-ROCm / pre-RDNA), older integrated GPUs,
 // and any other GPU that supports Vulkan 1.2+ but not vendor-specific compute APIs.
 func detectVulkan() (GPUInfo, bool) {
-	entries, err := os.ReadDir("/dev/dri")
-	if err != nil {
-		return GPUInfo{}, false
-	}
-	var devices []string
-	for _, e := range entries {
-		devices = append(devices, "/dev/dri/"+e.Name())
-	}
+	devices := driDeviceNodes()
 	if len(devices) == 0 {
 		return GPUInfo{}, false
 	}
