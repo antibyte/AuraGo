@@ -44,6 +44,7 @@ AuraGo is a fully autonomous AI agent shipped as a single portable binary with a
 16. [Troubleshooting](16-troubleshooting.md) – Problem solving
 17. [Glossary](17-glossary.md) – Terms explained
 18. [Appendix](18-appendix.md) – Reference material
+19. [Skills](19-skills.md) – Creating custom Python skills
 
 ## Quick Navigation
 

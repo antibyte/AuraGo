@@ -529,9 +529,18 @@ server:
 
 ---
 
+## User Manual
+
+Comprehensive user guides are available in multiple languages:
+
+- **[German Manual](documentation/manual/de/README.md)** – Complete user guide in German
+- **[English Manual](documentation/manual/en/README.md)** – Complete user guide in English
+
+The manuals cover installation, configuration, all 50+ features, security settings, and troubleshooting.
+
 ## Documentation
 
-Detailed guides are available in the [`documentation/`](documentation/) folder:
+Additional technical documentation is available in the [`documentation/`](documentation/) folder:
 
 - [Configuration Reference](documentation/configuration.md)
 - [Installation Guide](documentation/installation.md)

@@ -538,7 +538,100 @@ sandbox:
 
 ---
 
-### 22. Spezialtools
+### 22. Dokumenten-Management
+
+#### Document Creator
+
+Erstelle PDF-Dokumente wie Rechnungen, Berichte und Formulare.
+
+| Tool | Funktion | Backend |
+|------|----------|---------|
+| `document_creator` | PDF-Dokumente generieren | maroto (built-in) oder Gotenberg |
+
+**Konfiguration:**
+
+```yaml
+document_creator:
+  enabled: true
+  backend: "maroto"           # "maroto" oder "gotenberg"
+  gotenberg:
+    url: "http://localhost:3000"  # Gotenberg Endpoint
+  templates_dir: "./templates"    # Vorlagen-Verzeichnis
+```
+
+**Features:**
+- **Tabellen und Listen** – Strukturierte Daten darstellen
+- **Bilder und Logos** – Firmenlogos, Signaturen
+- **Mehrseitige Dokumente** – Automatische Seitenumbrüche
+- **Vorlagen** – Wiederverwendbare Templates
+- **Barcode/QR-Code** – EAN, QR, Code128
+
+**Beispiel:**
+```
+Du: Erstelle eine Rechnung für Max Mustermann
+   Artikel: Beratung (5h x 100€), Software (1x 500€)
+Agent: 🛠️ Tool: document_creator
+       ✅ Rechnung erstellt: Rechnung_2024_001.pdf
+```
+
+---
+
+#### PDF Extractor
+
+Extrahiere Text aus PDF-Dokumenten mit optionaler LLM-Zusammenfassung.
+
+| Tool | Funktion | Besonderheit |
+|------|----------|--------------|
+| `pdf_extractor` | Text aus PDF extrahieren | OCR für gescannte PDFs |
+| `pdf_analyze` | PDF mit LLM analysieren | Zusammenfassung, Key-Points |
+
+**Konfiguration:**
+
+```yaml
+pdf_extractor:
+  enabled: true
+  ocr_enabled: true           # OCR für gescannte PDFs
+  ocr_language: "deu+eng"     # Sprachen für OCR
+  max_pages: 100              # Limit für große PDFs
+  
+  # LLM für Analyse (optional)
+  analysis:
+    enabled: true
+    provider: "openrouter"
+    model: "google/gemini-2.5-flash-lite-preview-09-2025"
+```
+
+**Beispiele:**
+```
+Du: Extrahiere den Text aus Vertrag.pdf
+Agent: 🛠️ Tool: pdf_extractor
+       📄 Text extrahiert (12 Seiten, 4500 Wörter)
+
+Du: Fasse das PDF Zusammenfassung.pdf zusammen
+Agent: 🛠️ Tool: pdf_analyze
+       📋 Zusammenfassung:
+       - Hauptthema: Quartalsbericht Q4 2024
+       - Umsatz: +15% zum Vorjahr
+       - Neue Projekte: 5 gestartet
+       - Risiken: Lieferkettenengpässe
+```
+
+**Paperless NGX Integration:**
+
+```yaml
+paperless:
+  enabled: true
+  url: "http://paperless.local:8000"
+  api_token: ""                # Wird im Vault gespeichert
+  
+  # Auto-Upload
+  auto_upload: true
+  tags: ["aurago"]
+```
+
+---
+
+### 23. Spezialtools
 
 | Tool | Funktion |
 |------|----------|
@@ -572,6 +665,67 @@ Du: Starte einen Container
 Du: Nutze das filesystem Tool, um die Datei config.yaml zu lesen
 Du: Führe ein docker_list aus
 ```
+
+---
+
+## Adaptive Tools – Intelligente Tool-Filterung
+
+**Spare Token, bleib fokussiert.** Das Adaptive Tools System analysiert den Konversationskontext und filtert verfügbare Tools intelligent, bevor sie an das LLM gesendet werden.
+
+### Funktionsweise
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│                    Adaptive Tools Flow                         │
+├────────────────────────────────────────────────────────────────┤
+│  1. User sendet Nachricht                                      │
+│  2. Kontext-Analyse: Thema wird erkannt (z.B. "Docker")        │
+│  3. Tool-Scoring: Relevanz jedes Tools wird berechnet          │
+│  4. Filterung: Unrelevante Tools werden ausgeblendet           │
+│  5. Nur relevante Tools werden an LLM gesendet                 │
+└────────────────────────────────────────────────────────────────┘
+```
+
+### Konfiguration
+
+```yaml
+agent:
+  # Adaptive Tools aktivieren
+  adaptive_tools:
+    enabled: true
+    max_tools: 20                 # Max. Anzahl Tools im Kontext
+    
+    # Kontext-Gewichtung
+    context_scoring:
+      recent_usage_weight: 0.3    # Kürzlich genutzte Tools
+      semantic_match_weight: 0.5  # Semantische Übereinstimmung
+      user_preference_weight: 0.2 # Benutzerpräferenzen
+    
+    # Immer verfügbar (von Filterung ausgeschlossen)
+    always_include:
+      - "filesystem"
+      - "execute_shell"
+      - "query_memory"
+      - "manage_memory"
+```
+
+### Vorteile
+
+| Aspekt | Ohne Adaptive Tools | Mit Adaptive Tools |
+|--------|---------------------|-------------------|
+| **Tokens** | 50+ Tools im Prompt | Nur relevante Tools |
+| **Kosten** | Höher (langer Kontext) | Niedriger |
+| **Genauigkeit** | LLM kann überfordert sein | Präzisere Tool-Wahl |
+| **Latenz** | Länger | Kürzer |
+
+### Beispiel
+
+**User:** "Starte den nginx Container neu"
+
+| Kontext | Verfügbare Tools |
+|---------|-----------------|
+| Ohne Adaptive | Alle 50+ Tools |
+| Mit Adaptive | docker_*, system_*, shell (nur Docker-relevante) |
 
 ---
 

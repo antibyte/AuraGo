@@ -51,6 +51,7 @@ AuraGo ist ein vollständig autonomer KI-Agent, der als einzelne portable Binary
 16. [Troubleshooting](16-troubleshooting.md) – Problemlösung
 17. [Glossar](17-glossar.md) – Begriffe erklärt
 18. [Anhang](18-anhang.md) – Referenzmaterial
+19. [Skills](19-skills.md) – Eigene Python-Skills erstellen
 
 ---
 

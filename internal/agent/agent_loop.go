@@ -166,6 +166,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		TelnyxEnabled:            cfg.Telnyx.Enabled,
 		AdditionalPrompt:         cfg.Agent.AdditionalPrompt,
 		MessageSource:            runCfg.MessageSource,
+		ToolsDir:                 cfg.Directories.ToolsDir,
+		SkillsDir:                cfg.Directories.SkillsDir,
 		SpecialistsAvailable:     specialistsAvailable(cfg),
 		SpecialistsStatus:        buildSpecialistsStatus(cfg),
 	}

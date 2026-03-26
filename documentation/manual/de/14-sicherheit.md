@@ -51,6 +51,148 @@ export AURAGO_MASTER_KEY="dein-generierter-key"
 
 ---
 
+## LLM Guardian – KI-gestützte Sicherheitsüberwachung
+
+Der LLM Guardian überwacht alle Aktionen des Agenten und schützt vor potenziell gefährlichen oder unerwünschten Aktionen. Er fungiert als unabhängige Sicherheitsebene zwischen dem Agenten und der Tool-Ausführung.
+
+### Funktionsweise
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     LLM Guardian Flow                       │
+├─────────────────────────────────────────────────────────────┤
+│  1. Agent generiert Tool-Call                               │
+│  2. Guardian analysiert den Call mit dediziertem LLM        │
+│  3. Risiko-Score wird berechnet (0-100)                     │
+│  4. Bei hohem Risiko: Blockierung oder Warnung              │
+│  5. Nur bei niedrigem Risiko: Tool wird ausgeführt          │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Was wird überwacht?
+
+| Kategorie | Beispiele |
+|-----------|-----------|
+| **Tool-Calls** | Gefährliche Shell-Befehle, Datenlöschung, Systemänderungen |
+| **Externe Daten** | Prompt Injection Versuche, bösartige Inhalte |
+| **Dateien** | Malware, verdächtige Anhänge |
+| **Emails** | Phishing-Versuche, Suspicious Content |
+
+### Konfiguration
+
+```yaml
+llm_guardian:
+  enabled: true              # Guardian aktivieren
+  mode: "scan"               # "scan", "block", "warn"
+  
+  # Dedizierter Provider für Guardian (empfohlen)
+  provider: "openrouter"
+  api_key: "sk-or-..."
+  base_url: "https://openrouter.ai/api/v1"
+  model: "google/gemini-2.5-flash-lite-preview-09-2025"
+  
+  # Risiko-Schwellenwerte
+  risk_thresholds:
+    low: 25                  # 0-25: Unbedenklich
+    medium: 50               # 26-50: Beobachten
+    high: 75                 # 51-75: Warnung
+    critical: 90             # 76-100: Blockieren
+  
+  # Ausnahmen (für vertrauenswürdige Operationen)
+  exceptions:
+    - "read_file"
+    - "query_memory"
+```
+
+### Modi
+
+| Modus | Beschreibung | Anwendungsfall |
+|-------|--------------|----------------|
+| `scan` | Nur protokollieren, keine Eingriffe | Monitoring, Entwicklung |
+| `warn` | Warnung im Chat anzeigen, aber ausführen | Produktion mit menschlicher Aufsicht |
+| `block` | Gefährliche Calls blockieren | Hochsichere Umgebungen |
+
+### Best Practices
+
+- Verwende einen **dedizierten Provider** für den Guardian (nicht das Haupt-LLM)
+- Wähle ein **schnelles, kostengünstiges Modell** für Echtzeit-Scans
+- Konfiguriere **Ausnahmen** für häufige, unbedenkliche Operationen
+- Überwache die **Guardian-Logs** auf verdächtige Muster
+
+---
+
+## Sudo Execution – Privilegierte Befehle
+
+AuraGo unterstützt die Ausführung von Befehlen mit erhöhten Rechten (sudo) über das `sudo` Slash-Command oder automatisch bei Bedarf.
+
+### Sicherheitskonzept
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                   Sudo Execution Flow                       │
+├─────────────────────────────────────────────────────────────┤
+│  1. Benutzer aktiviert Sudo-Modus mit /sudo                 │
+│  2. Passwort wird sicher im Vault gespeichert               │
+│  3. Passwort ist nie im Chat oder Logs sichtbar             │
+│  4. Befehle werden mit sudo ausgeführt                      │
+│  5. Automatischer Timeout nach konfigurierbarer Zeit        │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Einrichtung
+
+#### Schritt 1: Sudo-Passwort im Vault speichern
+
+```bash
+# Im Chat eingeben
+/sudo
+
+# Oder direkt im Vault unter dem Schlüssel "sudo_password"
+```
+
+#### Schritt 2: Konfiguration in config.yaml
+
+```yaml
+agent:
+  sudo_enabled: true           # Sudo-Execution erlauben
+  sudo_timeout_minutes: 10     # Timeout nach 10 Minuten
+```
+
+### Verwendung
+
+```
+Du: /sudo
+Agent: 🔐 Sudo-Modus aktiviert. Passwort wurde sicher aus dem Vault geladen.
+       Alle Shell-Befehle werden jetzt mit sudo ausgeführt.
+       Timeout: 10 Minuten
+
+Du: Installiere das Paket nginx
+Agent: 🛠️ Shell: sudo apt install nginx -y
+       ✅ Paket erfolgreich installiert
+```
+
+### Sicherheitshinweise
+
+> ⚠️ **Wichtig:**
+> - Das Sudo-Passwort wird **niemals** im Chat angezeigt oder geloggt
+> - Es ist nur im verschlüsselten Vault gespeichert
+> - Der Sudo-Modus hat einen **automatischen Timeout**
+> - Jede Sudo-Ausführung wird im **Journal protokolliert**
+> - Kombiniere Sudo mit dem **LLM Guardian** für zusätzliche Sicherheit
+
+### Read-Only Modus
+
+Für besonders sensible Systeme kann Sudo komplett deaktiviert werden:
+
+```yaml
+agent:
+  sudo_enabled: false          # Keine Sudo-Ausführung erlaubt
+```
+
+In diesem Fall werden sudo-Befehle mit einer Fehlermeldung abgelehnt.
+
+---
+
 ## Web UI Authentication
 
 AuraGo bietet ein mehrschichtiges Authentifizierungssystem für die Web-Oberfläche.

@@ -567,6 +567,89 @@ adguard:
 
 ---
 
+## TrueNAS Integration
+
+Verwalte TrueNAS/TrueNAS Scale Storage-Systeme über die API.
+
+### Konfiguration
+
+```yaml
+truenas:
+  enabled: true
+  host: "truenas.local"          # TrueNAS Hostname oder IP
+  api_key: ""                     # API Key (wird im Vault gespeichert)
+  use_https: true                 # HTTPS verwenden
+  verify_ssl: true                # SSL-Zertifikat prüfen
+  readonly: false                 # Nur-Lesen Modus
+```
+
+### API Key erstellen
+
+1. TrueNAS Web-UI öffnen
+2. Einstellungen (Zahnrad oben rechts) → API Keys
+3. "Add" klicken
+4. Name vergeben (z.B. "AuraGo")
+5. Key kopieren und in Vault speichern
+
+### Verfügbare Operationen
+
+| Kategorie | Operation | Beschreibung |
+|-----------|-----------|--------------|
+| **Pools** | List Pools | Alle ZFS-Pools anzeigen |
+| | Pool Status | Pool-Health prüfen |
+| **Datasets** | List Datasets | Datasets auflisten |
+| | Create Dataset | Neues Dataset erstellen |
+| | Delete Dataset | Dataset löschen |
+| | Set Quota | Speicherquota festlegen |
+| **Snapshots** | List Snapshots | Snapshots anzeigen |
+| | Create Snapshot | Snapshot erstellen |
+| | Delete Snapshot | Snapshot löschen |
+| | Rollback | Zu Snapshot zurücksetzen |
+| **Shares** | List Shares | SMB/NFS Shares anzeigen |
+| | Create Share | Share erstellen |
+| | Delete Share | Share löschen |
+
+### Beispiele im Chat
+
+```
+Du: Zeige mir alle ZFS-Pools auf dem TrueNAS
+Agent: 🛠️ Tool: truenas_list_pools
+       
+       📊 Pools:
+       ┌────────────┬──────────┬─────────────┬──────────┐
+       │ Name       │ Größe    │ Verfügbar   │ Status   │
+       ├────────────┼──────────┼─────────────┼──────────┤
+       │ tank       │ 12 TB    │ 8.5 TB      │ ONLINE   │
+       │ backup     │ 6 TB     │ 5.2 TB      │ ONLINE   │
+       └────────────┴──────────┴─────────────┴──────────┘
+
+Du: Erstelle einen Snapshot von tank/data
+Agent: 🛠️ Tool: truenas_create_snapshot
+       ✅ Snapshot erstellt: tank/data@auto-20260326-120000
+
+Du: Wie viel Platz ist noch im Pool tank?
+Agent: 🛠️ Tool: truenas_pool_status
+       📊 Pool "tank":
+       - Gesamt: 12 TB
+       - Verwendet: 3.5 TB (29%)
+       - Verfügbar: 8.5 TB
+       - Status: HEALTHY
+```
+
+### Read-Only Modus
+
+Für Monitoring ohne Schreibrechte:
+
+```yaml
+truenas:
+  enabled: true
+  readonly: true              # Keine Änderungen möglich
+```
+
+Im Read-Only Modus können nur List- und Get-Operationen ausgeführt werden.
+
+---
+
 ## n8n Integration
 
 Verbindung mit n8n Workflow-Automatisierungsplattform.

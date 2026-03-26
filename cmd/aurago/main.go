@@ -533,6 +533,24 @@ func main() {
 			})
 		}
 
+		// Grant read-only access to the agent's tools and skills directories so
+		// that saved tools (save_tool) and skills can be executed via execute_shell.
+		// These directories are outside workspaceDir (workdir) and would otherwise
+		// be blocked by Landlock — causing "No such file or directory" errors even
+		// though the files actually exist.
+		if cfg.Directories.ToolsDir != "" {
+			allowedPaths = append(allowedPaths, sandbox.PathRule{
+				Path:     cfg.Directories.ToolsDir,
+				ReadOnly: true,
+			})
+		}
+		if cfg.Directories.SkillsDir != "" {
+			allowedPaths = append(allowedPaths, sandbox.PathRule{
+				Path:     cfg.Directories.SkillsDir,
+				ReadOnly: true,
+			})
+		}
+
 		// If Docker is enabled, grant the sandbox access to the Docker socket so
 		// that docker CLI commands (docker ps, docker images, etc.) work inside
 		// the sandbox.  The socket path is a Unix domain socket — Landlock's

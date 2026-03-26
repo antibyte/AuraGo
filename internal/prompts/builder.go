@@ -182,6 +182,8 @@ type ContextFlags struct {
 	EmotionDescription       string // LLM-synthesized emotional state description (Emotion Synthesizer)
 	IsMission                bool   // true when this is a mission run — skips personality, profiling, emotion
 	MessageSource            string // origin channel: "web_chat", "telegram", "discord", "a2a", "sms", "mission"
+	ToolsDir                 string // absolute path to agent_workspace/tools/ for custom tool scripts
+	SkillsDir                string // absolute path to agent_workspace/skills/ for skill plugins
 }
 
 // DetermineTierAdaptive returns a prompt tier based on both conversation length and
@@ -462,6 +464,18 @@ func BuildSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string,
 	// Internet-exposure warning — shown before custom instructions so it is always visible
 	if flags.InternetExposed {
 		finalPrompt.WriteString("\n> **Warning:** This system is probably reachable from the internet. Be careful when exposing services to the outside!\n")
+	}
+
+	// Runtime path hints — help the agent use correct absolute paths for tools/skills
+	if flags.ToolsDir != "" || flags.SkillsDir != "" {
+		parts := []string{}
+		if flags.ToolsDir != "" {
+			parts = append(parts, "Tools: `"+flags.ToolsDir+"`")
+		}
+		if flags.SkillsDir != "" {
+			parts = append(parts, "Skills: `"+flags.SkillsDir+"`")
+		}
+		finalPrompt.WriteString("> **Runtime Paths:** " + strings.Join(parts, " | ") + "\n")
 	}
 
 	// Additional custom instructions (always appended last, after NOW, for maximum LLM attention)

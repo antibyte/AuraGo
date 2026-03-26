@@ -2,6 +2,8 @@
 
 Discover and execute admin-managed skill plugins from the `skills/` directory.
 
+> ⚠️ **NEVER run skills via `execute_shell` or `execute_python` directly.** Skills are managed by the supervisor, which handles path resolution, venv activation, secret injection, and output scrubbing automatically. Always use `execute_skill` — guessing filesystem paths will fail.
+
 ### Discover Skills (`list_skills`) — MANDATORY FIRST STEP
 
 You MUST call this before writing custom Python code for: web search, web scraping, API interactions, file conversion (PDF/Office), or database access.
