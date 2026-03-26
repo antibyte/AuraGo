@@ -22,6 +22,8 @@
   "skills.btn_enable": "Aktivieren",
   "skills.btn_disable": "Deaktivieren",
   "skills.btn_delete": "Löschen",
+  "skills.btn_save_code": "Speichern",
+  "skills.code_saved": "Code gespeichert",
   "skills.btn_verify": "Erneut scannen",
   "skills.btn_create": "Erstellen",
   "skills.no_description": "Keine Beschreibung",

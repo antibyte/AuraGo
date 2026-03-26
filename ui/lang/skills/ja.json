@@ -22,6 +22,8 @@
   "skills.btn_enable": "有効にする",
   "skills.btn_disable": "無効にする",
   "skills.btn_delete": "削除",
+  "skills.btn_save_code": "保存",
+  "skills.code_saved": "コードを保存しました",
   "skills.btn_verify": "再スキャン",
   "skills.btn_create": "作成",
   "skills.no_description": "説明なし",

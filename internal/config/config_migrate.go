@@ -169,7 +169,7 @@ var knownProviderTypes = map[string]bool{
 	"openai": true, "openrouter": true, "ollama": true,
 	"anthropic": true, "google": true, "workers-ai": true,
 	"custom": true, "stability": true, "ideogram": true,
-	"vision": true,
+	"vision": true, "minimax": true,
 }
 
 // ResolveProviders populates the resolved (yaml:"-") fields on every LLM slot

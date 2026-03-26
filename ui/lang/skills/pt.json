@@ -22,6 +22,8 @@
   "skills.btn_enable": "Ativar",
   "skills.btn_disable": "Desativar",
   "skills.btn_delete": "Excluir",
+  "skills.btn_save_code": "Salvar",
+  "skills.code_saved": "Código salvo",
   "skills.btn_verify": "Re-escanear",
   "skills.btn_create": "Criar",
   "skills.no_description": "Sem descrição",

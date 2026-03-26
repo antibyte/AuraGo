@@ -22,6 +22,8 @@
   "skills.btn_enable": "Ενεργοποίηση",
   "skills.btn_disable": "Απενεργοποίηση",
   "skills.btn_delete": "Διαγραφή",
+  "skills.btn_save_code": "Αποθήκευση",
+  "skills.code_saved": "Ο κώδικας αποθηκεύτηκε",
   "skills.btn_verify": "Επανασάρωση",
   "skills.btn_create": "Δημιουργία",
   "skills.no_description": "Χωρίς περιγραφή",

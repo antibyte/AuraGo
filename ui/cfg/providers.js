@@ -782,6 +782,7 @@ function providerSetHidden(el, hidden) {
             ollama: 'http://localhost:11434',
             anthropic: 'https://api.anthropic.com/v1',
             google: 'https://generativelanguage.googleapis.com/v1beta/openai',
+            minimax: 'https://api.minimaxi.com/v1',
             'workers-ai': '',
             custom: ''
         };
@@ -793,6 +794,7 @@ function providerSetHidden(el, hidden) {
             google: 'config.providers.hint.google',
             openai: 'config.providers.hint.openai',
             'workers-ai': 'config.providers.hint.workers_ai',
+            minimax: 'config.providers.hint.minimax',
             custom: 'config.providers.hint.custom'
         };
 
@@ -828,7 +830,7 @@ function providerSetHidden(el, hidden) {
                     <div class="field-label">Type</div>
                     <div class="field-help">${t('config.providers.type_help')}</div>
                     <select class="field-select" id="prov-type">
-                        ${['openai','openrouter','ollama','anthropic','google','workers-ai','custom'].map(typ =>
+                        ${['openai','openrouter','ollama','anthropic','google','minimax','workers-ai','custom'].map(typ =>
                             `<option value="${typ}"${data.type === typ ? ' selected' : ''}>${typ}</option>`
                         ).join('')}
                     </select>

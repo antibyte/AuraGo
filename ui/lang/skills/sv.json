@@ -22,6 +22,8 @@
   "skills.btn_enable": "Aktivera",
   "skills.btn_disable": "Inaktivera",
   "skills.btn_delete": "Ta bort",
+  "skills.btn_save_code": "Spara",
+  "skills.code_saved": "Kod sparad",
   "skills.btn_verify": "Skanna igen",
   "skills.btn_create": "Skapa",
   "skills.no_description": "Ingen beskrivning",

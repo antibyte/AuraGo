@@ -22,6 +22,8 @@
   "skills.btn_enable": "Aktiver",
   "skills.btn_disable": "Deaktiver",
   "skills.btn_delete": "Slet",
+  "skills.btn_save_code": "Gem",
+  "skills.code_saved": "Kode gemt",
   "skills.btn_verify": "Scan igen",
   "skills.btn_create": "Opret",
   "skills.no_description": "Ingen beskrivelse",

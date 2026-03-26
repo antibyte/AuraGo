@@ -22,6 +22,8 @@
   "skills.btn_enable": "Povolit",
   "skills.btn_disable": "Zakázat",
   "skills.btn_delete": "Smazat",
+  "skills.btn_save_code": "Uložit",
+  "skills.code_saved": "Kód uložen",
   "skills.btn_verify": "Znovu skenovat",
   "skills.btn_create": "Vytvořit",
   "skills.no_description": "Bez popisu",

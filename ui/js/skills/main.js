@@ -9,6 +9,8 @@ let currentSecFilter = 'all';
 let currentDetailId = '';
 let deleteTargetId = '';
 let selectedFile = null;
+let codeEditorView = null;
+let codeEditorSkillId = '';
 
 // ── Initialization ──────────────────────────────────────────────────────────
 
@@ -128,8 +130,8 @@ function renderCard(skill) {
         <div class="sk-card-actions">
             <button class="btn btn-sm btn-secondary" onclick="showDetail('${id}')" data-i18n="skills.btn_details">Details</button>
             <button class="btn btn-sm btn-secondary" onclick="viewCode('${id}')" data-i18n="skills.btn_view_code">Code</button>
-            ${type !== 'builtin' ? `<button class="btn btn-sm ${toggleClass}" onclick="toggleSkill('${id}', ${!enabled})">${toggleLabel}</button>` : ''}
-            ${type !== 'builtin' ? `<button class="btn btn-sm btn-danger" onclick="showDeleteSkillModal('${id}', '${name}')" data-i18n="skills.btn_delete">Delete</button>` : ''}
+            <button class="btn btn-sm ${toggleClass}" onclick="toggleSkill('${id}', ${!enabled})">${toggleLabel}</button>
+            <button class="btn btn-sm btn-danger" onclick="showDeleteSkillModal('${id}', '${name}')" data-i18n="skills.btn_delete">Delete</button>
         </div>
     </div>`;
 }
@@ -299,29 +301,125 @@ async function verifyCurrentSkill() {
     }
 }
 
-// ── Code View Modal ─────────────────────────────────────────────────────────
+// ── Code Editor Modal (CodeMirror 6) ────────────────────────────────────────
+
+function createEditorState(code, readOnly) {
+    const cm = window.CM6;
+    const extensions = [
+        cm.lineNumbers(),
+        cm.highlightActiveLineGutter(),
+        cm.highlightSpecialChars(),
+        cm.history(),
+        cm.foldGutter(),
+        cm.drawSelection(),
+        cm.dropCursor(),
+        cm.indentOnInput(),
+        cm.syntaxHighlighting(cm.defaultHighlightStyle, { fallback: true }),
+        cm.bracketMatching(),
+        cm.closeBrackets(),
+        cm.autocompletion(),
+        cm.rectangularSelection(),
+        cm.crosshairCursor(),
+        cm.highlightActiveLine(),
+        cm.highlightSelectionMatches(),
+        cm.keymap.of([
+            ...cm.closeBracketsKeymap,
+            ...cm.defaultKeymap,
+            ...cm.searchKeymap,
+            ...cm.historyKeymap,
+            ...cm.foldKeymap,
+            ...cm.completionKeymap,
+            cm.indentWithTab,
+        ]),
+        cm.python(),
+        cm.oneDark,
+    ];
+    if (readOnly) {
+        extensions.push(cm.EditorState.readOnly.of(true));
+    }
+    return cm.EditorState.create({ doc: code, extensions });
+}
+
+// eslint-disable-next-line no-unused-vars
+function openCodeEditor(id, code, readOnly) {
+    codeEditorSkillId = id;
+    const container = document.getElementById('code-editor-container');
+    container.innerHTML = '';
+
+    if (codeEditorView) {
+        codeEditorView.destroy();
+        codeEditorView = null;
+    }
+
+    const state = createEditorState(code || '', readOnly);
+    codeEditorView = new window.CM6.EditorView({
+        state,
+        parent: container,
+    });
+
+    const saveBtn = document.getElementById('code-save-btn');
+    saveBtn.style.display = readOnly ? 'none' : '';
+
+    document.getElementById('code-modal').classList.add('active');
+}
 
 // eslint-disable-next-line no-unused-vars
 async function viewCode(id) {
-    document.getElementById('code-output').textContent = t('common.loading') || 'Loading...';
     document.getElementById('code-modal').classList.add('active');
+    const container = document.getElementById('code-editor-container');
+    container.innerHTML = `<p style="padding:16px;color:var(--text-secondary);">${t('common.loading') || 'Loading...'}</p>`;
 
     try {
         const resp = await fetch(`/api/skills/${encodeURIComponent(id)}?code=true`);
         const data = await resp.json();
         if (data.status === 'ok' && data.code) {
-            document.getElementById('code-output').textContent = data.code;
+            container.innerHTML = '';
+            openCodeEditor(id, data.code, false);
         } else {
-            document.getElementById('code-output').textContent = t('skills.no_code') || 'Code not available';
+            container.innerHTML = `<p style="padding:16px;color:var(--text-secondary);">${t('skills.no_code') || 'Code not available'}</p>`;
         }
     } catch (e) {
-        document.getElementById('code-output').textContent = 'Failed to load code';
+        container.innerHTML = '<p style="padding:16px;color:var(--text-secondary);">Failed to load code</p>';
+    }
+}
+
+// eslint-disable-next-line no-unused-vars
+async function saveSkillCode() {
+    if (!codeEditorView || !codeEditorSkillId) return;
+    const code = codeEditorView.state.doc.toString();
+    const btn = document.getElementById('code-save-btn');
+    btn.disabled = true;
+    btn.textContent = t('common.loading') || 'Saving...';
+
+    try {
+        const resp = await fetch(`/api/skills/${encodeURIComponent(codeEditorSkillId)}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code })
+        });
+        const data = await resp.json();
+        if (data.status === 'ok') {
+            showToast(t('skills.code_saved') || 'Code saved', 'success');
+            await loadSkills();
+        } else {
+            showToast(data.message || t('common.error'), 'error');
+        }
+    } catch (e) {
+        showToast(t('common.error') || 'Error', 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = t('skills.btn_save_code') || 'Save';
     }
 }
 
 // eslint-disable-next-line no-unused-vars
 function closeCodeModal() {
     document.getElementById('code-modal').classList.remove('active');
+    if (codeEditorView) {
+        codeEditorView.destroy();
+        codeEditorView = null;
+    }
+    codeEditorSkillId = '';
 }
 
 // ── Upload Modal ────────────────────────────────────────────────────────────
@@ -495,6 +593,10 @@ async function submitTemplate() {
             showToast(t('skills.template_success') || 'Skill created from template', 'success');
             closeTemplateModal();
             await loadSkills();
+            // Open the code editor for the newly created skill
+            if (data.skill_id) {
+                viewCode(data.skill_id);
+            }
         } else {
             showToast(data.message || t('common.error'), 'error');
         }

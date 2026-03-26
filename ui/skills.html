@@ -12,6 +12,7 @@
     <script>const I18N={{.I18N}};</script>
     <link rel="stylesheet" href="/css/skills.css">
     <link rel="stylesheet" href="/css/enhancements.css">
+    <script src="/js/vendor/codemirror6.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
@@ -61,7 +62,6 @@
                 <button class="sk-filter-btn active" data-filter="all" onclick="setSkillFilter('all')" data-i18n="skills.filter_all">All</button>
                 <button class="sk-filter-btn" data-filter="agent" onclick="setSkillFilter('agent')" data-i18n="skills.filter_agent">Agent</button>
                 <button class="sk-filter-btn" data-filter="user" onclick="setSkillFilter('user')" data-i18n="skills.filter_user">User</button>
-                <button class="sk-filter-btn" data-filter="builtin" onclick="setSkillFilter('builtin')" data-i18n="skills.filter_builtin">Built-in</button>
             </div>
             <div class="sk-toolbar-actions" id="sk-toolbar-actions">
                 <button class="btn btn-primary btn-sm" onclick="showUploadModal()" data-i18n="skills.btn_upload">Upload Skill</button>
@@ -113,7 +113,7 @@
         </div>
     </div>
 
-    <!-- CODE VIEW MODAL -->
+    <!-- CODE EDITOR MODAL -->
     <div class="modal-overlay" id="code-modal">
         <div class="modal modal-wide">
             <div class="modal-header">
@@ -121,10 +121,11 @@
                 <button class="modal-close" onclick="closeCodeModal()">&times;</button>
             </div>
             <div class="modal-body">
-                <pre class="sk-code-output" id="code-output"></pre>
+                <div id="code-editor-container" class="sk-code-editor-container"></div>
             </div>
             <div class="modal-actions">
                 <button class="btn btn-secondary" onclick="closeCodeModal()" data-i18n="common.btn_close">Close</button>
+                <button class="btn btn-primary" id="code-save-btn" onclick="saveSkillCode()" data-i18n="skills.btn_save_code">Save</button>
             </div>
         </div>
     </div>

@@ -216,8 +216,9 @@ func handleUpdateSkill(s *Server) http.HandlerFunc {
 		}
 
 		var req struct {
-			Enabled     *bool  `json:"enabled"`
-			Description string `json:"description"`
+			Enabled     *bool   `json:"enabled"`
+			Description string  `json:"description"`
+			Code        *string `json:"code"`
 		}
 		if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&req); err != nil {
 			jsonError(w, "Invalid request body", http.StatusBadRequest)
@@ -237,6 +238,13 @@ func handleUpdateSkill(s *Server) http.HandlerFunc {
 			}
 			if err := s.SkillManager.EnableSkill(id, *req.Enabled); err != nil {
 				jsonError(w, err.Error(), http.StatusNotFound)
+				return
+			}
+		}
+
+		if req.Code != nil {
+			if err := s.SkillManager.UpdateSkillCode(id, *req.Code); err != nil {
+				jsonError(w, err.Error(), http.StatusBadRequest)
 				return
 			}
 		}
@@ -545,11 +553,22 @@ func handleCreateSkillFromTemplate(s *Server) http.HandlerFunc {
 		// Sync to registry
 		s.SkillManager.SyncFromDisk()
 
+		// Look up the newly created skill to return its ID
+		var skillID string
+		skills, _ := s.SkillManager.ListSkillsFiltered("", "", req.SkillName, nil)
+		for _, sk := range skills {
+			if sk.Name == req.SkillName {
+				skillID = sk.ID
+				break
+			}
+		}
+
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"status":  "created",
-			"message": result,
+			"status":   "created",
+			"message":  result,
+			"skill_id": skillID,
 		})
 	}
 }

@@ -213,6 +213,10 @@ func (m *SkillManager) ListSkillsFiltered(skillType, status, search string, enab
 	if skillType != "" {
 		query += " AND type = ?"
 		args = append(args, skillType)
+	} else {
+		// By default, exclude built-in skills from listings
+		query += " AND type != ?"
+		args = append(args, SkillTypeBuiltIn)
 	}
 	if status != "" {
 		query += " AND security_status = ?"
@@ -336,6 +340,38 @@ func (m *SkillManager) GetSkillCode(id string) (string, error) {
 		return "", fmt.Errorf("reading skill code: %w", err)
 	}
 	return string(data), nil
+}
+
+// UpdateSkillCode writes new Python source code for an existing skill and updates its file hash.
+func (m *SkillManager) UpdateSkillCode(id, code string) error {
+	s, err := m.GetSkill(id)
+	if err != nil {
+		return err
+	}
+	if s.Type == SkillTypeBuiltIn {
+		return fmt.Errorf("built-in skills cannot be edited")
+	}
+
+	codePath := filepath.Join(m.skillsDir, s.Executable)
+	if err := os.WriteFile(codePath, []byte(code), 0o644); err != nil {
+		return fmt.Errorf("writing skill code: %w", err)
+	}
+
+	h := sha256.Sum256([]byte(code))
+	fileHash := hex.EncodeToString(h[:])
+	if _, err := m.db.Exec("UPDATE skills_registry SET file_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+		fileHash, id); err != nil {
+		return fmt.Errorf("updating skill hash: %w", err)
+	}
+
+	// Reset security status since code changed
+	if _, err := m.db.Exec("UPDATE skills_registry SET security_status = ? WHERE id = ?",
+		string(SecurityPending), id); err != nil {
+		m.logger.Warn("Failed to reset security status after code update", "id", id, "error", err)
+	}
+
+	m.logger.Info("Skill code updated", "id", id, "name", s.Name)
+	return nil
 }
 
 // EnableSkill enables or disables a skill.
@@ -484,13 +520,13 @@ func (m *SkillManager) CreateSkillEntry(name, description, code string, skillTyp
 
 // GetStats returns counts for dashboard display.
 func (m *SkillManager) GetStats() (total, agent, user, pending int, err error) {
-	err = m.db.QueryRow("SELECT COUNT(*) FROM skills_registry").Scan(&total)
+	err = m.db.QueryRow("SELECT COUNT(*) FROM skills_registry WHERE type != 'builtin'").Scan(&total)
 	if err != nil {
 		return
 	}
 	m.db.QueryRow("SELECT COUNT(*) FROM skills_registry WHERE type = 'agent'").Scan(&agent)
 	m.db.QueryRow("SELECT COUNT(*) FROM skills_registry WHERE type = 'user'").Scan(&user)
-	m.db.QueryRow("SELECT COUNT(*) FROM skills_registry WHERE security_status = 'pending'").Scan(&pending)
+	m.db.QueryRow("SELECT COUNT(*) FROM skills_registry WHERE type != 'builtin' AND security_status = 'pending'").Scan(&pending)
 	return
 }
 

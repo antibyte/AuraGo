@@ -2,12 +2,56 @@ package llm
 
 import (
 	"fmt"
+	"net/http"
 	"strings"
 
 	"aurago/internal/config"
 
 	"github.com/sashabaranov/go-openai"
 )
+
+// miniMaxTransport is a custom RoundTripper for MiniMax's API.
+// MiniMax does not accept the standard "Authorization: Bearer <key>" header —
+// it authenticates via the "api_password" query parameter instead.
+type miniMaxTransport struct {
+	base   http.RoundTripper
+	apiKey string
+}
+
+func (t *miniMaxTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	req2 := req.Clone(req.Context())
+	req2.Header.Del("Authorization")
+	q := req2.URL.Query()
+	q.Set("api_password", t.apiKey)
+	req2.URL.RawQuery = q.Encode()
+	base := t.base
+	if base == nil {
+		base = http.DefaultTransport
+	}
+	return base.RoundTrip(req2)
+}
+
+// applyMiniMaxConfig sets up a MiniMax-specific HTTP client on the given client config.
+// It strips the Authorization header and injects the API key as a query param.
+func applyMiniMaxConfig(cfg *openai.ClientConfig, apiKey, baseURL string) {
+	// Ensure base URL ends with /v1
+	if baseURL != "" {
+		baseURL = strings.TrimRight(baseURL, "/")
+		if !strings.HasSuffix(baseURL, "/v1") {
+			baseURL = baseURL + "/v1"
+		}
+		cfg.BaseURL = baseURL
+	} else if cfg.BaseURL == "" {
+		cfg.BaseURL = "https://api.minimaxi.com/v1"
+	}
+
+	cfg.HTTPClient = &http.Client{
+		Transport: &miniMaxTransport{
+			base:   http.DefaultTransport,
+			apiKey: apiKey,
+		},
+	}
+}
 
 // NewClient creates a new OpenAI compatible client based on the routing configuration.
 // Handles provider-specific quirks: Ollama doesn't require an API key but the
@@ -17,6 +61,7 @@ func NewClient(cfg *config.Config) *openai.Client {
 	apiKey := cfg.LLM.APIKey
 	providerType := strings.ToLower(cfg.LLM.ProviderType)
 	isOllama := providerType == "ollama"
+	isMiniMax := providerType == "minimax"
 
 	// Ollama doesn't require an API key; use a dummy value so the SDK
 	// always sends a well-formed Authorization header.
@@ -53,6 +98,13 @@ func NewClient(cfg *config.Config) *openai.Client {
 		)
 	}
 
+	// MiniMax: uses query-parameter auth, not Authorization header.
+	// Apply before the AI Gateway block so it doesn't conflict.
+	if isMiniMax {
+		applyMiniMaxConfig(&clientConfig, apiKey, cfg.LLM.BaseURL)
+		return openai.NewClientWithConfig(clientConfig)
+	}
+
 	// AI Gateway: rewrite BaseURL to route through Cloudflare AI Gateway.
 	// Provides caching, rate-limiting, logging and fallback for any provider.
 	// Does not apply to local providers (Ollama) — no point proxying localhost.
@@ -77,12 +129,18 @@ func NewClient(cfg *config.Config) *openai.Client {
 func NewClientFromProvider(providerType, baseURL, apiKey string) *openai.Client {
 	pt := strings.ToLower(providerType)
 	isOllama := pt == "ollama"
+	isMiniMax := pt == "minimax"
 
 	if apiKey == "" && isOllama {
 		apiKey = "ollama"
 	}
 
 	clientConfig := openai.DefaultConfig(apiKey)
+
+	if isMiniMax {
+		applyMiniMaxConfig(&clientConfig, apiKey, baseURL)
+		return openai.NewClientWithConfig(clientConfig)
+	}
 
 	if baseURL != "" {
 		u := baseURL

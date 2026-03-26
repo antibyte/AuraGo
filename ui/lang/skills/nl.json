@@ -22,6 +22,8 @@
   "skills.btn_enable": "Inschakelen",
   "skills.btn_disable": "Uitschakelen",
   "skills.btn_delete": "Verwijderen",
+  "skills.btn_save_code": "Opslaan",
+  "skills.code_saved": "Code opgeslagen",
   "skills.btn_verify": "Opnieuw scannen",
   "skills.btn_create": "Aanmaken",
   "skills.no_description": "Geen beschrijving",

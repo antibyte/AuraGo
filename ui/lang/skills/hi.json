@@ -22,6 +22,8 @@
   "skills.btn_enable": "सक्षम करें",
   "skills.btn_disable": "अक्षम करें",
   "skills.btn_delete": "हटाएं",
+  "skills.btn_save_code": "सहेजें",
+  "skills.code_saved": "कोड सहेजा गया",
   "skills.btn_verify": "पुनः स्कैन",
   "skills.btn_create": "बनाएं",
   "skills.no_description": "कोई विवरण नहीं",

@@ -22,6 +22,8 @@
   "skills.btn_enable": "启用",
   "skills.btn_disable": "禁用",
   "skills.btn_delete": "删除",
+  "skills.btn_save_code": "保存",
+  "skills.code_saved": "代码已保存",
   "skills.btn_verify": "重新扫描",
   "skills.btn_create": "创建",
   "skills.no_description": "无描述",
