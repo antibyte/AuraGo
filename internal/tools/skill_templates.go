@@ -72,6 +72,27 @@ func AvailableSkillTemplates() []SkillTemplate {
 			Dependencies: []string{"requests", "beautifulsoup4"},
 			Code:         scraperTemplate,
 		},
+		{
+			Name:        "example_use_vault_login",
+			Description: "Example: authenticate with username + password from the vault, then call a REST API. Create vault secrets 'my_service_username' and 'my_service_password' in Config → Vault before use.",
+			Parameters: map[string]string{
+				"action":   "API action / path to call after login (default: whoami)",
+				"base_url": "Base URL of the service (can also be set via AURAGO_SECRET_BASE_URL vault key)",
+			},
+			Dependencies: []string{"requests"},
+			Code:         vaultLoginTemplate,
+		},
+		{
+			Name:        "example_use_vault_token",
+			Description: "Example: call a REST API using a single Bearer token / API key from the vault. Create a vault secret 'my_service_api_key' in Config → Vault before use.",
+			Parameters: map[string]string{
+				"endpoint": "API endpoint path to call (appended to base URL)",
+				"method":   "HTTP method: GET, POST, PUT, DELETE (default: GET)",
+				"body":     "JSON request body (optional, for POST/PUT)",
+			},
+			Dependencies: []string{"requests"},
+			Code:         vaultTokenTemplate,
+		},
 	}
 }
 
@@ -495,6 +516,232 @@ if __name__ == "__main__":
         selector=args.get("selector", "body"),
         attr=args.get("attr"),
         limit=args.get("limit", 50),
+    )
+    print(json.dumps(result, ensure_ascii=False))
+`
+
+// ─── Vault example templates ──────────────────────────────────────────────────
+
+// vaultLoginTemplate demonstrates authenticating with username + password from
+// the AuraGo Vault and then calling a service API.
+//
+// Required vault secrets (create them in Config → Vault):
+//
+//	Key: "my_service_username"   → injected as AURAGO_SECRET_MY_SERVICE_USERNAME
+//	Key: "my_service_password"   → injected as AURAGO_SECRET_MY_SERVICE_PASSWORD
+//	Key: "my_service_base_url"   → injected as AURAGO_SECRET_MY_SERVICE_BASE_URL  (optional)
+//
+// Declaration in the skill manifest (vault_keys field):
+//
+//	"vault_keys": ["my_service_username", "my_service_password", "my_service_base_url"]
+const vaultLoginTemplate = `import sys
+import json
+import os
+import requests
+
+# ─── HOW TO SET UP THIS SKILL ────────────────────────────────────────────────
+# Before running this skill, store your credentials in the AuraGo Vault:
+#
+#   1. Open the AuraGo Web UI → Config → Vault
+#   2. Add two (or three) secrets:
+#        Key: "my_service_username"   Value: <your username or login>
+#        Key: "my_service_password"   Value: <your password>
+#        Key: "my_service_base_url"   Value: <https://your-service.example.com>  (optional)
+#
+#   3. In the skill manifest (.json), declare them in "vault_keys":
+#        "vault_keys": ["my_service_username", "my_service_password", "my_service_base_url"]
+#
+# AuraGo will then inject the secrets as environment variables before each run:
+#   AURAGO_SECRET_MY_SERVICE_USERNAME  = <username>
+#   AURAGO_SECRET_MY_SERVICE_PASSWORD  = <password>
+#   AURAGO_SECRET_MY_SERVICE_BASE_URL  = <base url>   (if declared)
+#
+# Rename "my_service" to something meaningful, e.g. "nextcloud", "gitlab_local".
+# ─────────────────────────────────────────────────────────────────────────────
+
+def {{.FunctionName}}(action="whoami"):
+    """{{.Description}}"""
+    # Read credentials injected by AuraGo from the vault
+    base_url = os.environ.get("AURAGO_SECRET_MY_SERVICE_BASE_URL",
+                              os.environ.get("AURAGO_SECRET_BASE_URL", "{{.BaseURL}}")).rstrip("/")
+    username = os.environ.get("AURAGO_SECRET_MY_SERVICE_USERNAME", "")
+    password = os.environ.get("AURAGO_SECRET_MY_SERVICE_PASSWORD", "")
+
+    if not username or not password:
+        return {
+            "status": "error",
+            "message": (
+                "Credentials not found in environment. "
+                "Please add 'my_service_username' and 'my_service_password' to the AuraGo Vault "
+                "(Config → Vault) and declare them in the skill's vault_keys."
+            )
+        }
+
+    session = requests.Session()
+    try:
+        # ── Step 1: Login and obtain a session token ──────────────────────────
+        # Adjust the login endpoint and payload to match your service.
+        login_resp = session.post(
+            f"{base_url}/auth/login",
+            json={"username": username, "password": password},
+            timeout=15,
+        )
+        login_resp.raise_for_status()
+
+        # Many APIs return a Bearer token on login; fall back to cookie sessions.
+        token = login_resp.json().get("token") or login_resp.json().get("access_token", "")
+        if token:
+            session.headers.update({"Authorization": f"Bearer {token}"})
+
+        # ── Step 2: Call the actual API ────────────────────────────────────────
+        # Replace "/api/{action}" with the real endpoint your service provides.
+        resp = session.get(f"{base_url}/api/{action}", timeout=15)
+        resp.raise_for_status()
+
+        try:
+            data = resp.json()
+        except ValueError:
+            data = resp.text
+
+        return {
+            "status": "success",
+            "result": f"<external_data>{json.dumps(data, ensure_ascii=False)}</external_data>"
+        }
+
+    except requests.RequestException as e:
+        return {"status": "error", "message": str(e)}
+
+
+if __name__ == "__main__":
+    args = {}
+    try:
+        stdin_data = sys.stdin.read().strip()
+        if stdin_data:
+            args = json.loads(stdin_data)
+    except Exception:
+        pass
+    if not args and len(sys.argv) > 1:
+        try:
+            args = json.loads(sys.argv[1])
+        except Exception:
+            pass
+    if not args:
+        print(json.dumps({"status": "error", "message": "No input provided."}))
+        sys.exit(1)
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+    result = {{.FunctionName}}(
+        action=args.get("action", "whoami"),
+    )
+    print(json.dumps(result, ensure_ascii=False))
+`
+
+// vaultTokenTemplate demonstrates calling a REST API with a single Bearer
+// token / API key from the AuraGo Vault.
+//
+// Required vault secrets (create them in Config → Vault):
+//
+//	Key: "my_service_api_key"  → injected as AURAGO_SECRET_MY_SERVICE_API_KEY
+//	Key: "my_service_base_url" → injected as AURAGO_SECRET_MY_SERVICE_BASE_URL  (optional)
+//
+// Declaration in the skill manifest (vault_keys field):
+//
+//	"vault_keys": ["my_service_api_key", "my_service_base_url"]
+const vaultTokenTemplate = `import sys
+import json
+import os
+import requests
+
+# ─── HOW TO SET UP THIS SKILL ────────────────────────────────────────────────
+# Before running this skill, store your API key in the AuraGo Vault:
+#
+#   1. Open the AuraGo Web UI → Config → Vault
+#   2. Add one (or two) secrets:
+#        Key: "my_service_api_key"   Value: <your API key or Bearer token>
+#        Key: "my_service_base_url"  Value: <https://api.your-service.example.com>  (optional)
+#
+#   3. In the skill manifest (.json), declare them in "vault_keys":
+#        "vault_keys": ["my_service_api_key", "my_service_base_url"]
+#
+# AuraGo will inject the secret before each run:
+#   AURAGO_SECRET_MY_SERVICE_API_KEY   = <api key>
+#   AURAGO_SECRET_MY_SERVICE_BASE_URL  = <base url>  (if declared)
+#
+# Rename "my_service" to something meaningful, e.g. "openweathermap", "hass_token".
+# ─────────────────────────────────────────────────────────────────────────────
+
+def {{.FunctionName}}(endpoint, method="GET", body=None):
+    """{{.Description}}"""
+    # Read API key and base URL injected by AuraGo from the vault
+    base_url = os.environ.get("AURAGO_SECRET_MY_SERVICE_BASE_URL",
+                              os.environ.get("AURAGO_SECRET_BASE_URL", "{{.BaseURL}}")).rstrip("/")
+    api_key = os.environ.get("AURAGO_SECRET_MY_SERVICE_API_KEY",
+                             os.environ.get("AURAGO_SECRET_API_KEY", ""))
+
+    if not api_key:
+        return {
+            "status": "error",
+            "message": (
+                "API key not found in environment. "
+                "Please add 'my_service_api_key' to the AuraGo Vault "
+                "(Config → Vault) and declare it in the skill's vault_keys."
+            )
+        }
+
+    url = f"{base_url}/{endpoint.lstrip('/')}" if endpoint else base_url
+    headers = {
+        "Content-Type": "application/json",
+        # Standard Bearer auth – change to a different header if your service requires it,
+        # e.g. "X-API-Key": api_key  or  "token": api_key
+        "Authorization": f"Bearer {api_key}",
+    }
+
+    try:
+        resp = requests.request(
+            method=method.upper(),
+            url=url,
+            headers=headers,
+            json=body if body else None,
+            timeout=30,
+        )
+        resp.raise_for_status()
+
+        try:
+            data = resp.json()
+        except ValueError:
+            data = resp.text
+
+        return {
+            "status": "success",
+            "result": f"<external_data>{json.dumps(data, ensure_ascii=False)}</external_data>"
+        }
+
+    except requests.RequestException as e:
+        return {"status": "error", "message": str(e)}
+
+
+if __name__ == "__main__":
+    args = {}
+    try:
+        stdin_data = sys.stdin.read().strip()
+        if stdin_data:
+            args = json.loads(stdin_data)
+    except Exception:
+        pass
+    if not args and len(sys.argv) > 1:
+        try:
+            args = json.loads(sys.argv[1])
+        except Exception:
+            pass
+    if not args:
+        print(json.dumps({"status": "error", "message": "No input provided."}))
+        sys.exit(1)
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+    result = {{.FunctionName}}(
+        endpoint=args.get("endpoint", ""),
+        method=args.get("method", "GET"),
+        body=args.get("body"),
     )
     print(json.dumps(result, ensure_ascii=False))
 `

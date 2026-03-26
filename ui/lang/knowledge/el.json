@@ -61,6 +61,7 @@
   "knowledge.files_preview_unavailable_title": "Η προεπισκόπηση δεν είναι διαθέσιμη",
   "knowledge.files_preview_unavailable_desc": "Αυτός ο τύπος αρχείου δεν μπορεί να προβληθεί απευθείας. Μπορείτε ακόμη να τον κατεβάσετε.",
   "knowledge.files_preview_render_error": "Το πρόγραμμα περιήγησης δεν μπόρεσε να αποδώσει αυτό το έγγραφο απευθείας. Δοκιμάστε να το κατεβάσετε.",
+  "knowledge.files_preview_truncated": "Το περιεχόμενο του αρχείου περικόπηκε στα 512 KB",
   "knowledge.tab_credentials": "🔑 Access Credentials",
   "knowledge.credentials_search_placeholder": "Filter access credentials...",
   "knowledge.credentials_add": "Add Access Credential",

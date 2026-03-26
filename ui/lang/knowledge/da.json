@@ -61,6 +61,7 @@
   "knowledge.files_preview_unavailable_title": "Forhåndsvisning er ikke tilgængelig",
   "knowledge.files_preview_unavailable_desc": "Denne filtype kan ikke vises direkte i en forhåndsvisning. Du kan stadig downloade den.",
   "knowledge.files_preview_render_error": "Browseren kunne ikke gengive dokumentet direkte. Prøv at downloade det i stedet.",
+  "knowledge.files_preview_truncated": "Filindhold afkortet til 512 KB",
   "knowledge.tab_credentials": "🔑 Access Credentials",
   "knowledge.credentials_search_placeholder": "Filter access credentials...",
   "knowledge.credentials_add": "Add Access Credential",

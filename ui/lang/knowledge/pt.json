@@ -61,6 +61,7 @@
   "knowledge.files_preview_unavailable_title": "Pré-visualização indisponível",
   "knowledge.files_preview_unavailable_desc": "Esse tipo de arquivo não pode ser exibido diretamente em linha. Você ainda pode baixá-lo.",
   "knowledge.files_preview_render_error": "O navegador não conseguiu renderizar este documento diretamente. Tente baixá-lo.",
+  "knowledge.files_preview_truncated": "Conteúdo do arquivo truncado em 512 KB",
   "knowledge.tab_credentials": "🔑 Access Credentials",
   "knowledge.credentials_search_placeholder": "Filter access credentials...",
   "knowledge.credentials_add": "Add Access Credential",

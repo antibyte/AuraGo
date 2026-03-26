@@ -61,6 +61,7 @@
   "knowledge.files_preview_unavailable_title": "Voorbeeld niet beschikbaar",
   "knowledge.files_preview_unavailable_desc": "Dit bestandstype kan niet direct inline worden weergegeven. Je kunt het nog steeds downloaden.",
   "knowledge.files_preview_render_error": "De browser kon dit document niet direct weergeven. Probeer het in plaats daarvan te downloaden.",
+  "knowledge.files_preview_truncated": "Bestandsinhoud afgekapt tot 512 KB",
   "knowledge.tab_credentials": "🔑 Access Credentials",
   "knowledge.credentials_search_placeholder": "Filter access credentials...",
   "knowledge.credentials_add": "Add Access Credential",

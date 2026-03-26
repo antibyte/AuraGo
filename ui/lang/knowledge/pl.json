@@ -61,6 +61,7 @@
   "knowledge.files_preview_unavailable_title": "Podgląd niedostępny",
   "knowledge.files_preview_unavailable_desc": "Tego typu pliku nie można wyświetlić bezpośrednio w podglądzie. Nadal możesz go pobrać.",
   "knowledge.files_preview_render_error": "Przeglądarka nie mogła wyświetlić tego dokumentu bezpośrednio. Spróbuj go pobrać.",
+  "knowledge.files_preview_truncated": "Zawartość pliku skrócona do 512 KB",
   "knowledge.tab_credentials": "🔑 Access Credentials",
   "knowledge.credentials_search_placeholder": "Filter access credentials...",
   "knowledge.credentials_add": "Add Access Credential",

@@ -61,6 +61,7 @@
   "knowledge.files_preview_unavailable_title": "Náhled není k dispozici",
   "knowledge.files_preview_unavailable_desc": "Tento typ souboru nelze zobrazit přímo v náhledu. Stále si ho můžete stáhnout.",
   "knowledge.files_preview_render_error": "Prohlížeč nedokázal tento dokument zobrazit přímo. Zkuste jej místo toho stáhnout.",
+  "knowledge.files_preview_truncated": "Obsah souboru zkrácen na 512 KB",
   "knowledge.tab_credentials": "🔑 Access Credentials",
   "knowledge.credentials_search_placeholder": "Filter access credentials...",
   "knowledge.credentials_add": "Add Access Credential",

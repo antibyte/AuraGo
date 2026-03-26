@@ -61,6 +61,7 @@
   "knowledge.files_preview_unavailable_title": "プレビューを利用できません",
   "knowledge.files_preview_unavailable_desc": "この種類のファイルはインラインでプレビューできません。ダウンロードは可能です。",
   "knowledge.files_preview_render_error": "ブラウザでこの文書を直接表示できませんでした。代わりにダウンロードしてください。",
+  "knowledge.files_preview_truncated": "ファイル内容を512KBに切り詰めました",
   "knowledge.tab_credentials": "🔑 Access Credentials",
   "knowledge.credentials_search_placeholder": "Filter access credentials...",
   "knowledge.credentials_add": "Add Access Credential",

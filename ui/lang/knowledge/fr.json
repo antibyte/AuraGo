@@ -61,6 +61,7 @@
   "knowledge.files_preview_unavailable_title": "Aperçu indisponible",
   "knowledge.files_preview_unavailable_desc": "Ce type de fichier ne peut pas être affiché directement en aperçu. Vous pouvez toujours le télécharger.",
   "knowledge.files_preview_render_error": "Le navigateur n'a pas pu afficher ce document directement. Essayez plutôt de le télécharger.",
+  "knowledge.files_preview_truncated": "Contenu de fichier tronqué à 512 Ko",
   "knowledge.tab_credentials": "🔑 Access Credentials",
   "knowledge.credentials_search_placeholder": "Filter access credentials...",
   "knowledge.credentials_add": "Add Access Credential",

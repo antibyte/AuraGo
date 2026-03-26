@@ -61,6 +61,7 @@
   "knowledge.files_preview_unavailable_title": "Vista previa no disponible",
   "knowledge.files_preview_unavailable_desc": "Este tipo de archivo no se puede mostrar directamente en la vista previa. Aun así puedes descargarlo.",
   "knowledge.files_preview_render_error": "El navegador no pudo renderizar este documento en línea. Prueba a descargarlo.",
+  "knowledge.files_preview_truncated": "Contenido del archivo truncado a 512 KB",
   "knowledge.tab_credentials": "🔑 Access Credentials",
   "knowledge.credentials_search_placeholder": "Filter access credentials...",
   "knowledge.credentials_add": "Add Access Credential",

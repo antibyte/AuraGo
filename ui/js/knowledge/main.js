@@ -253,6 +253,9 @@ function openFilePreview(name) {
     const title = document.getElementById('file-preview-title');
     const subtitle = document.getElementById('file-preview-subtitle');
     const frame = document.getElementById('file-preview-frame');
+    const textEl = document.getElementById('file-preview-text');
+    const imgWrap = document.getElementById('file-preview-img-wrap');
+    const imgEl = document.getElementById('file-preview-img');
     const fallback = document.getElementById('file-preview-fallback');
     const fallbackTitle = document.getElementById('file-preview-fallback-title');
     const fallbackText = document.getElementById('file-preview-fallback-text');
@@ -261,48 +264,93 @@ function openFilePreview(name) {
     const previewURL = '/api/knowledge/' + encodeURIComponent(name) + '?inline=1';
     const downloadURL = '/api/knowledge/' + encodeURIComponent(name);
     const ext = (name.split('.').pop() || '').toLowerCase();
-    const previewable = isPreviewableFile(ext);
 
     title.textContent = name;
     subtitle.textContent = formatPreviewSubtitle(name);
     download.href = downloadURL;
 
+    // Reset all preview panels
     clearTimeout(previewResetTimer);
+    frame.onload = null;
     frame.src = 'about:blank';
+    frame.classList.add('is-hidden');
+    textEl.textContent = '';
+    textEl.classList.add('is-hidden');
+    imgEl.src = '';
+    imgWrap.classList.add('is-hidden');
     fallback.classList.add('is-hidden');
 
-    if (!previewable) {
+    modal.classList.add('active');
+
+    if (isImageFile(ext)) {
+        // ── Images: <img> tag is reliable for all image types ──
+        imgEl.alt = name;
+        imgEl.src = previewURL;
+        imgWrap.classList.remove('is-hidden');
+
+    } else if (ext === 'pdf' || ext === 'html' || ext === 'htm') {
+        // ── PDF / HTML: iframe renders these natively ──
+        frame.onload = () => {
+            clearTimeout(previewResetTimer);
+            fallback.classList.add('is-hidden');
+        };
+        frame.src = previewURL;
+        frame.classList.remove('is-hidden');
+        previewResetTimer = setTimeout(() => {
+            fallbackTitle.textContent = t('knowledge.files_preview_unavailable_title');
+            fallbackText.textContent = t('knowledge.files_preview_render_error');
+            fallback.classList.remove('is-hidden');
+        }, 4000);
+
+    } else if (isTextFile(ext)) {
+        // ── Text / code: fetch and render in <pre> ──
+        // This avoids MIME-type download issues (yaml, md, json, csv, etc.)
+        textEl.classList.remove('is-hidden');
+        textEl.textContent = t('common.loading') || 'Loading…';
+        const maxBytes = 512 * 1024; // 512 KB display limit
+        fetch(previewURL)
+            .then(r => {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return r.text();
+            })
+            .then(text => {
+                textEl.textContent = text.length > maxBytes
+                    ? text.slice(0, maxBytes) + '\n\n[… ' + t('knowledge.files_preview_truncated') + ']'
+                    : text;
+            })
+            .catch(err => {
+                console.error('Preview fetch failed:', err);
+                textEl.classList.add('is-hidden');
+                fallbackTitle.textContent = t('knowledge.files_preview_unavailable_title');
+                fallbackText.textContent = t('knowledge.files_preview_render_error');
+                fallback.classList.remove('is-hidden');
+            });
+
+    } else {
+        // ── Unknown type: friendly fallback with download button ──
         fallbackTitle.textContent = t('knowledge.files_preview_unavailable_title');
         fallbackText.textContent = t('knowledge.files_preview_unavailable_desc');
         fallback.classList.remove('is-hidden');
-        modal.classList.add('active');
-        return;
     }
-
-    frame.onload = () => {
-        clearTimeout(previewResetTimer);
-        fallback.classList.add('is-hidden');
-    };
-
-    frame.src = previewURL;
-    modal.classList.add('active');
-
-    previewResetTimer = setTimeout(() => {
-        fallbackTitle.textContent = t('knowledge.files_preview_unavailable_title');
-        fallbackText.textContent = t('knowledge.files_preview_render_error');
-        fallback.classList.remove('is-hidden');
-    }, 2200);
 }
 
 function closeFilePreview() {
     const modal = document.getElementById('file-preview-modal');
     const frame = document.getElementById('file-preview-frame');
+    const textEl = document.getElementById('file-preview-text');
+    const imgWrap = document.getElementById('file-preview-img-wrap');
+    const imgEl = document.getElementById('file-preview-img');
     const fallback = document.getElementById('file-preview-fallback');
 
     clearTimeout(previewResetTimer);
     previewResetTimer = null;
     frame.onload = null;
     frame.src = 'about:blank';
+    frame.classList.add('is-hidden');
+    textEl.textContent = '';
+    textEl.classList.add('is-hidden');
+    imgEl.src = '';
+    imgWrap.classList.add('is-hidden');
     fallback.classList.add('is-hidden');
     modal.classList.remove('active');
 }
@@ -780,17 +828,27 @@ function fileIcon(name) {
     const ext = (name.split('.').pop() || '').toLowerCase();
     const icons = {
         md: '📝', txt: '📄', json: '📋', yaml: '⚙️', yml: '⚙️',
-        csv: '📊', log: '📃', pdf: '📕', xml: '📰', html: '🌐',
-        py: '🐍', go: '🔷', js: '🟨', sh: '🖥️',
+        csv: '📊', log: '📃', pdf: '📕', xml: '📰', html: '🌐', htm: '🌐',
+        py: '🐍', go: '🔷', js: '🟨', ts: '🔷', sh: '🖥️', bat: '🖥️',
+        png: '🖼️', jpg: '🖼️', jpeg: '🖼️', gif: '🖼️', webp: '🖼️', svg: '🖼️',
     };
     return icons[ext] || '📄';
 }
 
-function isPreviewableFile(ext) {
+// Returns true for plain-text based formats that can be fetched and
+// displayed in a <pre> block regardless of MIME type.
+function isTextFile(ext) {
     return new Set([
-        'pdf', 'txt', 'md', 'json', 'yaml', 'yml', 'csv', 'log', 'xml',
-        'html', 'htm', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'
+        'txt', 'md', 'json', 'yaml', 'yml', 'csv', 'log', 'xml',
+        'py', 'js', 'ts', 'go', 'sh', 'bat', 'ps1', 'sql',
+        'ini', 'conf', 'cfg', 'toml', 'env', 'gitignore', 'dockerfile',
+        'css', 'scss', 'less', 'rs', 'c', 'cpp', 'h', 'java', 'rb',
     ]).has(ext);
+}
+
+// Returns true for image formats the browser can display natively via <img>.
+function isImageFile(ext) {
+    return new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'ico']).has(ext);
 }
 
 function formatPreviewSubtitle(name) {

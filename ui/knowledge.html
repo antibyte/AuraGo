@@ -423,7 +423,11 @@
                 <button class="modal-close" onclick="closeFilePreview()">&times;</button>
             </div>
             <div class="kc-preview-body">
-                <iframe id="file-preview-frame" class="kc-preview-frame" title="Document preview"></iframe>
+                <iframe id="file-preview-frame" class="kc-preview-frame is-hidden" title="Document preview"></iframe>
+                <pre id="file-preview-text" class="kc-preview-text is-hidden"></pre>
+                <div id="file-preview-img-wrap" class="kc-preview-img-wrap is-hidden">
+                    <img id="file-preview-img" class="kc-preview-img" alt="" />
+                </div>
                 <div class="kc-preview-fallback is-hidden" id="file-preview-fallback">
                     <div class="empty-icon">📄</div>
                     <h3 id="file-preview-fallback-title" data-i18n="knowledge.files_preview_unavailable_title">Preview unavailable</h3>

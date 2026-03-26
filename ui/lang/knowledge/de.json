@@ -61,6 +61,7 @@
   "knowledge.files_preview_unavailable_title": "Vorschau nicht verfügbar",
   "knowledge.files_preview_unavailable_desc": "Dieser Dateityp kann nicht direkt in der Vorschau angezeigt werden. Du kannst ihn aber herunterladen.",
   "knowledge.files_preview_render_error": "Der Browser konnte dieses Dokument nicht direkt darstellen. Versuche stattdessen den Download.",
+  "knowledge.files_preview_truncated": "Dateiinhalt auf 512 KB gekürzt",
   "knowledge.tab_credentials": "🔑 Zugangsdaten",
   "knowledge.credentials_search_placeholder": "Zugangsdaten filtern...",
   "knowledge.credentials_add": "Zugangsdaten hinzufügen",

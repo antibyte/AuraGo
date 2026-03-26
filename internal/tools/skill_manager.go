@@ -168,9 +168,15 @@ func (m *SkillManager) SyncFromDisk() error {
 				m.logger.Warn("Failed to insert skill", "name", manifest.Name, "error", err)
 			}
 		} else if err == nil {
-			// Update hash if changed
-			m.db.Exec("UPDATE skills_registry SET file_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-				fileHash, existingID)
+			// Update type for __builtin__ executables (may have been stored as "agent" previously)
+			if manifest.Executable == "__builtin__" {
+				m.db.Exec("UPDATE skills_registry SET type = ?, file_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+					string(SkillTypeBuiltIn), fileHash, existingID)
+			} else {
+				// Update hash if changed
+				m.db.Exec("UPDATE skills_registry SET file_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+					fileHash, existingID)
+			}
 		}
 	}
 
@@ -179,25 +185,29 @@ func (m *SkillManager) SyncFromDisk() error {
 
 // detectSkillType guesses the type based on naming conventions.
 func detectSkillType(name string, skillsDir string) SkillType {
-	// Check if the skill has a corresponding template-created marker
 	jsonPath := filepath.Join(skillsDir, name+".json")
 	data, err := os.ReadFile(jsonPath)
 	if err != nil {
 		return SkillTypeAgent
 	}
 
-	// Built-in skills shipped with the project typically have certain names
+	var manifest SkillManifest
+	if json.Unmarshal(data, &manifest) != nil {
+		return SkillTypeAgent
+	}
+
+	// Skills that delegate to a Go built-in tool are internal and should not
+	// appear as user-visible skills in the Fähigkeiten page.
+	if manifest.Executable == "__builtin__" {
+		return SkillTypeBuiltIn
+	}
+
+	// Hardcoded built-in names shipped with the project
 	builtins := map[string]bool{
 		"pdf_extractor": true, "scan": true, "screenshot": true,
 	}
 	if builtins[name] {
 		return SkillTypeBuiltIn
-	}
-
-	// If the manifest was auto-generated (has vault_keys or specific pattern), it's agent-created
-	var manifest SkillManifest
-	if json.Unmarshal(data, &manifest) == nil && len(manifest.VaultKeys) > 0 {
-		return SkillTypeAgent
 	}
 
 	return SkillTypeAgent

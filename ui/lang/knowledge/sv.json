@@ -61,6 +61,7 @@
   "knowledge.files_preview_unavailable_title": "Förhandsvisning är inte tillgänglig",
   "knowledge.files_preview_unavailable_desc": "Den här filtypen kan inte förhandsvisas direkt. Du kan fortfarande ladda ner den.",
   "knowledge.files_preview_render_error": "Webbläsaren kunde inte visa dokumentet direkt. Försök att ladda ner det i stället.",
+  "knowledge.files_preview_truncated": "Filinnehåll trunkerat till 512 KB",
   "knowledge.tab_credentials": "🔑 Access Credentials",
   "knowledge.credentials_search_placeholder": "Filter access credentials...",
   "knowledge.credentials_add": "Add Access Credential",

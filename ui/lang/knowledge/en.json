@@ -61,6 +61,7 @@
   "knowledge.files_preview_unavailable_title": "Preview unavailable",
   "knowledge.files_preview_unavailable_desc": "This file type cannot be previewed inline. You can still download it.",
   "knowledge.files_preview_render_error": "The browser could not render this document inline. Try downloading it instead.",
+  "knowledge.files_preview_truncated": "File content truncated to 512 KB",
   "knowledge.tab_credentials": "🔑 Access Credentials",
   "knowledge.credentials_search_placeholder": "Filter access credentials...",
   "knowledge.credentials_add": "Add Access Credential",

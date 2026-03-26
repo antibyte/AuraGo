@@ -61,6 +61,7 @@
   "knowledge.files_preview_unavailable_title": "पूर्वावलोकन उपलब्ध नहीं है",
   "knowledge.files_preview_unavailable_desc": "इस फ़ाइल प्रकार का इनलाइन पूर्वावलोकन उपलब्ध नहीं है। आप इसे फिर भी डाउनलोड कर सकते हैं।",
   "knowledge.files_preview_render_error": "ब्राउज़र इस दस्तावेज़ को सीधे रेंडर नहीं कर सका। कृपया इसे डाउनलोड करके देखें।",
+  "knowledge.files_preview_truncated": "फ़ाइल सामग्री 512 KB तक छोटी की गई",
   "knowledge.tab_credentials": "🔑 Access Credentials",
   "knowledge.credentials_search_placeholder": "Filter access credentials...",
   "knowledge.credentials_add": "Add Access Credential",

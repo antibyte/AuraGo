@@ -329,6 +329,42 @@
     background: rgba(255, 255, 255, 0.02);
 }
 
+/* Text / code preview */
+.kc-preview-text {
+    width: 100%;
+    min-height: 60vh;
+    margin: 0;
+    padding: 20px 24px;
+    overflow: auto;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.825rem;
+    line-height: 1.6;
+    color: var(--text-primary);
+    white-space: pre-wrap;
+    word-break: break-all;
+    background: transparent;
+    border: 0;
+    box-sizing: border-box;
+}
+
+/* Image preview */
+.kc-preview-img-wrap {
+    width: 100%;
+    min-height: 60vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.kc-preview-img {
+    max-width: 100%;
+    max-height: 72vh;
+    object-fit: contain;
+    border-radius: 8px;
+}
+
 .kc-preview-fallback {
     position: absolute;
     inset: 0;
