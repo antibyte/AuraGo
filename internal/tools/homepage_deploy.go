@@ -709,13 +709,26 @@ func HomepagePublishToLocal(cfg HomepageConfig, projectDir string, logger *slog.
 	// Try build; ignore failure for plain-HTML projects that have no build script.
 	buildResult := HomepageBuild(cfg, projectDir, logger)
 	var br map[string]interface{}
+	buildSucceeded := false
 	if json.Unmarshal([]byte(buildResult), &br) == nil {
-		if s, _ := br["status"].(string); s == "error" {
+		if s, _ := br["status"].(string); s == "ok" {
+			buildSucceeded = true
+		} else {
 			logger.Info("[Homepage] Build failed or not applicable, serving project root directly", "result", buildResult)
 		}
 	}
 
-	buildDir := detectBuildDir(cfg, projectDir)
+	var buildDir string
+	if buildSucceeded {
+		// Build produced an output directory — auto-detect it.
+		buildDir = detectBuildDir(cfg, projectDir)
+	} else {
+		// No build script (plain-HTML project). Always serve from the project
+		// root so that files written via write_file are immediately visible.
+		// Skipping detectBuildDir avoids accidentally serving a stale sub-directory
+		// (e.g. an old dist/ created by a previous manual copy).
+		buildDir = "."
+	}
 
 	// Start/restart web server with detected (or project root) directory
 	return HomepageWebServerStart(cfg, projectDir, buildDir, logger)
