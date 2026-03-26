@@ -305,7 +305,18 @@
     flex-shrink: 0;
 }
 
+.sk-vault-none {
+    font-size: 0.7rem;
+    color: var(--text-muted, #666);
+    font-style: italic;
+}
+
 /* ── Vault Key Assignment Modal ── */
+.modal--sm {
+    max-width: 420px;
+    width: 90%;
+}
+
 .sk-vault-key-list {
     display: flex;
     flex-direction: column;

@@ -120,10 +120,8 @@ function renderCard(skill) {
     }
 
     let vaultRow = '';
-    {
-        const keyTags = vaultKeys.length > 0
-            ? vaultKeys.map(k => `<code class="sk-vault-key-tag">${esc(k)}</code>`).join('')
-            : `<span class="sk-vault-none">${t('skills.vault_none') || 'No secrets assigned'}</span>`;
+    if (vaultKeys.length > 0) {
+        const keyTags = vaultKeys.map(k => `<code class="sk-vault-key-tag">${esc(k)}</code>`).join('');
         vaultRow = `<div class="sk-card-vault">
             <span class="sk-vault-icon" title="${t('skills.vault_keys_label') || 'Vault Keys'}">🔑</span>
             <span class="sk-vault-keys">${keyTags}</span>
@@ -277,7 +275,7 @@ async function showDetail(id) {
                 <div class="sk-detail-row"><span class="sk-detail-label">${t('skills.detail_created') || 'Created'}:</span> <span>${esc(s.CreatedAt || s.created_at || '-')}</span></div>
                 <div class="sk-detail-row"><span class="sk-detail-label">${t('skills.detail_description') || 'Description'}:</span> <span>${esc(s.Description || s.description || '-')}</span></div>
                 ${deps.length > 0 ? `<div class="sk-detail-row"><span class="sk-detail-label">${t('skills.detail_deps') || 'Dependencies'}:</span> <span>${deps.map(d => `<span class="sk-dep-tag">${esc(d)}</span>`).join(' ')}</span></div>` : ''}
-                ${vaultKeys.length > 0 ? `<div class="sk-detail-row"><span class="sk-detail-label">${t('skills.detail_vault') || 'Vault Keys'}:</span> <span>${vaultKeys.map(k => `<code>${esc(k)}</code>`).join(', ')}</span></div>` : ''}
+                <div class="sk-detail-row"><span class="sk-detail-label">${t('skills.vault_keys_label') || 'Vault Keys'}:</span> <span>${vaultKeys.length > 0 ? vaultKeys.map(k => `<code class="sk-vault-key-tag">${esc(k)}</code>`).join(' ') : `<span class="sk-vault-none">${t('skills.vault_none') || 'No secrets assigned'}</span>`} <button class="btn btn-xs btn-secondary sk-vault-edit-btn" onclick="openVaultKeyModal('${esc(s.ID || s.id)}')">✏️ ${t('skills.btn_edit_secrets') || 'Edit Secrets'}</button></span></div>
             </div>
             ${secHTML}`;
         if (typeof applyI18n === 'function') applyI18n();
@@ -698,7 +696,8 @@ async function openVaultKeyModal(id) {
         const vaultData = await vaultResp.json();
         const skillData = await skillResp.json();
 
-        allVaultSecrets = (vaultData.secrets || []).map(s => s.key || s);
+        const rawSecrets = Array.isArray(vaultData) ? vaultData : (vaultData.secrets || []);
+        allVaultSecrets = rawSecrets.map(s => (typeof s === 'string' ? s : s.key));
         const currentKeys = skillData.skill ? (skillData.skill.VaultKeys || skillData.skill.vault_keys || []) : [];
 
         if (allVaultSecrets.length === 0) {
