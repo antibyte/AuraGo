@@ -958,6 +958,69 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		})
 		s.Logger.Info("TrueNAS Storage UI enabled at /truenas")
 
+		// ── Skills Manager Page ──
+		skillsTmpl, skillsTmplErr := template.ParseFS(uiFS, "skills.html")
+		if skillsTmplErr != nil {
+			s.Logger.Error("Failed to parse Skills UI template", "error", skillsTmplErr)
+		}
+		mux.HandleFunc("/skills", func(w http.ResponseWriter, r *http.Request) {
+			if skillsTmpl == nil {
+				http.Error(w, "Skills template error", http.StatusInternalServerError)
+				return
+			}
+			lang := normalizeLang(s.Cfg.Server.UILanguage)
+			data := map[string]interface{}{
+				"Lang": lang,
+				"I18N": getI18NJSON(lang),
+			}
+			if err := skillsTmpl.Execute(w, data); err != nil {
+				s.Logger.Error("Failed to execute Skills template", "error", err)
+				http.Error(w, "Template render error", http.StatusInternalServerError)
+			}
+		})
+		s.Logger.Info("Skills Manager UI enabled at /skills")
+
+		// ── Skills Manager API ──
+		mux.HandleFunc("/api/skills/upload", handleUploadSkill(s))
+		mux.HandleFunc("/api/skills/templates", func(w http.ResponseWriter, r *http.Request) {
+			switch r.Method {
+			case http.MethodGet:
+				handleSkillTemplates(s)(w, r)
+			case http.MethodPost:
+				handleCreateSkillFromTemplate(s)(w, r)
+			default:
+				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			}
+		})
+		mux.HandleFunc("/api/skills/stats", handleSkillStats(s))
+		mux.HandleFunc("/api/skills", func(w http.ResponseWriter, r *http.Request) {
+			switch r.Method {
+			case http.MethodGet:
+				handleListSkills(s)(w, r)
+			case http.MethodPost:
+				handleCreateSkill(s)(w, r)
+			default:
+				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			}
+		})
+		mux.HandleFunc("/api/skills/", func(w http.ResponseWriter, r *http.Request) {
+			// Check for /api/skills/{id}/verify
+			if strings.HasSuffix(r.URL.Path, "/verify") {
+				handleVerifySkill(s)(w, r)
+				return
+			}
+			switch r.Method {
+			case http.MethodGet:
+				handleGetSkill(s)(w, r)
+			case http.MethodPut:
+				handleUpdateSkill(s)(w, r)
+			case http.MethodDelete:
+				handleDeleteSkill(s)(w, r)
+			default:
+				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			}
+		})
+
 		// ── Containers API ──
 		mux.HandleFunc("/api/containers", handleContainersList(s))
 		mux.HandleFunc("/api/containers/", handleContainerAction(s))

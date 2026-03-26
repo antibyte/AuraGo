@@ -1,0 +1,16 @@
+{
+  "config.skill_manager.enabled_label": "Ingeschakeld",
+  "config.skill_manager.allow_uploads_label": "Uploads toestaan",
+  "config.skill_manager.read_only_label": "Alleen-lezen modus",
+  "config.skill_manager.require_scan_label": "Beveiligingsscan vereist",
+  "config.skill_manager.auto_enable_clean_label": "Schone vaardigheden automatisch inschakelen",
+  "config.skill_manager.scan_with_guardian_label": "Scannen met LLM Guardian",
+  "config.skill_manager.max_upload_size_mb_label": "Maximale uploadgrootte (MB)",
+  "help.skill_manager.enabled": "Vaardigheidsbeheer in- of uitschakelen",
+  "help.skill_manager.allow_uploads": "Uploaden van nieuwe Python-vaardigheidsbestanden toestaan",
+  "help.skill_manager.read_only": "Wanneer ingeschakeld, worden alle wijzigingen aan vaardigheden voorkomen (geen upload, verwijdering of schakeling)",
+  "help.skill_manager.require_scan": "Een beveiligingsscan uitvoeren op geüploade vaardigheden voordat ze worden ingeschakeld",
+  "help.skill_manager.auto_enable_clean": "Vaardigheden automatisch inschakelen die de beveiligingsscan zonder waarschuwingen doorstaan",
+  "help.skill_manager.scan_with_guardian": "LLM Guardian gebruiken om geüploade vaardigheidscode te controleren op beveiligingsproblemen",
+  "help.skill_manager.max_upload_size_mb": "Maximale toegestane bestandsgrootte voor vaardigheidsuploads in megabytes"
+}

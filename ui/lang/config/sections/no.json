@@ -240,5 +240,7 @@
   "config.tts.piper_status_stopped": "Piper-container er stoppet",
   "config.tts.piper_status_error": "Piper TTS-feil",
   "config.section.sql_connections.label": "SQL-tilkoblinger",
-  "config.section.sql_connections.desc": "Administrer eksterne databasetilkoblinger for agenten"
+  "config.section.sql_connections.desc": "Administrer eksterne databasetilkoblinger for agenten",
+  "config.section.skill_manager.label": "Ferdighetsbehandler",
+  "config.section.skill_manager.desc": "Administrer, last opp og konfigurer Python-ferdigheter"
 }

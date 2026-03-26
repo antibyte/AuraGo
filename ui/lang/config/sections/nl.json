@@ -240,5 +240,7 @@
   "config.tts.piper_status_stopped": "Piper-container is gestopt",
   "config.tts.piper_status_error": "Piper TTS-fout",
   "config.section.sql_connections.label": "SQL-verbindingen",
-  "config.section.sql_connections.desc": "Externe databaseverbindingen voor de agent beheren"
+  "config.section.sql_connections.desc": "Externe databaseverbindingen voor de agent beheren",
+  "config.section.skill_manager.label": "Vaardigheidsbeheer",
+  "config.section.skill_manager.desc": "Python-vaardigheden beheren, uploaden en configureren"
 }

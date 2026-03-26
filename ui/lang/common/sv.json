@@ -32,5 +32,6 @@
   "login.totp_divider": "Autentiseringskod",
   "login.totp_label": "6-siffrig kod",
   "common.nav_knowledge": "Kunskapscenter",
-  "common.nav_containers": "Behållare"
+  "common.nav_containers": "Behållare",
+  "common.nav_skills": "Färdigheter"
 }

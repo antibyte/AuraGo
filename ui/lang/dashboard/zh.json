@@ -293,5 +293,7 @@
   "dashboard.quickstatus_not_connected": "已断开",
   "dashboard.quickstatus_online": "在线",
   "dashboard.quickstatus_offline": "离线",
-  "dashboard.quickstatus_integrations": "集成"
+  "dashboard.quickstatus_integrations": "集成",
+  "dashboard.quickstatus_skills": "技能",
+  "dashboard.integration_skill_manager": "技能管理器"
 }

@@ -847,6 +847,7 @@ func handleDashboardOverview(s *Server) http.HandlerFunc {
 			"firewall":         cfg.Firewall.Enabled,
 			"remote_control":   cfg.RemoteControl.Enabled,
 			"web_scraper":      cfg.Tools.WebScraper.Enabled,
+			"skill_manager":    cfg.Tools.SkillManager.Enabled,
 		}
 
 		// ── Missions Summary ──────────────────────────────────
@@ -1005,6 +1006,19 @@ func handleDashboardOverview(s *Server) http.HandlerFunc {
 			tunnelInfo["url"] = url
 		}
 
+		// ── Skills Summary ────────────────────────────────────
+		skillsSummary := map[string]interface{}{
+			"total": 0, "agent": 0, "user": 0, "pending": 0,
+		}
+		if s.SkillManager != nil {
+			total, agentN, userN, pending, err := s.SkillManager.GetStats()
+			if err == nil {
+				skillsSummary = map[string]interface{}{
+					"total": total, "agent": agentN, "user": userN, "pending": pending,
+				}
+			}
+		}
+
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"agent":               agentInfo,
@@ -1020,6 +1034,7 @@ func handleDashboardOverview(s *Server) http.HandlerFunc {
 			"last_activity_hours": lastActivityHours,
 			"cheatsheets":         cheatsheetsSummary,
 			"tunnel":              tunnelInfo,
+			"skills":              skillsSummary,
 		})
 	}
 }

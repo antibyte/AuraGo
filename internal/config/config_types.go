@@ -187,6 +187,7 @@ type Config struct {
 		ContactsPath         string `yaml:"contacts_path"`
 		SiteMonitorPath      string `yaml:"site_monitor_path"`
 		SQLConnectionsPath   string `yaml:"sql_connections_path"`
+		SkillsPath           string `yaml:"skills_path"`
 	} `yaml:"sqlite"`
 	Embeddings struct {
 		Provider         string `yaml:"provider"`          // "disabled" or provider entry ID
@@ -1003,6 +1004,15 @@ type Config struct {
 		} `yaml:"python_secret_injection"`
 		PythonTimeoutSeconds int `yaml:"python_timeout_seconds"` // foreground Python/shell execution timeout (default: 30)
 		SkillTimeoutSeconds  int `yaml:"skill_timeout_seconds"`  // skill execution timeout (default: 120)
+		SkillManager         struct {
+			Enabled          bool `yaml:"enabled"`            // enable skill manager web UI and API (default: true)
+			AllowUploads     bool `yaml:"allow_uploads"`      // allow uploading new skills via web UI (default: true)
+			ReadOnly         bool `yaml:"readonly"`           // read-only mode: list/view only (default: false)
+			RequireScan      bool `yaml:"require_scan"`       // require security scan before enabling (default: true)
+			MaxUploadSizeMB  int  `yaml:"max_upload_size_mb"` // max upload file size in MB (default: 1)
+			AutoEnableClean  bool `yaml:"auto_enable_clean"`  // auto-enable skills that pass all scans (default: false)
+			ScanWithGuardian bool `yaml:"scan_with_guardian"` // use LLM Guardian for code review on upload (default: false, costs tokens)
+		} `yaml:"skill_manager"`
 	} `yaml:"tools"`
 	Sandbox struct {
 		Enabled        bool   `yaml:"enabled"`

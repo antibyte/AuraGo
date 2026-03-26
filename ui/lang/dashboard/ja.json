@@ -293,5 +293,7 @@
   "dashboard.quickstatus_not_connected": "切断済み",
   "dashboard.quickstatus_online": "オンライン",
   "dashboard.quickstatus_offline": "オフライン",
-  "dashboard.quickstatus_integrations": "連携"
+  "dashboard.quickstatus_integrations": "連携",
+  "dashboard.quickstatus_skills": "スキル",
+  "dashboard.integration_skill_manager": "スキルマネージャー"
 }

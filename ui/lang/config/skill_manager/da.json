@@ -1,0 +1,16 @@
+{
+  "config.skill_manager.enabled_label": "Aktiveret",
+  "config.skill_manager.allow_uploads_label": "Tillad uploads",
+  "config.skill_manager.read_only_label": "Skrivebeskyttet tilstand",
+  "config.skill_manager.require_scan_label": "Kræv sikkerhedsscanning",
+  "config.skill_manager.auto_enable_clean_label": "Aktiver automatisk rene færdigheder",
+  "config.skill_manager.scan_with_guardian_label": "Scan med LLM Guardian",
+  "config.skill_manager.max_upload_size_mb_label": "Maksimal uploadstørrelse (MB)",
+  "help.skill_manager.enabled": "Aktiver eller deaktiver færdighedshåndtering",
+  "help.skill_manager.allow_uploads": "Tillad upload af nye Python-færdighedsfiler",
+  "help.skill_manager.read_only": "Når aktiveret, forhindres alle ændringer af færdigheder (ingen upload, sletning eller skift)",
+  "help.skill_manager.require_scan": "Kør en sikkerhedsscanning af uploadede færdigheder før aktivering",
+  "help.skill_manager.auto_enable_clean": "Aktiver automatisk færdigheder der passerer sikkerhedsscanningen uden advarsler",
+  "help.skill_manager.scan_with_guardian": "Brug LLM Guardian til at gennemgå uploadet færdighedskode for sikkerhedsproblemer",
+  "help.skill_manager.max_upload_size_mb": "Maksimal tilladt filstørrelse for færdighedsuploads i megabytes"
+}

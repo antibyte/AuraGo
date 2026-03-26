@@ -32,5 +32,6 @@
   "login.totp_divider": "Κωδικός ελέγχου ταυτότητας",
   "login.totp_label": "6ψήφιος κωδικός",
   "common.nav_knowledge": "Κέντρο Γνώσεων",
-  "common.nav_containers": "Κοντέινερ"
+  "common.nav_containers": "Κοντέινερ",
+  "common.nav_skills": "Δεξιότητες"
 }

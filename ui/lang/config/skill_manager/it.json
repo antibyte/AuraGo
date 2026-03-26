@@ -1,0 +1,16 @@
+{
+  "config.skill_manager.enabled_label": "Abilitato",
+  "config.skill_manager.allow_uploads_label": "Consenti caricamenti",
+  "config.skill_manager.read_only_label": "Modalità sola lettura",
+  "config.skill_manager.require_scan_label": "Scansione di sicurezza richiesta",
+  "config.skill_manager.auto_enable_clean_label": "Abilita automaticamente abilità pulite",
+  "config.skill_manager.scan_with_guardian_label": "Scansione con LLM Guardian",
+  "config.skill_manager.max_upload_size_mb_label": "Dimensione massima caricamento (MB)",
+  "help.skill_manager.enabled": "Abilita o disabilita il gestore delle abilità",
+  "help.skill_manager.allow_uploads": "Consenti il caricamento di nuovi file di abilità Python",
+  "help.skill_manager.read_only": "Quando abilitato, impedisce tutte le modifiche alle abilità (nessun caricamento, eliminazione o attivazione)",
+  "help.skill_manager.require_scan": "Eseguire una scansione di sicurezza sulle abilità caricate prima di abilitarle",
+  "help.skill_manager.auto_enable_clean": "Abilita automaticamente le abilità che superano la scansione di sicurezza senza avvisi",
+  "help.skill_manager.scan_with_guardian": "Usa il LLM Guardian per verificare il codice delle abilità caricate",
+  "help.skill_manager.max_upload_size_mb": "Dimensione massima consentita per i caricamenti di abilità in megabyte"
+}

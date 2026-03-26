@@ -293,5 +293,7 @@
   "dashboard.quickstatus_not_connected": "Verbroken",
   "dashboard.quickstatus_online": "Online",
   "dashboard.quickstatus_offline": "Offline",
-  "dashboard.quickstatus_integrations": "Integraties"
+  "dashboard.quickstatus_integrations": "Integraties",
+  "dashboard.quickstatus_skills": "Vaardigheden",
+  "dashboard.integration_skill_manager": "Vaardigheidsbeheer"
 }

@@ -1,0 +1,16 @@
+{
+  "config.skill_manager.enabled_label": "Activado",
+  "config.skill_manager.allow_uploads_label": "Permitir subidas",
+  "config.skill_manager.read_only_label": "Modo solo lectura",
+  "config.skill_manager.require_scan_label": "Escaneo de seguridad requerido",
+  "config.skill_manager.auto_enable_clean_label": "Activar automáticamente habilidades limpias",
+  "config.skill_manager.scan_with_guardian_label": "Escanear con LLM Guardian",
+  "config.skill_manager.max_upload_size_mb_label": "Tamaño máximo de subida (MB)",
+  "help.skill_manager.enabled": "Activar o desactivar el gestor de habilidades",
+  "help.skill_manager.allow_uploads": "Permitir la subida de nuevos archivos de habilidades Python",
+  "help.skill_manager.read_only": "Cuando está activado, impide todas las modificaciones de habilidades (sin subida, eliminación ni activación)",
+  "help.skill_manager.require_scan": "Ejecutar un escaneo de seguridad en las habilidades subidas antes de activarlas",
+  "help.skill_manager.auto_enable_clean": "Activar automáticamente las habilidades que pasen el escaneo de seguridad sin advertencias",
+  "help.skill_manager.scan_with_guardian": "Usar el LLM Guardian para revisar el código de habilidades subidas",
+  "help.skill_manager.max_upload_size_mb": "Tamaño máximo de archivo permitido para subidas de habilidades en megabytes"
+}

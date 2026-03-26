@@ -1,0 +1,16 @@
+{
+  "config.skill_manager.enabled_label": "启用",
+  "config.skill_manager.allow_uploads_label": "允许上传",
+  "config.skill_manager.read_only_label": "只读模式",
+  "config.skill_manager.require_scan_label": "需要安全扫描",
+  "config.skill_manager.auto_enable_clean_label": "自动启用干净技能",
+  "config.skill_manager.scan_with_guardian_label": "使用 LLM Guardian 扫描",
+  "config.skill_manager.max_upload_size_mb_label": "最大上传大小 (MB)",
+  "help.skill_manager.enabled": "启用或禁用技能管理器功能",
+  "help.skill_manager.allow_uploads": "允许上传新的 Python 技能文件",
+  "help.skill_manager.read_only": "启用后，阻止对技能的所有修改（无法上传、删除或切换）",
+  "help.skill_manager.require_scan": "在启用上传的技能之前运行安全扫描",
+  "help.skill_manager.auto_enable_clean": "自动启用通过安全扫描且无警告的技能",
+  "help.skill_manager.scan_with_guardian": "使用 LLM Guardian 审查上传的技能代码是否存在安全问题",
+  "help.skill_manager.max_upload_size_mb": "技能上传允许的最大文件大小（兆字节）"
+}

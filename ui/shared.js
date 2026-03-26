@@ -134,6 +134,7 @@ function injectRadialMenu() {
         { href: '/media', icon: '📁', key: 'common.nav_media' },
         { href: '/knowledge', icon: '📚', key: 'common.nav_knowledge' },
         { href: '/containers', icon: '🐳', key: 'common.nav_containers' },
+        { href: '/skills', icon: '🧩', key: 'common.nav_skills' },
         { href: '/config', icon: '⚙️', key: 'common.nav_config' },
         { href: '/invasion', icon: '🥚', key: 'common.nav_invasion' },
     ];

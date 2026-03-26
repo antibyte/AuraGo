@@ -242,5 +242,7 @@
   "config.tts.piper_status_stopped": "Το Piper container είναι σταματημένο",
   "config.tts.piper_status_error": "Σφάλμα Piper TTS",
   "config.section.sql_connections.label": "Συνδέσεις SQL",
-  "config.section.sql_connections.desc": "Διαχείριση εξωτερικών συνδέσεων βάσεων δεδομένων για τον agent"
+  "config.section.sql_connections.desc": "Διαχείριση εξωτερικών συνδέσεων βάσεων δεδομένων για τον agent",
+  "config.section.skill_manager.label": "Διαχειριστής Δεξιοτήτων",
+  "config.section.skill_manager.desc": "Διαχείριση, μεταφόρτωση και ρύθμιση δεξιοτήτων Python"
 }

@@ -240,5 +240,7 @@
   "config.tts.piper_status_stopped": "Piper-container är stoppad",
   "config.tts.piper_status_error": "Piper TTS-fel",
   "config.section.sql_connections.label": "SQL-anslutningar",
-  "config.section.sql_connections.desc": "Hantera externa databasanslutningar för agenten"
+  "config.section.sql_connections.desc": "Hantera externa databasanslutningar för agenten",
+  "config.section.skill_manager.label": "Färdighetshanterare",
+  "config.section.skill_manager.desc": "Hantera, ladda upp och konfigurera Python-färdigheter"
 }

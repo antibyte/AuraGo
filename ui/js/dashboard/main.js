@@ -1363,6 +1363,7 @@
             const mqtt = overview.mqtt || {};
             const sec = overview.security || {};
             const m = overview.missions || {};
+            const sk = overview.skills || {};
             const integrations = overview.integrations || {};
             const visibleIntegrations = Object.entries(integrations).filter(([key]) => !HIDDEN_INTEGRATIONS.has(key));
             const activeInts = visibleIntegrations.filter(([, value]) => value).length;
@@ -1411,6 +1412,13 @@
                     status: 'neutral',
                     info: ''
                 },
+                {
+                    icon: '🧩',
+                    lbl: t('dashboard.quickstatus_skills'),
+                    val: sk.total || 0,
+                    status: sk.pending > 0 ? 'warning' : 'neutral',
+                    info: sk.pending > 0 ? `${sk.pending} pending` : ''
+                },
             ];
 
             el.innerHTML = items.map(s =>
@@ -1441,7 +1449,8 @@
                 sandbox: '📦', ai_gateway: '🌐', image_generation: '🎨',
                 google_workspace: '📧', netlify: '🚀',
                 homepage: '🏠', virustotal: '🦠', brave_search: '🔍',
-                firewall: '🔥', remote_control: '🖥️', web_scraper: '🕷️'
+                firewall: '🔥', remote_control: '🖥️', web_scraper: '🕷️',
+                skill_manager: '🧩'
             };
             const names = {
                 telegram: t('dashboard.integration_telegram'), discord: t('dashboard.integration_discord'),
@@ -1474,7 +1483,8 @@
                 homepage: t('dashboard.integration_homepage'), virustotal: t('dashboard.integration_virustotal'),
                 brave_search: t('dashboard.integration_brave_search'), firewall: t('dashboard.integration_firewall'),
                 remote_control: t('dashboard.integration_remote_control'),
-                web_scraper: t('dashboard.integration_web_scraper')
+                web_scraper: t('dashboard.integration_web_scraper'),
+                skill_manager: t('dashboard.integration_skill_manager')
             };
 
             // Sort: active first

@@ -32,5 +32,6 @@
   "login.totp_divider": "Authenticatiecode",
   "login.totp_label": "6-cijferige code",
   "common.nav_knowledge": "Kenniscentrum",
-  "common.nav_containers": "Containers"
+  "common.nav_containers": "Containers",
+  "common.nav_skills": "Vaardigheden"
 }

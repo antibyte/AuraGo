@@ -242,5 +242,7 @@
   "config.tts.piper_status_stopped": "Piperコンテナは停止中です",
   "config.tts.piper_status_error": "Piper TTSエラー",
   "config.section.sql_connections.label": "SQL接続",
-  "config.section.sql_connections.desc": "エージェント用の外部データベース接続を管理"
+  "config.section.sql_connections.desc": "エージェント用の外部データベース接続を管理",
+  "config.section.skill_manager.label": "スキルマネージャー",
+  "config.section.skill_manager.desc": "Pythonスキルの管理、アップロード、設定"
 }

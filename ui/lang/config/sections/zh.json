@@ -242,5 +242,7 @@
   "config.tts.piper_status_stopped": "Piper 容器已停止",
   "config.tts.piper_status_error": "Piper TTS 错误",
   "config.section.sql_connections.label": "SQL 连接",
-  "config.section.sql_connections.desc": "管理代理的外部数据库连接"
+  "config.section.sql_connections.desc": "管理代理的外部数据库连接",
+  "config.section.skill_manager.label": "技能管理器",
+  "config.section.skill_manager.desc": "管理、上传和配置 Python 技能"
 }

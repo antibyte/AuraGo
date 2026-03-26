@@ -77,6 +77,10 @@ func Load(path string) (*Config, error) {
 
 	cfg.Tools.PythonTimeoutSeconds = 30
 	cfg.Tools.SkillTimeoutSeconds = 120
+	cfg.Tools.SkillManager.Enabled = true
+	cfg.Tools.SkillManager.AllowUploads = true
+	cfg.Tools.SkillManager.RequireScan = true
+	cfg.Tools.SkillManager.MaxUploadSizeMB = 1
 	cfg.Tools.WebCapture.Enabled = true
 	cfg.Tools.NetworkPing.Enabled = true
 	cfg.Tools.NetworkScan.Enabled = true
@@ -226,6 +230,10 @@ func Load(path string) (*Config, error) {
 		cfg.SQLite.SQLConnectionsPath = "./data/sql_connections.db"
 	}
 	cfg.SQLite.SQLConnectionsPath = resolvePath(configDir, cfg.SQLite.SQLConnectionsPath)
+	if cfg.SQLite.SkillsPath == "" {
+		cfg.SQLite.SkillsPath = "./data/skills.db"
+	}
+	cfg.SQLite.SkillsPath = resolvePath(configDir, cfg.SQLite.SkillsPath)
 
 	// Resolve logging directory
 	cfg.Logging.LogDir = resolvePath(configDir, cfg.Logging.LogDir)

@@ -32,5 +32,6 @@
   "login.totp_divider": "código de autenticación",
   "login.totp_label": "código de 6 dígitos",
   "common.nav_knowledge": "Centro de Conocimiento",
-  "common.nav_containers": "Contenedores"
+  "common.nav_containers": "Contenedores",
+  "common.nav_skills": "Habilidades"
 }

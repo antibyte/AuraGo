@@ -1,0 +1,16 @@
+{
+  "config.skill_manager.enabled_label": "Włączone",
+  "config.skill_manager.allow_uploads_label": "Zezwalaj na przesyłanie",
+  "config.skill_manager.read_only_label": "Tryb tylko do odczytu",
+  "config.skill_manager.require_scan_label": "Wymagaj skanowania bezpieczeństwa",
+  "config.skill_manager.auto_enable_clean_label": "Automatycznie włącz czyste umiejętności",
+  "config.skill_manager.scan_with_guardian_label": "Skanuj z LLM Guardian",
+  "config.skill_manager.max_upload_size_mb_label": "Maksymalny rozmiar przesyłania (MB)",
+  "help.skill_manager.enabled": "Włącz lub wyłącz menedżera umiejętności",
+  "help.skill_manager.allow_uploads": "Zezwalaj na przesyłanie nowych plików umiejętności Python",
+  "help.skill_manager.read_only": "Po włączeniu uniemożliwia wszystkie modyfikacje umiejętności (brak przesyłania, usuwania ani przełączania)",
+  "help.skill_manager.require_scan": "Uruchom skanowanie bezpieczeństwa przesłanych umiejętności przed ich włączeniem",
+  "help.skill_manager.auto_enable_clean": "Automatycznie włącz umiejętności, które przejdą skanowanie bezpieczeństwa bez ostrzeżeń",
+  "help.skill_manager.scan_with_guardian": "Użyj LLM Guardian do sprawdzenia przesłanego kodu umiejętności pod kątem problemów bezpieczeństwa",
+  "help.skill_manager.max_upload_size_mb": "Maksymalny dozwolony rozmiar pliku dla przesyłania umiejętności w megabajtach"
+}

@@ -242,5 +242,7 @@
   "config.tts.piper_status_stopped": "Kontener Piper jest zatrzymany",
   "config.tts.piper_status_error": "Błąd Piper TTS",
   "config.section.sql_connections.label": "Połączenia SQL",
-  "config.section.sql_connections.desc": "Zarządzaj zewnętrznymi połączeniami baz danych dla agenta"
+  "config.section.sql_connections.desc": "Zarządzaj zewnętrznymi połączeniami baz danych dla agenta",
+  "config.section.skill_manager.label": "Menedżer Umiejętności",
+  "config.section.skill_manager.desc": "Zarządzaj, przesyłaj i konfiguruj umiejętności Python"
 }

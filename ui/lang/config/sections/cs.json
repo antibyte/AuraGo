@@ -242,5 +242,7 @@
   "config.tts.piper_status_stopped": "Piper kontejner je zastaven",
   "config.tts.piper_status_error": "Chyba Piper TTS",
   "config.section.sql_connections.label": "SQL připojení",
-  "config.section.sql_connections.desc": "Spravovat externí databázová připojení pro agenta"
+  "config.section.sql_connections.desc": "Spravovat externí databázová připojení pro agenta",
+  "config.section.skill_manager.label": "Správce dovedností",
+  "config.section.skill_manager.desc": "Správa, nahrávání a konfigurace Python dovedností"
 }

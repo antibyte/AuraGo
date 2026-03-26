@@ -293,5 +293,7 @@
   "dashboard.quickstatus_not_connected": "डिस्कनेक्ट",
   "dashboard.quickstatus_online": "ऑनलाइन",
   "dashboard.quickstatus_offline": "ऑफलाइन",
-  "dashboard.quickstatus_integrations": "एकीकरण"
+  "dashboard.quickstatus_integrations": "एकीकरण",
+  "dashboard.quickstatus_skills": "कौशल",
+  "dashboard.integration_skill_manager": "कौशल प्रबंधक"
 }

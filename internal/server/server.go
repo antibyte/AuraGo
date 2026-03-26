@@ -230,6 +230,8 @@ type Server struct {
 	A2AServer          *a2apkg.Server        // A2A protocol server (nil if disabled)
 	A2AClientMgr       *a2apkg.ClientManager // A2A client manager (nil if disabled)
 	A2ABridge          *a2apkg.Bridge        // A2A co-agent bridge (nil if disabled)
+	SkillManager       *tools.SkillManager   // Skill Manager for registry and security scanning
+	SkillsDB           *sql.DB               // Skills registry database
 	// IsFirstStart is true if core_memory.md was just freshly created (no prior data).
 	IsFirstStart   bool
 	StartedAt      time.Time     // server start time for uptime calculation
@@ -268,6 +270,21 @@ func Start(cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, sh
 		ShutdownCh:         shutdownCh,
 		MissionManagerV2:   tools.NewMissionManagerV2(cfg.Directories.DataDir, cronManager),
 		EggHub:             bridge.NewEggHub(logger),
+	}
+
+	// Initialize Skill Manager (always; gated by config in handlers)
+	if cfg.Tools.SkillManager.Enabled {
+		skillsDB, err := tools.InitSkillsDB(cfg.SQLite.SkillsPath)
+		if err != nil {
+			logger.Warn("Failed to initialize Skills DB", "error", err, "path", cfg.SQLite.SkillsPath)
+		} else {
+			s.SkillsDB = skillsDB
+			s.SkillManager = tools.NewSkillManager(skillsDB, cfg.Directories.SkillsDir, logger)
+			if err := s.SkillManager.SyncFromDisk(); err != nil {
+				logger.Warn("Failed to sync skills from disk", "error", err)
+			}
+			logger.Info("Skill Manager initialized", "skills_dir", cfg.Directories.SkillsDir)
+		}
 	}
 
 	// Initialize Remote Control Hub

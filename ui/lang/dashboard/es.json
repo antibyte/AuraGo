@@ -293,5 +293,7 @@
   "dashboard.quickstatus_not_connected": "Desconectado",
   "dashboard.quickstatus_online": "En línea",
   "dashboard.quickstatus_offline": "Fuera de línea",
-  "dashboard.quickstatus_integrations": "Integraciones"
+  "dashboard.quickstatus_integrations": "Integraciones",
+  "dashboard.quickstatus_skills": "Habilidades",
+  "dashboard.integration_skill_manager": "Gestor de Habilidades"
 }

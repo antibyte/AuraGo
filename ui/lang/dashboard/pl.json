@@ -293,5 +293,7 @@
   "dashboard.quickstatus_not_connected": "Rozłączony",
   "dashboard.quickstatus_online": "Online",
   "dashboard.quickstatus_offline": "Offline",
-  "dashboard.quickstatus_integrations": "Integracje"
+  "dashboard.quickstatus_integrations": "Integracje",
+  "dashboard.quickstatus_skills": "Umiejętności",
+  "dashboard.integration_skill_manager": "Menedżer Umiejętności"
 }

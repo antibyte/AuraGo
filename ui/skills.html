@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="{{.Lang}}" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="page-title">AuraGo - Skills</title>
+    <link rel="stylesheet" href="/shared.css">
+    <script src="/shared.js"></script>
+    <script>
+        (function () { var t = localStorage.getItem('aurago-theme'); if (t) document.documentElement.setAttribute('data-theme', t); })();
+    </script>
+    <script>const I18N={{.I18N}};</script>
+    <link rel="stylesheet" href="/css/skills.css">
+    <link rel="stylesheet" href="/css/enhancements.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header class="app-header">
+        <div class="header-left">
+            <a href="/" class="logo">
+                <div class="logo-icon">🥚</div>
+                <span style="color:var(--accent);">AURA</span><span style="color:var(--text-primary);">GO</span>
+                <span class="logo-subtitle" data-i18n="skills.subtitle">Skills</span>
+            </a>
+        </div>
+        <div class="header-actions">
+            <button id="theme-toggle" type="button" class="btn-theme" title="Toggle theme"></button>
+        </div>
+    </header>
+
+    <div id="radialMenuAnchor"></div>
+
+    <div class="sk-container">
+        <!-- Status bar -->
+        <div class="sk-status-bar" id="sk-status-bar">
+            <div class="sk-stat">
+                <span class="sk-stat-value" id="sk-total">0</span>
+                <span class="sk-stat-label" data-i18n="skills.stat_total">Total</span>
+            </div>
+            <div class="sk-stat sk-stat-agent">
+                <span class="sk-stat-value" id="sk-agent">0</span>
+                <span class="sk-stat-label" data-i18n="skills.stat_agent">Agent</span>
+            </div>
+            <div class="sk-stat sk-stat-user">
+                <span class="sk-stat-value" id="sk-user">0</span>
+                <span class="sk-stat-label" data-i18n="skills.stat_user">User</span>
+            </div>
+            <div class="sk-stat sk-stat-pending">
+                <span class="sk-stat-value" id="sk-pending">0</span>
+                <span class="sk-stat-label" data-i18n="skills.stat_pending">Pending</span>
+            </div>
+        </div>
+
+        <!-- Toolbar -->
+        <div class="sk-toolbar">
+            <input type="text" id="sk-search" class="sk-search"
+                placeholder="Search skills..." data-i18n-placeholder="skills.search_placeholder"
+                oninput="filterSkills()">
+            <div class="sk-filter-group">
+                <button class="sk-filter-btn active" data-filter="all" onclick="setSkillFilter('all')" data-i18n="skills.filter_all">All</button>
+                <button class="sk-filter-btn" data-filter="agent" onclick="setSkillFilter('agent')" data-i18n="skills.filter_agent">Agent</button>
+                <button class="sk-filter-btn" data-filter="user" onclick="setSkillFilter('user')" data-i18n="skills.filter_user">User</button>
+                <button class="sk-filter-btn" data-filter="builtin" onclick="setSkillFilter('builtin')" data-i18n="skills.filter_builtin">Built-in</button>
+            </div>
+            <div class="sk-toolbar-actions" id="sk-toolbar-actions">
+                <button class="btn btn-primary btn-sm" onclick="showUploadModal()" data-i18n="skills.btn_upload">Upload Skill</button>
+                <button class="btn btn-secondary btn-sm" onclick="showTemplateModal()" data-i18n="skills.btn_from_template">From Template</button>
+            </div>
+        </div>
+
+        <!-- Security filter pills -->
+        <div class="sk-security-filters" id="sk-security-filters">
+            <button class="sk-pill active" data-sec="all" onclick="setSecurityFilter('all')" data-i18n="skills.sec_all">All</button>
+            <button class="sk-pill" data-sec="clean" onclick="setSecurityFilter('clean')"><span class="sk-badge sk-badge-clean"></span> <span data-i18n="skills.sec_clean">Clean</span></button>
+            <button class="sk-pill" data-sec="warning" onclick="setSecurityFilter('warning')"><span class="sk-badge sk-badge-warning"></span> <span data-i18n="skills.sec_warning">Warning</span></button>
+            <button class="sk-pill" data-sec="dangerous" onclick="setSecurityFilter('dangerous')"><span class="sk-badge sk-badge-dangerous"></span> <span data-i18n="skills.sec_dangerous">Dangerous</span></button>
+            <button class="sk-pill" data-sec="pending" onclick="setSecurityFilter('pending')"><span class="sk-badge sk-badge-pending"></span> <span data-i18n="skills.sec_pending">Pending</span></button>
+        </div>
+
+        <!-- Skill cards grid -->
+        <div class="sk-grid" id="sk-grid"></div>
+
+        <!-- Empty state -->
+        <div class="empty-state" id="sk-empty" style="display:none;">
+            <div class="empty-icon">🧩</div>
+            <h3 data-i18n="skills.empty_title">No Skills Found</h3>
+            <p data-i18n="skills.empty_desc">No skills match your current filters. Upload a skill or create one from a template.</p>
+        </div>
+
+        <!-- Disabled state -->
+        <div class="empty-state" id="sk-disabled" style="display:none;">
+            <div class="empty-icon">⚠️</div>
+            <h3 data-i18n="skills.disabled_title">Skill Manager Not Enabled</h3>
+            <p data-i18n="skills.disabled_desc">Enable Skill Manager in the configuration to manage skills.</p>
+        </div>
+    </div>
+
+    <!-- DETAIL MODAL -->
+    <div class="modal-overlay" id="detail-modal">
+        <div class="modal modal-wide">
+            <div class="modal-header">
+                <h2 id="detail-modal-title" data-i18n="skills.detail_title">Skill Details</h2>
+                <button class="modal-close" onclick="closeDetailModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="detail-modal-body">
+                <!-- Populated by JS -->
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeDetailModal()" data-i18n="common.btn_close">Close</button>
+                <button class="btn btn-primary" id="detail-verify-btn" onclick="verifyCurrentSkill()" data-i18n="skills.btn_verify">Re-Scan</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CODE VIEW MODAL -->
+    <div class="modal-overlay" id="code-modal">
+        <div class="modal modal-wide">
+            <div class="modal-header">
+                <h2 id="code-modal-title" data-i18n="skills.code_title">Skill Code</h2>
+                <button class="modal-close" onclick="closeCodeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <pre class="sk-code-output" id="code-output"></pre>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeCodeModal()" data-i18n="common.btn_close">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- UPLOAD MODAL -->
+    <div class="modal-overlay" id="upload-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 data-i18n="skills.upload_title">Upload Skill</h2>
+                <button class="modal-close" onclick="closeUploadModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="sk-upload-warning">
+                    <span class="sk-upload-warning-icon">⚠️</span>
+                    <span data-i18n="skills.upload_warning">Uploaded skills will be security-scanned. Potentially dangerous code will be flagged and disabled.</span>
+                </div>
+                <div class="sk-form-group">
+                    <label data-i18n="skills.upload_name">Name (optional)</label>
+                    <input type="text" id="upload-name" class="sk-input" placeholder="auto-detected from filename" data-i18n-placeholder="skills.upload_name_hint">
+                </div>
+                <div class="sk-form-group">
+                    <label data-i18n="skills.upload_description">Description</label>
+                    <input type="text" id="upload-description" class="sk-input" placeholder="What does this skill do?" data-i18n-placeholder="skills.upload_desc_hint">
+                </div>
+                <div class="sk-dropzone" id="sk-dropzone">
+                    <div class="sk-dropzone-icon">📁</div>
+                    <p data-i18n="skills.upload_drop">Drop a .py file here or click to browse</p>
+                    <input type="file" id="upload-file" accept=".py" style="display:none" onchange="handleFileSelect(event)">
+                </div>
+                <div class="sk-selected-file" id="sk-selected-file" style="display:none;">
+                    <span id="sk-selected-name"></span>
+                    <button class="btn btn-sm btn-secondary" onclick="clearFileSelection()" data-i18n="skills.upload_clear">Clear</button>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeUploadModal()" data-i18n="common.btn_cancel">Cancel</button>
+                <button class="btn btn-primary" id="upload-submit-btn" onclick="submitUpload()" disabled data-i18n="skills.btn_upload">Upload</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TEMPLATE MODAL -->
+    <div class="modal-overlay" id="template-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 data-i18n="skills.template_title">Create from Template</h2>
+                <button class="modal-close" onclick="closeTemplateModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="sk-form-group">
+                    <label data-i18n="skills.template_select">Template</label>
+                    <select id="template-select" class="sk-select" onchange="onTemplateSelect()">
+                        <option value="" data-i18n="skills.template_choose">-- Choose a template --</option>
+                    </select>
+                </div>
+                <div id="template-description" class="sk-template-desc" style="display:none;"></div>
+                <div class="sk-form-group">
+                    <label data-i18n="skills.template_skill_name">Skill Name</label>
+                    <input type="text" id="template-skill-name" class="sk-input" placeholder="my_skill" data-i18n-placeholder="skills.template_name_hint">
+                </div>
+                <div class="sk-form-group">
+                    <label data-i18n="skills.template_description">Description</label>
+                    <input type="text" id="template-description-input" class="sk-input" placeholder="What does this skill do?" data-i18n-placeholder="skills.template_desc_hint">
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeTemplateModal()" data-i18n="common.btn_cancel">Cancel</button>
+                <button class="btn btn-primary" id="template-submit-btn" onclick="submitTemplate()" disabled data-i18n="skills.btn_create">Create</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- DELETE CONFIRM MODAL -->
+    <div class="modal-overlay" id="delete-skill-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 data-i18n="skills.delete_title">Delete Skill</h2>
+                <button class="modal-close" onclick="closeDeleteSkillModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p data-i18n="skills.delete_confirm">Are you sure you want to delete this skill?</p>
+                <p class="sk-delete-name" id="delete-skill-name"></p>
+                <label class="sk-checkbox-label">
+                    <input type="checkbox" id="delete-files-checkbox" checked> <span data-i18n="skills.delete_files">Also delete files from disk</span>
+                </label>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeDeleteSkillModal()" data-i18n="common.btn_cancel">Cancel</button>
+                <button class="btn btn-danger" onclick="confirmDeleteSkill()" data-i18n="common.btn_delete">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/skills/main.js"></script>
+</body>
+</html>

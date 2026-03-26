@@ -32,5 +32,6 @@
   "login.totp_divider": "Kod uwierzytelniający",
   "login.totp_label": "6-cyfrowy kod",
   "common.nav_knowledge": "Centrum Wiedzy",
-  "common.nav_containers": "Kontenery"
+  "common.nav_containers": "Kontenery",
+  "common.nav_skills": "Umiejętności"
 }

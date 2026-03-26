@@ -242,5 +242,7 @@
   "config.tts.piper_status_stopped": "Piper कंटेनर रुका हुआ है",
   "config.tts.piper_status_error": "Piper TTS त्रुटि",
   "config.section.sql_connections.label": "SQL कनेक्शन",
-  "config.section.sql_connections.desc": "एजेंट के लिए बाहरी डेटाबेस कनेक्शन प्रबंधित करें"
+  "config.section.sql_connections.desc": "एजेंट के लिए बाहरी डेटाबेस कनेक्शन प्रबंधित करें",
+  "config.section.skill_manager.label": "कौशल प्रबंधक",
+  "config.section.skill_manager.desc": "Python कौशल प्रबंधित, अपलोड और कॉन्फ़िगर करें"
 }

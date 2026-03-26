@@ -32,5 +32,6 @@
   "login.totp_divider": "Authenticator kód",
   "login.totp_label": "6místný kód",
   "common.nav_knowledge": "Centrum znalostí",
-  "common.nav_containers": "Kontejnery"
+  "common.nav_containers": "Kontejnery",
+  "common.nav_skills": "Dovednosti"
 }
