@@ -225,6 +225,16 @@ func handleUpdateSkill(s *Server) http.HandlerFunc {
 		}
 
 		if req.Enabled != nil {
+			// Prevent toggling built-in skills
+			skillEntry, err := s.SkillManager.GetSkill(id)
+			if err != nil {
+				jsonError(w, err.Error(), http.StatusNotFound)
+				return
+			}
+			if skillEntry.Type == tools.SkillTypeBuiltIn {
+				jsonError(w, "Built-in skills cannot be toggled", http.StatusForbidden)
+				return
+			}
 			if err := s.SkillManager.EnableSkill(id, *req.Enabled); err != nil {
 				jsonError(w, err.Error(), http.StatusNotFound)
 				return
@@ -268,6 +278,17 @@ func handleDeleteSkill(s *Server) http.HandlerFunc {
 		id := extractSkillPathID(r.URL.Path, "/api/skills/")
 		if id == "" {
 			jsonError(w, "Skill ID is required", http.StatusBadRequest)
+			return
+		}
+
+		// Prevent deleting built-in skills
+		skill, err := s.SkillManager.GetSkill(id)
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		if skill.Type == tools.SkillTypeBuiltIn {
+			jsonError(w, "Built-in skills cannot be deleted", http.StatusForbidden)
 			return
 		}
 

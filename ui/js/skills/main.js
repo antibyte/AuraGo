@@ -128,8 +128,8 @@ function renderCard(skill) {
         <div class="sk-card-actions">
             <button class="btn btn-sm btn-secondary" onclick="showDetail('${id}')" data-i18n="skills.btn_details">Details</button>
             <button class="btn btn-sm btn-secondary" onclick="viewCode('${id}')" data-i18n="skills.btn_view_code">Code</button>
-            <button class="btn btn-sm ${toggleClass}" onclick="toggleSkill('${id}', ${!enabled})">${toggleLabel}</button>
-            <button class="btn btn-sm btn-danger" onclick="showDeleteSkillModal('${id}', '${name}')" data-i18n="skills.btn_delete">Delete</button>
+            ${type !== 'builtin' ? `<button class="btn btn-sm ${toggleClass}" onclick="toggleSkill('${id}', ${!enabled})">${toggleLabel}</button>` : ''}
+            ${type !== 'builtin' ? `<button class="btn btn-sm btn-danger" onclick="showDeleteSkillModal('${id}', '${name}')" data-i18n="skills.btn_delete">Delete</button>` : ''}
         </div>
     </div>`;
 }
