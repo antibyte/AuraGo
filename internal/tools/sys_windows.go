@@ -23,6 +23,11 @@ func SetSkillLimits(cmd *exec.Cmd, memoryMB, cpuSeconds int) {
 	// The context-based timeout still applies.
 }
 
+// ApplySkillLimits is a no-op on Windows.
+func ApplySkillLimits(pid, memoryMB, cpuSeconds int) {
+	// No-op: Windows does not support POSIX rlimits.
+}
+
 // KillProcessTree forcefully terminates a process and all its children on Windows.
 // Uses taskkill /F /T to traverse and kill the full process subtree.
 func KillProcessTree(pid int) {

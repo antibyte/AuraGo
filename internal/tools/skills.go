@@ -142,6 +142,7 @@ func ExecuteSkill(skillsDir, workspaceDir, skillName string, argsJSON map[string
 	if err := cmd.Start(); err != nil {
 		return "", fmt.Errorf("failed to start skill execution: %v", err)
 	}
+	ApplySkillLimits(cmd.Process.Pid, 1024, int(SkillTimeout.Seconds()))
 
 	// Write and CLOSE immediately to send EOF
 	slog.Debug("[ExecuteSkill] Writing to Stdin...", "length", len(argsString))
@@ -239,6 +240,7 @@ func ExecuteSkillWithSecrets(skillsDir, workspaceDir, skillName string, argsJSON
 	if err := cmd.Start(); err != nil {
 		return "", fmt.Errorf("failed to start skill execution: %v", err)
 	}
+	ApplySkillLimits(cmd.Process.Pid, 1024, int(SkillTimeout.Seconds()))
 
 	fmt.Fprint(stdin, argsString)
 	stdin.Close()
