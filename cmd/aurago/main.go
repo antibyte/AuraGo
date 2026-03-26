@@ -225,6 +225,9 @@ func main() {
 	// ── Bootstrap embedded prompt defaults if PromptsDir is empty ────────
 	promptspkg.EnsurePromptsDir(cfg.Directories.PromptsDir, appLog)
 
+	// Configure execution timeouts from config
+	tools.ConfigureTimeouts(cfg.Tools.PythonTimeoutSeconds, cfg.Tools.SkillTimeoutSeconds)
+
 	// Maintenance lock setup (uses DataDir)
 	tools.SetBusyFilePath(filepath.Join(cfg.Directories.DataDir, "maintenance.lock"))
 	// Clean up stale maintenance lock from previous unclean shutdown

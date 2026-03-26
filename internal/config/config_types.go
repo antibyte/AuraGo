@@ -1001,6 +1001,8 @@ type Config struct {
 		PythonSecretInjection struct {
 			Enabled bool `yaml:"enabled"` // allow Python tools to request vault secrets via vault_keys parameter
 		} `yaml:"python_secret_injection"`
+		PythonTimeoutSeconds int `yaml:"python_timeout_seconds"` // foreground Python/shell execution timeout (default: 30)
+		SkillTimeoutSeconds  int `yaml:"skill_timeout_seconds"`  // skill execution timeout (default: 120)
 	} `yaml:"tools"`
 	Sandbox struct {
 		Enabled        bool   `yaml:"enabled"`

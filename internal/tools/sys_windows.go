@@ -16,6 +16,13 @@ func SetupCmd(cmd *exec.Cmd) {
 	cmd.SysProcAttr.HideWindow = true
 }
 
+// SetSkillLimits is a no-op on Windows. Resource limits are enforced via
+// context timeout only; Windows Job Objects would require cgo or external tools.
+func SetSkillLimits(cmd *exec.Cmd, memoryMB, cpuSeconds int) {
+	// No-op: Windows does not support POSIX rlimits.
+	// The context-based timeout still applies.
+}
+
 // KillProcessTree forcefully terminates a process and all its children on Windows.
 // Uses taskkill /F /T to traverse and kill the full process subtree.
 func KillProcessTree(pid int) {

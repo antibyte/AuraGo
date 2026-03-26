@@ -129,8 +129,9 @@ func boolReason(show bool, reason string) string {
 // LXC containers and other runtimes create it too.  We require /.dockerenv
 // PLUS at least one of:
 //   - /proc/1/environ contains "container=docker"  (set by Docker's init)
-//   - /proc/self/cgroup contains a path element "docker"
+//   - /proc/self/cgroup contains a path element "docker"            (cgroup v1)
 //   - /proc/1/cpuset path starts with "/docker/"
+//   - /proc/self/mountinfo shows an overlay root filesystem          (cgroup v2)
 //
 // Systemd-only containers (LXC, nspawn, etc.) will fail ALL secondary checks
 // even if /.dockerenv happens to exist.
@@ -148,7 +149,7 @@ func probeDockerContainer() bool {
 		}
 	}
 
-	// Check cgroup for docker path
+	// Check cgroup for docker path (cgroup v1)
 	if cg, err := os.ReadFile("/proc/self/cgroup"); err == nil {
 		if bytes.Contains(cg, []byte("docker")) {
 			return true
@@ -160,6 +161,30 @@ func probeDockerContainer() bool {
 		line := bytes.TrimSpace(cs)
 		if bytes.HasPrefix(line, []byte("/docker/")) {
 			return true
+		}
+	}
+
+	// cgroup v2 fallback: Docker mounts an overlay filesystem at the container
+	// root.  On modern kernels (Ubuntu 22.04+) with cgroup v2 enabled, the
+	// previous cgroup and cpuset checks won't fire, but /proc/self/mountinfo
+	// will have an overlay entry for "/".
+	if mi, err := os.ReadFile("/proc/self/mountinfo"); err == nil {
+		for _, line := range bytes.Split(mi, []byte{'\n'}) {
+			// A Docker root overlay line looks like:
+			//   <major:minor> / / rw ... - overlay overlay rw,lowerdir=...
+			// We match lines where the mount point is " / " and the fs type is "overlay".
+			fields := bytes.Fields(line)
+			if len(fields) >= 9 && bytes.Equal(fields[4], []byte("/")) {
+				// Find the separator "-" and check fs type after it
+				for i, f := range fields {
+					if bytes.Equal(f, []byte("-")) && i+1 < len(fields) {
+						if bytes.Equal(fields[i+1], []byte("overlay")) {
+							return true
+						}
+						break
+					}
+				}
+			}
 		}
 	}
 

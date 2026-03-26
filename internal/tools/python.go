@@ -13,7 +13,24 @@ import (
 	"time"
 )
 
-const ForegroundTimeout = 30 * time.Second
+// ForegroundTimeout is the default execution timeout for Python scripts and shell commands.
+// It can be overridden via config using ConfigureTimeouts.
+var ForegroundTimeout = 30 * time.Second
+
+// SkillTimeout is the default execution timeout for skill invocations.
+// It can be overridden via config using ConfigureTimeouts.
+var SkillTimeout = 120 * time.Second
+
+// ConfigureTimeouts sets package-level timeouts from configuration.
+// Values <= 0 are ignored (defaults are kept).
+func ConfigureTimeouts(pythonSeconds, skillSeconds int) {
+	if pythonSeconds > 0 {
+		ForegroundTimeout = time.Duration(pythonSeconds) * time.Second
+	}
+	if skillSeconds > 0 {
+		SkillTimeout = time.Duration(skillSeconds) * time.Second
+	}
+}
 
 // getAbsWorkspace ensures that working directories are absolute. Passing a relative path
 // to cmd.Dir can cause OS executors to evaluate the CWD incorrectly or default to the binary's dir.

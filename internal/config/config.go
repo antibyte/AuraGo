@@ -75,6 +75,8 @@ func Load(path string) (*Config, error) {
 	}
 	cfg.Tools.DocumentCreator.Gotenberg.Timeout = 120
 
+	cfg.Tools.PythonTimeoutSeconds = 30
+	cfg.Tools.SkillTimeoutSeconds = 120
 	cfg.Tools.WebCapture.Enabled = true
 	cfg.Tools.NetworkPing.Enabled = true
 	cfg.Tools.NetworkScan.Enabled = true

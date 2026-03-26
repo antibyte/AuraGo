@@ -10,10 +10,13 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"time"
 
 	"aurago/internal/security"
 )
+
+// maxSkillArgsBytes limits the serialized size of skill arguments to prevent
+// denial of service via excessively large JSON payloads.
+const maxSkillArgsBytes = 10 * 1024 * 1024 // 10 MB
 
 // SkillManifest represents the structure of a skill config file (.json).
 type SkillManifest struct {
@@ -94,11 +97,14 @@ func ExecuteSkill(skillsDir, workspaceDir, skillName string, argsJSON map[string
 	if err != nil {
 		return "", fmt.Errorf("failed to serialize args JSON: %v", err)
 	}
+	if len(argsBytes) > maxSkillArgsBytes {
+		return "", fmt.Errorf("skill args too large: %d bytes (max %d)", len(argsBytes), maxSkillArgsBytes)
+	}
 	argsString := string(argsBytes)
 	slog.Debug("[ExecuteSkill] Prepared JSON input", "skill", skillName, "input", argsString)
 
 	// Route based on extension
-	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), SkillTimeout)
 	defer cancel()
 
 	var cmd *exec.Cmd
@@ -115,7 +121,7 @@ func ExecuteSkill(skillsDir, workspaceDir, skillName string, argsJSON map[string
 	}
 
 	cmd.Dir = workspaceDir
-	SetupCmd(cmd)
+	SetSkillLimits(cmd, 1024, int(SkillTimeout.Seconds()))
 
 	// Manual Stdin pipe management for maximum synchronization on Windows.
 	stdin, err := cmd.StdinPipe()
@@ -186,9 +192,12 @@ func ExecuteSkillWithSecrets(skillsDir, workspaceDir, skillName string, argsJSON
 	if err != nil {
 		return "", fmt.Errorf("failed to serialize args JSON: %v", err)
 	}
+	if len(argsBytes) > maxSkillArgsBytes {
+		return "", fmt.Errorf("skill args too large: %d bytes (max %d)", len(argsBytes), maxSkillArgsBytes)
+	}
 	argsString := string(argsBytes)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), SkillTimeout)
 	defer cancel()
 
 	var cmd *exec.Cmd
@@ -204,7 +213,7 @@ func ExecuteSkillWithSecrets(skillsDir, workspaceDir, skillName string, argsJSON
 	}
 
 	cmd.Dir = workspaceDir
-	SetupCmd(cmd)
+	SetSkillLimits(cmd, 1024, int(SkillTimeout.Seconds()))
 	InjectSecretsEnv(cmd, secrets)
 	InjectCredentialEnv(cmd, creds)
 

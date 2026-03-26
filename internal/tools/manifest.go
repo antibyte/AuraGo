@@ -15,6 +15,15 @@ type Manifest struct {
 	filePath string
 }
 
+// manifestFile is the on-disk schema for manifest.json.
+// Version 1 was a bare map[string]string; version 2+ uses this wrapper.
+type manifestFile struct {
+	Version int               `json:"version"`
+	Tools   map[string]string `json:"tools"`
+}
+
+const currentManifestVersion = 2
+
 // NewManifest creates a manifest manager for the given tools directory.
 func NewManifest(toolsDir string) *Manifest {
 	return &Manifest{
@@ -22,7 +31,7 @@ func NewManifest(toolsDir string) *Manifest {
 	}
 }
 
-// Load reads and returns the manifest contents.
+// Load reads and returns the manifest contents (tool name → description).
 func (m *Manifest) Load() (map[string]string, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -35,16 +44,27 @@ func (m *Manifest) Load() (map[string]string, error) {
 		return nil, fmt.Errorf("failed to read manifest: %w", err)
 	}
 
-	var manifest map[string]string
-	if err := json.Unmarshal(data, &manifest); err != nil {
+	// Try versioned format first.
+	var mf manifestFile
+	if err := json.Unmarshal(data, &mf); err == nil && mf.Version > 0 {
+		return mf.Tools, nil
+	}
+
+	// Fall back to legacy bare map (version 1).
+	var legacy map[string]string
+	if err := json.Unmarshal(data, &legacy); err != nil {
 		return nil, fmt.Errorf("failed to parse manifest: %w", err)
 	}
-	return manifest, nil
+	return legacy, nil
 }
 
-// Save writes the manifest to disk.
-func (m *Manifest) save(manifest map[string]string) error {
-	data, err := json.MarshalIndent(manifest, "", "  ")
+// Save writes the manifest to disk in the versioned format.
+func (m *Manifest) save(tools map[string]string) error {
+	mf := manifestFile{
+		Version: currentManifestVersion,
+		Tools:   tools,
+	}
+	data, err := json.MarshalIndent(mf, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal manifest: %w", err)
 	}

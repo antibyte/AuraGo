@@ -399,7 +399,7 @@ func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 			res, skillErr = tools.ExecuteSkill(cfg.Directories.SkillsDir, cfg.Directories.WorkspaceDir, skillName, args)
 		}
 		if skillErr != nil {
-			msg := fmt.Sprintf("Tool Output: ERROR executing skill: %v\nOutput: %s", skillErr, res)
+			msg := fmt.Sprintf("Tool Output: ERROR executing skill: %s\nOutput: %s", security.Scrub(skillErr.Error()), security.Scrub(res))
 			if rejectedInfo != "" {
 				msg = rejectedInfo + "\n" + msg
 			}

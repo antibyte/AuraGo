@@ -2,7 +2,9 @@ package agent
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -128,6 +130,9 @@ func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 				} else {
 					stdout, stderr, pyErr = tools.ExecutePython(tc.Code, cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir)
 				}
+				// Scrub all outputs to prevent secret leakage via error messages/tracebacks
+				stdout = security.Scrub(stdout)
+				stderr = security.Scrub(stderr)
 				var sb strings.Builder
 				sb.WriteString("Tool Output (sandbox unavailable — ran via local Python):\n")
 				if rejectedInfo != "" {
@@ -140,11 +145,11 @@ func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 					sb.WriteString(fmt.Sprintf("STDERR:\n%s\n", stderr))
 				}
 				if pyErr != nil {
-					sb.WriteString(fmt.Sprintf("[EXECUTION ERROR]: %v\n", pyErr))
+					sb.WriteString(fmt.Sprintf("[EXECUTION ERROR]: %s\n", security.Scrub(pyErr.Error())))
 				}
 				return sb.String()
 			}
-			return fmt.Sprintf("Tool Output: [EXECUTION ERROR] sandbox: %v", err)
+			return fmt.Sprintf("Tool Output: [EXECUTION ERROR] sandbox: %s", security.Scrub(err.Error()))
 		}
 		scrubbedResult := security.Scrub(result)
 		if rejectedInfo != "" {
@@ -218,7 +223,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 			sb.WriteString(fmt.Sprintf("STDERR:\n%s\n", stderr))
 		}
 		if pyErr != nil {
-			sb.WriteString(fmt.Sprintf("[EXECUTION ERROR]: %v\n", pyErr))
+			sb.WriteString(fmt.Sprintf("[EXECUTION ERROR]: %s\n", security.Scrub(pyErr.Error())))
 		}
 		return sb.String()
 
@@ -312,10 +317,16 @@ func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 		if !cfg.Agent.AllowPython {
 			return "Tool Output: [PERMISSION DENIED] save_tool is disabled in Danger Zone settings (agent.allow_python: false)."
 		}
-		logger.Info("LLM requested tool persistence", "name", tc.Name)
 		if tc.Name == "" || tc.Code == "" {
 			return "Tool Output: ERROR 'name' and 'code' are required for save_tool"
 		}
+		codeHash := sha256.Sum256([]byte(tc.Code))
+		logger.Info("LLM requested tool persistence",
+			"name", tc.Name,
+			"description", tc.Description,
+			"code_size", len(tc.Code),
+			"code_sha256", hex.EncodeToString(codeHash[:]),
+		)
 		if err := manifest.SaveTool(cfg.Directories.ToolsDir, tc.Name, tc.Description, tc.Code); err != nil {
 			return fmt.Sprintf("Tool Output: ERROR saving tool: %v", err)
 		}
@@ -410,9 +421,9 @@ func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 		}
 		errStr := ""
 		if runErr != nil {
-			errStr = runErr.Error()
+			errStr = security.Scrub(runErr.Error())
 		}
-		result := fmt.Sprintf("Tool Output:\nSTDOUT:\n%s\nSTDERR:\n%s\nERROR:\n%s\n", stdout, stderr, errStr)
+		result := fmt.Sprintf("Tool Output:\nSTDOUT:\n%s\nSTDERR:\n%s\nERROR:\n%s\n", security.Scrub(stdout), security.Scrub(stderr), errStr)
 		if rejectedInfo != "" {
 			result = rejectedInfo + "\n" + result
 		}
