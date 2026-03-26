@@ -782,7 +782,7 @@ function providerSetHidden(el, hidden) {
             ollama: 'http://localhost:11434',
             anthropic: 'https://api.anthropic.com/v1',
             google: 'https://generativelanguage.googleapis.com/v1beta/openai',
-            minimax: 'https://api.minimaxi.com/v1',
+            minimax: 'https://api.minimax.io/v1',
             'workers-ai': '',
             custom: ''
         };

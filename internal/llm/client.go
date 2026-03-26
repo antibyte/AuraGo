@@ -1,7 +1,11 @@
 package llm
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"strings"
 
 	"aurago/internal/config"
@@ -68,6 +72,14 @@ func NewClient(cfg *config.Config) *openai.Client {
 		}
 	}
 
+	// MiniMax does not support the "system" message role. Apply a transport that
+	// converts system messages by prepending them to the first user message.
+	if providerType == "minimax" {
+		clientConfig.HTTPClient = &http.Client{
+			Transport: &miniMaxTransport{base: http.DefaultTransport},
+		}
+	}
+
 	return openai.NewClientWithConfig(clientConfig)
 }
 
@@ -77,6 +89,7 @@ func NewClient(cfg *config.Config) *openai.Client {
 func NewClientFromProvider(providerType, baseURL, apiKey string) *openai.Client {
 	pt := strings.ToLower(providerType)
 	isOllama := pt == "ollama"
+	isMiniMax := pt == "minimax"
 
 	if apiKey == "" && isOllama {
 		apiKey = "ollama"
@@ -93,6 +106,12 @@ func NewClientFromProvider(providerType, baseURL, apiKey string) *openai.Client 
 			}
 		}
 		clientConfig.BaseURL = u
+	}
+
+	if isMiniMax {
+		clientConfig.HTTPClient = &http.Client{
+			Transport: &miniMaxTransport{base: http.DefaultTransport},
+		}
 	}
 
 	return openai.NewClientWithConfig(clientConfig)
@@ -115,4 +134,93 @@ func aiGatewaySegment(providerType string) string {
 	default:
 		return ""
 	}
+}
+
+// miniMaxTransport is an http.RoundTripper that makes requests compatible with
+// MiniMax's OpenAI-compatible endpoint. MiniMax does not accept the "system"
+// message role; this transport converts system messages by prepending their
+// content to the first "user" message.
+type miniMaxTransport struct {
+	base http.RoundTripper
+}
+
+func (t *miniMaxTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if req.Body != nil && req.Method == http.MethodPost &&
+		strings.HasSuffix(req.URL.Path, "/chat/completions") {
+		body, err := io.ReadAll(req.Body)
+		req.Body.Close()
+		if err != nil {
+			return nil, fmt.Errorf("minimax transport: read body: %w", err)
+		}
+		body = miniMaxConvertSystemMessages(body)
+		req.Body = io.NopCloser(bytes.NewReader(body))
+		req.ContentLength = int64(len(body))
+	}
+	base := t.base
+	if base == nil {
+		base = http.DefaultTransport
+	}
+	return base.RoundTrip(req)
+}
+
+// miniMaxConvertSystemMessages rewrites a chat completions JSON request body,
+// collapsing all "system" role messages and prepending them to the first
+// "user" message. If no user message exists, system content is discarded.
+func miniMaxConvertSystemMessages(body []byte) []byte {
+	var payload map[string]json.RawMessage
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return body
+	}
+	msgsRaw, ok := payload["messages"]
+	if !ok {
+		return body
+	}
+
+	var msgs []map[string]interface{}
+	if err := json.Unmarshal(msgsRaw, &msgs); err != nil {
+		return body
+	}
+
+	// Collect and remove system messages.
+	var sysBuilder strings.Builder
+	var filtered []map[string]interface{}
+	for _, m := range msgs {
+		if role, _ := m["role"].(string); role == "system" {
+			if content, ok := m["content"].(string); ok && content != "" {
+				if sysBuilder.Len() > 0 {
+					sysBuilder.WriteString("\n\n")
+				}
+				sysBuilder.WriteString(content)
+			}
+		} else {
+			filtered = append(filtered, m)
+		}
+	}
+
+	if sysBuilder.Len() == 0 {
+		return body // nothing to rewrite
+	}
+	sysContent := sysBuilder.String()
+
+	// Prepend system content to the first user message.
+	for i, m := range filtered {
+		if role, _ := m["role"].(string); role == "user" {
+			if content, ok := m["content"].(string); ok {
+				filtered[i]["content"] = sysContent + "\n\n" + content
+			}
+			break
+		}
+	}
+
+	newMsgs, err := json.Marshal(filtered)
+	if err != nil {
+		return body
+	}
+	payload["messages"] = newMsgs
+
+	result, err := json.Marshal(payload)
+	if err != nil {
+		return body
+	}
+	return result
 }

@@ -518,6 +518,7 @@ function appendMessage(role, text) {
         try {
             if (typeof window.markdownit !== 'undefined') {
                 const md = window.markdownit({
+                    html: true,
                     breaks: true,
                     linkify: true,
                     highlight: function (str, lang) {

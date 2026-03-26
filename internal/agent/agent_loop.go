@@ -230,18 +230,28 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	// Emotion Synthesizer (requires Personality Engine V2)
 	var emotionSynthesizer *memory.EmotionSynthesizer
 	if cfg.Personality.EmotionSynthesizer.Enabled && personalityEnabled && cfg.Personality.EngineV2 {
-		// Reuse V2 client setup
+		// Reuse V2 client setup — prefer resolved provider fields, fall back to legacy inline fields
 		var esClient memory.PersonalityAnalyzerClient = client
-		if cfg.Personality.V2URL != "" {
-			key := cfg.Personality.V2APIKey
-			if key == "" {
-				key = "dummy"
+		v2URL := cfg.Personality.V2ResolvedURL
+		if v2URL == "" {
+			v2URL = cfg.Personality.V2URL
+		}
+		v2Key := cfg.Personality.V2ResolvedKey
+		if v2Key == "" {
+			v2Key = cfg.Personality.V2APIKey
+		}
+		if v2URL != "" {
+			if v2Key == "" {
+				v2Key = "dummy"
 			}
-			v2Cfg := openai.DefaultConfig(key)
-			v2Cfg.BaseURL = cfg.Personality.V2URL
+			v2Cfg := openai.DefaultConfig(v2Key)
+			v2Cfg.BaseURL = v2URL
 			esClient = openai.NewClientWithConfig(v2Cfg)
 		}
-		esModel := cfg.Personality.V2Model
+		esModel := cfg.Personality.V2ResolvedModel
+		if esModel == "" {
+			esModel = cfg.Personality.V2Model
+		}
 		if esModel == "" {
 			esModel = cfg.LLM.Model
 		}
@@ -1765,14 +1775,23 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					// Note: Tool Results are intentionally excluded from userHistory
 
 					var v2Client memory.PersonalityAnalyzerClient = client
-					if cfg.Personality.V2URL != "" {
-						key := cfg.Personality.V2APIKey
-						if key == "" {
-							key = "dummy" // Ollama sometimes requires a non-empty string
+					{
+						v2mURL := cfg.Personality.V2ResolvedURL
+						if v2mURL == "" {
+							v2mURL = cfg.Personality.V2URL
 						}
-						v2Cfg := openai.DefaultConfig(key)
-						v2Cfg.BaseURL = cfg.Personality.V2URL
-						v2Client = openai.NewClientWithConfig(v2Cfg)
+						v2mKey := cfg.Personality.V2ResolvedKey
+						if v2mKey == "" {
+							v2mKey = cfg.Personality.V2APIKey
+						}
+						if v2mURL != "" {
+							if v2mKey == "" {
+								v2mKey = "dummy" // Ollama sometimes requires a non-empty string
+							}
+							v2Cfg := openai.DefaultConfig(v2mKey)
+							v2Cfg.BaseURL = v2mURL
+							v2Client = openai.NewClientWithConfig(v2Cfg)
+						}
 					}
 
 					go func(contextHistory string, userHistory string, tInfo string, modelName string, analyzerClient memory.PersonalityAnalyzerClient, m memory.PersonalityMeta, profilingEnabled bool) {
@@ -1781,7 +1800,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 						mood, affDelta, traitDeltas, profileUpdates, err := shortTermMem.AnalyzeMoodV2(v2Ctx, analyzerClient, modelName, contextHistory, userHistory, m, profilingEnabled)
 						if err != nil {
-							v2URL := cfg.Personality.V2URL
+							v2URL := cfg.Personality.V2ResolvedURL
+							if v2URL == "" {
+								v2URL = cfg.Personality.V2URL
+							}
 							if v2URL == "" {
 								v2URL = "(main LLM endpoint)"
 							}
@@ -1856,7 +1878,15 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 								esCancel()
 							}
 						}
-					}(historyBuilder.String(), userHistoryBuilder.String(), triggerInfo, cfg.Personality.V2Model, v2Client, meta, cfg.Personality.UserProfiling)
+					}(historyBuilder.String(), userHistoryBuilder.String(), triggerInfo, func() string {
+						if m := cfg.Personality.V2ResolvedModel; m != "" {
+							return m
+						}
+						if m := cfg.Personality.V2Model; m != "" {
+							return m
+						}
+						return cfg.LLM.Model
+					}(), v2Client, meta, cfg.Personality.UserProfiling)
 
 				} else {
 					// ── V1: Synchronous Heuristic-Based Mood Analysis ──
