@@ -216,9 +216,10 @@ func handleUpdateSkill(s *Server) http.HandlerFunc {
 		}
 
 		var req struct {
-			Enabled     *bool   `json:"enabled"`
-			Description string  `json:"description"`
-			Code        *string `json:"code"`
+			Enabled     *bool    `json:"enabled"`
+			Description string   `json:"description"`
+			Code        *string  `json:"code"`
+			VaultKeys   []string `json:"vault_keys"`
 		}
 		if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&req); err != nil {
 			jsonError(w, "Invalid request body", http.StatusBadRequest)
@@ -244,6 +245,13 @@ func handleUpdateSkill(s *Server) http.HandlerFunc {
 
 		if req.Code != nil {
 			if err := s.SkillManager.UpdateSkillCode(id, *req.Code); err != nil {
+				jsonError(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+		}
+
+		if req.VaultKeys != nil {
+			if err := s.SkillManager.UpdateVaultKeys(id, req.VaultKeys); err != nil {
 				jsonError(w, err.Error(), http.StatusBadRequest)
 				return
 			}

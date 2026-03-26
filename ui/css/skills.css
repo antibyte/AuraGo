@@ -268,6 +268,87 @@
     font-family: monospace;
 }
 
+/* ── Vault Key Row on Card ── */
+.sk-card-vault {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-wrap: wrap;
+    margin-bottom: 4px;
+}
+
+.sk-vault-icon {
+    font-size: 0.8rem;
+    flex-shrink: 0;
+}
+
+.sk-vault-keys {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    flex: 1;
+}
+
+.sk-vault-key-tag {
+    font-size: 0.72rem;
+    padding: 1px 6px;
+    border-radius: 3px;
+    background: #1a2a1a;
+    color: #7ec87e;
+    border: 1px solid #2d4a2d;
+    font-family: monospace;
+}
+
+.sk-vault-edit-btn {
+    font-size: 0.72rem !important;
+    padding: 2px 6px !important;
+    flex-shrink: 0;
+}
+
+/* ── Vault Key Assignment Modal ── */
+.sk-vault-key-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 320px;
+    overflow-y: auto;
+}
+
+.sk-vault-checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.sk-vault-checkbox-row:hover {
+    background: var(--bg-hover, rgba(255,255,255,0.05));
+}
+
+.sk-vault-checkbox {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: var(--accent-primary, #4a9eff);
+    flex-shrink: 0;
+}
+
+.sk-vault-modal-desc {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    margin-bottom: 14px;
+}
+
+.sk-vault-empty {
+    color: var(--text-secondary);
+    font-style: italic;
+    text-align: center;
+    padding: 20px 0;
+}
+
 .sk-card-actions {
     display: flex;
     gap: 6px;

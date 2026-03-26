@@ -35,6 +35,16 @@ Der Vault ist das Herzstück der AuraGo-Sicherheitsarchitektur. Hier werden alle
 
 > 💡 **Tipp:** Der Vault wird in `data/vault.dat` gespeichert. Das Master-Passwort (64 Hex-Zeichen) wird aus der Umgebungsvariable `AURAGO_MASTER_KEY` gelesen.
 
+### Agent-Zugriff auf den Vault
+
+> 🔒 **Wichtiger Sicherheitshinweis:**
+> 
+> Der Agent hat **niemals** direkten Zugriff auf die im Vault gespeicherten Geheimnisse bei internen Integrationen und Tools. Er kann diese weder lesen noch abrufen.
+> 
+> **Ausnahme:** Geheimnisse, die der Agent **selbst angelegt** hat (z.B. über den Chat oder die API), kann er jederzeit abrufen und verwalten.
+> 
+> Die Anwendung (nicht der Agent) lädt Vault-Secrets zur Laufzeit und injiziert sie sicher in die entsprechenden Tools, ohne dass der Agent jemals die Klartext-Werte sieht.
+
 ### Vault initialisieren
 
 ```bash

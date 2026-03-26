@@ -68,5 +68,12 @@
   "skills.delete_files": "同时从磁盘删除文件",
   "skills.delete_success": "技能已删除",
   "skills.toggle_success": "技能已更新",
+  "skills.vault_keys_label": "保险库密钥",
+  "skills.btn_edit_secrets": "编辑密钥",
+  "skills.vault_modal_title": "分配密钥",
+  "skills.vault_modal_desc": "选择此技能在运行时将作为环境变量接收的保险库密钥。",
+  "skills.vault_modal_empty": "保险库中没有可用的密钥。",
+  "skills.vault_modal_save": "保存",
+  "skills.vault_save_success": "密钥已更新",
   "skills.scan_complete": "扫描完成"
 }

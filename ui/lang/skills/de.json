@@ -68,5 +68,12 @@
   "skills.delete_files": "Dateien auch von der Festplatte löschen",
   "skills.delete_success": "Skill gelöscht",
   "skills.toggle_success": "Skill aktualisiert",
-  "skills.scan_complete": "Scan abgeschlossen"
+  "skills.scan_complete": "Scan abgeschlossen",
+  "skills.vault_keys_label": "Vault-Schlüssel",
+  "skills.btn_edit_secrets": "Geheimnisse bearbeiten",
+  "skills.vault_modal_title": "Geheimnisse zuweisen",
+  "skills.vault_modal_desc": "Wählen Sie die Vault-Geheimnisse aus, die dieser Skill zur Laufzeit als Umgebungsvariablen erhält.",
+  "skills.vault_modal_empty": "Keine Geheimnisse im Vault vorhanden.",
+  "skills.vault_modal_save": "Speichern",
+  "skills.vault_save_success": "Geheimnisse aktualisiert"
 }

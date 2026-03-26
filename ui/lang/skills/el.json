@@ -68,5 +68,12 @@
   "skills.delete_files": "Διαγραφή αρχείων από τον δίσκο",
   "skills.delete_success": "Το skill διαγράφηκε",
   "skills.toggle_success": "Το skill ενημερώθηκε",
+  "skills.vault_keys_label": "Κλειδιά θησαυροφυλακίου",
+  "skills.btn_edit_secrets": "Επεξεργασία μυστικών",
+  "skills.vault_modal_title": "Ανάθεση μυστικών",
+  "skills.vault_modal_desc": "Επιλέξτε τα μυστικά του θησαυροφυλακίου που θα λαμβάνει αυτή η δεξιότητα ως μεταβλητές περιβάλλοντος.",
+  "skills.vault_modal_empty": "Δεν υπάρχουν διαθέσιμα μυστικά στο θησαυροφυλάκιο.",
+  "skills.vault_modal_save": "Αποθήκευση",
+  "skills.vault_save_success": "Μυστικά ενημερώθηκαν",
   "skills.scan_complete": "Η σάρωση ολοκληρώθηκε"
 }

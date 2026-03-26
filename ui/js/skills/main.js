@@ -11,6 +11,8 @@ let deleteTargetId = '';
 let selectedFile = null;
 let codeEditorView = null;
 let codeEditorSkillId = '';
+let vaultKeyTargetId = '';
+let allVaultSecrets = [];
 
 // ── Initialization ──────────────────────────────────────────────────────────
 
@@ -104,6 +106,7 @@ function renderCard(skill) {
     const enabled = skill.Enabled !== undefined ? skill.Enabled : skill.enabled;
     const id = esc(skill.ID || skill.id || '');
     const deps = skill.Dependencies || skill.dependencies || [];
+    const vaultKeys = skill.VaultKeys || skill.vault_keys || [];
 
     const typeLabel = type.charAt(0).toUpperCase() + type.slice(1);
     const secBadge = renderSecurityBadge(secStatus);
@@ -114,6 +117,16 @@ function renderCard(skill) {
     let depTags = '';
     if (deps.length > 0) {
         depTags = `<div class="sk-card-deps">${deps.slice(0, 5).map(d => `<span class="sk-dep-tag">${esc(d)}</span>`).join('')}${deps.length > 5 ? `<span class="sk-dep-tag">+${deps.length - 5}</span>` : ''}</div>`;
+    }
+
+    let vaultRow = '';
+    if (vaultKeys.length > 0) {
+        const keyTags = vaultKeys.map(k => `<code class="sk-vault-key-tag">${esc(k)}</code>`).join('');
+        vaultRow = `<div class="sk-card-vault">
+            <span class="sk-vault-icon" title="${t('skills.vault_keys_label') || 'Vault Keys'}">🔑</span>
+            <span class="sk-vault-keys">${keyTags}</span>
+            <button class="btn btn-xs btn-secondary sk-vault-edit-btn" onclick="openVaultKeyModal('${id}')" title="${t('skills.btn_edit_secrets') || 'Edit Secrets'}">✏️</button>
+        </div>`;
     }
 
     return `
@@ -127,6 +140,7 @@ function renderCard(skill) {
         </div>
         <div class="sk-card-desc">${desc || '<em>' + (t('skills.no_description') || 'No description') + '</em>'}</div>
         ${depTags}
+        ${vaultRow}
         <div class="sk-card-actions">
             <button class="btn btn-sm btn-secondary" onclick="showDetail('${id}')" data-i18n="skills.btn_details">Details</button>
             <button class="btn btn-sm btn-secondary" onclick="viewCode('${id}')" data-i18n="skills.btn_view_code">Code</button>
@@ -660,4 +674,76 @@ function showToast(msg, type) {
     el.textContent = msg;
     c.appendChild(el);
     setTimeout(() => { el.classList.add('sk-toast-out'); setTimeout(() => el.remove(), 300); }, 3500);
+}
+
+// ── Vault Key Assignment Modal ───────────────────────────────────────────────
+
+// eslint-disable-next-line no-unused-vars
+async function openVaultKeyModal(id) {
+    vaultKeyTargetId = id;
+    const listEl = document.getElementById('vault-key-list');
+    const emptyEl = document.getElementById('vault-key-empty');
+    listEl.innerHTML = `<p>${t('common.loading') || 'Loading...'}</p>`;
+    emptyEl.style.display = 'none';
+    document.getElementById('vault-key-modal').classList.add('active');
+
+    try {
+        // Load available vault secrets and current skill in parallel
+        const [vaultResp, skillResp] = await Promise.all([
+            fetch('/api/vault/secrets'),
+            fetch(`/api/skills/${encodeURIComponent(id)}`)
+        ]);
+        const vaultData = await vaultResp.json();
+        const skillData = await skillResp.json();
+
+        allVaultSecrets = (vaultData.secrets || []).map(s => s.key || s);
+        const currentKeys = skillData.skill ? (skillData.skill.VaultKeys || skillData.skill.vault_keys || []) : [];
+
+        if (allVaultSecrets.length === 0) {
+            listEl.innerHTML = '';
+            emptyEl.style.display = '';
+            return;
+        }
+
+        listEl.innerHTML = allVaultSecrets.map(key => {
+            const checked = currentKeys.includes(key) ? 'checked' : '';
+            return `<label class="sk-vault-checkbox-row">
+                <input type="checkbox" class="sk-vault-checkbox" value="${esc(key)}" ${checked}>
+                <code class="sk-vault-key-tag">${esc(key)}</code>
+            </label>`;
+        }).join('');
+    } catch (e) {
+        listEl.innerHTML = `<p class="sk-error">${t('common.error') || 'Error loading secrets'}</p>`;
+    }
+}
+
+// eslint-disable-next-line no-unused-vars
+function closeVaultKeyModal() {
+    document.getElementById('vault-key-modal').classList.remove('active');
+    vaultKeyTargetId = '';
+}
+
+// eslint-disable-next-line no-unused-vars
+async function saveVaultKeys() {
+    if (!vaultKeyTargetId) return;
+    const checkboxes = document.querySelectorAll('#vault-key-list .sk-vault-checkbox:checked');
+    const selectedKeys = Array.from(checkboxes).map(cb => cb.value);
+
+    try {
+        const resp = await fetch(`/api/skills/${encodeURIComponent(vaultKeyTargetId)}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ vault_keys: selectedKeys })
+        });
+        const data = await resp.json();
+        if (data.status === 'ok') {
+            showToast(t('skills.vault_save_success') || 'Secrets updated', 'success');
+            closeVaultKeyModal();
+            await loadSkills();
+        } else {
+            showToast(data.message || t('common.error'), 'error');
+        }
+    } catch (e) {
+        showToast(t('common.error') || 'Error', 'error');
+    }
 }

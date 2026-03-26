@@ -35,6 +35,16 @@ The vault is the heart of AuraGo's security architecture. All sensitive data –
 
 > 💡 **Tip:** The vault is stored in `data/vault.dat`. The master password (64 hex characters) is read from the `AURAGO_MASTER_KEY` environment variable.
 
+### Agent Access to the Vault
+
+> 🔒 **Important Security Note:**
+> 
+> The agent **never** has direct access to secrets stored in the vault for internal integrations and tools. It cannot read or retrieve these secrets.
+> 
+> **Exception:** Secrets that the agent **created itself** (e.g., via chat or API) can be retrieved and managed by it at any time.
+> 
+> The application (not the agent) loads vault secrets at runtime and securely injects them into the appropriate tools without the agent ever seeing the plaintext values.
+
 ### Initializing the vault
 
 ```bash

@@ -68,5 +68,12 @@
   "skills.delete_files": "Also delete files from disk",
   "skills.delete_success": "Skill deleted",
   "skills.toggle_success": "Skill updated",
-  "skills.scan_complete": "Scan complete"
+  "skills.scan_complete": "Scan complete",
+  "skills.vault_keys_label": "Vault Keys",
+  "skills.btn_edit_secrets": "Edit Secrets",
+  "skills.vault_modal_title": "Assign Secrets",
+  "skills.vault_modal_desc": "Select the vault secrets this skill will receive as environment variables at runtime.",
+  "skills.vault_modal_empty": "No secrets available in the vault.",
+  "skills.vault_modal_save": "Save",
+  "skills.vault_save_success": "Secrets updated"
 }

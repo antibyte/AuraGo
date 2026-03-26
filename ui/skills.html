@@ -219,6 +219,27 @@
         </div>
     </div>
 
+    <!-- VAULT KEY ASSIGNMENT MODAL -->
+    <div class="modal-overlay" id="vault-key-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 data-i18n="skills.vault_modal_title">Assign Secrets</h2>
+                <button class="modal-close" onclick="closeVaultKeyModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="sk-vault-modal-desc" data-i18n="skills.vault_modal_desc">Select the vault secrets this skill will receive as environment variables at runtime.</p>
+                <div id="vault-key-list" class="sk-vault-key-list">
+                    <!-- Populated by JS -->
+                </div>
+                <p id="vault-key-empty" class="sk-vault-empty" style="display:none" data-i18n="skills.vault_modal_empty">No secrets available in the vault.</p>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeVaultKeyModal()" data-i18n="common.btn_cancel">Cancel</button>
+                <button class="btn btn-primary" onclick="saveVaultKeys()" data-i18n="skills.vault_modal_save">Save</button>
+            </div>
+        </div>
+    </div>
+
     <script src="/js/skills/main.js"></script>
 </body>
 </html>

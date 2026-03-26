@@ -352,6 +352,42 @@ func (m *SkillManager) GetSkillCode(id string) (string, error) {
 	return string(data), nil
 }
 
+// UpdateVaultKeys updates the vault_keys list for an existing skill in the DB and on-disk manifest.
+func (m *SkillManager) UpdateVaultKeys(id string, keys []string) error {
+	s, err := m.GetSkill(id)
+	if err != nil {
+		return err
+	}
+
+	if keys == nil {
+		keys = []string{}
+	}
+	keysJSON, err := json.Marshal(keys)
+	if err != nil {
+		return fmt.Errorf("serializing vault_keys: %w", err)
+	}
+
+	if _, err := m.db.Exec("UPDATE skills_registry SET vault_keys = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+		string(keysJSON), id); err != nil {
+		return fmt.Errorf("updating vault_keys in db: %w", err)
+	}
+
+	// Also update the on-disk JSON manifest so the file stays in sync
+	manifestPath := filepath.Join(m.skillsDir, strings.TrimSuffix(s.Executable, filepath.Ext(s.Executable))+".json")
+	if raw, readErr := os.ReadFile(manifestPath); readErr == nil {
+		var manifest map[string]json.RawMessage
+		if jsonErr := json.Unmarshal(raw, &manifest); jsonErr == nil {
+			manifest["vault_keys"] = keysJSON
+			if updated, marshalErr := json.MarshalIndent(manifest, "", "  "); marshalErr == nil {
+				_ = os.WriteFile(manifestPath, updated, 0o644)
+			}
+		}
+	}
+
+	m.logger.Info("Skill vault_keys updated", "id", id, "name", s.Name, "keys", keys)
+	return nil
+}
+
 // UpdateSkillCode writes new Python source code for an existing skill and updates its file hash.
 func (m *SkillManager) UpdateSkillCode(id, code string) error {
 	s, err := m.GetSkill(id)
