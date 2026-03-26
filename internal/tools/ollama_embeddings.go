@@ -154,7 +154,7 @@ func detectVulkan() (GPUInfo, bool) {
 		Backend: "vulkan",
 		Devices: devices,
 		Name:    "Vulkan GPU (DRI)",
-		Env:     []string{"OLLAMA_INTEL_GPU=1", "OLLAMA_GPU_BACKEND=vulkan"},
+		Env:     []string{"OLLAMA_GPU_BACKEND=vulkan"},
 	}, true
 }
 
