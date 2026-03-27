@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"sort"
 	"strings"
+
+	"aurago/internal/tools"
 )
 
 // vaultSecretJSON is the API representation of a single vault secret.
@@ -34,7 +36,8 @@ func handleVaultSecrets(s *Server) http.HandlerFunc {
 }
 
 // handleListVaultSecrets returns all secret keys (without values!) sorted alphabetically.
-func handleListVaultSecrets(s *Server, w http.ResponseWriter, _ *http.Request) {
+// When the query parameter ?filter=user is present, internal/system secrets are excluded.
+func handleListVaultSecrets(s *Server, w http.ResponseWriter, r *http.Request) {
 	keys, err := s.Vault.ListKeys()
 	if err != nil {
 		s.Logger.Error("[Vault] Failed to list keys", "error", err)
@@ -43,9 +46,14 @@ func handleListVaultSecrets(s *Server, w http.ResponseWriter, _ *http.Request) {
 	}
 	sort.Strings(keys)
 
-	out := make([]vaultSecretJSON, len(keys))
-	for i, k := range keys {
-		out[i] = vaultSecretJSON{Key: k}
+	filterUser := r.URL.Query().Get("filter") == "user"
+
+	out := make([]vaultSecretJSON, 0, len(keys))
+	for _, k := range keys {
+		if filterUser && !tools.IsPythonAccessibleSecret(k) {
+			continue
+		}
+		out = append(out, vaultSecretJSON{Key: k})
 	}
 
 	w.Header().Set("Content-Type", "application/json")

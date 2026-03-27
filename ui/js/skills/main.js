@@ -690,8 +690,9 @@ async function openVaultKeyModal(id) {
 
     try {
         // Load vault secrets, credentials, and current skill in parallel
+        // ?filter=user excludes internal/system secrets from the list
         const [vaultResp, credResp, skillResp] = await Promise.all([
-            fetch('/api/vault/secrets'),
+            fetch('/api/vault/secrets?filter=user'),
             fetch('/api/credentials'),
             fetch(`/api/skills/${encodeURIComponent(id)}`)
         ]);

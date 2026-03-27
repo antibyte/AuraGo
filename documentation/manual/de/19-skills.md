@@ -319,9 +319,11 @@ Agent: 🛠️ Skill: file_analyzer
   "entry_point": "github_repo.py",
   "function": "main",
   "dependencies": ["requests"],
-  "vault_keys": ["github_token"]
+  "vault_keys": ["gh_access_token"]
 }
 ```
+
+> **Hinweis:** Verwende einen eigenen Namen wie `gh_access_token` für deinen GitHub Personal Access Token. Speichere ihn unter diesem Namen im Vault. `github_token` ist für die Systemnutzung reserviert.
 
 **Python** (`github_repo.py`):
 ```python
@@ -335,7 +337,7 @@ import requests
 def main(owner: str, repo: str) -> dict:
     """Hole GitHub Repository Informationen."""
     
-    token = os.environ.get('AURAGO_SECRET_GITHUB_TOKEN')
+    token = os.environ.get('AURAGO_SECRET_GH_ACCESS_TOKEN')
     
     url = f"https://api.github.com/repos/{owner}/{repo}"
     headers = {}
