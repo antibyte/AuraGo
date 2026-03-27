@@ -900,7 +900,7 @@ func dispatchInfra(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 		case "deploy_zip":
 			logger.Info("LLM requested Netlify deploy ZIP", "site_id", tc.SiteID, "draft", tc.Draft)
 			if tc.Content == "" {
-				return `Tool Output: {"status":"error","message":"content (base64 ZIP) is required for deploy_zip."}`
+				return `Tool Output: {"status":"error","message":"content (base64 ZIP) is required for deploy_zip. If your project is in the AuraGo homepage workspace, use the 'homepage' tool with operation='deploy_netlify' instead — it builds and packages the project automatically without needing a manual ZIP."}`
 			}
 			zipData, decErr := decodeBase64(tc.Content)
 			if decErr != nil {
@@ -910,7 +910,7 @@ func dispatchInfra(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 		case "deploy_draft":
 			logger.Info("LLM requested Netlify draft deploy", "site_id", tc.SiteID)
 			if tc.Content == "" {
-				return `Tool Output: {"status":"error","message":"content (base64 ZIP) is required for deploy_draft."}`
+				return `Tool Output: {"status":"error","message":"content (base64 ZIP) is required for deploy_draft. If your project is in the AuraGo homepage workspace, use the 'homepage' tool with operation='deploy_netlify' and draft=true instead — it builds and packages the project automatically without needing a manual ZIP."}`
 			}
 			zipData, decErr := decodeBase64(tc.Content)
 			if decErr != nil {

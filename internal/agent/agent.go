@@ -686,9 +686,10 @@ func dispatchInner(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 	}
 	if homepageSubOps[tc.Action] {
 		logger.Info("Redirecting direct sub-operation call to homepage tool", "action", tc.Action)
-		if tc.Action == "deploy_netlify" || tc.Action == "publish_local" || tc.Action == "deploy" {
+		if tc.Action == "publish_local" || tc.Action == "deploy" {
 			tc.Operation = "deploy"
 		} else {
+			// deploy_netlify and all others keep their own name as operation
 			tc.Operation = tc.Action
 		}
 		tc.Action = "homepage"

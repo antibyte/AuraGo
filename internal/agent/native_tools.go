@@ -850,8 +850,8 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
 					"type":        "string",
-					"description": "Operation to perform",
-					"enum":        []string{"init", "start", "stop", "status", "rebuild", "destroy", "exec", "init_project", "build", "install_deps", "lighthouse", "screenshot", "lint", "list_files", "read_file", "write_file", "edit_file", "json_edit", "yaml_edit", "xml_edit", "optimize_images", "dev", "deploy", "test_connection", "webserver_start", "webserver_stop", "webserver_status", "publish_local", "tunnel", "git_init", "git_commit", "git_status", "git_diff", "git_log", "git_rollback"},
+					"description": "Operation to perform. To deploy a workspace project to Netlify, use 'deploy_netlify' — it builds and packages automatically, no manual ZIP needed. Do NOT use the 'netlify' tool's deploy_zip/deploy_draft for workspace projects.",
+					"enum":        []string{"init", "start", "stop", "status", "rebuild", "destroy", "exec", "init_project", "build", "install_deps", "lighthouse", "screenshot", "lint", "list_files", "read_file", "write_file", "edit_file", "json_edit", "yaml_edit", "xml_edit", "optimize_images", "dev", "deploy", "deploy_netlify", "test_connection", "webserver_start", "webserver_stop", "webserver_status", "publish_local", "tunnel", "git_init", "git_commit", "git_status", "git_diff", "git_log", "git_rollback"},
 				},
 				"command":     prop("string", "Shell command to execute (for 'exec')"),
 				"framework":   prop("string", "Web framework: next, vite, astro, svelte, vue, html (for 'init_project')"),
@@ -876,6 +876,10 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 				"json_path":   prop("string", "Dot-separated path for json_edit/yaml_edit (e.g. 'server.port', 'theme.colors.primary')"),
 				"xpath":       prop("string", "XPath expression for xml_edit (e.g. '//server', './config/database')"),
 				"set_value":   map[string]interface{}{"description": "Value to set for json_edit/yaml_edit/xml_edit operations (any JSON type)"},
+				// deploy_netlify specific fields
+				"site_id": prop("string", "Netlify site ID to deploy to (for 'deploy_netlify'). Leave empty to use the default site from config."),
+				"draft":   map[string]interface{}{"type": "boolean", "description": "Deploy as preview/draft, not as production (for 'deploy_netlify')"},
+				"title":   prop("string", "Deploy message shown in Netlify dashboard (for 'deploy_netlify')"),
 			}, "operation"),
 		))
 	}
