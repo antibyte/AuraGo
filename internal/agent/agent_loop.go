@@ -1026,14 +1026,17 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 						// Streaming raw JSON to the UI causes it to appear as text
 						// in the chat before the tool can execute (especially with
 						// providers that don't use the tool_calls field properly).
-						// Heuristic: if content starts with '{' AND looks like a tool call
-						// (has action/command/operation/tool keyword), suppress from SSE.
+						//
+						// MiniMaxFix mode: suppress any chunk that contains tool call JSON
+						// (MiniMax puts tool calls in delta.Content, not delta.ToolCalls).
+						// The heuristic checks: starts with '{' AND contains a tool keyword.
 						trimmed := strings.TrimLeft(delta.Content, " \t\r\n")
 						isLikelyToolCallJSON := len(trimmed) > 0 && trimmed[0] == '{' &&
 							(strings.Contains(trimmed, `"action"`) || strings.Contains(trimmed, `"command"`) ||
 								strings.Contains(trimmed, `"operation"`) || strings.Contains(trimmed, `"tool"`) ||
 								strings.Contains(trimmed, `"name"`) || strings.Contains(trimmed, `"arguments"`))
-						if !isLikelyToolCallJSON {
+						suppressForMiniMax := cfg.LLM.MiniMaxFix && isLikelyToolCallJSON
+						if !suppressForMiniMax {
 							if chunkData, mErr := json.Marshal(chunk); mErr == nil {
 								broker.SendJSON(fmt.Sprintf("data: %s\n\n", string(chunkData)))
 							}

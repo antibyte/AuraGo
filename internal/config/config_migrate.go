@@ -203,6 +203,10 @@ func (c *Config) ResolveProviders() {
 		c.LLM.Model = c.LLM.LegacyModel
 		c.LLM.ProviderType = c.LLM.Provider // old value is the type string
 	}
+	// Auto-enable MiniMax-specific fixes when using MiniMax
+	if c.LLM.ProviderType == "minimax" {
+		c.LLM.MiniMaxFix = true
+	}
 
 	// ── FallbackLLM ──
 	if p := c.FindProvider(c.FallbackLLM.Provider); p != nil {

@@ -165,6 +165,7 @@ type Config struct {
 		UseNativeFunctions bool    `yaml:"use_native_functions"`
 		Temperature        float64 `yaml:"temperature"`        // 0.0–2.0; default 0.7; 0 = provider default
 		StructuredOutputs  bool    `yaml:"structured_outputs"` // enable structured output mode (only for supported models)
+		MiniMaxFix         bool    `yaml:"minimax_fix"`       // suppress tool call JSON from SSE content stream for MiniMax (prevents tool calls appearing as text in chat)
 	} `yaml:"llm"`
 	Directories struct {
 		DataDir      string `yaml:"data_dir"`
