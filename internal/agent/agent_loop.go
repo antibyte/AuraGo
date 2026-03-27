@@ -1020,10 +1020,23 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					delta := chunk.Choices[0].Delta
 					if delta.Content != "" {
 						assembledResponse.WriteString(delta.Content)
-						// Proxy the JSON chunk to the broker if it supports dynamic passthrough (SSE)
-						// We'll marshal it so we can push it cleanly
-						if chunkData, mErr := json.Marshal(chunk); mErr == nil {
-							broker.SendJSON(fmt.Sprintf("data: %s\n\n", string(chunkData)))
+						// Proxy content to SSE client for real-time display.
+						// Skip content that looks like a JSON tool call payload —
+						// it will be parsed and dispatched as a tool call below.
+						// Streaming raw JSON to the UI causes it to appear as text
+						// in the chat before the tool can execute (especially with
+						// providers that don't use the tool_calls field properly).
+						// Heuristic: if content starts with '{' AND looks like a tool call
+						// (has action/command/operation/tool keyword), suppress from SSE.
+						trimmed := strings.TrimLeft(delta.Content, " \t\r\n")
+						isLikelyToolCallJSON := len(trimmed) > 0 && trimmed[0] == '{' &&
+							(strings.Contains(trimmed, `"action"`) || strings.Contains(trimmed, `"command"`) ||
+								strings.Contains(trimmed, `"operation"`) || strings.Contains(trimmed, `"tool"`) ||
+								strings.Contains(trimmed, `"name"`) || strings.Contains(trimmed, `"arguments"`))
+						if !isLikelyToolCallJSON {
+							if chunkData, mErr := json.Marshal(chunk); mErr == nil {
+								broker.SendJSON(fmt.Sprintf("data: %s\n\n", string(chunkData)))
+							}
 						}
 					}
 					// Accumulate streamed tool call fragments

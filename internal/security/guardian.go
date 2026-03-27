@@ -98,6 +98,11 @@ func (g *Guardian) compilePatterns() {
 		{"action_coerce", `(?i)\b(execute this (tool|command|code)|call this function|run the following (command|code|script)|you must (run|execute|call))\b`, ThreatMedium},
 		{"tool_json_inject", `(?i)\{\s*"(action|tool)"\s*:\s*"(execute_shell|execute_python|set_secret|save_tool|api_request|filesystem)"`, ThreatHigh},
 
+		// ── Shell with external network tools ─────────────────────
+		// curl/wget/etc. to public internet via shell is unsafe; web_scraper must be used instead.
+		{"curl_external", `(?i)\b(curl|wget|fetch)\s+.*https?://`, ThreatHigh},
+		{"powershell_web", `(?i)(Invoke-WebRequest|Invoke-RestMethod|iwr|irm)\s+.*https?://`, ThreatHigh},
+
 		// ── Encoded / obfuscated payloads ───────────────────────────
 		{"base64_payload", `(?i)\b(decode|eval|exec)\s*\(\s*(base64|atob|b64)\b`, ThreatHigh},
 		{"unicode_escape", `(?i)(\\u00[0-9a-f]{2}){4,}`, ThreatMedium},
