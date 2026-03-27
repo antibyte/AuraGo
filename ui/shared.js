@@ -361,7 +361,9 @@ async function performLogout() {
             clearTimeout(fallbackTimer);
             const data = await resp.json().catch(() => ({}));
             const redirect = data.redirect || '/auth/login';
-            window.location.replace(redirect);
+            // Validate redirect: only allow relative paths starting with /
+            const allowed = redirect === '/auth/login' || (/^\/[a-zA-Z0-9._~!$&'()*+,;=:@-]*$/).test(redirect);
+            window.location.replace(allowed ? redirect : '/auth/login');
             return;
         }
     } catch (_) {
@@ -740,6 +742,8 @@ async function initPWA() {
         console.error('[PWA] Service Worker registration failed:', err);
         window._pushStatus = { available: false, reason: 'sw-failed' };
         return;
+        window._pushStatus = { available: false, reason: 'sw-failed' };
+        return;
     }
 
     // 3. Expose push status and opt-in helpers on window for use by the chat UI
@@ -959,7 +963,9 @@ window.AuraSSE = (function () {
         const labelEl = document.createElement('span');
         labelEl.textContent = label;
         const linkEl = document.createElement('a');
-        linkEl.href = loginUrl;
+        // Validate loginUrl: only allow https:// URLs
+        const allowed = loginUrl && loginUrl.startsWith('https://') && /^https:\/\/[a-zA-Z0-9._~:/?#\[\]@!$&'()*+,;=-]+$/.test(loginUrl);
+        linkEl.href = allowed ? loginUrl : '#';
         linkEl.target = '_blank';
         linkEl.rel = 'noopener noreferrer';
         linkEl.className = 'tsnet-login-banner-link';

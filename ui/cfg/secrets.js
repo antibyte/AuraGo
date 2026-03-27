@@ -51,7 +51,7 @@
             if (!vaultReady) {
                 try {
                     const vResp = await fetch('/api/vault/status');
-                    if (vResp.ok) { vaultReady = (await vResp.json()).exists === true; }
+                    if (vResp.ok && vResp.status !== 204) { vaultReady = (await vResp.json()).exists === true; }
                 } catch (_) {}
             }
 
@@ -155,7 +155,7 @@
                     <div class="field-label">Value</div>
                     <div class="field-help">${t('config.secrets.value_help')}</div>
                     <div class="password-wrap">
-                        <input class="field-input" id="secret-value" type="password" value="${escapeAttr(valueVal)}" placeholder="${t('config.secrets.value_placeholder')}" autocomplete="off">
+                        <input class="field-input" id="secret-value" type="password" placeholder="${t('config.secrets.value_placeholder')}" autocomplete="off">
                         <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">${EYE_OPEN_SVG}</button>
                     </div>
                 </div>

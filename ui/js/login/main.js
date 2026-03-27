@@ -78,7 +78,7 @@
             el('totpDivider').textContent           = t('login.totp_divider');
             el('lblTotp').textContent               = t('login.totp_label');
             el('btnText').textContent               = t('login.btn_submit');
-            if (TOTP_ENABLED) el('totpSection').classList.remove('is-hidden');
+            if (typeof TOTP_ENABLED !== 'undefined' && TOTP_ENABLED) el('totpSection').classList.remove('is-hidden');
         })();
 
         function getCurrentTheme() {
@@ -853,7 +853,10 @@
                 
                 if (resp.ok && data.ok) {
                     await waitForAuthenticatedSession();
-                    window.location.replace(data.redirect || '/');
+                    // Validate redirect: only allow relative paths starting with /
+                    const redirect = data.redirect || '/';
+                    const allowed = redirect === '/' || (/^\/[a-zA-Z0-9._~!$&'()*+,;=:@-]*$/).test(redirect);
+                    window.location.replace(allowed ? redirect : '/');
                 } else {
                     showError(data.error || t('login.error_failed'));
                     document.getElementById('password').classList.add('error-field');

@@ -792,7 +792,7 @@ function formatKey(key) {
 }
 
 function escapeAttr(s) { return String(s).replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
-function escapeHtml(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function escapeHtml(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 
 /** Set a deep value on an object using a dot-separated path, e.g. "tools.web_scraper.enabled". */
 function setNestedValue(obj, path, value) {
@@ -860,6 +860,7 @@ function getNestedValue(obj, path) {
 
 function buildConfigPatchFromForm() {
     const patch = {};
+    const forbidden = new Set(['__proto__', 'constructor', 'prototype']);
     document.querySelectorAll('[data-path]').forEach(el => {
         if (el.type === 'radio' && !el.checked) return;
 
@@ -892,10 +893,13 @@ function buildConfigPatchFromForm() {
 
         let obj = patch;
         for (let i = 0; i < parts.length - 1; i++) {
+            if (forbidden.has(parts[i])) return; // Prototype pollution guard
             if (!obj[parts[i]]) obj[parts[i]] = {};
             obj = obj[parts[i]];
         }
-        obj[parts[parts.length - 1]] = val;
+        const lastKey = parts[parts.length - 1];
+        if (forbidden.has(lastKey)) return;
+        obj[lastKey] = val;
     });
     return patch;
 }

@@ -38,7 +38,10 @@ self.addEventListener('push', function (event) {
 
 self.addEventListener('notificationclick', function (event) {
     event.notification.close();
-    const targetUrl = (event.notification.data && event.notification.data.url) ? event.notification.data.url : '/';
+    const rawUrl = (event.notification.data && event.notification.data.url) ? event.notification.data.url : '/';
+    // Validate URL: only allow relative paths starting with /
+    const allowed = rawUrl === '/' || (/^\/[a-zA-Z0-9._~!$&'()*+,;=:@-]*$/).test(rawUrl);
+    const targetUrl = allowed ? rawUrl : '/';
 
     event.waitUntil(
         clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (windowClients) {

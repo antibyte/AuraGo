@@ -168,7 +168,7 @@
 }
 
 .sk-sec-clean { background: rgba(34,197,94,0.15); color: var(--success, #22c55e); }
-.sk-sec-warning { background: rgba(245,158,11,0.15); color: var(--warning, #f59e0b); }
+.sk-sec-warning { background: rgba(245, 158, 11, 0.15); color: var(--warning, #f59e0b); }
 .sk-sec-dangerous { background: rgba(239,68,68,0.15); color: var(--error, #ef4444); }
 .sk-sec-pending { background: rgba(150,150,150,0.15); color: var(--text-secondary); }
 .sk-sec-error { background: rgba(239,68,68,0.15); color: var(--error, #ef4444); }
@@ -297,6 +297,13 @@
     color: #7ec87e;
     border: 1px solid #2d4a2d;
     font-family: monospace;
+}
+
+.sk-vault-key-cred {
+    background: #1a1e2a;
+    color: #7eaec8;
+    border-color: #2d3d4a;
+    font-family: inherit;
 }
 
 .sk-vault-edit-btn {

@@ -207,11 +207,13 @@ async function authTOTPStartSetup() {
         const qrEl = document.getElementById('totp-qr');
         qrEl.innerHTML = '';
         if (typeof QRCode !== 'undefined') {
-            new QRCode(qrEl, { text: data.uri, width: 180, height: 180, colorDark: '#000000', colorLight: '#ffffff' });
+            // Only pass otpauth URI — never include the secret in a data attribute or text node
+            const otpUri = (data.uri || '').replace(/secret=[^&]*/, 'secret=***');
+            new QRCode(qrEl, { text: otpUri, width: 180, height: 180, colorDark: '#000000', colorLight: '#ffffff' });
         } else {
-            // Fallback: display URI as text
+            // Fallback: display URI with masked secret
             qrEl.classList.add('auth-totp-qr-fallback');
-            qrEl.innerHTML = '<div class="auth-totp-uri-fallback">' + esc(data.uri) + '</div>';
+            qrEl.innerHTML = '<div class="auth-totp-uri-fallback">' + esc((data.uri || '').replace(/secret=[^&]*/, 'secret=***')) + '</div>';
         }
     } catch (e) {
         alert(t('config.common.error') + ': ' + e.message);
@@ -302,10 +304,10 @@ function renderSecurityAuditPanel(panel, hints) {
     for (const h of hints) {
         const sevKey = supportedSeverities.has(h.severity) ? h.severity : 'info';
         const sevLabel = t('config.security.severity.' + h.severity) || h.severity.toUpperCase();
-        const desc = esc(h.description);
+        const desc = escapeHtml(h.description || '');
         let fixBtn = '';
         if (h.auto_fixable) {
-            fixBtn = `<button onclick="securityHardenIds(['${h.id}'])"
+            fixBtn = `<button onclick="securityHardenIds(['${esc(h.id)}'])"
                 class="auth-sec-fix-now-btn">
                 🔧 ${t('config.security.fix_now')}
             </button>`;
@@ -313,7 +315,7 @@ function renderSecurityAuditPanel(panel, hints) {
         html += `<div class="auth-sec-hint-card is-${sevKey}">
             <div class="auth-sec-hint-head">
                 <span class="auth-sec-hint-badge is-${sevKey}">${sevLabel}</span>
-                <span class="auth-sec-hint-title">${esc(h.title)}</span>
+                <span class="auth-sec-hint-title">${escapeHtml(h.title || '')}</span>
             </div>
             <div class="auth-sec-hint-desc">${desc}</div>
             ${fixBtn}
