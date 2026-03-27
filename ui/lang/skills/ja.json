@@ -75,6 +75,8 @@
   "skills.vault_modal_empty": "Vaultに利用可能なシークレットがありません。",
   "skills.vault_modal_save": "保存",
   "skills.vault_none": "シークレット未割り当て",
+  "skills.vault_section_secrets": "Vaultシークレット",
+  "skills.vault_section_creds": "認証情報",
   "skills.vault_save_success": "シークレットを更新しました",
   "skills.scan_complete": "スキャン完了"
 }

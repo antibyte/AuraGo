@@ -75,6 +75,8 @@
   "skills.vault_modal_empty": "Δεν υπάρχουν διαθέσιμα μυστικά στο θησαυροφυλάκιο.",
   "skills.vault_modal_save": "Αποθήκευση",
   "skills.vault_none": "Δεν έχουν ανατεθεί μυστικά",
+  "skills.vault_section_secrets": "Μυστικά vault",
+  "skills.vault_section_creds": "Πιστοποιητικά",
   "skills.vault_save_success": "Μυστικά ενημερώθηκαν",
   "skills.scan_complete": "Η σάρωση ολοκληρώθηκε"
 }

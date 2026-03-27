@@ -75,6 +75,8 @@
   "skills.vault_modal_empty": "Brak dostępnych sekretów w sejfie.",
   "skills.vault_modal_save": "Zapisz",
   "skills.vault_none": "Brak przypisanych sekretów",
+  "skills.vault_section_secrets": "Sekrety vault",
+  "skills.vault_section_creds": "Dane uwierzytelniające",
   "skills.vault_save_success": "Sekrety zaktualizowane",
   "skills.scan_complete": "Skanowanie zakończone"
 }

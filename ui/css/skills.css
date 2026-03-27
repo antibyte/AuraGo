@@ -311,6 +311,26 @@
     font-style: italic;
 }
 
+.sk-vault-section-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary, #999);
+    margin: 4px 0 2px;
+    padding: 0 2px;
+}
+
+.sk-vault-cred-label {
+    font-size: 0.82rem;
+}
+
+.sk-vault-cred-type {
+    font-size: 0.7rem;
+    color: var(--text-secondary, #999);
+    margin-left: 4px;
+}
+
 /* ── Vault Key Assignment Modal ── */
 .modal--sm {
     max-width: 420px;
