@@ -3,6 +3,8 @@
   "dashboard.activity_background_tasks": "Background Tasks",
   "dashboard.activity_coagent_completed": "पुरा होना",
   "dashboard.activity_coagent_failed": "असफल",
+  "dashboard.activity_coagent_queued": "कतार में",
+  "dashboard.activity_coagent_cancelled": "रद्द",
   "dashboard.activity_coagent_running": "दौड़ना",
   "dashboard.activity_coagents": "सह-एजेंट",
   "dashboard.activity_collapse": "गिर जाना",

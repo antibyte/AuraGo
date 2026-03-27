@@ -949,19 +949,26 @@
                 details += '<div class="activity-section"><div class="activity-section-title">🤖 ' + t('dashboard.activity_coagents') + '</div>';
                 for (const ca of data.coagents) {
                     const stateMap = {
+                        queued: t('dashboard.activity_coagent_queued'),
                         running: t('dashboard.activity_coagent_running'),
                         completed: t('dashboard.activity_coagent_completed'),
-                        failed: t('dashboard.activity_coagent_failed')
+                        failed: t('dashboard.activity_coagent_failed'),
+                        cancelled: t('dashboard.activity_coagent_cancelled')
                     };
-                    const stateClass = ca.state === 'running' ? 'pill-running' :
+                    const stateClass = ca.state === 'queued' ? 'pill-idle' :
+                        ca.state === 'running' ? 'pill-running' :
                         ca.state === 'completed' ? 'pill-completed' :
                             ca.state === 'failed' ? 'pill-failed' : 'pill-idle';
                     const specIcons = { researcher: '\uD83D\uDD0D', coder: '\uD83D\uDCBB', designer: '\uD83C\uDFA8', security: '\uD83D\uDEE1\uFE0F', writer: '\u270D\uFE0F' };
                     const specBadge = ca.specialist && specIcons[ca.specialist] ? '<span title="' + esc(ca.specialist) + '" style="margin-right:0.3rem;">' + specIcons[ca.specialist] + '</span>' : '';
+                    const extra = [];
+                    if (ca.queue_position) extra.push('Q' + esc(String(ca.queue_position)));
+                    if (ca.retry_count) extra.push('R' + esc(String(ca.retry_count)));
+                    if (ca.last_event) extra.push(esc(String(ca.last_event)));
                     details += `<div class="activity-item">
                 <span class="activity-item-name">${specBadge}${esc(truncate(ca.task || ca.id, 50))}</span>
                 <span><span class="pill-status ${stateClass}">${esc(stateMap[ca.state] || ca.state)}</span>
-                <span class="activity-item-detail activity-item-detail-spaced">${esc(ca.runtime || '')}</span></span>
+                <span class="activity-item-detail activity-item-detail-spaced">${esc(ca.runtime || '')}${extra.length ? ' · ' + extra.join(' · ') : ''}</span></span>
             </div>`;
                 }
                 details += '</div>';

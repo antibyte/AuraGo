@@ -3,6 +3,8 @@
   "dashboard.activity_background_tasks": "Background Tasks",
   "dashboard.activity_coagent_completed": "afsluttet",
   "dashboard.activity_coagent_failed": "fejlet",
+  "dashboard.activity_coagent_queued": "i kø",
+  "dashboard.activity_coagent_cancelled": "annulleret",
   "dashboard.activity_coagent_running": "kører",
   "dashboard.activity_coagents": "Co-Agents",
   "dashboard.activity_collapse": "Sammenfold",

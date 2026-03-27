@@ -3,6 +3,8 @@
   "dashboard.activity_background_tasks": "Background Tasks",
   "dashboard.activity_coagent_completed": "完了",
   "dashboard.activity_coagent_failed": "失敗",
+  "dashboard.activity_coagent_queued": "待機中",
+  "dashboard.activity_coagent_cancelled": "キャンセル済み",
   "dashboard.activity_coagent_running": "実行中",
   "dashboard.activity_coagents": "共同エージェント",
   "dashboard.activity_collapse": "折りたたむ",

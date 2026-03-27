@@ -20,6 +20,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -317,6 +318,16 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			if oldCfg.CoAgents.MaxConcurrent != newCfg.CoAgents.MaxConcurrent {
 				s.CoAgentRegistry.SetMaxSlots(newCfg.CoAgents.MaxConcurrent)
 				s.Logger.Info("[Config UI] Co-agent max_concurrent updated", "slots", newCfg.CoAgents.MaxConcurrent)
+			}
+			if oldCfg.CoAgents.CleanupIntervalMins != newCfg.CoAgents.CleanupIntervalMins ||
+				oldCfg.CoAgents.CleanupMaxAgeMins != newCfg.CoAgents.CleanupMaxAgeMins {
+				s.CoAgentRegistry.ConfigureLifecycle(
+					time.Duration(newCfg.CoAgents.CleanupIntervalMins)*time.Minute,
+					time.Duration(newCfg.CoAgents.CleanupMaxAgeMins)*time.Minute,
+				)
+				s.Logger.Info("[Config UI] Co-agent cleanup lifecycle updated",
+					"interval_minutes", newCfg.CoAgents.CleanupIntervalMins,
+					"max_age_minutes", newCfg.CoAgents.CleanupMaxAgeMins)
 			}
 
 			// Update webhook payload / rate limits without restart.

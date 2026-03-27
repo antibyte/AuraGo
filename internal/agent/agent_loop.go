@@ -115,11 +115,12 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			"max_tool_guides", toolingPolicy.EffectiveMaxToolGuides)
 	}
 	flags := buildPromptContextFlags(runCfg, toolingPolicy, promptContextOptions{
-		IsMaintenanceMode:    isMaintenance,
-		SurgeryPlan:          surgeryPlan,
-		WebhooksDefinitions:  webhooksDef.String(),
-		SpecialistsAvailable: specialistsAvailable(cfg),
-		SpecialistsStatus:    buildSpecialistsStatus(cfg),
+		IsMaintenanceMode:     isMaintenance,
+		SurgeryPlan:           surgeryPlan,
+		WebhooksDefinitions:   webhooksDef.String(),
+		SpecialistsAvailable:  specialistsAvailable(cfg),
+		SpecialistsStatus:     buildSpecialistsStatus(cfg),
+		SpecialistsSuggestion: buildSpecialistDelegationHint(cfg, initialUserMsg),
 	})
 	logger.Debug("[Agent] Context flags initialised",
 		"token_budget", flags.TokenBudget,
@@ -1121,7 +1122,11 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			if actualModel == "" {
 				actualModel = req.Model
 			}
-			crossedWarning := budgetTracker.Record(actualModel, promptTokens, completionTokens)
+			budgetCategory := "chat"
+			if strings.HasPrefix(sessionID, "coagent-") || strings.HasPrefix(sessionID, "specialist-") {
+				budgetCategory = "coagent"
+			}
+			crossedWarning := budgetTracker.RecordForCategory(budgetCategory, actualModel, promptTokens, completionTokens)
 			budgetJSON := budgetTracker.GetStatusJSON()
 			if budgetJSON != "" {
 				broker.SendJSON(budgetJSON)

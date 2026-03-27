@@ -547,9 +547,16 @@ type Config struct {
 		Host     string `yaml:"host"`     // e.g. unix:///var/run/docker.sock or tcp://localhost:2375
 	} `yaml:"docker"`
 	CoAgents struct {
-		Enabled       bool `yaml:"enabled"`
-		MaxConcurrent int  `yaml:"max_concurrent"`
-		LLM           struct {
+		Enabled             bool `yaml:"enabled"`
+		MaxConcurrent       int  `yaml:"max_concurrent"`
+		BudgetQuotaPercent  int  `yaml:"budget_quota_percent"`     // share of daily budget reserved for co-agents (0 = disabled)
+		MaxContextHints     int  `yaml:"max_context_hints"`        // maximum number of context_hints accepted per request
+		MaxContextHintChars int  `yaml:"max_context_hint_chars"`   // maximum characters per context hint
+		MaxResultBytes      int  `yaml:"max_result_bytes"`         // truncate co-agent result after this many bytes
+		QueueWhenBusy       bool `yaml:"queue_when_busy"`          // queue co-agents instead of rejecting when all slots are occupied
+		CleanupIntervalMins int  `yaml:"cleanup_interval_minutes"` // registry cleanup tick interval (default: 10)
+		CleanupMaxAgeMins   int  `yaml:"cleanup_max_age_minutes"`  // finished co-agent retention before cleanup (default: 30)
+		LLM                 struct {
 			Provider     string `yaml:"provider"`          // provider entry ID
 			ProviderType string `yaml:"-"       json:"-"`  // resolved
 			BaseURL      string `yaml:"-"       json:"-"`  // resolved
@@ -564,6 +571,11 @@ type Config struct {
 			TimeoutSeconds int `yaml:"timeout_seconds"`
 			MaxTokens      int `yaml:"max_tokens"`
 		} `yaml:"circuit_breaker"`
+		RetryPolicy struct {
+			MaxRetries             int      `yaml:"max_retries"`              // retries for transient co-agent LLM failures (default: 1)
+			RetryDelaySeconds      int      `yaml:"retry_delay_seconds"`      // base delay between retries (default: 5)
+			RetryableErrorPatterns []string `yaml:"retryable_error_patterns"` // lower-cased substrings treated as transient
+		} `yaml:"retry_policy"`
 		Specialists struct {
 			Researcher SpecialistConfig `yaml:"researcher"`
 			Coder      SpecialistConfig `yaml:"coder"`

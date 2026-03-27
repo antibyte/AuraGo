@@ -47,8 +47,11 @@ func Loopback(runCfg RunConfig, message string, broker FeedbackBroker) {
 
 	policy := buildToolingPolicy(cfg, "")
 	flags := buildPromptContextFlags(runCfg, policy, promptContextOptions{
-		ActiveProcesses:   GetActiveProcessStatus(runCfg.Registry),
-		IsMaintenanceMode: tools.IsBusy(),
+		ActiveProcesses:       GetActiveProcessStatus(runCfg.Registry),
+		IsMaintenanceMode:     tools.IsBusy(),
+		SpecialistsAvailable:  specialistsAvailable(runCfg.Config),
+		SpecialistsStatus:     buildSpecialistsStatus(runCfg.Config),
+		SpecialistsSuggestion: buildSpecialistDelegationHint(runCfg.Config, message),
 	})
 	coreMem := shortTermMem.ReadCoreMemory()
 	sysPrompt := prompts.BuildSystemPrompt(cfg.Directories.PromptsDir, flags, coreMem, logger)

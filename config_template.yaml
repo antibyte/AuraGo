@@ -81,13 +81,38 @@ co_agents:
         max_tokens: 0
         max_tool_calls: 12
         timeout_seconds: 300
+    budget_quota_percent: 25
+    cleanup_interval_minutes: 10
+    cleanup_max_age_minutes: 30
     enabled: false
     llm:
         api_key: ""
         base_url: ""
         model: ""
         provider: ""
+    max_context_hints: 6
+    max_context_hint_chars: 180
     max_concurrent: 3
+    max_result_bytes: 100000
+    queue_when_busy: true
+    retry_policy:
+        max_retries: 1
+        retry_delay_seconds: 5
+        retryable_error_patterns:
+            - deadline exceeded
+            - timeout
+            - timed out
+            - temporarily unavailable
+            - temporary failure
+            - rate limit
+            - too many requests
+            - connection reset
+            - connection refused
+            - connection aborted
+            - broken pipe
+            - eof
+            - unavailable
+            - network is unreachable
     specialists:
         researcher:
             enabled: false

@@ -3,6 +3,8 @@
   "dashboard.activity_background_tasks": "Background Tasks",
   "dashboard.activity_coagent_completed": "voltooid",
   "dashboard.activity_coagent_failed": "mislukt",
+  "dashboard.activity_coagent_queued": "in wachtrij",
+  "dashboard.activity_coagent_cancelled": "geannuleerd",
   "dashboard.activity_coagent_running": "actief",
   "dashboard.activity_coagents": "Co-agenten",
   "dashboard.activity_collapse": "Inklappen",

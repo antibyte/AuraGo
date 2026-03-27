@@ -34,6 +34,9 @@ func dispatchInfra(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 		if budgetTracker != nil && budgetTracker.IsBlocked("coagent") {
 			return `Tool Output: {"status": "error", "message": "Co-Agent spawn blocked: daily budget exceeded. Try again tomorrow."}`
 		}
+		if budgetTracker != nil && budgetTracker.IsCategoryQuotaBlocked("coagent", cfg.CoAgents.BudgetQuotaPercent) {
+			return `Tool Output: {"status": "error", "message": "Co-Agent quota reached for today. Reuse existing agents or continue without spawning more co-agents."}`
+		}
 		if !cfg.CoAgents.Enabled {
 			return `Tool Output: {"status": "error", "message": "Co-Agent system is not enabled. Set co_agents.enabled=true in config.yaml."}`
 		}
@@ -52,14 +55,19 @@ func dispatchInfra(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 			coReq := CoAgentRequest{
 				Task:         task,
 				ContextHints: tc.ContextHints,
+				Priority:     tc.Priority,
 			}
-			id, err := SpawnCoAgent(cfg, ctx, logger, coAgentRegistry,
+			id, state, err := SpawnCoAgent(cfg, ctx, logger, coAgentRegistry,
 				shortTermMem, longTermMem, vault, registry, manifest, kg, inventoryDB, coReq, budgetTracker)
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
 			}
 			slots := coAgentRegistry.AvailableSlots()
-			return fmt.Sprintf(`Tool Output: {"status": "ok", "co_agent_id": "%s", "available_slots": %d, "message": "Co-Agent started. Use operation 'list' to check status and 'get_result' when completed."}`, id, slots)
+			message := "Co-Agent started. Use operation 'list' to check status and 'get_result' when completed."
+			if state == CoAgentQueued {
+				message = "Co-Agent queued because all slots are busy. Use operation 'list' to monitor queue position."
+			}
+			return fmt.Sprintf(`Tool Output: {"status": "ok", "co_agent_id": "%s", "state": "%s", "available_slots": %d, "message": "%s"}`, id, state, slots, message)
 
 		case "spawn_specialist":
 			task := tc.Task
@@ -77,14 +85,19 @@ func dispatchInfra(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 				Task:         task,
 				ContextHints: tc.ContextHints,
 				Specialist:   specialist,
+				Priority:     tc.Priority,
 			}
-			id, err := SpawnCoAgent(cfg, ctx, logger, coAgentRegistry,
+			id, state, err := SpawnCoAgent(cfg, ctx, logger, coAgentRegistry,
 				shortTermMem, longTermMem, vault, registry, manifest, kg, inventoryDB, coReq, budgetTracker)
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
 			}
 			slots := coAgentRegistry.AvailableSlots()
-			return fmt.Sprintf(`Tool Output: {"status": "ok", "co_agent_id": "%s", "specialist": "%s", "available_slots": %d, "message": "Specialist '%s' started. Use 'list' to check status and 'get_result' when completed."}`, id, specialist, slots, specialist)
+			message := fmt.Sprintf("Specialist '%s' started. Use 'list' to check status and 'get_result' when completed.", specialist)
+			if state == CoAgentQueued {
+				message = fmt.Sprintf("Specialist '%s' queued because all slots are busy. Use 'list' to monitor queue position.", specialist)
+			}
+			return fmt.Sprintf(`Tool Output: {"status": "ok", "co_agent_id": "%s", "specialist": "%s", "state": "%s", "available_slots": %d, "message": "%s"}`, id, specialist, state, slots, message)
 
 		case "list", "status":
 			list := coAgentRegistry.List()

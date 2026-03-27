@@ -152,3 +152,69 @@ agent:
 		t.Fatalf("default identical_tool_error_hits = %d, want 3", cfg.Agent.Recovery.IdenticalToolErrorHits)
 	}
 }
+
+func TestLoadPreservesCoAgentPolicyFields(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	configContent := `
+co_agents:
+  enabled: true
+  max_concurrent: 4
+  budget_quota_percent: 35
+  max_context_hints: 4
+  max_context_hint_chars: 120
+  max_result_bytes: 90000
+  queue_when_busy: false
+  cleanup_interval_minutes: 7
+  cleanup_max_age_minutes: 45
+  retry_policy:
+    max_retries: 2
+    retry_delay_seconds: 11
+    retryable_error_patterns: ["deadline exceeded", "rate limit"]
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if !cfg.CoAgents.Enabled {
+		t.Fatal("expected co_agents.enabled=true to be preserved")
+	}
+	if cfg.CoAgents.MaxConcurrent != 4 {
+		t.Fatalf("co_agents.max_concurrent = %d, want 4", cfg.CoAgents.MaxConcurrent)
+	}
+	if cfg.CoAgents.BudgetQuotaPercent != 35 {
+		t.Fatalf("co_agents.budget_quota_percent = %d, want 35", cfg.CoAgents.BudgetQuotaPercent)
+	}
+	if cfg.CoAgents.MaxContextHints != 4 {
+		t.Fatalf("co_agents.max_context_hints = %d, want 4", cfg.CoAgents.MaxContextHints)
+	}
+	if cfg.CoAgents.MaxContextHintChars != 120 {
+		t.Fatalf("co_agents.max_context_hint_chars = %d, want 120", cfg.CoAgents.MaxContextHintChars)
+	}
+	if cfg.CoAgents.MaxResultBytes != 90000 {
+		t.Fatalf("co_agents.max_result_bytes = %d, want 90000", cfg.CoAgents.MaxResultBytes)
+	}
+	if cfg.CoAgents.QueueWhenBusy {
+		t.Fatal("expected co_agents.queue_when_busy=false to be preserved")
+	}
+	if cfg.CoAgents.CleanupIntervalMins != 7 {
+		t.Fatalf("co_agents.cleanup_interval_minutes = %d, want 7", cfg.CoAgents.CleanupIntervalMins)
+	}
+	if cfg.CoAgents.CleanupMaxAgeMins != 45 {
+		t.Fatalf("co_agents.cleanup_max_age_minutes = %d, want 45", cfg.CoAgents.CleanupMaxAgeMins)
+	}
+	if cfg.CoAgents.RetryPolicy.MaxRetries != 2 {
+		t.Fatalf("co_agents.retry_policy.max_retries = %d, want 2", cfg.CoAgents.RetryPolicy.MaxRetries)
+	}
+	if cfg.CoAgents.RetryPolicy.RetryDelaySeconds != 11 {
+		t.Fatalf("co_agents.retry_policy.retry_delay_seconds = %d, want 11", cfg.CoAgents.RetryPolicy.RetryDelaySeconds)
+	}
+	if len(cfg.CoAgents.RetryPolicy.RetryableErrorPatterns) != 2 {
+		t.Fatalf("co_agents.retry_policy.retryable_error_patterns len = %d, want 2", len(cfg.CoAgents.RetryPolicy.RetryableErrorPatterns))
+	}
+}

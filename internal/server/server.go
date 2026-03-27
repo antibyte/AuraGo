@@ -282,6 +282,10 @@ func Start(cfg *config.Config, logger *slog.Logger, accessLogger *slog.Logger, l
 		MissionManagerV2:   tools.NewMissionManagerV2(cfg.Directories.DataDir, cronManager),
 		EggHub:             bridge.NewEggHub(logger),
 	}
+	s.CoAgentRegistry.ConfigureLifecycle(
+		time.Duration(cfg.CoAgents.CleanupIntervalMins)*time.Minute,
+		time.Duration(cfg.CoAgents.CleanupMaxAgeMins)*time.Minute,
+	)
 
 	// Initialize Skill Manager (always; gated by config in handlers)
 	if cfg.Tools.SkillManager.Enabled {

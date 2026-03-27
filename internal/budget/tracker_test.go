@@ -200,3 +200,35 @@ func TestPersistAndLoad(t *testing.T) {
 	}
 	tr2.mu.RUnlock()
 }
+
+func TestRecordForCategoryTracksQuota(t *testing.T) {
+	dir := t.TempDir()
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+
+	cfg := testConfig(10.0, "warn")
+	cfg.Budget.DefaultCost = config.ModelCostRates{
+		InputPerMillion:  1000,
+		OutputPerMillion: 1000,
+	}
+	tr := NewTracker(cfg, logger, dir)
+	if tr == nil {
+		t.Fatal("tracker should not be nil")
+	}
+
+	tr.RecordForCategory("coagent", "test-model", 3000, 0)
+
+	if got := tr.CategorySpendUSD("coagent"); got <= 0 {
+		t.Fatalf("CategorySpendUSD(coagent) = %f, want > 0", got)
+	}
+	if !tr.IsCategoryQuotaBlocked("coagent", 25) {
+		t.Fatal("expected coagent quota to be blocked after spending beyond 25%")
+	}
+	if tr.IsCategoryQuotaBlocked("chat", 25) {
+		t.Fatal("did not expect chat quota to be blocked")
+	}
+
+	tr2 := NewTracker(cfg, logger, dir)
+	if got := tr2.CategorySpendUSD("coagent"); got <= 0 {
+		t.Fatalf("persisted CategorySpendUSD(coagent) = %f, want > 0", got)
+	}
+}

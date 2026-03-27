@@ -98,8 +98,9 @@ type ContextFlags struct {
 	IsCoAgent         bool     // True if the current LLM call is for a co-agent
 	IsEgg             bool     // True if this instance runs in egg worker mode
 	// Specialist co-agent fields
-	SpecialistsAvailable bool   // True if at least one specialist is enabled
-	SpecialistsStatus    string // Dynamic status text listing enabled specialists
+	SpecialistsAvailable  bool   // True if at least one specialist is enabled
+	SpecialistsStatus     string // Dynamic status text listing enabled specialists
+	SpecialistsSuggestion string // Optional delegation hint for the current task
 	// Feature toggles — control which conditional tool descriptions are included
 	DiscordEnabled           bool
 	EmailEnabled             bool
@@ -296,6 +297,9 @@ func BuildSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string,
 		// Replace specialist status placeholder in the awareness module
 		if flags.SpecialistsAvailable && flags.SpecialistsStatus != "" && strings.Contains(content, "{{SPECIALISTS_STATUS}}") {
 			content = strings.ReplaceAll(content, "{{SPECIALISTS_STATUS}}", flags.SpecialistsStatus)
+		}
+		if strings.Contains(content, "{{SPECIALISTS_SUGGESTION}}") {
+			content = strings.ReplaceAll(content, "{{SPECIALISTS_SUGGESTION}}", flags.SpecialistsSuggestion)
 		}
 		finalPrompt.WriteString(content)
 		finalPrompt.WriteString("\n\n")

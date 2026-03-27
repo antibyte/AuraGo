@@ -3,6 +3,8 @@
   "dashboard.activity_background_tasks": "Background Tasks",
   "dashboard.activity_coagent_completed": "已完成",
   "dashboard.activity_coagent_failed": "失败",
+  "dashboard.activity_coagent_queued": "排队中",
+  "dashboard.activity_coagent_cancelled": "已取消",
   "dashboard.activity_coagent_running": "运行中",
   "dashboard.activity_coagents": "协理代理",
   "dashboard.activity_collapse": "折叠",

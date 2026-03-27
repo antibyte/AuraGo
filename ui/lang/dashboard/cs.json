@@ -3,6 +3,8 @@
   "dashboard.activity_background_tasks": "Background Tasks",
   "dashboard.activity_coagent_completed": "Dokonceno",
   "dashboard.activity_coagent_failed": "Selhalo",
+  "dashboard.activity_coagent_queued": "ve frontě",
+  "dashboard.activity_coagent_cancelled": "zrušeno",
   "dashboard.activity_coagent_running": "Bezi",
   "dashboard.activity_coagents": "Co-Agenti",
   "dashboard.activity_collapse": "Sbalit",

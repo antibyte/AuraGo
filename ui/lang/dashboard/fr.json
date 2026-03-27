@@ -3,6 +3,8 @@
   "dashboard.activity_background_tasks": "Background Tasks",
   "dashboard.activity_coagent_completed": "terminé",
   "dashboard.activity_coagent_failed": "échoué",
+  "dashboard.activity_coagent_queued": "en file d'attente",
+  "dashboard.activity_coagent_cancelled": "annulé",
   "dashboard.activity_coagent_running": "en cours",
   "dashboard.activity_coagents": "Co-agents",
   "dashboard.activity_collapse": "Réduire",

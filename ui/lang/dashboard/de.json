@@ -3,6 +3,8 @@
   "dashboard.activity_background_tasks": "Background Tasks",
   "dashboard.activity_coagent_completed": "abgeschlossen",
   "dashboard.activity_coagent_failed": "fehlgeschlagen",
+  "dashboard.activity_coagent_queued": "wartet",
+  "dashboard.activity_coagent_cancelled": "abgebrochen",
   "dashboard.activity_coagent_running": "läuft",
   "dashboard.activity_coagents": "Co-Agenten",
   "dashboard.activity_collapse": "Einklappen",

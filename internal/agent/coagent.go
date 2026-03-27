@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -26,7 +27,29 @@ type CoAgentRequest struct {
 	Task         string   // Task description for the co-agent
 	ContextHints []string // Optional additional context strings
 	Specialist   string   // Specialist role ("researcher","coder","designer","security","writer") or empty for generic
+	Priority     int      // 1=low, 2=normal, 3=high
 }
+
+type coAgentPromptTemplate struct {
+	Content string
+	ModTime time.Time
+	Exists  bool
+}
+
+type coAgentBroker struct {
+	id       string
+	registry *CoAgentRegistry
+}
+
+func (b *coAgentBroker) Send(event, message string) {
+	if b == nil || b.registry == nil {
+		return
+	}
+	parts := []string{strings.TrimSpace(event), strings.TrimSpace(message)}
+	b.registry.RecordEvent(b.id, strings.TrimSpace(strings.Join(parts, ": ")))
+}
+
+func (b *coAgentBroker) SendJSON(jsonStr string) {}
 
 // SpawnCoAgent starts a co-agent goroutine and returns its ID.
 // Returns an error when the system is disabled or all slots are occupied.
@@ -47,19 +70,29 @@ func SpawnCoAgent(
 
 	req CoAgentRequest,
 	budgetTracker *budget.Tracker,
-) (string, error) {
+) (string, CoAgentState, error) {
 	if !cfg.CoAgents.Enabled {
-		return "", fmt.Errorf("co-agent system is disabled — set co_agents.enabled=true in config.yaml")
+		return "", "", fmt.Errorf("co-agent system is disabled — set co_agents.enabled=true in config.yaml")
+	}
+	if budgetTracker != nil && budgetTracker.IsCategoryQuotaBlocked("coagent", cfg.CoAgents.BudgetQuotaPercent) {
+		return "", "", fmt.Errorf("co-agent quota reached — co_agents.budget_quota_percent is exhausted for today")
+	}
+	if !cfg.CoAgents.QueueWhenBusy && coRegistry.AvailableSlots() <= 0 {
+		return "", "", fmt.Errorf("all %d co-agent slots are occupied", cfg.CoAgents.MaxConcurrent)
+	}
+	req = normalizeCoAgentRequest(cfg, req)
+	if strings.TrimSpace(req.Task) == "" {
+		return "", "", fmt.Errorf("'task' is required to spawn a co-agent")
 	}
 
 	// Validate and check specialist enablement
 	if req.Specialist != "" {
 		if !config.ValidSpecialistRoles[req.Specialist] {
-			return "", fmt.Errorf("unknown specialist role: %q", req.Specialist)
+			return "", "", fmt.Errorf("unknown specialist role: %q", req.Specialist)
 		}
 		spec := cfg.GetSpecialist(req.Specialist)
 		if spec == nil || !spec.Enabled {
-			return "", fmt.Errorf("specialist %q is not enabled — enable co_agents.specialists.%s.enabled in config.yaml", req.Specialist, req.Specialist)
+			return "", "", fmt.Errorf("specialist %q is not enabled — enable co_agents.specialists.%s.enabled in config.yaml", req.Specialist, req.Specialist)
 		}
 	}
 
@@ -79,10 +112,10 @@ func SpawnCoAgent(
 	if req.Specialist != "" {
 		idPrefix = "specialist-" + req.Specialist
 	}
-	coID, err := coRegistry.RegisterWithPrefix(idPrefix, req.Task, cancel)
+	coID, state, err := coRegistry.RegisterWithPriority(idPrefix, req.Task, cancel, reqPriority(req))
 	if err != nil {
 		cancel()
-		return "", err
+		return "", "", err
 	}
 
 	// 3. Build co-agent LLM client (specialist may use a different provider)
@@ -109,6 +142,14 @@ func SpawnCoAgent(
 			component = "specialist-" + req.Specialist
 		}
 		coLogger := logger.With("component", component, "co_id", coID)
+		if state == CoAgentQueued {
+			coLogger.Info("Co-Agent queued", "task", truncateStr(req.Task, 100), "model", coModel, "timeout", timeout, "specialist", req.Specialist)
+			if err := coRegistry.WaitForStart(coID, ctx); err != nil {
+				coLogger.Warn("Co-Agent did not start", "error", err)
+				return
+			}
+		}
+		coRegistry.RecordEvent(coID, "starting execution")
 		coLogger.Info("Co-Agent started", "task", truncateStr(req.Task, 100), "model", coModel, "timeout", timeout, "specialist", req.Specialist)
 
 		// Deep-copy config with co-agent overrides
@@ -153,8 +194,7 @@ func SpawnCoAgent(
 			},
 		}
 
-		// NoopBroker — co-agent sends no events to UI
-		broker := &NoopBroker{}
+		broker := &coAgentBroker{id: coID, registry: coRegistry}
 		sessionID := coID // Prefix "coagent-" enables blacklist in DispatchToolCall
 
 		runCfg := RunConfig{
@@ -177,7 +217,32 @@ func SpawnCoAgent(
 			SurgeryPlan:     "",
 		}
 
-		resp, err := ExecuteAgentLoop(ctx, llmReq, runCfg, false, broker)
+		maxRetries := cfg.CoAgents.RetryPolicy.MaxRetries
+		delay := time.Duration(cfg.CoAgents.RetryPolicy.RetryDelaySeconds) * time.Second
+		var resp openai.ChatCompletionResponse
+		var err error
+		for attempt := 0; attempt <= maxRetries; attempt++ {
+			if attempt > 0 {
+				coRegistry.RecordEvent(coID, fmt.Sprintf("retry %d/%d", attempt, maxRetries))
+				select {
+				case <-ctx.Done():
+					err = ctx.Err()
+				case <-time.After(delay):
+				}
+				if err != nil {
+					break
+				}
+			}
+			resp, err = ExecuteAgentLoop(ctx, llmReq, runCfg, false, broker)
+			if err == nil {
+				break
+			}
+			if !isRetryableCoAgentError(cfg, err) || attempt == maxRetries {
+				break
+			}
+			coRegistry.RecordRetry(coID, err.Error())
+			coLogger.Warn("Co-Agent transient failure; retrying", "attempt", attempt+1, "max_retries", maxRetries, "error", err)
+		}
 
 		if err != nil {
 			coLogger.Error("Co-Agent failed", "error", err)
@@ -192,17 +257,17 @@ func SpawnCoAgent(
 		tokensUsed := resp.Usage.TotalTokens
 
 		// Limit result size to prevent memory exhaustion from unexpectedly large LLM outputs.
-		const maxCoAgentResultBytes = 100_000
+		maxCoAgentResultBytes := cfg.CoAgents.MaxResultBytes
 		if len(result) > maxCoAgentResultBytes {
 			coLogger.Warn("Co-Agent result truncated", "original_len", len(result))
-			result = result[:maxCoAgentResultBytes] + "\n\n[Result truncated — exceeded 100 KB]"
+			result = result[:maxCoAgentResultBytes] + fmt.Sprintf("\n\n[Result truncated — exceeded %d bytes]", maxCoAgentResultBytes)
 		}
 
 		coLogger.Info("Co-Agent completed", "tokens", tokensUsed, "result_len", len(result))
 		coRegistry.Complete(coID, result, tokensUsed, 0)
 	}()
 
-	return coID, nil
+	return coID, state, nil
 }
 
 // coAgentModelForRole returns the model name to use for a co-agent/specialist.
@@ -256,28 +321,30 @@ func newCoAgentLLMClient(cfg *config.Config, logger *slog.Logger) llm.ChatClient
 	return newCoAgentLLMClientForRole(cfg, logger, "")
 }
 
-// coAgentTemplateMissing is the sentinel value used in the template cache to signal
-// that a file does not exist on disk, preventing repeated failed reads.
-const coAgentTemplateMissing = "\x00MISSING"
-
 var (
 	coAgentTemplateMu    sync.RWMutex
-	coAgentTemplateCache = make(map[string]string)
+	coAgentTemplateCache = make(map[string]coAgentPromptTemplate)
 )
 
 // loadPromptTemplate reads a prompt template from the cache, populating it on first
 // access via os.ReadFile. If the file cannot be read, fallback is returned.
-// Templates are cached for the lifetime of the process; restart to pick up changes.
+// The cache invalidates automatically when the file timestamp changes.
 func loadPromptTemplate(path, fallback string) string {
+	stat, statErr := os.Stat(path)
+
 	coAgentTemplateMu.RLock()
 	if cached, ok := coAgentTemplateCache[path]; ok {
 		coAgentTemplateMu.RUnlock()
-		if cached == coAgentTemplateMissing {
-			return fallback
+		if statErr != nil {
+			if !cached.Exists {
+				return fallback
+			}
+		} else if cached.Exists && cached.ModTime.Equal(stat.ModTime()) {
+			return cached.Content
 		}
-		return cached
+	} else {
+		coAgentTemplateMu.RUnlock()
 	}
-	coAgentTemplateMu.RUnlock()
 
 	// Read outside any lock — multiple goroutines may do this redundantly,
 	// but the write is idempotent and far cheaper than holding a lock during I/O.
@@ -287,25 +354,35 @@ func loadPromptTemplate(path, fallback string) string {
 	defer coAgentTemplateMu.Unlock()
 	// Double-check: another goroutine may have populated the cache while we read.
 	if cached, ok := coAgentTemplateCache[path]; ok {
-		if cached == coAgentTemplateMissing {
+		if statErr != nil && !cached.Exists {
 			return fallback
 		}
-		return cached
+		if statErr == nil && cached.Exists && cached.ModTime.Equal(stat.ModTime()) {
+			return cached.Content
+		}
 	}
 	if err != nil {
-		coAgentTemplateCache[path] = coAgentTemplateMissing
+		coAgentTemplateCache[path] = coAgentPromptTemplate{Exists: false}
 		return fallback
 	}
 	s := string(b)
-	coAgentTemplateCache[path] = s
+	modTime := time.Time{}
+	if statErr == nil {
+		modTime = stat.ModTime()
+	}
+	coAgentTemplateCache[path] = coAgentPromptTemplate{
+		Content: s,
+		ModTime: modTime,
+		Exists:  true,
+	}
 	return s
 }
 
 // loadPromptTemplateExists reads a template from the cache.
 // Returns ("", false) if the file does not exist or cannot be read.
 func loadPromptTemplateExists(path string) (string, bool) {
-	tmpl := loadPromptTemplate(path, coAgentTemplateMissing)
-	if tmpl == coAgentTemplateMissing {
+	tmpl := loadPromptTemplate(path, "")
+	if tmpl == "" {
 		return "", false
 	}
 	return tmpl, true
@@ -347,6 +424,59 @@ func buildContextSnapshot(req CoAgentRequest, ltm memory.VectorDB, stm *memory.S
 		sb.WriteString("\n")
 	}
 	return sb.String()
+}
+
+func normalizeCoAgentRequest(cfg *config.Config, req CoAgentRequest) CoAgentRequest {
+	req.Task = strings.TrimSpace(req.Task)
+	req.Specialist = strings.ToLower(strings.TrimSpace(req.Specialist))
+	if cfg == nil {
+		return req
+	}
+	maxHints := cfg.CoAgents.MaxContextHints
+	maxChars := cfg.CoAgents.MaxContextHintChars
+	seen := make(map[string]struct{})
+	filtered := make([]string, 0, min(len(req.ContextHints), maxHints))
+	for _, hint := range req.ContextHints {
+		hint = strings.TrimSpace(strings.ReplaceAll(hint, "\r", " "))
+		hint = strings.ReplaceAll(hint, "\n", " ")
+		if hint == "" {
+			continue
+		}
+		if maxChars > 0 && len(hint) > maxChars {
+			hint = hint[:maxChars]
+		}
+		key := strings.ToLower(hint)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		filtered = append(filtered, hint)
+		if maxHints > 0 && len(filtered) >= maxHints {
+			break
+		}
+	}
+	req.ContextHints = filtered
+	return req
+}
+
+func reqPriority(req CoAgentRequest) int {
+	return normalizeCoAgentPriority(req.Priority)
+}
+
+func isRetryableCoAgentError(cfg *config.Config, err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	if cfg == nil {
+		return strings.Contains(msg, "timeout") || strings.Contains(msg, "deadline exceeded")
+	}
+	for _, pattern := range cfg.CoAgents.RetryPolicy.RetryableErrorPatterns {
+		if pattern != "" && strings.Contains(msg, strings.ToLower(pattern)) {
+			return true
+		}
+	}
+	return false
 }
 
 func buildCoAgentSystemPrompt(cfg *config.Config, req CoAgentRequest, ltm memory.VectorDB, stm *memory.SQLiteMemory) string {
@@ -433,4 +563,59 @@ func buildSpecialistsStatus(cfg *config.Config) string {
 		return "No specialists are currently enabled."
 	}
 	return sb.String()
+}
+
+func buildSpecialistDelegationHint(cfg *config.Config, userQuery string) string {
+	if cfg == nil || !specialistsAvailable(cfg) {
+		return ""
+	}
+	query := strings.ToLower(strings.TrimSpace(userQuery))
+	if query == "" {
+		return ""
+	}
+	roles := make([]string, 0, 3)
+	addRole := func(role string, enabled bool) {
+		if !enabled {
+			return
+		}
+		if !slices.Contains(roles, role) {
+			roles = append(roles, role)
+		}
+	}
+	if coAgentContainsAny(query, "research", "compare", "investigate", "look up", "find sources", "verify") {
+		addRole("researcher", cfg.CoAgents.Specialists.Researcher.Enabled)
+	}
+	if coAgentContainsAny(query, "code", "implement", "refactor", "debug", "test", "fix bug") {
+		addRole("coder", cfg.CoAgents.Specialists.Coder.Enabled)
+	}
+	if coAgentContainsAny(query, "design", "ui", "ux", "image", "logo", "layout", "visual") {
+		addRole("designer", cfg.CoAgents.Specialists.Designer.Enabled)
+	}
+	if coAgentContainsAny(query, "security", "audit", "vulnerability", "threat", "hardening", "cve") {
+		addRole("security", cfg.CoAgents.Specialists.Security.Enabled)
+	}
+	if coAgentContainsAny(query, "write", "document", "blog", "article", "summary", "report") {
+		addRole("writer", cfg.CoAgents.Specialists.Writer.Enabled)
+	}
+	complex := len(roles) >= 2 ||
+		strings.Contains(query, " and ") ||
+		strings.Contains(query, "parallel") ||
+		strings.Contains(query, "meanwhile") ||
+		len(query) > 220
+	if !complex || len(roles) == 0 {
+		return ""
+	}
+	if len(roles) == 1 {
+		return fmt.Sprintf("### Delegation Hint\nThis task may benefit from `spawn_specialist` with the **%s** specialist if the work becomes multi-step.", roles[0])
+	}
+	return fmt.Sprintf("### Delegation Hint\nThis request spans multiple domains. Consider splitting it with `spawn_specialist`, for example: **%s**.", strings.Join(roles, ", "))
+}
+
+func coAgentContainsAny(value string, patterns ...string) bool {
+	for _, pattern := range patterns {
+		if strings.Contains(value, pattern) {
+			return true
+		}
+	}
+	return false
 }

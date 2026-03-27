@@ -13,9 +13,11 @@ Assume that the co-agents may be less capable than you, so you should double che
 ```json
 {"action": "co_agent", "operation": "spawn", "task": "Research the current weather in Berlin and summarize it"}
 {"action": "co_agent", "operation": "spawn", "task": "Analyze the server logs for errors", "context_hints": ["server", "logs", "errors"]}
+{"action": "co_agent", "operation": "spawn", "task": "Review the refactor and report risks", "priority": 3}
 ```
 - `task` (required): Natural language description of what the co-agent should do
 - `context_hints` (optional): Keywords for RAG context injection — helps the co-agent find relevant memories
+- `priority` (optional): Queue priority `1=low`, `2=normal`, `3=high`
 
 ### spawn_specialist — Start a specialized expert co-agent
 ```json
@@ -24,10 +26,12 @@ Assume that the co-agents may be less capable than you, so you should double che
 {"action": "co_agent", "operation": "spawn_specialist", "specialist": "designer", "task": "Create a modern logo for the AuraGo project, minimalist style"}
 {"action": "co_agent", "operation": "spawn_specialist", "specialist": "security", "task": "Audit the authentication middleware for common vulnerabilities"}
 {"action": "co_agent", "operation": "spawn_specialist", "specialist": "writer", "task": "Write a professional blog post about home lab automation"}
+{"action": "co_agent", "operation": "spawn_specialist", "specialist": "coder", "task": "Refactor the parser and add tests", "context_hints": ["parser", "tests"], "priority": 3}
 ```
 - `specialist` (required): One of `researcher`, `coder`, `designer`, `security`, `writer`
 - `task` (required): The task suited to the specialist's expertise
 - `context_hints` (optional): Keywords for RAG context injection
+- `priority` (optional): Queue priority `1=low`, `2=normal`, `3=high`
 
 #### Specialist Roles
 
@@ -43,7 +47,8 @@ Assume that the co-agents may be less capable than you, so you should double che
 ```json
 {"action": "co_agent", "operation": "list"}
 ```
-Returns: list of co-agents with ID, task, specialist role, state (running/completed/failed/cancelled), timestamps, and available slots.
+Returns: list of co-agents with ID, task, specialist role, state (queued/running/completed/failed/cancelled), timestamps, and available slots.
+Queued entries also include queue position, retry count, and recent lifecycle events.
 
 ### get_result — Retrieve the result of a completed co-agent
 ```json
@@ -80,6 +85,8 @@ Returns: list of co-agents with ID, task, specialist role, state (running/comple
 ## Concurrency
 - Maximum concurrent co-agents: configured via `co_agents.max_concurrent` (default: 3)
 - Specialists and generic co-agents share the same slot pool
+- If all slots are occupied and `co_agents.queue_when_busy` is enabled, new co-agents are queued automatically
+- Queue order prefers higher `priority`, then older queued tasks
 - Each co-agent has its own circuit breaker (max tool calls, timeout)
 - Stale entries are automatically cleaned up after 30 minutes
 
@@ -98,12 +105,20 @@ Each specialist has additional role-specific tool restrictions (e.g., designer c
 co_agents:
   enabled: true
   max_concurrent: 3
+  queue_when_busy: true
+  budget_quota_percent: 25
+  max_context_hints: 6
+  max_context_hint_chars: 180
+  max_result_bytes: 100000
   llm:
     provider: ""      # Falls back to main LLM if empty
   circuit_breaker:
     max_tool_calls: 10
     timeout_seconds: 120
     max_tokens: 4096
+  retry_policy:
+    max_retries: 1
+    retry_delay_seconds: 5
   specialists:
     researcher:
       enabled: true

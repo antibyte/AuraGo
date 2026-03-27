@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"context"
 	"log/slog"
 	"os"
 	"testing"
@@ -274,6 +275,103 @@ func TestRegistryList(t *testing.T) {
 	}
 }
 
+func TestRegistryQueuesAndPromotesByPriority(t *testing.T) {
+	logger := specialistTestLogger()
+	reg := NewCoAgentRegistry(1, logger)
+
+	cancel1 := func() {}
+	cancel2 := func() {}
+	cancel3 := func() {}
+	id1, state1, err := reg.RegisterWithPriority("coagent", "first", cancel1, 2)
+	if err != nil {
+		t.Fatalf("first RegisterWithPriority failed: %v", err)
+	}
+	if state1 != CoAgentRunning {
+		t.Fatalf("first co-agent state = %s, want running", state1)
+	}
+	id2, state2, err := reg.RegisterWithPriority("coagent", "second", cancel2, 1)
+	if err != nil {
+		t.Fatalf("second RegisterWithPriority failed: %v", err)
+	}
+	id3, state3, err := reg.RegisterWithPriority("coagent", "third", cancel3, 3)
+	if err != nil {
+		t.Fatalf("third RegisterWithPriority failed: %v", err)
+	}
+	if state2 != CoAgentQueued || state3 != CoAgentQueued {
+		t.Fatalf("expected queued states, got %s and %s", state2, state3)
+	}
+
+	reg.Complete(id1, "done", 10, 1)
+
+	if err := reg.WaitForStart(id3, context.Background()); err != nil {
+		t.Fatalf("queued high-priority co-agent should have started: %v", err)
+	}
+	reg.mu.RLock()
+	info3 := reg.agents[id3]
+	info2 := reg.agents[id2]
+	reg.mu.RUnlock()
+	info3.mu.Lock()
+	got3 := info3.State
+	info3.mu.Unlock()
+	info2.mu.Lock()
+	got2 := info2.State
+	pos2 := info2.QueuePosition
+	info2.mu.Unlock()
+	if got3 != CoAgentRunning {
+		t.Fatalf("high-priority queued co-agent state = %s, want running", got3)
+	}
+	if got2 != CoAgentQueued {
+		t.Fatalf("remaining queued co-agent state = %s, want queued", got2)
+	}
+	if pos2 != 1 {
+		t.Fatalf("remaining queued co-agent position = %d, want 1", pos2)
+	}
+}
+
+func TestNormalizeCoAgentRequest(t *testing.T) {
+	cfg := specialistTestConfig()
+	cfg.CoAgents.MaxContextHints = 2
+	cfg.CoAgents.MaxContextHintChars = 8
+
+	req := normalizeCoAgentRequest(cfg, CoAgentRequest{
+		Task:         "  Review logs  ",
+		Specialist:   " CODER ",
+		ContextHints: []string{" errors ", "errors", "long-hint-value", "  "},
+		Priority:     9,
+	})
+
+	if req.Task != "Review logs" {
+		t.Fatalf("task = %q, want trimmed value", req.Task)
+	}
+	if req.Specialist != "coder" {
+		t.Fatalf("specialist = %q, want coder", req.Specialist)
+	}
+	if len(req.ContextHints) != 2 {
+		t.Fatalf("len(context_hints) = %d, want 2", len(req.ContextHints))
+	}
+	if req.ContextHints[0] != "errors" {
+		t.Fatalf("first hint = %q, want errors", req.ContextHints[0])
+	}
+	if req.ContextHints[1] != "long-hin" {
+		t.Fatalf("second hint = %q, want truncated value", req.ContextHints[1])
+	}
+}
+
+func TestBuildSpecialistDelegationHint(t *testing.T) {
+	cfg := specialistTestConfig()
+	cfg.CoAgents.Enabled = true
+	cfg.CoAgents.Specialists.Researcher.Enabled = true
+	cfg.CoAgents.Specialists.Writer.Enabled = true
+
+	hint := buildSpecialistDelegationHint(cfg, "Research the topic and write a final report with sources")
+	if hint == "" {
+		t.Fatal("expected delegation hint for multi-domain query")
+	}
+	if !contains(hint, "researcher") || !contains(hint, "writer") {
+		t.Fatalf("expected researcher and writer in hint, got %q", hint)
+	}
+}
+
 // ══════════════════════════════════════════════
 // helpers
 // ══════════════════════════════════════════════
@@ -292,7 +390,11 @@ func containsStr(s, sub string) bool {
 }
 
 func specialistTestConfig() *config.Config {
-	return &config.Config{}
+	cfg := &config.Config{}
+	cfg.CoAgents.MaxConcurrent = 3
+	cfg.CoAgents.MaxContextHints = 6
+	cfg.CoAgents.MaxContextHintChars = 180
+	return cfg
 }
 
 func specialistTestLogger() *slog.Logger {

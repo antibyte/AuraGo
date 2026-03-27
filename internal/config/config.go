@@ -427,6 +427,57 @@ func Load(path string) (*Config, error) {
 	if cfg.Agent.BackgroundTasks.WaitDefaultTimeoutSecs <= 0 {
 		cfg.Agent.BackgroundTasks.WaitDefaultTimeoutSecs = 600
 	}
+	if cfg.CoAgents.MaxConcurrent <= 0 {
+		cfg.CoAgents.MaxConcurrent = 3
+	}
+	if cfg.CoAgents.BudgetQuotaPercent < 0 {
+		cfg.CoAgents.BudgetQuotaPercent = 0
+	}
+	if cfg.CoAgents.MaxContextHints <= 0 {
+		cfg.CoAgents.MaxContextHints = 6
+	}
+	if cfg.CoAgents.MaxContextHintChars <= 0 {
+		cfg.CoAgents.MaxContextHintChars = 180
+	}
+	if cfg.CoAgents.MaxResultBytes <= 0 {
+		cfg.CoAgents.MaxResultBytes = 100000
+	}
+	if !yamlHasPath(data, "co_agents", "queue_when_busy") {
+		cfg.CoAgents.QueueWhenBusy = true
+	}
+	if cfg.CoAgents.CleanupIntervalMins <= 0 {
+		cfg.CoAgents.CleanupIntervalMins = 10
+	}
+	if cfg.CoAgents.CleanupMaxAgeMins <= 0 {
+		cfg.CoAgents.CleanupMaxAgeMins = 30
+	}
+	if cfg.CoAgents.RetryPolicy.MaxRetries < 0 {
+		cfg.CoAgents.RetryPolicy.MaxRetries = 0
+	}
+	if !yamlHasPath(data, "co_agents", "retry_policy", "max_retries") {
+		cfg.CoAgents.RetryPolicy.MaxRetries = 1
+	}
+	if cfg.CoAgents.RetryPolicy.RetryDelaySeconds <= 0 {
+		cfg.CoAgents.RetryPolicy.RetryDelaySeconds = 5
+	}
+	if len(cfg.CoAgents.RetryPolicy.RetryableErrorPatterns) == 0 {
+		cfg.CoAgents.RetryPolicy.RetryableErrorPatterns = []string{
+			"deadline exceeded",
+			"timeout",
+			"timed out",
+			"temporarily unavailable",
+			"temporary failure",
+			"rate limit",
+			"too many requests",
+			"connection reset",
+			"connection refused",
+			"connection aborted",
+			"broken pipe",
+			"eof",
+			"unavailable",
+			"network is unreachable",
+		}
+	}
 	// LLM defaults
 	if cfg.LLM.Temperature == 0 {
 		cfg.LLM.Temperature = 0.7

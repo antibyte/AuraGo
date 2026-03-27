@@ -44,14 +44,15 @@ type ToolingPolicy struct {
 }
 
 type promptContextOptions struct {
-	IsErrorState         bool
-	RequiresCoding       bool
-	IsMaintenanceMode    bool
-	SurgeryPlan          string
-	WebhooksDefinitions  string
-	ActiveProcesses      string
-	SpecialistsAvailable bool
-	SpecialistsStatus    string
+	IsErrorState          bool
+	RequiresCoding        bool
+	IsMaintenanceMode     bool
+	SurgeryPlan           string
+	WebhooksDefinitions   string
+	ActiveProcesses       string
+	SpecialistsAvailable  bool
+	SpecialistsStatus     string
+	SpecialistsSuggestion string
 }
 
 func resolveModelCapabilities(cfg *config.Config) ModelCapabilities {
@@ -261,6 +262,7 @@ func buildPromptContextFlags(runCfg RunConfig, policy ToolingPolicy, opts prompt
 		SkillsDir:                cfg.Directories.SkillsDir,
 		SpecialistsAvailable:     opts.SpecialistsAvailable,
 		SpecialistsStatus:        opts.SpecialistsStatus,
+		SpecialistsSuggestion:    opts.SpecialistsSuggestion,
 	}
 }
 

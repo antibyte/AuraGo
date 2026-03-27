@@ -43,13 +43,14 @@ type ModelUsage struct {
 
 // persistedState is the JSON structure saved to disk.
 type persistedState struct {
-	Date         string         `json:"date"`
-	TotalCostUSD float64        `json:"total_cost_usd"`
-	InputTokens  map[string]int `json:"input_tokens"`
-	OutputTokens map[string]int `json:"output_tokens"`
-	CallCounts   map[string]int `json:"call_counts"`
-	WarningsSent int            `json:"warnings_sent"`
-	Exceeded     bool           `json:"exceeded"`
+	Date         string             `json:"date"`
+	TotalCostUSD float64            `json:"total_cost_usd"`
+	CategoryCost map[string]float64 `json:"category_cost,omitempty"`
+	InputTokens  map[string]int     `json:"input_tokens"`
+	OutputTokens map[string]int     `json:"output_tokens"`
+	CallCounts   map[string]int     `json:"call_counts"`
+	WarningsSent int                `json:"warnings_sent"`
+	Exceeded     bool               `json:"exceeded"`
 }
 
 // Tracker is the central budget tracking singleton.
@@ -62,6 +63,7 @@ type Tracker struct {
 	// Daily counters
 	date         string // "2006-01-02"
 	totalCostUSD float64
+	categoryCost map[string]float64
 	inputTokens  map[string]int
 	outputTokens map[string]int
 	callCounts   map[string]int
@@ -83,6 +85,7 @@ func NewTracker(cfg *config.Config, logger *slog.Logger, dataDir string) *Tracke
 	t := &Tracker{
 		cfg:          cfg,
 		logger:       logger,
+		categoryCost: make(map[string]float64),
 		inputTokens:  make(map[string]int),
 		outputTokens: make(map[string]int),
 		callCounts:   make(map[string]int),
@@ -96,6 +99,7 @@ func NewTracker(cfg *config.Config, logger *slog.Logger, dataDir string) *Tracke
 	if t.date != today {
 		t.date = today
 		t.totalCostUSD = 0
+		t.categoryCost = make(map[string]float64)
 		t.inputTokens = make(map[string]int)
 		t.outputTokens = make(map[string]int)
 		t.callCounts = make(map[string]int)
@@ -135,6 +139,12 @@ func (t *Tracker) SetMissionCallback(cb func(eventType string, spentUSD, limitUS
 // Record logs token usage for a model after an LLM call.
 // Returns true if a warning threshold was just crossed.
 func (t *Tracker) Record(model string, inputTokens, outputTokens int) bool {
+	return t.RecordForCategory("chat", model, inputTokens, outputTokens)
+}
+
+// RecordForCategory logs token usage for a specific execution category such as
+// "chat" or "coagent". Category costs are persisted and can be used for quota checks.
+func (t *Tracker) RecordForCategory(category, model string, inputTokens, outputTokens int) bool {
 	if t == nil {
 		return false
 	}
@@ -148,6 +158,7 @@ func (t *Tracker) Record(model string, inputTokens, outputTokens int) bool {
 		t.logger.Info("[Budget] Day rolled over, resetting counters", "old_date", t.date, "new_date", today)
 		t.date = today
 		t.totalCostUSD = 0
+		t.categoryCost = make(map[string]float64)
 		t.inputTokens = make(map[string]int)
 		t.outputTokens = make(map[string]int)
 		t.callCounts = make(map[string]int)
@@ -161,6 +172,9 @@ func (t *Tracker) Record(model string, inputTokens, outputTokens int) bool {
 
 	cost := t.calcCostLocked(model, inputTokens, outputTokens)
 	t.totalCostUSD += cost
+	if category != "" {
+		t.categoryCost[strings.ToLower(category)] += cost
+	}
 
 	limit := t.cfg.Budget.DailyLimitUSD
 	crossedWarning := false
@@ -217,6 +231,7 @@ func (t *Tracker) RecordCost(costUSD float64) {
 	if t.date != today {
 		t.date = today
 		t.totalCostUSD = 0
+		t.categoryCost = make(map[string]float64)
 		t.inputTokens = make(map[string]int)
 		t.outputTokens = make(map[string]int)
 		t.callCounts = make(map[string]int)
@@ -234,6 +249,34 @@ func (t *Tracker) RecordCost(costUSD float64) {
 	}
 
 	t.persistLocked()
+}
+
+// CategorySpendUSD returns the tracked spend for one execution category on the current day.
+func (t *Tracker) CategorySpendUSD(category string) float64 {
+	if t == nil {
+		return 0
+	}
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	return t.categoryCost[strings.ToLower(category)]
+}
+
+// IsCategoryQuotaBlocked reports whether a category has exhausted its reserved share
+// of the daily budget. A quotaPercent <= 0 disables the quota.
+func (t *Tracker) IsCategoryQuotaBlocked(category string, quotaPercent int) bool {
+	if t == nil || quotaPercent <= 0 {
+		return false
+	}
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	if t.cfg.Budget.DailyLimitUSD <= 0 {
+		return false
+	}
+	limit := t.cfg.Budget.DailyLimitUSD * (float64(quotaPercent) / 100.0)
+	if limit <= 0 {
+		return false
+	}
+	return t.categoryCost[strings.ToLower(category)] >= limit
 }
 
 // IsBlocked returns true if the given category is blocked by budget enforcement.
@@ -526,6 +569,7 @@ func (t *Tracker) persistLocked() {
 	state := persistedState{
 		Date:         t.date,
 		TotalCostUSD: t.totalCostUSD,
+		CategoryCost: t.categoryCost,
 		InputTokens:  t.inputTokens,
 		OutputTokens: t.outputTokens,
 		CallCounts:   t.callCounts,
@@ -571,6 +615,11 @@ func (t *Tracker) load() {
 
 	if state.InputTokens != nil {
 		t.inputTokens = state.InputTokens
+	}
+	if state.CategoryCost != nil {
+		t.categoryCost = state.CategoryCost
+	} else {
+		t.categoryCost = make(map[string]float64)
 	}
 	if state.OutputTokens != nil {
 		t.outputTokens = state.OutputTokens

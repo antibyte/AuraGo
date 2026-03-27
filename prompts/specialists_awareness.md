@@ -18,6 +18,8 @@ You have access to **specialist co-agents** — expert agents optimized for spec
 - **Security analysis** → Security Expert (audits, vulnerability checks)
 - **Written content** → Writer (articles, docs, professional text)
 
+{{SPECIALISTS_SUGGESTION}}
+
 ### Tips
 - Give specialists **clear, self-contained tasks** with enough context
 - **Check results** before presenting them — specialists may miss nuances
