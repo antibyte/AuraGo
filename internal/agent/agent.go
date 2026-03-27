@@ -673,11 +673,68 @@ func dispatchInner(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 		return result
 	}
 
+	// Alias resolution: LLMs (especially reasoning models) sometimes call homepage
+	// sub-operations as top-level actions. Redirect transparently before failing.
+	homepageSubOps := map[string]bool{
+		"optimize_images": true, "test_connection": true, "screenshot": true,
+		"lighthouse": true, "tunnel": true, "dev": true, "build": true,
+		"install_deps": true, "lint": true, "webserver_start": true,
+		"webserver_stop": true, "webserver_status": true, "init_project": true,
+		"edit_file": true, "json_edit": true, "yaml_edit": true, "xml_edit": true,
+		"deploy_netlify": true, "publish_local": true,
+	}
+	if homepageSubOps[tc.Action] {
+		logger.Info("Redirecting direct sub-operation call to homepage tool", "action", tc.Action)
+		if tc.Action == "deploy_netlify" || tc.Action == "publish_local" {
+			tc.Operation = "deploy"
+		} else {
+			tc.Operation = tc.Action
+		}
+		tc.Action = "homepage"
+		if result := dispatchServices(ctx, tc, cfg, logger, llmClient, vault, registry, manifest, cronManager, missionManagerV2, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, contactsDB, sqlConnectionsDB, sqlConnectionPool, remoteHub, historyMgr, isMaintenance, surgeryPlan, guardian, sessionID, coAgentRegistry, budgetTracker); result != dispatchNotHandled {
+			return result
+		}
+	}
+	// Redirect top-level git commands to execute_shell
+	gitAliases := map[string]string{
+		"git_status":   "git status",
+		"git_log":      "git log --oneline -10",
+		"git_diff":     "git diff",
+		"git_commit":   "git add -A && git commit -m \"" + tc.Message + "\"",
+		"git_push":     "git push",
+		"git_pull":     "git pull",
+		"git_rollback": "git reset --hard HEAD~1",
+	}
+	if gitCmd, ok := gitAliases[tc.Action]; ok {
+		logger.Info("Redirecting git alias to execute_shell", "action", tc.Action)
+		if tc.Path != "" {
+			tc.Command = "cd " + tc.Path + " && " + gitCmd
+		} else {
+			tc.Command = gitCmd
+		}
+		tc.Action = "execute_shell"
+		if result := dispatchExec(ctx, tc, cfg, logger, llmClient, vault, registry, manifest, cronManager, missionManagerV2, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, contactsDB, sqlConnectionsDB, sqlConnectionPool, remoteHub, historyMgr, isMaintenance, surgeryPlan, guardian, sessionID, coAgentRegistry, budgetTracker); result != dispatchNotHandled {
+			return result
+		}
+	}
+	// Redirect bare "exec" to execute_shell when a command is provided
+	if tc.Action == "exec" && tc.Command != "" {
+		logger.Info("Redirecting exec alias to execute_shell")
+		tc.Action = "execute_shell"
+		if result := dispatchExec(ctx, tc, cfg, logger, llmClient, vault, registry, manifest, cronManager, missionManagerV2, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, contactsDB, sqlConnectionsDB, sqlConnectionPool, remoteHub, historyMgr, isMaintenance, surgeryPlan, guardian, sessionID, coAgentRegistry, budgetTracker); result != dispatchNotHandled {
+			return result
+		}
+	}
+
 	logger.Warn("LLM requested unknown action", "action", tc.Action)
 	hint := ""
 	switch tc.Action {
 	case "firewall", "firewall_rules", "iptables":
 		hint = " For firewall rules, use execute_shell with iptables commands (e.g. sudo iptables -L -n)."
+	case "exec":
+		hint = " Use execute_shell with a 'command' field to run shell commands."
+	case "git", "git_status", "git_log", "git_diff", "git_commit", "git_push", "git_pull":
+		hint = " Use execute_shell with the git command in the 'command' field."
 	}
 	return fmt.Sprintf("Tool Output: ERROR unknown action '%s'.%s Available actions are listed in the tool schema.", tc.Action, hint)
 }
