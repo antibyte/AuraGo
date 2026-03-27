@@ -681,11 +681,11 @@ func dispatchInner(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 		"install_deps": true, "lint": true, "webserver_start": true,
 		"webserver_stop": true, "webserver_status": true, "init_project": true,
 		"edit_file": true, "json_edit": true, "yaml_edit": true, "xml_edit": true,
-		"deploy_netlify": true, "publish_local": true,
+		"deploy_netlify": true, "publish_local": true, "deploy": true,
 	}
 	if homepageSubOps[tc.Action] {
 		logger.Info("Redirecting direct sub-operation call to homepage tool", "action", tc.Action)
-		if tc.Action == "deploy_netlify" || tc.Action == "publish_local" {
+		if tc.Action == "deploy_netlify" || tc.Action == "publish_local" || tc.Action == "deploy" {
 			tc.Operation = "deploy"
 		} else {
 			tc.Operation = tc.Action

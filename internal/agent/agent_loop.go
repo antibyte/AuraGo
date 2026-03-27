@@ -1027,15 +1027,18 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 						// in the chat before the tool can execute (especially with
 						// providers that don't use the tool_calls field properly).
 						//
-						// MiniMaxFix mode: suppress any chunk that contains tool call JSON
-						// (MiniMax puts tool calls in delta.Content, not delta.ToolCalls).
-						// The heuristic checks: starts with '{' AND contains a tool keyword.
+						// Suppress JSON tool-call chunks so they never render as chat text.
+						// {"tool_call":...} / {"tool_name":...} are always suppressed (MiniMax format).
+						// Broader JSON heuristics (action/command/...) only suppressed when MiniMaxFix=true.
 						trimmed := strings.TrimLeft(delta.Content, " \t\r\n")
+						isToolCallJSON := len(trimmed) > 0 && trimmed[0] == '{' &&
+							(strings.Contains(trimmed, `"tool_call"`) || strings.Contains(trimmed, `"tool_name"`))
 						isLikelyToolCallJSON := len(trimmed) > 0 && trimmed[0] == '{' &&
 							(strings.Contains(trimmed, `"action"`) || strings.Contains(trimmed, `"command"`) ||
-								strings.Contains(trimmed, `"operation"`) || strings.Contains(trimmed, `"tool"`) ||
-								strings.Contains(trimmed, `"name"`) || strings.Contains(trimmed, `"arguments"`))
-						suppressForMiniMax := cfg.LLM.MiniMaxFix && isLikelyToolCallJSON
+								strings.Contains(trimmed, `"operation"`) || strings.Contains(trimmed, `"tool_call"`) ||
+								strings.Contains(trimmed, `"tool"`) || strings.Contains(trimmed, `"name"`) ||
+								strings.Contains(trimmed, `"arguments"`))
+						suppressForMiniMax := isToolCallJSON || (cfg.LLM.MiniMaxFix && isLikelyToolCallJSON)
 						if !suppressForMiniMax {
 							if chunkData, mErr := json.Marshal(chunk); mErr == nil {
 								broker.SendJSON(fmt.Sprintf("data: %s\n\n", string(chunkData)))
@@ -1471,11 +1474,26 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			// Persist tool call to history: native path synthesizes a text representation
 			histContent := content
 
+			// Strip <think> reasoning blocks — never store/display them in history.
+			histContent = security.StripThinkingTags(histContent)
+
+			// When the LLM mixes conversational text with a trailing JSON tool call
+			// (e.g. "Build erfolgreich!\n\n{"tool_call":"deploy",...}"), keep only the
+			// text portion so the raw JSON never appears as a chat message.
+			if !useNativePath {
+				if jsonIdx := strings.Index(histContent, "{"); jsonIdx > 0 {
+					textPart := strings.TrimSpace(histContent[:jsonIdx])
+					if textPart != "" {
+						histContent = textPart
+					}
+				}
+			}
+
 			// Decide if this message should be hidden from the UI history endpoint.
 			// Hide it if it's purely a synthetic JSON string (e.g. no text, only tool call),
 			// but show it if the LLM provided conversational text.
 			isMsgInternal := true
-			if strings.TrimSpace(content) != "" && !strings.HasPrefix(strings.TrimSpace(content), "{") {
+			if strings.TrimSpace(histContent) != "" && !strings.HasPrefix(strings.TrimSpace(histContent), "{") {
 				isMsgInternal = false
 			}
 
