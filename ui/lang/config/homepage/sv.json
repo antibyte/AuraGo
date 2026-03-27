@@ -49,5 +49,11 @@
   "config.homepage.workspace_autodetect_failed": "Automatisk identifiering misslyckades — ange sökvägen manuellt.",
   "config.homepage.circuit_breaker_title": "Circuit Breaker",
   "config.homepage.circuit_breaker_desc": "Hemsideverktyget behöver ofta många på varandra följande verktygsanrop. Detta sätter en separat, högre gräns som gäller tillfälligt från det första hemsideanropet till slutet av den aktuella åtgärdskedjan.",
-  "config.homepage.circuit_breaker_max_calls": "Max. verktygsanrop"
+  "config.homepage.circuit_breaker_max_calls": "Max. verktygsanrop",
+  "config.homepage.workspace_desc": "Set the absolute host path that is mounted into the homepage container as /workspace.",
+  "config.homepage.workspace_relative_hint": "Inside homepage tool calls, keep project_dir and path relative to this workspace, for example 'my-site' or 'my-site/src/app/page.tsx'.",
+  "config.homepage.workspace_autodetect_success": "Workspace path detected successfully.",
+  "config.homepage.allow_temporary_token_budget_overflow": "Allow temporary token budget overflow for homepage flows",
+  "config.homepage.allow_temporary_token_budget_overflow_desc": "Temporarily raises the homepage system prompt budget relative to the homepage circuit breaker max calls while the current homepage action chain is active.",
+  "config.homepage.token_budget_preview": "Homepage flows may temporarily use about {effective} prompt tokens instead of {base}, based on {homepage_calls}/{base_calls} allowed tool calls."
 }

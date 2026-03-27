@@ -2,7 +2,7 @@
   "config.homepage.docker_required": "Docker integration required",
   "config.homepage.docker_required_desc": "The Homepage tool requires Docker to be enabled. Please activate Docker integration first.",
   "config.homepage.status_active": "Homepage tool active",
-  "config.homepage.status_inactive": "Homepage tool — dev container not running",
+  "config.homepage.status_inactive": "Homepage tool â€” dev container not running",
   "config.homepage.dev_container": "Dev Container",
   "config.homepage.web_container": "Web Server",
   "config.homepage.enabled_label": "Homepage tool enabled:",
@@ -49,5 +49,11 @@
   "config.homepage.workspace_autodetect_failed": "Auto-detection failed — please enter the path manually.",
   "config.homepage.circuit_breaker_title": "Circuit Breaker",
   "config.homepage.circuit_breaker_desc": "The homepage tool often needs many consecutive tool calls. This sets a separate, higher limit that applies temporarily from the first homepage call until the end of the current action chain.",
-  "config.homepage.circuit_breaker_max_calls": "Max Tool Calls"
+  "config.homepage.circuit_breaker_max_calls": "Max Tool Calls",
+  "config.homepage.workspace_desc": "Set the absolute host path that is mounted into the homepage container as /workspace.",
+  "config.homepage.workspace_relative_hint": "Inside homepage tool calls, keep project_dir and path relative to this workspace, for example 'my-site' or 'my-site/src/app/page.tsx'.",
+  "config.homepage.workspace_autodetect_success": "Workspace path detected successfully.",
+  "config.homepage.allow_temporary_token_budget_overflow": "Allow temporary token budget overflow for homepage flows",
+  "config.homepage.allow_temporary_token_budget_overflow_desc": "Temporarily raises the homepage system prompt budget relative to the homepage circuit breaker max calls while the current homepage action chain is active.",
+  "config.homepage.token_budget_preview": "Homepage flows may temporarily use about {effective} prompt tokens instead of {base}, based on {homepage_calls}/{base_calls} allowed tool calls."
 }

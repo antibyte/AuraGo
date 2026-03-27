@@ -221,6 +221,9 @@ homepage:
     # Circuit Breaker Max Calls für komplexe Homepage-Workflows
     # Setzt ein eigenes Tool-Call-Limit wenn Homepage aktiv ist (Standard: 35, max: 100)
     circuit_breaker_max_calls: 35
+    # Erlaubt bei Homepage-Aktionsketten temporär ein höheres Prompt-Token-Budget.
+    # Die Erhöhung skaliert relativ zum erhöhten Homepage-Circuit-Breaker-Limit.
+    allow_temporary_token_budget_overflow: false
 brave_search:
     enabled: false
     api_key: ""

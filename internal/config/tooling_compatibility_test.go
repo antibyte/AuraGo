@@ -36,6 +36,7 @@ llm_guardian:
   allow_clarification: true
 homepage:
   allow_local_server: true
+  allow_temporary_token_budget_overflow: true
 `
 	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
 		t.Fatalf("failed to write config file: %v", err)
@@ -93,6 +94,9 @@ homepage:
 	}
 	if !cfg.Homepage.AllowLocalServer {
 		t.Fatal("expected homepage.allow_local_server=true to be preserved")
+	}
+	if !cfg.Homepage.AllowTemporaryTokenBudgetOverflow {
+		t.Fatal("expected homepage.allow_temporary_token_budget_overflow=true to be preserved")
 	}
 }
 

@@ -49,5 +49,11 @@
   "config.homepage.workspace_autodetect_failed": "自动检测失败 — 请手动输入路径。",
   "config.homepage.circuit_breaker_title": "熔断器",
   "config.homepage.circuit_breaker_desc": "主页工具通常需要许多连续的工具调用。这里设置一个独立的、更高的限制，从第一次主页调用开始临时生效，直到当前操作链结束。",
-  "config.homepage.circuit_breaker_max_calls": "最大工具调用数"
+  "config.homepage.circuit_breaker_max_calls": "最大工具调用数",
+  "config.homepage.workspace_desc": "Set the absolute host path that is mounted into the homepage container as /workspace.",
+  "config.homepage.workspace_relative_hint": "Inside homepage tool calls, keep project_dir and path relative to this workspace, for example 'my-site' or 'my-site/src/app/page.tsx'.",
+  "config.homepage.workspace_autodetect_success": "Workspace path detected successfully.",
+  "config.homepage.allow_temporary_token_budget_overflow": "Allow temporary token budget overflow for homepage flows",
+  "config.homepage.allow_temporary_token_budget_overflow_desc": "Temporarily raises the homepage system prompt budget relative to the homepage circuit breaker max calls while the current homepage action chain is active.",
+  "config.homepage.token_budget_preview": "Homepage flows may temporarily use about {effective} prompt tokens instead of {base}, based on {homepage_calls}/{base_calls} allowed tool calls."
 }

@@ -105,6 +105,26 @@ func TestSanitizeProjectDir_AbsolutePathGuidance(t *testing.T) {
 	}
 }
 
+func TestValidateHomepageRelativePathArgGuidance(t *testing.T) {
+	err := validateHomepageRelativePathArg("/workspace/ki-news/src/app/page.tsx", "path")
+	if err == nil {
+		t.Fatal("expected absolute homepage path to be rejected")
+	}
+	if !strings.Contains(err.Error(), "must be relative to the homepage workspace") {
+		t.Fatalf("expected relative workspace guidance, got: %v", err)
+	}
+}
+
+func TestHomepageWorkspacePathNotConfiguredJSONIncludesGuidance(t *testing.T) {
+	result := homepageWorkspacePathNotConfiguredJSON()
+	if !strings.Contains(result, "workspace_path not configured") {
+		t.Fatalf("expected workspace_path guidance error, got: %s", result)
+	}
+	if !strings.Contains(result, "project_dir/path values") {
+		t.Fatalf("expected detailed workspace guidance, got: %s", result)
+	}
+}
+
 func TestSanitizeProjectDir_ShellMetachars(t *testing.T) {
 	shellInjections := []string{
 		"foo;bar",

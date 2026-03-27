@@ -126,6 +126,29 @@ func sanitizeProjectDir(projectDir string) error {
 	return nil
 }
 
+func homepageWorkspacePathGuidance() string {
+	return "Configure homepage.workspace_path as the absolute host directory mounted as /workspace. In homepage tool calls, use relative project_dir/path values like 'my-site' or 'my-site/src/app/page.tsx', never '/workspace/my-site' or host filesystem paths."
+}
+
+func homepageWorkspacePathNotConfiguredJSON() string {
+	return errJSON("workspace_path not configured. %s", homepageWorkspacePathGuidance())
+}
+
+func validateHomepageRelativePathArg(path, field string) error {
+	trimmed := strings.TrimSpace(path)
+	if trimmed == "" {
+		return fmt.Errorf("%s is required", field)
+	}
+	if strings.Contains(trimmed, "..") {
+		return fmt.Errorf("path traversal not allowed in %s %q", field, path)
+	}
+	normalized := filepath.ToSlash(trimmed)
+	if filepath.IsAbs(trimmed) || strings.HasPrefix(normalized, "/") || strings.HasPrefix(normalized, homepageWorkspaceMount+"/") {
+		return fmt.Errorf("%s must be relative to the homepage workspace, e.g. 'my-site/src/app/page.tsx' not %q", field, path)
+	}
+	return nil
+}
+
 // truncateStr returns s truncated to maxLen characters with "…" suffix.
 func truncateStr(s string, maxLen int) string {
 	if len(s) <= maxLen {
@@ -432,7 +455,7 @@ func HomepageInitProject(cfg HomepageConfig, framework, name, template string, l
 	// Docker-unavailable path
 	if !checkDockerAvailable(cfg.DockerHost) {
 		if cfg.WorkspacePath == "" {
-			return errJSON("Docker not available and workspace_path not configured")
+			return errJSON("Docker not available and workspace_path not configured. %s", homepageWorkspacePathGuidance())
 		}
 		projectPath := filepath.Join(cfg.WorkspacePath, name)
 
@@ -670,21 +693,22 @@ func HomepageListFiles(cfg HomepageConfig, path string, logger *slog.Logger) str
 	if path == "" {
 		path = "."
 	}
-	// Prevent path traversal outside workspace
-	if strings.Contains(path, "..") {
-		return errJSON("Path traversal not allowed")
+	if path != "." {
+		if err := validateHomepageRelativePathArg(path, "path"); err != nil {
+			return errJSON("%v", err)
+		}
 	}
 	logger.Info("[Homepage] ListFiles", "path", path)
 
 	if !checkDockerAvailable(cfg.DockerHost) {
 		if cfg.WorkspacePath == "" {
-			return errJSON("workspace_path not configured")
+			return homepageWorkspacePathNotConfiguredJSON()
 		}
 		base := filepath.Join(cfg.WorkspacePath, filepath.FromSlash(path))
 		cleanWS := filepath.Clean(cfg.WorkspacePath)
 		cleanBase := filepath.Clean(base)
 		if cleanBase != cleanWS && !strings.HasPrefix(cleanBase, cleanWS+string(os.PathSeparator)) {
-			return errJSON("Path traversal not allowed")
+			return errJSON("path traversal not allowed in path %q", path)
 		}
 		var files []string
 		_ = filepath.Walk(base, func(p string, info os.FileInfo, err error) error {
@@ -723,23 +747,20 @@ func HomepageListFiles(cfg HomepageConfig, path string, logger *slog.Logger) str
 
 // HomepageReadFile reads a file from the container.
 func HomepageReadFile(cfg HomepageConfig, path string, logger *slog.Logger) string {
-	if path == "" {
-		return errJSON("path is required")
-	}
-	if strings.Contains(path, "..") {
-		return errJSON("Path traversal not allowed")
+	if err := validateHomepageRelativePathArg(path, "path"); err != nil {
+		return errJSON("%v", err)
 	}
 	logger.Info("[Homepage] ReadFile", "path", path)
 
 	if !checkDockerAvailable(cfg.DockerHost) {
 		if cfg.WorkspacePath == "" {
-			return errJSON("workspace_path not configured")
+			return homepageWorkspacePathNotConfiguredJSON()
 		}
 		fullPath := filepath.Join(cfg.WorkspacePath, filepath.FromSlash(path))
 		cleanWS := filepath.Clean(cfg.WorkspacePath)
 		cleanFull := filepath.Clean(fullPath)
 		if cleanFull == cleanWS || !strings.HasPrefix(cleanFull, cleanWS+string(os.PathSeparator)) {
-			return errJSON("Path traversal not allowed")
+			return errJSON("path traversal not allowed in path %q", path)
 		}
 		data, err := os.ReadFile(fullPath)
 		if err != nil {
@@ -755,23 +776,20 @@ func HomepageReadFile(cfg HomepageConfig, path string, logger *slog.Logger) stri
 
 // HomepageWriteFile writes content to a file inside the container.
 func HomepageWriteFile(cfg HomepageConfig, path, content string, logger *slog.Logger) string {
-	if path == "" {
-		return errJSON("path is required")
-	}
-	if strings.Contains(path, "..") {
-		return errJSON("Path traversal not allowed")
+	if err := validateHomepageRelativePathArg(path, "path"); err != nil {
+		return errJSON("%v", err)
 	}
 	logger.Info("[Homepage] WriteFile", "path", path, "size", len(content))
 
 	if !checkDockerAvailable(cfg.DockerHost) {
 		if cfg.WorkspacePath == "" {
-			return errJSON("workspace_path not configured")
+			return homepageWorkspacePathNotConfiguredJSON()
 		}
 		fullPath := filepath.Join(cfg.WorkspacePath, filepath.FromSlash(path))
 		cleanWS := filepath.Clean(cfg.WorkspacePath)
 		cleanFull := filepath.Clean(fullPath)
 		if cleanFull == cleanWS || !strings.HasPrefix(cleanFull, cleanWS+string(os.PathSeparator)) {
-			return errJSON("Path traversal not allowed")
+			return errJSON("path traversal not allowed in path %q", path)
 		}
 		if err := os.MkdirAll(filepath.Dir(fullPath), 0755); err != nil {
 			return errJSON("Failed to create directory: %v", err)
@@ -795,24 +813,21 @@ func HomepageWriteFile(cfg HomepageConfig, path, content string, logger *slog.Lo
 // HomepageEditFile performs precise file editing inside the container (or locally).
 // It reads the file, applies the edit in Go, then writes back.
 func HomepageEditFile(cfg HomepageConfig, path, operation, old, new_, marker, content string, startLine, endLine int, logger *slog.Logger) string {
-	if path == "" {
-		return errJSON("path is required")
-	}
-	if strings.Contains(path, "..") {
-		return errJSON("Path traversal not allowed")
+	if err := validateHomepageRelativePathArg(path, "path"); err != nil {
+		return errJSON("%v", err)
 	}
 	logger.Info("[Homepage] EditFile", "path", path, "op", operation)
 
 	if !checkDockerAvailable(cfg.DockerHost) {
 		// Local fallback: use file_editor directly on workspace path
 		if cfg.WorkspacePath == "" {
-			return errJSON("workspace_path not configured")
+			return homepageWorkspacePathNotConfiguredJSON()
 		}
 		fullPath := filepath.Join(cfg.WorkspacePath, filepath.FromSlash(path))
 		cleanWS := filepath.Clean(cfg.WorkspacePath)
 		cleanFull := filepath.Clean(fullPath)
 		if cleanFull == cleanWS || !strings.HasPrefix(cleanFull, cleanWS+string(os.PathSeparator)) {
-			return errJSON("Path traversal not allowed")
+			return errJSON("path traversal not allowed in path %q", path)
 		}
 		return ExecuteFileEditor(operation, path, old, new_, marker, content, startLine, endLine, 0, cfg.WorkspacePath)
 	}
@@ -947,23 +962,20 @@ func applyHomepageEdit(text, operation, old, new_, marker, content string, start
 
 // HomepageJsonEdit edits a JSON file inside the homepage container (or local workspace).
 func HomepageJsonEdit(cfg HomepageConfig, path, operation, jsonPath string, setValue interface{}, content string, logger *slog.Logger) string {
-	if path == "" {
-		return errJSON("path is required")
-	}
-	if strings.Contains(path, "..") {
-		return errJSON("Path traversal not allowed")
+	if err := validateHomepageRelativePathArg(path, "path"); err != nil {
+		return errJSON("%v", err)
 	}
 	logger.Info("[Homepage] JsonEdit", "path", path, "op", operation)
 
 	if !checkDockerAvailable(cfg.DockerHost) {
 		if cfg.WorkspacePath == "" {
-			return errJSON("workspace_path not configured")
+			return homepageWorkspacePathNotConfiguredJSON()
 		}
 		fullPath := filepath.Join(cfg.WorkspacePath, filepath.FromSlash(path))
 		cleanWS := filepath.Clean(cfg.WorkspacePath)
 		cleanFull := filepath.Clean(fullPath)
 		if cleanFull == cleanWS || !strings.HasPrefix(cleanFull, cleanWS+string(os.PathSeparator)) {
-			return errJSON("Path traversal not allowed")
+			return errJSON("path traversal not allowed in path %q", path)
 		}
 		return ExecuteJsonEditor(operation, fullPath, jsonPath, setValue, content, cfg.WorkspacePath)
 	}
@@ -1092,23 +1104,20 @@ func applyHomepageJsonEdit(content, operation, jsonPath string, setValue interfa
 
 // HomepageYamlEdit edits a YAML file inside the homepage container (or local workspace).
 func HomepageYamlEdit(cfg HomepageConfig, path, operation, dotPath string, setValue interface{}, logger *slog.Logger) string {
-	if path == "" {
-		return errJSON("path is required")
-	}
-	if strings.Contains(path, "..") {
-		return errJSON("Path traversal not allowed")
+	if err := validateHomepageRelativePathArg(path, "path"); err != nil {
+		return errJSON("%v", err)
 	}
 	logger.Info("[Homepage] YamlEdit", "path", path, "op", operation)
 
 	if !checkDockerAvailable(cfg.DockerHost) {
 		if cfg.WorkspacePath == "" {
-			return errJSON("workspace_path not configured")
+			return homepageWorkspacePathNotConfiguredJSON()
 		}
 		fullPath := filepath.Join(cfg.WorkspacePath, filepath.FromSlash(path))
 		cleanWS := filepath.Clean(cfg.WorkspacePath)
 		cleanFull := filepath.Clean(fullPath)
 		if cleanFull == cleanWS || !strings.HasPrefix(cleanFull, cleanWS+string(os.PathSeparator)) {
-			return errJSON("Path traversal not allowed")
+			return errJSON("path traversal not allowed in path %q", path)
 		}
 		return ExecuteYamlEditor(operation, fullPath, dotPath, setValue, cfg.WorkspacePath)
 	}
@@ -1257,23 +1266,20 @@ func extractDockerOutput(result string) string {
 
 // HomepageXmlEdit performs XML editing operations on homepage project files.
 func HomepageXmlEdit(cfg HomepageConfig, path, operation, xpath string, setValue interface{}, logger *slog.Logger) string {
-	if path == "" {
-		return errJSON("path is required")
-	}
-	if strings.Contains(path, "..") {
-		return errJSON("Path traversal not allowed")
+	if err := validateHomepageRelativePathArg(path, "path"); err != nil {
+		return errJSON("%v", err)
 	}
 	logger.Info("[Homepage] XmlEdit", "path", path, "op", operation)
 
 	if !checkDockerAvailable(cfg.DockerHost) {
 		if cfg.WorkspacePath == "" {
-			return errJSON("workspace_path not configured")
+			return homepageWorkspacePathNotConfiguredJSON()
 		}
 		fullPath := filepath.Join(cfg.WorkspacePath, filepath.FromSlash(path))
 		cleanWS := filepath.Clean(cfg.WorkspacePath)
 		cleanFull := filepath.Clean(fullPath)
 		if cleanFull == cleanWS || !strings.HasPrefix(cleanFull, cleanWS+string(os.PathSeparator)) {
-			return errJSON("Path traversal not allowed")
+			return errJSON("path traversal not allowed in path %q", path)
 		}
 		return ExecuteXmlEditor(operation, fullPath, xpath, setValue, cfg.WorkspacePath)
 	}

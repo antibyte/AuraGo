@@ -27,6 +27,12 @@ async function renderHomepageSection(section) {
     const cfg = configData.homepage || {};
     const dockerEnabled = !!(configData.docker && configData.docker.enabled);
     const hpEnabled = cfg.enabled === true;
+    const basePromptBudget = Math.max(0, parseInt(configData.agent && configData.agent.system_prompt_token_budget, 10) || 0);
+    const baseToolCalls = Math.max(1, parseInt(configData.circuit_breaker && configData.circuit_breaker.max_tool_calls, 10) || 10);
+    const homepageToolCalls = Math.max(baseToolCalls, parseInt(cfg.circuit_breaker_max_calls, 10) || 35);
+    const homepagePromptBudget = basePromptBudget > 0
+        ? Math.round(basePromptBudget * (homepageToolCalls / baseToolCalls))
+        : 0;
 
     let html = `<div class="cfg-section active">
         <div class="section-header">${section.icon} ${section.label}</div>
@@ -262,6 +268,7 @@ async function renderHomepageSection(section) {
     // ── Workspace Path ──
     if (dockerEnabled) {
         html += `<div style="margin-top:1.5rem;margin-bottom:0.5rem;font-weight:600;font-size:0.9rem;color:var(--accent);border-bottom:1px solid var(--border-subtle);padding-bottom:0.4rem;">📁 ${t('config.homepage.workspace_title')}</div>`;
+        html += `<div class="field-help" style="margin-bottom:0.55rem;">${t('config.homepage.workspace_desc')}</div>`;
 
         // Warning: webserver enabled but no workspace_path
         if (cfg.webserver_enabled && !cfg.workspace_path) {
@@ -281,6 +288,7 @@ async function renderHomepageSection(section) {
                 </button>
             </div>
         </label>`;
+        html += `<div class="field-help" style="margin-top:0.55rem;">${t('config.homepage.workspace_relative_hint')}</div>`;
     }
 
     // ── Circuit Breaker ──
@@ -293,6 +301,20 @@ async function renderHomepageSection(section) {
             <input type="number" class="cfg-input" data-path="homepage.circuit_breaker_max_calls" value="${cfg.circuit_breaker_max_calls || 35}" min="1" max="100" style="width:100%;margin-top:0.2rem;"
                 onchange="setNestedValue(configData,'homepage.circuit_breaker_max_calls',parseInt(this.value)||35);setDirty(true)">
         </label>`;
+
+        html += `<div class="cfg-toggle-row-compact" style="margin-top:0.8rem;">
+            <div class="toggle ${cfg.allow_temporary_token_budget_overflow ? 'on' : ''}" data-path="homepage.allow_temporary_token_budget_overflow" onclick="toggleBool(this)"></div>
+            <span class="cfg-toggle-label">${t('config.homepage.allow_temporary_token_budget_overflow')}</span>
+        </div>`;
+        html += `<div class="field-help" style="margin-top:0.45rem;">${t('config.homepage.allow_temporary_token_budget_overflow_desc')}</div>`;
+        if (cfg.allow_temporary_token_budget_overflow && basePromptBudget > 0) {
+            html += `<div class="field-help" style="margin-top:0.35rem;">${t('config.homepage.token_budget_preview', {
+                base: basePromptBudget,
+                effective: homepagePromptBudget,
+                base_calls: baseToolCalls,
+                homepage_calls: homepageToolCalls
+            })}</div>`;
+        }
     }
 
     html += `</div>`;
@@ -362,15 +384,22 @@ async function hpAutoDetectWorkspace() {
             input.value = data.path;
             setNestedValue(configData, 'homepage.workspace_path', data.path);
             setDirty(true);
+            if (window.showToast) {
+                window.showToast(data.message || t('config.homepage.workspace_autodetect_success'), 'success');
+            }
             // Re-render to clear the warning banner now that a path is set
             renderSection();
         } else {
             input.value = origText;
-            alert('⚠️ ' + (data.message || t('config.homepage.workspace_autodetect_failed')));
+            if (window.showToast) {
+                window.showToast(data.message || t('config.homepage.workspace_autodetect_failed'), 'warning', 5000);
+            }
         }
     } catch (e) {
         input.value = origText;
-        alert('⚠️ ' + t('config.homepage.workspace_autodetect_failed'));
+        if (window.showToast) {
+            window.showToast(t('config.homepage.workspace_autodetect_failed'), 'warning', 5000);
+        }
     } finally {
         input.disabled = false;
     }

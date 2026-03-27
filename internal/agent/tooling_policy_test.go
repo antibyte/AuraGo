@@ -213,3 +213,34 @@ func TestBuildToolingPolicyUsesFamilyGuardForProblematicIntentFamily(t *testing.
 		t.Fatal("expected family-guarded profile to prefer semantics")
 	}
 }
+
+func TestCalculateEffectivePromptTokenBudgetScalesForHomepageFlow(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Agent.SystemPromptTokenBudget = 12000
+	cfg.Agent.ContextWindow = 64000
+	cfg.CircuitBreaker.MaxToolCalls = 10
+	cfg.Homepage.Enabled = true
+	cfg.Homepage.CircuitBreakerMaxCalls = 35
+	cfg.Homepage.AllowTemporaryTokenBudgetOverflow = true
+
+	got := calculateEffectivePromptTokenBudget(cfg, ToolCall{Action: "homepage"}, false, nil)
+
+	if got != 42000 {
+		t.Fatalf("effective prompt token budget = %d, want 42000", got)
+	}
+}
+
+func TestCalculateEffectivePromptTokenBudgetKeepsBaseWhenHomepageOverflowDisabled(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Agent.SystemPromptTokenBudget = 12000
+	cfg.CircuitBreaker.MaxToolCalls = 10
+	cfg.Homepage.Enabled = true
+	cfg.Homepage.CircuitBreakerMaxCalls = 35
+	cfg.Homepage.AllowTemporaryTokenBudgetOverflow = false
+
+	got := calculateEffectivePromptTokenBudget(cfg, ToolCall{Action: "homepage"}, false, nil)
+
+	if got != 12000 {
+		t.Fatalf("effective prompt token budget = %d, want 12000", got)
+	}
+}

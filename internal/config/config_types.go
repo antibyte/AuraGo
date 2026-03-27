@@ -691,22 +691,25 @@ type Config struct {
 		TTSPort int  `yaml:"tts_port"`
 	} `yaml:"chromecast"`
 	Homepage struct {
-		Enabled                  bool   `yaml:"enabled"`
-		AllowDeploy              bool   `yaml:"allow_deploy"`
-		AllowContainerManagement bool   `yaml:"allow_container_management"`
-		AllowLocalServer         bool   `yaml:"allow_local_server"` // Danger Zone: allow Python HTTP server fallback when Docker unavailable
-		DeployHost               string `yaml:"deploy_host"`
-		DeployPort               int    `yaml:"deploy_port"`
-		DeployUser               string `yaml:"deploy_user"`
-		DeployPassword           string `yaml:"-"` // vault-only
-		DeployKey                string `yaml:"-"` // vault-only (SSH private key)
-		DeployPath               string `yaml:"deploy_path"`
-		DeployMethod             string `yaml:"deploy_method"` // "sftp" or "scp"
-		WebServerEnabled         bool   `yaml:"webserver_enabled"`
-		WebServerPort            int    `yaml:"webserver_port"`
-		WebServerDomain          string `yaml:"webserver_domain"`
-		WebServerInternalOnly    bool   `yaml:"webserver_internal_only"` // bind on 127.0.0.1 only
-		WorkspacePath            string `yaml:"workspace_path"`
+		Enabled                  bool `yaml:"enabled"`
+		AllowDeploy              bool `yaml:"allow_deploy"`
+		AllowContainerManagement bool `yaml:"allow_container_management"`
+		AllowLocalServer         bool `yaml:"allow_local_server"` // Danger Zone: allow Python HTTP server fallback when Docker unavailable
+		// AllowTemporaryTokenBudgetOverflow temporarily scales the system prompt token budget
+		// for homepage action chains relative to the increased homepage circuit breaker steps.
+		AllowTemporaryTokenBudgetOverflow bool   `yaml:"allow_temporary_token_budget_overflow"`
+		DeployHost                        string `yaml:"deploy_host"`
+		DeployPort                        int    `yaml:"deploy_port"`
+		DeployUser                        string `yaml:"deploy_user"`
+		DeployPassword                    string `yaml:"-"` // vault-only
+		DeployKey                         string `yaml:"-"` // vault-only (SSH private key)
+		DeployPath                        string `yaml:"deploy_path"`
+		DeployMethod                      string `yaml:"deploy_method"` // "sftp" or "scp"
+		WebServerEnabled                  bool   `yaml:"webserver_enabled"`
+		WebServerPort                     int    `yaml:"webserver_port"`
+		WebServerDomain                   string `yaml:"webserver_domain"`
+		WebServerInternalOnly             bool   `yaml:"webserver_internal_only"` // bind on 127.0.0.1 only
+		WorkspacePath                     string `yaml:"workspace_path"`
 		// CircuitBreakerMaxCalls setzt ein eigenes Tool-Call-Limit wenn Homepage aktiv ist.
 		// Gilt temporär ab dem ersten Homepage-Aufruf bis zum Ende der Aktionskette. (Standard: 35)
 		CircuitBreakerMaxCalls int `yaml:"circuit_breaker_max_calls"`

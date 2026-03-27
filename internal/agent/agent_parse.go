@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"math"
 	"net"
 	"os"
 	"os/exec"
@@ -1106,6 +1107,66 @@ func calculateEffectiveMaxCalls(cfg *config.Config, tc ToolCall, homepageActiveI
 	}
 
 	return effectiveMaxCalls
+}
+
+// calculateEffectivePromptTokenBudget temporarily raises the system prompt
+// budget for homepage action chains when explicitly allowed in config. The
+// budget scales relative to the higher homepage circuit breaker limit.
+func calculateEffectivePromptTokenBudget(cfg *config.Config, tc ToolCall, homepageActiveInChain bool, logger *slog.Logger) int {
+	if cfg == nil {
+		return 0
+	}
+
+	baseBudget := cfg.Agent.SystemPromptTokenBudget
+	if baseBudget <= 0 {
+		return 0
+	}
+
+	if !cfg.Homepage.Enabled || !cfg.Homepage.AllowTemporaryTokenBudgetOverflow {
+		return baseBudget
+	}
+
+	isHomepage := tc.Action == "homepage" || tc.Action == "homepage_tool" || tc.Tool == "homepage"
+	if !isHomepage && !homepageActiveInChain {
+		return baseBudget
+	}
+
+	baseCalls := cfg.CircuitBreaker.MaxToolCalls
+	if baseCalls <= 0 {
+		baseCalls = 1
+	}
+
+	homepageCalls := cfg.Homepage.CircuitBreakerMaxCalls
+	if homepageCalls <= baseCalls {
+		return baseBudget
+	}
+
+	scaledBudget := int(math.Round(float64(baseBudget) * (float64(homepageCalls) / float64(baseCalls))))
+	if scaledBudget <= baseBudget {
+		return baseBudget
+	}
+
+	contextWindow := cfg.Agent.ContextWindow
+	if contextWindow <= 0 {
+		contextWindow = 163840
+	}
+	maxBudget := contextWindow - 8192
+	if maxBudget < baseBudget {
+		maxBudget = baseBudget
+	}
+	if scaledBudget > maxBudget {
+		scaledBudget = maxBudget
+	}
+
+	if logger != nil && scaledBudget > baseBudget {
+		logger.Debug("[Prompt Budget] Homepage token budget override applied",
+			"base_budget", baseBudget,
+			"effective_budget", scaledBudget,
+			"base_calls", baseCalls,
+			"homepage_calls", homepageCalls)
+	}
+
+	return scaledBudget
 }
 
 // toolCallScanText extracts the most security-relevant text fields from a ToolCall

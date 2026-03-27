@@ -40,5 +40,6 @@ You have expert-level web design and development capabilities through the `homep
 **Netlify deployment:** Always use `deploy_netlify` — it handles build + ZIP + upload entirely server-side. **Never use sandbox/Python to create a ZIP and pass it via `netlify › deploy_zip`** — binary/base64 data cannot be reliably transported through tool arguments and will produce a 400 error from the Netlify API.
 
 **Troubleshooting order:** If a homepage or Netlify action fails, do not blindly retry it. First inspect the exact error, then verify the project structure with `homepage` → `list_files` / `read_file`, then choose a different approach. If `project_dir` is involved, it must be relative to the homepage workspace, never an absolute `/workspace/...` path.
+If `homepage.workspace_path` is configured in the UI, that is only the host mount path. Tool arguments still stay relative, for example `project_dir: "my-site"` and `path: "my-site/src/app/page.tsx"`.
 
 📖 See **tools_manuals/homepage.md** for detailed usage.

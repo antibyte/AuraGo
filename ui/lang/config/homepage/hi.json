@@ -49,5 +49,11 @@
   "config.homepage.workspace_autodetect_failed": "स्वतः पहचान विफल — कृपया पथ मैन्युअल रूप से दर्ज करें।",
   "config.homepage.circuit_breaker_title": "सर्किट ब्रेकर",
   "config.homepage.circuit_breaker_desc": "होमपेज टूल को अक्सर कई लगातार टूल कॉल की आवश्यकता होती है। यह एक अलग, उच्च सीमा सेट करता है जो पहले होमपेज कॉल से वर्तमान एक्शन चेन के अंत तक अस्थायी रूप से लागू होती है।",
-  "config.homepage.circuit_breaker_max_calls": "अधिकतम टूल कॉल"
+  "config.homepage.circuit_breaker_max_calls": "अधिकतम टूल कॉल",
+  "config.homepage.workspace_desc": "Set the absolute host path that is mounted into the homepage container as /workspace.",
+  "config.homepage.workspace_relative_hint": "Inside homepage tool calls, keep project_dir and path relative to this workspace, for example 'my-site' or 'my-site/src/app/page.tsx'.",
+  "config.homepage.workspace_autodetect_success": "Workspace path detected successfully.",
+  "config.homepage.allow_temporary_token_budget_overflow": "Allow temporary token budget overflow for homepage flows",
+  "config.homepage.allow_temporary_token_budget_overflow_desc": "Temporarily raises the homepage system prompt budget relative to the homepage circuit breaker max calls while the current homepage action chain is active.",
+  "config.homepage.token_budget_preview": "Homepage flows may temporarily use about {effective} prompt tokens instead of {base}, based on {homepage_calls}/{base_calls} allowed tool calls."
 }

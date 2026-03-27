@@ -48,18 +48,18 @@ func decorateHomepageBuildFailure(raw string, projectDir string) string {
 func HomepageDetectWorkspacePath(cfg HomepageConfig, logger *slog.Logger) string {
 	dockerCfg := DockerConfig{Host: cfg.DockerHost}
 	if !checkDockerAvailable(cfg.DockerHost) {
-		return errJSON("Docker not available — cannot auto-detect workspace path")
+		return errJSON("Docker not available — cannot auto-detect workspace_path. Enter the absolute host workspace manually. %s", homepageWorkspacePathGuidance())
 	}
 
 	data, code, err := dockerRequest(dockerCfg, "GET", "/containers/"+homepageContainerName+"/json", "")
 	if err != nil {
-		return errJSON("Failed to inspect container: %v", err)
+		return errJSON("Failed to inspect the homepage dev container: %v. If auto-detect keeps failing, enter workspace_path manually. %s", err, homepageWorkspacePathGuidance())
 	}
 	if code == 404 {
-		return errJSON("Homepage dev container (%s) is not running — start it first", homepageContainerName)
+		return errJSON("Homepage dev container (%s) is not running. Start or initialize homepage first, or enter workspace_path manually. %s", homepageContainerName, homepageWorkspacePathGuidance())
 	}
 	if code != 200 {
-		return errJSON("Unexpected Docker response (code %d) while inspecting container", code)
+		return errJSON("Unexpected Docker response (code %d) while inspecting the homepage container. %s", code, homepageWorkspacePathGuidance())
 	}
 
 	var inspect struct {
@@ -78,11 +78,16 @@ func HomepageDetectWorkspacePath(cfg HomepageConfig, logger *slog.Logger) string
 		if m.Type == "bind" && (m.Destination == homepageWorkspaceMount ||
 			strings.HasSuffix(m.Destination, "/workspace")) {
 			logger.Info("[Homepage] Auto-detected workspace path", "host_path", m.Source)
-			return okJSON("Workspace path auto-detected", "path", m.Source)
+			return okJSON(
+				"Workspace path auto-detected from the homepage container mount. In homepage tool calls, keep project_dir and path relative to the workspace.",
+				"path", m.Source,
+				"mount_path", homepageWorkspaceMount,
+				"project_dir_example", "my-site",
+			)
 		}
 	}
 
-	return errJSON("No workspace bind-mount found in container '%s' — the container may not have been created by AuraGo", homepageContainerName)
+	return errJSON("No workspace bind-mount found in container '%s'. The container may not have been created by AuraGo, or the workspace mount is missing. %s", homepageContainerName, homepageWorkspacePathGuidance())
 }
 
 func HomepageOptimizeImages(cfg HomepageConfig, projectDir string, logger *slog.Logger) string {

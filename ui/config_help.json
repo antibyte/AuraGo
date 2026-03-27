@@ -237,6 +237,10 @@
     "circuit_breaker_max_calls": {
       "title": "Circuit Breaker Max Calls",
       "description": "Sets a separate tool call limit when the Homepage tool is active. Complex web workflows (init → build → test → deploy) often exceed the default circuit breaker. This higher limit applies temporarily from the first Homepage tool call until the end of the current action chain. Default: 35, max: 100"
+    },
+    "allow_temporary_token_budget_overflow": {
+      "title": "Allow Temporary Token Budget Overflow",
+      "description": "Temporarily raises the system prompt token budget for homepage action chains. The increased budget scales relative to the homepage-specific circuit breaker max calls and only applies while the homepage workflow remains active."
     }
   },
   "netlify": {

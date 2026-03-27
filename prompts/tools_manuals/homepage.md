@@ -333,6 +333,7 @@ Starts a Cloudflare quick tunnel to expose a local port to the internet via a te
 
 - All file paths are relative to `/workspace` inside the container
 - `project_dir` must always be relative to the homepage workspace. Use `ki-news`, not `/workspace/ki-news`.
+- `homepage.workspace_path` in the config UI is only the host mount path. Tool arguments still stay relative, e.g. `project_dir: "my-site"` and `path: "my-site/src/app/page.tsx"`.
 - The container persists between sessions (uses `unless-stopped` restart policy)
 - Build output directory is auto-detected: checks `out`, `dist`, `build`, `.next`, `public`. If none exist (plain HTML), serves the project root directly.
 - Plain HTML projects (no `package.json`) skip the build step entirely — no Docker dev container needed for deployment.

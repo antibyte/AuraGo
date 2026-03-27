@@ -762,6 +762,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 		// Inject session todo list into system prompt context
 		flags.SessionTodoItems = sessionTodoList
+		flags.TokenBudget = calculateEffectivePromptTokenBudget(cfg, ToolCall{}, homepageUsedInChain, currentLogger)
 
 		sysPrompt := prompts.BuildSystemPrompt(cfg.Directories.PromptsDir, flags, coreMemCache, currentLogger)
 

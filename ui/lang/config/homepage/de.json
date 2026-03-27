@@ -49,5 +49,11 @@
   "config.homepage.workspace_autodetect_failed": "Automatische Erkennung fehlgeschlagen — bitte Pfad manuell eingeben.",
   "config.homepage.circuit_breaker_title": "Circuit Breaker",
   "config.homepage.circuit_breaker_desc": "Das Homepage-Tool benötigt oft viele aufeinanderfolgende Tool-Aufrufe. Hier wird ein separates, höheres Limit gesetzt, das temporär ab dem ersten Homepage-Aufruf bis zum Ende der aktuellen Aktionskette gilt.",
-  "config.homepage.circuit_breaker_max_calls": "Max. Tool-Aufrufe"
+  "config.homepage.circuit_breaker_max_calls": "Max. Tool-Aufrufe",
+  "config.homepage.workspace_desc": "Hier wird der absolute Host-Pfad gesetzt, der im Homepage-Container als /workspace eingebunden ist.",
+  "config.homepage.workspace_relative_hint": "In Homepage-Tool-Aufrufen bleiben project_dir und path relativ zu diesem Workspace, zum Beispiel 'my-site' oder 'my-site/src/app/page.tsx'.",
+  "config.homepage.workspace_autodetect_success": "Workspace-Pfad erfolgreich erkannt.",
+  "config.homepage.allow_temporary_token_budget_overflow": "Temporäre Token-Budget-Überschreitung für Homepage-Flows erlauben",
+  "config.homepage.allow_temporary_token_budget_overflow_desc": "Erhöht das Homepage-Systemprompt-Budget temporär relativ zu den Homepage-Circuit-Breaker-Aufrufen, solange die aktuelle Homepage-Aktionskette aktiv ist.",
+  "config.homepage.token_budget_preview": "Homepage-Flows dürfen temporär ungefähr {effective} Prompt-Tokens statt {base} nutzen, basierend auf {homepage_calls}/{base_calls} erlaubten Tool-Aufrufen."
 }
