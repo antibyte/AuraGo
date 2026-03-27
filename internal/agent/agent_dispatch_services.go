@@ -377,7 +377,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, cfg *config.Config, logg
 			if !cfg.Homepage.AllowDeploy {
 				return `Tool Output: {"status":"error","message":"Deployment is disabled. Enable homepage.allow_deploy in config."}`
 			}
-		case "init", "start", "stop", "rebuild", "destroy", "webserver_start", "webserver_stop":
+		case "init", "start", "stop", "rebuild", "destroy", "webserver_start", "webserver_stop", "exec":
 			if !cfg.Homepage.AllowContainerManagement {
 				return `Tool Output: {"status":"error","message":"Container management is disabled. Enable homepage.allow_container_management in config."}`
 			}

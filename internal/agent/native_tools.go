@@ -1492,6 +1492,17 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 	}
 
 	if ff.WebScraperEnabled {
+		// Web Scraper — fetch and extract plain text from any URL (gated with web_scraper)
+		tools = append(tools, tool("web_scraper",
+			"Extract plain text content from a web page by removing HTML tags, scripts, and styles. "+
+				"Use to read web pages, documentation, articles, or any public URL. "+
+				"Returns clean, readable text without HTML markup.",
+			schema(map[string]interface{}{
+				"url":          prop("string", "Full URL of the page to scrape (must start with http:// or https://)"),
+				"search_query": prop("string", "Optional: tell the summariser what specific information to extract from the page when summary mode is enabled. Be specific (e.g. 'pricing, release date, system requirements'). Ignored if summary mode is disabled."),
+			}, "url"),
+		))
+
 		// Site Crawler (gated with web_scraper — same permission scope)
 		tools = append(tools, tool("site_crawler",
 			"Crawl a website starting from a URL, following links to discover and extract content from multiple pages. "+
