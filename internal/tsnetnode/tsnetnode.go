@@ -434,15 +434,17 @@ func (m *Manager) startMainListener(srv *tsnet.Server, handler http.Handler) err
 	if wantFunnel {
 		ln, err = listenFunnelWithTimeout(srv, ":443", 20*time.Second)
 		if err != nil {
-			m.logger.Warn("[tsnet] Funnel not available — falling back to tailnet-only HTTPS/HTTP exposure",
-				"reason", err,
-				"hint", "Enable Funnel in Tailscale and HTTPS certificates in the admin panel for public access")
+			// Funnel was explicitly requested but failed — this is a hard error.
+			// NEVER silently fall back to TLS or HTTP without explicit user consent.
+			// Common reasons: Funnel ACL not granted, Funnel not enabled in admin panel,
+			// port 443 already in use, or cert not yet provisioned.
+			errMsg := fmt.Errorf("[tsnet] Funnel explicitly enabled but failed: %w", err)
 			m.mu.Lock()
-			m.lastErr = err.Error()
+			m.lastErr = errMsg.Error()
 			m.mu.Unlock()
-		} else {
-			usingFunnel = true
+			return errMsg
 		}
+		usingFunnel = true
 	}
 
 	if ln == nil {
