@@ -1,203 +1,94 @@
 # Kapitel 6: Werkzeuge
 
-Das Herzstück von AuraGo: Über 50 eingebaute Werkzeuge für nahezu jede Aufgabe.
+AuraGo verfügt über **50+ eingebaute Werkzeuge**, die ihn von einem einfachen Chatbot zu einem autonomen Agenten machen.
 
 ---
 
-## Übersicht der Tool-Landschaft
+## Tool-Kategorien im Überblick
 
-AuraGo besitzt ein modulares Tool-System:
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     Tool-Architektur                        │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│   User Request → Agent Loop → Tool Dispatcher → Tool Exec   │
-│                         ↑                          ↓        │
-│                         └──────── Result ←──────────┘       │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
+| Kategorie | Tools | Danger Zone |
+|-----------|-------|-------------|
+| **🗂️ Dateisystem** | Dateien lesen, schreiben, löschen | Ja |
+| **🌐 Web & APIs** | Suche, HTTP, Scraping | Nein (teilweise) |
+| **🐳 Docker** | Container, Images, Netzwerke | Ja |
+| **🖥️ Proxmox** | VMs, LXCs, Snapshots | Ja |
+| **🏠 Smart Home** | Home Assistant, MQTT, Wake-on-LAN | Ja |
+| **☁️ Cloud** | Google Workspace, WebDAV, GitHub | Nein (teilweise) |
+| **📧 Kommunikation** | E-Mail, Telegram, Discord | Nein |
+| **🔧 System** | Metriken, Prozesse, Cron | Teilweise |
+| **🧠 Memory** | Gedächtnis, Notizen, Knowledge Graph | Nein |
 
 ---
 
+## Neue Plattform-Features
 
-## Neuere Plattform-Erweiterungen
+Die aktuelle Version enthält mehrere leistungsstarke Erweiterungen:
 
-Die aktuelle Codebasis enthält mehrere neue Fähigkeiten, die in älteren Dokumenten oft fehlen:
-
-- **LLM Guardian** für Risiko-Scanning von Tool-Calls und externen Inhalten vor der Ausführung.
-- **Adaptive Tools** zur Token-Optimierung durch kontextabhängige Tool-Auswahl.
-- **Document Creator + PDF Extractor** für PDF-Erstellung und PDF-Extraktion.
-- **MCP Client + MCP Server Modus** für Interoperabilität über das Model Context Protocol.
-- **Invasion Control + Remote Control** für verteilte Orchestrierung über mehrere Hosts.
-- **Sudo-Execution** mit Vault-gestütztem Credential-Handling und separater Freigabe.
-
-> Siehe auch: [Kapitel 8: Integrationen](08-integrations.md), [Kapitel 13: Dashboard](13-dashboard.md) und [Kapitel 14: Sicherheit](14-sicherheit.md).
-
----
-## Tool-Kategorien
-
-### 1. Dateisystem-Tools
-
-| Tool | Funktion | Danger Zone |
-|------|----------|-------------|
-| `filesystem` | Dateien lesen, schreiben, löschen | Ja |
-| `shell` | Shell-Befehle ausführen | Ja |
-| `shell_background` | Hintergrund-Prozesse starten | Ja |
-| `python` | Python-Code ausführen | Ja |
-
-#### Beispiele: Dateisystem
-
-```
-Du: Liste alle Dateien im aktuellen Verzeichnis
-Agent: 🛠️ Tool: filesystem (list_dir)
-       📁 agent_workspace/workdir/
-       ├── dokumente/
-       ├── projekte/
-       └── backup.tar.gz
-
-Du: Erstelle einen neuen Ordner "mein-projekt"
-Agent: 🛠️ Tool: filesystem (create_dir)
-       ✅ Ordner erstellt: mein-projekt/
-```
-
-> ⚠️ **Achtung:** Shell- und Python-Tools können das System verändern. Nutze Read-Only-Modus für sichere Umgebungen.
+| Feature | Beschreibung |
+|---------|--------------|
+| **LLM Guardian** | Risiko-Scanning von Tool-Calls und externen Inhalten vor der Ausführung |
+| **Adaptive Tools** | Token-Optimierung durch kontextabhängige Tool-Auswahl |
+| **Document Creator** | PDF-Erstellung für Rechnungen, Berichte |
+| **PDF Extractor** | Text-Extraktion mit optionaler LLM-Zusammenfassung |
+| **MCP Client/Server** | Model Context Protocol für Interoperabilität |
+| **Invasion Control** | Verteilte Orchestrierung über mehrere Hosts |
+| **Sudo-Execution** | Vault-gestütztes Credential-Handling für privilegierte Befehle |
 
 ---
 
-### 2. Web & API-Tools
+## Konfiguration der wichtigsten Tools
 
-| Tool | Funktion | Besonderheit |
-|------|----------|--------------|
-| `web_search` | DuckDuckGo-Suche | Kein API-Key nötig |
-| `brave_search` | Brave Search API | Erfordert API-Key |
-| `fetch_url` | Webseiten abrufen | Mit User-Agent-Rotation |
-| `web_scraper` | Webseiten scrapen | Extrahiert Hauptinhalt |
-| `api_client` | Generischer HTTP-Client | Alle HTTP-Methoden |
-| `wikipedia` | Wikipedia-Artikel suchen | Direkter Zugriff |
-| `github` | GitHub API-Integration | Repos, Issues, PRs |
-| `virustotal` | Datei/URL auf Viren prüfen | Erfordert API-Key |
-
-#### Konfiguration: Brave Search
+### 1. Dateisystem & Shell
 
 ```yaml
-brave_search:
-  enabled: true
-  api_key: "BS..."        # Brave Search API Key
-  country: "DE"           # Optional: Ländercode
-  lang: "de"              # Optional: Sprache
+agent:
+  allow_shell: true              # Shell-Befehle erlauben
+  allow_python: true             # Python-Ausführung erlauben
+  allow_filesystem_write: true   # Datei-Schreibzugriff
 ```
 
-#### Konfiguration: VirusTotal
-
-```yaml
-virustotal:
-  enabled: true
-  api_key: "..."          # VirusTotal API Key
-```
-
----
-
-### 3. Docker-Tools
-
-| Tool | Funktion | Danger Zone |
-|------|----------|-------------|
-| `docker_list` | Container/Images auflisten | Nein |
-| `docker_logs` | Container-Logs anzeigen | Nein |
-| `docker_start` | Container starten | Ja |
-| `docker_stop` | Container stoppen | Ja |
-| `docker_run` | Neuen Container starten | Ja |
-| `docker_exec` | Befehl in Container ausführen | Ja |
-| `docker_build` | Image bauen | Ja |
-| `docker_prune` | Cleanup durchführen | Ja |
-
-#### Konfiguration
+### 2. Docker
 
 ```yaml
 docker:
   enabled: true
   host: "unix:///var/run/docker.sock"
+  # Oder für remote Docker:
+  # host: "tcp://docker-host:2376"
 ```
 
----
-
-### 4. Proxmox-Tools
-
-| Tool | Funktion | Danger Zone |
-|------|----------|-------------|
-| `proxmox_list_nodes` | Nodes im Cluster anzeigen | Nein |
-| `proxmox_list_vms` | VMs auflisten | Nein |
-| `proxmox_vm_status` | VM-Status prüfen | Nein |
-| `proxmox_vm_start` | VM starten | Ja |
-| `proxmox_vm_stop` | VM stoppen | Ja |
-| `proxmox_vm_shutdown` | VM herunterfahren | Ja |
-| `proxmox_vm_snapshot` | Snapshot erstellen | Ja |
-
-#### Konfiguration
+### 3. Proxmox
 
 ```yaml
 proxmox:
   enabled: true
   url: "https://proxmox.example.com:8006"
   token_id: "root@pam!aurago"
+  token_secret: ""              # Wird im Vault gespeichert
   node: "pve"
-  insecure: false         # true = unsichere TLS akzeptieren
+  insecure: false               # true = unsichere TLS akzeptieren
 ```
 
----
-
-### 5. Smart Home & IoT
-
-| Tool | Funktion | Integration |
-|------|----------|-------------|
-| `home_assistant` | Geräte steuern, Zustände abfragen | Home Assistant |
-| `chromecast` | Audio/Video streamen | Google Cast |
-| `wol` | Wake-on-LAN senden | Netzwerk |
-| `mqtt_publish` | MQTT-Nachrichten senden | MQTT Broker |
-
-#### MQTT Konfiguration
+### 4. Home Assistant
 
 ```yaml
-mqtt:
+home_assistant:
   enabled: true
-  broker: "mqtt.example.com"
-  client_id: "aurago"
-  username: ""            # Optional
-  topics: []              # Zu abonnierende Topics
-  qos: 0                  # Quality of Service
-  relay_to_agent: false   # MQTT-Nachrichten an Agent weiterleiten
+  url: "http://homeassistant.local:8123"
+  # AccessToken wird im Vault gespeichert
+  readonly: false               # true = nur lesen
 ```
 
----
-
-### 6. Google Workspace
-
-| Tool | Funktion | Berechtigung |
-|------|----------|--------------|
-| `google_workspace` | Gmail, Kalender, Drive, Docs | OAuth2 |
-
-#### Konfiguration
+### 5. Google Workspace (OAuth2)
 
 ```yaml
 agent:
   enable_google_workspace: true
 ```
 
-Die Authentifizierung erfolgt über OAuth2 im Vault.
+Die Authentifizierung erfolgt über OAuth2 im Vault-Menü der Web-UI.
 
----
-
-### 7. Email-Tools
-
-| Tool | Funktion | Protokoll |
-|------|----------|-----------|
-| `email_fetch` | Emails abrufen | IMAP |
-| `email_send` | Email senden | SMTP |
-| `email_search` | Emails suchen | IMAP |
-
-#### Konfiguration
+### 6. E-Mail
 
 ```yaml
 email:
@@ -207,619 +98,172 @@ email:
   smtp_host: "smtp.gmail.com"
   smtp_port: 587
   username: "dein.email@gmail.com"
-  from_address: "dein.email@gmail.com"
-  watch_enabled: true           # Automatisches Überwachen
+  watch_enabled: true
   watch_interval_seconds: 120
-  watch_folder: "INBOX"
 ```
 
----
-
-### 8. System-Tools
-
-| Tool | Funktion | Plattform |
-|------|----------|-----------|
-| `system_metrics` | CPU, RAM, Disk-Nutzung | Alle |
-| `system_time` | Aktuelle Zeit/Datum | Alle |
-| `system_info` | Betriebssystem-Info | Alle |
-| `process_list` | Laufende Prozesse | Alle |
-| `stop_process` | Prozess beenden | Ja (Danger Zone) |
-
----
-
-### 9. Memory-Tools
-
-| Tool | Funktion | Persistenz |
-|------|----------|------------|
-| `manage_memory` | Information speichern/abrufen | Core Memory |
-| `query_memory` | Semantische Suche | Long-Term Memory |
-| `create_note` | Notiz erstellen | Permanent |
-| `list_notes` | Notizen auflisten | Permanent |
-
-#### Konfiguration
+### 7. Web-Suche
 
 ```yaml
-tools:
-  memory:
-    enabled: true
-    readonly: false
-  notes:
-    enabled: true
-    readonly: false
-```
+# DuckDuckGo (kein API-Key nötig)
+# Standardmäßig aktiviert
 
----
-
-### 10. Knowledge Graph
-
-| Tool | Funktion |
-|------|----------|
-| `knowledge_graph` | Entitäten und Beziehungen verwalten |
-
-#### Konfiguration
-
-```yaml
-tools:
-  knowledge_graph:
-    enabled: true
-    readonly: false
-```
-
----
-
-### 11. Scheduler & Missions
-
-| Tool | Funktion |
-|------|----------|
-| `scheduler` | Cron-Jobs verwalten |
-| `missions` | Automatisierte Aufgaben |
-
-#### Konfiguration
-
-```yaml
-tools:
-  scheduler:
-    enabled: true
-    readonly: false
-  missions:
-    enabled: true
-    readonly: false
-```
-
----
-
-### 12. Vault & Sicherheit
-
-| Tool | Funktion |
-|------|----------|
-| `secrets_vault` | Secrets speichern/abrufen |
-
-#### Konfiguration
-
-```yaml
-tools:
-  secrets_vault:
-    enabled: true
-    readonly: false
-```
-
----
-
-### 13. Inventory (SSH-Geräte)
-
-| Tool | Funktion |
-|------|----------|
-| `inventory` | SSH-Server-Inventar verwalten |
-
-Ermöglicht Verbindung zu remote SSH-Servern für Befehle.
-
----
-
-### 14. Cloud-Speicher
-
-| Tool | Funktion |
-|------|----------|
-| `webdav` | WebDAV-Operationen |
-| `koofr` | Koofr Cloud-Speicher |
-
-#### WebDAV Konfiguration
-
-```yaml
-webdav:
+# Brave Search (optional, bessere Ergebnisse)
+brave_search:
   enabled: true
-  url: "https://cloud.example.com/remote.php/dav/files/user/"
-  username: "user"
-  password: ""            # Wird im Vault gespeichert
-```
-
-#### Koofr Konfiguration
-
-```yaml
-koofr:
-  enabled: true
-  username: "user@example.com"
-  app_password: ""        # App-spezifisches Passwort
-  base_url: "https://app.koofr.net"
+  api_key: "BS..."
+  country: "DE"
+  lang: "de"
 ```
 
 ---
 
-### 15. Medien-Tools
+## Adaptive Tools – Intelligente Filterung
 
-| Tool | Funktion |
-|------|----------|
-| `tts` | Text-to-Speech |
-| `transcribe` | Audio zu Text (Whisper) |
-| `vision` | Bildanalyse |
-| `chromecast` | Audio-Streaming |
-
-#### TTS Konfiguration
-
-```yaml
-tts:
-  provider: google        # oder "elevenlabs"
-  language: de
-  elevenlabs:
-    api_key: ""
-    voice_id: ""
-    model_id: "eleven_multilingual_v2"
-```
-
-#### Whisper/Vision Konfiguration
-
-```yaml
-whisper:
-  provider: ""            # Provider-ID für STT
-  mode: whisper           # "whisper", "multimodal", "local"
-  
-vision:
-  provider: ""            # Provider-ID für Bildanalyse
-```
-
----
-
-### 16. Netzwerk-Tools
-
-| Tool | Funktion |
-|------|----------|
-| `mdns` | mDNS/Bonjour Discovery |
-| `wol` | Wake-on-LAN |
-| `tailscale` | Tailscale VPN Status |
-
-#### Tailscale Konfiguration
-
-```yaml
-tailscale:
-  enabled: true
-  readonly: false
-  tailnet: "tailnet.ts.net"
-```
-
----
-
-### 17. Chat-Integrationen
-
-| Tool | Funktion |
-|------|----------|
-| `discord_bridge` | Discord-Nachrichten senden |
-| `rocketchat` | Rocket.Chat Integration |
-| `handoff` | An anderen Agent übergeben |
-
-#### Rocket.Chat Konfiguration
-
-```yaml
-rocketchat:
-  enabled: true
-  url: "https://chat.example.com"
-  user_id: "..."
-  channel: "#general"
-  alias: "AuraGo"
-```
-
----
-
-### 18. Entwicklungstools
-
-| Tool | Funktion |
-|------|----------|
-| `git` | Git-Operationen |
-| `github` | GitHub API |
-| `github_projects` | GitHub Projects |
-| `ollama` | Lokale LLM-Verwaltung |
-| `mcp` | Model Context Protocol |
-
-#### GitHub Konfiguration
-
-```yaml
-github:
-  enabled: true
-  readonly: false
-  owner: "username"
-  default_private: false
-  base_url: ""            # Für GitHub Enterprise
-```
-
-#### Ollama Konfiguration
-
-```yaml
-ollama:
-  enabled: true
-  readonly: false         # false = erlaubt pull/delete
-  url: "http://localhost:11434"
-```
-
-#### MCP Konfiguration
-
-```yaml
-mcp:
-  enabled: true
-  servers:
-    - name: "example"
-      url: "http://localhost:3000/sse"
-```
-
----
-
-### 19. Remote Management
-
-| Tool | Funktion |
-|------|----------|
-| `meshcentral` | MeshCentral Fernwartung |
-| `ansible` | Ansible Playbooks |
-
-#### MeshCentral Konfiguration
-
-```yaml
-meshcentral:
-  enabled: true
-  readonly: false
-  url: "https://mesh.example.com"
-  username: "admin"
-  blocked_operations: ["shutdown", "reboot"]  # Optional
-```
-
-#### Ansible Konfiguration
-
-```yaml
-ansible:
-  enabled: true
-  readonly: false
-  mode: sidecar           # "sidecar" oder "remote"
-  url: "http://localhost:5000"  # Für remote mode
-  timeout: 300
-  playbooks_dir: "/path/to/playbooks"
-  default_inventory: "/path/to/inventory"
-```
-
----
-
-### 20. Benachrichtigungen
-
-| Tool | Funktion |
-|------|----------|
-| `notifications` | Push-Benachrichtigungen |
-
-#### Konfiguration
-
-```yaml
-notifications:
-  ntfy:
-    enabled: true
-    url: "https://ntfy.sh"
-    topic: "aurago-alerts"
-  pushover:
-    enabled: true
-    # Konfiguration über Web-UI/Vault
-```
-
----
-
-### 21. Sandbox
-
-| Tool | Funktion |
-|------|----------|
-| `sandbox` | Isolierte Code-Ausführung |
-
-Führt Python-Code in isolierten Docker-Containern aus.
-
-#### Konfiguration
-
-```yaml
-sandbox:
-  enabled: true
-  backend: docker
-  docker_host: ""
-  image: "python:3.11-slim"
-  pool_size: 0            # 0 = dynamisch
-  timeout_seconds: 30
-  network_enabled: false  # Internet im Sandbox?
-  keep_alive: false       # Container am Leben halten?
-```
-
----
-
-### 22. Dokumenten-Management
-
-#### Document Creator
-
-Erstelle PDF-Dokumente wie Rechnungen, Berichte und Formulare.
-
-| Tool | Funktion | Backend |
-|------|----------|---------|
-| `document_creator` | PDF-Dokumente generieren | maroto (built-in) oder Gotenberg |
-
-**Konfiguration:**
-
-```yaml
-document_creator:
-  enabled: true
-  backend: "maroto"           # "maroto" oder "gotenberg"
-  gotenberg:
-    url: "http://localhost:3000"  # Gotenberg Endpoint
-  templates_dir: "./templates"    # Vorlagen-Verzeichnis
-```
-
-**Features:**
-- **Tabellen und Listen** – Strukturierte Daten darstellen
-- **Bilder und Logos** – Firmenlogos, Signaturen
-- **Mehrseitige Dokumente** – Automatische Seitenumbrüche
-- **Vorlagen** – Wiederverwendbare Templates
-- **Barcode/QR-Code** – EAN, QR, Code128
-
-**Beispiel:**
-```
-Du: Erstelle eine Rechnung für Max Mustermann
-   Artikel: Beratung (5h x 100€), Software (1x 500€)
-Agent: 🛠️ Tool: document_creator
-       ✅ Rechnung erstellt: Rechnung_2024_001.pdf
-```
-
----
-
-#### PDF Extractor
-
-Extrahiere Text aus PDF-Dokumenten mit optionaler LLM-Zusammenfassung.
-
-| Tool | Funktion | Besonderheit |
-|------|----------|--------------|
-| `pdf_extractor` | Text aus PDF extrahieren | OCR für gescannte PDFs |
-| `pdf_analyze` | PDF mit LLM analysieren | Zusammenfassung, Key-Points |
-
-**Konfiguration:**
-
-```yaml
-pdf_extractor:
-  enabled: true
-  ocr_enabled: true           # OCR für gescannte PDFs
-  ocr_language: "deu+eng"     # Sprachen für OCR
-  max_pages: 100              # Limit für große PDFs
-  
-  # LLM für Analyse (optional)
-  analysis:
-    enabled: true
-    provider: "openrouter"
-    model: "google/gemini-2.5-flash-lite-preview-09-2025"
-```
-
-**Beispiele:**
-```
-Du: Extrahiere den Text aus Vertrag.pdf
-Agent: 🛠️ Tool: pdf_extractor
-       📄 Text extrahiert (12 Seiten, 4500 Wörter)
-
-Du: Fasse das PDF Zusammenfassung.pdf zusammen
-Agent: 🛠️ Tool: pdf_analyze
-       📋 Zusammenfassung:
-       - Hauptthema: Quartalsbericht Q4 2024
-       - Umsatz: +15% zum Vorjahr
-       - Neue Projekte: 5 gestartet
-       - Risiken: Lieferkettenengpässe
-```
-
-**Paperless NGX Integration:**
-
-```yaml
-paperless:
-  enabled: true
-  url: "http://paperless.local:8000"
-  api_token: ""                # Wird im Vault gespeichert
-  
-  # Auto-Upload
-  auto_upload: true
-  tags: ["aurago"]
-```
-
----
-
-### 23. Spezialtools
-
-| Tool | Funktion |
-|------|----------|
-| `daily_reflection` | Tägliche Zusammenfassung |
-| `surgery` | Code-Modifikation (Lifeboat) |
-| `state` | Zustandsverwaltung |
-| `skills` | Skill-Management |
-
----
-
-## Tool-Nutzung im Chat
-
-### Implizite Tool-Auswahl
-
-Der Agent wählt automatisch die passenden Tools:
-
-```
-Du: Erstelle eine Datei
-→ filesystem (write_file)
-
-Du: Suche im Web
-→ web_search oder brave_search
-
-Du: Starte einen Container
-→ docker_run
-```
-
-### Explizite Tool-Anfrage
-
-```
-Du: Nutze das filesystem Tool, um die Datei config.yaml zu lesen
-Du: Führe ein docker_list aus
-```
-
----
-
-## Adaptive Tools – Intelligente Tool-Filterung
-
-**Spare Token, bleib fokussiert.** Das Adaptive Tools System analysiert den Konversationskontext und filtert verfügbare Tools intelligent, bevor sie an das LLM gesendet werden.
-
-### Funktionsweise
-
-```
-┌────────────────────────────────────────────────────────────────┐
-│                    Adaptive Tools Flow                         │
-├────────────────────────────────────────────────────────────────┤
-│  1. User sendet Nachricht                                      │
-│  2. Kontext-Analyse: Thema wird erkannt (z.B. "Docker")        │
-│  3. Tool-Scoring: Relevanz jedes Tools wird berechnet          │
-│  4. Filterung: Unrelevante Tools werden ausgeblendet           │
-│  5. Nur relevante Tools werden an LLM gesendet                 │
-└────────────────────────────────────────────────────────────────┘
-```
-
-### Konfiguration
+**Spare Tokens, bleib fokussiert.** Das Adaptive Tools System filtert Tools basierend auf dem Gesprächskontext:
 
 ```yaml
 agent:
-  # Adaptive Tools aktivieren
   adaptive_tools:
     enabled: true
-    max_tools: 20                 # Max. Anzahl Tools im Kontext
+    max_tools: 20               # Max. Anzahl Tools im Kontext
     
-    # Kontext-Gewichtung
-    context_scoring:
-      recent_usage_weight: 0.3    # Kürzlich genutzte Tools
-      semantic_match_weight: 0.5  # Semantische Übereinstimmung
-      user_preference_weight: 0.2 # Benutzerpräferenzen
-    
-    # Immer verfügbar (von Filterung ausgeschlossen)
+    # Immer verfügbar (nicht filtern):
     always_include:
       - "filesystem"
-      - "execute_shell"
+      - "shell"
       - "query_memory"
-      - "manage_memory"
 ```
 
-### Vorteile
-
-| Aspekt | Ohne Adaptive Tools | Mit Adaptive Tools |
-|--------|---------------------|-------------------|
+| Aspekt | Ohne Adaptive | Mit Adaptive |
+|--------|---------------|--------------|
 | **Tokens** | 50+ Tools im Prompt | Nur relevante Tools |
-| **Kosten** | Höher (langer Kontext) | Niedriger |
-| **Genauigkeit** | LLM kann überfordert sein | Präzisere Tool-Wahl |
-| **Latenz** | Länger | Kürzer |
-
-### Beispiel
-
-**User:** "Starte den nginx Container neu"
-
-| Kontext | Verfügbare Tools |
-|---------|-----------------|
-| Ohne Adaptive | Alle 50+ Tools |
-| Mit Adaptive | docker_*, system_*, shell (nur Docker-relevante) |
+| **Kosten** | Höher | Niedriger |
+| **Genauigkeit** | LLM überfordert | Präzisere Tool-Wahl |
 
 ---
 
-## Read-Only vs. Read-Write Modus
+## Read-Only vs. Read-Write
 
-### Konfiguration
+Viele Tools unterstützen einen Read-Only-Modus:
 
 ```yaml
 tools:
-  memory:
+  docker:
     enabled: true
-    readonly: true        # Nur lesen, nicht schreiben
-  filesystem:
+    readonly: true        # Nur Listen/Logs, kein Start/Stop
+  home_assistant:
     enabled: true
-    readonly: true
+    readonly: true        # Nur Status abfragen, nicht steuern
 ```
-
-### Verhalten im Read-Only Modus
-
-| Tool-Kategorie | Read-Only | Read-Write |
-|----------------|-----------|------------|
-| filesystem | Nur lesen | Lesen, schreiben, löschen |
-| shell | Keine Ausführung | Alle Befehle |
-| docker | Nur Listen/Logs | Starten, Stoppen, Erstellen |
-| missions | Nur ansehen | Erstellen, Bearbeiten, Löschen |
 
 ---
 
 ## Danger Zone
 
-Die Danger Zone kennzeichnet Tools, die das System verändern können:
+Die Danger Zone kontrolliert potenziell gefährliche Operationen:
 
 ```yaml
 agent:
-  # Einzelne Tool-Kategorien erlauben/verbieten
-  allow_shell: true
-  allow_python: true
-  allow_filesystem_write: true
-  allow_network_requests: true
-  allow_remote_shell: true
-  allow_self_update: true
-  allow_mcp: true
-  allow_web_scraper: true
+  allow_shell: true              # Shell-Befehle
+  allow_python: true             # Python-Ausführung
+  allow_filesystem_write: true   # Datei-Schreibzugriff
+  allow_network_requests: true   # HTTP-Anfragen
+  allow_remote_shell: true       # SSH auf Remote-Geräte
+  allow_self_update: true        # Selbst-Updates
+  allow_mcp: true                # MCP-Protokoll
+  allow_web_scraper: true        # Web-Scraping
 ```
 
-> ⚠️ **Wichtig:** In Produktionsumgebungen sollte AuraGo immer in einer isolierten Umgebung laufen (VM, Docker, dedizierter Server).
+> ⚠️ **Tipp:** In Produktionsumgebungen nur das aktivieren, was wirklich benötigt wird.
 
 ---
 
-## Tool-Statistik anzeigen
+## Beispiele im Chat
 
-Nutze `/budget` für Nutzungsstatistiken:
+### Dateisystem
+```
+Du: Liste alle Dateien im Projektordner
+Agent: 📁 Projektordner:
+       ├── main.go
+       ├── go.mod
+       └── config.yaml
+
+Du: Erstelle eine Datei notes.txt mit "Wichtige Ideen"
+Agent: ✅ Datei erstellt: notes.txt
+```
+
+### Docker
+```
+Du: Zeige alle laufenden Container
+Agent: 🐳 Laufende Container:
+       ┌─────────┬────────┬─────────────┐
+       │ NAME    │ STATUS │ PORTS       │
+       ├─────────┼────────┼─────────────┤
+       │ nginx   │ Up 2h  │ 80→8080/tcp │
+       │ postgres│ Up 2h  │ 5432/tcp    │
+       └─────────┴────────┴─────────────┘
+
+Du: Starte den redis Container neu
+Agent: 🔄 Container redis wird neu gestartet...
+       ✅ Erfolgreich (3.2s)
+```
+
+### Home Assistant
+```
+Du: Schalte das Wohnzimmerlicht aus
+Agent: 🏠 Smart Home:
+       ✅ Wohnzimmer Licht: AUS
+
+Du: Wie warm ist es im Schlafzimmer?
+Agent: 🌡️ Schlafzimmer-Sensor:
+       Temperatur: 21.5°C
+       Luftfeuchtigkeit: 45%
+```
+
+### Web-Suche
+```
+Du: Suche nach aktuellen Go Best Practices
+Agent: 🔍 Suche läuft...
+       Gefunden: 5 Ergebnisse
+       1. Go Code Review Comments
+       2. Effective Go
+       ...
+```
+
+---
+
+## Eigene Tools erstellen
+
+AuraGo kann zur Laufzeit neue Python-Tools erstellen:
 
 ```
-Du: /budget
-Agent: 💰 Tool-Nutzung (heute):
+Du: Erstelle ein Tool, das Temperaturen umrechnet
+Agent: 🛠️ Erstelle Temperatur-Konverter...
+       ✅ Erstellt: temperature_converter.py
        
-       ┌───────────────────┬────────┬──────────┐
-       │ Tool              │ Aufrufe│ Tokens   │
-       ├───────────────────┼────────┼──────────┤
-       │ web_search        │ 12     │ 2,400    │
-       │ filesystem        │ 8      │ 800      │
-       │ shell             │ 5      │ 1,200    │
-       └───────────────────┴────────┴──────────┘
+Du: Wie viel sind 25°C in Fahrenheit?
+Agent: 🌡️ 25°C = 77°F
 ```
+
+Erstellte Tools werden in `agent_workspace/tools/` gespeichert und sind sofort verfügbar.
 
 ---
 
 ## Zusammenfassung
 
-| Kategorie | Anzahl | Danger Zone |
-|-----------|--------|-------------|
-| Dateisystem | 4 | Ja |
-| Web/API | 7 | Nein |
-| Docker | 8 | Ja |
-| Proxmox | 7 | Ja |
-| Smart Home/IoT | 4 | Ja |
-| Google Workspace | 1 | Nein |
-| Email | 3 | Nein |
-| System | 5 | Teilweise |
-| Memory | 4 | Nein |
-| Cloud | 2 | Ja |
-| Medien | 4 | Nein |
-| Netzwerk | 3 | Nein |
-| Chat | 3 | Nein |
-| Entwicklung | 5 | Ja |
-| Remote Mgmt | 2 | Ja |
-| **Gesamt** | **60+** | - |
+| Kategorie | Highlights |
+|-----------|------------|
+| **50+ Tools** | Für nahezu jede Home-Lab-Aufgabe |
+| **Sicherheit** | Read-Only-Modus, Danger Zone, LLM Guardian |
+| **Flexibilität** | Dynamische Tool-Erstellung zur Laufzeit |
+| **Effizienz** | Adaptive Tools sparen Tokens |
 
-> 💡 **Merke:** AuraGos Stärke liegt in der Kombination von Tools. Ein einzelner Chat kann Shell-Befehle, Web-Suchen, Docker-Operationen und Email-Benachrichtigungen verketten – vollautomatisch!
+> 💡 **Merke:** AuraGos Stärke liegt in der Kombination von Tools. Ein einzelner Chat kann Shell-Befehle, Web-Suchen, Docker-Operationen und E-Mail-Benachrichtigungen verketten – vollautomatisch!
 
 ---
 
 **Nächste Schritte**
 
-- **[Konfiguration](07-konfiguration.md)** – Tools feinjustieren und sichern
-- **[Integrationen](08-integrations.md)** – Externe Dienste verbinden
+- **[Konfiguration](07-konfiguration.md)** — Tools feinjustieren
+- **[Integrationen](08-integrations.md)** — Externe Dienste verbinden

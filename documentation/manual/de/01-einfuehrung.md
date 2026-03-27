@@ -4,73 +4,78 @@ Willkommen bei AuraGo – deinem persönlichen, autonomen KI-Agenten.
 
 ## Was ist AuraGo?
 
-AuraGo ist ein vollständig autonomer KI-Agent, geschrieben in Go und als einzelne portable Binary ausgeliefert. Anders als einfache Chatbots kann AuraGo:
+AuraGo ist ein vollständig autonomer KI-Agent, geschrieben in Go und als einzelne portable Binary ausgeliefert. Anders als einfache Chatbots kann AuraGo aktiv handeln:
 
-- **Code ausführen** – Python und Shell-Befehle in einer isolierten Umgebung
-- **Dateien verwalten** – Lesen, schreiben, organisieren
-- **Smart-Home steuern** – Home Assistant, Chromecast, Netzwerkgeräte
-- **E-Mails senden** – IMAP/SMTF-Integration
-- **Sich alles merken** – Kurz- und Langzeitgedächtnis mit semantischer Suche
-- **Sich selbst verbessern** – Eigene Quellcode-Modifikationen
-- **Parallele Aufgaben** – Co-Agenten für komplexe Workflows
+- **🧠 Denken & Planen** — Multi-Step Reasoning mit automatischer Fehlerbehebung
+- **💻 Code ausführen** — Python und Shell-Befehle in isolierter Umgebung
+- **📁 Dateien verwalten** — Lesen, schreiben, organisieren
+- **🏠 Smart-Home steuern** — Home Assistant, Chromecast, Netzwerkgeräte
+- **📧 Kommunizieren** — E-Mails, Telegram, Discord, SMS/Voice
+- **🧠 Sich alles merken** — Kurz- und Langzeitgedächtnis mit semantischer Suche
+- **🔄 Sich selbst verbessern** — Eigene Quellcode-Modifikationen
+- **⚡ Parallele Aufgaben** — Co-Agenten für komplexe Workflows
 
 ### Die Kernidee
 
 Stell dir einen persönlichen Assistenten vor, der:
-- **Verfügbar ist** – 24/7 über Web, Telegram, Discord oder Email
-- **Kontext hat** – Er erinnert sich an alle vorherigen Gespräche und Fakten
-- **Handelt** – Er führt Aufgaben aus, nicht nur Antworten gibt
-- **Sich anpasst** – Seine Persönlichkeit entwickelt sich mit der Zeit
-- **Sicher ist** – AES-256-Verschlüsselung, Vault-System, Zugriffskontrolle
+
+| Eigenschaft | Beschreibung |
+|-------------|--------------|
+| **Verfügbar ist** | 24/7 über Web, Telegram, Discord oder E-Mail |
+| **Kontext hat** | Er erinnert sich an alle vorherigen Gespräche und Fakten |
+| **Handelt** | Er führt Aufgaben aus, nicht nur Antworten gibt |
+| **Sich anpasst** | Seine Persönlichkeit entwickelt sich mit der Zeit |
+| **Sicher ist** | AES-256-Verschlüsselung, Vault-System, Zugriffskontrolle |
 
 ## Für wen ist AuraGo gedacht?
 
 | Profil | Nutzung |
 |--------|---------|
-| **Privatanwender** | Persönlicher Assistent für Alltagsaufgaben, Recherche, Organisation |
-| **Entwickler** | Code-Reviews, Automatisierung, Systemverwaltung, API-Tests |
-| **Systemadministratoren** | Server-Monitoring, Docker-Management, Backup-Automatisierung |
-| **Smart-Home-Enthusiasten** | Zentrale Steuerung aller Geräte, Automationen |
-| **KI-Forscher** | Experimente mit Personality Engines, Co-Agenten, Memory-Systemen |
+| **🏠 Privatanwender** | Persönlicher Assistent für Alltagsaufgaben, Recherche, Organisation |
+| **👨‍💻 Entwickler** | Code-Reviews, Automatisierung, Systemverwaltung, API-Tests |
+| **🖥️ Systemadministratoren** | Server-Monitoring, Docker-Management, Backup-Automatisierung |
+| **🏡 Smart-Home-Enthusiasten** | Zentrale Steuerung aller Geräte, Automationen |
+| **🔬 KI-Forscher** | Experimente mit Personality Engines, Co-Agenten, Memory-Systemen |
 
 ## Hauptfeatures im Überblick
 
 ### 🤖 Agent Core
-- **50+ eingebaute Tools** – Von Dateisystem bis Docker, von WebDAV bis Proxmox
-- **Native Function Calling** – OpenAI-kompatible Tool-Aufrufe
-- **Dynamische Tool-Erstellung** – Der Agent kann neue Python-Tools zur Laufzeit schreiben
-- **Multi-Step Reasoning** – Automatische Werkzeug-Dispatch, Fehlerbehebung
-- **Co-Agent System** – Parallele Sub-Agenten für komplexe Aufgaben
+- **50+ eingebaute Tools** — Von Dateisystem bis Docker, von WebDAV bis Proxmox
+- **Native Function Calling** — OpenAI-kompatible Tool-Aufrufe
+- **Dynamische Tool-Erstellung** — Der Agent kann neue Python-Tools zur Laufzeit schreiben
+- **Multi-Step Reasoning** — Automatische Werkzeug-Dispatch, Fehlerbehebung
+- **Co-Agent System** — Parallele Sub-Agenten für komplexe Aufgaben
+- **Adaptive Tools** — Intelligente Tool-Filterung spart Tokens
 
 ### 🧠 Memory & Knowledge
-- **Short-Term Memory** – SQLite-basierte Konversationshistorie
-- **Long-Term Memory (RAG)** – Vektorbasierte semantische Suche
-- **Knowledge Graph** – Strukturierte Entitäten und Beziehungen
-- **Core Memory** – Permanente Fakten, die der Agent immer behält
-- **Notizen & To-Dos** – Kategorisiert, priorisiert, mit Fälligkeitsdaten
+- **Short-Term Memory** — SQLite-basierte Konversationshistorie
+- **Long-Term Memory (RAG)** — Vektorbasierte semantische Suche
+- **Knowledge Graph** — Strukturierte Entitäten und Beziehungen
+- **Core Memory** — Permanente Fakten, die der Agent immer behält
+- **Notizen & To-Dos** — Kategorisiert, priorisiert, mit Fälligkeitsdaten
+- **Journal** — Chronologisches Ereignisprotokoll
 
 ### 🎭 Persönlichkeit
-- **Personality Engine V1** – Heuristische Stimmungs- und Verhaltensanpassung
-- **Personality Engine V2** – Fortgeschrittenes Modell mit LLM-basierter Analyse
-- **Eingebaute Persönlichkeiten** – Freund, Profi, Punk, Neutral, Terminator und mehr
-- **Eigenes Profil** – Erstelle deine eigenen Persönlichkeiten
-
-### 🔌 Integrationen
-- **Web UI** – Vollständige Chat-Oberfläche mit Dashboard
-- **Telegram** – Sprachnachrichten, Bildanalyse, Inline-Befehle
-- **Discord** – Bot-Integration mit Nachrichten-Bridge
-- **Email** – IMAP-Monitoring + SMTP-Versand
-- **Home Assistant** – Smart-Home-Steuerung
-- **Docker & Proxmox** – Container- und VM-Management
-- **Google Workspace** – Gmail, Kalender, Drive, Docs
-- **WebDAV/Koofr** – Cloud-Speicher-Integration
+- **Personality Engine V2** — LLM-basierte Stimmungs- und Verhaltensanalyse
+- **User Profiling** — Automatische Erkennung deiner Präferenzen
+- **Eingebaute Persönlichkeiten** — Freund, Profi, Punk, Neutral, Terminator und mehr
+- **Eigenes Profil** — Erstelle deine eigenen Persönlichkeiten
 
 ### 🛡️ Sicherheit
-- **AES-256-GCM Vault** – Verschlüsselte Speicherung aller API-Keys
-- **Web UI Auth** – Optional mit bcrypt-Passwort und TOTP-2FA
-- **Danger Zone** – Granulare Kontrolle über Fähigkeiten
-- **Sandboxing** – Python läuft in isolierter venv
-- **Rate Limiting** – Schutz vor Überlastung
+- **AES-256-GCM Vault** — Verschlüsselte Speicherung aller API-Keys
+- **Web UI Auth** — Optional mit bcrypt-Passwort und TOTP 2FA
+- **LLM Guardian** — KI-basierte Überwachung aller Tool-Aufrufe
+- **Danger Zone** — Granulare Kontrolle über Fähigkeiten
+- **Sandboxing** — Python läuft in isolierter venv oder Docker
+
+### 🔌 Integrationen
+- **Web UI** — Vollständige Chat-Oberfläche mit Dashboard
+- **Telegram** — Sprachnachrichten, Bildanalyse, Inline-Befehle
+- **Discord** — Bot-Integration mit Nachrichten-Bridge
+- **E-Mail** — IMAP-Monitoring + SMTP-Versand
+- **Home Assistant** — Smart-Home-Steuerung
+- **Docker & Proxmox** — Container- und VM-Management
+- **Google Workspace** — Gmail, Kalender, Drive, Docs
 
 ## Architektur kurz erklärt
 
@@ -86,10 +91,10 @@ Stell dir einen persönlichen Assistenten vor, der:
 │  │   Agent     │  │   Memory    │  │   Tools     │     │
 │  │   Loop      │  │   System    │  │   (50+)     │     │
 │  └─────────────┘  └─────────────┘  └─────────────┘     │
-│  ┌─────────────┐  ┌─────────────┐                       │
-│  │ Personality │  │   Vault     │                       │
-│  │   Engine    │  │ (AES-256)   │                       │
-│  └─────────────┘  └─────────────┘                       │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐     │
+│  │ Personality │  │   Vault     │  │   LLM       │     │
+│  │   Engine    │  │ (AES-256)   │  │  Guardian   │     │
+│  └─────────────┘  └─────────────┘  └─────────────┘     │
 └─────────────────────────────────────────────────────────┘
                  │
                  ▼

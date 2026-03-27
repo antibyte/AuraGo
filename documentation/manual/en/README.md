@@ -2,9 +2,26 @@
 
 Welcome to the AuraGo User Manual – your comprehensive guide to the personal AI agent.
 
+> 📅 **Updated:** March 2026  
+> 🔄 **Version:** 2.x compatible
+
+---
+
 ## What is AuraGo?
 
 AuraGo is a fully autonomous AI agent shipped as a single portable binary with an embedded web UI. Connect it to any OpenAI-compatible LLM provider and it becomes a personal assistant that can execute code, manage files, control smart-home devices, send emails, remember everything, and even improve its own source code.
+
+### Highlights
+
+| Feature | Description |
+|---------|-------------|
+| **🧠 Personality Engine V2** | Learns your preferences and adapts to you |
+| **🛡️ LLM Guardian** | AI-based security monitoring |
+| **⚡ Adaptive Tools** | Intelligent tool filtering saves tokens |
+| **📄 Document AI** | PDF creation and analysis |
+| **🔐 AES-256 Vault** | Secure storage of all secrets |
+
+---
 
 ## Who is this manual for?
 
@@ -17,6 +34,8 @@ AuraGo is a fully autonomous AI agent shipped as a single portable binary with a
 | Looking for advanced topics | [Chapters 11-15](11-missions.md) |
 | Have a problem | [Chapter 16: Troubleshooting](16-troubleshooting.md) |
 
+---
+
 ## Manual Structure
 
 ### Part 1: Basics
@@ -28,12 +47,12 @@ AuraGo is a fully autonomous AI agent shipped as a single portable binary with a
 
 ### Part 2: Features in Detail
 6. [Tools](06-tools.md) – Using 50+ tools
-7. [Configuration](07-configuration.md) – Fine-tuning
-8. [Integrations](08-integrations.md) – Telegram, Discord, etc.
+7. [Configuration](07-configuration.md) – Fine-tuning with provider system
+8. [Integrations](08-integrations.md) – Telegram, Discord, email, etc.
 9. [Memory & Knowledge](09-memory.md) – Understanding storage
 10. [Personality](10-personality.md) – Customizing character
 
-### Part 3: Advanced
+### Part 3: Advanced (Web UI/API)
 11. [Mission Control](11-missions.md) – Automation
 12. [Invasion Control](12-invasion.md) – Remote deployment
 13. [Dashboard](13-dashboard.md) – Analytics & metrics
@@ -46,6 +65,24 @@ AuraGo is a fully autonomous AI agent shipped as a single portable binary with a
 18. [Appendix](18-appendix.md) – Reference material
 19. [Skills](19-skills.md) – Creating custom Python skills
 
+---
+
+## Important Notes
+
+### ⚠️ CLI vs. Web UI
+
+Some advanced features (Mission Control, Invasion Control) are **primarily available via the Web UI and REST API**. CLI commands for these do not exist in the current version.
+
+### 🆕 Provider System (New in 2.x)
+
+The configuration now uses a central provider system for LLM connections. See [Chapter 7: Configuration](07-configuration.md).
+
+### 🔒 Security
+
+> **Important:** AuraGo can execute arbitrary shell commands and modify system files. Never expose the Web UI unprotected to the internet. Always use VPN, reverse proxy with authentication, or firewall rules.
+
+---
+
 ## Quick Navigation
 
 ### Most important chat commands
@@ -55,6 +92,9 @@ AuraGo is a fully autonomous AI agent shipped as a single portable binary with a
 /stop          - Cancel current action
 /debug on/off  - Toggle debug mode
 /budget        - Show cost overview
+/personality   - Switch personality
+/sudo          - Activate sudo mode
+/journal       - Open journal
 ```
 
 ### Quick Links
@@ -62,11 +102,17 @@ AuraGo is a fully autonomous AI agent shipped as a single portable binary with a
 - [FAQ](faq.md)
 - [Complete configuration reference](../../configuration.md)
 - [Telegram Setup](../../telegram_setup.md)
-- [Docker Guide](../../docker_installation.md)
+- [Docker Installation Guide](../../docker_installation.md)
 
-## Security Notice
+---
 
-> ⚠️ **Important:** AuraGo can execute arbitrary shell commands and modify system files. Never expose the Web UI unprotected to the internet. Always use VPN, reverse proxy with authentication, or firewall rules.
+## Updates
+
+| Date | Change |
+|------|--------|
+| 2026-03 | Revision for version 2.x (Provider system, tool documentation, LLM Guardian) |
+| 2026-03 | Added Adaptive Tools documentation |
+| 2026-03 | Added Document Creator & PDF Extractor |
 
 ---
 

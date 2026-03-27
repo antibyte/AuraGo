@@ -863,17 +863,6 @@ func Truncate(s string, n int) string {
 	return s[:n] + "..."
 }
 
-// truncateToolOutput trims a tool result that exceeds limit characters.
-// It keeps the first portion of the output and appends a clear notice so the
-// LLM knows the result was cut. limit=0 means no truncation.
-func truncateToolOutput(result string, limit int) string {
-	if limit <= 0 || len(result) <= limit {
-		return result
-	}
-	notice := fmt.Sprintf("\n\n[Tool output truncated: %d of %d characters shown. Use a more specific command to get less output.]", limit, len(result))
-	return result[:limit] + notice
-}
-
 // isFollowUpQuestion returns true when a follow_up task_prompt looks like a
 // question directed at the user rather than a self-contained task for the agent.
 // Using follow_up to ask for user input causes infinite recursion because each

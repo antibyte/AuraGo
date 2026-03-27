@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"log/slog"
 	"path/filepath"
+	"regexp"
+	"sort"
 	"strings"
 
 	"aurago/internal/config"
@@ -11,6 +13,38 @@ import (
 
 	"github.com/sashabaranov/go-openai"
 )
+
+type toolGuideSearcher interface {
+	SearchToolGuides(query string, topK int) ([]string, error)
+}
+
+var nonAlphaNumPattern = regexp.MustCompile(`[^a-z0-9]+`)
+var adaptiveToolNeighbors = map[string][]string{
+	"homepage":             {"netlify", "homepage_registry", "filesystem"},
+	"netlify":              {"homepage", "homepage_registry", "filesystem"},
+	"homepage_registry":    {"homepage", "netlify"},
+	"filesystem":           {"file_search", "file_reader_advanced", "file_editor"},
+	"file_search":          {"filesystem", "file_reader_advanced"},
+	"file_reader_advanced": {"filesystem", "file_search"},
+	"file_editor":          {"filesystem", "json_editor", "yaml_editor", "xml_editor"},
+	"json_editor":          {"filesystem", "file_editor"},
+	"yaml_editor":          {"filesystem", "file_editor"},
+	"xml_editor":           {"filesystem", "file_editor"},
+	"execute_shell":        {"filesystem", "file_search"},
+	"execute_python":       {"filesystem", "execute_sandbox"},
+	"execute_sandbox":      {"filesystem", "execute_python"},
+	"manage_memory":        {"query_memory", "remember"},
+	"query_memory":         {"manage_memory", "remember"},
+	"remember":             {"manage_memory", "query_memory"},
+	"network_ping":         {"dns_lookup", "port_scanner", "mdns_scan"},
+	"dns_lookup":           {"network_ping", "whois_lookup"},
+	"port_scanner":         {"network_ping"},
+	"web_scraper":          {"site_crawler", "web_capture", "web_performance_audit"},
+	"site_crawler":         {"web_scraper", "web_capture"},
+	"web_capture":          {"web_scraper", "site_crawler", "web_performance_audit"},
+	"pdf_operations":       {"detect_file_type", "filesystem"},
+	"image_processing":     {"detect_file_type", "filesystem"},
+}
 
 // splitCSV splits a comma-separated value string into a trimmed, non-empty slice.
 func splitCSV(s string) []string {
@@ -101,6 +135,136 @@ func isProtectedSystemPath(rawPath, workspaceDir string, cfg *config.Config) boo
 	return false
 }
 
+func normalizeAdaptiveIntentText(s string) string {
+	s = strings.ToLower(strings.TrimSpace(s))
+	s = nonAlphaNumPattern.ReplaceAllString(s, " ")
+	return strings.Join(strings.Fields(s), " ")
+}
+
+func extractIntentMatchedTools(userQuery string, availableTools []string) []string {
+	normalizedQuery := normalizeAdaptiveIntentText(userQuery)
+	if normalizedQuery == "" || len(availableTools) == 0 {
+		return nil
+	}
+
+	type candidate struct {
+		name     string
+		priority int
+	}
+
+	matches := make([]candidate, 0)
+	seen := make(map[string]bool, len(availableTools))
+
+	for _, tool := range availableTools {
+		if tool == "" || seen[tool] {
+			continue
+		}
+		normalizedTool := normalizeAdaptiveIntentText(tool)
+		if normalizedTool == "" {
+			continue
+		}
+
+		priority := -1
+		switch {
+		case strings.Contains(normalizedQuery, normalizedTool):
+			priority = 0
+		default:
+			tokens := strings.Fields(normalizedTool)
+			if len(tokens) == 1 {
+				if len(tokens[0]) >= 4 && strings.Contains(normalizedQuery, tokens[0]) {
+					priority = 1
+				}
+			} else {
+				matched := 0
+				for _, token := range tokens {
+					if len(token) >= 3 && strings.Contains(normalizedQuery, token) {
+						matched++
+					}
+				}
+				if matched == len(tokens) {
+					priority = 1
+				} else if matched >= 2 {
+					priority = 2
+				}
+			}
+		}
+
+		if priority >= 0 {
+			seen[tool] = true
+			matches = append(matches, candidate{name: tool, priority: priority})
+		}
+	}
+
+	sort.SliceStable(matches, func(i, j int) bool {
+		if matches[i].priority != matches[j].priority {
+			return matches[i].priority < matches[j].priority
+		}
+		return matches[i].name < matches[j].name
+	})
+
+	result := make([]string, 0, len(matches))
+	for _, match := range matches {
+		result = append(result, match.name)
+	}
+	return result
+}
+
+func buildAdaptiveToolPriority(schemas []openai.Tool, weightedUsage []string, userQuery string, guideSearcher toolGuideSearcher, logger *slog.Logger) []string {
+	available := make([]string, 0, len(schemas))
+	availableSet := make(map[string]bool, len(schemas))
+	for _, schema := range schemas {
+		if schema.Function == nil || schema.Function.Name == "" {
+			continue
+		}
+		name := schema.Function.Name
+		if !availableSet[name] {
+			available = append(available, name)
+			availableSet[name] = true
+		}
+	}
+
+	prioritized := make([]string, 0, len(weightedUsage)+8)
+	seen := make(map[string]bool, len(availableSet))
+	add := func(name string) {
+		if name == "" || seen[name] || !availableSet[name] {
+			return
+		}
+		seen[name] = true
+		prioritized = append(prioritized, name)
+	}
+
+	for _, tool := range extractIntentMatchedTools(userQuery, available) {
+		add(tool)
+	}
+
+	if guideSearcher != nil && strings.TrimSpace(userQuery) != "" {
+		paths, err := guideSearcher.SearchToolGuides(userQuery, 4)
+		if err != nil {
+			if logger != nil {
+				logger.Debug("[AdaptiveTools] Semantic tool search unavailable", "error", err)
+			}
+		} else {
+			for _, path := range paths {
+				name := strings.TrimSuffix(filepath.Base(filepath.Clean(path)), filepath.Ext(path))
+				add(name)
+			}
+		}
+	}
+
+	seedCount := len(prioritized)
+	for i := 0; i < seedCount; i++ {
+		for _, neighbor := range adaptiveToolNeighbors[prioritized[i]] {
+			add(neighbor)
+		}
+	}
+
+	for _, tool := range weightedUsage {
+		add(tool)
+	}
+
+	return prioritized
+}
+
 // isToolError returns true if the tool result content indicates an error.
 // Used for tool usage tracking to distinguish successes from failures.
 func isToolError(resultContent string) bool {
@@ -136,10 +300,10 @@ func extractErrorMessage(resultContent string) string {
 	return resultContent
 }
 
-// filterToolSchemas removes tools that are neither in the frequent-tools list
+// filterToolSchemas removes tools that are neither in the preferred-tools list
 // nor in the always-include list, keeping at most maxTools schemas.
 // alwaysInclude tools and skill__/tool__ prefixed tools are never dropped.
-// maxTools is a hard cap applied to frequent tools; alwaysInclude tools do not
+// maxTools is a hard cap applied to preferred tools; alwaysInclude tools do not
 // count against the cap. maxTools=0 disables the cap entirely.
 // This reduces token overhead for rarely-used tools without breaking any dispatch.
 func filterToolSchemas(schemas []openai.Tool, frequentTools, alwaysInclude []string, maxTools int, logger *slog.Logger) []openai.Tool {
@@ -147,28 +311,51 @@ func filterToolSchemas(schemas []openai.Tool, frequentTools, alwaysInclude []str
 	for _, t := range alwaysInclude {
 		keepAlways[t] = true
 	}
-	keepFrequent := make(map[string]bool, len(frequentTools))
+	preferredOrder := make([]string, 0, len(frequentTools))
+	keepPreferred := make(map[string]bool, len(frequentTools))
 	for _, t := range frequentTools {
-		if !keepAlways[t] {
-			keepFrequent[t] = true
+		if t == "" || keepAlways[t] || keepPreferred[t] {
+			continue
 		}
+		keepPreferred[t] = true
+		preferredOrder = append(preferredOrder, t)
 	}
 
-	var keptAlways, keptFrequent, dropped []openai.Tool
+	var keptAlways []openai.Tool
+	schemaByName := make(map[string]openai.Tool, len(schemas))
+	schemaOrder := make([]string, 0, len(schemas))
 	for _, s := range schemas {
 		if s.Function == nil {
 			keptAlways = append(keptAlways, s)
 			continue
 		}
 		name := s.Function.Name
+		schemaByName[name] = s
+		schemaOrder = append(schemaOrder, name)
 		// alwaysInclude and skill__/tool__ prefixed tools are never filtered
 		if keepAlways[name] || strings.HasPrefix(name, "skill__") || strings.HasPrefix(name, "tool__") {
 			keptAlways = append(keptAlways, s)
-		} else if keepFrequent[name] {
-			keptFrequent = append(keptFrequent, s)
-		} else {
-			dropped = append(dropped, s)
 		}
+	}
+
+	var keptFrequent, dropped []openai.Tool
+	consumed := make(map[string]bool, len(preferredOrder))
+	for _, name := range preferredOrder {
+		schema, ok := schemaByName[name]
+		if !ok || consumed[name] {
+			continue
+		}
+		if keepAlways[name] || strings.HasPrefix(name, "skill__") || strings.HasPrefix(name, "tool__") {
+			continue
+		}
+		keptFrequent = append(keptFrequent, schema)
+		consumed[name] = true
+	}
+	for _, name := range schemaOrder {
+		if consumed[name] || keepAlways[name] || strings.HasPrefix(name, "skill__") || strings.HasPrefix(name, "tool__") {
+			continue
+		}
+		dropped = append(dropped, schemaByName[name])
 	}
 
 	// Enforce maxTools cap on frequent tools (alwaysInclude tools are exempt)

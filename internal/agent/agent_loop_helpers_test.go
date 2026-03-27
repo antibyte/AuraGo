@@ -1,10 +1,20 @@
 package agent
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/sashabaranov/go-openai"
 )
+
+type fakeGuideSearcher struct {
+	paths []string
+	err   error
+}
+
+func (f fakeGuideSearcher) SearchToolGuides(query string, topK int) ([]string, error) {
+	return f.paths, f.err
+}
 
 // makeTool is a test helper that builds a minimal openai.Tool with the given function name.
 func makeTool(name string) openai.Tool {
@@ -142,5 +152,90 @@ func TestFilterToolSchemas_OriginalOrderPreservedForDropped(t *testing.T) {
 	if result[0].Function.Name != "rare1" || result[1].Function.Name != "rare2" {
 		t.Errorf("expected original order rare1,rare2; got %s,%s",
 			result[0].Function.Name, result[1].Function.Name)
+	}
+}
+
+func TestFilterToolSchemas_PrioritizesPreferredOrder(t *testing.T) {
+	schemas := []openai.Tool{
+		makeTool("filesystem"),
+		makeTool("docker"),
+		makeTool("homepage"),
+	}
+
+	result := filterToolSchemas(schemas, []string{"homepage", "docker"}, nil, 2, nil)
+	names := toolNames(result)
+	if len(names) != 2 {
+		t.Fatalf("expected 2 tools, got %d", len(names))
+	}
+	if names[0] != "homepage" || names[1] != "docker" {
+		t.Fatalf("expected prioritized order homepage,docker got %v", names)
+	}
+}
+
+func TestExtractIntentMatchedToolsMatchesSplitToolNames(t *testing.T) {
+	matches := extractIntentMatchedTools("please scan the network and then inspect devices", []string{"network_scan", "notes", "homepage"})
+	if len(matches) == 0 || matches[0] != "network_scan" {
+		t.Fatalf("expected network_scan intent match, got %v", matches)
+	}
+}
+
+func TestBuildAdaptiveToolPriorityPrefersIntentAndSemanticHits(t *testing.T) {
+	schemas := []openai.Tool{
+		makeTool("shell"),
+		makeTool("docker"),
+		makeTool("homepage"),
+		makeTool("netlify"),
+	}
+
+	prioritized := buildAdaptiveToolPriority(
+		schemas,
+		[]string{"shell", "docker"},
+		"please deploy the homepage to netlify",
+		fakeGuideSearcher{paths: []string{filepath.Join("tools_manuals", "homepage.md")}},
+		nil,
+	)
+
+	if len(prioritized) < 3 {
+		t.Fatalf("expected at least 3 prioritized tools, got %v", prioritized)
+	}
+	if prioritized[0] != "homepage" {
+		t.Fatalf("expected homepage to be prioritized first, got %v", prioritized)
+	}
+	if !containsName(prioritized, "netlify") {
+		t.Fatalf("expected netlify to be included from direct intent match, got %v", prioritized)
+	}
+	if !containsName(prioritized, "shell") {
+		t.Fatalf("expected weighted usage fallback to remain, got %v", prioritized)
+	}
+}
+
+func TestBuildAdaptiveToolPriorityAddsCuratedDependencyNeighbors(t *testing.T) {
+	schemas := []openai.Tool{
+		makeTool("homepage"),
+		makeTool("netlify"),
+		makeTool("homepage_registry"),
+		makeTool("filesystem"),
+		makeTool("shell"),
+	}
+
+	prioritized := buildAdaptiveToolPriority(
+		schemas,
+		[]string{"shell"},
+		"please deploy the homepage",
+		nil,
+		nil,
+	)
+
+	if len(prioritized) < 3 {
+		t.Fatalf("expected at least 3 prioritized tools, got %v", prioritized)
+	}
+	if prioritized[0] != "homepage" {
+		t.Fatalf("expected homepage first, got %v", prioritized)
+	}
+	if !containsName(prioritized, "netlify") {
+		t.Fatalf("expected curated homepage neighbor netlify, got %v", prioritized)
+	}
+	if !containsName(prioritized, "homepage_registry") {
+		t.Fatalf("expected curated homepage neighbor homepage_registry, got %v", prioritized)
 	}
 }

@@ -406,13 +406,15 @@ func handleDashboardToolStats(cfg *config.Config) http.HandlerFunc {
 
 		type response struct {
 			prompts.ToolUsageAggregated
-			AdaptiveEnabled bool                     `json:"adaptive_enabled"`
-			AdaptiveScores  []prompts.ToolDecayScore `json:"adaptive_scores,omitempty"`
-			MaxTools        int                      `json:"max_tools,omitempty"`
+			AdaptiveEnabled bool                         `json:"adaptive_enabled"`
+			AdaptiveScores  []prompts.ToolDecayScore     `json:"adaptive_scores,omitempty"`
+			MaxTools        int                          `json:"max_tools,omitempty"`
+			AgentTelemetry  agent.AgentTelemetrySnapshot `json:"agent_telemetry"`
 		}
 		resp := response{
 			ToolUsageAggregated: stats,
 			AdaptiveEnabled:     cfg.Agent.AdaptiveTools.Enabled,
+			AgentTelemetry:      agent.GetAgentTelemetrySnapshot(),
 		}
 		if cfg.Agent.AdaptiveTools.Enabled {
 			resp.AdaptiveScores = prompts.GetAdaptiveToolScores(cfg.Agent.AdaptiveTools.DecayHalfLifeDays, cfg.Agent.AdaptiveTools.WeightSuccessRate)

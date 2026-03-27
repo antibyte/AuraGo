@@ -557,7 +557,20 @@ func isToolPathSafe(path, baseDir string) bool {
 
 // PrepareDynamicGuides orchestrates explicit, semantic, statistical, and recency-based prediction to find relevant tool documents.
 // maxTotalGuides caps the number of guides returned (default: 5 if <= 0).
+type DynamicGuideStrategy struct {
+	PreferSemantics              bool
+	DisableRecentHeuristics      bool
+	DisableStatisticalHeuristics bool
+	DisableFrequencyHeuristics   bool
+}
+
 func PrepareDynamicGuides(vdb memory.VectorDB, stm *memory.SQLiteMemory, userQuery, lastTool, toolsDir string, recentTools []string, explicitTools []string, maxTotalGuides int, logger *slog.Logger) []string {
+	return PrepareDynamicGuidesWithStrategy(vdb, stm, userQuery, lastTool, toolsDir, recentTools, explicitTools, maxTotalGuides, DynamicGuideStrategy{}, logger)
+}
+
+// PrepareDynamicGuidesWithStrategy behaves like PrepareDynamicGuides but allows
+// the caller to selectively down-weight heuristic sources for weaker models.
+func PrepareDynamicGuidesWithStrategy(vdb memory.VectorDB, stm *memory.SQLiteMemory, userQuery, lastTool, toolsDir string, recentTools []string, explicitTools []string, maxTotalGuides int, strategy DynamicGuideStrategy, logger *slog.Logger) []string {
 	if maxTotalGuides <= 0 {
 		maxTotalGuides = 5
 	}
@@ -584,29 +597,33 @@ func PrepareDynamicGuides(vdb memory.VectorDB, stm *memory.SQLiteMemory, userQue
 		}
 	}
 
-	// A. Recently used tools (lazy schema injection — high priority)
-	for _, tool := range recentTools {
-		if len(guides) >= 3 {
-			break
-		}
-		cleanPath := filepath.Clean(filepath.Join(toolsDir, tool+".md"))
-		if !isToolPathSafe(cleanPath, toolsDir) {
-			continue
-		}
-		if !guideMap[cleanPath] {
-			if content, ok := readToolGuide(cleanPath); ok {
-				guides = append(guides, content)
-				guideMap[cleanPath] = true
+	addRecentGuides := func(limit int) {
+		for _, tool := range recentTools {
+			if len(guides) >= limit {
+				break
+			}
+			cleanPath := filepath.Clean(filepath.Join(toolsDir, tool+".md"))
+			if !isToolPathSafe(cleanPath, toolsDir) {
+				continue
+			}
+			if !guideMap[cleanPath] {
+				if content, ok := readToolGuide(cleanPath); ok {
+					guides = append(guides, content)
+					guideMap[cleanPath] = true
+				}
 			}
 		}
 	}
 
-	// B. Semantics (ChromaDB)
-	if chromemDB, ok := vdb.(*memory.ChromemVectorDB); ok && len(guides) < 3 {
+	addSemanticGuides := func(limit int) {
+		chromemDB, ok := vdb.(*memory.ChromemVectorDB)
+		if !ok || len(guides) >= limit {
+			return
+		}
 		paths, err := chromemDB.SearchToolGuides(userQuery, 2)
 		if err == nil {
 			for _, p := range paths {
-				if len(guides) >= 3 {
+				if len(guides) >= limit {
 					break
 				}
 				cleanPath := filepath.Clean(p)
@@ -617,13 +634,25 @@ func PrepareDynamicGuides(vdb memory.VectorDB, stm *memory.SQLiteMemory, userQue
 					}
 				}
 			}
-		} else {
+		} else if logger != nil {
 			logger.Warn("Failed semantic tool guide search", "error", err)
 		}
 	}
 
+	if strategy.PreferSemantics {
+		addSemanticGuides(3)
+		if !strategy.DisableRecentHeuristics {
+			addRecentGuides(3)
+		}
+	} else {
+		if !strategy.DisableRecentHeuristics {
+			addRecentGuides(3)
+		}
+		addSemanticGuides(3)
+	}
+
 	// C. Statistics (Transition Graph)
-	if stm != nil && lastTool != "" && len(guides) < 3 {
+	if !strategy.DisableStatisticalHeuristics && stm != nil && lastTool != "" && len(guides) < 3 {
 		nextTool, err := stm.GetTopTransition(lastTool)
 		if err == nil && nextTool != "" {
 			cleanPath := filepath.Clean(filepath.Join(toolsDir, nextTool+".md"))
@@ -631,14 +660,16 @@ func PrepareDynamicGuides(vdb memory.VectorDB, stm *memory.SQLiteMemory, userQue
 				if content, ok := readToolGuide(cleanPath); ok {
 					guides = append(guides, content)
 					guideMap[cleanPath] = true
-					logger.Info("Statistically predicted next tool", "from", lastTool, "predicted", nextTool)
+					if logger != nil {
+						logger.Info("Statistically predicted next tool", "from", lastTool, "predicted", nextTool)
+					}
 				}
 			}
 		}
 	}
 
 	// C2. Global usage frequency: boost tools that are frequently used across all sessions
-	if len(guides) < 3 {
+	if !strategy.DisableFrequencyHeuristics && len(guides) < 3 {
 		for _, tool := range GetFrequentTools(3) {
 			if len(guides) >= 3 {
 				break

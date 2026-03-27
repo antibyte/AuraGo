@@ -51,6 +51,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	isMaintenance := runCfg.IsMaintenance
 	surgeryPlan := runCfg.SurgeryPlan
 
+	if shortTermMem != nil {
+		InitializeAgentTelemetryPersistence(shortTermMem)
+	}
+
 	// Load persistent adaptive tool usage data on first run
 	if cfg.Agent.AdaptiveTools.Enabled && shortTermMem != nil {
 		if entries, err := shortTermMem.LoadToolUsageAdaptive(); err == nil && len(entries) > 0 {
@@ -80,97 +84,43 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 	}
 
-	flags := prompts.ContextFlags{
-		IsErrorState:      false,
-		RequiresCoding:    false,
-		SystemLanguage:    cfg.Agent.SystemLanguage,
-		LifeboatEnabled:   cfg.Maintenance.LifeboatEnabled,
-		IsMaintenanceMode: isMaintenance,
-		SurgeryPlan:       surgeryPlan,
-		CorePersonality:   cfg.Personality.CorePersonality,
-		TokenBudget:       cfg.Agent.SystemPromptTokenBudget,
-		IsDebugMode:       cfg.Agent.DebugMode || GetDebugMode(),
-		IsCoAgent:         strings.HasPrefix(sessionID, "coagent-") || strings.HasPrefix(sessionID, "specialist-"),
-		DiscordEnabled:    cfg.Discord.Enabled,
-		EmailEnabled:      cfg.Email.Enabled || len(cfg.EmailAccounts) > 0,
-		// Docker-socket-dependent tools: only gate when actually inside Docker
-		// without the socket mounted. On bare-metal / LXC the socket simply isn't
-		// at the probed path, which is normal — do not disable user-configured tools.
-		DockerEnabled:            cfg.Docker.Enabled && (!cfg.Runtime.IsDocker || cfg.Runtime.DockerSocketOK),
-		HomeAssistantEnabled:     cfg.HomeAssistant.Enabled,
-		WebDAVEnabled:            cfg.WebDAV.Enabled,
-		KoofrEnabled:             cfg.Koofr.Enabled,
-		PaperlessNGXEnabled:      cfg.PaperlessNGX.Enabled,
-		ChromecastEnabled:        cfg.Chromecast.Enabled,
-		CoAgentEnabled:           cfg.CoAgents.Enabled,
-		GoogleWorkspaceEnabled:   cfg.GoogleWorkspace.Enabled,
-		OneDriveEnabled:          cfg.OneDrive.Enabled,
-		ProxmoxEnabled:           cfg.Proxmox.Enabled,
-		OllamaEnabled:            cfg.Ollama.Enabled,
-		TailscaleEnabled:         cfg.Tailscale.Enabled,
-		CloudflareTunnelEnabled:  cfg.CloudflareTunnel.Enabled,
-		AnsibleEnabled:           cfg.Ansible.Enabled,
-		InvasionControlEnabled:   cfg.InvasionControl.Enabled && invasionDB != nil,
-		GitHubEnabled:            cfg.GitHub.Enabled,
-		MQTTEnabled:              cfg.MQTT.Enabled,
-		AdGuardEnabled:           cfg.AdGuard.Enabled,
-		MCPEnabled:               cfg.MCP.Enabled && cfg.Agent.AllowMCP,
-		SandboxEnabled:           cfg.Sandbox.Enabled && (!cfg.Runtime.IsDocker || cfg.Runtime.DockerSocketOK),
-		MeshCentralEnabled:       cfg.MeshCentral.Enabled,
-		HomepageEnabled:          cfg.Homepage.Enabled && (!cfg.Runtime.IsDocker || cfg.Runtime.DockerSocketOK || cfg.Homepage.AllowLocalServer),
-		HomepageAllowLocalServer: cfg.Homepage.AllowLocalServer,
-		NetlifyEnabled:           cfg.Netlify.Enabled,
-		WebhooksEnabled:          cfg.Webhooks.Enabled,
-		WebhooksDefinitions:      webhooksDef.String(),
-		VirusTotalEnabled:        cfg.VirusTotal.Enabled,
-		BraveSearchEnabled:       cfg.BraveSearch.Enabled,
-		ImageGenerationEnabled:   cfg.ImageGeneration.Enabled,
-		RemoteControlEnabled:     cfg.RemoteControl.Enabled && remoteHub != nil,
-		MemoryEnabled:            cfg.Tools.Memory.Enabled,
-		KnowledgeGraphEnabled:    cfg.Tools.KnowledgeGraph.Enabled,
-		SecretsVaultEnabled:      cfg.Tools.SecretsVault.Enabled,
-		SchedulerEnabled:         cfg.Tools.Scheduler.Enabled,
-		NotesEnabled:             cfg.Tools.Notes.Enabled,
-		JournalEnabled:           cfg.Tools.Journal.Enabled,
-		MissionsEnabled:          cfg.Tools.Missions.Enabled,
-		StopProcessEnabled:       cfg.Tools.StopProcess.Enabled,
-		InventoryEnabled:         cfg.Tools.Inventory.Enabled,
-		MemoryMaintenanceEnabled: cfg.Tools.MemoryMaintenance.Enabled,
-		WOLEnabled:               cfg.Tools.WOL.Enabled && (!cfg.Runtime.IsDocker || cfg.Runtime.BroadcastOK),
-		MediaRegistryEnabled:     cfg.MediaRegistry.Enabled && mediaRegistryDB != nil,
-		HomepageRegistryEnabled:  cfg.Homepage.Enabled && homepageRegistryDB != nil,
-		AllowShell:               cfg.Agent.AllowShell,
-		AllowPython:              cfg.Agent.AllowPython,
-		AllowFilesystemWrite:     cfg.Agent.AllowFilesystemWrite,
-		AllowNetworkRequests:     cfg.Agent.AllowNetworkRequests,
-		AllowRemoteShell:         cfg.Agent.AllowRemoteShell,
-		AllowSelfUpdate:          cfg.Agent.AllowSelfUpdate,
-		IsEgg:                    cfg.EggMode.Enabled,
-		InternetExposed:          cfg.Server.HTTPS.Enabled,
-		IsDocker:                 cfg.Runtime.IsDocker,
-		DocumentCreatorEnabled:   cfg.Tools.DocumentCreator.Enabled,
-		WebCaptureEnabled:        cfg.Tools.WebCapture.Enabled,
-		NetworkPingEnabled:       cfg.Tools.NetworkPing.Enabled,
-		WebScraperEnabled:        cfg.Tools.WebScraper.Enabled,
-		S3Enabled:                cfg.S3.Enabled,
-		NetworkScanEnabled:       cfg.Tools.NetworkScan.Enabled,
-		FormAutomationEnabled:    cfg.Tools.FormAutomation.Enabled,
-		UPnPScanEnabled:          cfg.Tools.UPnPScan.Enabled,
-		FritzBoxSystemEnabled:    cfg.FritzBox.Enabled && cfg.FritzBox.System.Enabled,
-		FritzBoxNetworkEnabled:   cfg.FritzBox.Enabled && cfg.FritzBox.Network.Enabled,
-		FritzBoxTelephonyEnabled: cfg.FritzBox.Enabled && cfg.FritzBox.Telephony.Enabled,
-		FritzBoxSmartHomeEnabled: cfg.FritzBox.Enabled && cfg.FritzBox.SmartHome.Enabled,
-		FritzBoxStorageEnabled:   cfg.FritzBox.Enabled && cfg.FritzBox.Storage.Enabled,
-		FritzBoxTVEnabled:        cfg.FritzBox.Enabled && cfg.FritzBox.TV.Enabled,
-		A2AEnabled:               cfg.A2A.Server.Enabled || cfg.A2A.Client.Enabled,
-		TelnyxEnabled:            cfg.Telnyx.Enabled,
-		AdditionalPrompt:         cfg.Agent.AdditionalPrompt,
-		MessageSource:            runCfg.MessageSource,
-		ToolsDir:                 cfg.Directories.ToolsDir,
-		SkillsDir:                cfg.Directories.SkillsDir,
-		SpecialistsAvailable:     specialistsAvailable(cfg),
-		SpecialistsStatus:        buildSpecialistsStatus(cfg),
+	initialUserMsg := ""
+	if len(req.Messages) > 0 {
+		for i := len(req.Messages) - 1; i >= 0; i-- {
+			if req.Messages[i].Role == openai.ChatMessageRoleUser && strings.TrimSpace(req.Messages[i].Content) != "" {
+				initialUserMsg = req.Messages[i].Content
+				break
+			}
+		}
 	}
+
+	toolingPolicy := buildToolingPolicy(cfg, initialUserMsg)
+	telemetryScope := AgentTelemetryScope{
+		ProviderType: toolingPolicy.Capabilities.ProviderType,
+		Model:        toolingPolicy.Capabilities.Model,
+	}
+	if toolingPolicy.TelemetryProfile != "default" {
+		eventName := "conservative_profile_applied"
+		if toolingPolicy.TelemetryProfile == "family_guarded" && toolingPolicy.IntentFamily != "" {
+			eventName = "family_guarded_" + toolingPolicy.IntentFamily
+		}
+		RecordToolPolicyEventForScope(telemetryScope, eventName)
+		logger.Info("[ToolingPolicy] Telemetry-aware conservative profile active",
+			"provider", telemetryScope.ProviderType,
+			"model", telemetryScope.Model,
+			"tool_calls", toolingPolicy.TelemetrySnapshot.ToolCalls,
+			"failure_rate", toolingPolicy.TelemetrySnapshot.FailureRate,
+			"intent_family", toolingPolicy.IntentFamily,
+			"family_failure_rate", toolingPolicy.FamilyTelemetry.FailureRate,
+			"max_tool_guides", toolingPolicy.EffectiveMaxToolGuides)
+	}
+	flags := buildPromptContextFlags(runCfg, toolingPolicy, promptContextOptions{
+		IsMaintenanceMode:    isMaintenance,
+		SurgeryPlan:          surgeryPlan,
+		WebhooksDefinitions:  webhooksDef.String(),
+		SpecialistsAvailable: specialistsAvailable(cfg),
+		SpecialistsStatus:    buildSpecialistsStatus(cfg),
+	})
 	logger.Debug("[Agent] Context flags initialised",
 		"token_budget", flags.TokenBudget,
 		"session_id", runCfg.SessionID,
@@ -180,11 +130,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	missedToolCount := 0
 	announcementCount := 0
 	sessionTokens := 0
+	recoveryPolicy := buildRecoveryPolicy(cfg)
 	emptyRetried := false // Prevents infinite retry on persistent empty responses
 	retry422Count := 0    // Counts consecutive 422 retries — capped to prevent infinite loops
 	stepsSinceLastFeedback := 0
-	lastToolError := ""          // Tracks the last tool error string for consecutive-error detection
-	consecutiveErrorCount := 0   // Incremented each time the same tool error repeats back-to-back
 	homepageUsedInChain := false // Elevated circuit breaker once homepage tool is first used
 
 	// Guardian: prompt injection defense
@@ -201,14 +150,12 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	var currentLogger *slog.Logger = logger
 	lastActivity := time.Now()
 	lastTool := ""
-	lastToolCallSig := ""                     // Fingerprint of the last tool call for consecutive duplicate detection
-	duplicateToolCount := 0                   // Consecutive identical tool call counter
-	toolCallFrequency := make(map[string]int) // Counts total calls per sig within a single agent run
-	recentTools := make([]string, 0, 5)       // Track last 5 tools for lazy schema injection
-	explicitTools := make([]string, 0)        // Explicit tool guides requested via <workflow_plan> tag
-	workflowPlanCount := 0                    // Prevent infinite workflow_plan loops
-	lastResponseWasTool := false              // True when the previous iteration was a tool call; suppresses announcement detector on completion messages
-	pendingTCs := make([]ToolCall, 0)         // Queued tool calls from multi-tool responses (processed without a new LLM call)
+	recoveryState := newToolRecoveryStateWithPolicy(recoveryPolicy)
+	recentTools := make([]string, 0, 5) // Track last 5 tools for lazy schema injection
+	explicitTools := make([]string, 0)  // Explicit tool guides requested via <workflow_plan> tag
+	workflowPlanCount := 0              // Prevent infinite workflow_plan loops
+	lastResponseWasTool := false        // True when the previous iteration was a tool call; suppresses announcement detector on completion messages
+	pendingTCs := make([]ToolCall, 0)   // Queued tool calls from multi-tool responses (processed without a new LLM call)
 
 	// Context compression: tracks message count at last compression for cooldown
 	lastCompressionMsg := 0
@@ -272,82 +219,13 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	toolGuidesDir := filepath.Join(cfg.Directories.PromptsDir, "tools_manuals")
 
 	// Auto-detect DeepSeek and enable native function calling
-	useNativeFunctions := cfg.LLM.UseNativeFunctions
-	if strings.Contains(strings.ToLower(cfg.LLM.Model), "deepseek") && !useNativeFunctions {
-		useNativeFunctions = true
+	useNativeFunctions := toolingPolicy.UseNativeFunctions
+	if toolingPolicy.AutoEnabledNativeFunctions {
 		logger.Info("[NativeTools] DeepSeek detected, auto-enabling native function calling")
 	}
 
 	if useNativeFunctions {
-		ff := ToolFeatureFlags{
-			HomeAssistantEnabled:         cfg.HomeAssistant.Enabled,
-			DockerEnabled:                cfg.Docker.Enabled && (!cfg.Runtime.IsDocker || cfg.Runtime.DockerSocketOK),
-			CoAgentEnabled:               cfg.CoAgents.Enabled,
-			SudoEnabled:                  cfg.Agent.SudoEnabled && !cfg.Runtime.IsDocker,
-			WebhooksEnabled:              cfg.Webhooks.Enabled,
-			ProxmoxEnabled:               cfg.Proxmox.Enabled,
-			OllamaEnabled:                cfg.Ollama.Enabled,
-			TailscaleEnabled:             cfg.Tailscale.Enabled,
-			AnsibleEnabled:               cfg.Ansible.Enabled,
-			InvasionControlEnabled:       cfg.InvasionControl.Enabled && invasionDB != nil,
-			GitHubEnabled:                cfg.GitHub.Enabled,
-			MQTTEnabled:                  cfg.MQTT.Enabled,
-			AdGuardEnabled:               cfg.AdGuard.Enabled,
-			MCPEnabled:                   cfg.MCP.Enabled && cfg.Agent.AllowMCP,
-			SandboxEnabled:               cfg.Sandbox.Enabled && (!cfg.Runtime.IsDocker || cfg.Runtime.DockerSocketOK),
-			MeshCentralEnabled:           cfg.MeshCentral.Enabled,
-			HomepageEnabled:              cfg.Homepage.Enabled && (!cfg.Runtime.IsDocker || cfg.Runtime.DockerSocketOK || cfg.Homepage.AllowLocalServer),
-			HomepageAllowLocalServer:     cfg.Homepage.AllowLocalServer,
-			NetlifyEnabled:               cfg.Netlify.Enabled,
-			FirewallEnabled:              cfg.Firewall.Enabled && cfg.Runtime.FirewallAccessOK,
-			EmailEnabled:                 cfg.Email.Enabled || len(cfg.EmailAccounts) > 0,
-			CloudflareTunnelEnabled:      cfg.CloudflareTunnel.Enabled,
-			GoogleWorkspaceEnabled:       cfg.GoogleWorkspace.Enabled,
-			OneDriveEnabled:              cfg.OneDrive.Enabled,
-			VirusTotalEnabled:            cfg.VirusTotal.Enabled,
-			ImageGenerationEnabled:       cfg.ImageGeneration.Enabled,
-			RemoteControlEnabled:         cfg.RemoteControl.Enabled && remoteHub != nil,
-			MemoryEnabled:                cfg.Tools.Memory.Enabled,
-			KnowledgeGraphEnabled:        cfg.Tools.KnowledgeGraph.Enabled,
-			SecretsVaultEnabled:          cfg.Tools.SecretsVault.Enabled,
-			SchedulerEnabled:             cfg.Tools.Scheduler.Enabled,
-			NotesEnabled:                 cfg.Tools.Notes.Enabled,
-			JournalEnabled:               cfg.Tools.Journal.Enabled,
-			MissionsEnabled:              cfg.Tools.Missions.Enabled,
-			StopProcessEnabled:           cfg.Tools.StopProcess.Enabled,
-			InventoryEnabled:             cfg.Tools.Inventory.Enabled,
-			MemoryMaintenanceEnabled:     cfg.Tools.MemoryMaintenance.Enabled,
-			WOLEnabled:                   cfg.Tools.WOL.Enabled && cfg.Runtime.BroadcastOK,
-			MediaRegistryEnabled:         cfg.MediaRegistry.Enabled && mediaRegistryDB != nil,
-			HomepageRegistryEnabled:      cfg.Homepage.Enabled && homepageRegistryDB != nil,
-			ContactsEnabled:              cfg.Tools.Contacts.Enabled && contactsDB != nil,
-			MemoryAnalysisEnabled:        cfg.MemoryAnalysis.Enabled,
-			DocumentCreatorEnabled:       cfg.Tools.DocumentCreator.Enabled,
-			WebCaptureEnabled:            cfg.Tools.WebCapture.Enabled,
-			NetworkPingEnabled:           cfg.Tools.NetworkPing.Enabled,
-			WebScraperEnabled:            cfg.Tools.WebScraper.Enabled,
-			S3Enabled:                    cfg.S3.Enabled,
-			NetworkScanEnabled:           cfg.Tools.NetworkScan.Enabled,
-			FormAutomationEnabled:        cfg.Tools.FormAutomation.Enabled,
-			UPnPScanEnabled:              cfg.Tools.UPnPScan.Enabled,
-			FritzBoxSystemEnabled:        cfg.FritzBox.Enabled && cfg.FritzBox.System.Enabled,
-			FritzBoxNetworkEnabled:       cfg.FritzBox.Enabled && cfg.FritzBox.Network.Enabled,
-			FritzBoxTelephonyEnabled:     cfg.FritzBox.Enabled && cfg.FritzBox.Telephony.Enabled,
-			FritzBoxSmartHomeEnabled:     cfg.FritzBox.Enabled && cfg.FritzBox.SmartHome.Enabled,
-			FritzBoxStorageEnabled:       cfg.FritzBox.Enabled && cfg.FritzBox.Storage.Enabled,
-			FritzBoxTVEnabled:            cfg.FritzBox.Enabled && cfg.FritzBox.TV.Enabled,
-			TelnyxSMSEnabled:             cfg.Telnyx.Enabled && !cfg.Telnyx.ReadOnly,
-			TelnyxCallEnabled:            cfg.Telnyx.Enabled && !cfg.Telnyx.ReadOnly,
-			SQLConnectionsEnabled:        cfg.SQLConnections.Enabled && sqlConnectionsDB != nil,
-			PythonSecretInjectionEnabled: cfg.Tools.PythonSecretInjection.Enabled,
-			// Danger Zone capability gates
-			AllowShell:           cfg.Agent.AllowShell,
-			AllowPython:          cfg.Agent.AllowPython,
-			AllowFilesystemWrite: cfg.Agent.AllowFilesystemWrite,
-			AllowNetworkRequests: cfg.Agent.AllowNetworkRequests,
-			AllowRemoteShell:     cfg.Agent.AllowRemoteShell,
-			AllowSelfUpdate:      cfg.Agent.AllowSelfUpdate,
-		}
+		ff := buildToolFeatureFlags(runCfg, toolingPolicy)
 		ntSchemas := BuildNativeToolSchemas(cfg.Directories.SkillsDir, manifest, ff, logger)
 
 		// Adaptive tool filtering: remove rarely-used tools to save tokens
@@ -357,34 +235,37 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				halfLife = 7.0
 			}
 			frequent := prompts.GetFrequentToolsWeighted(0, halfLife, cfg.Agent.AdaptiveTools.WeightSuccessRate) // 0 = all scored tools
+			var guideSearcher toolGuideSearcher
+			if gs, ok := longTermMem.(toolGuideSearcher); ok {
+				guideSearcher = gs
+			}
+			prioritized := buildAdaptiveToolPriority(ntSchemas, frequent, initialUserMsg, guideSearcher, logger)
 			maxTools := cfg.Agent.AdaptiveTools.MaxTools
 			alwaysInclude := cfg.Agent.AdaptiveTools.AlwaysInclude
-			if maxTools > 0 && len(frequent) > 0 {
-				ntSchemas = filterToolSchemas(ntSchemas, frequent, alwaysInclude, maxTools, logger)
+			if maxTools > 0 && len(prioritized) > 0 {
+				ntSchemas = filterToolSchemas(ntSchemas, prioritized, alwaysInclude, maxTools, logger)
 			}
 		}
 		// Structured Outputs: set Strict=true on every tool definition so the
 		// provider uses constrained decoding for tool-call arguments.
 		// Only enable this for models that support structured outputs (e.g. GPT-4o,
 		// some OpenRouter models). Ollama does not support strict mode.
-		isOllama := strings.EqualFold(cfg.LLM.ProviderType, "ollama")
-		if cfg.LLM.StructuredOutputs && !isOllama {
+		if toolingPolicy.StructuredOutputsEnabled {
 			for i := range ntSchemas {
 				if ntSchemas[i].Function != nil {
 					ntSchemas[i].Function.Strict = true
 				}
 			}
 			logger.Info("[NativeTools] Structured outputs enabled (strict mode)")
-		} else if cfg.LLM.StructuredOutputs && isOllama {
+		} else if toolingPolicy.StructuredOutputsRequested && toolingPolicy.Capabilities.IsOllama {
 			logger.Warn("[NativeTools] Structured outputs not supported by Ollama, ignoring")
 		}
 		req.Tools = ntSchemas
 		req.ToolChoice = "auto"
-		// Ollama does not support parallel_tool_calls — only set for compatible providers
-		if !isOllama {
+		if toolingPolicy.ParallelToolCallsEnabled {
 			req.ParallelToolCalls = true
 		}
-		logger.Info("[NativeTools] Native function calling enabled", "tool_count", len(ntSchemas), "parallel", !isOllama)
+		logger.Info("[NativeTools] Native function calling enabled", "tool_count", len(ntSchemas), "parallel", toolingPolicy.ParallelToolCallsEnabled)
 	}
 
 	for {
@@ -470,11 +351,14 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			broker.Send("tool_call", ptcJSON)
 			broker.Send("tool_start", ptc.Action)
 			pResultContent := DispatchToolCall(ctx, ptc, cfg, currentLogger, client, vault, registry, manifest, cronManager, missionManagerV2, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, contactsDB, sqlConnectionsDB, sqlConnectionPool, remoteHub, historyManager, tools.IsBusy(), surgeryPlan, guardian, llmGuardian, sessionID, coAgentRegistry, budgetTracker, lastUserMsg)
-			pResultContent = truncateToolOutput(pResultContent, cfg.Agent.ToolOutputLimit)
-			prompts.RecordToolUsage(ptc.Action, ptc.Operation, !isToolError(pResultContent))
-			prompts.RecordAdaptiveToolUsage(ptc.Action, !isToolError(pResultContent))
+			policyResult := applyToolOutputPolicy(pResultContent, cfg.Agent.ToolOutputLimit, telemetryScope)
+			pResultContent = policyResult.Content
+			pToolFailed := policyResult.WasError
+			prompts.RecordToolUsage(ptc.Action, ptc.Operation, !pToolFailed)
+			prompts.RecordAdaptiveToolUsage(ptc.Action, !pToolFailed)
+			RecordScopedToolResultForTool(telemetryScope, ptc.Action, !pToolFailed)
 			if shortTermMem != nil {
-				_ = shortTermMem.UpsertToolUsage(ptc.Action, !isToolError(pResultContent))
+				_ = shortTermMem.UpsertToolUsage(ptc.Action, !pToolFailed)
 			}
 			broker.Send("tool_output", pResultContent)
 			if ptc.Action == "send_image" {
@@ -634,7 +518,18 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 		// Note: The call to PrepareDynamicGuides will happen after the response is received
 		// We initialize flags.PredictedGuides now with empty explicit tools to satisfy builder.go for the first prompt
-		flags.PredictedGuides = prompts.PrepareDynamicGuides(longTermMem, shortTermMem, lastUserMsg, lastTool, toolGuidesDir, recentTools, explicitTools, cfg.Agent.MaxToolGuides, currentLogger)
+		flags.PredictedGuides = prompts.PrepareDynamicGuidesWithStrategy(
+			longTermMem,
+			shortTermMem,
+			lastUserMsg,
+			lastTool,
+			toolGuidesDir,
+			recentTools,
+			explicitTools,
+			toolingPolicy.EffectiveMaxToolGuides,
+			toolingPolicy.EffectiveGuideStrategy,
+			currentLogger,
+		)
 
 		// Automatic RAG: retrieve relevant long-term memories for the current user message
 		// Phase A3: Over-fetch and re-rank with recency boost from memory_meta
@@ -821,6 +716,19 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		if runCfg.IsMission {
 			flags.IsMission = true
 			flags.Tier = "minimal"
+		} else {
+			adjustedTier := applyTelemetryAwarePromptTier(toolingPolicy, flags, flags.Tier)
+			if adjustedTier != flags.Tier {
+				RecordToolPolicyEventForScope(telemetryScope, "prompt_tier_compact")
+				currentLogger.Info("[ToolingPolicy] Telemetry-aware prompt tier adjustment",
+					"provider", telemetryScope.ProviderType,
+					"model", telemetryScope.Model,
+					"from", flags.Tier,
+					"to", adjustedTier,
+					"message_count", flags.MessageCount,
+					"failure_rate", toolingPolicy.TelemetrySnapshot.FailureRate)
+				flags.Tier = adjustedTier
+			}
 		}
 		flags.IsDebugMode = cfg.Agent.DebugMode || GetDebugMode() // re-check each iteration (toggleable at runtime)
 
@@ -986,18 +894,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			stm, streamErr := llm.ExecuteStreamWithRetry(llmCtx, client, req, currentLogger, broker)
 			if streamErr != nil {
 				cancelResp()
-				// Same 422 recovery as the sync path: trim malformed history and retry.
-				if strings.Contains(streamErr.Error(), "422") || strings.Contains(strings.ToLower(streamErr.Error()), "unprocessable") {
-					retry422Count++
-					if retry422Count > 3 {
-						currentLogger.Error("[Stream] 422 retry limit reached — aborting", "attempts", retry422Count)
-						return openai.ChatCompletionResponse{}, fmt.Errorf("422 Unprocessable: retry limit exceeded after %d attempts: %w", retry422Count, streamErr)
-					}
-					currentLogger.Warn("[Stream] 422 Unprocessable from provider — trimming malformed history", "error", streamErr, "attempt", retry422Count)
-					broker.Send("thinking", "Context error recovered — retrying...")
-					req.Messages = trim422Messages(req.Messages)
-					currentLogger.Info("[Stream] Context trimmed after 422, retrying", "new_messages_count", len(req.Messages), "attempt", retry422Count)
+				if recovered, recErr := recoverFrom422WithPolicy(recoveryPolicy, streamErr, &retry422Count, &req, currentLogger, broker, "Stream", telemetryScope); recovered {
 					continue
+				} else if recErr != nil {
+					return openai.ChatCompletionResponse{}, recErr
 				}
 				return openai.ChatCompletionResponse{}, streamErr
 			}
@@ -1116,22 +1016,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			resp, err = llm.ExecuteWithRetry(llmCtx, client, req, currentLogger, broker)
 			if err != nil {
 				cancelResp()
-				// 422 Unprocessable Entity: the provider rejected the message sequence —
-				// this happens when repeated identical tool responses have grown the history
-				// into an invalid state (e.g. tool messages without matching tool_calls).
-				// Instead of killing the session, strip role=tool messages, trim history,
-				// inject an explanatory system note, and retry.
-				if strings.Contains(err.Error(), "422") || strings.Contains(strings.ToLower(err.Error()), "unprocessable") {
-					retry422Count++
-					if retry422Count > 3 {
-						currentLogger.Error("[Sync] 422 retry limit reached — aborting", "attempts", retry422Count)
-						return openai.ChatCompletionResponse{}, fmt.Errorf("422 Unprocessable: retry limit exceeded after %d attempts: %w", retry422Count, err)
-					}
-					currentLogger.Warn("[Sync] 422 Unprocessable from provider — trimming malformed history", "error", err, "attempt", retry422Count)
-					broker.Send("thinking", "Context error recovered — retrying...")
-					req.Messages = trim422Messages(req.Messages)
-					currentLogger.Info("[Sync] Context trimmed after 422, retrying", "new_messages_count", len(req.Messages), "attempt", retry422Count)
+				if recovered, recErr := recoverFrom422WithPolicy(recoveryPolicy, err, &retry422Count, &req, currentLogger, broker, "Sync", telemetryScope); recovered {
 					continue
+				} else if recErr != nil {
+					return openai.ChatCompletionResponse{}, recErr
 				}
 				return openai.ChatCompletionResponse{}, err
 			}
@@ -1146,29 +1034,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 		retry422Count = 0 // reset on successful LLM response
 
-		// Empty response recovery: if the LLM returns nothing, trim history and retry once.
-		// This typically happens when the total context exceeds the model's window.
-		if strings.TrimSpace(content) == "" && len(resp.Choices[0].Message.ToolCalls) == 0 && len(req.Messages) > 4 && !emptyRetried {
-			emptyRetried = true
-			currentLogger.Warn("[Sync] Empty LLM response detected, trimming history and retrying", "messages_count", len(req.Messages))
-			broker.Send("thinking", "Context too large, retrimming...")
-			// Keep system prompt (index 0) + optional summary (index 1 if system) + last 4 messages
-			var trimmed []openai.ChatCompletionMessage
-			trimmed = append(trimmed, req.Messages[0]) // system prompt
-			// Keep second message if it's a system summary
-			startIdx := 1
-			if len(req.Messages) > 1 && req.Messages[1].Role == openai.ChatMessageRoleSystem {
-				trimmed = append(trimmed, req.Messages[1])
-				startIdx = 2
-			}
-			// Keep last 4 messages from history
-			historyMsgs := req.Messages[startIdx:]
-			if len(historyMsgs) > 4 {
-				historyMsgs = historyMsgs[len(historyMsgs)-4:]
-			}
-			trimmed = append(trimmed, historyMsgs...)
-			req.Messages = trimmed
-			currentLogger.Info("[Sync] Retrying with trimmed context", "new_messages_count", len(req.Messages))
+		if recoverFromEmptyResponseWithPolicy(recoveryPolicy, resp, content, &req, &emptyRetried, currentLogger, broker, telemetryScope) {
 			continue
 		}
 
@@ -1185,43 +1051,19 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		currentLogger.Info("[LLM Response Received]", "content_len", len(content))
 		lastActivity = time.Now() // LLM activity
 
-		// Detect tool call: native API-level ToolCalls (use_native_functions=true) or text-based JSON
-		var tc ToolCall
-		useNativePath := false
-		nativeAssistantMsg := resp.Choices[0].Message // snapshot for role=tool continuation
-
-		if len(resp.Choices[0].Message.ToolCalls) > 0 {
+		parsedToolResp := parseToolResponse(resp, currentLogger, telemetryScope)
+		tc := parsedToolResp.ToolCall
+		useNativePath := parsedToolResp.UseNativePath
+		nativeAssistantMsg := parsedToolResp.NativeAssistantMsg
+		if parsedToolResp.ParseSource == ToolCallParseSourceNative {
 			nativeCall := resp.Choices[0].Message.ToolCalls[0]
-			// Primary native path: parse directly from API-level ToolCall object
-			// We now take this path if UseNativeFunctions is true OR if the model sent them anyway
-			tc = NativeToolCallToToolCall(nativeCall, currentLogger)
-			useNativePath = true
 			currentLogger.Info("[Sync] Native tool call detected", "function", tc.Action, "id", nativeCall.ID, "forced", !cfg.LLM.UseNativeFunctions)
-
-			// Queue additional native tool calls for batch execution.
-			// The OpenAI API requires a role=tool response for each tool_call in the
-			// assistant message, so these are processed inline (not in the regular pendingTCs loop).
-			if len(resp.Choices[0].Message.ToolCalls) > 1 {
-				for _, extra := range resp.Choices[0].Message.ToolCalls[1:] {
-					extraTC := NativeToolCallToToolCall(extra, currentLogger)
-					pendingTCs = append(pendingTCs, extraTC)
-				}
-				currentLogger.Info("[MultiTool] Queued additional native tool calls from response", "count", len(resp.Choices[0].Message.ToolCalls)-1)
-			}
+		} else if parsedToolResp.ParseSource == ToolCallParseSourceReasoningCleanJSON {
+			currentLogger.Info("[Sync] Tool call detected after stripping reasoning tags", "function", tc.Action)
 		}
-
-		// Text-based fallback: parse JSON from content string if native path not taken
-		if !useNativePath {
-			tc = ParseToolCall(content)
-			// If the response contains multiple tool calls (e.g. two manage_memory adds),
-			// queue the extras so they execute in subsequent iterations without a new LLM call.
-			if tc.IsTool {
-				extras := extractExtraToolCalls(content, tc.RawJSON)
-				if len(extras) > 0 {
-					currentLogger.Info("[MultiTool] Queued additional tool calls from response", "count", len(extras))
-					pendingTCs = append(pendingTCs, extras...)
-				}
-			}
+		if len(parsedToolResp.PendingToolCalls) > 0 {
+			pendingTCs = append(pendingTCs, parsedToolResp.PendingToolCalls...)
+			currentLogger.Info("[MultiTool] Queued additional tool calls from response", "count", len(parsedToolResp.PendingToolCalls), "source", parsedToolResp.ParseSource)
 		}
 
 		// Obsolete: we now send it later when histContent is fully assembled.
@@ -1537,34 +1379,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			broker.Send("tool_call", sseToolContent)
 			broker.Send("tool_start", tc.Action)
 
-			// Duplicate tool call detection: if the agent is about to run the exact same
-			// tool with the same key parameter again (regardless of error status), break the
-			// loop. Two complementary checks:
-			// 1. Consecutive: same sig back-to-back (catches immediate re-attempts)
-			// 2. Frequency: same sig called >= 3 times in the same run (catches interleaved loops)
-			toolSig := tc.Action + "|" + tc.Command + "|" + tc.Code + "|" + tc.Operation + "|" + tc.Path
-			if toolSig == lastToolCallSig && toolSig != tc.Action+"|||||" {
-				duplicateToolCount++
-			} else {
-				duplicateToolCount = 0
-				lastToolCallSig = toolSig
-			}
-			toolCallFrequency[toolSig]++
-			freqCount := toolCallFrequency[toolSig]
-			if (duplicateToolCount >= 2 || freqCount >= 3) && toolSig != tc.Action+"|||||" {
-				currentLogger.Warn("[Sync] Duplicate tool call detected — circuit breaker triggered",
-					"action", tc.Action, "consecutive", duplicateToolCount, "total", freqCount)
-				abortMsg := fmt.Sprintf(
-					"CIRCUIT BREAKER: You are calling '%s' with the exact same parameters for the %d. time. "+
-						"Repeating it will produce the same result. Do NOT call it again. "+
-						"Either try a completely DIFFERENT approach (different command, different tool) or "+
-						"inform the user about the situation and ask what they want to do next.",
-					tc.Action, freqCount)
-				req.Messages = append(req.Messages,
-					openai.ChatCompletionMessage{Role: openai.ChatMessageRoleSystem, Content: abortMsg})
-				duplicateToolCount = 0
-				lastToolCallSig = ""
-				delete(toolCallFrequency, toolSig)
+			if recoveryState.handleDuplicateToolCall(tc, &req, currentLogger, telemetryScope) {
 				lastResponseWasTool = false
 				continue
 			}
@@ -1588,21 +1403,23 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 
 			resultContent := DispatchToolCall(ctx, tc, cfg, currentLogger, client, vault, registry, manifest, cronManager, missionManagerV2, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, contactsDB, sqlConnectionsDB, sqlConnectionPool, remoteHub, historyManager, tools.IsBusy(), surgeryPlan, guardian, llmGuardian, sessionID, coAgentRegistry, budgetTracker, lastUserMsg)
-			resultContent = truncateToolOutput(resultContent, cfg.Agent.ToolOutputLimit)
-			toolFailed := isToolError(resultContent)
+			policyResult := applyToolOutputPolicy(resultContent, cfg.Agent.ToolOutputLimit, telemetryScope)
+			resultContent = policyResult.Content
+			toolFailed := policyResult.WasError
 			prompts.RecordToolUsage(tc.Action, tc.Operation, !toolFailed)
 			prompts.RecordAdaptiveToolUsage(tc.Action, !toolFailed)
+			RecordScopedToolResultForTool(telemetryScope, tc.Action, !toolFailed)
 			if shortTermMem != nil {
 				_ = shortTermMem.UpsertToolUsage(tc.Action, !toolFailed)
 			}
 
 			// Record error patterns for learning
 			if toolFailed && shortTermMem != nil {
-				errMsg := extractErrorMessage(resultContent)
+				errMsg := policyResult.ErrorSummary
 				if errMsg != "" {
 					_ = shortTermMem.RecordError(tc.Action, errMsg)
 					// Journal: log new error pattern (only on first occurrence within a chain)
-					if consecutiveErrorCount == 0 && cfg.Tools.Journal.Enabled && cfg.Journal.AutoEntries {
+					if recoveryState.shouldRecordFirstErrorInChain() && cfg.Tools.Journal.Enabled && cfg.Journal.AutoEntries {
 						_, _ = shortTermMem.InsertJournalEntry(memory.JournalEntry{
 							EntryType:     "error_learned",
 							Title:         fmt.Sprintf("Error in %s", tc.Action),
@@ -1634,8 +1451,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 
 			// Record resolution when a tool succeeds after previous errors
-			if !toolFailed && consecutiveErrorCount > 0 && shortTermMem != nil && lastToolError != "" {
-				_ = shortTermMem.RecordResolution(tc.Action, lastToolError, "Succeeded with adjusted parameters")
+			if !toolFailed && recoveryState.shouldRecordResolution() && shortTermMem != nil {
+				_ = shortTermMem.RecordResolution(tc.Action, recoveryState.LastToolError, "Succeeded with adjusted parameters")
 			}
 
 			broker.Send("tool_output", resultContent)
@@ -1905,8 +1722,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 									CurrentMood:  mood,
 									Traits:       traits,
 									LastEmotion:  emotionSynthesizer.GetLastEmotion(),
-									ErrorCount:   consecutiveErrorCount,
-									SuccessCount: toolCallCount - consecutiveErrorCount,
+									ErrorCount:   recoveryState.ConsecutiveErrorCount,
+									SuccessCount: toolCallCount - recoveryState.ConsecutiveErrorCount,
 									TimeOfDay:    memory.TimeOfDay(),
 								}
 								esCtx, esCancel := context.WithTimeout(context.Background(), 15*time.Second)
@@ -2009,11 +1826,14 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					broker.Send("tool_start", btc.Action)
 
 					bResult := DispatchToolCall(ctx, btc, cfg, currentLogger, client, vault, registry, manifest, cronManager, missionManagerV2, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, contactsDB, sqlConnectionsDB, sqlConnectionPool, remoteHub, historyManager, tools.IsBusy(), surgeryPlan, guardian, llmGuardian, sessionID, coAgentRegistry, budgetTracker, lastUserMsg)
-					bResult = truncateToolOutput(bResult, cfg.Agent.ToolOutputLimit)
-					prompts.RecordToolUsage(btc.Action, btc.Operation, !isToolError(bResult))
-					prompts.RecordAdaptiveToolUsage(btc.Action, !isToolError(bResult))
+					policyResult := applyToolOutputPolicy(bResult, cfg.Agent.ToolOutputLimit, telemetryScope)
+					bResult = policyResult.Content
+					bToolFailed := policyResult.WasError
+					prompts.RecordToolUsage(btc.Action, btc.Operation, !bToolFailed)
+					prompts.RecordAdaptiveToolUsage(btc.Action, !bToolFailed)
+					RecordScopedToolResultForTool(telemetryScope, btc.Action, !bToolFailed)
 					if shortTermMem != nil {
-						_ = shortTermMem.UpsertToolUsage(btc.Action, !isToolError(bResult))
+						_ = shortTermMem.UpsertToolUsage(btc.Action, !bToolFailed)
 					}
 					broker.Send("tool_output", bResult)
 					broker.Send("tool_end", btc.Action)
@@ -2076,40 +1896,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			// Consecutive identical error circuit breaker:
 			// If the agent keeps retrying the exact same failing tool call, stop it before
 			// it exhausts MaxToolCalls and wastes the entire budget on pointless retries.
-			// Also catches sandbox/shell failures reported as a non-zero exit_code.
-			hasSandboxFailure := strings.Contains(resultContent, `"exit_code":`) &&
-				!strings.Contains(resultContent, `"exit_code": 0`) &&
-				!strings.Contains(resultContent, `"exit_code":0`)
-			isToolError := strings.Contains(resultContent, `"status": "error"`) ||
-				strings.Contains(resultContent, `"status":"error"`) ||
-				strings.Contains(resultContent, `[EXECUTION ERROR]`) ||
-				hasSandboxFailure
-			if isToolError {
-				if resultContent == lastToolError {
-					consecutiveErrorCount++
-					if consecutiveErrorCount >= 3 {
-						currentLogger.Warn("[Sync] Consecutive identical error — circuit breaker triggered",
-							"action", tc.Action, "count", consecutiveErrorCount)
-						abortMsg := fmt.Sprintf(
-							"CIRCUIT BREAKER: The tool '%s' returned the same error %d times in a row. "+
-								"You MUST stop retrying it — calling it again will produce the exact same result. "+
-								"Do NOT call '%s' again this session. "+
-								"Instead: inform the user about the error, explain what likely needs to be fixed "+
-								"(e.g. wrong URL, missing credentials, service unavailable), and wait for their input.",
-							tc.Action, consecutiveErrorCount, tc.Action)
-						req.Messages = append(req.Messages,
-							openai.ChatCompletionMessage{Role: openai.ChatMessageRoleSystem, Content: abortMsg})
-						consecutiveErrorCount = 0
-						lastToolError = ""
-					}
-				} else {
-					consecutiveErrorCount = 1
-				}
-				lastToolError = resultContent
-			} else {
-				consecutiveErrorCount = 0
-				lastToolError = ""
-			}
+			_ = recoveryState.updateToolErrorState(tc, resultContent, &req, currentLogger, telemetryScope)
 
 			// 429 Mitigation: Add a delay between turns to respect rate limits (controlled by config)
 			select {

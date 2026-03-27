@@ -4,73 +4,78 @@ Welcome to AuraGo – your personal, autonomous AI agent.
 
 ## What is AuraGo?
 
-AuraGo is a fully autonomous AI agent written in Go and shipped as a single portable binary. Unlike simple chatbots, AuraGo can:
+AuraGo is a fully autonomous AI agent written in Go and shipped as a single portable binary. Unlike simple chatbots, AuraGo can actively take action:
 
-- **Execute code** – Python and shell commands in an isolated environment
-- **Manage files** – Read, write, organize
-- **Control smart homes** – Home Assistant, Chromecast, network devices
-- **Send emails** – IMAP/SMTP integration
-- **Remember everything** – Short and long-term memory with semantic search
-- **Self-improve** – Modify its own source code
-- **Parallel tasks** – Co-agents for complex workflows
+- **🧠 Think & Plan** — Multi-step reasoning with automatic error recovery
+- **💻 Execute Code** — Python and shell commands in an isolated environment
+- **📁 Manage Files** — Read, write, organize
+- **🏠 Control Smart Homes** — Home Assistant, Chromecast, network devices
+- **📧 Communicate** — Email, Telegram, Discord, SMS/voice
+- **🧠 Remember Everything** — Short and long-term memory with semantic search
+- **🔄 Self-Improve** — Modify its own source code
+- **⚡ Parallel Tasks** — Co-agents for complex workflows
 
 ### The Core Idea
 
 Imagine a personal assistant that:
-- **Is available** – 24/7 via Web, Telegram, Discord, or Email
-- **Has context** – Remembers all previous conversations and facts
-- **Takes action** – Executes tasks, not just gives answers
-- **Adapts** – Personality evolves over time
-- **Is secure** – AES-256 encryption, vault system, access control
+
+| Trait | Description |
+|-------|-------------|
+| **Is available** | 24/7 via Web, Telegram, Discord, or Email |
+| **Has context** | Remembers all previous conversations and facts |
+| **Takes action** | Executes tasks, not just gives answers |
+| **Adapts** — Personality evolves over time |
+| **Is secure** — AES-256 encryption, vault system, access control |
 
 ## Who is AuraGo for?
 
 | Profile | Usage |
 |---------|-------|
-| **Private users** | Personal assistant for daily tasks, research, organization |
-| **Developers** | Code reviews, automation, system administration, API testing |
-| **System administrators** | Server monitoring, Docker management, backup automation |
-| **Smart home enthusiasts** | Central control of all devices, automations |
-| **AI researchers** | Experiments with personality engines, co-agents, memory systems |
+| **🏠 Home Users** | Personal assistant for daily tasks, research, organization |
+| **👨‍💻 Developers** | Code reviews, automation, system administration, API testing |
+| **🖥️ System Administrators** | Server monitoring, Docker management, backup automation |
+| **🏡 Smart Home Enthusiasts** | Central control of all devices, automations |
+| **🔬 AI Researchers** | Experiments with personality engines, co-agents, memory systems |
 
 ## Key Features Overview
 
 ### 🤖 Agent Core
-- **50+ built-in tools** – From filesystem to Docker, from WebDAV to Proxmox
-- **Native Function Calling** – OpenAI-compatible tool calls
-- **Dynamic tool creation** – Agent can write new Python tools at runtime
-- **Multi-step reasoning** – Automatic tool dispatch, error recovery
-- **Co-agent system** – Parallel sub-agents for complex tasks
+- **50+ built-in tools** — From filesystem to Docker, from WebDAV to Proxmox
+- **Native Function Calling** — OpenAI-compatible tool calls
+- **Dynamic tool creation** — Agent can write new Python tools at runtime
+- **Multi-step reasoning** — Automatic tool dispatch, error recovery
+- **Co-agent system** — Parallel sub-agents for complex tasks
+- **Adaptive Tools** — Intelligent tool filtering saves tokens
 
 ### 🧠 Memory & Knowledge
-- **Short-term memory** – SQLite-based conversation history
-- **Long-term memory (RAG)** – Vector-based semantic search
-- **Knowledge graph** – Structured entities and relationships
-- **Core memory** – Permanent facts the agent always remembers
-- **Notes & to-dos** – Categorized, prioritized, with due dates
+- **Short-term memory** — SQLite-based conversation history
+- **Long-term memory (RAG)** — Vector-based semantic search
+- **Knowledge graph** — Structured entities and relationships
+- **Core memory** — Permanent facts the agent always remembers
+- **Notes & to-dos** — Categorized, prioritized, with due dates
+- **Journal** — Chronological event logging
 
 ### 🎭 Personality
-- **Personality Engine V1** – Heuristic mood and behavior adaptation
-- **Personality Engine V2** – Advanced model with LLM-based analysis
-- **Built-in personalities** – Friend, professional, punk, neutral, terminator and more
-- **Custom profiles** – Create your own personalities
-
-### 🔌 Integrations
-- **Web UI** – Complete chat interface with dashboard
-- **Telegram** – Voice messages, image analysis, inline commands
-- **Discord** – Bot integration with message bridge
-- **Email** – IMAP monitoring + SMTP sending
-- **Home Assistant** – Smart home control
-- **Docker & Proxmox** – Container and VM management
-- **Google Workspace** – Gmail, Calendar, Drive, Docs
-- **WebDAV/Koofr** – Cloud storage integration
+- **Personality Engine V2** — LLM-based mood and behavior analysis
+- **User profiling** — Automatic detection of your preferences
+- **Built-in personalities** — Friend, professional, punk, neutral, terminator and more
+- **Custom profiles** — Create your own personalities
 
 ### 🛡️ Security
-- **AES-256-GCM vault** – Encrypted storage of all API keys
-- **Web UI auth** – Optional with bcrypt password and TOTP 2FA
-- **Danger zone** – Granular control over capabilities
-- **Sandboxing** – Python runs in isolated venv
-- **Rate limiting** – Protection against overload
+- **AES-256-GCM vault** — Encrypted storage of all API keys
+- **Web UI auth** — Optional with bcrypt password and TOTP 2FA
+- **LLM Guardian** — AI-powered monitoring of all tool calls
+- **Danger zone** — Granular control over capabilities
+- **Sandboxing** — Python runs in isolated venv or Docker
+
+### 🔌 Integrations
+- **Web UI** — Complete chat interface with dashboard
+- **Telegram** — Voice messages, image analysis, inline commands
+- **Discord** — Bot integration with message bridge
+- **Email** — IMAP monitoring + SMTP sending
+- **Home Assistant** — Smart home control
+- **Docker & Proxmox** — Container and VM management
+- **Google Workspace** — Gmail, Calendar, Drive, Docs
 
 ## Architecture Briefly Explained
 
@@ -86,10 +91,10 @@ Imagine a personal assistant that:
 │  │   Agent     │  │   Memory    │  │   Tools     │     │
 │  │   Loop      │  │   System    │  │   (50+)     │     │
 │  └─────────────┘  └─────────────┘  └─────────────┘     │
-│  ┌─────────────┐  ┌─────────────┐                       │
-│  │ Personality │  │   Vault     │                       │
-│  │   Engine    │  │ (AES-256)   │                       │
-│  └─────────────┘  └─────────────┘                       │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐     │
+│  │ Personality │  │   Vault     │  │   LLM       │     │
+│  │   Engine    │  │ (AES-256)   │  │  Guardian   │     │
+│  └─────────────┘  └─────────────┘  └─────────────┘     │
 └─────────────────────────────────────────────────────────┘
                  │
                  ▼

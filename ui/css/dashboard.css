@@ -2115,6 +2115,293 @@
             text-align: right;
         }
 
+        .tooling-telemetry-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1rem;
+        }
+
+        .tooling-telemetry-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 0.75rem;
+        }
+
+        .tooling-telemetry-section {
+            padding: 0.85rem 0.95rem;
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            background: color-mix(in srgb, var(--card-bg-elevated) 82%, transparent);
+        }
+
+        .tooling-telemetry-summary-item {
+            padding: 0.75rem 0.85rem;
+            border-radius: 14px;
+            background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 10%, var(--card-bg-elevated)) 0%, color-mix(in srgb, var(--success) 10%, var(--card-bg)) 100%);
+            border: 1px solid color-mix(in srgb, var(--accent) 16%, var(--border-subtle));
+        }
+
+        .tooling-telemetry-summary-value {
+            display: block;
+            font-size: var(--text-xl);
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .tooling-telemetry-summary-label {
+            display: block;
+            margin-top: 0.2rem;
+            color: var(--text-secondary);
+            font-size: var(--text-xs);
+            line-height: 1.35;
+        }
+
+        .tooling-telemetry-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .tooling-telemetry-chip {
+            min-width: 132px;
+            padding: 0.55rem 0.7rem;
+            border-radius: 12px;
+            background: color-mix(in srgb, var(--accent) 10%, var(--card-bg));
+            border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--border-subtle));
+        }
+
+        .tooling-telemetry-chip-value {
+            display: block;
+            font-weight: 700;
+            font-size: var(--text-lg);
+            color: var(--text-primary);
+        }
+
+        .tooling-telemetry-chip-label {
+            display: block;
+            margin-top: 0.2rem;
+            color: var(--text-secondary);
+            font-size: var(--text-xs);
+            line-height: 1.35;
+        }
+
+        .tooling-telemetry-failure-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .tooling-telemetry-failure-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            padding: 0.55rem 0.65rem;
+            border-radius: 12px;
+            background: color-mix(in srgb, var(--danger) 8%, var(--card-bg));
+            border: 1px solid color-mix(in srgb, var(--danger) 14%, var(--border-subtle));
+        }
+
+        .tooling-telemetry-failure-tool {
+            display: block;
+            font-weight: 600;
+            color: var(--text-primary);
+            word-break: break-word;
+        }
+
+        .tooling-telemetry-failure-meta {
+            display: block;
+            margin-top: 0.15rem;
+            color: var(--text-secondary);
+            font-size: var(--text-xs);
+        }
+
+        .tooling-telemetry-failure-badge {
+            flex: 0 0 auto;
+            min-width: 48px;
+            padding: 0.25rem 0.55rem;
+            border-radius: 999px;
+            background: color-mix(in srgb, var(--danger) 22%, transparent);
+            color: var(--danger);
+            font-weight: 700;
+            font-size: var(--text-xs);
+            text-align: center;
+        }
+
+        .tooling-telemetry-scope-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.55rem;
+        }
+
+        .tooling-telemetry-scope-item {
+            padding: 0.6rem 0.7rem;
+            border-radius: 12px;
+            background: color-mix(in srgb, var(--success) 8%, var(--card-bg));
+            border: 1px solid color-mix(in srgb, var(--success) 14%, var(--border-subtle));
+        }
+
+        .tooling-telemetry-scope-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+        }
+
+        .tooling-telemetry-scope-model {
+            display: block;
+            font-weight: 600;
+            color: var(--text-primary);
+            word-break: break-word;
+        }
+
+        .tooling-telemetry-scope-provider {
+            display: block;
+            margin-top: 0.15rem;
+            color: var(--text-secondary);
+            font-size: var(--text-xs);
+        }
+
+        .tooling-telemetry-scope-total {
+            flex: 0 0 auto;
+            color: var(--text-secondary);
+            font-size: var(--text-xs);
+        }
+
+        .tooling-telemetry-scope-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+            margin-top: 0.55rem;
+        }
+
+        .tooling-telemetry-scope-pill {
+            padding: 0.2rem 0.45rem;
+            border-radius: 999px;
+            background: color-mix(in srgb, var(--success) 16%, transparent);
+            color: var(--text-secondary);
+            font-size: var(--text-xs);
+        }
+
+        .tooling-telemetry-compare-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.55rem;
+        }
+
+        .tooling-telemetry-compare-item {
+            padding: 0.65rem 0.7rem;
+            border-radius: 12px;
+            background: color-mix(in srgb, var(--accent) 6%, var(--card-bg));
+            border: 1px solid color-mix(in srgb, var(--accent) 14%, var(--border-subtle));
+        }
+
+        .tooling-telemetry-compare-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+        }
+
+        .tooling-telemetry-compare-model {
+            display: block;
+            font-weight: 600;
+            color: var(--text-primary);
+            word-break: break-word;
+        }
+
+        .tooling-telemetry-compare-provider {
+            display: block;
+            margin-top: 0.15rem;
+            color: var(--text-secondary);
+            font-size: var(--text-xs);
+        }
+
+        .tooling-telemetry-compare-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+            margin-top: 0.55rem;
+        }
+
+        .tooling-telemetry-compare-status {
+            flex: 0 0 auto;
+            padding: 0.25rem 0.55rem;
+            border-radius: 999px;
+            font-size: var(--text-xs);
+            font-weight: 700;
+            text-align: center;
+        }
+
+        .tooling-telemetry-compare-status.is-stable {
+            background: color-mix(in srgb, var(--success) 18%, transparent);
+            color: var(--success);
+        }
+
+        .tooling-telemetry-compare-status.is-mixed {
+            background: color-mix(in srgb, #f59e0b 18%, transparent);
+            color: #b45309;
+        }
+
+        .tooling-telemetry-compare-status.is-struggling {
+            background: color-mix(in srgb, var(--danger) 18%, transparent);
+            color: var(--danger);
+        }
+
+        .tooling-telemetry-family-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.55rem;
+        }
+
+        .tooling-telemetry-family-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            padding: 0.6rem 0.65rem;
+            border-radius: 12px;
+            background: color-mix(in srgb, var(--warning, #f59e0b) 8%, var(--card-bg));
+            border: 1px solid color-mix(in srgb, var(--warning, #f59e0b) 16%, var(--border-subtle));
+        }
+
+        .tooling-telemetry-family-name {
+            display: block;
+            font-weight: 600;
+            color: var(--text-primary);
+            word-break: break-word;
+        }
+
+        .tooling-telemetry-family-meta {
+            display: block;
+            margin-top: 0.15rem;
+            color: var(--text-secondary);
+            font-size: var(--text-xs);
+        }
+
+        .tooling-telemetry-family-side {
+            flex: 0 0 auto;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 0.2rem;
+        }
+
+        .tooling-telemetry-family-rate {
+            font-weight: 700;
+            color: var(--text-primary);
+            font-size: var(--text-sm);
+        }
+
+        .tooling-telemetry-family-risk {
+            padding: 0.18rem 0.45rem;
+            border-radius: 999px;
+            background: color-mix(in srgb, var(--warning, #f59e0b) 18%, transparent);
+            color: #b45309;
+            font-size: var(--text-xs);
+            font-weight: 700;
+        }
+
         .log-line-muted {
             color: var(--text-secondary);
         }

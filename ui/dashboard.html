@@ -341,11 +341,48 @@
     </div>
 
     <!-- 10. GitHub Repositories (full width) -->
-        <div class="dash-card dash-full-width is-hidden" id="card-adaptive-tools">
+    <div class="dash-card dash-full-width is-hidden" id="card-adaptive-tools">
       <div class="dash-card-header"><span class="card-icon">🔧</span> <span data-i18n="dashboard.adaptive_tools_title">Adaptive Tool-Filterung</span> <span class="collapse-toggle" data-card="card-adaptive-tools" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
       <div class="dash-card-body">
         <div class="prompt-kpi-grid" id="adaptive-tools-kpis"></div>
         <div id="adaptive-tools-list" class="mt-sm"></div>
+      </div>
+    </div>
+
+    <div class="dash-card dash-full-width is-hidden" id="card-tooling-telemetry">
+      <div class="dash-card-header"><span class="card-icon">🩺</span> <span data-i18n="dashboard.tooling_telemetry_title">Tooling-Diagnose</span> <span class="collapse-toggle" data-card="card-tooling-telemetry" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
+      <div class="dash-card-body">
+        <div id="tooling-telemetry-summary" class="mb-sm"></div>
+        <div class="tooling-telemetry-grid">
+          <div class="tooling-telemetry-section">
+            <h4 class="dash-subheading" data-i18n="dashboard.tooling_telemetry_parse_sources">Parse-Quellen</h4>
+            <div id="tooling-telemetry-parse"></div>
+          </div>
+          <div class="tooling-telemetry-section">
+            <h4 class="dash-subheading" data-i18n="dashboard.tooling_telemetry_recovery_events">Recovery-Ereignisse</h4>
+            <div id="tooling-telemetry-recovery"></div>
+          </div>
+          <div class="tooling-telemetry-section">
+            <h4 class="dash-subheading" data-i18n="dashboard.tooling_telemetry_policy_events">Policy-Signale</h4>
+            <div id="tooling-telemetry-policy"></div>
+          </div>
+          <div class="tooling-telemetry-section">
+            <h4 class="dash-subheading" data-i18n="dashboard.tooling_telemetry_failure_tools">Fehleranfällige Tools</h4>
+            <div id="tooling-telemetry-failures"></div>
+          </div>
+          <div class="tooling-telemetry-section">
+            <h4 class="dash-subheading" data-i18n="dashboard.tooling_telemetry_tool_families">Toolfamilien</h4>
+            <div id="tooling-telemetry-families"></div>
+          </div>
+          <div class="tooling-telemetry-section">
+            <h4 class="dash-subheading" data-i18n="dashboard.tooling_telemetry_scopes">Modell-Segmente</h4>
+            <div id="tooling-telemetry-scopes"></div>
+          </div>
+          <div class="tooling-telemetry-section">
+            <h4 class="dash-subheading" data-i18n="dashboard.tooling_telemetry_model_comparison">Modellvergleich</h4>
+            <div id="tooling-telemetry-comparison"></div>
+          </div>
+        </div>
       </div>
     </div>
 

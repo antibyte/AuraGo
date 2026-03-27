@@ -165,6 +165,24 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 		last_used DATETIME DEFAULT CURRENT_TIMESTAMP
 	);
 
+	CREATE TABLE IF NOT EXISTS agent_telemetry (
+		event_type TEXT NOT NULL,
+		event_name TEXT NOT NULL,
+		count INTEGER DEFAULT 0,
+		last_updated DATETIME DEFAULT CURRENT_TIMESTAMP,
+		PRIMARY KEY (event_type, event_name)
+	);
+
+	CREATE TABLE IF NOT EXISTS agent_telemetry_scoped (
+		provider_type TEXT NOT NULL,
+		model TEXT NOT NULL,
+		event_type TEXT NOT NULL,
+		event_name TEXT NOT NULL,
+		count INTEGER DEFAULT 0,
+		last_updated DATETIME DEFAULT CURRENT_TIMESTAMP,
+		PRIMARY KEY (provider_type, model, event_type, event_name)
+	);
+
 	CREATE TABLE IF NOT EXISTS tool_transitions (
 		from_tool TEXT,
 		to_tool TEXT,
@@ -334,7 +352,7 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 
 	// Set user_version so backup/restore can detect schema generation.
 	// Increment this constant whenever a new column or table is added.
-	const shortTermSchemaVersion = 3
+	const shortTermSchemaVersion = 5
 	var currentVer int
 	_ = db.QueryRow("PRAGMA user_version").Scan(&currentVer)
 	if currentVer != shortTermSchemaVersion {

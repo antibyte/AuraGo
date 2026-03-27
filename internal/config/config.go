@@ -372,11 +372,11 @@ func Load(path string) (*Config, error) {
 	if cfg.Agent.AdaptiveTools.CleanTransitionsAfterDays <= 0 {
 		cfg.Agent.AdaptiveTools.CleanTransitionsAfterDays = 90
 	}
-	// WeightSuccessRate defaults to true when not explicitly set to false
-	// Note: YAML bool defaults to false on missing key, so we check whether
-	// the user has adaptive tools enabled; if so, default to true.
-	// Users who want the old unweighted behaviour can set weight_success_rate: false.
-	if cfg.Agent.AdaptiveTools.Enabled && !cfg.Agent.AdaptiveTools.WeightSuccessRate {
+	// WeightSuccessRate defaults to true when omitted, but must preserve an
+	// explicit user-provided false value from YAML.
+	if cfg.Agent.AdaptiveTools.Enabled &&
+		!cfg.Agent.AdaptiveTools.WeightSuccessRate &&
+		!yamlHasPath(data, "agent", "adaptive_tools", "weight_success_rate") {
 		cfg.Agent.AdaptiveTools.WeightSuccessRate = true
 	}
 	if len(cfg.Agent.AdaptiveTools.AlwaysInclude) == 0 && cfg.Agent.AdaptiveTools.Enabled {
@@ -833,6 +833,44 @@ func resolvePath(baseDir, targetPath string) string {
 		return targetPath
 	}
 	return filepath.Join(baseDir, targetPath)
+}
+
+func yamlHasPath(data []byte, path ...string) bool {
+	if len(path) == 0 {
+		return false
+	}
+
+	var root yaml.Node
+	if err := yaml.Unmarshal(data, &root); err != nil {
+		return false
+	}
+
+	node := &root
+	if node.Kind == yaml.DocumentNode && len(node.Content) > 0 {
+		node = node.Content[0]
+	}
+
+	for _, key := range path {
+		if node == nil || node.Kind != yaml.MappingNode {
+			return false
+		}
+
+		found := false
+		for i := 0; i+1 < len(node.Content); i += 2 {
+			k := node.Content[i]
+			v := node.Content[i+1]
+			if k.Value == key {
+				node = v
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+
+	return true
 }
 
 // splitLines splits a string into lines

@@ -11,6 +11,18 @@ Willkommen zum AuraGo Benutzerhandbuch – deiner umfassenden Anleitung für den
 
 AuraGo ist ein vollständig autonomer KI-Agent, der als einzelne portable Binary mit eingebetteter Web-Oberfläche ausgeliefert wird. Verbinde ihn mit einem beliebigen OpenAI-kompatiblen LLM-Provider und er wird zu einem persönlichen Assistenten, der Code ausführen, Dateien verwalten, Smart-Home-Geräte steuern, E-Mails senden, sich alles merken und sogar seinen eigenen Quellcode verbessern kann.
 
+### Highlights
+
+| Feature | Beschreibung |
+|---------|--------------|
+| **🧠 Personality Engine V2** | Lernt deine Präferenzen und passt sich an |
+| **🛡️ LLM Guardian** | KI-basierte Sicherheitsüberwachung |
+| **⚡ Adaptive Tools** | Intelligente Tool-Filterung spart Tokens |
+| **📄 Document AI** | PDF-Erstellung und -Analyse |
+| **🔐 AES-256 Vault** | Sichere Speicherung aller Secrets |
+
+---
+
 ## Für wen ist dieses Handbuch?
 
 | Wenn du... | Starte mit... |
@@ -41,8 +53,8 @@ AuraGo ist ein vollständig autonomer KI-Agent, der als einzelne portable Binary
 10. [Persönlichkeit](10-personality.md) – Charakter anpassen
 
 ### Teil 3: Fortgeschritten (Web-UI/API)
-11. [Mission Control](11-missions.md) – Automatisierung ⚠️ *Web-UI/API*
-12. [Invasion Control](12-invasion.md) – Remote Deployment ⚠️ *Web-UI/API*
+11. [Mission Control](11-missions.md) – Automatisierung
+12. [Invasion Control](12-invasion.md) – Remote Deployment
 13. [Dashboard](13-dashboard.md) – Analytics & Metriken
 
 ### Teil 4: Für Profis
@@ -82,8 +94,7 @@ Die Konfiguration verwendet jetzt ein zentrales Provider-System für LLM-Verbind
 /budget        - Kostenübersicht anzeigen
 /personality   - Persönlichkeit wechseln
 /sudo          - Sudo-Modus aktivieren
-/credits       - OpenRouter Credits anzeigen
-/addssh        - SSH-Server hinzufügen
+/journal       - Journal öffnen
 ```
 
 ### Schnell-Links
@@ -92,8 +103,6 @@ Die Konfiguration verwendet jetzt ein zentrales Provider-System für LLM-Verbind
 - [Vollständige Konfigurationsreferenz](../../configuration.md)
 - [Telegram-Einrichtung](../../telegram_setup.md)
 - [Docker-Installationsguide](../../docker_installation.md)
-- [Personality Engine V2](../../personality_engine_v2.md)
-- [Co-Agenten](15-coagents.md)
 
 ---
 
@@ -101,10 +110,9 @@ Die Konfiguration verwendet jetzt ein zentrales Provider-System für LLM-Verbind
 
 | Datum | Änderung |
 |-------|----------|
-| 2026-03 | Überarbeitung für Version 2.x (Provider-System, Tool-Dokumentation) |
-| 2026-03 | Korrektur: Memory-Kapitel aktualisiert |
-| 2026-03 | Korrektur: Personality-Kapitel aktualisiert |
-| 2026-03 | Hinweis: Mission/Invasion Control nur Web-UI/API |
+| 2026-03 | Überarbeitung für Version 2.x (Provider-System, Tool-Dokumentation, LLM Guardian) |
+| 2026-03 | Adaptive Tools Dokumentation hinzugefügt |
+| 2026-03 | Dokument Creator & PDF Extractor hinzugefügt |
 
 ---
 

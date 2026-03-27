@@ -435,3 +435,66 @@ func TestPrepareDynamicGuidesPathTraversal(t *testing.T) {
 		}
 	}
 }
+
+func TestPrepareDynamicGuidesWithStrategyKeepsRecentFallbackWhenSemanticsUnavailable(t *testing.T) {
+	toolsDir := t.TempDir()
+	recentGuidePath := filepath.Join(toolsDir, "recent_tool.md")
+	const recentGuideContent = "RECENT TOOL GUIDE"
+	if err := os.WriteFile(recentGuidePath, []byte(recentGuideContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	guides := PrepareDynamicGuidesWithStrategy(
+		nil,
+		nil,
+		"deploy homepage",
+		"",
+		toolsDir,
+		[]string{"recent_tool"},
+		nil,
+		5,
+		DynamicGuideStrategy{
+			PreferSemantics:              true,
+			DisableStatisticalHeuristics: true,
+			DisableFrequencyHeuristics:   true,
+		},
+		testLogger,
+	)
+
+	if len(guides) != 1 {
+		t.Fatalf("guide count = %d, want 1", len(guides))
+	}
+	if !strings.Contains(guides[0], recentGuideContent) {
+		t.Fatalf("guide content %q does not contain recent fallback content", guides[0])
+	}
+}
+
+func TestPrepareDynamicGuidesWithStrategyCanDisableRecentHeuristics(t *testing.T) {
+	toolsDir := t.TempDir()
+	recentGuidePath := filepath.Join(toolsDir, "recent_tool.md")
+	if err := os.WriteFile(recentGuidePath, []byte("RECENT TOOL GUIDE"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	guides := PrepareDynamicGuidesWithStrategy(
+		nil,
+		nil,
+		"deploy homepage",
+		"",
+		toolsDir,
+		[]string{"recent_tool"},
+		nil,
+		5,
+		DynamicGuideStrategy{
+			PreferSemantics:              true,
+			DisableRecentHeuristics:      true,
+			DisableStatisticalHeuristics: true,
+			DisableFrequencyHeuristics:   true,
+		},
+		testLogger,
+	)
+
+	if len(guides) != 0 {
+		t.Fatalf("guide count = %d, want 0 when recent heuristics are disabled and no semantic source is available", len(guides))
+	}
+}
