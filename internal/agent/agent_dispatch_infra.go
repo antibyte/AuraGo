@@ -847,7 +847,7 @@ func dispatchInfra(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 		if cfg.Netlify.ReadOnly {
 			switch tc.Operation {
 			case "create_site", "update_site", "delete_site",
-				"deploy_zip", "deploy_draft", "rollback", "cancel_deploy",
+				"rollback", "cancel_deploy",
 				"set_env", "delete_env",
 				"create_hook", "delete_hook",
 				"provision_ssl":
@@ -857,7 +857,7 @@ func dispatchInfra(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 		// Granular permission checks
 		if !cfg.Netlify.AllowDeploy {
 			switch tc.Operation {
-			case "deploy_zip", "deploy_draft", "rollback", "cancel_deploy":
+			case "rollback", "cancel_deploy":
 				return `Tool Output: {"status":"error","message":"Netlify deploy is not allowed. Set netlify.allow_deploy=true in config.yaml."}`
 			}
 		}
@@ -898,25 +898,9 @@ func dispatchInfra(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 			logger.Info("LLM requested Netlify get deploy", "deploy_id", tc.DeployID)
 			return "Tool Output: " + tools.NetlifyGetDeploy(nfCfg, tc.DeployID)
 		case "deploy_zip":
-			logger.Info("LLM requested Netlify deploy ZIP", "site_id", tc.SiteID, "draft", tc.Draft)
-			if tc.Content == "" {
-				return `Tool Output: {"status":"error","message":"content (base64 ZIP) is required for deploy_zip. If your project is in the AuraGo homepage workspace, use the 'homepage' tool with operation='deploy_netlify' instead — it builds and packages the project automatically without needing a manual ZIP."}`
-			}
-			zipData, decErr := decodeBase64(tc.Content)
-			if decErr != nil {
-				return fmt.Sprintf(`Tool Output: {"status":"error","message":"Failed to decode base64 ZIP: %v"}`, decErr)
-			}
-			return "Tool Output: " + tools.NetlifyDeployZip(nfCfg, tc.SiteID, tc.Title, tc.Draft, zipData)
+			return `Tool Output: {"status":"error","message":"netlify.deploy_zip is not supported in the agent flow. Use the 'homepage' tool with operation='deploy_netlify' so AuraGo can build and upload server-side without fragile base64 ZIP arguments."}`
 		case "deploy_draft":
-			logger.Info("LLM requested Netlify draft deploy", "site_id", tc.SiteID)
-			if tc.Content == "" {
-				return `Tool Output: {"status":"error","message":"content (base64 ZIP) is required for deploy_draft. If your project is in the AuraGo homepage workspace, use the 'homepage' tool with operation='deploy_netlify' and draft=true instead — it builds and packages the project automatically without needing a manual ZIP."}`
-			}
-			zipData, decErr := decodeBase64(tc.Content)
-			if decErr != nil {
-				return fmt.Sprintf(`Tool Output: {"status":"error","message":"Failed to decode base64 ZIP: %v"}`, decErr)
-			}
-			return "Tool Output: " + tools.NetlifyDeployZip(nfCfg, tc.SiteID, tc.Title, true, zipData)
+			return `Tool Output: {"status":"error","message":"netlify.deploy_draft is not supported in the agent flow. Use the 'homepage' tool with operation='deploy_netlify' and draft=true so AuraGo can build and upload server-side."}`
 		case "rollback":
 			logger.Info("LLM requested Netlify rollback", "site_id", tc.SiteID, "deploy_id", tc.DeployID)
 			return "Tool Output: " + tools.NetlifyRollback(nfCfg, tc.SiteID, tc.DeployID)
@@ -973,7 +957,7 @@ func dispatchInfra(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 			logger.Info("LLM requested Netlify connection check")
 			return "Tool Output: " + tools.NetlifyTestConnection(nfCfg)
 		default:
-			return `Tool Output: {"status":"error","message":"Unknown netlify operation. Use: list_sites, get_site, create_site, update_site, delete_site, list_deploys, get_deploy, deploy_zip, deploy_draft, rollback, cancel_deploy, list_env, get_env, set_env, delete_env, list_files, list_forms, get_submissions, list_hooks, create_hook, delete_hook, provision_ssl, check_connection"}`
+			return `Tool Output: {"status":"error","message":"Unknown netlify operation. Use: list_sites, get_site, create_site, update_site, delete_site, list_deploys, get_deploy, rollback, cancel_deploy, list_env, get_env, set_env, delete_env, list_files, list_forms, get_submissions, list_hooks, create_hook, delete_hook, provision_ssl, check_connection"}`
 		}
 
 	case "mqtt_publish":

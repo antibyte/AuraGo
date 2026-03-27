@@ -1,14 +1,17 @@
 # Homepage — Web Development & Deployment Tool
 
-Design, develop, build, test and deploy professional websites using a Docker-based dev environment with Node.js, Playwright, Lighthouse, SVGO and more.
+Design, develop, build, test and deploy professional websites using AuraGo's web workspace with Docker-based full mode and limited local fallback support.
 
 ## Prerequisites
 
-- **Required**: Docker integration enabled (`docker.enabled: true`)
+- **Required**: Homepage integration enabled (`homepage.enabled: true`)
+- **Recommended**: Docker integration enabled for the full dev environment
 - Homepage tool must be enabled (`homepage.enabled: true`)
 - For deployment: SFTP/SCP credentials must be stored in the vault
 
-## Docker Mode
+## Runtime Modes
+
+### Docker Mode
 
 Full dev environment with Node.js, Playwright, Lighthouse and Caddy web server with automatic HTTPS.
 Supports all frameworks: Next.js, Vite, Astro, SvelteKit, Vue, static HTML.
@@ -21,7 +24,14 @@ Creates the Docker image and container. **Run this first** before any other oper
 {"action": "homepage", "operation": "init"}
 ```
 
-**Note:** Docker must be running. If Docker is unavailable, start it with `sudo systemctl start docker`.)
+**Note:** Docker should be running for the full toolset. If Docker is unavailable, start it with `sudo systemctl start docker`.
+
+### Local Fallback Mode
+If Docker is unavailable and `homepage.allow_local_server` is enabled, AuraGo can still handle limited local workflows:
+- local/plain HTML project creation
+- homepage workspace file reads and writes
+- local publishing via the Python fallback server
+- status checks for the fallback server
 
 ### start — Start the dev container
 ```json

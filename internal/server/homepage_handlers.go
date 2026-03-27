@@ -22,11 +22,10 @@ func handleHomepageStatus(s *Server) http.HandlerFunc {
 		webServerPort := s.Cfg.Homepage.WebServerPort
 		webServerDomain := s.Cfg.Homepage.WebServerDomain
 		allowLocalServer := s.Cfg.Homepage.AllowLocalServer
-		dockerEnabled := s.Cfg.Docker.Enabled
 		homepageEnabled := s.Cfg.Homepage.Enabled
 		s.CfgMu.RUnlock()
 
-		if !dockerEnabled || !homepageEnabled {
+		if !homepageEnabled {
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status":        "disabled",
 				"dev_container": map[string]interface{}{"running": false, "exists": false},

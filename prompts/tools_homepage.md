@@ -2,7 +2,7 @@
 id: "tools_homepage"
 tags: ["conditional"]
 priority: 32
-conditions: ["homepage_enabled", "docker_enabled"]
+conditions: ["homepage_enabled"]
 ---
 ### Homepage — Web Development & Deployment
 
@@ -10,7 +10,7 @@ You have expert-level web design and development capabilities through the `homep
 
 | Tool | Purpose |
 |---|---|
-| `homepage` | Design, develop, build, test and deploy websites using a Docker-based dev environment with Node.js, Playwright, Lighthouse, SVGO and more |
+| `homepage` | Design, develop, build, test and deploy websites with AuraGo's web workspace. Full mode uses Docker; some local fallback workflows are available when allowed by config |
 
 **Supported Frameworks:** Next.js, Vite/React, Astro, SvelteKit, Nuxt/Vue, static HTML
 
@@ -32,6 +32,8 @@ You have expert-level web design and development capabilities through the `homep
 - `deploy_netlify` — Build project and deploy directly to Netlify (`site_id`, `title`, `draft` optional)
 
 **Workflow:** Always `init` first, then `init_project`, develop with `write_file`/`exec`, test with `lighthouse`/`screenshot`, then `deploy`, `deploy_netlify`, or `publish_local`.
+
+**Runtime mode:** Prefer Docker when available for the full dev environment. If Docker is unavailable and the admin enabled `homepage.allow_local_server`, AuraGo may fall back to limited local workflows such as local file editing, plain HTML projects, and local publishing.
 
 **CRITICAL — File management:** Always use `homepage` → `write_file` / `read_file` / `list_files` for all homepage project files. **Never use the `filesystem` tool** to create or edit homepage files — the `filesystem` tool writes to `agent_workspace/workdir/` which is a completely different path from the homepage workspace (`data/homepage/`). Files created via `filesystem` will **not be found** by `build`, `deploy`, `deploy_netlify`, or `publish_local`. If `init_project` fails, use `homepage` → `write_file` to create files manually in the correct location.
 

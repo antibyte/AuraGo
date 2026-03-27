@@ -22,12 +22,38 @@ func (lf *LogFile) Close() error {
 }
 
 func Setup(debug bool) *slog.Logger {
-	return buildLogger(os.Stdout, nil, debug)
+	return buildLogger(os.Stdout, debug)
 }
 
 // SetupWithFile creates a logger that writes to both stdout and the given file.
 // The returned LogFile must be closed on shutdown to release the file handle.
 func SetupWithFile(debug bool, logPath string, appendMode bool) (*LogFile, error) {
+	file, err := openLogFile(logPath, appendMode)
+	if err != nil {
+		return nil, err
+	}
+
+	return &LogFile{
+		Logger: buildLogger(io.MultiWriter(os.Stdout, file), debug),
+		file:   file,
+	}, nil
+}
+
+// SetupFileOnly creates a logger that writes exclusively to the given file.
+// The returned LogFile must be closed on shutdown to release the file handle.
+func SetupFileOnly(debug bool, logPath string, appendMode bool) (*LogFile, error) {
+	file, err := openLogFile(logPath, appendMode)
+	if err != nil {
+		return nil, err
+	}
+
+	return &LogFile{
+		Logger: buildLogger(file, debug),
+		file:   file,
+	}, nil
+}
+
+func openLogFile(logPath string, appendMode bool) (*os.File, error) {
 	// Ensure directory exists
 	if err := os.MkdirAll(filepath.Dir(logPath), 0755); err != nil {
 		return nil, err
@@ -38,18 +64,10 @@ func SetupWithFile(debug bool, logPath string, appendMode bool) (*LogFile, error
 		mode = os.O_APPEND
 	}
 
-	file, err := os.OpenFile(logPath, os.O_CREATE|mode|os.O_WRONLY, 0644)
-	if err != nil {
-		return nil, err
-	}
-
-	return &LogFile{
-		Logger: buildLogger(os.Stdout, file, debug),
-		file:   file,
-	}, nil
+	return os.OpenFile(logPath, os.O_CREATE|mode|os.O_WRONLY, 0644)
 }
 
-func buildLogger(stdout *os.File, file *os.File, debug bool) *slog.Logger {
+func buildLogger(writer io.Writer, debug bool) *slog.Logger {
 	level := slog.LevelInfo
 	if debug {
 		level = slog.LevelDebug
@@ -59,9 +77,8 @@ func buildLogger(stdout *os.File, file *os.File, debug bool) *slog.Logger {
 		Level: level,
 	}
 
-	var writer io.Writer = stdout
-	if file != nil {
-		writer = io.MultiWriter(stdout, file)
+	if writer == nil {
+		writer = io.Discard
 	}
 
 	handler := slog.NewTextHandler(writer, opts)

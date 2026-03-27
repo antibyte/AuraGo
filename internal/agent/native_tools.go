@@ -853,29 +853,29 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 					"description": "Operation to perform. To deploy a workspace project to Netlify, use 'deploy_netlify' — it builds and packages automatically, no manual ZIP needed. Do NOT use the 'netlify' tool's deploy_zip/deploy_draft for workspace projects.",
 					"enum":        []string{"init", "start", "stop", "status", "rebuild", "destroy", "exec", "init_project", "build", "install_deps", "lighthouse", "screenshot", "lint", "list_files", "read_file", "write_file", "edit_file", "json_edit", "yaml_edit", "xml_edit", "optimize_images", "dev", "deploy", "deploy_netlify", "test_connection", "webserver_start", "webserver_stop", "webserver_status", "publish_local", "tunnel", "git_init", "git_commit", "git_status", "git_diff", "git_log", "git_rollback"},
 				},
-				"command":     prop("string", "Shell command to execute (for 'exec')"),
-				"framework":   prop("string", "Web framework: next, vite, astro, svelte, vue, html (for 'init_project')"),
-				"name":        prop("string", "Project name (for 'init_project')"),
-				"project_dir": prop("string", "Project subdirectory within /workspace (default: '.')"),
-				"build_dir":   prop("string", "Build output directory (auto-detected if empty)"),
-				"template":    prop("string", "Project template for init_project: portfolio, blog, landing, dashboard (optional — applies starter content after scaffolding)"),
-				"auto_fix":    map[string]interface{}{"type": "boolean", "description": "If true, attempt to auto-fix common build errors (missing deps, lint issues) and retry once (for 'build')"},
-				"git_message": prop("string", "Commit message (for 'git_commit')"),
-				"count":       prop("integer", "Number of entries (for 'git_log': default 10) or commits to revert (for 'git_rollback': default 1)"),
-				"path":        prop("string", "File path relative to /workspace — MUST include the project subdirectory prefix (e.g. 'my-project/index.html', NOT just 'index.html'). Applies to 'read_file', 'write_file', 'list_files', 'edit_file', 'json_edit', 'yaml_edit', 'xml_edit'."),
-				"content":     prop("string", "File content to write (for 'write_file') or text to insert (for 'edit_file' insert_after/insert_before/append/prepend)"),
-				"url":         prop("string", "URL for lighthouse audit or screenshot"),
-				"viewport":    prop("string", "Viewport size for screenshot (e.g. '1280x720')"),
-				"packages":    map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "NPM packages to install (for 'install_deps')"},
-				"action":      prop("string", "Edit sub-operation for edit_file: str_replace, str_replace_all, insert_after, insert_before, append, prepend, delete_lines. For json_edit/yaml_edit: get, set, delete, keys, validate, format (json only). For xml_edit: get, set_text, set_attribute, add_element, delete, validate, format"),
-				"old":         prop("string", "Text to find (for edit_file str_replace/str_replace_all)"),
-				"new":         prop("string", "Replacement text (for edit_file str_replace/str_replace_all)"),
-				"marker":      prop("string", "Anchor text (for edit_file insert_after/insert_before)"),
-				"start_line":  prop("integer", "First line to delete (for edit_file delete_lines)"),
-				"end_line":    prop("integer", "Last line to delete (for edit_file delete_lines)"),
-				"json_path":   prop("string", "Dot-separated path for json_edit/yaml_edit (e.g. 'server.port', 'theme.colors.primary')"),
-				"xpath":       prop("string", "XPath expression for xml_edit (e.g. '//server', './config/database')"),
-				"set_value":   map[string]interface{}{"description": "Value to set for json_edit/yaml_edit/xml_edit operations (any JSON type)"},
+				"command":       prop("string", "Shell command to execute (for 'exec')"),
+				"framework":     prop("string", "Web framework: next, vite, astro, svelte, vue, html (for 'init_project')"),
+				"name":          prop("string", "Project name (for 'init_project')"),
+				"project_dir":   prop("string", "Project subdirectory within /workspace (default: '.')"),
+				"build_dir":     prop("string", "Build output directory (auto-detected if empty)"),
+				"template":      prop("string", "Project template for init_project: portfolio, blog, landing, dashboard (optional — applies starter content after scaffolding)"),
+				"auto_fix":      map[string]interface{}{"type": "boolean", "description": "If true, attempt to auto-fix common build errors (missing deps, lint issues) and retry once (for 'build')"},
+				"git_message":   prop("string", "Commit message (for 'git_commit')"),
+				"count":         prop("integer", "Number of entries (for 'git_log': default 10) or commits to revert (for 'git_rollback': default 1)"),
+				"path":          prop("string", "File path relative to /workspace — MUST include the project subdirectory prefix (e.g. 'my-project/index.html', NOT just 'index.html'). Applies to 'read_file', 'write_file', 'list_files', 'edit_file', 'json_edit', 'yaml_edit', 'xml_edit'."),
+				"content":       prop("string", "File content to write (for 'write_file') or text to insert (for 'edit_file' insert_after/insert_before/append/prepend)"),
+				"url":           prop("string", "URL for lighthouse audit or screenshot"),
+				"viewport":      prop("string", "Viewport size for screenshot (e.g. '1280x720')"),
+				"packages":      map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "NPM packages to install (for 'install_deps')"},
+				"sub_operation": prop("string", "Edit sub-operation for edit_file: str_replace, str_replace_all, insert_after, insert_before, append, prepend, delete_lines. For json_edit/yaml_edit: get, set, delete, keys, validate, format (json only). For xml_edit: get, set_text, set_attribute, add_element, delete, validate, format"),
+				"old":           prop("string", "Text to find (for edit_file str_replace/str_replace_all)"),
+				"new":           prop("string", "Replacement text (for edit_file str_replace/str_replace_all)"),
+				"marker":        prop("string", "Anchor text (for edit_file insert_after/insert_before)"),
+				"start_line":    prop("integer", "First line to delete (for edit_file delete_lines)"),
+				"end_line":      prop("integer", "Last line to delete (for edit_file delete_lines)"),
+				"json_path":     prop("string", "Dot-separated path for json_edit/yaml_edit (e.g. 'server.port', 'theme.colors.primary')"),
+				"xpath":         prop("string", "XPath expression for xml_edit (e.g. '//server', './config/database')"),
+				"set_value":     map[string]interface{}{"description": "Value to set for json_edit/yaml_edit/xml_edit operations (any JSON type)"},
 				// deploy_netlify specific fields
 				"site_id": prop("string", "Netlify site ID to deploy to (for 'deploy_netlify'). Leave empty to use the default site from config."),
 				"draft":   map[string]interface{}{"type": "boolean", "description": "Deploy as preview/draft, not as production (for 'deploy_netlify')"},
@@ -937,15 +937,12 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 				"operation": map[string]interface{}{
 					"type":        "string",
 					"description": "Operation to perform",
-					"enum":        []string{"list_sites", "get_site", "create_site", "update_site", "delete_site", "list_deploys", "get_deploy", "deploy_zip", "deploy_draft", "rollback", "cancel_deploy", "list_env", "get_env", "set_env", "delete_env", "list_files", "list_forms", "get_submissions", "list_hooks", "create_hook", "delete_hook", "provision_ssl", "check_connection"},
+					"enum":        []string{"list_sites", "get_site", "create_site", "update_site", "delete_site", "list_deploys", "get_deploy", "rollback", "cancel_deploy", "list_env", "get_env", "set_env", "delete_env", "list_files", "list_forms", "get_submissions", "list_hooks", "create_hook", "delete_hook", "provision_ssl", "check_connection"},
 				},
 				"site_id":       prop("string", "Netlify site ID (uses default_site_id if omitted)"),
 				"site_name":     prop("string", "Site subdomain name for create (name.netlify.app)"),
 				"custom_domain": prop("string", "Custom domain for the site"),
 				"deploy_id":     prop("string", "Deploy ID (for get_deploy, rollback, cancel_deploy)"),
-				"content":       prop("string", "Base64-encoded ZIP archive (for deploy_zip/deploy_draft). NOTE: For workspace projects use 'homepage' action with 'deploy_netlify' operation instead — it builds and ZIPs automatically."),
-				"title":         prop("string", "Deploy title/message"),
-				"draft":         map[string]interface{}{"type": "boolean", "description": "Deploy as draft (not published)"},
 				"env_key":       prop("string", "Environment variable key"),
 				"env_value":     prop("string", "Environment variable value"),
 				"env_context":   prop("string", "Env var context: all, production, deploy-preview, branch-deploy, dev"),
@@ -2022,10 +2019,13 @@ func NativeToolCallToToolCall(native openai.ToolCall, logger *slog.Logger) ToolC
 		return tc
 	}
 
-	// Ensure action is set correctly (unmarshal may overwrite it if the LLM included it)
-	if tc.Action == "" {
-		tc.Action = native.Function.Name
+	// Native function name is the canonical tool action. Some tools historically
+	// used an "action" argument for a sub-operation, which can overwrite tc.Action
+	// during unmarshal. Preserve that value separately and restore the tool name.
+	if tc.Action != "" && tc.Action != name && tc.SubOperation == "" {
+		tc.SubOperation = tc.Action
 	}
+	tc.Action = name
 
 	// Handle execute_skill: LLM may use "skill_name" key
 	if tc.Action == "execute_skill" && tc.Skill == "" {

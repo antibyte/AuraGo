@@ -216,6 +216,7 @@ func (s *StringOrArray) UnmarshalJSON(data []byte) error {
 // ToolCall represents a parsed tool invocation from the LLM.
 type ToolCall struct {
 	Action             string                 `json:"action"`
+	SubOperation       string                 `json:"sub_operation"`
 	Code               string                 `json:"code"`
 	Key                string                 `json:"key"`
 	Value              string                 `json:"value"`
@@ -686,10 +687,9 @@ func dispatchInner(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 	}
 	if homepageSubOps[tc.Action] {
 		logger.Info("Redirecting direct sub-operation call to homepage tool", "action", tc.Action)
-		if tc.Action == "publish_local" || tc.Action == "deploy" {
+		if tc.Action == "deploy" {
 			tc.Operation = "deploy"
 		} else {
-			// deploy_netlify and all others keep their own name as operation
 			tc.Operation = tc.Action
 		}
 		tc.Action = "homepage"

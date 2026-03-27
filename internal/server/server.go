@@ -195,6 +195,7 @@ type Server struct {
 	Cfg                *config.Config
 	CfgMu              sync.RWMutex // protects Cfg during hot-reload
 	Logger             *slog.Logger
+	AccessLogger       *slog.Logger
 	LLMClient          llm.ChatClient
 	ShortTermMem       *memory.SQLiteMemory
 	LongTermMem        memory.VectorDB
@@ -240,10 +241,18 @@ type Server struct {
 	muFirstStart   sync.Mutex
 }
 
-func Start(cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, remoteControlDB *sql.DB, mediaRegistryDB *sql.DB, homepageRegistryDB *sql.DB, contactsDB *sql.DB, sqlConnectionsDB *sql.DB, sqlConnectionPool *sqlconnections.ConnectionPool, isFirstStart bool, shutdownCh chan struct{}) error {
+func (s *Server) accessLogger() *slog.Logger {
+	if s.AccessLogger != nil {
+		return s.AccessLogger
+	}
+	return s.Logger
+}
+
+func Start(cfg *config.Config, logger *slog.Logger, accessLogger *slog.Logger, llmClient llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, remoteControlDB *sql.DB, mediaRegistryDB *sql.DB, homepageRegistryDB *sql.DB, contactsDB *sql.DB, sqlConnectionsDB *sql.DB, sqlConnectionPool *sqlconnections.ConnectionPool, isFirstStart bool, shutdownCh chan struct{}) error {
 	s := &Server{
 		Cfg:                cfg,
 		Logger:             logger,
+		AccessLogger:       accessLogger,
 		LLMClient:          llmClient,
 		ShortTermMem:       shortTermMem,
 		LongTermMem:        longTermMem,
@@ -709,7 +718,7 @@ func (s *Server) runHTTP(mux *http.ServeMux, ttsServer *http.Server, shutdownCh 
 	s.Logger.Info("Starting HTTP server", "host", s.Cfg.Server.Host, "port", s.Cfg.Server.Port, "tls", false)
 
 	// Apply security headers (relaxed for HTTP, but still present)
-	handler := accessLogMiddleware(s.Logger, securityHeadersMiddleware(authMiddleware(s, mux), false, s.Cfg.Server.HTTPS.BehindProxy))
+	handler := accessLogMiddleware(s.accessLogger(), securityHeadersMiddleware(authMiddleware(s, mux), false, s.Cfg.Server.HTTPS.BehindProxy))
 
 	server := &http.Server{
 		Addr:         addr,
@@ -728,7 +737,7 @@ func (s *Server) runHTTPS(mux *http.ServeMux, ttsServer *http.Server, tlsCfg *TL
 	tlsCfg.HTTPPort = s.Cfg.Server.HTTPS.HTTPPort
 
 	// Apply security headers (strict for HTTPS)
-	handler := accessLogMiddleware(s.Logger, securityHeadersMiddleware(authMiddleware(s, mux), true, s.Cfg.Server.HTTPS.BehindProxy))
+	handler := accessLogMiddleware(s.accessLogger(), securityHeadersMiddleware(authMiddleware(s, mux), true, s.Cfg.Server.HTTPS.BehindProxy))
 
 	httpsServer, httpServer, err := SetupServers(tlsCfg, handler, s.Logger)
 	if err != nil {

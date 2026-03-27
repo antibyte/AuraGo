@@ -78,6 +78,7 @@ func main() {
 
 	appLog := logger.Setup(debug)
 	slog.SetDefault(appLog)
+	webAccessLog := appLog.With("component", "web-access")
 
 	// Load secrets in priority order — each step only sets vars not already present:
 	//   1. systemd EnvironmentFile (already in env before process starts)
@@ -248,6 +249,15 @@ func main() {
 			appLog.Info("File logging enabled", "path", logPath)
 		} else {
 			appLog.Warn("Failed to setup file logging", "error", err)
+		}
+
+		webAccessLogPath := filepath.Join(cfg.Logging.LogDir, "web_access.log")
+		if lf, err := logger.SetupFileOnly(debug, webAccessLogPath, false); err == nil {
+			webAccessLog = lf.Logger
+			defer lf.Close()
+			appLog.Info("Web UI access logging enabled", "path", webAccessLogPath)
+		} else {
+			appLog.Warn("Failed to setup Web UI access log", "error", err)
 		}
 	}
 
@@ -776,7 +786,7 @@ func main() {
 		}
 	}
 
-	if err := server.Start(cfg, appLog, llmClient, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, remoteControlDB, mediaRegistryDB, homepageRegistryDB, contactsDB, sqlConnectionsDB, sqlConnectionPool, isFirstStart, shutdownCh); err != nil {
+	if err := server.Start(cfg, appLog, webAccessLog, llmClient, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, remoteControlDB, mediaRegistryDB, homepageRegistryDB, contactsDB, sqlConnectionsDB, sqlConnectionPool, isFirstStart, shutdownCh); err != nil {
 		appLog.Error("Server failed", "error", err)
 		os.Exit(1)
 	}

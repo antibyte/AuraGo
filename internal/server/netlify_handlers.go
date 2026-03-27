@@ -79,51 +79,29 @@ func handleNetlifyTestConnection(s *Server) http.HandlerFunc {
 			TeamSlug:      s.Cfg.Netlify.TeamSlug,
 		}
 
-		// Test: get account info
-		accountResult := tools.NetlifyGetAccount(cfg)
-		var account map[string]interface{}
-		if err := json.Unmarshal([]byte(accountResult), &account); err != nil {
+		diagResult := tools.NetlifyTestConnection(cfg)
+		var diag map[string]interface{}
+		if err := json.Unmarshal([]byte(diagResult), &diag); err != nil {
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status":  "error",
-				"message": "Failed to parse account response",
+				"message": "Failed to parse Netlify diagnostic response",
 			})
 			return
 		}
 
-		if status, _ := account["status"].(string); status != "ok" {
-			msg, _ := account["message"].(string)
-			if msg == "" {
-				msg = "Connection failed"
-			}
-			json.NewEncoder(w).Encode(map[string]interface{}{
-				"status":  "error",
-				"message": msg,
-			})
+		if status, _ := diag["status"].(string); status != "ok" {
+			json.NewEncoder(w).Encode(diag)
 			return
 		}
 
-		// Test: list sites
 		sitesResult := tools.NetlifyListSites(cfg)
 		var sites map[string]interface{}
-		if err := json.Unmarshal([]byte(sitesResult), &sites); err != nil {
-			json.NewEncoder(w).Encode(map[string]interface{}{
-				"status":  "error",
-				"message": "Failed to parse sites response",
-			})
-			return
+		if err := json.Unmarshal([]byte(sitesResult), &sites); err == nil {
+			if c, ok := sites["count"].(float64); ok {
+				diag["site_count"] = int(c)
+			}
 		}
 
-		siteCount := 0
-		if c, ok := sites["count"].(float64); ok {
-			siteCount = int(c)
-		}
-
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"status":     "ok",
-			"message":    "Connected successfully",
-			"email":      account["email"],
-			"full_name":  account["full_name"],
-			"site_count": siteCount,
-		})
+		json.NewEncoder(w).Encode(diag)
 	}
 }

@@ -16,7 +16,7 @@ Generate a complete skill (manifest + Python code) from a template. The skill is
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
-| `template` | string | yes | Template name: `api_client`, `file_processor`, `data_transformer`, `scraper` |
+| `template` | string | yes | Template name: `api_client`, `file_processor`, `data_transformer`, `scraper`, `example_use_vault_login`, `example_use_vault_token` |
 | `name` | string | yes | Unique name for the new skill (e.g. `weather_api`) |
 | `description` | string | no | What this skill does |
 | `url` | string | no | Base URL for API (api_client template only) |
@@ -41,6 +41,16 @@ Generate a complete skill (manifest + Python code) from a template. The skill is
 **scraper** — Web scraper with CSS selectors. Output wrapped in `<external_data>` tags.
 - Default deps: `requests`, `beautifulsoup4`
 - Params: `url`, `selector`, `attr`, `limit`
+
+**example_use_vault_login** — Example API client that logs in with username/password secrets from the vault first.
+- Default deps: `requests`
+- Vault: `my_service_username`, `my_service_password`, optional `BASE_URL`
+- Params: `action`, `base_url`
+
+**example_use_vault_token** — Example API client that uses a bearer token or API key from the vault.
+- Default deps: `requests`
+- Vault: `my_service_api_key`, optional `BASE_URL`
+- Params: `endpoint`, `method`, `body`
 
 #### Example
 

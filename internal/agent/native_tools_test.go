@@ -155,28 +155,30 @@ func TestToolSchemaManualSync(t *testing.T) {
 	// Tools that are intentionally simple / don't need a manual,
 	// or whose manual uses a different filename.
 	knownNoManual := map[string]bool{
-		"list_skills":              true, // covered by skills_engine.md
-		"execute_sudo":             true, // single-param wrapper around shell
-		"save_tool":                true, // simple tool registration
-		"wake_on_lan":              true, // simple WOL packet
-		"call_webhook":             true, // just triggers a named webhook
-		"manage_webhooks":          true, // covered by webhook docs
-		"manage_outgoing_webhooks": true, // covered by webhook docs
-		"query_inventory":          true, // simple query tool
-		"register_device":          true, // simple registration
-		"firewall":                 true, // niche integration
-		"invasion_control":         true, // internal egg/nest system
-		"fetch_email":              true, // covered by email.md
-		"send_email":               true, // covered by email.md
-		"list_email_accounts":      true, // covered by email.md
-		"manage_memory":            true, // covered by context_memory.md / core_memory.md
-		"mqtt_get_messages":        true, // covered by mqtt.md
-		"mqtt_subscribe":           true, // covered by mqtt.md
-		"mqtt_unsubscribe":         true, // covered by mqtt.md
-		"mqtt_publish":             true, // covered by mqtt.md
-		"mcp_call":                 true, // manual is mcp.md
-		"execute_sandbox":          true, // manual is sandbox.md
-		"document_creator":         true, // simple single-purpose tool
+		"list_skills":                true, // covered by skills_engine.md
+		"execute_sudo":               true, // single-param wrapper around shell
+		"save_tool":                  true, // simple tool registration
+		"list_skill_templates":       true, // covered by skill_templates.md
+		"create_skill_from_template": true, // covered by skill_templates.md
+		"wake_on_lan":                true, // simple WOL packet
+		"call_webhook":               true, // just triggers a named webhook
+		"manage_webhooks":            true, // covered by webhook docs
+		"manage_outgoing_webhooks":   true, // covered by webhook docs
+		"query_inventory":            true, // simple query tool
+		"register_device":            true, // simple registration
+		"firewall":                   true, // niche integration
+		"invasion_control":           true, // internal egg/nest system
+		"fetch_email":                true, // covered by email.md
+		"send_email":                 true, // covered by email.md
+		"list_email_accounts":        true, // covered by email.md
+		"manage_memory":              true, // covered by context_memory.md / core_memory.md
+		"mqtt_get_messages":          true, // covered by mqtt.md
+		"mqtt_subscribe":             true, // covered by mqtt.md
+		"mqtt_unsubscribe":           true, // covered by mqtt.md
+		"mqtt_publish":               true, // covered by mqtt.md
+		"mcp_call":                   true, // manual is mcp.md
+		"execute_sandbox":            true, // manual is sandbox.md
+		"document_creator":           true, // simple single-purpose tool
 	}
 
 	var missing []string
@@ -279,4 +281,96 @@ func TestNativeToolCallToToolCallVirusTotalFields(t *testing.T) {
 	if tc.Mode != "auto" {
 		t.Fatalf("Mode = %q, want auto", tc.Mode)
 	}
+}
+
+func TestNativeToolCallToToolCallHomepageSubOperationPreservesToolAction(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+
+	native := openai.ToolCall{
+		ID:   "call_homepage_edit",
+		Type: openai.ToolTypeFunction,
+		Function: openai.FunctionCall{
+			Name:      "homepage",
+			Arguments: `{"operation":"edit_file","path":"demo/index.html","action":"append","content":"<footer>ok</footer>"}`,
+		},
+	}
+
+	tc := NativeToolCallToToolCall(native, logger)
+	if tc.Action != "homepage" {
+		t.Fatalf("Action = %q, want homepage", tc.Action)
+	}
+	if tc.Operation != "edit_file" {
+		t.Fatalf("Operation = %q, want edit_file", tc.Operation)
+	}
+	if tc.SubOperation != "append" {
+		t.Fatalf("SubOperation = %q, want append", tc.SubOperation)
+	}
+}
+
+func TestBuiltinToolSchemasHomepageUsesSubOperationField(t *testing.T) {
+	schemas := builtinToolSchemas(ToolFeatureFlags{HomepageEnabled: true, NetlifyEnabled: true})
+
+	var homepageProps map[string]interface{}
+	for _, s := range schemas {
+		if s.Function == nil || s.Function.Name != "homepage" {
+			continue
+		}
+		params, ok := s.Function.Parameters.(map[string]interface{})
+		if !ok {
+			t.Fatalf("homepage parameters type = %T, want map[string]interface{}", s.Function.Parameters)
+		}
+		props, ok := params["properties"].(map[string]interface{})
+		if !ok {
+			t.Fatal("homepage properties missing")
+		}
+		homepageProps = props
+		break
+	}
+
+	if homepageProps == nil {
+		t.Fatal("homepage schema not found")
+	}
+	if _, ok := homepageProps["sub_operation"]; !ok {
+		t.Fatal("homepage schema missing sub_operation property")
+	}
+	if _, ok := homepageProps["action"]; ok {
+		t.Fatal("homepage schema should not expose action as edit sub-operation field")
+	}
+}
+
+func TestBuiltinToolSchemasNetlifyOmitsZipDeployOperations(t *testing.T) {
+	schemas := builtinToolSchemas(ToolFeatureFlags{NetlifyEnabled: true})
+
+	for _, s := range schemas {
+		if s.Function == nil || s.Function.Name != "netlify" {
+			continue
+		}
+		params, ok := s.Function.Parameters.(map[string]interface{})
+		if !ok {
+			t.Fatalf("netlify parameters type = %T, want map[string]interface{}", s.Function.Parameters)
+		}
+		props, ok := params["properties"].(map[string]interface{})
+		if !ok {
+			t.Fatal("netlify properties missing")
+		}
+		opProp, ok := props["operation"].(map[string]interface{})
+		if !ok {
+			t.Fatal("netlify operation property missing")
+		}
+		enumVals, ok := opProp["enum"].([]string)
+		if !ok {
+			t.Fatalf("netlify operation enum type = %T, want []string", opProp["enum"])
+		}
+		for _, op := range enumVals {
+			if op == "deploy_zip" || op == "deploy_draft" {
+				t.Fatalf("unexpected ZIP deploy operation still exposed: %s", op)
+			}
+		}
+		if _, ok := props["content"]; ok {
+			t.Fatal("netlify schema should not expose content for ZIP deploys in agent flow")
+		}
+		return
+	}
+
+	t.Fatal("netlify schema not found")
 }

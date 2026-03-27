@@ -70,13 +70,13 @@ Gets details about a specific deploy.
 ```
 
 #### deploy_zip / deploy_draft
-⚠️ **Not usable from the agent directly.** These operations require passing a valid base64-encoded ZIP via `content`, but binary data cannot be reliably transported through LLM tool arguments (the ZIP will be truncated or corrupted, leading to 400 errors from the Netlify API).
+⚠️ **Not part of the supported agent flow.** These operations require passing a valid base64-encoded ZIP via `content`, but binary data cannot be reliably transported through LLM tool arguments (the ZIP will be truncated or corrupted, leading to 400 errors from the Netlify API).
 
 **Always use `homepage` → `deploy_netlify` instead.** It performs the build, creates the ZIP, and uploads it entirely server-side without the agent needing to handle binary data:
 ```json
 {"operation": "deploy_netlify", "project_dir": "my-site", "site_id": "abc123", "title": "v1.2.0", "draft": false}
 ```
-Only use `deploy_zip` if you have a pre-built ZIP path available on disk and can pass it through a different mechanism.
+If you truly need a manual ZIP deploy, do it outside the agent flow.
 
 #### rollback
 Restores a previous deploy.
@@ -169,7 +169,7 @@ Provisions a Let's Encrypt SSL certificate for the site's custom domain.
 
 ## Permission Model
 - **read_only**: Blocks all mutating operations (create, update, delete, deploy)
-- **allow_deploy**: Controls deploy_zip, deploy_draft, rollback, cancel_deploy
+- **allow_deploy**: Controls rollback and cancel_deploy
 - **allow_site_management**: Controls create_site, update_site, delete_site
 - **allow_env_management**: Controls set_env, delete_env
 
@@ -185,7 +185,5 @@ Provisions a Let's Encrypt SSL certificate for the site's custom domain.
 ```
 This automatically builds (if a build script exists), packages as ZIP and uploads to Netlify.
 
-**Manual workflow (only if you need custom ZIP contents):**
-1. `homepage` → `build` (builds the project)
-2. Zip the build output in the dev container
-3. `netlify` → `deploy_zip` with the base64-encoded ZIP
+**Manual ZIP deploys are intentionally excluded from the normal agent workflow.**
+If you need custom packaging, prepare and upload it outside the agent path instead of sending ZIP/base64 through tool arguments.

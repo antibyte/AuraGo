@@ -1351,7 +1351,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	// Always build and store the tsnet handler so it is available even when tsnet
 	// is enabled later via the config UI without a restart.
 	if s.TsNetManager != nil {
-		tsHandler := accessLogMiddleware(s.Logger, securityHeadersMiddleware(authMiddleware(s, mux), true, false))
+		tsHandler := accessLogMiddleware(s.accessLogger(), securityHeadersMiddleware(authMiddleware(s, mux), true, false))
 		s.tsNetHandler = tsHandler // stored for /api/tsnet/start (runtime start after hot-reload)
 		if s.Cfg.Tailscale.TsNet.Enabled {
 			go func() {

@@ -19,7 +19,7 @@ type NetlifyConfig struct {
 	TeamSlug      string // Netlify team/account slug
 }
 
-const netlifyBaseURL = "https://api.netlify.com/api/v1"
+var netlifyBaseURL = "https://api.netlify.com/api/v1"
 
 // netlifyDial tries all resolved IP addresses for the host in order.
 // Go's default dialer stops at the first failure; this mirrors curl's behavior
@@ -336,7 +336,7 @@ func NetlifyDeleteSite(cfg NetlifyConfig, siteID string) string {
 	if err != nil {
 		return errJSON("Failed to delete site: %v", err)
 	}
-	if code != 204 {
+	if code != 200 && code != 204 {
 		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":"Delete failed"}`, code)
 	}
 

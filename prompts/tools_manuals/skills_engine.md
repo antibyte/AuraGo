@@ -31,4 +31,4 @@ Run a skill discovered via `list_skills`. Map arguments exactly to the skill's `
 
 ### Create New Skills from Templates
 
-If no existing skill fits your need, use `list_skill_templates` and `create_skill_from_template` to scaffold a new skill from a built-in template (api_client, file_processor, data_transformer, scraper). See the **Skill Templates** tool manual for details.
+If no existing skill fits your need, use `list_skill_templates` and `create_skill_from_template` to scaffold a new skill from a built-in template such as `api_client`, `file_processor`, `data_transformer`, `scraper`, `example_use_vault_login`, or `example_use_vault_token`. See the **Skill Templates** tool manual for details.
