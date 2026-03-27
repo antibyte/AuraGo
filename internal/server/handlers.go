@@ -238,16 +238,16 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 						summaryReq := openai.ChatCompletionRequest{
 							Model: s.Cfg.LLM.Model,
 							Messages: []openai.ChatCompletionMessage{
-							{Role: openai.ChatMessageRoleUser, Content: prompt},
-						},
-						MaxTokens:   1000,
-						Temperature: 0.3,
-					}
+								{Role: openai.ChatMessageRoleUser, Content: prompt},
+							},
+							MaxTokens:   1000,
+							Temperature: 0.3,
+						}
 
-					bgCtx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-					defer cancel()
+						bgCtx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+						defer cancel()
 
-					resp, err := llm.ExecuteWithRetry(bgCtx, s.LLMClient, summaryReq, s.Logger, nil)
+						resp, err := llm.ExecuteWithRetry(bgCtx, s.LLMClient, summaryReq, s.Logger, nil)
 						if err != nil {
 							s.Logger.Error("[Compression] Background summarization failed", "error", err)
 							return

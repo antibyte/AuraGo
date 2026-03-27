@@ -454,11 +454,23 @@ func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 		if !cfg.Agent.AllowPython {
 			return fmt.Sprintf("Tool Output: [PERMISSION DENIED] Skill '%s' requires Python execution which is disabled (agent.allow_python: false).", skillName)
 		}
-		// Resolve vault secrets: merge skill manifest vault_keys with tool call vault_keys
+		// Resolve vault secrets: merge skill manifest vault_keys with tool call vault_keys.
+		// Split out cred:<id> entries — those are credential IDs, not vault keys.
 		allVaultKeys := mergeSkillVaultKeys(cfg.Directories.SkillsDir, skillName, tc.VaultKeys)
-		secrets, rejectedInfo := resolveVaultKeys(cfg, vault, allVaultKeys, logger)
+		var plainVaultKeys []string
+		var credIDsFromManifest []string
+		for _, k := range allVaultKeys {
+			if strings.HasPrefix(k, "cred:") {
+				credIDsFromManifest = append(credIDsFromManifest, strings.TrimPrefix(k, "cred:"))
+			} else {
+				plainVaultKeys = append(plainVaultKeys, k)
+			}
+		}
+		secrets, rejectedInfo := resolveVaultKeys(cfg, vault, plainVaultKeys, logger)
+		// Merge credential IDs from manifest with those from the tool call
+		mergedCredIDs := append(credIDsFromManifest, tc.CredentialIDs...)
 		// Resolve credential secrets
-		creds, credRejInfo := resolveCredentials(cfg, vault, inventoryDB, tc.CredentialIDs, logger)
+		creds, credRejInfo := resolveCredentials(cfg, vault, inventoryDB, mergedCredIDs, logger)
 		if credRejInfo != "" {
 			if rejectedInfo != "" {
 				rejectedInfo += "\n" + credRejInfo

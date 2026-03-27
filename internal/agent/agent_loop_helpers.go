@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"aurago/internal/config"
+	"aurago/internal/tools"
 
 	"github.com/sashabaranov/go-openai"
 )
@@ -27,58 +28,12 @@ func splitCSV(s string) []string {
 	return out
 }
 
-// systemSecretPrefixes lists key prefixes that are exclusively managed by system/tool handlers.
-// The agent may NOT read or list these via the secrets_vault tool — only their respective
-// tool handlers are allowed to access them directly.
-var systemSecretPrefixes = []string{
-	"email_",            // email account passwords  (email_<id>_password, email_password)
-	"google_workspace_", // Google Workspace OAuth credentials
-	"vapid_",            // Web Push VAPID keys
-	"homepage_",         // Homepage deploy credentials
-	"nest_",             // Invasion nest secrets
-	"auth_",             // Auth hashes / session secrets / TOTP
-}
-
-// systemSecretExact is the set of exact vault keys managed by system handlers.
-var systemSecretExact = map[string]struct{}{
-	"telegram_bot_token":          {},
-	"discord_bot_token":           {},
-	"meshcentral_password":        {},
-	"meshcentral_token":           {},
-	"tailscale_api_key":           {},
-	"tailscale_tsnet_authkey":     {},
-	"ansible_token":               {},
-	"virustotal_api_key":          {},
-	"brave_search_api_key":        {},
-	"tts_elevenlabs_api_key":      {},
-	"ntfy_token":                  {},
-	"home_assistant_access_token": {},
-	"webdav_password":             {},
-	"webdav_token":                {},
-	"koofr_password":              {},
-	"proxmox_secret":              {},
-	"github_token":                {},
-	"rocketchat_auth_token":       {},
-	"mqtt_password":               {},
-	"adguard_password":            {},
-	"netlify_token":               {},
-	"pushover_user_key":           {},
-	"pushover_app_token":          {},
-	"paperless_ngx_api_token":     {},
-}
-
 // isSystemSecret returns true if the given vault key belongs to a system/tool handler
 // and therefore must not be readable by the agent via the secrets_vault tool.
+// Single source of truth: delegates to tools.IsPythonAccessibleSecret so that the
+// agent-read block list and the Python-injection block list are always identical.
 func isSystemSecret(key string) bool {
-	if _, ok := systemSecretExact[key]; ok {
-		return true
-	}
-	for _, pfx := range systemSecretPrefixes {
-		if strings.HasPrefix(key, pfx) {
-			return true
-		}
-	}
-	return false
+	return !tools.IsPythonAccessibleSecret(key)
 }
 
 // isProtectedSystemPath returns true when the given path refers to a system-sensitive
