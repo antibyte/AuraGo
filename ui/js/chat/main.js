@@ -952,7 +952,9 @@ function handleSSEMessage(e) {
             const thinkingText = (data.detail || '')
                 .replace(/```json[\s\S]*?```/g, '')   // strip ```json ... ``` fences
                 .replace(/`[^`]*`/g, '')               // strip inline backtick code
-                .replace(/\{[\s\S]*"action"\s*:[\s\S]*/g, '') // strip from {"action": to end (greedy, handles nested objects)
+                .replace(/\{[\s\S]*"action"\s*:[\s\S]*/g, '')    // strip {"action":...} to end
+                .replace(/\{[\s\S]*"tool_call"\s*:[\s\S]*/g, '') // strip {"tool_call":...} to end (MiniMax format)
+                .replace(/\{[\s\S]*"tool_name"\s*:[\s\S]*/g, '') // strip {"tool_name":...} to end
                 .trim();
             if (thinkingText && thinkingText.split(/\s+/).filter(Boolean).length >= 6) {
                 appendMessage('assistant', thinkingText);
