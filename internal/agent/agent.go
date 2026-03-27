@@ -282,6 +282,7 @@ type ToolCall struct {
 	RemotePath         string                 `json:"remote_path"`
 	ToolName           string                 `json:"tool_name"`
 	Tool               string                 `json:"tool"`         // Hallucination fallback
+	ToolCallAction     string                 `json:"tool_call"`    // MiniMax format: {"tool_call": "action_name"}
 	Arguments          interface{}            `json:"arguments"`    // Hallucination fallback
 	ActionInput        map[string]interface{} `json:"action_input"` // LangChain-style nested params
 	Label              string                 `json:"label"`

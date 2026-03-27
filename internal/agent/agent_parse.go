@@ -432,7 +432,7 @@ func ParseToolCall(content string) ToolCall {
 
 	// Also allow pure operation-only JSON through (e.g. native function call arguments leaked as plain text
 	// by models that emit {"operation":"list_devices"} instead of using the structured tool_calls API).
-	if (strings.Contains(lowerContent, "\"action\"") || strings.Contains(lowerContent, "'action'") || strings.Contains(lowerContent, "\"tool\"") || strings.Contains(lowerContent, "\"command\"") || strings.Contains(lowerContent, "\"operation\"") || (strings.Contains(lowerContent, "\"name\"") && strings.Contains(lowerContent, "\"arguments\""))) && (strings.Contains(lowerContent, "{") || strings.Contains(lowerContent, "```")) {
+	if (strings.Contains(lowerContent, "\"action\"") || strings.Contains(lowerContent, "'action'") || strings.Contains(lowerContent, "\"tool\"") || strings.Contains(lowerContent, "\"tool_call\"") || strings.Contains(lowerContent, "\"command\"") || strings.Contains(lowerContent, "\"operation\"") || (strings.Contains(lowerContent, "\"name\"") && strings.Contains(lowerContent, "\"arguments\""))) && (strings.Contains(lowerContent, "{") || strings.Contains(lowerContent, "```")) {
 		extractedFromFence := false
 
 		// Try all common fence variants: ```json, ``` json, ```JSON, plain ```
@@ -448,7 +448,7 @@ func ParseToolCall(content string) ToolCall {
 					if strings.HasPrefix(candidate, "{") {
 						normalized := normalizeTagsInJSON(candidate)
 						var tmp ToolCall
-						if json.Unmarshal([]byte(normalized), &tmp) == nil && (tmp.Action != "" || tmp.Operation != "" || tmp.Name != "" || tmp.Tool != "" || tmp.Command != "") {
+						if json.Unmarshal([]byte(normalized), &tmp) == nil && (tmp.Action != "" || tmp.ToolCallAction != "" || tmp.Operation != "" || tmp.Name != "" || tmp.Tool != "" || tmp.Command != "") {
 							tc = tmp
 							extractedFromFence = true
 							tc.RawJSON = candidate
@@ -470,7 +470,7 @@ func ParseToolCall(content string) ToolCall {
 						candidate := bStr[:j+1]
 						normalized := normalizeTagsInJSON(candidate)
 						var tmp ToolCall
-						if json.Unmarshal([]byte(normalized), &tmp) == nil && (tmp.Action != "" || tmp.Operation != "" || tmp.Name != "" || tmp.Tool != "" || tmp.Command != "") {
+						if json.Unmarshal([]byte(normalized), &tmp) == nil && (tmp.Action != "" || tmp.ToolCallAction != "" || tmp.Operation != "" || tmp.Name != "" || tmp.Tool != "" || tmp.Command != "") {
 							tc = tmp
 							extractedFromFence = true
 							tc.RawJSON = candidate
@@ -494,6 +494,11 @@ func ParseToolCall(content string) ToolCall {
 			// Fallback: LLM used "tool" key instead of "action"
 			if tc.Action == "" && tc.Tool != "" {
 				tc.Action = tc.Tool
+			}
+
+			// Fallback: MiniMax / models that use "tool_call" key instead of "action"
+			if tc.Action == "" && tc.ToolCallAction != "" {
+				tc.Action = tc.ToolCallAction
 			}
 
 			// Fallback: LLM sent only "command" — treat as execute_shell
