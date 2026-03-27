@@ -1445,7 +1445,7 @@
         /* ── Session Todo debug panel ────────────────────── */
         /* Desktop: Top right, below topbar */
         .todo-debug-panel {
-            display: none;
+            display: block;
             position: fixed;
             top: 70px;
             right: 1.2rem;
@@ -1458,6 +1458,10 @@
             z-index: 900;
             overflow: hidden;
             animation: msgIn 0.25s ease-out;
+        }
+
+        .todo-debug-panel.is-hidden {
+            display: none;
         }
 
         /* Mobile: Top center */
