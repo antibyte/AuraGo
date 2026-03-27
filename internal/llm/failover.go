@@ -24,6 +24,8 @@ type FailoverManager struct {
 
 	primary       *openai.Client
 	fallback      *openai.Client // nil when fallback not configured
+	primaryType   string
+	fallbackType  string
 	primaryModel  string
 	fallbackModel string
 
@@ -44,6 +46,7 @@ func NewFailoverManager(cfg *config.Config, logger *slog.Logger) *FailoverManage
 
 	fm := &FailoverManager{
 		primary:        primary,
+		primaryType:    cfg.LLM.ProviderType,
 		primaryModel:   cfg.LLM.Model,
 		errorThreshold: 3,
 		probeInterval:  60 * time.Second,
@@ -64,6 +67,7 @@ func NewFailoverManager(cfg *config.Config, logger *slog.Logger) *FailoverManage
 	fallbackCfg.LLM.Model = fb.Model
 	fallbackCfg.LLM.AccountID = fb.AccountID
 	fm.fallback = NewClient(&fallbackCfg)
+	fm.fallbackType = fb.ProviderType
 	fm.fallbackModel = fb.Model
 
 	if fb.ErrorThreshold > 0 {
@@ -91,6 +95,7 @@ func (fm *FailoverManager) Reconfigure(cfg *config.Config) {
 
 	fm.mu.Lock()
 	fm.primary = newPrimary
+	fm.primaryType = cfg.LLM.ProviderType
 	fm.primaryModel = cfg.LLM.Model
 	fm.isOnFallback = false
 	fm.errorCount = 0
@@ -106,6 +111,7 @@ func (fm *FailoverManager) Reconfigure(cfg *config.Config) {
 		fallbackCfg.LLM.Model = fb.Model
 		fallbackCfg.LLM.AccountID = fb.AccountID
 		fm.fallback = NewClient(&fallbackCfg)
+		fm.fallbackType = fb.ProviderType
 		fm.fallbackModel = fb.Model
 		if fb.ErrorThreshold > 0 {
 			fm.errorThreshold = fb.ErrorThreshold
@@ -116,6 +122,7 @@ func (fm *FailoverManager) Reconfigure(cfg *config.Config) {
 		startProbe = true
 	} else {
 		fm.fallback = nil
+		fm.fallbackType = ""
 		fm.fallbackModel = ""
 	}
 	fm.mu.Unlock()
@@ -172,6 +179,16 @@ func (fm *FailoverManager) active() (*openai.Client, string) {
 		return fm.fallback, fm.fallbackModel
 	}
 	return fm.primary, fm.primaryModel
+}
+
+// ActiveProviderAndModel returns the currently active failover endpoint identity.
+func (fm *FailoverManager) ActiveProviderAndModel() (string, string) {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	if fm.isOnFallback {
+		return fm.fallbackType, fm.fallbackModel
+	}
+	return fm.primaryType, fm.primaryModel
 }
 
 // recordError increments the error counter and switches to fallback if the

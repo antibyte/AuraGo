@@ -293,6 +293,30 @@ func extractErrorMessage(resultContent string) string {
 	if json.Unmarshal([]byte(prefix), &parsed) == nil && parsed.Message != "" {
 		return parsed.Message
 	}
+	if idx := strings.Index(prefix, `"message":"`); idx >= 0 {
+		start := idx + len(`"message":"`)
+		end := start
+		escaped := false
+		for end < len(prefix) {
+			ch := prefix[end]
+			if ch == '\\' && !escaped {
+				escaped = true
+				end++
+				continue
+			}
+			if ch == '"' && !escaped {
+				break
+			}
+			escaped = false
+			end++
+		}
+		if end > start {
+			raw := prefix[start:end]
+			raw = strings.ReplaceAll(raw, `\"`, `"`)
+			raw = strings.ReplaceAll(raw, `\\`, `\`)
+			return raw
+		}
+	}
 	// Fall back to the first 200 chars of the raw output
 	if len(resultContent) > 200 {
 		return resultContent[:200]

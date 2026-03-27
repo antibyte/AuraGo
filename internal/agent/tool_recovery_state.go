@@ -32,6 +32,28 @@ func buildToolSignature(tc ToolCall) string {
 	return tc.Action + "|" + tc.Command + "|" + tc.Code + "|" + tc.Operation + "|" + tc.Path
 }
 
+func recoveryHintForToolFailure(tc ToolCall, resultContent string) string {
+	base := "Do not repeat the exact same tool call. Inspect the last error, read the tool manual if needed, verify the relevant files or inputs, and then choose a genuinely different approach."
+	errText := extractErrorMessage(resultContent)
+	if errText == "" {
+		errText = resultContent
+	}
+	lower := strings.ToLower(errText)
+
+	switch {
+	case tc.Action == "homepage" && strings.Contains(lower, `missing script: "build"`):
+		return "The project has no build script. Treat it as a static site or fix package.json before trying again. Check whether project_dir is correct and whether a dist/build/output directory is even needed."
+	case tc.Action == "homepage" && strings.Contains(lower, "absolute paths not allowed"):
+		return "Use a relative homepage workspace path such as 'ki-news', not '/workspace/ki-news'. Do not retry until project_dir/path arguments are relative."
+	case tc.Action == "homepage" && strings.Contains(lower, "deploy path does not exist"):
+		return "Check the homepage workspace first with homepage list_files/read_file. If files were created via the filesystem tool, recreate them with homepage write_file in the correct project directory."
+	case tc.Action == "filesystem" && strings.Contains(lower, "unknown filesystem operation"):
+		return "Use the exact filesystem operations read_file or write_file, not read or write. Correct the operation name before retrying."
+	default:
+		return base
+	}
+}
+
 func isGenericToolSignature(tc ToolCall, toolSig string) bool {
 	return toolSig == tc.Action+"|||||"
 }
@@ -57,7 +79,8 @@ func (s *toolRecoveryState) handleDuplicateToolCall(tc ToolCall, req *openai.Cha
 			"CIRCUIT BREAKER: You are calling '%s' with the exact same parameters for the %d. time. "+
 				"Repeating it will produce the same result. Do NOT call it again. "+
 				"Either try a completely DIFFERENT approach (different command, different tool) or "+
-				"inform the user about the situation and ask what they want to do next.",
+				"inform the user about the situation and ask what they want to do next. "+
+				"Before any alternative retry, inspect the previous error, read the relevant tool manual, and verify the target files/paths.",
 			tc.Action, freqCount)
 		req.Messages = append(req.Messages, openai.ChatCompletionMessage{
 			Role:    openai.ChatMessageRoleSystem,
@@ -86,6 +109,12 @@ func (s *toolRecoveryState) updateToolErrorState(tc ToolCall, resultContent stri
 	if isToolError {
 		if resultContent == s.LastToolError {
 			s.ConsecutiveErrorCount++
+			if s.ConsecutiveErrorCount == 2 && req != nil {
+				req.Messages = append(req.Messages, openai.ChatCompletionMessage{
+					Role:    openai.ChatMessageRoleSystem,
+					Content: "RECOVERY HINT: " + recoveryHintForToolFailure(tc, resultContent),
+				})
+			}
 			if s.ConsecutiveErrorCount >= s.Policy.identicalToolErrorHits() {
 				RecordToolRecoveryEventForScope(scope, "identical_tool_error_blocked")
 				if logger != nil {
@@ -97,8 +126,9 @@ func (s *toolRecoveryState) updateToolErrorState(tc ToolCall, resultContent stri
 						"You MUST stop retrying it — calling it again will produce the exact same result. "+
 						"Do NOT call '%s' again this session. "+
 						"Instead: inform the user about the error, explain what likely needs to be fixed "+
-						"(e.g. wrong URL, missing credentials, service unavailable), and wait for their input.",
-					tc.Action, s.ConsecutiveErrorCount, tc.Action)
+						"(e.g. wrong URL, missing credentials, wrong relative path, missing build script, service unavailable), and wait for their input. "+
+						"Recovery guidance: %s",
+					tc.Action, s.ConsecutiveErrorCount, tc.Action, recoveryHintForToolFailure(tc, resultContent))
 				req.Messages = append(req.Messages, openai.ChatCompletionMessage{
 					Role:    openai.ChatMessageRoleSystem,
 					Content: abortMsg,

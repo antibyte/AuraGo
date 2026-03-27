@@ -94,6 +94,10 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 			access_count INTEGER DEFAULT 0,
 			last_accessed DATETIME DEFAULT CURRENT_TIMESTAMP,
 			last_event_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			extraction_confidence REAL DEFAULT 0.75,
+			verification_status TEXT DEFAULT 'unverified',
+			source_type TEXT DEFAULT 'system',
+			source_reliability REAL DEFAULT 0.70,
 			protected BOOLEAN DEFAULT 0,
 			keep_forever BOOLEAN DEFAULT 0
 		);
@@ -164,6 +168,18 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 		success_count INTEGER DEFAULT 0,
 		last_used DATETIME DEFAULT CURRENT_TIMESTAMP
 	);
+
+	CREATE TABLE IF NOT EXISTS memory_usage_log (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		memory_id TEXT NOT NULL,
+		memory_type TEXT NOT NULL,
+		session_id TEXT DEFAULT 'default',
+		used_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		context_relevance REAL DEFAULT 0,
+		was_cited BOOLEAN DEFAULT 0
+	);
+	CREATE INDEX IF NOT EXISTS idx_memory_usage_log_memory ON memory_usage_log(memory_id, used_at DESC);
+	CREATE INDEX IF NOT EXISTS idx_memory_usage_log_session ON memory_usage_log(session_id, used_at DESC);
 
 	CREATE TABLE IF NOT EXISTS agent_telemetry (
 		event_type TEXT NOT NULL,
@@ -271,6 +287,54 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 		_, err = db.Exec("ALTER TABLE memory_meta ADD COLUMN last_event_at DATETIME DEFAULT CURRENT_TIMESTAMP")
 		if err != nil {
 			logger.Error("Failed to add last_event_at column to memory_meta", "error", err)
+		}
+	}
+
+	var hasExtractionConfidence bool
+	err = db.QueryRow("SELECT count(*) > 0 FROM pragma_table_info('memory_meta') WHERE name='extraction_confidence'").Scan(&hasExtractionConfidence)
+	if err != nil {
+		logger.Warn("Failed to check for extraction_confidence column in memory_meta", "error", err)
+	} else if !hasExtractionConfidence {
+		logger.Info("Migrating SQLite: adding extraction_confidence column to memory_meta")
+		_, err = db.Exec("ALTER TABLE memory_meta ADD COLUMN extraction_confidence REAL DEFAULT 0.75")
+		if err != nil {
+			logger.Error("Failed to add extraction_confidence column to memory_meta", "error", err)
+		}
+	}
+
+	var hasVerificationStatus bool
+	err = db.QueryRow("SELECT count(*) > 0 FROM pragma_table_info('memory_meta') WHERE name='verification_status'").Scan(&hasVerificationStatus)
+	if err != nil {
+		logger.Warn("Failed to check for verification_status column in memory_meta", "error", err)
+	} else if !hasVerificationStatus {
+		logger.Info("Migrating SQLite: adding verification_status column to memory_meta")
+		_, err = db.Exec("ALTER TABLE memory_meta ADD COLUMN verification_status TEXT DEFAULT 'unverified'")
+		if err != nil {
+			logger.Error("Failed to add verification_status column to memory_meta", "error", err)
+		}
+	}
+
+	var hasSourceType bool
+	err = db.QueryRow("SELECT count(*) > 0 FROM pragma_table_info('memory_meta') WHERE name='source_type'").Scan(&hasSourceType)
+	if err != nil {
+		logger.Warn("Failed to check for source_type column in memory_meta", "error", err)
+	} else if !hasSourceType {
+		logger.Info("Migrating SQLite: adding source_type column to memory_meta")
+		_, err = db.Exec("ALTER TABLE memory_meta ADD COLUMN source_type TEXT DEFAULT 'system'")
+		if err != nil {
+			logger.Error("Failed to add source_type column to memory_meta", "error", err)
+		}
+	}
+
+	var hasSourceReliability bool
+	err = db.QueryRow("SELECT count(*) > 0 FROM pragma_table_info('memory_meta') WHERE name='source_reliability'").Scan(&hasSourceReliability)
+	if err != nil {
+		logger.Warn("Failed to check for source_reliability column in memory_meta", "error", err)
+	} else if !hasSourceReliability {
+		logger.Info("Migrating SQLite: adding source_reliability column to memory_meta")
+		_, err = db.Exec("ALTER TABLE memory_meta ADD COLUMN source_reliability REAL DEFAULT 0.70")
+		if err != nil {
+			logger.Error("Failed to add source_reliability column to memory_meta", "error", err)
 		}
 	}
 
@@ -779,22 +843,107 @@ type ArchivedMessage struct {
 
 // MemoryMeta models the tracking metadata for a VectorDB chunk.
 type MemoryMeta struct {
-	DocID        string
-	AccessCount  int
-	LastAccessed string
-	LastEventAt  string
-	Protected    bool
-	KeepForever  bool
+	DocID                string
+	AccessCount          int
+	LastAccessed         string
+	LastEventAt          string
+	ExtractionConfidence float64
+	VerificationStatus   string
+	SourceType           string
+	SourceReliability    float64
+	Protected            bool
+	KeepForever          bool
+}
+
+// MemoryMetaUpdate allows callers to enrich a memory_meta row with quality and provenance signals.
+type MemoryMetaUpdate struct {
+	ExtractionConfidence float64
+	VerificationStatus   string
+	SourceType           string
+	SourceReliability    float64
+}
+
+// MemoryUsageEntry represents one retrieval/injection usage event for a memory item.
+type MemoryUsageEntry struct {
+	ID               int64
+	MemoryID         string
+	MemoryType       string
+	SessionID        string
+	UsedAt           string
+	ContextRelevance float64
+	WasCited         bool
 }
 
 // UpsertMemoryMeta creates or resets a VectorDB chunk's metadata.
 func (s *SQLiteMemory) UpsertMemoryMeta(docID string) error {
+	if docID == "" {
+		return nil
+	}
 	stmt := `
-	INSERT INTO memory_meta (doc_id, access_count, last_accessed, last_event_at)
-	VALUES (?, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+	INSERT INTO memory_meta (
+		doc_id, access_count, last_accessed, last_event_at,
+		extraction_confidence, verification_status, source_type, source_reliability
+	)
+	VALUES (?, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0.75, 'unverified', 'system', 0.70)
 	ON CONFLICT(doc_id) DO UPDATE SET last_accessed=CURRENT_TIMESTAMP;`
 
 	_, err := s.db.Exec(stmt, docID)
+	return err
+}
+
+// UpsertMemoryMetaWithDetails creates or refreshes VectorDB chunk metadata while preserving
+// existing quality fields unless explicit overrides are provided.
+func (s *SQLiteMemory) UpsertMemoryMetaWithDetails(docID string, details MemoryMetaUpdate) error {
+	if docID == "" {
+		return nil
+	}
+
+	extractionConfidence := details.ExtractionConfidence
+	if extractionConfidence <= 0 {
+		extractionConfidence = 0.75
+	}
+	if extractionConfidence > 1 {
+		extractionConfidence = 1
+	}
+
+	verificationStatus := strings.TrimSpace(details.VerificationStatus)
+	if verificationStatus == "" {
+		verificationStatus = "unverified"
+	}
+
+	sourceType := strings.TrimSpace(details.SourceType)
+	if sourceType == "" {
+		sourceType = "system"
+	}
+
+	sourceReliability := details.SourceReliability
+	if sourceReliability <= 0 {
+		sourceReliability = 0.70
+	}
+	if sourceReliability > 1 {
+		sourceReliability = 1
+	}
+
+	stmt := `
+	INSERT INTO memory_meta (
+		doc_id, access_count, last_accessed, last_event_at,
+		extraction_confidence, verification_status, source_type, source_reliability
+	)
+	VALUES (?, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, ?, ?, ?, ?)
+	ON CONFLICT(doc_id) DO UPDATE SET
+		last_accessed = CURRENT_TIMESTAMP,
+		extraction_confidence = COALESCE(NULLIF(excluded.extraction_confidence, 0), memory_meta.extraction_confidence),
+		verification_status = CASE
+			WHEN excluded.verification_status = '' THEN memory_meta.verification_status
+			ELSE excluded.verification_status
+		END,
+		source_type = CASE
+			WHEN excluded.source_type = '' THEN memory_meta.source_type
+			ELSE excluded.source_type
+		END,
+		source_reliability = COALESCE(NULLIF(excluded.source_reliability, 0), memory_meta.source_reliability);`
+
+	_, err := s.db.Exec(stmt, docID, extractionConfidence, verificationStatus, sourceType, sourceReliability)
 	return err
 }
 
@@ -809,6 +958,79 @@ func (s *SQLiteMemory) UpdateMemoryAccess(docID string) error {
 	return err
 }
 
+// RecordMemoryUsage persists that a memory item was injected or preloaded for a session.
+func (s *SQLiteMemory) RecordMemoryUsage(memoryID, memoryType, sessionID string, contextRelevance float64, wasCited bool) error {
+	if memoryID == "" {
+		return nil
+	}
+	if memoryType == "" {
+		memoryType = "ltm"
+	}
+	if sessionID == "" {
+		sessionID = "default"
+	}
+	if contextRelevance < 0 {
+		contextRelevance = 0
+	}
+	if contextRelevance > 1 {
+		contextRelevance = 1
+	}
+
+	stmt := `
+	INSERT INTO memory_usage_log (memory_id, memory_type, session_id, context_relevance, was_cited)
+	VALUES (?, ?, ?, ?, ?);`
+	_, err := s.db.Exec(stmt, memoryID, memoryType, sessionID, contextRelevance, wasCited)
+	if err != nil {
+		return fmt.Errorf("record memory usage: %w", err)
+	}
+	return nil
+}
+
+// GetRecentMemoryUsage returns the most recent memory usage events, optionally filtered by session.
+func (s *SQLiteMemory) GetRecentMemoryUsage(sessionID string, limit int) ([]MemoryUsageEntry, error) {
+	if limit <= 0 || limit > 200 {
+		limit = 20
+	}
+
+	query := `
+		SELECT id, memory_id, memory_type, session_id, used_at, context_relevance, was_cited
+		FROM memory_usage_log`
+	args := make([]interface{}, 0, 2)
+	if sessionID != "" {
+		query += ` WHERE session_id = ?`
+		args = append(args, sessionID)
+	}
+	query += ` ORDER BY used_at DESC, id DESC LIMIT ?`
+	args = append(args, limit)
+
+	rows, err := s.db.Query(query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("query recent memory usage: %w", err)
+	}
+	defer rows.Close()
+
+	entries := make([]MemoryUsageEntry, 0, limit)
+	for rows.Next() {
+		var entry MemoryUsageEntry
+		if err := rows.Scan(
+			&entry.ID,
+			&entry.MemoryID,
+			&entry.MemoryType,
+			&entry.SessionID,
+			&entry.UsedAt,
+			&entry.ContextRelevance,
+			&entry.WasCited,
+		); err != nil {
+			return nil, fmt.Errorf("scan memory usage entry: %w", err)
+		}
+		entries = append(entries, entry)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate memory usage rows: %w", err)
+	}
+	return entries, nil
+}
+
 // DeleteMemoryMeta removes tracking for a vector DB chunk.
 func (s *SQLiteMemory) DeleteMemoryMeta(docID string) error {
 	stmt := `DELETE FROM memory_meta WHERE doc_id = ?;`
@@ -818,7 +1040,7 @@ func (s *SQLiteMemory) DeleteMemoryMeta(docID string) error {
 
 // GetAllMemoryMeta retrieves the metadata for all chunks to calculate forgetting priorities.
 func (s *SQLiteMemory) GetAllMemoryMeta() ([]MemoryMeta, error) {
-	query := `SELECT doc_id, access_count, last_accessed, last_event_at, protected, keep_forever FROM memory_meta;`
+	query := `SELECT doc_id, access_count, last_accessed, last_event_at, extraction_confidence, verification_status, source_type, source_reliability, protected, keep_forever FROM memory_meta;`
 	rows, err := s.db.Query(query)
 	if err != nil {
 		return nil, err
@@ -828,7 +1050,18 @@ func (s *SQLiteMemory) GetAllMemoryMeta() ([]MemoryMeta, error) {
 	var metas []MemoryMeta
 	for rows.Next() {
 		var m MemoryMeta
-		if err := rows.Scan(&m.DocID, &m.AccessCount, &m.LastAccessed, &m.LastEventAt, &m.Protected, &m.KeepForever); err != nil {
+		if err := rows.Scan(
+			&m.DocID,
+			&m.AccessCount,
+			&m.LastAccessed,
+			&m.LastEventAt,
+			&m.ExtractionConfidence,
+			&m.VerificationStatus,
+			&m.SourceType,
+			&m.SourceReliability,
+			&m.Protected,
+			&m.KeepForever,
+		); err != nil {
 			return nil, err
 		}
 		metas = append(metas, m)

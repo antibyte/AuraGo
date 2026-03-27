@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"os"
 	"testing"
+	"time"
 )
 
 func newTestSQLiteMemory(t *testing.T) (*SQLiteMemory, func()) {
@@ -234,5 +235,42 @@ func TestPredictNextQuery_LimitRespected(t *testing.T) {
 	}
 	if len(predictions) > 3 {
 		t.Errorf("Expected max 3 predictions, got %d", len(predictions))
+	}
+}
+
+func TestParseTemporalQueryAt(t *testing.T) {
+	now := time.Date(2026, 3, 27, 14, 30, 0, 0, time.UTC)
+
+	tests := []struct {
+		name      string
+		query     string
+		wantFrom  string
+		wantTo    string
+		wantTopic string
+		wantOk    bool
+	}{
+		{name: "yesterday german", query: "Was war gestern mit Docker?", wantFrom: "2026-03-26", wantTo: "2026-03-26", wantTopic: "Was war mit Docker?", wantOk: true},
+		{name: "last week german", query: "problem letzte woche proxmox", wantFrom: "2026-03-16", wantTo: "2026-03-22", wantTopic: "problem proxmox", wantOk: true},
+		{name: "three days ago english", query: "what happened 3 days ago with backups", wantFrom: "2026-03-24", wantTo: "2026-03-24", wantTopic: "what happened with backups", wantOk: true},
+		{name: "last 5 days english", query: "errors in the last 5 days", wantFrom: "2026-03-23", wantTo: "2026-03-27", wantTopic: "errors", wantOk: true},
+		{name: "no temporal phrase", query: "docker issue", wantTopic: "docker issue", wantOk: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotRange, gotTopic, ok := ParseTemporalQueryAt(tt.query, now)
+			if ok != tt.wantOk {
+				t.Fatalf("ok = %v, want %v", ok, tt.wantOk)
+			}
+			if gotTopic != tt.wantTopic {
+				t.Fatalf("topic = %q, want %q", gotTopic, tt.wantTopic)
+			}
+			if !tt.wantOk {
+				return
+			}
+			if gotRange.FromDate != tt.wantFrom || gotRange.ToDate != tt.wantTo {
+				t.Fatalf("range = %+v, want from=%s to=%s", gotRange, tt.wantFrom, tt.wantTo)
+			}
+		})
 	}
 }

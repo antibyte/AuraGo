@@ -148,11 +148,26 @@ type ProfileUpdate struct {
 	Value    string `json:"value"`
 }
 
+type moodAnalysisResult struct {
+	UserSentiment     string             `json:"user_sentiment"`
+	AgentMood         string             `json:"agent_appropriate_response_mood"`
+	RelationshipDelta float64            `json:"relationship_delta"`
+	TraitDeltas       map[string]float64 `json:"trait_deltas"`
+	ProfileUpdates    []ProfileUpdate    `json:"user_profile_updates"`
+}
+
+const (
+	maxMoodAnalysisHistoryLen   = 5000
+	maxMoodAnalysisUserOnlyLen  = 3000
+	maxMoodAnalysisSentimentLen = 50
+)
+
 // AnalyzeMoodV2 uses an LLM to asynchronously analyze the user's sentiment and intent from the recent chat history.
 // It returns the determined agent mood, the affinity (relationship) delta, granular trait deltas, and optional user profile updates.
 // userOnlyHistory contains only the user-role messages and is used exclusively for profile extraction to avoid
 // incorrectly attributing agent actions or tool results to the user's profile.
 func (s *SQLiteMemory) AnalyzeMoodV2(ctx context.Context, client PersonalityAnalyzerClient, modelName string, recentHistory string, userOnlyHistory string, meta PersonalityMeta, enableProfiling bool) (Mood, float64, map[string]float64, []ProfileUpdate, error) {
+	meta = meta.Normalized()
 	if modelName == "" {
 		modelName = "gpt-4o-mini"
 	}
@@ -215,16 +230,22 @@ Extract ONLY stable, reusable facts about the USER — not about the current tas
 }`
 	}
 
-	prompt += `
+	if recentHistory != "" {
+		prompt += fmt.Sprintf(`
 
 Recent Chat History (for mood/trait analysis):
-` + recentHistory
+<external_data type="chat_history" sanitize="true">
+%s
+</external_data>`, sanitizePromptText(recentHistory, maxMoodAnalysisHistoryLen))
+	}
 
 	if enableProfiling && userOnlyHistory != "" {
-		prompt += `
+		prompt += fmt.Sprintf(`
 
 User Statements (use ONLY this section for user_profile_updates — these are the user's own words, not the agent's):
-` + userOnlyHistory
+<external_data type="user_statements" sanitize="true">
+%s
+</external_data>`, sanitizePromptText(userOnlyHistory, maxMoodAnalysisUserOnlyLen))
 	}
 
 	req := openai.ChatCompletionRequest{
@@ -249,40 +270,17 @@ User Statements (use ONLY this section for user_profile_updates — these are th
 
 	content := resp.Choices[0].Message.Content
 
-	var result struct {
-		UserSentiment     string             `json:"user_sentiment"`
-		AgentMood         string             `json:"agent_appropriate_response_mood"`
-		RelationshipDelta float64            `json:"relationship_delta"`
-		TraitDeltas       map[string]float64 `json:"trait_deltas"`
-		ProfileUpdates    []ProfileUpdate    `json:"user_profile_updates"`
-	}
+	var result moodAnalysisResult
 
-	// Try to parse the JSON with high robustness (LLMs often preface with markers or timestamps)
-	content = strings.TrimSpace(content)
-	jsonStart := strings.Index(content, "{")
-	if jsonStart == -1 {
-		return MoodFocused, 0, nil, nil, nil
-	}
-
-	// Search for the longest VALID JSON starting at 'jsonStart'
-	jsonStr := ""
-	bStr := content[jsonStart:]
-	for j := strings.LastIndex(bStr, "}"); j != -1; j = strings.LastIndex(bStr[:j], "}") {
-		candidate := bStr[:j+1]
-		var tmp struct {
-			UserSentiment string `json:"user_sentiment"`
-		}
-		if json.Unmarshal([]byte(candidate), &tmp) == nil && tmp.UserSentiment != "" {
-			jsonStr = candidate
-			break
-		}
-	}
-
+	jsonStr := extractStrictJSONObject(content)
 	if jsonStr == "" {
 		return MoodFocused, 0, nil, nil, nil
 	}
 
 	if err := json.Unmarshal([]byte(jsonStr), &result); err != nil {
+		return MoodFocused, 0, nil, nil, nil
+	}
+	if !validateMoodAnalysisResult(&result) {
 		return MoodFocused, 0, nil, nil, nil
 	}
 
@@ -311,6 +309,7 @@ User Statements (use ONLY this section for user_profile_updates — these are th
 		cleanDeltas[trait] = math.Max(-0.1, math.Min(0.1, val*meta.Volatility))
 	}
 	result.TraitDeltas = cleanDeltas
+	result.ProfileUpdates = sanitizeProfileUpdates(result.ProfileUpdates)
 
 	// Dynamic conflict response if there's a strong drop in relationship
 	if result.RelationshipDelta < -0.05 || strings.Contains(strings.ToLower(result.UserSentiment), "angry") {
@@ -327,4 +326,74 @@ User Statements (use ONLY this section for user_profile_updates — these are th
 	delete(result.TraitDeltas, TraitAffinity)
 
 	return mood, result.RelationshipDelta, result.TraitDeltas, result.ProfileUpdates, nil
+}
+
+func extractStrictJSONObject(content string) string {
+	content = strings.TrimSpace(content)
+	if content == "" {
+		return ""
+	}
+	if strings.HasPrefix(content, "```") {
+		lines := strings.Split(content, "\n")
+		if len(lines) >= 3 && strings.HasPrefix(lines[0], "```") && strings.TrimSpace(lines[len(lines)-1]) == "```" {
+			content = strings.Join(lines[1:len(lines)-1], "\n")
+			content = strings.TrimPrefix(strings.TrimSpace(content), "json")
+			content = strings.TrimSpace(content)
+		}
+	}
+	if !strings.HasPrefix(content, "{") || !strings.HasSuffix(content, "}") {
+		return ""
+	}
+	if !json.Valid([]byte(content)) {
+		return ""
+	}
+	return content
+}
+
+func validateMoodAnalysisResult(result *moodAnalysisResult) bool {
+	if result == nil {
+		return false
+	}
+	result.UserSentiment = strings.TrimSpace(result.UserSentiment)
+	if result.UserSentiment == "" || len(result.UserSentiment) > maxMoodAnalysisSentimentLen {
+		return false
+	}
+	switch strings.ToLower(strings.TrimSpace(result.AgentMood)) {
+	case string(MoodCurious), string(MoodFocused), string(MoodCreative), string(MoodAnalytical), string(MoodCautious), string(MoodPlayful):
+		result.AgentMood = strings.ToLower(strings.TrimSpace(result.AgentMood))
+	default:
+		return false
+	}
+	if math.IsNaN(result.RelationshipDelta) || math.IsInf(result.RelationshipDelta, 0) {
+		return false
+	}
+	return true
+}
+
+func sanitizeProfileUpdates(updates []ProfileUpdate) []ProfileUpdate {
+	if len(updates) == 0 {
+		return nil
+	}
+	validCategories := map[string]bool{
+		"tech": true, "prefs": true, "interests": true, "context": true, "comm": true,
+	}
+	cleaned := make([]ProfileUpdate, 0, 1)
+	for _, update := range updates {
+		update.Category = strings.ToLower(strings.TrimSpace(update.Category))
+		update.Key = normalizeProfileKey(update.Key)
+		update.Value = normalizeProfileValue(update.Value)
+		if !validCategories[update.Category] || !isValidProfileKey(update.Key) || update.Value == "" || containsProfilePII(update.Value) {
+			continue
+		}
+		cleaned = append(cleaned, ProfileUpdate{
+			Category: update.Category,
+			Key:      update.Key,
+			Value:    update.Value,
+		})
+		break
+	}
+	if len(cleaned) == 0 {
+		return nil
+	}
+	return cleaned
 }

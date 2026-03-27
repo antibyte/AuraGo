@@ -388,6 +388,21 @@ func Load(path string) (*Config, error) {
 	if cfg.Agent.MaxToolGuides <= 0 {
 		cfg.Agent.MaxToolGuides = 5
 	}
+	if cfg.Agent.Recovery.MaxProvider422Recoveries <= 0 {
+		cfg.Agent.Recovery.MaxProvider422Recoveries = 3
+	}
+	if cfg.Agent.Recovery.MinMessagesForEmptyRetry <= 0 {
+		cfg.Agent.Recovery.MinMessagesForEmptyRetry = 5
+	}
+	if cfg.Agent.Recovery.DuplicateConsecutiveHits <= 0 {
+		cfg.Agent.Recovery.DuplicateConsecutiveHits = 2
+	}
+	if cfg.Agent.Recovery.DuplicateFrequencyHits <= 0 {
+		cfg.Agent.Recovery.DuplicateFrequencyHits = 3
+	}
+	if cfg.Agent.Recovery.IdenticalToolErrorHits <= 0 {
+		cfg.Agent.Recovery.IdenticalToolErrorHits = 3
+	}
 	// LLM defaults
 	if cfg.LLM.Temperature == 0 {
 		cfg.LLM.Temperature = 0.7

@@ -478,15 +478,21 @@ func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 			perSourceLimit = 5
 		}
 
+		temporalRange, cleanedQuery, hasTemporalRange := memory.ParseTemporalQuery(searchContent)
+		if hasTemporalRange {
+			searchContent = cleanedQuery
+		}
+		hasSemanticQuery := strings.TrimSpace(searchContent) != ""
+
 		// Determine which sources to search
-		sourceMap := map[string]bool{"vector_db": true, "knowledge_graph": true, "journal": true, "notes": true, "core_memory": true, "error_patterns": true}
+		sourceMap := map[string]bool{"vector_db": true, "knowledge_graph": true, "journal": true, "episodic": true, "notes": true, "core_memory": true, "error_patterns": true}
 		if len(tc.Sources) > 0 {
 			sourceMap = map[string]bool{}
 			for _, s := range tc.Sources {
 				sourceMap[s] = true
 			}
 		}
-		logger.Info("LLM requested multi-source memory search", "query", searchContent, "sources", tc.Sources, "limit", perSourceLimit)
+		logger.Info("LLM requested multi-source memory search", "query", searchContent, "sources", tc.Sources, "limit", perSourceLimit, "temporal_range", temporalRange)
 
 		type sourceResult struct {
 			Source string      `json:"source"`
@@ -497,7 +503,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 		var errors []string
 
 		// ── Vector DB (long-term memory) ──
-		if sourceMap["vector_db"] && longTermMem != nil {
+		if sourceMap["vector_db"] && longTermMem != nil && hasSemanticQuery {
 			// query_memory should search actual long-term memories only.
 			// Tool guides and documentation are injected elsewhere in the agent loop
 			// and pollute direct user memory lookups for names/files like "Vincenzo".
@@ -510,7 +516,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 		}
 
 		// ── Knowledge Graph ──
-		if sourceMap["knowledge_graph"] && kg != nil {
+		if sourceMap["knowledge_graph"] && kg != nil && hasSemanticQuery {
 			kgResult := kg.SearchForContext(searchContent, perSourceLimit, 2000)
 			if kgResult != "" && kgResult != "No matching entities found." {
 				combined = append(combined, sourceResult{Source: "knowledge_graph", Count: 1, Data: kgResult})
@@ -519,7 +525,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 
 		// ── Journal ──
 		if sourceMap["journal"] && shortTermMem != nil {
-			entries, err := shortTermMem.SearchJournalEntries(searchContent, perSourceLimit)
+			entries, err := shortTermMem.SearchJournalEntriesInRange(searchContent, temporalRange.FromDate, temporalRange.ToDate, perSourceLimit)
 			if err != nil {
 				errors = append(errors, fmt.Sprintf("journal: %v", err))
 			} else if len(entries) > 0 {
@@ -527,8 +533,18 @@ func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 			}
 		}
 
+		// ── Episodic Memories ──
+		if sourceMap["episodic"] && shortTermMem != nil {
+			entries, err := shortTermMem.SearchEpisodicMemoriesInRange(searchContent, temporalRange.FromDate, temporalRange.ToDate, perSourceLimit)
+			if err != nil {
+				errors = append(errors, fmt.Sprintf("episodic: %v", err))
+			} else if len(entries) > 0 {
+				combined = append(combined, sourceResult{Source: "episodic", Count: len(entries), Data: entries})
+			}
+		}
+
 		// ── Notes ──
-		if sourceMap["notes"] && shortTermMem != nil {
+		if sourceMap["notes"] && shortTermMem != nil && hasSemanticQuery {
 			notes, err := shortTermMem.SearchNotes(searchContent, perSourceLimit)
 			if err != nil {
 				errors = append(errors, fmt.Sprintf("notes: %v", err))
@@ -538,7 +554,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 		}
 
 		// ── Core Memory ──
-		if sourceMap["core_memory"] && shortTermMem != nil {
+		if sourceMap["core_memory"] && shortTermMem != nil && hasSemanticQuery {
 			facts, err := shortTermMem.GetCoreMemoryFacts()
 			if err != nil {
 				errors = append(errors, fmt.Sprintf("core_memory: %v", err))
@@ -561,7 +577,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 		}
 
 		// ── Error Patterns ──
-		if sourceMap["error_patterns"] && shortTermMem != nil {
+		if sourceMap["error_patterns"] && shortTermMem != nil && hasSemanticQuery {
 			errPatterns, err := shortTermMem.GetFrequentErrors("", perSourceLimit)
 			if err != nil {
 				errors = append(errors, fmt.Sprintf("error_patterns: %v", err))
@@ -590,6 +606,12 @@ func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 		response := map[string]interface{}{
 			"status":  "success",
 			"results": combined,
+		}
+		if hasTemporalRange {
+			response["temporal_range"] = temporalRange
+			if cleanedQuery != "" && cleanedQuery != tc.Query && cleanedQuery != tc.Content {
+				response["normalized_query"] = cleanedQuery
+			}
 		}
 		if len(errors) > 0 {
 			response["errors"] = errors

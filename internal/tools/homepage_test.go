@@ -95,6 +95,16 @@ func TestSanitizeProjectDir_AbsolutePaths(t *testing.T) {
 	}
 }
 
+func TestSanitizeProjectDir_AbsolutePathGuidance(t *testing.T) {
+	err := sanitizeProjectDir("/workspace/ki-news")
+	if err == nil {
+		t.Fatal("expected absolute path to be rejected")
+	}
+	if !strings.Contains(err.Error(), "project_dir must be relative") {
+		t.Fatalf("expected relative project_dir guidance, got: %v", err)
+	}
+}
+
 func TestSanitizeProjectDir_ShellMetachars(t *testing.T) {
 	shellInjections := []string{
 		"foo;bar",

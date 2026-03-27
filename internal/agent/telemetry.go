@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"log/slog"
 	"sort"
 	"strings"
 	"sync"
@@ -269,10 +270,12 @@ func InitializeAgentTelemetryPersistence(stm *memory.SQLiteMemory) {
 	agentTelemetryLoadOnce.Do(func() {
 		rows, err := stm.LoadAgentTelemetry()
 		if err != nil {
+			slog.Default().Warn("Failed to load persisted agent telemetry", "error", err)
 			return
 		}
 		scopedRows, err := stm.LoadScopedAgentTelemetry()
 		if err != nil {
+			slog.Default().Warn("Failed to load persisted scoped agent telemetry", "error", err)
 			return
 		}
 		globalAgentTelemetry.mu.Lock()

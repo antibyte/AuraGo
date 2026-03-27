@@ -700,13 +700,7 @@ func PrepareDynamicGuidesWithStrategy(vdb memory.VectorDB, stm *memory.SQLiteMem
 // GetCorePersonalityMeta loads and parses just the metadata for a specific core personality.
 // Results are cached and invalidated when the personality file's ModTime changes.
 func GetCorePersonalityMeta(promptsDir, corePersonality string) memory.PersonalityMeta {
-	defaultMeta := memory.PersonalityMeta{
-		Volatility:               1.0,
-		EmpathyBias:              1.0,
-		ConflictResponse:         "neutral",
-		LonelinessSusceptibility: 1.0,
-		TraitDecayRate:           1.0,
-	}
+	defaultMeta := memory.PersonalityMeta{}.Normalized()
 
 	if corePersonality == "" {
 		return defaultMeta
@@ -736,24 +730,7 @@ func GetCorePersonalityMeta(promptsDir, corePersonality string) memory.Personali
 		return defaultMeta
 	}
 
-	// Apply defaults for fields that might be 0.0 in YAML if omitted, assuming 1.0 is intended default if totally empty.
-	// But yaml parser sets 0.0 for unprovided floats. We should do a quick zero-check fallback for multipliers:
-	m := mod.Metadata.Meta
-	if m.Volatility == 0 {
-		m.Volatility = 1.0
-	}
-	if m.EmpathyBias == 0 {
-		m.EmpathyBias = 1.0
-	}
-	if m.ConflictResponse == "" {
-		m.ConflictResponse = "neutral"
-	}
-	if m.LonelinessSusceptibility == 0 {
-		m.LonelinessSusceptibility = 1.0
-	}
-	if m.TraitDecayRate == 0 {
-		m.TraitDecayRate = 1.0
-	}
+	m := mod.Metadata.Meta.Normalized()
 
 	// Update cache
 	info, err := os.Stat(profilePath)

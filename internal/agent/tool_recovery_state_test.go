@@ -68,8 +68,11 @@ func TestToolRecoveryStateUpdateToolErrorStateTriggersCircuitBreaker(t *testing.
 	if !state.updateToolErrorState(tc, result, &req, nil, AgentTelemetryScope{}) {
 		t.Fatal("expected third identical error to trip circuit breaker")
 	}
-	if len(req.Messages) != 1 {
-		t.Fatalf("expected one breaker message, got %d", len(req.Messages))
+	if len(req.Messages) < 1 {
+		t.Fatalf("expected at least one injected message, got %d", len(req.Messages))
+	}
+	if !strings.Contains(req.Messages[len(req.Messages)-1].Content, "CIRCUIT BREAKER") {
+		t.Fatalf("expected final injected message to be the circuit breaker, got: %s", req.Messages[len(req.Messages)-1].Content)
 	}
 	if state.ConsecutiveErrorCount != 0 || state.LastToolError != "" {
 		t.Fatal("expected error state to reset after circuit breaker triggers")
@@ -89,6 +92,26 @@ func TestToolRecoveryStateUpdateToolErrorStateHonorsCustomThreshold(t *testing.T
 	}
 	if !state.updateToolErrorState(tc, result, &req, nil, AgentTelemetryScope{}) {
 		t.Fatal("expected second identical error to trip circuit breaker with stricter policy")
+	}
+}
+
+func TestToolRecoveryStateInjectsRecoveryHintBeforeBreaker(t *testing.T) {
+	state := newToolRecoveryState()
+	req := openai.ChatCompletionRequest{}
+	tc := ToolCall{Action: "homepage"}
+	result := `Tool Output: {"status":"error","message":"npm error Missing script: \"build\""}`
+
+	if state.updateToolErrorState(tc, result, &req, nil, AgentTelemetryScope{}) {
+		t.Fatal("did not expect first identical error to trip circuit breaker")
+	}
+	if state.updateToolErrorState(tc, result, &req, nil, AgentTelemetryScope{}) {
+		t.Fatal("did not expect second identical error to trip circuit breaker yet")
+	}
+	if len(req.Messages) != 1 {
+		t.Fatalf("expected one recovery hint message, got %d", len(req.Messages))
+	}
+	if !strings.Contains(req.Messages[0].Content, "static site") {
+		t.Fatalf("expected build-script-specific recovery hint, got: %s", req.Messages[0].Content)
 	}
 }
 

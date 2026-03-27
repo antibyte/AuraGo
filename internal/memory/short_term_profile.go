@@ -7,8 +7,34 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
+
+const (
+	maxProfileEntriesPerCategory = 20
+	maxTotalProfileEntries       = 100
+)
+
+var (
+	emailRegex  = regexp.MustCompile(`(?i)[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}`)
+	phoneRegex  = regexp.MustCompile(`(?i)\b(?:\+?\d{1,3}[-.\s]?)?(?:\(?\d{2,4}\)?[-.\s]?)?\d{3,4}[-.\s]?\d{3,4}\b`)
+	ipRegex     = regexp.MustCompile(`\b(?:\d{1,3}\.){3}\d{1,3}\b`)
+	tokenRegex  = regexp.MustCompile(`(?i)\b(?:sk-[a-z0-9]{16,}|ghp_[a-z0-9]{20,}|api[_-]?key|access[_-]?token|secret[_-]?key)\b`)
+	hexKeyRegex = regexp.MustCompile(`\b[a-f0-9]{32,}\b`)
+)
+
+var validProfileCategories = map[string]bool{
+	"tech": true, "prefs": true, "interests": true, "context": true, "comm": true,
+}
+
+var profileValueNormalizationMap = map[string]string{
+	"golang":     "go",
+	"javascript": "js",
+	"typescript": "ts",
+	"python3":    "python",
+	"nodejs":     "node",
+}
 
 func (s *SQLiteMemory) GetMessageCount() (int, error) {
 	var count int
@@ -190,10 +216,50 @@ var profileKeyRejectList = map[string]bool{
 // Keys are lowercased and trimmed before lookup.
 func normalizeProfileKey(key string) string {
 	k := strings.ToLower(strings.TrimSpace(key))
+	k = strings.ReplaceAll(k, "-", "_")
+	k = strings.ReplaceAll(k, " ", "_")
 	if canonical, ok := profileKeyCanonicalMap[k]; ok {
 		return canonical
 	}
 	return k
+}
+
+func normalizeProfileValue(value string) string {
+	v := strings.ToLower(strings.TrimSpace(value))
+	v = strings.ReplaceAll(v, "\n", " ")
+	v = strings.Join(strings.Fields(v), " ")
+	if normalized, ok := profileValueNormalizationMap[v]; ok {
+		return normalized
+	}
+	return v
+}
+
+func containsProfilePII(value string) bool {
+	if value == "" {
+		return false
+	}
+	return emailRegex.MatchString(value) ||
+		phoneRegex.MatchString(value) ||
+		ipRegex.MatchString(value) ||
+		tokenRegex.MatchString(value) ||
+		hexKeyRegex.MatchString(value)
+}
+
+func isValidProfileCategory(category string) bool {
+	return validProfileCategories[strings.ToLower(strings.TrimSpace(category))]
+}
+
+func isValidProfileKey(key string) bool {
+	if key == "" || len(key) > 50 {
+		return false
+	}
+	for _, c := range key {
+		if (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 // isRejectedProfileKey reports whether the key should never be stored.
@@ -205,10 +271,21 @@ func isRejectedProfileKey(key string) bool {
 // If the same category+key already exists with the same value, confidence is incremented.
 // If the value differs, it's overwritten and confidence resets to 1.
 func (s *SQLiteMemory) UpsertProfileEntry(category, key, value, source string) error {
+	category = strings.ToLower(strings.TrimSpace(category))
 	// Normalize key to canonical form and discard rejected keys
 	key = normalizeProfileKey(key)
+	value = normalizeProfileValue(value)
 	if isRejectedProfileKey(key) {
 		return nil
+	}
+	if !isValidProfileCategory(category) {
+		return fmt.Errorf("invalid profile category %q", category)
+	}
+	if !isValidProfileKey(key) {
+		return fmt.Errorf("invalid profile key %q", key)
+	}
+	if containsProfilePII(value) {
+		return fmt.Errorf("profile value contains sensitive data")
 	}
 
 	// Enforce length limits
@@ -221,25 +298,40 @@ func (s *SQLiteMemory) UpsertProfileEntry(category, key, value, source string) e
 	if len(category) > 20 {
 		category = category[:20]
 	}
+	if value == "" {
+		return fmt.Errorf("profile value is empty after normalization")
+	}
 
 	// Check if entry exists with same value → increment confidence
 	var existing string
 	var conf int
 	err := s.db.QueryRow("SELECT value, confidence FROM user_profile WHERE category = ? AND key = ?", category, key).Scan(&existing, &conf)
 	if err == nil {
-		if strings.EqualFold(existing, value) {
+		if strings.EqualFold(normalizeProfileValue(existing), value) {
 			// Same value → increment confidence
 			_, err = s.db.Exec("UPDATE user_profile SET confidence = confidence + 1, updated_at = CURRENT_TIMESTAMP WHERE category = ? AND key = ?", category, key)
+		} else {
+			// Different value → overwrite + reset confidence
+			_, err = s.db.Exec("UPDATE user_profile SET value = ?, confidence = 1, source = ?, updated_at = CURRENT_TIMESTAMP WHERE category = ? AND key = ?", value, source, category, key)
+		}
+		if err != nil {
 			return err
 		}
-		// Different value → overwrite + reset confidence
-		_, err = s.db.Exec("UPDATE user_profile SET value = ?, confidence = 1, source = ?, updated_at = CURRENT_TIMESTAMP WHERE category = ? AND key = ?", value, source, category, key)
-		return err
+		if err := s.enforceProfileCategoryLimit(category, maxProfileEntriesPerCategory); err != nil {
+			return err
+		}
+		return s.EnforceProfileSizeLimit(maxTotalProfileEntries)
 	}
 
 	// New entry
 	_, err = s.db.Exec("INSERT INTO user_profile (category, key, value, confidence, source) VALUES (?, ?, ?, 1, ?)", category, key, value, source)
-	return err
+	if err != nil {
+		return err
+	}
+	if err := s.enforceProfileCategoryLimit(category, maxProfileEntriesPerCategory); err != nil {
+		return err
+	}
+	return s.EnforceProfileSizeLimit(maxTotalProfileEntries)
 }
 
 // GetUserProfileSummary returns a compact, token-efficient summary of the user profile.
@@ -344,7 +436,7 @@ func (s *SQLiteMemory) ResetUserProfile() error {
 // CleanupStaleProfileEntries removes profile entries with confidence=1 that
 // haven't been updated in the given number of days.
 func (s *SQLiteMemory) CleanupStaleProfileEntries(olderThanDays int) (int64, error) {
-	res, err := s.db.Exec("DELETE FROM user_profile WHERE confidence <= 1 AND updated_at < datetime('now', '-' || ? || ' days')", olderThanDays)
+	res, err := s.db.Exec("DELETE FROM user_profile WHERE confidence <= 1 AND updated_at < datetime('now', ?)", fmt.Sprintf("-%d days", olderThanDays))
 	if err != nil {
 		return 0, err
 	}
@@ -427,6 +519,27 @@ func (s *SQLiteMemory) EnforceProfileSizeLimit(maxEntries int) error {
 	_, err := s.db.Exec(`DELETE FROM user_profile WHERE rowid IN (
 		SELECT rowid FROM user_profile ORDER BY confidence ASC, updated_at ASC LIMIT ?
 	)`, excess)
+	return err
+}
+
+func (s *SQLiteMemory) enforceProfileCategoryLimit(category string, maxEntries int) error {
+	if maxEntries <= 0 {
+		return nil
+	}
+	var count int
+	if err := s.db.QueryRow("SELECT COUNT(*) FROM user_profile WHERE category = ?", category).Scan(&count); err != nil {
+		return err
+	}
+	if count <= maxEntries {
+		return nil
+	}
+	excess := count - maxEntries
+	_, err := s.db.Exec(`DELETE FROM user_profile WHERE rowid IN (
+		SELECT rowid FROM user_profile
+		WHERE category = ?
+		ORDER BY confidence ASC, updated_at ASC
+		LIMIT ?
+	)`, category, excess)
 	return err
 }
 

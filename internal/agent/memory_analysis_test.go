@@ -2,11 +2,13 @@ package agent
 
 import (
 	"context"
+	"io"
 	"log/slog"
 	"os"
 	"testing"
 
 	"aurago/internal/config"
+	"aurago/internal/memory"
 )
 
 func newTestConfig(enabled, queryExpansion, llmReranking bool) *config.Config {
@@ -114,6 +116,46 @@ func TestRerankWithLLM_EmptyCandidates(t *testing.T) {
 	got = rerankWithLLM(ctx, cfg, logger, []rankedMemory{}, "test query")
 	if len(got) != 0 {
 		t.Errorf("rerankWithLLM() with empty candidates returned %d items, want 0", len(got))
+	}
+}
+
+func TestRerankWithRecencyUsesConfidenceSignals(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	t.Cleanup(func() { _ = stm.Close() })
+
+	if err := stm.UpsertMemoryMetaWithDetails("doc-low", memory.MemoryMetaUpdate{
+		ExtractionConfidence: 0.40,
+		VerificationStatus:   "unverified",
+		SourceType:           "memory_analysis",
+		SourceReliability:    0.50,
+	}); err != nil {
+		t.Fatalf("UpsertMemoryMetaWithDetails doc-low: %v", err)
+	}
+	if err := stm.UpsertMemoryMetaWithDetails("doc-high", memory.MemoryMetaUpdate{
+		ExtractionConfidence: 0.95,
+		VerificationStatus:   "confirmed",
+		SourceType:           "memory_analysis",
+		SourceReliability:    0.95,
+	}); err != nil {
+		t.Fatalf("UpsertMemoryMetaWithDetails doc-high: %v", err)
+	}
+
+	memories := []string{
+		"[Similarity: 0.80] lower confidence memory",
+		"[Similarity: 0.80] higher confidence memory",
+	}
+	docIDs := []string{"doc-low", "doc-high"}
+
+	ranked := rerankWithRecency(memories, docIDs, stm, logger)
+	if len(ranked) != 2 {
+		t.Fatalf("len(ranked) = %d, want 2", len(ranked))
+	}
+	if ranked[0].docID != "doc-high" {
+		t.Fatalf("top ranked docID = %q, want doc-high", ranked[0].docID)
 	}
 }
 

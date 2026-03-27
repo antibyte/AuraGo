@@ -225,6 +225,45 @@ func TestGetPersonalityLine(t *testing.T) {
 	}
 }
 
+func TestPersonalityMetaNormalized(t *testing.T) {
+	meta := PersonalityMeta{
+		Volatility:       99,
+		EmpathyBias:      -1,
+		ConflictResponse: "chaotic",
+		Thresholds: PersonalityThresholds{
+			LowAffinity:  0.9,
+			HighAffinity: 0.2,
+		},
+	}
+	n := meta.Normalized()
+	if n.Volatility != 2 {
+		t.Fatalf("expected volatility to clamp to 2, got %.2f", n.Volatility)
+	}
+	if n.EmpathyBias != 0 {
+		t.Fatalf("expected empathy bias to clamp to 0, got %.2f", n.EmpathyBias)
+	}
+	if n.ConflictResponse != "neutral" {
+		t.Fatalf("expected invalid conflict response to normalize to neutral, got %q", n.ConflictResponse)
+	}
+	if n.Thresholds.LowAffinity >= n.Thresholds.HighAffinity {
+		t.Fatalf("expected thresholds to normalize to valid ordering, got low=%.2f high=%.2f", n.Thresholds.LowAffinity, n.Thresholds.HighAffinity)
+	}
+}
+
+func TestGetPersonalityLineWithMetaThresholds(t *testing.T) {
+	stm := newTestPersonalityDB(t)
+	_ = stm.SetTrait(TraitAffinity, 0.76)
+
+	line := stm.GetPersonalityLineWithMeta(true, PersonalityMeta{
+		Thresholds: PersonalityThresholds{
+			HighAffinity: 0.75,
+		},
+	})
+	if !contains(line, "very high affinity") {
+		t.Fatalf("expected custom high-affinity threshold to affect prompt line, got: %s", line)
+	}
+}
+
 // ── Weighted Decay Tests ─────────────────────────────────────────────────────
 
 func TestDecayAllTraitsWeightedHighTraitsDecaySlower(t *testing.T) {

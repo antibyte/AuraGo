@@ -23,6 +23,61 @@ type PersonalityEntry struct {
 	Core bool   `json:"core"`
 }
 
+var knownPersonalityMetaKeys = map[string]bool{
+	"volatility":                true,
+	"empathy_bias":              true,
+	"conflict_response":         true,
+	"loneliness_susceptibility": true,
+	"trait_decay_rate":          true,
+}
+
+func extractExtraPersonalityMetaYAML(yamlPart string) string {
+	lines := strings.Split(yamlPart, "\n")
+	var out []string
+	inMeta := false
+	preserveBlock := false
+
+	for _, line := range lines {
+		indent := len(line) - len(strings.TrimLeft(line, " "))
+		trimmed := strings.TrimSpace(line)
+
+		if !inMeta {
+			if indent == 0 && trimmed == "meta:" {
+				inMeta = true
+			}
+			continue
+		}
+
+		if indent == 0 && trimmed != "" {
+			inMeta = false
+			preserveBlock = false
+			continue
+		}
+		if !inMeta {
+			continue
+		}
+		if trimmed == "" {
+			if preserveBlock {
+				out = append(out, line)
+			}
+			continue
+		}
+		if indent == 2 {
+			key := strings.TrimSpace(strings.SplitN(trimmed, ":", 2)[0])
+			preserveBlock = !knownPersonalityMetaKeys[key]
+			if preserveBlock {
+				out = append(out, line)
+			}
+			continue
+		}
+		if preserveBlock && indent > 2 {
+			out = append(out, line)
+		}
+	}
+
+	return strings.TrimRight(strings.Join(out, "\n"), "\n")
+}
+
 func handleListPersonalities(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
@@ -321,6 +376,7 @@ func handleGetPersonalityContent(s *Server) http.HandlerFunc {
 			TraitDecayRate:           1.0,
 		}
 		body := strings.TrimSpace(string(data))
+		extraMetaYAML := ""
 
 		if strings.HasPrefix(body, "---") {
 			// Find closing ---
@@ -328,6 +384,7 @@ func handleGetPersonalityContent(s *Server) http.HandlerFunc {
 			if idx := strings.Index(rest, "\n---"); idx != -1 {
 				yamlPart := strings.TrimSpace(rest[:idx])
 				body = strings.TrimSpace(rest[idx+4:])
+				extraMetaYAML = extractExtraPersonalityMetaYAML(yamlPart)
 
 				// Parse relevant fields with simple line scanning
 				for _, line := range strings.Split(yamlPart, "\n") {
@@ -352,9 +409,10 @@ func handleGetPersonalityContent(s *Server) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"name": name,
-			"body": body,
-			"meta": meta,
+			"name":            name,
+			"body":            body,
+			"meta":            meta,
+			"extra_meta_yaml": extraMetaYAML,
 		})
 	}
 }

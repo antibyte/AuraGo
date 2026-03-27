@@ -275,6 +275,30 @@ func TestBuildPrompt_ContainsAllFields(t *testing.T) {
 	}
 }
 
+func TestBuildPrompt_AddsTraitStyleInstructions(t *testing.T) {
+	mock := &mockEmotionClient{}
+	es := newTestSynthesizer(mock)
+
+	input := EmotionInput{
+		CurrentMood: MoodCautious,
+		Traits: PersonalityTraits{
+			TraitEmpathy:      0.9,
+			TraitConfidence:   0.2,
+			TraitCreativity:   0.85,
+			TraitThoroughness: 0.1,
+		},
+		TimeOfDay: "evening",
+	}
+
+	prompt := es.buildPrompt(input)
+	if !strings.Contains(prompt, "EMOTIONAL STYLE:") {
+		t.Fatalf("expected trait-aware emotional style section, got: %s", prompt)
+	}
+	if !strings.Contains(prompt, "gentle hesitation") {
+		t.Fatalf("expected empathy/confidence guidance in prompt, got: %s", prompt)
+	}
+}
+
 func TestSanitizeForPrompt(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -308,6 +332,18 @@ func TestSanitizeForPrompt(t *testing.T) {
 				t.Errorf("result too long: %d chars", len(result))
 			}
 		})
+	}
+}
+
+func TestValidateEmotionDescription(t *testing.T) {
+	if err := validateEmotionDescription("short"); err == nil {
+		t.Fatal("expected very short emotion to be rejected")
+	}
+	if err := validateEmotionDescription("I feel calm and ready to help with this."); err != nil {
+		t.Fatalf("expected valid emotion description, got %v", err)
+	}
+	if err := validateEmotionDescription("I hate this and want to destroy everything."); err == nil {
+		t.Fatal("expected disallowed content to be rejected")
 	}
 }
 

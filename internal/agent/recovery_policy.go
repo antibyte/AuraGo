@@ -23,10 +23,26 @@ func defaultRecoveryPolicy() RecoveryPolicy {
 }
 
 func buildRecoveryPolicy(cfg *config.Config) RecoveryPolicy {
-	// Current version intentionally keeps compatibility with the historic fixed
-	// thresholds. Centralizing them here makes later tuning explicit.
-	_ = cfg
-	return defaultRecoveryPolicy()
+	policy := defaultRecoveryPolicy()
+	if cfg == nil {
+		return policy
+	}
+	if cfg.Agent.Recovery.MaxProvider422Recoveries > 0 {
+		policy.MaxProvider422Recoveries = cfg.Agent.Recovery.MaxProvider422Recoveries
+	}
+	if cfg.Agent.Recovery.MinMessagesForEmptyRetry > 0 {
+		policy.MinMessagesForEmptyRetry = cfg.Agent.Recovery.MinMessagesForEmptyRetry
+	}
+	if cfg.Agent.Recovery.DuplicateConsecutiveHits > 0 {
+		policy.DuplicateConsecutiveHits = cfg.Agent.Recovery.DuplicateConsecutiveHits
+	}
+	if cfg.Agent.Recovery.DuplicateFrequencyHits > 0 {
+		policy.DuplicateFrequencyHits = cfg.Agent.Recovery.DuplicateFrequencyHits
+	}
+	if cfg.Agent.Recovery.IdenticalToolErrorHits > 0 {
+		policy.IdenticalToolErrorHits = cfg.Agent.Recovery.IdenticalToolErrorHits
+	}
+	return policy
 }
 
 func (p RecoveryPolicy) maxProvider422Recoveries() int {

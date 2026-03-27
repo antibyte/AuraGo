@@ -1,0 +1,83 @@
+package memory
+
+import (
+	"io"
+	"log/slog"
+	"testing"
+)
+
+func TestUpsertMemoryMetaWithDetailsPersistsQualityFields(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	t.Cleanup(func() { _ = stm.Close() })
+
+	if err := stm.UpsertMemoryMetaWithDetails("doc-quality", MemoryMetaUpdate{
+		ExtractionConfidence: 0.93,
+		VerificationStatus:   "confirmed",
+		SourceType:           "memory_analysis",
+		SourceReliability:    0.88,
+	}); err != nil {
+		t.Fatalf("UpsertMemoryMetaWithDetails: %v", err)
+	}
+
+	metas, err := stm.GetAllMemoryMeta()
+	if err != nil {
+		t.Fatalf("GetAllMemoryMeta: %v", err)
+	}
+	if len(metas) != 1 {
+		t.Fatalf("len(metas) = %d, want 1", len(metas))
+	}
+	meta := metas[0]
+	if meta.DocID != "doc-quality" {
+		t.Fatalf("DocID = %q, want doc-quality", meta.DocID)
+	}
+	if meta.ExtractionConfidence != 0.93 {
+		t.Fatalf("ExtractionConfidence = %v, want 0.93", meta.ExtractionConfidence)
+	}
+	if meta.VerificationStatus != "confirmed" {
+		t.Fatalf("VerificationStatus = %q, want confirmed", meta.VerificationStatus)
+	}
+	if meta.SourceType != "memory_analysis" {
+		t.Fatalf("SourceType = %q, want memory_analysis", meta.SourceType)
+	}
+	if meta.SourceReliability != 0.88 {
+		t.Fatalf("SourceReliability = %v, want 0.88", meta.SourceReliability)
+	}
+}
+
+func TestUpsertMemoryMetaDefaultsQualityFields(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	t.Cleanup(func() { _ = stm.Close() })
+
+	if err := stm.UpsertMemoryMeta("doc-default"); err != nil {
+		t.Fatalf("UpsertMemoryMeta: %v", err)
+	}
+
+	metas, err := stm.GetAllMemoryMeta()
+	if err != nil {
+		t.Fatalf("GetAllMemoryMeta: %v", err)
+	}
+	if len(metas) != 1 {
+		t.Fatalf("len(metas) = %d, want 1", len(metas))
+	}
+	meta := metas[0]
+	if meta.ExtractionConfidence != 0.75 {
+		t.Fatalf("ExtractionConfidence = %v, want 0.75", meta.ExtractionConfidence)
+	}
+	if meta.VerificationStatus != "unverified" {
+		t.Fatalf("VerificationStatus = %q, want unverified", meta.VerificationStatus)
+	}
+	if meta.SourceType != "system" {
+		t.Fatalf("SourceType = %q, want system", meta.SourceType)
+	}
+	if meta.SourceReliability != 0.70 {
+		t.Fatalf("SourceReliability = %v, want 0.70", meta.SourceReliability)
+	}
+}

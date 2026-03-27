@@ -1,0 +1,84 @@
+package agent
+
+import (
+	"io"
+	"log/slog"
+	"strings"
+	"testing"
+
+	"aurago/internal/config"
+	"aurago/internal/memory"
+
+	"github.com/sashabaranov/go-openai"
+)
+
+func TestFinalizeToolExecutionRecordsErrorAndResolution(t *testing.T) {
+	resetAgentTelemetryForTest()
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	defer stm.Close()
+	if err := stm.InitErrorLearningTable(); err != nil {
+		t.Fatalf("InitErrorLearningTable: %v", err)
+	}
+
+	cfg := &config.Config{}
+	cfg.Agent.ToolOutputLimit = 50000
+	scope := AgentTelemetryScope{ProviderType: "openrouter", Model: "gpt-4o-mini"}
+	req := openai.ChatCompletionRequest{}
+	state := newToolRecoveryState()
+	tc := ToolCall{Action: "homepage"}
+
+	first := finalizeToolExecution(tc, `{"status":"error","message":"connect failed"}`, cfg, stm, "default", &state, &req, logger, scope)
+	if !first.Failed {
+		t.Fatal("expected failing tool output to be marked as failed")
+	}
+
+	count, err := stm.GetErrorPatternsCount()
+	if err != nil {
+		t.Fatalf("GetErrorPatternsCount: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("error pattern count = %d, want 1", count)
+	}
+
+	second := finalizeToolExecution(tc, `{"status":"success","message":"ok"}`, cfg, stm, "default", &state, &req, logger, scope)
+	if second.Failed {
+		t.Fatal("expected success output to be marked as successful")
+	}
+
+	patterns, err := stm.GetFrequentErrors("homepage", 1)
+	if err != nil {
+		t.Fatalf("GetFrequentErrors: %v", err)
+	}
+	if len(patterns) != 1 {
+		t.Fatalf("frequent errors len = %d, want 1", len(patterns))
+	}
+	if patterns[0].Resolution != "Succeeded with adjusted parameters" {
+		t.Fatalf("resolution = %q, want recorded resolution", patterns[0].Resolution)
+	}
+}
+
+func TestFinalizeToolExecutionAppendsSuggestedNextStep(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	cfg := &config.Config{}
+	cfg.Agent.ToolOutputLimit = 50000
+	scope := AgentTelemetryScope{}
+	req := openai.ChatCompletionRequest{}
+	state := newToolRecoveryState()
+	tc := ToolCall{Action: "filesystem"}
+
+	result := finalizeToolExecution(tc, `{"status":"error","message":"Unknown filesystem operation: 'read'"}`, cfg, nil, "default", &state, &req, logger, scope)
+	if !result.Failed {
+		t.Fatal("expected tool failure")
+	}
+	if !strings.Contains(result.Content, "[Suggested next step]") {
+		t.Fatalf("expected suggested next step in content, got: %s", result.Content)
+	}
+	if !strings.Contains(result.Content, "read_file") {
+		t.Fatalf("expected filesystem-specific guidance, got: %s", result.Content)
+	}
+}

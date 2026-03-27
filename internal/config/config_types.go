@@ -165,7 +165,7 @@ type Config struct {
 		UseNativeFunctions bool    `yaml:"use_native_functions"`
 		Temperature        float64 `yaml:"temperature"`        // 0.0–2.0; default 0.7; 0 = provider default
 		StructuredOutputs  bool    `yaml:"structured_outputs"` // enable structured output mode (only for supported models)
-		MiniMaxFix         bool    `yaml:"minimax_fix"`       // suppress tool call JSON from SSE content stream for MiniMax (prevents tool calls appearing as text in chat)
+		MiniMaxFix         bool    `yaml:"minimax_fix"`        // suppress tool call JSON from SSE content stream for MiniMax (prevents tool calls appearing as text in chat)
 	} `yaml:"llm"`
 	Directories struct {
 		DataDir      string `yaml:"data_dir"`
@@ -241,6 +241,13 @@ type Config struct {
 			WeightSuccessRate         bool     `yaml:"weight_success_rate"`          // penalise tools with low success rate in scoring (default: true)
 			CleanTransitionsAfterDays int      `yaml:"clean_transitions_after_days"` // remove stale tool transitions after N days (default: 90)
 		} `yaml:"adaptive_tools"`
+		Recovery struct {
+			MaxProvider422Recoveries int `yaml:"max_provider_422_recoveries"`  // max automatic retries after provider 422 validation errors (default: 3)
+			MinMessagesForEmptyRetry int `yaml:"min_messages_for_empty_retry"` // minimum conversation messages required before retrying on empty LLM response (default: 5)
+			DuplicateConsecutiveHits int `yaml:"duplicate_consecutive_hits"`   // duplicate tool calls in a row before circuit breaker triggers (default: 2)
+			DuplicateFrequencyHits   int `yaml:"duplicate_frequency_hits"`     // total identical tool call repetitions before circuit breaker triggers (default: 3)
+			IdenticalToolErrorHits   int `yaml:"identical_tool_error_hits"`    // repeated identical tool errors before retry breaker triggers (default: 3)
+		} `yaml:"recovery"`
 		MaxToolGuides int `yaml:"max_tool_guides"` // maximum tool guide documents injected into prompt (default: 5)
 
 		// ── Legacy personality fields — read-only for YAML migration to Personality section ──

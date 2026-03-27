@@ -2,13 +2,16 @@ package server
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 	"time"
 
 	"aurago/internal/agent"
 	"aurago/internal/config"
+	"aurago/internal/memory"
 	"aurago/internal/prompts"
 	"aurago/internal/security"
 )
@@ -49,6 +52,89 @@ func TestHandleDashboardPromptStatsContract(t *testing.T) {
 	}
 	if got := int(body["total_builds"].(float64)); got < 1 {
 		t.Fatalf("total_builds = %d, want >= 1", got)
+	}
+}
+
+func TestHandleDashboardMemoryContract(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	t.Cleanup(func() { stm.Close() })
+	if err := stm.InitJournalTables(); err != nil {
+		t.Fatalf("InitJournalTables: %v", err)
+	}
+	if err := stm.RecordMemoryUsage("doc-1", "ltm_retrieved", "sess-1", 0.9, false); err != nil {
+		t.Fatalf("RecordMemoryUsage retrieved: %v", err)
+	}
+	if err := stm.RecordMemoryUsage("doc-2", "ltm_predicted", "sess-1", 0.4, false); err != nil {
+		t.Fatalf("RecordMemoryUsage predicted: %v", err)
+	}
+	if err := stm.UpsertMemoryMetaWithDetails("doc-1", memory.MemoryMetaUpdate{
+		ExtractionConfidence: 0.92,
+		VerificationStatus:   "confirmed",
+		SourceType:           "memory_analysis",
+		SourceReliability:    0.88,
+	}); err != nil {
+		t.Fatalf("UpsertMemoryMetaWithDetails doc-1: %v", err)
+	}
+	if err := stm.UpsertMemoryMetaWithDetails("doc-2", memory.MemoryMetaUpdate{
+		ExtractionConfidence: 0.40,
+		VerificationStatus:   "unverified",
+		SourceType:           "memory_analysis",
+		SourceReliability:    0.45,
+	}); err != nil {
+		t.Fatalf("UpsertMemoryMetaWithDetails doc-2: %v", err)
+	}
+	if err := stm.InsertEpisodicMemoryWithDetails("2026-03-27", "Deploy", "Homepage rollout finished", map[string]string{"scope": "homepage"}, 3, "memory_analysis", memory.EpisodicMemoryDetails{
+		SessionID:        "sess-1",
+		Participants:     []string{"user", "agent"},
+		RelatedDocIDs:    []string{"doc-1"},
+		EmotionalValence: 0.3,
+	}); err != nil {
+		t.Fatalf("InsertEpisodicMemoryWithDetails: %v", err)
+	}
+
+	s := &Server{ShortTermMem: stm}
+	req := httptest.NewRequest(http.MethodGet, "/api/dashboard/memory", nil)
+	rec := httptest.NewRecorder()
+
+	handleDashboardMemory(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d", rec.Code)
+	}
+
+	var body map[string]interface{}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("failed to decode JSON: %v", err)
+	}
+
+	for _, key := range []string{"core_memory_facts", "chat_messages", "vectordb_entries", "knowledge_graph", "journal_entries", "notes_count", "error_patterns", "milestones", "episodic", "memory_health"} {
+		if _, ok := body[key]; !ok {
+			t.Fatalf("memory payload missing key %q", key)
+		}
+	}
+
+	episodic, ok := body["episodic"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("episodic has unexpected type %T", body["episodic"])
+	}
+	for _, key := range []string{"total_count", "recent_count", "by_source", "recent_cards"} {
+		if _, ok := episodic[key]; !ok {
+			t.Fatalf("episodic payload missing key %q", key)
+		}
+	}
+
+	health, ok := body["memory_health"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("memory_health has unexpected type %T", body["memory_health"])
+	}
+	for _, key := range []string{"usage", "confidence", "curator"} {
+		if _, ok := health[key]; !ok {
+			t.Fatalf("memory_health missing key %q", key)
+		}
 	}
 }
 

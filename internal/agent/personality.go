@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
-	"sort"
 	"strings"
 	"time"
 
@@ -20,62 +19,11 @@ type rankedMemory struct {
 	score float64
 }
 
-// rerankWithRecency takes raw VectorDB results and re-ranks them by combining
-// semantic similarity (extracted from the text prefix) with a recency decay factor.
-// Recency decay: score = similarity * (1 + recencyBonus), where recencyBonus decays
-// from 0.3 (accessed today) to 0.0 (accessed >30 days ago).
+// rerankWithRecency preserves the historic helper name but now delegates to the
+// central memory ranking policy, which combines similarity, recency, and
+// confidence/provenance signals into one score.
 func rerankWithRecency(memories []string, docIDs []string, stm *memory.SQLiteMemory, logger *slog.Logger) []rankedMemory {
-	metas, err := stm.GetAllMemoryMeta()
-	metaMap := make(map[string]memory.MemoryMeta)
-	if err == nil {
-		for _, m := range metas {
-			metaMap[m.DocID] = m
-		}
-	}
-
-	now := time.Now()
-	results := make([]rankedMemory, 0, len(memories))
-
-	for i, mem := range memories {
-		if i >= len(docIDs) {
-			break
-		}
-		// Parse similarity from "[Similarity: 0.85] ..."
-		sim := memory.ExtractSimilarityScore(mem)
-		if sim == 0 {
-			sim = 0.5 // fallback for malformed entries
-		}
-
-		// Calculate recency bonus:
-		// - event freshness: up to +0.35 for new events (last_event_at)
-		// - utility freshness: up to +0.15 for recently accessed items (last_accessed)
-		// both decay to 0 at 30+ days.
-		recencyBonus := 0.0
-		if meta, ok := metaMap[docIDs[i]]; ok {
-			if eventTime, err := time.Parse("2006-01-02 15:04:05", meta.LastEventAt); err == nil {
-				daysSince := now.Sub(eventTime).Hours() / 24
-				if daysSince < 30 {
-					recencyBonus += 0.35 * (1.0 - daysSince/30.0)
-				}
-			}
-			if lastAccessed, err := time.Parse("2006-01-02 15:04:05", meta.LastAccessed); err == nil {
-				daysSince := now.Sub(lastAccessed).Hours() / 24
-				if daysSince < 30 {
-					recencyBonus += 0.15 * (1.0 - daysSince/30.0)
-				}
-			}
-		}
-
-		finalScore := sim * (1.0 + recencyBonus)
-		results = append(results, rankedMemory{text: mem, docID: docIDs[i], score: finalScore})
-	}
-
-	// Sort by score descending
-	sort.Slice(results, func(i, j int) bool {
-		return results[i].score > results[j].score
-	})
-
-	return results
+	return rankMemoryCandidates(memories, docIDs, stm, nil, time.Now())
 }
 
 // moodTrigger returns the last real human message from the conversation,

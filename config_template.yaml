@@ -39,6 +39,12 @@ agent:
         max_tools: 60                                               # max tool schemas sent to LLM (0 = unlimited)
         decay_half_life_days: 7                                     # usage score halves after this many days
         always_include: [filesystem, shell, manage_memory, query_memory, execute_python, docker, api_request]
+    recovery:
+        max_provider_422_recoveries: 3                              # automatic retries after provider-side 422 validation errors
+        min_messages_for_empty_retry: 5                             # retry empty LLM responses only when enough conversation context exists
+        duplicate_consecutive_hits: 2                               # circuit breaker after repeated identical tool calls in a row
+        duplicate_frequency_hits: 3                                 # circuit breaker after repeated identical tool calls overall
+        identical_tool_error_hits: 3                                # stop retrying when the exact same tool error repeats
     # ── Tool guide injection ──
     max_tool_guides: 5                                              # max tool guide documents injected into prompt (default: 5)
 budget:

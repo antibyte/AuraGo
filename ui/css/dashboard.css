@@ -512,6 +512,115 @@
             white-space: nowrap;
         }
 
+        .memory-health-summary {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 0.6rem;
+            margin-top: 0.9rem;
+        }
+
+        .memory-health-item,
+        .memory-curator-section,
+        .memory-episodic-item {
+            background: var(--bg-glass);
+            border: 1px solid var(--border-subtle);
+            border-radius: 0.75rem;
+        }
+
+        .memory-health-item {
+            padding: 0.75rem;
+        }
+
+        .memory-health-value {
+            display: block;
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .memory-health-label {
+            display: block;
+            margin-top: 0.25rem;
+            font-size: var(--text-xs);
+            color: var(--text-secondary);
+        }
+
+        .memory-curator-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.7rem;
+        }
+
+        .memory-curator-section {
+            padding: 0.75rem;
+        }
+
+        .memory-curator-list {
+            display: grid;
+            gap: 0.45rem;
+        }
+
+        .memory-curator-row {
+            font-size: var(--text-sm);
+            color: var(--text-primary);
+            line-height: 1.45;
+        }
+
+        .memory-curator-row.mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: var(--text-xs);
+        }
+
+        .memory-episodic-list {
+            display: grid;
+            gap: 0.65rem;
+        }
+
+        .memory-episodic-item {
+            padding: 0.8rem;
+        }
+
+        .memory-episodic-head {
+            display: flex;
+            justify-content: space-between;
+            gap: 0.75rem;
+            align-items: baseline;
+        }
+
+        .memory-episodic-title {
+            font-size: var(--text-sm);
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .memory-episodic-date,
+        .memory-episodic-meta {
+            font-size: var(--text-xs);
+            color: var(--text-secondary);
+        }
+
+        .memory-episodic-summary {
+            margin-top: 0.35rem;
+            font-size: var(--text-sm);
+            color: var(--text-primary);
+            line-height: 1.45;
+        }
+
+        .memory-episodic-meta {
+            margin-top: 0.45rem;
+            display: flex;
+            justify-content: space-between;
+            gap: 0.6rem;
+            flex-wrap: wrap;
+        }
+
+        @media (max-width: 900px) {
+            .memory-health-summary,
+            .memory-curator-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
         /* ── Profile Table ───────────────────────────────────── */
         .profile-search {
             width: 100%;

@@ -91,3 +91,65 @@ Wenn AuraGo Hintergrund-Experten (Co-Agents) aufruft, erben diese aktuell keine 
 1. **Kurzfristig (Quick Win):** `GetPersonalityLine()` in `personality.go` umschreiben. Keine Zahlen mehr ausgeben, sondern einen Array von *Hard-Prompts* mappen ("Du bist verspielt...").
 2. **Mittelfristig:** Traits an die `circuit_breaker` Logik (Tool Calls, Timeouts) und `run_command` (AutoRun-Erlaubnis) koppeln.
 3. **Langfristig:** Den asynchronen "Psychology Co-Agent" für Sentiment-Analyse einbauen und den globalen "Trust"-Score etablieren.
+
+---
+
+## Unterstützte Personality-Metadaten
+
+AuraGo unterstützt inzwischen mehr als nur die fünf Basisparameter im Front-Matter einer Personality-Datei. Zusätzlich zu:
+
+- `volatility`
+- `empathy_bias`
+- `conflict_response`
+- `loneliness_susceptibility`
+- `trait_decay_rate`
+
+werden auch diese optionalen `meta`-Blöcke unterstützt:
+
+### `anchor_traits`
+
+Mindestwerte für Traits, unter die eine Persönlichkeit nicht natürlich zurückfällt.
+
+```yaml
+meta:
+  anchor_traits:
+    empathy: 0.4
+    affinity: 0.3
+```
+
+### `decay_resistance`
+
+Wie stark einzelne Traits gegen natürlichen Abbau geschützt sind. Werte liegen zwischen `0` und `1`.
+
+```yaml
+meta:
+  decay_resistance:
+    empathy: 0.5
+    curiosity: 0.3
+```
+
+### `thresholds`
+
+Konfiguriert, wann Trait-Werte in konkrete Prompt-Direktiven übersetzt werden.
+
+```yaml
+meta:
+  thresholds:
+    high_affinity: 0.75
+    low_affinity: 0.25
+    high_confidence: 0.82
+    low_confidence: 0.28
+    high_thoroughness: 0.8
+    high_creativity: 0.78
+    high_empathy: 0.8
+    warm_loneliness: 0.45
+    high_loneliness: 0.75
+    low_curiosity: 0.25
+    high_curiosity: 0.8
+```
+
+### Hinweise
+
+- Alle Werte werden serverseitig normalisiert und auf sichere Bereiche geklemmt.
+- Unbekannte Trait-Namen werden ignoriert.
+- Der Personality-Editor in der Web-UI bearbeitet weiterhin die Basisparameter direkt, erhält aber zusätzliche `meta`-Blöcke jetzt beim Speichern, statt sie still zu verlieren.

@@ -34,25 +34,41 @@ const (
 	homepageContainerName  = "aurago-homepage"
 	homepageImageName      = "aurago-homepage:latest"
 	homepageWebContainer   = "aurago-homepage-web"
-	homepageWebImage       = "caddy:alpine"
+	homepageWebImage       = "caddy:2.11.2-alpine"
 	homepageWorkspaceMount = "/workspace"
 )
 
 // homepageDockerfile is the embedded Dockerfile for the dev container.
-const homepageDockerfile = `FROM mcr.microsoft.com/playwright:v1.50.0-noble
+const homepageDockerfile = `FROM mcr.microsoft.com/playwright:v1.58.2-noble
 WORKDIR /workspace
-RUN apt-get update && apt-get install -y \
-    git curl wget jq libvips-dev \
-    && curl -fsSL https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb -o /tmp/cloudflared.deb \
-    && dpkg -i /tmp/cloudflared.deb || true \
-    && rm -f /tmp/cloudflared.deb \
-    && rm -rf /var/lib/apt/lists/*
+ARG CLOUDFLARED_VERSION=2026.3.0
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+        ca-certificates \
+        curl \
+        git \
+        jq \
+        libvips-dev \
+        wget; \
+    arch="$(dpkg --print-architecture)"; \
+    case "$arch" in \
+        amd64) cloudflared_arch="amd64" ;; \
+        arm64) cloudflared_arch="arm64" ;; \
+        *) echo "unsupported architecture: $arch" >&2; exit 1 ;; \
+    esac; \
+    curl -fsSL "https://github.com/cloudflare/cloudflared/releases/download/${CLOUDFLARED_VERSION}/cloudflared-linux-${cloudflared_arch}.deb" -o /tmp/cloudflared.deb; \
+    dpkg -i /tmp/cloudflared.deb; \
+    rm -f /tmp/cloudflared.deb; \
+    rm -rf /var/lib/apt/lists/*
 RUN npm install -g \
     vercel netlify-cli \
     lighthouse \
     svgo \
-    typescript ts-node
+    typescript ts-node \
+    && npm cache clean --force
 ENV CI=true
+ENV NODE_ENV=development
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 EXPOSE 3000
 CMD ["tail", "-f", "/dev/null"]
@@ -96,15 +112,15 @@ func isValidHomepageURL(u string) bool {
 // It rejects path traversal, shell metacharacters, and absolute paths.
 func sanitizeProjectDir(projectDir string) error {
 	if strings.Contains(projectDir, "..") {
-		return fmt.Errorf("path traversal detected")
+		return fmt.Errorf("path traversal detected in project_dir %q. Use a simple relative homepage workspace path such as 'my-site'", projectDir)
 	}
 	if strings.HasPrefix(projectDir, "/") || strings.HasPrefix(projectDir, "\\") {
-		return fmt.Errorf("absolute paths not allowed")
+		return fmt.Errorf("absolute paths not allowed for project_dir %q. project_dir must be relative to the homepage workspace, e.g. 'ki-news' instead of '/workspace/ki-news'", projectDir)
 	}
 	for _, c := range projectDir {
 		switch c {
 		case ';', '|', '&', '`', '$', '(', ')', '{', '}', '<', '>', '\\', '!', '"', '\'', '\n', '\r', ' ':
-			return fmt.Errorf("invalid character %q in project directory", c)
+			return fmt.Errorf("invalid character %q in project directory %q. Use a simple relative directory name like 'my-site' or 'sites/landing-page'", c, projectDir)
 		}
 	}
 	return nil
@@ -535,7 +551,11 @@ func HomepageBuild(cfg HomepageConfig, projectDir string, logger *slog.Logger) s
 		pkgPath := filepath.Join(cfg.WorkspacePath, projectDir, "package.json")
 		if _, err := os.Stat(pkgPath); err != nil {
 			logger.Info("[Homepage] No package.json found — plain HTML project, skipping build")
-			out, _ := json.Marshal(map[string]interface{}{"status": "ok", "output": "Plain HTML project — no build required"})
+			out, _ := json.Marshal(map[string]interface{}{
+				"status": "ok",
+				"output": "Plain HTML project — no build required",
+				"note":   "This project has no package.json. deploy_netlify and publish_local will serve or package the project directory directly.",
+			})
 			return string(out)
 		}
 	}

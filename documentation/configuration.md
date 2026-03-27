@@ -52,7 +52,7 @@ Core agent behaviour settings.
 | `step_delay_seconds` | `0` | Pause (seconds) between tool calls. Useful to avoid rate-limiting (HTTP 429) errors with slow providers. |
 | `memory_compression_char_limit` | `50000` | Character threshold at which the agent compresses older messages in the prompt. Roughly 50% of the model's context window in tokens. |
 | `personality_engine` | `true` | Enables the heuristic mood & trait engine. The agent's tone subtly shifts based on interaction patterns. Zero extra LLM calls. |
-| `core_personality` | `"friend"` | Base personality template. Options: `neutral` `friend` `professional` `punk` `psycho` `mcp` `terminator`. |
+| `core_personality` | `"friend"` | Base personality template. Built-in options include `neutral`, `friend`, `professional`, `punk`, `psycho`, `mcp`, `terminator`. Custom profiles live in `prompts/personalities/*.md` and can define additional `meta` fields like `anchor_traits`, `decay_resistance`, and `thresholds` for advanced behaviour tuning. |
 | `system_prompt_token_budget` | `8192` | Soft cap on system prompt tokens. Auto-adjusted upward if the model's context window is detected and large enough. |
 | `context_window` | `0` | Model context window size in tokens. `0` = auto-detect from provider API at startup. Override if auto-detect fails. |
 | `use_native_functions` | `false` | `true` = send tool schemas via the OpenAI function-calling API. `false` = inject tools as text in the system prompt (more compatible with open-weight models). |

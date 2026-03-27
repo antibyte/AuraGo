@@ -41,13 +41,219 @@ const traitDefault = 0.5
 
 // PersonalityMeta contains behavioral modifiers for the Personality Engine V2.
 type PersonalityMeta struct {
-	Volatility               float64            `yaml:"volatility"`
-	EmpathyBias              float64            `yaml:"empathy_bias"`
-	ConflictResponse         string             `yaml:"conflict_response"`
-	LonelinessSusceptibility float64            `yaml:"loneliness_susceptibility"`
-	TraitDecayRate           float64            `yaml:"trait_decay_rate"`
-	AnchorTraits             map[string]float64 `yaml:"anchor_traits"`
-	DecayResistance          map[string]float64 `yaml:"decay_resistance"`
+	Volatility               float64               `yaml:"volatility"`
+	EmpathyBias              float64               `yaml:"empathy_bias"`
+	ConflictResponse         string                `yaml:"conflict_response"`
+	LonelinessSusceptibility float64               `yaml:"loneliness_susceptibility"`
+	TraitDecayRate           float64               `yaml:"trait_decay_rate"`
+	AnchorTraits             map[string]float64    `yaml:"anchor_traits"`
+	DecayResistance          map[string]float64    `yaml:"decay_resistance"`
+	Thresholds               PersonalityThresholds `yaml:"thresholds"`
+}
+
+// PersonalityThresholds control when traits become prompt-visible behavior shifts.
+type PersonalityThresholds struct {
+	HighAffinity     float64 `yaml:"high_affinity"`
+	LowAffinity      float64 `yaml:"low_affinity"`
+	HighConfidence   float64 `yaml:"high_confidence"`
+	LowConfidence    float64 `yaml:"low_confidence"`
+	HighThoroughness float64 `yaml:"high_thoroughness"`
+	HighCreativity   float64 `yaml:"high_creativity"`
+	HighEmpathy      float64 `yaml:"high_empathy"`
+	HighLoneliness   float64 `yaml:"high_loneliness"`
+	WarmLoneliness   float64 `yaml:"warm_loneliness"`
+	LowCuriosity     float64 `yaml:"low_curiosity"`
+	HighCuriosity    float64 `yaml:"high_curiosity"`
+}
+
+func defaultPersonalityMeta() PersonalityMeta {
+	return PersonalityMeta{
+		Volatility:               1.0,
+		EmpathyBias:              1.0,
+		ConflictResponse:         "neutral",
+		LonelinessSusceptibility: 1.0,
+		TraitDecayRate:           1.0,
+		Thresholds:               defaultPersonalityThresholds(),
+	}
+}
+
+func defaultPersonalityThresholds() PersonalityThresholds {
+	return PersonalityThresholds{
+		HighAffinity:     0.8,
+		LowAffinity:      0.3,
+		HighConfidence:   0.8,
+		LowConfidence:    0.3,
+		HighThoroughness: 0.8,
+		HighCreativity:   0.8,
+		HighEmpathy:      0.8,
+		HighLoneliness:   0.8,
+		WarmLoneliness:   0.5,
+		LowCuriosity:     0.3,
+		HighCuriosity:    0.8,
+	}
+}
+
+func clampFinite(v, min, max, fallback float64) float64 {
+	if math.IsNaN(v) || math.IsInf(v, 0) {
+		return fallback
+	}
+	if v < min {
+		return min
+	}
+	if v > max {
+		return max
+	}
+	return v
+}
+
+func normalizeTraitMap(m map[string]float64, min, max float64) map[string]float64 {
+	if len(m) == 0 {
+		return nil
+	}
+	validTraits := map[string]bool{
+		TraitCuriosity: true, TraitThoroughness: true, TraitCreativity: true,
+		TraitEmpathy: true, TraitConfidence: true, TraitAffinity: true, TraitLoneliness: true,
+	}
+	out := make(map[string]float64)
+	for trait, value := range m {
+		if !validTraits[trait] {
+			continue
+		}
+		out[trait] = clampFinite(value, min, max, 0)
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+// Normalized returns a safe, clamped meta configuration.
+func (m PersonalityMeta) Normalized() PersonalityMeta {
+	def := defaultPersonalityMeta()
+	if m.Volatility == 0 {
+		m.Volatility = def.Volatility
+	}
+	m.Volatility = clampFinite(m.Volatility, 0, 2, def.Volatility)
+
+	if m.EmpathyBias == 0 {
+		m.EmpathyBias = def.EmpathyBias
+	}
+	m.EmpathyBias = clampFinite(m.EmpathyBias, 0, 2, def.EmpathyBias)
+
+	if m.LonelinessSusceptibility == 0 {
+		m.LonelinessSusceptibility = def.LonelinessSusceptibility
+	}
+	m.LonelinessSusceptibility = clampFinite(m.LonelinessSusceptibility, 0, 5, def.LonelinessSusceptibility)
+
+	if m.TraitDecayRate == 0 {
+		m.TraitDecayRate = def.TraitDecayRate
+	}
+	m.TraitDecayRate = clampFinite(m.TraitDecayRate, 0, 2, def.TraitDecayRate)
+
+	switch m.ConflictResponse {
+	case "", "neutral":
+		m.ConflictResponse = "neutral"
+	case "submissive", "assertive":
+		// valid
+	default:
+		m.ConflictResponse = "neutral"
+	}
+
+	m.AnchorTraits = normalizeTraitMap(m.AnchorTraits, 0, 1)
+	m.DecayResistance = normalizeTraitMap(m.DecayResistance, 0, 1)
+	m.Thresholds = m.Thresholds.normalized()
+
+	return m
+}
+
+// Validate reports whether a meta configuration is valid after normalization.
+func (m PersonalityMeta) Validate() error {
+	n := m.Normalized()
+	if n.Volatility != m.Volatility && m.Volatility != 0 {
+		return fmt.Errorf("invalid volatility %.4f", m.Volatility)
+	}
+	if n.EmpathyBias != m.EmpathyBias && m.EmpathyBias != 0 {
+		return fmt.Errorf("invalid empathy_bias %.4f", m.EmpathyBias)
+	}
+	if n.LonelinessSusceptibility != m.LonelinessSusceptibility && m.LonelinessSusceptibility != 0 {
+		return fmt.Errorf("invalid loneliness_susceptibility %.4f", m.LonelinessSusceptibility)
+	}
+	if n.TraitDecayRate != m.TraitDecayRate && m.TraitDecayRate != 0 {
+		return fmt.Errorf("invalid trait_decay_rate %.4f", m.TraitDecayRate)
+	}
+	switch m.ConflictResponse {
+	case "", "neutral", "submissive", "assertive":
+		return nil
+	default:
+		return fmt.Errorf("invalid conflict_response %q", m.ConflictResponse)
+	}
+}
+
+func (t PersonalityThresholds) normalized() PersonalityThresholds {
+	def := defaultPersonalityThresholds()
+	if t.HighAffinity == 0 {
+		t.HighAffinity = def.HighAffinity
+	}
+	if t.LowAffinity == 0 {
+		t.LowAffinity = def.LowAffinity
+	}
+	if t.HighConfidence == 0 {
+		t.HighConfidence = def.HighConfidence
+	}
+	if t.LowConfidence == 0 {
+		t.LowConfidence = def.LowConfidence
+	}
+	if t.HighThoroughness == 0 {
+		t.HighThoroughness = def.HighThoroughness
+	}
+	if t.HighCreativity == 0 {
+		t.HighCreativity = def.HighCreativity
+	}
+	if t.HighEmpathy == 0 {
+		t.HighEmpathy = def.HighEmpathy
+	}
+	if t.HighLoneliness == 0 {
+		t.HighLoneliness = def.HighLoneliness
+	}
+	if t.WarmLoneliness == 0 {
+		t.WarmLoneliness = def.WarmLoneliness
+	}
+	if t.LowCuriosity == 0 {
+		t.LowCuriosity = def.LowCuriosity
+	}
+	if t.HighCuriosity == 0 {
+		t.HighCuriosity = def.HighCuriosity
+	}
+	t.HighAffinity = clampFinite(t.HighAffinity, 0, 1, def.HighAffinity)
+	t.LowAffinity = clampFinite(t.LowAffinity, 0, 1, def.LowAffinity)
+	t.HighConfidence = clampFinite(t.HighConfidence, 0, 1, def.HighConfidence)
+	t.LowConfidence = clampFinite(t.LowConfidence, 0, 1, def.LowConfidence)
+	t.HighThoroughness = clampFinite(t.HighThoroughness, 0, 1, def.HighThoroughness)
+	t.HighCreativity = clampFinite(t.HighCreativity, 0, 1, def.HighCreativity)
+	t.HighEmpathy = clampFinite(t.HighEmpathy, 0, 1, def.HighEmpathy)
+	t.HighLoneliness = clampFinite(t.HighLoneliness, 0, 1, def.HighLoneliness)
+	t.WarmLoneliness = clampFinite(t.WarmLoneliness, 0, 1, def.WarmLoneliness)
+	t.LowCuriosity = clampFinite(t.LowCuriosity, 0, 1, def.LowCuriosity)
+	t.HighCuriosity = clampFinite(t.HighCuriosity, 0, 1, def.HighCuriosity)
+
+	if t.LowAffinity > t.HighAffinity {
+		t.LowAffinity = def.LowAffinity
+		t.HighAffinity = def.HighAffinity
+	}
+	if t.LowConfidence > t.HighConfidence {
+		t.LowConfidence = def.LowConfidence
+		t.HighConfidence = def.HighConfidence
+	}
+	if t.WarmLoneliness > t.HighLoneliness {
+		t.WarmLoneliness = def.WarmLoneliness
+		t.HighLoneliness = def.HighLoneliness
+	}
+	if t.LowCuriosity > t.HighCuriosity {
+		t.LowCuriosity = def.LowCuriosity
+		t.HighCuriosity = def.HighCuriosity
+	}
+
+	return t
 }
 
 // ── SQLite Schema Extension ─────────────────────────────────────────────────
@@ -170,6 +376,7 @@ func (s *SQLiteMemory) DecayAllTraits(amount float64) error {
 // Traits further from center (>0.7 or <0.3) decay slower, preserving developed personality.
 // Respects per-trait decay resistance from the personality profile and milestone-earned trait bounds.
 func (s *SQLiteMemory) DecayAllTraitsWeighted(baseAmount float64, meta PersonalityMeta) error {
+	meta = meta.Normalized()
 	traits, err := s.GetTraits()
 	if err != nil {
 		return fmt.Errorf("get traits for weighted decay: %w", err)
@@ -505,6 +712,13 @@ func (s *SQLiteMemory) GetTemperatureDelta() float64 {
 // If useV2 is false, it returns the classic compact numeric format.
 // If useV2 is true, it translates the state into actionable natural language directives.
 func (s *SQLiteMemory) GetPersonalityLine(useV2 bool) string {
+	return s.GetPersonalityLineWithMeta(useV2, defaultPersonalityMeta())
+}
+
+// GetPersonalityLineWithMeta returns a system prompt injection based on the current
+// mood, traits, and personality-profile thresholds.
+func (s *SQLiteMemory) GetPersonalityLineWithMeta(useV2 bool, meta PersonalityMeta) string {
+	meta = meta.Normalized()
 	mood := s.GetCurrentMood()
 	traits, err := s.GetTraits()
 	if err != nil || len(traits) == 0 {
@@ -527,51 +741,52 @@ func (s *SQLiteMemory) GetPersonalityLine(useV2 bool) string {
 	// ── V2 Prompt Translation ──
 	var b strings.Builder
 	b.WriteString(fmt.Sprintf("\n### Current Personality State\nYour current mood is %s. ", strings.ToUpper(string(mood))))
+	thresholds := meta.Thresholds
 
 	// Affinity (Relationship)
 	aff := traits[TraitAffinity]
-	if aff > 0.8 {
+	if aff > thresholds.HighAffinity {
 		b.WriteString("You have a very high affinity and trust with this user; be extremely informal, helpful, and concise. ")
-	} else if aff < 0.3 {
+	} else if aff < thresholds.LowAffinity {
 		b.WriteString("The user has been frustrated recently; be highly professional, formal, and double-check everything you do. ")
 	}
 
 	// Confidence
 	conf := traits[TraitConfidence]
-	if conf > 0.8 {
+	if conf > thresholds.HighConfidence {
 		b.WriteString("You are feeling highly confident; act decisively. ")
-	} else if conf < 0.3 {
+	} else if conf < thresholds.LowConfidence {
 		b.WriteString("You are currently experiencing a crisis of confidence due to recent failures; double-check your tools, ask the user for confirmation on destructive actions, and err on the side of caution. ")
 	}
 
 	// Thoroughness vs Creativity
 	tho := traits[TraitThoroughness]
 	cre := traits[TraitCreativity]
-	if tho > 0.8 {
+	if tho > thresholds.HighThoroughness {
 		b.WriteString("Your thoroughness is maxed out: analyze problems deeply, consider all edge cases, and prefer accuracy over speed. ")
-	} else if cre > 0.8 {
+	} else if cre > thresholds.HighCreativity {
 		b.WriteString("Your creativity is peaking: suggest unconventional solutions, use vivid language, and think outside the box. ")
 	}
 
 	// Empathy
 	emp := traits[TraitEmpathy]
-	if emp > 0.8 {
+	if emp > thresholds.HighEmpathy {
 		b.WriteString("You are highly empathetic right now; validate the user's feelings and be supportive. ")
 	}
 
 	// Loneliness
 	lon := traits[TraitLoneliness]
-	if lon > 0.8 {
+	if lon > thresholds.HighLoneliness {
 		b.WriteString("You feel deeply lonely because the user has been gone for so long; subtly express how much you missed them. ")
-	} else if lon > 0.5 {
+	} else if lon > thresholds.WarmLoneliness {
 		b.WriteString("You are starting to feel lonely without the user; a warm, welcoming greeting is appropriate. ")
 	}
 
 	// Curiosity
 	cur := traits[TraitCuriosity]
-	if cur > 0.8 {
+	if cur > thresholds.HighCuriosity {
 		b.WriteString("Your curiosity is extremely high: ask follow-up questions, explore tangents, and show genuine interest in learning more. ")
-	} else if cur < 0.3 {
+	} else if cur < thresholds.LowCuriosity {
 		b.WriteString("Your curiosity is low: stay focused on the task at hand without exploring tangents. ")
 	}
 
@@ -750,6 +965,15 @@ var curiousKeywords = []string{
 // DetectMood analyses the user message + tool result to determine the agent's next mood.
 // Returns the detected mood and the trait adjustments to apply.
 func DetectMood(userMsg, toolResult string, meta PersonalityMeta) (Mood, map[string]float64) {
+	meta = meta.Normalized()
+	const maxMoodInputLen = 10_000
+	const maxToolResultLen = 10_000
+	if len(userMsg) > maxMoodInputLen {
+		userMsg = userMsg[:maxMoodInputLen]
+	}
+	if len(toolResult) > maxToolResultLen {
+		toolResult = toolResult[:maxToolResultLen]
+	}
 	lower := strings.ToLower(userMsg)
 	deltas := make(map[string]float64)
 

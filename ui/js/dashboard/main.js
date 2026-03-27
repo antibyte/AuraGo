@@ -163,6 +163,7 @@
             Charts.mood = createMoodLineChart('mood-chart', moodHistory || []);
             if (memData) {
                 renderMemoryStats(memData);
+                renderMemoryHealth(memData);
                 if (Charts.memory) { Charts.memory.destroy(); Charts.memory = null; }
                 Charts.memory = createMemoryBarChart('memory-chart', memData);
                 renderMilestones(memData.milestones);
@@ -495,7 +496,7 @@
             const ctx = document.getElementById(canvasId);
             if (!ctx) return null;
             const embLabel = data.vectordb_disabled ? t('dashboard.memory_embeddings_disabled') : t('dashboard.memory_embeddings');
-            const labels = [t('dashboard.memory_chart_core_memory'), t('dashboard.memory_chart_messages'), embLabel, t('dashboard.memory_chart_graph_nodes'), t('dashboard.memory_chart_graph_edges'), t('dashboard.memory_journal'), t('dashboard.memory_notes'), t('dashboard.memory_error_patterns')];
+            const labels = [t('dashboard.memory_chart_core_memory'), t('dashboard.memory_chart_messages'), embLabel, t('dashboard.memory_chart_graph_nodes'), t('dashboard.memory_chart_graph_edges'), t('dashboard.memory_journal'), t('dashboard.memory_notes'), t('dashboard.memory_error_patterns'), t('dashboard.memory_episodic')];
             const values = [
                 data.core_memory_facts || 0,
                 data.chat_messages || 0,
@@ -505,8 +506,9 @@
                 data.journal_entries || 0,
                 data.notes_count || 0,
                 data.error_patterns || 0,
+                data.episodic?.total_count || 0,
             ];
-            const colors = [cv('--accent'), cv('--success'), '#8b5cf6', '#f59e0b', '#ec4899', '#06b6d4', '#10b981', '#ef4444'];
+            const colors = [cv('--accent'), cv('--success'), '#8b5cf6', '#f59e0b', '#ec4899', '#06b6d4', '#10b981', '#ef4444', '#f97316'];
             return new Chart(ctx, {
                 type: 'bar',
                 data: {
@@ -666,10 +668,86 @@
                 { val: data.journal_entries || 0, lbl: t('dashboard.memory_journal') },
                 { val: data.notes_count || 0, lbl: t('dashboard.memory_notes') },
                 { val: data.error_patterns || 0, lbl: t('dashboard.memory_error_patterns') },
+                { val: data.episodic?.total_count || 0, lbl: t('dashboard.memory_episodic') },
             ];
             container.innerHTML = stats.map(s =>
                 `<div class="mem-stat${s.clickable ? ' clickable' : ''}"${s.clickable ? ' onclick="openCoreFactsModal()" title="' + t('dashboard.memory_show_core_facts') + '"' : ''}><div class="mem-stat-val">${s.val}</div><div class="mem-stat-lbl">${s.lbl}${s.clickable ? ' 🔍' : ''}</div></div>`
             ).join('');
+        }
+
+        function renderMemoryHealth(data) {
+            if (!data) return;
+
+            const health = data.memory_health || {};
+            const confidence = health.confidence || {};
+            const usage = health.usage || {};
+            const curator = health.curator || {};
+            const episodic = data.episodic || {};
+
+            const summaryEl = document.getElementById('memory-health-summary');
+            if (summaryEl) {
+                const items = [
+                    { value: Number(usage.retrieved_events || 0).toLocaleString(), label: t('dashboard.memory_health_retrieved') },
+                    { value: Number(usage.predicted_events || 0).toLocaleString(), label: t('dashboard.memory_health_predicted') },
+                    { value: Number(usage.distinct_memories || 0).toLocaleString(), label: t('dashboard.memory_health_distinct') },
+                    { value: Number(confidence.unverified || 0).toLocaleString(), label: t('dashboard.memory_health_unverified') },
+                    { value: Number(curator.stale_candidates || 0).toLocaleString(), label: t('dashboard.memory_health_stale') },
+                    { value: Number(episodic.recent_count || 0).toLocaleString(), label: t('dashboard.memory_health_recent_episodes') },
+                ];
+                summaryEl.innerHTML = '<div class="memory-health-summary">' + items.map(item => `
+                    <div class="memory-health-item">
+                        <span class="memory-health-value">${esc(item.value)}</span>
+                        <span class="memory-health-label">${esc(item.label)}</span>
+                    </div>
+                `).join('') + '</div>';
+            }
+
+            const curatorEl = document.getElementById('memory-curator-list');
+            if (curatorEl) {
+                const suggestions = Array.isArray(curator.suggestions) ? curator.suggestions : [];
+                const stale = Array.isArray(curator.top_stale) ? curator.top_stale : [];
+                const overused = Array.isArray(curator.top_overused) ? curator.top_overused : [];
+                const facts = [
+                    t('dashboard.memory_curator_fact_verification', { count: Number(curator.verification_backlog || 0) }),
+                    t('dashboard.memory_curator_fact_low_confidence', { count: Number(curator.low_confidence || 0) }),
+                    t('dashboard.memory_curator_fact_contradictions', { count: Number(curator.contradictions || 0) }),
+                    t('dashboard.memory_curator_fact_overused', { count: Number(curator.overused_memories || 0) }),
+                ];
+                curatorEl.innerHTML = '<div class="memory-curator-grid">' +
+                    '<div class="memory-curator-section"><div class="memory-curator-list">' + facts.map(item => `<div class="memory-curator-row">${esc(item)}</div>`).join('') + '</div></div>' +
+                    '<div class="memory-curator-section"><div class="memory-curator-list">' +
+                    (suggestions.length ? suggestions.slice(0, 4).map(item => `<div class="memory-curator-row">${esc(item)}</div>`).join('') : `<div class="empty-state dash-empty-tight">${t('dashboard.memory_curator_empty')}</div>`) +
+                    '</div></div>' +
+                    '<div class="memory-curator-section"><div class="memory-curator-list">' +
+                    (stale.length ? stale.slice(0, 3).map(item => `<div class="memory-curator-row mono">${esc(item)}</div>`).join('') : `<div class="memory-curator-row">${t('dashboard.memory_curator_no_stale')}</div>`) +
+                    '</div></div>' +
+                    '<div class="memory-curator-section"><div class="memory-curator-list">' +
+                    (overused.length ? overused.slice(0, 3).map(item => `<div class="memory-curator-row mono">${esc(item)}</div>`).join('') : `<div class="memory-curator-row">${t('dashboard.memory_curator_no_overused')}</div>`) +
+                    '</div></div>' +
+                '</div>';
+            }
+
+            const episodicEl = document.getElementById('memory-episodic-list');
+            if (episodicEl) {
+                const cards = Array.isArray(episodic.recent_cards) ? episodic.recent_cards : [];
+                if (!cards.length) {
+                    episodicEl.innerHTML = `<div class="empty-state dash-empty-tight">${t('dashboard.memory_episodic_empty')}</div>`;
+                } else {
+                    episodicEl.innerHTML = '<div class="memory-episodic-list">' + cards.slice(0, 4).map(card => `
+                        <div class="memory-episodic-item">
+                            <div class="memory-episodic-head">
+                                <span class="memory-episodic-title">${esc(card.title || '')}</span>
+                                <span class="memory-episodic-date">${esc(card.event_date || '')}</span>
+                            </div>
+                            <div class="memory-episodic-summary">${esc(card.summary || '')}</div>
+                            <div class="memory-episodic-meta">
+                                <span>${esc(card.source || '')}</span>
+                                <span>${esc(Array.isArray(card.participants) && card.participants.length ? card.participants.join(', ') : t('dashboard.memory_episodic_agent_user'))}</span>
+                            </div>
+                        </div>
+                    `).join('') + '</div>';
+                }
+            }
         }
 
         function renderMilestones(milestones) {

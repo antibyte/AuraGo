@@ -15,6 +15,12 @@ llm:
   structured_outputs: true
 agent:
   max_tool_guides: 9
+  recovery:
+    max_provider_422_recoveries: 6
+    min_messages_for_empty_retry: 7
+    duplicate_consecutive_hits: 4
+    duplicate_frequency_hits: 5
+    identical_tool_error_hits: 6
   adaptive_tools:
     enabled: true
     max_tools: 17
@@ -64,6 +70,21 @@ homepage:
 	if cfg.Agent.MaxToolGuides != 9 {
 		t.Fatalf("agent.max_tool_guides = %d, want 9", cfg.Agent.MaxToolGuides)
 	}
+	if cfg.Agent.Recovery.MaxProvider422Recoveries != 6 {
+		t.Fatalf("agent.recovery.max_provider_422_recoveries = %d, want 6", cfg.Agent.Recovery.MaxProvider422Recoveries)
+	}
+	if cfg.Agent.Recovery.MinMessagesForEmptyRetry != 7 {
+		t.Fatalf("agent.recovery.min_messages_for_empty_retry = %d, want 7", cfg.Agent.Recovery.MinMessagesForEmptyRetry)
+	}
+	if cfg.Agent.Recovery.DuplicateConsecutiveHits != 4 {
+		t.Fatalf("agent.recovery.duplicate_consecutive_hits = %d, want 4", cfg.Agent.Recovery.DuplicateConsecutiveHits)
+	}
+	if cfg.Agent.Recovery.DuplicateFrequencyHits != 5 {
+		t.Fatalf("agent.recovery.duplicate_frequency_hits = %d, want 5", cfg.Agent.Recovery.DuplicateFrequencyHits)
+	}
+	if cfg.Agent.Recovery.IdenticalToolErrorHits != 6 {
+		t.Fatalf("agent.recovery.identical_tool_error_hits = %d, want 6", cfg.Agent.Recovery.IdenticalToolErrorHits)
+	}
 	if !cfg.MemoryAnalysis.Enabled || !cfg.MemoryAnalysis.RealTime || !cfg.MemoryAnalysis.QueryExpansion {
 		t.Fatal("expected memory_analysis compatibility fields to be preserved")
 	}
@@ -95,5 +116,39 @@ agent:
 
 	if !cfg.Agent.AdaptiveTools.WeightSuccessRate {
 		t.Fatal("expected adaptive_tools.weight_success_rate to default to true when omitted")
+	}
+}
+
+func TestLoadDefaultsRecoverySettingsWhenOmitted(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	configContent := `
+agent:
+  adaptive_tools:
+    enabled: true
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg.Agent.Recovery.MaxProvider422Recoveries != 3 {
+		t.Fatalf("default max_provider_422_recoveries = %d, want 3", cfg.Agent.Recovery.MaxProvider422Recoveries)
+	}
+	if cfg.Agent.Recovery.MinMessagesForEmptyRetry != 5 {
+		t.Fatalf("default min_messages_for_empty_retry = %d, want 5", cfg.Agent.Recovery.MinMessagesForEmptyRetry)
+	}
+	if cfg.Agent.Recovery.DuplicateConsecutiveHits != 2 {
+		t.Fatalf("default duplicate_consecutive_hits = %d, want 2", cfg.Agent.Recovery.DuplicateConsecutiveHits)
+	}
+	if cfg.Agent.Recovery.DuplicateFrequencyHits != 3 {
+		t.Fatalf("default duplicate_frequency_hits = %d, want 3", cfg.Agent.Recovery.DuplicateFrequencyHits)
+	}
+	if cfg.Agent.Recovery.IdenticalToolErrorHits != 3 {
+		t.Fatalf("default identical_tool_error_hits = %d, want 3", cfg.Agent.Recovery.IdenticalToolErrorHits)
 	}
 }

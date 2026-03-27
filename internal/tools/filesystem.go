@@ -10,6 +10,28 @@ import (
 	"time"
 )
 
+func normalizeFilesystemOperation(operation string) string {
+	switch strings.TrimSpace(operation) {
+	case "read":
+		return "read_file"
+	case "write":
+		return "write_file"
+	default:
+		return operation
+	}
+}
+
+func filesystemUnknownOperationMessage(operation string) string {
+	switch strings.TrimSpace(operation) {
+	case "read":
+		return "Unknown filesystem operation: 'read'. Use 'read_file' to read file contents. Valid: list_dir, create_dir, delete, read_file, write_file, move, stat"
+	case "write":
+		return "Unknown filesystem operation: 'write'. Use 'write_file' to create or overwrite a file. Valid: list_dir, create_dir, delete, read_file, write_file, move, stat"
+	default:
+		return fmt.Sprintf("Unknown filesystem operation: '%s'. Valid: list_dir, create_dir, delete, read_file, write_file, move, stat", operation)
+	}
+}
+
 // FSResult is the JSON response returned to the LLM.
 type FSResult struct {
 	Status  string      `json:"status"`
@@ -82,6 +104,9 @@ func ExecuteFilesystem(operation, path, destination, content string, workspaceDi
 		b, _ := json.Marshal(r)
 		return string(b)
 	}
+
+	originalOperation := operation
+	operation = normalizeFilesystemOperation(operation)
 
 	switch operation {
 	case "list_dir":
@@ -239,6 +264,6 @@ func ExecuteFilesystem(operation, path, destination, content string, workspaceDi
 		}})
 
 	default:
-		return encode(FSResult{Status: "error", Message: fmt.Sprintf("Unknown filesystem operation: '%s'. Valid: list_dir, create_dir, delete, read_file, write_file, move, stat", operation)})
+		return encode(FSResult{Status: "error", Message: filesystemUnknownOperationMessage(originalOperation)})
 	}
 }

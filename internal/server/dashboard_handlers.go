@@ -156,6 +156,14 @@ func handleDashboardMemory(s *Server) http.HandlerFunc {
 		}
 		notesCount, _ := s.ShortTermMem.GetNotesCount()
 		errorPatternsCount, _ := s.ShortTermMem.GetErrorPatternsCount()
+		episodicStats, _ := s.ShortTermMem.GetEpisodicMemoryStats(72, 4)
+		usageStats, _ := s.ShortTermMem.GetMemoryUsageStats(14, 5)
+		memoryHealth := memory.MemoryHealthReport{
+			Usage: usageStats,
+		}
+		if metas, err := s.ShortTermMem.GetAllMemoryMeta(); err == nil {
+			memoryHealth = memory.BuildMemoryHealthReport(metas, usageStats)
+		}
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
@@ -171,6 +179,8 @@ func handleDashboardMemory(s *Server) http.HandlerFunc {
 			"notes_count":     notesCount,
 			"error_patterns":  errorPatternsCount,
 			"milestones":      milestones,
+			"episodic":        episodicStats,
+			"memory_health":   memoryHealth,
 		})
 	}
 }

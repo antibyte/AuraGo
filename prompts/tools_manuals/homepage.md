@@ -332,6 +332,7 @@ Starts a Cloudflare quick tunnel to expose a local port to the internet via a te
 ## Important Notes
 
 - All file paths are relative to `/workspace` inside the container
+- `project_dir` must always be relative to the homepage workspace. Use `ki-news`, not `/workspace/ki-news`.
 - The container persists between sessions (uses `unless-stopped` restart policy)
 - Build output directory is auto-detected: checks `out`, `dist`, `build`, `.next`, `public`. If none exist (plain HTML), serves the project root directly.
 - Plain HTML projects (no `package.json`) skip the build step entirely — no Docker dev container needed for deployment.
@@ -393,3 +394,13 @@ The `deploy_netlify` operation scans all HTML and CSS files, detects `/files/gen
 **Problem:** Files were created with the `filesystem` tool instead of `homepage write_file`, placing them in `agent_workspace/workdir/` instead of the homepage workspace.
 
 **Solution:** Use `homepage write_file` to create all project files. The `deploy_netlify` operation only finds files in the homepage workspace (`data/homepage/`).
+
+### deploy_netlify: "Missing script: build"
+
+**Problem:** `package.json` exists, but it does not define a `build` script.
+
+**Solution:** Do not keep retrying the same deploy call. Either:
+1. Treat the project as static HTML and deploy the project root directly, or
+2. Add a valid `build` script to `package.json`, then retry.
+
+If the project is plain HTML, you usually do not need a build step at all.

@@ -141,18 +141,34 @@ func runMemoryAnalysis(
 		if f.Confidence >= minThreshold && f.Content != "" && shouldStoreExtractedMemory(f.Content, f.Category) {
 			if ltm != nil {
 				concept := fmt.Sprintf("[%s] %s", f.Category, f.Content)
-				if _, err := ltm.StoreDocument(concept, "source:memory_analysis session:"+sessionID); err != nil {
+				if ids, err := ltm.StoreDocument(concept, "source:memory_analysis session:"+sessionID); err != nil {
 					logger.Warn("[Memory Analysis] Failed to store fact in LTM", "error", err)
 				} else {
+					if stm != nil {
+						for _, id := range ids {
+							_ = stm.UpsertMemoryMetaWithDetails(id, memory.MemoryMetaUpdate{
+								ExtractionConfidence: f.Confidence,
+								VerificationStatus:   "unverified",
+								SourceType:           "memory_analysis",
+								SourceReliability:    0.85,
+							})
+						}
+					}
 					stored++
 					if stm != nil && strings.EqualFold(f.Category, "recent_operational_details") {
-						_ = stm.InsertEpisodicMemory(
+						_ = stm.InsertEpisodicMemoryWithDetails(
 							time.Now().Format("2006-01-02"),
 							"Operational detail",
 							Truncate(f.Content, 220),
 							map[string]string{"category": f.Category, "session_id": sessionID},
 							3,
 							"memory_analysis",
+							memory.EpisodicMemoryDetails{
+								SessionID:        sessionID,
+								Participants:     []string{"user", "agent"},
+								RelatedDocIDs:    ids,
+								EmotionalValence: 0.10,
+							},
 						)
 					}
 				}
@@ -166,9 +182,19 @@ func runMemoryAnalysis(
 		if p.Confidence >= minThreshold && p.Content != "" && shouldStoreExtractedMemory(p.Content, p.Category) {
 			if ltm != nil {
 				concept := fmt.Sprintf("[preference:%s] %s", p.Category, p.Content)
-				if _, err := ltm.StoreDocument(concept, "source:memory_analysis session:"+sessionID); err != nil {
+				if ids, err := ltm.StoreDocument(concept, "source:memory_analysis session:"+sessionID); err != nil {
 					logger.Warn("[Memory Analysis] Failed to store preference in LTM", "error", err)
 				} else {
+					if stm != nil {
+						for _, id := range ids {
+							_ = stm.UpsertMemoryMetaWithDetails(id, memory.MemoryMetaUpdate{
+								ExtractionConfidence: p.Confidence,
+								VerificationStatus:   "unverified",
+								SourceType:           "memory_analysis",
+								SourceReliability:    0.85,
+							})
+						}
+					}
 					stored++
 				}
 			}
@@ -181,9 +207,19 @@ func runMemoryAnalysis(
 		if c.Confidence >= minThreshold && c.Content != "" && shouldStoreExtractedMemory(c.Content, c.Category) {
 			if ltm != nil {
 				concept := fmt.Sprintf("[correction:%s] %s", c.Category, c.Content)
-				if _, err := ltm.StoreDocument(concept, "source:memory_analysis session:"+sessionID); err != nil {
+				if ids, err := ltm.StoreDocument(concept, "source:memory_analysis session:"+sessionID); err != nil {
 					logger.Warn("[Memory Analysis] Failed to store correction in LTM", "error", err)
 				} else {
+					if stm != nil {
+						for _, id := range ids {
+							_ = stm.UpsertMemoryMetaWithDetails(id, memory.MemoryMetaUpdate{
+								ExtractionConfidence: c.Confidence,
+								VerificationStatus:   "unverified",
+								SourceType:           "memory_analysis",
+								SourceReliability:    0.90,
+							})
+						}
+					}
 					stored++
 				}
 			}
@@ -509,7 +545,7 @@ func generateMemoryReflection(
 	scope string,
 ) (interface{}, error) {
 	// Gather data from each source
-	var journalData, kgData, coreData string
+	var journalData, kgData, coreData, curatorData string
 
 	// Journal entries
 	if stm != nil {
@@ -555,7 +591,28 @@ func generateMemoryReflection(
 		coreData = "(unavailable)"
 	}
 
-	prompt := fmt.Sprintf(reflectionPrompt, scope, journalData, kgData, coreData)
+	var curatorPayload interface{}
+	if stm != nil {
+		usageStats, usageErr := stm.GetMemoryUsageStats(14, 5)
+		if usageErr == nil {
+			metas, metaErr := stm.GetAllMemoryMeta()
+			if metaErr == nil {
+				report := memory.BuildMemoryHealthReport(metas, usageStats)
+				if b, err := json.Marshal(report.Curator); err == nil {
+					curatorData = string(b)
+					curatorPayload = report.Curator
+				}
+			}
+		}
+	}
+	if curatorData == "" {
+		curatorData = "(unavailable)"
+	}
+	if curatorPayload == nil {
+		curatorPayload = curatorData
+	}
+
+	prompt := fmt.Sprintf(reflectionPrompt, scope, journalData, kgData, coreData) + "\n\n=== Curator Dry Run ===\n" + curatorData
 
 	// Use dedicated analysis provider if configured, otherwise main client
 	analysisClient := mainClient
@@ -606,9 +663,11 @@ func generateMemoryReflection(
 	if err := json.Unmarshal([]byte(raw), &result); err != nil {
 		// If JSON parse fails, return as plain text
 		return map[string]interface{}{
-			"summary": raw,
+			"summary":         raw,
+			"curator_dry_run": curatorPayload,
 		}, nil
 	}
+	result["curator_dry_run"] = curatorPayload
 
 	// Store reflection as a journal entry for future reference
 	// Map internal scope names to human-readable labels

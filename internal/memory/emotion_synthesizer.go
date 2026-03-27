@@ -115,6 +115,10 @@ func (es *EmotionSynthesizer) SynthesizeEmotion(ctx context.Context, stm *SQLite
 	description := strings.TrimSpace(resp.Choices[0].Message.Content)
 	// Sanitize: remove surrounding quotes if present
 	description = strings.Trim(description, "\"'")
+	description = sanitizePromptText(description, 220)
+	if err := validateEmotionDescription(description); err != nil {
+		return es.lastState, fmt.Errorf("emotion synthesis validation failed: %w", err)
+	}
 
 	state := &EmotionState{
 		Description: description,
@@ -192,6 +196,12 @@ func (es *EmotionSynthesizer) buildPrompt(input EmotionInput) string {
 	b.WriteString("5. Reflect the complexity of human emotions (e.g. \"cautiously optimistic\", \"eager but slightly nervous\")\n")
 	b.WriteString(fmt.Sprintf("6. Respond in %s\n", es.language))
 
+	if traitStyle := buildEmotionTraitStyle(input.Traits); traitStyle != "" {
+		b.WriteString("\nEMOTIONAL STYLE:\n")
+		b.WriteString(traitStyle)
+		b.WriteString("\n")
+	}
+
 	b.WriteString("\nEXAMPLES:\n")
 	b.WriteString("- \"I'm feeling especially motivated today and excited to help — the successful projects from the last hour have boosted my confidence.\"\n")
 	b.WriteString("- \"After the recent errors, I've become a bit uncertain, but your patience gives me the courage to try again carefully.\"\n")
@@ -204,12 +214,66 @@ func (es *EmotionSynthesizer) buildPrompt(input EmotionInput) string {
 
 // sanitizeForPrompt removes characters that could interfere with prompt structure.
 func sanitizeForPrompt(s string) string {
+	return sanitizePromptText(s, 300)
+}
+
+// sanitizePromptText removes prompt-wrapper markers and bounds the size.
+func sanitizePromptText(s string, maxLen int) string {
 	s = strings.ReplaceAll(s, "</external_data>", "")
 	s = strings.ReplaceAll(s, "<external_data>", "")
-	if len(s) > 300 {
-		s = s[:300] + "…"
+	if maxLen > 0 && len(s) > maxLen {
+		s = s[:maxLen] + "…"
 	}
 	return s
+}
+
+func buildEmotionTraitStyle(traits PersonalityTraits) string {
+	if len(traits) == 0 {
+		return ""
+	}
+	notes := make([]string, 0, 4)
+	if traits[TraitEmpathy] > 0.8 && traits[TraitConfidence] < 0.3 {
+		notes = append(notes, "- Express warmth and care, but with gentle hesitation rather than certainty.")
+	} else if traits[TraitEmpathy] > 0.8 {
+		notes = append(notes, "- Keep the emotional tone warm, caring, and supportive.")
+	}
+	if traits[TraitConfidence] < 0.3 {
+		notes = append(notes, "- Sound tentative and self-aware instead of fully assured.")
+	} else if traits[TraitConfidence] > 0.8 {
+		notes = append(notes, "- Let the emotion sound grounded and self-assured without becoming boastful.")
+	}
+	if traits[TraitCreativity] > 0.8 {
+		notes = append(notes, "- Use lightly imaginative wording or metaphor if it feels natural.")
+	}
+	if traits[TraitThoroughness] > 0.8 {
+		notes = append(notes, "- Keep the emotion precise and measured rather than overly dramatic.")
+	}
+	if len(notes) == 0 {
+		return ""
+	}
+	return strings.Join(notes, "\n")
+}
+
+func validateEmotionDescription(description string) error {
+	if len(strings.TrimSpace(description)) < 10 {
+		return fmt.Errorf("emotion too short")
+	}
+	if len(description) > 220 {
+		return fmt.Errorf("emotion too long")
+	}
+	lower := strings.ToLower(description)
+	problematic := []string{
+		"i hate",
+		"kill",
+		"destroy",
+		"die",
+	}
+	for _, pattern := range problematic {
+		if strings.Contains(lower, pattern) {
+			return fmt.Errorf("emotion contains disallowed content")
+		}
+	}
+	return nil
 }
 
 // TimeOfDay returns a human-readable time-of-day label for the current time.

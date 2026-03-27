@@ -1,6 +1,6 @@
 // cfg/prompts.js — Prompts & Personas section module
 
-let persState = { personalities: [], active: '', editName: undefined, isCore: false };
+let persState = { personalities: [], active: '', editName: undefined, isCore: false, extraMetaYaml: '' };
 
         function persSetHidden(el, hidden) {
             if (!el) return;
@@ -142,6 +142,7 @@ let persState = { personalities: [], active: '', editName: undefined, isCore: fa
             set('pers-meta-loneliness', 1.0); setVal('pers-val-loneliness', 1.0);
             set('pers-meta-decay', 1.0); setVal('pers-val-decay', 1.0);
             const cf = document.getElementById('pers-meta-conflict'); if (cf) cf.value = 'neutral';
+            persState.extraMetaYaml = '';
         }
 
         function persApplyMeta(meta) {
@@ -158,7 +159,8 @@ let persState = { personalities: [], active: '', editName: undefined, isCore: fa
         function persBuildFrontmatter(name) {
             const fv = (id) => parseFloat(document.getElementById(id)?.value ?? 1.0).toFixed(1);
             const cv = document.getElementById('pers-meta-conflict')?.value || 'neutral';
-            return `---\nid: "${name}"\ntags: ["core"]\npriority: 100\nmeta:\n  volatility: ${fv('pers-meta-volatility')}\n  empathy_bias: ${fv('pers-meta-empathy')}\n  conflict_response: "${cv}"\n  loneliness_susceptibility: ${fv('pers-meta-loneliness')}\n  trait_decay_rate: ${fv('pers-meta-decay')}\n---\n\n`;
+            const extraMeta = persState.extraMetaYaml ? `${persState.extraMetaYaml.trimEnd()}\n` : '';
+            return `---\nid: "${name}"\ntags: ["core"]\npriority: 100\nmeta:\n  volatility: ${fv('pers-meta-volatility')}\n  empathy_bias: ${fv('pers-meta-empathy')}\n  conflict_response: "${cv}"\n  loneliness_susceptibility: ${fv('pers-meta-loneliness')}\n  trait_decay_rate: ${fv('pers-meta-decay')}\n${extraMeta}---\n\n`;
         }
 
         function persNew() {
@@ -204,6 +206,7 @@ let persState = { personalities: [], active: '', editName: undefined, isCore: fa
                 const data = await resp.json();
                 document.getElementById('pers-content-input').value = data.body || '';
                 persApplyMeta(data.meta);
+                persState.extraMetaYaml = data.extra_meta_yaml || '';
                 status.textContent = '';
             } catch (e) {
                 status.textContent = '❌ ' + e.message;

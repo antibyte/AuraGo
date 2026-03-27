@@ -610,7 +610,11 @@ Conversation:
 			"session_id": batch[0].SessionID,
 			"batch":      fmt.Sprintf("%d/%d", i+1, len(batches)),
 		}
-		_ = stm.InsertEpisodicMemory(eventDate, episodeTitle, episodeSummary, episodeDetails, 2, "consolidation")
+		_ = stm.InsertEpisodicMemoryWithDetails(eventDate, episodeTitle, episodeSummary, episodeDetails, 2, "consolidation", memory.EpisodicMemoryDetails{
+			SessionID:        batch[0].SessionID,
+			Participants:     []string{"user", "agent"},
+			EmotionalValence: 0,
+		})
 
 		allConsolidatedIDs = append(allConsolidatedIDs, batchIDs...)
 	}

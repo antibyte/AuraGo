@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 )
@@ -31,6 +32,30 @@ type DailySummary struct {
 	ToolUsage   map[string]int `json:"tool_usage"`
 	Sentiment   string         `json:"sentiment"` // positive, neutral, frustrated
 	GeneratedAt string         `json:"generated_at"`
+}
+
+// EpisodicMemory is a compact event card stored in the recent episodic layer.
+type EpisodicMemory struct {
+	ID               int64    `json:"id"`
+	EventDate        string   `json:"event_date"`
+	Title            string   `json:"title"`
+	Summary          string   `json:"summary"`
+	DetailsJSON      string   `json:"details_json"`
+	Importance       int      `json:"importance"`
+	Source           string   `json:"source"`
+	SessionID        string   `json:"session_id"`
+	Participants     []string `json:"participants,omitempty"`
+	RelatedDocIDs    []string `json:"related_doc_ids,omitempty"`
+	EmotionalValence float64  `json:"emotional_valence"`
+	CreatedAt        string   `json:"created_at"`
+}
+
+// EpisodicMemoryDetails enriches episodic event cards with lightweight structured metadata.
+type EpisodicMemoryDetails struct {
+	SessionID        string
+	Participants     []string
+	RelatedDocIDs    []string
+	EmotionalValence float64
 }
 
 // InitJournalTables creates the journal tables if they do not exist.
@@ -72,6 +97,10 @@ func (s *SQLiteMemory) InitJournalTables() error {
 		details_json TEXT DEFAULT '{}',
 		importance INTEGER DEFAULT 2,
 		source TEXT DEFAULT 'consolidation',
+		session_id TEXT DEFAULT '',
+		participants_json TEXT DEFAULT '[]',
+		related_doc_ids TEXT DEFAULT '[]',
+		emotional_valence REAL DEFAULT 0,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	);
 
@@ -83,6 +112,28 @@ func (s *SQLiteMemory) InitJournalTables() error {
 	if _, err := s.db.Exec(schema); err != nil {
 		return fmt.Errorf("journal schema: %w", err)
 	}
+
+	for _, column := range []struct {
+		Name    string
+		TypeDef string
+	}{
+		{Name: "session_id", TypeDef: "TEXT DEFAULT ''"},
+		{Name: "participants_json", TypeDef: "TEXT DEFAULT '[]'"},
+		{Name: "related_doc_ids", TypeDef: "TEXT DEFAULT '[]'"},
+		{Name: "emotional_valence", TypeDef: "REAL DEFAULT 0"},
+	} {
+		var hasColumn bool
+		err := s.db.QueryRow("SELECT count(*) > 0 FROM pragma_table_info('episodic_memories') WHERE name = ?", column.Name).Scan(&hasColumn)
+		if err != nil {
+			return fmt.Errorf("check episodic_memories.%s column: %w", column.Name, err)
+		}
+		if !hasColumn {
+			if _, err := s.db.Exec("ALTER TABLE episodic_memories ADD COLUMN " + column.Name + " " + column.TypeDef); err != nil {
+				return fmt.Errorf("add episodic_memories.%s column: %w", column.Name, err)
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -128,6 +179,11 @@ func (s *SQLiteMemory) GetRecentDayAnchors(limit int) ([]string, error) {
 
 // InsertEpisodicMemory stores compact event cards for the recent-days memory layer.
 func (s *SQLiteMemory) InsertEpisodicMemory(eventDate, title, summary string, details map[string]string, importance int, source string) error {
+	return s.InsertEpisodicMemoryWithDetails(eventDate, title, summary, details, importance, source, EpisodicMemoryDetails{})
+}
+
+// InsertEpisodicMemoryWithDetails stores compact event cards with optional structured metadata.
+func (s *SQLiteMemory) InsertEpisodicMemoryWithDetails(eventDate, title, summary string, details map[string]string, importance int, source string, meta EpisodicMemoryDetails) error {
 	if eventDate == "" {
 		eventDate = time.Now().Format("2006-01-02")
 	}
@@ -141,10 +197,21 @@ func (s *SQLiteMemory) InsertEpisodicMemory(eventDate, title, summary string, de
 		source = "consolidation"
 	}
 	detailsJSON, _ := json.Marshal(details)
+	participantsJSON, _ := json.Marshal(uniqueSortedStrings(meta.Participants))
+	relatedDocIDsJSON, _ := json.Marshal(uniqueSortedStrings(meta.RelatedDocIDs))
+	if meta.EmotionalValence > 1 {
+		meta.EmotionalValence = 1
+	}
+	if meta.EmotionalValence < -1 {
+		meta.EmotionalValence = -1
+	}
 	_, err := s.db.Exec(`
-		INSERT INTO episodic_memories (event_date, title, summary, details_json, importance, source)
-		VALUES (?, ?, ?, ?, ?, ?)
-	`, eventDate, title, summary, string(detailsJSON), importance, source)
+		INSERT INTO episodic_memories (
+			event_date, title, summary, details_json, importance, source,
+			session_id, participants_json, related_doc_ids, emotional_valence
+		)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, eventDate, title, summary, string(detailsJSON), importance, source, meta.SessionID, string(participantsJSON), string(relatedDocIDsJSON), meta.EmotionalValence)
 	if err != nil {
 		return fmt.Errorf("insert episodic memory: %w", err)
 	}
@@ -153,6 +220,19 @@ func (s *SQLiteMemory) InsertEpisodicMemory(eventDate, title, summary string, de
 
 // GetRecentEpisodicMemories returns recent event cards (default 72h) as compact prompt lines.
 func (s *SQLiteMemory) GetRecentEpisodicMemories(hoursWindow int, limit int) ([]string, error) {
+	cards, err := s.GetRecentEpisodicMemoryCards(hoursWindow, limit)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]string, 0, len(cards))
+	for _, card := range cards {
+		out = append(out, formatEpisodicCard(card))
+	}
+	return out, nil
+}
+
+// GetRecentEpisodicMemoryCards returns recent event cards with structured metadata.
+func (s *SQLiteMemory) GetRecentEpisodicMemoryCards(hoursWindow int, limit int) ([]EpisodicMemory, error) {
 	if hoursWindow <= 0 {
 		hoursWindow = 72
 	}
@@ -160,7 +240,7 @@ func (s *SQLiteMemory) GetRecentEpisodicMemories(hoursWindow int, limit int) ([]
 		limit = 5
 	}
 	rows, err := s.db.Query(`
-		SELECT event_date, title, summary
+		SELECT id, event_date, title, summary, details_json, importance, source, session_id, participants_json, related_doc_ids, emotional_valence, created_at
 		FROM episodic_memories
 		WHERE datetime(created_at) >= datetime('now', '-' || ? || ' hours')
 		ORDER BY created_at DESC, importance DESC
@@ -171,13 +251,16 @@ func (s *SQLiteMemory) GetRecentEpisodicMemories(hoursWindow int, limit int) ([]
 	}
 	defer rows.Close()
 
-	out := make([]string, 0, limit)
+	out := make([]EpisodicMemory, 0, limit)
 	for rows.Next() {
-		var d, t, ssum string
-		if err := rows.Scan(&d, &t, &ssum); err != nil {
+		var entry EpisodicMemory
+		var participantsJSON, relatedDocIDsJSON string
+		if err := rows.Scan(&entry.ID, &entry.EventDate, &entry.Title, &entry.Summary, &entry.DetailsJSON, &entry.Importance, &entry.Source, &entry.SessionID, &participantsJSON, &relatedDocIDsJSON, &entry.EmotionalValence, &entry.CreatedAt); err != nil {
 			return nil, fmt.Errorf("scan episodic memory: %w", err)
 		}
-		out = append(out, fmt.Sprintf("%s | %s — %s", d, t, ssum))
+		_ = json.Unmarshal([]byte(participantsJSON), &entry.Participants)
+		_ = json.Unmarshal([]byte(relatedDocIDsJSON), &entry.RelatedDocIDs)
+		out = append(out, entry)
 	}
 	return out, rows.Err()
 }
@@ -277,8 +360,14 @@ func (s *SQLiteMemory) GetJournalEntries(from, to string, types []string, limit 
 
 // SearchJournalEntries searches journal entries by keyword in title and content.
 func (s *SQLiteMemory) SearchJournalEntries(keyword string, limit int) ([]JournalEntry, error) {
+	return s.SearchJournalEntriesInRange(keyword, "", "", limit)
+}
+
+// SearchJournalEntriesInRange searches journal entries by keyword in title/content,
+// optionally restricted to an inclusive YYYY-MM-DD date window.
+func (s *SQLiteMemory) SearchJournalEntriesInRange(keyword, fromDate, toDate string, limit int) ([]JournalEntry, error) {
 	if keyword == "" {
-		return s.GetJournalEntries("", "", nil, limit)
+		return s.GetJournalEntries(fromDate, toDate, nil, limit)
 	}
 	if limit <= 0 {
 		limit = 20
@@ -287,11 +376,20 @@ func (s *SQLiteMemory) SearchJournalEntries(keyword string, limit int) ([]Journa
 	pattern := "%" + keyword + "%"
 	query := `SELECT id, entry_type, title, content, tags, importance, date, session_id, auto_generated, created_at
 	          FROM journal_entries
-	          WHERE title LIKE ? OR content LIKE ?
-	          ORDER BY date DESC, created_at DESC
-	          LIMIT ?`
+	          WHERE (title LIKE ? OR content LIKE ?)`
+	args := []interface{}{pattern, pattern}
+	if fromDate != "" {
+		query += ` AND date >= ?`
+		args = append(args, fromDate)
+	}
+	if toDate != "" {
+		query += ` AND date <= ?`
+		args = append(args, toDate)
+	}
+	query += ` ORDER BY date DESC, created_at DESC LIMIT ?`
+	args = append(args, limit)
 
-	rows, err := s.db.Query(query, pattern, pattern, limit)
+	rows, err := s.db.Query(query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("search journal: %w", err)
 	}
@@ -308,6 +406,130 @@ func (s *SQLiteMemory) SearchJournalEntries(keyword string, limit int) ([]Journa
 		entries = append(entries, e)
 	}
 	return entries, rows.Err()
+}
+
+// SearchEpisodicMemoriesInRange searches episodic memories by summary/title and optional date range.
+func (s *SQLiteMemory) SearchEpisodicMemoriesInRange(keyword, fromDate, toDate string, limit int) ([]EpisodicMemory, error) {
+	if limit <= 0 {
+		limit = 10
+	}
+
+	query := `
+		SELECT id, event_date, title, summary, details_json, importance, source, session_id, participants_json, related_doc_ids, emotional_valence, created_at
+		FROM episodic_memories
+		WHERE 1=1`
+	args := make([]interface{}, 0, 4)
+	if keyword != "" {
+		pattern := "%" + keyword + "%"
+		query += ` AND (title LIKE ? OR summary LIKE ?)`
+		args = append(args, pattern, pattern)
+	}
+	if fromDate != "" {
+		query += ` AND event_date >= ?`
+		args = append(args, fromDate)
+	}
+	if toDate != "" {
+		query += ` AND event_date <= ?`
+		args = append(args, toDate)
+	}
+	query += ` ORDER BY event_date DESC, created_at DESC, importance DESC LIMIT ?`
+	args = append(args, limit)
+
+	rows, err := s.db.Query(query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("search episodic memories: %w", err)
+	}
+	defer rows.Close()
+
+	var entries []EpisodicMemory
+	for rows.Next() {
+		var entry EpisodicMemory
+		var participantsJSON, relatedDocIDsJSON string
+		if err := rows.Scan(
+			&entry.ID,
+			&entry.EventDate,
+			&entry.Title,
+			&entry.Summary,
+			&entry.DetailsJSON,
+			&entry.Importance,
+			&entry.Source,
+			&entry.SessionID,
+			&participantsJSON,
+			&relatedDocIDsJSON,
+			&entry.EmotionalValence,
+			&entry.CreatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan episodic memory search: %w", err)
+		}
+		_ = json.Unmarshal([]byte(participantsJSON), &entry.Participants)
+		_ = json.Unmarshal([]byte(relatedDocIDsJSON), &entry.RelatedDocIDs)
+		entries = append(entries, entry)
+	}
+	return entries, rows.Err()
+}
+
+// GetEpisodicMemoryStats returns additive diagnostics for the episodic layer.
+func (s *SQLiteMemory) GetEpisodicMemoryStats(hoursWindow int, recentLimit int) (map[string]interface{}, error) {
+	if hoursWindow <= 0 {
+		hoursWindow = 72
+	}
+	if recentLimit <= 0 {
+		recentLimit = 5
+	}
+
+	var totalCount int
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM episodic_memories`).Scan(&totalCount); err != nil {
+		return nil, fmt.Errorf("count episodic memories: %w", err)
+	}
+
+	var recentCount int
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM episodic_memories WHERE datetime(created_at) >= datetime('now', '-' || ? || ' hours')`, hoursWindow).Scan(&recentCount); err != nil {
+		return nil, fmt.Errorf("count recent episodic memories: %w", err)
+	}
+
+	rows, err := s.db.Query(`SELECT source, COUNT(*) FROM episodic_memories GROUP BY source ORDER BY COUNT(*) DESC`)
+	if err != nil {
+		return nil, fmt.Errorf("group episodic sources: %w", err)
+	}
+	defer rows.Close()
+
+	bySource := make(map[string]int)
+	for rows.Next() {
+		var source string
+		var count int
+		if err := rows.Scan(&source, &count); err != nil {
+			return nil, fmt.Errorf("scan episodic source stats: %w", err)
+		}
+		bySource[source] = count
+	}
+
+	recentCards, err := s.GetRecentEpisodicMemoryCards(hoursWindow, recentLimit)
+	if err != nil {
+		return nil, err
+	}
+	recent := make([]map[string]interface{}, 0, len(recentCards))
+	for _, card := range recentCards {
+		recent = append(recent, map[string]interface{}{
+			"event_date":         card.EventDate,
+			"title":              card.Title,
+			"summary":            card.Summary,
+			"source":             card.Source,
+			"session_id":         card.SessionID,
+			"participants":       card.Participants,
+			"related_doc_ids":    card.RelatedDocIDs,
+			"emotional_valence":  card.EmotionalValence,
+			"prompt_line":        formatEpisodicCard(card),
+			"has_related_memory": len(card.RelatedDocIDs) > 0,
+		})
+	}
+
+	return map[string]interface{}{
+		"total_count":  totalCount,
+		"recent_count": recentCount,
+		"hours_window": hoursWindow,
+		"by_source":    bySource,
+		"recent_cards": recent,
+	}, nil
 }
 
 // DeleteJournalEntry removes a journal entry by ID.
@@ -438,4 +660,38 @@ func FormatJournalEntriesJSON(entries []JournalEntry) string {
 		return "[]"
 	}
 	return string(b)
+}
+
+func formatEpisodicCard(card EpisodicMemory) string {
+	line := fmt.Sprintf("%s | %s — %s", card.EventDate, card.Title, card.Summary)
+	if len(card.Participants) > 0 {
+		line += " | with " + strings.Join(card.Participants, ", ")
+	}
+	if card.EmotionalValence >= 0.45 {
+		line += " | positive"
+	} else if card.EmotionalValence <= -0.45 {
+		line += " | tense"
+	}
+	return line
+}
+
+func uniqueSortedStrings(values []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(values))
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		out = append(out, value)
+	}
+	sort.Strings(out)
+	return out
 }

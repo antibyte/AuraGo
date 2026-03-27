@@ -14,6 +14,11 @@ meta:
   decay_resistance:
     empathy: 0.5
     affinity: 0.4
+  # Optional advanced behavior tuning:
+  # thresholds:
+  #   high_affinity: 0.75
+  #   low_confidence: 0.25
+  #   high_empathy: 0.8
 ---
 
 # Core Personality: Friend

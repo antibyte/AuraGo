@@ -24,6 +24,23 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
+func decorateHomepageBuildFailure(raw string, projectDir string) string {
+	trimmed := strings.TrimSpace(extractOutput(raw))
+	if trimmed == "" {
+		return raw
+	}
+
+	lower := strings.ToLower(trimmed)
+	switch {
+	case strings.Contains(lower, `missing script: "build"`):
+		return errJSON("Build failed because package.json in project_dir %q has no 'build' script. If this is a static HTML project, remove the unused package.json or deploy the project directory directly. Otherwise add a build script and retry. Original build output: %s", projectDir, truncateStr(trimmed, 500))
+	case strings.Contains(lower, "enoent") && strings.Contains(lower, "package.json"):
+		return errJSON("Build failed because package.json could not be found for project_dir %q. Verify that project_dir is relative to the homepage workspace and that the project files were created with homepage write_file, not filesystem. Original build output: %s", projectDir, truncateStr(trimmed, 500))
+	default:
+		return raw
+	}
+}
+
 // HomepageDetectWorkspacePath inspects the running homepage dev container and
 // returns the host path that is bind-mounted as the workspace (/workspace inside
 // the container).  This lets the Config UI auto-fill the workspace_path field
@@ -135,7 +152,7 @@ func HomepageDeploy(cfg HomepageConfig, deployCfg HomepageDeployConfig, projectD
 		var br map[string]interface{}
 		if json.Unmarshal([]byte(buildResult), &br) == nil {
 			if s, _ := br["status"].(string); s == "error" {
-				return errJSON("Build failed before deploy: %s", buildResult)
+				return errJSON("Build failed before deploy for project_dir %q. Review the build output and project structure, then try a different approach instead of repeating the same deploy call. Details: %s", projectDir, decorateHomepageBuildFailure(buildResult, projectDir))
 			}
 		}
 	}
@@ -478,8 +495,9 @@ func HomepageDeployNetlify(cfg HomepageConfig, nfCfg NetlifyConfig, projectDir, 
 			if s, _ := br["status"].(string); s != "error" {
 				// Build succeeded — detect the output directory.
 				buildDir = detectBuildDir(cfg, projectDir)
+			} else {
+				return decorateHomepageBuildFailure(buildResult, projectDir)
 			}
-			// else: plain-HTML project, no build script; deploy project dir directly.
 		}
 	}
 
@@ -532,7 +550,7 @@ func HomepageDeployNetlify(cfg HomepageConfig, nfCfg NetlifyConfig, projectDir, 
 
 	// Verify the deploy path exists.
 	if _, err := os.Stat(deployPath); err != nil {
-		return errJSON("Deploy path does not exist: %s", deployPath)
+		return errJSON("Deploy path does not exist: %s. project_dir must be relative to the homepage workspace, and homepage project files must be created with homepage write_file/read_file instead of the filesystem tool. For static sites, ensure the project root or a dist/build/out directory contains index.html.", deployPath)
 	}
 
 	logger.Info("[Homepage] Packaging for Netlify deploy", "path", deployPath)

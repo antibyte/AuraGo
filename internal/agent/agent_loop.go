@@ -156,6 +156,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	workflowPlanCount := 0              // Prevent infinite workflow_plan loops
 	lastResponseWasTool := false        // True when the previous iteration was a tool call; suppresses announcement detector on completion messages
 	pendingTCs := make([]ToolCall, 0)   // Queued tool calls from multi-tool responses (processed without a new LLM call)
+	usedMemoryDocIDs := make(map[string]int)
 
 	// Context compression: tracks message count at last compression for cooldown
 	lastCompressionMsg := 0
@@ -350,16 +351,14 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 			broker.Send("tool_call", ptcJSON)
 			broker.Send("tool_start", ptc.Action)
-			pResultContent := DispatchToolCall(ctx, ptc, cfg, currentLogger, client, vault, registry, manifest, cronManager, missionManagerV2, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, contactsDB, sqlConnectionsDB, sqlConnectionPool, remoteHub, historyManager, tools.IsBusy(), surgeryPlan, guardian, llmGuardian, sessionID, coAgentRegistry, budgetTracker, lastUserMsg)
-			policyResult := applyToolOutputPolicy(pResultContent, cfg.Agent.ToolOutputLimit, telemetryScope)
-			pResultContent = policyResult.Content
-			pToolFailed := policyResult.WasError
-			prompts.RecordToolUsage(ptc.Action, ptc.Operation, !pToolFailed)
-			prompts.RecordAdaptiveToolUsage(ptc.Action, !pToolFailed)
-			RecordScopedToolResultForTool(telemetryScope, ptc.Action, !pToolFailed)
-			if shortTermMem != nil {
-				_ = shortTermMem.UpsertToolUsage(ptc.Action, !pToolFailed)
+			pResultContent := ""
+			if recoveryState.handleDuplicateToolCall(ptc, &req, currentLogger, telemetryScope) {
+				pResultContent = blockedToolOutputFromRequest(&req)
+			} else {
+				pResultContent = DispatchToolCall(ctx, ptc, cfg, currentLogger, client, vault, registry, manifest, cronManager, missionManagerV2, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, contactsDB, sqlConnectionsDB, sqlConnectionPool, remoteHub, historyManager, tools.IsBusy(), surgeryPlan, guardian, llmGuardian, sessionID, coAgentRegistry, budgetTracker, lastUserMsg)
 			}
+			policyResult := finalizeToolExecution(ptc, pResultContent, cfg, shortTermMem, sessionID, &recoveryState, &req, currentLogger, telemetryScope)
+			pResultContent = policyResult.Content
 			broker.Send("tool_output", pResultContent)
 			if ptc.Action == "send_image" {
 				var imgRes struct {
@@ -543,9 +542,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			// Over-fetch 6 candidates, then re-rank to keep best 3
 			memories, docIDs, err := longTermMem.SearchSimilar(ragQuery, 6, "tool_guides")
 			if err == nil && len(memories) > 0 {
-				ranked := rerankWithRecency(memories, docIDs, shortTermMem, currentLogger)
+				ranked := rankMemoryCandidates(memories, docIDs, shortTermMem, usedMemoryDocIDs, time.Now())
 
-				// LLM re-ranking: blend LLM relevance scores with recency-boosted scores
+				// LLM re-ranking: blend LLM relevance scores with policy-ranked scores
 				ranked = rerankWithLLM(ctx, cfg, currentLogger, ranked, lastUserMsg)
 
 				// For short queries (<40 chars), apply stricter score filtering to
@@ -564,12 +563,14 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					}
 				}
 
-				for _, r := range ranked {
-					_ = shortTermMem.UpdateMemoryAccess(r.docID)
-				}
 				if len(ranked) > 3 {
 					ranked = ranked[:3]
 				}
+				for _, r := range ranked {
+					_ = shortTermMem.UpdateMemoryAccess(r.docID)
+					_ = shortTermMem.RecordMemoryUsage(r.docID, "ltm_retrieved", sessionID, r.score, false)
+				}
+				markMemoryDocIDsUsed(usedMemoryDocIDs, ranked)
 				wantsDeepDetails := wantsDetailedMemory(lastUserMsg)
 				for _, r := range ranked {
 					topMemories = append(topMemories, compactMemoryForPrompt(r.text, 260))
@@ -602,8 +603,12 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			// Deduplicate against already-retrieved memories to avoid wasting tokens
 			if shortTermMem != nil {
 				now := time.Now()
-				predictions, err := shortTermMem.PredictNextQuery(lastTool, now.Hour(), int(now.Weekday()), 2)
-				if err == nil && len(predictions) > 0 {
+				temporalPredictions, err := shortTermMem.PredictNextQuery(lastTool, now.Hour(), int(now.Weekday()), 2)
+				if err == nil && len(temporalPredictions) > 0 {
+					predictions := buildPredictiveMemoryQueries(lastUserMsg, lastTool, temporalPredictions, 3)
+					if len(predictions) == 0 {
+						predictions = temporalPredictions
+					}
 					// Build set of already-retrieved memory texts for dedup
 					retrievedSet := make(map[string]struct{})
 					for _, r := range topMemories {
@@ -614,17 +619,24 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					for _, pred := range predictions {
 						// Use SearchMemoriesOnly: predictive pre-fetch needs only user memories,
 						// not tool_guides/documentation — avoids 2 full extra search cycles per request.
-						pMem, _, pErr := longTermMem.SearchMemoriesOnly(pred, 1)
+						pMem, pIDs, pErr := longTermMem.SearchMemoriesOnly(pred, 1)
 						if pErr == nil && len(pMem) > 0 {
+							if len(pIDs) > 0 && usedMemoryDocIDs[pIDs[0]] > 0 {
+								continue
+							}
 							if _, dup := retrievedSet[pMem[0]]; !dup {
 								predictedResults = append(predictedResults, pMem[0])
 								retrievedSet[pMem[0]] = struct{}{} // prevent intra-prediction duplicates
+								if len(pIDs) > 0 && pIDs[0] != "" {
+									usedMemoryDocIDs[pIDs[0]]++
+									_ = shortTermMem.RecordMemoryUsage(pIDs[0], "ltm_predicted", sessionID, 0, false)
+								}
 							}
 						}
 					}
 					if len(predictedResults) > 0 {
 						flags.PredictedMemories = strings.Join(predictedResults, "\n---\n")
-						currentLogger.Debug("[Sync] Predictive RAG: Pre-fetched memories", "count", len(predictedResults), "predictions", predictions)
+						currentLogger.Debug("[Sync] Predictive RAG: Pre-fetched memories", "count", len(predictedResults), "predictions", predictions, "temporal_predictions", temporalPredictions)
 					}
 				}
 			}
@@ -688,7 +700,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				// V2 Feature: Narrative Events based on Milestones & Loneliness
 				processBehavioralEvents(shortTermMem, &req.Messages, sessionID, meta, currentLogger)
 			}
-			flags.PersonalityLine = shortTermMem.GetPersonalityLine(cfg.Personality.EngineV2)
+			flags.PersonalityLine = shortTermMem.GetPersonalityLineWithMeta(cfg.Personality.EngineV2, meta)
 
 			// Emotion Synthesizer: inject LLM-generated emotional description
 			if emotionSynthesizer != nil {
@@ -882,6 +894,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			return openai.ChatCompletionResponse{}, fmt.Errorf("budget exceeded (enforcement=full)")
 		}
 
+		telemetryScope = refreshTelemetryScope(telemetryScope, client, nil)
+
 		// Configurable timeout for each individual LLM call to prevent infinite hangs
 		llmCtx, cancelResp := context.WithTimeout(ctx, time.Duration(cfg.CircuitBreaker.LLMTimeoutSeconds)*time.Second)
 
@@ -894,6 +908,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			stm, streamErr := llm.ExecuteStreamWithRetry(llmCtx, client, req, currentLogger, broker)
 			if streamErr != nil {
 				cancelResp()
+				telemetryScope = refreshTelemetryScope(telemetryScope, client, nil)
 				if recovered, recErr := recoverFrom422WithPolicy(recoveryPolicy, streamErr, &retry422Count, &req, currentLogger, broker, "Stream", telemetryScope); recovered {
 					continue
 				} else if recErr != nil {
@@ -1016,6 +1031,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			resp, err = llm.ExecuteWithRetry(llmCtx, client, req, currentLogger, broker)
 			if err != nil {
 				cancelResp()
+				telemetryScope = refreshTelemetryScope(telemetryScope, client, nil)
 				if recovered, recErr := recoverFrom422WithPolicy(recoveryPolicy, err, &retry422Count, &req, currentLogger, broker, "Sync", telemetryScope); recovered {
 					continue
 				} else if recErr != nil {
@@ -1031,6 +1047,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 
 		cancelResp()
+		telemetryScope = refreshTelemetryScope(telemetryScope, client, &resp)
 
 		retry422Count = 0 // reset on successful LLM response
 
@@ -1403,57 +1420,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 
 			resultContent := DispatchToolCall(ctx, tc, cfg, currentLogger, client, vault, registry, manifest, cronManager, missionManagerV2, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, contactsDB, sqlConnectionsDB, sqlConnectionPool, remoteHub, historyManager, tools.IsBusy(), surgeryPlan, guardian, llmGuardian, sessionID, coAgentRegistry, budgetTracker, lastUserMsg)
-			policyResult := applyToolOutputPolicy(resultContent, cfg.Agent.ToolOutputLimit, telemetryScope)
+			policyResult := finalizeToolExecution(tc, resultContent, cfg, shortTermMem, sessionID, &recoveryState, &req, currentLogger, telemetryScope)
 			resultContent = policyResult.Content
-			toolFailed := policyResult.WasError
-			prompts.RecordToolUsage(tc.Action, tc.Operation, !toolFailed)
-			prompts.RecordAdaptiveToolUsage(tc.Action, !toolFailed)
-			RecordScopedToolResultForTool(telemetryScope, tc.Action, !toolFailed)
-			if shortTermMem != nil {
-				_ = shortTermMem.UpsertToolUsage(tc.Action, !toolFailed)
-			}
-
-			// Record error patterns for learning
-			if toolFailed && shortTermMem != nil {
-				errMsg := policyResult.ErrorSummary
-				if errMsg != "" {
-					_ = shortTermMem.RecordError(tc.Action, errMsg)
-					// Journal: log new error pattern (only on first occurrence within a chain)
-					if recoveryState.shouldRecordFirstErrorInChain() && cfg.Tools.Journal.Enabled && cfg.Journal.AutoEntries {
-						_, _ = shortTermMem.InsertJournalEntry(memory.JournalEntry{
-							EntryType:     "error_learned",
-							Title:         fmt.Sprintf("Error in %s", tc.Action),
-							Content:       errMsg,
-							Tags:          []string{tc.Action},
-							Importance:    2,
-							SessionID:     sessionID,
-							AutoGenerated: true,
-						})
-					}
-				}
-			}
-
-			// Journal: record LLM Guardian block events
-			if strings.Contains(resultContent, "[TOOL BLOCKED]") && shortTermMem != nil && cfg.Tools.Journal.Enabled && cfg.Journal.AutoEntries {
-				reason := resultContent
-				if len(reason) > 150 {
-					reason = reason[:150] + "…"
-				}
-				_, _ = shortTermMem.InsertJournalEntry(memory.JournalEntry{
-					EntryType:     "security_event",
-					Title:         fmt.Sprintf("Guardian blocked: %s", tc.Action),
-					Content:       reason,
-					Tags:          []string{tc.Action, "security"},
-					Importance:    4,
-					SessionID:     sessionID,
-					AutoGenerated: true,
-				})
-			}
-
-			// Record resolution when a tool succeeds after previous errors
-			if !toolFailed && recoveryState.shouldRecordResolution() && shortTermMem != nil {
-				_ = shortTermMem.RecordResolution(tc.Action, recoveryState.LastToolError, "Succeeded with adjusted parameters")
-			}
 
 			broker.Send("tool_output", resultContent)
 
@@ -1749,7 +1717,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 						_ = shortTermMem.UpdateTrait(trait, delta)
 					}
 				}
-				flags.PersonalityLine = shortTermMem.GetPersonalityLine(cfg.Personality.EngineV2)
+				flags.PersonalityLine = shortTermMem.GetPersonalityLineWithMeta(cfg.Personality.EngineV2, meta)
 
 				// Emotion Synthesizer: update flags with latest emotion if available
 				if emotionSynthesizer != nil {
@@ -1825,16 +1793,14 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					broker.Send("thinking", fmt.Sprintf("[%d] Running %s (batched)...", toolCallCount, btc.Action))
 					broker.Send("tool_start", btc.Action)
 
-					bResult := DispatchToolCall(ctx, btc, cfg, currentLogger, client, vault, registry, manifest, cronManager, missionManagerV2, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, contactsDB, sqlConnectionsDB, sqlConnectionPool, remoteHub, historyManager, tools.IsBusy(), surgeryPlan, guardian, llmGuardian, sessionID, coAgentRegistry, budgetTracker, lastUserMsg)
-					policyResult := applyToolOutputPolicy(bResult, cfg.Agent.ToolOutputLimit, telemetryScope)
-					bResult = policyResult.Content
-					bToolFailed := policyResult.WasError
-					prompts.RecordToolUsage(btc.Action, btc.Operation, !bToolFailed)
-					prompts.RecordAdaptiveToolUsage(btc.Action, !bToolFailed)
-					RecordScopedToolResultForTool(telemetryScope, btc.Action, !bToolFailed)
-					if shortTermMem != nil {
-						_ = shortTermMem.UpsertToolUsage(btc.Action, !bToolFailed)
+					bResult := ""
+					if recoveryState.handleDuplicateToolCall(btc, &req, currentLogger, telemetryScope) {
+						bResult = blockedToolOutputFromRequest(&req)
+					} else {
+						bResult = DispatchToolCall(ctx, btc, cfg, currentLogger, client, vault, registry, manifest, cronManager, missionManagerV2, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, contactsDB, sqlConnectionsDB, sqlConnectionPool, remoteHub, historyManager, tools.IsBusy(), surgeryPlan, guardian, llmGuardian, sessionID, coAgentRegistry, budgetTracker, lastUserMsg)
 					}
+					policyResult := finalizeToolExecution(btc, bResult, cfg, shortTermMem, sessionID, &recoveryState, &req, currentLogger, telemetryScope)
+					bResult = policyResult.Content
 					broker.Send("tool_output", bResult)
 					broker.Send("tool_end", btc.Action)
 					lastActivity = time.Now()
@@ -1892,11 +1858,6 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				currentLogger.Info("[Sync] Early exit signal received, stopping loop.")
 				return resp, nil
 			}
-
-			// Consecutive identical error circuit breaker:
-			// If the agent keeps retrying the exact same failing tool call, stop it before
-			// it exhausts MaxToolCalls and wastes the entire budget on pointless retries.
-			_ = recoveryState.updateToolErrorState(tc, resultContent, &req, currentLogger, telemetryScope)
 
 			// 429 Mitigation: Add a delay between turns to respect rate limits (controlled by config)
 			select {

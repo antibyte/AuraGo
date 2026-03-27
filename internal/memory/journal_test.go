@@ -93,6 +93,94 @@ func TestSearchJournalEntries(t *testing.T) {
 	}
 }
 
+func TestSearchJournalEntriesInRange(t *testing.T) {
+	stm := newTestJournalDB(t)
+
+	_, err := stm.db.Exec(`UPDATE journal_entries SET date = '2026-03-20' WHERE 1 = 0`)
+	if err != nil {
+		t.Fatalf("warmup update failed: %v", err)
+	}
+
+	id1, _ := stm.InsertJournalEntry(JournalEntry{EntryType: "task_completed", Title: "Docker issue", Content: "Fixed docker", Importance: 3, Date: "2026-03-20"})
+	id2, _ := stm.InsertJournalEntry(JournalEntry{EntryType: "task_completed", Title: "Proxmox issue", Content: "Fixed proxmox", Importance: 3, Date: "2026-03-26"})
+	_, _ = id1, id2
+
+	entries, err := stm.SearchJournalEntriesInRange("issue", "2026-03-24", "2026-03-27", 10)
+	if err != nil {
+		t.Fatalf("SearchJournalEntriesInRange: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("Expected 1 in-range entry, got %d", len(entries))
+	}
+	if entries[0].Title != "Proxmox issue" {
+		t.Fatalf("Expected 'Proxmox issue', got %q", entries[0].Title)
+	}
+}
+
+func TestSearchEpisodicMemoriesInRange(t *testing.T) {
+	stm := newTestJournalDB(t)
+
+	if err := stm.InsertEpisodicMemory("2026-03-23", "Backup", "Nightly backup failed", map[string]string{"service": "backup"}, 3, "memory_analysis"); err != nil {
+		t.Fatalf("InsertEpisodicMemory backup: %v", err)
+	}
+	if err := stm.InsertEpisodicMemory("2026-03-27", "Docker", "Docker restart succeeded", map[string]string{"service": "docker"}, 3, "memory_analysis"); err != nil {
+		t.Fatalf("InsertEpisodicMemory docker: %v", err)
+	}
+
+	entries, err := stm.SearchEpisodicMemoriesInRange("docker", "2026-03-25", "2026-03-27", 10)
+	if err != nil {
+		t.Fatalf("SearchEpisodicMemoriesInRange: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("Expected 1 in-range episodic entry, got %d", len(entries))
+	}
+	if entries[0].Title != "Docker" {
+		t.Fatalf("Expected 'Docker', got %q", entries[0].Title)
+	}
+}
+
+func TestInsertEpisodicMemoryWithDetailsAndRecentCards(t *testing.T) {
+	stm := newTestJournalDB(t)
+
+	err := stm.InsertEpisodicMemoryWithDetails("2026-03-27", "Deploy", "Homepage rollout finished", map[string]string{"scope": "homepage"}, 3, "memory_analysis", EpisodicMemoryDetails{
+		SessionID:        "session-42",
+		Participants:     []string{"user", "agent"},
+		RelatedDocIDs:    []string{"doc-2", "doc-1"},
+		EmotionalValence: 0.6,
+	})
+	if err != nil {
+		t.Fatalf("InsertEpisodicMemoryWithDetails: %v", err)
+	}
+
+	entries, err := stm.SearchEpisodicMemoriesInRange("homepage", "2026-03-27", "2026-03-27", 10)
+	if err != nil {
+		t.Fatalf("SearchEpisodicMemoriesInRange: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("Expected 1 entry, got %d", len(entries))
+	}
+	if entries[0].SessionID != "session-42" {
+		t.Fatalf("Expected session-42, got %q", entries[0].SessionID)
+	}
+	if len(entries[0].Participants) != 2 {
+		t.Fatalf("Expected participants to be loaded, got %#v", entries[0].Participants)
+	}
+	if len(entries[0].RelatedDocIDs) != 2 || entries[0].RelatedDocIDs[0] != "doc-1" {
+		t.Fatalf("Expected sorted related doc ids, got %#v", entries[0].RelatedDocIDs)
+	}
+
+	cards, err := stm.GetRecentEpisodicMemoryCards(99999, 5)
+	if err != nil {
+		t.Fatalf("GetRecentEpisodicMemoryCards: %v", err)
+	}
+	if len(cards) != 1 {
+		t.Fatalf("Expected 1 recent card, got %d", len(cards))
+	}
+	if cards[0].EmotionalValence <= 0 {
+		t.Fatalf("Expected emotional valence to be preserved, got %f", cards[0].EmotionalValence)
+	}
+}
+
 func TestDeleteJournalEntry(t *testing.T) {
 	stm := newTestJournalDB(t)
 

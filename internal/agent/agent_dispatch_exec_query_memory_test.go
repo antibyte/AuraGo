@@ -2,9 +2,12 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
+	"io"
 	"log/slog"
 	"strings"
 	"testing"
+	"time"
 
 	"aurago/internal/config"
 	"aurago/internal/memory"
@@ -93,6 +96,91 @@ func TestDispatchExecQueryMemoryUsesMemoriesOnlyForVectorDB(t *testing.T) {
 	}
 	if strings.Contains(out, "tool_guides") {
 		t.Fatalf("output = %q, did not expect tool guide hit", out)
+	}
+}
+
+func TestDispatchExecQueryMemoryUnderstandsTemporalJournalQueries(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Tools.Memory.Enabled = true
+	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	t.Cleanup(func() { _ = stm.Close() })
+	if err := stm.InitJournalTables(); err != nil {
+		t.Fatalf("InitJournalTables: %v", err)
+	}
+	yesterday := time.Now().AddDate(0, 0, -1).Format("2006-01-02")
+	oldDate := time.Now().AddDate(0, 0, -14).Format("2006-01-02")
+
+	if _, err := stm.InsertJournalEntry(memory.JournalEntry{
+		EntryType: "task_completed",
+		Title:     "Docker issue",
+		Content:   "Fixed docker deployment",
+		Date:      yesterday,
+	}); err != nil {
+		t.Fatalf("InsertJournalEntry recent: %v", err)
+	}
+	if _, err := stm.InsertJournalEntry(memory.JournalEntry{
+		EntryType: "task_completed",
+		Title:     "Docker old issue",
+		Content:   "Old docker deployment",
+		Date:      oldDate,
+	}); err != nil {
+		t.Fatalf("InsertJournalEntry old: %v", err)
+	}
+
+	out := dispatchExec(
+		context.Background(),
+		ToolCall{Action: "query_memory", Query: "docker gestern", Sources: []string{"journal"}},
+		cfg,
+		logger,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		stm,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		false,
+		"",
+		nil,
+		"",
+		nil,
+		nil,
+	)
+
+	if !strings.Contains(out, `"temporal_range"`) {
+		t.Fatalf("output = %q, want temporal_range metadata", out)
+	}
+	if !strings.Contains(out, "Docker issue") {
+		t.Fatalf("output = %q, want recent docker issue", out)
+	}
+	if strings.Contains(out, "Docker old issue") {
+		t.Fatalf("output = %q, did not expect out-of-range journal hit", out)
+	}
+
+	raw := strings.TrimPrefix(out, "Tool Output: ")
+	var parsed map[string]interface{}
+	if err := json.Unmarshal([]byte(raw), &parsed); err != nil {
+		t.Fatalf("json.Unmarshal output: %v", err)
+	}
+	if _, ok := parsed["temporal_range"]; !ok {
+		t.Fatal("expected temporal_range field in parsed response")
 	}
 }
 

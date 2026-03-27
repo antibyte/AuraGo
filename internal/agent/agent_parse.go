@@ -27,6 +27,30 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
+func guardianBlockNextStep(reason string) string {
+	lower := strings.ToLower(strings.TrimSpace(reason))
+	switch {
+	case strings.Contains(lower, "remote code execution"), strings.Contains(lower, "curl pipe sh"), strings.Contains(lower, "wget pipe sh"), strings.Contains(lower, "pipe sh"):
+		return "Do not retry with curl|sh, wget|sh, or similar remote-install patterns. Use a built-in tool/manual-driven workflow instead, or ask the user for an alternative approach."
+	case strings.Contains(lower, "credentials"), strings.Contains(lower, "token"), strings.Contains(lower, "secret"):
+		return "Do not guess or hardcode credentials. Use the vault-backed workflow or ask the user to provide/store the required secret safely."
+	default:
+		return "Do not repeat the blocked action blindly. Re-check the tool manual, choose a safer built-in workflow, or ask the user for an alternative approach."
+	}
+}
+
+func formatGuardianBlockedMessage(action, reason string, risk float64, allowClarification bool, clarificationRejected bool) string {
+	base := fmt.Sprintf("[TOOL BLOCKED] Security check failed for %s: %s (risk: %.0f%%).", action, reason, risk*100)
+	nextStep := guardianBlockNextStep(reason)
+	if clarificationRejected {
+		return base + " Clarification was reviewed but the action remains blocked. " + nextStep
+	}
+	if allowClarification {
+		return base + ` You may retry this tool call once by adding a "_guardian_justification" field explaining why this action is necessary and safe.` + " " + nextStep
+	}
+	return base + " " + nextStep
+}
+
 // DispatchToolCall executes the appropriate tool based on the parsed ToolCall.
 // It automatically handles LLM Guardian pre-check, Redaction, Guardian sanitization,
 // and ensures the output is correctly prefixed with "[Tool Output]\n" unless it's a known error marker.
@@ -72,15 +96,12 @@ func DispatchToolCall(ctx context.Context, tc ToolCall, cfg *config.Config, logg
 					// Clarification rejected — final block (no more retries)
 					logger.Warn("[LLM Guardian] Clarification rejected, final block",
 						"tool", tc.Action, "reason", clarResult.Reason, "risk", clarResult.RiskScore)
-					return fmt.Sprintf("[TOOL BLOCKED] Security check failed for %s: %s (risk: %.0f%%). Clarification was reviewed but the action remains blocked.", tc.Action, clarResult.Reason, clarResult.RiskScore*100)
+					return formatGuardianBlockedMessage(tc.Action, clarResult.Reason, clarResult.RiskScore, cfg.LLMGuardian.AllowClarification, true)
 				}
 
 				logger.Warn("[LLM Guardian] Blocked tool call",
 					"tool", tc.Action, "reason", result.Reason, "risk", result.RiskScore)
-				if cfg.LLMGuardian.AllowClarification {
-					return fmt.Sprintf("[TOOL BLOCKED] Security check failed for %s: %s (risk: %.0f%%). You may retry this tool call once by adding a \"_guardian_justification\" field explaining why this action is necessary and safe.", tc.Action, result.Reason, result.RiskScore*100)
-				}
-				return fmt.Sprintf("[TOOL BLOCKED] Security check failed for %s: %s (risk: %.0f%%)", tc.Action, result.Reason, result.RiskScore*100)
+				return formatGuardianBlockedMessage(tc.Action, result.Reason, result.RiskScore, cfg.LLMGuardian.AllowClarification, false)
 			}
 			if result.Decision == security.DecisionQuarantine {
 				logger.Warn("[LLM Guardian] Quarantined tool call (proceeding with caution)",

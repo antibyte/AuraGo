@@ -87,7 +87,7 @@
     },
     "core_personality": {
       "title": "Core Personality",
-      "description": "Base personality profile affecting tone and communication style."
+      "description": "Base personality profile affecting tone and communication style. Advanced profiles in prompts/personalities/*.md can also define meta blocks like anchor_traits, decay_resistance, and thresholds."
     },
     "personality_engine": {
       "title": "Personality Engine V1",

@@ -16,6 +16,12 @@ Perform file system tasks. Your working directory is `agent_workspace/workdir`. 
 
 All operations require `file_path` (relative to `workdir/`).
 
+### Common Pitfalls
+
+- Use the exact operation names `read_file` and `write_file`.
+- Do not use shorthand names like `read` or `write` in tool calls.
+- If you need to work on homepage projects, do not use `filesystem` at all. Use the `homepage` tool's own `read_file` / `write_file` operations so files end up in the homepage workspace.
+
 ### Examples
 
 ```json
