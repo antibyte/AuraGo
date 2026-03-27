@@ -1,12 +1,18 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
+	"aurago/internal/llm"
 	"aurago/internal/tools"
+
+	openai "github.com/sashabaranov/go-openai"
 )
 
 // handleListSkills returns all skills with optional filters.
@@ -127,9 +133,11 @@ func handleCreateSkill(s *Server) http.HandlerFunc {
 		}
 
 		var req struct {
-			Name        string `json:"name"`
-			Description string `json:"description"`
-			Code        string `json:"code"`
+			Name        string   `json:"name"`
+			Description string   `json:"description"`
+			Category    string   `json:"category"`
+			Tags        []string `json:"tags"`
+			Code        string   `json:"code"`
 		}
 		if err := json.NewDecoder(io.LimitReader(r.Body, 2<<20)).Decode(&req); err != nil {
 			jsonError(w, "Invalid request body", http.StatusBadRequest)
@@ -147,7 +155,7 @@ func handleCreateSkill(s *Server) http.HandlerFunc {
 		s.CfgMu.RUnlock()
 		validation := tools.ValidateSkillUpload([]byte(req.Code), req.Name+".py", maxSize)
 
-		skill, err := s.SkillManager.CreateSkillEntry(req.Name, req.Description, req.Code, tools.SkillTypeUser, "user")
+		skill, err := s.SkillManager.CreateSkillEntry(req.Name, req.Description, req.Code, tools.SkillTypeUser, "user", req.Category, req.Tags)
 		if err != nil {
 			jsonError(w, "Failed to create skill: "+err.Error(), http.StatusInternalServerError)
 			return
@@ -174,7 +182,7 @@ func handleCreateSkill(s *Server) http.HandlerFunc {
 			skill.SecurityReport = scanReport
 
 			if autoEnable && secStatus == tools.SecurityClean {
-				s.SkillManager.EnableSkill(skill.ID, true)
+				s.SkillManager.EnableSkill(skill.ID, true, "system:auto_enable")
 				skill.Enabled = true
 			}
 		}
@@ -216,10 +224,13 @@ func handleUpdateSkill(s *Server) http.HandlerFunc {
 		}
 
 		var req struct {
-			Enabled     *bool    `json:"enabled"`
-			Description string   `json:"description"`
-			Code        *string  `json:"code"`
-			VaultKeys   []string `json:"vault_keys"`
+			Enabled        *bool     `json:"enabled"`
+			Description    *string   `json:"description"`
+			Category       *string   `json:"category"`
+			Tags           *[]string `json:"tags"`
+			Code           *string   `json:"code"`
+			RestoreVersion *int      `json:"restore_version"`
+			VaultKeys      []string  `json:"vault_keys"`
 		}
 		if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&req); err != nil {
 			jsonError(w, "Invalid request body", http.StatusBadRequest)
@@ -237,14 +248,49 @@ func handleUpdateSkill(s *Server) http.HandlerFunc {
 				jsonError(w, "Built-in skills cannot be toggled", http.StatusForbidden)
 				return
 			}
-			if err := s.SkillManager.EnableSkill(id, *req.Enabled); err != nil {
+			if err := s.SkillManager.EnableSkill(id, *req.Enabled, "user"); err != nil {
 				jsonError(w, err.Error(), http.StatusNotFound)
 				return
 			}
 		}
 
+		if req.Description != nil || req.Category != nil || req.Tags != nil {
+			currentSkill, err := s.SkillManager.GetSkill(id)
+			if err != nil {
+				jsonError(w, err.Error(), http.StatusNotFound)
+				return
+			}
+			description := currentSkill.Description
+			category := currentSkill.Category
+			tags := currentSkill.Tags
+			if req.Description != nil {
+				description = *req.Description
+			}
+			if req.Category != nil {
+				category = *req.Category
+			}
+			if req.Tags != nil {
+				tags = *req.Tags
+			}
+			if err := s.SkillManager.UpdateSkillMetadata(id, description, category, tags, "user"); err != nil {
+				jsonError(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+		}
+
 		if req.Code != nil {
-			if err := s.SkillManager.UpdateSkillCode(id, *req.Code); err != nil {
+			if err := s.SkillManager.UpdateSkillCode(id, *req.Code, "user"); err != nil {
+				jsonError(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+		}
+		if req.RestoreVersion != nil {
+			code, err := s.SkillManager.GetSkillVersionCode(id, *req.RestoreVersion)
+			if err != nil {
+				jsonError(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			if err := s.SkillManager.UpdateSkillCode(id, code, "user:restore"); err != nil {
 				jsonError(w, err.Error(), http.StatusBadRequest)
 				return
 			}
@@ -309,7 +355,7 @@ func handleDeleteSkill(s *Server) http.HandlerFunc {
 		}
 
 		deleteFiles := r.URL.Query().Get("delete_files") != "false"
-		if err := s.SkillManager.DeleteSkill(id, deleteFiles); err != nil {
+		if err := s.SkillManager.DeleteSkill(id, deleteFiles, "user"); err != nil {
 			jsonError(w, err.Error(), http.StatusNotFound)
 			return
 		}
@@ -393,9 +439,11 @@ func handleUploadSkill(s *Server) http.HandlerFunc {
 			name = strings.TrimSuffix(header.Filename, ".py")
 		}
 		description := strings.TrimSpace(r.FormValue("description"))
+		category := strings.TrimSpace(r.FormValue("category"))
+		tags := splitCommaSeparated(r.FormValue("tags"))
 
 		// Create entry
-		skill, err := s.SkillManager.CreateSkillEntry(name, description, string(fileData), tools.SkillTypeUser, "user")
+		skill, err := s.SkillManager.CreateSkillEntry(name, description, string(fileData), tools.SkillTypeUser, "user", category, tags)
 		if err != nil {
 			jsonError(w, "Failed to save skill: "+err.Error(), http.StatusInternalServerError)
 			return
@@ -411,7 +459,7 @@ func handleUploadSkill(s *Server) http.HandlerFunc {
 			skill.SecurityReport = scanReport
 
 			if autoEnable && secStatus == tools.SecurityClean {
-				s.SkillManager.EnableSkill(skill.ID, true)
+				s.SkillManager.EnableSkill(skill.ID, true, "system:auto_enable")
 				skill.Enabled = true
 			}
 		}
@@ -480,7 +528,7 @@ func handleVerifySkill(s *Server) http.HandlerFunc {
 		s.CfgMu.RUnlock()
 
 		if autoEnable && status == tools.SecurityClean {
-			s.SkillManager.EnableSkill(id, true)
+			s.SkillManager.EnableSkill(id, true, "system:auto_enable")
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -538,6 +586,8 @@ func handleCreateSkillFromTemplate(s *Server) http.HandlerFunc {
 			TemplateName string   `json:"template_name"`
 			SkillName    string   `json:"skill_name"`
 			Description  string   `json:"description"`
+			Category     string   `json:"category"`
+			Tags         []string `json:"tags"`
 			BaseURL      string   `json:"base_url"`
 			Dependencies []string `json:"dependencies"`
 			VaultKeys    []string `json:"vault_keys"`
@@ -568,6 +618,18 @@ func handleCreateSkillFromTemplate(s *Server) http.HandlerFunc {
 			if sk.Name == req.SkillName {
 				skillID = sk.ID
 				break
+			}
+		}
+		if skillID != "" {
+			_ = s.SkillManager.EnsureInitialVersion(skillID, "system", "template creation")
+			if req.Description != "" || req.Category != "" || len(req.Tags) > 0 {
+				if currentSkill, metaErr := s.SkillManager.GetSkill(skillID); metaErr == nil {
+					description := currentSkill.Description
+					if req.Description != "" {
+						description = req.Description
+					}
+					_ = s.SkillManager.UpdateSkillMetadata(skillID, description, req.Category, req.Tags, "user")
+				}
 			}
 		}
 
@@ -614,6 +676,383 @@ func handleSkillStats(s *Server) http.HandlerFunc {
 			"pending": pending,
 		})
 	}
+}
+
+// handleGetSkillVersions returns the stored version history for a skill.
+// GET /api/skills/{id}/versions
+func handleGetSkillVersions(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		id := extractSkillPathID(r.URL.Path, "/api/skills/")
+		if id == "" {
+			jsonError(w, "Skill ID is required", http.StatusBadRequest)
+			return
+		}
+		versions, err := s.SkillManager.ListSkillVersions(id)
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]any{
+			"status":   "ok",
+			"versions": versions,
+		})
+	}
+}
+
+// handleGetSkillAudit returns the audit trail for a skill.
+// GET /api/skills/{id}/audit
+func handleGetSkillAudit(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		id := extractSkillPathID(r.URL.Path, "/api/skills/")
+		if id == "" {
+			jsonError(w, "Skill ID is required", http.StatusBadRequest)
+			return
+		}
+		limit := 50
+		if raw := strings.TrimSpace(r.URL.Query().Get("limit")); raw != "" {
+			fmt.Sscanf(raw, "%d", &limit)
+		}
+		entries, err := s.SkillManager.ListSkillAudit(id, limit)
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]any{
+			"status": "ok",
+			"audit":  entries,
+		})
+	}
+}
+
+// handleExportSkill exports a skill as an AuraGo skill bundle.
+// GET /api/skills/{id}/export
+func handleExportSkill(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		id := extractSkillPathID(r.URL.Path, "/api/skills/")
+		if id == "" {
+			jsonError(w, "Skill ID is required", http.StatusBadRequest)
+			return
+		}
+		bundle, err := s.SkillManager.ExportSkillBundle(id)
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		filename := bundle.Skill.Name + ".aurago-skill.json"
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", filename))
+		json.NewEncoder(w).Encode(bundle)
+	}
+}
+
+// handleImportSkill imports an exported AuraGo skill bundle.
+// POST /api/skills/import
+func handleImportSkill(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if s.SkillManager == nil {
+			jsonError(w, "Skill Manager is not enabled", http.StatusServiceUnavailable)
+			return
+		}
+		s.CfgMu.RLock()
+		readOnly := s.Cfg.Tools.SkillManager.ReadOnly
+		allowUploads := s.Cfg.Tools.SkillManager.AllowUploads
+		s.CfgMu.RUnlock()
+		if readOnly || !allowUploads {
+			jsonError(w, "Skill import is disabled", http.StatusForbidden)
+			return
+		}
+
+		var bundle tools.SkillExportBundle
+		if err := json.NewDecoder(io.LimitReader(r.Body, 4<<20)).Decode(&bundle); err != nil {
+			jsonError(w, "Invalid skill bundle", http.StatusBadRequest)
+			return
+		}
+		entry, err := s.SkillManager.ImportSkillBundle(&bundle, "user")
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(map[string]any{
+			"status": "imported",
+			"skill":  entry,
+		})
+	}
+}
+
+// handleTestSkill executes a skill with a JSON payload and returns the raw output.
+// POST /api/skills/{id}/test
+func handleTestSkill(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		id := extractSkillPathID(r.URL.Path, "/api/skills/")
+		if id == "" {
+			jsonError(w, "Skill ID is required", http.StatusBadRequest)
+			return
+		}
+		skill, err := s.SkillManager.GetSkill(id)
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusNotFound)
+			return
+		}
+
+		var req struct {
+			Args map[string]interface{} `json:"args"`
+		}
+		if r.Body != nil {
+			if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&req); err != nil && err != io.EOF {
+				jsonError(w, "Invalid request body", http.StatusBadRequest)
+				return
+			}
+		}
+		if req.Args == nil {
+			req.Args = map[string]interface{}{}
+		}
+
+		secrets := loadPlainSkillSecrets(s, skill)
+		var output string
+		if len(secrets) > 0 {
+			output, err = tools.ExecuteSkillWithSecrets(s.Cfg.Directories.SkillsDir, s.Cfg.Directories.WorkspaceDir, skill.Name, req.Args, secrets, nil)
+		} else {
+			output, err = tools.ExecuteSkill(s.Cfg.Directories.SkillsDir, s.Cfg.Directories.WorkspaceDir, skill.Name, req.Args)
+		}
+		status := "ok"
+		message := ""
+		if err != nil {
+			status = "error"
+			message = err.Error()
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]any{
+			"status":  status,
+			"output":  output,
+			"message": message,
+		})
+	}
+}
+
+// handleGenerateSkillDraft asks the configured LLM for a draft AuraGo skill.
+// POST /api/skills/generate
+func handleGenerateSkillDraft(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if s.LLMClient == nil {
+			jsonError(w, "LLM is not available", http.StatusServiceUnavailable)
+			return
+		}
+		var req struct {
+			Prompt       string   `json:"prompt"`
+			SkillName    string   `json:"skill_name"`
+			TemplateName string   `json:"template_name"`
+			Category     string   `json:"category"`
+			Dependencies []string `json:"dependencies"`
+		}
+		if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&req); err != nil {
+			jsonError(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+		req.Prompt = strings.TrimSpace(req.Prompt)
+		if req.Prompt == "" {
+			jsonError(w, "prompt is required", http.StatusBadRequest)
+			return
+		}
+
+		templateHint := ""
+		if req.TemplateName != "" {
+			for _, tmpl := range tools.AvailableSkillTemplates() {
+				if strings.EqualFold(tmpl.Name, req.TemplateName) {
+					templateHint = fmt.Sprintf("Prefer the built-in template '%s'. Description: %s. Default deps: %s.",
+						tmpl.Name, tmpl.Description, strings.Join(tmpl.Dependencies, ", "))
+					break
+				}
+			}
+		}
+		userNameHint := ""
+		if req.SkillName != "" {
+			userNameHint = fmt.Sprintf("Use the exact skill name '%s'.", req.SkillName)
+		}
+		categoryHint := ""
+		if req.Category != "" {
+			categoryHint = fmt.Sprintf("Preferred category: %s.", req.Category)
+		}
+		depHint := ""
+		if len(req.Dependencies) > 0 {
+			depHint = fmt.Sprintf("Requested dependencies: %s.", strings.Join(req.Dependencies, ", "))
+		}
+		systemPrompt := "You generate AuraGo Python skills. Return JSON only, no markdown fences. " +
+			"Schema: {\"name\":\"...\",\"description\":\"...\",\"category\":\"...\",\"tags\":[...],\"dependencies\":[...],\"code\":\"...\"}. " +
+			"Code rules: read JSON from stdin, write JSON to stdout, do not use destructive operations, keep code compact and production-ready."
+		userPrompt := strings.TrimSpace(strings.Join([]string{
+			req.Prompt,
+			userNameHint,
+			templateHint,
+			categoryHint,
+			depHint,
+		}, "\n"))
+		llmReq := openai.ChatCompletionRequest{
+			Model: s.Cfg.LLM.Model,
+			Messages: []openai.ChatCompletionMessage{
+				{Role: openai.ChatMessageRoleSystem, Content: systemPrompt},
+				{Role: openai.ChatMessageRoleUser, Content: userPrompt},
+			},
+			Temperature: 0.2,
+		}
+		ctx, cancel := context.WithTimeout(r.Context(), 75*time.Second)
+		defer cancel()
+		resp, err := llm.ExecuteWithRetry(ctx, s.LLMClient, llmReq, s.Logger, nil)
+		if err != nil {
+			jsonError(w, "LLM generation failed: "+err.Error(), http.StatusBadGateway)
+			return
+		}
+		if len(resp.Choices) == 0 {
+			jsonError(w, "LLM generation returned no response", http.StatusBadGateway)
+			return
+		}
+		draft, err := decodeSkillDraft(resp.Choices[0].Message.Content)
+		if err != nil {
+			jsonError(w, "Failed to parse generated skill draft: "+err.Error(), http.StatusBadGateway)
+			return
+		}
+		if req.SkillName != "" {
+			draft.Name = req.SkillName
+		}
+		if req.Category != "" {
+			draft.Category = req.Category
+		}
+		if len(req.Dependencies) > 0 {
+			draft.Dependencies = req.Dependencies
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]any{
+			"status": "ok",
+			"draft":  draft,
+		})
+	}
+}
+
+type generatedSkillDraft struct {
+	Name         string   `json:"name"`
+	Description  string   `json:"description"`
+	Category     string   `json:"category"`
+	Tags         []string `json:"tags"`
+	Dependencies []string `json:"dependencies"`
+	Code         string   `json:"code"`
+}
+
+func decodeSkillDraft(raw string) (*generatedSkillDraft, error) {
+	obj, err := extractJSONObject(raw)
+	if err != nil {
+		return nil, err
+	}
+	var draft generatedSkillDraft
+	if err := json.Unmarshal([]byte(obj), &draft); err != nil {
+		return nil, err
+	}
+	return &draft, nil
+}
+
+func extractJSONObject(raw string) (string, error) {
+	raw = strings.TrimSpace(raw)
+	if strings.HasPrefix(raw, "```") {
+		raw = strings.TrimPrefix(raw, "```json")
+		raw = strings.TrimPrefix(raw, "```")
+		raw = strings.TrimSuffix(raw, "```")
+		raw = strings.TrimSpace(raw)
+	}
+	start := strings.IndexByte(raw, '{')
+	if start < 0 {
+		return "", fmt.Errorf("no JSON object found")
+	}
+	depth := 0
+	inString := false
+	escaped := false
+	for i := start; i < len(raw); i++ {
+		ch := raw[i]
+		if inString {
+			if escaped {
+				escaped = false
+				continue
+			}
+			if ch == '\\' {
+				escaped = true
+				continue
+			}
+			if ch == '"' {
+				inString = false
+			}
+			continue
+		}
+		switch ch {
+		case '"':
+			inString = true
+		case '{':
+			depth++
+		case '}':
+			depth--
+			if depth == 0 {
+				return raw[start : i+1], nil
+			}
+		}
+	}
+	return "", fmt.Errorf("unterminated JSON object")
+}
+
+func loadPlainSkillSecrets(s *Server, skill *tools.SkillRegistryEntry) map[string]string {
+	if s.Vault == nil || skill == nil {
+		return nil
+	}
+	secrets := make(map[string]string)
+	for _, key := range skill.VaultKeys {
+		if strings.HasPrefix(key, "cred:") {
+			continue
+		}
+		value, err := s.Vault.ReadSecret(key)
+		if err != nil || value == "" {
+			continue
+		}
+		secrets[key] = value
+	}
+	return secrets
+}
+
+func splitCommaSeparated(raw string) []string {
+	if strings.TrimSpace(raw) == "" {
+		return nil
+	}
+	parts := strings.Split(raw, ",")
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part != "" {
+			out = append(out, part)
+		}
+	}
+	return out
 }
 
 // extractSkillPathID extracts the resource ID from a URL path after a given prefix.

@@ -41,6 +41,8 @@ type SkillRegistryEntry struct {
 	Name           string            `json:"name"`
 	Description    string            `json:"description"`
 	Executable     string            `json:"executable"`
+	Category       string            `json:"category,omitempty"`
+	Tags           []string          `json:"tags,omitempty"`
 	Parameters     map[string]string `json:"parameters,omitempty"`
 	Dependencies   []string          `json:"dependencies,omitempty"`
 	VaultKeys      []string          `json:"vault_keys,omitempty"`
@@ -63,6 +65,36 @@ type SkillManager struct {
 	logger    *slog.Logger
 }
 
+type SkillVersion struct {
+	SkillID    string    `json:"skill_id"`
+	Version    int       `json:"version"`
+	CodeHash   string    `json:"code_hash"`
+	Code       string    `json:"code"`
+	CreatedAt  time.Time `json:"created_at"`
+	CreatedBy  string    `json:"created_by"`
+	ChangeNote string    `json:"change_note,omitempty"`
+}
+
+type SkillAuditEntry struct {
+	ID        int64     `json:"id"`
+	SkillID    string    `json:"skill_id"`
+	SkillName string    `json:"skill_name"`
+	Action    string    `json:"action"`
+	Actor     string    `json:"actor"`
+	Details   string    `json:"details,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+type SkillExportBundle struct {
+	Format   string             `json:"format"`
+	Exported time.Time          `json:"exported_at"`
+	Skill    *SkillRegistryEntry `json:"skill"`
+	Manifest SkillManifest      `json:"manifest"`
+	Code     string             `json:"code"`
+	Versions []SkillVersion     `json:"versions,omitempty"`
+	Audit    []SkillAuditEntry  `json:"audit,omitempty"`
+}
+
 // InitSkillsDB opens (or creates) the skills registry SQLite database and runs migrations.
 func InitSkillsDB(dbPath string) (*sql.DB, error) {
 	db, err := sql.Open("sqlite", dbPath)
@@ -77,6 +109,8 @@ func InitSkillsDB(dbPath string) (*sql.DB, error) {
 		type TEXT CHECK(type IN ('agent', 'user', 'builtin')) DEFAULT 'agent',
 		description TEXT,
 		executable TEXT,
+		category TEXT DEFAULT '',
+		tags TEXT,
 		parameters TEXT,
 		dependencies TEXT,
 		vault_keys TEXT,
@@ -101,14 +135,50 @@ func InitSkillsDB(dbPath string) (*sql.DB, error) {
 		details TEXT
 	);
 
+	CREATE TABLE IF NOT EXISTS skill_versions (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		skill_id TEXT REFERENCES skills_registry(id) ON DELETE CASCADE,
+		version_num INTEGER NOT NULL,
+		code_hash TEXT,
+		code TEXT NOT NULL,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		created_by TEXT DEFAULT 'system',
+		change_note TEXT,
+		UNIQUE(skill_id, version_num)
+	);
+
+	CREATE TABLE IF NOT EXISTS skill_audit_log (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		skill_id TEXT REFERENCES skills_registry(id) ON DELETE CASCADE,
+		skill_name TEXT,
+		action TEXT NOT NULL,
+		actor TEXT DEFAULT 'system',
+		details TEXT,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	);
+
 	CREATE INDEX IF NOT EXISTS idx_skills_type ON skills_registry(type);
 	CREATE INDEX IF NOT EXISTS idx_skills_status ON skills_registry(security_status);
 	CREATE INDEX IF NOT EXISTS idx_skills_enabled ON skills_registry(enabled);
+	CREATE INDEX IF NOT EXISTS idx_skills_name ON skills_registry(name);
+	CREATE INDEX IF NOT EXISTS idx_skills_created_at ON skills_registry(created_at);
+	CREATE INDEX IF NOT EXISTS idx_skills_type_enabled ON skills_registry(type, enabled);
+	CREATE INDEX IF NOT EXISTS idx_skill_versions_skill_id ON skill_versions(skill_id, version_num DESC);
+	CREATE INDEX IF NOT EXISTS idx_skill_audit_skill_id ON skill_audit_log(skill_id, created_at DESC);
 	`
 
 	if _, err := db.Exec(schema); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("failed to create skills schema: %w", err)
+	}
+	for _, stmt := range []string{
+		"ALTER TABLE skills_registry ADD COLUMN category TEXT DEFAULT ''",
+		"ALTER TABLE skills_registry ADD COLUMN tags TEXT",
+	} {
+		if _, err := db.Exec(stmt); err != nil && !strings.Contains(strings.ToLower(err.Error()), "duplicate column name") {
+			db.Close()
+			return nil, fmt.Errorf("failed to migrate skills schema: %w", err)
+		}
 	}
 
 	return db, nil
@@ -157,11 +227,11 @@ func (m *SkillManager) SyncFromDisk() error {
 			vaultKeys, _ := json.Marshal(manifest.VaultKeys)
 
 			_, err := m.db.Exec(`INSERT INTO skills_registry 
-				(id, name, type, description, executable, parameters, dependencies, vault_keys, 
+				(id, name, type, description, executable, category, tags, parameters, dependencies, vault_keys, 
 				 created_by, enabled, security_status, file_path, file_hash)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)`,
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)`,
 				id, manifest.Name, string(skillType), manifest.Description,
-				manifest.Executable, string(params), string(deps), string(vaultKeys),
+				manifest.Executable, manifest.Category, mustJSONString(manifest.Tags), string(params), string(deps), string(vaultKeys),
 				string(skillType), string(SecurityClean), manifest.Executable, fileHash,
 			)
 			if err != nil {
@@ -215,7 +285,7 @@ func detectSkillType(name string, skillsDir string) SkillType {
 
 // ListSkillsFiltered returns skills from the registry with optional filters.
 func (m *SkillManager) ListSkillsFiltered(skillType, status, search string, enabledFilter *bool) ([]SkillRegistryEntry, error) {
-	query := "SELECT id, name, type, description, executable, parameters, dependencies, vault_keys, " +
+	query := "SELECT id, name, type, description, executable, category, tags, parameters, dependencies, vault_keys, " +
 		"created_at, updated_at, created_by, enabled, security_status, security_report, last_scan_at, " +
 		"file_path, file_hash FROM skills_registry WHERE 1=1"
 	var args []interface{}
@@ -256,11 +326,11 @@ func (m *SkillManager) ListSkillsFiltered(skillType, status, search string, enab
 	var skills []SkillRegistryEntry
 	for rows.Next() {
 		var s SkillRegistryEntry
-		var params, deps, vaultKeys, secReport sql.NullString
+		var params, deps, vaultKeys, secReport, tags sql.NullString
 		var lastScan sql.NullTime
 		var enabled int
 
-		err := rows.Scan(&s.ID, &s.Name, &s.Type, &s.Description, &s.Executable,
+		err := rows.Scan(&s.ID, &s.Name, &s.Type, &s.Description, &s.Executable, &s.Category, &tags,
 			&params, &deps, &vaultKeys,
 			&s.CreatedAt, &s.UpdatedAt, &s.CreatedBy, &enabled,
 			&s.SecurityStatus, &secReport, &lastScan,
@@ -275,6 +345,9 @@ func (m *SkillManager) ListSkillsFiltered(skillType, status, search string, enab
 		}
 		if deps.Valid {
 			json.Unmarshal([]byte(deps.String), &s.Dependencies)
+		}
+		if tags.Valid {
+			json.Unmarshal([]byte(tags.String), &s.Tags)
 		}
 		if vaultKeys.Valid {
 			json.Unmarshal([]byte(vaultKeys.String), &s.VaultKeys)
@@ -296,14 +369,14 @@ func (m *SkillManager) ListSkillsFiltered(skillType, status, search string, enab
 // GetSkill retrieves a single skill from the registry by ID.
 func (m *SkillManager) GetSkill(id string) (*SkillRegistryEntry, error) {
 	var s SkillRegistryEntry
-	var params, deps, vaultKeys, secReport sql.NullString
+	var params, deps, vaultKeys, secReport, tags sql.NullString
 	var lastScan sql.NullTime
 	var enabled int
 
-	err := m.db.QueryRow(`SELECT id, name, type, description, executable, parameters, dependencies, vault_keys,
+	err := m.db.QueryRow(`SELECT id, name, type, description, executable, category, tags, parameters, dependencies, vault_keys,
 		created_at, updated_at, created_by, enabled, security_status, security_report, last_scan_at,
 		file_path, file_hash FROM skills_registry WHERE id = ?`, id).
-		Scan(&s.ID, &s.Name, &s.Type, &s.Description, &s.Executable,
+		Scan(&s.ID, &s.Name, &s.Type, &s.Description, &s.Executable, &s.Category, &tags,
 			&params, &deps, &vaultKeys,
 			&s.CreatedAt, &s.UpdatedAt, &s.CreatedBy, &enabled,
 			&s.SecurityStatus, &secReport, &lastScan,
@@ -321,6 +394,9 @@ func (m *SkillManager) GetSkill(id string) (*SkillRegistryEntry, error) {
 	}
 	if deps.Valid {
 		json.Unmarshal([]byte(deps.String), &s.Dependencies)
+	}
+	if tags.Valid {
+		json.Unmarshal([]byte(tags.String), &s.Tags)
 	}
 	if vaultKeys.Valid {
 		json.Unmarshal([]byte(vaultKeys.String), &s.VaultKeys)
@@ -359,10 +435,7 @@ func (m *SkillManager) UpdateVaultKeys(id string, keys []string) error {
 		return err
 	}
 
-	if keys == nil {
-		keys = []string{}
-	}
-	keysJSON, err := json.Marshal(keys)
+	keysJSON, err := json.Marshal(normalizeVaultKeyList(keys))
 	if err != nil {
 		return fmt.Errorf("serializing vault_keys: %w", err)
 	}
@@ -385,11 +458,15 @@ func (m *SkillManager) UpdateVaultKeys(id string, keys []string) error {
 	}
 
 	m.logger.Info("Skill vault_keys updated", "id", id, "name", s.Name, "keys", keys)
+	m.recordSkillAudit(id, s.Name, "vault_keys_updated", "user", fmt.Sprintf("updated %d vault key bindings", len(keys)))
 	return nil
 }
 
 // UpdateSkillCode writes new Python source code for an existing skill and updates its file hash.
-func (m *SkillManager) UpdateSkillCode(id, code string) error {
+func (m *SkillManager) UpdateSkillCode(id, code, updatedBy string) error {
+	if err := validateSkillCode(code); err != nil {
+		return err
+	}
 	s, err := m.GetSkill(id)
 	if err != nil {
 		return err
@@ -409,6 +486,9 @@ func (m *SkillManager) UpdateSkillCode(id, code string) error {
 		fileHash, id); err != nil {
 		return fmt.Errorf("updating skill hash: %w", err)
 	}
+	if err := m.appendSkillVersion(id, fileHash, code, updatedBy, "code updated"); err != nil {
+		return err
+	}
 
 	// Reset security status since code changed
 	if _, err := m.db.Exec("UPDATE skills_registry SET security_status = ? WHERE id = ?",
@@ -417,11 +497,12 @@ func (m *SkillManager) UpdateSkillCode(id, code string) error {
 	}
 
 	m.logger.Info("Skill code updated", "id", id, "name", s.Name)
+	m.recordSkillAudit(id, s.Name, "code_updated", updatedBy, fmt.Sprintf("updated code to hash %s", fileHash))
 	return nil
 }
 
 // EnableSkill enables or disables a skill.
-func (m *SkillManager) EnableSkill(id string, enabled bool) error {
+func (m *SkillManager) EnableSkill(id string, enabled bool, updatedBy string) error {
 	result, err := m.db.Exec("UPDATE skills_registry SET enabled = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
 		boolToInt(enabled), id)
 	if err != nil {
@@ -431,15 +512,23 @@ func (m *SkillManager) EnableSkill(id string, enabled bool) error {
 	if n == 0 {
 		return fmt.Errorf("skill not found: %s", id)
 	}
+	if skill, err := m.GetSkill(id); err == nil {
+		action := "disabled"
+		if enabled {
+			action = "enabled"
+		}
+		m.recordSkillAudit(id, skill.Name, action, updatedBy, "")
+	}
 	return nil
 }
 
 // DeleteSkill removes a skill from the registry and optionally deletes its files.
-func (m *SkillManager) DeleteSkill(id string, deleteFiles bool) error {
+func (m *SkillManager) DeleteSkill(id string, deleteFiles bool, deletedBy string) error {
 	s, err := m.GetSkill(id)
 	if err != nil {
 		return err
 	}
+	m.recordSkillAudit(id, s.Name, "deleted", deletedBy, fmt.Sprintf("files_deleted=%t", deleteFiles))
 
 	if _, err := m.db.Exec("DELETE FROM skills_registry WHERE id = ?", id); err != nil {
 		return fmt.Errorf("deleting skill from registry: %w", err)
@@ -479,31 +568,45 @@ func (m *SkillManager) UpdateSkillSecurity(id string, status SecurityStatus, rep
 		m.db.Exec(`INSERT INTO skills_scan_history (skill_id, scanner_type, score, verdict, details)
 			VALUES (?, 'combined', ?, ?, ?)`, id, report.OverallScore, string(status), string(reportJSON))
 	}
+	if skill, err := m.GetSkill(id); err == nil {
+		m.recordSkillAudit(id, skill.Name, "security_scanned", "system", fmt.Sprintf("status=%s", status))
+	}
 	return nil
 }
 
 // CreateSkillEntry inserts a new skill into the registry from uploaded code.
-func (m *SkillManager) CreateSkillEntry(name, description, code string, skillType SkillType, createdBy string) (*SkillRegistryEntry, error) {
-	// Validate name
-	if strings.ContainsAny(name, `/\`) || strings.Contains(name, "..") {
-		return nil, fmt.Errorf("invalid skill name: must not contain path separators or '..'")
+func (m *SkillManager) CreateSkillEntry(name, description, code string, skillType SkillType, createdBy, category string, tags []string) (*SkillRegistryEntry, error) {
+	name, err := validateSkillName(name)
+	if err != nil {
+		return nil, err
 	}
-	name = strings.TrimSpace(name)
-	if name == "" {
-		return nil, fmt.Errorf("skill name is required")
+	description, err = normalizeSkillDescription(description)
+	if err != nil {
+		return nil, err
+	}
+	category, err = normalizeSkillCategory(category)
+	if err != nil {
+		return nil, err
+	}
+	tags, err = normalizeSkillTags(tags)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateSkillCode(code); err != nil {
+		return nil, err
 	}
 
-	// Check for existing skill
 	pyPath := filepath.Join(m.skillsDir, name+".py")
-	if _, err := os.Stat(pyPath); err == nil {
-		return nil, fmt.Errorf("skill '%s' already exists", name)
-	}
+	jsonPath := filepath.Join(m.skillsDir, name+".json")
 
 	// Write Python file
-	if err := os.MkdirAll(m.skillsDir, 0750); err != nil {
+	if err := os.MkdirAll(m.skillsDir, 0o750); err != nil {
 		return nil, fmt.Errorf("creating skills directory: %w", err)
 	}
-	if err := os.WriteFile(pyPath, []byte(code), 0640); err != nil {
+	if err := writeFileExclusive(pyPath, []byte(code), 0o640); err != nil {
+		if os.IsExist(err) {
+			return nil, fmt.Errorf("skill '%s' already exists", name)
+		}
 		return nil, fmt.Errorf("writing skill file: %w", err)
 	}
 
@@ -516,16 +619,24 @@ func (m *SkillManager) CreateSkillEntry(name, description, code string, skillTyp
 		Name:        name,
 		Description: description,
 		Executable:  name + ".py",
+		Category:    category,
+		Tags:        tags,
 	}
 
 	// Detect dependencies from imports
-	deps := extractImportsFromCode(code)
+	deps, err := normalizeSkillDependencies(extractImportsFromCode(code))
+	if err != nil {
+		os.Remove(pyPath)
+		return nil, err
+	}
 	manifest.Dependencies = deps
 
 	manifestJSON, _ := json.MarshalIndent(manifest, "", "  ")
-	jsonPath := filepath.Join(m.skillsDir, name+".json")
-	if err := os.WriteFile(jsonPath, manifestJSON, 0640); err != nil {
+	if err := writeFileExclusive(jsonPath, manifestJSON, 0o640); err != nil {
 		os.Remove(pyPath)
+		if os.IsExist(err) {
+			return nil, fmt.Errorf("skill '%s' already exists", name)
+		}
 		return nil, fmt.Errorf("writing skill manifest: %w", err)
 	}
 
@@ -534,11 +645,12 @@ func (m *SkillManager) CreateSkillEntry(name, description, code string, skillTyp
 	now := time.Now().UTC()
 
 	depsJSON, _ := json.Marshal(deps)
-	_, err := m.db.Exec(`INSERT INTO skills_registry 
-		(id, name, type, description, executable, dependencies, created_at, updated_at,
+	tagsJSON, _ := json.Marshal(tags)
+	_, err = m.db.Exec(`INSERT INTO skills_registry 
+		(id, name, type, description, executable, category, tags, dependencies, created_at, updated_at,
 		 created_by, enabled, security_status, file_path, file_hash)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)`,
-		id, name, string(skillType), description, name+".py",
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)`,
+		id, name, string(skillType), description, name+".py", category, string(tagsJSON),
 		string(depsJSON), now, now, createdBy, string(SecurityPending),
 		name+".py", fileHash)
 	if err != nil {
@@ -546,12 +658,21 @@ func (m *SkillManager) CreateSkillEntry(name, description, code string, skillTyp
 		os.Remove(jsonPath)
 		return nil, fmt.Errorf("inserting skill into registry: %w", err)
 	}
+	if err := m.appendSkillVersion(id, fileHash, code, createdBy, "initial version"); err != nil {
+		os.Remove(pyPath)
+		os.Remove(jsonPath)
+		m.db.Exec("DELETE FROM skills_registry WHERE id = ?", id)
+		return nil, err
+	}
+	m.recordSkillAudit(id, name, "created", createdBy, fmt.Sprintf("type=%s category=%s", skillType, category))
 
 	return &SkillRegistryEntry{
 		ID:             id,
 		Name:           name,
 		Description:    description,
 		Executable:     name + ".py",
+		Category:       category,
+		Tags:           tags,
 		Dependencies:   deps,
 		Type:           skillType,
 		CreatedAt:      now,
@@ -562,6 +683,47 @@ func (m *SkillManager) CreateSkillEntry(name, description, code string, skillTyp
 		FilePath:       name + ".py",
 		FileHash:       fileHash,
 	}, nil
+}
+
+func (m *SkillManager) UpdateSkillMetadata(id, description, category string, tags []string, updatedBy string) error {
+	skill, err := m.GetSkill(id)
+	if err != nil {
+		return err
+	}
+	description, err = normalizeSkillDescription(description)
+	if err != nil {
+		return err
+	}
+	category, err = normalizeSkillCategory(category)
+	if err != nil {
+		return err
+	}
+	tags, err = normalizeSkillTags(tags)
+	if err != nil {
+		return err
+	}
+	tagsJSON := mustJSONString(tags)
+	if _, err := m.db.Exec(`UPDATE skills_registry SET description = ?, category = ?, tags = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+		description, category, tagsJSON, id); err != nil {
+		return fmt.Errorf("updating skill metadata: %w", err)
+	}
+
+	manifestPath := filepath.Join(m.skillsDir, strings.TrimSuffix(skill.Executable, filepath.Ext(skill.Executable))+".json")
+	if raw, readErr := os.ReadFile(manifestPath); readErr == nil {
+		var manifest map[string]json.RawMessage
+		if jsonErr := json.Unmarshal(raw, &manifest); jsonErr == nil {
+			descJSON, _ := json.Marshal(description)
+			catJSON, _ := json.Marshal(category)
+			manifest["description"] = descJSON
+			manifest["category"] = catJSON
+			manifest["tags"] = []byte(tagsJSON)
+			if updated, marshalErr := json.MarshalIndent(manifest, "", "  "); marshalErr == nil {
+				_ = os.WriteFile(manifestPath, updated, 0o644)
+			}
+		}
+	}
+	m.recordSkillAudit(id, skill.Name, "metadata_updated", updatedBy, fmt.Sprintf("category=%s tags=%s", category, strings.Join(tags, ",")))
+	return nil
 }
 
 // GetStats returns counts for dashboard display.

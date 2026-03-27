@@ -120,12 +120,14 @@ func toFunctionName(name string) string {
 
 // CreateSkillFromTemplate generates a new skill from a built-in template.
 func CreateSkillFromTemplate(skillsDir, templateName, skillName, description, baseURL string, dependencies, vaultKeys []string) (string, error) {
-	// Validate skill name: no path traversal
-	if strings.ContainsAny(skillName, `/\..`) || strings.Contains(skillName, "..") {
-		return "", fmt.Errorf("invalid skill name: must not contain path separators or '..'")
+	var err error
+	skillName, err = validateSkillName(skillName)
+	if err != nil {
+		return "", err
 	}
-	if skillName == "" {
-		return "", fmt.Errorf("skill name is required")
+	description, baseURL, dependencies, vaultKeys, err = normalizeSkillTemplateInputs(description, baseURL, dependencies, vaultKeys)
+	if err != nil {
+		return "", err
 	}
 	if templateName == "" {
 		return "", fmt.Errorf("template name is required")
@@ -147,15 +149,8 @@ func CreateSkillFromTemplate(skillsDir, templateName, skillName, description, ba
 		return "", fmt.Errorf("unknown template '%s'; available: %s", templateName, strings.Join(names, ", "))
 	}
 
-	// Check for existing skill with same name
 	jsonPath := filepath.Join(skillsDir, skillName+".json")
 	pyPath := filepath.Join(skillsDir, skillName+".py")
-	if _, err := os.Stat(jsonPath); err == nil {
-		return "", fmt.Errorf("skill '%s' already exists (manifest: %s)", skillName, jsonPath)
-	}
-	if _, err := os.Stat(pyPath); err == nil {
-		return "", fmt.Errorf("skill '%s' already exists (script: %s)", skillName, pyPath)
-	}
 
 	// Render Python code from template
 	data := templateData{
@@ -194,6 +189,10 @@ func CreateSkillFromTemplate(skillsDir, templateName, skillName, description, ba
 			allDeps = append(allDeps, d)
 		}
 	}
+	allDeps, err = normalizeSkillDependencies(allDeps)
+	if err != nil {
+		return "", err
+	}
 
 	// Build manifest
 	manifest := SkillManifest{
@@ -219,14 +218,24 @@ func CreateSkillFromTemplate(skillsDir, templateName, skillName, description, ba
 	if err != nil {
 		return "", fmt.Errorf("failed to serialize manifest: %w", err)
 	}
-	if err := os.WriteFile(jsonPath, manifestJSON, 0o644); err != nil {
+	if err := writeFileExclusive(jsonPath, manifestJSON, 0o644); err != nil {
+		if os.IsExist(err) {
+			return "", fmt.Errorf("skill '%s' already exists", skillName)
+		}
 		return "", fmt.Errorf("failed to write manifest: %w", err)
 	}
 
 	// Write Python code
-	if err := os.WriteFile(pyPath, codeBuf.Bytes(), 0o644); err != nil {
+	if err := validateSkillCode(codeBuf.String()); err != nil {
+		_ = os.Remove(jsonPath)
+		return "", err
+	}
+	if err := writeFileExclusive(pyPath, codeBuf.Bytes(), 0o644); err != nil {
 		// Clean up manifest if Python file write fails
 		os.Remove(jsonPath)
+		if os.IsExist(err) {
+			return "", fmt.Errorf("skill '%s' already exists", skillName)
+		}
 		return "", fmt.Errorf("failed to write Python script: %w", err)
 	}
 

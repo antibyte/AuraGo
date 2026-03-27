@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+	"time"
 
 	"aurago/internal/security"
 )
@@ -19,12 +20,15 @@ import (
 // maxSkillArgsBytes limits the serialized size of skill arguments to prevent
 // denial of service via excessively large JSON payloads.
 const maxSkillArgsBytes = 10 * 1024 * 1024 // 10 MB
+const skillDependencyInstallTimeout = 10 * time.Minute
 
 // SkillManifest represents the structure of a skill config file (.json).
 type SkillManifest struct {
 	Name         string            `json:"name"`
 	Description  string            `json:"description"`
 	Executable   string            `json:"executable"`             // e.g., "scan.py" or "custom_tool.exe"
+	Category     string            `json:"category,omitempty"`
+	Tags         []string          `json:"tags,omitempty"`
 	Parameters   map[string]string `json:"parameters,omitempty"`   // map of arg name to description
 	Returns      string            `json:"returns,omitempty"`      // describes expected output format
 	Dependencies []string          `json:"dependencies,omitempty"` // pip packages required by this skill
@@ -298,10 +302,7 @@ func ProvisionSkillDependencies(skillsDir, workspaceDir string, logger *slog.Log
 
 	pipBin := GetPipBin(workspaceDir)
 	args := append([]string{"install"}, deps...)
-	cmd := exec.Command(pipBin, args...)
-	cmd.Dir = workspaceDir
-
-	output, err := cmd.CombinedOutput()
+	output, err := runTimedCommand(workspaceDir, skillDependencyInstallTimeout, pipBin, args...)
 	if err != nil {
 		logger.Error("Failed to provision skill dependencies", "error", err, "output", string(output))
 		return
@@ -441,9 +442,7 @@ func detectAndInstallMissingDeps(pyFilePath, workspaceDir string) {
 			pkg = pypi
 		}
 		// Check if already installed
-		check := exec.Command(pipBin, "show", pkg)
-		check.Dir = workspaceDir
-		if err := check.Run(); err != nil {
+		if _, err := runTimedCommand(workspaceDir, 45*time.Second, pipBin, "show", pkg); err != nil {
 			missing = append(missing, pkg)
 		}
 	}
@@ -454,9 +453,19 @@ func detectAndInstallMissingDeps(pyFilePath, workspaceDir string) {
 
 	slog.Info("[AutoDeps] Installing missing packages", "packages", strings.Join(missing, ", "), "file", filepath.Base(pyFilePath))
 	args := append([]string{"install", "--quiet"}, missing...)
-	install := exec.Command(pipBin, args...)
-	install.Dir = workspaceDir
-	if output, err := install.CombinedOutput(); err != nil {
+	if output, err := runTimedCommand(workspaceDir, skillDependencyInstallTimeout, pipBin, args...); err != nil {
 		slog.Warn("[AutoDeps] Failed to install packages", "packages", missing, "error", err, "output", string(output))
 	}
+}
+
+func runTimedCommand(workdir string, timeout time.Duration, command string, args ...string) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, command, args...)
+	cmd.Dir = workdir
+	output, err := cmd.CombinedOutput()
+	if ctx.Err() == context.DeadlineExceeded {
+		return output, fmt.Errorf("command timed out after %s", timeout)
+	}
+	return output, err
 }

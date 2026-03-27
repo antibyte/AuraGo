@@ -9,11 +9,16 @@ let currentSecFilter = 'all';
 let currentDetailId = '';
 let deleteTargetId = '';
 let selectedFile = null;
+let selectedImportFile = null;
 let codeEditorView = null;
 let codeEditorSkillId = '';
+let codeEditorDraft = null;
 let vaultKeyTargetId = '';
 let allVaultSecrets = [];
 let credentialMap = {}; // id -> name
+let detailVersions = [];
+let detailAudit = [];
+let searchDebounceHandle = null;
 
 // ── Initialization ──────────────────────────────────────────────────────────
 
@@ -65,6 +70,7 @@ async function loadTemplates() {
         if (data.status === 'ok') {
             allTemplates = data.templates || [];
             populateTemplateSelect();
+            populateGenerateTemplateSelect();
         }
     } catch (e) {
         console.error('Failed to load templates:', e);
@@ -120,6 +126,8 @@ function renderCard(skill) {
     const enabled = skill.Enabled !== undefined ? skill.Enabled : skill.enabled;
     const id = esc(skill.ID || skill.id || '');
     const deps = skill.Dependencies || skill.dependencies || [];
+    const tags = skill.Tags || skill.tags || [];
+    const category = skill.Category || skill.category || '';
     const vaultKeys = skill.VaultKeys || skill.vault_keys || [];
 
     const typeLabel = type.charAt(0).toUpperCase() + type.slice(1);
@@ -132,6 +140,10 @@ function renderCard(skill) {
     if (deps.length > 0) {
         depTags = `<div class="sk-card-deps">${deps.slice(0, 5).map(d => `<span class="sk-dep-tag">${esc(d)}</span>`).join('')}${deps.length > 5 ? `<span class="sk-dep-tag">+${deps.length - 5}</span>` : ''}</div>`;
     }
+    const metaTags = [];
+    if (category) metaTags.push(`<span class="sk-dep-tag">${esc(category)}</span>`);
+    tags.slice(0, 4).forEach(tag => metaTags.push(`<span class="sk-dep-tag">${esc(tag)}</span>`));
+    const metaRow = metaTags.length > 0 ? `<div class="sk-card-deps">${metaTags.join('')}</div>` : '';
 
     let vaultRow = '';
     {
@@ -160,6 +172,7 @@ function renderCard(skill) {
             </div>
         </div>
         <div class="sk-card-desc">${desc || '<em>' + (t('skills.no_description') || 'No description') + '</em>'}</div>
+        ${metaRow}
         ${depTags}
         ${vaultRow}
         <div class="sk-card-actions">
@@ -202,7 +215,8 @@ function getFilteredSkills() {
 
 // eslint-disable-next-line no-unused-vars
 function filterSkills() {
-    renderSkills();
+    window.clearTimeout(searchDebounceHandle);
+    searchDebounceHandle = window.setTimeout(() => renderSkills(), 120);
 }
 
 // eslint-disable-next-line no-unused-vars
@@ -255,16 +269,24 @@ async function showDetail(id) {
     document.getElementById('detail-modal').classList.add('active');
 
     try {
-        const resp = await fetch(`/api/skills/${encodeURIComponent(id)}`);
-        const data = await resp.json();
+        const [skillResp, versionsResp, auditResp] = await Promise.all([
+            fetch(`/api/skills/${encodeURIComponent(id)}`),
+            fetch(`/api/skills/${encodeURIComponent(id)}/versions`),
+            fetch(`/api/skills/${encodeURIComponent(id)}/audit?limit=20`)
+        ]);
+        const data = await skillResp.json();
         if (data.status !== 'ok') {
             body.innerHTML = `<p class="sk-error">${esc(data.message || 'Not found')}</p>`;
             return;
         }
         const s = data.skill;
+        detailVersions = versionsResp.ok ? ((await versionsResp.json()).versions || []) : [];
+        detailAudit = auditResp.ok ? ((await auditResp.json()).audit || []) : [];
         const sec = s.SecurityReport || s.security_report;
         const deps = (s.Dependencies || s.dependencies || []);
         const vaultKeys = (s.VaultKeys || s.vault_keys || []);
+        const tags = (s.Tags || s.tags || []);
+        const category = (s.Category || s.category || '');
 
         let secHTML = '';
         if (sec) {
@@ -295,6 +317,8 @@ async function showDetail(id) {
                 <div class="sk-detail-row"><span class="sk-detail-label">${t('skills.detail_enabled') || 'Enabled'}:</span> <span>${s.Enabled || s.enabled ? '✅' : '❌'}</span></div>
                 <div class="sk-detail-row"><span class="sk-detail-label">${t('skills.detail_created') || 'Created'}:</span> <span>${esc(s.CreatedAt || s.created_at || '-')}</span></div>
                 <div class="sk-detail-row"><span class="sk-detail-label">${t('skills.detail_description') || 'Description'}:</span> <span>${esc(s.Description || s.description || '-')}</span></div>
+                ${category ? `<div class="sk-detail-row"><span class="sk-detail-label">${t('skills.field_category') || 'Category'}:</span> <span>${esc(category)}</span></div>` : ''}
+                ${tags.length > 0 ? `<div class="sk-detail-row"><span class="sk-detail-label">${t('skills.field_tags') || 'Tags'}:</span> <span class="sk-meta-list">${tags.map(tag => `<span class="sk-dep-tag">${esc(tag)}</span>`).join('')}</span></div>` : ''}
                 ${deps.length > 0 ? `<div class="sk-detail-row"><span class="sk-detail-label">${t('skills.detail_deps') || 'Dependencies'}:</span> <span>${deps.map(d => `<span class="sk-dep-tag">${esc(d)}</span>`).join(' ')}</span></div>` : ''}
                 <div class="sk-detail-row"><span class="sk-detail-label">${t('skills.vault_keys_label') || 'Vault Keys'}:</span> <span>${vaultKeys.length > 0 ? vaultKeys.map(k => {
                     if (k.startsWith('cred:')) {
@@ -304,6 +328,8 @@ async function showDetail(id) {
                     return `<code class="sk-vault-key-tag">${esc(k)}</code>`;
                 }).join(' ') : `<span class="sk-vault-none">${t('skills.vault_none') || 'No secrets assigned'}</span>`}</span></div>
             </div>
+            ${renderSkillHistory(detailVersions)}
+            ${renderSkillAudit(detailAudit)}
             ${secHTML}`;
         if (typeof applyI18n === 'function') applyI18n();
     } catch (e) {
@@ -346,6 +372,9 @@ async function verifyCurrentSkill() {
 
 function createEditorState(code, readOnly) {
     const cm = window.CM6;
+    if (!cm || !cm.EditorState || !cm.EditorView) {
+        throw new Error('CodeMirror unavailable');
+    }
     const extensions = [
         cm.lineNumbers(),
         cm.highlightActiveLineGutter(),
@@ -381,8 +410,33 @@ function createEditorState(code, readOnly) {
     return cm.EditorState.create({ doc: code, extensions });
 }
 
+function getCurrentEditorCode() {
+    if (codeEditorView && codeEditorView.state && codeEditorView.state.doc) {
+        return codeEditorView.state.doc.toString();
+    }
+    const fallback = document.getElementById('code-editor-fallback');
+    return fallback ? fallback.value : '';
+}
+
+function setDraftMeta(meta, readOnly) {
+    codeEditorDraft = meta || null;
+    const metaWrap = document.getElementById('code-draft-meta');
+    const saveBtn = document.getElementById('code-save-btn');
+    if (!meta) {
+        metaWrap.style.display = 'none';
+        saveBtn.textContent = t('skills.btn_save_code') || 'Save';
+        return;
+    }
+    metaWrap.style.display = '';
+    document.getElementById('code-draft-name').value = meta.name || '';
+    document.getElementById('code-draft-description').value = meta.description || '';
+    document.getElementById('code-draft-category').value = meta.category || '';
+    document.getElementById('code-draft-tags').value = (meta.tags || []).join(', ');
+    saveBtn.textContent = readOnly ? (t('common.btn_close') || 'Close') : (t('skills.btn_create_skill') || 'Create Skill');
+}
+
 // eslint-disable-next-line no-unused-vars
-function openCodeEditor(id, code, readOnly) {
+function openCodeEditor(id, code, readOnly, draftMeta = null) {
     codeEditorSkillId = id;
     const container = document.getElementById('code-editor-container');
     container.innerHTML = '';
@@ -392,14 +446,21 @@ function openCodeEditor(id, code, readOnly) {
         codeEditorView = null;
     }
 
-    const state = createEditorState(code || '', readOnly);
-    codeEditorView = new window.CM6.EditorView({
-        state,
-        parent: container,
-    });
+    try {
+        const state = createEditorState(code || '', readOnly);
+        codeEditorView = new window.CM6.EditorView({
+            state,
+            parent: container,
+        });
+    } catch (_) {
+        container.innerHTML = `<textarea id="code-editor-fallback" class="sk-editor-fallback" ${readOnly ? 'readonly' : ''}></textarea>`;
+        document.getElementById('code-editor-fallback').value = code || '';
+        showToast(t('skills.editor_fallback') || 'Advanced editor unavailable, using plain text mode.', 'info');
+    }
 
     const saveBtn = document.getElementById('code-save-btn');
     saveBtn.style.display = readOnly ? 'none' : '';
+    setDraftMeta(draftMeta, readOnly);
 
     document.getElementById('code-modal').classList.add('active');
 }
@@ -415,7 +476,7 @@ async function viewCode(id) {
         const data = await resp.json();
         if (data.status === 'ok' && data.code) {
             container.innerHTML = '';
-            openCodeEditor(id, data.code, false);
+            openCodeEditor(id, data.code, false, null);
         } else {
             container.innerHTML = `<p style="padding:16px;color:var(--text-secondary);">${t('skills.no_code') || 'Code not available'}</p>`;
         }
@@ -426,22 +487,39 @@ async function viewCode(id) {
 
 // eslint-disable-next-line no-unused-vars
 async function saveSkillCode() {
-    if (!codeEditorView || !codeEditorSkillId) return;
-    const code = codeEditorView.state.doc.toString();
+    const code = getCurrentEditorCode();
+    if (!code) return;
     const btn = document.getElementById('code-save-btn');
     btn.disabled = true;
     btn.textContent = t('common.loading') || 'Saving...';
 
     try {
-        const resp = await fetch(`/api/skills/${encodeURIComponent(codeEditorSkillId)}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code })
-        });
+        let resp;
+        if (codeEditorSkillId) {
+            resp = await fetch(`/api/skills/${encodeURIComponent(codeEditorSkillId)}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ code })
+            });
+        } else {
+            const name = document.getElementById('code-draft-name').value.trim();
+            const description = document.getElementById('code-draft-description').value.trim();
+            const category = document.getElementById('code-draft-category').value.trim();
+            const tags = parseCSV(document.getElementById('code-draft-tags').value);
+            resp = await fetch('/api/skills', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, description, category, tags, code })
+            });
+        }
         const data = await resp.json();
-        if (data.status === 'ok') {
-            showToast(t('skills.code_saved') || 'Code saved', 'success');
+        if (data.status === 'ok' || data.status === 'created') {
+            showToast(codeEditorSkillId ? (t('skills.code_saved') || 'Code saved') : (t('skills.create_success') || 'Skill created'), 'success');
             await loadSkills();
+            closeCodeModal();
+            if (!codeEditorSkillId && data.skill && data.skill.id) {
+                currentDetailId = data.skill.id;
+            }
         } else {
             showToast(data.message || t('common.error'), 'error');
         }
@@ -455,12 +533,21 @@ async function saveSkillCode() {
 
 // eslint-disable-next-line no-unused-vars
 function closeCodeModal() {
-    document.getElementById('code-modal').classList.remove('active');
+    const modal = document.getElementById('code-modal');
+    modal.classList.remove('active');
+    modal.classList.remove('sk-code-overlay-fullscreen');
     if (codeEditorView) {
         codeEditorView.destroy();
         codeEditorView = null;
     }
     codeEditorSkillId = '';
+    codeEditorDraft = null;
+    document.getElementById('code-draft-meta').style.display = 'none';
+}
+
+// eslint-disable-next-line no-unused-vars
+function toggleCodeFullscreen() {
+    document.getElementById('code-modal').classList.toggle('sk-code-overlay-fullscreen');
 }
 
 // ── Upload Modal ────────────────────────────────────────────────────────────
@@ -514,6 +601,8 @@ function showUploadModal() {
     clearFileSelection();
     document.getElementById('upload-name').value = '';
     document.getElementById('upload-description').value = '';
+    document.getElementById('upload-category').value = '';
+    document.getElementById('upload-tags').value = '';
     document.getElementById('upload-modal').classList.add('active');
 }
 
@@ -533,6 +622,8 @@ async function submitUpload() {
     fd.append('file', selectedFile);
     fd.append('name', document.getElementById('upload-name').value.trim());
     fd.append('description', document.getElementById('upload-description').value.trim());
+    fd.append('category', document.getElementById('upload-category').value.trim());
+    fd.append('tags', document.getElementById('upload-tags').value.trim());
 
     try {
         const resp = await fetch('/api/skills/upload', { method: 'POST', body: fd });
@@ -571,6 +662,18 @@ function populateTemplateSelect() {
     });
 }
 
+function populateGenerateTemplateSelect() {
+    const sel = document.getElementById('generate-template-select');
+    if (!sel) return;
+    while (sel.options.length > 1) sel.remove(1);
+    allTemplates.forEach(tmpl => {
+        const opt = document.createElement('option');
+        opt.value = tmpl.Name || tmpl.name || '';
+        opt.textContent = opt.value;
+        sel.appendChild(opt);
+    });
+}
+
 // eslint-disable-next-line no-unused-vars
 function onTemplateSelect() {
     const sel = document.getElementById('template-select');
@@ -592,6 +695,10 @@ function onTemplateSelect() {
 function showTemplateModal() {
     document.getElementById('template-skill-name').value = '';
     document.getElementById('template-description-input').value = '';
+    document.getElementById('template-category-input').value = '';
+    document.getElementById('template-tags-input').value = '';
+    document.getElementById('template-base-url-input').value = '';
+    document.getElementById('template-dependencies-input').value = '';
     document.getElementById('template-select').selectedIndex = 0;
     document.getElementById('template-description').style.display = 'none';
     document.getElementById('template-submit-btn').disabled = true;
@@ -608,6 +715,10 @@ async function submitTemplate() {
     const templateName = document.getElementById('template-select').value;
     const skillName = document.getElementById('template-skill-name').value.trim();
     const description = document.getElementById('template-description-input').value.trim();
+    const category = document.getElementById('template-category-input').value.trim();
+    const tags = parseCSV(document.getElementById('template-tags-input').value);
+    const baseURL = document.getElementById('template-base-url-input').value.trim();
+    const dependencies = parseCSV(document.getElementById('template-dependencies-input').value);
 
     if (!templateName || !skillName) {
         showToast(t('skills.template_required') || 'Template and skill name are required', 'error');
@@ -625,7 +736,11 @@ async function submitTemplate() {
             body: JSON.stringify({
                 template_name: templateName,
                 skill_name: skillName,
-                description: description
+                description: description,
+                category: category,
+                tags: tags,
+                base_url: baseURL,
+                dependencies: dependencies
             })
         });
         const data = await resp.json();
@@ -684,6 +799,230 @@ async function confirmDeleteSkill() {
     } catch (e) {
         showToast(t('common.error') || 'Error', 'error');
     }
+}
+
+function renderSkillHistory(versions) {
+    if (!Array.isArray(versions) || versions.length === 0) return '';
+    return `<div class="sk-findings">
+        <h4>${t('skills.history_title') || 'Version History'}</h4>
+        <ul class="sk-history-list">
+            ${versions.slice(0, 8).map(v => `<li class="sk-history-item">
+                <div class="sk-history-item-head">
+                    <span>${t('skills.history_version') || 'Version'} ${esc(String(v.version || v.Version || '?'))}</span>
+                    <button class="btn btn-sm btn-secondary" onclick="restoreSkillVersion('${esc(currentDetailId)}', ${Number(v.version || v.Version || 0)})">${t('skills.btn_restore') || 'Restore'}</button>
+                </div>
+                <div class="sk-history-note">${esc(v.change_note || v.ChangeNote || '')}</div>
+                <div class="sk-audit-details">${esc(v.created_by || v.CreatedBy || '')} · ${esc(v.created_at || v.CreatedAt || '')}</div>
+            </li>`).join('')}
+        </ul>
+    </div>`;
+}
+
+function renderSkillAudit(audit) {
+    if (!Array.isArray(audit) || audit.length === 0) return '';
+    return `<div class="sk-findings">
+        <h4>${t('skills.audit_title') || 'Audit Trail'}</h4>
+        <ul class="sk-audit-list">
+            ${audit.slice(0, 12).map(entry => `<li class="sk-audit-item">
+                <div class="sk-audit-item-head">
+                    <strong>${esc(entry.action || entry.Action || '')}</strong>
+                    <span>${esc(entry.created_at || entry.CreatedAt || '')}</span>
+                </div>
+                <div class="sk-audit-details">${esc(entry.actor || entry.Actor || '')}${(entry.details || entry.Details) ? ' · ' + esc(entry.details || entry.Details) : ''}</div>
+            </li>`).join('')}
+        </ul>
+    </div>`;
+}
+
+// eslint-disable-next-line no-unused-vars
+async function restoreSkillVersion(id, version) {
+    if (!id || !version) return;
+    try {
+        const resp = await fetch(`/api/skills/${encodeURIComponent(id)}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ restore_version: version })
+        });
+        const data = await resp.json();
+        if (data.status === 'ok') {
+            showToast(t('skills.restore_success') || 'Version restored', 'success');
+            await showDetail(id);
+            await loadSkills();
+        } else {
+            showToast(data.message || t('common.error'), 'error');
+        }
+    } catch (_) {
+        showToast(t('common.error') || 'Error', 'error');
+    }
+}
+
+// eslint-disable-next-line no-unused-vars
+function exportCurrentSkill() {
+    if (!currentDetailId) return;
+    window.location.href = `/api/skills/${encodeURIComponent(currentDetailId)}/export`;
+}
+
+// eslint-disable-next-line no-unused-vars
+function showTestModal() {
+    if (!currentDetailId) return;
+    document.getElementById('test-args-input').value = '{}';
+    document.getElementById('test-output').textContent = '';
+    document.getElementById('test-output-status').textContent = '';
+    document.getElementById('test-modal').classList.add('active');
+}
+
+// eslint-disable-next-line no-unused-vars
+function closeTestModal() {
+    document.getElementById('test-modal').classList.remove('active');
+}
+
+// eslint-disable-next-line no-unused-vars
+async function runSkillTest() {
+    if (!currentDetailId) return;
+    const btn = document.getElementById('test-run-btn');
+    const statusEl = document.getElementById('test-output-status');
+    const outputEl = document.getElementById('test-output');
+    btn.disabled = true;
+    btn.textContent = t('common.loading') || 'Running...';
+    try {
+        const args = JSON.parse(document.getElementById('test-args-input').value || '{}');
+        const resp = await fetch(`/api/skills/${encodeURIComponent(currentDetailId)}/test`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ args })
+        });
+        const data = await resp.json();
+        statusEl.textContent = data.status || '';
+        outputEl.textContent = data.output || data.message || '';
+        if (data.status === 'ok') {
+            showToast(t('skills.test_success') || 'Test finished', 'success');
+        } else {
+            showToast(data.message || (t('skills.test_failed') || 'Test failed'), 'error');
+        }
+    } catch (e) {
+        statusEl.textContent = 'error';
+        outputEl.textContent = e.message || 'Invalid JSON';
+        showToast(t('skills.test_invalid_json') || 'Input must be valid JSON', 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = t('skills.btn_run_test') || 'Run Test';
+    }
+}
+
+// eslint-disable-next-line no-unused-vars
+function showImportModal() {
+    selectedImportFile = null;
+    document.getElementById('import-file').value = '';
+    document.getElementById('import-file-name').textContent = t('skills.import_hint') || 'Choose an exported `.aurago-skill.json` bundle.';
+    document.getElementById('import-submit-btn').disabled = true;
+    document.getElementById('import-modal').classList.add('active');
+}
+
+// eslint-disable-next-line no-unused-vars
+function closeImportModal() {
+    document.getElementById('import-modal').classList.remove('active');
+}
+
+// eslint-disable-next-line no-unused-vars
+function handleImportFileSelect(event) {
+    if (!event.target.files || event.target.files.length === 0) return;
+    selectedImportFile = event.target.files[0];
+    document.getElementById('import-file-name').textContent = selectedImportFile.name;
+    document.getElementById('import-submit-btn').disabled = false;
+}
+
+// eslint-disable-next-line no-unused-vars
+async function submitImportSkill() {
+    if (!selectedImportFile) return;
+    const btn = document.getElementById('import-submit-btn');
+    btn.disabled = true;
+    btn.textContent = t('common.loading') || 'Importing...';
+    try {
+        const bundle = JSON.parse(await selectedImportFile.text());
+        const resp = await fetch('/api/skills/import', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(bundle)
+        });
+        const data = await resp.json();
+        if (data.status === 'imported') {
+            showToast(t('skills.import_success') || 'Skill imported', 'success');
+            closeImportModal();
+            await loadSkills();
+        } else {
+            showToast(data.message || t('common.error'), 'error');
+        }
+    } catch (e) {
+        showToast(e.message || (t('common.error') || 'Error'), 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = t('skills.btn_import') || 'Import';
+    }
+}
+
+// eslint-disable-next-line no-unused-vars
+function showGenerateModal() {
+    document.getElementById('generate-prompt').value = '';
+    document.getElementById('generate-skill-name').value = '';
+    document.getElementById('generate-category').value = '';
+    document.getElementById('generate-template-select').selectedIndex = 0;
+    document.getElementById('generate-dependencies').value = '';
+    document.getElementById('generate-modal').classList.add('active');
+}
+
+// eslint-disable-next-line no-unused-vars
+function closeGenerateModal() {
+    document.getElementById('generate-modal').classList.remove('active');
+}
+
+// eslint-disable-next-line no-unused-vars
+async function submitGenerateSkill() {
+    const prompt = document.getElementById('generate-prompt').value.trim();
+    if (!prompt) {
+        showToast(t('skills.generate_prompt_required') || 'Please describe the skill you want.', 'error');
+        return;
+    }
+    const btn = document.getElementById('generate-submit-btn');
+    btn.disabled = true;
+    btn.textContent = t('common.loading') || 'Generating...';
+    try {
+        const resp = await fetch('/api/skills/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                prompt,
+                skill_name: document.getElementById('generate-skill-name').value.trim(),
+                category: document.getElementById('generate-category').value.trim(),
+                template_name: document.getElementById('generate-template-select').value,
+                dependencies: parseCSV(document.getElementById('generate-dependencies').value)
+            })
+        });
+        const data = await resp.json();
+        if (data.status !== 'ok' || !data.draft) {
+            showToast(data.message || t('common.error'), 'error');
+            return;
+        }
+        closeGenerateModal();
+        openCodeEditor('', data.draft.code || '', false, {
+            name: data.draft.name || '',
+            description: data.draft.description || '',
+            category: data.draft.category || '',
+            tags: data.draft.tags || []
+        });
+        showToast(t('skills.generate_success') || 'Draft generated', 'success');
+    } catch (e) {
+        showToast(e.message || (t('common.error') || 'Error'), 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = t('skills.btn_generate') || 'Generate';
+    }
+}
+
+function parseCSV(raw) {
+    return (raw || '')
+        .split(',')
+        .map(part => part.trim())
+        .filter(Boolean);
 }
 
 // ── Toast helper ────────────────────────────────────────────────────────────

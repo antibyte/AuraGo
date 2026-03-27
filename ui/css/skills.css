@@ -113,6 +113,7 @@
 .sk-toolbar-actions {
     display: flex;
     gap: 8px;
+    flex-wrap: wrap;
 }
 
 /* ── Security Filter Pills ── */
@@ -502,6 +503,138 @@
     line-height: 1.5;
 }
 
+.sk-code-meta {
+    margin-bottom: 14px;
+    padding: 12px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    background: var(--bg-primary);
+}
+
+.sk-code-meta-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.sk-textarea {
+    min-height: 120px;
+    resize: vertical;
+    font-family: 'Fira Code', 'Cascadia Code', 'JetBrains Mono', monospace;
+    line-height: 1.5;
+}
+
+.sk-inline-help {
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+}
+
+.sk-code-fullscreen-btn {
+    margin-left: auto;
+}
+
+.modal-overlay.sk-code-overlay-fullscreen .modal {
+    width: 100vw;
+    max-width: none;
+    height: 100vh;
+    border-radius: 0;
+}
+
+.modal-overlay.sk-code-overlay-fullscreen .modal-body {
+    flex: 1;
+    overflow: auto;
+}
+
+.modal-overlay.sk-code-overlay-fullscreen .sk-code-editor-container,
+.modal-overlay.sk-code-overlay-fullscreen .sk-code-editor-container .cm-editor {
+    max-height: calc(100vh - 240px);
+    min-height: calc(100vh - 260px);
+}
+
+.sk-editor-fallback {
+    width: 100%;
+    min-height: 320px;
+    border: none;
+    outline: none;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    padding: 14px;
+    box-sizing: border-box;
+}
+
+.sk-test-output-wrap {
+    margin-top: 14px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    background: var(--bg-primary);
+    overflow: hidden;
+}
+
+.sk-test-output-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border-subtle);
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+}
+
+.sk-test-status {
+    font-weight: 600;
+}
+
+.sk-test-output {
+    margin: 0;
+    padding: 14px;
+    min-height: 120px;
+    max-height: 320px;
+    overflow: auto;
+    font-size: 0.82rem;
+    line-height: 1.5;
+    color: var(--text-primary);
+}
+
+.sk-meta-list {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.sk-history-list,
+.sk-audit-list {
+    list-style: none;
+    padding: 0;
+    margin: 12px 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.sk-history-item,
+.sk-audit-item {
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border-subtle);
+    background: var(--bg-primary);
+}
+
+.sk-history-item-head,
+.sk-audit-item-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 6px;
+    font-size: 0.8rem;
+}
+
+.sk-history-note,
+.sk-audit-details {
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+}
+
 /* ── Upload Dropzone ── */
 .sk-dropzone {
     border: 2px dashed var(--border-subtle);
@@ -679,4 +812,5 @@
     .sk-toolbar-actions .btn { flex: 1; }
     .sk-grid { grid-template-columns: 1fr; }
     .sk-security-filters { gap: 4px; }
+    .sk-code-meta-grid { grid-template-columns: 1fr; }
 }

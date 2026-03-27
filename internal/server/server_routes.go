@@ -985,6 +985,8 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		s.Logger.Info("Skills Manager UI enabled at /skills")
 
 		// ── Skills Manager API ──
+		mux.HandleFunc("/api/skills/import", handleImportSkill(s))
+		mux.HandleFunc("/api/skills/generate", handleGenerateSkillDraft(s))
 		mux.HandleFunc("/api/skills/upload", handleUploadSkill(s))
 		mux.HandleFunc("/api/skills/templates", func(w http.ResponseWriter, r *http.Request) {
 			switch r.Method {
@@ -1011,6 +1013,22 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 			// Check for /api/skills/{id}/verify
 			if strings.HasSuffix(r.URL.Path, "/verify") {
 				handleVerifySkill(s)(w, r)
+				return
+			}
+			if strings.HasSuffix(r.URL.Path, "/versions") {
+				handleGetSkillVersions(s)(w, r)
+				return
+			}
+			if strings.HasSuffix(r.URL.Path, "/audit") {
+				handleGetSkillAudit(s)(w, r)
+				return
+			}
+			if strings.HasSuffix(r.URL.Path, "/export") {
+				handleExportSkill(s)(w, r)
+				return
+			}
+			if strings.HasSuffix(r.URL.Path, "/test") {
+				handleTestSkill(s)(w, r)
 				return
 			}
 			switch r.Method {

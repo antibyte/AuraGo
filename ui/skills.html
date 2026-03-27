@@ -66,6 +66,8 @@
             <div class="sk-toolbar-actions" id="sk-toolbar-actions">
                 <button class="btn btn-primary btn-sm" onclick="showUploadModal()" data-i18n="skills.btn_upload">Upload Skill</button>
                 <button class="btn btn-secondary btn-sm" onclick="showTemplateModal()" data-i18n="skills.btn_from_template">From Template</button>
+                <button class="btn btn-secondary btn-sm" onclick="showImportModal()" data-i18n="skills.btn_import">Import</button>
+                <button class="btn btn-secondary btn-sm" onclick="showGenerateModal()" data-i18n="skills.btn_generate">AI Draft</button>
             </div>
         </div>
 
@@ -108,6 +110,8 @@
             </div>
             <div class="modal-actions">
                 <button class="btn btn-secondary" onclick="closeDetailModal()" data-i18n="common.btn_close">Close</button>
+                <button class="btn btn-secondary" onclick="exportCurrentSkill()" data-i18n="skills.btn_export">Export</button>
+                <button class="btn btn-secondary" onclick="showTestModal()" data-i18n="skills.btn_test">Test</button>
                 <button class="btn btn-primary" id="detail-verify-btn" onclick="verifyCurrentSkill()" data-i18n="skills.btn_verify">Re-Scan</button>
             </div>
         </div>
@@ -118,9 +122,30 @@
         <div class="modal modal-wide">
             <div class="modal-header">
                 <h2 id="code-modal-title" data-i18n="skills.code_title">Skill Code</h2>
+                <button class="btn btn-secondary btn-sm sk-code-fullscreen-btn" type="button" onclick="toggleCodeFullscreen()" data-i18n="skills.btn_fullscreen">Fullscreen</button>
                 <button class="modal-close" onclick="closeCodeModal()">&times;</button>
             </div>
             <div class="modal-body">
+                <div id="code-draft-meta" class="sk-code-meta" style="display:none;">
+                    <div class="sk-form-group">
+                        <label data-i18n="skills.template_skill_name">Skill Name</label>
+                        <input type="text" id="code-draft-name" class="sk-input" placeholder="my_skill">
+                    </div>
+                    <div class="sk-form-group">
+                        <label data-i18n="skills.upload_description">Description</label>
+                        <input type="text" id="code-draft-description" class="sk-input" placeholder="What does this skill do?">
+                    </div>
+                    <div class="sk-code-meta-grid">
+                        <div class="sk-form-group">
+                            <label data-i18n="skills.field_category">Category</label>
+                            <input type="text" id="code-draft-category" class="sk-input" placeholder="automation">
+                        </div>
+                        <div class="sk-form-group">
+                            <label data-i18n="skills.field_tags">Tags</label>
+                            <input type="text" id="code-draft-tags" class="sk-input" placeholder="api, automation">
+                        </div>
+                    </div>
+                </div>
                 <div id="code-editor-container" class="sk-code-editor-container"></div>
             </div>
             <div class="modal-actions">
@@ -149,6 +174,16 @@
                 <div class="sk-form-group">
                     <label data-i18n="skills.upload_description">Description</label>
                     <input type="text" id="upload-description" class="sk-input" placeholder="What does this skill do?" data-i18n-placeholder="skills.upload_desc_hint">
+                </div>
+                <div class="sk-code-meta-grid">
+                    <div class="sk-form-group">
+                        <label data-i18n="skills.field_category">Category</label>
+                        <input type="text" id="upload-category" class="sk-input" placeholder="automation">
+                    </div>
+                    <div class="sk-form-group">
+                        <label data-i18n="skills.field_tags">Tags</label>
+                        <input type="text" id="upload-tags" class="sk-input" placeholder="api, automation">
+                    </div>
                 </div>
                 <div class="sk-dropzone" id="sk-dropzone">
                     <div class="sk-dropzone-icon">📁</div>
@@ -189,6 +224,24 @@
                 <div class="sk-form-group">
                     <label data-i18n="skills.template_description">Description</label>
                     <input type="text" id="template-description-input" class="sk-input" placeholder="What does this skill do?" data-i18n-placeholder="skills.template_desc_hint">
+                </div>
+                <div class="sk-code-meta-grid">
+                    <div class="sk-form-group">
+                        <label data-i18n="skills.field_category">Category</label>
+                        <input type="text" id="template-category-input" class="sk-input" placeholder="automation">
+                    </div>
+                    <div class="sk-form-group">
+                        <label data-i18n="skills.field_tags">Tags</label>
+                        <input type="text" id="template-tags-input" class="sk-input" placeholder="api, automation">
+                    </div>
+                </div>
+                <div class="sk-form-group">
+                    <label data-i18n="skills.field_base_url">Base URL</label>
+                    <input type="url" id="template-base-url-input" class="sk-input" placeholder="https://api.example.com">
+                </div>
+                <div class="sk-form-group">
+                    <label data-i18n="skills.field_dependencies">Dependencies</label>
+                    <input type="text" id="template-dependencies-input" class="sk-input" placeholder="requests, pyyaml">
                 </div>
             </div>
             <div class="modal-actions">
@@ -236,6 +289,96 @@
             <div class="modal-actions">
                 <button class="btn btn-secondary" onclick="closeVaultKeyModal()" data-i18n="common.btn_cancel">Cancel</button>
                 <button class="btn btn-primary" onclick="saveVaultKeys()" data-i18n="skills.vault_modal_save">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TEST MODAL -->
+    <div class="modal-overlay" id="test-modal">
+        <div class="modal modal-wide">
+            <div class="modal-header">
+                <h2 data-i18n="skills.test_title">Test Skill</h2>
+                <button class="modal-close" onclick="closeTestModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="sk-form-group">
+                    <label data-i18n="skills.test_args_label">JSON Input</label>
+                    <textarea id="test-args-input" class="sk-input sk-textarea" rows="8">{}</textarea>
+                </div>
+                <div class="sk-test-output-wrap">
+                    <div class="sk-test-output-head">
+                        <span data-i18n="skills.test_output_label">Output</span>
+                        <span id="test-output-status" class="sk-test-status"></span>
+                    </div>
+                    <pre id="test-output" class="sk-test-output"></pre>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeTestModal()" data-i18n="common.btn_cancel">Cancel</button>
+                <button class="btn btn-primary" id="test-run-btn" onclick="runSkillTest()" data-i18n="skills.btn_run_test">Run Test</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- IMPORT MODAL -->
+    <div class="modal-overlay" id="import-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 data-i18n="skills.import_title">Import Skill Bundle</h2>
+                <button class="modal-close" onclick="closeImportModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="sk-form-group">
+                    <label data-i18n="skills.import_file_label">Bundle File</label>
+                    <input type="file" id="import-file" accept=".json,.aurago-skill.json" onchange="handleImportFileSelect(event)">
+                </div>
+                <p id="import-file-name" class="sk-inline-help" data-i18n="skills.import_hint">Choose an exported `.aurago-skill.json` bundle.</p>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeImportModal()" data-i18n="common.btn_cancel">Cancel</button>
+                <button class="btn btn-primary" id="import-submit-btn" onclick="submitImportSkill()" disabled data-i18n="skills.btn_import">Import</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- GENERATE MODAL -->
+    <div class="modal-overlay" id="generate-modal">
+        <div class="modal modal-wide">
+            <div class="modal-header">
+                <h2 data-i18n="skills.generate_title">Generate Skill Draft</h2>
+                <button class="modal-close" onclick="closeGenerateModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="sk-form-group">
+                    <label data-i18n="skills.generate_prompt_label">What should the skill do?</label>
+                    <textarea id="generate-prompt" class="sk-input sk-textarea" rows="6" placeholder="Create a skill that fetches JSON from an API and returns a filtered summary."></textarea>
+                </div>
+                <div class="sk-code-meta-grid">
+                    <div class="sk-form-group">
+                        <label data-i18n="skills.template_skill_name">Skill Name</label>
+                        <input type="text" id="generate-skill-name" class="sk-input" placeholder="api_summary">
+                    </div>
+                    <div class="sk-form-group">
+                        <label data-i18n="skills.field_category">Category</label>
+                        <input type="text" id="generate-category" class="sk-input" placeholder="automation">
+                    </div>
+                </div>
+                <div class="sk-code-meta-grid">
+                    <div class="sk-form-group">
+                        <label data-i18n="skills.template_select">Template</label>
+                        <select id="generate-template-select" class="sk-select">
+                            <option value="" data-i18n="skills.template_choose">-- Choose a template --</option>
+                        </select>
+                    </div>
+                    <div class="sk-form-group">
+                        <label data-i18n="skills.field_dependencies">Dependencies</label>
+                        <input type="text" id="generate-dependencies" class="sk-input" placeholder="requests, pyyaml">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeGenerateModal()" data-i18n="common.btn_cancel">Cancel</button>
+                <button class="btn btn-primary" id="generate-submit-btn" onclick="submitGenerateSkill()" data-i18n="skills.btn_generate">Generate</button>
             </div>
         </div>
     </div>
