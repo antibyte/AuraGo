@@ -158,76 +158,37 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 			"Run a pre-built registered skill (e.g. web_search, ddg_search, pdf_extractor, wikipedia_search, virustotal_scan). Use for external data retrieval.",
 			schema(execSkillProps, "skill"),
 		),
-		tool("filesystem",
-			"Read, write, move, copy, delete files and directories, or list directory contents.",
-			schema(map[string]interface{}{
-				"operation": map[string]interface{}{
-					"type":        "string",
-					"description": "Operation to perform",
-					"enum":        []string{"read_file", "write_file", "delete", "move", "list_dir", "create_dir", "stat"},
-				},
-				"file_path":   prop("string", "Path to the file or directory"),
-				"content":     prop("string", "Content to write (for write_file operations)"),
-				"destination": prop("string", "Destination path (for move operations)"),
-				"preview":     prop("boolean", "If true, only return first 100 lines (for read_file)"),
-			}, "operation", "file_path"),
-		),
-		tool("file_editor",
-			"Precisely edit text files: replace exact strings, insert lines relative to anchors, append/prepend content, or delete line ranges. Safer than write_file for targeted edits because it validates matches.",
-			schema(map[string]interface{}{
-				"operation": map[string]interface{}{
-					"type":        "string",
-					"description": "Edit operation to perform",
-					"enum":        []string{"str_replace", "str_replace_all", "insert_after", "insert_before", "append", "prepend", "delete_lines"},
-				},
-				"file_path":  prop("string", "Path to the file to edit"),
-				"old":        prop("string", "Exact text to find (required for str_replace/str_replace_all). Must match uniquely for str_replace."),
-				"new":        prop("string", "Replacement text (for str_replace/str_replace_all)"),
-				"marker":     prop("string", "Anchor text — the line containing this text is the reference point (for insert_after/insert_before). Must match exactly one line."),
-				"content":    prop("string", "Text to insert (for insert_after/insert_before/append/prepend)"),
-				"start_line": prop("integer", "First line to delete, 1-based (for delete_lines)"),
-				"end_line":   prop("integer", "Last line to delete, 1-based inclusive (for delete_lines)"),
-			}, "operation", "file_path"),
-		),
-		tool("json_editor",
-			"Read, modify, and validate JSON files using dot-path notation. Get/set/delete values at any depth, list keys, validate syntax, or reformat.",
-			schema(map[string]interface{}{
-				"operation": map[string]interface{}{
-					"type":        "string",
-					"description": "JSON operation to perform",
-					"enum":        []string{"get", "set", "delete", "keys", "validate", "format"},
-				},
-				"file_path": prop("string", "Path to the JSON file"),
-				"json_path": prop("string", "Dot-separated path to the target value (e.g. 'server.port', 'users.0.name')"),
-				"set_value": map[string]interface{}{"description": "Value to set (any JSON type: string, number, boolean, object, array, null). Required for 'set'."},
-			}, "operation", "file_path"),
-		),
-		tool("yaml_editor",
-			"Read, modify, and validate YAML files using dot-path notation. Get/set/delete values at any depth, list keys, or validate syntax. Preserves YAML structure.",
-			schema(map[string]interface{}{
-				"operation": map[string]interface{}{
-					"type":        "string",
-					"description": "YAML operation to perform",
-					"enum":        []string{"get", "set", "delete", "keys", "validate"},
-				},
-				"file_path": prop("string", "Path to the YAML file"),
-				"json_path": prop("string", "Dot-separated path to the target value (e.g. 'server.port', 'database.host')"),
-				"set_value": map[string]interface{}{"description": "Value to set (any type). Required for 'set'."},
-			}, "operation", "file_path"),
-		),
-		tool("xml_editor",
-			"Read, modify, and validate XML files using XPath. Get elements, set text/attributes, add/delete elements, validate, or format.",
-			schema(map[string]interface{}{
-				"operation": map[string]interface{}{
-					"type":        "string",
-					"description": "XML operation to perform",
-					"enum":        []string{"get", "set_text", "set_attribute", "add_element", "delete", "validate", "format"},
-				},
-				"file_path": prop("string", "Path to the XML file"),
-				"xpath":     prop("string", "XPath expression to select elements (e.g. '//server', './config/database')"),
-				"set_value": map[string]interface{}{"description": "Value to set. For set_text: string. For set_attribute: {name, value}. For add_element: {tag, text?, attributes?}."},
-			}, "operation", "file_path"),
-		),
+		// filesystem: always present, but operations restricted to read-only when write is disabled
+		func() openai.Tool {
+			if ff.AllowFilesystemWrite {
+				return tool("filesystem",
+					"Read, write, move, copy, delete files and directories, or list directory contents.",
+					schema(map[string]interface{}{
+						"operation": map[string]interface{}{
+							"type":        "string",
+							"description": "Operation to perform",
+							"enum":        []string{"read_file", "write_file", "delete", "move", "list_dir", "create_dir", "stat"},
+						},
+						"file_path":   prop("string", "Path to the file or directory"),
+						"content":     prop("string", "Content to write (for write_file operations)"),
+						"destination": prop("string", "Destination path (for move operations)"),
+						"preview":     prop("boolean", "If true, only return first 100 lines (for read_file)"),
+					}, "operation", "file_path"),
+				)
+			}
+			return tool("filesystem",
+				"Read files and list directory contents (read-only — filesystem writes are disabled).",
+				schema(map[string]interface{}{
+					"operation": map[string]interface{}{
+						"type":        "string",
+						"description": "Read-only operation to perform",
+						"enum":        []string{"read_file", "list_dir", "stat"},
+					},
+					"file_path": prop("string", "Path to the file or directory"),
+					"preview":   prop("boolean", "If true, only return first 100 lines (for read_file)"),
+				}, "operation", "file_path"),
+			)
+		}(),
 		tool("file_search",
 			"Search for text patterns across files or find files by name. Supports regex patterns, glob filters, and recursive search.",
 			schema(map[string]interface{}{
@@ -355,6 +316,107 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 	}
 
 	// ── Conditionally-included built-in tools ────────────────────────────────
+
+	if ff.AllowFilesystemWrite {
+		tools = append(tools,
+			tool("file_editor",
+				"Precisely edit text files: replace exact strings, insert lines relative to anchors, append/prepend content, or delete line ranges. Safer than write_file for targeted edits because it validates matches.",
+				schema(map[string]interface{}{
+					"operation": map[string]interface{}{
+						"type":        "string",
+						"description": "Edit operation to perform",
+						"enum":        []string{"str_replace", "str_replace_all", "insert_after", "insert_before", "append", "prepend", "delete_lines"},
+					},
+					"file_path":  prop("string", "Path to the file to edit"),
+					"old":        prop("string", "Exact text to find (required for str_replace/str_replace_all). Must match uniquely for str_replace."),
+					"new":        prop("string", "Replacement text (for str_replace/str_replace_all)"),
+					"marker":     prop("string", "Anchor text — the line containing this text is the reference point (for insert_after/insert_before). Must match exactly one line."),
+					"content":    prop("string", "Text to insert (for insert_after/insert_before/append/prepend)"),
+					"start_line": prop("integer", "First line to delete, 1-based (for delete_lines)"),
+					"end_line":   prop("integer", "Last line to delete, 1-based inclusive (for delete_lines)"),
+				}, "operation", "file_path"),
+			),
+			tool("json_editor",
+				"Read, modify, and validate JSON files using dot-path notation. Get/set/delete values at any depth, list keys, validate syntax, or reformat.",
+				schema(map[string]interface{}{
+					"operation": map[string]interface{}{
+						"type":        "string",
+						"description": "JSON operation to perform",
+						"enum":        []string{"get", "set", "delete", "keys", "validate", "format"},
+					},
+					"file_path": prop("string", "Path to the JSON file"),
+					"json_path": prop("string", "Dot-separated path to the target value (e.g. 'server.port', 'users.0.name')"),
+					"set_value": map[string]interface{}{"description": "Value to set (any JSON type: string, number, boolean, object, array, null). Required for 'set'."},
+				}, "operation", "file_path"),
+			),
+			tool("yaml_editor",
+				"Read, modify, and validate YAML files using dot-path notation. Get/set/delete values at any depth, list keys, or validate syntax. Preserves YAML structure.",
+				schema(map[string]interface{}{
+					"operation": map[string]interface{}{
+						"type":        "string",
+						"description": "YAML operation to perform",
+						"enum":        []string{"get", "set", "delete", "keys", "validate"},
+					},
+					"file_path": prop("string", "Path to the YAML file"),
+					"json_path": prop("string", "Dot-separated path to the target value (e.g. 'server.port', 'database.host')"),
+					"set_value": map[string]interface{}{"description": "Value to set (any type). Required for 'set'."},
+				}, "operation", "file_path"),
+			),
+			tool("xml_editor",
+				"Read, modify, and validate XML files using XPath. Get elements, set text/attributes, add/delete elements, validate, or format.",
+				schema(map[string]interface{}{
+					"operation": map[string]interface{}{
+						"type":        "string",
+						"description": "XML operation to perform",
+						"enum":        []string{"get", "set_text", "set_attribute", "add_element", "delete", "validate", "format"},
+					},
+					"file_path": prop("string", "Path to the XML file"),
+					"xpath":     prop("string", "XPath expression to select elements (e.g. '//server', './config/database')"),
+					"set_value": map[string]interface{}{"description": "Value to set. For set_text: string. For set_attribute: {name, value}. For add_element: {tag, text?, attributes?}."},
+				}, "operation", "file_path"),
+			),
+		)
+	} else {
+		// Read-only variants: json/yaml/xml editors exposed with read-only operations only
+		tools = append(tools,
+			tool("json_editor",
+				"Read and validate JSON files using dot-path notation. Get values at any depth, list keys, validate syntax, or reformat (read-only — filesystem writes are disabled).",
+				schema(map[string]interface{}{
+					"operation": map[string]interface{}{
+						"type":        "string",
+						"description": "Read-only JSON operation to perform",
+						"enum":        []string{"get", "keys", "validate", "format"},
+					},
+					"file_path": prop("string", "Path to the JSON file"),
+					"json_path": prop("string", "Dot-separated path to the target value (e.g. 'server.port', 'users.0.name')"),
+				}, "operation", "file_path"),
+			),
+			tool("yaml_editor",
+				"Read and validate YAML files using dot-path notation. Get values at any depth, list keys, or validate syntax (read-only — filesystem writes are disabled).",
+				schema(map[string]interface{}{
+					"operation": map[string]interface{}{
+						"type":        "string",
+						"description": "Read-only YAML operation to perform",
+						"enum":        []string{"get", "keys", "validate"},
+					},
+					"file_path": prop("string", "Path to the YAML file"),
+					"json_path": prop("string", "Dot-separated path to the target value"),
+				}, "operation", "file_path"),
+			),
+			tool("xml_editor",
+				"Read and validate XML files using XPath. Get elements, validate, or format (read-only — filesystem writes are disabled).",
+				schema(map[string]interface{}{
+					"operation": map[string]interface{}{
+						"type":        "string",
+						"description": "Read-only XML operation to perform",
+						"enum":        []string{"get", "validate", "format"},
+					},
+					"file_path": prop("string", "Path to the XML file"),
+					"xpath":     prop("string", "XPath expression to select elements (e.g. '//server', './config/database')"),
+				}, "operation", "file_path"),
+			),
+		)
+	}
 
 	if ff.AllowShell {
 		tools = append(tools, tool("execute_shell",

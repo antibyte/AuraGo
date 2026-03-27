@@ -375,7 +375,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, cfg *config.Config, logg
 		switch tc.Operation {
 		case "deploy", "test_connection":
 			if !cfg.Homepage.AllowDeploy {
-				return `Tool Output: {"status":"error","message":"Deployment is disabled. Enable homepage.allow_deploy in config."}`
+				return `Tool Output: {"status":"error","message":"Deployment is disabled by administrator. The homepage.allow_deploy setting is false in config.yaml. Do NOT retry this action — inform the user that deployment must be enabled in the configuration first."}`
 			}
 		case "init", "start", "stop", "rebuild", "destroy", "webserver_start", "webserver_stop", "exec":
 			if !cfg.Homepage.AllowContainerManagement {

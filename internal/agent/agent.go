@@ -682,8 +682,7 @@ func dispatchInner(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 		"webserver_stop": true, "webserver_status": true, "init_project": true,
 		"edit_file": true, "json_edit": true, "yaml_edit": true, "xml_edit": true,
 		"deploy_netlify": true, "publish_local": true, "deploy": true,
-		"list_files": true, "read_file": false, "write_file": false, // read/write more ambiguous — let existing dispatchers handle
-		"init": false, "start": false, "stop": false, "destroy": false, // too generic — skip
+		"list_files": true, "read_file": true, "write_file": true,
 	}
 	if homepageSubOps[tc.Action] {
 		logger.Info("Redirecting direct sub-operation call to homepage tool", "action", tc.Action)
