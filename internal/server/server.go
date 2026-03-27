@@ -202,6 +202,7 @@ type Server struct {
 	Vault              *security.Vault
 	Registry           *tools.ProcessRegistry
 	CronManager        *tools.CronManager
+	BackgroundTasks    *tools.BackgroundTaskManager
 	HistoryManager     *memory.HistoryManager
 	KG                 *memory.KnowledgeGraph
 	InventoryDB        *sql.DB
@@ -248,7 +249,7 @@ func (s *Server) accessLogger() *slog.Logger {
 	return s.Logger
 }
 
-func Start(cfg *config.Config, logger *slog.Logger, accessLogger *slog.Logger, llmClient llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, remoteControlDB *sql.DB, mediaRegistryDB *sql.DB, homepageRegistryDB *sql.DB, contactsDB *sql.DB, sqlConnectionsDB *sql.DB, sqlConnectionPool *sqlconnections.ConnectionPool, isFirstStart bool, shutdownCh chan struct{}) error {
+func Start(cfg *config.Config, logger *slog.Logger, accessLogger *slog.Logger, llmClient llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, remoteControlDB *sql.DB, mediaRegistryDB *sql.DB, homepageRegistryDB *sql.DB, contactsDB *sql.DB, sqlConnectionsDB *sql.DB, sqlConnectionPool *sqlconnections.ConnectionPool, backgroundTasks *tools.BackgroundTaskManager, isFirstStart bool, shutdownCh chan struct{}) error {
 	s := &Server{
 		Cfg:                cfg,
 		Logger:             logger,
@@ -259,6 +260,7 @@ func Start(cfg *config.Config, logger *slog.Logger, accessLogger *slog.Logger, l
 		Vault:              vault,
 		Registry:           registry,
 		CronManager:        cronManager,
+		BackgroundTasks:    backgroundTasks,
 		HistoryManager:     historyManager,
 		KG:                 kg,
 		InventoryDB:        inventoryDB,

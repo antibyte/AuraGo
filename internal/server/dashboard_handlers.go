@@ -290,7 +290,7 @@ func handleDashboardProfileEntry(s *Server) http.HandlerFunc {
 	}
 }
 
-// handleDashboardActivity returns cron jobs, processes, webhooks, and co-agents.
+// handleDashboardActivity returns cron jobs, processes, webhooks, co-agents, and background tasks.
 func handleDashboardActivity(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
@@ -326,12 +326,38 @@ func handleDashboardActivity(s *Server) http.HandlerFunc {
 			coagents = s.CoAgentRegistry.List()
 		}
 
+		backgroundSummary := map[string]int{
+			"queued":    0,
+			"waiting":   0,
+			"running":   0,
+			"completed": 0,
+			"failed":    0,
+			"canceled":  0,
+			"total":     0,
+		}
+		var backgroundTasks interface{} = []struct{}{}
+		if s.BackgroundTasks != nil {
+			summary := s.BackgroundTasks.Summary()
+			backgroundSummary = map[string]int{
+				"queued":    summary.Queued,
+				"waiting":   summary.Waiting,
+				"running":   summary.Running,
+				"completed": summary.Completed,
+				"failed":    summary.Failed,
+				"canceled":  summary.Canceled,
+				"total":     summary.Total,
+			}
+			backgroundTasks = s.BackgroundTasks.ListTasks(12)
+		}
+
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"cron_jobs": cronJobs,
-			"processes": processes,
-			"webhooks":  webhookInfo,
-			"coagents":  coagents,
+			"cron_jobs":               cronJobs,
+			"processes":               processes,
+			"webhooks":                webhookInfo,
+			"coagents":                coagents,
+			"background_tasks":        backgroundTasks,
+			"background_task_summary": backgroundSummary,
 		})
 	}
 }

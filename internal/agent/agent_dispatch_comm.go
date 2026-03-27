@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
-	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -502,6 +501,9 @@ func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 		if tc.TaskPrompt == "" {
 			return "Tool Output: ERROR 'task_prompt' is required for follow_up"
 		}
+		if !cfg.Agent.BackgroundTasks.Enabled {
+			return "Tool Output: ERROR background tasks are disabled in config (agent.background_tasks.enabled=false)."
+		}
 
 		// Guard: follow_up must describe work for the agent to do autonomously.
 		// It must NEVER be used to relay a question back to the user — that causes
@@ -514,40 +516,84 @@ func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 				`follow_up is only for scheduling autonomous background work you will perform yourself.`
 		}
 
-		// Trigger background follow-up request
-		go func(prompt string, port int) {
-			time.Sleep(2 * time.Second) // Let current response finish
-			url := fmt.Sprintf("http://127.0.0.1:%d/v1/chat/completions", port)
+		bgMgr := tools.DefaultBackgroundTaskManager()
+		if bgMgr == nil {
+			logger.Error("Background task manager is unavailable for follow_up")
+			return "Tool Output: ERROR background task manager is unavailable."
+		}
+		delay := time.Duration(cfg.Agent.BackgroundTasks.FollowUpDelaySeconds) * time.Second
+		if tc.DelaySeconds > 0 {
+			delay = time.Duration(tc.DelaySeconds) * time.Second
+		}
+		timeout := time.Duration(cfg.Agent.BackgroundTasks.HTTPTimeoutSeconds) * time.Second
+		if tc.TimeoutSecs > 0 {
+			timeout = time.Duration(tc.TimeoutSecs) * time.Second
+		}
+		task, err := bgMgr.ScheduleFollowUp(tc.TaskPrompt, tools.BackgroundTaskScheduleOptions{
+			Source:             "follow_up",
+			Description:        "Autonomous follow-up",
+			Delay:              delay,
+			MaxRetries:         cfg.Agent.BackgroundTasks.MaxRetries,
+			RetryDelay:         time.Duration(cfg.Agent.BackgroundTasks.RetryDelaySeconds) * time.Second,
+			Timeout:            timeout,
+			NotifyOnCompletion: tc.NotifyOnCompletion,
+		})
+		if err != nil {
+			logger.Error("Failed to schedule follow-up", "error", err)
+			return fmt.Sprintf("Tool Output: ERROR failed to schedule follow_up: %v", err)
+		}
 
-			payload := map[string]interface{}{
-				"model":  "aurago",
-				"stream": false,
-				"messages": []map[string]string{
-					{"role": "user", "content": prompt},
-				},
-			}
+		return fmt.Sprintf("Tool Output: Follow-up scheduled as background task %s. I will continue in the background after this message.", task.ID)
 
-			body, _ := json.Marshal(payload)
-			req, err := http.NewRequest("POST", url, strings.NewReader(string(body)))
-			if err != nil {
-				logger.Error("Failed to create follow-up request", "error", err)
-				return
-			}
-
-			req.Header.Set("Content-Type", "application/json")
-			req.Header.Set("X-Internal-FollowUp", "true")
-
-			client := &http.Client{Timeout: 10 * time.Minute}
-			resp, err := client.Do(req)
-			if err != nil {
-				logger.Error("Follow-up request failed", "error", err)
-				return
-			}
-			defer resp.Body.Close()
-			logger.Info("Follow-up triggered successfully", "status", resp.Status)
-		}(tc.TaskPrompt, cfg.Server.Port)
-
-		return "Tool Output: Follow-up scheduled. I will continue in the background immediately after this message."
+	case "wait_for_event":
+		logger.Info("LLM requested wait_for_event", "event_type", tc.EventType, "task_prompt", tc.TaskPrompt)
+		if !cfg.Agent.BackgroundTasks.Enabled {
+			return "Tool Output: ERROR background tasks are disabled in config (agent.background_tasks.enabled=false)."
+		}
+		if tc.EventType == "" {
+			return "Tool Output: ERROR 'event_type' is required for wait_for_event"
+		}
+		if tc.TaskPrompt == "" {
+			return "Tool Output: ERROR 'task_prompt' is required for wait_for_event"
+		}
+		bgMgr := tools.DefaultBackgroundTaskManager()
+		if bgMgr == nil {
+			logger.Error("Background task manager is unavailable for wait_for_event")
+			return "Tool Output: ERROR background task manager is unavailable."
+		}
+		waitTimeout := cfg.Agent.BackgroundTasks.WaitDefaultTimeoutSecs
+		if tc.TimeoutSecs > 0 {
+			waitTimeout = tc.TimeoutSecs
+		}
+		pollInterval := cfg.Agent.BackgroundTasks.WaitPollIntervalSecs
+		if tc.IntervalSecs > 0 {
+			pollInterval = tc.IntervalSecs
+		}
+		payload := tools.WaitForEventTaskPayload{
+			EventType:           tc.EventType,
+			TaskPrompt:          tc.TaskPrompt,
+			URL:                 tc.URL,
+			Host:                tc.Host,
+			Port:                tc.Port,
+			FilePath:            tc.FilePath,
+			PID:                 tc.PID,
+			PollIntervalSeconds: pollInterval,
+			TimeoutSeconds:      waitTimeout,
+		}
+		desc := fmt.Sprintf("Wait for %s", tc.EventType)
+		task, err := bgMgr.ScheduleWaitForEvent(payload, tools.BackgroundTaskScheduleOptions{
+			Source:             "wait_for_event",
+			Description:        desc,
+			MaxRetries:         cfg.Agent.BackgroundTasks.MaxRetries,
+			RetryDelay:         time.Duration(cfg.Agent.BackgroundTasks.RetryDelaySeconds) * time.Second,
+			Timeout:            time.Duration(cfg.Agent.BackgroundTasks.HTTPTimeoutSeconds) * time.Second,
+			NotifyOnCompletion: tc.NotifyOnCompletion,
+		})
+		if err != nil {
+			logger.Error("Failed to schedule wait_for_event", "error", err)
+			return fmt.Sprintf("Tool Output: ERROR failed to schedule wait_for_event: %v", err)
+		}
+		return fmt.Sprintf("Tool Output: wait_for_event scheduled as background task %s. I will continue automatically once the event occurs.", task.ID)
 
 	case "get_tool_manual":
 		logger.Info("LLM requested tool manual", "name", tc.ToolName)

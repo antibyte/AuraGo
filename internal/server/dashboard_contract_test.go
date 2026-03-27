@@ -14,6 +14,7 @@ import (
 	"aurago/internal/memory"
 	"aurago/internal/prompts"
 	"aurago/internal/security"
+	"aurago/internal/tools"
 )
 
 func TestHandleDashboardPromptStatsContract(t *testing.T) {
@@ -210,6 +211,49 @@ func TestHandleDashboardToolStatsContract(t *testing.T) {
 	}
 	if !foundFamilyData {
 		t.Fatal("expected at least one telemetry scope with tool_families")
+	}
+}
+
+func TestHandleDashboardActivityContract(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+	mgr := tools.NewBackgroundTaskManager(t.TempDir(), logger)
+	if _, err := mgr.ScheduleFollowUp("background diagnostic", tools.BackgroundTaskScheduleOptions{
+		Source:      "follow_up",
+		Description: "Autonomous follow-up",
+	}); err != nil {
+		t.Fatalf("ScheduleFollowUp: %v", err)
+	}
+
+	s := &Server{BackgroundTasks: mgr}
+	req := httptest.NewRequest(http.MethodGet, "/api/dashboard/activity", nil)
+	rec := httptest.NewRecorder()
+
+	handleDashboardActivity(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d", rec.Code)
+	}
+
+	var body map[string]interface{}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("failed to decode JSON: %v", err)
+	}
+
+	for _, key := range []string{"cron_jobs", "processes", "webhooks", "coagents", "background_tasks", "background_task_summary"} {
+		if _, ok := body[key]; !ok {
+			t.Fatalf("activity payload missing key %q", key)
+		}
+	}
+	tasks, ok := body["background_tasks"].([]interface{})
+	if !ok || len(tasks) == 0 {
+		t.Fatalf("background_tasks = %#v, want non-empty task list", body["background_tasks"])
+	}
+	summary, ok := body["background_task_summary"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("background_task_summary has unexpected type %T", body["background_task_summary"])
+	}
+	if got := int(summary["total"].(float64)); got < 1 {
+		t.Fatalf("background task total = %d, want >= 1", got)
 	}
 }
 

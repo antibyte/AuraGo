@@ -523,6 +523,54 @@ func main() {
 	// Process Registry for background daemon management
 	registry := tools.NewProcessRegistry(appLog)
 
+	backgroundTaskManager := tools.NewBackgroundTaskManager(cfg.Directories.DataDir, appLog)
+	backgroundTaskManager.SetProcessRegistry(registry)
+	backgroundTaskManager.SetNotifier(func(title, body string) {
+		if shortTermMem == nil {
+			return
+		}
+		msg := title
+		if strings.TrimSpace(body) != "" {
+			msg += ": " + body
+		}
+		if err := shortTermMem.AddNotification(msg); err != nil {
+			appLog.Warn("Failed to store background task notification", "error", err)
+		}
+	})
+	backgroundTaskManager.SetLoopbackExecutor(func(prompt string, timeout time.Duration) error {
+		url := fmt.Sprintf("http://127.0.0.1:%d/v1/chat/completions", cfg.Server.Port)
+		payload := map[string]interface{}{
+			"model":  "aurago",
+			"stream": false,
+			"messages": []map[string]string{
+				{"role": "user", "content": prompt},
+			},
+		}
+		body, err := json.Marshal(payload)
+		if err != nil {
+			return fmt.Errorf("marshal background loopback payload: %w", err)
+		}
+		client := &http.Client{Timeout: timeout}
+		req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(body))
+		if err != nil {
+			return fmt.Errorf("create background loopback request: %w", err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-Internal-FollowUp", "true")
+		resp, err := client.Do(req)
+		if err != nil {
+			return fmt.Errorf("execute background loopback request: %w", err)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			return fmt.Errorf("background loopback returned %d: %s", resp.StatusCode, string(body))
+		}
+		return nil
+	})
+	backgroundTaskManager.Start()
+	tools.SetDefaultBackgroundTaskManager(backgroundTaskManager)
+
 	// Shell Sandbox (Landlock + rlimits on Linux)
 	{
 		var allowedPaths []sandbox.PathRule
@@ -600,55 +648,20 @@ func main() {
 	// Cron Manager for autonomous triggers
 	cronManager := tools.NewCronManager(cfg.Directories.DataDir)
 	err = cronManager.Start(func(prompt string) {
-		appLog.Info("Executing autonomous cron task", "prompt", prompt)
-
-		// Send a loopback request to our own API
-		url := fmt.Sprintf("http://127.0.0.1:%d/v1/chat/completions", cfg.Server.Port)
-
-		msg := map[string]interface{}{
-			"model": cfg.LLM.Model,
-			"messages": []map[string]string{
-				{"role": "user", "content": fmt.Sprintf("[SYSTEM CRON TRIGGER] It is time to execute the following scheduled task: %s", prompt)},
-			},
-		}
-
-		scheduleRetry := func(reason string) {
-			appLog.Warn("Cron task failed, scheduling retry in 5 minutes", "reason", reason, "prompt", prompt)
-			time.AfterFunc(5*time.Minute, func() {
-				appLog.Info("Retrying failed cron task", "prompt", prompt)
-				retryPayload, _ := json.Marshal(msg)
-				retryReq, retryReqErr := http.NewRequest("POST", url, bytes.NewBuffer(retryPayload))
-				if retryReqErr != nil {
-					appLog.Error("Cron retry request creation failed", "error", retryReqErr)
-					return
-				}
-				retryReq.Header.Set("Content-Type", "application/json")
-				retryReq.Header.Set("X-Internal-FollowUp", "true")
-				retryResp, retryErr := cronHTTPClient.Do(retryReq)
-				if retryErr != nil {
-					appLog.Error("Cron retry also failed", "error", retryErr)
-				} else {
-					retryResp.Body.Close()
-				}
-			})
-		}
-
-		payload, _ := json.Marshal(msg)
-		req, reqCreateErr := http.NewRequest("POST", url, bytes.NewBuffer(payload))
-		if reqCreateErr != nil {
-			scheduleRetry(reqCreateErr.Error())
+		appLog.Info("Scheduling autonomous cron task", "prompt", prompt)
+		if backgroundTaskManager == nil {
+			appLog.Error("Background task manager unavailable for cron task")
 			return
 		}
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("X-Internal-FollowUp", "true")
-		resp, reqErr := cronHTTPClient.Do(req)
-		if reqErr != nil {
-			scheduleRetry(reqErr.Error())
-		} else {
-			if resp.StatusCode != 200 {
-				scheduleRetry(fmt.Sprintf("non-200 status: %d", resp.StatusCode))
-			}
-			resp.Body.Close()
+		cronPrompt := fmt.Sprintf("[SYSTEM CRON TRIGGER] It is time to execute the following scheduled task: %s", prompt)
+		if _, scheduleErr := backgroundTaskManager.ScheduleCronPrompt(cronPrompt, tools.BackgroundTaskScheduleOptions{
+			Source:      "cron",
+			Description: "Scheduled cron task",
+			MaxRetries:  cfg.Agent.BackgroundTasks.MaxRetries,
+			RetryDelay:  time.Duration(cfg.Agent.BackgroundTasks.RetryDelaySeconds) * time.Second,
+			Timeout:     time.Duration(cfg.Agent.BackgroundTasks.HTTPTimeoutSeconds) * time.Second,
+		}); scheduleErr != nil {
+			appLog.Error("Failed to schedule cron task", "error", scheduleErr, "prompt", prompt)
 		}
 	})
 	if err != nil {
@@ -657,6 +670,10 @@ func main() {
 
 	// Graceful shutdown: kill all background processes on SIGINT/SIGTERM
 	shutdownCh := setupGracefulShutdown(appLog, registry, llmClient)
+	go func() {
+		<-shutdownCh
+		backgroundTaskManager.Stop()
+	}()
 
 	// History Manager for persistent conversational memory array
 	historyManager := memory.NewHistoryManager(filepath.Join(cfg.Directories.DataDir, "chat_history.json"))
@@ -786,7 +803,7 @@ func main() {
 		}
 	}
 
-	if err := server.Start(cfg, appLog, webAccessLog, llmClient, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, remoteControlDB, mediaRegistryDB, homepageRegistryDB, contactsDB, sqlConnectionsDB, sqlConnectionPool, isFirstStart, shutdownCh); err != nil {
+	if err := server.Start(cfg, appLog, webAccessLog, llmClient, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, remoteControlDB, mediaRegistryDB, homepageRegistryDB, contactsDB, sqlConnectionsDB, sqlConnectionPool, backgroundTaskManager, isFirstStart, shutdownCh); err != nil {
 		appLog.Error("Server failed", "error", err)
 		os.Exit(1)
 	}

@@ -45,6 +45,14 @@ agent:
         duplicate_consecutive_hits: 2                               # circuit breaker after repeated identical tool calls in a row
         duplicate_frequency_hits: 3                                 # circuit breaker after repeated identical tool calls overall
         identical_tool_error_hits: 3                                # stop retrying when the exact same tool error repeats
+    background_tasks:
+        enabled: true                                               # persistent background task queue for follow_up, cron, and wait events
+        follow_up_delay_seconds: 2                                  # small delay so the current response can finish first
+        http_timeout_seconds: 120                                   # loopback timeout for background prompt execution
+        max_retries: 2                                              # retry failed background prompt executions
+        retry_delay_seconds: 60                                     # retry delay for failed background prompt executions
+        wait_poll_interval_seconds: 5                               # poll interval for wait_for_event tasks
+        wait_default_timeout_secs: 600                              # default timeout for wait_for_event tasks
     # ── Tool guide injection ──
     max_tool_guides: 5                                              # max tool guide documents injected into prompt (default: 5)
 budget:

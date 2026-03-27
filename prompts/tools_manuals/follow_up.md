@@ -29,6 +29,14 @@ Schedule an independent background prompt to be executed by yourself immediately
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `task_prompt` | string | yes | A self-contained task the agent will perform autonomously. Must NOT be a question for the user. |
+| `delay_seconds` | integer | no | Optional start delay before the task begins. |
+| `timeout_secs` | integer | no | Optional loopback execution timeout. |
+| `notify_on_completion` | boolean | no | Store a system notification when the task completes or fails. |
+
+### Notes
+
+- `follow_up` is now persistent. If AuraGo restarts before execution, queued follow-ups are resumed.
+- For event-dependent continuation, prefer `wait_for_event` instead of retrying manually.
 
 ### Example
 

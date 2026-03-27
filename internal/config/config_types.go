@@ -248,6 +248,15 @@ type Config struct {
 			DuplicateFrequencyHits   int `yaml:"duplicate_frequency_hits"`     // total identical tool call repetitions before circuit breaker triggers (default: 3)
 			IdenticalToolErrorHits   int `yaml:"identical_tool_error_hits"`    // repeated identical tool errors before retry breaker triggers (default: 3)
 		} `yaml:"recovery"`
+		BackgroundTasks struct {
+			Enabled                bool `yaml:"enabled"`                    // enable persistent background task execution
+			FollowUpDelaySeconds   int  `yaml:"follow_up_delay_seconds"`    // delay before first follow-up execution (default: 2)
+			HTTPTimeoutSeconds     int  `yaml:"http_timeout_seconds"`       // loopback execution timeout for background prompts (default: 120)
+			MaxRetries             int  `yaml:"max_retries"`                // retries for failed background prompt execution (default: 2)
+			RetryDelaySeconds      int  `yaml:"retry_delay_seconds"`        // base retry delay for failed background prompt execution (default: 60)
+			WaitPollIntervalSecs   int  `yaml:"wait_poll_interval_seconds"` // poll interval for wait_for_event tasks (default: 5)
+			WaitDefaultTimeoutSecs int  `yaml:"wait_default_timeout_secs"`  // default timeout for wait_for_event tasks (default: 600)
+		} `yaml:"background_tasks"`
 		MaxToolGuides int `yaml:"max_tool_guides"` // maximum tool guide documents injected into prompt (default: 5)
 
 		// ── Legacy personality fields — read-only for YAML migration to Personality section ──

@@ -881,12 +881,16 @@
             const procCount = Array.isArray(data.processes) ? data.processes.length : 0;
             const whCount = (data.webhooks || {}).count || 0;
             const coCount = Array.isArray(data.coagents) ? data.coagents.length : 0;
+            const bgSummary = data.background_task_summary || {};
+            const bgTasks = Array.isArray(data.background_tasks) ? data.background_tasks : [];
+            const bgActive = (bgSummary.queued || 0) + (bgSummary.waiting || 0) + (bgSummary.running || 0);
 
             statsEl.innerHTML = [
                 { icon: '⏰', val: cronCount, lbl: t('dashboard.activity_scheduled') },
                 { icon: '🔄', val: procCount, lbl: t('dashboard.activity_processes') },
                 { icon: '🔗', val: whCount, lbl: t('dashboard.activity_webhooks') },
                 { icon: '🤖', val: coCount, lbl: t('dashboard.activity_coagents') },
+                { icon: '🗂️', val: bgActive, lbl: t('dashboard.activity_background') },
             ].map(s =>
                 `<div class="activity-stat">
             <div class="activity-stat-icon">${s.icon}</div>
@@ -958,6 +962,31 @@
                 <span class="activity-item-name">${specBadge}${esc(truncate(ca.task || ca.id, 50))}</span>
                 <span><span class="pill-status ${stateClass}">${esc(stateMap[ca.state] || ca.state)}</span>
                 <span class="activity-item-detail activity-item-detail-spaced">${esc(ca.runtime || '')}</span></span>
+            </div>`;
+                }
+                details += '</div>';
+            }
+
+            // Background Tasks
+            if (bgTasks.length > 0) {
+                details += '<div class="activity-section"><div class="activity-section-title">🗂️ ' + t('dashboard.activity_background_tasks') + '</div>';
+                for (const task of bgTasks) {
+                    const status = String(task.status || 'queued');
+                    const statusClass =
+                        status === 'running' ? 'pill-running' :
+                        status === 'completed' ? 'pill-completed' :
+                        status === 'failed' ? 'pill-failed' :
+                        status === 'waiting' ? 'pill-warning' :
+                        status === 'canceled' ? 'pill-idle' : 'pill-idle';
+                    const detailParts = [
+                        task.type ? esc(task.type) : '',
+                        task.last_error ? esc(truncate(task.last_error, 60)) : '',
+                        task.result && !task.last_error ? esc(truncate(task.result, 60)) : ''
+                    ].filter(Boolean);
+                    details += `<div class="activity-item">
+                <span class="activity-item-name">${esc(truncate(task.description || task.id || 'background-task', 56))}</span>
+                <span><span class="pill-status ${statusClass}">${esc(status)}</span>
+                <span class="activity-item-detail activity-item-detail-spaced">${detailParts.join(' · ')}</span></span>
             </div>`;
                 }
                 details += '</div>';

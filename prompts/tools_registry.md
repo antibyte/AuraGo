@@ -94,6 +94,7 @@ The supervisor loads up to 5 manuals at once into your next prompt. **Always bat
 |---|---|
 | `cron_scheduler` | Schedule recurring or delayed tasks |
 | `follow_up` | Chain sequential tool calls within a single task |
+| `wait_for_event` | Continue automatically once a process, endpoint, or file is ready |
 
 ### System & Packages
 | Tool | Purpose |

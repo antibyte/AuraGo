@@ -82,7 +82,14 @@ func (m *CronManager) save() error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(m.file, data, 0644)
+	tmp := m.file + ".tmp"
+	if err := os.WriteFile(tmp, data, 0644); err != nil {
+		return fmt.Errorf("write temp cron file: %w", err)
+	}
+	if err := os.Rename(tmp, m.file); err != nil {
+		return fmt.Errorf("rename temp cron file: %w", err)
+	}
+	return nil
 }
 
 // GetJobs returns a copy of the current cron jobs slice.

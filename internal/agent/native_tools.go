@@ -261,8 +261,27 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 				"⚠️ NEVER use follow_up to ask the user for input or relay a question — that creates an infinite loop. "+
 				"If you are missing information needed to complete a task, respond DIRECTLY to the user with your question instead of using this tool.",
 			schema(map[string]interface{}{
-				"task_prompt": prop("string", "Concrete, self-contained task the agent will perform autonomously. Must NOT be a question directed at the user."),
+				"task_prompt":          prop("string", "Concrete, self-contained task the agent will perform autonomously. Must NOT be a question directed at the user."),
+				"delay_seconds":        prop("integer", "Optional delay before the background task starts. Defaults to the configured follow-up delay."),
+				"timeout_secs":         prop("integer", "Optional execution timeout for the background loopback request."),
+				"notify_on_completion": prop("boolean", "If true, store a system notification when the task completes or fails."),
 			}, "task_prompt"),
+		),
+		tool("wait_for_event",
+			"Wait asynchronously for a concrete event, then continue autonomously in the background. "+
+				"Use this for safe polling of AuraGo-managed processes, HTTP endpoints, or workspace files without blocking the current response.",
+			schema(map[string]interface{}{
+				"event_type":           map[string]interface{}{"type": "string", "enum": []string{"process_exited", "http_available", "file_changed"}, "description": "Which event to wait for."},
+				"task_prompt":          prop("string", "Task to continue with once the event has completed."),
+				"pid":                  prop("integer", "AuraGo background process ID for process_exited."),
+				"url":                  prop("string", "HTTP URL to probe for http_available."),
+				"host":                 prop("string", "Host to combine with port for http_available when url is omitted."),
+				"port":                 prop("integer", "Optional port for host-based http_available checks."),
+				"file_path":            prop("string", "Workspace file path to watch for file_changed."),
+				"timeout_secs":         prop("integer", "Maximum time to wait before the task fails."),
+				"interval_seconds":     prop("integer", "Polling interval in seconds."),
+				"notify_on_completion": prop("boolean", "If true, store a system notification when the task completes or fails."),
+			}, "event_type", "task_prompt"),
 		),
 		tool("analyze_image",
 			"Analyze an image file using the Vision LLM. Describe content, read text (OCR), identify objects.",

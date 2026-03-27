@@ -403,6 +403,30 @@ func Load(path string) (*Config, error) {
 	if cfg.Agent.Recovery.IdenticalToolErrorHits <= 0 {
 		cfg.Agent.Recovery.IdenticalToolErrorHits = 3
 	}
+	if !yamlHasPath(data, "agent", "background_tasks", "enabled") {
+		cfg.Agent.BackgroundTasks.Enabled = true
+	}
+	if cfg.Agent.BackgroundTasks.FollowUpDelaySeconds <= 0 {
+		cfg.Agent.BackgroundTasks.FollowUpDelaySeconds = 2
+	}
+	if cfg.Agent.BackgroundTasks.HTTPTimeoutSeconds <= 0 {
+		cfg.Agent.BackgroundTasks.HTTPTimeoutSeconds = 120
+	}
+	if cfg.Agent.BackgroundTasks.MaxRetries < 0 {
+		cfg.Agent.BackgroundTasks.MaxRetries = 0
+	}
+	if !yamlHasPath(data, "agent", "background_tasks", "max_retries") {
+		cfg.Agent.BackgroundTasks.MaxRetries = 2
+	}
+	if cfg.Agent.BackgroundTasks.RetryDelaySeconds <= 0 {
+		cfg.Agent.BackgroundTasks.RetryDelaySeconds = 60
+	}
+	if cfg.Agent.BackgroundTasks.WaitPollIntervalSecs <= 0 {
+		cfg.Agent.BackgroundTasks.WaitPollIntervalSecs = 5
+	}
+	if cfg.Agent.BackgroundTasks.WaitDefaultTimeoutSecs <= 0 {
+		cfg.Agent.BackgroundTasks.WaitDefaultTimeoutSecs = 600
+	}
 	// LLM defaults
 	if cfg.LLM.Temperature == 0 {
 		cfg.LLM.Temperature = 0.7

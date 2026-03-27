@@ -897,6 +897,12 @@
             border-color: rgba(239, 68, 68, 0.3);
         }
 
+        .pill-warning {
+            background: rgba(245, 158, 11, 0.12);
+            color: #f59e0b;
+            border-color: rgba(245, 158, 11, 0.3);
+        }
+
         /* ── Empty State ─────────────────────────────────────── */
         .empty-state {
             text-align: center;

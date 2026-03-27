@@ -236,6 +236,7 @@ type ToolCall struct {
 	ID                 string                 `json:"id"`
 	CronExpr           string                 `json:"cron_expr"`
 	TaskPrompt         string                 `json:"task_prompt"`
+	EventType          string                 `json:"event_type"`
 	Skill              string                 `json:"skill"`
 	SkillArgs          map[string]interface{} `json:"skill_args"`
 	Content            string                 `json:"content"`
@@ -518,6 +519,8 @@ type ToolCall struct {
 	// UPnP Scan fields
 	SearchTarget string `json:"search_target,omitempty"` // UPnP search target (e.g. "ssdp:all")
 	TimeoutSecs  int    `json:"timeout_secs,omitempty"`  // discovery timeout in seconds
+	DelaySeconds int    `json:"delay_seconds,omitempty"` // delay before a background task starts
+	IntervalSecs int    `json:"interval_seconds,omitempty"`
 	// FritzBox fields
 	AIN            string  `json:"ain,omitempty"`             // Actor Identification Number (smart home)
 	TempC          float64 `json:"temp_c,omitempty"`          // target temperature in °C
@@ -647,6 +650,8 @@ func dispatchInner(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 			return `Tool Output: {"status": "error", "message": "Co-Agents cannot spawn sub-agents."}`
 		case "follow_up":
 			return `Tool Output: {"status": "error", "message": "Co-Agents cannot schedule follow-ups."}`
+		case "wait_for_event":
+			return `Tool Output: {"status": "error", "message": "Co-Agents cannot schedule wait events."}`
 		case "cron_scheduler":
 			return `Tool Output: {"status": "error", "message": "Co-Agents cannot manage cron jobs."}`
 		}

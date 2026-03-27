@@ -25,18 +25,18 @@ const (
 type TriggerType string
 
 const (
-	TriggerMissionCompleted   TriggerType = "mission_completed"   // Another mission finished
-	TriggerEmailReceived      TriggerType = "email_received"      // Email received
-	TriggerWebhook            TriggerType = "webhook"             // Webhook fired
-	TriggerEggHatched         TriggerType = "egg_hatched"         // Egg deployed to a nest
-	TriggerNestCleared        TriggerType = "nest_cleared"        // Nest removed
-	TriggerMQTTMessage        TriggerType = "mqtt_message"        // MQTT message received
-	TriggerSystemStartup      TriggerType = "system_startup"      // AuraGo Startup
-	TriggerDeviceConnected    TriggerType = "device_connected"    // Remote device connected
-	TriggerDeviceDisconnected TriggerType = "device_disconnected" // Remote device disconnected or stale
-	TriggerFritzBoxCall       TriggerType = "fritzbox_call"       // Fritz!Box call or voicemail event
-	TriggerBudgetWarning      TriggerType = "budget_warning"      // Budget warning threshold crossed
-	TriggerBudgetExceeded     TriggerType = "budget_exceeded"     // Budget limit exceeded
+	TriggerMissionCompleted   TriggerType = "mission_completed"    // Another mission finished
+	TriggerEmailReceived      TriggerType = "email_received"       // Email received
+	TriggerWebhook            TriggerType = "webhook"              // Webhook fired
+	TriggerEggHatched         TriggerType = "egg_hatched"          // Egg deployed to a nest
+	TriggerNestCleared        TriggerType = "nest_cleared"         // Nest removed
+	TriggerMQTTMessage        TriggerType = "mqtt_message"         // MQTT message received
+	TriggerSystemStartup      TriggerType = "system_startup"       // AuraGo Startup
+	TriggerDeviceConnected    TriggerType = "device_connected"     // Remote device connected
+	TriggerDeviceDisconnected TriggerType = "device_disconnected"  // Remote device disconnected or stale
+	TriggerFritzBoxCall       TriggerType = "fritzbox_call"        // Fritz!Box call or voicemail event
+	TriggerBudgetWarning      TriggerType = "budget_warning"       // Budget warning threshold crossed
+	TriggerBudgetExceeded     TriggerType = "budget_exceeded"      // Budget limit exceeded
 	TriggerHomeAssistantState TriggerType = "home_assistant_state" // HA entity state change
 )
 
@@ -175,6 +175,22 @@ func (q *MissionQueue) Dequeue() (QueueItem, bool) {
 	defer q.mu.Unlock()
 
 	if len(q.items) == 0 {
+		return QueueItem{}, false
+	}
+
+	item := q.items[0]
+	q.items = q.items[1:]
+	q.running = item.MissionID
+	return item, true
+}
+
+// TryStartNext atomically claims the next queued mission if no mission is
+// currently running. This avoids a race between GetRunning and Dequeue.
+func (q *MissionQueue) TryStartNext() (QueueItem, bool) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+
+	if q.running != "" || len(q.items) == 0 {
 		return QueueItem{}, false
 	}
 
@@ -459,14 +475,7 @@ func (m *MissionManagerV2) processQueue() {
 
 // processNext executes the next mission in queue if none is running
 func (m *MissionManagerV2) processNext() {
-	m.mu.Lock()
-	if m.queue.GetRunning() != "" {
-		m.mu.Unlock()
-		return
-	}
-	m.mu.Unlock()
-
-	item, ok := m.queue.Dequeue()
+	item, ok := m.queue.TryStartNext()
 	if !ok {
 		return
 	}
