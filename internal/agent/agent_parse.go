@@ -483,7 +483,7 @@ func ParseToolCall(content string) ToolCall {
 				}
 			}
 		}
-		if tc.Action != "" || tc.Operation != "" || tc.Name != "" || tc.Tool != "" || tc.Command != "" {
+		if tc.Action != "" || tc.ToolCallAction != "" || tc.Operation != "" || tc.Name != "" || tc.Tool != "" || tc.Command != "" {
 			tc.IsTool = true
 
 			// AGGRESSIVE RECOVERY: Handle wrappers like {"action": "execute_tool", "tool": "name", "args": {...}}

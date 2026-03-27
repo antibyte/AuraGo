@@ -43,7 +43,8 @@ type Manager struct {
 
 	mu           sync.Mutex
 	server       *tsnet.Server
-	listener     net.Listener
+	listener     net.Listener // main listener (Funnel or TLS)
+	tailnetLn    net.Listener // secondary direct-tailnet TLS listener when Funnel is active
 	httpSrv      *http.Server
 	homepageLn   net.Listener
 	homepageSrv  *http.Server
@@ -270,6 +271,7 @@ func (m *Manager) Stop() error {
 	m.running = false
 	m.server = nil
 	m.listener = nil
+	m.tailnetLn = nil
 	m.httpSrv = nil
 	m.homepageLn = nil
 	m.homepageSrv = nil
@@ -427,8 +429,9 @@ func (m *Manager) startMainListener(srv *tsnet.Server, handler http.Handler) err
 	usingFunnel := false
 
 	var (
-		ln  net.Listener
-		err error
+		ln        net.Listener
+		tailnetLn net.Listener
+		err       error
 	)
 
 	if wantFunnel {
@@ -445,6 +448,16 @@ func (m *Manager) startMainListener(srv *tsnet.Server, handler http.Handler) err
 			return errMsg
 		}
 		usingFunnel = true
+
+		// Also bind a direct-tailnet TLS listener so that peers inside the tailnet
+		// can still reach AuraGo directly (ListenFunnel only handles public/Funnel
+		// traffic; direct tailnet peers use the ordinary TLS path).
+		if tlsLn, tlsErr := listenTLSWithTimeout(srv, ":443", 10*time.Second); tlsErr == nil {
+			tailnetLn = tlsLn
+			m.logger.Info("[tsnet] Dual-listener active: Funnel (internet) + TLS (tailnet) on :443")
+		} else {
+			m.logger.Warn("[tsnet] Funnel active but could not bind tailnet TLS listener — direct tailnet access may not work", "error", tlsErr)
+		}
 	}
 
 	if ln == nil {
@@ -476,6 +489,7 @@ func (m *Manager) startMainListener(srv *tsnet.Server, handler http.Handler) err
 
 	m.mu.Lock()
 	m.listener = ln
+	m.tailnetLn = tailnetLn
 	m.httpSrv = httpSrv
 	m.servingHTTP = true
 	m.httpFallback = usingHTTP
@@ -504,6 +518,15 @@ func (m *Manager) startMainListener(srv *tsnet.Server, handler http.Handler) err
 		}
 	}()
 
+	// Serve the secondary tailnet listener (present when Funnel is active).
+	if tailnetLn != nil {
+		go func() {
+			if err := httpSrv.Serve(tailnetLn); err != nil && err != http.ErrServerClosed {
+				m.logger.Warn("[tsnet] Tailnet TLS listener closed", "error", err)
+			}
+		}()
+	}
+
 	return nil
 }
 
@@ -511,8 +534,10 @@ func (m *Manager) stopMainListener() error {
 	m.mu.Lock()
 	httpSrv := m.httpSrv
 	ln := m.listener
+	tailnetLn := m.tailnetLn
 	m.httpSrv = nil
 	m.listener = nil
+	m.tailnetLn = nil
 	m.servingHTTP = false
 	m.httpFallback = false
 	m.funnelActive = false
@@ -528,6 +553,11 @@ func (m *Manager) stopMainListener() error {
 	if ln != nil {
 		if err := ln.Close(); err != nil && !strings.Contains(strings.ToLower(err.Error()), "closed") {
 			return fmt.Errorf("close tsnet AuraGo listener: %w", err)
+		}
+	}
+	if tailnetLn != nil {
+		if err := tailnetLn.Close(); err != nil && !strings.Contains(strings.ToLower(err.Error()), "closed") {
+			return fmt.Errorf("close tsnet tailnet listener: %w", err)
 		}
 	}
 	return nil
