@@ -331,6 +331,21 @@ select.cfg-input option {
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 }
 
+/* Small variant of the toggle (e.g. for grouped feature toggles) */
+.toggle.toggle-sm {
+    width: 38px;
+    height: 21px;
+}
+
+.toggle.toggle-sm::after {
+    width: 16px;
+    height: 16px;
+}
+
+.toggle.toggle-sm.on::after {
+    transform: translateX(17px);
+}
+
 /* Checkbox-based toggle (shared.css compatible) */
 .toggle input:checked + .slider {
     background: linear-gradient(135deg, var(--success), #059669);
@@ -346,6 +361,55 @@ select.cfg-input option {
 .toggle-label {
     font-size: 0.8rem;
     color: var(--text-secondary);
+}
+
+/* ── Unified Config Toggle Rows ─────────────────────────────────────────── */
+/* Replaces scattered inline display:flex patterns across cfg modules         */
+
+.cfg-toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 0;
+}
+
+/* Highlighted row with background — for section-level enabled toggles */
+.cfg-toggle-row-highlight {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    margin-bottom: 1rem;
+    padding: 0.6rem 1rem;
+    border-radius: 8px;
+    background: var(--bg-tertiary);
+}
+
+/* Compact row — for grouped toggles inside panels (e.g. feature lists) */
+.cfg-toggle-row-compact {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.4rem 0;
+}
+
+.cfg-toggle-label {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    flex: 1;
+}
+
+/* Bold title variant for toggle rows that need a stronger label (e.g. section titles) */
+.cfg-toggle-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    flex: 1;
+}
+
+.cfg-toggle-description {
+    font-size: 0.72rem;
+    color: var(--text-tertiary);
+    margin-top: 0.2rem;
 }
 
 /* Password field */

@@ -13,8 +13,8 @@
                 <div class="section-desc">${section.desc}</div>`;
 
             // Enabled toggle
-            html += `<div class="ws-toggle-row ws-toggle-row-main">
-                <span class="ws-toggle-label-main">${t('config.web_scraper.enabled_label')}</span>
+            html += `<div class="cfg-toggle-row-highlight">
+                <span class="cfg-toggle-label">${t('config.web_scraper.enabled_label')}</span>
                 <div class="toggle ${wsEnabled ? 'on' : ''}" data-path="tools.web_scraper.enabled" onclick="toggleBool(this)"></div>
             </div>`;
 
@@ -30,8 +30,8 @@
 
             // Summary mode section
             html += `<div class="ws-summary-box">
-                <div class="ws-toggle-row">
-                    <span class="ws-summary-title">📝 ${t('config.web_scraper.summary_mode')}</span>
+                <div class="cfg-toggle-row">
+                    <span class="cfg-toggle-title">📝 ${t('config.web_scraper.summary_mode')}</span>
                     <div class="toggle ${summaryOn ? 'on' : ''}" data-path="tools.web_scraper.summary_mode" onclick="toggleBool(this)"></div>
                 </div>
                 <div class="ws-summary-desc">

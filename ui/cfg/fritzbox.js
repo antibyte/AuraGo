@@ -86,14 +86,14 @@ function renderFritzBoxSection(section) {
         h += '<div style="font-weight:600;font-size:0.88rem;color:var(--text-primary);margin-bottom:0.7rem;">' + t(titleKey) + '</div>';
         h += '<div style="display:flex;gap:1.5rem;flex-wrap:wrap;">';
         // Enabled
-        h += '<div style="display:flex;align-items:center;gap:0.5rem;">';
+        h += '<div class="cfg-toggle-row-compact">';
         h += '<div class="toggle toggle-sm' + (on ? ' on' : '') + '" data-path="fritzbox.' + key + '.enabled" onclick="toggleBool(this)"></div>';
-        h += '<span style="font-size:0.82rem;color:var(--text-secondary);">' + t('config.fritzbox.feature_enabled') + '</span>';
+        h += '<span class="cfg-toggle-label">' + t('config.fritzbox.feature_enabled') + '</span>';
         h += '</div>';
         // Read-only
-        h += '<div style="display:flex;align-items:center;gap:0.5rem;">';
+        h += '<div class="cfg-toggle-row-compact">';
         h += '<div class="toggle toggle-sm' + (ro ? ' on' : '') + '" data-path="fritzbox.' + key + '.readonly" onclick="toggleBool(this)"></div>';
-        h += '<span style="font-size:0.82rem;color:var(--text-secondary);">' + t('config.fritzbox.feature_readonly') + '</span>';
+        h += '<span class="cfg-toggle-label">' + t('config.fritzbox.feature_readonly') + '</span>';
         h += '</div>';
         h += '</div></div>';
         return h;
@@ -111,9 +111,9 @@ function renderFritzBoxSection(section) {
     const pollingInterval = (tel.polling || {}).interval_seconds || 60;
     html += '<div style="background:var(--bg-tertiary);border-radius:10px;padding:1rem;margin-bottom:0.8rem;">';
     html += '<div style="font-weight:600;font-size:0.88rem;color:var(--text-primary);margin-bottom:0.7rem;">📞 ' + t('config.fritzbox.group_polling') + '</div>';
-    html += '<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.6rem;">';
+    html += '<div class="cfg-toggle-row-compact" style="margin-bottom:0.6rem;">';
     html += '<div class="toggle toggle-sm' + (pollingEnabled ? ' on' : '') + '" data-path="fritzbox.telephony.polling.enabled" onclick="toggleBool(this)"></div>';
-    html += '<span style="font-size:0.82rem;color:var(--text-secondary);">' + t('config.fritzbox.polling_enabled') + '</span>';
+    html += '<span class="cfg-toggle-label">' + t('config.fritzbox.polling_enabled') + '</span>';
     html += '</div>';
     html += '<div style="display:flex;align-items:center;gap:0.6rem;">';
     html += '<span style="font-size:0.82rem;color:var(--text-secondary);">' + t('config.fritzbox.polling_interval') + '</span>';

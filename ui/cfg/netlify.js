@@ -48,8 +48,8 @@ async function renderNetlifySection(section) {
     }
 
     // ── Enabled toggle ──
-    html += `<div style="display:flex;align-items:center;gap:0.8rem;margin-bottom:1rem;padding:0.6rem 1rem;border-radius:8px;background:var(--bg-tertiary);">
-        <span style="font-size:0.85rem;color:var(--text-secondary);">${t('config.netlify.enabled_label')}</span>
+    html += `<div class="cfg-toggle-row-highlight">
+        <span class="cfg-toggle-label">${t('config.netlify.enabled_label')}</span>
         <div class="toggle ${nfEnabled ? 'on' : ''}" data-path="netlify.enabled" onclick="toggleBool(this)"></div>
     </div>`;
 
@@ -70,27 +70,27 @@ async function renderNetlifySection(section) {
     html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem 1.2rem;">`;
 
     // Read Only
-    html += `<div style="display:flex;align-items:center;gap:0.6rem;padding:0.5rem 0;">
+    html += `<div class="cfg-toggle-row-compact">
         <div class="toggle ${cfg.readonly ? 'on' : ''}" data-path="netlify.readonly" onclick="toggleBool(this)"></div>
-        <span style="font-size:0.82rem;color:var(--text-secondary);">${t('config.netlify.readonly')}</span>
+        <span class="cfg-toggle-label">${t('config.netlify.readonly')}</span>
     </div>`;
 
     // Allow Deploy
-    html += `<div style="display:flex;align-items:center;gap:0.6rem;padding:0.5rem 0;">
+    html += `<div class="cfg-toggle-row-compact">
         <div class="toggle ${cfg.allow_deploy !== false ? 'on' : ''}" data-path="netlify.allow_deploy" onclick="toggleBool(this)"></div>
-        <span style="font-size:0.82rem;color:var(--text-secondary);">${t('config.netlify.allow_deploy')}</span>
+        <span class="cfg-toggle-label">${t('config.netlify.allow_deploy')}</span>
     </div>`;
 
     // Allow Site Management
-    html += `<div style="display:flex;align-items:center;gap:0.6rem;padding:0.5rem 0;">
+    html += `<div class="cfg-toggle-row-compact">
         <div class="toggle ${cfg.allow_site_management ? 'on' : ''}" data-path="netlify.allow_site_management" onclick="toggleBool(this)"></div>
-        <span style="font-size:0.82rem;color:var(--text-secondary);">${t('config.netlify.allow_site_management')}</span>
+        <span class="cfg-toggle-label">${t('config.netlify.allow_site_management')}</span>
     </div>`;
 
     // Allow Env Management
-    html += `<div style="display:flex;align-items:center;gap:0.6rem;padding:0.5rem 0;">
+    html += `<div class="cfg-toggle-row-compact">
         <div class="toggle ${cfg.allow_env_management ? 'on' : ''}" data-path="netlify.allow_env_management" onclick="toggleBool(this)"></div>
-        <span style="font-size:0.82rem;color:var(--text-secondary);">${t('config.netlify.allow_env_management')}</span>
+        <span class="cfg-toggle-label">${t('config.netlify.allow_env_management')}</span>
     </div>`;
 
     html += `</div>`;

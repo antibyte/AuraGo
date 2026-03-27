@@ -12,8 +12,8 @@ async function renderLLMGuardianSection(section) {
         <div class="section-desc">${section.desc}</div>`;
 
     // ── Enabled toggle ──
-    html += `<div style="display:flex;align-items:center;gap:0.8rem;margin-bottom:1rem;padding:0.6rem 1rem;border-radius:8px;background:var(--bg-tertiary);">
-        <span style="font-size:0.85rem;color:var(--text-secondary);">${t('config.llm_guardian.enabled_label')}</span>
+    html += `<div class="cfg-toggle-row-highlight">
+        <span class="cfg-toggle-label">${t('config.llm_guardian.enabled_label')}</span>
         <div class="toggle ${enabled ? 'on' : ''}" data-path="llm_guardian.enabled" onclick="toggleBool(this);setNestedValue(configData,'llm_guardian.enabled',this.classList.contains('on'));renderLLMGuardianSection(null)"></div>
     </div>`;
 
@@ -125,9 +125,9 @@ async function renderLLMGuardianSection(section) {
         <div class="field-group-desc">${t('config.llm_guardian.clarification_desc')}</div>`;
 
     const clarificationOn = cfg.allow_clarification === true;
-    html += `<div style="display:flex;align-items:center;gap:0.8rem;margin-bottom:0.4rem;padding:0.4rem 0.8rem;border-radius:6px;background:var(--bg-tertiary);">
-        <span style="font-size:0.78rem;color:var(--text-secondary);">${t('config.llm_guardian.clarification_label')}</span>
+    html += `<div class="cfg-toggle-row-compact">
         <div class="toggle ${clarificationOn ? 'on' : ''}" data-path="llm_guardian.allow_clarification" onclick="toggleBool(this);setNestedValue(configData,'llm_guardian.allow_clarification',this.classList.contains('on'));setDirty(true)"></div>
+        <span class="cfg-toggle-label">${t('config.llm_guardian.clarification_label')}</span>
     </div>`;
     html += `</div>`;
 
@@ -137,15 +137,15 @@ async function renderLLMGuardianSection(section) {
         <div class="field-group-desc">${t('config.llm_guardian.scan_desc')}</div>`;
 
     const scanEmails = cfg.scan_emails === true;
-    html += `<div style="display:flex;align-items:center;gap:0.8rem;margin-bottom:0.4rem;padding:0.4rem 0.8rem;border-radius:6px;background:var(--bg-tertiary);">
-        <span style="font-size:0.78rem;color:var(--text-secondary);">${t('config.llm_guardian.scan_emails_label')}</span>
+    html += `<div class="cfg-toggle-row-compact">
         <div class="toggle ${scanEmails ? 'on' : ''}" data-path="llm_guardian.scan_emails" onclick="toggleBool(this);setNestedValue(configData,'llm_guardian.scan_emails',this.classList.contains('on'));setDirty(true)"></div>
+        <span class="cfg-toggle-label">${t('config.llm_guardian.scan_emails_label')}</span>
     </div>`;
 
     const scanDocs = cfg.scan_documents === true;
-    html += `<div style="display:flex;align-items:center;gap:0.8rem;margin-bottom:0.4rem;padding:0.4rem 0.8rem;border-radius:6px;background:var(--bg-tertiary);">
-        <span style="font-size:0.78rem;color:var(--text-secondary);">${t('config.llm_guardian.scan_documents_label')}</span>
+    html += `<div class="cfg-toggle-row-compact">
         <div class="toggle ${scanDocs ? 'on' : ''}" data-path="llm_guardian.scan_documents" onclick="toggleBool(this);setNestedValue(configData,'llm_guardian.scan_documents',this.classList.contains('on'));setDirty(true)"></div>
+        <span class="cfg-toggle-label">${t('config.llm_guardian.scan_documents_label')}</span>
     </div>`;
     html += `</div>`;
 

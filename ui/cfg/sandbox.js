@@ -47,8 +47,8 @@ let shellSandboxStatusCache = null;
             }
 
             // Enabled toggle
-            html += `<div style="display:flex;align-items:center;gap:0.8rem;margin-bottom:1rem;padding:0.6rem 1rem;border-radius:8px;background:var(--bg-tertiary);">
-                <span style="font-size:0.85rem;color:var(--text-secondary);">${t('config.sandbox.enabled_label')}</span>
+            html += `<div class="cfg-toggle-row-highlight">
+                <span class="cfg-toggle-label">${t('config.sandbox.enabled_label')}</span>
                 <div class="toggle ${sbEnabled ? 'on' : ''}" data-path="sandbox.enabled" onclick="toggleBool(this)"></div>
             </div>`;
 
@@ -108,21 +108,21 @@ let shellSandboxStatusCache = null;
             html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem 1.2rem;margin-top:1rem;">`;
 
             // Auto Install
-            html += `<div style="display:flex;align-items:center;gap:0.6rem;padding:0.5rem 0;">
+            html += `<div class="cfg-toggle-row-compact">
                 <div class="toggle ${sbCfg.auto_install === true || sbCfg.auto_install === undefined ? 'on' : ''}" data-path="sandbox.auto_install" onclick="toggleBool(this)"></div>
-                <span style="font-size:0.82rem;color:var(--text-secondary);">Auto-Install llm-sandbox</span>
+                <span class="cfg-toggle-label">Auto-Install llm-sandbox</span>
             </div>`;
 
             // Network Enabled
-            html += `<div style="display:flex;align-items:center;gap:0.6rem;padding:0.5rem 0;">
+            html += `<div class="cfg-toggle-row-compact">
                 <div class="toggle ${sbCfg.network_enabled ? 'on' : ''}" data-path="sandbox.network_enabled" onclick="toggleBool(this)"></div>
-                <span style="font-size:0.82rem;color:var(--text-secondary);">${t('config.sandbox.network_label')}</span>
+                <span class="cfg-toggle-label">${t('config.sandbox.network_label')}</span>
             </div>`;
 
             // Keep Alive
-            html += `<div style="display:flex;align-items:center;gap:0.6rem;padding:0.5rem 0;">
+            html += `<div class="cfg-toggle-row-compact">
                 <div class="toggle ${sbCfg.keep_alive ? 'on' : ''}" data-path="sandbox.keep_alive" onclick="toggleBool(this)"></div>
-                <span style="font-size:0.82rem;color:var(--text-secondary);">${t('config.sandbox.keep_alive_label')}</span>
+                <span class="cfg-toggle-label">${t('config.sandbox.keep_alive_label')}</span>
             </div>`;
 
             html += `</div>`;
@@ -182,8 +182,8 @@ let shellSandboxStatusCache = null;
             }
 
             // Enabled toggle
-            html += `<div style="display:flex;align-items:center;gap:0.8rem;margin-bottom:1rem;padding:0.6rem 1rem;border-radius:8px;background:var(--bg-tertiary);">
-                <span style="font-size:0.85rem;color:var(--text-secondary);">${t('config.shell_sandbox.enabled_label')}</span>
+            html += `<div class="cfg-toggle-row-highlight">
+                <span class="cfg-toggle-label">${t('config.shell_sandbox.enabled_label')}</span>
                 <div class="toggle ${shEnabled ? 'on' : ''}" data-path="shell_sandbox.enabled" onclick="toggleBool(this)"></div>
             </div>`;
 

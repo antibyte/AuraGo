@@ -90,8 +90,8 @@ async function renderHomepageSection(section) {
     }
 
     // ── Enabled toggle ──
-    html += `<div style="display:flex;align-items:center;gap:0.8rem;margin-bottom:1rem;padding:0.6rem 1rem;border-radius:8px;background:var(--bg-tertiary);${!dockerEnabled ? 'opacity:0.5;pointer-events:none;' : ''}">
-        <span style="font-size:0.85rem;color:var(--text-secondary);">${t('config.homepage.enabled_label')}</span>
+    html += `<div class="cfg-toggle-row-highlight" ${!dockerEnabled ? 'style="opacity:0.5;pointer-events:none;"' : ''}>
+        <span class="cfg-toggle-label">${t('config.homepage.enabled_label')}</span>
         <div class="toggle ${hpEnabled ? 'on' : ''}" data-path="homepage.enabled" onclick="toggleBool(this)"></div>
     </div>`;
 
@@ -229,15 +229,15 @@ async function renderHomepageSection(section) {
         html += `<div class="field-help" style="margin-bottom:0.8rem;">${t('config.homepage.webserver_desc')}</div>`;
 
         // Webserver Enabled toggle
-        html += `<div style="display:flex;align-items:center;gap:0.6rem;padding:0.5rem 0;margin-bottom:0.6rem;">
+        html += `<div class="cfg-toggle-row-compact">
             <div class="toggle ${cfg.webserver_enabled ? 'on' : ''}" data-path="homepage.webserver_enabled" onclick="toggleBool(this)"></div>
-            <span style="font-size:0.82rem;color:var(--text-secondary);">${t('config.homepage.webserver_enabled')}</span>
+            <span class="cfg-toggle-label">${t('config.homepage.webserver_enabled')}</span>
         </div>`;
 
         // Webserver Internal Only toggle
-        html += `<div style="display:flex;align-items:center;gap:0.6rem;padding:0.5rem 0;margin-bottom:0.6rem;">
+        html += `<div class="cfg-toggle-row-compact">
             <div class="toggle ${cfg.webserver_internal_only ? 'on' : ''}" data-path="homepage.webserver_internal_only" onclick="toggleBool(this)"></div>
-            <span style="font-size:0.82rem;color:var(--text-secondary);">${t('config.homepage.webserver_internal_only')}</span>
+            <span class="cfg-toggle-label">${t('config.homepage.webserver_internal_only')}</span>
         </div>`;
 
         html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.8rem 1.2rem;">`;

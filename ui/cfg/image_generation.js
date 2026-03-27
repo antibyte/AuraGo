@@ -12,8 +12,8 @@ async function renderImageGenerationSection(section) {
         <div class="section-desc">${section.desc}</div>`;
 
     // ── Enabled toggle ──
-    html += `<div style="display:flex;align-items:center;gap:0.8rem;margin-bottom:1rem;padding:0.6rem 1rem;border-radius:8px;background:var(--bg-tertiary);">
-        <span style="font-size:0.85rem;color:var(--text-secondary);">${t('config.image_generation.enabled_label')}</span>
+    html += `<div class="cfg-toggle-row-highlight">
+        <span class="cfg-toggle-label">${t('config.image_generation.enabled_label')}</span>
         <div class="toggle ${enabled ? 'on' : ''}" data-path="image_generation.enabled" onclick="toggleBool(this);setNestedValue(configData,'image_generation.enabled',this.classList.contains('on'));renderImageGenerationSection(null)"></div>
     </div>`;
 

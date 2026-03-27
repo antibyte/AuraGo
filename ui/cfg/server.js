@@ -72,8 +72,8 @@ async function renderServerSection(section) {
 
     // HTTPS enabled toggle
     const httpsEnabled = https.enabled === true;
-    html += `<div style="display:flex;align-items:center;gap:0.8rem;margin-bottom:1rem;padding:0.6rem 1rem;border-radius:8px;background:var(--bg-tertiary);">
-        <span style="font-size:0.85rem;color:var(--text-secondary);">${t('config.server.https_enabled_label')}</span>
+    html += `<div class="cfg-toggle-row-highlight">
+        <span class="cfg-toggle-label">${t('config.server.https_enabled_label')}</span>
         <div class="toggle ${httpsEnabled ? 'on' : ''}" data-path="server.https.enabled" onclick="toggleBool(this);setNestedValue(configData,'server.https.enabled',this.classList.contains('on'));renderServerSection(null)"></div>
     </div>`;
 
@@ -105,8 +105,8 @@ async function renderServerSection(section) {
         </div>`;
 
         // Behind proxy toggle
-        html += `<div style="display:flex;align-items:center;gap:0.8rem;margin-bottom:0.8rem;">
-            <span style="font-size:0.78rem;color:var(--text-secondary);">${t('config.server.behind_proxy_label')}</span>
+        html += `<div class="cfg-toggle-row">
+            <span class="cfg-toggle-label">${t('config.server.behind_proxy_label')}</span>
             <div class="toggle ${https.behind_proxy ? 'on' : ''}" data-path="server.https.behind_proxy" onclick="toggleBool(this)"></div>
         </div>`;
 
