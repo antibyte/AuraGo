@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"aurago/internal/security"
+
 	"github.com/sashabaranov/go-openai"
 )
 
@@ -342,6 +344,12 @@ func sanitizeEmotionField(s string, maxLen int) string {
 	return sanitizePromptText(s, maxLen)
 }
 
+func sanitizeEmotionDescription(s string, maxLen int) string {
+	s = strings.TrimSpace(security.StripThinkingTags(s))
+	s = strings.Join(strings.Fields(s), " ")
+	return sanitizeEmotionField(s, maxLen)
+}
+
 func parseEmotionSynthesisResponse(raw string, fallbackMood Mood) (*EmotionState, error) {
 	content := strings.TrimSpace(raw)
 	content = strings.Trim(content, "`")
@@ -349,13 +357,13 @@ func parseEmotionSynthesisResponse(raw string, fallbackMood Mood) (*EmotionState
 	var parsed emotionSynthesisResult
 	if err := json.Unmarshal([]byte(content), &parsed); err == nil {
 		state := &EmotionState{
-			Description:              sanitizeEmotionField(parsed.Description, 220),
+			Description:              sanitizeEmotionDescription(parsed.Description, 220),
 			PrimaryMood:              fallbackMood,
 			SecondaryMood:            sanitizeEmotionField(parsed.SecondaryMood, 40),
 			Valence:                  clampEmotionRange(parsed.Valence, -1, 1, 0),
 			Arousal:                  clampEmotionRange(parsed.Arousal, 0, 1, 0.5),
 			Confidence:               clampEmotionRange(parsed.Confidence, 0, 1, 0.7),
-			Cause:                    sanitizeEmotionField(parsed.Cause, 140),
+			Cause:                    sanitizeEmotionDescription(parsed.Cause, 140),
 			Source:                   "llm_structured",
 			RecommendedResponseStyle: sanitizeEmotionField(parsed.RecommendedResponseStyle, 60),
 		}
@@ -372,7 +380,7 @@ func parseEmotionSynthesisResponse(raw string, fallbackMood Mood) (*EmotionState
 	}
 
 	// Compatibility fallback for older plain-text outputs.
-	description := sanitizeEmotionField(content, 220)
+	description := sanitizeEmotionDescription(content, 220)
 	state := &EmotionState{
 		Description: description,
 		PrimaryMood: fallbackMood,

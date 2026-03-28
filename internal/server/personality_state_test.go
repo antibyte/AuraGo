@@ -3,6 +3,7 @@ package server
 import (
 	"log/slog"
 	"os"
+	"strings"
 	"testing"
 
 	"aurago/internal/config"
@@ -56,5 +57,21 @@ func TestBuildPersonalityStatePayloadIncludesCurrentEmotion(t *testing.T) {
 	}
 	if got, _ := payload["mood"].(string); got != "focused" {
 		t.Fatalf("mood = %q, want focused", got)
+	}
+}
+
+func TestBuildPersonalityStatePayloadSanitizesReasoningFromEmotion(t *testing.T) {
+	s := newTestServerWithPersonalityState(t)
+	if err := s.ShortTermMem.InsertEmotionHistory("<think>hidden reasoning</think> I feel calm and ready to help with this.", "focused", "recent successful interaction"); err != nil {
+		t.Fatalf("InsertEmotionHistory: %v", err)
+	}
+
+	payload := s.buildPersonalityStatePayload()
+	got, _ := payload["current_emotion"].(string)
+	if strings.Contains(got, "<think>") || strings.Contains(strings.ToLower(got), "hidden reasoning") {
+		t.Fatalf("current_emotion still contains reasoning: %q", got)
+	}
+	if got != "I feel calm and ready to help with this." {
+		t.Fatalf("current_emotion = %q", got)
 	}
 }

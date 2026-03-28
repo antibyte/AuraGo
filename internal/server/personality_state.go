@@ -1,5 +1,20 @@
 package server
 
+import (
+	"strings"
+
+	"aurago/internal/security"
+)
+
+func sanitizeEmotionPreview(text string, maxLen int) string {
+	text = strings.TrimSpace(security.StripThinkingTags(text))
+	text = strings.Join(strings.Fields(text), " ")
+	if maxLen > 0 && len(text) > maxLen {
+		text = strings.TrimSpace(text[:maxLen]) + "…"
+	}
+	return text
+}
+
 func (s *Server) buildPersonalityStatePayload() map[string]interface{} {
 	if !s.Cfg.Personality.Engine {
 		return map[string]interface{}{"enabled": false}
@@ -23,9 +38,12 @@ func (s *Server) buildPersonalityStatePayload() map[string]interface{} {
 
 	if s.Cfg.Personality.EmotionSynthesizer.Enabled {
 		if latest, err := s.ShortTermMem.GetLatestEmotion(); err == nil && latest != nil {
-			response["current_emotion"] = latest.Description
+			sanitized := *latest
+			sanitized.Description = sanitizeEmotionPreview(latest.Description, 220)
+			sanitized.Cause = sanitizeEmotionPreview(latest.Cause, 120)
+			response["current_emotion"] = sanitized.Description
 			response["emotion_timestamp"] = latest.Timestamp
-			response["current_emotion_state"] = latest
+			response["current_emotion_state"] = &sanitized
 		}
 	}
 

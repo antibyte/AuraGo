@@ -1289,6 +1289,16 @@ const moodNameKeys = {
 };
 const traitOrder = ['curiosity', 'thoroughness', 'creativity', 'empathy', 'confidence', 'affinity', 'loneliness'];
 
+function summarizeMoodEmotion(text, maxLen = 140) {
+    if (!text) return '';
+    const normalized = String(text)
+        .replace(/<(thinking|think)>[\s\S]*?<\/\1>/gi, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    if (normalized.length <= maxLen) return normalized;
+    return normalized.slice(0, maxLen).trimEnd() + '…';
+}
+
 function updateMoodWidget(data) {
     if (!data || !data.enabled) return;
     const toggle = document.getElementById('moodToggle');
@@ -1301,7 +1311,7 @@ function updateMoodWidget(data) {
     document.getElementById('moodPanelLabel').textContent = moodLabel;
     if (emotionEl) {
         if (data.current_emotion) {
-            emotionEl.textContent = data.current_emotion;
+            emotionEl.textContent = summarizeMoodEmotion(data.current_emotion);
             chatSetHidden(emotionEl, false);
         } else {
             emotionEl.textContent = '';

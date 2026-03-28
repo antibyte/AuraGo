@@ -390,6 +390,16 @@ func TestParseEmotionSynthesisResponseFallsBackToText(t *testing.T) {
 	}
 }
 
+func TestParseEmotionSynthesisResponseStripsThinkingTags(t *testing.T) {
+	state, err := parseEmotionSynthesisResponse("<think>private chain of thought</think>I feel calm and focused now.", MoodFocused)
+	if err != nil {
+		t.Fatalf("parseEmotionSynthesisResponse: %v", err)
+	}
+	if strings.Contains(state.Description, "<think>") || strings.Contains(strings.ToLower(state.Description), "private chain of thought") {
+		t.Fatalf("description still contains reasoning: %q", state.Description)
+	}
+}
+
 // ── DB Tests ─────────────────────────────────────────────────────────────────
 
 func TestEmotionHistory_InsertAndGet(t *testing.T) {

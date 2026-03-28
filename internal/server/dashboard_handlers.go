@@ -114,6 +114,11 @@ func handleDashboardEmotionHistory(s *Server) http.HandlerFunc {
 		if entries == nil {
 			entries = []memory.EmotionHistoryEntry{}
 		}
+		for i := range entries {
+			entries[i].Description = sanitizeEmotionPreview(entries[i].Description, 280)
+			entries[i].Cause = sanitizeEmotionPreview(entries[i].Cause, 140)
+			entries[i].TriggerSummary = sanitizeEmotionPreview(entries[i].TriggerSummary, 80)
+		}
 
 		w.Header().Set("Content-Type", "application/json")
 		type emotionSummary struct {
