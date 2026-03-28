@@ -518,7 +518,11 @@ func Start(cfg *config.Config, logger *slog.Logger, accessLogger *slog.Logger, l
 
 	// Start Firewall Guard loop if enabled
 	if cfg.Firewall.Enabled && cfg.Firewall.Mode == "guard" {
-		go tools.StartFirewallGuard(context.Background(), cfg, logger, func(prompt string) {
+		firewallSudoPass := ""
+		if cfg.Agent.SudoEnabled {
+			firewallSudoPass, _ = vault.ReadSecret("sudo_password")
+		}
+		go tools.StartFirewallGuard(context.Background(), cfg, logger, firewallSudoPass, func(prompt string) {
 			go func() {
 				url := fmt.Sprintf("http://127.0.0.1:%d/v1/chat/completions", cfg.Server.Port)
 				payload := map[string]interface{}{

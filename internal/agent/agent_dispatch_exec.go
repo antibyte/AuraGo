@@ -276,6 +276,9 @@ func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 		if !cfg.Agent.SudoEnabled {
 			return "Tool Output: [PERMISSION DENIED] execute_sudo is not enabled in config. Set agent.sudo_enabled: true and store the sudo password in the vault as 'sudo_password'."
 		}
+		if cfg.Runtime.NoNewPrivileges {
+			return `Tool Output: [PERMISSION DENIED] sudo is not available: the "no new privileges" flag is set on this system. Remove no-new-privileges from your container or systemd configuration to use sudo.`
+		}
 		if tc.Command == "" {
 			return "Tool Output: [EXECUTION ERROR] 'command' is required for execute_sudo"
 		}

@@ -16,6 +16,9 @@ type Runtime struct {
 	DockerSocketOK   bool `json:"docker_socket_ok"`
 	BroadcastOK      bool `json:"broadcast_ok"`
 	FirewallAccessOK bool `json:"firewall_access_ok"`
+	// NoNewPrivileges is true when the kernel flag PR_SET_NO_NEW_PRIVS is active.
+	// This prevents sudo (setuid escalation) from working regardless of config.
+	NoNewPrivileges bool `json:"no_new_privileges"`
 }
 
 // FeatureAvailability describes whether a config section is usable
@@ -59,11 +62,18 @@ func DetectRuntime(logger *slog.Logger) Runtime {
 	}
 	logger.Info("[Runtime] Firewall access", "ok", rt.FirewallAccessOK)
 
+	// 5. No-new-privileges kernel flag — if set, sudo cannot escalate privileges.
+	rt.NoNewPrivileges = probeNoNewPrivileges()
+	logger.Info("[Runtime] No-new-privileges flag", "set", rt.NoNewPrivileges)
+
 	return rt
 }
 
 // ComputeFeatureAvailability maps each config section to its runtime availability.
-func ComputeFeatureAvailability(rt Runtime) map[string]FeatureAvailability {
+// sudoEnabled should be cfg.Agent.SudoEnabled — when true, firewall access is
+// considered available even if passwordless sudo is not configured, because the
+// agent can supply the vault-stored password via sudo -S.
+func ComputeFeatureAvailability(rt Runtime, sudoEnabled bool) map[string]FeatureAvailability {
 	avail := make(map[string]FeatureAvailability)
 
 	if rt.IsDocker {
@@ -77,8 +87,19 @@ func ComputeFeatureAvailability(rt Runtime) map[string]FeatureAvailability {
 			Available: false,
 			Reason:    "Sudo commands are not available inside a Docker container.",
 		}
+	} else if rt.NoNewPrivileges {
+		// PR_SET_NO_NEW_PRIVS is active — sudo's setuid escalation is blocked at kernel level.
+		avail["sudo"] = FeatureAvailability{
+			Available: false,
+			Reason:    "The \"no new privileges\" flag is set — sudo cannot escalate. Remove \"no-new-privileges\" from your container/systemd configuration.",
+		}
+		avail["firewall"] = FeatureAvailability{
+			Available: rt.FirewallAccessOK, // only available if process already has direct iptables access
+			Reason:    boolReason(!rt.FirewallAccessOK, "iptables/ufw not accessible and sudo is blocked by the \"no new privileges\" flag."),
+		}
 	} else {
-		avail["firewall"] = FeatureAvailability{Available: rt.FirewallAccessOK, Reason: boolReason(!rt.FirewallAccessOK, "iptables/ufw not accessible (missing sudo?).")}
+		firewallAvail := rt.FirewallAccessOK || sudoEnabled
+		avail["firewall"] = FeatureAvailability{Available: firewallAvail, Reason: boolReason(!firewallAvail, "iptables/ufw not accessible. Run as root, add NOPASSWD sudo for iptables, or enable sudo in the Danger Zone settings.")}
 		avail["sudo"] = FeatureAvailability{Available: true}
 	}
 
@@ -229,4 +250,22 @@ func probeFirewall() bool {
 		return cmd2.Run() == nil
 	}
 	return true
+}
+
+// probeNoNewPrivileges checks whether the kernel's no-new-privileges flag is
+// active for this process by reading /proc/self/status.  When set, sudo cannot
+// escalate privileges via the setuid bit.
+func probeNoNewPrivileges() bool {
+	data, err := os.ReadFile("/proc/self/status")
+	if err != nil {
+		// Not Linux or unreadable — assume not set.
+		return false
+	}
+	for _, line := range bytes.Split(data, []byte{'\n'}) {
+		if bytes.HasPrefix(line, []byte("NoNewPrivs:")) {
+			fields := bytes.Fields(line)
+			return len(fields) >= 2 && string(fields[1]) == "1"
+		}
+	}
+	return false
 }

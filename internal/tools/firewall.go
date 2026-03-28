@@ -13,18 +13,33 @@ import (
 	"aurago/internal/config"
 )
 
+// sudoRun runs a command with sudo, optionally supplying a password via stdin
+// (sudo -S) when sudoPassword is non-empty.  Falls back to passwordless sudo
+// (sudo -n) when no password is provided.
+func sudoRun(sudoPassword string, args ...string) ([]byte, error) {
+	if sudoPassword != "" {
+		fullArgs := append([]string{"-S"}, args...)
+		cmd := exec.Command("sudo", fullArgs...)
+		cmd.Stdin = strings.NewReader(sudoPassword + "\n")
+		return cmd.CombinedOutput()
+	}
+	// No password — try non-interactive (NOPASSWD sudoers or running as root).
+	fullArgs := append([]string{"-n"}, args...)
+	cmd := exec.Command("sudo", fullArgs...)
+	return cmd.CombinedOutput()
+}
+
 // FirewallGetRules returns the active firewall rules using iptables or ufw (Linux only).
-func FirewallGetRules() (string, error) {
+// sudoPassword may be empty when the process already has direct access or NOPASSWD sudo.
+func FirewallGetRules(sudoPassword string) (string, error) {
 	// Try iptables first
-	cmd := exec.Command("sudo", "iptables", "-S")
-	out, err := cmd.CombinedOutput()
+	out, err := sudoRun(sudoPassword, "iptables", "-S")
 	if err == nil {
 		return string(out), nil
 	}
 
 	// Fallback to ufw
-	cmd = exec.Command("sudo", "ufw", "status", "verbose")
-	out, err = cmd.CombinedOutput()
+	out, err = sudoRun(sudoPassword, "ufw", "status", "verbose")
 	if err == nil {
 		return string(out), nil
 	}
@@ -33,17 +48,15 @@ func FirewallGetRules() (string, error) {
 }
 
 // FirewallModifyRule executes a firewall modification command (Linux only).
-func FirewallModifyRule(command string) (string, error) {
+// sudoPassword may be empty when the process already has direct access or NOPASSWD sudo.
+func FirewallModifyRule(command, sudoPassword string) (string, error) {
 	// Simple security check to avoid command injection although the LLM is trusted
 	if !strings.HasPrefix(command, "iptables ") && !strings.HasPrefix(command, "ufw ") {
 		return "", fmt.Errorf("invalid firewall command: must start with 'iptables' or 'ufw'")
 	}
 
 	args := strings.Fields(command)
-	cmdArgs := append([]string{}, args...)
-	cmd := exec.Command("sudo", cmdArgs...)
-
-	out, err := cmd.CombinedOutput()
+	out, err := sudoRun(sudoPassword, args...)
 	if err != nil {
 		return "", fmt.Errorf("firewall modification failed: %v\nOutput: %s", err, string(out))
 	}
@@ -52,11 +65,13 @@ func FirewallModifyRule(command string) (string, error) {
 }
 
 // StartFirewallGuard runs a background loop checking for firewall changes.
-func StartFirewallGuard(ctx context.Context, cfg *config.Config, logger *slog.Logger, triggerPrompt func(prompt string)) {
+// sudoPassword is the optional vault-stored sudo password; pass an empty string
+// when the process already has direct iptables access or NOPASSWD sudo.
+func StartFirewallGuard(ctx context.Context, cfg *config.Config, logger *slog.Logger, sudoPassword string, triggerPrompt func(prompt string)) {
 	if !cfg.Firewall.Enabled || cfg.Firewall.Mode != "guard" {
 		return
 	}
-	if !cfg.Runtime.FirewallAccessOK {
+	if !cfg.Runtime.FirewallAccessOK && sudoPassword == "" {
 		logger.Info("Firewall Guard disabled: no firewall access (running in Docker or iptables unavailable)")
 		return
 	}
@@ -74,7 +89,7 @@ func StartFirewallGuard(ctx context.Context, cfg *config.Config, logger *slog.Lo
 	var lastHash string
 
 	// Initial fetch to set the baseline hash
-	initialRules, err := FirewallGetRules()
+	initialRules, err := FirewallGetRules(sudoPassword)
 	if err != nil {
 		logger.Warn("Firewall Guard failed to fetch initial rules", "error", err)
 	} else {
@@ -87,7 +102,7 @@ func StartFirewallGuard(ctx context.Context, cfg *config.Config, logger *slog.Lo
 			logger.Info("Stopping Firewall Guard")
 			return
 		case <-ticker.C:
-			currentRules, err := FirewallGetRules()
+			currentRules, err := FirewallGetRules(sudoPassword)
 			if err != nil {
 				logger.Warn("Firewall Guard check failed", "error", err)
 				continue

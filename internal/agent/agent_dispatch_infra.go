@@ -27,7 +27,7 @@ import (
 const dispatchNotHandled = "\x00__DISPATCH_NOT_HANDLED__"
 
 // dispatchInfra handles network, cloud platform, and external service tool calls
-// (co_agent, mdns, tts, chromecast, proxmox, ollama, tailscale, ansible, invasion, github, netlify, mqtt, mcp, adguard).
+// (co_agent, mdns, tts, chromecast, proxmox, ollama, tailscale, ansible, invasion, github, netlify, mqtt, mcp, adguard, firewall).
 func dispatchInfra(ctx context.Context, tc ToolCall, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, missionManagerV2 *tools.MissionManagerV2, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, mediaRegistryDB *sql.DB, homepageRegistryDB *sql.DB, contactsDB *sql.DB, sqlConnectionsDB *sql.DB, sqlConnectionPool *sqlconnections.ConnectionPool, remoteHub *remote.RemoteHub, historyMgr *memory.HistoryManager, isMaintenance bool, surgeryPlan string, guardian *security.Guardian, sessionID string, coAgentRegistry *CoAgentRegistry, budgetTracker *budget.Tracker) string {
 	switch tc.Action {
 	case "co_agent", "co_agents":
@@ -1299,6 +1299,49 @@ func dispatchInfra(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 		}
 		logger.Info("LLM requested Jellyfin operation", "operation", tc.Operation)
 		return "Tool Output: " + tools.DispatchJellyfinTool(tc.Operation, toolCallParams(tc), cfg, logger)
+
+	// ── Firewall ──
+	case "firewall", "firewall_rules", "iptables":
+		if !cfg.Firewall.Enabled {
+			return `Tool Output: {"status":"error","message":"Firewall management is not enabled. Set firewall.enabled=true in config.yaml."}`
+		}
+		firewallAccessOK := cfg.Runtime.FirewallAccessOK || (cfg.Agent.SudoEnabled && !cfg.Runtime.IsDocker)
+		if !firewallAccessOK {
+			return `Tool Output: {"status":"error","message":"Firewall is not accessible. Run as root, add NOPASSWD sudo for iptables, or enable sudo in the Danger Zone settings."}`
+		}
+		sudoPass := ""
+		if cfg.Agent.SudoEnabled && !cfg.Runtime.FirewallAccessOK {
+			if cfg.Runtime.NoNewPrivileges {
+				return `Tool Output: {"status":"error","message":"sudo is blocked by the \"no new privileges\" flag — cannot escalate to run iptables. Remove no-new-privileges from your container/systemd config."}`
+			}
+			var vaultErr error
+			sudoPass, vaultErr = vault.ReadSecret("sudo_password")
+			if vaultErr != nil || sudoPass == "" {
+				return `Tool Output: {"status":"error","message":"sudo_password not found in vault. Store it first via the secrets_vault tool."}`
+			}
+		}
+		switch tc.Operation {
+		case "get_rules":
+			rules, err := tools.FirewallGetRules(sudoPass)
+			if err != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+			}
+			return "Tool Output: " + rules
+		case "modify_rule":
+			if cfg.Firewall.Mode == "readonly" {
+				return `Tool Output: {"status":"error","message":"Firewall is in read-only mode. Disable firewall.read_only to allow changes."}`
+			}
+			if tc.Command == "" {
+				return `Tool Output: {"status":"error","message":"'command' is required for modify_rule (e.g. 'iptables -A INPUT -p tcp --dport 80 -j ACCEPT')"}`
+			}
+			out, err := tools.FirewallModifyRule(tc.Command, sudoPass)
+			if err != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+			}
+			return "Tool Output: " + out
+		default:
+			return `Tool Output: {"status":"error","message":"Unknown firewall operation. Available: get_rules, modify_rule"}`
+		}
 
 	default:
 		return dispatchNotHandled

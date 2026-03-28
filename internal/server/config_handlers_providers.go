@@ -24,11 +24,12 @@ func handleRuntime(s *Server) http.HandlerFunc {
 		}
 		s.CfgMu.RLock()
 		rt := s.Cfg.Runtime
+		sudoEnabled := s.Cfg.Agent.SudoEnabled
 		s.CfgMu.RUnlock()
 
 		result := map[string]interface{}{
 			"runtime":  rt,
-			"features": config.ComputeFeatureAvailability(rt),
+			"features": config.ComputeFeatureAvailability(rt, sudoEnabled),
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(result)
@@ -37,8 +38,8 @@ func handleRuntime(s *Server) http.HandlerFunc {
 
 // injectFeatureAvailability adds _available and _reason fields into
 // the raw config sections so the UI can gray out unavailable features.
-func injectFeatureAvailability(rawCfg map[string]interface{}, rt config.Runtime) {
-	avail := config.ComputeFeatureAvailability(rt)
+func injectFeatureAvailability(rawCfg map[string]interface{}, rt config.Runtime, sudoEnabled bool) {
+	avail := config.ComputeFeatureAvailability(rt, sudoEnabled)
 
 	// Map feature keys to config section names
 	mapping := map[string]string{

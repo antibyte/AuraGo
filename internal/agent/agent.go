@@ -755,8 +755,6 @@ func dispatchInner(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 	logger.Warn("LLM requested unknown action", "action", tc.Action)
 	hint := ""
 	switch tc.Action {
-	case "firewall", "firewall_rules", "iptables":
-		hint = " For firewall rules, use execute_shell with iptables commands (e.g. sudo iptables -L -n)."
 	case "exec":
 		hint = " Use execute_shell with a 'command' field to run shell commands."
 	case "git", "git_status", "git_log", "git_diff", "git_commit", "git_push", "git_pull":

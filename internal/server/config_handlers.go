@@ -94,7 +94,7 @@ func handleGetConfig(s *Server) http.HandlerFunc {
 		injectVaultIndicators(rawCfg, s.Vault)
 		// Inject feature availability flags so the UI can gray out
 		// sections that are not functional in the current runtime.
-		injectFeatureAvailability(rawCfg, s.Cfg.Runtime)
+		injectFeatureAvailability(rawCfg, s.Cfg.Runtime, s.Cfg.Agent.SudoEnabled)
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(rawCfg)
 	}

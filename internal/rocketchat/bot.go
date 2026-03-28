@@ -324,7 +324,7 @@ func processMessage(cfg *config.Config, logger *slog.Logger, client llm.ChatClie
 			HomeAssistantEnabled:         cfg.HomeAssistant.Enabled,
 			DockerEnabled:                cfg.Docker.Enabled && cfg.Runtime.DockerSocketOK,
 			CoAgentEnabled:               cfg.CoAgents.Enabled,
-			SudoEnabled:                  cfg.Agent.SudoEnabled && !cfg.Runtime.IsDocker,
+			SudoEnabled:                  cfg.Agent.SudoEnabled && !cfg.Runtime.IsDocker && !cfg.Runtime.NoNewPrivileges,
 			WebhooksEnabled:              cfg.Webhooks.Enabled,
 			ProxmoxEnabled:               cfg.Proxmox.Enabled,
 			OllamaEnabled:                cfg.Ollama.Enabled,

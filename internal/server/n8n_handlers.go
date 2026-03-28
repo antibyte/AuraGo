@@ -1086,7 +1086,7 @@ func buildFeatureFlags(cfg *config.Config) agent.ToolFeatureFlags {
 		HomeAssistantEnabled:         cfg.HomeAssistant.Enabled,
 		DockerEnabled:                cfg.Docker.Enabled && (!cfg.Runtime.IsDocker || cfg.Runtime.DockerSocketOK),
 		CoAgentEnabled:               false,
-		SudoEnabled:                  cfg.Agent.SudoEnabled && !cfg.Runtime.IsDocker,
+		SudoEnabled:                  cfg.Agent.SudoEnabled && !cfg.Runtime.IsDocker && !cfg.Runtime.NoNewPrivileges,
 		WebhooksEnabled:              cfg.Webhooks.Enabled,
 		ProxmoxEnabled:               cfg.Proxmox.Enabled,
 		OllamaEnabled:                cfg.Ollama.Enabled,
