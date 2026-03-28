@@ -280,6 +280,7 @@ func buildToolFeatureFlags(runCfg RunConfig, policy ToolingPolicy) ToolFeatureFl
 		SudoEnabled:                  cfg.Agent.SudoEnabled && !cfg.Runtime.IsDocker,
 		WebhooksEnabled:              cfg.Webhooks.Enabled,
 		JellyfinEnabled:              cfg.Jellyfin.Enabled,
+		ChromecastEnabled:            cfg.Chromecast.Enabled,
 		ProxmoxEnabled:               cfg.Proxmox.Enabled,
 		OllamaEnabled:                cfg.Ollama.Enabled,
 		TailscaleEnabled:             cfg.Tailscale.Enabled,

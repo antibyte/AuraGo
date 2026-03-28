@@ -295,6 +295,7 @@ type ToolCall struct {
 	Arguments           interface{}              `json:"arguments"`    // Hallucination fallback
 	ActionInput         map[string]interface{}   `json:"action_input"` // LangChain-style nested params
 	Label               string                   `json:"label"`
+	ArtifactType        string                   `json:"artifact_type"`
 	Command             string                   `json:"command"`
 	ThresholdLow        int                      `json:"threshold_low"`
 	ThresholdMedium     int                      `json:"threshold_medium"`
@@ -315,14 +316,16 @@ type ToolCall struct {
 	AudioURL      string   `json:"audio_url,omitempty"`
 	MediaURLs     []string `json:"media_urls,omitempty"`
 	// Notes / To-Do fields
-	Title    string `json:"title"`
-	Priority int    `json:"priority"`
-	DueDate  string `json:"due_date"`
-	Category string `json:"category"`
-	Done     int    `json:"done"` // -1=all, 0=open, 1=done (filter for list)
-	TaskID   string `json:"task_id"`
-	Result   string `json:"result"`
-	Error    string `json:"error"`
+	Title              string `json:"title"`
+	Priority           int    `json:"priority"`
+	AcceptanceCriteria string `json:"acceptance_criteria"`
+	IncludeArchived    bool   `json:"include_archived,omitempty"`
+	DueDate            string `json:"due_date"`
+	Category           string `json:"category"`
+	Done               int    `json:"done"` // -1=all, 0=open, 1=done (filter for list)
+	TaskID             string `json:"task_id"`
+	Result             string `json:"result"`
+	Error              string `json:"error"`
 	// Journal fields
 	EntryType  string `json:"entry_type"`
 	Importance int    `json:"importance"`

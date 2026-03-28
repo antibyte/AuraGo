@@ -75,6 +75,15 @@ func planTaskInputsFromItems(items []map[string]interface{}) []memory.PlanTaskIn
 		if v, ok := item["tool_name"].(string); ok {
 			input.ToolName = strings.TrimSpace(v)
 		}
+		if v, ok := item["acceptance_criteria"].(string); ok {
+			input.Acceptance = strings.TrimSpace(v)
+		}
+		if v, ok := item["owner"].(string); ok {
+			input.Owner = strings.TrimSpace(v)
+		}
+		if v, ok := item["parent_task_id"].(string); ok {
+			input.ParentTaskID = strings.TrimSpace(v)
+		}
 		if v, ok := item["tool_args"].(map[string]interface{}); ok {
 			input.ToolArgs = v
 		}
@@ -89,6 +98,16 @@ func planTaskInputsFromItems(items []map[string]interface{}) []memory.PlanTaskIn
 		inputs = append(inputs, input)
 	}
 	return inputs
+}
+
+func planTaskIDsFromItems(items []map[string]interface{}) []string {
+	ids := make([]string, 0, len(items))
+	for _, item := range items {
+		if v, ok := item["task_id"].(string); ok && strings.TrimSpace(v) != "" {
+			ids = append(ids, strings.TrimSpace(v))
+		}
+	}
+	return ids
 }
 
 // dispatchComm handles webhook, skill, notification, email, discord, mission, and notes tool calls.
@@ -1290,7 +1309,7 @@ func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 			if status == "" {
 				status = "all"
 			}
-			plans, err := shortTermMem.ListPlans(sessionID, status, tc.Limit)
+			plans, err := shortTermMem.ListPlans(sessionID, status, tc.Limit, tc.IncludeArchived)
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status":"error","message":%q}`, err.Error())
 			}
@@ -1326,6 +1345,44 @@ func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 			}
 			payload, _ := json.Marshal(plan)
 			return fmt.Sprintf(`Tool Output: {"status":"success","message":"Task updated","plan":%s}`, string(payload))
+		case "advance":
+			if tc.ID == "" {
+				return `Tool Output: {"status":"error","message":"'id' is required for advance"}`
+			}
+			plan, err := shortTermMem.AdvancePlan(tc.ID, tc.Result)
+			if err != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":%q}`, err.Error())
+			}
+			payload, _ := json.Marshal(plan)
+			return fmt.Sprintf(`Tool Output: {"status":"success","message":"Plan advanced","plan":%s}`, string(payload))
+		case "set_blocker":
+			if tc.ID == "" || tc.TaskID == "" {
+				return `Tool Output: {"status":"error","message":"'id' and 'task_id' are required for set_blocker"}`
+			}
+			reason := strings.TrimSpace(tc.Reason)
+			if reason == "" {
+				reason = strings.TrimSpace(tc.Content)
+			}
+			plan, err := shortTermMem.SetPlanTaskBlocker(tc.ID, tc.TaskID, reason)
+			if err != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":%q}`, err.Error())
+			}
+			payload, _ := json.Marshal(plan)
+			return fmt.Sprintf(`Tool Output: {"status":"success","message":"Task blocker set","plan":%s}`, string(payload))
+		case "clear_blocker":
+			if tc.ID == "" || tc.TaskID == "" {
+				return `Tool Output: {"status":"error","message":"'id' and 'task_id' are required for clear_blocker"}`
+			}
+			note := strings.TrimSpace(tc.Content)
+			if note == "" {
+				note = strings.TrimSpace(tc.Reason)
+			}
+			plan, err := shortTermMem.ClearPlanTaskBlocker(tc.ID, tc.TaskID, note)
+			if err != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":%q}`, err.Error())
+			}
+			payload, _ := json.Marshal(plan)
+			return fmt.Sprintf(`Tool Output: {"status":"success","message":"Task blocker cleared","plan":%s}`, string(payload))
 		case "append_note":
 			if tc.ID == "" {
 				return `Tool Output: {"status":"error","message":"'id' is required for append_note"}`
@@ -1339,6 +1396,62 @@ func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 			}
 			payload, _ := json.Marshal(plan)
 			return fmt.Sprintf(`Tool Output: {"status":"success","message":"Plan note appended","plan":%s}`, string(payload))
+		case "attach_artifact":
+			if tc.ID == "" || tc.TaskID == "" {
+				return `Tool Output: {"status":"error","message":"'id' and 'task_id' are required for attach_artifact"}`
+			}
+			value := strings.TrimSpace(tc.Content)
+			if value == "" {
+				value = strings.TrimSpace(tc.FilePath)
+			}
+			if value == "" {
+				value = strings.TrimSpace(tc.URL)
+			}
+			plan, err := shortTermMem.AttachPlanTaskArtifact(tc.ID, tc.TaskID, memory.PlanArtifact{
+				Type:  strings.TrimSpace(tc.ArtifactType),
+				Label: strings.TrimSpace(tc.Label),
+				Value: value,
+			})
+			if err != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":%q}`, err.Error())
+			}
+			payload, _ := json.Marshal(plan)
+			return fmt.Sprintf(`Tool Output: {"status":"success","message":"Artifact attached","plan":%s}`, string(payload))
+		case "split_task":
+			if tc.ID == "" || tc.TaskID == "" {
+				return `Tool Output: {"status":"error","message":"'id' and 'task_id' are required for split_task"}`
+			}
+			plan, err := shortTermMem.SplitPlanTask(tc.ID, tc.TaskID, planTaskInputsFromItems(tc.Items))
+			if err != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":%q}`, err.Error())
+			}
+			payload, _ := json.Marshal(plan)
+			return fmt.Sprintf(`Tool Output: {"status":"success","message":"Task split into subtasks","plan":%s}`, string(payload))
+		case "reorder_tasks":
+			if tc.ID == "" {
+				return `Tool Output: {"status":"error","message":"'id' is required for reorder_tasks"}`
+			}
+			orderedTaskIDs := planTaskIDsFromItems(tc.Items)
+			plan, err := shortTermMem.ReorderPlanTasks(tc.ID, orderedTaskIDs)
+			if err != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":%q}`, err.Error())
+			}
+			payload, _ := json.Marshal(plan)
+			return fmt.Sprintf(`Tool Output: {"status":"success","message":"Task order updated","plan":%s}`, string(payload))
+		case "archive_completed":
+			if tc.ID != "" {
+				plan, err := shortTermMem.ArchivePlan(tc.ID)
+				if err != nil {
+					return fmt.Sprintf(`Tool Output: {"status":"error","message":%q}`, err.Error())
+				}
+				payload, _ := json.Marshal(plan)
+				return fmt.Sprintf(`Tool Output: {"status":"success","message":"Plan archived","plan":%s}`, string(payload))
+			}
+			count, err := shortTermMem.ArchiveCompletedPlans(sessionID)
+			if err != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":%q}`, err.Error())
+			}
+			return fmt.Sprintf(`Tool Output: {"status":"success","message":"Archived completed plans","count":%d}`, count)
 		case "delete":
 			if tc.ID == "" {
 				return `Tool Output: {"status":"error","message":"'id' is required for delete"}`
@@ -1348,7 +1461,7 @@ func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 			}
 			return `Tool Output: {"status":"success","message":"Plan deleted"}`
 		default:
-			return fmt.Sprintf(`Tool Output: {"status":"error","message":"Unknown plan operation: %s. Use create, list, get, update_task, set_status, append_note, or delete"}`, tc.Operation)
+			return fmt.Sprintf(`Tool Output: {"status":"error","message":"Unknown plan operation: %s. Use create, list, get, update_task, advance, set_status, set_blocker, clear_blocker, append_note, attach_artifact, split_task, reorder_tasks, archive_completed, or delete"}`, tc.Operation)
 		}
 
 	case "manage_notes", "notes", "todo":

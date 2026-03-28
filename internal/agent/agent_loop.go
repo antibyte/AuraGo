@@ -364,6 +364,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			policyResult := finalizeToolExecution(ptc, pResultContent, cfg, shortTermMem, sessionID, &recoveryState, &req, currentLogger, telemetryScope)
 			pResultContent = policyResult.Content
 			trackActivityTool(&turnToolNames, &turnToolSummaries, ptc.Action, pResultContent)
+			recordPlanToolProgress(shortTermMem, sessionID, ptc, pResultContent, currentLogger)
 			broker.Send("tool_output", pResultContent)
 			if ptc.Action == "send_image" {
 				var imgRes struct {
@@ -1434,6 +1435,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			policyResult := finalizeToolExecution(tc, resultContent, cfg, shortTermMem, sessionID, &recoveryState, &req, currentLogger, telemetryScope)
 			resultContent = policyResult.Content
 			trackActivityTool(&turnToolNames, &turnToolSummaries, tc.Action, resultContent)
+			recordPlanToolProgress(shortTermMem, sessionID, tc, resultContent, currentLogger)
 
 			broker.Send("tool_output", resultContent)
 
@@ -1817,6 +1819,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					policyResult := finalizeToolExecution(btc, bResult, cfg, shortTermMem, sessionID, &recoveryState, &req, currentLogger, telemetryScope)
 					bResult = policyResult.Content
 					trackActivityTool(&turnToolNames, &turnToolSummaries, btc.Action, bResult)
+					recordPlanToolProgress(shortTermMem, sessionID, btc, bResult, currentLogger)
 					broker.Send("tool_output", bResult)
 					broker.Send("tool_end", btc.Action)
 					if btc.Action == "manage_plan" {

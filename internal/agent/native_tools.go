@@ -108,6 +108,8 @@ type ToolFeatureFlags struct {
 	UPnPScanEnabled          bool
 	// Jellyfin media server
 	JellyfinEnabled bool
+	// Chromecast / Google Cast
+	ChromecastEnabled bool
 	// FritzBox sub-feature flags
 	FritzBoxSystemEnabled    bool
 	FritzBoxNetworkEnabled   bool
@@ -733,32 +735,40 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 			"operation": map[string]interface{}{
 				"type":        "string",
 				"description": "Plan operation",
-				"enum":        []string{"create", "list", "get", "update_task", "set_status", "append_note", "delete"},
+				"enum":        []string{"create", "list", "get", "update_task", "advance", "set_status", "set_blocker", "clear_blocker", "append_note", "attach_artifact", "split_task", "reorder_tasks", "archive_completed", "delete"},
 			},
-			"id":          prop("string", "Plan ID (required for get, update_task, set_status, append_note, delete)"),
-			"title":       prop("string", "Plan title (required for create)"),
-			"description": prop("string", "Plan description"),
-			"content":     prop("string", "User request or note content. For append_note this is the note text."),
-			"priority":    prop("integer", "Priority: 1=low, 2=medium (default), 3=high"),
+			"id":               prop("string", "Plan ID (required for get, update_task, set_status, append_note, delete)"),
+			"title":            prop("string", "Plan title (required for create)"),
+			"description":      prop("string", "Plan description"),
+			"content":          prop("string", "User request or note content. For append_note this is the note text."),
+			"reason":           prop("string", "Blocker or status reason"),
+			"priority":         prop("integer", "Priority: 1=low, 2=medium (default), 3=high"),
+			"include_archived": prop("boolean", "Include archived plans in list results."),
 			"status": map[string]interface{}{
 				"type":        "string",
 				"description": "Plan or task status",
-				"enum":        []string{"draft", "active", "paused", "completed", "cancelled", "pending", "in_progress", "failed", "skipped"},
+				"enum":        []string{"draft", "active", "paused", "blocked", "completed", "cancelled", "pending", "in_progress", "failed", "skipped"},
 			},
-			"task_id": prop("string", "Task ID for update_task"),
-			"result":  prop("string", "Task result summary for update_task"),
-			"error":   prop("string", "Task error summary for update_task"),
-			"limit":   prop("integer", "Maximum plans to return for list"),
+			"task_id":       prop("string", "Task ID for update_task, set_blocker, clear_blocker, or split_task"),
+			"result":        prop("string", "Task result summary for update_task"),
+			"error":         prop("string", "Task error summary for update_task"),
+			"label":         prop("string", "Artifact label for attach_artifact"),
+			"artifact_type": prop("string", "Artifact type for attach_artifact, e.g. file, url, id, report"),
+			"limit":         prop("integer", "Maximum plans to return for list"),
 			"items": map[string]interface{}{
 				"type":        "array",
-				"description": "Plan tasks for create. Each item should define a small actionable task.",
+				"description": "Plan tasks for create or split_task. For reorder_tasks, pass items with task_id in the desired final order.",
 				"items": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
-						"title":       prop("string", "Task title"),
-						"description": prop("string", "Optional task description"),
-						"kind":        prop("string", "Task kind: task, tool, reasoning, verification, note"),
-						"tool_name":   prop("string", "Optional tool name if this task is tied to a specific AuraGo tool"),
+						"task_id":             prop("string", "Task ID used by reorder_tasks to define the desired order"),
+						"title":               prop("string", "Task title"),
+						"description":         prop("string", "Optional task description"),
+						"kind":                prop("string", "Task kind: task, tool, reasoning, verification, note"),
+						"acceptance_criteria": prop("string", "Optional acceptance criteria for this task"),
+						"owner":               prop("string", "Optional owner: agent, user, or external"),
+						"parent_task_id":      prop("string", "Optional parent task ID for nested subtasks"),
+						"tool_name":           prop("string", "Optional tool name if this task is tied to a specific AuraGo tool"),
 						"tool_args": map[string]interface{}{
 							"type":        "object",
 							"description": "Optional suggested tool arguments for the task",
@@ -911,6 +921,29 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 				"mac_address": prop("string", "MAC address to wake up (e.g. 'AA:BB:CC:DD:EE:FF'). Required if server_id is not provided or the device has no MAC registered."),
 				"ip_address":  prop("string", "Optional broadcast IP address (e.g. '192.168.1.255'). Defaults to 255.255.255.255."),
 			}),
+		))
+	}
+
+	if ff.ChromecastEnabled {
+		tools = append(tools, tool("chromecast",
+			"Control Chromecast and Google Cast devices on the local network. "+
+				"Discover devices, play media URLs, speak text via TTS, stop playback, adjust volume, and query status. "+
+				"Specify a device by name (resolved via inventory) or directly by IP address and port.",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "Chromecast operation to perform",
+					"enum":        []string{"discover", "play", "speak", "stop", "volume", "status"},
+				},
+				"device_name": prop("string", "Friendly device name (resolved via device registry, e.g. 'Living Room'). Use when device_addr is unknown."),
+				"device_addr": prop("string", "IP address of the Chromecast device (e.g. '192.168.1.42')."),
+				"device_port": map[string]interface{}{"type": "integer", "description": "Port of the Chromecast device (default: 8009)."},
+				"url":         prop("string", "Media URL to cast (for 'play' operation)."),
+				"content_type": prop("string", "MIME type of the media (for 'play', e.g. 'video/mp4', 'audio/mpeg'). Default: 'video/mp4'."),
+				"text":        prop("string", "Text to speak aloud via TTS (for 'speak' operation)."),
+				"language":    prop("string", "Language code for TTS speech (for 'speak', e.g. 'de', 'en'). Defaults to system language."),
+				"volume": map[string]interface{}{"type": "number", "description": "Volume level 0.0–1.0 (for 'volume' operation)."},
+			}, "operation"),
 		))
 	}
 

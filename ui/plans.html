@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="{{.Lang}}" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AuraGo – Plans</title>
+  <link rel="stylesheet" href="/shared.css">
+  <script src="/shared.js"></script>
+  <script>
+    const I18N={{.I18N}};
+    (function () { var t = localStorage.getItem('aurago-theme'); if (t) document.documentElement.setAttribute('data-theme', t); })();
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/plans.css">
+</head>
+<body>
+  <header class="app-header">
+    <a href="/" class="logo">
+      <div class="logo-icon">🗺️</div>
+      <span class="logo-wordmark-accent">AURA</span><span class="logo-wordmark-base">GO</span>
+      <span class="logo-subtitle" data-i18n="plans.logo_subtitle">PLANS</span>
+    </a>
+    <div class="header-actions">
+      <button id="theme-toggle" type="button" class="btn-theme" data-i18n-title="common.toggle_theme" title="Toggle theme"></button>
+    </div>
+  </header>
+
+  <div id="radialMenuAnchor"></div>
+
+  <main class="plans-page">
+    <section class="plans-toolbar">
+      <div class="plans-toolbar-group">
+        <label for="session-id" data-i18n="plans.session_label">Session</label>
+        <input id="session-id" type="text" value="default">
+      </div>
+      <div class="plans-toolbar-group">
+        <label for="status-filter" data-i18n="plans.status_label">Status</label>
+        <select id="status-filter">
+          <option value="all" data-i18n="plans.status_all">All</option>
+          <option value="draft" data-i18n="plans.status_draft">Draft</option>
+          <option value="active" data-i18n="plans.status_active">Active</option>
+          <option value="paused" data-i18n="plans.status_paused">Paused</option>
+          <option value="blocked" data-i18n="plans.status_blocked">Blocked</option>
+          <option value="completed" data-i18n="plans.status_completed">Completed</option>
+          <option value="cancelled" data-i18n="plans.status_cancelled">Cancelled</option>
+        </select>
+      </div>
+      <label class="plans-check">
+        <input id="include-archived" type="checkbox">
+        <span data-i18n="plans.show_archived">Show archived</span>
+      </label>
+      <button id="refresh-btn" class="btn btn-primary" data-i18n="plans.refresh">Refresh</button>
+    </section>
+
+    <section class="plans-layout">
+      <aside class="plans-sidebar panel">
+        <div class="panel-header">
+          <h1 data-i18n="plans.heading">Session Plans</h1>
+        </div>
+        <div id="plan-list" class="plan-list"></div>
+      </aside>
+
+      <section class="plans-detail panel">
+        <div id="plan-detail" class="plan-detail empty-state" data-i18n="plans.empty_detail">Select a plan to inspect tasks, events, and progress.</div>
+      </section>
+    </section>
+  </main>
+
+  <div class="modal-overlay" id="blocker-modal">
+    <div class="modal-content plan-modal">
+      <div class="modal-header">
+        <h3 data-i18n="plans.block_modal_title">Set Blocker</h3>
+      </div>
+      <div class="modal-body">
+        <textarea id="blocker-reason" class="inline-note" data-i18n-placeholder="plans.block_prompt" placeholder="Describe the blocker"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button id="blocker-cancel" class="btn" data-i18n="common.btn_cancel">Cancel</button>
+        <button id="blocker-confirm" class="btn btn-primary" data-i18n="common.btn_ok">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="split-modal">
+    <div class="modal-content plan-modal">
+      <div class="modal-header">
+        <h3 data-i18n="plans.split_modal_title">Split Task</h3>
+      </div>
+      <div class="modal-body">
+        <p class="muted" data-i18n="plans.split_prompt">Enter one subtask per line.</p>
+        <textarea id="split-items" class="inline-note" data-i18n-placeholder="plans.split_placeholder" placeholder="Inspect logs&#10;Patch handler&#10;Verify fix"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button id="split-cancel" class="btn" data-i18n="common.btn_cancel">Cancel</button>
+        <button id="split-confirm" class="btn btn-primary" data-i18n="plans.split">Split</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/plans/main.js"></script>
+</body>
+</html>

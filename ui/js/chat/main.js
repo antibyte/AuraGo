@@ -122,6 +122,7 @@ function applyI18n() {
         if (!lbl) return;
         if (href === '/') lbl.textContent = t('common.nav_chat');
         else if (href === '/dashboard') lbl.textContent = t('common.nav_dashboard');
+        else if (href === '/plans') lbl.textContent = t('common.nav_plans');
         else if (href === '/missions') lbl.textContent = t('common.nav_missions');
         else if (href === '/config') lbl.textContent = t('common.nav_config');
         else if (href === '/invasion') lbl.textContent = t('common.nav_invasion');
@@ -294,6 +295,7 @@ function renderPlanStatusBadge(status) {
         draft: 'Draft',
         active: 'Active',
         paused: 'Paused',
+        blocked: 'Blocked',
         completed: 'Completed',
         cancelled: 'Cancelled'
     };
@@ -304,12 +306,17 @@ function renderPlanTask(task) {
     const status = task && task.status ? task.status : 'pending';
     const icon = status === 'completed' ? '✅'
         : status === 'in_progress' ? '⟳'
+        : status === 'blocked' ? '⛔'
         : status === 'failed' ? '⚠️'
         : status === 'skipped' ? '⏭'
         : '⬜';
     const desc = task && task.description ? `<div class="todo-item-meta">${escapeHtml(task.description)}</div>` : '';
+    const blocker = task && task.blocker_reason ? `<div class="todo-item-meta">Blocker: ${escapeHtml(task.blocker_reason)}</div>` : '';
+    const artifacts = task && Array.isArray(task.artifacts) && task.artifacts.length
+        ? task.artifacts.slice(-2).map(a => `<div class="todo-item-meta">Artifact: ${escapeHtml((a.label || a.type || 'artifact') + ' = ' + (a.value || ''))}</div>`).join('')
+        : '';
     return '<div class="todo-item ' + (status === 'completed' ? 'todo-done' : 'todo-pending') + '">'
-        + icon + ' ' + escapeHtml(task.title || '') + desc + '</div>';
+        + icon + ' ' + escapeHtml(task.title || '') + desc + blocker + artifacts + '</div>';
 }
 
 function updatePlanPanel(plan) {
@@ -326,6 +333,9 @@ function updatePlanPanel(plan) {
     const currentTask = plan.current_task
         ? `<div class="todo-item todo-pending">🎯 ${escapeHtml(plan.current_task)}</div>`
         : '';
+    const blocked = plan.blocked_reason
+        ? `<div class="todo-item-meta">Blocked: ${escapeHtml(plan.blocked_reason)}</div>`
+        : '';
     const latestEvent = events.length > 0 && events[0].message
         ? `<div class="todo-item-meta">${escapeHtml(events[0].message)}</div>`
         : '';
@@ -334,6 +344,7 @@ function updatePlanPanel(plan) {
         <div class="todo-debug-body">
             <div class="todo-item todo-pending">📈 ${progress}% (${counts.completed || 0}/${counts.total || tasks.length || 0})</div>
             ${currentTask}
+            ${blocked}
             ${tasks.map(renderPlanTask).join('')}
             ${latestEvent}
         </div>`;
