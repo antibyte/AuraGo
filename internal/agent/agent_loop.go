@@ -1219,12 +1219,12 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 
 			feedbackMsg := "ERROR: You sent raw Python code instead of a JSON tool call. My supervisor only understands JSON tool calls. Please wrap your code in a valid JSON object: {\"action\": \"save_tool\", \"name\": \"script.py\", \"description\": \"...\", \"code\": \"<your python code with \\n escaped>\"}."
-			id, err = shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, feedbackMsg, false, false)
+			id, err = shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, feedbackMsg, false, true)
 			if err != nil {
 				currentLogger.Error("Failed to persist feedback message to SQLite", "error", err)
 			}
 			if sessionID == "default" {
-				historyManager.Add(openai.ChatMessageRoleUser, feedbackMsg, id, false, false)
+				historyManager.Add(openai.ChatMessageRoleUser, feedbackMsg, id, false, true)
 			}
 
 			req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: content})
@@ -1250,12 +1250,12 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				"ERROR: Your last native function call for %q had invalid function arguments JSON and was discarded. Emit the function call again with valid JSON arguments only. Do not include source code, XML/HTML, or prose inside the function name or outside the JSON arguments.",
 				recoveryTool,
 			)
-			id, err := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, feedbackMsg, false, false)
+			id, err := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, feedbackMsg, false, true)
 			if err != nil {
 				currentLogger.Error("Failed to persist invalid-native-tool feedback message", "error", err)
 			}
 			if sessionID == "default" {
-				historyManager.Add(openai.ChatMessageRoleUser, feedbackMsg, id, false, false)
+				historyManager.Add(openai.ChatMessageRoleUser, feedbackMsg, id, false, true)
 			}
 			req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: feedbackMsg})
 			lastResponseWasTool = false
@@ -1278,12 +1278,12 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 
 			feedbackMsg := "ERROR: You announced what you were going to do but did not output a tool call. When executing a task, your ENTIRE response must be ONLY the raw JSON tool call — no explanation before it. Output the JSON tool call NOW."
-			id, err = shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, feedbackMsg, false, false)
+			id, err = shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, feedbackMsg, false, true)
 			if err != nil {
 				currentLogger.Error("Failed to persist feedback message to SQLite", "error", err)
 			}
 			if sessionID == "default" {
-				historyManager.Add(openai.ChatMessageRoleUser, feedbackMsg, id, false, false)
+				historyManager.Add(openai.ChatMessageRoleUser, feedbackMsg, id, false, true)
 			}
 
 			req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: content})
@@ -1308,12 +1308,12 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 
 			feedbackMsg := "ERROR: Your response contained explanation text and/or markdown fences (```json). Tool calls MUST be a raw JSON object ONLY - no explanation before or after, no markdown, no fences. Output ONLY the JSON object, starting with { and ending with }. Example: {\"action\": \"co_agent\", \"operation\": \"spawn\", \"task\": \"...\"}"
-			id, err = shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, feedbackMsg, false, false)
+			id, err = shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, feedbackMsg, false, true)
 			if err != nil {
 				currentLogger.Error("Failed to persist feedback message to SQLite", "error", err)
 			}
 			if sessionID == "default" {
-				historyManager.Add(openai.ChatMessageRoleUser, feedbackMsg, id, false, false)
+				historyManager.Add(openai.ChatMessageRoleUser, feedbackMsg, id, false, true)
 			}
 
 			req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: content})
@@ -1349,13 +1349,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				}
 			}
 
-			// Decide if this message should be hidden from the UI history endpoint.
-			// Hide it if it's purely a synthetic JSON string (e.g. no text, only tool call),
-			// but show it if the LLM provided conversational text.
+			// Tool-call turn messages are operational scaffolding, not user-facing chat history.
+			// They are shown live via SSE/debug UI and should not reappear as normal chat bubbles
+			// after a reload, even when the model added prose before the tool call.
 			isMsgInternal := true
-			if strings.TrimSpace(histContent) != "" && !strings.HasPrefix(strings.TrimSpace(histContent), "{") {
-				isMsgInternal = false
-			}
 
 			if useNativePath && histContent == "" && len(nativeAssistantMsg.ToolCalls) > 0 {
 				nc := nativeAssistantMsg.ToolCalls[0]

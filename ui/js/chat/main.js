@@ -333,6 +333,10 @@ async function initPage() {
             if (history && history.length > 0) {
                 chatContent.innerHTML = '';
                 history.forEach(msg => {
+                    if (!debugMode && isDebugOnlyHistoryMessage(msg)) {
+                        conversation.push(msg);
+                        return;
+                    }
                     if (msg.role === 'user' || msg.role === 'assistant') {
                         // Skip tool output user messages — they are internal context,
                         // not conversational. Still push to conversation array for LLM context.
@@ -610,6 +614,38 @@ function appendMessage(role, text) {
 }
 
 /* ── Helpers ── */
+function isDebugOnlyHistoryMessage(msg) {
+    if (!msg || typeof msg.content !== 'string') return false;
+    const text = msg.content.trim();
+    if (!text) return false;
+
+    if (msg.role === 'user') {
+        if (/^ERROR:\s+/i.test(text)) return true;
+        if (/invalid function arguments json|raw JSON object ONLY|markdown fences|tool call/i.test(text)) return true;
+        return false;
+    }
+
+    if (msg.role !== 'assistant' && msg.role !== 'system') return false;
+    if (text === '[TOOL_CALL]') return true;
+    if (/<tool_call>/i.test(text)) return true;
+    if (/^\{[\s\S]*"(action|tool_call|tool_name)"\s*:/i.test(text)) return true;
+    if (/^(Tool Output:|\[Tool Output\])/i.test(text)) return true;
+
+    // Legacy leaked orchestration/progress messages from pre-tool assistant turns.
+    // Keep this conservative and only hide short operational updates, not normal answers.
+    const lower = text.toLowerCase();
+    const operationalHints = [
+        'container', 'build', 'deploy', 'install', 'npm ', 'docker', 'script ',
+        'command', 'logs', 'warte', 'wait', 'läuft', 'running', 'fertig',
+        'copied', 'kopiert', 'ansatz', 'approach'
+    ];
+    if (text.length <= 240 && /[:：]\s*$/.test(text) && operationalHints.some(h => lower.includes(h))) {
+        return true;
+    }
+
+    return false;
+}
+
 function escapeHtml(str) {
     return String(str)
         .replace(/&/g, '&amp;')

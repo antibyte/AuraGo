@@ -65,6 +65,10 @@ AuraGo is a fully autonomous AI agent shipped as a single portable binary with a
 18. [Appendix](18-appendix.md) – Reference material
 19. [Skills](19-skills.md) – Creating custom Python skills
 
+### Part 5: Reference
+20. [Chat Commands](20-chat-commands.md) – All available chat commands
+21. [API Reference](21-api-reference.md) – Complete REST API documentation
+
 ---
 
 ## Important Notes

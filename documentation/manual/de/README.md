@@ -65,6 +65,10 @@ AuraGo ist ein vollständig autonomer KI-Agent, der als einzelne portable Binary
 18. [Anhang](18-anhang.md) – Referenzmaterial
 19. [Skills](19-skills.md) – Eigene Python-Skills erstellen
 
+### Teil 5: Referenz
+20. [Chat-Commands](20-chat-commands.md) – Alle verfügbaren Chat-Befehle
+21. [API Referenz](21-api-reference.md) – Vollständige REST API Dokumentation
+
 ---
 
 ## Wichtige Hinweise
