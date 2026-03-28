@@ -71,6 +71,37 @@ Actual draft:
 	}
 }
 
+func TestGeneratedSkillNeedsRepairForSubprocessDraft(t *testing.T) {
+	t.Parallel()
+
+	draft := &generatedSkillDraft{
+		Name: "dns_test",
+		Code: "import sys,json,subprocess\nsubprocess.run(['ping','-c','4','8.8.8.8'])\njson.dump({}, sys.stdout)",
+	}
+
+	needsRepair, reason := generatedSkillNeedsRepair(draft)
+	if !needsRepair {
+		t.Fatal("expected subprocess draft to require repair")
+	}
+	if reason == "" {
+		t.Fatal("expected non-empty repair reason")
+	}
+}
+
+func TestGeneratedSkillNeedsRepairAllowsSafeDraft(t *testing.T) {
+	t.Parallel()
+
+	draft := &generatedSkillDraft{
+		Name: "dns_test",
+		Code: "import sys, json, socket\nargs = json.load(sys.stdin)\nhost = args.get('host', 'example.com')\njson.dump({'host': host, 'ip': socket.gethostbyname(host)}, sys.stdout)",
+	}
+
+	needsRepair, reason := generatedSkillNeedsRepair(draft)
+	if needsRepair {
+		t.Fatalf("expected safe draft to pass, got reason %q", reason)
+	}
+}
+
 func TestDecodeSkillDraftAcceptsNestedDraftObject(t *testing.T) {
 	t.Parallel()
 

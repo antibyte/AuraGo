@@ -918,7 +918,9 @@ func handleGenerateSkillDraft(s *Server) http.HandlerFunc {
 		}
 		systemPrompt := "You generate AuraGo Python skills. Return JSON only, no markdown fences. " +
 			"Schema: {\"name\":\"...\",\"description\":\"...\",\"category\":\"...\",\"tags\":[...],\"dependencies\":[...],\"code\":\"...\"}. " +
-			"Code rules: read JSON from stdin, write JSON to stdout, do not use destructive operations, keep code compact and production-ready."
+			"Code rules: read JSON from stdin, write exactly one JSON object to stdout, do not use destructive operations, keep code compact and production-ready. " +
+			"The skill runs inside AuraGo's execute_skill Python sandbox. Never use subprocess, os.system, os.popen, shell commands, ping, curl, nmap, sudo, or external CLIs. " +
+			"Prefer Python stdlib or direct libraries/APIs instead of shelling out. Handle errors inside the JSON response instead of crashing."
 		userPrompt := strings.TrimSpace(strings.Join([]string{
 			req.Prompt,
 			userNameHint,
@@ -952,6 +954,12 @@ func handleGenerateSkillDraft(s *Server) http.HandlerFunc {
 			s.Logger.Warn("[Skills] Failed to decode generated skill draft", "error", err)
 			jsonError(w, "Failed to parse generated skill draft: "+err.Error(), http.StatusBadGateway)
 			return
+		}
+		if repaired, repairApplied, repairReason, repairErr := maybeRepairGeneratedSkillDraft(ctx, s, llmReq.Model, draft); repairErr != nil {
+			s.Logger.Warn("[Skills] Failed to repair generated skill draft", "error", repairErr)
+		} else if repairApplied {
+			draft = repaired
+			s.Logger.Info("[Skills] Repaired generated skill draft", "name", draft.Name, "reason", repairReason)
 		}
 		if req.SkillName != "" {
 			draft.Name = req.SkillName
@@ -1315,6 +1323,97 @@ func normalizeStringList(items []string) []string {
 		return nil
 	}
 	return out
+}
+
+func maybeRepairGeneratedSkillDraft(ctx context.Context, s *Server, model string, draft *generatedSkillDraft) (*generatedSkillDraft, bool, string, error) {
+	if draft == nil || s == nil || s.LLMClient == nil {
+		return draft, false, "", nil
+	}
+	needsRepair, reason := generatedSkillNeedsRepair(draft)
+	if !needsRepair {
+		return draft, false, "", nil
+	}
+
+	repairPrompt := "You are repairing an AuraGo Python skill draft so it works inside AuraGo's execute_skill sandbox. " +
+		"Return JSON only, no markdown fences. Use the same schema: " +
+		"{\"name\":\"...\",\"description\":\"...\",\"category\":\"...\",\"tags\":[...],\"dependencies\":[...],\"code\":\"...\"}. " +
+		"Keep the functionality, but remove sandbox-incompatible behavior. " +
+		"Never use subprocess, os.system, os.popen, shell commands, ping, curl, nmap, sudo, or external CLIs. " +
+		"Use Python stdlib or direct libraries/APIs, read JSON from stdin, and write exactly one JSON object to stdout."
+	rawDraft, err := json.Marshal(draft)
+	if err != nil {
+		return draft, false, reason, fmt.Errorf("marshal draft for repair: %w", err)
+	}
+	req := openai.ChatCompletionRequest{
+		Model: model,
+		Messages: []openai.ChatCompletionMessage{
+			{Role: openai.ChatMessageRoleSystem, Content: repairPrompt},
+			{
+				Role: openai.ChatMessageRoleUser,
+				Content: "Repair this generated skill draft. " +
+					"Problem: " + reason + "\n\nDraft JSON:\n" + string(rawDraft),
+			},
+		},
+		Temperature: 0.1,
+	}
+	resp, err := llm.ExecuteWithRetry(ctx, s.LLMClient, req, s.Logger, nil)
+	if err != nil {
+		return draft, false, reason, fmt.Errorf("repair LLM call failed: %w", err)
+	}
+	if len(resp.Choices) == 0 {
+		return draft, false, reason, fmt.Errorf("repair LLM returned no response")
+	}
+	repaired, err := decodeSkillDraft(resp.Choices[0].Message.Content)
+	if err != nil {
+		return draft, false, reason, fmt.Errorf("repair draft parse failed: %w", err)
+	}
+	return repaired, true, reason, nil
+}
+
+func generatedSkillNeedsRepair(draft *generatedSkillDraft) (bool, string) {
+	if draft == nil {
+		return false, ""
+	}
+	code := strings.TrimSpace(draft.Code)
+	if code == "" {
+		return true, "generated draft has no code"
+	}
+
+	validation := tools.ValidateSkillUpload([]byte(code), safeSkillFilename(draft.Name), 1)
+	if validation != nil {
+		var reasons []string
+		for _, finding := range validation.Findings {
+			category := strings.ToLower(strings.TrimSpace(finding.Category))
+			pattern := strings.ToLower(strings.TrimSpace(finding.Pattern))
+			message := strings.TrimSpace(finding.Message)
+			if category == "exec" || pattern == "import_subprocess" || strings.Contains(strings.ToLower(message), "shell command") || strings.Contains(strings.ToLower(message), "subprocess") {
+				reasons = append(reasons, message)
+			}
+		}
+		if len(reasons) > 0 {
+			return true, strings.Join(normalizeStringList(reasons), "; ")
+		}
+	}
+
+	lower := strings.ToLower(code)
+	if strings.Contains(lower, "subprocess.") || strings.Contains(lower, "import subprocess") {
+		return true, "generated draft uses subprocess which is unreliable inside the execute_skill sandbox"
+	}
+	if strings.Contains(lower, "os.system(") || strings.Contains(lower, "os.popen(") {
+		return true, "generated draft shells out to the operating system instead of using Python APIs"
+	}
+	if strings.Contains(lower, "'ping'") || strings.Contains(lower, "\"ping\"") {
+		return true, "generated draft depends on the external ping command instead of direct Python networking"
+	}
+	return false, ""
+}
+
+func safeSkillFilename(name string) string {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		name = "generated_skill"
+	}
+	return name + ".py"
 }
 
 func extractJSONObject(raw string) (string, error) {
