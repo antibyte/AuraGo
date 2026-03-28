@@ -2,8 +2,9 @@
 
 Welcome to the AuraGo User Manual – your comprehensive guide to the personal AI agent.
 
-> 📅 **Updated:** March 2026  
-> 🔄 **Version:** 2.x compatible
+> 📅 **Updated:** March 28, 2026  
+> 🔄 **Version:** 2.x compatible  
+> 📝 **Last Update:** Complete revision with 15+ new integrations and features
 
 ---
 
@@ -20,6 +21,11 @@ AuraGo is a fully autonomous AI agent shipped as a single portable binary with a
 | **⚡ Adaptive Tools** | Intelligent tool filtering saves tokens |
 | **📄 Document AI** | PDF creation and analysis |
 | **🔐 AES-256 Vault** | Secure storage of all secrets |
+| **🌐 50+ Integrations** | From S3 to OneDrive to TrueNAS |
+| **☁️ Cloudflare Tunnel** | Secure remote access without public IP |
+| **🗄️ SQL Connections** | Direct database queries (PostgreSQL, MySQL) |
+| **📱 Chromecast** | Send TTS and media to Cast devices |
+| **🔍 Network Tools** | Ping, port scan, mDNS/UPnP discovery |
 
 ---
 
@@ -98,8 +104,11 @@ The configuration now uses a central provider system for LLM connections. See [C
 /debug on/off  - Toggle debug mode
 /budget        - Show cost overview
 /personality   - Switch personality
-/sudo          - Activate sudo mode
+/sudo          - Activate sudo mode (requires sudo_enabled)
+/sudopwd       - Store sudo password in vault
 /journal       - Open journal
+/addssh        - Register SSH server
+/credits       - Show OpenRouter credits
 ```
 
 ### All Agent Tools
@@ -121,6 +130,11 @@ A complete overview of all 100+ internal tools can be found in the [Internal Too
 | 2026-03 | Revision for version 2.x (Provider system, tool documentation, LLM Guardian) |
 | 2026-03 | Added Adaptive Tools documentation |
 | 2026-03 | Added Document Creator & PDF Extractor |
+| 2026-03 | **Documented SQL Connections, OneDrive, S3, Homepage integrations** |
+| 2026-03 | **Added Cloudflare Tunnel, AI Gateway, Chromecast** |
+| 2026-03 | **Documented Network Tools, Web Capture, Form Automation** |
+| 2026-03 | **Added Skill Manager, Media Registry, Egg Mode** |
+| 2026-03 | **Added Chat Commands /sudo and /journal** |
 
 ---
 

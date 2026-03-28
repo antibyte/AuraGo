@@ -274,5 +274,7 @@
   "config.section.sql_connections.label": "SQL připojení",
   "config.section.sql_connections.desc": "Spravovat externí databázová připojení pro agenta",
   "config.section.skill_manager.label": "Správce dovedností",
-  "config.section.skill_manager.desc": "Správa, nahrávání a konfigurace Python dovedností"
+  "config.section.skill_manager.desc": "Správa, nahrávání a konfigurace Python dovedností",
+  "config.section.jellyfin.label": "Jellyfin",
+  "config.section.jellyfin.desc": "Integrace mediálního serveru Jellyfin (knihovny, přehrávání, relace)"
 }

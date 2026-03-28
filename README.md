@@ -112,6 +112,9 @@ AuraGo includes **50+ built-in tools** across these categories:
 - **TrueNAS** — ZFS pools, datasets, snapshots, SMB/NFS shares
 - **Wake-on-LAN** — Power on network devices remotely
 - **Firewall Monitor** — Linux ufw/iptables monitoring with change alerts
+- **AdGuard Home** — DNS filtering and blocking management
+- **Fritz!Box** — Router control via TR-064 (devices, bandwidth, reconnect)
+- **MeshCentral** — Remote desktop and device management
 </details>
 
 <details>
@@ -125,12 +128,16 @@ AuraGo includes **50+ built-in tools** across these categories:
 </details>
 
 <details>
-<summary><b>☁️ Cloud & APIs</b> — Google, GitHub, Webhooks, Storage</summary>
+<summary><b>☁️ Cloud & APIs</b> — Google, GitHub, S3, OneDrive, Webhooks</summary>
 
 - **Google Workspace** — Gmail, Calendar, Drive, Docs (OAuth2)
 - **GitHub** — Repositories, issues, PRs, projects
+- **S3** — Amazon S3, MinIO, Wasabi, DigitalOcean Spaces (read-only option)
+- **OneDrive** — Microsoft OneDrive via Microsoft Graph API
 - **Netlify** — Static site deployment
+- **Homepage** — Personal dashboard/startpage creation and deployment
 - **WebDAV/Koofr** — Nextcloud, ownCloud, Synology integration
+- **Cloudflare Tunnel** — Secure remote access without public IP
 - **Outgoing Webhooks** — HTTP calls to any API
 - **Incoming Webhooks** — GitHub, Alertmanager, Home Assistant events
 </details>
@@ -143,20 +150,26 @@ AuraGo includes **50+ built-in tools** across these categories:
 - **Rocket.Chat** — Self-hosted chat integration
 - **Email** — IMAP monitoring + SMTP sending (multiple accounts)
 - **Telnyx** — SMS/voice calls, voicemail, IVR system
-- **n8n** — Bidirectional workflow automation
+- **n8n** — Bidirectional workflow automation (official community node)
+- **Notifications** — Push notifications via ntfy and Pushover
 </details>
 
 <details>
-<summary><b>🔧 Development & Media</b> — Git, Search, Vision, TTS</summary>
+<summary><b>🔧 Development & Media</b> — Git, Search, Vision, TTS, Network</summary>
 
 - **Git** — Repository operations
 - **Web Search** — DuckDuckGo (no API key) or Brave Search
+- **VirusTotal** — Malware scanning for URLs and files
 - **Vision** — Image analysis via vision-capable LLMs
-- **TTS** — Google or ElevenLabs text-to-speech
+- **TTS** — Google, ElevenLabs, or Piper (local) text-to-speech
 - **Transcription** — Whisper (OpenAI or local)
 - **PDF Extractor** — Text extraction with LLM summarization
 - **Document Creator** — PDF generation (maroto or Gotenberg)
 - **Image Generation** — Multi-provider support (OpenAI, Stability, etc.)
+- **Chromecast** — Cast TTS and media to devices
+- **Network Tools** — Ping, port scan, mDNS/UPnP discovery
+- **Web Capture** — Screenshots and PDF from web pages
+- **SQL Connections** — Query PostgreSQL, MySQL, MariaDB, SQLite
 </details>
 
 ---

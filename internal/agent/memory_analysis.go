@@ -56,6 +56,27 @@ User message:
 Assistant response:
 %s`
 
+// stripToolCallBlocks removes [TOOL_CALL]...[/TOOL_CALL] blocks and JSON tool call
+// objects from a string so small LLMs don't confuse them with actionable instructions.
+func stripToolCallBlocks(s string) string {
+	lower := strings.ToLower(s)
+	for {
+		start := strings.Index(lower, "[tool_call]")
+		if start == -1 {
+			break
+		}
+		end := strings.Index(lower[start:], "[/tool_call]")
+		if end == -1 {
+			// no closing tag — strip from start to end of string
+			s = strings.TrimSpace(s[:start])
+			break
+		}
+		s = s[:start] + s[start+end+12:]
+		lower = strings.ToLower(s)
+	}
+	return strings.TrimSpace(s)
+}
+
 // runMemoryAnalysis performs async post-response memory extraction using the configured analysis provider.
 func runMemoryAnalysis(
 	ctx context.Context,
@@ -87,7 +108,9 @@ func runMemoryAnalysis(
 	if len(truncUser) > 2000 {
 		truncUser = truncUser[:2000] + "..."
 	}
-	truncResp := assistantResp
+	// Strip tool call blocks before sending to the memory analysis LLM — they confuse
+	// small models into outputting tool calls instead of the expected facts JSON.
+	truncResp := stripToolCallBlocks(assistantResp)
 	if len(truncResp) > 2000 {
 		truncResp = truncResp[:2000] + "..."
 	}

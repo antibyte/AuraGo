@@ -274,5 +274,7 @@
   "config.section.sql_connections.label": "Συνδέσεις SQL",
   "config.section.sql_connections.desc": "Διαχείριση εξωτερικών συνδέσεων βάσεων δεδομένων για τον agent",
   "config.section.skill_manager.label": "Διαχειριστής Δεξιοτήτων",
-  "config.section.skill_manager.desc": "Διαχείριση, μεταφόρτωση και ρύθμιση δεξιοτήτων Python"
+  "config.section.skill_manager.desc": "Διαχείριση, μεταφόρτωση και ρύθμιση δεξιοτήτων Python",
+  "config.section.jellyfin.label": "Jellyfin",
+  "config.section.jellyfin.desc": "Ενσωμάτωση διακομιστή μέσων Jellyfin (βιβλιοθήκες, αναπαραγωγή, συνεδρίες)"
 }

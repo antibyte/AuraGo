@@ -9,14 +9,17 @@ AuraGo verfügt über **50+ eingebaute Werkzeuge**, die ihn von einem einfachen 
 | Kategorie | Tools | Danger Zone |
 |-----------|-------|-------------|
 | **🗂️ Dateisystem** | Dateien lesen, schreiben, löschen | Ja |
-| **🌐 Web & APIs** | Suche, HTTP, Scraping | Nein (teilweise) |
+| **🌐 Web & APIs** | Suche, HTTP, Scraping, Screenshots | Nein (teilweise) |
 | **🐳 Docker** | Container, Images, Netzwerke | Ja |
 | **🖥️ Proxmox** | VMs, LXCs, Snapshots | Ja |
 | **🏠 Smart Home** | Home Assistant, MQTT, Wake-on-LAN | Ja |
-| **☁️ Cloud** | Google Workspace, WebDAV, GitHub | Nein (teilweise) |
-| **📧 Kommunikation** | E-Mail, Telegram, Discord | Nein |
-| **🔧 System** | Metriken, Prozesse, Cron | Teilweise |
+| **☁️ Cloud** | Google Workspace, WebDAV, GitHub, S3, OneDrive | Nein (teilweise) |
+| **📧 Kommunikation** | E-Mail, Telegram, Discord, Telnyx | Nein |
+| **🔧 System** | Metriken, Prozesse, Cron, Netzwerk-Tools | Teilweise |
 | **🧠 Memory** | Gedächtnis, Notizen, Knowledge Graph | Nein |
+| **🌐 Netzwerk** | Ping, Port-Scan, mDNS, UPnP | Nein |
+| **🖥️ Remote** | SSH, Invasion Control, MeshCentral | Ja |
+| **📝 Dokumente** | PDF Creator/Extractor, Paperless NGX | Nein |
 
 ---
 
@@ -229,6 +232,79 @@ Agent: 🔍 Suche läuft...
        1. Go Code Review Comments
        2. Effective Go
        ...
+```
+
+---
+
+## Netzwerk-Tools
+
+Diagnose-Tools für Netzwerk-Scanning und -Überwachung.
+
+### Konfiguration
+
+```yaml
+tools:
+  network_ping:
+    enabled: true                 # ICMP Ping und Port-Scanner
+  network_scan:
+    enabled: true                 # mDNS/Bonjour Discovery
+  upnp_scan:
+    enabled: true                 # UPnP/SSDP Geräte-Discovery
+```
+
+### Verfügbare Tools
+
+| Tool | Beschreibung |
+|------|--------------|
+| `network_ping` | ICMP Ping zu einem Host |
+| `port_scanner` | TCP-Port-Scan auf einem Host |
+| `mdns_scan` | mDNS/Bonjour Geräte im LAN finden |
+| `upnp_scan` | UPnP/SSDP Geräte im LAN finden |
+
+### Beispiele im Chat
+
+```
+Ping google.com
+Scanne die Ports auf 192.168.1.1
+Finde alle Geräte im lokalen Netzwerk
+Welche UPnP-Geräte sind verfügbar?
+```
+
+---
+
+## Web Capture & Form Automation
+
+Screenshots, PDF-Generierung und Browser-Automatisierung.
+
+### Konfiguration
+
+```yaml
+tools:
+  web_capture:
+    enabled: true                 # Screenshots und PDF von Webseiten
+  form_automation:
+    enabled: false                # Formular-Automatisierung (erfordert web_capture)
+```
+
+### Verfügbare Tools
+
+| Tool | Beschreibung |
+|------|--------------|
+| `capture_webpage` | Screenshot einer Webseite erstellen |
+| `webpage_to_pdf` | Webseite als PDF speichern |
+| `fill_form` | Formular automatisch ausfüllen und absenden |
+
+### Anforderungen
+
+- Headless Chromium (wird bei Bedarf automatisch gestartet)
+- Mehr RAM für große Seiten
+
+### Beispiele im Chat
+
+```
+Erstelle einen Screenshot von google.com
+Speichere die Dokumentation als PDF
+Fülle das Kontaktformular auf example.com aus
 ```
 
 ---

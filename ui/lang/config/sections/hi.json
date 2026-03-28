@@ -274,5 +274,7 @@
   "config.section.sql_connections.label": "SQL कनेक्शन",
   "config.section.sql_connections.desc": "एजेंट के लिए बाहरी डेटाबेस कनेक्शन प्रबंधित करें",
   "config.section.skill_manager.label": "कौशल प्रबंधक",
-  "config.section.skill_manager.desc": "Python कौशल प्रबंधित, अपलोड और कॉन्फ़िगर करें"
+  "config.section.skill_manager.desc": "Python कौशल प्रबंधित, अपलोड और कॉन्फ़िगर करें",
+  "config.section.jellyfin.label": "Jellyfin",
+  "config.section.jellyfin.desc": "Jellyfin मीडिया सर्वर एकीकरण (लाइब्रेरी, प्लेबैक, सत्र)"
 }

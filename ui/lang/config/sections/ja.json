@@ -274,5 +274,7 @@
   "config.section.sql_connections.label": "SQL接続",
   "config.section.sql_connections.desc": "エージェント用の外部データベース接続を管理",
   "config.section.skill_manager.label": "スキルマネージャー",
-  "config.section.skill_manager.desc": "Pythonスキルの管理、アップロード、設定"
+  "config.section.skill_manager.desc": "Pythonスキルの管理、アップロード、設定",
+  "config.section.jellyfin.label": "Jellyfin",
+  "config.section.jellyfin.desc": "Jellyfinメディアサーバー統合（ライブラリ、再生、セッション）"
 }

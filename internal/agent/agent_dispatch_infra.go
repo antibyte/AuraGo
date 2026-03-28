@@ -1249,6 +1249,28 @@ func dispatchInfra(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 		logger.Info("LLM requested TrueNAS operation", "action", tc.Action)
 		return "Tool Output: " + tools.DispatchTrueNASTool(tc.Action, toolCallParams(tc), cfg, nil, logger)
 
+	// ── Jellyfin Media Server ──
+	case "jellyfin":
+		if !cfg.Jellyfin.Enabled {
+			return `Tool Output: {"status":"error","message":"Jellyfin integration is not enabled. Set jellyfin.enabled=true in config.yaml."}`
+		}
+		// Read-only check for mutating operations
+		if cfg.Jellyfin.ReadOnly {
+			switch tc.Operation {
+			case "playback_control", "library_refresh":
+				return `Tool Output: {"status":"error","message":"Jellyfin is in read-only mode. Disable jellyfin.read_only to allow changes."}`
+			}
+		}
+		// Destructive operation check
+		if !cfg.Jellyfin.AllowDestructive {
+			switch tc.Operation {
+			case "delete_item":
+				return `Tool Output: {"status":"error","message":"Destructive Jellyfin operations are disabled. Set jellyfin.allow_destructive=true in config.yaml."}`
+			}
+		}
+		logger.Info("LLM requested Jellyfin operation", "operation", tc.Operation)
+		return "Tool Output: " + tools.DispatchJellyfinTool(tc.Operation, toolCallParams(tc), cfg, logger)
+
 	default:
 		return dispatchNotHandled
 	}

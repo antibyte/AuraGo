@@ -258,12 +258,75 @@ tools:
   memory_maintenance:
     enabled: true
   wol:
-    enabled: false
+    enabled: true                 # Wake-on-LAN
+  web_capture:
+    enabled: true                 # Screenshots/PDF via Chromium
+  network_ping:
+    enabled: true                 # ICMP Ping
+  network_scan:
+    enabled: true                 # mDNS Discovery
+  upnp_scan:
+    enabled: true                 # UPnP Discovery
+  form_automation:
+    enabled: false                # Browser-Formular-Automatisierung
+  contacts:
+    enabled: true                 # Adressbuch/Kontakte
   web_scraper:
     enabled: true
     summary_mode: false
     summary_provider: ""
+  pdf_extractor:
+    enabled: true
+    summary_mode: false
+    summary_provider: ""
+  document_creator:
+    enabled: false                # PDF-Dokumenterstellung
+    backend: maroto               # "maroto" oder "gotenberg"
+    output_dir: data/documents
+  python_secret_injection:
+    enabled: false                # Vault-Secrets an Python-Tools übergeben
 ```
+
+---
+
+## Skill Manager
+
+Web-UI zur Verwaltung von Python-Skills mit Sicherheits-Scan.
+
+```yaml
+tools:
+  skill_manager:
+    enabled: true                 # Skill Manager Web-UI aktivieren
+    allow_uploads: true           # Upload neuer Skills erlauben
+    readonly: false               # Nur-Lesen Modus
+    require_scan: true            # Sicherheits-Scan vor Aktivierung
+    max_upload_size_mb: 1         # Maximale Upload-Größe
+    auto_enable_clean: false      # Saubere Skills automatisch aktivieren
+    scan_with_guardian: false     # LLM Guardian für Code-Review nutzen
+```
+
+### Sicherheit
+
+- Alle hochgeladenen Skills werden auf verdächtige Muster gescannt
+- `python_secret_injection` muss aktiviert sein, damit Skills Vault-Secrets nutzen können
+- Der Guardian kann optional Code-Reviews durchführen
+
+---
+
+## Media Registry
+
+Zentrale Medienverwaltung mit Metadaten-Tracking.
+
+```yaml
+media_registry:
+  enabled: true                   # Medienverwaltung aktivieren
+```
+
+Funktionen:
+- Bilder, Videos und Audio katalogisieren
+- EXIF-Metadaten extrahieren
+- Duplikat-Erkennung
+- Integration mit Paperless NGX
 
 ---
 
@@ -380,6 +443,47 @@ circuit_breaker:
     - "2m"
     - "10m"
 ```
+
+---
+
+## Background Tasks
+
+Hintergrund-Verarbeitung für Follow-ups, Cron-Jobs und Wait-Events.
+
+```yaml
+agent:
+  background_tasks:
+    enabled: true
+    follow_up_delay_seconds: 2
+    http_timeout_seconds: 120
+    max_retries: 2
+    retry_delay_seconds: 60
+    wait_poll_interval_seconds: 5
+    wait_default_timeout_secs: 600
+```
+
+### Anwendungsfälle
+
+- **Follow-ups**: "Erinnere mich morgen daran..."
+- **Cron-Jobs**: Regelmäßige Aufgaben planen
+- **Wait-Events**: Auf externe Ereignisse warten
+
+---
+
+## Egg Mode (Invasion Control Distributed)
+
+Für fortgeschrittene verteilte Agenten-Orchestrierung über mehrere Hosts.
+
+```yaml
+egg_mode:
+  enabled: false
+  master_url: ""                  # URL des Master-Nodes
+  shared_key: ""                  # Shared Secret für Authentifizierung
+  egg_id: ""                      # Eindeutige Egg-ID
+  nest_id: ""                     # Nest/Cluster ID
+```
+
+> ⚠️ **Fortgeschritten**: Egg Mode ist Teil des Invasion Control Systems für verteilte Bereitstellungen. Siehe [Kapitel 12: Invasion Control](./12-invasion.md)
 
 ---
 
@@ -546,12 +650,15 @@ Für eine vollständige Abdeckung von `config_template.yaml` sollten zusätzlich
 | `maintenance`, `indexing` | autonome Wartung und Wissensindexierung | [Kapitel 9: Memory](09-memory.md), [Kapitel 13: Dashboard](13-dashboard.md) |
 | `llm_guardian` | Sicherheitsprüfung für Tool- und Dokument-Workflows | [Kapitel 14: Sicherheit](14-sicherheit.md), [Kapitel 13: Dashboard](13-dashboard.md) |
 | `mcp_server`, `ai_gateway` | MCP-Interoperabilität und Gateway-Routing | [Kapitel 8: Integrationen](08-integrations.md) |
-| `sandbox`, `whisper`, `tts`, `image_generation` | isolierte Ausführung und Media-Pipelines | [Kapitel 6: Werkzeuge](06-tools.md), [Kapitel 8: Integrationen](08-integrations.md) |
+| `sandbox`, `whisper`, `tts`, `image_generation`, `chromecast` | isolierte Ausführung und Media-Pipelines | [Kapitel 6: Werkzeuge](06-tools.md), [Kapitel 8: Integrationen](08-integrations.md) |
 | `paperless_ngx`, `media_registry`, `homepage`, `netlify` | Dokument-, Medien- und Site-Workflows | [Kapitel 8: Integrationen](08-integrations.md) |
 | `cloudflare_tunnel`, `adguard`, `fritzbox`, `mqtt` | Netzwerk- und Edge-Integrationen | [Kapitel 8: Integrationen](08-integrations.md), [Kapitel 14: Sicherheit](14-sicherheit.md) |
 | `brave_search`, `virustotal` | Web-Recherche und Threat Intelligence | [Kapitel 6: Werkzeuge](06-tools.md), [Kapitel 14: Sicherheit](14-sicherheit.md) |
-| `s3`, `onedrive` | Cloud-/Objektspeicher | [Kapitel 8: Integrationen](08-integrations.md) |
+| `s3`, `onedrive`, `webdav`, `koofr` | Cloud-/Objektspeicher | [Kapitel 8: Integrationen](08-integrations.md) |
 | `telnyx`, `rocketchat` | Telefonie und Chat-Kanäle | [Kapitel 8: Integrationen](08-integrations.md) |
+| `sql_connections` | Externe Datenbank-Verbindungen | [Kapitel 8: Integrationen](08-integrations.md) |
+| `skill_manager` | Python-Skill Verwaltung | [Kapitel 19: Skills](19-skills.md) |
+| `notifications` | Push-Benachrichtigungen | [Kapitel 8: Integrationen](08-integrations.md) |
 
 > Empfehlung: `config_template.yaml` als maßgebliche Schlüssel-Referenz behandeln und dieses Kapitel bei neuen Blöcken mitpflegen.
 

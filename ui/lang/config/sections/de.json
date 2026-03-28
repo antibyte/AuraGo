@@ -277,5 +277,7 @@
   "config.section.sql_connections.label": "SQL-Verbindungen",
   "config.section.sql_connections.desc": "Externe Datenbankverbindungen für den Agenten verwalten",
   "config.section.skill_manager.label": "Fähigkeiten-Manager",
-  "config.section.skill_manager.desc": "Python-Fähigkeiten verwalten, hochladen und konfigurieren"
+  "config.section.skill_manager.desc": "Python-Fähigkeiten verwalten, hochladen und konfigurieren",
+  "config.section.jellyfin.label": "Jellyfin",
+  "config.section.jellyfin.desc": "Jellyfin Medienserver-Integration (Bibliotheken, Wiedergabe, Sitzungen)"
 }

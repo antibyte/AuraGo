@@ -1193,6 +1193,10 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		s.Logger.Info("TrueNAS API registered at /api/truenas/...")
 	}
 
+	// Jellyfin Media Server API
+	registerJellyfinHandlers(mux, s)
+	s.Logger.Info("Jellyfin API registered at /api/jellyfin/...")
+
 	// Invasion Control UI page (always registered — same pattern as /setup)
 	invasionTmpl, invasionErr := template.ParseFS(uiFS, "invasion_control.html")
 	if invasionErr != nil {

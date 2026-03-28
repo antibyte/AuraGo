@@ -274,5 +274,7 @@
   "config.section.sql_connections.label": "Połączenia SQL",
   "config.section.sql_connections.desc": "Zarządzaj zewnętrznymi połączeniami baz danych dla agenta",
   "config.section.skill_manager.label": "Menedżer Umiejętności",
-  "config.section.skill_manager.desc": "Zarządzaj, przesyłaj i konfiguruj umiejętności Python"
+  "config.section.skill_manager.desc": "Zarządzaj, przesyłaj i konfiguruj umiejętności Python",
+  "config.section.jellyfin.label": "Jellyfin",
+  "config.section.jellyfin.desc": "Integracja serwera multimediów Jellyfin (biblioteki, odtwarzanie, sesje)"
 }

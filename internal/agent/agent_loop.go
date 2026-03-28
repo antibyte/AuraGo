@@ -1277,7 +1277,12 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				historyManager.Add(openai.ChatMessageRoleAssistant, content, id, false, true)
 			}
 
-			feedbackMsg := "ERROR: You announced what you were going to do but did not output a tool call. When executing a task, your ENTIRE response must be ONLY the raw JSON tool call — no explanation before it. Output the JSON tool call NOW."
+			var feedbackMsg string
+			if useNativeFunctions {
+				feedbackMsg = "ERROR: You announced what you were going to do but did not call a tool. You MUST use the native function-calling mechanism to invoke a tool — do not include any text before or after the function call."
+			} else {
+				feedbackMsg = "ERROR: You announced what you were going to do but did not output a tool call. When executing a task, your ENTIRE response must be ONLY the raw JSON tool call — no explanation before it. Output the JSON tool call NOW."
+			}
 			id, err = shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, feedbackMsg, false, true)
 			if err != nil {
 				currentLogger.Error("Failed to persist feedback message to SQLite", "error", err)

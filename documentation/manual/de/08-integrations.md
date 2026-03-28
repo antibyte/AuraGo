@@ -18,14 +18,21 @@ AuraGo lässt sich nahtlos in verschiedene Dienste und Plattformen integrieren.
 | **Proxmox** | Infrastruktur | VM-Verwaltung | `proxmox:` |
 | **Webhooks** | API | Eingehende HTTP-Events | `webhooks:` |
 | **Budget Tracking** | Finanzen | Kostenkontrolle | `budget:` |
-| **Google Workspace** | Produktivität | Gmail, Kalender, Drive | `agent.enable_google_workspace` |
+| **Google Workspace** | Produktivität | Gmail, Kalender, Drive | `google_workspace:` |
 | **WebDAV/Koofr** | Speicher | Cloud-Dateizugriff | `webdav:`, `koofr:` |
+| **OneDrive** | Speicher | Microsoft OneDrive | `onedrive:` |
+| **S3** | Speicher | S3-kompatibler Storage | `s3:` |
 | **Tailscale** | Netzwerk | VPN-Status | `tailscale:` |
+| **Cloudflare Tunnel** | Netzwerk | Sicherer Remote-Zugriff | `cloudflare_tunnel:` |
 | **Brave Search** | Suche | Websuche API | `brave_search:` |
 | **GitHub** | Entwicklung | Repository-Verwaltung | `github:` |
 | **Ollama** | AI | Lokale Modelle | `ollama:` |
 | **MeshCentral** | Remote | Fernwartung | `meshcentral:` |
 | **Ansible** | Automation | Playbook-Ausführung | `ansible:` |
+| **Homepage** | Web | Persönliche Startseite | `homepage:` |
+| **Netlify** | Web | Static Site Deployment | `netlify:` |
+| **SQL Connections** | Datenbank | Externe DB-Verbindungen | `sql_connections:` |
+| **Chromecast** | Media | Casting zu Geräten | `chromecast:` |
 | **Notifications** | Alerts | Push-Benachrichtigungen | `notifications:` |
 
 ---
@@ -775,6 +782,270 @@ mcp_server:
 ```
 
 Verbindung von Claude Desktop, Cursor oder anderen MCP-Clients möglich.
+
+---
+
+## SQL Connections - Externe Datenbanken
+
+Verbinde AuraGo mit externen Datenbanken (PostgreSQL, MySQL/MariaDB, SQLite) für direkte SQL-Abfragen.
+
+### Konfiguration
+
+```yaml
+sql_connections:
+  enabled: true
+  max_pool_size: 5                # Maximale gleichzeitige Verbindungen pro DB
+  connection_timeout_sec: 30      # Verbindungs-Timeout
+  query_timeout_sec: 120          # Abfrage-Timeout
+  max_result_rows: 1000           # Maximale Zeilen pro Abfrage
+```
+
+### Verbindungen im Chat hinzufügen
+
+```
+Füge eine PostgreSQL-Verbindung hinzu:
+- Name: produktion
+- Host: db.example.com
+- Port: 5432
+- Datenbank: myapp
+- Benutzer: readonly_user
+```
+
+### Verfügbare Operationen
+
+| Operation | Beschreibung |
+|-----------|--------------|
+| SQL-Abfragen | SELECT, INSERT, UPDATE, DELETE |
+| Schema-Info | Tabellen und Spalten auflisten |
+| Verbindungstest | Konnektivität prüfen |
+
+### Sicherheitshinweise
+
+- Verwende dedizierte Read-Only Benutzer wenn möglich
+- SSL/TLS wird automatisch verwendet wenn verfügbar
+- Credentials werden im Vault gespeichert
+
+---
+
+## S3-kompatible Cloud Storage
+
+Zugriff auf S3, MinIO, Wasabi, DigitalOcean Spaces und andere S3-kompatible Speicher.
+
+### Konfiguration
+
+```yaml
+s3:
+  enabled: true
+  readonly: false                 # true = nur lesen
+  endpoint: "https://s3.amazonaws.com"  # oder MinIO: http://minio.local:9000
+  region: "us-east-1"
+  bucket: "my-bucket"             # Standard-Bucket (optional)
+  use_path_style: true            # Für MinIO erforderlich
+  insecure: false                 # HTTP erlauben (nicht empfohlen)
+  # Zugangsdaten werden im Vault gespeichert
+```
+
+### Vault-Keys
+
+- `s3_access_key` - Access Key ID
+- `s3_secret_key` - Secret Access Key
+
+### Verfügbare Operationen
+
+| Operation | Beschreibung |
+|-----------|--------------|
+| List Buckets | Alle Buckets anzeigen |
+| List Objects | Dateien in einem Bucket auflisten |
+| Upload | Dateien hochladen |
+| Download | Dateien herunterladen |
+| Delete | Dateien löschen |
+| Copy | Dateien zwischen Buckets kopieren |
+
+---
+
+## OneDrive Integration
+
+Zugriff auf Microsoft OneDrive über Microsoft Graph API.
+
+### Konfiguration
+
+```yaml
+onedrive:
+  enabled: true
+  readonly: false                 # true = nur lesen
+  client_id: ""                   # Azure App Registration Client ID
+  tenant_id: "common"             # "common", "consumers", "organizations" oder Tenant UUID
+```
+
+### Einrichtung
+
+1. **Azure App Registration erstellen:**
+   - [Azure Portal](https://portal.azure.com) → App Registrations → New
+   - Name: "AuraGo"
+   - Supported account types: Accounts in any organizational directory + personal
+   - Redirect URI: Web → `http://localhost:8088/api/onedrive/callback`
+
+2. **API Permissions hinzufügen:**
+   - Microsoft Graph → Delegated permissions
+   - `Files.Read.All` (oder `Files.ReadWrite.All` für Schreibzugriff)
+   - `User.Read`
+
+3. **Client ID kopieren** und in Config einfügen
+
+4. **OAuth über Web-UI durchführen**
+
+### Verfügbare Operationen
+
+| Operation | Beschreibung |
+|-----------|--------------|
+| Dateien auflisten | Ordnerinhalte anzeigen |
+| Dateien downloaden | Inhalt herunterladen |
+| Dateien hochladen | Neue Dateien speichern |
+| Dateien löschen | In den Papierkorb verschieben |
+
+---
+
+## Homepage Integration
+
+Erstelle und deploye persönliche Startseiten/Dashboards mit Homepage.
+
+### Konfiguration
+
+```yaml
+homepage:
+  enabled: true
+  allow_deploy: true              # Deployment erlauben
+  allow_container_management: true  # Docker-Container verwalten
+  allow_local_server: false       # Lokaler Python-Server (Security Risk!)
+  deploy_host: "server.example.com"
+  deploy_port: 22
+  deploy_user: "deploy"
+  deploy_path: "/var/www/homepage"
+  deploy_method: "sftp"           # "sftp" oder "scp"
+  webserver_enabled: false        # Eingebauter Webserver
+  webserver_port: 8080
+  webserver_domain: ""
+  webserver_internal_only: false
+  circuit_breaker_max_calls: 35   # Max Tool-Calls für komplexe Workflows
+  allow_temporary_token_budget_overflow: false  # Temporäres Budget-Overflow
+```
+
+### Verfügbare Operationen
+
+| Operation | Beschreibung |
+|-----------|--------------|
+| Seite erstellen | Neue Homepage generieren |
+| Seite deployen | Auf Server hochladen |
+| Container hinzufügen | Docker-Container zur Seite hinzufügen |
+| Service-Status | Live-Status von Services anzeigen |
+
+---
+
+## Cloudflare Tunnel
+
+Sicherer Tunnel für Remote-Zugriff ohne öffentliche IP oder Port-Forwarding.
+
+### Konfiguration
+
+```yaml
+cloudflare_tunnel:
+  enabled: true
+  readonly: false
+  mode: auto                      # "auto", "docker", "native"
+  auto_start: true                # Automatisch beim Start aktivieren
+  auth_method: token              # "token", "named", "quick"
+  tunnel_name: ""                 # Named tunnel: Name aus CF Dashboard
+  account_id: ""                  # Named tunnel: Cloudflare Account ID
+  expose_web_ui: true             # AuraGo Web-UI durch Tunnel erreichbar
+  expose_homepage: true           # Homepage durch Tunnel erreichbar
+  custom_ingress: []              # Zusätzliche Ingress-Regeln
+  metrics_port: 0                 # Metrics-Endpoint (0 = deaktiviert)
+  log_level: info                 # "debug", "info", "warn", "error"
+```
+
+### Auth-Methoden
+
+| Methode | Beschreibung |
+|---------|--------------|
+| `token` | Connector Token (empfohlen für einfachen Einsatz) |
+| `named` | Benannter Tunnel mit credentials.json |
+| `quick` | Temporärer Tunnel ohne Account |
+
+### Connector Token erhalten
+
+1. [Cloudflare Zero Trust](https://one.dash.cloudflare.com) → Networks → Tunnels
+2. "Create a tunnel" → Cloudflared
+3. Name vergeben → Connector auswählen
+4. Token wird angezeigt (im Vault speichern unter `cloudflare_tunnel_token`)
+
+---
+
+## Cloudflare AI Gateway
+
+Routing und Monitoring für LLM-Traffic über Cloudflare AI Gateway.
+
+### Konfiguration
+
+```yaml
+ai_gateway:
+  enabled: true
+  account_id: ""                  # Cloudflare Account ID
+  gateway_id: ""                  # Gateway ID
+```
+
+### Vorteile
+
+- **Rate Limiting**: Kontrolliere API-Nutzung
+- **Caching**: Wiederholte Anfragen aus Cache bedienen
+- **Logging**: Vollständiges Request/Response Logging
+- **Analytics**: Nutzungsstatistiken
+
+---
+
+## Chromecast Integration
+
+Sende Text-to-Speech und Medien an Chromecast-Geräte.
+
+### Konfiguration
+
+```yaml
+chromecast:
+  enabled: true
+  tts_port: 8090                  # Port für TTS-Streaming
+```
+
+### Verwendung
+
+```
+Sage "Hallo Welt" auf dem Wohnzimmer-Chromecast
+Spiele die Nachrichten im Küche-Chromecast ab
+```
+
+### Anforderungen
+
+- Chromecast-Gerät im gleichen Netzwerk
+- TTS muss konfiguriert sein (Google, ElevenLabs, oder Piper)
+
+---
+
+## Media Registry
+
+Zentrale Verwaltung von Mediendateien mit Metadaten-Tracking.
+
+### Konfiguration
+
+```yaml
+media_registry:
+  enabled: true                   # Ermöglicht Medienverwaltung
+```
+
+### Funktionen
+
+- Bilder, Videos und Audio-Dateien katalogisieren
+- Metadaten-Extraktion (EXIF, etc.)
+- Duplikat-Erkennung
+- Kategorisierung und Tagging
+- Integration mit Paperless NGX
 
 ---
 

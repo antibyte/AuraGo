@@ -627,6 +627,7 @@ function isDebugOnlyHistoryMessage(msg) {
 
     if (msg.role !== 'assistant' && msg.role !== 'system') return false;
     if (text === '[TOOL_CALL]') return true;
+    if (/^\[TOOL_CALL\]/i.test(text)) return true;
     if (/<tool_call>/i.test(text)) return true;
     if (/^\{[\s\S]*"(action|tool_call|tool_name)"\s*:/i.test(text)) return true;
     if (/^(Tool Output:|\[Tool Output\])/i.test(text)) return true;

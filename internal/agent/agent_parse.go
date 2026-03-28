@@ -395,9 +395,115 @@ func normalizeTagsInJSON(s string) string {
 	return string(b)
 }
 
+// parseBracketToolCallBlock parses the body of a [TOOL_CALL]...[/TOOL_CALL] block.
+// It handles the {tool => "name", args => {--key "value" ...}} format some models emit.
+func parseBracketToolCallBlock(block string) (ToolCall, bool) {
+	var tc ToolCall
+	lower := strings.ToLower(block)
+
+	// Find: tool => "name"
+	toolIdx := strings.Index(lower, "tool")
+	if toolIdx == -1 {
+		return tc, false
+	}
+	arrowIdx := strings.Index(lower[toolIdx:], "=>")
+	if arrowIdx == -1 {
+		return tc, false
+	}
+	afterArrow := strings.TrimSpace(block[toolIdx+arrowIdx+2:])
+	if len(afterArrow) == 0 || afterArrow[0] != '"' {
+		return tc, false
+	}
+	closeQ := strings.Index(afterArrow[1:], `"`)
+	if closeQ == -1 {
+		return tc, false
+	}
+	tc.Action = strings.TrimSpace(afterArrow[1 : 1+closeQ])
+	if tc.Action == "" {
+		return tc, false
+	}
+
+	// Build a JSON map from --key "value" pairs found in the args block
+	fields := map[string]interface{}{
+		"action": tc.Action,
+	}
+	rest := block
+	for {
+		dashIdx := strings.Index(rest, "--")
+		if dashIdx == -1 {
+			break
+		}
+		rest = rest[dashIdx+2:]
+		// Find the key (up to next whitespace)
+		keyEnd := strings.IndexAny(rest, " \t\r\n")
+		if keyEnd == -1 {
+			break
+		}
+		key := rest[:keyEnd]
+		rest = strings.TrimLeft(rest[keyEnd:], " \t\r\n")
+		if len(rest) == 0 {
+			break
+		}
+		var val string
+		if rest[0] == '"' {
+			// Quoted value — find closing quote (handle escaped quotes)
+			i := 1
+			for i < len(rest) {
+				if rest[i] == '"' && (i == 0 || rest[i-1] != '\\') {
+					break
+				}
+				i++
+			}
+			val = rest[1:i]
+			if i < len(rest) {
+				rest = rest[i+1:]
+			} else {
+				rest = ""
+			}
+		} else {
+			// Unquoted value — up to next whitespace
+			valEnd := strings.IndexAny(rest, " \t\r\n")
+			if valEnd == -1 {
+				val = rest
+				rest = ""
+			} else {
+				val = rest[:valEnd]
+				rest = rest[valEnd:]
+			}
+		}
+		if key != "" && val != "" {
+			fields[key] = val
+		}
+	}
+
+	// Marshal to JSON and unmarshal into ToolCall to handle all field mappings
+	jsonBytes, err := json.Marshal(fields)
+	if err != nil {
+		return tc, false
+	}
+	var out ToolCall
+	if err := json.Unmarshal(jsonBytes, &out); err != nil {
+		return tc, false
+	}
+	out.IsTool = true
+	out.RawJSON = string(jsonBytes)
+	return out, true
+}
+
 func ParseToolCall(content string) ToolCall {
 	var tc ToolCall
 	lowerContent := strings.ToLower(content)
+
+	// Handle [TOOL_CALL]...[/TOOL_CALL] bracket format (custom model format).
+	// Example: [TOOL_CALL]{tool => "generate_image", args => {--prompt "..." --size "1024x1792"}}[/TOOL_CALL]
+	if blockStart := strings.Index(lowerContent, "[tool_call]"); blockStart != -1 {
+		if blockEnd := strings.Index(lowerContent[blockStart:], "[/tool_call]"); blockEnd != -1 {
+			block := content[blockStart+11 : blockStart+blockEnd]
+			if parsed, ok := parseBracketToolCallBlock(block); ok {
+				return parsed
+			}
+		}
+	}
 
 	// Stepfun / OpenRouter <tool_call> fallback
 	// Format 1: <function=name> ... </function>

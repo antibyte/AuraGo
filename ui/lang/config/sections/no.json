@@ -272,5 +272,7 @@
   "config.section.sql_connections.label": "SQL-tilkoblinger",
   "config.section.sql_connections.desc": "Administrer eksterne databasetilkoblinger for agenten",
   "config.section.skill_manager.label": "Ferdighetsbehandler",
-  "config.section.skill_manager.desc": "Administrer, last opp og konfigurer Python-ferdigheter"
+  "config.section.skill_manager.desc": "Administrer, last opp og konfigurer Python-ferdigheter",
+  "config.section.jellyfin.label": "Jellyfin",
+  "config.section.jellyfin.desc": "Jellyfin medieserver-integrasjon (biblioteker, avspilling, økter)"
 }

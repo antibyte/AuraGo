@@ -2,8 +2,9 @@
 
 Willkommen zum AuraGo Benutzerhandbuch – deiner umfassenden Anleitung für den persönlichen KI-Agenten.
 
-> 📅 **Stand:** März 2026  
-> 🔄 **Version:** 2.x kompatibel
+> 📅 **Stand:** 28. März 2026  
+> 🔄 **Version:** 2.x kompatibel  
+> 📝 **Letzte Aktualisierung:** Komplette Überarbeitung mit 15+ neuen Integrationen und Features
 
 ---
 
@@ -20,6 +21,11 @@ AuraGo ist ein vollständig autonomer KI-Agent, der als einzelne portable Binary
 | **⚡ Adaptive Tools** | Intelligente Tool-Filterung spart Tokens |
 | **📄 Document AI** | PDF-Erstellung und -Analyse |
 | **🔐 AES-256 Vault** | Sichere Speicherung aller Secrets |
+| **🌐 50+ Integrationen** | Von S3 über OneDrive bis TrueNAS |
+| **☁️ Cloudflare Tunnel** | Sicherer Remote-Zugriff ohne öffentliche IP |
+| **🗄️ SQL Connections** | Direkte Datenbank-Abfragen (PostgreSQL, MySQL) |
+| **📱 Chromecast** | TTS und Medien an Cast-Geräte senden |
+| **🔍 Netzwerk-Tools** | Ping, Port-Scan, mDNS/UPnP Discovery |
 
 ---
 
@@ -98,8 +104,11 @@ Die Konfiguration verwendet jetzt ein zentrales Provider-System für LLM-Verbind
 /debug on/off  - Debug-Modus umschalten
 /budget        - Kostenübersicht anzeigen
 /personality   - Persönlichkeit wechseln
-/sudo          - Sudo-Modus aktivieren
+/sudo          - Sudo-Modus aktivieren (erfordert sudo_enabled)
+/sudopwd       - Sudo-Passwort im Vault speichern
 /journal       - Journal öffnen
+/addssh        - SSH-Server registrieren
+/credits       - OpenRouter Credits anzeigen
 ```
 
 ### Alle Agent-Tools
@@ -121,6 +130,11 @@ Eine vollständige Übersicht aller 100+ internen Tools findest du im Abschnitt 
 | 2026-03 | Überarbeitung für Version 2.x (Provider-System, Tool-Dokumentation, LLM Guardian) |
 | 2026-03 | Adaptive Tools Dokumentation hinzugefügt |
 | 2026-03 | Dokument Creator & PDF Extractor hinzugefügt |
+| 2026-03 | **SQL Connections, OneDrive, S3, Homepage Integrationen** dokumentiert |
+| 2026-03 | **Cloudflare Tunnel, AI Gateway, Chromecast** hinzugefügt |
+| 2026-03 | **Netzwerk-Tools, Web Capture, Form Automation** dokumentiert |
+| 2026-03 | **Skill Manager, Media Registry, Egg Mode** ergänzt |
+| 2026-03 | **Chat-Commands /sudo und /journal** hinzugefügt |
 
 ---
 

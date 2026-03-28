@@ -106,6 +106,8 @@ type ToolFeatureFlags struct {
 	NetworkScanEnabled       bool
 	FormAutomationEnabled    bool
 	UPnPScanEnabled          bool
+	// Jellyfin media server
+	JellyfinEnabled bool
 	// FritzBox sub-feature flags
 	FritzBoxSystemEnabled    bool
 	FritzBoxNetworkEnabled   bool
@@ -1048,6 +1050,26 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 				"enabled":  prop("boolean", "Enable/disable webhook (for create/update)"),
 				"token_id": prop("string", "Token ID to associate (for create/update)"),
 			}, "action"),
+		))
+	}
+
+	if ff.JellyfinEnabled {
+		tools = append(tools, tool("jellyfin",
+			"Manage Jellyfin media server: check server health, browse libraries, search media, view item details, list recent additions, monitor active sessions, control playback, refresh libraries, delete items, and view activity logs.",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "Operation to perform",
+					"enum":        []string{"health", "library_list", "search", "item_details", "recent_items", "sessions", "playback_control", "library_refresh", "delete_item", "activity_log"},
+				},
+				"query":      prop("string", "Search query (for search)"),
+				"media_type": prop("string", "Filter by media type: movie, series, episode, music, album, artist (for search, recent_items)"),
+				"item_id":    prop("string", "Media item ID (for item_details, delete_item)"),
+				"library_id": prop("string", "Library ID (for library_refresh)"),
+				"session_id": prop("string", "Session ID (for playback_control)"),
+				"command":    prop("string", "Playback command: play, pause, stop, next, previous (for playback_control)"),
+				"limit":      map[string]interface{}{"type": "integer", "description": "Max results to return (default: 20)"},
+			}, "operation"),
 		))
 	}
 

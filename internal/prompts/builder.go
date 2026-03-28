@@ -77,19 +77,19 @@ var reHTMLComments = regexp.MustCompile(`(?s)<!--.*?-->`)
 // ContextFlags dictate which secondary prompt files are appended
 // to the core system identity.
 type ContextFlags struct {
-	IsErrorState      bool
-	RequiresCoding    bool
-	RetrievedMemories string
+	IsErrorState           bool
+	RequiresCoding         bool
+	RetrievedMemories      string
 	RecentActivityOverview string // Compact 7-day activity overview for recency-aware planning
-	PredictedMemories string // Phase B: proactively pre-fetched memories from temporal/tool patterns
-	PersonalityLine   string // Phase D: compact self-awareness line [Self: mood=X | C:0.82 ...]
-	CorePersonality   string // Selected core personality profile name (e.g. "neutral", "punk")
-	ActiveProcesses   string // PID (name) comma-separated
-	SystemLanguage    string
-	LifeboatEnabled   bool
-	IsMaintenanceMode bool
-	SurgeryPlan       string
-	PredictedGuides   []string // Content of tool guides to inject
+	PredictedMemories      string // Phase B: proactively pre-fetched memories from temporal/tool patterns
+	PersonalityLine        string // Phase D: compact self-awareness line [Self: mood=X | C:0.82 ...]
+	CorePersonality        string // Selected core personality profile name (e.g. "neutral", "punk")
+	ActiveProcesses        string // PID (name) comma-separated
+	SystemLanguage         string
+	LifeboatEnabled        bool
+	IsMaintenanceMode      bool
+	SurgeryPlan            string
+	PredictedGuides        []string // Content of tool guides to inject
 	// Optimization fields
 	Tier              string   // "full", "compact", "minimal" — controls module loading
 	MessageCount      int      // Current message count in the conversation
@@ -113,6 +113,7 @@ type ContextFlags struct {
 	CoAgentEnabled           bool
 	GoogleWorkspaceEnabled   bool
 	OneDriveEnabled          bool
+	JellyfinEnabled          bool
 	ProxmoxEnabled           bool
 	OllamaEnabled            bool
 	TailscaleEnabled         bool

@@ -17,7 +17,9 @@ AuraGo unterstützt sogenannte **Slash-Commands** – Befehle, die direkt im Cha
 | `/debug [on/off]` | Aktiviert/Deaktiviert den Debug-Modus | Immer |
 | `/personality [name]` | Listet Persönlichkeiten auf oder wechselt sie | Immer |
 | `/budget [en]` | Zeigt den aktuellen Budget-Status | Wenn Budget-Tracking aktiv |
+| `/sudo` | Aktiviert den Sudo-Modus für privilegierte Befehle | Wenn sudo_enabled |
 | `/sudopwd <passwort>` | Speichert das sudo-Passwort im Vault | Immer |
+| `/journal` | Öffnet das Journal für Notizen | Immer |
 | `/addssh` | Registriert einen neuen SSH-Server | Immer |
 | `/credits` | Zeigt OpenRouter Credits und Verbrauch | Nur bei OpenRouter |
 
@@ -185,6 +187,57 @@ Verwendete Modelle:
 ```
 
 > ℹ️ Budget-Tracking muss in der Konfiguration aktiviert sein (`budget.enabled: true`).
+
+---
+
+### `/sudo`
+
+Aktiviert den Sudo-Modus für die Ausführung privilegierter Befehle. Erfordert dass `agent.sudo_enabled: true` in der Konfiguration gesetzt ist und ein Passwort im Vault hinterlegt wurde.
+
+**Syntax:**
+```
+/sudo [on|off]
+```
+
+**Beispiele:**
+```
+/sudo        # Sudo-Modus aktivieren
+/sudo on     # Sudo-Modus aktivieren
+/sudo off    # Sudo-Modus deaktivieren
+```
+
+**Ausgabe:**
+```
+🔐 Sudo-Modus aktiviert. Privilegierte Befehle sind jetzt möglich.
+```
+
+> ⚠️ **Sicherheit:** Der Sudo-Modus erlaubt Befehle mit erhöhten Rechten. Nur aktivieren wenn nötig!
+
+---
+
+### `/journal`
+
+Öffnet das Journal - ein persönliches Notizbuch für Gedanken, Ideen und Zusammenfassungen.
+
+**Syntax:**
+```
+/journal [eintrag]
+```
+
+**Beispiele:**
+```
+/journal                    # Zeigt die letzten Journal-Einträge
+/journal Heute gelernt:...  # Neuen Eintrag erstellen
+```
+
+**Ausgabe:**
+```
+📓 Journal-Eintrag erstellt.
+
+Letzte Einträge:
+• 2026-03-28: Heute gelernt:...
+• 2026-03-27: Projekt-Meeting...
+```
 
 ---
 

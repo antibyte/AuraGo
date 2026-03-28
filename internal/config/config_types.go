@@ -1143,6 +1143,9 @@ type Config struct {
 	// TrueNAS integration for ZFS storage management
 	TrueNAS TrueNASConfig `yaml:"truenas"`
 
+	// Jellyfin media server integration
+	Jellyfin JellyfinConfig `yaml:"jellyfin"`
+
 	// gwProvider is a synthetic ProviderEntry used by FindProvider for Google Workspace OAuth.
 	gwProvider ProviderEntry `yaml:"-" json:"-"`
 }
@@ -1172,6 +1175,20 @@ type TrueNASConfig struct {
 		DefaultDays  int  `yaml:"default_days"`  // default retention in days (0 = forever)
 		MaxSnapshots int  `yaml:"max_snapshots"` // maximum snapshots per dataset (0 = unlimited)
 	} `yaml:"snapshot_retention,omitempty"`
+}
+
+// JellyfinConfig holds configuration for Jellyfin media server integration.
+type JellyfinConfig struct {
+	Enabled          bool   `yaml:"enabled"`
+	ReadOnly         bool   `yaml:"readonly"`          // true = only read/list, block playback control/refresh/delete
+	AllowDestructive bool   `yaml:"allow_destructive"` // allow item deletion
+	Host             string `yaml:"host"`              // Jellyfin hostname or IP (e.g. "jellyfin.local")
+	Port             int    `yaml:"port"`              // API port (default: 8096)
+	UseHTTPS         bool   `yaml:"use_https"`         // use HTTPS (default: false)
+	APIKey           string `yaml:"-"`                 // vault-only: jellyfin_api_key
+	InsecureSSL      bool   `yaml:"insecure_ssl"`      // skip TLS verification for self-signed certs
+	ConnectTimeout   int    `yaml:"connect_timeout"`   // connection timeout in seconds (default: 30)
+	RequestTimeout   int    `yaml:"request_timeout"`   // request timeout in seconds (default: 60)
 }
 
 // A2ASkill describes a skill advertised in the A2A Agent Card.

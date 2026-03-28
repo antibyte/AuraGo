@@ -33,6 +33,7 @@ var blockedSecretPrefixes = []string{
 	"fritzbox_",
 	"mqtt_",
 	"ollama_managed_",
+	"jellyfin_",
 }
 
 // blockedSecretExact is the set of exact vault keys that are exclusively
@@ -62,6 +63,7 @@ var blockedSecretExact = map[string]struct{}{
 	"pushover_user_key":           {},
 	"pushover_app_token":          {},
 	"paperless_ngx_api_token":     {},
+	"jellyfin_api_key":            {},
 }
 
 // IsPythonAccessibleSecret returns true only if the vault key is a user/agent-created
