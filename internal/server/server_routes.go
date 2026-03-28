@@ -138,6 +138,28 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		}
 	}()
 
+	// Send initial personality state immediately on startup so the mood widget
+	// displays right away without waiting for the first 15s ticker tick.
+	go func() {
+		s.CfgMu.RLock()
+		personalityEnabled := s.Cfg.Personality.Engine
+		s.CfgMu.RUnlock()
+		if !personalityEnabled {
+			return
+		}
+		// Small delay to allow SSE clients to connect
+		time.Sleep(2 * time.Second)
+		mood := string(s.ShortTermMem.GetCurrentMood())
+		trigger := s.ShortTermMem.GetLastMoodTrigger()
+		traits, _ := s.ShortTermMem.GetTraits()
+		sse.BroadcastType(EventPersonalityUpdate, map[string]interface{}{
+			"enabled": true,
+			"mood":    mood,
+			"trigger": trigger,
+			"traits":  traits,
+		})
+	}()
+
 	// Push tsnet status changes via SSE so shared.js does not need to poll
 	// /api/tsnet/status. Only broadcasts when login_url / running state changes.
 	go func() {

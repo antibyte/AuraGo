@@ -18,20 +18,20 @@ type SendMessageRequest struct {
 // MessageResponse represents a Telnyx messaging API response.
 type MessageResponse struct {
 	Data struct {
-		ID               string    `json:"id"`
-		RecordType       string    `json:"record_type"`
-		Direction        string    `json:"direction"`
-		Type             string    `json:"type"`
-		From             Endpoint  `json:"from"`
-		To               []Endpoint `json:"to"`
-		Text             string    `json:"text"`
-		Status           string    `json:"status"`
-		CreatedAt        time.Time `json:"created_at"`
-		CompletedAt      time.Time `json:"completed_at"`
-		Cost             *Cost     `json:"cost"`
-		Parts            int       `json:"parts"`
-		MediaURLs        []string  `json:"media"`
-		Errors           []APIError `json:"errors"`
+		ID          string     `json:"id"`
+		RecordType  string     `json:"record_type"`
+		Direction   string     `json:"direction"`
+		Type        string     `json:"type"`
+		From        Endpoint   `json:"from"`
+		To          []Endpoint `json:"to"`
+		Text        string     `json:"text"`
+		Status      string     `json:"status"`
+		CreatedAt   time.Time  `json:"created_at"`
+		CompletedAt time.Time  `json:"completed_at"`
+		Cost        *Cost      `json:"cost"`
+		Parts       int        `json:"parts"`
+		MediaURLs   []string   `json:"media"`
+		Errors      []APIError `json:"errors"`
 	} `json:"data"`
 }
 
@@ -65,35 +65,35 @@ type ErrorResponse struct {
 
 // CreateCallRequest is the body for POST /v2/calls.
 type CreateCallRequest struct {
-	ConnectionID        string `json:"connection_id"`
-	To                  string `json:"to"`
-	From                string `json:"from"`
-	WebhookURL          string `json:"webhook_url,omitempty"`
-	WebhookURLMethod    string `json:"webhook_url_method,omitempty"`
+	ConnectionID              string `json:"connection_id"`
+	To                        string `json:"to"`
+	From                      string `json:"from"`
+	WebhookURL                string `json:"webhook_url,omitempty"`
+	WebhookURLMethod          string `json:"webhook_url_method,omitempty"`
 	AnsweringMachineDetection string `json:"answering_machine_detection,omitempty"`
-	TimeoutSecs         int    `json:"timeout_secs,omitempty"`
+	TimeoutSecs               int    `json:"timeout_secs,omitempty"`
 }
 
 // CallResponse represents a Telnyx call control API response.
 type CallResponse struct {
 	Data struct {
-		CallControlID  string `json:"call_control_id"`
-		CallLegID      string `json:"call_leg_id"`
-		CallSessionID  string `json:"call_session_id"`
-		IsAlive        bool   `json:"is_alive"`
-		RecordType     string `json:"record_type"`
-		State          string `json:"state"`
+		CallControlID string `json:"call_control_id"`
+		CallLegID     string `json:"call_leg_id"`
+		CallSessionID string `json:"call_session_id"`
+		IsAlive       bool   `json:"is_alive"`
+		RecordType    string `json:"record_type"`
+		State         string `json:"state"`
 	} `json:"data"`
 }
 
 // SpeakRequest is the body for call speak action.
 type SpeakRequest struct {
-	Payload      string `json:"payload"`
-	PayloadType  string `json:"payload_type,omitempty"` // "text" or "ssml"
-	Voice        string `json:"voice"`
-	Language     string `json:"language"`
-	ClientState  string `json:"client_state,omitempty"`
-	CommandID    string `json:"command_id,omitempty"`
+	Payload     string `json:"payload"`
+	PayloadType string `json:"payload_type,omitempty"` // "text" or "ssml"
+	Voice       string `json:"voice"`
+	Language    string `json:"language"`
+	ClientState string `json:"client_state,omitempty"`
+	CommandID   string `json:"command_id,omitempty"`
 }
 
 // PlaybackStartRequest is the body for call playback action.
@@ -104,17 +104,17 @@ type PlaybackStartRequest struct {
 
 // GatherSpeakRequest is the body for gather-using-speak action.
 type GatherSpeakRequest struct {
-	Payload         string `json:"payload"`
-	PayloadType     string `json:"payload_type,omitempty"`
-	Voice           string `json:"voice"`
-	Language        string `json:"language"`
-	MinimumDigits   int    `json:"minimum_digits,omitempty"`
-	MaximumDigits   int    `json:"maximum_digits,omitempty"`
-	TimeoutMillis   int    `json:"timeout_millis,omitempty"`
-	InterDigitTimeout int  `json:"inter_digit_timeout_millis,omitempty"`
-	TerminatingDigit string `json:"terminating_digit,omitempty"`
-	ValidDigits     string `json:"valid_digits,omitempty"`
-	ClientState     string `json:"client_state,omitempty"`
+	Payload           string `json:"payload"`
+	PayloadType       string `json:"payload_type,omitempty"`
+	Voice             string `json:"voice"`
+	Language          string `json:"language"`
+	MinimumDigits     int    `json:"minimum_digits,omitempty"`
+	MaximumDigits     int    `json:"maximum_digits,omitempty"`
+	TimeoutMillis     int    `json:"timeout_millis,omitempty"`
+	InterDigitTimeout int    `json:"inter_digit_timeout_millis,omitempty"`
+	TerminatingDigit  string `json:"terminating_digit,omitempty"`
+	ValidDigits       string `json:"valid_digits,omitempty"`
+	ClientState       string `json:"client_state,omitempty"`
 }
 
 // TransferRequest is the body for call transfer action.
@@ -126,7 +126,7 @@ type TransferRequest struct {
 
 // RecordStartRequest is the body for call record-start action.
 type RecordStartRequest struct {
-	Format      string `json:"format,omitempty"` // "mp3" or "wav"
+	Format      string `json:"format,omitempty"`   // "mp3" or "wav"
 	Channels    string `json:"channels,omitempty"` // "single" or "dual"
 	ClientState string `json:"client_state,omitempty"`
 }
@@ -136,14 +136,14 @@ type RecordStartRequest struct {
 // WebhookEvent wraps all Telnyx webhook payloads.
 type WebhookEvent struct {
 	Data struct {
-		EventType  string          `json:"event_type"`
-		ID         string          `json:"id"`
-		OccurredAt time.Time       `json:"occurred_at"`
-		RecordType string          `json:"record_type"`
-		Payload    WebhookPayload  `json:"payload"`
+		EventType  string         `json:"event_type"`
+		ID         string         `json:"id"`
+		OccurredAt time.Time      `json:"occurred_at"`
+		RecordType string         `json:"record_type"`
+		Payload    WebhookPayload `json:"payload"`
 	} `json:"data"`
 	Meta struct {
-		Attempt    int    `json:"attempt"`
+		Attempt     int    `json:"attempt"`
 		DeliveredTo string `json:"delivered_to"`
 	} `json:"meta"`
 }
@@ -151,40 +151,40 @@ type WebhookEvent struct {
 // WebhookPayload is the polymorphic payload for webhook events.
 type WebhookPayload struct {
 	// Common fields
-	CallControlID  string `json:"call_control_id,omitempty"`
-	CallLegID      string `json:"call_leg_id,omitempty"`
-	CallSessionID  string `json:"call_session_id,omitempty"`
-	ConnectionID   string `json:"connection_id,omitempty"`
-	ClientState    string `json:"client_state,omitempty"`
+	CallControlID string `json:"call_control_id,omitempty"`
+	CallLegID     string `json:"call_leg_id,omitempty"`
+	CallSessionID string `json:"call_session_id,omitempty"`
+	ConnectionID  string `json:"connection_id,omitempty"`
+	ClientState   string `json:"client_state,omitempty"`
 
 	// Call event fields
-	From           string `json:"from,omitempty"`
-	To             string `json:"to,omitempty"`
-	Direction      string `json:"direction,omitempty"`
-	State          string `json:"state,omitempty"`
-	HangupCause    string `json:"hangup_cause,omitempty"`
-	HangupSource   string `json:"hangup_source,omitempty"`
+	From         string `json:"from,omitempty"`
+	To           string `json:"to,omitempty"`
+	Direction    string `json:"direction,omitempty"`
+	State        string `json:"state,omitempty"`
+	HangupCause  string `json:"hangup_cause,omitempty"`
+	HangupSource string `json:"hangup_source,omitempty"`
 
 	// DTMF / Gather fields
-	Digits         string `json:"digits,omitempty"`
-	Result         string `json:"result,omitempty"` // "valid", "invalid", "call_hangup"
+	Digits string `json:"digits,omitempty"`
+	Result string `json:"result,omitempty"` // "valid", "invalid", "call_hangup"
 
 	// Recording fields
-	RecordingURLs  *RecordingURLs `json:"recording_urls,omitempty"`
-	Duration       int            `json:"duration_millis,omitempty"`
+	RecordingURLs *RecordingURLs `json:"recording_urls,omitempty"`
+	Duration      int            `json:"duration_millis,omitempty"`
 
 	// Speak/Playback events
-	Status         string `json:"status,omitempty"`
+	Status string `json:"status,omitempty"`
 
 	// Message fields (SMS)
-	MessageID      string            `json:"id,omitempty"`
-	Type           string            `json:"type,omitempty"`        // "SMS" or "MMS"
-	Text           string            `json:"text,omitempty"`
-	MediaURLs      []MediaAttachment `json:"media,omitempty"`
-	Parts          int               `json:"parts,omitempty"`
+	MessageID string            `json:"id,omitempty"`
+	Type      string            `json:"type,omitempty"` // "SMS" or "MMS"
+	Text      string            `json:"text,omitempty"`
+	MediaURLs []MediaAttachment `json:"media,omitempty"`
+	Parts     int               `json:"parts,omitempty"`
 
 	// Machine detection
-	MachineResult  string `json:"result,omitempty"` // "human", "machine", "not_sure"
+	MachineResult string `json:"machine_result,omitempty"` // "human", "machine", "not_sure"
 }
 
 // RecordingURLs holds download links for a recording.
@@ -204,18 +204,18 @@ type MediaAttachment struct {
 
 // PhoneNumbersResponse is the response for GET /v2/phone_numbers.
 type PhoneNumbersResponse struct {
-	Data []PhoneNumber `json:"data"`
+	Data []PhoneNumber  `json:"data"`
 	Meta PaginationMeta `json:"meta"`
 }
 
 // PhoneNumber represents a phone number on the account.
 type PhoneNumber struct {
-	ID                string `json:"id"`
-	PhoneNumber       string `json:"phone_number"`
-	Status            string `json:"status"`
-	ConnectionID      string `json:"connection_id"`
-	MessagingProfileID string `json:"messaging_profile_id"`
-	CreatedAt         time.Time `json:"created_at"`
+	ID                 string    `json:"id"`
+	PhoneNumber        string    `json:"phone_number"`
+	Status             string    `json:"status"`
+	ConnectionID       string    `json:"connection_id"`
+	MessagingProfileID string    `json:"messaging_profile_id"`
+	CreatedAt          time.Time `json:"created_at"`
 }
 
 // BalanceResponse is the response for GET /v2/balance.
@@ -236,15 +236,15 @@ type MessagesListResponse struct {
 
 // MessageSummary is a compact message entry for history listings.
 type MessageSummary struct {
-	ID        string    `json:"id"`
-	Direction string    `json:"direction"`
-	From      Endpoint  `json:"from"`
+	ID        string     `json:"id"`
+	Direction string     `json:"direction"`
+	From      Endpoint   `json:"from"`
 	To        []Endpoint `json:"to"`
-	Text      string    `json:"text"`
-	Status    string    `json:"status"`
-	Type      string    `json:"type"`
-	CreatedAt time.Time `json:"created_at"`
-	Parts     int       `json:"parts"`
+	Text      string     `json:"text"`
+	Status    string     `json:"status"`
+	Type      string     `json:"type"`
+	CreatedAt time.Time  `json:"created_at"`
+	Parts     int        `json:"parts"`
 }
 
 // PaginationMeta contains pagination info.
