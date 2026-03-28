@@ -228,6 +228,7 @@ let conversation = [];
 let seenSSEImages = new Set();
 let seenSSEAudios = new Set();
 let seenSSEDocuments = new Set();
+let currentPlanState = null;
 
 /* ── Debug mode ── */
 // If user has explicitly set a preference in localStorage, use it.
@@ -275,20 +276,76 @@ function appendToolOutput(text, label) {
     chatBox.scrollTop = chatBox.scrollHeight;
 }
 
-/* ── Session Todo Panel ── */
-function updateTodoPanel(todoText) {
-    if (!todoText) { hideTodoPanel(); return; }
+function ensureTaskPanel() {
     let panel = document.getElementById('todo-debug-panel');
     if (!panel) {
         panel = document.createElement('div');
         panel.id = 'todo-debug-panel';
         panel.className = 'todo-debug-panel';
-        panel.innerHTML = '<div class="todo-debug-header">' + escapeHtml(t('chat.todo_panel_title')) + '</div><div class="todo-debug-body"></div>';
-        // Insert before the agent status container
         const statusContainer = document.getElementById('agentStatusContainer');
         if (statusContainer) statusContainer.parentNode.insertBefore(panel, statusContainer);
         else document.body.appendChild(panel);
     }
+    return panel;
+}
+
+function renderPlanStatusBadge(status) {
+    const labels = {
+        draft: 'Draft',
+        active: 'Active',
+        paused: 'Paused',
+        completed: 'Completed',
+        cancelled: 'Cancelled'
+    };
+    return `<span class="badge badge-secondary">${escapeHtml(labels[status] || status || '')}</span>`;
+}
+
+function renderPlanTask(task) {
+    const status = task && task.status ? task.status : 'pending';
+    const icon = status === 'completed' ? '✅'
+        : status === 'in_progress' ? '⟳'
+        : status === 'failed' ? '⚠️'
+        : status === 'skipped' ? '⏭'
+        : '⬜';
+    const desc = task && task.description ? `<div class="todo-item-meta">${escapeHtml(task.description)}</div>` : '';
+    return '<div class="todo-item ' + (status === 'completed' ? 'todo-done' : 'todo-pending') + '">'
+        + icon + ' ' + escapeHtml(task.title || '') + desc + '</div>';
+}
+
+function updatePlanPanel(plan) {
+    currentPlanState = plan || null;
+    if (!plan) {
+        hideTodoPanel();
+        return;
+    }
+    const panel = ensureTaskPanel();
+    const events = Array.isArray(plan.events) ? plan.events : [];
+    const tasks = Array.isArray(plan.tasks) ? plan.tasks : [];
+    const counts = plan.task_counts || {};
+    const progress = Number.isFinite(plan.progress_pct) ? plan.progress_pct : 0;
+    const currentTask = plan.current_task
+        ? `<div class="todo-item todo-pending">🎯 ${escapeHtml(plan.current_task)}</div>`
+        : '';
+    const latestEvent = events.length > 0 && events[0].message
+        ? `<div class="todo-item-meta">${escapeHtml(events[0].message)}</div>`
+        : '';
+    panel.innerHTML = `
+        <div class="todo-debug-header">${escapeHtml(plan.title || 'Plan')} ${renderPlanStatusBadge(plan.status)}</div>
+        <div class="todo-debug-body">
+            <div class="todo-item todo-pending">📈 ${progress}% (${counts.completed || 0}/${counts.total || tasks.length || 0})</div>
+            ${currentTask}
+            ${tasks.map(renderPlanTask).join('')}
+            ${latestEvent}
+        </div>`;
+    chatSetHidden(panel, false);
+}
+
+/* ── Session Todo Panel ── */
+function updateTodoPanel(todoText) {
+    if (currentPlanState) return;
+    if (!todoText) { hideTodoPanel(); return; }
+    let panel = ensureTaskPanel();
+    panel.innerHTML = '<div class="todo-debug-header">' + escapeHtml(t('chat.todo_panel_title')) + '</div><div class="todo-debug-body"></div>';
     const body = panel.querySelector('.todo-debug-body');
     if (body) {
         // Parse markdown-style todo items into HTML
@@ -304,6 +361,7 @@ function updateTodoPanel(todoText) {
 }
 
 function hideTodoPanel() {
+    currentPlanState = null;
     const panel = document.getElementById('todo-debug-panel');
     chatSetHidden(panel, true);
 }
@@ -354,6 +412,18 @@ async function initPage() {
         }
     } catch (err) {
         console.error("Failed to load history:", err);
+    }
+
+    try {
+        const res = await fetch('/api/plans/active?session_id=default');
+        if (res.ok) {
+            const data = await res.json();
+            if (data && data.plan) {
+                updatePlanPanel(data.plan);
+            }
+        }
+    } catch (err) {
+        console.error('Failed to load active plan:', err);
     }
 
     try {
@@ -1016,6 +1086,14 @@ function handleSSEMessage(e) {
             return;
         } else if (data.event === 'todo_update') {
             updateTodoPanel(data.detail);
+            return;
+        } else if (data.event === 'plan_update') {
+            try {
+                const payload = JSON.parse(data.detail || '{}');
+                updatePlanPanel(payload.plan || null);
+            } catch (_) {
+                updatePlanPanel(null);
+            }
             return;
         } else if (data.event === 'image') {
             try {

@@ -11,10 +11,22 @@ Perform file system tasks. Your working directory is `agent_workspace/workdir`. 
 | `read_file` | Read file contents | — |
 | `write_file` | Write content to file | `content` (string) |
 | `delete` | Delete a file or directory | — |
+| `copy` | Copy a single file | `destination` (string) |
 | `move` | Move or rename | `destination` (string) |
+| `copy_batch` | Copy multiple files | `items` (array with `file_path` + `destination`) |
+| `move_batch` | Move multiple files | `items` (array with `file_path` + `destination`) |
+| `delete_batch` | Delete multiple files/directories | `items` (array with `file_path`) |
+| `create_dir_batch` | Create multiple directories | `items` (array with `file_path`) |
 | `stat` | Get file metadata | — |
 
-All operations require `file_path` (relative to `workdir/`).
+Single-path operations require `file_path` (relative to `workdir/`).
+Batch operations require `items`.
+
+### Batch Behavior
+
+- Batch operations return `success`, `partial`, or `error`.
+- `partial` means some items succeeded and some failed.
+- Each batch response includes a summary plus per-item results, so use it when you want to continue despite partial failures.
 
 ### Large Files
 
@@ -57,9 +69,21 @@ All operations require `file_path` (relative to `workdir/`).
 ```
 
 ```json
+{"action": "filesystem", "operation": "copy", "file_path": "notes.txt", "destination": "backup/notes.txt"}
+```
+
+```json
 {"action": "filesystem", "operation": "move", "file_path": "old_name.txt", "destination": "new_name.txt"}
 ```
 
 ```json
 {"action": "filesystem", "operation": "stat", "file_path": "somefile.pdf"}
+```
+
+```json
+{"action": "filesystem", "operation": "copy_batch", "items": [{"file_path": "a.txt", "destination": "backup/a.txt"}, {"file_path": "b.txt", "destination": "backup/b.txt"}]}
+```
+
+```json
+{"action": "filesystem", "operation": "delete_batch", "items": [{"file_path": "tmp/a.log"}, {"file_path": "tmp/b.log"}]}
 ```

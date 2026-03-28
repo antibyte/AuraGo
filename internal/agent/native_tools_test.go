@@ -352,6 +352,50 @@ func TestNativeToolCallToToolCallMarksMalformedFunctionName(t *testing.T) {
 	}
 }
 
+func TestBuiltinToolSchemasFilesystemIncludesBatchOperations(t *testing.T) {
+	schemas := builtinToolSchemas(ToolFeatureFlags{AllowFilesystemWrite: true})
+
+	for _, s := range schemas {
+		if s.Function == nil || s.Function.Name != "filesystem" {
+			continue
+		}
+		params, ok := s.Function.Parameters.(map[string]interface{})
+		if !ok {
+			t.Fatalf("filesystem parameters type = %T, want map[string]interface{}", s.Function.Parameters)
+		}
+		props, ok := params["properties"].(map[string]interface{})
+		if !ok {
+			t.Fatalf("filesystem properties type = %T, want map[string]interface{}", params["properties"])
+		}
+		op := props["operation"].(map[string]interface{})
+		enum := make([]string, 0)
+		switch rawEnum := op["enum"].(type) {
+		case []string:
+			enum = append(enum, rawEnum...)
+		case []interface{}:
+			for _, v := range rawEnum {
+				if s, ok := v.(string); ok {
+					enum = append(enum, s)
+				}
+			}
+		default:
+			t.Fatalf("filesystem operation enum type = %T", op["enum"])
+		}
+		joined := strings.Join(enum, ",")
+		for _, want := range []string{"copy", "copy_batch", "move_batch", "delete_batch", "create_dir_batch"} {
+			if !strings.Contains(joined, want) {
+				t.Fatalf("filesystem schema missing %s in enum %v", want, enum)
+			}
+		}
+		if _, ok := props["items"]; !ok {
+			t.Fatal("filesystem schema should expose items for batch operations")
+		}
+		return
+	}
+
+	t.Fatal("filesystem schema not found")
+}
+
 func TestBuiltinToolSchemasHomepageUsesSubOperationField(t *testing.T) {
 	schemas := builtinToolSchemas(ToolFeatureFlags{HomepageEnabled: true, NetlifyEnabled: true})
 

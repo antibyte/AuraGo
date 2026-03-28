@@ -11,6 +11,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -1314,10 +1315,23 @@ func toolCallParams(tc ToolCall) map[string]string {
 			m["code"] = tc.Code
 		}
 	}
-	if tc.FilePath != "" {
-		m["file_path"] = tc.FilePath
-	} else if tc.Path != "" {
-		m["file_path"] = tc.Path
+	if path := firstNonEmpty(tc.FilePath, tc.Path); path != "" {
+		m["file_path"] = guardianDisplayPath(tc, path)
+		if scope := guardianPathScope(tc, path); scope != "" {
+			m["path_scope"] = scope
+		}
+	}
+	if dest := firstNonEmpty(tc.Destination, tc.Dest); dest != "" {
+		m["destination"] = guardianDisplayPath(tc, dest)
+	}
+	if len(tc.Items) > 0 {
+		m["item_count"] = strconv.Itoa(len(tc.Items))
+		if path := firstNonEmpty(batchItemValue(tc.Items[0], "file_path", "path")); path != "" {
+			m["first_item_path"] = guardianDisplayPath(tc, path)
+		}
+		if dest := firstNonEmpty(batchItemValue(tc.Items[0], "destination", "dest")); dest != "" {
+			m["first_item_destination"] = guardianDisplayPath(tc, dest)
+		}
 	}
 	if tc.URL != "" {
 		m["url"] = tc.URL
@@ -1329,4 +1343,46 @@ func toolCallParams(tc ToolCall) map[string]string {
 		m["name"] = tc.Name
 	}
 	return m
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
+}
+
+func batchItemValue(item map[string]interface{}, keys ...string) string {
+	for _, key := range keys {
+		if value, ok := item[key]; ok {
+			if s, ok := value.(string); ok && strings.TrimSpace(s) != "" {
+				return s
+			}
+		}
+	}
+	return ""
+}
+
+func guardianPathScope(tc ToolCall, path string) string {
+	if path == "" {
+		return ""
+	}
+	if tc.Action == "filesystem" || tc.Action == "filesystem_op" || tc.Action == "file_reader_advanced" || tc.Action == "smart_file_read" || tc.Action == "file_search" || tc.Action == "file_editor" {
+		clean := filepath.ToSlash(filepath.Clean(path))
+		if strings.HasPrefix(clean, "../../") {
+			return "project_root_relative"
+		}
+	}
+	return ""
+}
+
+func guardianDisplayPath(tc ToolCall, path string) string {
+	if guardianPathScope(tc, path) != "project_root_relative" {
+		return path
+	}
+	clean := filepath.ToSlash(filepath.Clean(path))
+	clean = strings.TrimPrefix(clean, "../../")
+	return "project_root/" + clean
 }

@@ -28,6 +28,17 @@ import (
 	"aurago/internal/tools"
 )
 
+func stringValueFromMap(m map[string]interface{}, keys ...string) string {
+	for _, key := range keys {
+		if value, ok := m[key]; ok {
+			if s, ok := value.(string); ok && strings.TrimSpace(s) != "" {
+				return s
+			}
+		}
+	}
+	return ""
+}
+
 // resolveVaultKeys resolves vault secret keys for Python secret injection.
 // Returns the resolved secrets map (may be empty) and an info message for rejected keys.
 // If the feature is disabled or no keys requested, returns nil/empty.
@@ -1124,15 +1135,43 @@ func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 				return "Tool Output: [PERMISSION DENIED] Access to this file is not allowed. System configuration, database and credential files are off-limits."
 			}
 		}
+		for _, item := range tc.Items {
+			for _, checkPath := range []string{
+				stringValueFromMap(item, "file_path", "path"),
+				stringValueFromMap(item, "destination", "dest"),
+			} {
+				if isProtectedSystemPath(checkPath, wsDir, cfg) {
+					logger.Warn("LLM attempted filesystem batch access to protected system file — blocked",
+						"op", op, "path", checkPath)
+					return "Tool Output: [PERMISSION DENIED] Access to this file is not allowed. System configuration, database and credential files are off-limits."
+				}
+			}
+		}
 
 		if !cfg.Agent.AllowFilesystemWrite {
-			writeOps := map[string]bool{"write": true, "write_file": true, "append": true, "delete": true, "remove": true, "move": true, "rename": true, "mkdir": true, "create_dir": true, "create": true}
+			writeOps := map[string]bool{
+				"write":            true,
+				"write_file":       true,
+				"append":           true,
+				"delete":           true,
+				"remove":           true,
+				"copy":             true,
+				"move":             true,
+				"rename":           true,
+				"mkdir":            true,
+				"create_dir":       true,
+				"create":           true,
+				"copy_batch":       true,
+				"move_batch":       true,
+				"delete_batch":     true,
+				"create_dir_batch": true,
+			}
 			if writeOps[op] {
 				return "Tool Output: [PERMISSION DENIED] filesystem write operations are disabled in Danger Zone settings (agent.allow_filesystem_write: false)."
 			}
 		}
 		logger.Info("LLM requested filesystem operation", "op", op, "path", fpath, "dest", fdest)
-		return tools.ExecuteFilesystem(op, fpath, fdest, tc.Content, cfg.Directories.WorkspaceDir)
+		return tools.ExecuteFilesystem(op, fpath, fdest, tc.Content, tc.Items, cfg.Directories.WorkspaceDir)
 
 	case "file_editor":
 		fpath := tc.FilePath

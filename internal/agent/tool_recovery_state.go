@@ -65,6 +65,7 @@ func buildToolSignature(tc ToolCall) string {
 		"headers":           tc.Headers,
 		"skill":             tc.Skill,
 		"skill_args":        tc.SkillArgs,
+		"items":             tc.Items,
 	}
 	raw, err := json.Marshal(signature)
 	if err != nil {
@@ -122,7 +123,8 @@ func isGenericToolSignature(tc ToolCall, toolSig string) bool {
 		len(tc.Params) == 0 &&
 		len(tc.Headers) == 0 &&
 		tc.Skill == "" &&
-		len(tc.SkillArgs) == 0
+		len(tc.SkillArgs) == 0 &&
+		len(tc.Items) == 0
 }
 
 func (s *toolRecoveryState) handleDuplicateToolCall(tc ToolCall, req *openai.ChatCompletionRequest, logger *slog.Logger, scope AgentTelemetryScope) bool {

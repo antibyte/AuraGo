@@ -69,11 +69,11 @@ func normalizeFilesystemOperation(operation string) string {
 func filesystemUnknownOperationMessage(operation string) string {
 	switch strings.TrimSpace(operation) {
 	case "read":
-		return "Unknown filesystem operation: 'read'. Use 'read_file' to read file contents. Valid: list_dir, create_dir, delete, read_file, write_file, move, stat"
+		return "Unknown filesystem operation: 'read'. Use 'read_file' to read file contents. Valid: list_dir, create_dir, delete, read_file, write_file, copy, move, stat, copy_batch, move_batch, delete_batch, create_dir_batch"
 	case "write":
-		return "Unknown filesystem operation: 'write'. Use 'write_file' to create or overwrite a file. Valid: list_dir, create_dir, delete, read_file, write_file, move, stat"
+		return "Unknown filesystem operation: 'write'. Use 'write_file' to create or overwrite a file. Valid: list_dir, create_dir, delete, read_file, write_file, copy, move, stat, copy_batch, move_batch, delete_batch, create_dir_batch"
 	default:
-		return fmt.Sprintf("Unknown filesystem operation: '%s'. Valid: list_dir, create_dir, delete, read_file, write_file, move, stat", operation)
+		return fmt.Sprintf("Unknown filesystem operation: '%s'. Valid: list_dir, create_dir, delete, read_file, write_file, copy, move, stat, copy_batch, move_batch, delete_batch, create_dir_batch", operation)
 	}
 }
 
@@ -90,6 +90,11 @@ type FileInfoEntry struct {
 	IsDir   bool   `json:"is_dir"`
 	Size    int64  `json:"size"`
 	ModTime string `json:"modified"`
+}
+
+type filesystemBatchItem struct {
+	FilePath    string
+	Destination string
 }
 
 func filesystemRoots(workspaceDir string) (string, string) {
@@ -222,13 +227,136 @@ func secureResolve(workspaceDir, userPath string) (string, error) {
 	return clean, nil
 }
 
-// ExecuteFilesystem handles all filesystem operations, sandboxed to workspaceDir.
-func ExecuteFilesystem(operation, path, destination, content string, workspaceDir string) string {
-	encode := func(r FSResult) string {
-		b, _ := json.Marshal(r)
-		return string(b)
+func filesystemBatchItemString(item map[string]interface{}, keys ...string) string {
+	for _, key := range keys {
+		if value, ok := item[key]; ok {
+			if s, ok := value.(string); ok && strings.TrimSpace(s) != "" {
+				return s
+			}
+		}
+	}
+	return ""
+}
+
+func filesystemCopyFile(srcResolved, dstResolved string) error {
+	srcInfo, err := os.Stat(srcResolved)
+	if err != nil {
+		return err
+	}
+	if srcInfo.IsDir() {
+		return fmt.Errorf("directory copy is not supported")
+	}
+	if err := os.MkdirAll(filepath.Dir(dstResolved), 0o755); err != nil {
+		return err
+	}
+	srcFile, err := os.Open(srcResolved)
+	if err != nil {
+		return err
+	}
+	defer srcFile.Close()
+
+	dstFile, err := os.Create(dstResolved)
+	if err != nil {
+		return err
+	}
+	defer dstFile.Close()
+
+	if _, err := io.Copy(dstFile, srcFile); err != nil {
+		return err
+	}
+	return os.Chmod(dstResolved, srcInfo.Mode())
+}
+
+func filesystemBatchResult(operation string, items []map[string]interface{}, workspaceDir string) FSResult {
+	if len(items) == 0 {
+		return FSResult{Status: "error", Message: "'items' is required for batch filesystem operations"}
 	}
 
+	results := make([]map[string]interface{}, 0, len(items))
+	succeeded := 0
+	failed := 0
+
+	for idx, rawItem := range items {
+		path := filesystemBatchItemString(rawItem, "file_path", "path")
+		destination := filesystemBatchItemString(rawItem, "destination", "dest")
+		itemResult := map[string]interface{}{
+			"index":     idx,
+			"file_path": path,
+		}
+		if destination != "" {
+			itemResult["destination"] = destination
+		}
+
+		var single FSResult
+		switch operation {
+		case "copy_batch":
+			if path == "" || destination == "" {
+				single = FSResult{Status: "error", Message: "Each copy_batch item requires 'file_path' and 'destination'"}
+			} else {
+				single = executeFilesystemResult("copy", path, destination, "", nil, workspaceDir)
+			}
+		case "move_batch":
+			if path == "" || destination == "" {
+				single = FSResult{Status: "error", Message: "Each move_batch item requires 'file_path' and 'destination'"}
+			} else {
+				single = executeFilesystemResult("move", path, destination, "", nil, workspaceDir)
+			}
+		case "delete_batch":
+			if path == "" {
+				single = FSResult{Status: "error", Message: "Each delete_batch item requires 'file_path'"}
+			} else {
+				single = executeFilesystemResult("delete", path, "", "", nil, workspaceDir)
+			}
+		case "create_dir_batch":
+			if path == "" {
+				single = FSResult{Status: "error", Message: "Each create_dir_batch item requires 'file_path'"}
+			} else {
+				single = executeFilesystemResult("create_dir", path, "", "", nil, workspaceDir)
+			}
+		default:
+			single = FSResult{Status: "error", Message: fmt.Sprintf("Unsupported batch operation: %s", operation)}
+		}
+
+		itemResult["status"] = single.Status
+		itemResult["message"] = single.Message
+		if data, ok := single.Data.(map[string]interface{}); ok {
+			if errorCode, ok := data["error_code"]; ok {
+				itemResult["error_code"] = errorCode
+			}
+			itemResult["details"] = data
+		}
+
+		if single.Status == "success" {
+			succeeded++
+		} else {
+			failed++
+		}
+		results = append(results, itemResult)
+	}
+
+	status := "success"
+	switch {
+	case succeeded == 0:
+		status = "error"
+	case failed > 0:
+		status = "partial"
+	}
+
+	return FSResult{
+		Status:  status,
+		Message: fmt.Sprintf("%s processed %d items (%d succeeded, %d failed)", operation, len(items), succeeded, failed),
+		Data: map[string]interface{}{
+			"summary": map[string]int{
+				"requested": len(items),
+				"succeeded": succeeded,
+				"failed":    failed,
+			},
+			"results": results,
+		},
+	}
+}
+
+func executeFilesystemResult(operation, path, destination, content string, items []map[string]interface{}, workspaceDir string) FSResult {
 	originalOperation := operation
 	operation = normalizeFilesystemOperation(operation)
 
@@ -236,14 +364,14 @@ func ExecuteFilesystem(operation, path, destination, content string, workspaceDi
 	case "list_dir":
 		resolved, err := secureResolve(workspaceDir, path)
 		if err != nil {
-			return encode(filesystemResolveErrorResult(workspaceDir, path, err))
+			return filesystemResolveErrorResult(workspaceDir, path, err)
 		}
 		if path == "" || path == "." {
 			resolved = workspaceDir
 		}
 		entries, err := os.ReadDir(resolved)
 		if err != nil {
-			return encode(filesystemErrorResult(fmt.Sprintf("Failed to list directory: %v", err), "io_error", workspaceDir, path, resolved))
+			return filesystemErrorResult(fmt.Sprintf("Failed to list directory: %v", err), "io_error", workspaceDir, path, resolved)
 		}
 		var items []FileInfoEntry
 		for _, e := range entries {
@@ -265,47 +393,47 @@ func ExecuteFilesystem(operation, path, destination, content string, workspaceDi
 				ModTime: mod,
 			})
 		}
-		return encode(FSResult{Status: "success", Message: fmt.Sprintf("Listed %d entries", len(items)), Data: items})
+		return FSResult{Status: "success", Message: fmt.Sprintf("Listed %d entries", len(items)), Data: items}
 
 	case "create_dir":
 		if path == "" {
-			return encode(FSResult{Status: "error", Message: "'path' is required for create_dir"})
+			return FSResult{Status: "error", Message: "'path' is required for create_dir"}
 		}
 		resolved, err := secureResolve(workspaceDir, path)
 		if err != nil {
-			return encode(filesystemResolveErrorResult(workspaceDir, path, err))
+			return filesystemResolveErrorResult(workspaceDir, path, err)
 		}
 		if err := os.MkdirAll(resolved, 0755); err != nil {
-			return encode(filesystemWriteErrorResult("create directory", workspaceDir, path, resolved, err))
+			return filesystemWriteErrorResult("create directory", workspaceDir, path, resolved, err)
 		}
-		return encode(FSResult{Status: "success", Message: fmt.Sprintf("Directory created: %s", path)})
+		return FSResult{Status: "success", Message: fmt.Sprintf("Directory created: %s", path)}
 
 	case "delete":
 		if path == "" {
-			return encode(FSResult{Status: "error", Message: "'path' is required for delete"})
+			return FSResult{Status: "error", Message: "'path' is required for delete"}
 		}
 		resolved, err := secureResolve(workspaceDir, path)
 		if err != nil {
-			return encode(filesystemResolveErrorResult(workspaceDir, path, err))
+			return filesystemResolveErrorResult(workspaceDir, path, err)
 		}
 		if err := os.RemoveAll(resolved); err != nil {
-			return encode(filesystemWriteErrorResult("delete path", workspaceDir, path, resolved, err))
+			return filesystemWriteErrorResult("delete path", workspaceDir, path, resolved, err)
 		}
-		return encode(FSResult{Status: "success", Message: fmt.Sprintf("Deleted: %s", path)})
+		return FSResult{Status: "success", Message: fmt.Sprintf("Deleted: %s", path)}
 
 	case "read_file":
 		if path == "" {
-			return encode(FSResult{Status: "error", Message: "'path' is required for read_file"})
+			return FSResult{Status: "error", Message: "'path' is required for read_file"}
 		}
 		resolved, err := secureResolve(workspaceDir, path)
 		if err != nil {
-			return encode(filesystemResolveErrorResult(workspaceDir, path, err))
+			return filesystemResolveErrorResult(workspaceDir, path, err)
 		}
 
 		// Check file size before reading to avoid OOM
 		info, err := os.Stat(resolved)
 		if err != nil {
-			return encode(filesystemErrorResult(fmt.Sprintf("Failed to stat file: %v", err), "io_error", workspaceDir, path, resolved))
+			return filesystemErrorResult(fmt.Sprintf("Failed to stat file: %v", err), "io_error", workspaceDir, path, resolved)
 		}
 
 		// Cap file read at 32KB + a little padding for UTF-8.
@@ -314,93 +442,123 @@ func ExecuteFilesystem(operation, path, destination, content string, workspaceDi
 			// Read only the first maxRead bytes
 			f, err := os.Open(resolved)
 			if err != nil {
-				return encode(filesystemErrorResult(fmt.Sprintf("Failed to read file: %v", err), "io_error", workspaceDir, path, resolved))
+				return filesystemErrorResult(fmt.Sprintf("Failed to read file: %v", err), "io_error", workspaceDir, path, resolved)
 			}
 			defer f.Close()
 
 			data := make([]byte, maxRead)
 			n, err := io.ReadFull(f, data)
 			if err != nil && err != io.ErrUnexpectedEOF {
-				return encode(filesystemErrorResult(fmt.Sprintf("Failed to read file: %v", err), "io_error", workspaceDir, path, resolved))
+				return filesystemErrorResult(fmt.Sprintf("Failed to read file: %v", err), "io_error", workspaceDir, path, resolved)
 			}
 			if looksLikeBinaryFile(path, data[:n]) {
-				return encode(binaryReadResult(path, info.Size()))
+				return binaryReadResult(path, info.Size())
 			}
 			text := string(data[:n])
-			return encode(FSResult{
+			return FSResult{
 				Status: "success",
 				Message: fmt.Sprintf(
 					"Read %d bytes (truncated, file has %d bytes total). For larger text files use smart_file_read (analyze/sample/summarize) or file_reader_advanced (head/tail/read_lines/search_context).",
 					n, info.Size(),
 				),
 				Data: text + "\n\n[...truncated — use smart_file_read or file_reader_advanced for targeted follow-up reads...]",
-			})
+			}
 		}
 
 		// Small file, read entirely
 		data, err := os.ReadFile(resolved)
 		if err != nil {
-			return encode(filesystemErrorResult(fmt.Sprintf("Failed to read file: %v", err), "io_error", workspaceDir, path, resolved))
+			return filesystemErrorResult(fmt.Sprintf("Failed to read file: %v", err), "io_error", workspaceDir, path, resolved)
 		}
 		if looksLikeBinaryFile(path, data) {
-			return encode(binaryReadResult(path, info.Size()))
+			return binaryReadResult(path, info.Size())
 		}
-		return encode(FSResult{Status: "success", Message: fmt.Sprintf("Read %d bytes", len(data)), Data: string(data)})
+		return FSResult{Status: "success", Message: fmt.Sprintf("Read %d bytes", len(data)), Data: string(data)}
 
 	case "write_file":
 		if path == "" || content == "" {
-			return encode(FSResult{Status: "error", Message: "'path' and 'content' are required for write_file"})
+			return FSResult{Status: "error", Message: "'path' and 'content' are required for write_file"}
 		}
 		resolved, err := secureResolve(workspaceDir, path)
 		if err != nil {
-			return encode(filesystemResolveErrorResult(workspaceDir, path, err))
+			return filesystemResolveErrorResult(workspaceDir, path, err)
 		}
 		// Ensure parent directories exist
 		if err := os.MkdirAll(filepath.Dir(resolved), 0755); err != nil {
-			return encode(filesystemWriteErrorResult("create parent directory", workspaceDir, path, filepath.Dir(resolved), err))
+			return filesystemWriteErrorResult("create parent directory", workspaceDir, path, filepath.Dir(resolved), err)
 		}
 		if err := os.WriteFile(resolved, []byte(content), 0644); err != nil {
-			return encode(filesystemWriteErrorResult("write file", workspaceDir, path, resolved, err))
+			return filesystemWriteErrorResult("write file", workspaceDir, path, resolved, err)
 		}
-		return encode(FSResult{Status: "success", Message: fmt.Sprintf("Wrote %d bytes to %s", len(content), path)})
+		return FSResult{Status: "success", Message: fmt.Sprintf("Wrote %d bytes to %s", len(content), path)}
 
-	case "move":
+	case "copy":
 		if path == "" || destination == "" {
-			return encode(FSResult{Status: "error", Message: "'path' and 'destination' are required for move"})
+			return FSResult{Status: "error", Message: "'path' and 'destination' are required for copy"}
 		}
 		srcResolved, err := secureResolve(workspaceDir, path)
 		if err != nil {
-			return encode(filesystemResolveErrorResult(workspaceDir, path, err))
+			return filesystemResolveErrorResult(workspaceDir, path, err)
 		}
 		dstResolved, err := secureResolve(workspaceDir, destination)
 		if err != nil {
-			return encode(filesystemResolveErrorResult(workspaceDir, destination, err))
+			return filesystemResolveErrorResult(workspaceDir, destination, err)
+		}
+		if err := filesystemCopyFile(srcResolved, dstResolved); err != nil {
+			return filesystemWriteErrorResult("copy path", workspaceDir, destination, dstResolved, err)
+		}
+		return FSResult{Status: "success", Message: fmt.Sprintf("Copied %s → %s", path, destination)}
+
+	case "move":
+		if path == "" || destination == "" {
+			return FSResult{Status: "error", Message: "'path' and 'destination' are required for move"}
+		}
+		srcResolved, err := secureResolve(workspaceDir, path)
+		if err != nil {
+			return filesystemResolveErrorResult(workspaceDir, path, err)
+		}
+		dstResolved, err := secureResolve(workspaceDir, destination)
+		if err != nil {
+			return filesystemResolveErrorResult(workspaceDir, destination, err)
+		}
+		if err := os.MkdirAll(filepath.Dir(dstResolved), 0755); err != nil {
+			return filesystemWriteErrorResult("create parent directory", workspaceDir, destination, filepath.Dir(dstResolved), err)
 		}
 		if err := os.Rename(srcResolved, dstResolved); err != nil {
-			return encode(filesystemWriteErrorResult("move path", workspaceDir, path, srcResolved, err))
+			return filesystemWriteErrorResult("move path", workspaceDir, path, srcResolved, err)
 		}
-		return encode(FSResult{Status: "success", Message: fmt.Sprintf("Moved %s → %s", path, destination)})
+		return FSResult{Status: "success", Message: fmt.Sprintf("Moved %s → %s", path, destination)}
+
+	case "copy_batch", "move_batch", "delete_batch", "create_dir_batch":
+		return filesystemBatchResult(operation, items, workspaceDir)
 
 	case "stat":
 		if path == "" {
-			return encode(FSResult{Status: "error", Message: "'path' is required for stat"})
+			return FSResult{Status: "error", Message: "'path' is required for stat"}
 		}
 		resolved, err := secureResolve(workspaceDir, path)
 		if err != nil {
-			return encode(filesystemResolveErrorResult(workspaceDir, path, err))
+			return filesystemResolveErrorResult(workspaceDir, path, err)
 		}
 		info, err := os.Stat(resolved)
 		if err != nil {
-			return encode(filesystemErrorResult(fmt.Sprintf("Failed to stat: %v", err), "io_error", workspaceDir, path, resolved))
+			return filesystemErrorResult(fmt.Sprintf("Failed to stat: %v", err), "io_error", workspaceDir, path, resolved)
 		}
-		return encode(FSResult{Status: "success", Data: FileInfoEntry{
+		return FSResult{Status: "success", Data: FileInfoEntry{
 			Name:    info.Name(),
 			IsDir:   info.IsDir(),
 			Size:    info.Size(),
 			ModTime: info.ModTime().Format(time.RFC3339),
-		}})
+		}}
 
 	default:
-		return encode(FSResult{Status: "error", Message: filesystemUnknownOperationMessage(originalOperation)})
+		return FSResult{Status: "error", Message: filesystemUnknownOperationMessage(originalOperation)}
 	}
+}
+
+// ExecuteFilesystem handles all filesystem operations, sandboxed to workspaceDir.
+func ExecuteFilesystem(operation, path, destination, content string, items []map[string]interface{}, workspaceDir string) string {
+	result := executeFilesystemResult(operation, path, destination, content, items, workspaceDir)
+	b, _ := json.Marshal(result)
+	return string(b)
 }

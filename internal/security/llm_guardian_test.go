@@ -156,6 +156,12 @@ func TestBuildGuardianPromptTruncation(t *testing.T) {
 	}
 }
 
+func TestGuardianSystemPromptAllowsProjectRootRelativePaths(t *testing.T) {
+	if !contains(guardianSystemPrompt, "path_scope=project_root_relative") {
+		t.Fatalf("guardianSystemPrompt should mention project_root_relative guidance")
+	}
+}
+
 func TestGuardianCache(t *testing.T) {
 	cache := NewGuardianCache(60, 100)
 

@@ -451,6 +451,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				sessionTodoList = string(ptc.Todo)
 				broker.Send("todo_update", sessionTodoList)
 			}
+			if ptc.Action == "manage_plan" {
+				emitSessionPlanUpdate(broker, shortTermMem, sessionID, currentLogger)
+			}
 			if ptc.Action == "manage_memory" || ptc.Action == "core_memory" {
 				coreMemDirty = true
 			}
@@ -772,6 +775,11 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 		// Inject session todo list into system prompt context
 		flags.SessionTodoItems = sessionTodoList
+		if shortTermMem != nil {
+			if planPrompt, err := shortTermMem.BuildSessionPlanPrompt(sessionID); err == nil && strings.TrimSpace(planPrompt) != "" {
+				flags.SessionTodoItems = planPrompt
+			}
+		}
 		flags.TokenBudget = calculateEffectivePromptTokenBudget(cfg, ToolCall{}, homepageUsedInChain, currentLogger)
 
 		sysPrompt := prompts.BuildSystemPrompt(cfg.Directories.PromptsDir, flags, coreMemCache, currentLogger)
@@ -1521,6 +1529,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				sessionTodoList = string(tc.Todo)
 				broker.Send("todo_update", sessionTodoList)
 			}
+			if tc.Action == "manage_plan" {
+				emitSessionPlanUpdate(broker, shortTermMem, sessionID, currentLogger)
+			}
 
 			// Invalidate core memory cache when it was modified
 			if tc.Action == "manage_memory" {
@@ -1808,6 +1819,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					trackActivityTool(&turnToolNames, &turnToolSummaries, btc.Action, bResult)
 					broker.Send("tool_output", bResult)
 					broker.Send("tool_end", btc.Action)
+					if btc.Action == "manage_plan" {
+						emitSessionPlanUpdate(broker, shortTermMem, sessionID, currentLogger)
+					}
 					lastActivity = time.Now()
 
 					if btc.Action == "manage_memory" || btc.Action == "core_memory" {

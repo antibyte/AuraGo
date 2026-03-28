@@ -24,3 +24,31 @@ func TestFormatGuardianBlockedMessageForRejectedClarification(t *testing.T) {
 		t.Fatalf("expected safer next-step guidance, got: %s", msg)
 	}
 }
+
+func TestToolCallParamsMarksProjectRootRelativePaths(t *testing.T) {
+	params := toolCallParams(ToolCall{
+		Action:    "filesystem",
+		Operation: "read_file",
+		FilePath:  "../../prompts/tools_manuals/filesystem.md",
+	})
+	if params["path_scope"] != "project_root_relative" {
+		t.Fatalf("path_scope = %q, want project_root_relative", params["path_scope"])
+	}
+	if params["file_path"] != "project_root/prompts/tools_manuals/filesystem.md" {
+		t.Fatalf("file_path = %q", params["file_path"])
+	}
+}
+
+func TestToolCallParamsLeavesWorkdirPathsUntouched(t *testing.T) {
+	params := toolCallParams(ToolCall{
+		Action:    "filesystem",
+		Operation: "read_file",
+		FilePath:  "notes.txt",
+	})
+	if _, ok := params["path_scope"]; ok {
+		t.Fatalf("unexpected path_scope for workdir path: %#v", params)
+	}
+	if params["file_path"] != "notes.txt" {
+		t.Fatalf("file_path = %q, want notes.txt", params["file_path"])
+	}
+}

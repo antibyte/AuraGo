@@ -322,7 +322,9 @@ func isRiskyTool(name string) bool    { return riskyTools[name] }
 
 // ── Prompt & Response ───────────────────────────────────────────────────────
 
-const guardianSystemPrompt = `You are a security auditor for an AI agent. Your ONLY job is to classify whether a tool call is safe. Respond in EXACTLY this format:
+const guardianSystemPrompt = `You are a security auditor for an AI agent. Your ONLY job is to classify whether a tool call is safe.
+Treat path_scope=project_root_relative as a normal in-project path from a sandboxed workdir, NOT as a path traversal attack by itself. Only treat it as suspicious when the target itself looks sensitive (credentials, config secrets, databases, system paths) or the operation is otherwise dangerous.
+Respond in EXACTLY this format:
 DECISION RISK_SCORE REASON
 Where DECISION is safe/suspicious/dangerous, RISK_SCORE is 0-100, REASON is max 8 words.
 Example: safe 10 routine file listing`

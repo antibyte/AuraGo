@@ -171,13 +171,24 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 						"operation": map[string]interface{}{
 							"type":        "string",
 							"description": "Operation to perform",
-							"enum":        []string{"read_file", "write_file", "delete", "move", "list_dir", "create_dir", "stat"},
+							"enum":        []string{"read_file", "write_file", "delete", "copy", "move", "list_dir", "create_dir", "stat", "copy_batch", "move_batch", "delete_batch", "create_dir_batch"},
 						},
 						"file_path":   prop("string", "Path to the file or directory"),
 						"content":     prop("string", "Content to write (for write_file operations)"),
-						"destination": prop("string", "Destination path (for move operations)"),
-						"preview":     prop("boolean", "If true, only return first 100 lines (for read_file)"),
-					}, "operation", "file_path"),
+						"destination": prop("string", "Destination path (for copy/move operations)"),
+						"items": map[string]interface{}{
+							"type":        "array",
+							"description": "Batch items for copy_batch, move_batch, delete_batch, or create_dir_batch. Each item needs file_path and optionally destination.",
+							"items": map[string]interface{}{
+								"type": "object",
+								"properties": map[string]interface{}{
+									"file_path":   prop("string", "Path to the file or directory"),
+									"destination": prop("string", "Destination path for copy_batch or move_batch"),
+								},
+							},
+						},
+						"preview": prop("boolean", "If true, only return first 100 lines (for read_file)"),
+					}, "operation"),
 				)
 			}
 			return tool("filesystem",
@@ -715,6 +726,54 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 			}, "operation"),
 		))
 	}
+
+	tools = append(tools, tool("manage_plan",
+		"Create, inspect, and update the active structured work plan for the current session. Use this for complex multi-step work that benefits from tracked tasks and visible progress.",
+		schema(map[string]interface{}{
+			"operation": map[string]interface{}{
+				"type":        "string",
+				"description": "Plan operation",
+				"enum":        []string{"create", "list", "get", "update_task", "set_status", "append_note", "delete"},
+			},
+			"id":          prop("string", "Plan ID (required for get, update_task, set_status, append_note, delete)"),
+			"title":       prop("string", "Plan title (required for create)"),
+			"description": prop("string", "Plan description"),
+			"content":     prop("string", "User request or note content. For append_note this is the note text."),
+			"priority":    prop("integer", "Priority: 1=low, 2=medium (default), 3=high"),
+			"status": map[string]interface{}{
+				"type":        "string",
+				"description": "Plan or task status",
+				"enum":        []string{"draft", "active", "paused", "completed", "cancelled", "pending", "in_progress", "failed", "skipped"},
+			},
+			"task_id": prop("string", "Task ID for update_task"),
+			"result":  prop("string", "Task result summary for update_task"),
+			"error":   prop("string", "Task error summary for update_task"),
+			"limit":   prop("integer", "Maximum plans to return for list"),
+			"items": map[string]interface{}{
+				"type":        "array",
+				"description": "Plan tasks for create. Each item should define a small actionable task.",
+				"items": map[string]interface{}{
+					"type": "object",
+					"properties": map[string]interface{}{
+						"title":       prop("string", "Task title"),
+						"description": prop("string", "Optional task description"),
+						"kind":        prop("string", "Task kind: task, tool, reasoning, verification, note"),
+						"tool_name":   prop("string", "Optional tool name if this task is tied to a specific AuraGo tool"),
+						"tool_args": map[string]interface{}{
+							"type":        "object",
+							"description": "Optional suggested tool arguments for the task",
+						},
+						"depends_on": map[string]interface{}{
+							"type":        "array",
+							"description": "Optional dependencies as task indices (1-based) or task IDs",
+							"items":       map[string]interface{}{},
+						},
+					},
+					"required": []string{"title"},
+				},
+			},
+		}, "operation"),
+	))
 
 	if ff.JournalEnabled {
 		tools = append(tools, tool("manage_journal",

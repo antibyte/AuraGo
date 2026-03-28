@@ -760,6 +760,32 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		json.NewEncoder(w).Encode(filtered)
 	})
 
+	mux.HandleFunc("/api/plans/active", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		sessionID := strings.TrimSpace(r.URL.Query().Get("session_id"))
+		if sessionID == "" {
+			sessionID = "default"
+		}
+		var plan any
+		if s.ShortTermMem != nil {
+			activePlan, err := s.ShortTermMem.GetSessionPlan(sessionID)
+			if err != nil {
+				s.Logger.Error("Failed to fetch active session plan", "session_id", sessionID, "error", err)
+				http.Error(w, "Internal server error", http.StatusInternalServerError)
+				return
+			}
+			plan = activePlan
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]any{
+			"status": "ok",
+			"plan":   plan,
+		})
+	})
+
 	mux.HandleFunc("/clear", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodDelete {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)

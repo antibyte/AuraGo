@@ -59,6 +59,38 @@ func mergeSkillVaultKeys(skillsDir, skillName string, tcKeys []string) []string 
 	return merged
 }
 
+func planTaskInputsFromItems(items []map[string]interface{}) []memory.PlanTaskInput {
+	inputs := make([]memory.PlanTaskInput, 0, len(items))
+	for _, item := range items {
+		input := memory.PlanTaskInput{}
+		if v, ok := item["title"].(string); ok {
+			input.Title = strings.TrimSpace(v)
+		}
+		if v, ok := item["description"].(string); ok {
+			input.Description = strings.TrimSpace(v)
+		}
+		if v, ok := item["kind"].(string); ok {
+			input.Kind = strings.TrimSpace(v)
+		}
+		if v, ok := item["tool_name"].(string); ok {
+			input.ToolName = strings.TrimSpace(v)
+		}
+		if v, ok := item["tool_args"].(map[string]interface{}); ok {
+			input.ToolArgs = v
+		}
+		switch deps := item["depends_on"].(type) {
+		case []interface{}:
+			for _, dep := range deps {
+				input.DependsOn = append(input.DependsOn, fmt.Sprint(dep))
+			}
+		case []string:
+			input.DependsOn = append(input.DependsOn, deps...)
+		}
+		inputs = append(inputs, input)
+	}
+	return inputs
+}
+
 // dispatchComm handles webhook, skill, notification, email, discord, mission, and notes tool calls.
 func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, missionManagerV2 *tools.MissionManagerV2, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, mediaRegistryDB *sql.DB, homepageRegistryDB *sql.DB, contactsDB *sql.DB, sqlConnectionsDB *sql.DB, sqlConnectionPool *sqlconnections.ConnectionPool, remoteHub *remote.RemoteHub, historyMgr *memory.HistoryManager, isMaintenance bool, surgeryPlan string, guardian *security.Guardian, llmGuardian *security.LLMGuardian, sessionID string, coAgentRegistry *CoAgentRegistry, budgetTracker *budget.Tracker) string {
 	switch tc.Action {
@@ -1236,6 +1268,88 @@ func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 			return `Tool Output: {"status":"error","message":"Memory is in read-only mode."}`
 		}
 		return handleRemember(tc, cfg, logger, shortTermMem, kg, sessionID)
+
+	case "manage_plan":
+		logger.Info("LLM requested plan management", "op", tc.Operation, "session_id", sessionID)
+		if shortTermMem == nil {
+			return `Tool Output: {"status":"error","message":"Plan storage not available"}`
+		}
+		switch tc.Operation {
+		case "create":
+			if tc.Title == "" {
+				return `Tool Output: {"status":"error","message":"'title' is required for create"}`
+			}
+			plan, err := shortTermMem.CreatePlan(sessionID, tc.Title, tc.Description, tc.Content, tc.Priority, planTaskInputsFromItems(tc.Items))
+			if err != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":%q}`, err.Error())
+			}
+			payload, _ := json.Marshal(plan)
+			return fmt.Sprintf(`Tool Output: {"status":"success","message":"Plan created","plan":%s}`, string(payload))
+		case "list":
+			status := tc.Status
+			if status == "" {
+				status = "all"
+			}
+			plans, err := shortTermMem.ListPlans(sessionID, status, tc.Limit)
+			if err != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":%q}`, err.Error())
+			}
+			payload, _ := json.Marshal(plans)
+			return fmt.Sprintf(`Tool Output: {"status":"success","count":%d,"plans":%s}`, len(plans), string(payload))
+		case "get":
+			if tc.ID == "" {
+				return `Tool Output: {"status":"error","message":"'id' is required for get"}`
+			}
+			plan, err := shortTermMem.GetPlan(tc.ID)
+			if err != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":%q}`, err.Error())
+			}
+			payload, _ := json.Marshal(plan)
+			return fmt.Sprintf(`Tool Output: {"status":"success","plan":%s}`, string(payload))
+		case "set_status":
+			if tc.ID == "" {
+				return `Tool Output: {"status":"error","message":"'id' is required for set_status"}`
+			}
+			plan, err := shortTermMem.SetPlanStatus(tc.ID, tc.Status, tc.Content)
+			if err != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":%q}`, err.Error())
+			}
+			payload, _ := json.Marshal(plan)
+			return fmt.Sprintf(`Tool Output: {"status":"success","message":"Plan status updated","plan":%s}`, string(payload))
+		case "update_task":
+			if tc.ID == "" || tc.TaskID == "" {
+				return `Tool Output: {"status":"error","message":"'id' and 'task_id' are required for update_task"}`
+			}
+			plan, err := shortTermMem.UpdatePlanTask(tc.ID, tc.TaskID, tc.Status, tc.Result, tc.Error)
+			if err != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":%q}`, err.Error())
+			}
+			payload, _ := json.Marshal(plan)
+			return fmt.Sprintf(`Tool Output: {"status":"success","message":"Task updated","plan":%s}`, string(payload))
+		case "append_note":
+			if tc.ID == "" {
+				return `Tool Output: {"status":"error","message":"'id' is required for append_note"}`
+			}
+			if err := shortTermMem.AppendPlanNote(tc.ID, tc.Content); err != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":%q}`, err.Error())
+			}
+			plan, err := shortTermMem.GetPlan(tc.ID)
+			if err != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":%q}`, err.Error())
+			}
+			payload, _ := json.Marshal(plan)
+			return fmt.Sprintf(`Tool Output: {"status":"success","message":"Plan note appended","plan":%s}`, string(payload))
+		case "delete":
+			if tc.ID == "" {
+				return `Tool Output: {"status":"error","message":"'id' is required for delete"}`
+			}
+			if err := shortTermMem.DeletePlan(tc.ID); err != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":%q}`, err.Error())
+			}
+			return `Tool Output: {"status":"success","message":"Plan deleted"}`
+		default:
+			return fmt.Sprintf(`Tool Output: {"status":"error","message":"Unknown plan operation: %s. Use create, list, get, update_task, set_status, append_note, or delete"}`, tc.Operation)
+		}
 
 	case "manage_notes", "notes", "todo":
 		if !cfg.Tools.Notes.Enabled {
