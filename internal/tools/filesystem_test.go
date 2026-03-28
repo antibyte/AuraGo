@@ -48,3 +48,24 @@ func TestExecuteFilesystemReadFileReturnsTextContent(t *testing.T) {
 		t.Fatalf("data = %q, want hello world", got)
 	}
 }
+
+func TestExecuteFilesystemReadFileLargeFileIncludesGuidance(t *testing.T) {
+	workdir := t.TempDir()
+	path := filepath.Join(workdir, "large.log")
+	content := strings.Repeat("0123456789abcdef", 3000)
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("write text fixture: %v", err)
+	}
+
+	raw := ExecuteFilesystem("read_file", "large.log", "", "", workdir)
+	var result FSResult
+	if err := json.Unmarshal([]byte(raw), &result); err != nil {
+		t.Fatalf("unmarshal result: %v", err)
+	}
+	if result.Status != "success" {
+		t.Fatalf("status = %q, want success", result.Status)
+	}
+	if !strings.Contains(result.Message, "smart_file_read") || !strings.Contains(result.Message, "file_reader_advanced") {
+		t.Fatalf("expected large-file guidance in message, got: %s", result.Message)
+	}
+}

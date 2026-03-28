@@ -60,3 +60,4 @@ All operations require `path` (relative to workspace).
 - Combine `count_lines` → `read_lines` for paginated browsing of large files.
 - Use `search_context` instead of `grep` when you need to see surrounding code, not just matching lines.
 - `tail` is useful for checking recent log entries.
+- Use `smart_file_read analyze` or `smart_file_read summarize` first when the file is very large and you need an overview before zooming into line ranges.

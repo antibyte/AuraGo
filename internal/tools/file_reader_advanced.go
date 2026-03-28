@@ -1,13 +1,14 @@
 package tools
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
 	"os"
 	"regexp"
 	"strings"
 )
+
+const fileReaderAdvancedMaxChars = 24000
 
 // FileReaderResult is the JSON response returned for file_reader_advanced operations.
 type FileReaderResult struct {
@@ -70,7 +71,7 @@ func readLines(resolved string, start, end int, encode func(FileReaderResult) st
 	defer f.Close()
 
 	var lines []string
-	scanner := bufio.NewScanner(f)
+	scanner := newLargeFileScanner(f)
 	lineNum := 0
 	for scanner.Scan() {
 		lineNum++
@@ -86,11 +87,14 @@ func readLines(resolved string, start, end int, encode func(FileReaderResult) st
 		return encode(FileReaderResult{Status: "error", Message: fmt.Sprintf("No lines in range %d-%d (file has %d lines)", start, end, lineNum)})
 	}
 
+	content, truncated := clampFileReaderContent(strings.Join(lines, "\n"))
+
 	return encode(FileReaderResult{Status: "success", Data: map[string]interface{}{
 		"start_line": start,
 		"end_line":   start + len(lines) - 1,
 		"total_read": len(lines),
-		"content":    strings.Join(lines, "\n"),
+		"content":    content,
+		"truncated":  truncated,
 	}})
 }
 
@@ -103,7 +107,7 @@ func readTail(resolved string, n int, encode func(FileReaderResult) string) stri
 	defer f.Close()
 
 	var allLines []string
-	scanner := bufio.NewScanner(f)
+	scanner := newLargeFileScanner(f)
 	for scanner.Scan() {
 		allLines = append(allLines, scanner.Text())
 	}
@@ -115,12 +119,14 @@ func readTail(resolved string, n int, encode func(FileReaderResult) string) stri
 	}
 
 	lines := allLines[start:]
+	content, truncated := clampFileReaderContent(strings.Join(lines, "\n"))
 	return encode(FileReaderResult{Status: "success", Data: map[string]interface{}{
 		"start_line":  start + 1,
 		"end_line":    total,
 		"total_lines": total,
 		"total_read":  len(lines),
-		"content":     strings.Join(lines, "\n"),
+		"content":     content,
+		"truncated":   truncated,
 	}})
 }
 
@@ -133,7 +139,7 @@ func countLines(resolved string, encode func(FileReaderResult) string) string {
 	defer f.Close()
 
 	count := 0
-	scanner := bufio.NewScanner(f)
+	scanner := newLargeFileScanner(f)
 	for scanner.Scan() {
 		count++
 	}
@@ -171,7 +177,7 @@ func searchContext(resolved, pattern string, contextLines int, encode func(FileR
 	defer f.Close()
 
 	var allLines []string
-	scanner := bufio.NewScanner(f)
+	scanner := newLargeFileScanner(f)
 	for scanner.Scan() {
 		allLines = append(allLines, scanner.Text())
 	}
@@ -201,7 +207,7 @@ func searchContext(resolved, pattern string, contextLines int, encode func(FileR
 				MatchLine: i + 1,
 				StartLine: start + 1,
 				EndLine:   end + 1,
-				Content:   strings.Join(allLines[start:end+1], "\n"),
+				Content:   mustClampFileReaderContent(strings.Join(allLines[start:end+1], "\n")),
 			})
 
 			if len(results) >= maxResults {
@@ -214,4 +220,16 @@ func searchContext(resolved, pattern string, contextLines int, encode func(FileR
 		"matches": results,
 		"count":   len(results),
 	}})
+}
+
+func clampFileReaderContent(content string) (string, bool) {
+	if len(content) <= fileReaderAdvancedMaxChars {
+		return content, false
+	}
+	return content[:fileReaderAdvancedMaxChars] + "\n\n[...truncated for prompt safety — narrow the range or use smart_file_read summarize/sample...]", true
+}
+
+func mustClampFileReaderContent(content string) string {
+	clamped, _ := clampFileReaderContent(content)
+	return clamped
 }

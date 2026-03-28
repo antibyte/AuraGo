@@ -220,6 +220,25 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 				"pattern":    prop("string", "Search pattern (regex) for search_context"),
 			}, "operation", "file_path"),
 		),
+		tool("smart_file_read",
+			"Intelligently inspect large files without dumping them into the prompt. Analyze file metadata, take strategic samples, detect structure, or generate a focused summary.",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "Smart file read operation to perform",
+					"enum":        []string{"analyze", "sample", "structure", "summarize"},
+				},
+				"file_path":  prop("string", "Path to the file to inspect"),
+				"query":      prop("string", "Optional focus question for summarize, e.g. 'Find the root cause of the error spikes'."),
+				"line_count": prop("integer", "Number of lines per sample section (default: 20; used by sample)."),
+				"sampling_strategy": map[string]interface{}{
+					"type":        "string",
+					"description": "Sampling strategy for sample/summarize: head, tail, distributed, semantic (semantic currently falls back to distributed).",
+					"enum":        []string{"head", "tail", "distributed", "semantic"},
+				},
+				"max_tokens": prop("integer", "Approximate token budget for sample/summarize output (default: 2500)."),
+			}, "operation", "file_path"),
+		),
 		tool("system_metrics",
 			"Retrieve current system resource usage: CPU, memory, disk, running processes, host info, temperatures, per-interface network stats, active connections, or per-disk I/O counters.",
 			schema(map[string]interface{}{

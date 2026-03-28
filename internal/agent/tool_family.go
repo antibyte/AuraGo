@@ -8,7 +8,7 @@ func classifyToolFamily(toolName string) string {
 		return ""
 	}
 	switch {
-	case strings.HasPrefix(name, "file") || name == "filesystem" || strings.Contains(name, "_editor") || name == "pdf_operations" || name == "detect_file_type" || name == "archive":
+	case strings.HasPrefix(name, "file") || name == "filesystem" || name == "smart_file_read" || strings.Contains(name, "_editor") || name == "pdf_operations" || name == "detect_file_type" || name == "archive":
 		return "files"
 	case strings.Contains(name, "shell") || strings.Contains(name, "sudo") || name == "process_analyzer" || name == "process_management":
 		return "shell"

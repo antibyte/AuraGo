@@ -229,8 +229,8 @@ func ExecuteFilesystem(operation, path, destination, content string, workspaceDi
 			return encode(FSResult{Status: "error", Message: fmt.Sprintf("Failed to stat file: %v", err)})
 		}
 
-		// Cap file read at 8KB + some padding for UTF-8
-		maxRead := 8192 + 1024
+		// Cap file read at 32KB + a little padding for UTF-8.
+		maxRead := 32*1024 + 2048
 		if info.Size() > int64(maxRead) {
 			// Read only the first maxRead bytes
 			f, err := os.Open(resolved)
@@ -248,7 +248,14 @@ func ExecuteFilesystem(operation, path, destination, content string, workspaceDi
 				return encode(binaryReadResult(path, info.Size()))
 			}
 			text := string(data[:n])
-			return encode(FSResult{Status: "success", Message: fmt.Sprintf("Read %d bytes (truncated, file has %d bytes total)", n, info.Size()), Data: text + "\n\n[...truncated]"})
+			return encode(FSResult{
+				Status: "success",
+				Message: fmt.Sprintf(
+					"Read %d bytes (truncated, file has %d bytes total). For larger text files use smart_file_read (analyze/sample/summarize) or file_reader_advanced (head/tail/read_lines/search_context).",
+					n, info.Size(),
+				),
+				Data: text + "\n\n[...truncated — use smart_file_read or file_reader_advanced for targeted follow-up reads...]",
+			})
 		}
 
 		// Small file, read entirely

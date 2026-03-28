@@ -16,6 +16,14 @@ Perform file system tasks. Your working directory is `agent_workspace/workdir`. 
 
 All operations require `file_path` (relative to `workdir/`).
 
+### Large Files
+
+- `read_file` is a convenience read, not a large-file analysis tool.
+- Large text files are truncated after a preview window.
+- For logs, long code files, CSVs, or any file that does not fit comfortably in one prompt:
+  use `smart_file_read` for `analyze`, `sample`, `structure`, or `summarize`.
+  use `file_reader_advanced` for `head`, `tail`, `read_lines`, or `search_context`.
+
 ### Common Pitfalls
 
 - Use the exact operation names `read_file` and `write_file`.
@@ -34,6 +42,10 @@ All operations require `file_path` (relative to `workdir/`).
 
 ```json
 {"action": "filesystem", "operation": "read_file", "file_path": "notes.txt"}
+```
+
+```json
+{"action": "smart_file_read", "operation": "analyze", "file_path": "server.log"}
 ```
 
 ```json

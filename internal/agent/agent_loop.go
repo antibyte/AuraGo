@@ -1262,53 +1262,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			continue
 		}
 
-		// Recovery: model sent an announcement/preamble instead of a tool call
-		// Triggered when: no tool, short response, contains action-intent phrases
-		announcementPhrases := []string{
-			"lass mich", "ich starte", "ich werde", "ich führe", "ich teste",
-			"let me", "i will", "i'll", "i am going to", "i'm going to",
-			"let's start", "starting", "launching", "i'll start", "i'll run",
-			"alles klar", "okay, let", "sure, let", "sure, i",
-			"ich suche nach", "ich schaue nach", "ich prüfe", "ich überprüfe",
-			"ich sehe mir", "lass mich sehen", "ich werde nachschauen",
-			"i'll check", "let me check", "checking", "searching", "looking",
-			"i am looking", "i will look", "i'll search", "i will search",
-			"ich frage ab", "ich lade", "i'll load", "i am loading",
-		}
-		isAnnouncement := func() bool {
-			if tc.IsTool || useNativePath || tc.RawCodeDetected || len(content) > 1000 {
-				return false
-			}
-			// A response ending with '?' is a conversational reply, not an action announcement
-			trimmedContent := strings.TrimSpace(content)
-			if strings.HasSuffix(strings.TrimRight(trimmedContent, "\"'"), "?") {
-				return false
-			}
-			// If the LLM just completed a tool call, a text response is a completion confirmation, not an announcement
-			if lastResponseWasTool {
-				return false
-			}
-			// Language-agnostic check: if the user message ends with '?' it's a question and
-			// the LLM is expected to answer conversationally.
-			if lastUserMsg != "" && strings.HasSuffix(strings.TrimSpace(lastUserMsg), "?") {
-				return false
-			}
-			// Core heuristic (language-agnostic): announcement phrases only count when they appear
-			// near the START of the response (first 250 chars). A phrase buried in a longer
-			// explanation paragraph is NOT an action announcement — it's part of a conversational
-			// clarification. This works for all 15 supported languages without per-language lists.
-			lc := strings.ToLower(trimmedContent)
-			leadIn := lc
-			if len(leadIn) > 250 {
-				leadIn = leadIn[:250]
-			}
-			for _, phrase := range announcementPhrases {
-				if strings.Contains(leadIn, phrase) {
-					return true
-				}
-			}
-			return false
-		}()
+		// Recovery: model announced a next action but did not emit the tool call yet.
+		isAnnouncement := isAnnouncementOnlyResponse(content, tc, useNativePath, lastResponseWasTool, lastUserMsg)
 		if isAnnouncement && announcementCount < 2 {
 			announcementCount++
 			currentLogger.Warn("[Sync] Announcement-only response detected, requesting immediate tool call", "attempt", announcementCount, "content_preview", Truncate(content, 120))

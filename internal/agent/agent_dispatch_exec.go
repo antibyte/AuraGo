@@ -1242,6 +1242,19 @@ func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 		logger.Info("LLM requested file_reader_advanced", "op", op, "path", fpath)
 		return tools.ExecuteFileReaderAdvanced(op, fpath, tc.Pattern, tc.StartLine, tc.EndLine, tc.LineCount, cfg.Directories.WorkspaceDir)
 
+	case "smart_file_read":
+		op := strings.TrimSpace(strings.ToLower(tc.Operation))
+		fpath := tc.FilePath
+		if fpath == "" {
+			fpath = tc.Path
+		}
+		logger.Info("LLM requested smart_file_read", "op", op, "path", fpath, "strategy", tc.SamplingStrategy)
+		return tools.ExecuteSmartFileRead(ctx, tools.SummaryLLMConfig{
+			APIKey:  cfg.LLM.APIKey,
+			BaseURL: cfg.LLM.BaseURL,
+			Model:   cfg.LLM.Model,
+		}, logger, op, fpath, tc.Query, tc.SamplingStrategy, tc.MaxTokens, tc.LineCount, cfg.Directories.WorkspaceDir)
+
 	case "api_request":
 		if !cfg.Agent.AllowNetworkRequests {
 			return "Tool Output: [PERMISSION DENIED] api_request is disabled in Danger Zone settings (agent.allow_network_requests: false)."

@@ -1,7 +1,6 @@
 package tools
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -201,7 +200,7 @@ func grepFile(absPath string, re *regexp.Regexp, displayPath string) ([]FileSear
 	defer f.Close()
 
 	var matches []FileSearchMatch
-	scanner := bufio.NewScanner(f)
+	scanner := newLargeFileScanner(f)
 	lineNum := 0
 	for scanner.Scan() {
 		lineNum++
