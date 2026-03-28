@@ -114,24 +114,20 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		}
 		ticker := time.NewTicker(15 * time.Second)
 		defer ticker.Stop()
-		var lastMoodTrigger string
+		var lastStateKey string
 		for {
 			select {
 			case <-ticker.C:
-				mood := string(s.ShortTermMem.GetCurrentMood())
-				trigger := s.ShortTermMem.GetLastMoodTrigger()
-				key := mood + "|" + trigger
-				if key == lastMoodTrigger {
+				payload := s.buildPersonalityStatePayload()
+				mood, _ := payload["mood"].(string)
+				trigger, _ := payload["trigger"].(string)
+				emotion, _ := payload["current_emotion"].(string)
+				key := mood + "|" + trigger + "|" + emotion
+				if key == lastStateKey {
 					continue
 				}
-				lastMoodTrigger = key
-				traits, _ := s.ShortTermMem.GetTraits()
-				sse.BroadcastType(EventPersonalityUpdate, map[string]interface{}{
-					"enabled": true,
-					"mood":    mood,
-					"trigger": trigger,
-					"traits":  traits,
-				})
+				lastStateKey = key
+				sse.BroadcastType(EventPersonalityUpdate, payload)
 			case <-serverCtx.Done():
 				return
 			}
@@ -149,15 +145,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		}
 		// Small delay to allow SSE clients to connect
 		time.Sleep(2 * time.Second)
-		mood := string(s.ShortTermMem.GetCurrentMood())
-		trigger := s.ShortTermMem.GetLastMoodTrigger()
-		traits, _ := s.ShortTermMem.GetTraits()
-		sse.BroadcastType(EventPersonalityUpdate, map[string]interface{}{
-			"enabled": true,
-			"mood":    mood,
-			"trigger": trigger,
-			"traits":  traits,
-		})
+		sse.BroadcastType(EventPersonalityUpdate, s.buildPersonalityStatePayload())
 	}()
 
 	// Push tsnet status changes via SSE so shared.js does not need to poll

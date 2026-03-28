@@ -56,7 +56,7 @@ func newTestSynthesizer(client PersonalityAnalyzerClient) *EmotionSynthesizer {
 // ── Synthesizer Tests ────────────────────────────────────────────────────────
 
 func TestSynthesizeEmotion_Success(t *testing.T) {
-	mock := &mockEmotionClient{response: "I'm feeling curious and motivated today."}
+	mock := &mockEmotionClient{response: `{"description":"I'm feeling curious and motivated today.","primary_mood":"curious","secondary_mood":"optimistic","valence":0.7,"arousal":0.6,"confidence":0.82,"cause":"recent progress and a clear user request","recommended_response_style":"warm_and_focused"}`}
 	es := newTestSynthesizer(mock)
 	stm := newTestEmotionDB(t)
 
@@ -80,6 +80,12 @@ func TestSynthesizeEmotion_Success(t *testing.T) {
 	if state.PrimaryMood != MoodCurious {
 		t.Errorf("expected mood %s, got %s", MoodCurious, state.PrimaryMood)
 	}
+	if state.SecondaryMood != "optimistic" {
+		t.Errorf("expected secondary mood optimistic, got %q", state.SecondaryMood)
+	}
+	if state.Valence != 0.7 {
+		t.Errorf("expected valence 0.7, got %f", state.Valence)
+	}
 	if mock.calls != 1 {
 		t.Errorf("expected 1 LLM call, got %d", mock.calls)
 	}
@@ -95,10 +101,13 @@ func TestSynthesizeEmotion_Success(t *testing.T) {
 	if entries[0].Description != "I'm feeling curious and motivated today." {
 		t.Errorf("history description mismatch: %q", entries[0].Description)
 	}
+	if entries[0].Cause != "recent progress and a clear user request" {
+		t.Errorf("history cause mismatch: %q", entries[0].Cause)
+	}
 }
 
 func TestSynthesizeEmotion_RateLimiting(t *testing.T) {
-	mock := &mockEmotionClient{response: "Feeling good."}
+	mock := &mockEmotionClient{response: `{"description":"I feel steady and ready to help.","primary_mood":"focused","secondary_mood":"calm","valence":0.4,"arousal":0.3,"confidence":0.75,"cause":"stable context","recommended_response_style":"calm_and_precise"}`}
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 	es := NewEmotionSynthesizer(mock, "test-model", 300, 100, "English", logger) // 5 min interval
 	stm := newTestEmotionDB(t)
@@ -192,10 +201,13 @@ func TestSynthesizeEmotion_TrimsQuotes(t *testing.T) {
 	if state.Description != "I feel great today." {
 		t.Errorf("expected quotes trimmed, got: %q", state.Description)
 	}
+	if state.Source != "llm_text_fallback" {
+		t.Errorf("expected text fallback source, got %q", state.Source)
+	}
 }
 
 func TestGetLastEmotion_ThreadSafe(t *testing.T) {
-	mock := &mockEmotionClient{response: "Thread-safe state."}
+	mock := &mockEmotionClient{response: `{"description":"Thread-safe state.","primary_mood":"focused","secondary_mood":"","valence":0.1,"arousal":0.2,"confidence":0.8,"cause":"test","recommended_response_style":"neutral_and_precise"}`}
 	es := newTestSynthesizer(mock)
 	stm := newTestEmotionDB(t)
 
@@ -253,6 +265,9 @@ func TestBuildPrompt_ContainsAllFields(t *testing.T) {
 		ErrorCount:         2,
 		SuccessCount:       5,
 		TimeOfDay:          "evening",
+		TriggerType:        EmotionTriggerPositiveFeedback,
+		TriggerDetail:      "User thanked the agent for solving the issue",
+		InactivityHours:    7.5,
 	}
 
 	prompt := es.buildPrompt(input)
@@ -264,6 +279,8 @@ func TestBuildPrompt_ContainsAllFields(t *testing.T) {
 		"Errors: 2",
 		"Successes: 5",
 		"evening",
+		"positive_feedback",
+		"Hours since last user message: 7.5",
 		"Previous state",
 		"English",
 	}
@@ -347,6 +364,32 @@ func TestValidateEmotionDescription(t *testing.T) {
 	}
 }
 
+func TestParseEmotionSynthesisResponseStructuredJSON(t *testing.T) {
+	state, err := parseEmotionSynthesisResponse(`{"description":"I feel calm and precise.","primary_mood":"analytical","secondary_mood":"steady","valence":0.1,"arousal":0.2,"confidence":0.9,"cause":"the request is clear","recommended_response_style":"crisp_and_focused"}`, MoodFocused)
+	if err != nil {
+		t.Fatalf("parseEmotionSynthesisResponse: %v", err)
+	}
+	if state.PrimaryMood != MoodAnalytical {
+		t.Fatalf("expected analytical mood, got %s", state.PrimaryMood)
+	}
+	if state.RecommendedResponseStyle != "crisp_and_focused" {
+		t.Fatalf("unexpected response style: %q", state.RecommendedResponseStyle)
+	}
+}
+
+func TestParseEmotionSynthesisResponseFallsBackToText(t *testing.T) {
+	state, err := parseEmotionSynthesisResponse("I feel a little uncertain, but still ready to help.", MoodCautious)
+	if err != nil {
+		t.Fatalf("parseEmotionSynthesisResponse: %v", err)
+	}
+	if state.Source != "llm_text_fallback" {
+		t.Fatalf("expected text fallback source, got %q", state.Source)
+	}
+	if state.PrimaryMood != MoodCautious {
+		t.Fatalf("expected fallback mood cautious, got %s", state.PrimaryMood)
+	}
+}
+
 // ── DB Tests ─────────────────────────────────────────────────────────────────
 
 func TestEmotionHistory_InsertAndGet(t *testing.T) {
@@ -370,6 +413,9 @@ func TestEmotionHistory_InsertAndGet(t *testing.T) {
 	if entries[0].Description != "Feeling excited" {
 		t.Errorf("expected most recent first, got: %q", entries[0].Description)
 	}
+	if entries[0].Source == "" {
+		t.Error("expected source to be populated")
+	}
 }
 
 func TestGetLatestEmotion_Empty(t *testing.T) {
@@ -387,8 +433,18 @@ func TestGetLatestEmotion_Empty(t *testing.T) {
 func TestGetLatestEmotion_ReturnsNewest(t *testing.T) {
 	stm := newTestEmotionDB(t)
 
-	_ = stm.InsertEmotionHistory("Old emotion", "neutral", "trigger1")
-	_ = stm.InsertEmotionHistory("New emotion", "excited", "trigger2")
+	_ = stm.InsertEmotionHistory("Old emotion", "focused", "trigger1")
+	_ = stm.InsertEmotionStateHistory(EmotionState{
+		Description:              "New emotion",
+		PrimaryMood:              MoodCreative,
+		SecondaryMood:            "energized",
+		Valence:                  0.8,
+		Arousal:                  0.7,
+		Confidence:               0.9,
+		Cause:                    "great momentum",
+		Source:                   "llm_structured",
+		RecommendedResponseStyle: "bright_and_confident",
+	}, "trigger2")
 
 	entry, err := stm.GetLatestEmotion()
 	if err != nil {
@@ -400,6 +456,9 @@ func TestGetLatestEmotion_ReturnsNewest(t *testing.T) {
 	if entry.Description != "New emotion" {
 		t.Errorf("expected newest, got: %q", entry.Description)
 	}
+	if entry.SecondaryMood != "energized" {
+		t.Errorf("expected structured secondary mood, got %q", entry.SecondaryMood)
+	}
 }
 
 func TestCleanupEmotionHistory_CountLimit(t *testing.T) {
@@ -407,7 +466,9 @@ func TestCleanupEmotionHistory_CountLimit(t *testing.T) {
 
 	// Insert 5 entries
 	for i := 0; i < 5; i++ {
-		_ = stm.InsertEmotionHistory(fmt.Sprintf("Emotion %d", i), "neutral", "trigger")
+		if err := stm.InsertEmotionHistory(fmt.Sprintf("Emotion state number %d feels stable enough.", i), "focused", "trigger"); err != nil {
+			t.Fatalf("InsertEmotionHistory(%d): %v", i, err)
+		}
 	}
 
 	// Cleanup with max 2

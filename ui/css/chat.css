@@ -435,6 +435,17 @@
             border: 1px solid rgba(99, 102, 241, 0.2);
         }
 
+        .mood-emotion {
+            margin: 0.45rem 0 0.7rem;
+            padding: 0.6rem 0.75rem;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: var(--text-secondary);
+            font-size: 0.82rem;
+            line-height: 1.45;
+        }
+
         /* ── Bubbles ───────────────────────────────────────── */
         .bubble {
             position: relative;

@@ -139,6 +139,64 @@ func TestHandleDashboardMemoryContract(t *testing.T) {
 	}
 }
 
+func TestHandleDashboardEmotionHistoryContract(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	t.Cleanup(func() { stm.Close() })
+	if err := stm.InsertEmotionStateHistory(memory.EmotionState{
+		Description:              "I feel calmer after the successful fix.",
+		PrimaryMood:              memory.MoodFocused,
+		SecondaryMood:            "relieved",
+		Valence:                  0.35,
+		Arousal:                  0.42,
+		Confidence:               0.81,
+		Cause:                    "the deployment issue was resolved",
+		Source:                   "llm_structured",
+		RecommendedResponseStyle: "calm_and_precise",
+	}, "plan_completed"); err != nil {
+		t.Fatalf("InsertEmotionStateHistory: %v", err)
+	}
+
+	s := &Server{ShortTermMem: stm}
+	req := httptest.NewRequest(http.MethodGet, "/api/dashboard/emotion-history?hours=24", nil)
+	rec := httptest.NewRecorder()
+
+	handleDashboardEmotionHistory(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d", rec.Code)
+	}
+
+	var body map[string]interface{}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("failed to decode JSON: %v", err)
+	}
+
+	for _, key := range []string{"entries", "summary", "hours", "count"} {
+		if _, ok := body[key]; !ok {
+			t.Fatalf("emotion history payload missing key %q", key)
+		}
+	}
+
+	entries, ok := body["entries"].([]interface{})
+	if !ok || len(entries) != 1 {
+		t.Fatalf("entries = %#v, want single entry", body["entries"])
+	}
+
+	summary, ok := body["summary"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("summary has unexpected type %T", body["summary"])
+	}
+	for _, key := range []string{"count", "latest_cause", "latest_style", "latest_source", "average_valence", "average_arousal", "trigger_counts"} {
+		if _, ok := summary[key]; !ok {
+			t.Fatalf("summary missing key %q", key)
+		}
+	}
+}
+
 func TestHandleDashboardToolStatsContract(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Agent.AdaptiveTools.Enabled = true

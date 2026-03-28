@@ -28,9 +28,9 @@ Die V1-Engine verwendet vordefinierte Prompt-Templates ohne zusätzliche LLM-Auf
 **Konfiguration:**
 ```yaml
 # config.yaml
-agent:
-  personality_engine: true      # V1 aktivieren
-  core_personality: "friend"    # Basispersönlichkeit
+personality:
+  engine: true
+  core_personality: "friend"
 ```
 
 ### Personality Engine V2 (LLM-basiert)
@@ -45,21 +45,24 @@ Die V2-Engine bietet:
 **Konfiguration:**
 ```yaml
 # config.yaml
-agent:
-  personality_engine: true      # V1 muss auch aktiviert sein
-  personality_engine_v2: true   # V2 zusätzlich aktivieren
-  personality_v2_provider: ""   # Provider-ID (leer = Haupt-LLM)
-  user_profiling: false         # Benutzer-Profiling aktivieren
-  user_profiling_threshold: 3   # Mindest-Konfidenz für Profil-Updates
-  personality_v2_timeout_secs: 30  # Timeout für Analyse-Calls
+personality:
+  engine: true
+  engine_v2: true
+  v2_provider: ""
+  user_profiling: false
+  user_profiling_threshold: 3
+  v2_timeout_secs: 30
+  emotion_synthesizer:
+    enabled: true
+    trigger_on_mood_change: true
 ```
 
 ### Beide Engines deaktivieren
 
 ```yaml
-agent:
-  personality_engine: false
-  personality_engine_v2: false
+personality:
+  engine: false
+  engine_v2: false
 ```
 
 ---
@@ -81,8 +84,8 @@ agent:
 #### Über die Config
 
 ```yaml
-agent:
-  core_personality: "professional"  # oder: friend, punk, terminator, etc.
+personality:
+  core_personality: "professional"
 ```
 
 > 💡 Änderungen erfordern einen Neustart von AuraGo.
@@ -91,7 +94,7 @@ agent:
 
 1. Öffne die Web-Oberfläche
 2. Gehe zu "Config"
-3. Suche nach `core_personality`
+3. Suche nach `personality.core_personality`
 4. Wähle eine Persönlichkeit aus dem Dropdown
 5. Speichere und starte neu
 
@@ -99,7 +102,7 @@ agent:
 
 ## Benutzer-Profiling (V2)
 
-Wenn `user_profiling: true` gesetzt ist, lernt AuraGo automatisch:
+Wenn `personality.user_profiling: true` gesetzt ist, lernt AuraGo automatisch:
 
 - Bevorzugte Detailtiefe (technisch vs. allgemein)
 - Programmiersprachen und Tools
@@ -141,7 +144,7 @@ llm:
   temperature: 0.7  # Basistemperatur
 ```
 
-Die V2-Engine moduliert um diesen Basiswert basierend auf Kontext.
+Die V2-Engine moduliert um diesen Basiswert basierend auf Kontext. Wenn der Emotion Synthesizer aktiv ist, speichert AuraGo zusätzlich kurze natürlichsprachliche Emotionsnotizen und zeigt sie im Chat-Widget und Dashboard an.
 
 ---
 
@@ -186,8 +189,8 @@ Schnelle Infos  → terminator
 
 | Problem | Ursache | Lösung |
 |---------|---------|--------|
-| Persönlichkeit wird ignoriert | `personality_engine: false` | Auf `true` setzen |
-| Keine Stimmungsanpassung | V2 deaktiviert | `personality_engine_v2: true` |
+| Persönlichkeit wird ignoriert | `personality.engine: false` | Auf `true` setzen |
+| Keine Stimmungsanpassung | V2 deaktiviert | `personality.engine_v2: true` |
 | Hohe API-Kosten | V2 mit teurem Modell | Günstigeres Modell für V2 wählen |
 
 ---
@@ -196,12 +199,12 @@ Schnelle Infos  → terminator
 
 | Feature | Konfiguration | Empfohlene Nutzung |
 |---------|--------------|-------------------|
-| **V1 Engine** | `personality_engine: true` | Standard, geringe Kosten |
-| **V2 Engine** | `personality_engine_v2: true` | Dynamische Anpassung |
-| **Basispersönlichkeit** | `core_personality` | Auswahl des Stils |
-| **User Profiling** | `user_profiling: true` | Personalisierung |
+| **V1 Engine** | `personality.engine: true` | Standard, geringe Kosten |
+| **V2 Engine** | `personality.engine_v2: true` | Dynamische Anpassung |
+| **Basispersönlichkeit** | `personality.core_personality` | Auswahl des Stils |
+| **User Profiling** | `personality.user_profiling: true` | Personalisierung |
 
-> 💡 **Profi-Tipp:** Starte mit V1 und `core_personality: friend` oder `professional`. Aktiviere V2 erst, wenn du dynamische Anpassungen benötigst und das zusätzliche API-Budget hast.
+> 💡 **Profi-Tipp:** Starte mit V1 und `personality.core_personality: friend` oder `professional`. Aktiviere V2 erst, wenn du dynamische Anpassungen benötigst und das zusätzliche API-Budget hast.
 
 ---
 

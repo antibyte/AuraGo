@@ -116,7 +116,48 @@ func handleDashboardEmotionHistory(s *Server) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(entries)
+		type emotionSummary struct {
+			Count          int            `json:"count"`
+			LatestCause    string         `json:"latest_cause"`
+			LatestStyle    string         `json:"latest_style"`
+			LatestSource   string         `json:"latest_source"`
+			AverageValence float64        `json:"average_valence"`
+			AverageArousal float64        `json:"average_arousal"`
+			TriggerCounts  map[string]int `json:"trigger_counts"`
+		}
+
+		summary := emotionSummary{
+			Count:         len(entries),
+			TriggerCounts: map[string]int{},
+		}
+		if len(entries) > 0 {
+			summary.LatestCause = entries[0].Cause
+			summary.LatestStyle = entries[0].RecommendedResponseStyle
+			summary.LatestSource = entries[0].Source
+		}
+		for _, e := range entries {
+			summary.AverageValence += e.Valence
+			summary.AverageArousal += e.Arousal
+			trigger := strings.TrimSpace(e.TriggerSummary)
+			if trigger == "" {
+				trigger = "conversation"
+			}
+			if len(trigger) > 64 {
+				trigger = trigger[:64]
+			}
+			summary.TriggerCounts[trigger]++
+		}
+		if len(entries) > 0 {
+			summary.AverageValence /= float64(len(entries))
+			summary.AverageArousal /= float64(len(entries))
+		}
+
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"entries": entries,
+			"summary": summary,
+			"hours":   hours,
+			"count":   len(entries),
+		})
 	}
 }
 

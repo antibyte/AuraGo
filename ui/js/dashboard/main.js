@@ -147,9 +147,10 @@
         }
 
         async function loadTabAgent() {
-            const [personality, moodHistory, memData] = await Promise.all([
+            const [personality, moodHistory, emotionHistory, memData] = await Promise.all([
                 API.get('/api/personality/state'),
                 API.get('/api/dashboard/mood-history?hours=' + currentMoodHours),
+                API.get('/api/dashboard/emotion-history?hours=' + currentMoodHours),
                 API.get('/api/dashboard/memory'),
             ]);
             if (personality) {
@@ -161,6 +162,7 @@
             }
             if (Charts.mood) { Charts.mood.destroy(); Charts.mood = null; }
             Charts.mood = createMoodLineChart('mood-chart', moodHistory || []);
+            renderEmotionHistory(emotionHistory, personality);
             if (memData) {
                 renderMemoryStats(memData);
                 renderMemoryHealth(memData);
@@ -642,14 +644,108 @@
             // Emotion Synthesizer display
             const emotionDisplay = document.getElementById('emotion-display');
             const emotionText = document.getElementById('emotion-text');
+            const emotionMeta = document.getElementById('emotion-meta');
+            const causePill = document.getElementById('emotion-cause-pill');
+            const stylePill = document.getElementById('emotion-style-pill');
+            const sourcePill = document.getElementById('emotion-source-pill');
             if (emotionDisplay && emotionText) {
                 if (data.current_emotion) {
                     emotionText.textContent = data.current_emotion;
                     dashSetHidden(emotionDisplay, false);
+                    const state = data.current_emotion_state || {};
+                    const metaParts = [];
+                    if (causePill) {
+                        causePill.textContent = state.cause ? '↳ ' + state.cause : '';
+                        dashSetHidden(causePill, !state.cause);
+                    }
+                    if (stylePill) {
+                        stylePill.textContent = state.recommended_response_style ? '✦ ' + state.recommended_response_style : '';
+                        dashSetHidden(stylePill, !state.recommended_response_style);
+                    }
+                    if (sourcePill) {
+                        sourcePill.textContent = state.source ? '⚙ ' + state.source : '';
+                        dashSetHidden(sourcePill, !state.source);
+                    }
+                    if (emotionMeta) {
+                        dashSetHidden(emotionMeta, !((state.cause || state.recommended_response_style || state.source)));
+                    }
                 } else {
                     dashSetHidden(emotionDisplay, true);
                 }
             }
+        }
+
+        function formatEmotionTriggerSummary(summary) {
+            if (!summary || !summary.trigger_counts) return '';
+            const entries = Object.entries(summary.trigger_counts)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 2)
+                .map(([label, count]) => `${count}× ${label}`);
+            return entries.join(' · ');
+        }
+
+        function renderEmotionHistory(payload, personality) {
+            const summaryEl = document.getElementById('emotion-summary');
+            const timelineEl = document.getElementById('emotion-timeline');
+            const timelineList = document.getElementById('emotion-timeline-list');
+            if (!summaryEl || !timelineEl || !timelineList) return;
+
+            const entries = Array.isArray(payload) ? payload : (payload?.entries || []);
+            const summary = Array.isArray(payload) ? null : (payload?.summary || null);
+
+            const currentState = personality?.current_emotion_state || null;
+            const summaryCards = [];
+            if (currentState && currentState.valence != null) {
+                summaryCards.push({ label: t('dashboard.emotion_valence'), value: Number(currentState.valence).toFixed(2) });
+            } else if (summary && summary.average_valence != null) {
+                summaryCards.push({ label: t('dashboard.emotion_valence'), value: Number(summary.average_valence).toFixed(2) });
+            }
+            if (currentState && currentState.arousal != null) {
+                summaryCards.push({ label: t('dashboard.emotion_arousal'), value: Number(currentState.arousal).toFixed(2) });
+            } else if (summary && summary.average_arousal != null) {
+                summaryCards.push({ label: t('dashboard.emotion_arousal'), value: Number(summary.average_arousal).toFixed(2) });
+            }
+            if (summary && summary.latest_cause) {
+                summaryCards.push({ label: t('dashboard.emotion_latest_cause'), value: summary.latest_cause });
+            }
+            const triggerSummary = formatEmotionTriggerSummary(summary);
+            if (triggerSummary) {
+                summaryCards.push({ label: t('dashboard.emotion_trigger_mix'), value: triggerSummary });
+            }
+
+            if (summaryCards.length > 0) {
+                summaryEl.innerHTML = summaryCards.map(card =>
+                    `<div class="emotion-summary-card"><div class="emotion-summary-label">${card.label}</div><div class="emotion-summary-value">${escapeHtml(card.value || '—')}</div></div>`
+                ).join('');
+                dashSetHidden(summaryEl, false);
+            } else {
+                summaryEl.innerHTML = '';
+                dashSetHidden(summaryEl, true);
+            }
+
+            if (!entries || entries.length === 0) {
+                timelineList.innerHTML = `<div class="empty-state">${t('dashboard.emotion_no_history')}</div>`;
+                dashSetHidden(timelineEl, false);
+                return;
+            }
+
+            timelineList.innerHTML = entries.slice(0, 8).map(entry => {
+                const ts = entry.timestamp ? new Date(entry.timestamp).toLocaleString([], { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
+                const moodLabel = t('dashboard.personality_mood_' + String(entry.primary_mood || 'neutral').toLowerCase());
+                const cause = entry.cause || entry.trigger_summary || t('dashboard.personality_no_trigger');
+                const desc = entry.description || '';
+                return `
+                    <div class="emotion-entry">
+                        <div class="emotion-entry-top">
+                            <div class="emotion-entry-mood">${escapeHtml(moodLabel || entry.primary_mood || '—')}</div>
+                            <div class="emotion-entry-time">${escapeHtml(ts)}</div>
+                        </div>
+                        <div class="emotion-entry-cause">${escapeHtml(cause)}</div>
+                        <div class="emotion-entry-desc">${escapeHtml(desc)}</div>
+                    </div>
+                `;
+            }).join('');
+            dashSetHidden(timelineEl, false);
         }
 
         function renderMemoryStats(data) {
@@ -2264,9 +2360,14 @@
             document.querySelectorAll('.mood-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             currentMoodHours = parseInt(btn.dataset.hours) || 24;
-            const data = await API.get('/api/dashboard/mood-history?hours=' + currentMoodHours);
+            const [moodData, emotionData, personality] = await Promise.all([
+                API.get('/api/dashboard/mood-history?hours=' + currentMoodHours),
+                API.get('/api/dashboard/emotion-history?hours=' + currentMoodHours),
+                API.get('/api/personality/state'),
+            ]);
             if (Charts.mood) { Charts.mood.destroy(); }
-            Charts.mood = createMoodLineChart('mood-chart', data || []);
+            Charts.mood = createMoodLineChart('mood-chart', moodData || []);
+            renderEmotionHistory(emotionData, personality);
         });
 
         // ── Profile Search ──────────────────────────────────────────────────────────
@@ -2350,6 +2451,12 @@
                     ];
                     Charts.memory.update('none');
                     renderMemoryStats(mem);
+                }
+            });
+            window.AuraSSE.on('personality_update', function (personality) {
+                renderMoodBadge(personality);
+                if (TabState.active === 'agent') {
+                    API.get('/api/dashboard/emotion-history?hours=' + currentMoodHours).then(data => renderEmotionHistory(data, personality));
                 }
             });
             window.AuraSSE.onLegacy(function (event) {

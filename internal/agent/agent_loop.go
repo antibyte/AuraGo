@@ -126,6 +126,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		"token_budget", flags.TokenBudget,
 		"session_id", runCfg.SessionID,
 	)
+	baseAdditionalPrompt := flags.AdditionalPrompt
 	toolCallCount := 0
 	rawCodeCount := 0
 	missedToolCount := 0
@@ -274,6 +275,11 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	}
 
 	for {
+		emotionPolicy := emotionBehaviorPolicy{}
+		if !runCfg.IsMission && personalityEnabled && shortTermMem != nil {
+			emotionPolicy = deriveEmotionBehaviorPolicy(shortTermMem, emotionSynthesizer)
+		}
+
 		// Check for user interrupt
 		if checkAndClearInterrupt(sessionID) {
 			currentLogger.Warn("[Sync] User interrupted the agent — stopping immediately")
@@ -332,6 +338,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		if len(req.Messages) > 0 && req.Messages[len(req.Messages)-1].Role == openai.ChatMessageRoleUser {
 			lastUserMsg = req.Messages[len(req.Messages)-1].Content
 		}
+		userEmotionTrigger, userEmotionTriggerDetail, userInactivityHours := detectUserEmotionTrigger(lastUserMsg, shortTermMem, sessionID)
 
 		// Process queued tool calls from multi-tool responses (skip LLM for these)
 		if len(pendingTCs) > 0 {
@@ -732,11 +739,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 			flags.PersonalityLine = shortTermMem.GetPersonalityLineWithMeta(cfg.Personality.EngineV2, meta)
 
-			// Emotion Synthesizer: inject LLM-generated emotional description
-			if emotionSynthesizer != nil {
-				if es := emotionSynthesizer.GetLastEmotion(); es != nil {
-					flags.EmotionDescription = es.Description
-				}
+			// Emotion Synthesizer: inject latest emotional description
+			if emotionDescription := latestEmotionDescription(shortTermMem, emotionSynthesizer); emotionDescription != "" {
+				flags.EmotionDescription = emotionDescription
 			}
 		}
 
@@ -796,6 +801,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				flags.SessionTodoItems = planPrompt
 			}
 		}
+		flags.AdditionalPrompt = mergeAdditionalPrompt(baseAdditionalPrompt, emotionPolicy.PromptHint)
 		flags.TokenBudget = calculateEffectivePromptTokenBudget(cfg, ToolCall{}, homepageUsedInChain, currentLogger)
 
 		sysPrompt := prompts.BuildSystemPrompt(cfg.Directories.PromptsDir, flags, coreMemCache, currentLogger)
@@ -1243,6 +1249,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 
 			feedbackMsg := "ERROR: You sent raw Python code instead of a JSON tool call. My supervisor only understands JSON tool calls. Please wrap your code in a valid JSON object: {\"action\": \"save_tool\", \"name\": \"script.py\", \"description\": \"...\", \"code\": \"<your python code with \\n escaped>\"}."
+			feedbackMsg = applyEmotionRecoveryNudge(feedbackMsg, emotionPolicy)
 			id, err = shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, feedbackMsg, false, true)
 			if err != nil {
 				currentLogger.Error("Failed to persist feedback message to SQLite", "error", err)
@@ -1274,6 +1281,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				"ERROR: Your last native function call for %q had invalid function arguments JSON and was discarded. Emit the function call again with valid JSON arguments only. Do not include source code, XML/HTML, or prose inside the function name or outside the JSON arguments.",
 				recoveryTool,
 			)
+			feedbackMsg = applyEmotionRecoveryNudge(feedbackMsg, emotionPolicy)
 			id, err := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, feedbackMsg, false, true)
 			if err != nil {
 				currentLogger.Error("Failed to persist invalid-native-tool feedback message", "error", err)
@@ -1307,6 +1315,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			} else {
 				feedbackMsg = "ERROR: You announced what you were going to do but did not output a tool call. When executing a task, your ENTIRE response must be ONLY the raw JSON tool call — no explanation before it. Output the JSON tool call NOW."
 			}
+			feedbackMsg = applyEmotionRecoveryNudge(feedbackMsg, emotionPolicy)
 			id, err = shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, feedbackMsg, false, true)
 			if err != nil {
 				currentLogger.Error("Failed to persist feedback message to SQLite", "error", err)
@@ -1337,6 +1346,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 
 			feedbackMsg := "ERROR: Your response contained explanation text and/or markdown fences (```json). Tool calls MUST be a raw JSON object ONLY - no explanation before or after, no markdown, no fences. Output ONLY the JSON object, starting with { and ending with }. Example: {\"action\": \"co_agent\", \"operation\": \"spawn\", \"task\": \"...\"}"
+			feedbackMsg = applyEmotionRecoveryNudge(feedbackMsg, emotionPolicy)
 			id, err = shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, feedbackMsg, false, true)
 			if err != nil {
 				currentLogger.Error("Failed to persist feedback message to SQLite", "error", err)
@@ -1603,143 +1613,26 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 				if cfg.Personality.EngineV2 {
 					// ── V2: Asynchronous LLM-Based Mood Analysis ──
-					// Extract recent context (e.g. last 5 messages) for the analyzer
 					recentMsgs := req.Messages
-					if len(recentMsgs) > 5 {
-						recentMsgs = recentMsgs[len(recentMsgs)-5:]
-					}
-					var historyBuilder strings.Builder
-					var userHistoryBuilder strings.Builder
-					for _, m := range recentMsgs {
-						// Skip system messages — they contain the full agent prompt (tool guides, identity,
-						// rules, etc.) and must not be fed to the mood/profile analyzer. Including them
-						// causes the LLM to attribute every mentioned technology to the user's profile
-						// even when the user never mentioned it.
-						if m.Role == openai.ChatMessageRoleSystem {
-							continue
-						}
-						historyBuilder.WriteString(fmt.Sprintf("%s: %s\n", m.Role, m.Content))
-						// Build a user-only history to avoid attributing agent/tool content to the user profile
-						if m.Role == openai.ChatMessageRoleUser {
-							userHistoryBuilder.WriteString(fmt.Sprintf("user: %s\n", m.Content))
-						}
-					}
-					historyBuilder.WriteString(fmt.Sprintf("Tool Result: %s\n", resultContent))
-					// Note: Tool Results are intentionally excluded from userHistory
-
-					var v2Client memory.PersonalityAnalyzerClient = client
-					{
-						v2mURL := cfg.Personality.V2ResolvedURL
-						if v2mURL == "" {
-							v2mURL = cfg.Personality.V2URL
-						}
-						v2mKey := cfg.Personality.V2ResolvedKey
-						if v2mKey == "" {
-							v2mKey = cfg.Personality.V2APIKey
-						}
-						if v2mURL != "" {
-							if v2mKey == "" {
-								v2mKey = "dummy" // Ollama sometimes requires a non-empty string
-							}
-							v2Cfg := openai.DefaultConfig(v2mKey)
-							v2Cfg.BaseURL = v2mURL
-							v2Client = openai.NewClientWithConfig(v2Cfg)
-						}
-					}
-
-					go func(contextHistory string, userHistory string, tInfo string, modelName string, analyzerClient memory.PersonalityAnalyzerClient, m memory.PersonalityMeta, profilingEnabled bool) {
-						v2Ctx, cancel := context.WithTimeout(context.Background(), time.Duration(cfg.Personality.V2TimeoutSecs)*time.Second)
-						defer cancel()
-
-						mood, affDelta, traitDeltas, profileUpdates, err := shortTermMem.AnalyzeMoodV2(v2Ctx, analyzerClient, modelName, contextHistory, userHistory, m, profilingEnabled)
-						if err != nil {
-							v2URL := cfg.Personality.V2ResolvedURL
-							if v2URL == "" {
-								v2URL = cfg.Personality.V2URL
-							}
-							if v2URL == "" {
-								v2URL = "(main LLM endpoint)"
-							}
-							currentLogger.Warn("[Personality V2] Failed to analyze mood",
-								"error", err,
-								"model", modelName,
-								"url", v2URL,
-								"timeout_secs", cfg.Personality.V2TimeoutSecs,
-								"hint", "check personality engine config or use a dedicated v2_provider")
-						}
-
-						_ = shortTermMem.LogMood(mood, tInfo)
-						for trait, delta := range traitDeltas {
-							_ = shortTermMem.UpdateTrait(trait, delta)
-						}
-						_ = shortTermMem.UpdateTrait(memory.TraitAffinity, affDelta)
-
-						// User Profiling: persist observed profile attributes
-						if profilingEnabled && len(profileUpdates) > 0 {
-							validCategories := map[string]bool{"tech": true, "prefs": true, "interests": true, "context": true, "comm": true}
-							count := 0
-							for _, pu := range profileUpdates {
-								if count >= 1 {
-									break // Hard limit (matches prompt)
-								}
-								trimVal := strings.TrimSpace(pu.Value)
-								if validCategories[pu.Category] && pu.Key != "" && pu.Value != "" &&
-									!strings.EqualFold(pu.Key, trimVal) && len(trimVal) >= 2 &&
-									!strings.ContainsAny(pu.Key, " \t") && pu.Key == strings.ToLower(pu.Key) {
-									if err := shortTermMem.UpsertProfileEntry(pu.Category, pu.Key, pu.Value, "v2"); err != nil {
-										currentLogger.Warn("[User Profiling] Failed to upsert profile entry", "key", pu.Key, "error", err)
-									}
-									count++
-								}
-							}
-							_ = shortTermMem.EnforceProfileSizeLimit(50)
-							if err := shortTermMem.DeduplicateProfileEntries(); err != nil {
-								currentLogger.Warn("[User Profiling] Deduplication failed", "error", err)
-							}
-							if del, down, err := shortTermMem.PruneStaleProfileEntries(); err == nil && (del > 0 || down > 0) {
-								currentLogger.Debug("[User Profiling] Pruned stale entries", "deleted", del, "downgraded", down)
-							}
-							currentLogger.Debug("[User Profiling] Profile updates applied", "count", count)
-						}
-
-						currentLogger.Debug("[Personality V2] Asynchronous mood analysis complete", "mood", mood, "affinity_delta", affDelta)
-
-						// Emotion Synthesizer: generate emotional description after V2 analysis
-						if emotionSynthesizer != nil {
-							prevMood := ""
-							if prev := emotionSynthesizer.GetLastEmotion(); prev != nil {
-								prevMood = string(prev.PrimaryMood)
-							}
-							moodChanged := prevMood != string(mood)
-							shouldSynthesize := cfg.Personality.EmotionSynthesizer.TriggerAlways ||
-								(cfg.Personality.EmotionSynthesizer.TriggerOnMoodChange && moodChanged) ||
-								emotionSynthesizer.GetLastEmotion() == nil
-
-							if shouldSynthesize {
-								traits, _ := shortTermMem.GetTraits()
-								esInput := memory.EmotionInput{
-									UserMessage:  tInfo,
-									CurrentMood:  mood,
-									Traits:       traits,
-									LastEmotion:  emotionSynthesizer.GetLastEmotion(),
-									ErrorCount:   recoveryState.ConsecutiveErrorCount,
-									SuccessCount: toolCallCount - recoveryState.ConsecutiveErrorCount,
-									TimeOfDay:    memory.TimeOfDay(),
-								}
-								esCtx, esCancel := context.WithTimeout(context.Background(), 15*time.Second)
-								_, _ = emotionSynthesizer.SynthesizeEmotion(esCtx, shortTermMem, esInput)
-								esCancel()
-							}
-						}
-					}(historyBuilder.String(), userHistoryBuilder.String(), triggerInfo, func() string {
-						if m := cfg.Personality.V2ResolvedModel; m != "" {
-							return m
-						}
-						if m := cfg.Personality.V2Model; m != "" {
-							return m
-						}
-						return cfg.LLM.Model
-					}(), v2Client, meta, cfg.Personality.UserProfiling)
+					toolEmotionTrigger, toolEmotionDetail := detectToolEmotionTrigger(tc, recoveryState.ConsecutiveErrorCount, toolCallCount-recoveryState.ConsecutiveErrorCount)
+					launchAsyncPersonalityV2Analysis(
+						cfg,
+						currentLogger,
+						client,
+						shortTermMem,
+						emotionSynthesizer,
+						recentMsgs,
+						triggerInfo,
+						toolEmotionTrigger,
+						toolEmotionDetail,
+						0,
+						"Tool Result",
+						resultContent,
+						meta,
+						cfg.Personality.UserProfiling,
+						recoveryState.ConsecutiveErrorCount,
+						toolCallCount-recoveryState.ConsecutiveErrorCount,
+					)
 
 				} else {
 					// ── V1: Synchronous Heuristic-Based Mood Analysis ──
@@ -1752,10 +1645,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				flags.PersonalityLine = shortTermMem.GetPersonalityLineWithMeta(cfg.Personality.EngineV2, meta)
 
 				// Emotion Synthesizer: update flags with latest emotion if available
-				if emotionSynthesizer != nil {
-					if es := emotionSynthesizer.GetLastEmotion(); es != nil {
-						flags.EmotionDescription = es.Description
-					}
+				if emotionDescription := latestEmotionDescription(shortTermMem, emotionSynthesizer); emotionDescription != "" {
+					flags.EmotionDescription = emotionDescription
 				}
 			}
 
@@ -1930,28 +1821,32 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 		// Phase D: Final mood + trait update + milestone check at session end
 		if personalityEnabled && shortTermMem != nil {
-			mood, traitDeltas := memory.DetectMood(lastUserMsg, "", meta)
-			_ = shortTermMem.LogMood(mood, moodTrigger())
-			for trait, delta := range traitDeltas {
-				_ = shortTermMem.UpdateTrait(trait, delta)
-			}
-			// Milestone check
-			traits, tErr := shortTermMem.GetTraits()
-			if tErr == nil {
-				for _, m := range memory.CheckMilestones(traits) {
-					has, err := shortTermMem.HasMilestone(m.Label)
-					if err != nil {
-						continue // skip on DB error
-					}
-					if !has {
-						trigger := shortTermMem.GetLastMoodTrigger()
-						details := fmt.Sprintf("%s %s %.2f", m.Trait, m.Direction, m.Threshold)
-						if trigger != "" {
-							details = fmt.Sprintf("%s (Trigger: %q)", details, trigger)
-						}
-						_ = shortTermMem.AddMilestone(m.Label, details)
-					}
+			if cfg.Personality.EngineV2 {
+				launchAsyncPersonalityV2Analysis(
+					cfg,
+					currentLogger,
+					client,
+					shortTermMem,
+					emotionSynthesizer,
+					req.Messages,
+					moodTrigger(),
+					userEmotionTrigger,
+					userEmotionTriggerDetail,
+					userInactivityHours,
+					"Assistant Response",
+					content,
+					meta,
+					cfg.Personality.UserProfiling,
+					recoveryState.ConsecutiveErrorCount,
+					toolCallCount-recoveryState.ConsecutiveErrorCount,
+				)
+			} else {
+				mood, traitDeltas := memory.DetectMood(lastUserMsg, "", meta)
+				_ = shortTermMem.LogMood(mood, moodTrigger())
+				for trait, delta := range traitDeltas {
+					_ = shortTermMem.UpdateTrait(trait, delta)
 				}
+				applyPersonalityMilestones(shortTermMem)
 			}
 		}
 

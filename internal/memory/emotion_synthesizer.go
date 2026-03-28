@@ -3,8 +3,10 @@ package memory
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log/slog"
+	"math"
 	"strings"
 	"sync"
 	"time"
@@ -18,10 +20,33 @@ import (
 
 // EmotionState represents the synthesized emotional state of the agent.
 type EmotionState struct {
-	Description string    // 1-2 sentences describing the agent's current emotional state
-	PrimaryMood Mood      // Primary mood from the existing mood system
-	Timestamp   time.Time // When the emotion was synthesized
+	Description              string    `json:"description"`                // 1-2 sentences describing the agent's current emotional state
+	PrimaryMood              Mood      `json:"primary_mood"`               // Primary mood from the existing mood system
+	SecondaryMood            string    `json:"secondary_mood"`             // Optional secondary nuance
+	Valence                  float64   `json:"valence"`                    // -1.0..1.0
+	Arousal                  float64   `json:"arousal"`                    // 0.0..1.0
+	Confidence               float64   `json:"confidence"`                 // 0.0..1.0
+	Cause                    string    `json:"cause"`                      // Short explanation of the trigger
+	Source                   string    `json:"source"`                     // llm_structured | llm_text_fallback
+	RecommendedResponseStyle string    `json:"recommended_response_style"` // Short style hint for UI/behavior
+	Timestamp                time.Time `json:"timestamp"`                  // When the emotion was synthesized
 }
+
+type EmotionTriggerType string
+
+const (
+	EmotionTriggerConversation      EmotionTriggerType = "conversation"
+	EmotionTriggerPositiveFeedback  EmotionTriggerType = "positive_feedback"
+	EmotionTriggerNegativeFeedback  EmotionTriggerType = "negative_feedback"
+	EmotionTriggerUserReturn        EmotionTriggerType = "user_return_after_absence"
+	EmotionTriggerPlanCreated       EmotionTriggerType = "plan_created"
+	EmotionTriggerPlanAdvanced      EmotionTriggerType = "plan_advanced"
+	EmotionTriggerPlanBlocked       EmotionTriggerType = "plan_blocked"
+	EmotionTriggerPlanUnblocked     EmotionTriggerType = "plan_unblocked"
+	EmotionTriggerPlanCompleted     EmotionTriggerType = "plan_completed"
+	EmotionTriggerToolErrorStreak   EmotionTriggerType = "tool_error_streak"
+	EmotionTriggerToolSuccessStreak EmotionTriggerType = "tool_success_streak"
+)
 
 // EmotionInput collects the relevant data for emotion synthesis.
 type EmotionInput struct {
@@ -33,6 +58,20 @@ type EmotionInput struct {
 	ErrorCount         int               // Errors in current session
 	SuccessCount       int               // Successes in current session
 	TimeOfDay          string            // e.g. "morning", "afternoon", "evening", "night"
+	TriggerType        EmotionTriggerType
+	TriggerDetail      string
+	InactivityHours    float64
+}
+
+type emotionSynthesisResult struct {
+	Description              string  `json:"description"`
+	PrimaryMood              string  `json:"primary_mood"`
+	SecondaryMood            string  `json:"secondary_mood"`
+	Valence                  float64 `json:"valence"`
+	Arousal                  float64 `json:"arousal"`
+	Confidence               float64 `json:"confidence"`
+	Cause                    string  `json:"cause"`
+	RecommendedResponseStyle string  `json:"recommended_response_style"`
 }
 
 // EmotionSynthesizer manages LLM-based emotion generation.
@@ -112,19 +151,11 @@ func (es *EmotionSynthesizer) SynthesizeEmotion(ctx context.Context, stm *SQLite
 		return es.lastState, fmt.Errorf("emotion synthesis returned empty response")
 	}
 
-	description := strings.TrimSpace(resp.Choices[0].Message.Content)
-	// Sanitize: remove surrounding quotes if present
-	description = strings.Trim(description, "\"'")
-	description = sanitizePromptText(description, 220)
-	if err := validateEmotionDescription(description); err != nil {
+	state, err := parseEmotionSynthesisResponse(resp.Choices[0].Message.Content, input.CurrentMood)
+	if err != nil {
 		return es.lastState, fmt.Errorf("emotion synthesis validation failed: %w", err)
 	}
-
-	state := &EmotionState{
-		Description: description,
-		PrimaryMood: input.CurrentMood,
-		Timestamp:   time.Now(),
-	}
+	state.Timestamp = time.Now()
 
 	es.mu.Lock()
 	es.lastState = state
@@ -136,14 +167,16 @@ func (es *EmotionSynthesizer) SynthesizeEmotion(ctx context.Context, stm *SQLite
 		if len(triggerSummary) > 200 {
 			triggerSummary = triggerSummary[:200]
 		}
-		if err := stm.InsertEmotionHistory(description, string(input.CurrentMood), triggerSummary); err != nil {
+		if err := stm.InsertEmotionStateHistory(*state, triggerSummary); err != nil {
 			es.logger.Warn("[EmotionSynthesizer] Failed to persist emotion history", "error", err)
 		}
 	}
 
 	es.logger.Debug("[EmotionSynthesizer] Emotion synthesized",
-		"mood", input.CurrentMood,
-		"description_len", len(description),
+		"mood", state.PrimaryMood,
+		"description_len", len(state.Description),
+		"valence", state.Valence,
+		"arousal", state.Arousal,
 	)
 
 	return state, nil
@@ -153,7 +186,7 @@ func (es *EmotionSynthesizer) SynthesizeEmotion(ctx context.Context, stm *SQLite
 func (es *EmotionSynthesizer) buildPrompt(input EmotionInput) string {
 	var b strings.Builder
 
-	b.WriteString("You are an emotion synthesizer for an AI agent. Analyze the following data and generate a short, nuanced description (1-2 sentences) of the agent's current emotional state.\n\n")
+	b.WriteString("You are an emotion synthesizer for an AI agent. Analyze the following data and generate a structured emotional state.\n\n")
 
 	// Context data — user message wrapped for injection protection
 	b.WriteString("CONTEXT:\n")
@@ -183,18 +216,38 @@ func (es *EmotionSynthesizer) buildPrompt(input EmotionInput) string {
 
 	b.WriteString(fmt.Sprintf("- Errors: %d | Successes: %d\n", input.ErrorCount, input.SuccessCount))
 	b.WriteString(fmt.Sprintf("- Time of day: %s\n", input.TimeOfDay))
+	if input.TriggerType != "" {
+		b.WriteString(fmt.Sprintf("- Trigger type: %s\n", input.TriggerType))
+	}
+	if strings.TrimSpace(input.TriggerDetail) != "" {
+		b.WriteString(fmt.Sprintf("- Trigger detail: %s\n", sanitizeForPrompt(input.TriggerDetail)))
+	}
+	if input.InactivityHours > 0 {
+		b.WriteString(fmt.Sprintf("- Hours since last user message: %.1f\n", input.InactivityHours))
+	}
 
 	if input.LastEmotion != nil {
 		b.WriteString(fmt.Sprintf("- Previous emotion: %s\n", sanitizeForPrompt(input.LastEmotion.Description)))
 	}
 
 	b.WriteString("\nINSTRUCTIONS:\n")
-	b.WriteString("1. Write from the agent's first-person perspective (\"I feel...\")\n")
-	b.WriteString("2. Consider all factors subtly and with nuance\n")
-	b.WriteString("3. Avoid clichés, be authentic and human\n")
-	b.WriteString("4. Maximum 2 sentences, natural flow\n")
-	b.WriteString("5. Reflect the complexity of human emotions (e.g. \"cautiously optimistic\", \"eager but slightly nervous\")\n")
-	b.WriteString(fmt.Sprintf("6. Respond in %s\n", es.language))
+	b.WriteString("Respond ONLY with valid JSON using this exact schema:\n")
+	b.WriteString("{\n")
+	b.WriteString(`  "description": "1-2 natural first-person sentences in the requested language",` + "\n")
+	b.WriteString(`  "primary_mood": "one of: curious, focused, creative, analytical, cautious, playful",` + "\n")
+	b.WriteString(`  "secondary_mood": "short optional nuance in english or empty string",` + "\n")
+	b.WriteString(`  "valence": -1.0 to 1.0,` + "\n")
+	b.WriteString(`  "arousal": 0.0 to 1.0,` + "\n")
+	b.WriteString(`  "confidence": 0.0 to 1.0,` + "\n")
+	b.WriteString(`  "cause": "short explanation in plain language",` + "\n")
+	b.WriteString(`  "recommended_response_style": "short style hint such as warm_and_reassuring, crisp_and_focused"` + "\n")
+	b.WriteString("}\n")
+	b.WriteString("Rules:\n")
+	b.WriteString("1. The description must be authentic, nuanced, and non-dramatic.\n")
+	b.WriteString("2. Avoid clichés and avoid manipulative or extreme language.\n")
+	b.WriteString("3. Keep cause concise.\n")
+	b.WriteString("4. Reflect mixed emotions when appropriate through secondary_mood, valence, and arousal.\n")
+	b.WriteString(fmt.Sprintf("5. Write the description and cause in %s\n", es.language))
 
 	if traitStyle := buildEmotionTraitStyle(input.Traits); traitStyle != "" {
 		b.WriteString("\nEMOTIONAL STYLE:\n")
@@ -202,12 +255,7 @@ func (es *EmotionSynthesizer) buildPrompt(input EmotionInput) string {
 		b.WriteString("\n")
 	}
 
-	b.WriteString("\nEXAMPLES:\n")
-	b.WriteString("- \"I'm feeling especially motivated today and excited to help — the successful projects from the last hour have boosted my confidence.\"\n")
-	b.WriteString("- \"After the recent errors, I've become a bit uncertain, but your patience gives me the courage to try again carefully.\"\n")
-	b.WriteString("- \"It's late and I notice my focus fading, but your interesting question sparks my curiosity again.\"\n")
-
-	b.WriteString("\nRESPOND ONLY WITH THE EMOTION DESCRIPTION, NO INTRODUCTION OR EXPLANATION.")
+	b.WriteString("\nRESPOND ONLY WITH JSON, NO MARKDOWN, NO INTRODUCTION.")
 
 	return b.String()
 }
@@ -276,6 +324,92 @@ func validateEmotionDescription(description string) error {
 	return nil
 }
 
+func clampEmotionRange(v, min, max, fallback float64) float64 {
+	if math.IsNaN(v) || math.IsInf(v, 0) {
+		return fallback
+	}
+	if v < min {
+		return min
+	}
+	if v > max {
+		return max
+	}
+	return v
+}
+
+func sanitizeEmotionField(s string, maxLen int) string {
+	s = strings.TrimSpace(strings.Trim(s, "\"'"))
+	return sanitizePromptText(s, maxLen)
+}
+
+func parseEmotionSynthesisResponse(raw string, fallbackMood Mood) (*EmotionState, error) {
+	content := strings.TrimSpace(raw)
+	content = strings.Trim(content, "`")
+
+	var parsed emotionSynthesisResult
+	if err := json.Unmarshal([]byte(content), &parsed); err == nil {
+		state := &EmotionState{
+			Description:              sanitizeEmotionField(parsed.Description, 220),
+			PrimaryMood:              fallbackMood,
+			SecondaryMood:            sanitizeEmotionField(parsed.SecondaryMood, 40),
+			Valence:                  clampEmotionRange(parsed.Valence, -1, 1, 0),
+			Arousal:                  clampEmotionRange(parsed.Arousal, 0, 1, 0.5),
+			Confidence:               clampEmotionRange(parsed.Confidence, 0, 1, 0.7),
+			Cause:                    sanitizeEmotionField(parsed.Cause, 140),
+			Source:                   "llm_structured",
+			RecommendedResponseStyle: sanitizeEmotionField(parsed.RecommendedResponseStyle, 60),
+		}
+		if mood := Mood(strings.ToLower(strings.TrimSpace(parsed.PrimaryMood))); mood != "" {
+			switch mood {
+			case MoodCurious, MoodFocused, MoodCreative, MoodAnalytical, MoodCautious, MoodPlayful:
+				state.PrimaryMood = mood
+			}
+		}
+		if err := validateEmotionState(state); err != nil {
+			return nil, err
+		}
+		return state, nil
+	}
+
+	// Compatibility fallback for older plain-text outputs.
+	description := sanitizeEmotionField(content, 220)
+	state := &EmotionState{
+		Description: description,
+		PrimaryMood: fallbackMood,
+		Valence:     0,
+		Arousal:     0.5,
+		Confidence:  0.45,
+		Cause:       "legacy_text_fallback",
+		Source:      "llm_text_fallback",
+	}
+	if err := validateEmotionState(state); err != nil {
+		return nil, err
+	}
+	return state, nil
+}
+
+func validateEmotionState(state *EmotionState) error {
+	if state == nil {
+		return fmt.Errorf("emotion state is nil")
+	}
+	if err := validateEmotionDescription(state.Description); err != nil {
+		return err
+	}
+	state.Cause = sanitizeEmotionField(state.Cause, 140)
+	state.SecondaryMood = sanitizeEmotionField(state.SecondaryMood, 40)
+	state.RecommendedResponseStyle = sanitizeEmotionField(state.RecommendedResponseStyle, 60)
+	state.Valence = clampEmotionRange(state.Valence, -1, 1, 0)
+	state.Arousal = clampEmotionRange(state.Arousal, 0, 1, 0.5)
+	state.Confidence = clampEmotionRange(state.Confidence, 0, 1, 0.7)
+	if state.Source == "" {
+		state.Source = "llm_structured"
+	}
+	if state.PrimaryMood == "" {
+		state.PrimaryMood = MoodFocused
+	}
+	return nil
+}
+
 // TimeOfDay returns a human-readable time-of-day label for the current time.
 func TimeOfDay() string {
 	hour := time.Now().Hour()
@@ -299,6 +433,13 @@ CREATE TABLE IF NOT EXISTS emotion_history (
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
 	description TEXT NOT NULL,
 	primary_mood TEXT,
+	secondary_mood TEXT DEFAULT '',
+	valence REAL DEFAULT 0,
+	arousal REAL DEFAULT 0.5,
+	confidence REAL DEFAULT 0.7,
+	cause TEXT DEFAULT '',
+	source TEXT DEFAULT 'llm_structured',
+	recommended_response_style TEXT DEFAULT '',
 	trigger_summary TEXT,
 	timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -312,25 +453,83 @@ func (s *SQLiteMemory) InitEmotionTables() error {
 	if err != nil {
 		return fmt.Errorf("emotion history schema: %w", err)
 	}
+	columns := []struct {
+		Name    string
+		TypeDef string
+	}{
+		{Name: "secondary_mood", TypeDef: "TEXT DEFAULT ''"},
+		{Name: "valence", TypeDef: "REAL DEFAULT 0"},
+		{Name: "arousal", TypeDef: "REAL DEFAULT 0.5"},
+		{Name: "confidence", TypeDef: "REAL DEFAULT 0.7"},
+		{Name: "cause", TypeDef: "TEXT DEFAULT ''"},
+		{Name: "source", TypeDef: "TEXT DEFAULT 'llm_structured'"},
+		{Name: "recommended_response_style", TypeDef: "TEXT DEFAULT ''"},
+	}
+	for _, column := range columns {
+		var hasColumn bool
+		if err := s.db.QueryRow("SELECT count(*) > 0 FROM pragma_table_info('emotion_history') WHERE name = ?", column.Name).Scan(&hasColumn); err != nil {
+			return fmt.Errorf("emotion history check column %s: %w", column.Name, err)
+		}
+		if hasColumn {
+			continue
+		}
+		if _, err := s.db.Exec("ALTER TABLE emotion_history ADD COLUMN " + column.Name + " " + column.TypeDef); err != nil {
+			return fmt.Errorf("emotion history add column %s: %w", column.Name, err)
+		}
+	}
 	return nil
 }
 
 // InsertEmotionHistory stores a synthesized emotion in the history table.
 func (s *SQLiteMemory) InsertEmotionHistory(description, primaryMood, triggerSummary string) error {
+	return s.InsertEmotionStateHistory(EmotionState{
+		Description: description,
+		PrimaryMood: Mood(primaryMood),
+		Valence:     0,
+		Arousal:     0.5,
+		Confidence:  0.7,
+		Source:      "legacy_insert",
+	}, triggerSummary)
+}
+
+// InsertEmotionStateHistory stores a structured emotion in the history table.
+func (s *SQLiteMemory) InsertEmotionStateHistory(state EmotionState, triggerSummary string) error {
+	if err := validateEmotionState(&state); err != nil {
+		return err
+	}
 	_, err := s.db.Exec(
-		`INSERT INTO emotion_history (description, primary_mood, trigger_summary) VALUES (?, ?, ?)`,
-		description, primaryMood, triggerSummary,
+		`INSERT INTO emotion_history (
+			description, primary_mood, secondary_mood, valence, arousal, confidence,
+			cause, source, recommended_response_style, trigger_summary
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		state.Description,
+		string(state.PrimaryMood),
+		state.SecondaryMood,
+		state.Valence,
+		state.Arousal,
+		state.Confidence,
+		state.Cause,
+		state.Source,
+		state.RecommendedResponseStyle,
+		triggerSummary,
 	)
 	return err
 }
 
 // EmotionHistoryEntry is a single row from the emotion_history table.
 type EmotionHistoryEntry struct {
-	ID             int    `json:"id"`
-	Description    string `json:"description"`
-	PrimaryMood    string `json:"primary_mood"`
-	TriggerSummary string `json:"trigger_summary"`
-	Timestamp      string `json:"timestamp"`
+	ID                       int     `json:"id"`
+	Description              string  `json:"description"`
+	PrimaryMood              string  `json:"primary_mood"`
+	SecondaryMood            string  `json:"secondary_mood"`
+	Valence                  float64 `json:"valence"`
+	Arousal                  float64 `json:"arousal"`
+	Confidence               float64 `json:"confidence"`
+	Cause                    string  `json:"cause"`
+	Source                   string  `json:"source"`
+	RecommendedResponseStyle string  `json:"recommended_response_style"`
+	TriggerSummary           string  `json:"trigger_summary"`
+	Timestamp                string  `json:"timestamp"`
 }
 
 // GetEmotionHistory returns recent emotion history entries.
@@ -339,7 +538,9 @@ func (s *SQLiteMemory) GetEmotionHistory(hours int) ([]EmotionHistoryEntry, erro
 		hours = 24
 	}
 	rows, err := s.db.Query(
-		`SELECT id, description, primary_mood, COALESCE(trigger_summary, ''), timestamp
+		`SELECT id, description, primary_mood, COALESCE(secondary_mood, ''), COALESCE(valence, 0),
+		        COALESCE(arousal, 0.5), COALESCE(confidence, 0.7), COALESCE(cause, ''),
+		        COALESCE(source, ''), COALESCE(recommended_response_style, ''), COALESCE(trigger_summary, ''), timestamp
 		 FROM emotion_history
 		 WHERE timestamp >= datetime('now', ?)
 		 ORDER BY timestamp DESC`,
@@ -353,7 +554,20 @@ func (s *SQLiteMemory) GetEmotionHistory(hours int) ([]EmotionHistoryEntry, erro
 	var entries []EmotionHistoryEntry
 	for rows.Next() {
 		var e EmotionHistoryEntry
-		if err := rows.Scan(&e.ID, &e.Description, &e.PrimaryMood, &e.TriggerSummary, &e.Timestamp); err != nil {
+		if err := rows.Scan(
+			&e.ID,
+			&e.Description,
+			&e.PrimaryMood,
+			&e.SecondaryMood,
+			&e.Valence,
+			&e.Arousal,
+			&e.Confidence,
+			&e.Cause,
+			&e.Source,
+			&e.RecommendedResponseStyle,
+			&e.TriggerSummary,
+			&e.Timestamp,
+		); err != nil {
 			return nil, err
 		}
 		entries = append(entries, e)
@@ -365,9 +579,24 @@ func (s *SQLiteMemory) GetEmotionHistory(hours int) ([]EmotionHistoryEntry, erro
 func (s *SQLiteMemory) GetLatestEmotion() (*EmotionHistoryEntry, error) {
 	var e EmotionHistoryEntry
 	err := s.db.QueryRow(
-		`SELECT id, description, primary_mood, COALESCE(trigger_summary, ''), timestamp
+		`SELECT id, description, primary_mood, COALESCE(secondary_mood, ''), COALESCE(valence, 0),
+		        COALESCE(arousal, 0.5), COALESCE(confidence, 0.7), COALESCE(cause, ''),
+		        COALESCE(source, ''), COALESCE(recommended_response_style, ''), COALESCE(trigger_summary, ''), timestamp
 		 FROM emotion_history ORDER BY timestamp DESC LIMIT 1`,
-	).Scan(&e.ID, &e.Description, &e.PrimaryMood, &e.TriggerSummary, &e.Timestamp)
+	).Scan(
+		&e.ID,
+		&e.Description,
+		&e.PrimaryMood,
+		&e.SecondaryMood,
+		&e.Valence,
+		&e.Arousal,
+		&e.Confidence,
+		&e.Cause,
+		&e.Source,
+		&e.RecommendedResponseStyle,
+		&e.TriggerSummary,
+		&e.Timestamp,
+	)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil

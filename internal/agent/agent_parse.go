@@ -1216,6 +1216,23 @@ func calculateEffectiveMaxCalls(cfg *config.Config, tc ToolCall, homepageActiveI
 		}
 	}
 
+	// 1b. Structured emotion state: when the agent is in a tense recovery state,
+	// slightly reduce exploratory retries so it focuses on one concrete correction.
+	if personalityEnabled && shortTermMem != nil {
+		if latestEmotion, err := shortTermMem.GetLatestEmotion(); err == nil && latestEmotion != nil {
+			if latestEmotion.Confidence >= 0.45 && latestEmotion.Valence <= -0.25 && latestEmotion.Arousal >= 0.65 {
+				if effectiveMaxCalls > 1 {
+					effectiveMaxCalls--
+					logger.Debug("[Behavioral Tool Calling] Reduced MaxToolCalls due to tense recovery state",
+						"new_max", effectiveMaxCalls,
+						"valence", latestEmotion.Valence,
+						"arousal", latestEmotion.Arousal,
+						"confidence", latestEmotion.Confidence)
+				}
+			}
+		}
+	}
+
 	// 2. Homepage Tool: absolutes Limit für komplexe Web-Workflows
 	// Gilt sobald Homepage in der aktuellen Kette aktiv ist ODER der aktuelle Call homepage ist.
 	isHomepage := tc.Action == "homepage" || tc.Action == "homepage_tool" || tc.Tool == "homepage"

@@ -132,33 +132,8 @@ func handlePersonalityState(s *Server) http.HandlerFunc {
 			return
 		}
 
-		traits, err := s.ShortTermMem.GetTraits()
-		if err != nil {
-			s.Logger.Error("Failed to get personality traits", "error", err)
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
-			return
-		}
-
-		mood := s.ShortTermMem.GetCurrentMood()
-		trigger := s.ShortTermMem.GetLastMoodTrigger()
-
-		response := map[string]interface{}{
-			"enabled": true,
-			"mood":    string(mood),
-			"trigger": trigger,
-			"traits":  traits,
-		}
-
-		// Include latest synthesized emotion if available
-		if s.Cfg.Personality.EmotionSynthesizer.Enabled {
-			if latest, err := s.ShortTermMem.GetLatestEmotion(); err == nil && latest != nil {
-				response["current_emotion"] = latest.Description
-				response["emotion_timestamp"] = latest.Timestamp
-			}
-		}
-
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		json.NewEncoder(w).Encode(s.buildPersonalityStatePayload())
 	}
 }
 

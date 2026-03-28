@@ -1292,12 +1292,22 @@ const traitOrder = ['curiosity', 'thoroughness', 'creativity', 'empathy', 'confi
 function updateMoodWidget(data) {
     if (!data || !data.enabled) return;
     const toggle = document.getElementById('moodToggle');
+    const emotionEl = document.getElementById('moodEmotion');
     const emoji = moodStateEmojiMap[data.mood] || '🧠';
     const moodLabel = t(moodNameKeys[data.mood] || 'chat.mood_default_text');
     document.getElementById('moodEmoji').textContent = emoji;
     document.getElementById('moodText').textContent = moodLabel;
     document.getElementById('moodPanelEmoji').textContent = emoji;
     document.getElementById('moodPanelLabel').textContent = moodLabel;
+    if (emotionEl) {
+        if (data.current_emotion) {
+            emotionEl.textContent = data.current_emotion;
+            chatSetHidden(emotionEl, false);
+        } else {
+            emotionEl.textContent = '';
+            chatSetHidden(emotionEl, true);
+        }
+    }
     const traitsEl = document.getElementById('moodTraits');
     traitsEl.innerHTML = '';
     traitOrder.forEach(tr => {
