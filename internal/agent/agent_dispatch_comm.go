@@ -296,6 +296,9 @@ func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 			args = cleanArgs
 		}
 		cleanSkillName := strings.TrimSuffix(skillName, ".py")
+		if nativeAction, ok := mistakenNativeToolSkillName(cleanSkillName); ok {
+			return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s is a native AuraGo tool, not a Python skill. Call it directly as {\"action\":\"%s\"} instead of wrapping it in execute_skill.","redirect_action":"%s","redirect_example":"{\"action\":\"%s\"}"}`, cleanSkillName, nativeAction, nativeAction, nativeAction)
+		}
 		args = filterExecuteSkillArgs(cfg.Directories.SkillsDir, cleanSkillName, args)
 		switch cleanSkillName {
 		case "web_scraper":
@@ -2059,6 +2062,25 @@ func upnpAutoRegister(scanJSON string, db *sql.DB, deviceType string, tags []str
 	}
 	b, _ := json.Marshal(out)
 	return string(b)
+}
+
+var nativeToolSkillConfusions = map[string]string{
+	"upnp_scan":        "upnp_scan",
+	"mdns_scan":        "mdns_scan",
+	"network_ping":     "network_ping",
+	"port_scanner":     "port_scanner",
+	"dns_lookup":       "dns_lookup",
+	"whois_lookup":     "whois_lookup",
+	"detect_file_type": "detect_file_type",
+	"site_crawler":     "site_crawler",
+	"web_capture":      "web_capture",
+	"web_performance":  "web_performance",
+}
+
+func mistakenNativeToolSkillName(skillName string) (string, bool) {
+	clean := strings.ToLower(strings.TrimSpace(strings.TrimSuffix(skillName, ".py")))
+	action, ok := nativeToolSkillConfusions[clean]
+	return action, ok
 }
 
 // isBuiltinSkillEnabled returns false for built-in skills whose backing

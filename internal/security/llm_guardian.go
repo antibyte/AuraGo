@@ -94,29 +94,37 @@ func NewLLMGuardian(cfg *config.Config, logger *slog.Logger) *LLMGuardian {
 }
 
 // ShouldCheck determines whether a tool call needs LLM guardian evaluation
-// based on the configured level, tool overrides, and regex scan result.
-func (g *LLMGuardian) ShouldCheck(toolName string, regexLevel ThreatLevel) bool {
+// based on the configured level, regex scan result, and a small set of
+// low-risk fast paths for routine read-only operations.
+func (g *LLMGuardian) ShouldCheck(check GuardianCheck) bool {
 	if g == nil {
 		return false
 	}
 
-	level := g.resolveLevel(toolName)
+	level := g.resolveLevel(check.Operation)
 	if level == GuardianOff {
 		return false
 	}
 
 	// Always check if regex flagged something suspicious
-	if regexLevel >= ThreatMedium {
+	if check.RegexLevel >= ThreatMedium {
 		return true
+	}
+
+	if level != GuardianHigh && isLowRiskRoutine(check) {
+		if g.logger != nil {
+			g.logger.Debug("[Guardian] Fast-path bypass for low-risk routine operation", "operation", check.Operation)
+		}
+		return false
 	}
 
 	switch level {
 	case GuardianHigh:
 		return true // check everything
 	case GuardianMedium:
-		return isRiskyTool(toolName)
+		return isRiskyTool(check.Operation)
 	case GuardianLow:
-		return isHighRiskTool(toolName)
+		return isHighRiskTool(check.Operation)
 	default:
 		return false
 	}
@@ -127,12 +135,10 @@ func (g *LLMGuardian) ShouldCheck(toolName string, regexLevel ThreatLevel) bool 
 func (g *LLMGuardian) Evaluate(ctx context.Context, check GuardianCheck) GuardianResult {
 	start := time.Now()
 
-	// Check cache first — include a short context snippet so that the same tool call
-	// in different user-message contexts is not incorrectly served the same cached verdict.
-	ctxSnippet := check.Context
-	if len(ctxSnippet) > 80 {
-		ctxSnippet = ctxSnippet[:80]
-	}
+	// Check cache first. For low-risk routine operations we intentionally ignore
+	// most user-context variance so repeated read-only commands can reuse the same
+	// verdict instead of paying the full LLM cost every time.
+	ctxSnippet := cacheContextSnippet(check)
 	cacheKey := GenerateCacheKey(check.Operation+"|"+ctxSnippet, check.Parameters)
 	if result, hit := g.cache.Get(cacheKey); hit {
 		result.Duration = time.Since(start)
@@ -319,6 +325,68 @@ var riskyTools = map[string]bool{
 
 func isHighRiskTool(name string) bool { return highRiskTools[name] }
 func isRiskyTool(name string) bool    { return riskyTools[name] }
+
+func isLowRiskRoutine(check GuardianCheck) bool {
+	switch check.Operation {
+	case "execute_shell":
+		return isLowRiskShellCommand(check.Parameters["command"])
+	case "filesystem":
+		switch strings.ToLower(strings.TrimSpace(check.Parameters["operation"])) {
+		case "read_file", "list_dir", "stat":
+			return true
+		}
+	case "docker":
+		switch strings.ToLower(strings.TrimSpace(check.Parameters["operation"])) {
+		case "list", "ps", "logs", "inspect", "list_images", "images", "list_networks", "network_ls", "network_list":
+			return true
+		}
+	case "homepage":
+		switch strings.ToLower(strings.TrimSpace(check.Parameters["operation"])) {
+		case "status", "list_files", "read_file", "webserver_status":
+			return true
+		}
+	}
+	return false
+}
+
+func isLowRiskShellCommand(command string) bool {
+	lc := strings.ToLower(strings.TrimSpace(command))
+	if lc == "" {
+		return false
+	}
+	dangerMarkers := []string{
+		" rm ", " rm-", "mv ", " chmod", " chown", "curl ", "wget ", "scp ", "rsync ",
+		" sudo ", "sudo ", ">|", ">>", " > ", "tee ", "sed -i", "perl -i", "python -c",
+		"bash -c", "sh -c", "docker exec", "docker cp", "kill ", "systemctl ", "service ",
+	}
+	padded := " " + lc + " "
+	for _, marker := range dangerMarkers {
+		if strings.Contains(padded, marker) {
+			return false
+		}
+	}
+	prefixes := []string{
+		"ls", "pwd", "cat ", "head ", "tail ", "wc ", "stat ", "find ", "rg ", "grep ",
+		"docker ps", "docker logs", "docker inspect", "docker images", "docker network ls",
+	}
+	for _, prefix := range prefixes {
+		if strings.HasPrefix(lc, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+func cacheContextSnippet(check GuardianCheck) string {
+	if isLowRiskRoutine(check) {
+		return "routine"
+	}
+	ctxSnippet := check.Context
+	if len(ctxSnippet) > 80 {
+		ctxSnippet = ctxSnippet[:80]
+	}
+	return ctxSnippet
+}
 
 // ── Prompt & Response ───────────────────────────────────────────────────────
 

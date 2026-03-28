@@ -225,9 +225,9 @@ func TestGuardianCacheEviction(t *testing.T) {
 func TestGuardianMetrics(t *testing.T) {
 	m := &GuardianMetrics{}
 
-	m.Record(GuardianResult{Decision: DecisionAllow, TokensUsed: 100})
-	m.Record(GuardianResult{Decision: DecisionBlock, TokensUsed: 50})
-	m.Record(GuardianResult{Decision: DecisionQuarantine, TokensUsed: 75, Cached: true})
+	m.Record(GuardianResult{Decision: DecisionAllow, TokensUsed: 100, Duration: 20 * time.Millisecond})
+	m.Record(GuardianResult{Decision: DecisionBlock, TokensUsed: 50, Duration: 30 * time.Millisecond})
+	m.Record(GuardianResult{Decision: DecisionQuarantine, TokensUsed: 75, Cached: true, Duration: 10 * time.Millisecond})
 	m.RecordError()
 
 	snap := m.Snapshot()
@@ -249,6 +249,12 @@ func TestGuardianMetrics(t *testing.T) {
 	if snap.TotalTokens != 225 {
 		t.Errorf("TotalTokens = %d, want 225", snap.TotalTokens)
 	}
+	if snap.MaxLatencyMs != 30 {
+		t.Errorf("MaxLatencyMs = %d, want 30", snap.MaxLatencyMs)
+	}
+	if snap.AverageLatency <= 0 {
+		t.Errorf("AverageLatency = %f, want > 0", snap.AverageLatency)
+	}
 	if snap.Errors != 1 {
 		t.Errorf("Errors = %d, want 1", snap.Errors)
 	}
@@ -269,8 +275,47 @@ func TestGenerateCacheKey(t *testing.T) {
 
 func TestShouldCheckNilGuardian(t *testing.T) {
 	var g *LLMGuardian
-	if g.ShouldCheck("execute_shell", ThreatNone) {
+	if g.ShouldCheck(GuardianCheck{Operation: "execute_shell", RegexLevel: ThreatNone}) {
 		t.Error("nil guardian should never require check")
+	}
+}
+
+func TestShouldCheckSkipsLowRiskShellRoutineAtMedium(t *testing.T) {
+	g := &LLMGuardian{cfg: &config.Config{}}
+	g.cfg.LLMGuardian.DefaultLevel = "medium"
+
+	check := GuardianCheck{
+		Operation:  "execute_shell",
+		Parameters: map[string]string{"command": "docker logs aurago-homepage-web --tail 50"},
+		RegexLevel: ThreatNone,
+	}
+	if g.ShouldCheck(check) {
+		t.Fatal("expected low-risk routine shell command to bypass guardian at medium level")
+	}
+}
+
+func TestShouldCheckStillChecksLowRiskShellRoutineAtHigh(t *testing.T) {
+	g := &LLMGuardian{cfg: &config.Config{}}
+	g.cfg.LLMGuardian.DefaultLevel = "high"
+
+	check := GuardianCheck{
+		Operation:  "execute_shell",
+		Parameters: map[string]string{"command": "docker logs aurago-homepage-web --tail 50"},
+		RegexLevel: ThreatNone,
+	}
+	if !g.ShouldCheck(check) {
+		t.Fatal("expected guardian high level to still check the tool call")
+	}
+}
+
+func TestCacheContextSnippetCollapsesLowRiskContext(t *testing.T) {
+	check := GuardianCheck{
+		Operation:  "filesystem",
+		Parameters: map[string]string{"operation": "read_file", "file_path": "project_root/prompts/tools_manuals/homepage.md"},
+		Context:    "first user message",
+	}
+	if got := cacheContextSnippet(check); got != "routine" {
+		t.Fatalf("cacheContextSnippet = %q, want routine", got)
 	}
 }
 

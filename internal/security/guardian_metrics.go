@@ -17,6 +17,8 @@ type GuardianMetrics struct {
 	Clarifications atomic.Int64
 	ContentScans   atomic.Int64
 	TotalTokens    atomic.Int64
+	TotalLatencyMs atomic.Int64
+	MaxLatencyMs   atomic.Int64
 	LastCheckTime  atomic.Int64 // Unix millis of last check
 }
 
@@ -24,7 +26,15 @@ type GuardianMetrics struct {
 func (m *GuardianMetrics) Record(result GuardianResult) {
 	m.TotalChecks.Add(1)
 	m.TotalTokens.Add(int64(result.TokensUsed))
+	m.TotalLatencyMs.Add(result.Duration.Milliseconds())
 	m.LastCheckTime.Store(time.Now().UnixMilli())
+	for {
+		current := m.MaxLatencyMs.Load()
+		next := result.Duration.Milliseconds()
+		if next <= current || m.MaxLatencyMs.CompareAndSwap(current, next) {
+			break
+		}
+	}
 
 	if result.Cached {
 		m.CachedChecks.Add(1)
@@ -67,6 +77,8 @@ type MetricsSnapshot struct {
 	Clarifications int64   `json:"clarifications"`
 	ContentScans   int64   `json:"content_scans"`
 	TotalTokens    int64   `json:"total_tokens"`
+	AverageLatency float64 `json:"average_latency_ms"`
+	MaxLatencyMs   int64   `json:"max_latency_ms"`
 	CacheHitRate   float64 `json:"cache_hit_rate"`
 	LastCheckTime  int64   `json:"last_check_time"`
 }
@@ -79,6 +91,10 @@ func (m *GuardianMetrics) Snapshot() MetricsSnapshot {
 	if total > 0 {
 		hitRate = float64(cached) / float64(total)
 	}
+	var avgLatency float64
+	if total > 0 {
+		avgLatency = float64(m.TotalLatencyMs.Load()) / float64(total)
+	}
 	return MetricsSnapshot{
 		TotalChecks:    total,
 		CachedChecks:   cached,
@@ -89,6 +105,8 @@ func (m *GuardianMetrics) Snapshot() MetricsSnapshot {
 		Clarifications: m.Clarifications.Load(),
 		ContentScans:   m.ContentScans.Load(),
 		TotalTokens:    m.TotalTokens.Load(),
+		AverageLatency: avgLatency,
+		MaxLatencyMs:   m.MaxLatencyMs.Load(),
 		CacheHitRate:   hitRate,
 		LastCheckTime:  m.LastCheckTime.Load(),
 	}

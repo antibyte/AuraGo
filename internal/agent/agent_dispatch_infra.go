@@ -1228,7 +1228,8 @@ func dispatchInfra(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 		return handleFritzBoxToolCall(tc, fbClient, cfg, logger)
 
 	// ── TrueNAS Storage Management ──
-	case "truenas_health", "truenas_pool_list", "truenas_pool_scrub",
+	case "truenas",
+		"truenas_health", "truenas_pool_list", "truenas_pool_scrub",
 		"truenas_dataset_list", "truenas_dataset_create", "truenas_dataset_delete",
 		"truenas_snapshot_list", "truenas_snapshot_create", "truenas_snapshot_delete", "truenas_snapshot_rollback",
 		"truenas_smb_list", "truenas_smb_create", "truenas_smb_delete",
@@ -1247,7 +1248,35 @@ func dispatchInfra(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 			}
 		}
 		logger.Info("LLM requested TrueNAS operation", "action", tc.Action)
-		return "Tool Output: " + tools.DispatchTrueNASTool(tc.Action, toolCallParams(tc), cfg, nil, logger)
+		// Build a comprehensive params map from ToolCall fields.
+		// The unified "truenas" schema maps: name→tc.Name, path→tc.Path, query→pool/dataset,
+		// port→pool_id/share_id, limit→quota_gb/retention_days, content→compression,
+		// recursive→tc.Recursive, force→tc.Force.
+		trueNASParams := map[string]string{}
+		if tc.Name != "" {
+			trueNASParams["name"] = tc.Name
+		}
+		if p := firstNonEmpty(tc.FilePath, tc.Path); p != "" {
+			trueNASParams["path"] = p
+		}
+		if tc.Query != "" {
+			trueNASParams["pool"] = tc.Query
+			trueNASParams["dataset"] = tc.Query
+		}
+		if tc.Port != 0 {
+			trueNASParams["pool_id"] = fmt.Sprintf("%d", tc.Port)
+			trueNASParams["share_id"] = fmt.Sprintf("%d", tc.Port)
+		}
+		if tc.Content != "" {
+			trueNASParams["compression"] = tc.Content
+		}
+		if tc.Limit > 0 {
+			trueNASParams["quota_gb"] = fmt.Sprintf("%d", tc.Limit)
+			trueNASParams["retention_days"] = fmt.Sprintf("%d", tc.Limit)
+		}
+		trueNASParams["recursive"] = fmt.Sprintf("%v", tc.Recursive)
+		trueNASParams["force"] = fmt.Sprintf("%v", tc.Force)
+		return "Tool Output: " + tools.DispatchTrueNASTool(tc.Action, trueNASParams, cfg, nil, logger)
 
 	// ── Jellyfin Media Server ──
 	case "jellyfin":

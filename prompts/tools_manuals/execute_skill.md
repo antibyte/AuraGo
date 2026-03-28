@@ -40,3 +40,5 @@ Use `analyze_image` instead of `pdf_extractor` for PNG/JPG/WebP screenshots or p
 - New skills can be registered dynamically
 - Skills run in the same sandboxed Python environment as `execute_python`
 - `list_tools` does not list these pre-built skills; use `list_skills` for discovery
+- Native AuraGo tools are **not** skills. Call native tools directly with their own `action` instead of wrapping them in `execute_skill`.
+- Example: use `{"action":"upnp_scan"}` directly, not `{"action":"execute_skill","skill":"upnp_scan"}`.

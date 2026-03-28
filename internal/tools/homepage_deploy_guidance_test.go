@@ -15,3 +15,17 @@ func TestDecorateHomepageBuildFailureMissingBuildScript(t *testing.T) {
 		t.Fatalf("expected project_dir to appear in guidance, got: %s", result)
 	}
 }
+
+func TestHomepageWebServerStartMissingSourcePathExplainsSrvRoot(t *testing.T) {
+	cfg := HomepageConfig{WorkspacePath: t.TempDir(), WebServerPort: 8080}
+	result := HomepageWebServerStart(cfg, "missing-site", ".", nil)
+	if !strings.Contains(result, "aurago-homepage-web") {
+		t.Fatalf("expected Caddy container guidance, got: %s", result)
+	}
+	if !strings.Contains(result, "/srv") {
+		t.Fatalf("expected /srv document root guidance, got: %s", result)
+	}
+	if !strings.Contains(result, "/var/www/html") {
+		t.Fatalf("expected /var/www/html correction hint, got: %s", result)
+	}
+}

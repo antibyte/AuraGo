@@ -142,3 +142,19 @@ func TestBuiltinSkillManifestParametersStayInSync(t *testing.T) {
 		}
 	}
 }
+
+func TestMistakenNativeToolSkillNameDetectsNativeTools(t *testing.T) {
+	action, ok := mistakenNativeToolSkillName("upnp_scan")
+	if !ok {
+		t.Fatal("expected upnp_scan to be recognized as a native tool")
+	}
+	if action != "upnp_scan" {
+		t.Fatalf("action = %q, want upnp_scan", action)
+	}
+}
+
+func TestMistakenNativeToolSkillNameIgnoresRealSkills(t *testing.T) {
+	if _, ok := mistakenNativeToolSkillName("ddg_search"); ok {
+		t.Fatal("did not expect builtin skill ddg_search to be treated as native-only tool")
+	}
+}

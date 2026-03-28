@@ -87,6 +87,9 @@ Removes both containers and the dev image.
 
 ## Development
 
+`write_file`, `read_file`, `edit_file`, `list_files`, and other project-file operations work against the **homepage dev workspace**, not the published web root.
+Keep `project_dir`/`path` values relative to the homepage workspace.
+
 ### exec — Run a shell command in the container
 ```json
 {"action": "homepage", "operation": "exec", "command": "cd /workspace/my-site && npm run dev"}
@@ -180,6 +183,17 @@ Tests connectivity to the configured deployment target.
 
 ## Local Web Server (Caddy)
 
+AuraGo uses two different concepts here:
+- **Dev workspace**: where homepage project files are edited inside the homepage tool workflow
+- **Published local site**: served by the separate Caddy container `aurago-homepage-web`
+
+For local publishing, the Caddy container serves files from:
+- container name: `aurago-homepage-web`
+- document root: `/srv`
+- config path: `/etc/caddy/Caddyfile`
+
+Do **not** assume `/var/www/html`. Use `publish_local` or `webserver_start` instead of manual `docker cp` to guessed paths.
+
 ### webserver_start — Start local Caddy web server
 Serves the build output via Caddy (Docker required).
 ```json
@@ -188,7 +202,11 @@ Serves the build output via Caddy (Docker required).
 
 **Response:**
 - `url`: The URL where the site is accessible
+- `served_url`: Canonical served URL
 - `mode`: "docker"
+- `container_name`: `aurago-homepage-web`
+- `document_root`: `/srv`
+- `source_path`: Host-side build or project directory mounted into Caddy
 
 ### webserver_stop — Stop the web server
 ```json

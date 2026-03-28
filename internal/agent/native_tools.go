@@ -110,6 +110,12 @@ type ToolFeatureFlags struct {
 	JellyfinEnabled bool
 	// Chromecast / Google Cast
 	ChromecastEnabled bool
+	// Discord messaging
+	DiscordEnabled bool
+	// TrueNAS storage
+	TrueNASEnabled bool
+	// Koofr cloud storage
+	KoofrEnabled bool
 	// FritzBox sub-feature flags
 	FritzBoxSystemEnabled    bool
 	FritzBoxNetworkEnabled   bool
@@ -539,14 +545,21 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 			schema(map[string]interface{}{
 				"server_id": prop("string", "Server ID or hostname from the inventory"),
 				"command":   prop("string", "Shell command to run on the remote server"),
+			}, "server_id", "command"),
+		))
+		tools = append(tools, tool("transfer_remote_file",
+			"Transfer a file to or from a remote SSH server registered in the inventory via SFTP. "+
+				"The local path must be within the agent workspace.",
+			schema(map[string]interface{}{
+				"server_id": prop("string", "Server ID or hostname from the inventory"),
 				"direction": map[string]interface{}{
 					"type":        "string",
-					"description": "For file transfer: 'upload' or 'download'",
+					"description": "Transfer direction: 'upload' sends local file to server, 'download' fetches remote file to local workspace",
 					"enum":        []string{"upload", "download"},
 				},
-				"local_path":  prop("string", "Local file path (for file transfer)"),
-				"remote_path": prop("string", "Remote file path (for file transfer)"),
-			}, "server_id", "command"),
+				"local_path":  prop("string", "Local file path within the agent workspace (source for upload, destination for download)"),
+				"remote_path": prop("string", "Remote file path on the target server (destination for upload, source for download)"),
+			}, "server_id", "direction", "local_path", "remote_path"),
 		))
 	}
 
@@ -935,14 +948,14 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 					"description": "Chromecast operation to perform",
 					"enum":        []string{"discover", "play", "speak", "stop", "volume", "status"},
 				},
-				"device_name": prop("string", "Friendly device name (resolved via device registry, e.g. 'Living Room'). Use when device_addr is unknown."),
-				"device_addr": prop("string", "IP address of the Chromecast device (e.g. '192.168.1.42')."),
-				"device_port": map[string]interface{}{"type": "integer", "description": "Port of the Chromecast device (default: 8009)."},
-				"url":         prop("string", "Media URL to cast (for 'play' operation)."),
+				"device_name":  prop("string", "Friendly device name (resolved via device registry, e.g. 'Living Room'). Use when device_addr is unknown."),
+				"device_addr":  prop("string", "IP address of the Chromecast device (e.g. '192.168.1.42')."),
+				"device_port":  map[string]interface{}{"type": "integer", "description": "Port of the Chromecast device (default: 8009)."},
+				"url":          prop("string", "Media URL to cast (for 'play' operation)."),
 				"content_type": prop("string", "MIME type of the media (for 'play', e.g. 'video/mp4', 'audio/mpeg'). Default: 'video/mp4'."),
-				"text":        prop("string", "Text to speak aloud via TTS (for 'speak' operation)."),
-				"language":    prop("string", "Language code for TTS speech (for 'speak', e.g. 'de', 'en'). Defaults to system language."),
-				"volume": map[string]interface{}{"type": "number", "description": "Volume level 0.0–1.0 (for 'volume' operation)."},
+				"text":         prop("string", "Text to speak aloud via TTS (for 'speak' operation)."),
+				"language":     prop("string", "Language code for TTS speech (for 'speak', e.g. 'de', 'en'). Defaults to system language."),
+				"volume":       map[string]interface{}{"type": "number", "description": "Volume level 0.0–1.0 (for 'volume' operation)."},
 			}, "operation"),
 		))
 	}
@@ -1165,6 +1178,35 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 		))
 	}
 
+	if ff.TrueNASEnabled {
+		tools = append(tools, tool("truenas",
+			"Manage TrueNAS storage system: check health, list/scrub storage pools, manage ZFS datasets and snapshots, "+
+				"manage SMB shares, and check filesystem space. Use 'action' to specify the operation.",
+			schema(map[string]interface{}{
+				"action": map[string]interface{}{
+					"type":        "string",
+					"description": "TrueNAS operation to perform",
+					"enum": []string{
+						"truenas_health",
+						"truenas_pool_list", "truenas_pool_scrub",
+						"truenas_dataset_list", "truenas_dataset_create", "truenas_dataset_delete",
+						"truenas_snapshot_list", "truenas_snapshot_create", "truenas_snapshot_delete", "truenas_snapshot_rollback",
+						"truenas_smb_list", "truenas_smb_create", "truenas_smb_delete",
+						"truenas_fs_space",
+					},
+				},
+				"name":      prop("string", "Dataset, snapshot, or SMB share name. Required for create/delete/rollback operations."),
+				"path":      prop("string", "SMB share local filesystem path (for truenas_smb_create, e.g. '/mnt/pool/share')."),
+				"query":     prop("string", "Pool name or dataset path for filtering (e.g. 'tank' for pool, 'tank/data' for dataset)."),
+				"port":      map[string]interface{}{"type": "integer", "description": "Numeric pool ID for truenas_pool_scrub, or SMB share ID for truenas_smb_delete."},
+				"limit":     map[string]interface{}{"type": "integer", "description": "Quota in GB for truenas_dataset_create, or snapshot retention days for truenas_snapshot_create."},
+				"content":   prop("string", "Compression type for truenas_dataset_create: lz4 (default), zstd, gzip, off."),
+				"recursive": map[string]interface{}{"type": "boolean", "description": "Enable recursive operation (for truenas_dataset_delete or truenas_snapshot_create)."},
+				"force":     map[string]interface{}{"type": "boolean", "description": "Force rollback (for truenas_snapshot_rollback)."},
+			}, "action"),
+		))
+	}
+
 	if ff.ProxmoxEnabled {
 		tools = append(tools, tool("proxmox",
 			"Manage Proxmox VE virtual machines and containers: list nodes/VMs/CTs, start/stop/reboot, snapshots, storage info, cluster resources.",
@@ -1249,6 +1291,29 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 			),
 			tool("list_email_accounts",
 				"List all configured email accounts with their IMAP/SMTP settings and status.",
+				schema(map[string]interface{}{}),
+			),
+		)
+	}
+
+	if ff.DiscordEnabled {
+		tools = append(tools,
+			tool("send_discord",
+				"Send a message to a Discord channel.",
+				schema(map[string]interface{}{
+					"message":    prop("string", "Message text to send"),
+					"channel_id": prop("string", "Discord channel ID (uses default_channel_id from config if omitted)"),
+				}, "message"),
+			),
+			tool("fetch_discord",
+				"Fetch recent messages from a Discord channel.",
+				schema(map[string]interface{}{
+					"channel_id": prop("string", "Discord channel ID (uses default from config if omitted)"),
+					"limit":      map[string]interface{}{"type": "integer", "description": "Number of messages to fetch (default: 10)"},
+				}),
+			),
+			tool("list_discord_channels",
+				"List all text channels in the configured Discord server (guild).",
 				schema(map[string]interface{}{}),
 			),
 		)
@@ -1490,6 +1555,24 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 			}, "operation"),
 		))
 	}
+
+	if ff.KoofrEnabled {
+		tools = append(tools, tool("koofr",
+			"Manage files in Koofr cloud storage: list directory contents, read files, write/upload files, "+
+				"create directories, delete files/directories, rename/move, and copy files.",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "File operation to perform",
+					"enum":        []string{"list", "read", "write", "mkdir", "delete", "rename", "copy"},
+				},
+				"path":        prop("string", "File or directory path in Koofr (e.g. '/My Files/documents/'). Required for all operations."),
+				"destination": prop("string", "Destination path for rename/copy operations."),
+				"content":     prop("string", "File content to write (for 'write' operation)."),
+			}, "operation", "path"),
+		))
+	}
+
 	if ff.ImageGenerationEnabled {
 		tools = append(tools, tool("generate_image",
 			"Generate images from text prompts using AI. Supports text-to-image and image-to-image generation. "+

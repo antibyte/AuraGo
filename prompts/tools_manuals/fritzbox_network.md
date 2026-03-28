@@ -60,7 +60,7 @@ Write operations additionally require `fritzbox.network.readonly: false`.
 
 ## Notes
 
-- `wlan_index` defaults to 1 (2.4 GHz) if omitted.
+- `wlan_index` is an integer and defaults to `1` (2.4 GHz) if omitted. Prefer numeric JSON like `"wlan_index": 1`, not a quoted string.
 - `protocol` for port forwarding must be `TCP` or `UDP` (case-insensitive; normalised to uppercase internally).
 - `delete_port_forward` identifies the rule by `external_port` + `protocol`; all other fields are ignored.
 - Wake-on-LAN only works if the target device supports WoL and its NIC is configured accordingly.

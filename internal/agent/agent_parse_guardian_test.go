@@ -52,3 +52,13 @@ func TestToolCallParamsLeavesWorkdirPathsUntouched(t *testing.T) {
 		t.Fatalf("file_path = %q, want notes.txt", params["file_path"])
 	}
 }
+
+func TestParseToolCallCoercesNumericStringFields(t *testing.T) {
+	tc := ParseToolCall(`{"action":"fritzbox_network","operation":"get_wlan","wlan_index":"2"}`)
+	if !tc.IsTool {
+		t.Fatal("expected tool call to be detected")
+	}
+	if tc.WLANIndex != 2 {
+		t.Fatalf("WLANIndex = %d, want 2", tc.WLANIndex)
+	}
+}

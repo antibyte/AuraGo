@@ -179,6 +179,10 @@ func TestToolSchemaManualSync(t *testing.T) {
 		"mcp_call":                   true, // manual is mcp.md
 		"execute_sandbox":            true, // manual is sandbox.md
 		"document_creator":           true, // simple single-purpose tool
+		"transfer_remote_file":       true, // covered by remote_execution manual
+		"send_discord":               true, // covered by discord.md
+		"fetch_discord":              true, // covered by discord.md
+		"list_discord_channels":      true, // covered by discord.md
 	}
 
 	var missing []string

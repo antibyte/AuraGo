@@ -114,6 +114,7 @@ type ContextFlags struct {
 	GoogleWorkspaceEnabled   bool
 	OneDriveEnabled          bool
 	JellyfinEnabled          bool
+	TrueNASEnabled           bool
 	ProxmoxEnabled           bool
 	OllamaEnabled            bool
 	TailscaleEnabled         bool

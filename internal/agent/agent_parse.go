@@ -65,21 +65,21 @@ func DispatchToolCall(ctx context.Context, tc ToolCall, cfg *config.Config, logg
 			scanText := toolCallScanText(tc)
 			regexLevel = guardian.ScanForInjection(scanText).Level
 		}
-		if llmGuardian.ShouldCheck(tc.Action, regexLevel) {
-			// Build guardian context: prefer the triggering user message over tc.Content
-			guardianCtx := userContext
-			if guardianCtx == "" {
-				guardianCtx = tc.Content
-			}
-			if len(guardianCtx) > 300 {
-				guardianCtx = guardianCtx[:300]
-			}
-			check := security.GuardianCheck{
-				Operation:  tc.Action,
-				Parameters: toolCallParams(tc),
-				Context:    guardianCtx,
-				RegexLevel: regexLevel,
-			}
+		// Build guardian context: prefer the triggering user message over tc.Content
+		guardianCtx := userContext
+		if guardianCtx == "" {
+			guardianCtx = tc.Content
+		}
+		if len(guardianCtx) > 300 {
+			guardianCtx = guardianCtx[:300]
+		}
+		check := security.GuardianCheck{
+			Operation:  tc.Action,
+			Parameters: toolCallParams(tc),
+			Context:    guardianCtx,
+			RegexLevel: regexLevel,
+		}
+		if llmGuardian.ShouldCheck(check) {
 			result := llmGuardian.EvaluateWithFailSafe(ctx, check)
 			if result.Decision == security.DecisionBlock {
 				// Clarification: if agent provided a justification AND clarification is enabled, re-evaluate once
@@ -352,12 +352,22 @@ func extractExtraToolCalls(content, firstRawJSON string) []ToolCall {
 	return results
 }
 
+var numericStringToolFields = map[string]bool{
+	"wlan_index":   true,
+	"tam_index":    true,
+	"msg_index":    true,
+	"phonebook_id": true,
+	"limit":        true,
+	"max_results":  true,
+	"tail":         true,
+}
+
 // normalizeTagsInJSON pre-processes a JSON string before unmarshaling into ToolCall.
-// It handles two type mismatches that prevent clean unmarshaling:
-//   - "tags" sent as a JSON array  → converted to comma-separated string
-//   - "body" sent as a JSON object → re-serialized as a JSON string so that
-//     the Body string field is populated (LLMs often send nested objects for
-//     api_request body instead of a pre-serialized JSON string)
+// It fixes a few recurring type mismatches that would otherwise cause the whole
+// tool call to be discarded:
+//   - "tags" sent as a JSON array        → converted to comma-separated string
+//   - "body" sent as an object/array     → re-serialized as a JSON string
+//   - selected numeric fields as strings → converted to JSON numbers
 func normalizeTagsInJSON(s string) string {
 	var raw map[string]json.RawMessage
 	if err := json.Unmarshal([]byte(s), &raw); err != nil {
@@ -383,6 +393,23 @@ func normalizeTagsInJSON(s string) string {
 		if encoded, err := json.Marshal(string(bodyRaw)); err == nil {
 			raw["body"] = json.RawMessage(encoded)
 			changed = true
+		}
+	}
+
+	for field := range numericStringToolFields {
+		fieldRaw, ok := raw[field]
+		if !ok || len(fieldRaw) < 2 || fieldRaw[0] != '"' {
+			continue
+		}
+		var asString string
+		if err := json.Unmarshal(fieldRaw, &asString); err != nil {
+			continue
+		}
+		if v, err := strconv.Atoi(strings.TrimSpace(asString)); err == nil {
+			if encoded, err := json.Marshal(v); err == nil {
+				raw[field] = json.RawMessage(encoded)
+				changed = true
+			}
 		}
 	}
 

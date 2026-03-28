@@ -239,6 +239,9 @@ func HomepageWebServerStart(cfg HomepageConfig, projectDir, buildDir string, log
 	}
 
 	hostBuildPath := filepath.Join(cfg.WorkspacePath, projectDir, buildDir)
+	if _, err := os.Stat(hostBuildPath); err != nil {
+		return errJSON("Local publish source does not exist: %s. homepage write_file/read_file operate in the dev workspace, while published local sites are served by container %q from document root /srv. Use homepage build/publish_local/webserver_start instead of copying files to /var/www/html.", hostBuildPath, homepageWebContainer)
+	}
 	port := cfg.WebServerPort
 	if port == 0 {
 		port = 8080
@@ -260,8 +263,11 @@ func HomepageWebServerStart(cfg HomepageConfig, projectDir, buildDir string, log
 			c.Close()
 			return okJSON("Web server already running (Python fallback)",
 				"url", fmt.Sprintf("http://localhost:%d", port),
+				"served_url", fmt.Sprintf("http://localhost:%d", port),
 				"port", fmt.Sprintf("%d", port),
-				"mode", "python")
+				"mode", "python",
+				"deploy_target", "python_fallback",
+				"source_path", hostBuildPath)
 		}
 
 		// Use Python HTTP server as fallback
@@ -273,9 +279,12 @@ func HomepageWebServerStart(cfg HomepageConfig, projectDir, buildDir string, log
 		logger.Info("[Homepage] Web server started (Python fallback)", "url", url, "pid", pid)
 		return okJSON("Web server started (Python fallback)",
 			"url", url,
+			"served_url", url,
 			"port", fmt.Sprintf("%d", port),
 			"pid", strconv.Itoa(pid),
 			"mode", "python",
+			"deploy_target", "python_fallback",
+			"source_path", hostBuildPath,
 			"note", "Limited functionality. Full features require Docker.")
 	}
 
@@ -357,7 +366,17 @@ func HomepageWebServerStart(cfg HomepageConfig, projectDir, buildDir string, log
 		url = "https://" + cfg.WebServerDomain
 	}
 	lanIP := getLocalLANIP()
-	args := []string{"url", url, "port", fmt.Sprintf("%d", port)}
+	args := []string{
+		"url", url,
+		"served_url", url,
+		"port", fmt.Sprintf("%d", port),
+		"mode", "docker",
+		"deploy_target", "caddy_web_root",
+		"container_name", homepageWebContainer,
+		"document_root", "/srv",
+		"config_path", "/etc/caddy/Caddyfile",
+		"source_path", hostBuildPath,
+	}
 	if lanIP != "" && !cfg.WebServerInternalOnly {
 		args = append(args, "lan_url", fmt.Sprintf("http://%s:%d", lanIP, port))
 	}
@@ -555,7 +574,7 @@ func HomepageDeployNetlify(cfg HomepageConfig, nfCfg NetlifyConfig, projectDir, 
 
 	// Verify the deploy path exists.
 	if _, err := os.Stat(deployPath); err != nil {
-		return errJSON("Deploy path does not exist: %s. project_dir must be relative to the homepage workspace, and homepage project files must be created with homepage write_file/read_file instead of the filesystem tool. For static sites, ensure the project root or a dist/build/out directory contains index.html.", deployPath)
+		return errJSON("Deploy path does not exist: %s. project_dir must be relative to the homepage workspace, and homepage project files must be created with homepage write_file/read_file instead of the filesystem tool. For static sites, ensure the project root or a dist/build/out directory contains index.html. Local published sites are served by container %q from /srv, not /var/www/html.", deployPath, homepageWebContainer)
 	}
 
 	logger.Info("[Homepage] Packaging for Netlify deploy", "path", deployPath)
