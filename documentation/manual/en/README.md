@@ -68,6 +68,7 @@ AuraGo is a fully autonomous AI agent shipped as a single portable binary with a
 ### Part 5: Reference
 20. [Chat Commands](20-chat-commands.md) – All available chat commands
 21. [API Reference](21-api-reference.md) – Complete REST API documentation
+22. [Internal Tools](22-internal-tools.md) – All 100+ internal agent tools
 
 ---
 
@@ -100,6 +101,9 @@ The configuration now uses a central provider system for LLM connections. See [C
 /sudo          - Activate sudo mode
 /journal       - Open journal
 ```
+
+### All Agent Tools
+A complete overview of all 100+ internal tools can be found in the [Internal Tools](22-internal-tools.md) section.
 
 ### Quick Links
 - [Manual Start Page](../README.md)
