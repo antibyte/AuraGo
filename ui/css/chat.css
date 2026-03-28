@@ -1483,6 +1483,10 @@
             background: var(--accent-dim, rgba(124, 111, 247, 0.1));
             border-bottom: 1px solid var(--border-accent, #444);
             user-select: none;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.6rem;
         }
         .todo-debug-body {
             padding: 0.5rem 0.8rem;
@@ -1499,6 +1503,12 @@
             color: var(--text-secondary, #888);
             text-decoration: line-through;
             opacity: 0.65;
+        }
+        .todo-item-meta {
+            font-size: 0.68rem;
+            color: var(--text-secondary, #9ca3af);
+            line-height: 1.35;
+            margin: 0.15rem 0 0.3rem;
         }
 
         .pill-debug {

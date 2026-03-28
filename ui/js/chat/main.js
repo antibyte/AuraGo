@@ -291,15 +291,10 @@ function ensureTaskPanel() {
 }
 
 function renderPlanStatusBadge(status) {
-    const labels = {
-        draft: 'Draft',
-        active: 'Active',
-        paused: 'Paused',
-        blocked: 'Blocked',
-        completed: 'Completed',
-        cancelled: 'Cancelled'
-    };
-    return `<span class="badge badge-secondary">${escapeHtml(labels[status] || status || '')}</span>`;
+    const key = status ? `plans.status_${status}` : '';
+    const fallback = status || '';
+    const label = key && typeof t === 'function' ? t(key) : fallback;
+    return `<span class="badge badge-secondary">${escapeHtml(label || fallback)}</span>`;
 }
 
 function renderPlanTask(task) {
@@ -334,7 +329,7 @@ function updatePlanPanel(plan) {
         ? `<div class="todo-item todo-pending">🎯 ${escapeHtml(plan.current_task)}</div>`
         : '';
     const blocked = plan.blocked_reason
-        ? `<div class="todo-item-meta">Blocked: ${escapeHtml(plan.blocked_reason)}</div>`
+        ? `<div class="todo-item-meta">${escapeHtml(t('plans.blocked_reason'))}: ${escapeHtml(plan.blocked_reason)}</div>`
         : '';
     const recommendation = plan.recommendation
         ? `<div class="todo-item-meta">${escapeHtml((typeof t === 'function' ? t('plans.recommendation') : 'Recommended next step') + ': ' + plan.recommendation)}</div>`
@@ -342,10 +337,12 @@ function updatePlanPanel(plan) {
     const latestEvent = events.length > 0 && events[0].message
         ? `<div class="todo-item-meta">${escapeHtml(events[0].message)}</div>`
         : '';
+    const headerTitle = escapeHtml(plan.title || t('common.nav_plans'));
+    const progressLabel = escapeHtml(t('plans.progress'));
     panel.innerHTML = `
-        <div class="todo-debug-header">${escapeHtml(plan.title || 'Plan')} ${renderPlanStatusBadge(plan.status)}</div>
+        <div class="todo-debug-header"><span>${headerTitle}</span>${renderPlanStatusBadge(plan.status)}</div>
         <div class="todo-debug-body">
-            <div class="todo-item todo-pending">📈 ${progress}% (${counts.completed || 0}/${counts.total || tasks.length || 0})</div>
+            <div class="todo-item todo-pending">📈 ${progressLabel}: ${progress}% (${counts.completed || 0}/${counts.total || tasks.length || 0})</div>
             ${currentTask}
             ${blocked}
             ${recommendation}
