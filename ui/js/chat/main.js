@@ -1187,7 +1187,7 @@ function updateMoodWidget(data) {
     });
     // Show the mood toggle - CSS has display:none by default, so we need to override it
     if (toggle) {
-        toggle.style.display = '';
+        toggle.style.display = 'flex';
         chatSetHidden(toggle, false);
     }
 }
