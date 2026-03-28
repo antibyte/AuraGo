@@ -598,6 +598,51 @@ func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 		}
 		return fmt.Sprintf("Tool Output: wait_for_event scheduled as background task %s. I will continue automatically once the event occurs.", task.ID)
 
+	case "ask_aurago":
+		message := strings.TrimSpace(tc.Message)
+		if message == "" {
+			message = strings.TrimSpace(tc.Content)
+		}
+		if message == "" {
+			message = strings.TrimSpace(tc.Query)
+		}
+		if message == "" {
+			return `Tool Output: {"status":"error","message":"message is required"}`
+		}
+
+		answer, err := AskAuraGoBridge(ctx, RunConfig{
+			Config:             cfg,
+			Logger:             logger,
+			LLMClient:          llmClient,
+			ShortTermMem:       shortTermMem,
+			LongTermMem:        longTermMem,
+			KG:                 kg,
+			InventoryDB:        inventoryDB,
+			InvasionDB:         invasionDB,
+			CheatsheetDB:       cheatsheetDB,
+			ImageGalleryDB:     imageGalleryDB,
+			MediaRegistryDB:    mediaRegistryDB,
+			HomepageRegistryDB: homepageRegistryDB,
+			ContactsDB:         contactsDB,
+			SQLConnectionsDB:   sqlConnectionsDB,
+			SQLConnectionPool:  sqlConnectionPool,
+			RemoteHub:          remoteHub,
+			Vault:              vault,
+			Registry:           registry,
+			Manifest:           manifest,
+			CronManager:        cronManager,
+			MissionManagerV2:   missionManagerV2,
+			CoAgentRegistry:    coAgentRegistry,
+			BudgetTracker:      budgetTracker,
+			LLMGuardian:        llmGuardian,
+			SessionID:          vscodeDebugBridgeSessionID,
+			MessageSource:      "mcp-vscode-bridge",
+		}, message)
+		if err != nil {
+			return fmt.Sprintf(`Tool Output: {"status":"error","message":%q}`, err.Error())
+		}
+		return fmt.Sprintf("Tool Output: %s", answer)
+
 	case "get_tool_manual":
 		logger.Info("LLM requested tool manual", "name", tc.ToolName)
 		if tc.ToolName == "" {

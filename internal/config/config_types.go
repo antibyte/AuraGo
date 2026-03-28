@@ -1074,9 +1074,10 @@ type Config struct {
 		GatewayID string `yaml:"gateway_id"` // AI Gateway name/slug
 	} `yaml:"ai_gateway"`
 	MCPServer struct {
-		Enabled      bool     `yaml:"enabled"`
-		AllowedTools []string `yaml:"allowed_tools"` // tool names to expose; empty = none
-		RequireAuth  bool     `yaml:"require_auth"`  // require Bearer token or session cookie
+		Enabled           bool     `yaml:"enabled"`
+		AllowedTools      []string `yaml:"allowed_tools"`       // tool names to expose; empty = none
+		RequireAuth       bool     `yaml:"require_auth"`        // require Bearer token or session cookie
+		VSCodeDebugBridge bool     `yaml:"vscode_debug_bridge"` // enable the VS Code live-debug bridge preset
 	} `yaml:"mcp_server"`
 	N8n struct {
 		Enabled        bool     `yaml:"enabled"`

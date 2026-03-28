@@ -285,6 +285,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		// MCP Server config API
 		mux.HandleFunc("/api/mcp-server/tools", handleMCPServerTools(s))
 		mux.HandleFunc("/api/mcp-server/token", handleMCPServerToken(s))
+		mux.HandleFunc("/api/mcp-server/vscode-bridge", handleMCPServerVSCodeBridgeInfo(s))
 
 		// n8n Integration config API
 		mux.HandleFunc("/api/n8n/token", handleN8nToken(s))

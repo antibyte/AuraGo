@@ -661,6 +661,7 @@ mcp_server:
     enabled: false
     allowed_tools: []
     require_auth: true
+    vscode_debug_bridge: false
 notifications:
     ntfy:
         enabled: false

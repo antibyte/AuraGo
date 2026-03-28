@@ -101,8 +101,8 @@ func handleMCPEndpoint(s *Server) http.HandlerFunc {
 		}
 
 		s.CfgMu.RLock()
-		enabled := s.Cfg.MCPServer.Enabled
-		requireAuth := s.Cfg.MCPServer.RequireAuth
+		enabled := mcpServerEnabled(s.Cfg)
+		requireAuth := mcpServerRequireAuth(s.Cfg)
 		sessionSecret := s.Cfg.Auth.SessionSecret
 		mainAuthEnabled := s.Cfg.Auth.Enabled
 		s.CfgMu.RUnlock()
@@ -210,12 +210,8 @@ func mcpAuthenticate(s *Server, r *http.Request, sessionSecret string) bool {
 func mcpBuildToolList(s *Server) []mcpToolSchema {
 	s.CfgMu.RLock()
 	cfg := s.Cfg
-	allowed := cfg.MCPServer.AllowedTools
+	allowed := mcpEffectiveAllowedTools(cfg)
 	s.CfgMu.RUnlock()
-
-	ff := mcpFeatureFlags(cfg)
-	manifest := tools.NewManifest(cfg.Directories.ToolsDir)
-	oaiTools := agent.BuildNativeToolSchemas(cfg.Directories.SkillsDir, manifest, ff, s.Logger)
 
 	allowSet := make(map[string]bool, len(allowed))
 	for _, name := range allowed {
@@ -223,32 +219,13 @@ func mcpBuildToolList(s *Server) []mcpToolSchema {
 	}
 
 	var result []mcpToolSchema
-	for _, t := range oaiTools {
-		if t.Function == nil {
-			continue
-		}
-		name := t.Function.Name
+	for _, t := range mcpBuildToolCatalog(s) {
+		name := t.Name
 		// Filter by allowlist (empty = allow all)
 		if len(allowSet) > 0 && !allowSet[name] {
 			continue
 		}
-
-		schema := mcpToolSchema{
-			Name:        name,
-			Description: t.Function.Description,
-		}
-
-		// Convert parameters to MCP inputSchema format
-		if t.Function.Parameters != nil {
-			schema.InputSchema = t.Function.Parameters
-		} else {
-			schema.InputSchema = map[string]interface{}{
-				"type":       "object",
-				"properties": map[string]interface{}{},
-			}
-		}
-
-		result = append(result, schema)
+		result = append(result, t)
 	}
 	return result
 }
@@ -266,7 +243,7 @@ func mcpCallTool(ctx context.Context, s *Server, params json.RawMessage) mcpCall
 	// Check tool is allowed
 	s.CfgMu.RLock()
 	cfg := s.Cfg
-	allowed := cfg.MCPServer.AllowedTools
+	allowed := mcpEffectiveAllowedTools(cfg)
 	s.CfgMu.RUnlock()
 
 	if len(allowed) > 0 {
@@ -393,18 +370,11 @@ func handleMCPServerTools(s *Server) http.HandlerFunc {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		s.CfgMu.RLock()
-		cfg := s.Cfg
-		s.CfgMu.RUnlock()
-
-		ff := mcpFeatureFlags(cfg)
-		manifest := tools.NewManifest(cfg.Directories.ToolsDir)
-		oaiTools := agent.BuildNativeToolSchemas(cfg.Directories.SkillsDir, manifest, ff, s.Logger)
-
-		names := make([]string, 0, len(oaiTools))
-		for _, t := range oaiTools {
-			if t.Function != nil {
-				names = append(names, t.Function.Name)
+		catalog := mcpBuildToolCatalog(s)
+		names := make([]string, 0, len(catalog))
+		for _, t := range catalog {
+			if t.Name != "" {
+				names = append(names, t.Name)
 			}
 		}
 
