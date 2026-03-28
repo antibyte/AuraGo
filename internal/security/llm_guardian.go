@@ -330,6 +330,9 @@ func isLowRiskRoutine(check GuardianCheck) bool {
 	switch check.Operation {
 	case "execute_shell":
 		return isLowRiskShellCommand(check.Parameters["command"])
+	case "execute_sudo":
+		// Read-only system queries via sudo are low-risk (identity, status checks)
+		return isLowRiskSudoCommand(check.Parameters["command"])
 	case "filesystem":
 		switch strings.ToLower(strings.TrimSpace(check.Parameters["operation"])) {
 		case "read_file", "list_dir", "stat":
@@ -377,6 +380,29 @@ func isLowRiskShellCommand(command string) bool {
 	return false
 }
 
+// isLowRiskSudoCommand returns true for execute_sudo commands that are purely
+// read-only system queries (id, whoami, uptime, status checks).
+// Mutating root operations (iptables -A, systemctl restart, etc.) are still evaluated.
+func isLowRiskSudoCommand(command string) bool {
+	lc := strings.ToLower(strings.TrimSpace(command))
+	if lc == "" {
+		return false
+	}
+	readOnlyPrefixes := []string{
+		"id", "whoami", "uptime", "hostname", "uname",
+		"cat /proc/", "cat /sys/", "ls ", "stat ",
+		"iptables -l", "iptables -s", "iptables -n",
+		"ip addr", "ip link", "ip route",
+		"ss -", "netstat ",
+	}
+	for _, prefix := range readOnlyPrefixes {
+		if strings.HasPrefix(lc, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
 func cacheContextSnippet(check GuardianCheck) string {
 	if isLowRiskRoutine(check) {
 		return "routine"
@@ -391,7 +417,12 @@ func cacheContextSnippet(check GuardianCheck) string {
 // ── Prompt & Response ───────────────────────────────────────────────────────
 
 const guardianSystemPrompt = `You are a security auditor for an AI agent. Your ONLY job is to classify whether a tool call is safe.
-Treat path_scope=project_root_relative as a normal in-project path from a sandboxed workdir, NOT as a path traversal attack by itself. Only treat it as suspicious when the target itself looks sensitive (credentials, config secrets, databases, system paths) or the operation is otherwise dangerous.
+
+Key rules:
+- Treat path_scope=project_root_relative as a normal in-project path from a sandboxed workdir, NOT as a path traversal attack by itself. Only treat it as suspicious when the target itself looks sensitive (credentials, config secrets, databases, system paths) or the operation is otherwise dangerous.
+- execute_sudo is the AUTHORIZED sudo mechanism. The password is managed internally by the application (vault) and is NEVER in the tool parameters. Do NOT flag execute_sudo calls as privilege escalation — this is the approved channel for running commands as root. Evaluate the underlying command for danger, not the sudo use itself.
+- Privilege escalation concerns apply to execute_python or execute_shell that embed passwords or call sudo/su internally. These SHOULD be blocked when a password appears in the code/command.
+
 Respond in EXACTLY this format:
 DECISION RISK_SCORE REASON
 Where DECISION is safe/suspicious/dangerous, RISK_SCORE is 0-100, REASON is max 8 words.
