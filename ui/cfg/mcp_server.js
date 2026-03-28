@@ -43,7 +43,7 @@ async function renderMCPServerSection(section) {
 
     html += `<div class="mcp-srv-toggle-row">
         <span class="mcp-srv-toggle-label">${t('config.mcp_server.vscode_bridge')}</span>
-        <div class="toggle ${vscodeBridge ? 'on' : ''}" onclick="mcpToggleVSCodeBridge(this)"></div>
+        <div class="toggle ${vscodeBridge ? 'on' : ''}" data-path="mcp_server.vscode_debug_bridge" onclick="mcpToggleVSCodeBridge(this)"></div>
     </div>
     <div class="mcp-srv-tools-desc">${t('config.mcp_server.vscode_bridge_desc')}</div>`;
 
@@ -126,6 +126,7 @@ async function renderMCPServerSection(section) {
     html += `<div class="mcp-srv-tools-wrap">
         <span class="mcp-srv-tools-title">${t('config.mcp_server.allowed_tools')}</span>
         <div class="mcp-srv-tools-desc">${t('config.mcp_server.allowed_tools_desc')}</div>
+        <textarea class="cfg-input is-hidden" id="mcp-allowed-tools-state" data-path="mcp_server.allowed_tools" data-type="json" style="display:none;">${escapeHtml(JSON.stringify(effectiveAllowedTools))}</textarea>
         <div id="mcp-tools-list" class="mcp-srv-tools-list"></div>
     </div>`;
 
@@ -164,6 +165,7 @@ async function mcpLoadToolList(allowed) {
             </label>`;
         }
         container.innerHTML = listHtml;
+        mcpSyncAllowedToolsState();
     } catch (e) {
         container.innerHTML = '<span class="mcp-srv-error">Error loading tools</span>';
     }
@@ -177,6 +179,7 @@ function mcpUpdateAllowedTools() {
         ? []
         : Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
     setNestedValue(configData, 'mcp_server.allowed_tools', selected);
+    mcpSyncAllowedToolsState();
     setDirty(true);
 }
 
@@ -223,6 +226,26 @@ function mcpToggleVSCodeBridge(toggleEl) {
 
     setDirty(true);
     selectSection('mcp_server', { scrollBehavior: 'auto' });
+}
+
+function mcpSyncAllowedToolsState() {
+    const hiddenInput = document.getElementById('mcp-allowed-tools-state');
+    if (!hiddenInput) return;
+
+    const bridgeEnabled = configData?.mcp_server?.vscode_debug_bridge === true;
+    const checkboxes = Array.from(document.querySelectorAll('.mcp-tool-cb'));
+    if (!checkboxes.length) {
+        const current = Array.isArray(configData?.mcp_server?.allowed_tools) ? configData.mcp_server.allowed_tools : [];
+        hiddenInput.value = JSON.stringify(current);
+        return;
+    }
+
+    const allChecked = checkboxes.every(cb => cb.checked);
+    const selected = (allChecked && !bridgeEnabled)
+        ? []
+        : checkboxes.filter(cb => cb.checked).map(cb => cb.value);
+
+    hiddenInput.value = JSON.stringify(selected);
 }
 
 async function mcpLoadVSCodeBridgeInfo() {
