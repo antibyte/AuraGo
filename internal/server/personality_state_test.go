@@ -75,3 +75,25 @@ func TestBuildPersonalityStatePayloadSanitizesReasoningFromEmotion(t *testing.T)
 		t.Fatalf("current_emotion = %q", got)
 	}
 }
+
+func TestBuildPersonalityStatePayloadFallsBackWhenEmotionIsOnlyReasoning(t *testing.T) {
+	s := newTestServerWithPersonalityState(t)
+	if err := s.ShortTermMem.InsertEmotionStateHistory(memory.EmotionState{
+		Description:              "<think>very long hidden reasoning only</think>",
+		PrimaryMood:              memory.MoodFocused,
+		Cause:                    "the last fix completed successfully",
+		Source:                   "test",
+		RecommendedResponseStyle: "calm_and_precise",
+	}, "plan_completed"); err != nil {
+		t.Fatalf("InsertEmotionStateHistory: %v", err)
+	}
+
+	payload := s.buildPersonalityStatePayload()
+	got, _ := payload["current_emotion"].(string)
+	if got == "" {
+		t.Fatal("expected fallback current_emotion, got empty string")
+	}
+	if strings.Contains(got, "<think>") {
+		t.Fatalf("fallback current_emotion still contains think tag: %q", got)
+	}
+}
