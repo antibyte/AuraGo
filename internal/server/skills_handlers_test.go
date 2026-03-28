@@ -212,6 +212,27 @@ func TestDecodeSkillDraftRequiresCode(t *testing.T) {
 	}
 }
 
+func TestDecodeSkillDraftAllowsMissingNameWhenCodeExists(t *testing.T) {
+	t.Parallel()
+
+	draft, err := decodeSkillDraft(`{"description":"checks dns","code":"print('ok')"}`)
+	if err != nil {
+		t.Fatalf("decodeSkillDraft returned error: %v", err)
+	}
+	if draft.Code != "print('ok')" {
+		t.Fatalf("expected code to survive, got %q", draft.Code)
+	}
+}
+
+func TestFallbackGeneratedSkillName(t *testing.T) {
+	t.Parallel()
+
+	got := fallbackGeneratedSkillName("Check DNS for a host")
+	if got == "" || got == "generated_skill" {
+		t.Fatalf("expected derived fallback name, got %q", got)
+	}
+}
+
 func TestHandleGenerateSkillDraftRequiresSkillManager(t *testing.T) {
 	t.Parallel()
 

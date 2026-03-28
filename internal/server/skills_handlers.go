@@ -955,7 +955,7 @@ func handleGenerateSkillDraft(s *Server) http.HandlerFunc {
 		}
 		draft, err := decodeSkillDraft(resp.Choices[0].Message.Content)
 		if err != nil {
-			s.Logger.Warn("[Skills] Failed to decode generated skill draft", "error", err)
+			s.Logger.Warn("[Skills] Failed to decode generated skill draft", "error", err, "response_preview", truncateForLog(resp.Choices[0].Message.Content, 500))
 			jsonError(w, "Failed to parse generated skill draft: "+err.Error(), http.StatusBadGateway)
 			return
 		}
@@ -968,11 +968,18 @@ func handleGenerateSkillDraft(s *Server) http.HandlerFunc {
 		if req.SkillName != "" {
 			draft.Name = req.SkillName
 		}
+		if strings.TrimSpace(draft.Name) == "" {
+			draft.Name = fallbackGeneratedSkillName(req.Prompt)
+		}
 		if req.Category != "" {
 			draft.Category = req.Category
 		}
 		if len(req.Dependencies) > 0 {
 			draft.Dependencies = req.Dependencies
+		}
+		if placeholderIssues := generatedSkillPlaceholderIssues(draft); len(placeholderIssues) > 0 {
+			jsonError(w, "Generated draft still contains placeholder fields: "+strings.Join(placeholderIssues, "; "), http.StatusBadGateway)
+			return
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]any{
@@ -1002,10 +1009,6 @@ func decodeSkillDraft(raw string) (*generatedSkillDraft, error) {
 		draft, parseErr := parseGeneratedSkillDraft([]byte(obj))
 		if parseErr != nil {
 			lastErr = parseErr
-			continue
-		}
-		if strings.TrimSpace(draft.Name) == "" {
-			lastErr = fmt.Errorf("draft name is missing")
 			continue
 		}
 		if strings.TrimSpace(draft.Code) == "" {
@@ -1522,6 +1525,41 @@ func safeSkillFilename(name string) string {
 		name = "generated_skill"
 	}
 	return name + ".py"
+}
+
+func fallbackGeneratedSkillName(prompt string) string {
+	prompt = strings.ToLower(strings.TrimSpace(prompt))
+	if prompt == "" {
+		return "generated_skill"
+	}
+	var b strings.Builder
+	lastUnderscore := false
+	for _, r := range prompt {
+		switch {
+		case (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9'):
+			b.WriteRune(r)
+			lastUnderscore = false
+		case !lastUnderscore:
+			b.WriteByte('_')
+			lastUnderscore = true
+		}
+		if b.Len() >= 40 {
+			break
+		}
+	}
+	name := strings.Trim(b.String(), "_")
+	if name == "" {
+		return "generated_skill"
+	}
+	return name
+}
+
+func truncateForLog(s string, max int) string {
+	s = strings.TrimSpace(strings.ReplaceAll(strings.ReplaceAll(s, "\n", " "), "\r", " "))
+	if max <= 0 || len(s) <= max {
+		return s
+	}
+	return s[:max] + "..."
 }
 
 func extractJSONObject(raw string) (string, error) {
