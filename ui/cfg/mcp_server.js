@@ -211,6 +211,10 @@ async function mcpLoadToken() {
 
 function mcpToggleVSCodeBridge(toggleEl) {
     const willEnable = !toggleEl.classList.contains('on');
+    toggleEl.classList.toggle('on', willEnable);
+    if (toggleEl.nextElementSibling) {
+        toggleEl.nextElementSibling.textContent = willEnable ? t('config.toggle.active') : t('config.toggle.inactive');
+    }
     setNestedValue(configData, 'mcp_server.vscode_debug_bridge', willEnable);
 
     if (willEnable) {

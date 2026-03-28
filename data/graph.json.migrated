@@ -1,0 +1,30 @@
+{
+  "nodes": {
+    "": {
+      "id": "",
+      "label": "User Beta",
+      "properties": {
+        "access": "full",
+        "role": "tester"
+      }
+    },
+    "test_restart": {
+      "id": "test_restart",
+      "label": "Unknown",
+      "properties": {}
+    },
+    "user_beta": {
+      "id": "user_beta",
+      "label": "Unknown",
+      "properties": {}
+    }
+  },
+  "edges": [
+    {
+      "source": "test_restart",
+      "target": "user_beta",
+      "relation": "connects_to",
+      "properties": {}
+    }
+  ]
+}

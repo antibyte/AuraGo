@@ -214,22 +214,16 @@ AuraGo is designed with security-first principles:
 
 ## Configuration
 
-Minimum required `config.yaml`:
+AuraGo includes a **Web UI Setup Wizard** that runs on first start. Simply open the web interface after starting the agent, and you'll be guided through:
 
-```yaml
-providers:
-  - id: main
-    type: openrouter
-    name: "Main LLM"
-    base_url: https://openrouter.ai/api/v1
-    api_key: "sk-or-..."
-    model: "google/gemini-2.0-flash-001"
+- Setting up your LLM provider (API key, model selection)
+- Creating a secure login password (optional for local use)
+- Configuring the AES-256 vault encryption
+- Enabling desired integrations
 
-llm:
-  provider: main
-```
+**No manual config file editing required!**
 
-All other settings can be configured via the **Web UI** after first start.
+For advanced users, all settings can also be configured via `config.yaml` or the Web UI Settings panel after setup.
 
 ---
 

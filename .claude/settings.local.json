@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(go build:*)"
+      "Bash(go build:*)",
+      "Bash(curl -s -X POST http://192.168.6.238:8088/mcp -H \"Authorization: Bearer d7a026046be41bf81e8f48e34615cd9c353c6ed4fa588da968831d0deaf4b349\" -H \"Content-Type: application/json\" -d '{\"\"jsonrpc\"\":\"\"2.0\"\",\"\"id\"\":\"\"abc\"\",\"\"method\"\":\"\"ping\"\",\"\"params\"\":{}}')"
     ]
   }
 }
