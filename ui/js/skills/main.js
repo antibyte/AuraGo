@@ -967,12 +967,47 @@ function showGenerateModal() {
     document.getElementById('generate-category').value = '';
     document.getElementById('generate-template-select').selectedIndex = 0;
     document.getElementById('generate-dependencies').value = '';
+    clearGenerateStatus();
     document.getElementById('generate-modal').classList.add('active');
 }
 
 // eslint-disable-next-line no-unused-vars
 function closeGenerateModal() {
+    clearGenerateStatus();
     document.getElementById('generate-modal').classList.remove('active');
+}
+
+function setGenerateStatus(message, type = 'info') {
+    const el = document.getElementById('generate-status');
+    if (!el) return;
+    if (!message) {
+        el.textContent = '';
+        el.className = 'sk-generate-status';
+        el.style.display = 'none';
+        return;
+    }
+    el.textContent = message;
+    el.className = `sk-generate-status sk-generate-status-${type}`;
+    el.style.display = '';
+}
+
+function clearGenerateStatus() {
+    setGenerateStatus('');
+}
+
+async function readResponseJSON(resp) {
+    const raw = await resp.text();
+    if (!raw) return {};
+    try {
+        return JSON.parse(raw);
+    } catch (_) {
+        return { error: raw };
+    }
+}
+
+function getResponseError(data, fallback) {
+    if (!data || typeof data !== 'object') return fallback;
+    return data.message || data.error || fallback;
 }
 
 // eslint-disable-next-line no-unused-vars
@@ -985,10 +1020,14 @@ async function submitGenerateSkill() {
     const btn = document.getElementById('generate-submit-btn');
     btn.disabled = true;
     btn.textContent = t('common.loading') || 'Generating...';
+    setGenerateStatus(t('skills.generate_in_progress') || 'Creating AI draft. This can take a few moments.', 'info');
+    const controller = new AbortController();
+    const timeoutHandle = window.setTimeout(() => controller.abort(), 90000);
     try {
         const resp = await fetch('/api/skills/generate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            signal: controller.signal,
             body: JSON.stringify({
                 prompt,
                 skill_name: document.getElementById('generate-skill-name').value.trim(),
@@ -997,11 +1036,14 @@ async function submitGenerateSkill() {
                 dependencies: parseCSV(document.getElementById('generate-dependencies').value)
             })
         });
-        const data = await resp.json();
-        if (data.status !== 'ok' || !data.draft) {
-            showToast(data.message || t('common.error'), 'error');
+        const data = await readResponseJSON(resp);
+        if (!resp.ok || data.status !== 'ok' || !data.draft) {
+            const message = getResponseError(data, t('common.error') || 'Error');
+            setGenerateStatus(message, 'error');
+            showToast(message, 'error');
             return;
         }
+        setGenerateStatus(t('skills.generate_success') || 'Draft generated', 'success');
         closeGenerateModal();
         openCodeEditor('', data.draft.code || '', false, {
             name: data.draft.name || '',
@@ -1011,8 +1053,13 @@ async function submitGenerateSkill() {
         });
         showToast(t('skills.generate_success') || 'Draft generated', 'success');
     } catch (e) {
-        showToast(e.message || (t('common.error') || 'Error'), 'error');
+        const message = e && e.name === 'AbortError'
+            ? (t('skills.generate_timeout') || 'The AI draft took too long. Please try again or shorten the prompt.')
+            : (e.message || (t('common.error') || 'Error'));
+        setGenerateStatus(message, 'error');
+        showToast(message, 'error');
     } finally {
+        window.clearTimeout(timeoutHandle);
         btn.disabled = false;
         btn.textContent = t('skills.btn_generate') || 'Generate';
     }

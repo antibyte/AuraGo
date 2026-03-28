@@ -784,6 +784,34 @@
 .sk-toast-info { background: var(--accent, #6366f1); }
 .sk-toast-out { opacity: 0; transition: opacity 0.3s; }
 
+.sk-generate-status {
+    margin: 0 0 16px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    font-size: 0.92rem;
+    line-height: 1.45;
+    border: 1px solid transparent;
+    background: color-mix(in srgb, var(--surface-2, #1f2937) 84%, transparent);
+    color: var(--text-secondary);
+}
+
+.sk-generate-status.sk-generate-status-info {
+    border-color: color-mix(in srgb, var(--accent, #6366f1) 35%, transparent);
+    color: var(--text-primary);
+}
+
+.sk-generate-status.sk-generate-status-error {
+    border-color: color-mix(in srgb, var(--error, #ef4444) 40%, transparent);
+    background: color-mix(in srgb, var(--error, #ef4444) 10%, var(--surface-2, #1f2937));
+    color: var(--text-primary);
+}
+
+.sk-generate-status.sk-generate-status-success {
+    border-color: color-mix(in srgb, var(--success, #22c55e) 35%, transparent);
+    background: color-mix(in srgb, var(--success, #22c55e) 10%, var(--surface-2, #1f2937));
+    color: var(--text-primary);
+}
+
 @keyframes skToastIn {
     from { transform: translateX(100%); opacity: 0; }
     to { transform: translateX(0); opacity: 1; }

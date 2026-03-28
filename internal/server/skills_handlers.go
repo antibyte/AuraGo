@@ -861,6 +861,10 @@ func handleGenerateSkillDraft(s *Server) http.HandlerFunc {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
+		if s.SkillManager == nil {
+			jsonError(w, "Skill Manager is not enabled", http.StatusServiceUnavailable)
+			return
+		}
 		if s.LLMClient == nil {
 			jsonError(w, "LLM is not available", http.StatusServiceUnavailable)
 			return
@@ -881,6 +885,13 @@ func handleGenerateSkillDraft(s *Server) http.HandlerFunc {
 			jsonError(w, "prompt is required", http.StatusBadRequest)
 			return
 		}
+		s.Logger.Info("[Skills] Generating AI draft",
+			"prompt_len", len(req.Prompt),
+			"skill_name", req.SkillName,
+			"template", req.TemplateName,
+			"category", req.Category,
+			"dependency_count", len(req.Dependencies),
+		)
 
 		templateHint := ""
 		if req.TemplateName != "" {
@@ -926,15 +937,18 @@ func handleGenerateSkillDraft(s *Server) http.HandlerFunc {
 		defer cancel()
 		resp, err := llm.ExecuteWithRetry(ctx, s.LLMClient, llmReq, s.Logger, nil)
 		if err != nil {
+			s.Logger.Warn("[Skills] AI draft generation failed", "error", err)
 			jsonError(w, "LLM generation failed: "+err.Error(), http.StatusBadGateway)
 			return
 		}
 		if len(resp.Choices) == 0 {
+			s.Logger.Warn("[Skills] AI draft generation returned no choices")
 			jsonError(w, "LLM generation returned no response", http.StatusBadGateway)
 			return
 		}
 		draft, err := decodeSkillDraft(resp.Choices[0].Message.Content)
 		if err != nil {
+			s.Logger.Warn("[Skills] Failed to decode generated skill draft", "error", err)
 			jsonError(w, "Failed to parse generated skill draft: "+err.Error(), http.StatusBadGateway)
 			return
 		}
@@ -952,6 +966,7 @@ func handleGenerateSkillDraft(s *Server) http.HandlerFunc {
 			"status": "ok",
 			"draft":  draft,
 		})
+		s.Logger.Info("[Skills] AI draft generated successfully", "name", draft.Name, "category", draft.Category)
 	}
 }
 
@@ -969,11 +984,129 @@ func decodeSkillDraft(raw string) (*generatedSkillDraft, error) {
 	if err != nil {
 		return nil, err
 	}
-	var draft generatedSkillDraft
-	if err := json.Unmarshal([]byte(obj), &draft); err != nil {
+	draft, err := parseGeneratedSkillDraft([]byte(obj))
+	if err != nil {
 		return nil, err
 	}
+	if strings.TrimSpace(draft.Name) == "" {
+		return nil, fmt.Errorf("draft name is missing")
+	}
+	if strings.TrimSpace(draft.Code) == "" {
+		return nil, fmt.Errorf("draft code is missing")
+	}
 	return &draft, nil
+}
+
+func parseGeneratedSkillDraft(raw []byte) (generatedSkillDraft, error) {
+	var direct generatedSkillDraft
+	if err := json.Unmarshal(raw, &direct); err == nil {
+		direct.Name = strings.TrimSpace(direct.Name)
+		direct.Description = strings.TrimSpace(direct.Description)
+		direct.Category = strings.TrimSpace(direct.Category)
+		direct.Tags = normalizeStringList(direct.Tags)
+		direct.Dependencies = normalizeStringList(direct.Dependencies)
+		direct.Code = strings.TrimSpace(direct.Code)
+		return direct, nil
+	}
+
+	var generic map[string]any
+	if err := json.Unmarshal(raw, &generic); err != nil {
+		return generatedSkillDraft{}, err
+	}
+
+	draft := generatedSkillDraft{
+		Name:         firstNonEmptyString(generic, "name", "skill_name", "skill"),
+		Description:  firstNonEmptyString(generic, "description", "summary"),
+		Category:     firstNonEmptyString(generic, "category"),
+		Tags:         coerceStringList(generic["tags"]),
+		Dependencies: coerceStringList(generic["dependencies"]),
+		Code:         firstNonEmptyString(generic, "code", "python_code", "script"),
+	}
+	draft.Name = strings.TrimSpace(draft.Name)
+	draft.Description = strings.TrimSpace(draft.Description)
+	draft.Category = strings.TrimSpace(draft.Category)
+	draft.Tags = normalizeStringList(draft.Tags)
+	draft.Dependencies = normalizeStringList(draft.Dependencies)
+	draft.Code = strings.TrimSpace(draft.Code)
+	return draft, nil
+}
+
+func firstNonEmptyString(data map[string]any, keys ...string) string {
+	for _, key := range keys {
+		if value, ok := data[key]; ok {
+			switch v := value.(type) {
+			case string:
+				if s := strings.TrimSpace(v); s != "" {
+					return s
+				}
+			}
+		}
+	}
+	return ""
+}
+
+func coerceStringList(raw any) []string {
+	switch v := raw.(type) {
+	case nil:
+		return nil
+	case string:
+		return splitCSVLike(v)
+	case []string:
+		return normalizeStringList(v)
+	case []any:
+		out := make([]string, 0, len(v))
+		for _, item := range v {
+			if s, ok := item.(string); ok {
+				if s = strings.TrimSpace(s); s != "" {
+					out = append(out, s)
+				}
+			}
+		}
+		return normalizeStringList(out)
+	default:
+		return nil
+	}
+}
+
+func splitCSVLike(raw string) []string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil
+	}
+	parts := strings.FieldsFunc(raw, func(r rune) bool {
+		return r == ',' || r == '\n' || r == ';'
+	})
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if s := strings.TrimSpace(part); s != "" {
+			out = append(out, s)
+		}
+	}
+	return normalizeStringList(out)
+}
+
+func normalizeStringList(items []string) []string {
+	if len(items) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(items))
+	seen := make(map[string]struct{}, len(items))
+	for _, item := range items {
+		item = strings.TrimSpace(item)
+		if item == "" {
+			continue
+		}
+		key := strings.ToLower(item)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, item)
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 func extractJSONObject(raw string) (string, error) {

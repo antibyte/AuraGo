@@ -109,6 +109,8 @@
   "skills.import_success": "Skill imported",
   "skills.generate_prompt_required": "Please describe the skill you want.",
   "skills.generate_success": "Draft generated",
+  "skills.generate_in_progress": "Creating AI draft. This can take a few moments.",
+  "skills.generate_timeout": "The AI draft took too long. Please try again or shorten the prompt.",
   "skills.create_success": "Skill created",
   "skills.editor_fallback": "Advanced editor unavailable, using plain text mode."
 }

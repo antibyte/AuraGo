@@ -109,6 +109,8 @@
   "skills.import_success": "Skill importiert",
   "skills.generate_prompt_required": "Bitte beschreiben Sie den gewünschten Skill.",
   "skills.generate_success": "Entwurf erzeugt",
+  "skills.generate_in_progress": "KI-Entwurf wird erstellt. Das kann einen Moment dauern.",
+  "skills.generate_timeout": "Die KI-Erstellung hat zu lange gedauert. Bitte erneut versuchen oder den Prompt kürzen.",
   "skills.create_success": "Skill erstellt",
   "skills.editor_fallback": "Der erweiterte Editor ist nicht verfügbar, es wird der Textmodus verwendet."
 }
