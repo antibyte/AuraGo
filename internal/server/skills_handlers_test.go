@@ -85,6 +85,33 @@ func TestDecodeSkillDraftAcceptsNestedDraftObject(t *testing.T) {
 	}
 }
 
+func TestDecodeSkillDraftAcceptsSingleQuotedObject(t *testing.T) {
+	t.Parallel()
+
+	raw := `{
+  'name': 'dns_test',
+  'description': 'Checks DNS resolution',
+  'category': 'network',
+  'tags': ['dns', 'network',],
+  'dependencies': ['dnspython'],
+  'code': "print('ok')",
+}`
+
+	draft, err := decodeSkillDraft(raw)
+	if err != nil {
+		t.Fatalf("decodeSkillDraft returned error: %v", err)
+	}
+	if draft.Name != "dns_test" {
+		t.Fatalf("expected single-quoted name, got %q", draft.Name)
+	}
+	if draft.Code != "print('ok')" {
+		t.Fatalf("expected single-quoted draft code, got %q", draft.Code)
+	}
+	if len(draft.Tags) != 2 {
+		t.Fatalf("expected normalized tags, got %#v", draft.Tags)
+	}
+}
+
 func TestDecodeSkillDraftRequiresCode(t *testing.T) {
 	t.Parallel()
 

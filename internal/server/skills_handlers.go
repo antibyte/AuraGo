@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -1008,6 +1009,25 @@ func decodeSkillDraft(raw string) (*generatedSkillDraft, error) {
 }
 
 func parseGeneratedSkillDraft(raw []byte) (generatedSkillDraft, error) {
+	draft, err := parseGeneratedSkillDraftStrict(raw)
+	if err == nil {
+		return draft, nil
+	}
+	lastErr := err
+
+	normalized := normalizeLooseJSON(raw)
+	if !bytes.Equal(normalized, raw) {
+		draft, err = parseGeneratedSkillDraftStrict(normalized)
+		if err == nil {
+			return draft, nil
+		}
+		lastErr = err
+	}
+
+	return generatedSkillDraft{}, lastErr
+}
+
+func parseGeneratedSkillDraftStrict(raw []byte) (generatedSkillDraft, error) {
 	var direct generatedSkillDraft
 	if err := json.Unmarshal(raw, &direct); err == nil {
 		direct.Name = strings.TrimSpace(direct.Name)
@@ -1044,6 +1064,179 @@ func parseGeneratedSkillDraft(raw []byte) (generatedSkillDraft, error) {
 	draft.Dependencies = normalizeStringList(draft.Dependencies)
 	draft.Code = strings.TrimSpace(draft.Code)
 	return draft, nil
+}
+
+func normalizeLooseJSON(raw []byte) []byte {
+	if len(raw) == 0 {
+		return raw
+	}
+
+	var out strings.Builder
+	out.Grow(len(raw) + 16)
+
+	inDouble := false
+	inSingle := false
+	escaped := false
+
+	for i := 0; i < len(raw); i++ {
+		ch := raw[i]
+		if inSingle {
+			if escaped {
+				switch ch {
+				case '"':
+					out.WriteByte('\\')
+					out.WriteByte('"')
+				case '\'':
+					out.WriteByte('\'')
+				default:
+					out.WriteByte(ch)
+				}
+				escaped = false
+				continue
+			}
+			switch ch {
+			case '\\':
+				escaped = true
+			case '\'':
+				inSingle = false
+				out.WriteByte('"')
+			case '"':
+				out.WriteByte('\\')
+				out.WriteByte('"')
+			case '\n', '\r', '\t':
+				out.WriteByte(' ')
+			default:
+				out.WriteByte(ch)
+			}
+			continue
+		}
+		if inDouble {
+			out.WriteByte(ch)
+			if escaped {
+				escaped = false
+				continue
+			}
+			if ch == '\\' {
+				escaped = true
+			} else if ch == '"' {
+				inDouble = false
+			}
+			continue
+		}
+
+		switch ch {
+		case '\'':
+			inSingle = true
+			out.WriteByte('"')
+		case '"':
+			inDouble = true
+			out.WriteByte(ch)
+		default:
+			out.WriteByte(ch)
+		}
+	}
+
+	normalized := stripTrailingCommas(out.String())
+	normalized = replaceBareJSONLiteral(normalized, "None", "null")
+	normalized = replaceBareJSONLiteral(normalized, "True", "true")
+	normalized = replaceBareJSONLiteral(normalized, "False", "false")
+	return []byte(normalized)
+}
+
+func stripTrailingCommas(raw string) string {
+	var out strings.Builder
+	out.Grow(len(raw))
+	inString := false
+	escaped := false
+
+	for i := 0; i < len(raw); i++ {
+		ch := raw[i]
+		if inString {
+			out.WriteByte(ch)
+			if escaped {
+				escaped = false
+				continue
+			}
+			if ch == '\\' {
+				escaped = true
+			} else if ch == '"' {
+				inString = false
+			}
+			continue
+		}
+		if ch == '"' {
+			inString = true
+			out.WriteByte(ch)
+			continue
+		}
+		if ch == ',' {
+			j := i + 1
+			for j < len(raw) {
+				switch raw[j] {
+				case ' ', '\n', '\r', '\t':
+					j++
+					continue
+				case '}', ']':
+					goto skipComma
+				}
+				break
+			}
+		}
+		out.WriteByte(ch)
+		continue
+	skipComma:
+	}
+	return out.String()
+}
+
+func replaceBareJSONLiteral(raw, from, to string) string {
+	if raw == "" || !strings.Contains(raw, from) {
+		return raw
+	}
+	var out strings.Builder
+	out.Grow(len(raw))
+	inString := false
+	escaped := false
+
+	for i := 0; i < len(raw); {
+		ch := raw[i]
+		if inString {
+			out.WriteByte(ch)
+			i++
+			if escaped {
+				escaped = false
+				continue
+			}
+			if ch == '\\' {
+				escaped = true
+			} else if ch == '"' {
+				inString = false
+			}
+			continue
+		}
+		if ch == '"' {
+			inString = true
+			out.WriteByte(ch)
+			i++
+			continue
+		}
+		if strings.HasPrefix(raw[i:], from) && isJSONLiteralBoundary(raw, i-1) && isJSONLiteralBoundary(raw, i+len(from)) {
+			out.WriteString(to)
+			i += len(from)
+			continue
+		}
+		out.WriteByte(ch)
+		i++
+	}
+	return out.String()
+}
+
+func isJSONLiteralBoundary(raw string, idx int) bool {
+	if idx < 0 || idx >= len(raw) {
+		return true
+	}
+	ch := raw[idx]
+	return !(ch == '_' || (ch >= '0' && ch <= '9') || (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z'))
 }
 
 func firstNonEmptyString(data map[string]any, keys ...string) string {
