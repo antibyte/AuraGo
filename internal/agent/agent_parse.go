@@ -1215,15 +1215,16 @@ func calculateEffectiveMaxCalls(cfg *config.Config, tc ToolCall, homepageActiveI
 	return effectiveMaxCalls
 }
 
-// calculateEffectivePromptTokenBudget temporarily raises the system prompt
-// budget for homepage action chains when explicitly allowed in config. The
-// budget scales relative to the higher homepage circuit breaker limit.
+// calculateEffectivePromptTokenBudget starts from the adaptive base prompt
+// budget and temporarily raises it further for homepage action chains when
+// explicitly allowed in config. The homepage uplift scales relative to the
+// higher homepage circuit breaker limit.
 func calculateEffectivePromptTokenBudget(cfg *config.Config, tc ToolCall, homepageActiveInChain bool, logger *slog.Logger) int {
 	if cfg == nil {
 		return 0
 	}
 
-	baseBudget := cfg.Agent.SystemPromptTokenBudget
+	baseBudget := config.CalculateAdaptiveSystemPromptTokenBudget(cfg)
 	if baseBudget <= 0 {
 		return 0
 	}

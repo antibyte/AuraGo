@@ -139,7 +139,7 @@
                 renderBudget(budget, credits);
                 if (budget.enabled) {
                     if (Charts.budget) { Charts.budget.destroy(); Charts.budget = null; }
-                    Charts.budget = createBudgetDoughnut('budget-chart', budget.spent_usd || 0, budget.effective_daily_limit_usd || budget.daily_limit_usd || 0);
+                    Charts.budget = createBudgetDoughnut('budget-chart', budget.spent_usd || 0, budget.daily_limit_usd || 0);
                     if (Charts.budgetModels) { Charts.budgetModels.destroy(); Charts.budgetModels = null; }
                     Charts.budgetModels = createBudgetModelsChart('budget-models-chart', budget.models || {});
                 }
@@ -566,7 +566,7 @@
             dashSetHidden(document.getElementById('budget-content'), false);
             dashSetHidden(document.getElementById('budget-disabled'), true);
             document.getElementById('budget-spent').textContent = '$' + (data.spent_usd || 0).toFixed(2);
-            document.getElementById('budget-sublabel').textContent = t('dashboard.budget_sublabel', {amount: '$' + (data.effective_daily_limit_usd || data.daily_limit_usd || 0).toFixed(2)});
+            document.getElementById('budget-sublabel').textContent = t('dashboard.budget_sublabel', {amount: '$' + (data.daily_limit_usd || 0).toFixed(2)});
 
             // Status badges
             const badgesEl = document.getElementById('budget-badges');

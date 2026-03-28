@@ -239,7 +239,7 @@ func processMessage(cfg *config.Config, logger *slog.Logger, client llm.ChatClie
 		LifeboatEnabled:          cfg.Maintenance.LifeboatEnabled,
 		SystemLanguage:           cfg.Agent.SystemLanguage,
 		CorePersonality:          cfg.Personality.CorePersonality,
-		TokenBudget:              cfg.Agent.SystemPromptTokenBudget,
+		TokenBudget:              config.CalculateAdaptiveSystemPromptTokenBudget(cfg),
 		IsDebugMode:              cfg.Agent.DebugMode,
 		DiscordEnabled:           cfg.Discord.Enabled,
 		EmailEnabled:             cfg.Email.Enabled,

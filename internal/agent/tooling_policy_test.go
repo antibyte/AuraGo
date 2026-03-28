@@ -233,6 +233,7 @@ func TestCalculateEffectivePromptTokenBudgetScalesForHomepageFlow(t *testing.T) 
 func TestCalculateEffectivePromptTokenBudgetKeepsBaseWhenHomepageOverflowDisabled(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Agent.SystemPromptTokenBudget = 12000
+	cfg.Agent.AdaptiveSystemPromptTokenBudget = false
 	cfg.CircuitBreaker.MaxToolCalls = 10
 	cfg.Homepage.Enabled = true
 	cfg.Homepage.CircuitBreakerMaxCalls = 35
@@ -242,5 +243,39 @@ func TestCalculateEffectivePromptTokenBudgetKeepsBaseWhenHomepageOverflowDisable
 
 	if got != 12000 {
 		t.Fatalf("effective prompt token budget = %d, want 12000", got)
+	}
+}
+
+func TestCalculateEffectivePromptTokenBudgetAddsAdaptiveBaseSurcharge(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Agent.SystemPromptTokenBudget = 12000
+	cfg.Agent.AdaptiveSystemPromptTokenBudget = true
+	cfg.Tools.Memory.Enabled = true
+	cfg.Tools.Notes.Enabled = true
+	cfg.Docker.Enabled = true
+
+	got := calculateEffectivePromptTokenBudget(cfg, ToolCall{}, false, nil)
+
+	if got != 12256 {
+		t.Fatalf("effective prompt token budget = %d, want 12256", got)
+	}
+}
+
+func TestCalculateEffectivePromptTokenBudgetHomepageScalesAdaptiveBase(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Agent.SystemPromptTokenBudget = 12000
+	cfg.Agent.AdaptiveSystemPromptTokenBudget = true
+	cfg.Tools.Memory.Enabled = true
+	cfg.Docker.Enabled = true
+	cfg.Agent.ContextWindow = 64000
+	cfg.CircuitBreaker.MaxToolCalls = 10
+	cfg.Homepage.Enabled = true
+	cfg.Homepage.CircuitBreakerMaxCalls = 35
+	cfg.Homepage.AllowTemporaryTokenBudgetOverflow = true
+
+	got := calculateEffectivePromptTokenBudget(cfg, ToolCall{Action: "homepage"}, false, nil)
+
+	if got != 43288 {
+		t.Fatalf("effective prompt token budget = %d, want 43288", got)
 	}
 }

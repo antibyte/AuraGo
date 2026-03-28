@@ -362,6 +362,9 @@ func Load(path string) (*Config, error) {
 	if cfg.Agent.SystemPromptTokenBudget <= 0 {
 		cfg.Agent.SystemPromptTokenBudget = 12288
 	}
+	if !yamlHasPath(data, "agent", "adaptive_system_prompt_token_budget") {
+		cfg.Agent.AdaptiveSystemPromptTokenBudget = true
+	}
 	// Adaptive tools defaults
 	if cfg.Agent.AdaptiveTools.MaxTools <= 0 && cfg.Agent.AdaptiveTools.Enabled {
 		cfg.Agent.AdaptiveTools.MaxTools = 60
@@ -632,42 +635,6 @@ func Load(path string) (*Config, error) {
 	}
 	if cfg.Budget.DefaultCost.InputPerMillion <= 0 && cfg.Budget.DefaultCost.OutputPerMillion <= 0 {
 		cfg.Budget.DefaultCost = ModelCostRates{InputPerMillion: 1.0, OutputPerMillion: 3.0}
-	}
-	if !yamlHasPath(data, "budget", "adaptive_limit", "enabled") {
-		cfg.Budget.AdaptiveLimit.Enabled = true
-	}
-	if cfg.Budget.AdaptiveLimit.Strategy == "" {
-		cfg.Budget.AdaptiveLimit.Strategy = "capability_weighted"
-	}
-	if cfg.Budget.AdaptiveLimit.MinMultiplier <= 0 {
-		cfg.Budget.AdaptiveLimit.MinMultiplier = 1.0
-	}
-	if cfg.Budget.AdaptiveLimit.MaxMultiplier <= 0 {
-		cfg.Budget.AdaptiveLimit.MaxMultiplier = 2.5
-	}
-	if cfg.Budget.AdaptiveLimit.MaxMultiplier < cfg.Budget.AdaptiveLimit.MinMultiplier {
-		cfg.Budget.AdaptiveLimit.MaxMultiplier = cfg.Budget.AdaptiveLimit.MinMultiplier
-	}
-	if cfg.Budget.AdaptiveLimit.NativeToolWeight <= 0 {
-		cfg.Budget.AdaptiveLimit.NativeToolWeight = 0.03
-	}
-	if cfg.Budget.AdaptiveLimit.IntegrationWeight <= 0 {
-		cfg.Budget.AdaptiveLimit.IntegrationWeight = 0.08
-	}
-	if cfg.Budget.AdaptiveLimit.CoAgentWeight <= 0 {
-		cfg.Budget.AdaptiveLimit.CoAgentWeight = 0.20
-	}
-	if cfg.Budget.AdaptiveLimit.MultimodalWeight <= 0 {
-		cfg.Budget.AdaptiveLimit.MultimodalWeight = 0.12
-	}
-	if cfg.Budget.AdaptiveLimit.MCPWeight <= 0 {
-		cfg.Budget.AdaptiveLimit.MCPWeight = 0.10
-	}
-	if cfg.Budget.AdaptiveLimit.SandboxWeight <= 0 {
-		cfg.Budget.AdaptiveLimit.SandboxWeight = 0.05
-	}
-	if cfg.Budget.AdaptiveLimit.KnowledgeOpsWeight <= 0 {
-		cfg.Budget.AdaptiveLimit.KnowledgeOpsWeight = 0.08
 	}
 
 	// Auth defaults

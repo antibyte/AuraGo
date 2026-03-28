@@ -15,6 +15,87 @@ function hpSetStatusState(el, state, text) {
     el.textContent = text || '';
 }
 
+function hpCountAdaptivePromptTools() {
+    const tools = (configData && configData.tools) || {};
+    let count = 0;
+    const flags = [
+        tools.memory && tools.memory.enabled,
+        tools.knowledge_graph && tools.knowledge_graph.enabled,
+        tools.secrets_vault && tools.secrets_vault.enabled,
+        tools.scheduler && tools.scheduler.enabled,
+        tools.notes && tools.notes.enabled,
+        tools.missions && tools.missions.enabled,
+        tools.stop_process && tools.stop_process.enabled,
+        tools.inventory && tools.inventory.enabled,
+        tools.memory_maintenance && tools.memory_maintenance.enabled,
+        tools.journal && tools.journal.enabled,
+        tools.wol && tools.wol.enabled,
+        tools.web_scraper && tools.web_scraper.enabled,
+        tools.pdf_extractor && tools.pdf_extractor.enabled,
+        tools.document_creator && tools.document_creator.enabled,
+        tools.web_capture && tools.web_capture.enabled,
+        tools.network_ping && tools.network_ping.enabled,
+        tools.network_scan && tools.network_scan.enabled,
+        tools.form_automation && tools.form_automation.enabled,
+        tools.upnp_scan && tools.upnp_scan.enabled,
+        tools.contacts && tools.contacts.enabled
+    ];
+    flags.forEach(v => { if (v) count += 1; });
+    return count;
+}
+
+function hpCountAdaptivePromptIntegrations() {
+    let count = 0;
+    const flags = [
+        configData.discord && configData.discord.enabled,
+        (configData.email && configData.email.enabled) || (Array.isArray(configData.email_accounts) && configData.email_accounts.length > 0),
+        configData.home_assistant && configData.home_assistant.enabled,
+        configData.fritzbox && configData.fritzbox.enabled,
+        configData.telnyx && configData.telnyx.enabled,
+        configData.meshcentral && configData.meshcentral.enabled,
+        configData.docker && configData.docker.enabled,
+        configData.webdav && configData.webdav.enabled,
+        configData.koofr && configData.koofr.enabled,
+        configData.s3 && configData.s3.enabled,
+        configData.paperless_ngx && configData.paperless_ngx.enabled,
+        configData.proxmox && configData.proxmox.enabled,
+        configData.tailscale && configData.tailscale.enabled,
+        configData.cloudflare_tunnel && configData.cloudflare_tunnel.enabled,
+        configData.ansible && configData.ansible.enabled,
+        configData.github && configData.github.enabled,
+        configData.netlify && configData.netlify.enabled,
+        configData.adguard && configData.adguard.enabled,
+        configData.mqtt && configData.mqtt.enabled,
+        configData.google_workspace && configData.google_workspace.enabled,
+        configData.onedrive && configData.onedrive.enabled,
+        configData.jellyfin && configData.jellyfin.enabled,
+        configData.remote_control && configData.remote_control.enabled,
+        configData.invasion_control && configData.invasion_control.enabled,
+        configData.sql_connections && configData.sql_connections.enabled,
+        configData.webhooks && configData.webhooks.enabled,
+        configData.n8n && configData.n8n.enabled,
+        (configData.mcp && configData.mcp.enabled) && (configData.agent && configData.agent.allow_mcp),
+        configData.homepage && configData.homepage.enabled,
+        configData.co_agents && configData.co_agents.enabled,
+        configData.image_generation && configData.image_generation.enabled,
+        configData.embeddings && configData.embeddings.provider && configData.embeddings.provider !== 'disabled',
+        configData.vision && configData.vision.provider,
+        configData.whisper && (configData.whisper.provider || configData.whisper.mode),
+        configData.tts && (configData.tts.provider || (configData.tts.piper && configData.tts.piper.enabled))
+    ];
+    flags.forEach(v => { if (v) count += 1; });
+    return count;
+}
+
+function hpCalculateAdaptivePromptBudget(baseBudget) {
+    if (!(configData.agent && configData.agent.adaptive_system_prompt_token_budget) || baseBudget <= 0) {
+        return baseBudget;
+    }
+    const extra = (hpCountAdaptivePromptTools() * 48) + (hpCountAdaptivePromptIntegrations() * 160);
+    const maxExtra = Math.min(4096, Math.floor(baseBudget / 2));
+    return baseBudget + Math.min(extra, Math.max(0, maxExtra));
+}
+
 async function renderHomepageSection(section) {
     // Always fetch fresh status — stale cache would persist docker_available:false
     // across the session even after Docker becomes accessible again.
@@ -27,7 +108,7 @@ async function renderHomepageSection(section) {
     const cfg = configData.homepage || {};
     const dockerEnabled = !!(configData.docker && configData.docker.enabled);
     const hpEnabled = cfg.enabled === true;
-    const basePromptBudget = Math.max(0, parseInt(configData.agent && configData.agent.system_prompt_token_budget, 10) || 0);
+    const basePromptBudget = hpCalculateAdaptivePromptBudget(Math.max(0, parseInt(configData.agent && configData.agent.system_prompt_token_budget, 10) || 0));
     const baseToolCalls = Math.max(1, parseInt(configData.circuit_breaker && configData.circuit_breaker.max_tool_calls, 10) || 10);
     const homepageToolCalls = Math.max(baseToolCalls, parseInt(cfg.circuit_breaker_max_calls, 10) || 35);
     const homepagePromptBudget = basePromptBudget > 0

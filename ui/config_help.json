@@ -106,6 +106,10 @@
       "title": "Memory Compression Limit",
       "description": "Character threshold for compressing older messages. Default: 50000"
     },
+    "adaptive_system_prompt_token_budget": {
+      "title": "Adaptive System Prompt Budget",
+      "description": "Automatically adds a small token budget surcharge for enabled tools and integrations so the system prompt can grow with the configured capability set."
+    },
     "core_memory_max_entries": {
       "title": "Core Memory Max Entries",
       "description": "Maximum number of permanent core facts. 0 = unlimited. Default: 200"
@@ -340,54 +344,6 @@
     "daily_limit_usd": {
       "title": "Daily Limit (USD)",
       "description": "Maximum daily spending in US dollars."
-    },
-    "adaptive_limit": {
-      "title": "Adaptive Effective Limit",
-      "description": "Automatically scales the effective daily budget based on enabled capabilities and integrations."
-    },
-    "adaptive_limit.enabled": {
-      "title": "Enable Adaptive Limit",
-      "description": "If enabled, the effective daily limit can rise above the base daily limit when AuraGo has a more complex capability set."
-    },
-    "adaptive_limit.strategy": {
-      "title": "Adaptive Strategy",
-      "description": "Budget scaling strategy. The default capability_weighted strategy uses enabled native tools, integrations, multimodal features, MCP and co-agents."
-    },
-    "adaptive_limit.min_multiplier": {
-      "title": "Minimum Multiplier",
-      "description": "Lower clamp for the adaptive multiplier. Usually stays at 1.0 so the effective budget never drops below the base limit."
-    },
-    "adaptive_limit.max_multiplier": {
-      "title": "Maximum Multiplier",
-      "description": "Upper clamp for the adaptive multiplier to prevent runaway budget increases."
-    },
-    "adaptive_limit.native_tool_weight": {
-      "title": "Native Capability Weight",
-      "description": "Small multiplier increment per enabled native capability such as memory, notes, journal or web capture."
-    },
-    "adaptive_limit.integration_weight": {
-      "title": "Integration Weight",
-      "description": "Multiplier increment per enabled integration such as Docker, GitHub, Netlify, Proxmox or Home Assistant."
-    },
-    "adaptive_limit.coagent_weight": {
-      "title": "Co-Agent Weight",
-      "description": "Extra multiplier increment applied when co-agents are enabled."
-    },
-    "adaptive_limit.multimodal_weight": {
-      "title": "Multimodal Weight",
-      "description": "Extra multiplier increment per expensive feature like vision, speech, embeddings, TTS or image generation."
-    },
-    "adaptive_limit.mcp_weight": {
-      "title": "MCP Weight",
-      "description": "Extra multiplier increment when MCP connectivity or MCP server exposure is enabled."
-    },
-    "adaptive_limit.sandbox_weight": {
-      "title": "Sandbox Weight",
-      "description": "Extra multiplier increment when sandboxed code execution environments are enabled."
-    },
-    "adaptive_limit.knowledge_ops_weight": {
-      "title": "Knowledge Ops Weight",
-      "description": "Extra multiplier increment for advanced memory and knowledge processing such as memory analysis, consolidation and daily summaries."
     },
     "enforcement": {
       "title": "Enforcement Mode",

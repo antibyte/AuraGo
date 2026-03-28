@@ -267,7 +267,7 @@ func processUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Con
 		LifeboatEnabled:          cfg.Maintenance.LifeboatEnabled,
 		SystemLanguage:           cfg.Agent.SystemLanguage,
 		CorePersonality:          cfg.Personality.CorePersonality,
-		TokenBudget:              cfg.Agent.SystemPromptTokenBudget,
+		TokenBudget:              config.CalculateAdaptiveSystemPromptTokenBudget(cfg),
 		IsDebugMode:              cfg.Agent.DebugMode,
 		DiscordEnabled:           cfg.Discord.Enabled,
 		EmailEnabled:             cfg.Email.Enabled,

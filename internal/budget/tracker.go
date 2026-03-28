@@ -16,24 +16,19 @@ import (
 
 // BudgetStatus is the public snapshot returned by GetStatus().
 type BudgetStatus struct {
-	Event              string                  `json:"event"` // always "budget_update"
-	Enabled            bool                    `json:"enabled"`
-	DailyLimit         float64                 `json:"daily_limit_usd"`
-	BaseDailyLimitUSD  float64                 `json:"base_daily_limit_usd"`
-	EffectiveLimitUSD  float64                 `json:"effective_daily_limit_usd"`
-	SpentUSD           float64                 `json:"spent_usd"`
-	RemainingUSD       float64                 `json:"remaining_usd"`
-	Percentage         float64                 `json:"percentage"` // 0.0–1.0
-	Enforcement        string                  `json:"enforcement"`
-	IsWarning          bool                    `json:"is_warning"`
-	IsExceeded         bool                    `json:"is_exceeded"`
-	IsBlocked          bool                    `json:"is_blocked"` // true when enforcement=full + exceeded
-	AdaptiveEnabled    bool                    `json:"adaptive_enabled"`
-	AdaptiveMultiplier float64                 `json:"adaptive_multiplier"`
-	AdaptiveBreakdown  AdaptiveBudgetBreakdown `json:"adaptive_breakdown"`
-	ResetTime          string                  `json:"reset_time"` // RFC3339
-	Date               string                  `json:"date"`
-	Models             map[string]ModelUsage   `json:"models"`
+	Event        string                `json:"event"` // always "budget_update"
+	Enabled      bool                  `json:"enabled"`
+	DailyLimit   float64               `json:"daily_limit_usd"`
+	SpentUSD     float64               `json:"spent_usd"`
+	RemainingUSD float64               `json:"remaining_usd"`
+	Percentage   float64               `json:"percentage"` // 0.0–1.0
+	Enforcement  string                `json:"enforcement"`
+	IsWarning    bool                  `json:"is_warning"`
+	IsExceeded   bool                  `json:"is_exceeded"`
+	IsBlocked    bool                  `json:"is_blocked"` // true when enforcement=full + exceeded
+	ResetTime    string                `json:"reset_time"` // RFC3339
+	Date         string                `json:"date"`
+	Models       map[string]ModelUsage `json:"models"`
 }
 
 // ModelUsage tracks per-model token usage and cost.
@@ -44,26 +39,6 @@ type ModelUsage struct {
 	Calls           int     `json:"calls"`
 	AvgInputTokens  int     `json:"avg_input_tokens"`
 	AvgOutputTokens int     `json:"avg_output_tokens"`
-}
-
-// AdaptiveBudgetBreakdown explains why the adaptive effective limit was chosen.
-type AdaptiveBudgetBreakdown struct {
-	Strategy            string   `json:"strategy"`
-	NativeCapabilities  int      `json:"native_capabilities"`
-	Integrations        int      `json:"integrations"`
-	HighCostFeatures    int      `json:"high_cost_features"`
-	KnowledgeOps        int      `json:"knowledge_ops"`
-	SandboxEnvironments int      `json:"sandbox_environments"`
-	MCPEnabled          bool     `json:"mcp_enabled"`
-	CapabilityScore     float64  `json:"capability_score"`
-	Drivers             []string `json:"drivers,omitempty"`
-}
-
-type adaptiveBudgetProfile struct {
-	BaseLimit      float64
-	EffectiveLimit float64
-	Multiplier     float64
-	Breakdown      AdaptiveBudgetBreakdown
 }
 
 // persistedState is the JSON structure saved to disk.
@@ -133,21 +108,17 @@ func NewTracker(cfg *config.Config, logger *slog.Logger, dataDir string) *Tracke
 		t.persistLocked()
 	}
 
-	effectiveLimit := t.currentDailyLimitLocked()
-
 	// Re-evaluate exceeded flag: if the effective limit was raised above current spend,
 	// clear the exceeded state so the new limit takes effect immediately.
-	if t.exceeded && effectiveLimit > 0 && t.totalCostUSD < effectiveLimit {
+	if t.exceeded && cfg.Budget.DailyLimitUSD > 0 && t.totalCostUSD < cfg.Budget.DailyLimitUSD {
 		t.exceeded = false
 		t.persistLocked()
 		logger.Info("[Budget] Exceeded flag cleared (limit raised above current spend)",
-			"spent", t.totalCostUSD, "new_limit", effectiveLimit)
+			"spent", t.totalCostUSD, "new_limit", cfg.Budget.DailyLimitUSD)
 	}
 
 	logger.Info("[Budget] Tracker initialized",
-		"base_daily_limit", cfg.Budget.DailyLimitUSD,
-		"effective_daily_limit", effectiveLimit,
-		"adaptive_enabled", cfg.Budget.AdaptiveLimit.Enabled,
+		"daily_limit", cfg.Budget.DailyLimitUSD,
 		"enforcement", cfg.Budget.Enforcement,
 		"spent_today", t.totalCostUSD,
 	)
@@ -205,7 +176,7 @@ func (t *Tracker) RecordForCategory(category, model string, inputTokens, outputT
 		t.categoryCost[strings.ToLower(category)] += cost
 	}
 
-	limit := t.currentDailyLimitLocked()
+	limit := t.cfg.Budget.DailyLimitUSD
 	crossedWarning := false
 	crossedExceeded := false
 
@@ -237,18 +208,10 @@ func (t *Tracker) RecordForCategory(category, model string, inputTokens, outputT
 	// Fire mission callbacks outside the hot path (non-blocking)
 	if cb != nil {
 		if crossedWarning {
-			pct := 0.0
-			if limit > 0 {
-				pct = spent / limit
-			}
-			go cb("budget_warning", spent, limit, pct)
+			go cb("budget_warning", spent, limit, spent/limit)
 		}
 		if crossedExceeded {
-			pct := 0.0
-			if limit > 0 {
-				pct = spent / limit
-			}
-			go cb("budget_exceeded", spent, limit, pct)
+			go cb("budget_exceeded", spent, limit, spent/limit)
 		}
 	}
 
@@ -278,7 +241,7 @@ func (t *Tracker) RecordCost(costUSD float64) {
 
 	t.totalCostUSD += costUSD
 
-	limit := t.currentDailyLimitLocked()
+	limit := t.cfg.Budget.DailyLimitUSD
 	if limit > 0 && t.totalCostUSD/limit >= 1.0 && !t.exceeded {
 		t.exceeded = true
 		t.logger.Warn("[Budget] Daily budget EXCEEDED (image generation)",
@@ -306,11 +269,10 @@ func (t *Tracker) IsCategoryQuotaBlocked(category string, quotaPercent int) bool
 	}
 	t.mu.RLock()
 	defer t.mu.RUnlock()
-	limit := t.currentDailyLimitLocked()
-	if limit <= 0 {
+	if t.cfg.Budget.DailyLimitUSD <= 0 {
 		return false
 	}
-	limit = limit * (float64(quotaPercent) / 100.0)
+	limit := t.cfg.Budget.DailyLimitUSD * (float64(quotaPercent) / 100.0)
 	if limit <= 0 {
 		return false
 	}
@@ -363,7 +325,7 @@ func (t *Tracker) GetPromptHint() string {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 
-	limit := t.currentDailyLimitLocked()
+	limit := t.cfg.Budget.DailyLimitUSD
 	if limit <= 0 {
 		return ""
 	}
@@ -381,16 +343,6 @@ func (t *Tracker) GetPromptHint() string {
 	)
 }
 
-// GetEffectiveDailyLimit returns the effective daily limit after adaptive scaling.
-func (t *Tracker) GetEffectiveDailyLimit() float64 {
-	if t == nil {
-		return 0
-	}
-	t.mu.RLock()
-	defer t.mu.RUnlock()
-	return t.currentDailyLimitLocked()
-}
-
 // GetStatus returns a snapshot of the current budget state.
 func (t *Tracker) GetStatus() BudgetStatus {
 	if t == nil {
@@ -400,8 +352,7 @@ func (t *Tracker) GetStatus() BudgetStatus {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 
-	profile := t.currentAdaptiveProfileLocked()
-	limit := profile.EffectiveLimit
+	limit := t.cfg.Budget.DailyLimitUSD
 	remaining := limit - t.totalCostUSD
 	if remaining < 0 {
 		remaining = 0
@@ -446,24 +397,19 @@ func (t *Tracker) GetStatus() BudgetStatus {
 	}
 
 	return BudgetStatus{
-		Event:              "budget_update",
-		Enabled:            true,
-		DailyLimit:         limit,
-		BaseDailyLimitUSD:  profile.BaseLimit,
-		EffectiveLimitUSD:  profile.EffectiveLimit,
-		SpentUSD:           t.totalCostUSD,
-		RemainingUSD:       remaining,
-		Percentage:         pct,
-		Enforcement:        enforcement,
-		IsWarning:          pct >= t.cfg.Budget.WarningThreshold,
-		IsExceeded:         t.exceeded,
-		IsBlocked:          isBlocked,
-		AdaptiveEnabled:    t.cfg.Budget.AdaptiveLimit.Enabled,
-		AdaptiveMultiplier: profile.Multiplier,
-		AdaptiveBreakdown:  profile.Breakdown,
-		ResetTime:          t.nextResetTime().Format(time.RFC3339),
-		Date:               t.date,
-		Models:             models,
+		Event:        "budget_update",
+		Enabled:      true,
+		DailyLimit:   limit,
+		SpentUSD:     t.totalCostUSD,
+		RemainingUSD: remaining,
+		Percentage:   pct,
+		Enforcement:  enforcement,
+		IsWarning:    pct >= t.cfg.Budget.WarningThreshold,
+		IsExceeded:   t.exceeded,
+		IsBlocked:    isBlocked,
+		ResetTime:    t.nextResetTime().Format(time.RFC3339),
+		Date:         t.date,
+		Models:       models,
 	}
 }
 
@@ -502,14 +448,8 @@ func (t *Tracker) FormatStatusText(lang string) string {
 
 	if isDE {
 		sb.WriteString(fmt.Sprintf("💰 **Budget:** $%.4f / $%.2f (%d%%)\n", bs.SpentUSD, bs.DailyLimit, pctInt))
-		if bs.AdaptiveEnabled && bs.BaseDailyLimitUSD > 0 && bs.EffectiveLimitUSD > bs.BaseDailyLimitUSD {
-			sb.WriteString(fmt.Sprintf("├─ Adaptiv: Basis $%.2f → Effektiv $%.2f (x%.2f)\n", bs.BaseDailyLimitUSD, bs.EffectiveLimitUSD, bs.AdaptiveMultiplier))
-		}
 	} else {
 		sb.WriteString(fmt.Sprintf("💰 **Budget:** $%.4f / $%.2f (%d%%)\n", bs.SpentUSD, bs.DailyLimit, pctInt))
-		if bs.AdaptiveEnabled && bs.BaseDailyLimitUSD > 0 && bs.EffectiveLimitUSD > bs.BaseDailyLimitUSD {
-			sb.WriteString(fmt.Sprintf("├─ Adaptive: base $%.2f → effective $%.2f (x%.2f)\n", bs.BaseDailyLimitUSD, bs.EffectiveLimitUSD, bs.AdaptiveMultiplier))
-		}
 	}
 
 	// Per-model breakdown
@@ -563,176 +503,6 @@ func (t *Tracker) FormatStatusText(lang string) string {
 }
 
 // --- Internal helpers ---
-
-func (t *Tracker) currentDailyLimitLocked() float64 {
-	return t.currentAdaptiveProfileLocked().EffectiveLimit
-}
-
-func (t *Tracker) currentAdaptiveProfileLocked() adaptiveBudgetProfile {
-	baseLimit := t.cfg.Budget.DailyLimitUSD
-	profile := adaptiveBudgetProfile{
-		BaseLimit:      baseLimit,
-		EffectiveLimit: baseLimit,
-		Multiplier:     1.0,
-		Breakdown: AdaptiveBudgetBreakdown{
-			Strategy: "static",
-		},
-	}
-
-	if baseLimit <= 0 {
-		return profile
-	}
-
-	if !t.cfg.Budget.AdaptiveLimit.Enabled {
-		return profile
-	}
-
-	profile.Breakdown = t.buildCapabilityBudgetProfileLocked()
-	multiplier := 1.0 + profile.Breakdown.CapabilityScore
-
-	minMult := t.cfg.Budget.AdaptiveLimit.MinMultiplier
-	maxMult := t.cfg.Budget.AdaptiveLimit.MaxMultiplier
-	if minMult <= 0 {
-		minMult = 1.0
-	}
-	if maxMult < minMult {
-		maxMult = minMult
-	}
-	if multiplier < minMult {
-		multiplier = minMult
-	}
-	if multiplier > maxMult {
-		multiplier = maxMult
-	}
-
-	profile.Multiplier = multiplier
-	profile.EffectiveLimit = baseLimit * multiplier
-	return profile
-}
-
-func (t *Tracker) buildCapabilityBudgetProfileLocked() AdaptiveBudgetBreakdown {
-	weights := t.cfg.Budget.AdaptiveLimit
-	profile := AdaptiveBudgetBreakdown{
-		Strategy: "capability_weighted",
-	}
-	drivers := make([]string, 0, 8)
-
-	addDriver := func(enabled bool, name string) {
-		if enabled {
-			drivers = append(drivers, name)
-		}
-	}
-	addCountedDriver := func(count int, singular string, plural string) {
-		if count <= 0 {
-			return
-		}
-		if count == 1 {
-			drivers = append(drivers, fmt.Sprintf("1 %s", singular))
-			return
-		}
-		drivers = append(drivers, fmt.Sprintf("%d %s", count, plural))
-	}
-
-	nativeFlags := []bool{
-		t.cfg.Tools.Memory.Enabled,
-		t.cfg.Tools.KnowledgeGraph.Enabled,
-		t.cfg.Tools.Notes.Enabled,
-		t.cfg.Tools.Missions.Enabled,
-		t.cfg.Tools.Journal.Enabled,
-		t.cfg.Tools.SecretsVault.Enabled,
-		t.cfg.Tools.Scheduler.Enabled,
-		t.cfg.Tools.MemoryMaintenance.Enabled,
-		t.cfg.Tools.Inventory.Enabled,
-		t.cfg.Tools.WebScraper.Enabled,
-		t.cfg.Tools.WebCapture.Enabled,
-		t.cfg.Tools.NetworkPing.Enabled,
-		t.cfg.Tools.NetworkScan.Enabled,
-		t.cfg.Tools.WOL.Enabled,
-		t.cfg.Tools.DocumentCreator.Enabled,
-		t.cfg.Tools.Contacts.Enabled,
-	}
-	for _, enabled := range nativeFlags {
-		if enabled {
-			profile.NativeCapabilities++
-		}
-	}
-	profile.CapabilityScore += float64(profile.NativeCapabilities) * weights.NativeToolWeight
-	addCountedDriver(profile.NativeCapabilities, "native capability", "native capabilities")
-
-	integrationFlags := []bool{
-		t.cfg.Discord.Enabled,
-		t.cfg.Email.Enabled,
-		t.cfg.HomeAssistant.Enabled,
-		t.cfg.FritzBox.Enabled,
-		t.cfg.Telnyx.Enabled,
-		t.cfg.MeshCentral.Enabled,
-		t.cfg.Docker.Enabled,
-		t.cfg.WebDAV.Enabled,
-		t.cfg.S3.Enabled,
-		t.cfg.PaperlessNGX.Enabled,
-		t.cfg.Proxmox.Enabled,
-		t.cfg.CloudflareTunnel.Enabled,
-		t.cfg.GitHub.Enabled,
-		t.cfg.Netlify.Enabled,
-		t.cfg.AdGuard.Enabled,
-		t.cfg.MQTT.Enabled,
-		t.cfg.N8n.Enabled,
-		t.cfg.GoogleWorkspace.Enabled,
-		t.cfg.OneDrive.Enabled,
-	}
-	for _, enabled := range integrationFlags {
-		if enabled {
-			profile.Integrations++
-		}
-	}
-	profile.CapabilityScore += float64(profile.Integrations) * weights.IntegrationWeight
-	addCountedDriver(profile.Integrations, "integration", "integrations")
-
-	if t.cfg.CoAgents.Enabled {
-		profile.HighCostFeatures++
-		profile.CapabilityScore += weights.CoAgentWeight
-		addDriver(true, "co_agents")
-	}
-
-	multimodalFlags := []struct {
-		enabled bool
-		name    string
-	}{
-		{enabled: t.cfg.Vision.Provider != "", name: "vision"},
-		{enabled: t.cfg.Whisper.Provider != "" || strings.TrimSpace(t.cfg.Whisper.Mode) != "", name: "speech"},
-		{enabled: t.cfg.ImageGeneration.Enabled, name: "image_generation"},
-		{enabled: t.cfg.TTS.Provider != "" || t.cfg.TTS.Piper.Enabled, name: "tts"},
-		{enabled: t.cfg.Embeddings.Provider != "" && !strings.EqualFold(t.cfg.Embeddings.Provider, "disabled"), name: "embeddings"},
-	}
-	for _, item := range multimodalFlags {
-		if item.enabled {
-			profile.HighCostFeatures++
-			profile.CapabilityScore += weights.MultimodalWeight
-			addDriver(true, item.name)
-		}
-	}
-
-	if t.cfg.MemoryAnalysis.Enabled || t.cfg.Consolidation.Enabled || t.cfg.Journal.DailySummary {
-		profile.KnowledgeOps = 1
-		profile.CapabilityScore += weights.KnowledgeOpsWeight
-		addDriver(true, "knowledge_ops")
-	}
-
-	if t.cfg.Sandbox.Enabled || t.cfg.ShellSandbox.Enabled {
-		profile.SandboxEnvironments = 1
-		profile.CapabilityScore += weights.SandboxWeight
-		addDriver(true, "sandbox")
-	}
-
-	profile.MCPEnabled = t.cfg.Agent.AllowMCP || t.cfg.MCP.Enabled || t.cfg.MCPServer.Enabled
-	if profile.MCPEnabled {
-		profile.CapabilityScore += weights.MCPWeight
-		addDriver(true, "mcp")
-	}
-
-	profile.Drivers = drivers
-	return profile
-}
 
 func (t *Tracker) calcCostLocked(model string, inputTokens, outputTokens int) float64 {
 	rates := t.findRatesLocked(model)

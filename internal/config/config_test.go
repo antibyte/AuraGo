@@ -172,7 +172,7 @@ indexing:
 	}
 }
 
-func TestLoadBudgetAdaptiveLimitDefaults(t *testing.T) {
+func TestLoadAdaptiveSystemPromptTokenBudgetDefaultsToTrue(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "config_test")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
@@ -181,9 +181,8 @@ func TestLoadBudgetAdaptiveLimitDefaults(t *testing.T) {
 
 	configPath := filepath.Join(tmpDir, "config.yaml")
 	configContent := `
-budget:
-  enabled: true
-  daily_limit_usd: 5
+agent:
+  system_prompt_token_budget: 12000
 `
 	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
 		t.Fatalf("failed to write config file: %v", err)
@@ -194,21 +193,12 @@ budget:
 		t.Fatalf("failed to load config: %v", err)
 	}
 
-	if !cfg.Budget.AdaptiveLimit.Enabled {
-		t.Fatal("expected budget.adaptive_limit.enabled to default to true")
-	}
-	if cfg.Budget.AdaptiveLimit.Strategy != "capability_weighted" {
-		t.Fatalf("adaptive strategy = %q, want capability_weighted", cfg.Budget.AdaptiveLimit.Strategy)
-	}
-	if cfg.Budget.AdaptiveLimit.MinMultiplier != 1.0 {
-		t.Fatalf("min multiplier = %v, want 1.0", cfg.Budget.AdaptiveLimit.MinMultiplier)
-	}
-	if cfg.Budget.AdaptiveLimit.MaxMultiplier != 2.5 {
-		t.Fatalf("max multiplier = %v, want 2.5", cfg.Budget.AdaptiveLimit.MaxMultiplier)
+	if !cfg.Agent.AdaptiveSystemPromptTokenBudget {
+		t.Fatal("expected adaptive_system_prompt_token_budget to default to true")
 	}
 }
 
-func TestLoadBudgetAdaptiveLimitExplicitDisablePreserved(t *testing.T) {
+func TestLoadAdaptiveSystemPromptTokenBudgetExplicitDisablePreserved(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "config_test")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
@@ -217,11 +207,9 @@ func TestLoadBudgetAdaptiveLimitExplicitDisablePreserved(t *testing.T) {
 
 	configPath := filepath.Join(tmpDir, "config.yaml")
 	configContent := `
-budget:
-  enabled: true
-  daily_limit_usd: 5
-  adaptive_limit:
-    enabled: false
+agent:
+  system_prompt_token_budget: 12000
+  adaptive_system_prompt_token_budget: false
 `
 	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
 		t.Fatalf("failed to write config file: %v", err)
@@ -232,7 +220,7 @@ budget:
 		t.Fatalf("failed to load config: %v", err)
 	}
 
-	if cfg.Budget.AdaptiveLimit.Enabled {
-		t.Fatal("expected explicit adaptive_limit.enabled=false to be preserved")
+	if cfg.Agent.AdaptiveSystemPromptTokenBudget {
+		t.Fatal("expected explicit adaptive_system_prompt_token_budget=false to be preserved")
 	}
 }

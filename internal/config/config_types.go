@@ -211,18 +211,19 @@ type Config struct {
 		} `yaml:"local_ollama"`
 	} `yaml:"embeddings"`
 	Agent struct {
-		SystemLanguage             string `yaml:"system_language"`
-		StepDelaySeconds           int    `yaml:"step_delay_seconds"`
-		MemoryCompressionCharLimit int    `yaml:"memory_compression_char_limit"`
-		SystemPromptTokenBudget    int    `yaml:"system_prompt_token_budget"`
-		ContextWindow              int    `yaml:"context_window"`
-		ShowToolResults            bool   `yaml:"show_tool_results"`
-		WorkflowFeedback           bool   `yaml:"workflow_feedback"`
-		DebugMode                  bool   `yaml:"debug_mode"`
-		CoreMemoryMaxEntries       int    `yaml:"core_memory_max_entries"` // 0 = unlimited; default 200
-		CoreMemoryCapMode          string `yaml:"core_memory_cap_mode"`    // "soft" (default) | "hard"
-		ToolOutputLimit            int    `yaml:"tool_output_limit"`       // max characters of a single tool result added to context (0 = unlimited, default: 50000)
-		SudoEnabled                bool   `yaml:"sudo_enabled"`            // allow execute_sudo tool (password must be stored in vault as "sudo_password")
+		SystemLanguage                  string `yaml:"system_language"`
+		StepDelaySeconds                int    `yaml:"step_delay_seconds"`
+		MemoryCompressionCharLimit      int    `yaml:"memory_compression_char_limit"`
+		SystemPromptTokenBudget         int    `yaml:"system_prompt_token_budget"`
+		AdaptiveSystemPromptTokenBudget bool   `yaml:"adaptive_system_prompt_token_budget"` // adapt system prompt token budget to enabled tools/integrations (default: true)
+		ContextWindow                   int    `yaml:"context_window"`
+		ShowToolResults                 bool   `yaml:"show_tool_results"`
+		WorkflowFeedback                bool   `yaml:"workflow_feedback"`
+		DebugMode                       bool   `yaml:"debug_mode"`
+		CoreMemoryMaxEntries            int    `yaml:"core_memory_max_entries"` // 0 = unlimited; default 200
+		CoreMemoryCapMode               string `yaml:"core_memory_cap_mode"`    // "soft" (default) | "hard"
+		ToolOutputLimit                 int    `yaml:"tool_output_limit"`       // max characters of a single tool result added to context (0 = unlimited, default: 50000)
+		SudoEnabled                     bool   `yaml:"sudo_enabled"`            // allow execute_sudo tool (password must be stored in vault as "sudo_password")
 		// ── Danger Zone: tool capability gates (all default true) ──
 		AllowShell           bool   `yaml:"allow_shell"`            // allow execute_shell
 		AllowPython          bool   `yaml:"allow_python"`           // allow execute_python / save_tool / execute_skill
@@ -632,19 +633,6 @@ type Config struct {
 		WarningThreshold float64        `yaml:"warning_threshold"` // 0.0–1.0
 		Models           []ModelCost    `yaml:"models"`
 		DefaultCost      ModelCostRates `yaml:"default_cost"`
-		AdaptiveLimit    struct {
-			Enabled            bool    `yaml:"enabled"`              // enable adaptive effective budget calculation (default: true)
-			Strategy           string  `yaml:"strategy"`             // "capability_weighted" (default)
-			MinMultiplier      float64 `yaml:"min_multiplier"`       // lower clamp for multiplier (default: 1.0)
-			MaxMultiplier      float64 `yaml:"max_multiplier"`       // upper clamp for multiplier (default: 2.5)
-			NativeToolWeight   float64 `yaml:"native_tool_weight"`   // contribution per enabled native capability (default: 0.03)
-			IntegrationWeight  float64 `yaml:"integration_weight"`   // contribution per enabled integration (default: 0.08)
-			CoAgentWeight      float64 `yaml:"coagent_weight"`       // extra contribution when co-agents are enabled (default: 0.2)
-			MultimodalWeight   float64 `yaml:"multimodal_weight"`    // extra contribution per multimodal feature such as vision/STT/TTS/image generation (default: 0.12)
-			MCPWeight          float64 `yaml:"mcp_weight"`           // extra contribution when MCP is enabled (default: 0.1)
-			SandboxWeight      float64 `yaml:"sandbox_weight"`       // extra contribution for sandbox-enabled execution environments (default: 0.05)
-			KnowledgeOpsWeight float64 `yaml:"knowledge_ops_weight"` // extra contribution for advanced memory/knowledge features (default: 0.08)
-		} `yaml:"adaptive_limit"`
 	} `yaml:"budget"`
 	WebDAV struct {
 		Enabled  bool   `yaml:"enabled"`

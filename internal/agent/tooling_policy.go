@@ -183,7 +183,7 @@ func buildPromptContextFlags(runCfg RunConfig, policy ToolingPolicy, opts prompt
 		IsMaintenanceMode:        opts.IsMaintenanceMode,
 		SurgeryPlan:              opts.SurgeryPlan,
 		CorePersonality:          cfg.Personality.CorePersonality,
-		TokenBudget:              cfg.Agent.SystemPromptTokenBudget,
+		TokenBudget:              config.CalculateAdaptiveSystemPromptTokenBudget(cfg),
 		IsDebugMode:              cfg.Agent.DebugMode || GetDebugMode(),
 		IsCoAgent:                isCoAgentSession(runCfg.SessionID),
 		DiscordEnabled:           cfg.Discord.Enabled,

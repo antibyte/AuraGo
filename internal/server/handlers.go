@@ -14,6 +14,7 @@ import (
 
 	"aurago/internal/agent"
 	"aurago/internal/commands"
+	"aurago/internal/config"
 	"aurago/internal/llm"
 	"aurago/internal/memory"
 	"aurago/internal/prompts"
@@ -314,7 +315,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			CorePersonality:          s.Cfg.Personality.CorePersonality,
 			LifeboatEnabled:          s.Cfg.Maintenance.LifeboatEnabled,
 			IsMaintenanceMode:        inMaintenance,
-			TokenBudget:              s.Cfg.Agent.SystemPromptTokenBudget,
+			TokenBudget:              config.CalculateAdaptiveSystemPromptTokenBudget(s.Cfg),
 			MessageCount:             len(recentMessages),
 			IsDebugMode:              s.Cfg.Agent.DebugMode || agent.GetDebugMode(),
 			DiscordEnabled:           s.Cfg.Discord.Enabled,
