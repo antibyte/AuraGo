@@ -336,6 +336,9 @@ function updatePlanPanel(plan) {
     const blocked = plan.blocked_reason
         ? `<div class="todo-item-meta">Blocked: ${escapeHtml(plan.blocked_reason)}</div>`
         : '';
+    const recommendation = plan.recommendation
+        ? `<div class="todo-item-meta">${escapeHtml((typeof t === 'function' ? t('plans.recommendation') : 'Recommended next step') + ': ' + plan.recommendation)}</div>`
+        : '';
     const latestEvent = events.length > 0 && events[0].message
         ? `<div class="todo-item-meta">${escapeHtml(events[0].message)}</div>`
         : '';
@@ -345,6 +348,7 @@ function updatePlanPanel(plan) {
             <div class="todo-item todo-pending">📈 ${progress}% (${counts.completed || 0}/${counts.total || tasks.length || 0})</div>
             ${currentTask}
             ${blocked}
+            ${recommendation}
             ${tasks.map(renderPlanTask).join('')}
             ${latestEvent}
         </div>`;

@@ -996,20 +996,26 @@ func (s *SQLiteMemory) ListPlans(sessionID, status string, limit int, includeArc
 	if err != nil {
 		return nil, fmt.Errorf("list plans: %w", err)
 	}
-	defer rows.Close()
-
 	var plans []Plan
 	for rows.Next() {
 		var p Plan
 		if err := rows.Scan(&p.ID, &p.SessionID, &p.Title, &p.Description, &p.Status, &p.Archived, &p.ArchivedAt, &p.BlockedReason, &p.Priority, &p.UserRequest, &p.CreatedAt, &p.UpdatedAt, &p.StartedAt, &p.CompletedAt); err != nil {
+			rows.Close()
 			return nil, fmt.Errorf("scan plan: %w", err)
-		}
-		if err := s.populatePlanComputedFields(&p, false); err != nil {
-			return nil, err
 		}
 		plans = append(plans, p)
 	}
-	return plans, rows.Err()
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, err
+	}
+	rows.Close()
+	for i := range plans {
+		if err := s.populatePlanComputedFields(&plans[i], false); err != nil {
+			return nil, err
+		}
+	}
+	return plans, nil
 }
 
 func (s *SQLiteMemory) GetPlan(planID string) (*Plan, error) {
