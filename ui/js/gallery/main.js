@@ -173,23 +173,43 @@ function closeLightbox(event) {
 
 async function galleryDeleteCurrent() {
     if (currentLightboxId === null) return;
-    if (!confirm(t('gallery.confirm_delete'))) return;
-
-    try {
-        const resp = await fetch('/api/image-gallery/' + currentLightboxId, { method: 'DELETE' });
-        const data = await resp.json();
-        if (data.status === 'ok') {
-            closeLightbox();
-            loadGallery();
-        } else {
-            alert(data.message || 'Delete failed');
-        }
-    } catch (e) {
-        alert(e.message);
-    }
+    
+    // Use modal dialog instead of confirm()
+    document.getElementById('delete-target-id').value = currentLightboxId;
+    document.getElementById('delete-target-type').value = 'gallery-image';
+    document.getElementById('delete-confirm-text').textContent = t('gallery.confirm_delete');
+    document.getElementById('delete-modal').classList.add('active');
 }
 
 function escapeHtml(str) {
     if (!str) return '';
-    return str.replace(/&/g, '&').replace(/</g, '<').replace(/>/g, '>').replace(/"/g, '"');
+    return String(str).replace(/&/g, '&').replace(/</g, '<').replace(/>/g, '>').replace(/"/g, '"');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// DELETE CONFIRMATION HANDLER
+// ═══════════════════════════════════════════════════════════════
+
+async function confirmDeleteGallery() {
+    const id = document.getElementById('delete-target-id').value;
+    const type = document.getElementById('delete-target-type').value;
+
+    if (type !== 'gallery-image' || !id) {
+        closeModal('delete-modal');
+        return;
+    }
+
+    try {
+        const resp = await fetch('/api/image-gallery/' + id, { method: 'DELETE' });
+        const data = await resp.json();
+        if (data.status === 'ok') {
+            closeModal('delete-modal');
+            closeLightbox();
+            loadGallery();
+        } else {
+            showToast(data.message || 'Delete failed', 'error');
+        }
+    } catch (e) {
+        showToast(e.message, 'error');
+    }
 }

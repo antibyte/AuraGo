@@ -54,6 +54,26 @@
         </div>
     </div>
 
+    <!-- Delete Confirmation Modal -->
+    <div id="delete-modal" class="modal is-hidden">
+        <div class="modal-backdrop" onclick="closeModal('delete-modal')"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 data-i18n="common.confirm_delete">Confirm Delete</h3>
+                <button class="modal-close" onclick="closeModal('delete-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="delete-confirm-text"></p>
+                <input type="hidden" id="delete-target-id">
+                <input type="hidden" id="delete-target-type">
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('delete-modal')" data-i18n="common.cancel">Cancel</button>
+                <button class="btn btn-danger" onclick="confirmDeleteGallery()" data-i18n="common.delete">Delete</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Lightbox -->
     <div id="lightbox" class="lightbox is-hidden" onclick="closeLightbox(event)">
         <div class="lightbox-content" onclick="event.stopPropagation()">
