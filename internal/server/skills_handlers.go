@@ -1012,8 +1012,8 @@ func decodeSkillDraft(raw string) (*generatedSkillDraft, error) {
 			lastErr = fmt.Errorf("draft code is missing")
 			continue
 		}
-		if generatedSkillLooksLikePlaceholder(&draft) {
-			lastErr = fmt.Errorf("draft still looks like a schema placeholder")
+		if placeholderIssues := generatedSkillPlaceholderIssues(&draft); len(placeholderIssues) > 0 {
+			lastErr = fmt.Errorf("%s", strings.Join(placeholderIssues, "; "))
 			continue
 		}
 		return &draft, nil
@@ -1390,6 +1390,9 @@ func generatedSkillNeedsRepair(draft *generatedSkillDraft) (bool, string) {
 	if code == "" {
 		return true, "generated draft has no code"
 	}
+	if placeholderIssues := generatedSkillPlaceholderIssues(draft); len(placeholderIssues) > 0 {
+		return true, strings.Join(placeholderIssues, "; ")
+	}
 
 	validation := tools.ValidateSkillUpload([]byte(code), safeSkillFilename(draft.Name), 1)
 	if validation != nil {
@@ -1421,43 +1424,51 @@ func generatedSkillNeedsRepair(draft *generatedSkillDraft) (bool, string) {
 }
 
 func generatedSkillLooksLikePlaceholder(draft *generatedSkillDraft) bool {
+	return len(generatedSkillPlaceholderIssues(draft)) > 0
+}
+
+func generatedSkillPlaceholderIssues(draft *generatedSkillDraft) []string {
 	if draft == nil {
-		return true
+		return []string{"generated draft is missing"}
 	}
-	fields := []string{
-		strings.TrimSpace(draft.Name),
-		strings.TrimSpace(draft.Description),
-		strings.TrimSpace(draft.Category),
-		strings.TrimSpace(draft.Code),
+	type fieldCheck struct {
+		label string
+		value string
 	}
-	placeholderCount := 0
-	nonEmpty := 0
+	fields := []fieldCheck{
+		{label: "name", value: strings.TrimSpace(draft.Name)},
+		{label: "description", value: strings.TrimSpace(draft.Description)},
+		{label: "category", value: strings.TrimSpace(draft.Category)},
+		{label: "code", value: strings.TrimSpace(draft.Code)},
+	}
+	var issues []string
 	for _, field := range fields {
-		if field == "" {
+		if field.value == "" {
 			continue
 		}
-		nonEmpty++
-		if isPlaceholderValue(field) {
-			placeholderCount++
+		if field.label == "code" {
+			if isPlaceholderCodeValue(field.value) {
+				issues = append(issues, "generated draft still contains placeholder code text instead of real Python code")
+			}
+			continue
+		}
+		if isPlaceholderValue(field.value) {
+			issues = append(issues, fmt.Sprintf("generated draft still contains placeholder %s", field.label))
 		}
 	}
 	for _, tag := range draft.Tags {
-		if strings.TrimSpace(tag) != "" {
-			nonEmpty++
-			if isPlaceholderValue(tag) {
-				placeholderCount++
-			}
+		if isPlaceholderValue(tag) {
+			issues = append(issues, "generated draft still contains placeholder tags")
+			break
 		}
 	}
 	for _, dep := range draft.Dependencies {
-		if strings.TrimSpace(dep) != "" {
-			nonEmpty++
-			if isPlaceholderValue(dep) {
-				placeholderCount++
-			}
+		if isPlaceholderValue(dep) {
+			issues = append(issues, "generated draft still contains placeholder dependencies")
+			break
 		}
 	}
-	return nonEmpty > 0 && placeholderCount == nonEmpty
+	return normalizeStringList(issues)
 }
 
 func isPlaceholderValue(value string) bool {
@@ -1474,7 +1485,35 @@ func isPlaceholderValue(value string) bool {
 		return true
 	}
 	lower := strings.ToLower(trimmed)
-	return lower == "name" || lower == "description" || lower == "category" || lower == "code" || lower == "tags" || lower == "dependencies"
+	return lower == "name" || lower == "description" || lower == "category" || lower == "code" || lower == "tags" || lower == "dependencies" ||
+		lower == "skill_name" || lower == "what it does" || lower == "tag1" || lower == "tag2" || lower == "dep1"
+}
+
+func isPlaceholderCodeValue(value string) bool {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return true
+	}
+	if isPlaceholderValue(value) {
+		return true
+	}
+	lower := strings.ToLower(value)
+	if strings.Contains(lower, "python code as a single json string") {
+		return true
+	}
+	if strings.Contains(lower, "single json string") && strings.Contains(lower, "python code") {
+		return true
+	}
+	if strings.Contains(lower, "write python code here") || strings.Contains(lower, "insert code here") {
+		return true
+	}
+	if strings.ContainsAny(value, "\n:=") {
+		return false
+	}
+	if strings.Contains(value, "import ") || strings.Contains(value, "json.dump") || strings.Contains(value, "def ") || strings.Contains(value, "return ") {
+		return false
+	}
+	return strings.Contains(lower, "code")
 }
 
 func safeSkillFilename(name string) string {

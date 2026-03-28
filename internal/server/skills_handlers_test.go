@@ -119,6 +119,22 @@ func TestGeneratedSkillLooksLikePlaceholder(t *testing.T) {
 	}
 }
 
+func TestGeneratedSkillPlaceholderIssuesDetectsSchemaEchoCode(t *testing.T) {
+	t.Parallel()
+
+	draft := &generatedSkillDraft{
+		Name:        "dns_test",
+		Description: "Checks DNS resolution",
+		Category:    "category",
+		Code:        "python code as a single JSON string",
+	}
+
+	issues := generatedSkillPlaceholderIssues(draft)
+	if len(issues) == 0 {
+		t.Fatal("expected placeholder issues for schema echo draft")
+	}
+}
+
 func TestDecodeSkillDraftAcceptsNestedDraftObject(t *testing.T) {
 	t.Parallel()
 
