@@ -102,13 +102,6 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 			keep_forever BOOLEAN DEFAULT 0
 		);
 	
-	CREATE TABLE IF NOT EXISTS tool_transitions (
-		from_tool TEXT,
-		to_tool TEXT,
-		count INTEGER DEFAULT 0,
-		PRIMARY KEY (from_tool, to_tool)
-	);
-
 	CREATE TABLE IF NOT EXISTS interaction_patterns (
 		hour_of_day INTEGER,
 		day_of_week INTEGER,

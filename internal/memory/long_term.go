@@ -387,16 +387,33 @@ func chunkText(text string, chunkSize, overlap int) []string {
 
 // StoreBatch stores multiple concept/content pairs. Small documents are collected
 // and batch-embedded in a single parallel call; large texts are chunked individually.
+// Performs deduplication by skipping items whose concept is already stored (similarity > 0.95).
 func (cv *ChromemVectorDB) StoreBatch(items []ArchiveItem) ([]string, error) {
 	if cv.disabled.Load() {
 		return nil, fmt.Errorf("VectorDB is disabled (embedding pipeline failed at startup)")
+	}
+
+	// Deduplication: batch-check concepts against existing memories
+	uniqueItems := make([]ArchiveItem, 0, len(items))
+	for _, item := range items {
+		if similar, _, err := cv.SearchMemoriesOnly(item.Concept, 1); err == nil && len(similar) > 0 {
+			if sim := ExtractSimilarityScore(similar[0]); sim > 0.95 {
+				cv.logger.Debug("StoreBatch: skipping duplicate concept", "concept", item.Concept, "similarity", sim)
+				continue
+			}
+		}
+		uniqueItems = append(uniqueItems, item)
+	}
+
+	if len(uniqueItems) == 0 {
+		return nil, nil
 	}
 
 	var allIDs []string
 	var smallDocs []chromem.Document
 	var smallIDs []string
 
-	for _, item := range items {
+	for _, item := range uniqueItems {
 		fullContent := item.Concept + "\n\n" + item.Content
 		metadata := map[string]string{
 			"concept":   item.Concept,

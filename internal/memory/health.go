@@ -47,9 +47,9 @@ type MemoryCuratorDryRun struct {
 	Contradictions      int      `json:"contradictions"`
 	LowConfidence       int      `json:"low_confidence"`
 	OverusedMemories    int      `json:"overused_memories"`
-	Suggestions         []string `json:"suggestions"`
 	TopStale            []string `json:"top_stale"`
 	TopOverused         []string `json:"top_overused"`
+	Suggestions         []string `json:"suggestions"`
 }
 
 // MemoryHealthReport combines retrieval, confidence, episodic, and curator signals.
@@ -71,12 +71,12 @@ func (s *SQLiteMemory) GetMemoryUsageStats(windowDays int, topLimit int) (Memory
 	stats := MemoryUsageStats{WindowDays: windowDays}
 	windowExpr := fmt.Sprintf("datetime('now', '-%d days')", windowDays)
 
-	if err := s.db.QueryRow(`
+	err := s.db.QueryRow(`
 		SELECT
 			COUNT(*),
 			COALESCE(SUM(CASE WHEN memory_type = 'ltm_retrieved' THEN 1 ELSE 0 END), 0),
 			COALESCE(SUM(CASE WHEN memory_type = 'ltm_predicted' THEN 1 ELSE 0 END), 0),
-			COALESCE(SUM(CASE WHEN was_cited THEN 1 ELSE 0 END), 0),
+			COALESCE(SUM(CASE WHEN was_cited = 1 THEN 1 ELSE 0 END), 0),
 			COUNT(DISTINCT memory_id),
 			COUNT(DISTINCT session_id)
 		FROM memory_usage_log
@@ -87,12 +87,16 @@ func (s *SQLiteMemory) GetMemoryUsageStats(windowDays int, topLimit int) (Memory
 		&stats.CitedEvents,
 		&stats.DistinctMemories,
 		&stats.DistinctSessions,
-	); err != nil {
+	)
+	if err != nil {
 		return stats, fmt.Errorf("memory usage summary: %w", err)
 	}
 
 	rows, err := s.db.Query(`
-		SELECT memory_id, memory_type, COUNT(*) AS cnt, COALESCE(AVG(context_relevance), 0), MAX(used_at), MAX(CASE WHEN was_cited THEN 1 ELSE 0 END)
+		SELECT memory_id, memory_type, COUNT(*) AS cnt, 
+		       COALESCE(AVG(context_relevance), 0), 
+		       MAX(used_at), 
+		       MAX(CASE WHEN was_cited = 1 THEN 1 ELSE 0 END)
 		FROM memory_usage_log
 		WHERE used_at >= `+windowExpr+`
 		GROUP BY memory_id, memory_type
@@ -120,8 +124,8 @@ func BuildMemoryHealthReport(metas []MemoryMeta, usage MemoryUsageStats) MemoryH
 	report := MemoryHealthReport{
 		Usage:      usage,
 		Confidence: buildMemoryConfidenceStats(metas),
+		Curator:    buildMemoryCuratorDryRun(metas, usage),
 	}
-	report.Curator = buildMemoryCuratorDryRun(metas, usage)
 	return report
 }
 
@@ -136,10 +140,12 @@ func buildMemoryConfidenceStats(metas []MemoryMeta) MemoryConfidenceStats {
 		default:
 			stats.Unverified++
 		}
+
 		confidence := meta.ExtractionConfidence
 		if confidence <= 0 {
 			confidence = 0.75
 		}
+
 		switch {
 		case confidence >= 0.8:
 			stats.HighConfidence++
@@ -152,14 +158,13 @@ func buildMemoryConfidenceStats(metas []MemoryMeta) MemoryConfidenceStats {
 	return stats
 }
 
-func buildMemoryCuratorDryRun(metas []MemoryMeta, usage MemoryUsageStats) MemoryCuratorDryRun {
-	now := time.Now().UTC()
-	report := MemoryCuratorDryRun{}
+type staleEntry struct {
+	docID string
+	score int
+}
 
-	type staleEntry struct {
-		docID string
-		score int
-	}
+func buildMemoryCuratorDryRun(metas []MemoryMeta, usage MemoryUsageStats) MemoryCuratorDryRun {
+	report := MemoryCuratorDryRun{}
 	stale := make([]staleEntry, 0)
 
 	for _, meta := range metas {
@@ -173,30 +178,36 @@ func buildMemoryCuratorDryRun(metas []MemoryMeta, usage MemoryUsageStats) Memory
 			reliability = 0.70
 		}
 
+		// Count verification backlog
 		if status == "unverified" || status == "" {
 			report.VerificationBacklog++
 		}
+
+		// Count contradictions
 		if status == "contradicted" {
 			report.Contradictions++
 		}
-		if confidence < 0.55 || reliability < 0.55 {
+
+		// Count low confidence memories
+		if confidence < 0.55 {
 			report.LowConfidence++
 		}
 
+		// Find stale candidates (not accessed recently, low access count, not confirmed)
 		lastTouched := parseMemoryMetaTime(meta.LastAccessed)
-		daysStale := 999
 		if !lastTouched.IsZero() {
-			daysStale = int(now.Sub(lastTouched).Hours() / 24)
-		}
-		if daysStale >= 21 && meta.AccessCount <= 1 && status != "confirmed" {
-			report.StaleCandidates++
-			stale = append(stale, staleEntry{
-				docID: meta.DocID,
-				score: daysStale - meta.AccessCount,
-			})
+			daysStale := int(time.Since(lastTouched).Hours() / 24)
+			if daysStale >= 21 && meta.AccessCount <= 1 && status != "confirmed" {
+				report.StaleCandidates++
+				stale = append(stale, staleEntry{
+					docID: meta.DocID,
+					score: daysStale - meta.AccessCount,
+				})
+			}
 		}
 	}
 
+	// Find overused memories from usage stats
 	for _, item := range usage.TopReused {
 		if item.Count >= 3 {
 			report.OverusedMemories++
@@ -204,12 +215,15 @@ func buildMemoryCuratorDryRun(metas []MemoryMeta, usage MemoryUsageStats) Memory
 		}
 	}
 
+	// Sort stale entries by score (highest first)
 	sort.Slice(stale, func(i, j int) bool {
 		if stale[i].score == stale[j].score {
 			return stale[i].docID < stale[j].docID
 		}
 		return stale[i].score > stale[j].score
 	})
+
+	// Take top 5 stale entries
 	for i, item := range stale {
 		if i >= 5 {
 			break
@@ -217,20 +231,26 @@ func buildMemoryCuratorDryRun(metas []MemoryMeta, usage MemoryUsageStats) Memory
 		report.TopStale = append(report.TopStale, item.docID)
 	}
 
+	// Generate suggestions
 	if report.StaleCandidates > 0 {
-		report.Suggestions = append(report.Suggestions, fmt.Sprintf("Review %d stale low-touch memories before they become prompt noise.", report.StaleCandidates))
+		report.Suggestions = append(report.Suggestions,
+			fmt.Sprintf("Review %d stale low-touch memories before they become prompt noise.", report.StaleCandidates))
 	}
 	if report.VerificationBacklog > 0 {
-		report.Suggestions = append(report.Suggestions, fmt.Sprintf("Verify %d unverified memories to improve retrieval trust.", report.VerificationBacklog))
+		report.Suggestions = append(report.Suggestions,
+			fmt.Sprintf("Verify %d unverified memories to improve retrieval trust.", report.VerificationBacklog))
 	}
 	if report.Contradictions > 0 {
-		report.Suggestions = append(report.Suggestions, fmt.Sprintf("Resolve %d contradicted memories or mark them archived.", report.Contradictions))
+		report.Suggestions = append(report.Suggestions,
+			fmt.Sprintf("Resolve %d contradicted memories or mark them archived.", report.Contradictions))
 	}
 	if report.OverusedMemories > 0 {
-		report.Suggestions = append(report.Suggestions, fmt.Sprintf("Inspect %d repeatedly reused memories for consolidation or splitting.", report.OverusedMemories))
+		report.Suggestions = append(report.Suggestions,
+			fmt.Sprintf("Inspect %d repeatedly reused memories for consolidation or splitting.", report.OverusedMemories))
 	}
 	if len(report.Suggestions) == 0 {
-		report.Suggestions = append(report.Suggestions, "Memory health looks balanced; only routine verification is recommended.")
+		report.Suggestions = append(report.Suggestions,
+			"Memory health looks balanced; only routine verification is recommended.")
 	}
 
 	return report

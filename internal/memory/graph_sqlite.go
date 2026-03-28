@@ -43,6 +43,9 @@ func NewKnowledgeGraph(dbPath string, jsonMigratePath string, logger *slog.Logge
 		return nil, fmt.Errorf("open knowledge graph db: %w", err)
 	}
 
+	// SQLite is single-writer; cap connections to prevent locking errors
+	db.SetMaxOpenConns(1)
+
 	kg := &KnowledgeGraph{db: db, logger: logger}
 	kg.accessQueue = make(chan string, 1000) // buffer for 1000 node IDs
 	go kg.accessCountWorker()
