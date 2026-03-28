@@ -45,6 +45,7 @@ Rules:
 - Do NOT extract information that is just part of the current task context.
 - Do NOT extract emotions, moods, or temporary states.
 - Use category "recent_operational_details" for details likely needed in the next days (paths, versions, hostnames, ports, identifiers, deadlines).
+- NEVER extract any claim about whether a tool, integration, capability, or feature is currently available, enabled, configured, active, or missing. This is transient system state that changes with configuration and must never be stored in memory.
 - If there is nothing worth remembering, return empty arrays.
 
 Respond ONLY with valid JSON in this exact format:
@@ -274,7 +275,153 @@ func shouldUseRAGForMessage(msg string) bool {
 	if len(trimmed) < 20 {
 		return false
 	}
-	return !isAmbiguousShortCommand(trimmed)
+	if isAmbiguousShortCommand(trimmed) {
+		return false
+	}
+	// Capability and availability queries must be answered from the live tool schema
+	// in the current context, never from potentially stale memory entries.
+	if isCapabilityQuery(trimmed) {
+		return false
+	}
+	return true
+}
+
+// isCapabilityQuery returns true when the message is primarily asking about what
+// the agent can do, or whether a specific tool/integration is available or enabled.
+// For these queries, RAG retrieval is skipped entirely: the source of truth is the
+// live tool schema injected into the context, not historical memory.
+func isCapabilityQuery(msg string) bool {
+	lower := strings.ToLower(strings.TrimSpace(msg))
+
+	// Explicit capability-question patterns across all 15 supported languages.
+	capPatterns := []string{
+		// German
+		"hast du", "kannst du", "habe ich zugang", "gibt es ein tool", "gibt es eine",
+		"steht dir", "steht zur verfügung", "ist verfügbar", "ist aktiviert",
+		"ist eingeschaltet", "welche tools", "welche werkzeuge", "welche fähigkeiten",
+		"was kannst du", "was für tools", "kannst du mit",
+		// English
+		"do you have", "can you", "are you able", "is it available", "is the tool",
+		"which tools", "what tools", "what can you", "what capabilities", "do you support",
+		"tool available", "tool enabled", "integration available", "integration enabled",
+		"have you got", "do you have access",
+		// Spanish
+		"tienes", "puedes", "está disponible", "qué herramientas", "cuáles herramientas",
+		"tienes acceso",
+		// French
+		"avez-vous", "pouvez-vous", "est disponible", "quels outils", "outil disponible",
+		// Italian
+		"hai", "puoi", "è disponibile", "quali strumenti",
+		// Portuguese
+		"você tem", "pode", "está disponível", "quais ferramentas",
+		// Dutch
+		"heb je", "kun je", "is beschikbaar", "welke tools",
+		// Swedish/Norwegian/Danish
+		"har du", "kan du", "är tillgänglig", "er tilgjengelig",
+		// Polish
+		"czy masz", "czy możesz",
+		// Czech
+		"máš", "můžeš",
+	}
+	for _, p := range capPatterns {
+		if strings.Contains(lower, p) {
+			return true
+		}
+	}
+
+	// Combo check: message contains BOTH a capability subject (tool name or generic term)
+	// AND an availability keyword. This catches "ist chromecast konfiguriert?" or
+	// "chromecast disponibile?" even without an explicit pattern above.
+	availabilityWords := []string{
+		"available", "enabled", "configured", "supported", "active", "installed",
+		"verfügbar", "aktiviert", "konfiguriert", "unterstützt", "vorhanden",
+		"disponible", "activé", "configuré",
+		"disponível", "ativado", "configurado",
+		"disponibile", "attivo", "configurato",
+		"beschikbaar", "actief",
+		"tillgänglig", "tilgjengelig",
+	}
+	capabilitySubjects := []string{
+		"tool", "tools", "integration", "capability", "capabilities", "function", "feature",
+		"werkzeug", "werkzeuge", "fähigkeit", "funktion",
+		"chromecast", "docker", "proxmox", "telegram", "discord", "mqtt",
+		"home assistant", "homeassistant", "tailscale", "truenas", "frigate",
+		"google cast", "cast", "tts", "stt", "speech",
+	}
+	hasSubject := false
+	for _, s := range capabilitySubjects {
+		if strings.Contains(lower, s) {
+			hasSubject = true
+			break
+		}
+	}
+	if !hasSubject {
+		return false
+	}
+	for _, a := range availabilityWords {
+		if strings.Contains(lower, a) {
+			return true
+		}
+	}
+	return false
+}
+
+// transientMemoryPhrases lists phrases that indicate transient tool/integration
+// availability state. These must never be stored in or served from long-term
+// memory because they reflect a point-in-time configuration state that may
+// change (e.g. a tool was disabled, then re-enabled).
+var transientMemoryPhrases = []string{
+	"integration is not available",
+	"integration is unavailable",
+	"integration is not configured",
+	"tool is not available",
+	"tool is unavailable",
+	"tool does not appear in the tool list",
+	"does not appear in the tool list",
+	"not in the tool list",
+	"is not enabled",
+	"is disabled",
+	"api key is missing",
+	"steht dir nicht zur verfügung",
+	"steht nicht zur verfügung",
+	"ist nicht verfügbar",
+	"ist nicht konfiguriert",
+	"nicht in der werkzeugliste auftaucht",
+	"taucht nicht in der werkzeugliste auf",
+	"taucht nicht in der toolliste auf",
+	"api-schlüssel fehlt",
+}
+
+// containsTransientMemoryPhrase returns true if text contains any phrase that
+// indicates a transient tool/integration availability state.
+func containsTransientMemoryPhrase(text string) bool {
+	lower := strings.ToLower(strings.TrimSpace(text))
+	for _, phrase := range transientMemoryPhrases {
+		if strings.Contains(lower, phrase) {
+			return true
+		}
+	}
+	return false
+}
+
+// shouldServeRAGMemory returns false for memories that must not be served to the agent
+// because they contain stale, transient system-state claims:
+//  1. Entries containing transient phrases ("tool is not available", etc.) — language-specific filter
+//     for entries written before the category-based write filter existed.
+//  2. Entries categorized as [tool_availability] — language-agnostic, covers all future entries
+//     regardless of the language the LLM used when creating them.
+func shouldServeRAGMemory(text string) bool {
+	if containsTransientMemoryPhrase(text) {
+		return false
+	}
+	// Drop entries explicitly categorised as tool_availability. The concept string
+	// is stored as the first line of the document content, so checking the prefix
+	// covers both single-document and chunked storage.
+	lower := strings.ToLower(strings.TrimSpace(text))
+	if strings.HasPrefix(lower, "[tool_availability]") {
+		return false
+	}
+	return true
 }
 
 func shouldStoreExtractedMemory(content, category string) bool {
@@ -283,31 +430,14 @@ func shouldStoreExtractedMemory(content, category string) bool {
 		return false
 	}
 
-	transientPhrases := []string{
-		"integration is not available",
-		"integration is unavailable",
-		"integration is not configured",
-		"tool is not available",
-		"tool is unavailable",
-		"tool does not appear in the tool list",
-		"does not appear in the tool list",
-		"not in the tool list",
-		"is not enabled",
-		"is disabled",
-		"api key is missing",
-		"steht dir nicht zur verfügung",
-		"steht nicht zur verfügung",
-		"ist nicht verfügbar",
-		"ist nicht konfiguriert",
-		"nicht in der werkzeugliste auftaucht",
-		"taucht nicht in der werkzeugliste auf",
-		"taucht nicht in der toolliste auf",
-		"api-schlüssel fehlt",
+	// Block tool/integration availability claims regardless of language —
+	// the LLM assigns this category when the memoryAnalysisPrompt rule is followed.
+	if strings.EqualFold(strings.TrimSpace(category), "tool_availability") {
+		return false
 	}
-	for _, phrase := range transientPhrases {
-		if strings.Contains(text, phrase) {
-			return false
-		}
+
+	if containsTransientMemoryPhrase(content) {
+		return false
 	}
 
 	if strings.EqualFold(strings.TrimSpace(category), "recent_operational_details") {

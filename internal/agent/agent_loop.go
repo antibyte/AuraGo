@@ -582,6 +582,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				markMemoryDocIDsUsed(usedMemoryDocIDs, ranked)
 				wantsDeepDetails := wantsDetailedMemory(lastUserMsg)
 				for _, r := range ranked {
+					if !shouldServeRAGMemory(r.text) {
+						currentLogger.Debug("[RAG] Dropped stale transient memory", "preview", Truncate(r.text, 80))
+						continue
+					}
 					topMemories = append(topMemories, compactMemoryForPrompt(r.text, 260))
 				}
 				if wantsDeepDetails {
@@ -590,7 +594,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 							break
 						}
 						full, ferr := longTermMem.GetByID(r.docID)
-						if ferr == nil && full != "" {
+						if ferr == nil && full != "" && shouldServeRAGMemory(full) {
 							topMemories = append(topMemories, "[Detailed Memory]\n"+compactMemoryForPrompt(full, 700))
 						}
 					}
@@ -650,6 +654,17 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				}
 			}
 
+		}
+
+		// For capability/availability queries, RAG was intentionally skipped.
+		// Inject a live-state policy note so the agent knows not to rely on any
+		// stale memory it may have encountered in the conversation history.
+		if !runCfg.IsMission && lastUserMsg != "" && isCapabilityQuery(lastUserMsg) && flags.RetrievedMemories == "" {
+			flags.RetrievedMemories = "[Memory Policy] This query concerns agent capabilities or tool/integration availability. " +
+				"The authoritative source is the CURRENT TOOL SCHEMA in this context — NOT past memory entries. " +
+				"Memory about tool availability is always considered potentially stale. " +
+				"If you are unsure whether a tool is present, inspect the tool list directly or attempt to use the tool."
+			currentLogger.Debug("[RAG] Capability query: injecting live-state policy hint")
 		}
 
 		// Inject lightweight recent-day anchors and episodic cards, even when

@@ -232,6 +232,12 @@ func (cv *ChromemVectorDB) StoreDocumentWithDomain(concept, content, domain stri
 		return nil, fmt.Errorf("VectorDB is disabled (embedding pipeline failed at startup)")
 	}
 
+	const maxContentBytes = 500 * 1024 // 500 KB per document
+	if len(content) > maxContentBytes {
+		cv.logger.Warn("Document content exceeds 500 KB limit, truncating", "concept", concept, "bytes", len(content))
+		content = content[:maxContentBytes]
+	}
+
 	// Deduplication: check if a very similar concept already exists
 	if similar, _, err := cv.SearchMemoriesOnly(concept, 1); err == nil && len(similar) > 0 {
 		if sim := ExtractSimilarityScore(similar[0]); sim > 0.95 {
@@ -270,7 +276,12 @@ func (cv *ChromemVectorDB) StoreDocumentWithDomain(concept, content, domain stri
 	}
 
 	// Large texts: split into chunks and batch-store
+	const maxChunks = 200
 	chunks := chunkText(content, 3500, 200)
+	if len(chunks) > maxChunks {
+		cv.logger.Warn("Document produces too many chunks, capping", "concept", concept, "chunks", len(chunks), "max", maxChunks)
+		chunks = chunks[:maxChunks]
+	}
 	baseCounter := cv.idCounter.Add(int64(len(chunks)))
 
 	var docs []chromem.Document
@@ -393,16 +404,48 @@ func (cv *ChromemVectorDB) StoreBatch(items []ArchiveItem) ([]string, error) {
 		return nil, fmt.Errorf("VectorDB is disabled (embedding pipeline failed at startup)")
 	}
 
-	// Deduplication: batch-check concepts against existing memories
-	uniqueItems := make([]ArchiveItem, 0, len(items))
-	for _, item := range items {
-		if similar, _, err := cv.SearchMemoriesOnly(item.Concept, 1); err == nil && len(similar) > 0 {
-			if sim := ExtractSimilarityScore(similar[0]); sim > 0.95 {
-				cv.logger.Debug("StoreBatch: skipping duplicate concept", "concept", item.Concept, "similarity", sim)
-				continue
-			}
+	const maxBatchItemBytes = 500 * 1024 // 500 KB per item
+
+	// Deduplication: run all concept-similarity checks in parallel to avoid O(n) sequential embedding calls.
+	type dedupResult struct {
+		idx  int
+		item ArchiveItem
+		keep bool
+	}
+	resultsCh := make(chan dedupResult, len(items))
+	for i, item := range items {
+		if len(item.Content) > maxBatchItemBytes {
+			cv.logger.Warn("StoreBatch: item content exceeds 500 KB limit, truncating", "concept", item.Concept, "bytes", len(item.Content))
+			item.Content = item.Content[:maxBatchItemBytes]
 		}
-		uniqueItems = append(uniqueItems, item)
+		i, item := i, item // capture
+		go func() {
+			keep := true
+			if similar, _, err := cv.SearchMemoriesOnly(item.Concept, 1); err == nil && len(similar) > 0 {
+				if sim := ExtractSimilarityScore(similar[0]); sim > 0.95 {
+					cv.logger.Debug("StoreBatch: skipping duplicate concept", "concept", item.Concept, "similarity", sim)
+					keep = false
+				}
+			}
+			resultsCh <- dedupResult{idx: i, item: item, keep: keep}
+		}()
+	}
+	// Collect results preserving original order
+	type indexedItem struct {
+		idx  int
+		item ArchiveItem
+	}
+	kept := make([]indexedItem, 0, len(items))
+	for range items {
+		r := <-resultsCh
+		if r.keep {
+			kept = append(kept, indexedItem{r.idx, r.item})
+		}
+	}
+	sort.Slice(kept, func(a, b int) bool { return kept[a].idx < kept[b].idx })
+	uniqueItems := make([]ArchiveItem, 0, len(kept))
+	for _, k := range kept {
+		uniqueItems = append(uniqueItems, k.item)
 	}
 
 	if len(uniqueItems) == 0 {
@@ -534,7 +577,13 @@ func (cv *ChromemVectorDB) SearchSimilar(query string, topK int, excludeCollecti
 
 	var allResults []rankedResult
 	for range collections {
-		cr := <-resultCh
+		var cr colResult
+		select {
+		case cr = <-resultCh:
+		case <-ctx.Done():
+			cv.logger.Warn("SearchSimilar: context deadline exceeded while collecting results")
+			break
+		}
 		if cr.err != nil {
 			cv.logger.Warn("Failed to query collection", "collection", cr.colName, "error", cr.err)
 			continue

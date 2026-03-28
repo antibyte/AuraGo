@@ -354,6 +354,10 @@ func BuildSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string,
 	// RAG: Retrieved Long-Term Memories — skip in minimal tier
 	if flags.RetrievedMemories != "" && flags.Tier != "minimal" {
 		finalPrompt.WriteString("# RETRIEVED MEMORIES\n")
+		finalPrompt.WriteString("**Important**: Memories reflect past observations and MAY BE OUTDATED. " +
+			"For any claim about tool availability, integration status, system configuration, " +
+			"or capability — VERIFY against current context or by using a tool BEFORE acting on it. " +
+			"Never assume a memory about system state is still accurate.\n\n")
 		finalPrompt.WriteString(security.IsolateExternalData(flags.RetrievedMemories))
 		finalPrompt.WriteString("\n\n")
 	}

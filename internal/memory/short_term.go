@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/sashabaranov/go-openai"
@@ -15,6 +16,13 @@ import (
 type SQLiteMemory struct {
 	db     *sql.DB
 	logger *slog.Logger
+
+	// personality hot-path cache (1-second TTL, invalidated on every write)
+	personalityCacheMu sync.RWMutex
+	traitsCache        PersonalityTraits
+	traitsCacheAt      time.Time
+	moodCache          Mood
+	moodCacheAt        time.Time
 }
 
 // openSQLiteDB opens (or recovers) the SQLite database at dbPath.

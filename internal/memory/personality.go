@@ -4,8 +4,10 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"maps"
 	"math"
 	"strings"
+	"time"
 	"unicode/utf8"
 )
 
@@ -319,8 +321,19 @@ func (s *SQLiteMemory) InitPersonalityTables() error {
 // PersonalityTraits maps trait name → value (0.0–1.0).
 type PersonalityTraits map[string]float64
 
+const personalityCacheTTL = time.Second
+
 // GetTraits returns the current personality trait values.
+// Results are cached for one second to reduce SQLite reads on the hot prompt-assembly path.
 func (s *SQLiteMemory) GetTraits() (PersonalityTraits, error) {
+	s.personalityCacheMu.RLock()
+	if time.Since(s.traitsCacheAt) < personalityCacheTTL && s.traitsCache != nil {
+		copy := maps.Clone(map[string]float64(s.traitsCache))
+		s.personalityCacheMu.RUnlock()
+		return PersonalityTraits(copy), nil
+	}
+	s.personalityCacheMu.RUnlock()
+
 	rows, err := s.db.Query(`SELECT trait, value FROM personality_traits`)
 	if err != nil {
 		return nil, err
@@ -337,6 +350,10 @@ func (s *SQLiteMemory) GetTraits() (PersonalityTraits, error) {
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("rows iteration: %w", err)
 	}
+	s.personalityCacheMu.Lock()
+	s.traitsCache = traits
+	s.traitsCacheAt = time.Now()
+	s.personalityCacheMu.Unlock()
 	return traits, nil
 }
 
@@ -346,6 +363,11 @@ func (s *SQLiteMemory) UpdateTrait(trait string, delta float64) error {
 	         SET value = MIN(1.0, MAX(0.0, value + ?)), updated_at = CURRENT_TIMESTAMP
 	         WHERE trait = ?`
 	_, err := s.db.Exec(stmt, delta, trait)
+	if err == nil {
+		s.personalityCacheMu.Lock()
+		s.traitsCacheAt = time.Time{}
+		s.personalityCacheMu.Unlock()
+	}
 	return err
 }
 
@@ -355,6 +377,11 @@ func (s *SQLiteMemory) SetTrait(trait string, value float64) error {
 	         SET value = MIN(1.0, MAX(0.0, ?)), updated_at = CURRENT_TIMESTAMP
 	         WHERE trait = ?`
 	_, err := s.db.Exec(stmt, value, trait)
+	if err == nil {
+		s.personalityCacheMu.Lock()
+		s.traitsCacheAt = time.Time{}
+		s.personalityCacheMu.Unlock()
+	}
 	return err
 }
 
@@ -369,6 +396,11 @@ func (s *SQLiteMemory) DecayAllTraits(amount float64) error {
 	         END,
 	         updated_at = CURRENT_TIMESTAMP`
 	_, err := s.db.Exec(stmt, amount, amount)
+	if err == nil {
+		s.personalityCacheMu.Lock()
+		s.traitsCacheAt = time.Time{}
+		s.personalityCacheMu.Unlock()
+	}
 	return err
 }
 
@@ -468,7 +500,14 @@ func (s *SQLiteMemory) DecayAllTraitsWeighted(baseAmount float64, meta Personali
 			return fmt.Errorf("weighted decay for %s: %w", u.trait, execErr)
 		}
 	}
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	// Invalidate traits cache after bulk update
+	s.personalityCacheMu.Lock()
+	s.traitsCacheAt = time.Time{}
+	s.personalityCacheMu.Unlock()
+	return nil
 }
 
 // ── Trait Bounds ─────────────────────────────────────────────────────────────
@@ -523,17 +562,37 @@ func (s *SQLiteMemory) LogMood(mood Mood, triggerText string) error {
 		triggerText = string(runes[:200])
 	}
 	_, err := s.db.Exec(`INSERT INTO mood_log (mood, trigger_text) VALUES (?, ?)`, string(mood), triggerText)
+	if err == nil {
+		// Invalidate mood cache on successful write
+		s.personalityCacheMu.Lock()
+		s.moodCacheAt = time.Time{}
+		s.personalityCacheMu.Unlock()
+	}
 	return err
 }
 
 // GetCurrentMood returns the most recently logged mood, defaulting to "curious".
+// Results are cached for one second to reduce SQLite reads on the hot prompt-assembly path.
 func (s *SQLiteMemory) GetCurrentMood() Mood {
+	s.personalityCacheMu.RLock()
+	if time.Since(s.moodCacheAt) < personalityCacheTTL && s.moodCache != "" {
+		cached := s.moodCache
+		s.personalityCacheMu.RUnlock()
+		return cached
+	}
+	s.personalityCacheMu.RUnlock()
+
 	var m string
 	err := s.db.QueryRow(`SELECT mood FROM mood_log ORDER BY timestamp DESC LIMIT 1`).Scan(&m)
 	if err != nil {
 		return MoodCurious
 	}
-	return Mood(m)
+	mood := Mood(m)
+	s.personalityCacheMu.Lock()
+	s.moodCache = mood
+	s.moodCacheAt = time.Now()
+	s.personalityCacheMu.Unlock()
+	return mood
 }
 
 // GetLastMoodTrigger returns the text that triggered the last mood change.

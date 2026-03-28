@@ -92,7 +92,10 @@ func ChromecastPlay(deviceAddr string, devicePort int, mediaURL, contentType str
 	}
 	defer app.Close(false)
 
-	if err := app.Load(mediaURL, 0, contentType, false, false, false); err != nil {
+	// forceDetach=true: return immediately after sending the LOAD command.
+	// Without this, Load() calls MediaWait() which blocks until playback ends —
+	// an infinite wait for live radio streams.
+	if err := app.Load(mediaURL, 0, contentType, false, false, true); err != nil {
 		return jsonErr("Failed to load media: " + err.Error())
 	}
 
@@ -135,7 +138,9 @@ func ChromecastSpeak(deviceAddr string, devicePort int, text string, ttsCfg TTSC
 	}
 	defer app.Close(false)
 
-	if err := app.Load(audioURL, 0, "audio/mpeg", false, false, false); err != nil {
+	// forceDetach=true: return immediately after the LOAD command is sent.
+	// Without this, Load() blocks until the audio finishes playing on the device.
+	if err := app.Load(audioURL, 0, "audio/mpeg", false, false, true); err != nil {
 		return jsonErr("Failed to cast audio: " + err.Error())
 	}
 
