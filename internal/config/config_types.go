@@ -632,6 +632,19 @@ type Config struct {
 		WarningThreshold float64        `yaml:"warning_threshold"` // 0.0–1.0
 		Models           []ModelCost    `yaml:"models"`
 		DefaultCost      ModelCostRates `yaml:"default_cost"`
+		AdaptiveLimit    struct {
+			Enabled            bool    `yaml:"enabled"`              // enable adaptive effective budget calculation (default: true)
+			Strategy           string  `yaml:"strategy"`             // "capability_weighted" (default)
+			MinMultiplier      float64 `yaml:"min_multiplier"`       // lower clamp for multiplier (default: 1.0)
+			MaxMultiplier      float64 `yaml:"max_multiplier"`       // upper clamp for multiplier (default: 2.5)
+			NativeToolWeight   float64 `yaml:"native_tool_weight"`   // contribution per enabled native capability (default: 0.03)
+			IntegrationWeight  float64 `yaml:"integration_weight"`   // contribution per enabled integration (default: 0.08)
+			CoAgentWeight      float64 `yaml:"coagent_weight"`       // extra contribution when co-agents are enabled (default: 0.2)
+			MultimodalWeight   float64 `yaml:"multimodal_weight"`    // extra contribution per multimodal feature such as vision/STT/TTS/image generation (default: 0.12)
+			MCPWeight          float64 `yaml:"mcp_weight"`           // extra contribution when MCP is enabled (default: 0.1)
+			SandboxWeight      float64 `yaml:"sandbox_weight"`       // extra contribution for sandbox-enabled execution environments (default: 0.05)
+			KnowledgeOpsWeight float64 `yaml:"knowledge_ops_weight"` // extra contribution for advanced memory/knowledge features (default: 0.08)
+		} `yaml:"adaptive_limit"`
 	} `yaml:"budget"`
 	WebDAV struct {
 		Enabled  bool   `yaml:"enabled"`

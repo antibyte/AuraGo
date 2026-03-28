@@ -14,7 +14,7 @@ Precisely edit text files with targeted operations. Safer than `write_file` for 
 | `prepend` | Prepend content to beginning of file | `content` |
 | `delete_lines` | Delete a range of lines (1-based, inclusive) | `start_line`, `end_line` |
 
-All operations require `file_path` (relative to `workdir/`).
+All operations require `file_path` (relative to `agent_workspace/workdir`). Project-root files are reachable via `../../`.
 
 ### Key Behaviors
 
@@ -22,11 +22,12 @@ All operations require `file_path` (relative to `workdir/`).
 - **`insert_after` / `insert_before`** fail if the `marker` text appears on 0 or more than 1 lines.
 - **`append`** creates the file if it doesn't exist.
 - All writes are **atomic** (temp file + rename) to prevent data corruption.
+- Do not use `file_editor` for homepage projects; use the `homepage` tool's own edit operations instead.
 
 ### Examples
 
 ```json
-{"action": "file_editor", "operation": "str_replace", "file_path": "config.py", "old": "DEBUG = True", "new": "DEBUG = False"}
+{"action": "file_editor", "operation": "str_replace", "file_path": "../../config.yaml", "old": "enabled: false", "new": "enabled: true"}
 ```
 
 ```json

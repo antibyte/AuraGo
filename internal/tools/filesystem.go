@@ -92,6 +92,85 @@ type FileInfoEntry struct {
 	ModTime string `json:"modified"`
 }
 
+func filesystemRoots(workspaceDir string) (string, string) {
+	absWorkdir, err := filepath.EvalSymlinks(workspaceDir)
+	if err != nil {
+		absWorkdir, err = filepath.Abs(workspaceDir)
+		if err != nil {
+			absWorkdir = workspaceDir
+		}
+	}
+	projectRoot := filepath.Dir(filepath.Dir(absWorkdir))
+	return absWorkdir, projectRoot
+}
+
+func filesystemErrorData(workspaceDir, requestedPath, resolvedPath string) map[string]interface{} {
+	workspaceRoot, projectRoot := filesystemRoots(workspaceDir)
+	data := map[string]interface{}{
+		"requested_path":    requestedPath,
+		"workspace_root":    workspaceRoot,
+		"project_root":      projectRoot,
+		"project_root_hint": "Use ../../ to reach project-root files from agent_workspace/workdir.",
+	}
+	if resolvedPath != "" {
+		data["resolved_path"] = resolvedPath
+	}
+	return data
+}
+
+func filesystemErrorResult(message, code, workspaceDir, requestedPath, resolvedPath string) FSResult {
+	data := filesystemErrorData(workspaceDir, requestedPath, resolvedPath)
+	if code != "" {
+		data["error_code"] = code
+	}
+	return FSResult{
+		Status:  "error",
+		Message: message,
+		Data:    data,
+	}
+}
+
+func isReadOnlyFilesystemError(err error) bool {
+	if err == nil {
+		return false
+	}
+	lower := strings.ToLower(err.Error())
+	return strings.Contains(lower, "read-only file system") || strings.Contains(lower, "readonly file system")
+}
+
+func filesystemWritableAlternatives() []string {
+	return []string{
+		".",
+		"./tmp",
+		"../../data",
+	}
+}
+
+func filesystemWriteErrorResult(op, workspaceDir, requestedPath, resolvedPath string, err error) FSResult {
+	if isReadOnlyFilesystemError(err) {
+		data := filesystemErrorData(workspaceDir, requestedPath, resolvedPath)
+		data["error_code"] = "read_only_filesystem"
+		data["operation"] = op
+		data["suggested_alternatives"] = filesystemWritableAlternatives()
+		return FSResult{
+			Status:  "error",
+			Message: fmt.Sprintf("Failed to %s because the target location is mounted read-only. Try a writable path inside workdir or ../../data.", op),
+			Data:    data,
+		}
+	}
+	return filesystemErrorResult(fmt.Sprintf("Failed to %s: %v", op, err), "io_error", workspaceDir, requestedPath, resolvedPath)
+}
+
+func filesystemResolveErrorResult(workspaceDir, requestedPath string, err error) FSResult {
+	return filesystemErrorResult(
+		fmt.Sprintf("%s Workspace root is agent_workspace/workdir and project-root files are reachable via ../../.", err.Error()),
+		"path_resolution_error",
+		workspaceDir,
+		requestedPath,
+		"",
+	)
+}
+
 // secureResolve resolves a path relative to the workspace and ensures it stays within project bounds.
 func secureResolve(workspaceDir, userPath string) (string, error) {
 	// Resolve symlinks in workspaceDir first
@@ -157,14 +236,14 @@ func ExecuteFilesystem(operation, path, destination, content string, workspaceDi
 	case "list_dir":
 		resolved, err := secureResolve(workspaceDir, path)
 		if err != nil {
-			return encode(FSResult{Status: "error", Message: err.Error()})
+			return encode(filesystemResolveErrorResult(workspaceDir, path, err))
 		}
 		if path == "" || path == "." {
 			resolved = workspaceDir
 		}
 		entries, err := os.ReadDir(resolved)
 		if err != nil {
-			return encode(FSResult{Status: "error", Message: fmt.Sprintf("Failed to list directory: %v", err)})
+			return encode(filesystemErrorResult(fmt.Sprintf("Failed to list directory: %v", err), "io_error", workspaceDir, path, resolved))
 		}
 		var items []FileInfoEntry
 		for _, e := range entries {
@@ -194,10 +273,10 @@ func ExecuteFilesystem(operation, path, destination, content string, workspaceDi
 		}
 		resolved, err := secureResolve(workspaceDir, path)
 		if err != nil {
-			return encode(FSResult{Status: "error", Message: err.Error()})
+			return encode(filesystemResolveErrorResult(workspaceDir, path, err))
 		}
 		if err := os.MkdirAll(resolved, 0755); err != nil {
-			return encode(FSResult{Status: "error", Message: fmt.Sprintf("Failed to create directory: %v", err)})
+			return encode(filesystemWriteErrorResult("create directory", workspaceDir, path, resolved, err))
 		}
 		return encode(FSResult{Status: "success", Message: fmt.Sprintf("Directory created: %s", path)})
 
@@ -207,10 +286,10 @@ func ExecuteFilesystem(operation, path, destination, content string, workspaceDi
 		}
 		resolved, err := secureResolve(workspaceDir, path)
 		if err != nil {
-			return encode(FSResult{Status: "error", Message: err.Error()})
+			return encode(filesystemResolveErrorResult(workspaceDir, path, err))
 		}
 		if err := os.RemoveAll(resolved); err != nil {
-			return encode(FSResult{Status: "error", Message: fmt.Sprintf("Failed to delete: %v", err)})
+			return encode(filesystemWriteErrorResult("delete path", workspaceDir, path, resolved, err))
 		}
 		return encode(FSResult{Status: "success", Message: fmt.Sprintf("Deleted: %s", path)})
 
@@ -220,13 +299,13 @@ func ExecuteFilesystem(operation, path, destination, content string, workspaceDi
 		}
 		resolved, err := secureResolve(workspaceDir, path)
 		if err != nil {
-			return encode(FSResult{Status: "error", Message: err.Error()})
+			return encode(filesystemResolveErrorResult(workspaceDir, path, err))
 		}
 
 		// Check file size before reading to avoid OOM
 		info, err := os.Stat(resolved)
 		if err != nil {
-			return encode(FSResult{Status: "error", Message: fmt.Sprintf("Failed to stat file: %v", err)})
+			return encode(filesystemErrorResult(fmt.Sprintf("Failed to stat file: %v", err), "io_error", workspaceDir, path, resolved))
 		}
 
 		// Cap file read at 32KB + a little padding for UTF-8.
@@ -235,14 +314,14 @@ func ExecuteFilesystem(operation, path, destination, content string, workspaceDi
 			// Read only the first maxRead bytes
 			f, err := os.Open(resolved)
 			if err != nil {
-				return encode(FSResult{Status: "error", Message: fmt.Sprintf("Failed to read file: %v", err)})
+				return encode(filesystemErrorResult(fmt.Sprintf("Failed to read file: %v", err), "io_error", workspaceDir, path, resolved))
 			}
 			defer f.Close()
 
 			data := make([]byte, maxRead)
 			n, err := io.ReadFull(f, data)
 			if err != nil && err != io.ErrUnexpectedEOF {
-				return encode(FSResult{Status: "error", Message: fmt.Sprintf("Failed to read file: %v", err)})
+				return encode(filesystemErrorResult(fmt.Sprintf("Failed to read file: %v", err), "io_error", workspaceDir, path, resolved))
 			}
 			if looksLikeBinaryFile(path, data[:n]) {
 				return encode(binaryReadResult(path, info.Size()))
@@ -261,7 +340,7 @@ func ExecuteFilesystem(operation, path, destination, content string, workspaceDi
 		// Small file, read entirely
 		data, err := os.ReadFile(resolved)
 		if err != nil {
-			return encode(FSResult{Status: "error", Message: fmt.Sprintf("Failed to read file: %v", err)})
+			return encode(filesystemErrorResult(fmt.Sprintf("Failed to read file: %v", err), "io_error", workspaceDir, path, resolved))
 		}
 		if looksLikeBinaryFile(path, data) {
 			return encode(binaryReadResult(path, info.Size()))
@@ -274,14 +353,14 @@ func ExecuteFilesystem(operation, path, destination, content string, workspaceDi
 		}
 		resolved, err := secureResolve(workspaceDir, path)
 		if err != nil {
-			return encode(FSResult{Status: "error", Message: err.Error()})
+			return encode(filesystemResolveErrorResult(workspaceDir, path, err))
 		}
 		// Ensure parent directories exist
 		if err := os.MkdirAll(filepath.Dir(resolved), 0755); err != nil {
-			return encode(FSResult{Status: "error", Message: fmt.Sprintf("Failed to create parent dir: %v", err)})
+			return encode(filesystemWriteErrorResult("create parent directory", workspaceDir, path, filepath.Dir(resolved), err))
 		}
 		if err := os.WriteFile(resolved, []byte(content), 0644); err != nil {
-			return encode(FSResult{Status: "error", Message: fmt.Sprintf("Failed to write file: %v", err)})
+			return encode(filesystemWriteErrorResult("write file", workspaceDir, path, resolved, err))
 		}
 		return encode(FSResult{Status: "success", Message: fmt.Sprintf("Wrote %d bytes to %s", len(content), path)})
 
@@ -291,14 +370,14 @@ func ExecuteFilesystem(operation, path, destination, content string, workspaceDi
 		}
 		srcResolved, err := secureResolve(workspaceDir, path)
 		if err != nil {
-			return encode(FSResult{Status: "error", Message: err.Error()})
+			return encode(filesystemResolveErrorResult(workspaceDir, path, err))
 		}
 		dstResolved, err := secureResolve(workspaceDir, destination)
 		if err != nil {
-			return encode(FSResult{Status: "error", Message: err.Error()})
+			return encode(filesystemResolveErrorResult(workspaceDir, destination, err))
 		}
 		if err := os.Rename(srcResolved, dstResolved); err != nil {
-			return encode(FSResult{Status: "error", Message: fmt.Sprintf("Failed to move: %v", err)})
+			return encode(filesystemWriteErrorResult("move path", workspaceDir, path, srcResolved, err))
 		}
 		return encode(FSResult{Status: "success", Message: fmt.Sprintf("Moved %s → %s", path, destination)})
 
@@ -308,11 +387,11 @@ func ExecuteFilesystem(operation, path, destination, content string, workspaceDi
 		}
 		resolved, err := secureResolve(workspaceDir, path)
 		if err != nil {
-			return encode(FSResult{Status: "error", Message: err.Error()})
+			return encode(filesystemResolveErrorResult(workspaceDir, path, err))
 		}
 		info, err := os.Stat(resolved)
 		if err != nil {
-			return encode(FSResult{Status: "error", Message: fmt.Sprintf("Failed to stat: %v", err)})
+			return encode(filesystemErrorResult(fmt.Sprintf("Failed to stat: %v", err), "io_error", workspaceDir, path, resolved))
 		}
 		return encode(FSResult{Status: "success", Data: FileInfoEntry{
 			Name:    info.Name(),

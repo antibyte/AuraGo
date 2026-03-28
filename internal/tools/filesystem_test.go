@@ -69,3 +69,58 @@ func TestExecuteFilesystemReadFileLargeFileIncludesGuidance(t *testing.T) {
 		t.Fatalf("expected large-file guidance in message, got: %s", result.Message)
 	}
 }
+
+func TestExecuteFilesystemResolveErrorIncludesPathContext(t *testing.T) {
+	workdir := filepath.Join(t.TempDir(), "agent_workspace", "workdir")
+	if err := os.MkdirAll(workdir, 0o755); err != nil {
+		t.Fatalf("mkdir workdir: %v", err)
+	}
+
+	raw := ExecuteFilesystem("read_file", "../../../etc/passwd", "", "", workdir)
+	var result FSResult
+	if err := json.Unmarshal([]byte(raw), &result); err != nil {
+		t.Fatalf("unmarshal result: %v", err)
+	}
+	if result.Status != "error" {
+		t.Fatalf("status = %q, want error", result.Status)
+	}
+	data, ok := result.Data.(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected structured error data, got %T", result.Data)
+	}
+	if data["error_code"] != "path_resolution_error" {
+		t.Fatalf("error_code = %v, want path_resolution_error", data["error_code"])
+	}
+	if data["requested_path"] != "../../../etc/passwd" {
+		t.Fatalf("requested_path = %v", data["requested_path"])
+	}
+	if _, ok := data["workspace_root"].(string); !ok {
+		t.Fatalf("workspace_root missing from error data: %#v", data)
+	}
+}
+
+func TestExecuteFilesystemReadErrorIncludesResolvedPath(t *testing.T) {
+	workdir := filepath.Join(t.TempDir(), "agent_workspace", "workdir")
+	if err := os.MkdirAll(workdir, 0o755); err != nil {
+		t.Fatalf("mkdir workdir: %v", err)
+	}
+
+	raw := ExecuteFilesystem("read_file", "missing.txt", "", "", workdir)
+	var result FSResult
+	if err := json.Unmarshal([]byte(raw), &result); err != nil {
+		t.Fatalf("unmarshal result: %v", err)
+	}
+	if result.Status != "error" {
+		t.Fatalf("status = %q, want error", result.Status)
+	}
+	data, ok := result.Data.(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected structured error data, got %T", result.Data)
+	}
+	if data["error_code"] != "io_error" {
+		t.Fatalf("error_code = %v, want io_error", data["error_code"])
+	}
+	if _, ok := data["resolved_path"].(string); !ok {
+		t.Fatalf("resolved_path missing from error data: %#v", data)
+	}
+}

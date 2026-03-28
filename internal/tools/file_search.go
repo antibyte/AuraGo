@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	slashpath "path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -30,14 +31,16 @@ func ExecuteFileSearch(operation, pattern, filePath, glob, outputMode string, wo
 		return string(b)
 	}
 
-	if pattern == "" {
-		return encode(FileSearchResult{Status: "error", Message: "'pattern' is required"})
-	}
-
 	switch operation {
 	case "grep":
+		if pattern == "" {
+			return encode(FileSearchResult{Status: "error", Message: "'pattern' is required for grep"})
+		}
 		return fileGrep(filePath, pattern, outputMode, workspaceDir, encode)
 	case "grep_recursive":
+		if pattern == "" {
+			return encode(FileSearchResult{Status: "error", Message: "'pattern' is required for grep_recursive"})
+		}
 		return fileGrepRecursive(glob, pattern, outputMode, workspaceDir, encode)
 	case "find":
 		return fileFind(glob, workspaceDir, encode)
@@ -79,9 +82,7 @@ func fileGrep(filePath, pattern, outputMode, workspaceDir string, encode func(Fi
 
 // fileGrepRecursive searches multiple files matching a glob pattern.
 func fileGrepRecursive(glob, pattern, outputMode, workspaceDir string, encode func(FileSearchResult) string) string {
-	if glob == "" {
-		glob = "*"
-	}
+	patterns := normalizeSearchGlobs(glob)
 
 	re, err := regexp.Compile("(?i)" + pattern)
 	if err != nil {
@@ -106,13 +107,11 @@ func fileGrepRecursive(glob, pattern, outputMode, workspaceDir string, encode fu
 			return nil // skip files > 10MB
 		}
 
-		matched, _ := filepath.Match(glob, info.Name())
-		if !matched {
-			return nil
-		}
-
 		relPath, _ := filepath.Rel(workspaceDir, path)
 		relPath = filepath.ToSlash(relPath)
+		if !matchesAnySearchGlob(patterns, relPath) {
+			return nil
+		}
 
 		fileMatches, err := grepFile(path, re, relPath)
 		if err != nil {
@@ -155,11 +154,12 @@ func fileFind(glob, workspaceDir string, encode func(FileSearchResult) string) s
 	if glob == "" {
 		return encode(FileSearchResult{Status: "error", Message: "'glob' is required for find (used as the pattern)"})
 	}
+	patterns := normalizeSearchGlobs(glob)
 
 	var files []string
 	maxResults := 1000
 
-	filepath.Walk(workspaceDir, func(path string, info os.FileInfo, err error) error {
+	err := filepath.Walk(workspaceDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return nil
 		}
@@ -171,24 +171,98 @@ func fileFind(glob, workspaceDir string, encode func(FileSearchResult) string) s
 			return nil
 		}
 
-		matched, _ := filepath.Match(glob, info.Name())
-		if !matched {
+		relPath, _ := filepath.Rel(workspaceDir, path)
+		relPath = filepath.ToSlash(relPath)
+		if !matchesAnySearchGlob(patterns, relPath) {
 			return nil
 		}
-
-		relPath, _ := filepath.Rel(workspaceDir, path)
-		files = append(files, filepath.ToSlash(relPath))
+		files = append(files, relPath)
 
 		if len(files) >= maxResults {
 			return fmt.Errorf("max results reached")
 		}
 		return nil
 	})
+	if err != nil && err.Error() != "max results reached" {
+		return encode(FileSearchResult{Status: "error", Message: err.Error()})
+	}
+	if len(files) >= maxResults {
+		files = files[:maxResults]
+	}
 
 	return encode(FileSearchResult{Status: "success", Data: map[string]interface{}{
 		"count": len(files),
 		"files": files,
 	}})
+}
+
+func normalizeSearchGlobs(glob string) []string {
+	if strings.TrimSpace(glob) == "" {
+		return []string{"*"}
+	}
+	parts := strings.FieldsFunc(glob, func(r rune) bool {
+		return r == ',' || r == ';' || r == '\n'
+	})
+	var patterns []string
+	for _, part := range parts {
+		part = strings.TrimSpace(filepath.ToSlash(part))
+		if part != "" {
+			patterns = append(patterns, part)
+		}
+	}
+	if len(patterns) == 0 {
+		return []string{"*"}
+	}
+	return patterns
+}
+
+func matchesAnySearchGlob(patterns []string, relPath string) bool {
+	for _, pattern := range patterns {
+		if matchSearchGlob(pattern, relPath) {
+			return true
+		}
+	}
+	return false
+}
+
+func matchSearchGlob(pattern, relPath string) bool {
+	pattern = strings.TrimSpace(filepath.ToSlash(pattern))
+	relPath = filepath.ToSlash(relPath)
+	if pattern == "" {
+		return false
+	}
+	if !strings.Contains(pattern, "/") && !strings.Contains(pattern, "**") {
+		matched, err := slashpath.Match(pattern, slashpath.Base(relPath))
+		return err == nil && matched
+	}
+	return matchSearchGlobSegments(splitSearchPattern(pattern), splitSearchPattern(relPath))
+}
+
+func splitSearchPattern(value string) []string {
+	if value == "" {
+		return nil
+	}
+	return strings.Split(strings.Trim(value, "/"), "/")
+}
+
+func matchSearchGlobSegments(patternParts, pathParts []string) bool {
+	if len(patternParts) == 0 {
+		return len(pathParts) == 0
+	}
+	if patternParts[0] == "**" {
+		if matchSearchGlobSegments(patternParts[1:], pathParts) {
+			return true
+		}
+		return len(pathParts) > 0 && matchSearchGlobSegments(patternParts, pathParts[1:])
+	}
+	if len(pathParts) == 0 {
+		return false
+	}
+	matched, err := slashpath.Match(patternParts[0], pathParts[0])
+	if err != nil || !matched {
+		return false
+	}
+	return matchSearchGlobSegments(patternParts[1:], pathParts[1:])
 }
 
 // grepFile searches a single file for regex matches, returning matches with line numbers.

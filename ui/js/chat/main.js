@@ -1145,12 +1145,12 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && lightbox
 function updateBudgetPills(b) {
     if (!b || !b.enabled) return;
     const cost = (b.spent_usd || b.total_cost_usd || 0).toFixed(3);
-    const limit = (b.daily_limit_usd || 0).toFixed(2);
+    const effectiveLimit = (b.effective_daily_limit_usd || b.daily_limit_usd || 0).toFixed(2);
     const bp = document.getElementById('budgetPill');
     if (bp) {
         chatSetHidden(bp, false);
-        bp.textContent = t('chat.budget_pill_format', { cost: cost, limit: limit });
-        bp.title = t('chat.budget_tooltip_template', { cost: cost, limit: limit, enforcement: b.enforcement });
+        bp.textContent = t('chat.budget_pill_format', { cost: cost, limit: effectiveLimit });
+        bp.title = t('chat.budget_tooltip_template', { cost: cost, limit: effectiveLimit, enforcement: b.enforcement });
         bp.classList.remove('budget-warning', 'budget-exceeded');
         if (b.is_exceeded || b.exceeded) bp.classList.add('budget-exceeded');
         else if (b.is_warning || b.warning_sent) bp.classList.add('budget-warning');

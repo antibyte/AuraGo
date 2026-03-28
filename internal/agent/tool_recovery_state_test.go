@@ -53,6 +53,51 @@ func TestToolRecoveryStateHandleDuplicateToolCallHonorsCustomThreshold(t *testin
 	}
 }
 
+func TestToolRecoveryStateHandleDuplicateToolCallAllowsDifferentSearchPatterns(t *testing.T) {
+	state := newToolRecoveryState()
+	req := openai.ChatCompletionRequest{}
+
+	first := ToolCall{
+		Action:    "file_reader_advanced",
+		Operation: "search_context",
+		FilePath:  "server.log",
+		Pattern:   "error",
+		LineCount: 3,
+	}
+	second := first
+	second.Pattern = "warning"
+
+	if state.handleDuplicateToolCall(first, &req, nil, AgentTelemetryScope{}) {
+		t.Fatal("did not expect first call to trip circuit breaker")
+	}
+	if state.handleDuplicateToolCall(second, &req, nil, AgentTelemetryScope{}) {
+		t.Fatal("different pattern should not count as duplicate")
+	}
+}
+
+func TestToolRecoveryStateHandleDuplicateToolCallAllowsDifferentLineRanges(t *testing.T) {
+	state := newToolRecoveryState()
+	req := openai.ChatCompletionRequest{}
+
+	first := ToolCall{
+		Action:    "file_reader_advanced",
+		Operation: "read_lines",
+		FilePath:  "main.go",
+		StartLine: 1,
+		EndLine:   50,
+	}
+	second := first
+	second.StartLine = 51
+	second.EndLine = 100
+
+	if state.handleDuplicateToolCall(first, &req, nil, AgentTelemetryScope{}) {
+		t.Fatal("did not expect first call to trip circuit breaker")
+	}
+	if state.handleDuplicateToolCall(second, &req, nil, AgentTelemetryScope{}) {
+		t.Fatal("different line ranges should not count as duplicate")
+	}
+}
+
 func TestToolRecoveryStateUpdateToolErrorStateTriggersCircuitBreaker(t *testing.T) {
 	state := newToolRecoveryState()
 	req := openai.ChatCompletionRequest{}

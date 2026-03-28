@@ -57,6 +57,18 @@ agent:
     max_tool_guides: 5                                              # max tool guide documents injected into prompt (default: 5)
 budget:
     daily_limit_usd: 5
+    adaptive_limit:
+        enabled: true
+        strategy: capability_weighted
+        min_multiplier: 1.0
+        max_multiplier: 2.5
+        native_tool_weight: 0.03
+        integration_weight: 0.08
+        coagent_weight: 0.2
+        multimodal_weight: 0.12
+        mcp_weight: 0.1
+        sandbox_weight: 0.05
+        knowledge_ops_weight: 0.08
     default_cost:
         input_per_million: 0.4
         output_per_million: 0.7

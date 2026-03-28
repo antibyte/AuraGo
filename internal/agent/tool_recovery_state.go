@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -29,7 +30,47 @@ func newToolRecoveryStateWithPolicy(policy RecoveryPolicy) toolRecoveryState {
 }
 
 func buildToolSignature(tc ToolCall) string {
-	return tc.Action + "|" + tc.Command + "|" + tc.Code + "|" + tc.Operation + "|" + tc.Path
+	path := tc.Path
+	if path == "" {
+		path = tc.FilePath
+	}
+	dest := tc.Dest
+	if dest == "" {
+		dest = tc.Destination
+	}
+
+	signature := map[string]interface{}{
+		"action":            tc.Action,
+		"sub_operation":     tc.SubOperation,
+		"operation":         tc.Operation,
+		"command":           tc.Command,
+		"code":              tc.Code,
+		"path":              path,
+		"destination":       dest,
+		"pattern":           tc.Pattern,
+		"glob":              tc.Glob,
+		"query":             tc.Query,
+		"sampling_strategy": tc.SamplingStrategy,
+		"max_tokens":        tc.MaxTokens,
+		"start_line":        tc.StartLine,
+		"end_line":          tc.EndLine,
+		"line_count":        tc.LineCount,
+		"old":               tc.Old,
+		"new":               tc.New,
+		"marker":            tc.Marker,
+		"content":           tc.Content,
+		"url":               tc.URL,
+		"method":            tc.Method,
+		"params":            tc.Params,
+		"headers":           tc.Headers,
+		"skill":             tc.Skill,
+		"skill_args":        tc.SkillArgs,
+	}
+	raw, err := json.Marshal(signature)
+	if err != nil {
+		return tc.Action + "|" + tc.Command + "|" + tc.Code + "|" + tc.Operation + "|" + path
+	}
+	return string(raw)
 }
 
 func recoveryHintForToolFailure(tc ToolCall, resultContent string) string {
@@ -55,7 +96,33 @@ func recoveryHintForToolFailure(tc ToolCall, resultContent string) string {
 }
 
 func isGenericToolSignature(tc ToolCall, toolSig string) bool {
-	return toolSig == tc.Action+"|||||"
+	return tc.Action != "" &&
+		tc.SubOperation == "" &&
+		tc.Command == "" &&
+		tc.Code == "" &&
+		tc.Operation == "" &&
+		tc.Path == "" &&
+		tc.FilePath == "" &&
+		tc.Destination == "" &&
+		tc.Dest == "" &&
+		tc.Pattern == "" &&
+		tc.Glob == "" &&
+		tc.Query == "" &&
+		tc.SamplingStrategy == "" &&
+		tc.MaxTokens == 0 &&
+		tc.StartLine == 0 &&
+		tc.EndLine == 0 &&
+		tc.LineCount == 0 &&
+		tc.Old == "" &&
+		tc.New == "" &&
+		tc.Marker == "" &&
+		tc.Content == "" &&
+		tc.URL == "" &&
+		tc.Method == "" &&
+		len(tc.Params) == 0 &&
+		len(tc.Headers) == 0 &&
+		tc.Skill == "" &&
+		len(tc.SkillArgs) == 0
 }
 
 func (s *toolRecoveryState) handleDuplicateToolCall(tc ToolCall, req *openai.ChatCompletionRequest, logger *slog.Logger, scope AgentTelemetryScope) bool {

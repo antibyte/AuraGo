@@ -15,7 +15,7 @@ Inspect large files intelligently without dumping the whole file into the prompt
 
 | Parameter | Description |
 |---|---|
-| `file_path` | File path relative to the workspace |
+| `file_path` | File path relative to `agent_workspace/workdir` (use `../../` for project-root files) |
 | `query` | Optional focus question for `summarize` |
 | `line_count` | Number of lines per sample section for `sample` (default 20) |
 | `sampling_strategy` | `head`, `tail`, `distributed`, or `semantic` |
@@ -26,6 +26,7 @@ Inspect large files intelligently without dumping the whole file into the prompt
 - `distributed` sampling reads representative sections from the beginning, middle, and end of a text file.
 - `semantic` currently falls back to `distributed`.
 - `summarize` reads the full file only when it fits comfortably; otherwise it summarizes representative samples.
+- Homepage projects should still use the `homepage` tool instead of the generic file tools.
 - For binary files, use a specialized tool instead:
   - images → `analyze_image`
   - PDFs → `pdf_extractor`
@@ -42,7 +43,7 @@ Inspect large files intelligently without dumping the whole file into the prompt
 ```
 
 ```json
-{"action": "smart_file_read", "operation": "structure", "file_path": "data/report.csv"}
+{"action": "smart_file_read", "operation": "structure", "file_path": "../../documentation/report.csv"}
 ```
 
 ```json

@@ -6,7 +6,7 @@ Search for text patterns inside files or find files by name within the workspace
 
 | Operation | Description | Required Parameters |
 |---|---|---|
-| `grep` | Search a single file for a regex pattern | `pattern`, `path` |
+| `grep` | Search a single file for a regex pattern | `pattern`, `file_path` |
 | `grep_recursive` | Search files matching a glob for a regex pattern | `pattern`, `glob` |
 | `find` | Find files by name matching a glob pattern | `glob` |
 
@@ -15,22 +15,22 @@ Search for text patterns inside files or find files by name within the workspace
 | Parameter | Description |
 |---|---|
 | `pattern` | Regex pattern to search for (grep/grep_recursive) |
-| `path` | File path relative to workspace (grep) |
-| `glob` | Glob pattern for file matching (grep_recursive: e.g. `**/*.go`; find: e.g. `*.yaml`) |
+| `file_path` | File path relative to `agent_workspace/workdir` (alias `path`) |
+| `glob` | One or more glob patterns. Match against relative paths for recursive operations. Separate multiple globs with commas, e.g. `**/*.go,**/*.md`. |
 | `output_mode` | Optional. `count` returns only match count instead of full results |
 
 ### Key Behaviors
 
 - **`grep`** returns line numbers and matching content for each hit.
-- **`grep_recursive`** searches across all files matching the glob. Skips `.git/`, `node_modules/`, `__pycache__/`, `venv/`, and files larger than 10 MB.
+- **`grep_recursive`** searches across all files matching the glob(s). Globs are evaluated against the relative path. Skips `.git/`, `node_modules/`, `__pycache__/`, `venv/`, and files larger than 10 MB.
 - **`find`** returns file paths matching the glob pattern (max 1000 results).
-- All paths are sandboxed to the workspace directory.
+- All paths are sandboxed to `agent_workspace/workdir`, with project-root files reachable via `../../`.
 - Maximum 500 matches for grep operations.
 
 ### Examples
 
 ```json
-{"action": "file_search", "operation": "grep", "pattern": "TODO|FIXME", "path": "main.go"}
+{"action": "file_search", "operation": "grep", "pattern": "TODO|FIXME", "file_path": "../../cmd/aurago/main.go"}
 ```
 
 ```json
@@ -38,7 +38,7 @@ Search for text patterns inside files or find files by name within the workspace
 ```
 
 ```json
-{"action": "file_search", "operation": "grep_recursive", "pattern": "password", "glob": "**/*.yaml", "output_mode": "count"}
+{"action": "file_search", "operation": "grep_recursive", "pattern": "password", "glob": "**/*.yaml,**/*.yml", "output_mode": "count"}
 ```
 
 ```json
