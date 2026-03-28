@@ -64,7 +64,11 @@ func DetectRuntime(logger *slog.Logger) Runtime {
 
 	// 5. No-new-privileges kernel flag — if set, sudo cannot escalate privileges.
 	rt.NoNewPrivileges = probeNoNewPrivileges()
-	logger.Info("[Runtime] No-new-privileges flag", "set", rt.NoNewPrivileges)
+	if rt.NoNewPrivileges {
+		logger.Warn("[Runtime] No-new-privileges flag is SET — sudo cannot escalate. If using the systemd service, comment out 'NoNewPrivileges=true' in the unit file and reload systemd.")
+	} else {
+		logger.Info("[Runtime] No-new-privileges flag", "set", false)
+	}
 
 	return rt
 }
@@ -91,11 +95,11 @@ func ComputeFeatureAvailability(rt Runtime, sudoEnabled bool) map[string]Feature
 		// PR_SET_NO_NEW_PRIVS is active — sudo's setuid escalation is blocked at kernel level.
 		avail["sudo"] = FeatureAvailability{
 			Available: false,
-			Reason:    "The \"no new privileges\" flag is set — sudo cannot escalate. Remove \"no-new-privileges\" from your container/systemd configuration.",
+			Reason:    "The \"no new privileges\" flag is set — sudo cannot escalate. If using the systemd service, comment out 'NoNewPrivileges=true' in the unit file and run: sudo systemctl daemon-reload && sudo systemctl restart aurago",
 		}
 		avail["firewall"] = FeatureAvailability{
 			Available: rt.FirewallAccessOK, // only available if process already has direct iptables access
-			Reason:    boolReason(!rt.FirewallAccessOK, "iptables/ufw not accessible and sudo is blocked by the \"no new privileges\" flag."),
+			Reason:    boolReason(!rt.FirewallAccessOK, "iptables/ufw not accessible and sudo is blocked by the \"no new privileges\" flag. Comment out 'NoNewPrivileges=true' in the systemd unit file."),
 		}
 	} else {
 		firewallAvail := rt.FirewallAccessOK || sudoEnabled

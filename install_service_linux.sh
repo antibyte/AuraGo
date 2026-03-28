@@ -115,7 +115,10 @@ StandardOutput=append:${INSTALL_DIR}/log/aurago.log
 StandardError=append:${INSTALL_DIR}/log/aurago.err
 
 # Security hardening
-NoNewPrivileges=true
+# NOTE: NoNewPrivileges=true blocks sudo. If you enable agent.sudo_enabled in
+# config.yaml (Danger Zone), comment out this line in the service file and run:
+#   sudo systemctl daemon-reload && sudo systemctl restart aurago
+# NoNewPrivileges=true
 ProtectSystem=strict
 ReadWritePaths=${INSTALL_DIR} ${CREDENTIAL_DIR}
 ProtectHome=read-only
