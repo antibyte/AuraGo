@@ -44,6 +44,47 @@ func TestDecodeSkillDraftAcceptsAliasesAndStringLists(t *testing.T) {
 	}
 }
 
+func TestDecodeSkillDraftSkipsEchoedSchemaObject(t *testing.T) {
+	t.Parallel()
+
+	raw := `Schema: {"name":"...","description":"...","category":"...","tags":[...],"dependencies":[...],"code":"..."}.
+
+Actual draft:
+{
+  "name": "mac_lookup",
+  "description": "Looks up a MAC vendor",
+  "category": "network",
+  "tags": ["mac", "network"],
+  "dependencies": ["requests"],
+  "code": "print('ok')"
+}`
+
+	draft, err := decodeSkillDraft(raw)
+	if err != nil {
+		t.Fatalf("decodeSkillDraft returned error: %v", err)
+	}
+	if draft.Name != "mac_lookup" {
+		t.Fatalf("expected actual draft name, got %q", draft.Name)
+	}
+	if draft.Code != "print('ok')" {
+		t.Fatalf("expected actual draft code, got %q", draft.Code)
+	}
+}
+
+func TestDecodeSkillDraftAcceptsNestedDraftObject(t *testing.T) {
+	t.Parallel()
+
+	raw := `{"status":"ok","draft":{"name":"api_summary","description":"Summarizes APIs","category":"automation","tags":["api"],"dependencies":["requests"],"code":"print('ok')"}}`
+
+	draft, err := decodeSkillDraft(raw)
+	if err != nil {
+		t.Fatalf("decodeSkillDraft returned error: %v", err)
+	}
+	if draft.Name != "api_summary" {
+		t.Fatalf("expected nested draft name, got %q", draft.Name)
+	}
+}
+
 func TestDecodeSkillDraftRequiresCode(t *testing.T) {
 	t.Parallel()
 

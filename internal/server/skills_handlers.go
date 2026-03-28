@@ -980,21 +980,31 @@ type generatedSkillDraft struct {
 }
 
 func decodeSkillDraft(raw string) (*generatedSkillDraft, error) {
-	obj, err := extractJSONObject(raw)
+	candidates, err := extractJSONObjectCandidates(raw)
 	if err != nil {
 		return nil, err
 	}
-	draft, err := parseGeneratedSkillDraft([]byte(obj))
-	if err != nil {
-		return nil, err
+	var lastErr error
+	for _, obj := range candidates {
+		draft, parseErr := parseGeneratedSkillDraft([]byte(obj))
+		if parseErr != nil {
+			lastErr = parseErr
+			continue
+		}
+		if strings.TrimSpace(draft.Name) == "" {
+			lastErr = fmt.Errorf("draft name is missing")
+			continue
+		}
+		if strings.TrimSpace(draft.Code) == "" {
+			lastErr = fmt.Errorf("draft code is missing")
+			continue
+		}
+		return &draft, nil
 	}
-	if strings.TrimSpace(draft.Name) == "" {
-		return nil, fmt.Errorf("draft name is missing")
+	if lastErr != nil {
+		return nil, lastErr
 	}
-	if strings.TrimSpace(draft.Code) == "" {
-		return nil, fmt.Errorf("draft code is missing")
-	}
-	return &draft, nil
+	return nil, fmt.Errorf("no valid skill draft JSON object found")
 }
 
 func parseGeneratedSkillDraft(raw []byte) (generatedSkillDraft, error) {
@@ -1006,12 +1016,17 @@ func parseGeneratedSkillDraft(raw []byte) (generatedSkillDraft, error) {
 		direct.Tags = normalizeStringList(direct.Tags)
 		direct.Dependencies = normalizeStringList(direct.Dependencies)
 		direct.Code = strings.TrimSpace(direct.Code)
-		return direct, nil
+		if direct.Name != "" || direct.Code != "" || direct.Description != "" || direct.Category != "" || len(direct.Tags) > 0 || len(direct.Dependencies) > 0 {
+			return direct, nil
+		}
 	}
 
 	var generic map[string]any
 	if err := json.Unmarshal(raw, &generic); err != nil {
 		return generatedSkillDraft{}, err
+	}
+	if nested, ok := generic["draft"].(map[string]any); ok {
+		generic = nested
 	}
 
 	draft := generatedSkillDraft{
@@ -1110,6 +1125,14 @@ func normalizeStringList(items []string) []string {
 }
 
 func extractJSONObject(raw string) (string, error) {
+	candidates, err := extractJSONObjectCandidates(raw)
+	if err != nil {
+		return "", err
+	}
+	return candidates[0], nil
+}
+
+func extractJSONObjectCandidates(raw string) ([]string, error) {
 	raw = strings.TrimSpace(raw)
 	if strings.HasPrefix(raw, "```") {
 		raw = strings.TrimPrefix(raw, "```json")
@@ -1119,11 +1142,13 @@ func extractJSONObject(raw string) (string, error) {
 	}
 	start := strings.IndexByte(raw, '{')
 	if start < 0 {
-		return "", fmt.Errorf("no JSON object found")
+		return nil, fmt.Errorf("no JSON object found")
 	}
 	depth := 0
 	inString := false
 	escaped := false
+	objectStart := -1
+	candidates := make([]string, 0, 2)
 	for i := start; i < len(raw); i++ {
 		ch := raw[i]
 		if inString {
@@ -1144,15 +1169,25 @@ func extractJSONObject(raw string) (string, error) {
 		case '"':
 			inString = true
 		case '{':
+			if depth == 0 {
+				objectStart = i
+			}
 			depth++
 		case '}':
-			depth--
 			if depth == 0 {
-				return raw[start : i+1], nil
+				continue
+			}
+			depth--
+			if depth == 0 && objectStart >= 0 {
+				candidates = append(candidates, raw[objectStart:i+1])
+				objectStart = -1
 			}
 		}
 	}
-	return "", fmt.Errorf("unterminated JSON object")
+	if len(candidates) == 0 {
+		return nil, fmt.Errorf("unterminated JSON object")
+	}
+	return candidates, nil
 }
 
 func loadPlainSkillSecrets(s *Server, skill *tools.SkillRegistryEntry) map[string]string {
