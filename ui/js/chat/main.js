@@ -1185,7 +1185,11 @@ function updateMoodWidget(data) {
         if (barFill) barFill.classList.add('w-pct-' + (barFill.dataset.percent || 0));
         traitsEl.appendChild(row);
     });
-    chatSetHidden(toggle, false);
+    // Show the mood toggle - CSS has display:none by default, so we need to override it
+    if (toggle) {
+        toggle.style.display = '';
+        chatSetHidden(toggle, false);
+    }
 }
 
 if (PERSONALITY_ENABLED) {
