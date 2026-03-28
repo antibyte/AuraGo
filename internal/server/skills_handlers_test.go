@@ -102,6 +102,23 @@ func TestGeneratedSkillNeedsRepairAllowsSafeDraft(t *testing.T) {
 	}
 }
 
+func TestGeneratedSkillLooksLikePlaceholder(t *testing.T) {
+	t.Parallel()
+
+	draft := &generatedSkillDraft{
+		Name:         "...",
+		Description:  "...",
+		Category:     "...",
+		Tags:         []string{"..."},
+		Dependencies: []string{"..."},
+		Code:         "...",
+	}
+
+	if !generatedSkillLooksLikePlaceholder(draft) {
+		t.Fatal("expected placeholder draft to be rejected")
+	}
+}
+
 func TestDecodeSkillDraftAcceptsNestedDraftObject(t *testing.T) {
 	t.Parallel()
 
@@ -140,6 +157,33 @@ func TestDecodeSkillDraftAcceptsSingleQuotedObject(t *testing.T) {
 	}
 	if len(draft.Tags) != 2 {
 		t.Fatalf("expected normalized tags, got %#v", draft.Tags)
+	}
+}
+
+func TestDecodeSkillDraftAcceptsPythonStyleLiterals(t *testing.T) {
+	t.Parallel()
+
+	raw := `{
+  'draft': {
+    'name': 'dns_test',
+    'description': 'Checks DNS resolution',
+    'category': 'Network',
+    'tags': ['dns', 'network'],
+    'dependencies': None,
+    'enabled': False,
+    'code': 'print("ok")'
+  }
+}`
+
+	draft, err := decodeSkillDraft(raw)
+	if err != nil {
+		t.Fatalf("decodeSkillDraft returned error: %v", err)
+	}
+	if draft.Name != "dns_test" {
+		t.Fatalf("expected python-style draft name, got %q", draft.Name)
+	}
+	if draft.Code != `print("ok")` {
+		t.Fatalf("expected python-style draft code, got %q", draft.Code)
 	}
 }
 

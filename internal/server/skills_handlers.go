@@ -14,6 +14,7 @@ import (
 	"aurago/internal/tools"
 
 	openai "github.com/sashabaranov/go-openai"
+	"gopkg.in/yaml.v3"
 )
 
 // handleListSkills returns all skills with optional filters.
@@ -916,11 +917,14 @@ func handleGenerateSkillDraft(s *Server) http.HandlerFunc {
 		if len(req.Dependencies) > 0 {
 			depHint = fmt.Sprintf("Requested dependencies: %s.", strings.Join(req.Dependencies, ", "))
 		}
-		systemPrompt := "You generate AuraGo Python skills. Return JSON only, no markdown fences. " +
-			"Schema: {\"name\":\"...\",\"description\":\"...\",\"category\":\"...\",\"tags\":[...],\"dependencies\":[...],\"code\":\"...\"}. " +
-			"Code rules: read JSON from stdin, write exactly one JSON object to stdout, do not use destructive operations, keep code compact and production-ready. " +
-			"The skill runs inside AuraGo's execute_skill Python sandbox. Never use subprocess, os.system, os.popen, shell commands, ping, curl, nmap, sudo, or external CLIs. " +
-			"Prefer Python stdlib or direct libraries/APIs instead of shelling out. Handle errors inside the JSON response instead of crashing."
+		systemPrompt := "You generate AuraGo Python skills. Return exactly one JSON object and nothing else: no markdown, no fences, no explanation, no wrapper object, no schema echo. " +
+			"Required schema with double-quoted JSON keys only: " +
+			"{\"name\":\"skill_name\",\"description\":\"what it does\",\"category\":\"category\",\"tags\":[\"tag1\",\"tag2\"],\"dependencies\":[\"dep1\"],\"code\":\"python code as a single JSON string\"}. " +
+			"Do not output placeholders such as \"...\", `[ ... ]`, or `{ ... }`. Do not output keys like status, enabled, draft, notes, reasoning, examples, or comments. " +
+			"Rules for the Python code: read one JSON object from stdin, write exactly one JSON object to stdout, catch errors and return them in JSON, keep code compact and production-ready. " +
+			"The skill runs inside AuraGo's execute_skill Python sandbox. Never use subprocess, os.system, os.popen, shell commands, ping, curl, wget, dig, nslookup, host, nmap, sudo, or any external CLI/tool/binary. " +
+			"Use Python stdlib or direct libraries/APIs only. For DNS checks use socket or a Python DNS library, never ping. For HTTP use requests/httpx, never curl. " +
+			"Bad example: subprocess.run(['ping', ...]). Good example: socket.gethostbyname(host)."
 		userPrompt := strings.TrimSpace(strings.Join([]string{
 			req.Prompt,
 			userNameHint,
@@ -1008,6 +1012,10 @@ func decodeSkillDraft(raw string) (*generatedSkillDraft, error) {
 			lastErr = fmt.Errorf("draft code is missing")
 			continue
 		}
+		if generatedSkillLooksLikePlaceholder(&draft) {
+			lastErr = fmt.Errorf("draft still looks like a schema placeholder")
+			continue
+		}
 		return &draft, nil
 	}
 	if lastErr != nil {
@@ -1051,7 +1059,9 @@ func parseGeneratedSkillDraftStrict(raw []byte) (generatedSkillDraft, error) {
 
 	var generic map[string]any
 	if err := json.Unmarshal(raw, &generic); err != nil {
-		return generatedSkillDraft{}, err
+		if yamlErr := yaml.Unmarshal(raw, &generic); yamlErr != nil {
+			return generatedSkillDraft{}, err
+		}
 	}
 	if nested, ok := generic["draft"].(map[string]any); ok {
 		generic = nested
@@ -1335,11 +1345,13 @@ func maybeRepairGeneratedSkillDraft(ctx context.Context, s *Server, model string
 	}
 
 	repairPrompt := "You are repairing an AuraGo Python skill draft so it works inside AuraGo's execute_skill sandbox. " +
-		"Return JSON only, no markdown fences. Use the same schema: " +
-		"{\"name\":\"...\",\"description\":\"...\",\"category\":\"...\",\"tags\":[...],\"dependencies\":[...],\"code\":\"...\"}. " +
-		"Keep the functionality, but remove sandbox-incompatible behavior. " +
-		"Never use subprocess, os.system, os.popen, shell commands, ping, curl, nmap, sudo, or external CLIs. " +
-		"Use Python stdlib or direct libraries/APIs, read JSON from stdin, and write exactly one JSON object to stdout."
+		"Return exactly one JSON object and nothing else: no markdown, no fences, no explanation, no wrapper object. " +
+		"Use this exact schema with double-quoted JSON keys only: " +
+		"{\"name\":\"skill_name\",\"description\":\"what it does\",\"category\":\"category\",\"tags\":[\"tag1\",\"tag2\"],\"dependencies\":[\"dep1\"],\"code\":\"python code as a single JSON string\"}. " +
+		"Keep the intended functionality, but remove sandbox-incompatible behavior. " +
+		"Never use subprocess, os.system, os.popen, shell commands, ping, curl, wget, dig, nslookup, host, nmap, sudo, or any external CLI/tool/binary. " +
+		"Use Python stdlib or direct libraries/APIs only, read one JSON object from stdin, and write exactly one JSON object to stdout. " +
+		"Do not emit placeholders like \"...\" and do not emit extra keys such as status, enabled, or draft."
 	rawDraft, err := json.Marshal(draft)
 	if err != nil {
 		return draft, false, reason, fmt.Errorf("marshal draft for repair: %w", err)
@@ -1406,6 +1418,63 @@ func generatedSkillNeedsRepair(draft *generatedSkillDraft) (bool, string) {
 		return true, "generated draft depends on the external ping command instead of direct Python networking"
 	}
 	return false, ""
+}
+
+func generatedSkillLooksLikePlaceholder(draft *generatedSkillDraft) bool {
+	if draft == nil {
+		return true
+	}
+	fields := []string{
+		strings.TrimSpace(draft.Name),
+		strings.TrimSpace(draft.Description),
+		strings.TrimSpace(draft.Category),
+		strings.TrimSpace(draft.Code),
+	}
+	placeholderCount := 0
+	nonEmpty := 0
+	for _, field := range fields {
+		if field == "" {
+			continue
+		}
+		nonEmpty++
+		if isPlaceholderValue(field) {
+			placeholderCount++
+		}
+	}
+	for _, tag := range draft.Tags {
+		if strings.TrimSpace(tag) != "" {
+			nonEmpty++
+			if isPlaceholderValue(tag) {
+				placeholderCount++
+			}
+		}
+	}
+	for _, dep := range draft.Dependencies {
+		if strings.TrimSpace(dep) != "" {
+			nonEmpty++
+			if isPlaceholderValue(dep) {
+				placeholderCount++
+			}
+		}
+	}
+	return nonEmpty > 0 && placeholderCount == nonEmpty
+}
+
+func isPlaceholderValue(value string) bool {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return true
+	}
+	switch value {
+	case "...", "…", "<...>", "[...]", "{...}":
+		return true
+	}
+	trimmed := strings.Trim(value, ". <>[]{}\"'")
+	if trimmed == "" {
+		return true
+	}
+	lower := strings.ToLower(trimmed)
+	return lower == "name" || lower == "description" || lower == "category" || lower == "code" || lower == "tags" || lower == "dependencies"
 }
 
 func safeSkillFilename(name string) string {
