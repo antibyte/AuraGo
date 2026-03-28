@@ -44,6 +44,7 @@ Record and retrieve journal entries that capture important events, milestones, a
 
 | Type | When to use |
 |---|---|
+| `activity` | Lightweight per-turn activity traces, usually auto-generated |
 | `reflection` | General thoughts, observations, end-of-day reflections |
 | `milestone` | Significant achievements or turning points |
 | `preference` | User preferences or behavioral patterns discovered |
@@ -56,6 +57,7 @@ Record and retrieve journal entries that capture important events, milestones, a
 ### Auto-Generated Entries
 
 Some journal entries are created automatically — do not create duplicates:
+- **Activity traces**: One lightweight entry per handled user turn so recent work stays recallable
 - **Task completions**: When 3+ unique tools are used in a single conversation
 - **Preferences**: When the user updates core memory preferences
 - **Daily summaries**: Generated each night by the maintenance loop (type: `system_event`)

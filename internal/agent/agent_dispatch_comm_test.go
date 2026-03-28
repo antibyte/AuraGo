@@ -67,6 +67,29 @@ func TestFilterExecuteSkillArgsUsesManifestParameters(t *testing.T) {
 	}
 }
 
+func TestFilterExecuteSkillArgsAliasesFilePathVariants(t *testing.T) {
+	skillsDir := t.TempDir()
+	manifest := `{
+  "name": "pdf_extractor",
+  "description": "Extract text from PDF",
+  "executable": "__builtin__",
+  "parameters": {
+    "filepath": "Path to the PDF file"
+  }
+}`
+	if err := os.WriteFile(filepath.Join(skillsDir, "pdf_extractor.json"), []byte(manifest), 0o644); err != nil {
+		t.Fatalf("write manifest: %v", err)
+	}
+
+	filtered := filterExecuteSkillArgs(skillsDir, "pdf_extractor", map[string]interface{}{
+		"file_path": "docs/report.pdf",
+	})
+
+	if got, _ := filtered["filepath"].(string); got != "docs/report.pdf" {
+		t.Fatalf("filepath = %q, want docs/report.pdf", got)
+	}
+}
+
 func TestBuiltinSkillManifestParametersStayInSync(t *testing.T) {
 	skillsDir := filepath.Join("..", "..", "agent_workspace", "skills")
 	skills, err := tools.ListSkills(skillsDir)

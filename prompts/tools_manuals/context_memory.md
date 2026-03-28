@@ -20,7 +20,7 @@ Use this when `query_memory` is not enough — specifically when you need **rela
 |-----------|------|---------|-------------|
 | `query` | string | required | Natural-language search query |
 | `context_depth` | string | `"normal"` | `shallow` / `normal` / `deep` |
-| `sources` | array | `["ltm", "kg"]` | Which layers to search |
+| `sources` | array | `["activity", "journal", "notes", "core", "kg", "ltm"]` | Which layers to search |
 | `time_range` | string | `"all"` | `all` / `today` / `last_week` / `last_month` |
 | `include_related` | boolean | `true` | Expand to connected KG neighbours |
 
@@ -35,6 +35,7 @@ Use this when `query_memory` is not enough — specifically when you need **rela
 | Source | Contains | Best for |
 |--------|----------|----------|
 | `ltm` | VectorDB documents | Facts, setups, past learnings |
+| `activity` | Activity turns + daily rollups | Recent work overview, user intent, what happened over the last days |
 | `kg` | Knowledge Graph | Relationships, entities, topology |
 | `journal` | Journal entries | Milestones, reflections, events |
 | `notes` | Notes / to-dos | Current tasks, bookmarks |
@@ -124,8 +125,8 @@ The tool returns a **combined ranked result** across all queried sources:
 
 2. **Restrict sources for focus**
    - Technical questions → `["ltm", "notes"]`
-   - Timeline / organisational → `["journal", "notes"]`
-   - Full picture → `["ltm", "kg", "journal", "notes", "core"]`
+   - Timeline / organisational → `["activity", "journal", "notes"]`
+   - Full picture → `["activity", "ltm", "kg", "journal", "notes", "core"]`
 
 3. **Use time range for recency**
    - "What did we do yesterday?" → `"last_week"`

@@ -7,6 +7,7 @@ Search **ALL** memory subsystems at once with a single natural-language query. T
 | Source | What's in it | When useful |
 |---|---|---|
 | `vector_db` | Long-term semantic facts extracted from past conversations | Recall design decisions, config details, past discussions |
+| `activity` | Recent turn-by-turn activity timeline and daily rollups | "What did we do yesterday?", "What did the user want this week?" |
 | `knowledge_graph` | Entities (people, devices, services) and relationships | "Who owns the NAS?", "What services run on prod?" |
 | `journal` | Events, milestones, learnings (manual + auto-generated) | "What happened last Tuesday?", "When did we set up Docker?" |
 | `notes` | Tasks, to-dos, bookmarks, reminders | "Any open tasks?", "What was that URL?" |
@@ -18,7 +19,7 @@ Search **ALL** memory subsystems at once with a single natural-language query. T
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `query` | string | yes | Natural-language query describing what you need to recall |
-| `sources` | array | no | Limit to specific sources (default: searches all). Options: `vector_db`, `knowledge_graph`, `journal`, `notes`, `core_memory`, `error_patterns` |
+| `sources` | array | no | Limit to specific sources (default: searches all). Options: `activity`, `vector_db`, `knowledge_graph`, `journal`, `notes`, `core_memory`, `error_patterns` |
 | `limit` | integer | no | Max results per source (default 5) |
 
 ### Examples

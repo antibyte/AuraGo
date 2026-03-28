@@ -546,13 +546,24 @@ func generateMemoryReflection(
 ) (interface{}, error) {
 	// Gather data from each source
 	var journalData, kgData, coreData, curatorData string
+	scopeKey := strings.ToLower(strings.TrimSpace(scope))
+	switch scopeKey {
+	case "", "recent":
+		scopeKey = "recent"
+	case "week":
+		scopeKey = "recent"
+	case "month":
+		scopeKey = "monthly"
+	case "all_time":
+		scopeKey = "full"
+	}
 
 	// Journal entries
 	if stm != nil {
 		limit := 10
-		if scope == "monthly" {
+		if scopeKey == "monthly" {
 			limit = 30
-		} else if scope == "full" {
+		} else if scopeKey == "full" {
 			limit = 50
 		}
 		entries, err := stm.SearchJournalEntries("", limit)
@@ -612,7 +623,15 @@ func generateMemoryReflection(
 		curatorPayload = curatorData
 	}
 
-	prompt := fmt.Sprintf(reflectionPrompt, scope, journalData, kgData, coreData) + "\n\n=== Curator Dry Run ===\n" + curatorData
+	if stm != nil && scopeKey == "recent" {
+		if overview, err := stm.BuildRecentActivityOverview(7, true); err == nil && overview != nil {
+			if b, err := json.Marshal(overview); err == nil {
+				journalData = journalData + "\n\n=== Recent Activity Overview ===\n" + string(b)
+			}
+		}
+	}
+
+	prompt := fmt.Sprintf(reflectionPrompt, scopeKey, journalData, kgData, coreData) + "\n\n=== Curator Dry Run ===\n" + curatorData
 
 	// Use dedicated analysis provider if configured, otherwise main client
 	analysisClient := mainClient
@@ -674,8 +693,8 @@ func generateMemoryReflection(
 	if stm != nil {
 		summary, _ := result["summary"].(string)
 		if summary != "" {
-			scopeLabel := scope
-			switch scope {
+			scopeLabel := scopeKey
+			switch scopeKey {
 			case "recent":
 				scopeLabel = "weekly"
 			case "monthly":

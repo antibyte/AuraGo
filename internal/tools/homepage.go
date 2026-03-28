@@ -38,6 +38,9 @@ const (
 	homepageWorkspaceMount = "/workspace"
 )
 
+var homepageDockerExecFunc = DockerExec
+var homepageWebCaptureFunc = WebCapture
+
 // homepageDockerfile is the embedded Dockerfile for the dev container.
 const homepageDockerfile = `FROM mcr.microsoft.com/playwright:v1.58.2-noble
 WORKDIR /workspace
@@ -654,7 +657,9 @@ func HomepageScreenshot(cfg HomepageConfig, url, viewport string, logger *slog.L
 		width, height = parts[0], parts[1]
 	}
 
-	logger.Info("[Homepage] Screenshot", "url", url, "viewport", viewport)
+	if logger != nil {
+		logger.Info("[Homepage] Screenshot", "url", url, "viewport", viewport)
+	}
 	dockerCfg := DockerConfig{Host: cfg.DockerHost}
 
 	// Use a Node.js one-liner with Playwright
@@ -670,7 +675,14 @@ const {chromium} = require('playwright');
   console.log('screenshot saved to /workspace/_screenshot.png');
 })();"`, width, height, url)
 
-	return DockerExec(dockerCfg, homepageContainerName, script, "")
+	result := homepageDockerExecFunc(dockerCfg, homepageContainerName, script, "")
+	if strings.Contains(result, "Cannot find module 'playwright'") || strings.Contains(result, "MODULE_NOT_FOUND") {
+		if logger != nil {
+			logger.Warn("[Homepage] Playwright missing in homepage container, falling back to web_capture")
+		}
+		return homepageWebCaptureFunc("screenshot", url, "", true, "agent_workspace/workdir")
+	}
+	return result
 }
 
 // HomepageLint runs ESLint in the project directory.

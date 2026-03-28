@@ -89,7 +89,13 @@ func isUnprocessableProviderError(err error) bool {
 		return false
 	}
 	msg := err.Error()
-	return strings.Contains(msg, "422") || strings.Contains(strings.ToLower(msg), "unprocessable")
+	lowerMsg := strings.ToLower(msg)
+	return strings.Contains(msg, "422") ||
+		strings.Contains(lowerMsg, "unprocessable") ||
+		(strings.Contains(msg, "400") &&
+			(strings.Contains(lowerMsg, "invalid function arguments json string") ||
+				strings.Contains(lowerMsg, "invalid params") ||
+				strings.Contains(lowerMsg, "tool_call_id")))
 }
 
 func recoverFrom422(err error, retryCount *int, req *openai.ChatCompletionRequest, logger *slog.Logger, broker FeedbackBroker, path string, scope AgentTelemetryScope) (bool, error) {
@@ -105,12 +111,12 @@ func recoverFrom422WithPolicy(policy RecoveryPolicy, err error, retryCount *int,
 	if *retryCount > policy.maxProvider422Recoveries() {
 		RecordToolRecoveryEventForScope(scope, "provider_422_aborted")
 		if logger != nil {
-			logger.Error("["+path+"] 422 retry limit reached — aborting", "attempts", *retryCount)
+			logger.Error("["+path+"] Provider tool-call recovery retry limit reached — aborting", "attempts", *retryCount)
 		}
-		return false, fmt.Errorf("422 Unprocessable: retry limit exceeded after %d attempts: %w", *retryCount, err)
+		return false, fmt.Errorf("provider tool-call recovery retry limit exceeded after %d attempts: %w", *retryCount, err)
 	}
 	if logger != nil {
-		logger.Warn("["+path+"] 422 Unprocessable from provider — trimming malformed history", "error", err, "attempt", *retryCount)
+		logger.Warn("["+path+"] Provider rejected tool-call history — trimming malformed history", "error", err, "attempt", *retryCount)
 	}
 	if broker != nil {
 		broker.Send("thinking", "Context error recovered — retrying...")

@@ -379,5 +379,10 @@
   "dashboard.tooling_telemetry_tool_calls_short": "Tools {{count}}",
   "dashboard.tooling_telemetry_tool_families": "Tool Families",
   "dashboard.tooling_telemetry_tools_with_failures": "Tools with failures",
-  "dashboard.tooling_telemetry_total_events": "{{count}} events"
+  "dashboard.tooling_telemetry_total_events": "{{count}} events",
+  "dashboard.activity_overview_title": "Last 7 Days",
+  "dashboard.activity_overview_empty": "No activity overview yet.",
+  "dashboard.activity_overview_summary": "Summary",
+  "dashboard.activity_overview_highlights": "Highlights",
+  "dashboard.activity_overview_pending": "Open Items"
 }

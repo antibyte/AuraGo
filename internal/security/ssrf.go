@@ -21,7 +21,6 @@ func init() {
 		"::1/128",        // IPv6 loopback
 		"fc00::/7",       // IPv6 unique-local (RFC 4193)
 		"fe80::/10",      // IPv6 link-local
-		"::ffff:0:0/96",  // IPv4-mapped IPv6 addresses
 	} {
 		_, ipNet, err := net.ParseCIDR(cidr)
 		if err == nil {
@@ -32,6 +31,9 @@ func init() {
 
 // isPrivateIP reports whether ip falls in a private or reserved range.
 func isPrivateIP(ip net.IP) bool {
+	if ipv4 := ip.To4(); ipv4 != nil {
+		ip = ipv4
+	}
 	for _, r := range privateRanges {
 		if r.Contains(ip) {
 			return true

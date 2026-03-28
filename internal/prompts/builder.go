@@ -80,6 +80,7 @@ type ContextFlags struct {
 	IsErrorState      bool
 	RequiresCoding    bool
 	RetrievedMemories string
+	RecentActivityOverview string // Compact 7-day activity overview for recency-aware planning
 	PredictedMemories string // Phase B: proactively pre-fetched memories from temporal/tool patterns
 	PersonalityLine   string // Phase D: compact self-awareness line [Self: mood=X | C:0.82 ...]
 	CorePersonality   string // Selected core personality profile name (e.g. "neutral", "punk")
@@ -342,6 +343,13 @@ func BuildSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string,
 	}
 
 	// RAG: Retrieved Long-Term Memories — skip in minimal tier
+	if flags.RecentActivityOverview != "" && flags.Tier != "minimal" {
+		finalPrompt.WriteString("# LAST 7 DAYS OVERVIEW\n")
+		finalPrompt.WriteString(security.IsolateExternalData(flags.RecentActivityOverview))
+		finalPrompt.WriteString("\n\n")
+	}
+
+	// RAG: Retrieved Long-Term Memories — skip in minimal tier
 	if flags.RetrievedMemories != "" && flags.Tier != "minimal" {
 		finalPrompt.WriteString("# RETRIEVED MEMORIES\n")
 		finalPrompt.WriteString(security.IsolateExternalData(flags.RetrievedMemories))
@@ -572,6 +580,7 @@ func budgetShed(prompt string, flags ContextFlags, personalityContent, coreMemor
 	shedHeaders := []string{
 		"# TOOL GUIDES",
 		"# PREDICTED CONTEXT",
+		"# LAST 7 DAYS OVERVIEW",
 		"### User Profile",
 	}
 
@@ -954,6 +963,3 @@ func CountTokens(text string) int {
 	// Fallback: rough estimate
 	return len(text) / 4
 }
-
-// parseOrFallback parses a prompt module, falling back to a minimal struct if
-// the file has no YAML frontmatter.

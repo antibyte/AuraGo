@@ -4,11 +4,56 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
+
+func looksLikeBinaryFile(path string, data []byte) bool {
+	if len(data) == 0 {
+		return false
+	}
+	sample := data
+	if len(sample) > 512 {
+		sample = sample[:512]
+	}
+	contentType := http.DetectContentType(sample)
+	switch contentType {
+	case "application/json", "application/xml", "image/svg+xml", "application/javascript":
+		return false
+	}
+	if strings.HasPrefix(contentType, "text/") {
+		return false
+	}
+	ext := strings.ToLower(filepath.Ext(path))
+	switch ext {
+	case ".txt", ".md", ".json", ".yaml", ".yml", ".xml", ".html", ".htm", ".css", ".js", ".ts", ".tsx", ".jsx", ".go", ".py", ".sh", ".ps1", ".sql", ".csv", ".svg":
+		return false
+	}
+	return !utf8.Valid(sample)
+}
+
+func binaryReadResult(path string, size int64) FSResult {
+	guidance := "Use a specialized tool instead of read_file."
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp":
+		guidance = "This looks like an image. Use analyze_image to inspect screenshots or photos."
+	case ".pdf":
+		guidance = "This looks like a PDF. Use pdf_extractor or pdf_operations instead."
+	}
+	return FSResult{
+		Status:  "error",
+		Message: fmt.Sprintf("'%s' appears to be a binary file and cannot be returned as text. %s", path, guidance),
+		Data: map[string]interface{}{
+			"path": path,
+			"size": size,
+			"kind": "binary",
+		},
+	}
+}
 
 func normalizeFilesystemOperation(operation string) string {
 	switch strings.TrimSpace(operation) {
@@ -199,6 +244,9 @@ func ExecuteFilesystem(operation, path, destination, content string, workspaceDi
 			if err != nil && err != io.ErrUnexpectedEOF {
 				return encode(FSResult{Status: "error", Message: fmt.Sprintf("Failed to read file: %v", err)})
 			}
+			if looksLikeBinaryFile(path, data[:n]) {
+				return encode(binaryReadResult(path, info.Size()))
+			}
 			text := string(data[:n])
 			return encode(FSResult{Status: "success", Message: fmt.Sprintf("Read %d bytes (truncated, file has %d bytes total)", n, info.Size()), Data: text + "\n\n[...truncated]"})
 		}
@@ -207,6 +255,9 @@ func ExecuteFilesystem(operation, path, destination, content string, workspaceDi
 		data, err := os.ReadFile(resolved)
 		if err != nil {
 			return encode(FSResult{Status: "error", Message: fmt.Sprintf("Failed to read file: %v", err)})
+		}
+		if looksLikeBinaryFile(path, data) {
+			return encode(binaryReadResult(path, info.Size()))
 		}
 		return encode(FSResult{Status: "success", Message: fmt.Sprintf("Read %d bytes", len(data)), Data: string(data)})
 

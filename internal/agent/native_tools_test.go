@@ -307,6 +307,51 @@ func TestNativeToolCallToToolCallHomepageSubOperationPreservesToolAction(t *test
 	}
 }
 
+func TestNativeToolCallToToolCallMarksMalformedArguments(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+
+	native := openai.ToolCall{
+		ID:   "call_bad_args",
+		Type: openai.ToolTypeFunction,
+		Function: openai.FunctionCall{
+			Name:      "filesystem",
+			Arguments: `{"operation":"write_file","path":"src/App.tsx","content":"unterminated`,
+		},
+	}
+
+	tc := NativeToolCallToToolCall(native, logger)
+	if !tc.NativeArgsMalformed {
+		t.Fatal("expected malformed native args to be flagged")
+	}
+	if tc.Action != "filesystem" {
+		t.Fatalf("Action = %q, want filesystem", tc.Action)
+	}
+	if tc.NativeArgsRaw == "" {
+		t.Fatal("expected raw malformed args to be preserved")
+	}
+}
+
+func TestNativeToolCallToToolCallMarksMalformedFunctionName(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+
+	native := openai.ToolCall{
+		ID:   "call_bad_name",
+		Type: openai.ToolTypeFunction,
+		Function: openai.FunctionCall{
+			Name:      "filesystem\", \"content\">import './style.css'",
+			Arguments: `{"operation":"write_file"}`,
+		},
+	}
+
+	tc := NativeToolCallToToolCall(native, logger)
+	if !tc.NativeArgsMalformed {
+		t.Fatal("expected malformed native function name to be flagged")
+	}
+	if tc.NativeArgsError == "" {
+		t.Fatal("expected malformed native function name to include an error")
+	}
+}
+
 func TestBuiltinToolSchemasHomepageUsesSubOperationField(t *testing.T) {
 	schemas := builtinToolSchemas(ToolFeatureFlags{HomepageEnabled: true, NetlifyEnabled: true})
 

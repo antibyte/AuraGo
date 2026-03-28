@@ -215,93 +215,99 @@ func (s *StringOrArray) UnmarshalJSON(data []byte) error {
 
 // ToolCall represents a parsed tool invocation from the LLM.
 type ToolCall struct {
-	Action             string                 `json:"action"`
-	SubOperation       string                 `json:"sub_operation"`
-	Code               string                 `json:"code"`
-	Key                string                 `json:"key"`
-	Value              string                 `json:"value"`
-	Name               string                 `json:"name"`
-	Description        string                 `json:"description"`
-	Package            string                 `json:"package"`
-	Args               interface{}            `json:"args"`
-	Background         bool                   `json:"background"`
-	PID                int                    `json:"pid"`
-	IsTool             bool                   `json:"-"`
-	RawCodeDetected    bool                   `json:"-"`
-	RawJSON            string                 `json:"-"`
-	NativeCallID       string                 `json:"-"`               // Native API tool call ID for role=tool responses
-	Todo               StringOrArray          `json:"_todo,omitempty"` // Session-scoped task list piggybacked on every tool call
-	Operation          string                 `json:"operation"`
-	Fact               string                 `json:"fact"`
-	ID                 string                 `json:"id"`
-	CronExpr           string                 `json:"cron_expr"`
-	TaskPrompt         string                 `json:"task_prompt"`
-	EventType          string                 `json:"event_type"`
-	Skill              string                 `json:"skill"`
-	SkillArgs          map[string]interface{} `json:"skill_args"`
-	Content            string                 `json:"content"`
-	Query              string                 `json:"query"` // Alias for content in query_memory
-	Resource           string                 `json:"resource"`
-	Mode               string                 `json:"mode"`
-	Sources            []string               `json:"sources"` // Memory sources filter for query_memory (vector_db, knowledge_graph, journal, notes, core_memory)
-	Scope              string                 `json:"scope"`   // Scope for memory_reflect (recent, monthly, full)
-	Metadata           map[string]interface{} `json:"metadata"`
-	FilePath           string                 `json:"file_path"`
-	Path               string                 `json:"path"` // Alias for file_path
-	Destination        string                 `json:"destination"`
-	Dest               string                 `json:"dest"` // Alias for destination
-	URL                string                 `json:"url"`
-	Method             string                 `json:"method"`
-	Headers            map[string]string      `json:"headers"`
-	Params             map[string]interface{} `json:"params"`
-	WebhookName        string                 `json:"webhook_name"`
-	Parameters         interface{}            `json:"parameters"`
-	PayloadType        string                 `json:"payload_type"`
-	BodyTemplate       string                 `json:"body_template"`
-	Tag                string                 `json:"tag"`
-	Hostname           string                 `json:"hostname"`
-	Host               string                 `json:"host"`       // generic target host (ping, etc.)
-	Selector           string                 `json:"selector"`   // CSS selector (web_capture)
-	OutputDir          string                 `json:"output_dir"` // output directory override
-	ServerID           string                 `json:"server_id"`
-	MemoryKey          string                 `json:"memory_key"`   // Synonym for fact
-	MemoryValue        string                 `json:"memory_value"` // Synonym for fact/content
-	NotifyOnCompletion bool                   `json:"notify_on_completion"`
-	Body               string                 `json:"body"`
-	Source             string                 `json:"source"`
-	Target             string                 `json:"target"`
-	Relation           string                 `json:"relation"`
-	Properties         map[string]string      `json:"properties"`
-	Preview            bool                   `json:"preview"`
-	Port               int                    `json:"port"`
-	Username           string                 `json:"username"`
-	Password           string                 `json:"password"`
-	Owner              string                 `json:"owner"`
-	PrivateKeyPath     string                 `json:"private_key_path"`
-	Tags               string                 `json:"tags"`
-	Direction          string                 `json:"direction"`
-	LocalPath          string                 `json:"local_path"`
-	RemotePath         string                 `json:"remote_path"`
-	ToolName           string                 `json:"tool_name"`
-	Tool               string                 `json:"tool"`         // Hallucination fallback
-	ToolCallAction     string                 `json:"tool_call"`    // MiniMax format: {"tool_call": "action_name"}
-	Arguments          interface{}            `json:"arguments"`    // Hallucination fallback
-	ActionInput        map[string]interface{} `json:"action_input"` // LangChain-style nested params
-	Label              string                 `json:"label"`
-	Command            string                 `json:"command"`
-	ThresholdLow       int                    `json:"threshold_low"`
-	ThresholdMedium    int                    `json:"threshold_medium"`
-	Pinned             bool                   `json:"pinned"`
-	Locked             bool                   `json:"locked"`
-	IPAddress          string                 `json:"ip_address"`
-	To                 string                 `json:"to"`
-	CC                 string                 `json:"cc"`
-	Subject            string                 `json:"subject"`
-	Folder             string                 `json:"folder"`
-	Limit              int                    `json:"limit"`
-	Account            string                 `json:"account"` // email account ID (multi-account)
-	ChannelID          string                 `json:"channel_id"`
-	Message            string                 `json:"message"`
+	Action              string                 `json:"action"`
+	SubOperation        string                 `json:"sub_operation"`
+	Code                string                 `json:"code"`
+	Key                 string                 `json:"key"`
+	Value               string                 `json:"value"`
+	Name                string                 `json:"name"`
+	Description         string                 `json:"description"`
+	Package             string                 `json:"package"`
+	Args                interface{}            `json:"args"`
+	Background          bool                   `json:"background"`
+	PID                 int                    `json:"pid"`
+	IsTool              bool                   `json:"-"`
+	RawCodeDetected     bool                   `json:"-"`
+	RawJSON             string                 `json:"-"`
+	NativeCallID        string                 `json:"-"` // Native API tool call ID for role=tool responses
+	NativeArgsMalformed bool                   `json:"-"`
+	NativeArgsError     string                 `json:"-"`
+	NativeArgsRaw       string                 `json:"-"`
+	Todo                StringOrArray          `json:"_todo,omitempty"` // Session-scoped task list piggybacked on every tool call
+	Operation           string                 `json:"operation"`
+	Fact                string                 `json:"fact"`
+	ID                  string                 `json:"id"`
+	CronExpr            string                 `json:"cron_expr"`
+	TaskPrompt          string                 `json:"task_prompt"`
+	EventType           string                 `json:"event_type"`
+	Skill               string                 `json:"skill"`
+	SkillArgs           map[string]interface{} `json:"skill_args"`
+	Content             string                 `json:"content"`
+	Query               string                 `json:"query"` // Alias for content in query_memory
+	Resource            string                 `json:"resource"`
+	Mode                string                 `json:"mode"`
+	Sources             []string               `json:"sources"`         // Memory sources filter for query_memory/context_memory
+	Scope               string                 `json:"scope"`           // Scope for memory_reflect
+	ContextDepth        string                 `json:"context_depth"`   // Depth for context_memory (shallow, normal, deep)
+	TimeRange           string                 `json:"time_range"`      // Temporal window for context_memory
+	IncludeRelated      bool                   `json:"include_related"` // Expand contextual relationships in context_memory
+	Metadata            map[string]interface{} `json:"metadata"`
+	FilePath            string                 `json:"file_path"`
+	Path                string                 `json:"path"` // Alias for file_path
+	Destination         string                 `json:"destination"`
+	Dest                string                 `json:"dest"` // Alias for destination
+	URL                 string                 `json:"url"`
+	Method              string                 `json:"method"`
+	Headers             map[string]string      `json:"headers"`
+	Params              map[string]interface{} `json:"params"`
+	WebhookName         string                 `json:"webhook_name"`
+	Parameters          interface{}            `json:"parameters"`
+	PayloadType         string                 `json:"payload_type"`
+	BodyTemplate        string                 `json:"body_template"`
+	Tag                 string                 `json:"tag"`
+	Hostname            string                 `json:"hostname"`
+	Host                string                 `json:"host"`       // generic target host (ping, etc.)
+	Selector            string                 `json:"selector"`   // CSS selector (web_capture)
+	OutputDir           string                 `json:"output_dir"` // output directory override
+	ServerID            string                 `json:"server_id"`
+	MemoryKey           string                 `json:"memory_key"`   // Synonym for fact
+	MemoryValue         string                 `json:"memory_value"` // Synonym for fact/content
+	NotifyOnCompletion  bool                   `json:"notify_on_completion"`
+	Body                string                 `json:"body"`
+	Source              string                 `json:"source"`
+	Target              string                 `json:"target"`
+	Relation            string                 `json:"relation"`
+	Properties          map[string]string      `json:"properties"`
+	Preview             bool                   `json:"preview"`
+	Port                int                    `json:"port"`
+	Username            string                 `json:"username"`
+	Password            string                 `json:"password"`
+	Owner               string                 `json:"owner"`
+	PrivateKeyPath      string                 `json:"private_key_path"`
+	Tags                string                 `json:"tags"`
+	Direction           string                 `json:"direction"`
+	LocalPath           string                 `json:"local_path"`
+	RemotePath          string                 `json:"remote_path"`
+	ToolName            string                 `json:"tool_name"`
+	Tool                string                 `json:"tool"`         // Hallucination fallback
+	ToolCallAction      string                 `json:"tool_call"`    // MiniMax format: {"tool_call": "action_name"}
+	Arguments           interface{}            `json:"arguments"`    // Hallucination fallback
+	ActionInput         map[string]interface{} `json:"action_input"` // LangChain-style nested params
+	Label               string                 `json:"label"`
+	Command             string                 `json:"command"`
+	ThresholdLow        int                    `json:"threshold_low"`
+	ThresholdMedium     int                    `json:"threshold_medium"`
+	Pinned              bool                   `json:"pinned"`
+	Locked              bool                   `json:"locked"`
+	IPAddress           string                 `json:"ip_address"`
+	To                  string                 `json:"to"`
+	CC                  string                 `json:"cc"`
+	Subject             string                 `json:"subject"`
+	Folder              string                 `json:"folder"`
+	Limit               int                    `json:"limit"`
+	Account             string                 `json:"account"` // email account ID (multi-account)
+	ChannelID           string                 `json:"channel_id"`
+	Message             string                 `json:"message"`
 	// Telnyx fields
 	CallControlID string   `json:"call_control_id,omitempty"`
 	MaxDigits     int      `json:"max_digits,omitempty"`

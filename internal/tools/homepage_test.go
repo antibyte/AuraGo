@@ -197,6 +197,36 @@ func TestExtractOutput(t *testing.T) {
 	}
 }
 
+func TestHomepageScreenshotFallsBackToWebCaptureWhenPlaywrightIsMissing(t *testing.T) {
+	oldDockerExec := homepageDockerExecFunc
+	oldWebCapture := homepageWebCaptureFunc
+	defer func() {
+		homepageDockerExecFunc = oldDockerExec
+		homepageWebCaptureFunc = oldWebCapture
+	}()
+
+	homepageDockerExecFunc = func(cfg DockerConfig, containerName, command, user string) string {
+		return `{"container_id":"aurago-homepage","exit_code":1,"output":"Error: Cannot find module 'playwright'"}`
+	}
+	homepageWebCaptureFunc = func(operation, rawURL, selector string, fullPage bool, outputDir string) string {
+		if operation != "screenshot" {
+			t.Fatalf("operation = %q, want screenshot", operation)
+		}
+		if rawURL != "https://example.com" {
+			t.Fatalf("url = %q, want https://example.com", rawURL)
+		}
+		return `{"status":"success","operation":"screenshot","file":"agent_workspace/workdir/fallback.png"}`
+	}
+
+	got := HomepageScreenshot(HomepageConfig{}, "https://example.com", "", nil)
+	if !strings.Contains(got, `"status":"success"`) {
+		t.Fatalf("expected web_capture fallback result, got: %s", got)
+	}
+	if !strings.Contains(got, "fallback.png") {
+		t.Fatalf("expected fallback screenshot path, got: %s", got)
+	}
+}
+
 // ─── Build Auto-Fix Pattern Matching ─────────────────────────────────────
 
 func TestBuildFixPatterns_MissingNpmModule(t *testing.T) {

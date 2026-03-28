@@ -365,6 +365,9 @@ func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 				return "Tool Output: [PERMISSION DENIED] pdf_extractor is disabled in settings (tools.pdf_extractor.enabled: false)."
 			}
 			filePath, _ := args["filepath"].(string)
+			if ext := strings.ToLower(filepath.Ext(filePath)); filePath != "" && ext != "" && ext != ".pdf" {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s is not a PDF. Use analyze_image for PNG/JPG/WebP screenshots and images."}`, filePath)
+			}
 			result := tools.ExecutePDFExtract(cfg.Directories.WorkspaceDir, filePath)
 			if cfg.Tools.PDFExtractor.SummaryMode {
 				searchQuery, _ := args["search_query"].(string)
@@ -1667,9 +1670,35 @@ func filterExecuteSkillArgs(skillsDir, skillName string, args map[string]interfa
 		return args
 	}
 
+	aliasArgs := make(map[string]interface{}, len(args)+2)
+	for k, v := range args {
+		aliasArgs[k] = v
+	}
+	if v, ok := aliasArgs["file_path"]; ok {
+		if _, exists := aliasArgs["filepath"]; !exists {
+			aliasArgs["filepath"] = v
+		}
+	}
+	if v, ok := aliasArgs["filepath"]; ok {
+		if _, exists := aliasArgs["file_path"]; !exists {
+			aliasArgs["file_path"] = v
+		}
+		if _, exists := aliasArgs["path"]; !exists {
+			aliasArgs["path"] = v
+		}
+	}
+	if v, ok := aliasArgs["path"]; ok {
+		if _, exists := aliasArgs["filepath"]; !exists {
+			aliasArgs["filepath"] = v
+		}
+		if _, exists := aliasArgs["file_path"]; !exists {
+			aliasArgs["file_path"] = v
+		}
+	}
+
 	filtered := make(map[string]interface{}, len(manifest.Parameters))
 	for key := range manifest.Parameters {
-		if v, ok := args[key]; ok && !isEmptySkillArgValue(v) {
+		if v, ok := aliasArgs[key]; ok && !isEmptySkillArgValue(v) {
 			filtered[key] = v
 		}
 	}

@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"aurago/internal/agent"
@@ -1241,6 +1242,42 @@ func handleDashboardJournalSummary(s *Server) http.HandlerFunc {
 			"summaries": summaries,
 			"count":     len(summaries),
 		})
+	}
+}
+
+// handleActivityOverview returns a recent multi-day activity overview.
+// Query params: ?days=7&include_entries=true
+func handleActivityOverview(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if s.ShortTermMem == nil {
+			http.Error(w, "Memory unavailable", http.StatusServiceUnavailable)
+			return
+		}
+
+		days := 7
+		if d := r.URL.Query().Get("days"); d != "" {
+			if parsed, err := strconv.Atoi(d); err == nil && parsed > 0 {
+				days = parsed
+			}
+		}
+		includeEntries := strings.EqualFold(r.URL.Query().Get("include_entries"), "true")
+
+		overview, err := s.ShortTermMem.BuildRecentActivityOverview(days, includeEntries)
+		if err != nil {
+			s.Logger.Error("Failed to build activity overview", "error", err, "days", days)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+		if overview == nil {
+			overview = &memory.ActivityOverviewResponse{}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(overview)
 	}
 }
 

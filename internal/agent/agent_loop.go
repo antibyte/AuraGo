@@ -130,6 +130,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	rawCodeCount := 0
 	missedToolCount := 0
 	announcementCount := 0
+	invalidNativeToolCount := 0
 	sessionTokens := 0
 	recoveryPolicy := buildRecoveryPolicy(cfg)
 	emptyRetried := false // Prevents infinite retry on persistent empty responses
@@ -158,6 +159,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	lastResponseWasTool := false        // True when the previous iteration was a tool call; suppresses announcement detector on completion messages
 	pendingTCs := make([]ToolCall, 0)   // Queued tool calls from multi-tool responses (processed without a new LLM call)
 	usedMemoryDocIDs := make(map[string]int)
+	turnToolNames := make([]string, 0, 8)
+	turnToolSummaries := make([]string, 0, 12)
 
 	// Context compression: tracks message count at last compression for cooldown
 	lastCompressionMsg := 0
@@ -360,6 +363,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 			policyResult := finalizeToolExecution(ptc, pResultContent, cfg, shortTermMem, sessionID, &recoveryState, &req, currentLogger, telemetryScope)
 			pResultContent = policyResult.Content
+			trackActivityTool(&turnToolNames, &turnToolSummaries, ptc.Action, pResultContent)
 			broker.Send("tool_output", pResultContent)
 			if ptc.Action == "send_image" {
 				var imgRes struct {
@@ -664,6 +668,12 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				} else {
 					flags.RetrievedMemories += "\n---\n" + prefix
 				}
+			}
+		}
+
+		if !runCfg.IsMission && shortTermMem != nil {
+			if overview, err := shortTermMem.BuildRecentActivityPromptOverview(7); err == nil {
+				flags.RecentActivityOverview = overview
 			}
 		}
 
@@ -1222,6 +1232,36 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			continue
 		}
 
+		if useNativePath && tc.NativeArgsMalformed && invalidNativeToolCount < 2 {
+			invalidNativeToolCount++
+			currentLogger.Warn("[Sync] Invalid native tool call detected, requesting corrected function call",
+				"attempt", invalidNativeToolCount,
+				"action", tc.Action,
+				"error", tc.NativeArgsError)
+			broker.Send("error_recovery", "Invalid native tool call detected, requesting corrected function call...")
+
+			recoveryTool := tc.Action
+			if strings.TrimSpace(recoveryTool) == "" {
+				recoveryTool = "the requested tool"
+			} else {
+				recoveryTool = Truncate(strings.ReplaceAll(strings.ReplaceAll(recoveryTool, "\n", " "), "\r", " "), 80)
+			}
+			feedbackMsg := fmt.Sprintf(
+				"ERROR: Your last native function call for %q had invalid function arguments JSON and was discarded. Emit the function call again with valid JSON arguments only. Do not include source code, XML/HTML, or prose inside the function name or outside the JSON arguments.",
+				recoveryTool,
+			)
+			id, err := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, feedbackMsg, false, false)
+			if err != nil {
+				currentLogger.Error("Failed to persist invalid-native-tool feedback message", "error", err)
+			}
+			if sessionID == "default" {
+				historyManager.Add(openai.ChatMessageRoleUser, feedbackMsg, id, false, false)
+			}
+			req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: feedbackMsg})
+			lastResponseWasTool = false
+			continue
+		}
+
 		// Recovery: model sent an announcement/preamble instead of a tool call
 		// Triggered when: no tool, short response, contains action-intent phrases
 		announcementPhrases := []string{
@@ -1428,6 +1468,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			resultContent := DispatchToolCall(ctx, tc, cfg, currentLogger, client, vault, registry, manifest, cronManager, missionManagerV2, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, contactsDB, sqlConnectionsDB, sqlConnectionPool, remoteHub, historyManager, tools.IsBusy(), surgeryPlan, guardian, llmGuardian, sessionID, coAgentRegistry, budgetTracker, lastUserMsg)
 			policyResult := finalizeToolExecution(tc, resultContent, cfg, shortTermMem, sessionID, &recoveryState, &req, currentLogger, telemetryScope)
 			resultContent = policyResult.Content
+			trackActivityTool(&turnToolNames, &turnToolSummaries, tc.Action, resultContent)
 
 			broker.Send("tool_output", resultContent)
 
@@ -1807,6 +1848,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					}
 					policyResult := finalizeToolExecution(btc, bResult, cfg, shortTermMem, sessionID, &recoveryState, &req, currentLogger, telemetryScope)
 					bResult = policyResult.Content
+					trackActivityTool(&turnToolNames, &turnToolSummaries, btc.Action, bResult)
 					broker.Send("tool_output", bResult)
 					broker.Send("tool_end", btc.Action)
 					lastActivity = time.Now()
@@ -1935,6 +1977,24 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 		// Journal auto-trigger: create entries for significant tool chains
 		JournalAutoTrigger(cfg, shortTermMem, currentLogger, sessionID, recentTools, lastUserMsg)
+
+		if !isEmpty && shortTermMem != nil && !flags.IsCoAgent {
+			activityToolNames := append([]string(nil), turnToolNames...)
+			activityToolSummaries := append([]string(nil), turnToolSummaries...)
+			go captureActivityTurn(
+				cfg,
+				currentLogger,
+				shortTermMem,
+				sessionID,
+				runCfg.MessageSource,
+				lastUserMsg,
+				content,
+				activityToolNames,
+				activityToolSummaries,
+				runCfg.IsMission || runCfg.MessageSource == "mission" || sessionID == "maintenance",
+				!isMaintenance && sessionID != "maintenance",
+			)
+		}
 
 		// Weekly reflection: async trigger if configured and due
 		// Guard: only run once per day by checking if a reflection entry already exists today.

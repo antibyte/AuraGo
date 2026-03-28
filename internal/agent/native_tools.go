@@ -15,6 +15,8 @@ import (
 	"aurago/internal/tools"
 )
 
+var nativeToolNamePattern = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
+
 // prop creates a JSON Schema property entry.
 func prop(typ, description string) map[string]interface{} {
 	return map[string]interface{}{"type": typ, "description": description}
@@ -544,17 +546,31 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 				}, "operation"),
 			),
 			tool("query_memory",
-				"Search across ALL memory sources at once: vector DB (long-term facts), knowledge graph (entities/relationships), journal (events/milestones), notes (tasks/todos), core memory (permanent facts), and error patterns (learned failures). By default searches everything — use 'sources' only to narrow results.",
+				"Search across ALL memory sources at once: recent activity timeline, vector DB (long-term facts), knowledge graph (entities/relationships), journal (events/milestones), notes (tasks/todos), core memory (permanent facts), and error patterns (learned failures). By default searches everything — use 'sources' only to narrow results.",
 				schema(map[string]interface{}{
 					"query": prop("string", "Natural language search query"),
 					"sources": map[string]interface{}{
 						"type":        "array",
-						"description": "Memory sources to search. Default: all available. Options: vector_db, knowledge_graph, journal, notes, core_memory, error_patterns",
-						"items":       map[string]interface{}{"type": "string", "enum": []string{"vector_db", "knowledge_graph", "journal", "notes", "core_memory", "error_patterns"}},
+						"description": "Memory sources to search. Default: all available. Options: activity, vector_db, knowledge_graph, journal, notes, core_memory, error_patterns",
+						"items":       map[string]interface{}{"type": "string", "enum": []string{"activity", "vector_db", "knowledge_graph", "journal", "notes", "core_memory", "error_patterns"}},
 					},
 					"limit": map[string]interface{}{
 						"type":        "integer",
 						"description": "Max results per source (default 5)",
+					},
+				}, "query"),
+			),
+			tool("context_memory",
+				"Run a context-aware memory query across recent activity, journal, notes, core memory, knowledge graph, and long-term memory. Prefer this when you need a time-scoped overview, connected context, or a multi-source picture of the last days.",
+				schema(map[string]interface{}{
+					"query":           prop("string", "Natural language search query"),
+					"context_depth":   map[string]interface{}{"type": "string", "description": "How broad the contextual expansion should be", "enum": []string{"shallow", "normal", "deep"}},
+					"time_range":      map[string]interface{}{"type": "string", "description": "Optional temporal window", "enum": []string{"all", "today", "last_week", "last_month"}},
+					"include_related": prop("boolean", "Whether related entities/contexts should be expanded where possible"),
+					"sources": map[string]interface{}{
+						"type":        "array",
+						"description": "Sources to include. Default: activity, journal, notes, core, kg, ltm",
+						"items":       map[string]interface{}{"type": "string", "enum": []string{"activity", "journal", "notes", "core", "kg", "ltm"}},
 					},
 				}, "query"),
 			),
@@ -579,12 +595,12 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 		// memory_reflect — only when memory_analysis is enabled
 		if ff.MemoryAnalysisEnabled {
 			tools = append(tools, tool("memory_reflect",
-				"Generate a reflection on recent memory activity: analyze patterns, detect contradictions, identify knowledge gaps, and suggest memory optimizations. Use periodically or when the user asks about memory health.",
+				"Generate a reflection on memory activity: analyze patterns, detect contradictions, identify knowledge gaps, and suggest memory optimizations. Weekly reflections now include the recent activity timeline.",
 				schema(map[string]interface{}{
 					"scope": map[string]interface{}{
 						"type":        "string",
-						"description": "Scope of the reflection: 'recent' (last 7 days), 'monthly' (last 30 days), or 'full' (all memories)",
-						"enum":        []string{"recent", "monthly", "full"},
+						"description": "Scope of the reflection: session, day, week/recent, month/monthly, project, or all_time/full",
+						"enum":        []string{"session", "day", "week", "recent", "month", "monthly", "project", "all_time", "full"},
 					},
 				}),
 			))
@@ -681,7 +697,7 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 
 	if ff.JournalEnabled {
 		tools = append(tools, tool("manage_journal",
-			"Add, list, search, or delete journal entries. The system already auto-creates entries for tool errors, task completions, and daily summaries during nightly maintenance. Use this to manually add reflections, milestones, or other important events.",
+			"Add, list, search, or delete journal entries. The system already auto-creates entries for lightweight activity traces, tool errors, task completions, and daily summaries during nightly maintenance. Use this to manually add reflections, milestones, or other important events.",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
 					"type":        "string",
@@ -690,7 +706,7 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 				},
 				"title":      prop("string", "Title of the journal entry (required for add)"),
 				"content":    prop("string", "Detailed content of the journal entry"),
-				"entry_type": prop("string", "Type of entry: reflection, milestone, preference, task_completed, integration, learning, error_recovery, system_event"),
+				"entry_type": prop("string", "Type of entry: activity, reflection, milestone, preference, task_completed, integration, learning, error_recovery, system_event"),
 				"tags":       prop("string", "Comma-separated tags for categorization"),
 				"importance": prop("integer", "Importance level 1-5 (default 3). 5=critical milestone, 1=minor note"),
 				"query":      prop("string", "Search keyword (required for search)"),
@@ -1974,7 +1990,7 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 // Arguments JSON is unmarshalled directly into the struct fields.
 func NativeToolCallToToolCall(native openai.ToolCall, logger *slog.Logger) ToolCall {
 	// Convert skill__name shortcut to execute_skill so the skill dispatcher handles it correctly.
-	name := native.Function.Name
+	name := strings.TrimSpace(native.Function.Name)
 	skillFromShortcut := ""
 	if strings.HasPrefix(name, "skill__") {
 		skillFromShortcut = strings.TrimPrefix(name, "skill__")
@@ -1988,6 +2004,13 @@ func NativeToolCallToToolCall(native openai.ToolCall, logger *slog.Logger) ToolC
 		NativeCallID: native.ID,
 	}
 
+	if !nativeToolNamePattern.MatchString(name) {
+		tc.NativeArgsMalformed = true
+		tc.NativeArgsError = "invalid native function name"
+		tc.NativeArgsRaw = native.Function.Arguments
+		return tc
+	}
+
 	if native.Function.Arguments == "" {
 		return tc
 	}
@@ -1996,6 +2019,9 @@ func NativeToolCallToToolCall(native openai.ToolCall, logger *slog.Logger) ToolC
 	// Pre-normalize arrays in string fields (e.g. "tags") to avoid type-mismatch errors.
 	normalizedArgs := normalizeTagsInJSON(native.Function.Arguments)
 	if err := json.Unmarshal([]byte(normalizedArgs), &tc); err != nil {
+		tc.NativeArgsMalformed = true
+		tc.NativeArgsError = err.Error()
+		tc.NativeArgsRaw = native.Function.Arguments
 		if logger != nil {
 			logger.Warn("[NativeTools] Failed to unmarshal native tool arguments, using raw",
 				"name", native.Function.Name, "error", err)

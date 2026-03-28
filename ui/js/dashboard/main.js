@@ -172,8 +172,12 @@
         }
 
         async function loadTabUser() {
-            const profile = await API.get('/api/dashboard/profile');
+            const [profile, activityOverview] = await Promise.all([
+                API.get('/api/dashboard/profile'),
+                API.get('/api/memory/activity-overview?days=7')
+            ]);
             renderProfile(profile);
+            renderActivityOverview(activityOverview);
             loadJournal();
         }
 
@@ -2105,6 +2109,49 @@
                     }
                 }
             }
+        }
+
+        function renderActivityOverview(data) {
+            const summaryEl = document.getElementById('activity-overview-summary');
+            const highlightsEl = document.getElementById('activity-overview-highlights');
+            const pendingEl = document.getElementById('activity-overview-pending');
+            const daysEl = document.getElementById('activity-overview-days');
+            if (!summaryEl || !highlightsEl || !pendingEl || !daysEl) return;
+            if (!data || (!data.overview_summary && !(data.days || []).length)) {
+                summaryEl.innerHTML = '';
+                highlightsEl.innerHTML = '';
+                pendingEl.innerHTML = '';
+                daysEl.innerHTML = `<div class="empty-state">${t('dashboard.activity_overview_empty')}</div>`;
+                return;
+            }
+
+            summaryEl.innerHTML = data.overview_summary ? `<div class="journal-summary-label">🧭 ${t('dashboard.activity_overview_summary')}</div><div>${escapeHtml(data.overview_summary)}</div>` : '';
+
+            const highlights = Array.isArray(data.highlights) ? data.highlights.slice(0, 3) : [];
+            highlightsEl.innerHTML = highlights.length
+                ? `<div class="journal-summary-label">✨ ${t('dashboard.activity_overview_highlights')}</div><div>${highlights.map(item => `<span class="journal-topic-chip">${escapeHtml(item)}</span>`).join('')}</div>`
+                : '';
+
+            const pending = Array.isArray(data.pending_items) ? data.pending_items.slice(0, 5) : [];
+            pendingEl.innerHTML = pending.length
+                ? `<div class="journal-summary-label">📌 ${t('dashboard.activity_overview_pending')}</div><div>${pending.map(item => `<div class="journal-entry"><div class="je-body"><div class="je-title">${escapeHtml(item)}</div></div></div>`).join('')}</div>`
+                : '';
+
+            const days = Array.isArray(data.days) ? data.days.slice(0, 3) : [];
+            if (!days.length) {
+                daysEl.innerHTML = `<div class="empty-state">${t('dashboard.activity_overview_empty')}</div>`;
+                return;
+            }
+            daysEl.innerHTML = days.map(day => `
+                <div class="journal-entry" data-importance="2">
+                    <div class="je-icon">🗓️</div>
+                    <div class="je-body">
+                        <div class="je-title">${escapeHtml(day.date || '')}</div>
+                        <div class="je-meta">${escapeHtml(day.summary || '')}</div>
+                        ${(Array.isArray(day.highlights) && day.highlights.length) ? `<div class="je-tags">${day.highlights.slice(0, 2).map(item => `<span class="je-tag">${escapeHtml(item)}</span>`).join('')}</div>` : ''}
+                    </div>
+                </div>
+            `).join('');
         }
 
         function renderErrorPatterns(data) {

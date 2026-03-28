@@ -13,7 +13,7 @@ import (
 // JournalEntry represents a single event in the agent's journal timeline.
 type JournalEntry struct {
 	ID            int64    `json:"id"`
-	EntryType     string   `json:"entry_type"` // milestone, learning, decision, error, preference, task_completed, integration
+	EntryType     string   `json:"entry_type"` // activity, milestone, learning, decision, error, preference, task_completed, integration
 	Title         string   `json:"title"`
 	Content       string   `json:"content"`
 	Tags          []string `json:"tags"`

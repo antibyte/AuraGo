@@ -1,6 +1,6 @@
 ## Tool: Memory Reflection (`memory_reflect`)
 
-Reflects on past interactions and generates insights about patterns, errors, progress, and relationships. Useful for continuous learning and proactive improvement.
+Reflects on past interactions and generates insights about patterns, errors, progress, and relationships. Weekly reflections now also consider the recent activity timeline and daily rollups.
 
 ### When to use
 

@@ -119,6 +119,30 @@ func TestRecoverFrom422WithPolicyHonorsCustomLimit(t *testing.T) {
 	}
 }
 
+func TestRecoverFrom422TreatsInvalidFunctionArgs400AsRecoverable(t *testing.T) {
+	req := openai.ChatCompletionRequest{
+		Messages: []openai.ChatCompletionMessage{
+			{Role: openai.ChatMessageRoleSystem, Content: "sys"},
+			{Role: openai.ChatMessageRoleUser, Content: "hello"},
+			{Role: openai.ChatMessageRoleAssistant, Content: "working"},
+			{Role: openai.ChatMessageRoleTool, Content: "tool result", ToolCallID: "call-1"},
+		},
+	}
+	count := 0
+
+	recovered, err := recoverFrom422(errors.New("error, status code: 400, status: 400 Bad Request, message: invalid params, invalid function arguments json string, tool_call_id: call_function_123"), &count, &req, nil, nil, "Sync", AgentTelemetryScope{})
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !recovered {
+		t.Fatal("expected invalid-function-args 400 to trigger recovery")
+	}
+	if count != 1 {
+		t.Fatalf("expected retry count to increment, got %d", count)
+	}
+}
+
 func TestRecoverFromEmptyResponseTrimsContextOnce(t *testing.T) {
 	req := openai.ChatCompletionRequest{
 		Messages: []openai.ChatCompletionMessage{

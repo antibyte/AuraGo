@@ -125,6 +125,14 @@ func runMaintenanceTask(cfg *config.Config, logger *slog.Logger, client llm.Chat
 		generateDailySummary(cfg, logger, client, shortTermMem)
 	}
 
+	if shortTermMem != nil {
+		if rollup, err := shortTermMem.GenerateDailyActivityRollup(time.Now().Format("2006-01-02")); err != nil {
+			logger.Error("[Activity] Failed to generate daily activity rollup", "error", err)
+		} else if rollup.Date != "" {
+			logger.Info("[Activity] Daily activity rollup stored", "date", rollup.Date)
+		}
+	}
+
 	// Notes: clean up old completed notes (done for >7 days)
 	if cfg.Tools.Notes.Enabled && shortTermMem != nil {
 		deleted, err := shortTermMem.DeleteOldDoneNotes(7)

@@ -485,7 +485,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 		hasSemanticQuery := strings.TrimSpace(searchContent) != ""
 
 		// Determine which sources to search
-		sourceMap := map[string]bool{"vector_db": true, "knowledge_graph": true, "journal": true, "episodic": true, "notes": true, "core_memory": true, "error_patterns": true}
+		sourceMap := map[string]bool{"activity": true, "vector_db": true, "knowledge_graph": true, "journal": true, "episodic": true, "notes": true, "core_memory": true, "error_patterns": true}
 		if len(tc.Sources) > 0 {
 			sourceMap = map[string]bool{}
 			for _, s := range tc.Sources {
@@ -494,13 +494,15 @@ func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 		}
 		logger.Info("LLM requested multi-source memory search", "query", searchContent, "sources", tc.Sources, "limit", perSourceLimit, "temporal_range", temporalRange)
 
-		type sourceResult struct {
-			Source string      `json:"source"`
-			Count  int         `json:"count"`
-			Data   interface{} `json:"data"`
-		}
-		var combined []sourceResult
+		var combined []memorySourceResult
 		var errors []string
+
+		if sourceMap["activity"] && shortTermMem != nil {
+			appendActivityResults(shortTermMem, searchContent, temporalRange.FromDate, temporalRange.ToDate, perSourceLimit, &combined, &errors)
+			if isActivityFocusedQuery(tc.Query) || isActivityFocusedQuery(tc.Content) || hasTemporalRange {
+				appendActivityRollupResults(shortTermMem, 7, &combined, &errors)
+			}
+		}
 
 		// ── Vector DB (long-term memory) ──
 		if sourceMap["vector_db"] && longTermMem != nil && hasSemanticQuery {
@@ -511,7 +513,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 			if err != nil {
 				errors = append(errors, fmt.Sprintf("vector_db: %v", err))
 			} else if len(results) > 0 {
-				combined = append(combined, sourceResult{Source: "vector_db", Count: len(results), Data: results})
+				combined = append(combined, memorySourceResult{Source: "vector_db", Count: len(results), Data: results})
 			}
 		}
 
@@ -519,7 +521,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 		if sourceMap["knowledge_graph"] && kg != nil && hasSemanticQuery {
 			kgResult := kg.SearchForContext(searchContent, perSourceLimit, 2000)
 			if kgResult != "" && kgResult != "No matching entities found." {
-				combined = append(combined, sourceResult{Source: "knowledge_graph", Count: 1, Data: kgResult})
+				combined = append(combined, memorySourceResult{Source: "knowledge_graph", Count: 1, Data: kgResult})
 			}
 		}
 
@@ -529,7 +531,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 			if err != nil {
 				errors = append(errors, fmt.Sprintf("journal: %v", err))
 			} else if len(entries) > 0 {
-				combined = append(combined, sourceResult{Source: "journal", Count: len(entries), Data: entries})
+				combined = append(combined, memorySourceResult{Source: "journal", Count: len(entries), Data: entries})
 			}
 		}
 
@@ -539,7 +541,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 			if err != nil {
 				errors = append(errors, fmt.Sprintf("episodic: %v", err))
 			} else if len(entries) > 0 {
-				combined = append(combined, sourceResult{Source: "episodic", Count: len(entries), Data: entries})
+				combined = append(combined, memorySourceResult{Source: "episodic", Count: len(entries), Data: entries})
 			}
 		}
 
@@ -549,7 +551,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 			if err != nil {
 				errors = append(errors, fmt.Sprintf("notes: %v", err))
 			} else if len(notes) > 0 {
-				combined = append(combined, sourceResult{Source: "notes", Count: len(notes), Data: notes})
+				combined = append(combined, memorySourceResult{Source: "notes", Count: len(notes), Data: notes})
 			}
 		}
 
@@ -571,7 +573,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 					}
 				}
 				if len(matched) > 0 {
-					combined = append(combined, sourceResult{Source: "core_memory", Count: len(matched), Data: matched})
+					combined = append(combined, memorySourceResult{Source: "core_memory", Count: len(matched), Data: matched})
 				}
 			}
 		}
@@ -594,7 +596,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 					}
 				}
 				if len(matched) > 0 {
-					combined = append(combined, sourceResult{Source: "error_patterns", Count: len(matched), Data: matched})
+					combined = append(combined, memorySourceResult{Source: "error_patterns", Count: len(matched), Data: matched})
 				}
 			}
 		}
@@ -621,6 +623,16 @@ func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 			return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Failed to serialize results: %v"}`, err)
 		}
 		return "Tool Output: " + string(b)
+
+	case "context_memory":
+		if !cfg.Tools.Memory.Enabled {
+			return `Tool Output: {"status":"error","message":"Memory tools are disabled. Set tools.memory.enabled=true in config.yaml."}`
+		}
+		result, err := executeContextMemoryQuery(tc, shortTermMem, longTermMem, kg)
+		if err != nil {
+			return fmt.Sprintf(`Tool Output: {"status":"error","message":"context_memory failed: %v"}`, err)
+		}
+		return result
 
 	case "memory_reflect":
 		if !cfg.MemoryAnalysis.Enabled {

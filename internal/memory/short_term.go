@@ -409,7 +409,7 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 
 	// Set user_version so backup/restore can detect schema generation.
 	// Increment this constant whenever a new column or table is added.
-	const shortTermSchemaVersion = 5
+	const shortTermSchemaVersion = 6
 	var currentVer int
 	_ = db.QueryRow("PRAGMA user_version").Scan(&currentVer)
 	if currentVer != shortTermSchemaVersion {
@@ -425,6 +425,9 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 	if err := stm.InitPersonalityTables(); err != nil {
 		logger.Warn("Failed to initialize personality tables", "error", err)
 		// Non-fatal: continue without personality features
+	}
+	if err := stm.InitActivityTables(); err != nil {
+		logger.Warn("Failed to initialize activity tables", "error", err)
 	}
 
 	return stm, nil

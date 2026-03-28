@@ -184,6 +184,159 @@ func TestDispatchExecQueryMemoryUnderstandsTemporalJournalQueries(t *testing.T) 
 	}
 }
 
+func TestDispatchExecQueryMemoryIncludesActivitySource(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Tools.Memory.Enabled = true
+	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	t.Cleanup(func() { _ = stm.Close() })
+
+	if _, err := stm.InsertActivityTurn(memory.ActivityTurn{
+		Date:            time.Now().Format("2006-01-02"),
+		SessionID:       "default",
+		Channel:         "web_chat",
+		UserRelevant:    true,
+		Intent:          "Fix docker deployment",
+		UserRequest:     "Please fix the docker deployment",
+		UserGoal:        "Fix docker deployment",
+		ActionsTaken:    []string{"execute_shell"},
+		Outcomes:        []string{"Docker deployment fixed"},
+		ImportantPoints: []string{"The compose file had a bad path"},
+		ToolNames:       []string{"execute_shell"},
+	}); err != nil {
+		t.Fatalf("InsertActivityTurn: %v", err)
+	}
+
+	out := dispatchExec(
+		context.Background(),
+		ToolCall{Action: "query_memory", Query: "docker deployment", Sources: []string{"activity"}},
+		cfg,
+		logger,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		stm,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		false,
+		"",
+		nil,
+		"",
+		nil,
+		nil,
+	)
+
+	if !strings.Contains(out, `"source":"activity"`) {
+		t.Fatalf("output = %q, want activity source", out)
+	}
+	if !strings.Contains(out, "Fix docker deployment") {
+		t.Fatalf("output = %q, want activity hit", out)
+	}
+}
+
+func TestDispatchExecContextMemoryReturnsCombinedResults(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Tools.Memory.Enabled = true
+	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	t.Cleanup(func() { _ = stm.Close() })
+	if err := stm.InitJournalTables(); err != nil {
+		t.Fatalf("InitJournalTables: %v", err)
+	}
+	if err := stm.InitNotesTables(); err != nil {
+		t.Fatalf("InitNotesTables: %v", err)
+	}
+	if _, err := stm.AddNote("todo", "Check backup retention", "", 3, ""); err != nil {
+		t.Fatalf("AddNote: %v", err)
+	}
+	if _, err := stm.InsertJournalEntry(memory.JournalEntry{
+		EntryType: "milestone",
+		Title:     "Backup issue resolved",
+		Content:   "Resolved the retention issue",
+		Date:      time.Now().Format("2006-01-02"),
+	}); err != nil {
+		t.Fatalf("InsertJournalEntry: %v", err)
+	}
+	if _, err := stm.InsertActivityTurn(memory.ActivityTurn{
+		Date:            time.Now().Format("2006-01-02"),
+		SessionID:       "default",
+		Channel:         "web_chat",
+		UserRelevant:    true,
+		Intent:          "Review backup status",
+		UserRequest:     "What did we do on backups?",
+		UserGoal:        "Review backup status",
+		ActionsTaken:    []string{"query_memory"},
+		Outcomes:        []string{"Found the retention misconfiguration"},
+		ImportantPoints: []string{"Retention policy needed a fix"},
+		ToolNames:       []string{"query_memory"},
+	}); err != nil {
+		t.Fatalf("InsertActivityTurn: %v", err)
+	}
+
+	out := dispatchExec(
+		context.Background(),
+		ToolCall{Action: "context_memory", Query: "backup", Sources: []string{"activity", "journal", "notes"}, TimeRange: "last_week", ContextDepth: "deep"},
+		cfg,
+		logger,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		stm,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		false,
+		"",
+		nil,
+		"",
+		nil,
+		nil,
+	)
+
+	if !strings.Contains(out, `"combined_results"`) {
+		t.Fatalf("output = %q, want combined results", out)
+	}
+	if !strings.Contains(out, `"source":"activity"`) {
+		t.Fatalf("output = %q, want activity result", out)
+	}
+	if !strings.Contains(out, `"source":"journal"`) {
+		t.Fatalf("output = %q, want journal result", out)
+	}
+}
+
 type testWriter struct {
 	t *testing.T
 }

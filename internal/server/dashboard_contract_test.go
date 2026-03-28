@@ -361,3 +361,56 @@ func TestHandleDashboardOverviewContract(t *testing.T) {
 		}
 	}
 }
+
+func TestHandleActivityOverviewContract(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	t.Cleanup(func() { _ = stm.Close() })
+	if err := stm.InitJournalTables(); err != nil {
+		t.Fatalf("InitJournalTables: %v", err)
+	}
+	if err := stm.InitNotesTables(); err != nil {
+		t.Fatalf("InitNotesTables: %v", err)
+	}
+	if _, err := stm.AddNote("todo", "Validate activity endpoint", "", 3, ""); err != nil {
+		t.Fatalf("AddNote: %v", err)
+	}
+	if _, err := stm.InsertActivityTurn(memory.ActivityTurn{
+		Date:            time.Now().Format("2006-01-02"),
+		SessionID:       "default",
+		Channel:         "web_chat",
+		UserRelevant:    true,
+		Intent:          "Inspect the new activity endpoint",
+		UserRequest:     "Show the recent activity overview",
+		UserGoal:        "Inspect the new activity endpoint",
+		ActionsTaken:    []string{"query_memory"},
+		Outcomes:        []string{"Built the activity endpoint response"},
+		ImportantPoints: []string{"Endpoint returns a recent overview"},
+		ToolNames:       []string{"query_memory"},
+	}); err != nil {
+		t.Fatalf("InsertActivityTurn: %v", err)
+	}
+
+	s := &Server{ShortTermMem: stm, Logger: logger}
+	req := httptest.NewRequest(http.MethodGet, "/api/memory/activity-overview?days=7&include_entries=true", nil)
+	rec := httptest.NewRecorder()
+
+	handleActivityOverview(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d", rec.Code)
+	}
+
+	var body map[string]interface{}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("failed to decode JSON: %v", err)
+	}
+	for _, key := range []string{"overview_summary", "days", "highlights", "important_points", "pending_items", "top_goals", "entries"} {
+		if _, ok := body[key]; !ok {
+			t.Fatalf("activity overview missing key %q", key)
+		}
+	}
+}
