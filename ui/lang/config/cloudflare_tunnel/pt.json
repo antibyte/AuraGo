@@ -15,5 +15,10 @@
   "config.cloudflare_tunnel.disabled_notice": "Cloudflare Tunnel est\u00e1 desativado",
   "config.cloudflare_tunnel.disabled_desc": "Ative o bot\u00e3o para gerenciar t\u00faneis Cloudflare para acesso remoto seguro aos seus servi\u00e7os locais.",
   "config.cloudflare_tunnel.token_hint": "Armazene seu token de conector Cloudflare no cofre de segredos com a chave 'cloudflared_token'.",
-  "config.cloudflare_tunnel.named_hint": "Armazene o conte\u00fado do seu credentials.json no cofre de segredos com a chave 'cloudflared_credentials'."
+  "config.cloudflare_tunnel.named_hint": "Armazene o conte\u00fado do seu credentials.json no cofre de segredos com a chave 'cloudflared_credentials'.",
+  "config.cloudflare_tunnel.token_label": "Connector Token",
+  "config.cloudflare_tunnel.token_placeholder": "Digite o token do conector Cloudflare",
+  "config.cloudflare_tunnel.save_vault": "Salvar no Vault",
+  "config.cloudflare_tunnel.token_empty": "O token n\u00e3o pode estar vazio",
+  "config.cloudflare_tunnel.token_saved": "Token salvo no vault com sucesso"
 }

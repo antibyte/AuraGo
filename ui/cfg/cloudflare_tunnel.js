@@ -118,11 +118,15 @@ async function renderCloudflareTunnelSection(section) {
         <div class="toggle ${exposeHomepage ? 'on' : ''}" data-path="cloudflare_tunnel.expose_homepage" onclick="toggleBool(this)"></div>
     </div>`;
 
-    // Auth hint for token mode
+    // Token input for token auth mode
     if ((cfg.auth_method === 'token' || !cfg.auth_method) && enabled) {
-        html += `<div class="wh-notice cft-notice-warn">
-            <span>🔑</span>
-            <div><small>${t('config.cloudflare_tunnel.token_hint')}</small></div>
+        html += `<div class="cft-field-group">
+            <label class="cft-field-label">
+                <span class="cft-field-caption">${t('config.cloudflare_tunnel.token_label')}</span>
+                <input class="cfg-input cft-field-input adg-password-input" type="password" id="cloudflare-tunnel-token" placeholder="${t('config.cloudflare_tunnel.token_placeholder')}">
+            </label>
+            <button class="btn-save adg-save-btn" onclick="cloudflareTunnelSaveToken()">💾 ${t('config.cloudflare_tunnel.save_vault')}</button>
+            <span id="cloudflare-tunnel-token-status" style="font-size:0.78rem;display:block;margin-top:0.3rem;"></span>
         </div>`;
     }
 
@@ -136,4 +140,30 @@ async function renderCloudflareTunnelSection(section) {
 
     html += `</div>`; // close section
     document.getElementById('content').innerHTML = html;
+}
+
+function cloudflareTunnelSaveToken() {
+    const token = document.getElementById('cloudflare-tunnel-token')?.value;
+    const status = document.getElementById('cloudflare-tunnel-token-status');
+    if (!token) {
+        if (status) { status.textContent = t('config.cloudflare_tunnel.token_empty'); status.style.color = 'var(--error)'; }
+        return;
+    }
+    fetch('/api/vault', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'cloudflared_token', value: token })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.error) {
+            if (status) { status.textContent = data.error; status.style.color = 'var(--error)'; }
+        } else {
+            if (status) { status.textContent = t('config.cloudflare_tunnel.token_saved'); status.style.color = 'var(--success)'; }
+            document.getElementById('cloudflare-tunnel-token').value = '';
+        }
+    })
+    .catch(err => {
+        if (status) { status.textContent = 'Error: ' + err; status.style.color = 'var(--error)'; }
+    });
 }

@@ -15,5 +15,10 @@
   "config.cloudflare_tunnel.disabled_notice": "Cloudflare Tunnel er deaktivert",
   "config.cloudflare_tunnel.disabled_desc": "Aktiver bryteren for \u00e5 administrere Cloudflare-tunneler for sikker fjerntilgang til dine lokale tjenester.",
   "config.cloudflare_tunnel.token_hint": "Lagre ditt Cloudflare-tilkoblingstoken i hemmelighetsvelvet med n\u00f8kkelen 'cloudflared_token'.",
-  "config.cloudflare_tunnel.named_hint": "Lagre innholdet i credentials.json i hemmelighetsvelvet med n\u00f8kkelen 'cloudflared_credentials'."
+  "config.cloudflare_tunnel.named_hint": "Lagre innholdet i credentials.json i hemmelighetsvelvet med n\u00f8kkelen 'cloudflared_credentials'.",
+  "config.cloudflare_tunnel.token_label": "Connector Token",
+  "config.cloudflare_tunnel.token_placeholder": "Angi Cloudflare connector token",
+  "config.cloudflare_tunnel.save_vault": "Lagre i Vault",
+  "config.cloudflare_tunnel.token_empty": "Token kan ikke v\u00e6re tom",
+  "config.cloudflare_tunnel.token_saved": "Token lagret i vault"
 }

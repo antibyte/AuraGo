@@ -15,5 +15,10 @@
   "config.cloudflare_tunnel.disabled_notice": "Cloudflare Tunnel \u00e4r inaktiverad",
   "config.cloudflare_tunnel.disabled_desc": "Aktivera v\u00e4xeln f\u00f6r att hantera Cloudflare-tunnlar f\u00f6r s\u00e4ker fj\u00e4rr\u00e5tkomst till dina lokala tj\u00e4nster.",
   "config.cloudflare_tunnel.token_hint": "Spara din Cloudflare-anslutningstoken i hemlighetskammaren med nyckeln 'cloudflared_token'.",
-  "config.cloudflare_tunnel.named_hint": "Spara inneh\u00e5llet i din credentials.json i hemlighetskammaren med nyckeln 'cloudflared_credentials'."
+  "config.cloudflare_tunnel.named_hint": "Spara inneh\u00e5llet i din credentials.json i hemlighetskammaren med nyckeln 'cloudflared_credentials'.",
+  "config.cloudflare_tunnel.token_label": "Connector Token",
+  "config.cloudflare_tunnel.token_placeholder": "Ange Cloudflare-anslutningstoken",
+  "config.cloudflare_tunnel.save_vault": "Spara i Vault",
+  "config.cloudflare_tunnel.token_empty": "Token kan inte vara tom",
+  "config.cloudflare_tunnel.token_saved": "Token sparades i vault"
 }

@@ -15,5 +15,10 @@
   "config.cloudflare_tunnel.disabled_notice": "Cloudflare Tunnel is disabled",
   "config.cloudflare_tunnel.disabled_desc": "Enable the toggle to manage Cloudflare Tunnels for secure remote access to your local services.",
   "config.cloudflare_tunnel.token_hint": "Store your Cloudflare connector token in the Secrets Vault with key 'cloudflared_token'.",
-  "config.cloudflare_tunnel.named_hint": "Store your tunnel credentials.json content in the Secrets Vault with key 'cloudflared_credentials'."
+  "config.cloudflare_tunnel.named_hint": "Store your tunnel credentials.json content in the Secrets Vault with key 'cloudflared_credentials'.",
+  "config.cloudflare_tunnel.token_label": "Connector Token",
+  "config.cloudflare_tunnel.token_placeholder": "Enter your Cloudflare connector token",
+  "config.cloudflare_tunnel.save_vault": "Save to Vault",
+  "config.cloudflare_tunnel.token_empty": "Token cannot be empty",
+  "config.cloudflare_tunnel.token_saved": "Token saved to vault successfully"
 }

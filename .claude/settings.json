@@ -6,7 +6,8 @@
       "Bash(docker build:*)",
       "Bash(docker buildx:*)",
       "Bash(tar -tzf deploy/resources.dat)",
-      "Bash(bash -x make_deploy.sh)"
+      "Bash(bash -x make_deploy.sh)",
+      "Bash(xxd \"c:/Users/Andi/Documents/repo/AuraGo/ui/lang/config/cloudflare_tunnel/ja.json\")"
     ]
   }
 }

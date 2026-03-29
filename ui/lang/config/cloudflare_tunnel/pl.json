@@ -15,5 +15,10 @@
   "config.cloudflare_tunnel.disabled_notice": "Cloudflare Tunnel jest wy\u0142\u0105czony",
   "config.cloudflare_tunnel.disabled_desc": "W\u0142\u0105cz prze\u0142\u0105cznik, aby zarz\u0105dza\u0107 tunelami Cloudflare dla bezpiecznego zdalnego dost\u0119pu do lokalnych us\u0142ug.",
   "config.cloudflare_tunnel.token_hint": "Zapisz token konektora Cloudflare w skarbcu sekret\u00f3w z kluczem 'cloudflared_token'.",
-  "config.cloudflare_tunnel.named_hint": "Zapisz zawarto\u015b\u0107 credentials.json w skarbcu sekret\u00f3w z kluczem 'cloudflared_credentials'."
+  "config.cloudflare_tunnel.named_hint": "Zapisz zawarto\u015b\u0107 credentials.json w skarbcu sekret\u00f3w z kluczem 'cloudflared_credentials'.",
+  "config.cloudflare_tunnel.token_label": "Connector Token",
+  "config.cloudflare_tunnel.token_placeholder": "Wprowad\u017a token konektora Cloudflare",
+  "config.cloudflare_tunnel.save_vault": "Zapisz w Vault",
+  "config.cloudflare_tunnel.token_empty": "Token nie mo\u017ce by\u0107 pusty",
+  "config.cloudflare_tunnel.token_saved": "Token zapisany w vault"
 }

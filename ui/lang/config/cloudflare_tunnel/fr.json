@@ -15,5 +15,10 @@
   "config.cloudflare_tunnel.disabled_notice": "Cloudflare Tunnel est d\u00e9sactiv\u00e9",
   "config.cloudflare_tunnel.disabled_desc": "Activez le bouton pour g\u00e9rer les tunnels Cloudflare pour un acc\u00e8s distant s\u00e9curis\u00e9 \u00e0 vos services locaux.",
   "config.cloudflare_tunnel.token_hint": "Stockez votre jeton de connecteur Cloudflare dans le coffre-fort avec la cl\u00e9 'cloudflared_token'.",
-  "config.cloudflare_tunnel.named_hint": "Stockez le contenu de votre credentials.json dans le coffre-fort avec la cl\u00e9 'cloudflared_credentials'."
+  "config.cloudflare_tunnel.named_hint": "Stockez le contenu de votre credentials.json dans le coffre-fort avec la cl\u00e9 'cloudflared_credentials'.",
+  "config.cloudflare_tunnel.token_label": "Connector Token",
+  "config.cloudflare_tunnel.token_placeholder": "Entrez le token de connecteur Cloudflare",
+  "config.cloudflare_tunnel.save_vault": "Sauvegarder dans le Vault",
+  "config.cloudflare_tunnel.token_empty": "Le jeton ne peut pas \u00eatre vide",
+  "config.cloudflare_tunnel.token_saved": "Jeton enregistr\u00e9 dans le vault avec succ\u00e8s"
 }

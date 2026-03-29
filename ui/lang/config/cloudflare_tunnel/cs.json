@@ -15,5 +15,10 @@
   "config.cloudflare_tunnel.disabled_notice": "Cloudflare Tunnel je zak\u00e1z\u00e1n",
   "config.cloudflare_tunnel.disabled_desc": "Povolte p\u0159ep\u00edna\u010d pro spr\u00e1vu Cloudflare tunel\u016f pro bezpe\u010dn\u00fd vzd\u00e1len\u00fd p\u0159\u00edstup k va\u0161im lok\u00e1ln\u00edm slu\u017eb\u00e1m.",
   "config.cloudflare_tunnel.token_hint": "Ulo\u017ete sv\u016fj Cloudflare p\u0159ipojovac\u00ed token do trezoru tajemstv\u00ed s kl\u00ed\u010dem 'cloudflared_token'.",
-  "config.cloudflare_tunnel.named_hint": "Ulo\u017ete obsah credentials.json do trezoru tajemstv\u00ed s kl\u00ed\u010dem 'cloudflared_credentials'."
+  "config.cloudflare_tunnel.named_hint": "Ulo\u017ete obsah credentials.json do trezoru tajemstv\u00ed s kl\u00ed\u010dem 'cloudflared_credentials'.",
+  "config.cloudflare_tunnel.token_label": "Connector Token",
+  "config.cloudflare_tunnel.token_placeholder": "Zadejte Cloudflare connector token",
+  "config.cloudflare_tunnel.save_vault": "Ulo\u017eit do trezoru",
+  "config.cloudflare_tunnel.token_empty": "Token nem\u016f\u017ee b\u00fdt pr\u00e1zdn\u00fd",
+  "config.cloudflare_tunnel.token_saved": "Token \u00fasp\u011b\u0161n\u011b ulo\u017een do trezoru"
 }
