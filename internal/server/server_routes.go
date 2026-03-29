@@ -8,6 +8,8 @@ import (
 	"io/fs"
 	"net"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -1450,8 +1452,35 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	loopbackPort := s.Cfg.CloudflareTunnel.LoopbackPort
 	httpsActive := s.Cfg.Server.HTTPS.Enabled
 	s.CfgMu.RUnlock()
-	// Always build and store the loopback handler so hot-reload can start the listener later.
-	s.loopbackHandler = accessLogMiddleware(s.accessLogger(), securityHeadersMiddleware(authMiddleware(s, mux), false, false))
+	// Build a dynamic loopback handler: routes requests to either the Homepage caddy
+	// server or the Web UI depending on the current expose-target config, without
+	// requiring a cloudflared restart or port change.
+	webUILoopbackHandler := accessLogMiddleware(s.accessLogger(), securityHeadersMiddleware(authMiddleware(s, mux), false, false))
+	homepageProxy := &httputil.ReverseProxy{
+		Director: func(req *http.Request) {
+			s.CfgMu.RLock()
+			port := s.Cfg.Homepage.WebServerPort
+			if port <= 0 {
+				port = 8080
+			}
+			s.CfgMu.RUnlock()
+			targetURL, _ := url.Parse(fmt.Sprintf("http://localhost:%d", port))
+			req.URL.Scheme = targetURL.Scheme
+			req.URL.Host = targetURL.Host
+			req.Header.Set("X-Forwarded-Host", req.Host)
+		},
+	}
+	s.loopbackHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		s.CfgMu.RLock()
+		exposeHomepage := s.Cfg.CloudflareTunnel.ExposeHomepage
+		exposeWebUI := s.Cfg.CloudflareTunnel.ExposeWebUI
+		s.CfgMu.RUnlock()
+		if exposeHomepage && !exposeWebUI {
+			homepageProxy.ServeHTTP(w, r)
+		} else {
+			webUILoopbackHandler.ServeHTTP(w, r)
+		}
+	})
 	if loopbackPort > 0 && httpsActive {
 		bindAddr := fmt.Sprintf("127.0.0.1:%d", loopbackPort)
 		ln, err := net.Listen("tcp4", bindAddr)

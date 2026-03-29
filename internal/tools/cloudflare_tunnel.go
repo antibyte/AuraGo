@@ -473,11 +473,13 @@ func cfPutTunnelConfig(ctx context.Context, accountID, apiToken, tunnelID string
 //   - If only ExposeHomepage is true → use HomepagePort (plain HTTP)
 //   - Otherwise (ExposeWebUI or default) → use WebUIPort / HTTPS / Loopback
 func buildLocalURL(cfg CloudflareTunnelConfig, host string) string {
-	// Loopback port always wins — plain HTTP, stays on 127.0.0.1.
+	// Loopback port always wins — plain HTTP on 127.0.0.1 (host-network Docker or process).
+	// The loopback listener inside AuraGo dynamically routes to Web UI or Homepage
+	// based on the current config, so cloudflared never needs to change its target URL.
 	if cfg.LoopbackPort > 0 {
 		return fmt.Sprintf("http://127.0.0.1:%d", cfg.LoopbackPort)
 	}
-	// Homepage-only mode: route the single tunnel origin to the Homepage server.
+	// No loopback port: route directly to Homepage or Web UI.
 	if cfg.ExposeHomepage && !cfg.ExposeWebUI && cfg.HomepagePort > 0 {
 		return fmt.Sprintf("http://%s:%d", host, cfg.HomepagePort)
 	}
