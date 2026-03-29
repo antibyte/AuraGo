@@ -301,7 +301,7 @@ func startTokenTunnel(cfg CloudflareTunnelConfig, vault *security.Vault, registr
 			configDir := filepath.Join(cfg.DataDir, "cloudflared")
 			if mkErr := os.MkdirAll(configDir, 0o700); mkErr == nil {
 				configPath := filepath.Join(configDir, "origin-config.yml")
-				if wErr := os.WriteFile(configPath, []byte(configContent), 0o600); wErr == nil {
+				if wErr := os.WriteFile(configPath, []byte(configContent), 0o644); wErr == nil {
 					tunnelArgs = append([]string{"tunnel", "--config", "/etc/cloudflared/origin-config.yml", "--url", localURL}, "run")
 					extraBinds = []string{configDir + ":/etc/cloudflared:ro"}
 					logger.Info("[CloudflareTunnel] Origin config written with noTLSVerify", "path", configPath)
