@@ -240,41 +240,57 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			return
 		}
 
-		// Pre-flight: if HTTPS is being enabled (or port changed), verify the
+		// Pre-flight: if HTTPS is being newly enabled or the port is changing, verify the
 		// configured port is actually bindable RIGHT NOW. Reject the save if not.
-		// This prevents the user from being locked out after a restart.
+		// Skip this check if HTTPS was already active on the same port — AuraGo itself
+		// holds that port, so net.Listen would always fail even though everything is fine.
 		if validateCfg.Server.HTTPS.Enabled {
 			httpsPort := validateCfg.Server.HTTPS.HTTPSPort
 			if httpsPort <= 0 {
 				httpsPort = 443
 			}
-			if ln, bindErr := net.Listen("tcp", fmt.Sprintf(":%d", httpsPort)); bindErr != nil {
-				errMsg := bindErr.Error()
-				var userMsg string
-				if strings.Contains(errMsg, "permission denied") || strings.Contains(errMsg, "access is denied") {
-					userMsg = fmt.Sprintf(
-						"Cannot enable HTTPS: port %d requires root or CAP_NET_BIND_SERVICE. "+
-							"Use an unprivileged port (e.g. 8443) or run: sudo setcap cap_net_bind_service=+ep %s",
-						httpsPort, os.Args[0])
-				} else if strings.Contains(errMsg, "address already in use") || strings.Contains(errMsg, "bind: address already") {
-					userMsg = fmt.Sprintf(
-						"Cannot enable HTTPS: port %d is already in use by another process (e.g. Security Proxy, Caddy, nginx). "+
-							"Stop the conflicting service or use a different port (e.g. 8443).",
-						httpsPort)
+			s.CfgMu.RLock()
+			currentHTTPS := s.Cfg.Server.HTTPS.Enabled
+			currentPort := s.Cfg.Server.HTTPS.HTTPSPort
+			s.CfgMu.RUnlock()
+			if currentPort <= 0 {
+				currentPort = 443
+			}
+			// Only run the bind-test if HTTPS is being switched on or the port changed
+			runBindTest := !currentHTTPS || (currentPort != httpsPort)
+			if runBindTest {
+				if ln, bindErr := net.Listen("tcp", fmt.Sprintf(":%d", httpsPort)); bindErr != nil {
+					errMsg := bindErr.Error()
+					var userMsg string
+					if strings.Contains(errMsg, "permission denied") || strings.Contains(errMsg, "access is denied") {
+						userMsg = fmt.Sprintf(
+							"Cannot enable HTTPS: port %d requires root or CAP_NET_BIND_SERVICE. "+
+								"Use an unprivileged port (e.g. 8443) or run: sudo setcap cap_net_bind_service=+ep %s",
+							httpsPort, os.Args[0])
+					} else if strings.Contains(errMsg, "address already in use") || strings.Contains(errMsg, "bind: address already") {
+						altPort := 8443
+						if httpsPort == 8443 {
+							altPort = 8444
+						}
+						userMsg = fmt.Sprintf(
+							"Cannot enable HTTPS: port %d is already in use by another process (e.g. Security Proxy, Caddy, nginx). "+
+								"Stop the conflicting service or use a different port (e.g. %d).",
+							httpsPort, altPort)
+					} else {
+						userMsg = fmt.Sprintf("Cannot enable HTTPS: port %d is not available: %s", httpsPort, errMsg)
+					}
+					s.Logger.Error("[Config] HTTPS port pre-flight check failed — save rejected",
+						"port", httpsPort, "error", bindErr)
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusBadRequest)
+					json.NewEncoder(w).Encode(map[string]interface{}{
+						"status":  "error",
+						"message": userMsg,
+					})
+					return
 				} else {
-					userMsg = fmt.Sprintf("Cannot enable HTTPS: port %d is not available: %s", httpsPort, errMsg)
+					ln.Close()
 				}
-				s.Logger.Error("[Config] HTTPS port pre-flight check failed — save rejected",
-					"port", httpsPort, "error", bindErr)
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusBadRequest)
-				json.NewEncoder(w).Encode(map[string]interface{}{
-					"status":  "error",
-					"message": userMsg,
-				})
-				return
-			} else {
-				ln.Close()
 			}
 		}
 
