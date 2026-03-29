@@ -3,6 +3,7 @@
   "config.skill_manager.allow_uploads_label": "アップロードを許可",
   "config.skill_manager.read_only_label": "読み取り専用モード",
   "config.skill_manager.require_scan_label": "セキュリティスキャン必須",
+  "config.skill_manager.require_sandbox_label": "Sandboxで実行",
   "config.skill_manager.auto_enable_clean_label": "クリーンなスキルを自動有効化",
   "config.skill_manager.scan_with_guardian_label": "LLM Guardianでスキャン",
   "config.skill_manager.max_upload_size_mb_label": "最大アップロードサイズ (MB)",
@@ -10,6 +11,7 @@
   "help.skill_manager.allow_uploads": "新しいPythonスキルファイルのアップロードを許可する",
   "help.skill_manager.read_only": "有効にすると、スキルへのすべての変更が防止されます（アップロード、削除、切り替え不可）",
   "help.skill_manager.require_scan": "スキルを有効にする前にアップロードされたスキルのセキュリティスキャンを実行する",
+  "help.skill_manager.require_sandbox": "有効にすると、スキルはサンドボックス化されたコンテナ環境内でのみ実行できます。これによりシステムへの直接アクセスが防止されます。",
   "help.skill_manager.auto_enable_clean": "警告なしでセキュリティスキャンに合格したスキルを自動的に有効にする",
   "help.skill_manager.scan_with_guardian": "LLM Guardianを使用してアップロードされたスキルコードのセキュリティ問題を確認する",
   "help.skill_manager.max_upload_size_mb": "スキルアップロードの最大許容ファイルサイズ（メガバイト）"

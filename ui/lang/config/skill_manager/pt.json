@@ -3,6 +3,7 @@
   "config.skill_manager.allow_uploads_label": "Permitir carregamentos",
   "config.skill_manager.read_only_label": "Modo somente leitura",
   "config.skill_manager.require_scan_label": "Verificação de segurança obrigatória",
+  "config.skill_manager.require_sandbox_label": "Executar em Sandbox",
   "config.skill_manager.auto_enable_clean_label": "Ativar automaticamente habilidades limpas",
   "config.skill_manager.scan_with_guardian_label": "Verificar com LLM Guardian",
   "config.skill_manager.max_upload_size_mb_label": "Tamanho máximo de carregamento (MB)",
@@ -10,6 +11,7 @@
   "help.skill_manager.allow_uploads": "Permitir o carregamento de novos ficheiros de habilidades Python",
   "help.skill_manager.read_only": "Quando ativado, impede todas as modificações nas habilidades (sem carregamento, exclusão ou alternância)",
   "help.skill_manager.require_scan": "Executar uma verificação de segurança nas habilidades carregadas antes de ativá-las",
+  "help.skill_manager.require_sandbox": "Quando ativado, as habilidades só podem ser executadas dentro do ambiente de contentor sandboxed. Isto impede o acesso direto ao sistema.",
   "help.skill_manager.auto_enable_clean": "Ativar automaticamente as habilidades que passam na verificação de segurança sem avisos",
   "help.skill_manager.scan_with_guardian": "Usar o LLM Guardian para verificar o código das habilidades carregadas",
   "help.skill_manager.max_upload_size_mb": "Tamanho máximo permitido para carregamentos de habilidades em megabytes"

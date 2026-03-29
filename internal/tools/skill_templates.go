@@ -104,6 +104,29 @@ type templateData struct {
 
 var validFuncNameRe = regexp.MustCompile(`[^a-zA-Z0-9_]`)
 
+// escapePythonString escapes a string for safe inclusion in a Python single-quoted
+// string literal: backslashes, single quotes, and control characters are escaped.
+func escapePythonString(s string) string {
+	var sb strings.Builder
+	for _, r := range s {
+		switch r {
+		case '\\':
+			sb.WriteString(`\\`)
+		case '\'':
+			sb.WriteString(`\'`)
+		case '\n':
+			sb.WriteString(`\n`)
+		case '\r':
+			sb.WriteString(`\r`)
+		case '\t':
+			sb.WriteString(`\t`)
+		default:
+			sb.WriteRune(r)
+		}
+	}
+	return sb.String()
+}
+
 // toFunctionName converts a skill name to a valid Python function name.
 func toFunctionName(name string) string {
 	fn := validFuncNameRe.ReplaceAllString(name, "_")
@@ -156,7 +179,7 @@ func CreateSkillFromTemplate(skillsDir, templateName, skillName, description, ba
 	data := templateData{
 		FunctionName: toFunctionName(skillName),
 		Description:  description,
-		BaseURL:      baseURL,
+		BaseURL:      escapePythonString(baseURL),
 	}
 	if data.Description == "" {
 		data.Description = tmpl.Description
@@ -218,7 +241,7 @@ func CreateSkillFromTemplate(skillsDir, templateName, skillName, description, ba
 	if err != nil {
 		return "", fmt.Errorf("failed to serialize manifest: %w", err)
 	}
-	if err := writeFileExclusive(jsonPath, manifestJSON, 0o644); err != nil {
+	if err := writeFileExclusive(jsonPath, manifestJSON, 0o640); err != nil {
 		if os.IsExist(err) {
 			return "", fmt.Errorf("skill '%s' already exists", skillName)
 		}
@@ -230,7 +253,7 @@ func CreateSkillFromTemplate(skillsDir, templateName, skillName, description, ba
 		_ = os.Remove(jsonPath)
 		return "", err
 	}
-	if err := writeFileExclusive(pyPath, codeBuf.Bytes(), 0o644); err != nil {
+	if err := writeFileExclusive(pyPath, codeBuf.Bytes(), 0o640); err != nil {
 		// Clean up manifest if Python file write fails
 		os.Remove(jsonPath)
 		if os.IsExist(err) {
@@ -238,6 +261,8 @@ func CreateSkillFromTemplate(skillsDir, templateName, skillName, description, ba
 		}
 		return "", fmt.Errorf("failed to write Python script: %w", err)
 	}
+
+	InvalidateSkillsCache(skillsDir)
 
 	return fmt.Sprintf("Skill '%s' created from template '%s'.\nFiles: %s, %s\nDependencies: %s\nUse execute_skill with skill='%s' to run it.",
 		skillName, templateName, filepath.Base(jsonPath), filepath.Base(pyPath),

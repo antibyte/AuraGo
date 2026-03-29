@@ -3,6 +3,7 @@
   "config.skill_manager.allow_uploads_label": "Allow Uploads",
   "config.skill_manager.read_only_label": "Read-Only Mode",
   "config.skill_manager.require_scan_label": "Require Security Scan",
+  "config.skill_manager.require_sandbox_label": "Run in Sandbox",
   "config.skill_manager.auto_enable_clean_label": "Auto-Enable Clean Skills",
   "config.skill_manager.scan_with_guardian_label": "Scan with LLM Guardian",
   "config.skill_manager.max_upload_size_mb_label": "Max Upload Size (MB)",
@@ -10,6 +11,7 @@
   "help.skill_manager.allow_uploads": "Allow uploading new Python skill files",
   "help.skill_manager.read_only": "When enabled, prevents all modifications to skills (no upload, delete, or toggle)",
   "help.skill_manager.require_scan": "Run a security scan on uploaded skills before enabling them",
+  "help.skill_manager.require_sandbox": "When enabled, skills can only be executed inside the sandboxed container environment. This prevents direct access to the system.",
   "help.skill_manager.auto_enable_clean": "Automatically enable skills that pass the security scan without warnings",
   "help.skill_manager.scan_with_guardian": "Use the LLM Guardian to review uploaded skill code for security issues",
   "help.skill_manager.max_upload_size_mb": "Maximum allowed file size for skill uploads in megabytes"

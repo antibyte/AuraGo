@@ -26,6 +26,9 @@ var blockedSecretPrefixes = []string{
 	"credential_password_",
 	"credential_certificate_",
 	"credential_token_",
+	"credential_api_key_",
+	"credential_session_",
+	"credential_bearer_",
 	"sqlconn_",
 	"cloudflare_tunnel_",
 	"s3_",
@@ -239,9 +242,7 @@ func InjectCredentialEnv(cmd *exec.Cmd, creds []CredentialFields) {
 		for field, val := range cf.Fields {
 			envKey := prefix + strings.ToUpper(field)
 			cmd.Env = append(cmd.Env, envKey+"="+val)
-			if field != "username" {
-				security.RegisterSensitive(val)
-			}
+			security.RegisterSensitive(val)
 		}
 	}
 }
@@ -261,9 +262,7 @@ func BuildCredentialPrelude(creds []CredentialFields) string {
 			escaped := strings.ReplaceAll(val, `\`, `\\`)
 			escaped = strings.ReplaceAll(escaped, `'`, `\'`)
 			sb.WriteString(fmt.Sprintf("_aurago_os.environ['%s'] = '%s'\n", envKey, escaped))
-			if field != "username" {
-				security.RegisterSensitive(val)
-			}
+			security.RegisterSensitive(val)
 		}
 	}
 	sb.WriteString("del _aurago_os\n")

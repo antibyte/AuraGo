@@ -3,6 +3,7 @@
   "config.skill_manager.allow_uploads_label": "Autoriser les téléchargements",
   "config.skill_manager.read_only_label": "Mode lecture seule",
   "config.skill_manager.require_scan_label": "Analyse de sécurité requise",
+  "config.skill_manager.require_sandbox_label": "Exécuter dans le bac à sable",
   "config.skill_manager.auto_enable_clean_label": "Activer automatiquement les compétences propres",
   "config.skill_manager.scan_with_guardian_label": "Analyser avec LLM Guardian",
   "config.skill_manager.max_upload_size_mb_label": "Taille maximale de téléchargement (Mo)",
@@ -10,6 +11,7 @@
   "help.skill_manager.allow_uploads": "Autoriser le téléchargement de nouveaux fichiers de compétences Python",
   "help.skill_manager.read_only": "Lorsqu'activé, empêche toute modification des compétences (pas de téléchargement, suppression ou basculement)",
   "help.skill_manager.require_scan": "Effectuer une analyse de sécurité sur les compétences téléchargées avant de les activer",
+  "help.skill_manager.require_sandbox": "Lorsqu'activé, les compétences ne peuvent être exécutées que dans l'environnement de conteneur sandbox. Cela empêche l'accès direct au système.",
   "help.skill_manager.auto_enable_clean": "Activer automatiquement les compétences qui passent l'analyse de sécurité sans avertissements",
   "help.skill_manager.scan_with_guardian": "Utiliser le LLM Guardian pour vérifier le code des compétences téléchargées",
   "help.skill_manager.max_upload_size_mb": "Taille maximale autorisée pour les téléchargements de compétences en mégaoctets"

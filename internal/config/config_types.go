@@ -1042,6 +1042,7 @@ type Config struct {
 			AllowUploads     bool `yaml:"allow_uploads"`      // allow uploading new skills via web UI (default: true)
 			ReadOnly         bool `yaml:"readonly"`           // read-only mode: list/view only (default: false)
 			RequireScan      bool `yaml:"require_scan"`       // require security scan before enabling (default: true)
+			RequireSandbox   bool `yaml:"require_sandbox"`    // require sandbox for skill execution (default: false)
 			MaxUploadSizeMB  int  `yaml:"max_upload_size_mb"` // max upload file size in MB (default: 1)
 			AutoEnableClean  bool `yaml:"auto_enable_clean"`  // auto-enable skills that pass all scans (default: false)
 			ScanWithGuardian bool `yaml:"scan_with_guardian"` // use LLM Guardian for code review on upload (default: false, costs tokens)

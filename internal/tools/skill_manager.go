@@ -208,6 +208,11 @@ func (m *SkillManager) SyncFromDisk() error {
 
 		// Compute file hash if executable exists
 		var fileHash string
+		// Validate executable path to prevent path traversal attacks
+		if filepath.IsAbs(manifest.Executable) || strings.Contains(manifest.Executable, "..") {
+			m.logger.Warn("Skipping skill with invalid executable path", "name", manifest.Name, "executable", manifest.Executable)
+			continue
+		}
 		execPath := filepath.Join(m.skillsDir, manifest.Executable)
 		if data, err := os.ReadFile(execPath); err == nil {
 			h := sha256.Sum256(data)
@@ -476,7 +481,7 @@ func (m *SkillManager) UpdateSkillCode(id, code, updatedBy string) error {
 	}
 
 	codePath := filepath.Join(m.skillsDir, s.Executable)
-	if err := os.WriteFile(codePath, []byte(code), 0o644); err != nil {
+	if err := os.WriteFile(codePath, []byte(code), 0o640); err != nil {
 		return fmt.Errorf("writing skill code: %w", err)
 	}
 
@@ -498,6 +503,7 @@ func (m *SkillManager) UpdateSkillCode(id, code, updatedBy string) error {
 
 	m.logger.Info("Skill code updated", "id", id, "name", s.Name)
 	m.recordSkillAudit(id, s.Name, "code_updated", updatedBy, fmt.Sprintf("updated code to hash %s", fileHash))
+	InvalidateSkillsCache(m.skillsDir)
 	return nil
 }
 
@@ -548,6 +554,7 @@ func (m *SkillManager) DeleteSkill(id string, deleteFiles bool, deletedBy string
 	}
 
 	m.logger.Info("Skill deleted", "id", id, "name", s.Name, "files_deleted", deleteFiles)
+	InvalidateSkillsCache(m.skillsDir)
 	return nil
 }
 
@@ -665,6 +672,7 @@ func (m *SkillManager) CreateSkillEntry(name, description, code string, skillTyp
 		return nil, err
 	}
 	m.recordSkillAudit(id, name, "created", createdBy, fmt.Sprintf("type=%s category=%s", skillType, category))
+	InvalidateSkillsCache(m.skillsDir)
 
 	return &SkillRegistryEntry{
 		ID:             id,

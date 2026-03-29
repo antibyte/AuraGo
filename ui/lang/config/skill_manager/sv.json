@@ -3,6 +3,7 @@
   "config.skill_manager.allow_uploads_label": "Tillåt uppladdningar",
   "config.skill_manager.read_only_label": "Skrivskyddat läge",
   "config.skill_manager.require_scan_label": "Kräv säkerhetsskanning",
+  "config.skill_manager.require_sandbox_label": "Kör i Sandbox",
   "config.skill_manager.auto_enable_clean_label": "Aktivera rena färdigheter automatiskt",
   "config.skill_manager.scan_with_guardian_label": "Skanna med LLM Guardian",
   "config.skill_manager.max_upload_size_mb_label": "Maximal uppladdningsstorlek (MB)",
@@ -10,6 +11,7 @@
   "help.skill_manager.allow_uploads": "Tillåt uppladdning av nya Python-färdighetsfiler",
   "help.skill_manager.read_only": "När aktiverad förhindras alla ändringar av färdigheter (ingen uppladdning, radering eller växling)",
   "help.skill_manager.require_scan": "Kör en säkerhetsskanning av uppladdade färdigheter innan de aktiveras",
+  "help.skill_manager.require_sandbox": "När aktiverad kan färdigheter endast köras i den sandboxed behållarmiljön. Detta förhindrar direkt systemåtkomst.",
   "help.skill_manager.auto_enable_clean": "Aktivera automatiskt färdigheter som klarar säkerhetsskanningen utan varningar",
   "help.skill_manager.scan_with_guardian": "Använd LLM Guardian för att granska uppladdad färdighetskod för säkerhetsproblem",
   "help.skill_manager.max_upload_size_mb": "Maximal tillåten filstorlek för färdighetsuppladdningar i megabyte"

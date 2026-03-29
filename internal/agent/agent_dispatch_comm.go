@@ -536,7 +536,13 @@ func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 		}
 		var res string
 		var skillErr error
-		if len(secrets) > 0 || len(creds) > 0 {
+		if cfg.Tools.SkillManager.RequireSandbox {
+			// Sandbox enforcement: skills must run in the container sandbox
+			if !tools.GetSandboxManager().IsReady() {
+				return fmt.Sprintf("Tool Output: [SANDBOX REQUIRED] Skill '%s' requires sandbox execution but the sandbox is not available. Please enable the sandbox in settings (sandbox.enabled: true) or disable 'Require Sandbox' in skill manager settings.", skillName)
+			}
+			res, skillErr = tools.ExecuteSkillInSandbox(cfg.Directories.SkillsDir, cleanSkillName, args, secrets, creds, cfg.Tools.SkillTimeoutSeconds, logger)
+		} else if len(secrets) > 0 || len(creds) > 0 {
 			res, skillErr = tools.ExecuteSkillWithSecrets(cfg.Directories.SkillsDir, cfg.Directories.WorkspaceDir, skillName, args, secrets, creds)
 		} else {
 			res, skillErr = tools.ExecuteSkill(cfg.Directories.SkillsDir, cfg.Directories.WorkspaceDir, skillName, args)

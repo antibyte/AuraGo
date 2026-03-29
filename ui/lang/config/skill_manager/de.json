@@ -3,6 +3,7 @@
   "config.skill_manager.allow_uploads_label": "Uploads erlauben",
   "config.skill_manager.read_only_label": "Nur-Lesen-Modus",
   "config.skill_manager.require_scan_label": "Sicherheitsscan erforderlich",
+  "config.skill_manager.require_sandbox_label": "In Sandbox ausführen",
   "config.skill_manager.auto_enable_clean_label": "Saubere Fähigkeiten automatisch aktivieren",
   "config.skill_manager.scan_with_guardian_label": "Mit LLM Guardian scannen",
   "config.skill_manager.max_upload_size_mb_label": "Maximale Upload-Größe (MB)",
@@ -10,6 +11,7 @@
   "help.skill_manager.allow_uploads": "Hochladen neuer Python-Fähigkeitsdateien erlauben",
   "help.skill_manager.read_only": "Wenn aktiviert, werden alle Änderungen an Fähigkeiten verhindert (kein Upload, Löschen oder Umschalten)",
   "help.skill_manager.require_scan": "Sicherheitsscan für hochgeladene Fähigkeiten vor der Aktivierung durchführen",
+  "help.skill_manager.require_sandbox": "Wenn aktiviert, können Fähigkeiten nur noch in der Sandbox-Containerumgebung ausgeführt werden. Dies verhindert direkten Systemzugriff.",
   "help.skill_manager.auto_enable_clean": "Fähigkeiten automatisch aktivieren, die den Sicherheitsscan ohne Warnungen bestehen",
   "help.skill_manager.scan_with_guardian": "LLM Guardian verwenden, um hochgeladenen Fähigkeitscode auf Sicherheitsprobleme zu prüfen",
   "help.skill_manager.max_upload_size_mb": "Maximale erlaubte Dateigröße für Fähigkeits-Uploads in Megabyte"

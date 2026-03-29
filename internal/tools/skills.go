@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"aurago/internal/security"
@@ -21,6 +22,23 @@ import (
 // denial of service via excessively large JSON payloads.
 const maxSkillArgsBytes = 10 * 1024 * 1024 // 10 MB
 const skillDependencyInstallTimeout = 10 * time.Minute
+
+// skillsCacheTTL is the time-to-live for the ListSkills cache.
+const skillsCacheTTL = 5 * time.Second
+
+// skillsCacheEntry holds cached skill manifests and their expiration time.
+type skillsCacheEntry struct {
+	skills    []SkillManifest
+	expiresAt time.Time
+}
+
+// listSkillsCache is a simple TTL cache for skill manifests.
+var listSkillsCache = struct {
+	mu    sync.RWMutex
+	entries map[string]skillsCacheEntry
+}{
+	entries: make(map[string]skillsCacheEntry),
+}
 
 // SkillManifest represents the structure of a skill config file (.json).
 type SkillManifest struct {
@@ -36,7 +54,22 @@ type SkillManifest struct {
 }
 
 // ListSkills scans the skills directory for .json manifest files and returns them.
+// Results are cached for skillsCacheTTL to avoid repeated filesystem reads.
 func ListSkills(skillsDir string) ([]SkillManifest, error) {
+	absDir, err := filepath.Abs(skillsDir)
+	if err != nil {
+		absDir = skillsDir
+	}
+
+	// Check cache first
+	listSkillsCache.mu.RLock()
+	if entry, ok := listSkillsCache.entries[absDir]; ok && time.Now().Before(entry.expiresAt) {
+		listSkillsCache.mu.RUnlock()
+		return entry.skills, nil
+	}
+	listSkillsCache.mu.RUnlock()
+
+	// Cache miss - read from disk
 	var skills []SkillManifest
 
 	entries, err := os.ReadDir(skillsDir)
@@ -62,7 +95,27 @@ func ListSkills(skillsDir string) ([]SkillManifest, error) {
 		}
 	}
 
+	// Update cache
+	listSkillsCache.mu.Lock()
+	listSkillsCache.entries[absDir] = skillsCacheEntry{
+		skills:    skills,
+		expiresAt: time.Now().Add(skillsCacheTTL),
+	}
+	listSkillsCache.mu.Unlock()
+
 	return skills, nil
+}
+
+// InvalidateSkillsCache clears the cache for a specific skills directory.
+// Call this when skills are created, updated, or deleted.
+func InvalidateSkillsCache(skillsDir string) {
+	absDir, err := filepath.Abs(skillsDir)
+	if err != nil {
+		absDir = skillsDir
+	}
+	listSkillsCache.mu.Lock()
+	delete(listSkillsCache.entries, absDir)
+	listSkillsCache.mu.Unlock()
 }
 
 // ExecuteSkill dynamically executes the requested skill script, routing Python scripts to the venv.
@@ -120,10 +173,6 @@ func ExecuteSkill(skillsDir, workspaceDir, skillName string, argsJSON map[string
 
 	var cmd *exec.Cmd
 	if strings.HasSuffix(manifest.Executable, ".py") {
-		// Auto-install missing dependencies for Python skills without manifest deps
-		if len(manifest.Dependencies) == 0 {
-			detectAndInstallMissingDeps(absExecPath, workspaceDir)
-		}
 		cfgPythonBin := GetPythonBin(workspaceDir)
 		cmd = exec.CommandContext(ctx, cfgPythonBin, "-u", absExecPath)
 	} else if strings.HasSuffix(manifest.Executable, ".sh") && runtime.GOOS != "windows" {
@@ -218,10 +267,6 @@ func ExecuteSkillWithSecrets(skillsDir, workspaceDir, skillName string, argsJSON
 
 	var cmd *exec.Cmd
 	if strings.HasSuffix(manifest.Executable, ".py") {
-		// Auto-install missing dependencies for Python skills without manifest deps
-		if len(manifest.Dependencies) == 0 {
-			detectAndInstallMissingDeps(absExecPath, workspaceDir)
-		}
 		cfgPythonBin := GetPythonBin(workspaceDir)
 		cmd = exec.CommandContext(ctx, cfgPythonBin, "-u", absExecPath)
 	} else if strings.HasSuffix(manifest.Executable, ".sh") && runtime.GOOS != "windows" {
@@ -264,6 +309,77 @@ func ExecuteSkillWithSecrets(skillsDir, workspaceDir, skillName string, argsJSON
 	}
 
 	return output, nil
+}
+
+// ExecuteSkillInSandbox executes a skill inside the sandboxed container environment.
+// It reads the skill code, injects secrets/creds, prepends the args, and runs via SandboxExecuteCode.
+// Returns error if sandbox is unavailable or skill not found.
+func ExecuteSkillInSandbox(skillsDir, skillName string, argsJSON map[string]interface{}, secrets map[string]string, creds []CredentialFields, timeoutSeconds int, logger *slog.Logger) (string, error) {
+	// Read skill code
+	absExecPath := filepath.Join(skillsDir, skillName+".py")
+	data, err := os.ReadFile(absExecPath)
+	if err != nil {
+		return "", fmt.Errorf("skill '%s' not found: %v", skillName, err)
+	}
+	skillCode := string(data)
+
+	// Serialize args
+	if argsJSON == nil {
+		argsJSON = make(map[string]interface{})
+	}
+	argsBytes, err := json.Marshal(argsJSON)
+	if err != nil {
+		return "", fmt.Errorf("failed to serialize args: %v", err)
+	}
+	if len(argsBytes) > maxSkillArgsBytes {
+		return "", fmt.Errorf("skill args too large: %d bytes (max %d)", len(argsBytes), maxSkillArgsBytes)
+	}
+
+	// Build the execution script:
+	// 1. Prepend secrets/creds injection
+	// 2. Prepend args as a dict
+	// 3. The skill's if __name__ == "__main__" block will be skipped since we're executing as a module
+	// 4. We need to explicitly call the skill function
+
+	// Build secrets/creds prelude
+	prelude := ""
+	if len(secrets) > 0 {
+		prelude += BuildSecretPrelude(secrets)
+	}
+	if len(creds) > 0 {
+		prelude += BuildCredentialPrelude(creds)
+	}
+
+	// Build the call: we need to extract the function call from the if __name__ block
+	// For simplicity, we inject args and then call the function directly
+	// The skill templates have a consistent pattern: they call the function with kwargs
+	funcName := toFunctionName(skillName)
+	execCode := fmt.Sprintf(`import json
+%s
+args = json.loads('%s')
+result = %s(**args)
+print(json.dumps(result, ensure_ascii=False))
+`, prelude, strings.ReplaceAll(string(argsBytes), `'`, `\'`), funcName)
+
+	// Prepend the skill code (without the if __name__ block)
+	// Split on "if __name__" and only keep the function definition
+	mainIdx := strings.Index(skillCode, "if __name__")
+	if mainIdx > 0 {
+		skillCode = skillCode[:mainIdx]
+	}
+
+	// Full code: skill code + exec code
+	fullCode := skillCode + "\n" + execCode
+
+	// Execute via sandbox
+	if timeoutSeconds <= 0 {
+		timeoutSeconds = 30
+	}
+	result, err := SandboxExecuteCode(fullCode, "python", nil, timeoutSeconds, logger)
+	if err != nil {
+		return "", fmt.Errorf("sandbox execution failed: %v", err)
+	}
+	return result, nil
 }
 
 // ProvisionSkillDependencies scans all skills and installs their pip dependencies into the venv.

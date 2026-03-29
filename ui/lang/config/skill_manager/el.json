@@ -3,6 +3,7 @@
   "config.skill_manager.allow_uploads_label": "Επιτρέψτε μεταφορτώσεις",
   "config.skill_manager.read_only_label": "Λειτουργία μόνο ανάγνωσης",
   "config.skill_manager.require_scan_label": "Απαιτείται σάρωση ασφαλείας",
+  "config.skill_manager.require_sandbox_label": "Εκτέλεση σε Sandbox",
   "config.skill_manager.auto_enable_clean_label": "Αυτόματη ενεργοποίηση καθαρών δεξιοτήτων",
   "config.skill_manager.scan_with_guardian_label": "Σάρωση με LLM Guardian",
   "config.skill_manager.max_upload_size_mb_label": "Μέγιστο μέγεθος μεταφόρτωσης (MB)",
@@ -10,6 +11,7 @@
   "help.skill_manager.allow_uploads": "Επιτρέψτε τη μεταφόρτωση νέων αρχείων δεξιοτήτων Python",
   "help.skill_manager.read_only": "Όταν ενεργοποιηθεί, αποτρέπει όλες τις τροποποιήσεις δεξιοτήτων (χωρίς μεταφόρτωση, διαγραφή ή εναλλαγή)",
   "help.skill_manager.require_scan": "Εκτέλεση σάρωσης ασφαλείας στις μεταφορτωμένες δεξιότητες πριν την ενεργοποίησή τους",
+  "help.skill_manager.require_sandbox": "Όταν ενεργοποιηθεί, οι δεξιότητες μπορούν να εκτελούνται μόνο μέσα στο περιβάλλον του sandboxed container. Αυτό αποτρέπει την άμεση πρόσβαση στο σύστημα.",
   "help.skill_manager.auto_enable_clean": "Αυτόματη ενεργοποίηση δεξιοτήτων που περνούν τη σάρωση ασφαλείας χωρίς προειδοποιήσεις",
   "help.skill_manager.scan_with_guardian": "Χρήση του LLM Guardian για έλεγχο του κώδικα μεταφορτωμένων δεξιοτήτων",
   "help.skill_manager.max_upload_size_mb": "Μέγιστο επιτρεπόμενο μέγεθος αρχείου για μεταφορτώσεις δεξιοτήτων σε megabytes"

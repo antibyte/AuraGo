@@ -3,6 +3,7 @@
   "config.skill_manager.allow_uploads_label": "अपलोड की अनुमति दें",
   "config.skill_manager.read_only_label": "केवल-पठन मोड",
   "config.skill_manager.require_scan_label": "सुरक्षा स्कैन आवश्यक",
+  "config.skill_manager.require_sandbox_label": "Sandbox में चलाएं",
   "config.skill_manager.auto_enable_clean_label": "स्वच्छ कौशल स्वचालित रूप से सक्षम करें",
   "config.skill_manager.scan_with_guardian_label": "LLM Guardian से स्कैन करें",
   "config.skill_manager.max_upload_size_mb_label": "अधिकतम अपलोड आकार (MB)",
@@ -10,6 +11,7 @@
   "help.skill_manager.allow_uploads": "नई Python कौशल फ़ाइलें अपलोड करने की अनुमति दें",
   "help.skill_manager.read_only": "सक्षम होने पर, कौशल में सभी संशोधनों को रोकता है (कोई अपलोड, हटाना या टॉगल नहीं)",
   "help.skill_manager.require_scan": "कौशल सक्षम करने से पहले अपलोड किए गए कौशल पर सुरक्षा स्कैन चलाएं",
+  "help.skill_manager.require_sandbox": "सक्षम होने पर, कौशल केवल sandboxed कंटेनर वातावरण में ही चलाए जा सकते हैं। यह सीधे सिस्टम तक पहुंच को रोकता है।",
   "help.skill_manager.auto_enable_clean": "बिना चेतावनी के सुरक्षा स्कैन पास करने वाले कौशल को स्वचालित रूप से सक्षम करें",
   "help.skill_manager.scan_with_guardian": "अपलोड किए गए कौशल कोड की सुरक्षा समस्याओं के लिए LLM Guardian का उपयोग करें",
   "help.skill_manager.max_upload_size_mb": "कौशल अपलोड के लिए अनुमत अधिकतम फ़ाइल आकार मेगाबाइट में"

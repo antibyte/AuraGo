@@ -6,6 +6,7 @@ function renderSkillManagerSection(section) {
     const allowUploadsOn = data.allow_uploads === true;
     const readonlyOn = data.read_only === true;
     const requireScanOn = data.require_scan !== false;
+    const requireSandboxOn = data.require_sandbox === true;
     const autoEnableOn = data.auto_enable_clean === true;
     const guardianOn = data.scan_with_guardian === true;
 
@@ -51,6 +52,16 @@ function renderSkillManagerSection(section) {
     html += '<div class="toggle-wrap">';
     html += '<div class="toggle' + (requireScanOn ? ' on' : '') + '" data-path="skill_manager.require_scan" onclick="toggleBool(this)"></div>';
     html += '<span class="toggle-label">' + (requireScanOn ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
+    html += '</div></div>';
+
+    // ── Require Sandbox toggle ──
+    const helpSandbox = t('help.skill_manager.require_sandbox');
+    html += '<div class="field-group">';
+    html += '<div class="field-label">' + t('config.skill_manager.require_sandbox_label') + '</div>';
+    if (helpSandbox) html += '<div class="field-help">' + helpSandbox + '</div>';
+    html += '<div class="toggle-wrap">';
+    html += '<div class="toggle' + (requireSandboxOn ? ' on' : '') + '" data-path="skill_manager.require_sandbox" onclick="toggleBool(this)"></div>';
+    html += '<span class="toggle-label">' + (requireSandboxOn ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
     html += '</div></div>';
 
     // ── Auto-enable Clean toggle ──

@@ -80,6 +80,7 @@ func Load(path string) (*Config, error) {
 	cfg.Tools.SkillManager.Enabled = true
 	cfg.Tools.SkillManager.AllowUploads = true
 	cfg.Tools.SkillManager.RequireScan = true
+	cfg.Tools.SkillManager.RequireSandbox = false
 	cfg.Tools.SkillManager.MaxUploadSizeMB = 1
 	cfg.Tools.WebCapture.Enabled = true
 	cfg.Tools.NetworkPing.Enabled = true
