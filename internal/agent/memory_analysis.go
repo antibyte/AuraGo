@@ -759,7 +759,7 @@ func generateMemoryReflection(
 	if stm != nil {
 		usageStats, usageErr := stm.GetMemoryUsageStats(14, 5)
 		if usageErr == nil {
-			metas, metaErr := stm.GetAllMemoryMeta()
+			metas, metaErr := stm.GetAllMemoryMeta(50000, 0)
 			if metaErr == nil {
 				report := memory.BuildMemoryHealthReport(metas, usageStats)
 				if b, err := json.Marshal(report.Curator); err == nil {

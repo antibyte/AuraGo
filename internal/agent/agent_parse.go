@@ -163,7 +163,7 @@ func runMemoryOrchestrator(tc ToolCall, cfg *config.Config, logger *slog.Logger,
 		thresholdMedium = 3
 	}
 
-	metas, err := shortTermMem.GetAllMemoryMeta()
+	metas, err := shortTermMem.GetAllMemoryMeta(50000, 0)
 	if err != nil {
 		logger.Error("Failed to fetch memory tracking metadata", "error", err)
 		return fmt.Sprintf(`{"status": "error", "message": "Failed to fetch metadata: %v"}`, err)

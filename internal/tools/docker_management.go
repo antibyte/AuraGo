@@ -217,6 +217,13 @@ func DockerExec(cfg DockerConfig, containerID, cmd, user string) string {
 	}
 
 	outputStr := stripDockerLogHeaders(outData)
+
+	// Truncate output if too large to prevent memory issues
+	const maxOutputLen = 64000 // ~64KB limit
+	if len(outputStr) > maxOutputLen {
+		outputStr = outputStr[:maxOutputLen] + "\n... [output truncated due to size limit]"
+	}
+
 	result := map[string]interface{}{
 		"status":       "ok",
 		"container_id": containerID,

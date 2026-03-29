@@ -186,7 +186,7 @@ func handleDashboardMemory(s *Server) http.HandlerFunc {
 
 		graphNodes, graphEdges := 0, 0
 		if s.KG != nil {
-			graphNodes, graphEdges = s.KG.Stats()
+			graphNodes, graphEdges, _ = s.KG.Stats()
 		}
 
 		milestones, _ := s.ShortTermMem.GetMilestoneEntries(10)
@@ -208,7 +208,7 @@ func handleDashboardMemory(s *Server) http.HandlerFunc {
 		memoryHealth := memory.MemoryHealthReport{
 			Usage: usageStats,
 		}
-		if metas, err := s.ShortTermMem.GetAllMemoryMeta(); err == nil {
+		if metas, err := s.ShortTermMem.GetAllMemoryMeta(1000, 0); err == nil {
 			memoryHealth = memory.BuildMemoryHealthReport(metas, usageStats)
 		}
 
@@ -782,7 +782,7 @@ func handleDashboardCoreMemoryMutate(s *Server, sse *SSEBroadcaster) http.Handle
 		}
 		graphNodes, graphEdges := 0, 0
 		if s.KG != nil {
-			graphNodes, graphEdges = s.KG.Stats()
+			graphNodes, graphEdges, _ = s.KG.Stats()
 		}
 		sse.BroadcastType(EventMemoryUpdate, map[string]interface{}{
 			"core_memory_facts": coreCount,

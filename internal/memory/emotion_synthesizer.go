@@ -136,7 +136,11 @@ func (es *EmotionSynthesizer) SynthesizeEmotion(ctx context.Context, stm *SQLite
 		modelName = "gpt-4o-mini"
 	}
 
-	resp, err := es.client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
+	// Ensure LLM call has a timeout even if caller didn't provide one
+	llmCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	resp, err := es.client.CreateChatCompletion(llmCtx, openai.ChatCompletionRequest{
 		Model:       modelName,
 		MaxTokens:   100,
 		Temperature: 0.4,

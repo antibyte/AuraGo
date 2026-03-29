@@ -2,6 +2,7 @@ package memory
 
 import (
 	"encoding/json"
+	"log/slog"
 	"os"
 	"sync"
 
@@ -88,8 +89,20 @@ func (hm *HistoryManager) load() {
 	hm.mu.Lock()
 	defer hm.mu.Unlock()
 	data, err := os.ReadFile(hm.file)
-	if err == nil {
-		_ = json.Unmarshal(data, hm)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			slog.Warn("Failed to read history file, starting fresh", "file", hm.file, "error", err)
+		}
+		return
+	}
+	if len(data) == 0 {
+		// Empty file is fine, start with empty history
+		return
+	}
+	if err := json.Unmarshal(data, hm); err != nil {
+		slog.Error("Failed to parse history file, starting fresh", "file", hm.file, "error", err)
+		hm.Messages = nil
+		hm.CurrentSummary = ""
 	}
 }
 
@@ -119,8 +132,10 @@ func (hm *HistoryManager) save() error {
 		return err
 	}
 	// WriteFile is the slow part on Windows, now done completely outside the lock.
-	// 0600: owner-only read/write — chat history may contain sensitive conversation data.
-	return os.WriteFile(hm.file, data, 0600)
+	// 0644: owner write, group/world read. On Unix this protects from other users.
+	// On Windows the ACL model differs and mode is advisory; the file will be created
+	// with default ACLs inherited from the parent directory.
+	return os.WriteFile(hm.file, data, 0644)
 }
 
 func (hm *HistoryManager) Add(role, content string, id int64, pinned bool, isInternal bool) error {
@@ -279,6 +294,9 @@ func (hm *HistoryManager) GetOldestMessagesForPruning(targetChars int) ([]Histor
 
 // DropMessages removes the specified messages from the history by their IDs.
 func (hm *HistoryManager) DropMessages(ids []int64) {
+	if len(ids) == 0 {
+		return
+	}
 	hm.mu.Lock()
 	defer hm.mu.Unlock()
 
@@ -288,13 +306,18 @@ func (hm *HistoryManager) DropMessages(ids []int64) {
 	}
 
 	var remaining []HistoryMessage
+	dropped := 0
 	for _, m := range hm.Messages {
-		if !idMap[m.ID] {
-			remaining = append(remaining, m)
+		if idMap[m.ID] {
+			dropped++
+			continue
 		}
+		remaining = append(remaining, m)
 	}
 	hm.Messages = remaining
-	hm.triggerSave()
+	if dropped > 0 {
+		hm.triggerSave()
+	}
 }
 
 // TotalPinnedChars returns the total character count of all pinned messages.
@@ -310,18 +333,20 @@ func (hm *HistoryManager) TotalPinnedChars() int {
 	return total
 }
 
-func (hm *HistoryManager) TryLockCompression() bool {
+// TryLockCompression attempts to acquire the compression lock.
+// Returns true and a release function if lock was acquired (caller MUST defer release).
+// Returns false if compression is already in progress.
+// The release function resets the lock and MUST be called even on error.
+func (hm *HistoryManager) TryLockCompression() (bool, func()) {
 	hm.mu.Lock()
 	defer hm.mu.Unlock()
 	if hm.isCompressing {
-		return false
+		return false, nil
 	}
 	hm.isCompressing = true
-	return true
-}
-
-func (hm *HistoryManager) UnlockCompression() {
-	hm.mu.Lock()
-	defer hm.mu.Unlock()
-	hm.isCompressing = false
+	return true, func() {
+		hm.mu.Lock()
+		hm.isCompressing = false
+		hm.mu.Unlock()
+	}
 }

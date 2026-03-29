@@ -196,7 +196,9 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 		// Phase 33: Recursive Context Compression (Character Based)
 		charLimit := s.Cfg.Agent.MemoryCompressionCharLimit
 		if s.HistoryManager.TotalChars() >= charLimit {
-			if s.HistoryManager.TryLockCompression() {
+			if ok, release := s.HistoryManager.TryLockCompression(); ok {
+				defer release() // Ensure lock is released even if early return below
+
 				// Safety Check: Check if pinned messages exceed 50% of the limit
 				pinnedChars := s.HistoryManager.TotalPinnedChars()
 				if pinnedChars > charLimit/2 {
@@ -215,8 +217,8 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 				messagesToSummarize, actualChars := s.HistoryManager.GetOldestMessagesForPruning(targetPruneChars)
 
 				if len(messagesToSummarize) > 0 {
-					go func(msgs []memory.HistoryMessage, charsPruned int, existingSummary string) {
-						defer s.HistoryManager.UnlockCompression()
+					go func(msgs []memory.HistoryMessage, charsPruned int, existingSummary string, releaseFn func()) {
+						defer releaseFn() // Release compression lock when goroutine completes
 						defer func() {
 							if r := recover(); r != nil {
 								s.Logger.Error("[Compression] Goroutine panic recovered", "error", r)
@@ -282,10 +284,9 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 								}(concept, newSummary)
 							}
 						}
-					}(messagesToSummarize, actualChars, s.HistoryManager.GetSummary())
-				} else {
-					s.HistoryManager.UnlockCompression()
+					}(messagesToSummarize, actualChars, s.HistoryManager.GetSummary(), release)
 				}
+				// else: release() called via defer when if block exits
 			}
 		}
 

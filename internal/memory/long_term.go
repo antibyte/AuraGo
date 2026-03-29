@@ -60,12 +60,15 @@ type ChromemVectorDB struct {
 	queryCacheMu  sync.RWMutex
 	queryCacheTTL time.Duration
 	indexing      atomic.Bool // True while async indexing is in progress
+	dedupSem      chan struct{} // semaphore to limit concurrent dedup checks
 }
 
 func (cv *ChromemVectorDB) Close() error {
-	// Chromem-go's persistent DB doesn't have an explicit Close() method in current versions,
-	// but we implement it to satisfy the interface and allow for future cleanup.
-	cv.logger.Info("Closing VectorDB (no-op for chromem)")
+	// chromem-go v0.7.0 uses synchronous file-based persistence with no open file handles
+	// or background resources that require cleanup. Each write operation persists immediately.
+	// The DB struct holds only in-memory maps which are garbage-collected when references
+	// are dropped. This no-op satisfies the VectorDB interface.
+	cv.logger.Debug("Closing VectorDB (chromem-go uses synchronous writes, no cleanup needed)")
 	return nil
 }
 
@@ -171,6 +174,7 @@ func NewChromemVectorDB(cfg *config.Config, logger *slog.Logger) (*ChromemVector
 		embeddingFunc: embeddingFunc,
 		queryCache:    make(map[string]queryCacheEntry),
 		queryCacheTTL: 5 * time.Minute,
+		dedupSem:     make(chan struct{}, 4), // max 4 concurrent dedup checks to avoid rate limits
 	}
 
 	// Phase 29: Startup validation — test the embedding pipeline with retries
@@ -406,7 +410,7 @@ func (cv *ChromemVectorDB) StoreBatch(items []ArchiveItem) ([]string, error) {
 
 	const maxBatchItemBytes = 500 * 1024 // 500 KB per item
 
-	// Deduplication: run all concept-similarity checks in parallel to avoid O(n) sequential embedding calls.
+	// Deduplication: run concept-similarity checks with bounded concurrency to avoid rate limiting.
 	type dedupResult struct {
 		idx  int
 		item ArchiveItem
@@ -420,6 +424,10 @@ func (cv *ChromemVectorDB) StoreBatch(items []ArchiveItem) ([]string, error) {
 		}
 		i, item := i, item // capture
 		go func() {
+			// Acquire semaphore to limit concurrent embedding calls
+			cv.dedupSem <- struct{}{}
+			defer func() { <-cv.dedupSem }()
+
 			keep := true
 			if similar, _, err := cv.SearchMemoriesOnly(item.Concept, 1); err == nil && len(similar) > 0 {
 				if sim := ExtractSimilarityScore(similar[0]); sim > 0.95 {
@@ -576,13 +584,18 @@ func (cv *ChromemVectorDB) SearchSimilar(query string, topK int, excludeCollecti
 	}
 
 	var allResults []rankedResult
+resultsLoop:
 	for range collections {
 		var cr colResult
 		select {
 		case cr = <-resultCh:
 		case <-ctx.Done():
-			cv.logger.Warn("SearchSimilar: context deadline exceeded while collecting results")
-			break
+			cv.logger.Warn("SearchSimilar: context deadline exceeded, returning partial results", "collected", len(allResults))
+			// Drain remaining results without processing to unblock goroutines
+			for remaining := len(collections) - 1; remaining > 0; remaining-- {
+				<-resultCh
+			}
+			break resultsLoop
 		}
 		if cr.err != nil {
 			cv.logger.Warn("Failed to query collection", "collection", cr.colName, "error", cr.err)
@@ -750,10 +763,15 @@ func (cv *ChromemVectorDB) getQueryEmbedding(ctx context.Context, query string) 
 	// Evict old entries if cache grows too large (> 200 entries)
 	if len(cv.queryCache) > 200 {
 		now := time.Now()
+		// Collect keys to delete, then delete in a separate loop to avoid map modification during iteration
+		var toDelete []string
 		for k, v := range cv.queryCache {
 			if now.Sub(v.timestamp) > cv.queryCacheTTL {
-				delete(cv.queryCache, k)
+				toDelete = append(toDelete, k)
 			}
+		}
+		for _, k := range toDelete {
+			delete(cv.queryCache, k)
 		}
 	}
 	cv.queryCacheMu.Unlock()

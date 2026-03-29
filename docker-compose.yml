@@ -24,6 +24,11 @@ services:
     secrets:
       - aurago_master_key
 
+    # --- Environment ---
+    environment:
+      # Connect to Docker via socket (or proxy if docker-proxy service is enabled)
+      - DOCKER_HOST=unix:///var/run/docker.sock
+
     # --- Volumes ---
     volumes:
       # Optional: place your pre-filled config.yaml next to docker-compose.yml.
@@ -49,10 +54,16 @@ services:
 
       # Docker socket — required for Invasion Control "Docker (Lokal)" deployments.
       # This allows AuraGo to spawn egg containers on the host Docker daemon.
+      #
       # SECURITY NOTE: Mounting the Docker socket grants root-equivalent access
       # to the host. Only enable this if you trust AuraGo's agent completely.
-      # Comment out the line below to disable local Docker egg deployments.
-      - /var/run/docker.sock:/var/run/docker.sock
+      #
+      # RECOMMENDED: Use the docker-proxy service below instead for better security.
+      # To use the proxy:
+      #   1. Uncomment the docker-proxy service block below
+      #   2. Comment out the volume mount below
+      #   3. Change DOCKER_HOST above to: tcp://docker-proxy:2375
+      - /var/run/docker.sock:/var/run/docker.sock:ro
 
     # host.docker.internal resolves to the host machine from inside containers.
     # On Linux Docker Engine (non-Desktop) this is NOT injected automatically —
@@ -178,10 +189,8 @@ services:
   #
   # To use:
   #   1. Uncomment the docker-proxy block below.
-  #   2. Remove the docker.sock volume mount from the aurago service above.
-  #   3. Add this environment variable to the aurago service:
-  #        environment:
-  #          - DOCKER_HOST=tcp://docker-proxy:2375
+  #   2. Comment out the docker.sock volume mount in the aurago service above.
+  #   3. Change DOCKER_HOST in aurago service to: tcp://docker-proxy:2375
   # ============================================================================
   # docker-proxy:
   #   image: tecnativa/docker-socket-proxy
@@ -193,12 +202,17 @@ services:
   #     - CONTAINERS=1
   #     - IMAGES=1
   #     - NETWORKS=1
-  #     - VOLUMES=0
-  #     - POST=1          # allow start/stop/restart
+  #     - VOLUMES=1
+  #     - POST=1          # allow start/stop/restart/create
   #     - BUILD=0
   #     - COMMIT=0
-  #     - EXEC=0
+  #     - EXEC=1          # needed for DockerExec
   #     - SWARM=0
+  #   healthcheck:
+  #     test: ["CMD", "wget", "-q", "--spider", "http://localhost:2375/_ping"]
+  #     interval: 30s
+  #     timeout: 5s
+  #     retries: 3
 
 volumes:
   aurago_data:

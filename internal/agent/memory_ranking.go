@@ -42,7 +42,7 @@ func loadMemoryMetaMap(stm *memory.SQLiteMemory) map[string]memory.MemoryMeta {
 	if stm == nil {
 		return metaMap
 	}
-	metas, err := stm.GetAllMemoryMeta()
+	metas, err := stm.GetAllMemoryMeta(50000, 0)
 	if err != nil {
 		return metaMap
 	}

@@ -669,7 +669,7 @@ Conversation:
 func autoOptimizeMemory(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, ltm memory.VectorDB, stm *memory.SQLiteMemory, kg *memory.KnowledgeGraph) {
 	threshold := cfg.Consolidation.OptimizeThreshold
 
-	metas, err := stm.GetAllMemoryMeta()
+	metas, err := stm.GetAllMemoryMeta(50000, 0)
 	if err != nil {
 		logger.Error("[AutoOptimize] Failed to fetch memory metadata", "error", err)
 		return

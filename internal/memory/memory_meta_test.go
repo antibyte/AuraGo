@@ -23,7 +23,7 @@ func TestUpsertMemoryMetaWithDetailsPersistsQualityFields(t *testing.T) {
 		t.Fatalf("UpsertMemoryMetaWithDetails: %v", err)
 	}
 
-	metas, err := stm.GetAllMemoryMeta()
+	metas, err := stm.GetAllMemoryMeta(100, 0)
 	if err != nil {
 		t.Fatalf("GetAllMemoryMeta: %v", err)
 	}
@@ -60,7 +60,7 @@ func TestUpsertMemoryMetaDefaultsQualityFields(t *testing.T) {
 		t.Fatalf("UpsertMemoryMeta: %v", err)
 	}
 
-	metas, err := stm.GetAllMemoryMeta()
+	metas, err := stm.GetAllMemoryMeta(100, 0)
 	if err != nil {
 		t.Fatalf("GetAllMemoryMeta: %v", err)
 	}

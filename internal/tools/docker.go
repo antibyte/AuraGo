@@ -58,7 +58,10 @@ func getDockerClient(cfg DockerConfig) *http.Client {
 			case strings.HasPrefix(host, "unix://"):
 				return net.DialTimeout("unix", strings.TrimPrefix(host, "unix://"), 5*time.Second)
 			case strings.HasPrefix(host, "npipe://"):
-				return net.DialTimeout("tcp", "localhost:2375", 5*time.Second)
+				// Windows Named Pipes require special handling via golang.org/x/sys/windows
+				// or using the Docker CLI. Fallback to TCP is incorrect as Docker Desktop
+				// uses the named pipe, not TCP on Windows.
+				return nil, fmt.Errorf("windows named pipes (npipe://) are not directly supported; use tcp:// host or set DOCKER_HOST=tcp://localhost:2375 if Docker Desktop is configured for TCP")
 			case strings.HasPrefix(host, "tcp://"):
 				return net.DialTimeout("tcp", strings.TrimPrefix(host, "tcp://"), 5*time.Second)
 			default:
@@ -115,32 +118,67 @@ func validateDockerName(name string) error {
 
 // dockerRequest performs a request against the Docker Engine API.
 func dockerRequest(cfg DockerConfig, method, endpoint string, body string) ([]byte, int, error) {
-	client := getDockerClient(cfg)
+	return dockerRequestWithRetry(cfg, method, endpoint, body, 3)
+}
 
-	var reqBody io.Reader
-	if body != "" {
-		reqBody = strings.NewReader(body)
+// dockerRequestWithRetry performs a request against the Docker Engine API with retry logic.
+// It retries on transient errors (network timeouts, 5xx errors) with exponential backoff.
+func dockerRequestWithRetry(cfg DockerConfig, method, endpoint string, body string, maxRetries int) ([]byte, int, error) {
+	var lastErr error
+	var lastCode int
+
+	for i := 0; i < maxRetries; i++ {
+		client := getDockerClient(cfg)
+
+		var reqBody io.Reader
+		if body != "" {
+			reqBody = strings.NewReader(body)
+		}
+
+		// Docker Engine API is accessed via http://localhost but routed through the Unix socket.
+		reqURL := "http://localhost/" + dockerAPIVersion + endpoint
+		req, err := http.NewRequest(method, reqURL, reqBody)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to create request: %w", err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := client.Do(req)
+		if err != nil {
+			lastErr = err
+			// Retry on network errors
+			if i < maxRetries-1 {
+				time.Sleep(time.Second * time.Duration(i+1))
+				continue
+			}
+			return nil, 0, fmt.Errorf("docker request failed after %d retries: %w", maxRetries, err)
+		}
+		defer resp.Body.Close()
+
+		data, err := io.ReadAll(resp.Body)
+		if err != nil {
+			lastErr = err
+			lastCode = resp.StatusCode
+			// Retry on read errors
+			if i < maxRetries-1 {
+				time.Sleep(time.Second * time.Duration(i+1))
+				continue
+			}
+			return nil, resp.StatusCode, fmt.Errorf("failed to read docker response after %d retries: %w", maxRetries, err)
+		}
+
+		// Retry on 5xx server errors
+		if resp.StatusCode >= 500 && i < maxRetries-1 {
+			lastErr = fmt.Errorf("server error HTTP %d", resp.StatusCode)
+			lastCode = resp.StatusCode
+			time.Sleep(time.Second * time.Duration(i+1))
+			continue
+		}
+
+		return data, resp.StatusCode, nil
 	}
 
-	// Docker Engine API is accessed via http://localhost but routed through the Unix socket.
-	reqURL := "http://localhost/" + dockerAPIVersion + endpoint
-	req, err := http.NewRequest(method, reqURL, reqBody)
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to create request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, 0, fmt.Errorf("docker request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, resp.StatusCode, fmt.Errorf("failed to read docker response: %w", err)
-	}
-	return data, resp.StatusCode, nil
+	return nil, lastCode, fmt.Errorf("docker request failed after %d retries: %w", maxRetries, lastErr)
 }
 
 // DockerRequest is the exported variant of dockerRequest for use by other packages.
@@ -197,6 +235,7 @@ func DockerListContainers(cfg DockerConfig, all bool) string {
 		Image  string   `json:"image"`
 		State  string   `json:"state"`
 		Status string   `json:"status"`
+		Health string   `json:"health,omitempty"`
 	}
 	var result []compact
 	for _, c := range containers {
@@ -213,6 +252,14 @@ func DockerListContainers(cfg DockerConfig, all bool) string {
 		if names, ok := c["Names"].([]interface{}); ok {
 			for _, n := range names {
 				entry.Names = append(entry.Names, fmt.Sprintf("%v", n))
+			}
+		}
+		// Extract health status from State object if available
+		if state, ok := c["State"].(map[string]interface{}); ok {
+			if health, ok := state["Health"].(map[string]interface{}); ok {
+				if status, ok := health["Status"].(string); ok {
+					entry.Health = status
+				}
 			}
 		}
 		result = append(result, entry)
@@ -495,6 +542,69 @@ func DockerRemoveImage(cfg DockerConfig, image string, force bool) string {
 	}
 	if code == 404 {
 		return errJSON("Image '%s' not found", image)
+	}
+	return dockerBodyErr(code, data)
+}
+
+// DockerRenameContainer renames a container.
+func DockerRenameContainer(cfg DockerConfig, containerID, newName string) string {
+	if err := validateDockerName(containerID); err != nil {
+		return errJSON("%v", err)
+	}
+	if newName == "" {
+		return errJSON("new name is required")
+	}
+	if err := validateDockerName(newName); err != nil {
+		return errJSON("invalid new name: %v", err)
+	}
+	endpoint := "/containers/" + url.PathEscape(containerID) + "/rename?name=" + url.QueryEscape(newName)
+	data, code, err := dockerRequest(cfg, "POST", endpoint, "")
+	if err != nil {
+		return errJSON("Failed to rename container: %v", err)
+	}
+	if code == 204 || code == 200 {
+		return fmt.Sprintf(`{"status":"ok","message":"Container renamed to '%s'"}`, newName)
+	}
+	if code == 404 {
+		return errJSON("Container '%s' not found", containerID)
+	}
+	return dockerBodyErr(code, data)
+}
+
+// DockerSystemPrune removes unused data (containers, networks, images, volumes).
+// Warning: This is a destructive operation.
+func DockerSystemPrune(cfg DockerConfig, all, volumes bool) string {
+	endpoint := "/system/prune"
+	if all {
+		endpoint += "?all=true"
+	}
+	if volumes {
+		if strings.Contains(endpoint, "?") {
+			endpoint += "&volumes=true"
+		} else {
+			endpoint += "?volumes=true"
+		}
+	}
+	data, code, err := dockerRequest(cfg, "POST", endpoint, "")
+	if err != nil {
+		return errJSON("Failed to prune system: %v", err)
+	}
+	if code == 200 {
+		// Parse the response to show what was deleted
+		var result map[string]interface{}
+		if err := json.Unmarshal(data, &result); err != nil {
+			return string(data)
+		}
+		out, _ := json.Marshal(map[string]interface{}{
+			"status":                "ok",
+			"message":               "System prune completed",
+			"containers_deleted":    result["ContainersDeleted"],
+			"space_reclaimed_bytes": result["SpaceReclaimed"],
+			"images_deleted":        result["ImagesDeleted"],
+			"networks_deleted":      result["NetworksDeleted"],
+			"volumes_deleted":       result["VolumesDeleted"],
+		})
+		return string(out)
 	}
 	return dockerBodyErr(code, data)
 }

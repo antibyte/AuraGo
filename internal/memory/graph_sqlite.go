@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"os"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -31,7 +32,9 @@ type Edge struct {
 type KnowledgeGraph struct {
 	db          *sql.DB
 	logger      *slog.Logger
-	accessQueue chan string // buffered channel for async access-count updates
+	accessQueue chan string       // buffered channel for async access-count updates
+	doneChan    chan struct{}     // signals worker to exit
+	closeOnce   sync.Once        // ensures Close is only called once
 }
 
 // NewKnowledgeGraph creates a new SQLite-backed knowledge graph.
@@ -46,11 +49,19 @@ func NewKnowledgeGraph(dbPath string, jsonMigratePath string, logger *slog.Logge
 	// SQLite is single-writer; cap connections to prevent locking errors
 	db.SetMaxOpenConns(1)
 
-	kg := &KnowledgeGraph{db: db, logger: logger}
-	kg.accessQueue = make(chan string, 1000) // buffer for 1000 node IDs
+	kg := &KnowledgeGraph{
+		db:          db,
+		logger:      logger,
+		accessQueue: make(chan string, 1000), // buffer for 1000 node IDs
+		doneChan:    make(chan struct{}),
+	}
 	go kg.accessCountWorker()
 	if err := kg.initTables(); err != nil {
-		db.Close()
+		close(kg.doneChan) // signal worker to exit
+		kg.drainAccessQueue()
+		if closeErr := db.Close(); closeErr != nil {
+			logger.Warn("KG db close failed after init error", "error", closeErr)
+		}
 		return nil, fmt.Errorf("init knowledge graph tables: %w", err)
 	}
 
@@ -62,20 +73,45 @@ func NewKnowledgeGraph(dbPath string, jsonMigratePath string, logger *slog.Logge
 	return kg, nil
 }
 
-// Close closes the underlying database connection.
+// Close closes the underlying database connection and stops the worker.
 func (kg *KnowledgeGraph) Close() error {
-	if kg.accessQueue != nil {
-		close(kg.accessQueue)
+	var err error
+	kg.closeOnce.Do(func() {
+		close(kg.doneChan) // signal worker to exit
+		kg.drainAccessQueue()
+		err = kg.db.Close()
+	})
+	return err
+}
+
+// drainAccessQueue drains pending items from the access queue before close.
+// This ensures the worker has processed all pending updates before we close the DB.
+func (kg *KnowledgeGraph) drainAccessQueue() {
+	for {
+		select {
+		case <-kg.accessQueue:
+			// drain
+		default:
+			return
+		}
 	}
-	return kg.db.Close()
 }
 
 // accessCountWorker drains the access queue and increments node access counts.
 // Runs as a single goroutine for the lifetime of the KnowledgeGraph.
+// Exits when doneChan is closed or when db is closed.
 func (kg *KnowledgeGraph) accessCountWorker() {
-	for id := range kg.accessQueue {
-		if _, err := kg.db.Exec("UPDATE kg_nodes SET access_count = access_count + 1 WHERE id = ?", id); err != nil {
-			kg.logger.Warn("KG access count update failed", "id", id, "error", err)
+	for {
+		select {
+		case <-kg.doneChan:
+			return
+		case id, ok := <-kg.accessQueue:
+			if !ok {
+				return // channel closed
+			}
+			if _, execErr := kg.db.Exec("UPDATE kg_nodes SET access_count = access_count + 1 WHERE id = ?", id); execErr != nil {
+				kg.logger.Warn("KG access count update failed", "id", id, "error", execErr)
+			}
 		}
 	}
 }
@@ -83,7 +119,8 @@ func (kg *KnowledgeGraph) accessCountWorker() {
 func (kg *KnowledgeGraph) initTables() error {
 	schema := `
 	CREATE TABLE IF NOT EXISTS kg_nodes (
-		id TEXT PRIMARY KEY,
+		rowid INTEGER PRIMARY KEY AUTOINCREMENT,
+		id TEXT NOT NULL UNIQUE,
 		label TEXT NOT NULL DEFAULT '',
 		properties TEXT NOT NULL DEFAULT '{}',
 		access_count INTEGER NOT NULL DEFAULT 0,
@@ -111,6 +148,7 @@ func (kg *KnowledgeGraph) initTables() error {
 	}
 
 	// FTS5 virtual table for full-text search on nodes
+	// Note: content_rowid references the explicit rowid column which is INTEGER PRIMARY KEY
 	fts := `CREATE VIRTUAL TABLE IF NOT EXISTS kg_nodes_fts USING fts5(
 		id, label, properties_text, content=kg_nodes, content_rowid=rowid
 	);`
@@ -150,12 +188,13 @@ func (kg *KnowledgeGraph) migrateFromJSON(jsonPath string) {
 	if err != nil {
 		return // No file to migrate — normal case
 	}
-	defer f.Close()
 
 	data, err := io.ReadAll(f)
 	if err != nil || len(data) == 0 {
+		f.Close()
 		return
 	}
+	f.Close() // Close before rename
 
 	var state struct {
 		Nodes map[string]Node `json:"nodes"`
@@ -171,6 +210,7 @@ func (kg *KnowledgeGraph) migrateFromJSON(jsonPath string) {
 		kg.logger.Error("[KG] Failed to begin migration transaction", "error", err)
 		return
 	}
+	defer tx.Rollback()
 
 	migrated := 0
 	for _, n := range state.Nodes {
@@ -196,10 +236,12 @@ func (kg *KnowledgeGraph) migrateFromJSON(jsonPath string) {
 	}
 	for _, e := range state.Edges {
 		propsJSON, _ := json.Marshal(e.Properties)
-		tx.Exec(
+		if _, err := tx.Exec(
 			"INSERT OR IGNORE INTO kg_edges (source, target, relation, properties) VALUES (?, ?, ?, ?)",
 			e.Source, e.Target, e.Relation, string(propsJSON),
-		)
+		); err != nil {
+			kg.logger.Warn("[KG] Failed to migrate edge", "source", e.Source, "target", e.Target, "error", err)
+		}
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -207,18 +249,23 @@ func (kg *KnowledgeGraph) migrateFromJSON(jsonPath string) {
 		return
 	}
 
-	f.Close()
-	if err := os.Rename(jsonPath, jsonPath+".migrated"); err != nil {
-		kg.logger.Warn("[KG] Could not rename migrated JSON file", "error", err)
+	if renameErr := os.Rename(jsonPath, jsonPath+".migrated"); renameErr != nil {
+		kg.logger.Warn("[KG] Could not rename migrated JSON file", "error", renameErr)
 	}
 	kg.logger.Info("[KG] Migrated graph.json to SQLite", "nodes", migrated, "edges", len(state.Edges))
 }
 
 // Stats returns the number of nodes and edges in the knowledge graph.
-func (kg *KnowledgeGraph) Stats() (nodes int, edges int) {
-	kg.db.QueryRow("SELECT COUNT(*) FROM kg_nodes").Scan(&nodes)
-	kg.db.QueryRow("SELECT COUNT(*) FROM kg_edges").Scan(&edges)
-	return
+func (kg *KnowledgeGraph) Stats() (nodes int, edges int, err error) {
+	if scanErr := kg.db.QueryRow("SELECT COUNT(*) FROM kg_nodes").Scan(&nodes); scanErr != nil {
+		kg.logger.Warn("KG Stats: failed to count nodes", "error", scanErr)
+		nodes = -1
+	}
+	if scanErr := kg.db.QueryRow("SELECT COUNT(*) FROM kg_edges").Scan(&edges); scanErr != nil {
+		kg.logger.Warn("KG Stats: failed to count edges", "error", scanErr)
+		edges = -1
+	}
+	return nodes, edges, nil
 }
 
 // AddNode adds or updates a node in the knowledge graph.
@@ -396,7 +443,7 @@ func (kg *KnowledgeGraph) GetNeighbors(nodeID string, limit int) ([]Node, []Edge
 	if err != nil {
 		return nil, nil
 	}
-	defer rows.Close()
+	defer rows.Close() // defer handles all exit paths
 
 	neighborIDs := make(map[string]bool)
 	for rows.Next() {
@@ -416,7 +463,7 @@ func (kg *KnowledgeGraph) GetNeighbors(nodeID string, limit int) ([]Node, []Edge
 			}
 		}
 	}
-	rows.Close()
+	// rows.Close() called by defer when GetNeighbors returns
 
 	var nodes []Node
 	for id := range neighborIDs {

@@ -28,7 +28,7 @@ func TestKGAddNodeAndStats(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	nodes, edges := kg.Stats()
+	nodes, edges, _ := kg.Stats()
 	if nodes != 2 {
 		t.Errorf("expected 2 nodes, got %d", nodes)
 	}
@@ -44,7 +44,7 @@ func TestKGAddEdge(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	nodes, edges := kg.Stats()
+	nodes, edges, _ := kg.Stats()
 	if nodes != 2 { // auto-created
 		t.Errorf("expected 2 auto-created nodes, got %d", nodes)
 	}
@@ -59,7 +59,7 @@ func TestKGAddEdgeUpsert(t *testing.T) {
 	kg.AddEdge("a", "b", "rel", map[string]string{"weight": "1"})
 	kg.AddEdge("a", "b", "rel", map[string]string{"weight": "2"})
 
-	_, edges := kg.Stats()
+	_, edges, _ := kg.Stats()
 	if edges != 1 {
 		t.Errorf("expected 1 edge after upsert, got %d", edges)
 	}
@@ -105,7 +105,7 @@ func TestKGDeleteNode(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	nodes, edges := kg.Stats()
+	nodes, edges, _ := kg.Stats()
 	if nodes != 1 { // bob remains
 		t.Errorf("expected 1 node after delete, got %d", nodes)
 	}
@@ -124,7 +124,7 @@ func TestKGDeleteEdge(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, edges := kg.Stats()
+	_, edges, _ := kg.Stats()
 	if edges != 1 {
 		t.Errorf("expected 1 edge after delete, got %d", edges)
 	}
@@ -151,7 +151,7 @@ func TestKGOptimizeGraph(t *testing.T) {
 	}
 
 	// Protected node must survive
-	nodes, _ := kg.Stats()
+	nodes, _, _ := kg.Stats()
 	if nodes == 0 {
 		t.Error("all nodes removed — protected node should have survived")
 	}
@@ -205,7 +205,7 @@ func TestKGBulkAddEntities(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	n, e := kg.Stats()
+	n, e, _ := kg.Stats()
 	if n != 2 {
 		t.Errorf("expected 2 nodes, got %d", n)
 	}
@@ -220,7 +220,7 @@ func TestKGNodeUpsert(t *testing.T) {
 	kg.AddNode("alice", "Alice v1", map[string]string{"role": "tester"})
 	kg.AddNode("alice", "Alice v2", map[string]string{"role": "developer"})
 
-	nodes, _ := kg.Stats()
+	nodes, _, _ := kg.Stats()
 	if nodes != 1 {
 		t.Errorf("expected 1 node after upsert, got %d", nodes)
 	}
@@ -280,7 +280,7 @@ func TestKGMigrateFromJSON(t *testing.T) {
 	}
 	defer kg.Close()
 
-	nodes, edges := kg.Stats()
+	nodes, edges, _ := kg.Stats()
 	if nodes != 2 {
 		t.Errorf("expected 2 migrated nodes, got %d", nodes)
 	}

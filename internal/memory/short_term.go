@@ -419,9 +419,12 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 	// Increment this constant whenever a new column or table is added.
 	const shortTermSchemaVersion = 7
 	var currentVer int
-	_ = db.QueryRow("PRAGMA user_version").Scan(&currentVer)
-	if currentVer != shortTermSchemaVersion {
-		db.Exec(fmt.Sprintf("PRAGMA user_version = %d", shortTermSchemaVersion))
+	if err := db.QueryRow("PRAGMA user_version").Scan(&currentVer); err != nil {
+		logger.Warn("Failed to read schema version", "error", err)
+	} else if currentVer != shortTermSchemaVersion {
+		if _, err := db.Exec(fmt.Sprintf("PRAGMA user_version = %d", shortTermSchemaVersion)); err != nil {
+			logger.Warn("Failed to update schema version", "error", err)
+		}
 	}
 
 	logger.Info("Initialized SQLite Short-Term Memory", "path", dbPath)
@@ -453,9 +456,13 @@ func (s *SQLiteMemory) InsertMessage(sessionID string, role string, content stri
 	res, err := s.db.Exec(stmt, sessionID, role, content, pinned, isInternal)
 	if err != nil {
 		s.logger.Error("Failed to insert message into memory", "error", err)
+		return -1, err // -1 indicates failure (not a valid SQLite rowid)
+	}
+	id, err := res.LastInsertId()
+	if err != nil {
+		s.logger.Warn("Failed to get last insert ID", "error", err)
 		return 0, err
 	}
-	id, _ := res.LastInsertId()
 	s.logger.Debug("Inserted message into memory", "session_id", sessionID, "role", role, "content_len", len(content), "id", id, "pinned", pinned, "internal", isInternal)
 	return id, nil
 }
@@ -528,13 +535,15 @@ func (s *SQLiteMemory) GetHoursSinceLastUserMessage(sessionID string) (float64, 
 	}
 
 	// timestamp is stored as 'YYYY-MM-DD HH:MM:SS' by CURRENT_TIMESTAMP
-	// In SQLite CURRENT_TIMESTAMP is UTC
+	// In SQLite CURRENT_TIMESTAMP is UTC, so parse as UTC
 	lastInteraction, err := time.Parse("2006-01-02 15:04:05", timestampStr)
 	if err != nil {
 		return 0, fmt.Errorf("failed to parse timestamp '%s': %w", timestampStr, err)
 	}
+	// Parse as UTC since that's how SQLite stores CURRENT_TIMESTAMP
+	lastInteraction = lastInteraction.UTC()
 
-	// Assuming the server executes this, time.Now().UTC() matches CURRENT_TIMESTAMP
+	// time.Now().UTC() matches CURRENT_TIMESTAMP on the server
 	hours := time.Now().UTC().Sub(lastInteraction).Hours()
 	if hours < 0 {
 		hours = 0
@@ -1046,9 +1055,16 @@ func (s *SQLiteMemory) DeleteMemoryMeta(docID string) error {
 }
 
 // GetAllMemoryMeta retrieves the metadata for all chunks to calculate forgetting priorities.
-func (s *SQLiteMemory) GetAllMemoryMeta() ([]MemoryMeta, error) {
-	query := `SELECT doc_id, access_count, last_accessed, last_event_at, extraction_confidence, verification_status, source_type, source_reliability, protected, keep_forever FROM memory_meta;`
-	rows, err := s.db.Query(query)
+// Uses pagination to avoid loading unbounded data into memory.
+func (s *SQLiteMemory) GetAllMemoryMeta(limit int, offset int) ([]MemoryMeta, error) {
+	if limit <= 0 {
+		limit = 1000
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	query := `SELECT doc_id, access_count, last_accessed, last_event_at, extraction_confidence, verification_status, source_type, source_reliability, protected, keep_forever FROM memory_meta LIMIT ? OFFSET ?;`
+	rows, err := s.db.Query(query, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -1077,6 +1093,13 @@ func (s *SQLiteMemory) GetAllMemoryMeta() ([]MemoryMeta, error) {
 		return nil, fmt.Errorf("rows iteration: %w", err)
 	}
 	return metas, nil
+}
+
+// GetAllMemoryMetaCount returns the total number of memory_meta rows.
+func (s *SQLiteMemory) GetAllMemoryMetaCount() (int, error) {
+	var count int
+	err := s.db.QueryRow("SELECT COUNT(*) FROM memory_meta").Scan(&count)
+	return count, err
 }
 
 // RecordToolTransition increments the count for a transition from one tool to another.

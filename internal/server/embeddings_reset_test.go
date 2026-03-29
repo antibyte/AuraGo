@@ -96,7 +96,7 @@ func TestApplyPendingEmbeddingsResetClearsVectorState(t *testing.T) {
 		t.Fatalf("expected file index to be cleared, got %v", lastIndexed)
 	}
 
-	meta, err := stm.GetAllMemoryMeta()
+	meta, err := stm.GetAllMemoryMeta(100, 0)
 	if err != nil {
 		t.Fatalf("GetAllMemoryMeta: %v", err)
 	}
