@@ -115,5 +115,12 @@
   "skills.editor_fallback": "Advanced editor unavailable, using plain text mode.",
   "skills.failed_to_load_code": "कोड लोड करने में विफल",
   "skills.finding_line": "पंक्ति",
-  "skills.guardian_title": "LLM Guardian"
+  "skills.guardian_title": "LLM Guardian",
+  "skills.placeholder_skill_name": "mera_skill",
+  "skills.placeholder_description": "यह skill क्या करता है?",
+  "skills.placeholder_category": "स्वचालन",
+  "skills.placeholder_tags": "api, स्वचालन",
+  "skills.placeholder_prompt": "एक skill बनाएं जो API से JSON प्राप्त करे और फ़िल्टर्ड सारांश लौटाए।",
+  "skills.placeholder_skill_name_short": "api_sammanfatting",
+  "skills.placeholder_dependencies": "requests, pyyaml"
 }

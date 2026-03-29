@@ -27,7 +27,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadSkills();
     loadTemplates();
     initDropzone();
+    applyPlaceholders();
 });
+
+function applyPlaceholders() {
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+        const key = el.getAttribute('data-i18n-placeholder');
+        const translated = t(key);
+        if (translated && translated !== key) {
+            el.placeholder = translated;
+        }
+    });
+}
 
 async function loadCredentialMap() {
     try {

@@ -115,5 +115,12 @@
   "skills.editor_fallback": "Advanced editor unavailable, using plain text mode.",
   "skills.failed_to_load_code": "代码加载失败",
   "skills.finding_line": "行",
-  "skills.guardian_title": "LLM Guardian"
+  "skills.guardian_title": "LLM Guardian",
+  "skills.placeholder_skill_name": "my_skill",
+  "skills.placeholder_description": "这个技能做什么？",
+  "skills.placeholder_category": "自动化",
+  "skills.placeholder_tags": "api, 自动化",
+  "skills.placeholder_prompt": "创建一个技能，从 API 获取 JSON 并返回过滤后的摘要。",
+  "skills.placeholder_skill_name_short": "api摘要",
+  "skills.placeholder_dependencies": "requests, pyyaml"
 }

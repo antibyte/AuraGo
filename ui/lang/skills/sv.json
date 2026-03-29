@@ -115,5 +115,12 @@
   "skills.editor_fallback": "Advanced editor unavailable, using plain text mode.",
   "skills.failed_to_load_code": "Det gick inte att läsa in kod",
   "skills.finding_line": "rad",
-  "skills.guardian_title": "LLM Guardian"
+  "skills.guardian_title": "LLM Guardian",
+  "skills.placeholder_skill_name": "min_skill",
+  "skills.placeholder_description": "Vad gör denna skill?",
+  "skills.placeholder_category": "automatisering",
+  "skills.placeholder_tags": "api, automatisering",
+  "skills.placeholder_prompt": "Skapa en skill som hämtar JSON från en API och returnerar en filtrerad sammanfattning.",
+  "skills.placeholder_skill_name_short": "api_sammanfattning",
+  "skills.placeholder_dependencies": "requests, pyyaml"
 }

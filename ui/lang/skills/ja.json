@@ -115,5 +115,12 @@
   "skills.editor_fallback": "Advanced editor unavailable, using plain text mode.",
   "skills.failed_to_load_code": "コードの読み込みに失敗しました",
   "skills.finding_line": "行",
-  "skills.guardian_title": "LLM Guardian"
+  "skills.guardian_title": "LLM Guardian",
+  "skills.placeholder_skill_name": "my_skill",
+  "skills.placeholder_description": "このスキルは何をしますか？",
+  "skills.placeholder_category": "自動化",
+  "skills.placeholder_tags": "api, 自動化",
+  "skills.placeholder_prompt": "APIからJSONを取得し、フィルタリングされたサマリーを返すスキルを作成します。",
+  "skills.placeholder_skill_name_short": "apiサマリー",
+  "skills.placeholder_dependencies": "requests, pyyaml"
 }

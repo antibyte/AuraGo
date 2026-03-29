@@ -115,5 +115,12 @@
   "skills.editor_fallback": "Advanced editor unavailable, using plain text mode.",
   "skills.failed_to_load_code": "Kunne ikke indlæse kode",
   "skills.finding_line": "linje",
-  "skills.guardian_title": "LLM Guardian"
+  "skills.guardian_title": "LLM Guardian",
+  "skills.placeholder_skill_name": "min_skill",
+  "skills.placeholder_description": "Hvad gør denne skill?",
+  "skills.placeholder_category": "automatisering",
+  "skills.placeholder_tags": "api, automatisering",
+  "skills.placeholder_prompt": "Opret en skill, der henter JSON fra en API og returnerer et filtreret resumé.",
+  "skills.placeholder_skill_name_short": "api_resume",
+  "skills.placeholder_dependencies": "requests, pyyaml"
 }

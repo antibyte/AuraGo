@@ -115,5 +115,12 @@
   "skills.editor_fallback": "Advanced editor unavailable, using plain text mode.",
   "skills.failed_to_load_code": "Caricamento codice non riuscito",
   "skills.finding_line": "riga",
-  "skills.guardian_title": "LLM Guardian"
+  "skills.guardian_title": "LLM Guardian",
+  "skills.placeholder_skill_name": "mio_skill",
+  "skills.placeholder_description": "Cosa fa questo skill?",
+  "skills.placeholder_category": "automazione",
+  "skills.placeholder_tags": "api, automazione",
+  "skills.placeholder_prompt": "Crea uno skill che recupera JSON da un'API e restituisce un riassunto filtrato.",
+  "skills.placeholder_skill_name_short": "riepilogo_api",
+  "skills.placeholder_dependencies": "requests, pyyaml"
 }

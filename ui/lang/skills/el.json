@@ -115,5 +115,12 @@
   "skills.editor_fallback": "Advanced editor unavailable, using plain text mode.",
   "skills.failed_to_load_code": "Αποτυχία φόρτωσης κώδικα",
   "skills.finding_line": "γραμμή",
-  "skills.guardian_title": "LLM Guardian"
+  "skills.guardian_title": "LLM Guardian",
+  "skills.placeholder_skill_name": "my_skill",
+  "skills.placeholder_description": "Τι κάνει αυτό το skill?",
+  "skills.placeholder_category": "αυτοματοποίηση",
+  "skills.placeholder_tags": "api, αυτοματοποίηση",
+  "skills.placeholder_prompt": "Δημιουργήστε ένα skill που ανακτά JSON από ένα API και επιστρέφει ένα φιλτραρισμένο σύνοψη.",
+  "skills.placeholder_skill_name_short": "api_syntaxi",
+  "skills.placeholder_dependencies": "requests, pyyaml"
 }

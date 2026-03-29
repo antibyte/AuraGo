@@ -129,20 +129,20 @@
                 <div id="code-draft-meta" class="sk-code-meta" style="display:none;">
                     <div class="sk-form-group">
                         <label data-i18n="skills.template_skill_name">Skill Name</label>
-                        <input type="text" id="code-draft-name" class="sk-input" placeholder="my_skill">
+                        <input type="text" id="code-draft-name" class="sk-input" data-i18n-placeholder="skills.placeholder_skill_name" placeholder="my_skill">
                     </div>
                     <div class="sk-form-group">
                         <label data-i18n="skills.upload_description">Description</label>
-                        <input type="text" id="code-draft-description" class="sk-input" placeholder="What does this skill do?">
+                        <input type="text" id="code-draft-description" class="sk-input" data-i18n-placeholder="skills.placeholder_description" placeholder="What does this skill do?">
                     </div>
                     <div class="sk-code-meta-grid">
                         <div class="sk-form-group">
                             <label data-i18n="skills.field_category">Category</label>
-                            <input type="text" id="code-draft-category" class="sk-input" placeholder="automation">
+                            <input type="text" id="code-draft-category" class="sk-input" data-i18n-placeholder="skills.placeholder_category" placeholder="automation">
                         </div>
                         <div class="sk-form-group">
                             <label data-i18n="skills.field_tags">Tags</label>
-                            <input type="text" id="code-draft-tags" class="sk-input" placeholder="api, automation">
+                            <input type="text" id="code-draft-tags" class="sk-input" data-i18n-placeholder="skills.placeholder_tags" placeholder="api, automation">
                         </div>
                     </div>
                 </div>
@@ -351,17 +351,17 @@
             <div class="modal-body">
                 <div class="sk-form-group">
                     <label data-i18n="skills.generate_prompt_label">What should the skill do?</label>
-                    <textarea id="generate-prompt" class="sk-input sk-textarea" rows="6" placeholder="Create a skill that fetches JSON from an API and returns a filtered summary."></textarea>
+                    <textarea id="generate-prompt" class="sk-input sk-textarea" rows="6" data-i18n-placeholder="skills.placeholder_prompt" placeholder="Create a skill that fetches JSON from an API and returns a filtered summary."></textarea>
                 </div>
                 <div id="generate-status" class="sk-generate-status" style="display:none;"></div>
                 <div class="sk-code-meta-grid">
                     <div class="sk-form-group">
                         <label data-i18n="skills.template_skill_name">Skill Name</label>
-                        <input type="text" id="generate-skill-name" class="sk-input" placeholder="api_summary">
+                        <input type="text" id="generate-skill-name" class="sk-input" data-i18n-placeholder="skills.placeholder_skill_name_short" placeholder="api_summary">
                     </div>
                     <div class="sk-form-group">
                         <label data-i18n="skills.field_category">Category</label>
-                        <input type="text" id="generate-category" class="sk-input" placeholder="automation">
+                        <input type="text" id="generate-category" class="sk-input" data-i18n-placeholder="skills.placeholder_category" placeholder="automation">
                     </div>
                 </div>
                 <div class="sk-code-meta-grid">
@@ -373,7 +373,7 @@
                     </div>
                     <div class="sk-form-group">
                         <label data-i18n="skills.field_dependencies">Dependencies</label>
-                        <input type="text" id="generate-dependencies" class="sk-input" placeholder="requests, pyyaml">
+                        <input type="text" id="generate-dependencies" class="sk-input" data-i18n-placeholder="skills.placeholder_dependencies" placeholder="requests, pyyaml">
                     </div>
                 </div>
             </div>

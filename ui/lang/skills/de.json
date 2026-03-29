@@ -115,5 +115,12 @@
   "skills.editor_fallback": "Der erweiterte Editor ist nicht verfügbar, es wird der Textmodus verwendet.",
   "skills.failed_to_load_code": "Code konnte nicht geladen werden",
   "skills.finding_line": "Zeile",
-  "skills.guardian_title": "LLM Guardian"
+  "skills.guardian_title": "LLM Guardian",
+  "skills.placeholder_skill_name": "mein_skill",
+  "skills.placeholder_description": "Was macht dieser Skill?",
+  "skills.placeholder_category": "automatisierung",
+  "skills.placeholder_tags": "api, automatisierung",
+  "skills.placeholder_prompt": "Erstellen Sie einen Skill, der JSON von einer API abruft und eine gefilterte Zusammenfassung zurückgibt.",
+  "skills.placeholder_skill_name_short": "api_zusammenfassung",
+  "skills.placeholder_dependencies": "requests, pyyaml"
 }

@@ -115,5 +115,12 @@
   "skills.editor_fallback": "Advanced editor unavailable, using plain text mode.",
   "skills.failed_to_load_code": "Error al cargar código",
   "skills.finding_line": "línea",
-  "skills.guardian_title": "LLM Guardian"
+  "skills.guardian_title": "LLM Guardian",
+  "skills.placeholder_skill_name": "mi_skill",
+  "skills.placeholder_description": "¿Qué hace este skill?",
+  "skills.placeholder_category": "automatización",
+  "skills.placeholder_tags": "api, automatización",
+  "skills.placeholder_prompt": "Crea un skill que obtenga JSON de una API y devuelva un resumen filtrado.",
+  "skills.placeholder_skill_name_short": "resumen_api",
+  "skills.placeholder_dependencies": "requests, pyyaml"
 }
