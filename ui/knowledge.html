@@ -10,6 +10,7 @@
         (function () { var t = localStorage.getItem('aurago-theme'); if (t) document.documentElement.setAttribute('data-theme', t); })();
     </script>
     <script>const I18N={{.I18N}};</script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <link rel="stylesheet" href="/css/knowledge.css">
     <link rel="stylesheet" href="/css/enhancements.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -427,6 +428,16 @@
                 <pre id="file-preview-text" class="kc-preview-text is-hidden"></pre>
                 <div id="file-preview-img-wrap" class="kc-preview-img-wrap is-hidden">
                     <img id="file-preview-img" class="kc-preview-img" alt="" />
+                </div>
+                <div id="file-preview-pdf-wrap" class="kc-preview-pdf-wrap is-hidden">
+                    <canvas id="file-preview-pdf-canvas"></canvas>
+                    <div class="kc-pdf-controls" id="file-preview-pdf-controls">
+                        <button class="btn btn-sm btn-secondary" id="pdf-prev-btn" onclick="pdfPreviewPrev()">◀</button>
+                        <span id="pdf-page-info">1 / 1</span>
+                        <button class="btn btn-sm btn-secondary" id="pdf-next-btn" onclick="pdfPreviewNext()">▶</button>
+                        <button class="btn btn-sm btn-secondary" onclick="pdfPreviewZoomIn()">➕</button>
+                        <button class="btn btn-sm btn-secondary" onclick="pdfPreviewZoomOut()">➖</button>
+                    </div>
                 </div>
                 <div class="kc-preview-fallback is-hidden" id="file-preview-fallback">
                     <div class="empty-icon">📄</div>

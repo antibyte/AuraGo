@@ -12,6 +12,14 @@ let contactSearchTimer = null;
 let previewResetTimer = null;
 let pendingCredentialCertificateText = '';
 
+// PDF preview state
+let pdfDoc = null;
+let pdfCurrentPage = 1;
+let pdfScale = 1.2;
+if (typeof pdfjsLib !== 'undefined') {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+}
+
 // ═══════════════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════════════
@@ -288,8 +296,43 @@ function openFilePreview(name) {
         imgEl.src = previewURL;
         imgWrap.classList.remove('is-hidden');
 
-    } else if (ext === 'pdf' || ext === 'html' || ext === 'htm') {
-        // ── PDF / HTML: iframe renders these natively ──
+    } else if (ext === 'pdf') {
+        // ── PDF: pdf.js renders natively without iframe ──
+        const pdfWrap = document.getElementById('file-preview-pdf-wrap');
+        const canvas = document.getElementById('file-preview-pdf-canvas');
+        const controls = document.getElementById('file-preview-pdf-controls');
+        const pdfPageInfo = document.getElementById('pdf-page-info');
+        pdfDoc = null;
+        pdfCurrentPage = 1;
+        pdfScale = 1.2;
+        pdfWrap.classList.remove('is-hidden');
+        controls.classList.remove('is-hidden');
+        canvas.width = canvas.parentElement.clientWidth || 800;
+        canvas.height = (canvas.width * 1.4);
+
+        fetch(previewURL)
+            .then(r => {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return r.arrayBuffer();
+            })
+            .then(data => pdfjsLib.getDocument({ data }).promise)
+            .then(doc => {
+                pdfDoc = doc;
+                pdfPageInfo.textContent = `1 / ${doc.numPages}`;
+                document.getElementById('pdf-prev-btn').disabled = doc.numPages <= 1;
+                document.getElementById('pdf-next-btn').disabled = doc.numPages <= 1;
+                renderPdfPage(1);
+            })
+            .catch(err => {
+                console.error('PDF preview failed:', err);
+                pdfWrap.classList.add('is-hidden');
+                fallbackTitle.textContent = t('knowledge.files_preview_unavailable_title');
+                fallbackText.textContent = t('knowledge.files_preview_render_error');
+                fallback.classList.remove('is-hidden');
+            });
+
+    } else if (ext === 'html' || ext === 'htm') {
+        // ── HTML: iframe renders these natively ──
         frame.onload = () => {
             clearTimeout(previewResetTimer);
             fallback.classList.add('is-hidden');
@@ -334,12 +377,52 @@ function openFilePreview(name) {
     }
 }
 
+// ─── PDF rendering helpers ─────────────────────────────────────────────────
+
+function renderPdfPage(pageNum) {
+    if (!pdfDoc) return;
+    const canvas = document.getElementById('file-preview-pdf-canvas');
+    const ctx = canvas.getContext('2d');
+    pdfDoc.getPage(pageNum).then(page => {
+        const viewport = page.getViewport({ scale: pdfScale });
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        page.render({ canvasContext: ctx, viewport }).promise;
+    });
+    document.getElementById('pdf-page-info').textContent = `${pageNum} / ${pdfDoc.numPages}`;
+    document.getElementById('pdf-prev-btn').disabled = pageNum <= 1;
+    document.getElementById('pdf-next-btn').disabled = pageNum >= pdfDoc.numPages;
+}
+
+function pdfPreviewPrev() {
+    if (pdfCurrentPage <= 1) return;
+    pdfCurrentPage--;
+    renderPdfPage(pdfCurrentPage);
+}
+
+function pdfPreviewNext() {
+    if (!pdfDoc || pdfCurrentPage >= pdfDoc.numPages) return;
+    pdfCurrentPage++;
+    renderPdfPage(pdfCurrentPage);
+}
+
+function pdfPreviewZoomIn() {
+    pdfScale = Math.min(pdfScale + 0.3, 4);
+    renderPdfPage(pdfCurrentPage);
+}
+
+function pdfPreviewZoomOut() {
+    pdfScale = Math.max(pdfScale - 0.3, 0.4);
+    renderPdfPage(pdfCurrentPage);
+}
+
 function closeFilePreview() {
     const modal = document.getElementById('file-preview-modal');
     const frame = document.getElementById('file-preview-frame');
     const textEl = document.getElementById('file-preview-text');
     const imgWrap = document.getElementById('file-preview-img-wrap');
     const imgEl = document.getElementById('file-preview-img');
+    const pdfWrap = document.getElementById('file-preview-pdf-wrap');
     const fallback = document.getElementById('file-preview-fallback');
 
     clearTimeout(previewResetTimer);
@@ -351,6 +434,8 @@ function closeFilePreview() {
     textEl.classList.add('is-hidden');
     imgEl.src = '';
     imgWrap.classList.add('is-hidden');
+    pdfWrap.classList.add('is-hidden');
+    pdfDoc = null;
     fallback.classList.add('is-hidden');
     modal.classList.remove('active');
 }

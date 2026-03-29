@@ -118,7 +118,8 @@ async function renderCloudflareTunnelSection(section) {
                 → http://127.0.0.1:<input type="number" min="1024" max="65535" value="${loopbackPortVal}"
                     style="width:5.5rem;font-size:0.78rem;padding:1px 4px;border:1px solid var(--border);border-radius:3px;background:var(--input-bg);color:var(--text);"
                     onchange="cloudflareTunnelChangeLoopbackPort(this.value)">
-            </div>`;\n        }
+            </div>`;
+        }
         html += `<div class="wh-notice cft-notice-info" style="margin-top:0.3rem;">
             <span>🔄</span>
             <div><small>${t('config.cloudflare_tunnel.loopback_hint')}</small></div>
