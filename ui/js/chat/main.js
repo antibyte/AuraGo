@@ -1395,6 +1395,10 @@ function initPushUI() {
 
     applyState();
 
+    // Re-evaluate once the Service Worker has finished registering
+    // (initPWA is async and may complete after DOMContentLoaded)
+    window.addEventListener('pwa-ready', () => applyState(), { once: true });
+
     btn.addEventListener('click', async () => {
         closeComposerPanel();
         const status = window.getPushStatus ? window.getPushStatus() : null;

@@ -157,7 +157,9 @@ async function renderCloudflareTunnelSection(section) {
                 <option value="web_ui" ${exposeTarget === 'web_ui' ? 'selected' : ''}>${t('config.cloudflare_tunnel.expose_web_ui')}</option>
                 <option value="homepage" ${exposeTarget === 'homepage' ? 'selected' : ''}>${t('config.cloudflare_tunnel.expose_homepage')}</option>
             </select>
-        </label>`;
+        </label>
+        <input type="hidden" id="cf-expose-web-ui-val" data-path="cloudflare_tunnel.expose_web_ui" data-type="json" value="${exposeTarget === 'web_ui' ? 'true' : 'false'}">
+        <input type="hidden" id="cf-expose-homepage-val" data-path="cloudflare_tunnel.expose_homepage" data-type="json" value="${exposeTarget === 'homepage' ? 'true' : 'false'}">`;
         html += `<div class="wh-notice cft-notice-warn" style="margin-top:0.5rem;">
             <span>⚠️</span>
             <div><small>${t('config.cloudflare_tunnel.expose_single_hint')}</small></div>
@@ -209,6 +211,11 @@ function cloudflareTunnelChangeLoopbackPort(value) {
 function cloudflareTunnelSetExposeTarget(value) {
     setNestedValue(configData, 'cloudflare_tunnel.expose_web_ui', value === 'web_ui');
     setNestedValue(configData, 'cloudflare_tunnel.expose_homepage', value === 'homepage');
+    // Keep hidden data-path inputs in sync so buildConfigPatchFromForm() captures the values
+    const webUiInput = document.getElementById('cf-expose-web-ui-val');
+    const hpInput = document.getElementById('cf-expose-homepage-val');
+    if (webUiInput) webUiInput.value = value === 'web_ui' ? 'true' : 'false';
+    if (hpInput) hpInput.value = value === 'homepage' ? 'true' : 'false';
     setDirty(true);
 }
 

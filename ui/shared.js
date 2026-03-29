@@ -856,8 +856,6 @@ async function initPWA() {
         console.error('[PWA] Service Worker registration failed:', err);
         window._pushStatus = { available: false, reason: 'sw-failed' };
         return;
-        window._pushStatus = { available: false, reason: 'sw-failed' };
-        return;
     }
 
     // 3. Expose push status and opt-in helpers on window for use by the chat UI
@@ -910,6 +908,9 @@ async function initPWA() {
             console.warn('[PWA] Silent re-subscribe failed:', err)
         );
     }
+
+    // 5. Signal that PWA is ready (button UI can now update)
+    window.dispatchEvent(new CustomEvent('pwa-ready'));
 }
 
 /** Internal: subscribe to push and POST subscription to server. */
