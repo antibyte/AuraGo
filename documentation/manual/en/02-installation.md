@@ -111,7 +111,7 @@ The setup will:
 For developers or if you want to modify the code:
 
 **Prerequisites:**
-- Go 1.21+
+- Go 1.26.1+
 - Python 3.10+ (optional, for tools)
 
 ```bash

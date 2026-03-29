@@ -71,7 +71,7 @@ curl -O https://github.com/antibyte/AuraGo/releases/latest/download/resources.da
 
 | Error | Solution |
 |-------|----------|
-| `go: command not found` | Install Go 1.21+: [golang.org/dl](https://golang.org/dl) |
+| `go: command not found` | Install Go 1.26.1+: [golang.org/dl](https://golang.org/dl) |
 | `module not found` | Run `go mod download` |
 | `CGO errors` | Ensure CGO is disabled or gcc is installed |
 | `sqlite build errors` | Use `CGO_ENABLED=0` when building |
