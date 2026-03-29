@@ -293,17 +293,26 @@ func startTokenTunnel(cfg CloudflareTunnelConfig, vault *security.Vault, registr
 	case "docker":
 		// For HTTPS origins with self-signed certificates, cloudflared must be told to
 		// skip TLS verification for the local connection to AuraGo. The --no-tls-verify
-		// CLI flag is not reliable for token tunnels when the tunnel config is managed
-		// by the Cloudflare dashboard. Writing a config file is the only robust method.
+		// CLI flag is not reliable for token tunnels when the tunnel config comes from
+		// the Cloudflare dashboard. Writing a config file is the only robust method.
+		//
+		// IMPORTANT: do NOT mount into /etc/cloudflared — cloudflared writes its own
+		// tunnel state there and a read-only mount would break that. Mount into a
+		// separate, neutral path (/aurago-config) instead.
 		var extraBinds []string
 		if cfg.HTTPSEnabled {
 			configContent := "originRequest:\n  noTLSVerify: true\n"
 			configDir := filepath.Join(cfg.DataDir, "cloudflared")
 			if mkErr := os.MkdirAll(configDir, 0o755); mkErr == nil {
+				// MkdirAll does NOT update permissions of already-existing directories.
+				// Explicitly chmod to ensure the container user can traverse the path.
+				_ = os.Chmod(configDir, 0o755)
 				configPath := filepath.Join(configDir, "origin-config.yml")
 				if wErr := os.WriteFile(configPath, []byte(configContent), 0o644); wErr == nil {
-					tunnelArgs = append([]string{"tunnel", "--config", "/etc/cloudflared/origin-config.yml", "--url", localURL}, "run")
-					extraBinds = []string{configDir + ":/etc/cloudflared:ro"}
+					// Mount at /aurago-config (read-only) to avoid conflicting with
+					// cloudflared's own /etc/cloudflared write operations.
+					tunnelArgs = append([]string{"tunnel", "--config", "/aurago-config/origin-config.yml", "--url", localURL}, "run")
+					extraBinds = []string{configDir + ":/aurago-config:ro"}
 					logger.Info("[CloudflareTunnel] Origin config written with noTLSVerify", "path", configPath)
 				} else {
 					logger.Warn("[CloudflareTunnel] Failed to write origin config", "error", wErr)
