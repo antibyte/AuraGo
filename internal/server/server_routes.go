@@ -1448,21 +1448,35 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	loopbackPort := s.Cfg.CloudflareTunnel.LoopbackPort
 	httpsActive := s.Cfg.Server.HTTPS.Enabled
 	s.CfgMu.RUnlock()
-	if loopbackPort > 0 && httpsActive {
+	if (loopbackPort != 0) && httpsActive {
 		loopbackHandler := accessLogMiddleware(s.accessLogger(), securityHeadersMiddleware(authMiddleware(s, mux), false, false))
-		s.loopbackSrv = &http.Server{
-			Addr:         fmt.Sprintf("127.0.0.1:%d", loopbackPort),
-			Handler:      loopbackHandler,
-			ReadTimeout:  30 * time.Second,
-			WriteTimeout: 5 * time.Minute,
-			IdleTimeout:  2 * time.Minute,
+		// -1 = auto-assign a free port on 127.0.0.1
+		bindAddr := "127.0.0.1:0"
+		if loopbackPort > 0 {
+			bindAddr = fmt.Sprintf("127.0.0.1:%d", loopbackPort)
 		}
-		go func() {
-			s.Logger.Info("[CloudflareTunnel] Starting loopback HTTP listener", "port", loopbackPort)
-			if err := s.loopbackSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-				s.Logger.Warn("[CloudflareTunnel] Loopback HTTP listener stopped", "error", err)
+		ln, err := net.Listen("tcp4", bindAddr)
+		if err != nil {
+			s.Logger.Warn("[CloudflareTunnel] Could not bind loopback HTTP listener", "addr", bindAddr, "error", err)
+		} else {
+			actualPort := ln.Addr().(*net.TCPAddr).Port
+			s.Logger.Info("[CloudflareTunnel] Starting loopback HTTP listener", "port", actualPort)
+			// Write the actual port back so tunnel tools can use it
+			s.CfgMu.Lock()
+			s.Cfg.CloudflareTunnel.LoopbackPort = actualPort
+			s.CfgMu.Unlock()
+			s.loopbackSrv = &http.Server{
+				Handler:      loopbackHandler,
+				ReadTimeout:  30 * time.Second,
+				WriteTimeout: 5 * time.Minute,
+				IdleTimeout:  2 * time.Minute,
 			}
-		}()
+			go func() {
+				if err := s.loopbackSrv.Serve(ln); err != nil && err != http.ErrServerClosed {
+					s.Logger.Warn("[CloudflareTunnel] Loopback HTTP listener stopped", "error", err)
+				}
+			}()
+		}
 	}
 
 	// Always build and store the tsnet handler so it is available even when tsnet

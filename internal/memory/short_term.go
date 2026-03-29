@@ -33,8 +33,7 @@ func openSQLiteDB(dbPath string, logger *slog.Logger) (*sql.DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to open sqlite db: %w", err)
 	}
-
-	// Quick integrity check — catches "malformed disk image" before any writes.
+	// Quick integrity check - catches "malformed disk image" before any writes.
 	var integrityResult string
 	if checkErr := db.QueryRow("PRAGMA integrity_check(1)").Scan(&integrityResult); checkErr != nil || integrityResult != "ok" {
 		db.Close()
@@ -125,6 +124,13 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 		collection TEXT
 	);
 
+	CREATE TABLE IF NOT EXISTS file_embedding_docs (
+		file_path TEXT NOT NULL,
+		doc_id TEXT NOT NULL,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		PRIMARY KEY (file_path, doc_id)
+	);
+
 	CREATE TABLE IF NOT EXISTS core_memory (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		fact TEXT NOT NULL,
@@ -147,6 +153,7 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 	CREATE INDEX IF NOT EXISTS idx_memory_meta_accessed ON memory_meta(last_accessed);
 	CREATE INDEX IF NOT EXISTS idx_interaction_patterns_last_seen ON interaction_patterns(last_seen);
 	CREATE INDEX IF NOT EXISTS idx_archive_events_session_ts ON archive_events(session_id, timestamp);
+	CREATE INDEX IF NOT EXISTS idx_file_embedding_docs_path ON file_embedding_docs(file_path);
 
 		CREATE TABLE IF NOT EXISTS archived_messages (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1147,7 +1154,7 @@ func (s *SQLiteMemory) GetToolUsageCount(toolName string) (int, error) {
 	return count, nil
 }
 
-// ── Adaptive Tool Usage Tracking ───────────────────────────────────────────
+// Adaptive Tool Usage Tracking
 
 // ToolUsageAdaptiveEntry represents a persistent tool usage record with decay support.
 type ToolUsageAdaptiveEntry struct {
@@ -1195,10 +1202,10 @@ func (s *SQLiteMemory) LoadToolUsageAdaptive() ([]ToolUsageAdaptiveEntry, error)
 	return entries, rows.Err()
 }
 
-// ── Temporal Memory (Phase A) ──────────────────────────────────────────────
+// Temporal Memory (Phase A)
 
 // RecordInteraction logs a topic at the current hour/weekday for pattern detection.
-// Topics are kept short (≤120 chars) as coarse-grained keys, not full messages.
+// Topics are kept short (<=120 chars) as coarse-grained keys, not full messages.
 func (s *SQLiteMemory) RecordInteraction(topic string) error {
 	if topic == "" {
 		return nil
@@ -1332,11 +1339,130 @@ func (s *SQLiteMemory) UpdateFileIndex(path, collection string, modTime time.Tim
 	return err
 }
 
+// UpdateFileIndexWithDocs updates the last modified time for a given file path
+// and replaces the tracked VectorDB document IDs generated from that file.
+func (s *SQLiteMemory) UpdateFileIndexWithDocs(path, collection string, modTime time.Time, docIDs []string) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.Exec(`
+		INSERT INTO file_indices (file_path, collection, last_modified)
+		VALUES (?, ?, ?)
+		ON CONFLICT(file_path) DO UPDATE SET
+			last_modified = excluded.last_modified,
+			collection = excluded.collection
+	`, path, collection, modTime); err != nil {
+		return err
+	}
+
+	if _, err := tx.Exec(`DELETE FROM file_embedding_docs WHERE file_path = ?`, path); err != nil {
+		return err
+	}
+
+	for _, docID := range docIDs {
+		docID = strings.TrimSpace(docID)
+		if docID == "" {
+			continue
+		}
+		if _, err := tx.Exec(`
+			INSERT INTO file_embedding_docs (file_path, doc_id)
+			VALUES (?, ?)
+		`, path, docID); err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit()
+}
+
+// GetFileEmbeddingDocIDs returns the tracked VectorDB document IDs for a file path.
+func (s *SQLiteMemory) GetFileEmbeddingDocIDs(path string) ([]string, error) {
+	rows, err := s.db.Query(`
+		SELECT doc_id
+		FROM file_embedding_docs
+		WHERE file_path = ?
+		ORDER BY doc_id
+	`, path)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var docIDs []string
+	for rows.Next() {
+		var docID string
+		if err := rows.Scan(&docID); err != nil {
+			return nil, err
+		}
+		docIDs = append(docIDs, docID)
+	}
+	return docIDs, rows.Err()
+}
+
+// ListIndexedFiles returns all tracked file paths for a given collection.
+func (s *SQLiteMemory) ListIndexedFiles(collection string) ([]string, error) {
+	rows, err := s.db.Query(`
+		SELECT file_path
+		FROM file_indices
+		WHERE collection = ?
+		ORDER BY file_path
+	`, collection)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var paths []string
+	for rows.Next() {
+		var path string
+		if err := rows.Scan(&path); err != nil {
+			return nil, err
+		}
+		paths = append(paths, path)
+	}
+	return paths, rows.Err()
+}
+
+// DeleteFileIndex removes file-index metadata and tracked VectorDB document IDs
+// for a file path. This is used when a file is removed or before a full reindex.
+func (s *SQLiteMemory) DeleteFileIndex(path string) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.Exec(`DELETE FROM file_embedding_docs WHERE file_path = ?`, path); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`DELETE FROM file_indices WHERE file_path = ?`, path); err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
 // ClearFileIndices removes all persisted file-index timestamps so the indexer
-// treats knowledge/doc files as new and rebuilds their embeddings.
+// treats knowledge/doc files as new and rebuilds their embeddings. It also
+// clears the tracked file-to-vector document mappings.
 func (s *SQLiteMemory) ClearFileIndices() error {
-	_, err := s.db.Exec(`DELETE FROM file_indices`)
-	return err
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.Exec(`DELETE FROM file_embedding_docs`); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`DELETE FROM file_indices`); err != nil {
+		return err
+	}
+
+	return tx.Commit()
 }
 
 // ClearMemoryMeta removes all long-term memory metadata. This is needed when
@@ -1347,6 +1473,6 @@ func (s *SQLiteMemory) ClearMemoryMeta() error {
 	return err
 }
 
-// ── Core Memory (SQLite) ──────────────────────────────────────────────────────
+// Core Memory (SQLite)
 
 // GetMessageCount returns the total number of chat messages.

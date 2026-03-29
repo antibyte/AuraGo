@@ -24,5 +24,7 @@
   "config.cloudflare_tunnel.start_tunnel": "Tunnel starten",
   "config.cloudflare_tunnel.expose_target_label": "Ziel-Dienst des Tunnels",
   "config.cloudflare_tunnel.expose_single_hint": "Token- und Quick-Tunnel verwenden genau eine Ursprungs-URL. Nur ein Dienst kann Tunnel-Ziel sein. F\u00fcr mehrere Dienste unter verschiedenen Hostnamen Named Tunnel verwenden.",
-  "config.cloudflare_tunnel.expose_named_hint": "Named Tunnels unterst\u00fctzen mehrere Ingress-Regeln — beide Dienste k\u00f6nnen gleichzeitig exponiert werden. Dazu separate Hostnamen in den Custom Ingress Regeln konfigurieren."
+  "config.cloudflare_tunnel.expose_named_hint": "Named Tunnels unterstützen mehrere Ingress-Regeln. Beide Dienste können gleichzeitig exponiert werden. Separate Hostnamen in den Custom-Ingress-Regeln konfigurieren.",
+  "config.cloudflare_tunnel.loopback_label": "Loopback-HTTP-Port für cloudflared (TLS umgehen)",
+  "config.cloudflare_tunnel.loopback_hint": "Öffnet einen einfachen HTTP-Port nur auf 127.0.0.1. cloudflared verbindet sich damit statt mit dem HTTPS-Port — keine Zertifikatsprüfung nötig. Der Port wird automatisch zugewiesen."
 }

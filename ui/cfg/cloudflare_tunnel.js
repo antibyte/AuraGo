@@ -103,7 +103,19 @@ async function renderCloudflareTunnelSection(section) {
 
     html += `</div>`; // close grid
 
-    // Exposure section
+    // Loopback HTTP port (auto) toggle — only relevant when HTTPS is active
+    const httpsEnabled = (configData.server?.https?.enabled === true);
+    if (httpsEnabled) {
+        const loopbackEnabled = (cfg.loopback_port !== undefined && cfg.loopback_port !== 0);
+        html += `<div class="cft-toggle-row" style="margin-top:0.6rem;">
+            <span class="cft-toggle-label">${t('config.cloudflare_tunnel.loopback_label')}</span>
+            <div class="toggle ${loopbackEnabled ? 'on' : ''}" onclick="cloudflareTunnelToggleLoopback(this)"></div>
+        </div>`;
+        html += `<div class="wh-notice cft-notice-info" style="margin-top:0.3rem;">
+            <span>🔄</span>
+            <div><small>${t('config.cloudflare_tunnel.loopback_hint')}</small></div>
+        </div>`;
+    }
     html += `<div class="cft-exposure-heading-wrap">
         <span class="cft-exposure-heading">${t('config.cloudflare_tunnel.exposure_heading')}</span>
     </div>`;
@@ -162,6 +174,13 @@ async function renderCloudflareTunnelSection(section) {
 
     html += `</div>`; // close section
     document.getElementById('content').innerHTML = html;
+}
+
+function cloudflareTunnelToggleLoopback(el) {
+    const isOn = el.classList.toggle('on');
+    // -1 = auto-assign free port; 0 = disabled
+    setNestedValue(configData, 'cloudflare_tunnel.loopback_port', isOn ? -1 : 0);
+    setDirty(true);
 }
 
 function cloudflareTunnelSetExposeTarget(value) {

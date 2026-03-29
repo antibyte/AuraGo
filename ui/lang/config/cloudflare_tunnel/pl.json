@@ -1,4 +1,4 @@
-{
+﻿{
   "config.cloudflare_tunnel.enabled_label": "Cloudflare Tunnel w\u0142\u0105czony",
   "config.cloudflare_tunnel.readonly_label": "Tryb tylko do odczytu (tylko status)",
   "config.cloudflare_tunnel.auto_start_label": "Automatyczny start przy uruchomieniu",

@@ -1,4 +1,4 @@
-{
+﻿{
   "config.cloudflare_tunnel.enabled_label": "Cloudflare Tunnel ingeschakeld",
   "config.cloudflare_tunnel.readonly_label": "Alleen-lezen modus (alleen status)",
   "config.cloudflare_tunnel.auto_start_label": "Automatisch starten bij opstarten",

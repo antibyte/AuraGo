@@ -1,4 +1,4 @@
-{
+﻿{
   "config.cloudflare_tunnel.enabled_label": "Cloudflare Tunnel povolen",
   "config.cloudflare_tunnel.readonly_label": "Re\u017eim jen pro \u010dten\u00ed (pouze stav)",
   "config.cloudflare_tunnel.auto_start_label": "Automatick\u00e9 spu\u0161t\u011bn\u00ed p\u0159i startu",

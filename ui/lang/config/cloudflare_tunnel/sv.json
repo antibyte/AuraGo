@@ -1,4 +1,4 @@
-{
+﻿{
   "config.cloudflare_tunnel.enabled_label": "Cloudflare Tunnel aktiverad",
   "config.cloudflare_tunnel.readonly_label": "Skrivskyddat l\u00e4ge (endast status)",
   "config.cloudflare_tunnel.auto_start_label": "Starta automatiskt vid uppstart",

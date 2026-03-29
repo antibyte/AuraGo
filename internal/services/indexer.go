@@ -128,7 +128,7 @@ func (fi *FileIndexer) ensureDirectories() {
 
 // scan walks all configured directories and indexes new/changed files.
 func (fi *FileIndexer) scan() {
-	// Skip silently when the embedding pipeline failed at startup — the
+	// Skip silently when the embedding pipeline failed at startup - the
 	// disabled state is already reported once during VectorDB initialisation.
 	if fi.vectorDB.IsDisabled() {
 		fi.logger.Debug("[Indexer] VectorDB is disabled, skipping scan")
@@ -177,9 +177,16 @@ func (fi *FileIndexer) scan() {
 
 // scanDirectory walks a single directory (recursively) and indexes supported files.
 func (fi *FileIndexer) scanDirectory(dir string) (totalFiles, indexedFiles int, errors []string) {
+	trackedPaths, trackedErr := fi.stm.ListIndexedFiles(indexerCollection)
+	if trackedErr != nil {
+		errors = append(errors, fmt.Sprintf("list indexed files %s: %v", dir, trackedErr))
+	}
+	seenPaths := make(map[string]struct{})
+
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		fi.logger.Debug("[Indexer] Directory does not exist, skipping", "dir", dir)
-		return 0, 0, nil
+		errors = append(errors, fi.cleanupDeletedTrackedFiles(dir, trackedPaths, seenPaths)...)
+		return 0, 0, errors
 	}
 
 	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
@@ -216,13 +223,14 @@ func (fi *FileIndexer) scanDirectory(dir string) (totalFiles, indexedFiles int, 
 			return nil
 		}
 
-		// ── Binary safety: skip executables and binary files ──
+		// Binary safety: skip executables and binary files.
 		if IsBinaryFile(path) {
 			fi.logger.Debug("[Indexer] Skipping binary file", "path", path)
 			return nil
 		}
 
 		totalFiles++
+		seenPaths[path] = struct{}{}
 
 		// Check if file needs re-indexing (change detection via SQLite)
 		lastIndexed, _ := fi.stm.GetFileIndex(path)
@@ -239,7 +247,7 @@ func (fi *FileIndexer) scanDirectory(dir string) (totalFiles, indexedFiles int, 
 		var content string
 		var precomputedEmbedding []float32
 
-		// ── Multimodal path: images and audio via multimodal embedding API ──
+		// Multimodal path: images and audio via multimodal embedding API.
 		if multimodal && (isImage || isAudio) {
 			embedder := fi.getMultimodalEmbedder()
 			if embedder == nil {
@@ -260,7 +268,7 @@ func (fi *FileIndexer) scanDirectory(dir string) (totalFiles, indexedFiles int, 
 			content = fmt.Sprintf("%s-Datei: %s (Pfad: %s)", kind, info.Name(), relPath)
 
 		} else if isImage {
-			// ── Image indexing via Vision LLM (non-multimodal fallback) ──
+			// Image indexing via Vision LLM (non-multimodal fallback).
 			prompt := fmt.Sprintf(
 				"Analysiere dieses Bild detailliert. Beschreibe den Inhalt, erkennbare Texte, Objekte und relevante Details. "+
 					"Dateiname: %s, Pfad: %s", info.Name(), relPath,
@@ -276,7 +284,7 @@ func (fi *FileIndexer) scanDirectory(dir string) (totalFiles, indexedFiles int, 
 			content = fmt.Sprintf("Bildanalyse von %s (Pfad: %s):\n%s", info.Name(), relPath, analysis)
 
 		} else if IsDocumentFile(ext) {
-			// ── Document text extraction (PDF, DOCX, XLSX, PPTX, ODT, RTF) ──
+			// Document text extraction (PDF, DOCX, XLSX, PPTX, ODT, RTF).
 			extracted, extractErr := ExtractText(path)
 			if extractErr != nil {
 				fi.logger.Warn("[Indexer] Text extraction failed, trying raw read", "path", path, "error", extractErr)
@@ -308,7 +316,7 @@ func (fi *FileIndexer) scanDirectory(dir string) (totalFiles, indexedFiles int, 
 			}
 
 		} else {
-			// ── Plain text files ──
+			// Plain text files.
 			data, readErr := os.ReadFile(path)
 			if readErr != nil {
 				errors = append(errors, fmt.Sprintf("read error %s: %v", path, readErr))
@@ -321,16 +329,28 @@ func (fi *FileIndexer) scanDirectory(dir string) (totalFiles, indexedFiles int, 
 			return nil
 		}
 
+		if err := fi.removeTrackedFile(path); err != nil {
+			errors = append(errors, fmt.Sprintf("cleanup error %s: %v", path, err))
+			fi.logger.Warn("[Indexer] Failed to remove stale embeddings before reindex", "path", path, "error", err)
+			return nil
+		}
+
 		// Build metadata-rich concept for the embedding
-		concept := fmt.Sprintf("Datei: %s (Pfad: %s, Geändert: %s)",
+		concept := fmt.Sprintf("Datei: %s (Pfad: %s, GeÃƒÂ¤ndert: %s)",
 			info.Name(), relPath, info.ModTime().Format("2006-01-02 15:04"))
 
-		// Store in VectorDB — use pre-computed embedding when available
+		// Store in VectorDB - use pre-computed embedding when available.
+		var docIDs []string
 		var storeErr error
 		if precomputedEmbedding != nil {
-			_, storeErr = fi.vectorDB.StoreDocumentWithEmbedding(concept, content, precomputedEmbedding)
+			docID, err := fi.vectorDB.StoreDocumentWithEmbedding(concept, content, precomputedEmbedding)
+			if err != nil {
+				storeErr = err
+			} else if docID != "" {
+				docIDs = []string{docID}
+			}
 		} else {
-			_, storeErr = fi.vectorDB.StoreDocument(concept, content)
+			docIDs, storeErr = fi.vectorDB.StoreDocument(concept, content)
 		}
 		if storeErr != nil {
 			errors = append(errors, fmt.Sprintf("index error %s: %v", path, storeErr))
@@ -338,10 +358,14 @@ func (fi *FileIndexer) scanDirectory(dir string) (totalFiles, indexedFiles int, 
 			return nil
 		}
 
-		// Update SQLite timestamp
-		_ = fi.stm.UpdateFileIndex(path, indexerCollection, info.ModTime())
+		if err := fi.stm.UpdateFileIndexWithDocs(path, indexerCollection, info.ModTime(), docIDs); err != nil {
+			errors = append(errors, fmt.Sprintf("tracking error %s: %v", path, err))
+			fi.logger.Warn("[Indexer] Failed to persist file index tracking", "path", path, "error", err)
+			return nil
+		}
+
 		indexedFiles++
-		fi.logger.Info("[Indexer] Indexed file", "path", relPath, "size", info.Size())
+		fi.logger.Info("[Indexer] Indexed file", "path", relPath, "size", info.Size(), "doc_ids", len(docIDs))
 
 		return nil
 	})
@@ -349,7 +373,62 @@ func (fi *FileIndexer) scanDirectory(dir string) (totalFiles, indexedFiles int, 
 		errors = append(errors, fmt.Sprintf("walk error %s: %v", dir, err))
 	}
 
+	errors = append(errors, fi.cleanupDeletedTrackedFiles(dir, trackedPaths, seenPaths)...)
 	return totalFiles, indexedFiles, errors
+}
+
+func (fi *FileIndexer) cleanupDeletedTrackedFiles(dir string, trackedPaths []string, seenPaths map[string]struct{}) []string {
+	var errors []string
+	for _, trackedPath := range trackedPaths {
+		if !isPathWithinDir(trackedPath, dir) {
+			continue
+		}
+		if _, ok := seenPaths[trackedPath]; ok {
+			continue
+		}
+		if err := fi.removeTrackedFile(trackedPath); err != nil {
+			errors = append(errors, fmt.Sprintf("deleted file cleanup %s: %v", trackedPath, err))
+			fi.logger.Warn("[Indexer] Failed to remove deleted file embeddings", "path", trackedPath, "error", err)
+			continue
+		}
+		fi.logger.Info("[Indexer] Removed embeddings for deleted file", "path", trackedPath)
+	}
+	return errors
+}
+
+func (fi *FileIndexer) removeTrackedFile(path string) error {
+	docIDs, err := fi.stm.GetFileEmbeddingDocIDs(path)
+	if err != nil {
+		return fmt.Errorf("load tracked doc ids: %w", err)
+	}
+	for _, docID := range docIDs {
+		if err := fi.vectorDB.DeleteDocument(docID); err != nil {
+			return fmt.Errorf("delete vector doc %s: %w", docID, err)
+		}
+		if err := fi.stm.DeleteMemoryMeta(docID); err != nil {
+			return fmt.Errorf("delete memory meta %s: %w", docID, err)
+		}
+	}
+	if err := fi.stm.DeleteFileIndex(path); err != nil {
+		return fmt.Errorf("delete file index: %w", err)
+	}
+	return nil
+}
+
+func isPathWithinDir(path, dir string) bool {
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		absPath = filepath.Clean(path)
+	}
+	absDir, err := filepath.Abs(dir)
+	if err != nil {
+		absDir = filepath.Clean(dir)
+	}
+	rel, err := filepath.Rel(absDir, absPath)
+	if err != nil {
+		return false
+	}
+	return rel == "." || (rel != ".." && !strings.HasPrefix(rel, ".."+string(os.PathSeparator)))
 }
 
 // getMultimodalEmbedder creates a MultimodalEmbedder from the current config.
