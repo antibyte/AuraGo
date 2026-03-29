@@ -49,6 +49,7 @@ func isInternetFacing(cfg *config.Config) bool {
 func CheckSecurity(cfg *config.Config) []SecurityHint {
 	var hints []SecurityHint
 	facing := isInternetFacing(cfg)
+	dangerCount := countDangerZoneCapabilities(cfg)
 
 	// 1. auth_disabled
 	if !cfg.Auth.Enabled {
@@ -75,6 +76,19 @@ func CheckSecurity(cfg *config.Config) []SecurityHint {
 			Title: "No password configured",
 			Description: "Login guard is enabled but no password has been set. " +
 				"Authentication is effectively bypassed — set a password in the Login Guard section.",
+			AutoFixable: false,
+		})
+	}
+
+	// 2b. critical_public_exposure — public instance with weak perimeter and multiple powerful capabilities
+	if facing &&
+		(!cfg.Server.HTTPS.Enabled || !cfg.Auth.Enabled || cfg.Auth.PasswordHash == "") &&
+		dangerCount >= 2 {
+		hints = append(hints, SecurityHint{
+			ID: "critical_public_exposure", Severity: SevCritical,
+			Title: "Public instance is broadly exposed",
+			Description: "The server is reachable beyond localhost, key perimeter protections are missing, " +
+				"and multiple high-risk capabilities are enabled. Lock down access before using AuraGo on this network.",
 			AutoFixable: false,
 		})
 	}
@@ -141,6 +155,32 @@ func CheckSecurity(cfg *config.Config) []SecurityHint {
 			Title: "All danger-zone capabilities enabled on public server",
 			Description: "Shell execution, Python, filesystem write, network requests, and remote shell are all enabled. " +
 				"Consider disabling capabilities you don't need and enabling the LLM Guardian.",
+			AutoFixable: false,
+		})
+	}
+
+	// 7b. python_no_sandbox — Python is enabled without an effective sandbox backend
+	if cfg.Agent.AllowPython && !pythonSandboxReady(cfg) {
+		sev := SevWarning
+		if facing {
+			sev = SevCritical
+		}
+		hints = append(hints, SecurityHint{
+			ID: "python_no_sandbox", Severity: sev,
+			Title: "Python execution without effective sandbox",
+			Description: "Python execution is enabled, but the isolated sandbox backend is not effectively available. " +
+				"Enable the sandbox or disable Python execution for this environment.",
+			AutoFixable: false,
+		})
+	}
+
+	// 7c. mcp_public — MCP exposed on an internet-facing instance
+	if facing && cfg.Agent.AllowMCP && cfg.MCP.Enabled {
+		hints = append(hints, SecurityHint{
+			ID: "mcp_public", Severity: SevWarning,
+			Title: "MCP enabled on an externally reachable instance",
+			Description: "Model Context Protocol is enabled while the server is reachable beyond localhost. " +
+				"Expose it only behind authentication and transport security, or disable MCP if not needed.",
 			AutoFixable: false,
 		})
 	}
@@ -232,7 +272,7 @@ func ApplyHardening(s *Server, ids []string) ([]string, error) {
 	if err := yaml.Unmarshal(out, &validateCfg); err != nil {
 		return nil, fmt.Errorf("validation failed: %w", err)
 	}
-	if err := os.WriteFile(configPath, out, 0640); err != nil {
+	if err := config.WriteFileAtomic(configPath, out, 0o600); err != nil {
 		return nil, fmt.Errorf("write config: %w", err)
 	}
 
@@ -251,4 +291,33 @@ func ApplyHardening(s *Server, ids []string) ([]string, error) {
 
 	s.Logger.Info("[Security] Hardening applied", "ids", strings.Join(applied, ", "))
 	return applied, nil
+}
+
+func countDangerZoneCapabilities(cfg *config.Config) int {
+	count := 0
+	for _, enabled := range []bool{
+		cfg.Agent.AllowShell,
+		cfg.Agent.AllowPython,
+		cfg.Agent.AllowFilesystemWrite,
+		cfg.Agent.AllowNetworkRequests,
+		cfg.Agent.AllowRemoteShell,
+		cfg.Agent.AllowSelfUpdate,
+		cfg.Agent.AllowMCP && cfg.MCP.Enabled,
+		cfg.Agent.SudoEnabled,
+	} {
+		if enabled {
+			count++
+		}
+	}
+	return count
+}
+
+func pythonSandboxReady(cfg *config.Config) bool {
+	if !cfg.Sandbox.Enabled {
+		return false
+	}
+	if cfg.Runtime.IsDocker && !cfg.Runtime.DockerSocketOK {
+		return false
+	}
+	return true
 }

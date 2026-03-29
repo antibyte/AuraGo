@@ -81,7 +81,8 @@ func (s *Server) handleBridgeConnection(conn net.Conn) {
 			s.Logger.Info("TCP Bridge: Vitality check received", "challenge", cmd.Challenge, "summary", cmd.Summary)
 			result, err := s.processVitalityCheck(cmd.Challenge, cmd.Summary)
 			if err != nil {
-				s.sendBridgeResponse(conn, BridgeResponse{Status: "error", Message: err.Error()})
+				s.Logger.Error("TCP Bridge: Vitality check failed", "error", err)
+				s.sendBridgeResponse(conn, BridgeResponse{Status: "error", Message: "Vitality check failed"})
 			} else {
 				s.sendBridgeResponse(conn, BridgeResponse{Status: "ok", Result: result})
 			}

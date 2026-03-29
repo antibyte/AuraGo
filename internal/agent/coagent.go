@@ -36,6 +36,13 @@ type coAgentPromptTemplate struct {
 	Exists  bool
 }
 
+type coAgentLLMSelection struct {
+	Model   string
+	APIKey  string
+	BaseURL string
+	Source  string
+}
+
 type coAgentBroker struct {
 	id       string
 	registry *CoAgentRegistry
@@ -118,9 +125,14 @@ func SpawnCoAgent(
 		return "", "", err
 	}
 
-	// 3. Build co-agent LLM client (specialist may use a different provider)
-	coModel := coAgentModelForRole(cfg, req.Specialist)
-	coClient := newCoAgentLLMClientForRole(cfg, logger, req.Specialist)
+	// 3. Build co-agent LLM client (specialist may use a different provider).
+	// Designer specialists sometimes get configured with image-only models such as
+	// Seedream/FLUX/Imagen. Those cannot run the normal chat+tool loop, so we
+	// transparently fall back to a text-capable co-agent/main model for reasoning
+	// while the specialist can still call the image_generation tool.
+	coLLM, llmFallback := selectCoAgentLLMForRole(cfg, req.Specialist)
+	coModel := coLLM.Model
+	coClient := newCoAgentLLMClientForSelection(cfg, logger, req.Specialist, coLLM)
 
 	// 4. Build system prompt (specialist gets its own template)
 	var systemPrompt string
@@ -148,6 +160,10 @@ func SpawnCoAgent(
 				coLogger.Warn("Co-Agent did not start", "error", err)
 				return
 			}
+		}
+		if llmFallback != "" {
+			coLogger.Warn("Co-Agent specialist model fallback applied", "reason", llmFallback, "model", coModel, "specialist", req.Specialist)
+			coRegistry.RecordEvent(coID, llmFallback)
 		}
 		coRegistry.RecordEvent(coID, "starting execution")
 		coLogger.Info("Co-Agent started", "task", truncateStr(req.Task, 100), "model", coModel, "timeout", timeout, "specialist", req.Specialist)
@@ -270,38 +286,65 @@ func SpawnCoAgent(
 	return coID, state, nil
 }
 
-// coAgentModelForRole returns the model name to use for a co-agent/specialist.
-// Cascade: specialist LLM → co_agents LLM → main LLM (resolved by ResolveProviders).
-func coAgentModelForRole(cfg *config.Config, role string) string {
-	if role != "" {
-		if spec := cfg.GetSpecialist(role); spec != nil && spec.LLM.Model != "" {
-			return spec.LLM.Model
-		}
+func selectCoAgentLLMForRole(cfg *config.Config, role string) (coAgentLLMSelection, string) {
+	selection := coAgentLLMSelection{
+		Model:   strings.TrimSpace(cfg.CoAgents.LLM.Model),
+		APIKey:  cfg.CoAgents.LLM.APIKey,
+		BaseURL: cfg.CoAgents.LLM.BaseURL,
+		Source:  "co_agents",
 	}
-	return cfg.CoAgents.LLM.Model
-}
-
-// newCoAgentLLMClientForRole creates an LLM client for a co-agent or specialist.
-func newCoAgentLLMClientForRole(cfg *config.Config, logger *slog.Logger, role string) llm.ChatClient {
-	apiKey := cfg.CoAgents.LLM.APIKey
-	baseURL := cfg.CoAgents.LLM.BaseURL
-	model := coAgentModelForRole(cfg, role)
-
 	if role != "" {
 		if spec := cfg.GetSpecialist(role); spec != nil {
 			if spec.LLM.APIKey != "" {
-				apiKey = spec.LLM.APIKey
+				selection.APIKey = spec.LLM.APIKey
 			}
 			if spec.LLM.BaseURL != "" {
-				baseURL = spec.LLM.BaseURL
+				selection.BaseURL = spec.LLM.BaseURL
+			}
+			if spec.LLM.Model != "" {
+				selection.Model = strings.TrimSpace(spec.LLM.Model)
+				selection.Source = "specialist"
 			}
 		}
 	}
 
+	if role != "designer" || !isLikelyImageOnlyCoAgentModel(selection.Model) {
+		return selection, ""
+	}
+
+	candidates := []coAgentLLMSelection{
+		{
+			Model:   strings.TrimSpace(cfg.CoAgents.LLM.Model),
+			APIKey:  cfg.CoAgents.LLM.APIKey,
+			BaseURL: cfg.CoAgents.LLM.BaseURL,
+			Source:  "co_agents",
+		},
+		{
+			Model:   strings.TrimSpace(cfg.LLM.Model),
+			APIKey:  cfg.LLM.APIKey,
+			BaseURL: cfg.LLM.BaseURL,
+			Source:  "main",
+		},
+	}
+	for _, candidate := range candidates {
+		if candidate.Model == "" || isLikelyImageOnlyCoAgentModel(candidate.Model) {
+			continue
+		}
+		if candidate.Model == selection.Model && candidate.APIKey == selection.APIKey && candidate.BaseURL == selection.BaseURL {
+			continue
+		}
+		return candidate, fmt.Sprintf("designer specialist model %q is image-only; falling back to %s model %q for chat/tool execution", selection.Model, candidate.Source, candidate.Model)
+	}
+
+	return selection, ""
+}
+
+// newCoAgentLLMClientForSelection creates an LLM client for a co-agent or specialist.
+func newCoAgentLLMClientForSelection(cfg *config.Config, logger *slog.Logger, role string, selection coAgentLLMSelection) llm.ChatClient {
 	coCfg := *cfg
-	coCfg.LLM.APIKey = apiKey
-	coCfg.LLM.BaseURL = baseURL
-	coCfg.LLM.Model = model
+	coCfg.LLM.APIKey = selection.APIKey
+	coCfg.LLM.BaseURL = selection.BaseURL
+	coCfg.LLM.Model = selection.Model
 	coCfg.FallbackLLM.Enabled = false
 
 	component := "co-agent-llm"
@@ -318,7 +361,33 @@ func coAgentModel(cfg *config.Config) string {
 
 // newCoAgentLLMClient creates an LLM client for a generic co-agent.
 func newCoAgentLLMClient(cfg *config.Config, logger *slog.Logger) llm.ChatClient {
-	return newCoAgentLLMClientForRole(cfg, logger, "")
+	selection, _ := selectCoAgentLLMForRole(cfg, "")
+	return newCoAgentLLMClientForSelection(cfg, logger, "", selection)
+}
+
+func isLikelyImageOnlyCoAgentModel(model string) bool {
+	model = strings.ToLower(strings.TrimSpace(model))
+	if model == "" {
+		return false
+	}
+	patterns := []string{
+		"seedream",
+		"flux",
+		"imagen",
+		"dall-e",
+		"gpt-image",
+		"gpt-5-image",
+		"recraft",
+		"stable-diffusion",
+		"sdxl",
+		"midjourney",
+	}
+	for _, pattern := range patterns {
+		if strings.Contains(model, pattern) {
+			return true
+		}
+	}
+	return false
 }
 
 var (

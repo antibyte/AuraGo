@@ -111,6 +111,8 @@ func handleAuthLogin(s *Server) http.HandlerFunc {
 		}
 
 		ip := ClientIP(r)
+		accountKey := loginScopeKey("account", "admin")
+		ipKey := loginScopeKey("ip", ip)
 
 		s.CfgMu.RLock()
 		maxAttempts := s.Cfg.Auth.MaxLoginAttempts
@@ -118,11 +120,11 @@ func handleAuthLogin(s *Server) http.HandlerFunc {
 		s.CfgMu.RUnlock()
 
 		// Rate limit check
-		if IsLockedOut(ip) {
+		if IsLockedOutAny(ipKey, accountKey) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusTooManyRequests)
 			json.NewEncoder(w).Encode(map[string]interface{}{
-				"error": "Zu viele Versuche. Bitte warte einige Minuten.",
+				"error": "Too many login attempts. Please wait a few minutes and try again.",
 			})
 			return
 		}
@@ -145,6 +147,10 @@ func handleAuthLogin(s *Server) http.HandlerFunc {
 			return
 		}
 
+		if delay := LoginBackoffDelay(ipKey, accountKey); delay > 0 {
+			time.Sleep(delay)
+		}
+
 		s.CfgMu.RLock()
 		hash := s.Cfg.Auth.PasswordHash
 		totpEnabled := s.Cfg.Auth.TOTPEnabled
@@ -157,32 +163,42 @@ func handleAuthLogin(s *Server) http.HandlerFunc {
 		if hash == "" {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(map[string]interface{}{"error": "Kein Passwort gesetzt."})
+			json.NewEncoder(w).Encode(map[string]interface{}{"error": "Authentication is not fully configured."})
 			return
 		}
 		if !CheckPassword(req.Password, hash) {
-			RecordFailedLogin(ip, maxAttempts, lockoutMinutes)
+			RecordFailedLoginForKeys(maxAttempts, lockoutMinutes, ipKey, accountKey)
 			s.Logger.Warn("[Auth] Failed login attempt", "ip", ip)
 			w.Header().Set("Content-Type", "application/json")
+			if IsLockedOutAny(ipKey, accountKey) {
+				w.WriteHeader(http.StatusTooManyRequests)
+				json.NewEncoder(w).Encode(map[string]interface{}{"error": "Too many login attempts. Please wait a few minutes and try again."})
+				return
+			}
 			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(map[string]interface{}{"error": "Falsches Passwort."})
+			json.NewEncoder(w).Encode(map[string]interface{}{"error": "Invalid credentials."})
 			return
 		}
 
 		// Validate TOTP if enabled
 		if totpEnabled && totpSecret != "" {
 			if !VerifyTOTP(totpSecret, req.TOTPCode) {
-				RecordFailedLogin(ip, maxAttempts, lockoutMinutes)
+				RecordFailedLoginForKeys(maxAttempts, lockoutMinutes, ipKey, accountKey)
 				s.Logger.Warn("[Auth] Failed TOTP attempt", "ip", ip)
 				w.Header().Set("Content-Type", "application/json")
+				if IsLockedOutAny(ipKey, accountKey) {
+					w.WriteHeader(http.StatusTooManyRequests)
+					json.NewEncoder(w).Encode(map[string]interface{}{"error": "Too many login attempts. Please wait a few minutes and try again."})
+					return
+				}
 				w.WriteHeader(http.StatusUnauthorized)
-				json.NewEncoder(w).Encode(map[string]interface{}{"error": "Ungültiger Authenticator-Code."})
+				json.NewEncoder(w).Encode(map[string]interface{}{"error": "Invalid credentials."})
 				return
 			}
 		}
 
 		// Success — set session cookie
-		ClearLoginRecord(ip)
+		ClearLoginRecords(ipKey, accountKey)
 		timeout := time.Duration(timeoutHours) * time.Hour
 		SetSessionCookie(w, r, secret, timeout)
 		s.Logger.Info("[Auth] Successful login", "ip", ip)
@@ -508,7 +524,7 @@ func patchAuthConfig(s *Server, fields map[string]interface{}) error {
 		if err != nil {
 			return err
 		}
-		if err := os.WriteFile(configPath, out, 0644); err != nil {
+		if err := config.WriteFileAtomic(configPath, out, 0o600); err != nil {
 			return err
 		}
 	}

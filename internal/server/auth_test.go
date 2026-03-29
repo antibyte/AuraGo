@@ -1,10 +1,15 @@
 package server
 
 import (
+	"aurago/internal/config"
+	"bytes"
+	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestClearSessionCookieIncludesSecureOnHTTPS(t *testing.T) {
@@ -112,5 +117,56 @@ func TestHandleAuthLogoutAPIReturnsJSON(t *testing.T) {
 	}
 	if rec.Header().Get("Location") != "" {
 		t.Fatalf("did not expect redirect location for API logout")
+	}
+}
+
+func TestLoginBackoffDelayUsesHighestFailureCount(t *testing.T) {
+	t.Parallel()
+
+	loginRecords = make(map[string]*loginRecord)
+	ipKey := loginScopeKey("ip", "127.0.0.1")
+	accountKey := loginScopeKey("account", "admin")
+	RecordFailedLogin(ipKey, 10, 1)
+	RecordFailedLogin(ipKey, 10, 1)
+	RecordFailedLogin(accountKey, 10, 1)
+
+	delay := LoginBackoffDelay(ipKey, accountKey)
+	if delay != 500*time.Millisecond {
+		t.Fatalf("delay = %v, want %v", delay, 500*time.Millisecond)
+	}
+}
+
+func TestHandleAuthLoginLocksOutAcrossAccountScope(t *testing.T) {
+	t.Parallel()
+
+	loginRecords = make(map[string]*loginRecord)
+	hash, err := HashPassword("correct horse battery staple")
+	if err != nil {
+		t.Fatalf("hash password: %v", err)
+	}
+
+	cfg := &config.Config{}
+	cfg.Auth.Enabled = true
+	cfg.Auth.PasswordHash = hash
+	cfg.Auth.SessionSecret = "0123456789abcdef0123456789abcdef"
+	cfg.Auth.MaxLoginAttempts = 2
+	cfg.Auth.LockoutMinutes = 10
+	cfg.Auth.SessionTimeoutHours = 1
+	s := &Server{Cfg: cfg, Logger: slog.Default()}
+
+	makeRequest := func(ip string) *httptest.ResponseRecorder {
+		body, _ := json.Marshal(map[string]string{"password": "wrong"})
+		req := httptest.NewRequest(http.MethodPost, "/auth/login", bytes.NewReader(body))
+		req.RemoteAddr = ip + ":12345"
+		rec := httptest.NewRecorder()
+		handleAuthLogin(s).ServeHTTP(rec, req)
+		return rec
+	}
+
+	if rec := makeRequest("127.0.0.1"); rec.Code != http.StatusUnauthorized {
+		t.Fatalf("first login status = %d, want 401", rec.Code)
+	}
+	if rec := makeRequest("127.0.0.2"); rec.Code != http.StatusTooManyRequests {
+		t.Fatalf("second login on different IP status = %d, want 429", rec.Code)
 	}
 }

@@ -32,7 +32,7 @@ func handleInvasionNestHatch(s *Server) http.HandlerFunc {
 
 		nest, err := invasion.GetNest(s.InvasionDB, id)
 		if err != nil {
-			jsonError(w, "Nest not found: "+err.Error(), http.StatusNotFound)
+			jsonLoggedError(w, s.Logger, http.StatusNotFound, "Nest not found", "Invasion hatch nest lookup failed", err, "nest_id", id)
 			return
 		}
 		if !nest.Active {
@@ -50,7 +50,7 @@ func handleInvasionNestHatch(s *Server) http.HandlerFunc {
 
 		egg, err := invasion.GetEgg(s.InvasionDB, nest.EggID)
 		if err != nil {
-			jsonError(w, "Assigned egg not found: "+err.Error(), http.StatusNotFound)
+			jsonLoggedError(w, s.Logger, http.StatusNotFound, "Assigned egg not found", "Invasion hatch egg lookup failed", err, "nest_id", id, "egg_id", nest.EggID)
 			return
 		}
 
@@ -204,12 +204,12 @@ func resolveBinaryPath(targetArch string) (string, error) {
 
 	// Search paths in order of priority
 	searchPaths := []string{
-		installDir,                           // Current dir (e.g., /home/aurago/aurago/bin)
-		filepath.Join(installDir, ".."),      // Parent dir
+		installDir,                             // Current dir (e.g., /home/aurago/aurago/bin)
+		filepath.Join(installDir, ".."),        // Parent dir
 		filepath.Join(installDir, "..", "bin"), // Parent/bin
-		filepath.Join(installDir, "deploy"),  // deploy subdir
-		"/home/aurago/aurago/bin",            // Common install path
-		"/home/aurago/aurago",                // Parent of bin
+		filepath.Join(installDir, "deploy"),    // deploy subdir
+		"/home/aurago/aurago/bin",              // Common install path
+		"/home/aurago/aurago",                  // Parent of bin
 		"/opt/aurago/bin",
 		"/opt/aurago",
 		"/usr/local/bin",
@@ -217,13 +217,13 @@ func resolveBinaryPath(targetArch string) (string, error) {
 
 	var checkedPaths []string
 	var existingButNotExecutable []string
-	
+
 	for _, searchPath := range searchPaths {
 		cleanPath := filepath.Clean(searchPath)
 		for _, binaryName := range binaryNames {
 			fullPath := filepath.Join(cleanPath, binaryName)
 			checkedPaths = append(checkedPaths, fullPath)
-			
+
 			info, err := os.Stat(fullPath)
 			if err != nil {
 				if os.IsNotExist(err) {
@@ -233,16 +233,16 @@ func resolveBinaryPath(targetArch string) (string, error) {
 				existingButNotExecutable = append(existingButNotExecutable, fmt.Sprintf("%s (permission denied)", fullPath))
 				continue
 			}
-			
+
 			if info.IsDir() {
 				continue // It's a directory, not a file
 			}
-			
+
 			// File exists - check if executable
 			if info.Mode()&0111 != 0 {
 				return fullPath, nil
 			}
-			
+
 			// File exists but isn't executable
 			existingButNotExecutable = append(existingButNotExecutable, fmt.Sprintf("%s (not executable)", fullPath))
 		}
@@ -254,7 +254,7 @@ func resolveBinaryPath(targetArch string) (string, error) {
 		errMsg += fmt.Sprintf("; found but not usable: %v", existingButNotExecutable)
 	}
 	errMsg += fmt.Sprintf("; checked paths: %v", checkedPaths)
-	
+
 	return "", fmt.Errorf("%s", errMsg)
 }
 
@@ -392,7 +392,7 @@ func handleInvasionNestSendSecret(s *Server) http.HandlerFunc {
 		}
 
 		if err := s.EggHub.SendSecret(id, req.Key, encrypted); err != nil {
-			jsonError(w, "Failed to send secret: "+err.Error(), http.StatusInternalServerError)
+			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to send secret", "Failed to send invasion secret", err, "nest_id", id)
 			return
 		}
 
@@ -538,7 +538,7 @@ func handleInvasionNestSendTask(s *Server) http.HandlerFunc {
 		}
 
 		if err := s.EggHub.SendTask(id, taskPayload); err != nil {
-			jsonError(w, "Failed to send task: "+err.Error(), http.StatusInternalServerError)
+			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to send task", "Failed to send invasion task", err, "nest_id", id, "task_id", taskPayload.TaskID)
 			return
 		}
 

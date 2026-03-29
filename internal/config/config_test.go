@@ -1,11 +1,29 @@
 package config
 
 import (
+	"log/slog"
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 )
+
+type testSecretVault struct {
+	data map[string]string
+}
+
+func (v *testSecretVault) ReadSecret(key string) (string, error) {
+	return v.data[key], nil
+}
+
+func (v *testSecretVault) WriteSecret(key, value string) error {
+	if v.data == nil {
+		v.data = map[string]string{}
+	}
+	v.data[key] = value
+	return nil
+}
 
 func TestLoadAbsolutePaths(t *testing.T) {
 	// Create a temporary directory for testing
@@ -222,5 +240,74 @@ agent:
 
 	if cfg.Agent.AdaptiveSystemPromptTokenBudget {
 		t.Fatal("expected explicit adaptive_system_prompt_token_budget=false to be preserved")
+	}
+}
+
+func TestMigrateEggModeSharedKeyToVault(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	configContent := `
+egg_mode:
+  enabled: true
+  master_url: ws://master.local/ws
+  shared_key: deadbeef
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	vault := &testSecretVault{data: map[string]string{}}
+
+	MigrateEggModeSharedKeyToVault(configPath, vault, slog.Default())
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	cfg.ApplyVaultSecrets(vault)
+
+	if cfg.EggMode.SharedKey != "deadbeef" {
+		t.Fatalf("shared key = %q, want deadbeef", cfg.EggMode.SharedKey)
+	}
+
+	raw, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("read config after migration: %v", err)
+	}
+	if strings.Contains(string(raw), "shared_key:") {
+		t.Fatalf("expected shared_key to be removed from config.yaml, got:\n%s", string(raw))
+	}
+}
+
+func TestConfigSaveWritesUpdatedField(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	configContent := `
+server:
+  ui_language: en
+auth:
+  enabled: false
+personality:
+  core_personality: neutral
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	cfg.Server.UILanguage = "de"
+	if err := cfg.Save(configPath); err != nil {
+		t.Fatalf("Save() error = %v", err)
+	}
+
+	raw, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("read saved config: %v", err)
+	}
+	if !strings.Contains(string(raw), "ui_language: de") {
+		t.Fatalf("expected saved config to contain updated ui_language, got:\n%s", string(raw))
 	}
 }

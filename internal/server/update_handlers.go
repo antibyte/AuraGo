@@ -104,7 +104,7 @@ func checkUpdatesBinary(dir string) UpdateCheckResult {
 	if err != nil {
 		return UpdateCheckResult{
 			Mode:    "binary",
-			Error:   fmt.Sprintf("Could not reach GitHub: %v", err),
+			Error:   "Could not reach GitHub",
 			Message: "Update check failed.",
 		}
 	}
@@ -139,7 +139,7 @@ func checkUpdatesGit(dir string) UpdateCheckResult {
 	if _, err := runCmd(dir, "git", "-c", "safe.directory="+dir, "fetch", "origin", "main", "--quiet"); err != nil {
 		return UpdateCheckResult{
 			Mode:    "git",
-			Error:   fmt.Sprintf("Could not reach GitHub: %v", err),
+			Error:   "Could not reach GitHub",
 			Message: "Update check failed.",
 		}
 	}
@@ -147,7 +147,7 @@ func checkUpdatesGit(dir string) UpdateCheckResult {
 	// Count new commits
 	countOut, err := runCmd(dir, "git", "-c", "safe.directory="+dir, "rev-list", "HEAD..origin/main", "--count")
 	if err != nil {
-		return UpdateCheckResult{Mode: "git", Error: err.Error()}
+		return UpdateCheckResult{Mode: "git", Error: "Failed to determine pending updates", Message: "Update check failed."}
 	}
 	count, _ := strconv.Atoi(strings.TrimSpace(string(countOut)))
 
@@ -239,10 +239,11 @@ func handleUpdateInstall(s *Server) http.HandlerFunc {
 		}
 
 		if err := cmd.Start(); err != nil {
+			s.Logger.Error("[Update] Failed to start update script", "error", err)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(map[string]string{
-				"error": fmt.Sprintf("Failed to start update: %v", err),
+				"error": "Failed to start update",
 			})
 			return
 		}

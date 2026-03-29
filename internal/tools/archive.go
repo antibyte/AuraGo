@@ -257,18 +257,27 @@ func extractZip(archivePath, targetDir string) ([]string, error) {
 	if err := os.MkdirAll(targetDir, 0o750); err != nil {
 		return nil, err
 	}
+	baseDir, err := archiveBaseDir(targetDir)
+	if err != nil {
+		return nil, err
+	}
 
 	var files []string
 	var totalBytes int64
 	for _, f := range r.File {
 		name := filepath.FromSlash(f.Name)
-		// Path traversal protection
-		dest := filepath.Join(targetDir, name)
-		if !strings.HasPrefix(filepath.Clean(dest), filepath.Clean(targetDir)) {
-			return nil, fmt.Errorf("illegal path in archive (path traversal): %s", f.Name)
+		dest, err := archiveSafeDestination(baseDir, name)
+		if err != nil {
+			return nil, fmt.Errorf("illegal path in archive: %s", f.Name)
+		}
+		if f.Mode()&os.ModeSymlink != 0 {
+			return nil, fmt.Errorf("symlink entries are not allowed in archives: %s", f.Name)
 		}
 
 		if f.FileInfo().IsDir() {
+			if err := archiveEnsureSafePath(baseDir, dest, true); err != nil {
+				return nil, err
+			}
 			if err := os.MkdirAll(dest, 0o750); err != nil {
 				return nil, err
 			}
@@ -284,6 +293,9 @@ func extractZip(archivePath, targetDir string) ([]string, error) {
 			return nil, fmt.Errorf("archive exceeds maximum uncompressed size limit (%d bytes)", maxExtractSize)
 		}
 
+		if err := archiveEnsureSafePath(baseDir, dest, false); err != nil {
+			return nil, err
+		}
 		if err := os.MkdirAll(filepath.Dir(dest), 0o750); err != nil {
 			return nil, err
 		}
@@ -326,6 +338,10 @@ func extractTarGz(archivePath, targetDir string) ([]string, error) {
 	if err := os.MkdirAll(targetDir, 0o750); err != nil {
 		return nil, err
 	}
+	baseDir, err := archiveBaseDir(targetDir)
+	if err != nil {
+		return nil, err
+	}
 
 	var files []string
 	var totalBytes int64
@@ -339,20 +355,28 @@ func extractTarGz(archivePath, targetDir string) ([]string, error) {
 		}
 
 		name := filepath.FromSlash(header.Name)
-		dest := filepath.Join(targetDir, name)
-		if !strings.HasPrefix(filepath.Clean(dest), filepath.Clean(targetDir)) {
-			return nil, fmt.Errorf("illegal path in archive (path traversal): %s", header.Name)
+		dest, err := archiveSafeDestination(baseDir, name)
+		if err != nil {
+			return nil, fmt.Errorf("illegal path in archive: %s", header.Name)
 		}
 
 		switch header.Typeflag {
 		case tar.TypeDir:
+			if err := archiveEnsureSafePath(baseDir, dest, true); err != nil {
+				return nil, err
+			}
 			if err := os.MkdirAll(dest, 0o750); err != nil {
 				return nil, err
 			}
+		case tar.TypeSymlink, tar.TypeLink:
+			return nil, fmt.Errorf("symlink entries are not allowed in archives: %s", header.Name)
 		case tar.TypeReg:
 			totalBytes += header.Size
 			if totalBytes > maxExtractSize {
 				return nil, fmt.Errorf("archive exceeds maximum uncompressed size limit (%d bytes)", maxExtractSize)
+			}
+			if err := archiveEnsureSafePath(baseDir, dest, false); err != nil {
+				return nil, err
 			}
 			if err := os.MkdirAll(filepath.Dir(dest), 0o750); err != nil {
 				return nil, err
@@ -443,4 +467,65 @@ func detectArchiveFormat(path string) string {
 		return "zip"
 	}
 	return ""
+}
+
+func archiveBaseDir(targetDir string) (string, error) {
+	absBase, err := filepath.Abs(targetDir)
+	if err != nil {
+		return "", err
+	}
+	if resolved, err := filepath.EvalSymlinks(absBase); err == nil {
+		absBase = resolved
+	}
+	return filepath.Clean(absBase), nil
+}
+
+func archiveSafeDestination(baseDir, name string) (string, error) {
+	dest := filepath.Clean(filepath.Join(baseDir, name))
+	rel, err := filepath.Rel(baseDir, dest)
+	if err != nil {
+		return "", err
+	}
+	if rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
+		return "", fmt.Errorf("path traversal")
+	}
+	return dest, nil
+}
+
+func archiveEnsureSafePath(baseDir, dest string, dirTarget bool) error {
+	rel, err := filepath.Rel(baseDir, dest)
+	if err != nil {
+		return err
+	}
+	if rel == "." && dirTarget {
+		return nil
+	}
+	parts := strings.Split(filepath.Clean(rel), string(os.PathSeparator))
+	current := baseDir
+	limit := len(parts)
+	if !dirTarget {
+		limit--
+	}
+	for i := 0; i < limit; i++ {
+		current = filepath.Join(current, parts[i])
+		info, err := os.Lstat(current)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return err
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			return fmt.Errorf("refusing to extract through symlink path: %s", current)
+		}
+		if !info.IsDir() {
+			return fmt.Errorf("refusing to extract through non-directory path: %s", current)
+		}
+	}
+	if !dirTarget {
+		if info, err := os.Lstat(dest); err == nil && info.Mode()&os.ModeSymlink != 0 {
+			return fmt.Errorf("refusing to overwrite symlink target: %s", dest)
+		}
+	}
+	return nil
 }

@@ -94,6 +94,11 @@ func HomepageOptimizeImages(cfg HomepageConfig, projectDir string, logger *slog.
 	if projectDir == "" {
 		projectDir = "."
 	}
+	if projectDir != "." {
+		if err := sanitizeProjectDir(projectDir); err != nil {
+			return errJSON("%v", err)
+		}
+	}
 	logger.Info("[Homepage] OptimizeImages", "dir", projectDir)
 	dockerCfg := DockerConfig{Host: cfg.DockerHost}
 	cmd := fmt.Sprintf(`cd /workspace/%s && echo '{"svgs":' && svgo -f . -r --multipass -q 2>/dev/null && echo ',"summary":"SVG optimization complete"}'`, projectDir)
@@ -212,12 +217,16 @@ func HomepageTestConnection(deployCfg HomepageDeployConfig, logger *slog.Logger)
 	logger.Info("[Homepage] Testing connection", "host", deployCfg.Host, "port", deployCfg.Port, "user", deployCfg.User)
 
 	// Test SSH connection by running a simple command
-	output, err := remote.ExecuteRemoteCommand(ctx, deployCfg.Host, deployCfg.Port, deployCfg.User, secret, "echo ok && ls -la "+deployCfg.Path+" 2>&1 | head -5")
+	output, err := remote.ExecuteRemoteCommand(ctx, deployCfg.Host, deployCfg.Port, deployCfg.User, secret, "echo ok && ls -la -- "+shellSingleQuote(deployCfg.Path)+" 2>&1 | head -5")
 	if err != nil {
 		return errJSON("Connection failed: %v", err)
 	}
 
 	return okJSON("Connection successful", "output", strings.TrimSpace(output))
+}
+
+func shellSingleQuote(value string) string {
+	return "'" + strings.ReplaceAll(value, "'", `'"'"'`) + "'"
 }
 
 // ─── Caddy Web Server ─────────────────────────────────────────────────────

@@ -2,7 +2,6 @@ package server
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"aurago/internal/tools"
@@ -58,8 +57,9 @@ func handlePiperVoices(s *Server) http.HandlerFunc {
 
 		voices, err := tools.PiperListVoices(port)
 		if err != nil {
+			s.Logger.Error("Failed to list Piper voices", "error", err)
 			json.NewEncoder(w).Encode(map[string]interface{}{
-				"error": fmt.Sprintf("Failed to list voices: %v", err),
+				"error": "Failed to list voices",
 			})
 			return
 		}

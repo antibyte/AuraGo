@@ -32,7 +32,8 @@ func handleMediaList(s *Server) http.HandlerFunc {
 
 		items, total, err := tools.SearchMedia(s.MediaRegistryDB, query, mediaType, nil, limit, offset)
 		if err != nil {
-			json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": err.Error()})
+			s.Logger.Error("Failed to search media", "query", query, "media_type", mediaType, "error", err)
+			json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "Failed to load media"})
 			return
 		}
 
@@ -97,7 +98,8 @@ func handleMediaByID(s *Server) http.HandlerFunc {
 			// Soft-delete DB record
 			if err := tools.DeleteMedia(s.MediaRegistryDB, id); err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
-				json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": err.Error()})
+				s.Logger.Error("Failed to delete media item", "media_id", id, "error", err)
+				json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "Failed to delete media item"})
 				return
 			}
 			// Best-effort physical file removal

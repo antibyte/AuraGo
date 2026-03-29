@@ -24,7 +24,7 @@ func handleListDevices(s *Server) http.HandlerFunc {
 
 		devices, err := inventory.ListAllDevices(s.InventoryDB)
 		if err != nil {
-			http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusInternalServerError)
+			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to list devices", "Failed to list devices", err)
 			return
 		}
 		if devices == nil {
@@ -57,9 +57,9 @@ func handleGetDevice(s *Server) http.HandlerFunc {
 		d, err := inventory.GetDeviceByID(s.InventoryDB, id)
 		if err != nil {
 			if strings.Contains(err.Error(), "not found") {
-				http.Error(w, `{"error":"device not found"}`, http.StatusNotFound)
+				jsonError(w, "device not found", http.StatusNotFound)
 			} else {
-				http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusInternalServerError)
+				jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to load device", "Failed to load device", err, "device_id", id)
 			}
 			return
 		}
@@ -107,7 +107,7 @@ func handleCreateDevice(s *Server) http.HandlerFunc {
 
 		id, err := inventory.CreateDevice(s.InventoryDB, req.Name, req.Type, req.IPAddress, req.Port, req.Username, req.VaultSecretID, req.CredentialID, req.Description, req.Tags, req.MACAddress)
 		if err != nil {
-			http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusInternalServerError)
+			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to create device", "Failed to create device", err, "device_name", req.Name)
 			return
 		}
 
@@ -154,9 +154,9 @@ func handleUpdateDevice(s *Server) http.HandlerFunc {
 		existing, err := inventory.GetDeviceByID(s.InventoryDB, id)
 		if err != nil {
 			if strings.Contains(err.Error(), "not found") {
-				http.Error(w, `{"error":"device not found"}`, http.StatusNotFound)
+				jsonError(w, "device not found", http.StatusNotFound)
 			} else {
-				http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusInternalServerError)
+				jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to load device", "Failed to load device", err, "device_id", id)
 			}
 			return
 		}
@@ -176,9 +176,9 @@ func handleUpdateDevice(s *Server) http.HandlerFunc {
 
 		if err := inventory.UpdateDevice(s.InventoryDB, req); err != nil {
 			if strings.Contains(err.Error(), "not found") {
-				http.Error(w, `{"error":"device not found"}`, http.StatusNotFound)
+				jsonError(w, "device not found", http.StatusNotFound)
 			} else {
-				http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusInternalServerError)
+				jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to update device", "Failed to update device", err, "device_id", id)
 			}
 			return
 		}
@@ -208,9 +208,9 @@ func handleDeleteDevice(s *Server) http.HandlerFunc {
 
 		if err := inventory.DeleteDevice(s.InventoryDB, id); err != nil {
 			if strings.Contains(err.Error(), "not found") {
-				http.Error(w, `{"error":"device not found"}`, http.StatusNotFound)
+				jsonError(w, "device not found", http.StatusNotFound)
 			} else {
-				http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusInternalServerError)
+				jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to delete device", "Failed to delete device", err, "device_id", id)
 			}
 			return
 		}

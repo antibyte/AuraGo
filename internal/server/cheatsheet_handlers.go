@@ -22,7 +22,7 @@ func handleCheatSheets(s *Server) http.HandlerFunc {
 			activeOnly := r.URL.Query().Get("active") == "true"
 			sheets, err := tools.CheatsheetList(s.CheatsheetDB, activeOnly)
 			if err != nil {
-				jsonError(w, err.Error(), http.StatusInternalServerError)
+				jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to load cheat sheets", "Failed to list cheat sheets", err)
 				return
 			}
 			if sheets == nil {
@@ -45,7 +45,7 @@ func handleCheatSheets(s *Server) http.HandlerFunc {
 			}
 			sheet, err := tools.CheatsheetCreate(s.CheatsheetDB, body.Name, body.Content, body.CreatedBy)
 			if err != nil {
-				jsonError(w, err.Error(), http.StatusBadRequest)
+				jsonLoggedError(w, s.Logger, http.StatusBadRequest, "Failed to create cheat sheet", "Failed to create cheat sheet", err, "name", body.Name)
 				return
 			}
 			w.WriteHeader(http.StatusCreated)
@@ -78,7 +78,7 @@ func handleCheatSheetByID(s *Server) http.HandlerFunc {
 				if err == sql.ErrNoRows {
 					jsonError(w, "not found", http.StatusNotFound)
 				} else {
-					jsonError(w, err.Error(), http.StatusInternalServerError)
+					jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to load cheat sheet", "Failed to load cheat sheet", err, "cheatsheet_id", id)
 				}
 				return
 			}
@@ -96,14 +96,22 @@ func handleCheatSheetByID(s *Server) http.HandlerFunc {
 			}
 			sheet, err := tools.CheatsheetUpdate(s.CheatsheetDB, id, body.Name, body.Content, body.Active)
 			if err != nil {
-				jsonError(w, err.Error(), http.StatusBadRequest)
+				if err == sql.ErrNoRows {
+					jsonError(w, "not found", http.StatusNotFound)
+					return
+				}
+				jsonLoggedError(w, s.Logger, http.StatusBadRequest, "Failed to update cheat sheet", "Failed to update cheat sheet", err, "cheatsheet_id", id)
 				return
 			}
 			writeJSON(w, sheet)
 
 		case http.MethodDelete:
 			if err := tools.CheatsheetDelete(s.CheatsheetDB, id); err != nil {
-				jsonError(w, err.Error(), http.StatusNotFound)
+				if err == sql.ErrNoRows {
+					jsonError(w, "not found", http.StatusNotFound)
+					return
+				}
+				jsonLoggedError(w, s.Logger, http.StatusNotFound, "Failed to delete cheat sheet", "Failed to delete cheat sheet", err, "cheatsheet_id", id)
 				return
 			}
 			writeJSON(w, map[string]string{"status": "deleted"})

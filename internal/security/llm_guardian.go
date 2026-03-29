@@ -357,16 +357,8 @@ func isLowRiskShellCommand(command string) bool {
 	if lc == "" {
 		return false
 	}
-	dangerMarkers := []string{
-		" rm ", " rm-", "mv ", " chmod", " chown", "curl ", "wget ", "scp ", "rsync ",
-		" sudo ", "sudo ", ">|", ">>", " > ", "tee ", "sed -i", "perl -i", "python -c",
-		"bash -c", "sh -c", "docker exec", "docker cp", "kill ", "systemctl ", "service ",
-	}
-	padded := " " + lc + " "
-	for _, marker := range dangerMarkers {
-		if strings.Contains(padded, marker) {
-			return false
-		}
+	if containsDangerousShellMarkers(lc) {
+		return false
 	}
 	prefixes := []string{
 		"ls", "pwd", "cat ", "head ", "tail ", "wc ", "stat ", "find ", "rg ", "grep ",
@@ -388,6 +380,9 @@ func isLowRiskSudoCommand(command string) bool {
 	if lc == "" {
 		return false
 	}
+	if containsDangerousShellMarkers(lc) {
+		return false
+	}
 	readOnlyPrefixes := []string{
 		"id", "whoami", "uptime", "hostname", "uname",
 		"cat /proc/", "cat /sys/", "ls ", "stat ",
@@ -397,6 +392,22 @@ func isLowRiskSudoCommand(command string) bool {
 	}
 	for _, prefix := range readOnlyPrefixes {
 		if strings.HasPrefix(lc, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+func containsDangerousShellMarkers(command string) bool {
+	padded := " " + command + " "
+	dangerMarkers := []string{
+		";", "&&", "||", "|", "`", "$(", "\n", "\r",
+		" rm ", " rm-", "mv ", " chmod", " chown", "curl ", "wget ", "scp ", "rsync ",
+		" sudo ", "sudo ", ">|", ">>", " > ", "tee ", "sed -i", "perl -i", "python -c",
+		"bash -c", "sh -c", "docker exec", "docker cp", "kill ", "systemctl ", "service ",
+	}
+	for _, marker := range dangerMarkers {
+		if strings.Contains(padded, marker) {
 			return true
 		}
 	}

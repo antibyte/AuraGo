@@ -5,6 +5,7 @@
 let currentStep = 0;
 const totalSteps = 4;
 let saving = false;
+let setupPasswordRequired = true;
 
 // ── Load Personality Profiles on startup ─────
 (async function loadPersonalities() {
@@ -30,6 +31,16 @@ let saving = false;
         if (names.includes('friend')) sel.value = 'friend';
         else if (active && names.includes(active)) sel.value = active;
     } catch (e) { /* ignore — fallback option remains */ }
+})();
+
+(async function loadSecurityStatus() {
+    try {
+        const resp = await fetch('/api/security/status');
+        if (!resp.ok) return;
+        const data = await resp.json();
+        setupPasswordRequired = !(data && data.auth && data.auth.password_set);
+        applyI18N();
+    } catch (e) { /* ignore — first-run stays password-required */ }
 })();
 
 // ── Provider Config Map ──────────────────────
@@ -445,6 +456,15 @@ function validateStep0() {
         clearFieldError('llm-model', 'err-model');
     }
 
+    const adminPassword = document.getElementById('admin-password').value.trim();
+    const passwordTooShort = adminPassword.length > 0 && adminPassword.length < 8;
+    if ((setupPasswordRequired && adminPassword.length < 8) || passwordTooShort) {
+        showFieldError('admin-password', 'err-admin-password');
+        valid = false;
+    } else {
+        clearFieldError('admin-password', 'err-admin-password');
+    }
+
     return valid;
 }
 
@@ -679,6 +699,10 @@ function buildConfigPatch() {
             personality_engine: document.getElementById('personality-v2').checked,
             core_personality: document.getElementById('core-personality').value,
         },
+        auth: {
+            enabled: true,
+            admin_password: document.getElementById('admin-password').value,
+        },
         maintenance: {
             enabled: document.getElementById('maintenance-enabled').checked,
         },
@@ -839,6 +863,11 @@ function applyI18N() {
     el('lbl-api-key').innerHTML = t('setup.step0_api_key_label') + ' <span class="required-star">*</span>';
     el('err-api-key').textContent = t('setup.step0_api_key_error');
     el('hint-api-key-text').textContent = t('setup.step0_api_key_hint');
+    // Admin password
+    el('lbl-admin-password').innerHTML = t('setup.step0_admin_password_label') + (setupPasswordRequired ? ' <span class="required-star">*</span>' : '');
+    el('admin-password').placeholder = t('setup.step0_admin_password_placeholder');
+    el('err-admin-password').textContent = t('setup.step0_admin_password_error');
+    el('hint-admin-password').textContent = t('setup.step0_admin_password_hint');
     // Base URL
     el('lbl-base-url').textContent = t('setup.step0_base_url_label');
     el('hint-base-url').textContent = t('setup.step0_base_url_hint');

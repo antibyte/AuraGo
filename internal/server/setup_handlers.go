@@ -79,7 +79,13 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 
 		var patch map[string]interface{}
 		if err := json.Unmarshal(body, &patch); err != nil {
-			http.Error(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
+			http.Error(w, "Invalid JSON", http.StatusBadRequest)
+			return
+		}
+
+		setupPassword, authEnabled, err := extractSetupAdminPassword(patch, s.Cfg.Auth.Enabled, s.Cfg.Auth.PasswordHash != "")
+		if err != nil {
+			http.Error(w, setupValidationMessage(err), http.StatusBadRequest)
 			return
 		}
 
@@ -133,7 +139,7 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 			return
 		}
 
-		if err := os.WriteFile(configPath, out, 0644); err != nil {
+		if err := config.WriteFileAtomic(configPath, out, 0o600); err != nil {
 			s.Logger.Error("[Setup] Failed to write config", "error", err)
 			http.Error(w, "Failed to write config", http.StatusInternalServerError)
 			return
@@ -197,6 +203,31 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 		}
 		s.CfgMu.Unlock()
 
+		if authEnabled && s.Cfg.Auth.PasswordHash == "" {
+			newHash, err := HashPassword(setupPassword)
+			if err != nil {
+				s.Logger.Error("[Setup] Failed to hash admin password", "error", err)
+				http.Error(w, "Failed to hash admin password", http.StatusInternalServerError)
+				return
+			}
+			newSecret, err := GenerateRandomHex(32)
+			if err != nil {
+				s.Logger.Error("[Setup] Failed to generate session secret", "error", err)
+				http.Error(w, "Failed to generate session secret", http.StatusInternalServerError)
+				return
+			}
+			if err := patchAuthConfig(s, map[string]interface{}{
+				"enabled":        true,
+				"password_hash":  newHash,
+				"session_secret": newSecret,
+			}); err != nil {
+				s.Logger.Error("[Setup] Failed to persist admin password", "error", err)
+				http.Error(w, "Failed to save admin password", http.StatusInternalServerError)
+				return
+			}
+			s.Logger.Info("[Setup] Admin password initialized")
+		}
+
 		w.Header().Set("Content-Type", "application/json")
 		if needsRestart {
 			msg := fmt.Sprintf("Gespeichert. Neustart nötig für: %s", strings.Join(restartReasons, ", "))
@@ -216,37 +247,91 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 	}
 }
 
+func extractSetupAdminPassword(patch map[string]interface{}, currentAuthEnabled bool, currentPasswordSet bool) (string, bool, error) {
+	authEnabled := currentAuthEnabled
+	authPatch, ok := patch["auth"].(map[string]interface{})
+	if !ok || authPatch == nil {
+		if authEnabled && !currentPasswordSet {
+			return "", authEnabled, fmt.Errorf("admin password is required")
+		}
+		return "", authEnabled, nil
+	}
+	if rawEnabled, exists := authPatch["enabled"]; exists {
+		enabled, ok := rawEnabled.(bool)
+		if !ok {
+			return "", authEnabled, fmt.Errorf("auth.enabled must be a boolean")
+		}
+		authEnabled = enabled
+	}
+	rawPassword, hasPassword := authPatch["admin_password"]
+	delete(authPatch, "admin_password")
+
+	if !authEnabled {
+		return "", false, nil
+	}
+	if !hasPassword {
+		if currentPasswordSet {
+			return "", true, nil
+		}
+		return "", true, fmt.Errorf("admin password is required")
+	}
+	password, ok := rawPassword.(string)
+	if !ok {
+		return "", true, fmt.Errorf("admin password must be a string")
+	}
+	password = strings.TrimSpace(password)
+	if len(password) < 8 {
+		return "", true, fmt.Errorf("admin password must be at least 8 characters long")
+	}
+	return password, true, nil
+}
+
+func setupValidationMessage(err error) string {
+	if err == nil {
+		return "Invalid setup configuration"
+	}
+	switch err.Error() {
+	case "admin password is required",
+		"auth.enabled must be a boolean",
+		"admin password must be a string",
+		"admin password must be at least 8 characters long":
+		return err.Error()
+	default:
+		return "Invalid setup configuration"
+	}
+}
+
 // needsSetup returns true if the Quick Setup wizard should be shown.
 // We check that at least one provider with a non-empty API key (or OAuth)
 // exists and is referenced by the main LLM slot.
 func needsSetup(cfg *config.Config) bool {
-	// If the LLM has a resolved API key, setup is complete.
+	llmConfigured := false
+	// If the LLM has a resolved API key, the provider side is configured.
 	// This covers new-format configs where the key is loaded from vault.
-	if cfg.LLM.APIKey != "" {
-		return false
+	if cfg.LLM.APIKey != "" || cfg.LLM.LegacyAPIKey != "" {
+		llmConfigured = true
 	}
-	// If the setup wizard recently saved a key in legacy inline format
-	// (llm.api_key in YAML) and the provider entry hasn't been migrated yet.
-	if cfg.LLM.LegacyAPIKey != "" {
-		return false
-	}
-	if len(cfg.Providers) == 0 {
-		return true
-	}
-	if cfg.LLM.Provider == "" {
-		return true
-	}
-	// Walk providers: accept any that has a key, OAuth, or is a key-less
-	// local endpoint (Ollama) identified by type="ollama" with URL and model set.
-	// NOTE: cloud providers (openrouter, openai, etc.) with BaseURL+model but no key
-	// must NOT be treated as configured — they still need an API key entered by the user.
-	for _, p := range cfg.Providers {
-		if p.APIKey != "" || p.AuthType == "oauth2" {
-			return false
+	if !llmConfigured {
+		if len(cfg.Providers) == 0 || cfg.LLM.Provider == "" {
+			return true
 		}
-		if p.Type == "ollama" && p.BaseURL != "" && p.Model != "" {
-			return false // key-less local provider (Ollama)
+		// Walk providers: accept any that has a key, OAuth, or is a key-less
+		// local endpoint (Ollama) identified by type="ollama" with URL and model set.
+		// NOTE: cloud providers (openrouter, openai, etc.) with BaseURL+model but no key
+		// must NOT be treated as configured — they still need an API key entered by the user.
+		for _, p := range cfg.Providers {
+			if p.APIKey != "" || p.AuthType == "oauth2" {
+				llmConfigured = true
+				break
+			}
+			if p.Type == "ollama" && p.BaseURL != "" && p.Model != "" {
+				llmConfigured = true
+				break
+			}
 		}
 	}
-	return true // all providers lack usable credentials → still needs setup
+	if !llmConfigured {
+		return true
+	}
+	return cfg.Auth.Enabled && cfg.Auth.PasswordHash == ""
 }

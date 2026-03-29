@@ -41,7 +41,8 @@ func handleImageGenerationTest(s *Server) http.HandlerFunc {
 
 		result, err := tools.GenerateImage(genCfg, "A simple test image: a colorful geometric pattern", opts)
 		if err != nil {
-			json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": err.Error()})
+			s.Logger.Error("Image generation test failed", "error", err)
+			json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "Image generation test failed"})
 			return
 		}
 
@@ -78,7 +79,8 @@ func handleImageGalleryList(s *Server) http.HandlerFunc {
 
 		images, total, err := tools.ListGeneratedImages(s.ImageGalleryDB, provider, query, limit, offset)
 		if err != nil {
-			json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": err.Error()})
+			s.Logger.Error("Failed to list generated images", "provider", provider, "query", query, "error", err)
+			json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "Failed to load generated images"})
 			return
 		}
 
@@ -131,7 +133,8 @@ func handleImageGalleryByID(s *Server) http.HandlerFunc {
 		case http.MethodDelete:
 			if err := tools.DeleteGeneratedImage(s.ImageGalleryDB, id, dataDir); err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
-				json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": err.Error()})
+				s.Logger.Error("Failed to delete generated image", "image_id", id, "error", err)
+				json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "Failed to delete image"})
 				return
 			}
 			json.NewEncoder(w).Encode(map[string]string{"status": "ok", "message": "Image deleted"})

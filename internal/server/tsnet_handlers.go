@@ -148,7 +148,8 @@ func handleTsNetStop(s *Server) http.HandlerFunc {
 		if err := s.TsNetManager.Stop(); err != nil {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+			s.Logger.Error("Failed to stop tsnet node", "error", err)
+			json.NewEncoder(w).Encode(map[string]string{"error": "Failed to stop tsnet"})
 			return
 		}
 

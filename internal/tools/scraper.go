@@ -20,7 +20,7 @@ var (
 )
 
 // Shared HTTP client for scraper/DDG (avoids per-call allocation).
-var scraperHTTPClient = &http.Client{Timeout: 15 * time.Second}
+var scraperHTTPClient = security.NewSSRFProtectedHTTPClient(15 * time.Second)
 
 // scraperGuardian is a package-level Guardian used to scan and isolate web content.
 // It has no logger so threats are not logged here; callers with a logger should

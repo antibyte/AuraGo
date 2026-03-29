@@ -122,5 +122,6 @@
   "skills.placeholder_tags": "api, automation",
   "skills.placeholder_prompt": "Create a skill that fetches JSON from an API and returns a filtered summary.",
   "skills.placeholder_skill_name_short": "api_summary",
-  "skills.placeholder_dependencies": "requests, pyyaml"
+  "skills.placeholder_dependencies": "requests, pyyaml",
+  "skills.placeholder_base_url": "https://api.example.com"
 }

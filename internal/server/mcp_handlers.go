@@ -41,7 +41,7 @@ func handleGetMCPServers(s *Server, w http.ResponseWriter, _ *http.Request) {
 func handlePutMCPServers(s *Server, w http.ResponseWriter, r *http.Request) {
 	var incoming []config.MCPServer
 	if err := json.NewDecoder(r.Body).Decode(&incoming); err != nil {
-		http.Error(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
 
@@ -101,7 +101,7 @@ func handlePutMCPServers(s *Server, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := os.WriteFile(configPath, out, 0644); err != nil {
+	if err := config.WriteFileAtomic(configPath, out, 0o600); err != nil {
 		s.Logger.Error("Failed to write config after mcp-servers update", "error", err)
 		http.Error(w, "Failed to write config", http.StatusInternalServerError)
 		return
@@ -113,7 +113,7 @@ func handlePutMCPServers(s *Server, w http.ResponseWriter, r *http.Request) {
 	if loadErr != nil {
 		s.CfgMu.Unlock()
 		s.Logger.Error("[MCPServers] Hot-reload failed", "error", loadErr)
-		http.Error(w, "Saved but reload failed: "+loadErr.Error(), http.StatusInternalServerError)
+		http.Error(w, "Saved but reload failed", http.StatusInternalServerError)
 		return
 	}
 	savedPath := s.Cfg.ConfigPath

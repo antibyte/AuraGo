@@ -372,6 +372,42 @@ func TestBuildSpecialistDelegationHint(t *testing.T) {
 	}
 }
 
+func TestSelectCoAgentLLMForDesignerFallsBackFromImageOnlyModel(t *testing.T) {
+	cfg := specialistTestConfig()
+	cfg.CoAgents.LLM.Model = "openai/gpt-4.1-mini"
+	cfg.CoAgents.Specialists.Designer.Enabled = true
+	cfg.CoAgents.Specialists.Designer.LLM.Model = "bytedance-seed/seedream-4.5"
+
+	selection, reason := selectCoAgentLLMForRole(cfg, "designer")
+	if selection.Model != "openai/gpt-4.1-mini" {
+		t.Fatalf("selection.Model = %q, want fallback text model", selection.Model)
+	}
+	if selection.Source != "co_agents" {
+		t.Fatalf("selection.Source = %q, want co_agents", selection.Source)
+	}
+	if reason == "" {
+		t.Fatal("expected non-empty fallback reason")
+	}
+}
+
+func TestSelectCoAgentLLMForDesignerKeepsTextModel(t *testing.T) {
+	cfg := specialistTestConfig()
+	cfg.CoAgents.LLM.Model = "openai/gpt-4.1-mini"
+	cfg.CoAgents.Specialists.Designer.Enabled = true
+	cfg.CoAgents.Specialists.Designer.LLM.Model = "openai/gpt-4.1"
+
+	selection, reason := selectCoAgentLLMForRole(cfg, "designer")
+	if selection.Model != "openai/gpt-4.1" {
+		t.Fatalf("selection.Model = %q, want specialist text model", selection.Model)
+	}
+	if selection.Source != "specialist" {
+		t.Fatalf("selection.Source = %q, want specialist", selection.Source)
+	}
+	if reason != "" {
+		t.Fatalf("unexpected fallback reason: %q", reason)
+	}
+}
+
 // ══════════════════════════════════════════════
 // helpers
 // ══════════════════════════════════════════════

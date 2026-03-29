@@ -234,8 +234,9 @@ func mcpBuildToolList(s *Server) []mcpToolSchema {
 func mcpCallTool(ctx context.Context, s *Server, params json.RawMessage) mcpCallToolResult {
 	var p mcpCallToolParams
 	if err := json.Unmarshal(params, &p); err != nil {
+		s.Logger.Error("MCP tool call received invalid parameters", "error", err)
 		return mcpCallToolResult{
-			Content: []mcpContent{{Type: "text", Text: "Invalid parameters: " + err.Error()}},
+			Content: []mcpContent{{Type: "text", Text: "Invalid parameters"}},
 			IsError: true,
 		}
 	}

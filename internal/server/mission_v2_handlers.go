@@ -71,7 +71,7 @@ func handleCreateMissionV2(s *Server) http.HandlerFunc {
 
 		var mission tools.MissionV2
 		if err := json.NewDecoder(r.Body).Decode(&mission); err != nil {
-			http.Error(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
+			http.Error(w, "Invalid JSON", http.StatusBadRequest)
 			return
 		}
 
@@ -126,7 +126,7 @@ func handleCreateMissionV2(s *Server) http.HandlerFunc {
 
 		if err := s.MissionManagerV2.Create(&mission); err != nil {
 			s.Logger.Error("Failed to create mission", "error", err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, "Failed to create mission", http.StatusInternalServerError)
 			return
 		}
 		broadcastMissionState(s)
@@ -194,7 +194,7 @@ func handleMissionGetV2(s *Server, w http.ResponseWriter, r *http.Request, id st
 func handleMissionUpdateV2(s *Server, w http.ResponseWriter, r *http.Request, id string) {
 	var updated tools.MissionV2
 	if err := json.NewDecoder(r.Body).Decode(&updated); err != nil {
-		http.Error(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
 
@@ -213,7 +213,7 @@ func handleMissionUpdateV2(s *Server, w http.ResponseWriter, r *http.Request, id
 
 	if err := s.MissionManagerV2.Update(id, &updated); err != nil {
 		s.Logger.Error("Failed to update mission", "error", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Failed to update mission", http.StatusInternalServerError)
 		return
 	}
 	broadcastMissionState(s)
@@ -224,7 +224,7 @@ func handleMissionUpdateV2(s *Server, w http.ResponseWriter, r *http.Request, id
 
 func handleMissionDeleteV2(s *Server, w http.ResponseWriter, r *http.Request, id string) {
 	if err := s.MissionManagerV2.Delete(id); err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
+		http.Error(w, "Mission not found", http.StatusNotFound)
 		return
 	}
 	broadcastMissionState(s)
@@ -239,7 +239,7 @@ func handleMissionRunV2(s *Server, w http.ResponseWriter, r *http.Request, id st
 	}
 
 	if err := s.MissionManagerV2.RunNow(id); err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
+		http.Error(w, "Mission not found", http.StatusNotFound)
 		return
 	}
 	broadcastMissionState(s)
@@ -260,7 +260,7 @@ func handleMissionTriggerV2(s *Server, w http.ResponseWriter, r *http.Request, i
 	json.NewDecoder(r.Body).Decode(&payload)
 
 	if err := s.MissionManagerV2.TriggerMission(id, "api", payload.TriggerData); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "Failed to trigger mission", http.StatusBadRequest)
 		return
 	}
 	broadcastMissionState(s)

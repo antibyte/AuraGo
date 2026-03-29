@@ -353,3 +353,28 @@ func TestCredentialHandlerDeleteCleansVault(t *testing.T) {
 		t.Fatal("token vault entry should have been deleted")
 	}
 }
+
+func TestHandleListCredentialsReturnsGenericDBError(t *testing.T) {
+	db, err := inventory.InitDB(filepath.Join(t.TempDir(), "inventory.db"))
+	if err != nil {
+		t.Fatalf("InitDB() error = %v", err)
+	}
+	if err := credentials.EnsureSchema(db); err != nil {
+		t.Fatalf("EnsureSchema() error = %v", err)
+	}
+	_ = db.Close()
+
+	s := &Server{InventoryDB: db}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/credentials", nil)
+	rec := httptest.NewRecorder()
+	handleListCredentials(s)(rec, req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("GET /api/credentials status = %d, want %d; body=%s", rec.Code, http.StatusInternalServerError, rec.Body.String())
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "Failed to list credentials") || strings.Contains(strings.ToLower(body), "database is closed") {
+		t.Fatalf("expected generic error response, got %q", body)
+	}
+}

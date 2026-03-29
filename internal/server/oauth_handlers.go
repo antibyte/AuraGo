@@ -91,7 +91,7 @@ func handleOAuthStart(s *Server) http.HandlerFunc {
 		// Build authorization URL
 		authURL, err := url.Parse(entry.OAuthAuthURL)
 		if err != nil {
-			http.Error(w, "Invalid oauth_auth_url: "+err.Error(), http.StatusBadRequest)
+			http.Error(w, "Invalid oauth_auth_url", http.StatusBadRequest)
 			return
 		}
 		q := authURL.Query()
@@ -183,7 +183,7 @@ func handleOAuthCallback(s *Server) http.HandlerFunc {
 		tokenResp, err := exchangeCodeForToken(entry, code, redirectURI)
 		if err != nil {
 			s.Logger.Error("[OAuth] Token exchange failed", "provider", providerID, "error", err)
-			renderOAuthResult(w, false, "Token exchange failed: "+err.Error())
+			renderOAuthResult(w, false, "Token exchange failed")
 			return
 		}
 
@@ -199,7 +199,7 @@ func handleOAuthCallback(s *Server) http.HandlerFunc {
 		tokJSON, _ := json.Marshal(tok)
 		if err := s.Vault.WriteSecret("oauth_"+providerID, string(tokJSON)); err != nil {
 			s.Logger.Error("[OAuth] Failed to store token", "provider", providerID, "error", err)
-			renderOAuthResult(w, false, "Failed to store token: "+err.Error())
+			renderOAuthResult(w, false, "Failed to store token")
 			return
 		}
 
@@ -473,7 +473,7 @@ func handleOAuthManual(s *Server) http.HandlerFunc {
 		parsed, err := url.Parse(body.URL)
 		if err != nil {
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]any{"success": false, "message": "Invalid URL: " + err.Error()})
+			json.NewEncoder(w).Encode(map[string]any{"success": false, "message": "Invalid URL"})
 			return
 		}
 
@@ -540,7 +540,7 @@ func handleOAuthManual(s *Server) http.HandlerFunc {
 		if err != nil {
 			s.Logger.Error("[OAuth] Manual token exchange failed", "provider", providerID, "error", err)
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]any{"success": false, "message": "Token exchange failed: " + err.Error()})
+			json.NewEncoder(w).Encode(map[string]any{"success": false, "message": "Token exchange failed"})
 			return
 		}
 
@@ -556,7 +556,7 @@ func handleOAuthManual(s *Server) http.HandlerFunc {
 		if err := s.Vault.WriteSecret("oauth_"+providerID, string(tokJSON)); err != nil {
 			s.Logger.Error("[OAuth] Failed to store token", "provider", providerID, "error", err)
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]any{"success": false, "message": "Failed to store token: " + err.Error()})
+			json.NewEncoder(w).Encode(map[string]any{"success": false, "message": "Failed to store token"})
 			return
 		}
 

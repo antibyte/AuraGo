@@ -9,6 +9,25 @@ import (
 	"aurago/internal/truenas"
 )
 
+func writeJSONError(w http.ResponseWriter, status int, message string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": message})
+}
+
+func logTrueNASError(s *Server, w http.ResponseWriter, status int, clientMessage string, logMessage string, err error, attrs ...any) {
+	if s != nil && s.Logger != nil && err != nil {
+		logAttrs := append([]any{"status", status}, attrs...)
+		logAttrs = append(logAttrs, "error", err)
+		if status >= http.StatusInternalServerError {
+			s.Logger.Error(logMessage, logAttrs...)
+		} else {
+			s.Logger.Warn(logMessage, logAttrs...)
+		}
+	}
+	writeJSONError(w, status, clientMessage)
+}
+
 // registerTrueNASHandlers registers all TrueNAS HTTP endpoints.
 // This function is called from server_routes.go
 func registerTrueNASHandlers(mux *http.ServeMux, s *Server) {
@@ -55,7 +74,7 @@ func handleTrueNASStatus(s *Server) http.HandlerFunc {
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"enabled": true,
 				"status":  "error",
-				"error":   err.Error(),
+				"error":   "Failed to initialize TrueNAS client",
 			})
 			return
 		}
@@ -66,7 +85,7 @@ func handleTrueNASStatus(s *Server) http.HandlerFunc {
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"enabled": true,
 				"status":  "offline",
-				"error":   err.Error(),
+				"error":   "Unable to reach TrueNAS",
 			})
 			return
 		}
@@ -90,19 +109,13 @@ func handleTrueNASHealth(s *Server) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 
 		if !cfg.Enabled {
-			w.WriteHeader(http.StatusServiceUnavailable)
-			json.NewEncoder(w).Encode(map[string]interface{}{
-				"error": "TrueNAS integration is disabled",
-			})
+			writeJSONError(w, http.StatusServiceUnavailable, "TrueNAS integration is disabled")
 			return
 		}
 
 		client, err := truenas.NewClient(cfg, s.Vault)
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]interface{}{
-				"error": err.Error(),
-			})
+			logTrueNASError(s, w, http.StatusInternalServerError, "Failed to initialize TrueNAS client", "TrueNAS health client init failed", err)
 			return
 		}
 		defer client.Close()
@@ -112,10 +125,7 @@ func handleTrueNASHealth(s *Server) http.HandlerFunc {
 		// Get all health data
 		info, err := client.Health(ctx)
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]interface{}{
-				"error": err.Error(),
-			})
+			logTrueNASError(s, w, http.StatusInternalServerError, "Failed to fetch TrueNAS health", "TrueNAS health request failed", err)
 			return
 		}
 
@@ -139,12 +149,12 @@ func handleTrueNASHealth(s *Server) http.HandlerFunc {
 		}
 
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"status":       status,
-			"system":       info,
-			"pools":        pools,
-			"alerts":       alerts,
-			"pool_count":   len(pools),
-			"alert_count":  len(alerts),
+			"status":      status,
+			"system":      info,
+			"pools":       pools,
+			"alerts":      alerts,
+			"pool_count":  len(pools),
+			"alert_count": len(alerts),
 		})
 	}
 }
@@ -158,23 +168,20 @@ func handleTrueNASPools(s *Server) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 
 		if !cfg.Enabled {
-			w.WriteHeader(http.StatusServiceUnavailable)
-			json.NewEncoder(w).Encode(map[string]interface{}{"error": "TrueNAS integration is disabled"})
+			writeJSONError(w, http.StatusServiceUnavailable, "TrueNAS integration is disabled")
 			return
 		}
 
 		client, err := truenas.NewClient(cfg, s.Vault)
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
+			logTrueNASError(s, w, http.StatusInternalServerError, "Failed to initialize TrueNAS client", "TrueNAS pools client init failed", err)
 			return
 		}
 		defer client.Close()
 
 		pools, err := client.ListPools(r.Context())
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
+			logTrueNASError(s, w, http.StatusInternalServerError, "Failed to load pools", "TrueNAS list pools failed", err)
 			return
 		}
 
@@ -191,8 +198,7 @@ func handleTrueNASPoolDetail(s *Server) http.HandlerFunc {
 		s.CfgMu.RUnlock()
 
 		if cfg.ReadOnly {
-			w.WriteHeader(http.StatusForbidden)
-			json.NewEncoder(w).Encode(map[string]interface{}{"error": "Read-only mode"})
+			writeJSONError(w, http.StatusForbidden, "Read-only mode")
 			return
 		}
 
@@ -200,29 +206,25 @@ func handleTrueNASPoolDetail(s *Server) http.HandlerFunc {
 		path := strings.TrimPrefix(r.URL.Path, "/api/truenas/pools/")
 		parts := strings.Split(path, "/")
 		if len(parts) < 2 || parts[1] != "scrub" {
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]interface{}{"error": "Invalid path"})
+			writeJSONError(w, http.StatusBadRequest, "Invalid path")
 			return
 		}
 
 		poolID, err := strconv.ParseInt(parts[0], 10, 64)
 		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]interface{}{"error": "Invalid pool ID"})
+			writeJSONError(w, http.StatusBadRequest, "Invalid pool ID")
 			return
 		}
 
 		client, err := truenas.NewClient(cfg, s.Vault)
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
+			logTrueNASError(s, w, http.StatusInternalServerError, "Failed to initialize TrueNAS client", "TrueNAS pool scrub client init failed", err, "pool_id", poolID)
 			return
 		}
 		defer client.Close()
 
 		if err := client.ScrubPool(r.Context(), poolID); err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
+			logTrueNASError(s, w, http.StatusInternalServerError, "Failed to start pool scrub", "TrueNAS pool scrub failed", err, "pool_id", poolID)
 			return
 		}
 
@@ -242,15 +244,13 @@ func handleTrueNASDatasets(s *Server) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 
 		if !cfg.Enabled {
-			w.WriteHeader(http.StatusServiceUnavailable)
-			json.NewEncoder(w).Encode(map[string]interface{}{"error": "TrueNAS integration is disabled"})
+			writeJSONError(w, http.StatusServiceUnavailable, "TrueNAS integration is disabled")
 			return
 		}
 
 		client, err := truenas.NewClient(cfg, s.Vault)
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
+			logTrueNASError(s, w, http.StatusInternalServerError, "Failed to initialize TrueNAS client", "TrueNAS datasets client init failed", err)
 			return
 		}
 		defer client.Close()
@@ -267,16 +267,14 @@ func handleTrueNASDatasets(s *Server) http.HandlerFunc {
 				datasets, err = client.ListDatasets(ctx)
 			}
 			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
+				logTrueNASError(s, w, http.StatusInternalServerError, "Failed to load datasets", "TrueNAS list datasets failed", err, "pool", pool)
 				return
 			}
 			json.NewEncoder(w).Encode(map[string]interface{}{"datasets": datasets})
 
 		case http.MethodPost:
 			if cfg.ReadOnly {
-				w.WriteHeader(http.StatusForbidden)
-				json.NewEncoder(w).Encode(map[string]interface{}{"error": "Read-only mode"})
+				writeJSONError(w, http.StatusForbidden, "Read-only mode")
 				return
 			}
 
@@ -307,8 +305,7 @@ func handleTrueNASDatasets(s *Server) http.HandlerFunc {
 
 			dataset, err := client.CreateDataset(ctx, createReq)
 			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
+				logTrueNASError(s, w, http.StatusInternalServerError, "Failed to create dataset", "TrueNAS create dataset failed", err, "dataset", req.Name)
 				return
 			}
 
@@ -324,14 +321,12 @@ func handleTrueNASDatasetDelete(s *Server) http.HandlerFunc {
 		s.CfgMu.RUnlock()
 
 		if cfg.ReadOnly {
-			w.WriteHeader(http.StatusForbidden)
-			json.NewEncoder(w).Encode(map[string]interface{}{"error": "Read-only mode"})
+			writeJSONError(w, http.StatusForbidden, "Read-only mode")
 			return
 		}
 
 		if !cfg.AllowDestructive {
-			w.WriteHeader(http.StatusForbidden)
-			json.NewEncoder(w).Encode(map[string]interface{}{"error": "Destructive operations not allowed"})
+			writeJSONError(w, http.StatusForbidden, "Destructive operations not allowed")
 			return
 		}
 
@@ -341,8 +336,7 @@ func handleTrueNASDatasetDelete(s *Server) http.HandlerFunc {
 
 		client, err := truenas.NewClient(cfg, s.Vault)
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
+			logTrueNASError(s, w, http.StatusInternalServerError, "Failed to initialize TrueNAS client", "TrueNAS dataset delete client init failed", err, "dataset", name)
 			return
 		}
 		defer client.Close()
@@ -350,8 +344,7 @@ func handleTrueNASDatasetDelete(s *Server) http.HandlerFunc {
 		recursive := r.URL.Query().Get("recursive") == "true"
 
 		if err := client.DeleteDataset(r.Context(), name, recursive); err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
+			logTrueNASError(s, w, http.StatusInternalServerError, "Failed to delete dataset", "TrueNAS delete dataset failed", err, "dataset", name, "recursive", recursive)
 			return
 		}
 
@@ -371,15 +364,13 @@ func handleTrueNASSnapshots(s *Server) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 
 		if !cfg.Enabled {
-			w.WriteHeader(http.StatusServiceUnavailable)
-			json.NewEncoder(w).Encode(map[string]interface{}{"error": "TrueNAS integration is disabled"})
+			writeJSONError(w, http.StatusServiceUnavailable, "TrueNAS integration is disabled")
 			return
 		}
 
 		client, err := truenas.NewClient(cfg, s.Vault)
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
+			logTrueNASError(s, w, http.StatusInternalServerError, "Failed to initialize TrueNAS client", "TrueNAS snapshots client init failed", err)
 			return
 		}
 		defer client.Close()
@@ -391,16 +382,14 @@ func handleTrueNASSnapshots(s *Server) http.HandlerFunc {
 			dataset := r.URL.Query().Get("dataset")
 			snapshots, err := client.ListSnapshots(ctx, dataset)
 			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
+				logTrueNASError(s, w, http.StatusInternalServerError, "Failed to load snapshots", "TrueNAS list snapshots failed", err, "dataset", dataset)
 				return
 			}
 			json.NewEncoder(w).Encode(map[string]interface{}{"snapshots": snapshots})
 
 		case http.MethodPost:
 			if cfg.ReadOnly {
-				w.WriteHeader(http.StatusForbidden)
-				json.NewEncoder(w).Encode(map[string]interface{}{"error": "Read-only mode"})
+				writeJSONError(w, http.StatusForbidden, "Read-only mode")
 				return
 			}
 
@@ -431,8 +420,7 @@ func handleTrueNASSnapshots(s *Server) http.HandlerFunc {
 
 			snapshot, err := client.CreateSnapshot(ctx, createReq)
 			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
+				logTrueNASError(s, w, http.StatusInternalServerError, "Failed to create snapshot", "TrueNAS create snapshot failed", err, "dataset", req.Dataset, "snapshot", req.Name)
 				return
 			}
 
@@ -464,27 +452,23 @@ func handleTrueNASSnapshotActions(s *Server) http.HandlerFunc {
 		isPostRollback := r.Method == http.MethodPost && isRollback
 
 		if !isDelete && !isPostRollback {
-			w.WriteHeader(http.StatusMethodNotAllowed)
-			json.NewEncoder(w).Encode(map[string]interface{}{"error": "Method not allowed"})
+			writeJSONError(w, http.StatusMethodNotAllowed, "Method not allowed")
 			return
 		}
 
 		if cfg.ReadOnly {
-			w.WriteHeader(http.StatusForbidden)
-			json.NewEncoder(w).Encode(map[string]interface{}{"error": "Read-only mode"})
+			writeJSONError(w, http.StatusForbidden, "Read-only mode")
 			return
 		}
 
 		if !cfg.AllowDestructive {
-			w.WriteHeader(http.StatusForbidden)
-			json.NewEncoder(w).Encode(map[string]interface{}{"error": "Destructive operations not allowed"})
+			writeJSONError(w, http.StatusForbidden, "Destructive operations not allowed")
 			return
 		}
 
 		client, err := truenas.NewClient(cfg, s.Vault)
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
+			logTrueNASError(s, w, http.StatusInternalServerError, "Failed to initialize TrueNAS client", "TrueNAS snapshot action client init failed", err, "snapshot", name, "rollback", isRollback)
 			return
 		}
 		defer client.Close()
@@ -492,8 +476,7 @@ func handleTrueNASSnapshotActions(s *Server) http.HandlerFunc {
 		if isDelete {
 			// Delete snapshot
 			if err := client.DeleteSnapshot(r.Context(), name); err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
+				logTrueNASError(s, w, http.StatusInternalServerError, "Failed to delete snapshot", "TrueNAS delete snapshot failed", err, "snapshot", name)
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
@@ -508,8 +491,7 @@ func handleTrueNASSnapshotActions(s *Server) http.HandlerFunc {
 			json.NewDecoder(r.Body).Decode(&req)
 
 			if err := client.RollbackSnapshot(r.Context(), name, req.Force); err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
+				logTrueNASError(s, w, http.StatusInternalServerError, "Failed to rollback snapshot", "TrueNAS rollback snapshot failed", err, "snapshot", name, "force", req.Force)
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
@@ -529,15 +511,13 @@ func handleTrueNASSMBShares(s *Server) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 
 		if !cfg.Enabled {
-			w.WriteHeader(http.StatusServiceUnavailable)
-			json.NewEncoder(w).Encode(map[string]interface{}{"error": "TrueNAS integration is disabled"})
+			writeJSONError(w, http.StatusServiceUnavailable, "TrueNAS integration is disabled")
 			return
 		}
 
 		client, err := truenas.NewClient(cfg, s.Vault)
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
+			logTrueNASError(s, w, http.StatusInternalServerError, "Failed to initialize TrueNAS client", "TrueNAS SMB shares client init failed", err)
 			return
 		}
 		defer client.Close()
@@ -548,16 +528,14 @@ func handleTrueNASSMBShares(s *Server) http.HandlerFunc {
 		case http.MethodGet:
 			shares, err := client.ListSMBShares(ctx)
 			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
+				logTrueNASError(s, w, http.StatusInternalServerError, "Failed to load SMB shares", "TrueNAS list SMB shares failed", err)
 				return
 			}
 			json.NewEncoder(w).Encode(map[string]interface{}{"shares": shares})
 
 		case http.MethodPost:
 			if cfg.ReadOnly {
-				w.WriteHeader(http.StatusForbidden)
-				json.NewEncoder(w).Encode(map[string]interface{}{"error": "Read-only mode"})
+				writeJSONError(w, http.StatusForbidden, "Read-only mode")
 				return
 			}
 
@@ -592,8 +570,7 @@ func handleTrueNASSMBShares(s *Server) http.HandlerFunc {
 
 			share, err := client.CreateSMBShare(ctx, createReq)
 			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
+				logTrueNASError(s, w, http.StatusInternalServerError, "Failed to create SMB share", "TrueNAS create SMB share failed", err, "share_name", req.Name, "path", req.Path)
 				return
 			}
 
@@ -609,8 +586,7 @@ func handleTrueNASSMBShareDetail(s *Server) http.HandlerFunc {
 		s.CfgMu.RUnlock()
 
 		if cfg.ReadOnly {
-			w.WriteHeader(http.StatusForbidden)
-			json.NewEncoder(w).Encode(map[string]interface{}{"error": "Read-only mode"})
+			writeJSONError(w, http.StatusForbidden, "Read-only mode")
 			return
 		}
 
@@ -619,22 +595,19 @@ func handleTrueNASSMBShareDetail(s *Server) http.HandlerFunc {
 		idStr = strings.TrimSuffix(idStr, "/")
 		id, err := strconv.ParseInt(idStr, 10, 64)
 		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]interface{}{"error": "Invalid share ID"})
+			writeJSONError(w, http.StatusBadRequest, "Invalid share ID")
 			return
 		}
 
 		client, err := truenas.NewClient(cfg, s.Vault)
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
+			logTrueNASError(s, w, http.StatusInternalServerError, "Failed to initialize TrueNAS client", "TrueNAS SMB share delete client init failed", err, "share_id", id)
 			return
 		}
 		defer client.Close()
 
 		if err := client.DeleteSMBShare(r.Context(), id); err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
+			logTrueNASError(s, w, http.StatusInternalServerError, "Failed to delete SMB share", "TrueNAS delete SMB share failed", err, "share_id", id)
 			return
 		}
 
@@ -654,15 +627,13 @@ func handleTrueNASNFSShares(s *Server) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 
 		if !cfg.Enabled {
-			w.WriteHeader(http.StatusServiceUnavailable)
-			json.NewEncoder(w).Encode(map[string]interface{}{"error": "TrueNAS integration is disabled"})
+			writeJSONError(w, http.StatusServiceUnavailable, "TrueNAS integration is disabled")
 			return
 		}
 
 		client, err := truenas.NewClient(cfg, s.Vault)
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
+			logTrueNASError(s, w, http.StatusInternalServerError, "Failed to initialize TrueNAS client", "TrueNAS NFS shares client init failed", err)
 			return
 		}
 		defer client.Close()
@@ -673,16 +644,14 @@ func handleTrueNASNFSShares(s *Server) http.HandlerFunc {
 		case http.MethodGet:
 			shares, err := client.ListNFSShares(ctx)
 			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
+				logTrueNASError(s, w, http.StatusInternalServerError, "Failed to load NFS shares", "TrueNAS list NFS shares failed", err)
 				return
 			}
 			json.NewEncoder(w).Encode(map[string]interface{}{"shares": shares})
 
 		case http.MethodPost:
 			if cfg.ReadOnly {
-				w.WriteHeader(http.StatusForbidden)
-				json.NewEncoder(w).Encode(map[string]interface{}{"error": "Read-only mode"})
+				writeJSONError(w, http.StatusForbidden, "Read-only mode")
 				return
 			}
 
@@ -701,8 +670,7 @@ func handleTrueNASNFSShares(s *Server) http.HandlerFunc {
 
 			share, err := client.CreateNFSShare(ctx, req)
 			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
+				logTrueNASError(s, w, http.StatusInternalServerError, "Failed to create NFS share", "TrueNAS create NFS share failed", err, "path", req.Path)
 				return
 			}
 

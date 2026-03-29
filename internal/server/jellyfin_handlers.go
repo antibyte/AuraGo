@@ -35,7 +35,7 @@ func handleJellyfinStatus(s *Server) http.HandlerFunc {
 			w.WriteHeader(http.StatusServiceUnavailable)
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status": "error",
-				"error":  err.Error(),
+				"error":  "Failed to initialize Jellyfin client",
 			})
 			return
 		}
@@ -45,7 +45,7 @@ func handleJellyfinStatus(s *Server) http.HandlerFunc {
 			w.WriteHeader(http.StatusServiceUnavailable)
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status": "offline",
-				"error":  err.Error(),
+				"error":  "Failed to reach Jellyfin",
 			})
 			return
 		}

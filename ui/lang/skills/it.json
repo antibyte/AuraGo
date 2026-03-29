@@ -122,5 +122,6 @@
   "skills.placeholder_tags": "api, automazione",
   "skills.placeholder_prompt": "Crea uno skill che recupera JSON da un'API e restituisce un riassunto filtrato.",
   "skills.placeholder_skill_name_short": "riepilogo_api",
-  "skills.placeholder_dependencies": "requests, pyyaml"
+  "skills.placeholder_dependencies": "requests, pyyaml",
+  "skills.placeholder_base_url": "https://api.esempio.it"
 }

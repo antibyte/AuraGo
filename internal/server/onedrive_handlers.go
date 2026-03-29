@@ -55,7 +55,7 @@ func handleOneDriveAuthStart(s *Server) http.HandlerFunc {
 		resp, err := onedriveHTTP.Post(deviceCodeURL, "application/x-www-form-urlencoded", strings.NewReader(form.Encode()))
 		if err != nil {
 			s.Logger.Error("[OneDrive] Device code request failed", "error", err)
-			odWriteJSON(w, http.StatusBadGateway, map[string]string{"error": "Failed to contact Microsoft: " + err.Error()})
+			odWriteJSON(w, http.StatusBadGateway, map[string]string{"error": "Failed to contact Microsoft"})
 			return
 		}
 		defer resp.Body.Close()
@@ -63,7 +63,7 @@ func handleOneDriveAuthStart(s *Server) http.HandlerFunc {
 		body, _ := io.ReadAll(resp.Body)
 		if resp.StatusCode != 200 {
 			s.Logger.Error("[OneDrive] Device code request error", "status", resp.StatusCode, "body", string(body))
-			odWriteJSON(w, http.StatusBadGateway, map[string]string{"error": fmt.Sprintf("Microsoft returned HTTP %d: %s", resp.StatusCode, string(body))})
+			odWriteJSON(w, http.StatusBadGateway, map[string]string{"error": "Failed to start device authorization"})
 			return
 		}
 
@@ -149,7 +149,8 @@ func handleOneDriveAuthPoll(s *Server) http.HandlerFunc {
 
 		resp, err := onedriveHTTP.Post(tokenURL, "application/x-www-form-urlencoded", strings.NewReader(form.Encode()))
 		if err != nil {
-			odWriteJSON(w, http.StatusBadGateway, map[string]string{"error": "Failed to contact Microsoft: " + err.Error()})
+			s.Logger.Error("[OneDrive] Token poll request failed", "error", err)
+			odWriteJSON(w, http.StatusBadGateway, map[string]string{"error": "Failed to contact Microsoft"})
 			return
 		}
 		defer resp.Body.Close()
@@ -219,7 +220,8 @@ func handleOneDriveAuthPoll(s *Server) http.HandlerFunc {
 			_ = s.Vault.DeleteSecret("onedrive_device_code")
 			odWriteJSON(w, http.StatusOK, map[string]string{"status": "expired"})
 		default:
-			odWriteJSON(w, http.StatusOK, map[string]string{"status": "error", "error": errResp.Description})
+			s.Logger.Error("[OneDrive] Device authorization failed", "error", errResp.Error, "description", errResp.Description)
+			odWriteJSON(w, http.StatusOK, map[string]string{"status": "error", "error": "Authorization failed"})
 		}
 	}
 }
@@ -321,9 +323,10 @@ func handleOneDriveTest(s *Server) http.HandlerFunc {
 
 		resp, err := onedriveHTTP.Do(req)
 		if err != nil {
+			s.Logger.Error("[OneDrive] Drive test request failed", "error", err)
 			odWriteJSON(w, http.StatusOK, map[string]interface{}{
 				"ok":    false,
-				"error": "Connection failed: " + err.Error(),
+				"error": "Connection failed",
 			})
 			return
 		}
@@ -331,9 +334,10 @@ func handleOneDriveTest(s *Server) http.HandlerFunc {
 
 		body, _ := io.ReadAll(resp.Body)
 		if resp.StatusCode != 200 {
+			s.Logger.Error("[OneDrive] Drive test returned non-200", "status", resp.StatusCode, "body", string(body))
 			odWriteJSON(w, http.StatusOK, map[string]interface{}{
 				"ok":    false,
-				"error": fmt.Sprintf("Microsoft Graph returned HTTP %d: %s", resp.StatusCode, string(body)),
+				"error": "Microsoft Graph request failed",
 			})
 			return
 		}

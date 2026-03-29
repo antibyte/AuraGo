@@ -122,5 +122,6 @@
   "skills.placeholder_tags": "api, स्वचालन",
   "skills.placeholder_prompt": "एक skill बनाएं जो API से JSON प्राप्त करे और फ़िल्टर्ड सारांश लौटाए।",
   "skills.placeholder_skill_name_short": "api_sammanfatting",
-  "skills.placeholder_dependencies": "requests, pyyaml"
+  "skills.placeholder_dependencies": "requests, pyyaml",
+  "skills.placeholder_base_url": "https://api.example.in"
 }

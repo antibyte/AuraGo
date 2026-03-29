@@ -122,5 +122,6 @@
   "skills.placeholder_tags": "api, 自動化",
   "skills.placeholder_prompt": "APIからJSONを取得し、フィルタリングされたサマリーを返すスキルを作成します。",
   "skills.placeholder_skill_name_short": "apiサマリー",
-  "skills.placeholder_dependencies": "requests, pyyaml"
+  "skills.placeholder_dependencies": "requests, pyyaml",
+  "skills.placeholder_base_url": "https://api.example.jp"
 }

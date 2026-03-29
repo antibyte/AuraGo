@@ -122,5 +122,8 @@
   "setup.success_restart_notice": "⚠️ Un riavvio è consigliato affinché tutte le modifiche abbiano effetto.",
   "setup.success_title": "Configurazione completata!",
   "setup.toast_config_saved": "Configurazione salvata!",
-  "setup.toast_error_prefix": "Errore: "
-}
+  "setup.toast_error_prefix": "Errore: ",
+  "setup.step0_admin_password_label": "Admin password",
+  "setup.step0_admin_password_hint": "Protects the web UI and API on first start. You can change it later in Login Guard.",
+  "setup.step0_admin_password_error": "Admin password must be at least 8 characters.",
+  "setup.step0_admin_password_placeholder": "Minimum 8 characters"}

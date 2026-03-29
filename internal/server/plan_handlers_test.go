@@ -139,3 +139,20 @@ func TestHandlePlanSplitReorderAndArchive(t *testing.T) {
 		t.Fatalf("expected archived plan in body: %s", archiveRec.Body.String())
 	}
 }
+
+func TestHandlePlanByIDMissingPlanReturnsGenericError(t *testing.T) {
+	s := newTestPlanHandlerServer(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/plans/missing-plan", nil)
+	rec := httptest.NewRecorder()
+
+	handlePlanByID(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusNotFound, rec.Body.String())
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, `"message":"Plan not found"`) || strings.Contains(strings.ToLower(body), "sql") {
+		t.Fatalf("expected generic not-found error, got %s", body)
+	}
+}

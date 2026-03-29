@@ -122,5 +122,6 @@
   "skills.placeholder_tags": "api, automatyzacja",
   "skills.placeholder_prompt": "Stwórz skill, który pobiera JSON z API i zwraca przefiltrowane podsumowanie.",
   "skills.placeholder_skill_name_short": "api_podsumowanie",
-  "skills.placeholder_dependencies": "requests, pyyaml"
+  "skills.placeholder_dependencies": "requests, pyyaml",
+  "skills.placeholder_base_url": "https://api.przyklad.pl"
 }

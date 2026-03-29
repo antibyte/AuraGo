@@ -17,9 +17,10 @@ func handleProxyStatus(s *Server) http.HandlerFunc {
 
 		status, err := s.ProxyManager.Status()
 		if err != nil {
+			s.Logger.Error("Failed to get security proxy status", "error", err)
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status":  "error",
-				"message": err.Error(),
+				"message": "Failed to get security proxy status",
 			})
 			return
 		}
@@ -50,9 +51,10 @@ func handleProxyStart(s *Server) http.HandlerFunc {
 		}
 
 		if err := s.ProxyManager.Start(); err != nil {
+			s.Logger.Error("Failed to start security proxy", "error", err)
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status":  "error",
-				"message": err.Error(),
+				"message": "Failed to start security proxy",
 			})
 			return
 		}
@@ -74,9 +76,10 @@ func handleProxyStop(s *Server) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 
 		if err := s.ProxyManager.Stop(); err != nil {
+			s.Logger.Error("Failed to stop security proxy", "error", err)
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status":  "error",
-				"message": err.Error(),
+				"message": "Failed to stop security proxy",
 			})
 			return
 		}
@@ -98,9 +101,10 @@ func handleProxyDestroy(s *Server) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 
 		if err := s.ProxyManager.Destroy(); err != nil {
+			s.Logger.Error("Failed to destroy security proxy", "error", err)
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status":  "error",
-				"message": err.Error(),
+				"message": "Failed to destroy security proxy",
 			})
 			return
 		}
@@ -122,9 +126,10 @@ func handleProxyReload(s *Server) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 
 		if err := s.ProxyManager.Reload(); err != nil {
+			s.Logger.Error("Failed to reload security proxy", "error", err)
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status":  "error",
-				"message": err.Error(),
+				"message": "Failed to reload security proxy",
 			})
 			return
 		}
@@ -154,9 +159,10 @@ func handleProxyLogs(s *Server) http.HandlerFunc {
 
 		logs, err := s.ProxyManager.Logs(tail)
 		if err != nil {
+			s.Logger.Error("Failed to fetch security proxy logs", "tail", tail, "error", err)
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status":  "error",
-				"message": err.Error(),
+				"message": "Failed to fetch security proxy logs",
 			})
 			return
 		}

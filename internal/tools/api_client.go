@@ -4,15 +4,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
+
+	"aurago/internal/security"
 )
 
 // apiHTTPClient is a shared client with connection pooling and a 30s timeout.
-var apiHTTPClient = &http.Client{Timeout: 30 * time.Second}
+var apiHTTPClient = security.NewSSRFProtectedHTTPClient(30 * time.Second)
 
 // APIResult is the JSON response returned to the LLM.
 type APIResult struct {
@@ -21,57 +21,6 @@ type APIResult struct {
 	Headers    map[string]string `json:"headers,omitempty"`
 	Body       string            `json:"body,omitempty"`
 	Message    string            `json:"message,omitempty"`
-}
-
-// isPrivateIP checks if an IP address is private, loopback, or link-local.
-func isPrivateIP(ip net.IP) bool {
-	return ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast()
-}
-
-// validateURL checks if the URL is safe to request (blocks SSRF attacks).
-func validateURL(urlStr string) error {
-	parsed, err := url.Parse(urlStr)
-	if err != nil {
-		return fmt.Errorf("invalid URL: %w", err)
-	}
-
-	// Block non-http(s) schemes
-	if parsed.Scheme != "http" && parsed.Scheme != "https" {
-		return fmt.Errorf("only HTTP and HTTPS URLs are allowed")
-	}
-
-	// Check if hostname is an IP address
-	if ip := net.ParseIP(parsed.Hostname()); ip != nil {
-		if isPrivateIP(ip) {
-			return fmt.Errorf("internal IP addresses are not allowed")
-		}
-		return nil
-	}
-
-	// For hostnames, resolve and check all IPs
-	hostname := parsed.Hostname()
-	if hostname == "" {
-		return fmt.Errorf("missing hostname")
-	}
-
-	// Block localhost and common internal hostnames
-	lowerHost := strings.ToLower(hostname)
-	if lowerHost == "localhost" || lowerHost == "127.0.0.1" || lowerHost == "::1" {
-		return fmt.Errorf("internal addresses are not allowed")
-	}
-
-	// Resolve hostname and check all IPs
-	addrs, err := net.LookupIP(hostname)
-	if err != nil {
-		// If we can't resolve, allow through but log warning
-		return nil
-	}
-	for _, addr := range addrs {
-		if isPrivateIP(addr) {
-			return fmt.Errorf("internal IP addresses are not allowed")
-		}
-	}
-	return nil
 }
 
 // ExecuteAPIRequest performs an HTTP request and returns the response as structured JSON.
@@ -90,7 +39,7 @@ func ExecuteAPIRequest(method, url, body string, headers map[string]string) stri
 	method = strings.ToUpper(method)
 
 	// SSRF Protection: Validate URL before request
-	if err := validateURL(url); err != nil {
+	if err := security.ValidateSSRF(url); err != nil {
 		return encode(APIResult{Status: "error", Message: fmt.Sprintf("URL validation failed: %v", err)})
 	}
 

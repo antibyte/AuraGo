@@ -37,9 +37,10 @@ func handleGoogleWorkspaceTest(s *Server) http.HandlerFunc {
 
 		client, err := tools.NewGWorkspaceClient(cfg, s.Vault)
 		if err != nil {
+			s.Logger.Error("Failed to initialize Google Workspace client", "error", err)
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status":  "error",
-				"message": err.Error(),
+				"message": "Failed to initialize Google Workspace client",
 			})
 			return
 		}
@@ -47,9 +48,10 @@ func handleGoogleWorkspaceTest(s *Server) http.HandlerFunc {
 		// Try a lightweight Gmail list call to verify the token works
 		result := client.GmailList("", 1)
 		if len(result) > 5 && result[:5] == "Error" {
+			s.Logger.Error("Google Workspace test call failed", "result", result)
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status":  "error",
-				"message": result,
+				"message": "Failed to contact Google Workspace",
 			})
 			return
 		}

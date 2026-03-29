@@ -122,5 +122,6 @@
   "skills.placeholder_tags": "api, automatizace",
   "skills.placeholder_prompt": "Vytvořte skill, který načte JSON z API a vrátí filtrované shrnutí.",
   "skills.placeholder_skill_name_short": "api_shrnuti",
-  "skills.placeholder_dependencies": "requests, pyyaml"
+  "skills.placeholder_dependencies": "requests, pyyaml",
+  "skills.placeholder_base_url": "https://api.priklad.cz"
 }

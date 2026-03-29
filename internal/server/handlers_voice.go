@@ -53,7 +53,7 @@ func handleVoiceUpload(s *Server) http.HandlerFunc {
 			"audio/mp4",
 			"audio/mpeg",
 		}
-		
+
 		isValidType := false
 		for _, t := range allowedTypes {
 			if strings.HasPrefix(contentType, t) {
@@ -61,7 +61,7 @@ func handleVoiceUpload(s *Server) http.HandlerFunc {
 				break
 			}
 		}
-		
+
 		if !isValidType {
 			s.Logger.Warn("Invalid audio MIME type", "type", contentType)
 			http.Error(w, "Invalid audio format", http.StatusBadRequest)
@@ -115,11 +115,11 @@ func handleVoiceUpload(s *Server) http.HandlerFunc {
 		transcription, err := telegram.TranscribeMultimodal(outputPath, s.Cfg)
 		if err != nil {
 			s.Logger.Error("Transcription failed", "error", err)
-			http.Error(w, "Transcription failed: "+err.Error(), http.StatusInternalServerError)
+			http.Error(w, "Transcription failed", http.StatusInternalServerError)
 			return
 		}
 
-		s.Logger.Info("Voice transcription successful", 
+		s.Logger.Info("Voice transcription successful",
 			"transcription_length", len(transcription),
 			"content_type", contentType)
 

@@ -54,23 +54,23 @@ var ValidSpecialistRoles = map[string]bool{
 // ProviderEntry defines a named LLM provider connection that can be referenced
 // by multiple config slots (LLM, Fallback, Vision, Whisper, Embeddings, etc.).
 type ProviderEntry struct {
-	ID      string `yaml:"id"       json:"id"`                         // unique slug, e.g. "main", "vision", "local-ollama"
-	Name    string `yaml:"name"     json:"name"`                       // human-readable label shown in UI
-	Type    string `yaml:"type"     json:"type"`                       // openai, openrouter, ollama, anthropic, google, custom
-	BaseURL string `yaml:"base_url" json:"base_url"`                   // API base URL
-	APIKey  string `yaml:"-" vault:"api_key" json:"api_key,omitempty"` // API key (vault-only)
-	Model   string `yaml:"model"    json:"model"`                      // default model name
+	ID      string `yaml:"id"       json:"id"`         // unique slug, e.g. "main", "vision", "local-ollama"
+	Name    string `yaml:"name"     json:"name"`       // human-readable label shown in UI
+	Type    string `yaml:"type"     json:"type"`       // openai, openrouter, ollama, anthropic, google, custom
+	BaseURL string `yaml:"base_url" json:"base_url"`   // API base URL
+	APIKey  string `yaml:"-" vault:"api_key" json:"-"` // API key (vault-only)
+	Model   string `yaml:"model"    json:"model"`      // default model name
 
 	// Cloudflare Workers AI — required when Type is "workers-ai"
 	AccountID string `yaml:"account_id,omitempty" json:"account_id"` // Cloudflare account ID
 
 	// OAuth2 Authorization Code flow (optional, alternative to static API key)
-	AuthType          string `yaml:"auth_type,omitempty"           json:"auth_type"`           // "api_key" (default) or "oauth2"
-	OAuthAuthURL      string `yaml:"oauth_auth_url,omitempty"      json:"oauth_auth_url"`      // authorization endpoint
-	OAuthTokenURL     string `yaml:"oauth_token_url,omitempty"     json:"oauth_token_url"`     // token exchange endpoint
-	OAuthClientID     string `yaml:"oauth_client_id,omitempty"     json:"oauth_client_id"`     // client ID
-	OAuthClientSecret string `yaml:"-" vault:"oauth_client_secret" json:"oauth_client_secret"` // client secret (vault-only)
-	OAuthScopes       string `yaml:"oauth_scopes,omitempty"        json:"oauth_scopes"`        // space-separated scopes
+	AuthType          string `yaml:"auth_type,omitempty"           json:"auth_type"`       // "api_key" (default) or "oauth2"
+	OAuthAuthURL      string `yaml:"oauth_auth_url,omitempty"      json:"oauth_auth_url"`  // authorization endpoint
+	OAuthTokenURL     string `yaml:"oauth_token_url,omitempty"     json:"oauth_token_url"` // token exchange endpoint
+	OAuthClientID     string `yaml:"oauth_client_id,omitempty"     json:"oauth_client_id"` // client ID
+	OAuthClientSecret string `yaml:"-" vault:"oauth_client_secret" json:"-"`               // client secret (vault-only)
+	OAuthScopes       string `yaml:"oauth_scopes,omitempty"        json:"oauth_scopes"`    // space-separated scopes
 
 	// Per-provider model cost overrides (used by budget tracker)
 	Models []ModelCost `yaml:"models,omitempty" json:"models,omitempty"`
@@ -85,7 +85,7 @@ type EmailAccount struct {
 	SMTPHost      string `yaml:"smtp_host"      json:"smtp_host"`
 	SMTPPort      int    `yaml:"smtp_port"      json:"smtp_port"`
 	Username      string `yaml:"username"       json:"username"`
-	Password      string `yaml:"-"              json:"password,omitempty"` // excluded from YAML (secret)
+	Password      string `yaml:"-"              json:"-"` // excluded from YAML (secret)
 	FromAddress   string `yaml:"from_address"   json:"from_address"`
 	WatchEnabled  bool   `yaml:"watch_enabled"  json:"watch_enabled"`
 	WatchInterval int    `yaml:"watch_interval_seconds" json:"watch_interval_seconds"`
@@ -416,7 +416,7 @@ type Config struct {
 		SMTPHost      string `yaml:"smtp_host"`
 		SMTPPort      int    `yaml:"smtp_port"`
 		Username      string `yaml:"username"`
-		Password      string `yaml:"-"`
+		Password      string `yaml:"-" json:"-"`
 		FromAddress   string `yaml:"from_address"`
 		WatchEnabled  bool   `yaml:"watch_enabled"`
 		WatchInterval int    `yaml:"watch_interval_seconds"`
@@ -430,12 +430,12 @@ type Config struct {
 	} `yaml:"home_assistant"`
 	FritzBox struct {
 		Enabled  bool   `yaml:"enabled"`
-		Host     string `yaml:"host"`                        // hostname or IP, default: fritz.box
-		Port     int    `yaml:"port"`                        // TR-064 port, default: 49000
-		HTTPS    bool   `yaml:"https"`                       // use HTTPS for TR-064, default: true
-		Timeout  int    `yaml:"timeout"`                     // HTTP timeout in seconds, default: 10
-		Username string `yaml:"username"`                    // Fritz!Box username (leave empty to use no username)
-		Password string `yaml:"-" vault:"fritzbox_password"` // vault-only
+		Host     string `yaml:"host"`                                 // hostname or IP, default: fritz.box
+		Port     int    `yaml:"port"`                                 // TR-064 port, default: 49000
+		HTTPS    bool   `yaml:"https"`                                // use HTTPS for TR-064, default: true
+		Timeout  int    `yaml:"timeout"`                              // HTTP timeout in seconds, default: 10
+		Username string `yaml:"username"`                             // Fritz!Box username (leave empty to use no username)
+		Password string `yaml:"-" vault:"fritzbox_password" json:"-"` // vault-only
 
 		// Feature groups – all gated individually
 		System struct {
@@ -538,9 +538,9 @@ type Config struct {
 		BlockedOperations []string `yaml:"blocked_operations"` // explicit operation deny-list (case-insensitive)
 		URL               string   `yaml:"url"`
 		Username          string   `yaml:"username"`
-		Password          string   `yaml:"-" vault:"password"`    // vault-only
-		LoginToken        string   `yaml:"-" vault:"login_token"` // vault-only
-		Insecure          bool     `yaml:"insecure"`              // skip TLS certificate verification (default: false)
+		Password          string   `yaml:"-" vault:"password" json:"-"`    // vault-only
+		LoginToken        string   `yaml:"-" vault:"login_token" json:"-"` // vault-only
+		Insecure          bool     `yaml:"insecure"`                       // skip TLS certificate verification (default: false)
 	} `yaml:"meshcentral"`
 	Docker struct {
 		Enabled  bool   `yaml:"enabled"`
@@ -640,14 +640,14 @@ type Config struct {
 		AuthType string `yaml:"auth_type"` // basic | bearer
 		URL      string `yaml:"url"`       // e.g. https://cloud.example.com/remote.php/dav/files/user/
 		Username string `yaml:"username"`
-		Password string `yaml:"-"`
-		Token    string `yaml:"-"`
+		Password string `yaml:"-" json:"-"`
+		Token    string `yaml:"-" json:"-"`
 	} `yaml:"webdav"`
 	Koofr struct {
 		Enabled     bool   `yaml:"enabled"`
 		ReadOnly    bool   `yaml:"readonly"` // true = only list/read, block write/delete/move
 		Username    string `yaml:"username"`
-		AppPassword string `yaml:"-"`
+		AppPassword string `yaml:"-" json:"-"`
 		BaseURL     string `yaml:"base_url"` // default: https://app.koofr.net
 	} `yaml:"koofr"`
 	S3 struct {
@@ -665,7 +665,7 @@ type Config struct {
 		Enabled  bool   `yaml:"enabled"`
 		ReadOnly bool   `yaml:"readonly"` // true = only search/get/download/list, block upload/update/delete
 		URL      string `yaml:"url"`      // e.g. https://paperless.example.com
-		APIToken string `yaml:"-"`
+		APIToken string `yaml:"-" json:"-"`
 	} `yaml:"paperless_ngx"`
 	TTS struct {
 		Provider   string `yaml:"provider"` // "google", "elevenlabs", or "piper"
@@ -702,8 +702,8 @@ type Config struct {
 		DeployHost                        string `yaml:"deploy_host"`
 		DeployPort                        int    `yaml:"deploy_port"`
 		DeployUser                        string `yaml:"deploy_user"`
-		DeployPassword                    string `yaml:"-"` // vault-only
-		DeployKey                         string `yaml:"-"` // vault-only (SSH private key)
+		DeployPassword                    string `yaml:"-" json:"-"` // vault-only
+		DeployKey                         string `yaml:"-" json:"-"` // vault-only (SSH private key)
 		DeployPath                        string `yaml:"deploy_path"`
 		DeployMethod                      string `yaml:"deploy_method"` // "sftp" or "scp"
 		WebServerEnabled                  bool   `yaml:"webserver_enabled"`
@@ -877,7 +877,7 @@ type Config struct {
 	EggMode struct {
 		Enabled   bool   `yaml:"enabled"`    // true = this instance is a worker egg
 		MasterURL string `yaml:"master_url"` // WebSocket URL of the master (ws[s]://host:port/api/invasion/ws)
-		SharedKey string `yaml:"shared_key"` // hex-encoded AES-256 shared key for auth + encryption
+		SharedKey string `yaml:"-" json:"-"` // vault-only: egg_shared_key (hex-encoded AES-256 shared key)
 		EggID     string `yaml:"egg_id"`     // UUID of this egg record on master
 		NestID    string `yaml:"nest_id"`    // UUID of the nest this egg is deployed in
 	} `yaml:"egg_mode"`
@@ -925,7 +925,7 @@ type Config struct {
 		Broker       string   `yaml:"broker"`   // e.g. tcp://localhost:1883
 		ClientID     string   `yaml:"client_id"`
 		Username     string   `yaml:"username"`
-		Password     string   `yaml:"-"`
+		Password     string   `yaml:"-" json:"-"`
 		Topics       []string `yaml:"topics"`         // topics to subscribe to on connect
 		QoS          int      `yaml:"qos"`            // 0, 1, or 2
 		RelayToAgent bool     `yaml:"relay_to_agent"` // forward incoming messages to agent
@@ -1111,7 +1111,7 @@ type Config struct {
 		Sheets        bool   `yaml:"sheets"`         // Sheets read access
 		SheetsWrite   bool   `yaml:"sheets_write"`   // Sheets write (requires !readonly)
 		ClientID      string `yaml:"client_id"`      // Google OAuth2 Client ID
-		ClientSecret  string `yaml:"-"`              // vault-only: google_workspace_client_secret
+		ClientSecret  string `yaml:"-" json:"-"`     // vault-only: google_workspace_client_secret
 		AccessToken   string `yaml:"-" json:"-"`     // resolved from OAuth token in vault
 		RefreshToken  string `yaml:"-" json:"-"`     // resolved from OAuth token in vault
 		TokenExpiry   string `yaml:"-" json:"-"`     // resolved: RFC3339 expiry
@@ -1135,7 +1135,7 @@ type Config struct {
 		Enabled      bool   `yaml:"enabled"`
 		ReadOnly     bool   `yaml:"readonly"`   // true = only list/read/search/quota, block upload/delete/move/copy/share/mkdir
 		ClientID     string `yaml:"client_id"`  // Azure App Registration Client ID (public client for Device Code flow)
-		ClientSecret string `yaml:"-"`          // vault-only: onedrive_client_secret (optional, only for confidential apps)
+		ClientSecret string `yaml:"-" json:"-"` // vault-only: onedrive_client_secret (optional, only for confidential apps)
 		TenantID     string `yaml:"tenant_id"`  // "common" (default), "consumers", "organizations", or tenant UUID
 		AccessToken  string `yaml:"-" json:"-"` // resolved from OAuth token in vault
 		RefreshToken string `yaml:"-" json:"-"` // resolved from OAuth token in vault
@@ -1160,7 +1160,7 @@ type TrueNASConfig struct {
 	Host             string `yaml:"host"`              // TrueNAS hostname or IP (e.g. "truenas.local")
 	Port             int    `yaml:"port"`              // API port (default: 443)
 	UseHTTPS         bool   `yaml:"use_https"`         // use HTTPS (default: true)
-	APIKey           string `yaml:"-"`                 // vault-only: truenas_api_key
+	APIKey           string `yaml:"-" json:"-"`        // vault-only: truenas_api_key
 	InsecureSSL      bool   `yaml:"insecure_ssl"`      // skip TLS verification for self-signed certs (default: false)
 	ConnectTimeout   int    `yaml:"connect_timeout"`   // connection timeout in seconds (default: 30)
 	RequestTimeout   int    `yaml:"request_timeout"`   // request timeout in seconds (default: 60)
@@ -1187,7 +1187,7 @@ type JellyfinConfig struct {
 	Host             string `yaml:"host"`              // Jellyfin hostname or IP (e.g. "jellyfin.local")
 	Port             int    `yaml:"port"`              // API port (default: 8096)
 	UseHTTPS         bool   `yaml:"use_https"`         // use HTTPS (default: false)
-	APIKey           string `yaml:"-"`                 // vault-only: jellyfin_api_key
+	APIKey           string `yaml:"-" json:"-"`        // vault-only: jellyfin_api_key
 	InsecureSSL      bool   `yaml:"insecure_ssl"`      // skip TLS verification for self-signed certs
 	ConnectTimeout   int    `yaml:"connect_timeout"`   // connection timeout in seconds (default: 30)
 	RequestTimeout   int    `yaml:"request_timeout"`   // request timeout in seconds (default: 60)

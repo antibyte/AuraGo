@@ -1,9 +1,13 @@
 package security
 
 import (
+	"context"
+	"crypto/tls"
 	"fmt"
 	"net"
+	"net/http"
 	"net/url"
+	"time"
 )
 
 // privateRanges holds all IP ranges that must not be reachable via user-supplied URLs.
@@ -58,11 +62,16 @@ func ValidateSSRF(rawURL string) error {
 		return fmt.Errorf("URL has no host")
 	}
 
-	// Resolve the hostname to IP addresses and check each against blocked ranges.
-	// If DNS resolution fails, the HTTP client will also fail — not a security concern.
-	ips, err := net.LookupIP(host)
-	if err != nil {
+	if ip := net.ParseIP(host); ip != nil {
+		if isPrivateIP(ip) {
+			return fmt.Errorf("access to internal address %s is blocked (SSRF protection)", ip)
+		}
 		return nil
+	}
+
+	ips, err := resolvePublicIPs(context.Background(), host)
+	if err != nil {
+		return fmt.Errorf("hostname resolution failed for %q: %w", host, err)
 	}
 	for _, ip := range ips {
 		if isPrivateIP(ip) {
@@ -70,4 +79,93 @@ func ValidateSSRF(rawURL string) error {
 		}
 	}
 	return nil
+}
+
+func resolvePublicIPs(ctx context.Context, host string) ([]net.IP, error) {
+	resolver := net.Resolver{}
+	lookupCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	addrs, err := resolver.LookupIPAddr(lookupCtx, host)
+	if err != nil {
+		return nil, err
+	}
+	if len(addrs) == 0 {
+		return nil, fmt.Errorf("no A/AAAA records found")
+	}
+
+	ips := make([]net.IP, 0, len(addrs))
+	for _, addr := range addrs {
+		if isPrivateIP(addr.IP) {
+			return nil, fmt.Errorf("access to internal address %s is blocked (SSRF protection)", addr.IP)
+		}
+		ips = append(ips, addr.IP)
+	}
+	return ips, nil
+}
+
+func validatedSSRFDialTarget(ctx context.Context, addr string) (networkAddr string, serverName string, err error) {
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return "", "", fmt.Errorf("invalid target address %q: %w", addr, err)
+	}
+	serverName = host
+	if ip := net.ParseIP(host); ip != nil {
+		if isPrivateIP(ip) {
+			return "", "", fmt.Errorf("access to internal address %s is blocked (SSRF protection)", ip)
+		}
+		return net.JoinHostPort(ip.String(), port), serverName, nil
+	}
+
+	ips, err := resolvePublicIPs(ctx, host)
+	if err != nil {
+		return "", "", err
+	}
+	return net.JoinHostPort(ips[0].String(), port), serverName, nil
+}
+
+// NewSSRFProtectedHTTPClient returns an HTTP client that validates the initial URL,
+// revalidates redirects, and pins outbound dials to a public IP selected during validation.
+func NewSSRFProtectedHTTPClient(timeout time.Duration) *http.Client {
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	dialer := &net.Dialer{Timeout: 15 * time.Second}
+
+	transport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+		targetAddr, _, err := validatedSSRFDialTarget(ctx, addr)
+		if err != nil {
+			return nil, err
+		}
+		return dialer.DialContext(ctx, network, targetAddr)
+	}
+	transport.DialTLSContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+		targetAddr, serverName, err := validatedSSRFDialTarget(ctx, addr)
+		if err != nil {
+			return nil, err
+		}
+		rawConn, err := dialer.DialContext(ctx, network, targetAddr)
+		if err != nil {
+			return nil, err
+		}
+		tlsConn := tls.Client(rawConn, &tls.Config{
+			ServerName: serverName,
+			MinVersion: tls.VersionTLS12,
+		})
+		if err := tlsConn.HandshakeContext(ctx); err != nil {
+			rawConn.Close()
+			return nil, err
+		}
+		return tlsConn, nil
+	}
+
+	client := &http.Client{
+		Transport: transport,
+		Timeout:   timeout,
+	}
+	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		if len(via) >= 10 {
+			return fmt.Errorf("stopped after 10 redirects")
+		}
+		return ValidateSSRF(req.URL.String())
+	}
+	return client
 }

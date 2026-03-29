@@ -206,12 +206,9 @@ func secureResolve(workspaceDir, userPath string) (string, error) {
 	// Clean the user path
 	full := filepath.Join(absWorkdir, userPath)
 	clean := filepath.Clean(full)
-
-	// Try to resolve symlinks in the target path
-	absPath, err := filepath.EvalSymlinks(clean)
+	absPath, err := secureResolveFinalPath(clean)
 	if err != nil {
-		// Path may not exist yet, use the clean path
-		absPath = clean
+		return "", fmt.Errorf("failed to resolve path %q: %w", userPath, err)
 	}
 
 	// Use filepath.Rel for proper path comparison
@@ -224,7 +221,43 @@ func secureResolve(workspaceDir, userPath string) (string, error) {
 		return "", fmt.Errorf("path '%s' escapes the project root", userPath)
 	}
 
-	return clean, nil
+	return absPath, nil
+}
+
+func secureResolveFinalPath(clean string) (string, error) {
+	current := clean
+	var missing []string
+	for {
+		info, err := os.Lstat(current)
+		if err == nil {
+			resolved := current
+			if info.Mode()&os.ModeSymlink != 0 {
+				resolved, err = filepath.EvalSymlinks(current)
+				if err != nil {
+					return "", err
+				}
+			} else if eval, evalErr := filepath.EvalSymlinks(current); evalErr == nil {
+				resolved = eval
+			}
+			for i := len(missing) - 1; i >= 0; i-- {
+				resolved = filepath.Join(resolved, missing[i])
+			}
+			return filepath.Clean(resolved), nil
+		}
+		if !os.IsNotExist(err) {
+			return "", err
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			resolved := current
+			for i := len(missing) - 1; i >= 0; i-- {
+				resolved = filepath.Join(resolved, missing[i])
+			}
+			return filepath.Clean(resolved), nil
+		}
+		missing = append(missing, filepath.Base(current))
+		current = parent
+	}
 }
 
 func filesystemBatchItemString(item map[string]interface{}, keys ...string) string {

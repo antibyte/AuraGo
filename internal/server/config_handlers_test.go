@@ -2,8 +2,12 @@ package server
 
 import (
 	"log/slog"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 
+	"aurago/internal/config"
 	"aurago/internal/security"
 )
 
@@ -76,5 +80,24 @@ func TestExtractSecretsToVaultStoresMappedClientSecret(t *testing.T) {
 	}
 	if _, exists := section["client_secret"]; exists {
 		t.Fatalf("client_secret field should have been removed from patch: %#v", section)
+	}
+}
+
+func TestHandleUpdateConfigInvalidJSONIsGeneric(t *testing.T) {
+	s := &Server{
+		Cfg: &config.Config{ConfigPath: "config.yaml"},
+	}
+
+	req := httptest.NewRequest(http.MethodPut, "/api/config", strings.NewReader(`{"broken":`))
+	rec := httptest.NewRecorder()
+
+	handleUpdateConfig(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusBadRequest, rec.Body.String())
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "Invalid JSON") || strings.Contains(strings.ToLower(body), "unexpected eof") {
+		t.Fatalf("expected generic invalid JSON response, got %q", body)
 	}
 }

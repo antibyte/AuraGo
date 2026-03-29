@@ -101,9 +101,10 @@ func handleFritzBoxTest(s *Server) http.HandlerFunc {
 
 		c, err := fritzbox.NewClient(testCfg)
 		if err != nil {
+			s.Logger.Error("Failed to initialize FritzBox client", "error", err)
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status":  "error",
-				"message": err.Error(),
+				"message": "Failed to initialize Fritz!Box client",
 			})
 			return
 		}
@@ -111,9 +112,10 @@ func handleFritzBoxTest(s *Server) http.HandlerFunc {
 
 		info, err := c.GetSystemInfo()
 		if err != nil {
+			s.Logger.Error("FritzBox system info request failed", "error", err)
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status":  "error",
-				"message": err.Error(),
+				"message": "Failed to connect to Fritz!Box",
 			})
 			return
 		}

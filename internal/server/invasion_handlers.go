@@ -25,7 +25,7 @@ func handleInvasionNests(s *Server) http.HandlerFunc {
 		case http.MethodGet:
 			nests, err := invasion.ListNests(s.InvasionDB)
 			if err != nil {
-				jsonError(w, err.Error(), http.StatusInternalServerError)
+				jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to load nests", "Failed to list invasion nests", err)
 				return
 			}
 			if nests == nil {
@@ -90,7 +90,7 @@ func handleInvasionNests(s *Server) http.HandlerFunc {
 				RouteConfig  string `json:"route_config"`
 			}
 			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-				jsonError(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
+				jsonError(w, "Invalid JSON", http.StatusBadRequest)
 				return
 			}
 			if req.Name == "" {
@@ -127,14 +127,14 @@ func handleInvasionNests(s *Server) http.HandlerFunc {
 			if req.Secret != "" {
 				id, err := invasion.CreateNest(s.InvasionDB, nest)
 				if err != nil {
-					jsonError(w, err.Error(), http.StatusInternalServerError)
+					jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to create nest", "Failed to create invasion nest", err)
 					return
 				}
 				vaultKey := "nest_" + id
 				if err := s.Vault.WriteSecret(vaultKey, req.Secret); err != nil {
 					// Rollback: delete the nest
 					_ = invasion.DeleteNest(s.InvasionDB, id)
-					jsonError(w, "Failed to store secret in vault: "+err.Error(), http.StatusInternalServerError)
+					jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to store nest secret", "Failed to store invasion nest secret", err, "nest_id", id)
 					return
 				}
 				// Update nest with vault reference
@@ -154,7 +154,7 @@ func handleInvasionNests(s *Server) http.HandlerFunc {
 			} else {
 				id, err := invasion.CreateNest(s.InvasionDB, nest)
 				if err != nil {
-					jsonError(w, err.Error(), http.StatusInternalServerError)
+					jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to create nest", "Failed to create invasion nest", err)
 					return
 				}
 				writeJSON(w, map[string]interface{}{
@@ -196,7 +196,7 @@ func handleInvasionNest(s *Server) http.HandlerFunc {
 		case http.MethodGet:
 			nest, err := invasion.GetNest(s.InvasionDB, id)
 			if err != nil {
-				jsonError(w, err.Error(), http.StatusNotFound)
+				jsonLoggedError(w, s.Logger, http.StatusNotFound, "Nest not found", "Invasion nest lookup failed", err, "nest_id", id)
 				return
 			}
 			writeJSON(w, map[string]interface{}{
@@ -237,13 +237,13 @@ func handleInvasionNest(s *Server) http.HandlerFunc {
 				RouteConfig  string `json:"route_config"`
 			}
 			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-				jsonError(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
+				jsonError(w, "Invalid JSON", http.StatusBadRequest)
 				return
 			}
 
 			existing, err := invasion.GetNest(s.InvasionDB, id)
 			if err != nil {
-				jsonError(w, err.Error(), http.StatusNotFound)
+				jsonLoggedError(w, s.Logger, http.StatusNotFound, "Nest not found", "Invasion nest lookup failed", err, "nest_id", id)
 				return
 			}
 
@@ -264,14 +264,14 @@ func handleInvasionNest(s *Server) http.HandlerFunc {
 			if req.Secret != "" {
 				vaultKey := "nest_" + id
 				if err := s.Vault.WriteSecret(vaultKey, req.Secret); err != nil {
-					jsonError(w, "Failed to store secret: "+err.Error(), http.StatusInternalServerError)
+					jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to store nest secret", "Failed to update invasion nest secret", err, "nest_id", id)
 					return
 				}
 				existing.VaultSecretID = vaultKey
 			}
 
 			if err := invasion.UpdateNest(s.InvasionDB, existing); err != nil {
-				jsonError(w, err.Error(), http.StatusInternalServerError)
+				jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to update nest", "Failed to update invasion nest", err, "nest_id", id)
 				return
 			}
 			writeJSON(w, map[string]string{"status": "updated"})
@@ -280,14 +280,14 @@ func handleInvasionNest(s *Server) http.HandlerFunc {
 			// Clean up vault secret before deleting
 			nest, err := invasion.GetNest(s.InvasionDB, id)
 			if err != nil {
-				jsonError(w, err.Error(), http.StatusNotFound)
+				jsonLoggedError(w, s.Logger, http.StatusNotFound, "Nest not found", "Invasion nest lookup failed", err, "nest_id", id)
 				return
 			}
 			if nest.VaultSecretID != "" {
 				_ = s.Vault.DeleteSecret(nest.VaultSecretID)
 			}
 			if err := invasion.DeleteNest(s.InvasionDB, id); err != nil {
-				jsonError(w, err.Error(), http.StatusInternalServerError)
+				jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to delete nest", "Failed to delete invasion nest", err, "nest_id", id)
 				return
 			}
 			// Fire mission trigger: nest cleared
@@ -326,7 +326,7 @@ func handleInvasionNestToggle(s *Server) http.HandlerFunc {
 			return
 		}
 		if err := invasion.ToggleNestActive(s.InvasionDB, id, req.Active); err != nil {
-			jsonError(w, err.Error(), http.StatusInternalServerError)
+			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to change nest status", "Failed to toggle invasion nest", err, "nest_id", id)
 			return
 		}
 		writeJSON(w, map[string]interface{}{"status": "toggled", "active": req.Active})
@@ -350,7 +350,7 @@ func handleInvasionNestValidate(s *Server) http.HandlerFunc {
 
 		nest, err := invasion.GetNest(s.InvasionDB, id)
 		if err != nil {
-			jsonError(w, err.Error(), http.StatusNotFound)
+			jsonLoggedError(w, s.Logger, http.StatusNotFound, "Nest not found", "Invasion nest lookup failed", err, "nest_id", id)
 			return
 		}
 
@@ -433,7 +433,7 @@ func handleInvasionEggs(s *Server) http.HandlerFunc {
 		case http.MethodGet:
 			eggs, err := invasion.ListEggs(s.InvasionDB)
 			if err != nil {
-				jsonError(w, err.Error(), http.StatusInternalServerError)
+				jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to load eggs", "Failed to list invasion eggs", err)
 				return
 			}
 			if eggs == nil {
@@ -495,7 +495,7 @@ func handleInvasionEggs(s *Server) http.HandlerFunc {
 				AllowedTools string `json:"allowed_tools"`
 			}
 			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-				jsonError(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
+				jsonError(w, "Invalid JSON", http.StatusBadRequest)
 				return
 			}
 			if req.Name == "" {
@@ -519,7 +519,7 @@ func handleInvasionEggs(s *Server) http.HandlerFunc {
 
 			id, err := invasion.CreateEgg(s.InvasionDB, egg)
 			if err != nil {
-				jsonError(w, err.Error(), http.StatusInternalServerError)
+				jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to create egg", "Failed to create invasion egg", err)
 				return
 			}
 
@@ -528,7 +528,7 @@ func handleInvasionEggs(s *Server) http.HandlerFunc {
 				vaultKey := "egg_apikey_" + id
 				if err := s.Vault.WriteSecret(vaultKey, req.APIKey); err != nil {
 					_ = invasion.DeleteEgg(s.InvasionDB, id)
-					jsonError(w, "Failed to store API key in vault: "+err.Error(), http.StatusInternalServerError)
+					jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to store egg API key", "Failed to store invasion egg API key", err, "egg_id", id)
 					return
 				}
 				created, _ := invasion.GetEgg(s.InvasionDB, id)
@@ -566,7 +566,7 @@ func handleInvasionEgg(s *Server) http.HandlerFunc {
 		case http.MethodGet:
 			egg, err := invasion.GetEgg(s.InvasionDB, id)
 			if err != nil {
-				jsonError(w, err.Error(), http.StatusNotFound)
+				jsonLoggedError(w, s.Logger, http.StatusNotFound, "Egg not found", "Invasion egg lookup failed", err, "egg_id", id)
 				return
 			}
 			writeJSON(w, map[string]interface{}{
@@ -609,7 +609,7 @@ func handleInvasionEgg(s *Server) http.HandlerFunc {
 
 			existing, err := invasion.GetEgg(s.InvasionDB, id)
 			if err != nil {
-				jsonError(w, err.Error(), http.StatusNotFound)
+				jsonLoggedError(w, s.Logger, http.StatusNotFound, "Egg not found", "Invasion egg lookup failed", err, "egg_id", id)
 				return
 			}
 
@@ -628,14 +628,14 @@ func handleInvasionEgg(s *Server) http.HandlerFunc {
 			if req.APIKey != "" {
 				vaultKey := "egg_apikey_" + id
 				if err := s.Vault.WriteSecret(vaultKey, req.APIKey); err != nil {
-					jsonError(w, "Failed to store API key: "+err.Error(), http.StatusInternalServerError)
+					jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to store egg API key", "Failed to update invasion egg API key", err, "egg_id", id)
 					return
 				}
 				existing.APIKeyRef = vaultKey
 			}
 
 			if err := invasion.UpdateEgg(s.InvasionDB, existing); err != nil {
-				jsonError(w, err.Error(), http.StatusInternalServerError)
+				jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to update egg", "Failed to update invasion egg", err, "egg_id", id)
 				return
 			}
 			writeJSON(w, map[string]string{"status": "updated"})
@@ -643,14 +643,14 @@ func handleInvasionEgg(s *Server) http.HandlerFunc {
 		case http.MethodDelete:
 			egg, err := invasion.GetEgg(s.InvasionDB, id)
 			if err != nil {
-				jsonError(w, err.Error(), http.StatusNotFound)
+				jsonLoggedError(w, s.Logger, http.StatusNotFound, "Egg not found", "Invasion egg lookup failed", err, "egg_id", id)
 				return
 			}
 			if egg.APIKeyRef != "" {
 				_ = s.Vault.DeleteSecret(egg.APIKeyRef)
 			}
 			if err := invasion.DeleteEgg(s.InvasionDB, id); err != nil {
-				jsonError(w, err.Error(), http.StatusInternalServerError)
+				jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to delete egg", "Failed to delete invasion egg", err, "egg_id", id)
 				return
 			}
 			writeJSON(w, map[string]string{"status": "deleted"})
@@ -684,7 +684,7 @@ func handleInvasionEggToggle(s *Server) http.HandlerFunc {
 			return
 		}
 		if err := invasion.ToggleEggActive(s.InvasionDB, id, req.Active); err != nil {
-			jsonError(w, err.Error(), http.StatusInternalServerError)
+			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to change egg status", "Failed to toggle invasion egg", err, "egg_id", id)
 			return
 		}
 		writeJSON(w, map[string]interface{}{"status": "toggled", "active": req.Active})

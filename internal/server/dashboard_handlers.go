@@ -808,7 +808,7 @@ func handleDashboardCoreMemoryMutate(s *Server, sse *SSEBroadcaster) http.Handle
 			}
 			id, err := s.ShortTermMem.AddCoreMemoryFact(req.Fact)
 			if err != nil {
-				http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusInternalServerError)
+				http.Error(w, `{"error":"Failed to add core memory fact"}`, http.StatusInternalServerError)
 				return
 			}
 			go pushMemoryStats()
@@ -826,7 +826,7 @@ func handleDashboardCoreMemoryMutate(s *Server, sse *SSEBroadcaster) http.Handle
 				return
 			}
 			if err := s.ShortTermMem.UpdateCoreMemoryFact(req.ID, req.Fact); err != nil {
-				http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusInternalServerError)
+				http.Error(w, `{"error":"Failed to update core memory fact"}`, http.StatusInternalServerError)
 				return
 			}
 			go pushMemoryStats()
@@ -842,7 +842,7 @@ func handleDashboardCoreMemoryMutate(s *Server, sse *SSEBroadcaster) http.Handle
 				return
 			}
 			if err := s.ShortTermMem.DeleteCoreMemoryFact(req.ID); err != nil {
-				http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusInternalServerError)
+				http.Error(w, `{"error":"Failed to delete core memory fact"}`, http.StatusInternalServerError)
 				return
 			}
 			go pushMemoryStats()

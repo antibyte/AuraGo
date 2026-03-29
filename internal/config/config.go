@@ -12,6 +12,41 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// WriteFileAtomic writes a file via temp file + rename to avoid partial writes.
+func WriteFileAtomic(path string, data []byte, perm os.FileMode) error {
+	dir := filepath.Dir(path)
+	tmp, err := os.CreateTemp(dir, filepath.Base(path)+".tmp-*")
+	if err != nil {
+		return err
+	}
+	tmpPath := tmp.Name()
+	success := false
+	defer func() {
+		_ = tmp.Close()
+		if !success {
+			_ = os.Remove(tmpPath)
+		}
+	}()
+
+	if err := tmp.Chmod(perm); err != nil {
+		return err
+	}
+	if _, err := tmp.Write(data); err != nil {
+		return err
+	}
+	if err := tmp.Sync(); err != nil {
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	if err := os.Rename(tmpPath, path); err != nil {
+		return err
+	}
+	success = true
+	return nil
+}
+
 var defaultIndexingExtensions = []string{".txt", ".md", ".json", ".csv", ".log", ".yaml", ".yml", ".pdf", ".docx", ".xlsx", ".pptx", ".odt", ".rtf"}
 var legacyIndexingExtensions = []string{".txt", ".md", ".json", ".csv", ".log", ".yaml", ".yml"}
 
@@ -166,7 +201,7 @@ func Load(path string) (*Config, error) {
 
 		// Save corrupted config for debugging
 		backupPath := absConfigPath + ".corrupted." + fmt.Sprintf("%d", time.Now().Unix())
-		_ = os.WriteFile(backupPath, data, 0644)
+		_ = WriteFileAtomic(backupPath, data, 0o600)
 
 		return nil, fmt.Errorf("failed to unmarshal config (backup saved to %s): %w", backupPath, err)
 	}
@@ -892,7 +927,14 @@ func (c *Config) Save(path string) error {
 		return fmt.Errorf("failed to marshal patched config: %w", err)
 	}
 
-	if err := os.WriteFile(absPath, data, 0644); err != nil {
+	perm := os.FileMode(0o600)
+	if info, statErr := os.Stat(absPath); statErr == nil {
+		perm = info.Mode().Perm()
+		if perm == 0 {
+			perm = 0o600
+		}
+	}
+	if err := WriteFileAtomic(absPath, data, perm); err != nil {
 		return fmt.Errorf("failed to write config file: %w", err)
 	}
 

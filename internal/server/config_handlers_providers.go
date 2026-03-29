@@ -308,7 +308,7 @@ func handleOllamaModels(s *Server) http.HandlerFunc {
 			w.WriteHeader(http.StatusBadGateway)
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"available": false,
-				"reason":    "Failed to reach Ollama: " + err.Error(),
+				"reason":    "Failed to reach Ollama",
 			})
 			return
 		}
@@ -320,7 +320,7 @@ func handleOllamaModels(s *Server) http.HandlerFunc {
 			} `json:"models"`
 		}
 		if err := json.NewDecoder(resp.Body).Decode(&tagsResp); err != nil {
-			http.Error(w, "Failed to parse Ollama response: "+err.Error(), http.StatusBadGateway)
+			http.Error(w, "Failed to parse Ollama response", http.StatusBadGateway)
 			return
 		}
 
@@ -352,7 +352,7 @@ func handleOpenRouterModels(s *Server) http.HandlerFunc {
 			w.WriteHeader(http.StatusBadGateway)
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"available": false,
-				"reason":    "Failed to reach OpenRouter: " + err.Error(),
+				"reason":    "Failed to reach OpenRouter",
 			})
 			return
 		}
@@ -454,7 +454,7 @@ func handleMeshCentralTest(s *Server) http.HandlerFunc {
 		if err := mc.Connect(); err != nil {
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status":  "error",
-				"message": err.Error(),
+				"message": "Connection failed",
 			})
 			return
 		}

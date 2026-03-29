@@ -21,7 +21,7 @@ func handleContacts(s *Server) http.HandlerFunc {
 			query := r.URL.Query().Get("q")
 			list, err := contacts.List(s.ContactsDB, query)
 			if err != nil {
-				http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusInternalServerError)
+				jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to list contacts", "Failed to list contacts", err)
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
@@ -40,7 +40,7 @@ func handleContacts(s *Server) http.HandlerFunc {
 			}
 			id, err := contacts.Create(s.ContactsDB, c)
 			if err != nil {
-				http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusBadRequest)
+				jsonLoggedError(w, s.Logger, http.StatusBadRequest, "Failed to create contact", "Failed to create contact", err)
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
@@ -70,7 +70,7 @@ func handleContactByID(s *Server) http.HandlerFunc {
 		case http.MethodGet:
 			c, err := contacts.GetByID(s.ContactsDB, id)
 			if err != nil {
-				http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusNotFound)
+				jsonError(w, "contact not found", http.StatusNotFound)
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
@@ -93,7 +93,11 @@ func handleContactByID(s *Server) http.HandlerFunc {
 				if strings.Contains(err.Error(), "not found") {
 					status = http.StatusNotFound
 				}
-				http.Error(w, `{"error":"`+err.Error()+`"}`, status)
+				if status == http.StatusNotFound {
+					jsonError(w, "contact not found", status)
+				} else {
+					jsonLoggedError(w, s.Logger, status, "Failed to update contact", "Failed to update contact", err, "contact_id", id)
+				}
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
@@ -105,7 +109,11 @@ func handleContactByID(s *Server) http.HandlerFunc {
 				if strings.Contains(err.Error(), "not found") {
 					status = http.StatusNotFound
 				}
-				http.Error(w, `{"error":"`+err.Error()+`"}`, status)
+				if status == http.StatusNotFound {
+					jsonError(w, "contact not found", status)
+				} else {
+					jsonLoggedError(w, s.Logger, status, "Failed to delete contact", "Failed to delete contact", err, "contact_id", id)
+				}
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")

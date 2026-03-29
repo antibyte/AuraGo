@@ -20,7 +20,7 @@ func handleSQLConnections(s *Server) http.HandlerFunc {
 		case http.MethodGet:
 			list, err := sqlconnections.List(s.SQLConnectionsDB)
 			if err != nil {
-				http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusInternalServerError)
+				jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to list SQL connections", "Failed to list SQL connections", err)
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
@@ -76,7 +76,7 @@ func handleSQLConnections(s *Server) http.HandlerFunc {
 				req.Name, req.Driver, req.Host, req.Port, req.DatabaseName, req.Description,
 				req.AllowRead, req.AllowWrite, req.AllowChange, req.AllowDelete, vaultKey, req.SSLMode)
 			if err != nil {
-				http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusBadRequest)
+				jsonLoggedError(w, s.Logger, http.StatusBadRequest, "Failed to create SQL connection", "Failed to create SQL connection", err, "connection_name", req.Name)
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
@@ -106,7 +106,7 @@ func handleSQLConnectionByID(s *Server) http.HandlerFunc {
 		case http.MethodGet:
 			rec, err := sqlconnections.GetByID(s.SQLConnectionsDB, id)
 			if err != nil {
-				http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusNotFound)
+				jsonError(w, "SQL connection not found", http.StatusNotFound)
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
@@ -141,7 +141,7 @@ func handleSQLConnectionByID(s *Server) http.HandlerFunc {
 			// Update credentials if provided
 			existing, err := sqlconnections.GetByID(s.SQLConnectionsDB, id)
 			if err != nil {
-				http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusNotFound)
+				jsonError(w, "SQL connection not found", http.StatusNotFound)
 				return
 			}
 			vaultKey := existing.VaultSecretID
@@ -165,7 +165,7 @@ func handleSQLConnectionByID(s *Server) http.HandlerFunc {
 			if err := sqlconnections.Update(s.SQLConnectionsDB,
 				id, req.Name, req.Driver, req.Host, req.Port, req.DatabaseName, req.Description,
 				req.AllowRead, req.AllowWrite, req.AllowChange, req.AllowDelete, vaultKey, req.SSLMode); err != nil {
-				http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusBadRequest)
+				jsonLoggedError(w, s.Logger, http.StatusBadRequest, "Failed to update SQL connection", "Failed to update SQL connection", err, "connection_id", id)
 				return
 			}
 
@@ -180,7 +180,7 @@ func handleSQLConnectionByID(s *Server) http.HandlerFunc {
 		case http.MethodDelete:
 			existing, err := sqlconnections.GetByID(s.SQLConnectionsDB, id)
 			if err != nil {
-				http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusNotFound)
+				jsonError(w, "SQL connection not found", http.StatusNotFound)
 				return
 			}
 
@@ -190,7 +190,7 @@ func handleSQLConnectionByID(s *Server) http.HandlerFunc {
 			}
 
 			if err := sqlconnections.Delete(s.SQLConnectionsDB, id); err != nil {
-				http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusInternalServerError)
+				jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to delete SQL connection", "Failed to delete SQL connection", err, "connection_id", id)
 				return
 			}
 
@@ -230,7 +230,7 @@ func handleSQLConnectionTest(s *Server) http.HandlerFunc {
 
 		rec, err := sqlconnections.GetByID(s.SQLConnectionsDB, id)
 		if err != nil {
-			http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusNotFound)
+			jsonError(w, "SQL connection not found", http.StatusNotFound)
 			return
 		}
 
@@ -239,7 +239,7 @@ func handleSQLConnectionTest(s *Server) http.HandlerFunc {
 			w.WriteHeader(http.StatusOK)
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status":  "error",
-				"message": err.Error(),
+				"message": "Connection test failed",
 			})
 			return
 		}

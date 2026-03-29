@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"sync"
 
 	"github.com/gofrs/flock"
@@ -104,10 +105,44 @@ func (v *Vault) encryptAndSave(secrets map[string]string) error {
 
 	ciphertext := gcm.Seal(nonce, nonce, plaintext, nil)
 
-	if err := os.WriteFile(v.filePath, ciphertext, 0600); err != nil {
+	if err := writeVaultFileAtomic(v.filePath, ciphertext, 0o600); err != nil {
 		return fmt.Errorf("failed to write vault file: %w", err)
 	}
 
+	return nil
+}
+
+func writeVaultFileAtomic(path string, data []byte, perm os.FileMode) error {
+	dir := filepath.Dir(path)
+	tmp, err := os.CreateTemp(dir, filepath.Base(path)+".tmp-*")
+	if err != nil {
+		return err
+	}
+	tmpPath := tmp.Name()
+	success := false
+	defer func() {
+		_ = tmp.Close()
+		if !success {
+			_ = os.Remove(tmpPath)
+		}
+	}()
+
+	if err := tmp.Chmod(perm); err != nil {
+		return err
+	}
+	if _, err := tmp.Write(data); err != nil {
+		return err
+	}
+	if err := tmp.Sync(); err != nil {
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	if err := os.Rename(tmpPath, path); err != nil {
+		return err
+	}
+	success = true
 	return nil
 }
 

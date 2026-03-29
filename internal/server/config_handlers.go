@@ -167,7 +167,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 
 		var patch map[string]interface{}
 		if err := json.Unmarshal(body, &patch); err != nil {
-			http.Error(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
+			http.Error(w, "Invalid JSON", http.StatusBadRequest)
 			return
 		}
 
@@ -195,7 +195,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status":  "error",
-				"message": vaultErr.Error(),
+				"message": "Credential could not be saved to vault.",
 			})
 			return
 		}
@@ -218,7 +218,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			w.WriteHeader(http.StatusBadRequest)
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status":  "error",
-				"message": "Config validation failed: " + valErr.Error() + ". Save rejected — your existing config is unchanged.",
+				"message": "Config validation failed. Save rejected — your existing config is unchanged.",
 			})
 			return
 		}
@@ -562,6 +562,7 @@ var sensitiveKeys = map[string]bool{
 	"password_hash":  true, // auth: bcrypt hash — never expose
 	"session_secret": true, // auth: HMAC signing key — never expose
 	"totp_secret":    true, // auth: TOTP base32 secret — never expose
+	"shared_key":     true, // egg mode shared AES key — never expose
 }
 
 // handleVaultStatus returns whether the vault is available.
@@ -745,6 +746,7 @@ var vaultKeyMap = map[string]string{
 	"notifications.pushover.user_key":  "pushover_user_key",
 	"notifications.pushover.app_token": "pushover_app_token",
 	"adguard.password":                 "adguard_password",
+	"egg_mode.shared_key":              "egg_shared_key",
 	"google_workspace.client_secret":   "google_workspace_client_secret",
 	"onedrive.client_secret":           "onedrive_client_secret",
 	"paperless_ngx.api_token":          "paperless_ngx_api_token",
@@ -873,7 +875,7 @@ func handleSecurityHarden(s *Server) http.HandlerFunc {
 			s.Logger.Error("[Security] Hardening failed", "error", err)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
+			json.NewEncoder(w).Encode(map[string]interface{}{"error": "Failed to apply hardening"})
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")

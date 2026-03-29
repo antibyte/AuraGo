@@ -672,6 +672,9 @@ func (c *Config) ApplyVaultSecrets(vault SecretReader) {
 	// ── Netlify ──
 	apply("netlify_token", &c.Netlify.Token)
 
+	// ── Egg mode ──
+	apply("egg_shared_key", &c.EggMode.SharedKey)
+
 	// ── Google Workspace ──
 	apply("google_workspace_client_secret", &c.GoogleWorkspace.ClientSecret)
 
@@ -968,7 +971,55 @@ func MigrateAuthSecretsToVault(configPath string, vault SecretReadWriter, log *s
 		log.Error("[Config] Failed to marshal cleaned config after auth migration", "error", err)
 		return
 	}
-	if err := os.WriteFile(configPath, out, 0644); err != nil {
+	if err := WriteFileAtomic(configPath, out, 0o600); err != nil {
 		log.Error("[Config] Failed to write cleaned config after auth migration", "error", err)
+	}
+}
+
+// MigrateEggModeSharedKeyToVault moves egg_mode.shared_key from plaintext YAML
+// into the vault and removes the YAML field afterwards.
+func MigrateEggModeSharedKeyToVault(configPath string, vault SecretReadWriter, log *slog.Logger) {
+	if vault == nil {
+		return
+	}
+
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return
+	}
+
+	var rawCfg map[string]interface{}
+	if err := yaml.Unmarshal(data, &rawCfg); err != nil {
+		return
+	}
+
+	eggSection, ok := rawCfg["egg_mode"].(map[string]interface{})
+	if !ok {
+		return
+	}
+	rawValue, exists := eggSection["shared_key"]
+	if !exists {
+		return
+	}
+
+	sharedKey, _ := rawValue.(string)
+	if existing, _ := vault.ReadSecret("egg_shared_key"); existing == "" && strings.TrimSpace(sharedKey) != "" {
+		if err := vault.WriteSecret("egg_shared_key", sharedKey); err != nil {
+			log.Error("[Config] Failed to migrate egg shared key to vault", "error", err)
+			return
+		}
+		log.Info("[Config] Migrated egg shared key from config.yaml to vault")
+	}
+
+	delete(eggSection, "shared_key")
+	rawCfg["egg_mode"] = eggSection
+
+	out, err := yaml.Marshal(rawCfg)
+	if err != nil {
+		log.Error("[Config] Failed to marshal cleaned config after egg shared key migration", "error", err)
+		return
+	}
+	if err := WriteFileAtomic(configPath, out, 0o600); err != nil {
+		log.Error("[Config] Failed to write cleaned config after egg shared key migration", "error", err)
 	}
 }

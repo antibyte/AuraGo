@@ -108,7 +108,7 @@ func handleRemoteDevices(s *Server) http.HandlerFunc {
 		case http.MethodGet:
 			devices, err := remote.ListDevices(s.RemoteHub.DB())
 			if err != nil {
-				jsonError(w, err.Error(), http.StatusInternalServerError)
+				jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to load devices", "Failed to list remote devices", err)
 				return
 			}
 			// Enrich with connection status
@@ -185,7 +185,7 @@ func handleRemoteDevice(s *Server) http.HandlerFunc {
 			}
 
 			if err := remote.UpdateDevice(s.RemoteHub.DB(), device); err != nil {
-				jsonError(w, err.Error(), http.StatusInternalServerError)
+				jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to update device", "Failed to update remote device", err, "device_id", deviceID)
 				return
 			}
 
@@ -206,7 +206,7 @@ func handleRemoteDevice(s *Server) http.HandlerFunc {
 				_ = s.RemoteHub.SendRevoke(deviceID)
 			}
 			if err := remote.DeleteDevice(s.RemoteHub.DB(), deviceID); err != nil {
-				jsonError(w, err.Error(), http.StatusInternalServerError)
+				jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to delete device", "Failed to delete remote device", err, "device_id", deviceID)
 				return
 			}
 			// Clean up vault secret
@@ -232,7 +232,7 @@ func handleRemoteDeviceApprove(s *Server) http.HandlerFunc {
 
 		deviceID := extractRemoteDeviceID(r.URL.Path, "/approve")
 		if err := s.RemoteHub.ApproveDevice(deviceID); err != nil {
-			jsonError(w, err.Error(), http.StatusBadRequest)
+			jsonLoggedError(w, s.Logger, http.StatusBadRequest, "Unable to approve device", "Failed to approve remote device", err, "device_id", deviceID)
 			return
 		}
 		writeJSON(w, map[string]string{"status": "approved"})
@@ -252,7 +252,7 @@ func handleRemoteDeviceReject(s *Server) http.HandlerFunc {
 
 		deviceID := extractRemoteDeviceID(r.URL.Path, "/reject")
 		if err := s.RemoteHub.RejectDevice(deviceID); err != nil {
-			jsonError(w, err.Error(), http.StatusBadRequest)
+			jsonLoggedError(w, s.Logger, http.StatusBadRequest, "Unable to reject device", "Failed to reject remote device", err, "device_id", deviceID)
 			return
 		}
 		writeJSON(w, map[string]string{"status": "rejected"})
@@ -311,7 +311,7 @@ func handleRemoteEnrollmentCreate(s *Server) http.HandlerFunc {
 			ExpiresAt:  expires,
 		})
 		if err != nil {
-			jsonError(w, err.Error(), http.StatusInternalServerError)
+			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Enrollment creation failed", "Failed to create remote enrollment", err)
 			return
 		}
 
@@ -361,7 +361,7 @@ func handleRemoteDownload(s *Server) http.HandlerFunc {
 		}
 		platform := targetOS + "/" + targetArch
 		if !validPlatforms[platform] {
-			jsonError(w, fmt.Sprintf("unsupported platform: %s", platform), http.StatusBadRequest)
+			jsonError(w, "Unsupported platform", http.StatusBadRequest)
 			return
 		}
 
@@ -375,7 +375,7 @@ func handleRemoteDownload(s *Server) http.HandlerFunc {
 
 		genericBinary, err := os.ReadFile(binaryPath)
 		if err != nil {
-			jsonError(w, fmt.Sprintf("binary not available: %s", binaryName), http.StatusNotFound)
+			jsonLoggedError(w, s.Logger, http.StatusNotFound, "Requested binary is not available", "Remote binary not available", err, "binary", binaryName)
 			return
 		}
 
@@ -396,7 +396,7 @@ func handleRemoteDownload(s *Server) http.HandlerFunc {
 			ExpiresAt:  expires,
 		})
 		if err != nil {
-			jsonError(w, "enrollment creation failed", http.StatusInternalServerError)
+			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Enrollment creation failed", "Failed to create download enrollment", err, "platform", platform)
 			return
 		}
 
@@ -460,7 +460,7 @@ func handleRemoteAuditLog(s *Server) http.HandlerFunc {
 		deviceID := r.URL.Query().Get("device_id")
 		entries, err := remote.ListAuditLog(s.RemoteHub.DB(), deviceID, 100)
 		if err != nil {
-			jsonError(w, err.Error(), http.StatusInternalServerError)
+			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to load audit log", "Failed to list remote audit log", err, "device_id", deviceID)
 			return
 		}
 		writeJSON(w, entries)

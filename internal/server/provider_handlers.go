@@ -92,7 +92,7 @@ func handleGetProviders(s *Server, w http.ResponseWriter, _ *http.Request) {
 func handlePutProviders(s *Server, w http.ResponseWriter, r *http.Request) {
 	var incoming []providerJSON
 	if err := json.NewDecoder(r.Body).Decode(&incoming); err != nil {
-		http.Error(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
 
@@ -313,7 +313,7 @@ func handleFetchPricing(s *Server, w http.ResponseWriter, providerID string) {
 	pricing, err := llm.FetchPricingForProvider(providerType, apiKey, baseURL)
 	if err != nil {
 		s.Logger.Error("[Pricing] Failed to fetch pricing", "provider", providerID, "error", err)
-		http.Error(w, "Failed to fetch pricing: "+err.Error(), http.StatusBadGateway)
+		http.Error(w, "Failed to fetch pricing", http.StatusBadGateway)
 		return
 	}
 
@@ -325,7 +325,7 @@ func handleFetchPricing(s *Server, w http.ResponseWriter, providerID string) {
 func handleApplyPricing(s *Server, w http.ResponseWriter, r *http.Request, providerID string) {
 	var incoming []llm.ModelPricing
 	if err := json.NewDecoder(r.Body).Decode(&incoming); err != nil {
-		http.Error(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
 
@@ -344,7 +344,7 @@ func handleApplyPricing(s *Server, w http.ResponseWriter, r *http.Request, provi
 
 	// Persist to YAML
 	if err := persistProviders(s, configPath); err != nil {
-		http.Error(w, "Failed to save: "+err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Failed to save providers", http.StatusInternalServerError)
 		return
 	}
 

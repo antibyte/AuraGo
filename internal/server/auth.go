@@ -227,12 +227,26 @@ func getLoginRecord(ip string) *loginRecord {
 	return r
 }
 
+func loginScopeKey(scope, value string) string {
+	return scope + ":" + value
+}
+
 // IsLockedOut returns true if the IP is currently in a lockout period.
 func IsLockedOut(ip string) bool {
 	r := getLoginRecord(ip)
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return time.Now().Before(r.lockedUntil)
+}
+
+// IsLockedOutAny returns true if any provided rate-limit key is locked.
+func IsLockedOutAny(keys ...string) bool {
+	for _, key := range keys {
+		if key != "" && IsLockedOut(key) {
+			return true
+		}
+	}
+	return false
 }
 
 // RecordFailedLogin records a failed attempt and triggers lockout when threshold is reached.
@@ -252,11 +266,60 @@ func RecordFailedLogin(ip string, maxAttempts, lockoutMinutes int) {
 	}
 }
 
+// RecordFailedLoginForKeys records a failed attempt for all provided scopes.
+func RecordFailedLoginForKeys(maxAttempts, lockoutMinutes int, keys ...string) {
+	for _, key := range keys {
+		if key != "" {
+			RecordFailedLogin(key, maxAttempts, lockoutMinutes)
+		}
+	}
+}
+
 // ClearLoginRecord removes login failure tracking for an IP (on successful login).
 func ClearLoginRecord(ip string) {
 	loginMu.Lock()
 	defer loginMu.Unlock()
 	delete(loginRecords, ip)
+}
+
+// ClearLoginRecords removes rate-limit tracking for all provided scopes.
+func ClearLoginRecords(keys ...string) {
+	loginMu.Lock()
+	defer loginMu.Unlock()
+	for _, key := range keys {
+		if key != "" {
+			delete(loginRecords, key)
+		}
+	}
+}
+
+// LoginBackoffDelay returns a small progressive delay for repeated failed logins.
+func LoginBackoffDelay(keys ...string) time.Duration {
+	maxCount := 0
+	for _, key := range keys {
+		if key == "" {
+			continue
+		}
+		r := getLoginRecord(key)
+		r.mu.Lock()
+		count := r.count
+		locked := time.Now().Before(r.lockedUntil)
+		r.mu.Unlock()
+		if locked {
+			return 0
+		}
+		if count > maxCount {
+			maxCount = count
+		}
+	}
+	if maxCount <= 0 {
+		return 0
+	}
+	delay := time.Duration(maxCount) * 250 * time.Millisecond
+	if delay > 2*time.Second {
+		return 2 * time.Second
+	}
+	return delay
 }
 
 // ClientIP extracts the real client IP, respecting X-Forwarded-For for reverse proxies.

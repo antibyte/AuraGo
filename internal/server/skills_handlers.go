@@ -42,7 +42,7 @@ func handleListSkills(s *Server) http.HandlerFunc {
 
 		skills, err := s.SkillManager.ListSkillsFiltered(skillType, status, search, enabledFilter)
 		if err != nil {
-			jsonError(w, "Failed to list skills: "+err.Error(), http.StatusInternalServerError)
+			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to list skills", "Failed to list skills", err)
 			return
 		}
 		if skills == nil {
@@ -93,7 +93,7 @@ func handleGetSkill(s *Server) http.HandlerFunc {
 
 		skill, err := s.SkillManager.GetSkill(id)
 		if err != nil {
-			jsonError(w, err.Error(), http.StatusNotFound)
+			jsonLoggedError(w, s.Logger, http.StatusNotFound, "Skill not found", "Skill lookup failed", err, "skill_id", id)
 			return
 		}
 
@@ -159,7 +159,7 @@ func handleCreateSkill(s *Server) http.HandlerFunc {
 
 		skill, err := s.SkillManager.CreateSkillEntry(req.Name, req.Description, req.Code, tools.SkillTypeUser, "user", req.Category, req.Tags)
 		if err != nil {
-			jsonError(w, "Failed to create skill: "+err.Error(), http.StatusInternalServerError)
+			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to create skill", "Failed to create skill", err, "skill_name", req.Name)
 			return
 		}
 
@@ -243,7 +243,7 @@ func handleUpdateSkill(s *Server) http.HandlerFunc {
 			// Prevent toggling built-in skills
 			skillEntry, err := s.SkillManager.GetSkill(id)
 			if err != nil {
-				jsonError(w, err.Error(), http.StatusNotFound)
+				jsonLoggedError(w, s.Logger, http.StatusNotFound, "Skill not found", "Skill lookup failed", err, "skill_id", id)
 				return
 			}
 			if skillEntry.Type == tools.SkillTypeBuiltIn {
@@ -251,7 +251,7 @@ func handleUpdateSkill(s *Server) http.HandlerFunc {
 				return
 			}
 			if err := s.SkillManager.EnableSkill(id, *req.Enabled, "user"); err != nil {
-				jsonError(w, err.Error(), http.StatusNotFound)
+				jsonLoggedError(w, s.Logger, http.StatusNotFound, "Skill not found", "Failed to toggle skill", err, "skill_id", id)
 				return
 			}
 		}
@@ -259,7 +259,7 @@ func handleUpdateSkill(s *Server) http.HandlerFunc {
 		if req.Description != nil || req.Category != nil || req.Tags != nil {
 			currentSkill, err := s.SkillManager.GetSkill(id)
 			if err != nil {
-				jsonError(w, err.Error(), http.StatusNotFound)
+				jsonLoggedError(w, s.Logger, http.StatusNotFound, "Skill not found", "Skill lookup failed", err, "skill_id", id)
 				return
 			}
 			description := currentSkill.Description
@@ -275,39 +275,39 @@ func handleUpdateSkill(s *Server) http.HandlerFunc {
 				tags = *req.Tags
 			}
 			if err := s.SkillManager.UpdateSkillMetadata(id, description, category, tags, "user"); err != nil {
-				jsonError(w, err.Error(), http.StatusBadRequest)
+				jsonLoggedError(w, s.Logger, http.StatusBadRequest, "Failed to update skill metadata", "Failed to update skill metadata", err, "skill_id", id)
 				return
 			}
 		}
 
 		if req.Code != nil {
 			if err := s.SkillManager.UpdateSkillCode(id, *req.Code, "user"); err != nil {
-				jsonError(w, err.Error(), http.StatusBadRequest)
+				jsonLoggedError(w, s.Logger, http.StatusBadRequest, "Failed to update skill code", "Failed to update skill code", err, "skill_id", id)
 				return
 			}
 		}
 		if req.RestoreVersion != nil {
 			code, err := s.SkillManager.GetSkillVersionCode(id, *req.RestoreVersion)
 			if err != nil {
-				jsonError(w, err.Error(), http.StatusBadRequest)
+				jsonLoggedError(w, s.Logger, http.StatusBadRequest, "Failed to load skill version", "Failed to load skill version", err, "skill_id", id, "version", *req.RestoreVersion)
 				return
 			}
 			if err := s.SkillManager.UpdateSkillCode(id, code, "user:restore"); err != nil {
-				jsonError(w, err.Error(), http.StatusBadRequest)
+				jsonLoggedError(w, s.Logger, http.StatusBadRequest, "Failed to restore skill version", "Failed to restore skill version", err, "skill_id", id, "version", *req.RestoreVersion)
 				return
 			}
 		}
 
 		if req.VaultKeys != nil {
 			if err := s.SkillManager.UpdateVaultKeys(id, req.VaultKeys); err != nil {
-				jsonError(w, err.Error(), http.StatusBadRequest)
+				jsonLoggedError(w, s.Logger, http.StatusBadRequest, "Failed to update skill vault keys", "Failed to update skill vault keys", err, "skill_id", id)
 				return
 			}
 		}
 
 		skill, err := s.SkillManager.GetSkill(id)
 		if err != nil {
-			jsonError(w, err.Error(), http.StatusNotFound)
+			jsonLoggedError(w, s.Logger, http.StatusNotFound, "Skill not found", "Skill lookup failed", err, "skill_id", id)
 			return
 		}
 
@@ -348,7 +348,7 @@ func handleDeleteSkill(s *Server) http.HandlerFunc {
 		// Prevent deleting built-in skills
 		skill, err := s.SkillManager.GetSkill(id)
 		if err != nil {
-			jsonError(w, err.Error(), http.StatusNotFound)
+			jsonLoggedError(w, s.Logger, http.StatusNotFound, "Skill not found", "Skill lookup failed", err, "skill_id", id)
 			return
 		}
 		if skill.Type == tools.SkillTypeBuiltIn {
@@ -358,7 +358,7 @@ func handleDeleteSkill(s *Server) http.HandlerFunc {
 
 		deleteFiles := r.URL.Query().Get("delete_files") != "false"
 		if err := s.SkillManager.DeleteSkill(id, deleteFiles, "user"); err != nil {
-			jsonError(w, err.Error(), http.StatusNotFound)
+			jsonLoggedError(w, s.Logger, http.StatusNotFound, "Skill not found", "Failed to delete skill", err, "skill_id", id)
 			return
 		}
 
@@ -415,10 +415,15 @@ func handleUploadSkill(s *Server) http.HandlerFunc {
 			return
 		}
 		defer file.Close()
+		if !isAllowedSkillUploadFilename(header.Filename) {
+			jsonError(w, "Only Python skill files (.py) are allowed", http.StatusBadRequest)
+			return
+		}
 
 		fileData, err := io.ReadAll(file)
 		if err != nil {
-			jsonError(w, "Failed to read uploaded file", http.StatusInternalServerError)
+			s.Logger.Error("Failed to read uploaded skill", "filename", header.Filename, "error", err)
+			jsonError(w, "Failed to process uploaded file", http.StatusInternalServerError)
 			return
 		}
 
@@ -438,7 +443,7 @@ func handleUploadSkill(s *Server) http.HandlerFunc {
 		// Determine name
 		name := strings.TrimSpace(r.FormValue("name"))
 		if name == "" {
-			name = strings.TrimSuffix(header.Filename, ".py")
+			name = strings.TrimSuffix(sanitizeFilename(header.Filename), ".py")
 		}
 		description := strings.TrimSpace(r.FormValue("description"))
 		category := strings.TrimSpace(r.FormValue("category"))
@@ -447,7 +452,12 @@ func handleUploadSkill(s *Server) http.HandlerFunc {
 		// Create entry
 		skill, err := s.SkillManager.CreateSkillEntry(name, description, string(fileData), tools.SkillTypeUser, "user", category, tags)
 		if err != nil {
-			jsonError(w, "Failed to save skill: "+err.Error(), http.StatusInternalServerError)
+			if strings.Contains(strings.ToLower(err.Error()), "already exists") {
+				jsonError(w, "A skill with that name already exists", http.StatusConflict)
+				return
+			}
+			s.Logger.Error("Failed to save uploaded skill", "name", name, "error", err)
+			jsonError(w, "Failed to save skill", http.StatusInternalServerError)
 			return
 		}
 
@@ -521,7 +531,7 @@ func handleVerifySkill(s *Server) http.HandlerFunc {
 
 		report, status, err := s.SkillManager.ScanSkill(r.Context(), id, vtKey, s.LLMGuardian, vtEnabled, useGuardian)
 		if err != nil {
-			jsonError(w, "Security scan failed: "+err.Error(), http.StatusInternalServerError)
+			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Security scan failed", "Skill security scan failed", err, "skill_id", id)
 			return
 		}
 
@@ -606,7 +616,7 @@ func handleCreateSkillFromTemplate(s *Server) http.HandlerFunc {
 
 		result, err := tools.CreateSkillFromTemplate(skillsDir, req.TemplateName, req.SkillName, req.Description, req.BaseURL, req.Dependencies, req.VaultKeys)
 		if err != nil {
-			jsonError(w, "Failed to create skill from template: "+err.Error(), http.StatusBadRequest)
+			jsonLoggedError(w, s.Logger, http.StatusBadRequest, "Failed to create skill from template", "Failed to create skill from template", err, "template", req.TemplateName, "skill_name", req.SkillName)
 			return
 		}
 
@@ -680,6 +690,11 @@ func handleSkillStats(s *Server) http.HandlerFunc {
 	}
 }
 
+func isAllowedSkillUploadFilename(filename string) bool {
+	name := strings.TrimSpace(filename)
+	return name != "" && strings.HasSuffix(strings.ToLower(name), ".py")
+}
+
 // handleGetSkillVersions returns the stored version history for a skill.
 // GET /api/skills/{id}/versions
 func handleGetSkillVersions(s *Server) http.HandlerFunc {
@@ -695,7 +710,7 @@ func handleGetSkillVersions(s *Server) http.HandlerFunc {
 		}
 		versions, err := s.SkillManager.ListSkillVersions(id)
 		if err != nil {
-			jsonError(w, err.Error(), http.StatusBadRequest)
+			jsonLoggedError(w, s.Logger, http.StatusBadRequest, "Failed to load skill versions", "Failed to load skill versions", err, "skill_id", id)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -725,7 +740,7 @@ func handleGetSkillAudit(s *Server) http.HandlerFunc {
 		}
 		entries, err := s.SkillManager.ListSkillAudit(id, limit)
 		if err != nil {
-			jsonError(w, err.Error(), http.StatusBadRequest)
+			jsonLoggedError(w, s.Logger, http.StatusBadRequest, "Failed to load skill audit", "Failed to load skill audit", err, "skill_id", id)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -751,7 +766,7 @@ func handleExportSkill(s *Server) http.HandlerFunc {
 		}
 		bundle, err := s.SkillManager.ExportSkillBundle(id)
 		if err != nil {
-			jsonError(w, err.Error(), http.StatusBadRequest)
+			jsonLoggedError(w, s.Logger, http.StatusBadRequest, "Failed to export skill", "Failed to export skill bundle", err, "skill_id", id)
 			return
 		}
 		filename := bundle.Skill.Name + ".aurago-skill.json"
@@ -789,7 +804,7 @@ func handleImportSkill(s *Server) http.HandlerFunc {
 		}
 		entry, err := s.SkillManager.ImportSkillBundle(&bundle, "user")
 		if err != nil {
-			jsonError(w, err.Error(), http.StatusBadRequest)
+			jsonLoggedError(w, s.Logger, http.StatusBadRequest, "Failed to import skill bundle", "Failed to import skill bundle", err)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -816,7 +831,7 @@ func handleTestSkill(s *Server) http.HandlerFunc {
 		}
 		skill, err := s.SkillManager.GetSkill(id)
 		if err != nil {
-			jsonError(w, err.Error(), http.StatusNotFound)
+			jsonLoggedError(w, s.Logger, http.StatusNotFound, "Skill not found", "Skill lookup failed", err, "skill_id", id)
 			return
 		}
 
@@ -844,6 +859,9 @@ func handleTestSkill(s *Server) http.HandlerFunc {
 		message := ""
 		if err != nil {
 			status = "error"
+			// Intentionally preserve the execution error here: this endpoint is the
+			// explicit skill-development debug channel and users need the concrete
+			// traceback/output to fix broken generated skills.
 			message = err.Error()
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -945,7 +963,7 @@ func handleGenerateSkillDraft(s *Server) http.HandlerFunc {
 		resp, err := llm.ExecuteWithRetry(ctx, s.LLMClient, llmReq, s.Logger, nil)
 		if err != nil {
 			s.Logger.Warn("[Skills] AI draft generation failed", "error", err)
-			jsonError(w, "LLM generation failed: "+err.Error(), http.StatusBadGateway)
+			jsonError(w, "LLM generation failed", http.StatusBadGateway)
 			return
 		}
 		if len(resp.Choices) == 0 {
@@ -956,7 +974,7 @@ func handleGenerateSkillDraft(s *Server) http.HandlerFunc {
 		draft, err := decodeSkillDraft(resp.Choices[0].Message.Content)
 		if err != nil {
 			s.Logger.Warn("[Skills] Failed to decode generated skill draft", "error", err, "response_preview", truncateForLog(resp.Choices[0].Message.Content, 500))
-			jsonError(w, "Failed to parse generated skill draft: "+err.Error(), http.StatusBadGateway)
+			jsonError(w, "Failed to parse generated skill draft", http.StatusBadGateway)
 			return
 		}
 		if repaired, repairApplied, repairReason, repairErr := maybeRepairGeneratedSkillDraft(ctx, s, llmReq.Model, draft); repairErr != nil {

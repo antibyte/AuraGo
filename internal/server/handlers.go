@@ -702,7 +702,7 @@ func handleOpenRouterCredits(s *Server) http.HandlerFunc {
 		credits, err := llm.FetchOpenRouterCredits(s.Cfg.LLM.APIKey, s.Cfg.LLM.BaseURL)
 		if err != nil {
 			s.Logger.Error("Failed to fetch OpenRouter credits", "error", err)
-			w.Write([]byte(fmt.Sprintf(`{"available":true,"error":%q}`, err.Error())))
+			w.Write([]byte(`{"available":true,"error":"Failed to fetch OpenRouter credits"}`))
 			return
 		}
 		data, _ := json.Marshal(map[string]interface{}{

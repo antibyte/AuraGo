@@ -40,8 +40,7 @@ func handleVaultSecrets(s *Server) http.HandlerFunc {
 func handleListVaultSecrets(s *Server, w http.ResponseWriter, r *http.Request) {
 	keys, err := s.Vault.ListKeys()
 	if err != nil {
-		s.Logger.Error("[Vault] Failed to list keys", "error", err)
-		http.Error(w, "Failed to list secrets: "+err.Error(), http.StatusInternalServerError)
+		jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to list secrets", "[Vault] Failed to list keys", err)
 		return
 	}
 	sort.Strings(keys)
@@ -65,7 +64,7 @@ func handleListVaultSecrets(s *Server, w http.ResponseWriter, r *http.Request) {
 func handleSetVaultSecret(s *Server, w http.ResponseWriter, r *http.Request) {
 	var req vaultSecretJSON
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
+		jsonError(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
 
@@ -80,8 +79,7 @@ func handleSetVaultSecret(s *Server, w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.Vault.WriteSecret(req.Key, req.Value); err != nil {
-		s.Logger.Error("[Vault] Failed to write secret", "key", req.Key, "error", err)
-		http.Error(w, "Failed to write secret: "+err.Error(), http.StatusInternalServerError)
+		jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to write secret", "[Vault] Failed to write secret", err, "key", req.Key)
 		return
 	}
 
@@ -108,8 +106,7 @@ func handleDeleteVaultSecret(s *Server, w http.ResponseWriter, r *http.Request) 
 	}
 
 	if err := s.Vault.DeleteSecret(key); err != nil {
-		s.Logger.Error("[Vault] Failed to delete secret", "key", key, "error", err)
-		http.Error(w, "Failed to delete secret: "+err.Error(), http.StatusInternalServerError)
+		jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to delete secret", "[Vault] Failed to delete secret", err, "key", key)
 		return
 	}
 

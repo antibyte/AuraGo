@@ -336,3 +336,173 @@ Enable/disable built-in agent tools and set read-only mode. All tools are enable
 | Key | Default | Description |
 |---|---|---|
 | `enabled` | `true` | Enable memory maintenance tools (`archive_memory`, `optimize_memory`). |
+
+---
+
+# Kosten und LLM-Auswahl
+
+Dieser Abschnitt gibt einen Überblick über die Kostenstruktur beim Betrieb von AuraGo und hilft bei der Auswahl der passenden LLM-Provider und Modelle.
+
+## LLM-Auswahl: Was ist wichtig?
+
+Bei der Auswahl eines LLMs für AuraGo sollten folgende Faktoren berücksichtigt werden:
+
+| Faktor | Bedeutung |
+|--------|-----------|
+| **Kontextfenster** | Größere Kontextfenster (128K+ Token) ermöglichen längere Gespräche und komplexere Aufgaben ohne Speicherverlust. |
+| **Tool-Calling-Fähigkeit** | Das Modell sollte zuverlässig Funktionsaufrufe (Tools) generieren können. Flash-Modelle mit Funktionsaufruf-Unterstützung sind oft ausreichend. |
+| **Geschwindigkeit** | Für Echtzeit-Interaktionen sind schnelle Modelle (Flash, Lite) besser geeignet. |
+| **Kosten** | Die Kosten pro 1 Million Token variieren stark zwischen kostenlosen, günstigen und Premium-Modellen. |
+| **Verfügbarkeit** | Einige Modelle haben Rate-Limits oder sind nur zu bestimmten Zeiten verfügbar. |
+
+### Empfohlene Modellkategorien
+
+- **Haupt-Agent**: Ein mittelgroßes Modell mit gutem Preis-Leistungs-Verhältnis (z.B. Gemini Flash, MiniMax)
+- **Co-Agenten (Sub-Agenten)**: Kleinere, schnelle und besonders preiswerte Modelle, da hier die Token-Menge schnell summiert
+- **Vision**: Ein multimodales Modell mit Bildverständnis (z.B. Gemini Flash mit Vision)
+- **Whisper (STT)**: Ein schnelles Modell für Sprach-zu-Text (Flash-Kategorie)
+
+---
+
+## OpenRouter: Kostenlos experimentieren
+
+**OpenRouter** (openrouter.ai) ist ein universeller API-Gateway, der Zugriff auf über 200 LLMs verschiedener Anbieter bietet.
+
+### Vorteile für Einsteiger
+
+| Feature | Beschreibung |
+|---------|--------------|
+| **Gratis-Modelle** | OpenRouter bietet eine Vielzahl von `:free`-Modellen, die **komplett kostenlos** nutzbar sind |
+| **Keine Kreditkarte** | Für die kostenlosen Modelle ist keine Zahlungsmethode erforderlich |
+| **Breite Auswahl** | Experimentieren Sie mit verschiedenen Modellen, ohne bei jedem Anbieter ein Konto erstellen zu müssen |
+| **Fallback** | Automatisches Routing zu alternativen Modellen bei Ausfällen |
+
+### Kostenlose Modelle für den Start
+
+Für erste Experimente eignen sich folgende `:free`-Modelle:
+
+```yaml
+# config.yaml - Beispiel für kostenlose OpenRouter-Modelle
+llm:
+  provider: openrouter
+  base_url: "https://openrouter.ai/api/v1"
+  api_key: "sk-or-v1-IHRER_KEY_HIER"
+  model: "arcee-ai/trinity-large-preview:free"  # Standard: kostenlos, gute Tool-Ausführung
+
+# Alternative kostenlose Optionen:
+# model: "google/gemini-2.0-flash-exp:free"     # Schnell, gutes Kontextfenster
+# model: "meta-llama/llama-3.3-70b-instruct:free" # Open-Source-Modell
+```
+
+> **Hinweis**: Kostenlose Modelle haben oft Rate-Limits (z.B. 20 Anfragen/Minute). Für produktiven Einsatz sollten Sie auf bezahlte Modelle umsteigen.
+
+---
+
+## MiniMax: Preiswerter Betrieb
+
+**MiniMax** (minimaxi.com) bietet einige der **preiswertesten Token-Pläne** auf dem Markt und ist ideal für kostensensiblen Dauerbetrieb.
+
+### Preisvorteile
+
+| Aspekt | Details |
+|--------|---------|
+| **Token-Preise** | Extrem niedrige Kosten pro 1M Token – oft um die 0,10–0,30 $ |
+| **Günstige Co-Agenten** | Besonders für Sub-Agenten geeignet, da hier viele parallele Anfragen entstehen |
+| **Gute Leistung** | Die MiniMax-Modelle bieten solide Qualität für Tool-Calling und Textgenerierung |
+
+### Konfiguration für MiniMax
+
+```yaml
+# config.yaml - Beispiel für MiniMax als Haupt-Provider
+llm:
+  provider: minimax
+  base_url: "https://api.minimaxi.chat/v1"
+  api_key: "IHRER_MINIMAX_KEY"
+  model: "MiniMax-Text-01"
+
+# Co-Agenten mit MiniMax (besonders preiswert)
+co_agents:
+  enabled: true
+  max_concurrent: 3
+  llm:
+    provider: minimax
+    base_url: "https://api.minimaxi.chat/v1"
+    api_key: "IHRER_MINIMAX_KEY"
+    model: "MiniMax-Text-01"  # Günstiges Modell für parallele Aufgaben
+```
+
+> **Empfehlung**: MiniMax eignet sich besonders für den Co-Agenten-Betrieb, da hier die Token-Kosten durch parallele Ausführung schnell summieren können.
+
+---
+
+## Sub-Agenten (Co-Agenten): Anforderungen
+
+Die **Co-Agenten** sind parallele Sub-Agenten, die komplexe Aufgaben in kleinere Teilaufgaben aufteilen. Sie haben spezifische Anforderungen:
+
+### Grobe Anforderungen an Co-Agenten-LLMs
+
+| Anforderung | Begründung |
+|-------------|------------|
+| **Niedrige Latenz** | Co-Agenten laufen oft parallel – langsame Modelle blockieren den Gesamtfortschritt |
+| **Kostengünstig** | Bei 3+ parallelen Agenten summieren sich Token-Kosten schnell |
+| **Tool-Calling** | Muss zuverlässig Tools aufrufen können, aber nicht perfekt |
+| **Kleines Kontextfenster ausreichend** | Co-Agenten bearbeiten meist spezifische, begrenzte Teilaufgaben |
+| **Rate-Limit-tolerant** | Viele parallele Anfragen erfordern gute Rate-Limits oder günstige Preise |
+
+### Empfohlene Strategie
+
+1. **Haupt-Agent**: Qualitativ hochwertiges Modell mit großem Kontextfenster (z.B. Gemini Flash, GPT-4o-mini)
+2. **Co-Agenten**: Preiswerte, schnelle Modelle (z.B. MiniMax, kleinere OpenRouter-Modelle)
+3. **Vision/STT**: Dedizierte, schnelle Flash-Modelle
+
+### Beispiel: Optimierte Kostenstruktur
+
+```yaml
+# Haupt-Agent: Qualität
+llm:
+  provider: openrouter
+  base_url: "https://openrouter.ai/api/v1"
+  api_key: "sk-or-v1-..."
+  model: "google/gemini-2.0-flash-001"
+
+# Co-Agenten: Preiswert & schnell
+co_agents:
+  enabled: true
+  max_concurrent: 3
+  llm:
+    provider: openrouter
+    base_url: "https://openrouter.ai/api/v1"
+    api_key: "sk-or-v1-..."
+    model: "google/gemini-2.0-flash-lite-preview-06-17"  # Günstiger Flash-Variante
+
+# Vision: Schnelles Bildverständnis
+vision:
+  provider: openrouter
+  base_url: "https://openrouter.ai/api/v1"
+  api_key: "sk-or-v1-..."
+  model: "google/gemini-2.0-flash-lite-preview-09-2025"
+```
+
+---
+
+## Budget-Tracking aktivieren
+
+AuraGo bietet integriertes Budget-Tracking, um die Kosten im Blick zu behalten:
+
+```yaml
+budget:
+  enabled: true
+  daily_limit_usd: 2.00        # Tägliches Limit in USD
+  enforcement: warn            # warn = nur Warnung, partial = Co-Agenten blockieren, full = alle LLM-Calls blockieren
+  reset_hour: 0                # Reset um Mitternacht
+  warning_threshold: 0.8       # Warnung bei 80% des Limits
+  models:
+    - name: "google/gemini-2.0-flash-001"
+      input_per_million: 0.075   # $0,075 pro 1M Input-Token
+      output_per_million: 0.30   # $0,30 pro 1M Output-Token
+    - name: "MiniMax-Text-01"
+      input_per_million: 0.10
+      output_per_million: 0.10
+```
+
+Mit dieser Konfiguration behalten Sie die Kontrolle über Ihre LLM-Kosten und können das System entsprechend Ihrem Budget optimieren.

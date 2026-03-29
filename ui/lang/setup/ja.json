@@ -122,5 +122,8 @@
   "setup.success_restart_notice": "⚠️ すべての変更を有効にするには再起動が推奨されます。",
   "setup.success_title": "セットアップ完了！",
   "setup.toast_config_saved": "設定が保存されました！",
-  "setup.toast_error_prefix": "エラー: "
-}
+  "setup.toast_error_prefix": "エラー: ",
+  "setup.step0_admin_password_label": "Admin password",
+  "setup.step0_admin_password_hint": "Protects the web UI and API on first start. You can change it later in Login Guard.",
+  "setup.step0_admin_password_error": "Admin password must be at least 8 characters.",
+  "setup.step0_admin_password_placeholder": "Minimum 8 characters"}

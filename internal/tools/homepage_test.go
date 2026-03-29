@@ -197,6 +197,14 @@ func TestExtractOutput(t *testing.T) {
 	}
 }
 
+func TestShellSingleQuoteEscapesSingleQuotes(t *testing.T) {
+	got := shellSingleQuote("/var/www/it's-here")
+	want := `'/var/www/it'"'"'s-here'`
+	if got != want {
+		t.Fatalf("shellSingleQuote = %q, want %q", got, want)
+	}
+}
+
 func TestHomepageScreenshotFallsBackToWebCaptureWhenPlaywrightIsMissing(t *testing.T) {
 	oldDockerExec := homepageDockerExecFunc
 	oldWebCapture := homepageWebCaptureFunc

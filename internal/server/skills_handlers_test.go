@@ -1,15 +1,16 @@
 package server
 
 import (
+	"aurago/internal/config"
 	"bytes"
 	"encoding/json"
 	"io"
 	"log/slog"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
-	"aurago/internal/config"
 	"aurago/internal/tools"
 )
 
@@ -221,6 +222,55 @@ func TestDecodeSkillDraftAllowsMissingNameWhenCodeExists(t *testing.T) {
 	}
 	if draft.Code != "print('ok')" {
 		t.Fatalf("expected code to survive, got %q", draft.Code)
+	}
+}
+
+func TestIsAllowedSkillUploadFilename(t *testing.T) {
+	t.Parallel()
+
+	if !isAllowedSkillUploadFilename("dns_test.py") {
+		t.Fatal("expected .py file to be allowed")
+	}
+	if isAllowedSkillUploadFilename("dns_test.zip") {
+		t.Fatal("expected non-.py file to be rejected")
+	}
+}
+
+func TestHandleUploadSkillRejectsNonPythonFiles(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{}
+	cfg.Tools.SkillManager.AllowUploads = true
+	s := &Server{
+		Cfg:          cfg,
+		Logger:       slog.Default(),
+		SkillManager: &tools.SkillManager{},
+	}
+
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	part, err := writer.CreateFormFile("file", "dns_test.zip")
+	if err != nil {
+		t.Fatalf("CreateFormFile: %v", err)
+	}
+	if _, err := io.WriteString(part, "fake"); err != nil {
+		t.Fatalf("WriteString: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/skills/upload", body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	rec := httptest.NewRecorder()
+
+	handleUploadSkill(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusBadRequest, rec.Body.String())
+	}
+	if !bytes.Contains(rec.Body.Bytes(), []byte(".py")) {
+		t.Fatalf("expected .py hint in response, got %s", rec.Body.String())
 	}
 }
 

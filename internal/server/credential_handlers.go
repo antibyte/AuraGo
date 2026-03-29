@@ -38,7 +38,7 @@ func handleListCredentials(s *Server) http.HandlerFunc {
 
 		items, err := credentials.List(s.InventoryDB)
 		if err != nil {
-			http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusInternalServerError)
+			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to list credentials", "Failed to list credentials", err)
 			return
 		}
 		if items == nil {
@@ -70,9 +70,9 @@ func handleGetCredential(s *Server) http.HandlerFunc {
 		item, err := credentials.GetByID(s.InventoryDB, id)
 		if err != nil {
 			if strings.Contains(err.Error(), "not found") {
-				http.Error(w, `{"error":"credential not found"}`, http.StatusNotFound)
+				jsonError(w, "credential not found", http.StatusNotFound)
 			} else {
-				http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusInternalServerError)
+				jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to load credential", "Failed to load credential", err, "credential_id", id)
 			}
 			return
 		}
@@ -113,7 +113,7 @@ func handleCreateCredential(s *Server) http.HandlerFunc {
 			AllowPython:     req.AllowPython,
 		}
 		if err := validateCredentialRequest(rec); err != nil {
-			http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusBadRequest)
+			jsonError(w, credentialValidationMessage(err), http.StatusBadRequest)
 			return
 		}
 
@@ -165,7 +165,7 @@ func handleCreateCredential(s *Server) http.HandlerFunc {
 			if rec.TokenVaultID != "" {
 				_ = s.Vault.DeleteSecret(rec.TokenVaultID)
 			}
-			http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusInternalServerError)
+			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to create credential", "Failed to create credential", err, "credential_name", rec.Name)
 			return
 		}
 
@@ -199,9 +199,9 @@ func handleUpdateCredential(s *Server) http.HandlerFunc {
 		existing, err := credentials.GetByID(s.InventoryDB, id)
 		if err != nil {
 			if strings.Contains(err.Error(), "not found") {
-				http.Error(w, `{"error":"credential not found"}`, http.StatusNotFound)
+				jsonError(w, "credential not found", http.StatusNotFound)
 			} else {
-				http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusInternalServerError)
+				jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to load credential", "Failed to load credential", err, "credential_id", id)
 			}
 			return
 		}
@@ -220,7 +220,7 @@ func handleUpdateCredential(s *Server) http.HandlerFunc {
 		existing.CertificateMode = strings.TrimSpace(req.CertificateMode)
 		existing.AllowPython = req.AllowPython
 		if err := validateCredentialRequest(existing); err != nil {
-			http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusBadRequest)
+			jsonError(w, credentialValidationMessage(err), http.StatusBadRequest)
 			return
 		}
 
@@ -259,9 +259,9 @@ func handleUpdateCredential(s *Server) http.HandlerFunc {
 
 		if err := credentials.Update(s.InventoryDB, existing); err != nil {
 			if strings.Contains(err.Error(), "not found") {
-				http.Error(w, `{"error":"credential not found"}`, http.StatusNotFound)
+				jsonError(w, "credential not found", http.StatusNotFound)
 			} else {
-				http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusInternalServerError)
+				jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to update credential", "Failed to update credential", err, "credential_id", id)
 			}
 			return
 		}
@@ -291,18 +291,18 @@ func handleDeleteCredential(s *Server) http.HandlerFunc {
 		item, err := credentials.GetByID(s.InventoryDB, id)
 		if err != nil {
 			if strings.Contains(err.Error(), "not found") {
-				http.Error(w, `{"error":"credential not found"}`, http.StatusNotFound)
+				jsonError(w, "credential not found", http.StatusNotFound)
 			} else {
-				http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusInternalServerError)
+				jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to load credential", "Failed to load credential", err, "credential_id", id)
 			}
 			return
 		}
 
 		if err := credentials.Delete(s.InventoryDB, id); err != nil {
 			if strings.Contains(err.Error(), "not found") {
-				http.Error(w, `{"error":"credential not found"}`, http.StatusNotFound)
+				jsonError(w, "credential not found", http.StatusNotFound)
 			} else {
-				http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusInternalServerError)
+				jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to delete credential", "Failed to delete credential", err, "credential_id", id)
 			}
 			return
 		}
@@ -344,6 +344,21 @@ func validateCredentialRequest(rec credentials.Record) error {
 	return nil
 }
 
+func credentialValidationMessage(err error) string {
+	if err == nil {
+		return "Invalid credential configuration"
+	}
+	switch err.Error() {
+	case "name is required",
+		"unsupported credential type",
+		"host is required for SSH credentials",
+		"username is required":
+		return err.Error()
+	default:
+		return "Invalid credential configuration"
+	}
+}
+
 func handleListPythonAccessibleCredentials(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
@@ -357,7 +372,7 @@ func handleListPythonAccessibleCredentials(s *Server) http.HandlerFunc {
 
 		items, err := credentials.ListPythonAccessible(s.InventoryDB)
 		if err != nil {
-			http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusInternalServerError)
+			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to list Python-accessible credentials", "Failed to list Python-accessible credentials", err)
 			return
 		}
 		if items == nil {

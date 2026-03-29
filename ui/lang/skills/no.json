@@ -122,5 +122,6 @@
   "skills.placeholder_tags": "api, automatisering",
   "skills.placeholder_prompt": "Opprett en skill som henter JSON fra en API og returnerer et filtrert sammendrag.",
   "skills.placeholder_skill_name_short": "api_sammendrag",
-  "skills.placeholder_dependencies": "requests, pyyaml"
+  "skills.placeholder_dependencies": "requests, pyyaml",
+  "skills.placeholder_base_url": "https://api.example.no"
 }

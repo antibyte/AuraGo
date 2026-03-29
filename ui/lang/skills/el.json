@@ -122,5 +122,6 @@
   "skills.placeholder_tags": "api, αυτοματοποίηση",
   "skills.placeholder_prompt": "Δημιουργήστε ένα skill που ανακτά JSON από ένα API και επιστρέφει ένα φιλτραρισμένο σύνοψη.",
   "skills.placeholder_skill_name_short": "api_syntaxi",
-  "skills.placeholder_dependencies": "requests, pyyaml"
+  "skills.placeholder_dependencies": "requests, pyyaml",
+  "skills.placeholder_base_url": "https://api.example.gr"
 }

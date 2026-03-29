@@ -66,7 +66,7 @@ func handleCreateToken(tm *security.TokenManager) http.HandlerFunc {
 
 		raw, meta, err := tm.Create(req.Name, req.Scopes, expiresAt)
 		if err != nil {
-			http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusInternalServerError)
+			jsonError(w, "Failed to create token", http.StatusInternalServerError)
 			return
 		}
 
@@ -99,7 +99,7 @@ func handleUpdateToken(tm *security.TokenManager) http.HandlerFunc {
 			return
 		}
 		if err := tm.Update(id, req.Name, req.Enabled); err != nil {
-			http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusNotFound)
+			jsonError(w, "Token not found", http.StatusNotFound)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -119,7 +119,7 @@ func handleDeleteToken(tm *security.TokenManager) http.HandlerFunc {
 			return
 		}
 		if err := tm.Delete(id); err != nil {
-			http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusNotFound)
+			jsonError(w, "Token not found", http.StatusNotFound)
 			return
 		}
 		w.WriteHeader(http.StatusNoContent)
@@ -152,12 +152,12 @@ func handleCreateWebhook(mgr *webhooks.Manager) http.HandlerFunc {
 		}
 		var wh webhooks.Webhook
 		if err := json.Unmarshal(body, &wh); err != nil {
-			http.Error(w, `{"error":"invalid JSON: `+err.Error()+`"}`, http.StatusBadRequest)
+			jsonError(w, "Invalid JSON", http.StatusBadRequest)
 			return
 		}
 		created, err := mgr.Create(wh)
 		if err != nil {
-			http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusBadRequest)
+			jsonError(w, "Failed to create webhook", http.StatusBadRequest)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -188,12 +188,16 @@ func handleUpdateWebhook(mgr *webhooks.Manager) http.HandlerFunc {
 		}
 		var patch webhooks.Webhook
 		if err := json.Unmarshal(body, &patch); err != nil {
-			http.Error(w, `{"error":"invalid JSON"}`, http.StatusBadRequest)
+			jsonError(w, "Invalid JSON", http.StatusBadRequest)
 			return
 		}
 		updated, err := mgr.Update(id, patch)
 		if err != nil {
-			http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusBadRequest)
+			if strings.Contains(strings.ToLower(err.Error()), "not found") {
+				jsonError(w, "Webhook not found", http.StatusNotFound)
+				return
+			}
+			jsonError(w, "Failed to update webhook", http.StatusBadRequest)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -213,7 +217,7 @@ func handleDeleteWebhook(mgr *webhooks.Manager) http.HandlerFunc {
 			return
 		}
 		if err := mgr.Delete(id); err != nil {
-			http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusNotFound)
+			jsonError(w, "Webhook not found", http.StatusNotFound)
 			return
 		}
 		w.WriteHeader(http.StatusNoContent)
@@ -255,7 +259,7 @@ func handleTestWebhook(mgr *webhooks.Manager, handler *webhooks.Handler) http.Ha
 		id := parts[0]
 		wh, err := mgr.Get(id)
 		if err != nil {
-			http.Error(w, `{"error":"webhook not found"}`, http.StatusNotFound)
+			jsonError(w, "Webhook not found", http.StatusNotFound)
 			return
 		}
 		// Return what the rendered prompt would look like with test data
@@ -263,7 +267,7 @@ func handleTestWebhook(mgr *webhooks.Manager, handler *webhooks.Handler) http.Ha
 		fields := webhooks.ExtractFieldsPublic([]byte(testPayload), wh.Format.Fields)
 		prompt, err := webhooks.RenderPromptPublic(wh, testPayload, fields, map[string]string{"Content-Type": "application/json"})
 		if err != nil {
-			http.Error(w, `{"error":"template render failed: `+err.Error()+`"}`, http.StatusInternalServerError)
+			jsonError(w, "Failed to render test prompt", http.StatusInternalServerError)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -327,7 +331,7 @@ func handleGetOutgoingWebhooks(s *Server, w http.ResponseWriter, r *http.Request
 func handlePutOutgoingWebhooks(s *Server, w http.ResponseWriter, r *http.Request) {
 	var incoming []config.OutgoingWebhook
 	if err := json.NewDecoder(r.Body).Decode(&incoming); err != nil {
-		http.Error(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
+		jsonError(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
 
@@ -375,7 +379,7 @@ func handlePutOutgoingWebhooks(s *Server, w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	if err := os.WriteFile(configPath, out, 0644); err != nil {
+	if err := config.WriteFileAtomic(configPath, out, 0o600); err != nil {
 		s.Logger.Error("Failed to write config after outgoing-webhooks update", "error", err)
 		http.Error(w, "Failed to write config", http.StatusInternalServerError)
 		return
@@ -387,7 +391,7 @@ func handlePutOutgoingWebhooks(s *Server, w http.ResponseWriter, r *http.Request
 	if loadErr != nil {
 		s.CfgMu.Unlock()
 		s.Logger.Error("[OutgoingWebhooks] Hot-reload failed", "error", loadErr)
-		http.Error(w, "Saved but reload failed: "+loadErr.Error(), http.StatusInternalServerError)
+		http.Error(w, "Saved but reload failed", http.StatusInternalServerError)
 		return
 	}
 	savedPath := s.Cfg.ConfigPath

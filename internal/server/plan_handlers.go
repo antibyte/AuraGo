@@ -56,7 +56,7 @@ func handlePlansList(s *Server) http.HandlerFunc {
 		plans, err := s.ShortTermMem.ListPlans(sessionID, statusFilter, limit, includeArchived)
 		if err != nil {
 			s.Logger.Error("Failed to list plans", "session_id", sessionID, "error", err)
-			writePlanJSON(w, http.StatusInternalServerError, map[string]interface{}{"status": "error", "message": err.Error()})
+			writePlanJSON(w, http.StatusInternalServerError, map[string]interface{}{"status": "error", "message": "Failed to list plans"})
 			return
 		}
 		writePlanJSON(w, http.StatusOK, map[string]interface{}{
@@ -141,14 +141,14 @@ func handlePlanByID(s *Server) http.HandlerFunc {
 			case http.MethodGet:
 				plan, err := s.ShortTermMem.GetPlan(planID)
 				if err != nil {
-					writePlanJSON(w, http.StatusNotFound, map[string]interface{}{"status": "error", "message": err.Error()})
+					writePlanJSON(w, http.StatusNotFound, map[string]interface{}{"status": "error", "message": "Plan not found"})
 					return
 				}
 				writePlanJSON(w, http.StatusOK, map[string]interface{}{"status": "ok", "plan": plan})
 				return
 			case http.MethodDelete:
 				if err := s.ShortTermMem.DeletePlan(planID); err != nil {
-					writePlanJSON(w, http.StatusNotFound, map[string]interface{}{"status": "error", "message": err.Error()})
+					writePlanJSON(w, http.StatusNotFound, map[string]interface{}{"status": "error", "message": "Plan not found"})
 					return
 				}
 				writePlanJSON(w, http.StatusOK, map[string]interface{}{"status": "ok", "message": "Plan deleted"})
@@ -173,7 +173,7 @@ func handlePlanByID(s *Server) http.HandlerFunc {
 		case len(parts) == 2 && parts[1] == "status":
 			plan, err := s.ShortTermMem.SetPlanStatus(planID, req.Status, req.Note)
 			if err != nil {
-				writePlanJSON(w, http.StatusBadRequest, map[string]interface{}{"status": "error", "message": err.Error()})
+				writePlanJSON(w, http.StatusBadRequest, map[string]interface{}{"status": "error", "message": "Failed to update plan status"})
 				return
 			}
 			writePlanJSON(w, http.StatusOK, map[string]interface{}{"status": "ok", "plan": plan})
@@ -181,7 +181,7 @@ func handlePlanByID(s *Server) http.HandlerFunc {
 		case len(parts) == 2 && parts[1] == "advance":
 			plan, err := s.ShortTermMem.AdvancePlan(planID, req.Result)
 			if err != nil {
-				writePlanJSON(w, http.StatusBadRequest, map[string]interface{}{"status": "error", "message": err.Error()})
+				writePlanJSON(w, http.StatusBadRequest, map[string]interface{}{"status": "error", "message": "Failed to advance plan"})
 				return
 			}
 			writePlanJSON(w, http.StatusOK, map[string]interface{}{"status": "ok", "plan": plan})
@@ -189,7 +189,7 @@ func handlePlanByID(s *Server) http.HandlerFunc {
 		case len(parts) == 2 && parts[1] == "reorder":
 			plan, err := s.ShortTermMem.ReorderPlanTasks(planID, planTaskIDsFromRequest(req))
 			if err != nil {
-				writePlanJSON(w, http.StatusBadRequest, map[string]interface{}{"status": "error", "message": err.Error()})
+				writePlanJSON(w, http.StatusBadRequest, map[string]interface{}{"status": "error", "message": "Failed to reorder plan tasks"})
 				return
 			}
 			writePlanJSON(w, http.StatusOK, map[string]interface{}{"status": "ok", "plan": plan})
@@ -197,7 +197,7 @@ func handlePlanByID(s *Server) http.HandlerFunc {
 		case len(parts) == 2 && parts[1] == "archive":
 			plan, err := s.ShortTermMem.ArchivePlan(planID)
 			if err != nil {
-				writePlanJSON(w, http.StatusBadRequest, map[string]interface{}{"status": "error", "message": err.Error()})
+				writePlanJSON(w, http.StatusBadRequest, map[string]interface{}{"status": "error", "message": "Failed to archive plan"})
 				return
 			}
 			writePlanJSON(w, http.StatusOK, map[string]interface{}{"status": "ok", "plan": plan})
@@ -206,7 +206,7 @@ func handlePlanByID(s *Server) http.HandlerFunc {
 			taskID := strings.TrimSpace(parts[2])
 			plan, err := s.ShortTermMem.UpdatePlanTask(planID, taskID, req.Status, req.Result, req.Error)
 			if err != nil {
-				writePlanJSON(w, http.StatusBadRequest, map[string]interface{}{"status": "error", "message": err.Error()})
+				writePlanJSON(w, http.StatusBadRequest, map[string]interface{}{"status": "error", "message": "Failed to update task status"})
 				return
 			}
 			writePlanJSON(w, http.StatusOK, map[string]interface{}{"status": "ok", "plan": plan})
@@ -215,7 +215,7 @@ func handlePlanByID(s *Server) http.HandlerFunc {
 			taskID := strings.TrimSpace(parts[2])
 			plan, err := s.ShortTermMem.SetPlanTaskBlocker(planID, taskID, req.Reason)
 			if err != nil {
-				writePlanJSON(w, http.StatusBadRequest, map[string]interface{}{"status": "error", "message": err.Error()})
+				writePlanJSON(w, http.StatusBadRequest, map[string]interface{}{"status": "error", "message": "Failed to block task"})
 				return
 			}
 			writePlanJSON(w, http.StatusOK, map[string]interface{}{"status": "ok", "plan": plan})
@@ -224,7 +224,7 @@ func handlePlanByID(s *Server) http.HandlerFunc {
 			taskID := strings.TrimSpace(parts[2])
 			plan, err := s.ShortTermMem.ClearPlanTaskBlocker(planID, taskID, req.Note)
 			if err != nil {
-				writePlanJSON(w, http.StatusBadRequest, map[string]interface{}{"status": "error", "message": err.Error()})
+				writePlanJSON(w, http.StatusBadRequest, map[string]interface{}{"status": "error", "message": "Failed to unblock task"})
 				return
 			}
 			writePlanJSON(w, http.StatusOK, map[string]interface{}{"status": "ok", "plan": plan})
@@ -233,7 +233,7 @@ func handlePlanByID(s *Server) http.HandlerFunc {
 			taskID := strings.TrimSpace(parts[2])
 			plan, err := s.ShortTermMem.SplitPlanTask(planID, taskID, planTaskInputsFromRequestItems(req.Items))
 			if err != nil {
-				writePlanJSON(w, http.StatusBadRequest, map[string]interface{}{"status": "error", "message": err.Error()})
+				writePlanJSON(w, http.StatusBadRequest, map[string]interface{}{"status": "error", "message": "Failed to split task"})
 				return
 			}
 			writePlanJSON(w, http.StatusOK, map[string]interface{}{"status": "ok", "plan": plan})

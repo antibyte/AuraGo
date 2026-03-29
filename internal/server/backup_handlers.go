@@ -422,7 +422,7 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 			outData, err = encryptAGO(zipData, req.Password)
 			if err != nil {
 				s.Logger.Error("[Backup] Encryption failed", "error", err)
-				http.Error(w, "Encryption failed: "+err.Error(), http.StatusInternalServerError)
+				http.Error(w, "Encryption failed", http.StatusInternalServerError)
 				return
 			}
 		} else {
@@ -453,8 +453,10 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 		}
 
 		// Multipart form — allow up to 512 MB for vectordb-inclusive backups
+		r.Body = http.MaxBytesReader(w, r.Body, 512<<20)
 		if err := r.ParseMultipartForm(512 << 20); err != nil {
-			jsonError(w, "Failed to parse form: "+err.Error(), http.StatusBadRequest)
+			s.Logger.Warn("[Backup] Invalid import form", "error", err)
+			jsonError(w, "Invalid backup upload", http.StatusBadRequest)
 			return
 		}
 
@@ -474,7 +476,8 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 
 		rawData, err := io.ReadAll(file)
 		if err != nil {
-			jsonError(w, "Failed to read file: "+err.Error(), http.StatusBadRequest)
+			s.Logger.Warn("[Backup] Failed to read import upload", "filename", header.Filename, "error", err)
+			jsonError(w, "Failed to read uploaded backup", http.StatusBadRequest)
 			return
 		}
 
@@ -493,11 +496,12 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 			}
 			zipData, err = decryptAGO(rawData, password)
 			if err != nil {
+				s.Logger.Warn("[Backup] Backup decryption failed", "filename", header.Filename, "error", err)
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusBadRequest)
 				json.NewEncoder(w).Encode(map[string]string{
 					"error":   "decryption_failed",
-					"message": err.Error(),
+					"message": "Invalid backup password or corrupted encrypted backup file.",
 				})
 				return
 			}
@@ -508,7 +512,8 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 		// Open as ZIP
 		zr, err := zip.NewReader(bytes.NewReader(zipData), int64(len(zipData)))
 		if err != nil {
-			jsonError(w, "Ungültige .ago-Datei: "+err.Error(), http.StatusBadRequest)
+			s.Logger.Warn("[Backup] Invalid backup archive", "filename", header.Filename, "error", err)
+			jsonError(w, "Invalid backup archive", http.StatusBadRequest)
 			return
 		}
 
@@ -633,7 +638,7 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 			msg += fmt.Sprintf(" %d Vault-Secrets wiederhergestellt.", vaultRestored)
 		}
 		if vaultErr != "" {
-			msg += " Vault-Import fehlgeschlagen: " + vaultErr
+			msg += " Vault-Import fehlgeschlagen."
 		}
 		if schemaWarning != "" {
 			msg += " " + schemaWarning

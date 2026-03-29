@@ -35,7 +35,7 @@ func handleCertStatus(s *Server) http.HandlerFunc {
 				if err == nil {
 					result["cert_info"] = info
 				} else {
-					result["cert_error"] = err.Error()
+					result["cert_error"] = "Failed to read certificate info"
 				}
 			}
 		case "selfsigned":
@@ -68,7 +68,7 @@ func handleCertRegenerate(s *Server) http.HandlerFunc {
 		if err := RegenerateSelfSignedCert(s.Cfg.Directories.DataDir, domain, s.Logger); err != nil {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+			json.NewEncoder(w).Encode(map[string]string{"error": "Failed to regenerate certificate"})
 			return
 		}
 
@@ -108,7 +108,7 @@ func handleCertUpload(s *Server) http.HandlerFunc {
 		if certFile, certHeader, err := r.FormFile("cert"); err == nil {
 			defer certFile.Close()
 			if err := saveUploadedCert(certFile, certHeader.Filename, filepath.Join(certDir, "custom.crt")); err != nil {
-				http.Error(w, fmt.Sprintf("Failed to save certificate: %s", err), http.StatusBadRequest)
+				http.Error(w, "Failed to save certificate", http.StatusBadRequest)
 				return
 			}
 			uploaded["cert"] = filepath.Join(certDir, "custom.crt")
@@ -118,7 +118,7 @@ func handleCertUpload(s *Server) http.HandlerFunc {
 		if keyFile, keyHeader, err := r.FormFile("key"); err == nil {
 			defer keyFile.Close()
 			if err := saveUploadedCert(keyFile, keyHeader.Filename, filepath.Join(certDir, "custom.key")); err != nil {
-				http.Error(w, fmt.Sprintf("Failed to save key: %s", err), http.StatusBadRequest)
+				http.Error(w, "Failed to save key", http.StatusBadRequest)
 				return
 			}
 			// Restrict key file permissions

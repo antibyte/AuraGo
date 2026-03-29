@@ -124,6 +124,21 @@
                 </div>
 
                 <div class="field-group">
+                    <label id="lbl-admin-password" class="field-label">
+                        <script>document.write(t('setup.step0_admin_password_label'))</script> <span
+                            class="required-star">*</span>
+                    </label>
+                    <input class="field-input" type="password" id="admin-password"
+                        placeholder="Minimum 8 characters" autocomplete="new-password">
+                    <div class="field-error" id="err-admin-password">
+                        <script>document.write(t('setup.step0_admin_password_error'))</script>
+                    </div>
+                    <div class="field-hint" id="hint-admin-password">
+                        <script>document.write(t('setup.step0_admin_password_hint'))</script>
+                    </div>
+                </div>
+
+                <div class="field-group">
                     <label id="lbl-base-url" class="field-label">
                         <script>document.write(t('setup.step0_base_url_label'))</script>
                     </label>
