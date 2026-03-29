@@ -1440,7 +1440,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	go s.StartTCPBridge("localhost:8089")
 
 	// Cloudflare Tunnel loopback HTTP port:
-	// When HTTPS is active and cloudflare_tunnel.loopback_port is configured, open a
+	// When HTTPS is active and cloudflare_tunnel.loopback_port > 0, open a
 	// plain HTTP listener on 127.0.0.1 only. cloudflared connects to this instead of
 	// the HTTPS port so no TLS verification is needed. The loopback interface ensures
 	// this port is never reachable from the network.
@@ -1448,23 +1448,14 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	loopbackPort := s.Cfg.CloudflareTunnel.LoopbackPort
 	httpsActive := s.Cfg.Server.HTTPS.Enabled
 	s.CfgMu.RUnlock()
-	if (loopbackPort != 0) && httpsActive {
+	if loopbackPort > 0 && httpsActive {
 		loopbackHandler := accessLogMiddleware(s.accessLogger(), securityHeadersMiddleware(authMiddleware(s, mux), false, false))
-		// -1 = auto-assign a free port on 127.0.0.1
-		bindAddr := "127.0.0.1:0"
-		if loopbackPort > 0 {
-			bindAddr = fmt.Sprintf("127.0.0.1:%d", loopbackPort)
-		}
+		bindAddr := fmt.Sprintf("127.0.0.1:%d", loopbackPort)
 		ln, err := net.Listen("tcp4", bindAddr)
 		if err != nil {
 			s.Logger.Warn("[CloudflareTunnel] Could not bind loopback HTTP listener", "addr", bindAddr, "error", err)
 		} else {
-			actualPort := ln.Addr().(*net.TCPAddr).Port
-			s.Logger.Info("[CloudflareTunnel] Starting loopback HTTP listener", "port", actualPort)
-			// Write the actual port back so tunnel tools can use it
-			s.CfgMu.Lock()
-			s.Cfg.CloudflareTunnel.LoopbackPort = actualPort
-			s.CfgMu.Unlock()
+			s.Logger.Info("[CloudflareTunnel] Starting loopback HTTP listener", "port", loopbackPort)
 			s.loopbackSrv = &http.Server{
 				Handler:      loopbackHandler,
 				ReadTimeout:  30 * time.Second,

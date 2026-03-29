@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -145,6 +146,135 @@ func handleKnowledgeUpload(s *Server) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
 		json.NewEncoder(w).Encode(map[string]string{"status": "uploaded", "name": safeName})
+	}
+}
+
+// handleKnowledgeFile handles GET (download) and DELETE on /api/knowledge/{filename}.
+func handleKnowledgeFile(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		knowledgeDir := s.knowledgeDir()
+		if knowledgeDir == "" {
+			jsonError(w, "Knowledge storage is not configured", http.StatusServiceUnavailable)
+			return
+		}
+
+		name := strings.TrimPrefix(r.URL.Path, "/api/knowledge/")
+		if name == "" || name == "upload" {
+			jsonError(w, "Missing filename", http.StatusBadRequest)
+			return
+		}
+
+		// Sanitize — prevent path traversal
+		safeName := filepath.Base(name)
+		if safeName != name || safeName == "." || safeName == ".." {
+			jsonError(w, "Invalid filename", http.StatusBadRequest)
+			return
+		}
+
+		fullPath := filepath.Join(knowledgeDir, safeName)
+
+		switch r.Method {
+		case http.MethodGet:
+			info, err := os.Stat(fullPath)
+			if err != nil {
+				jsonError(w, "File not found", http.StatusNotFound)
+				return
+			}
+			if r.URL.Query().Get("inline") == "1" {
+				w.Header().Set("Content-Disposition", fmt.Sprintf(`inline; filename="%s"`, safeName))
+			} else {
+				w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, safeName))
+			}
+			w.Header().Set("Content-Length", fmt.Sprintf("%d", info.Size()))
+			http.ServeFile(w, r, fullPath)
+
+		case http.MethodDelete:
+			if err := os.Remove(fullPath); err != nil {
+				if os.IsNotExist(err) {
+					jsonError(w, "File not found", http.StatusNotFound)
+				} else {
+					s.Logger.Error("Failed to delete knowledge file", "file", safeName, "error", err)
+					jsonError(w, "Failed to delete file", http.StatusInternalServerError)
+				}
+				return
+			}
+			s.Logger.Info("Knowledge file deleted", "file", safeName)
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]string{"status": "deleted"})
+
+		default:
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	}
+}
+
+// knowledgeDir returns the first configured indexing directory (knowledge folder).
+func (s *Server) knowledgeDir() string {
+	s.CfgMu.RLock()
+	defer s.CfgMu.RUnlock()
+	if len(s.Cfg.Indexing.Directories) > 0 {
+		return s.Cfg.Indexing.Directories[0]
+	}
+	return ""
+}
+
+var defaultKnowledgeExtensions = []string{
+	".txt", ".md", ".json", ".csv", ".log", ".yaml", ".yml", ".pdf", ".docx", ".xlsx", ".pptx", ".odt", ".rtf",
+}
+
+// handleKnowledgeFileInline serves files for iframe embedding in the Knowledge Center.
+// It deliberately omits X-Frame-Options and frame-ancestors so PDFs/images can be previewed.
+func handleKnowledgeFileInline(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		knowledgeDir := s.knowledgeDir()
+		if knowledgeDir == "" {
+			jsonError(w, "Knowledge storage is not configured", http.StatusServiceUnavailable)
+			return
+		}
+
+		name := strings.TrimPrefix(r.URL.Path, "/api/knowledge-inline/")
+		if name == "" {
+			jsonError(w, "Missing filename", http.StatusBadRequest)
+			return
+		}
+
+		// Sanitize — prevent path traversal
+		safeName := filepath.Base(name)
+		if safeName != name || safeName == "." || safeName == ".." {
+			jsonError(w, "Invalid filename", http.StatusBadRequest)
+			return
+		}
+
+		fullPath := filepath.Join(knowledgeDir, safeName)
+		info, err := os.Stat(fullPath)
+		if err != nil {
+			jsonError(w, "File not found", http.StatusNotFound)
+			return
+		}
+
+		// Override security headers that would prevent iframe embedding
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-XSS-Protection", "1; mode=block")
+		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		// Allow iframe embedding for this endpoint
+		w.Header().Set("X-Frame-Options", "SAMEORIGIN")
+
+		ext := strings.ToLower(filepath.Ext(safeName))
+		contentType := mime.TypeByExtension(ext)
+		if contentType == "" {
+			contentType = "application/octet-stream"
+		}
+		w.Header().Set("Content-Type", contentType)
+		w.Header().Set("Content-Length", fmt.Sprintf("%d", info.Size()))
+
+		file, err := os.Open(fullPath)
+		if err != nil {
+			jsonError(w, "File not found", http.StatusNotFound)
+			return
+		}
+		defer file.Close()
+
+		http.ServeContent(w, r, safeName, info.ModTime(), file)
 	}
 }
 

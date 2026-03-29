@@ -1,6 +1,7 @@
 // cfg/cloudflare_tunnel.js — Cloudflare Tunnel section module
 
 async function renderCloudflareTunnelSection(section) {
+    window._cfSectionMeta = section;
     const cfg = configData.cloudflare_tunnel || {};
     const enabled = cfg.enabled === true;
     const readOnly = cfg.readonly === true;
@@ -103,14 +104,21 @@ async function renderCloudflareTunnelSection(section) {
 
     html += `</div>`; // close grid
 
-    // Loopback HTTP port (auto) toggle — only relevant when HTTPS is active
+    // Loopback HTTP port toggle — only relevant when HTTPS is active
     const httpsEnabled = (configData.server?.https?.enabled === true);
     if (httpsEnabled) {
-        const loopbackEnabled = (cfg.loopback_port !== undefined && cfg.loopback_port !== 0);
+        const loopbackEnabled = (cfg.loopback_port !== undefined && cfg.loopback_port > 0);
+        const loopbackPortVal = loopbackEnabled ? cfg.loopback_port : 18080;
         html += `<div class="cft-toggle-row" style="margin-top:0.6rem;">
             <span class="cft-toggle-label">${t('config.cloudflare_tunnel.loopback_label')}</span>
             <div class="toggle ${loopbackEnabled ? 'on' : ''}" onclick="cloudflareTunnelToggleLoopback(this)"></div>
         </div>`;
+        if (loopbackEnabled) {
+            html += `<div style="font-size:0.78rem;color:var(--text-muted);margin:0.1rem 0 0.3rem 0.2rem;display:flex;align-items:center;gap:0.4rem;">
+                → http://127.0.0.1:<input type="number" min="1024" max="65535" value="${loopbackPortVal}"
+                    style="width:5.5rem;font-size:0.78rem;padding:1px 4px;border:1px solid var(--border);border-radius:3px;background:var(--input-bg);color:var(--text);"
+                    onchange="cloudflareTunnelChangeLoopbackPort(this.value)">
+            </div>`;\n        }
         html += `<div class="wh-notice cft-notice-info" style="margin-top:0.3rem;">
             <span>🔄</span>
             <div><small>${t('config.cloudflare_tunnel.loopback_hint')}</small></div>
@@ -178,8 +186,18 @@ async function renderCloudflareTunnelSection(section) {
 
 function cloudflareTunnelToggleLoopback(el) {
     const isOn = el.classList.toggle('on');
-    // -1 = auto-assign free port; 0 = disabled
-    setNestedValue(configData, 'cloudflare_tunnel.loopback_port', isOn ? -1 : 0);
+    // Use a fixed default port (18080) to avoid ordering issues; 0 = disabled
+    const currentPort = configData?.cloudflare_tunnel?.loopback_port;
+    const portToUse = (isOn && currentPort > 0) ? currentPort : 18080;
+    setNestedValue(configData, 'cloudflare_tunnel.loopback_port', isOn ? portToUse : 0);
+    setDirty(true);
+    renderCloudflareTunnelSection(window._cfSectionMeta || {});
+}
+
+function cloudflareTunnelChangeLoopbackPort(value) {
+    const port = parseInt(value, 10);
+    if (!port || port < 1024 || port > 65535) return;
+    setNestedValue(configData, 'cloudflare_tunnel.loopback_port', port);
     setDirty(true);
 }
 
