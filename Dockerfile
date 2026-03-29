@@ -16,20 +16,22 @@ RUN go mod download
 # Copy source and build the production binaries
 COPY . .
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
-    go build -ldflags="-s -w" -o /aurago ./cmd/aurago
+    go build -trimpath -ldflags="-s -w" -o /aurago ./cmd/aurago
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
-    go build -ldflags="-s -w" -o /lifeboat ./cmd/lifeboat
+    go build -trimpath -ldflags="-s -w" -o /lifeboat ./cmd/lifeboat
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
-    go build -ldflags="-s -w" -o /config-merger ./cmd/config-merger
+    go build -trimpath -ldflags="-s -w" -o /config-merger ./cmd/config-merger
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
-    go build -ldflags="-s -w" -o /aurago-remote ./cmd/remote
+    go build -trimpath -ldflags="-s -w" -o /aurago-remote ./cmd/remote
 
 # Build aurago-remote client binaries for all supported platforms so the
 # server can serve them via /api/remote/download/{os}/{arch}.
 RUN mkdir -p /deploy && \
     for target in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64; do \
-        os="${target%/*}"; arch="${target#*/}"; ext=""; \
-        [ "$os" = "windows" ] && ext=".exe"; \
+        os=$(echo "$target" | cut -d/ -f1); \
+        arch=$(echo "$target" | cut -d/ -f2); \
+        ext=""; \
+        if [ "$os" = "windows" ]; then ext=".exe"; fi; \
         CGO_ENABLED=0 GOOS=$os GOARCH=$arch go build -trimpath -ldflags="-s -w" \
             -o "/deploy/aurago-remote_${os}_${arch}${ext}" ./cmd/remote/; \
     done

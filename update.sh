@@ -951,7 +951,7 @@ else
     elif [ "$GOARCH" = "amd64" ]; then
         BINS=("aurago_linux" "lifeboat_linux" "config-merger_linux" "aurago-remote_linux")
     else
-        die "No prebuilt release binaries for architecture ${ARCH_RAW}. Install Go ${GO_MIN_VERSION}+ to build from source."
+        die "No prebuilt release binaries for architecture ${ARCH_RAW}. Install Go 1.26+ to build from source."
     fi
 
     for BIN_NAME in "${BINS[@]}"; do

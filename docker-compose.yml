@@ -123,6 +123,8 @@ services:
     # Use seccomp profile for Chromium sandbox instead of SYS_ADMIN.
     # The default Docker seccomp profile allows enough syscalls for Chromium.
     # SYS_ADMIN is overly broad and grants capabilities that are not needed.
+    cap_drop:
+      - ALL
     cap_add:
       - CAP_CHOWN
       - CAP_FOWNER
@@ -178,7 +180,7 @@ services:
   #     # Inventory directory — put your hosts file here:
   #     - ./ansible/inventory:/inventory
   #     # SSH private key(s) for connecting to managed hosts:
-  #     - ~/.ssh:/root/.ssh:ro
+    #     - ~/.ssh:/home/ansibleuser/.ssh:ro
   #     # Optional: custom ansible.cfg
   #     # - ./ansible/ansible.cfg:/etc/ansible/ansible.cfg:ro
   #   restart: unless-stopped

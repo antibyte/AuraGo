@@ -28,7 +28,7 @@ rm -rf "$DEPLOY_DIR"
 mkdir -p "$DEPLOY_DIR"
 
 # ── Step 1: Build resources.dat (tar.gz of runtime resources) ─────────────
-echo "[1/3] Packing resources.dat ..."
+echo "[1/5] Packing resources.dat ..."
 
 TMPDIR_RES=$(mktemp -d)
 trap "rm -rf '$TMPDIR_RES'" EXIT

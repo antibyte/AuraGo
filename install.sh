@@ -160,7 +160,7 @@ if ! command -v docker >/dev/null 2>&1; then
     if [[ "${DKR_REPLY:-y}" =~ ^[Yy]$ ]]; then
         info "Installing Docker via official get.docker.com script..."
         curl -fsSL https://get.docker.com | sh
-        $SUDO usermod -aG docker $USER || warn "Failed to add $USER to docker group. You may need to do this manually."
+        $SUDO usermod -aG docker "$USER" || warn "Failed to add $USER to docker group. You may need to do this manually."
         ok "Docker installed."
     else
         warn "Skipping Docker installation."
@@ -621,4 +621,3 @@ if [ "$PYTHON_MISSING" = "true" ]; then
     echo -e " ${YELLOW}╰──────────────────────────────────────────────────────────────────╯${NC}"
     echo ""
 fi
-set -euo pipefail
