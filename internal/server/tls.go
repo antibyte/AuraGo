@@ -89,12 +89,15 @@ func NewTLSConfigFromConfig(cfg *config.Config, dataDir string) *TLSConfig {
 		// (e.g., when using Cloudflare Tunnel which handles HTTPS at the edge).
 		if cfg.Server.HTTPS.Domain == "" {
 			return &TLSConfig{
-				Mode:      TLSModeSelfSigned,
-				Domain:    cfg.Server.HTTPS.Domain,
-				CertDir:   certDir,
-				CertFile:  filepath.Join(certDir, "selfsigned.crt"),
-				KeyFile:   filepath.Join(certDir, "selfsigned.key"),
-				HTTPPort:  cfg.Server.HTTPS.HTTPPort,
+				Mode:     TLSModeSelfSigned,
+				Domain:   cfg.Server.HTTPS.Domain,
+				CertDir:  certDir,
+				CertFile: filepath.Join(certDir, "selfsigned.crt"),
+				KeyFile:  filepath.Join(certDir, "selfsigned.key"),
+				// Force HTTPPort=0: no public domain means no redirect server needed.
+				// Avoids binding port 80 (requires root) for an HTTPS redirect that
+				// serves no purpose without a real domain.
+				HTTPPort:  0,
 				HTTPSPort: cfg.Server.HTTPS.HTTPSPort,
 			}
 		}
