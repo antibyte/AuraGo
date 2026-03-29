@@ -616,11 +616,48 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				}
 			}
 
-			// Hot-reload Cloudflare Tunnel loopback listener when loopback_port changes.
-			// The loopbackHandler was stored at startup; we can start/stop the TCP listener
-			// without a full process restart.
+			// Hot-reload Cloudflare Tunnel: stop immediately when disabled, start when enabled.
+			cfEnabledChanged := oldCfg.CloudflareTunnel.Enabled != newCfg.CloudflareTunnel.Enabled
+			if cfEnabledChanged {
+				cfBaseCfg := tools.CloudflareTunnelConfig{
+					Enabled:        newCfg.CloudflareTunnel.Enabled,
+					Mode:           newCfg.CloudflareTunnel.Mode,
+					AuthMethod:     newCfg.CloudflareTunnel.AuthMethod,
+					TunnelName:     newCfg.CloudflareTunnel.TunnelName,
+					AccountID:      newCfg.CloudflareTunnel.AccountID,
+					TunnelID:       newCfg.CloudflareTunnel.TunnelID,
+					LoopbackPort:   newCfg.CloudflareTunnel.LoopbackPort,
+					ExposeWebUI:    newCfg.CloudflareTunnel.ExposeWebUI,
+					ExposeHomepage: newCfg.CloudflareTunnel.ExposeHomepage,
+					MetricsPort:    newCfg.CloudflareTunnel.MetricsPort,
+					LogLevel:       newCfg.CloudflareTunnel.LogLevel,
+					DockerHost:     newCfg.Docker.Host,
+					DataDir:        newCfg.Directories.DataDir,
+					WebUIPort:      newCfg.Server.Port,
+					HomepagePort:   newCfg.Homepage.WebServerPort,
+					HTTPSEnabled:   newCfg.Server.HTTPS.Enabled,
+					HTTPSPort:      newCfg.Server.HTTPS.HTTPSPort,
+				}
+				vault := s.Vault
+				reg := s.Registry
+				log := s.Logger
+				if !newCfg.CloudflareTunnel.Enabled {
+					// Disabled → stop the tunnel immediately (security: no tunnel without explicit enable).
+					go func() {
+						result := tools.CloudflareTunnelStop(cfBaseCfg, reg, log)
+						log.Info("[CloudflareTunnel] Hot-reload: tunnel stopped because cloudflare_tunnel.enabled=false", "result", result)
+					}()
+				} else if newCfg.CloudflareTunnel.AutoStart {
+					// Enabled with auto_start → start immediately.
+					go func() {
+						result := tools.CloudflareTunnelStart(cfBaseCfg, vault, reg, log)
+						log.Info("[CloudflareTunnel] Hot-reload: tunnel started because cloudflare_tunnel.enabled=true", "result", result)
+					}()
+				}
+			}
+
 			// Hot-reload Cloudflare Tunnel: restart when the expose target (web UI vs. homepage)
-			// changes so the running cloudflared process immediately points to the new origin.
+			// changes so the dynamic loopback proxy picks up the new setting immediately.
 			cfExposeChanged := oldCfg.CloudflareTunnel.ExposeWebUI != newCfg.CloudflareTunnel.ExposeWebUI ||
 				oldCfg.CloudflareTunnel.ExposeHomepage != newCfg.CloudflareTunnel.ExposeHomepage
 			if cfExposeChanged && newCfg.CloudflareTunnel.Enabled {
