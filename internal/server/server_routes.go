@@ -1134,6 +1134,8 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		mux.HandleFunc("/api/knowledge", handleKnowledgeFiles(s))
 		mux.HandleFunc("/api/knowledge/upload", handleKnowledgeUpload(s))
 		mux.HandleFunc("/api/knowledge/", handleKnowledgeFile(s))
+		// Inline preview endpoint (allows iframe embedding for PDFs/images)
+		mux.HandleFunc("/api/knowledge-inline/", handleKnowledgeFileInline(s))
 
 		// ── Invasion Control API (handlers guard themselves with s.InvasionDB == nil check) ──
 		mux.HandleFunc("/api/invasion/nests", handleInvasionNests(s))

@@ -261,7 +261,7 @@ function openFilePreview(name) {
     const fallbackText = document.getElementById('file-preview-fallback-text');
     const download = document.getElementById('file-preview-download');
 
-    const previewURL = '/api/knowledge/' + encodeURIComponent(name) + '?inline=1';
+    const previewURL = '/api/knowledge-inline/' + encodeURIComponent(name);
     const downloadURL = '/api/knowledge/' + encodeURIComponent(name);
     const ext = (name.split('.').pop() || '').toLowerCase();
 
