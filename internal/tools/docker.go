@@ -58,10 +58,10 @@ func getDockerClient(cfg DockerConfig) *http.Client {
 			case strings.HasPrefix(host, "unix://"):
 				return net.DialTimeout("unix", strings.TrimPrefix(host, "unix://"), 5*time.Second)
 			case strings.HasPrefix(host, "npipe://"):
-				// Windows Named Pipes require special handling via golang.org/x/sys/windows
-				// or using the Docker CLI. Fallback to TCP is incorrect as Docker Desktop
-				// uses the named pipe, not TCP on Windows.
-				return nil, fmt.Errorf("windows named pipes (npipe://) are not directly supported; use tcp:// host or set DOCKER_HOST=tcp://localhost:2375 if Docker Desktop is configured for TCP")
+				// Windows named pipes cannot be dialed with the standard net package.
+				// Docker Desktop exposes the API via TCP on localhost:2375 by default,
+				// but TCP must be enabled in Docker Desktop settings first.
+				return nil, fmt.Errorf("windows named pipes (npipe://) require Docker Desktop settings to enable TCP (Settings > General > Expose daemon on tcp://localhost:2375), then use DOCKER_HOST=tcp://localhost:2375 instead")
 			case strings.HasPrefix(host, "tcp://"):
 				return net.DialTimeout("tcp", strings.TrimPrefix(host, "tcp://"), 5*time.Second)
 			default:

@@ -135,8 +135,12 @@ func (c *DockerConnector) Stop(ctx context.Context, nest NestRecord, secret []by
 	if err != nil {
 		return fmt.Errorf("failed to stop container: %w", err)
 	}
-	resp.Body.Close()
-
+	defer resp.Body.Close()
+	// 204 = stopped, 304 = already stopped are both acceptable
+	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusNotModified {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("stop container failed with HTTP %d: %s", resp.StatusCode, string(body))
+	}
 	return nil
 }
 
@@ -226,9 +230,13 @@ func (c *DockerConnector) pullImage(ctx context.Context, nest NestRecord, image 
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		return err
+		return fmt.Errorf("pull request failed: %w", err)
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("pull failed with HTTP %d: %s", resp.StatusCode, string(body))
+	}
 	// Drain the response (Docker streams progress)
 	_, _ = io.Copy(io.Discard, resp.Body)
 	return nil
@@ -243,9 +251,14 @@ func (c *DockerConnector) removeContainer(ctx context.Context, nest NestRecord, 
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		return err
+		return fmt.Errorf("remove container request failed: %w", err)
 	}
-	resp.Body.Close()
+	defer resp.Body.Close()
+	// 204 = deleted, 404 = not found (already gone) are both acceptable
+	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusNotFound {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("remove container failed with HTTP %d: %s", resp.StatusCode, string(body))
+	}
 	return nil
 }
 

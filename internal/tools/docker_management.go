@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"os/exec"
+	"runtime"
 	"strings"
 )
 
@@ -260,7 +261,65 @@ func DockerStats(cfg DockerConfig, containerID string) string {
 	if code != 200 {
 		return dockerBodyErr(code, data)
 	}
-	return string(data)
+
+	// Parse and extract the most useful fields from the stats response
+	var raw struct {
+		CPUStats struct {
+			CPUUsage struct {
+				TotalUsage uint64 `json:"total_usage"`
+			} `json:"cpu_usage"`
+			SystemCPUUsage uint64 `json:"system_cpu_usage"`
+		} `json:"cpu_stats"`
+		PreCPUStats struct {
+			CPUUsage struct {
+				TotalUsage uint64 `json:"total_usage"`
+			} `json:"cpu_usage"`
+			SystemCPUUsage uint64 `json:"system_cpu_usage"`
+		} `json:"pre_cpu_stats"`
+		MemoryStats struct {
+			Usage      uint64 `json:"usage"`
+			Limit      uint64 `json:"limit"`
+			Percent    float64 `json:"percent"`
+		} `json:"memory_stats"`
+		Networks map[string]struct {
+			RxBytes uint64 `json:"rx_bytes"`
+			TxBytes uint64 `json:"tx_bytes"`
+		} `json:"networks"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return errJSON("Failed to parse stats: %v", err)
+	}
+
+	// Calculate CPU percentage
+	var cpuPercent float64
+	if raw.CPUStats.SystemCPUUsage > 0 && raw.CPUStats.SystemCPUUsage > raw.PreCPUStats.SystemCPUUsage {
+		cpuDelta := float64(raw.CPUStats.CPUUsage.TotalUsage - raw.PreCPUStats.CPUUsage.TotalUsage)
+		systemDelta := float64(raw.CPUStats.SystemCPUUsage - raw.PreCPUStats.SystemCPUUsage)
+		numCPUs := runtime.NumCPU()
+		if systemDelta > 0 && numCPUs > 0 {
+			cpuPercent = (cpuDelta / systemDelta) * float64(numCPUs) * 100.0
+		}
+	}
+
+	result := map[string]interface{}{
+		"status": "ok",
+		"container_id": containerID,
+		"cpu_percent": cpuPercent,
+		"memory_usage_bytes": raw.MemoryStats.Usage,
+		"memory_limit_bytes": raw.MemoryStats.Limit,
+		"memory_percent": raw.MemoryStats.Percent,
+	}
+	if raw.Networks != nil {
+		var rxBytes, txBytes uint64
+		for _, net := range raw.Networks {
+			rxBytes += net.RxBytes
+			txBytes += net.TxBytes
+		}
+		result["network_rx_bytes"] = rxBytes
+		result["network_tx_bytes"] = txBytes
+	}
+	out, _ := json.Marshal(result)
+	return string(out)
 }
 
 // DockerTop lists running processes inside a container.
@@ -328,6 +387,9 @@ func DockerCreateNetwork(cfg DockerConfig, name, driver string) string {
 func DockerRemoveNetwork(cfg DockerConfig, name string) string {
 	if name == "" {
 		return errJSON("network name required")
+	}
+	if err := validateDockerName(name); err != nil {
+		return errJSON("invalid network name: %v", err)
 	}
 	data, code, err := dockerRequest(cfg, "DELETE", "/networks/"+url.PathEscape(name), "")
 	if err != nil {

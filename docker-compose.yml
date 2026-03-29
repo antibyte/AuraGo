@@ -120,10 +120,12 @@ services:
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
-    # Chromium requires SYS_ADMIN for its sandbox inside Docker containers.
-    # Without this, PDF rendering and screenshots will fail.
+    # Use seccomp profile for Chromium sandbox instead of SYS_ADMIN.
+    # The default Docker seccomp profile allows enough syscalls for Chromium.
+    # SYS_ADMIN is overly broad and grants capabilities that are not needed.
     cap_add:
-      - SYS_ADMIN
+      - CAP_CHOWN
+      - CAP_FOWNER
     # Increase /dev/shm for Chromium's shared memory usage (prevents crashes).
     shm_size: '256m'
     # Expose on localhost only — not accessible from outside the host.
@@ -131,11 +133,12 @@ services:
     ports:
       - "127.0.0.1:3000:3000"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
-      interval: 15s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
+      # Use wget (available in the image) instead of curl (not installed by default).
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:3000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
     logging:
       driver: json-file
       options:
@@ -227,3 +230,4 @@ volumes:
 secrets:
   aurago_master_key:
     file: ./aurago_master.key
+    optional: true
