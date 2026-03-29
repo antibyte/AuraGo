@@ -20,5 +20,6 @@
   "config.cloudflare_tunnel.token_placeholder": "Voer Cloudflare connector token in",
   "config.cloudflare_tunnel.save_vault": "Opslaan in Vault",
   "config.cloudflare_tunnel.token_empty": "Token mag niet leeg zijn",
-  "config.cloudflare_tunnel.token_saved": "Token succesvol opgeslagen in vault"
+  "config.cloudflare_tunnel.token_saved": "Token succesvol opgeslagen in vault",
+  "config.cloudflare_tunnel.start_tunnel": "Start tunnel"
 }

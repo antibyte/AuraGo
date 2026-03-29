@@ -20,5 +20,6 @@
   "config.cloudflare_tunnel.token_placeholder": "Indtast Cloudflare connector token",
   "config.cloudflare_tunnel.save_vault": "Gem i Vault",
   "config.cloudflare_tunnel.token_empty": "Token m\u00e5 ikke v\u00e6re tom",
-  "config.cloudflare_tunnel.token_saved": "Token gemt i vault succesfuldt"
+  "config.cloudflare_tunnel.token_saved": "Token gemt i vault succesfuldt",
+  "config.cloudflare_tunnel.start_tunnel": "Start tunnel"
 }

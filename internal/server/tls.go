@@ -84,6 +84,20 @@ func NewTLSConfigFromConfig(cfg *config.Config, dataDir string) *TLSConfig {
 			HTTPSPort: cfg.Server.HTTPS.HTTPSPort,
 		}
 	default: // "auto" or empty
+		// If no domain is set, fall back to self-signed instead of Let's Encrypt.
+		// This is the sensible default when HTTPS is enabled but no public domain is available
+		// (e.g., when using Cloudflare Tunnel which handles HTTPS at the edge).
+		if cfg.Server.HTTPS.Domain == "" {
+			return &TLSConfig{
+				Mode:      TLSModeSelfSigned,
+				Domain:    cfg.Server.HTTPS.Domain,
+				CertDir:   certDir,
+				CertFile:  filepath.Join(certDir, "selfsigned.crt"),
+				KeyFile:   filepath.Join(certDir, "selfsigned.key"),
+				HTTPPort:  cfg.Server.HTTPS.HTTPPort,
+				HTTPSPort: cfg.Server.HTTPS.HTTPSPort,
+			}
+		}
 		return &TLSConfig{
 			Mode:      TLSModeAuto,
 			Domain:    cfg.Server.HTTPS.Domain,

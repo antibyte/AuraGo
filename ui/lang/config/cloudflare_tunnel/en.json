@@ -20,5 +20,6 @@
   "config.cloudflare_tunnel.token_placeholder": "Enter your Cloudflare connector token",
   "config.cloudflare_tunnel.save_vault": "Save to Vault",
   "config.cloudflare_tunnel.token_empty": "Token cannot be empty",
-  "config.cloudflare_tunnel.token_saved": "Token saved to vault successfully"
+  "config.cloudflare_tunnel.token_saved": "Token saved to vault successfully",
+  "config.cloudflare_tunnel.start_tunnel": "Start Tunnel"
 }

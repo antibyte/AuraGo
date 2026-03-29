@@ -20,5 +20,6 @@
   "config.cloudflare_tunnel.token_placeholder": "Cloudflare connector token \u0926\u0930\u094d\u091c \u0915\u0930\u0947\u0902",
   "config.cloudflare_tunnel.save_vault": "Vault \u092e\u0947\u0902 \u0938\u0939\u0947\u091c\u0947\u0902",
   "config.cloudflare_tunnel.token_empty": "Token \u0916\u093e\u0932\u0940 \u0928\u0939\u0940\u0902 \u0939\u094b \u0938\u0915\u0924\u093e \u0939\u0948",
-  "config.cloudflare_tunnel.token_saved": "Token \u0938\u092b\u0932\u0924\u093e\u092a\u0942\u0930\u094d\u0935\u0915 \u0930\u0942\u092a \u0938\u0947 \u0938\u0939\u0947\u091c\u093e \u0917\u092f\u093e"
+  "config.cloudflare_tunnel.token_saved": "Token \u0938\u092b\u0932\u0924\u093e\u092a\u0942\u0930\u094d\u0935\u0915 \u0930\u0942\u092a \u0938\u0947 \u0938\u0939\u0947\u091c\u093e \u0917\u092f\u093e",
+  "config.cloudflare_tunnel.start_tunnel": "\u091f\u0928\u0932 \u0936\u0941\u0930\u0941 \u0915\u0930\u0947\u0902"
 }

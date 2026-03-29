@@ -20,5 +20,6 @@
   "config.cloudflare_tunnel.token_placeholder": "Angi Cloudflare connector token",
   "config.cloudflare_tunnel.save_vault": "Lagre i Vault",
   "config.cloudflare_tunnel.token_empty": "Token kan ikke v\u00e6re tom",
-  "config.cloudflare_tunnel.token_saved": "Token lagret i vault"
+  "config.cloudflare_tunnel.token_saved": "Token lagret i vault",
+  "config.cloudflare_tunnel.start_tunnel": "Start tunnel"
 }

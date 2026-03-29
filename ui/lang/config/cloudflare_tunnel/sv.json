@@ -20,5 +20,6 @@
   "config.cloudflare_tunnel.token_placeholder": "Ange Cloudflare-anslutningstoken",
   "config.cloudflare_tunnel.save_vault": "Spara i Vault",
   "config.cloudflare_tunnel.token_empty": "Token kan inte vara tom",
-  "config.cloudflare_tunnel.token_saved": "Token sparades i vault"
+  "config.cloudflare_tunnel.token_saved": "Token sparades i vault",
+  "config.cloudflare_tunnel.start_tunnel": "Starta tunnel"
 }

@@ -125,6 +125,7 @@ async function renderCloudflareTunnelSection(section) {
             <div class="adg-password-row">
                 <input class="field-input adg-password-input" type="password" id="cloudflare-tunnel-token" placeholder="${t('config.cloudflare_tunnel.token_placeholder')}">
                 <button class="btn-save adg-save-btn" onclick="cloudflareTunnelSaveToken()">💾 ${t('config.cloudflare_tunnel.save_vault')}</button>
+                <button class="btn-save adg-save-btn" style="background:var(--accent);margin-left:0.5rem;" onclick="cloudflareTunnelRestart()">🔄 ${t('config.cloudflare_tunnel.start_tunnel')}</button>
             </div>
             <span id="cloudflare-tunnel-token-status" style="font-size:0.78rem;display:block;margin-top:0.3rem;"></span>
         </div>`;
@@ -161,6 +162,23 @@ function cloudflareTunnelSaveToken() {
         } else {
             if (status) { status.textContent = t('config.cloudflare_tunnel.token_saved'); status.style.color = 'var(--success)'; }
             document.getElementById('cloudflare-tunnel-token').value = '';
+        }
+    })
+    .catch(err => {
+        if (status) { status.textContent = 'Error: ' + err; status.style.color = 'var(--error)'; }
+    });
+}
+
+function cloudflareTunnelRestart() {
+    const status = document.getElementById('cloudflare-tunnel-token-status');
+    if (status) { status.textContent = 'Restarting tunnel...'; status.style.color = 'var(--accent)'; }
+    fetch('/api/cloudflare-tunnel/restart', { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+        if (data.error) {
+            if (status) { status.textContent = data.error; status.style.color = 'var(--error)'; }
+        } else {
+            if (status) { status.textContent = 'Tunnel restarted successfully'; status.style.color = 'var(--success)'; }
         }
     })
     .catch(err => {

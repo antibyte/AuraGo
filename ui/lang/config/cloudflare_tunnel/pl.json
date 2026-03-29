@@ -20,5 +20,6 @@
   "config.cloudflare_tunnel.token_placeholder": "Wprowad\u017a token konektora Cloudflare",
   "config.cloudflare_tunnel.save_vault": "Zapisz w Vault",
   "config.cloudflare_tunnel.token_empty": "Token nie mo\u017ce by\u0107 pusty",
-  "config.cloudflare_tunnel.token_saved": "Token zapisany w vault"
+  "config.cloudflare_tunnel.token_saved": "Token zapisany w vault",
+  "config.cloudflare_tunnel.start_tunnel": "Uruchom tunel"
 }

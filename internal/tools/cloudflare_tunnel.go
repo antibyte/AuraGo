@@ -256,13 +256,22 @@ func startTokenTunnel(cfg CloudflareTunnelConfig, vault *security.Vault, registr
 	mode := resolveMode(cfg)
 	logger.Info("[CloudflareTunnel] Starting token tunnel", "mode", mode)
 
+	// Build the local URL - host.docker.internal for Docker (reaches host from container network),
+	// localhost for native mode
+	localHost := "localhost"
+	if mode == "docker" {
+		localHost = "host.docker.internal"
+	}
+	localURL := fmt.Sprintf("http://%s:%d", localHost, cfg.WebUIPort)
+	logger.Info("[CloudflareTunnel] Token tunnel local URL", "url", localURL)
+
 	switch mode {
 	case "docker":
 		// Pass token as env var to avoid exposure in process listings (ps aux / /proc)
-		return startDockerTunnel(cfg, []string{"tunnel", "run"}, []string{"TUNNEL_TOKEN=" + token}, logger)
+		return startDockerTunnel(cfg, []string{"tunnel", "--url", localURL, "run"}, []string{"TUNNEL_TOKEN=" + token}, logger)
 	case "native":
 		// Pass token as env var to avoid exposure in process listings (ps aux / /proc)
-		return startNativeTunnel(cfg, registry, []string{"tunnel", "run"}, []string{"TUNNEL_TOKEN=" + token}, logger)
+		return startNativeTunnel(cfg, registry, []string{"tunnel", "--url", localURL, "run"}, []string{"TUNNEL_TOKEN=" + token}, logger)
 	default:
 		return errJSON("Could not determine runtime mode. Docker not available and native binary not found.")
 	}

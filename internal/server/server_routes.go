@@ -1212,6 +1212,11 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/proxy/logs", handleProxyLogs(s))
 	s.Logger.Info("Security Proxy API registered at /api/proxy/...")
 
+	// ── Cloudflare Tunnel API ──
+	mux.HandleFunc("/api/cloudflare-tunnel/status", handleCloudflareTunnelStatus(s))
+	mux.HandleFunc("/api/cloudflare-tunnel/restart", handleCloudflareTunnelRestart(s))
+	s.Logger.Info("Cloudflare Tunnel API registered at /api/cloudflare-tunnel/...")
+
 	// ── tsnet API (Tailscale embedded node) ──
 	mux.HandleFunc("/api/tsnet/status", handleTsNetStatus(s))
 	mux.HandleFunc("/api/tsnet/start", handleTsNetStart(s))

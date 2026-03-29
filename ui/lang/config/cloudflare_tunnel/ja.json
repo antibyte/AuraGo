@@ -20,5 +20,6 @@
   "config.cloudflare_tunnel.token_placeholder": "Cloudflare\u30b3\u30cd\u30af\u30bf\u30fc\u30c8\u30fc\u30af\u30f3\u3092\u5165\u529b",
   "config.cloudflare_tunnel.save_vault": "Vault\u306b\u4fdd\u5b58",
   "config.cloudflare_tunnel.token_empty": "\u30c8\u30fc\u30af\u30f3\u306f\u7a7a\u306b\u3067\u304d\u307e\u305b\u3093",
-  "config.cloudflare_tunnel.token_saved": "\u30c8\u30fc\u30af\u30f3\u304c\u6b63\u3057\u304f\u4fdd\u5b58\u3055\u308c\u307e\u3057\u305f"
+  "config.cloudflare_tunnel.token_saved": "\u30c8\u30fc\u30af\u30f3\u304c\u6b63\u3057\u304f\u4fdd\u5b58\u3055\u308c\u307e\u3057\u305f",
+  "config.cloudflare_tunnel.start_tunnel": "\u30c8\u30f3\u30cd\u30eb\u3092\u958b\u59cb"
 }
