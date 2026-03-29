@@ -120,12 +120,12 @@ async function renderCloudflareTunnelSection(section) {
 
     // Token input for token auth mode
     if ((cfg.auth_method === 'token' || !cfg.auth_method) && enabled) {
-        html += `<div class="cft-field-group">
-            <label class="cft-field-label">
-                <span class="cft-field-caption">${t('config.cloudflare_tunnel.token_label')}</span>
-                <input class="cfg-input cft-field-input adg-password-input" type="password" id="cloudflare-tunnel-token" placeholder="${t('config.cloudflare_tunnel.token_placeholder')}">
-            </label>
-            <button class="btn-save adg-save-btn" onclick="cloudflareTunnelSaveToken()">💾 ${t('config.cloudflare_tunnel.save_vault')}</button>
+        html += `<div class="field-group" style="margin-top:0.8rem;">
+            <div class="field-label">${t('config.cloudflare_tunnel.token_label')}</div>
+            <div class="adg-password-row">
+                <input class="field-input adg-password-input" type="password" id="cloudflare-tunnel-token" placeholder="${t('config.cloudflare_tunnel.token_placeholder')}">
+                <button class="btn-save adg-save-btn" onclick="cloudflareTunnelSaveToken()">💾 ${t('config.cloudflare_tunnel.save_vault')}</button>
+            </div>
             <span id="cloudflare-tunnel-token-status" style="font-size:0.78rem;display:block;margin-top:0.3rem;"></span>
         </div>`;
     }
@@ -149,7 +149,7 @@ function cloudflareTunnelSaveToken() {
         if (status) { status.textContent = t('config.cloudflare_tunnel.token_empty'); status.style.color = 'var(--error)'; }
         return;
     }
-    fetch('/api/vault', {
+    fetch('/api/vault/secrets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key: 'cloudflared_token', value: token })
