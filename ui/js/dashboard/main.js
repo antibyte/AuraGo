@@ -2342,6 +2342,18 @@
             // Show initial tab – triggers lazy load
             showTab(initialTab);
 
+            // Force-load initial tab content in case it wasn't loaded yet
+            // (handles edge case where page opens directly to a non-overview tab)
+            if (!TabState.loaded[initialTab]) {
+                TabState.loaded[initialTab] = true;
+                switch (initialTab) {
+                    case 'overview': loadTabOverview(); break;
+                    case 'agent':    loadTabAgent();    break;
+                    case 'user':     loadTabUser();     break;
+                    case 'system':   loadTabSystem();   break;
+                }
+            }
+
             // Start auto-refresh
             startAutoRefresh();
         }
