@@ -477,7 +477,8 @@ type ToolCall struct {
 	IP       string   `json:"ip"`       // IP address for DHCP leases
 	Offset   int      `json:"offset"`   // pagination offset
 	// Cheat Sheet fields
-	Active *bool `json:"active,omitempty"` // pointer so nil = not provided vs false = explicitly inactive
+	Active       *bool  `json:"active,omitempty"`        // pointer so nil = not provided vs false = explicitly inactive
+	AttachmentID string `json:"attachment_id,omitempty"` // attachment ID for cheatsheet attach/detach
 	// Media Registry / Homepage Registry fields
 	MediaType string `json:"media_type,omitempty"` // image, tts, audio, music
 	TagMode   string `json:"tag_mode,omitempty"`   // add, remove, set (for media_registry tag op)

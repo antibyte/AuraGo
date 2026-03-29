@@ -24,5 +24,21 @@
   "cheatsheets.subtitle": "Aide-mémoire",
   "cheatsheets.tab_edit": "Modifier",
   "cheatsheets.tab_preview": "aperçu",
-  "cheatsheets.title": "Aide-mémoire"
+  "cheatsheets.title": "Aide-mémoire",
+  "cheatsheets.attachments": "Pièces jointes",
+  "cheatsheets.characters": "caractères",
+  "cheatsheets.no_attachments": "Aucune pièce jointe",
+  "cheatsheets.upload_file": "Télécharger un fichier",
+  "cheatsheets.from_knowledge": "Depuis la base de connaissances",
+  "cheatsheets.attachments_hint": "Fichiers .txt et .md uniquement. Max 25 000 caractères au total.",
+  "cheatsheets.select_knowledge_file": "Sélectionner un fichier",
+  "cheatsheets.loading": "Chargement...",
+  "cheatsheets.attach_selected": "Joindre la sélection",
+  "cheatsheets.remove_attachment": "Supprimer",
+  "cheatsheets.save_first": "Veuillez d'abord enregistrer la fiche avant d'ajouter des pièces jointes.",
+  "cheatsheets.invalid_file_type": "Seuls les fichiers .txt et .md sont autorisés.",
+  "cheatsheets.attachment_added": "Pièce jointe ajoutée.",
+  "cheatsheets.attachment_removed": "Pièce jointe supprimée.",
+  "cheatsheets.attachments_added": "{{count}} pièce(s) jointe(s) ajoutée(s).",
+  "cheatsheets.no_knowledge_files": "Aucun fichier compatible trouvé (.txt, .md)"
 }

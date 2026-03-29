@@ -24,5 +24,21 @@
   "cheatsheets.subtitle": "hoja de trucos",
   "cheatsheets.tab_edit": "Editar",
   "cheatsheets.tab_preview": "avance",
-  "cheatsheets.title": "hoja de trucos"
+  "cheatsheets.title": "hoja de trucos",
+  "cheatsheets.attachments": "Archivos adjuntos",
+  "cheatsheets.characters": "caracteres",
+  "cheatsheets.no_attachments": "Sin archivos adjuntos",
+  "cheatsheets.upload_file": "Subir archivo",
+  "cheatsheets.from_knowledge": "Desde la base de conocimientos",
+  "cheatsheets.attachments_hint": "Solo archivos .txt y .md. Máx. 25.000 caracteres en total.",
+  "cheatsheets.select_knowledge_file": "Seleccionar archivo",
+  "cheatsheets.loading": "Cargando...",
+  "cheatsheets.attach_selected": "Adjuntar seleccionados",
+  "cheatsheets.remove_attachment": "Eliminar",
+  "cheatsheets.save_first": "Guarda la hoja de trucos primero antes de añadir archivos adjuntos.",
+  "cheatsheets.invalid_file_type": "Solo se permiten archivos .txt y .md.",
+  "cheatsheets.attachment_added": "Archivo adjuntado.",
+  "cheatsheets.attachment_removed": "Archivo eliminado.",
+  "cheatsheets.attachments_added": "{{count}} archivo(s) adjuntado(s).",
+  "cheatsheets.no_knowledge_files": "No se encontraron archivos compatibles (.txt, .md)"
 }

@@ -24,5 +24,21 @@
   "cheatsheets.subtitle": "チートシート",
   "cheatsheets.tab_edit": "編集",
   "cheatsheets.tab_preview": "プレビュー",
-  "cheatsheets.title": "チートシート"
+  "cheatsheets.title": "チートシート",
+  "cheatsheets.attachments": "添付ファイル",
+  "cheatsheets.characters": "文字",
+  "cheatsheets.no_attachments": "添付ファイルなし",
+  "cheatsheets.upload_file": "ファイルをアップロード",
+  "cheatsheets.from_knowledge": "ナレッジセンターから",
+  "cheatsheets.attachments_hint": ".txt と .md ファイルのみ。合計最大25,000文字。",
+  "cheatsheets.select_knowledge_file": "ファイルを選択",
+  "cheatsheets.loading": "読み込み中...",
+  "cheatsheets.attach_selected": "選択した項目を添付",
+  "cheatsheets.remove_attachment": "削除",
+  "cheatsheets.save_first": "添付ファイルを追加する前に、チートシートを保存してください。",
+  "cheatsheets.invalid_file_type": ".txt と .md ファイルのみ許可されています。",
+  "cheatsheets.attachment_added": "添付ファイルを追加しました。",
+  "cheatsheets.attachment_removed": "添付ファイルを削除しました。",
+  "cheatsheets.attachments_added": "{{count}}件の添付ファイルを追加しました。",
+  "cheatsheets.no_knowledge_files": "互換性のあるファイルが見つかりません (.txt, .md)"
 }

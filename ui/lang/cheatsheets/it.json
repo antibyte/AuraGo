@@ -24,5 +24,21 @@
   "cheatsheets.subtitle": "Foglio informativo",
   "cheatsheets.tab_edit": "Modificare",
   "cheatsheets.tab_preview": "anteprima",
-  "cheatsheets.title": "Foglio informativo"
+  "cheatsheets.title": "Foglio informativo",
+  "cheatsheets.attachments": "Allegati",
+  "cheatsheets.characters": "caratteri",
+  "cheatsheets.no_attachments": "Nessun allegato",
+  "cheatsheets.upload_file": "Carica file",
+  "cheatsheets.from_knowledge": "Dal centro conoscenze",
+  "cheatsheets.attachments_hint": "Solo file .txt e .md. Massimo 25.000 caratteri in totale.",
+  "cheatsheets.select_knowledge_file": "Seleziona file",
+  "cheatsheets.loading": "Caricamento...",
+  "cheatsheets.attach_selected": "Allega selezionati",
+  "cheatsheets.remove_attachment": "Rimuovi",
+  "cheatsheets.save_first": "Salva prima il foglio informativo prima di aggiungere allegati.",
+  "cheatsheets.invalid_file_type": "Sono consentiti solo file .txt e .md.",
+  "cheatsheets.attachment_added": "Allegato aggiunto.",
+  "cheatsheets.attachment_removed": "Allegato rimosso.",
+  "cheatsheets.attachments_added": "{{count}} allegato/i aggiunto/i.",
+  "cheatsheets.no_knowledge_files": "Nessun file compatibile trovato (.txt, .md)"
 }

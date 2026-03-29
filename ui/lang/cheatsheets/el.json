@@ -24,5 +24,21 @@
   "cheatsheets.subtitle": "Φύλλο εξαπάτησης",
   "cheatsheets.tab_edit": "Εκδίδω",
   "cheatsheets.tab_preview": "πρεμιέρα",
-  "cheatsheets.title": "Φύλλο εξαπάτησης"
+  "cheatsheets.title": "Φύλλο εξαπάτησης",
+  "cheatsheets.attachments": "Συνημμένα",
+  "cheatsheets.characters": "χαρακτήρες",
+  "cheatsheets.no_attachments": "Χωρίς συνημμένα",
+  "cheatsheets.upload_file": "Μεταφόρτωση αρχείου",
+  "cheatsheets.from_knowledge": "Από τη βάση γνώσεων",
+  "cheatsheets.attachments_hint": "Μόνο αρχεία .txt και .md. Μέγιστο 25.000 χαρακτήρες συνολικά.",
+  "cheatsheets.select_knowledge_file": "Επιλογή αρχείου",
+  "cheatsheets.loading": "Φόρτωση...",
+  "cheatsheets.attach_selected": "Επισύναψη επιλεγμένων",
+  "cheatsheets.remove_attachment": "Αφαίρεση",
+  "cheatsheets.save_first": "Αποθηκεύστε πρώτα το φύλλο πριν προσθέσετε συνημμένα.",
+  "cheatsheets.invalid_file_type": "Επιτρέπονται μόνο αρχεία .txt και .md.",
+  "cheatsheets.attachment_added": "Το συνημμένο προστέθηκε.",
+  "cheatsheets.attachment_removed": "Το συνημμένο αφαιρέθηκε.",
+  "cheatsheets.attachments_added": "{{count}} συνημμένα προστέθηκαν.",
+  "cheatsheets.no_knowledge_files": "Δεν βρέθηκαν συμβατά αρχεία (.txt, .md)"
 }

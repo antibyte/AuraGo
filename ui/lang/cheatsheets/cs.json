@@ -24,5 +24,21 @@
   "cheatsheets.subtitle": "Cheat list",
   "cheatsheets.tab_edit": "Upravit",
   "cheatsheets.tab_preview": "náhled",
-  "cheatsheets.title": "Cheat list"
+  "cheatsheets.title": "Cheat list",
+  "cheatsheets.attachments": "Přílohy",
+  "cheatsheets.characters": "znaků",
+  "cheatsheets.no_attachments": "Žádné přílohy",
+  "cheatsheets.upload_file": "Nahrát soubor",
+  "cheatsheets.from_knowledge": "Ze znalostí",
+  "cheatsheets.attachments_hint": "Pouze soubory .txt a .md. Celkem max. 25 000 znaků.",
+  "cheatsheets.select_knowledge_file": "Vybrat soubor",
+  "cheatsheets.loading": "Načítání...",
+  "cheatsheets.attach_selected": "Připojit vybrané",
+  "cheatsheets.remove_attachment": "Odebrat",
+  "cheatsheets.save_first": "Nejprve uložte cheat list a pak přidejte přílohy.",
+  "cheatsheets.invalid_file_type": "Povoleny jsou pouze soubory .txt a .md.",
+  "cheatsheets.attachment_added": "Příloha přidána.",
+  "cheatsheets.attachment_removed": "Příloha odebrána.",
+  "cheatsheets.attachments_added": "{{count}} příloh přidáno.",
+  "cheatsheets.no_knowledge_files": "Nebyly nalezeny žádné kompatibilní soubory (.txt, .md)"
 }

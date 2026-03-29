@@ -24,5 +24,21 @@
   "cheatsheets.subtitle": "Ściągawka",
   "cheatsheets.tab_edit": "Redagować",
   "cheatsheets.tab_preview": "zapowiedź",
-  "cheatsheets.title": "Ściągawka"
+  "cheatsheets.title": "Ściągawka",
+  "cheatsheets.attachments": "Załączniki",
+  "cheatsheets.characters": "znaków",
+  "cheatsheets.no_attachments": "Brak załączników",
+  "cheatsheets.upload_file": "Prześlij plik",
+  "cheatsheets.from_knowledge": "Z bazy wiedzy",
+  "cheatsheets.attachments_hint": "Tylko pliki .txt i .md. Maksymalnie 25 000 znaków łącznie.",
+  "cheatsheets.select_knowledge_file": "Wybierz plik",
+  "cheatsheets.loading": "Ładowanie...",
+  "cheatsheets.attach_selected": "Dołącz wybrane",
+  "cheatsheets.remove_attachment": "Usuń",
+  "cheatsheets.save_first": "Najpierw zapisz ściągawkę, zanim dodasz załączniki.",
+  "cheatsheets.invalid_file_type": "Dozwolone są tylko pliki .txt i .md.",
+  "cheatsheets.attachment_added": "Załącznik dodany.",
+  "cheatsheets.attachment_removed": "Załącznik usunięty.",
+  "cheatsheets.attachments_added": "{{count}} załącznik(ów) dodanych.",
+  "cheatsheets.no_knowledge_files": "Nie znaleziono kompatybilnych plików (.txt, .md)"
 }

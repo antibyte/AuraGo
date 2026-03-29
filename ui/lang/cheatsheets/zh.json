@@ -24,5 +24,21 @@
   "cheatsheets.subtitle": "备忘单",
   "cheatsheets.tab_edit": "编辑",
   "cheatsheets.tab_preview": "预览",
-  "cheatsheets.title": "备忘单"
+  "cheatsheets.title": "备忘单",
+  "cheatsheets.attachments": "附件",
+  "cheatsheets.characters": "字符",
+  "cheatsheets.no_attachments": "无附件",
+  "cheatsheets.upload_file": "上传文件",
+  "cheatsheets.from_knowledge": "从知识库",
+  "cheatsheets.attachments_hint": "仅限 .txt 和 .md 文件。总计最多25,000个字符。",
+  "cheatsheets.select_knowledge_file": "选择文件",
+  "cheatsheets.loading": "加载中...",
+  "cheatsheets.attach_selected": "附加所选",
+  "cheatsheets.remove_attachment": "移除",
+  "cheatsheets.save_first": "请先保存备忘单，然后再添加附件。",
+  "cheatsheets.invalid_file_type": "仅允许 .txt 和 .md 文件。",
+  "cheatsheets.attachment_added": "附件已添加。",
+  "cheatsheets.attachment_removed": "附件已移除。",
+  "cheatsheets.attachments_added": "已添加 {{count}} 个附件。",
+  "cheatsheets.no_knowledge_files": "未找到兼容文件 (.txt, .md)"
 }

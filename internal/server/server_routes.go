@@ -1113,7 +1113,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 
 		// ── Cheat Sheets API ──
 		mux.HandleFunc("/api/cheatsheets", handleCheatSheets(s))
-		mux.HandleFunc("/api/cheatsheets/", handleCheatSheetByID(s))
+		mux.HandleFunc("/api/cheatsheets/", handleCheatSheetRouter(s))
 
 		// ── Contacts (Address Book) API ──
 		mux.HandleFunc("/api/contacts", handleContacts(s))

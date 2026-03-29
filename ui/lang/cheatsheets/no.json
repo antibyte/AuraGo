@@ -24,5 +24,21 @@
   "cheatsheets.subtitle": "Jukseark",
   "cheatsheets.tab_edit": "Redigere",
   "cheatsheets.tab_preview": "forhåndsvisning",
-  "cheatsheets.title": "Jukseark"
+  "cheatsheets.title": "Jukseark",
+  "cheatsheets.attachments": "Vedlegg",
+  "cheatsheets.characters": "tegn",
+  "cheatsheets.no_attachments": "Ingen vedlegg",
+  "cheatsheets.upload_file": "Last opp fil",
+  "cheatsheets.from_knowledge": "Fra kunnskapsbanken",
+  "cheatsheets.attachments_hint": "Kun .txt og .md filer. Maks 25 000 tegn totalt.",
+  "cheatsheets.select_knowledge_file": "Velg fil",
+  "cheatsheets.loading": "Laster...",
+  "cheatsheets.attach_selected": "Legg ved valgte",
+  "cheatsheets.remove_attachment": "Fjern",
+  "cheatsheets.save_first": "Lagre juksearket først før du legger til vedlegg.",
+  "cheatsheets.invalid_file_type": "Kun .txt og .md filer er tillatt.",
+  "cheatsheets.attachment_added": "Vedlegg lagt til.",
+  "cheatsheets.attachment_removed": "Vedlegg fjernet.",
+  "cheatsheets.attachments_added": "{{count}} vedlegg lagt til.",
+  "cheatsheets.no_knowledge_files": "Ingen kompatible filer funnet (.txt, .md)"
 }

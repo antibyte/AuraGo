@@ -93,9 +93,46 @@
                     </label>
                 </div>
             </div>
+
+            <!-- Attachments Section -->
+            <div class="form-group attachments-section">
+                <label data-i18n="cheatsheets.attachments">Attachments</label>
+                <div class="attachments-info">
+                    <span class="char-counter" id="attachment-char-counter">0 / 25,000 <span data-i18n="cheatsheets.characters">characters</span></span>
+                </div>
+                <div class="attachments-list" id="attachments-list"></div>
+                <div class="attachments-actions">
+                    <label class="btn btn-secondary btn-sm attachment-upload-btn">
+                        <span>📎</span> <span data-i18n="cheatsheets.upload_file">Upload File</span>
+                        <input type="file" id="attachment-file-input" accept=".txt,.md" style="display:none" onchange="uploadAttachment(this)">
+                    </label>
+                    <button class="btn btn-secondary btn-sm" onclick="openKnowledgePicker()">
+                        <span>📚</span> <span data-i18n="cheatsheets.from_knowledge">From Knowledge Center</span>
+                    </button>
+                </div>
+                <div class="attachments-hint" data-i18n="cheatsheets.attachments_hint">Only .txt and .md files. Max 25,000 characters total.</div>
+            </div>
+
             <div class="modal-actions">
                 <button class="btn btn-secondary" onclick="closeModal('edit-modal')" data-i18n="cheatsheets.cancel">Cancel</button>
                 <button class="btn btn-primary" onclick="saveSheet()" data-i18n="cheatsheets.save">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Knowledge Picker Modal -->
+    <div class="modal-overlay" id="knowledge-picker-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 data-i18n="cheatsheets.select_knowledge_file">Select Knowledge File</h2>
+                <button class="modal-close" onclick="closeModal('knowledge-picker-modal')">&times;</button>
+            </div>
+            <div class="knowledge-picker-list" id="knowledge-picker-list">
+                <div class="knowledge-picker-loading" data-i18n="cheatsheets.loading">Loading...</div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal('knowledge-picker-modal')" data-i18n="cheatsheets.cancel">Cancel</button>
+                <button class="btn btn-primary" id="btn-knowledge-confirm" disabled onclick="confirmKnowledgePick()" data-i18n="cheatsheets.attach_selected">Attach Selected</button>
             </div>
         </div>
     </div>

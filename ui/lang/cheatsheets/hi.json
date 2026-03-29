@@ -24,5 +24,21 @@
   "cheatsheets.subtitle": "प्रवंचक पत्रक",
   "cheatsheets.tab_edit": "संपादन करना",
   "cheatsheets.tab_preview": "पूर्व दर्शन",
-  "cheatsheets.title": "प्रवंचक पत्रक"
+  "cheatsheets.title": "प्रवंचक पत्रक",
+  "cheatsheets.attachments": "अनुलग्नक",
+  "cheatsheets.characters": "अक्षर",
+  "cheatsheets.no_attachments": "कोई अनुलग्नक नहीं",
+  "cheatsheets.upload_file": "फ़ाइल अपलोड करें",
+  "cheatsheets.from_knowledge": "ज्ञान केंद्र से",
+  "cheatsheets.attachments_hint": "केवल .txt और .md फाइलें। कुल अधिकतम 25,000 अक्षर।",
+  "cheatsheets.select_knowledge_file": "फ़ाइल चुनें",
+  "cheatsheets.loading": "लोड हो रहा है...",
+  "cheatsheets.attach_selected": "चयनित संलग्न करें",
+  "cheatsheets.remove_attachment": "हटाएं",
+  "cheatsheets.save_first": "अनुलग्नक जोड़ने से पहले प्रवंचक पत्रक सहेजें।",
+  "cheatsheets.invalid_file_type": "केवल .txt और .md फाइलें अनुमत हैं।",
+  "cheatsheets.attachment_added": "अनुलग्नक जोड़ा गया।",
+  "cheatsheets.attachment_removed": "अनुलग्नक हटाया गया।",
+  "cheatsheets.attachments_added": "{{count}} अनुलग्नक जोड़े गए।",
+  "cheatsheets.no_knowledge_files": "कोई संगत फ़ाइलें नहीं मिलीं (.txt, .md)"
 }

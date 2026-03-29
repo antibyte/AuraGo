@@ -24,5 +24,21 @@
   "cheatsheets.subtitle": "Snydeark",
   "cheatsheets.tab_edit": "Redigere",
   "cheatsheets.tab_preview": "forhåndsvisning",
-  "cheatsheets.title": "Snydeark"
+  "cheatsheets.title": "Snydeark",
+  "cheatsheets.attachments": "Vedhæftninger",
+  "cheatsheets.characters": "tegn",
+  "cheatsheets.no_attachments": "Ingen vedhæftninger",
+  "cheatsheets.upload_file": "Upload fil",
+  "cheatsheets.from_knowledge": "Fra vidensbanken",
+  "cheatsheets.attachments_hint": "Kun .txt og .md filer. Maks 25.000 tegn i alt.",
+  "cheatsheets.select_knowledge_file": "Vælg fil",
+  "cheatsheets.loading": "Indlæser...",
+  "cheatsheets.attach_selected": "Vedhæft valgte",
+  "cheatsheets.remove_attachment": "Fjern",
+  "cheatsheets.save_first": "Gem snydarket først, før du tilføjer vedhæftninger.",
+  "cheatsheets.invalid_file_type": "Kun .txt og .md filer er tilladt.",
+  "cheatsheets.attachment_added": "Vedhæftning tilføjet.",
+  "cheatsheets.attachment_removed": "Vedhæftning fjernet.",
+  "cheatsheets.attachments_added": "{{count}} vedhæftning(er) tilføjet.",
+  "cheatsheets.no_knowledge_files": "Ingen kompatible filer fundet (.txt, .md)"
 }

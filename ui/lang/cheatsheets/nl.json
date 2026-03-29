@@ -24,5 +24,21 @@
   "cheatsheets.subtitle": "Spiekbriefje",
   "cheatsheets.tab_edit": "Bewerking",
   "cheatsheets.tab_preview": "voorbeeld",
-  "cheatsheets.title": "Spiekbriefje"
+  "cheatsheets.title": "Spiekbriefje",
+  "cheatsheets.attachments": "Bijlagen",
+  "cheatsheets.characters": "tekens",
+  "cheatsheets.no_attachments": "Geen bijlagen",
+  "cheatsheets.upload_file": "Bestand uploaden",
+  "cheatsheets.from_knowledge": "Uit kennisbank",
+  "cheatsheets.attachments_hint": "Alleen .txt en .md bestanden. Max. 25.000 tekens totaal.",
+  "cheatsheets.select_knowledge_file": "Bestand selecteren",
+  "cheatsheets.loading": "Laden...",
+  "cheatsheets.attach_selected": "Geselecteerde bijvoegen",
+  "cheatsheets.remove_attachment": "Verwijderen",
+  "cheatsheets.save_first": "Sla het spiekbriefje eerst op voordat je bijlagen toevoegt.",
+  "cheatsheets.invalid_file_type": "Alleen .txt en .md bestanden zijn toegestaan.",
+  "cheatsheets.attachment_added": "Bijlage toegevoegd.",
+  "cheatsheets.attachment_removed": "Bijlage verwijderd.",
+  "cheatsheets.attachments_added": "{{count}} bijlage(n) toegevoegd.",
+  "cheatsheets.no_knowledge_files": "Geen compatibele bestanden gevonden (.txt, .md)"
 }

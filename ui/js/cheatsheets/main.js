@@ -4,6 +4,8 @@ let sheetsData = [];
 let deleteTarget = null;
 let viewMode = localStorage.getItem('cheatsheets-view-mode') || 'auto'; // 'grid' | 'list' | 'auto'
 let expandedCards = new Set(); // Track expanded card IDs
+let currentAttachments = []; // Attachments for the currently edited sheet
+let knowledgePickerSelection = new Set(); // Selected knowledge files in picker
 
 // ── Init ─────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
@@ -117,6 +119,9 @@ function renderSheetGrid(s) {
     const creatorBadge = s.created_by === 'agent'
         ? `<span class="badge badge-agent">🤖 Agent</span>`
         : '';
+    const attachBadge = (s.attachment_count > 0)
+        ? `<span class="badge badge-attachment">📎 ${s.attachment_count}</span>`
+        : '';
     const preview = esc((s.content || '').substring(0, 150).replace(/\n/g, ' '));
     const updated = s.updated_at ? timeAgo(s.updated_at) : '';
 
@@ -126,7 +131,7 @@ function renderSheetGrid(s) {
                 <span class="card-toggle">▶</span>
                 <div>
                     <div class="card-title">${esc(s.name)}</div>
-                    <div class="card-meta">${updated} ${creatorBadge}</div>
+                    <div class="card-meta">${updated} ${creatorBadge} ${attachBadge}</div>
                 </div>
                 ${statusBadge}
             </div>
@@ -149,6 +154,8 @@ function openCreate() {
     document.getElementById('sheet-content').value = '';
     document.getElementById('sheet-active').checked = true;
     document.getElementById('modal-title').textContent = t('cheatsheets.create_new');
+    currentAttachments = [];
+    renderAttachments();
     switchEditorTab('edit');
     openModal('edit-modal');
     document.getElementById('sheet-name').focus();
@@ -162,6 +169,8 @@ function openEdit(id) {
     document.getElementById('sheet-content').value = s.content;
     document.getElementById('sheet-active').checked = s.active;
     document.getElementById('modal-title').textContent = t('cheatsheets.edit_sheet');
+    currentAttachments = s.attachments || [];
+    renderAttachments();
     switchEditorTab('edit');
     openModal('edit-modal');
     document.getElementById('sheet-name').focus();
@@ -185,15 +194,22 @@ async function saveSheet() {
                 method: 'PUT',
                 body: JSON.stringify({ name, content, active })
             });
+            closeModal('edit-modal');
+            showToast(t('cheatsheets.saved'), 'success');
+            await loadSheets();
         } else {
-            await api('', {
+            const created = await api('', {
                 method: 'POST',
                 body: JSON.stringify({ name, content })
             });
+            // Set the ID so the user can now add attachments
+            document.getElementById('sheet-id').value = created.id;
+            showToast(t('cheatsheets.saved'), 'success');
+            await loadSheets();
+            // Update local data ref
+            currentAttachments = [];
+            renderAttachments();
         }
-        closeModal('edit-modal');
-        showToast(t('cheatsheets.saved'), 'success');
-        await loadSheets();
     } catch (e) {
         showToast(t('cheatsheets.error') + ': ' + e.message, 'error');
     }
@@ -286,4 +302,186 @@ function renderMarkdown(md) {
     html = html.replace(/\n\n/g, '</p><p>');
     html = html.replace(/\n/g, '<br>');
     return '<p>' + html + '</p>';
+}
+
+// ── Attachments ──────────────────────────────────────────
+
+const MAX_ATTACHMENT_CHARS = 25000;
+
+function renderAttachments() {
+    const list = document.getElementById('attachments-list');
+    const counter = document.getElementById('attachment-char-counter');
+    const totalChars = currentAttachments.reduce((sum, a) => sum + (a.char_count || 0), 0);
+
+    counter.textContent = `${totalChars.toLocaleString()} / ${MAX_ATTACHMENT_CHARS.toLocaleString()} ${t('cheatsheets.characters') || 'characters'}`;
+    counter.classList.toggle('over-limit', totalChars > MAX_ATTACHMENT_CHARS);
+
+    if (currentAttachments.length === 0) {
+        list.innerHTML = `<div class="attachments-empty">${esc(t('cheatsheets.no_attachments') || 'No attachments')}</div>`;
+        return;
+    }
+
+    list.innerHTML = currentAttachments.map(a => {
+        const sourceIcon = a.source === 'knowledge' ? '📚' : '📎';
+        return `
+            <div class="attachment-item">
+                <span class="attachment-icon">${sourceIcon}</span>
+                <span class="attachment-name" title="${esc(a.filename)}">${esc(a.filename)}</span>
+                <span class="attachment-size">${(a.char_count || 0).toLocaleString()} chars</span>
+                <button class="btn btn-sm btn-danger attachment-remove" onclick="removeAttachment('${esc(a.id)}')" title="${esc(t('cheatsheets.remove_attachment') || 'Remove')}">✕</button>
+            </div>`;
+    }).join('');
+}
+
+async function uploadAttachment(input) {
+    const file = input.files[0];
+    if (!file) return;
+    input.value = ''; // reset for re-upload of same file
+
+    const csID = document.getElementById('sheet-id').value;
+    if (!csID) {
+        showToast(t('cheatsheets.save_first') || 'Please save the cheat sheet first before adding attachments.', 'warning');
+        return;
+    }
+
+    const ext = file.name.toLowerCase().split('.').pop();
+    if (ext !== 'txt' && ext !== 'md') {
+        showToast(t('cheatsheets.invalid_file_type') || 'Only .txt and .md files are allowed.', 'warning');
+        return;
+    }
+
+    const form = new FormData();
+    form.append('file', file);
+
+    try {
+        const resp = await fetch(`/api/cheatsheets/${csID}/attachments`, {
+            method: 'POST',
+            body: form
+        });
+        if (!resp.ok) {
+            const err = await resp.json().catch(() => ({ error: resp.statusText }));
+            throw new Error(err.error || resp.statusText);
+        }
+        const attachment = await resp.json();
+        currentAttachments.push(attachment);
+        renderAttachments();
+        showToast(t('cheatsheets.attachment_added') || 'Attachment added.', 'success');
+    } catch (e) {
+        showToast((t('cheatsheets.error') || 'Error') + ': ' + e.message, 'error');
+    }
+}
+
+async function removeAttachment(attachmentID) {
+    const csID = document.getElementById('sheet-id').value;
+    if (!csID) return;
+
+    try {
+        const resp = await fetch(`/api/cheatsheets/${csID}/attachments/${attachmentID}`, {
+            method: 'DELETE'
+        });
+        if (!resp.ok) {
+            const err = await resp.json().catch(() => ({ error: resp.statusText }));
+            throw new Error(err.error || resp.statusText);
+        }
+        currentAttachments = currentAttachments.filter(a => a.id !== attachmentID);
+        renderAttachments();
+        showToast(t('cheatsheets.attachment_removed') || 'Attachment removed.', 'success');
+    } catch (e) {
+        showToast((t('cheatsheets.error') || 'Error') + ': ' + e.message, 'error');
+    }
+}
+
+// ── Knowledge Picker ─────────────────────────────────────
+
+async function openKnowledgePicker() {
+    const csID = document.getElementById('sheet-id').value;
+    if (!csID) {
+        showToast(t('cheatsheets.save_first') || 'Please save the cheat sheet first before adding attachments.', 'warning');
+        return;
+    }
+
+    knowledgePickerSelection.clear();
+    document.getElementById('btn-knowledge-confirm').disabled = true;
+
+    const list = document.getElementById('knowledge-picker-list');
+    list.innerHTML = `<div class="knowledge-picker-loading">${esc(t('cheatsheets.loading') || 'Loading...')}</div>`;
+    openModal('knowledge-picker-modal');
+
+    try {
+        const resp = await fetch('/api/knowledge');
+        if (!resp.ok) throw new Error(resp.statusText);
+        const files = await resp.json();
+
+        // Filter to .txt and .md only
+        const textFiles = files.filter(f => {
+            const ext = (f.extension || '').toLowerCase();
+            return ext === 'txt' || ext === 'md';
+        });
+
+        // Exclude already attached filenames
+        const attachedNames = new Set(currentAttachments.map(a => a.filename));
+        const available = textFiles.filter(f => !attachedNames.has(f.name));
+
+        if (available.length === 0) {
+            list.innerHTML = `<div class="knowledge-picker-empty">${esc(t('cheatsheets.no_knowledge_files') || 'No compatible files found (.txt, .md)')}</div>`;
+            return;
+        }
+
+        list.innerHTML = available.map(f => `
+            <label class="knowledge-picker-item">
+                <input type="checkbox" value="${esc(f.name)}" onchange="toggleKnowledgePick(this)">
+                <span class="knowledge-picker-name">${esc(f.name)}</span>
+                <span class="knowledge-picker-size">${formatFileSize(f.size)}</span>
+            </label>
+        `).join('');
+    } catch (e) {
+        list.innerHTML = `<div class="knowledge-picker-empty">${esc((t('cheatsheets.error') || 'Error') + ': ' + e.message)}</div>`;
+    }
+}
+
+function toggleKnowledgePick(checkbox) {
+    if (checkbox.checked) {
+        knowledgePickerSelection.add(checkbox.value);
+    } else {
+        knowledgePickerSelection.delete(checkbox.value);
+    }
+    document.getElementById('btn-knowledge-confirm').disabled = knowledgePickerSelection.size === 0;
+}
+
+async function confirmKnowledgePick() {
+    const csID = document.getElementById('sheet-id').value;
+    if (!csID || knowledgePickerSelection.size === 0) return;
+
+    let added = 0;
+    for (const filename of knowledgePickerSelection) {
+        try {
+            const resp = await fetch(`/api/cheatsheets/${csID}/attachments`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ source: 'knowledge', filename })
+            });
+            if (!resp.ok) {
+                const err = await resp.json().catch(() => ({ error: resp.statusText }));
+                showToast(`${filename}: ${err.error || resp.statusText}`, 'error');
+                continue;
+            }
+            const attachment = await resp.json();
+            currentAttachments.push(attachment);
+            added++;
+        } catch (e) {
+            showToast(`${filename}: ${e.message}`, 'error');
+        }
+    }
+
+    closeModal('knowledge-picker-modal');
+    renderAttachments();
+    if (added > 0) {
+        showToast(t('cheatsheets.attachments_added', { count: added }) || `${added} attachment(s) added.`, 'success');
+    }
+}
+
+function formatFileSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
 }

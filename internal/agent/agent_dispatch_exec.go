@@ -983,8 +983,36 @@ func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *
 				return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
 			}
 			return `Tool Output: {"status":"ok","message":"Cheat sheet deleted."}`
+		case "attach":
+			if tc.ID == "" {
+				return `Tool Output: {"status":"error","message":"'id' (cheat sheet ID) is required for attach."}`
+			}
+			if tc.Filename == "" {
+				return `Tool Output: {"status":"error","message":"'filename' is required for attach."}`
+			}
+			source := "upload"
+			if tc.Source != "" {
+				source = tc.Source
+			}
+			attachment, err := tools.CheatsheetAttachmentAdd(cheatsheetDB, tc.ID, tc.Filename, source, tc.Content)
+			if err != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
+			}
+			data, _ := json.Marshal(map[string]interface{}{"status": "ok", "message": "Attachment added.", "attachment": attachment})
+			return fmt.Sprintf("Tool Output: %s", string(data))
+		case "detach":
+			if tc.ID == "" {
+				return `Tool Output: {"status":"error","message":"'id' (cheat sheet ID) is required for detach."}`
+			}
+			if tc.AttachmentID == "" {
+				return `Tool Output: {"status":"error","message":"'attachment_id' is required for detach."}`
+			}
+			if err := tools.CheatsheetAttachmentRemove(cheatsheetDB, tc.ID, tc.AttachmentID); err != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
+			}
+			return `Tool Output: {"status":"ok","message":"Attachment removed."}`
 		default:
-			return fmt.Sprintf(`Tool Output: {"status":"error","message":"Unknown cheatsheet operation: %s. Use list, get, create, update, or delete."}`, op)
+			return fmt.Sprintf(`Tool Output: {"status":"error","message":"Unknown cheatsheet operation: %s. Use list, get, create, update, delete, attach, or detach."}`, op)
 		}
 
 	case "get_secret", "secrets_vault":

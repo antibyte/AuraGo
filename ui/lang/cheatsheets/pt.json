@@ -24,5 +24,21 @@
   "cheatsheets.subtitle": "Folha de dicas",
   "cheatsheets.tab_edit": "Editar",
   "cheatsheets.tab_preview": "visualização",
-  "cheatsheets.title": "Folha de dicas"
+  "cheatsheets.title": "Folha de dicas",
+  "cheatsheets.attachments": "Anexos",
+  "cheatsheets.characters": "caracteres",
+  "cheatsheets.no_attachments": "Sem anexos",
+  "cheatsheets.upload_file": "Carregar arquivo",
+  "cheatsheets.from_knowledge": "Da base de conhecimento",
+  "cheatsheets.attachments_hint": "Apenas arquivos .txt e .md. Máx. 25.000 caracteres no total.",
+  "cheatsheets.select_knowledge_file": "Selecionar arquivo",
+  "cheatsheets.loading": "Carregando...",
+  "cheatsheets.attach_selected": "Anexar selecionados",
+  "cheatsheets.remove_attachment": "Remover",
+  "cheatsheets.save_first": "Salve a folha de dicas primeiro antes de adicionar anexos.",
+  "cheatsheets.invalid_file_type": "Apenas arquivos .txt e .md são permitidos.",
+  "cheatsheets.attachment_added": "Anexo adicionado.",
+  "cheatsheets.attachment_removed": "Anexo removido.",
+  "cheatsheets.attachments_added": "{{count}} anexo(s) adicionado(s).",
+  "cheatsheets.no_knowledge_files": "Nenhum arquivo compatível encontrado (.txt, .md)"
 }

@@ -233,6 +233,167 @@
 }
 
 /* Responsive */
+
+/* ── Attachments Section ── */
+
+.attachments-section {
+    border-top: 1px solid var(--border-subtle);
+    padding-top: 16px;
+    margin-top: 8px;
+}
+
+.attachments-info {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 8px;
+}
+
+.char-counter {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+}
+
+.char-counter.over-limit {
+    color: var(--accent-danger);
+    font-weight: 600;
+}
+
+.attachments-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 10px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.attachments-empty {
+    text-align: center;
+    padding: 12px;
+    color: var(--text-tertiary);
+    font-size: 0.85rem;
+}
+
+.attachment-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    background: var(--bg-glass);
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    font-size: 0.85rem;
+}
+
+.attachment-icon {
+    flex-shrink: 0;
+}
+
+.attachment-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-primary);
+}
+
+.attachment-size {
+    flex-shrink: 0;
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.attachment-remove {
+    flex-shrink: 0;
+    padding: 2px 6px !important;
+    min-width: auto !important;
+    font-size: 0.75rem !important;
+    line-height: 1 !important;
+}
+
+.attachments-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.attachment-upload-btn {
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.attachments-hint {
+    font-size: 0.78rem;
+    color: var(--text-tertiary);
+    margin-top: 6px;
+}
+
+/* Badge for attachment count */
+.badge-attachment {
+    background: var(--accent-dim);
+    color: var(--accent);
+    font-size: 0.72rem;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 500;
+}
+
+/* ── Knowledge Picker ── */
+
+.knowledge-picker-list {
+    max-height: 350px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 16px;
+}
+
+.knowledge-picker-loading,
+.knowledge-picker-empty {
+    text-align: center;
+    padding: 24px;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.knowledge-picker-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.knowledge-picker-item:hover {
+    background: var(--bg-glass);
+}
+
+.knowledge-picker-item input[type="checkbox"] {
+    flex-shrink: 0;
+}
+
+.knowledge-picker-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.9rem;
+}
+
+.knowledge-picker-size {
+    flex-shrink: 0;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+}
+
+/* Responsive */
 @media (max-width: 768px) {
     .cards-grid {
         grid-template-columns: 1fr;

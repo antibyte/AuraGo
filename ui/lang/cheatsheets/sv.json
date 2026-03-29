@@ -24,5 +24,21 @@
   "cheatsheets.subtitle": "Fuskblad",
   "cheatsheets.tab_edit": "Redigera",
   "cheatsheets.tab_preview": "förhandsvisning",
-  "cheatsheets.title": "Fuskblad"
+  "cheatsheets.title": "Fuskblad",
+  "cheatsheets.attachments": "Bilagor",
+  "cheatsheets.characters": "tecken",
+  "cheatsheets.no_attachments": "Inga bilagor",
+  "cheatsheets.upload_file": "Ladda upp fil",
+  "cheatsheets.from_knowledge": "Från kunskapsbanken",
+  "cheatsheets.attachments_hint": "Endast .txt och .md filer. Max 25 000 tecken totalt.",
+  "cheatsheets.select_knowledge_file": "Välj fil",
+  "cheatsheets.loading": "Laddar...",
+  "cheatsheets.attach_selected": "Bifoga valda",
+  "cheatsheets.remove_attachment": "Ta bort",
+  "cheatsheets.save_first": "Spara fuskbladet först innan du lägger till bilagor.",
+  "cheatsheets.invalid_file_type": "Endast .txt och .md filer är tillåtna.",
+  "cheatsheets.attachment_added": "Bilaga tillagd.",
+  "cheatsheets.attachment_removed": "Bilaga borttagen.",
+  "cheatsheets.attachments_added": "{{count}} bilaga/bilagor tillagda.",
+  "cheatsheets.no_knowledge_files": "Inga kompatibla filer hittades (.txt, .md)"
 }

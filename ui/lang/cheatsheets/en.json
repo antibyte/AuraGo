@@ -24,5 +24,21 @@
   "cheatsheets.name_required": "Name is required.",
   "cheatsheets.no_content": "No content",
   "cheatsheets.empty_title": "No Cheat Sheets Yet",
-  "cheatsheets.empty_desc": "Create reusable workflow instructions for the agent."
+  "cheatsheets.empty_desc": "Create reusable workflow instructions for the agent.",
+  "cheatsheets.attachments": "Attachments",
+  "cheatsheets.characters": "characters",
+  "cheatsheets.no_attachments": "No attachments",
+  "cheatsheets.upload_file": "Upload File",
+  "cheatsheets.from_knowledge": "From Knowledge Center",
+  "cheatsheets.attachments_hint": "Only .txt and .md files. Max 25,000 characters total.",
+  "cheatsheets.select_knowledge_file": "Select Knowledge File",
+  "cheatsheets.loading": "Loading...",
+  "cheatsheets.attach_selected": "Attach Selected",
+  "cheatsheets.remove_attachment": "Remove",
+  "cheatsheets.save_first": "Please save the cheat sheet first before adding attachments.",
+  "cheatsheets.invalid_file_type": "Only .txt and .md files are allowed.",
+  "cheatsheets.attachment_added": "Attachment added.",
+  "cheatsheets.attachment_removed": "Attachment removed.",
+  "cheatsheets.attachments_added": "{{count}} attachment(s) added.",
+  "cheatsheets.no_knowledge_files": "No compatible files found (.txt, .md)"
 }

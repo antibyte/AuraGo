@@ -24,5 +24,21 @@
   "cheatsheets.name_required": "Name ist erforderlich.",
   "cheatsheets.no_content": "Kein Inhalt",
   "cheatsheets.empty_title": "Noch keine Spickzettel",
-  "cheatsheets.empty_desc": "Erstelle wiederverwendbare Arbeitsanweisungen für den Agenten."
+  "cheatsheets.empty_desc": "Erstelle wiederverwendbare Arbeitsanweisungen für den Agenten.",
+  "cheatsheets.attachments": "Anhänge",
+  "cheatsheets.characters": "Zeichen",
+  "cheatsheets.no_attachments": "Keine Anhänge",
+  "cheatsheets.upload_file": "Datei hochladen",
+  "cheatsheets.from_knowledge": "Aus Wissensdatenbank",
+  "cheatsheets.attachments_hint": "Nur .txt und .md Dateien. Max. 25.000 Zeichen insgesamt.",
+  "cheatsheets.select_knowledge_file": "Wissensdatei auswählen",
+  "cheatsheets.loading": "Laden...",
+  "cheatsheets.attach_selected": "Ausgewählte anhängen",
+  "cheatsheets.remove_attachment": "Entfernen",
+  "cheatsheets.save_first": "Bitte speichere den Spickzettel zuerst, bevor du Anhänge hinzufügst.",
+  "cheatsheets.invalid_file_type": "Nur .txt und .md Dateien sind erlaubt.",
+  "cheatsheets.attachment_added": "Anhang hinzugefügt.",
+  "cheatsheets.attachment_removed": "Anhang entfernt.",
+  "cheatsheets.attachments_added": "{{count}} Anhang/Anhänge hinzugefügt.",
+  "cheatsheets.no_knowledge_files": "Keine kompatiblen Dateien gefunden (.txt, .md)"
 }
