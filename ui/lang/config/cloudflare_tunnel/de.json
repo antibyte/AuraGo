@@ -21,5 +21,8 @@
   "config.cloudflare_tunnel.save_vault": "Im Vault speichern",
   "config.cloudflare_tunnel.token_empty": "Token darf nicht leer sein",
   "config.cloudflare_tunnel.token_saved": "Token erfolgreich im Vault gespeichert",
-  "config.cloudflare_tunnel.start_tunnel": "Tunnel starten"
+  "config.cloudflare_tunnel.start_tunnel": "Tunnel starten",
+  "config.cloudflare_tunnel.expose_target_label": "Ziel-Dienst des Tunnels",
+  "config.cloudflare_tunnel.expose_single_hint": "Token- und Quick-Tunnel verwenden genau eine Ursprungs-URL. Nur ein Dienst kann Tunnel-Ziel sein. F\u00fcr mehrere Dienste unter verschiedenen Hostnamen Named Tunnel verwenden.",
+  "config.cloudflare_tunnel.expose_named_hint": "Named Tunnels unterst\u00fctzen mehrere Ingress-Regeln — beide Dienste k\u00f6nnen gleichzeitig exponiert werden. Dazu separate Hostnamen in den Custom Ingress Regeln konfigurieren."
 }

@@ -21,5 +21,8 @@
   "config.cloudflare_tunnel.save_vault": "Guardar en Vault",
   "config.cloudflare_tunnel.token_empty": "El token no puede estar vac\u00edo",
   "config.cloudflare_tunnel.token_saved": "Token guardado en vault exitosamente",
-  "config.cloudflare_tunnel.start_tunnel": "Iniciar t\u00fanel"
+  "config.cloudflare_tunnel.start_tunnel": "Iniciar t\u00fanel",
+  "config.cloudflare_tunnel.expose_target_label": "Servicio destino del t\u00fanel",
+  "config.cloudflare_tunnel.expose_single_hint": "Los t\u00faneles Token y Quick usan una \u00fanica URL de origen. Solo un servicio puede ser el destino del t\u00fanel. Use Named Tunnel para enrutar m\u00faltiples servicios.",
+  "config.cloudflare_tunnel.expose_named_hint": "Los Named Tunnels soportan m\u00faltiples reglas de ingreso — ambos servicios pueden exponerse simult\u00e1neamente configurando hostnames separados."
 }

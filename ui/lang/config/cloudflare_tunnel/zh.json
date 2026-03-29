@@ -1,4 +1,4 @@
-{
+﻿{
   "config.cloudflare_tunnel.enabled_label": "Cloudflare Tunnel \u5df2\u542f\u7528",
   "config.cloudflare_tunnel.readonly_label": "\u53ea\u8bfb\u6a21\u5f0f\uff08\u4ec5\u72b6\u6001\uff09",
   "config.cloudflare_tunnel.auto_start_label": "\u542f\u52a8\u65f6\u81ea\u52a8\u542f\u52a8",
@@ -21,5 +21,9 @@
   "config.cloudflare_tunnel.save_vault": "\u4fdd\u5b58\u81f3 Vault",
   "config.cloudflare_tunnel.token_empty": "\u4ee4\u724c\u4e0d\u80fd\u4e3a\u7a7a",
   "config.cloudflare_tunnel.token_saved": "\u4ee4\u724c\u5df2\u6210\u529f\u4fdd\u5b58\u81f3 vault",
-  "config.cloudflare_tunnel.start_tunnel": "\u542f\u52a8\u96a7\u9053"
+  ,
+  "config.cloudflare_tunnel.start_tunnel": "\u542f\u52a8\u96a7\u9053",
+  "config.cloudflare_tunnel.expose_target_label": "\u96a7\u9053\u76ee\u6807\u670d\u52a1",
+  "config.cloudflare_tunnel.expose_single_hint": "Token \u548c Quick \u96a7\u9053\u4ec5\u4f7f\u7528\u5355\u4e00\u6e90 URL\uff08--url\uff09\uff0c\u53ea\u80fd\u8bbe\u7f6e\u4e00\u4e2a\u670d\u52a1\u4f5c\u4e3a\u96a7\u9053\u76ee\u6807\u3002\u5982\u9700\u5728\u4e0d\u540c\u4e3b\u673a\u540d\u4e0b\u8def\u7531\u591a\u4e2a\u670d\u52a1\uff0c\u8bf7\u4f7f\u7528 Named Tunnel\u3002",
+  "config.cloudflare_tunnel.expose_named_hint": "Named Tunnels \u652f\u6301\u591a\u4e2a\u5165\u7ad9\u89c4\u5219\uff0c\u53ef\u901a\u8fc7\u5728\u4e0b\u65b9 Custom Ingress \u89c4\u5219\u4e2d\u914d\u7f6e\u72ec\u7acb\u4e3b\u673a\u540d\uff0c\u540c\u65f6\u66b4\u9732\u4e24\u4e2a\u670d\u52a1\u3002"
 }

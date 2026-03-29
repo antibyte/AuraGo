@@ -103,20 +103,41 @@ async function renderCloudflareTunnelSection(section) {
 
     html += `</div>`; // close grid
 
-    // Exposure toggles
+    // Exposure section
     html += `<div class="cft-exposure-heading-wrap">
         <span class="cft-exposure-heading">${t('config.cloudflare_tunnel.exposure_heading')}</span>
     </div>`;
 
-    html += `<div class="cft-toggle-row cft-toggle-row-exposure">
-        <span class="cft-toggle-label">${t('config.cloudflare_tunnel.expose_web_ui')}</span>
-        <div class="toggle ${exposeWebUI ? 'on' : ''}" data-path="cloudflare_tunnel.expose_web_ui" onclick="toggleBool(this)"></div>
-    </div>`;
-
-    html += `<div class="cft-toggle-row">
-        <span class="cft-toggle-label">${t('config.cloudflare_tunnel.expose_homepage')}</span>
-        <div class="toggle ${exposeHomepage ? 'on' : ''}" data-path="cloudflare_tunnel.expose_homepage" onclick="toggleBool(this)"></div>
-    </div>`;
+    const isNamed = cfg.auth_method === 'named';
+    if (isNamed) {
+        // Named tunnel: multiple ingress rules supported — both services can be exposed independently
+        html += `<div class="cft-toggle-row cft-toggle-row-exposure">
+            <span class="cft-toggle-label">${t('config.cloudflare_tunnel.expose_web_ui')}</span>
+            <div class="toggle ${exposeWebUI ? 'on' : ''}" data-path="cloudflare_tunnel.expose_web_ui" onclick="toggleBool(this)"></div>
+        </div>`;
+        html += `<div class="cft-toggle-row">
+            <span class="cft-toggle-label">${t('config.cloudflare_tunnel.expose_homepage')}</span>
+            <div class="toggle ${exposeHomepage ? 'on' : ''}" data-path="cloudflare_tunnel.expose_homepage" onclick="toggleBool(this)"></div>
+        </div>`;
+        html += `<div class="wh-notice cft-notice-info" style="margin-top:0.5rem;">
+            <span>ℹ️</span>
+            <div><small>${t('config.cloudflare_tunnel.expose_named_hint')}</small></div>
+        </div>`;
+    } else {
+        // Token / Quick tunnel: single origin URL (--url) — only one target allowed
+        const exposeTarget = (exposeHomepage && !exposeWebUI) ? 'homepage' : 'web_ui';
+        html += `<label class="cft-field-label" style="max-width:420px;margin-top:0.4rem;">
+            <span class="cft-field-caption">${t('config.cloudflare_tunnel.expose_target_label')}</span>
+            <select class="cfg-input cft-field-input" onchange="cloudflareTunnelSetExposeTarget(this.value)">
+                <option value="web_ui" ${exposeTarget === 'web_ui' ? 'selected' : ''}>${t('config.cloudflare_tunnel.expose_web_ui')}</option>
+                <option value="homepage" ${exposeTarget === 'homepage' ? 'selected' : ''}>${t('config.cloudflare_tunnel.expose_homepage')}</option>
+            </select>
+        </label>`;
+        html += `<div class="wh-notice cft-notice-warn" style="margin-top:0.5rem;">
+            <span>⚠️</span>
+            <div><small>${t('config.cloudflare_tunnel.expose_single_hint')}</small></div>
+        </div>`;
+    }
 
     // Token input for token auth mode
     if ((cfg.auth_method === 'token' || !cfg.auth_method) && enabled) {
@@ -141,6 +162,12 @@ async function renderCloudflareTunnelSection(section) {
 
     html += `</div>`; // close section
     document.getElementById('content').innerHTML = html;
+}
+
+function cloudflareTunnelSetExposeTarget(value) {
+    setNestedValue(configData, 'cloudflare_tunnel.expose_web_ui', value === 'web_ui');
+    setNestedValue(configData, 'cloudflare_tunnel.expose_homepage', value === 'homepage');
+    setDirty(true);
 }
 
 function cloudflareTunnelSaveToken() {

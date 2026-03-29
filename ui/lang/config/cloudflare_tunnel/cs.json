@@ -21,5 +21,8 @@
   "config.cloudflare_tunnel.save_vault": "Ulo\u017eit do trezoru",
   "config.cloudflare_tunnel.token_empty": "Token nem\u016f\u017ee b\u00fdt pr\u00e1zdn\u00fd",
   "config.cloudflare_tunnel.token_saved": "Token \u00fasp\u011b\u0161n\u011b ulo\u017een do trezoru",
-  "config.cloudflare_tunnel.start_tunnel": "Spustit tunel"
+  "config.cloudflare_tunnel.start_tunnel": "Spustit tunel",
+  "config.cloudflare_tunnel.expose_target_label": "Cílová služba tunelu",
+  "config.cloudflare_tunnel.expose_single_hint": "Token a Quick tunely používají jednu zdrojovou URL (--url). Jako cíl tunelu lze nastavit pouze jednu službu. Pro směrování více služeb pod různými názvy hostitelů použijte Named Tunnel.",
+  "config.cloudflare_tunnel.expose_named_hint": "Named Tunnely podporují více ingress pravidel. Obě služby lze vystavit současně konfigurací samostatných názvů hostitelů v pravidlech Custom Ingress níže."
 }

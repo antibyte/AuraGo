@@ -21,5 +21,8 @@
   "config.cloudflare_tunnel.save_vault": "Sauvegarder dans le Vault",
   "config.cloudflare_tunnel.token_empty": "Le jeton ne peut pas \u00eatre vide",
   "config.cloudflare_tunnel.token_saved": "Jeton enregistr\u00e9 dans le vault avec succ\u00e8s",
-  "config.cloudflare_tunnel.start_tunnel": "D\u00e9marrer le tunnel"
+  "config.cloudflare_tunnel.start_tunnel": "D\u00e9marrer le tunnel",
+  "config.cloudflare_tunnel.expose_target_label": "Service cible du tunnel",
+  "config.cloudflare_tunnel.expose_single_hint": "Les tunnels Token et Quick utilisent une seule URL d'origine. Un seul service peut \u00eatre la destination du tunnel. Utilisez Named Tunnel pour le routage multi-services.",
+  "config.cloudflare_tunnel.expose_named_hint": "Les Named Tunnels supportent plusieurs r\u00e8gles d'entr\u00e9e — les deux services peuvent \u00eatre expos\u00e9s simultan\u00e9ment via des r\u00e8gles d'ingress personnalis\u00e9es."
 }

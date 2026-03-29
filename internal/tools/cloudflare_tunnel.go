@@ -465,12 +465,21 @@ func cfPutTunnelConfig(ctx context.Context, accountID, apiToken, tunnelID string
 // When LoopbackPort is set the tunnel uses a plain-HTTP loopback endpoint
 // (http://127.0.0.1:LoopbackPort) regardless of whether HTTPS is enabled,
 // so no TLS verification is required on the cloudflared side.
+//
+// For token/quick tunnels the --url flag accepts a SINGLE origin URL; all
+// traffic at the Cloudflare edge is forwarded there regardless of the
+// incoming hostname. That is why ExposeWebUI and ExposeHomepage are mutually
+// exclusive in those modes:
+//   - If only ExposeHomepage is true → use HomepagePort (plain HTTP)
+//   - Otherwise (ExposeWebUI or default) → use WebUIPort / HTTPS / Loopback
 func buildLocalURL(cfg CloudflareTunnelConfig, host string) string {
-	// Loopback port: plain HTTP on 127.0.0.1, always takes precedence.
-	// The host parameter is overridden to 127.0.0.1 because the loopback
-	// listener is never bound to any other interface.
+	// Loopback port always wins — plain HTTP, stays on 127.0.0.1.
 	if cfg.LoopbackPort > 0 {
 		return fmt.Sprintf("http://127.0.0.1:%d", cfg.LoopbackPort)
+	}
+	// Homepage-only mode: route the single tunnel origin to the Homepage server.
+	if cfg.ExposeHomepage && !cfg.ExposeWebUI && cfg.HomepagePort > 0 {
+		return fmt.Sprintf("http://%s:%d", host, cfg.HomepagePort)
 	}
 	if cfg.HTTPSEnabled {
 		port := cfg.HTTPSPort
@@ -1009,11 +1018,7 @@ func writeNamedTunnelConfig(cfg CloudflareTunnelConfig, credPath, configPath str
 	}
 	sb.WriteString("\ningress:\n")
 
-	if cfg.ExposeWebUI && cfg.WebUIPort > 0 {
-		// For named tunnels, hostname must be set in CF dashboard; use the first custom rule
-		// or let the user configure it. We create a catch-all that routes to web UI.
-	}
-
+	// Write explicit custom_ingress rules first (highest priority, user-defined hostnames).
 	for _, r := range cfg.CustomIngress {
 		sb.WriteString("  - hostname: " + r.Hostname + "\n")
 		if r.Path != "" {
@@ -1022,13 +1027,31 @@ func writeNamedTunnelConfig(cfg CloudflareTunnelConfig, credPath, configPath str
 		sb.WriteString("    service: " + r.Service + "\n")
 	}
 
-	// Auto-add web UI and homepage as ingress (user should set hostname in CF dashboard for token mode,
-	// but for named tunnel we can use wildcard or specific rules)
-	if cfg.ExposeWebUI && cfg.WebUIPort > 0 && !hasIngressForService(cfg.CustomIngress, cfg.WebUIPort) {
-		// If no custom rule already maps to the web UI port, add a fallback
+	// Auto-generate a catch-all for the AuraGo Web UI if no custom rule already covers
+	// that port. Named tunnels need at least one ingress rule with a hostname (configured
+	// in the CF Dashboard); if none exists yet, we add a no-hostname catch-all so the
+	// config is syntactically valid while the user sets up the Dashboard routes.
+	webUISvc := ""
+	if cfg.LoopbackPort > 0 {
+		webUISvc = fmt.Sprintf("http://localhost:%d", cfg.LoopbackPort)
+	} else if cfg.HTTPSEnabled {
+		port := cfg.HTTPSPort
+		if port <= 0 {
+			port = 443
+		}
+		webUISvc = fmt.Sprintf("https://localhost:%d", port)
+	} else if cfg.WebUIPort > 0 {
+		webUISvc = fmt.Sprintf("http://localhost:%d", cfg.WebUIPort)
 	}
 
-	// Required catch-all
+	if cfg.ExposeWebUI && webUISvc != "" && !hasIngressForService(cfg.CustomIngress, cfg.WebUIPort) {
+		sb.WriteString("  - service: " + webUISvc + "\n")
+	}
+	if cfg.ExposeHomepage && cfg.HomepagePort > 0 && !hasIngressForService(cfg.CustomIngress, cfg.HomepagePort) {
+		sb.WriteString("  - service: " + fmt.Sprintf("http://localhost:%d", cfg.HomepagePort) + "\n")
+	}
+
+	// Required catch-all (cloudflared rejects configs without it).
 	sb.WriteString("  - service: http_status:404\n")
 
 	// When AuraGo uses HTTPS with a self-signed certificate, tell cloudflared to skip

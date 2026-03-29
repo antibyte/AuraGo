@@ -21,5 +21,8 @@
   "config.cloudflare_tunnel.save_vault": "Gem i Vault",
   "config.cloudflare_tunnel.token_empty": "Token m\u00e5 ikke v\u00e6re tom",
   "config.cloudflare_tunnel.token_saved": "Token gemt i vault succesfuldt",
-  "config.cloudflare_tunnel.start_tunnel": "Start tunnel"
+  "config.cloudflare_tunnel.start_tunnel": "Start tunnel",
+  "config.cloudflare_tunnel.expose_target_label": "Tunnelens måltjeneste",
+  "config.cloudflare_tunnel.expose_single_hint": "Token- og Quick-tunneler bruger én oprindlig URL (--url). Kun én tjeneste kan være tunnelens mål. Brug Named Tunnel til rutering af flere tjenester under forskellige værtsnavne.",
+  "config.cloudflare_tunnel.expose_named_hint": "Named Tunnels understøtter flere ingress-regler. Begge tjenester kan eksponeres samtidig ved at konfigurere separate værtsnavne i Custom Ingress-reglerne nedenfor."
 }

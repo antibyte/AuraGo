@@ -459,8 +459,6 @@ notifications:
 
 ---
 
-## TrueNAS Integration
-
 Verwalte ZFS-Storage-Pools, Datasets, Snapshots und SMB/NFS-Shares auf TrueNAS SCALE oder CORE.
 
 ### Konfiguration

@@ -21,5 +21,8 @@
   "config.cloudflare_tunnel.save_vault": "Zapisz w Vault",
   "config.cloudflare_tunnel.token_empty": "Token nie mo\u017ce by\u0107 pusty",
   "config.cloudflare_tunnel.token_saved": "Token zapisany w vault",
-  "config.cloudflare_tunnel.start_tunnel": "Uruchom tunel"
+  "config.cloudflare_tunnel.start_tunnel": "Uruchom tunel",
+  "config.cloudflare_tunnel.expose_target_label": "Docelowa us\u0142uga tunelu",
+  "config.cloudflare_tunnel.expose_single_hint": "Tunele Token i Quick u\u017cywaj\u0105 jednego adresu URL \u017ar\u00f3d\u0142a. Tylko jedna us\u0142uga mo\u017ce by\u0107 celem tunelu. U\u017cyj Named Tunnel dla routingu wielu us\u0142ug.",
+  "config.cloudflare_tunnel.expose_named_hint": "Named Tunnele obs\u0142uguj\u0105 wiele regu\u0142 ingress — obie us\u0142ugi mog\u0105 by\u0107 udost\u0119pnione jednocze\u015bnie przez oddzielne hostnamy."
 }
