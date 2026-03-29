@@ -313,6 +313,12 @@
     line-height: 1 !important;
 }
 
+.attachment-pending {
+    opacity: 0.8;
+    border-left: 3px solid var(--color-warning, #f59e0b);
+    padding-left: 8px;
+}
+
 .attachments-actions {
     display: flex;
     gap: 8px;

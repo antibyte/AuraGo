@@ -4,7 +4,8 @@ let sheetsData = [];
 let deleteTarget = null;
 let viewMode = localStorage.getItem('cheatsheets-view-mode') || 'auto'; // 'grid' | 'list' | 'auto'
 let expandedCards = new Set(); // Track expanded card IDs
-let currentAttachments = []; // Attachments for the currently edited sheet
+let currentAttachments = []; // Saved attachments for the currently edited sheet
+let pendingAttachments = [];  // Staged attachments for an unsaved new sheet
 let knowledgePickerSelection = new Set(); // Selected knowledge files in picker
 
 // ── Init ─────────────────────────────────────────────────
@@ -155,21 +156,29 @@ function openCreate() {
     document.getElementById('sheet-active').checked = true;
     document.getElementById('modal-title').textContent = t('cheatsheets.create_new');
     currentAttachments = [];
+    pendingAttachments = [];
     renderAttachments();
     switchEditorTab('edit');
     openModal('edit-modal');
     document.getElementById('sheet-name').focus();
 }
 
-function openEdit(id) {
-    const s = sheetsData.find(x => x.id === id);
-    if (!s) return;
+async function openEdit(id) {
+    // Fetch full sheet data (includes attachments array)
+    let s;
+    try {
+        s = await api('/' + id);
+    } catch (e) {
+        showToast(t('cheatsheets.error') + ': ' + e.message, 'error');
+        return;
+    }
     document.getElementById('sheet-id').value = s.id;
     document.getElementById('sheet-name').value = s.name;
     document.getElementById('sheet-content').value = s.content;
     document.getElementById('sheet-active').checked = s.active;
     document.getElementById('modal-title').textContent = t('cheatsheets.edit_sheet');
     currentAttachments = s.attachments || [];
+    pendingAttachments = [];
     renderAttachments();
     switchEditorTab('edit');
     openModal('edit-modal');
@@ -202,13 +211,38 @@ async function saveSheet() {
                 method: 'POST',
                 body: JSON.stringify({ name, content })
             });
-            // Set the ID so the user can now add attachments
-            document.getElementById('sheet-id').value = created.id;
+            // Upload any staged pending attachments
+            for (const p of pendingAttachments) {
+                try {
+                    if (p.source === 'upload') {
+                        const blob = new Blob([p.content], { type: 'text/plain' });
+                        const file = new File([blob], p.filename, { type: 'text/plain' });
+                        const form = new FormData();
+                        form.append('file', file);
+                        const resp = await fetch(`/api/cheatsheets/${created.id}/attachments`, { method: 'POST', body: form });
+                        if (!resp.ok) {
+                            const err = await resp.json().catch(() => ({ error: resp.statusText }));
+                            showToast(`${p.filename}: ${err.error}`, 'warning');
+                        }
+                    } else {
+                        const resp = await fetch(`/api/cheatsheets/${created.id}/attachments`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ source: 'knowledge', filename: p.filename })
+                        });
+                        if (!resp.ok) {
+                            const err = await resp.json().catch(() => ({ error: resp.statusText }));
+                            showToast(`${p.filename}: ${err.error}`, 'warning');
+                        }
+                    }
+                } catch (e) {
+                    showToast(`${p.filename}: ${e.message}`, 'warning');
+                }
+            }
+            pendingAttachments = [];
+            closeModal('edit-modal');
             showToast(t('cheatsheets.saved'), 'success');
             await loadSheets();
-            // Update local data ref
-            currentAttachments = [];
-            renderAttachments();
         }
     } catch (e) {
         showToast(t('cheatsheets.error') + ': ' + e.message, 'error');
@@ -311,24 +345,31 @@ const MAX_ATTACHMENT_CHARS = 25000;
 function renderAttachments() {
     const list = document.getElementById('attachments-list');
     const counter = document.getElementById('attachment-char-counter');
-    const totalChars = currentAttachments.reduce((sum, a) => sum + (a.char_count || 0), 0);
+    const savedChars = currentAttachments.reduce((sum, a) => sum + (a.char_count || 0), 0);
+    const pendingChars = pendingAttachments.reduce((sum, a) => sum + (a.charCount || 0), 0);
+    const totalChars = savedChars + pendingChars;
 
     counter.textContent = `${totalChars.toLocaleString()} / ${MAX_ATTACHMENT_CHARS.toLocaleString()} ${t('cheatsheets.characters') || 'characters'}`;
     counter.classList.toggle('over-limit', totalChars > MAX_ATTACHMENT_CHARS);
 
-    if (currentAttachments.length === 0) {
+    const allItems = [
+        ...currentAttachments.map(a => ({ ...a, isPending: false, displayId: a.id })),
+        ...pendingAttachments.map(a => ({ ...a, char_count: a.charCount, isPending: true, displayId: a.localId }))
+    ];
+
+    if (allItems.length === 0) {
         list.innerHTML = `<div class="attachments-empty">${esc(t('cheatsheets.no_attachments') || 'No attachments')}</div>`;
         return;
     }
 
-    list.innerHTML = currentAttachments.map(a => {
-        const sourceIcon = a.source === 'knowledge' ? '📚' : '📎';
+    list.innerHTML = allItems.map(a => {
+        const sourceIcon = a.isPending ? '⏳' : (a.source === 'knowledge' ? '📚' : '📎');
         return `
-            <div class="attachment-item">
+            <div class="attachment-item${a.isPending ? ' attachment-pending' : ''}">
                 <span class="attachment-icon">${sourceIcon}</span>
                 <span class="attachment-name" title="${esc(a.filename)}">${esc(a.filename)}</span>
-                <span class="attachment-size">${(a.char_count || 0).toLocaleString()} chars</span>
-                <button class="btn btn-sm btn-danger attachment-remove" onclick="removeAttachment('${esc(a.id)}')" title="${esc(t('cheatsheets.remove_attachment') || 'Remove')}">✕</button>
+                <span class="attachment-size">${(a.char_count || a.charCount || 0).toLocaleString()} chars</span>
+                <button class="btn btn-sm btn-danger attachment-remove" onclick="removeAttachment('${esc(a.displayId)}')" title="${esc(t('cheatsheets.remove_attachment') || 'Remove')}">✕</button>
             </div>`;
     }).join('');
 }
@@ -338,18 +379,40 @@ async function uploadAttachment(input) {
     if (!file) return;
     input.value = ''; // reset for re-upload of same file
 
-    const csID = document.getElementById('sheet-id').value;
-    if (!csID) {
-        showToast(t('cheatsheets.save_first') || 'Please save the cheat sheet first before adding attachments.', 'warning');
-        return;
-    }
-
     const ext = file.name.toLowerCase().split('.').pop();
     if (ext !== 'txt' && ext !== 'md') {
         showToast(t('cheatsheets.invalid_file_type') || 'Only .txt and .md files are allowed.', 'warning');
         return;
     }
 
+    const csID = document.getElementById('sheet-id').value;
+    if (!csID) {
+        // No ID yet — buffer locally until the sheet is saved
+        try {
+            const content = await file.text();
+            const charCount = [...content].length;
+            const totalChars = currentAttachments.reduce((s, a) => s + (a.char_count || 0), 0)
+                             + pendingAttachments.reduce((s, a) => s + (a.charCount || 0), 0);
+            if (totalChars + charCount > MAX_ATTACHMENT_CHARS) {
+                showToast(t('cheatsheets.char_limit_exceeded') || `Attachment exceeds the ${MAX_ATTACHMENT_CHARS.toLocaleString()} character limit.`, 'warning');
+                return;
+            }
+            pendingAttachments.push({
+                localId: 'p-' + Date.now() + '-' + Math.random().toString(36).slice(2),
+                filename: file.name,
+                source: 'upload',
+                content,
+                charCount,
+                isPending: true
+            });
+            renderAttachments();
+        } catch (e) {
+            showToast((t('cheatsheets.error') || 'Error') + ': ' + e.message, 'error');
+        }
+        return;
+    }
+
+    // Existing sheet — upload immediately
     const form = new FormData();
     form.append('file', file);
 
@@ -372,6 +435,14 @@ async function uploadAttachment(input) {
 }
 
 async function removeAttachment(attachmentID) {
+    // Check if it's a pending (not yet saved) attachment
+    const pendingIdx = pendingAttachments.findIndex(a => a.localId === attachmentID);
+    if (pendingIdx !== -1) {
+        pendingAttachments.splice(pendingIdx, 1);
+        renderAttachments();
+        return;
+    }
+
     const csID = document.getElementById('sheet-id').value;
     if (!csID) return;
 
@@ -394,12 +465,6 @@ async function removeAttachment(attachmentID) {
 // ── Knowledge Picker ─────────────────────────────────────
 
 async function openKnowledgePicker() {
-    const csID = document.getElementById('sheet-id').value;
-    if (!csID) {
-        showToast(t('cheatsheets.save_first') || 'Please save the cheat sheet first before adding attachments.', 'warning');
-        return;
-    }
-
     knowledgePickerSelection.clear();
     document.getElementById('btn-knowledge-confirm').disabled = true;
 
@@ -418,8 +483,11 @@ async function openKnowledgePicker() {
             return ext === 'txt' || ext === 'md';
         });
 
-        // Exclude already attached filenames
-        const attachedNames = new Set(currentAttachments.map(a => a.filename));
+        // Exclude already attached (saved and pending) filenames
+        const attachedNames = new Set([
+            ...currentAttachments.map(a => a.filename),
+            ...pendingAttachments.map(a => a.filename)
+        ]);
         const available = textFiles.filter(f => !attachedNames.has(f.name));
 
         if (available.length === 0) {
@@ -449,10 +517,50 @@ function toggleKnowledgePick(checkbox) {
 }
 
 async function confirmKnowledgePick() {
-    const csID = document.getElementById('sheet-id').value;
-    if (!csID || knowledgePickerSelection.size === 0) return;
+    if (knowledgePickerSelection.size === 0) return;
 
+    const csID = document.getElementById('sheet-id').value;
     let added = 0;
+
+    if (!csID) {
+        // No ID yet — buffer as pending attachments
+        for (const filename of knowledgePickerSelection) {
+            try {
+                const resp = await fetch(`/api/knowledge/${encodeURIComponent(filename)}?inline=1`);
+                if (!resp.ok) {
+                    showToast(`${filename}: ${resp.statusText}`, 'warning');
+                    continue;
+                }
+                const content = await resp.text();
+                const charCount = [...content].length;
+                const totalChars = currentAttachments.reduce((s, a) => s + (a.char_count || 0), 0)
+                                 + pendingAttachments.reduce((s, a) => s + (a.charCount || 0), 0);
+                if (totalChars + charCount > MAX_ATTACHMENT_CHARS) {
+                    showToast(`${filename}: ${t('cheatsheets.char_limit_exceeded') || 'Character limit exceeded'}`, 'warning');
+                    continue;
+                }
+                pendingAttachments.push({
+                    localId: 'p-' + Date.now() + '-' + Math.random().toString(36).slice(2),
+                    filename,
+                    source: 'knowledge',
+                    content,
+                    charCount,
+                    isPending: true
+                });
+                added++;
+            } catch (e) {
+                showToast(`${filename}: ${e.message}`, 'error');
+            }
+        }
+        closeModal('knowledge-picker-modal');
+        renderAttachments();
+        if (added > 0) {
+            showToast(t('cheatsheets.attachments_added', { count: added }) || `${added} attachment(s) added.`, 'success');
+        }
+        return;
+    }
+
+    // Existing sheet — upload immediately
     for (const filename of knowledgePickerSelection) {
         try {
             const resp = await fetch(`/api/cheatsheets/${csID}/attachments`, {
