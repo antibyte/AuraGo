@@ -252,22 +252,16 @@ func CloudflareTunnelInstall(cfg CloudflareTunnelConfig, logger *slog.Logger) st
 // ──────────────────────────────────────────────────────────────────────────
 
 // buildLocalURL returns the URL cloudflared should use to reach AuraGo locally.
-//
-// When HTTPS is enabled AuraGo no longer listens on the plain HTTP port.
-// cloudflared must connect to the HTTPS listener instead. Because the TLS
-// certificate is typically self-signed in a home-lab, --no-tls-verify must
-// also be appended to the cloudflared args in that case.
-//
-// Returns (url, extraArgs) where extraArgs may contain "--no-tls-verify".
-func buildLocalURL(cfg CloudflareTunnelConfig, host string) (string, []string) {
+// buildLocalURL returns the URL cloudflared should use to reach AuraGo.
+func buildLocalURL(cfg CloudflareTunnelConfig, host string) string {
 	if cfg.HTTPSEnabled {
 		port := cfg.HTTPSPort
 		if port <= 0 {
 			port = 443
 		}
-		return fmt.Sprintf("https://%s:%d", host, port), []string{"--no-tls-verify"}
+		return fmt.Sprintf("https://%s:%d", host, port)
 	}
-	return fmt.Sprintf("http://%s:%d", host, cfg.WebUIPort), nil
+	return fmt.Sprintf("http://%s:%d", host, cfg.WebUIPort)
 }
 
 func startTokenTunnel(cfg CloudflareTunnelConfig, vault *security.Vault, registry *ProcessRegistry, logger *slog.Logger) string {
@@ -282,22 +276,24 @@ func startTokenTunnel(cfg CloudflareTunnelConfig, vault *security.Vault, registr
 	// Build the local URL.
 	// Token tunnel Docker uses NetworkMode=host, so the container IS on the host network;
 	// localhost resolves correctly. For native, localhost is also correct.
-	localURL, noTLSArgs := buildLocalURL(cfg, "localhost")
+	localURL := buildLocalURL(cfg, "localhost")
 	logger.Info("[CloudflareTunnel] Token tunnel local URL", "url", localURL, "https", cfg.HTTPSEnabled)
 
 	// Base command – the --url flag overrides the origin service even for token tunnels.
-	tunnelArgs := append([]string{"tunnel", "--url", localURL}, noTLSArgs...)
-	tunnelArgs = append(tunnelArgs, "run")
+	// IMPORTANT: --no-tls-verify must come AFTER "run", not before it, because it is a
+	// flag of the "tunnel run" subcommand (env var: NO_TLS_VERIFY).
+	tunnelArgs := []string{"tunnel", "--url", localURL, "run"}
+	if cfg.HTTPSEnabled {
+		tunnelArgs = append(tunnelArgs, "--no-tls-verify")
+	}
 
 	switch mode {
 	case "docker":
-		// cloudflared respects TUNNEL_ORIGIN_NO_TLS_VERIFY=true to skip certificate
-		// verification for the local origin connection. Using an env var is far simpler
-		// and more reliable than a bind-mounted config file (no permission issues,
-		// no SELinux/AppArmor conflicts, no directory traversal problems).
+		// cloudflared also reads NO_TLS_VERIFY from the environment. Pass it alongside
+		// the CLI flag for belt-and-suspenders coverage across cloudflared versions.
 		containerEnv := []string{"TUNNEL_TOKEN=" + token}
 		if cfg.HTTPSEnabled {
-			containerEnv = append(containerEnv, "TUNNEL_ORIGIN_NO_TLS_VERIFY=true")
+			containerEnv = append(containerEnv, "NO_TLS_VERIFY=true")
 		}
 		return startDockerTunnel(cfg, tunnelArgs, containerEnv, nil, logger)
 	case "native":
@@ -370,7 +366,8 @@ func startQuickTunnel(cfg CloudflareTunnelConfig, registry *ProcessRegistry, log
 		if httpsPort <= 0 {
 			httpsPort = 443
 		}
-		args = []string{"tunnel", "--url", fmt.Sprintf("https://localhost:%d", httpsPort), "--no-tls-verify"}
+		// --no-tls-verify must come after "run" (it is a flag of "tunnel run")
+		args = []string{"tunnel", "--url", fmt.Sprintf("https://localhost:%d", httpsPort), "run", "--no-tls-verify"}
 	} else {
 		if port <= 0 {
 			port = cfg.WebUIPort
@@ -454,8 +451,11 @@ func startDockerQuickTunnel(cfg CloudflareTunnelConfig, port int, logger *slog.L
 	pullImage(dockerCfg, cfdImageName, logger)
 	removeContainer(dockerCfg, cfdContainerName)
 
-	localURL, noTLSArgs := buildLocalURL(cfg, "host.docker.internal")
-	cmd := append([]string{"tunnel", "--url", localURL}, noTLSArgs...)
+	localURL := buildLocalURL(cfg, "host.docker.internal")
+	cmd := []string{"tunnel", "--url", localURL, "run"}
+	if cfg.HTTPSEnabled {
+		cmd = append(cmd, "--no-tls-verify")
+	}
 
 	payload := map[string]interface{}{
 		"Image": cfdImageName,
