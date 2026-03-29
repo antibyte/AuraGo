@@ -521,6 +521,8 @@ func dispatchInfra(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 			WebUIPort:      cfg.Server.Port,
 			HomepagePort:   cfg.Homepage.WebServerPort,
 			DataDir:        cfg.Directories.DataDir,
+			HTTPSEnabled:   cfg.Server.HTTPS.Enabled,
+			HTTPSPort:      cfg.Server.HTTPS.HTTPSPort,
 		}
 		for _, r := range cfg.CloudflareTunnel.CustomIngress {
 			tunnelCfg.CustomIngress = append(tunnelCfg.CustomIngress, tools.CloudflareIngress{

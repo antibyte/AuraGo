@@ -1458,6 +1458,16 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	tlsCfg.BehindProxy = s.Cfg.Server.HTTPS.BehindProxy
 
 	if tlsCfg.IsTLSActive() {
+		// Security Proxy (Caddy/Docker) and built-in HTTPS are mutually exclusive:
+		// both want port 443. If the Security Proxy is running, AuraGo is already
+		// behind a TLS-terminating reverse proxy — use plain HTTP.
+		if s.Cfg.SecurityProxy.Enabled {
+			s.Logger.Error("Built-in HTTPS and Security Proxy are both enabled — they compete for port 443. " +
+				"Disabling built-in HTTPS and starting in HTTP mode (Security Proxy handles TLS). " +
+				"Fix: disable server.https or disable security_proxy in config.yaml.")
+			return s.runHTTP(mux, ttsServer, shutdownCh)
+		}
+
 		// Pre-check that the HTTPS port is actually bindable.
 		// Ports < 1024 require root or CAP_NET_BIND_SERVICE on Linux.
 		// Fail immediately with a clear, actionable error — never silently degrade to HTTP.
@@ -1476,7 +1486,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 						"The server did NOT fall back to HTTP. HTTPS configuration is active and must work.",
 					tlsCfg.HTTPSPort, os.Args[0])
 			}
-			// Some other bind error (e.g. port in use) — let runHTTPS surface it
+			// Port in use or other error — let runHTTPS surface it with full details
 		} else {
 			ln.Close()
 		}

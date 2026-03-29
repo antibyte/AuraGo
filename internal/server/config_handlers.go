@@ -224,6 +224,22 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			return
 		}
 
+		// Mutual exclusion: Security Proxy (Caddy) and built-in HTTPS both want port 443.
+		// If the Security Proxy is enabled, AuraGo runs as a plain HTTP backend behind it.
+		// Enabling both at the same time will always cause a port conflict.
+		if validateCfg.Server.HTTPS.Enabled && validateCfg.SecurityProxy.Enabled {
+			s.Logger.Error("[Config] Security Proxy and built-in HTTPS are both enabled — save rejected")
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"status": "error",
+				"message": "Security Proxy and built-in HTTPS cannot both be active: both compete for port 443. " +
+					"The Security Proxy (Caddy) already handles TLS — AuraGo runs as plain HTTP behind it. " +
+					"Disable either security_proxy or server.https.",
+			})
+			return
+		}
+
 		// Pre-flight: if HTTPS is being enabled (or port changed), verify the
 		// configured port is actually bindable RIGHT NOW. Reject the save if not.
 		// This prevents the user from being locked out after a restart.
@@ -240,6 +256,11 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 						"Cannot enable HTTPS: port %d requires root or CAP_NET_BIND_SERVICE. "+
 							"Use an unprivileged port (e.g. 8443) or run: sudo setcap cap_net_bind_service=+ep %s",
 						httpsPort, os.Args[0])
+				} else if strings.Contains(errMsg, "address already in use") || strings.Contains(errMsg, "bind: address already") {
+					userMsg = fmt.Sprintf(
+						"Cannot enable HTTPS: port %d is already in use by another process (e.g. Security Proxy, Caddy, nginx). "+
+							"Stop the conflicting service or use a different port (e.g. 8443).",
+						httpsPort)
 				} else {
 					userMsg = fmt.Sprintf("Cannot enable HTTPS: port %d is not available: %s", httpsPort, errMsg)
 				}
