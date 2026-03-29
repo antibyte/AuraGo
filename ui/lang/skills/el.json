@@ -112,5 +112,8 @@
   "skills.generate_in_progress": "Creating AI draft. This can take a few moments.",
   "skills.generate_timeout": "The AI draft took too long. Please try again or shorten the prompt.",
   "skills.create_success": "Skill created",
-  "skills.editor_fallback": "Advanced editor unavailable, using plain text mode."
+  "skills.editor_fallback": "Advanced editor unavailable, using plain text mode.",
+  "skills.failed_to_load_code": "Αποτυχία φόρτωσης κώδικα",
+  "skills.finding_line": "γραμμή",
+  "skills.guardian_title": "LLM Guardian"
 }

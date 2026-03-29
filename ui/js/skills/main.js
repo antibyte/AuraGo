@@ -296,13 +296,13 @@ async function showDetail(id) {
                     <h4 data-i18n="skills.findings_title">${t('skills.findings_title') || 'Security Findings'}</h4>
                     <ul>${findings.map(f => `<li class="sk-finding sk-finding-${(f.Severity || f.severity || 'info').toLowerCase()}">
                         <strong>${esc(f.Category || f.category || '')}</strong>: ${esc(f.Message || f.message || '')}
-                        ${f.Line || f.line ? ` <span class="sk-finding-line">(line ${f.Line || f.line})</span>` : ''}
+                        ${f.Line || f.line ? ` <span class="sk-finding-line">(${t('skills.finding_line') || 'line'} ${f.Line || f.line})</span>` : ''}
                     </li>`).join('')}</ul>
                 </div>`;
             }
             if (sec.GuardianDecision || sec.guardian_decision) {
                 secHTML += `<div class="sk-guardian-result">
-                    <h4>LLM Guardian</h4>
+                    <h4>${t('skills.guardian_title') || 'LLM Guardian'}</h4>
                     <p><strong>${t('skills.guardian_decision') || 'Decision'}:</strong> ${esc(sec.GuardianDecision || sec.guardian_decision)}</p>
                     ${sec.GuardianReason || sec.guardian_reason ? `<p>${esc(sec.GuardianReason || sec.guardian_reason)}</p>` : ''}
                 </div>`;
@@ -481,7 +481,7 @@ async function viewCode(id) {
             container.innerHTML = `<p style="padding:16px;color:var(--text-secondary);">${t('skills.no_code') || 'Code not available'}</p>`;
         }
     } catch (e) {
-        container.innerHTML = '<p style="padding:16px;color:var(--text-secondary);">Failed to load code</p>';
+        container.innerHTML = `<p style="padding:16px;color:var(--text-secondary);">${t('skills.failed_to_load_code') || 'Failed to load code'}</p>`;
     }
 }
 

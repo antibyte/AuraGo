@@ -112,5 +112,8 @@
   "skills.generate_in_progress": "KI-Entwurf wird erstellt. Das kann einen Moment dauern.",
   "skills.generate_timeout": "Die KI-Erstellung hat zu lange gedauert. Bitte erneut versuchen oder den Prompt kürzen.",
   "skills.create_success": "Skill erstellt",
-  "skills.editor_fallback": "Der erweiterte Editor ist nicht verfügbar, es wird der Textmodus verwendet."
+  "skills.editor_fallback": "Der erweiterte Editor ist nicht verfügbar, es wird der Textmodus verwendet.",
+  "skills.failed_to_load_code": "Code konnte nicht geladen werden",
+  "skills.finding_line": "Zeile",
+  "skills.guardian_title": "LLM Guardian"
 }
