@@ -1450,8 +1450,9 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	loopbackPort := s.Cfg.CloudflareTunnel.LoopbackPort
 	httpsActive := s.Cfg.Server.HTTPS.Enabled
 	s.CfgMu.RUnlock()
+	// Always build and store the loopback handler so hot-reload can start the listener later.
+	s.loopbackHandler = accessLogMiddleware(s.accessLogger(), securityHeadersMiddleware(authMiddleware(s, mux), false, false))
 	if loopbackPort > 0 && httpsActive {
-		loopbackHandler := accessLogMiddleware(s.accessLogger(), securityHeadersMiddleware(authMiddleware(s, mux), false, false))
 		bindAddr := fmt.Sprintf("127.0.0.1:%d", loopbackPort)
 		ln, err := net.Listen("tcp4", bindAddr)
 		if err != nil {
@@ -1459,7 +1460,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		} else {
 			s.Logger.Info("[CloudflareTunnel] Starting loopback HTTP listener", "port", loopbackPort)
 			s.loopbackSrv = &http.Server{
-				Handler:      loopbackHandler,
+				Handler:      s.loopbackHandler,
 				ReadTimeout:  30 * time.Second,
 				WriteTimeout: 5 * time.Minute,
 				IdleTimeout:  2 * time.Minute,

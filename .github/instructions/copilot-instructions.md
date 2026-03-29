@@ -26,3 +26,4 @@ Fields that have defaut values should show those or be empty if a remark is in t
 All Docker container are created and managed by the aurago backend fully automatically. Never assume the user could manage this.
 User friendlly system design: Always think ahead for the user and also add test connection buttons if this could help the user to diagnose issues with new tools or integrations. The system should be designed to be as user-friendly and intuitive as possible, with clear instructions and feedback for the user. Always consider the user experience when designing and implementing new features and tools for the agent.
 If you add a new tool or integration that uses the vault add it to the list of secrets that are forbidden to be exported to python tools !
+Real life tests are mostly running on a remote machine. Do not assume local config or logs are relevant for bug fixing until told by the user.

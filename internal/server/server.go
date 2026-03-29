@@ -235,12 +235,13 @@ type Server struct {
 	SkillManager       *tools.SkillManager   // Skill Manager for registry and security scanning
 	SkillsDB           *sql.DB               // Skills registry database
 	// IsFirstStart is true if core_memory.md was just freshly created (no prior data).
-	IsFirstStart   bool
-	StartedAt      time.Time     // server start time for uptime calculation
-	ShutdownCh     chan struct{} // signal channel for graceful shutdown
-	firstStartDone bool
-	muFirstStart   sync.Mutex
-	loopbackSrv    *http.Server // plain-HTTP server on 127.0.0.1 for cloudflared (HTTPS loopback port)
+	IsFirstStart    bool
+	StartedAt       time.Time     // server start time for uptime calculation
+	ShutdownCh      chan struct{} // signal channel for graceful shutdown
+	firstStartDone  bool
+	muFirstStart    sync.Mutex
+	loopbackSrv     *http.Server // plain-HTTP server on 127.0.0.1 for cloudflared (HTTPS loopback port)
+	loopbackHandler http.Handler // stored handler so hot-reload can restart the listener without a full restart
 }
 
 func (s *Server) accessLogger() *slog.Logger {

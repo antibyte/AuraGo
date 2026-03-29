@@ -11,6 +11,7 @@ import (
 func handleCloudflareTunnelStatus(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
+		s.CfgMu.RLock()
 		cfg := tools.CloudflareTunnelConfig{
 			Enabled:        s.Cfg.CloudflareTunnel.Enabled,
 			ReadOnly:       s.Cfg.CloudflareTunnel.ReadOnly,
@@ -18,16 +19,21 @@ func handleCloudflareTunnelStatus(s *Server) http.HandlerFunc {
 			AuthMethod:     s.Cfg.CloudflareTunnel.AuthMethod,
 			TunnelName:     s.Cfg.CloudflareTunnel.TunnelName,
 			AccountID:      s.Cfg.CloudflareTunnel.AccountID,
+			LoopbackPort:   s.Cfg.CloudflareTunnel.LoopbackPort,
 			ExposeWebUI:    s.Cfg.CloudflareTunnel.ExposeWebUI,
 			ExposeHomepage: s.Cfg.CloudflareTunnel.ExposeHomepage,
 			MetricsPort:    s.Cfg.CloudflareTunnel.MetricsPort,
 			LogLevel:       s.Cfg.CloudflareTunnel.LogLevel,
 			WebUIPort:      s.Cfg.Server.Port,
+			HTTPSEnabled:   s.Cfg.Server.HTTPS.Enabled,
+			HTTPSPort:      s.Cfg.Server.HTTPS.HTTPSPort,
 		}
+		enabled := s.Cfg.CloudflareTunnel.Enabled
+		s.CfgMu.RUnlock()
 		status := tools.CloudflareTunnelStatus(cfg, s.Registry, s.Logger)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"status":  "ok",
-			"enabled": s.Cfg.CloudflareTunnel.Enabled,
+			"enabled": enabled,
 			"tunnel":  status,
 		})
 	}
@@ -50,23 +56,30 @@ func handleCloudflareTunnelRestart(s *Server) http.HandlerFunc {
 			return
 		}
 
+		s.CfgMu.RLock()
+		tunnelCfg := tools.CloudflareTunnelConfig{
+			Enabled:        s.Cfg.CloudflareTunnel.Enabled,
+			ReadOnly:       s.Cfg.CloudflareTunnel.ReadOnly,
+			Mode:           s.Cfg.CloudflareTunnel.Mode,
+			AutoStart:      s.Cfg.CloudflareTunnel.AutoStart,
+			AuthMethod:     s.Cfg.CloudflareTunnel.AuthMethod,
+			TunnelName:     s.Cfg.CloudflareTunnel.TunnelName,
+			AccountID:      s.Cfg.CloudflareTunnel.AccountID,
+			TunnelID:       s.Cfg.CloudflareTunnel.TunnelID,
+			LoopbackPort:   s.Cfg.CloudflareTunnel.LoopbackPort,
+			ExposeWebUI:    s.Cfg.CloudflareTunnel.ExposeWebUI,
+			ExposeHomepage: s.Cfg.CloudflareTunnel.ExposeHomepage,
+			MetricsPort:    s.Cfg.CloudflareTunnel.MetricsPort,
+			LogLevel:       s.Cfg.CloudflareTunnel.LogLevel,
+			DockerHost:     s.Cfg.Docker.Host,
+			DataDir:        s.Cfg.Directories.DataDir,
+			WebUIPort:      s.Cfg.Server.Port,
+			HTTPSEnabled:   s.Cfg.Server.HTTPS.Enabled,
+			HTTPSPort:      s.Cfg.Server.HTTPS.HTTPSPort,
+		}
+		s.CfgMu.RUnlock()
 		result := tools.CloudflareTunnelRestart(
-			tools.CloudflareTunnelConfig{
-				Enabled:        s.Cfg.CloudflareTunnel.Enabled,
-				ReadOnly:       s.Cfg.CloudflareTunnel.ReadOnly,
-				Mode:           s.Cfg.CloudflareTunnel.Mode,
-				AutoStart:      s.Cfg.CloudflareTunnel.AutoStart,
-				AuthMethod:     s.Cfg.CloudflareTunnel.AuthMethod,
-				TunnelName:     s.Cfg.CloudflareTunnel.TunnelName,
-				AccountID:      s.Cfg.CloudflareTunnel.AccountID,
-				ExposeWebUI:    s.Cfg.CloudflareTunnel.ExposeWebUI,
-				ExposeHomepage: s.Cfg.CloudflareTunnel.ExposeHomepage,
-				MetricsPort:    s.Cfg.CloudflareTunnel.MetricsPort,
-				LogLevel:      s.Cfg.CloudflareTunnel.LogLevel,
-				DockerHost:    s.Cfg.Docker.Host,
-				DataDir:       s.Cfg.Directories.DataDir,
-				WebUIPort:      s.Cfg.Server.Port,
-			},
+			tunnelCfg,
 			s.Vault,
 			s.Registry,
 			s.Logger,

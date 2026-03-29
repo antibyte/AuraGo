@@ -590,6 +590,41 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				}
 			}
 
+			// Hot-reload Cloudflare Tunnel loopback listener when loopback_port changes.
+			// The loopbackHandler was stored at startup; we can start/stop the TCP listener
+			// without a full process restart.
+			loopbackPortChanged := oldCfg.CloudflareTunnel.LoopbackPort != newCfg.CloudflareTunnel.LoopbackPort
+			if loopbackPortChanged && s.loopbackHandler != nil {
+				// Stop the old listener if it exists.
+				if s.loopbackSrv != nil {
+					s.loopbackSrv.Close()
+					s.loopbackSrv = nil
+				}
+				newPort := newCfg.CloudflareTunnel.LoopbackPort
+				if newPort > 0 && newCfg.Server.HTTPS.Enabled {
+					bindAddr := fmt.Sprintf("127.0.0.1:%d", newPort)
+					if ln, bindErr := net.Listen("tcp4", bindAddr); bindErr != nil {
+						s.Logger.Warn("[CloudflareTunnel] Hot-reload: could not bind loopback listener",
+							"addr", bindAddr, "error", bindErr)
+					} else {
+						s.Logger.Info("[CloudflareTunnel] Hot-reload: loopback HTTP listener started", "port", newPort)
+						s.loopbackSrv = &http.Server{
+							Handler:      s.loopbackHandler,
+							ReadTimeout:  30 * time.Second,
+							WriteTimeout: 5 * time.Minute,
+							IdleTimeout:  2 * time.Minute,
+						}
+						go func() {
+							if serveErr := s.loopbackSrv.Serve(ln); serveErr != nil && serveErr != http.ErrServerClosed {
+								s.Logger.Warn("[CloudflareTunnel] Hot-reload: loopback listener stopped", "error", serveErr)
+							}
+						}()
+					}
+				} else if newPort == 0 {
+					s.Logger.Info("[CloudflareTunnel] Hot-reload: loopback listener disabled")
+				}
+			}
+
 			s.Logger.Info("[Config UI] Configuration hot-reloaded successfully")
 		}
 		s.CfgMu.Unlock()
