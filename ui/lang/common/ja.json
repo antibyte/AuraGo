@@ -33,5 +33,7 @@
   "login.totp_label": "6桁のコード",
   "common.nav_knowledge": "ナレッジセンター",
   "common.nav_containers": "コンテナ",
+  "common.nav_plans": "プラン",
+  "common.nav_truenas": "TrueNAS ストレージ",
   "common.nav_skills": "スキル"
 }

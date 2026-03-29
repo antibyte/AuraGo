@@ -27,7 +27,7 @@ class TrueNASUI {
         document.getElementById('share-form')?.addEventListener('submit', (e) => this.createShare(e));
         
         // Modal close on outside click
-        document.querySelectorAll('.modal').forEach(modal => {
+        document.querySelectorAll('.truenas-modal').forEach(modal => {
             modal.addEventListener('click', (e) => {
                 if (e.target === modal) this.closeModal();
             });
@@ -590,7 +590,7 @@ class TrueNASUI {
     showCreateShare() { document.getElementById('modal-share').classList.add('active'); }
     
     closeModal() {
-        document.querySelectorAll('.modal').forEach(m => m.classList.remove('active'));
+        document.querySelectorAll('.truenas-modal').forEach(m => m.classList.remove('active'));
         document.querySelectorAll('[id$="-error"]').forEach(el => el.innerHTML = '');
     }
     

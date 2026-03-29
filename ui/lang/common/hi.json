@@ -33,5 +33,7 @@
   "login.totp_label": "6 अंकों का कोड",
   "common.nav_knowledge": "ज्ञान केंद्र",
   "common.nav_containers": "कंटेनर",
+  "common.nav_plans": "योजनाएं",
+  "common.nav_truenas": "TrueNAS संग्रहण",
   "common.nav_skills": "कौशल"
 }

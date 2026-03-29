@@ -33,5 +33,7 @@
   "login.totp_label": "6位数字代码",
   "common.nav_knowledge": "知识中心",
   "common.nav_containers": "容器",
+  "common.nav_plans": "计划",
+  "common.nav_truenas": "TrueNAS 存储",
   "common.nav_skills": "技能"
 }

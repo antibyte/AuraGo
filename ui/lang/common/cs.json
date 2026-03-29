@@ -33,5 +33,7 @@
   "login.totp_label": "6místný kód",
   "common.nav_knowledge": "Centrum znalostí",
   "common.nav_containers": "Kontejnery",
+  "common.nav_plans": "Plány",
+  "common.nav_truenas": "TrueNAS úložiště",
   "common.nav_skills": "Dovednosti"
 }

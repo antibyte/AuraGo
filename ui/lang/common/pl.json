@@ -33,5 +33,7 @@
   "login.totp_label": "6-cyfrowy kod",
   "common.nav_knowledge": "Centrum Wiedzy",
   "common.nav_containers": "Kontenery",
+  "common.nav_plans": "Plany",
+  "common.nav_truenas": "Magazyn TrueNAS",
   "common.nav_skills": "Umiejętności"
 }

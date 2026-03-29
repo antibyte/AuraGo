@@ -33,5 +33,7 @@
   "login.totp_label": "6-cifret kode",
   "common.nav_knowledge": "Videncenter",
   "common.nav_containers": "Containere",
+  "common.nav_plans": "Planer",
+  "common.nav_truenas": "TrueNAS lager",
   "common.nav_skills": "Færdigheder"
 }

@@ -33,5 +33,7 @@
   "common.nav_media": "Media View",
   "common.nav_knowledge": "Knowledge Center",
   "common.nav_containers": "Containers",
-  "common.nav_skills": "Skills"
+  "common.nav_skills": "Skills",
+  "common.nav_plans": "Plans",
+  "common.nav_truenas": "TrueNAS Storage"
 }

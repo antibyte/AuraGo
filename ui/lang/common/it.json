@@ -33,5 +33,7 @@
   "login.totp_label": "Codice a 6 cifre",
   "common.nav_knowledge": "Centro Conoscenze",
   "common.nav_containers": "Contenitori",
+  "common.nav_plans": "Piani",
+  "common.nav_truenas": "Archiviazione TrueNAS",
   "common.nav_skills": "Abilità"
 }

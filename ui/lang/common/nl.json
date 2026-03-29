@@ -33,5 +33,7 @@
   "login.totp_label": "6-cijferige code",
   "common.nav_knowledge": "Kenniscentrum",
   "common.nav_containers": "Containers",
+  "common.nav_plans": "Plannen",
+  "common.nav_truenas": "TrueNAS Opslag",
   "common.nav_skills": "Vaardigheden"
 }
