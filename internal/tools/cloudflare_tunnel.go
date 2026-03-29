@@ -299,7 +299,7 @@ func startTokenTunnel(cfg CloudflareTunnelConfig, vault *security.Vault, registr
 		if cfg.HTTPSEnabled {
 			configContent := "originRequest:\n  noTLSVerify: true\n"
 			configDir := filepath.Join(cfg.DataDir, "cloudflared")
-			if mkErr := os.MkdirAll(configDir, 0o700); mkErr == nil {
+			if mkErr := os.MkdirAll(configDir, 0o755); mkErr == nil {
 				configPath := filepath.Join(configDir, "origin-config.yml")
 				if wErr := os.WriteFile(configPath, []byte(configContent), 0o644); wErr == nil {
 					tunnelArgs = append([]string{"tunnel", "--config", "/etc/cloudflared/origin-config.yml", "--url", localURL}, "run")
