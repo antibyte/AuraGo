@@ -45,6 +45,10 @@ type CloudflareTunnelConfig struct {
 	HTTPSEnabled bool   // from server.https.enabled
 	HTTPSPort    int    // from server.https.https_port (default 443)
 	TunnelID     string // optional explicit tunnel UUID (for API-based noTLSVerify config)
+	// LoopbackPort: when > 0, AuraGo also listens on http://127.0.0.1:LoopbackPort.
+	// cloudflared uses this plain-HTTP endpoint instead of the HTTPS port so no
+	// TLS verification is needed at all — the traffic stays on the loopback interface.
+	LoopbackPort int // from cloudflare_tunnel.loopback_port
 }
 
 // CloudflareIngress mirrors config.CloudflareIngressRule for the tools package.
@@ -458,7 +462,16 @@ func cfPutTunnelConfig(ctx context.Context, accountID, apiToken, tunnelID string
 
 // buildLocalURL returns the URL cloudflared should use to reach AuraGo locally.
 // buildLocalURL returns the URL cloudflared should use to reach AuraGo.
+// When LoopbackPort is set the tunnel uses a plain-HTTP loopback endpoint
+// (http://127.0.0.1:LoopbackPort) regardless of whether HTTPS is enabled,
+// so no TLS verification is required on the cloudflared side.
 func buildLocalURL(cfg CloudflareTunnelConfig, host string) string {
+	// Loopback port: plain HTTP on 127.0.0.1, always takes precedence.
+	// The host parameter is overridden to 127.0.0.1 because the loopback
+	// listener is never bound to any other interface.
+	if cfg.LoopbackPort > 0 {
+		return fmt.Sprintf("http://127.0.0.1:%d", cfg.LoopbackPort)
+	}
 	if cfg.HTTPSEnabled {
 		port := cfg.HTTPSPort
 		if port <= 0 {
@@ -479,15 +492,21 @@ func startTokenTunnel(cfg CloudflareTunnelConfig, vault *security.Vault, registr
 	// Cloudflare API *before* starting cloudflared. This is required because in
 	// remotely-managed mode cloudflared overrides the local --no-tls-verify CLI flag
 	// with the ingress rules pushed by the Dashboard. Without this the connector
-	// cannot reach the HTTPS origin.
-	if cfg.HTTPSEnabled {
+	// When HTTPS is enabled and no loopback port is configured, apply noTLSVerify
+	// to the Dashboard-managed config via the Cloudflare API *before* starting
+	// cloudflared. This is required because in remotely-managed mode cloudflared
+	// overrides the local --no-tls-verify CLI flag with the ingress rules pushed
+	// by the Dashboard. With a loopback port the origin is plain HTTP, so no TLS
+	// verification is needed at all.
+	if cfg.HTTPSEnabled && cfg.LoopbackPort == 0 {
 		apiToken, _ := vault.ReadSecret("cloudflare_api_token")
 		if apiToken != "" {
 			apiCtx, apiCancel := context.WithTimeout(context.Background(), 15*time.Second)
 			applyNoTLSVerifyViaAPI(apiCtx, cfg, apiToken, logger)
 			apiCancel()
 		} else {
-			logger.Info("[CloudflareTunnel] Tip: store a Cloudflare API token in the vault with key 'cloudflare_api_token' to auto-configure noTLSVerify in the Dashboard config")
+			logger.Info("[CloudflareTunnel] Tip: set cloudflare_tunnel.loopback_port (e.g. 8448) for a TLS-free loopback HTTP origin, " +
+				"or store a Cloudflare API token in the vault with key 'cloudflare_api_token' to auto-configure noTLSVerify")
 		}
 	}
 
@@ -495,25 +514,25 @@ func startTokenTunnel(cfg CloudflareTunnelConfig, vault *security.Vault, registr
 	logger.Info("[CloudflareTunnel] Starting token tunnel", "mode", mode)
 
 	// Build the local URL.
-	// Token tunnel Docker uses NetworkMode=host, so the container IS on the host network;
-	// localhost resolves correctly. For native, localhost is also correct.
+	// When LoopbackPort is set, cloudflared connects to http://127.0.0.1:LoopbackPort
+	// (plain HTTP, loopback only) — no TLS needed.
+	// Otherwise: token tunnel Docker uses NetworkMode=host so localhost resolves correctly.
 	localURL := buildLocalURL(cfg, "localhost")
-	logger.Info("[CloudflareTunnel] Token tunnel local URL", "url", localURL, "https", cfg.HTTPSEnabled)
+	logger.Info("[CloudflareTunnel] Token tunnel local URL", "url", localURL, "https", cfg.HTTPSEnabled, "loopback_port", cfg.LoopbackPort)
 
-	// Base command – the --url flag overrides the origin service even for token tunnels.
-	// IMPORTANT: --no-tls-verify must come AFTER "run", not before it, because it is a
-	// flag of the "tunnel run" subcommand (env var: NO_TLS_VERIFY).
+	// --no-tls-verify is only needed when connecting to an HTTPS origin without a
+	// loopback port (i.e. when we cannot avoid TLS verification).
+	// IMPORTANT: --no-tls-verify must come AFTER "run" (it is a "tunnel run" subcommand flag).
 	tunnelArgs := []string{"tunnel", "--url", localURL, "run"}
-	if cfg.HTTPSEnabled {
+	needsNoTLSVerify := cfg.HTTPSEnabled && cfg.LoopbackPort == 0
+	if needsNoTLSVerify {
 		tunnelArgs = append(tunnelArgs, "--no-tls-verify")
 	}
 
 	switch mode {
 	case "docker":
-		// cloudflared also reads NO_TLS_VERIFY from the environment. Pass it alongside
-		// the CLI flag for belt-and-suspenders coverage across cloudflared versions.
 		containerEnv := []string{"TUNNEL_TOKEN=" + token}
-		if cfg.HTTPSEnabled {
+		if needsNoTLSVerify {
 			containerEnv = append(containerEnv, "NO_TLS_VERIFY=true")
 		}
 		return startDockerTunnel(cfg, tunnelArgs, containerEnv, nil, logger)
@@ -1014,7 +1033,8 @@ func writeNamedTunnelConfig(cfg CloudflareTunnelConfig, credPath, configPath str
 
 	// When AuraGo uses HTTPS with a self-signed certificate, tell cloudflared to skip
 	// TLS verification for the local connection to the origin service.
-	if cfg.HTTPSEnabled {
+	// Not needed when LoopbackPort is set because the origin is plain HTTP.
+	if cfg.HTTPSEnabled && cfg.LoopbackPort == 0 {
 		sb.WriteString("\noriginRequest:\n  noTLSVerify: true\n")
 	}
 

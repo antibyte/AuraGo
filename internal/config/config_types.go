@@ -814,6 +814,7 @@ type Config struct {
 		TunnelName     string                  `yaml:"tunnel_name"`     // named tunnel: tunnel name
 		AccountID      string                  `yaml:"account_id"`      // Cloudflare account ID (for API access)
 		TunnelID       string                  `yaml:"tunnel_id"`       // optional: explicit tunnel UUID (used to auto-configure noTLSVerify via API)
+		LoopbackPort   int                     `yaml:"loopback_port"`   // optional: plain-HTTP port on 127.0.0.1 for cloudflared to avoid TLS verification (0 = disabled)
 		ExposeWebUI    bool                    `yaml:"expose_web_ui"`   // auto-route AuraGo web UI through tunnel
 		ExposeHomepage bool                    `yaml:"expose_homepage"` // auto-route homepage web server through tunnel
 		CustomIngress  []CloudflareIngressRule `yaml:"custom_ingress"`  // additional ingress rules

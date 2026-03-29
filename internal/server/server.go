@@ -240,6 +240,7 @@ type Server struct {
 	ShutdownCh     chan struct{} // signal channel for graceful shutdown
 	firstStartDone bool
 	muFirstStart   sync.Mutex
+	loopbackSrv    *http.Server // plain-HTTP server on 127.0.0.1 for cloudflared (HTTPS loopback port)
 }
 
 func (s *Server) accessLogger() *slog.Logger {
@@ -562,6 +563,7 @@ func Start(cfg *config.Config, logger *slog.Logger, accessLogger *slog.Logger, l
 				TunnelName:     cfg.CloudflareTunnel.TunnelName,
 				AccountID:      cfg.CloudflareTunnel.AccountID,
 				TunnelID:       cfg.CloudflareTunnel.TunnelID,
+				LoopbackPort:   cfg.CloudflareTunnel.LoopbackPort,
 				ExposeWebUI:    cfg.CloudflareTunnel.ExposeWebUI,
 				ExposeHomepage: cfg.CloudflareTunnel.ExposeHomepage,
 				MetricsPort:    cfg.CloudflareTunnel.MetricsPort,
@@ -807,6 +809,9 @@ func (s *Server) serveWithShutdown(server, redirectServer, ttsServer *http.Serve
 		}
 		if redirectServer != nil {
 			redirectServer.Shutdown(ctx)
+		}
+		if s.loopbackSrv != nil {
+			s.loopbackSrv.Shutdown(ctx)
 		}
 		if err := server.Shutdown(ctx); err != nil {
 			s.Logger.Error("Server shutdown error", "error", err)

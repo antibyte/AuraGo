@@ -1439,6 +1439,32 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	// which is the port lifeboat itself listens on.
 	go s.StartTCPBridge("localhost:8089")
 
+	// Cloudflare Tunnel loopback HTTP port:
+	// When HTTPS is active and cloudflare_tunnel.loopback_port is configured, open a
+	// plain HTTP listener on 127.0.0.1 only. cloudflared connects to this instead of
+	// the HTTPS port so no TLS verification is needed. The loopback interface ensures
+	// this port is never reachable from the network.
+	s.CfgMu.RLock()
+	loopbackPort := s.Cfg.CloudflareTunnel.LoopbackPort
+	httpsActive := s.Cfg.Server.HTTPS.Enabled
+	s.CfgMu.RUnlock()
+	if loopbackPort > 0 && httpsActive {
+		loopbackHandler := accessLogMiddleware(s.accessLogger(), securityHeadersMiddleware(authMiddleware(s, mux), false, false))
+		s.loopbackSrv = &http.Server{
+			Addr:         fmt.Sprintf("127.0.0.1:%d", loopbackPort),
+			Handler:      loopbackHandler,
+			ReadTimeout:  30 * time.Second,
+			WriteTimeout: 5 * time.Minute,
+			IdleTimeout:  2 * time.Minute,
+		}
+		go func() {
+			s.Logger.Info("[CloudflareTunnel] Starting loopback HTTP listener", "port", loopbackPort)
+			if err := s.loopbackSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				s.Logger.Warn("[CloudflareTunnel] Loopback HTTP listener stopped", "error", err)
+			}
+		}()
+	}
+
 	// Always build and store the tsnet handler so it is available even when tsnet
 	// is enabled later via the config UI without a restart.
 	if s.TsNetManager != nil {

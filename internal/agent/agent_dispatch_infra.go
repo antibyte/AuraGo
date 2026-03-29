@@ -514,6 +514,7 @@ func dispatchInfra(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 			TunnelName:     cfg.CloudflareTunnel.TunnelName,
 			AccountID:      cfg.CloudflareTunnel.AccountID,
 			TunnelID:       cfg.CloudflareTunnel.TunnelID,
+			LoopbackPort:   cfg.CloudflareTunnel.LoopbackPort,
 			ExposeWebUI:    cfg.CloudflareTunnel.ExposeWebUI,
 			ExposeHomepage: cfg.CloudflareTunnel.ExposeHomepage,
 			MetricsPort:    cfg.CloudflareTunnel.MetricsPort,
