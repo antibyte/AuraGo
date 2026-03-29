@@ -47,5 +47,8 @@
   "truenas.label_name": "Όνομα",
   "truenas.label_path": "Διαδρομή",
   "truenas.label_guest_access": "Αποδοχή πρόσβασης επισκέπτη",
-  "truenas.label_timemachine": "Υποστήριξη Time Machine (Mac)"
+  "truenas.label_timemachine": "Υποστήριξη Time Machine (Mac)",
+  "truenas.opt_gzip": "GZIP",
+  "truenas.opt_zle": "ZLE",
+  "truenas.opt_off": "Ανενεργό"
 }

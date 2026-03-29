@@ -931,10 +931,10 @@
             }
         }
 
-        function deleteProfileEntry(btn) {
+        async function deleteProfileEntry(btn) {
             const cat = btn.dataset.cat;
             const key = btn.dataset.key;
-            if (!confirm(t('dashboard.profile_delete_confirm') + ' "' + key + '"?')) return;
+            if (!await showConfirm(t('dashboard.profile_delete_confirm') + ' "' + key + '"?')) return;
             fetch('/api/dashboard/profile/entry?' + new URLSearchParams({ category: cat, key: key }), {
                 method: 'DELETE', credentials: 'same-origin'
             }).then(r => { if (r.ok) loadTabUser(); }).catch(() => {});
@@ -2527,14 +2527,14 @@
                 const activity = await API.get('/api/dashboard/activity');
                 renderActivity(activity);
             } catch (e) {
-                alert('❌ ' + e.message);
+                await showAlert('Error', '❌ ' + e.message);
             } finally {
                 if (saveBtn) saveBtn.disabled = false;
             }
         }
 
         async function deleteCronJob(id) {
-            if (!confirm(t('dashboard.cron_delete_confirm', { id }))) return;
+            if (!await showConfirm(t('dashboard.cron_delete_confirm', { id }))) return;
             try {
                 const resp = await fetch('/api/cron?id=' + encodeURIComponent(id), {
                     method: 'DELETE',
@@ -2544,7 +2544,7 @@
                 const activity = await API.get('/api/dashboard/activity');
                 renderActivity(activity);
             } catch (e) {
-                alert('❌ ' + e.message);
+                await showAlert('Error', '❌ ' + e.message);
             }
         }
 
@@ -2617,7 +2617,7 @@
                 if (!resp.ok) throw new Error(t('dashboard.core_facts_modal_error_add'));
                 await openCoreFactsModal(); // reload
             } catch (e) {
-                alert('❌ ' + e.message);
+                await showAlert('Error', '❌ ' + e.message);
                 input.disabled = false;
             }
         }
@@ -2653,13 +2653,13 @@
                 if (!resp.ok) throw new Error(t('dashboard.core_facts_modal_error_save'));
                 await openCoreFactsModal(); // reload
             } catch (e) {
-                alert('❌ ' + e.message);
+                await showAlert('Error', '❌ ' + e.message);
                 input.disabled = false;
             }
         }
 
         async function cfDeleteFact(id) {
-            if (!confirm(t('dashboard.core_facts_modal_confirm_delete', {id: id}))) return;
+            if (!await showConfirm(t('dashboard.core_facts_modal_confirm_delete', {id: id}))) return;
             try {
                 const resp = await fetch('/api/dashboard/core-memory/mutate', {
                     method: 'DELETE',
@@ -2670,7 +2670,7 @@
                 if (!resp.ok) throw new Error(t('dashboard.core_facts_modal_error_delete'));
                 await openCoreFactsModal(); // reload
             } catch (e) {
-                alert('❌ ' + e.message);
+                await showAlert('Error', '❌ ' + e.message);
             }
         }
 

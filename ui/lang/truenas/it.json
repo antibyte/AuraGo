@@ -47,5 +47,8 @@
   "truenas.label_name": "Nome",
   "truenas.label_path": "Percorso",
   "truenas.label_guest_access": "Consenti accesso ospite",
-  "truenas.label_timemachine": "Supporto Time Machine (Mac)"
+  "truenas.label_timemachine": "Supporto Time Machine (Mac)",
+  "truenas.opt_gzip": "GZIP",
+  "truenas.opt_zle": "ZLE",
+  "truenas.opt_off": "Spento"
 }

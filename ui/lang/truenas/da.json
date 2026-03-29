@@ -47,5 +47,8 @@
   "truenas.label_name": "Navn",
   "truenas.label_path": "Sti",
   "truenas.label_guest_access": "Tillad gæsteadgang",
-  "truenas.label_timemachine": "Time Machine-understøttelse (Mac)"
+  "truenas.label_timemachine": "Time Machine-understøttelse (Mac)",
+  "truenas.opt_gzip": "GZIP",
+  "truenas.opt_zle": "ZLE",
+  "truenas.opt_off": "Fra"
 }

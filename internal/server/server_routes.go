@@ -797,7 +797,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		return fmt.Errorf("failed to create UI filesystem: %w", err)
 	}
 
-	// Load i18n translations from embedded i18n.json
+	// Load i18n translations from embedded ui/lang/ directory
 	loadI18N(uiFS, s.Logger)
 
 	tmpl, err := template.ParseFS(uiFS, "index.html")

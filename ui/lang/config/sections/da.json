@@ -1,4 +1,4 @@
-﻿{
+{
   "config.section.server.label": "Server",
   "config.section.server.desc": "Webserver og API-indstillinger",
   "config.section.directories.label": "Vejviser",

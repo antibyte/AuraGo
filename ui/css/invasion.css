@@ -100,14 +100,14 @@
 
 .validate-result.success {
     display: block;
-    background: rgba(16, 185, 129, 0.1);
+    background: var(--success-dim);
     color: var(--success);
-    border: 1px solid rgba(16, 185, 129, 0.3);
+    border: 1px solid rgba(34, 197, 94, 0.3);
 }
 
 .validate-result.error {
     display: block;
-    background: rgba(239, 68, 68, 0.1);
+    background: var(--danger-dim);
     color: var(--danger);
     border: 1px solid rgba(239, 68, 68, 0.3);
 }
@@ -119,7 +119,7 @@
     margin-top: 10px;
     border: 2px solid var(--danger);
     border-radius: 10px;
-    background: rgba(239, 68, 68, 0.05);
+    background: var(--danger-dim);
     color: var(--text-primary);
     font-size: 0.9rem;
     transition: all 0.3s;
@@ -127,7 +127,7 @@
 
 .delete-confirm-input:focus {
     outline: none;
-    background: rgba(239, 68, 68, 0.1);
+    background: var(--danger-dim);
     box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15), 0 0 20px rgba(239, 68, 68, 0.1);
 }
 
@@ -161,7 +161,7 @@
 }
 
 .inv-hatch-error {
-    color: var(--accent-danger);
+    color: var(--danger);
 }
 
 .inv-note-text {

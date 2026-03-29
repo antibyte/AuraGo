@@ -47,5 +47,8 @@
   "truenas.label_name": "नाम",
   "truenas.label_path": "पथ",
   "truenas.label_guest_access": "अतिथि पहुंच की अनुमति दें",
-  "truenas.label_timemachine": "Time Machine समर्थन (Mac)"
+  "truenas.label_timemachine": "Time Machine समर्थन (Mac)",
+  "truenas.opt_gzip": "GZIP",
+  "truenas.opt_zle": "ZLE",
+  "truenas.opt_off": "बंद"
 }

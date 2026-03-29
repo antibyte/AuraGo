@@ -397,11 +397,6 @@
 
         .login-error.visible { display: block; }
 
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-4px); }
-            to   { opacity: 1; transform: translateY(0); }
-        }
-
         /* Spinner */
         .spinner-sm {
             width: 16px;
@@ -411,8 +406,6 @@
             border-radius: 50%;
             animation: spin 0.6s linear infinite;
         }
-
-        @keyframes spin { to { transform: rotate(360deg); } }
 
         /* Theme toggle in corner */
         .corner-theme {

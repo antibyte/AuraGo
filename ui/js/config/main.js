@@ -1017,7 +1017,7 @@ async function saveConfig() {
             setTimeout(() => { status.textContent = ''; }, 5000);
             return;
         }
-        if (!confirm(t('config.embeddings.reset_confirm_final'))) {
+        if (!await showConfirm(t('config.embeddings.reset_confirm_final'))) {
             status.className = 'save-status warning';
             status.textContent = '⚠ ' + t('config.embeddings.reset_cancelled');
             btn.disabled = false;
@@ -1040,7 +1040,7 @@ async function saveConfig() {
 
             if (embeddingsChanged && !shouldScheduleResetNow) {
                 const wantsReset = await showEmbeddingsResetModal({ postSave: true });
-                if (wantsReset && confirm(t('config.embeddings.reset_confirm_final'))) {
+                if (wantsReset && await showConfirm(t('config.embeddings.reset_confirm_final'))) {
                     shouldScheduleResetNow = true;
                 }
             }
@@ -1163,7 +1163,7 @@ function showSecurityModal(critFixable) {
 }
 
 async function restartAuraGo(skipConfirm = false) {
-    if (!skipConfirm && !confirm(t('config.restart.confirm'))) return;
+    if (!skipConfirm && !await showConfirm(t('config.restart.confirm'))) return;
 
     try {
         const resp = await fetch('/api/restart', { method: 'POST' });
@@ -1179,7 +1179,7 @@ async function restartAuraGo(skipConfirm = false) {
             // Attempt to reload after 4 seconds to give the service time to restart
             setTimeout(() => window.location.reload(), 4000);
         } else {
-            alert(t('config.restart.error'));
+            await showAlert(t('config.restart.error'));
         }
     } catch (e) {
         // If the fetch fails immediately, it might be that the server died instantly.
@@ -1298,11 +1298,11 @@ async function vaultDeleteConfirm() {
             document.body.appendChild(toast);
             setTimeout(() => toast.remove(), 6000);
         } else {
-            alert(data.message || t('config.save_bar.error'));
+            await showAlert(data.message || t('config.save_bar.error'));
             document.getElementById('vault-confirm-btn').disabled = false;
         }
     } catch (e) {
-        alert(t('config.common.network_error') + ' ' + e.message);
+        await showAlert(t('config.common.network_error') + ' ' + e.message);
         document.getElementById('vault-confirm-btn').disabled = false;
     }
 }

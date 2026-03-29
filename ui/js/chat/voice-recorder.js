@@ -94,7 +94,7 @@ class VoiceRecorder {
             
         } catch (err) {
             console.error('Failed to start recording:', err);
-            this.showError('Microphone access denied. Please allow microphone permissions.');
+            await this.showError('Microphone access denied. Please allow microphone permissions.');
         }
     }
 
@@ -132,7 +132,7 @@ class VoiceRecorder {
 
         this.mediaRecorder.onerror = (e) => {
             console.error('MediaRecorder error:', e);
-            this.showError('Recording error occurred.');
+            this.showError('Recording error occurred.');  // Fire-and-forget in callback is acceptable
         };
     }
 
@@ -358,10 +358,10 @@ class VoiceRecorder {
         return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     }
 
-    showError(message) {
+    async showError(message) {
         // Could integrate with toast system
         console.error('VoiceRecorder:', message);
-        alert(message);
+        await showAlert('Error', message);
     }
 }
 

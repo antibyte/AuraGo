@@ -76,7 +76,7 @@ func normalizeLang(lang string) string {
 	}
 }
 
-// i18nStore holds the parsed i18n.json keyed by language code.
+// i18nStore holds the parsed translations from ui/lang/ keyed by language code.
 // Each value is the raw JSON string for that language, ready for template injection.
 var (
 	i18nLangJSON map[string]string // lang -> JSON string of {key: translation, ...}

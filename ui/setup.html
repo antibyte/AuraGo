@@ -36,8 +36,10 @@
         let I18N = {{.I18N }};
         (function () { var t = localStorage.getItem('aurago-theme'); if (t) document.documentElement.setAttribute('data-theme', t); })();
     </script>
+    <link rel="stylesheet" href="/css/tokens.css">
     <link rel="stylesheet" href="/css/setup.css">
     <link rel="stylesheet" href="/css/enhancements.css">
+</head>
 
 <body>
     <!-- ── Header ─────────────────────────────────── -->
@@ -96,12 +98,12 @@
                             class="required-star">*</span>
                     </label>
                     <select class="field-select" id="llm-provider" onchange="onProviderChange()">
-                        <option value="openrouter">OpenRouter</option>
-                        <option value="openai">OpenAI</option>
-                        <option value="anthropic">Anthropic</option>
-                        <option value="google">Google (Gemini)</option>
-                        <option value="ollama">Ollama (lokal)</option>
-                        <option value="custom">Custom / Andere</option>
+                        <option value="openrouter" data-i18n="setup.step0_provider_openrouter">OpenRouter</option>
+                        <option value="openai" data-i18n="setup.step0_provider_openai">OpenAI</option>
+                        <option value="anthropic" data-i18n="setup.step0_provider_anthropic">Anthropic</option>
+                        <option value="google" data-i18n="setup.step0_provider_google">Google (Gemini)</option>
+                        <option value="ollama" data-i18n="setup.step0_provider_ollama">Ollama (local)</option>
+                        <option value="custom" data-i18n="setup.step0_provider_custom">Custom / Other</option>
                     </select>
                     <div id="hint-provider" class="field-hint">
                         <script>document.write(t('setup.step0_provider_hint'))</script>
@@ -129,7 +131,7 @@
                             class="required-star">*</span>
                     </label>
                     <input class="field-input" type="password" id="admin-password"
-                        placeholder="Minimum 8 characters" autocomplete="new-password">
+                        data-i18n-placeholder="setup.step0_admin_password_placeholder" placeholder="Minimum 8 characters" autocomplete="new-password">
                     <div class="field-error" id="err-admin-password">
                         <script>document.write(t('setup.step0_admin_password_error'))</script>
                     </div>
@@ -156,7 +158,7 @@
                         </label>
                         <div class="setup-inline-row">
                             <input class="field-input setup-flex-1" type="text" id="llm-model"
-                                placeholder="z.B. gpt-4o, claude-sonnet-4-20250514">
+                                data-i18n-placeholder="setup.step0_model_placeholder" placeholder="e.g. gpt-4o, claude-sonnet-4-20250514">
                             <button type="button" id="or-browse-btn" class="btn-primary setup-or-browse is-hidden"
                                 onclick="openOpenRouterBrowser(function(m){document.getElementById('llm-model').value=m.id;document.getElementById('err-model').style.display='none';})">
                                 <script>document.write(t('setup.step0_model_browse'))</script>
@@ -171,22 +173,22 @@
                             <script>document.write(t('setup.step0_language_label'))</script>
                         </label>
                         <select class="field-select" id="system-language" onchange="onLanguageChange()">
-                            <option value="Deutsch">Deutsch</option>
-                            <option value="English">English</option>
-                            <option value="Español">Español</option>
-                            <option value="Français">Français</option>
-                            <option value="Polski">Polski</option>
-                            <option value="中文">中文</option>
-                            <option value="हिन्दी">हिन्दी</option>
-                            <option value="Nederlands">Nederlands</option>
-                            <option value="Italiano">Italiano</option>
-                            <option value="Português">Português</option>
-                            <option value="Dansk">Dansk</option>
-                            <option value="日本語">日本語</option>
-                            <option value="Svenska">Svenska</option>
-                            <option value="Norsk">Norsk</option>
-                            <option value="Čeština">Čeština</option>
-                            <option value="Other / Custom">Other / Custom</option>
+                            <option value="Deutsch" data-i18n="setup.language_de">Deutsch</option>
+                            <option value="English" data-i18n="setup.language_en">English</option>
+                            <option value="Español" data-i18n="setup.language_es">Español</option>
+                            <option value="Français" data-i18n="setup.language_fr">Français</option>
+                            <option value="Polski" data-i18n="setup.language_pl">Polski</option>
+                            <option value="中文" data-i18n="setup.language_zh">中文</option>
+                            <option value="हिन्दी" data-i18n="setup.language_hi">हिन्दी</option>
+                            <option value="Nederlands" data-i18n="setup.language_nl">Nederlands</option>
+                            <option value="Italiano" data-i18n="setup.language_it">Italiano</option>
+                            <option value="Português" data-i18n="setup.language_pt">Português</option>
+                            <option value="Dansk" data-i18n="setup.language_da">Dansk</option>
+                            <option value="日本語" data-i18n="setup.language_ja">日本語</option>
+                            <option value="Svenska" data-i18n="setup.language_sv">Svenska</option>
+                            <option value="Norsk" data-i18n="setup.language_no">Norsk</option>
+                            <option value="Čeština" data-i18n="setup.language_cs">Čeština</option>
+                            <option value="Other / Custom" data-i18n="setup.step0_provider_custom">Other / Custom</option>
                         </select>
                         <input class="field-input is-hidden mt-xs" type="text" id="system-language-custom" placeholder="e.g. Klingon">
                     </div>
@@ -233,9 +235,9 @@
                                 <script>document.write(t('setup.step1_embeddings_provider_label'))</script>
                             </label>
                             <select class="field-select" id="emb-provider">
-                                <option value="internal">Internal (OpenRouter/OpenAI kompatibel)</option>
-                                <option value="ollama">Ollama (lokal)</option>
-                                <option value="">Deaktiviert</option>
+                                <option value="internal" data-i18n="setup.step1_embeddings_provider_internal">Internal (OpenRouter/OpenAI compatible)</option>
+                                <option value="ollama" data-i18n="setup.step1_embeddings_provider_ollama">Ollama (local)</option>
+                                <option value="" data-i18n="setup.step1_embeddings_provider_disabled">Disabled</option>
                             </select>
                         </div>
                         <div class="field-group">
@@ -259,10 +261,10 @@
                                 <script>document.write(t('setup.step1_vision_provider_label'))</script>
                             </label>
                             <select class="field-select" id="vision-provider">
-                                <option value="openrouter">OpenRouter</option>
-                                <option value="openai">OpenAI</option>
-                                <option value="ollama">Ollama</option>
-                                <option value="">Deaktiviert</option>
+                                <option value="openrouter" data-i18n="setup.step1_vision_provider_openrouter">OpenRouter</option>
+                                <option value="openai" data-i18n="setup.step1_vision_provider_openai">OpenAI</option>
+                                <option value="ollama" data-i18n="setup.step1_vision_provider_ollama">Ollama</option>
+                                <option value="" data-i18n="setup.step1_vision_provider_disabled">Disabled</option>
                             </select>
                         </div>
                         <div class="field-group">
@@ -287,10 +289,10 @@
                                 <script>document.write(t('setup.step1_whisper_provider_label'))</script>
                             </label>
                             <select class="field-select" id="whisper-provider" onchange="onWhisperProviderChange()">
-                                <option value="openrouter">OpenRouter</option>
-                                <option value="openai">OpenAI</option>
-                                <option value="ollama">Ollama</option>
-                                <option value="">Deaktiviert</option>
+                                <option value="openrouter" data-i18n="setup.step1_whisper_provider_openrouter">OpenRouter</option>
+                                <option value="openai" data-i18n="setup.step1_whisper_provider_openai">OpenAI</option>
+                                <option value="ollama" data-i18n="setup.step1_whisper_provider_ollama">Ollama</option>
+                                <option value="" data-i18n="setup.step1_whisper_provider_disabled">Disabled</option>
                             </select>
                         </div>
                         <div class="field-group">
@@ -306,9 +308,9 @@
                                 <script>document.write(t('setup.step1_whisper_mode_label'))</script>
                             </label>
                             <select class="field-select" id="whisper-mode">
-                                <option value="multimodal">Multimodal (Gemini / LLM)</option>
-                                <option value="whisper">Whisper API (OpenAI)</option>
-                                <option value="local">Local (Ollama)</option>
+                                <option value="multimodal" data-i18n="setup.step1_whisper_mode_multimodal">Multimodal (Gemini / LLM)</option>
+                                <option value="whisper" data-i18n="setup.step1_whisper_mode_whisper">Whisper API (OpenAI)</option>
+                                <option value="local" data-i18n="setup.step1_whisper_mode_local">Local (Ollama)</option>
                             </select>
                         </div>
                     </div>
@@ -364,7 +366,7 @@
                         <script>document.write(t('setup.step2_core_personality_label'))</script>
                     </label>
                     <select class="field-select" id="core-personality">
-                        <option value="friend" selected>Freundlich (friend)</option>
+                        <option value="friend" selected data-i18n="setup.step2_core_personality_default">Friendly (friend)</option>
                     </select>
                     <div id="hint-core-personality" class="field-hint">
                         <script>document.write(t('setup.step2_core_personality_hint'))</script>

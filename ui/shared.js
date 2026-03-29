@@ -22,6 +22,120 @@ function t(k, p) {
     return s;
 }
 
+// ═══════════════════════════════════════════════════════════════
+// MODAL DIALOGS (replaces alert/confirm)
+// ═══════════════════════════════════════════════════════════════
+
+let _sharedModalOverlay = null;
+
+function _ensureSharedModal() {
+    if (_sharedModalOverlay) return _sharedModalOverlay;
+    
+    // Check if page already has a modal-overlay (like index.html)
+    _sharedModalOverlay = document.getElementById('modal-overlay');
+    if (_sharedModalOverlay) return _sharedModalOverlay;
+    
+    // Create generic modal dynamically
+    const modalHTML = `
+        <div id="shared-modal-overlay" class="modal-overlay" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:9999;align-items:center;justify-content:center;">
+            <div class="modal-card" style="background:var(--bg-secondary,#1a1a1a);border:1px solid var(--border,#2a2a2a);border-radius:12px;padding:24px;max-width:400px;width:90%;box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);">
+                <div id="shared-modal-title" class="modal-title" style="font-size:1.125rem;font-weight:600;margin-bottom:12px;color:var(--text-primary,#e5e5e5);"></div>
+                <div id="shared-modal-message" class="modal-body" style="margin-bottom:20px;color:var(--text-secondary,#a1a1aa);line-height:1.5;"></div>
+                <div class="modal-actions" style="display:flex;gap:12px;justify-content:flex-end;">
+                    <button id="shared-modal-cancel" class="modal-btn cancel" style="padding:8px 16px;border-radius:6px;border:1px solid var(--border,#2a2a2a);background:transparent;color:var(--text-secondary,#a1a1aa);cursor:pointer;"></button>
+                    <button id="shared-modal-confirm" class="modal-btn confirm" style="padding:8px 16px;border-radius:6px;border:none;background:var(--accent,#2dd4bf);color:#000;cursor:pointer;font-weight:500;"></button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    _sharedModalOverlay = document.getElementById('shared-modal-overlay');
+    return _sharedModalOverlay;
+}
+
+/**
+ * Show a modal dialog (Promise-based, replaces alert/confirm)
+ * @param {string} title - Modal title
+ * @param {string} message - Modal message
+ * @param {boolean} isConfirm - If true, shows cancel button
+ * @param {Object} options - Optional { confirmText, cancelText }
+ * @returns {Promise<boolean>} - Resolves with true (confirmed) or false (cancelled)
+ */
+function showModal(title, message, isConfirm = false, options = {}) {
+    return new Promise((resolve) => {
+        const overlay = _ensureSharedModal();
+        const titleEl = document.getElementById('shared-modal-title') || document.getElementById('modal-title');
+        const msgEl = document.getElementById('shared-modal-message') || document.getElementById('modal-message');
+        const confirmBtn = document.getElementById('shared-modal-confirm') || document.getElementById('modal-confirm');
+        const cancelBtn = document.getElementById('shared-modal-cancel') || document.getElementById('modal-cancel');
+        
+        if (titleEl) titleEl.textContent = title;
+        if (msgEl) msgEl.textContent = message;
+        if (confirmBtn) confirmBtn.textContent = options.confirmText || t('common.btn_ok') || 'OK';
+        if (cancelBtn) {
+            cancelBtn.textContent = options.cancelText || t('common.btn_cancel') || 'Cancel';
+            cancelBtn.style.display = isConfirm ? 'inline-block' : 'none';
+        }
+        
+        overlay.style.display = 'flex';
+        if (overlay.classList) overlay.classList.add('active');
+        
+        function cleanup(result) {
+            overlay.style.display = 'none';
+            if (overlay.classList) overlay.classList.remove('active');
+            if (confirmBtn) confirmBtn.removeEventListener('click', onConfirm);
+            if (cancelBtn) cancelBtn.removeEventListener('click', onCancel);
+            overlay.removeEventListener('click', onOverlay);
+            document.removeEventListener('keydown', onKey);
+            resolve(result);
+        }
+        
+        function onConfirm() { cleanup(true); }
+        function onCancel() { cleanup(false); }
+        function onOverlay(e) { if (e.target === overlay) cleanup(false); }
+        function onKey(e) {
+            if (e.key === 'Escape') cleanup(false);
+            if (e.key === 'Enter' && !isConfirm) cleanup(true);
+        }
+        
+        if (confirmBtn) confirmBtn.addEventListener('click', onConfirm);
+        if (cancelBtn) cancelBtn.addEventListener('click', onCancel);
+        overlay.addEventListener('click', onOverlay);
+        document.addEventListener('keydown', onKey);
+    });
+}
+
+/**
+ * Show confirmation dialog (replaces confirm())
+ * @param {string} message - Confirmation message
+ * @param {string} [title] - Optional title
+ * @returns {Promise<boolean>}
+ */
+function showConfirm(title, message) {
+    if (arguments.length === 1) {
+        message = title;
+        title = t('common.confirm_title') || 'Confirm';
+    }
+    return showModal(title, message, true, { 
+        confirmText: t('common.btn_yes') || 'Yes', 
+        cancelText: t('common.btn_no') || 'No' 
+    });
+}
+
+/**
+ * Show alert dialog (replaces alert())
+ * @param {string} message - Alert message
+ * @param {string} [title] - Optional title
+ * @returns {Promise<void>}
+ */
+function showAlert(title, message) {
+    if (arguments.length === 1) {
+        message = title;
+        title = t('common.alert_title') || 'Notice';
+    }
+    return showModal(title, message, false, { confirmText: t('common.btn_ok') || 'OK' });
+}
+
 function ensureHeadAsset(tagName, attrs) {
     const selectorParts = [tagName];
     if (attrs.rel) selectorParts.push(`[rel="${attrs.rel}"]`);
@@ -553,10 +667,10 @@ function timeAgo(date) {
     const then = new Date(date);
     const seconds = Math.floor((now - then) / 1000);
 
-    if (seconds < 60) return 'just now';
-    if (seconds < 3600) return Math.floor(seconds / 60) + 'm ago';
-    if (seconds < 86400) return Math.floor(seconds / 3600) + 'h ago';
-    return Math.floor(seconds / 86400) + 'd ago';
+    if (seconds < 60) return t('common.time_ago_just_now') || 'just now';
+    if (seconds < 3600) return t('common.time_ago_minutes', {n: Math.floor(seconds / 60)}) || (Math.floor(seconds / 60) + 'm ago');
+    if (seconds < 86400) return t('common.time_ago_hours', {n: Math.floor(seconds / 3600)}) || (Math.floor(seconds / 3600) + 'h ago');
+    return t('common.time_ago_days', {n: Math.floor(seconds / 86400)}) || (Math.floor(seconds / 86400) + 'd ago');
 }
 
 /**
@@ -581,10 +695,10 @@ function debounce(fn, delay) {
 async function copyToClipboard(text) {
     try {
         await navigator.clipboard.writeText(text);
-        showToast('Copied to clipboard', 'success');
+        showToast(t('common.clipboard_copied') || 'Copied to clipboard', 'success');
         return true;
     } catch (err) {
-        showToast('Failed to copy', 'error');
+        showToast(t('common.clipboard_failed') || 'Failed to copy', 'error');
         return false;
     }
 }
@@ -710,11 +824,11 @@ function injectLanguageSwitcher() {
                 window.location.reload();
             } else {
                 const err = await resp.text();
-                showToast('Failed to update UI language: ' + err, 'error');
+                showToast((t('common.language_update_failed') || 'Failed to update UI language') + ': ' + err, 'error');
             }
         } catch (err) {
             console.error('Failed to update UI language:', err);
-            showToast('Failed to connect to server', 'error');
+            showToast(t('common.server_connection_failed') || 'Failed to connect to server', 'error');
         }
     });
 }

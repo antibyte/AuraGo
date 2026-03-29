@@ -339,11 +339,12 @@ class DragDropManager {
         this.renderQueue();
     }
 
-    closeQueue() {
+    async closeQueue() {
         // Only close if all done, or confirm
         const hasActive = this.uploadQueue.some(i => i.status === 'uploading');
         if (hasActive) {
-            if (!confirm('Uploads in progress. Close anyway?')) return;
+            const confirmed = await showConfirm('Upload in Progress', 'Uploads in progress. Close anyway?');
+            if (!confirmed) return;
         }
         this.queuePanel.classList.add('is-hidden');
     }

@@ -13,9 +13,11 @@
     (function () { var t = localStorage.getItem('aurago-theme'); if (t) document.documentElement.setAttribute('data-theme', t); })();
   </script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/tokens.css">
   <link rel="stylesheet" href="/css/dashboard.css">
   <link rel="stylesheet" href="/css/enhancements.css">
   <script src="/chart.min.js" defer></script>
+</head>
 
 <body>
 
@@ -27,7 +29,7 @@
       <span class="logo-subtitle" data-i18n="dashboard.logo_subtitle">DASHBOARD</span>
     </a>
     <div class="header-actions">
-      <button id="theme-toggle" type="button" class="btn-theme" data-i18n-title="common.toggle_theme" data-i18n-title="common.toggle_theme"></button>
+      <button id="theme-toggle" type="button" class="btn-theme" data-i18n-title="common.toggle_theme"></button>
     </div>
   </header>
 
@@ -160,7 +162,7 @@
       </div>
     </div>
 
->    </div><!-- .dash-grid tab-overview -->
+    </div><!-- .dash-grid tab-overview -->
   </div><!-- #tab-overview -->
 
   <!-- ═══ Tab 2: Agent & Memory ═══════════════════════════════════════════ -->

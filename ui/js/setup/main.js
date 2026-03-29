@@ -791,8 +791,8 @@ async function saveConfig() {
 }
 
 // ── Skip Setup ───────────────────────────────
-function skipSetup() {
-    if (confirm(t('setup.confirm_skip_setup'))) {
+async function skipSetup() {
+    if (await showConfirm(t('setup.confirm_skip_setup_title') || 'Skip Setup', t('setup.confirm_skip_setup'))) {
         window.location.href = '/?skip_setup=1';
     }
 }

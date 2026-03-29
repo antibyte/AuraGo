@@ -47,5 +47,8 @@
   "truenas.label_name": "Nom",
   "truenas.label_path": "Chemin",
   "truenas.label_guest_access": "Autoriser l'accès invité",
-  "truenas.label_timemachine": "Support Time Machine (Mac)"
+  "truenas.label_timemachine": "Support Time Machine (Mac)",
+  "truenas.opt_gzip": "GZIP",
+  "truenas.opt_zle": "ZLE",
+  "truenas.opt_off": "Désactivé"
 }

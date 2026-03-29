@@ -489,24 +489,24 @@ class TrueNASUI {
     }
     
     async scrubPool(poolId) {
-        if (!confirm('Scrub starten? Dies kann die Performance beeinträchtigen.')) return;
+        if (!(await showConfirm('Scrub starten', 'Dies kann die Performance beeinträchtigen.'))) return;
         
         try {
             const response = await fetch(`${this.baseUrl}/pools/${poolId}/scrub`, { method: 'POST' });
             if (response.ok) {
-                alert('Scrub gestartet');
+                await showAlert('Scrub gestartet', 'Der Pool-Scrub wurde erfolgreich gestartet.');
                 this.loadPools();
             } else {
                 const data = await response.json();
-                alert('Fehler: ' + (data.error || 'Unbekannter Fehler'));
+                await showAlert('Fehler', data.error || 'Unbekannter Fehler');
             }
         } catch (err) {
-            alert('Fehler: ' + err.message);
+            await showAlert('Fehler', err.message);
         }
     }
     
     async deleteDataset(name) {
-        if (!confirm(`Dataset "${name}" wirklich löschen? Alle Daten gehen verloren!`)) return;
+        if (!(await showConfirm('Dataset löschen', `Dataset "${name}" wirklich löschen? Alle Daten gehen verloren!`))) return;
         
         try {
             const response = await fetch(`${this.baseUrl}/datasets/${encodeURIComponent(name)}?recursive=true`, {
@@ -517,15 +517,15 @@ class TrueNASUI {
                 this.loadDatasets();
             } else {
                 const data = await response.json();
-                alert('Fehler: ' + (data.error || 'Unbekannter Fehler'));
+                await showAlert('Fehler', data.error || 'Unbekannter Fehler');
             }
         } catch (err) {
-            alert('Fehler: ' + err.message);
+            await showAlert('Fehler', err.message);
         }
     }
     
     async deleteSnapshot(name) {
-        if (!confirm(`Snapshot "${name}" wirklich löschen?`)) return;
+        if (!(await showConfirm('Snapshot löschen', `Snapshot "${name}" wirklich löschen?`))) return;
         
         try {
             const response = await fetch(`${this.baseUrl}/snapshots/${encodeURIComponent(name)}`, {
@@ -536,15 +536,15 @@ class TrueNASUI {
                 this.loadSnapshots();
             } else {
                 const data = await response.json();
-                alert('Fehler: ' + (data.error || 'Unbekannter Fehler'));
+                await showAlert('Fehler', data.error || 'Unbekannter Fehler');
             }
         } catch (err) {
-            alert('Fehler: ' + err.message);
+            await showAlert('Fehler', err.message);
         }
     }
     
     async rollbackSnapshot(name) {
-        if (!confirm(`WIRKLICH zu "${name}" zurücksetzen? ALLE Daten nach diesem Snapshot werden gelöscht!`)) return;
+        if (!(await showConfirm('Rollback bestätigen', `WIRKLICH zu "${name}" zurücksetzen? ALLE Daten nach diesem Snapshot werden gelöscht!`))) return;
         
         try {
             const response = await fetch(`${this.baseUrl}/snapshots/${encodeURIComponent(name)}/rollback`, {
@@ -554,19 +554,19 @@ class TrueNASUI {
             });
             
             if (response.ok) {
-                alert('Rollback erfolgreich');
+                await showAlert('Rollback erfolgreich', 'Der Snapshot-Rollback wurde erfolgreich durchgeführt.');
                 this.loadSnapshots();
             } else {
                 const data = await response.json();
-                alert('Fehler: ' + (data.error || 'Unbekannter Fehler'));
+                await showAlert('Fehler', data.error || 'Unbekannter Fehler');
             }
         } catch (err) {
-            alert('Fehler: ' + err.message);
+            await showAlert('Fehler', err.message);
         }
     }
     
     async deleteShare(shareId) {
-        if (!confirm('Freigabe wirklich löschen? Die Daten bleiben erhalten.')) return;
+        if (!(await showConfirm('Freigabe löschen', 'Freigabe wirklich löschen? Die Daten bleiben erhalten.'))) return;
         
         try {
             const response = await fetch(`${this.baseUrl}/shares/smb/${shareId}`, {
@@ -577,10 +577,10 @@ class TrueNASUI {
                 this.loadShares();
             } else {
                 const data = await response.json();
-                alert('Fehler: ' + (data.error || 'Unbekannter Fehler'));
+                await showAlert('Fehler', data.error || 'Unbekannter Fehler');
             }
         } catch (err) {
-            alert('Fehler: ' + err.message);
+            await showAlert('Fehler', err.message);
         }
     }
     

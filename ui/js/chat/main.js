@@ -1401,7 +1401,11 @@ function initPushUI() {
         if (!status || !status.available) return;
 
         if (status.permission === 'denied') {
-            window.showToast ? window.showToast(t('pwa.notifications_denied'), 'warning') : alert(t('pwa.notifications_denied'));
+            if (window.showToast) {
+                window.showToast(t('pwa.notifications_denied'), 'warning');
+            } else {
+                await showAlert(t('pwa.notifications_denied'), '');
+            }
             return;
         }
 
@@ -1457,8 +1461,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 input.style.height = Math.min(input.scrollHeight, 200) + 'px';
                 input.focus();
             };
-            const _showError = (msg) => {
-                if (window.showToast) { window.showToast(msg, 'error'); } else { alert(msg); }
+            const _showError = async (msg) => {
+                if (window.showToast) { window.showToast(msg, 'error'); } else { await showAlert(msg, ''); }
             };
 
             // Prefer browser-native Speech-to-Text (Chrome, Edge, Android)

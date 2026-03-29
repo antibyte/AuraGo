@@ -1,4 +1,4 @@
-﻿{
+{
   "config.section.server.label": "Server",
   "config.section.server.desc": "Webserver und API-Einstellungen",
   "config.section.directories.label": "Verzeichnisse",

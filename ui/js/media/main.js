@@ -238,7 +238,8 @@ function audioPrev() { audioOffset = Math.max(0, audioOffset - MEDIA_LIMIT); loa
 function audioNext() { audioOffset += MEDIA_LIMIT; loadAudio(); }
 
 async function deleteAudioItem(id) {
-    if (!confirm(t('gallery.confirm_delete'))) return;
+    const confirmed = await showConfirm(t('gallery.confirm_delete_title') || 'Confirm Delete', t('gallery.confirm_delete'));
+    if (!confirmed) return;
     try {
         const resp = await fetch('/api/media/' + id, { method: 'DELETE' });
         const data = await resp.json();
@@ -247,9 +248,9 @@ async function deleteAudioItem(id) {
             audioOffset = 0;
             loadAudio();
         } else {
-            alert(data.message || 'Delete failed');
+            await showAlert(t('gallery.delete_failed_title') || 'Delete Failed', data.message || 'Delete failed');
         }
-    } catch (e) { alert(e.message); }
+    } catch (e) { await showAlert(t('gallery.error_title') || 'Error', e.message); }
 }
 
 function openAudioModal(id) {
@@ -310,7 +311,8 @@ function closeAudioModal(event) {
 
 async function audioDeleteCurrent() {
     if (currentAudioModalId === null) return;
-    if (!confirm(t('gallery.confirm_delete'))) return;
+    const confirmed = await showConfirm(t('gallery.confirm_delete_title') || 'Confirm Delete', t('gallery.confirm_delete'));
+    if (!confirmed) return;
     try {
         const resp = await fetch('/api/media/' + currentAudioModalId, { method: 'DELETE' });
         const data = await resp.json();
@@ -320,9 +322,9 @@ async function audioDeleteCurrent() {
             audioOffset = 0;
             loadAudio();
         } else {
-            alert(data.message || 'Delete failed');
+            await showAlert(t('gallery.delete_failed_title') || 'Delete Failed', data.message || 'Delete failed');
         }
-    } catch (e) { alert(e.message); }
+    } catch (e) { await showAlert(t('gallery.error_title') || 'Error', e.message); }
 }
 
 // ── Documents tab ─────────────────────────────────────────────────────────────
@@ -435,7 +437,8 @@ function docPrev() { docOffset = Math.max(0, docOffset - MEDIA_LIMIT); loadDocum
 function docNext() { docOffset += MEDIA_LIMIT; loadDocuments(); }
 
 async function docDelete(id) {
-    if (!confirm(t('gallery.confirm_delete'))) return;
+    const confirmed = await showConfirm(t('gallery.confirm_delete_title') || 'Confirm Delete', t('gallery.confirm_delete'));
+    if (!confirmed) return;
     try {
         const resp = await fetch('/api/media/' + id, { method: 'DELETE' });
         const data = await resp.json();
@@ -444,9 +447,9 @@ async function docDelete(id) {
             docOffset = 0;
             loadDocuments();
         } else {
-            alert(data.message || 'Delete failed');
+            await showAlert(t('gallery.delete_failed_title') || 'Delete Failed', data.message || 'Delete failed');
         }
-    } catch (e) { alert(e.message); }
+    } catch (e) { await showAlert(t('gallery.error_title') || 'Error', e.message); }
 }
 
 // ── Helper same as gallery ────────────────────────────────────────────────────

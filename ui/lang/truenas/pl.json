@@ -47,5 +47,8 @@
   "truenas.label_name": "Nazwa",
   "truenas.label_path": "Ścieżka",
   "truenas.label_guest_access": "Zezwól na dostęp gości",
-  "truenas.label_timemachine": "Obsługa Time Machine (Mac)"
+  "truenas.label_timemachine": "Obsługa Time Machine (Mac)",
+  "truenas.opt_gzip": "GZIP",
+  "truenas.opt_zle": "ZLE",
+  "truenas.opt_off": "Wyłączone"
 }

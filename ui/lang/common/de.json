@@ -4,6 +4,8 @@
   "common.btn_delete": "Löschen",
   "common.btn_edit": "Bearbeiten",
   "common.btn_ok": "OK",
+  "common.alert_title": "Hinweis",
+  "common.confirm_title": "Bestätigen",
   "common.btn_save": "Speichern",
   "common.disabled": "Deaktiviert",
   "common.enabled": "Aktiviert",
@@ -35,5 +37,13 @@
   "common.nav_containers": "Container",
   "common.nav_skills": "Fähigkeiten",
   "common.nav_plans": "Pläne",
-  "common.nav_truenas": "TrueNAS Speicher"
+  "common.nav_truenas": "TrueNAS Speicher",
+  "common.time_ago_just_now": "gerade eben",
+  "common.time_ago_minutes": "vor {{n}} Min.",
+  "common.time_ago_hours": "vor {{n}} Std.",
+  "common.time_ago_days": "vor {{n}} T.",
+  "common.clipboard_copied": "In Zwischenablage kopiert",
+  "common.clipboard_failed": "Kopieren fehlgeschlagen",
+  "common.language_update_failed": "Sprachänderung fehlgeschlagen",
+  "common.server_connection_failed": "Serververbindung fehlgeschlagen"
 }

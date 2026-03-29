@@ -1,4 +1,4 @@
-﻿{
+{
   "config.section.server.label": "Server",
   "config.section.server.desc": "Nettserver og API-innstillinger",
   "config.section.directories.label": "Kataloger",

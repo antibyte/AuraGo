@@ -47,5 +47,8 @@
   "truenas.label_name": "名称",
   "truenas.label_path": "路径",
   "truenas.label_guest_access": "允许访客访问",
-  "truenas.label_timemachine": "Time Machine 支持（Mac）"
+  "truenas.label_timemachine": "Time Machine 支持（Mac）",
+  "truenas.opt_gzip": "GZIP",
+  "truenas.opt_zle": "ZLE",
+  "truenas.opt_off": "关闭"
 }

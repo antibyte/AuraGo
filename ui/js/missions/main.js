@@ -834,7 +834,8 @@ async function deleteMission(id) {
     const mission = missions.find(m => m.id === id);
     if (!mission) return;
 
-    if (!confirm(t('missions.confirm_delete', { name: mission.name }))) {
+    const confirmed = await showConfirm(t('common.confirm'), t('missions.confirm_delete', { name: mission.name }));
+    if (!confirmed) {
         return;
     }
 
