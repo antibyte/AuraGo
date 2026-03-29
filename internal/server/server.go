@@ -561,6 +561,7 @@ func Start(cfg *config.Config, logger *slog.Logger, accessLogger *slog.Logger, l
 				AuthMethod:     cfg.CloudflareTunnel.AuthMethod,
 				TunnelName:     cfg.CloudflareTunnel.TunnelName,
 				AccountID:      cfg.CloudflareTunnel.AccountID,
+				TunnelID:       cfg.CloudflareTunnel.TunnelID,
 				ExposeWebUI:    cfg.CloudflareTunnel.ExposeWebUI,
 				ExposeHomepage: cfg.CloudflareTunnel.ExposeHomepage,
 				MetricsPort:    cfg.CloudflareTunnel.MetricsPort,

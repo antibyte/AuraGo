@@ -513,6 +513,7 @@ func dispatchInfra(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 			AuthMethod:     cfg.CloudflareTunnel.AuthMethod,
 			TunnelName:     cfg.CloudflareTunnel.TunnelName,
 			AccountID:      cfg.CloudflareTunnel.AccountID,
+			TunnelID:       cfg.CloudflareTunnel.TunnelID,
 			ExposeWebUI:    cfg.CloudflareTunnel.ExposeWebUI,
 			ExposeHomepage: cfg.CloudflareTunnel.ExposeHomepage,
 			MetricsPort:    cfg.CloudflareTunnel.MetricsPort,

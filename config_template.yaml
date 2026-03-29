@@ -564,7 +564,8 @@ cloudflare_tunnel:
     auto_start: true                        # start tunnel automatically when AuraGo starts
     auth_method: token                      # "token" (Connector Token), "named" (credentials.json), "quick" (temporary URL, no account)
     tunnel_name: ""                         # named tunnel: tunnel name from CF dashboard
-    account_id: ""                          # named tunnel: Cloudflare account ID
+    account_id: ""                          # Cloudflare account ID (required for named tunnels and API-based noTLSVerify)
+    tunnel_id: ""                           # optional: explicit tunnel UUID; used to auto-configure noTLSVerify via API when HTTPS is enabled (leave empty to auto-resolve by tunnel_name)
     expose_web_ui: true                     # route AuraGo web UI through the tunnel
     expose_homepage: true                   # route Homepage web server through the tunnel
     custom_ingress: []                      # additional ingress rules: [{hostname: "x.example.com", service: "http://localhost:3000"}]

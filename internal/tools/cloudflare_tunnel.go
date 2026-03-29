@@ -3,6 +3,7 @@ package tools
 import (
 	"aurago/internal/security"
 	"bytes"
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
@@ -41,8 +42,9 @@ type CloudflareTunnelConfig struct {
 	DataDir        string // for storing config files
 	// HTTPS fields: when HTTPS is enabled AuraGo no longer listens on WebUIPort.
 	// The tunnel must connect to the HTTPS endpoint instead.
-	HTTPSEnabled bool // from server.https.enabled
-	HTTPSPort    int  // from server.https.https_port (default 443)
+	HTTPSEnabled bool   // from server.https.enabled
+	HTTPSPort    int    // from server.https.https_port (default 443)
+	TunnelID     string // optional explicit tunnel UUID (for API-based noTLSVerify config)
 }
 
 // CloudflareIngress mirrors config.CloudflareIngressRule for the tools package.
@@ -250,6 +252,209 @@ func CloudflareTunnelInstall(cfg CloudflareTunnelConfig, logger *slog.Logger) st
 // ──────────────────────────────────────────────────────────────────────────
 // Token Tunnel (Connector Token via CF Dashboard)
 // ──────────────────────────────────────────────────────────────────────────
+// Cloudflare API – programmatic tunnel configuration
+// ──────────────────────────────────────────────────────────────────────────
+
+// cfTunnelConfig is the remotely-managed cloudflared ingress/origin config.
+type cfTunnelConfig struct {
+	Ingress       []cfIngressRule  `json:"ingress,omitempty"`
+	OriginRequest *cfOriginRequest `json:"originRequest,omitempty"`
+}
+
+type cfIngressRule struct {
+	Hostname      string           `json:"hostname,omitempty"`
+	Service       string           `json:"service"`
+	Path          string           `json:"path,omitempty"`
+	OriginRequest *cfOriginRequest `json:"originRequest,omitempty"`
+}
+
+type cfOriginRequest struct {
+	NoTLSVerify bool `json:"noTLSVerify"`
+}
+
+type cfAPIError struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
+type cfAPIGenericResponse struct {
+	Success bool         `json:"success"`
+	Errors  []cfAPIError `json:"errors"`
+}
+
+type cfTunnelListResponse struct {
+	Result  []cfTunnelListItem `json:"result"`
+	Success bool               `json:"success"`
+	Errors  []cfAPIError       `json:"errors"`
+}
+
+type cfTunnelListItem struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+type cfTunnelConfigResponse struct {
+	Result  cfTunnelConfigResult `json:"result"`
+	Success bool                 `json:"success"`
+	Errors  []cfAPIError         `json:"errors"`
+}
+
+type cfTunnelConfigResult struct {
+	Config cfTunnelConfig `json:"config"`
+}
+
+// applyNoTLSVerifyViaAPI reads the current remotely-managed tunnel configuration
+// from the Cloudflare API and ensures noTLSVerify is set at the top-level
+// originRequest. This is necessary when HTTPS is enabled because cloudflared
+// overrides local CLI flags with the Dashboard-pushed ingress configuration.
+//
+// The vault secret "cloudflare_api_token" must be set with a Zero Trust write
+// capable API token. If either the token or the account/tunnel IDs are missing
+// the call is silently skipped and a hint is logged.
+func applyNoTLSVerifyViaAPI(ctx context.Context, cfg CloudflareTunnelConfig, apiToken string, logger *slog.Logger) {
+	if cfg.AccountID == "" || apiToken == "" {
+		return
+	}
+
+	// Resolve tunnel ID: explicit override > lookup by name.
+	tunnelID := cfg.TunnelID
+	if tunnelID == "" {
+		if cfg.TunnelName == "" {
+			logger.Info("[CloudflareTunnel] Skipping API noTLSVerify: set tunnel_id (or tunnel_name) and account_id in config to auto-configure")
+			return
+		}
+		var err error
+		tunnelID, err = cfLookupTunnelID(ctx, cfg.AccountID, apiToken, cfg.TunnelName)
+		if err != nil {
+			logger.Warn("[CloudflareTunnel] Cannot look up tunnel UUID via API", "name", cfg.TunnelName, "error", err)
+			return
+		}
+	}
+
+	// GET current remotely-managed config.
+	current, err := cfGetTunnelConfig(ctx, cfg.AccountID, apiToken, tunnelID)
+	if err != nil {
+		logger.Warn("[CloudflareTunnel] Cannot GET tunnel config via Cloudflare API", "tunnelID", tunnelID, "error", err)
+		return
+	}
+
+	// Already configured? Nothing to do.
+	if current.OriginRequest != nil && current.OriginRequest.NoTLSVerify {
+		logger.Info("[CloudflareTunnel] noTLSVerify already enabled in Dashboard config", "tunnelID", tunnelID)
+		return
+	}
+
+	// Set top-level noTLSVerify; this default applies to all ingress rules.
+	if current.OriginRequest == nil {
+		current.OriginRequest = &cfOriginRequest{}
+	}
+	current.OriginRequest.NoTLSVerify = true
+
+	if err := cfPutTunnelConfig(ctx, cfg.AccountID, apiToken, tunnelID, current); err != nil {
+		logger.Warn("[CloudflareTunnel] Cannot PUT tunnel config via Cloudflare API", "tunnelID", tunnelID, "error", err)
+		return
+	}
+	logger.Info("[CloudflareTunnel] Successfully set noTLSVerify=true via Cloudflare API", "tunnelID", tunnelID)
+}
+
+// cfLookupTunnelID resolves a tunnel UUID by its display name.
+func cfLookupTunnelID(ctx context.Context, accountID, apiToken, name string) (string, error) {
+	reqURL := fmt.Sprintf(
+		"https://api.cloudflare.com/client/v4/accounts/%s/cfd_tunnel?name=%s&is_deleted=false",
+		url.PathEscape(accountID),
+		url.QueryEscape(name),
+	)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Authorization", "Bearer "+apiToken)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	var r cfTunnelListResponse
+	if err := json.NewDecoder(resp.Body).Decode(&r); err != nil {
+		return "", fmt.Errorf("decode: %w", err)
+	}
+	if !r.Success {
+		return "", fmt.Errorf("API error: %+v", r.Errors)
+	}
+	if len(r.Result) == 0 {
+		return "", fmt.Errorf("no tunnel found with name %q", name)
+	}
+	return r.Result[0].ID, nil
+}
+
+// cfGetTunnelConfig fetches the current remotely-managed config for a tunnel.
+func cfGetTunnelConfig(ctx context.Context, accountID, apiToken, tunnelID string) (*cfTunnelConfig, error) {
+	reqURL := fmt.Sprintf(
+		"https://api.cloudflare.com/client/v4/accounts/%s/cfd_tunnel/%s/configurations",
+		url.PathEscape(accountID),
+		url.PathEscape(tunnelID),
+	)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+apiToken)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	var r cfTunnelConfigResponse
+	if err := json.NewDecoder(resp.Body).Decode(&r); err != nil {
+		return nil, fmt.Errorf("decode: %w", err)
+	}
+	if !r.Success {
+		return nil, fmt.Errorf("API error: %+v", r.Errors)
+	}
+	return &r.Result.Config, nil
+}
+
+// cfPutTunnelConfig replaces the remotely-managed config for a tunnel.
+func cfPutTunnelConfig(ctx context.Context, accountID, apiToken, tunnelID string, config *cfTunnelConfig) error {
+	body, err := json.Marshal(map[string]any{"config": config})
+	if err != nil {
+		return err
+	}
+	reqURL := fmt.Sprintf(
+		"https://api.cloudflare.com/client/v4/accounts/%s/cfd_tunnel/%s/configurations",
+		url.PathEscape(accountID),
+		url.PathEscape(tunnelID),
+	)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, reqURL, bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+apiToken)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	var r cfAPIGenericResponse
+	if err := json.NewDecoder(resp.Body).Decode(&r); err != nil {
+		return fmt.Errorf("decode: %w", err)
+	}
+	if !r.Success {
+		return fmt.Errorf("API error: %+v", r.Errors)
+	}
+	return nil
+}
+
+// ──────────────────────────────────────────────────────────────────────────
 
 // buildLocalURL returns the URL cloudflared should use to reach AuraGo locally.
 // buildLocalURL returns the URL cloudflared should use to reach AuraGo.
@@ -268,6 +473,22 @@ func startTokenTunnel(cfg CloudflareTunnelConfig, vault *security.Vault, registr
 	token, err := vault.ReadSecret("cloudflared_token")
 	if err != nil || token == "" {
 		return errJSON("Cloudflare connector token not found in vault. Store it with key 'cloudflared_token' via the Config UI.")
+	}
+
+	// When HTTPS is enabled, apply noTLSVerify to the Dashboard-managed config via the
+	// Cloudflare API *before* starting cloudflared. This is required because in
+	// remotely-managed mode cloudflared overrides the local --no-tls-verify CLI flag
+	// with the ingress rules pushed by the Dashboard. Without this the connector
+	// cannot reach the HTTPS origin.
+	if cfg.HTTPSEnabled {
+		apiToken, _ := vault.ReadSecret("cloudflare_api_token")
+		if apiToken != "" {
+			apiCtx, apiCancel := context.WithTimeout(context.Background(), 15*time.Second)
+			applyNoTLSVerifyViaAPI(apiCtx, cfg, apiToken, logger)
+			apiCancel()
+		} else {
+			logger.Info("[CloudflareTunnel] Tip: store a Cloudflare API token in the vault with key 'cloudflare_api_token' to auto-configure noTLSVerify in the Dashboard config")
+		}
 	}
 
 	mode := resolveMode(cfg)
