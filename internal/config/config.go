@@ -346,9 +346,9 @@ func Load(path string) (*Config, error) {
 	if cfg.Server.HTTPS.HTTPSPort <= 0 {
 		cfg.Server.HTTPS.HTTPSPort = 443
 	}
-	if cfg.Server.HTTPS.HTTPPort <= 0 {
-		cfg.Server.HTTPS.HTTPPort = 80
-	}
+	// HTTPPort defaults to 0 = no HTTP redirect server.
+	// Let's Encrypt (auto mode) will override this to 80 at startup since ACME needs it.
+	// For self-signed / custom certs, the redirect is optional — leave 0 as-is.
 	if cfg.Server.HTTPS.Enabled && cfg.Server.HTTPS.CertMode == "" {
 		cfg.Server.HTTPS.CertMode = "auto"
 	}

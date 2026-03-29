@@ -154,6 +154,10 @@ func setupAutoTLS(tlsCfg *TLSConfig, handler http.Handler, logger Logger) (*http
 	if tlsCfg.Domain == "" {
 		return nil, nil, fmt.Errorf("domain is required for Let's Encrypt auto-TLS")
 	}
+	// ACME HTTP-01 challenge requires port 80. Override 0 with the standard default.
+	if tlsCfg.HTTPPort <= 0 {
+		tlsCfg.HTTPPort = 80
+	}
 
 	certManager := &autocert.Manager{
 		Prompt:     autocert.AcceptTOS,
@@ -207,6 +211,10 @@ func setupCustomTLS(tlsCfg *TLSConfig, handler http.Handler, logger Logger) (*ht
 		IdleTimeout:  2 * time.Minute,
 	}
 
+	// HTTP redirect server is optional for custom certs — skip if HTTPPort is 0.
+	if tlsCfg.HTTPPort <= 0 {
+		return httpsServer, nil, nil
+	}
 	httpServer := &http.Server{
 		Addr:         fmt.Sprintf(":%d", tlsCfg.HTTPPort),
 		Handler:      httpRedirectHandler(tlsCfg.Domain),
@@ -241,6 +249,10 @@ func setupSelfSignedTLS(tlsCfg *TLSConfig, handler http.Handler, logger Logger) 
 		IdleTimeout:  2 * time.Minute,
 	}
 
+	// HTTP redirect server is optional for self-signed certs — skip if HTTPPort is 0.
+	if tlsCfg.HTTPPort <= 0 {
+		return httpsServer, nil, nil
+	}
 	httpServer := &http.Server{
 		Addr:         fmt.Sprintf(":%d", tlsCfg.HTTPPort),
 		Handler:      httpRedirectHandler(tlsCfg.Domain),

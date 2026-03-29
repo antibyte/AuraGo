@@ -777,7 +777,7 @@ func (s *Server) serveWithShutdown(server, redirectServer, ttsServer *http.Serve
 		go func() {
 			s.Logger.Info("Starting HTTP redirect server", "addr", redirectServer.Addr)
 			if err := redirectServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-				s.Logger.Error("HTTP redirect server error", "error", err)
+				s.Logger.Warn("HTTP redirect server error (non-fatal — disable with http_port: 0 in config)", "error", err)
 			}
 		}()
 	}
