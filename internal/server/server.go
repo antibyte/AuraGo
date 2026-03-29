@@ -819,7 +819,14 @@ func (s *Server) serveWithShutdown(server, redirectServer, ttsServer *http.Serve
 	}
 
 	if err != nil && err != http.ErrServerClosed {
-		return err
+		richErr := fmt.Errorf("server listen error: %w", err)
+		// Detect privileged port issue (ports < 1024 require root or CAP_NET_BIND_SERVICE)
+		if strings.Contains(err.Error(), "permission denied") || strings.Contains(err.Error(), "bind") {
+			richErr = fmt.Errorf("%w\n\nHint: Ports below 1024 (80, 443) require root privileges.\n"+
+				"To use HTTPS without root: set server.https.https_port to 8443 (or any high port) and\n"+
+				"server.https.http_port to 8080 in your config.yaml", richErr)
+		}
+		return richErr
 	}
 
 	s.Logger.Info("Server stopped gracefully")

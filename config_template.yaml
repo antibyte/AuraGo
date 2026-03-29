@@ -354,7 +354,7 @@ server:
     max_body_bytes: 10485760
     https:
         enabled: false
-        cert_mode: auto                     # "auto" (Let's Encrypt), "custom" (uploaded cert), "selfsigned" (auto-generated); auto falls back to selfsigned if no domain is set
+        cert_mode: auto                     # "auto" (Let's Encrypt), "custom" (uploaded cert), "selfsigned" (auto-generated)
         domain: ""
         email: ""
         cert_file: ""                       # custom mode: path to PEM certificate file
