@@ -291,36 +291,15 @@ func startTokenTunnel(cfg CloudflareTunnelConfig, vault *security.Vault, registr
 
 	switch mode {
 	case "docker":
-		// For HTTPS origins with self-signed certificates, cloudflared must be told to
-		// skip TLS verification for the local connection to AuraGo. The --no-tls-verify
-		// CLI flag is not reliable for token tunnels when the tunnel config comes from
-		// the Cloudflare dashboard. Writing a config file is the only robust method.
-		//
-		// IMPORTANT: do NOT mount into /etc/cloudflared — cloudflared writes its own
-		// tunnel state there and a read-only mount would break that. Mount into a
-		// separate, neutral path (/aurago-config) instead.
-		var extraBinds []string
+		// cloudflared respects TUNNEL_ORIGIN_NO_TLS_VERIFY=true to skip certificate
+		// verification for the local origin connection. Using an env var is far simpler
+		// and more reliable than a bind-mounted config file (no permission issues,
+		// no SELinux/AppArmor conflicts, no directory traversal problems).
+		containerEnv := []string{"TUNNEL_TOKEN=" + token}
 		if cfg.HTTPSEnabled {
-			configContent := "originRequest:\n  noTLSVerify: true\n"
-			configDir := filepath.Join(cfg.DataDir, "cloudflared")
-			if mkErr := os.MkdirAll(configDir, 0o755); mkErr == nil {
-				// MkdirAll does NOT update permissions of already-existing directories.
-				// Explicitly chmod to ensure the container user can traverse the path.
-				_ = os.Chmod(configDir, 0o755)
-				configPath := filepath.Join(configDir, "origin-config.yml")
-				if wErr := os.WriteFile(configPath, []byte(configContent), 0o644); wErr == nil {
-					// Mount at /aurago-config (read-only) to avoid conflicting with
-					// cloudflared's own /etc/cloudflared write operations.
-					tunnelArgs = append([]string{"tunnel", "--config", "/aurago-config/origin-config.yml", "--url", localURL}, "run")
-					extraBinds = []string{configDir + ":/aurago-config:ro"}
-					logger.Info("[CloudflareTunnel] Origin config written with noTLSVerify", "path", configPath)
-				} else {
-					logger.Warn("[CloudflareTunnel] Failed to write origin config", "error", wErr)
-				}
-			}
+			containerEnv = append(containerEnv, "TUNNEL_ORIGIN_NO_TLS_VERIFY=true")
 		}
-		// Pass token as env var to avoid exposure in process listings (ps aux / /proc)
-		return startDockerTunnel(cfg, tunnelArgs, []string{"TUNNEL_TOKEN=" + token}, extraBinds, logger)
+		return startDockerTunnel(cfg, tunnelArgs, containerEnv, nil, logger)
 	case "native":
 		// Pass token as env var to avoid exposure in process listings (ps aux / /proc)
 		return startNativeTunnel(cfg, registry, tunnelArgs, []string{"TUNNEL_TOKEN=" + token}, logger)
