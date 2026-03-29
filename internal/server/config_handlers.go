@@ -484,6 +484,32 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				}
 			}
 
+			// Auto-start / stop Homepage dev container when homepage.enabled flag changes.
+			homepageDevToggled := oldCfg.Homepage.Enabled != newCfg.Homepage.Enabled
+			homepageDevPathChanged := newCfg.Homepage.Enabled && oldCfg.Homepage.WorkspacePath != newCfg.Homepage.WorkspacePath
+			if homepageDevToggled || homepageDevPathChanged {
+				if newCfg.Homepage.Enabled && newCfg.Homepage.WorkspacePath != "" {
+					go func() {
+						homepageCfg := tools.HomepageConfig{
+							DockerHost:       newCfg.Docker.Host,
+							WorkspacePath:    newCfg.Homepage.WorkspacePath,
+							WebServerPort:    newCfg.Homepage.WebServerPort,
+							AllowLocalServer: newCfg.Homepage.AllowLocalServer,
+						}
+						result := tools.HomepageInit(homepageCfg, s.Logger)
+						s.Logger.Info("[Config UI] Homepage dev container auto-started", "result", result)
+					}()
+				} else if newCfg.Homepage.Enabled && newCfg.Homepage.WorkspacePath == "" {
+					s.Logger.Warn("[Config UI] Homepage dev container enabled but workspace_path is not set — cannot start")
+				} else {
+					go func() {
+						homepageCfg := tools.HomepageConfig{DockerHost: newCfg.Docker.Host}
+						tools.HomepageStop(homepageCfg, s.Logger)
+						s.Logger.Info("[Config UI] Homepage dev container stopped")
+					}()
+				}
+			}
+
 			// Auto-start / stop Homepage web server (Caddy) when webserver_enabled flag changes.
 			// Also restart if workspace_path changed while webserver is enabled.
 			webserverToggled := oldCfg.Homepage.WebServerEnabled != newCfg.Homepage.WebServerEnabled
@@ -593,6 +619,41 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			// Hot-reload Cloudflare Tunnel loopback listener when loopback_port changes.
 			// The loopbackHandler was stored at startup; we can start/stop the TCP listener
 			// without a full process restart.
+			// Hot-reload Cloudflare Tunnel: restart when the expose target (web UI vs. homepage)
+			// changes so the running cloudflared process immediately points to the new origin.
+			cfExposeChanged := oldCfg.CloudflareTunnel.ExposeWebUI != newCfg.CloudflareTunnel.ExposeWebUI ||
+				oldCfg.CloudflareTunnel.ExposeHomepage != newCfg.CloudflareTunnel.ExposeHomepage
+			if cfExposeChanged && newCfg.CloudflareTunnel.Enabled {
+				cfTunnelCfg := tools.CloudflareTunnelConfig{
+					Enabled:        newCfg.CloudflareTunnel.Enabled,
+					ReadOnly:       newCfg.CloudflareTunnel.ReadOnly,
+					Mode:           newCfg.CloudflareTunnel.Mode,
+					AutoStart:      newCfg.CloudflareTunnel.AutoStart,
+					AuthMethod:     newCfg.CloudflareTunnel.AuthMethod,
+					TunnelName:     newCfg.CloudflareTunnel.TunnelName,
+					AccountID:      newCfg.CloudflareTunnel.AccountID,
+					TunnelID:       newCfg.CloudflareTunnel.TunnelID,
+					LoopbackPort:   newCfg.CloudflareTunnel.LoopbackPort,
+					ExposeWebUI:    newCfg.CloudflareTunnel.ExposeWebUI,
+					ExposeHomepage: newCfg.CloudflareTunnel.ExposeHomepage,
+					MetricsPort:    newCfg.CloudflareTunnel.MetricsPort,
+					LogLevel:       newCfg.CloudflareTunnel.LogLevel,
+					DockerHost:     newCfg.Docker.Host,
+					DataDir:        newCfg.Directories.DataDir,
+					WebUIPort:      newCfg.Server.Port,
+					HomepagePort:   newCfg.Homepage.WebServerPort,
+					HTTPSEnabled:   newCfg.Server.HTTPS.Enabled,
+					HTTPSPort:      newCfg.Server.HTTPS.HTTPSPort,
+				}
+				vault := s.Vault
+				reg := s.Registry
+				log := s.Logger
+				go func() {
+					result := tools.CloudflareTunnelRestart(cfTunnelCfg, vault, reg, log)
+					log.Info("[CloudflareTunnel] Hot-reload: tunnel restarted due to expose target change", "result", result)
+				}()
+			}
+
 			loopbackPortChanged := oldCfg.CloudflareTunnel.LoopbackPort != newCfg.CloudflareTunnel.LoopbackPort
 			if loopbackPortChanged && s.loopbackHandler != nil {
 				// Stop the old listener if it exists.

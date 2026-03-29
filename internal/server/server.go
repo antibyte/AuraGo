@@ -13,6 +13,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -336,11 +337,48 @@ func Start(cfg *config.Config, logger *slog.Logger, accessLogger *slog.Logger, l
 		}()
 	}
 
+	// Auto-start Homepage dev container (aurago-homepage) if homepage is enabled.
+	// HomepageInit is idempotent: it starts a stopped container or creates it fresh.
+	if cfg.Homepage.Enabled && cfg.Homepage.WorkspacePath != "" {
+		logger.Info("Homepage dev container enabled — starting automatically")
+		go func() {
+			homepageCfg := tools.HomepageConfig{
+				DockerHost:       cfg.Docker.Host,
+				WorkspacePath:    cfg.Homepage.WorkspacePath,
+				WebServerPort:    cfg.Homepage.WebServerPort,
+				AllowLocalServer: cfg.Homepage.AllowLocalServer,
+			}
+			const maxRetries = 5
+			for attempt := 1; attempt <= maxRetries; attempt++ {
+				result := tools.HomepageInit(homepageCfg, logger)
+				if strings.Contains(result, `"status":"ok"`) || strings.Contains(result, `"status": "ok"`) {
+					logger.Info("Homepage dev container auto-start succeeded", "attempt", attempt)
+					return
+				}
+				logger.Warn("Homepage dev container auto-start failed",
+					"attempt", attempt, "max", maxRetries, "result", result)
+				if attempt < maxRetries {
+					time.Sleep(time.Duration(attempt*5) * time.Second)
+				}
+			}
+			logger.Error("Homepage dev container auto-start exhausted all retries")
+		}()
+	} else if cfg.Homepage.Enabled && cfg.Homepage.WorkspacePath == "" {
+		logger.Warn("Homepage dev container enabled but homepage.workspace_path is not set — skipping auto-start")
+	}
+
 	// Auto-start Homepage web server (Caddy) if enabled.
 	// Note: webserver_enabled is independent of homepage.enabled (the dev container feature).
 	// We only require WorkspacePath to be set so the Docker bind mount has an absolute path.
 	if cfg.Homepage.WebServerEnabled && cfg.Homepage.WorkspacePath != "" {
 		logger.Info("Homepage web server enabled — starting container automatically")
+		// Ensure the workspace directory exists so the Docker bind-mount never fails
+		// on a fresh system or after the directory was removed. An empty workspace is
+		// perfectly valid (Caddy serves an empty directory listing).
+		if mkErr := os.MkdirAll(cfg.Homepage.WorkspacePath, 0755); mkErr != nil {
+			logger.Warn("Homepage web server: could not create workspace directory, auto-start may fail",
+				"path", cfg.Homepage.WorkspacePath, "error", mkErr)
+		}
 		go func() {
 			homepageCfg := tools.HomepageConfig{
 				DockerHost:            cfg.Docker.Host,

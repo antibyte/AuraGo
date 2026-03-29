@@ -74,6 +74,7 @@ func handleCloudflareTunnelRestart(s *Server) http.HandlerFunc {
 			DockerHost:     s.Cfg.Docker.Host,
 			DataDir:        s.Cfg.Directories.DataDir,
 			WebUIPort:      s.Cfg.Server.Port,
+			HomepagePort:   s.Cfg.Homepage.WebServerPort,
 			HTTPSEnabled:   s.Cfg.Server.HTTPS.Enabled,
 			HTTPSPort:      s.Cfg.Server.HTTPS.HTTPSPort,
 		}
