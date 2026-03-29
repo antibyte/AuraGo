@@ -207,11 +207,11 @@ async function authTOTPStartSetup() {
         const qrEl = document.getElementById('totp-qr');
         qrEl.innerHTML = '';
         if (typeof QRCode !== 'undefined') {
-            // Only pass otpauth URI — never include the secret in a data attribute or text node
-            const otpUri = (data.uri || '').replace(/secret=[^&]*/, 'secret=***');
-            new QRCode(qrEl, { text: otpUri, width: 180, height: 180, colorDark: '#000000', colorLight: '#ffffff' });
+            // Use the real URI for the QR code — the authenticator app needs the actual secret.
+            // Never render the raw secret as visible text (it's shown separately as _totpNewSecret).
+            new QRCode(qrEl, { text: data.uri || '', width: 180, height: 180, colorDark: '#000000', colorLight: '#ffffff' });
         } else {
-            // Fallback: display URI with masked secret
+            // Fallback: display URI with masked secret as text only
             qrEl.classList.add('auth-totp-qr-fallback');
             qrEl.innerHTML = '<div class="auth-totp-uri-fallback">' + esc((data.uri || '').replace(/secret=[^&]*/, 'secret=***')) + '</div>';
         }
