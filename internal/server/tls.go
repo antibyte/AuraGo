@@ -64,23 +64,33 @@ func NewTLSConfigFromConfig(cfg *config.Config, dataDir string) *TLSConfig {
 
 	switch cfg.Server.HTTPS.CertMode {
 	case "custom":
+		// HTTP redirect only makes sense with a real domain.
+		httpPort := cfg.Server.HTTPS.HTTPPort
+		if cfg.Server.HTTPS.Domain == "" {
+			httpPort = 0
+		}
 		return &TLSConfig{
 			Mode:      TLSModeCustom,
 			Domain:    cfg.Server.HTTPS.Domain,
 			CertFile:  cfg.Server.HTTPS.CertFile,
 			KeyFile:   cfg.Server.HTTPS.KeyFile,
 			CertDir:   certDir,
-			HTTPPort:  cfg.Server.HTTPS.HTTPPort,
+			HTTPPort:  httpPort,
 			HTTPSPort: cfg.Server.HTTPS.HTTPSPort,
 		}
 	case "selfsigned":
+		// HTTP redirect is useless without a real domain: no redirect server.
+		httpPort := cfg.Server.HTTPS.HTTPPort
+		if cfg.Server.HTTPS.Domain == "" {
+			httpPort = 0
+		}
 		return &TLSConfig{
 			Mode:      TLSModeSelfSigned,
 			Domain:    cfg.Server.HTTPS.Domain,
 			CertDir:   certDir,
 			CertFile:  filepath.Join(certDir, "selfsigned.crt"),
 			KeyFile:   filepath.Join(certDir, "selfsigned.key"),
-			HTTPPort:  cfg.Server.HTTPS.HTTPPort,
+			HTTPPort:  httpPort,
 			HTTPSPort: cfg.Server.HTTPS.HTTPSPort,
 		}
 	default: // "auto" or empty

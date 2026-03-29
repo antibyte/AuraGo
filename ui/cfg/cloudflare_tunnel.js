@@ -116,9 +116,13 @@ async function renderCloudflareTunnelSection(section) {
         if (loopbackEnabled) {
             html += `<div style="font-size:0.78rem;color:var(--text-muted);margin:0.1rem 0 0.3rem 0.2rem;display:flex;align-items:center;gap:0.4rem;">
                 → http://127.0.0.1:<input type="number" min="1024" max="65535" value="${loopbackPortVal}"
+                    data-path="cloudflare_tunnel.loopback_port"
                     style="width:5.5rem;font-size:0.78rem;padding:1px 4px;border:1px solid var(--border);border-radius:3px;background:var(--input-bg);color:var(--text);"
                     onchange="cloudflareTunnelChangeLoopbackPort(this.value)">
             </div>`;
+        } else {
+            // Hidden input so buildConfigPatchFromForm() always sends loopback_port=0 when disabled.
+            html += `<input type="hidden" data-path="cloudflare_tunnel.loopback_port" value="0">`;
         }
         html += `<div class="wh-notice cft-notice-info" style="margin-top:0.3rem;">
             <span>🔄</span>
