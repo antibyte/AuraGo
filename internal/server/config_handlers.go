@@ -16,6 +16,7 @@ import (
 	"io"
 	"log/slog"
 	"math"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -221,6 +222,39 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				"message": "Config validation failed. Save rejected — your existing config is unchanged.",
 			})
 			return
+		}
+
+		// Pre-flight: if HTTPS is being enabled (or port changed), verify the
+		// configured port is actually bindable RIGHT NOW. Reject the save if not.
+		// This prevents the user from being locked out after a restart.
+		if validateCfg.Server.HTTPS.Enabled {
+			httpsPort := validateCfg.Server.HTTPS.HTTPSPort
+			if httpsPort <= 0 {
+				httpsPort = 443
+			}
+			if ln, bindErr := net.Listen("tcp", fmt.Sprintf(":%d", httpsPort)); bindErr != nil {
+				errMsg := bindErr.Error()
+				var userMsg string
+				if strings.Contains(errMsg, "permission denied") || strings.Contains(errMsg, "access is denied") {
+					userMsg = fmt.Sprintf(
+						"Cannot enable HTTPS: port %d requires root or CAP_NET_BIND_SERVICE. "+
+							"Use an unprivileged port (e.g. 8443) or run: sudo setcap cap_net_bind_service=+ep %s",
+						httpsPort, os.Args[0])
+				} else {
+					userMsg = fmt.Sprintf("Cannot enable HTTPS: port %d is not available: %s", httpsPort, errMsg)
+				}
+				s.Logger.Error("[Config] HTTPS port pre-flight check failed — save rejected",
+					"port", httpsPort, "error", bindErr)
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(w).Encode(map[string]interface{}{
+					"status":  "error",
+					"message": userMsg,
+				})
+				return
+			} else {
+				ln.Close()
+			}
 		}
 
 		if err := os.WriteFile(configPath, out, 0644); err != nil {
