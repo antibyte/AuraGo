@@ -280,21 +280,38 @@ func startTokenTunnel(cfg CloudflareTunnelConfig, vault *security.Vault, registr
 	logger.Info("[CloudflareTunnel] Starting token tunnel", "mode", mode)
 
 	// Build the local URL.
-	// Docker containers reach the host via host.docker.internal; native uses localhost.
-	localHost := "localhost"
-	if mode == "docker" {
-		localHost = "host.docker.internal"
-	}
-	localURL, noTLSArgs := buildLocalURL(cfg, localHost)
+	// Token tunnel Docker uses NetworkMode=host, so the container IS on the host network;
+	// localhost resolves correctly. For native, localhost is also correct.
+	localURL, noTLSArgs := buildLocalURL(cfg, "localhost")
 	logger.Info("[CloudflareTunnel] Token tunnel local URL", "url", localURL, "https", cfg.HTTPSEnabled)
 
+	// Base command – the --url flag overrides the origin service even for token tunnels.
 	tunnelArgs := append([]string{"tunnel", "--url", localURL}, noTLSArgs...)
 	tunnelArgs = append(tunnelArgs, "run")
 
 	switch mode {
 	case "docker":
+		// For HTTPS origins with self-signed certificates, cloudflared must be told to
+		// skip TLS verification for the local connection to AuraGo. The --no-tls-verify
+		// CLI flag is not reliable for token tunnels when the tunnel config is managed
+		// by the Cloudflare dashboard. Writing a config file is the only robust method.
+		var extraBinds []string
+		if cfg.HTTPSEnabled {
+			configContent := "originRequest:\n  noTLSVerify: true\n"
+			configDir := filepath.Join(cfg.DataDir, "cloudflared")
+			if mkErr := os.MkdirAll(configDir, 0o700); mkErr == nil {
+				configPath := filepath.Join(configDir, "origin-config.yml")
+				if wErr := os.WriteFile(configPath, []byte(configContent), 0o600); wErr == nil {
+					tunnelArgs = append([]string{"tunnel", "--config", "/etc/cloudflared/origin-config.yml", "--url", localURL}, "run")
+					extraBinds = []string{configDir + ":/etc/cloudflared:ro"}
+					logger.Info("[CloudflareTunnel] Origin config written with noTLSVerify", "path", configPath)
+				} else {
+					logger.Warn("[CloudflareTunnel] Failed to write origin config", "error", wErr)
+				}
+			}
+		}
 		// Pass token as env var to avoid exposure in process listings (ps aux / /proc)
-		return startDockerTunnel(cfg, tunnelArgs, []string{"TUNNEL_TOKEN=" + token}, logger)
+		return startDockerTunnel(cfg, tunnelArgs, []string{"TUNNEL_TOKEN=" + token}, extraBinds, logger)
 	case "native":
 		// Pass token as env var to avoid exposure in process listings (ps aux / /proc)
 		return startNativeTunnel(cfg, registry, tunnelArgs, []string{"TUNNEL_TOKEN=" + token}, logger)
@@ -390,7 +407,7 @@ func startQuickTunnel(cfg CloudflareTunnelConfig, registry *ProcessRegistry, log
 // Docker Backend
 // ──────────────────────────────────────────────────────────────────────────
 
-func startDockerTunnel(cfg CloudflareTunnelConfig, cmd []string, containerEnv []string, logger *slog.Logger) string {
+func startDockerTunnel(cfg CloudflareTunnelConfig, cmd []string, containerEnv []string, extraBinds []string, logger *slog.Logger) string {
 	dockerCfg := DockerConfig{Host: cfg.DockerHost}
 
 	// Pull image if not present
@@ -399,13 +416,18 @@ func startDockerTunnel(cfg CloudflareTunnelConfig, cmd []string, containerEnv []
 	// Remove old container if exists
 	removeContainer(dockerCfg, cfdContainerName)
 
+	hostCfg := map[string]interface{}{
+		"NetworkMode":   "host",
+		"RestartPolicy": map[string]string{"Name": "unless-stopped"},
+	}
+	if len(extraBinds) > 0 {
+		hostCfg["Binds"] = extraBinds
+	}
+
 	payload := map[string]interface{}{
-		"Image": cfdImageName,
-		"Cmd":   cmd,
-		"HostConfig": map[string]interface{}{
-			"NetworkMode":   "host",
-			"RestartPolicy": map[string]string{"Name": "unless-stopped"},
-		},
+		"Image":      cfdImageName,
+		"Cmd":        cmd,
+		"HostConfig": hostCfg,
 	}
 	if len(containerEnv) > 0 {
 		payload["Env"] = containerEnv
@@ -780,6 +802,12 @@ func writeNamedTunnelConfig(cfg CloudflareTunnelConfig, credPath, configPath str
 
 	// Required catch-all
 	sb.WriteString("  - service: http_status:404\n")
+
+	// When AuraGo uses HTTPS with a self-signed certificate, tell cloudflared to skip
+	// TLS verification for the local connection to the origin service.
+	if cfg.HTTPSEnabled {
+		sb.WriteString("\noriginRequest:\n  noTLSVerify: true\n")
+	}
 
 	return os.WriteFile(configPath, []byte(sb.String()), 0600)
 }
