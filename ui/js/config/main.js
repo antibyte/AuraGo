@@ -1064,8 +1064,21 @@ async function saveConfig() {
                 status.textContent = '✓ ' + (result.message || t('config.save_bar.saved'));
             }
             // Refresh config data and reset dirty state
-            const cfgResp = await fetch('/api/config');
-            configData = await cfgResp.json();
+            // Use a retry loop so a briefly-restarting tunnel (e.g. Cloudflare hot-reload)
+            // doesn't cause an HTML response to be parsed as JSON.
+            for (let _i = 0; _i < 4; _i++) {
+                try {
+                    const cfgResp = await fetch('/api/config');
+                    if (cfgResp.ok) {
+                        const ct = cfgResp.headers.get('content-type') || '';
+                        if (ct.includes('json')) {
+                            configData = await cfgResp.json();
+                            break;
+                        }
+                    }
+                } catch (_) { /* tunnel restarting, retry */ }
+                await new Promise(r => setTimeout(r, 800));
+            }
             initialSnapshot = collectSnapshot();
             setDirty(false);
             // Check for security issues introduced by this save

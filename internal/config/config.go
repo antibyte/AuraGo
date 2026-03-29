@@ -550,6 +550,9 @@ func Load(path string) (*Config, error) {
 	}
 
 	// Homepage defaults
+	if cfg.Homepage.WebServerPort <= 0 {
+		cfg.Homepage.WebServerPort = 8080
+	}
 	if cfg.Homepage.CircuitBreakerMaxCalls <= 0 {
 		cfg.Homepage.CircuitBreakerMaxCalls = 35
 	}
