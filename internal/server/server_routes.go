@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"html/template"
 	"io/fs"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -1457,6 +1458,28 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	tlsCfg.BehindProxy = s.Cfg.Server.HTTPS.BehindProxy
 
 	if tlsCfg.IsTLSActive() {
+		// Pre-check that the HTTPS port is actually bindable.
+		// Ports < 1024 require root or CAP_NET_BIND_SERVICE on Linux.
+		// Fail immediately with a clear, actionable error — never silently degrade to HTTP.
+		if ln, err := net.Listen("tcp", fmt.Sprintf(":%d", tlsCfg.HTTPSPort)); err != nil {
+			errMsg := err.Error()
+			if strings.Contains(errMsg, "permission denied") || strings.Contains(errMsg, "access is denied") {
+				return fmt.Errorf(
+					"cannot bind HTTPS port %d: permission denied\n\n"+
+						"Fix options:\n"+
+						"  1. Grant the binary the required network capability (recommended):\n"+
+						"       sudo setcap cap_net_bind_service=+ep %s\n"+
+						"  2. Use unprivileged ports (≥1024) in config.yaml:\n"+
+						"       server.https.https_port: 8443\n"+
+						"       server.https.http_port:  8080\n"+
+						"  3. Run as root (not recommended)\n\n"+
+						"The server did NOT fall back to HTTP. HTTPS configuration is active and must work.",
+					tlsCfg.HTTPSPort, os.Args[0])
+			}
+			// Some other bind error (e.g. port in use) — let runHTTPS surface it
+		} else {
+			ln.Close()
+		}
 		return s.runHTTPS(mux, ttsServer, tlsCfg, shutdownCh)
 	}
 

@@ -416,6 +416,23 @@ else
     fi
 fi
 
+# ── CAP_NET_BIND_SERVICE for HTTPS on standard ports ─────────────────────
+# Ports 80 and 443 require root or this capability. Set it so AuraGo
+# can bind them as a normal user — prevents a hard startup failure.
+if [ "$HTTPS_ENABLED" = "true" ]; then
+    if ! command -v setcap >/dev/null 2>&1; then
+        info "Installing libcap2-bin (needed for setcap)..."
+        _pkg_install libcap2-bin 2>/dev/null || \
+        _pkg_install libcap 2>/dev/null || \
+        warn "setcap not available. Install libcap2-bin and run manually: sudo setcap cap_net_bind_service=+ep $INSTALL_DIR/bin/aurago_linux"
+    fi
+    if command -v setcap >/dev/null 2>&1; then
+        $SUDO setcap cap_net_bind_service=+ep "$INSTALL_DIR/bin/aurago_linux" 2>/dev/null && \
+            ok "CAP_NET_BIND_SERVICE granted — AuraGo can bind port 443 without root." || \
+            warn "setcap failed. Run manually: sudo setcap cap_net_bind_service=+ep $INSTALL_DIR/bin/aurago_linux"
+    fi
+fi
+
 CONFIG_FILE="$INSTALL_DIR/config.yaml"
 if [ -f "$CONFIG_FILE" ]; then
     INFO_PASSWORD=$(openssl rand -base64 12 2>/dev/null || python3 -c "import secrets; print(secrets.token_urlsafe(12))")
@@ -517,6 +534,15 @@ if command -v systemctl >/dev/null 2>&1; then
         # Ensure install directory and data are owned by the service user
         $SUDO chown -R "${SERVICE_USER}:${SERVICE_GROUP}" "${INSTALL_DIR}" 2>/dev/null || true
 
+        # Grant CAP_NET_BIND_SERVICE in the systemd unit so the service can bind
+        # ports 80/443 as a non-root user without a setcap dependency on the binary.
+        # AmbientCapabilities is compatible with NoNewPrivileges=true (systemd sets
+        # the capability before the prctl call).
+        AMBIENT_CAPS_LINE=""
+        if [ "$HTTPS_ENABLED" = "true" ]; then
+            AMBIENT_CAPS_LINE="AmbientCapabilities=CAP_NET_BIND_SERVICE"
+        fi
+
         # ── Create systemd unit ──────────────────────────────────────────
         $SUDO tee /etc/systemd/system/${SYSTEMD_SERVICE}.service > /dev/null <<EOF
 [Unit]
@@ -533,7 +559,7 @@ ExecStart=${INSTALL_DIR}/bin/aurago_linux --config ${INSTALL_DIR}/config.yaml
 Restart=on-failure
 RestartSec=5
 EnvironmentFile=${CREDENTIAL_FILE}
-
+${AMBIENT_CAPS_LINE}
 # Security hardening
 NoNewPrivileges=true
 ProtectSystem=strict

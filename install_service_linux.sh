@@ -44,6 +44,21 @@ fi
 chmod +x "$BINARY_PATH" "${INSTALL_DIR}/bin/lifeboat_linux" 2>/dev/null || true
 ok "Binary permissions verified."
 
+# Grant CAP_NET_BIND_SERVICE so AuraGo can bind ports 80/443 as a non-root user.
+# This is required when HTTPS is enabled with standard ports.
+if ! command -v setcap >/dev/null 2>&1; then
+    info "Installing libcap2-bin for setcap..."
+    apt-get install -y libcap2-bin 2>/dev/null || \
+    dnf install -y libcap 2>/dev/null || \
+    yum install -y libcap 2>/dev/null || \
+    warn "setcap not available. After installation run: sudo setcap cap_net_bind_service=+ep ${BINARY_PATH}"
+fi
+if command -v setcap >/dev/null 2>&1; then
+    setcap cap_net_bind_service=+ep "$BINARY_PATH" && \
+        ok "CAP_NET_BIND_SERVICE set on binary (allows binding port 443)." || \
+        warn "setcap failed on ${BINARY_PATH} — run manually if you need HTTPS on port 443."
+fi
+
 if [[ ! -f "$CONFIG_PATH" ]]; then
     warn "config.yaml not found at ${CONFIG_PATH}. Using default might fail."
 fi
@@ -113,6 +128,10 @@ RestartSec=5
 EnvironmentFile=${CREDENTIAL_FILE}
 StandardOutput=append:${INSTALL_DIR}/log/aurago.log
 StandardError=append:${INSTALL_DIR}/log/aurago.err
+
+# Allow binding privileged ports (80, 443) without root.
+# Compatible with NoNewPrivileges — systemd sets the capability before the prctl call.
+AmbientCapabilities=CAP_NET_BIND_SERVICE
 
 # Security hardening
 # NOTE: NoNewPrivileges=true blocks sudo. If you enable agent.sudo_enabled in
