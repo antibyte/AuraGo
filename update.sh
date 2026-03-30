@@ -952,15 +952,43 @@ if $GO_FOUND; then
             warn "  cross-compile failed: $_os/$_arch"
         fi
     done
+
+    # Build agocli_linux (AuraGo CLI tool)
+    info "Building agocli_linux ($GOARCH)..."
+    if CGO_ENABLED=0 GOOS=linux GOARCH="$GOARCH" go build -trimpath -ldflags='-s -w' -o bin/agocli_linux ./cmd/agocli; then
+        ok "bin/agocli_linux built from source"
+    else
+        warn "agocli build failed — using pre-built binary."
+    fi
+
+    # Cross-compile agocli for all client platforms so the
+    # /api/remote/download/{os}/{arch} endpoint can serve them.
+    info "Cross-compiling agocli client binaries..."
+    for _target in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64; do
+        _os="${_target%/*}"
+        _arch="${_target#*/}"
+        _ext=""
+        [ "$_os" = "windows" ] && _ext=".exe"
+        _out="$DIR/deploy/agocli_${_os}_${_arch}${_ext}"
+        # Skip if we already built this exact combo above
+        if [ "$_os" = "linux" ] && [ "$_arch" = "$GOARCH" ] && [ -f "$_out" ]; then
+            continue
+        fi
+        if CGO_ENABLED=0 GOOS="$_os" GOARCH="$_arch" go build -trimpath -ldflags='-s -w' -o "$_out" ./cmd/agocli; then
+            ok "  $_out"
+        else
+            warn "  cross-compile failed: $_os/$_arch"
+        fi
+    done
 else
     # ── Download binaries from GitHub Releases (no Go available) ─────────
     warn "Go is not installed — downloading pre-built binaries from GitHub Releases."
 
     # Pick arch-appropriate binary names
     if [ "$GOARCH" = "arm64" ]; then
-        BINS=("aurago_linux_arm64" "lifeboat_linux_arm64" "config-merger_linux_arm64" "aurago-remote_linux_arm64")
+        BINS=("aurago_linux_arm64" "lifeboat_linux_arm64" "config-merger_linux_arm64" "aurago-remote_linux_arm64" "agocli_linux_arm64")
     elif [ "$GOARCH" = "amd64" ]; then
-        BINS=("aurago_linux" "lifeboat_linux" "config-merger_linux" "aurago-remote_linux")
+        BINS=("aurago_linux" "lifeboat_linux" "config-merger_linux" "aurago-remote_linux" "agocli_linux")
     else
         die "No prebuilt release binaries for architecture ${ARCH_RAW}. Install Go 1.26+ to build from source."
     fi
@@ -980,9 +1008,10 @@ else
         [ -f "$DIR/bin/lifeboat_linux_arm64" ]           && cp -p "$DIR/bin/lifeboat_linux_arm64"           "$DIR/bin/lifeboat_linux"
         [ -f "$DIR/bin/config-merger_linux_arm64" ]      && cp -p "$DIR/bin/config-merger_linux_arm64"      "$DIR/bin/config-merger_linux"
         [ -f "$DIR/bin/aurago-remote_linux_arm64" ]      && cp -p "$DIR/bin/aurago-remote_linux_arm64"      "$DIR/bin/aurago-remote_linux"
+        [ -f "$DIR/bin/agocli_linux_arm64" ]              && cp -p "$DIR/bin/agocli_linux_arm64"            "$DIR/bin/agocli_linux"
     fi
 
-    # Download aurago-remote client binaries for all platforms so the
+    # Download aurago-remote and agocli client binaries for all platforms so the
     # /api/remote/download/{os}/{arch} endpoint can serve them.
     mkdir -p "$DIR/deploy"
     info "Downloading aurago-remote client binaries for all platforms..."
@@ -997,6 +1026,19 @@ else
         fi
     done
     chmod +x "$DIR/deploy/aurago-remote_linux"* 2>/dev/null || true
+
+    info "Downloading agocli client binaries for all platforms..."
+    for _t in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64; do
+        _ros="${_t%/*}"; _rarch="${_t#*/}"; _rext=""
+        [ "$_ros" = "windows" ] && _rext=".exe"
+        _rname="agocli_${_ros}_${_rarch}${_rext}"
+        if fetch_url_to_file "${RELEASE_BASE}/${_rname}" "$DIR/deploy/${_rname}"; then
+            ok "  deploy/${_rname}"
+        else
+            warn "  Could not download deploy/${_rname} — skipping."
+        fi
+    done
+    chmod +x "$DIR/deploy/agocli_linux"* 2>/dev/null || true
 
     [ -f "$DIR/bin/aurago_linux" ] || die "Failed to obtain aurago_linux binary. Cannot continue."
 
