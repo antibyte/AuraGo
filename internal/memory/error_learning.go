@@ -48,12 +48,19 @@ func (s *SQLiteMemory) InitErrorLearningTable() error {
 		resolution TEXT DEFAULT '',
 		occurrence_count INTEGER DEFAULT 1,
 		last_seen DATETIME DEFAULT CURRENT_TIMESTAMP,
-		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		UNIQUE(tool_name, error_message)
 	);
 	CREATE INDEX IF NOT EXISTS idx_error_tool ON error_patterns(tool_name);`
 
 	if _, err := s.db.Exec(schema); err != nil {
 		return fmt.Errorf("error_patterns schema: %w", err)
+	}
+	// Add UNIQUE constraint to existing databases that were created before this migration.
+	// SQLite cannot ADD CONSTRAINT to existing tables, but we can create a unique index
+	// (idempotent via IF NOT EXISTS).
+	if _, err := s.db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_error_unique ON error_patterns(tool_name, error_message)`); err != nil {
+		return fmt.Errorf("error_patterns unique index: %w", err)
 	}
 	return nil
 }
@@ -74,27 +81,15 @@ func (s *SQLiteMemory) RecordError(toolName, errorMsg string) error {
 
 	now := time.Now().UTC().Format(time.RFC3339)
 
-	// Check for existing pattern (same tool, similar error)
-	var existingID int64
-	err := s.db.QueryRow(
-		`SELECT id FROM error_patterns WHERE tool_name = ? AND error_message = ? LIMIT 1`,
-		toolName, errorMsg,
-	).Scan(&existingID)
-
-	if err == nil {
-		// Pattern exists — increment count
-		_, err = s.db.Exec(
-			`UPDATE error_patterns SET occurrence_count = occurrence_count + 1, last_seen = ? WHERE id = ?`,
-			now, existingID,
-		)
-		return err
-	}
-
-	// New pattern
-	_, err = s.db.Exec(
-		`INSERT INTO error_patterns (tool_name, error_message, last_seen, created_at) VALUES (?, ?, ?, ?)`,
-		toolName, errorMsg, now, now,
-	)
+	// Atomic upsert: if the pattern exists increment count, otherwise insert.
+	// The UNIQUE index on (tool_name, error_message) makes this race-free.
+	_, err := s.db.Exec(`
+		INSERT INTO error_patterns (tool_name, error_message, last_seen, created_at)
+		VALUES (?, ?, ?, ?)
+		ON CONFLICT(tool_name, error_message) DO UPDATE SET
+			occurrence_count = occurrence_count + 1,
+			last_seen = excluded.last_seen
+	`, toolName, errorMsg, now, now)
 	return err
 }
 

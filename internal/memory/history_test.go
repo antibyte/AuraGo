@@ -1,7 +1,11 @@
 package memory
 
 import (
+	"os"
+	"path/filepath"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/sashabaranov/go-openai"
 )
@@ -62,5 +66,175 @@ func TestHistoryManager_GetOldestMessagesForPruning(t *testing.T) {
 	msgs, chars = hm.GetOldestMessagesForPruning(0)
 	if len(msgs) != 0 || chars != 0 {
 		t.Errorf("Case 4 failed: got %d msgs, %d chars", len(msgs), chars)
+	}
+}
+
+// ── Lifecycle (disk persistence) ─────────────────────────────────────────────
+
+func TestHistoryManager_PersistAndLoad(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "history.json")
+
+	// Create, add a message, close (flushes).
+	hm := NewHistoryManager(path)
+	if err := hm.Add("user", "hello world", 1, false, false); err != nil {
+		t.Fatalf("Add: %v", err)
+	}
+	hm.Close()
+
+	// Re-open from the same file and verify persistence.
+	hm2 := NewHistoryManager(path)
+	defer hm2.Close()
+	all := hm2.GetAll()
+	if len(all) != 1 {
+		t.Fatalf("expected 1 message after reload, got %d", len(all))
+	}
+	if all[0].Content != "hello world" {
+		t.Errorf("expected content 'hello world', got %q", all[0].Content)
+	}
+	if all[0].ID != 1 {
+		t.Errorf("expected ID 1, got %d", all[0].ID)
+	}
+}
+
+func TestHistoryManager_EmptyFileStartsFresh(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "history.json")
+	// Create an empty file.
+	if err := os.WriteFile(path, []byte{}, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	hm := NewHistoryManager(path)
+	defer hm.Close()
+	all := hm.GetAll()
+	if len(all) != 0 {
+		t.Fatalf("expected 0 messages from empty file, got %d", len(all))
+	}
+}
+
+func TestHistoryManager_SetPinned(t *testing.T) {
+	hm := &HistoryManager{
+		Messages: []HistoryMessage{
+			{ChatCompletionMessage: openai.ChatCompletionMessage{Role: "user", Content: "hi"}, ID: 42},
+		},
+		saveChan: make(chan struct{}, 1),
+		doneChan: make(chan struct{}),
+	}
+	go hm.backgroundSaver()
+	defer hm.Close()
+
+	if err := hm.SetPinned(42, true); err != nil {
+		t.Fatalf("SetPinned: %v", err)
+	}
+	all := hm.GetAll()
+	if !all[0].Pinned {
+		t.Error("expected message to be pinned")
+	}
+
+	// Setting pin on non-existent ID → error.
+	if err := hm.SetPinned(999, true); err == nil {
+		t.Error("expected error for non-existent ID")
+	}
+}
+
+func TestHistoryManager_GetReturnsOpenAIMessages(t *testing.T) {
+	hm := &HistoryManager{
+		Messages: []HistoryMessage{
+			{ChatCompletionMessage: openai.ChatCompletionMessage{Role: "user", Content: "q"}},
+			{ChatCompletionMessage: openai.ChatCompletionMessage{Role: "assistant", Content: "a"}},
+		},
+		saveChan: make(chan struct{}, 1),
+		doneChan: make(chan struct{}),
+	}
+	go hm.backgroundSaver()
+	defer hm.Close()
+
+	msgs := hm.Get()
+	if len(msgs) != 2 {
+		t.Fatalf("expected 2 messages, got %d", len(msgs))
+	}
+	if msgs[0].Role != "user" || msgs[1].Role != "assistant" {
+		t.Errorf("unexpected roles: %v %v", msgs[0].Role, msgs[1].Role)
+	}
+}
+
+// ── Ephemeral HistoryManager ──────────────────────────────────────────────────
+
+func TestEphemeralHistoryManager_NoDiskWrite(t *testing.T) {
+	hm := NewEphemeralHistoryManager()
+	defer hm.Close()
+	_ = hm.Add("user", "test", 1, false, false)
+	// No disk file → save() is a no-op. Verify message is present in memory.
+	all := hm.GetAll()
+	if len(all) != 1 {
+		t.Fatalf("expected 1 message in ephemeral manager, got %d", len(all))
+	}
+}
+
+func TestEphemeralHistoryManager_TrimsAtLimit(t *testing.T) {
+	hm := NewEphemeralHistoryManager()
+	defer hm.Close()
+
+	// Add maxEphemeralMessages+10 non-pinned messages.
+	for i := 0; i < maxEphemeralMessages+10; i++ {
+		_ = hm.Add("user", "msg", int64(i), false, false)
+	}
+
+	all := hm.GetAll()
+	if len(all) > maxEphemeralMessages {
+		t.Errorf("ephemeral manager should not exceed %d messages, has %d", maxEphemeralMessages, len(all))
+	}
+}
+
+func TestEphemeralHistoryManager_PinnedMessagesSurviveTrim(t *testing.T) {
+	hm := NewEphemeralHistoryManager()
+	defer hm.Close()
+
+	// Add one pinned message first.
+	_ = hm.Add("user", "pinned", 1, true, false)
+
+	// Fill beyond limit with non-pinned messages.
+	for i := 2; i < maxEphemeralMessages+20; i++ {
+		_ = hm.Add("user", "regular", int64(i), false, false)
+	}
+
+	all := hm.GetAll()
+	found := false
+	for _, m := range all {
+		if m.ID == 1 {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("pinned message (ID=1) should survive ephemeral trim")
+	}
+}
+
+// ── Concurrent safety ─────────────────────────────────────────────────────────
+
+func TestHistoryManager_ConcurrentAdd(t *testing.T) {
+	hm := NewEphemeralHistoryManager()
+	defer hm.Close()
+
+	const workers = 10
+	const msgsPerWorker = 20
+	var wg sync.WaitGroup
+	wg.Add(workers)
+	for w := 0; w < workers; w++ {
+		go func(w int) {
+			defer wg.Done()
+			for i := 0; i < msgsPerWorker; i++ {
+				_ = hm.Add("user", "concurrent", int64(w*1000+i), false, false)
+			}
+		}(w)
+	}
+	wg.Wait()
+	// Give background saver a moment to drain.
+	time.Sleep(10 * time.Millisecond)
+	// No crash = success. Optionally check message count is bounded.
+	all := hm.GetAll()
+	if len(all) > maxEphemeralMessages {
+		t.Errorf("concurrent adds exceeded ephemeral limit: %d > %d", len(all), maxEphemeralMessages)
 	}
 }

@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"aurago/internal/security"
 
@@ -275,8 +276,8 @@ func sanitizeForPrompt(s string) string {
 func sanitizePromptText(s string, maxLen int) string {
 	s = strings.ReplaceAll(s, "</external_data>", "")
 	s = strings.ReplaceAll(s, "<external_data>", "")
-	if maxLen > 0 && len(s) > maxLen {
-		s = s[:maxLen] + "…"
+	if maxLen > 0 && utf8.RuneCountInString(s) > maxLen {
+		s = string([]rune(s)[:maxLen]) + "…"
 	}
 	return s
 }

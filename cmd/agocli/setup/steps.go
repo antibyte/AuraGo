@@ -4,17 +4,19 @@ import "github.com/charmbracelet/lipgloss"
 
 var (
 	// Step styles
-	stepActive    = lipgloss.NewStyle().Foreground(lipgloss.Color("#39FF14")).Bold(true)
-	stepDone      = lipgloss.NewStyle().Foreground(lipgloss.Color("#00FF00"))
-	stepPending   = lipgloss.NewStyle().Foreground(lipgloss.Color("#888888"))
-	stepError     = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF3333")).Bold(true)
-	stepTitle     = lipgloss.NewStyle().Foreground(lipgloss.Color("#00D9FF")).Bold(true)
-	stepContent   = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFFFF"))
-	headerStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("#39FF14")).Bold(true)
+	stepActive     = lipgloss.NewStyle().Foreground(lipgloss.Color("#39FF14")).Bold(true)
+	stepDone       = lipgloss.NewStyle().Foreground(lipgloss.Color("#00FF00"))
+	stepPending    = lipgloss.NewStyle().Foreground(lipgloss.Color("#888888"))
+	stepError      = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF3333")).Bold(true)
+	stepTitle      = lipgloss.NewStyle().Foreground(lipgloss.Color("#00D9FF")).Bold(true)
+	stepContent    = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFFFF"))
+	headerStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("#39FF14")).Bold(true)
 	outputLogStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#00D9FF")).Bold(true)
-	errorStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF3333"))
-	warningStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFD700"))
-	outputStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("#888888"))
+	errorStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF3333"))
+	warningStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFD700"))
+	outputStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("#888888"))
+	successStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("#00FF00")).Bold(true)
+	keyStyle       = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFD700")).Bold(true)
 )
 
 // StepInfo contains information about a step.
@@ -28,33 +30,46 @@ func GetStepInfo(step Step) StepInfo {
 	switch step {
 	case StepWelcome:
 		return StepInfo{
-			Title:   "Welcome to AuraGo",
-			Content: "This wizard will help you set up AuraGo for the first time.\n\nAuraGo is an autonomous AI agent for your home lab. It requires:\n• A configured LLM provider (OpenRouter, OpenAI, etc.)\n• Network access for API calls\n\nPress Enter to continue...",
+			Title: "Welcome to AuraGo",
+			Content: "This wizard will help you set up AuraGo for the first time.\n\n" +
+				"AuraGo is an autonomous AI agent for your home lab.\n" +
+				"It requires a configured LLM provider (OpenRouter, OpenAI, etc.).\n\n" +
+				"Press Enter to start the setup...",
 		}
-	case StepPrerequisites:
+	case StepDependencies:
 		return StepInfo{
-			Title:   "Checking Prerequisites",
-			Content: "Looking for resources.dat and verifying permissions...",
-		}
-	case StepExtract:
-		return StepInfo{
-			Title:   "Extracting Resources",
-			Content: "Extracting embedded resources...",
+			Title:   "System Dependencies",
+			Content: "Checking and installing system dependencies...",
 		}
 	case StepMasterKey:
 		return StepInfo{
-			Title:   "Generating Master Key",
-			Content: "Creating encryption keys for secure credential storage...",
+			Title:   "Master Key",
+			Content: "Generating AES-256 encryption key for secure credential storage...",
+		}
+	case StepExtract:
+		return StepInfo{
+			Title:   "Extract Resources",
+			Content: "Extracting embedded resources (prompts, UI, skills)...",
+		}
+	case StepNetwork:
+		return StepInfo{
+			Title:   "Network Configuration",
+			Content: "Configure how AuraGo should be accessible.",
 		}
 	case StepConfig:
 		return StepInfo{
 			Title:   "Configuration",
-			Content: "Setting up your configuration...",
+			Content: "Running config merger and initializing configuration...",
+		}
+	case StepPassword:
+		return StepInfo{
+			Title:   "Initial Password",
+			Content: "Generating initial access password...",
 		}
 	case StepService:
 		return StepInfo{
-			Title:   "Installing Service",
-			Content: "Installing the AuraGo system service...",
+			Title:   "System Service",
+			Content: "Install AuraGo as a system service for automatic startup.",
 		}
 	case StepStart:
 		return StepInfo{
@@ -64,7 +79,7 @@ func GetStepInfo(step Step) StepInfo {
 	case StepSummary:
 		return StepInfo{
 			Title:   "Setup Complete!",
-			Content: "AuraGo has been successfully installed and started.",
+			Content: "AuraGo has been successfully installed and configured.",
 		}
 	default:
 		return StepInfo{Title: "Unknown", Content: ""}
@@ -75,10 +90,12 @@ func GetStepInfo(step Step) StepInfo {
 func StepLabels() []string {
 	return []string{
 		"Welcome",
-		"Prerequisites",
-		"Extract",
+		"Dependencies",
 		"Master Key",
+		"Extract",
+		"Network",
 		"Config",
+		"Password",
 		"Service",
 		"Start",
 		"Summary",

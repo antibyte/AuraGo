@@ -14,7 +14,6 @@ import (
 
 	"aurago/internal/agent"
 	"aurago/internal/commands"
-	"aurago/internal/config"
 	"aurago/internal/llm"
 	"aurago/internal/memory"
 	"aurago/internal/prompts"
@@ -308,71 +307,55 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 		// Load Core Memory (Semi-Static)
 		coreMem := s.ShortTermMem.ReadCoreMemory()
 
-		flags := prompts.ContextFlags{
-			IsErrorState:             false,
-			RequiresCoding:           false,
-			RetrievedMemories:        retrievedMemories,
-			SystemLanguage:           s.Cfg.Agent.SystemLanguage,
-			CorePersonality:          s.Cfg.Personality.CorePersonality,
-			LifeboatEnabled:          s.Cfg.Maintenance.LifeboatEnabled,
-			IsMaintenanceMode:        inMaintenance,
-			TokenBudget:              config.CalculateAdaptiveSystemPromptTokenBudget(s.Cfg),
-			MessageCount:             len(recentMessages),
-			IsDebugMode:              s.Cfg.Agent.DebugMode || agent.GetDebugMode(),
-			DiscordEnabled:           s.Cfg.Discord.Enabled,
-			EmailEnabled:             s.Cfg.Email.Enabled,
-			DockerEnabled:            s.Cfg.Docker.Enabled,
-			HomeAssistantEnabled:     s.Cfg.HomeAssistant.Enabled,
-			WebDAVEnabled:            s.Cfg.WebDAV.Enabled,
-			KoofrEnabled:             s.Cfg.Koofr.Enabled,
-			ChromecastEnabled:        s.Cfg.Chromecast.Enabled,
-			CoAgentEnabled:           s.Cfg.CoAgents.Enabled,
-			GoogleWorkspaceEnabled:   s.Cfg.GoogleWorkspace.Enabled,
-			OneDriveEnabled:          s.Cfg.OneDrive.Enabled,
-			ProxmoxEnabled:           s.Cfg.Proxmox.Enabled,
-			OllamaEnabled:            s.Cfg.Ollama.Enabled,
-			TailscaleEnabled:         s.Cfg.Tailscale.Enabled,
-			CloudflareTunnelEnabled:  s.Cfg.CloudflareTunnel.Enabled,
-			AnsibleEnabled:           s.Cfg.Ansible.Enabled,
-			GitHubEnabled:            s.Cfg.GitHub.Enabled,
-			MQTTEnabled:              s.Cfg.MQTT.Enabled,
-			MCPEnabled:               s.Cfg.MCP.Enabled && s.Cfg.Agent.AllowMCP,
-			SandboxEnabled:           s.Cfg.Sandbox.Enabled,
-			MeshCentralEnabled:       s.Cfg.MeshCentral.Enabled,
-			HomepageEnabled:          s.Cfg.Homepage.Enabled && s.Cfg.Docker.Enabled,
-			NetlifyEnabled:           s.Cfg.Netlify.Enabled,
-			ImageGenerationEnabled:   s.Cfg.ImageGeneration.Enabled,
-			VirusTotalEnabled:        s.Cfg.VirusTotal.Enabled,
-			BraveSearchEnabled:       s.Cfg.BraveSearch.Enabled,
-			MemoryEnabled:            s.Cfg.Tools.Memory.Enabled,
-			KnowledgeGraphEnabled:    s.Cfg.Tools.KnowledgeGraph.Enabled,
-			SecretsVaultEnabled:      s.Cfg.Tools.SecretsVault.Enabled,
-			SchedulerEnabled:         s.Cfg.Tools.Scheduler.Enabled,
-			NotesEnabled:             s.Cfg.Tools.Notes.Enabled,
-			MissionsEnabled:          s.Cfg.Tools.Missions.Enabled,
-			StopProcessEnabled:       s.Cfg.Tools.StopProcess.Enabled,
-			InventoryEnabled:         s.Cfg.Tools.Inventory.Enabled,
-			MemoryMaintenanceEnabled: s.Cfg.Tools.MemoryMaintenance.Enabled,
-			WOLEnabled:               s.Cfg.Tools.WOL.Enabled,
-			AllowShell:               s.Cfg.Agent.AllowShell,
-			AllowPython:              s.Cfg.Agent.AllowPython,
-			AllowFilesystemWrite:     s.Cfg.Agent.AllowFilesystemWrite,
-			AllowNetworkRequests:     s.Cfg.Agent.AllowNetworkRequests,
-			AllowRemoteShell:         s.Cfg.Agent.AllowRemoteShell,
-			AllowSelfUpdate:          s.Cfg.Agent.AllowSelfUpdate,
-			IsEgg:                    s.Cfg.EggMode.Enabled,
-			DocumentCreatorEnabled:   s.Cfg.Tools.DocumentCreator.Enabled,
-			FritzBoxSystemEnabled:    s.Cfg.FritzBox.Enabled && s.Cfg.FritzBox.System.Enabled,
-			FritzBoxNetworkEnabled:   s.Cfg.FritzBox.Enabled && s.Cfg.FritzBox.Network.Enabled,
-			FritzBoxTelephonyEnabled: s.Cfg.FritzBox.Enabled && s.Cfg.FritzBox.Telephony.Enabled,
-			FritzBoxSmartHomeEnabled: s.Cfg.FritzBox.Enabled && s.Cfg.FritzBox.SmartHome.Enabled,
-			FritzBoxStorageEnabled:   s.Cfg.FritzBox.Enabled && s.Cfg.FritzBox.Storage.Enabled,
-			FritzBoxTVEnabled:        s.Cfg.FritzBox.Enabled && s.Cfg.FritzBox.TV.Enabled,
-			A2AEnabled:               s.Cfg.A2A.Server.Enabled || s.Cfg.A2A.Client.Enabled,
-			TelnyxEnabled:            s.Cfg.Telnyx.Enabled,
-			FormAutomationEnabled:    s.Cfg.Tools.FormAutomation.Enabled,
-			AdditionalPrompt:         s.Cfg.Agent.AdditionalPrompt,
+		// Build flags via the canonical factory so all channels (web, bots, agent loop)
+		// receive the same feature-toggle logic, including Docker/Runtime socket guards.
+		toolingPolicy := agent.BuildToolingPolicy(s.Cfg, lastUserMsg.Content)
+		flagsRunCfg := agent.RunConfig{
+			Config:             s.Cfg,
+			Logger:             s.Logger,
+			LLMClient:          s.LLMClient,
+			ShortTermMem:       s.ShortTermMem,
+			HistoryManager:     s.HistoryManager,
+			LongTermMem:        s.LongTermMem,
+			KG:                 s.KG,
+			InventoryDB:        s.InventoryDB,
+			InvasionDB:         s.InvasionDB,
+			CheatsheetDB:       s.CheatsheetDB,
+			ImageGalleryDB:     s.ImageGalleryDB,
+			MediaRegistryDB:    s.MediaRegistryDB,
+			HomepageRegistryDB: s.HomepageRegistryDB,
+			ContactsDB:         s.ContactsDB,
+			SQLConnectionsDB:   s.SQLConnectionsDB,
+			SQLConnectionPool:  s.SQLConnectionPool,
+			RemoteHub:          s.RemoteHub,
+			Vault:              s.Vault,
+			Registry:           s.Registry,
+			Manifest:           manifest,
+			CronManager:        s.CronManager,
+			MissionManagerV2:   s.MissionManagerV2,
+			CoAgentRegistry:    s.CoAgentRegistry,
+			BudgetTracker:      s.BudgetTracker,
+			LLMGuardian:        s.LLMGuardian,
+			SessionID:          sessionID,
+			IsMission:          missionID != "",
+			MissionID:          missionID,
+			MessageSource: func() string {
+				if missionID != "" {
+					return "mission"
+				}
+				return "web_chat"
+			}(),
 		}
+		flags := agent.BuildPromptContextFlags(flagsRunCfg, toolingPolicy, agent.PromptContextOptions{
+			IsMaintenanceMode:     inMaintenance,
+			ActiveProcesses:       agent.GetActiveProcessStatus(s.Registry),
+			SpecialistsAvailable:  agent.BuildSpecialistsAvailable(s.Cfg),
+			SpecialistsStatus:     agent.BuildSpecialistsStatus(s.Cfg),
+			SpecialistsSuggestion: agent.BuildSpecialistDelegationHint(s.Cfg, lastUserMsg.Content),
+		})
+		// Inject dynamic context fields known only at request time.
+		flags.RetrievedMemories = retrievedMemories
+		flags.MessageCount = len(recentMessages)
 		sysPrompt := prompts.BuildSystemPrompt(s.Cfg.Directories.PromptsDir, flags, coreMem, s.Logger)
 
 		finalMessages := []openai.ChatCompletionMessage{

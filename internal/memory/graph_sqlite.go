@@ -32,9 +32,9 @@ type Edge struct {
 type KnowledgeGraph struct {
 	db          *sql.DB
 	logger      *slog.Logger
-	accessQueue chan string       // buffered channel for async access-count updates
-	doneChan    chan struct{}     // signals worker to exit
-	closeOnce   sync.Once        // ensures Close is only called once
+	accessQueue chan string   // buffered channel for async access-count updates
+	doneChan    chan struct{} // signals worker to exit
+	closeOnce   sync.Once     // ensures Close is only called once
 }
 
 // NewKnowledgeGraph creates a new SQLite-backed knowledge graph.
@@ -274,12 +274,16 @@ func (kg *KnowledgeGraph) AddNode(id, label string, properties map[string]string
 		properties = make(map[string]string)
 	}
 
-	// Enforce 50 char limit per property to protect prompt context
+	// Copy to avoid mutating the caller's map during property truncation.
+	safe := make(map[string]string, len(properties))
 	for k, v := range properties {
 		if len(v) > 50 {
-			properties[k] = v[:47] + "..."
+			safe[k] = v[:47] + "..."
+		} else {
+			safe[k] = v
 		}
 	}
+	properties = safe
 
 	propsJSON, err := json.Marshal(properties)
 	if err != nil {
@@ -312,12 +316,16 @@ func (kg *KnowledgeGraph) AddEdge(source, target, relation string, properties ma
 		properties = make(map[string]string)
 	}
 
-	// Enforce 50 char limit per property to protect prompt context
+	// Copy to avoid mutating the caller's map during property truncation.
+	safe := make(map[string]string, len(properties))
 	for k, v := range properties {
 		if len(v) > 50 {
-			properties[k] = v[:47] + "..."
+			safe[k] = v[:47] + "..."
+		} else {
+			safe[k] = v
 		}
 	}
+	properties = safe
 
 	tx, err := kg.db.Begin()
 	if err != nil {
@@ -327,7 +335,9 @@ func (kg *KnowledgeGraph) AddEdge(source, target, relation string, properties ma
 
 	// Ensure endpoint nodes exist
 	for _, id := range []string{source, target} {
-		tx.Exec(`INSERT OR IGNORE INTO kg_nodes (id, label, properties) VALUES (?, 'Unknown', '{}')`, id)
+		if _, err := tx.Exec(`INSERT OR IGNORE INTO kg_nodes (id, label, properties) VALUES (?, 'Unknown', '{}')`, id); err != nil {
+			kg.logger.Warn("AddEdge: failed to ensure node exists", "id", id, "error", err)
+		}
 	}
 
 	propsJSON, _ := json.Marshal(properties)
@@ -373,7 +383,9 @@ func (kg *KnowledgeGraph) Search(query string) string {
 			var n Node
 			var propsJSON string
 			if err := rows.Scan(&n.ID, &n.Label, &propsJSON); err == nil {
-				json.Unmarshal([]byte(propsJSON), &n.Properties)
+				if err := json.Unmarshal([]byte(propsJSON), &n.Properties); err != nil {
+					kg.logger.Warn("Search: corrupt node properties JSON", "id", n.ID, "error", err)
+				}
 				if n.Properties == nil {
 					n.Properties = make(map[string]string)
 				}
@@ -396,7 +408,9 @@ func (kg *KnowledgeGraph) Search(query string) string {
 			var e Edge
 			var propsJSON string
 			if err := edgeRows.Scan(&e.Source, &e.Target, &e.Relation, &propsJSON); err == nil {
-				json.Unmarshal([]byte(propsJSON), &e.Properties)
+				if err := json.Unmarshal([]byte(propsJSON), &e.Properties); err != nil {
+					kg.logger.Warn("Search: corrupt edge properties JSON", "source", e.Source, "target", e.Target, "error", err)
+				}
 				if e.Properties == nil {
 					e.Properties = make(map[string]string)
 				}
@@ -450,7 +464,9 @@ func (kg *KnowledgeGraph) GetNeighbors(nodeID string, limit int) ([]Node, []Edge
 		var e Edge
 		var propsJSON string
 		if err := rows.Scan(&e.Source, &e.Target, &e.Relation, &propsJSON); err == nil {
-			json.Unmarshal([]byte(propsJSON), &e.Properties)
+			if err := json.Unmarshal([]byte(propsJSON), &e.Properties); err != nil {
+				kg.logger.Warn("GetNeighbors: corrupt edge properties JSON", "source", e.Source, "target", e.Target, "error", err)
+			}
 			if e.Properties == nil {
 				e.Properties = make(map[string]string)
 			}
@@ -471,7 +487,9 @@ func (kg *KnowledgeGraph) GetNeighbors(nodeID string, limit int) ([]Node, []Edge
 		var propsJSON string
 		err := kg.db.QueryRow("SELECT id, label, properties FROM kg_nodes WHERE id = ?", id).Scan(&n.ID, &n.Label, &propsJSON)
 		if err == nil {
-			json.Unmarshal([]byte(propsJSON), &n.Properties)
+			if err := json.Unmarshal([]byte(propsJSON), &n.Properties); err != nil {
+				kg.logger.Warn("GetNeighbors: corrupt node properties JSON", "id", n.ID, "error", err)
+			}
 			if n.Properties == nil {
 				n.Properties = make(map[string]string)
 			}
@@ -594,8 +612,12 @@ func (kg *KnowledgeGraph) DeleteNode(id string) error {
 	}
 	defer tx.Rollback()
 
-	tx.Exec("DELETE FROM kg_edges WHERE source = ? OR target = ?", id, id)
-	tx.Exec("DELETE FROM kg_nodes WHERE id = ?", id)
+	if _, err := tx.Exec("DELETE FROM kg_edges WHERE source = ? OR target = ?", id, id); err != nil {
+		return fmt.Errorf("delete edges for node %s: %w", id, err)
+	}
+	if _, err := tx.Exec("DELETE FROM kg_nodes WHERE id = ?", id); err != nil {
+		return fmt.Errorf("delete node %s: %w", id, err)
+	}
 
 	return tx.Commit()
 }
@@ -674,7 +696,9 @@ func (kg *KnowledgeGraph) GetAllNodes(limit int) ([]Node, error) {
 		var n Node
 		var propsJSON string
 		if err := rows.Scan(&n.ID, &n.Label, &propsJSON); err == nil {
-			json.Unmarshal([]byte(propsJSON), &n.Properties)
+			if err := json.Unmarshal([]byte(propsJSON), &n.Properties); err != nil {
+				kg.logger.Warn("GetAllNodes: corrupt node properties JSON", "id", n.ID, "error", err)
+			}
 			if n.Properties == nil {
 				n.Properties = make(map[string]string)
 			}
@@ -700,7 +724,9 @@ func (kg *KnowledgeGraph) GetAllEdges(limit int) ([]Edge, error) {
 		var e Edge
 		var propsJSON string
 		if err := rows.Scan(&e.Source, &e.Target, &e.Relation, &propsJSON); err == nil {
-			json.Unmarshal([]byte(propsJSON), &e.Properties)
+			if err := json.Unmarshal([]byte(propsJSON), &e.Properties); err != nil {
+				kg.logger.Warn("GetAllEdges: corrupt edge properties JSON", "source", e.Source, "target", e.Target, "error", err)
+			}
 			if e.Properties == nil {
 				e.Properties = make(map[string]string)
 			}

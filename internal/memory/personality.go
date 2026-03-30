@@ -137,9 +137,8 @@ func (m PersonalityMeta) Normalized() PersonalityMeta {
 	}
 	m.Volatility = clampFinite(m.Volatility, 0, 2, def.Volatility)
 
-	if m.EmpathyBias == 0 {
-		m.EmpathyBias = def.EmpathyBias
-	}
+	// EmpathyBias: 0 is a valid value (no bias), so do not treat it as "unset".
+	// clampFinite uses def.EmpathyBias only when the stored value is non-finite.
 	m.EmpathyBias = clampFinite(m.EmpathyBias, 0, 2, def.EmpathyBias)
 
 	if m.LonelinessSusceptibility == 0 {
@@ -150,12 +149,13 @@ func (m PersonalityMeta) Normalized() PersonalityMeta {
 	if m.TraitDecayRate == 0 {
 		m.TraitDecayRate = def.TraitDecayRate
 	}
-	m.TraitDecayRate = clampFinite(m.TraitDecayRate, 0, 2, def.TraitDecayRate)
+	// Enforce a minimum of 0.01 so decay is never fully disabled inadvertently.
+	m.TraitDecayRate = clampFinite(m.TraitDecayRate, 0.01, 2, def.TraitDecayRate)
 
 	switch m.ConflictResponse {
 	case "", "neutral":
 		m.ConflictResponse = "neutral"
-	case "submissive", "assertive":
+	case "submissive", "assertive", "diplomatic":
 		// valid
 	default:
 		m.ConflictResponse = "neutral"
@@ -184,7 +184,7 @@ func (m PersonalityMeta) Validate() error {
 		return fmt.Errorf("invalid trait_decay_rate %.4f", m.TraitDecayRate)
 	}
 	switch m.ConflictResponse {
-	case "", "neutral", "submissive", "assertive":
+	case "", "neutral", "submissive", "assertive", "diplomatic":
 		return nil
 	default:
 		return fmt.Errorf("invalid conflict_response %q", m.ConflictResponse)
@@ -354,7 +354,9 @@ func (s *SQLiteMemory) GetTraits() (PersonalityTraits, error) {
 	s.traitsCache = traits
 	s.traitsCacheAt = time.Now()
 	s.personalityCacheMu.Unlock()
-	return traits, nil
+	// Return a clone so callers cannot corrupt the cached map.
+	copy := maps.Clone(map[string]float64(traits))
+	return PersonalityTraits(copy), nil
 }
 
 // UpdateTrait adjusts a trait by delta, clamped to [0.0, 1.0].
@@ -1027,11 +1029,11 @@ func DetectMood(userMsg, toolResult string, meta PersonalityMeta) (Mood, map[str
 	meta = meta.Normalized()
 	const maxMoodInputLen = 10_000
 	const maxToolResultLen = 10_000
-	if len(userMsg) > maxMoodInputLen {
-		userMsg = userMsg[:maxMoodInputLen]
+	if utf8.RuneCountInString(userMsg) > maxMoodInputLen {
+		userMsg = string([]rune(userMsg)[:maxMoodInputLen])
 	}
-	if len(toolResult) > maxToolResultLen {
-		toolResult = toolResult[:maxToolResultLen]
+	if utf8.RuneCountInString(toolResult) > maxToolResultLen {
+		toolResult = string([]rune(toolResult)[:maxToolResultLen])
 	}
 	lower := strings.ToLower(userMsg)
 	deltas := make(map[string]float64)

@@ -2,6 +2,7 @@ package memory
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -661,6 +662,7 @@ func (s *SQLiteMemory) GetConsolidationCandidates(limit int, maxRetries int) ([]
 }
 
 // MarkConsolidated marks a batch of archived messages as consolidated.
+// Deprecated: prefer MarkConsolidationSuccess which also sets consolidation_status.
 func (s *SQLiteMemory) MarkConsolidated(ids []int64) error {
 	if len(ids) == 0 {
 		return nil
@@ -671,8 +673,11 @@ func (s *SQLiteMemory) MarkConsolidated(ids []int64) error {
 		placeholders[i] = "?"
 		args[i] = id
 	}
-	query := fmt.Sprintf("UPDATE archived_messages SET consolidated = 1 WHERE id IN (%s)",
-		strings.Join(placeholders, ","))
+	query := fmt.Sprintf(`UPDATE archived_messages
+		SET consolidated = 1,
+		    consolidation_status = 'done',
+		    consolidation_last_error = ''
+		WHERE id IN (%s)`, strings.Join(placeholders, ","))
 	_, err := s.db.Exec(query, args...)
 	return err
 }
@@ -1147,9 +1152,12 @@ func (s *SQLiteMemory) GetToolUsageCount(toolName string) (int, error) {
 		`SELECT COALESCE(total_count, 0) FROM tool_usage_adaptive WHERE tool_name = ?`,
 		toolName,
 	).Scan(&count)
-	if err != nil {
-		// Row not found: tool has never been used
+	if errors.Is(err, sql.ErrNoRows) {
+		// Tool has never been used — not an error.
 		return 0, nil
+	}
+	if err != nil {
+		return 0, fmt.Errorf("GetToolUsageCount: %w", err)
 	}
 	return count, nil
 }

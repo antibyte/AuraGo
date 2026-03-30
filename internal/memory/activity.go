@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 // ActivityDigest is the normalized structured summary for a single turn.
@@ -647,13 +648,13 @@ func buildRecentActivityOverviewSummary(days int, rollups []DailyActivityRollup,
 
 func truncateForActivity(text string, maxLen int) string {
 	text = strings.TrimSpace(text)
-	if maxLen <= 0 || len(text) <= maxLen {
+	if maxLen <= 0 || utf8.RuneCountInString(text) <= maxLen {
 		return text
 	}
 	if maxLen <= 1 {
-		return text[:maxLen]
+		return string([]rune(text)[:maxLen])
 	}
-	return strings.TrimSpace(text[:maxLen-1]) + "…"
+	return strings.TrimSpace(string([]rune(text)[:maxLen-1])) + "…"
 }
 
 func uniqueNonEmptySlice(in []string, limit int) []string {

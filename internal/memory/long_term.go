@@ -53,13 +53,14 @@ type ChromemVectorDB struct {
 	collection    *chromem.Collection
 	logger        *slog.Logger
 	mu            sync.RWMutex // Protects indexing operations; reads use RLock
+	storeDocMu    sync.Mutex   // Serialises the dedup-check+store sequence in StoreDocumentWithDomain
 	embeddingFunc chromem.EmbeddingFunc
 	disabled      atomic.Bool  // Set when embedding pipeline fails; skips operations gracefully
 	idCounter     atomic.Int64 // Monotonic counter for collision-free document IDs
 	queryCache    map[string]queryCacheEntry
 	queryCacheMu  sync.RWMutex
 	queryCacheTTL time.Duration
-	indexing      atomic.Bool // True while async indexing is in progress
+	indexing      atomic.Int32  // Counter: >0 while async indexing is in progress
 	dedupSem      chan struct{} // semaphore to limit concurrent dedup checks
 }
 
@@ -174,7 +175,7 @@ func NewChromemVectorDB(cfg *config.Config, logger *slog.Logger) (*ChromemVector
 		embeddingFunc: embeddingFunc,
 		queryCache:    make(map[string]queryCacheEntry),
 		queryCacheTTL: 5 * time.Minute,
-		dedupSem:     make(chan struct{}, 4), // max 4 concurrent dedup checks to avoid rate limits
+		dedupSem:      make(chan struct{}, 4), // max 4 concurrent dedup checks to avoid rate limits
 	}
 
 	// Phase 29: Startup validation — test the embedding pipeline with retries
@@ -242,13 +243,17 @@ func (cv *ChromemVectorDB) StoreDocumentWithDomain(concept, content, domain stri
 		content = content[:maxContentBytes]
 	}
 
-	// Deduplication: check if a very similar concept already exists
+	// Deduplication: serialise check+store so two concurrent calls for the
+	// same concept cannot both pass the similarity gate before either is stored.
+	cv.storeDocMu.Lock()
 	if similar, _, err := cv.SearchMemoriesOnly(concept, 1); err == nil && len(similar) > 0 {
 		if sim := ExtractSimilarityScore(similar[0]); sim > 0.95 {
+			cv.storeDocMu.Unlock()
 			cv.logger.Debug("Skipping duplicate concept (similarity > 0.95)", "concept", concept, "similarity", sim)
 			return nil, nil
 		}
 	}
+	defer cv.storeDocMu.Unlock()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -424,6 +429,12 @@ func (cv *ChromemVectorDB) StoreBatch(items []ArchiveItem) ([]string, error) {
 		}
 		i, item := i, item // capture
 		go func() {
+			defer func() {
+				if rec := recover(); rec != nil {
+					cv.logger.Error("StoreBatch: dedup goroutine panicked", "panic", rec)
+					resultsCh <- dedupResult{idx: i, item: item, keep: true}
+				}
+			}()
 			// Acquire semaphore to limit concurrent embedding calls
 			cv.dedupSem <- struct{}{}
 			defer func() { <-cv.dedupSem }()
@@ -591,8 +602,10 @@ resultsLoop:
 		case cr = <-resultCh:
 		case <-ctx.Done():
 			cv.logger.Warn("SearchSimilar: context deadline exceeded, returning partial results", "collected", len(allResults))
-			// Drain remaining results without processing to unblock goroutines
-			for remaining := len(collections) - 1; remaining > 0; remaining-- {
+			// Drain only the goroutines still running (not yet received).
+			// len(allResults) results were already consumed from the channel;
+			// the remaining (len(collections) - 1 - len(allResults)) goroutines are still pending.
+			for remaining := len(collections) - 1 - len(allResults); remaining > 0; remaining-- {
 				<-resultCh
 			}
 			break resultsLoop
@@ -760,18 +773,30 @@ func (cv *ChromemVectorDB) getQueryEmbedding(ctx context.Context, query string) 
 
 	cv.queryCacheMu.Lock()
 	cv.queryCache[query] = queryCacheEntry{embedding: embedding, timestamp: time.Now()}
-	// Evict old entries if cache grows too large (> 200 entries)
-	if len(cv.queryCache) > 200 {
+	// Evict old entries if cache grows too large (> 200 entries).
+	// First pass: remove expired entries. If none expired, remove the oldest entry
+	// to enforce a hard cap and prevent unbounded growth under unique-query load.
+	const queryCacheMaxSize = 200
+	if len(cv.queryCache) > queryCacheMaxSize {
 		now := time.Now()
-		// Collect keys to delete, then delete in a separate loop to avoid map modification during iteration
 		var toDelete []string
+		var oldestKey string
+		var oldestTime time.Time
 		for k, v := range cv.queryCache {
 			if now.Sub(v.timestamp) > cv.queryCacheTTL {
 				toDelete = append(toDelete, k)
+			} else if oldestKey == "" || v.timestamp.Before(oldestTime) {
+				oldestKey = k
+				oldestTime = v.timestamp
 			}
 		}
-		for _, k := range toDelete {
-			delete(cv.queryCache, k)
+		if len(toDelete) > 0 {
+			for _, k := range toDelete {
+				delete(cv.queryCache, k)
+			}
+		} else if oldestKey != "" {
+			// No expired entries — evict the oldest one to stay under the hard cap.
+			delete(cv.queryCache, oldestKey)
 		}
 	}
 	cv.queryCacheMu.Unlock()
@@ -818,5 +843,5 @@ func calculateBatchTimeout(docCount int) time.Duration {
 
 // IsIndexing reports whether async indexing is currently in progress.
 func (cv *ChromemVectorDB) IsIndexing() bool {
-	return cv.indexing.Load()
+	return cv.indexing.Load() > 0
 }

@@ -8,24 +8,26 @@ import (
 	"os"
 
 	"aurago/cmd/agocli/chat"
-	"aurago/cmd/agocli/shared"
 	"aurago/cmd/agocli/setup"
+	"aurago/cmd/agocli/shared"
 	"aurago/cmd/agocli/update"
 
-	"github.com/charmbracelet/bubbletea"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 func main() {
 	setupMode := flag.Bool("setup", false, "Run setup wizard")
 	updateMode := flag.Bool("update", false, "Run update wizard")
+	noRestart := flag.Bool("no-restart", false, "Skip service restart after update")
+	yes := flag.Bool("yes", false, "Auto-confirm prompts (non-interactive)")
 	serverURL := flag.String("server", shared.GetServerURL(), "AuraGo server URL")
 	flag.Usage = func() {
 		fmt.Println("agocli - AuraGo CLI Tool")
 		fmt.Println()
 		fmt.Println("Usage:")
-		fmt.Println("  agocli            Start interactive chat TUI")
-		fmt.Println("  agocli --setup    Run setup wizard")
-		fmt.Println("  agocli --update   Run update wizard")
+		fmt.Println("  agocli              Start interactive chat TUI")
+		fmt.Println("  agocli --setup      Run setup wizard")
+		fmt.Println("  agocli --update     Run update wizard")
 		fmt.Println()
 		fmt.Println("Options:")
 		flag.PrintDefaults()
@@ -44,7 +46,7 @@ func main() {
 	}
 
 	if *updateMode {
-		p := tea.NewProgram(update.NewModel(*serverURL),
+		p := tea.NewProgram(update.NewModelWithOpts(*serverURL, *noRestart, *yes),
 			tea.WithAltScreen(),
 		)
 		if _, err := p.Run(); err != nil {

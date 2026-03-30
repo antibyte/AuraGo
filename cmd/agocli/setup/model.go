@@ -3,7 +3,10 @@ package setup
 import (
 	"sync"
 
-	"github.com/charmbracelet/bubbletea"
+	"aurago/cmd/agocli/syscheck"
+
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/huh"
 )
 
 // Step represents the current step in the setup wizard.
@@ -11,10 +14,12 @@ type Step int
 
 const (
 	StepWelcome Step = iota
-	StepPrerequisites
-	StepExtract
+	StepDependencies
 	StepMasterKey
+	StepExtract
+	StepNetwork
 	StepConfig
+	StepPassword
 	StepService
 	StepStart
 	StepSummary
@@ -25,16 +30,38 @@ type Model struct {
 	CurrentStep Step
 
 	// Output from setup process
-	Output    []string
-	outputMu  sync.Mutex
+	Output   []string
+	outputMu sync.Mutex
 
 	// Configuration
-	ServerURL string
+	ServerURL  string
+	InstallDir string
 
 	// Setup state
 	Started bool // user has pressed Enter on Welcome, setup is running
+	Running bool // a step is currently executing
 	Done    bool
 	Err     error
+
+	// Dependency selection
+	DepChecks    []syscheck.CheckResult
+	SelectedDeps []string // command names of deps user wants to install
+	DepForm      *huh.Form
+
+	// Network / HTTPS
+	NetworkMode string // "local", "lan", "https"
+	HTTPS       HTTPSConfig
+	NetworkForm *huh.Form
+
+	// Service
+	InstallSvc  bool
+	ServiceForm *huh.Form
+
+	// Results
+	MasterKey    string
+	KeyGenerated bool
+	Password     string
+	AccessURL    string
 
 	// Dimensions
 	Width  int
@@ -47,6 +74,7 @@ func NewModel(serverURL string) *Model {
 		ServerURL:   serverURL,
 		CurrentStep: StepWelcome,
 		Output:      []string{},
+		NetworkMode: "local",
 	}
 }
 

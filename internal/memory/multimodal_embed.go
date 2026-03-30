@@ -60,6 +60,15 @@ func detectFormat(providerType, baseURL string) string {
 // EmbedFile reads a file (image or audio), base64-encodes it, and calls the
 // multimodal embedding API. Returns the embedding vector.
 func (me *MultimodalEmbedder) EmbedFile(ctx context.Context, filePath string) ([]float32, error) {
+	const maxFileBytes = 50 * 1024 * 1024 // 50 MB
+	info, err := os.Stat(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("stat file %s: %w", filepath.Base(filePath), err)
+	}
+	if info.Size() > maxFileBytes {
+		return nil, fmt.Errorf("file %s too large (%d bytes, max %d)", filepath.Base(filePath), info.Size(), maxFileBytes)
+	}
+
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("read file %s: %w", filepath.Base(filePath), err)

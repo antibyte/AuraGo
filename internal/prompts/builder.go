@@ -751,6 +751,10 @@ func removeSection(text, header string) string {
 	if idx < 0 {
 		return text
 	}
+	// Guard against false positives: the header must start at the beginning of a line.
+	if idx != 0 && text[idx-1] != '\n' {
+		return text
+	}
 
 	// Find the end of this section: next markdown header (# , ## , ### ) or end of text
 	rest := text[idx+len(header):]
@@ -876,15 +880,16 @@ func OptimizePrompt(raw string) (string, int) {
 				}
 			}
 			// Collapse double spaces inline
-			for strings.Contains(outLine, "  ") {
-				outLine = strings.ReplaceAll(outLine, "  ", " ")
+			outLine = strings.Join(strings.Fields(outLine), " ")
+			// Re-add leading whitespace that Fields stripped
+			leading := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
+			if leading != "" {
+				outLine = leading + strings.TrimLeft(outLine, " \t")
 			}
 		} else {
 			// Free text: collapse double spaces and use trimmed line
 			outLine = trimmed
-			for strings.Contains(outLine, "  ") {
-				outLine = strings.ReplaceAll(outLine, "  ", " ")
-			}
+			outLine = strings.Join(strings.Fields(outLine), " ")
 		}
 
 		// Blank line collapsing: max 1 consecutive empty line

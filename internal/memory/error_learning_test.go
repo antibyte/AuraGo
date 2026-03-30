@@ -1,8 +1,10 @@
 package memory
 
 import (
+	"fmt"
 	"log/slog"
 	"os"
+	"sync"
 	"testing"
 )
 
@@ -113,5 +115,70 @@ func TestLookupErrorResolutionNormalized(t *testing.T) {
 	}
 	if res != "check file permissions" {
 		t.Errorf("expected resolution 'check file permissions', got %q", res)
+	}
+}
+
+// TestRecordError_ConcurrentNoDuplicates verifies that concurrent RecordError calls
+// for the same (toolName, errorMsg) pair result in exactly one row with the correct
+// occurrence count — the UNIQUE constraint + atomic upsert must prevent duplicate rows.
+func TestRecordError_ConcurrentNoDuplicates(t *testing.T) {
+	stm := newTestErrorLearningDB(t)
+
+	const workers = 20
+	var wg sync.WaitGroup
+	wg.Add(workers)
+	for i := 0; i < workers; i++ {
+		go func() {
+			defer wg.Done()
+			if err := stm.RecordError("shell", "connection refused"); err != nil {
+				t.Errorf("RecordError: %v", err)
+			}
+		}()
+	}
+	wg.Wait()
+
+	patterns, err := stm.GetFrequentErrors("shell", 10)
+	if err != nil {
+		t.Fatalf("GetFrequentErrors: %v", err)
+	}
+	if len(patterns) != 1 {
+		t.Fatalf("expected exactly 1 pattern row after %d concurrent inserts, got %d", workers, len(patterns))
+	}
+	if patterns[0].OccurrenceCount != workers {
+		t.Errorf("expected occurrence_count=%d, got %d", workers, patterns[0].OccurrenceCount)
+	}
+}
+
+// TestRecordError_ConcurrentDistinctTools verifies that patterns for different tools
+// do not interfere with each other under concurrent access.
+func TestRecordError_ConcurrentDistinctTools(t *testing.T) {
+	stm := newTestErrorLearningDB(t)
+
+	tools := []string{"shell", "python", "http", "docker", "file"}
+	const recordsPerTool = 10
+	var wg sync.WaitGroup
+	wg.Add(len(tools) * recordsPerTool)
+	for _, tool := range tools {
+		for i := 0; i < recordsPerTool; i++ {
+			go func(toolName string, idx int) {
+				defer wg.Done()
+				// Each goroutine uses a unique error message per tool to produce
+				// distinct patterns, ensuring count == 1 for each.
+				msg := fmt.Sprintf("error %d", idx)
+				_ = stm.RecordError(toolName, msg)
+			}(tool, i)
+		}
+	}
+	wg.Wait()
+
+	// Each tool should have exactly recordsPerTool distinct patterns.
+	for _, tool := range tools {
+		patterns, err := stm.GetFrequentErrors(tool, 50)
+		if err != nil {
+			t.Fatalf("GetFrequentErrors(%s): %v", tool, err)
+		}
+		if len(patterns) != recordsPerTool {
+			t.Errorf("tool=%s: expected %d patterns, got %d", tool, recordsPerTool, len(patterns))
+		}
 	}
 }

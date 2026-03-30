@@ -23,6 +23,57 @@ type HistoryMessage struct {
 	ID         int64 `json:"id"`
 }
 
+// historyMessageDisk is the on-disk/JSON representation of HistoryMessage.
+// It exists because openai.ChatCompletionMessage has custom MarshalJSON/UnmarshalJSON
+// methods that, when promoted via embedding, silently drop the Pinned, IsInternal,
+// and ID fields. By defining explicit methods on HistoryMessage we take full control.
+type historyMessageDisk struct {
+	Role         string               `json:"role"`
+	Content      string               `json:"content,omitempty"`
+	Name         string               `json:"name,omitempty"`
+	FunctionCall *openai.FunctionCall `json:"function_call,omitempty"`
+	ToolCalls    []openai.ToolCall    `json:"tool_calls,omitempty"`
+	ToolCallID   string               `json:"tool_call_id,omitempty"`
+	Pinned       bool                 `json:"pinned"`
+	IsInternal   bool                 `json:"is_internal"`
+	ID           int64                `json:"id"`
+}
+
+// MarshalJSON serialises all fields including Pinned, IsInternal, and ID.
+func (h HistoryMessage) MarshalJSON() ([]byte, error) {
+	return json.Marshal(historyMessageDisk{
+		Role:         h.Role,
+		Content:      h.Content,
+		Name:         h.Name,
+		FunctionCall: h.FunctionCall,
+		ToolCalls:    h.ToolCalls,
+		ToolCallID:   h.ToolCallID,
+		Pinned:       h.Pinned,
+		IsInternal:   h.IsInternal,
+		ID:           h.ID,
+	})
+}
+
+// UnmarshalJSON restores all fields including Pinned, IsInternal, and ID.
+func (h *HistoryMessage) UnmarshalJSON(data []byte) error {
+	var d historyMessageDisk
+	if err := json.Unmarshal(data, &d); err != nil {
+		return err
+	}
+	h.ChatCompletionMessage = openai.ChatCompletionMessage{
+		Role:         d.Role,
+		Content:      d.Content,
+		Name:         d.Name,
+		FunctionCall: d.FunctionCall,
+		ToolCalls:    d.ToolCalls,
+		ToolCallID:   d.ToolCallID,
+	}
+	h.Pinned = d.Pinned
+	h.IsInternal = d.IsInternal
+	h.ID = d.ID
+	return nil
+}
+
 type HistoryManager struct {
 	mu             sync.Mutex
 	file           string

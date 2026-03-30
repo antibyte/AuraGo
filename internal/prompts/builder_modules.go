@@ -85,7 +85,7 @@ func loadPromptModules(dir string, logger *slog.Logger) []PromptModule {
 				logger.Warn("Failed to read prompt file", "path", path, "error", err)
 				continue
 			}
-			moduleMap[file.Name()] = parseOrFallback(file.Name(), string(data), logger)
+			moduleMap[strings.ToLower(file.Name())] = parseOrFallback(file.Name(), string(data), logger)
 		}
 	} else if len(moduleMap) == 0 {
 		logger.Error("Failed to read prompts directory and no embedded modules loaded", "path", dir, "error", err)
@@ -536,13 +536,26 @@ func readToolGuideEmbed(osPath string) ([]byte, bool) {
 	return data, true
 }
 
-// truncateGuide trims whitespace and limits content to maxBytes.
+// truncateGuide trims whitespace and limits content to maxBytes, preserving UTF-8 rune boundaries.
 func truncateGuide(raw string, maxBytes int) string {
 	content := strings.TrimSpace(raw)
 	if len(content) > maxBytes {
-		content = content[:maxBytes] + "\n[...truncated]"
+		// Step back from the byte limit until we land on a rune boundary.
+		trunc := maxBytes
+		for trunc > 0 && !isRuneBoundary(content, trunc) {
+			trunc--
+		}
+		content = content[:trunc] + "\n[...truncated]"
 	}
 	return content
+}
+
+// isRuneBoundary reports whether byte index i is at the start of a UTF-8 rune in s.
+func isRuneBoundary(s string, i int) bool {
+	if i == 0 || i == len(s) {
+		return true
+	}
+	return (s[i] & 0xC0) != 0x80
 }
 
 // isToolPathSafe returns true when path is confirmed to be within baseDir,

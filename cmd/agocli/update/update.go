@@ -2,23 +2,47 @@ package update
 
 import (
 	"os"
-	"os/exec"
-	"runtime"
-	"strings"
+	"path/filepath"
 
-	"github.com/charmbracelet/bubbletea"
+	"aurago/cmd/agocli/shared"
+	"aurago/cmd/agocli/updater"
+
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/huh"
 )
 
-// Update handles messages for the update wizard.
+// ── Tea messages ─────────────────────────────────────────────────────
+
+type stepDoneMsg struct{ err error }
+type formDoneMsg struct{}
+
+// ── Update (message dispatch) ────────────────────────────────────────
+
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+
 	case tea.KeyMsg:
+		if form := m.activeForm(); form != nil {
+			return m.updateForm(msg)
+		}
 		return m.handleKeyMsg(msg)
 
 	case tea.WindowSizeMsg:
 		m.Width = msg.Width
 		m.Height = msg.Height
 		return m, nil
+
+	case stepDoneMsg:
+		m.Running = false
+		if msg.err != nil {
+			m.SetDone(msg.err)
+			return m, nil
+		}
+		return m, m.advanceAfterStep()
+
+	case formDoneMsg:
+		m.Running = false
+		return m, m.advanceAfterForm()
 	}
 
 	return m, nil
@@ -30,188 +54,212 @@ func (m *Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.Done {
 			return m, tea.Quit
 		}
-
-		switch m.CurrentStep {
-		case StepCheck:
-			return m, m.checkForUpdates()
-
-		case StepChangelog:
-			m.NextStep()
-			return m, nil
-
-		case StepConfirm:
-			m.NextStep()
-			return m, m.runUpdate()
-
-		case StepKeyMigrate:
-			m.NextStep()
-			return m, nil
-
-		case StepRestart:
-			return m, m.restartServer()
+		if m.CurrentStep == StepChangelog {
+			m.NextStep() // → Confirm
+			return m, m.startConfirm()
 		}
-
+		return m, nil
 	case tea.KeyCtrlC:
 		return m, tea.Quit
 	}
-
 	return m, nil
 }
 
-// checkForUpdates checks if updates are available.
+// ── Form helpers ─────────────────────────────────────────────────────
+
+func (m *Model) activeForm() *huh.Form {
+	switch m.CurrentStep {
+	case StepConfirm:
+		return nil // we use auto-advance for --yes
+	case StepKeyMigrate:
+		return m.MigrateForm
+	case StepRestart:
+		return m.RestartForm
+	}
+	return nil
+}
+
+func (m *Model) updateForm(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	form := m.activeForm()
+	if form == nil {
+		return m, nil
+	}
+	model, cmd := form.Update(msg)
+	if f, ok := model.(*huh.Form); ok {
+		switch m.CurrentStep {
+		case StepKeyMigrate:
+			m.MigrateForm = f
+		case StepRestart:
+			m.RestartForm = f
+		}
+	}
+	if form.State == huh.StateCompleted {
+		return m, func() tea.Msg { return formDoneMsg{} }
+	}
+	return m, cmd
+}
+
+// ── Step flow ────────────────────────────────────────────────────────
+
+func (m *Model) resolveInstallDir() {
+	exePath, err := os.Executable()
+	if err == nil {
+		exePath, _ = filepath.EvalSymlinks(exePath)
+		m.InstallDir = filepath.Dir(filepath.Dir(exePath))
+	}
+	if m.InstallDir == "" {
+		m.InstallDir, _ = os.Getwd()
+	}
+}
+
 func (m *Model) checkForUpdates() tea.Cmd {
+	m.Running = true
 	return func() tea.Msg {
-		m.AddOutput("Checking for updates...")
-
-		// Check if running inside a git repo
-		if isGitRepo() {
-			m.AddOutput("Git repository detected")
-			if hasGitUpdates() {
-				m.UpdateAvailable = true
-				m.Changelog = getChangelog()
-				m.CurrentStep = StepChangelog
-				m.AddOutput("Update available!")
-			} else {
-				m.UpdateAvailable = false
-				m.CurrentStep = StepSummary
-				m.AddOutput("Already running the latest version.")
-				m.SetDone(nil)
-			}
-		} else {
-			// Binary mode - check GitHub releases
-			m.AddOutput("Checking GitHub releases...")
-			latestTag := getLatestReleaseTag()
-			if latestTag != "" {
-				m.LatestVersion = latestTag
-				m.UpdateAvailable = true
-				m.CurrentStep = StepChangelog
-				m.AddOutput("Update available: " + latestTag)
-			} else {
-				m.UpdateAvailable = false
-				m.CurrentStep = StepSummary
-				m.AddOutput("Could not determine latest version.")
-				m.SetDone(nil)
-			}
+		cfg := &updater.Config{
+			InstallDir: m.InstallDir,
+			LogFn:      m.AddOutput,
 		}
-
-		return updateOutputMsg{}
-	}
-}
-
-// runUpdate runs the update.sh script.
-func (m *Model) runUpdate() tea.Cmd {
-	return func() tea.Msg {
-		m.AddOutput("Starting update process...")
-		m.AddOutput("")
-
-		// Determine the script name based on OS
-		scriptName := "./update.sh"
-		if runtime.GOOS == "windows" {
-			scriptName = "./update.bat"
-		}
-
-		cmd := exec.Command("bash", scriptName, "--yes")
-		cmd.Dir, _ = os.Getwd()
-
-		output, err := cmd.CombinedOutput()
+		avail, version, changelog, err := updater.CheckForUpdates(cfg)
 		if err != nil {
-			m.SetDone(err)
-			m.AddOutput("Update failed: " + err.Error())
-		} else {
-			m.SetDone(nil)
-			m.AddOutput("Update completed successfully!")
+			return stepDoneMsg{err: err}
 		}
 
-		if len(output) > 0 {
-			m.AddOutput("")
-			m.AddOutput("=== Update Output ===")
-			for _, line := range strings.Split(string(output), "\n") {
-				if line != "" {
-					m.AddOutput(line)
-				}
+		m.UpdateAvailable = avail
+		m.LatestVersion = version
+		m.Changelog = changelog
+
+		if !avail {
+			m.AddOutput("Already running the latest version.")
+			m.SetDone(nil)
+		}
+		return stepDoneMsg{}
+	}
+}
+
+func (m *Model) advanceAfterStep() tea.Cmd {
+	switch m.CurrentStep {
+	case StepCheck:
+		if !m.UpdateAvailable {
+			m.CurrentStep = StepSummary
+			m.SetDone(nil)
+			return nil
+		}
+		m.CurrentStep = StepChangelog
+		return nil // wait for Enter
+
+	case StepApply:
+		m.CurrentStep = StepKeyMigrate
+		return m.startKeyMigrate()
+
+	case StepKeyMigrate:
+		// handled by form
+		return nil
+
+	case StepRestart:
+		m.CurrentStep = StepSummary
+		m.SetDone(nil)
+		return nil
+	}
+
+	return nil
+}
+
+func (m *Model) advanceAfterForm() tea.Cmd {
+	switch m.CurrentStep {
+	case StepKeyMigrate:
+		if m.MigrateKey {
+			m.AddOutput("Migrating master key to /etc/aurago/...")
+			done, err := shared.MigrateMasterKey(m.InstallDir)
+			if err != nil {
+				m.AddOutput("WARNING: Key migration failed: " + err.Error())
+			} else if done {
+				m.AddOutput("Master key migrated successfully")
+				shared.PatchServiceEnvFile("/etc/aurago/master.key")
 			}
 		}
+		m.CurrentStep = StepRestart
+		return m.startRestart()
 
+	case StepRestart:
+		if m.DoRestart && !m.NoRestart {
+			m.AddOutput("Restarting AuraGo...")
+			if err := shared.RestartService(m.InstallDir); err != nil {
+				m.AddOutput("WARNING: Restart failed: " + err.Error())
+			} else {
+				m.AddOutput("AuraGo restarted successfully!")
+			}
+		}
 		m.CurrentStep = StepSummary
-		return updateOutputMsg{}
-	}
-}
-
-// restartServer restarts the AuraGo service.
-func (m *Model) restartServer() tea.Cmd {
-	return func() tea.Msg {
-		m.AddOutput("Restarting AuraGo...")
-
-		var cmd *exec.Cmd
-		if runtime.GOOS == "windows" {
-			cmd = exec.Command("schtasks", "/Run", "/TN", "AuraGo")
-		} else {
-			cmd = exec.Command("systemctl", "start", "aurago")
-		}
-
-		if err := cmd.Run(); err != nil {
-			m.AddOutput("Could not restart via service manager: " + err.Error())
-			m.AddOutput("Please restart AuraGo manually.")
-		} else {
-			m.AddOutput("AuraGo service restarted.")
-		}
-
-		m.AddOutput("")
-		m.AddOutput("===========================================")
-		m.AddOutput("Update process complete!")
-		m.AddOutput("===========================================")
-		m.AddOutput("")
-		m.AddOutput("Press Enter to exit...")
-
 		m.SetDone(nil)
-		return updateOutputMsg{}
+		return nil
+	}
+	return nil
+}
+
+func (m *Model) startConfirm() tea.Cmd {
+	if m.Yes {
+		// auto-confirm
+		m.NextStep() // → StepApply
+		return m.runUpdate()
+	}
+	// For non-yes mode, user presses Enter on the confirm step text
+	return nil
+}
+
+func (m *Model) runUpdate() tea.Cmd {
+	m.Running = true
+	return func() tea.Msg {
+		cfg := &updater.Config{
+			InstallDir: m.InstallDir,
+			NoRestart:  true, // we handle restart in the TUI
+			LogFn:      m.AddOutput,
+		}
+		err := updater.Run(cfg)
+		return stepDoneMsg{err: err}
 	}
 }
 
-// updateOutputMsg is a message indicating update output.
-type updateOutputMsg struct{}
-
-// Helper functions
-
-func isGitRepo() bool {
-	cmd := exec.Command("git", "rev-parse", "--is-inside-work-tree")
-	cmd.Dir, _ = os.Getwd()
-	return cmd.Run() == nil
-}
-
-func hasGitUpdates() bool {
-	cmd := exec.Command("git", "fetch", "origin", "main")
-	cmd.Dir, _ = os.Getwd()
-	if err := cmd.Run(); err != nil {
-		return false
+func (m *Model) startKeyMigrate() tea.Cmd {
+	// Check if migration is needed
+	envPath := filepath.Join(m.InstallDir, ".env")
+	key := shared.ReadEnvKey(envPath, "AURAGO_MASTER_KEY")
+	if key == "" || !shared.HasSystemd() {
+		// No migration needed — skip
+		m.CurrentStep = StepRestart
+		return m.startRestart()
 	}
 
-	cmd = exec.Command("git", "rev-parse", "HEAD")
-	cmd.Dir, _ = os.Getwd()
-	currentHash, _ := cmd.Output()
-
-	cmd = exec.Command("git", "rev-parse", "origin/main")
-	cmd.Dir, _ = os.Getwd()
-	remoteHash, _ := cmd.Output()
-
-	return string(currentHash) != string(remoteHash)
+	m.MigrateKey = true
+	m.MigrateForm = huh.NewForm(
+		huh.NewGroup(
+			huh.NewConfirm().
+				Title("Migrate master key to /etc/aurago/master.key?").
+				Description("Your key is currently in .env — moving it to /etc/aurago/ is more secure.").
+				Affirmative("Yes").
+				Negative("Skip").
+				Value(&m.MigrateKey),
+		),
+	)
+	m.MigrateForm.Init()
+	return nil
 }
 
-func getChangelog() string {
-	cmd := exec.Command("git", "log", "HEAD..origin/main", "--oneline")
-	cmd.Dir, _ = os.Getwd()
-	output, err := cmd.Output()
-	if err != nil {
-		return "Could not retrieve changelog."
+func (m *Model) startRestart() tea.Cmd {
+	if m.NoRestart {
+		m.CurrentStep = StepSummary
+		m.SetDone(nil)
+		return nil
 	}
-	return strings.TrimSpace(string(output))
-}
 
-func getLatestReleaseTag() string {
-	cmd := exec.Command("bash", "-c", "curl -s https://api.github.com/repos/antibyte/AuraGo/releases/latest | grep '\"tag_name\"' | cut -d'\"' -f4")
-	output, err := cmd.Output()
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSpace(string(output))
+	m.RestartForm = huh.NewForm(
+		huh.NewGroup(
+			huh.NewConfirm().
+				Title("Restart AuraGo now?").
+				Affirmative("Yes").
+				Negative("No").
+				Value(&m.DoRestart),
+		),
+	)
+	m.RestartForm.Init()
+	return nil
 }

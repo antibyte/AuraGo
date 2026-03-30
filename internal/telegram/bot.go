@@ -260,71 +260,37 @@ func processUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Con
 		historyManager.Add(openai.ChatMessageRoleUser, inputText, mid, false, false)
 	}
 
-	// 1. Build context flags for the prompt builder
-	flags := prompts.ContextFlags{
-		ActiveProcesses:          agent.GetActiveProcessStatus(registry),
-		IsMaintenanceMode:        tools.IsBusy(),
-		LifeboatEnabled:          cfg.Maintenance.LifeboatEnabled,
-		SystemLanguage:           cfg.Agent.SystemLanguage,
-		CorePersonality:          cfg.Personality.CorePersonality,
-		TokenBudget:              config.CalculateAdaptiveSystemPromptTokenBudget(cfg),
-		IsDebugMode:              cfg.Agent.DebugMode,
-		DiscordEnabled:           cfg.Discord.Enabled,
-		EmailEnabled:             cfg.Email.Enabled,
-		DockerEnabled:            cfg.Docker.Enabled && (!cfg.Runtime.IsDocker || cfg.Runtime.DockerSocketOK),
-		HomeAssistantEnabled:     cfg.HomeAssistant.Enabled,
-		WebDAVEnabled:            cfg.WebDAV.Enabled,
-		KoofrEnabled:             cfg.Koofr.Enabled,
-		ChromecastEnabled:        cfg.Chromecast.Enabled,
-		CoAgentEnabled:           cfg.CoAgents.Enabled,
-		GoogleWorkspaceEnabled:   cfg.GoogleWorkspace.Enabled,
-		ProxmoxEnabled:           cfg.Proxmox.Enabled,
-		OllamaEnabled:            cfg.Ollama.Enabled,
-		TailscaleEnabled:         cfg.Tailscale.Enabled,
-		CloudflareTunnelEnabled:  cfg.CloudflareTunnel.Enabled,
-		AnsibleEnabled:           cfg.Ansible.Enabled,
-		GitHubEnabled:            cfg.GitHub.Enabled,
-		MQTTEnabled:              cfg.MQTT.Enabled,
-		AdGuardEnabled:           cfg.AdGuard.Enabled,
-		MCPEnabled:               cfg.MCP.Enabled && cfg.Agent.AllowMCP,
-		SandboxEnabled:           cfg.Sandbox.Enabled && (!cfg.Runtime.IsDocker || cfg.Runtime.DockerSocketOK),
-		MeshCentralEnabled:       cfg.MeshCentral.Enabled,
-		HomepageEnabled:          cfg.Homepage.Enabled && (!cfg.Runtime.IsDocker || cfg.Runtime.DockerSocketOK || cfg.Homepage.AllowLocalServer),
-		HomepageAllowLocalServer: cfg.Homepage.AllowLocalServer,
-		NetlifyEnabled:           cfg.Netlify.Enabled,
-		ImageGenerationEnabled:   cfg.ImageGeneration.Enabled,
-		VirusTotalEnabled:        cfg.VirusTotal.Enabled,
-		BraveSearchEnabled:       cfg.BraveSearch.Enabled,
-		MemoryEnabled:            cfg.Tools.Memory.Enabled,
-		KnowledgeGraphEnabled:    cfg.Tools.KnowledgeGraph.Enabled,
-		SecretsVaultEnabled:      cfg.Tools.SecretsVault.Enabled,
-		SchedulerEnabled:         cfg.Tools.Scheduler.Enabled,
-		NotesEnabled:             cfg.Tools.Notes.Enabled,
-		MissionsEnabled:          cfg.Tools.Missions.Enabled,
-		StopProcessEnabled:       cfg.Tools.StopProcess.Enabled,
-		InventoryEnabled:         cfg.Tools.Inventory.Enabled,
-		MemoryMaintenanceEnabled: cfg.Tools.MemoryMaintenance.Enabled,
-		WOLEnabled:               cfg.Tools.WOL.Enabled && (!cfg.Runtime.IsDocker || cfg.Runtime.BroadcastOK),
-		AllowShell:               cfg.Agent.AllowShell,
-		AllowPython:              cfg.Agent.AllowPython,
-		AllowFilesystemWrite:     cfg.Agent.AllowFilesystemWrite,
-		AllowNetworkRequests:     cfg.Agent.AllowNetworkRequests,
-		AllowRemoteShell:         cfg.Agent.AllowRemoteShell,
-		AllowSelfUpdate:          cfg.Agent.AllowSelfUpdate,
-		IsEgg:                    cfg.EggMode.Enabled,
-		InternetExposed:          cfg.Server.HTTPS.Enabled,
-		IsDocker:                 cfg.Runtime.IsDocker,
-		DocumentCreatorEnabled:   cfg.Tools.DocumentCreator.Enabled,
-		FritzBoxSystemEnabled:    cfg.FritzBox.Enabled && cfg.FritzBox.System.Enabled,
-		FritzBoxNetworkEnabled:   cfg.FritzBox.Enabled && cfg.FritzBox.Network.Enabled,
-		FritzBoxTelephonyEnabled: cfg.FritzBox.Enabled && cfg.FritzBox.Telephony.Enabled,
-		FritzBoxSmartHomeEnabled: cfg.FritzBox.Enabled && cfg.FritzBox.SmartHome.Enabled,
-		FritzBoxStorageEnabled:   cfg.FritzBox.Enabled && cfg.FritzBox.Storage.Enabled,
-		FritzBoxTVEnabled:        cfg.FritzBox.Enabled && cfg.FritzBox.TV.Enabled,
-		A2AEnabled:               cfg.A2A.Server.Enabled || cfg.A2A.Client.Enabled,
-		TelnyxEnabled:            cfg.Telnyx.Enabled,
-		AdditionalPrompt:         cfg.Agent.AdditionalPrompt,
+	// 1. Build RunConfig first so it can be used for prompt flag derivation
+	runCfg := agent.RunConfig{
+		Config:           cfg,
+		Logger:           logger,
+		LLMClient:        client,
+		ShortTermMem:     shortTermMem,
+		HistoryManager:   historyManager,
+		LongTermMem:      longTermMem,
+		KG:               nil,
+		InventoryDB:      inventoryDB,
+		Vault:            vault,
+		Registry:         registry,
+		Manifest:         manifest,
+		CronManager:      cronManager,
+		MissionManagerV2: missionManagerV2,
+		CoAgentRegistry:  nil,
+		BudgetTracker:    nil,
+		SessionID:        sessionID,
+		IsMaintenance:    tools.IsBusy(),
+		MessageSource:    "telegram",
 	}
+
+	// 2. Build context flags via central factory (keeps flags in sync with agent_loop)
+	toolingPolicy := agent.BuildToolingPolicy(cfg, inputText)
+	flags := agent.BuildPromptContextFlags(runCfg, toolingPolicy, agent.PromptContextOptions{
+		IsMaintenanceMode:     tools.IsBusy(),
+		ActiveProcesses:       agent.GetActiveProcessStatus(registry),
+		SpecialistsAvailable:  agent.BuildSpecialistsAvailable(cfg),
+		SpecialistsStatus:     agent.BuildSpecialistsStatus(cfg),
+		SpecialistsSuggestion: agent.BuildSpecialistDelegationHint(cfg, inputText),
+	})
 	coreMem := shortTermMem.ReadCoreMemory()
 
 	sysPrompt := prompts.BuildSystemPrompt(cfg.Directories.PromptsDir, flags, coreMem, logger)
@@ -365,27 +331,6 @@ func processUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Con
 
 	// Run the loop
 	ctx := context.Background()
-	runCfg := agent.RunConfig{
-		Config:           cfg,
-		Logger:           logger,
-		LLMClient:        client, // Changed from llmClient to client based on context
-		ShortTermMem:     shortTermMem,
-		HistoryManager:   historyManager,
-		LongTermMem:      longTermMem,
-		KG:               nil, // Telegram bot doesn't currently wire KG by default
-		InventoryDB:      inventoryDB,
-		Vault:            vault,
-		Registry:         registry,
-		Manifest:         manifest,
-		CronManager:      cronManager,
-		MissionManagerV2: missionManagerV2,
-		CoAgentRegistry:  nil,
-		BudgetTracker:    nil, // Assuming budgetTracker is not available or needs to be initialized
-		SessionID:        sessionID,
-		IsMaintenance:    tools.IsBusy(), // Changed from false to tools.IsBusy() based on original RunSyncAgentLoop
-		SurgeryPlan:      "",
-		MessageSource:    "telegram",
-	}
 
 	// Use TelegramBroker to capture audio events for native sending
 	broker := &TelegramBroker{bot: bot, chatID: msg.From.ID, logger: logger}

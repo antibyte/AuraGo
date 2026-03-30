@@ -69,7 +69,6 @@ func (s *SQLiteMemory) GetMemoryUsageStats(windowDays int, topLimit int) (Memory
 	}
 
 	stats := MemoryUsageStats{WindowDays: windowDays}
-	windowExpr := fmt.Sprintf("datetime('now', '-%d days')", windowDays)
 
 	err := s.db.QueryRow(`
 		SELECT
@@ -80,7 +79,7 @@ func (s *SQLiteMemory) GetMemoryUsageStats(windowDays int, topLimit int) (Memory
 			COUNT(DISTINCT memory_id),
 			COUNT(DISTINCT session_id)
 		FROM memory_usage_log
-		WHERE used_at >= `+windowExpr).Scan(
+		WHERE used_at >= datetime('now', printf('-%d days', ?))`, windowDays).Scan(
 		&stats.TotalEvents,
 		&stats.RetrievedEvents,
 		&stats.PredictedEvents,
@@ -98,10 +97,10 @@ func (s *SQLiteMemory) GetMemoryUsageStats(windowDays int, topLimit int) (Memory
 		       MAX(used_at), 
 		       MAX(CASE WHEN was_cited = 1 THEN 1 ELSE 0 END)
 		FROM memory_usage_log
-		WHERE used_at >= `+windowExpr+`
+		WHERE used_at >= datetime('now', printf('-%d days', ?))
 		GROUP BY memory_id, memory_type
 		ORDER BY cnt DESC, MAX(used_at) DESC
-		LIMIT ?`, topLimit)
+		LIMIT ?`, windowDays, topLimit)
 	if err != nil {
 		return stats, fmt.Errorf("memory usage top reused: %w", err)
 	}

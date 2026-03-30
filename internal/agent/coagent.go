@@ -688,3 +688,18 @@ func coAgentContainsAny(value string, patterns ...string) bool {
 	}
 	return false
 }
+
+// BuildSpecialistsAvailable reports whether any co-agent specialist is enabled.
+func BuildSpecialistsAvailable(cfg *config.Config) bool {
+	return specialistsAvailable(cfg)
+}
+
+// BuildSpecialistsStatus returns a human-readable list of enabled specialists for system-prompt injection.
+func BuildSpecialistsStatus(cfg *config.Config) string {
+	return buildSpecialistsStatus(cfg)
+}
+
+// BuildSpecialistDelegationHint returns a delegation hint string based on the user query.
+func BuildSpecialistDelegationHint(cfg *config.Config, userQuery string) string {
+	return buildSpecialistDelegationHint(cfg, userQuery)
+}

@@ -1,17 +1,15 @@
 package tools
 
 import (
+	"aurago/internal/scraper"
 	"aurago/internal/security"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"regexp"
-	"strings"
 	"time"
 )
 
-// Pre-compiled regexps for HTML cleaning (used by scraper and shared helpers).
+// Pre-compiled regexps for HTML cleaning (used by shared helpers in this package).
 var (
 	reScript = regexp.MustCompile(`(?is)<script.*?>.*?</script>`)
 	reStyle  = regexp.MustCompile(`(?is)<style.*?>.*?</style>`)
@@ -19,78 +17,28 @@ var (
 	reSpace  = regexp.MustCompile(`\s+`)
 )
 
-// Shared HTTP client for scraper/DDG (avoids per-call allocation).
+// Shared HTTP client for DDG and other helpers (avoids per-call allocation).
 var scraperHTTPClient = security.NewSSRFProtectedHTTPClient(15 * time.Second)
 
 // scraperGuardian is a package-level Guardian used to scan and isolate web content.
-// It has no logger so threats are not logged here; callers with a logger should
-// use the internal/scraper package's AgentScraper instead.
 var scraperGuardian = security.NewGuardian(nil)
 
-// ExecuteWebScraper fetches a URL, removes script/style tags, extracts plain text,
-// then scans for prompt injection and isolates the content in <external_data> tags.
+// ExecuteWebScraper fetches a URL using colly + go-readability, converts the main
+// article content to Markdown, then returns a compact JSON result.
+// SSRF protection, prompt-injection scanning, and <external_data> isolation are
+// all handled by the underlying AgentScraper.
 func ExecuteWebScraper(rawURL string) string {
-	// SSRF protection: reject private/internal addresses and non-HTTP(S) schemes.
-	if err := security.ValidateSSRF(rawURL); err != nil {
-		return formatError(fmt.Sprintf("URL not allowed: %v", err))
-	}
-
-	req, err := http.NewRequest("GET", rawURL, nil)
+	s := scraper.New(scraperGuardian)
+	result, err := s.FetchStatic(rawURL)
 	if err != nil {
-		return formatError(fmt.Sprintf("Failed to create request: %v", err))
+		return formatError(fmt.Sprintf("scrape failed: %v", err))
 	}
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
-
-	resp, err := scraperHTTPClient.Do(req)
-	if err != nil {
-		return formatError(fmt.Sprintf("Request failed: %v", err))
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return formatError(fmt.Sprintf("HTTP Error %d: %s", resp.StatusCode, resp.Status))
-	}
-
-	// Reject non-text content types to avoid wasting resources on binary files.
-	if ct := resp.Header.Get("Content-Type"); ct != "" &&
-		!strings.HasPrefix(ct, "text/") &&
-		!strings.HasPrefix(ct, "application/xhtml") &&
-		!strings.HasPrefix(ct, "application/json") {
-		return formatError(fmt.Sprintf("Unsupported content type: %s", ct))
-	}
-
-	// Limit body reads to 5 MB to prevent memory exhaustion.
-	bodyBytes, err := io.ReadAll(io.LimitReader(resp.Body, 5<<20))
-	if err != nil {
-		return formatError(fmt.Sprintf("Failed to read body: %v", err))
-	}
-	htmlStr := string(bodyBytes)
-
-	// Remove scripts and styles
-	htmlStr = reScript.ReplaceAllString(htmlStr, " ")
-	htmlStr = reStyle.ReplaceAllString(htmlStr, " ")
-
-	// Remove all other HTML tags
-	textStr := reTag.ReplaceAllString(htmlStr, " ")
-
-	// Clean up whitespaces
-	textStr = reSpace.ReplaceAllString(textStr, " ")
-	textStr = strings.TrimSpace(textStr)
-
-	// Limit to 10k characters
-	if len(textStr) > 10000 {
-		textStr = textStr[:10000]
-	}
-
-	// Scan for prompt injection and wrap in isolation tags.
-	// ScanExternalContent always isolates; threats are detected even if not logged.
-	isolated := scraperGuardian.ScanExternalContent(rawURL, textStr)
-
-	result := map[string]interface{}{
+	out := map[string]interface{}{
 		"status":  "success",
-		"content": isolated,
+		"title":   result.Title,
+		"content": result.Markdown,
 	}
-	b, _ := json.Marshal(result)
+	b, _ := json.Marshal(out)
 	return string(b)
 }
 

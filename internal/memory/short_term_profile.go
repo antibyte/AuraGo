@@ -157,7 +157,10 @@ func (s *SQLiteMemory) FindCoreMemoryIDByFact(fact string) (int64, error) {
 // CoreMemoryFactExists reports whether the given text is already stored.
 func (s *SQLiteMemory) CoreMemoryFactExists(fact string) bool {
 	var count int
-	_ = s.db.QueryRow("SELECT COUNT(*) FROM core_memory WHERE fact = ?", fact).Scan(&count)
+	if err := s.db.QueryRow("SELECT COUNT(*) FROM core_memory WHERE fact = ?", fact).Scan(&count); err != nil {
+		s.logger.Warn("CoreMemoryFactExists: DB query failed", "error", err)
+		return false
+	}
 	return count > 0
 }
 

@@ -174,6 +174,11 @@ func handleDashboardMemory(s *Server) http.HandlerFunc {
 			return
 		}
 
+		if s.ShortTermMem == nil {
+			http.Error(w, "Memory subsystem not available", http.StatusServiceUnavailable)
+			return
+		}
+
 		coreCount, _ := s.ShortTermMem.GetCoreMemoryCount()
 		msgCount, _ := s.ShortTermMem.GetMessageCount()
 

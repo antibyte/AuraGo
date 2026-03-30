@@ -3,7 +3,8 @@ package update
 import (
 	"sync"
 
-	"github.com/charmbracelet/bubbletea"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/huh"
 )
 
 // Step represents the current step in the update wizard.
@@ -27,15 +28,32 @@ type Model struct {
 	UpdateAvailable bool
 	CurrentVersion  string
 	LatestVersion   string
-	Changelog      string
+	Changelog       string
 
 	// Output from update process
-	Output    []string
-	outputMu  sync.Mutex
+	Output   []string
+	outputMu sync.Mutex
+
+	// Options
+	NoRestart bool
+	Yes       bool // auto-confirm
 
 	// Update state
-	Done     bool
-	Err      error
+	Running bool
+	Done    bool
+	Err     error
+
+	// Key migration
+	MigrateKey  bool
+	MigrateForm *huh.Form
+
+	// Restart confirm
+	DoRestart   bool
+	RestartForm *huh.Form
+
+	// Config
+	InstallDir string
+	ServerURL  string
 
 	// Dimensions
 	Width  int
@@ -47,7 +65,17 @@ func NewModel(serverURL string) *Model {
 	return &Model{
 		CurrentStep: StepCheck,
 		Output:      []string{},
+		ServerURL:   serverURL,
+		DoRestart:   true,
 	}
+}
+
+// NewModelWithOpts creates a new update model with options.
+func NewModelWithOpts(serverURL string, noRestart, yes bool) *Model {
+	m := NewModel(serverURL)
+	m.NoRestart = noRestart
+	m.Yes = yes
+	return m
 }
 
 // AddOutput adds a line of output from the update process.
@@ -74,7 +102,8 @@ func (m *Model) NextStep() {
 	m.CurrentStep++
 }
 
-// Init initializes the update wizard.
+// Init initializes the update wizard and starts the version check.
 func (m *Model) Init() tea.Cmd {
-	return nil
+	m.resolveInstallDir()
+	return m.checkForUpdates()
 }

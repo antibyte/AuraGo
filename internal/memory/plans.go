@@ -712,12 +712,25 @@ func (s *SQLiteMemory) ClearPlanTaskBlocker(planID, taskID, note string) (*Plan,
 		return nil, fmt.Errorf("blocked plan task not found")
 	}
 
-	planRes, err := tx.Exec(`UPDATE plans SET status = ?, blocked_reason = '', updated_at = ? WHERE id = ?`, PlanStatusActive, now, planID)
-	if err != nil {
-		return nil, fmt.Errorf("reactivate plan: %w", err)
+	// Only reset the plan to Active if no other tasks are still blocked.
+	// This preserves the plan's status if it was in another state before blocking.
+	var otherBlockedCount int
+	if err := tx.QueryRow(`SELECT COUNT(*) FROM plan_tasks WHERE plan_id = ? AND id != ? AND status = ?`,
+		planID, taskID, PlanTaskBlocked).Scan(&otherBlockedCount); err != nil {
+		return nil, fmt.Errorf("count remaining blocked tasks: %w", err)
 	}
-	if rows, _ := planRes.RowsAffected(); rows == 0 {
-		return nil, fmt.Errorf("plan not found")
+	if otherBlockedCount == 0 {
+		planRes, err := tx.Exec(`UPDATE plans SET status = ?, blocked_reason = '', updated_at = ? WHERE id = ? AND status = ?`,
+			PlanStatusActive, now, planID, PlanStatusBlocked)
+		if err != nil {
+			return nil, fmt.Errorf("reactivate plan: %w", err)
+		}
+		if rows, _ := planRes.RowsAffected(); rows == 0 {
+			// Plan is not in Blocked state (e.g. was Paused before block+clear) — leave status as-is.
+			if _, err := tx.Exec(`UPDATE plans SET blocked_reason = '', updated_at = ? WHERE id = ?`, now, planID); err != nil {
+				return nil, fmt.Errorf("clear plan blocked reason: %w", err)
+			}
+		}
 	}
 
 	msg := strings.TrimSpace(note)

@@ -43,7 +43,11 @@ type ToolingPolicy struct {
 	EffectiveGuideStrategy     prompts.DynamicGuideStrategy
 }
 
-type promptContextOptions struct {
+// PromptContextOptions carries per-request runtime values that are known only
+// at call time (maintenance state, webhook definitions, specialist hints, …).
+// Callers outside the agent package use this to supply dynamic context when
+// calling BuildPromptContextFlags.
+type PromptContextOptions struct {
 	IsErrorState          bool
 	RequiresCoding        bool
 	IsMaintenanceMode     bool
@@ -54,6 +58,9 @@ type promptContextOptions struct {
 	SpecialistsStatus     string
 	SpecialistsSuggestion string
 }
+
+// promptContextOptions is an alias kept for internal callers.
+type promptContextOptions = PromptContextOptions
 
 func resolveModelCapabilities(cfg *config.Config) ModelCapabilities {
 	if cfg == nil {
@@ -75,6 +82,14 @@ func resolveModelCapabilities(cfg *config.Config) ModelCapabilities {
 		SupportsStructuredOutputs: !isOllama,
 		SupportsParallelToolCalls: !isOllama,
 	}
+}
+
+// BuildToolingPolicy resolves runtime feature toggles, telemetry profile, and
+// guide strategy for the given config and user query. It is exported so that
+// non-agent callers (server handlers, bots) can obtain the same resolved policy
+// that the agent loop uses, without duplicating the logic inline.
+func BuildToolingPolicy(cfg *config.Config, userQuery string) ToolingPolicy {
+	return buildToolingPolicy(cfg, userQuery)
 }
 
 func buildToolingPolicy(cfg *config.Config, userQuery string) ToolingPolicy {
@@ -166,6 +181,14 @@ func applyTelemetryAwarePromptTier(policy ToolingPolicy, flags prompts.ContextFl
 		return baseTier
 	}
 	return "compact"
+}
+
+// BuildPromptContextFlags is the exported entry point for building prompt
+// ContextFlags from a RunConfig and a resolved ToolingPolicy. All callers
+// (agent loop, server handlers, bots) must use this function instead of
+// building ContextFlags inline to keep all channels consistent.
+func BuildPromptContextFlags(runCfg RunConfig, policy ToolingPolicy, opts PromptContextOptions) prompts.ContextFlags {
+	return buildPromptContextFlags(runCfg, policy, opts)
 }
 
 func buildPromptContextFlags(runCfg RunConfig, policy ToolingPolicy, opts promptContextOptions) prompts.ContextFlags {
