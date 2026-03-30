@@ -274,5 +274,7 @@
   "config.section.skill_manager.label": "Vaardigheidsbeheer",
   "config.section.skill_manager.desc": "Python-vaardigheden beheren, uploaden en configureren",
   "config.section.jellyfin.label": "Jellyfin",
-  "config.section.jellyfin.desc": "Jellyfin mediaserver-integratie (bibliotheken, afspelen, sessies)"
+  "config.section.jellyfin.desc": "Jellyfin mediaserver-integratie (bibliotheken, afspelen, sessies)",
+  "config.section.truenas.label": "TrueNAS",
+  "config.section.truenas.desc": "TrueNAS ZFS storage management (Pools, Datasets, Snapshots, Shares)"
 }

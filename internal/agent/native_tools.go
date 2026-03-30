@@ -661,12 +661,15 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 			"operation": map[string]interface{}{
 				"type":        "string",
 				"description": "Operation to perform",
-				"enum":        []string{"list", "get", "create", "update", "delete"},
+				"enum":        []string{"list", "get", "create", "update", "delete", "attach", "detach"},
 			},
-			"id":      prop("string", "Cheat sheet ID (for get/update/delete). Can also be the name for 'get'."),
-			"name":    prop("string", "Name of the cheat sheet (for create/update)"),
-			"content": prop("string", "Markdown content of the cheat sheet (for create/update)"),
-			"active":  map[string]interface{}{"type": "boolean", "description": "Whether the cheat sheet is active (for update)"},
+			"id":             prop("string", "Cheat sheet ID (for get/update/delete/attach/detach). Can also be the name for 'get'."),
+			"name":           prop("string", "Name of the cheat sheet (for create/update)"),
+			"content":        prop("string", "Markdown content of the cheat sheet (for create/update/attach)"),
+			"active":         map[string]interface{}{"type": "boolean", "description": "Whether the cheat sheet is active (for update)"},
+			"filename":       prop("string", "Filename of the attachment to add (for attach). Only .txt and .md allowed."),
+			"source":         prop("string", "Source of the attachment: 'upload' or 'knowledge' (for attach). Defaults to 'upload'."),
+			"attachment_id":  prop("string", "Attachment ID to remove (for detach)."),
 		}, "operation"),
 	))
 

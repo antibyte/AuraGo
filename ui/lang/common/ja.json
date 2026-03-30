@@ -5,6 +5,8 @@
   "common.btn_delete": "消去",
   "common.btn_edit": "編集",
   "common.btn_ok": "わかりました",
+  "common.btn_yes": "はい",
+  "common.btn_no": "いいえ",
   "common.btn_save": "保存",
   "common.confirm_title": "確認",
   "common.disabled": "無効",

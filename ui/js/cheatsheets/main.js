@@ -198,52 +198,51 @@ async function saveSheet() {
     }
 
     try {
+        let targetId = id;
         if (id) {
             await api('/' + id, {
                 method: 'PUT',
                 body: JSON.stringify({ name, content, active })
             });
-            closeModal('edit-modal');
-            showToast(t('cheatsheets.saved'), 'success');
-            await loadSheets();
         } else {
             const created = await api('', {
                 method: 'POST',
                 body: JSON.stringify({ name, content })
             });
-            // Upload any staged pending attachments
-            for (const p of pendingAttachments) {
-                try {
-                    if (p.source === 'upload') {
-                        const blob = new Blob([p.content], { type: 'text/plain' });
-                        const file = new File([blob], p.filename, { type: 'text/plain' });
-                        const form = new FormData();
-                        form.append('file', file);
-                        const resp = await fetch(`/api/cheatsheets/${created.id}/attachments`, { method: 'POST', body: form });
-                        if (!resp.ok) {
-                            const err = await resp.json().catch(() => ({ error: resp.statusText }));
-                            showToast(`${p.filename}: ${err.error}`, 'warning');
-                        }
-                    } else {
-                        const resp = await fetch(`/api/cheatsheets/${created.id}/attachments`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ source: 'knowledge', filename: p.filename })
-                        });
-                        if (!resp.ok) {
-                            const err = await resp.json().catch(() => ({ error: resp.statusText }));
-                            showToast(`${p.filename}: ${err.error}`, 'warning');
-                        }
-                    }
-                } catch (e) {
-                    showToast(`${p.filename}: ${e.message}`, 'warning');
-                }
-            }
-            pendingAttachments = [];
-            closeModal('edit-modal');
-            showToast(t('cheatsheets.saved'), 'success');
-            await loadSheets();
+            targetId = created.id;
         }
+        // Upload any staged pending attachments
+        for (const p of pendingAttachments) {
+            try {
+                if (p.source === 'upload') {
+                    const blob = new Blob([p.content], { type: 'text/plain' });
+                    const file = new File([blob], p.filename, { type: 'text/plain' });
+                    const form = new FormData();
+                    form.append('file', file);
+                    const resp = await fetch(`/api/cheatsheets/${targetId}/attachments`, { method: 'POST', body: form });
+                    if (!resp.ok) {
+                        const err = await resp.json().catch(() => ({ error: resp.statusText }));
+                        showToast(`${p.filename}: ${err.error}`, 'warning');
+                    }
+                } else {
+                    const resp = await fetch(`/api/cheatsheets/${targetId}/attachments`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ source: 'knowledge', filename: p.filename })
+                    });
+                    if (!resp.ok) {
+                        const err = await resp.json().catch(() => ({ error: resp.statusText }));
+                        showToast(`${p.filename}: ${err.error}`, 'warning');
+                    }
+                }
+            } catch (e) {
+                showToast(`${p.filename}: ${e.message}`, 'warning');
+            }
+        }
+        pendingAttachments = [];
+        closeModal('edit-modal');
+        showToast(t('cheatsheets.saved'), 'success');
+        await loadSheets();
     } catch (e) {
         showToast(t('cheatsheets.error') + ': ' + e.message, 'error');
     }

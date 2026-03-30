@@ -11,6 +11,8 @@ Manage reusable workflow instructions (cheat sheets) that describe step-by-step 
 | `create` | Create a new cheat sheet | `name`, `content` |
 | `update` | Update an existing cheat sheet | `id`, `name`, `content`, `active` |
 | `delete` | Delete a cheat sheet | `id` |
+| `attach` | Attach a text file to a cheat sheet | `id`, `filename`, `content`, `source` |
+| `detach` | Remove an attachment from a cheat sheet | `id`, `attachment_id` |
 
 ## Examples
 
@@ -28,4 +30,12 @@ Manage reusable workflow instructions (cheat sheets) that describe step-by-step 
 
 ```json
 {"action": "cheatsheet", "operation": "update", "id": "1", "active": false}
+```
+
+```json
+{"action": "cheatsheet", "operation": "attach", "id": "1", "filename": "notes.md", "content": "# Notes\nSome extra context."}
+```
+
+```json
+{"action": "cheatsheet", "operation": "detach", "id": "1", "attachment_id": "abc-123"}
 ```

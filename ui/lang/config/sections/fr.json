@@ -274,5 +274,7 @@
   "config.section.skill_manager.label": "Gestionnaire de Compétences",
   "config.section.skill_manager.desc": "Gérer, télécharger et configurer les compétences Python",
   "config.section.jellyfin.label": "Jellyfin",
-  "config.section.jellyfin.desc": "Intégration du serveur multimédia Jellyfin (bibliothèques, lecture, sessions)"
+  "config.section.jellyfin.desc": "Intégration du serveur multimédia Jellyfin (bibliothèques, lecture, sessions)",
+  "config.section.truenas.label": "TrueNAS",
+  "config.section.truenas.desc": "TrueNAS ZFS storage management (Pools, Datasets, Snapshots, Shares)"
 }

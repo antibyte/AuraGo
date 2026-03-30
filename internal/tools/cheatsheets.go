@@ -131,6 +131,9 @@ func CheatsheetList(db *sql.DB, activeOnly bool) ([]CheatSheet, error) {
 		s.Active = active == 1
 		sheets = append(sheets, s)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	return sheets, nil
 }
 
@@ -167,6 +170,14 @@ func CheatsheetGetByName(db *sql.DB, name string) (*CheatSheet, error) {
 		return nil, err
 	}
 	s.Active = active == 1
+
+	attachments, _ := CheatsheetAttachmentList(db, s.ID)
+	if attachments == nil {
+		attachments = []CheatSheetAttachment{}
+	}
+	s.Attachments = attachments
+	s.AttachmentCount = len(attachments)
+
 	return &s, nil
 }
 
@@ -238,7 +249,7 @@ func CheatsheetDelete(db *sql.DB, id string) error {
 	}
 	rows, _ := result.RowsAffected()
 	if rows == 0 {
-		return fmt.Errorf("cheat sheet not found")
+		return sql.ErrNoRows
 	}
 	return nil
 }
@@ -300,6 +311,9 @@ func CheatsheetAttachmentList(db *sql.DB, cheatsheetID string) ([]CheatSheetAtta
 			return nil, err
 		}
 		attachments = append(attachments, a)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 	return attachments, nil
 }

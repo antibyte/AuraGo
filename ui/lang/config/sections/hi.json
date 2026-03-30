@@ -276,5 +276,7 @@
   "config.section.skill_manager.label": "कौशल प्रबंधक",
   "config.section.skill_manager.desc": "Python कौशल प्रबंधित, अपलोड और कॉन्फ़िगर करें",
   "config.section.jellyfin.label": "Jellyfin",
-  "config.section.jellyfin.desc": "Jellyfin मीडिया सर्वर एकीकरण (लाइब्रेरी, प्लेबैक, सत्र)"
+  "config.section.jellyfin.desc": "Jellyfin मीडिया सर्वर एकीकरण (लाइब्रेरी, प्लेबैक, सत्र)",
+  "config.section.truenas.label": "TrueNAS",
+  "config.section.truenas.desc": "TrueNAS ZFS storage management (Pools, Datasets, Snapshots, Shares)"
 }

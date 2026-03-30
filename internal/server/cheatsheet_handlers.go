@@ -3,6 +3,7 @@ package server
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"os"
@@ -120,7 +121,7 @@ func handleCheatSheetByID(s *Server) http.HandlerFunc {
 			}
 			sheet, err := tools.CheatsheetUpdate(s.CheatsheetDB, id, body.Name, body.Content, body.Active)
 			if err != nil {
-				if err == sql.ErrNoRows {
+				if errors.Is(err, sql.ErrNoRows) {
 					jsonError(w, "not found", http.StatusNotFound)
 					return
 				}
@@ -131,11 +132,11 @@ func handleCheatSheetByID(s *Server) http.HandlerFunc {
 
 		case http.MethodDelete:
 			if err := tools.CheatsheetDelete(s.CheatsheetDB, id); err != nil {
-				if err == sql.ErrNoRows {
+				if errors.Is(err, sql.ErrNoRows) {
 					jsonError(w, "not found", http.StatusNotFound)
 					return
 				}
-				jsonLoggedError(w, s.Logger, http.StatusNotFound, "Failed to delete cheat sheet", "Failed to delete cheat sheet", err, "cheatsheet_id", id)
+				jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to delete cheat sheet", "Failed to delete cheat sheet", err, "cheatsheet_id", id)
 				return
 			}
 			writeJSON(w, map[string]string{"status": "deleted"})

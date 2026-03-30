@@ -4,6 +4,8 @@
   "common.btn_delete": "Löschen",
   "common.btn_edit": "Bearbeiten",
   "common.btn_ok": "OK",
+  "common.btn_yes": "Ja",
+  "common.btn_no": "Nein",
   "common.alert_title": "Hinweis",
   "common.confirm_title": "Bestätigen",
   "common.btn_save": "Speichern",

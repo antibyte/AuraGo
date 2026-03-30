@@ -38,6 +38,7 @@
   "config.tailscale.tsnet_funnel_label": "Tailscale Funnel",
   "config.tailscale.tsnet_funnel_hint": "Expose AuraGo securely on the public internet via Tailscale Funnel. AuraGo login stays active.",
   "config.tailscale.tsnet_needs_login": "Autenticazione richiesta – apri il collegamento per connetterti alla rete Tailscale",
+  "shared.tsnet.login_banner_link": "Apri il link di accesso",
   "config.tailscale.tsnet_http_fallback_notice": "In esecuzione in modalità HTTP (porta 80) — abilita HTTPS nel pannello di amministrazione Tailscale.",
   "config.tailscale.tsnet_exposure_title": "Service Exposure",
   "config.tailscale.tsnet_expose_homepage_label": "Expose Homepage over Tailscale",

@@ -121,7 +121,6 @@ func TestHandleAuthLogoutAPIReturnsJSON(t *testing.T) {
 }
 
 func TestLoginBackoffDelayUsesHighestFailureCount(t *testing.T) {
-	t.Parallel()
 
 	loginRecords = make(map[string]*loginRecord)
 	ipKey := loginScopeKey("ip", "127.0.0.1")
@@ -137,7 +136,6 @@ func TestLoginBackoffDelayUsesHighestFailureCount(t *testing.T) {
 }
 
 func TestHandleAuthLoginLocksOutAcrossAccountScope(t *testing.T) {
-	t.Parallel()
 
 	loginRecords = make(map[string]*loginRecord)
 	hash, err := HashPassword("correct horse battery staple")

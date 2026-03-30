@@ -5,6 +5,8 @@
   "common.btn_delete": "Supprimer",
   "common.btn_edit": "Modifier",
   "common.btn_ok": "D'ACCORD",
+  "common.btn_yes": "Oui",
+  "common.btn_no": "Non",
   "common.btn_save": "Sauvegarder",
   "common.confirm_title": "Confirmer",
   "common.disabled": "Désactivé",
