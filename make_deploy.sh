@@ -170,10 +170,11 @@ for target in "${AGOCLI_TARGETS[@]}"; do
   OUT="$DEPLOY_DIR/agocli_${OS}_${ARCH}${EXT}"
   echo "    → $OUT"
   CGO_ENABLED=0 GOOS="$OS" GOARCH="$ARCH" go build -trimpath -ldflags="-s -w" -o "$OUT" ./cmd/agocli/
-  # For Linux/amd64 also keep a copy in bin/
+  # For Linux/amd64 also keep a copy in bin/ AND a plain "agocli" in root
   if [ "$OS" = "linux" ] && [ "$ARCH" = "amd64" ]; then
     mkdir -p bin
     cp "$OUT" "bin/agocli_linux"
+    cp "$OUT" "agocli"
   fi
 done
 

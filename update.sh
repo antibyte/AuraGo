@@ -953,10 +953,10 @@ if $GO_FOUND; then
         fi
     done
 
-    # Build agocli_linux (AuraGo CLI tool)
-    info "Building agocli_linux ($GOARCH)..."
-    if CGO_ENABLED=0 GOOS=linux GOARCH="$GOARCH" go build -trimpath -ldflags='-s -w' -o bin/agocli_linux ./cmd/agocli; then
-        ok "bin/agocli_linux built from source"
+    # Build agocli (AuraGo CLI tool — plain name, root directory)
+    info "Building agocli ($GOARCH)..."
+    if CGO_ENABLED=0 GOOS=linux GOARCH="$GOARCH" go build -trimpath -ldflags='-s -w' -o agocli ./cmd/agocli; then
+        ok "agocli built from source"
     else
         warn "agocli build failed — using pre-built binary."
     fi
@@ -986,11 +986,22 @@ else
 
     # Pick arch-appropriate binary names
     if [ "$GOARCH" = "arm64" ]; then
-        BINS=("aurago_linux_arm64" "lifeboat_linux_arm64" "config-merger_linux_arm64" "aurago-remote_linux_arm64" "agocli_linux_arm64")
+        BINS=("aurago_linux_arm64" "lifeboat_linux_arm64" "config-merger_linux_arm64" "aurago-remote_linux_arm64")
+        AGOCLI_NAME="agocli_linux_arm64"
     elif [ "$GOARCH" = "amd64" ]; then
-        BINS=("aurago_linux" "lifeboat_linux" "config-merger_linux" "aurago-remote_linux" "agocli_linux")
+        BINS=("aurago_linux" "lifeboat_linux" "config-merger_linux" "aurago-remote_linux")
+        AGOCLI_NAME="agocli_linux"
     else
         die "No prebuilt release binaries for architecture ${ARCH_RAW}. Install Go 1.26+ to build from source."
+    fi
+
+    # Download agocli separately to main directory (plain name)
+    info "Downloading agocli from GitHub Releases..."
+    if _download_release_bin "$AGOCLI_NAME"; then
+        mv "$DIR/bin/$AGOCLI_NAME" "$DIR/agocli" 2>/dev/null || true
+        ok "agocli downloaded."
+    else
+        warn "agocli download failed."
     fi
 
     for BIN_NAME in "${BINS[@]}"; do
@@ -1008,7 +1019,6 @@ else
         [ -f "$DIR/bin/lifeboat_linux_arm64" ]           && cp -p "$DIR/bin/lifeboat_linux_arm64"           "$DIR/bin/lifeboat_linux"
         [ -f "$DIR/bin/config-merger_linux_arm64" ]      && cp -p "$DIR/bin/config-merger_linux_arm64"      "$DIR/bin/config-merger_linux"
         [ -f "$DIR/bin/aurago-remote_linux_arm64" ]      && cp -p "$DIR/bin/aurago-remote_linux_arm64"      "$DIR/bin/aurago-remote_linux"
-        [ -f "$DIR/bin/agocli_linux_arm64" ]              && cp -p "$DIR/bin/agocli_linux_arm64"            "$DIR/bin/agocli_linux"
     fi
 
     # Download aurago-remote and agocli client binaries for all platforms so the
@@ -1048,6 +1058,7 @@ fi
 
 # Ensure all binaries are executable. Try with sudo if needed.
 chmod +x "$DIR/bin/"* 2>/dev/null || sudo chmod +x "$DIR/bin/"* 2>/dev/null || true
+chmod +x "$DIR/agocli" 2>/dev/null || sudo chmod +x "$DIR/agocli" 2>/dev/null || true
 chmod +x "$DIR/"*.sh 2>/dev/null || sudo chmod +x "$DIR/"*.sh 2>/dev/null || true
 
 # ── Patch service file: ensure User= / Group= are set (migration for root-installs) ──

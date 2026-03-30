@@ -8,18 +8,17 @@ import (
 	"os"
 
 	"aurago/cmd/agocli/chat"
+	"aurago/cmd/agocli/shared"
 	"aurago/cmd/agocli/setup"
 	"aurago/cmd/agocli/update"
 
 	"github.com/charmbracelet/bubbletea"
 )
 
-const defaultServerURL = "http://localhost:8080"
-
 func main() {
 	setupMode := flag.Bool("setup", false, "Run setup wizard")
 	updateMode := flag.Bool("update", false, "Run update wizard")
-	serverURL := flag.String("server", defaultServerURL, "AuraGo server URL")
+	serverURL := flag.String("server", shared.GetServerURL(), "AuraGo server URL")
 	flag.Usage = func() {
 		fmt.Println("agocli - AuraGo CLI Tool")
 		fmt.Println()

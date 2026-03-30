@@ -9,6 +9,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -178,4 +181,53 @@ func (c *ChatClient) Ping(ctx context.Context) error {
 		return fmt.Errorf("server returned status %d", resp.StatusCode)
 	}
 	return nil
+}
+
+// GetServerURL returns the AuraGo server URL by reading config.yaml.
+func GetServerURL() string {
+	// Search for config.yaml in standard locations
+	dirs := []string{
+		".", "..", "../..",
+		"/etc/aurago",
+		os.Getenv("HOME") + "/aurago",
+	}
+	for _, d := range dirs {
+		p := filepath.Join(d, "config.yaml")
+		if data, err := os.ReadFile(p); err == nil {
+			// Try to extract server.host and server.port from YAML
+			if host, port := extractServerHostPort(string(data)); host != "" || port > 0 {
+				scheme := "http"
+				if port == 443 || port == 8443 {
+					scheme = "https"
+				}
+				if host == "" {
+					host = "localhost"
+				}
+				if port <= 0 {
+					port = 8088
+				}
+				return fmt.Sprintf("%s://%s:%d", scheme, host, port)
+			}
+			break
+		}
+	}
+	// Default fallback
+	return "http://localhost:8088"
+}
+
+// extractServerHostPort extracts server.host and server.port from YAML content.
+func extractServerHostPort(yaml string) (host string, port int) {
+	// Simple text search — we don't pull in the full yaml parser just for this.
+	for _, line := range strings.Split(yaml, "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "host:") {
+			host = strings.TrimSpace(strings.TrimPrefix(line, "host:"))
+			host = strings.Trim(host, "\"")
+		}
+		if strings.HasPrefix(line, "port:") {
+			portStr := strings.TrimSpace(strings.TrimPrefix(line, "port:"))
+			fmt.Sscanf(portStr, "%d", &port)
+		}
+	}
+	return
 }

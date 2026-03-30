@@ -32,8 +32,9 @@ type Model struct {
 	ServerURL string
 
 	// Setup state
-	Done      bool
-	Err       error
+	Started bool // user has pressed Enter on Welcome, setup is running
+	Done    bool
+	Err     error
 
 	// Dimensions
 	Width  int
@@ -59,9 +60,9 @@ func (m *Model) AddOutput(line string) {
 	}
 }
 
-// Init starts the setup process.
+// Init does not auto-start setup — user must press Enter on Welcome first.
 func (m *Model) Init() tea.Cmd {
-	return m.runSetup()
+	return nil
 }
 
 // NextStep advances to the next step.

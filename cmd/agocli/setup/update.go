@@ -36,8 +36,9 @@ func (m *Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.Done {
 			return m, tea.Quit
 		}
-		// Advance through welcome step
-		if m.CurrentStep == StepWelcome {
+		// Advance through welcome step and start setup
+		if m.CurrentStep == StepWelcome && !m.Started {
+			m.Started = true
 			m.NextStep()
 			return m, m.runSetup()
 		}

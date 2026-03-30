@@ -106,6 +106,7 @@ go build -trimpath -ldflags="-s -w" -o "bin\lifeboat_linux"        ./cmd/lifeboa
 go build -trimpath -ldflags="-s -w" -o "bin\config-merger_linux"   ./cmd/config-merger/ || goto :build_error
 go build -trimpath -ldflags="-s -w" -o "bin\aurago-remote_linux"   ./cmd/remote/        || goto :build_error
 go build -trimpath -ldflags="-s -w" -o "bin\agocli_linux"          ./cmd/agocli/        || goto :build_error
+    copy /y "bin\agocli_linux" "agocli" >nul
 echo     -> Linux amd64 OK
 
 echo   Linux arm64...
@@ -180,6 +181,7 @@ for %%F in (
     "bin\aurago-remote_linux_arm64"
     "bin\agocli_linux"
     "bin\agocli_linux_arm64"
+    "agocli"
     "deploy\aurago_darwin_amd64"
     "deploy\aurago_darwin_arm64"
     "deploy\aurago-remote_darwin_amd64"
