@@ -29,15 +29,15 @@ BOLD='\033[1m'
 DIM='\033[2m'
 NC='\033[0m'
 
-ICO_INFO="ℹ"
-ICO_OK="✔"
-ICO_WARN="⚠"
-ICO_ERR="✖"
+ICO_INFO="*"
+ICO_OK="OK"
+ICO_WARN="!!"
+ICO_ERR="ERR"
 
-info() { echo -e "${CYAN}${ICO_INFO} AuraGo${NC} ➜ $*"; }
-ok()   { echo -e "${GREEN}${ICO_OK} OK${NC}     ➜ $*"; }
-warn() { echo -e "${YELLOW}${ICO_WARN} WARN${NC}   ➜ $*"; }
-die()  { echo -e "${RED}${ICO_ERR} ERROR${NC}  ➜ $*"; exit 1; }
+info() { echo -e "${CYAN}${ICO_INFO} AuraGo${NC} -> $*"; }
+ok()   { echo -e "${GREEN}${ICO_OK}${NC}        -> $*"; }
+warn() { echo -e "${YELLOW}${ICO_WARN} WARN${NC}  -> $*"; }
+die()  { echo -e "${RED}${ICO_ERR} ERROR${NC} -> $*"; exit 1; }
 
 G1='\033[38;5;39m'
 G2='\033[38;5;38m'
@@ -45,10 +45,10 @@ G3='\033[38;5;37m'
 G4='\033[38;5;36m'
 
 echo ""
-echo -e " ${G1}╭──────────────────────────────────────╮${NC}"
-echo -e " ${G2}│${NC} ${BOLD}✨ AuraGo Quick Installer${NC}              ${G2}│${NC}"
-echo -e " ${G3}│${NC} ${DIM}AI Agent Framework for Linux${NC}           ${G3}│${NC}"
-echo -e " ${G4}╰──────────────────────────────────────╯${NC}"
+echo -e " ${G1}+--------------------------------------+${NC}"
+echo -e " ${G2}|${NC} ${BOLD}AuraGo Quick Installer${NC}               ${G2}|${NC}"
+echo -e " ${G3}|${NC} ${DIM}AI Agent Framework for Linux${NC}          ${G3}|${NC}"
+echo -e " ${G4}+--------------------------------------+${NC}"
 echo ""
 
 # ── Architecture detection ──────────────────────────────────────────────
@@ -151,10 +151,10 @@ fi
 # Docker (needed for many useful features)
 if ! command -v docker >/dev/null 2>&1; then
     echo ""
-    echo -e " ${G1}╭──────────────────────────────────────────────────────────────╮${NC}"
-    echo -e " ${G2}│${NC}  ${BOLD}Docker not found${NC}                                            ${G2}│${NC}"
-    echo -e " ${G3}│${NC}  Many useful AuraGo features (Sandbox, tools) need Docker.   ${G3}│${NC}"
-    echo -e " ${G4}╰──────────────────────────────────────────────────────────────╯${NC}"
+    echo -e " ${G1}+--------------------------------------------------------------+${NC}"
+    echo -e " ${G2}|${NC}  ${BOLD}Docker not found${NC}                                            ${G2}|${NC}"
+    echo -e " ${G3}|${NC}  Many useful AuraGo features (Sandbox, tools) need Docker.   ${G3}|${NC}"
+    echo -e " ${G4}+--------------------------------------------------------------+${NC}"
     echo ""
     read -r -p "Install Docker now? (Recommended) [Y/n]: " DKR_REPLY < /dev/tty || true
     if [[ "${DKR_REPLY:-y}" =~ ^[Yy]$ ]]; then
@@ -384,10 +384,10 @@ fi
 
 # ── Network binding & HTTPS ───────────────────────────────────────────────
 echo ""
-echo -e " ${YELLOW}╭──────────────────────────────────────────────────────────────╮${NC}"
-echo -e " ${YELLOW}│${NC}  ${BOLD}⚠  NETWORK SETUP${NC}                                             ${YELLOW}│${NC}"
-echo -e " ${YELLOW}│${NC}  Configure external access and HTTPS for this installation.  ${YELLOW}│${NC}"
-echo -e " ${YELLOW}╰──────────────────────────────────────────────────────────────╯${NC}"
+echo -e " ${YELLOW}+--------------------------------------------------------------+${NC}"
+echo -e " ${YELLOW}|${NC}  ${BOLD}!! NETWORK SETUP${NC}                                             ${YELLOW}|${NC}"
+echo -e " ${YELLOW}|${NC}  Configure external access and HTTPS for this installation.  ${YELLOW}|${NC}"
+echo -e " ${YELLOW}+--------------------------------------------------------------+${NC}"
 echo ""
 
 read -r -p "Is this an internet-facing server and do you want to enable HTTPS (Let's Encrypt)? [y/N]: " HTTPS_REPLY < /dev/tty || true
@@ -412,7 +412,7 @@ else
         SERVER_HOST="0.0.0.0"
         warn "Web UI will listen on ALL interfaces (0.0.0.0:8088) without HTTPS."
     else
-        ok "Web UI will only be reachable locally (127.0.0.1:8088). ✅"
+        ok "Web UI will only be reachable locally (127.0.0.1:8088)."
     fi
 fi
 
@@ -576,32 +576,32 @@ EOF
         ok "Systemd service installed, enabled and started."
 
         echo ""
-        echo -e " ${GREEN}╭──────────────────────────────────────────────────────────────╮${NC}"
-        echo -e " ${GREEN}│${NC}  ${BOLD}🔐 MASTER KEY SECURED${NC}                                      ${GREEN}│${NC}"
-        echo -e " ${GREEN}│${NC}  Location: ${BOLD}/etc/aurago/master.key${NC} (root-only, mode 0600)    ${GREEN}│${NC}"
-        echo -e " ${GREEN}│${NC}  The key is injected into AuraGo via systemd.                ${GREEN}│${NC}"
-        echo -e " ${GREEN}│${NC}  ${YELLOW}Back up this file! Losing it = losing your vault.${NC}          ${GREEN}│${NC}"
-        echo -e " ${GREEN}╰──────────────────────────────────────────────────────────────╯${NC}"
+        echo -e " ${GREEN}+--------------------------------------------------------------+${NC}"
+        echo -e " ${GREEN}|${NC}  ${BOLD}MASTER KEY SECURED${NC}                                         ${GREEN}|${NC}"
+        echo -e " ${GREEN}|${NC}  Location: ${BOLD}/etc/aurago/master.key${NC} (root-only, mode 0600)    ${GREEN}|${NC}"
+        echo -e " ${GREEN}|${NC}  The key is injected into AuraGo via systemd.                ${GREEN}|${NC}"
+        echo -e " ${GREEN}|${NC}  ${YELLOW}Back up this file! Losing it = losing your vault.${NC}          ${GREEN}|${NC}"
+        echo -e " ${GREEN}+--------------------------------------------------------------+${NC}"
     fi
 fi
 
 # ── Summary ───────────────────────────────────────────────────────────────
 echo ""
-echo -e " ${GREEN}╭───────────────────────────────────────────────────────────────${NC}"
-echo -e " ${GREEN}│${NC}  ${BOLD}🎉 AuraGo successfully installed!${NC}"
-echo -e " ${GREEN}│${NC}  ${DIM}Location:${NC} $INSTALL_DIR"
-echo -e " ${GREEN}╰───────────────────────────────────────────────────────────────${NC}"
+echo -e " ${GREEN}+---------------------------------------------------------------+${NC}"
+echo -e " ${GREEN}|${NC}  ${BOLD}AuraGo successfully installed!${NC}"
+echo -e " ${GREEN}|${NC}  ${DIM}Location:${NC} $INSTALL_DIR"
+echo -e " ${GREEN}+---------------------------------------------------------------+${NC}"
 echo ""
 
 if [ -n "${INFO_PASSWORD:-}" ]; then
     echo ""
-    echo -e " ${GREEN}╭──────────────────────────────────────────────────────────────╮${NC}"
-    echo -e " ${GREEN}│${NC}  ${BOLD}🔐 FIRST-USE PASSWORD${NC}                                        ${GREEN}│${NC}"
-    echo -e " ${GREEN}│${NC}  Password: ${BOLD}${INFO_PASSWORD}${NC}"
-    echo -e " ${GREEN}│${NC}  Use this to log in to the Web UI for the first time.        ${GREEN}│${NC}"
-    echo -e " ${GREEN}│${NC}  ${YELLOW}Change it immediately via Settings → Login Guard.${NC}           ${GREEN}│${NC}"
-    echo -e " ${GREEN}│${NC}  ${DIM}Also saved to: firstpassword.txt (delete after first login)${NC}  ${GREEN}│${NC}"
-    echo -e " ${GREEN}╰──────────────────────────────────────────────────────────────╯${NC}"
+    echo -e " ${GREEN}+--------------------------------------------------------------+${NC}"
+    echo -e " ${GREEN}|${NC}  ${BOLD}FIRST-USE PASSWORD${NC}                                        ${GREEN}|${NC}"
+    echo -e " ${GREEN}|${NC}  Password: ${BOLD}${INFO_PASSWORD}${NC}"
+    echo -e " ${GREEN}|${NC}  Use this to log in to the Web UI for the first time.        ${GREEN}|${NC}"
+    echo -e " ${GREEN}|${NC}  ${YELLOW}Change it immediately via Settings -> Login Guard.${NC}           ${GREEN}|${NC}"
+    echo -e " ${GREEN}|${NC}  ${DIM}Also saved to: firstpassword.txt (delete after first login)${NC}  ${GREEN}|${NC}"
+    echo -e " ${GREEN}+--------------------------------------------------------------+${NC}"
     echo ""
 fi
 

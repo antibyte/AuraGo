@@ -5,12 +5,16 @@
 # Output in bin/ (Linux release binaries, committed to git):
 #   aurago_linux            lifeboat_linux            config-merger_linux
 #   aurago_linux_arm64      lifeboat_linux_arm64      config-merger_linux_arm64
+#   agocli_linux            (AuraGo CLI tool)
+#   agocli_linux_arm64
 #
 # Output in deploy/ (cross-platform artifacts):
 #   aurago_darwin_amd64         aurago_windows_amd64.exe
 #   aurago_darwin_arm64         aurago_windows_arm64.exe
 #   aurago-remote_linux_amd64   aurago-remote_darwin_amd64  aurago-remote_windows_amd64.exe
 #   aurago-remote_linux_arm64   aurago-remote_darwin_arm64  aurago-remote_windows_arm64.exe
+#   agocli_darwin_amd64         agocli_windows_amd64.exe
+#   agocli_darwin_arm64         agocli_windows_arm64.exe
 #   resources.dat               (shared across all platforms)
 #   install.sh                  (one-liner bootstrap script)
 #
@@ -142,6 +146,34 @@ for target in "${REMOTE_TARGETS[@]}"; do
   if [ "$OS" = "linux" ] && [ "$ARCH" = "amd64" ]; then
     mkdir -p bin
     cp "$OUT" "bin/aurago-remote_linux"
+  fi
+done
+
+# ── Step 3b: Cross-compile agocli (AuraGo CLI) ─────────────────────────────
+echo "[3b/5] Compiling agocli binaries ..."
+
+AGOCLI_TARGETS=(
+  "linux/amd64"
+  "linux/arm64"
+  "darwin/amd64"
+  "darwin/arm64"
+  "windows/amd64"
+  "windows/arm64"
+)
+
+for target in "${AGOCLI_TARGETS[@]}"; do
+  OS="${target%/*}"
+  ARCH="${target#*/}"
+  EXT=""
+  if [ "$OS" = "windows" ]; then EXT=".exe"; fi
+
+  OUT="$DEPLOY_DIR/agocli_${OS}_${ARCH}${EXT}"
+  echo "    → $OUT"
+  CGO_ENABLED=0 GOOS="$OS" GOARCH="$ARCH" go build -trimpath -ldflags="-s -w" -o "$OUT" ./cmd/agocli/
+  # For Linux/amd64 also keep a copy in bin/
+  if [ "$OS" = "linux" ] && [ "$ARCH" = "amd64" ]; then
+    mkdir -p bin
+    cp "$OUT" "bin/agocli_linux"
   fi
 done
 

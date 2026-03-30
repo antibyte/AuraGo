@@ -34,10 +34,10 @@ setlocal enabledelayedexpansion
 cd /d "%~dp0"
 
 echo.
-echo  ╭──────────────────────────────────────────╮
-echo  │  AuraGo Release Builder                  │
-echo  │  Builds + uploads all release artifacts  │
-echo  ╰──────────────────────────────────────────╯
+echo  +--------------------------------------------+
+echo  ^|  AuraGo Release Builder                   ^|
+echo  ^|  Builds + uploads all release artifacts   ^|
+echo  +--------------------------------------------+
 echo.
 
 REM ── Check prerequisites ──────────────────────────────────────────────────
@@ -58,7 +58,8 @@ if errorlevel 1 (
     echo         Then run:  gh auth login
     exit /b 1
 )
-for /f "tokens=*" %%v in ('gh --version 2^>nul ^| findstr /i "gh version"') do echo     %%v
+for /f "tokens=1,2" %%a in ('gh --version 2^>nul') do echo     GitHub CLI: %%a %%b& goto :gh_done
+:gh_done
 
 where tar >nul 2>&1
 if errorlevel 1 (
@@ -127,8 +128,9 @@ set GOARCH=amd64
 go build -trimpath -ldflags="-s -w" -o "bin\aurago_linux"           ./cmd/aurago/       || goto :build_error
 go build -trimpath -ldflags="-s -w" -o "bin\lifeboat_linux"         ./cmd/lifeboat/     || goto :build_error
 go build -trimpath -ldflags="-s -w" -o "bin\config-merger_linux"    ./cmd/config-merger/ || goto :build_error
-go build -trimpath -ldflags="-s -w" -o "bin\aurago-remote_linux"    ./cmd/remote/       || goto :build_error
-echo     -> bin\aurago_linux  bin\lifeboat_linux  bin\config-merger_linux  bin\aurago-remote_linux
+go build -trimpath -ldflags="-s -w" -o "bin\aurago-remote_linux"   ./cmd/remote/       || goto :build_error
+go build -trimpath -ldflags="-s -w" -o "bin\agocli_linux"          ./cmd/agocli/       || goto :build_error
+echo     -> bin\aurago_linux  bin\lifeboat_linux  bin\config-merger_linux  bin\aurago-remote_linux  bin\agocli_linux
 
 REM ── Linux arm64
 echo   Linux arm64...
@@ -138,7 +140,8 @@ go build -trimpath -ldflags="-s -w" -o "bin\aurago_linux_arm64"             ./cm
 go build -trimpath -ldflags="-s -w" -o "bin\lifeboat_linux_arm64"           ./cmd/lifeboat/      || goto :build_error
 go build -trimpath -ldflags="-s -w" -o "bin\config-merger_linux_arm64"      ./cmd/config-merger/ || goto :build_error
 go build -trimpath -ldflags="-s -w" -o "bin\aurago-remote_linux_arm64"      ./cmd/remote/        || goto :build_error
-echo     -> bin\aurago_linux_arm64  bin\lifeboat_linux_arm64  bin\config-merger_linux_arm64  bin\aurago-remote_linux_arm64
+go build -trimpath -ldflags="-s -w" -o "bin\agocli_linux_arm64"             ./cmd/agocli/        || goto :build_error
+echo     -> bin\aurago_linux_arm64  bin\lifeboat_linux_arm64  bin\config-merger_linux_arm64  bin\aurago-remote_linux_arm64  bin\agocli_linux_arm64
 
 REM ── macOS amd64
 echo   macOS amd64...
@@ -146,7 +149,8 @@ set GOOS=darwin
 set GOARCH=amd64
 go build -trimpath -ldflags="-s -w" -o "deploy\aurago_darwin_amd64"        ./cmd/aurago/ || goto :build_error
 go build -trimpath -ldflags="-s -w" -o "deploy\aurago-remote_darwin_amd64" ./cmd/remote/ || goto :build_error
-echo     -> deploy\aurago_darwin_amd64  deploy\aurago-remote_darwin_amd64
+go build -trimpath -ldflags="-s -w" -o "deploy\agocli_darwin_amd64"       ./cmd/agocli/ || goto :build_error
+echo     -> deploy\aurago_darwin_amd64  deploy\aurago-remote_darwin_amd64  deploy\agocli_darwin_amd64
 
 REM ── macOS arm64 (Apple Silicon)
 echo   macOS arm64...
@@ -154,7 +158,8 @@ set GOOS=darwin
 set GOARCH=arm64
 go build -trimpath -ldflags="-s -w" -o "deploy\aurago_darwin_arm64"        ./cmd/aurago/ || goto :build_error
 go build -trimpath -ldflags="-s -w" -o "deploy\aurago-remote_darwin_arm64" ./cmd/remote/ || goto :build_error
-echo     -> deploy\aurago_darwin_arm64  deploy\aurago-remote_darwin_arm64
+go build -trimpath -ldflags="-s -w" -o "deploy\agocli_darwin_arm64"       ./cmd/agocli/ || goto :build_error
+echo     -> deploy\aurago_darwin_arm64  deploy\aurago-remote_darwin_arm64  deploy\agocli_darwin_arm64
 
 REM ── Windows amd64
 echo   Windows amd64...
@@ -162,7 +167,8 @@ set GOOS=windows
 set GOARCH=amd64
 go build -trimpath -ldflags="-s -w" -o "deploy\aurago_windows_amd64.exe"        ./cmd/aurago/ || goto :build_error
 go build -trimpath -ldflags="-s -w" -o "deploy\aurago-remote_windows_amd64.exe" ./cmd/remote/ || goto :build_error
-echo     -> deploy\aurago_windows_amd64.exe  deploy\aurago-remote_windows_amd64.exe
+go build -trimpath -ldflags="-s -w" -o "deploy\agocli_windows_amd64.exe"       ./cmd/agocli/ || goto :build_error
+echo     -> deploy\aurago_windows_amd64.exe  deploy\aurago-remote_windows_amd64.exe  deploy\agocli_windows_amd64.exe
 
 REM ── Windows arm64
 echo   Windows arm64...
@@ -170,7 +176,8 @@ set GOOS=windows
 set GOARCH=arm64
 go build -trimpath -ldflags="-s -w" -o "deploy\aurago_windows_arm64.exe"        ./cmd/aurago/ || goto :build_error
 go build -trimpath -ldflags="-s -w" -o "deploy\aurago-remote_windows_arm64.exe" ./cmd/remote/ || goto :build_error
-echo     -> deploy\aurago_windows_arm64.exe  deploy\aurago-remote_windows_arm64.exe
+go build -trimpath -ldflags="-s -w" -o "deploy\agocli_windows_arm64.exe"       ./cmd/agocli/ || goto :build_error
+echo     -> deploy\aurago_windows_arm64.exe  deploy\aurago-remote_windows_arm64.exe  deploy\agocli_windows_arm64.exe
 
 copy "install.sh" "deploy\install.sh" >nul
 echo     -> deploy\install.sh
@@ -209,14 +216,20 @@ for %%F in (
     "bin\config-merger_linux_arm64"
     "bin\aurago-remote_linux"
     "bin\aurago-remote_linux_arm64"
+    "bin\agocli_linux"
+    "bin\agocli_linux_arm64"
     "deploy\aurago_darwin_amd64"
     "deploy\aurago_darwin_arm64"
     "deploy\aurago-remote_darwin_amd64"
     "deploy\aurago-remote_darwin_arm64"
+    "deploy\agocli_darwin_amd64"
+    "deploy\agocli_darwin_arm64"
     "deploy\aurago_windows_amd64.exe"
     "deploy\aurago_windows_arm64.exe"
     "deploy\aurago-remote_windows_amd64.exe"
     "deploy\aurago-remote_windows_arm64.exe"
+    "deploy\agocli_windows_amd64.exe"
+    "deploy\agocli_windows_arm64.exe"
     "deploy\install.sh"
 ) do (
     if exist %%F set ASSETS=!ASSETS! %%F
@@ -263,7 +276,7 @@ echo.
 echo  Verifying release...
 gh release view "!VERSION!" --json tagName,url --jq '"  Tag: " + .tagName + " | " + .url'
 echo.
-echo  ━━━ Release !VERSION! published successfully ━━━
+echo  --- Release !VERSION! published successfully ---
 goto :eof
 
 :build_error

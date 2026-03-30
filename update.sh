@@ -25,16 +25,16 @@ BOLD='\033[1m'
 DIM='\033[2m'
 NC='\033[0m'
 
-ICO_INFO="ℹ"
-ICO_OK="✔"
-ICO_WARN="⚠"
-ICO_ERR="✖"
+ICO_INFO="*"
+ICO_OK="OK"
+ICO_WARN="!!"
+ICO_ERR="ERR"
 
-info()    { echo -e "${CYAN}${ICO_INFO} UPDATE${NC} ➜ $*"; }
-ok()      { echo -e "${GREEN}${ICO_OK} OK${NC}     ➜ $*"; }
-warn()    { echo -e "${YELLOW}${ICO_WARN} WARN${NC}   ➜ $*"; }
-die()     { echo -e "${RED}${ICO_ERR} ERROR${NC}  ➜ $*" >&2; exit 1; }
-section() { echo -e "\n${BOLD}${BLUE}═══ $* ═══${NC}"; }
+info()    { echo -e "${CYAN}${ICO_INFO} UPDATE${NC} -> $*"; }
+ok()      { echo -e "${GREEN}${ICO_OK}${NC}        -> $*"; }
+warn()    { echo -e "${YELLOW}${ICO_WARN} WARN${NC}  -> $*"; }
+die()     { echo -e "${RED}${ICO_ERR} ERROR${NC} -> $*" >&2; exit 1; }
+section() { echo -e "\n${BOLD}${BLUE}--- $* ---${NC}"; }
 
 # ── CLI flags ──────────────────────────────────────────────────────────
 AUTO_YES=false
@@ -271,6 +271,17 @@ DATA_FILES=(
     "data/state.json"
     "data/media_registry.db"
     "data/homepage_registry.db"
+    "data/cheatsheets.db"
+    "data/inventory.db"
+    "data/contacts.db"
+    "data/knowledge_graph.db"
+    "data/skills.db"
+    "data/invasion.db"
+    "data/image_gallery.db"
+    "data/push.db"
+    "data/remote_control.db"
+    "data/sql_connections.db"
+    "data/short_term.db"
 )
 # Prompt directories: protect all custom *.md files that are NOT tracked by git
 PROMPTS_DIR="$DIR/prompts"
@@ -975,12 +986,11 @@ else
     # /api/remote/download/{os}/{arch} endpoint can serve them.
     mkdir -p "$DIR/deploy"
     info "Downloading aurago-remote client binaries for all platforms..."
-    _RAW_BASE="https://raw.githubusercontent.com/${GITHUB_REPO}/main/deploy"
     for _t in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64; do
         _ros="${_t%/*}"; _rarch="${_t#*/}"; _rext=""
         [ "$_ros" = "windows" ] && _rext=".exe"
         _rname="aurago-remote_${_ros}_${_rarch}${_rext}"
-        if fetch_url_to_file "${_RAW_BASE}/${_rname}" "$DIR/deploy/${_rname}"; then
+        if fetch_url_to_file "${RELEASE_BASE}/${_rname}" "$DIR/deploy/${_rname}"; then
             ok "  deploy/${_rname}"
         else
             warn "  Could not download deploy/${_rname} — skipping."
