@@ -145,10 +145,9 @@
                 <button class="modal-close" onclick="closeModal('delete-modal')">&times;</button>
             </div>
             <p id="delete-message"></p>
-            <input type="text" class="delete-confirm-input" id="delete-confirm-input" oninput="checkDeleteConfirm()" autocomplete="off">
             <div class="modal-actions">
                 <button class="btn btn-secondary" onclick="closeModal('delete-modal')" data-i18n="cheatsheets.cancel">Cancel</button>
-                <button class="btn btn-danger" id="btn-delete-confirm" disabled onclick="confirmDelete()" data-i18n="cheatsheets.delete">Delete</button>
+                <button class="btn btn-danger" id="btn-delete-confirm" onclick="confirmDelete()" data-i18n="cheatsheets.delete">Delete</button>
             </div>
         </div>
     </div>

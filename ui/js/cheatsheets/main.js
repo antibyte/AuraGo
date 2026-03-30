@@ -267,16 +267,7 @@ function requestDelete(id, name) {
     deleteTarget = { id, name };
     document.getElementById('delete-message').innerHTML =
         t('cheatsheets.delete_prompt', { name: '<strong>"' + esc(name) + '"</strong>' });
-    document.getElementById('delete-confirm-input').value = '';
-    document.getElementById('delete-confirm-input').placeholder = name;
-    document.getElementById('btn-delete-confirm').disabled = true;
     openModal('delete-modal');
-    document.getElementById('delete-confirm-input').focus();
-}
-
-function checkDeleteConfirm() {
-    const input = document.getElementById('delete-confirm-input').value.trim();
-    document.getElementById('btn-delete-confirm').disabled = input !== deleteTarget?.name;
 }
 
 async function confirmDelete() {
