@@ -77,6 +77,24 @@ func normalizeLang(lang string) string {
 	}
 }
 
+// InternalAPIURL returns the base URL for internal (loopback) API calls.
+// When HTTPS is enabled it uses HTTPSPort with https:// scheme.
+// When HTTPS is disabled it uses Server.Port with http:// scheme.
+// This is the single source of truth for all internal API URL construction.
+func InternalAPIURL(cfg *config.Config) string {
+	scheme := "http"
+	port := cfg.Server.Port
+	if cfg.Server.HTTPS.Enabled {
+		scheme = "https"
+		if cfg.Server.HTTPS.HTTPSPort > 0 {
+			port = cfg.Server.HTTPS.HTTPSPort
+		} else {
+			port = 443
+		}
+	}
+	return fmt.Sprintf("%s://127.0.0.1:%d", scheme, port)
+}
+
 // i18nStore holds the parsed translations from ui/lang/ keyed by language code.
 // Each value is the raw JSON string for that language, ready for template injection.
 var (
@@ -455,7 +473,7 @@ func Start(cfg *config.Config, logger *slog.Logger, accessLogger *slog.Logger, l
 				}
 			}()
 
-			url := fmt.Sprintf("http://127.0.0.1:%d/v1/chat/completions", cfg.Server.Port)
+			url := InternalAPIURL(cfg) + "/v1/chat/completions"
 			payload := map[string]interface{}{
 				"model":  "aurago",
 				"stream": false,
@@ -583,7 +601,7 @@ func Start(cfg *config.Config, logger *slog.Logger, accessLogger *slog.Logger, l
 		}
 		go tools.StartFirewallGuard(context.Background(), cfg, logger, firewallSudoPass, func(prompt string) {
 			go func() {
-				url := fmt.Sprintf("http://127.0.0.1:%d/v1/chat/completions", cfg.Server.Port)
+				url := InternalAPIURL(cfg) + "/v1/chat/completions"
 				payload := map[string]interface{}{
 					"model":  "aurago",
 					"stream": false,
@@ -689,7 +707,7 @@ func Start(cfg *config.Config, logger *slog.Logger, accessLogger *slog.Logger, l
 			// Fire mission triggers for Fritz!Box events
 			s.MissionManagerV2.NotifyFritzBoxEvent(kind, summary)
 			go func() {
-				url := fmt.Sprintf("http://127.0.0.1:%d/v1/chat/completions", cfg.Server.Port)
+				url := InternalAPIURL(cfg) + "/v1/chat/completions"
 				prompt := fmt.Sprintf("[FRITZ!BOX EVENT: %s] %s", kind, summary)
 				payload := map[string]interface{}{
 					"model":  "aurago",

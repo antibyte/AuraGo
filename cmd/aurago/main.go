@@ -539,7 +539,7 @@ func main() {
 		}
 	})
 	backgroundTaskManager.SetLoopbackExecutor(func(prompt string, timeout time.Duration) error {
-		url := fmt.Sprintf("http://127.0.0.1:%d/v1/chat/completions", cfg.Server.Port)
+		url := server.InternalAPIURL(cfg) + "/v1/chat/completions"
 		payload := map[string]interface{}{
 			"model":  "aurago",
 			"stream": false,
@@ -735,7 +735,7 @@ func main() {
 				},
 			}
 			payload, _ := json.Marshal(taskMsg)
-			url := fmt.Sprintf("http://127.0.0.1:%d/v1/chat/completions", eggPort)
+			url := server.InternalAPIURL(cfg) + "/v1/chat/completions"
 			req, reqErr := http.NewRequest("POST", url, bytes.NewBuffer(payload))
 			result := bridge.ResultPayload{TaskID: task.TaskID}
 			if reqErr != nil {

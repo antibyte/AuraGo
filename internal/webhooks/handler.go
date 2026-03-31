@@ -231,8 +231,23 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}()
 }
 
+// internalAPIURL returns the base URL for internal loopback API calls, respecting HTTPS config.
+func (h *Handler) internalAPIURL() string {
+	scheme := "http"
+	port := h.serverPort
+	if h.cfg.Server.HTTPS.Enabled {
+		scheme = "https"
+		if h.cfg.Server.HTTPS.HTTPSPort > 0 {
+			port = h.cfg.Server.HTTPS.HTTPSPort
+		} else {
+			port = 443
+		}
+	}
+	return fmt.Sprintf("%s://127.0.0.1:%d", scheme, port)
+}
+
 func (h *Handler) deliverMessage(prompt string) error {
-	url := fmt.Sprintf("http://127.0.0.1:%d/v1/chat/completions", h.serverPort)
+	url := h.internalAPIURL() + "/v1/chat/completions"
 	payload := map[string]interface{}{
 		"model":  "aurago",
 		"stream": false,

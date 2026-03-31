@@ -307,8 +307,6 @@ function openFilePreview(name) {
         pdfScale = 1.2;
         pdfWrap.classList.remove('is-hidden');
         controls.classList.remove('is-hidden');
-        canvas.width = canvas.parentElement.clientWidth || 800;
-        canvas.height = (canvas.width * 1.4);
 
         fetch(previewURL)
             .then(r => {
@@ -321,7 +319,8 @@ function openFilePreview(name) {
                 pdfPageInfo.textContent = `1 / ${doc.numPages}`;
                 document.getElementById('pdf-prev-btn').disabled = doc.numPages <= 1;
                 document.getElementById('pdf-next-btn').disabled = doc.numPages <= 1;
-                renderPdfPage(1);
+                // Calculate scale to fit container width, then render
+                return pdfFitToContainer(doc, 1).then(() => renderPdfPage(1));
             })
             .catch(err => {
                 console.error('PDF preview failed:', err);
@@ -379,12 +378,45 @@ function openFilePreview(name) {
 
 // ─── PDF rendering helpers ─────────────────────────────────────────────────
 
+function pdfFitToContainer(doc, pageNum) {
+    const wrap = document.getElementById('file-preview-pdf-wrap');
+    return doc.getPage(pageNum).then(page => {
+        const viewport = page.getViewport({ scale: 1 });
+        // Use requestAnimationFrame to ensure modal is fully laid out
+        return new Promise(resolve => {
+            requestAnimationFrame(() => {
+                const containerWidth = wrap.clientWidth - 32; // padding
+                const containerHeight = wrap.clientHeight - 32 - 48; // padding + controls height
+                if (containerWidth > 0 && containerHeight > 0) {
+                    // Scale to fit within container bounds (width AND height)
+                    const scaleByWidth = containerWidth / viewport.width;
+                    const scaleByHeight = containerHeight / viewport.height;
+                    pdfScale = Math.min(scaleByWidth, scaleByHeight);
+                    pdfScale = Math.min(Math.max(pdfScale, 0.4), 4);
+                } else {
+                    pdfScale = 1.5; // Fallback: render at 1.5x for typical screen display
+                }
+                resolve();
+            });
+        });
+    });
+}
+
 function renderPdfPage(pageNum) {
     if (!pdfDoc) return;
     const canvas = document.getElementById('file-preview-pdf-canvas');
+    const wrap = document.getElementById('file-preview-pdf-wrap');
     const ctx = canvas.getContext('2d');
     pdfDoc.getPage(pageNum).then(page => {
-        const viewport = page.getViewport({ scale: pdfScale });
+        const originalViewport = page.getViewport({ scale: 1 });
+        const containerWidth = wrap.clientWidth - 32;
+        const containerHeight = wrap.clientHeight - 32 - 48; // padding + controls height
+        // Calculate max scale considering both dimensions
+        const maxScaleByWidth = (containerWidth / originalViewport.width) * 4;
+        const maxScaleByHeight = (containerHeight / originalViewport.height) * 4;
+        const maxScale = Math.min(maxScaleByWidth, maxScaleByHeight);
+        const constrainedScale = Math.min(pdfScale, maxScale);
+        const viewport = page.getViewport({ scale: constrainedScale });
         canvas.width = viewport.width;
         canvas.height = viewport.height;
         page.render({ canvasContext: ctx, viewport }).promise;

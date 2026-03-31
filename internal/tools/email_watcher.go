@@ -269,9 +269,24 @@ func equalFold(a, b string) bool {
 	return true
 }
 
+// internalAPIURL returns the base URL for internal loopback API calls, respecting HTTPS config.
+func (ew *EmailWatcher) internalAPIURL() string {
+	scheme := "http"
+	port := ew.cfg.Server.Port
+	if ew.cfg.Server.HTTPS.Enabled {
+		scheme = "https"
+		if ew.cfg.Server.HTTPS.HTTPSPort > 0 {
+			port = ew.cfg.Server.HTTPS.HTTPSPort
+		} else {
+			port = 443
+		}
+	}
+	return fmt.Sprintf("%s://127.0.0.1:%d", scheme, port)
+}
+
 // notifyAgent sends a loopback HTTP request to wake the agent.
 func (ew *EmailWatcher) notifyAgent(prompt string) {
-	url := fmt.Sprintf("http://127.0.0.1:%d/v1/chat/completions", ew.cfg.Server.Port)
+	url := ew.internalAPIURL() + "/v1/chat/completions"
 
 	msg := map[string]interface{}{
 		"model": ew.cfg.LLM.Model,
