@@ -297,11 +297,14 @@ func (c *EggClient) sendAck(refID string, success bool, detail string) {
 		Detail:  detail,
 	})
 	if err != nil {
+		c.logger.Warn("Failed to create ack message", "ref_id", refID, "error", err)
 		return
 	}
 	c.mu.Lock()
 	if c.conn != nil {
-		_ = c.conn.WriteJSON(ack)
+		if err := c.conn.WriteJSON(ack); err != nil {
+			c.logger.Warn("Failed to send ack", "ref_id", refID, "error", err)
+		}
 	}
 	c.mu.Unlock()
 }

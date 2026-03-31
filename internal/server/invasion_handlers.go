@@ -100,6 +100,37 @@ func handleInvasionNests(s *Server) http.HandlerFunc {
 			if req.AccessType == "" {
 				req.AccessType = "ssh"
 			}
+			// Validate enum fields
+			switch req.AccessType {
+			case "ssh", "docker", "local":
+			default:
+				jsonError(w, "Invalid access_type (must be ssh, docker, or local)", http.StatusBadRequest)
+				return
+			}
+			if req.DeployMethod != "" {
+				switch req.DeployMethod {
+				case "ssh", "docker_remote", "docker_local":
+				default:
+					jsonError(w, "Invalid deploy_method (must be ssh, docker_remote, or docker_local)", http.StatusBadRequest)
+					return
+				}
+			}
+			if req.TargetArch != "" {
+				switch req.TargetArch {
+				case "linux/amd64", "linux/arm64":
+				default:
+					jsonError(w, "Invalid target_arch (must be linux/amd64 or linux/arm64)", http.StatusBadRequest)
+					return
+				}
+			}
+			if req.Route != "" {
+				switch req.Route {
+				case "direct", "ssh_tunnel", "tailscale", "wireguard", "custom":
+				default:
+					jsonError(w, "Invalid route (must be direct, ssh_tunnel, tailscale, wireguard, or custom)", http.StatusBadRequest)
+					return
+				}
+			}
 			if req.Port <= 0 {
 				switch req.AccessType {
 				case "docker":

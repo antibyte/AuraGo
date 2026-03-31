@@ -7,9 +7,12 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"os"
 	"runtime"
 	"strings"
 	"time"
+
+	"gopkg.in/yaml.v3"
 )
 
 // dockerAPIVersion is the Docker Engine API version used for all requests.
@@ -40,6 +43,7 @@ func (c *DockerConnector) Validate(ctx context.Context, nest NestRecord, secret 
 
 func (c *DockerConnector) Deploy(ctx context.Context, nest NestRecord, secret []byte, payload EggDeployPayload) error {
 	containerName := fmt.Sprintf("aurago-egg-%s", nest.ID[:8])
+	// TODO: derive image tag from master version when build version is available at runtime
 	image := "ghcr.io/antibyte/aurago:latest"
 
 	// 1. Pull image
@@ -50,14 +54,15 @@ func (c *DockerConnector) Deploy(ctx context.Context, nest NestRecord, secret []
 	// 2. Remove old container if exists
 	_ = c.removeContainer(ctx, nest, containerName)
 
-	// 3. Create container with egg configuration via env vars
+	// 3. Create container with egg configuration via env vars.
+	// NOTE: AURAGO_MASTER_KEY is NOT passed as env var (visible via docker inspect).
+	// Instead it is written into the config YAML and mounted into the container.
 	envVars := []string{
 		"AURAGO_EGG_MODE=true",
 		fmt.Sprintf("AURAGO_MASTER_URL=%s", extractMasterURL(payload.ConfigYAML)),
 		fmt.Sprintf("AURAGO_SHARED_KEY=%s", payload.SharedKey),
 		fmt.Sprintf("AURAGO_EGG_ID=%s", extractField(payload.ConfigYAML, "egg_id")),
 		fmt.Sprintf("AURAGO_NEST_ID=%s", extractField(payload.ConfigYAML, "nest_id")),
-		fmt.Sprintf("AURAGO_MASTER_KEY=%s", payload.MasterKey),
 		"AURAGO_SERVER_HOST=0.0.0.0",
 	}
 
@@ -189,7 +194,26 @@ func (c *DockerConnector) httpClient(nest NestRecord) *http.Client {
 			Timeout: 30 * time.Second,
 			Transport: &http.Transport{
 				DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+					// Respect DOCKER_HOST environment variable if set
+					if dh := os.Getenv("DOCKER_HOST"); dh != "" {
+						if strings.HasPrefix(dh, "unix://") {
+							return net.Dial("unix", strings.TrimPrefix(dh, "unix://"))
+						}
+						if strings.HasPrefix(dh, "npipe://") {
+							// On Windows, named pipe is the default
+							return net.Dial("unix", strings.TrimPrefix(dh, "npipe://"))
+						}
+						if strings.HasPrefix(dh, "tcp://") {
+							return net.Dial("tcp", strings.TrimPrefix(dh, "tcp://"))
+						}
+					}
 					if runtime.GOOS == "windows" {
+						// Windows Docker Desktop uses named pipe by default.
+						// Fall back to TCP 2375 only if pipe is not available.
+						conn, err := net.Dial("unix", `\\.\pipe\docker_engine`)
+						if err == nil {
+							return conn, nil
+						}
 						return net.Dial("tcp", "localhost:2375")
 					}
 					return net.Dial("unix", "/var/run/docker.sock")
@@ -273,15 +297,20 @@ func extractField(cfgYAML []byte, field string) string {
 }
 
 func extractYAMLField(data []byte, field string) string {
-	// Simple extraction — find "field: value" in YAML
-	lines := strings.Split(string(data), "\n")
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, field+":") {
-			val := strings.TrimPrefix(trimmed, field+":")
-			val = strings.TrimSpace(val)
-			val = strings.Trim(val, "\"'")
-			return val
+	var raw map[string]interface{}
+	if err := yaml.Unmarshal(data, &raw); err != nil {
+		return ""
+	}
+	// Check top-level keys first
+	if v, ok := raw[field]; ok {
+		return fmt.Sprint(v)
+	}
+	// Check one level deep (e.g. egg_mode.master_url)
+	for _, section := range raw {
+		if m, ok := section.(map[string]interface{}); ok {
+			if v, ok := m[field]; ok {
+				return fmt.Sprint(v)
+			}
 		}
 	}
 	return ""

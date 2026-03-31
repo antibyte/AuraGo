@@ -157,8 +157,9 @@ WantedBy=multi-user.target
 }
 
 func (c *SSHConnector) startProcess(ctx context.Context, nest NestRecord, secret []byte, baseDir string) error {
-	// Start in background with nohup, redirect output to log
-	startCmd := fmt.Sprintf("cd %s && source .env && nohup ./aurago > log/egg.log 2>&1 & echo $!", baseDir)
+	// Start in background with nohup, redirect output to log.
+	// set -a exports all sourced variables to child processes.
+	startCmd := fmt.Sprintf("cd %s && set -a && source .env && set +a && nohup ./aurago > log/egg.log 2>&1 & echo $!", baseDir)
 	output, err := remote.ExecuteRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, startCmd)
 	if err != nil {
 		return fmt.Errorf("failed to start egg process: %w", err)

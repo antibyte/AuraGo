@@ -1,6 +1,7 @@
 package bridge
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -39,9 +40,10 @@ func (ec *EggConnection) GetTelemetry() HeartbeatPayload {
 
 // EggHub manages all connected egg workers on the master side.
 type EggHub struct {
-	mu          sync.RWMutex
-	connections map[string]*EggConnection // keyed by nest_id
-	logger      *slog.Logger
+	mu             sync.RWMutex
+	connections    map[string]*EggConnection // keyed by nest_id
+	logger         *slog.Logger
+	MaxConnections int // 0 = unlimited
 
 	// Callbacks (set by the server layer)
 	OnConnect    func(nestID, eggID string)
@@ -59,12 +61,15 @@ func NewEggHub(logger *slog.Logger) *EggHub {
 }
 
 // Register adds an authenticated egg connection to the hub.
-func (h *EggHub) Register(nestID string, conn *EggConnection) {
+func (h *EggHub) Register(nestID string, conn *EggConnection) error {
 	h.mu.Lock()
 	// Close existing connection for this nest if any
 	if old, ok := h.connections[nestID]; ok {
 		h.logger.Warn("Replacing existing egg connection", "nest_id", nestID)
 		_ = old.Conn.Close()
+	} else if h.MaxConnections > 0 && len(h.connections) >= h.MaxConnections {
+		h.mu.Unlock()
+		return fmt.Errorf("max connections reached (%d)", h.MaxConnections)
 	}
 	h.connections[nestID] = conn
 	h.mu.Unlock()
@@ -73,6 +78,7 @@ func (h *EggHub) Register(nestID string, conn *EggConnection) {
 	if h.OnConnect != nil {
 		h.OnConnect(nestID, conn.EggID)
 	}
+	return nil
 }
 
 // Unregister removes an egg connection from the hub.
@@ -175,6 +181,12 @@ func (h *EggHub) SendStop(nestID string) error {
 func (h *EggHub) HandleMessages(conn *EggConnection) {
 	defer h.Unregister(conn.NestID)
 
+	// Rate limit: max 100 messages per second per connection
+	const rateLimit = 100
+	const rateBurst = 150
+	tokens := rateBurst
+	lastRefill := time.Now()
+
 	for {
 		_, data, err := conn.Conn.ReadMessage()
 		if err != nil {
@@ -183,6 +195,20 @@ func (h *EggHub) HandleMessages(conn *EggConnection) {
 			}
 			return
 		}
+
+		// Token bucket rate limiting
+		now := time.Now()
+		elapsed := now.Sub(lastRefill)
+		tokens += int(elapsed.Seconds() * float64(rateLimit))
+		if tokens > rateBurst {
+			tokens = rateBurst
+		}
+		lastRefill = now
+		if tokens <= 0 {
+			h.logger.Warn("Rate limit exceeded for egg", "nest_id", conn.NestID)
+			continue
+		}
+		tokens--
 
 		var msg Message
 		if err := json.Unmarshal(data, &msg); err != nil {
@@ -238,11 +264,17 @@ func (h *EggHub) HandleMessages(conn *EggConnection) {
 
 // StartHeartbeatMonitor periodically checks all connections for stale heartbeats.
 // Calls onStale for each nest whose last heartbeat exceeds maxAge.
-func (h *EggHub) StartHeartbeatMonitor(interval, maxAge time.Duration, onStale func(nestID, eggID string)) {
+// Stops when ctx is cancelled.
+func (h *EggHub) StartHeartbeatMonitor(ctx context.Context, interval, maxAge time.Duration, onStale func(nestID, eggID string)) {
 	go func() {
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
-		for range ticker.C {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+			}
 			h.mu.RLock()
 			var stale []struct{ nestID, eggID string }
 			for nestID, conn := range h.connections {

@@ -2,7 +2,9 @@ package invasion
 
 import (
 	"aurago/internal/config"
+	"encoding/json"
 	"fmt"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -65,6 +67,26 @@ func GenerateEggConfig(masterCfg *config.Config, egg EggRecord, nest NestRecord,
 	}
 
 	// ── Agent — worker mode, no personality ──
+	// Derive permission flags from the egg's allowed_tools configuration.
+	// If no tools are specified (empty = default set), grant shell and python.
+	allowShell := true
+	allowPython := true
+	if egg.AllowedTools != "" {
+		// Parse the JSON array of allowed tool IDs
+		var tools []string
+		if err := json.Unmarshal([]byte(egg.AllowedTools), &tools); err == nil && len(tools) > 0 {
+			allowShell = false
+			allowPython = false
+			for _, t := range tools {
+				switch strings.TrimSpace(t) {
+				case "shell", "execute_shell_command":
+					allowShell = true
+				case "python", "python_execute":
+					allowPython = true
+				}
+			}
+		}
+	}
 	cfg["agent"] = map[string]interface{}{
 		"system_language":            masterCfg.Agent.SystemLanguage,
 		"personality_engine":         false,
@@ -76,8 +98,8 @@ func GenerateEggConfig(masterCfg *config.Config, egg EggRecord, nest NestRecord,
 		"workflow_feedback":          false,
 		"debug_mode":                 false,
 		"user_profiling":             false,
-		"allow_shell":                true,
-		"allow_python":               true,
+		"allow_shell":                allowShell,
+		"allow_python":               allowPython,
 		"allow_filesystem_write":     true,
 		"allow_network_requests":     true,
 		"allow_remote_shell":         false,

@@ -1176,8 +1176,19 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		// ── WebSocket endpoint for egg connections ──
 		mux.HandleFunc("/api/invasion/ws", handleInvasionWebSocket(s))
 
-		// Start heartbeat monitor
-		s.EggHub.StartHeartbeatMonitor(30*time.Second, 90*time.Second, func(nestID, eggID string) {
+		// Set up hub callbacks once (not per-connection)
+		s.EggHub.OnDisconnect = func(nestID, eggID string) {
+			s.Logger.Info("Egg disconnected", "nest_id", nestID, "egg_id", eggID)
+			_ = invasion.UpdateNestHatchStatus(s.InvasionDB, nestID, "stopped", "connection lost")
+		}
+
+		// Start heartbeat monitor (stops on server shutdown)
+		hbCtx, hbCancel := context.WithCancel(context.Background())
+		go func() {
+			<-shutdownCh
+			hbCancel()
+		}()
+		s.EggHub.StartHeartbeatMonitor(hbCtx, 30*time.Second, 90*time.Second, func(nestID, eggID string) {
 			s.Logger.Warn("Egg heartbeat stale, marking as failed", "nest_id", nestID, "egg_id", eggID)
 			_ = invasion.UpdateNestHatchStatus(s.InvasionDB, nestID, "failed", "heartbeat timeout")
 		})

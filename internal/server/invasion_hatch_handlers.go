@@ -405,7 +405,10 @@ func handleInvasionNestSendSecret(s *Server) http.HandlerFunc {
 var wsUpgrader = websocket.Upgrader{
 	ReadBufferSize:  4096,
 	WriteBufferSize: 4096,
-	CheckOrigin:     func(r *http.Request) bool { return true },
+	// CheckOrigin validated in handleInvasionWebSocket via HMAC auth.
+	// Allow all origins here because eggs connect from arbitrary hosts
+	// and authenticate via per-nest shared key HMAC in the first message.
+	CheckOrigin: func(r *http.Request) bool { return true },
 }
 
 func handleInvasionWebSocket(s *Server) http.HandlerFunc {
@@ -453,7 +456,11 @@ func handleInvasionWebSocket(s *Server) http.HandlerFunc {
 			return
 		}
 
-		_ = egg // validated existence
+		if !egg.Active {
+			s.Logger.Warn("Auth failed: egg is inactive", "egg_id", authMsg.EggID)
+			conn.Close()
+			return
+		}
 
 		// Read shared key from vault
 		sharedKey, err := s.Vault.ReadSecret("egg_shared_" + nest.ID)
@@ -487,16 +494,14 @@ func handleInvasionWebSocket(s *Server) http.HandlerFunc {
 			LastHeartbeat: time.Now(),
 			Status:        "connected",
 		}
-		s.EggHub.Register(nest.ID, eggConn)
+		if err := s.EggHub.Register(nest.ID, eggConn); err != nil {
+			s.Logger.Warn("Connection limit reached", "nest_id", nest.ID, "error", err)
+			conn.Close()
+			return
+		}
 
 		// Update nest status to running
 		_ = invasion.UpdateNestHatchStatus(s.InvasionDB, nest.ID, "running", "")
-
-		// Set up callbacks for this connection
-		s.EggHub.OnDisconnect = func(nestID, eggID string) {
-			s.Logger.Info("Egg disconnected", "nest_id", nestID, "egg_id", eggID)
-			_ = invasion.UpdateNestHatchStatus(s.InvasionDB, nestID, "stopped", "connection lost")
-		}
 
 		// Block on read loop
 		s.EggHub.HandleMessages(eggConn)

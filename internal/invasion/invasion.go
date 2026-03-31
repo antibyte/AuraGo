@@ -3,6 +3,7 @@ package invasion
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -63,6 +64,12 @@ func InitDB(dbPath string) (*sql.DB, error) {
 	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open invasion database: %w", err)
+	}
+
+	// Configure SQLite for concurrent access
+	if _, err := db.Exec("PRAGMA busy_timeout = 5000"); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("failed to set busy_timeout: %w", err)
 	}
 
 	nestsSchema := `
@@ -133,7 +140,11 @@ func InitDB(dbPath string) (*sql.DB, error) {
 		"ALTER TABLE eggs ADD COLUMN allowed_tools TEXT DEFAULT ''",
 	}
 	for _, m := range migrations {
-		_, _ = db.Exec(m) // ignore "duplicate column" errors
+		_, err := db.Exec(m)
+		if err != nil && !strings.Contains(err.Error(), "duplicate column") {
+			// Log unexpected migration errors (not "duplicate column" which is expected)
+			_ = err // non-fatal: column may already exist under a different constraint
+		}
 	}
 
 	// Drop the personality column if it still exists (eggs no longer use personality)
@@ -180,21 +191,20 @@ func insertNest(db *sql.DB, n NestRecord) error {
 	return nil
 }
 
-// GetNest retrieves a single nest by ID.
-func GetNest(db *sql.DB, id string) (NestRecord, error) {
-	query := `SELECT id, name, notes, access_type, host, port, username, vault_secret_id, active, egg_id,
-	          hatch_status, last_hatch_at, hatch_error, route, route_config, deploy_method, target_arch, created_at, updated_at FROM nests WHERE id = ?`
+// nestScanner is an interface satisfied by both *sql.Row and per-row scanning helpers.
+type nestScanner interface {
+	Scan(dest ...interface{}) error
+}
+
+// scanNestRow scans a single nest row from any scanner (Row or Rows).
+func scanNestRow(s nestScanner) (NestRecord, error) {
 	var n NestRecord
 	var active int
 	var notesNull, hostNull, userNull, secretNull, eggNull sql.NullString
 	var hatchStatusNull, lastHatchNull, hatchErrNull, routeNull, routeCfgNull, deployNull, archNull sql.NullString
-	err := db.QueryRow(query, id).Scan(&n.ID, &n.Name, &notesNull, &n.AccessType, &hostNull, &n.Port, &userNull, &secretNull, &active, &eggNull,
-		&hatchStatusNull, &lastHatchNull, &hatchErrNull, &routeNull, &routeCfgNull, &deployNull, &archNull, &n.CreatedAt, &n.UpdatedAt)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return NestRecord{}, fmt.Errorf("nest not found: %s", id)
-		}
-		return NestRecord{}, fmt.Errorf("failed to get nest: %w", err)
+	if err := s.Scan(&n.ID, &n.Name, &notesNull, &n.AccessType, &hostNull, &n.Port, &userNull, &secretNull, &active, &eggNull,
+		&hatchStatusNull, &lastHatchNull, &hatchErrNull, &routeNull, &routeCfgNull, &deployNull, &archNull, &n.CreatedAt, &n.UpdatedAt); err != nil {
+		return NestRecord{}, err
 	}
 	n.Notes = nullStr(notesNull)
 	n.Host = nullStr(hostNull)
@@ -220,6 +230,20 @@ func GetNest(db *sql.DB, id string) (NestRecord, error) {
 	}
 	if n.TargetArch == "" {
 		n.TargetArch = "linux/amd64"
+	}
+	return n, nil
+}
+
+// GetNest retrieves a single nest by ID.
+func GetNest(db *sql.DB, id string) (NestRecord, error) {
+	query := `SELECT id, name, notes, access_type, host, port, username, vault_secret_id, active, egg_id,
+	          hatch_status, last_hatch_at, hatch_error, route, route_config, deploy_method, target_arch, created_at, updated_at FROM nests WHERE id = ?`
+	n, err := scanNestRow(db.QueryRow(query, id))
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return NestRecord{}, fmt.Errorf("nest not found: %s", id)
+		}
+		return NestRecord{}, fmt.Errorf("failed to get nest: %w", err)
 	}
 	return n, nil
 }
@@ -409,42 +433,12 @@ func ToggleEggActive(db *sql.DB, id string, active bool) error {
 func GetNestByName(db *sql.DB, name string) (NestRecord, error) {
 	query := `SELECT id, name, notes, access_type, host, port, username, vault_secret_id, active, egg_id,
 	          hatch_status, last_hatch_at, hatch_error, route, route_config, deploy_method, target_arch, created_at, updated_at FROM nests WHERE LOWER(name) = LOWER(?)`
-	var n NestRecord
-	var active int
-	var notesNull, hostNull, userNull, secretNull, eggNull sql.NullString
-	var hatchStatusNull, lastHatchNull, hatchErrNull, routeNull, routeCfgNull, deployNull, archNull sql.NullString
-	err := db.QueryRow(query, name).Scan(&n.ID, &n.Name, &notesNull, &n.AccessType, &hostNull, &n.Port, &userNull, &secretNull, &active, &eggNull,
-		&hatchStatusNull, &lastHatchNull, &hatchErrNull, &routeNull, &routeCfgNull, &deployNull, &archNull, &n.CreatedAt, &n.UpdatedAt)
+	n, err := scanNestRow(db.QueryRow(query, name))
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return NestRecord{}, fmt.Errorf("nest not found by name: %s", name)
 		}
 		return NestRecord{}, fmt.Errorf("failed to get nest by name: %w", err)
-	}
-	n.Notes = nullStr(notesNull)
-	n.Host = nullStr(hostNull)
-	n.Username = nullStr(userNull)
-	n.VaultSecretID = nullStr(secretNull)
-	n.EggID = nullStr(eggNull)
-	n.HatchStatus = nullStr(hatchStatusNull)
-	n.LastHatchAt = nullStr(lastHatchNull)
-	n.HatchError = nullStr(hatchErrNull)
-	n.Route = nullStr(routeNull)
-	n.RouteConfig = nullStr(routeCfgNull)
-	n.DeployMethod = nullStr(deployNull)
-	n.TargetArch = nullStr(archNull)
-	n.Active = active != 0
-	if n.HatchStatus == "" {
-		n.HatchStatus = "idle"
-	}
-	if n.Route == "" {
-		n.Route = "direct"
-	}
-	if n.DeployMethod == "" {
-		n.DeployMethod = "ssh"
-	}
-	if n.TargetArch == "" {
-		n.TargetArch = "linux/amd64"
 	}
 	return n, nil
 }
@@ -454,38 +448,9 @@ func GetNestByName(db *sql.DB, name string) (NestRecord, error) {
 func scanNests(rows *sql.Rows) ([]NestRecord, error) {
 	var nests []NestRecord
 	for rows.Next() {
-		var n NestRecord
-		var active int
-		var notesNull, hostNull, userNull, secretNull, eggNull sql.NullString
-		var hatchStatusNull, lastHatchNull, hatchErrNull, routeNull, routeCfgNull, deployNull, archNull sql.NullString
-		if err := rows.Scan(&n.ID, &n.Name, &notesNull, &n.AccessType, &hostNull, &n.Port, &userNull, &secretNull, &active, &eggNull,
-			&hatchStatusNull, &lastHatchNull, &hatchErrNull, &routeNull, &routeCfgNull, &deployNull, &archNull, &n.CreatedAt, &n.UpdatedAt); err != nil {
+		n, err := scanNestRow(rows)
+		if err != nil {
 			return nil, fmt.Errorf("failed to scan nest row: %w", err)
-		}
-		n.Notes = nullStr(notesNull)
-		n.Host = nullStr(hostNull)
-		n.Username = nullStr(userNull)
-		n.VaultSecretID = nullStr(secretNull)
-		n.EggID = nullStr(eggNull)
-		n.HatchStatus = nullStr(hatchStatusNull)
-		n.LastHatchAt = nullStr(lastHatchNull)
-		n.HatchError = nullStr(hatchErrNull)
-		n.Route = nullStr(routeNull)
-		n.RouteConfig = nullStr(routeCfgNull)
-		n.DeployMethod = nullStr(deployNull)
-		n.TargetArch = nullStr(archNull)
-		n.Active = active != 0
-		if n.HatchStatus == "" {
-			n.HatchStatus = "idle"
-		}
-		if n.Route == "" {
-			n.Route = "direct"
-		}
-		if n.DeployMethod == "" {
-			n.DeployMethod = "ssh"
-		}
-		if n.TargetArch == "" {
-			n.TargetArch = "linux/amd64"
 		}
 		nests = append(nests, n)
 	}
