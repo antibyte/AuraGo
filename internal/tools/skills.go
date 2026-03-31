@@ -34,7 +34,7 @@ type skillsCacheEntry struct {
 
 // listSkillsCache is a simple TTL cache for skill manifests.
 var listSkillsCache = struct {
-	mu    sync.RWMutex
+	mu      sync.RWMutex
 	entries map[string]skillsCacheEntry
 }{
 	entries: make(map[string]skillsCacheEntry),
@@ -44,7 +44,7 @@ var listSkillsCache = struct {
 type SkillManifest struct {
 	Name         string            `json:"name"`
 	Description  string            `json:"description"`
-	Executable   string            `json:"executable"`             // e.g., "scan.py" or "custom_tool.exe"
+	Executable   string            `json:"executable"` // e.g., "scan.py" or "custom_tool.exe"
 	Category     string            `json:"category,omitempty"`
 	Tags         []string          `json:"tags,omitempty"`
 	Parameters   map[string]string `json:"parameters,omitempty"`   // map of arg name to description
@@ -168,7 +168,7 @@ func ExecuteSkill(skillsDir, workspaceDir, skillName string, argsJSON map[string
 	slog.Debug("[ExecuteSkill] Prepared JSON input", "skill", skillName, "input", argsString)
 
 	// Route based on extension
-	ctx, cancel := context.WithTimeout(context.Background(), SkillTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), GetSkillTimeout())
 	defer cancel()
 
 	var cmd *exec.Cmd
@@ -185,7 +185,7 @@ func ExecuteSkill(skillsDir, workspaceDir, skillName string, argsJSON map[string
 	}
 
 	cmd.Dir = workspaceDir
-	SetSkillLimits(cmd, 1024, int(SkillTimeout.Seconds()))
+	SetSkillLimits(cmd, 1024, int(GetSkillTimeout().Seconds()))
 
 	// Manual Stdin pipe management for maximum synchronization on Windows.
 	stdin, err := cmd.StdinPipe()
@@ -200,7 +200,7 @@ func ExecuteSkill(skillsDir, workspaceDir, skillName string, argsJSON map[string
 	if err := cmd.Start(); err != nil {
 		return "", fmt.Errorf("failed to start skill execution: %v", err)
 	}
-	ApplySkillLimits(cmd.Process.Pid, 1024, int(SkillTimeout.Seconds()))
+	ApplySkillLimits(cmd.Process.Pid, 1024, int(GetSkillTimeout().Seconds()))
 
 	// Write and CLOSE immediately to send EOF
 	slog.Debug("[ExecuteSkill] Writing to Stdin...", "length", len(argsString))
@@ -262,7 +262,7 @@ func ExecuteSkillWithSecrets(skillsDir, workspaceDir, skillName string, argsJSON
 	}
 	argsString := string(argsBytes)
 
-	ctx, cancel := context.WithTimeout(context.Background(), SkillTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), GetSkillTimeout())
 	defer cancel()
 
 	var cmd *exec.Cmd
@@ -278,7 +278,7 @@ func ExecuteSkillWithSecrets(skillsDir, workspaceDir, skillName string, argsJSON
 	}
 
 	cmd.Dir = workspaceDir
-	SetSkillLimits(cmd, 1024, int(SkillTimeout.Seconds()))
+	SetSkillLimits(cmd, 1024, int(GetSkillTimeout().Seconds()))
 	InjectSecretsEnv(cmd, secrets)
 	InjectCredentialEnv(cmd, creds)
 
@@ -294,7 +294,7 @@ func ExecuteSkillWithSecrets(skillsDir, workspaceDir, skillName string, argsJSON
 	if err := cmd.Start(); err != nil {
 		return "", fmt.Errorf("failed to start skill execution: %v", err)
 	}
-	ApplySkillLimits(cmd.Process.Pid, 1024, int(SkillTimeout.Seconds()))
+	ApplySkillLimits(cmd.Process.Pid, 1024, int(GetSkillTimeout().Seconds()))
 
 	fmt.Fprint(stdin, argsString)
 	stdin.Close()

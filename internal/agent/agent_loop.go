@@ -366,7 +366,21 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			if recoveryState.handleDuplicateToolCall(ptc, &req, currentLogger, telemetryScope) {
 				pResultContent = blockedToolOutputFromRequest(&req)
 			} else {
-				pResultContent = DispatchToolCall(ctx, ptc, cfg, currentLogger, client, vault, registry, manifest, cronManager, missionManagerV2, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, contactsDB, sqlConnectionsDB, sqlConnectionPool, remoteHub, historyManager, tools.IsBusy(), surgeryPlan, guardian, llmGuardian, sessionID, coAgentRegistry, budgetTracker, lastUserMsg)
+				pResultContent = DispatchToolCall(ctx, ptc, &DispatchContext{
+					Cfg: cfg, Logger: currentLogger, LLMClient: client, Vault: vault,
+					Registry: registry, Manifest: manifest, CronManager: cronManager,
+					MissionManagerV2: missionManagerV2, LongTermMem: longTermMem,
+					ShortTermMem: shortTermMem, KG: kg, InventoryDB: inventoryDB,
+					InvasionDB: invasionDB, CheatsheetDB: cheatsheetDB,
+					ImageGalleryDB: imageGalleryDB, MediaRegistryDB: mediaRegistryDB,
+					HomepageRegistryDB: homepageRegistryDB, ContactsDB: contactsDB,
+					SQLConnectionsDB: sqlConnectionsDB, SQLConnectionPool: sqlConnectionPool,
+					RemoteHub: remoteHub, HistoryMgr: historyManager,
+					IsMaintenance: tools.IsBusy(), SurgeryPlan: surgeryPlan,
+					Guardian: guardian, LLMGuardian: llmGuardian,
+					SessionID: sessionID, CoAgentRegistry: coAgentRegistry,
+					BudgetTracker: budgetTracker,
+				}, lastUserMsg)
 			}
 			policyResult := finalizeToolExecution(ptc, pResultContent, cfg, shortTermMem, sessionID, &recoveryState, &req, currentLogger, telemetryScope)
 			pResultContent = policyResult.Content
@@ -1456,7 +1470,21 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				broker.Send("co_agent_spawn", taskPreview)
 			}
 
-			resultContent := DispatchToolCall(ctx, tc, cfg, currentLogger, client, vault, registry, manifest, cronManager, missionManagerV2, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, contactsDB, sqlConnectionsDB, sqlConnectionPool, remoteHub, historyManager, tools.IsBusy(), surgeryPlan, guardian, llmGuardian, sessionID, coAgentRegistry, budgetTracker, lastUserMsg)
+			resultContent := DispatchToolCall(ctx, tc, &DispatchContext{
+				Cfg: cfg, Logger: currentLogger, LLMClient: client, Vault: vault,
+				Registry: registry, Manifest: manifest, CronManager: cronManager,
+				MissionManagerV2: missionManagerV2, LongTermMem: longTermMem,
+				ShortTermMem: shortTermMem, KG: kg, InventoryDB: inventoryDB,
+				InvasionDB: invasionDB, CheatsheetDB: cheatsheetDB,
+				ImageGalleryDB: imageGalleryDB, MediaRegistryDB: mediaRegistryDB,
+				HomepageRegistryDB: homepageRegistryDB, ContactsDB: contactsDB,
+				SQLConnectionsDB: sqlConnectionsDB, SQLConnectionPool: sqlConnectionPool,
+				RemoteHub: remoteHub, HistoryMgr: historyManager,
+				IsMaintenance: tools.IsBusy(), SurgeryPlan: surgeryPlan,
+				Guardian: guardian, LLMGuardian: llmGuardian,
+				SessionID: sessionID, CoAgentRegistry: coAgentRegistry,
+				BudgetTracker: budgetTracker,
+			}, lastUserMsg)
 			policyResult := finalizeToolExecution(tc, resultContent, cfg, shortTermMem, sessionID, &recoveryState, &req, currentLogger, telemetryScope)
 			resultContent = policyResult.Content
 			trackActivityTool(&turnToolNames, &turnToolSummaries, tc.Action, resultContent)
@@ -1725,7 +1753,21 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					if recoveryState.handleDuplicateToolCall(btc, &req, currentLogger, telemetryScope) {
 						bResult = blockedToolOutputFromRequest(&req)
 					} else {
-						bResult = DispatchToolCall(ctx, btc, cfg, currentLogger, client, vault, registry, manifest, cronManager, missionManagerV2, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, contactsDB, sqlConnectionsDB, sqlConnectionPool, remoteHub, historyManager, tools.IsBusy(), surgeryPlan, guardian, llmGuardian, sessionID, coAgentRegistry, budgetTracker, lastUserMsg)
+						bResult = DispatchToolCall(ctx, btc, &DispatchContext{
+							Cfg: cfg, Logger: currentLogger, LLMClient: client, Vault: vault,
+							Registry: registry, Manifest: manifest, CronManager: cronManager,
+							MissionManagerV2: missionManagerV2, LongTermMem: longTermMem,
+							ShortTermMem: shortTermMem, KG: kg, InventoryDB: inventoryDB,
+							InvasionDB: invasionDB, CheatsheetDB: cheatsheetDB,
+							ImageGalleryDB: imageGalleryDB, MediaRegistryDB: mediaRegistryDB,
+							HomepageRegistryDB: homepageRegistryDB, ContactsDB: contactsDB,
+							SQLConnectionsDB: sqlConnectionsDB, SQLConnectionPool: sqlConnectionPool,
+							RemoteHub: remoteHub, HistoryMgr: historyManager,
+							IsMaintenance: tools.IsBusy(), SurgeryPlan: surgeryPlan,
+							Guardian: guardian, LLMGuardian: llmGuardian,
+							SessionID: sessionID, CoAgentRegistry: coAgentRegistry,
+							BudgetTracker: budgetTracker,
+						}, lastUserMsg)
 					}
 					policyResult := finalizeToolExecution(btc, bResult, cfg, shortTermMem, sessionID, &recoveryState, &req, currentLogger, telemetryScope)
 					bResult = policyResult.Content

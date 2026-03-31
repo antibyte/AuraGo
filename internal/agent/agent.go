@@ -641,7 +641,10 @@ type RunConfig struct {
 	MessageSource      string // origin channel: "web_chat", "telegram", "discord", "a2a", "sms", "mission"
 }
 
-func dispatchInner(ctx context.Context, tc ToolCall, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, missionManagerV2 *tools.MissionManagerV2, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, mediaRegistryDB *sql.DB, homepageRegistryDB *sql.DB, contactsDB *sql.DB, sqlConnectionsDB *sql.DB, sqlConnectionPool *sqlconnections.ConnectionPool, remoteHub *remote.RemoteHub, historyMgr *memory.HistoryManager, isMaintenance bool, surgeryPlan string, guardian *security.Guardian, llmGuardian *security.LLMGuardian, sessionID string, coAgentRegistry *CoAgentRegistry, budgetTracker *budget.Tracker) string {
+func dispatchInner(ctx context.Context, tc ToolCall, dc *DispatchContext) string {
+	sessionID := dc.SessionID
+	logger := dc.Logger
+
 	// Co-Agent blacklist: co-agents (identified by sessionID prefix) cannot modify memory, notes, KG, or spawn sub-agents
 	isCoAgent := strings.HasPrefix(sessionID, "coagent-") || strings.HasPrefix(sessionID, "specialist-")
 	if isCoAgent {
@@ -686,16 +689,16 @@ func dispatchInner(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 	}
 
 	// Route to sub-dispatchers
-	if result := dispatchExec(ctx, tc, cfg, logger, llmClient, vault, registry, manifest, cronManager, missionManagerV2, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, contactsDB, sqlConnectionsDB, sqlConnectionPool, remoteHub, historyMgr, isMaintenance, surgeryPlan, guardian, sessionID, coAgentRegistry, budgetTracker); result != dispatchNotHandled {
+	if result := dispatchExec(ctx, tc, dc); result != dispatchNotHandled {
 		return result
 	}
-	if result := dispatchComm(ctx, tc, cfg, logger, llmClient, vault, registry, manifest, cronManager, missionManagerV2, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, contactsDB, sqlConnectionsDB, sqlConnectionPool, remoteHub, historyMgr, isMaintenance, surgeryPlan, guardian, llmGuardian, sessionID, coAgentRegistry, budgetTracker); result != dispatchNotHandled {
+	if result := dispatchComm(ctx, tc, dc); result != dispatchNotHandled {
 		return result
 	}
-	if result := dispatchServices(ctx, tc, cfg, logger, llmClient, vault, registry, manifest, cronManager, missionManagerV2, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, contactsDB, sqlConnectionsDB, sqlConnectionPool, remoteHub, historyMgr, isMaintenance, surgeryPlan, guardian, sessionID, coAgentRegistry, budgetTracker); result != dispatchNotHandled {
+	if result := dispatchServices(ctx, tc, dc); result != dispatchNotHandled {
 		return result
 	}
-	if result := dispatchInfra(ctx, tc, cfg, logger, llmClient, vault, registry, manifest, cronManager, missionManagerV2, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, contactsDB, sqlConnectionsDB, sqlConnectionPool, remoteHub, historyMgr, isMaintenance, surgeryPlan, guardian, sessionID, coAgentRegistry, budgetTracker); result != dispatchNotHandled {
+	if result := dispatchInfra(ctx, tc, dc); result != dispatchNotHandled {
 		return result
 	}
 
@@ -718,7 +721,7 @@ func dispatchInner(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 			tc.Operation = tc.Action
 		}
 		tc.Action = "homepage"
-		if result := dispatchServices(ctx, tc, cfg, logger, llmClient, vault, registry, manifest, cronManager, missionManagerV2, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, contactsDB, sqlConnectionsDB, sqlConnectionPool, remoteHub, historyMgr, isMaintenance, surgeryPlan, guardian, sessionID, coAgentRegistry, budgetTracker); result != dispatchNotHandled {
+		if result := dispatchServices(ctx, tc, dc); result != dispatchNotHandled {
 			return result
 		}
 	}
@@ -740,7 +743,7 @@ func dispatchInner(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 			tc.Command = gitCmd
 		}
 		tc.Action = "execute_shell"
-		if result := dispatchExec(ctx, tc, cfg, logger, llmClient, vault, registry, manifest, cronManager, missionManagerV2, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, contactsDB, sqlConnectionsDB, sqlConnectionPool, remoteHub, historyMgr, isMaintenance, surgeryPlan, guardian, sessionID, coAgentRegistry, budgetTracker); result != dispatchNotHandled {
+		if result := dispatchExec(ctx, tc, dc); result != dispatchNotHandled {
 			return result
 		}
 	}
@@ -748,7 +751,7 @@ func dispatchInner(ctx context.Context, tc ToolCall, cfg *config.Config, logger 
 	if tc.Action == "exec" && tc.Command != "" {
 		logger.Info("Redirecting exec alias to execute_shell")
 		tc.Action = "execute_shell"
-		if result := dispatchExec(ctx, tc, cfg, logger, llmClient, vault, registry, manifest, cronManager, missionManagerV2, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, contactsDB, sqlConnectionsDB, sqlConnectionPool, remoteHub, historyMgr, isMaintenance, surgeryPlan, guardian, sessionID, coAgentRegistry, budgetTracker); result != dispatchNotHandled {
+		if result := dispatchExec(ctx, tc, dc); result != dispatchNotHandled {
 			return result
 		}
 	}

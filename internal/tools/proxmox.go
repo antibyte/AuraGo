@@ -41,6 +41,12 @@ func getProxmoxClient(cfg ProxmoxConfig) *http.Client {
 	return actual.(*http.Client)
 }
 
+// proxmoxJSONStr produces a JSON-safe quoted string (unlike %q which uses Go escaping).
+func proxmoxJSONStr(s string) string {
+	b, _ := json.Marshal(s)
+	return string(b)
+}
+
 // proxmoxRequest performs a generic HTTP request against the Proxmox VE API.
 func proxmoxRequest(cfg ProxmoxConfig, method, endpoint string, body string) ([]byte, int, error) {
 	baseURL := strings.TrimRight(cfg.URL, "/")
@@ -263,7 +269,7 @@ func ProxmoxListNodes(cfg ProxmoxConfig) string {
 		return fmt.Sprintf(`{"status":"error","message":"Failed to list nodes: %v"}`, err)
 	}
 	if code != 200 {
-		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%s}`, code, proxmoxJSONStr(string(data)))
 	}
 	return fmt.Sprintf(`{"status":"ok","nodes":%s}`, proxmoxExtractData(data))
 }
@@ -288,10 +294,10 @@ func ProxmoxListVMs(cfg ProxmoxConfig, node string) string {
 			rawOut, _ := json.Marshal(raw)
 			normalizedOut, _ := json.Marshal(normalized)
 			summaryOut, _ := json.Marshal(summary)
-			return fmt.Sprintf(`{"status":"ok","scope":"node","node":%q,"vms":%s,"monitoring":%s,"summary":%s}`, node, rawOut, normalizedOut, summaryOut)
+			return fmt.Sprintf(`{"status":"ok","scope":"node","node":%s,"vms":%s,"monitoring":%s,"summary":%s}`, proxmoxJSONStr(node), rawOut, normalizedOut, summaryOut)
 		}
 		if code != http.StatusForbidden {
-			return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+			return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%s}`, code, proxmoxJSONStr(string(data)))
 		}
 	}
 
@@ -312,7 +318,7 @@ func ProxmoxListVMs(cfg ProxmoxConfig, node string) string {
 	if node != "" {
 		scope = "node"
 	}
-	return fmt.Sprintf(`{"status":"ok","source":"cluster_resources","scope":%q,"node":%q,"vms":%s,"monitoring":%s,"summary":%s}`, scope, node, rawOut, normalizedOut, summaryOut)
+	return fmt.Sprintf(`{"status":"ok","source":"cluster_resources","scope":%s,"node":%s,"vms":%s,"monitoring":%s,"summary":%s}`, proxmoxJSONStr(scope), proxmoxJSONStr(node), rawOut, normalizedOut, summaryOut)
 }
 
 // ProxmoxListContainers returns all LXC containers on a node.
@@ -335,10 +341,10 @@ func ProxmoxListContainers(cfg ProxmoxConfig, node string) string {
 			rawOut, _ := json.Marshal(raw)
 			normalizedOut, _ := json.Marshal(normalized)
 			summaryOut, _ := json.Marshal(summary)
-			return fmt.Sprintf(`{"status":"ok","scope":"node","node":%q,"containers":%s,"monitoring":%s,"summary":%s}`, node, rawOut, normalizedOut, summaryOut)
+			return fmt.Sprintf(`{"status":"ok","scope":"node","node":%s,"containers":%s,"monitoring":%s,"summary":%s}`, proxmoxJSONStr(node), rawOut, normalizedOut, summaryOut)
 		}
 		if code != http.StatusForbidden {
-			return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+			return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%s}`, code, proxmoxJSONStr(string(data)))
 		}
 	}
 
@@ -359,7 +365,26 @@ func ProxmoxListContainers(cfg ProxmoxConfig, node string) string {
 	if node != "" {
 		scope = "node"
 	}
-	return fmt.Sprintf(`{"status":"ok","source":"cluster_resources","scope":%q,"node":%q,"containers":%s,"monitoring":%s,"summary":%s}`, scope, node, rawOut, normalizedOut, summaryOut)
+	return fmt.Sprintf(`{"status":"ok","source":"cluster_resources","scope":%s,"node":%s,"containers":%s,"monitoring":%s,"summary":%s}`, proxmoxJSONStr(scope), proxmoxJSONStr(node), rawOut, normalizedOut, summaryOut)
+}
+
+// proxmoxValidateVMType validates and defaults the VM type.
+func proxmoxValidateVMType(vmType string) (string, error) {
+	if vmType == "" {
+		return "qemu", nil
+	}
+	if vmType == "qemu" || vmType == "lxc" {
+		return vmType, nil
+	}
+	return "", fmt.Errorf("invalid vmType %q, must be qemu or lxc", vmType)
+}
+
+// proxmoxValidateVMID validates that vmid is numeric.
+func proxmoxValidateVMID(vmid string) error {
+	if _, err := strconv.Atoi(vmid); err != nil {
+		return fmt.Errorf("vmid must be numeric, got %q", vmid)
+	}
+	return nil
 }
 
 // ProxmoxGetStatus returns the status of a VM or container.
@@ -370,10 +395,15 @@ func ProxmoxGetStatus(cfg ProxmoxConfig, node string, vmType string, vmid string
 	if vmid == "" {
 		return `{"status":"error","message":"vmid is required."}`
 	}
-	if vmType == "" {
-		vmType = "qemu"
+	var err error
+	vmType, err = proxmoxValidateVMType(vmType)
+	if err != nil {
+		return fmt.Sprintf(`{"status":"error","message":%s}`, proxmoxJSONStr(err.Error()))
 	}
-	endpoint := fmt.Sprintf("/nodes/%s/%s/%s/status/current", node, vmType, vmid)
+	if err = proxmoxValidateVMID(vmid); err != nil {
+		return fmt.Sprintf(`{"status":"error","message":%s}`, proxmoxJSONStr(err.Error()))
+	}
+	endpoint := fmt.Sprintf("/nodes/%s/%s/%s/status/current", url.PathEscape(node), url.PathEscape(vmType), url.PathEscape(vmid))
 	data, code, err := proxmoxRequest(cfg, "GET", endpoint, "")
 	if err != nil {
 		return fmt.Sprintf(`{"status":"error","message":"Failed to get status: %v"}`, err)
@@ -382,12 +412,12 @@ func ProxmoxGetStatus(cfg ProxmoxConfig, node string, vmType string, vmid string
 		return fmt.Sprintf(`{"status":"ok","data":%s}`, proxmoxExtractData(data))
 	}
 	if code != http.StatusForbidden {
-		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%s}`, code, proxmoxJSONStr(string(data)))
 	}
 
 	resources, _, err := proxmoxGetClusterResourceList(cfg, "vm")
 	if err != nil {
-		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%s}`, code, proxmoxJSONStr(string(data)))
 	}
 	filtered := proxmoxFilterClusterResources(resources, vmType, node, vmid)
 	if len(filtered) == 0 {
@@ -405,8 +435,13 @@ func ProxmoxVMAction(cfg ProxmoxConfig, node string, vmType string, vmid string,
 	if vmid == "" {
 		return `{"status":"error","message":"vmid is required."}`
 	}
-	if vmType == "" {
-		vmType = "qemu"
+	var err error
+	vmType, err = proxmoxValidateVMType(vmType)
+	if err != nil {
+		return fmt.Sprintf(`{"status":"error","message":%s}`, proxmoxJSONStr(err.Error()))
+	}
+	if err = proxmoxValidateVMID(vmid); err != nil {
+		return fmt.Sprintf(`{"status":"error","message":%s}`, proxmoxJSONStr(err.Error()))
 	}
 	validActions := map[string]bool{
 		"start": true, "stop": true, "shutdown": true,
@@ -415,13 +450,13 @@ func ProxmoxVMAction(cfg ProxmoxConfig, node string, vmType string, vmid string,
 	if !validActions[action] {
 		return fmt.Sprintf(`{"status":"error","message":"Invalid action '%s'. Use: start, stop, shutdown, reboot, suspend, resume, reset"}`, action)
 	}
-	endpoint := fmt.Sprintf("/nodes/%s/%s/%s/status/%s", node, vmType, vmid, action)
+	endpoint := fmt.Sprintf("/nodes/%s/%s/%s/status/%s", url.PathEscape(node), url.PathEscape(vmType), url.PathEscape(vmid), url.PathEscape(action))
 	data, code, err := proxmoxRequest(cfg, "POST", endpoint, "")
 	if err != nil {
 		return fmt.Sprintf(`{"status":"error","message":"Action failed: %v"}`, err)
 	}
 	if code != 200 {
-		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%s}`, code, proxmoxJSONStr(string(data)))
 	}
 	return fmt.Sprintf(`{"status":"ok","action":"%s","vmid":"%s","upid":%s}`, action, vmid, proxmoxExtractData(data))
 }
@@ -434,7 +469,7 @@ func ProxmoxNodeStatus(cfg ProxmoxConfig, node string) string {
 	if node == "" {
 		return `{"status":"error","message":"No node specified."}`
 	}
-	data, code, err := proxmoxRequest(cfg, "GET", fmt.Sprintf("/nodes/%s/status", node), "")
+	data, code, err := proxmoxRequest(cfg, "GET", fmt.Sprintf("/nodes/%s/status", url.PathEscape(node)), "")
 	if err != nil {
 		return fmt.Sprintf(`{"status":"error","message":"Failed to get node status: %v"}`, err)
 	}
@@ -442,12 +477,12 @@ func ProxmoxNodeStatus(cfg ProxmoxConfig, node string) string {
 		return fmt.Sprintf(`{"status":"ok","data":%s}`, proxmoxExtractData(data))
 	}
 	if code != http.StatusForbidden {
-		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%s}`, code, proxmoxJSONStr(string(data)))
 	}
 
 	resources, _, err := proxmoxGetClusterResourceList(cfg, "node")
 	if err != nil {
-		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%s}`, code, proxmoxJSONStr(string(data)))
 	}
 	filtered := proxmoxFilterClusterResources(resources, "node", node, "")
 	if len(filtered) == 0 {
@@ -458,21 +493,19 @@ func ProxmoxNodeStatus(cfg ProxmoxConfig, node string) string {
 }
 
 // ProxmoxOverview returns a monitoring-oriented overview of nodes, VMs, and containers.
+// Uses a single unfiltered /cluster/resources call instead of two separate calls.
 func ProxmoxOverview(cfg ProxmoxConfig, node string) string {
-	nodeResources, _, err := proxmoxGetClusterResourceList(cfg, "node")
+	allResources, _, err := proxmoxGetClusterResourceList(cfg, "")
 	if err != nil {
-		return fmt.Sprintf(`{"status":"error","message":"Failed to get node overview: %v"}`, err)
+		return fmt.Sprintf(`{"status":"error","message":"Failed to get cluster overview: %v"}`, err)
 	}
-	filteredNodes := proxmoxFilterClusterResources(nodeResources, "node", node, "")
+
+	filteredNodes := proxmoxFilterClusterResources(allResources, "node", node, "")
 	normalizedNodes := proxmoxNormalizeNodeList(filteredNodes)
 	nodeSummary := proxmoxBuildNodeSummary(normalizedNodes)
 
-	vmResources, _, err := proxmoxGetClusterResourceList(cfg, "vm")
-	if err != nil {
-		return fmt.Sprintf(`{"status":"error","message":"Failed to get VM/container overview: %v"}`, err)
-	}
-	filteredVMs := proxmoxFilterClusterResources(vmResources, "qemu", node, "")
-	filteredContainers := proxmoxFilterClusterResources(vmResources, "lxc", node, "")
+	filteredVMs := proxmoxFilterClusterResources(allResources, "qemu", node, "")
+	filteredContainers := proxmoxFilterClusterResources(allResources, "lxc", node, "")
 	normalizedVMs := proxmoxNormalizeResourceList(filteredVMs, "qemu", node)
 	normalizedContainers := proxmoxNormalizeResourceList(filteredContainers, "lxc", node)
 	vmSummary := proxmoxBuildStateSummary(normalizedVMs)
@@ -490,22 +523,22 @@ func ProxmoxOverview(cfg ProxmoxConfig, node string) string {
 	vmSummaryOut, _ := json.Marshal(vmSummary)
 	containerSummaryOut, _ := json.Marshal(containerSummary)
 
-	return fmt.Sprintf(`{"status":"ok","source":"cluster_resources","scope":%q,"node":%q,"nodes":%s,"vms":%s,"containers":%s,"summary":{"nodes":%s,"vms":%s,"containers":%s}}`,
-		scope, node, nodesOut, vmsOut, containersOut, nodeSummaryOut, vmSummaryOut, containerSummaryOut)
+	return fmt.Sprintf(`{"status":"ok","source":"cluster_resources","scope":%s,"node":%s,"nodes":%s,"vms":%s,"containers":%s,"summary":{"nodes":%s,"vms":%s,"containers":%s}}`,
+		proxmoxJSONStr(scope), proxmoxJSONStr(node), nodesOut, vmsOut, containersOut, nodeSummaryOut, vmSummaryOut, containerSummaryOut)
 }
 
 // ProxmoxClusterResources returns a unified list of all resources (VMs, CTs, storage, nodes).
 func ProxmoxClusterResources(cfg ProxmoxConfig, resType string) string {
 	endpoint := "/cluster/resources"
 	if resType != "" {
-		endpoint += "?type=" + resType
+		endpoint += "?type=" + url.QueryEscape(resType)
 	}
 	data, code, err := proxmoxRequest(cfg, "GET", endpoint, "")
 	if err != nil {
 		return fmt.Sprintf(`{"status":"error","message":"Failed to get resources: %v"}`, err)
 	}
 	if code != 200 {
-		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%s}`, code, proxmoxJSONStr(string(data)))
 	}
 	return fmt.Sprintf(`{"status":"ok","resources":%s}`, proxmoxExtractData(data))
 }
@@ -518,12 +551,12 @@ func ProxmoxGetStorage(cfg ProxmoxConfig, node string) string {
 	if node == "" {
 		return `{"status":"error","message":"No node specified."}`
 	}
-	data, code, err := proxmoxRequest(cfg, "GET", fmt.Sprintf("/nodes/%s/storage", node), "")
+	data, code, err := proxmoxRequest(cfg, "GET", fmt.Sprintf("/nodes/%s/storage", url.PathEscape(node)), "")
 	if err != nil {
 		return fmt.Sprintf(`{"status":"error","message":"Failed to get storage: %v"}`, err)
 	}
 	if code != 200 {
-		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%s}`, code, proxmoxJSONStr(string(data)))
 	}
 	return fmt.Sprintf(`{"status":"ok","storage":%s}`, proxmoxExtractData(data))
 }
@@ -536,13 +569,13 @@ func ProxmoxGetTaskLog(cfg ProxmoxConfig, node string, upid string) string {
 	if upid == "" {
 		return `{"status":"error","message":"upid is required."}`
 	}
-	endpoint := fmt.Sprintf("/nodes/%s/tasks/%s/log", node, upid)
+	endpoint := fmt.Sprintf("/nodes/%s/tasks/%s/log", url.PathEscape(node), url.PathEscape(upid))
 	data, code, err := proxmoxRequest(cfg, "GET", endpoint, "")
 	if err != nil {
 		return fmt.Sprintf(`{"status":"error","message":"Failed to get task log: %v"}`, err)
 	}
 	if code != 200 {
-		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%s}`, code, proxmoxJSONStr(string(data)))
 	}
 	return fmt.Sprintf(`{"status":"ok","log":%s}`, proxmoxExtractData(data))
 }
@@ -555,23 +588,28 @@ func ProxmoxCreateSnapshot(cfg ProxmoxConfig, node, vmType, vmid, snapName, desc
 	if vmid == "" {
 		return `{"status":"error","message":"vmid is required."}`
 	}
-	if vmType == "" {
-		vmType = "qemu"
+	var err error
+	vmType, err = proxmoxValidateVMType(vmType)
+	if err != nil {
+		return fmt.Sprintf(`{"status":"error","message":%s}`, proxmoxJSONStr(err.Error()))
+	}
+	if err = proxmoxValidateVMID(vmid); err != nil {
+		return fmt.Sprintf(`{"status":"error","message":%s}`, proxmoxJSONStr(err.Error()))
 	}
 	if snapName == "" {
 		snapName = fmt.Sprintf("snap_%d", time.Now().Unix())
 	}
-	body := "snapname=" + snapName
+	body := "snapname=" + url.QueryEscape(snapName)
 	if description != "" {
-		body += "&description=" + description
+		body += "&description=" + url.QueryEscape(description)
 	}
-	endpoint := fmt.Sprintf("/nodes/%s/%s/%s/snapshot", node, vmType, vmid)
+	endpoint := fmt.Sprintf("/nodes/%s/%s/%s/snapshot", url.PathEscape(node), url.PathEscape(vmType), url.PathEscape(vmid))
 	data, code, err := proxmoxRequest(cfg, "POST", endpoint, body)
 	if err != nil {
 		return fmt.Sprintf(`{"status":"error","message":"Snapshot failed: %v"}`, err)
 	}
 	if code != 200 {
-		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%s}`, code, proxmoxJSONStr(string(data)))
 	}
 	return fmt.Sprintf(`{"status":"ok","snapshot":"%s","data":%s}`, snapName, proxmoxExtractData(data))
 }
@@ -584,16 +622,21 @@ func ProxmoxListSnapshots(cfg ProxmoxConfig, node, vmType, vmid string) string {
 	if vmid == "" {
 		return `{"status":"error","message":"vmid is required."}`
 	}
-	if vmType == "" {
-		vmType = "qemu"
+	var err error
+	vmType, err = proxmoxValidateVMType(vmType)
+	if err != nil {
+		return fmt.Sprintf(`{"status":"error","message":%s}`, proxmoxJSONStr(err.Error()))
 	}
-	endpoint := fmt.Sprintf("/nodes/%s/%s/%s/snapshot", node, vmType, vmid)
+	if err = proxmoxValidateVMID(vmid); err != nil {
+		return fmt.Sprintf(`{"status":"error","message":%s}`, proxmoxJSONStr(err.Error()))
+	}
+	endpoint := fmt.Sprintf("/nodes/%s/%s/%s/snapshot", url.PathEscape(node), url.PathEscape(vmType), url.PathEscape(vmid))
 	data, code, err := proxmoxRequest(cfg, "GET", endpoint, "")
 	if err != nil {
 		return fmt.Sprintf(`{"status":"error","message":"Failed to list snapshots: %v"}`, err)
 	}
 	if code != 200 {
-		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%s}`, code, proxmoxJSONStr(string(data)))
 	}
 	return fmt.Sprintf(`{"status":"ok","snapshots":%s}`, proxmoxExtractData(data))
 }

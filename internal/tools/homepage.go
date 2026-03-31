@@ -275,11 +275,12 @@ func HomepageInit(cfg HomepageConfig, logger *slog.Logger) string {
 	if inspectCode == 200 {
 		// Container exists — check if running
 		var info map[string]interface{}
-		json.Unmarshal(inspectData, &info)
-		state, _ := info["State"].(map[string]interface{})
-		running, _ := state["Running"].(bool)
-		if running {
-			return okJSON("Dev container already running", "container", homepageContainerName)
+		if err := json.Unmarshal(inspectData, &info); err == nil {
+			state, _ := info["State"].(map[string]interface{})
+			running, _ := state["Running"].(bool)
+			if running {
+				return okJSON("Dev container already running", "container", homepageContainerName)
+			}
 		}
 		// Start existing stopped container
 		_, startCode, startErr := dockerRequest(dockerCfg, "POST", "/containers/"+homepageContainerName+"/start", "")

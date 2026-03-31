@@ -285,14 +285,20 @@ func mcpCallTool(ctx context.Context, s *Server, params json.RawMessage) mcpCall
 
 	manifest := tools.NewManifest(cfg.Directories.ToolsDir)
 	result := agent.DispatchToolCall(
-		toolCtx, tc, cfg, s.Logger, s.LLMClient, s.Vault,
-		s.Registry, manifest, s.CronManager, s.MissionManagerV2,
-		s.LongTermMem, s.ShortTermMem, s.KG,
-		s.InventoryDB, s.InvasionDB, s.CheatsheetDB, s.ImageGalleryDB,
-		s.MediaRegistryDB, s.HomepageRegistryDB, s.ContactsDB,
-		s.SQLConnectionsDB, s.SQLConnectionPool,
-		s.RemoteHub, s.HistoryManager, false, "", s.Guardian, s.LLMGuardian,
-		"mcp-server", s.CoAgentRegistry, s.BudgetTracker, "",
+		toolCtx, tc, &agent.DispatchContext{
+			Cfg: cfg, Logger: s.Logger, LLMClient: s.LLMClient, Vault: s.Vault,
+			Registry: s.Registry, Manifest: manifest, CronManager: s.CronManager,
+			MissionManagerV2: s.MissionManagerV2, LongTermMem: s.LongTermMem,
+			ShortTermMem: s.ShortTermMem, KG: s.KG,
+			InventoryDB: s.InventoryDB, InvasionDB: s.InvasionDB,
+			CheatsheetDB: s.CheatsheetDB, ImageGalleryDB: s.ImageGalleryDB,
+			MediaRegistryDB: s.MediaRegistryDB, HomepageRegistryDB: s.HomepageRegistryDB,
+			ContactsDB: s.ContactsDB, SQLConnectionsDB: s.SQLConnectionsDB,
+			SQLConnectionPool: s.SQLConnectionPool, RemoteHub: s.RemoteHub,
+			HistoryMgr: s.HistoryManager, Guardian: s.Guardian,
+			LLMGuardian: s.LLMGuardian, SessionID: "mcp-server",
+			CoAgentRegistry: s.CoAgentRegistry, BudgetTracker: s.BudgetTracker,
+		}, "",
 	)
 
 	// Strip the "[Tool Output]\n" prefix if present

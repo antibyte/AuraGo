@@ -16,15 +16,12 @@ import (
 	"strings"
 	"time"
 
-	"aurago/internal/budget"
 	"aurago/internal/config"
 	"aurago/internal/credentials"
 	"aurago/internal/inventory"
-	"aurago/internal/llm"
 	"aurago/internal/memory"
 	"aurago/internal/remote"
 	"aurago/internal/security"
-	"aurago/internal/sqlconnections"
 	"aurago/internal/tools"
 )
 
@@ -94,7 +91,23 @@ func resolveCredentials(cfg *config.Config, vault *security.Vault, inventoryDB *
 }
 
 // dispatchExec handles execution, memory, security, filesystem, API, remote, and scheduling tool calls.
-func dispatchExec(ctx context.Context, tc ToolCall, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, missionManagerV2 *tools.MissionManagerV2, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, mediaRegistryDB *sql.DB, homepageRegistryDB *sql.DB, contactsDB *sql.DB, sqlConnectionsDB *sql.DB, sqlConnectionPool *sqlconnections.ConnectionPool, remoteHub *remote.RemoteHub, historyMgr *memory.HistoryManager, isMaintenance bool, surgeryPlan string, guardian *security.Guardian, sessionID string, coAgentRegistry *CoAgentRegistry, budgetTracker *budget.Tracker) string {
+func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) string {
+	cfg := dc.Cfg
+	logger := dc.Logger
+	llmClient := dc.LLMClient
+	vault := dc.Vault
+	registry := dc.Registry
+	manifest := dc.Manifest
+	cronManager := dc.CronManager
+	longTermMem := dc.LongTermMem
+	shortTermMem := dc.ShortTermMem
+	kg := dc.KG
+	inventoryDB := dc.InventoryDB
+	cheatsheetDB := dc.CheatsheetDB
+	imageGalleryDB := dc.ImageGalleryDB
+	mediaRegistryDB := dc.MediaRegistryDB
+	budgetTracker := dc.BudgetTracker
+
 	switch tc.Action {
 	case "execute_sandbox":
 		if !cfg.Sandbox.Enabled {
@@ -1831,14 +1844,18 @@ func isBlockedEnvRead(command string) bool {
 		return false
 	}
 	lower := strings.ToLower(command)
-	// Match common env-reading patterns across sh/bash/zsh/PowerShell
-	return strings.Contains(lower, "printenv") ||
-		strings.Contains(lower, "echo") ||
-		strings.Contains(lower, "$env:") ||
-		strings.Contains(lower, "get-item") ||
-		strings.Contains(lower, "get-childitem") ||
-		strings.Contains(lower, "getenvironmentvariable") ||
-		strings.Contains(lower, "[system.environment]") ||
-		strings.Contains(lower, "environ") ||
-		strings.Contains(lower, "export")
+	// Match common env-reading patterns across sh/bash/zsh/PowerShell/scripting languages
+	patterns := []string{
+		"printenv", "echo", "$env:", "get-item", "get-childitem",
+		"getenvironmentvariable", "[system.environment]", "environ", "export",
+		"env ", " env", "/usr/bin/env",
+		"set ", "awk", "python", "ruby", "perl", "node ",
+		"cat /proc", "strings /proc", "/proc/self", "/proc/1/",
+	}
+	for _, p := range patterns {
+		if strings.Contains(lower, p) {
+			return true
+		}
+	}
+	return false
 }

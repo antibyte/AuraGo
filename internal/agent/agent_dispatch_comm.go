@@ -14,16 +14,12 @@ import (
 	"strings"
 	"time"
 
-	"aurago/internal/budget"
 	"aurago/internal/config"
 	"aurago/internal/contacts"
 	"aurago/internal/inventory"
-	"aurago/internal/llm"
 	"aurago/internal/memory"
-	"aurago/internal/remote"
 	"aurago/internal/security"
 	"aurago/internal/services"
-	"aurago/internal/sqlconnections"
 	"aurago/internal/telnyx"
 	"aurago/internal/tools"
 )
@@ -111,7 +107,36 @@ func planTaskIDsFromItems(items []map[string]interface{}) []string {
 }
 
 // dispatchComm handles webhook, skill, notification, email, discord, mission, and notes tool calls.
-func dispatchComm(ctx context.Context, tc ToolCall, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, missionManagerV2 *tools.MissionManagerV2, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, mediaRegistryDB *sql.DB, homepageRegistryDB *sql.DB, contactsDB *sql.DB, sqlConnectionsDB *sql.DB, sqlConnectionPool *sqlconnections.ConnectionPool, remoteHub *remote.RemoteHub, historyMgr *memory.HistoryManager, isMaintenance bool, surgeryPlan string, guardian *security.Guardian, llmGuardian *security.LLMGuardian, sessionID string, coAgentRegistry *CoAgentRegistry, budgetTracker *budget.Tracker) string {
+func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) string {
+	cfg := dc.Cfg
+	logger := dc.Logger
+	llmClient := dc.LLMClient
+	vault := dc.Vault
+	registry := dc.Registry
+	manifest := dc.Manifest
+	cronManager := dc.CronManager
+	missionManagerV2 := dc.MissionManagerV2
+	longTermMem := dc.LongTermMem
+	shortTermMem := dc.ShortTermMem
+	kg := dc.KG
+	inventoryDB := dc.InventoryDB
+	invasionDB := dc.InvasionDB
+	cheatsheetDB := dc.CheatsheetDB
+	imageGalleryDB := dc.ImageGalleryDB
+	mediaRegistryDB := dc.MediaRegistryDB
+	homepageRegistryDB := dc.HomepageRegistryDB
+	contactsDB := dc.ContactsDB
+	sqlConnectionsDB := dc.SQLConnectionsDB
+	sqlConnectionPool := dc.SQLConnectionPool
+	remoteHub := dc.RemoteHub
+	historyMgr := dc.HistoryMgr
+	isMaintenance := dc.IsMaintenance
+	guardian := dc.Guardian
+	llmGuardian := dc.LLMGuardian
+	sessionID := dc.SessionID
+	coAgentRegistry := dc.CoAgentRegistry
+	budgetTracker := dc.BudgetTracker
+
 	switch tc.Action {
 	case "call_webhook":
 		if !cfg.Webhooks.Enabled {

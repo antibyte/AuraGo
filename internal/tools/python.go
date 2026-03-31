@@ -10,25 +10,49 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
-// ForegroundTimeout is the default execution timeout for Python scripts and shell commands.
-// It can be overridden via config using ConfigureTimeouts.
-var ForegroundTimeout = 30 * time.Second
+// foregroundTimeout stores the default execution timeout for Python scripts and shell commands (nanoseconds).
+var foregroundTimeout atomic.Int64
 
-// SkillTimeout is the default execution timeout for skill invocations.
-// It can be overridden via config using ConfigureTimeouts.
-var SkillTimeout = 120 * time.Second
+// skillTimeout stores the default execution timeout for skill invocations (nanoseconds).
+var skillTimeout atomic.Int64
+
+func init() {
+	foregroundTimeout.Store(int64(30 * time.Second))
+	skillTimeout.Store(int64(120 * time.Second))
+}
+
+// GetForegroundTimeout returns the current foreground execution timeout.
+func GetForegroundTimeout() time.Duration {
+	return time.Duration(foregroundTimeout.Load())
+}
+
+// SetForegroundTimeout sets the foreground execution timeout (for testing).
+func SetForegroundTimeout(d time.Duration) {
+	foregroundTimeout.Store(int64(d))
+}
+
+// GetSkillTimeout returns the current skill execution timeout.
+func GetSkillTimeout() time.Duration {
+	return time.Duration(skillTimeout.Load())
+}
+
+// SetSkillTimeout sets the skill execution timeout (for testing).
+func SetSkillTimeout(d time.Duration) {
+	skillTimeout.Store(int64(d))
+}
 
 // ConfigureTimeouts sets package-level timeouts from configuration.
 // Values <= 0 are ignored (defaults are kept).
 func ConfigureTimeouts(pythonSeconds, skillSeconds int) {
 	if pythonSeconds > 0 {
-		ForegroundTimeout = time.Duration(pythonSeconds) * time.Second
+		foregroundTimeout.Store(int64(time.Duration(pythonSeconds) * time.Second))
 	}
 	if skillSeconds > 0 {
-		SkillTimeout = time.Duration(skillSeconds) * time.Second
+		skillTimeout.Store(int64(time.Duration(skillSeconds) * time.Second))
 	}
 }
 
@@ -160,7 +184,7 @@ func RunTool(name string, args []string, workspaceDir, toolsDir string) (string,
 		return "", "", fmt.Errorf("failed to resolve tool path: %w", err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), ForegroundTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), GetForegroundTimeout())
 	defer cancel()
 
 	pythonCmd := GetPythonBin(workspaceDir)
@@ -176,7 +200,7 @@ func RunTool(name string, args []string, workspaceDir, toolsDir string) (string,
 
 	err = cmd.Run()
 	if ctx.Err() == context.DeadlineExceeded {
-		return stdout.String(), stderr.String(), fmt.Errorf("TIMEOUT: tool '%s' exceeded %s limit and was killed", name, ForegroundTimeout)
+		return stdout.String(), stderr.String(), fmt.Errorf("TIMEOUT: tool '%s' exceeded %s limit and was killed", name, GetForegroundTimeout())
 	}
 	return stdout.String(), stderr.String(), err
 }
@@ -197,7 +221,7 @@ func RunToolWithSecrets(name string, args []string, workspaceDir, toolsDir strin
 		return "", "", fmt.Errorf("failed to resolve tool path: %w", err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), ForegroundTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), GetForegroundTimeout())
 	defer cancel()
 
 	pythonCmd := GetPythonBin(workspaceDir)
@@ -214,7 +238,7 @@ func RunToolWithSecrets(name string, args []string, workspaceDir, toolsDir strin
 	err = cmd.Run()
 	so, se := ScrubSecretOutput(stdout.String(), stderr.String())
 	if ctx.Err() == context.DeadlineExceeded {
-		return so, se, fmt.Errorf("TIMEOUT: tool '%s' exceeded %s limit and was killed", name, ForegroundTimeout)
+		return so, se, fmt.Errorf("TIMEOUT: tool '%s' exceeded %s limit and was killed", name, GetForegroundTimeout())
 	}
 	return so, se, err
 }
@@ -352,7 +376,7 @@ func ExecutePython(code, workspaceDir, toolsDir string) (string, string, error) 
 	done := make(chan error, 1)
 	go func() { done <- cmd.Wait() }()
 
-	timer := time.NewTimer(ForegroundTimeout)
+	timer := time.NewTimer(GetForegroundTimeout())
 	defer timer.Stop()
 
 	select {
@@ -361,7 +385,7 @@ func ExecutePython(code, workspaceDir, toolsDir string) (string, string, error) 
 	case <-timer.C:
 		KillProcessTree(cmd.Process.Pid)
 		<-done
-		return stdout.String(), stderr.String(), fmt.Errorf("TIMEOUT: script exceeded %s limit and was killed", ForegroundTimeout)
+		return stdout.String(), stderr.String(), fmt.Errorf("TIMEOUT: script exceeded %s limit and was killed", GetForegroundTimeout())
 	}
 }
 
@@ -392,7 +416,7 @@ func ExecutePythonWithSecrets(code, workspaceDir, toolsDir string, secrets map[s
 	done := make(chan error, 1)
 	go func() { done <- cmd.Wait() }()
 
-	timer := time.NewTimer(ForegroundTimeout)
+	timer := time.NewTimer(GetForegroundTimeout())
 	defer timer.Stop()
 
 	select {
@@ -403,7 +427,7 @@ func ExecutePythonWithSecrets(code, workspaceDir, toolsDir string, secrets map[s
 		KillProcessTree(cmd.Process.Pid)
 		<-done
 		so, se := ScrubSecretOutput(stdout.String(), stderr.String())
-		return so, se, fmt.Errorf("TIMEOUT: script exceeded %s limit and was killed", ForegroundTimeout)
+		return so, se, fmt.Errorf("TIMEOUT: script exceeded %s limit and was killed", GetForegroundTimeout())
 	}
 }
 

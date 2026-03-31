@@ -144,6 +144,8 @@ func BuildSecretPrelude(secrets map[string]string) string {
 		// Escape backslashes and single quotes for safe Python string literal
 		escaped := strings.ReplaceAll(val, `\`, `\\`)
 		escaped = strings.ReplaceAll(escaped, `'`, `\'`)
+		escaped = strings.ReplaceAll(escaped, "\n", `\n`)
+		escaped = strings.ReplaceAll(escaped, "\r", `\r`)
 		sb.WriteString(fmt.Sprintf("_aurago_os.environ['%s'] = '%s'\n", envKey, escaped))
 		security.RegisterSensitive(val)
 	}
@@ -261,6 +263,8 @@ func BuildCredentialPrelude(creds []CredentialFields) string {
 			envKey := prefix + strings.ToUpper(field)
 			escaped := strings.ReplaceAll(val, `\`, `\\`)
 			escaped = strings.ReplaceAll(escaped, `'`, `\'`)
+			escaped = strings.ReplaceAll(escaped, "\n", `\n`)
+			escaped = strings.ReplaceAll(escaped, "\r", `\r`)
 			sb.WriteString(fmt.Sprintf("_aurago_os.environ['%s'] = '%s'\n", envKey, escaped))
 			security.RegisterSensitive(val)
 		}

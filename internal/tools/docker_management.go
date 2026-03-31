@@ -60,7 +60,9 @@ func DockerCreateContainer(cfg DockerConfig, name, image string, env []string, p
 	}
 	if code == 201 {
 		var resp map[string]interface{}
-		json.Unmarshal(data, &resp)
+		if err := json.Unmarshal(data, &resp); err != nil {
+			return errJSON("Failed to parse create response: %v", err)
+		}
 		return fmt.Sprintf(`{"status":"ok","message":"Container created","id":"%v"}`, resp["Id"])
 	}
 	return dockerBodyErr(code, data)
@@ -201,7 +203,9 @@ func DockerExec(cfg DockerConfig, containerID, cmd, user string) string {
 	}
 
 	var execResp map[string]interface{}
-	json.Unmarshal(data, &execResp)
+	if err := json.Unmarshal(data, &execResp); err != nil {
+		return errJSON("Failed to parse exec response: %v", err)
+	}
 	execID, ok := execResp["Id"].(string)
 	if !ok || execID == "" {
 		return errJSON("Failed to obtain exec ID")
@@ -350,7 +354,9 @@ func DockerPort(cfg DockerConfig, containerID string) string {
 		return dockerBodyErr(code, data)
 	}
 	var full map[string]interface{}
-	json.Unmarshal(data, &full)
+	if err := json.Unmarshal(data, &full); err != nil {
+		return errJSON("Failed to parse container info: %v", err)
+	}
 
 	ports := map[string]interface{}{}
 	if netSettings, ok := full["NetworkSettings"].(map[string]interface{}); ok {
@@ -377,7 +383,9 @@ func DockerCreateNetwork(cfg DockerConfig, name, driver string) string {
 	}
 	if code == 201 {
 		var r map[string]interface{}
-		json.Unmarshal(data, &r)
+		if err := json.Unmarshal(data, &r); err != nil {
+			return errJSON("Failed to parse network response: %v", err)
+		}
 		return fmt.Sprintf(`{"status":"ok","message":"Network created","id":"%v"}`, r["Id"])
 	}
 	return dockerBodyErr(code, data)
@@ -514,12 +522,29 @@ func DockerCopy(cfg DockerConfig, containerID, src, dest, direction string) stri
 	return runDockerCLIHelper(cfg, args...)
 }
 
+// allowedComposeCommands is the allowlist of valid docker compose subcommands.
+var allowedComposeCommands = map[string]bool{
+	"up": true, "down": true, "build": true, "ps": true, "logs": true,
+	"start": true, "stop": true, "restart": true, "config": true,
+	"pull": true, "images": true, "version": true, "rm": true,
+	"pause": true, "unpause": true, "top": true, "push": true, "create": true,
+	"exec": true, "run": true, "events": true, "port": true, "ls": true,
+	"cp": true, "kill": true, "convert": true,
+}
+
 // DockerCompose uses CLI to trigger compose.
 func DockerCompose(cfg DockerConfig, file, cmd string) string {
 	if file == "" || cmd == "" {
 		return errJSON("file and command required")
 	}
+	parts := strings.Fields(cmd)
+	if len(parts) == 0 {
+		return errJSON("command is empty")
+	}
+	if !allowedComposeCommands[parts[0]] {
+		return errJSON("compose command %q is not allowed", parts[0])
+	}
 	args := []string{"compose", "-f", file}
-	args = append(args, strings.Fields(cmd)...)
+	args = append(args, parts...)
 	return runDockerCLIHelper(cfg, args...)
 }

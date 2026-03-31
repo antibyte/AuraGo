@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"aurago/internal/security"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -9,8 +10,8 @@ import (
 	"time"
 )
 
-// haHTTPClient is a shared HTTP client for Home Assistant API calls.
-var haHTTPClient = &http.Client{Timeout: 30 * time.Second}
+// haHTTPClient is a shared HTTP client for Home Assistant API calls with SSRF protection.
+var haHTTPClient = security.NewSSRFProtectedHTTPClient(30 * time.Second)
 
 // HAConfig holds the Home Assistant connection parameters.
 type HAConfig struct {

@@ -147,7 +147,9 @@ func scanProject(row interface {
 	if lastDeployed.Valid {
 		p.LastDeployedAt = lastDeployed.String
 	}
-	json.Unmarshal([]byte(tagsStr), &p.Tags)
+	if err := json.Unmarshal([]byte(tagsStr), &p.Tags); err != nil {
+		p.Tags = []string{}
+	}
 	if p.Tags == nil {
 		p.Tags = []string{}
 	}

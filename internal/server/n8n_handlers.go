@@ -313,14 +313,20 @@ func handleN8nChat(s *Server) http.HandlerFunc {
 						Params: args,
 					}
 					result = agent.DispatchToolCall(
-						ctx, agentTC, s.Cfg, s.Logger, s.LLMClient, s.Vault,
-						s.Registry, manifest, s.CronManager, s.MissionManagerV2,
-						s.LongTermMem, s.ShortTermMem, s.KG,
-						s.InventoryDB, s.InvasionDB, s.CheatsheetDB, s.ImageGalleryDB,
-						s.MediaRegistryDB, s.HomepageRegistryDB, s.ContactsDB,
-						s.SQLConnectionsDB, s.SQLConnectionPool,
-						s.RemoteHub, s.HistoryManager, false, "", s.Guardian, s.LLMGuardian,
-						"n8n", s.CoAgentRegistry, s.BudgetTracker, "",
+						ctx, agentTC, &agent.DispatchContext{
+							Cfg: s.Cfg, Logger: s.Logger, LLMClient: s.LLMClient, Vault: s.Vault,
+							Registry: s.Registry, Manifest: manifest, CronManager: s.CronManager,
+							MissionManagerV2: s.MissionManagerV2, LongTermMem: s.LongTermMem,
+							ShortTermMem: s.ShortTermMem, KG: s.KG,
+							InventoryDB: s.InventoryDB, InvasionDB: s.InvasionDB,
+							CheatsheetDB: s.CheatsheetDB, ImageGalleryDB: s.ImageGalleryDB,
+							MediaRegistryDB: s.MediaRegistryDB, HomepageRegistryDB: s.HomepageRegistryDB,
+							ContactsDB: s.ContactsDB, SQLConnectionsDB: s.SQLConnectionsDB,
+							SQLConnectionPool: s.SQLConnectionPool, RemoteHub: s.RemoteHub,
+							HistoryMgr: s.HistoryManager, Guardian: s.Guardian,
+							LLMGuardian: s.LLMGuardian, SessionID: "n8n",
+							CoAgentRegistry: s.CoAgentRegistry, BudgetTracker: s.BudgetTracker,
+						}, "",
 					)
 				}
 				toolCall.Result = result
@@ -514,14 +520,20 @@ func handleN8nToolExecute(s *Server) http.HandlerFunc {
 		// Execute tool
 		manifest := tools.NewManifest(s.Cfg.Directories.ToolsDir)
 		result := agent.DispatchToolCall(
-			ctx, tc, s.Cfg, s.Logger, s.LLMClient, s.Vault,
-			s.Registry, manifest, s.CronManager, s.MissionManagerV2,
-			s.LongTermMem, s.ShortTermMem, s.KG,
-			s.InventoryDB, s.InvasionDB, s.CheatsheetDB, s.ImageGalleryDB,
-			s.MediaRegistryDB, s.HomepageRegistryDB, s.ContactsDB,
-			s.SQLConnectionsDB, s.SQLConnectionPool,
-			s.RemoteHub, s.HistoryManager, false, "", s.Guardian, s.LLMGuardian,
-			"n8n", s.CoAgentRegistry, s.BudgetTracker, "",
+			ctx, tc, &agent.DispatchContext{
+				Cfg: s.Cfg, Logger: s.Logger, LLMClient: s.LLMClient, Vault: s.Vault,
+				Registry: s.Registry, Manifest: manifest, CronManager: s.CronManager,
+				MissionManagerV2: s.MissionManagerV2, LongTermMem: s.LongTermMem,
+				ShortTermMem: s.ShortTermMem, KG: s.KG,
+				InventoryDB: s.InventoryDB, InvasionDB: s.InvasionDB,
+				CheatsheetDB: s.CheatsheetDB, ImageGalleryDB: s.ImageGalleryDB,
+				MediaRegistryDB: s.MediaRegistryDB, HomepageRegistryDB: s.HomepageRegistryDB,
+				ContactsDB: s.ContactsDB, SQLConnectionsDB: s.SQLConnectionsDB,
+				SQLConnectionPool: s.SQLConnectionPool, RemoteHub: s.RemoteHub,
+				HistoryMgr: s.HistoryManager, Guardian: s.Guardian,
+				LLMGuardian: s.LLMGuardian, SessionID: "n8n",
+				CoAgentRegistry: s.CoAgentRegistry, BudgetTracker: s.BudgetTracker,
+			}, "",
 		)
 
 		// Send webhook

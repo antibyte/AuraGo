@@ -10,15 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"aurago/internal/budget"
-	"aurago/internal/config"
 	"aurago/internal/fritzbox"
 	"aurago/internal/inventory"
-	"aurago/internal/llm"
-	"aurago/internal/memory"
-	"aurago/internal/remote"
-	"aurago/internal/security"
-	"aurago/internal/sqlconnections"
 	"aurago/internal/tools"
 	"aurago/internal/webhooks"
 )
@@ -28,7 +21,22 @@ const dispatchNotHandled = "\x00__DISPATCH_NOT_HANDLED__"
 
 // dispatchInfra handles network, cloud platform, and external service tool calls
 // (co_agent, mdns, tts, chromecast, proxmox, ollama, tailscale, ansible, invasion, github, netlify, mqtt, mcp, adguard, firewall).
-func dispatchInfra(ctx context.Context, tc ToolCall, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, missionManagerV2 *tools.MissionManagerV2, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, mediaRegistryDB *sql.DB, homepageRegistryDB *sql.DB, contactsDB *sql.DB, sqlConnectionsDB *sql.DB, sqlConnectionPool *sqlconnections.ConnectionPool, remoteHub *remote.RemoteHub, historyMgr *memory.HistoryManager, isMaintenance bool, surgeryPlan string, guardian *security.Guardian, sessionID string, coAgentRegistry *CoAgentRegistry, budgetTracker *budget.Tracker) string {
+func dispatchInfra(ctx context.Context, tc ToolCall, dc *DispatchContext) string {
+	cfg := dc.Cfg
+	logger := dc.Logger
+	vault := dc.Vault
+	registry := dc.Registry
+	manifest := dc.Manifest
+	longTermMem := dc.LongTermMem
+	shortTermMem := dc.ShortTermMem
+	kg := dc.KG
+	inventoryDB := dc.InventoryDB
+	invasionDB := dc.InvasionDB
+	mediaRegistryDB := dc.MediaRegistryDB
+	remoteHub := dc.RemoteHub
+	coAgentRegistry := dc.CoAgentRegistry
+	budgetTracker := dc.BudgetTracker
+
 	switch tc.Action {
 	case "co_agent", "co_agents":
 		if budgetTracker != nil && budgetTracker.IsBlocked("coagent") {

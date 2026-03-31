@@ -2,7 +2,6 @@ package agent
 
 import (
 	"context"
-	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -16,13 +15,10 @@ import (
 	"strings"
 	"time"
 
-	"aurago/internal/budget"
 	"aurago/internal/config"
 	"aurago/internal/llm"
 	"aurago/internal/memory"
-	"aurago/internal/remote"
 	"aurago/internal/security"
-	"aurago/internal/sqlconnections"
 	"aurago/internal/tools"
 	"aurago/internal/webhooks"
 
@@ -56,7 +52,11 @@ func formatGuardianBlockedMessage(action, reason string, risk float64, allowClar
 // DispatchToolCall executes the appropriate tool based on the parsed ToolCall.
 // It automatically handles LLM Guardian pre-check, Redaction, Guardian sanitization,
 // and ensures the output is correctly prefixed with "[Tool Output]\n" unless it's a known error marker.
-func DispatchToolCall(ctx context.Context, tc ToolCall, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, missionManagerV2 *tools.MissionManagerV2, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, mediaRegistryDB *sql.DB, homepageRegistryDB *sql.DB, contactsDB *sql.DB, sqlConnectionsDB *sql.DB, sqlConnectionPool *sqlconnections.ConnectionPool, remoteHub *remote.RemoteHub, historyMgr *memory.HistoryManager, isMaintenance bool, surgeryPlan string, guardian *security.Guardian, llmGuardian *security.LLMGuardian, sessionID string, coAgentRegistry *CoAgentRegistry, budgetTracker *budget.Tracker, userContext string) string {
+func DispatchToolCall(ctx context.Context, tc ToolCall, dc *DispatchContext, userContext string) string {
+	cfg := dc.Cfg
+	logger := dc.Logger
+	guardian := dc.Guardian
+	llmGuardian := dc.LLMGuardian
 
 	// LLM Guardian: pre-execution security check
 	if llmGuardian != nil {
@@ -113,7 +113,7 @@ func DispatchToolCall(ctx context.Context, tc ToolCall, cfg *config.Config, logg
 	}
 proceed:
 
-	rawResult := dispatchInner(ctx, tc, cfg, logger, llmClient, vault, registry, manifest, cronManager, missionManagerV2, longTermMem, shortTermMem, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, mediaRegistryDB, homepageRegistryDB, contactsDB, sqlConnectionsDB, sqlConnectionPool, remoteHub, historyMgr, isMaintenance, surgeryPlan, guardian, llmGuardian, sessionID, coAgentRegistry, budgetTracker)
+	rawResult := dispatchInner(ctx, tc, dc)
 
 	// Apply redaction to tool output
 	sanitized := security.RedactSensitiveInfo(rawResult)

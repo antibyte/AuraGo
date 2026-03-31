@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -23,6 +24,7 @@ type DockerConfig struct {
 // dockerHTTPClient is a lazily-initialized shared Docker API client.
 var dockerHTTPClient *http.Client
 var dockerHTTPClientHost string
+var dockerClientMu sync.Mutex
 
 // reDockerSafeName validates Docker container/image identifiers.
 var reDockerSafeName = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_.:\-/]*$`)
@@ -36,6 +38,9 @@ const maxDockerNameLength = 255
 // getDockerClient returns a shared *http.Client that talks to the Docker Engine API.
 // The client is reused across requests for connection pooling.
 func getDockerClient(cfg DockerConfig) *http.Client {
+	dockerClientMu.Lock()
+	defer dockerClientMu.Unlock()
+
 	host := cfg.Host
 	if host == "" {
 		if runtime.GOOS == "windows" {
@@ -153,9 +158,9 @@ func dockerRequestWithRetry(cfg DockerConfig, method, endpoint string, body stri
 			}
 			return nil, 0, fmt.Errorf("docker request failed after %d retries: %w", maxRetries, err)
 		}
-		defer resp.Body.Close()
 
 		data, err := io.ReadAll(resp.Body)
+		resp.Body.Close() // Close immediately instead of defer to avoid FD leak in retry loop
 		if err != nil {
 			lastErr = err
 			lastCode = resp.StatusCode

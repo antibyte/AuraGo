@@ -114,9 +114,12 @@ func (r *ProcessRegistry) List() []map[string]interface{} {
 	defer r.mu.RUnlock()
 	var result []map[string]interface{}
 	for pid, info := range r.processes {
+		info.mu.Lock()
+		alive := info.Alive
+		info.mu.Unlock()
 		result = append(result, map[string]interface{}{
 			"pid":     pid,
-			"alive":   info.Alive,
+			"alive":   alive,
 			"uptime":  fmt.Sprintf("%.0fs", time.Since(info.StartedAt).Seconds()),
 			"started": info.StartedAt.Format(time.RFC3339),
 		})

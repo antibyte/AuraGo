@@ -2,28 +2,30 @@ package agent
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"path/filepath"
 	"strings"
 	"time"
 
-	"aurago/internal/budget"
-	"aurago/internal/config"
-	"aurago/internal/llm"
-	"aurago/internal/memory"
 	"aurago/internal/meshcentral"
-	"aurago/internal/remote"
-	"aurago/internal/security"
 	"aurago/internal/sqlconnections"
 	"aurago/internal/tools"
 )
 
 // dispatchServices handles media, infrastructure management, and platform tool calls
 // (vision, transcribe, meshcentral, docker, homepage, webdav, home_assistant).
-func dispatchServices(ctx context.Context, tc ToolCall, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, missionManagerV2 *tools.MissionManagerV2, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, mediaRegistryDB *sql.DB, homepageRegistryDB *sql.DB, contactsDB *sql.DB, sqlConnectionsDB *sql.DB, sqlConnectionPool *sqlconnections.ConnectionPool, remoteHub *remote.RemoteHub, historyMgr *memory.HistoryManager, isMaintenance bool, surgeryPlan string, guardian *security.Guardian, sessionID string, coAgentRegistry *CoAgentRegistry, budgetTracker *budget.Tracker) string {
+func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) string {
+	cfg := dc.Cfg
+	logger := dc.Logger
+	vault := dc.Vault
+	mediaRegistryDB := dc.MediaRegistryDB
+	homepageRegistryDB := dc.HomepageRegistryDB
+	sqlConnectionsDB := dc.SQLConnectionsDB
+	sqlConnectionPool := dc.SQLConnectionPool
+	sessionID := dc.SessionID
+	budgetTracker := dc.BudgetTracker
+
 	switch tc.Action {
 	case "analyze_image", "vision":
 		if budgetTracker != nil && budgetTracker.IsBlocked("vision") {

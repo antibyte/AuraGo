@@ -45,7 +45,7 @@ func ExecuteShell(command, workspaceDir string) (string, string, error) {
 	done := make(chan error, 1)
 	go func() { done <- cmd.Wait() }()
 
-	timer := time.NewTimer(ForegroundTimeout)
+	timer := time.NewTimer(GetForegroundTimeout())
 	defer timer.Stop()
 
 	select {
@@ -54,7 +54,7 @@ func ExecuteShell(command, workspaceDir string) (string, string, error) {
 	case <-timer.C:
 		KillProcessTree(cmd.Process.Pid)
 		<-done // drain so the goroutine exits cleanly
-		return stdout.String(), stderr.String(), fmt.Errorf("TIMEOUT: shell command exceeded %s limit", ForegroundTimeout)
+		return stdout.String(), stderr.String(), fmt.Errorf("TIMEOUT: shell command exceeded %s limit", GetForegroundTimeout())
 	}
 }
 
@@ -136,7 +136,7 @@ func ExecuteSudo(command, workspaceDir, password string) (string, string, error)
 	done := make(chan error, 1)
 	go func() { done <- cmd.Wait() }()
 
-	timer := time.NewTimer(ForegroundTimeout)
+	timer := time.NewTimer(GetForegroundTimeout())
 	defer timer.Stop()
 
 	select {
@@ -148,6 +148,6 @@ func ExecuteSudo(command, workspaceDir, password string) (string, string, error)
 	case <-timer.C:
 		KillProcessTree(cmd.Process.Pid)
 		<-done
-		return stdout.String(), stderr.String(), fmt.Errorf("TIMEOUT: sudo command exceeded %s limit", ForegroundTimeout)
+		return stdout.String(), stderr.String(), fmt.Errorf("TIMEOUT: sudo command exceeded %s limit", GetForegroundTimeout())
 	}
 }

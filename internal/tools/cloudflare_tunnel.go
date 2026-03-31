@@ -164,9 +164,10 @@ func CloudflareTunnelStatus(cfg CloudflareTunnelConfig, registry *ProcessRegistr
 		data, code, _ := dockerRequest(dockerCfg, "GET", "/containers/"+cfdContainerName+"/json", "")
 		if code == 200 {
 			var info map[string]interface{}
-			json.Unmarshal(data, &info)
-			if state, ok := info["State"].(map[string]interface{}); ok {
-				result["container_running"], _ = state["Running"].(bool)
+			if err := json.Unmarshal(data, &info); err == nil {
+				if state, ok := info["State"].(map[string]interface{}); ok {
+					result["container_running"], _ = state["Running"].(bool)
+				}
 			}
 		}
 	} else if tunnelPID > 0 {
