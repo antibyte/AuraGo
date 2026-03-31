@@ -7,7 +7,7 @@
   "cheatsheets.create_new": "Nieuw spiekbriefje",
   "cheatsheets.deactivate": "Uitzetten",
   "cheatsheets.delete": "Verwijderen",
-  "cheatsheets.delete_prompt": "Voer de naam in om {{name} te verwijderen }:",
+  "cheatsheets.delete_prompt": "Weet je zeker dat je {{name}} wilt verwijderen?",
   "cheatsheets.deleted": "Spiekbriefje verwijderd!",
   "cheatsheets.edit": "Bewerking",
   "cheatsheets.edit_sheet": "Spiekbriefje bewerken",

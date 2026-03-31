@@ -7,7 +7,7 @@
   "cheatsheets.create_new": "新しいチートシート",
   "cheatsheets.deactivate": "無効にする",
   "cheatsheets.delete": "消去",
-  "cheatsheets.delete_prompt": "削除する名前を入力してください {{name} }:",
+  "cheatsheets.delete_prompt": "{{name}} を削除してもよろしいですか？",
   "cheatsheets.deleted": "チートシートが削除されました!",
   "cheatsheets.edit": "編集",
   "cheatsheets.edit_sheet": "チートシートを編集する",

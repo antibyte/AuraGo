@@ -16,10 +16,13 @@ type EggConnection struct {
 	Conn          *websocket.Conn
 	EggID         string
 	NestID        string
-	SharedKey     string // hex-encoded
+	SharedKey     string // hex-encoded (current key)
+	PreviousKey   string // hex-encoded (previous key — valid for grace period after rotation)
+	PreviousKeyAt time.Time
 	LastHeartbeat time.Time
 	Status        string // "connected" | "idle" | "busy" | "error"
 	Telemetry     HeartbeatPayload
+	KeyVersion    int
 	mu            sync.Mutex
 }
 
@@ -176,6 +179,49 @@ func (h *EggHub) SendStop(nestID string) error {
 	return nil
 }
 
+// SendRekey encrypts a new shared key with the current key and sends it to the egg.
+// The hub updates the connection's key after sending; the previous key remains valid
+// for a grace period (60s) to handle in-flight messages.
+func (h *EggHub) SendRekey(nestID, newKeyHex string) error {
+	conn := h.GetConnection(nestID)
+	if conn == nil {
+		return fmt.Errorf("no active connection for nest %s", nestID)
+	}
+
+	// Encrypt the new key with the current shared key
+	encrypted, err := EncryptWithSharedKey([]byte(newKeyHex), conn.SharedKey)
+	if err != nil {
+		return fmt.Errorf("failed to encrypt new key: %w", err)
+	}
+
+	conn.mu.Lock()
+	conn.KeyVersion++
+	version := conn.KeyVersion
+	conn.mu.Unlock()
+
+	payload := RekeyPayload{
+		NewKeyEncrypted: encrypted,
+		KeyVersion:      version,
+	}
+	msg, err := NewMessage(MsgRekey, conn.EggID, nestID, conn.SharedKey, payload)
+	if err != nil {
+		return fmt.Errorf("failed to create rekey message: %w", err)
+	}
+	if err := conn.Send(msg); err != nil {
+		return err
+	}
+
+	// Rotate keys: current → previous, new → current
+	conn.mu.Lock()
+	conn.PreviousKey = conn.SharedKey
+	conn.PreviousKeyAt = time.Now()
+	conn.SharedKey = newKeyHex
+	conn.mu.Unlock()
+
+	h.logger.Info("Key rotated for egg", "nest_id", nestID, "version", version)
+	return nil
+}
+
 // HandleMessages reads messages from an egg connection and dispatches them.
 // Blocks until the connection closes or an error occurs.
 func (h *EggHub) HandleMessages(conn *EggConnection) {
@@ -216,8 +262,17 @@ func (h *EggHub) HandleMessages(conn *EggConnection) {
 			continue
 		}
 
-		// Verify HMAC
-		ok, err := VerifyMessage(msg, conn.SharedKey)
+		// Verify HMAC (try current key, fall back to previous key within grace period)
+		conn.mu.Lock()
+		currentKey := conn.SharedKey
+		prevKey := conn.PreviousKey
+		prevKeyAt := conn.PreviousKeyAt
+		conn.mu.Unlock()
+
+		ok, err := VerifyMessage(msg, currentKey)
+		if (err != nil || !ok) && prevKey != "" && time.Since(prevKeyAt) < 60*time.Second {
+			ok, err = VerifyMessage(msg, prevKey)
+		}
 		if err != nil || !ok {
 			h.logger.Warn("HMAC verification failed", "nest_id", conn.NestID)
 			errMsg, _ := NewMessage(MsgError, conn.EggID, conn.NestID, conn.SharedKey,

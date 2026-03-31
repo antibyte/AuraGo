@@ -2,6 +2,8 @@ package server
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -154,21 +156,75 @@ func (s *Server) deployEgg(nest invasion.NestRecord, egg invasion.EggRecord) err
 		MasterKey:    eggMasterKey,
 	}
 
-	// 9. Get connector and deploy
+	// 9. Create deployment history record
+	binaryHash := hashFile(binaryPath)
+	configHash := hashBytes(cfgYAML)
+	var deployID string
+	if s.InvasionDB != nil {
+		deployID, _ = invasion.CreateDeployment(s.InvasionDB, nest.ID, egg.ID, nest.DeployMethod, binaryHash, configHash)
+	}
+
+	// 10. Get connector and deploy
 	connector := invasion.GetConnector(nest)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
 	if err := connector.Deploy(ctx, nest, secretBytes, payload); err != nil {
+		if deployID != "" {
+			_ = invasion.UpdateDeploymentStatus(s.InvasionDB, deployID, "failed")
+		}
 		return err
 	}
 
-	// 10. Store shared key in vault for WebSocket auth
+	if deployID != "" {
+		_ = invasion.UpdateDeploymentStatus(s.InvasionDB, deployID, "deployed")
+	}
+
+	// 11. Health check with brief stabilization delay
+	time.Sleep(3 * time.Second)
+	if err := connector.HealthCheck(ctx, nest, secretBytes); err != nil {
+		s.Logger.Warn("Health check failed after deploy, attempting auto-rollback", "nest_id", nest.ID, "error", err)
+		if deployID != "" {
+			_ = invasion.UpdateDeploymentStatus(s.InvasionDB, deployID, "failed")
+		}
+		if rbErr := connector.Rollback(ctx, nest, secretBytes); rbErr != nil {
+			s.Logger.Error("Auto-rollback failed", "nest_id", nest.ID, "error", rbErr)
+			if deployID != "" {
+				_ = invasion.UpdateDeploymentStatus(s.InvasionDB, deployID, "failed")
+			}
+			return fmt.Errorf("deploy health check failed (%w) and rollback also failed: %v", err, rbErr)
+		}
+		if deployID != "" {
+			_ = invasion.UpdateDeploymentStatus(s.InvasionDB, deployID, "rolled_back")
+		}
+		return fmt.Errorf("deploy health check failed, rolled back: %w", err)
+	}
+
+	if deployID != "" {
+		_ = invasion.UpdateDeploymentStatus(s.InvasionDB, deployID, "verified")
+	}
+
+	// 12. Store shared key in vault for WebSocket auth
 	if err := s.Vault.WriteSecret("egg_shared_"+nest.ID, sharedKey); err != nil {
 		s.Logger.Warn("Failed to store egg shared key in vault", "nest_id", nest.ID, "error", err)
 	}
 
 	return nil
+}
+
+// hashFile returns the SHA-256 hex hash of a file, or empty string on error.
+func hashFile(path string) string {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	return hashBytes(data)
+}
+
+// hashBytes returns the SHA-256 hex hash of a byte slice.
+func hashBytes(data []byte) string {
+	h := sha256.Sum256(data)
+	return hex.EncodeToString(h[:])
 }
 
 // resolveBinaryPath finds the correct AuraGo binary for the target architecture.
@@ -542,9 +598,28 @@ func handleInvasionNestSendTask(s *Server) http.HandlerFunc {
 			Timeout:     req.Timeout,
 		}
 
+		// Persist task in DB before sending
+		if s.InvasionDB != nil {
+			eggID := ""
+			if conn := s.EggHub.GetConnection(id); conn != nil {
+				eggID = conn.EggID
+			}
+			taskID, err := invasion.CreateTask(s.InvasionDB, id, eggID, req.Description, req.Timeout)
+			if err != nil {
+				s.Logger.Warn("Failed to persist task", "error", err)
+			} else {
+				taskPayload.TaskID = taskID
+			}
+		}
+
 		if err := s.EggHub.SendTask(id, taskPayload); err != nil {
 			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to send task", "Failed to send invasion task", err, "nest_id", id, "task_id", taskPayload.TaskID)
 			return
+		}
+
+		// Mark as sent
+		if s.InvasionDB != nil {
+			_ = invasion.UpdateTaskStatus(s.InvasionDB, taskPayload.TaskID, "sent", "", "")
 		}
 
 		s.Logger.Info("Task sent to egg", "nest_id", id, "task_id", taskPayload.TaskID)
@@ -553,6 +628,177 @@ func handleInvasionNestSendTask(s *Server) http.HandlerFunc {
 			"task_id": taskPayload.TaskID,
 			"nest_id": id,
 		})
+	}
+}
+
+// ── Key Rotation API ────────────────────────────────────────────────────────
+
+func handleInvasionNestRotateKey(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if s.InvasionDB == nil || r.Method != http.MethodPost {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		id := extractNestSubID(r.URL.Path, "rotate-key")
+		if id == "" {
+			jsonError(w, "Missing nest ID", http.StatusBadRequest)
+			return
+		}
+
+		if !s.EggHub.IsConnected(id) {
+			jsonError(w, "No active WebSocket connection to this nest", http.StatusConflict)
+			return
+		}
+
+		// Generate new key
+		newKey, err := invasion.GenerateSharedKey()
+		if err != nil {
+			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to generate key", "Key generation failed", err, "nest_id", id)
+			return
+		}
+
+		// Send rekey to egg via hub (encrypts with current key, rotates)
+		if err := s.EggHub.SendRekey(id, newKey); err != nil {
+			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to send rekey", "Rekey message failed", err, "nest_id", id)
+			return
+		}
+
+		// Update vault with new key
+		if err := s.Vault.WriteSecret("egg_shared_"+id, newKey); err != nil {
+			s.Logger.Error("Failed to update vault after rekey — key mismatch possible!", "nest_id", id, "error", err)
+			jsonError(w, "Key rotated on egg but vault update failed — check logs", http.StatusInternalServerError)
+			return
+		}
+
+		s.Logger.Info("Shared key rotated successfully", "nest_id", id)
+		writeJSON(w, map[string]interface{}{
+			"status":  "rotated",
+			"nest_id": id,
+		})
+	}
+}
+
+// ── Task history API ────────────────────────────────────────────────────────
+
+func handleInvasionNestTasks(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if s.InvasionDB == nil || r.Method != http.MethodGet {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		id := extractNestSubID(r.URL.Path, "tasks")
+		if id == "" {
+			jsonError(w, "Missing nest ID", http.StatusBadRequest)
+			return
+		}
+
+		tasks, err := invasion.GetTasksByNest(s.InvasionDB, id, 100)
+		if err != nil {
+			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to get tasks", "Failed to query invasion tasks", err, "nest_id", id)
+			return
+		}
+		if tasks == nil {
+			tasks = []invasion.TaskRecord{}
+		}
+		writeJSON(w, tasks)
+	}
+}
+
+func handleInvasionTask(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if s.InvasionDB == nil || r.Method != http.MethodGet {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		id := strings.TrimPrefix(r.URL.Path, "/api/invasion/tasks/")
+		id = strings.TrimSuffix(id, "/")
+		if id == "" {
+			jsonError(w, "Missing task ID", http.StatusBadRequest)
+			return
+		}
+
+		task, err := invasion.GetTaskByID(s.InvasionDB, id)
+		if err != nil {
+			jsonError(w, "Task not found", http.StatusNotFound)
+			return
+		}
+		writeJSON(w, task)
+	}
+}
+
+// ── Rollback API ────────────────────────────────────────────────────────────
+
+func handleInvasionNestRollback(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if s.InvasionDB == nil || r.Method != http.MethodPost {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		id := extractNestSubID(r.URL.Path, "rollback")
+		if id == "" {
+			jsonError(w, "Missing nest ID", http.StatusBadRequest)
+			return
+		}
+
+		nest, err := invasion.GetNest(s.InvasionDB, id)
+		if err != nil {
+			jsonError(w, "Nest not found", http.StatusNotFound)
+			return
+		}
+
+		var secretBytes []byte
+		if nest.VaultSecretID != "" {
+			secretStr, _ := s.Vault.ReadSecret(nest.VaultSecretID)
+			secretBytes = []byte(secretStr)
+		}
+
+		connector := invasion.GetConnector(nest)
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer cancel()
+
+		if err := connector.Rollback(ctx, nest, secretBytes); err != nil {
+			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Rollback failed", "Invasion rollback failed", err, "nest_id", id)
+			return
+		}
+
+		// Mark the last deployment as rolled back
+		if last, err := invasion.GetLastSuccessfulDeployment(s.InvasionDB, id); err == nil {
+			_ = invasion.UpdateDeploymentStatus(s.InvasionDB, last.ID, "rolled_back")
+		}
+
+		_ = invasion.UpdateNestHatchStatus(s.InvasionDB, id, "running", "")
+		s.Logger.Info("Rollback completed", "nest_id", id)
+
+		writeJSON(w, map[string]interface{}{
+			"status":  "rolled_back",
+			"nest_id": id,
+		})
+	}
+}
+
+// ── Deployment history API ──────────────────────────────────────────────────
+
+func handleInvasionNestDeployments(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if s.InvasionDB == nil || r.Method != http.MethodGet {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		id := extractNestSubID(r.URL.Path, "deployments")
+		if id == "" {
+			jsonError(w, "Missing nest ID", http.StatusBadRequest)
+			return
+		}
+
+		deployments, err := invasion.GetDeploymentHistory(s.InvasionDB, id, 50)
+		if err != nil {
+			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to get deployment history", "Invasion deployment history query failed", err, "nest_id", id)
+			return
+		}
+		if deployments == nil {
+			deployments = []invasion.DeploymentRecord{}
+		}
+		writeJSON(w, deployments)
 	}
 }
 

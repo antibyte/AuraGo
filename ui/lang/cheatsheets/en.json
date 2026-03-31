@@ -17,7 +17,7 @@
   "cheatsheets.activate": "Activate",
   "cheatsheets.deactivate": "Deactivate",
   "cheatsheets.confirm_delete": "Confirm Deletion",
-  "cheatsheets.delete_prompt": "Type the name to confirm deletion of {{name}}:",
+  "cheatsheets.delete_prompt": "Are you sure you want to delete {{name}}?",
   "cheatsheets.deleted": "Cheat sheet deleted!",
   "cheatsheets.saved": "Cheat sheet saved!",
   "cheatsheets.error": "Error",

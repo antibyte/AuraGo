@@ -24,6 +24,13 @@ func (c *SSHConnector) Validate(ctx context.Context, nest NestRecord, secret []b
 
 func (c *SSHConnector) Deploy(ctx context.Context, nest NestRecord, secret []byte, payload EggDeployPayload) error {
 	baseDir := fmt.Sprintf("~/.aurago-egg-%s", nest.ID[:8])
+	backupDir := baseDir + ".bak"
+
+	// 0. Backup existing deployment (if any)
+	backupCmd := fmt.Sprintf("if [ -d %s ]; then rm -rf %s; cp -a %s %s; fi", baseDir, backupDir, baseDir, backupDir)
+	if _, err := remote.ExecuteRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, backupCmd); err != nil {
+		return fmt.Errorf("failed to backup existing deployment: %w", err)
+	}
 
 	// 1. Create target directory
 	mkdirCmd := fmt.Sprintf("mkdir -p %s/data %s/log %s/prompts", baseDir, baseDir, baseDir)
@@ -165,5 +172,52 @@ func (c *SSHConnector) startProcess(ctx context.Context, nest NestRecord, secret
 		return fmt.Errorf("failed to start egg process: %w", err)
 	}
 	_ = output // PID returned but not stored (we use process detection for status)
+	return nil
+}
+
+func (c *SSHConnector) HealthCheck(ctx context.Context, nest NestRecord, secret []byte) error {
+	baseDir := fmt.Sprintf("~/.aurago-egg-%s", nest.ID[:8])
+	// Check if the egg process is running
+	checkCmd := fmt.Sprintf("pgrep -f '%s/aurago' >/dev/null 2>&1 && echo ok || echo fail", baseDir)
+	output, err := remote.ExecuteRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, checkCmd)
+	if err != nil {
+		return fmt.Errorf("health check failed: %w", err)
+	}
+	if !strings.Contains(output, "ok") {
+		return fmt.Errorf("egg process not running")
+	}
+	return nil
+}
+
+func (c *SSHConnector) Rollback(ctx context.Context, nest NestRecord, secret []byte) error {
+	baseDir := fmt.Sprintf("~/.aurago-egg-%s", nest.ID[:8])
+	backupDir := baseDir + ".bak"
+
+	// Check if backup exists
+	checkCmd := fmt.Sprintf("test -d %s && echo ok || echo missing", backupDir)
+	output, err := remote.ExecuteRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, checkCmd)
+	if err != nil {
+		return fmt.Errorf("failed to check backup: %w", err)
+	}
+	if !strings.Contains(output, "ok") {
+		return fmt.Errorf("no backup found for rollback")
+	}
+
+	// Stop current egg
+	_ = c.Stop(ctx, nest, secret)
+
+	// Replace current with backup
+	restoreCmd := fmt.Sprintf("rm -rf %s && mv %s %s", baseDir, backupDir, baseDir)
+	if _, err := remote.ExecuteRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, restoreCmd); err != nil {
+		return fmt.Errorf("failed to restore backup: %w", err)
+	}
+
+	// Restart the restored egg
+	serviceName := fmt.Sprintf("aurago-egg-%s", nest.ID[:8])
+	startCmd := fmt.Sprintf("systemctl --user restart %s 2>/dev/null || (cd %s && set -a && source .env && set +a && nohup ./aurago > log/egg.log 2>&1 &)", serviceName, baseDir)
+	if _, err := remote.ExecuteRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, startCmd); err != nil {
+		return fmt.Errorf("failed to restart after rollback: %w", err)
+	}
+
 	return nil
 }

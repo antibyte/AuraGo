@@ -156,13 +156,18 @@ func GenerateEggConfig(masterCfg *config.Config, egg EggRecord, nest NestRecord,
 	}
 
 	// ── EggMode (the critical section) ──
-	cfg["egg_mode"] = map[string]interface{}{
+	eggModeCfg := map[string]interface{}{
 		"enabled":    true,
 		"master_url": masterURL,
 		"shared_key": sharedKey,
 		"egg_id":     egg.ID,
 		"nest_id":    nest.ID,
 	}
+	// When master uses self-signed TLS, the egg must skip certificate verification.
+	if masterCfg.Server.HTTPS.Enabled && masterCfg.Server.HTTPS.CertMode == "selfsigned" {
+		eggModeCfg["tls_skip_verify"] = true
+	}
+	cfg["egg_mode"] = eggModeCfg
 
 	data, err := yaml.Marshal(cfg)
 	if err != nil {
@@ -179,6 +184,16 @@ func ResolveMasterURL(masterCfg *config.Config, nest NestRecord) string {
 	masterPort := masterCfg.Server.Port
 	if masterPort == 0 {
 		masterPort = 8080
+	}
+
+	// Use wss:// when the master has HTTPS enabled.
+	if masterCfg.Server.HTTPS.Enabled {
+		scheme = "wss"
+		if masterCfg.Server.HTTPS.HTTPSPort > 0 {
+			masterPort = masterCfg.Server.HTTPS.HTTPSPort
+		} else {
+			masterPort = 443
+		}
 	}
 
 	// For local Docker deployments the egg runs inside a container and cannot

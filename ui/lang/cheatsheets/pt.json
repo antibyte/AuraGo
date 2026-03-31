@@ -7,7 +7,7 @@
   "cheatsheets.create_new": "Nova folha de dicas",
   "cheatsheets.deactivate": "Desativar",
   "cheatsheets.delete": "Excluir",
-  "cheatsheets.delete_prompt": "Digite o nome para excluir {{name} }:",
+  "cheatsheets.delete_prompt": "Tem certeza de que deseja excluir {{name}}?",
   "cheatsheets.deleted": "Folha de dicas excluída!",
   "cheatsheets.edit": "Editar",
   "cheatsheets.edit_sheet": "Editar folha de dicas",

@@ -1,44 +1,36 @@
 /**
  * AuraGo Design Tokens
- * Centralized CSS custom properties for theming consistency
+ * Centralized CSS custom properties for theming consistency.
+ * NOTE: Base theme colours (--bg-*, --text-*, --accent, --border-subtle,
+ *       --success, --warning, --danger) live in shared.css which also
+ *       provides the [data-theme="light"] overrides.
+ *       This file only adds tokens that shared.css does not define.
  */
 
 :root {
   /* ───────────────────────────────────────────────────────────────
-   * COLORS
+   * COLORS  (supplements shared.css — no duplicates)
    * ─────────────────────────────────────────────────────────────── */
   
-  /* Accent / Brand */
-  --accent: #2dd4bf;
-  --accent-dim: rgba(45, 212, 191, 0.15);
-  --accent-glow: rgba(45, 212, 191, 0.3);
+  /* Accent variants (hover / active / focus states) */
   --accent-hover: #5eead4;
   --accent-active: #14b8a6;
   
-  /* Backgrounds */
-  --bg-primary: #0f0f0f;
-  --bg-secondary: #1a1a1a;
-  --bg-tertiary: #232323;
+  /* Extra background layers */
   --bg-elevated: #171c24;
   --bg-overlay: rgba(0, 0, 0, 0.7);
   
-  /* Text */
-  --text-primary: #e5e5e5;
-  --text-secondary: #a1a1aa;
+  /* Extra text variants */
   --text-muted: #71717a;
   --text-inverse: #0f0f0f;
   
-  /* Borders */
+  /* Extra border variants */
   --border: #2a2a2a;
-  --border-subtle: rgba(255, 255, 255, 0.08);
   --border-focus: var(--accent);
   
-  /* Status / Semantic */
-  --success: #22c55e;
+  /* Status dim variants */
   --success-dim: rgba(34, 197, 94, 0.15);
-  --warning: #eab308;
   --warning-dim: rgba(234, 179, 8, 0.15);
-  --danger: #ef4444;
   --danger-dim: rgba(239, 68, 68, 0.15);
   --info: #3b82f6;
   --info-dim: rgba(59, 130, 246, 0.15);

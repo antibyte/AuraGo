@@ -7,7 +7,7 @@
   "cheatsheets.create_new": "Nowa ściągawka",
   "cheatsheets.deactivate": "Wyłączyć",
   "cheatsheets.delete": "Usuwać",
-  "cheatsheets.delete_prompt": "Wprowadź nazwę, aby usunąć {{name} }:",
+  "cheatsheets.delete_prompt": "Czy na pewno chcesz usunąć {{name}}?",
   "cheatsheets.deleted": "Ściągawka usunięta!",
   "cheatsheets.edit": "Redagować",
   "cheatsheets.edit_sheet": "Edytuj ściągawkę",

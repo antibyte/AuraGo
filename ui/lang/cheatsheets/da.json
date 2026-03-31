@@ -7,7 +7,7 @@
   "cheatsheets.create_new": "Nyt snydeark",
   "cheatsheets.deactivate": "Deaktiver",
   "cheatsheets.delete": "Slet",
-  "cheatsheets.delete_prompt": "Indtast navnet for at slette {{name} }:",
+  "cheatsheets.delete_prompt": "Er du sikker på, at du vil slette {{name}}?",
   "cheatsheets.deleted": "Snydeark slettet!",
   "cheatsheets.edit": "Redigere",
   "cheatsheets.edit_sheet": "Rediger snydeark",

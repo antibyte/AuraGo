@@ -47,21 +47,22 @@
         <div class="logo">
             <div class="logo-icon">✦</div>
             <span class="logo-wordmark-accent">AURA</span><span class="logo-wordmark-base">GO</span>
-            <span id="header-subtitle"
-                class="logo-subtitle">
-                <script>document.write(t('setup.header_subtitle'))</script>
-            </span>
+            <span id="header-subtitle" class="logo-subtitle" data-i18n="setup.header_subtitle">Quick Setup</span>
         </div>
         <div class="header-actions">
             <button id="theme-toggle" type="button" class="btn-theme" data-i18n-title="common.toggle_theme"></button>
-            <button id="btn-skip-setup" class="btn-header btn-skip" onclick="skipSetup()">
-                <script>document.write(t('setup.skip_button'))</script>
-            </button>
+            <button id="btn-skip-setup" class="btn-header btn-skip" onclick="skipSetup()" data-i18n="setup.skip_button">Skip ✕</button>
         </div>
     </header>
 
     <!-- ── Toast Container ─────────────────────── -->
     <div class="toast-container" id="toastContainer"></div>
+
+    <!-- ── HTTPS Warning Banner ────────────────── -->
+    <div id="https-warning" class="https-warning is-hidden">
+        <span>⚠️</span>
+        <span data-i18n="setup.https_warning">You are using an unencrypted HTTP connection. API keys may be transmitted insecurely.</span>
+    </div>
 
     <!-- ── Main Setup Card ─────────────────────── -->
     <div class="setup-container">
@@ -69,33 +70,38 @@
 
             <!-- Step Indicator -->
             <div class="step-indicator">
-                <div class="step-dot active" data-step="0" onclick="goToStep(0)"></div>
+                <div class="step-group">
+                    <div class="step-dot active" data-step="0" onclick="goToStep(0)"></div>
+                    <span class="step-label" data-i18n="setup.step_label_0">Connection</span>
+                </div>
                 <div class="step-line" id="line-0-1"></div>
-                <div class="step-dot" data-step="1" onclick="goToStep(1)"></div>
+                <div class="step-group">
+                    <div class="step-dot" data-step="1" onclick="goToStep(1)"></div>
+                    <span class="step-label" data-i18n="setup.step_label_1">Capabilities</span>
+                </div>
                 <div class="step-line" id="line-1-2"></div>
-                <div class="step-dot" data-step="2" onclick="goToStep(2)"></div>
+                <div class="step-group">
+                    <div class="step-dot" data-step="2" onclick="goToStep(2)"></div>
+                    <span class="step-label" data-i18n="setup.step_label_2">Personality</span>
+                </div>
                 <div class="step-line" id="line-2-3"></div>
-                <div class="step-dot" data-step="3" onclick="goToStep(3)"></div>
+                <div class="step-group">
+                    <div class="step-dot" data-step="3" onclick="goToStep(3)"></div>
+                    <span class="step-label" data-i18n="setup.step_label_3">Security</span>
+                </div>
             </div>
 
             <!-- ═══ Section 1: Minimum Config ═══ -->
             <div class="setup-section active" id="step-0">
                 <div class="section-header">
-                    <div id="badge-step0" class="section-badge badge-required">
-                        <script>document.write(t('setup.step0_badge'))</script>
-                    </div>
-                    <h2 id="title-step0" class="section-title">
-                        <script>document.write(t('setup.step0_title'))</script>
-                    </h2>
-                    <p id="desc-step0" class="section-desc">
-                        <script>document.write(t('setup.step0_description'))</script>
-                    </p>
+                    <div id="badge-step0" class="section-badge badge-required" data-i18n="setup.step0_badge">⚡ Required</div>
+                    <h2 id="title-step0" class="section-title" data-i18n="setup.step0_title">LLM Connection</h2>
+                    <p id="desc-step0" class="section-desc" data-i18n="setup.step0_description">AuraGo requires at least one LLM connection to function. Choose your provider and enter the API key.</p>
                 </div>
 
                 <div class="field-group">
                     <label id="lbl-provider" class="field-label">
-                        <script>document.write(t('setup.step0_provider_label'))</script> <span
-                            class="required-star">*</span>
+                        <span data-i18n="setup.step0_provider_label">Provider</span> <span class="required-star">*</span>
                     </label>
                     <select class="field-select" id="llm-provider" onchange="onProviderChange()">
                         <option value="openrouter" data-i18n="setup.step0_provider_openrouter">OpenRouter</option>
@@ -105,90 +111,77 @@
                         <option value="ollama" data-i18n="setup.step0_provider_ollama">Ollama (local)</option>
                         <option value="custom" data-i18n="setup.step0_provider_custom">Custom / Other</option>
                     </select>
-                    <div id="hint-provider" class="field-hint">
-                        <script>document.write(t('setup.step0_provider_hint'))</script>
-                    </div>
+                    <div id="hint-provider" class="field-hint" data-i18n="setup.step0_provider_hint">OpenRouter recommended — offers many models including free options.</div>
                 </div>
 
                 <div class="field-group" id="group-api-key">
                     <label id="lbl-api-key" class="field-label">
-                        <script>document.write(t('setup.step0_api_key_label'))</script> <span
-                            class="required-star">*</span>
+                        <span data-i18n="setup.step0_api_key_label">API Key</span> <span class="required-star">*</span>
                     </label>
                     <input class="field-input" type="password" id="llm-api-key" placeholder="sk-or-v1-..."
                         autocomplete="off">
-                    <div class="field-error" id="err-api-key">
-                        <script>document.write(t('setup.step0_api_key_error'))</script>
-                    </div>
-                    <div class="field-hint" id="hint-api-key"><span id="hint-api-key-text">
-                            <script>document.write(t('setup.step0_api_key_hint'))</script>
-                        </span> <span id="provider-link">openrouter.ai</span></div>
+                    <div class="field-error" id="err-api-key" data-i18n="setup.step0_api_key_error">API Key is required.</div>
+                    <div class="field-hint" id="hint-api-key"><span id="hint-api-key-text" data-i18n="setup.step0_api_key_hint">Available at</span> <span id="provider-link">openrouter.ai</span></div>
+                    <button type="button" id="btn-test-connection" class="btn-setup btn-test-connection" onclick="testConnection()" data-i18n="setup.step0_test_connection">🔌 Test Connection</button>
+                    <div id="test-connection-result" class="field-hint is-hidden"></div>
                 </div>
 
                 <div class="field-group">
                     <label id="lbl-admin-password" class="field-label">
-                        <script>document.write(t('setup.step0_admin_password_label'))</script> <span
-                            class="required-star">*</span>
+                        <span data-i18n="setup.step0_admin_password_label">Admin password</span> <span class="required-star">*</span>
                     </label>
                     <input class="field-input" type="password" id="admin-password"
                         data-i18n-placeholder="setup.step0_admin_password_placeholder" placeholder="Minimum 8 characters" autocomplete="new-password">
-                    <div class="field-error" id="err-admin-password">
-                        <script>document.write(t('setup.step0_admin_password_error'))</script>
-                    </div>
-                    <div class="field-hint" id="hint-admin-password">
-                        <script>document.write(t('setup.step0_admin_password_hint'))</script>
-                    </div>
+                    <div class="field-error" id="err-admin-password" data-i18n="setup.step0_admin_password_error">Admin password must be at least 8 characters.</div>
+                    <div class="field-hint" id="hint-admin-password" data-i18n="setup.step0_admin_password_hint">Protects the web UI and API on first start. You can change it later in Login Guard.</div>
+                </div>
+
+                <div class="field-group" id="group-password-confirm">
+                    <label id="lbl-admin-password-confirm" class="field-label" data-i18n="setup.step0_admin_password_confirm_label">Confirm Password</label>
+                    <input class="field-input" type="password" id="admin-password-confirm"
+                        data-i18n-placeholder="setup.step0_admin_password_confirm_placeholder" placeholder="Repeat password" autocomplete="new-password">
+                    <div class="field-error" id="err-admin-password-confirm" data-i18n="setup.step0_admin_password_confirm_error">Passwords do not match.</div>
                 </div>
 
                 <div class="field-group">
-                    <label id="lbl-base-url" class="field-label">
-                        <script>document.write(t('setup.step0_base_url_label'))</script>
-                    </label>
+                    <label id="lbl-base-url" class="field-label" data-i18n="setup.step0_base_url_label">Base URL</label>
                     <input class="field-input" type="url" id="llm-base-url" placeholder="https://openrouter.ai/api/v1">
-                    <div id="hint-base-url" class="field-hint">
-                        <script>document.write(t('setup.step0_base_url_hint'))</script>
-                    </div>
+                    <div id="hint-base-url" class="field-hint" data-i18n="setup.step0_base_url_hint">Automatically set based on the provider.</div>
                 </div>
 
                 <div class="field-row">
                     <div class="field-group">
                         <label id="lbl-model" class="field-label">
-                            <script>document.write(t('setup.step0_model_label'))</script> <span
-                                class="required-star">*</span>
+                            <span data-i18n="setup.step0_model_label">Model</span> <span class="required-star">*</span>
                         </label>
                         <div class="setup-inline-row">
                             <input class="field-input setup-flex-1" type="text" id="llm-model"
                                 data-i18n-placeholder="setup.step0_model_placeholder" placeholder="e.g. gpt-4o, claude-sonnet-4-20250514">
-                            <button type="button" id="or-browse-btn" class="btn-primary setup-or-browse is-hidden"
-                                onclick="openOpenRouterBrowser(function(m){document.getElementById('llm-model').value=m.id;document.getElementById('err-model').style.display='none';})">
-                                <script>document.write(t('setup.step0_model_browse'))</script>
-                            </button>
+                            <button type="button" id="or-browse-btn" class="btn-primary setup-or-browse"
+                                onclick="openOpenRouterBrowser(function(m){document.getElementById('llm-model').value=m.id;document.getElementById('err-model').style.display='none';})" data-i18n="setup.step0_model_browse">🌐 Browse</button>
                         </div>
-                        <div class="field-error" id="err-model">
-                            <script>document.write(t('setup.step0_model_error'))</script>
-                        </div>
+                        <div class="field-error" id="err-model" data-i18n="setup.step0_model_error">Model name is required.</div>
                     </div>
                     <div class="field-group">
-                        <label class="field-label" id="lang-label">
-                            <script>document.write(t('setup.step0_language_label'))</script>
-                        </label>
+                        <label class="field-label" id="lang-label" data-i18n="setup.step0_language_label">Language</label>
                         <select class="field-select" id="system-language" onchange="onLanguageChange()">
-                            <option value="Deutsch" data-i18n="setup.language_de">Deutsch</option>
-                            <option value="English" data-i18n="setup.language_en">English</option>
-                            <option value="Español" data-i18n="setup.language_es">Español</option>
-                            <option value="Français" data-i18n="setup.language_fr">Français</option>
-                            <option value="Polski" data-i18n="setup.language_pl">Polski</option>
-                            <option value="中文" data-i18n="setup.language_zh">中文</option>
-                            <option value="हिन्दी" data-i18n="setup.language_hi">हिन्दी</option>
-                            <option value="Nederlands" data-i18n="setup.language_nl">Nederlands</option>
-                            <option value="Italiano" data-i18n="setup.language_it">Italiano</option>
-                            <option value="Português" data-i18n="setup.language_pt">Português</option>
-                            <option value="Dansk" data-i18n="setup.language_da">Dansk</option>
-                            <option value="日本語" data-i18n="setup.language_ja">日本語</option>
-                            <option value="Svenska" data-i18n="setup.language_sv">Svenska</option>
-                            <option value="Norsk" data-i18n="setup.language_no">Norsk</option>
-                            <option value="Čeština" data-i18n="setup.language_cs">Čeština</option>
-                            <option value="Other / Custom" data-i18n="setup.step0_provider_custom">Other / Custom</option>
+                            <option value="de" data-i18n="setup.language_de">Deutsch</option>
+                            <option value="en" data-i18n="setup.language_en">English</option>
+                            <option value="es" data-i18n="setup.language_es">Español</option>
+                            <option value="fr" data-i18n="setup.language_fr">Français</option>
+                            <option value="pl" data-i18n="setup.language_pl">Polski</option>
+                            <option value="zh" data-i18n="setup.language_zh">中文</option>
+                            <option value="hi" data-i18n="setup.language_hi">हिन्दी</option>
+                            <option value="nl" data-i18n="setup.language_nl">Nederlands</option>
+                            <option value="it" data-i18n="setup.language_it">Italiano</option>
+                            <option value="pt" data-i18n="setup.language_pt">Português</option>
+                            <option value="da" data-i18n="setup.language_da">Dansk</option>
+                            <option value="ja" data-i18n="setup.language_ja">日本語</option>
+                            <option value="sv" data-i18n="setup.language_sv">Svenska</option>
+                            <option value="no" data-i18n="setup.language_no">Norsk</option>
+                            <option value="el" data-i18n="setup.language_el">Ελληνικά</option>
+                            <option value="cs" data-i18n="setup.language_cs">Čeština</option>
+                            <option value="custom" data-i18n="setup.step0_provider_custom">Other / Custom</option>
                         </select>
                         <input class="field-input is-hidden mt-xs" type="text" id="system-language-custom" placeholder="e.g. Klingon">
                     </div>
@@ -196,12 +189,9 @@
 
                 <div class="toggle-row">
                     <div>
-                        <div id="lbl-native-functions" class="toggle-label">
-                            <script>document.write(t('setup.step0_native_functions_label'))</script>
+                        <div id="lbl-native-functions" class="toggle-label" data-i18n="setup.step0_native_functions_label">Native Function Calling ⚠️</div>
                         </div>
-                        <div id="desc-native-functions" class="toggle-desc">
-                            <script>document.write(t('setup.step0_native_functions_desc'))</script>
-                        </div>
+                        <div id="desc-native-functions" class="toggle-desc" data-i18n-html="setup.step0_native_functions_desc">Uses the provider's native tool calls. <strong>Warning:</strong> Only enable if the model supports this (GPT-4, Claude, Gemini). Free-tier models often do NOT support this!</div>
                     </div>
                     <label class="toggle-switch">
                         <input type="checkbox" id="native-functions">
@@ -213,53 +203,44 @@
             <!-- ═══ Section 2: Recommended Optional ═══ -->
             <div class="setup-section" id="step-1">
                 <div class="section-header">
-                    <div id="badge-step1" class="section-badge badge-recommended">
-                        <script>document.write(t('setup.step1_badge'))</script>
-                    </div>
-                    <h2 id="title-step1" class="section-title">
-                        <script>document.write(t('setup.step1_title'))</script>
-                    </h2>
-                    <p id="desc-step1" class="section-desc">
-                        <script>document.write(t('setup.step1_description'))</script>
-                    </p>
+                    <div id="badge-step1" class="section-badge badge-recommended" data-i18n="setup.step1_badge">⭐ Recommended</div>
+                    <h2 id="title-step1" class="section-title" data-i18n="setup.step1_title">Enhanced Capabilities</h2>
+                    <p id="desc-step1" class="section-desc" data-i18n="setup.step1_description">These settings significantly improve AuraGo's capabilities. You can configure them now or later in the Config UI.</p>
                 </div>
 
                 <!-- Embeddings -->
                 <div class="mb-lg">
-                    <h3 id="heading-embeddings" class="setup-section-heading">
-                        <script>document.write(t('setup.step1_embeddings_heading'))</script>
-                    </h3>
+                    <h3 id="heading-embeddings" class="setup-section-heading" data-i18n="setup.step1_embeddings_heading">🧠 Embeddings (Long-Term Memory)</h3>
+                    <p class="field-hint mb-sm" data-i18n="setup.step1_embeddings_explanation">Embeddings enable semantic long-term memory. AuraGo can remember and recall information across conversations.</p>
                     <div class="field-row">
                         <div class="field-group">
-                            <label id="lbl-emb-provider" class="field-label">
-                                <script>document.write(t('setup.step1_embeddings_provider_label'))</script>
-                            </label>
-                            <select class="field-select" id="emb-provider">
+                            <label id="lbl-emb-provider" class="field-label" data-i18n="setup.step1_embeddings_provider_label">Provider</label>
+                            <select class="field-select" id="emb-provider" onchange="onEmbProviderChange()">
                                 <option value="internal" data-i18n="setup.step1_embeddings_provider_internal">Internal (OpenRouter/OpenAI compatible)</option>
                                 <option value="ollama" data-i18n="setup.step1_embeddings_provider_ollama">Ollama (local)</option>
                                 <option value="" data-i18n="setup.step1_embeddings_provider_disabled">Disabled</option>
                             </select>
                         </div>
                         <div class="field-group">
-                            <label id="lbl-emb-model" class="field-label">
-                                <script>document.write(t('setup.step1_embeddings_model_label'))</script>
-                            </label>
+                            <label id="lbl-emb-model" class="field-label" data-i18n="setup.step1_embeddings_model_label">Model</label>
                             <input class="field-input" type="text" id="emb-model" placeholder="qwen/qwen3-embedding-8b"
                                 value="qwen/qwen3-embedding-8b">
                         </div>
+                    </div>
+                    <div class="field-group" id="emb-apikey-group">
+                        <label id="lbl-emb-apikey" class="field-label" data-i18n="setup.step1_embeddings_apikey_label">API Key</label>
+                        <input class="field-input" type="password" id="emb-api-key"
+                            placeholder="Leave empty to use main API key">
+                        <div id="hint-emb-apikey" class="field-hint" data-i18n="setup.step1_embeddings_apikey_hint">Only needed if using a different API key than the main provider.</div>
                     </div>
                 </div>
 
                 <!-- Vision -->
                 <div class="mb-lg">
-                    <h3 id="heading-vision" class="setup-section-heading">
-                        <script>document.write(t('setup.step1_vision_heading'))</script>
-                    </h3>
+                    <h3 id="heading-vision" class="setup-section-heading" data-i18n="setup.step1_vision_heading">👁️ Vision (Image Recognition)</h3>
                     <div class="field-row">
                         <div class="field-group">
-                            <label id="lbl-vision-provider" class="field-label">
-                                <script>document.write(t('setup.step1_vision_provider_label'))</script>
-                            </label>
+                            <label id="lbl-vision-provider" class="field-label" data-i18n="setup.step1_vision_provider_label">Provider</label>
                             <select class="field-select" id="vision-provider">
                                 <option value="openrouter" data-i18n="setup.step1_vision_provider_openrouter">OpenRouter</option>
                                 <option value="openai" data-i18n="setup.step1_vision_provider_openai">OpenAI</option>
@@ -268,9 +249,7 @@
                             </select>
                         </div>
                         <div class="field-group">
-                            <label id="lbl-vision-model" class="field-label">
-                                <script>document.write(t('setup.step1_vision_model_label'))</script>
-                            </label>
+                            <label id="lbl-vision-model" class="field-label" data-i18n="setup.step1_vision_model_label">Model</label>
                             <input class="field-input" type="text" id="vision-model"
                                 placeholder="google/gemini-2.5-flash-lite-preview-09-2025"
                                 value="google/gemini-2.5-flash-lite-preview-09-2025">
@@ -280,14 +259,10 @@
 
                 <!-- Whisper / STT -->
                 <div>
-                    <h3 id="heading-whisper" class="setup-section-heading">
-                        <script>document.write(t('setup.step1_whisper_heading'))</script>
-                    </h3>
+                    <h3 id="heading-whisper" class="setup-section-heading" data-i18n="setup.step1_whisper_heading">🎙️ Speech-to-Text (Whisper)</h3>
                     <div class="field-row">
                         <div class="field-group">
-                            <label id="lbl-whisper-provider" class="field-label">
-                                <script>document.write(t('setup.step1_whisper_provider_label'))</script>
-                            </label>
+                            <label id="lbl-whisper-provider" class="field-label" data-i18n="setup.step1_whisper_provider_label">Provider</label>
                             <select class="field-select" id="whisper-provider" onchange="onWhisperProviderChange()">
                                 <option value="openrouter" data-i18n="setup.step1_whisper_provider_openrouter">OpenRouter</option>
                                 <option value="openai" data-i18n="setup.step1_whisper_provider_openai">OpenAI</option>
@@ -296,17 +271,13 @@
                             </select>
                         </div>
                         <div class="field-group">
-                            <label id="lbl-whisper-model" class="field-label">
-                                <script>document.write(t('setup.step1_whisper_model_label'))</script>
-                            </label>
+                            <label id="lbl-whisper-model" class="field-label" data-i18n="setup.step1_whisper_model_label">Model</label>
                             <input class="field-input" type="text" id="whisper-model"
                                 placeholder="google/gemini-2.5-flash-lite-preview-09-2025"
                                 value="google/gemini-2.5-flash-lite-preview-09-2025">
                         </div>
                         <div class="field-group">
-                            <label id="lbl-whisper-mode" class="field-label">
-                                <script>document.write(t('setup.step1_whisper_mode_label'))</script>
-                            </label>
+                            <label id="lbl-whisper-mode" class="field-label" data-i18n="setup.step1_whisper_mode_label">Mode</label>
                             <select class="field-select" id="whisper-mode">
                                 <option value="multimodal" data-i18n="setup.step1_whisper_mode_multimodal">Multimodal (Gemini / LLM)</option>
                                 <option value="whisper" data-i18n="setup.step1_whisper_mode_whisper">Whisper API (OpenAI)</option>
@@ -320,26 +291,16 @@
             <!-- ═══ Section 3: Optional ═══ -->
             <div class="setup-section" id="step-2">
                 <div class="section-header">
-                    <div id="badge-step2" class="section-badge badge-optional">
-                        <script>document.write(t('setup.step2_badge'))</script>
-                    </div>
-                    <h2 id="title-step2" class="section-title">
-                        <script>document.write(t('setup.step2_title'))</script>
-                    </h2>
-                    <p id="desc-step2" class="section-desc">
-                        <script>document.write(t('setup.step2_description'))</script>
-                    </p>
+                    <div id="badge-step2" class="section-badge badge-optional" data-i18n="setup.step2_badge">🎨 Optional</div>
+                    <h2 id="title-step2" class="section-title" data-i18n="setup.step2_title">Personality & Extras</h2>
+                    <p id="desc-step2" class="section-desc" data-i18n="setup.step2_description">Fine-tune AuraGo's personality and advanced features. Everything can be changed later in the config interface.</p>
                 </div>
 
                 <!-- Personality Engine V2 -->
                 <div class="toggle-row setup-divider mb-md">
                     <div>
-                        <div id="lbl-personality-v2" class="toggle-label">
-                            <script>document.write(t('setup.step2_personality_v2_label'))</script>
-                        </div>
-                        <div id="desc-personality-v2" class="toggle-desc">
-                            <script>document.write(t('setup.step2_personality_v2_desc'))</script>
-                        </div>
+                        <div id="lbl-personality-v2" class="toggle-label" data-i18n="setup.step2_personality_v2_label">Personality Engine V2</div>
+                        <div id="desc-personality-v2" class="toggle-desc" data-i18n="setup.step2_personality_v2_desc">Dynamic mood and emotional reactions based on conversation context.</div>
                     </div>
                     <label class="toggle-switch">
                         <input type="checkbox" id="personality-v2" checked onchange="onPersonalityToggle()">
@@ -349,39 +310,38 @@
 
                 <div class="conditional-fields visible" id="personality-v2-fields">
                     <div class="field-group">
-                        <label id="lbl-v2-model" class="field-label">
-                            <script>document.write(t('setup.step2_v2_model_label'))</script>
-                        </label>
+                        <label id="lbl-v2-model" class="field-label" data-i18n="setup.step2_v2_model_label">V2 LLM Model</label>
                         <input class="field-input" type="text" id="v2-model" placeholder="gpt-4o-mini"
                             value="gpt-4o-mini">
-                        <div id="hint-v2-model" class="field-hint">
-                            <script>document.write(t('setup.step2_v2_model_hint'))</script>
-                        </div>
+                        <div id="hint-v2-model" class="field-hint" data-i18n="setup.step2_v2_model_hint">Small, fast model for mood analysis.</div>
+                    </div>
+                    <div class="field-group">
+                        <label id="lbl-v2-url" class="field-label" data-i18n="setup.step2_v2_url_label">Base URL</label>
+                        <input class="field-input" type="text" id="v2-url"
+                            placeholder="Leave empty to use main provider URL">
+                    </div>
+                    <div class="field-group">
+                        <label id="lbl-v2-apikey" class="field-label" data-i18n="setup.step2_v2_apikey_label">API Key</label>
+                        <input class="field-input" type="password" id="v2-api-key"
+                            placeholder="Leave empty to use main API key">
+                        <div id="hint-v2-apikey" class="field-hint" data-i18n="setup.step2_v2_apikey_hint">Only needed if V2 uses a different provider than the main LLM.</div>
                     </div>
                 </div>
 
                 <!-- Core Personality -->
                 <div class="field-group mt-lg">
-                    <label id="lbl-core-personality" class="field-label">
-                        <script>document.write(t('setup.step2_core_personality_label'))</script>
-                    </label>
+                    <label id="lbl-core-personality" class="field-label" data-i18n="setup.step2_core_personality_label">Core Personality</label>
                     <select class="field-select" id="core-personality">
                         <option value="friend" selected data-i18n="setup.step2_core_personality_default">Friendly (friend)</option>
                     </select>
-                    <div id="hint-core-personality" class="field-hint">
-                        <script>document.write(t('setup.step2_core_personality_hint'))</script>
-                    </div>
+                    <div id="hint-core-personality" class="field-hint" data-i18n="setup.step2_core_personality_hint">Base personality — affects tone and communication style.</div>
                 </div>
 
                 <!-- Maintenance -->
                 <div class="toggle-row mt-sm">
                     <div>
-                        <div id="lbl-maintenance" class="toggle-label">
-                            <script>document.write(t('setup.step2_maintenance_label'))</script>
-                        </div>
-                        <div id="desc-maintenance" class="toggle-desc">
-                            <script>document.write(t('setup.step2_maintenance_desc'))</script>
-                        </div>
+                        <div id="lbl-maintenance" class="toggle-label" data-i18n="setup.step2_maintenance_label">Automatic Maintenance</div>
+                        <div id="desc-maintenance" class="toggle-desc" data-i18n="setup.step2_maintenance_desc">Daily self-reflection and memory optimization (recommended).</div>
                     </div>
                     <label class="toggle-switch">
                         <input type="checkbox" id="maintenance-enabled" checked>
@@ -392,12 +352,8 @@
                 <!-- Web Config -->
                 <div class="toggle-row">
                     <div>
-                        <div id="lbl-web-config" class="toggle-label">
-                            <script>document.write(t('setup.step2_web_config_label'))</script>
-                        </div>
-                        <div id="desc-web-config" class="toggle-desc">
-                            <script>document.write(t('setup.step2_web_config_desc'))</script>
-                        </div>
+                        <div id="lbl-web-config" class="toggle-label" data-i18n="setup.step2_web_config_label">Web Config UI</div>
+                        <div id="desc-web-config" class="toggle-desc" data-i18n="setup.step2_web_config_desc">Edit configuration via the browser (at /config).</div>
                     </div>
                     <label class="toggle-switch">
                         <input type="checkbox" id="web-config-enabled" checked>
@@ -409,15 +365,9 @@
             <!-- ═══ Section 4: Mutprobe (Trust Level) ═══ -->
             <div class="setup-section" id="step-3">
                 <div class="section-header">
-                    <div id="badge-step3" class="section-badge badge-trust">
-                        <script>document.write(t('setup.step3_badge'))</script>
-                    </div>
-                    <h2 id="title-step3" class="section-title">
-                        <script>document.write(t('setup.step3_title'))</script>
-                    </h2>
-                    <p id="desc-step3" class="section-desc">
-                        <script>document.write(t('setup.step3_description'))</script>
-                    </p>
+                    <div id="badge-step3" class="section-badge badge-trust" data-i18n="setup.step3_badge">🛡️ Permissions</div>
+                    <h2 id="title-step3" class="section-title" data-i18n="setup.step3_title">Courage Test</h2>
+                    <p id="desc-step3" class="section-desc" data-i18n="setup.step3_description">What do you allow your agent to do?</p>
                 </div>
 
                 <div class="trust-level-grid">
@@ -427,12 +377,8 @@
                         <div class="trust-card-inner">
                             <div class="trust-card-icon">🛡️</div>
                             <div class="trust-card-text">
-                                <div class="trust-card-title" id="trust-title-1">
-                                    <script>document.write(t('setup.step3_level1_title'))</script>
-                                </div>
-                                <div class="trust-card-desc" id="trust-desc-1">
-                                    <script>document.write(t('setup.step3_level1_desc'))</script>
-                                </div>
+                                <div class="trust-card-title" id="trust-title-1" data-i18n="setup.step3_level1_title">I don't trust it yet</div>
+                                <div class="trust-card-desc" id="trust-desc-1" data-i18n="setup.step3_level1_desc">Minimal permissions only. Read-only, no shell, no Python, no file writes.</div>
                             </div>
                         </div>
                     </label>
@@ -443,12 +389,8 @@
                         <div class="trust-card-inner">
                             <div class="trust-card-icon">🔍</div>
                             <div class="trust-card-text">
-                                <div class="trust-card-title" id="trust-title-2">
-                                    <script>document.write(t('setup.step3_level2_title'))</script>
-                                </div>
-                                <div class="trust-card-desc" id="trust-desc-2">
-                                    <script>document.write(t('setup.step3_level2_desc'))</script>
-                                </div>
+                                <div class="trust-card-title" id="trust-title-2" data-i18n="setup.step3_level2_title">I'm cautious</div>
+                                <div class="trust-card-desc" id="trust-desc-2" data-i18n="setup.step3_level2_desc">Some safe capabilities: web access, sandbox Python, memory management.</div>
                             </div>
                         </div>
                     </label>
@@ -459,12 +401,8 @@
                         <div class="trust-card-inner">
                             <div class="trust-card-icon">🚀</div>
                             <div class="trust-card-text">
-                                <div class="trust-card-title" id="trust-title-3">
-                                    <script>document.write(t('setup.step3_level3_title'))</script>
-                                </div>
-                                <div class="trust-card-desc" id="trust-desc-3">
-                                    <script>document.write(t('setup.step3_level3_desc'))</script>
-                                </div>
+                                <div class="trust-card-title" id="trust-title-3" data-i18n="setup.step3_level3_title">I'm brave</div>
+                                <div class="trust-card-desc" id="trust-desc-3" data-i18n="setup.step3_level3_desc">Shell, Python, file system and network access. No sudo or self-update.</div>
                             </div>
                         </div>
                     </label>
@@ -475,12 +413,8 @@
                         <div class="trust-card-inner">
                             <div class="trust-card-icon">🔥</div>
                             <div class="trust-card-text">
-                                <div class="trust-card-title" id="trust-title-4">
-                                    <script>document.write(t('setup.step3_level4_title'))</script>
-                                </div>
-                                <div class="trust-card-desc" id="trust-desc-4">
-                                    <script>document.write(t('setup.step3_level4_desc'))</script>
-                                </div>
+                                <div class="trust-card-title" id="trust-title-4" data-i18n="setup.step3_level4_title">I don't care</div>
+                                <div class="trust-card-desc" id="trust-desc-4" data-i18n="setup.step3_level4_desc">Full unrestricted access. The agent can do anything it wants.</div>
                             </div>
                         </div>
                     </label>
@@ -490,34 +424,20 @@
             <!-- ═══ Success Screen ═══ -->
             <div class="success-screen" id="success-screen">
                 <div class="success-icon">✨</div>
-                <h2 id="success-title" class="success-title">
-                    <script>document.write(t('setup.success_title'))</script>
-                </h2>
-                <p id="success-desc" class="success-desc">
-                    <script>document.write(t('setup.success_description').replace(/\n/g, '<br>'))</script>
-                </p>
-                <p class="success-desc is-hidden setup-warning-text" id="restart-notice">
-                    <script>document.write(t('setup.success_restart_notice'))</script>
-                </p>
-                <button id="btn-go-to-chat" class="btn-setup btn-next" onclick="window.location.href='/'">
-                    <script>document.write(t('setup.success_go_to_chat'))</script>
-                </button>
+                <h2 id="success-title" class="success-title" data-i18n="setup.success_title">Setup complete!</h2>
+                <p id="success-desc" class="success-desc" data-i18n-html="setup.success_description">AuraGo is now configured and ready.<br>The settings have been saved.</p>
+                <p class="success-desc is-hidden setup-warning-text" id="restart-notice" data-i18n-html="setup.success_restart_notice">⚠️ A restart is recommended for all changes to take effect.</p>
+                <button id="btn-go-to-chat" class="btn-setup btn-next" onclick="window.location.href='/'" data-i18n="setup.success_go_to_chat">Go to Chat →</button>
             </div>
 
             <!-- Footer -->
             <div class="setup-footer" id="setup-footer">
                 <div class="footer-left">
-                    <button class="btn-setup btn-back is-hidden" id="btn-back" onclick="prevStep()">
-                        <script>document.write(t('setup.nav_back'))</script>
-                    </button>
+                    <button class="btn-setup btn-back is-hidden" id="btn-back" onclick="prevStep()" data-i18n="setup.nav_back">← Back</button>
                 </div>
                 <div class="setup-inline-actions">
-                    <button class="btn-skip" id="btn-skip-step" onclick="nextStep(true)">
-                        <script>document.write(t('setup.nav_skip_step'))</script>
-                    </button>
-                    <button class="btn-setup btn-next" id="btn-next" onclick="nextStep()">
-                        <script>document.write(t('setup.nav_next'))</script>
-                    </button>
+                    <button class="btn-skip" id="btn-skip-step" onclick="nextStep(true)" data-i18n="setup.nav_skip_step">Skip</button>
+                    <button class="btn-setup btn-next" id="btn-next" onclick="nextStep()" data-i18n="setup.nav_next">Next →</button>
                 </div>
             </div>
         </div>

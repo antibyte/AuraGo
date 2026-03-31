@@ -7,7 +7,7 @@
   "cheatsheets.create_new": "Νέο φύλλο απάτης",
   "cheatsheets.deactivate": "Καθιστώ ανίκανο",
   "cheatsheets.delete": "Διαγράφω",
-  "cheatsheets.delete_prompt": "Εισαγάγετε το όνομα για διαγραφή {{name} }:",
+  "cheatsheets.delete_prompt": "Είστε σίγουροι ότι θέλετε να διαγράψετε {{name}};",
   "cheatsheets.deleted": "Το φύλλο εξαπάτησης διαγράφηκε!",
   "cheatsheets.edit": "Εκδίδω",
   "cheatsheets.edit_sheet": "Επεξεργασία φύλλου εξαπάτησης",

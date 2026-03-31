@@ -3,9 +3,35 @@
 
 // ── State ────────────────────────────────────
 let currentStep = 0;
+let highestStep = 0;
 const totalSteps = 4;
 let saving = false;
 let setupPasswordRequired = true;
+let csrfToken = '';
+
+// ── Security: check setup status & redirect if already configured ──
+(async function checkSetupStatus() {
+    try {
+        const resp = await fetch('/api/setup/status');
+        if (!resp.ok) return;
+        const data = await resp.json();
+        if (!data.needs_setup) {
+            window.location.href = '/';
+            return;
+        }
+        if (data.csrf_token) csrfToken = data.csrf_token;
+    } catch (e) { /* ignore — proceed with setup */ }
+})();
+
+// ── Security: HTTPS warning ──────────────────
+(function httpsWarning() {
+    const isSecure = location.protocol === 'https:';
+    const isLocal = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
+    if (!isSecure && !isLocal) {
+        const banner = document.getElementById('https-warning');
+        if (banner) banner.classList.remove('is-hidden');
+    }
+})();
 
 // ── Load Personality Profiles on startup ─────
 (async function loadPersonalities() {
@@ -336,16 +362,67 @@ function onWhisperProviderChange() {
     }
 }
 
+// ── Embeddings Provider Change Handler ───────
+function onEmbProviderChange() {
+    const prov = document.getElementById('emb-provider').value;
+    const group = document.getElementById('emb-apikey-group');
+    if (group) setupSetHidden(group, prov !== 'internal');
+}
+
+// ── Test Connection ──────────────────────────
+async function testConnection() {
+    const btn = document.getElementById('btn-test-connection');
+    const result = document.getElementById('test-connection-result');
+    if (!btn || btn.disabled) return;
+
+    const providerType = document.getElementById('llm-provider').value;
+    const baseUrl = document.getElementById('llm-base-url').value.trim();
+    const apiKey = document.getElementById('llm-api-key').value.trim();
+    const model = document.getElementById('llm-model').value.trim();
+
+    if (!model) {
+        result.textContent = t('setup.step0_test_no_model');
+        result.className = 'field-hint test-result-fail';
+        setupSetHidden(result, false);
+        return;
+    }
+
+    btn.disabled = true;
+    result.textContent = t('setup.step0_test_testing');
+    result.className = 'field-hint';
+    setupSetHidden(result, false);
+
+    try {
+        const resp = await fetch('/api/setup/test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ provider_type: providerType, base_url: baseUrl, api_key: apiKey, model: model }),
+        });
+        const data = await resp.json();
+        if (data.ok) {
+            result.textContent = '✓ ' + t('setup.step0_test_success');
+            result.className = 'field-hint test-result-ok';
+        } else {
+            result.textContent = '✕ ' + (data.error || t('setup.step0_test_failed'));
+            result.className = 'field-hint test-result-fail';
+        }
+    } catch (err) {
+        result.textContent = '✕ ' + err.message;
+        result.className = 'field-hint test-result-fail';
+    } finally {
+        btn.disabled = false;
+    }
+}
+
 // ── Agent Language Change Handler ────────────
 function onLanguageChange() {
     const sel = document.getElementById('system-language');
     const customInput = document.getElementById('system-language-custom');
-    if (sel.value === 'Other / Custom') {
+    if (sel.value === 'custom') {
         setupSetHidden(customInput, false);
         customInput.focus();
     } else {
         setupSetHidden(customInput, true);
-        // Fetch and apply translations for the selected language immediately
         fetchAndApplyLang(sel.value);
     }
 }
@@ -372,9 +449,7 @@ function onPersonalityToggle() {
 // ── Step Navigation ──────────────────────────
 function goToStep(step) {
     if (step < 0 || step >= totalSteps) return;
-    // Only allow going back or to completed steps
-    if (step > currentStep) return;
-
+    if (step > highestStep) return;
     currentStep = step;
     updateUI();
 }
@@ -386,9 +461,9 @@ function nextStep(skip = false) {
 
     if (currentStep < totalSteps - 1) {
         currentStep++;
+        if (currentStep > highestStep) highestStep = currentStep;
         updateUI();
     } else {
-        // Final step — save
         saveConfig();
     }
 }
@@ -410,6 +485,7 @@ function updateUI() {
     document.querySelectorAll('.step-dot').forEach((dot, i) => {
         dot.classList.toggle('active', i === currentStep);
         dot.classList.toggle('completed', i < currentStep);
+        dot.classList.toggle('reachable', i <= highestStep && i !== currentStep);
     });
 
     // Update lines
@@ -465,6 +541,17 @@ function validateStep0() {
         clearFieldError('admin-password', 'err-admin-password');
     }
 
+    // Password confirmation
+    if (adminPassword.length >= 8) {
+        const confirmPassword = document.getElementById('admin-password-confirm').value.trim();
+        if (confirmPassword !== adminPassword) {
+            showFieldError('admin-password-confirm', 'err-admin-password-confirm');
+            valid = false;
+        } else {
+            clearFieldError('admin-password-confirm', 'err-admin-password-confirm');
+        }
+    }
+
     return valid;
 }
 
@@ -485,6 +572,21 @@ document.addEventListener('input', (e) => {
         const errEl = e.target.parentElement.querySelector('.field-error');
         if (errEl) errEl.classList.remove('visible');
     }
+});
+
+// ── Keyboard Navigation ───────────────────────
+document.addEventListener('keydown', (e) => {
+    // Ignore when typing in inputs/textareas/selects
+    const tag = e.target.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
+        if (e.key === 'Enter' && tag !== 'TEXTAREA') {
+            e.preventDefault();
+            nextStep();
+        }
+        return;
+    }
+    if (e.key === 'Enter') { e.preventDefault(); nextStep(); }
+    if (e.key === 'Escape') { e.preventDefault(); prevStep(); }
 });
 
 // ── Build Provider Entries ───────────────────
@@ -516,10 +618,11 @@ function buildProviderEntries() {
                 base_url: providerConfig.ollama.baseUrl, api_key: '', model: embModel,
             });
         } else {
-            // "internal" = same URL/key as main, different model
+            // "internal" = same URL/key as main, different model (unless overridden)
+            const embKey = document.getElementById('emb-api-key').value.trim();
             providers.push({
                 id: 'embeddings', name: 'Embeddings', type: mainType,
-                base_url: mainUrl, api_key: mainKey, model: embModel,
+                base_url: mainUrl, api_key: embKey || mainKey, model: embModel,
             });
         }
     }
@@ -554,9 +657,11 @@ function buildProviderEntries() {
     if (document.getElementById('personality-v2').checked) {
         const v2Model = document.getElementById('v2-model').value.trim();
         if (v2Model) {
+            const v2Url = document.getElementById('v2-url').value.trim();
+            const v2Key = document.getElementById('v2-api-key').value.trim();
             providers.push({
                 id: 'personality-v2', name: 'Personality V2', type: mainType,
-                base_url: mainUrl, api_key: mainKey, model: v2Model,
+                base_url: v2Url || mainUrl, api_key: v2Key || mainKey, model: v2Model,
             });
         }
     }
@@ -694,7 +799,12 @@ function buildConfigPatch() {
             use_native_functions: document.getElementById('native-functions').checked,
         },
         agent: {
-            system_language: document.getElementById('system-language').value === 'Other / Custom' ? document.getElementById('system-language-custom').value.trim() : document.getElementById('system-language').value,
+            system_language: (function() {
+                const langMap = {de:'Deutsch',en:'English',es:'Español',fr:'Français',pl:'Polski',zh:'中文',hi:'हिन्दी',nl:'Nederlands',it:'Italiano',pt:'Português',da:'Dansk',ja:'日本語',sv:'Svenska',no:'Norsk',el:'Ελληνικά',cs:'Čeština'};
+                const v = document.getElementById('system-language').value;
+                if (v === 'custom') return document.getElementById('system-language-custom').value.trim();
+                return langMap[v] || v;
+            })(),
             personality_engine_v2: document.getElementById('personality-v2').checked,
             personality_engine: document.getElementById('personality-v2').checked,
             core_personality: document.getElementById('core-personality').value,
@@ -759,7 +869,10 @@ async function saveConfig() {
         const patch = buildConfigPatch();
         const resp = await fetch('/api/setup', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': csrfToken,
+            },
             body: JSON.stringify(patch),
         });
 
@@ -815,161 +928,54 @@ function showToast(message, type = 'info') {
 (function detectAndSetLanguage() {
     const lang = (navigator.languages && navigator.languages[0]) || navigator.language || 'en';
     const base = lang.toLowerCase().split('-')[0];
-    const map = {
-        'de': 'Deutsch',
-        'en': 'English',
-        'es': 'Español',
-        'fr': 'Français',
-        'pl': 'Polski',
-        'zh': '中文',
-        'hi': 'हिन्दी',
-        'nl': 'Nederlands',
-        'it': 'Italiano',
-        'pt': 'Português',
-        'da': 'Dansk',
-        'ja': '日本語',
-        'sv': 'Svenska',
-        'no': 'Norsk',
-        'cs': 'Čeština',
-    };
+    const supported = ['de','en','es','fr','pl','zh','hi','nl','it','pt','da','ja','sv','no','cs','el'];
     const sel = document.getElementById('system-language');
-    sel.value = map[base] || 'English';
+    sel.value = supported.includes(base) ? base : 'en';
 })();
 
 // ── i18n: populate text ──
 function applyI18N() {
-    const el = id => document.getElementById(id);
     // Page title
     document.title = t('setup.page_title');
-    // Header
-    el('header-subtitle').textContent = t('setup.header_subtitle');
-    el('btn-skip-setup').textContent = t('setup.skip_button');
-    el('btn-skip-setup').title = t('setup.skip_button_title');
-    // Step 0
-    el('badge-step0').textContent = t('setup.step0_badge');
-    el('title-step0').textContent = t('setup.step0_title');
-    el('desc-step0').textContent = t('setup.step0_description');
-    el('lbl-provider').innerHTML = t('setup.step0_provider_label') + ' <span class="required-star">*</span>';
-    el('hint-provider').textContent = t('setup.step0_provider_hint');
-    // Provider select options
-    const provSel = el('llm-provider');
-    provSel.querySelector('[value="openrouter"]').textContent = t('setup.step0_provider_openrouter');
-    provSel.querySelector('[value="openai"]').textContent = t('setup.step0_provider_openai');
-    provSel.querySelector('[value="anthropic"]').textContent = t('setup.step0_provider_anthropic');
-    provSel.querySelector('[value="google"]').textContent = t('setup.step0_provider_google');
-    provSel.querySelector('[value="ollama"]').textContent = t('setup.step0_provider_ollama');
-    provSel.querySelector('[value="custom"]').textContent = t('setup.step0_provider_custom');
-    // API Key
-    el('lbl-api-key').innerHTML = t('setup.step0_api_key_label') + ' <span class="required-star">*</span>';
-    el('err-api-key').textContent = t('setup.step0_api_key_error');
-    el('hint-api-key-text').textContent = t('setup.step0_api_key_hint');
-    // Admin password
-    el('lbl-admin-password').innerHTML = t('setup.step0_admin_password_label') + (setupPasswordRequired ? ' <span class="required-star">*</span>' : '');
-    el('admin-password').placeholder = t('setup.step0_admin_password_placeholder');
-    el('err-admin-password').textContent = t('setup.step0_admin_password_error');
-    el('hint-admin-password').textContent = t('setup.step0_admin_password_hint');
-    // Base URL
-    el('lbl-base-url').textContent = t('setup.step0_base_url_label');
-    el('hint-base-url').textContent = t('setup.step0_base_url_hint');
-    // Model
-    el('lbl-model').innerHTML = t('setup.step0_model_label') + ' <span class="required-star">*</span>';
-    el('llm-model').placeholder = t('setup.step0_model_placeholder');
-    el('or-browse-btn').textContent = t('setup.step0_model_browse');
-    el('err-model').textContent = t('setup.step0_model_error');
-    // Language
-    el('lang-label').textContent = t('setup.step0_language_label');
-    // Native Functions
-    el('lbl-native-functions').textContent = t('setup.step0_native_functions_label');
-    el('desc-native-functions').innerHTML = t('setup.step0_native_functions_desc');
-    // Step 1
-    el('badge-step1').textContent = t('setup.step1_badge');
-    el('title-step1').textContent = t('setup.step1_title');
-    el('desc-step1').textContent = t('setup.step1_description');
-    // Embeddings
-    el('heading-embeddings').textContent = t('setup.step1_embeddings_heading');
-    el('lbl-emb-provider').textContent = t('setup.step1_embeddings_provider_label');
-    const embSel = el('emb-provider');
-    embSel.querySelector('[value="internal"]').textContent = t('setup.step1_embeddings_provider_internal');
-    embSel.querySelector('[value="ollama"]').textContent = t('setup.step1_embeddings_provider_ollama');
-    embSel.querySelector('[value=""]').textContent = t('setup.step1_embeddings_provider_disabled');
-    el('lbl-emb-model').textContent = t('setup.step1_embeddings_model_label');
-    el('lbl-emb-apikey').textContent = t('setup.step1_embeddings_apikey_label');
-    el('emb-api-key').placeholder = t('setup.step1_embeddings_apikey_placeholder');
-    el('hint-emb-apikey').textContent = t('setup.step1_embeddings_apikey_hint');
-    // Vision
-    el('heading-vision').textContent = t('setup.step1_vision_heading');
-    el('lbl-vision-provider').textContent = t('setup.step1_vision_provider_label');
-    const visSel = el('vision-provider');
-    visSel.querySelector('[value="openrouter"]').textContent = t('setup.step1_vision_provider_openrouter');
-    visSel.querySelector('[value="openai"]').textContent = t('setup.step1_vision_provider_openai');
-    visSel.querySelector('[value="ollama"]').textContent = t('setup.step1_vision_provider_ollama');
-    visSel.querySelector('[value=""]').textContent = t('setup.step1_vision_provider_disabled');
-    el('lbl-vision-model').textContent = t('setup.step1_vision_model_label');
-    // Whisper
-    el('heading-whisper').textContent = t('setup.step1_whisper_heading');
-    el('lbl-whisper-provider').textContent = t('setup.step1_whisper_provider_label');
-    const whSel = el('whisper-provider');
-    whSel.querySelector('[value="openrouter"]').textContent = t('setup.step1_whisper_provider_openrouter');
-    whSel.querySelector('[value="openai"]').textContent = t('setup.step1_whisper_provider_openai');
-    whSel.querySelector('[value="ollama"]').textContent = t('setup.step1_whisper_provider_ollama');
-    whSel.querySelector('[value=""]').textContent = t('setup.step1_whisper_provider_disabled');
-    el('lbl-whisper-model').textContent = t('setup.step1_whisper_model_label');
-    el('lbl-whisper-mode').textContent = t('setup.step1_whisper_mode_label');
-    const whModeSel = el('whisper-mode');
-    whModeSel.querySelector('[value="whisper"]').textContent = t('setup.step1_whisper_mode_whisper');
-    whModeSel.querySelector('[value="multimodal"]').textContent = t('setup.step1_whisper_mode_multimodal');
-    whModeSel.querySelector('[value="local"]').textContent = t('setup.step1_whisper_mode_local');
-    // Step 2
-    el('badge-step2').textContent = t('setup.step2_badge');
-    el('title-step2').textContent = t('setup.step2_title');
-    el('desc-step2').textContent = t('setup.step2_description');
-    // Personality V2
-    el('lbl-personality-v2').textContent = t('setup.step2_personality_v2_label');
-    el('desc-personality-v2').textContent = t('setup.step2_personality_v2_desc');
-    // V2 fields
-    el('lbl-v2-model').textContent = t('setup.step2_v2_model_label');
-    el('hint-v2-model').textContent = t('setup.step2_v2_model_hint');
-    el('lbl-v2-url').textContent = t('setup.step2_v2_url_label');
-    el('v2-url').placeholder = t('setup.step2_v2_url_placeholder');
-    el('lbl-v2-apikey').textContent = t('setup.step2_v2_apikey_label');
-    el('v2-api-key').placeholder = t('setup.step2_v2_apikey_placeholder');
-    el('hint-v2-apikey').textContent = t('setup.step2_v2_apikey_hint');
-    // Core personality
-    el('lbl-core-personality').textContent = t('setup.step2_core_personality_label');
-    el('hint-core-personality').textContent = t('setup.step2_core_personality_hint');
-    // Default option fallback
-    const coreDefault = el('core-personality').querySelector('[value="friend"]');
-    if (coreDefault) coreDefault.textContent = t('setup.step2_core_personality_default');
-    // Maintenance
-    el('lbl-maintenance').textContent = t('setup.step2_maintenance_label');
-    el('desc-maintenance').textContent = t('setup.step2_maintenance_desc');
-    // Web Config
-    el('lbl-web-config').textContent = t('setup.step2_web_config_label');
-    el('desc-web-config').textContent = t('setup.step2_web_config_desc');
-    // Step 3 — Mutprobe (Trust Level)
-    el('badge-step3').textContent = t('setup.step3_badge');
-    el('title-step3').textContent = t('setup.step3_title');
-    el('desc-step3').textContent = t('setup.step3_description');
-    el('trust-title-1').textContent = t('setup.step3_level1_title');
-    el('trust-desc-1').textContent = t('setup.step3_level1_desc');
-    el('trust-title-2').textContent = t('setup.step3_level2_title');
-    el('trust-desc-2').textContent = t('setup.step3_level2_desc');
-    el('trust-title-3').textContent = t('setup.step3_level3_title');
-    el('trust-desc-3').textContent = t('setup.step3_level3_desc');
-    el('trust-title-4').textContent = t('setup.step3_level4_title');
-    el('trust-desc-4').textContent = t('setup.step3_level4_desc');
-    // Success
-    el('success-title').textContent = t('setup.success_title');
-    el('success-desc').innerHTML = t('setup.success_description').replace(/\n/g, '<br>');
-    el('restart-notice').innerHTML = t('setup.success_restart_notice');
-    el('btn-go-to-chat').textContent = t('setup.success_go_to_chat');
-    // Footer
-    el('btn-back').textContent = t('setup.nav_back');
-    el('btn-skip-step').textContent = t('setup.nav_skip_step');
-    el('btn-next').textContent = t('setup.nav_next');
+
+    // Generic: data-i18n → textContent
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        const val = t(key);
+        if (val !== key) el.textContent = val;
+    });
+
+    // Generic: data-i18n-html → innerHTML (with \n → <br>)
+    document.querySelectorAll('[data-i18n-html]').forEach(el => {
+        const key = el.getAttribute('data-i18n-html');
+        const val = t(key);
+        if (val !== key) el.innerHTML = val.replace(/\n/g, '<br>');
+    });
+
+    // Generic: data-i18n-placeholder → placeholder
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+        const key = el.getAttribute('data-i18n-placeholder');
+        const val = t(key);
+        if (val !== key) el.placeholder = val;
+    });
+
+    // Generic: data-i18n-title → title attribute
+    document.querySelectorAll('[data-i18n-title]').forEach(el => {
+        const key = el.getAttribute('data-i18n-title');
+        const val = t(key);
+        if (val !== key) el.title = val;
+    });
+
+    // Special: admin password — show/hide required star based on auth status
+    const lblPw = document.getElementById('lbl-admin-password');
+    if (lblPw) {
+        const star = lblPw.querySelector('.required-star');
+        if (star) star.style.display = setupPasswordRequired ? '' : 'none';
+    }
 }
 
 // ── Init ─────────────────────────────────────
 applyI18N();
 onProviderChange();
+onEmbProviderChange();
 updateUI();

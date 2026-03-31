@@ -24,7 +24,8 @@ type NestConnector interface {
 	Validate(ctx context.Context, nest NestRecord, secret []byte) error
 
 	// Deploy transfers the egg binary, config, and resources to the nest,
-	// then starts the egg process.
+	// then starts the egg process. Existing deployments are backed up first
+	// so they can be restored via Rollback.
 	Deploy(ctx context.Context, nest NestRecord, secret []byte, payload EggDeployPayload) error
 
 	// Stop halts the running egg on the nest.
@@ -33,4 +34,10 @@ type NestConnector interface {
 	// Status checks whether the egg is currently running on the nest.
 	// Returns a status string: "running", "stopped", "unknown".
 	Status(ctx context.Context, nest NestRecord, secret []byte) (string, error)
+
+	// HealthCheck verifies that the deployed egg is running and responsive.
+	HealthCheck(ctx context.Context, nest NestRecord, secret []byte) error
+
+	// Rollback reverts to the previous deployment backup created during Deploy.
+	Rollback(ctx context.Context, nest NestRecord, secret []byte) error
 }

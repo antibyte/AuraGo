@@ -41,6 +41,9 @@ const cheatsheetSchemaVersion = 2
 // MaxAttachmentChars is the total character limit across all attachments of a single cheat sheet.
 const MaxAttachmentChars = 25000
 
+// MaxContentChars is the maximum character count for the cheat sheet content body.
+const MaxContentChars = 100000
+
 // AllowedAttachmentExtensions lists the file extensions permitted for cheat sheet attachments.
 var AllowedAttachmentExtensions = []string{".txt", ".md"}
 
@@ -83,13 +86,19 @@ func InitCheatsheetDB(dbPath string) (*sql.DB, error) {
 	}
 
 	// Enable FK enforcement
-	db.Exec("PRAGMA foreign_keys = ON")
+	if _, err := db.Exec("PRAGMA foreign_keys = ON"); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("failed to enable foreign keys: %w", err)
+	}
 
 	// Migration: add attachments table for existing v1 databases
 	var version int
-	db.QueryRow("PRAGMA user_version").Scan(&version)
+	if err := db.QueryRow("PRAGMA user_version").Scan(&version); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("failed to read schema version: %w", err)
+	}
 	if version < 2 {
-		db.Exec(`CREATE TABLE IF NOT EXISTS cheatsheet_attachments (
+		if _, err := db.Exec(`CREATE TABLE IF NOT EXISTS cheatsheet_attachments (
 			id            TEXT PRIMARY KEY,
 			cheatsheet_id TEXT NOT NULL,
 			filename      TEXT NOT NULL,
@@ -98,10 +107,16 @@ func InitCheatsheetDB(dbPath string) (*sql.DB, error) {
 			char_count    INTEGER NOT NULL DEFAULT 0,
 			created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
 			FOREIGN KEY (cheatsheet_id) REFERENCES cheatsheets(id) ON DELETE CASCADE
-		)`)
+		)`); err != nil {
+			db.Close()
+			return nil, fmt.Errorf("failed to migrate attachments table: %w", err)
+		}
 	}
 
-	db.Exec(fmt.Sprintf("PRAGMA user_version = %d", cheatsheetSchemaVersion))
+	if _, err := db.Exec(fmt.Sprintf("PRAGMA user_version = %d", cheatsheetSchemaVersion)); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("failed to set schema version: %w", err)
+	}
 	return db, nil
 }
 
@@ -149,7 +164,10 @@ func CheatsheetGet(db *sql.DB, id string) (*CheatSheet, error) {
 	}
 	s.Active = active == 1
 
-	attachments, _ := CheatsheetAttachmentList(db, id)
+	attachments, err := CheatsheetAttachmentList(db, id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load attachments: %w", err)
+	}
 	if attachments == nil {
 		attachments = []CheatSheetAttachment{}
 	}
@@ -171,7 +189,10 @@ func CheatsheetGetByName(db *sql.DB, name string) (*CheatSheet, error) {
 	}
 	s.Active = active == 1
 
-	attachments, _ := CheatsheetAttachmentList(db, s.ID)
+	attachments, err := CheatsheetAttachmentList(db, s.ID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load attachments: %w", err)
+	}
 	if attachments == nil {
 		attachments = []CheatSheetAttachment{}
 	}
@@ -186,6 +207,9 @@ func CheatsheetCreate(db *sql.DB, name, content, createdBy string) (*CheatSheet,
 	name = strings.TrimSpace(name)
 	if name == "" {
 		return nil, fmt.Errorf("name is required")
+	}
+	if len([]rune(content)) > MaxContentChars {
+		return nil, fmt.Errorf("content exceeds the %d character limit", MaxContentChars)
 	}
 	if createdBy != "user" && createdBy != "agent" {
 		createdBy = "user"
@@ -219,6 +243,9 @@ func CheatsheetUpdate(db *sql.DB, id string, name, content *string, active *bool
 		existing.Name = n
 	}
 	if content != nil {
+		if len([]rune(*content)) > MaxContentChars {
+			return nil, fmt.Errorf("content exceeds the %d character limit", MaxContentChars)
+		}
 		existing.Content = *content
 	}
 	if active != nil {
@@ -247,7 +274,10 @@ func CheatsheetDelete(db *sql.DB, id string) error {
 	if err != nil {
 		return err
 	}
-	rows, _ := result.RowsAffected()
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to check rows affected: %w", err)
+	}
 	if rows == 0 {
 		return sql.ErrNoRows
 	}
@@ -255,10 +285,16 @@ func CheatsheetDelete(db *sql.DB, id string) error {
 }
 
 // CheatsheetCount returns total, active, and agent-created counts.
-func CheatsheetCount(db *sql.DB) (total, active, agentCreated int) {
-	db.QueryRow("SELECT COUNT(*) FROM cheatsheets").Scan(&total)
-	db.QueryRow("SELECT COUNT(*) FROM cheatsheets WHERE active = 1").Scan(&active)
-	db.QueryRow("SELECT COUNT(*) FROM cheatsheets WHERE created_by = 'agent'").Scan(&agentCreated)
+func CheatsheetCount(db *sql.DB) (total, active, agentCreated int, err error) {
+	if err = db.QueryRow("SELECT COUNT(*) FROM cheatsheets").Scan(&total); err != nil {
+		return 0, 0, 0, fmt.Errorf("failed to count cheatsheets: %w", err)
+	}
+	if err = db.QueryRow("SELECT COUNT(*) FROM cheatsheets WHERE active = 1").Scan(&active); err != nil {
+		return 0, 0, 0, fmt.Errorf("failed to count active cheatsheets: %w", err)
+	}
+	if err = db.QueryRow("SELECT COUNT(*) FROM cheatsheets WHERE created_by = 'agent'").Scan(&agentCreated); err != nil {
+		return 0, 0, 0, fmt.Errorf("failed to count agent cheatsheets: %w", err)
+	}
 	return
 }
 
@@ -277,9 +313,8 @@ func CheatsheetGetMultiple(db *sql.DB, ids []string) string {
 		}
 		part := fmt.Sprintf("[Cheat Sheet: %q]\n%s", s.Name, s.Content)
 
-		// Append attachments if any
-		attachments, _ := CheatsheetAttachmentList(db, id)
-		for _, a := range attachments {
+		// Append attachments if any (already loaded by CheatsheetGet)
+		for _, a := range s.Attachments {
 			part += fmt.Sprintf("\n\n[Cheat Sheet Attachment: %q]\n%s", a.Filename, a.Content)
 		}
 
@@ -319,21 +354,22 @@ func CheatsheetAttachmentList(db *sql.DB, cheatsheetID string) ([]CheatSheetAtta
 }
 
 // cheatsheetAttachmentTotalChars returns the total character count of all attachments for a cheat sheet.
-func cheatsheetAttachmentTotalChars(db *sql.DB, cheatsheetID string) int {
+func cheatsheetAttachmentTotalChars(db *sql.DB, cheatsheetID string) (int, error) {
 	var total int
-	db.QueryRow("SELECT COALESCE(SUM(char_count), 0) FROM cheatsheet_attachments WHERE cheatsheet_id = ?", cheatsheetID).Scan(&total)
-	return total
+	err := db.QueryRow("SELECT COALESCE(SUM(char_count), 0) FROM cheatsheet_attachments WHERE cheatsheet_id = ?", cheatsheetID).Scan(&total)
+	return total, err
 }
 
 // cheatsheetAttachmentCount returns the number of attachments for a cheat sheet.
-func cheatsheetAttachmentCount(db *sql.DB, cheatsheetID string) int {
+func cheatsheetAttachmentCount(db *sql.DB, cheatsheetID string) (int, error) {
 	var count int
-	db.QueryRow("SELECT COUNT(*) FROM cheatsheet_attachments WHERE cheatsheet_id = ?", cheatsheetID).Scan(&count)
-	return count
+	err := db.QueryRow("SELECT COUNT(*) FROM cheatsheet_attachments WHERE cheatsheet_id = ?", cheatsheetID).Scan(&count)
+	return count, err
 }
 
 // CheatsheetAttachmentAdd adds an attachment to a cheat sheet.
 // It validates the file extension and enforces the total character limit.
+// The limit check and insert are wrapped in a transaction to prevent races.
 func CheatsheetAttachmentAdd(db *sql.DB, cheatsheetID, filename, source, content string) (*CheatSheetAttachment, error) {
 	// Validate cheat sheet exists
 	_, err := CheatsheetGet(db, cheatsheetID)
@@ -365,7 +401,18 @@ func CheatsheetAttachmentAdd(db *sql.DB, cheatsheetID, filename, source, content
 	}
 
 	charCount := len([]rune(content))
-	currentTotal := cheatsheetAttachmentTotalChars(db, cheatsheetID)
+
+	// Use a transaction to atomically check the limit and insert
+	tx, err := db.Begin()
+	if err != nil {
+		return nil, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	var currentTotal int
+	if err := tx.QueryRow("SELECT COALESCE(SUM(char_count), 0) FROM cheatsheet_attachments WHERE cheatsheet_id = ?", cheatsheetID).Scan(&currentTotal); err != nil {
+		return nil, fmt.Errorf("failed to check attachment limits: %w", err)
+	}
 	if currentTotal+charCount > MaxAttachmentChars {
 		return nil, fmt.Errorf("attachment would exceed the %d character limit (current: %d, new: %d)", MaxAttachmentChars, currentTotal, charCount)
 	}
@@ -373,12 +420,16 @@ func CheatsheetAttachmentAdd(db *sql.DB, cheatsheetID, filename, source, content
 	id := uuid.New().String()
 	now := time.Now().UTC().Format(time.RFC3339)
 
-	_, err = db.Exec(
+	_, err = tx.Exec(
 		"INSERT INTO cheatsheet_attachments (id, cheatsheet_id, filename, source, content, char_count, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
 		id, cheatsheetID, filename, source, content, charCount, now,
 	)
 	if err != nil {
 		return nil, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("failed to commit attachment: %w", err)
 	}
 
 	return &CheatSheetAttachment{
@@ -398,7 +449,10 @@ func CheatsheetAttachmentRemove(db *sql.DB, cheatsheetID, attachmentID string) e
 	if err != nil {
 		return err
 	}
-	rows, _ := result.RowsAffected()
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to check rows affected: %w", err)
+	}
 	if rows == 0 {
 		return fmt.Errorf("attachment not found")
 	}

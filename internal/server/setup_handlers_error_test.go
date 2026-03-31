@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 
 	"aurago/internal/config"
@@ -12,6 +13,11 @@ import (
 
 func TestHandleSetupSaveInvalidJSONIsGeneric(t *testing.T) {
 	t.Parallel()
+
+	// Set a known CSRF token for this test.
+	setupCSRFOnce = sync.Once{}
+	setupCSRFToken = "test-token"
+	setupCSRFOnce.Do(func() {})
 
 	s := &Server{
 		Cfg: &config.Config{ConfigPath: t.TempDir() + "\\config.yaml"},
@@ -21,6 +27,7 @@ func TestHandleSetupSaveInvalidJSONIsGeneric(t *testing.T) {
 	}
 
 	req := httptest.NewRequest(http.MethodPost, "/api/setup/save", strings.NewReader(`{"broken":`))
+	req.Header.Set("X-CSRF-Token", "test-token")
 	rec := httptest.NewRecorder()
 
 	handleSetupSave(s).ServeHTTP(rec, req)

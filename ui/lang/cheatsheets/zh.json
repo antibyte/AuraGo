@@ -7,7 +7,7 @@
   "cheatsheets.create_new": "新备忘单",
   "cheatsheets.deactivate": "禁用",
   "cheatsheets.delete": "删除",
-  "cheatsheets.delete_prompt": "输入要删除{{name}的名称}：",
+  "cheatsheets.delete_prompt": "确定要删除 {{name}} 吗？",
   "cheatsheets.deleted": "备忘单已删除！",
   "cheatsheets.edit": "编辑",
   "cheatsheets.edit_sheet": "编辑备忘单",

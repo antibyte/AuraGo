@@ -7,7 +7,7 @@
   "cheatsheets.create_new": "Nytt fuskblad",
   "cheatsheets.deactivate": "Inaktivera",
   "cheatsheets.delete": "Radera",
-  "cheatsheets.delete_prompt": "Ange namnet för att radera {{name} }:",
+  "cheatsheets.delete_prompt": "Är du säker på att du vill radera {{name}}?",
   "cheatsheets.deleted": "Fuskblad raderat!",
   "cheatsheets.edit": "Redigera",
   "cheatsheets.edit_sheet": "Redigera cheat sheet",

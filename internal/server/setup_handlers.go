@@ -5,15 +5,39 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/llm"
 	"aurago/internal/memory"
+	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"strings"
+	"sync"
+	"time"
 
+	openai "github.com/sashabaranov/go-openai"
 	"gopkg.in/yaml.v3"
 )
+
+// setupCSRF holds the active CSRF token for the setup wizard.
+// It is generated once when the status endpoint is first called and
+// validated on every state-changing request (POST).
+var (
+	setupCSRFToken string
+	setupCSRFOnce  sync.Once
+)
+
+// generateSetupCSRF creates a cryptographically random 32-byte hex token.
+func generateSetupCSRF() string {
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		// Should never happen — fall back to time-based token.
+		return hex.EncodeToString([]byte(fmt.Sprintf("%d", time.Now().UnixNano())))
+	}
+	return hex.EncodeToString(b)
+}
 
 // handleSetupStatus returns whether the setup wizard should be shown.
 func handleSetupStatus(s *Server) http.HandlerFunc {
@@ -27,10 +51,18 @@ func handleSetupStatus(s *Server) http.HandlerFunc {
 		show := needsSetup(s.Cfg)
 		s.CfgMu.RUnlock()
 
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		resp := map[string]interface{}{
 			"needs_setup": show,
-		})
+		}
+
+		// Include CSRF token only when setup is still needed.
+		if show {
+			setupCSRFOnce.Do(func() { setupCSRFToken = generateSetupCSRF() })
+			resp["csrf_token"] = setupCSRFToken
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
 	}
 }
 
@@ -55,6 +87,13 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 		if alreadyConfigured {
 			s.Logger.Warn("[Setup] POST to /api/setup rejected — setup already completed")
 			jsonError(w, "Setup already completed", http.StatusForbidden)
+			return
+		}
+
+		// CSRF protection: the token was issued via GET /api/setup/status.
+		if token := r.Header.Get("X-CSRF-Token"); token == "" || token != setupCSRFToken {
+			s.Logger.Warn("[Setup] CSRF token mismatch")
+			jsonError(w, "Invalid CSRF token", http.StatusForbidden)
 			return
 		}
 
@@ -157,7 +196,7 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 		if loadErr != nil {
 			s.Logger.Warn("[Setup] Hot-reload failed, changes saved but require restart", "error", loadErr)
 			needsRestart = true
-			restartReasons = append(restartReasons, "Parse-Fehler beim Reload")
+			restartReasons = append(restartReasons, "config reload failed")
 		} else {
 			savedPath := s.Cfg.ConfigPath
 			*s.Cfg = *newCfg
@@ -230,7 +269,7 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		if needsRestart {
-			msg := fmt.Sprintf("Gespeichert. Neustart nötig für: %s", strings.Join(restartReasons, ", "))
+			msg := fmt.Sprintf("Saved. Restart required for: %s", strings.Join(restartReasons, ", "))
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status":         "saved",
 				"message":        msg,
@@ -240,7 +279,7 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 		} else {
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status":        "saved",
-				"message":       "Setup abgeschlossen! Konfiguration gespeichert und angewendet.",
+				"message":       "Setup complete! Configuration saved and applied.",
 				"needs_restart": false,
 			})
 		}
@@ -334,4 +373,69 @@ func needsSetup(cfg *config.Config) bool {
 		return true
 	}
 	return cfg.Auth.Enabled && cfg.Auth.PasswordHash == ""
+}
+
+// handleSetupTestConnection performs a lightweight LLM connectivity test using
+// the provider details supplied by the setup wizard. It creates a temporary
+// client, sends a minimal completion request, and returns success or an error
+// message so the user can verify their API key/URL before saving.
+func handleSetupTestConnection(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		s.CfgMu.RLock()
+		show := needsSetup(s.Cfg)
+		s.CfgMu.RUnlock()
+		if !show {
+			jsonError(w, "Setup already completed", http.StatusForbidden)
+			return
+		}
+
+		var req struct {
+			ProviderType string `json:"provider_type"`
+			BaseURL      string `json:"base_url"`
+			APIKey       string `json:"api_key"`
+			Model        string `json:"model"`
+		}
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&req); err != nil {
+			jsonError(w, "Invalid request", http.StatusBadRequest)
+			return
+		}
+
+		if req.Model == "" {
+			jsonError(w, "Model is required", http.StatusBadRequest)
+			return
+		}
+
+		client := llm.NewClientFromProvider(req.ProviderType, req.BaseURL, req.APIKey)
+
+		ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+		defer cancel()
+
+		_, err := client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
+			Model: req.Model,
+			Messages: []openai.ChatCompletionMessage{
+				{Role: openai.ChatMessageRoleUser, Content: "respond with ok"},
+			},
+			MaxTokens: 5,
+		})
+
+		w.Header().Set("Content-Type", "application/json")
+		if err != nil {
+			s.Logger.Warn("[Setup] Test connection failed", "provider", req.ProviderType, "error", err)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"ok":    false,
+				"error": err.Error(),
+			})
+			return
+		}
+
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"ok":      true,
+			"message": "Connection successful",
+		})
+	}
 }

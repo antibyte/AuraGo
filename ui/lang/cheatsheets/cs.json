@@ -7,7 +7,7 @@
   "cheatsheets.create_new": "Nový cheat sheet",
   "cheatsheets.deactivate": "Zakázat",
   "cheatsheets.delete": "Vymazat",
-  "cheatsheets.delete_prompt": "Zadejte název, který chcete odstranit {{name} }:",
+  "cheatsheets.delete_prompt": "Opravdu chcete smazat {{name}}?",
   "cheatsheets.deleted": "Cheat sheet smazán!",
   "cheatsheets.edit": "Upravit",
   "cheatsheets.edit_sheet": "Upravit cheat sheet",

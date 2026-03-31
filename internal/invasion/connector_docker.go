@@ -43,6 +43,7 @@ func (c *DockerConnector) Validate(ctx context.Context, nest NestRecord, secret 
 
 func (c *DockerConnector) Deploy(ctx context.Context, nest NestRecord, secret []byte, payload EggDeployPayload) error {
 	containerName := fmt.Sprintf("aurago-egg-%s", nest.ID[:8])
+	backupName := containerName + "-prev"
 	// TODO: derive image tag from master version when build version is available at runtime
 	image := "ghcr.io/antibyte/aurago:latest"
 
@@ -51,8 +52,9 @@ func (c *DockerConnector) Deploy(ctx context.Context, nest NestRecord, secret []
 		return fmt.Errorf("failed to pull image: %w", err)
 	}
 
-	// 2. Remove old container if exists
-	_ = c.removeContainer(ctx, nest, containerName)
+	// 2. Remove any stale backup, then rename current container as backup
+	_ = c.removeContainer(ctx, nest, backupName)
+	_ = c.renameContainer(ctx, nest, containerName, backupName)
 
 	// 3. Create container with egg configuration via env vars.
 	// NOTE: AURAGO_MASTER_KEY is NOT passed as env var (visible via docker inspect).
@@ -283,6 +285,109 @@ func (c *DockerConnector) removeContainer(ctx context.Context, nest NestRecord, 
 		body, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("remove container failed with HTTP %d: %s", resp.StatusCode, string(body))
 	}
+	return nil
+}
+
+func (c *DockerConnector) renameContainer(ctx context.Context, nest NestRecord, oldName, newName string) error {
+	client := c.httpClient(nest)
+	// Stop the container first so it can be renamed cleanly
+	stopURL := c.apiURL(nest, fmt.Sprintf("/containers/%s/stop?t=5", oldName))
+	stopReq, _ := http.NewRequestWithContext(ctx, "POST", stopURL, nil)
+	if resp, err := client.Do(stopReq); err == nil {
+		resp.Body.Close()
+	}
+
+	url := c.apiURL(nest, fmt.Sprintf("/containers/%s/rename?name=%s", oldName, newName))
+	req, err := http.NewRequestWithContext(ctx, "POST", url, nil)
+	if err != nil {
+		return err
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("rename container failed: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNotFound {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("rename container failed with HTTP %d: %s", resp.StatusCode, string(body))
+	}
+	return nil
+}
+
+func (c *DockerConnector) HealthCheck(ctx context.Context, nest NestRecord, secret []byte) error {
+	containerName := fmt.Sprintf("aurago-egg-%s", nest.ID[:8])
+	client := c.httpClient(nest)
+
+	url := c.apiURL(nest, fmt.Sprintf("/containers/%s/json", containerName))
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return fmt.Errorf("health check request failed: %w", err)
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("health check failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return fmt.Errorf("container not found")
+	}
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("inspect failed with status %d", resp.StatusCode)
+	}
+
+	var info struct {
+		State struct {
+			Running bool `json:"Running"`
+		} `json:"State"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&info); err != nil {
+		return fmt.Errorf("failed to decode container state: %w", err)
+	}
+	if !info.State.Running {
+		return fmt.Errorf("container is not running")
+	}
+	return nil
+}
+
+func (c *DockerConnector) Rollback(ctx context.Context, nest NestRecord, secret []byte) error {
+	containerName := fmt.Sprintf("aurago-egg-%s", nest.ID[:8])
+	backupName := containerName + "-prev"
+
+	// Check if backup container exists
+	client := c.httpClient(nest)
+	checkURL := c.apiURL(nest, fmt.Sprintf("/containers/%s/json", backupName))
+	checkReq, _ := http.NewRequestWithContext(ctx, "GET", checkURL, nil)
+	resp, err := client.Do(checkReq)
+	if err != nil {
+		return fmt.Errorf("failed to check backup container: %w", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode == http.StatusNotFound {
+		return fmt.Errorf("no backup container found for rollback")
+	}
+
+	// Remove the failed new container
+	_ = c.removeContainer(ctx, nest, containerName)
+
+	// Rename backup back to primary name
+	if err := c.renameContainer(ctx, nest, backupName, containerName); err != nil {
+		return fmt.Errorf("failed to restore backup container: %w", err)
+	}
+
+	// Start the restored container
+	startURL := c.apiURL(nest, fmt.Sprintf("/containers/%s/start", containerName))
+	startReq, _ := http.NewRequestWithContext(ctx, "POST", startURL, nil)
+	startResp, err := client.Do(startReq)
+	if err != nil {
+		return fmt.Errorf("failed to start restored container: %w", err)
+	}
+	defer startResp.Body.Close()
+	if startResp.StatusCode != http.StatusNoContent && startResp.StatusCode != http.StatusOK && startResp.StatusCode != http.StatusNotModified {
+		body, _ := io.ReadAll(startResp.Body)
+		return fmt.Errorf("failed to start restored container (%d): %s", startResp.StatusCode, string(body))
+	}
+
 	return nil
 }
 

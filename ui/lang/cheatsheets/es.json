@@ -7,7 +7,7 @@
   "cheatsheets.create_new": "Nueva hoja de trucos",
   "cheatsheets.deactivate": "Desactivar",
   "cheatsheets.delete": "Borrar",
-  "cheatsheets.delete_prompt": "Ingrese el nombre para eliminar {{name} }:",
+  "cheatsheets.delete_prompt": "¿Está seguro de que desea eliminar {{name}}?",
   "cheatsheets.deleted": "¡Hoja de trucos eliminada!",
   "cheatsheets.edit": "Editar",
   "cheatsheets.edit_sheet": "Editar hoja de trucos",

@@ -597,10 +597,11 @@ ansible:
     dockerfile_dir: ""     # Directory containing Dockerfile.ansible (default: ".")
 egg_mode:
     enabled: false
-    master_url: ""
-    shared_key: ""
+    master_url: ""         # WebSocket URL of the master (ws[s]://host:port/api/invasion/ws)
+    shared_key: ""         # hex-encoded AES-256 shared key (set via vault: egg_shared_key)
     egg_id: ""
     nest_id: ""
+    tls_skip_verify: false # skip TLS certificate verification (for self-signed certs)
 github:
     enabled: false
     readonly: false

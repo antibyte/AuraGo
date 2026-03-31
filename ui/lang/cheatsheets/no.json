@@ -7,7 +7,7 @@
   "cheatsheets.create_new": "Ny jukseark",
   "cheatsheets.deactivate": "Deaktiver",
   "cheatsheets.delete": "Slett",
-  "cheatsheets.delete_prompt": "Skriv inn navnet for å slette {{name} }:",
+  "cheatsheets.delete_prompt": "Er du sikker på at du vil slette {{name}}?",
   "cheatsheets.deleted": "Jukseark slettet!",
   "cheatsheets.edit": "Redigere",
   "cheatsheets.edit_sheet": "Rediger jukseark",

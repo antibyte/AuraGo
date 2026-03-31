@@ -1,6 +1,7 @@
 package bridge
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -16,11 +17,12 @@ import (
 // EggClient implements the egg-side WebSocket connection to the master.
 // It auto-reconnects with exponential backoff and sends periodic heartbeats.
 type EggClient struct {
-	MasterURL string
-	EggID     string
-	NestID    string
-	SharedKey string // hex-encoded
-	Version   string
+	MasterURL     string
+	EggID         string
+	NestID        string
+	SharedKey     string // hex-encoded
+	Version       string
+	TLSSkipVerify bool // skip TLS certificate verification (for self-signed certs)
 
 	conn   *websocket.Conn
 	mu     sync.Mutex
@@ -123,6 +125,9 @@ func (c *EggClient) SendResult(result ResultPayload) error {
 func (c *EggClient) connect() error {
 	dialer := websocket.Dialer{
 		HandshakeTimeout: 10 * time.Second,
+	}
+	if c.TLSSkipVerify {
+		dialer.TLSClientConfig = &tls.Config{InsecureSkipVerify: true} //nolint:gosec // user-opted self-signed cert
 	}
 
 	conn, _, err := dialer.Dial(c.MasterURL, nil)
@@ -228,6 +233,24 @@ func (c *EggClient) readLoop() {
 				c.OnSecret(secret)
 				c.sendAck(msg.ID, true, "secret stored")
 			}
+		case MsgRekey:
+			var rekey RekeyPayload
+			if err := json.Unmarshal(msg.Payload, &rekey); err != nil {
+				c.logger.Warn("Invalid rekey payload", "error", err)
+				c.sendAck(msg.ID, false, "invalid payload")
+				continue
+			}
+			newKey, err := DecryptWithSharedKey(rekey.NewKeyEncrypted, c.SharedKey)
+			if err != nil {
+				c.logger.Warn("Failed to decrypt new key", "error", err)
+				c.sendAck(msg.ID, false, "decryption failed")
+				continue
+			}
+			c.mu.Lock()
+			c.SharedKey = string(newKey)
+			c.mu.Unlock()
+			c.logger.Info("Shared key rotated", "version", rekey.KeyVersion)
+			c.sendAck(msg.ID, true, fmt.Sprintf("key rotated to v%d", rekey.KeyVersion))
 		case MsgStop:
 			c.logger.Info("Stop command received from master")
 			c.sendAck(msg.ID, true, "stopping")

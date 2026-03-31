@@ -721,6 +721,7 @@ func main() {
 			"1.0.0",
 			appLog,
 		)
+		eggClient.TLSSkipVerify = cfg.EggMode.TLSSkipVerify
 		eggClient.OnTask = func(task bridge.TaskPayload) {
 			appLog.Info("Task received from master", "task_id", task.TaskID, "desc", task.Description)
 			// Execute task via loopback to local agent API

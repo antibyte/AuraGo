@@ -124,6 +124,50 @@ func InitDB(dbPath string) (*sql.DB, error) {
 		return nil, fmt.Errorf("failed to create eggs schema: %w", err)
 	}
 
+	tasksSchema := `
+	CREATE TABLE IF NOT EXISTS invasion_tasks (
+		id            TEXT PRIMARY KEY,
+		nest_id       TEXT NOT NULL,
+		egg_id        TEXT DEFAULT '',
+		description   TEXT NOT NULL,
+		timeout       INTEGER DEFAULT 0,
+		status        TEXT NOT NULL DEFAULT 'pending',
+		result_output TEXT DEFAULT '',
+		result_error  TEXT DEFAULT '',
+		created_at    TEXT NOT NULL,
+		sent_at       TEXT DEFAULT '',
+		completed_at  TEXT DEFAULT ''
+	);
+	CREATE INDEX IF NOT EXISTS idx_invasion_tasks_nest_status ON invasion_tasks(nest_id, status);
+	`
+
+	if _, err := db.Exec(tasksSchema); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("failed to create invasion_tasks schema: %w", err)
+	}
+
+	deployHistorySchema := `
+	CREATE TABLE IF NOT EXISTS deployment_history (
+		id              TEXT PRIMARY KEY,
+		nest_id         TEXT NOT NULL,
+		egg_id          TEXT DEFAULT '',
+		status          TEXT NOT NULL DEFAULT 'started',
+		binary_hash     TEXT DEFAULT '',
+		config_hash     TEXT DEFAULT '',
+		deploy_method   TEXT DEFAULT '',
+		created_at      TEXT NOT NULL,
+		deployed_at     TEXT DEFAULT '',
+		verified_at     TEXT DEFAULT '',
+		rolled_back_at  TEXT DEFAULT ''
+	);
+	CREATE INDEX IF NOT EXISTS idx_deployment_history_nest ON deployment_history(nest_id, created_at);
+	`
+
+	if _, err := db.Exec(deployHistorySchema); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("failed to create deployment_history schema: %w", err)
+	}
+
 	// ── Migrations — add columns that may be missing on older DBs ──
 	migrations := []string{
 		"ALTER TABLE nests ADD COLUMN hatch_status TEXT DEFAULT 'idle'",
@@ -531,4 +575,256 @@ func UpdateNestHatchStatus(db *sql.DB, id, status, hatchError string) error {
 		return fmt.Errorf("nest not found: %s", id)
 	}
 	return nil
+}
+
+// ── Task tracking ───────────────────────────────────────────────────────────
+
+// TaskRecord represents a tracked task sent to an egg.
+type TaskRecord struct {
+	ID           string `json:"id"`
+	NestID       string `json:"nest_id"`
+	EggID        string `json:"egg_id"`
+	Description  string `json:"description"`
+	Timeout      int    `json:"timeout"`
+	Status       string `json:"status"` // pending, sent, acked, completed, failed, timeout
+	ResultOutput string `json:"result_output"`
+	ResultError  string `json:"result_error"`
+	CreatedAt    string `json:"created_at"`
+	SentAt       string `json:"sent_at"`
+	CompletedAt  string `json:"completed_at"`
+}
+
+// CreateTask inserts a new task record with status "pending".
+func CreateTask(db *sql.DB, nestID, eggID, description string, timeout int) (string, error) {
+	id := uuid.New().String()
+	now := time.Now().UTC().Format(time.RFC3339)
+	_, err := db.Exec(`INSERT INTO invasion_tasks (id, nest_id, egg_id, description, timeout, status, created_at)
+		VALUES (?, ?, ?, ?, ?, 'pending', ?)`, id, nestID, eggID, description, timeout, now)
+	if err != nil {
+		return "", fmt.Errorf("failed to create task: %w", err)
+	}
+	return id, nil
+}
+
+// UpdateTaskStatus transitions a task to a new status.
+func UpdateTaskStatus(db *sql.DB, taskID, status, output, errMsg string) error {
+	now := time.Now().UTC().Format(time.RFC3339)
+	var query string
+	var args []interface{}
+	switch status {
+	case "sent":
+		query = `UPDATE invasion_tasks SET status=?, sent_at=? WHERE id=?`
+		args = []interface{}{status, now, taskID}
+	case "completed", "failed", "timeout":
+		query = `UPDATE invasion_tasks SET status=?, result_output=?, result_error=?, completed_at=? WHERE id=?`
+		args = []interface{}{status, output, errMsg, now, taskID}
+	default: // acked, etc.
+		query = `UPDATE invasion_tasks SET status=? WHERE id=?`
+		args = []interface{}{status, taskID}
+	}
+	_, err := db.Exec(query, args...)
+	if err != nil {
+		return fmt.Errorf("failed to update task status: %w", err)
+	}
+	return nil
+}
+
+// GetPendingTasks returns all tasks for a nest that are in a recoverable state.
+func GetPendingTasks(db *sql.DB, nestID string) ([]TaskRecord, error) {
+	rows, err := db.Query(`SELECT id, nest_id, egg_id, description, timeout, status,
+		result_output, result_error, created_at, sent_at, completed_at
+		FROM invasion_tasks WHERE nest_id=? AND status IN ('pending','sent') ORDER BY created_at ASC`, nestID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query pending tasks: %w", err)
+	}
+	defer rows.Close()
+	return scanTasks(rows)
+}
+
+// GetTasksByNest returns all tasks for a nest, ordered by creation time (newest first).
+func GetTasksByNest(db *sql.DB, nestID string, limit int) ([]TaskRecord, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+	rows, err := db.Query(`SELECT id, nest_id, egg_id, description, timeout, status,
+		result_output, result_error, created_at, sent_at, completed_at
+		FROM invasion_tasks WHERE nest_id=? ORDER BY created_at DESC LIMIT ?`, nestID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query tasks: %w", err)
+	}
+	defer rows.Close()
+	return scanTasks(rows)
+}
+
+// GetTaskByID retrieves a single task by ID.
+func GetTaskByID(db *sql.DB, taskID string) (*TaskRecord, error) {
+	row := db.QueryRow(`SELECT id, nest_id, egg_id, description, timeout, status,
+		result_output, result_error, created_at, sent_at, completed_at
+		FROM invasion_tasks WHERE id=?`, taskID)
+	var t TaskRecord
+	var sentAt, completedAt sql.NullString
+	err := row.Scan(&t.ID, &t.NestID, &t.EggID, &t.Description, &t.Timeout, &t.Status,
+		&t.ResultOutput, &t.ResultError, &t.CreatedAt, &sentAt, &completedAt)
+	if err != nil {
+		return nil, fmt.Errorf("task not found: %w", err)
+	}
+	t.SentAt = nullStr(sentAt)
+	t.CompletedAt = nullStr(completedAt)
+	return &t, nil
+}
+
+// CleanupOldTasks removes completed/failed tasks older than the given duration.
+func CleanupOldTasks(db *sql.DB, maxAge time.Duration) (int64, error) {
+	cutoff := time.Now().UTC().Add(-maxAge).Format(time.RFC3339)
+	res, err := db.Exec(`DELETE FROM invasion_tasks WHERE status IN ('completed','failed','timeout') AND completed_at < ?`, cutoff)
+	if err != nil {
+		return 0, fmt.Errorf("failed to cleanup old tasks: %w", err)
+	}
+	return res.RowsAffected()
+}
+
+func scanTasks(rows *sql.Rows) ([]TaskRecord, error) {
+	var tasks []TaskRecord
+	for rows.Next() {
+		var t TaskRecord
+		var sentAt, completedAt sql.NullString
+		if err := rows.Scan(&t.ID, &t.NestID, &t.EggID, &t.Description, &t.Timeout, &t.Status,
+			&t.ResultOutput, &t.ResultError, &t.CreatedAt, &sentAt, &completedAt); err != nil {
+			return nil, fmt.Errorf("failed to scan task: %w", err)
+		}
+		t.SentAt = nullStr(sentAt)
+		t.CompletedAt = nullStr(completedAt)
+		tasks = append(tasks, t)
+	}
+	return tasks, rows.Err()
+}
+
+// ── Deployment history ──────────────────────────────────────────────────────
+
+// DeploymentRecord tracks a single deployment attempt for audit and rollback.
+type DeploymentRecord struct {
+	ID           string `json:"id"`
+	NestID       string `json:"nest_id"`
+	EggID        string `json:"egg_id"`
+	Status       string `json:"status"` // started, deployed, verified, failed, rolled_back
+	BinaryHash   string `json:"binary_hash"`
+	ConfigHash   string `json:"config_hash"`
+	DeployMethod string `json:"deploy_method"`
+	CreatedAt    string `json:"created_at"`
+	DeployedAt   string `json:"deployed_at"`
+	VerifiedAt   string `json:"verified_at"`
+	RolledBackAt string `json:"rolled_back_at"`
+}
+
+// CreateDeployment inserts a new deployment history record with status "started".
+func CreateDeployment(db *sql.DB, nestID, eggID, deployMethod, binaryHash, configHash string) (string, error) {
+	id := uuid.New().String()
+	now := time.Now().UTC().Format(time.RFC3339)
+	_, err := db.Exec(`INSERT INTO deployment_history (id, nest_id, egg_id, status, binary_hash, config_hash, deploy_method, created_at)
+		VALUES (?, ?, ?, 'started', ?, ?, ?, ?)`, id, nestID, eggID, binaryHash, configHash, deployMethod, now)
+	if err != nil {
+		return "", fmt.Errorf("failed to create deployment record: %w", err)
+	}
+	return id, nil
+}
+
+// UpdateDeploymentStatus transitions a deployment to a new status.
+func UpdateDeploymentStatus(db *sql.DB, deployID, status string) error {
+	now := time.Now().UTC().Format(time.RFC3339)
+	var query string
+	var args []interface{}
+	switch status {
+	case "deployed":
+		query = `UPDATE deployment_history SET status=?, deployed_at=? WHERE id=?`
+		args = []interface{}{status, now, deployID}
+	case "verified":
+		query = `UPDATE deployment_history SET status=?, verified_at=? WHERE id=?`
+		args = []interface{}{status, now, deployID}
+	case "rolled_back":
+		query = `UPDATE deployment_history SET status=?, rolled_back_at=? WHERE id=?`
+		args = []interface{}{status, now, deployID}
+	default: // failed, etc.
+		query = `UPDATE deployment_history SET status=? WHERE id=?`
+		args = []interface{}{status, deployID}
+	}
+	_, err := db.Exec(query, args...)
+	if err != nil {
+		return fmt.Errorf("failed to update deployment status: %w", err)
+	}
+	return nil
+}
+
+// GetDeploymentHistory returns deployment history for a nest (newest first).
+func GetDeploymentHistory(db *sql.DB, nestID string, limit int) ([]DeploymentRecord, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	rows, err := db.Query(`SELECT id, nest_id, egg_id, status, binary_hash, config_hash, deploy_method,
+		created_at, deployed_at, verified_at, rolled_back_at
+		FROM deployment_history WHERE nest_id=? ORDER BY created_at DESC LIMIT ?`, nestID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query deployment history: %w", err)
+	}
+	defer rows.Close()
+	return scanDeployments(rows)
+}
+
+// GetDeployment retrieves a single deployment record by ID.
+func GetDeployment(db *sql.DB, deployID string) (*DeploymentRecord, error) {
+	row := db.QueryRow(`SELECT id, nest_id, egg_id, status, binary_hash, config_hash, deploy_method,
+		created_at, deployed_at, verified_at, rolled_back_at
+		FROM deployment_history WHERE id=?`, deployID)
+	d, err := scanDeploymentRow(row)
+	if err != nil {
+		return nil, fmt.Errorf("deployment not found: %w", err)
+	}
+	return &d, nil
+}
+
+// GetLastSuccessfulDeployment returns the most recent verified or deployed deployment for a nest.
+func GetLastSuccessfulDeployment(db *sql.DB, nestID string) (*DeploymentRecord, error) {
+	row := db.QueryRow(`SELECT id, nest_id, egg_id, status, binary_hash, config_hash, deploy_method,
+		created_at, deployed_at, verified_at, rolled_back_at
+		FROM deployment_history WHERE nest_id=? AND status IN ('verified','deployed') ORDER BY created_at DESC LIMIT 1`, nestID)
+	d, err := scanDeploymentRow(row)
+	if err != nil {
+		return nil, err
+	}
+	return &d, nil
+}
+
+// CleanupOldDeployments removes deployment records older than the given duration.
+func CleanupOldDeployments(db *sql.DB, maxAge time.Duration) (int64, error) {
+	cutoff := time.Now().UTC().Add(-maxAge).Format(time.RFC3339)
+	res, err := db.Exec(`DELETE FROM deployment_history WHERE created_at < ?`, cutoff)
+	if err != nil {
+		return 0, fmt.Errorf("failed to cleanup old deployments: %w", err)
+	}
+	return res.RowsAffected()
+}
+
+func scanDeploymentRow(scanner interface{ Scan(...interface{}) error }) (DeploymentRecord, error) {
+	var d DeploymentRecord
+	var deployedAt, verifiedAt, rolledBackAt sql.NullString
+	err := scanner.Scan(&d.ID, &d.NestID, &d.EggID, &d.Status, &d.BinaryHash, &d.ConfigHash, &d.DeployMethod,
+		&d.CreatedAt, &deployedAt, &verifiedAt, &rolledBackAt)
+	if err != nil {
+		return DeploymentRecord{}, err
+	}
+	d.DeployedAt = nullStr(deployedAt)
+	d.VerifiedAt = nullStr(verifiedAt)
+	d.RolledBackAt = nullStr(rolledBackAt)
+	return d, nil
+}
+
+func scanDeployments(rows *sql.Rows) ([]DeploymentRecord, error) {
+	var deployments []DeploymentRecord
+	for rows.Next() {
+		d, err := scanDeploymentRow(rows)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan deployment: %w", err)
+		}
+		deployments = append(deployments, d)
+	}
+	return deployments, rows.Err()
 }

@@ -25,6 +25,7 @@ const (
 	MsgResult    = "result"    // egg → master: task completion
 	MsgStatus    = "status"    // master → egg: status request
 	MsgSecret    = "secret"    // master → egg: encrypted vault secret
+	MsgRekey     = "rekey"     // master → egg: shared key rotation
 	MsgAck       = "ack"       // both directions: acknowledgement
 	MsgError     = "error"     // both directions: error notification
 	MsgStop      = "stop"      // master → egg: graceful shutdown
@@ -78,6 +79,12 @@ type ResultPayload struct {
 type SecretPayload struct {
 	Key            string `json:"key"`
 	EncryptedValue string `json:"encrypted_value"` // hex-encoded AES-256-GCM ciphertext
+}
+
+// RekeyPayload carries a new shared key, encrypted with the current shared key.
+type RekeyPayload struct {
+	NewKeyEncrypted string `json:"new_key_encrypted"` // hex-encoded AES-256-GCM ciphertext of new hex key
+	KeyVersion      int    `json:"key_version"`       // incrementing version number
 }
 
 // AckPayload acknowledges receipt of a specific message.

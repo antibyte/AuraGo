@@ -7,7 +7,7 @@
   "cheatsheets.create_new": "नया धोखा पत्र",
   "cheatsheets.deactivate": "अक्षम करना",
   "cheatsheets.delete": "मिटाना",
-  "cheatsheets.delete_prompt": "{{name} को हटाने के लिए नाम दर्ज करें }:",
+  "cheatsheets.delete_prompt": "क्या आप वाकई {{name}} को हटाना चाहते हैं?",
   "cheatsheets.deleted": "धोखा पत्र हटा दिया गया!",
   "cheatsheets.edit": "संपादन करना",
   "cheatsheets.edit_sheet": "चीट शीट संपादित करें",

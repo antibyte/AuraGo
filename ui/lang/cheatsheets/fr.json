@@ -7,7 +7,7 @@
   "cheatsheets.create_new": "Nouvelle aide-mémoire",
   "cheatsheets.deactivate": "Désactiver",
   "cheatsheets.delete": "Supprimer",
-  "cheatsheets.delete_prompt": "Saisissez le nom à supprimer {{name} } :",
+  "cheatsheets.delete_prompt": "Voulez-vous vraiment supprimer {{name}} ?",
   "cheatsheets.deleted": "Aide-mémoire supprimé !",
   "cheatsheets.edit": "Modifier",
   "cheatsheets.edit_sheet": "Modifier l'aide-mémoire",

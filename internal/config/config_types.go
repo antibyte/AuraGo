@@ -877,11 +877,12 @@ type Config struct {
 		AdditionalRoutes []ProxyRoute `yaml:"additional_routes"`
 	} `yaml:"security_proxy"`
 	EggMode struct {
-		Enabled   bool   `yaml:"enabled"`    // true = this instance is a worker egg
-		MasterURL string `yaml:"master_url"` // WebSocket URL of the master (ws[s]://host:port/api/invasion/ws)
-		SharedKey string `yaml:"-" json:"-"` // vault-only: egg_shared_key (hex-encoded AES-256 shared key)
-		EggID     string `yaml:"egg_id"`     // UUID of this egg record on master
-		NestID    string `yaml:"nest_id"`    // UUID of the nest this egg is deployed in
+		Enabled       bool   `yaml:"enabled"`         // true = this instance is a worker egg
+		MasterURL     string `yaml:"master_url"`      // WebSocket URL of the master (ws[s]://host:port/api/invasion/ws)
+		SharedKey     string `yaml:"-" json:"-"`      // vault-only: egg_shared_key (hex-encoded AES-256 shared key)
+		EggID         string `yaml:"egg_id"`          // UUID of this egg record on master
+		NestID        string `yaml:"nest_id"`         // UUID of the nest this egg is deployed in
+		TLSSkipVerify bool   `yaml:"tls_skip_verify"` // skip TLS certificate verification (for self-signed certs)
 	} `yaml:"egg_mode"`
 	Indexing struct {
 		Enabled             bool     `yaml:"enabled"`

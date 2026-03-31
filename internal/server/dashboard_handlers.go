@@ -1083,7 +1083,7 @@ func handleDashboardOverview(s *Server) http.HandlerFunc {
 			"total": 0, "active": 0,
 		}
 		if s.CheatsheetDB != nil {
-			total, active, _ := tools.CheatsheetCount(s.CheatsheetDB)
+			total, active, _, _ := tools.CheatsheetCount(s.CheatsheetDB)
 			cheatsheetsSummary["total"] = total
 			cheatsheetsSummary["active"] = active
 		}

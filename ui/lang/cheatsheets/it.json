@@ -7,7 +7,7 @@
   "cheatsheets.create_new": "Nuovo foglietto illustrativo",
   "cheatsheets.deactivate": "Disabilita",
   "cheatsheets.delete": "Eliminare",
-  "cheatsheets.delete_prompt": "Inserisci il nome da eliminare {{name} }:",
+  "cheatsheets.delete_prompt": "Sei sicuro di voler eliminare {{name}}?",
   "cheatsheets.deleted": "Foglio informativo eliminato!",
   "cheatsheets.edit": "Modificare",
   "cheatsheets.edit_sheet": "Modifica il foglietto illustrativo",

@@ -43,10 +43,30 @@
         /* ── Step Indicator ─────────────────────────── */
         .step-indicator {
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             justify-content: center;
             gap: 0.5rem;
             padding: 1.5rem 2rem 0;
+        }
+
+        .step-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
+        .step-label {
+            font-size: 0.65rem;
+            color: var(--text-secondary);
+            opacity: 0.6;
+            transition: opacity 0.3s;
+            white-space: nowrap;
+        }
+
+        .step-group:has(.step-dot.active) .step-label,
+        .step-group:has(.step-dot.completed) .step-label {
+            opacity: 1;
         }
 
         .step-dot {
@@ -67,6 +87,12 @@
         .step-dot.completed {
             background: var(--accent);
             opacity: 0.5;
+        }
+
+        .step-dot.reachable {
+            cursor: pointer;
+            opacity: 0.65;
+            background: var(--accent);
         }
 
         .step-line {
@@ -393,6 +419,33 @@
 
         .btn-skip:hover {
             color: var(--text-primary);
+        }
+
+        .btn-test-connection {
+            margin-top: 0.5rem;
+            background: var(--bg-glass);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-subtle);
+            font-size: var(--text-xs);
+            padding: 0.4rem 1rem;
+        }
+
+        .btn-test-connection:hover {
+            color: var(--text-primary);
+            border-color: var(--border-accent);
+        }
+
+        .btn-test-connection:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .test-result-ok {
+            color: #2dd4bf !important;
+        }
+
+        .test-result-fail {
+            color: #ef4444 !important;
         }
 
         .footer-left {
@@ -807,6 +860,28 @@
     .trust-level-grid {
         grid-template-columns: 1fr;
     }
+}
+
+/* ── HTTPS Warning Banner ──────────────────── */
+.https-warning {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: var(--warning, #eab308);
+    color: #000;
+    font-size: 0.85rem;
+    font-weight: 500;
+    text-align: center;
+}
+.https-warning.is-hidden {
+    display: none;
 }
 
 /* ══════════════════════════════════════════════════════════════

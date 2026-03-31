@@ -19,6 +19,7 @@ import (
 	"aurago/internal/agent"
 	"aurago/internal/discord"
 	"aurago/internal/invasion"
+	"aurago/internal/invasion/bridge"
 	"aurago/internal/memory"
 	"aurago/internal/mqtt"
 	"aurago/internal/rocketchat"
@@ -228,6 +229,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 
 	// Quick Setup wizard endpoints (always available — needed before config is complete)
 	mux.HandleFunc("/api/setup/status", handleSetupStatus(s))
+	mux.HandleFunc("/api/setup/test", handleSetupTestConnection(s))
 	mux.HandleFunc("/api/setup", handleSetupSave(s))
 
 	// i18n translations endpoint (always available — used by setup wizard pre-auth)
@@ -1168,6 +1170,14 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 				handleInvasionNestSendSecret(s)(w, r)
 			} else if strings.HasSuffix(path, "/send-task") {
 				handleInvasionNestSendTask(s)(w, r)
+			} else if strings.HasSuffix(path, "/tasks") {
+				handleInvasionNestTasks(s)(w, r)
+			} else if strings.HasSuffix(path, "/rotate-key") {
+				handleInvasionNestRotateKey(s)(w, r)
+			} else if strings.HasSuffix(path, "/rollback") {
+				handleInvasionNestRollback(s)(w, r)
+			} else if strings.HasSuffix(path, "/deployments") {
+				handleInvasionNestDeployments(s)(w, r)
 			} else {
 				handleInvasionNest(s)(w, r)
 			}
@@ -1175,11 +1185,46 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 
 		// ── WebSocket endpoint for egg connections ──
 		mux.HandleFunc("/api/invasion/ws", handleInvasionWebSocket(s))
+		mux.HandleFunc("/api/invasion/tasks/", handleInvasionTask(s))
 
 		// Set up hub callbacks once (not per-connection)
 		s.EggHub.OnDisconnect = func(nestID, eggID string) {
 			s.Logger.Info("Egg disconnected", "nest_id", nestID, "egg_id", eggID)
 			_ = invasion.UpdateNestHatchStatus(s.InvasionDB, nestID, "stopped", "connection lost")
+		}
+
+		s.EggHub.OnResult = func(nestID string, result bridge.ResultPayload) {
+			s.Logger.Info("Task result received", "nest_id", nestID, "task_id", result.TaskID, "status", result.Status)
+			status := "completed"
+			if result.Status == "failure" {
+				status = "failed"
+			}
+			_ = invasion.UpdateTaskStatus(s.InvasionDB, result.TaskID, status, result.Output, result.Error)
+		}
+
+		s.EggHub.OnConnect = func(nestID, eggID string) {
+			_ = invasion.UpdateNestHatchStatus(s.InvasionDB, nestID, "running", "")
+			// Re-send pending tasks after reconnect
+			go func() {
+				time.Sleep(2 * time.Second) // brief delay for egg to stabilize
+				tasks, err := invasion.GetPendingTasks(s.InvasionDB, nestID)
+				if err != nil || len(tasks) == 0 {
+					return
+				}
+				s.Logger.Info("Re-sending pending tasks after reconnect", "nest_id", nestID, "count", len(tasks))
+				for _, t := range tasks {
+					taskPayload := bridge.TaskPayload{
+						TaskID:      t.ID,
+						Description: t.Description,
+						Timeout:     t.Timeout,
+					}
+					if err := s.EggHub.SendTask(nestID, taskPayload); err != nil {
+						s.Logger.Warn("Failed to re-send task", "task_id", t.ID, "error", err)
+						continue
+					}
+					_ = invasion.UpdateTaskStatus(s.InvasionDB, t.ID, "sent", "", "")
+				}
+			}()
 		}
 
 		// Start heartbeat monitor (stops on server shutdown)
@@ -1192,6 +1237,29 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 			s.Logger.Warn("Egg heartbeat stale, marking as failed", "nest_id", nestID, "egg_id", eggID)
 			_ = invasion.UpdateNestHatchStatus(s.InvasionDB, nestID, "failed", "heartbeat timeout")
 		})
+
+		// Periodic cleanup of old completed tasks (every 6 hours, retain 7 days)
+		go func() {
+			ticker := time.NewTicker(6 * time.Hour)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-shutdownCh:
+					return
+				case <-ticker.C:
+					if n, err := invasion.CleanupOldTasks(s.InvasionDB, 7*24*time.Hour); err != nil {
+						s.Logger.Warn("Task cleanup failed", "error", err)
+					} else if n > 0 {
+						s.Logger.Info("Cleaned up old invasion tasks", "count", n)
+					}
+					if n, err := invasion.CleanupOldDeployments(s.InvasionDB, 30*24*time.Hour); err != nil {
+						s.Logger.Warn("Deployment history cleanup failed", "error", err)
+					} else if n > 0 {
+						s.Logger.Info("Cleaned up old deployment history", "count", n)
+					}
+				}
+			}
+		}()
 
 		s.Logger.Info("Invasion Control API registered at /api/invasion/...")
 	}

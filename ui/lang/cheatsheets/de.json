@@ -17,7 +17,7 @@
   "cheatsheets.activate": "Aktivieren",
   "cheatsheets.deactivate": "Deaktivieren",
   "cheatsheets.confirm_delete": "Löschen bestätigen",
-  "cheatsheets.delete_prompt": "Gib den Namen ein, um {{name}} zu löschen:",
+  "cheatsheets.delete_prompt": "Möchtest du {{name}} wirklich löschen?",
   "cheatsheets.deleted": "Spickzettel gelöscht!",
   "cheatsheets.saved": "Spickzettel gespeichert!",
   "cheatsheets.error": "Fehler",

@@ -57,18 +57,15 @@ func handleCheatSheets(s *Server) http.HandlerFunc {
 
 		case http.MethodPost:
 			var body struct {
-				Name      string `json:"name"`
-				Content   string `json:"content"`
-				CreatedBy string `json:"created_by"`
+				Name    string `json:"name"`
+				Content string `json:"content"`
 			}
 			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 				jsonError(w, "invalid JSON", http.StatusBadRequest)
 				return
 			}
-			if body.CreatedBy == "" {
-				body.CreatedBy = "user"
-			}
-			sheet, err := tools.CheatsheetCreate(s.CheatsheetDB, body.Name, body.Content, body.CreatedBy)
+			// HTTP API always creates as "user"; agent creates via tool dispatch
+			sheet, err := tools.CheatsheetCreate(s.CheatsheetDB, body.Name, body.Content, "user")
 			if err != nil {
 				jsonLoggedError(w, s.Logger, http.StatusBadRequest, "Failed to create cheat sheet", "Failed to create cheat sheet", err, "name", body.Name)
 				return
