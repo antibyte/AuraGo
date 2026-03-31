@@ -1,0 +1,17 @@
+{
+  "config.mission_preparation.enabled_label": "Aktiviert",
+  "config.mission_preparation.provider_label": "LLM-Anbieter",
+  "config.mission_preparation.provider_placeholder": "Leer lassen für Hauptanbieter",
+  "config.mission_preparation.timeout_seconds_label": "Zeitlimit (Sekunden)",
+  "config.mission_preparation.max_essential_tools_label": "Max. wichtige Tools",
+  "config.mission_preparation.cache_expiry_hours_label": "Cache-Ablauf (Stunden)",
+  "config.mission_preparation.min_confidence_label": "Min. Konfidenz",
+  "config.mission_preparation.auto_prepare_scheduled_label": "Geplante Missionen automatisch vorbereiten",
+  "help.mission_preparation.enabled": "LLM-basierte Voranalyse von Missionen vor der Ausführung aktivieren",
+  "help.mission_preparation.provider": "LLM-Anbieter für die Voranalyse überschreiben. Leer lassen für Hauptanbieter.",
+  "help.mission_preparation.timeout_seconds": "Maximale Zeit in Sekunden für eine einzelne Voranalyse",
+  "help.mission_preparation.max_essential_tools": "Maximale Anzahl der Tools in der Voranalyse",
+  "help.mission_preparation.cache_expiry_hours": "Wie lange eine Vorbereitung gültig bleibt, bevor sie aktualisiert werden muss",
+  "help.mission_preparation.min_confidence": "Minimaler Konfidenzwert (0-1), damit eine Vorbereitung verwendet wird",
+  "help.mission_preparation.auto_prepare_scheduled": "Geplante Missionen automatisch vorbereiten, wenn sie erstellt oder geändert werden"
+}

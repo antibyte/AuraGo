@@ -77,7 +77,7 @@ func handleCheatSheets(s *Server) http.HandlerFunc {
 			writeJSON(w, sheet)
 
 		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	}
 }
@@ -130,6 +130,11 @@ func handleCheatSheetByID(s *Server) http.HandlerFunc {
 			}
 			writeJSON(w, sheet)
 
+			// Invalidate mission preparations that reference this cheatsheet
+			if s.PreparationService != nil {
+				s.PreparationService.InvalidateByCheatsheet(id)
+			}
+
 		case http.MethodDelete:
 			if err := tools.CheatsheetDelete(s.CheatsheetDB, id); err != nil {
 				if errors.Is(err, sql.ErrNoRows) {
@@ -141,8 +146,13 @@ func handleCheatSheetByID(s *Server) http.HandlerFunc {
 			}
 			writeJSON(w, map[string]string{"status": "deleted"})
 
+			// Invalidate mission preparations that reference this cheatsheet
+			if s.PreparationService != nil {
+				s.PreparationService.InvalidateByCheatsheet(id)
+			}
+
 		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	}
 }
@@ -273,7 +283,7 @@ func handleCheatSheetAttachments(s *Server) http.HandlerFunc {
 			writeJSON(w, attachment)
 
 		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	}
 }
@@ -306,7 +316,7 @@ func handleCheatSheetAttachmentByID(s *Server) http.HandlerFunc {
 			writeJSON(w, map[string]string{"status": "deleted"})
 
 		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	}
 }

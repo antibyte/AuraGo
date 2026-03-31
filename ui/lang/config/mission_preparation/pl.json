@@ -1,0 +1,17 @@
+{
+  "config.mission_preparation.enabled_label": "Włączone",
+  "config.mission_preparation.provider_label": "Dostawca LLM",
+  "config.mission_preparation.provider_placeholder": "Pozostaw puste dla głównego dostawcy",
+  "config.mission_preparation.timeout_seconds_label": "Limit czasu (sekundy)",
+  "config.mission_preparation.max_essential_tools_label": "Maks. kluczowych narzędzi",
+  "config.mission_preparation.cache_expiry_hours_label": "Wygaśnięcie cache (godziny)",
+  "config.mission_preparation.min_confidence_label": "Min. pewność",
+  "config.mission_preparation.auto_prepare_scheduled_label": "Automatycznie przygotuj zaplanowane misje",
+  "help.mission_preparation.enabled": "Włącz wstępną analizę LLM misji przed wykonaniem",
+  "help.mission_preparation.provider": "Nadpisz dostawcę LLM do analizy. Pozostaw puste dla głównego dostawcy.",
+  "help.mission_preparation.timeout_seconds": "Maksymalny czas w sekundach na pojedynczą analizę przygotowania",
+  "help.mission_preparation.max_essential_tools": "Maksymalna liczba narzędzi uwzględnionych w analizie",
+  "help.mission_preparation.cache_expiry_hours": "Jak długo przygotowanie pozostaje ważne przed odświeżeniem",
+  "help.mission_preparation.min_confidence": "Minimalna ocena pewności (0-1) wymagana do użycia przygotowania",
+  "help.mission_preparation.auto_prepare_scheduled": "Automatycznie przygotuj zaplanowane misje przy tworzeniu lub modyfikacji"
+}

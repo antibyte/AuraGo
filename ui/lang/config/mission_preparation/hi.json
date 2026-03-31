@@ -1,0 +1,17 @@
+{
+  "config.mission_preparation.enabled_label": "सक्रिय",
+  "config.mission_preparation.provider_label": "LLM प्रदाता",
+  "config.mission_preparation.provider_placeholder": "मुख्य प्रदाता के लिए खाली छोड़ें",
+  "config.mission_preparation.timeout_seconds_label": "समय सीमा (सेकंड)",
+  "config.mission_preparation.max_essential_tools_label": "अधिकतम आवश्यक टूल",
+  "config.mission_preparation.cache_expiry_hours_label": "कैश समाप्ति (घंटे)",
+  "config.mission_preparation.min_confidence_label": "न्यूनतम विश्वास",
+  "config.mission_preparation.auto_prepare_scheduled_label": "निर्धारित मिशन स्वतः तैयार करें",
+  "help.mission_preparation.enabled": "निष्पादन से पहले मिशनों की LLM-आधारित पूर्व-विश्लेषण सक्षम करें",
+  "help.mission_preparation.provider": "विश्लेषण के लिए LLM प्रदाता ओवरराइड करें। मुख्य प्रदाता के लिए खाली छोड़ें।",
+  "help.mission_preparation.timeout_seconds": "एक तैयारी विश्लेषण के लिए सेकंड में अधिकतम समय",
+  "help.mission_preparation.max_essential_tools": "विश्लेषण में शामिल करने के लिए टूल की अधिकतम संख्या",
+  "help.mission_preparation.cache_expiry_hours": "अद्यतन करने से पहले तैयारी कितने समय तक वैध रहती है",
+  "help.mission_preparation.min_confidence": "तैयारी का उपयोग करने के लिए आवश्यक न्यूनतम विश्वास स्कोर (0-1)",
+  "help.mission_preparation.auto_prepare_scheduled": "बनाने या संशोधित करने पर निर्धारित मिशन स्वचालित रूप से तैयार करें"
+}

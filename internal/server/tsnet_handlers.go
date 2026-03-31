@@ -11,7 +11,7 @@ import (
 func handleTsNetStatus(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -77,12 +77,12 @@ func handleTsNetStatus(s *Server) http.HandlerFunc {
 func handleTsNetStart(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
 		if s.TsNetManager == nil {
-			http.Error(w, "tsnet not initialized", http.StatusServiceUnavailable)
+			jsonError(w, "tsnet not initialized", http.StatusServiceUnavailable)
 			return
 		}
 
@@ -136,12 +136,12 @@ func handleTsNetStart(s *Server) http.HandlerFunc {
 func handleTsNetStop(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
 		if s.TsNetManager == nil {
-			http.Error(w, "tsnet not initialized", http.StatusServiceUnavailable)
+			jsonError(w, "tsnet not initialized", http.StatusServiceUnavailable)
 			return
 		}
 

@@ -385,4 +385,5 @@
   "dashboard.activity_overview_summary": "Summary",
   "dashboard.activity_overview_highlights": "Highlights",
   "dashboard.activity_overview_pending": "Open Items"
+  "dashboard.api_error": "Impossible de charger les données du tableau de bord"
 }

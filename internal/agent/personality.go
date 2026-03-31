@@ -41,9 +41,10 @@ func getMoodTrigger(messages []openai.ChatCompletionMessage, lastUserMsg string)
 			strings.HasPrefix(msg.Content, "Tool Output:") {
 			continue
 		}
-		// Truncate very long messages
-		if len(msg.Content) > 120 {
-			return msg.Content[:120] + "…"
+		// Truncate very long messages — use rune-safe slicing to avoid splitting multi-byte UTF-8 characters.
+		runes := []rune(msg.Content)
+		if len(runes) > 120 {
+			return string(runes[:120]) + "…"
 		}
 		return msg.Content
 	}
@@ -52,13 +53,23 @@ func getMoodTrigger(messages []openai.ChatCompletionMessage, lastUserMsg string)
 
 // processBehavioralEvents handles V2 mood milestone checks and loneliness calculations
 func processBehavioralEvents(stm *memory.SQLiteMemory, messages *[]openai.ChatCompletionMessage, sessionID string, meta memory.PersonalityMeta, logger *slog.Logger) {
-	// Loneliness Trait based on time elapsed since last user message
+	// Loneliness Trait based on time elapsed since last user message.
+	// Incremental update: nudge toward the time-based target instead of hard-setting
+	// the absolute value, so that other dynamics (e.g. positive interactions) are preserved.
 	hours, err := stm.GetHoursSinceLastUserMessage(sessionID)
 	if err == nil {
-		// Max loneliness after 72 hours (3 days), modified by susceptibility configuration
-		loneliness := math.Min(1.0, (hours/72.0)*meta.LonelinessSusceptibility)
-		_ = stm.SetTrait(memory.TraitLoneliness, loneliness)
-		logger.Debug("[Behavioral Event] Evaluated loneliness", "hours_since_last_msg", hours, "new_loneliness_score", loneliness)
+		traits, _ := stm.GetTraits()
+		current := 0.0
+		if traits != nil {
+			current = traits[memory.TraitLoneliness]
+		}
+		target := math.Min(1.0, (hours/72.0)*meta.LonelinessSusceptibility)
+		// Apply 20% of the remaining gap per interaction to avoid abrupt resets.
+		delta := (target - current) * 0.2
+		if delta != 0 {
+			_ = stm.UpdateTrait(memory.TraitLoneliness, delta)
+		}
+		logger.Debug("[Behavioral Event] Evaluated loneliness", "hours_since_last_msg", hours, "target", target, "current", current, "delta", delta)
 	}
 
 	// Narrative Events based on Milestones

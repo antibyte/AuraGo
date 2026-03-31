@@ -14,11 +14,11 @@ import (
 func handleListDevices(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		if s.InventoryDB == nil {
-			http.Error(w, `{"error":"inventory database not configured"}`, http.StatusServiceUnavailable)
+			jsonError(w, `{"error":"inventory database not configured"}`, http.StatusServiceUnavailable)
 			return
 		}
 
@@ -40,17 +40,17 @@ func handleListDevices(s *Server) http.HandlerFunc {
 func handleGetDevice(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		if s.InventoryDB == nil {
-			http.Error(w, `{"error":"inventory database not configured"}`, http.StatusServiceUnavailable)
+			jsonError(w, `{"error":"inventory database not configured"}`, http.StatusServiceUnavailable)
 			return
 		}
 
 		id := strings.TrimPrefix(r.URL.Path, "/api/devices/")
 		if id == "" {
-			http.Error(w, `{"error":"device id required"}`, http.StatusBadRequest)
+			jsonError(w, `{"error":"device id required"}`, http.StatusBadRequest)
 			return
 		}
 
@@ -73,21 +73,21 @@ func handleGetDevice(s *Server) http.HandlerFunc {
 func handleCreateDevice(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		if s.InventoryDB == nil {
-			http.Error(w, `{"error":"inventory database not configured"}`, http.StatusServiceUnavailable)
+			jsonError(w, `{"error":"inventory database not configured"}`, http.StatusServiceUnavailable)
 			return
 		}
 
 		var req inventory.DeviceRecord
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, `{"error":"invalid JSON"}`, http.StatusBadRequest)
+			jsonError(w, `{"error":"invalid JSON"}`, http.StatusBadRequest)
 			return
 		}
 		if req.Name == "" {
-			http.Error(w, `{"error":"name is required"}`, http.StatusBadRequest)
+			jsonError(w, `{"error":"name is required"}`, http.StatusBadRequest)
 			return
 		}
 		if req.Type == "" {
@@ -98,7 +98,7 @@ func handleCreateDevice(s *Server) http.HandlerFunc {
 		}
 		if strings.TrimSpace(req.CredentialID) != "" {
 			if _, err := credentials.GetByID(s.InventoryDB, req.CredentialID); err != nil {
-				http.Error(w, `{"error":"linked credential not found"}`, http.StatusBadRequest)
+				jsonError(w, `{"error":"linked credential not found"}`, http.StatusBadRequest)
 				return
 			}
 			req.Username = ""
@@ -121,28 +121,28 @@ func handleCreateDevice(s *Server) http.HandlerFunc {
 func handleUpdateDevice(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPut {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		if s.InventoryDB == nil {
-			http.Error(w, `{"error":"inventory database not configured"}`, http.StatusServiceUnavailable)
+			jsonError(w, `{"error":"inventory database not configured"}`, http.StatusServiceUnavailable)
 			return
 		}
 
 		id := strings.TrimPrefix(r.URL.Path, "/api/devices/")
 		if id == "" {
-			http.Error(w, `{"error":"device id required"}`, http.StatusBadRequest)
+			jsonError(w, `{"error":"device id required"}`, http.StatusBadRequest)
 			return
 		}
 
 		var req inventory.DeviceRecord
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, `{"error":"invalid JSON"}`, http.StatusBadRequest)
+			jsonError(w, `{"error":"invalid JSON"}`, http.StatusBadRequest)
 			return
 		}
 		req.ID = id
 		if req.Name == "" {
-			http.Error(w, `{"error":"name is required"}`, http.StatusBadRequest)
+			jsonError(w, `{"error":"name is required"}`, http.StatusBadRequest)
 			return
 		}
 		if req.Type == "" {
@@ -162,7 +162,7 @@ func handleUpdateDevice(s *Server) http.HandlerFunc {
 		}
 		if strings.TrimSpace(req.CredentialID) != "" {
 			if _, err := credentials.GetByID(s.InventoryDB, req.CredentialID); err != nil {
-				http.Error(w, `{"error":"linked credential not found"}`, http.StatusBadRequest)
+				jsonError(w, `{"error":"linked credential not found"}`, http.StatusBadRequest)
 				return
 			}
 			req.Username = ""
@@ -192,17 +192,17 @@ func handleUpdateDevice(s *Server) http.HandlerFunc {
 func handleDeleteDevice(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodDelete {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		if s.InventoryDB == nil {
-			http.Error(w, `{"error":"inventory database not configured"}`, http.StatusServiceUnavailable)
+			jsonError(w, `{"error":"inventory database not configured"}`, http.StatusServiceUnavailable)
 			return
 		}
 
 		id := strings.TrimPrefix(r.URL.Path, "/api/devices/")
 		if id == "" {
-			http.Error(w, `{"error":"device id required"}`, http.StatusBadRequest)
+			jsonError(w, `{"error":"device id required"}`, http.StatusBadRequest)
 			return
 		}
 
@@ -225,7 +225,7 @@ func handleDeleteDevice(s *Server) http.HandlerFunc {
 func handleMACLookup(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -233,7 +233,7 @@ func handleMACLookup(s *Server) http.HandlerFunc {
 			IP string `json:"ip"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil || strings.TrimSpace(req.IP) == "" {
-			http.Error(w, `{"error":"ip field required"}`, http.StatusBadRequest)
+			jsonError(w, `{"error":"ip field required"}`, http.StatusBadRequest)
 			return
 		}
 

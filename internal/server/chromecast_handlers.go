@@ -13,7 +13,7 @@ import (
 func handleChromecastDiscover(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -25,7 +25,7 @@ func handleChromecastDiscover(s *Server) http.HandlerFunc {
 		// Validate that it's proper JSON before sending
 		var parsed map[string]interface{}
 		if err := json.Unmarshal([]byte(raw), &parsed); err != nil {
-			http.Error(w, `{"error":"discovery returned invalid data"}`, http.StatusInternalServerError)
+			jsonError(w, `{"error":"discovery returned invalid data"}`, http.StatusInternalServerError)
 			return
 		}
 

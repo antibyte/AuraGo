@@ -313,6 +313,17 @@ tools:
         max_upload_size_mb: 1                               # maximum upload file size in MB
         auto_enable_clean: false                            # automatically enable skills that pass security scan
         scan_with_guardian: false                            # use LLM Guardian for code review (opt-in)
+# ── Mission Preparation ────────────────────────────────────────────────────────
+# Pre-analyses missions via LLM before execution to produce advisory context
+# (tool guides, step plans, decision points, pitfalls). Purely advisory — never blocks execution.
+mission_preparation:
+    enabled: false                                          # enable mission preparation feature
+    provider: ""                                            # provider entry ID; empty = use main LLM provider
+    timeout_seconds: 120                                    # LLM call timeout in seconds
+    max_essential_tools: 5                                  # max tools to include in preparation guide
+    cache_expiry_hours: 24                                  # prepared data cache lifetime in hours
+    min_confidence: 0.5                                     # minimum confidence to mark as prepared (0.0 - 1.0)
+    auto_prepare_scheduled: true                            # auto-prepare scheduled missions on change
 # ── S3-compatible storage ──────────────────────────────────────────────────────
 s3:
     enabled: false

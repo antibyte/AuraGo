@@ -1,0 +1,17 @@
+{
+  "config.mission_preparation.enabled_label": "启用",
+  "config.mission_preparation.provider_label": "LLM提供者",
+  "config.mission_preparation.provider_placeholder": "留空使用主提供者",
+  "config.mission_preparation.timeout_seconds_label": "超时（秒）",
+  "config.mission_preparation.max_essential_tools_label": "最大关键工具数",
+  "config.mission_preparation.cache_expiry_hours_label": "缓存过期（小时）",
+  "config.mission_preparation.min_confidence_label": "最低置信度",
+  "config.mission_preparation.auto_prepare_scheduled_label": "自动准备计划任务",
+  "help.mission_preparation.enabled": "启用执行前基于LLM的任务预分析",
+  "help.mission_preparation.provider": "覆盖分析使用的LLM提供者。留空使用主提供者。",
+  "help.mission_preparation.timeout_seconds": "单次准备分析的最大秒数",
+  "help.mission_preparation.max_essential_tools": "分析中包含的最大工具数",
+  "help.mission_preparation.cache_expiry_hours": "准备在刷新前保持有效的时间",
+  "help.mission_preparation.min_confidence": "使用准备所需的最低置信度分数（0-1）",
+  "help.mission_preparation.auto_prepare_scheduled": "创建或修改计划任务时自动准备"
+}

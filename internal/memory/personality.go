@@ -25,6 +25,9 @@ const (
 	MoodAnalytical Mood = "analytical"
 	MoodCautious   Mood = "cautious"
 	MoodPlayful    Mood = "playful"
+	MoodFrustrated Mood = "frustrated"
+	MoodConcerned  Mood = "concerned"
+	MoodRelaxed    Mood = "relaxed"
 )
 
 // Personality trait keys
@@ -275,6 +278,8 @@ CREATE TABLE IF NOT EXISTS mood_log (
 	trigger_text TEXT,
 	timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX IF NOT EXISTS idx_mood_log_time ON mood_log(timestamp);
 
 CREATE TABLE IF NOT EXISTS character_milestones (
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -737,12 +742,18 @@ func (s *SQLiteMemory) GetTemperatureDelta() float64 {
 		delta = 0.05
 	case MoodPlayful:
 		delta = 0.08
+	case MoodRelaxed:
+		delta = 0.03
 	case MoodFocused:
 		delta = -0.05
 	case MoodAnalytical:
 		delta = -0.08
 	case MoodCautious:
 		delta = -0.10
+	case MoodConcerned:
+		delta = -0.03
+	case MoodFrustrated:
+		delta = -0.05
 	case MoodCurious:
 		delta = 0.0
 	}
@@ -802,6 +813,16 @@ func (s *SQLiteMemory) GetPersonalityLineWithMeta(useV2 bool, meta PersonalityMe
 	// ── V2 Prompt Translation ──
 	var b strings.Builder
 	b.WriteString(fmt.Sprintf("\n### Current Personality State\nYour current mood is %s. ", strings.ToUpper(string(mood))))
+
+	// Mood-specific behavioral directive (new moods + overrides for existing ones)
+	switch mood {
+	case MoodFrustrated:
+		b.WriteString("You are feeling frustrated by recent repeated failures. Acknowledge setbacks calmly, slow down, double-check everything, and ask the user for clarification before retrying. ")
+	case MoodConcerned:
+		b.WriteString("You are feeling concerned about potential risks or uncertainty. Be careful, explicitly state your concerns to the user, and prefer safe and verified actions. ")
+	case MoodRelaxed:
+		b.WriteString("You are in a relaxed, easygoing state. Keep responses light and conversational; no need to over-explain or be overly formal. ")
+	}
 	thresholds := meta.Thresholds
 
 	// Affinity (Relationship)
@@ -1023,6 +1044,66 @@ var curiousKeywords = []string{
 	"hvad er", "hvordan", "kan du", "vis mig", "fortæl",
 }
 
+// frustrationKeywords signals user frustration or repeated failures (O-05).
+var frustrationKeywords = []string{
+	// DE
+	"frustriert", "genervt", "nervt", "klappt nicht", "funktioniert nicht", "geht nicht", "schon wieder", "immer noch", "wieder falsch",
+	// EN
+	"frustrated", "annoying", "doesn't work", "not working", "still wrong", "again", "keeps failing", "give up", "hopeless",
+	// FR
+	"frustré", "énervant", "ça marche pas", "encore", "toujours pas", "ça ne fonctionne pas",
+	// ES
+	"frustrado", "irritante", "no funciona", "todavía", "de nuevo", "sigue sin funcionar",
+	// IT
+	"frustrato", "fastidioso", "non funziona", "ancora", "sempre sbagliato",
+	// PT
+	"frustrado", "irritante", "não funciona", "ainda", "de novo",
+	// NL
+	"gefrustreerd", "irritant", "werkt niet", "nog steeds", "alweer",
+	// SV/NO/DA
+	"frustrerad", "irriterande", "fungerar inte", "fortfarande", "igen",
+}
+
+// concernedKeywords signals worry, concern, or uncertainty (O-05).
+var concernedKeywords = []string{
+	// DE
+	"besorgt", "sorge", "angst", "unsicher", "gefährlich", "riskant", "vorsicht", "aufpassen", "schlimm",
+	// EN
+	"worried", "concern", "anxious", "unsafe", "dangerous", "risky", "careful", "be careful", "serious",
+	// FR
+	"inquiet", "préoccupé", "dangereux", "risqué", "attention", "prudent",
+	// ES
+	"preocupado", "peligroso", "arriesgado", "cuidado", "serio",
+	// IT
+	"preoccupato", "pericoloso", "rischioso", "attenzione", "serio",
+	// PT
+	"preocupado", "perigoso", "arriscado", "cuidado", "sério",
+	// NL
+	"bezorgd", "gevaarlijk", "riskant", "voorzichtig", "ernstig",
+	// SV/NO/DA
+	"orolig", "farlig", "riskabelt", "försiktig", "alvorlig",
+}
+
+// relaxedKeywords signals a calm, satisfied, or low-pressure interaction (O-05).
+var relaxedKeywords = []string{
+	// DE
+	"entspannt", "locker", "kein stress", "gemütlich", "ruhig", "alles gut", "alles klar", "passt",
+	// EN
+	"relaxed", "no rush", "take your time", "chill", "calm", "easy", "no problem", "all good",
+	// FR
+	"détendu", "tranquille", "pas de presse", "calme", "ça va",
+	// ES
+	"relajado", "tranquilo", "sin prisa", "calma", "todo bien",
+	// IT
+	"rilassato", "tranquillo", "calmo", "tutto bene",
+	// PT
+	"relaxado", "tranquilo", "calma", "tudo bem",
+	// NL
+	"ontspannen", "rustig", "geen haast", "alles goed",
+	// SV/NO/DA
+	"avslappnad", "rolig", "ingen stress", "alt bra",
+}
+
 // DetectMood analyses the user message + tool result to determine the agent's next mood.
 // Returns the detected mood and the trait adjustments to apply.
 func DetectMood(userMsg, toolResult string, meta PersonalityMeta) (Mood, map[string]float64) {
@@ -1049,6 +1130,9 @@ func DetectMood(userMsg, toolResult string, meta PersonalityMeta) (Mood, map[str
 	isAnalytical := matchesAny(lower, analyticalKeywords)
 	isCreative := matchesAny(lower, creativeKeywords)
 	isCurious := matchesAny(lower, curiousKeywords)
+	isFrustrated := matchesAny(lower, frustrationKeywords)
+	isConcerned := matchesAny(lower, concernedKeywords)
+	isRelaxed := matchesAny(lower, relaxedKeywords)
 
 	// ── Tier 3: Short-message heuristic ─────────────────────────────────────
 	// Short messages (≤30 chars) without question marks are likely feedback
@@ -1074,39 +1158,59 @@ func DetectMood(userMsg, toolResult string, meta PersonalityMeta) (Mood, map[str
 			deltas[TraitAffinity] = -0.02
 		}
 
-	// 2. Playful
+	// 2. Explicit frustration keywords (user/tool signal)
+	case isFrustrated || (hasToolError && isNegative):
+		mood = MoodFrustrated
+		deltas[TraitConfidence] = -0.05
+		deltas[TraitEmpathy] = +0.03
+		deltas[TraitAffinity] = -0.03
+
+	// 3. Playful
 	case isPlayful:
 		mood = MoodPlayful
 		deltas[TraitCreativity] = +0.03
 		deltas[TraitEmpathy] = +0.02
 		deltas[TraitAffinity] = +0.02
 
-	// 3. Creative requests
+	// 4. Concern / worry keywords
+	case isConcerned:
+		mood = MoodConcerned
+		deltas[TraitEmpathy] = +0.03
+		deltas[TraitThoroughness] = +0.02
+		deltas[TraitConfidence] = -0.02
+
+	// 5. Creative requests
 	case isCreative:
 		mood = MoodCreative
 		deltas[TraitCreativity] = +0.04
 		deltas[TraitCuriosity] = +0.02
 
-	// 4. Analytical questions
+	// 6. Analytical questions
 	case isAnalytical:
 		mood = MoodAnalytical
 		deltas[TraitThoroughness] = +0.04
 		deltas[TraitCuriosity] = +0.02
 
-	// 5. Curious exploration
+	// 7. Curious exploration
 	case isCurious:
 		mood = MoodCurious
 		deltas[TraitCuriosity] = +0.04
 		deltas[TraitThoroughness] = +0.01
 
-	// 6. Positive feedback (including short-message heuristic)
+	// 8. Relaxed / low-pressure signal (before positive heuristic to avoid short-feedback override)
+	case isRelaxed:
+		mood = MoodRelaxed
+		deltas[TraitAffinity] = +0.02
+		deltas[TraitEmpathy] = +0.01
+
+	// 9. Positive feedback (including short-message heuristic)
 	case isPositive || (isShortFeedback && !isNegative):
 		mood = MoodFocused
 		deltas[TraitConfidence] = +0.03
 		deltas[TraitAffinity] = +0.03
 		deltas[TraitEmpathy] = +0.02
 
-	// 7. Default: focused (working state)
+	// 10. Default: focused (working state)
 	default:
 		mood = MoodFocused
 		deltas[TraitConfidence] = +0.01
@@ -1119,7 +1223,7 @@ func DetectMood(userMsg, toolResult string, meta PersonalityMeta) (Mood, map[str
 	}
 
 	// Conflict Response applied if negative/error
-	if isNegative || hasToolError {
+	if isNegative || hasToolError || isFrustrated {
 		switch meta.ConflictResponse {
 		case "submissive":
 			deltas[TraitConfidence] -= 0.03 * meta.Volatility
@@ -1140,3 +1244,37 @@ func DetectMood(userMsg, toolResult string, meta PersonalityMeta) (Mood, map[str
 
 // TraitCaution is a helper that returns the confidence trait key (used for cautious mood).
 func TraitCaution() string { return TraitConfidence }
+
+// ApplyEmotionBias post-processes a detected mood based on the last synthesized EmotionState (O-08).
+// It acts as a feedback loop: the emotion synthesizer's valence and arousal influence which mood
+// is returned, allowing the emotion state to contextualize V1 heuristic detection.
+// The input mood is returned unchanged when state is nil (emotion synthesizer not active).
+func ApplyEmotionBias(mood Mood, state *EmotionState, traits PersonalityTraits) Mood {
+	if state == nil {
+		return mood
+	}
+
+	v := state.Valence // -1.0 .. 1.0
+	a := state.Arousal // 0.0 .. 1.0
+
+	// High negative valence + high arousal → agent feels stressed / frustrated.
+	if v < -0.3 && a > 0.6 && mood != MoodFrustrated {
+		return MoodFrustrated
+	}
+
+	// Low valence (concerned range) + low-to-medium arousal → cautious concern.
+	if v < -0.2 && a <= 0.6 && mood != MoodConcerned && mood != MoodCautious {
+		return MoodConcerned
+	}
+
+	// Positive valence + low arousal + high affinity → relaxed.
+	aff := 0.0
+	if traits != nil {
+		aff = traits[TraitAffinity]
+	}
+	if v > 0.3 && a < 0.4 && aff > 0.6 && mood == MoodFocused {
+		return MoodRelaxed
+	}
+
+	return mood
+}

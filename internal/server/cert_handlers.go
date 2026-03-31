@@ -14,7 +14,7 @@ import (
 func handleCertStatus(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -60,7 +60,7 @@ func handleCertStatus(s *Server) http.HandlerFunc {
 func handleCertRegenerate(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -84,7 +84,7 @@ func handleCertRegenerate(s *Server) http.HandlerFunc {
 func handleCertUpload(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -92,13 +92,13 @@ func handleCertUpload(s *Server) http.HandlerFunc {
 		r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 
 		if err := r.ParseMultipartForm(1 << 20); err != nil {
-			http.Error(w, "File too large (max 1MB)", http.StatusRequestEntityTooLarge)
+			jsonError(w, "File too large (max 1MB)", http.StatusRequestEntityTooLarge)
 			return
 		}
 
 		certDir := filepath.Join(s.Cfg.Directories.DataDir, "certs")
 		if err := os.MkdirAll(certDir, 0o750); err != nil {
-			http.Error(w, "Failed to create cert directory", http.StatusInternalServerError)
+			jsonError(w, "Failed to create cert directory", http.StatusInternalServerError)
 			return
 		}
 
@@ -108,7 +108,7 @@ func handleCertUpload(s *Server) http.HandlerFunc {
 		if certFile, certHeader, err := r.FormFile("cert"); err == nil {
 			defer certFile.Close()
 			if err := saveUploadedCert(certFile, certHeader.Filename, filepath.Join(certDir, "custom.crt")); err != nil {
-				http.Error(w, "Failed to save certificate", http.StatusBadRequest)
+				jsonError(w, "Failed to save certificate", http.StatusBadRequest)
 				return
 			}
 			uploaded["cert"] = filepath.Join(certDir, "custom.crt")
@@ -118,7 +118,7 @@ func handleCertUpload(s *Server) http.HandlerFunc {
 		if keyFile, keyHeader, err := r.FormFile("key"); err == nil {
 			defer keyFile.Close()
 			if err := saveUploadedCert(keyFile, keyHeader.Filename, filepath.Join(certDir, "custom.key")); err != nil {
-				http.Error(w, "Failed to save key", http.StatusBadRequest)
+				jsonError(w, "Failed to save key", http.StatusBadRequest)
 				return
 			}
 			// Restrict key file permissions
@@ -127,7 +127,7 @@ func handleCertUpload(s *Server) http.HandlerFunc {
 		}
 
 		if len(uploaded) == 0 {
-			http.Error(w, "No files uploaded. Send 'cert' and/or 'key' form fields.", http.StatusBadRequest)
+			jsonError(w, "No files uploaded. Send 'cert' and/or 'key' form fields.", http.StatusBadRequest)
 			return
 		}
 

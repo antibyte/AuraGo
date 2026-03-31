@@ -249,5 +249,21 @@
   "missions.trigger_ha_state_equals_placeholder": "p.ej. 'on', 'off', 'home', 'not_home'",
   "missions.trigger_info_ha_entity_prefix": "Entidad:",
   "missions.trigger_info_ha_state_prefix": "Estado:",
-  "missions.trigger_info_ha_any_entity": "Cualquier entidad"
+  "missions.trigger_info_ha_any_entity": "Cualquier entidad",
+  "missions.prep_btn_prepare": "Preparar",
+  "missions.prep_btn_invalidate": "Invalidar",
+  "missions.prep_status": "Preparación",
+  "missions.prep_status_none": "Sin preparar",
+  "missions.prep_status_preparing": "Preparando…",
+  "missions.prep_status_prepared": "Preparado",
+  "missions.prep_status_stale": "Desactualizado",
+  "missions.prep_status_error": "Error",
+  "missions.prep_confidence": "Confianza",
+  "missions.prep_auto": "Auto-preparar",
+  "missions.prep_auto_hint": "Preparar automáticamente esta misión cuando cambie",
+  "missions.prep_toast_started": "Preparación iniciada",
+  "missions.prep_toast_ok": "Misión preparada exitosamente",
+  "missions.prep_toast_error": "Preparación fallida",
+  "missions.prep_toast_invalidated": "Preparación invalidada",
+  "missions.prep_view_title": "Contexto preparado"
 }

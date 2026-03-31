@@ -249,5 +249,21 @@
   "missions.trigger_ha_state_equals_placeholder": "t.ex. 'on', 'off', 'home', 'not_home'",
   "missions.trigger_info_ha_entity_prefix": "Entitet:",
   "missions.trigger_info_ha_state_prefix": "Status:",
-  "missions.trigger_info_ha_any_entity": "Vilken entitet som helst"
+  "missions.trigger_info_ha_any_entity": "Vilken entitet som helst",
+  "missions.prep_btn_prepare": "Förbered",
+  "missions.prep_btn_invalidate": "Ogiltigförklara",
+  "missions.prep_status": "Förberedelse",
+  "missions.prep_status_none": "Inte förberedd",
+  "missions.prep_status_preparing": "Förbereder…",
+  "missions.prep_status_prepared": "Förberedd",
+  "missions.prep_status_stale": "Föråldrad",
+  "missions.prep_status_error": "Fel",
+  "missions.prep_confidence": "Tillförlitlighet",
+  "missions.prep_auto": "Auto-förberedelse",
+  "missions.prep_auto_hint": "Förbered automatiskt detta uppdrag när det ändras",
+  "missions.prep_toast_started": "Förberedelse startad",
+  "missions.prep_toast_ok": "Uppdrag förberett",
+  "missions.prep_toast_error": "Förberedelse misslyckades",
+  "missions.prep_toast_invalidated": "Förberedelse ogiltigförklarad",
+  "missions.prep_view_title": "Förberett sammanhang"
 }

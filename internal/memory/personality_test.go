@@ -469,3 +469,110 @@ func containsStr(s, sub string) bool {
 	}
 	return false
 }
+
+// ── New mood tests (O-05) ────────────────────────────────────────────────────
+
+func TestDetectMoodFrustrated(t *testing.T) {
+	tests := []string{
+		"das nervt, es klappt nicht schon wieder",
+		"this is so frustrating, doesn't work",
+		"ça marche pas encore, je suis frustré",
+		"no funciona todavía de nuevo",
+		"frustrerade, fungerar inte",
+	}
+	for _, msg := range tests {
+		mood, deltas := detectMoodDefault(msg, "")
+		if mood != MoodFrustrated {
+			t.Errorf("detectMoodDefault(%q) = %s, want frustrated", msg, mood)
+		}
+		if deltas[TraitConfidence] >= 0 {
+			t.Errorf("confidence should decrease on frustration, got %.4f for %q", deltas[TraitConfidence], msg)
+		}
+	}
+}
+
+func TestDetectMoodConcerned(t *testing.T) {
+	tests := []string{
+		"ich bin besorgt, das ist gefährlich",
+		"i'm worried this is risky",
+		"c'est dangereux, soyons prudents",
+		"esto es arriesgado, cuidado",
+		"det er farlig, vær forsiktig",
+	}
+	for _, msg := range tests {
+		mood, deltas := detectMoodDefault(msg, "")
+		if mood != MoodConcerned {
+			t.Errorf("detectMoodDefault(%q) = %s, want concerned", msg, mood)
+		}
+		if deltas[TraitEmpathy] <= 0 {
+			t.Errorf("empathy should increase for concern, got %.4f for %q", deltas[TraitEmpathy], msg)
+		}
+	}
+}
+
+func TestDetectMoodRelaxed(t *testing.T) {
+	tests := []string{
+		"entspannt, kein stress, alles gut",
+		"no rush, take your time, all good",
+		"détendu, pas de presse, ça va",
+		"relajado, sin prisa, todo bien",
+		"ontspannen, geen haast, alles goed",
+	}
+	for _, msg := range tests {
+		mood, _ := detectMoodDefault(msg, "")
+		if mood != MoodRelaxed {
+			t.Errorf("detectMoodDefault(%q) = %s, want relaxed", msg, mood)
+		}
+	}
+}
+
+// ── ApplyEmotionBias tests (O-08) ────────────────────────────────────────────
+
+func TestApplyEmotionBias_NilState(t *testing.T) {
+	// No bias when synthesizer has no state.
+	got := ApplyEmotionBias(MoodFocused, nil, nil)
+	if got != MoodFocused {
+		t.Errorf("expected focused with nil state, got %s", got)
+	}
+}
+
+func TestApplyEmotionBias_HighNegativeArousal_GivesFrustrated(t *testing.T) {
+	state := &EmotionState{Valence: -0.5, Arousal: 0.8}
+	got := ApplyEmotionBias(MoodFocused, state, nil)
+	if got != MoodFrustrated {
+		t.Errorf("expected frustrated (high neg valence + high arousal), got %s", got)
+	}
+}
+
+func TestApplyEmotionBias_LowValenceLowArousal_GivesConcerned(t *testing.T) {
+	state := &EmotionState{Valence: -0.4, Arousal: 0.4}
+	got := ApplyEmotionBias(MoodFocused, state, nil)
+	if got != MoodConcerned {
+		t.Errorf("expected concerned (low val + medium arousal), got %s", got)
+	}
+}
+
+func TestApplyEmotionBias_PositiveRelaxed_GivesRelaxed(t *testing.T) {
+	state := &EmotionState{Valence: 0.5, Arousal: 0.2}
+	traits := PersonalityTraits{TraitAffinity: 0.8}
+	got := ApplyEmotionBias(MoodFocused, state, traits)
+	if got != MoodRelaxed {
+		t.Errorf("expected relaxed (positive val + low arousal + high affinity), got %s", got)
+	}
+}
+
+func TestApplyEmotionBias_NoChange_WhenMoodAlreadyMatches(t *testing.T) {
+	state := &EmotionState{Valence: -0.5, Arousal: 0.8}
+	got := ApplyEmotionBias(MoodFrustrated, state, nil)
+	if got != MoodFrustrated {
+		t.Errorf("expected frustrated to stay frustrated, got %s", got)
+	}
+}
+
+func TestApplyEmotionBias_NeutralState_NoChange(t *testing.T) {
+	state := &EmotionState{Valence: 0.1, Arousal: 0.5}
+	got := ApplyEmotionBias(MoodAnalytical, state, nil)
+	if got != MoodAnalytical {
+		t.Errorf("expected analytical unchanged with neutral emotion, got %s", got)
+	}
+}

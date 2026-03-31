@@ -814,3 +814,50 @@
         font-size: 0.84rem;
     }
 }
+
+/* ── Mission Preparation Badges ─────────────────────────────── */
+.badge-prep-preparing {
+    background: rgba(99, 102, 241, 0.12);
+    color: #818cf8;
+    border-color: rgba(99, 102, 241, 0.3);
+    animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.badge-prep-prepared {
+    background: rgba(16, 185, 129, 0.12);
+    color: var(--success);
+    border-color: rgba(16, 185, 129, 0.3);
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.15);
+}
+
+.badge-prep-stale {
+    background: rgba(245, 158, 11, 0.12);
+    color: #fbbf24;
+    border-color: rgba(245, 158, 11, 0.3);
+}
+
+.badge-prep-error {
+    background: rgba(239, 68, 68, 0.12);
+    color: var(--danger);
+    border-color: rgba(239, 68, 68, 0.3);
+}
+
+.prep-confidence {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    margin-left: 4px;
+}
+
+/* ── Prepared Context Modal ─────────────────────────────────── */
+.prep-context-content {
+    max-height: 60vh;
+    overflow-y: auto;
+    font-size: 0.85rem;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    background: var(--bg-glass);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    padding: 16px;
+}

@@ -249,5 +249,21 @@
   "missions.trigger_ha_state_equals_placeholder": "π.χ. 'on', 'off', 'home', 'not_home'",
   "missions.trigger_info_ha_entity_prefix": "Οντότητα:",
   "missions.trigger_info_ha_state_prefix": "Κατάσταση:",
-  "missions.trigger_info_ha_any_entity": "Οποιαδήποτε οντότητα"
+  "missions.trigger_info_ha_any_entity": "Οποιαδήποτε οντότητα",
+  "missions.prep_btn_prepare": "Προετοιμασία",
+  "missions.prep_btn_invalidate": "Ακύρωση",
+  "missions.prep_status": "Προετοιμασία",
+  "missions.prep_status_none": "Μη προετοιμασμένο",
+  "missions.prep_status_preparing": "Προετοιμάζεται…",
+  "missions.prep_status_prepared": "Προετοιμασμένο",
+  "missions.prep_status_stale": "Παρωχημένο",
+  "missions.prep_status_error": "Σφάλμα",
+  "missions.prep_confidence": "Εμπιστοσύνη",
+  "missions.prep_auto": "Αυτόματη προετοιμασία",
+  "missions.prep_auto_hint": "Αυτόματη προετοιμασία όταν αλλάζει",
+  "missions.prep_toast_started": "Η προετοιμασία ξεκίνησε",
+  "missions.prep_toast_ok": "Η αποστολή προετοιμάστηκε",
+  "missions.prep_toast_error": "Η προετοιμασία απέτυχε",
+  "missions.prep_toast_invalidated": "Η προετοιμασία ακυρώθηκε",
+  "missions.prep_view_title": "Προετοιμασμένο πλαίσιο"
 }

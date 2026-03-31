@@ -13,6 +13,11 @@ import (
 // privateRanges holds all IP ranges that must not be reachable via user-supplied URLs.
 var privateRanges []*net.IPNet
 
+// ssrfPinnedIPsKey is the context key used to pass pre-validated, pinned IPs
+// from NewSSRFProtectedHTTPClientForURL into the transport's DialContext,
+// eliminating the second DNS resolution (TOCTOU prevention).
+type ssrfPinnedIPsKey struct{}
+
 func init() {
 	for _, cidr := range []string{
 		"0.0.0.0/8",      // This network (RFC 1122)
@@ -117,6 +122,17 @@ func validatedSSRFDialTarget(ctx context.Context, addr string) (networkAddr stri
 		return net.JoinHostPort(ip.String(), port), serverName, nil
 	}
 
+	// Check for a pinned IP injected by NewSSRFProtectedHTTPClientForURL to avoid a
+	// second DNS resolution (TOCTOU prevention). If present, validate and use it directly.
+	if pinned, ok := ctx.Value(ssrfPinnedIPsKey{}).(map[string]net.IP); ok {
+		if ip, found := pinned[host]; found {
+			if isPrivateIP(ip) {
+				return "", "", fmt.Errorf("access to internal address %s is blocked (SSRF protection)", ip)
+			}
+			return net.JoinHostPort(ip.String(), port), serverName, nil
+		}
+	}
+
 	ips, err := resolvePublicIPs(ctx, host)
 	if err != nil {
 		return "", "", err
@@ -168,4 +184,86 @@ func NewSSRFProtectedHTTPClient(timeout time.Duration) *http.Client {
 		return ValidateSSRF(req.URL.String())
 	}
 	return client
+}
+
+// NewSSRFProtectedHTTPClientForURL validates rawURL, resolves the hostname to an IP once,
+// and returns an HTTP client whose transport is pinned to that IP — eliminating the TOCTOU
+// window present when ValidateSSRF() and the dial happen in two separate DNS lookups.
+// Use this instead of calling ValidateSSRF() + NewSSRFProtectedHTTPClient() separately
+// when making a single outbound request to a user-supplied URL.
+func NewSSRFProtectedHTTPClientForURL(rawURL string, timeout time.Duration) (*http.Client, error) {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return nil, fmt.Errorf("invalid URL: %w", err)
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return nil, fmt.Errorf("disallowed URL scheme %q", parsed.Scheme)
+	}
+	host := parsed.Hostname()
+	if host == "" {
+		return nil, fmt.Errorf("URL has no host")
+	}
+
+	// Literal IP — validate and use directly (no DNS involved)
+	if ip := net.ParseIP(host); ip != nil {
+		if isPrivateIP(ip) {
+			return nil, fmt.Errorf("access to internal address %s is blocked (SSRF protection)", ip)
+		}
+		return NewSSRFProtectedHTTPClient(timeout), nil
+	}
+
+	// Resolve once, validate, and pin the result into the transport context
+	ips, err := resolvePublicIPs(context.Background(), host)
+	if err != nil {
+		return nil, fmt.Errorf("hostname resolution failed for %q: %w", host, err)
+	}
+	pinnedIPs := map[string]net.IP{host: ips[0]}
+
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	dialer := &net.Dialer{Timeout: 15 * time.Second}
+
+	dialWithPin := func(ctx context.Context, network, addr string) (net.Conn, error) {
+		// Inject pinned IPs so validatedSSRFDialTarget skips the second DNS lookup
+		pinnedCtx := context.WithValue(ctx, ssrfPinnedIPsKey{}, pinnedIPs)
+		targetAddr, _, err := validatedSSRFDialTarget(pinnedCtx, addr)
+		if err != nil {
+			return nil, err
+		}
+		return dialer.DialContext(ctx, network, targetAddr)
+	}
+
+	transport.DialContext = dialWithPin
+	transport.DialTLSContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+		pinnedCtx := context.WithValue(ctx, ssrfPinnedIPsKey{}, pinnedIPs)
+		targetAddr, serverName, err := validatedSSRFDialTarget(pinnedCtx, addr)
+		if err != nil {
+			return nil, err
+		}
+		rawConn, err := dialer.DialContext(ctx, network, targetAddr)
+		if err != nil {
+			return nil, err
+		}
+		tlsConn := tls.Client(rawConn, &tls.Config{
+			ServerName: serverName,
+			MinVersion: tls.VersionTLS12,
+		})
+		if err := tlsConn.HandshakeContext(ctx); err != nil {
+			rawConn.Close()
+			return nil, err
+		}
+		return tlsConn, nil
+	}
+
+	client := &http.Client{
+		Transport: transport,
+		Timeout:   timeout,
+	}
+	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		if len(via) >= 10 {
+			return fmt.Errorf("stopped after 10 redirects")
+		}
+		// Re-validate redirect targets; they get a fresh pinned client
+		return ValidateSSRF(req.URL.String())
+	}
+	return client, nil
 }

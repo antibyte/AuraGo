@@ -41,7 +41,7 @@ func handleProviders(s *Server) http.HandlerFunc {
 		case http.MethodPut:
 			handlePutProviders(s, w, r)
 		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	}
 }
@@ -92,7 +92,7 @@ func handleGetProviders(s *Server, w http.ResponseWriter, _ *http.Request) {
 func handlePutProviders(s *Server, w http.ResponseWriter, r *http.Request) {
 	var incoming []providerJSON
 	if err := json.NewDecoder(r.Body).Decode(&incoming); err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		jsonError(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
 
@@ -108,7 +108,7 @@ func handlePutProviders(s *Server, w http.ResponseWriter, r *http.Request) {
 	s.CfgMu.RUnlock()
 
 	if configPath == "" {
-		http.Error(w, "Config path not set", http.StatusInternalServerError)
+		jsonError(w, "Config path not set", http.StatusInternalServerError)
 		return
 	}
 
@@ -117,7 +117,7 @@ func handlePutProviders(s *Server, w http.ResponseWriter, r *http.Request) {
 	for i, p := range incoming {
 		p.ID = strings.TrimSpace(p.ID)
 		if p.ID == "" {
-			http.Error(w, "Provider ID must not be empty", http.StatusBadRequest)
+			jsonError(w, "Provider ID must not be empty", http.StatusBadRequest)
 			return
 		}
 
@@ -174,14 +174,14 @@ func handlePutProviders(s *Server, w http.ResponseWriter, r *http.Request) {
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		s.Logger.Error("Failed to read config for provider update", "error", err)
-		http.Error(w, "Failed to read config", http.StatusInternalServerError)
+		jsonError(w, "Failed to read config", http.StatusInternalServerError)
 		return
 	}
 
 	var rawCfg map[string]interface{}
 	if err := yaml.Unmarshal(data, &rawCfg); err != nil {
 		s.Logger.Error("Failed to parse config for provider update", "error", err)
-		http.Error(w, "Failed to parse config", http.StatusInternalServerError)
+		jsonError(w, "Failed to parse config", http.StatusInternalServerError)
 		return
 	}
 
@@ -216,13 +216,13 @@ func handlePutProviders(s *Server, w http.ResponseWriter, r *http.Request) {
 	out, err := yaml.Marshal(rawCfg)
 	if err != nil {
 		s.Logger.Error("Failed to marshal config after provider update", "error", err)
-		http.Error(w, "Failed to save config", http.StatusInternalServerError)
+		jsonError(w, "Failed to save config", http.StatusInternalServerError)
 		return
 	}
 
 	if err := os.WriteFile(configPath, out, 0644); err != nil {
 		s.Logger.Error("Failed to write config after provider update", "error", err)
-		http.Error(w, "Failed to write config", http.StatusInternalServerError)
+		jsonError(w, "Failed to write config", http.StatusInternalServerError)
 		return
 	}
 
@@ -232,7 +232,7 @@ func handlePutProviders(s *Server, w http.ResponseWriter, r *http.Request) {
 	if loadErr != nil {
 		s.CfgMu.Unlock()
 		s.Logger.Error("[Providers] Hot-reload failed", "error", loadErr)
-		http.Error(w, "Saved but reload failed: "+loadErr.Error(), http.StatusInternalServerError)
+		jsonError(w, "Saved but reload failed: "+loadErr.Error(), http.StatusInternalServerError)
 		return
 	}
 	savedPath := s.Cfg.ConfigPath
@@ -274,7 +274,7 @@ func handleProviderPricing(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		providerID := r.URL.Query().Get("id")
 		if providerID == "" {
-			http.Error(w, "Missing 'id' query parameter", http.StatusBadRequest)
+			jsonError(w, "Missing 'id' query parameter", http.StatusBadRequest)
 			return
 		}
 
@@ -284,7 +284,7 @@ func handleProviderPricing(s *Server) http.HandlerFunc {
 		case http.MethodPost:
 			handleApplyPricing(s, w, r, providerID)
 		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	}
 }
@@ -306,14 +306,14 @@ func handleFetchPricing(s *Server, w http.ResponseWriter, providerID string) {
 	s.CfgMu.RUnlock()
 
 	if providerType == "" {
-		http.Error(w, "Provider not found", http.StatusNotFound)
+		jsonError(w, "Provider not found", http.StatusNotFound)
 		return
 	}
 
 	pricing, err := llm.FetchPricingForProvider(providerType, apiKey, baseURL)
 	if err != nil {
 		s.Logger.Error("[Pricing] Failed to fetch pricing", "provider", providerID, "error", err)
-		http.Error(w, "Failed to fetch pricing", http.StatusBadGateway)
+		jsonError(w, "Failed to fetch pricing", http.StatusBadGateway)
 		return
 	}
 
@@ -325,7 +325,7 @@ func handleFetchPricing(s *Server, w http.ResponseWriter, providerID string) {
 func handleApplyPricing(s *Server, w http.ResponseWriter, r *http.Request, providerID string) {
 	var incoming []llm.ModelPricing
 	if err := json.NewDecoder(r.Body).Decode(&incoming); err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		jsonError(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
 
@@ -335,7 +335,7 @@ func handleApplyPricing(s *Server, w http.ResponseWriter, r *http.Request, provi
 	p := s.Cfg.FindProvider(providerID)
 	if p == nil {
 		s.CfgMu.Unlock()
-		http.Error(w, "Provider not found", http.StatusNotFound)
+		jsonError(w, "Provider not found", http.StatusNotFound)
 		return
 	}
 	p.Models = models
@@ -344,7 +344,7 @@ func handleApplyPricing(s *Server, w http.ResponseWriter, r *http.Request, provi
 
 	// Persist to YAML
 	if err := persistProviders(s, configPath); err != nil {
-		http.Error(w, "Failed to save providers", http.StatusInternalServerError)
+		jsonError(w, "Failed to save providers", http.StatusInternalServerError)
 		return
 	}
 

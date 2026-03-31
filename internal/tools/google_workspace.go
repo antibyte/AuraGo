@@ -152,7 +152,7 @@ func gwErrJSON(format string, args ...interface{}) string {
 
 func gwWrapExternal(data interface{}) string {
 	out, _ := json.Marshal(data)
-	return "<external_data>" + string(out) + "</external_data>"
+	return security.IsolateExternalData(string(out))
 }
 
 // ── Gmail ────────────────────────────────────────────────────────────────

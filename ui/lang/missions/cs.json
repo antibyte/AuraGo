@@ -249,5 +249,21 @@
   "missions.trigger_ha_state_equals_placeholder": "např. 'on', 'off', 'home', 'not_home'",
   "missions.trigger_info_ha_entity_prefix": "Entita:",
   "missions.trigger_info_ha_state_prefix": "Stav:",
-  "missions.trigger_info_ha_any_entity": "Libovolná entita"
+  "missions.trigger_info_ha_any_entity": "Libovolná entita",
+  "missions.prep_btn_prepare": "Připravit",
+  "missions.prep_btn_invalidate": "Zneplatnit",
+  "missions.prep_status": "Příprava",
+  "missions.prep_status_none": "Nepřipraveno",
+  "missions.prep_status_preparing": "Připravuje se…",
+  "missions.prep_status_prepared": "Připraveno",
+  "missions.prep_status_stale": "Zastaralé",
+  "missions.prep_status_error": "Chyba",
+  "missions.prep_confidence": "Spolehlivost",
+  "missions.prep_auto": "Auto-příprava",
+  "missions.prep_auto_hint": "Automaticky připravit tuto misi při změně",
+  "missions.prep_toast_started": "Příprava zahájena",
+  "missions.prep_toast_ok": "Mise úspěšně připravena",
+  "missions.prep_toast_error": "Příprava selhala",
+  "missions.prep_toast_invalidated": "Příprava zneplatněna",
+  "missions.prep_view_title": "Připravený kontext"
 }

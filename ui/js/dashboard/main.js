@@ -51,6 +51,7 @@
         const Charts = {};
 
         // ── API ─────────────────────────────────────────────────────────────────────
+        let _apiErrorShown = false;
         const API = {
             get: url => fetch(url, { credentials: 'same-origin' }).then(r => {
                 if (r.status === 401) {
@@ -58,7 +59,14 @@
                     return null;
                 }
                 return r.ok ? r.json() : null;
-            }).catch(() => null),
+            }).catch(() => {
+                if (!_apiErrorShown && typeof showToast === 'function') {
+                    _apiErrorShown = true;
+                    showToast(t('dashboard.api_error') || 'Dashboard data could not be loaded', 'error', 5000);
+                    setTimeout(() => { _apiErrorShown = false; }, 15000);
+                }
+                return null;
+            }),
             fetchAll(hours) {
                 return Promise.all([
                     this.get('/api/dashboard/system'),
@@ -2435,7 +2443,10 @@
             dashSetHidden(_sseBanner, true);
         }
 
+        let _dashSSERegistered = false;
         function connectSSE() {
+            if (_dashSSERegistered) return;
+            _dashSSERegistered = true;
             // Use the shared AuraSSE singleton — no dedicated EventSource needed.
             window.AuraSSE.on('_open', hideSSEBanner);
             window.AuraSSE.on('_error', function () {

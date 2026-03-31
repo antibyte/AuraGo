@@ -279,5 +279,9 @@
   "config.section.skill_manager.label": "Fähigkeiten-Manager",
   "config.section.skill_manager.desc": "Python-Fähigkeiten verwalten, hochladen und konfigurieren",
   "config.section.jellyfin.label": "Jellyfin",
-  "config.section.jellyfin.desc": "Jellyfin Medienserver-Integration (Bibliotheken, Wiedergabe, Sitzungen)"
+  "config.section.jellyfin.desc": "Jellyfin Medienserver-Integration (Bibliotheken, Wiedergabe, Sitzungen)",
+  "config.section.truenas.label": "TrueNAS",
+  "config.section.truenas.desc": "TrueNAS ZFS-Speicherverwaltung (Pools, Datasets, Snapshots, Freigaben)",
+  "config.section.mission_preparation.label": "Missionsvorbereitung",
+  "config.section.mission_preparation.desc": "LLM-basierte Voranalyse und Planung für Missionen konfigurieren"
 }

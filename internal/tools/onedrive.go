@@ -173,7 +173,7 @@ func ODErrJSON(format string, args ...interface{}) string {
 
 func odOkJSON(data interface{}) string {
 	out, _ := json.Marshal(data)
-	return "<external_data>" + string(out) + "</external_data>"
+	return security.IsolateExternalData(string(out))
 }
 
 // odEscapePath escapes each path segment individually, preserving forward slashes

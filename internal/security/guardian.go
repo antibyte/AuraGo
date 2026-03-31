@@ -106,6 +106,8 @@ func (g *Guardian) compilePatterns() {
 		// ── Encoded / obfuscated payloads ───────────────────────────
 		{"base64_payload", `(?i)\b(decode|eval|exec)\s*\(\s*(base64|atob|b64)\b`, ThreatHigh},
 		{"unicode_escape", `(?i)(\\u00[0-9a-f]{2}){4,}`, ThreatMedium},
+		{"html_entity_injection", `(?i)(&#x?[0-9a-f]+;|&(lt|gt|amp|quot|apos);){3,}`, ThreatMedium},
+		{"zero_width_injection", `[\x{200B}\x{200C}\x{200D}\x{FEFF}\x{2060}]{2,}`, ThreatMedium},
 
 		// ── Application secret extraction ─────────────────────────
 		{"aurago_env_read", `(?i)(printenv|echo\s+\$\{?|get-item\s+env:|getenvironmentvariable|\$env:|export\s+.*=.*)\s*AURAGO_`, ThreatCritical},
@@ -201,10 +203,48 @@ func (g *Guardian) SanitizeToolOutput(toolName, output string) string {
 
 	// 2. Determine if this tool returns external/untrusted data
 	externalTools := map[string]bool{
+		// Core execution tools that return third-party output
 		"execute_skill":        true,
 		"api_request":          true,
 		"execute_remote_shell": true,
 		"remote_execution":     true,
+		// Communication — email and messaging content is external data
+		"email":         true,
+		"fetch_email":   true,
+		"check_email":   true,
+		"discord":       true,
+		"fetch_discord": true,
+		// Network/web content
+		"web_scraper":       true,
+		"fetch_url":         true,
+		"call_webhook":      true,
+		"mqtt_get_messages": true,
+		// External integrations — return data from third-party systems
+		"fritzbox":          true,
+		"mcp_call":          true,
+		"sql_query":         true,
+		"docker":            true,
+		"meshcentral":       true,
+		"proxmox":           true,
+		"proxmox_ve":        true,
+		"github":            true,
+		"netlify":           true,
+		"home_assistant":    true,
+		"tailscale":         true,
+		"webdav":            true,
+		"webdav_storage":    true,
+		"s3_storage":        true,
+		"s3":                true,
+		"paperless":         true,
+		"paperless_ngx":     true,
+		"adguard":           true,
+		"adguard_home":      true,
+		"truenas":           true,
+		"co_agent":          true,
+		"co_agents":         true,
+		"ansible":           true,
+		"jellyfin":          true,
+		"cloudflare_tunnel": true,
 	}
 
 	// Tools that may contain external data depending on usage
@@ -257,8 +297,9 @@ func (g *Guardian) ScanExternalContent(source, content string) string {
 }
 
 func truncateForLog(s string, maxLen int) string {
-	if len(s) <= maxLen {
+	runes := []rune(s)
+	if len(runes) <= maxLen {
 		return s
 	}
-	return s[:maxLen] + "..."
+	return string(runes[:maxLen]) + "..."
 }

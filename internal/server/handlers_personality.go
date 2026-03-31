@@ -81,7 +81,7 @@ func extractExtraPersonalityMetaYAML(yamlPart string) string {
 func handleListPersonalities(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -122,7 +122,7 @@ func handleListPersonalities(s *Server) http.HandlerFunc {
 func handlePersonalityState(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -140,7 +140,7 @@ func handlePersonalityState(s *Server) http.HandlerFunc {
 func handleUpdatePersonality(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -148,12 +148,12 @@ func handleUpdatePersonality(s *Server) http.HandlerFunc {
 			ID string `json:"id"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "Bad request", http.StatusBadRequest)
+			jsonError(w, "Bad request", http.StatusBadRequest)
 			return
 		}
 
 		if req.ID == "" {
-			http.Error(w, "Personality ID is required", http.StatusBadRequest)
+			jsonError(w, "Personality ID is required", http.StatusBadRequest)
 			return
 		}
 
@@ -161,7 +161,7 @@ func handleUpdatePersonality(s *Server) http.HandlerFunc {
 		profilePath := filepath.Join(s.Cfg.Directories.PromptsDir, "personalities", req.ID+".md")
 		if _, err := os.Stat(profilePath); os.IsNotExist(err) {
 			if !isCorePersonality(req.ID) {
-				http.Error(w, "Personality not found", http.StatusNotFound)
+				jsonError(w, "Personality not found", http.StatusNotFound)
 				return
 			}
 		}
@@ -176,7 +176,7 @@ func handleUpdatePersonality(s *Server) http.HandlerFunc {
 		}
 		if err := s.Cfg.Save(configPath); err != nil {
 			s.Logger.Error("Failed to save config", "error", err)
-			http.Error(w, "Failed to persist configuration", http.StatusInternalServerError)
+			jsonError(w, "Failed to persist configuration", http.StatusInternalServerError)
 			return
 		}
 
@@ -192,12 +192,12 @@ func handleUpdatePersonality(s *Server) http.HandlerFunc {
 func handlePersonalityFeedback(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
 		if !s.Cfg.Personality.Engine {
-			http.Error(w, "Personality engine is disabled", http.StatusBadRequest)
+			jsonError(w, "Personality engine is disabled", http.StatusBadRequest)
 			return
 		}
 
@@ -205,7 +205,7 @@ func handlePersonalityFeedback(s *Server) http.HandlerFunc {
 			Type string `json:"type"` // "positive", "negative", "angry"
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "Bad request", http.StatusBadRequest)
+			jsonError(w, "Bad request", http.StatusBadRequest)
 			return
 		}
 
@@ -267,7 +267,7 @@ func handlePersonalityFeedback(s *Server) http.HandlerFunc {
 			mood = memory.MoodCurious
 			trigger = "user amazed feedback"
 		default:
-			http.Error(w, "Invalid feedback type. Use: positive, negative, angry, laughing, crying, amazed", http.StatusBadRequest)
+			jsonError(w, "Invalid feedback type. Use: positive, negative, angry, laughing, crying, amazed", http.StatusBadRequest)
 			return
 		}
 
@@ -315,12 +315,12 @@ func isValidPersonalityName(name string) bool {
 func handleGetPersonalityContent(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		name := r.URL.Query().Get("name")
 		if !isValidPersonalityName(name) {
-			http.Error(w, "Invalid personality name", http.StatusBadRequest)
+			jsonError(w, "Invalid personality name", http.StatusBadRequest)
 			return
 		}
 		// Try disk first (user override), then fall back to embedded binary.
@@ -331,7 +331,7 @@ func handleGetPersonalityContent(s *Server) http.HandlerFunc {
 		} else if d, err := promptsembed.FS.ReadFile("personalities/" + name + ".md"); err == nil {
 			data = d
 		} else {
-			http.Error(w, "Personality not found", http.StatusNotFound)
+			jsonError(w, "Personality not found", http.StatusNotFound)
 			return
 		}
 
@@ -397,7 +397,7 @@ func handleGetPersonalityContent(s *Server) http.HandlerFunc {
 func handleSavePersonalityFile(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		var req struct {
@@ -405,22 +405,22 @@ func handleSavePersonalityFile(s *Server) http.HandlerFunc {
 			Content string `json:"content"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "Bad request", http.StatusBadRequest)
+			jsonError(w, "Bad request", http.StatusBadRequest)
 			return
 		}
 		if !isValidPersonalityName(req.Name) {
-			http.Error(w, "Invalid personality name: use letters, digits, - and _ only (max 64 chars)", http.StatusBadRequest)
+			jsonError(w, "Invalid personality name: use letters, digits, - and _ only (max 64 chars)", http.StatusBadRequest)
 			return
 		}
 		// Core personas shipped with the binary are read-only.
 		if isCorePersonality(req.Name) {
-			http.Error(w, "Core personality '"+req.Name+"' is read-only and cannot be modified.", http.StatusForbidden)
+			jsonError(w, "Core personality '"+req.Name+"' is read-only and cannot be modified.", http.StatusForbidden)
 			return
 		}
 		profilePath := filepath.Join(s.Cfg.Directories.PromptsDir, "personalities", req.Name+".md")
 		if err := os.WriteFile(profilePath, []byte(req.Content), 0644); err != nil {
 			s.Logger.Error("Failed to write personality file", "name", req.Name, "error", err)
-			http.Error(w, "Failed to save personality file", http.StatusInternalServerError)
+			jsonError(w, "Failed to save personality file", http.StatusInternalServerError)
 			return
 		}
 		s.Logger.Info("Personality file saved", "name", req.Name)
@@ -434,31 +434,31 @@ func handleSavePersonalityFile(s *Server) http.HandlerFunc {
 func handleDeletePersonalityFile(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodDelete {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		name := r.URL.Query().Get("name")
 		if !isValidPersonalityName(name) {
-			http.Error(w, "Invalid personality name", http.StatusBadRequest)
+			jsonError(w, "Invalid personality name", http.StatusBadRequest)
 			return
 		}
 		// Core personas are read-only — they live in the embedded binary.
 		if isCorePersonality(name) {
-			http.Error(w, "Core personality '"+name+"' is read-only and cannot be deleted.", http.StatusForbidden)
+			jsonError(w, "Core personality '"+name+"' is read-only and cannot be deleted.", http.StatusForbidden)
 			return
 		}
 		// Prevent deleting the currently active personality
 		if strings.EqualFold(name, s.Cfg.Personality.CorePersonality) {
-			http.Error(w, "Cannot delete the currently active personality", http.StatusConflict)
+			jsonError(w, "Cannot delete the currently active personality", http.StatusConflict)
 			return
 		}
 		profilePath := filepath.Join(s.Cfg.Directories.PromptsDir, "personalities", name+".md")
 		if err := os.Remove(profilePath); err != nil {
 			if os.IsNotExist(err) {
-				http.Error(w, "Personality not found", http.StatusNotFound)
+				jsonError(w, "Personality not found", http.StatusNotFound)
 			} else {
 				s.Logger.Error("Failed to delete personality file", "name", name, "error", err)
-				http.Error(w, "Failed to delete personality", http.StatusInternalServerError)
+				jsonError(w, "Failed to delete personality", http.StatusInternalServerError)
 			}
 			return
 		}

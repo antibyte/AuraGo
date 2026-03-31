@@ -10,6 +10,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"aurago/internal/security"
 )
 
 var braveHTTPClient = &http.Client{Timeout: 15 * time.Second}
@@ -227,9 +229,9 @@ func ExecuteBraveSearch(apiKey, query string, count int, country, lang string) s
 	results := make([]map[string]interface{}, 0, len(apiResp.Web.Results))
 	for _, r := range apiResp.Web.Results {
 		entry := map[string]interface{}{
-			"title":       fmt.Sprintf("<external_data>%s</external_data>", braveStripHTML(r.Title)),
+			"title":       security.IsolateExternalData(braveStripHTML(r.Title)),
 			"url":         r.URL,
-			"description": fmt.Sprintf("<external_data>%s</external_data>", braveStripHTML(r.Description)),
+			"description": security.IsolateExternalData(braveStripHTML(r.Description)),
 		}
 		if r.Published != "" {
 			entry["published"] = r.Published

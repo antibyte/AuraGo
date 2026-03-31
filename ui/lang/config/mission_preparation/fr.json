@@ -1,0 +1,17 @@
+{
+  "config.mission_preparation.enabled_label": "Activé",
+  "config.mission_preparation.provider_label": "Fournisseur LLM",
+  "config.mission_preparation.provider_placeholder": "Laisser vide pour le fournisseur principal",
+  "config.mission_preparation.timeout_seconds_label": "Délai (secondes)",
+  "config.mission_preparation.max_essential_tools_label": "Outils essentiels max.",
+  "config.mission_preparation.cache_expiry_hours_label": "Expiration du cache (heures)",
+  "config.mission_preparation.min_confidence_label": "Confiance min.",
+  "config.mission_preparation.auto_prepare_scheduled_label": "Préparer auto. les missions planifiées",
+  "help.mission_preparation.enabled": "Activer la pré-analyse LLM des missions avant exécution",
+  "help.mission_preparation.provider": "Remplacer le fournisseur LLM pour l'analyse. Laisser vide pour le fournisseur principal.",
+  "help.mission_preparation.timeout_seconds": "Durée maximale en secondes pour une analyse de préparation",
+  "help.mission_preparation.max_essential_tools": "Nombre maximum d'outils à inclure dans l'analyse de préparation",
+  "help.mission_preparation.cache_expiry_hours": "Durée de validité d'une préparation avant actualisation",
+  "help.mission_preparation.min_confidence": "Score de confiance minimum (0-1) requis pour utiliser une préparation",
+  "help.mission_preparation.auto_prepare_scheduled": "Préparer automatiquement les missions planifiées lors de leur création ou modification"
+}

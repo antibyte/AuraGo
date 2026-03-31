@@ -1,0 +1,17 @@
+{
+  "config.mission_preparation.enabled_label": "Ενεργοποιημένο",
+  "config.mission_preparation.provider_label": "Πάροχος LLM",
+  "config.mission_preparation.provider_placeholder": "Αφήστε κενό για τον κύριο πάροχο",
+  "config.mission_preparation.timeout_seconds_label": "Χρονικό όριο (δευτερόλεπτα)",
+  "config.mission_preparation.max_essential_tools_label": "Μέγ. βασικά εργαλεία",
+  "config.mission_preparation.cache_expiry_hours_label": "Λήξη cache (ώρες)",
+  "config.mission_preparation.min_confidence_label": "Ελάχ. εμπιστοσύνη",
+  "config.mission_preparation.auto_prepare_scheduled_label": "Αυτόματη προετοιμασία προγραμματισμένων",
+  "help.mission_preparation.enabled": "Ενεργοποίηση LLM προανάλυσης αποστολών πριν την εκτέλεση",
+  "help.mission_preparation.provider": "Παράκαμψη παρόχου LLM για ανάλυση. Αφήστε κενό για τον κύριο πάροχο.",
+  "help.mission_preparation.timeout_seconds": "Μέγιστος χρόνος σε δευτερόλεπτα για μία ανάλυση προετοιμασίας",
+  "help.mission_preparation.max_essential_tools": "Μέγιστος αριθμός εργαλείων στην ανάλυση",
+  "help.mission_preparation.cache_expiry_hours": "Πόσο καιρό μια προετοιμασία παραμένει έγκυρη πριν ανανεωθεί",
+  "help.mission_preparation.min_confidence": "Ελάχιστη βαθμολογία εμπιστοσύνης (0-1) για χρήση προετοιμασίας",
+  "help.mission_preparation.auto_prepare_scheduled": "Αυτόματη προετοιμασία προγραμματισμένων αποστολών κατά τη δημιουργία ή τροποποίηση"
+}

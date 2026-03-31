@@ -1637,6 +1637,11 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				} else {
 					// ── V1: Synchronous Heuristic-Based Mood Analysis ──
 					mood, traitDeltas := memory.DetectMood(lastUserMsg, resultContent, meta)
+					// O-08: Apply emotion bias from synthesizer to contextualize V1 detection.
+					if emotionSynthesizer != nil {
+						traits, _ := shortTermMem.GetTraits()
+						mood = memory.ApplyEmotionBias(mood, emotionSynthesizer.GetLastEmotion(), traits)
+					}
 					_ = shortTermMem.LogMood(mood, triggerInfo)
 					for trait, delta := range traitDeltas {
 						_ = shortTermMem.UpdateTrait(trait, delta)
@@ -1842,11 +1847,15 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				)
 			} else {
 				mood, traitDeltas := memory.DetectMood(lastUserMsg, "", meta)
+				// O-08: Apply emotion bias from synthesizer to contextualize V1 detection.
+				if emotionSynthesizer != nil {
+					traits, _ := shortTermMem.GetTraits()
+					mood = memory.ApplyEmotionBias(mood, emotionSynthesizer.GetLastEmotion(), traits)
+				}
 				_ = shortTermMem.LogMood(mood, moodTrigger())
 				for trait, delta := range traitDeltas {
 					_ = shortTermMem.UpdateTrait(trait, delta)
 				}
-				applyPersonalityMilestones(shortTermMem)
 			}
 		}
 

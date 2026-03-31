@@ -1,0 +1,17 @@
+{
+  "config.mission_preparation.enabled_label": "Aktiverad",
+  "config.mission_preparation.provider_label": "LLM-leverantör",
+  "config.mission_preparation.provider_placeholder": "Lämna tomt för huvudleverantör",
+  "config.mission_preparation.timeout_seconds_label": "Tidsgräns (sekunder)",
+  "config.mission_preparation.max_essential_tools_label": "Max viktiga verktyg",
+  "config.mission_preparation.cache_expiry_hours_label": "Cache-utgång (timmar)",
+  "config.mission_preparation.min_confidence_label": "Min. tillförlitlighet",
+  "config.mission_preparation.auto_prepare_scheduled_label": "Förbered schemalagda uppdrag automatiskt",
+  "help.mission_preparation.enabled": "Aktivera LLM-baserad föranalys av uppdrag före körning",
+  "help.mission_preparation.provider": "Åsidosätt LLM-leverantören för analys. Lämna tomt för huvudleverantören.",
+  "help.mission_preparation.timeout_seconds": "Maximal tid i sekunder för en enskild förberedelseanalys",
+  "help.mission_preparation.max_essential_tools": "Maximalt antal verktyg som inkluderas i analysen",
+  "help.mission_preparation.cache_expiry_hours": "Hur länge en förberedelse förblir giltig innan uppdatering",
+  "help.mission_preparation.min_confidence": "Minsta tillförlitlighetspoäng (0-1) som krävs för att använda en förberedelse",
+  "help.mission_preparation.auto_prepare_scheduled": "Förbered automatiskt schemalagda uppdrag när de skapas eller ändras"
+}

@@ -492,6 +492,28 @@ func (c *Config) ResolveProviders() {
 		c.LLMGuardian.ProviderType = c.LLM.ProviderType
 	}
 
+	// ── Mission Preparation ── (falls back to main LLM if provider empty)
+	if c.MissionPreparation.Provider != "" {
+		if p := c.FindProvider(c.MissionPreparation.Provider); p != nil {
+			c.MissionPreparation.ProviderType = p.Type
+			c.MissionPreparation.BaseURL = p.BaseURL
+			c.MissionPreparation.APIKey = p.APIKey
+			c.MissionPreparation.Model = p.Model
+		}
+	}
+	if c.MissionPreparation.APIKey == "" {
+		c.MissionPreparation.APIKey = c.LLM.APIKey
+	}
+	if c.MissionPreparation.BaseURL == "" {
+		c.MissionPreparation.BaseURL = c.LLM.BaseURL
+	}
+	if c.MissionPreparation.Model == "" {
+		c.MissionPreparation.Model = c.LLM.Model
+	}
+	if c.MissionPreparation.ProviderType == "" {
+		c.MissionPreparation.ProviderType = c.LLM.ProviderType
+	}
+
 	// ── Image Generation ── (no fallback — must be explicitly configured)
 	if c.ImageGeneration.Provider != "" {
 		if p := c.FindProvider(c.ImageGeneration.Provider); p != nil {

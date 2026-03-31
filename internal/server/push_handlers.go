@@ -12,12 +12,12 @@ import (
 func handlePushVAPIDPublicKey(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		mgr := push.GlobalManager
 		if mgr == nil {
-			http.Error(w, "push notifications not available", http.StatusServiceUnavailable)
+			jsonError(w, "push notifications not available", http.StatusServiceUnavailable)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -29,24 +29,24 @@ func handlePushVAPIDPublicKey(s *Server) http.HandlerFunc {
 func handlePushSubscribe(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		mgr := push.GlobalManager
 		if mgr == nil {
-			http.Error(w, "push notifications not available", http.StatusServiceUnavailable)
+			jsonError(w, "push notifications not available", http.StatusServiceUnavailable)
 			return
 		}
 
 		var sub push.PushSubscription
 		if err := json.NewDecoder(r.Body).Decode(&sub); err != nil {
-			http.Error(w, "invalid request body", http.StatusBadRequest)
+			jsonError(w, "invalid request body", http.StatusBadRequest)
 			return
 		}
 
 		if err := mgr.Subscribe(sub); err != nil {
 			s.Logger.Error("Failed to save push subscription", "error", err)
-			http.Error(w, "failed to save subscription", http.StatusInternalServerError)
+			jsonError(w, "failed to save subscription", http.StatusInternalServerError)
 			return
 		}
 
@@ -58,12 +58,12 @@ func handlePushSubscribe(s *Server) http.HandlerFunc {
 func handlePushUnsubscribe(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		mgr := push.GlobalManager
 		if mgr == nil {
-			http.Error(w, "push notifications not available", http.StatusServiceUnavailable)
+			jsonError(w, "push notifications not available", http.StatusServiceUnavailable)
 			return
 		}
 
@@ -71,13 +71,13 @@ func handlePushUnsubscribe(s *Server) http.HandlerFunc {
 			Endpoint string `json:"endpoint"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Endpoint == "" {
-			http.Error(w, "invalid request body", http.StatusBadRequest)
+			jsonError(w, "invalid request body", http.StatusBadRequest)
 			return
 		}
 
 		if err := mgr.Unsubscribe(req.Endpoint); err != nil {
 			s.Logger.Error("Failed to remove push subscription", "error", err)
-			http.Error(w, "failed to remove subscription", http.StatusInternalServerError)
+			jsonError(w, "failed to remove subscription", http.StatusInternalServerError)
 			return
 		}
 
@@ -89,7 +89,7 @@ func handlePushUnsubscribe(s *Server) http.HandlerFunc {
 func handlePushStatus(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		mgr := push.GlobalManager

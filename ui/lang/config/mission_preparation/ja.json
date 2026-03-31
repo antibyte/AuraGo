@@ -1,0 +1,17 @@
+{
+  "config.mission_preparation.enabled_label": "有効",
+  "config.mission_preparation.provider_label": "LLMプロバイダー",
+  "config.mission_preparation.provider_placeholder": "メインプロバイダーを使用する場合は空白",
+  "config.mission_preparation.timeout_seconds_label": "タイムアウト（秒）",
+  "config.mission_preparation.max_essential_tools_label": "最大重要ツール数",
+  "config.mission_preparation.cache_expiry_hours_label": "キャッシュ有効期限（時間）",
+  "config.mission_preparation.min_confidence_label": "最小信頼度",
+  "config.mission_preparation.auto_prepare_scheduled_label": "スケジュール済みミッションを自動準備",
+  "help.mission_preparation.enabled": "実行前のLLMベースのミッション事前分析を有効にする",
+  "help.mission_preparation.provider": "分析用のLLMプロバイダーをオーバーライド。メインプロバイダーを使用する場合は空白。",
+  "help.mission_preparation.timeout_seconds": "1回の準備分析の最大時間（秒）",
+  "help.mission_preparation.max_essential_tools": "分析に含めるツールの最大数",
+  "help.mission_preparation.cache_expiry_hours": "準備が更新前に有効である期間",
+  "help.mission_preparation.min_confidence": "準備を使用するために必要な最小信頼度スコア（0-1）",
+  "help.mission_preparation.auto_prepare_scheduled": "スケジュール済みミッションの作成・変更時に自動準備"
+}

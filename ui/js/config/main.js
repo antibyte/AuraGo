@@ -49,7 +49,8 @@ const SECTIONS = [
             { key: 'info_tools', icon: '🔍', label: t('config.section.info_tools.label'), desc: t('config.section.info_tools.desc') },
             { key: 'network_tools', icon: '📡', label: t('config.section.network_tools.label'), desc: t('config.section.network_tools.desc') },
             { key: 'brave_search', icon: '🦁', label: t('config.section.brave_search.label'), desc: t('config.section.brave_search.desc') },
-            { key: 'skill_manager', icon: '🧩', label: t('config.section.skill_manager.label'), desc: t('config.section.skill_manager.desc') }
+            { key: 'skill_manager', icon: '🧩', label: t('config.section.skill_manager.label'), desc: t('config.section.skill_manager.desc') },
+            { key: 'mission_preparation', icon: '🎯', label: t('config.section.mission_preparation.label'), desc: t('config.section.mission_preparation.desc') }
         ]
     },
     {
@@ -1252,7 +1253,8 @@ const SECTION_MODULES = {
     co_agents: { m: 'co_agents', fn: 'renderCoAgentsSection' },
     sql_connections: { m: 'sql_connections', fn: 'renderSQLConnectionsSection' },
     skill_manager: { m: 'skill_manager', fn: 'renderSkillManagerSection' },
-    ollama: { m: 'ollama', fn: 'renderOllamaSection' }
+    ollama: { m: 'ollama', fn: 'renderOllamaSection' },
+    mission_preparation: { m: 'mission_preparation', fn: 'renderMissionPreparationSection' }
 };
 
 function loadModule(name) {

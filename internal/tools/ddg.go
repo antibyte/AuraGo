@@ -8,6 +8,8 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+
+	"aurago/internal/security"
 )
 
 // Pre-compiled regexps for DDG result parsing.
@@ -76,9 +78,9 @@ func ExecuteDDGSearch(query string, maxResults int) string {
 		snippet := stripHTML(snippetMatches[i][1])
 
 		results = append(results, map[string]interface{}{
-			"title":   fmt.Sprintf("<external_data>%s</external_data>", title),
+			"title":   security.IsolateExternalData(title),
 			"link":    link,
-			"snippet": fmt.Sprintf("<external_data>%s</external_data>", snippet),
+			"snippet": security.IsolateExternalData(snippet),
 		})
 	}
 

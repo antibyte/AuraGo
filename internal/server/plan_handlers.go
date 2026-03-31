@@ -30,7 +30,7 @@ func writePlanJSON(w http.ResponseWriter, status int, payload interface{}) {
 func handlePlansList(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		if s.ShortTermMem == nil {
@@ -154,13 +154,13 @@ func handlePlanByID(s *Server) http.HandlerFunc {
 				writePlanJSON(w, http.StatusOK, map[string]interface{}{"status": "ok", "message": "Plan deleted"})
 				return
 			default:
-				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+				jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 				return
 			}
 		}
 
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 

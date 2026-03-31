@@ -675,6 +675,12 @@ func buildClarificationPrompt(check GuardianCheck) string {
 			if len(v) > 200 {
 				v = v[:200] + "..."
 			}
+			// Escape newlines and delimiter keywords to prevent prompt injection via parameter values.
+			v = strings.ReplaceAll(v, "\r", " ")
+			v = strings.ReplaceAll(v, "\n", " ")
+			v = strings.ReplaceAll(v, "DECISION:", "DECISION_")
+			v = strings.ReplaceAll(v, "CLASSIFY:", "CLASSIFY_")
+			v = strings.ReplaceAll(v, "RE-CLASSIFY:", "RE-CLASSIFY_")
 			sb.WriteString(k)
 			sb.WriteString("=")
 			sb.WriteString(v)
@@ -688,6 +694,11 @@ func buildClarificationPrompt(check GuardianCheck) string {
 		if len(ctx) > 200 {
 			ctx = ctx[:200] + "..."
 		}
+		ctx = strings.ReplaceAll(ctx, "\r", " ")
+		ctx = strings.ReplaceAll(ctx, "\n", " ")
+		ctx = strings.ReplaceAll(ctx, "DECISION:", "DECISION_")
+		ctx = strings.ReplaceAll(ctx, "CLASSIFY:", "CLASSIFY_")
+		ctx = strings.ReplaceAll(ctx, "RE-CLASSIFY:", "RE-CLASSIFY_")
 		sb.WriteString("CONTEXT: ")
 		sb.WriteString(ctx)
 		sb.WriteString("\n")
@@ -697,6 +708,12 @@ func buildClarificationPrompt(check GuardianCheck) string {
 	if len(justification) > 500 {
 		justification = justification[:500] + "..."
 	}
+	// Escape newlines and delimiter keywords to prevent forged verdicts via justification.
+	justification = strings.ReplaceAll(justification, "\r", " ")
+	justification = strings.ReplaceAll(justification, "\n", " ")
+	justification = strings.ReplaceAll(justification, "DECISION:", "DECISION_")
+	justification = strings.ReplaceAll(justification, "CLASSIFY:", "CLASSIFY_")
+	justification = strings.ReplaceAll(justification, "RE-CLASSIFY:", "RE-CLASSIFY_")
 	sb.WriteString("AGENT JUSTIFICATION: ")
 	sb.WriteString(justification)
 	sb.WriteString("\n")
@@ -784,6 +801,12 @@ func buildContentScanPrompt(contentType string, content string) string {
 	sb.WriteString("CONTENT_TYPE: ")
 	sb.WriteString(contentType)
 	sb.WriteString("\nCONTENT:\n")
+	// Escape delimiter keywords to prevent injected content from forging a CLASSIFY verdict.
+	content = strings.ReplaceAll(content, "\r", " ")
+	content = strings.ReplaceAll(content, "\nCLASSIFY:", " CLASSIFY_")
+	content = strings.ReplaceAll(content, "\nDECISION:", " DECISION_")
+	content = strings.ReplaceAll(content, "CLASSIFY:", "CLASSIFY_")
+	content = strings.ReplaceAll(content, "DECISION:", "DECISION_")
 	sb.WriteString(content)
 	sb.WriteString("\nCLASSIFY:")
 	return sb.String()

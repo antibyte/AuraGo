@@ -1,0 +1,17 @@
+{
+  "config.mission_preparation.enabled_label": "Ingeschakeld",
+  "config.mission_preparation.provider_label": "LLM-provider",
+  "config.mission_preparation.provider_placeholder": "Leeg laten voor hoofdprovider",
+  "config.mission_preparation.timeout_seconds_label": "Tijdslimiet (seconden)",
+  "config.mission_preparation.max_essential_tools_label": "Max. essentiële tools",
+  "config.mission_preparation.cache_expiry_hours_label": "Cache-verloop (uren)",
+  "config.mission_preparation.min_confidence_label": "Min. vertrouwen",
+  "config.mission_preparation.auto_prepare_scheduled_label": "Geplande missies automatisch voorbereiden",
+  "help.mission_preparation.enabled": "LLM-gebaseerde vooranalyse van missies vóór uitvoering inschakelen",
+  "help.mission_preparation.provider": "LLM-provider voor analyse overschrijven. Leeg laten voor hoofdprovider.",
+  "help.mission_preparation.timeout_seconds": "Maximale tijd in seconden voor een voorbereidingsanalyse",
+  "help.mission_preparation.max_essential_tools": "Maximaal aantal tools in de voorbereidingsanalyse",
+  "help.mission_preparation.cache_expiry_hours": "Hoe lang een voorbereiding geldig blijft voordat deze vernieuwd moet worden",
+  "help.mission_preparation.min_confidence": "Minimale vertrouwensscore (0-1) vereist om een voorbereiding te gebruiken",
+  "help.mission_preparation.auto_prepare_scheduled": "Geplande missies automatisch voorbereiden bij aanmaken of wijzigen"
+}

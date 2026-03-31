@@ -22,7 +22,7 @@ import (
 func handleListSkills(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		if s.SkillManager == nil {
@@ -72,7 +72,7 @@ func handleListSkills(s *Server) http.HandlerFunc {
 func handleGetSkill(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		if s.SkillManager == nil {
@@ -117,7 +117,7 @@ func handleGetSkill(s *Server) http.HandlerFunc {
 func handleCreateSkill(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		if s.SkillManager == nil {
@@ -204,7 +204,7 @@ func handleCreateSkill(s *Server) http.HandlerFunc {
 func handleUpdateSkill(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPut {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		if s.SkillManager == nil {
@@ -324,7 +324,7 @@ func handleUpdateSkill(s *Server) http.HandlerFunc {
 func handleDeleteSkill(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodDelete {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		if s.SkillManager == nil {
@@ -375,7 +375,7 @@ func handleDeleteSkill(s *Server) http.HandlerFunc {
 func handleUploadSkill(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		if s.SkillManager == nil {
@@ -491,7 +491,7 @@ func handleUploadSkill(s *Server) http.HandlerFunc {
 func handleVerifySkill(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		if s.SkillManager == nil {
@@ -557,7 +557,7 @@ func handleVerifySkill(s *Server) http.HandlerFunc {
 func handleSkillTemplates(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -576,7 +576,7 @@ func handleSkillTemplates(s *Server) http.HandlerFunc {
 func handleCreateSkillFromTemplate(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		if s.SkillManager == nil {
@@ -660,7 +660,7 @@ func handleCreateSkillFromTemplate(s *Server) http.HandlerFunc {
 func handleSkillStats(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		if s.SkillManager == nil {
@@ -700,7 +700,7 @@ func isAllowedSkillUploadFilename(filename string) bool {
 func handleGetSkillVersions(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		id := extractSkillPathID(r.URL.Path, "/api/skills/")
@@ -726,7 +726,7 @@ func handleGetSkillVersions(s *Server) http.HandlerFunc {
 func handleGetSkillAudit(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		id := extractSkillPathID(r.URL.Path, "/api/skills/")
@@ -756,7 +756,7 @@ func handleGetSkillAudit(s *Server) http.HandlerFunc {
 func handleExportSkill(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		id := extractSkillPathID(r.URL.Path, "/api/skills/")
@@ -781,7 +781,7 @@ func handleExportSkill(s *Server) http.HandlerFunc {
 func handleImportSkill(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		if s.SkillManager == nil {
@@ -821,7 +821,7 @@ func handleImportSkill(s *Server) http.HandlerFunc {
 func handleTestSkill(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		id := extractSkillPathID(r.URL.Path, "/api/skills/")
@@ -878,7 +878,7 @@ func handleTestSkill(s *Server) http.HandlerFunc {
 func handleGenerateSkillDraft(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		if s.SkillManager == nil {

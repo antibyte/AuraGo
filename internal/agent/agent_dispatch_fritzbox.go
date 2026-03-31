@@ -15,6 +15,7 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/fritzbox"
+	"aurago/internal/security"
 	"aurago/internal/tools"
 )
 
@@ -105,7 +106,7 @@ func fbSystemOp(c *fritzbox.Client, op string, logger *slog.Logger) string {
 		}
 		// Wrap log lines as external data to guard against prompt injection.
 		return fbOK(map[string]interface{}{
-			"log": "<external_data>" + strings.Join(lines, "\n") + "</external_data>",
+			"log": security.IsolateExternalData(strings.Join(lines, "\n")),
 		})
 	case "reboot":
 		logger.Info("LLM requested Fritz!Box reboot")
@@ -242,7 +243,7 @@ func fbTelephonyOp(c *fritzbox.Client, tc ToolCall, op string, cfg *config.Confi
 		raw, _ := json.Marshal(calls)
 		return fbOK(map[string]interface{}{
 			"count": len(calls),
-			"calls": "<external_data>" + string(raw) + "</external_data>",
+			"calls": security.IsolateExternalData(string(raw)),
 		})
 
 	case "get_phonebooks":
@@ -262,7 +263,7 @@ func fbTelephonyOp(c *fritzbox.Client, tc ToolCall, op string, cfg *config.Confi
 		raw, _ := json.Marshal(entries)
 		return fbOK(map[string]interface{}{
 			"count":   len(entries),
-			"entries": "<external_data>" + string(raw) + "</external_data>",
+			"entries": security.IsolateExternalData(string(raw)),
 		})
 
 	case "get_tam_messages":
@@ -274,7 +275,7 @@ func fbTelephonyOp(c *fritzbox.Client, tc ToolCall, op string, cfg *config.Confi
 		raw, _ := json.Marshal(msgs)
 		return fbOK(map[string]interface{}{
 			"count":    len(msgs),
-			"messages": "<external_data>" + string(raw) + "</external_data>",
+			"messages": security.IsolateExternalData(string(raw)),
 		})
 
 	case "mark_tam_message_read":
@@ -332,7 +333,7 @@ func fbTelephonyOp(c *fritzbox.Client, tc ToolCall, op string, cfg *config.Confi
 			return fbError("transcribe_tam_message", fmt.Errorf("transcription failed: %w", err))
 		}
 		return fbOK(map[string]interface{}{
-			"transcription": "<external_data>" + text + "</external_data>",
+			"transcription": security.IsolateExternalData(text),
 			"tam_index":     tc.TamIndex,
 			"msg_index":     tc.MsgIndex,
 		})

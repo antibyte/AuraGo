@@ -13,7 +13,7 @@ import (
 func handleContacts(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if s.ContactsDB == nil {
-			http.Error(w, `{"error":"contacts database not initialized"}`, http.StatusServiceUnavailable)
+			jsonError(w, `{"error":"contacts database not initialized"}`, http.StatusServiceUnavailable)
 			return
 		}
 		switch r.Method {
@@ -31,11 +31,11 @@ func handleContacts(s *Server) http.HandlerFunc {
 			var c contacts.Contact
 			body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
 			if err != nil {
-				http.Error(w, `{"error":"failed to read body"}`, http.StatusBadRequest)
+				jsonError(w, `{"error":"failed to read body"}`, http.StatusBadRequest)
 				return
 			}
 			if err := json.Unmarshal(body, &c); err != nil {
-				http.Error(w, `{"error":"invalid JSON"}`, http.StatusBadRequest)
+				jsonError(w, `{"error":"invalid JSON"}`, http.StatusBadRequest)
 				return
 			}
 			id, err := contacts.Create(s.ContactsDB, c)
@@ -48,7 +48,7 @@ func handleContacts(s *Server) http.HandlerFunc {
 			json.NewEncoder(w).Encode(map[string]string{"id": id})
 
 		default:
-			http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+			jsonError(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
 		}
 	}
 }
@@ -57,12 +57,12 @@ func handleContacts(s *Server) http.HandlerFunc {
 func handleContactByID(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if s.ContactsDB == nil {
-			http.Error(w, `{"error":"contacts database not initialized"}`, http.StatusServiceUnavailable)
+			jsonError(w, `{"error":"contacts database not initialized"}`, http.StatusServiceUnavailable)
 			return
 		}
 		id := strings.TrimPrefix(r.URL.Path, "/api/contacts/")
 		if id == "" {
-			http.Error(w, `{"error":"missing contact id"}`, http.StatusBadRequest)
+			jsonError(w, `{"error":"missing contact id"}`, http.StatusBadRequest)
 			return
 		}
 
@@ -80,11 +80,11 @@ func handleContactByID(s *Server) http.HandlerFunc {
 			var c contacts.Contact
 			body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
 			if err != nil {
-				http.Error(w, `{"error":"failed to read body"}`, http.StatusBadRequest)
+				jsonError(w, `{"error":"failed to read body"}`, http.StatusBadRequest)
 				return
 			}
 			if err := json.Unmarshal(body, &c); err != nil {
-				http.Error(w, `{"error":"invalid JSON"}`, http.StatusBadRequest)
+				jsonError(w, `{"error":"invalid JSON"}`, http.StatusBadRequest)
 				return
 			}
 			c.ID = id
@@ -120,7 +120,7 @@ func handleContactByID(s *Server) http.HandlerFunc {
 			json.NewEncoder(w).Encode(map[string]string{"status": "deleted"})
 
 		default:
-			http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+			jsonError(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
 		}
 	}
 }

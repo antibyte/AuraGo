@@ -19,7 +19,7 @@ import (
 func handleSetupStatus(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -40,7 +40,7 @@ func handleSetupStatus(s *Server) http.HandlerFunc {
 func handleSetupSave(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -54,13 +54,13 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 		s.CfgMu.RUnlock()
 		if alreadyConfigured {
 			s.Logger.Warn("[Setup] POST to /api/setup rejected — setup already completed")
-			http.Error(w, "Setup already completed", http.StatusForbidden)
+			jsonError(w, "Setup already completed", http.StatusForbidden)
 			return
 		}
 
 		configPath := s.Cfg.ConfigPath
 		if configPath == "" {
-			http.Error(w, "Config path not set", http.StatusInternalServerError)
+			jsonError(w, "Config path not set", http.StatusInternalServerError)
 			return
 		}
 
@@ -72,20 +72,20 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 		r.Body = http.MaxBytesReader(w, r.Body, maxBody)
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
-			http.Error(w, "Failed to read request body", http.StatusBadRequest)
+			jsonError(w, "Failed to read request body", http.StatusBadRequest)
 			return
 		}
 		defer r.Body.Close()
 
 		var patch map[string]interface{}
 		if err := json.Unmarshal(body, &patch); err != nil {
-			http.Error(w, "Invalid JSON", http.StatusBadRequest)
+			jsonError(w, "Invalid JSON", http.StatusBadRequest)
 			return
 		}
 
 		setupPassword, authEnabled, err := extractSetupAdminPassword(patch, s.Cfg.Auth.Enabled, s.Cfg.Auth.PasswordHash != "")
 		if err != nil {
-			http.Error(w, setupValidationMessage(err), http.StatusBadRequest)
+			jsonError(w, setupValidationMessage(err), http.StatusBadRequest)
 			return
 		}
 
@@ -93,14 +93,14 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 		data, err := os.ReadFile(configPath)
 		if err != nil {
 			s.Logger.Error("[Setup] Failed to read config file", "error", err)
-			http.Error(w, "Failed to read config", http.StatusInternalServerError)
+			jsonError(w, "Failed to read config", http.StatusInternalServerError)
 			return
 		}
 
 		var rawCfg map[string]interface{}
 		if err := yaml.Unmarshal(data, &rawCfg); err != nil {
 			s.Logger.Error("[Setup] Failed to parse config", "error", err)
-			http.Error(w, "Failed to parse config", http.StatusInternalServerError)
+			jsonError(w, "Failed to parse config", http.StatusInternalServerError)
 			return
 		}
 
@@ -135,13 +135,13 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 		out, err := yaml.Marshal(rawCfg)
 		if err != nil {
 			s.Logger.Error("[Setup] Failed to marshal config", "error", err)
-			http.Error(w, "Failed to save config", http.StatusInternalServerError)
+			jsonError(w, "Failed to save config", http.StatusInternalServerError)
 			return
 		}
 
 		if err := config.WriteFileAtomic(configPath, out, 0o600); err != nil {
 			s.Logger.Error("[Setup] Failed to write config", "error", err)
-			http.Error(w, "Failed to write config", http.StatusInternalServerError)
+			jsonError(w, "Failed to write config", http.StatusInternalServerError)
 			return
 		}
 
@@ -207,13 +207,13 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 			newHash, err := HashPassword(setupPassword)
 			if err != nil {
 				s.Logger.Error("[Setup] Failed to hash admin password", "error", err)
-				http.Error(w, "Failed to hash admin password", http.StatusInternalServerError)
+				jsonError(w, "Failed to hash admin password", http.StatusInternalServerError)
 				return
 			}
 			newSecret, err := GenerateRandomHex(32)
 			if err != nil {
 				s.Logger.Error("[Setup] Failed to generate session secret", "error", err)
-				http.Error(w, "Failed to generate session secret", http.StatusInternalServerError)
+				jsonError(w, "Failed to generate session secret", http.StatusInternalServerError)
 				return
 			}
 			if err := patchAuthConfig(s, map[string]interface{}{
@@ -222,7 +222,7 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 				"session_secret": newSecret,
 			}); err != nil {
 				s.Logger.Error("[Setup] Failed to persist admin password", "error", err)
-				http.Error(w, "Failed to save admin password", http.StatusInternalServerError)
+				jsonError(w, "Failed to save admin password", http.StatusInternalServerError)
 				return
 			}
 			s.Logger.Info("[Setup] Admin password initialized")

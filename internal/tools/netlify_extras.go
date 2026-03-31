@@ -1,10 +1,13 @@
 package tools
 
 import (
-"encoding/json"
-"fmt"
-"strings"
+	"encoding/json"
+	"fmt"
+	"strings"
+
+	"aurago/internal/security"
 )
+
 // NetlifyRollback restores a previous deploy for a site.
 func NetlifyRollback(cfg NetlifyConfig, siteID, deployID string) string {
 	siteID = netlifyResolveSiteID(cfg, siteID)
@@ -334,7 +337,7 @@ func NetlifyGetFormSubmissions(cfg NetlifyConfig, formID string) string {
 		}
 		dataJSON, _ := json.Marshal(subData)
 		// Wrap user-generated content with external_data for prompt injection safety
-		wrappedData := "<external_data>" + string(dataJSON) + "</external_data>"
+		wrappedData := security.IsolateExternalData(string(dataJSON))
 		result = append(result, compactSub{
 			ID:        strVal(s, "id"),
 			Number:    int(num),

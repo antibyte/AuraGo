@@ -112,6 +112,11 @@ type MissionV2 struct {
 	Locked        bool           `json:"locked"`                   // Prevents deletion
 	WaitingForID  string         `json:"waiting_for_id,omitempty"` // ID of mission this is waiting for
 	CheatsheetIDs []string       `json:"cheatsheet_ids,omitempty"` // Linked cheat sheet IDs for prompt expansion
+
+	// Mission Preparation fields
+	PreparationStatus string     `json:"preparation_status,omitempty"` // none|preparing|prepared|stale|error
+	LastPreparedAt    *time.Time `json:"last_prepared_at,omitempty"`
+	AutoPrepare       bool       `json:"auto_prepare,omitempty"`
 }
 
 // QueueItem represents a mission in the execution queue
@@ -261,6 +266,7 @@ type MissionManagerV2 struct {
 	webhookMgr        WebhookManagerInterface
 	mqttMgr           MQTTManagerInterface
 	cheatsheetDB      *sql.DB
+	preparedDB        *sql.DB                                  // prepared missions database
 	onMissionComplete func(completedID, result, output string) // callback for mission completion
 }
 
@@ -325,6 +331,43 @@ func (m *MissionManagerV2) SetCheatsheetDB(db *sql.DB) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.cheatsheetDB = db
+}
+
+// SetPreparedDB sets the prepared missions database
+func (m *MissionManagerV2) SetPreparedDB(db *sql.DB) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.preparedDB = db
+}
+
+// GetCheatsheetDB returns the cheatsheet database reference.
+func (m *MissionManagerV2) GetCheatsheetDB() *sql.DB {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.cheatsheetDB
+}
+
+// GetPreparedDB returns the prepared missions database reference.
+func (m *MissionManagerV2) GetPreparedDB() *sql.DB {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.preparedDB
+}
+
+// SetPreparationStatus updates the preparation status on a mission in memory and saves.
+func (m *MissionManagerV2) SetPreparationStatus(missionID, status string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	mission, ok := m.missions[missionID]
+	if !ok {
+		return
+	}
+	mission.PreparationStatus = status
+	if status == string(PrepStatusPrepared) {
+		now := time.Now()
+		mission.LastPreparedAt = &now
+	}
+	m.save()
 }
 
 // Start loads missions and initializes triggers
@@ -497,6 +540,7 @@ func (m *MissionManagerV2) processNext() {
 	missionID := mission.ID
 	cheatsheetIDs := mission.CheatsheetIDs
 	cheatsheetDB := m.cheatsheetDB
+	preparedDB := m.preparedDB
 	m.mu.Unlock()
 
 	if callback == nil {
@@ -517,6 +561,15 @@ func (m *MissionManagerV2) processNext() {
 	if len(cheatsheetIDs) > 0 && cheatsheetDB != nil {
 		if extra := CheatsheetGetMultiple(cheatsheetDB, cheatsheetIDs); extra != "" {
 			prompt += extra
+		}
+	}
+
+	// Enhance prompt with prepared context (advisory)
+	if preparedDB != nil {
+		if pm, err := GetPreparedMission(preparedDB, missionID); err == nil && pm != nil {
+			if advisory := pm.RenderPreparedContext(); advisory != "" {
+				prompt += advisory
+			}
 		}
 	}
 
@@ -857,6 +910,8 @@ func (m *MissionManagerV2) Update(id string, updated *MissionV2) error {
 	updated.LastOutput = mission.LastOutput
 	updated.RunCount = mission.RunCount
 	updated.Status = mission.Status
+	updated.PreparationStatus = mission.PreparationStatus
+	updated.LastPreparedAt = mission.LastPreparedAt
 
 	m.missions[id] = updated
 
@@ -868,6 +923,11 @@ func (m *MissionManagerV2) Update(id string, updated *MissionV2) error {
 			cronID := "mission_" + id
 			m.cron.ManageSchedule("add", cronID, updated.Schedule, updated.Prompt)
 		}
+	}
+
+	// Invalidate prepared mission cache when mission content changes
+	if m.preparedDB != nil {
+		InvalidatePreparedMission(m.preparedDB, id)
 	}
 
 	return m.save()
@@ -894,6 +954,12 @@ func (m *MissionManagerV2) Delete(id string) error {
 
 	delete(m.missions, id)
 	m.queue.Remove(id)
+
+	// Clean up prepared mission data
+	if m.preparedDB != nil {
+		DeletePreparedMission(m.preparedDB, id)
+	}
+
 	return m.save()
 }
 

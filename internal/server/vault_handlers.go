@@ -19,7 +19,7 @@ type vaultSecretJSON struct {
 func handleVaultSecrets(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if s.Vault == nil {
-			http.Error(w, "Vault not initialized (master key missing)", http.StatusServiceUnavailable)
+			jsonError(w, "Vault not initialized (master key missing)", http.StatusServiceUnavailable)
 			return
 		}
 		switch r.Method {
@@ -30,7 +30,7 @@ func handleVaultSecrets(s *Server) http.HandlerFunc {
 		case http.MethodDelete:
 			handleDeleteVaultSecret(s, w, r)
 		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	}
 }
@@ -70,11 +70,11 @@ func handleSetVaultSecret(s *Server, w http.ResponseWriter, r *http.Request) {
 
 	req.Key = strings.TrimSpace(req.Key)
 	if req.Key == "" {
-		http.Error(w, "Secret key must not be empty", http.StatusBadRequest)
+		jsonError(w, "Secret key must not be empty", http.StatusBadRequest)
 		return
 	}
 	if req.Value == "" {
-		http.Error(w, "Secret value must not be empty", http.StatusBadRequest)
+		jsonError(w, "Secret value must not be empty", http.StatusBadRequest)
 		return
 	}
 
@@ -101,7 +101,7 @@ func handleSetVaultSecret(s *Server, w http.ResponseWriter, r *http.Request) {
 func handleDeleteVaultSecret(s *Server, w http.ResponseWriter, r *http.Request) {
 	key := strings.TrimSpace(r.URL.Query().Get("key"))
 	if key == "" {
-		http.Error(w, "Missing ?key= parameter", http.StatusBadRequest)
+		jsonError(w, "Missing ?key= parameter", http.StatusBadRequest)
 		return
 	}
 

@@ -1050,6 +1050,20 @@ type Config struct {
 			ScanWithGuardian bool `yaml:"scan_with_guardian"` // use LLM Guardian for code review on upload (default: false, costs tokens)
 		} `yaml:"skill_manager"`
 	} `yaml:"tools"`
+	MissionPreparation struct {
+		Enabled              bool    `yaml:"enabled"`                // enable mission preparation feature (default: false)
+		Provider             string  `yaml:"provider"`               // provider entry ID; empty = use main LLM provider
+		TimeoutSeconds       int     `yaml:"timeout_seconds"`        // LLM call timeout in seconds (default: 120)
+		MaxEssentialTools    int     `yaml:"max_essential_tools"`    // max tools to include in preparation guide (default: 5)
+		CacheExpiryHours     int     `yaml:"cache_expiry_hours"`     // prepared data cache lifetime in hours (default: 24)
+		MinConfidence        float64 `yaml:"min_confidence"`         // minimum confidence to mark as prepared (default: 0.5)
+		AutoPrepareScheduled bool    `yaml:"auto_prepare_scheduled"` // auto-prepare scheduled missions (default: true)
+		// resolved fields (populated by ResolveProviders)
+		ProviderType string `yaml:"-" json:"-"` // resolved: provider type
+		BaseURL      string `yaml:"-" json:"-"` // resolved from provider entry
+		APIKey       string `yaml:"-" json:"-"` // resolved from provider entry
+		Model        string `yaml:"-" json:"-"` // resolved from provider entry
+	} `yaml:"mission_preparation"`
 	Sandbox struct {
 		Enabled        bool   `yaml:"enabled"`
 		Backend        string `yaml:"backend"`         // "docker" (default), "podman"

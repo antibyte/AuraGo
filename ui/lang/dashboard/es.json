@@ -385,4 +385,5 @@
   "dashboard.activity_overview_summary": "Summary",
   "dashboard.activity_overview_highlights": "Highlights",
   "dashboard.activity_overview_pending": "Open Items"
+  "dashboard.api_error": "No se pudieron cargar los datos del panel"
 }

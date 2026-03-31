@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"aurago/internal/config"
+	"aurago/internal/security"
 )
 
 // TelnyxSMSBroker implements agent.FeedbackProvider for SMS-based interaction.
@@ -105,16 +106,13 @@ func (b *TelnyxCallBroker) SendJSON(jsonStr string) {
 
 // FormatSMSForAgent wraps incoming SMS content for the agent with external data protection.
 func FormatSMSForAgent(from, text string, mediaURLs []string) string {
-	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("[Incoming SMS from %s]\n", from))
-	sb.WriteString("<external_data>\n")
-	sb.WriteString(text)
+	var content strings.Builder
+	content.WriteString(text)
 	if len(mediaURLs) > 0 {
-		sb.WriteString("\n\nAttachments:\n")
+		content.WriteString("\n\nAttachments:\n")
 		for _, u := range mediaURLs {
-			sb.WriteString("- " + u + "\n")
+			content.WriteString("- " + u + "\n")
 		}
 	}
-	sb.WriteString("\n</external_data>")
-	return sb.String()
+	return fmt.Sprintf("[Incoming SMS from %s]\n%s", from, security.IsolateExternalData(content.String()))
 }

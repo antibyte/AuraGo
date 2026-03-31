@@ -23,13 +23,13 @@ import (
 func handleOAuthStart(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
 		providerID := r.URL.Query().Get("provider")
 		if providerID == "" {
-			http.Error(w, "Missing 'provider' query parameter", http.StatusBadRequest)
+			jsonError(w, "Missing 'provider' query parameter", http.StatusBadRequest)
 			return
 		}
 
@@ -44,20 +44,20 @@ func handleOAuthStart(s *Server) http.HandlerFunc {
 		s.CfgMu.RUnlock()
 
 		if prov == nil {
-			http.Error(w, "Provider not found: "+providerID, http.StatusNotFound)
+			jsonError(w, "Provider not found: "+providerID, http.StatusNotFound)
 			return
 		}
 		if entry.AuthType != "oauth2" {
-			http.Error(w, "Provider is not configured for OAuth2", http.StatusBadRequest)
+			jsonError(w, "Provider is not configured for OAuth2", http.StatusBadRequest)
 			return
 		}
 		if entry.OAuthAuthURL == "" || entry.OAuthTokenURL == "" || entry.OAuthClientID == "" {
-			http.Error(w, "OAuth2 configuration incomplete (need auth_url, token_url, client_id)", http.StatusBadRequest)
+			jsonError(w, "OAuth2 configuration incomplete (need auth_url, token_url, client_id)", http.StatusBadRequest)
 			return
 		}
 
 		if s.Vault == nil {
-			http.Error(w, "Vault not available — cannot store OAuth state", http.StatusServiceUnavailable)
+			jsonError(w, "Vault not available — cannot store OAuth state", http.StatusServiceUnavailable)
 			return
 		}
 
@@ -65,7 +65,7 @@ func handleOAuthStart(s *Server) http.HandlerFunc {
 		stateBytes := make([]byte, 32)
 		if _, err := rand.Read(stateBytes); err != nil {
 			s.Logger.Error("[OAuth] Failed to generate state", "error", err)
-			http.Error(w, "Internal error", http.StatusInternalServerError)
+			jsonError(w, "Internal error", http.StatusInternalServerError)
 			return
 		}
 		state := hex.EncodeToString(stateBytes)
@@ -78,7 +78,7 @@ func handleOAuthStart(s *Server) http.HandlerFunc {
 		stateJSON, _ := json.Marshal(stateData)
 		if err := s.Vault.WriteSecret("oauth_state_"+state, string(stateJSON)); err != nil {
 			s.Logger.Error("[OAuth] Failed to store state", "error", err)
-			http.Error(w, "Failed to store OAuth state", http.StatusInternalServerError)
+			jsonError(w, "Failed to store OAuth state", http.StatusInternalServerError)
 			return
 		}
 
@@ -91,7 +91,7 @@ func handleOAuthStart(s *Server) http.HandlerFunc {
 		// Build authorization URL
 		authURL, err := url.Parse(entry.OAuthAuthURL)
 		if err != nil {
-			http.Error(w, "Invalid oauth_auth_url", http.StatusBadRequest)
+			jsonError(w, "Invalid oauth_auth_url", http.StatusBadRequest)
 			return
 		}
 		q := authURL.Query()
@@ -119,7 +119,7 @@ func handleOAuthStart(s *Server) http.HandlerFunc {
 func handleOAuthCallback(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -218,13 +218,13 @@ func handleOAuthCallback(s *Server) http.HandlerFunc {
 func handleOAuthStatus(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
 		providerID := r.URL.Query().Get("provider")
 		if providerID == "" {
-			http.Error(w, "Missing 'provider' query parameter", http.StatusBadRequest)
+			jsonError(w, "Missing 'provider' query parameter", http.StatusBadRequest)
 			return
 		}
 
@@ -274,13 +274,13 @@ func handleOAuthStatus(s *Server) http.HandlerFunc {
 func handleOAuthRevoke(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodDelete {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
 		providerID := r.URL.Query().Get("provider")
 		if providerID == "" {
-			http.Error(w, "Missing 'provider' query parameter", http.StatusBadRequest)
+			jsonError(w, "Missing 'provider' query parameter", http.StatusBadRequest)
 			return
 		}
 
@@ -457,7 +457,7 @@ func buildRedirectURI(r *http.Request, serverHost string, serverPort int, oauthB
 func handleOAuthManual(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 

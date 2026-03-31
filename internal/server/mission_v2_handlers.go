@@ -41,7 +41,7 @@ func validateCronExpr(expr string) bool {
 func handleListMissionsV2(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -65,27 +65,27 @@ func handleListMissionsV2(s *Server) http.HandlerFunc {
 func handleCreateMissionV2(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
 		var mission tools.MissionV2
 		if err := json.NewDecoder(r.Body).Decode(&mission); err != nil {
-			http.Error(w, "Invalid JSON", http.StatusBadRequest)
+			jsonError(w, "Invalid JSON", http.StatusBadRequest)
 			return
 		}
 
 		if mission.Name == "" || mission.Prompt == "" {
-			http.Error(w, "name and prompt are required", http.StatusBadRequest)
+			jsonError(w, "name and prompt are required", http.StatusBadRequest)
 			return
 		}
 
 		if len(mission.Name) > maxMissionNameLen {
-			http.Error(w, "name exceeds maximum length", http.StatusBadRequest)
+			jsonError(w, "name exceeds maximum length", http.StatusBadRequest)
 			return
 		}
 		if len(mission.Prompt) > maxMissionPromptLen {
-			http.Error(w, "prompt exceeds maximum length", http.StatusBadRequest)
+			jsonError(w, "prompt exceeds maximum length", http.StatusBadRequest)
 			return
 		}
 
@@ -96,18 +96,18 @@ func handleCreateMissionV2(s *Server) http.HandlerFunc {
 		case "":
 			mission.ExecutionType = tools.ExecutionManual
 		default:
-			http.Error(w, "Invalid execution_type. Use: manual, scheduled, triggered", http.StatusBadRequest)
+			jsonError(w, "Invalid execution_type. Use: manual, scheduled, triggered", http.StatusBadRequest)
 			return
 		}
 
 		// Validate trigger configuration
 		if mission.ExecutionType == tools.ExecutionTriggered {
 			if mission.TriggerType == "" {
-				http.Error(w, "trigger_type is required for triggered missions", http.StatusBadRequest)
+				jsonError(w, "trigger_type is required for triggered missions", http.StatusBadRequest)
 				return
 			}
 			if mission.TriggerConfig == nil {
-				http.Error(w, "trigger_config is required for triggered missions", http.StatusBadRequest)
+				jsonError(w, "trigger_config is required for triggered missions", http.StatusBadRequest)
 				return
 			}
 		}
@@ -115,18 +115,18 @@ func handleCreateMissionV2(s *Server) http.HandlerFunc {
 		// Validate cron schedule for scheduled missions
 		if mission.ExecutionType == tools.ExecutionScheduled {
 			if mission.Schedule == "" {
-				http.Error(w, "schedule (cron expression) is required for scheduled missions", http.StatusBadRequest)
+				jsonError(w, "schedule (cron expression) is required for scheduled missions", http.StatusBadRequest)
 				return
 			}
 			if !validateCronExpr(mission.Schedule) {
-				http.Error(w, "invalid cron expression in schedule", http.StatusBadRequest)
+				jsonError(w, "invalid cron expression in schedule", http.StatusBadRequest)
 				return
 			}
 		}
 
 		if err := s.MissionManagerV2.Create(&mission); err != nil {
 			s.Logger.Error("Failed to create mission", "error", err)
-			http.Error(w, "Failed to create mission", http.StatusInternalServerError)
+			jsonError(w, "Failed to create mission", http.StatusInternalServerError)
 			return
 		}
 		broadcastMissionState(s)
@@ -146,7 +146,7 @@ func handleMissionV2ByID(s *Server) http.HandlerFunc {
 		path := strings.TrimPrefix(r.URL.Path, "/api/missions/v2/")
 		parts := strings.Split(path, "/")
 		if len(parts) == 0 || parts[0] == "" {
-			http.Error(w, "mission ID required", http.StatusBadRequest)
+			jsonError(w, "mission ID required", http.StatusBadRequest)
 			return
 		}
 		id := parts[0]
@@ -165,6 +165,12 @@ func handleMissionV2ByID(s *Server) http.HandlerFunc {
 					handleMissionRemoveFromQueue(s, w, r, id)
 					return
 				}
+			case "prepare":
+				handleMissionPrepare(s, w, r, id)
+				return
+			case "prepared":
+				handleMissionPrepared(s, w, r, id)
+				return
 			}
 		}
 
@@ -176,7 +182,7 @@ func handleMissionV2ByID(s *Server) http.HandlerFunc {
 		case http.MethodDelete:
 			handleMissionDeleteV2(s, w, r, id)
 		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	}
 }
@@ -184,7 +190,7 @@ func handleMissionV2ByID(s *Server) http.HandlerFunc {
 func handleMissionGetV2(s *Server, w http.ResponseWriter, r *http.Request, id string) {
 	mission, ok := s.MissionManagerV2.Get(id)
 	if !ok {
-		http.Error(w, "mission not found", http.StatusNotFound)
+		jsonError(w, "mission not found", http.StatusNotFound)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -194,26 +200,26 @@ func handleMissionGetV2(s *Server, w http.ResponseWriter, r *http.Request, id st
 func handleMissionUpdateV2(s *Server, w http.ResponseWriter, r *http.Request, id string) {
 	var updated tools.MissionV2
 	if err := json.NewDecoder(r.Body).Decode(&updated); err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		jsonError(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
 
 	if len(updated.Name) > maxMissionNameLen {
-		http.Error(w, "name exceeds maximum length", http.StatusBadRequest)
+		jsonError(w, "name exceeds maximum length", http.StatusBadRequest)
 		return
 	}
 	if len(updated.Prompt) > maxMissionPromptLen {
-		http.Error(w, "prompt exceeds maximum length", http.StatusBadRequest)
+		jsonError(w, "prompt exceeds maximum length", http.StatusBadRequest)
 		return
 	}
 	if updated.Schedule != "" && !validateCronExpr(updated.Schedule) {
-		http.Error(w, "invalid cron expression in schedule", http.StatusBadRequest)
+		jsonError(w, "invalid cron expression in schedule", http.StatusBadRequest)
 		return
 	}
 
 	if err := s.MissionManagerV2.Update(id, &updated); err != nil {
 		s.Logger.Error("Failed to update mission", "error", err)
-		http.Error(w, "Failed to update mission", http.StatusInternalServerError)
+		jsonError(w, "Failed to update mission", http.StatusInternalServerError)
 		return
 	}
 	broadcastMissionState(s)
@@ -224,7 +230,7 @@ func handleMissionUpdateV2(s *Server, w http.ResponseWriter, r *http.Request, id
 
 func handleMissionDeleteV2(s *Server, w http.ResponseWriter, r *http.Request, id string) {
 	if err := s.MissionManagerV2.Delete(id); err != nil {
-		http.Error(w, "Mission not found", http.StatusNotFound)
+		jsonError(w, "Mission not found", http.StatusNotFound)
 		return
 	}
 	broadcastMissionState(s)
@@ -234,12 +240,12 @@ func handleMissionDeleteV2(s *Server, w http.ResponseWriter, r *http.Request, id
 
 func handleMissionRunV2(s *Server, w http.ResponseWriter, r *http.Request, id string) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
 	if err := s.MissionManagerV2.RunNow(id); err != nil {
-		http.Error(w, "Mission not found", http.StatusNotFound)
+		jsonError(w, "Mission not found", http.StatusNotFound)
 		return
 	}
 	broadcastMissionState(s)
@@ -250,7 +256,7 @@ func handleMissionRunV2(s *Server, w http.ResponseWriter, r *http.Request, id st
 
 func handleMissionTriggerV2(s *Server, w http.ResponseWriter, r *http.Request, id string) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -260,7 +266,7 @@ func handleMissionTriggerV2(s *Server, w http.ResponseWriter, r *http.Request, i
 	json.NewDecoder(r.Body).Decode(&payload)
 
 	if err := s.MissionManagerV2.TriggerMission(id, "api", payload.TriggerData); err != nil {
-		http.Error(w, "Failed to trigger mission", http.StatusBadRequest)
+		jsonError(w, "Failed to trigger mission", http.StatusBadRequest)
 		return
 	}
 	broadcastMissionState(s)
@@ -272,7 +278,7 @@ func handleMissionTriggerV2(s *Server, w http.ResponseWriter, r *http.Request, i
 func handleMissionRemoveFromQueue(s *Server, w http.ResponseWriter, r *http.Request, id string) {
 	queue, running := s.MissionManagerV2.GetQueue()
 	if running == id {
-		http.Error(w, "Cannot remove running mission from queue", http.StatusConflict)
+		jsonError(w, "Cannot remove running mission from queue", http.StatusConflict)
 		return
 	}
 	if removed := queue.Remove(id); removed {
@@ -281,14 +287,14 @@ func handleMissionRemoveFromQueue(s *Server, w http.ResponseWriter, r *http.Requ
 		json.NewEncoder(w).Encode(map[string]string{"status": "removed"})
 		return
 	}
-	http.Error(w, "mission not in queue", http.StatusNotFound)
+	jsonError(w, "mission not in queue", http.StatusNotFound)
 }
 
 // handleMissionQueue returns the current queue status
 func handleMissionQueue(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -307,13 +313,13 @@ func handleMissionQueue(s *Server) http.HandlerFunc {
 func handleMissionsV2ByExecution(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
 		execType := r.URL.Query().Get("type")
 		if execType == "" {
-			http.Error(w, "type parameter required", http.StatusBadRequest)
+			jsonError(w, "type parameter required", http.StatusBadRequest)
 			return
 		}
 
@@ -334,13 +340,13 @@ func handleMissionsV2ByExecution(s *Server) http.HandlerFunc {
 func handleMissionDependencies(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
 		sourceID := r.URL.Query().Get("source_id")
 		if sourceID == "" {
-			http.Error(w, "source_id parameter required", http.StatusBadRequest)
+			jsonError(w, "source_id parameter required", http.StatusBadRequest)
 			return
 		}
 
@@ -357,5 +363,74 @@ func handleMissionDependencies(s *Server) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(dependents)
+	}
+}
+
+// handleMissionPrepare triggers manual preparation or returns/deletes prepared context.
+// POST /api/missions/v2/{id}/prepare — trigger preparation
+func handleMissionPrepare(s *Server, w http.ResponseWriter, r *http.Request, id string) {
+	if r.Method != http.MethodPost {
+		jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if s.PreparationService == nil {
+		jsonError(w, "Mission preparation is not enabled", http.StatusServiceUnavailable)
+		return
+	}
+
+	// Verify mission exists
+	if _, ok := s.MissionManagerV2.Get(id); !ok {
+		jsonError(w, "Mission not found", http.StatusNotFound)
+		return
+	}
+
+	// Run preparation asynchronously
+	go func() {
+		if _, err := s.PreparationService.PrepareMission(r.Context(), id); err != nil {
+			s.Logger.Error("Manual mission preparation failed", "mission", id, "error", err)
+		}
+		broadcastMissionState(s)
+	}()
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"status": "preparing"})
+}
+
+// handleMissionPrepared returns or deletes the prepared context for a mission.
+// GET /api/missions/v2/{id}/prepared — get prepared context
+// DELETE /api/missions/v2/{id}/prepared — invalidate prepared context
+func handleMissionPrepared(s *Server, w http.ResponseWriter, r *http.Request, id string) {
+	if s.PreparedMissionsDB == nil {
+		jsonError(w, "Mission preparation is not enabled", http.StatusServiceUnavailable)
+		return
+	}
+
+	switch r.Method {
+	case http.MethodGet:
+		pm, err := tools.GetPreparedMission(s.PreparedMissionsDB, id)
+		if err != nil {
+			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to get preparation", "Failed to get prepared mission", err, "mission", id)
+			return
+		}
+		if pm == nil {
+			jsonError(w, "No preparation found", http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(pm)
+
+	case http.MethodDelete:
+		if s.PreparationService != nil {
+			s.PreparationService.InvalidateMission(id)
+		} else {
+			tools.InvalidatePreparedMission(s.PreparedMissionsDB, id)
+		}
+		broadcastMissionState(s)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{"status": "invalidated"})
+
+	default:
+		jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}
 }

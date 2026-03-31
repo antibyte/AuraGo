@@ -117,7 +117,7 @@ func (b *SSEBroadcaster) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	flusher, ok := w.(http.Flusher)
 	if !ok {
-		http.Error(w, "Streaming unsupported", http.StatusInternalServerError)
+		jsonError(w, "Streaming unsupported", http.StatusInternalServerError)
 		return
 	}
 

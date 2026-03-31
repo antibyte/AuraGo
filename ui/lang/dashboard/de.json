@@ -385,4 +385,5 @@
   "dashboard.activity_overview_summary": "Zusammenfassung",
   "dashboard.activity_overview_highlights": "Highlights",
   "dashboard.activity_overview_pending": "Offene Punkte"
+  "dashboard.api_error": "Dashboard-Daten konnten nicht geladen werden"
 }

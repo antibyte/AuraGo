@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"aurago/internal/config"
@@ -65,22 +66,36 @@ func buildPersonalityHistories(recentMsgs []openai.ChatCompletionMessage, extraL
 	return historyBuilder.String(), userHistoryBuilder.String()
 }
 
-func applyPersonalityMilestones(stm *memory.SQLiteMemory) {
-	traits, err := stm.GetTraits()
-	if err != nil {
-		return
+// v2FailCount tracks consecutive V2 LLM failures for the circuit breaker.
+var v2FailCount atomic.Int32
+
+// v2PausedUntil stores the Unix nanosecond timestamp until which V2 is paused.
+var v2PausedUntil atomic.Int64
+
+// v2CircuitOpen reports whether the V2 circuit breaker is currently open (pausing calls).
+func v2CircuitOpen(logger *slog.Logger) bool {
+	pausedUntil := v2PausedUntil.Load()
+	if pausedUntil == 0 {
+		return false
 	}
-	for _, milestone := range memory.CheckMilestones(traits) {
-		has, err := stm.HasMilestone(milestone.Label)
-		if err != nil || has {
-			continue
-		}
-		trigger := stm.GetLastMoodTrigger()
-		details := fmt.Sprintf("%s %s %.2f", milestone.Trait, milestone.Direction, milestone.Threshold)
-		if trigger != "" {
-			details = fmt.Sprintf("%s (Trigger: %q)", details, trigger)
-		}
-		_ = stm.AddMilestone(milestone.Label, details)
+	if time.Now().UnixNano() < pausedUntil {
+		return true
+	}
+	// Pause expired — reset state.
+	v2PausedUntil.Store(0)
+	v2FailCount.Store(0)
+	logger.Info("[Personality V2] Circuit breaker reset after pause")
+	return false
+}
+
+// v2RecordFailure increments the failure counter and opens the circuit breaker after 3 failures.
+func v2RecordFailure(logger *slog.Logger) {
+	n := v2FailCount.Add(1)
+	if n >= 3 {
+		pause := time.Now().Add(5 * time.Minute).UnixNano()
+		v2PausedUntil.Store(pause)
+		logger.Warn("[Personality V2] Circuit breaker opened after consecutive failures — pausing for 5 minutes",
+			"fail_count", n)
 	}
 }
 
@@ -106,6 +121,12 @@ func launchAsyncPersonalityV2Analysis(
 		return
 	}
 
+	// P-10: Circuit breaker — skip V2 if too many recent failures.
+	if v2CircuitOpen(logger) {
+		logger.Debug("[Personality V2] Circuit breaker open, skipping analysis")
+		return
+	}
+
 	contextHistory, userHistory := buildPersonalityHistories(recentMsgs, extraLabel, extraContent)
 	modelName := resolvePersonalityModel(cfg)
 	analyzerClient := resolvePersonalityAnalyzerClient(cfg, fallbackClient)
@@ -116,6 +137,7 @@ func launchAsyncPersonalityV2Analysis(
 
 		mood, affDelta, traitDeltas, profileUpdates, err := stm.AnalyzeMoodV2(v2Ctx, analyzerClient, modelName, contextHistory, userHistory, meta, profilingEnabled)
 		if err != nil {
+			v2RecordFailure(logger)
 			v2URL := cfg.Personality.V2ResolvedURL
 			if v2URL == "" {
 				v2URL = cfg.Personality.V2URL
@@ -132,12 +154,18 @@ func launchAsyncPersonalityV2Analysis(
 			return
 		}
 
+		// Success — reset circuit breaker failure count.
+		v2FailCount.Store(0)
+
 		_ = stm.LogMood(mood, triggerInfo)
 		for trait, delta := range traitDeltas {
-			_ = stm.UpdateTrait(trait, delta)
+			if err := stm.UpdateTrait(trait, delta); err != nil {
+				logger.Warn("[Personality V2] Failed to update trait", "trait", trait, "delta", delta, "error", err)
+			}
 		}
-		_ = stm.UpdateTrait(memory.TraitAffinity, affDelta)
-		applyPersonalityMilestones(stm)
+		if err := stm.UpdateTrait(memory.TraitAffinity, affDelta); err != nil {
+			logger.Warn("[Personality V2] Failed to update affinity trait", "delta", affDelta, "error", err)
+		}
 
 		if profilingEnabled && len(profileUpdates) > 0 {
 			validCategories := map[string]bool{"tech": true, "prefs": true, "interests": true, "context": true, "comm": true}

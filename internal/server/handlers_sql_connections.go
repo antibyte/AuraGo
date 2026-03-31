@@ -13,7 +13,7 @@ import (
 func handleSQLConnections(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if s.SQLConnectionsDB == nil {
-			http.Error(w, `{"error":"SQL connections not initialized"}`, http.StatusServiceUnavailable)
+			jsonError(w, `{"error":"SQL connections not initialized"}`, http.StatusServiceUnavailable)
 			return
 		}
 		switch r.Method {
@@ -29,7 +29,7 @@ func handleSQLConnections(s *Server) http.HandlerFunc {
 		case http.MethodPost:
 			body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
 			if err != nil {
-				http.Error(w, `{"error":"failed to read body"}`, http.StatusBadRequest)
+				jsonError(w, `{"error":"failed to read body"}`, http.StatusBadRequest)
 				return
 			}
 			var req struct {
@@ -48,7 +48,7 @@ func handleSQLConnections(s *Server) http.HandlerFunc {
 				AllowDelete  bool   `json:"allow_delete"`
 			}
 			if err := json.Unmarshal(body, &req); err != nil {
-				http.Error(w, `{"error":"invalid JSON"}`, http.StatusBadRequest)
+				jsonError(w, `{"error":"invalid JSON"}`, http.StatusBadRequest)
 				return
 			}
 			if req.SSLMode == "" {
@@ -60,13 +60,13 @@ func handleSQLConnections(s *Server) http.HandlerFunc {
 			if req.Username != "" || req.Password != "" {
 				credJSON, err := sqlconnections.MarshalCredentials(req.Username, req.Password)
 				if err != nil {
-					http.Error(w, `{"error":"failed to marshal credentials"}`, http.StatusInternalServerError)
+					jsonError(w, `{"error":"failed to marshal credentials"}`, http.StatusInternalServerError)
 					return
 				}
 				vaultKey = "sqlconn_" + req.Name
 				if s.Vault != nil {
 					if err := s.Vault.WriteSecret(vaultKey, credJSON); err != nil {
-						http.Error(w, `{"error":"failed to store credentials"}`, http.StatusInternalServerError)
+						jsonError(w, `{"error":"failed to store credentials"}`, http.StatusInternalServerError)
 						return
 					}
 				}
@@ -84,7 +84,7 @@ func handleSQLConnections(s *Server) http.HandlerFunc {
 			json.NewEncoder(w).Encode(map[string]string{"id": id})
 
 		default:
-			http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+			jsonError(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
 		}
 	}
 }
@@ -93,12 +93,12 @@ func handleSQLConnections(s *Server) http.HandlerFunc {
 func handleSQLConnectionByID(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if s.SQLConnectionsDB == nil {
-			http.Error(w, `{"error":"SQL connections not initialized"}`, http.StatusServiceUnavailable)
+			jsonError(w, `{"error":"SQL connections not initialized"}`, http.StatusServiceUnavailable)
 			return
 		}
 		id := strings.TrimPrefix(r.URL.Path, "/api/sql-connections/")
 		if id == "" {
-			http.Error(w, `{"error":"missing connection id"}`, http.StatusBadRequest)
+			jsonError(w, `{"error":"missing connection id"}`, http.StatusBadRequest)
 			return
 		}
 
@@ -115,7 +115,7 @@ func handleSQLConnectionByID(s *Server) http.HandlerFunc {
 		case http.MethodPut:
 			body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
 			if err != nil {
-				http.Error(w, `{"error":"failed to read body"}`, http.StatusBadRequest)
+				jsonError(w, `{"error":"failed to read body"}`, http.StatusBadRequest)
 				return
 			}
 			var req struct {
@@ -134,7 +134,7 @@ func handleSQLConnectionByID(s *Server) http.HandlerFunc {
 				AllowDelete  bool   `json:"allow_delete"`
 			}
 			if err := json.Unmarshal(body, &req); err != nil {
-				http.Error(w, `{"error":"invalid JSON"}`, http.StatusBadRequest)
+				jsonError(w, `{"error":"invalid JSON"}`, http.StatusBadRequest)
 				return
 			}
 
@@ -148,7 +148,7 @@ func handleSQLConnectionByID(s *Server) http.HandlerFunc {
 			if req.Username != "" || req.Password != "" {
 				credJSON, err := sqlconnections.MarshalCredentials(req.Username, req.Password)
 				if err != nil {
-					http.Error(w, `{"error":"failed to marshal credentials"}`, http.StatusInternalServerError)
+					jsonError(w, `{"error":"failed to marshal credentials"}`, http.StatusInternalServerError)
 					return
 				}
 				if vaultKey == "" {
@@ -156,7 +156,7 @@ func handleSQLConnectionByID(s *Server) http.HandlerFunc {
 				}
 				if s.Vault != nil {
 					if err := s.Vault.WriteSecret(vaultKey, credJSON); err != nil {
-						http.Error(w, `{"error":"failed to store credentials"}`, http.StatusInternalServerError)
+						jsonError(w, `{"error":"failed to store credentials"}`, http.StatusInternalServerError)
 						return
 					}
 				}
@@ -203,7 +203,7 @@ func handleSQLConnectionByID(s *Server) http.HandlerFunc {
 			json.NewEncoder(w).Encode(map[string]string{"status": "deleted"})
 
 		default:
-			http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+			jsonError(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
 		}
 	}
 }
@@ -212,11 +212,11 @@ func handleSQLConnectionByID(s *Server) http.HandlerFunc {
 func handleSQLConnectionTest(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if s.SQLConnectionsDB == nil || s.SQLConnectionPool == nil {
-			http.Error(w, `{"error":"SQL connections not initialized"}`, http.StatusServiceUnavailable)
+			jsonError(w, `{"error":"SQL connections not initialized"}`, http.StatusServiceUnavailable)
 			return
 		}
 		if r.Method != http.MethodPost {
-			http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+			jsonError(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -224,7 +224,7 @@ func handleSQLConnectionTest(s *Server) http.HandlerFunc {
 		path := strings.TrimPrefix(r.URL.Path, "/api/sql-connections/")
 		id := strings.TrimSuffix(path, "/test")
 		if id == "" {
-			http.Error(w, `{"error":"missing connection id"}`, http.StatusBadRequest)
+			jsonError(w, `{"error":"missing connection id"}`, http.StatusBadRequest)
 			return
 		}
 

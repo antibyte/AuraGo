@@ -1392,7 +1392,6 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		} else {
 			w.Header().Set("Content-Type", "audio/mpeg")
 		}
-		w.Header().Set("Access-Control-Allow-Origin", "*")
 		mainTTSHandler.ServeHTTP(w, r)
 	})
 
@@ -1409,7 +1408,6 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 			} else {
 				w.Header().Set("Content-Type", "audio/mpeg")
 			}
-			w.Header().Set("Access-Control-Allow-Origin", "*")
 			ttsFsHandler.ServeHTTP(w, r)
 		})
 

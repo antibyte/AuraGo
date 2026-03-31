@@ -896,6 +896,8 @@ chatForm.addEventListener('submit', async (e) => {
         seenSSEAudios.clear();
         seenSSEDocuments.clear();
         conversation.push(assistantMessage);
+        // Cap to last 200 messages to prevent unbounded memory growth
+        if (conversation.length > 200) { conversation = conversation.slice(-200); }
 
     } catch (error) {
         if (error.name === 'AbortError') {
@@ -981,8 +983,11 @@ function setConnectionState(state) {
 }
 
 let sseReconnectTimer = null;
+let _chatSSERegistered = false;
 
 function connectSSE() {
+    if (_chatSSERegistered) return;
+    _chatSSERegistered = true;
     // Use the shared AuraSSE singleton instead of a dedicated EventSource.
     setConnectionState(window.AuraSSE.isConnected() ? 'connected' : 'reconnecting');
 

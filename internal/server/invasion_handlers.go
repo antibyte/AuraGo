@@ -18,7 +18,7 @@ import (
 func handleInvasionNests(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if s.InvasionDB == nil {
-			http.Error(w, "Invasion Control is not enabled", http.StatusServiceUnavailable)
+			jsonError(w, "Invasion Control is not enabled", http.StatusServiceUnavailable)
 			return
 		}
 		switch r.Method {
@@ -169,7 +169,7 @@ func handleInvasionNests(s *Server) http.HandlerFunc {
 			}
 
 		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	}
 }
@@ -178,7 +178,7 @@ func handleInvasionNests(s *Server) http.HandlerFunc {
 func handleInvasionNest(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if s.InvasionDB == nil {
-			http.Error(w, "Invasion Control is not enabled", http.StatusServiceUnavailable)
+			jsonError(w, "Invasion Control is not enabled", http.StatusServiceUnavailable)
 			return
 		}
 		id := extractInvasionID(r.URL.Path, "/api/invasion/nests/")
@@ -297,7 +297,7 @@ func handleInvasionNest(s *Server) http.HandlerFunc {
 			writeJSON(w, map[string]string{"status": "deleted"})
 
 		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	}
 }
@@ -306,7 +306,7 @@ func handleInvasionNest(s *Server) http.HandlerFunc {
 func handleInvasionNestToggle(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if s.InvasionDB == nil || r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		// Path: /api/invasion/nests/{id}/toggle
@@ -337,7 +337,7 @@ func handleInvasionNestToggle(s *Server) http.HandlerFunc {
 func handleInvasionNestValidate(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if s.InvasionDB == nil || r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		path := strings.TrimPrefix(r.URL.Path, "/api/invasion/nests/")
@@ -426,7 +426,7 @@ func validateNestConnection(nest invasion.NestRecord, s *Server) error {
 func handleInvasionEggs(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if s.InvasionDB == nil {
-			http.Error(w, "Invasion Control is not enabled", http.StatusServiceUnavailable)
+			jsonError(w, "Invasion Control is not enabled", http.StatusServiceUnavailable)
 			return
 		}
 		switch r.Method {
@@ -544,7 +544,7 @@ func handleInvasionEggs(s *Server) http.HandlerFunc {
 			})
 
 		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	}
 }
@@ -553,7 +553,7 @@ func handleInvasionEggs(s *Server) http.HandlerFunc {
 func handleInvasionEgg(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if s.InvasionDB == nil {
-			http.Error(w, "Invasion Control is not enabled", http.StatusServiceUnavailable)
+			jsonError(w, "Invasion Control is not enabled", http.StatusServiceUnavailable)
 			return
 		}
 		id := extractInvasionID(r.URL.Path, "/api/invasion/eggs/")
@@ -656,7 +656,7 @@ func handleInvasionEgg(s *Server) http.HandlerFunc {
 			writeJSON(w, map[string]string{"status": "deleted"})
 
 		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	}
 }
@@ -665,7 +665,7 @@ func handleInvasionEgg(s *Server) http.HandlerFunc {
 func handleInvasionEggToggle(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if s.InvasionDB == nil || r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		path := strings.TrimPrefix(r.URL.Path, "/api/invasion/eggs/")

@@ -20,7 +20,7 @@ import (
 func handleListTokens(tm *security.TokenManager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -31,7 +31,7 @@ func handleListTokens(tm *security.TokenManager) http.HandlerFunc {
 func handleCreateToken(tm *security.TokenManager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		var req struct {
@@ -40,11 +40,11 @@ func handleCreateToken(tm *security.TokenManager) http.HandlerFunc {
 			ExpiresAt *string  `json:"expires_at,omitempty"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "Invalid JSON", http.StatusBadRequest)
+			jsonError(w, "Invalid JSON", http.StatusBadRequest)
 			return
 		}
 		if req.Name == "" {
-			http.Error(w, `{"error":"name is required"}`, http.StatusBadRequest)
+			jsonError(w, `{"error":"name is required"}`, http.StatusBadRequest)
 			return
 		}
 		if len(req.Scopes) == 0 {
@@ -57,7 +57,7 @@ func handleCreateToken(tm *security.TokenManager) http.HandlerFunc {
 			if err != nil {
 				t, err = time.Parse("2006-01-02", *req.ExpiresAt)
 				if err != nil {
-					http.Error(w, `{"error":"invalid expires_at format"}`, http.StatusBadRequest)
+					jsonError(w, `{"error":"invalid expires_at format"}`, http.StatusBadRequest)
 					return
 				}
 			}
@@ -82,12 +82,12 @@ func handleCreateToken(tm *security.TokenManager) http.HandlerFunc {
 func handleUpdateToken(tm *security.TokenManager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPut {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		id := strings.TrimPrefix(r.URL.Path, "/api/tokens/")
 		if id == "" {
-			http.Error(w, `{"error":"missing token id"}`, http.StatusBadRequest)
+			jsonError(w, `{"error":"missing token id"}`, http.StatusBadRequest)
 			return
 		}
 		var req struct {
@@ -95,7 +95,7 @@ func handleUpdateToken(tm *security.TokenManager) http.HandlerFunc {
 			Enabled bool   `json:"enabled"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "Invalid JSON", http.StatusBadRequest)
+			jsonError(w, "Invalid JSON", http.StatusBadRequest)
 			return
 		}
 		if err := tm.Update(id, req.Name, req.Enabled); err != nil {
@@ -110,12 +110,12 @@ func handleUpdateToken(tm *security.TokenManager) http.HandlerFunc {
 func handleDeleteToken(tm *security.TokenManager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodDelete {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		id := strings.TrimPrefix(r.URL.Path, "/api/tokens/")
 		if id == "" {
-			http.Error(w, `{"error":"missing token id"}`, http.StatusBadRequest)
+			jsonError(w, `{"error":"missing token id"}`, http.StatusBadRequest)
 			return
 		}
 		if err := tm.Delete(id); err != nil {
@@ -131,7 +131,7 @@ func handleDeleteToken(tm *security.TokenManager) http.HandlerFunc {
 func handleListWebhooks(mgr *webhooks.Manager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -142,12 +142,12 @@ func handleListWebhooks(mgr *webhooks.Manager) http.HandlerFunc {
 func handleCreateWebhook(mgr *webhooks.Manager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
 		if err != nil {
-			http.Error(w, "Failed to read body", http.StatusBadRequest)
+			jsonError(w, "Failed to read body", http.StatusBadRequest)
 			return
 		}
 		var wh webhooks.Webhook
@@ -169,7 +169,7 @@ func handleCreateWebhook(mgr *webhooks.Manager) http.HandlerFunc {
 func handleUpdateWebhook(mgr *webhooks.Manager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPut {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		id := strings.TrimPrefix(r.URL.Path, "/api/webhooks/")
@@ -178,12 +178,12 @@ func handleUpdateWebhook(mgr *webhooks.Manager) http.HandlerFunc {
 			id = id[:idx]
 		}
 		if id == "" {
-			http.Error(w, `{"error":"missing webhook id"}`, http.StatusBadRequest)
+			jsonError(w, `{"error":"missing webhook id"}`, http.StatusBadRequest)
 			return
 		}
 		body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
 		if err != nil {
-			http.Error(w, "Failed to read body", http.StatusBadRequest)
+			jsonError(w, "Failed to read body", http.StatusBadRequest)
 			return
 		}
 		var patch webhooks.Webhook
@@ -208,12 +208,12 @@ func handleUpdateWebhook(mgr *webhooks.Manager) http.HandlerFunc {
 func handleDeleteWebhook(mgr *webhooks.Manager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodDelete {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		id := strings.TrimPrefix(r.URL.Path, "/api/webhooks/")
 		if id == "" {
-			http.Error(w, `{"error":"missing webhook id"}`, http.StatusBadRequest)
+			jsonError(w, `{"error":"missing webhook id"}`, http.StatusBadRequest)
 			return
 		}
 		if err := mgr.Delete(id); err != nil {
@@ -227,14 +227,14 @@ func handleDeleteWebhook(mgr *webhooks.Manager) http.HandlerFunc {
 func handleWebhookLog(mgr *webhooks.Manager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		// Path: /api/webhooks/{id}/log
 		path := strings.TrimPrefix(r.URL.Path, "/api/webhooks/")
 		parts := strings.Split(path, "/")
 		if len(parts) < 2 || parts[1] != "log" {
-			http.Error(w, "Not found", http.StatusNotFound)
+			jsonError(w, "Not found", http.StatusNotFound)
 			return
 		}
 		id := parts[0]
@@ -247,13 +247,13 @@ func handleWebhookLog(mgr *webhooks.Manager) http.HandlerFunc {
 func handleTestWebhook(mgr *webhooks.Manager, handler *webhooks.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		path := strings.TrimPrefix(r.URL.Path, "/api/webhooks/")
 		parts := strings.Split(path, "/")
 		if len(parts) < 2 || parts[1] != "test" {
-			http.Error(w, "Not found", http.StatusNotFound)
+			jsonError(w, "Not found", http.StatusNotFound)
 			return
 		}
 		id := parts[0]
@@ -280,7 +280,7 @@ func handleTestWebhook(mgr *webhooks.Manager, handler *webhooks.Handler) http.Ha
 
 func handleWebhookPresets(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -291,7 +291,7 @@ func handleWebhookPresets(w http.ResponseWriter, r *http.Request) {
 func handleWebhookLogGlobal(mgr *webhooks.Manager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		entries := mgr.GetLog().Recent(100)
@@ -310,7 +310,7 @@ func handleOutgoingWebhooks(s *Server) http.HandlerFunc {
 		case http.MethodPut:
 			handlePutOutgoingWebhooks(s, w, r)
 		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	}
 }
@@ -340,7 +340,7 @@ func handlePutOutgoingWebhooks(s *Server, w http.ResponseWriter, r *http.Request
 	s.CfgMu.RUnlock()
 
 	if configPath == "" {
-		http.Error(w, "Config path not set", http.StatusInternalServerError)
+		jsonError(w, "Config path not set", http.StatusInternalServerError)
 		return
 	}
 
@@ -348,14 +348,14 @@ func handlePutOutgoingWebhooks(s *Server, w http.ResponseWriter, r *http.Request
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		s.Logger.Error("Failed to read config for outgoing-webhooks update", "error", err)
-		http.Error(w, "Failed to read config", http.StatusInternalServerError)
+		jsonError(w, "Failed to read config", http.StatusInternalServerError)
 		return
 	}
 
 	var rawCfg map[string]interface{}
 	if err := yaml.Unmarshal(data, &rawCfg); err != nil {
 		s.Logger.Error("Failed to parse config for outgoing-webhooks update", "error", err)
-		http.Error(w, "Failed to parse config", http.StatusInternalServerError)
+		jsonError(w, "Failed to parse config", http.StatusInternalServerError)
 		return
 	}
 
@@ -375,13 +375,13 @@ func handlePutOutgoingWebhooks(s *Server, w http.ResponseWriter, r *http.Request
 	out, err := yaml.Marshal(rawCfg)
 	if err != nil {
 		s.Logger.Error("Failed to marshal config after outgoing-webhooks update", "error", err)
-		http.Error(w, "Failed to save config", http.StatusInternalServerError)
+		jsonError(w, "Failed to save config", http.StatusInternalServerError)
 		return
 	}
 
 	if err := config.WriteFileAtomic(configPath, out, 0o600); err != nil {
 		s.Logger.Error("Failed to write config after outgoing-webhooks update", "error", err)
-		http.Error(w, "Failed to write config", http.StatusInternalServerError)
+		jsonError(w, "Failed to write config", http.StatusInternalServerError)
 		return
 	}
 
@@ -391,7 +391,7 @@ func handlePutOutgoingWebhooks(s *Server, w http.ResponseWriter, r *http.Request
 	if loadErr != nil {
 		s.CfgMu.Unlock()
 		s.Logger.Error("[OutgoingWebhooks] Hot-reload failed", "error", loadErr)
-		http.Error(w, "Saved but reload failed", http.StatusInternalServerError)
+		jsonError(w, "Saved but reload failed", http.StatusInternalServerError)
 		return
 	}
 	savedPath := s.Cfg.ConfigPath

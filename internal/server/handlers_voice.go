@@ -24,14 +24,14 @@ type VoiceUploadResponse struct {
 func handleVoiceUpload(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
 		// Limit upload size to 50MB
 		if err := r.ParseMultipartForm(50 << 20); err != nil {
 			s.Logger.Error("Failed to parse multipart form", "error", err)
-			http.Error(w, "Failed to parse form", http.StatusBadRequest)
+			jsonError(w, "Failed to parse form", http.StatusBadRequest)
 			return
 		}
 
@@ -39,7 +39,7 @@ func handleVoiceUpload(s *Server) http.HandlerFunc {
 		file, header, err := r.FormFile("audio")
 		if err != nil {
 			s.Logger.Error("Failed to get audio file", "error", err)
-			http.Error(w, "No audio file uploaded", http.StatusBadRequest)
+			jsonError(w, "No audio file uploaded", http.StatusBadRequest)
 			return
 		}
 		defer file.Close()
@@ -64,7 +64,7 @@ func handleVoiceUpload(s *Server) http.HandlerFunc {
 
 		if !isValidType {
 			s.Logger.Warn("Invalid audio MIME type", "type", contentType)
-			http.Error(w, "Invalid audio format", http.StatusBadRequest)
+			jsonError(w, "Invalid audio format", http.StatusBadRequest)
 			return
 		}
 
@@ -72,7 +72,7 @@ func handleVoiceUpload(s *Server) http.HandlerFunc {
 		tempDir := filepath.Join(os.TempDir(), "aurago-voice")
 		if err := os.MkdirAll(tempDir, 0755); err != nil {
 			s.Logger.Error("Failed to create temp dir", "error", err)
-			http.Error(w, "Server error", http.StatusInternalServerError)
+			jsonError(w, "Server error", http.StatusInternalServerError)
 			return
 		}
 
@@ -85,7 +85,7 @@ func handleVoiceUpload(s *Server) http.HandlerFunc {
 		inputFile, err := os.Create(inputPath)
 		if err != nil {
 			s.Logger.Error("Failed to create input file", "error", err)
-			http.Error(w, "Server error", http.StatusInternalServerError)
+			jsonError(w, "Server error", http.StatusInternalServerError)
 			return
 		}
 
@@ -93,7 +93,7 @@ func handleVoiceUpload(s *Server) http.HandlerFunc {
 			inputFile.Close()
 			os.Remove(inputPath)
 			s.Logger.Error("Failed to save audio file", "error", err)
-			http.Error(w, "Failed to save audio", http.StatusInternalServerError)
+			jsonError(w, "Failed to save audio", http.StatusInternalServerError)
 			return
 		}
 		inputFile.Close()
@@ -115,7 +115,7 @@ func handleVoiceUpload(s *Server) http.HandlerFunc {
 		transcription, err := telegram.TranscribeMultimodal(outputPath, s.Cfg)
 		if err != nil {
 			s.Logger.Error("Transcription failed", "error", err)
-			http.Error(w, "Transcription failed", http.StatusInternalServerError)
+			jsonError(w, "Transcription failed", http.StatusInternalServerError)
 			return
 		}
 

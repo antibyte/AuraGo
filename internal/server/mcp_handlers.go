@@ -18,7 +18,7 @@ func handleMCPServers(s *Server) http.HandlerFunc {
 		case http.MethodPut:
 			handlePutMCPServers(s, w, r)
 		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	}
 }
@@ -41,7 +41,7 @@ func handleGetMCPServers(s *Server, w http.ResponseWriter, _ *http.Request) {
 func handlePutMCPServers(s *Server, w http.ResponseWriter, r *http.Request) {
 	var incoming []config.MCPServer
 	if err := json.NewDecoder(r.Body).Decode(&incoming); err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		jsonError(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
 
@@ -50,7 +50,7 @@ func handlePutMCPServers(s *Server, w http.ResponseWriter, r *http.Request) {
 	s.CfgMu.RUnlock()
 
 	if configPath == "" {
-		http.Error(w, "Config path not set", http.StatusInternalServerError)
+		jsonError(w, "Config path not set", http.StatusInternalServerError)
 		return
 	}
 
@@ -58,14 +58,14 @@ func handlePutMCPServers(s *Server, w http.ResponseWriter, r *http.Request) {
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		s.Logger.Error("Failed to read config for mcp-servers update", "error", err)
-		http.Error(w, "Failed to read config", http.StatusInternalServerError)
+		jsonError(w, "Failed to read config", http.StatusInternalServerError)
 		return
 	}
 
 	var rawCfg map[string]interface{}
 	if err := yaml.Unmarshal(data, &rawCfg); err != nil {
 		s.Logger.Error("Failed to parse config for mcp-servers update", "error", err)
-		http.Error(w, "Failed to parse config", http.StatusInternalServerError)
+		jsonError(w, "Failed to parse config", http.StatusInternalServerError)
 		return
 	}
 
@@ -97,13 +97,13 @@ func handlePutMCPServers(s *Server, w http.ResponseWriter, r *http.Request) {
 	out, err := yaml.Marshal(rawCfg)
 	if err != nil {
 		s.Logger.Error("Failed to marshal config after mcp-servers update", "error", err)
-		http.Error(w, "Failed to save config", http.StatusInternalServerError)
+		jsonError(w, "Failed to save config", http.StatusInternalServerError)
 		return
 	}
 
 	if err := config.WriteFileAtomic(configPath, out, 0o600); err != nil {
 		s.Logger.Error("Failed to write config after mcp-servers update", "error", err)
-		http.Error(w, "Failed to write config", http.StatusInternalServerError)
+		jsonError(w, "Failed to write config", http.StatusInternalServerError)
 		return
 	}
 
@@ -113,7 +113,7 @@ func handlePutMCPServers(s *Server, w http.ResponseWriter, r *http.Request) {
 	if loadErr != nil {
 		s.CfgMu.Unlock()
 		s.Logger.Error("[MCPServers] Hot-reload failed", "error", loadErr)
-		http.Error(w, "Saved but reload failed", http.StatusInternalServerError)
+		jsonError(w, "Saved but reload failed", http.StatusInternalServerError)
 		return
 	}
 	savedPath := s.Cfg.ConfigPath

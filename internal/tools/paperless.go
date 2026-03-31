@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"aurago/internal/security"
 )
 
 // PaperlessConfig holds connection parameters for a Paperless-ngx instance.
@@ -72,7 +74,7 @@ func paperlessEncode(v interface{}) string {
 
 // wrapExternal wraps untrusted content in <external_data> tags to prevent prompt injection.
 func wrapExternal(s string) string {
-	return "<external_data>" + s + "</external_data>"
+	return security.IsolateExternalData(s)
 }
 
 // ── Public operations ────────────────────────────────────────────────

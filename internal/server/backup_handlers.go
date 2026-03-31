@@ -242,7 +242,7 @@ func decryptAGO(data []byte, password string) ([]byte, error) {
 func handleBackupCreate(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -422,7 +422,7 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 			outData, err = encryptAGO(zipData, req.Password)
 			if err != nil {
 				s.Logger.Error("[Backup] Encryption failed", "error", err)
-				http.Error(w, "Encryption failed", http.StatusInternalServerError)
+				jsonError(w, "Encryption failed", http.StatusInternalServerError)
 				return
 			}
 		} else {
@@ -448,7 +448,7 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 func handleBackupImport(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -520,7 +520,7 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 		// Restore relative to CWD (same as where the binary runs)
 		cwd, err := os.Getwd()
 		if err != nil {
-			http.Error(w, "Cannot determine working directory", http.StatusInternalServerError)
+			jsonError(w, "Cannot determine working directory", http.StatusInternalServerError)
 			return
 		}
 

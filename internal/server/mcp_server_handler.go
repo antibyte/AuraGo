@@ -96,7 +96,7 @@ func handleMCPEndpoint(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			w.Header().Set("Allow", "POST")
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -108,7 +108,7 @@ func handleMCPEndpoint(s *Server) http.HandlerFunc {
 		s.CfgMu.RUnlock()
 
 		if !enabled {
-			http.Error(w, "MCP server is disabled", http.StatusNotFound)
+			jsonError(w, "MCP server is disabled", http.StatusNotFound)
 			return
 		}
 
@@ -125,7 +125,7 @@ func handleMCPEndpoint(s *Server) http.HandlerFunc {
 		needsAuth := requireAuth || mainAuthEnabled
 		if needsAuth && !mcpAuthenticate(s, r, sessionSecret) {
 			w.Header().Set("WWW-Authenticate", `Bearer`)
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			jsonError(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
 
@@ -368,7 +368,7 @@ func mcpFeatureFlags(cfg *config.Config) agent.ToolFeatureFlags {
 func handleMCPServerTools(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		catalog := mcpBuildToolCatalog(s)
@@ -390,7 +390,7 @@ func handleMCPServerTools(s *Server) http.HandlerFunc {
 func handleMCPServerToken(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if s.Vault == nil {
-			http.Error(w, "Vault not configured", http.StatusServiceUnavailable)
+			jsonError(w, "Vault not configured", http.StatusServiceUnavailable)
 			return
 		}
 
@@ -408,19 +408,19 @@ func handleMCPServerToken(s *Server) http.HandlerFunc {
 		case http.MethodPost:
 			b := make([]byte, 32)
 			if _, err := rand.Read(b); err != nil {
-				http.Error(w, "Failed to generate token", http.StatusInternalServerError)
+				jsonError(w, "Failed to generate token", http.StatusInternalServerError)
 				return
 			}
 			token := hex.EncodeToString(b)
 			if err := s.Vault.WriteSecret(mcpVaultTokenKey, token); err != nil {
-				http.Error(w, "Failed to store token", http.StatusInternalServerError)
+				jsonError(w, "Failed to store token", http.StatusInternalServerError)
 				return
 			}
 			s.Logger.Info("[MCP Server] New Bearer token generated and stored in vault")
 			mcpWriteJSON(w, http.StatusOK, map[string]string{"token": token})
 
 		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	}
 }

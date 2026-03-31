@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"aurago/internal/security"
+
 	"github.com/ledongthuc/pdf"
 )
 
@@ -50,7 +52,7 @@ func ExecutePDFExtract(workspaceDir, filePath string) string {
 
 	result := map[string]interface{}{
 		"status":  "success",
-		"content": fmt.Sprintf("<external_data>%s</external_data>", content),
+		"content": security.IsolateExternalData(content),
 	}
 	b, _ := json.Marshal(result)
 	return string(b)

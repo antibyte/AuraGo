@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"strings"
 
+	"aurago/internal/security"
+
 	"github.com/sashabaranov/go-openai"
 )
 
@@ -93,7 +95,7 @@ func SummariseContent(ctx context.Context, llmCfg SummaryLLMConfig, logger *slog
 
 	result := map[string]interface{}{
 		"status":  "success",
-		"content": fmt.Sprintf("<external_data source=\"summary\">\n%s\n</external_data>", summary),
+		"content": security.IsolateExternalData(summary),
 	}
 	b, _ := json.Marshal(result)
 

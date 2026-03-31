@@ -278,5 +278,7 @@
   "config.section.jellyfin.label": "Jellyfin",
   "config.section.jellyfin.desc": "Jellyfin मीडिया सर्वर एकीकरण (लाइब्रेरी, प्लेबैक, सत्र)",
   "config.section.truenas.label": "TrueNAS",
-  "config.section.truenas.desc": "TrueNAS ZFS storage management (Pools, Datasets, Snapshots, Shares)"
+  "config.section.truenas.desc": "TrueNAS ZFS storage management (Pools, Datasets, Snapshots, Shares)",
+  "config.section.mission_preparation.label": "मिशन तैयारी",
+  "config.section.mission_preparation.desc": "LLM-आधारित मिशन पूर्व-विश्लेषण और योजना कॉन्फ़िगर करें"
 }

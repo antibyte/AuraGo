@@ -282,6 +282,33 @@ func ClearLoginRecord(ip string) {
 	delete(loginRecords, ip)
 }
 
+// startLoginRecordCleaner starts a background goroutine that periodically removes
+// expired rate-limit records to prevent unbounded map growth.
+func startLoginRecordCleaner(shutdownCh <-chan struct{}) {
+	go func() {
+		ticker := time.NewTicker(1 * time.Hour)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				loginMu.Lock()
+				now := time.Now()
+				for key, r := range loginRecords {
+					r.mu.Lock()
+					expired := r.count == 0 && (r.lockedUntil.IsZero() || now.After(r.lockedUntil))
+					r.mu.Unlock()
+					if expired {
+						delete(loginRecords, key)
+					}
+				}
+				loginMu.Unlock()
+			case <-shutdownCh:
+				return
+			}
+		}
+	}()
+}
+
 // ClearLoginRecords removes rate-limit tracking for all provided scopes.
 func ClearLoginRecords(keys ...string) {
 	loginMu.Lock()
@@ -478,8 +505,8 @@ func authMiddleware(s *Server, next http.Handler) http.Handler {
 			return
 		}
 
-		// JSON API: return 401
-		if strings.HasPrefix(r.URL.Path, "/api/") || strings.HasPrefix(r.URL.Path, "/v1/") {
+		// JSON API or SSE stream: return 401
+		if strings.HasPrefix(r.URL.Path, "/api/") || strings.HasPrefix(r.URL.Path, "/v1/") || r.URL.Path == "/events" {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusUnauthorized)
 			w.Write([]byte(`{"error":"unauthorized","redirect":"/auth/login"}`))

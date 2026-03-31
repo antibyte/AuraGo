@@ -1,0 +1,17 @@
+{
+  "config.mission_preparation.enabled_label": "Povoleno",
+  "config.mission_preparation.provider_label": "LLM poskytovatel",
+  "config.mission_preparation.provider_placeholder": "Ponechat prázdné pro hlavního poskytovatele",
+  "config.mission_preparation.timeout_seconds_label": "Časový limit (sekundy)",
+  "config.mission_preparation.max_essential_tools_label": "Max. důležitých nástrojů",
+  "config.mission_preparation.cache_expiry_hours_label": "Expirace cache (hodiny)",
+  "config.mission_preparation.min_confidence_label": "Min. spolehlivost",
+  "config.mission_preparation.auto_prepare_scheduled_label": "Automaticky připravit plánované mise",
+  "help.mission_preparation.enabled": "Povolit LLM předanalýzu misí před spuštěním",
+  "help.mission_preparation.provider": "Přepsat poskytovatele LLM pro analýzu. Ponechat prázdné pro hlavního poskytovatele.",
+  "help.mission_preparation.timeout_seconds": "Maximální čas v sekundách pro jednu analýzu přípravy",
+  "help.mission_preparation.max_essential_tools": "Maximální počet nástrojů zahrnutých v analýze",
+  "help.mission_preparation.cache_expiry_hours": "Jak dlouho příprava zůstává platná před obnovením",
+  "help.mission_preparation.min_confidence": "Minimální skóre spolehlivosti (0-1) potřebné k použití přípravy",
+  "help.mission_preparation.auto_prepare_scheduled": "Automaticky připravit plánované mise při jejich vytvoření nebo úpravě"
+}

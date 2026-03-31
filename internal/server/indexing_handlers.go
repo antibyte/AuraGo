@@ -15,7 +15,7 @@ import (
 func handleIndexingStatus(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -41,12 +41,12 @@ func handleIndexingStatus(s *Server) http.HandlerFunc {
 func handleIndexingRescan(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
 		if s.FileIndexer == nil {
-			http.Error(w, "Indexer not running", http.StatusServiceUnavailable)
+			jsonError(w, "Indexer not running", http.StatusServiceUnavailable)
 			return
 		}
 
@@ -75,11 +75,11 @@ func handleIndexingDirectories(s *Server) http.HandlerFunc {
 				Path string `json:"path"`
 			}
 			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-				http.Error(w, "Invalid JSON", http.StatusBadRequest)
+				jsonError(w, "Invalid JSON", http.StatusBadRequest)
 				return
 			}
 			if req.Path == "" {
-				http.Error(w, "path is required", http.StatusBadRequest)
+				jsonError(w, "path is required", http.StatusBadRequest)
 				return
 			}
 
@@ -95,7 +95,7 @@ func handleIndexingDirectories(s *Server) http.HandlerFunc {
 			for _, d := range s.Cfg.Indexing.Directories {
 				if d == absPath {
 					s.CfgMu.RUnlock()
-					http.Error(w, "Verzeichnis bereits in der Liste", http.StatusConflict)
+					jsonError(w, "Verzeichnis bereits in der Liste", http.StatusConflict)
 					return
 				}
 			}
@@ -114,7 +114,7 @@ func handleIndexingDirectories(s *Server) http.HandlerFunc {
 			// Persist to YAML
 			if err := patchIndexingDirs(s); err != nil {
 				s.Logger.Error("[Indexer] Failed to persist directory change", "error", err)
-				http.Error(w, "Failed to save config", http.StatusInternalServerError)
+				jsonError(w, "Failed to save config", http.StatusInternalServerError)
 				return
 			}
 
@@ -131,7 +131,7 @@ func handleIndexingDirectories(s *Server) http.HandlerFunc {
 				Path string `json:"path"`
 			}
 			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-				http.Error(w, "Invalid JSON", http.StatusBadRequest)
+				jsonError(w, "Invalid JSON", http.StatusBadRequest)
 				return
 			}
 
@@ -147,7 +147,7 @@ func handleIndexingDirectories(s *Server) http.HandlerFunc {
 			}
 			if !found {
 				s.CfgMu.Unlock()
-				http.Error(w, "Verzeichnis nicht gefunden", http.StatusNotFound)
+				jsonError(w, "Verzeichnis nicht gefunden", http.StatusNotFound)
 				return
 			}
 			s.Cfg.Indexing.Directories = newDirs
@@ -156,7 +156,7 @@ func handleIndexingDirectories(s *Server) http.HandlerFunc {
 			// Persist
 			if err := patchIndexingDirs(s); err != nil {
 				s.Logger.Error("[Indexer] Failed to persist directory change", "error", err)
-				http.Error(w, "Failed to save config", http.StatusInternalServerError)
+				jsonError(w, "Failed to save config", http.StatusInternalServerError)
 				return
 			}
 
@@ -164,7 +164,7 @@ func handleIndexingDirectories(s *Server) http.HandlerFunc {
 			json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 
 		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	}
 }

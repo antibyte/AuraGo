@@ -15,6 +15,7 @@ import (
 	"aurago/internal/security"
 
 	"github.com/sashabaranov/go-openai"
+	"golang.org/x/sync/singleflight"
 )
 
 // ── Emotion Synthesizer ──────────────────────────────────────────────────────
@@ -83,6 +84,7 @@ type EmotionSynthesizer struct {
 	modelName   string
 	lastState   *EmotionState
 	mu          sync.RWMutex
+	sfGroup     singleflight.Group
 	lastCall    time.Time
 	minInterval time.Duration
 	maxHistory  int
@@ -118,75 +120,107 @@ func (es *EmotionSynthesizer) GetLastEmotion() *EmotionState {
 	return es.lastState
 }
 
+// sfEmotionResult is used to pass results through singleflight without using the error return channel.
+type sfEmotionResult struct {
+	state *EmotionState
+	err   error
+}
+
 // SynthesizeEmotion generates a new emotional state based on the provided input.
 // It respects the minInterval rate limit and returns the cached state if called too soon.
+// Concurrent calls are deduplicated via singleflight to prevent simultaneous LLM calls (P-01).
 func (es *EmotionSynthesizer) SynthesizeEmotion(ctx context.Context, stm *SQLiteMemory, input EmotionInput) (*EmotionState, error) {
-	es.mu.Lock()
+	// Fast path: rate-limit check with read lock.
+	es.mu.RLock()
 	if time.Since(es.lastCall) < es.minInterval && es.lastState != nil {
 		cached := es.lastState
-		es.mu.Unlock()
+		es.mu.RUnlock()
 		return cached, nil
 	}
-	es.lastCall = time.Now()
-	es.mu.Unlock()
+	es.mu.RUnlock()
 
-	prompt := es.buildPrompt(input)
+	// Slow path: deduplicate concurrent LLM calls so only one runs at a time.
+	v, _, _ := es.sfGroup.Do("synthesis", func() (interface{}, error) {
+		// Re-check inside singleflight: a concurrent goroutine may have just completed.
+		es.mu.RLock()
+		if time.Since(es.lastCall) < es.minInterval && es.lastState != nil {
+			cached := es.lastState
+			es.mu.RUnlock()
+			return &sfEmotionResult{state: cached}, nil
+		}
+		es.mu.RUnlock()
 
-	modelName := es.modelName
-	if modelName == "" {
-		modelName = "gpt-4o-mini"
-	}
+		prompt := es.buildPrompt(input)
 
-	// Ensure LLM call has a timeout even if caller didn't provide one
-	llmCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
+		modelName := es.modelName
+		if modelName == "" {
+			modelName = "gpt-4o-mini"
+		}
 
-	resp, err := es.client.CreateChatCompletion(llmCtx, openai.ChatCompletionRequest{
-		Model:       modelName,
-		MaxTokens:   100,
-		Temperature: 0.4,
-		Messages: []openai.ChatCompletionMessage{
-			{Role: openai.ChatMessageRoleUser, Content: prompt},
-		},
+		// Ensure LLM call has a timeout even if caller didn't provide one.
+		llmCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		defer cancel()
+
+		resp, err := es.client.CreateChatCompletion(llmCtx, openai.ChatCompletionRequest{
+			Model:       modelName,
+			MaxTokens:   200,
+			Temperature: 0.4,
+			Messages: []openai.ChatCompletionMessage{
+				{Role: openai.ChatMessageRoleUser, Content: prompt},
+			},
+		})
+		if err != nil {
+			es.logger.Warn("[EmotionSynthesizer] LLM call failed, using fallback", "error", err)
+			es.mu.RLock()
+			last := es.lastState
+			es.mu.RUnlock()
+			return &sfEmotionResult{state: last, err: fmt.Errorf("emotion synthesis LLM call failed: %w", err)}, nil
+		}
+
+		if len(resp.Choices) == 0 || resp.Choices[0].Message.Content == "" {
+			es.mu.RLock()
+			last := es.lastState
+			es.mu.RUnlock()
+			return &sfEmotionResult{state: last, err: fmt.Errorf("emotion synthesis returned empty response")}, nil
+		}
+
+		state, parseErr := parseEmotionSynthesisResponse(resp.Choices[0].Message.Content, input.CurrentMood)
+		if parseErr != nil {
+			es.mu.RLock()
+			last := es.lastState
+			es.mu.RUnlock()
+			return &sfEmotionResult{state: last, err: fmt.Errorf("emotion synthesis validation failed: %w", parseErr)}, nil
+		}
+		state.Timestamp = time.Now()
+
+		es.mu.Lock()
+		es.lastCall = time.Now()
+		es.lastState = state
+		es.mu.Unlock()
+
+		// Persist to history (best-effort).
+		if stm != nil {
+			triggerSummary := input.UserMessage
+			if len(triggerSummary) > 200 {
+				triggerSummary = triggerSummary[:200]
+			}
+			if err := stm.InsertEmotionStateHistory(*state, triggerSummary); err != nil {
+				es.logger.Warn("[EmotionSynthesizer] Failed to persist emotion history", "error", err)
+			}
+		}
+
+		es.logger.Debug("[EmotionSynthesizer] Emotion synthesized",
+			"mood", state.PrimaryMood,
+			"description_len", len(state.Description),
+			"valence", state.Valence,
+			"arousal", state.Arousal,
+		)
+
+		return &sfEmotionResult{state: state}, nil
 	})
-	if err != nil {
-		es.logger.Warn("[EmotionSynthesizer] LLM call failed, using fallback", "error", err)
-		return es.lastState, fmt.Errorf("emotion synthesis LLM call failed: %w", err)
-	}
 
-	if len(resp.Choices) == 0 || resp.Choices[0].Message.Content == "" {
-		return es.lastState, fmt.Errorf("emotion synthesis returned empty response")
-	}
-
-	state, err := parseEmotionSynthesisResponse(resp.Choices[0].Message.Content, input.CurrentMood)
-	if err != nil {
-		return es.lastState, fmt.Errorf("emotion synthesis validation failed: %w", err)
-	}
-	state.Timestamp = time.Now()
-
-	es.mu.Lock()
-	es.lastState = state
-	es.mu.Unlock()
-
-	// Persist to history (best-effort)
-	if stm != nil {
-		triggerSummary := input.UserMessage
-		if len(triggerSummary) > 200 {
-			triggerSummary = triggerSummary[:200]
-		}
-		if err := stm.InsertEmotionStateHistory(*state, triggerSummary); err != nil {
-			es.logger.Warn("[EmotionSynthesizer] Failed to persist emotion history", "error", err)
-		}
-	}
-
-	es.logger.Debug("[EmotionSynthesizer] Emotion synthesized",
-		"mood", state.PrimaryMood,
-		"description_len", len(state.Description),
-		"valence", state.Valence,
-		"arousal", state.Arousal,
-	)
-
-	return state, nil
+	res := v.(*sfEmotionResult)
+	return res.state, res.err
 }
 
 // buildPrompt constructs the LLM prompt for emotion synthesis.
@@ -274,8 +308,10 @@ func sanitizeForPrompt(s string) string {
 
 // sanitizePromptText removes prompt-wrapper markers and bounds the size.
 func sanitizePromptText(s string, maxLen int) string {
-	s = strings.ReplaceAll(s, "</external_data>", "")
-	s = strings.ReplaceAll(s, "<external_data>", "")
+	// HTML-escape existing tags instead of stripping them — stripping allows injection
+	// text to pass through after tag removal (e.g. "foo</external_data>INJECT" → "fooINJECT").
+	s = strings.ReplaceAll(s, "</external_data>", "&lt;/external_data&gt;")
+	s = strings.ReplaceAll(s, "<external_data>", "&lt;external_data&gt;")
 	if maxLen > 0 && utf8.RuneCountInString(s) > maxLen {
 		s = string([]rune(s)[:maxLen]) + "…"
 	}

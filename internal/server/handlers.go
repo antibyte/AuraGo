@@ -82,7 +82,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 		}
 
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -92,7 +92,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 		var req openai.ChatCompletionRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			s.Logger.Error("Failed to decode request body", "error", err)
-			http.Error(w, "Bad request", http.StatusBadRequest)
+			jsonError(w, "Bad request", http.StatusBadRequest)
 			return
 		}
 
@@ -103,13 +103,13 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 		followUpKey := "default" // sessionID is resolved later; hardcoded for now
 		muFollowUp.Lock()
 		if !isFollowUp {
-			followUpDepths[followUpKey] = 0 // Reset on real user request
+			delete(followUpDepths, followUpKey) // cleanup on real user request
 		} else {
 			followUpDepths[followUpKey]++
 			if followUpDepths[followUpKey] > 10 {
 				muFollowUp.Unlock()
 				s.Logger.Warn("Blocked follow_up execution to prevent infinite loop", "depth", followUpDepths[followUpKey])
-				http.Error(w, `{"error": "Follow-up circuit breaker tripped. Max recursion depth reached."}`, http.StatusTooManyRequests)
+				jsonError(w, `{"error": "Follow-up circuit breaker tripped. Max recursion depth reached."}`, http.StatusTooManyRequests)
 				return
 			}
 		}
@@ -122,7 +122,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 		}
 
 		if len(req.Messages) == 0 {
-			http.Error(w, "No messages provided", http.StatusBadRequest)
+			jsonError(w, "No messages provided", http.StatusBadRequest)
 			return
 		}
 
@@ -151,7 +151,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			cmdResult, isCommand, err := commands.Handle(lastUserMsg.Content, cmdCtx)
 			if err != nil {
 				s.Logger.Error("Command execution failed", "error", err)
-				http.Error(w, "Command failed", http.StatusInternalServerError)
+				jsonError(w, "Command failed", http.StatusInternalServerError)
 				return
 			}
 			if isCommand {
@@ -173,7 +173,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 					},
 				}); err != nil {
 					s.Logger.Error("Failed to encode command response", "error", err)
-					http.Error(w, "Internal server error", http.StatusInternalServerError)
+					jsonError(w, "Internal server error", http.StatusInternalServerError)
 				}
 				return
 			}
@@ -448,7 +448,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			flusher, ok := w.(http.Flusher)
 			if !ok {
 				s.Logger.Error("Streaming not supported by ResponseWriter")
-				http.Error(w, "Streaming unsupported", http.StatusInternalServerError)
+				jsonError(w, "Streaming unsupported", http.StatusInternalServerError)
 				return
 			}
 			// Initial flush to establish SSE connection
@@ -508,7 +508,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 func handleArchiveMemory(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -518,7 +518,7 @@ func handleArchiveMemory(s *Server) http.HandlerFunc {
 		bodyBytes, err := io.ReadAll(r.Body)
 		if err != nil {
 			s.Logger.Error("Failed to read archive request body", "error", err)
-			http.Error(w, "Bad request", http.StatusBadRequest)
+			jsonError(w, "Bad request", http.StatusBadRequest)
 			return
 		}
 
@@ -528,19 +528,19 @@ func handleArchiveMemory(s *Server) http.HandlerFunc {
 			var items []memory.ArchiveItem
 			if err := json.Unmarshal(bodyBytes, &items); err != nil {
 				s.Logger.Error("Failed to decode batch archive request", "error", err)
-				http.Error(w, "Bad request", http.StatusBadRequest)
+				jsonError(w, "Bad request", http.StatusBadRequest)
 				return
 			}
 
 			if len(items) == 0 {
-				http.Error(w, "Empty batch", http.StatusBadRequest)
+				jsonError(w, "Empty batch", http.StatusBadRequest)
 				return
 			}
 
 			storedIDs, err := s.LongTermMem.StoreBatch(items)
 			if err != nil {
 				s.Logger.Error("Failed to archive batch", "error", err)
-				http.Error(w, "Internal server error", http.StatusInternalServerError)
+				jsonError(w, "Internal server error", http.StatusInternalServerError)
 				return
 			}
 			for _, id := range storedIDs {
@@ -553,19 +553,19 @@ func handleArchiveMemory(s *Server) http.HandlerFunc {
 			var req memory.ArchiveItem
 			if err := json.Unmarshal(bodyBytes, &req); err != nil {
 				s.Logger.Error("Failed to decode archive request", "error", err)
-				http.Error(w, "Bad request", http.StatusBadRequest)
+				jsonError(w, "Bad request", http.StatusBadRequest)
 				return
 			}
 
 			if req.Concept == "" || req.Content == "" {
-				http.Error(w, "Both 'concept' and 'content' are required", http.StatusBadRequest)
+				jsonError(w, "Both 'concept' and 'content' are required", http.StatusBadRequest)
 				return
 			}
 
 			storedIDs, err := s.LongTermMem.StoreDocument(req.Concept, req.Content)
 			if err != nil {
 				s.Logger.Error("Failed to archive memory", "error", err)
-				http.Error(w, "Internal server error", http.StatusInternalServerError)
+				jsonError(w, "Internal server error", http.StatusInternalServerError)
 				return
 			}
 			for _, id := range storedIDs {
@@ -581,7 +581,7 @@ func handleArchiveMemory(s *Server) http.HandlerFunc {
 func handleInterrupt(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -602,20 +602,20 @@ func handleInterrupt(s *Server) http.HandlerFunc {
 func handleUpload(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
 		// 32 MB max upload size
 		r.Body = http.MaxBytesReader(w, r.Body, 32<<20)
 		if err := r.ParseMultipartForm(32 << 20); err != nil {
-			http.Error(w, "failed to parse form", http.StatusBadRequest)
+			jsonError(w, "failed to parse form", http.StatusBadRequest)
 			return
 		}
 
 		file, header, err := r.FormFile("file")
 		if err != nil {
-			http.Error(w, "missing file field", http.StatusBadRequest)
+			jsonError(w, "missing file field", http.StatusBadRequest)
 			return
 		}
 		defer file.Close()
@@ -630,7 +630,7 @@ func handleUpload(s *Server) http.HandlerFunc {
 		attachDir := filepath.Join(s.Cfg.Directories.WorkspaceDir, "attachments")
 		if err := os.MkdirAll(attachDir, 0755); err != nil {
 			s.Logger.Error("Failed to create attachments dir", "error", err)
-			http.Error(w, "failed to create dir", http.StatusInternalServerError)
+			jsonError(w, "failed to create dir", http.StatusInternalServerError)
 			return
 		}
 
@@ -638,14 +638,14 @@ func handleUpload(s *Server) http.HandlerFunc {
 		dst, err := os.Create(destPath)
 		if err != nil {
 			s.Logger.Error("Failed to create upload file", "error", err)
-			http.Error(w, "failed to write file", http.StatusInternalServerError)
+			jsonError(w, "failed to write file", http.StatusInternalServerError)
 			return
 		}
 		defer dst.Close()
 
 		if _, err := io.Copy(dst, file); err != nil {
 			s.Logger.Error("Failed to write uploaded file", "error", err)
-			http.Error(w, "failed to save file", http.StatusInternalServerError)
+			jsonError(w, "failed to save file", http.StatusInternalServerError)
 			return
 		}
 

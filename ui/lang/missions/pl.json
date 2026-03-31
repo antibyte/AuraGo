@@ -249,5 +249,21 @@
   "missions.trigger_ha_state_equals_placeholder": "np. 'on', 'off', 'home', 'not_home'",
   "missions.trigger_info_ha_entity_prefix": "Encja:",
   "missions.trigger_info_ha_state_prefix": "Stan:",
-  "missions.trigger_info_ha_any_entity": "Dowolna encja"
+  "missions.trigger_info_ha_any_entity": "Dowolna encja",
+  "missions.prep_btn_prepare": "Przygotuj",
+  "missions.prep_btn_invalidate": "Unieważnij",
+  "missions.prep_status": "Przygotowanie",
+  "missions.prep_status_none": "Nieprzygotowane",
+  "missions.prep_status_preparing": "Przygotowywanie…",
+  "missions.prep_status_prepared": "Przygotowane",
+  "missions.prep_status_stale": "Nieaktualne",
+  "missions.prep_status_error": "Błąd",
+  "missions.prep_confidence": "Pewność",
+  "missions.prep_auto": "Auto-przygotowanie",
+  "missions.prep_auto_hint": "Automatycznie przygotuj tę misję po zmianie",
+  "missions.prep_toast_started": "Przygotowanie rozpoczęte",
+  "missions.prep_toast_ok": "Misja przygotowana pomyślnie",
+  "missions.prep_toast_error": "Przygotowanie nie powiodło się",
+  "missions.prep_toast_invalidated": "Przygotowanie unieważnione",
+  "missions.prep_view_title": "Przygotowany kontekst"
 }

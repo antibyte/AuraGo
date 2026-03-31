@@ -249,5 +249,21 @@
   "missions.trigger_ha_state_equals_placeholder": "f.eks. 'on', 'off', 'home', 'not_home'",
   "missions.trigger_info_ha_entity_prefix": "Enhet:",
   "missions.trigger_info_ha_state_prefix": "Tilstand:",
-  "missions.trigger_info_ha_any_entity": "Hvilken som helst enhet"
+  "missions.trigger_info_ha_any_entity": "Hvilken som helst enhet",
+  "missions.prep_btn_prepare": "Forbered",
+  "missions.prep_btn_invalidate": "Ugyldiggjør",
+  "missions.prep_status": "Forberedelse",
+  "missions.prep_status_none": "Ikke forberedt",
+  "missions.prep_status_preparing": "Forbereder…",
+  "missions.prep_status_prepared": "Forberedt",
+  "missions.prep_status_stale": "Utdatert",
+  "missions.prep_status_error": "Feil",
+  "missions.prep_confidence": "Tillit",
+  "missions.prep_auto": "Auto-forberedelse",
+  "missions.prep_auto_hint": "Forbered automatisk dette oppdraget når det endres",
+  "missions.prep_toast_started": "Forberedelse startet",
+  "missions.prep_toast_ok": "Oppdrag forberedt",
+  "missions.prep_toast_error": "Forberedelse mislyktes",
+  "missions.prep_toast_invalidated": "Forberedelse ugyldiggjort",
+  "missions.prep_view_title": "Forberedt kontekst"
 }

@@ -758,7 +758,7 @@ func (kg *KnowledgeGraph) BulkAddEntities(nodes []Node, edges []Edge) error {
 		if n.Properties["protected"] == "true" {
 			isProtected = 1
 		}
-		tx.Exec(`
+		if _, execErr := tx.Exec(`
 			INSERT INTO kg_nodes (id, label, properties, protected, updated_at)
 			VALUES (?, ?, ?, ?, ?)
 			ON CONFLICT(id) DO UPDATE SET
@@ -766,24 +766,30 @@ func (kg *KnowledgeGraph) BulkAddEntities(nodes []Node, edges []Edge) error {
 				properties = excluded.properties,
 				protected = excluded.protected,
 				updated_at = ?
-		`, n.ID, n.Label, string(propsJSON), isProtected, now, now)
+		`, n.ID, n.Label, string(propsJSON), isProtected, now, now); execErr != nil {
+			kg.logger.Warn("[KG] BulkAddEntities: failed to insert node", "id", n.ID, "error", execErr)
+		}
 	}
 
 	for _, e := range edges {
 		// Auto-create endpoint nodes
 		for _, id := range []string{e.Source, e.Target} {
-			tx.Exec(`INSERT OR IGNORE INTO kg_nodes (id, label, properties) VALUES (?, 'Unknown', '{}')`, id)
+			if _, execErr := tx.Exec(`INSERT OR IGNORE INTO kg_nodes (id, label, properties) VALUES (?, 'Unknown', '{}')`, id); execErr != nil {
+				kg.logger.Warn("[KG] BulkAddEntities: failed to ensure endpoint node", "id", id, "error", execErr)
+			}
 		}
 		if e.Properties == nil {
 			e.Properties = make(map[string]string)
 		}
 		propsJSON, _ := json.Marshal(e.Properties)
-		tx.Exec(`
+		if _, execErr := tx.Exec(`
 			INSERT INTO kg_edges (source, target, relation, properties)
 			VALUES (?, ?, ?, ?)
 			ON CONFLICT(source, target, relation) DO UPDATE SET
 				properties = excluded.properties
-		`, e.Source, e.Target, e.Relation, string(propsJSON))
+		`, e.Source, e.Target, e.Relation, string(propsJSON)); execErr != nil {
+			kg.logger.Warn("[KG] BulkAddEntities: failed to insert edge", "source", e.Source, "target", e.Target, "error", execErr)
+		}
 	}
 
 	return tx.Commit()

@@ -574,6 +574,21 @@
                             </div>
                         </div>
                     </div>
+
+                    <div class="form-group form-group-inline">
+                        <label class="toggle">
+                            <input type="checkbox" id="mission-auto-prepare">
+                            <span class="slider"></span>
+                        </label>
+                        <div>
+                            <div class="font-medium">
+                                <script>document.write(t('missions.prep_auto'))</script>
+                            </div>
+                            <div class="form-hint">
+                                <script>document.write(t('missions.prep_auto_hint'))</script>
+                            </div>
+                        </div>
+                    </div>
                 </form>
             </div>
             <div class="modal-actions">
@@ -582,6 +597,24 @@
                 </button>
                 <button type="button" class="btn btn-primary" onclick="saveMission()">
                     <script>document.write(t('missions.modal_btn_save'))</script>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Prepared Context Viewer Modal -->
+    <div id="prep-modal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeModal('prep-modal')">
+        <div class="modal" style="max-width:700px">
+            <div class="modal-header">
+                <h2 id="prep-modal-title"></h2>
+                <button class="modal-close" onclick="closeModal('prep-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="prep-context-body" class="prep-context-content"></div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('prep-modal')">
+                    <script>document.write(t('missions.modal_btn_cancel'))</script>
                 </button>
             </div>
         </div>

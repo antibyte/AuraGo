@@ -144,7 +144,7 @@ type n8nWebhookPayload struct {
 func handleN8nStatus(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -153,7 +153,7 @@ func handleN8nStatus(s *Server) http.HandlerFunc {
 		s.CfgMu.RUnlock()
 
 		if !cfg.Enabled {
-			http.Error(w, "n8n integration is disabled", http.StatusNotFound)
+			jsonError(w, "n8n integration is disabled", http.StatusNotFound)
 			return
 		}
 
@@ -182,7 +182,7 @@ func handleN8nStatus(s *Server) http.HandlerFunc {
 func handleN8nChat(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -362,7 +362,7 @@ func handleN8nChat(s *Server) http.HandlerFunc {
 func handleN8nToolsList(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -434,7 +434,7 @@ func handleN8nToolsList(s *Server) http.HandlerFunc {
 func handleN8nToolExecute(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -550,7 +550,7 @@ func handleN8nToolExecute(s *Server) http.HandlerFunc {
 func handleN8nMemorySearch(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -688,7 +688,7 @@ func handleN8nMemorySearch(s *Server) http.HandlerFunc {
 func handleN8nMemoryStore(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -789,7 +789,7 @@ func handleN8nMemoryStore(s *Server) http.HandlerFunc {
 func handleN8nMissionCreate(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -891,7 +891,7 @@ func handleN8nMissionCreate(s *Server) http.HandlerFunc {
 func handleN8nToken(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if s.Vault == nil {
-			http.Error(w, "Vault not configured", http.StatusServiceUnavailable)
+			jsonError(w, "Vault not configured", http.StatusServiceUnavailable)
 			return
 		}
 
@@ -912,11 +912,11 @@ func handleN8nToken(s *Server) http.HandlerFunc {
 			// Generate new token
 			rawToken, err := generateN8nToken()
 			if err != nil {
-				http.Error(w, "Failed to generate token", http.StatusInternalServerError)
+				jsonError(w, "Failed to generate token", http.StatusInternalServerError)
 				return
 			}
 			if err := s.Vault.WriteSecret(n8nVaultTokenKey, rawToken); err != nil {
-				http.Error(w, "Failed to store token", http.StatusInternalServerError)
+				jsonError(w, "Failed to store token", http.StatusInternalServerError)
 				return
 			}
 			s.Logger.Info("[n8n] New API token generated")
@@ -925,14 +925,14 @@ func handleN8nToken(s *Server) http.HandlerFunc {
 
 		case http.MethodDelete:
 			if err := s.Vault.DeleteSecret(n8nVaultTokenKey); err != nil {
-				http.Error(w, "Failed to delete token", http.StatusInternalServerError)
+				jsonError(w, "Failed to delete token", http.StatusInternalServerError)
 				return
 			}
 			s.Logger.Info("[n8n] API token deleted")
 			w.WriteHeader(http.StatusNoContent)
 
 		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	}
 }
@@ -945,7 +945,7 @@ func n8nCheckEnabled(s *Server, w http.ResponseWriter) bool {
 	s.CfgMu.RUnlock()
 
 	if !enabled {
-		http.Error(w, "n8n integration is disabled", http.StatusNotFound)
+		jsonError(w, "n8n integration is disabled", http.StatusNotFound)
 		return false
 	}
 	return true

@@ -24,7 +24,7 @@ func containerDockerConfig(s *Server) (tools.DockerConfig, bool, bool) {
 func handleContainersList(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		cfg, enabled, _ := containerDockerConfig(s)
@@ -63,7 +63,7 @@ func handleContainerAction(s *Server) http.HandlerFunc {
 		switch action {
 		case "start":
 			if r.Method != http.MethodPost {
-				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+				jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 				return
 			}
 			if readOnly {
@@ -76,7 +76,7 @@ func handleContainerAction(s *Server) http.HandlerFunc {
 
 		case "stop":
 			if r.Method != http.MethodPost {
-				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+				jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 				return
 			}
 			if readOnly {
@@ -89,7 +89,7 @@ func handleContainerAction(s *Server) http.HandlerFunc {
 
 		case "restart":
 			if r.Method != http.MethodPost {
-				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+				jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 				return
 			}
 			if readOnly {
@@ -102,7 +102,7 @@ func handleContainerAction(s *Server) http.HandlerFunc {
 
 		case "logs":
 			if r.Method != http.MethodGet {
-				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+				jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 				return
 			}
 			tail := 200
@@ -117,7 +117,7 @@ func handleContainerAction(s *Server) http.HandlerFunc {
 
 		case "inspect":
 			if r.Method != http.MethodGet {
-				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+				jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 				return
 			}
 			result := tools.DockerInspectContainer(cfg, containerID)
@@ -126,7 +126,7 @@ func handleContainerAction(s *Server) http.HandlerFunc {
 
 		case "stats":
 			if r.Method != http.MethodGet {
-				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+				jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 				return
 			}
 			result := tools.DockerStats(cfg, containerID)
@@ -135,7 +135,7 @@ func handleContainerAction(s *Server) http.HandlerFunc {
 
 		case "": // DELETE /api/containers/{id} — remove container
 			if r.Method != http.MethodDelete {
-				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+				jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 				return
 			}
 			if readOnly {

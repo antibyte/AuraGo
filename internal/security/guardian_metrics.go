@@ -66,6 +66,22 @@ func (m *GuardianMetrics) RecordContentScan(result GuardianResult) {
 	m.Record(result)
 }
 
+// Reset zeroes all metric counters. Useful for testing and periodic metric resets.
+func (m *GuardianMetrics) Reset() {
+	m.TotalChecks.Store(0)
+	m.CachedChecks.Store(0)
+	m.Blocks.Store(0)
+	m.Quarantines.Store(0)
+	m.Allows.Store(0)
+	m.Errors.Store(0)
+	m.Clarifications.Store(0)
+	m.ContentScans.Store(0)
+	m.TotalTokens.Store(0)
+	m.TotalLatencyMs.Store(0)
+	m.MaxLatencyMs.Store(0)
+	m.LastCheckTime.Store(0)
+}
+
 // Snapshot returns a copy of current metrics as a plain struct (for JSON serialization).
 type MetricsSnapshot struct {
 	TotalChecks    int64   `json:"total_checks"`

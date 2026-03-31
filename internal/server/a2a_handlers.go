@@ -11,7 +11,7 @@ import (
 func handleA2AStatus(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -36,7 +36,7 @@ func handleA2AStatus(s *Server) http.HandlerFunc {
 func handleA2ARemoteAgents(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -57,12 +57,12 @@ func handleA2ARemoteAgents(s *Server) http.HandlerFunc {
 func handleA2ACard(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
 		if s.A2AServer == nil {
-			http.Error(w, "A2A server not enabled", http.StatusNotFound)
+			jsonError(w, "A2A server not enabled", http.StatusNotFound)
 			return
 		}
 
@@ -75,7 +75,7 @@ func handleA2ACard(s *Server) http.HandlerFunc {
 func handleA2ATest(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -102,7 +102,7 @@ func handleA2ATest(s *Server) http.HandlerFunc {
 func handleA2ARemoteAgentTest(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -110,18 +110,18 @@ func handleA2ARemoteAgentTest(s *Server) http.HandlerFunc {
 			AgentID string `json:"agent_id"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			jsonError(w, "Invalid request body", http.StatusBadRequest)
 			return
 		}
 
 		if s.A2AClientMgr == nil {
-			http.Error(w, "A2A client not enabled", http.StatusNotFound)
+			jsonError(w, "A2A client not enabled", http.StatusNotFound)
 			return
 		}
 
 		status, ok := s.A2AClientMgr.GetRemoteAgentStatus(req.AgentID)
 		if !ok {
-			http.Error(w, "Remote agent not found", http.StatusNotFound)
+			jsonError(w, "Remote agent not found", http.StatusNotFound)
 			return
 		}
 

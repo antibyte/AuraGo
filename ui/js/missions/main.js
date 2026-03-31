@@ -276,15 +276,17 @@ function renderMissionCompact(mission) {
     const typeIcon = icons[mission.execution_type] || icons.manual;
     const statusBadge = isRunning ? `<span class="badge badge-running">${t('missions.card_badge_running')}</span>` :
                        isQueued ? `<span class="badge badge-warning">${t('missions.card_badge_queued')}</span>` : '';
+    const prepBadge = renderPrepBadge(mission);
 
     return `
         <div class="card-compact" onclick="if(event.target.closest('.card-actions')) return; editMission('${mission.id}')">
             <span class="card-icon" title="${mission.execution_type}">${typeIcon}</span>
             <span class="card-name">${escapeHtml(mission.name)}</span>
             ${mission.locked ? `<span class="card-icon" title="${t('missions.card_locked_title')}">${icons.lock}</span>` : ''}
-            <div class="card-badges">${statusBadge}</div>
+            <div class="card-badges">${statusBadge}${prepBadge}</div>
             <div class="card-actions" onclick="event.stopPropagation()">
                 <button class="btn btn-sm ${isRunning ? 'btn-secondary' : 'btn-primary'}" onclick="runMission('${mission.id}')" title="${t('missions.card_btn_run_title')}" ${isRunning ? 'disabled' : ''}>${icons.play}</button>
+                ${renderPrepButton(mission, isRunning)}
                 <button class="btn btn-sm btn-secondary" onclick="duplicateMission('${mission.id}')" title="${t('missions.card_btn_duplicate_title')}">${icons.duplicate}</button>
                 <button class="btn btn-sm btn-secondary" onclick="editMission('${mission.id}')" title="${t('missions.card_btn_edit_title')}">${icons.edit}</button>
                 <button class="btn btn-sm btn-danger" onclick="deleteMission('${mission.id}')" title="${t('missions.card_btn_delete_title')}" ${mission.locked ? 'disabled' : ''}>${icons.delete || '🗑️'}</button>
@@ -303,6 +305,7 @@ function renderMissionGrid(mission, isFirstRender) {
     const priorityBadge = `<span class="badge badge-priority-${mission.priority}">${mission.priority}</span>`;
     const typeBadge = `<span class="badge badge-type-${mission.execution_type}">${mission.execution_type}</span>`;
     const statusBadge = isRunning ? `<span class="badge badge-running">${t('missions.card_badge_running')}</span>` : '';
+    const prepBadge = renderPrepBadge(mission);
 
     let triggerInfo = '';
     if (mission.execution_type === 'triggered' && mission.trigger_config) {
@@ -324,6 +327,7 @@ function renderMissionGrid(mission, isFirstRender) {
                     ${priorityBadge}
                     ${typeBadge}
                     ${statusBadge}
+                    ${prepBadge}
                 </div>
             </div>
             <div class="card-body">
@@ -347,6 +351,7 @@ function renderMissionGrid(mission, isFirstRender) {
                     </div>
                     <div class="mission-actions">
                         <button class="btn btn-sm ${isRunning ? 'btn-secondary' : 'btn-primary'}" onclick="runMission('${mission.id}')" title="${t('missions.card_btn_run_title')}" ${isRunning ? 'disabled' : ''}>${icons.play}</button>
+                        ${renderPrepButton(mission, isRunning)}
                         <button class="btn btn-sm btn-secondary" onclick="duplicateMission('${mission.id}')" title="${t('missions.card_btn_duplicate_title')}">${icons.duplicate}</button>
                         <button class="btn btn-sm btn-secondary" onclick="editMission('${mission.id}')" title="${t('missions.card_btn_edit_title')}">${icons.edit}</button>
                         <button class="btn btn-sm btn-danger" onclick="deleteMission('${mission.id}')" title="${t('missions.card_btn_delete_title')}" ${mission.locked ? 'disabled' : ''}>${icons.delete || '🗑️'}</button>
@@ -449,6 +454,7 @@ function openMissionModal(missionId = null) {
             document.getElementById('mission-prompt').value = mission.prompt;
             document.getElementById('mission-priority').value = mission.priority;
             document.getElementById('mission-locked').checked = mission.locked;
+            document.getElementById('mission-auto-prepare').checked = mission.auto_prepare || false;
 
             selectExecType(mission.execution_type);
 
@@ -688,6 +694,7 @@ async function saveMission() {
         execution_type: execType,
         enabled: true,
         locked: document.getElementById('mission-locked').checked,
+        auto_prepare: document.getElementById('mission-auto-prepare').checked,
         cheatsheet_ids: getSelectedCheatsheetIds()
     };
 
@@ -872,4 +879,84 @@ function formatTime(isoString) {
     if (hours < 24) return t('missions.time_hours_ago', { n: hours });
     if (days < 7) return t('missions.time_days_ago', { n: days });
     return date.toLocaleDateString(document.documentElement.lang || 'de-DE');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MISSION PREPARATION
+// ═══════════════════════════════════════════════════════════════
+
+function renderPrepBadge(mission) {
+    const status = mission.preparation_status;
+    if (!status || status === 'none') return '';
+    const label = t('missions.prep_status_' + status);
+    return `<span class="badge badge-prep-${status}">${label}</span>`;
+}
+
+function renderPrepButton(mission, isRunning) {
+    const status = mission.preparation_status || 'none';
+    const isPreparing = status === 'preparing';
+
+    if (status === 'prepared') {
+        return `<button class="btn btn-sm btn-secondary" onclick="viewPreparedContext('${mission.id}')" title="${t('missions.prep_view_title')}">📋</button>` +
+               `<button class="btn btn-sm btn-secondary" onclick="invalidatePreparation('${mission.id}')" title="${t('missions.prep_btn_invalidate')}">🔄</button>`;
+    }
+    return `<button class="btn btn-sm btn-secondary" onclick="prepareMission('${mission.id}')" title="${t('missions.prep_btn_prepare')}" ${isPreparing || isRunning ? 'disabled' : ''}>⚙️</button>`;
+}
+
+async function prepareMission(id) {
+    try {
+        const response = await fetch(`/api/missions/v2/${id}/prepare`, { method: 'POST' });
+        if (!response.ok) throw new Error(await response.text());
+        showToast(t('missions.prep_toast_started'), 'success');
+        loadData();
+    } catch (err) {
+        showToast(t('missions.prep_toast_error') + ': ' + err.message, 'error');
+    }
+}
+
+async function invalidatePreparation(id) {
+    try {
+        const response = await fetch(`/api/missions/v2/${id}/prepared`, { method: 'DELETE' });
+        if (!response.ok) throw new Error(await response.text());
+        showToast(t('missions.prep_toast_invalidated'), 'success');
+        loadData();
+    } catch (err) {
+        showToast(t('missions.prep_toast_error') + ': ' + err.message, 'error');
+    }
+}
+
+async function viewPreparedContext(id) {
+    try {
+        const response = await fetch(`/api/missions/v2/${id}/prepared`);
+        if (!response.ok) throw new Error(await response.text());
+        const data = await response.json();
+        document.getElementById('prep-modal-title').textContent = t('missions.prep_view_title');
+        let content = '';
+        if (data.analysis) {
+            const a = data.analysis;
+            if (a.summary) content += a.summary + '\n\n';
+            if (a.essential_tools && a.essential_tools.length) {
+                content += '── Tools ──\n';
+                a.essential_tools.forEach(t => { content += `• ${t.name}: ${t.purpose}\n`; });
+                content += '\n';
+            }
+            if (a.step_plan && a.step_plan.length) {
+                content += '── Steps ──\n';
+                a.step_plan.forEach((s, i) => { content += `${i+1}. ${s.action}${s.details ? ' — ' + s.details : ''}\n`; });
+                content += '\n';
+            }
+            if (a.pitfalls && a.pitfalls.length) {
+                content += '── Pitfalls ──\n';
+                a.pitfalls.forEach(p => { content += `⚠ ${p.description}${p.mitigation ? ' → ' + p.mitigation : ''}\n`; });
+                content += '\n';
+            }
+            if (data.confidence) content += `${t('missions.prep_confidence')}: ${Math.round(data.confidence * 100)}%\n`;
+        } else {
+            content = JSON.stringify(data, null, 2);
+        }
+        document.getElementById('prep-context-body').textContent = content;
+        openModal('prep-modal');
+    } catch (err) {
+        showToast(t('missions.prep_toast_error') + ': ' + err.message, 'error');
+    }
 }

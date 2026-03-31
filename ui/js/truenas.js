@@ -626,7 +626,10 @@ class TrueNASUI {
     }
     
     startHealthCheck() {
-        setInterval(() => this.checkStatus(), 30000);
+        if (this._healthCheckInterval) {
+            clearInterval(this._healthCheckInterval);
+        }
+        this._healthCheckInterval = setInterval(() => this.checkStatus(), 30000);
     }
 }
 

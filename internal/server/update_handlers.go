@@ -192,7 +192,7 @@ func runCmd(dir string, name string, args ...string) ([]byte, error) {
 func handleUpdateCheck(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		result := checkUpdates(appInstallDir(s))
@@ -206,7 +206,7 @@ func handleUpdateCheck(s *Server) http.HandlerFunc {
 func handleUpdateInstall(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 

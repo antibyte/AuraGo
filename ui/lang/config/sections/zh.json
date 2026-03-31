@@ -278,5 +278,7 @@
   "config.section.jellyfin.label": "Jellyfin",
   "config.section.jellyfin.desc": "Jellyfin 媒体服务器集成（媒体库、播放、会话）",
   "config.section.truenas.label": "TrueNAS",
-  "config.section.truenas.desc": "TrueNAS ZFS storage management (Pools, Datasets, Snapshots, Shares)"
+  "config.section.truenas.desc": "TrueNAS ZFS storage management (Pools, Datasets, Snapshots, Shares)",
+  "config.section.mission_preparation.label": "任务准备",
+  "config.section.mission_preparation.desc": "配置基于LLM的任务预分析和规划"
 }

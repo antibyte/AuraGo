@@ -236,7 +236,7 @@ func buildClaudeDesktopBridgeConfigSnippet(endpointURL string) (string, error) {
 func handleMCPServerVSCodeBridgeInfo(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -247,22 +247,22 @@ func handleMCPServerVSCodeBridgeInfo(s *Server) http.HandlerFunc {
 		endpointURL := mcpServerEndpointURL(r, cfg)
 		vsCodeSnippet, err := buildVSCodeBridgeConfigSnippet(endpointURL)
 		if err != nil {
-			http.Error(w, "Failed to build VS Code config", http.StatusInternalServerError)
+			jsonError(w, "Failed to build VS Code config", http.StatusInternalServerError)
 			return
 		}
 		cursorSnippet, err := buildCursorBridgeConfigSnippet(endpointURL)
 		if err != nil {
-			http.Error(w, "Failed to build Cursor config", http.StatusInternalServerError)
+			jsonError(w, "Failed to build Cursor config", http.StatusInternalServerError)
 			return
 		}
 		cursorLink, err := buildCursorBridgeInstallLink(endpointURL)
 		if err != nil {
-			http.Error(w, "Failed to build Cursor install link", http.StatusInternalServerError)
+			jsonError(w, "Failed to build Cursor install link", http.StatusInternalServerError)
 			return
 		}
 		claudeDesktopSnippet, err := buildClaudeDesktopBridgeConfigSnippet(endpointURL)
 		if err != nil {
-			http.Error(w, "Failed to build Claude Desktop config", http.StatusInternalServerError)
+			jsonError(w, "Failed to build Claude Desktop config", http.StatusInternalServerError)
 			return
 		}
 

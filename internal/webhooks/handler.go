@@ -163,20 +163,21 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	fields := extractFields(body, wh.Format.Fields)
 	headers := extractHeaders(r)
 
-	// 8. Scan raw payload for injection attempts before rendering
+	// 8. Scan raw payload for injection attempts before rendering.
+	// All webhook payloads are external, untrusted data — always isolate them.
 	if h.guardian != nil {
 		scan := h.guardian.ScanForInjection(string(body))
 		if scan.Level >= security.ThreatHigh {
 			h.logger.Warn("[Webhook] High-threat injection pattern in payload", "webhook", wh.Name, "threat", scan.Level, "source_ip", sourceIP)
-			body = []byte(security.IsolateExternalData(string(body)))
 		} else if h.llmGuardian != nil && h.cfg != nil && h.cfg.LLMGuardian.ScanDocuments {
 			// LLM Guardian: deeper content scan if regex didn't flag HIGH
 			llmResult := h.llmGuardian.EvaluateContent(r.Context(), "document", string(body))
 			if llmResult.Decision == security.DecisionBlock {
 				h.logger.Warn("[Webhook] LLM Guardian blocked payload", "webhook", wh.Name, "reason", llmResult.Reason, "source_ip", sourceIP)
-				body = []byte(security.IsolateExternalData(string(body)))
 			}
 		}
+		// Always wrap in isolation tags — webhook payloads are external content
+		body = []byte(security.IsolateExternalData(string(body)))
 	}
 
 	// 9. Render prompt

@@ -249,5 +249,21 @@
   "missions.trigger_ha_state_equals_placeholder": "bijv. 'on', 'off', 'home', 'not_home'",
   "missions.trigger_info_ha_entity_prefix": "Entiteit:",
   "missions.trigger_info_ha_state_prefix": "Status:",
-  "missions.trigger_info_ha_any_entity": "Elke entiteit"
+  "missions.trigger_info_ha_any_entity": "Elke entiteit",
+  "missions.prep_btn_prepare": "Voorbereiden",
+  "missions.prep_btn_invalidate": "Ongeldig maken",
+  "missions.prep_status": "Voorbereiding",
+  "missions.prep_status_none": "Niet voorbereid",
+  "missions.prep_status_preparing": "Wordt voorbereid…",
+  "missions.prep_status_prepared": "Voorbereid",
+  "missions.prep_status_stale": "Verouderd",
+  "missions.prep_status_error": "Fout",
+  "missions.prep_confidence": "Betrouwbaarheid",
+  "missions.prep_auto": "Auto-voorbereiding",
+  "missions.prep_auto_hint": "Deze missie automatisch voorbereiden wanneer ze wijzigt",
+  "missions.prep_toast_started": "Voorbereiding gestart",
+  "missions.prep_toast_ok": "Missie succesvol voorbereid",
+  "missions.prep_toast_error": "Voorbereiding mislukt",
+  "missions.prep_toast_invalidated": "Voorbereiding ongeldig gemaakt",
+  "missions.prep_view_title": "Voorbereidingscontext"
 }

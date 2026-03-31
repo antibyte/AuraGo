@@ -123,6 +123,13 @@ func Load(path string) (*Config, error) {
 	cfg.Tools.Contacts.Enabled = true
 	// form_automation and upnp_scan default to false (opt-in; require headless browser / LAN access)
 
+	// Mission Preparation defaults: disabled by default, uses main LLM provider.
+	cfg.MissionPreparation.TimeoutSeconds = 120
+	cfg.MissionPreparation.MaxEssentialTools = 5
+	cfg.MissionPreparation.CacheExpiryHours = 24
+	cfg.MissionPreparation.MinConfidence = 0.5
+	cfg.MissionPreparation.AutoPrepareScheduled = true
+
 	// Journal system defaults: auto-entries and daily summaries enabled by default.
 	cfg.Journal.AutoEntries = true
 	cfg.Journal.DailySummary = true

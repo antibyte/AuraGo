@@ -28,7 +28,7 @@ import (
 func handleDashboardSystem(s *Server, sse *SSEBroadcaster, startedAt time.Time) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -40,7 +40,7 @@ func handleDashboardSystem(s *Server, sse *SSEBroadcaster, startedAt time.Time) 
 		}
 		if err := json.Unmarshal([]byte(raw), &metricsResult); err != nil {
 			s.Logger.Error("Failed to parse system metrics", "error", err)
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			jsonError(w, "Internal server error", http.StatusInternalServerError)
 			return
 		}
 
@@ -62,7 +62,7 @@ func handleDashboardSystem(s *Server, sse *SSEBroadcaster, startedAt time.Time) 
 func handleDashboardMoodHistory(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -76,7 +76,7 @@ func handleDashboardMoodHistory(s *Server) http.HandlerFunc {
 		entries, err := s.ShortTermMem.GetMoodHistory(hours)
 		if err != nil {
 			s.Logger.Error("Failed to get mood history", "error", err)
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			jsonError(w, "Internal server error", http.StatusInternalServerError)
 			return
 		}
 
@@ -93,7 +93,7 @@ func handleDashboardMoodHistory(s *Server) http.HandlerFunc {
 func handleDashboardEmotionHistory(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -107,7 +107,7 @@ func handleDashboardEmotionHistory(s *Server) http.HandlerFunc {
 		entries, err := s.ShortTermMem.GetEmotionHistory(hours)
 		if err != nil {
 			s.Logger.Error("Failed to get emotion history", "error", err)
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			jsonError(w, "Internal server error", http.StatusInternalServerError)
 			return
 		}
 
@@ -170,12 +170,12 @@ func handleDashboardEmotionHistory(s *Server) http.HandlerFunc {
 func handleDashboardMemory(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
 		if s.ShortTermMem == nil {
-			http.Error(w, "Memory subsystem not available", http.StatusServiceUnavailable)
+			jsonError(w, "Memory subsystem not available", http.StatusServiceUnavailable)
 			return
 		}
 
@@ -241,14 +241,14 @@ func handleDashboardMemory(s *Server) http.HandlerFunc {
 func handleDashboardCoreMemory(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
 		rows, err := s.ShortTermMem.GetCoreMemoryFacts()
 		if err != nil {
 			s.Logger.Error("Failed to get core memory facts", "error", err)
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			jsonError(w, "Internal server error", http.StatusInternalServerError)
 			return
 		}
 
@@ -264,14 +264,14 @@ func handleDashboardCoreMemory(s *Server) http.HandlerFunc {
 func handleDashboardProfile(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
 		entries, err := s.ShortTermMem.GetProfileEntries("")
 		if err != nil {
 			s.Logger.Error("Failed to get profile entries", "error", err)
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			jsonError(w, "Internal server error", http.StatusInternalServerError)
 			return
 		}
 
@@ -307,12 +307,12 @@ func handleDashboardProfileEntry(s *Server) http.HandlerFunc {
 			category := r.URL.Query().Get("category")
 			key := r.URL.Query().Get("key")
 			if category == "" || key == "" {
-				http.Error(w, "category and key are required", http.StatusBadRequest)
+				jsonError(w, "category and key are required", http.StatusBadRequest)
 				return
 			}
 			if err := s.ShortTermMem.DeleteProfileEntry(category, key); err != nil {
 				s.Logger.Error("Failed to delete profile entry", "error", err)
-				http.Error(w, "Not found", http.StatusNotFound)
+				jsonError(w, "Not found", http.StatusNotFound)
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
@@ -325,19 +325,19 @@ func handleDashboardProfileEntry(s *Server) http.HandlerFunc {
 				Value    string `json:"value"`
 			}
 			if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Category == "" || body.Key == "" || body.Value == "" {
-				http.Error(w, "category, key, and value are required", http.StatusBadRequest)
+				jsonError(w, "category, key, and value are required", http.StatusBadRequest)
 				return
 			}
 			if err := s.ShortTermMem.UpsertProfileEntry(body.Category, body.Key, body.Value, "manual"); err != nil {
 				s.Logger.Error("Failed to update profile entry", "error", err)
-				http.Error(w, "Internal server error", http.StatusInternalServerError)
+				jsonError(w, "Internal server error", http.StatusInternalServerError)
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 
 		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	}
 }
@@ -346,7 +346,7 @@ func handleDashboardProfileEntry(s *Server) http.HandlerFunc {
 func handleDashboardActivity(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -421,20 +421,20 @@ func handleDashboardActivity(s *Server) http.HandlerFunc {
 func handleCronAPI(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if s.CronManager == nil {
-			http.Error(w, "Cron scheduler not available", http.StatusServiceUnavailable)
+			jsonError(w, "Cron scheduler not available", http.StatusServiceUnavailable)
 			return
 		}
 		switch r.Method {
 		case http.MethodDelete:
 			id := r.URL.Query().Get("id")
 			if id == "" {
-				http.Error(w, "id required", http.StatusBadRequest)
+				jsonError(w, "id required", http.StatusBadRequest)
 				return
 			}
 			result, err := s.CronManager.ManageSchedule("remove", id, "", "")
 			if err != nil {
 				s.Logger.Error("Failed to remove cron job", "id", id, "error", err)
-				http.Error(w, "Internal server error", http.StatusInternalServerError)
+				jsonError(w, "Internal server error", http.StatusInternalServerError)
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
@@ -447,7 +447,7 @@ func handleCronAPI(s *Server) http.HandlerFunc {
 				TaskPrompt string `json:"task_prompt"`
 			}
 			if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.ID == "" || body.CronExpr == "" || body.TaskPrompt == "" {
-				http.Error(w, "id, cron_expr, and task_prompt required", http.StatusBadRequest)
+				jsonError(w, "id, cron_expr, and task_prompt required", http.StatusBadRequest)
 				return
 			}
 			// Remove old job first (ignore if not found)
@@ -458,14 +458,14 @@ func handleCronAPI(s *Server) http.HandlerFunc {
 			result, err := s.CronManager.ManageSchedule("add", body.ID, body.CronExpr, body.TaskPrompt)
 			if err != nil {
 				s.Logger.Error("Failed to add updated cron job", "id", body.ID, "error", err)
-				http.Error(w, "Internal server error", http.StatusInternalServerError)
+				jsonError(w, "Internal server error", http.StatusInternalServerError)
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
 			w.Write([]byte(result)) //nolint:errcheck
 
 		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	}
 }
@@ -474,7 +474,7 @@ func handleCronAPI(s *Server) http.HandlerFunc {
 func handleDashboardPromptStats() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -486,7 +486,7 @@ func handleDashboardPromptStats() http.HandlerFunc {
 func handleDashboardToolStats(cfg *config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -517,7 +517,7 @@ func handleDashboardToolStats(cfg *config.Config) http.HandlerFunc {
 func handleDashboardLogs(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -566,7 +566,7 @@ func handleDashboardLogs(s *Server) http.HandlerFunc {
 func handleDashboardGitHubRepos(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -607,7 +607,7 @@ func handleDashboardGitHubRepos(s *Server) http.HandlerFunc {
 		raw := tools.GitHubListRepos(ghCfg, "")
 		var result map[string]interface{}
 		if err := json.Unmarshal([]byte(raw), &result); err != nil {
-			http.Error(w, `{"error":"failed to parse GitHub response"}`, http.StatusInternalServerError)
+			jsonError(w, `{"error":"failed to parse GitHub response"}`, http.StatusInternalServerError)
 			return
 		}
 
@@ -679,7 +679,7 @@ func handleDashboardGitHubRepos(s *Server) http.HandlerFunc {
 func handleGitHubReposForUI(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -808,12 +808,12 @@ func handleDashboardCoreMemoryMutate(s *Server, sse *SSEBroadcaster) http.Handle
 				Fact string `json:"fact"`
 			}
 			if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Fact == "" {
-				http.Error(w, `{"error":"fact is required"}`, http.StatusBadRequest)
+				jsonError(w, `{"error":"fact is required"}`, http.StatusBadRequest)
 				return
 			}
 			id, err := s.ShortTermMem.AddCoreMemoryFact(req.Fact)
 			if err != nil {
-				http.Error(w, `{"error":"Failed to add core memory fact"}`, http.StatusInternalServerError)
+				jsonError(w, `{"error":"Failed to add core memory fact"}`, http.StatusInternalServerError)
 				return
 			}
 			go pushMemoryStats()
@@ -827,11 +827,11 @@ func handleDashboardCoreMemoryMutate(s *Server, sse *SSEBroadcaster) http.Handle
 				Fact string `json:"fact"`
 			}
 			if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.ID == 0 || req.Fact == "" {
-				http.Error(w, `{"error":"id and fact are required"}`, http.StatusBadRequest)
+				jsonError(w, `{"error":"id and fact are required"}`, http.StatusBadRequest)
 				return
 			}
 			if err := s.ShortTermMem.UpdateCoreMemoryFact(req.ID, req.Fact); err != nil {
-				http.Error(w, `{"error":"Failed to update core memory fact"}`, http.StatusInternalServerError)
+				jsonError(w, `{"error":"Failed to update core memory fact"}`, http.StatusInternalServerError)
 				return
 			}
 			go pushMemoryStats()
@@ -843,11 +843,11 @@ func handleDashboardCoreMemoryMutate(s *Server, sse *SSEBroadcaster) http.Handle
 				ID int64 `json:"id"`
 			}
 			if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.ID == 0 {
-				http.Error(w, `{"error":"id is required"}`, http.StatusBadRequest)
+				jsonError(w, `{"error":"id is required"}`, http.StatusBadRequest)
 				return
 			}
 			if err := s.ShortTermMem.DeleteCoreMemoryFact(req.ID); err != nil {
-				http.Error(w, `{"error":"Failed to delete core memory fact"}`, http.StatusInternalServerError)
+				jsonError(w, `{"error":"Failed to delete core memory fact"}`, http.StatusInternalServerError)
 				return
 			}
 			go pushMemoryStats()
@@ -855,7 +855,7 @@ func handleDashboardCoreMemoryMutate(s *Server, sse *SSEBroadcaster) http.Handle
 			json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 
 		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	}
 }
@@ -864,7 +864,7 @@ func handleDashboardCoreMemoryMutate(s *Server, sse *SSEBroadcaster) http.Handle
 func handleDashboardOverview(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -1134,7 +1134,7 @@ func handleDashboardOverview(s *Server) http.HandlerFunc {
 func handleDashboardNotes(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -1149,7 +1149,7 @@ func handleDashboardNotes(s *Server) http.HandlerFunc {
 		notes, err := s.ShortTermMem.ListNotes(category, doneFilter)
 		if err != nil {
 			s.Logger.Error("Failed to list notes", "error", err)
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			jsonError(w, "Internal server error", http.StatusInternalServerError)
 			return
 		}
 		if notes == nil {
@@ -1194,7 +1194,7 @@ func tailFile(path string, n int) ([]string, error) {
 func handleDashboardGuardian(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -1227,7 +1227,7 @@ func handleDashboardGuardian(s *Server) http.HandlerFunc {
 func handleDashboardJournal(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -1247,7 +1247,7 @@ func handleDashboardJournal(s *Server) http.HandlerFunc {
 		entries, err := s.ShortTermMem.GetJournalEntries(from, to, types, limit)
 		if err != nil {
 			s.Logger.Error("Failed to list journal entries", "error", err)
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			jsonError(w, "Internal server error", http.StatusInternalServerError)
 			return
 		}
 		if entries == nil {
@@ -1267,7 +1267,7 @@ func handleDashboardJournal(s *Server) http.HandlerFunc {
 func handleDashboardJournalSummary(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -1281,7 +1281,7 @@ func handleDashboardJournalSummary(s *Server) http.HandlerFunc {
 		summaries, err := s.ShortTermMem.GetRecentDailySummaries(days)
 		if err != nil {
 			s.Logger.Error("Failed to list daily summaries", "error", err)
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			jsonError(w, "Internal server error", http.StatusInternalServerError)
 			return
 		}
 		if summaries == nil {
@@ -1301,11 +1301,11 @@ func handleDashboardJournalSummary(s *Server) http.HandlerFunc {
 func handleActivityOverview(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		if s.ShortTermMem == nil {
-			http.Error(w, "Memory unavailable", http.StatusServiceUnavailable)
+			jsonError(w, "Memory unavailable", http.StatusServiceUnavailable)
 			return
 		}
 
@@ -1320,7 +1320,7 @@ func handleActivityOverview(s *Server) http.HandlerFunc {
 		overview, err := s.ShortTermMem.BuildRecentActivityOverview(days, includeEntries)
 		if err != nil {
 			s.Logger.Error("Failed to build activity overview", "error", err, "days", days)
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			jsonError(w, "Internal server error", http.StatusInternalServerError)
 			return
 		}
 		if overview == nil {
@@ -1337,7 +1337,7 @@ func handleActivityOverview(s *Server) http.HandlerFunc {
 func handleDashboardJournalStats(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -1347,7 +1347,7 @@ func handleDashboardJournalStats(s *Server) http.HandlerFunc {
 		stats, err := s.ShortTermMem.GetJournalStats(from, to)
 		if err != nil {
 			s.Logger.Error("Failed to get journal stats", "error", err)
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			jsonError(w, "Internal server error", http.StatusInternalServerError)
 			return
 		}
 
@@ -1360,7 +1360,7 @@ func handleDashboardJournalStats(s *Server) http.HandlerFunc {
 func handleDashboardErrors(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 

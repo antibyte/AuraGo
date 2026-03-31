@@ -19,7 +19,7 @@ import (
 func handleRuntime(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		s.CfgMu.RLock()
@@ -137,7 +137,7 @@ func isVaultMappedPath(fullPath string) bool {
 func handleGetConfigSchema(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -225,7 +225,7 @@ func buildSchema(t reflect.Type, prefix string) []SchemaField {
 func handleRestart(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -251,7 +251,7 @@ func handleRestart(s *Server) http.HandlerFunc {
 func handleOllamaModels(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -320,7 +320,7 @@ func handleOllamaModels(s *Server) http.HandlerFunc {
 			} `json:"models"`
 		}
 		if err := json.NewDecoder(resp.Body).Decode(&tagsResp); err != nil {
-			http.Error(w, "Failed to parse Ollama response", http.StatusBadGateway)
+			jsonError(w, "Failed to parse Ollama response", http.StatusBadGateway)
 			return
 		}
 
@@ -341,7 +341,7 @@ func handleOllamaModels(s *Server) http.HandlerFunc {
 func handleOpenRouterModels(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -379,7 +379,7 @@ func handleOpenRouterModels(s *Server) http.HandlerFunc {
 func handleMeshCentralTest(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")

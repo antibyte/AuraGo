@@ -108,7 +108,7 @@ func embeddingsConfigChanged(oldCfg, newCfg config.Config) bool {
 func handleEmbeddingsReset(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 

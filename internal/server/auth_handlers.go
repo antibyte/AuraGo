@@ -22,7 +22,7 @@ import (
 func handleAuthStatus(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		s.CfgMu.RLock()
@@ -86,7 +86,7 @@ func handleAuthLoginPage(s *Server, uiFS fs.FS) http.HandlerFunc {
 		}
 
 		if tmpl == nil {
-			http.Error(w, "Login template not available", http.StatusInternalServerError)
+			jsonError(w, "Login template not available", http.StatusInternalServerError)
 			return
 		}
 		data := map[string]interface{}{
@@ -106,7 +106,7 @@ func handleAuthLoginPage(s *Server, uiFS fs.FS) http.HandlerFunc {
 func handleAuthLogin(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -132,7 +132,7 @@ func handleAuthLogin(s *Server) http.HandlerFunc {
 		// Parse body
 		body, err := io.ReadAll(io.LimitReader(r.Body, 4096))
 		if err != nil {
-			http.Error(w, "Bad request", http.StatusBadRequest)
+			jsonError(w, "Bad request", http.StatusBadRequest)
 			return
 		}
 		defer r.Body.Close()
@@ -143,7 +143,7 @@ func handleAuthLogin(s *Server) http.HandlerFunc {
 			Redirect string `json:"redirect"`
 		}
 		if err := json.Unmarshal(body, &req); err != nil {
-			http.Error(w, "Invalid JSON", http.StatusBadRequest)
+			jsonError(w, "Invalid JSON", http.StatusBadRequest)
 			return
 		}
 
@@ -246,7 +246,7 @@ func handleAuthLogout(s *Server) http.HandlerFunc {
 func handleAuthLogoutAPI(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost && r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		ClearSessionCookie(w, r)
@@ -267,7 +267,7 @@ func handleAuthLogoutAPI(s *Server) http.HandlerFunc {
 func handleAuthSetPassword(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -289,7 +289,7 @@ func handleAuthSetPassword(s *Server) http.HandlerFunc {
 
 		body, err := io.ReadAll(io.LimitReader(r.Body, 4096))
 		if err != nil {
-			http.Error(w, "Bad request", http.StatusBadRequest)
+			jsonError(w, "Bad request", http.StatusBadRequest)
 			return
 		}
 		defer r.Body.Close()
@@ -298,7 +298,7 @@ func handleAuthSetPassword(s *Server) http.HandlerFunc {
 			NewPassword string `json:"new_password"`
 		}
 		if err := json.Unmarshal(body, &req); err != nil {
-			http.Error(w, "Invalid JSON", http.StatusBadRequest)
+			jsonError(w, "Invalid JSON", http.StatusBadRequest)
 			return
 		}
 
@@ -312,7 +312,7 @@ func handleAuthSetPassword(s *Server) http.HandlerFunc {
 		newHash, err := HashPassword(req.NewPassword)
 		if err != nil {
 			s.Logger.Error("[Auth] Failed to hash password", "error", err)
-			http.Error(w, "Internal error", http.StatusInternalServerError)
+			jsonError(w, "Internal error", http.StatusInternalServerError)
 			return
 		}
 
@@ -320,7 +320,7 @@ func handleAuthSetPassword(s *Server) http.HandlerFunc {
 		// all existing sessions signed with the old secret.
 		newSecret, err := GenerateRandomHex(32)
 		if err != nil {
-			http.Error(w, "Failed to generate secret", http.StatusInternalServerError)
+			jsonError(w, "Failed to generate secret", http.StatusInternalServerError)
 			return
 		}
 
@@ -330,7 +330,7 @@ func handleAuthSetPassword(s *Server) http.HandlerFunc {
 			"session_secret": newSecret,
 		}); err != nil {
 			s.Logger.Error("[Auth] Failed to save password", "error", err)
-			http.Error(w, "Failed to save config", http.StatusInternalServerError)
+			jsonError(w, "Failed to save config", http.StatusInternalServerError)
 			return
 		}
 
@@ -347,7 +347,7 @@ func handleAuthSetPassword(s *Server) http.HandlerFunc {
 func handleAuthTOTPSetup(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		if !requireSession(s, w, r) {
@@ -356,7 +356,7 @@ func handleAuthTOTPSetup(s *Server) http.HandlerFunc {
 
 		newSecret, err := GenerateTOTPSecret()
 		if err != nil {
-			http.Error(w, "Failed to generate TOTP secret", http.StatusInternalServerError)
+			jsonError(w, "Failed to generate TOTP secret", http.StatusInternalServerError)
 			return
 		}
 
@@ -373,7 +373,7 @@ func handleAuthTOTPSetup(s *Server) http.HandlerFunc {
 func handleAuthTOTPConfirm(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		if !requireSession(s, w, r) {
@@ -382,7 +382,7 @@ func handleAuthTOTPConfirm(s *Server) http.HandlerFunc {
 
 		body, err := io.ReadAll(io.LimitReader(r.Body, 4096))
 		if err != nil {
-			http.Error(w, "Bad request", http.StatusBadRequest)
+			jsonError(w, "Bad request", http.StatusBadRequest)
 			return
 		}
 		defer r.Body.Close()
@@ -392,7 +392,7 @@ func handleAuthTOTPConfirm(s *Server) http.HandlerFunc {
 			Code   string `json:"code"`
 		}
 		if err := json.Unmarshal(body, &req); err != nil || req.Secret == "" || req.Code == "" {
-			http.Error(w, "Invalid request", http.StatusBadRequest)
+			jsonError(w, "Invalid request", http.StatusBadRequest)
 			return
 		}
 
@@ -408,7 +408,7 @@ func handleAuthTOTPConfirm(s *Server) http.HandlerFunc {
 			"totp_secret":  req.Secret,
 			"totp_enabled": true,
 		}); err != nil {
-			http.Error(w, "Failed to save TOTP config", http.StatusInternalServerError)
+			jsonError(w, "Failed to save TOTP config", http.StatusInternalServerError)
 			return
 		}
 
@@ -422,7 +422,7 @@ func handleAuthTOTPConfirm(s *Server) http.HandlerFunc {
 func handleAuthTOTPDelete(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodDelete {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		if !requireSession(s, w, r) {
@@ -433,7 +433,7 @@ func handleAuthTOTPDelete(s *Server) http.HandlerFunc {
 			"totp_secret":  "",
 			"totp_enabled": false,
 		}); err != nil {
-			http.Error(w, "Failed to save config", http.StatusInternalServerError)
+			jsonError(w, "Failed to save config", http.StatusInternalServerError)
 			return
 		}
 
@@ -548,7 +548,7 @@ func patchAuthConfig(s *Server, fields map[string]interface{}) error {
 func handleSecurityStatus(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 

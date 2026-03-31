@@ -235,6 +235,8 @@ type Server struct {
 	A2ABridge          *a2apkg.Bridge        // A2A co-agent bridge (nil if disabled)
 	SkillManager       *tools.SkillManager   // Skill Manager for registry and security scanning
 	SkillsDB           *sql.DB               // Skills registry database
+	PreparedMissionsDB *sql.DB               // Prepared missions SQLite database
+	PreparationService *services.MissionPreparationService
 	// IsFirstStart is true if core_memory.md was just freshly created (no prior data).
 	IsFirstStart    bool
 	StartedAt       time.Time     // server start time for uptime calculation
@@ -253,6 +255,7 @@ func (s *Server) accessLogger() *slog.Logger {
 }
 
 func Start(cfg *config.Config, logger *slog.Logger, accessLogger *slog.Logger, llmClient llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, remoteControlDB *sql.DB, mediaRegistryDB *sql.DB, homepageRegistryDB *sql.DB, contactsDB *sql.DB, sqlConnectionsDB *sql.DB, sqlConnectionPool *sqlconnections.ConnectionPool, backgroundTasks *tools.BackgroundTaskManager, isFirstStart bool, shutdownCh chan struct{}) error {
+	startLoginRecordCleaner(shutdownCh)
 	s := &Server{
 		Cfg:                cfg,
 		Logger:             logger,
@@ -511,6 +514,22 @@ func Start(cfg *config.Config, logger *slog.Logger, accessLogger *slog.Logger, l
 	// Set cheatsheet DB for mission prompt expansion
 	if s.CheatsheetDB != nil {
 		s.MissionManagerV2.SetCheatsheetDB(s.CheatsheetDB)
+	}
+
+	// Initialize Mission Preparation system
+	if cfg.MissionPreparation.Enabled {
+		prepDB, err := tools.InitPreparedMissionsDB(cfg.Directories.DataDir + "/prepared_missions.db")
+		if err != nil {
+			logger.Error("Failed to initialize prepared missions DB", "error", err)
+		} else {
+			s.PreparedMissionsDB = prepDB
+			s.MissionManagerV2.SetPreparedDB(prepDB)
+			s.PreparationService = services.NewMissionPreparationService(
+				cfg, &s.CfgMu, prepDB, s.MissionManagerV2, logger,
+			)
+			s.PreparationService.Start(context.Background())
+			logger.Info("Mission preparation service initialized")
+		}
 	}
 
 	// Set budget tracker callback for budget threshold mission triggers
@@ -905,11 +924,23 @@ func securityHeadersMiddleware(next http.Handler, tlsActive, behindProxy bool) h
 			w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload")
 		}
 
-		// Add cache control for authenticated routes
-		if !strings.HasPrefix(r.URL.Path, "/auth/") &&
-			!strings.HasPrefix(r.URL.Path, "/api/auth/") &&
-			!strings.HasPrefix(r.URL.Path, "/setup") &&
-			!strings.HasPrefix(r.URL.Path, "/static/") {
+		// Cache control: static assets get public 1-hour cache; everything else no-store.
+		path := r.URL.Path
+		isStaticAsset := strings.HasSuffix(path, ".js") ||
+			strings.HasSuffix(path, ".css") ||
+			strings.HasSuffix(path, ".png") ||
+			strings.HasSuffix(path, ".ico") ||
+			strings.HasSuffix(path, ".svg") ||
+			strings.HasSuffix(path, ".woff") ||
+			strings.HasSuffix(path, ".woff2") ||
+			strings.HasSuffix(path, ".ttf") ||
+			strings.HasSuffix(path, ".map")
+		if isStaticAsset {
+			w.Header().Set("Cache-Control", "public, max-age=3600")
+		} else if !strings.HasPrefix(path, "/auth/") &&
+			!strings.HasPrefix(path, "/api/auth/") &&
+			!strings.HasPrefix(path, "/setup") &&
+			!strings.HasPrefix(path, "/static/") {
 			w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, private")
 			w.Header().Set("Pragma", "no-cache")
 		}

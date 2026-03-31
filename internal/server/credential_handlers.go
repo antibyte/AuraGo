@@ -28,11 +28,11 @@ type credentialRequest struct {
 func handleListCredentials(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		if s.InventoryDB == nil {
-			http.Error(w, `{"error":"inventory database not configured"}`, http.StatusServiceUnavailable)
+			jsonError(w, `{"error":"inventory database not configured"}`, http.StatusServiceUnavailable)
 			return
 		}
 
@@ -53,17 +53,17 @@ func handleListCredentials(s *Server) http.HandlerFunc {
 func handleGetCredential(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		if s.InventoryDB == nil {
-			http.Error(w, `{"error":"inventory database not configured"}`, http.StatusServiceUnavailable)
+			jsonError(w, `{"error":"inventory database not configured"}`, http.StatusServiceUnavailable)
 			return
 		}
 
 		id := strings.TrimPrefix(r.URL.Path, "/api/credentials/")
 		if id == "" {
-			http.Error(w, `{"error":"credential id required"}`, http.StatusBadRequest)
+			jsonError(w, `{"error":"credential id required"}`, http.StatusBadRequest)
 			return
 		}
 
@@ -85,21 +85,21 @@ func handleGetCredential(s *Server) http.HandlerFunc {
 func handleCreateCredential(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		if s.InventoryDB == nil {
-			http.Error(w, `{"error":"inventory database not configured"}`, http.StatusServiceUnavailable)
+			jsonError(w, `{"error":"inventory database not configured"}`, http.StatusServiceUnavailable)
 			return
 		}
 		if s.Vault == nil {
-			http.Error(w, `{"error":"vault not configured"}`, http.StatusServiceUnavailable)
+			jsonError(w, `{"error":"vault not configured"}`, http.StatusServiceUnavailable)
 			return
 		}
 
 		var req credentialRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, `{"error":"invalid JSON"}`, http.StatusBadRequest)
+			jsonError(w, `{"error":"invalid JSON"}`, http.StatusBadRequest)
 			return
 		}
 
@@ -124,7 +124,7 @@ func handleCreateCredential(s *Server) http.HandlerFunc {
 			rec.PasswordVaultID = "credential_password_" + uuid.NewString()
 			security.RegisterSensitive(password)
 			if err := s.Vault.WriteSecret(rec.PasswordVaultID, password); err != nil {
-				http.Error(w, `{"error":"failed to store password in vault"}`, http.StatusInternalServerError)
+				jsonError(w, `{"error":"failed to store password in vault"}`, http.StatusInternalServerError)
 				return
 			}
 		}
@@ -135,7 +135,7 @@ func handleCreateCredential(s *Server) http.HandlerFunc {
 				if rec.PasswordVaultID != "" {
 					_ = s.Vault.DeleteSecret(rec.PasswordVaultID)
 				}
-				http.Error(w, `{"error":"failed to store certificate in vault"}`, http.StatusInternalServerError)
+				jsonError(w, `{"error":"failed to store certificate in vault"}`, http.StatusInternalServerError)
 				return
 			}
 		}
@@ -149,7 +149,7 @@ func handleCreateCredential(s *Server) http.HandlerFunc {
 				if rec.CertificateVaultID != "" {
 					_ = s.Vault.DeleteSecret(rec.CertificateVaultID)
 				}
-				http.Error(w, `{"error":"failed to store token in vault"}`, http.StatusInternalServerError)
+				jsonError(w, `{"error":"failed to store token in vault"}`, http.StatusInternalServerError)
 				return
 			}
 		}
@@ -178,21 +178,21 @@ func handleCreateCredential(s *Server) http.HandlerFunc {
 func handleUpdateCredential(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPut {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		if s.InventoryDB == nil {
-			http.Error(w, `{"error":"inventory database not configured"}`, http.StatusServiceUnavailable)
+			jsonError(w, `{"error":"inventory database not configured"}`, http.StatusServiceUnavailable)
 			return
 		}
 		if s.Vault == nil {
-			http.Error(w, `{"error":"vault not configured"}`, http.StatusServiceUnavailable)
+			jsonError(w, `{"error":"vault not configured"}`, http.StatusServiceUnavailable)
 			return
 		}
 
 		id := strings.TrimPrefix(r.URL.Path, "/api/credentials/")
 		if id == "" {
-			http.Error(w, `{"error":"credential id required"}`, http.StatusBadRequest)
+			jsonError(w, `{"error":"credential id required"}`, http.StatusBadRequest)
 			return
 		}
 
@@ -208,7 +208,7 @@ func handleUpdateCredential(s *Server) http.HandlerFunc {
 
 		var req credentialRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, `{"error":"invalid JSON"}`, http.StatusBadRequest)
+			jsonError(w, `{"error":"invalid JSON"}`, http.StatusBadRequest)
 			return
 		}
 
@@ -230,7 +230,7 @@ func handleUpdateCredential(s *Server) http.HandlerFunc {
 			}
 			security.RegisterSensitive(password)
 			if err := s.Vault.WriteSecret(existing.PasswordVaultID, password); err != nil {
-				http.Error(w, `{"error":"failed to store password in vault"}`, http.StatusInternalServerError)
+				jsonError(w, `{"error":"failed to store password in vault"}`, http.StatusInternalServerError)
 				return
 			}
 		}
@@ -241,7 +241,7 @@ func handleUpdateCredential(s *Server) http.HandlerFunc {
 			}
 			security.RegisterSensitive(certificate)
 			if err := s.Vault.WriteSecret(existing.CertificateVaultID, certificate); err != nil {
-				http.Error(w, `{"error":"failed to store certificate in vault"}`, http.StatusInternalServerError)
+				jsonError(w, `{"error":"failed to store certificate in vault"}`, http.StatusInternalServerError)
 				return
 			}
 		}
@@ -252,7 +252,7 @@ func handleUpdateCredential(s *Server) http.HandlerFunc {
 			}
 			security.RegisterSensitive(token)
 			if err := s.Vault.WriteSecret(existing.TokenVaultID, token); err != nil {
-				http.Error(w, `{"error":"failed to store token in vault"}`, http.StatusInternalServerError)
+				jsonError(w, `{"error":"failed to store token in vault"}`, http.StatusInternalServerError)
 				return
 			}
 		}
@@ -274,17 +274,17 @@ func handleUpdateCredential(s *Server) http.HandlerFunc {
 func handleDeleteCredential(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodDelete {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		if s.InventoryDB == nil {
-			http.Error(w, `{"error":"inventory database not configured"}`, http.StatusServiceUnavailable)
+			jsonError(w, `{"error":"inventory database not configured"}`, http.StatusServiceUnavailable)
 			return
 		}
 
 		id := strings.TrimPrefix(r.URL.Path, "/api/credentials/")
 		if id == "" {
-			http.Error(w, `{"error":"credential id required"}`, http.StatusBadRequest)
+			jsonError(w, `{"error":"credential id required"}`, http.StatusBadRequest)
 			return
 		}
 
@@ -362,11 +362,11 @@ func credentialValidationMessage(err error) string {
 func handleListPythonAccessibleCredentials(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		if s.InventoryDB == nil {
-			http.Error(w, `{"error":"inventory database not configured"}`, http.StatusServiceUnavailable)
+			jsonError(w, `{"error":"inventory database not configured"}`, http.StatusServiceUnavailable)
 			return
 		}
 

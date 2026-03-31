@@ -29,7 +29,7 @@ var remoteUpgrader = websocket.Upgrader{
 func handleRemoteWebSocket(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if s.RemoteHub == nil {
-			http.Error(w, "Remote Control not available", http.StatusServiceUnavailable)
+			jsonError(w, "Remote Control not available", http.StatusServiceUnavailable)
 			return
 		}
 
@@ -125,7 +125,7 @@ func handleRemoteDevices(s *Server) http.HandlerFunc {
 			}
 			writeJSON(w, views)
 		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	}
 }
@@ -214,7 +214,7 @@ func handleRemoteDevice(s *Server) http.HandlerFunc {
 			writeJSON(w, map[string]string{"status": "deleted"})
 
 		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	}
 }
@@ -222,7 +222,7 @@ func handleRemoteDevice(s *Server) http.HandlerFunc {
 func handleRemoteDeviceApprove(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		if s.RemoteHub == nil {
@@ -242,7 +242,7 @@ func handleRemoteDeviceApprove(s *Server) http.HandlerFunc {
 func handleRemoteDeviceReject(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		if s.RemoteHub == nil {
@@ -262,7 +262,7 @@ func handleRemoteDeviceReject(s *Server) http.HandlerFunc {
 func handleRemoteDeviceRevoke(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		if s.RemoteHub == nil {
@@ -282,7 +282,7 @@ func handleRemoteDeviceRevoke(s *Server) http.HandlerFunc {
 func handleRemoteEnrollmentCreate(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		if s.RemoteHub == nil {
@@ -326,7 +326,7 @@ func handleRemoteEnrollmentCreate(s *Server) http.HandlerFunc {
 func handleRemoteDownload(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		if s.RemoteHub == nil {
@@ -449,7 +449,7 @@ func handleRemoteDownload(s *Server) http.HandlerFunc {
 func handleRemoteAuditLog(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		if s.RemoteHub == nil {
@@ -470,7 +470,7 @@ func handleRemoteAuditLog(s *Server) http.HandlerFunc {
 func handleRemotePlatforms(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 

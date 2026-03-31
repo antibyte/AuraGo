@@ -1116,7 +1116,7 @@ window.AuraSSE = (function () {
         if (path.includes('/login') || path.includes('/setup')) return;
 
         try {
-            const resp = await fetch('/api/tsnet/status', { signal: AbortSignal.timeout(8000) });
+            const resp = await fetch('/api/tsnet/status', { signal: typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function' ? AbortSignal.timeout(8000) : undefined });
             if (!resp.ok) return; // server not ready / not authenticated yet
             const data = await resp.json();
             if (data.login_url) {
@@ -1173,7 +1173,7 @@ window.AuraSSE = (function () {
         setTimeout(function () {
             var path = window.location.pathname;
             if (path.indexOf('/login') !== -1 || path.indexOf('/setup') !== -1) return;
-            fetch('/api/tsnet/status', { signal: AbortSignal.timeout(5000) })
+            fetch('/api/tsnet/status', { signal: typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function' ? AbortSignal.timeout(5000) : undefined })
                 .then(function (r) { return r.ok ? r.json() : null; })
                 .then(function (data) {
                     if (!data || !data.login_url) return;

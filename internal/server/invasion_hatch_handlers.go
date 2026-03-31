@@ -21,7 +21,7 @@ import (
 func handleInvasionNestHatch(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if s.InvasionDB == nil || r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		id := extractNestSubID(r.URL.Path, "hatch")
@@ -263,7 +263,7 @@ func resolveBinaryPath(targetArch string) (string, error) {
 func handleInvasionNestStop(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if s.InvasionDB == nil || r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		id := extractNestSubID(r.URL.Path, "stop")
@@ -314,7 +314,7 @@ func handleInvasionNestStop(s *Server) http.HandlerFunc {
 func handleInvasionNestHatchStatus(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if s.InvasionDB == nil || r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		id := extractNestSubID(r.URL.Path, "status")
@@ -353,7 +353,7 @@ func handleInvasionNestHatchStatus(s *Server) http.HandlerFunc {
 func handleInvasionNestSendSecret(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if s.InvasionDB == nil || r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		id := extractNestSubID(r.URL.Path, "send-secret")
@@ -411,7 +411,7 @@ var wsUpgrader = websocket.Upgrader{
 func handleInvasionWebSocket(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if s.InvasionDB == nil {
-			http.Error(w, "Invasion Control is not enabled", http.StatusServiceUnavailable)
+			jsonError(w, "Invasion Control is not enabled", http.StatusServiceUnavailable)
 			return
 		}
 
@@ -508,7 +508,7 @@ func handleInvasionWebSocket(s *Server) http.HandlerFunc {
 func handleInvasionNestSendTask(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if s.InvasionDB == nil || r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		id := extractNestSubID(r.URL.Path, "send-task")

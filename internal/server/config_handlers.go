@@ -30,27 +30,27 @@ import (
 func handleGetConfig(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
 		configPath := s.Cfg.ConfigPath
 		if configPath == "" {
-			http.Error(w, "Config path not set", http.StatusInternalServerError)
+			jsonError(w, "Config path not set", http.StatusInternalServerError)
 			return
 		}
 
 		data, err := os.ReadFile(configPath)
 		if err != nil {
 			s.Logger.Error("Failed to read config file", "error", err)
-			http.Error(w, "Failed to read config", http.StatusInternalServerError)
+			jsonError(w, "Failed to read config", http.StatusInternalServerError)
 			return
 		}
 
 		var rawCfg map[string]interface{}
 		if err := yaml.Unmarshal(data, &rawCfg); err != nil {
 			s.Logger.Error("Failed to parse config", "error", err)
-			http.Error(w, "Failed to parse config", http.StatusInternalServerError)
+			jsonError(w, "Failed to parse config", http.StatusInternalServerError)
 			return
 		}
 
@@ -105,7 +105,7 @@ func handleGetConfig(s *Server) http.HandlerFunc {
 func handleUILanguage(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPut {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -113,12 +113,12 @@ func handleUILanguage(s *Server) http.HandlerFunc {
 			Language string `json:"language"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			http.Error(w, "Invalid JSON", http.StatusBadRequest)
+			jsonError(w, "Invalid JSON", http.StatusBadRequest)
 			return
 		}
 
 		if body.Language == "" {
-			http.Error(w, "Language required", http.StatusBadRequest)
+			jsonError(w, "Language required", http.StatusBadRequest)
 			return
 		}
 
@@ -127,7 +127,7 @@ func handleUILanguage(s *Server) http.HandlerFunc {
 		if err := s.Cfg.Save(s.Cfg.ConfigPath); err != nil {
 			s.Logger.Error("Failed to save UI language", "error", err)
 			s.CfgMu.Unlock()
-			http.Error(w, "Failed to save configuration", http.StatusInternalServerError)
+			jsonError(w, "Failed to save configuration", http.StatusInternalServerError)
 			return
 		}
 		s.CfgMu.Unlock()
@@ -143,13 +143,13 @@ func handleUILanguage(s *Server) http.HandlerFunc {
 func handleUpdateConfig(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPut {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
 		configPath := s.Cfg.ConfigPath
 		if configPath == "" {
-			http.Error(w, "Config path not set", http.StatusInternalServerError)
+			jsonError(w, "Config path not set", http.StatusInternalServerError)
 			return
 		}
 
@@ -161,14 +161,14 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 		r.Body = http.MaxBytesReader(w, r.Body, maxBody)
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
-			http.Error(w, "Failed to read request body", http.StatusBadRequest)
+			jsonError(w, "Failed to read request body", http.StatusBadRequest)
 			return
 		}
 		defer r.Body.Close()
 
 		var patch map[string]interface{}
 		if err := json.Unmarshal(body, &patch); err != nil {
-			http.Error(w, "Invalid JSON", http.StatusBadRequest)
+			jsonError(w, "Invalid JSON", http.StatusBadRequest)
 			return
 		}
 
@@ -176,14 +176,14 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 		data, err := os.ReadFile(configPath)
 		if err != nil {
 			s.Logger.Error("Failed to read config file for patching", "error", err)
-			http.Error(w, "Failed to read config", http.StatusInternalServerError)
+			jsonError(w, "Failed to read config", http.StatusInternalServerError)
 			return
 		}
 
 		var rawCfg map[string]interface{}
 		if err := yaml.Unmarshal(data, &rawCfg); err != nil {
 			s.Logger.Error("Failed to parse config for patching", "error", err)
-			http.Error(w, "Failed to parse config", http.StatusInternalServerError)
+			jsonError(w, "Failed to parse config", http.StatusInternalServerError)
 			return
 		}
 
@@ -206,7 +206,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 		out, err := yaml.Marshal(rawCfg)
 		if err != nil {
 			s.Logger.Error("Failed to marshal patched config", "error", err)
-			http.Error(w, "Failed to save config", http.StatusInternalServerError)
+			jsonError(w, "Failed to save config", http.StatusInternalServerError)
 			return
 		}
 
@@ -296,7 +296,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 
 		if err := os.WriteFile(configPath, out, 0644); err != nil {
 			s.Logger.Error("Failed to write config file", "error", err)
-			http.Error(w, "Failed to write config", http.StatusInternalServerError)
+			jsonError(w, "Failed to write config", http.StatusInternalServerError)
 			return
 		}
 
@@ -777,7 +777,7 @@ var sensitiveKeys = map[string]bool{
 func handleVaultStatus(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -789,7 +789,7 @@ func handleVaultStatus(s *Server) http.HandlerFunc {
 func handleVaultDelete(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodDelete {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -1024,7 +1024,7 @@ func extractRecursive(m map[string]interface{}, prefix string, vault *security.V
 func handleSecurityHints(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		s.CfgMu.RLock()
@@ -1064,14 +1064,14 @@ func handleSecurityHints(s *Server) http.HandlerFunc {
 func handleSecurityHarden(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		var req struct {
 			IDs []string `json:"ids"`
 		}
 		if err := json.NewDecoder(io.LimitReader(r.Body, 1<<16)).Decode(&req); err != nil {
-			http.Error(w, "Invalid JSON", http.StatusBadRequest)
+			jsonError(w, "Invalid JSON", http.StatusBadRequest)
 			return
 		}
 		applied, err := ApplyHardening(s, req.IDs)
@@ -1096,7 +1096,7 @@ func handleSecurityHarden(s *Server) http.HandlerFunc {
 func handleAnsibleGenerateToken(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -1159,7 +1159,7 @@ func handleAnsibleGenerateToken(s *Server) http.HandlerFunc {
 func handleOllamaManagedStatus(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		s.CfgMu.RLock()
@@ -1183,7 +1183,7 @@ func handleOllamaManagedStatus(s *Server) http.HandlerFunc {
 func handleOllamaManagedRecreate(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		s.CfgMu.RLock()

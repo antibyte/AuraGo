@@ -249,5 +249,21 @@
   "missions.trigger_ha_state_equals_placeholder": "例: 'on', 'off', 'home', 'not_home'",
   "missions.trigger_info_ha_entity_prefix": "エンティティ:",
   "missions.trigger_info_ha_state_prefix": "状態:",
-  "missions.trigger_info_ha_any_entity": "任意のエンティティ"
+  "missions.trigger_info_ha_any_entity": "任意のエンティティ",
+  "missions.prep_btn_prepare": "準備",
+  "missions.prep_btn_invalidate": "無効化",
+  "missions.prep_status": "準備状況",
+  "missions.prep_status_none": "未準備",
+  "missions.prep_status_preparing": "準備中…",
+  "missions.prep_status_prepared": "準備完了",
+  "missions.prep_status_stale": "期限切れ",
+  "missions.prep_status_error": "エラー",
+  "missions.prep_confidence": "信頼度",
+  "missions.prep_auto": "自動準備",
+  "missions.prep_auto_hint": "変更時にこのミッションを自動準備",
+  "missions.prep_toast_started": "準備開始",
+  "missions.prep_toast_ok": "ミッションの準備が完了",
+  "missions.prep_toast_error": "準備失敗",
+  "missions.prep_toast_invalidated": "準備が無効化されました",
+  "missions.prep_view_title": "準備済みコンテキスト"
 }
