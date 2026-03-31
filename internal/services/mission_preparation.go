@@ -298,7 +298,7 @@ func (s *MissionPreparationService) PrepareMission(ctx context.Context, missionI
 	// Determine status based on confidence
 	status := tools.PrepStatusPrepared
 	if confidence < prepCfg.MinConfidence {
-		status = tools.PrepStatusError
+		status = tools.PrepStatusLowConfidence
 	}
 
 	// Count tokens

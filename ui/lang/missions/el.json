@@ -258,6 +258,7 @@
   "missions.prep_status_prepared": "Προετοιμασμένο",
   "missions.prep_status_stale": "Παρωχημένο",
   "missions.prep_status_error": "Σφάλμα",
+  "missions.prep_status_low_confidence": "Χαμηλή εμπιστοσύνη",
   "missions.prep_confidence": "Εμπιστοσύνη",
   "missions.prep_auto": "Αυτόματη προετοιμασία",
   "missions.prep_auto_hint": "Αυτόματη προετοιμασία όταν αλλάζει",

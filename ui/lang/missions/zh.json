@@ -258,6 +258,7 @@
   "missions.prep_status_prepared": "已准备",
   "missions.prep_status_stale": "已过期",
   "missions.prep_status_error": "错误",
+  "missions.prep_status_low_confidence": "低置信度",
   "missions.prep_confidence": "置信度",
   "missions.prep_auto": "自动准备",
   "missions.prep_auto_hint": "变更时自动准备此任务",

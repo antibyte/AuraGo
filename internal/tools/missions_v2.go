@@ -384,7 +384,7 @@ func (m *MissionManagerV2) Start() error {
 		}
 		for _, mission := range missions {
 			m.missions[mission.ID] = mission
-			if mission.Status == MissionStatusRunning {
+			if mission.Status == MissionStatusRunning || mission.Status == MissionStatusQueued {
 				mission.Status = MissionStatusIdle // Reset on startup
 			}
 		}
@@ -407,8 +407,9 @@ func (m *MissionManagerV2) Stop() {
 }
 
 func (m *MissionManagerV2) save() error {
-	// NOTE: must be called while m.mu is already held (Lock or RLock).
-	// Do NOT acquire m.mu here — all callers hold the write lock.
+	// NOTE: callers should hold m.mu (Lock or RLock) when possible, but some
+	// call paths (e.g. processNext) invoke save after releasing the lock.
+	// Do NOT acquire m.mu here — to avoid double locking.
 	missions := make([]*MissionV2, 0, len(m.missions))
 	for _, mission := range m.missions {
 		missions = append(missions, mission)
@@ -591,7 +592,7 @@ func (m *MissionManagerV2) OnMissionComplete(missionID, result, output string) {
 		mission.LastResult = result
 		mission.LastOutput = truncateString(output, 500)
 		mission.RunCount++
-		m.save()
+		m.save() // First save: persist completion state before triggering dependents
 	}
 
 	m.queue.Done()
@@ -619,7 +620,7 @@ func (m *MissionManagerV2) OnMissionComplete(missionID, result, output string) {
 			fmt.Sprintf(`{"source_mission":"%s","result":"%s"}`, missionID, result))
 		mission.Status = MissionStatusQueued
 	}
-	m.save()
+	m.save() // Second save: persist queued status of triggered dependents
 }
 
 // TriggerMission manually triggers a mission (for webhooks, emails, etc.)
@@ -971,9 +972,17 @@ func (m *MissionManagerV2) Get(id string) (*MissionV2, bool) {
 	if !ok {
 		return nil, false
 	}
-	// Return a copy
-	copy := *mission
-	return &copy, true
+	// Return a deep copy
+	cp := *mission
+	if mission.TriggerConfig != nil {
+		tc := *mission.TriggerConfig
+		cp.TriggerConfig = &tc
+	}
+	if mission.CheatsheetIDs != nil {
+		cp.CheatsheetIDs = make([]string, len(mission.CheatsheetIDs))
+		copy(cp.CheatsheetIDs, mission.CheatsheetIDs)
+	}
+	return &cp, true
 }
 
 // List returns all missions
@@ -982,9 +991,17 @@ func (m *MissionManagerV2) List() []*MissionV2 {
 	defer m.mu.RUnlock()
 
 	missions := make([]*MissionV2, 0, len(m.missions))
-	for _, m := range m.missions {
-		copy := *m
-		missions = append(missions, &copy)
+	for _, ms := range m.missions {
+		cp := *ms
+		if ms.TriggerConfig != nil {
+			tc := *ms.TriggerConfig
+			cp.TriggerConfig = &tc
+		}
+		if ms.CheatsheetIDs != nil {
+			cp.CheatsheetIDs = make([]string, len(ms.CheatsheetIDs))
+			copy(cp.CheatsheetIDs, ms.CheatsheetIDs)
+		}
+		missions = append(missions, &cp)
 	}
 
 	// Sort by created_at desc

@@ -127,7 +127,8 @@ type n8nMissionRequest struct {
 	Name        string                   `json:"name"`
 	Description string                   `json:"description"`
 	Steps       []map[string]interface{} `json:"steps,omitempty"`
-	Trigger     string                   `json:"trigger,omitempty"` // manual, webhook, schedule
+	Trigger     string                   `json:"trigger,omitempty"`  // manual, webhook, schedule
+	Schedule    string                   `json:"schedule,omitempty"` // Cron expression for scheduled missions
 	RunNow      bool                     `json:"run_now,omitempty"`
 }
 
@@ -833,6 +834,14 @@ func handleN8nMissionCreate(s *Server) http.HandlerFunc {
 			n8nWriteError(w, http.StatusBadRequest, "Mission name is required", "validation_error")
 			return
 		}
+		if len(req.Name) > maxMissionNameLen {
+			n8nWriteError(w, http.StatusBadRequest, "Mission name too long", "validation_error")
+			return
+		}
+		if len(req.Description) > maxMissionPromptLen {
+			n8nWriteError(w, http.StatusBadRequest, "Mission description too long", "validation_error")
+			return
+		}
 
 		if s.MissionManagerV2 == nil {
 			n8nWriteError(w, http.StatusServiceUnavailable, "Mission manager not available", "service_unavailable")
@@ -865,6 +874,7 @@ func handleN8nMissionCreate(s *Server) http.HandlerFunc {
 			Name:          req.Name,
 			Prompt:        prompt,
 			ExecutionType: execType,
+			Schedule:      req.Schedule,
 			TriggerType:   triggerType,
 			Priority:      "medium",
 			Enabled:       true,
@@ -884,7 +894,7 @@ func handleN8nMissionCreate(s *Server) http.HandlerFunc {
 			if err := s.MissionManagerV2.RunNow(m.ID); err != nil {
 				s.Logger.Warn("[n8n] Mission RunNow failed", "error", err, "id", m.ID)
 			} else {
-				executionID = m.ID // Return the mission ID as the execution reference
+				executionID = m.ID // Mission ID doubles as execution reference for n8n tracking
 				s.Logger.Info("[n8n] Mission queued for execution", "mission_id", m.ID)
 			}
 		}

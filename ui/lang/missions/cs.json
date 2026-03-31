@@ -258,6 +258,7 @@
   "missions.prep_status_prepared": "Připraveno",
   "missions.prep_status_stale": "Zastaralé",
   "missions.prep_status_error": "Chyba",
+  "missions.prep_status_low_confidence": "Nízká spolehlivost",
   "missions.prep_confidence": "Spolehlivost",
   "missions.prep_auto": "Auto-příprava",
   "missions.prep_auto_hint": "Automaticky připravit tuto misi při změně",

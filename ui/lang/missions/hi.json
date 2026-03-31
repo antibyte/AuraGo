@@ -258,6 +258,7 @@
   "missions.prep_status_prepared": "तैयार",
   "missions.prep_status_stale": "पुराना",
   "missions.prep_status_error": "त्रुटि",
+  "missions.prep_status_low_confidence": "कम विश्वास",
   "missions.prep_confidence": "विश्वास",
   "missions.prep_auto": "ऑटो-तैयारी",
   "missions.prep_auto_hint": "बदलाव होने पर इस मिशन को स्वचालित रूप से तैयार करें",

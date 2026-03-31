@@ -210,23 +210,15 @@ func TestProxmoxOverview_ReturnsCombinedMonitoringData(t *testing.T) {
 			t.Fatalf("unexpected request path: %s", r.URL.Path)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		switch r.URL.Query().Get("type") {
-		case "node":
-			_ = json.NewEncoder(w).Encode(map[string]any{
-				"data": []map[string]any{
-					{"type": "node", "node": "pve", "status": "online", "cpu": 0.33, "mem": 4096, "maxmem": 8192},
-				},
-			})
-		case "vm":
-			_ = json.NewEncoder(w).Encode(map[string]any{
-				"data": []map[string]any{
-					{"type": "qemu", "node": "pve", "vmid": 100, "name": "web-01", "status": "running"},
-					{"type": "lxc", "node": "pve", "vmid": 200, "name": "cache-01", "status": "stopped"},
-				},
-			})
-		default:
-			t.Fatalf("unexpected cluster resource type: %q", r.URL.Query().Get("type"))
-		}
+		// ProxmoxOverview fetches all resources at once (no type filter),
+		// then filters client-side. Return all resource types together.
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"data": []map[string]any{
+				{"type": "node", "node": "pve", "status": "online", "cpu": 0.33, "mem": 4096, "maxmem": 8192},
+				{"type": "qemu", "node": "pve", "vmid": 100, "name": "web-01", "status": "running"},
+				{"type": "lxc", "node": "pve", "vmid": 200, "name": "cache-01", "status": "stopped"},
+			},
+		})
 	}))
 	defer server.Close()
 

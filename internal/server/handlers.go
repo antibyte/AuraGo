@@ -100,7 +100,11 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 
 		// Check for Follow-Up loop protection
 		isFollowUp := r.Header.Get("X-Internal-FollowUp") == "true"
-		followUpKey := "default" // sessionID is resolved later; hardcoded for now
+		missionID := r.Header.Get("X-Mission-ID")
+		followUpKey := "default"
+		if missionID != "" {
+			followUpKey = "mission-" + missionID
+		}
 		muFollowUp.Lock()
 		if !isFollowUp {
 			delete(followUpDepths, followUpKey) // cleanup on real user request
@@ -108,7 +112,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			followUpDepths[followUpKey]++
 			if followUpDepths[followUpKey] > 10 {
 				muFollowUp.Unlock()
-				s.Logger.Warn("Blocked follow_up execution to prevent infinite loop", "depth", followUpDepths[followUpKey])
+				s.Logger.Warn("Blocked follow_up execution to prevent infinite loop", "depth", followUpDepths[followUpKey], "key", followUpKey)
 				jsonError(w, `{"error": "Follow-up circuit breaker tripped. Max recursion depth reached."}`, http.StatusTooManyRequests)
 				return
 			}
@@ -128,8 +132,10 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 
 		// 1. Save User Input to Short-Term Memory
 		lastUserMsg := req.Messages[len(req.Messages)-1]
-		sessionID := "default" // hardcoded until API supports it
-		missionID := r.Header.Get("X-Mission-ID")
+		sessionID := "default"
+		if missionID != "" {
+			sessionID = "mission-" + missionID
+		}
 
 		// Guardian: Scan user input for injection patterns (log only, never block)
 		if lastUserMsg.Role == openai.ChatMessageRoleUser && s.Guardian != nil {
@@ -310,7 +316,11 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 		// Build flags via the canonical factory so all channels (web, bots, agent loop)
 		// receive the same feature-toggle logic, including Docker/Runtime socket guards.
 		toolingPolicy := agent.BuildToolingPolicy(s.Cfg, lastUserMsg.Content)
-		flagsRunCfg := agent.RunConfig{
+		msgSource := "web_chat"
+		if missionID != "" {
+			msgSource = "mission"
+		}
+		runCfg := agent.RunConfig{
 			Config:             s.Cfg,
 			Logger:             s.Logger,
 			LLMClient:          s.LLMClient,
@@ -337,16 +347,12 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			BudgetTracker:      s.BudgetTracker,
 			LLMGuardian:        s.LLMGuardian,
 			SessionID:          sessionID,
+			IsMaintenance:      inMaintenance,
 			IsMission:          missionID != "",
 			MissionID:          missionID,
-			MessageSource: func() string {
-				if missionID != "" {
-					return "mission"
-				}
-				return "web_chat"
-			}(),
+			MessageSource:      msgSource,
 		}
-		flags := agent.BuildPromptContextFlags(flagsRunCfg, toolingPolicy, agent.PromptContextOptions{
+		flags := agent.BuildPromptContextFlags(runCfg, toolingPolicy, agent.PromptContextOptions{
 			IsMaintenanceMode:     inMaintenance,
 			ActiveProcesses:       agent.GetActiveProcessStatus(s.Registry),
 			SpecialistsAvailable:  agent.BuildSpecialistsAvailable(s.Cfg),
@@ -401,44 +407,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 		req.Messages = finalMessages
 
 		// 4. Pass execution to the unified agent loop
-		runCfg := agent.RunConfig{
-			Config:             s.Cfg,
-			Logger:             s.Logger,
-			LLMClient:          s.LLMClient,
-			ShortTermMem:       s.ShortTermMem,
-			HistoryManager:     s.HistoryManager,
-			LongTermMem:        s.LongTermMem,
-			KG:                 s.KG,
-			InventoryDB:        s.InventoryDB,
-			InvasionDB:         s.InvasionDB,
-			CheatsheetDB:       s.CheatsheetDB,
-			ImageGalleryDB:     s.ImageGalleryDB,
-			MediaRegistryDB:    s.MediaRegistryDB,
-			HomepageRegistryDB: s.HomepageRegistryDB,
-			ContactsDB:         s.ContactsDB,
-			SQLConnectionsDB:   s.SQLConnectionsDB,
-			SQLConnectionPool:  s.SQLConnectionPool,
-			RemoteHub:          s.RemoteHub,
-			Vault:              s.Vault,
-			Registry:           s.Registry,
-			Manifest:           manifest,
-			CronManager:        s.CronManager,
-			MissionManagerV2:   s.MissionManagerV2,
-			CoAgentRegistry:    s.CoAgentRegistry,
-			BudgetTracker:      s.BudgetTracker,
-			LLMGuardian:        s.LLMGuardian,
-			SessionID:          sessionID,
-			IsMaintenance:      inMaintenance,
-			SurgeryPlan:        "", // UI-driven chats don't currently pass a formal surgery plan
-			IsMission:          missionID != "",
-			MissionID:          missionID,
-			MessageSource: func() string {
-				if missionID != "" {
-					return "mission"
-				}
-				return "web_chat"
-			}(),
-		}
+		// runCfg is already built above for prompt context flags.
 
 		if req.Stream {
 			w.Header().Set("Content-Type", "text/event-stream")

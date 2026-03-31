@@ -258,6 +258,7 @@
   "missions.prep_status_prepared": "Förberedd",
   "missions.prep_status_stale": "Föråldrad",
   "missions.prep_status_error": "Fel",
+  "missions.prep_status_low_confidence": "Lågt förtroende",
   "missions.prep_confidence": "Tillförlitlighet",
   "missions.prep_auto": "Auto-förberedelse",
   "missions.prep_auto_hint": "Förbered automatiskt detta uppdrag när det ändras",

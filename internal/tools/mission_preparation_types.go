@@ -24,11 +24,12 @@ type PreparedMission struct {
 type PreparationStatus string
 
 const (
-	PrepStatusNone      PreparationStatus = "none"
-	PrepStatusPreparing PreparationStatus = "preparing"
-	PrepStatusPrepared  PreparationStatus = "prepared"
-	PrepStatusStale     PreparationStatus = "stale"
-	PrepStatusError     PreparationStatus = "error"
+	PrepStatusNone          PreparationStatus = "none"
+	PrepStatusPreparing     PreparationStatus = "preparing"
+	PrepStatusPrepared      PreparationStatus = "prepared"
+	PrepStatusStale         PreparationStatus = "stale"
+	PrepStatusError         PreparationStatus = "error"
+	PrepStatusLowConfidence PreparationStatus = "low_confidence"
 )
 
 // PreparationAnalysis is the structured LLM output from mission analysis.

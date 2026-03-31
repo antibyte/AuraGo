@@ -480,6 +480,118 @@
     gap: 6px;
 }
 
+/* Priority Badges */
+.badge-priority-low {
+    background: rgba(34, 197, 94, 0.12);
+    color: var(--success);
+    border-color: rgba(34, 197, 94, 0.3);
+}
+
+.badge-priority-medium {
+    background: rgba(245, 158, 11, 0.12);
+    color: #fbbf24;
+    border-color: rgba(245, 158, 11, 0.3);
+}
+
+.badge-priority-high {
+    background: rgba(239, 68, 68, 0.12);
+    color: var(--danger);
+    border-color: rgba(239, 68, 68, 0.3);
+}
+
+/* Type Badges */
+.badge-type-manual {
+    background: rgba(99, 102, 241, 0.12);
+    color: #818cf8;
+    border-color: rgba(99, 102, 241, 0.3);
+}
+
+.badge-type-scheduled {
+    background: rgba(45, 212, 191, 0.12);
+    color: var(--accent);
+    border-color: rgba(45, 212, 191, 0.3);
+}
+
+.badge-type-triggered {
+    background: rgba(251, 191, 36, 0.12);
+    color: #fbbf24;
+    border-color: rgba(251, 191, 36, 0.3);
+}
+
+/* Mission Grid Extra Classes */
+.mission-badges {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.mission-stats {
+    display: flex;
+    gap: 12px;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.mission-log-wrapper {
+    margin-top: 8px;
+}
+
+.mission-log-toggle {
+    cursor: pointer;
+    font-size: 0.8rem;
+    color: var(--accent);
+    user-select: none;
+}
+
+.mission-log-toggle:hover {
+    text-decoration: underline;
+}
+
+.mission-log-content {
+    margin-top: 6px;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 200px;
+    overflow-y: auto;
+    padding: 8px;
+    background: var(--bg-glass);
+    border-radius: 6px;
+}
+
+.mission-log-content.is-hidden {
+    display: none;
+}
+
+.mission-trigger {
+    margin-top: 8px;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.trigger-label {
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+}
+
+.mission-option-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.mission-option-name {
+    font-weight: 500;
+    font-size: 0.85rem;
+}
+
+.mission-option-meta {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
 /* Execution Type Selector */
 .exec-type-selector {
     display: flex;
@@ -638,6 +750,33 @@
     padding: 20px;
     color: var(--text-secondary);
     font-size: 0.85rem;
+}
+
+.cheatsheet-picker-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-subtle);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.8rem;
+}
+
+.cheatsheet-picker-item:hover {
+    border-color: var(--border-accent);
+}
+
+.cheatsheet-picker-item input[type="checkbox"] {
+    margin: 0;
+    accent-color: var(--accent);
+}
+
+.cheatsheet-picker-item:has(input:checked) {
+    border-color: var(--accent);
+    background: rgba(45, 212, 191, 0.08);
 }
 
 [data-theme="light"] .queue-item,
@@ -840,6 +979,12 @@
     background: rgba(239, 68, 68, 0.12);
     color: var(--danger);
     border-color: rgba(239, 68, 68, 0.3);
+}
+
+.badge-prep-low_confidence {
+    background: rgba(245, 158, 11, 0.12);
+    color: #fbbf24;
+    border-color: rgba(245, 158, 11, 0.3);
 }
 
 .prep-confidence {

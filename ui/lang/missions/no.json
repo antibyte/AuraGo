@@ -258,6 +258,7 @@
   "missions.prep_status_prepared": "Forberedt",
   "missions.prep_status_stale": "Utdatert",
   "missions.prep_status_error": "Feil",
+  "missions.prep_status_low_confidence": "Lav tillit",
   "missions.prep_confidence": "Tillit",
   "missions.prep_auto": "Auto-forberedelse",
   "missions.prep_auto_hint": "Forbered automatisk dette oppdraget når det endres",

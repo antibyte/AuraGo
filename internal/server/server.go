@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/tls"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -482,7 +483,13 @@ func Start(cfg *config.Config, logger *slog.Logger, accessLogger *slog.Logger, l
 				},
 			}
 			// Add mission ID header for tracking
-			body, _ := json.Marshal(payload)
+			body, err := json.Marshal(payload)
+			if err != nil {
+				logger.Error("[MissionV2] Failed to marshal request payload", "error", err, "mission_id", missionID)
+				s.MissionManagerV2.SetResult(missionID, "error", err.Error())
+				broadcastMissionState(s)
+				return
+			}
 			req, err := http.NewRequest("POST", url, strings.NewReader(string(body)))
 			if err != nil {
 				logger.Error("[MissionV2] Failed to create request", "error", err, "mission_id", missionID)
@@ -494,7 +501,14 @@ func Start(cfg *config.Config, logger *slog.Logger, accessLogger *slog.Logger, l
 			req.Header.Set("X-Internal-FollowUp", "true")
 			req.Header.Set("X-Mission-ID", missionID)
 
-			client := &http.Client{Timeout: 10 * time.Minute}
+			client := &http.Client{
+				Timeout: 35 * time.Minute, // Must exceed the 30-minute agent loop timeout
+				Transport: &http.Transport{
+					TLSClientConfig: &tls.Config{
+						InsecureSkipVerify: true, // Localhost self-signed certs
+					},
+				},
+			}
 			resp, err := client.Do(req)
 			if err != nil {
 				logger.Error("[MissionV2] Execution failed", "error", err, "mission_id", missionID)
@@ -504,7 +518,13 @@ func Start(cfg *config.Config, logger *slog.Logger, accessLogger *slog.Logger, l
 			}
 			defer resp.Body.Close()
 
-			respBody, _ := io.ReadAll(resp.Body)
+			respBody, err := io.ReadAll(resp.Body)
+			if err != nil {
+				logger.Error("[MissionV2] Failed to read response body", "error", err, "mission_id", missionID)
+				s.MissionManagerV2.SetResult(missionID, "error", fmt.Sprintf("failed to read response: %v", err))
+				broadcastMissionState(s)
+				return
+			}
 			if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 				logger.Info("[MissionV2] Mission executed successfully", "mission_id", missionID)
 				// Extract the assistant's text from the OpenAI-format response

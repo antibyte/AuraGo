@@ -258,6 +258,7 @@
   "missions.prep_status_prepared": "Voorbereid",
   "missions.prep_status_stale": "Verouderd",
   "missions.prep_status_error": "Fout",
+  "missions.prep_status_low_confidence": "Laag vertrouwen",
   "missions.prep_confidence": "Betrouwbaarheid",
   "missions.prep_auto": "Auto-voorbereiding",
   "missions.prep_auto_hint": "Deze missie automatisch voorbereiden wanneer ze wijzigt",

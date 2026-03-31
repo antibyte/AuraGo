@@ -258,6 +258,7 @@
   "missions.prep_status_prepared": "Przygotowane",
   "missions.prep_status_stale": "Nieaktualne",
   "missions.prep_status_error": "Błąd",
+  "missions.prep_status_low_confidence": "Niska pewność",
   "missions.prep_confidence": "Pewność",
   "missions.prep_auto": "Auto-przygotowanie",
   "missions.prep_auto_hint": "Automatycznie przygotuj tę misję po zmianie",

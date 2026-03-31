@@ -258,6 +258,7 @@
   "missions.prep_status_prepared": "準備完了",
   "missions.prep_status_stale": "期限切れ",
   "missions.prep_status_error": "エラー",
+  "missions.prep_status_low_confidence": "低信頼度",
   "missions.prep_confidence": "信頼度",
   "missions.prep_auto": "自動準備",
   "missions.prep_auto_hint": "変更時にこのミッションを自動準備",

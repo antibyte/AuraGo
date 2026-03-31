@@ -36,6 +36,7 @@ const icons = {
     pause: '⏸️',
     stop: '⏹️',
     edit: '✏️',
+    delete: '🗑️',
     lock: '🔒',
     unlock: '🔓',
     duplicate: '📄',
@@ -229,7 +230,7 @@ function renderQueue() {
                             <div class="queue-meta">${t('missions.queue_waiting_since')} ${formatTime(item.enqueued_at)} | ${t('missions.queue_priority_prefix')} ${mission.priority}</div>
                         </div>
                         ${triggerLabel ? `<span class="queue-trigger">${triggerLabel}</span>` : ''}
-                        <button class="icon-btn" onclick="removeFromQueue('${mission.id}')" title="${t('missions.queue_remove_title')}">
+                        <button class="icon-btn" data-mission-id="${escapeAttr(mission.id)}" onclick="removeFromQueue(this.dataset.missionId)" title="${t('missions.queue_remove_title')}">
                             ${icons.stop}
                         </button>
                     </div>
@@ -278,18 +279,19 @@ function renderMissionCompact(mission) {
                        isQueued ? `<span class="badge badge-warning">${t('missions.card_badge_queued')}</span>` : '';
     const prepBadge = renderPrepBadge(mission);
 
+    const mid = escapeAttr(mission.id);
     return `
-        <div class="card-compact" onclick="if(event.target.closest('.card-actions')) return; editMission('${mission.id}')">
-            <span class="card-icon" title="${mission.execution_type}">${typeIcon}</span>
+        <div class="card-compact" data-mission-id="${mid}" onclick="if(event.target.closest('.card-actions')) return; editMission(this.dataset.missionId)">
+            <span class="card-icon" title="${escapeAttr(mission.execution_type)}">${typeIcon}</span>
             <span class="card-name">${escapeHtml(mission.name)}</span>
             ${mission.locked ? `<span class="card-icon" title="${t('missions.card_locked_title')}">${icons.lock}</span>` : ''}
             <div class="card-badges">${statusBadge}${prepBadge}</div>
             <div class="card-actions" onclick="event.stopPropagation()">
-                <button class="btn btn-sm ${isRunning ? 'btn-secondary' : 'btn-primary'}" onclick="runMission('${mission.id}')" title="${t('missions.card_btn_run_title')}" ${isRunning ? 'disabled' : ''}>${icons.play}</button>
+                <button class="btn btn-sm ${isRunning ? 'btn-secondary' : 'btn-primary'}" data-mission-id="${mid}" onclick="runMission(this.dataset.missionId)" title="${t('missions.card_btn_run_title')}" ${isRunning ? 'disabled' : ''}>${icons.play}</button>
                 ${renderPrepButton(mission, isRunning)}
-                <button class="btn btn-sm btn-secondary" onclick="duplicateMission('${mission.id}')" title="${t('missions.card_btn_duplicate_title')}">${icons.duplicate}</button>
-                <button class="btn btn-sm btn-secondary" onclick="editMission('${mission.id}')" title="${t('missions.card_btn_edit_title')}">${icons.edit}</button>
-                <button class="btn btn-sm btn-danger" onclick="deleteMission('${mission.id}')" title="${t('missions.card_btn_delete_title')}" ${mission.locked ? 'disabled' : ''}>${icons.delete || '🗑️'}</button>
+                <button class="btn btn-sm btn-secondary" data-mission-id="${mid}" onclick="duplicateMission(this.dataset.missionId)" title="${t('missions.card_btn_duplicate_title')}">${icons.duplicate}</button>
+                <button class="btn btn-sm btn-secondary" data-mission-id="${mid}" onclick="editMission(this.dataset.missionId)" title="${t('missions.card_btn_edit_title')}">${icons.edit}</button>
+                <button class="btn btn-sm btn-danger" data-mission-id="${mid}" onclick="deleteMission(this.dataset.missionId)" title="${t('missions.card_btn_delete_title')}" ${mission.locked ? 'disabled' : ''}>${icons.delete || '🗑️'}</button>
             </div>
         </div>
     `;
@@ -302,8 +304,9 @@ function renderMissionGrid(mission, isFirstRender) {
     const statusClass = isRunning ? 'running' : isQueued ? 'queued' : mission.status === 'waiting' ? 'waiting' : '';
     const isExpanded = expandedCards.has(mission.id);
 
-    const priorityBadge = `<span class="badge badge-priority-${mission.priority}">${mission.priority}</span>`;
-    const typeBadge = `<span class="badge badge-type-${mission.execution_type}">${mission.execution_type}</span>`;
+    const mid = escapeAttr(mission.id);
+    const priorityBadge = `<span class="badge badge-priority-${escapeAttr(mission.priority)}">${escapeHtml(mission.priority)}</span>`;
+    const typeBadge = `<span class="badge badge-type-${escapeAttr(mission.execution_type)}">${escapeHtml(mission.execution_type)}</span>`;
     const statusBadge = isRunning ? `<span class="badge badge-running">${t('missions.card_badge_running')}</span>` : '';
     const prepBadge = renderPrepBadge(mission);
 
@@ -317,7 +320,7 @@ function renderMissionGrid(mission, isFirstRender) {
 
     return `
         <div class="mission-card card-expanded ${statusClass}${isFirstRender ? ' entering' : ''}${isExpanded ? ' expanded' : ''}">
-            <div class="mission-header" onclick="toggleCardExpand('${mission.id}')">
+            <div class="mission-header" data-mission-id="${mid}" onclick="toggleCardExpand(this.dataset.missionId)">
                 <span class="card-toggle">▶</span>
                 <div class="mission-title">
                     <span class="mission-name">${escapeHtml(mission.name)}</span>
@@ -350,11 +353,11 @@ function renderMissionGrid(mission, isFirstRender) {
                         <span>📊 ${t('missions.meta_run_count', { count: mission.run_count })}</span>
                     </div>
                     <div class="mission-actions">
-                        <button class="btn btn-sm ${isRunning ? 'btn-secondary' : 'btn-primary'}" onclick="runMission('${mission.id}')" title="${t('missions.card_btn_run_title')}" ${isRunning ? 'disabled' : ''}>${icons.play}</button>
+                        <button class="btn btn-sm ${isRunning ? 'btn-secondary' : 'btn-primary'}" data-mission-id="${mid}" onclick="runMission(this.dataset.missionId)" title="${t('missions.card_btn_run_title')}" ${isRunning ? 'disabled' : ''}>${icons.play}</button>
                         ${renderPrepButton(mission, isRunning)}
-                        <button class="btn btn-sm btn-secondary" onclick="duplicateMission('${mission.id}')" title="${t('missions.card_btn_duplicate_title')}">${icons.duplicate}</button>
-                        <button class="btn btn-sm btn-secondary" onclick="editMission('${mission.id}')" title="${t('missions.card_btn_edit_title')}">${icons.edit}</button>
-                        <button class="btn btn-sm btn-danger" onclick="deleteMission('${mission.id}')" title="${t('missions.card_btn_delete_title')}" ${mission.locked ? 'disabled' : ''}>${icons.delete || '🗑️'}</button>
+                        <button class="btn btn-sm btn-secondary" data-mission-id="${mid}" onclick="duplicateMission(this.dataset.missionId)" title="${t('missions.card_btn_duplicate_title')}">${icons.duplicate}</button>
+                        <button class="btn btn-sm btn-secondary" data-mission-id="${mid}" onclick="editMission(this.dataset.missionId)" title="${t('missions.card_btn_edit_title')}">${icons.edit}</button>
+                        <button class="btn btn-sm btn-danger" data-mission-id="${mid}" onclick="deleteMission(this.dataset.missionId)" title="${t('missions.card_btn_delete_title')}" ${mission.locked ? 'disabled' : ''}>${icons.delete || '🗑️'}</button>
                     </div>
                 </div>
             </div>
@@ -488,9 +491,7 @@ function openMissionModal(missionId = null) {
 // Execution Type Selection
 function selectExecType(type) {
     document.querySelectorAll('.exec-type-option').forEach(opt => {
-        opt.classList.remove('selected');
         if (opt.querySelector('input').value === type) {
-            opt.classList.add('selected');
             opt.querySelector('input').checked = true;
         }
     });
@@ -563,7 +564,7 @@ async function loadWebhooks() {
         const select = document.getElementById('webhook-select');
         select.innerHTML = webhooks.length === 0
             ? '<option value="">' + t('missions.trigger_webhook_none') + '</option>'
-            : webhooks.map(w => `<option value="${w.id}" data-slug="${w.slug}">${escapeHtml(w.name)} (${w.slug})</option>`).join('');
+            : webhooks.map(w => `<option value="${escapeAttr(w.id)}" data-slug="${escapeAttr(w.slug)}">${escapeHtml(w.name)} (${escapeHtml(w.slug)})</option>`).join('');
     } catch (err) {
         console.error('Failed to load webhooks:', err);
     }
@@ -701,6 +702,8 @@ async function saveMission() {
     // Add execution-specific config
     if (execType === 'scheduled') {
         mission.schedule = document.getElementById('cron-schedule').value;
+        mission.trigger_type = '';
+        mission.trigger_config = null;
     } else if (execType === 'triggered') {
         const triggerType = document.querySelector('.trigger-type-btn.active')?.dataset.trigger;
         if (!triggerType) {
@@ -709,6 +712,12 @@ async function saveMission() {
         }
         mission.trigger_type = triggerType;
         mission.trigger_config = buildTriggerConfig(triggerType);
+        mission.schedule = '';
+    } else {
+        // manual — clear both
+        mission.schedule = '';
+        mission.trigger_type = '';
+        mission.trigger_config = null;
     }
 
     try {
@@ -827,6 +836,7 @@ function duplicateMission(id) {
     document.getElementById('mission-prompt').value = m.prompt;
     document.getElementById('mission-priority').value = m.priority;
     document.getElementById('mission-locked').checked = false;
+    document.getElementById('mission-auto-prepare').checked = m.auto_prepare || false;
     selectExecType(m.execution_type);
     if (m.execution_type === 'scheduled') {
         document.getElementById('cron-schedule').value = m.schedule || '';
@@ -834,6 +844,10 @@ function duplicateMission(id) {
     } else if (m.execution_type === 'triggered') {
         selectTriggerType(m.trigger_type);
         fillTriggerConfig(m.trigger_config, m.trigger_type);
+    }
+    // Copy cheatsheet selections
+    if (m.cheatsheet_ids && m.cheatsheet_ids.length) {
+        loadCheatsheetPicker(m.cheatsheet_ids);
     }
 }
 
@@ -895,12 +909,13 @@ function renderPrepBadge(mission) {
 function renderPrepButton(mission, isRunning) {
     const status = mission.preparation_status || 'none';
     const isPreparing = status === 'preparing';
+    const mid = escapeAttr(mission.id);
 
     if (status === 'prepared') {
-        return `<button class="btn btn-sm btn-secondary" onclick="viewPreparedContext('${mission.id}')" title="${t('missions.prep_view_title')}">📋</button>` +
-               `<button class="btn btn-sm btn-secondary" onclick="invalidatePreparation('${mission.id}')" title="${t('missions.prep_btn_invalidate')}">🔄</button>`;
+        return `<button class="btn btn-sm btn-secondary" data-mission-id="${mid}" onclick="viewPreparedContext(this.dataset.missionId)" title="${t('missions.prep_view_title')}">📋</button>` +
+               `<button class="btn btn-sm btn-secondary" data-mission-id="${mid}" onclick="invalidatePreparation(this.dataset.missionId)" title="${t('missions.prep_btn_invalidate')}">🔄</button>`;
     }
-    return `<button class="btn btn-sm btn-secondary" onclick="prepareMission('${mission.id}')" title="${t('missions.prep_btn_prepare')}" ${isPreparing || isRunning ? 'disabled' : ''}>⚙️</button>`;
+    return `<button class="btn btn-sm btn-secondary" data-mission-id="${mid}" onclick="prepareMission(this.dataset.missionId)" title="${t('missions.prep_btn_prepare')}" ${isPreparing || isRunning ? 'disabled' : ''}>⚙️</button>`;
 }
 
 async function prepareMission(id) {
@@ -937,7 +952,7 @@ async function viewPreparedContext(id) {
             if (a.summary) content += a.summary + '\n\n';
             if (a.essential_tools && a.essential_tools.length) {
                 content += '── Tools ──\n';
-                a.essential_tools.forEach(t => { content += `• ${t.name}: ${t.purpose}\n`; });
+                a.essential_tools.forEach(tool => { content += `• ${tool.name}: ${tool.purpose}\n`; });
                 content += '\n';
             }
             if (a.step_plan && a.step_plan.length) {

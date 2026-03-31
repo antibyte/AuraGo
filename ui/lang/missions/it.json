@@ -258,6 +258,7 @@
   "missions.prep_status_prepared": "Preparato",
   "missions.prep_status_stale": "Obsoleto",
   "missions.prep_status_error": "Errore",
+  "missions.prep_status_low_confidence": "Bassa affidabilità",
   "missions.prep_confidence": "Confidenza",
   "missions.prep_auto": "Auto-preparazione",
   "missions.prep_auto_hint": "Prepara automaticamente questa missione quando cambia",

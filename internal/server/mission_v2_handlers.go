@@ -2,9 +2,11 @@ package server
 
 import (
 	"aurago/internal/tools"
+	"context"
 	"encoding/json"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/robfig/cron/v3"
 )
@@ -263,7 +265,10 @@ func handleMissionTriggerV2(s *Server, w http.ResponseWriter, r *http.Request, i
 	var payload struct {
 		TriggerData string `json:"trigger_data,omitempty"`
 	}
-	json.NewDecoder(r.Body).Decode(&payload)
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil && err.Error() != "EOF" {
+		jsonError(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
 
 	if err := s.MissionManagerV2.TriggerMission(id, "api", payload.TriggerData); err != nil {
 		jsonError(w, "Failed to trigger mission", http.StatusBadRequest)
@@ -276,8 +281,8 @@ func handleMissionTriggerV2(s *Server, w http.ResponseWriter, r *http.Request, i
 }
 
 func handleMissionRemoveFromQueue(s *Server, w http.ResponseWriter, r *http.Request, id string) {
-	queue, running := s.MissionManagerV2.GetQueue()
-	if running == id {
+	queue, _ := s.MissionManagerV2.GetQueue()
+	if queue.GetRunning() == id {
 		jsonError(w, "Cannot remove running mission from queue", http.StatusConflict)
 		return
 	}
@@ -385,9 +390,12 @@ func handleMissionPrepare(s *Server, w http.ResponseWriter, r *http.Request, id 
 		return
 	}
 
-	// Run preparation asynchronously
+	// Run preparation asynchronously — use a detached context since the
+	// HTTP request context will be cancelled once the handler returns.
 	go func() {
-		if _, err := s.PreparationService.PrepareMission(r.Context(), id); err != nil {
+		prepCtx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+		defer cancel()
+		if _, err := s.PreparationService.PrepareMission(prepCtx, id); err != nil {
 			s.Logger.Error("Manual mission preparation failed", "mission", id, "error", err)
 		}
 		broadcastMissionState(s)
