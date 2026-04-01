@@ -65,6 +65,7 @@ async function renderOllamaSection(section) {
     html += '</div>';
 
     document.getElementById('content').innerHTML = html;
+    attachChangeListeners();
 
     // Auto-check status
     ollamaManagedCheckStatus(managedEnabled);

@@ -306,10 +306,12 @@ function a2aRemoteAgentCard(ra, idx) {
     h += '<div style="display:flex;gap:0.5rem;align-items:center;margin-bottom:0.3rem;">';
     h += '<input class="field-input" type="password" id="a2a-ra-apikey-' + idx + '" placeholder="' + escapeAttr(t('config.a2a.ra_api_key')) + '" style="flex:1;">';
     h += '<button class="btn-save" style="padding:0.35rem 0.7rem;font-size:0.78rem;" onclick="a2aSaveVault(\'a2a_remote_' + escapeAttr(ra.id || 'new') + '_api_key\', \'a2a-ra-apikey-' + idx + '\')">💾</button>';
+    h += '<span id="a2a-ra-apikey-' + idx + '-status" style="font-size:0.75rem;"></span>';
     h += '</div>';
     h += '<div style="display:flex;gap:0.5rem;align-items:center;">';
     h += '<input class="field-input" type="password" id="a2a-ra-bearer-' + idx + '" placeholder="' + escapeAttr(t('config.a2a.ra_bearer')) + '" style="flex:1;">';
     h += '<button class="btn-save" style="padding:0.35rem 0.7rem;font-size:0.78rem;" onclick="a2aSaveVault(\'a2a_remote_' + escapeAttr(ra.id || 'new') + '_bearer_token\', \'a2a-ra-bearer-' + idx + '\')">💾</button>';
+    h += '<span id="a2a-ra-bearer-' + idx + '-status" style="font-size:0.75rem;"></span>';
     h += '</div>';
 
     h += '</div>';

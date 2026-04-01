@@ -71,6 +71,7 @@ async function renderN8nSection(section) {
 
     html += '</div>'; // end cfg-section
     document.getElementById('content').innerHTML = html;
+    attachChangeListeners();
 
     // Load current token state
     _n8nLoadToken();

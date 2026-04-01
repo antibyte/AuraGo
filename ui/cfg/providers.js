@@ -38,7 +38,7 @@ function providerSetHidden(el, hidden) {
                     providerSetHidden(errorDiv, false);
                 } else {
                     modelsDiv.innerHTML = json.models.map(m =>
-                        `<button type="button" class="prov-ollama-chip" title="${t('config.ollama.click_to_apply')}" onclick="applyOllamaModelInModal(this.textContent)">${m}</button>`
+                        `<button type="button" class="prov-ollama-chip" title="${t('config.ollama.click_to_apply')}" onclick="applyOllamaModelInModal(this.textContent)">${escapeHtml(m)}</button>`
                     ).join('');
                 }
             } catch (e) {

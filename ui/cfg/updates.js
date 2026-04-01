@@ -66,7 +66,7 @@ async function updatesCheck() {
                 <div class="updates-changelog-wrap">
                     <div class="updates-changelog-title">${t('config.updates.changelog')}</div>
                     <div class="updates-changelog-box">
-                        ${lines.map(l => `<div>${l}</div>`).join('')}
+                        ${lines.map(l => `<div>${escapeHtml(l)}</div>`).join('')}
                     </div>
                 </div>`;
             }

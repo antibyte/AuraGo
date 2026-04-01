@@ -71,4 +71,5 @@ function renderMissionPreparationSection(section) {
 
     html += '</div>';
     document.getElementById('content').innerHTML = html;
+    attachChangeListeners();
 }

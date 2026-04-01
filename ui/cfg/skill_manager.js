@@ -94,4 +94,5 @@ function renderSkillManagerSection(section) {
 
     html += '</div>';
     document.getElementById('content').innerHTML = html;
+    attachChangeListeners();
 }

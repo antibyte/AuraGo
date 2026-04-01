@@ -224,6 +224,7 @@ function whShowEditor(id) {
                 </div>
                 <div class="wh-form-row">
                     <label>${t('config.webhooks.token_label')}</label>
+                    <select id="wh-f-token" class="field-select">${tokensHtml}</select>
                 </div>
                 <div class="wh-form-row">
                     <label>${t('config.webhooks.preset_label')}</label>

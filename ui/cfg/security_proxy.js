@@ -53,13 +53,13 @@ async function renderSecurityProxySection(section) {
 
     html += `<label style="display:block;margin-bottom:0.6rem;">
         <span style="font-size:0.78rem;color:var(--text-secondary);">${t('config.security_proxy.domain_label')}</span>
-        <input type="text" class="cfg-input" data-path="security_proxy.domain" value="${cfg.domain || ''}"
+        <input type="text" class="cfg-input" data-path="security_proxy.domain" value="${escapeAttr(cfg.domain || '')}"
             placeholder="aurago.example.com" style="width:100%;margin-top:0.2rem;">
     </label>`;
 
     html += `<label style="display:block;margin-bottom:0.6rem;">
         <span style="font-size:0.78rem;color:var(--text-secondary);">${t('config.security_proxy.email_label')}</span>
-        <input type="email" class="cfg-input" data-path="security_proxy.email" value="${cfg.email || ''}"
+        <input type="email" class="cfg-input" data-path="security_proxy.email" value="${escapeAttr(cfg.email || '')}"
             placeholder="admin@example.com" style="width:100%;margin-top:0.2rem;">
     </label>`;
 
