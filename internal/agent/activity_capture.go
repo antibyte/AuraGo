@@ -116,8 +116,18 @@ func captureActivityTurn(cfg *config.Config, logger *slog.Logger, shortTermMem *
 	} else {
 		source = "runtime"
 	}
-	today := time.Now().Format("2006-01-02")
+	persistActivityTurn(shortTermMem, sessionID, channel, userRequest, toolNames, isAutonomous, userRelevant, digest, source)
+}
 
+func captureActivityTurnWithDigest(shortTermMem *memory.SQLiteMemory, sessionID, channel, userRequest string, toolNames []string, isAutonomous, userRelevant bool, digest memory.ActivityDigest, source string) {
+	persistActivityTurn(shortTermMem, sessionID, channel, userRequest, toolNames, isAutonomous, userRelevant, digest, source)
+}
+
+func persistActivityTurn(shortTermMem *memory.SQLiteMemory, sessionID, channel, userRequest string, toolNames []string, isAutonomous, userRelevant bool, digest memory.ActivityDigest, source string) {
+	if shortTermMem == nil {
+		return
+	}
+	today := time.Now().Format("2006-01-02")
 	linkedJournalIDs := make([]int64, 0, 6)
 	if entries, err := shortTermMem.GetJournalEntries(today, today, nil, 10); err == nil {
 		for _, entry := range entries {
@@ -162,15 +172,16 @@ func buildActivityDigestWithConfiguredClient(ctx context.Context, cfg *config.Co
 	if !settings.Enabled || !settings.RealTime {
 		return memory.ActivityDigest{}, fmt.Errorf("memory analysis disabled")
 	}
-	client := llm.NewClientFromProvider(
-		cfg.MemoryAnalysis.ProviderType,
-		cfg.MemoryAnalysis.BaseURL,
-		cfg.MemoryAnalysis.APIKey,
-	)
-	model := cfg.MemoryAnalysis.ResolvedModel
-	if model == "" {
-		model = cfg.MemoryAnalysis.Model
+	llmCfg := resolveMemoryAnalysisLLMConfig(cfg)
+	if llmCfg.model == "" {
+		return memory.ActivityDigest{}, fmt.Errorf("memory analysis model is empty")
 	}
+	client := llm.NewClientFromProvider(
+		llmCfg.providerType,
+		llmCfg.baseURL,
+		llmCfg.apiKey,
+	)
+	model := llmCfg.model
 	if model == "" {
 		return memory.ActivityDigest{}, fmt.Errorf("memory analysis model is empty")
 	}
@@ -206,20 +217,15 @@ func buildActivityDigestWithLLM(ctx context.Context, client llm.ChatClient, mode
 }
 
 func parseActivityDigestResponse(raw string) (memory.ActivityDigest, error) {
-	raw = strings.TrimSpace(raw)
-	if strings.HasPrefix(raw, "```") {
-		if idx := strings.Index(raw[3:], "\n"); idx >= 0 {
-			raw = raw[3+idx+1:]
-		}
-		if strings.HasSuffix(raw, "```") {
-			raw = strings.TrimSuffix(raw, "```")
-		}
-		raw = strings.TrimSpace(raw)
-	}
+	raw = trimJSONResponse(raw)
 	var digest memory.ActivityDigest
 	if err := json.Unmarshal([]byte(raw), &digest); err != nil {
 		return memory.ActivityDigest{}, fmt.Errorf("parse activity digest: %w", err)
 	}
+	return normalizeActivityDigest(digest), nil
+}
+
+func normalizeActivityDigest(digest memory.ActivityDigest) memory.ActivityDigest {
 	if digest.Importance < 1 || digest.Importance > 4 {
 		digest.Importance = 2
 	}
@@ -233,7 +239,7 @@ func parseActivityDigestResponse(raw string) (memory.ActivityDigest, error) {
 	digest.ImportantPoints = uniqueActivityStrings(digest.ImportantPoints, 5)
 	digest.PendingItems = uniqueActivityStrings(digest.PendingItems, 5)
 	digest.Entities = uniqueActivityStrings(digest.Entities, 8)
-	return digest, nil
+	return digest
 }
 
 func buildActivityDigest(userRequest, assistantReply string, toolNames, toolSummaries []string, shortTermMem *memory.SQLiteMemory) memory.ActivityDigest {

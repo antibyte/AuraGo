@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -54,11 +55,15 @@ type davProp struct {
 // webdavURL joins the base URL with a sub-path.
 func webdavURL(cfg WebDAVConfig, path string) string {
 	base := strings.TrimRight(cfg.URL, "/")
-	path = strings.TrimLeft(path, "/")
-	if path == "" {
+	trimmed := strings.Trim(path, "/")
+	if trimmed == "" {
 		return base + "/"
 	}
-	return base + "/" + path
+	segments := strings.Split(trimmed, "/")
+	for i, segment := range segments {
+		segments[i] = url.PathEscape(segment)
+	}
+	return base + "/" + strings.Join(segments, "/")
 }
 
 // webdavRequest performs a generic WebDAV HTTP request.
@@ -112,11 +117,17 @@ func WebDAVList(cfg WebDAVConfig, path string) string {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 207 {
-		body, _ := io.ReadAll(resp.Body)
+		body, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
+		if err != nil {
+			return davEncode(FSResult{Status: "error", Message: fmt.Sprintf("Failed to read PROPFIND error response: %v", err)})
+		}
 		return davEncode(FSResult{Status: "error", Message: fmt.Sprintf("PROPFIND returned HTTP %d: %s", resp.StatusCode, truncate(string(body), 500))})
 	}
 
-	data, _ := io.ReadAll(resp.Body)
+	data, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
+	if err != nil {
+		return davEncode(FSResult{Status: "error", Message: fmt.Sprintf("Failed to read PROPFIND response: %v", err)})
+	}
 	var ms davMultistatus
 	if err := xml.Unmarshal(data, &ms); err != nil {
 		return davEncode(FSResult{Status: "error", Message: fmt.Sprintf("Failed to parse PROPFIND response: %v", err)})
@@ -174,11 +185,14 @@ func WebDAVRead(cfg WebDAVConfig, path string) string {
 		return davEncode(FSResult{Status: "error", Message: fmt.Sprintf("File not found: %s", path)})
 	}
 	if resp.StatusCode != 200 {
-		body, _ := io.ReadAll(resp.Body)
+		body, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
+		if err != nil {
+			return davEncode(FSResult{Status: "error", Message: fmt.Sprintf("Failed to read GET error response: %v", err)})
+		}
 		return davEncode(FSResult{Status: "error", Message: fmt.Sprintf("GET returned HTTP %d: %s", resp.StatusCode, truncate(string(body), 500))})
 	}
 
-	data, err := io.ReadAll(resp.Body)
+	data, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
 	if err != nil {
 		return davEncode(FSResult{Status: "error", Message: fmt.Sprintf("Failed to read response body: %v", err)})
 	}
@@ -211,7 +225,10 @@ func WebDAVWrite(cfg WebDAVConfig, path, content string) string {
 		return davEncode(FSResult{Status: "success", Message: fmt.Sprintf("Wrote %d bytes to %s", len(content), path)})
 	}
 
-	body, _ := io.ReadAll(resp.Body)
+	body, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
+	if err != nil {
+		return davEncode(FSResult{Status: "error", Message: fmt.Sprintf("Failed to read PUT error response: %v", err)})
+	}
 	return davEncode(FSResult{Status: "error", Message: fmt.Sprintf("PUT returned HTTP %d: %s", resp.StatusCode, truncate(string(body), 500))})
 }
 
@@ -235,7 +252,10 @@ func WebDAVMkdir(cfg WebDAVConfig, path string) string {
 		return davEncode(FSResult{Status: "error", Message: fmt.Sprintf("Directory already exists: %s", path)})
 	}
 
-	body, _ := io.ReadAll(resp.Body)
+	body, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
+	if err != nil {
+		return davEncode(FSResult{Status: "error", Message: fmt.Sprintf("Failed to read MKCOL error response: %v", err)})
+	}
 	return davEncode(FSResult{Status: "error", Message: fmt.Sprintf("MKCOL returned HTTP %d: %s", resp.StatusCode, truncate(string(body), 500))})
 }
 
@@ -259,7 +279,10 @@ func WebDAVDelete(cfg WebDAVConfig, path string) string {
 		return davEncode(FSResult{Status: "error", Message: fmt.Sprintf("Not found: %s", path)})
 	}
 
-	body, _ := io.ReadAll(resp.Body)
+	body, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
+	if err != nil {
+		return davEncode(FSResult{Status: "error", Message: fmt.Sprintf("Failed to read DELETE error response: %v", err)})
+	}
 	return davEncode(FSResult{Status: "error", Message: fmt.Sprintf("DELETE returned HTTP %d: %s", resp.StatusCode, truncate(string(body), 500))})
 }
 
@@ -288,7 +311,10 @@ func WebDAVMove(cfg WebDAVConfig, srcPath, dstPath string) string {
 		return davEncode(FSResult{Status: "error", Message: fmt.Sprintf("Destination already exists: %s", dstPath)})
 	}
 
-	body, _ := io.ReadAll(resp.Body)
+	body, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
+	if err != nil {
+		return davEncode(FSResult{Status: "error", Message: fmt.Sprintf("Failed to read MOVE error response: %v", err)})
+	}
 	return davEncode(FSResult{Status: "error", Message: fmt.Sprintf("MOVE returned HTTP %d: %s", resp.StatusCode, truncate(string(body), 500))})
 }
 
@@ -323,11 +349,17 @@ func WebDAVInfo(cfg WebDAVConfig, path string) string {
 		return davEncode(FSResult{Status: "error", Message: fmt.Sprintf("Not found: %s", path)})
 	}
 	if resp.StatusCode != 207 {
-		body, _ := io.ReadAll(resp.Body)
+		body, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
+		if err != nil {
+			return davEncode(FSResult{Status: "error", Message: fmt.Sprintf("Failed to read PROPFIND info error response: %v", err)})
+		}
 		return davEncode(FSResult{Status: "error", Message: fmt.Sprintf("PROPFIND returned HTTP %d: %s", resp.StatusCode, truncate(string(body), 500))})
 	}
 
-	data, _ := io.ReadAll(resp.Body)
+	data, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
+	if err != nil {
+		return davEncode(FSResult{Status: "error", Message: fmt.Sprintf("Failed to read PROPFIND info response: %v", err)})
+	}
 	var ms davMultistatus
 	if err := xml.Unmarshal(data, &ms); err != nil {
 		return davEncode(FSResult{Status: "error", Message: fmt.Sprintf("Failed to parse response: %v", err)})

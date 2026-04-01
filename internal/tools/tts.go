@@ -3,21 +3,23 @@ package tools
 import (
 	"crypto/md5"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 )
 
 // TTSConfig holds TTS provider configuration.
 type TTSConfig struct {
-	Provider   string // "google", "elevenlabs", or "piper"
-	Language   string // BCP-47 language code (e.g. "de", "en")
-	DataDir    string // base data directory for storing audio files
-	ElevenLabs struct {
+	Provider            string // "google", "elevenlabs", or "piper"
+	Language            string // BCP-47 language code (e.g. "de", "en")
+	DataDir             string // base data directory for storing audio files
+	CacheRetentionHours int    // remove cached files older than this many hours; 0 disables age-based cleanup
+	CacheMaxFiles       int    // keep at most this many cached files; 0 disables count-based cleanup
+	ElevenLabs          struct {
 		APIKey  string
 		VoiceID string
 		ModelID string
@@ -59,6 +61,9 @@ func TTSSynthesize(cfg TTSConfig, text string) (string, error) {
 
 	// Return cached file if it exists
 	if _, err := os.Stat(filePath); err == nil {
+		now := time.Now()
+		_ = os.Chtimes(filePath, now, now)
+		_ = cleanupTTSCache(cfg, filename, now)
 		return filename, nil
 	}
 
@@ -82,7 +87,75 @@ func TTSSynthesize(cfg TTSConfig, text string) (string, error) {
 		return "", fmt.Errorf("failed to write audio file: %w", err)
 	}
 
+	_ = cleanupTTSCache(cfg, filename, time.Now())
+
 	return filename, nil
+}
+
+type ttsCacheFile struct {
+	name    string
+	path    string
+	modTime time.Time
+}
+
+func cleanupTTSCache(cfg TTSConfig, keepFilename string, now time.Time) error {
+	if cfg.CacheRetentionHours <= 0 && cfg.CacheMaxFiles <= 0 {
+		return nil
+	}
+
+	ttsDir := TTSAudioDir(cfg.DataDir)
+	entries, err := os.ReadDir(ttsDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("failed to read TTS cache directory: %w", err)
+	}
+
+	var retained []ttsCacheFile
+	var cutoff time.Time
+	if cfg.CacheRetentionHours > 0 {
+		cutoff = now.Add(-time.Duration(cfg.CacheRetentionHours) * time.Hour)
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		path := filepath.Join(ttsDir, name)
+		info, err := entry.Info()
+		if err != nil {
+			continue
+		}
+		if cfg.CacheRetentionHours > 0 && name != keepFilename && info.ModTime().Before(cutoff) {
+			_ = os.Remove(path)
+			continue
+		}
+		retained = append(retained, ttsCacheFile{name: name, path: path, modTime: info.ModTime()})
+	}
+
+	if cfg.CacheMaxFiles <= 0 || len(retained) <= cfg.CacheMaxFiles {
+		return nil
+	}
+
+	sort.Slice(retained, func(i, j int) bool {
+		return retained[i].modTime.Before(retained[j].modTime)
+	})
+
+	removeCount := len(retained) - cfg.CacheMaxFiles
+	for _, file := range retained {
+		if removeCount <= 0 {
+			break
+		}
+		if file.name == keepFilename {
+			continue
+		}
+		_ = os.Remove(file.path)
+		removeCount--
+	}
+
+	return nil
 }
 
 // ttsGoogle uses Google Translate's TTS endpoint (free, max ~200 chars).
@@ -109,10 +182,14 @@ func ttsGoogle(text, lang string) ([]byte, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("google TTS returned status %d", resp.StatusCode)
+		body, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
+		if err != nil {
+			return nil, fmt.Errorf("google TTS returned status %d and failed to read response body: %w", resp.StatusCode, err)
+		}
+		return nil, fmt.Errorf("google TTS returned status %d: %s", resp.StatusCode, string(body))
 	}
 
-	data, err := io.ReadAll(resp.Body)
+	data, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
@@ -153,11 +230,14 @@ func ttsElevenLabs(cfg TTSConfig, text string) ([]byte, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		errBody, _ := io.ReadAll(resp.Body)
+		errBody, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
+		if err != nil {
+			return nil, fmt.Errorf("ElevenLabs returned status %d and failed to read response body: %w", resp.StatusCode, err)
+		}
 		return nil, fmt.Errorf("ElevenLabs returned status %d: %s", resp.StatusCode, string(errBody))
 	}
 
-	data, err := io.ReadAll(resp.Body)
+	data, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}

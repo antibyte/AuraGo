@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"strings"
 
+	"aurago/internal/config"
+	"aurago/internal/llm"
 	"aurago/internal/security"
 
 	"github.com/sashabaranov/go-openai"
@@ -20,25 +22,59 @@ type SummaryLLMConfig struct {
 	Model   string
 }
 
-// SummariseContent sends raw content to a (typically cheaper) LLM and returns
-// a focused summary.  The searchQuery tells the summariser what specific
-// information to extract; sourceName describes the content type for the system
-// prompt (e.g. "web page", "PDF document", "Wikipedia article", "search results").
-func SummariseContent(ctx context.Context, llmCfg SummaryLLMConfig, logger *slog.Logger, rawContent string, searchQuery string, sourceName string) (string, error) {
-	// Extract content from a JSON envelope if present.
-	var envelope struct {
-		Status  string `json:"status"`
-		Content string `json:"content"`
-		Message string `json:"message"`
+type summaryEnvelope struct {
+	Status  string `json:"status"`
+	Content string `json:"content"`
+	Message string `json:"message"`
+}
+
+// ResolveSummaryLLMConfig prefers the dedicated helper LLM when it is explicitly
+// enabled and resolved. Otherwise it falls back to the caller-provided config.
+func ResolveSummaryLLMConfig(cfg *config.Config, fallback SummaryLLMConfig) SummaryLLMConfig {
+	if helperCfg := llm.ResolveHelperLLM(cfg); helperCfg.Enabled && helperCfg.Model != "" {
+		return SummaryLLMConfig{
+			APIKey:  helperCfg.APIKey,
+			BaseURL: helperCfg.BaseURL,
+			Model:   helperCfg.Model,
+		}
 	}
+	return fallback
+}
+
+// ExtractSummarySourceContent unwraps common tool output envelopes before a summary call.
+func ExtractSummarySourceContent(rawContent string) (string, error) {
+	var envelope summaryEnvelope
 	if err := json.Unmarshal([]byte(rawContent), &envelope); err == nil {
 		if envelope.Status == "error" {
 			return "", fmt.Errorf("source returned error: %s", envelope.Message)
 		}
 		if envelope.Content != "" {
-			rawContent = envelope.Content
+			return envelope.Content, nil
 		}
 	}
+	return rawContent, nil
+}
+
+// EncodeSummaryContent wraps plain-text summary content in the standard success envelope.
+func EncodeSummaryContent(summary string) string {
+	result := map[string]interface{}{
+		"status":  "success",
+		"content": security.IsolateExternalData(summary),
+	}
+	b, _ := json.Marshal(result)
+	return string(b)
+}
+
+// SummariseContent sends raw content to a (typically cheaper) LLM and returns
+// a focused summary.  The searchQuery tells the summariser what specific
+// information to extract; sourceName describes the content type for the system
+// prompt (e.g. "web page", "PDF document", "Wikipedia article", "search results").
+func SummariseContent(ctx context.Context, llmCfg SummaryLLMConfig, logger *slog.Logger, rawContent string, searchQuery string, sourceName string) (string, error) {
+	extracted, err := ExtractSummarySourceContent(rawContent)
+	if err != nil {
+		return "", err
+	}
+	rawContent = extracted
 
 	systemPrompt := fmt.Sprintf(
 		"You are a content summariser. "+
@@ -93,12 +129,6 @@ func SummariseContent(ctx context.Context, llmCfg SummaryLLMConfig, logger *slog
 		return "", fmt.Errorf("summary LLM returned empty content")
 	}
 
-	result := map[string]interface{}{
-		"status":  "success",
-		"content": security.IsolateExternalData(summary),
-	}
-	b, _ := json.Marshal(result)
-
 	logger.Info("summary mode produced summary", "source", sourceName, "chars", len(summary))
-	return string(b), nil
+	return EncodeSummaryContent(summary), nil
 }

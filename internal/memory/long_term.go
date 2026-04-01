@@ -366,6 +366,22 @@ func (cv *ChromemVectorDB) StoreDocumentWithEmbedding(concept, content string, e
 // chunkText splits a large text into smaller segments of roughly chunkSize characters,
 // preferring paragraph (\n\n) or sentence boundaries. Adds overlap characters between chunks.
 func chunkText(text string, chunkSize, overlap int) []string {
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return nil
+	}
+	if chunkSize <= 0 {
+		chunkSize = len(text)
+		if chunkSize == 0 {
+			return nil
+		}
+	}
+	if overlap < 0 {
+		overlap = 0
+	}
+	if overlap >= chunkSize {
+		overlap = chunkSize / 4
+	}
 	if len(text) <= chunkSize {
 		return []string{text}
 	}
@@ -376,7 +392,9 @@ func chunkText(text string, chunkSize, overlap int) []string {
 	for start < len(text) {
 		end := start + chunkSize
 		if end >= len(text) {
-			chunks = append(chunks, strings.TrimSpace(text[start:]))
+			if chunk := strings.TrimSpace(text[start:]); chunk != "" {
+				chunks = append(chunks, chunk)
+			}
 			break
 		}
 
@@ -393,7 +411,9 @@ func chunkText(text string, chunkSize, overlap int) []string {
 			// else: hard cut at chunkSize
 		}
 
-		chunks = append(chunks, strings.TrimSpace(text[start:end]))
+		if chunk := strings.TrimSpace(text[start:end]); chunk != "" {
+			chunks = append(chunks, chunk)
+		}
 
 		// Move forward with overlap
 		start = end - overlap
@@ -595,20 +615,13 @@ func (cv *ChromemVectorDB) SearchSimilar(query string, topK int, excludeCollecti
 	}
 
 	var allResults []rankedResult
-resultsLoop:
 	for range collections {
 		var cr colResult
 		select {
 		case cr = <-resultCh:
 		case <-ctx.Done():
 			cv.logger.Warn("SearchSimilar: context deadline exceeded, returning partial results", "collected", len(allResults))
-			// Drain only the goroutines still running (not yet received).
-			// len(allResults) results were already consumed from the channel;
-			// the remaining (len(collections) - 1 - len(allResults)) goroutines are still pending.
-			for remaining := len(collections) - 1 - len(allResults); remaining > 0; remaining-- {
-				<-resultCh
-			}
-			break resultsLoop
+			goto finalizeResults
 		}
 		if cr.err != nil {
 			cv.logger.Warn("Failed to query collection", "collection", cr.colName, "error", cr.err)
@@ -655,6 +668,8 @@ resultsLoop:
 			}
 		}
 	}
+
+finalizeResults:
 
 	// Sort by similarity descending and enforce global topK limit
 	sort.Slice(allResults, func(i, j int) bool {

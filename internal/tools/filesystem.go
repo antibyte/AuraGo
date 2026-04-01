@@ -105,8 +105,42 @@ func filesystemRoots(workspaceDir string) (string, string) {
 			absWorkdir = workspaceDir
 		}
 	}
-	projectRoot := filepath.Dir(filepath.Dir(absWorkdir))
+	projectRoot := detectFilesystemProjectRoot(absWorkdir)
 	return absWorkdir, projectRoot
+}
+
+func detectFilesystemProjectRoot(absWorkdir string) string {
+	current := filepath.Clean(absWorkdir)
+	for {
+		if filepath.Base(current) == "agent_workspace" {
+			parent := filepath.Dir(current)
+			if parent != "" && parent != current {
+				return parent
+			}
+			break
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			break
+		}
+		current = parent
+	}
+
+	if filepath.Base(absWorkdir) == "workdir" {
+		parent := filepath.Dir(absWorkdir)
+		if parent != "" && parent != absWorkdir && parent != current {
+			return parent
+		}
+	}
+
+	return absWorkdir
+}
+
+func filesystemProjectRootHint(workspaceRoot, projectRoot string) string {
+	if workspaceRoot == projectRoot {
+		return "Paths are confined to the workspace root."
+	}
+	return "Use ../../ to reach project-root files from agent_workspace/workdir."
 }
 
 func filesystemErrorData(workspaceDir, requestedPath, resolvedPath string) map[string]interface{} {
@@ -115,7 +149,7 @@ func filesystemErrorData(workspaceDir, requestedPath, resolvedPath string) map[s
 		"requested_path":    requestedPath,
 		"workspace_root":    workspaceRoot,
 		"project_root":      projectRoot,
-		"project_root_hint": "Use ../../ to reach project-root files from agent_workspace/workdir.",
+		"project_root_hint": filesystemProjectRootHint(workspaceRoot, projectRoot),
 	}
 	if resolvedPath != "" {
 		data["resolved_path"] = resolvedPath
@@ -167,8 +201,9 @@ func filesystemWriteErrorResult(op, workspaceDir, requestedPath, resolvedPath st
 }
 
 func filesystemResolveErrorResult(workspaceDir, requestedPath string, err error) FSResult {
+	workspaceRoot, projectRoot := filesystemRoots(workspaceDir)
 	return filesystemErrorResult(
-		fmt.Sprintf("%s Workspace root is agent_workspace/workdir and project-root files are reachable via ../../.", err.Error()),
+		fmt.Sprintf("%s %s", err.Error(), filesystemProjectRootHint(workspaceRoot, projectRoot)),
 		"path_resolution_error",
 		workspaceDir,
 		requestedPath,
@@ -187,8 +222,7 @@ func secureResolve(workspaceDir, userPath string) (string, error) {
 		}
 	}
 
-	// Allow escaping to project root (2 levels up from workspace/workdir)
-	projectRoot := filepath.Dir(filepath.Dir(absWorkdir))
+	projectRoot := detectFilesystemProjectRoot(absWorkdir)
 
 	// Normalize: strip workspace-dir prefix if the LLM passed a project-root-relative path.
 	// Example: workspaceDir = ".../agent_workspace/workdir", userPath = "agent_workspace/workdir/file.txt"

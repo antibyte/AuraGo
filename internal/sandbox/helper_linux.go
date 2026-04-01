@@ -3,8 +3,10 @@
 package sandbox
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"syscall"
 	"unsafe"
 
@@ -44,6 +46,53 @@ func RunHelper(command string) {
 	err := syscall.Exec(shell, argv, env)
 	// If we get here, exec failed
 	fmt.Fprintf(os.Stderr, "sandbox: exec %s: %v\n", shell, err)
+	os.Exit(126)
+}
+
+// RunExecHelper is the entry point for direct binary execution in sandbox helper mode.
+func RunExecHelper() {
+	workDir := os.Getenv("AURAGO_SBX_WORKDIR")
+	if workDir == "" {
+		workDir = "."
+	}
+
+	if err := os.Chdir(workDir); err != nil {
+		fmt.Fprintf(os.Stderr, "sandbox: chdir %s: %v\n", workDir, err)
+		os.Exit(126)
+	}
+
+	applyRlimits()
+
+	if err := applyLandlock(); err != nil {
+		fmt.Fprintf(os.Stderr, "sandbox: landlock: %v\n", err)
+		os.Exit(126)
+	}
+
+	binary := os.Getenv("AURAGO_SBX_EXEC_BIN")
+	if binary == "" {
+		fmt.Fprintln(os.Stderr, "sandbox: missing exec binary")
+		os.Exit(126)
+	}
+
+	argsJSON := os.Getenv("AURAGO_SBX_EXEC_ARGS")
+	var args []string
+	if argsJSON != "" {
+		if err := json.Unmarshal([]byte(argsJSON), &args); err != nil {
+			fmt.Fprintf(os.Stderr, "sandbox: decode exec args: %v\n", err)
+			os.Exit(126)
+		}
+	}
+
+	resolvedBinary, err := exec.LookPath(binary)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "sandbox: lookpath %s: %v\n", binary, err)
+		os.Exit(126)
+	}
+
+	argv := append([]string{binary}, args...)
+	env := filterEnv(os.Environ())
+	err = syscall.Exec(resolvedBinary, argv, env)
+	fmt.Fprintf(os.Stderr, "sandbox: exec %s: %v\n", resolvedBinary, err)
 	os.Exit(126)
 }
 

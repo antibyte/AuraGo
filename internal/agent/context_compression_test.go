@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/sashabaranov/go-openai"
 )
@@ -14,9 +15,13 @@ import (
 type mockChatClient struct {
 	response string
 	err      error
+	lastReq  openai.ChatCompletionRequest
+	calls    int
 }
 
-func (m *mockChatClient) CreateChatCompletion(_ context.Context, _ openai.ChatCompletionRequest) (openai.ChatCompletionResponse, error) {
+func (m *mockChatClient) CreateChatCompletion(_ context.Context, req openai.ChatCompletionRequest) (openai.ChatCompletionResponse, error) {
+	m.lastReq = req
+	m.calls++
 	if m.err != nil {
 		return openai.ChatCompletionResponse{}, m.err
 	}
@@ -25,6 +30,31 @@ func (m *mockChatClient) CreateChatCompletion(_ context.Context, _ openai.ChatCo
 			{Message: openai.ChatCompletionMessage{Content: m.response}},
 		},
 	}, nil
+}
+
+func TestCompressHistoryBuildsValidUTF8SummaryPrompt(t *testing.T) {
+	messages := make([]openai.ChatCompletionMessage, 0, 20)
+	messages = append(messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleSystem, Content: "System prompt"})
+	for i := 0; i < 15; i++ {
+		messages = append(messages, openai.ChatCompletionMessage{
+			Role:    openai.ChatMessageRoleUser,
+			Content: strings.Repeat("界", 300),
+		})
+	}
+
+	client := &mockChatClient{response: "Compressed summary"}
+	_, _, res := CompressHistory(context.Background(), messages, 50, "test", client, 0, testLogger)
+
+	if !res.Compressed {
+		t.Fatal("expected compression to occur")
+	}
+	if len(client.lastReq.Messages) != 1 {
+		t.Fatalf("expected one summary request message, got %d", len(client.lastReq.Messages))
+	}
+	prompt := client.lastReq.Messages[0].Content
+	if !utf8.ValidString(prompt) {
+		t.Fatalf("expected valid UTF-8 prompt, got %q", prompt)
+	}
 }
 
 func (m *mockChatClient) CreateChatCompletionStream(_ context.Context, _ openai.ChatCompletionRequest) (*openai.ChatCompletionStream, error) {

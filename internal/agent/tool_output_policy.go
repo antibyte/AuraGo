@@ -40,7 +40,10 @@ func truncateToolOutput(result string, limit int) string {
 		return result
 	}
 	notice := fmt.Sprintf("\n\n[Tool output truncated: %d of %d characters shown. Use a more specific command to get less output.]", limit, len(result))
-	return result[:limit] + notice
+	if len(notice) >= limit {
+		return truncateUTF8ToLimit(notice, limit, "")
+	}
+	return truncateUTF8Prefix(result, limit-len(notice)) + notice
 }
 
 func truncateToolErrorPreserving(result string, limit int, errorSummary string) string {
@@ -53,21 +56,25 @@ func truncateToolErrorPreserving(result string, limit int, errorSummary string) 
 
 	summary := Truncate(errorSummary, 240)
 	notice := fmt.Sprintf("\n\n[Tool output truncated: %d of %d characters shown. Error status preserved.]", limit, len(result))
-	summaryBlock := "\n\n[Preserved error summary]\n" + summary
-
-	headLimit := limit
-	if reserve := len(notice) + len(summaryBlock); reserve < limit {
-		headLimit = limit - reserve
-		if headLimit < limit/3 {
-			headLimit = limit / 3
+	summaryHeader := "\n\n[Preserved error summary]\n"
+	summaryBlock := summaryHeader + summary
+	suffix := notice + summaryBlock
+	if len(suffix) > limit {
+		available := limit - len(notice) - len(summaryHeader)
+		if available <= 0 {
+			return truncateUTF8ToLimit(notice, limit, "")
 		}
-		if headLimit < 80 {
-			headLimit = 80
-		}
-		if headLimit > len(result) {
-			headLimit = len(result)
+		summary = truncateUTF8Prefix(errorSummary, available)
+		summaryBlock = summaryHeader + summary
+		suffix = notice + summaryBlock
+		if len(suffix) > limit {
+			return truncateUTF8ToLimit(suffix, limit, "")
 		}
 	}
 
-	return result[:headLimit] + notice + summaryBlock
+	headLimit := limit - len(suffix)
+	if headLimit <= 0 {
+		return suffix
+	}
+	return truncateUTF8Prefix(result, headLimit) + suffix
 }

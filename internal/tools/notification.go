@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -176,7 +175,10 @@ func sendNtfy(cfg *config.Config, title, message, priority string) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		body, _ := io.ReadAll(resp.Body)
+		body, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
+		if err != nil {
+			return fmt.Errorf("ntfy returned HTTP %d and response body could not be read safely: %w", resp.StatusCode, err)
+		}
 		return fmt.Errorf("ntfy returned HTTP %d: %s", resp.StatusCode, string(body))
 	}
 	return nil
@@ -221,7 +223,10 @@ func sendPushover(cfg *config.Config, title, message, priority string) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		body, _ := io.ReadAll(resp.Body)
+		body, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
+		if err != nil {
+			return fmt.Errorf("pushover returned HTTP %d and response body could not be read safely: %w", resp.StatusCode, err)
+		}
 		return fmt.Errorf("pushover returned HTTP %d: %s", resp.StatusCode, string(body))
 	}
 	return nil
@@ -252,7 +257,10 @@ func sendTelegramNotification(cfg *config.Config, title, message string) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		body, _ := io.ReadAll(resp.Body)
+		body, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
+		if err != nil {
+			return fmt.Errorf("telegram returned HTTP %d and response body could not be read safely: %w", resp.StatusCode, err)
+		}
 		return fmt.Errorf("telegram returned HTTP %d: %s", resp.StatusCode, string(body))
 	}
 	return nil

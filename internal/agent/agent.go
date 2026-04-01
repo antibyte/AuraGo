@@ -645,23 +645,28 @@ func dispatchInner(ctx context.Context, tc ToolCall, dc *DispatchContext) string
 	sessionID := dc.SessionID
 	logger := dc.Logger
 
-	// Co-Agent blacklist: co-agents (identified by sessionID prefix) cannot modify memory, notes, KG, or spawn sub-agents
+	// Co-Agent blacklist: co-agents (identified by sessionID prefix) cannot access secrets,
+	// mutate memory-like stores, or orchestrate additional autonomous work.
 	isCoAgent := strings.HasPrefix(sessionID, "coagent-") || strings.HasPrefix(sessionID, "specialist-")
 	if isCoAgent {
 		switch tc.Action {
-		case "manage_memory":
+		case "manage_memory", "core_memory":
 			if tc.Operation != "read" && tc.Operation != "query" && tc.Operation != "" {
 				return `Tool Output: {"status": "error", "message": "Co-Agents cannot modify memory. Only read/query operations are allowed."}`
 			}
-		case "knowledge_graph":
+		case "remember":
+			return `Tool Output: {"status": "error", "message": "Co-Agents cannot store new facts or memories."}`
+		case "manage_knowledge", "knowledge_graph":
 			if tc.Operation != "query" && tc.Operation != "search" && tc.Operation != "get" && tc.Operation != "" {
 				return `Tool Output: {"status": "error", "message": "Co-Agents cannot modify the knowledge graph. Only read operations are allowed."}`
 			}
-		case "manage_notes":
+		case "get_secret", "secrets_vault":
+			return `Tool Output: {"status": "error", "message": "Co-Agents cannot access the secrets vault."}`
+		case "manage_notes", "notes", "todo":
 			if tc.Operation != "list" {
 				return `Tool Output: {"status": "error", "message": "Co-Agents cannot modify notes. Only 'list' is allowed."}`
 			}
-		case "manage_journal":
+		case "manage_journal", "journal":
 			if tc.Operation != "list" && tc.Operation != "search" && tc.Operation != "get_summary" {
 				return `Tool Output: {"status": "error", "message": "Co-Agents cannot modify journal entries. Only list, search, and get_summary are allowed."}`
 			}

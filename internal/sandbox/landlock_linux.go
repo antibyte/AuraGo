@@ -3,6 +3,7 @@
 package sandbox
 
 import (
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
@@ -82,13 +83,41 @@ func (s *LandlockSandbox) PrepareCommand(command, workDir string) *exec.Cmd {
 
 	// Pass sandbox config via environment variables — avoids complex arg parsing
 	// and doesn't expose config in /proc/PID/cmdline beyond what's necessary.
-	cmd.Env = s.buildEnv(workDir)
+	cmd.Env = s.buildEnv(workDir, nil)
 
 	return cmd
 }
 
+// PrepareExecCommand returns an exec.Cmd that re-invokes the AuraGo binary in
+// sandbox-exec-bin mode and then execs the target binary directly.
+func (s *LandlockSandbox) PrepareExecCommand(binary string, args []string, workDir string) *exec.Cmd {
+	selfBin, err := os.Executable()
+	if err != nil {
+		s.logger.Error("Cannot determine own executable path for sandbox", "error", err)
+		cmd := exec.Command(binary, args...)
+		cmd.Dir = workDir
+		return cmd
+	}
+
+	argsJSON, err := json.Marshal(args)
+	if err != nil {
+		s.logger.Error("Cannot encode sandbox exec args", "error", err)
+		cmd := exec.Command(binary, args...)
+		cmd.Dir = workDir
+		return cmd
+	}
+
+	cmd := exec.Command(selfBin, "--sandbox-exec-bin")
+	cmd.Dir = workDir
+	cmd.Env = s.buildEnv(workDir, []string{
+		"AURAGO_SBX_EXEC_BIN=" + binary,
+		"AURAGO_SBX_EXEC_ARGS=" + string(argsJSON),
+	})
+	return cmd
+}
+
 // buildEnv creates the environment for the sandboxed helper process.
-func (s *LandlockSandbox) buildEnv(workDir string) []string {
+func (s *LandlockSandbox) buildEnv(workDir string, extra []string) []string {
 	env := []string{
 		// Minimal environment for shell commands
 		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
@@ -128,6 +157,7 @@ func (s *LandlockSandbox) buildEnv(workDir string) []string {
 
 	// Additional env vars requested by the caller (e.g. DOCKER_HOST)
 	env = append(env, s.cfg.ExtraEnv...)
+	env = append(env, extra...)
 
 	return env
 }

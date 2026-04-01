@@ -1,11 +1,28 @@
 package tools
 
 import (
+	"bytes"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
+
+func TestWebDAVURLPathEscapesSegments(t *testing.T) {
+	got := webdavURL(WebDAVConfig{URL: "https://dav.example.test/root"}, "/folder with spaces/report?.txt")
+	want := "https://dav.example.test/root/folder%20with%20spaces/report%3F.txt"
+	if got != want {
+		t.Fatalf("webdavURL() = %q, want %q", got, want)
+	}
+}
+
+func TestWebDAVURLEmptyPathKeepsTrailingSlash(t *testing.T) {
+	got := webdavURL(WebDAVConfig{URL: "https://dav.example.test/root/"}, "")
+	if got != "https://dav.example.test/root/" {
+		t.Fatalf("webdavURL() = %q, want trailing slash", got)
+	}
+}
 
 func TestWebDAVRequestBasicAuth(t *testing.T) {
 	t.Parallel()
@@ -60,4 +77,40 @@ func TestWebDAVRequestBearerAuth(t *testing.T) {
 	}
 	defer resp.Body.Close()
 	_, _ = io.ReadAll(resp.Body)
+}
+
+func TestWebDAVReadRejectsOversizeResponse(t *testing.T) {
+	t.Parallel()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(bytes.Repeat([]byte("x"), int(maxHTTPResponseSize+1)))
+	}))
+	defer srv.Close()
+
+	out := WebDAVRead(WebDAVConfig{URL: srv.URL}, "/big.txt")
+	if !strings.Contains(out, `"status":"error"`) {
+		t.Fatalf("expected error output, got %s", out)
+	}
+	if !strings.Contains(out, "exceeds limit") {
+		t.Fatalf("expected oversize message, got %s", out)
+	}
+}
+
+func TestWebDAVWriteRejectsOversizeErrorBody(t *testing.T) {
+	t.Parallel()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadGateway)
+		_, _ = w.Write(bytes.Repeat([]byte("y"), int(maxHTTPResponseSize+1)))
+	}))
+	defer srv.Close()
+
+	out := WebDAVWrite(WebDAVConfig{URL: srv.URL}, "/file.txt", "hello")
+	if !strings.Contains(out, `"status":"error"`) {
+		t.Fatalf("expected error output, got %s", out)
+	}
+	if !strings.Contains(out, "exceeds limit") {
+		t.Fatalf("expected oversize message, got %s", out)
+	}
 }

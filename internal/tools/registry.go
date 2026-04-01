@@ -9,6 +9,20 @@ import (
 	"time"
 )
 
+type processSnapshot struct {
+	pid       int
+	startedAt time.Time
+	info      *ProcessInfo
+}
+
+var signalProcess = func(process *os.Process, sig os.Signal) error {
+	return process.Signal(sig)
+}
+
+var killProcess = func(process *os.Process) error {
+	return process.Kill()
+}
+
 // maxOutputSize is the maximum bytes kept in a background process output buffer (1 MB).
 const maxOutputSize = 1 << 20
 
@@ -42,6 +56,13 @@ func (p *ProcessInfo) ReadOutput() string {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return p.Output.String()
+}
+
+// IsAlive returns whether the process is still marked as running.
+func (p *ProcessInfo) IsAlive() bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.Alive
 }
 
 // ProcessRegistry is a thread-safe registry for background processes.
@@ -94,9 +115,15 @@ func (r *ProcessRegistry) Terminate(pid int) error {
 	// Check and update under info.mu first
 	info.mu.Lock()
 	wasAlive := info.Alive
+	var terminateErr error
 	if wasAlive && info.Process != nil {
-		if err := info.Process.Signal(os.Interrupt); err != nil {
-			_ = info.Process.Kill()
+		if err := signalProcess(info.Process, os.Interrupt); err != nil {
+			if killErr := killProcess(info.Process); killErr != nil {
+				terminateErr = fmt.Errorf("interrupt process %d: %w; kill fallback failed: %v", pid, err, killErr)
+				r.logger.Warn("Failed to terminate background process", "pid", pid, "signal_error", err, "kill_error", killErr)
+			} else {
+				r.logger.Warn("Interrupt failed; killed background process", "pid", pid, "signal_error", err)
+			}
 		}
 	}
 	info.Alive = false
@@ -105,29 +132,36 @@ func (r *ProcessRegistry) Terminate(pid int) error {
 	delete(r.processes, pid)
 	r.mu.Unlock()
 	r.logger.Info("Terminated and removed process", "pid", pid)
-	return nil
+	return terminateErr
 }
 
 // List returns a summary of all registered processes.
 func (r *ProcessRegistry) List() []map[string]interface{} {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+	snapshots := r.snapshotProcesses()
 	var result []map[string]interface{}
-	for pid, info := range r.processes {
-		info.mu.Lock()
-		alive := info.Alive
-		info.mu.Unlock()
+	for _, snapshot := range snapshots {
+		alive := snapshot.info.IsAlive()
 		result = append(result, map[string]interface{}{
-			"pid":     pid,
+			"pid":     snapshot.pid,
 			"alive":   alive,
-			"uptime":  fmt.Sprintf("%.0fs", time.Since(info.StartedAt).Seconds()),
-			"started": info.StartedAt.Format(time.RFC3339),
+			"uptime":  fmt.Sprintf("%.0fs", time.Since(snapshot.startedAt).Seconds()),
+			"started": snapshot.startedAt.Format(time.RFC3339),
 		})
 	}
 	if result == nil {
 		result = []map[string]interface{}{}
 	}
 	return result
+}
+
+func (r *ProcessRegistry) snapshotProcesses() []processSnapshot {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	snapshots := make([]processSnapshot, 0, len(r.processes))
+	for pid, info := range r.processes {
+		snapshots = append(snapshots, processSnapshot{pid: pid, startedAt: info.StartedAt, info: info})
+	}
+	return snapshots
 }
 
 // KillAll terminates all registered background processes.
@@ -137,7 +171,9 @@ func (r *ProcessRegistry) KillAll() {
 	for pid, info := range r.processes {
 		if info.Alive && info.Process != nil {
 			r.logger.Warn("Killing orphaned background process", "pid", pid)
-			_ = info.Process.Kill()
+			if err := killProcess(info.Process); err != nil {
+				r.logger.Warn("Failed to kill orphaned background process", "pid", pid, "error", err)
+			}
 			info.Alive = false
 		}
 	}

@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -173,5 +174,79 @@ func TestToolRecoveryStateUpdateToolErrorStateResolvesOnSuccess(t *testing.T) {
 	_ = state.updateToolErrorState(tc, `Tool Output: {"status":"success","message":"ok"}`, &req, nil, AgentTelemetryScope{})
 	if state.shouldRecordResolution() {
 		t.Fatal("expected success to clear pending resolution state")
+	}
+}
+
+func TestToolRecoveryStateHandleDuplicateToolCallBoundsFrequencyMap(t *testing.T) {
+	state := newToolRecoveryState()
+	req := openai.ChatCompletionRequest{}
+
+	for i := 0; i < maxTrackedToolCallSignatures+64; i++ {
+		tc := ToolCall{
+			Action:    "execute_shell",
+			Command:   fmt.Sprintf("echo %d", i),
+			Operation: "run",
+		}
+		if state.handleDuplicateToolCall(tc, &req, nil, AgentTelemetryScope{}) {
+			t.Fatalf("did not expect unique tool call %d to trip circuit breaker", i)
+		}
+	}
+
+	if len(state.ToolCallFrequency) > maxTrackedToolCallSignatures {
+		t.Fatalf("tool call frequency size = %d, want <= %d", len(state.ToolCallFrequency), maxTrackedToolCallSignatures)
+	}
+	if got := state.ToolCallFrequency[buildToolSignature(ToolCall{Action: "execute_shell", Command: fmt.Sprintf("echo %d", maxTrackedToolCallSignatures+63), Operation: "run"})]; got != 1 {
+		t.Fatalf("expected latest tool signature to remain tracked, got count %d", got)
+	}
+}
+
+func TestBuildToolSignatureStableAcrossMapOrder(t *testing.T) {
+	first := ToolCall{
+		Action:    "api_request",
+		Operation: "request",
+		Params: map[string]interface{}{
+			"zeta": 1,
+			"alpha": map[string]interface{}{
+				"b": true,
+				"a": "x",
+			},
+		},
+		Headers: map[string]string{
+			"X-Z": "1",
+			"X-A": "2",
+		},
+		SkillArgs: map[string]interface{}{
+			"items": []interface{}{"one", 2.0},
+		},
+		Items: []map[string]interface{}{{
+			"second": 2,
+			"first":  1,
+		}},
+	}
+	second := ToolCall{
+		Action:    "api_request",
+		Operation: "request",
+		Params: map[string]interface{}{
+			"alpha": map[string]interface{}{
+				"a": "x",
+				"b": true,
+			},
+			"zeta": 1,
+		},
+		Headers: map[string]string{
+			"X-A": "2",
+			"X-Z": "1",
+		},
+		SkillArgs: map[string]interface{}{
+			"items": []interface{}{"one", 2.0},
+		},
+		Items: []map[string]interface{}{{
+			"first":  1,
+			"second": 2,
+		}},
+	}
+
+	if got, want := buildToolSignature(first), buildToolSignature(second); got != want {
+		t.Fatalf("signature mismatch: %q != %q", got, want)
 	}
 }

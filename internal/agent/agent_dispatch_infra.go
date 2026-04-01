@@ -125,15 +125,25 @@ func dispatchInfra(ctx context.Context, tc ToolCall, dc *DispatchContext) string
 			if coID == "" {
 				return `Tool Output: {"status": "error", "message": "'co_agent_id' is required."}`
 			}
-			result, err := coAgentRegistry.GetResult(coID)
+			status, err := coAgentRegistry.GetStatus(coID)
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
 			}
-			out, _ := json.Marshal(map[string]interface{}{
-				"status":      "ok",
-				"co_agent_id": coID,
-				"result":      result,
-			})
+			state, _ := status["state"].(string)
+			status["status"] = "ok"
+			switch state {
+			case string(CoAgentQueued):
+				status["message"] = "Co-Agent is still queued."
+			case string(CoAgentRunning):
+				status["message"] = "Co-Agent is still running."
+			case string(CoAgentCompleted):
+				status["message"] = "Co-Agent completed successfully."
+			case string(CoAgentFailed):
+				status["message"] = "Co-Agent failed."
+			case string(CoAgentCancelled):
+				status["message"] = "Co-Agent was cancelled."
+			}
+			out, _ := json.Marshal(status)
 			return "Tool Output: " + string(out)
 
 		case "stop", "cancel", "kill":
@@ -195,9 +205,11 @@ func dispatchInfra(ctx context.Context, tc ToolCall, dc *DispatchContext) string
 			provider = "piper"
 		}
 		ttsCfg := tools.TTSConfig{
-			Provider: provider,
-			Language: tc.Language,
-			DataDir:  cfg.Directories.DataDir,
+			Provider:            provider,
+			Language:            tc.Language,
+			DataDir:             cfg.Directories.DataDir,
+			CacheRetentionHours: cfg.TTS.CacheRetentionHours,
+			CacheMaxFiles:       cfg.TTS.CacheMaxFiles,
 		}
 		if ttsCfg.Language == "" {
 			ttsCfg.Language = cfg.TTS.Language
@@ -271,9 +283,11 @@ func dispatchInfra(ctx context.Context, tc ToolCall, dc *DispatchContext) string
 				text = tc.Content
 			}
 			ttsCfg := tools.TTSConfig{
-				Provider: cfg.TTS.Provider,
-				Language: tc.Language,
-				DataDir:  cfg.Directories.DataDir,
+				Provider:            cfg.TTS.Provider,
+				Language:            tc.Language,
+				DataDir:             cfg.Directories.DataDir,
+				CacheRetentionHours: cfg.TTS.CacheRetentionHours,
+				CacheMaxFiles:       cfg.TTS.CacheMaxFiles,
 			}
 			if ttsCfg.Language == "" {
 				ttsCfg.Language = cfg.TTS.Language

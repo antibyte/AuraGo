@@ -335,9 +335,17 @@ func remoteRevokeDevice(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger)
 	}
 
 	if hub.IsConnected(deviceID) {
-		_ = hub.SendRevoke(deviceID)
+		if err := hub.SendRevoke(deviceID); err != nil {
+			return fmt.Sprintf(`Tool Output: {"status":"error","message":"failed to revoke device %s: %s"}`, deviceID, err.Error())
+		}
+	} else if hub.DB() != nil {
+		if err := remote.UpdateDeviceStatus(hub.DB(), deviceID, "revoked"); err != nil {
+			if logger != nil {
+				logger.Warn("Failed to persist revoked device status", "device_id", deviceID, "error", err)
+			}
+			return fmt.Sprintf(`Tool Output: {"status":"error","message":"failed to persist revoked status for device %s: %s"}`, deviceID, err.Error())
+		}
 	}
-	_ = remote.UpdateDeviceStatus(hub.DB(), deviceID, "revoked")
 
 	data, _ := json.Marshal(map[string]interface{}{
 		"status":  "ok",

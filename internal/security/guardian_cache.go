@@ -39,13 +39,17 @@ func NewGuardianCache(ttlSeconds, maxSize int) *GuardianCache {
 // Get returns a cached result if available and not expired.
 func (c *GuardianCache) Get(key string) (GuardianResult, bool) {
 	c.mu.RLock()
-	defer c.mu.RUnlock()
-
 	entry, exists := c.entries[key]
+	c.mu.RUnlock()
 	if !exists {
 		return GuardianResult{}, false
 	}
 	if time.Since(entry.timestamp) > c.ttl {
+		c.mu.Lock()
+		if current, ok := c.entries[key]; ok && time.Since(current.timestamp) > c.ttl {
+			delete(c.entries, key)
+		}
+		c.mu.Unlock()
 		return GuardianResult{}, false
 	}
 	result := entry.result
@@ -58,12 +62,26 @@ func (c *GuardianCache) Set(key string, result GuardianResult) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
+	c.cleanupExpiredLocked(time.Now())
 	if len(c.entries) >= c.maxSize {
 		c.evictOldest()
 	}
 	c.entries[key] = guardianCacheEntry{
 		result:    result,
 		timestamp: time.Now(),
+	}
+}
+
+// cleanupExpiredLocked opportunistically removes expired entries before eviction pressure builds up.
+// Caller must hold the write lock.
+func (c *GuardianCache) cleanupExpiredLocked(now time.Time) {
+	if len(c.entries) == 0 {
+		return
+	}
+	for key, entry := range c.entries {
+		if now.Sub(entry.timestamp) > c.ttl {
+			delete(c.entries, key)
+		}
 	}
 }
 

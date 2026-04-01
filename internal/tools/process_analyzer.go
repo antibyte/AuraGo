@@ -38,6 +38,12 @@ type processAnalyzerResult struct {
 	Data      interface{} `json:"data,omitempty"`
 }
 
+type processMetricSample struct {
+	proc       *process.Process
+	cpuPercent float64
+	memRSS     uint64
+}
+
 func processJSON(r processAnalyzerResult) string {
 	b, _ := json.Marshal(r)
 	return string(b)
@@ -109,24 +115,81 @@ func gatherProcessInfo(p *process.Process) OSProcessInfo {
 	return info
 }
 
-func processTopCPU(limit int) string {
-	procs, err := process.Processes()
+func sampleProcessCPU(p *process.Process) (processMetricSample, bool) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	cpu, err := p.CPUPercentWithContext(ctx)
 	if err != nil {
-		return processJSON(processAnalyzerResult{Status: "error", Message: fmt.Sprintf("failed to list processes: %v", err)})
+		return processMetricSample{}, false
 	}
 
-	infos := make([]OSProcessInfo, 0, len(procs))
+	return processMetricSample{proc: p, cpuPercent: cpu}, true
+}
+
+func sampleProcessMemory(p *process.Process) (processMetricSample, bool) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	mi, err := p.MemoryInfoWithContext(ctx)
+	if err != nil || mi == nil {
+		return processMetricSample{}, false
+	}
+
+	return processMetricSample{proc: p, memRSS: mi.RSS}, true
+}
+
+func selectTopProcessSamples(samples []processMetricSample, limit int, less func(a, b processMetricSample) bool) []processMetricSample {
+	if len(samples) == 0 {
+		return nil
+	}
+
+	sort.Slice(samples, func(i, j int) bool {
+		return less(samples[i], samples[j])
+	})
+
+	if len(samples) > limit {
+		samples = samples[:limit]
+	}
+
+	return samples
+}
+
+func collectTopProcessInfos(limit int, sampler func(*process.Process) (processMetricSample, bool), less func(a, b processMetricSample) bool) ([]OSProcessInfo, error) {
+	procs, err := process.Processes()
+	if err != nil {
+		return nil, err
+	}
+
+	samples := make([]processMetricSample, 0, len(procs))
 	for _, p := range procs {
-		info := gatherProcessInfo(p)
+		if sample, ok := sampler(p); ok {
+			samples = append(samples, sample)
+		}
+	}
+
+	topSamples := selectTopProcessSamples(samples, limit, less)
+	infos := make([]OSProcessInfo, 0, len(topSamples))
+	for _, sample := range topSamples {
+		info := gatherProcessInfo(sample.proc)
+		if sample.cpuPercent > 0 {
+			info.CPUPercent = sample.cpuPercent
+		}
+		if sample.memRSS > 0 {
+			info.MemRSS = sample.memRSS
+		}
 		infos = append(infos, info)
 	}
 
-	sort.Slice(infos, func(i, j int) bool {
-		return infos[i].CPUPercent > infos[j].CPUPercent
-	})
+	return infos, nil
+}
 
-	if len(infos) > limit {
-		infos = infos[:limit]
+func processTopCPU(limit int) string {
+	infos, err := collectTopProcessInfos(limit, sampleProcessCPU, func(a, b processMetricSample) bool {
+		return a.cpuPercent > b.cpuPercent
+	})
+	if err != nil {
+		return processJSON(processAnalyzerResult{Status: "error", Message: fmt.Sprintf("failed to list processes: %v", err)})
 	}
 
 	return processJSON(processAnalyzerResult{
@@ -138,23 +201,11 @@ func processTopCPU(limit int) string {
 }
 
 func processTopMemory(limit int) string {
-	procs, err := process.Processes()
+	infos, err := collectTopProcessInfos(limit, sampleProcessMemory, func(a, b processMetricSample) bool {
+		return a.memRSS > b.memRSS
+	})
 	if err != nil {
 		return processJSON(processAnalyzerResult{Status: "error", Message: fmt.Sprintf("failed to list processes: %v", err)})
-	}
-
-	infos := make([]OSProcessInfo, 0, len(procs))
-	for _, p := range procs {
-		info := gatherProcessInfo(p)
-		infos = append(infos, info)
-	}
-
-	sort.Slice(infos, func(i, j int) bool {
-		return infos[i].MemRSS > infos[j].MemRSS
-	})
-
-	if len(infos) > limit {
-		infos = infos[:limit]
 	}
 
 	return processJSON(processAnalyzerResult{

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -123,4 +124,24 @@ func TestManifest_SaveToolPathTraversal(t *testing.T) {
 			t.Errorf("expected error for name %q, got nil", name)
 		}
 	}
+}
+
+func TestManifest_RegisterRejectsCorruptManifest(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "manifest.json"), []byte(`{"version":`), 0o644); err != nil {
+		t.Fatalf("failed to write corrupt manifest: %v", err)
+	}
+	m := NewManifest(dir)
+
+	err := m.Register("new_tool.py", "new tool")
+	if err == nil {
+		t.Fatal("expected Register to fail on corrupt manifest")
+	}
+	if got := err.Error(); got == "" || !containsManifestText(got, "failed to parse manifest") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func containsManifestText(value, want string) bool {
+	return len(want) > 0 && strings.Contains(value, want)
 }

@@ -5,13 +5,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 	"time"
 
 	"aurago/internal/config"
 )
+
+var outgoingWebhookHTTPClient = &http.Client{Timeout: 30 * time.Second}
 
 // ExecuteOutgoingWebhook resolves variables and sends an HTTP request
 func ExecuteOutgoingWebhook(ctx context.Context, hook config.OutgoingWebhook, params map[string]interface{}) (string, int, error) {
@@ -69,14 +70,16 @@ func ExecuteOutgoingWebhook(ctx context.Context, hook config.OutgoingWebhook, pa
 		req.Header.Set(k, resolvedV)
 	}
 
-	client := &http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Do(req)
+	resp, err := outgoingWebhookHTTPClient.Do(req)
 	if err != nil {
 		return "", 0, fmt.Errorf("request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
-	bodyBytes, _ := io.ReadAll(resp.Body)
+	bodyBytes, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
+	if err != nil {
+		return "", resp.StatusCode, fmt.Errorf("failed to read response body: %w", err)
+	}
 	bodyStr := strings.TrimSpace(string(bodyBytes))
 
 	return bodyStr, resp.StatusCode, nil
@@ -169,11 +172,13 @@ func ManageOutgoingWebhooks(tcOperation, webhookID, name, description, method, u
 		return fmt.Sprintf(`Tool Output: {"status":"error", "message":"Unknown operation: %s"}`, tcOperation)
 	}
 
-	// We lack direct config manager access here, so we modify the in-memory array.
-	// The settings tab UI relies on GET `/api/outgoing-webhooks` anyway, but we should Ideally write to config.yaml.
-	// For simplicity, we just mutate the slice in pointer (which is temporary until restart if we don't save).
-	// Let's at least update memory:
 	cfg.Webhooks.Outgoing = outgoing
+	if strings.TrimSpace(cfg.ConfigPath) == "" {
+		return fmt.Sprintf(`Tool Output: {"status":"success", "message":"Webhook %sd in memory. Config path is unavailable, so the change could not be persisted.", "persisted": false}`, tcOperation)
+	}
+	if err := cfg.Save(cfg.ConfigPath); err != nil {
+		return fmt.Sprintf(`Tool Output: {"status":"error", "message":"Webhook %sd in memory, but failed to persist config: %s"}`, tcOperation, err.Error())
+	}
 
-	return fmt.Sprintf(`Tool Output: {"status":"success", "message":"Webhook %sd successfully. NOTE: Config isn't automatically persisted to disk from this tool yet. Use the UI to manage persistence if needed."}`, tcOperation)
+	return fmt.Sprintf(`Tool Output: {"status":"success", "message":"Webhook %sd successfully.", "persisted": true}`, tcOperation)
 }

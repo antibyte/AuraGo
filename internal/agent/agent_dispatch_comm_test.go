@@ -1,13 +1,29 @@
 package agent
 
 import (
+	"context"
+	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"testing"
 
+	"aurago/internal/security"
 	"aurago/internal/tools"
 )
+
+type fakeEmailContentEvaluator struct {
+	decision security.Decision
+	reason   string
+	calls    int
+}
+
+func (f *fakeEmailContentEvaluator) EvaluateContent(context.Context, string, string) security.GuardianResult {
+	f.calls++
+	return security.GuardianResult{Decision: f.decision, Reason: f.reason}
+}
 
 func TestSynthesizeExecuteSkillArgsPromotesTopLevelFields(t *testing.T) {
 	tc := ToolCall{
@@ -156,5 +172,23 @@ func TestMistakenNativeToolSkillNameDetectsNativeTools(t *testing.T) {
 func TestMistakenNativeToolSkillNameIgnoresRealSkills(t *testing.T) {
 	if _, ok := mistakenNativeToolSkillName("ddg_search"); ok {
 		t.Fatal("did not expect builtin skill ddg_search to be treated as native-only tool")
+	}
+}
+
+func TestSanitizeFetchedEmailsBlocksWithLLMGuardian(t *testing.T) {
+	guardian := security.NewGuardian(slog.New(slog.NewTextHandler(io.Discard, nil)))
+	llmGuardian := &fakeEmailContentEvaluator{decision: security.DecisionBlock, reason: "prompt injection"}
+	messages := []tools.EmailMessage{{UID: 7, From: "evil@example.com", Subject: "invoice", Body: "Please review the attached project summary."}}
+
+	sanitized := sanitizeFetchedEmails(context.Background(), nil, guardian, llmGuardian, true, messages)
+
+	if llmGuardian.calls != 1 {
+		t.Fatalf("llm guardian calls = %d, want 1", llmGuardian.calls)
+	}
+	if got := sanitized[0].Subject; !strings.Contains(got, "llm guardian blocked") {
+		t.Fatalf("subject = %q, want blocked marker", got)
+	}
+	if got := sanitized[0].Body; !strings.Contains(got, "prompt injection") {
+		t.Fatalf("body = %q, want reason included", got)
 	}
 }

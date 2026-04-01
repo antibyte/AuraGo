@@ -13,6 +13,15 @@ func TestLoadPreservesCriticalToolingCompatibilityFields(t *testing.T) {
 llm:
   use_native_functions: false
   structured_outputs: true
+  helper_enabled: true
+  helper_provider: helper
+  helper_model: cheap-model
+providers:
+  - id: helper
+    type: openrouter
+    base_url: https://openrouter.ai/api/v1
+    api_key: helper-secret
+    model: helper-default
 agent:
   max_tool_guides: 9
   recovery:
@@ -34,6 +43,9 @@ memory_analysis:
 llm_guardian:
   enabled: true
   allow_clarification: true
+guardian:
+	max_scan_bytes: 2048
+	scan_edge_bytes: 768
 homepage:
   allow_local_server: true
   allow_temporary_token_budget_overflow: true
@@ -52,6 +64,15 @@ homepage:
 	}
 	if !cfg.LLM.StructuredOutputs {
 		t.Fatal("expected llm.structured_outputs=true to be preserved")
+	}
+	if !cfg.LLM.HelperEnabled {
+		t.Fatal("expected llm.helper_enabled=true to be preserved")
+	}
+	if cfg.LLM.HelperProvider != "helper" {
+		t.Fatalf("llm.helper_provider = %q, want helper", cfg.LLM.HelperProvider)
+	}
+	if cfg.LLM.HelperResolvedModel != "cheap-model" {
+		t.Fatalf("llm.helper_resolved_model = %q, want cheap-model", cfg.LLM.HelperResolvedModel)
 	}
 	if !cfg.Agent.AdaptiveTools.Enabled {
 		t.Fatal("expected adaptive_tools.enabled=true to be preserved")
@@ -91,6 +112,9 @@ homepage:
 	}
 	if !cfg.LLMGuardian.Enabled || !cfg.LLMGuardian.AllowClarification {
 		t.Fatal("expected llm_guardian compatibility fields to be preserved")
+	}
+	if cfg.Guardian.MaxScanBytes != 2048 || cfg.Guardian.ScanEdgeBytes != 768 {
+		t.Fatalf("expected guardian config to be preserved, got max=%d edge=%d", cfg.Guardian.MaxScanBytes, cfg.Guardian.ScanEdgeBytes)
 	}
 	if !cfg.Homepage.AllowLocalServer {
 		t.Fatal("expected homepage.allow_local_server=true to be preserved")

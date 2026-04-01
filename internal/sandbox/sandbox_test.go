@@ -30,6 +30,18 @@ func TestFallbackPrepareCommand(t *testing.T) {
 	}
 }
 
+func TestFallbackPrepareExecCommand(t *testing.T) {
+	fb := &FallbackSandbox{}
+	cmd := fb.PrepareExecCommand("echo", []string{"test"}, "/tmp")
+
+	if cmd.Dir != "/tmp" {
+		t.Errorf("cmd.Dir = %q, want %q", cmd.Dir, "/tmp")
+	}
+	if cmd.Path == "" {
+		t.Error("cmd.Path should not be empty")
+	}
+}
+
 func TestGetReturnsInstance(t *testing.T) {
 	sb := Get()
 	if sb == nil {
@@ -145,6 +157,7 @@ var _ ShellSandbox = (*FallbackSandbox)(nil)
 
 // Verify exec.Cmd is the return type (compile-time check).
 var _ *exec.Cmd = (*FallbackSandbox)(nil).PrepareCommand("", "")
+var _ *exec.Cmd = (*FallbackSandbox)(nil).PrepareExecCommand("", nil, "")
 
 func TestInitDoubleInit_ClosesOldFallback(t *testing.T) {
 	// Calling Init twice must not panic and must leave a valid sandbox instance.

@@ -153,19 +153,26 @@ type Config struct {
 		} `yaml:"https"`
 	} `yaml:"server"`
 	LLM struct {
-		Provider           string  `yaml:"provider"`          // provider entry ID (references Providers[].ID)
-		ProviderType       string  `yaml:"-"       json:"-"`  // resolved: openai, openrouter, ollama etc.
-		BaseURL            string  `yaml:"-"       json:"-"`  // resolved from provider entry
-		APIKey             string  `yaml:"-"       json:"-"`  // resolved from provider entry
-		Model              string  `yaml:"-"       json:"-"`  // resolved from provider entry
-		AccountID          string  `yaml:"-"       json:"-"`  // resolved from provider entry (workers-ai)
-		LegacyURL          string  `yaml:"base_url" json:"-"` // legacy/compat: inline base URL from old config format
-		LegacyAPIKey       string  `yaml:"api_key"  json:"-"` // legacy/compat: inline API key from old config format
-		LegacyModel        string  `yaml:"model"    json:"-"` // legacy/compat: inline model from old config format
-		UseNativeFunctions bool    `yaml:"use_native_functions"`
-		Temperature        float64 `yaml:"temperature"`        // 0.0–2.0; default 0.7; 0 = provider default
-		StructuredOutputs  bool    `yaml:"structured_outputs"` // enable structured output mode (only for supported models)
-		MiniMaxFix         bool    `yaml:"minimax_fix"`        // suppress tool call JSON from SSE content stream for MiniMax (prevents tool calls appearing as text in chat)
+		Provider            string  `yaml:"provider"`           // provider entry ID (references Providers[].ID)
+		ProviderType        string  `yaml:"-"       json:"-"`   // resolved: openai, openrouter, ollama etc.
+		BaseURL             string  `yaml:"-"       json:"-"`   // resolved from provider entry
+		APIKey              string  `yaml:"-"       json:"-"`   // resolved from provider entry
+		Model               string  `yaml:"-"       json:"-"`   // resolved from provider entry
+		AccountID           string  `yaml:"-"       json:"-"`   // resolved from provider entry (workers-ai)
+		LegacyURL           string  `yaml:"base_url" json:"-"`  // legacy/compat: inline base URL from old config format
+		LegacyAPIKey        string  `yaml:"api_key"  json:"-"`  // legacy/compat: inline API key from old config format
+		LegacyModel         string  `yaml:"model"    json:"-"`  // legacy/compat: inline model from old config format
+		HelperEnabled       bool    `yaml:"helper_enabled"`     // enable the dedicated helper LLM for internal analysis/background tasks
+		HelperProvider      string  `yaml:"helper_provider"`    // provider entry ID for helper/background LLM tasks
+		HelperProviderType  string  `yaml:"-"         json:"-"` // resolved helper provider type
+		HelperBaseURL       string  `yaml:"-"         json:"-"` // resolved helper base URL
+		HelperAPIKey        string  `yaml:"-"         json:"-"` // resolved helper API key
+		HelperModel         string  `yaml:"helper_model"`       // optional helper model override (empty = provider default)
+		HelperResolvedModel string  `yaml:"-"         json:"-"` // resolved helper model
+		UseNativeFunctions  bool    `yaml:"use_native_functions"`
+		Temperature         float64 `yaml:"temperature"`        // 0.0–2.0; default 0.7; 0 = provider default
+		StructuredOutputs   bool    `yaml:"structured_outputs"` // enable structured output mode (only for supported models)
+		MiniMaxFix          bool    `yaml:"minimax_fix"`        // suppress tool call JSON from SSE content stream for MiniMax (prevents tool calls appearing as text in chat)
 	} `yaml:"llm"`
 	Directories struct {
 		DataDir      string `yaml:"data_dir"`
@@ -399,6 +406,10 @@ type Config struct {
 		APIKey             string            `yaml:"-" json:"-"`            // resolved
 		ResolvedModel      string            `yaml:"-" json:"-"`            // resolved
 	} `yaml:"llm_guardian"`
+	Guardian struct {
+		MaxScanBytes  int `yaml:"max_scan_bytes"`  // max bytes scanned by regex guardian before windowing (default 16384)
+		ScanEdgeBytes int `yaml:"scan_edge_bytes"` // bytes kept from start and end when windowing large inputs (default 6144)
+	} `yaml:"guardian"`
 	Logging struct {
 		LogDir          string `yaml:"log_dir"`
 		EnableFileLog   bool   `yaml:"enable_file_log"`
@@ -672,9 +683,11 @@ type Config struct {
 		APIToken string `yaml:"-" json:"-"`
 	} `yaml:"paperless_ngx"`
 	TTS struct {
-		Provider   string `yaml:"provider"` // "google", "elevenlabs", or "piper"
-		Language   string `yaml:"language"` // BCP-47 language code for Google TTS (e.g. "de", "en")
-		ElevenLabs struct {
+		Provider            string `yaml:"provider"`              // "google", "elevenlabs", or "piper"
+		Language            string `yaml:"language"`              // BCP-47 language code for Google TTS (e.g. "de", "en")
+		CacheRetentionHours int    `yaml:"cache_retention_hours"` // remove cached TTS files older than this many hours (0 disables age-based cleanup)
+		CacheMaxFiles       int    `yaml:"cache_max_files"`       // max cached TTS files to retain (0 disables count-based cleanup)
+		ElevenLabs          struct {
 			APIKey  string `yaml:"-" vault:"api_key"` // vault-only
 			VoiceID string `yaml:"voice_id"`          // default voice ID
 			ModelID string `yaml:"model_id"`          // e.g. "eleven_multilingual_v2"
@@ -1042,9 +1055,10 @@ type Config struct {
 		PythonSecretInjection struct {
 			Enabled bool `yaml:"enabled"` // allow Python tools to request vault secrets via vault_keys parameter
 		} `yaml:"python_secret_injection"`
-		PythonTimeoutSeconds int `yaml:"python_timeout_seconds"` // foreground Python/shell execution timeout (default: 30)
-		SkillTimeoutSeconds  int `yaml:"skill_timeout_seconds"`  // skill execution timeout (default: 120)
-		SkillManager         struct {
+		PythonTimeoutSeconds     int `yaml:"python_timeout_seconds"`     // foreground Python/shell execution timeout (default: 30)
+		SkillTimeoutSeconds      int `yaml:"skill_timeout_seconds"`      // skill execution timeout (default: 120)
+		BackgroundTimeoutSeconds int `yaml:"background_timeout_seconds"` // background Python/shell/tool execution timeout (default: 3600)
+		SkillManager             struct {
 			Enabled          bool `yaml:"enabled"`            // enable skill manager web UI and API (default: true)
 			AllowUploads     bool `yaml:"allow_uploads"`      // allow uploading new skills via web UI (default: true)
 			ReadOnly         bool `yaml:"readonly"`           // read-only mode: list/view only (default: false)

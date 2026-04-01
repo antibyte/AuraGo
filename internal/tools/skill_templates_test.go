@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -126,7 +127,43 @@ func TestCreateSkillFromTemplate_AllTemplates(t *testing.T) {
 			if _, err := os.Stat(filepath.Join(dir, "test_"+tmpl.Name+".py")); err != nil {
 				t.Errorf("script not created for %s", tmpl.Name)
 			}
+			pyData, err := os.ReadFile(filepath.Join(dir, "test_"+tmpl.Name+".py"))
+			if err != nil {
+				t.Fatalf("failed to read script for %s: %v", tmpl.Name, err)
+			}
+			if got := strings.Count(string(pyData), `if __name__ == "__main__":`); got != 1 {
+				t.Fatalf("expected exactly one main block in %s, got %d", tmpl.Name, got)
+			}
 		})
+	}
+}
+
+func TestCreateSkillFromTemplate_FileProcessorConstrainsPathsToWorkspace(t *testing.T) {
+	dir := t.TempDir()
+	_, err := CreateSkillFromTemplate(dir, "file_processor", "workspace_file_processor", "", "", nil, nil)
+	if err != nil {
+		t.Fatalf("CreateSkillFromTemplate failed: %v", err)
+	}
+
+	pyData, err := os.ReadFile(filepath.Join(dir, "workspace_file_processor.py"))
+	if err != nil {
+		t.Fatalf("failed to read Python file: %v", err)
+	}
+	pyCode := string(pyData)
+	if !contains(pyCode, "WORKSPACE_ROOT = os.path.realpath(os.getcwd())") {
+		t.Fatal("generated file processor is missing workspace root guard")
+	}
+	if !contains(pyCode, "def resolve_workspace_path(path_value, must_exist=False):") {
+		t.Fatal("generated file processor is missing workspace path resolver")
+	}
+	if !contains(pyCode, "os.path.commonpath([WORKSPACE_ROOT, candidate])") {
+		t.Fatal("generated file processor is missing workspace boundary check")
+	}
+	if !contains(pyCode, "input_path = resolve_workspace_path(input_path, must_exist=True)") {
+		t.Fatal("generated file processor is missing validated input path resolution")
+	}
+	if !contains(pyCode, "output_path = resolve_workspace_path(output_path)") {
+		t.Fatal("generated file processor is missing validated output path resolution")
 	}
 }
 

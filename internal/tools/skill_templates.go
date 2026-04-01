@@ -32,7 +32,11 @@ func AvailableSkillTemplates() []SkillTemplate {
 				"body":     "JSON request body (optional, for POST/PUT)",
 			},
 			Dependencies: []string{"requests"},
-			Code:         apiClientTemplate,
+			Code: composePythonSkillTemplate(apiClientTemplateBody, `{{.FunctionName}}(
+        endpoint=args.get("endpoint", ""),
+        method=args.get("method", "GET"),
+        body=args.get("body"),
+    )`),
 		},
 		{
 			Name:        "file_processor",
@@ -45,7 +49,13 @@ func AvailableSkillTemplates() []SkillTemplate {
 				"replacement": "Replacement string (for replace operation)",
 			},
 			Dependencies: nil,
-			Code:         fileProcessorTemplate,
+			Code: composePythonSkillTemplate(fileProcessorTemplateBody, `{{.FunctionName}}(
+        input_path=args.get("input_path", ""),
+        output_path=args.get("output_path"),
+        operation=args.get("operation", "head"),
+        pattern=args.get("pattern"),
+        replacement=args.get("replacement"),
+    )`),
 		},
 		{
 			Name:        "data_transformer",
@@ -58,7 +68,13 @@ func AvailableSkillTemplates() []SkillTemplate {
 				"fields":        "Comma-separated list of fields to include (optional, all if omitted)",
 			},
 			Dependencies: []string{"pyyaml"},
-			Code:         dataTransformerTemplate,
+			Code: composePythonSkillTemplate(dataTransformerTemplateBody, `{{.FunctionName}}(
+        input_path=args.get("input_path", ""),
+        output_path=args.get("output_path"),
+        input_format=args.get("input_format", "json"),
+        output_format=args.get("output_format", "json"),
+        fields=args.get("fields"),
+    )`),
 		},
 		{
 			Name:        "scraper",
@@ -70,7 +86,12 @@ func AvailableSkillTemplates() []SkillTemplate {
 				"limit":    "Maximum number of elements to return (default: 50)",
 			},
 			Dependencies: []string{"requests", "beautifulsoup4"},
-			Code:         scraperTemplate,
+			Code: composePythonSkillTemplate(scraperTemplateBody, `{{.FunctionName}}(
+        url=args.get("url", ""),
+        selector=args.get("selector", "body"),
+        attr=args.get("attr"),
+        limit=args.get("limit", 50),
+    )`),
 		},
 		{
 			Name:        "example_use_vault_login",
@@ -80,7 +101,9 @@ func AvailableSkillTemplates() []SkillTemplate {
 				"base_url": "Base URL of the service (can also be set via AURAGO_SECRET_BASE_URL vault key)",
 			},
 			Dependencies: []string{"requests"},
-			Code:         vaultLoginTemplate,
+			Code: composePythonSkillTemplate(vaultLoginTemplateBody, `{{.FunctionName}}(
+        action=args.get("action", "whoami"),
+    )`),
 		},
 		{
 			Name:        "example_use_vault_token",
@@ -91,7 +114,11 @@ func AvailableSkillTemplates() []SkillTemplate {
 				"body":     "JSON request body (optional, for POST/PUT)",
 			},
 			Dependencies: []string{"requests"},
-			Code:         vaultTokenTemplate,
+			Code: composePythonSkillTemplate(vaultTokenTemplateBody, `{{.FunctionName}}(
+        endpoint=args.get("endpoint", ""),
+        method=args.get("method", "GET"),
+        body=args.get("body"),
+    )`),
 		},
 	}
 }
@@ -101,6 +128,36 @@ type templateData struct {
 	Description  string
 	BaseURL      string
 }
+
+func composePythonSkillTemplate(body, invocation string) string {
+	return body + pythonSkillMainTemplatePrefix + invocation + pythonSkillMainTemplateSuffix
+}
+
+const pythonSkillMainTemplatePrefix = `
+
+if __name__ == "__main__":
+    args = {}
+    try:
+        stdin_data = sys.stdin.read().strip()
+        if stdin_data:
+            args = json.loads(stdin_data)
+    except Exception:
+        pass
+    if not args and len(sys.argv) > 1:
+        try:
+            args = json.loads(sys.argv[1])
+        except Exception:
+            pass
+    if not args:
+        print(json.dumps({"status": "error", "message": "No input provided."}))
+        sys.exit(1)
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+    result = `
+
+const pythonSkillMainTemplateSuffix = `
+    print(json.dumps(result, ensure_ascii=False))
+`
 
 var validFuncNameRe = regexp.MustCompile(`[^a-zA-Z0-9_]`)
 
@@ -273,7 +330,7 @@ func CreateSkillFromTemplate(skillsDir, templateName, skillName, description, ba
 // Python code templates (Go text/template syntax)
 // ──────────────────────────────────────────────────────────────────────────────
 
-const apiClientTemplate = `import sys
+const apiClientTemplateBody = `import sys
 import json
 import os
 import requests
@@ -305,46 +362,35 @@ def {{.FunctionName}}(endpoint, method="GET", body=None):
         return {"status": "success", "result": f"<external_data>{json.dumps(data, ensure_ascii=False)}</external_data>"}
     except requests.RequestException as e:
         return {"status": "error", "message": str(e)}
-
-if __name__ == "__main__":
-    args = {}
-    try:
-        stdin_data = sys.stdin.read().strip()
-        if stdin_data:
-            args = json.loads(stdin_data)
-    except Exception:
-        pass
-    if not args and len(sys.argv) > 1:
-        try:
-            args = json.loads(sys.argv[1])
-        except Exception:
-            pass
-    if not args:
-        print(json.dumps({"status": "error", "message": "No input provided."}))
-        sys.exit(1)
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8")
-    result = {{.FunctionName}}(
-        endpoint=args.get("endpoint", ""),
-        method=args.get("method", "GET"),
-        body=args.get("body"),
-    )
-    print(json.dumps(result, ensure_ascii=False))
 `
 
-const fileProcessorTemplate = `import sys
+const fileProcessorTemplateBody = `import sys
 import json
 import os
 import re
 
+WORKSPACE_ROOT = os.path.realpath(os.getcwd())
+
+def resolve_workspace_path(path_value, must_exist=False):
+    if not path_value:
+        raise ValueError("Path is required")
+    candidate = path_value
+    if not os.path.isabs(candidate):
+        candidate = os.path.join(WORKSPACE_ROOT, candidate)
+    candidate = os.path.realpath(candidate)
+    try:
+        if os.path.commonpath([WORKSPACE_ROOT, candidate]) != WORKSPACE_ROOT:
+            raise ValueError(f"Path escapes workspace: {path_value}")
+    except ValueError:
+        raise ValueError(f"Invalid path: {path_value}")
+    if must_exist and not os.path.exists(candidate):
+        raise FileNotFoundError(f"File not found: {candidate}")
+    return candidate
+
 def {{.FunctionName}}(input_path, output_path=None, operation="head", pattern=None, replacement=None):
     """{{.Description}}"""
-    if not os.path.isabs(input_path):
-        input_path = os.path.abspath(input_path)
-    if not os.path.exists(input_path):
-        return {"status": "error", "message": f"File not found: {input_path}"}
-    
     try:
+        input_path = resolve_workspace_path(input_path, must_exist=True)
         with open(input_path, "r", encoding="utf-8") as f:
             lines = f.readlines()
         
@@ -364,44 +410,16 @@ def {{.FunctionName}}(input_path, output_path=None, operation="head", pattern=No
         
         output = "".join(result_lines)
         if output_path:
-            if not os.path.isabs(output_path):
-                output_path = os.path.abspath(output_path)
+            output_path = resolve_workspace_path(output_path)
             with open(output_path, "w", encoding="utf-8") as f:
                 f.write(output)
             return {"status": "success", "result": f"Written {len(result_lines)} lines to {output_path}"}
         return {"status": "success", "result": output}
     except Exception as e:
         return {"status": "error", "message": str(e)}
-
-if __name__ == "__main__":
-    args = {}
-    try:
-        stdin_data = sys.stdin.read().strip()
-        if stdin_data:
-            args = json.loads(stdin_data)
-    except Exception:
-        pass
-    if not args and len(sys.argv) > 1:
-        try:
-            args = json.loads(sys.argv[1])
-        except Exception:
-            pass
-    if not args:
-        print(json.dumps({"status": "error", "message": "No input provided."}))
-        sys.exit(1)
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8")
-    result = {{.FunctionName}}(
-        input_path=args.get("input_path", ""),
-        output_path=args.get("output_path"),
-        operation=args.get("operation", "head"),
-        pattern=args.get("pattern"),
-        replacement=args.get("replacement"),
-    )
-    print(json.dumps(result, ensure_ascii=False))
 `
 
-const dataTransformerTemplate = `import sys
+const dataTransformerTemplateBody = `import sys
 import json
 import os
 import csv
@@ -468,36 +486,9 @@ def {{.FunctionName}}(input_path, output_path=None, input_format="json", output_
         return {"status": "success", "result": output}
     except Exception as e:
         return {"status": "error", "message": str(e)}
-
-if __name__ == "__main__":
-    args = {}
-    try:
-        stdin_data = sys.stdin.read().strip()
-        if stdin_data:
-            args = json.loads(stdin_data)
-    except Exception:
-        pass
-    if not args and len(sys.argv) > 1:
-        try:
-            args = json.loads(sys.argv[1])
-        except Exception:
-            pass
-    if not args:
-        print(json.dumps({"status": "error", "message": "No input provided."}))
-        sys.exit(1)
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8")
-    result = {{.FunctionName}}(
-        input_path=args.get("input_path", ""),
-        output_path=args.get("output_path"),
-        input_format=args.get("input_format", "json"),
-        output_format=args.get("output_format", "json"),
-        fields=args.get("fields"),
-    )
-    print(json.dumps(result, ensure_ascii=False))
 `
 
-const scraperTemplate = `import sys
+const scraperTemplateBody = `import sys
 import json
 import requests
 from bs4 import BeautifulSoup
@@ -526,32 +517,6 @@ def {{.FunctionName}}(url, selector="body", attr=None, limit=50):
         return {"status": "error", "message": str(e)}
     except Exception as e:
         return {"status": "error", "message": str(e)}
-
-if __name__ == "__main__":
-    args = {}
-    try:
-        stdin_data = sys.stdin.read().strip()
-        if stdin_data:
-            args = json.loads(stdin_data)
-    except Exception:
-        pass
-    if not args and len(sys.argv) > 1:
-        try:
-            args = json.loads(sys.argv[1])
-        except Exception:
-            pass
-    if not args:
-        print(json.dumps({"status": "error", "message": "No input provided."}))
-        sys.exit(1)
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8")
-    result = {{.FunctionName}}(
-        url=args.get("url", ""),
-        selector=args.get("selector", "body"),
-        attr=args.get("attr"),
-        limit=args.get("limit", 50),
-    )
-    print(json.dumps(result, ensure_ascii=False))
 `
 
 // ─── Vault example templates ──────────────────────────────────────────────────
@@ -568,7 +533,7 @@ if __name__ == "__main__":
 // Declaration in the skill manifest (vault_keys field):
 //
 //	"vault_keys": ["my_service_username", "my_service_password", "my_service_base_url"]
-const vaultLoginTemplate = `import sys
+const vaultLoginTemplateBody = `import sys
 import json
 import os
 import requests
@@ -644,30 +609,6 @@ def {{.FunctionName}}(action="whoami"):
 
     except requests.RequestException as e:
         return {"status": "error", "message": str(e)}
-
-
-if __name__ == "__main__":
-    args = {}
-    try:
-        stdin_data = sys.stdin.read().strip()
-        if stdin_data:
-            args = json.loads(stdin_data)
-    except Exception:
-        pass
-    if not args and len(sys.argv) > 1:
-        try:
-            args = json.loads(sys.argv[1])
-        except Exception:
-            pass
-    if not args:
-        print(json.dumps({"status": "error", "message": "No input provided."}))
-        sys.exit(1)
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8")
-    result = {{.FunctionName}}(
-        action=args.get("action", "whoami"),
-    )
-    print(json.dumps(result, ensure_ascii=False))
 `
 
 // vaultTokenTemplate demonstrates calling a REST API with a single Bearer
@@ -681,7 +622,7 @@ if __name__ == "__main__":
 // Declaration in the skill manifest (vault_keys field):
 //
 //	"vault_keys": ["my_service_api_key", "my_service_base_url"]
-const vaultTokenTemplate = `import sys
+const vaultTokenTemplateBody = `import sys
 import json
 import os
 import requests
@@ -752,30 +693,4 @@ def {{.FunctionName}}(endpoint, method="GET", body=None):
 
     except requests.RequestException as e:
         return {"status": "error", "message": str(e)}
-
-
-if __name__ == "__main__":
-    args = {}
-    try:
-        stdin_data = sys.stdin.read().strip()
-        if stdin_data:
-            args = json.loads(stdin_data)
-    except Exception:
-        pass
-    if not args and len(sys.argv) > 1:
-        try:
-            args = json.loads(sys.argv[1])
-        except Exception:
-            pass
-    if not args:
-        print(json.dumps({"status": "error", "message": "No input provided."}))
-        sys.exit(1)
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8")
-    result = {{.FunctionName}}(
-        endpoint=args.get("endpoint", ""),
-        method=args.get("method", "GET"),
-        body=args.get("body"),
-    )
-    print(json.dumps(result, ensure_ascii=False))
 `

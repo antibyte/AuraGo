@@ -113,17 +113,28 @@ func createBackup(dir, msg string) map[string]interface{} {
 		return map[string]interface{}{"status": "error", "message": fmt.Sprintf("Git commit failed: %s", stderr)}
 	}
 
-	// Try to parse out commit hash (usually 2nd word "master XXXXXX")
-	var hash string
-	lines := strings.Split(stdout, "\n")
-	if len(lines) > 0 {
-		parts := strings.Fields(lines[0])
-		if len(parts) >= 2 {
-			hash = strings.Trim(parts[1], "[]")
+	hash, hashErr := resolveGitHeadHash(dir)
+	if hashErr != nil {
+		return map[string]interface{}{
+			"status":      "success",
+			"message":     fmt.Sprintf("Created backup commit, but failed to resolve commit hash: %v", hashErr),
+			"commit_hash": "",
 		}
 	}
 
 	return map[string]interface{}{"status": "success", "message": fmt.Sprintf("Created backup commit %s", hash), "commit_hash": hash}
+}
+
+func resolveGitHeadHash(dir string) (string, error) {
+	stdout, stderr, rc := runGitCmd(dir, "rev-parse", "HEAD")
+	if rc != 0 {
+		return "", fmt.Errorf("git rev-parse HEAD failed: %s", strings.TrimSpace(stderr))
+	}
+	hash := strings.TrimSpace(stdout)
+	if hash == "" {
+		return "", fmt.Errorf("git rev-parse HEAD returned empty output")
+	}
+	return hash, nil
 }
 
 func listBackups(dir string, limit int) map[string]interface{} {

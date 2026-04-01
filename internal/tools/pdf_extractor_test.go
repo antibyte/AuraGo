@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"aurago/internal/config"
 )
 
 // --- PDF Extractor tests ---
@@ -120,6 +122,43 @@ func TestSummaryLLMConfig_Fields(t *testing.T) {
 	}
 }
 
+func TestResolveSummaryLLMConfigPrefersHelperLLM(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.LLM.HelperEnabled = true
+	cfg.LLM.HelperProvider = "helper"
+	cfg.LLM.HelperProviderType = "openrouter"
+	cfg.LLM.HelperBaseURL = "https://helper.example/v1"
+	cfg.LLM.HelperResolvedModel = "helper-model"
+
+	got := ResolveSummaryLLMConfig(cfg, SummaryLLMConfig{
+		APIKey:  "fallback-key",
+		BaseURL: "https://fallback.example/v1",
+		Model:   "fallback-model",
+	})
+
+	if got.BaseURL != "https://helper.example/v1" {
+		t.Fatalf("BaseURL = %q", got.BaseURL)
+	}
+	if got.Model != "helper-model" {
+		t.Fatalf("Model = %q, want helper-model", got.Model)
+	}
+}
+
+func TestResolveSummaryLLMConfigFallsBackWhenHelperUnavailable(t *testing.T) {
+	got := ResolveSummaryLLMConfig(&config.Config{}, SummaryLLMConfig{
+		APIKey:  "fallback-key",
+		BaseURL: "https://fallback.example/v1",
+		Model:   "fallback-model",
+	})
+
+	if got.APIKey != "fallback-key" {
+		t.Fatalf("APIKey = %q, want fallback-key", got.APIKey)
+	}
+	if got.Model != "fallback-model" {
+		t.Fatalf("Model = %q, want fallback-model", got.Model)
+	}
+}
+
 // --- Content summary envelope extraction tests ---
 
 func TestSummariseContent_ErrorEnvelope(t *testing.T) {
@@ -141,5 +180,22 @@ func TestSummariseContent_NoAPIKey(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "no API key") {
 		t.Errorf("expected 'no API key' in error, got: %v", err)
+	}
+}
+
+func TestExtractSummarySourceContent_UnwrapsEnvelope(t *testing.T) {
+	got, err := ExtractSummarySourceContent(`{"status":"success","content":"wrapped content"}`)
+	if err != nil {
+		t.Fatalf("ExtractSummarySourceContent: %v", err)
+	}
+	if got != "wrapped content" {
+		t.Fatalf("content = %q, want wrapped content", got)
+	}
+}
+
+func TestExtractSummarySourceContent_ReturnsSourceErrors(t *testing.T) {
+	_, err := ExtractSummarySourceContent(`{"status":"error","message":"upstream failed"}`)
+	if err == nil || !strings.Contains(err.Error(), "upstream failed") {
+		t.Fatalf("expected source error, got %v", err)
 	}
 }

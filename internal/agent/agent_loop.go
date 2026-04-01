@@ -80,6 +80,19 @@ func recordRetrievalPromptTelemetry(scope AgentTelemetryScope, retrievalTokens, 
 	}
 }
 
+const ragRefreshAfterToolIterations = 2
+
+func shouldRefreshRAG(query, lastQuery string, toolIterations int) bool {
+	trimmedQuery := strings.TrimSpace(query)
+	if trimmedQuery == "" {
+		return false
+	}
+	if trimmedQuery != strings.TrimSpace(lastQuery) {
+		return true
+	}
+	return toolIterations >= ragRefreshAfterToolIterations
+}
+
 // ExecuteAgentLoop executes the multi-turn reasoning and tool execution loop.
 // It supports both synchronous returns and asynchronous streaming via the broker.
 func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, runCfg RunConfig, stream bool, broker FeedbackBroker) (openai.ChatCompletionResponse, error) {
@@ -200,7 +213,11 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	homepageUsedInChain := false // Elevated circuit breaker once homepage tool is first used
 
 	// Guardian: prompt injection defense
-	guardian := security.NewGuardian(logger)
+	guardian := security.NewGuardianWithOptions(logger, security.GuardianOptions{
+		MaxScanBytes:  cfg.Guardian.MaxScanBytes,
+		ScanEdgeBytes: cfg.Guardian.ScanEdgeBytes,
+	})
+	tools.ConfigureTimeouts(cfg.Tools.PythonTimeoutSeconds, cfg.Tools.SkillTimeoutSeconds, cfg.Tools.BackgroundTimeoutSeconds)
 
 	// LLM Guardian: AI-powered pre-execution tool call security
 	// Use the shared instance from RunConfig (so metrics are visible to the dashboard),
@@ -211,6 +228,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	}
 
 	var currentLogger *slog.Logger = logger
+	helperManager := newHelperLLMManager(cfg, logger)
 	lastActivity := time.Now()
 	lastTool := ""
 	recoveryState := newToolRecoveryStateWithPolicy(recoveryPolicy)
@@ -218,7 +236,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	explicitTools := make([]string, 0)  // Explicit tool guides requested via <workflow_plan> tag
 	workflowPlanCount := 0              // Prevent infinite workflow_plan loops
 	lastResponseWasTool := false        // True when the previous iteration was a tool call; suppresses announcement detector on completion messages
-	pendingTCs := make([]ToolCall, 0)   // Queued tool calls from multi-tool responses (processed without a new LLM call)
+	ragLastUserMsg := ""
+	ragToolIterationsSinceLastRefresh := ragRefreshAfterToolIterations
+	pendingTCs := make([]ToolCall, 0) // Queued tool calls from multi-tool responses (processed without a new LLM call)
+	pendingSummaryBatch := map[string]string(nil)
 	usedMemoryDocIDs := make(map[string]int)
 	turnToolNames := make([]string, 0, 8)
 	turnToolSummaries := make([]string, 0, 12)
@@ -246,30 +267,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	var emotionSynthesizer *memory.EmotionSynthesizer
 	if cfg.Personality.EmotionSynthesizer.Enabled && personalityEnabled && cfg.Personality.EngineV2 {
 		// Reuse V2 client setup — prefer resolved provider fields, fall back to legacy inline fields
-		var esClient memory.PersonalityAnalyzerClient = client
-		v2URL := cfg.Personality.V2ResolvedURL
-		if v2URL == "" {
-			v2URL = cfg.Personality.V2URL
-		}
-		v2Key := cfg.Personality.V2ResolvedKey
-		if v2Key == "" {
-			v2Key = cfg.Personality.V2APIKey
-		}
-		if v2URL != "" {
-			if v2Key == "" {
-				v2Key = "dummy"
-			}
-			v2Cfg := openai.DefaultConfig(v2Key)
-			v2Cfg.BaseURL = v2URL
-			esClient = openai.NewClientWithConfig(v2Cfg)
-		}
-		esModel := cfg.Personality.V2ResolvedModel
-		if esModel == "" {
-			esModel = cfg.Personality.V2Model
-		}
-		if esModel == "" {
-			esModel = cfg.LLM.Model
-		}
+		esClient := resolvePersonalityAnalyzerClient(cfg, client)
+		esModel := resolvePersonalityModel(cfg)
 		emotionSynthesizer = memory.NewEmotionSynthesizer(
 			esClient,
 			esModel,
@@ -393,15 +392,35 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 		currentLogger.Debug("[Sync] Agent loop iteration starting", "is_maintenance", isMaintenance, "lock_exists", tools.IsBusy())
 
-		// Extract the last user message early — needed for Guardian context in pendingTCs path
-		lastUserMsg := ""
-		if len(req.Messages) > 0 && req.Messages[len(req.Messages)-1].Role == openai.ChatMessageRoleUser {
-			lastUserMsg = req.Messages[len(req.Messages)-1].Content
+		if lastResponseWasTool {
+			ragToolIterationsSinceLastRefresh++
 		}
+
+		// Tool results are appended as user-role messages; keep loop-scoped context anchored
+		// to the original human request instead of the latest tool output.
+		lastUserMsg := initialUserMsg
 		userEmotionTrigger, userEmotionTriggerDetail, userInactivityHours := detectUserEmotionTrigger(lastUserMsg, shortTermMem, sessionID)
 
 		// Process queued tool calls from multi-tool responses (skip LLM for these)
 		if len(pendingTCs) > 0 {
+			if helperManager != nil && len(pendingSummaryBatch) == 0 {
+				pendingSummaryBatch = maybeBuildPendingSummaryBatch(ctx, pendingTCs, &DispatchContext{
+					Cfg: cfg, Logger: currentLogger, LLMClient: client, Vault: vault,
+					Registry: registry, Manifest: manifest, CronManager: cronManager,
+					MissionManagerV2: missionManagerV2, LongTermMem: longTermMem,
+					ShortTermMem: shortTermMem, KG: kg, InventoryDB: inventoryDB,
+					InvasionDB: invasionDB, CheatsheetDB: cheatsheetDB,
+					ImageGalleryDB: imageGalleryDB, MediaRegistryDB: mediaRegistryDB,
+					HomepageRegistryDB: homepageRegistryDB, ContactsDB: contactsDB,
+					SQLConnectionsDB: sqlConnectionsDB, SQLConnectionPool: sqlConnectionPool,
+					RemoteHub: remoteHub, HistoryMgr: historyManager,
+					IsMaintenance: tools.IsBusy(), SurgeryPlan: surgeryPlan,
+					Guardian: guardian, LLMGuardian: llmGuardian,
+					SessionID: sessionID, CoAgentRegistry: coAgentRegistry,
+					BudgetTracker: budgetTracker,
+				}, helperManager, lastUserMsg)
+			}
+
 			ptc := pendingTCs[0]
 			pendingTCs = pendingTCs[1:]
 			toolCallCount++
@@ -423,7 +442,13 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			broker.Send("tool_call", ptcJSON)
 			broker.Send("tool_start", ptc.Action)
 			pResultContent := ""
-			if recoveryState.handleDuplicateToolCall(ptc, &req, currentLogger, telemetryScope) {
+			if precomputed, ok := pendingSummaryBatch[pendingSummaryBatchKey(ptc)]; ok {
+				pResultContent = precomputed
+				delete(pendingSummaryBatch, pendingSummaryBatchKey(ptc))
+				if len(pendingSummaryBatch) == 0 {
+					pendingSummaryBatch = nil
+				}
+			} else if recoveryState.handleDuplicateToolCall(ptc, &req, currentLogger, telemetryScope) {
 				pResultContent = blockedToolOutputFromRequest(&req)
 			} else {
 				pResultContent = DispatchToolCall(ctx, ptc, &DispatchContext{
@@ -628,23 +653,69 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		flags.PredictedMemories = ""
 		retrievalPromptTokens := 0
 		var topMemories []string
-		if !runCfg.IsMission && lastUserMsg != "" && longTermMem != nil && shouldUseRAGForMessage(lastUserMsg) {
-			// Query expansion: enrich user message with adaptive search keywords for better RAG
-			ragQuery := expandQueryForRAG(ctx, cfg, currentLogger, lastUserMsg, shortTermMem)
+		if !runCfg.IsMission && longTermMem != nil && shouldUseRAGForMessage(lastUserMsg) && shouldRefreshRAG(lastUserMsg, ragLastUserMsg, ragToolIterationsSinceLastRefresh) {
+			ragSettings := resolveMemoryAnalysisSettings(cfg, shortTermMem)
+			useHelperRAGBatch := helperManager != nil && ragSettings.Enabled && ragSettings.QueryExpansion && ragSettings.LLMReranking
+			ragQuery := lastUserMsg
+			if !useHelperRAGBatch {
+				ragQuery = expandQueryForRAG(ctx, cfg, currentLogger, lastUserMsg, shortTermMem)
+			}
+			ragLastUserMsg = lastUserMsg
+			ragToolIterationsSinceLastRefresh = 0
 
 			// Over-fetch 6 candidates, then re-rank to keep best 3
 			RecordRetrievalEventForScope(telemetryScope, "rag_auto_attempt")
 			autoRetrievalStart := time.Now()
-			memories, docIDs, err := longTermMem.SearchMemoriesOnly(ragQuery, 6)
+			searchLimit := 6
+			if useHelperRAGBatch {
+				searchLimit = 8
+			}
+			memories, docIDs, err := longTermMem.SearchMemoriesOnly(ragQuery, searchLimit)
 			RecordRetrievalEventForScope(telemetryScope, "rag_auto_latency:"+retrievalLatencyBucket(time.Since(autoRetrievalStart)))
 			if err != nil {
 				RecordRetrievalEventForScope(telemetryScope, "rag_auto_error")
 			}
-			if err == nil && len(memories) > 0 {
+			if err == nil {
 				ranked := rankMemoryCandidates(memories, docIDs, shortTermMem, usedMemoryDocIDs, time.Now())
-
-				// LLM re-ranking: blend LLM relevance scores with policy-ranked scores
-				ranked = rerankWithLLM(ctx, cfg, currentLogger, ranked, lastUserMsg, shortTermMem)
+				if useHelperRAGBatch {
+					batchCtx, batchCancel := context.WithTimeout(ctx, 1800*time.Millisecond)
+					batchResult, batchErr := helperManager.AnalyzeRAG(batchCtx, lastUserMsg, ranked)
+					batchCancel()
+					if batchErr != nil {
+						helperManager.ObserveFallback("rag_batch", batchErr.Error())
+						ragQuery = expandQueryForRAG(ctx, cfg, currentLogger, lastUserMsg, shortTermMem)
+						memories, docIDs, err = longTermMem.SearchMemoriesOnly(ragQuery, 6)
+						if err == nil {
+							ranked = rankMemoryCandidates(memories, docIDs, shortTermMem, usedMemoryDocIDs, time.Now())
+							ranked = rerankWithLLM(ctx, cfg, currentLogger, ranked, lastUserMsg, shortTermMem)
+						} else {
+							ranked = nil
+						}
+					} else {
+						if helperQuery := strings.TrimSpace(batchResult.SearchQuery); helperQuery != "" && !strings.EqualFold(helperQuery, strings.TrimSpace(lastUserMsg)) {
+							ragQuery = helperQuery
+							extraMemories, extraDocIDs, extraErr := longTermMem.SearchMemoriesOnly(ragQuery, 4)
+							if extraErr == nil && len(extraMemories) > 0 {
+								extraRanked := rankMemoryCandidates(extraMemories, extraDocIDs, shortTermMem, usedMemoryDocIDs, time.Now())
+								existing := make(map[string]struct{}, len(ranked))
+								for _, item := range ranked {
+									existing[item.docID] = struct{}{}
+								}
+								for _, item := range extraRanked {
+									if _, ok := existing[item.docID]; ok {
+										continue
+									}
+									existing[item.docID] = struct{}{}
+									ranked = append(ranked, item)
+								}
+							}
+						}
+						ranked = applyHelperRAGScores(currentLogger, ranked, batchResult)
+					}
+				} else {
+					// LLM re-ranking: blend LLM relevance scores with policy-ranked scores
+					ranked = rerankWithLLM(ctx, cfg, currentLogger, ranked, lastUserMsg, shortTermMem)
+				}
 
 				// For short queries (<40 chars), apply stricter score filtering to
 				// avoid injecting semantically-similar but contextually-irrelevant
@@ -966,9 +1037,12 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		if maxHistoryTokens < 4096 {
 			maxHistoryTokens = 4096
 		}
-		req.Messages, lastCompressionMsg, _ = CompressHistory(
-			ctx, req.Messages, maxHistoryTokens, cfg.LLM.Model, client, lastCompressionMsg, currentLogger,
-		)
+		compressionClient, compressionModel := resolveHelperBackedLLM(cfg, client, cfg.LLM.Model)
+		if compressionClient != nil && compressionModel != "" {
+			req.Messages, lastCompressionMsg, _ = CompressHistory(
+				ctx, req.Messages, maxHistoryTokens, compressionModel, compressionClient, lastCompressionMsg, currentLogger,
+			)
+		}
 
 		// ── Context window guard ──
 		// Count total tokens across all messages and trim old history if we would
@@ -1135,31 +1209,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					}
 					// Accumulate streamed tool call fragments
 					for _, tc := range delta.ToolCalls {
-						idx := 0
-						if tc.Index != nil {
-							idx = *tc.Index
-						}
-						existing, ok := streamToolCalls[idx]
-						if !ok {
-							clone := openai.ToolCall{
-								Index: tc.Index,
-								ID:    tc.ID,
-								Type:  tc.Type,
-								Function: openai.FunctionCall{
-									Name:      tc.Function.Name,
-									Arguments: tc.Function.Arguments,
-								},
-							}
-							streamToolCalls[idx] = &clone
-						} else {
-							if tc.ID != "" {
-								existing.ID = tc.ID
-							}
-							if tc.Function.Name != "" {
-								existing.Function.Name += tc.Function.Name
-							}
-							existing.Function.Arguments += tc.Function.Arguments
-						}
+						mergeStreamToolCallChunk(streamToolCalls, tc)
 					}
 				}
 			}
@@ -1167,14 +1217,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			content = assembledResponse.String()
 
 			// Build sorted slice of assembled tool calls
-			var assembledToolCalls []openai.ToolCall
-			if len(streamToolCalls) > 0 {
-				assembledToolCalls = make([]openai.ToolCall, 0, len(streamToolCalls))
-				for i := 0; i < len(streamToolCalls); i++ {
-					if tc, ok := streamToolCalls[i]; ok {
-						assembledToolCalls = append(assembledToolCalls, *tc)
-					}
-				}
+			assembledToolCalls := assembleSortedStreamToolCalls(streamToolCalls)
+			if len(assembledToolCalls) > 0 {
 				currentLogger.Info("[Stream] Assembled streamed tool calls", "count", len(assembledToolCalls))
 			}
 
@@ -1856,7 +1900,26 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				// Execute batched native tool calls inline.
 				// The OpenAI API requires ALL role=tool responses to be present before
 				// the next API call when the assistant message contains multiple tool_calls.
+				var nativePendingSummaryBatch map[string]string
 				for len(pendingTCs) > 0 && pendingTCs[0].NativeCallID != "" {
+					if helperManager != nil && len(nativePendingSummaryBatch) == 0 {
+						nativePendingSummaryBatch = maybeBuildPendingSummaryBatch(ctx, pendingTCs, &DispatchContext{
+							Cfg: cfg, Logger: currentLogger, LLMClient: client, Vault: vault,
+							Registry: registry, Manifest: manifest, CronManager: cronManager,
+							MissionManagerV2: missionManagerV2, LongTermMem: longTermMem,
+							ShortTermMem: shortTermMem, KG: kg, InventoryDB: inventoryDB,
+							InvasionDB: invasionDB, CheatsheetDB: cheatsheetDB,
+							ImageGalleryDB: imageGalleryDB, MediaRegistryDB: mediaRegistryDB,
+							HomepageRegistryDB: homepageRegistryDB, ContactsDB: contactsDB,
+							SQLConnectionsDB: sqlConnectionsDB, SQLConnectionPool: sqlConnectionPool,
+							RemoteHub: remoteHub, HistoryMgr: historyManager,
+							IsMaintenance: tools.IsBusy(), SurgeryPlan: surgeryPlan,
+							Guardian: guardian, LLMGuardian: llmGuardian,
+							SessionID: sessionID, CoAgentRegistry: coAgentRegistry,
+							BudgetTracker: budgetTracker,
+						}, helperManager, lastUserMsg)
+					}
+
 					btc := pendingTCs[0]
 					pendingTCs = pendingTCs[1:]
 					toolCallCount++
@@ -1867,7 +1930,13 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					broker.Send("tool_start", btc.Action)
 
 					bResult := ""
-					if recoveryState.handleDuplicateToolCall(btc, &req, currentLogger, telemetryScope) {
+					if precomputed, ok := nativePendingSummaryBatch[pendingSummaryBatchKey(btc)]; ok {
+						bResult = precomputed
+						delete(nativePendingSummaryBatch, pendingSummaryBatchKey(btc))
+						if len(nativePendingSummaryBatch) == 0 {
+							nativePendingSummaryBatch = nil
+						}
+					} else if recoveryState.handleDuplicateToolCall(btc, &req, currentLogger, telemetryScope) {
 						bResult = blockedToolOutputFromRequest(&req)
 					} else {
 						bResult = DispatchToolCall(ctx, btc, &DispatchContext{
@@ -1983,27 +2052,33 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			currentLogger.Warn("[Sync] Skipping history persistence for empty response")
 		}
 
+		memAnalysis := resolveMemoryAnalysisSettings(cfg, shortTermMem)
+		useBatchedTurnHelper := helperManager != nil && memAnalysis.Enabled && memAnalysis.RealTime && !isEmpty && shortTermMem != nil && !flags.IsCoAgent
+		useBatchedTurnPersonality := useBatchedTurnHelper && personalityEnabled && cfg.Personality.EngineV2
+
 		// Phase D: Final mood + trait update + milestone check at session end
 		if personalityEnabled && shortTermMem != nil {
 			if cfg.Personality.EngineV2 {
-				launchAsyncPersonalityV2Analysis(
-					cfg,
-					currentLogger,
-					client,
-					shortTermMem,
-					emotionSynthesizer,
-					req.Messages,
-					moodTrigger(),
-					userEmotionTrigger,
-					userEmotionTriggerDetail,
-					userInactivityHours,
-					"Assistant Response",
-					content,
-					meta,
-					cfg.Personality.UserProfiling,
-					recoveryState.ConsecutiveErrorCount,
-					toolCallCount-recoveryState.ConsecutiveErrorCount,
-				)
+				if !useBatchedTurnPersonality {
+					launchAsyncPersonalityV2Analysis(
+						cfg,
+						currentLogger,
+						client,
+						shortTermMem,
+						emotionSynthesizer,
+						req.Messages,
+						moodTrigger(),
+						userEmotionTrigger,
+						userEmotionTriggerDetail,
+						userInactivityHours,
+						"Assistant Response",
+						content,
+						meta,
+						cfg.Personality.UserProfiling,
+						recoveryState.ConsecutiveErrorCount,
+						toolCallCount-recoveryState.ConsecutiveErrorCount,
+					)
+				}
 			} else {
 				mood, traitDeltas := memory.DetectMood(lastUserMsg, "", meta)
 				// O-08: Apply emotion bias from synthesizer to contextualize V1 detection.
@@ -2018,7 +2093,6 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 		}
 
-		memAnalysis := resolveMemoryAnalysisSettings(cfg, shortTermMem)
 		if memAnalysis.EffectivenessTracking && !isEmpty && shortTermMem != nil && len(turnMemoryCandidates) > 0 {
 			usefulIDs, uselessIDs := assessMemoryEffectiveness(content, turnMemoryCandidates)
 			for _, memoryID := range usefulIDs {
@@ -2040,35 +2114,158 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			resolveCompletedPendingActions(shortTermMem, lastUserMsg, content, turnPendingActions)
 		}
 
-		// Real-time memory analysis: async post-response extraction of memory-worthy content
-		if memAnalysis.Enabled && memAnalysis.RealTime && !isEmpty && shortTermMem != nil {
-			go func(userMsg, aResp, sid string) {
+		if useBatchedTurnHelper {
+			activityToolNames := append([]string(nil), turnToolNames...)
+			activityToolSummaries := append([]string(nil), turnToolSummaries...)
+			var turnPersonalityInput *helperTurnPersonalityInput
+			if useBatchedTurnPersonality {
+				contextHistory, userHistory := buildPersonalityHistories(req.Messages, "Assistant Response", content)
+				_, previousEmotion := resolveHelperEmotionBatchState(cfg, emotionSynthesizer)
+				traits, _ := shortTermMem.GetTraits()
+				turnPersonalityInput = &helperTurnPersonalityInput{
+					RecentHistory:   contextHistory,
+					UserOnlyHistory: userHistory,
+					Language:        cfg.Agent.SystemLanguage,
+					Traits:          traits,
+					PreviousEmotion: previousEmotion,
+					TriggerInfo:     moodTrigger(),
+					TriggerType:     userEmotionTrigger,
+					TriggerDetail:   userEmotionTriggerDetail,
+					InactivityHours: userInactivityHours,
+					ErrorCount:      recoveryState.ConsecutiveErrorCount,
+					SuccessCount:    toolCallCount - recoveryState.ConsecutiveErrorCount,
+				}
+			}
+			go func(userMsg, aResp, sid string, toolNames, toolSummaries []string, personalityInput *helperTurnPersonalityInput, recentMsgs []openai.ChatCompletionMessage) {
 				analysisCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 				defer cancel()
-				runMemoryAnalysis(analysisCtx, cfg, currentLogger, shortTermMem, kg, longTermMem, userMsg, aResp, sid)
-			}(lastUserMsg, content, sessionID)
+
+				batchResult, err := helperManager.AnalyzeTurn(analysisCtx, userMsg, aResp, toolNames, toolSummaries, personalityInput)
+				if err != nil {
+					helperManager.ObserveFallback("analyze_turn", err.Error())
+					currentLogger.Debug("[HelperLLM] Batched turn analysis failed, falling back", "error", err)
+					if useBatchedTurnPersonality {
+						launchAsyncPersonalityV2Analysis(
+							cfg,
+							currentLogger,
+							client,
+							shortTermMem,
+							emotionSynthesizer,
+							recentMsgs,
+							moodTrigger(),
+							userEmotionTrigger,
+							userEmotionTriggerDetail,
+							userInactivityHours,
+							"Assistant Response",
+							aResp,
+							meta,
+							cfg.Personality.UserProfiling,
+							recoveryState.ConsecutiveErrorCount,
+							toolCallCount-recoveryState.ConsecutiveErrorCount,
+						)
+					}
+					runMemoryAnalysis(analysisCtx, cfg, currentLogger, shortTermMem, kg, longTermMem, userMsg, aResp, sid)
+					captureActivityTurn(
+						cfg,
+						currentLogger,
+						shortTermMem,
+						sid,
+						runCfg.MessageSource,
+						userMsg,
+						aResp,
+						toolNames,
+						toolSummaries,
+						runCfg.IsMission || runCfg.MessageSource == "mission" || sid == "maintenance",
+						!isMaintenance && sid != "maintenance",
+					)
+					return
+				}
+
+				applyMemoryAnalysisResult(cfg, currentLogger, shortTermMem, longTermMem, sid, batchResult.MemoryAnalysis)
+				if useBatchedTurnPersonality {
+					if personalityResult, ok := normalizeHelperTurnPersonalityResult(batchResult.PersonalityAnalysis, meta); ok {
+						_, previousEmotion := resolveHelperEmotionBatchState(cfg, emotionSynthesizer)
+						v2FailCount.Store(0)
+						applyPersonalityV2AnalysisResult(
+							cfg,
+							currentLogger,
+							shortTermMem,
+							emotionSynthesizer,
+							previousEmotion,
+							moodTrigger(),
+							userEmotionTrigger,
+							userEmotionTriggerDetail,
+							userInactivityHours,
+							cfg.Personality.UserProfiling,
+							recoveryState.ConsecutiveErrorCount,
+							toolCallCount-recoveryState.ConsecutiveErrorCount,
+							personalityResult,
+						)
+					} else {
+						helperManager.ObserveFallback("analyze_turn", "personality_payload_invalid")
+						launchAsyncPersonalityV2Analysis(
+							cfg,
+							currentLogger,
+							client,
+							shortTermMem,
+							emotionSynthesizer,
+							recentMsgs,
+							moodTrigger(),
+							userEmotionTrigger,
+							userEmotionTriggerDetail,
+							userInactivityHours,
+							"Assistant Response",
+							aResp,
+							meta,
+							cfg.Personality.UserProfiling,
+							recoveryState.ConsecutiveErrorCount,
+							toolCallCount-recoveryState.ConsecutiveErrorCount,
+						)
+					}
+				}
+				captureActivityTurnWithDigest(
+					shortTermMem,
+					sid,
+					runCfg.MessageSource,
+					userMsg,
+					toolNames,
+					runCfg.IsMission || runCfg.MessageSource == "mission" || sid == "maintenance",
+					!isMaintenance && sid != "maintenance",
+					batchResult.ActivityDigest,
+					"runtime_helper_batch",
+				)
+			}(lastUserMsg, content, sessionID, activityToolNames, activityToolSummaries, turnPersonalityInput, append([]openai.ChatCompletionMessage(nil), req.Messages...))
+		} else {
+			// Real-time memory analysis: async post-response extraction of memory-worthy content
+			if memAnalysis.Enabled && memAnalysis.RealTime && !isEmpty && shortTermMem != nil {
+				go func(userMsg, aResp, sid string) {
+					analysisCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+					defer cancel()
+					runMemoryAnalysis(analysisCtx, cfg, currentLogger, shortTermMem, kg, longTermMem, userMsg, aResp, sid)
+				}(lastUserMsg, content, sessionID)
+			}
+
+			if !isEmpty && shortTermMem != nil && !flags.IsCoAgent {
+				activityToolNames := append([]string(nil), turnToolNames...)
+				activityToolSummaries := append([]string(nil), turnToolSummaries...)
+				go captureActivityTurn(
+					cfg,
+					currentLogger,
+					shortTermMem,
+					sessionID,
+					runCfg.MessageSource,
+					lastUserMsg,
+					content,
+					activityToolNames,
+					activityToolSummaries,
+					runCfg.IsMission || runCfg.MessageSource == "mission" || sessionID == "maintenance",
+					!isMaintenance && sessionID != "maintenance",
+				)
+			}
 		}
 
 		// Journal auto-trigger: create entries for significant tool chains
 		JournalAutoTrigger(cfg, shortTermMem, currentLogger, sessionID, recentTools, lastUserMsg)
-
-		if !isEmpty && shortTermMem != nil && !flags.IsCoAgent {
-			activityToolNames := append([]string(nil), turnToolNames...)
-			activityToolSummaries := append([]string(nil), turnToolSummaries...)
-			go captureActivityTurn(
-				cfg,
-				currentLogger,
-				shortTermMem,
-				sessionID,
-				runCfg.MessageSource,
-				lastUserMsg,
-				content,
-				activityToolNames,
-				activityToolSummaries,
-				runCfg.IsMission || runCfg.MessageSource == "mission" || sessionID == "maintenance",
-				!isMaintenance && sessionID != "maintenance",
-			)
-		}
 
 		// Weekly reflection: async trigger if configured and due
 		// Guard: only run once per day by checking if a reflection entry already exists today.

@@ -51,6 +51,7 @@ type SandboxStatus struct {
 // SandboxManager manages the llm-sandbox MCP server process.
 type SandboxManager struct {
 	mu           sync.RWMutex
+	sharedConnMu sync.Mutex
 	conn         sandboxConn
 	logger       *slog.Logger
 	status       SandboxStatus
@@ -241,8 +242,13 @@ func (m *SandboxManager) borrowConn() (sandboxConn, func(), error) {
 		return conn, func() { conn.close() }, nil
 	}
 
+	m.sharedConnMu.Lock()
+	cleanup := func() {
+		m.sharedConnMu.Unlock()
+	}
+
 	if conn != nil {
-		return conn, func() {}, nil
+		return conn, cleanup, nil
 	}
 
 	m.mu.Lock()
@@ -251,12 +257,13 @@ func (m *SandboxManager) borrowConn() (sandboxConn, func(), error) {
 	if m.conn == nil {
 		conn, err := m.openConn()
 		if err != nil {
+			cleanup()
 			return nil, nil, err
 		}
 		m.conn = conn
 	}
 
-	return m.conn, func() {}, nil
+	return m.conn, cleanup, nil
 }
 
 func registerSandboxSingleton(mgr *SandboxManager) {
@@ -376,6 +383,9 @@ func (m *SandboxManager) GetSupportedLanguages() ([]string, error) {
 
 // Close shuts down the sandbox MCP server process.
 func (m *SandboxManager) Close() {
+	m.sharedConnMu.Lock()
+	defer m.sharedConnMu.Unlock()
+
 	m.mu.Lock()
 	defer m.mu.Unlock()
 

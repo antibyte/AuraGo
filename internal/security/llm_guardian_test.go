@@ -256,6 +256,39 @@ func TestGuardianCacheEviction(t *testing.T) {
 	}
 }
 
+func TestGuardianCacheSetPrunesExpiredEntriesBeforeEviction(t *testing.T) {
+	cache := NewGuardianCache(1, 3)
+	cache.Set("a", GuardianResult{Decision: DecisionAllow})
+	cache.Set("b", GuardianResult{Decision: DecisionAllow})
+	time.Sleep(1100 * time.Millisecond)
+
+	cache.Set("c", GuardianResult{Decision: DecisionAllow})
+	cache.Set("d", GuardianResult{Decision: DecisionAllow})
+
+	if cache.Size() != 2 {
+		t.Fatalf("cache size = %d, want 2 after pruning expired entries", cache.Size())
+	}
+	if _, hit := cache.Get("a"); hit {
+		t.Fatal("expected expired entry a to be pruned")
+	}
+	if _, hit := cache.Get("b"); hit {
+		t.Fatal("expected expired entry b to be pruned")
+	}
+}
+
+func TestGuardianCacheGetRemovesExpiredEntry(t *testing.T) {
+	cache := NewGuardianCache(1, 5)
+	cache.Set("expired", GuardianResult{Decision: DecisionAllow})
+	time.Sleep(1100 * time.Millisecond)
+
+	if _, hit := cache.Get("expired"); hit {
+		t.Fatal("expected expired cache entry to miss")
+	}
+	if cache.Size() != 0 {
+		t.Fatalf("cache size = %d, want 0 after expired read cleanup", cache.Size())
+	}
+}
+
 func TestGuardianMetrics(t *testing.T) {
 	m := &GuardianMetrics{}
 

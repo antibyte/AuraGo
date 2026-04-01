@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+
+	"github.com/shirou/gopsutil/v4/process"
 )
 
 func TestAnalyzeProcesses_InvalidOperation(t *testing.T) {
@@ -130,5 +132,24 @@ func TestContainsIgnoreCase(t *testing.T) {
 		if got != tc.want {
 			t.Errorf("containsIgnoreCase(%q, %q) = %v, want %v", tc.s, tc.sub, got, tc.want)
 		}
+	}
+}
+
+func TestSelectTopProcessSamplesSortsAndLimits(t *testing.T) {
+	samples := []processMetricSample{
+		{proc: &process.Process{}, cpuPercent: 3},
+		{proc: &process.Process{}, cpuPercent: 9},
+		{proc: &process.Process{}, cpuPercent: 5},
+	}
+
+	top := selectTopProcessSamples(samples, 2, func(a, b processMetricSample) bool {
+		return a.cpuPercent > b.cpuPercent
+	})
+
+	if len(top) != 2 {
+		t.Fatalf("len(top) = %d, want 2", len(top))
+	}
+	if top[0].cpuPercent != 9 || top[1].cpuPercent != 5 {
+		t.Fatalf("unexpected ordering: got %.0f then %.0f", top[0].cpuPercent, top[1].cpuPercent)
 	}
 }

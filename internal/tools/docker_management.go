@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"os/exec"
+	pathpkg "path"
 	"runtime"
 	"strings"
 )
@@ -281,9 +282,9 @@ func DockerStats(cfg DockerConfig, containerID string) string {
 			SystemCPUUsage uint64 `json:"system_cpu_usage"`
 		} `json:"pre_cpu_stats"`
 		MemoryStats struct {
-			Usage      uint64 `json:"usage"`
-			Limit      uint64 `json:"limit"`
-			Percent    float64 `json:"percent"`
+			Usage   uint64  `json:"usage"`
+			Limit   uint64  `json:"limit"`
+			Percent float64 `json:"percent"`
 		} `json:"memory_stats"`
 		Networks map[string]struct {
 			RxBytes uint64 `json:"rx_bytes"`
@@ -306,12 +307,12 @@ func DockerStats(cfg DockerConfig, containerID string) string {
 	}
 
 	result := map[string]interface{}{
-		"status": "ok",
-		"container_id": containerID,
-		"cpu_percent": cpuPercent,
+		"status":             "ok",
+		"container_id":       containerID,
+		"cpu_percent":        cpuPercent,
 		"memory_usage_bytes": raw.MemoryStats.Usage,
 		"memory_limit_bytes": raw.MemoryStats.Limit,
-		"memory_percent": raw.MemoryStats.Percent,
+		"memory_percent":     raw.MemoryStats.Percent,
 	}
 	if raw.Networks != nil {
 		var rxBytes, txBytes uint64
@@ -358,14 +359,33 @@ func DockerPort(cfg DockerConfig, containerID string) string {
 		return errJSON("Failed to parse container info: %v", err)
 	}
 
-	ports := map[string]interface{}{}
-	if netSettings, ok := full["NetworkSettings"].(map[string]interface{}); ok {
-		if p, ok := netSettings["Ports"]; ok {
-			ports = p.(map[string]interface{})
-		}
+	ports, err := extractDockerPorts(full)
+	if err != nil {
+		return errJSON("Failed to parse container port info: %v", err)
 	}
 	out, _ := json.Marshal(map[string]interface{}{"status": "ok", "ports": ports})
 	return string(out)
+}
+
+func extractDockerPorts(full map[string]interface{}) (map[string]interface{}, error) {
+	ports := map[string]interface{}{}
+	netSettings, ok := full["NetworkSettings"]
+	if !ok || netSettings == nil {
+		return ports, nil
+	}
+	netSettingsMap, ok := netSettings.(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("unexpected NetworkSettings type %T", netSettings)
+	}
+	p, ok := netSettingsMap["Ports"]
+	if !ok || p == nil {
+		return ports, nil
+	}
+	portsMap, ok := p.(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("unexpected Ports type %T", p)
+	}
+	return portsMap, nil
 }
 
 // DockerCreateNetwork creates a network.
@@ -512,14 +532,54 @@ func DockerCopy(cfg DockerConfig, containerID, src, dest, direction string) stri
 
 	var args []string
 	if direction == "from_container" {
-		args = []string{"cp", containerID + ":" + src, dest}
+		containerSrc, err := validateDockerCopyContainerPath(src)
+		if err != nil {
+			return errJSON("%v", err)
+		}
+		hostDest, err := resolveDockerCopyHostPath(cfg, dest)
+		if err != nil {
+			return errJSON("%v", err)
+		}
+		args = []string{"cp", containerID + ":" + containerSrc, hostDest}
 	} else if direction == "to_container" {
-		args = []string{"cp", src, containerID + ":" + dest}
+		hostSrc, err := resolveDockerCopyHostPath(cfg, src)
+		if err != nil {
+			return errJSON("%v", err)
+		}
+		containerDest, err := validateDockerCopyContainerPath(dest)
+		if err != nil {
+			return errJSON("%v", err)
+		}
+		args = []string{"cp", hostSrc, containerID + ":" + containerDest}
 	} else {
 		return errJSON("direction must be from_container or to_container")
 	}
 
 	return runDockerCLIHelper(cfg, args...)
+}
+
+func resolveDockerCopyHostPath(cfg DockerConfig, userPath string) (string, error) {
+	if strings.TrimSpace(cfg.WorkspaceDir) == "" {
+		return "", fmt.Errorf("docker cp host path validation requires a configured workspace directory")
+	}
+	resolved, err := secureResolve(cfg.WorkspaceDir, userPath)
+	if err != nil {
+		return "", fmt.Errorf("invalid host path %q: %w", userPath, err)
+	}
+	return resolved, nil
+}
+
+func validateDockerCopyContainerPath(rawPath string) (string, error) {
+	trimmed := strings.TrimSpace(rawPath)
+	if trimmed == "" {
+		return "", fmt.Errorf("container path is required")
+	}
+	normalized := strings.ReplaceAll(trimmed, "\\", "/")
+	cleaned := pathpkg.Clean(normalized)
+	if cleaned == "." || cleaned == ".." || strings.HasPrefix(cleaned, "../") || strings.Contains(normalized, "../") || strings.Contains(normalized, "/../") {
+		return "", fmt.Errorf("invalid container path %q: path traversal blocked", rawPath)
+	}
+	return cleaned, nil
 }
 
 // allowedComposeCommands is the allowlist of valid docker compose subcommands.

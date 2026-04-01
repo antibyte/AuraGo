@@ -96,3 +96,53 @@ func TestAnalyzeMoodV2SanitizesInvalidProfileUpdates(t *testing.T) {
 		t.Fatalf("unexpected sanitized update: %+v", updates[0])
 	}
 }
+
+func TestAnalyzeMoodV2WithEmotionParsesCombinedJSON(t *testing.T) {
+	stm := newTestAnalysisDB(t)
+	mock := &mockPersonalityAnalysisClient{
+		response: `{"mood_analysis":{"user_sentiment":"curious","agent_appropriate_response_mood":"focused","relationship_delta":0.02,"trait_deltas":{"curiosity":0.05,"affinity":0.02},"user_profile_updates":[{"category":"tech","key":"preferred_language","value":"golang"}]},"emotion_state":{"description":"I feel calm and ready to help.","primary_mood":"focused","secondary_mood":"steady","valence":0.2,"arousal":0.3,"confidence":0.8,"cause":"the request is clear","recommended_response_style":"calm_and_precise"}}`,
+	}
+
+	mood, delta, deltas, updates, emotionState, err := stm.AnalyzeMoodV2WithEmotion(
+		context.Background(),
+		mock,
+		"test-model",
+		"history",
+		"user statements",
+		PersonalityMeta{Volatility: 1, EmpathyBias: 1},
+		true,
+		EmotionInput{
+			UserMessage: "Please help with this",
+			CurrentMood: MoodFocused,
+			TimeOfDay:   "morning",
+		},
+		"English",
+	)
+	if err != nil {
+		t.Fatalf("AnalyzeMoodV2WithEmotion: %v", err)
+	}
+	if mood != MoodFocused {
+		t.Fatalf("mood = %s, want focused", mood)
+	}
+	if delta != 0.02 {
+		t.Fatalf("delta = %f, want 0.02", delta)
+	}
+	if deltas[TraitCuriosity] != 0.05 {
+		t.Fatalf("curiosity delta = %f, want 0.05", deltas[TraitCuriosity])
+	}
+	if _, exists := deltas[TraitAffinity]; exists {
+		t.Fatalf("affinity should have been removed from trait deltas: %#v", deltas)
+	}
+	if len(updates) != 1 || updates[0].Key != "language" || updates[0].Value != "go" {
+		t.Fatalf("unexpected profile updates: %+v", updates)
+	}
+	if emotionState == nil {
+		t.Fatal("expected emotion state")
+	}
+	if emotionState.PrimaryMood != MoodFocused {
+		t.Fatalf("emotion primary mood = %s, want focused", emotionState.PrimaryMood)
+	}
+	if emotionState.Description != "I feel calm and ready to help." {
+		t.Fatalf("unexpected emotion description: %q", emotionState.Description)
+	}
+}

@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -36,5 +37,29 @@ func TestDispatchExecListToolsClarifiesBuiltinSkills(t *testing.T) {
 		if !strings.Contains(out, snippet) {
 			t.Fatalf("expected list_tools output to contain %q, got:\n%s", snippet, out)
 		}
+	}
+}
+
+func TestBuildMemoryReflectionOutputSerializesResult(t *testing.T) {
+	out, err := buildMemoryReflectionOutput(map[string]interface{}{"summary": "ok"})
+	if err != nil {
+		t.Fatalf("buildMemoryReflectionOutput returned error: %v", err)
+	}
+	if !strings.Contains(out, `"status":"success"`) {
+		t.Fatalf("expected success envelope, got %s", out)
+	}
+	if !strings.Contains(out, `"summary":"ok"`) {
+		t.Fatalf("expected marshaled reflection payload, got %s", out)
+	}
+
+	var decoded map[string]interface{}
+	if err := json.Unmarshal([]byte(strings.TrimPrefix(out, "Tool Output: ")), &decoded); err != nil {
+		t.Fatalf("output is not valid JSON: %v", err)
+	}
+}
+
+func TestBuildMemoryReflectionOutputReturnsMarshalError(t *testing.T) {
+	if _, err := buildMemoryReflectionOutput(map[string]interface{}{"bad": make(chan int)}); err == nil {
+		t.Fatal("expected marshal error for unsupported reflection payload")
 	}
 }

@@ -25,11 +25,13 @@ type mountInfo struct {
 	IsPrimary bool   `json:"isPrimary"`
 }
 
+var koofrHTTPClient = &http.Client{Timeout: 30 * time.Second}
+
 // ExecuteKoofr performs operations on the Koofr API.
 // Valid actions: list, read, write, mkdir, delete, rename, copy.
 func ExecuteKoofr(cfg KoofrConfig, action, path, dest, content string) string {
 	if cfg.Username == "" || cfg.AppPassword == "" {
-		return `Tool Output: {"status": "error", "message": "Koofr credentials are not configured"}`
+		return marshalPrefixedToolJSON(map[string]interface{}{"status": "error", "message": "Koofr credentials are not configured"})
 	}
 
 	baseURL := cfg.BaseURL
@@ -39,7 +41,7 @@ func ExecuteKoofr(cfg KoofrConfig, action, path, dest, content string) string {
 
 	mountID, err := getPrimaryMountID(baseURL, cfg.Username, cfg.AppPassword)
 	if err != nil {
-		return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Failed to get Koofr mount ID: %v"}`, err)
+		return marshalPrefixedToolJSON(map[string]interface{}{"status": "error", "message": fmt.Sprintf("Failed to get Koofr mount ID: %v", err)})
 	}
 
 	safePath := path
@@ -66,12 +68,7 @@ func ExecuteKoofr(cfg KoofrConfig, action, path, dest, content string) string {
 		reqURL := fmt.Sprintf("%s/content/api/v2/mounts/%s/files/get?path=%s", baseURL, mountID, url.QueryEscape(safePath))
 		respBytes, err = doKoofrRequest("GET", reqURL, cfg.Username, cfg.AppPassword, "", nil)
 		if err == nil {
-			// For reading files, we just format the successful output into JSON.
-			// Escape newlines and quotes loosely.
-			escapedContent := strings.ReplaceAll(string(respBytes), "\\", "\\\\")
-			escapedContent = strings.ReplaceAll(escapedContent, "\"", "\\\"")
-			escapedContent = strings.ReplaceAll(escapedContent, "\n", "\\n")
-			return fmt.Sprintf(`Tool Output: {"status": "success", "content": "%s"}`, escapedContent)
+			return koofrSuccessContentResponse(respBytes)
 		}
 
 	case "write":
@@ -89,14 +86,14 @@ func ExecuteKoofr(cfg KoofrConfig, action, path, dest, content string) string {
 
 		part, errWriter := writer.CreateFormFile("content", filename)
 		if errWriter != nil {
-			return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Failed to create multipart writer: %v"}`, errWriter)
+			return marshalPrefixedToolJSON(map[string]interface{}{"status": "error", "message": fmt.Sprintf("Failed to create multipart writer: %v", errWriter)})
 		}
 		part.Write([]byte(content))
 		writer.Close()
 
 		respBytes, err = doKoofrRequest("POST", reqURL, cfg.Username, cfg.AppPassword, writer.FormDataContentType(), body)
 		if err == nil {
-			return `Tool Output: {"status": "success", "message": "File written successfully"}`
+			return marshalPrefixedToolJSON(map[string]interface{}{"status": "success", "message": "File written successfully"})
 		}
 
 	case "mkdir":
@@ -123,12 +120,12 @@ func ExecuteKoofr(cfg KoofrConfig, action, path, dest, content string) string {
 		reqURL := fmt.Sprintf("%s/api/v2/mounts/%s/files/remove?path=%s", baseURL, mountID, url.QueryEscape(safePath))
 		respBytes, err = doKoofrRequest("DELETE", reqURL, cfg.Username, cfg.AppPassword, "application/json", nil)
 		if err == nil {
-			return `Tool Output: {"status": "success", "message": "Deleted successfully"}`
+			return marshalPrefixedToolJSON(map[string]interface{}{"status": "success", "message": "Deleted successfully"})
 		}
 
 	case "rename", "move":
 		if safeDest == "" {
-			return `Tool Output: {"status": "error", "message": "Destination path required for rename/move"}`
+			return marshalPrefixedToolJSON(map[string]interface{}{"status": "error", "message": "Destination path required for rename/move"})
 		}
 		reqURL := fmt.Sprintf("%s/api/v2/mounts/%s/files/move?path=%s", baseURL, mountID, url.QueryEscape(safePath))
 
@@ -137,12 +134,12 @@ func ExecuteKoofr(cfg KoofrConfig, action, path, dest, content string) string {
 
 		respBytes, err = doKoofrRequest("POST", reqURL, cfg.Username, cfg.AppPassword, "application/json", bytes.NewReader(payloadBytes))
 		if err == nil {
-			return `Tool Output: {"status": "success", "message": "Moved/Renamed successfully"}`
+			return marshalPrefixedToolJSON(map[string]interface{}{"status": "success", "message": "Moved/Renamed successfully"})
 		}
 
 	case "copy":
 		if safeDest == "" {
-			return `Tool Output: {"status": "error", "message": "Destination path required for copy"}`
+			return marshalPrefixedToolJSON(map[string]interface{}{"status": "error", "message": "Destination path required for copy"})
 		}
 		reqURL := fmt.Sprintf("%s/api/v2/mounts/%s/files/copy?path=%s", baseURL, mountID, url.QueryEscape(safePath))
 
@@ -151,22 +148,34 @@ func ExecuteKoofr(cfg KoofrConfig, action, path, dest, content string) string {
 
 		respBytes, err = doKoofrRequest("POST", reqURL, cfg.Username, cfg.AppPassword, "application/json", bytes.NewReader(payloadBytes))
 		if err == nil {
-			return `Tool Output: {"status": "success", "message": "Copied successfully"}`
+			return marshalPrefixedToolJSON(map[string]interface{}{"status": "success", "message": "Copied successfully"})
 		}
 
 	default:
-		return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Unsupported Koofr action: %s"}`, action)
+		return marshalPrefixedToolJSON(map[string]interface{}{"status": "error", "message": fmt.Sprintf("Unsupported Koofr action: %s", action)})
 	}
 
 	if err != nil {
-		return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Koofr API request failed", "details": "%v"}`, err)
+		return marshalPrefixedToolJSON(map[string]interface{}{"status": "error", "message": "Koofr API request failed", "details": fmt.Sprintf("%v", err)})
 	}
 
 	if len(respBytes) > 0 {
-		return fmt.Sprintf(`Tool Output: {"status": "success", "response": %s}`, string(respBytes))
+		return marshalPrefixedToolJSON(map[string]interface{}{"status": "success", "response": jsonRawOrString(respBytes)})
 	}
 
-	return `Tool Output: {"status": "success"}`
+	return marshalPrefixedToolJSON(map[string]interface{}{"status": "success"})
+}
+
+func koofrSuccessContentResponse(content []byte) string {
+	response := map[string]string{
+		"status":  "success",
+		"content": string(content),
+	}
+	data, err := json.Marshal(response)
+	if err != nil {
+		return marshalPrefixedToolJSON(map[string]interface{}{"status": "error", "message": "Failed to encode Koofr response"})
+	}
+	return "Tool Output: " + string(data)
 }
 
 func getPrimaryMountID(baseURL, username, password string) (string, error) {
@@ -209,7 +218,6 @@ func findPrimaryMount(mounts []mountInfo) (string, error) {
 }
 
 func doKoofrRequest(method, reqURL, username, password, contentType string, body io.Reader) ([]byte, error) {
-	client := &http.Client{Timeout: 30 * time.Second}
 	req, err := http.NewRequest(method, reqURL, body)
 	if err != nil {
 		return nil, err
@@ -220,13 +228,13 @@ func doKoofrRequest(method, reqURL, username, password, contentType string, body
 		req.Header.Set("Content-Type", contentType)
 	}
 
-	resp, err := client.Do(req)
+	resp, err := koofrHTTPClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
 
-	respBytes, err := io.ReadAll(resp.Body)
+	respBytes, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}

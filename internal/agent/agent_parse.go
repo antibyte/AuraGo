@@ -13,7 +13,9 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
+	"unicode/utf8"
 
 	"aurago/internal/config"
 	"aurago/internal/llm"
@@ -23,6 +25,13 @@ import (
 	"aurago/internal/webhooks"
 
 	"github.com/sashabaranov/go-openai"
+)
+
+var (
+	localIPCache sync.Map
+	localIPDial  = func(network, address string) (net.Conn, error) {
+		return net.Dial(network, address)
+	}
 )
 
 func guardianBlockNextStep(reason string) string {
@@ -116,7 +125,7 @@ proceed:
 	rawResult := dispatchInner(ctx, tc, dc)
 
 	// Apply redaction to tool output
-	sanitized := security.RedactSensitiveInfo(rawResult)
+	sanitized := security.StripThinkingTags(security.RedactSensitiveInfo(rawResult))
 
 	// Guardian: Sanitize tool output (isolation + role-marker stripping)
 	if guardian != nil {
@@ -142,11 +151,18 @@ proceed:
 func getLocalIP(cfg *config.Config) string {
 	host := cfg.Server.Host
 	if host == "" || host == "127.0.0.1" || host == "0.0.0.0" {
-		conn, err := net.Dial("udp", "8.8.8.8:80")
+		if cached, ok := localIPCache.Load(host); ok {
+			return cached.(string)
+		}
+
+		conn, err := localIPDial("udp", "8.8.8.8:80")
 		if err == nil {
 			defer conn.Close()
-			return conn.LocalAddr().(*net.UDPAddr).IP.String()
+			resolved := conn.LocalAddr().(*net.UDPAddr).IP.String()
+			localIPCache.Store(host, resolved)
+			return resolved
 		}
+		localIPCache.Store(host, "127.0.0.1")
 		return "127.0.0.1"
 	}
 	return host
@@ -212,8 +228,13 @@ func runMemoryOrchestrator(tc ToolCall, cfg *config.Config, logger *slog.Logger,
 			}
 
 			// Compress via LLM
+			compressionTimeout := time.Duration(cfg.CircuitBreaker.LLMTimeoutSeconds) * time.Second
+			if compressionTimeout <= 0 {
+				compressionTimeout = 10 * time.Minute
+			}
+			compressionCtx, cancelCompression := context.WithTimeout(context.Background(), compressionTimeout)
 			resp, err := llm.ExecuteWithRetry(
-				context.Background(),
+				compressionCtx,
 				client,
 				openai.ChatCompletionRequest{
 					Model: cfg.LLM.Model,
@@ -226,6 +247,7 @@ func runMemoryOrchestrator(tc ToolCall, cfg *config.Config, logger *slog.Logger,
 				logger,
 				nil,
 			)
+			cancelCompression()
 			if err == nil && len(resp.Choices) > 0 {
 				compressed := resp.Choices[0].Message.Content
 
@@ -1014,7 +1036,44 @@ func Truncate(s string, n int) string {
 	if len(s) <= n {
 		return s
 	}
-	return s[:n] + "..."
+	return truncateUTF8Prefix(s, n) + "..."
+}
+
+func truncateUTF8Prefix(s string, maxBytes int) string {
+	if maxBytes <= 0 || s == "" {
+		return ""
+	}
+	if len(s) <= maxBytes {
+		return s
+	}
+
+	cut := maxBytes
+	for cut > 0 && cut < len(s) && !utf8.RuneStart(s[cut]) {
+		cut--
+	}
+	for cut > 0 && !utf8.ValidString(s[:cut]) {
+		cut--
+		for cut > 0 && cut < len(s) && !utf8.RuneStart(s[cut]) {
+			cut--
+		}
+	}
+	return s[:cut]
+}
+
+func truncateUTF8ToLimit(s string, limit int, suffix string) string {
+	if limit <= 0 {
+		return ""
+	}
+	if len(s) <= limit {
+		return s
+	}
+	if suffix == "" {
+		return truncateUTF8Prefix(s, limit)
+	}
+	if len(suffix) >= limit {
+		return truncateUTF8Prefix(suffix, limit)
+	}
+	return truncateUTF8Prefix(s, limit-len(suffix)) + suffix
 }
 
 // isFollowUpQuestion returns true when a follow_up task_prompt looks like a
@@ -1352,7 +1411,7 @@ func toolCallParams(tc ToolCall) map[string]string {
 	}
 	if tc.Code != "" {
 		if len(tc.Code) > 300 {
-			m["code"] = tc.Code[:300]
+			m["code"] = truncateUTF8Prefix(tc.Code, 300)
 		} else {
 			m["code"] = tc.Code
 		}

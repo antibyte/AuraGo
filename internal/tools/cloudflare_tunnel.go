@@ -1207,7 +1207,7 @@ func verifyCloudflaredChecksum(client *http.Client, checksumURL, filePath string
 		logger.Warn("[CloudflareTunnel] Checksum file unavailable — skipping integrity check", "status", resp.StatusCode)
 		return nil
 	}
-	data, err := io.ReadAll(resp.Body)
+	data, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
 	if err != nil {
 		logger.Warn("[CloudflareTunnel] Failed to read checksum file — skipping integrity check", "error", err)
 		return nil

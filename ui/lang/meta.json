@@ -8,6 +8,9 @@
   "help.llm.provider": {
     "provider_ref": true
   },
+  "help.llm.helper_provider": {
+    "provider_ref": true
+  },
   "help.agent.system_language": {
     "options": [
       "Deutsch",

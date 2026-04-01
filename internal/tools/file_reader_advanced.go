@@ -6,6 +6,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"unicode/utf8"
 )
 
 const fileReaderAdvancedMaxChars = 24000
@@ -106,25 +107,32 @@ func readTail(resolved string, n int, encode func(FileReaderResult) string) stri
 	}
 	defer f.Close()
 
-	var allLines []string
+	if n <= 0 {
+		n = 1
+	}
+	buffer := make([]string, 0, n)
 	scanner := newLargeFileScanner(f)
+	total := 0
 	for scanner.Scan() {
-		allLines = append(allLines, scanner.Text())
+		total++
+		if len(buffer) == n {
+			copy(buffer, buffer[1:])
+			buffer[len(buffer)-1] = scanner.Text()
+			continue
+		}
+		buffer = append(buffer, scanner.Text())
 	}
 
-	total := len(allLines)
-	start := total - n
-	if start < 0 {
+	start := total - len(buffer) + 1
+	if total == 0 {
 		start = 0
 	}
-
-	lines := allLines[start:]
-	content, truncated := clampFileReaderContent(strings.Join(lines, "\n"))
+	content, truncated := clampFileReaderContent(strings.Join(buffer, "\n"))
 	return encode(FileReaderResult{Status: "success", Data: map[string]interface{}{
-		"start_line":  start + 1,
+		"start_line":  start,
 		"end_line":    total,
 		"total_lines": total,
-		"total_read":  len(lines),
+		"total_read":  len(buffer),
 		"content":     content,
 		"truncated":   truncated,
 	}})
@@ -176,45 +184,115 @@ func searchContext(resolved, pattern string, contextLines int, encode func(FileR
 	}
 	defer f.Close()
 
-	var allLines []string
-	scanner := newLargeFileScanner(f)
-	for scanner.Scan() {
-		allLines = append(allLines, scanner.Text())
-	}
-
 	type contextResult struct {
 		MatchLine int    `json:"match_line"`
 		StartLine int    `json:"start_line"`
 		EndLine   int    `json:"end_line"`
 		Content   string `json:"content"`
 	}
+	type bufferedLine struct {
+		lineNum int
+		text    string
+	}
+	type activeContext struct {
+		matchLine      int
+		startLine      int
+		lines          []string
+		remainingAfter int
+	}
 
 	var results []contextResult
+	var active []activeContext
+	before := make([]bufferedLine, 0, contextLines)
 	maxResults := 50
-
-	for i, line := range allLines {
-		if re.MatchString(line) {
-			start := i - contextLines
-			if start < 0 {
-				start = 0
-			}
-			end := i + contextLines
-			if end >= len(allLines) {
-				end = len(allLines) - 1
-			}
-
+	lineNum := 0
+	scanner := newLargeFileScanner(f)
+	flushActive := func() {
+		for _, pending := range active {
 			results = append(results, contextResult{
-				MatchLine: i + 1,
-				StartLine: start + 1,
-				EndLine:   end + 1,
-				Content:   mustClampFileReaderContent(strings.Join(allLines[start:end+1], "\n")),
+				MatchLine: pending.matchLine,
+				StartLine: pending.startLine,
+				EndLine:   pending.startLine + len(pending.lines) - 1,
+				Content:   mustClampFileReaderContent(strings.Join(pending.lines, "\n")),
 			})
+		}
+		active = nil
+	}
 
-			if len(results) >= maxResults {
-				break
+	for scanner.Scan() {
+		line := scanner.Text()
+		lineNum++
+
+		for index := range active {
+			active[index].lines = append(active[index].lines, line)
+			active[index].remainingAfter--
+		}
+
+		remaining := active[:0]
+		for _, pending := range active {
+			if pending.remainingAfter <= 0 {
+				results = append(results, contextResult{
+					MatchLine: pending.matchLine,
+					StartLine: pending.startLine,
+					EndLine:   pending.startLine + len(pending.lines) - 1,
+					Content:   mustClampFileReaderContent(strings.Join(pending.lines, "\n")),
+				})
+				if len(results) >= maxResults {
+					return encode(FileReaderResult{Status: "success", Data: map[string]interface{}{
+						"matches": results,
+						"count":   len(results),
+					}})
+				}
+				continue
+			}
+			remaining = append(remaining, pending)
+		}
+		active = remaining
+
+		if re.MatchString(line) {
+			lines := make([]string, 0, len(before)+1+contextLines)
+			startLine := lineNum
+			if len(before) > 0 {
+				startLine = before[0].lineNum
+				for _, prev := range before {
+					lines = append(lines, prev.text)
+				}
+			}
+			lines = append(lines, line)
+			pending := activeContext{
+				matchLine:      lineNum,
+				startLine:      startLine,
+				lines:          lines,
+				remainingAfter: contextLines,
+			}
+			if contextLines == 0 {
+				results = append(results, contextResult{
+					MatchLine: pending.matchLine,
+					StartLine: pending.startLine,
+					EndLine:   pending.startLine + len(pending.lines) - 1,
+					Content:   mustClampFileReaderContent(strings.Join(pending.lines, "\n")),
+				})
+				if len(results) >= maxResults {
+					return encode(FileReaderResult{Status: "success", Data: map[string]interface{}{
+						"matches": results,
+						"count":   len(results),
+					}})
+				}
+			} else {
+				active = append(active, pending)
+			}
+		}
+
+		if contextLines > 0 {
+			if len(before) == contextLines {
+				copy(before, before[1:])
+				before[len(before)-1] = bufferedLine{lineNum: lineNum, text: line}
+			} else {
+				before = append(before, bufferedLine{lineNum: lineNum, text: line})
 			}
 		}
 	}
+	flushActive()
 
 	return encode(FileReaderResult{Status: "success", Data: map[string]interface{}{
 		"matches": results,
@@ -226,10 +304,48 @@ func clampFileReaderContent(content string) (string, bool) {
 	if len(content) <= fileReaderAdvancedMaxChars {
 		return content, false
 	}
-	return content[:fileReaderAdvancedMaxChars] + "\n\n[...truncated for prompt safety — narrow the range or use smart_file_read summarize/sample...]", true
+	notice := "\n\n[...truncated for prompt safety — narrow the range or use smart_file_read summarize/sample...]"
+	return truncateUTF8ToLimit(content, fileReaderAdvancedMaxChars+len(notice), notice), true
 }
 
 func mustClampFileReaderContent(content string) string {
 	clamped, _ := clampFileReaderContent(content)
 	return clamped
+}
+
+func truncateUTF8Prefix(content string, maxBytes int) string {
+	if maxBytes <= 0 || content == "" {
+		return ""
+	}
+	if len(content) <= maxBytes {
+		return content
+	}
+
+	cut := maxBytes
+	for cut > 0 && cut < len(content) && !utf8.RuneStart(content[cut]) {
+		cut--
+	}
+	for cut > 0 && !utf8.ValidString(content[:cut]) {
+		cut--
+		for cut > 0 && cut < len(content) && !utf8.RuneStart(content[cut]) {
+			cut--
+		}
+	}
+	return content[:cut]
+}
+
+func truncateUTF8ToLimit(content string, limit int, suffix string) string {
+	if limit <= 0 {
+		return ""
+	}
+	if len(content) <= limit {
+		return content
+	}
+	if suffix == "" {
+		return truncateUTF8Prefix(content, limit)
+	}
+	if len(suffix) >= limit {
+		return truncateUTF8Prefix(suffix, limit)
+	}
+	return truncateUTF8Prefix(content, limit-len(suffix)) + suffix
 }

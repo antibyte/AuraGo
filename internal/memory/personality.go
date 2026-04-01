@@ -261,66 +261,6 @@ func (t PersonalityThresholds) normalized() PersonalityThresholds {
 	return t
 }
 
-// ── SQLite Schema Extension ─────────────────────────────────────────────────
-
-// personalitySchema contains the DDL for personality tables.
-// Called from InitPersonalityTables.
-const personalitySchema = `
-CREATE TABLE IF NOT EXISTS personality_traits (
-	trait TEXT PRIMARY KEY,
-	value REAL DEFAULT 0.5,
-	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS mood_log (
-	id INTEGER PRIMARY KEY AUTOINCREMENT,
-	mood TEXT NOT NULL,
-	trigger_text TEXT,
-	timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX IF NOT EXISTS idx_mood_log_time ON mood_log(timestamp);
-
-CREATE TABLE IF NOT EXISTS character_milestones (
-	id INTEGER PRIMARY KEY AUTOINCREMENT,
-	label TEXT NOT NULL,
-	details TEXT,
-	timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS personality_trait_bounds (
-	trait TEXT PRIMARY KEY,
-	floor REAL DEFAULT 0.0,
-	ceiling REAL DEFAULT 1.0,
-	decay_resistance REAL DEFAULT 1.0
-);`
-
-// InitPersonalityTables creates the personality-related tables and seeds default traits.
-func (s *SQLiteMemory) InitPersonalityTables() error {
-	if _, err := s.db.Exec(personalitySchema); err != nil {
-		return fmt.Errorf("personality schema: %w", err)
-	}
-	// Seed defaults (ignore conflict = already seeded)
-	for _, t := range []string{TraitCuriosity, TraitThoroughness, TraitCreativity, TraitEmpathy, TraitConfidence, TraitAffinity} {
-		_, _ = s.db.Exec(`INSERT OR IGNORE INTO personality_traits (trait, value) VALUES (?, ?)`, t, traitDefault)
-	}
-	// Loneliness starts at 0.0
-	_, _ = s.db.Exec(`INSERT OR IGNORE INTO personality_traits (trait, value) VALUES (?, ?)`, TraitLoneliness, 0.0)
-
-	// Repair: reset traits stuck at 0.0 back to default (except loneliness which legitimately starts at 0).
-	// This fixes databases damaged by unclamped V2 deltas.
-	for _, t := range []string{TraitCuriosity, TraitThoroughness, TraitCreativity, TraitEmpathy, TraitConfidence, TraitAffinity} {
-		_, _ = s.db.Exec(`UPDATE personality_traits SET value = ? WHERE trait = ? AND value = 0.0`, traitDefault, t)
-	}
-
-	// Initialize emotion history tables (Emotion Synthesizer)
-	if err := s.InitEmotionTables(); err != nil {
-		return fmt.Errorf("emotion tables: %w", err)
-	}
-
-	return nil
-}
-
 // ── Trait CRUD ───────────────────────────────────────────────────────────────
 
 // PersonalityTraits maps trait name → value (0.0–1.0).

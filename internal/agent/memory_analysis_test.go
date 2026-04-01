@@ -109,6 +109,91 @@ func TestRerankWithLLM_EmptyCandidates(t *testing.T) {
 	}
 }
 
+func TestResolveMemoryAnalysisLLMConfigPrefersHelperLLM(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.LLM.HelperEnabled = true
+	cfg.LLM.HelperProvider = "helper"
+	cfg.LLM.HelperProviderType = "openrouter"
+	cfg.LLM.HelperBaseURL = "https://helper.example/v1"
+	cfg.LLM.HelperResolvedModel = "helper-model"
+	cfg.MemoryAnalysis.ProviderType = "openai"
+	cfg.MemoryAnalysis.BaseURL = "https://legacy.example/v1"
+	cfg.MemoryAnalysis.APIKey = "legacy-key"
+	cfg.MemoryAnalysis.ResolvedModel = "legacy-model"
+
+	got := resolveMemoryAnalysisLLMConfig(cfg)
+
+	if got.providerType != "openrouter" {
+		t.Fatalf("providerType = %q, want openrouter", got.providerType)
+	}
+	if got.baseURL != "https://helper.example/v1" {
+		t.Fatalf("baseURL = %q", got.baseURL)
+	}
+	if got.model != "helper-model" {
+		t.Fatalf("model = %q, want helper-model", got.model)
+	}
+}
+
+func TestResolveMemoryAnalysisLLMConfigFallsBackToLegacyMemoryAnalysis(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.MemoryAnalysis.ProviderType = "openai"
+	cfg.MemoryAnalysis.BaseURL = "https://legacy.example/v1"
+	cfg.MemoryAnalysis.APIKey = "legacy-key"
+	cfg.MemoryAnalysis.ResolvedModel = "legacy-model"
+
+	got := resolveMemoryAnalysisLLMConfig(cfg)
+
+	if got.providerType != "openai" {
+		t.Fatalf("providerType = %q, want openai", got.providerType)
+	}
+	if got.baseURL != "https://legacy.example/v1" {
+		t.Fatalf("baseURL = %q", got.baseURL)
+	}
+	if got.apiKey != "legacy-key" {
+		t.Fatalf("apiKey = %q, want legacy-key", got.apiKey)
+	}
+	if got.model != "legacy-model" {
+		t.Fatalf("model = %q, want legacy-model", got.model)
+	}
+}
+
+func TestApplyMemoryAnalysisResultStoresPendingActionsWithoutCorrections(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	if err := stm.InitJournalTables(); err != nil {
+		t.Fatalf("InitJournalTables: %v", err)
+	}
+	t.Cleanup(func() { _ = stm.Close() })
+
+	cfg := &config.Config{}
+	result := memoryAnalysisResult{
+		PendingActions: []pendingAction{
+			{
+				Title:      "Review backup schedule",
+				Summary:    "Follow up on the nightly backup schedule later this week.",
+				Trigger:    "backup schedule review",
+				Confidence: 0.80,
+			},
+		},
+	}
+
+	applyMemoryAnalysisResult(cfg, logger, stm, nil, "sess-1", result)
+
+	pending, err := stm.GetPendingEpisodicActionsForQuery("backup schedule", 5)
+	if err != nil {
+		t.Fatalf("GetPendingEpisodicActionsForQuery: %v", err)
+	}
+	if len(pending) != 1 {
+		t.Fatalf("len(pending) = %d, want 1", len(pending))
+	}
+	if pending[0].Title != "Review backup schedule" {
+		t.Fatalf("title = %q", pending[0].Title)
+	}
+}
+
 func TestRerankWithRecencyUsesConfidenceSignals(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	stm, err := memory.NewSQLiteMemory(":memory:", logger)
@@ -146,6 +231,29 @@ func TestRerankWithRecencyUsesConfidenceSignals(t *testing.T) {
 	}
 	if ranked[0].docID != "doc-high" {
 		t.Fatalf("top ranked docID = %q, want doc-high", ranked[0].docID)
+	}
+}
+
+func TestApplyHelperRAGScoresReordersRankedCandidates(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	candidates := []rankedMemory{
+		{text: "Less relevant", docID: "doc-low", score: 0.80},
+		{text: "More relevant", docID: "doc-high", score: 0.60},
+	}
+	result := helperRAGBatchResult{
+		CandidateScores: []helperRAGBatchScore{
+			{MemoryID: "doc-low", Score: 1},
+			{MemoryID: "doc-high", Score: 10},
+		},
+	}
+
+	got := applyHelperRAGScores(logger, candidates, result)
+	if len(got) != 2 {
+		t.Fatalf("len(got) = %d, want 2", len(got))
+	}
+	if got[0].docID != "doc-high" {
+		t.Fatalf("top docID = %q, want doc-high", got[0].docID)
 	}
 }
 
@@ -280,6 +388,30 @@ func TestShouldUseRAGForMessage(t *testing.T) {
 			got := shouldUseRAGForMessage(tt.msg)
 			if got != tt.want {
 				t.Errorf("shouldUseRAGForMessage(%q) = %v, want %v", tt.msg, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestShouldRefreshRAG(t *testing.T) {
+	tests := []struct {
+		name           string
+		query          string
+		lastQuery      string
+		toolIterations int
+		want           bool
+	}{
+		{name: "empty query skipped", query: "", lastQuery: "status", toolIterations: 3, want: false},
+		{name: "new query refreshes immediately", query: "docker status", lastQuery: "tailscale status", toolIterations: 0, want: true},
+		{name: "same query waits during cooldown", query: "docker status", lastQuery: "docker status", toolIterations: 1, want: false},
+		{name: "same query refreshes after cadence", query: "docker status", lastQuery: "docker status", toolIterations: ragRefreshAfterToolIterations, want: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := shouldRefreshRAG(tt.query, tt.lastQuery, tt.toolIterations)
+			if got != tt.want {
+				t.Errorf("shouldRefreshRAG(%q, %q, %d) = %v, want %v", tt.query, tt.lastQuery, tt.toolIterations, got, tt.want)
 			}
 		})
 	}

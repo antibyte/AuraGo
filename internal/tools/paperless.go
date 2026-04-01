@@ -54,7 +54,10 @@ func paperlessJSON(cfg PaperlessConfig, endpoint string) (map[string]interface{}
 	}
 	defer resp.Body.Close()
 
-	data, _ := io.ReadAll(resp.Body)
+	data, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read paperless response body: %w", err)
+	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, truncate(string(data), 500))
 	}
@@ -256,7 +259,10 @@ func PaperlessUpload(cfg PaperlessConfig, title, content, tags, correspondent, d
 	}
 	defer resp.Body.Close()
 
-	respBody, _ := io.ReadAll(resp.Body)
+	respBody, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
+	if err != nil {
+		return paperlessEncode(FSResult{Status: "error", Message: fmt.Sprintf("Upload response read failed: %v", err)})
+	}
 
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 		return paperlessEncode(FSResult{Status: "success", Message: "Document uploaded successfully. It will appear after Paperless-ngx finishes processing."})
@@ -307,7 +313,10 @@ func PaperlessUpdate(cfg PaperlessConfig, documentID, title, tags, correspondent
 	}
 	defer resp.Body.Close()
 
-	respBody, _ := io.ReadAll(resp.Body)
+	respBody, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
+	if err != nil {
+		return paperlessEncode(FSResult{Status: "error", Message: fmt.Sprintf("PATCH response read failed: %v", err)})
+	}
 
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 		return paperlessEncode(FSResult{Status: "success", Message: fmt.Sprintf("Document %s updated successfully", documentID)})
@@ -336,7 +345,10 @@ func PaperlessDelete(cfg PaperlessConfig, documentID string) string {
 		return paperlessEncode(FSResult{Status: "error", Message: fmt.Sprintf("Document %s not found", documentID)})
 	}
 
-	respBody, _ := io.ReadAll(resp.Body)
+	respBody, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
+	if err != nil {
+		return paperlessEncode(FSResult{Status: "error", Message: fmt.Sprintf("DELETE response read failed: %v", err)})
+	}
 	return paperlessEncode(FSResult{Status: "error", Message: fmt.Sprintf("DELETE returned HTTP %d: %s", resp.StatusCode, truncate(string(respBody), 500))})
 }
 

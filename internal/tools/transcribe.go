@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"strings"
@@ -17,10 +16,17 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
+var multimodalTranscribeHTTPClient = &http.Client{Timeout: 60 * time.Second}
+
 // TranscribeAudioFile sends an audio file to the configured Whisper/STT service for transcription.
 // It tries the native OpenAI Whisper API first, and falls back to multimodal transcription
 // if the provider is set to "multimodal".
 func TranscribeAudioFile(filePath string, cfg *config.Config) (string, error) {
+	resolvedPath, err := resolveToolInputPath(filePath, cfg)
+	if err != nil {
+		return "", fmt.Errorf("invalid audio file path: %w", err)
+	}
+
 	mode := strings.ToLower(cfg.Whisper.Mode)
 
 	// OpenRouter does not support OpenAI's /v1/audio/transcriptions endpoint.
@@ -41,9 +47,9 @@ func TranscribeAudioFile(filePath string, cfg *config.Config) (string, error) {
 	}
 
 	if mode == "multimodal" {
-		return transcribeMultimodal(filePath, cfg)
+		return transcribeMultimodal(resolvedPath, cfg)
 	}
-	return transcribeWhisper(filePath, cfg)
+	return transcribeWhisper(resolvedPath, cfg)
 }
 
 // transcribeWhisper uses the standard OpenAI Whisper API.
@@ -64,8 +70,15 @@ func transcribeWhisper(filePath string, cfg *config.Config) (string, error) {
 		model = openai.Whisper1
 	}
 
+	timeout := time.Duration(cfg.CircuitBreaker.LLMTimeoutSeconds) * time.Second
+	if timeout <= 0 {
+		timeout = 10 * time.Minute
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
 	resp, err := client.CreateTranscription(
-		context.Background(),
+		ctx,
 		openai.AudioRequest{
 			Model:    model,
 			FilePath: filePath,
@@ -167,15 +180,17 @@ func transcribeMultimodal(filePath string, cfg *config.Config) (string, error) {
 	req.Header.Set("HTTP-Referer", "https://github.com/andre/aurago")
 	req.Header.Set("X-Title", "AuraGo")
 
-	client := &http.Client{Timeout: 60 * time.Second}
-	resp, err := client.Do(req)
+	resp, err := multimodalTranscribeHTTPClient.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("transcription request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
+		if err != nil {
+			return "", fmt.Errorf("transcription API error (status %d) and failed to read response body: %w", resp.StatusCode, err)
+		}
 		return "", fmt.Errorf("transcription API error (status %d): %s", resp.StatusCode, string(body))
 	}
 

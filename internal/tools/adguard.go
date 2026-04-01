@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -19,12 +20,15 @@ type AdGuardConfig struct {
 
 // adguardClient is a lazily-initialized shared HTTP client.
 var adguardClient *http.Client
+var adguardClientOnce sync.Once
+var adguardClientFactory = func() *http.Client {
+	return &http.Client{Timeout: 15 * time.Second}
+}
 
 func getAdGuardClient() *http.Client {
-	if adguardClient != nil {
-		return adguardClient
-	}
-	adguardClient = &http.Client{Timeout: 15 * time.Second}
+	adguardClientOnce.Do(func() {
+		adguardClient = adguardClientFactory()
+	})
 	return adguardClient
 }
 
@@ -57,7 +61,7 @@ func adguardRequest(cfg AdGuardConfig, method, endpoint string, body string) ([]
 	}
 	defer resp.Body.Close()
 
-	data, err := io.ReadAll(resp.Body)
+	data, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
 	if err != nil {
 		return nil, resp.StatusCode, fmt.Errorf("failed to read response: %w", err)
 	}
@@ -74,11 +78,14 @@ func adgOK(payload interface{}) string {
 }
 
 func adgError(msg string, args ...interface{}) string {
-	return fmt.Sprintf(`{"status":"error","message":"`+msg+`"}`, args...)
+	text := fmt.Sprintf(msg, args...)
+	out, _ := json.Marshal(map[string]interface{}{"status": "error", "message": text})
+	return string(out)
 }
 
 func adgHTTPError(code int, data []byte) string {
-	return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+	out, _ := json.Marshal(map[string]interface{}{"status": "error", "http_code": code, "message": string(data)})
+	return string(out)
 }
 
 // adgGet performs a GET request and returns the raw response as a wrapped JSON result.

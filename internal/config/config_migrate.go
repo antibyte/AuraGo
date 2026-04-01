@@ -208,6 +208,20 @@ func (c *Config) ResolveProviders() {
 		c.LLM.MiniMaxFix = true
 	}
 
+	// ── LLM.Helper ── (explicit helper provider; no fallback to main LLM)
+	if c.LLM.HelperProvider != "" {
+		if p := c.FindProvider(c.LLM.HelperProvider); p != nil {
+			c.LLM.HelperProviderType = p.Type
+			c.LLM.HelperBaseURL = p.BaseURL
+			c.LLM.HelperAPIKey = p.APIKey
+			if model := strings.TrimSpace(c.LLM.HelperModel); model != "" {
+				c.LLM.HelperResolvedModel = model
+			} else {
+				c.LLM.HelperResolvedModel = p.Model
+			}
+		}
+	}
+
 	// ── FallbackLLM ──
 	if p := c.FindProvider(c.FallbackLLM.Provider); p != nil {
 		c.FallbackLLM.ProviderType = p.Type

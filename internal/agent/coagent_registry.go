@@ -45,6 +45,7 @@ type CoAgentInfo struct {
 	QueuePosition int
 	LastEvent     string
 	LastError     string
+	PartialResult string
 	Events        []CoAgentEvent
 
 	startCh   chan struct{}
@@ -111,6 +112,9 @@ type CoAgentRegistry struct {
 	logger          *slog.Logger
 	cleanupInterval time.Duration
 	cleanupMaxAge   time.Duration
+	cleanupStopCh   chan struct{}
+	cleanupDoneCh   chan struct{}
+	cleanupRunning  bool
 }
 
 // NewCoAgentRegistry creates a new registry with the given slot limit.
@@ -354,6 +358,23 @@ func (r *CoAgentRegistry) RecordRetry(id, errMsg string) {
 	a.recordEvent("retry scheduled")
 }
 
+// RecordPartialResult stores the latest compact partial result for a co-agent.
+func (r *CoAgentRegistry) RecordPartialResult(id, partial string) {
+	r.mu.RLock()
+	a := r.agents[id]
+	r.mu.RUnlock()
+	if a == nil {
+		return
+	}
+	partial = strings.TrimSpace(partial)
+	if partial == "" {
+		return
+	}
+	a.mu.Lock()
+	a.PartialResult = partial
+	a.mu.Unlock()
+}
+
 // Complete marks a co-agent as successfully finished.
 func (r *CoAgentRegistry) Complete(id, result string, tokensUsed, toolCalls int) {
 	r.mu.Lock()
@@ -472,6 +493,9 @@ func (r *CoAgentRegistry) List() []map[string]interface{} {
 		if a.LastError != "" {
 			entry["last_error"] = a.LastError
 		}
+		if a.PartialResult != "" && a.State != CoAgentCompleted {
+			entry["partial_result_preview"] = truncateStr(a.PartialResult, 240)
+		}
 		if len(a.Events) > 0 {
 			events := make([]map[string]string, 0, len(a.Events))
 			for _, ev := range a.Events {
@@ -519,6 +543,88 @@ func (r *CoAgentRegistry) GetResult(id string) (string, error) {
 	return "", fmt.Errorf("unknown state")
 }
 
+// GetStatus returns a structured status snapshot for a co-agent in any state.
+func (r *CoAgentRegistry) GetStatus(id string) (map[string]interface{}, error) {
+	r.mu.RLock()
+	a, ok := r.agents[id]
+	r.mu.RUnlock()
+	if !ok {
+		return nil, fmt.Errorf("co-agent '%s' not found", id)
+	}
+
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	runtime := time.Since(a.StartedAt)
+	if a.State != CoAgentRunning && a.State != CoAgentQueued && !a.CompletedAt.IsZero() {
+		runtime = a.CompletedAt.Sub(a.StartedAt)
+	}
+
+	status := map[string]interface{}{
+		"co_agent_id":    a.ID,
+		"task":           truncateStr(a.Task, 200),
+		"specialist":     a.Specialist,
+		"state":          string(a.State),
+		"started_at":     a.StartedAt.Format(time.RFC3339),
+		"runtime":        fmt.Sprintf("%.1fs", runtime.Seconds()),
+		"tokens_used":    a.TokensUsed,
+		"tool_calls":     a.ToolCalls,
+		"retry_count":    a.RetryCount,
+		"queue_position": a.QueuePosition,
+		"last_event":     a.LastEvent,
+		"retry_hint":     buildCoAgentRetryHint(a.State, a.RetryCount),
+	}
+	if !a.CompletedAt.IsZero() {
+		status["completed_at"] = a.CompletedAt.Format(time.RFC3339)
+	}
+	if a.LastError != "" {
+		status["last_error"] = a.LastError
+	}
+	if a.Error != "" {
+		status["error"] = a.Error
+	}
+	if a.PartialResult != "" && a.State != CoAgentCompleted {
+		status["partial_result"] = a.PartialResult
+	}
+	if a.State == CoAgentCompleted {
+		status["result"] = a.Result
+	}
+	if len(a.Events) > 0 {
+		events := make([]map[string]string, 0, len(a.Events))
+		for _, ev := range a.Events {
+			events = append(events, map[string]string{
+				"at":      ev.At.Format(time.RFC3339),
+				"message": ev.Message,
+			})
+		}
+		status["recent_events"] = events
+	}
+	return status, nil
+}
+
+func buildCoAgentRetryHint(state CoAgentState, retryCount int) string {
+	switch state {
+	case CoAgentQueued:
+		return "Wait for a free slot or stop another co-agent first. Use list to monitor queue_position."
+	case CoAgentRunning:
+		if retryCount > 0 {
+			return "This co-agent already retried after a transient failure. Avoid spawning a duplicate until it finishes."
+		}
+		return "Let it continue running and inspect recent_events or partial_result before deciding to stop it."
+	case CoAgentFailed:
+		if retryCount > 0 {
+			return "Inspect last_error and partial_result before retrying. Repeating the same task unchanged will likely fail again."
+		}
+		return "Adjust the task or specialist before retrying instead of rerunning the same request unchanged."
+	case CoAgentCancelled:
+		return "Restart it only if the task is still needed. Review recent_events to avoid repeating interrupted work."
+	case CoAgentCompleted:
+		return "The final result is ready."
+	default:
+		return ""
+	}
+}
+
 // Cleanup removes finished entries older than maxAge.
 func (r *CoAgentRegistry) Cleanup(maxAge time.Duration) int {
 	r.mu.Lock()
@@ -538,7 +644,29 @@ func (r *CoAgentRegistry) Cleanup(maxAge time.Duration) int {
 
 // StartCleanupLoop runs a background goroutine that periodically removes stale entries.
 func (r *CoAgentRegistry) StartCleanupLoop() {
-	go func() {
+	r.mu.Lock()
+	if r.cleanupRunning {
+		r.mu.Unlock()
+		return
+	}
+	stopCh := make(chan struct{})
+	doneCh := make(chan struct{})
+	r.cleanupStopCh = stopCh
+	r.cleanupDoneCh = doneCh
+	r.cleanupRunning = true
+	r.mu.Unlock()
+
+	go func(stopCh, doneCh chan struct{}) {
+		defer close(doneCh)
+		defer func() {
+			r.mu.Lock()
+			if r.cleanupDoneCh == doneCh {
+				r.cleanupRunning = false
+				r.cleanupStopCh = nil
+				r.cleanupDoneCh = nil
+			}
+			r.mu.Unlock()
+		}()
 		for {
 			r.mu.RLock()
 			interval := r.cleanupInterval
@@ -548,12 +676,39 @@ func (r *CoAgentRegistry) StartCleanupLoop() {
 				interval = 10 * time.Minute
 			}
 			timer := time.NewTimer(interval)
-			<-timer.C
+			select {
+			case <-timer.C:
+			case <-stopCh:
+				if !timer.Stop() {
+					select {
+					case <-timer.C:
+					default:
+					}
+				}
+				return
+			}
 			if n := r.Cleanup(maxAge); n > 0 {
 				r.logger.Debug("Co-Agent registry cleanup", "removed", n)
 			}
 		}
-	}()
+	}(stopCh, doneCh)
+}
+
+// StopCleanupLoop stops the background cleanup goroutine if it is running.
+func (r *CoAgentRegistry) StopCleanupLoop() {
+	r.mu.Lock()
+	if !r.cleanupRunning || r.cleanupStopCh == nil {
+		r.mu.Unlock()
+		return
+	}
+	stopCh := r.cleanupStopCh
+	doneCh := r.cleanupDoneCh
+	r.mu.Unlock()
+
+	close(stopCh)
+	if doneCh != nil {
+		<-doneCh
+	}
 }
 
 // truncateStr truncates a string to maxLen, adding "…" if truncated.

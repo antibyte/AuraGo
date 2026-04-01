@@ -297,7 +297,7 @@ func Start(cfg *config.Config, logger *slog.Logger, accessLogger *slog.Logger, l
 		ContactsDB:         contactsDB,
 		SQLConnectionsDB:   sqlConnectionsDB,
 		SQLConnectionPool:  sqlConnectionPool,
-		Guardian:           security.NewGuardian(logger),
+		Guardian:           security.NewGuardianWithOptions(logger, security.GuardianOptions{MaxScanBytes: cfg.Guardian.MaxScanBytes, ScanEdgeBytes: cfg.Guardian.ScanEdgeBytes}),
 		LLMGuardian:        security.NewLLMGuardian(cfg, logger),
 		CoAgentRegistry:    agent.NewCoAgentRegistry(cfg.CoAgents.MaxConcurrent, logger),
 		BudgetTracker:      budget.NewTracker(cfg, logger, cfg.Directories.DataDir),

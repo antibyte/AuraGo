@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"aurago/internal/config"
@@ -23,6 +24,73 @@ import (
 	"aurago/internal/telnyx"
 	"aurago/internal/tools"
 )
+
+type emailContentEvaluator interface {
+	EvaluateContent(ctx context.Context, contentType string, content string) security.GuardianResult
+}
+
+const emailGuardianWorkerLimit = 4
+
+func sanitizeFetchedEmails(ctx context.Context, logger *slog.Logger, guardian *security.Guardian, llmGuardian emailContentEvaluator, scanEmails bool, messages []tools.EmailMessage) []tools.EmailMessage {
+	if guardian == nil || len(messages) == 0 {
+		return messages
+	}
+
+	sanitized := make([]tools.EmailMessage, len(messages))
+	workerCount := emailGuardianWorkerLimit
+	if len(messages) < workerCount {
+		workerCount = len(messages)
+	}
+
+	indexCh := make(chan int, len(messages))
+	var wg sync.WaitGroup
+	for worker := 0; worker < workerCount; worker++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for idx := range indexCh {
+				msg := messages[idx]
+				combined := msg.From + " " + msg.Subject + " " + msg.Body
+				scanRes := guardian.ScanForInjection(combined)
+				if scanRes.Level >= security.ThreatHigh {
+					if logger != nil {
+						logger.Warn("[Email] Guardian HIGH threat in message", "uid", msg.UID, "from", msg.From, "threat", scanRes.Level.String())
+					}
+					msg.Body = security.RedactedText("guardian blocked content after injection detection")
+					msg.Subject = security.SanitizedText("guardian scan flagged this message")
+					msg.Snippet = security.RedactedText("")
+					sanitized[idx] = msg
+					continue
+				}
+
+				if llmGuardian != nil && scanEmails {
+					llmResult := llmGuardian.EvaluateContent(ctx, "email", combined)
+					if llmResult.Decision == security.DecisionBlock {
+						if logger != nil {
+							logger.Warn("[Email] LLM Guardian blocked email content", "uid", msg.UID, "from", msg.From, "reason", llmResult.Reason)
+						}
+						msg.Body = security.RedactedText("llm guardian blocked content: " + llmResult.Reason)
+						msg.Subject = security.SanitizedText("llm guardian blocked this message")
+						msg.Snippet = security.RedactedText("")
+						sanitized[idx] = msg
+						continue
+					}
+				}
+
+				msg.Body = guardian.SanitizeToolOutput("email", msg.Body)
+				sanitized[idx] = msg
+			}
+		}()
+	}
+
+	for idx := range messages {
+		indexCh <- idx
+	}
+	close(indexCh)
+	wg.Wait()
+
+	return sanitized
+}
 
 // mergeSkillVaultKeys combines vault_keys from a skill manifest with vault_keys from the tool call.
 // Duplicates are removed. Returns nil if no keys.
@@ -359,11 +427,11 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) string 
 				if searchQuery == "" {
 					searchQuery = "summarise the key facts about: " + queryStr
 				}
-				summary, err := tools.SummariseContent(ctx, tools.SummaryLLMConfig{
+				summary, err := tools.SummariseContent(ctx, tools.ResolveSummaryLLMConfig(cfg, tools.SummaryLLMConfig{
 					APIKey:  cfg.Tools.Wikipedia.SummaryAPIKey,
 					BaseURL: cfg.Tools.Wikipedia.SummaryBaseURL,
 					Model:   cfg.Tools.Wikipedia.SummaryModel,
-				}, logger, result, searchQuery, "Wikipedia article")
+				}), logger, result, searchQuery, "Wikipedia article")
 				if err != nil {
 					logger.Warn("wikipedia summary failed, returning raw content", "error", err)
 				} else {
@@ -383,11 +451,11 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) string 
 				if searchQuery == "" {
 					searchQuery = "synthesise the most relevant findings for: " + queryStr
 				}
-				summary, err := tools.SummariseContent(ctx, tools.SummaryLLMConfig{
+				summary, err := tools.SummariseContent(ctx, tools.ResolveSummaryLLMConfig(cfg, tools.SummaryLLMConfig{
 					APIKey:  cfg.Tools.DDGSearch.SummaryAPIKey,
 					BaseURL: cfg.Tools.DDGSearch.SummaryBaseURL,
 					Model:   cfg.Tools.DDGSearch.SummaryModel,
-				}, logger, result, searchQuery, "search results")
+				}), logger, result, searchQuery, "search results")
 				if err != nil {
 					logger.Warn("ddg_search summary failed, returning raw content", "error", err)
 				} else {
@@ -453,11 +521,11 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) string 
 				if searchQuery == "" {
 					searchQuery = "summarise the key content of this document"
 				}
-				summary, err := tools.SummariseContent(ctx, tools.SummaryLLMConfig{
+				summary, err := tools.SummariseContent(ctx, tools.ResolveSummaryLLMConfig(cfg, tools.SummaryLLMConfig{
 					APIKey:  cfg.Tools.PDFExtractor.SummaryAPIKey,
 					BaseURL: cfg.Tools.PDFExtractor.SummaryBaseURL,
 					Model:   cfg.Tools.PDFExtractor.SummaryModel,
-				}, logger, result, searchQuery, "PDF document")
+				}), logger, result, searchQuery, "PDF document")
 				if err != nil {
 					logger.Warn("pdf_extractor summary failed, returning raw content", "error", err)
 				} else {
@@ -997,34 +1065,7 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) string 
 		if err != nil {
 			return fmt.Sprintf(`Tool Output: {"status": "error", "message": "IMAP fetch failed (%s): %v"}`, acct.ID, err)
 		}
-		// Guardian: scan each message body for injection attempts
-		if guardian != nil {
-			for i := range messages {
-				combined := messages[i].From + " " + messages[i].Subject + " " + messages[i].Body
-				scanRes := guardian.ScanForInjection(combined)
-				if scanRes.Level >= security.ThreatHigh {
-					logger.Warn("[Email] Guardian HIGH threat in message", "uid", messages[i].UID, "from", messages[i].From, "threat", scanRes.Level.String())
-					messages[i].Body = "[REDACTED by Guardian — injection attempt detected]"
-					messages[i].Subject = "[SANITIZED] " + messages[i].Subject
-					messages[i].Snippet = "[REDACTED]"
-				} else {
-					// LLM Guardian: deeper content scan if regex didn't flag HIGH
-					if llmGuardian != nil && cfg.LLMGuardian.ScanEmails {
-						llmResult := llmGuardian.EvaluateContent(ctx, "email", combined)
-						if llmResult.Decision == security.DecisionBlock {
-							logger.Warn("[Email] LLM Guardian blocked email content", "uid", messages[i].UID, "from", messages[i].From, "reason", llmResult.Reason)
-							messages[i].Body = "[REDACTED by LLM Guardian — " + llmResult.Reason + "]"
-							messages[i].Subject = "[SANITIZED] " + messages[i].Subject
-							messages[i].Snippet = "[REDACTED]"
-						} else {
-							messages[i].Body = guardian.SanitizeToolOutput("email", messages[i].Body)
-						}
-					} else {
-						messages[i].Body = guardian.SanitizeToolOutput("email", messages[i].Body)
-					}
-				}
-			}
-		}
+		messages = sanitizeFetchedEmails(ctx, logger, guardian, llmGuardian, cfg.LLMGuardian.ScanEmails, messages)
 		result := tools.EmailResult{Status: "success", Count: len(messages), Data: messages, Message: fmt.Sprintf("Account: %s", acct.ID)}
 		return "Tool Output: " + tools.EncodeEmailResult(result)
 
@@ -1165,7 +1206,7 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) string 
 				scanRes := guardian.ScanForInjection(msgs[i].Author + " " + msgs[i].Content)
 				if scanRes.Level >= security.ThreatHigh {
 					logger.Warn("[Discord] Guardian HIGH threat in message", "author", msgs[i].Author, "threat", scanRes.Level.String())
-					msgs[i].Content = "[REDACTED by Guardian — injection attempt detected]"
+					msgs[i].Content = security.RedactedText("guardian blocked content after injection detection")
 				} else {
 					msgs[i].Content = guardian.SanitizeToolOutput("discord", msgs[i].Content)
 				}
@@ -1796,11 +1837,11 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) string 
 			if searchQuery == "" {
 				searchQuery = "synthesise the most relevant findings for: " + queryStr
 			}
-			summary, err := tools.SummariseContent(ctx, tools.SummaryLLMConfig{
+			summary, err := tools.SummariseContent(ctx, tools.ResolveSummaryLLMConfig(cfg, tools.SummaryLLMConfig{
 				APIKey:  cfg.Tools.DDGSearch.SummaryAPIKey,
 				BaseURL: cfg.Tools.DDGSearch.SummaryBaseURL,
 				Model:   cfg.Tools.DDGSearch.SummaryModel,
-			}, logger, result, searchQuery, "search results")
+			}), logger, result, searchQuery, "search results")
 			if err != nil {
 				logger.Warn("ddg_search summary failed, returning raw content", "error", err)
 			} else {
@@ -1844,11 +1885,11 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) string 
 			if searchQuery == "" {
 				searchQuery = "summarise the key facts about: " + queryStr
 			}
-			summary, err := tools.SummariseContent(ctx, tools.SummaryLLMConfig{
+			summary, err := tools.SummariseContent(ctx, tools.ResolveSummaryLLMConfig(cfg, tools.SummaryLLMConfig{
 				APIKey:  cfg.Tools.Wikipedia.SummaryAPIKey,
 				BaseURL: cfg.Tools.Wikipedia.SummaryBaseURL,
 				Model:   cfg.Tools.Wikipedia.SummaryModel,
-			}, logger, result, searchQuery, "Wikipedia article")
+			}), logger, result, searchQuery, "Wikipedia article")
 			if err != nil {
 				logger.Warn("wikipedia summary failed, returning raw content", "error", err)
 			} else {

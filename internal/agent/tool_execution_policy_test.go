@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"bytes"
 	"io"
 	"log/slog"
 	"strings"
@@ -80,5 +81,45 @@ func TestFinalizeToolExecutionAppendsSuggestedNextStep(t *testing.T) {
 	}
 	if !strings.Contains(result.Content, "read_file") {
 		t.Fatalf("expected filesystem-specific guidance, got: %s", result.Content)
+	}
+}
+
+func TestFinalizeToolExecutionWarnsWhenMemoryPersistenceFails(t *testing.T) {
+	var logBuf bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logBuf, &slog.HandlerOptions{Level: slog.LevelWarn}))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	if err := stm.InitErrorLearningTable(); err != nil {
+		t.Fatalf("InitErrorLearningTable: %v", err)
+	}
+	if err := stm.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+
+	cfg := &config.Config{}
+	cfg.Agent.ToolOutputLimit = 50000
+	cfg.Tools.Journal.Enabled = true
+	cfg.Journal.AutoEntries = true
+	scope := AgentTelemetryScope{}
+	req := openai.ChatCompletionRequest{}
+	state := newToolRecoveryState()
+	tc := ToolCall{Action: "homepage"}
+
+	result := finalizeToolExecution(tc, `{"status":"error","message":"connect failed"}`, cfg, stm, "default", &state, &req, logger, scope)
+	if !result.Failed {
+		t.Fatal("expected tool failure")
+	}
+
+	logs := logBuf.String()
+	for _, want := range []string{
+		"Failed to persist tool usage stats",
+		"Failed to persist tool error pattern",
+		"Failed to persist error journal entry",
+	} {
+		if !strings.Contains(logs, want) {
+			t.Fatalf("expected logs to contain %q, got %q", want, logs)
+		}
 	}
 }

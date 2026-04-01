@@ -201,13 +201,13 @@ func (ew *EmailWatcher) pollAccount(acct config.EmailAccount) {
 			scanResult := ew.guardian.ScanForInjection(content)
 			if scanResult.Level >= security.ThreatHigh {
 				ew.logger.Warn("[EmailWatcher] HIGH threat detected in email, sanitizing", "account", acct.ID, "from", msg.From, "subject", msg.Subject, "threat", scanResult.Level.String())
-				content = fmt.Sprintf("From: %s | Subject: [SANITIZED - injection detected] | Snippet: [REDACTED]", msg.From)
+				content = fmt.Sprintf("From: %s | Subject: %s | Snippet: %s", msg.From, security.SanitizedText("guardian scan flagged this message"), security.RedactedText(""))
 			} else if ew.llmGuardian != nil && ew.cfg.LLMGuardian.ScanEmails {
 				// LLM Guardian: deeper content scan if regex didn't flag HIGH
 				llmResult := ew.llmGuardian.EvaluateContent(context.Background(), "email", content)
 				if llmResult.Decision == security.DecisionBlock {
 					ew.logger.Warn("[EmailWatcher] LLM Guardian blocked email content", "account", acct.ID, "from", msg.From, "reason", llmResult.Reason)
-					content = fmt.Sprintf("From: %s | Subject: [SANITIZED - %s] | Snippet: [REDACTED]", msg.From, llmResult.Reason)
+					content = fmt.Sprintf("From: %s | Subject: %s | Snippet: %s", msg.From, security.SanitizedText("llm guardian blocked message: "+llmResult.Reason), security.RedactedText(""))
 				}
 			}
 		}

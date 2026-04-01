@@ -76,15 +76,39 @@ func (m *Manifest) Register(name, description string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	// Read without lock (we already hold write lock)
-	data, err := os.ReadFile(m.filePath)
 	manifest := make(map[string]string)
+	data, err := os.ReadFile(m.filePath)
 	if err == nil {
-		_ = json.Unmarshal(data, &manifest)
+		if err := unmarshalManifestRegisterData(data, &manifest); err != nil {
+			return err
+		}
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("failed to read manifest for register: %w", err)
 	}
 
 	manifest[name] = description
 	return m.save(manifest)
+}
+
+func unmarshalManifestRegisterData(data []byte, manifest *map[string]string) error {
+	if len(data) == 0 {
+		return nil
+	}
+	var versioned manifestFile
+	if err := json.Unmarshal(data, &versioned); err == nil && versioned.Version > 0 {
+		if versioned.Tools == nil {
+			*manifest = map[string]string{}
+		} else {
+			*manifest = versioned.Tools
+		}
+		return nil
+	}
+	var legacy map[string]string
+	if err := json.Unmarshal(data, &legacy); err != nil {
+		return fmt.Errorf("failed to parse manifest for register: %w", err)
+	}
+	*manifest = legacy
+	return nil
 }
 
 // SaveTool writes the Python code to a file and registers it in the manifest.

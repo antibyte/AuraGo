@@ -12,6 +12,16 @@ import (
 	"aurago/internal/jellyfin"
 )
 
+const defaultJellyfinRequestTimeout = 60 * time.Second
+
+func jellyfinRequestContext(cfg config.JellyfinConfig) (context.Context, context.CancelFunc) {
+	timeout := time.Duration(cfg.RequestTimeout) * time.Second
+	if timeout <= 0 {
+		timeout = defaultJellyfinRequestTimeout
+	}
+	return context.WithTimeout(context.Background(), timeout)
+}
+
 // DispatchJellyfinTool routes Jellyfin tool calls by operation name.
 func DispatchJellyfinTool(operation string, params map[string]string, cfg *config.Config, logger *slog.Logger) string {
 	if !cfg.Jellyfin.Enabled {
@@ -63,7 +73,8 @@ func JellyfinHealth(cfg config.JellyfinConfig, logger *slog.Logger) string {
 	}
 	defer client.Close()
 
-	ctx := context.Background()
+	ctx, cancel := jellyfinRequestContext(cfg)
+	defer cancel()
 
 	info, err := client.GetSystemInfo(ctx)
 	if err != nil {
@@ -107,7 +118,8 @@ func JellyfinLibraryList(cfg config.JellyfinConfig, logger *slog.Logger) string 
 	}
 	defer client.Close()
 
-	ctx := context.Background()
+	ctx, cancel := jellyfinRequestContext(cfg)
+	defer cancel()
 	libs, err := client.GetLibraries(ctx)
 	if err != nil {
 		return errJSON("Failed to list libraries: %v", err)
@@ -150,7 +162,8 @@ func JellyfinSearch(cfg config.JellyfinConfig, query, mediaType string, limit in
 	}
 	defer client.Close()
 
-	ctx := context.Background()
+	ctx, cancel := jellyfinRequestContext(cfg)
+	defer cancel()
 	includeTypes := jellyfinMapMediaType(mediaType)
 
 	resp, err := client.SearchItems(ctx, query, includeTypes, limit)
@@ -179,7 +192,8 @@ func JellyfinItemDetails(cfg config.JellyfinConfig, itemID string, logger *slog.
 	}
 	defer client.Close()
 
-	ctx := context.Background()
+	ctx, cancel := jellyfinRequestContext(cfg)
+	defer cancel()
 	item, err := client.GetItem(ctx, itemID)
 	if err != nil {
 		return errJSON("Failed to get item: %v", err)
@@ -227,7 +241,8 @@ func JellyfinRecentItems(cfg config.JellyfinConfig, limit int, mediaType string,
 	}
 	defer client.Close()
 
-	ctx := context.Background()
+	ctx, cancel := jellyfinRequestContext(cfg)
+	defer cancel()
 	includeTypes := jellyfinMapMediaType(mediaType)
 
 	resp, err := client.GetRecentItems(ctx, includeTypes, limit)
@@ -251,7 +266,8 @@ func JellyfinSessions(cfg config.JellyfinConfig, logger *slog.Logger) string {
 	}
 	defer client.Close()
 
-	ctx := context.Background()
+	ctx, cancel := jellyfinRequestContext(cfg)
+	defer cancel()
 	sessions, err := client.GetSessions(ctx)
 	if err != nil {
 		return errJSON("Failed to get sessions: %v", err)
@@ -327,7 +343,8 @@ func JellyfinPlaybackControl(cfg config.JellyfinConfig, sessionID, command strin
 	}
 	defer client.Close()
 
-	ctx := context.Background()
+	ctx, cancel := jellyfinRequestContext(cfg)
+	defer cancel()
 	if err := client.SendPlayCommand(ctx, sessionID, normalized); err != nil {
 		return errJSON("Playback control failed: %v", err)
 	}
@@ -353,7 +370,8 @@ func JellyfinLibraryRefresh(cfg config.JellyfinConfig, libraryID string, logger 
 	}
 	defer client.Close()
 
-	ctx := context.Background()
+	ctx, cancel := jellyfinRequestContext(cfg)
+	defer cancel()
 	if err := client.RefreshLibrary(ctx, libraryID); err != nil {
 		return errJSON("Library refresh failed: %v", err)
 	}
@@ -378,7 +396,8 @@ func JellyfinDeleteItem(cfg config.JellyfinConfig, itemID string, logger *slog.L
 	}
 	defer client.Close()
 
-	ctx := context.Background()
+	ctx, cancel := jellyfinRequestContext(cfg)
+	defer cancel()
 	if err := client.DeleteItem(ctx, itemID); err != nil {
 		return errJSON("Failed to delete item: %v", err)
 	}
@@ -399,7 +418,8 @@ func JellyfinActivityLog(cfg config.JellyfinConfig, limit int, logger *slog.Logg
 	}
 	defer client.Close()
 
-	ctx := context.Background()
+	ctx, cancel := jellyfinRequestContext(cfg)
+	defer cancel()
 	resp, err := client.GetActivityLog(ctx, limit)
 	if err != nil {
 		return errJSON("Failed to get activity log: %v", err)

@@ -284,6 +284,9 @@ tools:
         enabled: true                                      # enable address_book tool (contact management)
     python_secret_injection:
         enabled: false                                     # allow Python tools to request vault secrets via vault_keys (default: disabled for security)
+    python_timeout_seconds: 30                             # foreground Python/shell execution timeout
+    skill_timeout_seconds: 120                             # skill execution timeout
+    background_timeout_seconds: 3600                       # background Python/shell/tool execution timeout before forced termination
     web_scraper:
         enabled: true
         summary_mode: false
@@ -338,6 +341,9 @@ s3:
 providers: []
 llm:
     provider: ""
+    helper_enabled: false                                   # recommended: enable a dedicated helper LLM for internal analysis/background features
+    helper_provider: ""                                     # if disabled or unset, many helper-dependent features will not work fully
+    helper_model: ""                                        # optional override; use a smaller, cost-efficient model here when possible
     use_native_functions: true
     temperature: 0.7
     structured_outputs: false
@@ -417,6 +423,8 @@ telegram:
     telegram_user_id: 0
     max_concurrent_workers: 5
 tts:
+    cache_max_files: 500
+    cache_retention_hours: 168
     elevenlabs:
         api_key: ""
         model_id: eleven_multilingual_v2
@@ -659,6 +667,9 @@ llm_guardian:
     allow_clarification: false
     scan_documents: false
     scan_emails: false
+guardian:
+    max_scan_bytes: 16384                 # regex guardian scans larger inputs in a bounded window
+    scan_edge_bytes: 6144                 # bytes kept from start and end when max_scan_bytes is exceeded
 netlify:
     enabled: false
     readonly: false

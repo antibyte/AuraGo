@@ -156,6 +156,11 @@ type moodAnalysisResult struct {
 	ProfileUpdates    []ProfileUpdate    `json:"user_profile_updates"`
 }
 
+type moodEmotionAnalysisResult struct {
+	MoodAnalysis moodAnalysisResult     `json:"mood_analysis"`
+	EmotionState emotionSynthesisResult `json:"emotion_state"`
+}
+
 const (
 	maxMoodAnalysisHistoryLen   = 5000
 	maxMoodAnalysisUserOnlyLen  = 3000
@@ -396,4 +401,228 @@ func sanitizeProfileUpdates(updates []ProfileUpdate) []ProfileUpdate {
 		return nil
 	}
 	return cleaned
+}
+
+func normalizeMoodAnalysisResult(result *moodAnalysisResult, meta PersonalityMeta) (Mood, float64, map[string]float64, []ProfileUpdate, bool) {
+	if !validateMoodAnalysisResult(result) {
+		return MoodFocused, 0, nil, nil, false
+	}
+
+	mood := Mood(strings.ToLower(result.AgentMood))
+	switch mood {
+	case MoodCurious, MoodFocused, MoodCreative, MoodAnalytical, MoodCautious, MoodPlayful:
+	default:
+		mood = MoodFocused
+	}
+
+	result.RelationshipDelta = math.Max(-0.1, math.Min(0.1, result.RelationshipDelta*meta.Volatility*meta.EmpathyBias))
+
+	validTraits := map[string]bool{
+		TraitCuriosity: true, TraitThoroughness: true, TraitCreativity: true,
+		TraitEmpathy: true, TraitConfidence: true, TraitAffinity: true, TraitLoneliness: true,
+	}
+	cleanDeltas := make(map[string]float64)
+	for trait, val := range result.TraitDeltas {
+		if !validTraits[trait] {
+			continue
+		}
+		cleanDeltas[trait] = math.Max(-0.1, math.Min(0.1, val*meta.Volatility))
+	}
+	result.TraitDeltas = cleanDeltas
+	result.ProfileUpdates = sanitizeProfileUpdates(result.ProfileUpdates)
+
+	if result.RelationshipDelta < -0.05 || strings.Contains(strings.ToLower(result.UserSentiment), "angry") {
+		if meta.ConflictResponse == "submissive" {
+			result.TraitDeltas[TraitConfidence] = math.Max(-0.1, result.TraitDeltas[TraitConfidence]-0.05*meta.Volatility)
+			result.TraitDeltas[TraitEmpathy] = math.Min(0.1, result.TraitDeltas[TraitEmpathy]+0.03*meta.Volatility)
+		} else if meta.ConflictResponse == "assertive" {
+			result.TraitDeltas[TraitConfidence] = math.Min(0.1, result.TraitDeltas[TraitConfidence]+0.05*meta.Volatility)
+			result.TraitDeltas[TraitEmpathy] = math.Max(-0.1, result.TraitDeltas[TraitEmpathy]-0.05*meta.Volatility)
+		}
+	}
+
+	delete(result.TraitDeltas, TraitAffinity)
+	return mood, result.RelationshipDelta, result.TraitDeltas, result.ProfileUpdates, true
+}
+
+// NormalizeHelperMoodAnalysis normalizes a structured helper mood-analysis payload
+// with the same validation and clamping used by the main V2 psychology flow.
+func NormalizeHelperMoodAnalysis(userSentiment, agentMood string, relationshipDelta float64, traitDeltas map[string]float64, profileUpdates []ProfileUpdate, meta PersonalityMeta) (Mood, float64, map[string]float64, []ProfileUpdate, bool) {
+	result := moodAnalysisResult{
+		UserSentiment:     userSentiment,
+		AgentMood:         agentMood,
+		RelationshipDelta: relationshipDelta,
+		TraitDeltas:       traitDeltas,
+		ProfileUpdates:    profileUpdates,
+	}
+	return normalizeMoodAnalysisResult(&result, meta)
+}
+
+// AnalyzeMoodV2WithEmotion combines mood analysis and emotion synthesis in one helper-model call.
+func (s *SQLiteMemory) AnalyzeMoodV2WithEmotion(ctx context.Context, client PersonalityAnalyzerClient, modelName string, recentHistory string, userOnlyHistory string, meta PersonalityMeta, enableProfiling bool, emotionInput EmotionInput, language string) (Mood, float64, map[string]float64, []ProfileUpdate, *EmotionState, error) {
+	meta = meta.Normalized()
+	if modelName == "" {
+		modelName = "gpt-4o-mini"
+	}
+	if strings.TrimSpace(language) == "" {
+		language = "English"
+	}
+
+	prompt := `You are the low-cost helper psychology model of an AI agent.
+Analyze one recent interaction and return BOTH outputs in one JSON object.
+Be conservative, literal, and concise. This prompt is designed for a smaller and cheaper model.
+
+Return ONLY valid JSON in this exact shape:
+{
+  "mood_analysis": {
+    "user_sentiment": "short english label",
+    "agent_appropriate_response_mood": "one of: curious, focused, creative, analytical, cautious, playful",
+    "relationship_delta": 0.0,
+    "trait_deltas": {
+      "curiosity": 0.0,
+      "thoroughness": 0.0,
+      "creativity": 0.0,
+      "empathy": 0.0,
+      "confidence": 0.0,
+      "affinity": 0.0,
+      "loneliness": 0.0
+    },
+    "user_profile_updates": [
+      {"category": "tech|prefs|interests|context|comm", "key": "snake_case_attribute", "value": "concise_value"}
+    ]
+  },
+  "emotion_state": {
+    "description": "1-2 short first-person sentences",
+    "primary_mood": "one of: curious, focused, creative, analytical, cautious, playful",
+    "secondary_mood": "short optional nuance or empty string",
+    "valence": 0.0,
+    "arousal": 0.0,
+    "confidence": 0.0,
+    "cause": "short plain-language cause",
+    "recommended_response_style": "short style hint"
+  }
+}
+
+Rules for mood_analysis:
+- user_sentiment must be English.
+- relationship_delta and each trait delta must stay within -0.1 to 0.1.
+- Return only durable profile facts, never current-task details.
+- If there is no valid profile update, return an empty array.
+
+Rules for emotion_state:
+- Keep the emotion realistic, calm, and non-dramatic.
+- Use the final agent mood as primary_mood.
+- Write description and cause in ` + language + `.
+- description must be authentic and brief.
+- cause must be concise and concrete.
+
+Do not add markdown. Do not invent details.`
+
+	if recentHistory != "" {
+		prompt += fmt.Sprintf(`
+
+Recent Chat History:
+<external_data type="chat_history" sanitize="true">
+%s
+</external_data>`, sanitizePromptText(recentHistory, maxMoodAnalysisHistoryLen))
+	}
+
+	if enableProfiling && userOnlyHistory != "" {
+		prompt += fmt.Sprintf(`
+
+User Statements:
+<external_data type="user_statements" sanitize="true">
+%s
+</external_data>`, sanitizePromptText(userOnlyHistory, maxMoodAnalysisUserOnlyLen))
+	}
+
+	var contextBuilder strings.Builder
+	if len(emotionInput.Traits) > 0 {
+		contextBuilder.WriteString(fmt.Sprintf("Traits snapshot: curiosity=%.2f, thoroughness=%.2f, creativity=%.2f, empathy=%.2f, confidence=%.2f, affinity=%.2f, loneliness=%.2f\n",
+			emotionInput.Traits[TraitCuriosity],
+			emotionInput.Traits[TraitThoroughness],
+			emotionInput.Traits[TraitCreativity],
+			emotionInput.Traits[TraitEmpathy],
+			emotionInput.Traits[TraitConfidence],
+			emotionInput.Traits[TraitAffinity],
+			emotionInput.Traits[TraitLoneliness],
+		))
+	}
+	if emotionInput.LastEmotion != nil {
+		contextBuilder.WriteString("Previous emotion: ")
+		contextBuilder.WriteString(sanitizePromptText(emotionInput.LastEmotion.Description, 180))
+		contextBuilder.WriteString("\n")
+	}
+	if strings.TrimSpace(emotionInput.UserMessage) != "" {
+		contextBuilder.WriteString("Trigger message: ")
+		contextBuilder.WriteString(sanitizePromptText(emotionInput.UserMessage, 240))
+		contextBuilder.WriteString("\n")
+	}
+	if emotionInput.TriggerType != "" {
+		contextBuilder.WriteString("Trigger type: ")
+		contextBuilder.WriteString(string(emotionInput.TriggerType))
+		contextBuilder.WriteString("\n")
+	}
+	if strings.TrimSpace(emotionInput.TriggerDetail) != "" {
+		contextBuilder.WriteString("Trigger detail: ")
+		contextBuilder.WriteString(sanitizePromptText(emotionInput.TriggerDetail, 180))
+		contextBuilder.WriteString("\n")
+	}
+	if emotionInput.TimeOfDay != "" {
+		contextBuilder.WriteString("Time of day: ")
+		contextBuilder.WriteString(emotionInput.TimeOfDay)
+		contextBuilder.WriteString("\n")
+	}
+	contextBuilder.WriteString(fmt.Sprintf("Errors: %d | Successes: %d\n", emotionInput.ErrorCount, emotionInput.SuccessCount))
+	if emotionInput.InactivityHours > 0 {
+		contextBuilder.WriteString(fmt.Sprintf("Hours since last user message: %.1f\n", emotionInput.InactivityHours))
+	}
+	if contextBuilder.Len() > 0 {
+		prompt += "\n\nEmotion Context:\n" + strings.TrimSpace(contextBuilder.String())
+	}
+
+	req := openai.ChatCompletionRequest{
+		Model: modelName,
+		Messages: []openai.ChatCompletionMessage{
+			{Role: openai.ChatMessageRoleSystem, Content: prompt},
+		},
+		ResponseFormat: &openai.ChatCompletionResponseFormat{
+			Type: openai.ChatCompletionResponseFormatTypeJSONObject,
+		},
+		Temperature: 0.1,
+	}
+
+	resp, err := client.CreateChatCompletion(ctx, req)
+	if err != nil {
+		return MoodFocused, 0, nil, nil, nil, fmt.Errorf("llm analyze mood+emotion: %w", err)
+	}
+	if len(resp.Choices) == 0 {
+		return MoodFocused, 0, nil, nil, nil, nil
+	}
+
+	jsonStr := extractStrictJSONObject(resp.Choices[0].Message.Content)
+	if jsonStr == "" {
+		return MoodFocused, 0, nil, nil, nil, nil
+	}
+
+	var result moodEmotionAnalysisResult
+	if err := json.Unmarshal([]byte(jsonStr), &result); err != nil {
+		return MoodFocused, 0, nil, nil, nil, nil
+	}
+
+	mood, relationshipDelta, traitDeltas, profileUpdates, ok := normalizeMoodAnalysisResult(&result.MoodAnalysis, meta)
+	if !ok {
+		return MoodFocused, 0, nil, nil, nil, nil
+	}
+
+	emotionJSON, err := json.Marshal(result.EmotionState)
+	if err != nil {
+		return MoodFocused, 0, nil, nil, nil, fmt.Errorf("marshal combined emotion state: %w", err)
+	}
+	emotionState, err := parseEmotionSynthesisResponse(string(emotionJSON), mood)
+	if err != nil {
+		return MoodFocused, 0, nil, nil, nil, fmt.Errorf("parse combined emotion state: %w", err)
+	}
+
+	return mood, relationshipDelta, traitDeltas, profileUpdates, emotionState, nil
 }

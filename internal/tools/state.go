@@ -13,6 +13,13 @@ var (
 	busyFilePath string
 )
 
+func resolveBusyFilePath(path string) (string, error) {
+	if path == "" {
+		return "", nil
+	}
+	return filepath.Abs(path)
+}
+
 // SetBusyFilePath sets the path for the persistent busy flag file.
 func SetBusyFilePath(path string) {
 	muBusy.Lock()
@@ -27,7 +34,11 @@ func SetBusy(busy bool) {
 	isBusy = busy
 	slog.Info("Setting busy state", "busy", busy, "has_path", busyFilePath != "")
 	if busyFilePath != "" {
-		absPath, _ := filepath.Abs(busyFilePath)
+		absPath, err := resolveBusyFilePath(busyFilePath)
+		if err != nil {
+			slog.Error("Failed to resolve maintenance lock path", "path", busyFilePath, "error", err)
+			return
+		}
 		if busy {
 			slog.Info("Attempting to write maintenance lock file", "path", absPath)
 			// Ensure parent directory exists

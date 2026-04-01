@@ -7,6 +7,66 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
+func intPtr(v int) *int { return &v }
+
+func TestAssembleSortedStreamToolCallsHandlesSparseIndices(t *testing.T) {
+	streamToolCalls := map[int]*openai.ToolCall{}
+	mergeStreamToolCallChunk(streamToolCalls, openai.ToolCall{
+		Index: intPtr(7),
+		ID:    "call-7",
+		Function: openai.FunctionCall{
+			Name:      "filesystem",
+			Arguments: `{"operation":"stat"}`,
+		},
+	})
+	mergeStreamToolCallChunk(streamToolCalls, openai.ToolCall{
+		Index: intPtr(2),
+		ID:    "call-2",
+		Function: openai.FunctionCall{
+			Name:      "execute_shell",
+			Arguments: `{"command":"pwd"}`,
+		},
+	})
+
+	assembled := assembleSortedStreamToolCalls(streamToolCalls)
+	if len(assembled) != 2 {
+		t.Fatalf("expected 2 tool calls, got %d", len(assembled))
+	}
+	if assembled[0].ID != "call-2" || assembled[1].ID != "call-7" {
+		t.Fatalf("unexpected assembly order: %q, %q", assembled[0].ID, assembled[1].ID)
+	}
+}
+
+func TestMergeStreamToolCallChunkAppendsFragments(t *testing.T) {
+	streamToolCalls := map[int]*openai.ToolCall{}
+	mergeStreamToolCallChunk(streamToolCalls, openai.ToolCall{
+		Index: intPtr(1),
+		ID:    "call-1",
+		Function: openai.FunctionCall{
+			Name:      "exec",
+			Arguments: `{"comm`,
+		},
+	})
+	mergeStreamToolCallChunk(streamToolCalls, openai.ToolCall{
+		Index: intPtr(1),
+		Function: openai.FunctionCall{
+			Name:      "ute_shell",
+			Arguments: `and":"pwd"}`,
+		},
+	})
+
+	assembled := assembleSortedStreamToolCalls(streamToolCalls)
+	if len(assembled) != 1 {
+		t.Fatalf("expected 1 tool call, got %d", len(assembled))
+	}
+	if assembled[0].Function.Name != "execute_shell" {
+		t.Fatalf("Function.Name = %q, want %q", assembled[0].Function.Name, "execute_shell")
+	}
+	if assembled[0].Function.Arguments != `{"command":"pwd"}` {
+		t.Fatalf("Function.Arguments = %q", assembled[0].Function.Arguments)
+	}
+}
+
 type fakeGuideSearcher struct {
 	paths []string
 	err   error

@@ -36,6 +36,13 @@ type pendingAction struct {
 	Confidence float64 `json:"confidence"`
 }
 
+type memoryAnalysisLLMConfig struct {
+	providerType string
+	baseURL      string
+	apiKey       string
+	model        string
+}
+
 const memoryAnalysisPrompt = `You are a memory extraction assistant. Analyze the following conversation exchange and extract any information worth remembering.
 
 Extract:
@@ -89,6 +96,29 @@ func stripToolCallBlocks(s string) string {
 	return strings.TrimSpace(s)
 }
 
+func trimJSONResponse(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if strings.HasPrefix(raw, "```") {
+		if idx := strings.Index(raw[3:], "\n"); idx >= 0 {
+			raw = raw[3+idx+1:]
+		}
+		if strings.HasSuffix(raw, "```") {
+			raw = strings.TrimSuffix(raw, "```")
+		}
+		raw = strings.TrimSpace(raw)
+	}
+	return raw
+}
+
+func parseMemoryAnalysisResult(raw string) (memoryAnalysisResult, error) {
+	raw = trimJSONResponse(raw)
+	var result memoryAnalysisResult
+	if err := json.Unmarshal([]byte(raw), &result); err != nil {
+		return memoryAnalysisResult{}, fmt.Errorf("parse memory analysis response: %w", err)
+	}
+	return result, nil
+}
+
 // runMemoryAnalysis performs async post-response memory extraction using the configured analysis provider.
 func runMemoryAnalysis(
 	ctx context.Context,
@@ -112,11 +142,16 @@ func runMemoryAnalysis(
 		return
 	}
 
-	// Create analysis client (uses dedicated provider or falls back to main LLM)
+	llmCfg := resolveMemoryAnalysisLLMConfig(cfg)
+	if llmCfg.model == "" {
+		logger.Debug("[Memory Analysis] No resolved LLM config available")
+		return
+	}
+
 	analysisClient := llm.NewClientFromProvider(
-		cfg.MemoryAnalysis.ProviderType,
-		cfg.MemoryAnalysis.BaseURL,
-		cfg.MemoryAnalysis.APIKey,
+		llmCfg.providerType,
+		llmCfg.baseURL,
+		llmCfg.apiKey,
 	)
 
 	// Truncate for analysis (no need to send huge responses)
@@ -134,7 +169,7 @@ func runMemoryAnalysis(
 	prompt := fmt.Sprintf(memoryAnalysisPrompt, truncUser, truncResp)
 
 	req := openai.ChatCompletionRequest{
-		Model: cfg.MemoryAnalysis.ResolvedModel,
+		Model: llmCfg.model,
 		Messages: []openai.ChatCompletionMessage{
 			{Role: openai.ChatMessageRoleUser, Content: prompt},
 		},
@@ -152,28 +187,22 @@ func runMemoryAnalysis(
 		return
 	}
 
-	raw := resp.Choices[0].Message.Content
-	// Strip markdown code fences if present
-	raw = strings.TrimSpace(raw)
-	if strings.HasPrefix(raw, "```") {
-		if idx := strings.Index(raw[3:], "\n"); idx >= 0 {
-			raw = raw[3+idx+1:]
-		}
-		if strings.HasSuffix(raw, "```") {
-			raw = strings.TrimSuffix(raw, "```")
-		}
-		raw = strings.TrimSpace(raw)
-	}
-
-	var result memoryAnalysisResult
-	if err := json.Unmarshal([]byte(raw), &result); err != nil {
+	result, err := parseMemoryAnalysisResult(resp.Choices[0].Message.Content)
+	if err != nil {
+		raw := trimJSONResponse(resp.Choices[0].Message.Content)
 		logger.Warn("[Memory Analysis] Failed to parse response", "error", err, "raw", Truncate(raw, 200))
 		return
 	}
 
-	threshold := cfg.MemoryAnalysis.AutoConfirm
-	stored := 0
+	applyMemoryAnalysisResult(cfg, logger, stm, ltm, sessionID, result)
+}
 
+func applyMemoryAnalysisResult(cfg *config.Config, logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, sessionID string, result memoryAnalysisResult) int {
+	threshold := 0.0
+	if cfg != nil {
+		threshold = cfg.MemoryAnalysis.AutoConfirm
+	}
+	stored := 0
 	// Process facts
 	for _, f := range result.Facts {
 		minThreshold := thresholdForMemoryCategory(threshold, f.Category)
@@ -264,37 +293,40 @@ func runMemoryAnalysis(
 					}
 					stored++
 				}
-
-				for _, action := range result.PendingActions {
-					if stm == nil || action.Confidence < 0.65 {
-						continue
-					}
-					title := strings.TrimSpace(action.Title)
-					summary := strings.TrimSpace(action.Summary)
-					if title == "" || summary == "" {
-						continue
-					}
-					trigger := strings.TrimSpace(action.Trigger)
-					if trigger == "" {
-						trigger = title
-					}
-					if err := stm.UpsertPendingEpisodicAction(time.Now().Format("2006-01-02"), title, summary, trigger, sessionID, 3, nil); err != nil {
-						logger.Warn("[Memory Analysis] Failed to store pending action", "title", title, "error", err)
-					}
-				}
 			}
 		}
 	}
 
-	if stored > 0 {
-		logger.Info("[Memory Analysis] Stored extracted memories",
-			"facts", len(result.Facts),
-			"preferences", len(result.Preferences),
-			"corrections", len(result.Corrections),
-			"stored", stored,
-			"session", sessionID,
-		)
+	for _, action := range result.PendingActions {
+		if stm == nil || action.Confidence < 0.65 {
+			continue
+		}
+		title := strings.TrimSpace(action.Title)
+		summary := strings.TrimSpace(action.Summary)
+		if title == "" || summary == "" {
+			continue
+		}
+		trigger := strings.TrimSpace(action.Trigger)
+		if trigger == "" {
+			trigger = title
+		}
+		if err := stm.UpsertPendingEpisodicAction(time.Now().Format("2006-01-02"), title, summary, trigger, sessionID, 3, nil); err != nil && logger != nil {
+			logger.Warn("[Memory Analysis] Failed to store pending action", "title", title, "error", err)
+		}
 	}
+
+	if stored > 0 {
+		if logger != nil {
+			logger.Info("[Memory Analysis] Stored extracted memories",
+				"facts", len(result.Facts),
+				"preferences", len(result.Preferences),
+				"corrections", len(result.Corrections),
+				"stored", stored,
+				"session", sessionID,
+			)
+		}
+	}
+	return stored
 }
 
 func thresholdForMemoryCategory(defaultThreshold float64, category string) float64 {
@@ -537,19 +569,21 @@ func expandQueryForRAG(ctx context.Context, cfg *config.Config, logger *slog.Log
 		return userMsg
 	}
 
+	llmCfg := resolveMemoryAnalysisLLMConfig(cfg)
+	if llmCfg.model == "" {
+		return userMsg
+	}
+
 	expandCtx, cancel := context.WithTimeout(ctx, 1500*time.Millisecond)
 	defer cancel()
 
 	client := llm.NewClientFromProvider(
-		cfg.MemoryAnalysis.ProviderType,
-		cfg.MemoryAnalysis.BaseURL,
-		cfg.MemoryAnalysis.APIKey,
+		llmCfg.providerType,
+		llmCfg.baseURL,
+		llmCfg.apiKey,
 	)
 
-	model := cfg.MemoryAnalysis.ResolvedModel
-	if model == "" {
-		model = cfg.LLM.Model
-	}
+	model := llmCfg.model
 
 	truncMsg := userMsg
 	if len(truncMsg) > 500 {
@@ -597,19 +631,21 @@ func rerankWithLLM(ctx context.Context, cfg *config.Config, logger *slog.Logger,
 		return candidates
 	}
 
+	llmCfg := resolveMemoryAnalysisLLMConfig(cfg)
+	if llmCfg.model == "" {
+		return candidates
+	}
+
 	rerankCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
 
 	client := llm.NewClientFromProvider(
-		cfg.MemoryAnalysis.ProviderType,
-		cfg.MemoryAnalysis.BaseURL,
-		cfg.MemoryAnalysis.APIKey,
+		llmCfg.providerType,
+		llmCfg.baseURL,
+		llmCfg.apiKey,
 	)
 
-	model := cfg.MemoryAnalysis.ResolvedModel
-	if model == "" {
-		model = cfg.LLM.Model
-	}
+	model := llmCfg.model
 
 	// Build candidate list for the prompt
 	var sb strings.Builder
@@ -690,6 +726,47 @@ func rerankWithLLM(ctx context.Context, cfg *config.Config, logger *slog.Logger,
 	}
 
 	logger.Debug("[RAG LLM Rerank] Re-ranked candidates", "count", len(candidates), "scores", scores)
+	return candidates
+}
+
+func applyHelperRAGScores(logger *slog.Logger, candidates []rankedMemory, result helperRAGBatchResult) []rankedMemory {
+	if len(candidates) == 0 || len(result.CandidateScores) == 0 {
+		return candidates
+	}
+
+	scoreByID := make(map[string]float64, len(result.CandidateScores))
+	for _, item := range result.CandidateScores {
+		if item.MemoryID == "" {
+			continue
+		}
+		scoreByID[item.MemoryID] = item.Score
+	}
+
+	applied := 0
+	for i := range candidates {
+		llmScore, ok := scoreByID[candidates[i].docID]
+		if !ok {
+			continue
+		}
+		normalizedLLM := llmScore / 10.0
+		candidates[i].score = normalizedLLM*0.7 + candidates[i].score*0.3
+		applied++
+	}
+	if applied == 0 {
+		return candidates
+	}
+
+	for i := 0; i < len(candidates)-1; i++ {
+		for j := i + 1; j < len(candidates); j++ {
+			if candidates[j].score > candidates[i].score {
+				candidates[i], candidates[j] = candidates[j], candidates[i]
+			}
+		}
+	}
+
+	if logger != nil {
+		logger.Debug("[RAG Helper Batch] Re-ranked candidates", "count", len(candidates), "applied_scores", applied)
+	}
 	return candidates
 }
 
@@ -825,17 +902,18 @@ func generateMemoryReflection(
 
 	prompt := fmt.Sprintf(reflectionPrompt, scopeKey, journalData, kgData, coreData) + "\n\n=== Curator Dry Run ===\n" + curatorData
 
-	// Use dedicated analysis provider if configured, otherwise main client
+	llmCfg := resolveMemoryAnalysisLLMConfig(cfg)
 	analysisClient := mainClient
-	if cfg.MemoryAnalysis.APIKey != "" {
+	model := strings.TrimSpace(cfg.MemoryAnalysis.ResolvedModel)
+	if llmCfg.model != "" {
 		analysisClient = llm.NewClientFromProvider(
-			cfg.MemoryAnalysis.ProviderType,
-			cfg.MemoryAnalysis.BaseURL,
-			cfg.MemoryAnalysis.APIKey,
+			llmCfg.providerType,
+			llmCfg.baseURL,
+			llmCfg.apiKey,
 		)
+		model = llmCfg.model
 	}
 
-	model := cfg.MemoryAnalysis.ResolvedModel
 	if model == "" {
 		model = cfg.LLM.Model
 	}
@@ -905,4 +983,26 @@ func generateMemoryReflection(
 	}
 
 	return result, nil
+}
+
+func resolveMemoryAnalysisLLMConfig(cfg *config.Config) memoryAnalysisLLMConfig {
+	if cfg == nil {
+		return memoryAnalysisLLMConfig{}
+	}
+
+	if helperCfg := llm.ResolveHelperLLM(cfg); helperCfg.Enabled && helperCfg.Model != "" {
+		return memoryAnalysisLLMConfig{
+			providerType: helperCfg.ProviderType,
+			baseURL:      helperCfg.BaseURL,
+			apiKey:       helperCfg.APIKey,
+			model:        helperCfg.Model,
+		}
+	}
+
+	return memoryAnalysisLLMConfig{
+		providerType: strings.TrimSpace(cfg.MemoryAnalysis.ProviderType),
+		baseURL:      strings.TrimSpace(cfg.MemoryAnalysis.BaseURL),
+		apiKey:       strings.TrimSpace(cfg.MemoryAnalysis.APIKey),
+		model:        strings.TrimSpace(cfg.MemoryAnalysis.ResolvedModel),
+	}
 }

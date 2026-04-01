@@ -148,6 +148,26 @@ func TestChunkText_WithOverlap(t *testing.T) {
 	}
 }
 
+func TestChunkText_WhitespaceOnlyReturnsNoChunks(t *testing.T) {
+	chunks := chunkText("  \n\t  ", 400, 50)
+	if len(chunks) != 0 {
+		t.Fatalf("expected no chunks for whitespace-only text, got %d", len(chunks))
+	}
+}
+
+func TestChunkText_ClampsOverlapToAvoidEmptyChunks(t *testing.T) {
+	text := strings.Repeat("abc ", 80)
+	chunks := chunkText(text, 40, 40)
+	if len(chunks) < 2 {
+		t.Fatalf("expected multiple chunks, got %d", len(chunks))
+	}
+	for i, chunk := range chunks {
+		if strings.TrimSpace(chunk) == "" {
+			t.Fatalf("chunk %d should not be empty", i)
+		}
+	}
+}
+
 func min(a, b int) int {
 	if a < b {
 		return a

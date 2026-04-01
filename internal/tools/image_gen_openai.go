@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 )
@@ -59,7 +58,7 @@ func generateOpenAI(cfg ImageGenConfig, prompt string, opts ImageGenOptions) ([]
 	}
 	defer resp.Body.Close()
 
-	respBody, err := io.ReadAll(resp.Body)
+	respBody, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to read response: %w", err)
 	}
@@ -126,7 +125,7 @@ func generateOpenAIEdit(cfg ImageGenConfig, prompt string, opts ImageGenOptions)
 	}
 	defer resp.Body.Close()
 
-	respBody, err := io.ReadAll(resp.Body)
+	respBody, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to read response: %w", err)
 	}

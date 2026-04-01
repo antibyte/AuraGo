@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -36,6 +37,8 @@ type KnowledgeGraph struct {
 	doneChan    chan struct{} // signals worker to exit
 	closeOnce   sync.Once     // ensures Close is only called once
 }
+
+const knowledgeGraphWriteTimeout = 5 * time.Second
 
 // NewKnowledgeGraph creates a new SQLite-backed knowledge graph.
 // If jsonMigratePath points to an existing JSON file, its data is imported
@@ -109,7 +112,10 @@ func (kg *KnowledgeGraph) accessCountWorker() {
 			if !ok {
 				return // channel closed
 			}
-			if _, execErr := kg.db.Exec("UPDATE kg_nodes SET access_count = access_count + 1 WHERE id = ?", id); execErr != nil {
+			ctx, cancel := context.WithTimeout(context.Background(), knowledgeGraphWriteTimeout)
+			_, execErr := kg.db.ExecContext(ctx, "UPDATE kg_nodes SET access_count = access_count + 1 WHERE id = ?", id)
+			cancel()
+			if execErr != nil {
 				kg.logger.Warn("KG access count update failed", "id", id, "error", execErr)
 			}
 		}

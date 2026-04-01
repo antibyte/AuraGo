@@ -484,6 +484,18 @@ async function renderSection(key) {
         html += `<div class="cfg-note-banner cfg-note-banner-info">
                     \u{1F9E0} ${t('config.llm.info_banner')}
                 </div>`;
+        if (configData.llm && configData.llm.helper_enabled) {
+            html += `<div class="cfg-note-banner cfg-note-banner-info">
+                    \u{26A1} ${t('config.llm.helper_enabled_banner')}
+                </div>`;
+        } else {
+            html += `<div class="cfg-note-banner cfg-note-banner-warning">
+                    \u{26A0} ${t('config.llm.helper_disabled_banner')}
+                </div>`;
+        }
+        html += `<div class="cfg-note-banner cfg-note-banner-info">
+                    \u{1F6E1} ${t('config.llm.helper_guardian_banner')}
+                </div>`;
     }
 
     // Embeddings explanation

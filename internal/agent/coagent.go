@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"slices"
 	"strings"
 	"sync"
@@ -147,13 +148,13 @@ func SpawnCoAgent(
 
 	// 6. Launch goroutine
 	go func() {
-		defer cancel()
-
 		component := "co-agent"
 		if req.Specialist != "" {
 			component = "specialist-" + req.Specialist
 		}
 		coLogger := logger.With("component", component, "co_id", coID)
+		defer cancel()
+		defer recoverCoAgentPanic(coRegistry, coID, coLogger)
 		if state == CoAgentQueued {
 			coLogger.Info("Co-Agent queued", "task", truncateStr(req.Task, 100), "model", coModel, "timeout", timeout, "specialist", req.Specialist)
 			if err := coRegistry.WaitForStart(coID, ctx); err != nil {
@@ -168,17 +169,8 @@ func SpawnCoAgent(
 		coRegistry.RecordEvent(coID, "starting execution")
 		coLogger.Info("Co-Agent started", "task", truncateStr(req.Task, 100), "model", coModel, "timeout", timeout, "specialist", req.Specialist)
 
-		// Deep-copy config with co-agent overrides
-		coCfg := *cfg
-		// Deep-copy slice fields to avoid shared references with the main config
-		if len(cfg.CircuitBreaker.RetryIntervals) > 0 {
-			coCfg.CircuitBreaker.RetryIntervals = make([]string, len(cfg.CircuitBreaker.RetryIntervals))
-			copy(coCfg.CircuitBreaker.RetryIntervals, cfg.CircuitBreaker.RetryIntervals)
-		}
-		if len(cfg.Budget.Models) > 0 {
-			coCfg.Budget.Models = make([]config.ModelCost, len(cfg.Budget.Models))
-			copy(coCfg.Budget.Models, cfg.Budget.Models)
-		}
+		// Deep-copy config with co-agent overrides so nested slices and maps are not shared.
+		coCfg := deepClone(*cfg)
 
 		// Apply circuit breaker: specialist overrides → co_agents defaults
 		maxToolCalls := cfg.CoAgents.CircuitBreaker.MaxToolCalls
@@ -250,6 +242,9 @@ func SpawnCoAgent(
 				}
 			}
 			resp, err = ExecuteAgentLoop(ctx, llmReq, runCfg, false, broker)
+			if partial := extractCoAgentPartialResult(coHistoryMgr); partial != "" {
+				coRegistry.RecordPartialResult(coID, partial)
+			}
 			if err == nil {
 				break
 			}
@@ -257,10 +252,14 @@ func SpawnCoAgent(
 				break
 			}
 			coRegistry.RecordRetry(coID, err.Error())
+			coRegistry.RecordEvent(coID, fmt.Sprintf("transient failure before retry: %s", truncateStr(err.Error(), 160)))
 			coLogger.Warn("Co-Agent transient failure; retrying", "attempt", attempt+1, "max_retries", maxRetries, "error", err)
 		}
 
 		if err != nil {
+			if partial := extractCoAgentPartialResult(coHistoryMgr); partial != "" {
+				coRegistry.RecordPartialResult(coID, partial)
+			}
 			coLogger.Error("Co-Agent failed", "error", err)
 			coRegistry.Fail(coID, err.Error(), 0, 0)
 			return
@@ -274,16 +273,54 @@ func SpawnCoAgent(
 
 		// Limit result size to prevent memory exhaustion from unexpectedly large LLM outputs.
 		maxCoAgentResultBytes := cfg.CoAgents.MaxResultBytes
-		if len(result) > maxCoAgentResultBytes {
+		if maxCoAgentResultBytes > 0 && len(result) > maxCoAgentResultBytes {
 			coLogger.Warn("Co-Agent result truncated", "original_len", len(result))
-			result = result[:maxCoAgentResultBytes] + fmt.Sprintf("\n\n[Result truncated — exceeded %d bytes]", maxCoAgentResultBytes)
+			notice := fmt.Sprintf("\n\n[Result truncated — exceeded %d bytes]", maxCoAgentResultBytes)
+			result = truncateUTF8ToLimit(result, maxCoAgentResultBytes, notice)
 		}
 
+		if result != "" {
+			coRegistry.RecordPartialResult(coID, result)
+		}
 		coLogger.Info("Co-Agent completed", "tokens", tokensUsed, "result_len", len(result))
 		coRegistry.Complete(coID, result, tokensUsed, 0)
 	}()
 
 	return coID, state, nil
+}
+
+func recoverCoAgentPanic(registry *CoAgentRegistry, coID string, logger *slog.Logger) {
+	if recovered := recover(); recovered != nil {
+		errMsg := fmt.Sprintf("co-agent panic: %v", recovered)
+		if logger != nil {
+			logger.Error("Co-Agent panicked", "error", recovered, "stack", string(debug.Stack()))
+		}
+		if registry != nil && coID != "" {
+			registry.Fail(coID, errMsg, 0, 0)
+		}
+	}
+}
+
+func extractCoAgentPartialResult(history *memory.HistoryManager) string {
+	if history == nil {
+		return ""
+	}
+	if summary := strings.TrimSpace(history.GetSummary()); summary != "" {
+		return truncateStr(summary, 1200)
+	}
+	all := history.GetAll()
+	for i := len(all) - 1; i >= 0; i-- {
+		msg := all[i]
+		if msg.IsInternal || msg.Role != openai.ChatMessageRoleAssistant {
+			continue
+		}
+		content := strings.TrimSpace(msg.Content)
+		if content == "" || content == "[Empty Response]" {
+			continue
+		}
+		return truncateStr(content, 1200)
+	}
+	return ""
 }
 
 func selectCoAgentLLMForRole(cfg *config.Config, role string) (coAgentLLMSelection, string) {
@@ -341,7 +378,7 @@ func selectCoAgentLLMForRole(cfg *config.Config, role string) (coAgentLLMSelecti
 
 // newCoAgentLLMClientForSelection creates an LLM client for a co-agent or specialist.
 func newCoAgentLLMClientForSelection(cfg *config.Config, logger *slog.Logger, role string, selection coAgentLLMSelection) llm.ChatClient {
-	coCfg := *cfg
+	coCfg := deepClone(*cfg)
 	coCfg.LLM.APIKey = selection.APIKey
 	coCfg.LLM.BaseURL = selection.BaseURL
 	coCfg.LLM.Model = selection.Model
@@ -457,42 +494,114 @@ func loadPromptTemplateExists(path string) (string, bool) {
 	return tmpl, true
 }
 
+type coAgentContextPolicy struct {
+	maxCoreChars int
+	maxRAGHits   int
+	maxRAGChars  int
+	maxHints     int
+	maxHintChars int
+}
+
+func contextPolicyForSpecialist(role string) coAgentContextPolicy {
+	switch strings.ToLower(strings.TrimSpace(role)) {
+	case "researcher":
+		return coAgentContextPolicy{maxCoreChars: 700, maxRAGHits: 3, maxRAGChars: 700, maxHints: 6, maxHintChars: 220}
+	case "coder":
+		return coAgentContextPolicy{maxCoreChars: 1200, maxRAGHits: 2, maxRAGChars: 900, maxHints: 5, maxHintChars: 220}
+	case "designer":
+		return coAgentContextPolicy{maxCoreChars: 400, maxRAGHits: 1, maxRAGChars: 500, maxHints: 4, maxHintChars: 180}
+	case "security":
+		return coAgentContextPolicy{maxCoreChars: 1000, maxRAGHits: 2, maxRAGChars: 900, maxHints: 5, maxHintChars: 220}
+	case "writer":
+		return coAgentContextPolicy{maxCoreChars: 700, maxRAGHits: 2, maxRAGChars: 700, maxHints: 5, maxHintChars: 220}
+	default:
+		return coAgentContextPolicy{maxCoreChars: 1200, maxRAGHits: 2, maxRAGChars: 800, maxHints: 6, maxHintChars: 220}
+	}
+}
+
+func truncatePromptBlock(s string, maxChars int) string {
+	s = strings.TrimSpace(s)
+	if s == "" || maxChars <= 0 || len(s) <= maxChars {
+		return s
+	}
+	cutoff := maxChars - 3
+	if cutoff < 1 {
+		cutoff = maxChars
+	}
+	return strings.TrimSpace(s[:cutoff]) + "..."
+}
+
+func trimCoAgentHints(hints []string, maxHints, maxHintChars int) []string {
+	if len(hints) == 0 {
+		return nil
+	}
+	if maxHints <= 0 {
+		maxHints = len(hints)
+	}
+	trimmed := make([]string, 0, min(len(hints), maxHints))
+	for _, hint := range hints {
+		hint = truncatePromptBlock(hint, maxHintChars)
+		if hint == "" {
+			continue
+		}
+		trimmed = append(trimmed, hint)
+		if len(trimmed) >= maxHints {
+			break
+		}
+	}
+	return trimmed
+}
+
 // buildCoAgentSystemPrompt assembles the system prompt for a co-agent.
-// buildContextSnapshot assembles the shared context block (core memory, RAG, hints)
-// used in both co-agent and specialist system prompts.
+// buildContextSnapshot assembles a lean shared context block (core memory, local
+// memory hits, hints) so specialists spend more of their budget on the task itself.
 func buildContextSnapshot(req CoAgentRequest, ltm memory.VectorDB, stm *memory.SQLiteMemory) string {
-	var coreMem []byte
+	policy := contextPolicyForSpecialist(req.Specialist)
+
+	coreMem := ""
 	if stm != nil {
-		coreMem = []byte(stm.ReadCoreMemory())
+		coreMem = truncatePromptBlock(stm.ReadCoreMemory(), policy.maxCoreChars)
 	}
 
-	var ragContext string
-	if ltm != nil {
-		results, _, err := ltm.SearchSimilar(req.Task, 3)
-		if err == nil && len(results) > 0 {
-			ragContext = strings.Join(results, "\n---\n")
+	var ragItems []string
+	if ltm != nil && policy.maxRAGHits > 0 {
+		results, _, err := ltm.SearchMemoriesOnly(req.Task, policy.maxRAGHits)
+		if err == nil {
+			for _, result := range results {
+				result = truncatePromptBlock(result, policy.maxRAGChars)
+				if result == "" {
+					continue
+				}
+				ragItems = append(ragItems, result)
+				if len(ragItems) >= policy.maxRAGHits {
+					break
+				}
+			}
 		}
 	}
 
-	hintsStr := strings.Join(req.ContextHints, "\n")
+	hints := trimCoAgentHints(req.ContextHints, policy.maxHints, policy.maxHintChars)
 
 	var sb strings.Builder
-	if len(coreMem) > 0 {
+	if coreMem != "" {
 		sb.WriteString("## Core Memory\n")
-		sb.Write(coreMem)
+		sb.WriteString(coreMem)
 		sb.WriteString("\n\n")
 	}
-	if ragContext != "" {
+	if len(ragItems) > 0 {
 		sb.WriteString("## Relevant Context (RAG)\n")
-		sb.WriteString(ragContext)
+		sb.WriteString(strings.Join(ragItems, "\n---\n"))
 		sb.WriteString("\n\n")
 	}
-	if hintsStr != "" {
+	if len(hints) > 0 {
 		sb.WriteString("## Additional Hints\n")
-		sb.WriteString(hintsStr)
-		sb.WriteString("\n")
+		for _, hint := range hints {
+			sb.WriteString("- ")
+			sb.WriteString(hint)
+			sb.WriteString("\n")
+		}
 	}
-	return sb.String()
+	return strings.TrimSpace(sb.String())
 }
 
 func normalizeCoAgentRequest(cfg *config.Config, req CoAgentRequest) CoAgentRequest {
@@ -642,6 +751,16 @@ func buildSpecialistDelegationHint(cfg *config.Config, userQuery string) string 
 	if query == "" {
 		return ""
 	}
+
+	explicitDelegation := coAgentContainsAny(query,
+		"spawn_specialist",
+		"specialist",
+		"delegate",
+		"delegation",
+		"parallel",
+		"subtask",
+		"split this",
+	)
 	roles := make([]string, 0, 3)
 	addRole := func(role string, enabled bool) {
 		if !enabled {
@@ -666,18 +785,33 @@ func buildSpecialistDelegationHint(cfg *config.Config, userQuery string) string 
 	if coAgentContainsAny(query, "write", "document", "blog", "article", "summary", "report") {
 		addRole("writer", cfg.CoAgents.Specialists.Writer.Enabled)
 	}
-	complex := len(roles) >= 2 ||
-		strings.Contains(query, " and ") ||
-		strings.Contains(query, "parallel") ||
-		strings.Contains(query, "meanwhile") ||
-		len(query) > 220
-	if !complex || len(roles) == 0 {
+
+	complexityScore := 0
+	if len(roles) >= 2 {
+		complexityScore++
+	}
+	if coAgentContainsAny(query, " and ", " then ", " meanwhile ", "while you", "after that", "compare", "with sources") {
+		complexityScore++
+	}
+	if len(query) > 260 {
+		complexityScore++
+	}
+
+	if len(roles) == 0 {
 		return ""
 	}
-	if len(roles) == 1 {
-		return fmt.Sprintf("### Delegation Hint\nThis task may benefit from `spawn_specialist` with the **%s** specialist if the work becomes multi-step.", roles[0])
+
+	if explicitDelegation {
+		if len(roles) == 1 {
+			return fmt.Sprintf("### Delegation Hint\nIf you want to delegate part of this task, `spawn_specialist` with **%s** is the best fit.", roles[0])
+		}
+		return fmt.Sprintf("### Delegation Hint\nIf you want to split this into parallel specialist work, the best matches are: **%s**.", strings.Join(roles, ", "))
 	}
-	return fmt.Sprintf("### Delegation Hint\nThis request spans multiple domains. Consider splitting it with `spawn_specialist`, for example: **%s**.", strings.Join(roles, ", "))
+
+	if len(roles) < 2 || complexityScore < 2 {
+		return ""
+	}
+	return fmt.Sprintf("### Delegation Hint\nThis looks like a multi-step cross-domain task. If it helps, `spawn_specialist` could split it between **%s**.", strings.Join(roles, ", "))
 }
 
 func coAgentContainsAny(value string, patterns ...string) bool {

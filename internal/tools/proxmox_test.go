@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"bytes"
 	"crypto/tls"
 	"encoding/json"
 	"net/http"
@@ -40,6 +41,33 @@ func TestProxmoxRequest_RejectsHTTPSWithoutHost(t *testing.T) {
 	}, "GET", "/nodes", "")
 	if err == nil {
 		t.Fatal("expected https URL without host to be rejected")
+	}
+}
+
+func TestProxmoxRequestRejectsOversizeResponse(t *testing.T) {
+	proxmoxClientCache = sync.Map{}
+
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(bytes.Repeat([]byte("x"), int(maxHTTPResponseSize+1)))
+	}))
+	defer server.Close()
+
+	client := server.Client()
+	client.Transport = &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}
+	proxmoxClientCache.Store(server.URL+"|insecure", client)
+
+	_, _, err := proxmoxRequest(ProxmoxConfig{
+		URL:      server.URL,
+		TokenID:  "user@pam!token",
+		Secret:   "secret",
+		Insecure: true,
+	}, "GET", "/nodes", "")
+	if err == nil {
+		t.Fatal("expected oversize response error")
+	}
+	if !strings.Contains(err.Error(), "exceeds limit") {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 

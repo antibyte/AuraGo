@@ -334,6 +334,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 
 		// Runtime environment detection (Docker, socket, broadcast, firewall)
 		mux.HandleFunc("/api/runtime", handleRuntime(s))
+		mux.HandleFunc("/api/debug/helper-llm/stats", handleHelperLLMStats(s))
 
 		// Homepage tool endpoints
 		mux.HandleFunc("/api/homepage/status", handleHomepageStatus(s))
@@ -548,6 +549,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		mux.HandleFunc("/api/dashboard/journal", handleDashboardJournal(s))
 		mux.HandleFunc("/api/dashboard/journal/summaries", handleDashboardJournalSummary(s))
 		mux.HandleFunc("/api/dashboard/journal/stats", handleDashboardJournalStats(s))
+		mux.HandleFunc("/api/dashboard/helper-llm", handleDashboardHelperLLM(s))
 		mux.HandleFunc("/api/dashboard/guardian", handleDashboardGuardian(s))
 		mux.HandleFunc("/api/dashboard/errors", handleDashboardErrors(s))
 

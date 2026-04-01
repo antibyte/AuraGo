@@ -112,6 +112,7 @@ func Load(path string) (*Config, error) {
 
 	cfg.Tools.PythonTimeoutSeconds = 30
 	cfg.Tools.SkillTimeoutSeconds = 120
+	cfg.Tools.BackgroundTimeoutSeconds = 3600
 	cfg.Tools.SkillManager.Enabled = true
 	cfg.Tools.SkillManager.AllowUploads = true
 	cfg.Tools.SkillManager.RequireScan = true
@@ -141,6 +142,9 @@ func Load(path string) (*Config, error) {
 	cfg.Consolidation.MaxBatchMessages = 200
 	cfg.Consolidation.OptimizeThreshold = 1
 
+	// Helper LLM defaults: disabled until explicitly configured.
+	cfg.LLM.HelperEnabled = false
+
 	// Memory analysis defaults: adaptive and always active; legacy flags remain for compatibility only.
 	cfg.MemoryAnalysis.Enabled = true
 	cfg.MemoryAnalysis.Preset = "adaptive"
@@ -165,6 +169,8 @@ func Load(path string) (*Config, error) {
 	cfg.Embeddings.MultimodalFormat = "auto"
 
 	// Piper TTS container defaults
+	cfg.TTS.CacheRetentionHours = 168
+	cfg.TTS.CacheMaxFiles = 500
 	cfg.TTS.Piper.ContainerPort = 10200
 	cfg.TTS.Piper.DataPath = "data/piper"
 	cfg.TTS.Piper.Image = "rhasspy/wyoming-piper:latest"
@@ -173,6 +179,8 @@ func Load(path string) (*Config, error) {
 	cfg.LLMGuardian.TimeoutSecs = 30
 	cfg.LLMGuardian.ScanDocuments = false
 	cfg.LLMGuardian.ScanEmails = false
+	cfg.Guardian.MaxScanBytes = 16 * 1024
+	cfg.Guardian.ScanEdgeBytes = 6 * 1024
 
 	// n8n integration defaults: disabled by default, token auth required when enabled.
 	cfg.N8n.Enabled = false
@@ -936,6 +944,12 @@ func (c *Config) Save(path string) error {
 	}
 	if authSection, ok := rawCfg["auth"].(map[string]interface{}); ok {
 		authSection["enabled"] = c.Auth.Enabled
+	}
+	if _, ok := rawCfg["webhooks"]; !ok {
+		rawCfg["webhooks"] = map[string]interface{}{}
+	}
+	if webhooksSection, ok := rawCfg["webhooks"].(map[string]interface{}); ok {
+		webhooksSection["outgoing"] = c.Webhooks.Outgoing
 	}
 
 	// 3. Write back with all original fields (including API keys) intact

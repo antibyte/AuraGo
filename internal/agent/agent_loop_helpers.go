@@ -14,6 +14,52 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
+func mergeStreamToolCallChunk(streamToolCalls map[int]*openai.ToolCall, tc openai.ToolCall) {
+	idx := 0
+	if tc.Index != nil {
+		idx = *tc.Index
+	}
+	existing, ok := streamToolCalls[idx]
+	if !ok {
+		clone := openai.ToolCall{
+			Index: tc.Index,
+			ID:    tc.ID,
+			Type:  tc.Type,
+			Function: openai.FunctionCall{
+				Name:      tc.Function.Name,
+				Arguments: tc.Function.Arguments,
+			},
+		}
+		streamToolCalls[idx] = &clone
+		return
+	}
+	if tc.ID != "" {
+		existing.ID = tc.ID
+	}
+	if tc.Function.Name != "" {
+		existing.Function.Name += tc.Function.Name
+	}
+	existing.Function.Arguments += tc.Function.Arguments
+}
+
+func assembleSortedStreamToolCalls(streamToolCalls map[int]*openai.ToolCall) []openai.ToolCall {
+	if len(streamToolCalls) == 0 {
+		return nil
+	}
+	keys := make([]int, 0, len(streamToolCalls))
+	for idx := range streamToolCalls {
+		keys = append(keys, idx)
+	}
+	sort.Ints(keys)
+	assembledToolCalls := make([]openai.ToolCall, 0, len(keys))
+	for _, idx := range keys {
+		if tc := streamToolCalls[idx]; tc != nil {
+			assembledToolCalls = append(assembledToolCalls, *tc)
+		}
+	}
+	return assembledToolCalls
+}
+
 type toolGuideSearcher interface {
 	SearchToolGuides(query string, topK int) ([]string, error)
 }
@@ -320,7 +366,7 @@ func extractErrorMessage(resultContent string) string {
 	}
 	// Fall back to the first 200 chars of the raw output
 	if len(resultContent) > 200 {
-		return resultContent[:200]
+		return truncateUTF8Prefix(resultContent, 200)
 	}
 	return resultContent
 }

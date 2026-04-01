@@ -365,6 +365,67 @@ func TestHandleDashboardGuardianContract(t *testing.T) {
 	}
 }
 
+func TestHandleDashboardHelperLLMContract(t *testing.T) {
+	agent.ResetHelperLLMRuntimeStats()
+	t.Cleanup(agent.ResetHelperLLMRuntimeStats)
+
+	cfg := &config.Config{}
+	cfg.LLM.HelperEnabled = true
+	cfg.LLM.HelperProvider = "helper"
+	cfg.LLM.HelperProviderType = "openrouter"
+	cfg.LLM.HelperResolvedModel = "google/gemini-2.0-flash-lite"
+
+	agent.MergeHelperLLMRuntimeStats("content_summaries", agent.HelperLLMOperationStats{
+		Requests:     3,
+		CacheHits:    1,
+		LLMCalls:     2,
+		Fallbacks:    1,
+		BatchedItems: 5,
+		SavedCalls:   2,
+		LastDetail:   "cache_hit",
+	})
+
+	s := &Server{Cfg: cfg}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/dashboard/helper-llm", nil)
+	rec := httptest.NewRecorder()
+
+	handleDashboardHelperLLM(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d", rec.Code)
+	}
+
+	var body map[string]interface{}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("failed to decode JSON: %v", err)
+	}
+
+	for _, key := range []string{"enabled", "updated_at", "totals", "operations"} {
+		if _, ok := body[key]; !ok {
+			t.Fatalf("helper llm payload missing key %q", key)
+		}
+	}
+
+	totals, ok := body["totals"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("totals has unexpected type %T", body["totals"])
+	}
+	for _, key := range []string{"requests", "cache_hits", "llm_calls", "fallbacks", "batched_items", "saved_calls"} {
+		if _, ok := totals[key]; !ok {
+			t.Fatalf("helper llm totals missing key %q", key)
+		}
+	}
+
+	operations, ok := body["operations"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("operations has unexpected type %T", body["operations"])
+	}
+	if _, ok := operations["content_summaries"]; !ok {
+		t.Fatalf("operations missing content_summaries entry: %#v", operations)
+	}
+}
+
 func TestHandleDashboardOverviewContract(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.LLM.Model = "test-model"
@@ -373,6 +434,10 @@ func TestHandleDashboardOverviewContract(t *testing.T) {
 	cfg.Agent.ContextWindow = 32000
 	cfg.Maintenance.Enabled = true
 	cfg.Docker.Enabled = true
+	cfg.LLM.HelperEnabled = true
+	cfg.LLM.HelperProvider = "helper"
+	cfg.LLM.HelperProviderType = "openrouter"
+	cfg.LLM.HelperResolvedModel = "google/gemini-2.0-flash-lite"
 	cfg.MemoryAnalysis.Enabled = true
 	cfg.LLMGuardian.Enabled = true
 	cfg.Homepage.Enabled = true
@@ -416,7 +481,7 @@ func TestHandleDashboardOverviewContract(t *testing.T) {
 	if !ok {
 		t.Fatalf("integrations has unexpected type %T", body["integrations"])
 	}
-	for _, key := range []string{"docker", "memory_analysis", "llm_guardian", "homepage", "netlify", "skill_manager"} {
+	for _, key := range []string{"docker", "helper_llm", "memory_analysis", "llm_guardian", "homepage", "netlify", "skill_manager"} {
 		if _, ok := integrations[key]; !ok {
 			t.Fatalf("integrations missing key %q", key)
 		}

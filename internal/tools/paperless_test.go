@@ -247,6 +247,25 @@ func TestPaperlessServer_Error(t *testing.T) {
 	}
 }
 
+func TestPaperlessServer_OversizedErrorBody(t *testing.T) {
+	srv, cfg := newTestPaperlessServer(t, func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadGateway)
+		w.Write([]byte(strings.Repeat("x", int(maxHTTPResponseSize)+1)))
+	})
+	defer srv.Close()
+
+	result := PaperlessGet(cfg, "1")
+
+	var parsed FSResult
+	json.Unmarshal([]byte(result), &parsed)
+	if parsed.Status != "error" {
+		t.Fatalf("expected error, got %s", parsed.Status)
+	}
+	if !strings.Contains(parsed.Message, "response body exceeds limit") {
+		t.Fatalf("expected oversized body message, got: %s", parsed.Message)
+	}
+}
+
 func TestPaperlessMissingConfig(t *testing.T) {
 	result := PaperlessSearch(PaperlessConfig{}, "test", "", "", "", 0)
 

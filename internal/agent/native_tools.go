@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"regexp"
 	"strings"
+	"sync"
 
 	openai "github.com/sashabaranov/go-openai"
 
@@ -16,6 +17,8 @@ import (
 )
 
 var nativeToolNamePattern = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
+
+var builtinToolSchemaCache sync.Map
 
 // prop creates a JSON Schema property entry.
 func prop(typ, description string) map[string]interface{} {
@@ -132,36 +135,8 @@ type ToolFeatureFlags struct {
 	PythonSecretInjectionEnabled bool
 }
 
-// builtinToolSchemas returns schemas for all built-in AuraGo tools.
-// Optional feature tools (home_assistant, docker, co_agent) are only
-// included when their corresponding feature is enabled in the config.
-func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
-	executePythonDesc := "Save and execute a Python script. Use for data processing, automation, calculations, and scripting tasks."
-	if ff.SandboxEnabled {
-		executePythonDesc = "Save and execute a Python script on the HOST system (unsandboxed). Use ONLY for persistent tools (save_tool), registered skills, or when execute_sandbox is unavailable. Prefer execute_sandbox for all other code execution."
-	}
-
-	execSkillProps := map[string]interface{}{
-		"skill": prop("string", "Name of the skill to execute (e.g. 'ddg_search', 'web_scraper', 'pdf_extractor', 'virustotal_scan')"),
-		"skill_args": map[string]interface{}{
-			"type":        "object",
-			"description": "Arguments to pass to the skill as key-value pairs",
-		},
-	}
-	if ff.PythonSecretInjectionEnabled {
-		execSkillProps["vault_keys"] = map[string]interface{}{
-			"type":        "array",
-			"description": "List of vault secret key names to inject as AURAGO_SECRET_<KEY> environment variables. Only user/agent-created secrets are accessible.",
-			"items":       map[string]interface{}{"type": "string"},
-		}
-		execSkillProps["credential_ids"] = map[string]interface{}{
-			"type":        "array",
-			"description": "List of credential UUIDs to inject as AURAGO_CRED_<NAME>_USERNAME / _PASSWORD / _TOKEN environment variables. Only credentials with 'allow_python' enabled are accessible.",
-			"items":       map[string]interface{}{"type": "string"},
-		}
-	}
-
-	tools := []openai.Tool{
+func buildCoreToolSchemas(ff ToolFeatureFlags, execSkillProps map[string]interface{}) []openai.Tool {
+	return []openai.Tool{
 		tool("list_skills",
 			"List available pre-built skills and integrations that can be executed via execute_skill. Use this to discover capabilities like virustotal_scan, brave_search, pdf_extractor, wikipedia_search, or web_scraper.",
 			schema(map[string]interface{}{}),
@@ -170,7 +145,6 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 			"Run a pre-built registered skill (e.g. web_search, ddg_search, pdf_extractor, wikipedia_search, virustotal_scan). Use for external data retrieval.",
 			schema(execSkillProps, "skill"),
 		),
-		// filesystem: always present, but operations restricted to read-only when write is disabled
 		func() openai.Tool {
 			if ff.AllowFilesystemWrite {
 				return tool("filesystem",
@@ -360,6 +334,38 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 			}, "path"),
 		),
 	}
+}
+
+// builtinToolSchemas returns schemas for all built-in AuraGo tools.
+// Optional feature tools (home_assistant, docker, co_agent) are only
+// included when their corresponding feature is enabled in the config.
+func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
+	executePythonDesc := "Save and execute a Python script. Use for data processing, automation, calculations, and scripting tasks."
+	if ff.SandboxEnabled {
+		executePythonDesc = "Save and execute a Python script on the HOST system (unsandboxed). Use ONLY for persistent tools (save_tool), registered skills, or when execute_sandbox is unavailable. Prefer execute_sandbox for all other code execution."
+	}
+
+	execSkillProps := map[string]interface{}{
+		"skill": prop("string", "Name of the skill to execute (e.g. 'ddg_search', 'web_scraper', 'pdf_extractor', 'virustotal_scan')"),
+		"skill_args": map[string]interface{}{
+			"type":        "object",
+			"description": "Arguments to pass to the skill as key-value pairs",
+		},
+	}
+	if ff.PythonSecretInjectionEnabled {
+		execSkillProps["vault_keys"] = map[string]interface{}{
+			"type":        "array",
+			"description": "List of vault secret key names to inject as AURAGO_SECRET_<KEY> environment variables. Only user/agent-created secrets are accessible.",
+			"items":       map[string]interface{}{"type": "string"},
+		}
+		execSkillProps["credential_ids"] = map[string]interface{}{
+			"type":        "array",
+			"description": "List of credential UUIDs to inject as AURAGO_CRED_<NAME>_USERNAME / _PASSWORD / _TOKEN environment variables. Only credentials with 'allow_python' enabled are accessible.",
+			"items":       map[string]interface{}{"type": "string"},
+		}
+	}
+
+	tools := buildCoreToolSchemas(ff, execSkillProps)
 
 	if ff.VirusTotalEnabled {
 		tools = append(tools, tool("virustotal_scan",
@@ -663,13 +669,13 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 				"description": "Operation to perform",
 				"enum":        []string{"list", "get", "create", "update", "delete", "attach", "detach"},
 			},
-			"id":             prop("string", "Cheat sheet ID (for get/update/delete/attach/detach). Can also be the name for 'get'."),
-			"name":           prop("string", "Name of the cheat sheet (for create/update)"),
-			"content":        prop("string", "Markdown content of the cheat sheet (for create/update/attach)"),
-			"active":         map[string]interface{}{"type": "boolean", "description": "Whether the cheat sheet is active (for update)"},
-			"filename":       prop("string", "Filename of the attachment to add (for attach). Only .txt and .md allowed."),
-			"source":         prop("string", "Source of the attachment: 'upload' or 'knowledge' (for attach). Defaults to 'upload'."),
-			"attachment_id":  prop("string", "Attachment ID to remove (for detach)."),
+			"id":            prop("string", "Cheat sheet ID (for get/update/delete/attach/detach). Can also be the name for 'get'."),
+			"name":          prop("string", "Name of the cheat sheet (for create/update)"),
+			"content":       prop("string", "Markdown content of the cheat sheet (for create/update/attach)"),
+			"active":        map[string]interface{}{"type": "boolean", "description": "Whether the cheat sheet is active (for update)"},
+			"filename":      prop("string", "Filename of the attachment to add (for attach). Only .txt and .md allowed."),
+			"source":        prop("string", "Source of the attachment: 'upload' or 'knowledge' (for attach). Defaults to 'upload'."),
+			"attachment_id": prop("string", "Attachment ID to remove (for detach)."),
 		}, "operation"),
 	))
 
@@ -1397,22 +1403,6 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 				"id":          prop("string", "Issue number (as string)"),
 				"limit":       map[string]interface{}{"type": "integer", "description": "Max results to return"},
 				"label":       prop("string", "Comma-separated labels for issues"),
-			}, "operation"),
-		))
-	}
-	if ff.MeshCentralEnabled {
-		tools = append(tools, tool("meshcentral",
-			"Manage MeshCentral devices. List device groups, list devices, wake devices via WOL, send power actions, run commands, and execute interactive shell commands with output.",
-			schema(map[string]interface{}{
-				"operation": map[string]interface{}{
-					"type":        "string",
-					"description": "Operation to perform",
-					"enum":        []string{"list_groups", "list_devices", "wake", "power_action", "run_command", "shell"},
-				},
-				"mesh_id":      prop("string", "Mesh/Group ID (optional for list_devices to filter results)"),
-				"node_id":      prop("string", "Node/Device ID (required for wake, power_action, run_command, shell)"),
-				"power_action": map[string]interface{}{"type": "integer", "description": "Power action ID. 1=Sleep, 2=Hibernate, 3=PowerOff, 4=Reset (for power_action)"},
-				"command":      prop("string", "Command to run on remote device (for run_command or shell)"),
 			}, "operation"),
 		))
 	}
@@ -2205,6 +2195,16 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 	return tools
 }
 
+func builtinToolSchemasCached(ff ToolFeatureFlags) []openai.Tool {
+	if cached, ok := builtinToolSchemaCache.Load(ff); ok {
+		return deepClone(cached.([]openai.Tool))
+	}
+
+	built := builtinToolSchemas(ff)
+	builtinToolSchemaCache.Store(ff, deepClone(built))
+	return built
+}
+
 // NativeToolCallToToolCall converts an OpenAI native ToolCall response to AuraGo's ToolCall struct.
 // Arguments JSON is unmarshalled directly into the struct fields.
 func NativeToolCallToToolCall(native openai.ToolCall, logger *slog.Logger) ToolCall {
@@ -2213,6 +2213,17 @@ func NativeToolCallToToolCall(native openai.ToolCall, logger *slog.Logger) ToolC
 	skillFromShortcut := ""
 	if strings.HasPrefix(name, "skill__") {
 		skillFromShortcut = strings.TrimPrefix(name, "skill__")
+		if _, err := tools.ValidateSkillShortcutName(skillFromShortcut); err != nil {
+			return ToolCall{
+				IsTool:              true,
+				Action:              "execute_skill",
+				Skill:               skillFromShortcut,
+				NativeCallID:        native.ID,
+				NativeArgsMalformed: true,
+				NativeArgsError:     err.Error(),
+				NativeArgsRaw:       native.Function.Arguments,
+			}
+		}
 		name = "execute_skill"
 	}
 
@@ -2309,7 +2320,7 @@ func NativeToolCallToToolCall(native openai.ToolCall, logger *slog.Logger) ToolC
 
 // BuildNativeToolSchemas returns the full tool list: built-ins + registered skills + custom tools.
 func BuildNativeToolSchemas(skillsDir string, manifest *tools.Manifest, ff ToolFeatureFlags, logger *slog.Logger) []openai.Tool {
-	allTools := builtinToolSchemas(ff)
+	allTools := builtinToolSchemasCached(ff)
 
 	// Add skills as sub-variants of execute_skill (informational context; already handled by execute_skill schema)
 	if skills, err := tools.ListSkills(skillsDir); err == nil {

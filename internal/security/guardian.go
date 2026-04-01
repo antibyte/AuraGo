@@ -7,6 +7,12 @@ import (
 	"strings"
 )
 
+const (
+	defaultGuardianMaxScanBytes  = 16 * 1024
+	defaultGuardianScanEdgeBytes = 6 * 1024
+	guardianScanOmittedMark      = "\n[... guardian scan truncated ...]\n"
+)
+
 // ThreatLevel indicates the severity of a detected injection attempt.
 type ThreatLevel int
 
@@ -49,18 +55,50 @@ type injectionPattern struct {
 	level ThreatLevel
 }
 
+// GuardianOptions controls bounded regex scanning behavior.
+type GuardianOptions struct {
+	MaxScanBytes  int
+	ScanEdgeBytes int
+}
+
 // Guardian provides multi-layer prompt injection defense.
 // It scans text for known injection patterns, wraps external data for isolation,
 // and strips dangerous role-impersonation markers from tool output.
 type Guardian struct {
-	logger   *slog.Logger
-	patterns []injectionPattern
+	logger        *slog.Logger
+	patterns      []injectionPattern
+	maxScanBytes  int
+	scanEdgeBytes int
 }
 
 // NewGuardian creates a Guardian with pre-compiled injection detection patterns.
 // Patterns cover English, German, and common multilingual injection techniques.
 func NewGuardian(logger *slog.Logger) *Guardian {
-	g := &Guardian{logger: logger}
+	return NewGuardianWithOptions(logger, GuardianOptions{})
+}
+
+// NewGuardianWithOptions creates a Guardian with optional scan window overrides.
+func NewGuardianWithOptions(logger *slog.Logger, opts GuardianOptions) *Guardian {
+	maxScanBytes := opts.MaxScanBytes
+	if maxScanBytes <= 0 {
+		maxScanBytes = defaultGuardianMaxScanBytes
+	}
+	scanEdgeBytes := opts.ScanEdgeBytes
+	if scanEdgeBytes <= 0 {
+		scanEdgeBytes = defaultGuardianScanEdgeBytes
+	}
+	if scanEdgeBytes*2 > maxScanBytes {
+		scanEdgeBytes = maxScanBytes / 2
+	}
+	if scanEdgeBytes <= 0 {
+		scanEdgeBytes = maxScanBytes
+	}
+
+	g := &Guardian{
+		logger:        logger,
+		maxScanBytes:  maxScanBytes,
+		scanEdgeBytes: scanEdgeBytes,
+	}
 	g.compilePatterns()
 	return g
 }
@@ -74,10 +112,12 @@ func (g *Guardian) compilePatterns() {
 		// ── Role hijacking / identity override ──────────────────────
 		{"role_hijack_en", `(?i)\b(you are now|act as|pretend (to be|you'?re)|from now on you|your new (role|identity|instructions?)|assume the (role|persona|identity))\b`, ThreatCritical},
 		{"role_hijack_de", `(?i)\b(du bist (jetzt|nun|ab sofort)|ab jetzt bist du|verhalte dich als|deine neue (rolle|identität|anweisung|aufgabe)|nimm die rolle)\b`, ThreatCritical},
+		{"role_hijack_cjk", `(?i)(你现在是|从现在开始你是|请扮演|作为.{0,8}(助手|系统|管理员|开发者)|あなたは今|今からあなたは|として振る舞って|지금부터 너는|이제 너는|처럼 행동해)`, ThreatCritical},
 
 		// ── Instruction override ────────────────────────────────────
 		{"override_en", `(?i)\b(ignore (all |your )?(previous|prior|above|earlier|original|system) (instructions?|prompts?|rules?|guidelines?))\b`, ThreatCritical},
 		{"override_de", `(?i)\b(ignoriere? (alle |deine )?(vorherigen?|bisherigen?|obigen?|urspr.nglichen?) (anweisungen?|instruktionen?|regeln?|prompts?))\b`, ThreatCritical},
+		{"override_cjk", `(?i)(忽略.{0,8}(之前|以上|原来|系统).{0,8}(指令|提示|规则)|无视.{0,8}(之前|系统).{0,8}(指示|规则)|前の(指示|命令|プロンプト)を無視|これまでの(指示|ルール)を無視|이전 (지시|명령|규칙)을 무시|시스템 (지침|프롬프트)을 무시)`, ThreatCritical},
 		{"override_new", `(?i)\b(new instructions?|new system prompt|override (system|instructions?)|replace (your|the) (prompt|instructions?))\b`, ThreatHigh},
 		{"override_new_de", `(?i)\b(neue (anweisungen?|instruktionen?|system.?prompt)|ersetze? (deine?|die) (anweisungen?|instruktionen?))\b`, ThreatHigh},
 
@@ -105,9 +145,17 @@ func (g *Guardian) compilePatterns() {
 
 		// ── Encoded / obfuscated payloads ───────────────────────────
 		{"base64_payload", `(?i)\b(decode|eval|exec)\s*\(\s*(base64|atob|b64)\b`, ThreatHigh},
+		{"base64_literal_payload", `(?i)\b(base64_decode|frombase64string|atob)\s*\(\s*["'][A-Za-z0-9+/=]{16,}["']\s*\)`, ThreatHigh},
+		{"hex_literal_payload", `(?i)\b(hex\.decodestring|fromhex|unhexlify|decode_hex|hexdecode|xxd\s+-r\s+-p)\b.{0,24}["']?[A-Fa-f0-9]{16,}["']?`, ThreatHigh},
+		{"rot13_literal_payload", `(?i)(\b(rot13|caesar)\b.{0,20}\b(decode|decoded|decoder|transform|translated?)\b)|(\bcodecs\.decode\b.{0,80}["']rot_13["'])|(\brot_13\b.{0,80}["'][A-Za-z\s]{12,}["'])`, ThreatMedium},
+		{"charcode_literal_payload", `(?i)\b(fromcharcode|charcodeat|string\.fromcharcode|chr\()\b.{0,40}(?:\d{2,3}\s*,\s*){4,}\d{2,3}`, ThreatHigh},
+		{"morse_literal_payload", `(?i)\b(morse(\.|_)?decode|decode(\.|_)?morse|translate.{0,10}morse|decode\s+morse)\b.{0,32}["']?[.\-/\s]{12,}["']?`, ThreatMedium},
+		{"uu_literal_payload", `(?i)\b(uudecode|uu\.decode|decode\s+uu(?:encode|encoded)?)\b.{0,80}(begin\s+[0-7]{3}\s+\S+|[ !-` + "`" + `]{20,})`, ThreatMedium},
 		{"unicode_escape", `(?i)(\\u00[0-9a-f]{2}){4,}`, ThreatMedium},
 		{"html_entity_injection", `(?i)(&#x?[0-9a-f]+;|&(lt|gt|amp|quot|apos);){3,}`, ThreatMedium},
-		{"zero_width_injection", `[\x{200B}\x{200C}\x{200D}\x{FEFF}\x{2060}]{2,}`, ThreatMedium},
+		{"zero_width_injection", `[\x{200B}\x{200C}\x{200D}\x{FEFF}\x{2060}]+`, ThreatMedium},
+		{"markdown_js_link", `(?i)\[[^\]]{0,120}\]\(\s*javascript\s*:`, ThreatHigh},
+		{"markdown_injection_heading", `(?im)^\s{0,3}#{1,6}\s*(ignore|system prompt|developer mode|new instructions?|override|jailbreak|bypass)\b`, ThreatMedium},
 
 		// ── Application secret extraction ─────────────────────────
 		{"aurago_env_read", `(?i)(printenv|echo\s+\$\{?|get-item\s+env:|getenvironmentvariable|\$env:|export\s+.*=.*)\s*AURAGO_`, ThreatCritical},
@@ -150,9 +198,10 @@ func (g *Guardian) ScanForInjection(text string) ScanResult {
 		return ScanResult{Level: ThreatNone}
 	}
 
+	scanText, truncated := prepareGuardianScanText(text, g.maxScanBytes, g.scanEdgeBytes)
 	result := ScanResult{Level: ThreatNone}
 	for _, p := range g.patterns {
-		if p.re.MatchString(text) {
+		if p.re.MatchString(scanText) {
 			result.Patterns = append(result.Patterns, p.name)
 			if p.level > result.Level {
 				result.Level = p.level
@@ -163,9 +212,35 @@ func (g *Guardian) ScanForInjection(text string) ScanResult {
 	if len(result.Patterns) > 0 {
 		result.Message = fmt.Sprintf("Detected %d injection pattern(s): %s [threat=%s]",
 			len(result.Patterns), strings.Join(result.Patterns, ", "), result.Level)
+		if truncated {
+			result.Message += " [scan_window=truncated]"
+		}
+	} else if truncated {
+		result.Message = "No injection patterns detected in truncated scan window"
 	}
 
 	return result
+}
+
+func prepareGuardianScanText(text string, maxScanBytes, scanEdgeBytes int) (string, bool) {
+	if maxScanBytes <= 0 {
+		maxScanBytes = defaultGuardianMaxScanBytes
+	}
+	if scanEdgeBytes <= 0 {
+		scanEdgeBytes = defaultGuardianScanEdgeBytes
+	}
+	if len(text) <= maxScanBytes {
+		return text, false
+	}
+	if scanEdgeBytes*2 > maxScanBytes {
+		scanEdgeBytes = maxScanBytes / 2
+	}
+	if scanEdgeBytes <= 0 {
+		scanEdgeBytes = maxScanBytes
+	}
+	head := text[:scanEdgeBytes]
+	tail := text[len(text)-scanEdgeBytes:]
+	return head + guardianScanOmittedMark + tail, true
 }
 
 // ── External Data Isolation ─────────────────────────────────────────────────

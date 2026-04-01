@@ -51,6 +51,19 @@
       "title": "LLM Provider",
       "description": "Select a provider from the provider management. Model, URL and API key are taken from the provider entry."
     },
+    "helper_enabled": {
+      "title": "Enable Helper LLM",
+      "description": "Enables the dedicated Helper LLM for internal analysis and background tasks. If disabled, many dependent helper features will not work fully.",
+      "warning": "Recommended: enable this with a smaller, cost-efficient model so AuraGo can use its full helper feature set."
+    },
+    "helper_provider": {
+      "title": "Helper LLM Provider",
+      "description": "Select the provider entry used for internal helper tasks such as analysis, summaries and background processing. This is separate from the Guardian model."
+    },
+    "helper_model": {
+      "title": "Helper LLM Model",
+      "description": "Optional model override for the Helper LLM. Leave empty to use the provider default."
+    },
     "temperature": {
       "title": "Temperature",
       "description": "Controls randomness in responses. Lower (0.1-0.3) = more deterministic, Higher (0.8-1.2) = more creative. Default: 0.7"

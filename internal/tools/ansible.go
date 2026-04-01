@@ -60,7 +60,7 @@ func ansibleRequest(cfg AnsibleConfig, method, endpoint string, body interface{}
 	}
 	defer resp.Body.Close()
 
-	data, err := io.ReadAll(resp.Body)
+	data, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
 	if err != nil {
 		return nil, resp.StatusCode, fmt.Errorf("failed to read response: %w", err)
 	}

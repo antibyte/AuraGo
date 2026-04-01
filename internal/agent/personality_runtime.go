@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -9,12 +10,20 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/llm"
 	"aurago/internal/memory"
 
 	"github.com/sashabaranov/go-openai"
 )
 
 func resolvePersonalityAnalyzerClient(cfg *config.Config, fallback memory.PersonalityAnalyzerClient) memory.PersonalityAnalyzerClient {
+	if helperCfg := llm.ResolveHelperLLM(cfg); helperCfg.Enabled && helperCfg.Model != "" {
+		client := llm.NewClientFromProvider(helperCfg.ProviderType, helperCfg.BaseURL, helperCfg.APIKey)
+		if client != nil {
+			return client
+		}
+	}
+
 	v2URL := cfg.Personality.V2ResolvedURL
 	if v2URL == "" {
 		v2URL = cfg.Personality.V2URL
@@ -35,6 +44,9 @@ func resolvePersonalityAnalyzerClient(cfg *config.Config, fallback memory.Person
 }
 
 func resolvePersonalityModel(cfg *config.Config) string {
+	if helperCfg := llm.ResolveHelperLLM(cfg); helperCfg.Enabled && helperCfg.Model != "" {
+		return helperCfg.Model
+	}
 	if m := cfg.Personality.V2ResolvedModel; m != "" {
 		return m
 	}
@@ -99,6 +111,162 @@ func v2RecordFailure(logger *slog.Logger) {
 	}
 }
 
+type personalityV2AnalysisResult struct {
+	Mood               memory.Mood
+	AffinityDelta      float64
+	TraitDeltas        map[string]float64
+	ProfileUpdates     []memory.ProfileUpdate
+	SynthesizedEmotion *memory.EmotionState
+}
+
+func resolveHelperEmotionBatchState(cfg *config.Config, emotionSynthesizer *memory.EmotionSynthesizer) (bool, *memory.EmotionState) {
+	helperEmotionBatchEligible := llm.IsHelperLLMAvailable(cfg) && emotionSynthesizer != nil
+	var previousEmotion *memory.EmotionState
+	if helperEmotionBatchEligible {
+		previousEmotion = emotionSynthesizer.GetLastEmotion()
+		helperEmotionBatchEligible = cfg.Personality.EmotionSynthesizer.TriggerAlways ||
+			cfg.Personality.EmotionSynthesizer.TriggerOnMoodChange ||
+			previousEmotion == nil
+	}
+	return helperEmotionBatchEligible, previousEmotion
+}
+
+func applyPersonalityProfileUpdates(stm *memory.SQLiteMemory, logger *slog.Logger, profileUpdates []memory.ProfileUpdate) {
+	if stm == nil || len(profileUpdates) == 0 {
+		return
+	}
+	validCategories := map[string]bool{"tech": true, "prefs": true, "interests": true, "context": true, "comm": true}
+	count := 0
+	for _, pu := range profileUpdates {
+		if count >= 1 {
+			break
+		}
+		trimVal := strings.TrimSpace(pu.Value)
+		if validCategories[pu.Category] && pu.Key != "" && pu.Value != "" &&
+			!strings.EqualFold(pu.Key, trimVal) && len(trimVal) >= 2 &&
+			!strings.ContainsAny(pu.Key, " \t") && pu.Key == strings.ToLower(pu.Key) {
+			if err := stm.UpsertProfileEntry(pu.Category, pu.Key, pu.Value, "v2"); err != nil {
+				logger.Warn("[User Profiling] Failed to upsert profile entry", "key", pu.Key, "error", err)
+			}
+			count++
+		}
+	}
+	_ = stm.EnforceProfileSizeLimit(50)
+	if err := stm.DeduplicateProfileEntries(); err != nil {
+		logger.Warn("[User Profiling] Deduplication failed", "error", err)
+	}
+	if del, down, err := stm.PruneStaleProfileEntries(); err == nil && (del > 0 || down > 0) {
+		logger.Debug("[User Profiling] Pruned stale entries", "deleted", del, "downgraded", down)
+	}
+	logger.Debug("[User Profiling] Profile updates applied", "count", count)
+}
+
+func applyPersonalityV2AnalysisResult(
+	cfg *config.Config,
+	logger *slog.Logger,
+	stm *memory.SQLiteMemory,
+	emotionSynthesizer *memory.EmotionSynthesizer,
+	previousEmotion *memory.EmotionState,
+	triggerInfo string,
+	triggerType memory.EmotionTriggerType,
+	triggerDetail string,
+	inactivityHours float64,
+	profilingEnabled bool,
+	errorCount int,
+	successCount int,
+	result personalityV2AnalysisResult,
+) {
+	if stm == nil {
+		return
+	}
+
+	_ = stm.LogMood(result.Mood, triggerInfo)
+	for trait, delta := range result.TraitDeltas {
+		if err := stm.UpdateTrait(trait, delta); err != nil {
+			logger.Warn("[Personality V2] Failed to update trait", "trait", trait, "delta", delta, "error", err)
+		}
+	}
+	if err := stm.UpdateTrait(memory.TraitAffinity, result.AffinityDelta); err != nil {
+		logger.Warn("[Personality V2] Failed to update affinity trait", "delta", result.AffinityDelta, "error", err)
+	}
+
+	if profilingEnabled && len(result.ProfileUpdates) > 0 {
+		applyPersonalityProfileUpdates(stm, logger, result.ProfileUpdates)
+	}
+
+	logger.Debug("[Personality V2] Asynchronous mood analysis complete", "mood", result.Mood, "affinity_delta", result.AffinityDelta)
+
+	if emotionSynthesizer == nil {
+		return
+	}
+	prevMood := ""
+	if previousEmotion != nil {
+		prevMood = string(previousEmotion.PrimaryMood)
+	}
+	moodChanged := prevMood != string(result.Mood)
+	shouldSynthesize := cfg.Personality.EmotionSynthesizer.TriggerAlways ||
+		(cfg.Personality.EmotionSynthesizer.TriggerOnMoodChange && moodChanged) ||
+		previousEmotion == nil
+	if !shouldSynthesize {
+		return
+	}
+
+	if result.SynthesizedEmotion != nil {
+		if err := emotionSynthesizer.ApplyExternalState(stm, result.SynthesizedEmotion, triggerInfo); err == nil {
+			return
+		} else {
+			logger.Warn("[EmotionSynthesizer] Failed to apply batched helper emotion", "error", err)
+			return
+		}
+	}
+
+	traits, _ := stm.GetTraits()
+	esInput := memory.EmotionInput{
+		UserMessage:     triggerInfo,
+		CurrentMood:     result.Mood,
+		Traits:          traits,
+		LastEmotion:     previousEmotion,
+		ErrorCount:      errorCount,
+		SuccessCount:    successCount,
+		TimeOfDay:       memory.TimeOfDay(),
+		TriggerType:     triggerType,
+		TriggerDetail:   triggerDetail,
+		InactivityHours: inactivityHours,
+	}
+	esCtx, esCancel := context.WithTimeout(context.Background(), 15*time.Second)
+	_, _ = emotionSynthesizer.SynthesizeEmotion(esCtx, stm, esInput)
+	esCancel()
+}
+
+func normalizeHelperTurnPersonalityResult(payload helperTurnPersonalityBlock, meta memory.PersonalityMeta) (personalityV2AnalysisResult, bool) {
+	mood, affinityDelta, traitDeltas, profileUpdates, ok := memory.NormalizeHelperMoodAnalysis(
+		payload.MoodAnalysis.UserSentiment,
+		payload.MoodAnalysis.AgentMood,
+		payload.MoodAnalysis.RelationshipDelta,
+		payload.MoodAnalysis.TraitDeltas,
+		payload.MoodAnalysis.ProfileUpdates,
+		meta,
+	)
+	if !ok {
+		return personalityV2AnalysisResult{}, false
+	}
+
+	var synthesizedEmotion *memory.EmotionState
+	if emotionJSON, err := json.Marshal(payload.EmotionState); err == nil {
+		if parsedEmotion, parseErr := memory.ParseStructuredEmotionState(string(emotionJSON), mood); parseErr == nil {
+			synthesizedEmotion = parsedEmotion
+		}
+	}
+
+	return personalityV2AnalysisResult{
+		Mood:               mood,
+		AffinityDelta:      affinityDelta,
+		TraitDeltas:        traitDeltas,
+		ProfileUpdates:     profileUpdates,
+		SynthesizedEmotion: synthesizedEmotion,
+	}, true
+}
+
 func launchAsyncPersonalityV2Analysis(
 	cfg *config.Config,
 	logger *slog.Logger,
@@ -130,12 +298,51 @@ func launchAsyncPersonalityV2Analysis(
 	contextHistory, userHistory := buildPersonalityHistories(recentMsgs, extraLabel, extraContent)
 	modelName := resolvePersonalityModel(cfg)
 	analyzerClient := resolvePersonalityAnalyzerClient(cfg, fallbackClient)
+	helperEmotionBatchEligible, previousEmotion := resolveHelperEmotionBatchState(cfg, emotionSynthesizer)
 
 	go func() {
 		v2Ctx, cancel := context.WithTimeout(context.Background(), time.Duration(cfg.Personality.V2TimeoutSecs)*time.Second)
 		defer cancel()
 
-		mood, affDelta, traitDeltas, profileUpdates, err := stm.AnalyzeMoodV2(v2Ctx, analyzerClient, modelName, contextHistory, userHistory, meta, profilingEnabled)
+		var (
+			result personalityV2AnalysisResult
+			err    error
+		)
+
+		if helperEmotionBatchEligible {
+			traits, _ := stm.GetTraits()
+			combinedInput := memory.EmotionInput{
+				UserMessage:     triggerInfo,
+				CurrentMood:     memory.MoodFocused,
+				Traits:          traits,
+				LastEmotion:     previousEmotion,
+				ErrorCount:      errorCount,
+				SuccessCount:    successCount,
+				TimeOfDay:       memory.TimeOfDay(),
+				TriggerType:     triggerType,
+				TriggerDetail:   triggerDetail,
+				InactivityHours: inactivityHours,
+			}
+			result.Mood, result.AffinityDelta, result.TraitDeltas, result.ProfileUpdates, result.SynthesizedEmotion, err = stm.AnalyzeMoodV2WithEmotion(
+				v2Ctx,
+				analyzerClient,
+				modelName,
+				contextHistory,
+				userHistory,
+				meta,
+				profilingEnabled,
+				combinedInput,
+				cfg.Agent.SystemLanguage,
+			)
+			if err != nil {
+				logger.Debug("[Personality V2] Combined helper mood/emotion batch failed, falling back", "error", err)
+			}
+		}
+
+		if !helperEmotionBatchEligible || err != nil {
+			result.SynthesizedEmotion = nil
+			result.Mood, result.AffinityDelta, result.TraitDeltas, result.ProfileUpdates, err = stm.AnalyzeMoodV2(v2Ctx, analyzerClient, modelName, contextHistory, userHistory, meta, profilingEnabled)
+		}
 		if err != nil {
 			v2RecordFailure(logger)
 			v2URL := cfg.Personality.V2ResolvedURL
@@ -157,73 +364,20 @@ func launchAsyncPersonalityV2Analysis(
 		// Success — reset circuit breaker failure count.
 		v2FailCount.Store(0)
 
-		_ = stm.LogMood(mood, triggerInfo)
-		for trait, delta := range traitDeltas {
-			if err := stm.UpdateTrait(trait, delta); err != nil {
-				logger.Warn("[Personality V2] Failed to update trait", "trait", trait, "delta", delta, "error", err)
-			}
-		}
-		if err := stm.UpdateTrait(memory.TraitAffinity, affDelta); err != nil {
-			logger.Warn("[Personality V2] Failed to update affinity trait", "delta", affDelta, "error", err)
-		}
-
-		if profilingEnabled && len(profileUpdates) > 0 {
-			validCategories := map[string]bool{"tech": true, "prefs": true, "interests": true, "context": true, "comm": true}
-			count := 0
-			for _, pu := range profileUpdates {
-				if count >= 1 {
-					break
-				}
-				trimVal := strings.TrimSpace(pu.Value)
-				if validCategories[pu.Category] && pu.Key != "" && pu.Value != "" &&
-					!strings.EqualFold(pu.Key, trimVal) && len(trimVal) >= 2 &&
-					!strings.ContainsAny(pu.Key, " \t") && pu.Key == strings.ToLower(pu.Key) {
-					if err := stm.UpsertProfileEntry(pu.Category, pu.Key, pu.Value, "v2"); err != nil {
-						logger.Warn("[User Profiling] Failed to upsert profile entry", "key", pu.Key, "error", err)
-					}
-					count++
-				}
-			}
-			_ = stm.EnforceProfileSizeLimit(50)
-			if err := stm.DeduplicateProfileEntries(); err != nil {
-				logger.Warn("[User Profiling] Deduplication failed", "error", err)
-			}
-			if del, down, err := stm.PruneStaleProfileEntries(); err == nil && (del > 0 || down > 0) {
-				logger.Debug("[User Profiling] Pruned stale entries", "deleted", del, "downgraded", down)
-			}
-			logger.Debug("[User Profiling] Profile updates applied", "count", count)
-		}
-
-		logger.Debug("[Personality V2] Asynchronous mood analysis complete", "mood", mood, "affinity_delta", affDelta)
-
-		if emotionSynthesizer != nil {
-			prevMood := ""
-			if prev := emotionSynthesizer.GetLastEmotion(); prev != nil {
-				prevMood = string(prev.PrimaryMood)
-			}
-			moodChanged := prevMood != string(mood)
-			shouldSynthesize := cfg.Personality.EmotionSynthesizer.TriggerAlways ||
-				(cfg.Personality.EmotionSynthesizer.TriggerOnMoodChange && moodChanged) ||
-				emotionSynthesizer.GetLastEmotion() == nil
-
-			if shouldSynthesize {
-				traits, _ := stm.GetTraits()
-				esInput := memory.EmotionInput{
-					UserMessage:     triggerInfo,
-					CurrentMood:     mood,
-					Traits:          traits,
-					LastEmotion:     emotionSynthesizer.GetLastEmotion(),
-					ErrorCount:      errorCount,
-					SuccessCount:    successCount,
-					TimeOfDay:       memory.TimeOfDay(),
-					TriggerType:     triggerType,
-					TriggerDetail:   triggerDetail,
-					InactivityHours: inactivityHours,
-				}
-				esCtx, esCancel := context.WithTimeout(context.Background(), 15*time.Second)
-				_, _ = emotionSynthesizer.SynthesizeEmotion(esCtx, stm, esInput)
-				esCancel()
-			}
-		}
+		applyPersonalityV2AnalysisResult(
+			cfg,
+			logger,
+			stm,
+			emotionSynthesizer,
+			previousEmotion,
+			triggerInfo,
+			triggerType,
+			triggerDetail,
+			inactivityHours,
+			profilingEnabled,
+			errorCount,
+			successCount,
+			result,
+		)
 	}()
 }

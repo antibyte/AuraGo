@@ -14,6 +14,16 @@ import (
 	"aurago/internal/truenas"
 )
 
+const defaultTrueNASRequestTimeout = 60 * time.Second
+
+func truenasRequestContext(cfg config.TrueNASConfig) (context.Context, context.CancelFunc) {
+	timeout := time.Duration(cfg.RequestTimeout) * time.Second
+	if timeout <= 0 {
+		timeout = defaultTrueNASRequestTimeout
+	}
+	return context.WithTimeout(context.Background(), timeout)
+}
+
 // TrueNASHealth returns system health information.
 func TrueNASHealth(cfg config.TrueNASConfig, logger *slog.Logger) string {
 	client, err := truenas.NewClient(cfg, nil)
@@ -22,7 +32,8 @@ func TrueNASHealth(cfg config.TrueNASConfig, logger *slog.Logger) string {
 	}
 	defer client.Close()
 
-	ctx := context.Background()
+	ctx, cancel := truenasRequestContext(cfg)
+	defer cancel()
 
 	// Get system info
 	info, err := client.Health(ctx)
@@ -59,20 +70,20 @@ func TrueNASHealth(cfg config.TrueNASConfig, logger *slog.Logger) string {
 	}
 
 	result, _ := json.Marshal(map[string]interface{}{
-		"status":  "ok",
+		"status": "ok",
 		"health": map[string]interface{}{
-			"status":        status,
-			"version":       info.Version,
-			"hostname":      info.Hostname,
-			"uptime":        info.Uptime,
-			"model":         info.Model,
-			"cores":         info.Cores,
-			"memory_gb":     info.PhysMem / (1024 * 1024 * 1024),
-			"pools":         pools,
-			"pool_count":    len(pools),
-			"alerts":        alerts,
-			"alert_count":   len(alerts),
-			"timestamp":     time.Now().Format(time.RFC3339),
+			"status":      status,
+			"version":     info.Version,
+			"hostname":    info.Hostname,
+			"uptime":      info.Uptime,
+			"model":       info.Model,
+			"cores":       info.Cores,
+			"memory_gb":   info.PhysMem / (1024 * 1024 * 1024),
+			"pools":       pools,
+			"pool_count":  len(pools),
+			"alerts":      alerts,
+			"alert_count": len(alerts),
+			"timestamp":   time.Now().Format(time.RFC3339),
 		},
 	})
 	return string(result)
@@ -86,7 +97,10 @@ func TrueNASPoolList(cfg config.TrueNASConfig, db *sql.DB, logger *slog.Logger) 
 	}
 	defer client.Close()
 
-	pools, err := client.ListPools(context.Background())
+	ctx, cancel := truenasRequestContext(cfg)
+	defer cancel()
+
+	pools, err := client.ListPools(ctx)
 	if err != nil {
 		return errJSON("Failed to list pools: %v", err)
 	}
@@ -125,7 +139,10 @@ func TrueNASPoolScrub(cfg config.TrueNASConfig, poolID int64, logger *slog.Logge
 	}
 	defer client.Close()
 
-	if err := client.ScrubPool(context.Background(), poolID); err != nil {
+	ctx, cancel := truenasRequestContext(cfg)
+	defer cancel()
+
+	if err := client.ScrubPool(ctx, poolID); err != nil {
 		return errJSON("Failed to start scrub: %v", err)
 	}
 
@@ -140,7 +157,8 @@ func TrueNASDatasetList(cfg config.TrueNASConfig, pool string, logger *slog.Logg
 	}
 	defer client.Close()
 
-	ctx := context.Background()
+	ctx, cancel := truenasRequestContext(cfg)
+	defer cancel()
 	var datasets []truenas.Dataset
 
 	if pool != "" {
@@ -198,7 +216,10 @@ func TrueNASDatasetCreate(cfg config.TrueNASConfig, name, compression string, qu
 		req.Compression = compression
 	}
 
-	dataset, err := client.CreateDataset(context.Background(), req)
+	ctx, cancel := truenasRequestContext(cfg)
+	defer cancel()
+
+	dataset, err := client.CreateDataset(ctx, req)
 	if err != nil {
 		return errJSON("Failed to create dataset: %v", err)
 	}
@@ -227,7 +248,10 @@ func TrueNASDatasetDelete(cfg config.TrueNASConfig, name string, recursive bool,
 	}
 	defer client.Close()
 
-	if err := client.DeleteDataset(context.Background(), name, recursive); err != nil {
+	ctx, cancel := truenasRequestContext(cfg)
+	defer cancel()
+
+	if err := client.DeleteDataset(ctx, name, recursive); err != nil {
 		return errJSON("Failed to delete dataset: %v", err)
 	}
 
@@ -242,7 +266,10 @@ func TrueNASSnapshotList(cfg config.TrueNASConfig, dataset string, logger *slog.
 	}
 	defer client.Close()
 
-	snapshots, err := client.ListSnapshots(context.Background(), dataset)
+	ctx, cancel := truenasRequestContext(cfg)
+	defer cancel()
+
+	snapshots, err := client.ListSnapshots(ctx, dataset)
 	if err != nil {
 		return errJSON("Failed to list snapshots: %v", err)
 	}
@@ -250,19 +277,19 @@ func TrueNASSnapshotList(cfg config.TrueNASConfig, dataset string, logger *slog.
 	// Add age information
 	type SnapshotInfo struct {
 		truenas.Snapshot
-		Age        string `json:"age"`
-		AgeHours   int    `json:"age_hours"`
-		IsManual   bool   `json:"is_manual"`
+		Age      string `json:"age"`
+		AgeHours int    `json:"age_hours"`
+		IsManual bool   `json:"is_manual"`
 	}
 
 	var infos []SnapshotInfo
 	for _, s := range snapshots {
 		age := s.Age()
 		infos = append(infos, SnapshotInfo{
-			Snapshot:   s,
-			Age:        formatDuration(age),
-			AgeHours:   int(age.Hours()),
-			IsManual:   s.IsManual(),
+			Snapshot: s,
+			Age:      formatDuration(age),
+			AgeHours: int(age.Hours()),
+			IsManual: s.IsManual(),
 		})
 	}
 
@@ -303,7 +330,10 @@ func TrueNASSnapshotCreate(cfg config.TrueNASConfig, dataset, name string, recur
 		Retention: retentionDays,
 	}
 
-	snapshot, err := client.CreateSnapshot(context.Background(), req)
+	ctx, cancel := truenasRequestContext(cfg)
+	defer cancel()
+
+	snapshot, err := client.CreateSnapshot(ctx, req)
 	if err != nil {
 		return errJSON("Failed to create snapshot: %v", err)
 	}
@@ -331,7 +361,10 @@ func TrueNASSnapshotDelete(cfg config.TrueNASConfig, name string, logger *slog.L
 	}
 	defer client.Close()
 
-	if err := client.DeleteSnapshot(context.Background(), name); err != nil {
+	ctx, cancel := truenasRequestContext(cfg)
+	defer cancel()
+
+	if err := client.DeleteSnapshot(ctx, name); err != nil {
 		return errJSON("Failed to delete snapshot: %v", err)
 	}
 
@@ -357,7 +390,10 @@ func TrueNASSnapshotRollback(cfg config.TrueNASConfig, name string, force bool, 
 	}
 	defer client.Close()
 
-	if err := client.RollbackSnapshot(context.Background(), name, force); err != nil {
+	ctx, cancel := truenasRequestContext(cfg)
+	defer cancel()
+
+	if err := client.RollbackSnapshot(ctx, name, force); err != nil {
 		return errJSON("Failed to rollback snapshot: %v", err)
 	}
 
@@ -372,7 +408,10 @@ func TrueNASSMBList(cfg config.TrueNASConfig, logger *slog.Logger) string {
 	}
 	defer client.Close()
 
-	shares, err := client.ListSMBShares(context.Background())
+	ctx, cancel := truenasRequestContext(cfg)
+	defer cancel()
+
+	shares, err := client.ListSMBShares(ctx)
 	if err != nil {
 		return errJSON("Failed to list SMB shares: %v", err)
 	}
@@ -408,7 +447,10 @@ func TrueNASSMBCreate(cfg config.TrueNASConfig, name, path string, guestOK, time
 		RecycleBin:  true,
 	}
 
-	share, err := client.CreateSMBShare(context.Background(), req)
+	ctx, cancel := truenasRequestContext(cfg)
+	defer cancel()
+
+	share, err := client.CreateSMBShare(ctx, req)
 	if err != nil {
 		return errJSON("Failed to create SMB share: %v", err)
 	}
@@ -429,7 +471,10 @@ func TrueNASSMBDelete(cfg config.TrueNASConfig, shareID int64, logger *slog.Logg
 	}
 	defer client.Close()
 
-	if err := client.DeleteSMBShare(context.Background(), shareID); err != nil {
+	ctx, cancel := truenasRequestContext(cfg)
+	defer cancel()
+
+	if err := client.DeleteSMBShare(ctx, shareID); err != nil {
 		return errJSON("Failed to delete SMB share: %v", err)
 	}
 
@@ -444,18 +489,21 @@ func TrueNASFSSpace(cfg config.TrueNASConfig, dataset string, logger *slog.Logge
 	}
 	defer client.Close()
 
-	datasets, err := client.ListDatasets(context.Background())
+	ctx, cancel := truenasRequestContext(cfg)
+	defer cancel()
+
+	datasets, err := client.ListDatasets(ctx)
 	if err != nil {
 		return errJSON("Failed to list datasets: %v", err)
 	}
 
 	type SpaceInfo struct {
-		Name      string `json:"name"`
-		Used      int64  `json:"used_bytes"`
-		Available int64  `json:"available_bytes"`
-		Total     int64  `json:"total_bytes"`
-		UsedGB    float64 `json:"used_gb"`
-		AvailableGB float64 `json:"available_gb"`
+		Name         string  `json:"name"`
+		Used         int64   `json:"used_bytes"`
+		Available    int64   `json:"available_bytes"`
+		Total        int64   `json:"total_bytes"`
+		UsedGB       float64 `json:"used_gb"`
+		AvailableGB  float64 `json:"available_gb"`
 		UsagePercent float64 `json:"usage_percent"`
 	}
 

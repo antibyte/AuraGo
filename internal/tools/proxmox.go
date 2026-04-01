@@ -82,7 +82,7 @@ func proxmoxRequest(cfg ProxmoxConfig, method, endpoint string, body string) ([]
 	}
 	defer resp.Body.Close()
 
-	data, err := io.ReadAll(resp.Body)
+	data, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
 	if err != nil {
 		return nil, resp.StatusCode, fmt.Errorf("failed to read response: %w", err)
 	}

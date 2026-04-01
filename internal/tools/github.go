@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -19,6 +20,30 @@ type GitHubConfig struct {
 }
 
 var githubHTTPClient = &http.Client{Timeout: 30 * time.Second}
+
+func githubRepoEndpoint(owner, repo string, extra ...string) string {
+	parts := []string{"", "repos", url.PathEscape(strings.TrimSpace(owner)), url.PathEscape(strings.TrimSpace(repo))}
+	for _, part := range extra {
+		for _, segment := range strings.Split(strings.Trim(part, "/"), "/") {
+			if segment == "" {
+				continue
+			}
+			parts = append(parts, url.PathEscape(segment))
+		}
+	}
+	return strings.Join(parts, "/")
+}
+
+func githubContentEndpoint(owner, repo, filePath string) string {
+	segments := []string{"contents"}
+	for _, segment := range strings.Split(strings.Trim(filePath, "/"), "/") {
+		if segment == "" {
+			continue
+		}
+		segments = append(segments, segment)
+	}
+	return githubRepoEndpoint(owner, repo, segments...)
+}
 
 // ── Internal helpers ────────────────────────────────────────────────────────
 
@@ -56,7 +81,7 @@ func githubRequest(cfg GitHubConfig, method, endpoint string, body interface{}) 
 	}
 	defer resp.Body.Close()
 
-	respBody, err := io.ReadAll(resp.Body)
+	respBody, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
 	if err != nil {
 		return nil, resp.StatusCode, fmt.Errorf("read response: %w", err)
 	}
@@ -77,7 +102,7 @@ func githubOwner(cfg GitHubConfig, owner string) string {
 func GitHubListRepos(cfg GitHubConfig, owner string) string {
 	endpoint := "/user/repos?per_page=100&sort=updated"
 	if owner != "" && owner != cfg.Owner {
-		endpoint = fmt.Sprintf("/users/%s/repos?per_page=100&sort=updated", owner)
+		endpoint = fmt.Sprintf("/users/%s/repos?per_page=100&sort=updated", url.PathEscape(strings.TrimSpace(owner)))
 	}
 
 	data, status, err := githubRequest(cfg, "GET", endpoint, nil)
@@ -184,7 +209,7 @@ func GitHubDeleteRepo(cfg GitHubConfig, owner, repo string) string {
 		return errJSON("Owner and repo name are required")
 	}
 
-	data, status, err := githubRequest(cfg, "DELETE", fmt.Sprintf("/repos/%s/%s", o, repo), nil)
+	data, status, err := githubRequest(cfg, "DELETE", githubRepoEndpoint(o, repo), nil)
 	if err != nil {
 		return errJSON("Failed to delete repo: %v", err)
 	}
@@ -206,7 +231,7 @@ func GitHubGetRepo(cfg GitHubConfig, owner, repo string) string {
 		return errJSON("Owner and repo name are required")
 	}
 
-	data, status, err := githubRequest(cfg, "GET", fmt.Sprintf("/repos/%s/%s", o, repo), nil)
+	data, status, err := githubRequest(cfg, "GET", githubRepoEndpoint(o, repo), nil)
 	if err != nil {
 		return errJSON("Failed to get repo: %v", err)
 	}
@@ -250,8 +275,8 @@ func GitHubListIssues(cfg GitHubConfig, owner, repo, state string) string {
 		state = "open"
 	}
 
-	data, status, err := githubRequest(cfg, "GET",
-		fmt.Sprintf("/repos/%s/%s/issues?state=%s&per_page=50", o, repo, state), nil)
+	issueQuery := url.Values{"state": []string{state}, "per_page": []string{"50"}}
+	data, status, err := githubRequest(cfg, "GET", githubRepoEndpoint(o, repo, "issues")+"?"+issueQuery.Encode(), nil)
 	if err != nil {
 		return errJSON("Failed to list issues: %v", err)
 	}
@@ -323,8 +348,7 @@ func GitHubCreateIssue(cfg GitHubConfig, owner, repo, title, body string, labels
 		payload["labels"] = labels
 	}
 
-	data, status, err := githubRequest(cfg, "POST",
-		fmt.Sprintf("/repos/%s/%s/issues", o, repo), payload)
+	data, status, err := githubRequest(cfg, "POST", githubRepoEndpoint(o, repo, "issues"), payload)
 	if err != nil {
 		return errJSON("Failed to create issue: %v", err)
 	}
@@ -355,7 +379,7 @@ func GitHubCloseIssue(cfg GitHubConfig, owner, repo string, number int) string {
 	}
 
 	data, status, err := githubRequest(cfg, "PATCH",
-		fmt.Sprintf("/repos/%s/%s/issues/%d", o, repo, number),
+		githubRepoEndpoint(o, repo, fmt.Sprintf("issues/%d", number)),
 		map[string]interface{}{"state": "closed"})
 	if err != nil {
 		return errJSON("Failed to close issue: %v", err)
@@ -383,8 +407,8 @@ func GitHubListPullRequests(cfg GitHubConfig, owner, repo, state string) string 
 		state = "open"
 	}
 
-	data, status, err := githubRequest(cfg, "GET",
-		fmt.Sprintf("/repos/%s/%s/pulls?state=%s&per_page=50", o, repo, state), nil)
+	prQuery := url.Values{"state": []string{state}, "per_page": []string{"50"}}
+	data, status, err := githubRequest(cfg, "GET", githubRepoEndpoint(o, repo, "pulls")+"?"+prQuery.Encode(), nil)
 	if err != nil {
 		return errJSON("Failed to list PRs: %v", err)
 	}
@@ -446,8 +470,8 @@ func GitHubListBranches(cfg GitHubConfig, owner, repo string) string {
 		return errJSON("Owner and repo name are required")
 	}
 
-	data, status, err := githubRequest(cfg, "GET",
-		fmt.Sprintf("/repos/%s/%s/branches?per_page=100", o, repo), nil)
+	branchQuery := url.Values{"per_page": []string{"100"}}
+	data, status, err := githubRequest(cfg, "GET", githubRepoEndpoint(o, repo, "branches")+"?"+branchQuery.Encode(), nil)
 	if err != nil {
 		return errJSON("Failed to list branches: %v", err)
 	}
@@ -482,9 +506,9 @@ func GitHubGetFileContent(cfg GitHubConfig, owner, repo, path, branch string) st
 		return errJSON("Owner, repo, and file path are required")
 	}
 
-	endpoint := fmt.Sprintf("/repos/%s/%s/contents/%s", o, repo, path)
+	endpoint := githubContentEndpoint(o, repo, path)
 	if branch != "" {
-		endpoint += "?ref=" + branch
+		endpoint += "?" + url.Values{"ref": []string{branch}}.Encode()
 	}
 
 	data, status, err := githubRequest(cfg, "GET", endpoint, nil)
@@ -534,8 +558,7 @@ func GitHubCreateOrUpdateFile(cfg GitHubConfig, owner, repo, path, content, mess
 		payload["branch"] = branch
 	}
 
-	data, status, err := githubRequest(cfg, "PUT",
-		fmt.Sprintf("/repos/%s/%s/contents/%s", o, repo, path), payload)
+	data, status, err := githubRequest(cfg, "PUT", githubContentEndpoint(o, repo, path), payload)
 	if err != nil {
 		return errJSON("Failed to create/update file: %v", err)
 	}
@@ -562,10 +585,11 @@ func GitHubListCommits(cfg GitHubConfig, owner, repo, branch string, limit int) 
 		limit = 20
 	}
 
-	endpoint := fmt.Sprintf("/repos/%s/%s/commits?per_page=%d", o, repo, limit)
+	query := url.Values{"per_page": []string{fmt.Sprintf("%d", limit)}}
 	if branch != "" {
-		endpoint += "&sha=" + branch
+		query.Set("sha", branch)
 	}
+	endpoint := githubRepoEndpoint(o, repo, "commits") + "?" + query.Encode()
 
 	data, status, err := githubRequest(cfg, "GET", endpoint, nil)
 	if err != nil {
@@ -624,8 +648,8 @@ func GitHubListWorkflowRuns(cfg GitHubConfig, owner, repo string, limit int) str
 		limit = 10
 	}
 
-	data, status, err := githubRequest(cfg, "GET",
-		fmt.Sprintf("/repos/%s/%s/actions/runs?per_page=%d", o, repo, limit), nil)
+	runsQuery := url.Values{"per_page": []string{fmt.Sprintf("%d", limit)}}
+	data, status, err := githubRequest(cfg, "GET", githubRepoEndpoint(o, repo, "actions/runs")+"?"+runsQuery.Encode(), nil)
 	if err != nil {
 		return errJSON("Failed to list workflow runs: %v", err)
 	}
@@ -689,8 +713,8 @@ func GitHubSearchRepos(cfg GitHubConfig, query string, limit int) string {
 		limit = 10
 	}
 
-	data, status, err := githubRequest(cfg, "GET",
-		fmt.Sprintf("/search/repositories?q=%s&per_page=%d", query, limit), nil)
+	searchQuery := url.Values{"q": []string{query}, "per_page": []string{fmt.Sprintf("%d", limit)}}
+	data, status, err := githubRequest(cfg, "GET", "/search/repositories?"+searchQuery.Encode(), nil)
 	if err != nil {
 		return errJSON("Failed to search repos: %v", err)
 	}

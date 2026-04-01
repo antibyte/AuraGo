@@ -423,7 +423,7 @@ func virustotalDoRequest(apiKey, method, endpoint string, body io.Reader, conten
 	}
 	defer resp.Body.Close()
 
-	bodyBytes, readErr := io.ReadAll(resp.Body)
+	bodyBytes, readErr := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
 	if readErr != nil {
 		return nil, fmt.Errorf("failed to read VirusTotal response: %w", readErr)
 	}

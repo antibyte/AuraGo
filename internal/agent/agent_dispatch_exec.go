@@ -35,6 +35,14 @@ func stringValueFromMap(m map[string]interface{}, keys ...string) string {
 	return ""
 }
 
+func buildMemoryReflectionOutput(result interface{}) (string, error) {
+	resultJSON, err := json.Marshal(result)
+	if err != nil {
+		return "", fmt.Errorf("marshal reflection result: %w", err)
+	}
+	return fmt.Sprintf(`Tool Output: {"status":"success","reflection":%s}`, string(resultJSON)), nil
+}
+
 // resolveVaultKeys resolves vault secret keys for Python secret injection.
 // Returns the resolved secrets map (may be empty) and an info message for rejected keys.
 // If the feature is disabled or no keys requested, returns nil/empty.
@@ -521,8 +529,12 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) string 
 		if err != nil {
 			return fmt.Sprintf(`Tool Output: {"status":"error","message":"Reflection failed: %v"}`, err)
 		}
-		resultJSON, _ := json.Marshal(result)
-		return fmt.Sprintf(`Tool Output: {"status":"success","reflection":%s}`, string(resultJSON))
+		resultOutput, err := buildMemoryReflectionOutput(result)
+		if err != nil {
+			logger.Warn("Failed to serialize memory reflection result", "error", err)
+			return fmt.Sprintf(`Tool Output: {"status":"error","message":"Reflection serialization failed: %v"}`, err)
+		}
+		return resultOutput
 
 	case "manage_updates":
 		if !cfg.Agent.AllowSelfUpdate {
@@ -1179,11 +1191,11 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) string 
 			fpath = tc.Path
 		}
 		logger.Info("LLM requested smart_file_read", "op", op, "path", fpath, "strategy", tc.SamplingStrategy)
-		return tools.ExecuteSmartFileRead(ctx, tools.SummaryLLMConfig{
+		return tools.ExecuteSmartFileRead(ctx, tools.ResolveSummaryLLMConfig(cfg, tools.SummaryLLMConfig{
 			APIKey:  cfg.LLM.APIKey,
 			BaseURL: cfg.LLM.BaseURL,
 			Model:   cfg.LLM.Model,
-		}, logger, op, fpath, tc.Query, tc.SamplingStrategy, tc.MaxTokens, tc.LineCount, cfg.Directories.WorkspaceDir)
+		}), logger, op, fpath, tc.Query, tc.SamplingStrategy, tc.MaxTokens, tc.LineCount, cfg.Directories.WorkspaceDir)
 
 	case "api_request":
 		if !cfg.Agent.AllowNetworkRequests {

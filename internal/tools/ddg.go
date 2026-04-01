@@ -3,7 +3,6 @@ package tools
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -47,7 +46,7 @@ func ExecuteDDGSearch(query string, maxResults int) string {
 		return formatError(fmt.Sprintf("DDG HTTP Error %d", resp.StatusCode))
 	}
 
-	bodyBytes, err := io.ReadAll(resp.Body)
+	bodyBytes, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
 	if err != nil {
 		return formatError(fmt.Sprintf("Failed to read DDG response: %v", err))
 	}

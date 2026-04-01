@@ -3,6 +3,7 @@ package memory
 import (
 	"io"
 	"log/slog"
+	"sync"
 	"testing"
 )
 
@@ -116,5 +117,35 @@ func TestRecordMemoryEffectivenessPersistsCounters(t *testing.T) {
 	}
 	if meta.LastEffectivenessAt == "" {
 		t.Fatal("LastEffectivenessAt should be populated")
+	}
+}
+
+func TestUpsertMemoryMetaConcurrentSameDocID(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	t.Cleanup(func() { _ = stm.Close() })
+
+	const workers = 12
+	var wg sync.WaitGroup
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := stm.UpsertMemoryMeta("doc-concurrent"); err != nil {
+				t.Errorf("UpsertMemoryMeta: %v", err)
+			}
+		}()
+	}
+	wg.Wait()
+
+	var count int
+	if err := stm.db.QueryRow("SELECT COUNT(*) FROM memory_meta WHERE doc_id = 'doc-concurrent'").Scan(&count); err != nil {
+		t.Fatalf("count memory_meta rows: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("memory_meta rows = %d, want 1", count)
 	}
 }

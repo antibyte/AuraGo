@@ -24,6 +24,9 @@ type ShellSandbox interface {
 	// PrepareCommand creates an exec.Cmd that will execute the given shell command
 	// inside the sandbox. The caller is responsible for starting and waiting on the command.
 	PrepareCommand(command, workDir string) *exec.Cmd
+	// PrepareExecCommand creates an exec.Cmd that will execute the given binary and
+	// arguments inside the sandbox without going through a shell.
+	PrepareExecCommand(binary string, args []string, workDir string) *exec.Cmd
 }
 
 // ShellSandboxConfig holds configuration for the shell sandbox.
@@ -114,6 +117,12 @@ func (f *FallbackSandbox) Available() bool { return false }
 func (f *FallbackSandbox) Name() string    { return "fallback" }
 func (f *FallbackSandbox) PrepareCommand(command, workDir string) *exec.Cmd {
 	cmd := exec.Command("/bin/sh", "-c", command)
+	cmd.Dir = workDir
+	return cmd
+}
+
+func (f *FallbackSandbox) PrepareExecCommand(binary string, args []string, workDir string) *exec.Cmd {
+	cmd := exec.Command(binary, args...)
 	cmd.Dir = workDir
 	return cmd
 }

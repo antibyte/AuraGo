@@ -229,7 +229,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) str
 				return `Tool Output: {"status":"error","message":"Docker is in read-only mode. Disable docker.read_only to allow changes."}`
 			}
 		}
-		dockerCfg := tools.DockerConfig{Host: cfg.Docker.Host}
+		dockerCfg := tools.DockerConfig{Host: cfg.Docker.Host, WorkspaceDir: cfg.Directories.WorkspaceDir}
 		containerID := tc.ContainerID
 		if containerID == "" {
 			containerID = tc.Name

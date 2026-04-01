@@ -3,6 +3,7 @@ package tools
 import (
 	"bufio"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -11,6 +12,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -118,12 +120,16 @@ func InvalidateSkillsCache(skillsDir string) {
 	listSkillsCache.mu.Unlock()
 }
 
-// ExecuteSkill dynamically executes the requested skill script, routing Python scripts to the venv.
-func ExecuteSkill(skillsDir, workspaceDir, skillName string, argsJSON map[string]interface{}) (string, error) {
-	// First, lookup the skill manifest to find its executable
+type skillExecutionOptions struct {
+	injectEnv   func(*exec.Cmd)
+	scrubOutput bool
+	logInput    bool
+}
+
+func resolveSkillExecution(skillsDir, skillName string, argsJSON map[string]interface{}) (SkillManifest, string, string, error) {
 	skills, err := ListSkills(skillsDir)
 	if err != nil {
-		return "", fmt.Errorf("failed to scan skills: %v", err)
+		return SkillManifest{}, "", "", fmt.Errorf("failed to scan skills: %w", err)
 	}
 
 	var manifest *SkillManifest
@@ -133,25 +139,20 @@ func ExecuteSkill(skillsDir, workspaceDir, skillName string, argsJSON map[string
 			break
 		}
 	}
-
 	if manifest == nil {
-		return "", fmt.Errorf("skill '%s' not found", skillName)
+		return SkillManifest{}, "", "", fmt.Errorf("skill '%s' not found", skillName)
 	}
 
-	// Validate manifest executable — must be a relative path within skillsDir (no traversal or absolute paths).
 	if filepath.IsAbs(manifest.Executable) || strings.Contains(manifest.Executable, "..") {
-		return "", fmt.Errorf("skill '%s' has invalid executable path '%s': must be a relative filename inside the skills directory", skillName, manifest.Executable)
+		return SkillManifest{}, "", "", fmt.Errorf("skill '%s' has invalid executable path '%s': must be a relative filename inside the skills directory", skillName, manifest.Executable)
 	}
 
-	// Ensure the skill executable path is absolute.
-	// This is CRITICAL because cmd.Dir is set to workspaceDir, which would break relative paths.
 	absExecPath, err := filepath.Abs(filepath.Join(skillsDir, manifest.Executable))
 	if err != nil {
-		return "", fmt.Errorf("failed to resolve absolute path for skill '%s': %v", skillName, err)
+		return SkillManifest{}, "", "", fmt.Errorf("failed to resolve absolute path for skill '%s': %w", skillName, err)
 	}
-
 	if _, err := os.Stat(absExecPath); os.IsNotExist(err) {
-		return "", fmt.Errorf("skill executable '%s' not found at %s", manifest.Executable, absExecPath)
+		return SkillManifest{}, "", "", fmt.Errorf("skill executable '%s' not found at %s", manifest.Executable, absExecPath)
 	}
 
 	if argsJSON == nil {
@@ -159,38 +160,47 @@ func ExecuteSkill(skillsDir, workspaceDir, skillName string, argsJSON map[string
 	}
 	argsBytes, err := json.Marshal(argsJSON)
 	if err != nil {
-		return "", fmt.Errorf("failed to serialize args JSON: %v", err)
+		return SkillManifest{}, "", "", fmt.Errorf("failed to serialize args JSON: %w", err)
 	}
 	if len(argsBytes) > maxSkillArgsBytes {
-		return "", fmt.Errorf("skill args too large: %d bytes (max %d)", len(argsBytes), maxSkillArgsBytes)
+		return SkillManifest{}, "", "", fmt.Errorf("skill args too large: %d bytes (max %d)", len(argsBytes), maxSkillArgsBytes)
 	}
-	argsString := string(argsBytes)
-	slog.Debug("[ExecuteSkill] Prepared JSON input", "skill", skillName, "input", argsString)
 
-	// Route based on extension
+	return *manifest, absExecPath, string(argsBytes), nil
+}
+
+func buildSkillCommand(ctx context.Context, workspaceDir string, manifest SkillManifest, absExecPath string) *exec.Cmd {
+	if strings.HasSuffix(manifest.Executable, ".py") {
+		cfgPythonBin := GetPythonBin(workspaceDir)
+		return exec.CommandContext(ctx, cfgPythonBin, "-u", absExecPath)
+	}
+	if strings.HasSuffix(manifest.Executable, ".sh") && runtime.GOOS != "windows" {
+		return exec.CommandContext(ctx, "bash", absExecPath)
+	}
+	if strings.HasSuffix(manifest.Executable, ".ps1") && runtime.GOOS == "windows" {
+		return exec.CommandContext(ctx, "powershell", "-ExecutionPolicy", "Bypass", "-File", absExecPath)
+	}
+	return exec.CommandContext(ctx, absExecPath)
+}
+
+func executePreparedSkill(workspaceDir, skillName string, manifest SkillManifest, absExecPath, argsString string, opts skillExecutionOptions) (string, error) {
+	if opts.logInput {
+		slog.Debug("[ExecuteSkill] Prepared JSON input", "skill", skillName, "input", argsString)
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), GetSkillTimeout())
 	defer cancel()
 
-	var cmd *exec.Cmd
-	if strings.HasSuffix(manifest.Executable, ".py") {
-		cfgPythonBin := GetPythonBin(workspaceDir)
-		cmd = exec.CommandContext(ctx, cfgPythonBin, "-u", absExecPath)
-	} else if strings.HasSuffix(manifest.Executable, ".sh") && runtime.GOOS != "windows" {
-		cmd = exec.CommandContext(ctx, "bash", absExecPath)
-	} else if strings.HasSuffix(manifest.Executable, ".ps1") && runtime.GOOS == "windows" {
-		cmd = exec.CommandContext(ctx, "powershell", "-ExecutionPolicy", "Bypass", "-File", absExecPath)
-	} else {
-		// Attempt to run directly (e.g., .exe or native binary)
-		cmd = exec.CommandContext(ctx, absExecPath)
-	}
-
+	cmd := buildSkillCommand(ctx, workspaceDir, manifest, absExecPath)
 	cmd.Dir = workspaceDir
 	SetSkillLimits(cmd, 1024, int(GetSkillTimeout().Seconds()))
+	if opts.injectEnv != nil {
+		opts.injectEnv(cmd)
+	}
 
-	// Manual Stdin pipe management for maximum synchronization on Windows.
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
-		return "", fmt.Errorf("failed to create stdin pipe: %v", err)
+		return "", fmt.Errorf("failed to create stdin pipe: %w", err)
 	}
 
 	var outBuf strings.Builder
@@ -198,117 +208,67 @@ func ExecuteSkill(skillsDir, workspaceDir, skillName string, argsJSON map[string
 	cmd.Stderr = &outBuf
 
 	if err := cmd.Start(); err != nil {
-		return "", fmt.Errorf("failed to start skill execution: %v", err)
+		return "", fmt.Errorf("failed to start skill execution: %w", err)
 	}
 	ApplySkillLimits(cmd.Process.Pid, 1024, int(GetSkillTimeout().Seconds()))
 
-	// Write and CLOSE immediately to send EOF
-	slog.Debug("[ExecuteSkill] Writing to Stdin...", "length", len(argsString))
-	fmt.Fprint(stdin, argsString)
+	if opts.logInput {
+		slog.Debug("[ExecuteSkill] Writing to Stdin...", "length", len(argsString))
+	}
+	if _, err := fmt.Fprint(stdin, argsString); err != nil {
+		_ = stdin.Close()
+		return "", fmt.Errorf("failed to write skill input: %w", err)
+	}
 	if err := stdin.Close(); err != nil {
-		slog.Error("[ExecuteSkill] Failed to close stdin pipe", "error", err)
-	} else {
+		if opts.logInput {
+			slog.Error("[ExecuteSkill] Failed to close stdin pipe", "error", err)
+		}
+		return "", fmt.Errorf("failed to close skill stdin: %w", err)
+	}
+	if opts.logInput {
 		slog.Debug("[ExecuteSkill] Stdin closed (EOF sent)")
 	}
 
 	err = cmd.Wait()
 	output := outBuf.String()
+	if opts.scrubOutput {
+		output = security.Scrub(output)
+	}
 	if ctx.Err() == context.DeadlineExceeded {
 		return output, fmt.Errorf("TIMEOUT: skill '%s' exceeded 2-minute limit and was killed", skillName)
 	}
 	if err != nil {
-		return output, fmt.Errorf("execution failed: %v", err)
+		return output, fmt.Errorf("execution failed: %w", err)
 	}
 
 	return output, nil
 }
 
+// ExecuteSkill dynamically executes the requested skill script, routing Python scripts to the venv.
+func ExecuteSkill(skillsDir, workspaceDir, skillName string, argsJSON map[string]interface{}) (string, error) {
+	manifest, absExecPath, argsString, err := resolveSkillExecution(skillsDir, skillName, argsJSON)
+	if err != nil {
+		return "", err
+	}
+
+	return executePreparedSkill(workspaceDir, skillName, manifest, absExecPath, argsString, skillExecutionOptions{logInput: true})
+}
+
 // ExecuteSkillWithSecrets is like ExecuteSkill but injects vault secrets and credential secrets
 // as environment variables and scrubs secrets from the output.
 func ExecuteSkillWithSecrets(skillsDir, workspaceDir, skillName string, argsJSON map[string]interface{}, secrets map[string]string, creds []CredentialFields) (string, error) {
-	skills, err := ListSkills(skillsDir)
+	manifest, absExecPath, argsString, err := resolveSkillExecution(skillsDir, skillName, argsJSON)
 	if err != nil {
-		return "", fmt.Errorf("failed to scan skills: %v", err)
+		return "", err
 	}
 
-	var manifest *SkillManifest
-	for _, s := range skills {
-		if s.Name == skillName {
-			manifest = &s
-			break
-		}
-	}
-	if manifest == nil {
-		return "", fmt.Errorf("skill '%s' not found", skillName)
-	}
-
-	absExecPath, err := filepath.Abs(filepath.Join(skillsDir, manifest.Executable))
-	if err != nil {
-		return "", fmt.Errorf("failed to resolve absolute path for skill '%s': %v", skillName, err)
-	}
-	if _, err := os.Stat(absExecPath); os.IsNotExist(err) {
-		return "", fmt.Errorf("skill executable '%s' not found at %s", manifest.Executable, absExecPath)
-	}
-
-	if argsJSON == nil {
-		argsJSON = make(map[string]interface{})
-	}
-	argsBytes, err := json.Marshal(argsJSON)
-	if err != nil {
-		return "", fmt.Errorf("failed to serialize args JSON: %v", err)
-	}
-	if len(argsBytes) > maxSkillArgsBytes {
-		return "", fmt.Errorf("skill args too large: %d bytes (max %d)", len(argsBytes), maxSkillArgsBytes)
-	}
-	argsString := string(argsBytes)
-
-	ctx, cancel := context.WithTimeout(context.Background(), GetSkillTimeout())
-	defer cancel()
-
-	var cmd *exec.Cmd
-	if strings.HasSuffix(manifest.Executable, ".py") {
-		cfgPythonBin := GetPythonBin(workspaceDir)
-		cmd = exec.CommandContext(ctx, cfgPythonBin, "-u", absExecPath)
-	} else if strings.HasSuffix(manifest.Executable, ".sh") && runtime.GOOS != "windows" {
-		cmd = exec.CommandContext(ctx, "bash", absExecPath)
-	} else if strings.HasSuffix(manifest.Executable, ".ps1") && runtime.GOOS == "windows" {
-		cmd = exec.CommandContext(ctx, "powershell", "-ExecutionPolicy", "Bypass", "-File", absExecPath)
-	} else {
-		cmd = exec.CommandContext(ctx, absExecPath)
-	}
-
-	cmd.Dir = workspaceDir
-	SetSkillLimits(cmd, 1024, int(GetSkillTimeout().Seconds()))
-	InjectSecretsEnv(cmd, secrets)
-	InjectCredentialEnv(cmd, creds)
-
-	stdin, err := cmd.StdinPipe()
-	if err != nil {
-		return "", fmt.Errorf("failed to create stdin pipe: %v", err)
-	}
-
-	var outBuf strings.Builder
-	cmd.Stdout = &outBuf
-	cmd.Stderr = &outBuf
-
-	if err := cmd.Start(); err != nil {
-		return "", fmt.Errorf("failed to start skill execution: %v", err)
-	}
-	ApplySkillLimits(cmd.Process.Pid, 1024, int(GetSkillTimeout().Seconds()))
-
-	fmt.Fprint(stdin, argsString)
-	stdin.Close()
-
-	err = cmd.Wait()
-	output := security.Scrub(outBuf.String())
-	if ctx.Err() == context.DeadlineExceeded {
-		return output, fmt.Errorf("TIMEOUT: skill '%s' exceeded 2-minute limit and was killed", skillName)
-	}
-	if err != nil {
-		return output, fmt.Errorf("execution failed: %v", err)
-	}
-
-	return output, nil
+	return executePreparedSkill(workspaceDir, skillName, manifest, absExecPath, argsString, skillExecutionOptions{
+		injectEnv: func(cmd *exec.Cmd) {
+			InjectSecretsEnv(cmd, secrets)
+			InjectCredentialEnv(cmd, creds)
+		},
+		scrubOutput: true,
+	})
 }
 
 // ExecuteSkillInSandbox executes a skill inside the sandboxed container environment.
@@ -319,7 +279,7 @@ func ExecuteSkillInSandbox(skillsDir, skillName string, argsJSON map[string]inte
 	absExecPath := filepath.Join(skillsDir, skillName+".py")
 	data, err := os.ReadFile(absExecPath)
 	if err != nil {
-		return "", fmt.Errorf("skill '%s' not found: %v", skillName, err)
+		return "", fmt.Errorf("skill '%s' not found: %w", skillName, err)
 	}
 	skillCode := string(data)
 
@@ -329,7 +289,7 @@ func ExecuteSkillInSandbox(skillsDir, skillName string, argsJSON map[string]inte
 	}
 	argsBytes, err := json.Marshal(argsJSON)
 	if err != nil {
-		return "", fmt.Errorf("failed to serialize args: %v", err)
+		return "", fmt.Errorf("failed to serialize args: %w", err)
 	}
 	if len(argsBytes) > maxSkillArgsBytes {
 		return "", fmt.Errorf("skill args too large: %d bytes (max %d)", len(argsBytes), maxSkillArgsBytes)
@@ -350,26 +310,7 @@ func ExecuteSkillInSandbox(skillsDir, skillName string, argsJSON map[string]inte
 		prelude += BuildCredentialPrelude(creds)
 	}
 
-	// Build the call: we need to extract the function call from the if __name__ block
-	// For simplicity, we inject args and then call the function directly
-	// The skill templates have a consistent pattern: they call the function with kwargs
-	funcName := toFunctionName(skillName)
-	execCode := fmt.Sprintf(`import json
-%s
-args = json.loads('%s')
-result = %s(**args)
-print(json.dumps(result, ensure_ascii=False))
-`, prelude, strings.ReplaceAll(string(argsBytes), `'`, `\'`), funcName)
-
-	// Prepend the skill code (without the if __name__ block)
-	// Split on "if __name__" and only keep the function definition
-	mainIdx := strings.Index(skillCode, "if __name__")
-	if mainIdx > 0 {
-		skillCode = skillCode[:mainIdx]
-	}
-
-	// Full code: skill code + exec code
-	fullCode := skillCode + "\n" + execCode
+	fullCode := buildSandboxSkillExecCode(skillName, skillCode, argsBytes, prelude)
 
 	// Execute via sandbox
 	if timeoutSeconds <= 0 {
@@ -377,9 +318,26 @@ print(json.dumps(result, ensure_ascii=False))
 	}
 	result, err := SandboxExecuteCode(fullCode, "python", nil, timeoutSeconds, logger)
 	if err != nil {
-		return "", fmt.Errorf("sandbox execution failed: %v", err)
+		return "", fmt.Errorf("sandbox execution failed: %w", err)
 	}
 	return result, nil
+}
+
+func buildSandboxSkillExecCode(skillName, skillCode string, argsBytes []byte, prelude string) string {
+	mainIdx := strings.Index(skillCode, "if __name__")
+	if mainIdx > 0 {
+		skillCode = skillCode[:mainIdx]
+	}
+	funcName := toFunctionName(skillName)
+	argsB64 := base64.StdEncoding.EncodeToString(argsBytes)
+	execCode := fmt.Sprintf(`import base64
+import json
+%s
+args = json.loads(base64.b64decode(%q).decode("utf-8"))
+result = %s(**args)
+print(json.dumps(result, ensure_ascii=False))
+`, prelude, argsB64, funcName)
+	return skillCode + "\n" + execCode
 }
 
 // ProvisionSkillDependencies scans all skills and installs their pip dependencies into the venv.
@@ -544,24 +502,18 @@ func detectAndInstallMissingDeps(pyFilePath, workspaceDir string) {
 		return
 	}
 
-	// Determine which imports are third-party and need pip packages
-	var missing []string
-	pipBin := GetPipBin(workspaceDir)
-
-	for mod := range imports {
-		if pythonStdlib[mod] {
-			continue
-		}
-		// Resolve PyPI package name
-		pkg := mod
-		if pypi, ok := importToPyPI[mod]; ok {
-			pkg = pypi
-		}
-		// Check if already installed
-		if _, err := runTimedCommand(workspaceDir, 45*time.Second, pipBin, "show", pkg); err != nil {
-			missing = append(missing, pkg)
-		}
+	packages := pythonPackagesForImports(imports)
+	if len(packages) == 0 {
+		return
 	}
+
+	pipBin := GetPipBin(workspaceDir)
+	installed, err := pipShowInstalledPackages(workspaceDir, pipBin, packages)
+	if err != nil && len(installed) == 0 {
+		slog.Debug("[AutoDeps] Failed to inspect installed packages", "packages", packages, "error", err)
+		return
+	}
+	missing := missingPythonPackages(packages, installed)
 
 	if len(missing) == 0 {
 		return
@@ -572,6 +524,65 @@ func detectAndInstallMissingDeps(pyFilePath, workspaceDir string) {
 	if output, err := runTimedCommand(workspaceDir, skillDependencyInstallTimeout, pipBin, args...); err != nil {
 		slog.Warn("[AutoDeps] Failed to install packages", "packages", missing, "error", err, "output", string(output))
 	}
+}
+
+func pythonPackagesForImports(imports map[string]bool) []string {
+	packageSet := make(map[string]struct{})
+	for mod := range imports {
+		if pythonStdlib[mod] {
+			continue
+		}
+		pkg := mod
+		if pypi, ok := importToPyPI[mod]; ok {
+			pkg = pypi
+		}
+		pkg = strings.TrimSpace(pkg)
+		if pkg != "" {
+			packageSet[pkg] = struct{}{}
+		}
+	}
+	packages := make([]string, 0, len(packageSet))
+	for pkg := range packageSet {
+		packages = append(packages, pkg)
+	}
+	sort.Strings(packages)
+	return packages
+}
+
+func pipShowInstalledPackages(workspaceDir, pipBin string, packages []string) (map[string]bool, error) {
+	if len(packages) == 0 {
+		return map[string]bool{}, nil
+	}
+	args := append([]string{"show"}, packages...)
+	output, err := runTimedCommand(workspaceDir, 45*time.Second, pipBin, args...)
+	installed := parsePipShowInstalledPackages(output)
+	return installed, err
+}
+
+func parsePipShowInstalledPackages(output []byte) map[string]bool {
+	installed := make(map[string]bool)
+	scanner := bufio.NewScanner(strings.NewReader(string(output)))
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if !strings.HasPrefix(line, "Name:") {
+			continue
+		}
+		name := strings.ToLower(strings.TrimSpace(strings.TrimPrefix(line, "Name:")))
+		if name != "" {
+			installed[name] = true
+		}
+	}
+	return installed
+}
+
+func missingPythonPackages(packages []string, installed map[string]bool) []string {
+	missing := make([]string, 0)
+	for _, pkg := range packages {
+		if !installed[strings.ToLower(pkg)] {
+			missing = append(missing, pkg)
+		}
+	}
+	return missing
 }
 
 func runTimedCommand(workdir string, timeout time.Duration, command string, args ...string) ([]byte, error) {

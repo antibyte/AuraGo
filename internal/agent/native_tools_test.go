@@ -113,6 +113,52 @@ func TestNativeToolCallToToolCall_TruncatedJSON(t *testing.T) {
 	}
 }
 
+func TestNativeToolCallToToolCall_RejectsTraversingSkillShortcut(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+	native := openai.ToolCall{
+		ID:   "call_shortcut_bad",
+		Type: openai.ToolTypeFunction,
+		Function: openai.FunctionCall{
+			Name:      "skill__../escape",
+			Arguments: `{"input":"ignored"}`,
+		},
+	}
+
+	tc := NativeToolCallToToolCall(native, logger)
+	if tc.Action != "execute_skill" {
+		t.Fatalf("Action = %q, want execute_skill", tc.Action)
+	}
+	if !tc.NativeArgsMalformed {
+		t.Fatal("expected malformed native args for invalid skill shortcut")
+	}
+	if !strings.Contains(tc.NativeArgsError, "must not contain path separators") {
+		t.Fatalf("unexpected NativeArgsError: %q", tc.NativeArgsError)
+	}
+}
+
+func TestNativeToolCallToToolCall_AllowsValidSkillShortcut(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+	native := openai.ToolCall{
+		ID:   "call_shortcut_ok",
+		Type: openai.ToolTypeFunction,
+		Function: openai.FunctionCall{
+			Name:      "skill__weather_check",
+			Arguments: `{"city":"Berlin"}`,
+		},
+	}
+
+	tc := NativeToolCallToToolCall(native, logger)
+	if tc.Action != "execute_skill" {
+		t.Fatalf("Action = %q, want execute_skill", tc.Action)
+	}
+	if tc.Skill != "weather_check" {
+		t.Fatalf("Skill = %q, want weather_check", tc.Skill)
+	}
+	if tc.NativeArgsMalformed {
+		t.Fatalf("unexpected malformed flag: %q", tc.NativeArgsError)
+	}
+}
+
 // TestToolSchemaManualSync verifies that every built-in tool has a corresponding
 // manual in the embedded prompts/tools_manuals/ directory.
 // Tools listed in knownNoManual are exempt (simple tools that don't need guides).
@@ -229,6 +275,19 @@ func TestBuildNativeToolSchemasIncludesVirusTotalAndListSkills(t *testing.T) {
 	}
 }
 
+func TestBuiltinToolSchemasRegistersMeshCentralOnlyOnce(t *testing.T) {
+	schemas := builtinToolSchemas(ToolFeatureFlags{MeshCentralEnabled: true})
+	count := 0
+	for _, schema := range schemas {
+		if schema.Function != nil && schema.Function.Name == "meshcentral" {
+			count++
+		}
+	}
+	if count != 1 {
+		t.Fatalf("meshcentral schema count = %d, want 1", count)
+	}
+}
+
 func TestBuildNativeToolSchemasOmitsVirusTotalWhenDisabled(t *testing.T) {
 	skillsDir := t.TempDir()
 	skillManifest := `{
@@ -257,6 +316,38 @@ func TestBuildNativeToolSchemasOmitsVirusTotalWhenDisabled(t *testing.T) {
 	}
 	if !names["list_skills"] {
 		t.Fatal("expected list_skills schema to remain available")
+	}
+}
+
+func TestBuildNativeToolSchemasReturnsIsolatedCopiesWhenCached(t *testing.T) {
+	ff := ToolFeatureFlags{VirusTotalEnabled: true}
+	first := BuildNativeToolSchemas(t.TempDir(), nil, ff, nil)
+	second := BuildNativeToolSchemas(t.TempDir(), nil, ff, nil)
+
+	if len(first) == 0 || len(second) == 0 {
+		t.Fatal("expected built-in schemas to be present")
+	}
+
+	params, ok := first[0].Function.Parameters.(map[string]interface{})
+	if !ok {
+		t.Fatal("expected first tool params map")
+	}
+	props, ok := params["properties"].(map[string]interface{})
+	if !ok {
+		t.Fatal("expected first tool properties map")
+	}
+	props["cache_probe"] = map[string]interface{}{"type": "string"}
+
+	params2, ok := second[0].Function.Parameters.(map[string]interface{})
+	if !ok {
+		t.Fatal("expected second tool params map")
+	}
+	props2, ok := params2["properties"].(map[string]interface{})
+	if !ok {
+		t.Fatal("expected second tool properties map")
+	}
+	if _, exists := props2["cache_probe"]; exists {
+		t.Fatal("expected cached schema copies to be isolated")
 	}
 }
 

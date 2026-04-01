@@ -110,6 +110,10 @@
                 dashSetHidden(panel, panel.id !== 'tab-' + tabId);
             });
             TabState.active = tabId;
+            if (tabId === 'system' && TabState.loaded[tabId]) {
+                loadGuardianCard();
+                loadHelperLLMCard();
+            }
             if (!TabState.loaded[tabId]) {
                 loadTabContent(tabId);
             }
@@ -203,6 +207,7 @@
             renderOperations(overview);
             renderIntegrations(overview);
             loadGuardianCard();
+            loadHelperLLMCard();
             renderActivity(activity);
             if (promptStats) {
                 renderPromptStats(promptStats);
@@ -2094,6 +2099,13 @@
                     status: sk.pending > 0 ? 'warning' : 'neutral',
                     info: sk.pending > 0 ? `${sk.pending} pending` : ''
                 },
+                {
+                    icon: '🪶',
+                    lbl: t('dashboard.integration_helper_llm'),
+                    val: integrations.helper_llm ? t('dashboard.helper_llm_state_enabled') : t('dashboard.helper_llm_state_disabled'),
+                    status: integrations.helper_llm ? 'ok' : 'neutral',
+                    info: ''
+                },
             ];
 
             el.innerHTML = items.map(s =>
@@ -2115,7 +2127,7 @@
                 koofr: '☁️', chromecast: '📺', proxmox: '🖥️', ollama: '🧠',
                 rocketchat: '💬', tailscale: '🔒', ansible: '🔧', invasion: '🥚',
                 github: '🐙', mqtt: '📡', budget: '💰', indexing: '📂',
-                auth: '🔑', fallback_llm: '🔄', personality_v2: '🎭', user_profiling: '👤', tts: '🔊',
+                auth: '🔑', fallback_llm: '🔄', helper_llm: '🪶', personality_v2: '🎭', user_profiling: '👤', tts: '🔊',
                 piper_tts: '🗣️',
                 paperless_ngx: '📄', cloudflare_tunnel: '☁️',
                 n8n: '🔀', fritzbox: '📡', meshcentral: '🖥️', a2a: '🔗',
@@ -2139,6 +2151,7 @@
                 github: t('dashboard.integration_github'), mqtt: t('dashboard.integration_mqtt'),
                 budget: t('dashboard.integration_budget'), indexing: t('dashboard.integration_indexing'),
                 auth: t('dashboard.integration_auth'), fallback_llm: t('dashboard.integration_fallback_llm'),
+                helper_llm: t('dashboard.integration_helper_llm'),
                 personality_v2: t('dashboard.integration_personality_v2'), user_profiling: t('dashboard.integration_user_profiling'),
                 tts: t('dashboard.integration_tts'),
                 piper_tts: t('dashboard.integration_piper_tts'),
@@ -2192,6 +2205,121 @@
             }
             dashSetHidden(card, false);
             renderGuardianCard(data);
+        }
+
+        async function loadHelperLLMCard() {
+            const data = await API.get('/api/dashboard/helper-llm');
+            renderHelperLLMCard(data);
+        }
+
+        function helperLLMOperationLabel(operation) {
+            const labels = {
+                analyze_turn: t('dashboard.helper_llm_operation_analyze_turn'),
+                maintenance_summary_kg: t('dashboard.helper_llm_operation_maintenance_summary_kg'),
+                consolidation_batches: t('dashboard.helper_llm_operation_consolidation_batches'),
+                compress_memories: t('dashboard.helper_llm_operation_compress_memories'),
+                content_summaries: t('dashboard.helper_llm_operation_content_summaries'),
+                rag_batch: t('dashboard.helper_llm_operation_rag_batch'),
+            };
+            return labels[operation] || String(operation || '').replace(/_/g, ' ');
+        }
+
+        function helperLLMOperationDescription(operation) {
+            const descriptions = {
+                analyze_turn: t('dashboard.helper_llm_operation_desc_analyze_turn'),
+                maintenance_summary_kg: t('dashboard.helper_llm_operation_desc_maintenance_summary_kg'),
+                rag_batch: t('dashboard.helper_llm_operation_desc_rag_batch'),
+            };
+            const description = descriptions[operation];
+            if (!description || description.startsWith('dashboard.')) return '';
+            return description;
+        }
+
+        function renderHelperLLMCard(data) {
+            const statusEl = document.getElementById('helper-llm-status');
+            const metricsEl = document.getElementById('helper-llm-metrics');
+            const operationsEl = document.getElementById('helper-llm-operations');
+            if (!statusEl || !metricsEl || !operationsEl) return;
+
+            const enabled = !!data?.enabled;
+            const updatedAt = data?.updated_at ? Date.parse(data.updated_at) : 0;
+            const totals = data?.totals || {};
+            const operations = Object.entries(data?.operations || {})
+                .sort((a, b) => {
+                    const reqDiff = Number(b[1]?.requests || 0) - Number(a[1]?.requests || 0);
+                    if (reqDiff !== 0) return reqDiff;
+                    return a[0].localeCompare(b[0]);
+                });
+
+            statusEl.innerHTML = `
+                <div class="guardian-status-row">
+                    <span class="guardian-lbl">${t('dashboard.helper_llm_state')}:</span>
+                    <span class="guardian-val">${enabled ? t('dashboard.helper_llm_state_enabled') : t('dashboard.helper_llm_state_disabled')}</span>
+                </div>
+                <div class="guardian-status-row">
+                    <span class="guardian-lbl">${t('dashboard.helper_llm_last_update')}:</span>
+                    <span class="guardian-val">${updatedAt ? relativeTime(updatedAt) : '—'}</span>
+                </div>`;
+
+            if (!enabled && !operations.length) {
+                metricsEl.innerHTML = `<div class="empty-state">${t('dashboard.helper_llm_disabled')}</div>`;
+                operationsEl.innerHTML = '';
+                return;
+            }
+
+            metricsEl.innerHTML = `
+                <div class="guardian-metrics-grid">
+                    <div class="guardian-metric">
+                        <div class="guardian-metric-val">${Number(totals.requests || 0)}</div>
+                        <div class="guardian-metric-lbl">${t('dashboard.helper_llm_requests')}</div>
+                    </div>
+                    <div class="guardian-metric">
+                        <div class="guardian-metric-val ok">${Number(totals.cache_hits || 0)}</div>
+                        <div class="guardian-metric-lbl">${t('dashboard.helper_llm_cache_hits')}</div>
+                    </div>
+                    <div class="guardian-metric">
+                        <div class="guardian-metric-val">${Number(totals.llm_calls || 0)}</div>
+                        <div class="guardian-metric-lbl">${t('dashboard.helper_llm_llm_calls')}</div>
+                    </div>
+                    <div class="guardian-metric">
+                        <div class="guardian-metric-val warn">${Number(totals.fallbacks || 0)}</div>
+                        <div class="guardian-metric-lbl">${t('dashboard.helper_llm_fallbacks')}</div>
+                    </div>
+                    <div class="guardian-metric">
+                        <div class="guardian-metric-val ok">${Number(totals.saved_calls || 0)}</div>
+                        <div class="guardian-metric-lbl">${t('dashboard.helper_llm_saved_calls')}</div>
+                    </div>
+                    <div class="guardian-metric">
+                        <div class="guardian-metric-val">${Number(totals.batched_items || 0)}</div>
+                        <div class="guardian-metric-lbl">${t('dashboard.helper_llm_batched_items')}</div>
+                    </div>
+                </div>`;
+
+            if (!operations.length) {
+                operationsEl.innerHTML = `<div class="empty-state dash-empty-tight">${t('dashboard.helper_llm_operation_empty')}</div>`;
+                return;
+            }
+
+            operationsEl.innerHTML = `
+                <div class="helper-llm-operation-list">
+                    ${operations.map(([name, stats]) => `
+                        <div class="helper-llm-operation-item">
+                            <div class="helper-llm-operation-head">
+                                <span class="helper-llm-operation-name">${escapeHtml(helperLLMOperationLabel(name))}</span>
+                                <span class="helper-llm-operation-pill">${Number(stats.requests || 0)} ${t('dashboard.helper_llm_requests')}</span>
+                            </div>
+                            <div class="helper-llm-operation-meta">
+                                <span class="tooling-telemetry-scope-pill">${Number(stats.cache_hits || 0)} ${t('dashboard.helper_llm_cache_hits')}</span>
+                                <span class="tooling-telemetry-scope-pill">${Number(stats.llm_calls || 0)} ${t('dashboard.helper_llm_llm_calls')}</span>
+                                <span class="tooling-telemetry-scope-pill">${Number(stats.fallbacks || 0)} ${t('dashboard.helper_llm_fallbacks')}</span>
+                                <span class="tooling-telemetry-scope-pill">${Number(stats.saved_calls || 0)} ${t('dashboard.helper_llm_saved_calls')}</span>
+                                <span class="tooling-telemetry-scope-pill">${Number(stats.batched_items || 0)} ${t('dashboard.helper_llm_batched_items')}</span>
+                            </div>
+                            ${helperLLMOperationDescription(name) ? `<div class="helper-llm-operation-detail">${escapeHtml(helperLLMOperationDescription(name))}</div>` : ''}
+                            ${stats.last_detail ? `<div class="helper-llm-operation-detail">${t('dashboard.helper_llm_operation_last')}: ${escapeHtml(stats.last_detail)}</div>` : ''}
+                        </div>
+                    `).join('')}
+                </div>`;
         }
 
         function renderGuardianCard(data) {

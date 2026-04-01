@@ -1,9 +1,12 @@
 package memory
 
 import (
+	"database/sql"
 	"log/slog"
 	"os"
 	"testing"
+
+	_ "modernc.org/sqlite"
 )
 
 func newTestConsolidationDB(t *testing.T) *SQLiteMemory {
@@ -243,5 +246,97 @@ func TestArchivedMessageFields(t *testing.T) {
 		if m.Timestamp == "" {
 			t.Error("Timestamp should not be empty")
 		}
+	}
+}
+
+func TestNewSQLiteMemoryNormalizesInvalidConsolidationStatuses(t *testing.T) {
+	path := t.TempDir() + "/memory.db"
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatalf("sql.Open: %v", err)
+	}
+
+	_, err = db.Exec(`
+		CREATE TABLE archived_messages (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			session_id TEXT,
+			role TEXT,
+			content TEXT,
+			original_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+			archived_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			consolidated BOOLEAN DEFAULT 0,
+			consolidation_status TEXT,
+			consolidation_retries INTEGER DEFAULT 0,
+			consolidation_last_error TEXT DEFAULT '',
+			next_retry_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		);
+	`)
+	if err != nil {
+		t.Fatalf("create archived_messages: %v", err)
+	}
+	_, err = db.Exec(`
+		INSERT INTO archived_messages(session_id, role, content, consolidated, consolidation_status)
+		VALUES
+			('s1', 'user', 'pending item', 0, 'retrying'),
+			('s1', 'assistant', 'done item', 1, 'weird_done')
+	`)
+	if err != nil {
+		t.Fatalf("insert archived_messages: %v", err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatalf("close seed db: %v", err)
+	}
+
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+	stm, err := NewSQLiteMemory(path, logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	t.Cleanup(func() { stm.Close() })
+
+	var pendingStatus, doneStatus string
+	if err := stm.db.QueryRow("SELECT consolidation_status FROM archived_messages WHERE content = 'pending item'").Scan(&pendingStatus); err != nil {
+		t.Fatalf("query pending status: %v", err)
+	}
+	if err := stm.db.QueryRow("SELECT consolidation_status FROM archived_messages WHERE content = 'done item'").Scan(&doneStatus); err != nil {
+		t.Fatalf("query done status: %v", err)
+	}
+	if pendingStatus != "pending" {
+		t.Fatalf("pending status = %q, want pending", pendingStatus)
+	}
+	if doneStatus != "done" {
+		t.Fatalf("done status = %q, want done", doneStatus)
+	}
+}
+
+func TestGetConsolidationCandidatesHonorsRetryWindow(t *testing.T) {
+	stm := newTestConsolidationDB(t)
+	_, err := stm.db.Exec(`
+		INSERT INTO archived_messages(session_id, role, content, original_timestamp, consolidated, consolidation_status, consolidation_retries, next_retry_at)
+		VALUES
+			('s1', 'user', 'ready failed', datetime('now', '-2 minutes'), 0, 'failed', 1, datetime('now', '-1 minute')),
+			('s1', 'assistant', 'not ready failed', datetime('now', '-2 minutes'), 0, 'failed', 1, datetime('now', '+10 minutes')),
+			('s1', 'user', 'plain pending', datetime('now', '-2 minutes'), 0, 'pending', 0, datetime('now', '+10 minutes'))
+	`)
+	if err != nil {
+		t.Fatalf("insert archived_messages: %v", err)
+	}
+
+	msgs, err := stm.GetConsolidationCandidates(10, 3)
+	if err != nil {
+		t.Fatalf("GetConsolidationCandidates: %v", err)
+	}
+	seen := make(map[string]bool, len(msgs))
+	for _, msg := range msgs {
+		seen[msg.Content] = true
+	}
+	if !seen["ready failed"] {
+		t.Fatal("expected retry-ready failed message to be returned")
+	}
+	if !seen["plain pending"] {
+		t.Fatal("expected pending message to be returned")
+	}
+	if seen["not ready failed"] {
+		t.Fatal("did not expect future retry message to be returned")
 	}
 }

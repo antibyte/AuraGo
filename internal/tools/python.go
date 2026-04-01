@@ -20,9 +20,13 @@ var foregroundTimeout atomic.Int64
 // skillTimeout stores the default execution timeout for skill invocations (nanoseconds).
 var skillTimeout atomic.Int64
 
+// backgroundTimeout stores the default execution timeout for background Python/shell/tool processes (nanoseconds).
+var backgroundTimeout atomic.Int64
+
 func init() {
 	foregroundTimeout.Store(int64(30 * time.Second))
 	skillTimeout.Store(int64(120 * time.Second))
+	backgroundTimeout.Store(int64(time.Hour))
 }
 
 // GetForegroundTimeout returns the current foreground execution timeout.
@@ -45,14 +49,27 @@ func SetSkillTimeout(d time.Duration) {
 	skillTimeout.Store(int64(d))
 }
 
+// GetBackgroundTimeout returns the current background execution timeout.
+func GetBackgroundTimeout() time.Duration {
+	return time.Duration(backgroundTimeout.Load())
+}
+
+// SetBackgroundTimeout sets the background execution timeout (for testing).
+func SetBackgroundTimeout(d time.Duration) {
+	backgroundTimeout.Store(int64(d))
+}
+
 // ConfigureTimeouts sets package-level timeouts from configuration.
 // Values <= 0 are ignored (defaults are kept).
-func ConfigureTimeouts(pythonSeconds, skillSeconds int) {
+func ConfigureTimeouts(pythonSeconds, skillSeconds, backgroundSeconds int) {
 	if pythonSeconds > 0 {
 		foregroundTimeout.Store(int64(time.Duration(pythonSeconds) * time.Second))
 	}
 	if skillSeconds > 0 {
 		skillTimeout.Store(int64(time.Duration(skillSeconds) * time.Second))
+	}
+	if backgroundSeconds > 0 {
+		backgroundTimeout.Store(int64(time.Duration(backgroundSeconds) * time.Second))
 	}
 }
 
@@ -265,34 +282,11 @@ func RunToolBackground(name string, args []string, workspaceDir, toolsDir string
 
 	slog.Debug("[RunToolBackground]", "cmd", pythonCmd, "args", cmd.Args)
 
-	info := &ProcessInfo{
-		Output:    &bytes.Buffer{},
-		StartedAt: time.Now(),
-		Alive:     true,
-	}
-	cmd.Stdout = info
-	cmd.Stderr = info
-
-	if err := cmd.Start(); err != nil {
+	pid, err := registerManagedBackgroundProcess(cmd, registry, nil)
+	if err != nil {
 		return 0, fmt.Errorf("failed to start background tool: %w", err)
 	}
-
-	info.PID = cmd.Process.Pid
-	info.Process = cmd.Process
-	registry.Register(info)
-
-	go func() {
-		err := cmd.Wait()
-		info.mu.Lock()
-		info.Alive = false
-		if err != nil {
-			info.Output.WriteString(fmt.Sprintf("\n[process exited with error: %v]", err))
-		}
-		info.mu.Unlock()
-		registry.Remove(info.PID)
-	}()
-
-	return info.PID, nil
+	return pid, nil
 }
 
 // RunToolBackgroundWithSecrets is like RunToolBackground but injects vault secrets
@@ -318,34 +312,11 @@ func RunToolBackgroundWithSecrets(name string, args []string, workspaceDir, tool
 	InjectSecretsEnv(cmd, secrets)
 	InjectCredentialEnv(cmd, creds)
 
-	info := &ProcessInfo{
-		Output:    &bytes.Buffer{},
-		StartedAt: time.Now(),
-		Alive:     true,
-	}
-	cmd.Stdout = info
-	cmd.Stderr = info
-
-	if err := cmd.Start(); err != nil {
+	pid, err := registerManagedBackgroundProcess(cmd, registry, nil)
+	if err != nil {
 		return 0, fmt.Errorf("failed to start background tool: %w", err)
 	}
-
-	info.PID = cmd.Process.Pid
-	info.Process = cmd.Process
-	registry.Register(info)
-
-	go func() {
-		err := cmd.Wait()
-		info.mu.Lock()
-		info.Alive = false
-		if err != nil {
-			info.Output.WriteString(fmt.Sprintf("\n[process exited with error: %v]", err))
-		}
-		info.mu.Unlock()
-		registry.Remove(info.PID)
-	}()
-
-	return info.PID, nil
+	return pid, nil
 }
 
 // ExecutePython saves the provided Python code to a temporary file,
@@ -444,39 +415,14 @@ func ExecutePythonBackground(code, workspaceDir, toolsDir string, registry *Proc
 	cmd := exec.Command(pythonCmd, scriptPath)
 	cmd.Dir = getAbsWorkspace(workspaceDir)
 
-	info := &ProcessInfo{
-		Output:    &bytes.Buffer{},
-		StartedAt: time.Now(),
-		Alive:     true,
-	}
-
-	// Wire combined stdout+stderr to the registry buffer
-	cmd.Stdout = info
-	cmd.Stderr = info
-
-	if err := cmd.Start(); err != nil {
+	pid, err := registerManagedBackgroundProcess(cmd, registry, func() {
+		os.Remove(scriptPath)
+	})
+	if err != nil {
 		os.Remove(scriptPath)
 		return 0, fmt.Errorf("failed to start background process: %w", err)
 	}
-
-	info.PID = cmd.Process.Pid
-	info.Process = cmd.Process
-	registry.Register(info)
-
-	// Monitor the process in a goroutine
-	go func() {
-		err := cmd.Wait()
-		info.mu.Lock()
-		info.Alive = false
-		if err != nil {
-			info.Output.WriteString(fmt.Sprintf("\n[process exited with error: %v]", err))
-		}
-		info.mu.Unlock()
-		registry.Remove(info.PID)
-		os.Remove(scriptPath) // Clean up script after process exits
-	}()
-
-	return info.PID, nil
+	return pid, nil
 }
 
 // ExecutePythonBackgroundWithSecrets is like ExecutePythonBackground but injects vault secrets
@@ -493,36 +439,14 @@ func ExecutePythonBackgroundWithSecrets(code, workspaceDir, toolsDir string, reg
 	InjectSecretsEnv(cmd, secrets)
 	InjectCredentialEnv(cmd, creds)
 
-	info := &ProcessInfo{
-		Output:    &bytes.Buffer{},
-		StartedAt: time.Now(),
-		Alive:     true,
-	}
-	cmd.Stdout = info
-	cmd.Stderr = info
-
-	if err := cmd.Start(); err != nil {
+	pid, err := registerManagedBackgroundProcess(cmd, registry, func() {
+		os.Remove(scriptPath)
+	})
+	if err != nil {
 		os.Remove(scriptPath)
 		return 0, fmt.Errorf("failed to start background process: %w", err)
 	}
-
-	info.PID = cmd.Process.Pid
-	info.Process = cmd.Process
-	registry.Register(info)
-
-	go func() {
-		err := cmd.Wait()
-		info.mu.Lock()
-		info.Alive = false
-		if err != nil {
-			info.Output.WriteString(fmt.Sprintf("\n[process exited with error: %v]", err))
-		}
-		info.mu.Unlock()
-		registry.Remove(info.PID)
-		os.Remove(scriptPath)
-	}()
-
-	return info.PID, nil
+	return pid, nil
 }
 
 // maxScriptBytes is the maximum allowed Python script size. Scripts larger than

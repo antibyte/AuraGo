@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -73,7 +72,7 @@ func generateOpenRouter(cfg ImageGenConfig, prompt string, opts ImageGenOptions)
 	}
 	defer resp.Body.Close()
 
-	respBody, err := io.ReadAll(resp.Body)
+	respBody, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to read response: %w", err)
 	}

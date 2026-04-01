@@ -311,3 +311,145 @@ personality:
 		t.Fatalf("expected saved config to contain updated ui_language, got:\n%s", string(raw))
 	}
 }
+
+func TestConfigSavePersistsOutgoingWebhooks(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	configContent := `
+server:
+  ui_language: en
+auth:
+  enabled: false
+personality:
+  core_personality: neutral
+webhooks:
+  enabled: true
+  readonly: false
+  outgoing: []
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	cfg.Webhooks.Outgoing = []OutgoingWebhook{{
+		ID:          "hook_1",
+		Name:        "Deploy",
+		Description: "Trigger deploy",
+		Method:      "POST",
+		URL:         "https://example.test/deploy",
+		Headers:     map[string]string{"X-Test": "1"},
+		Parameters: []WebhookParameter{{
+			Name:        "service",
+			Type:        "string",
+			Description: "Service name",
+			Required:    true,
+		}},
+		PayloadType: "json",
+	}}
+
+	if err := cfg.Save(configPath); err != nil {
+		t.Fatalf("Save() error = %v", err)
+	}
+
+	reloaded, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("reload config: %v", err)
+	}
+	if len(reloaded.Webhooks.Outgoing) != 1 {
+		t.Fatalf("outgoing webhook count = %d, want 1", len(reloaded.Webhooks.Outgoing))
+	}
+	if reloaded.Webhooks.Outgoing[0].URL != "https://example.test/deploy" {
+		t.Fatalf("saved webhook url = %q", reloaded.Webhooks.Outgoing[0].URL)
+	}
+}
+
+func TestLoadResolvesHelperLLMFromProvider(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	configContent := `
+providers:
+  - id: main
+    type: openrouter
+    base_url: https://openrouter.ai/api/v1
+    api_key: main-secret
+    model: main-model
+  - id: helper
+    type: openai
+    base_url: https://helper.example/v1
+    api_key: helper-secret
+    model: helper-default
+llm:
+  provider: main
+  helper_enabled: true
+  helper_provider: helper
+  helper_model: helper-override
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if !cfg.LLM.HelperEnabled {
+		t.Fatal("expected llm.helper_enabled=true to be preserved")
+	}
+	if cfg.LLM.HelperProviderType != "openai" {
+		t.Fatalf("helper provider type = %q, want openai", cfg.LLM.HelperProviderType)
+	}
+	if cfg.LLM.HelperBaseURL != "https://helper.example/v1" {
+		t.Fatalf("helper base url = %q", cfg.LLM.HelperBaseURL)
+	}
+	if cfg.LLM.HelperAPIKey != "" {
+		t.Fatalf("helper api key = %q, want empty until vault/env resolution", cfg.LLM.HelperAPIKey)
+	}
+	if cfg.LLM.HelperResolvedModel != "helper-override" {
+		t.Fatalf("helper resolved model = %q, want helper-override", cfg.LLM.HelperResolvedModel)
+	}
+}
+
+func TestLoadDoesNotFallbackHelperLLMToMainProvider(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	configContent := `
+providers:
+  - id: main
+    type: openrouter
+    base_url: https://openrouter.ai/api/v1
+    api_key: main-secret
+    model: main-model
+llm:
+  provider: main
+  helper_enabled: true
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if !cfg.LLM.HelperEnabled {
+		t.Fatal("expected llm.helper_enabled=true to be preserved")
+	}
+	if cfg.LLM.HelperProviderType != "" {
+		t.Fatalf("helper provider type = %q, want empty", cfg.LLM.HelperProviderType)
+	}
+	if cfg.LLM.HelperBaseURL != "" {
+		t.Fatalf("helper base url = %q, want empty", cfg.LLM.HelperBaseURL)
+	}
+	if cfg.LLM.HelperAPIKey != "" {
+		t.Fatalf("helper api key = %q, want empty", cfg.LLM.HelperAPIKey)
+	}
+	if cfg.LLM.HelperResolvedModel != "" {
+		t.Fatalf("helper resolved model = %q, want empty", cfg.LLM.HelperResolvedModel)
+	}
+}

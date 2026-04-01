@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/security"
 )
 
 // CallbackFunc is called when a new telephony event is detected.
@@ -217,7 +218,7 @@ func (p *Poller) pollCalls(c *Client) {
 
 	p.lastCallSummary = cur
 	p.lastCallTime = time.Now()
-	p.logger.Info("[FritzBox Poller] new call detected", "type", newest.Type, "caller", "<redacted>")
+	p.logger.Info("[FritzBox Poller] new call detected", "type", newest.Type, "caller", security.RedactedText(""))
 	if p.callback != nil {
 		p.callback("call", cur)
 	}

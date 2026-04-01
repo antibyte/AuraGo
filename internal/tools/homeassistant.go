@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -17,6 +18,14 @@ var haHTTPClient = security.NewSSRFProtectedHTTPClient(30 * time.Second)
 type HAConfig struct {
 	URL         string
 	AccessToken string
+}
+
+func haEntityStateEndpoint(entityID string) string {
+	return "/api/states/" + url.PathEscape(strings.TrimSpace(entityID))
+}
+
+func haServiceEndpoint(domain, service string) string {
+	return "/api/services/" + url.PathEscape(strings.TrimSpace(domain)) + "/" + url.PathEscape(strings.TrimSpace(service))
 }
 
 // haRequest performs a generic HTTP request against the HA REST API.
@@ -41,7 +50,7 @@ func haRequest(cfg HAConfig, method, endpoint string, body string) ([]byte, int,
 	}
 	defer resp.Body.Close()
 
-	data, err := io.ReadAll(resp.Body)
+	data, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
 	if err != nil {
 		return nil, resp.StatusCode, fmt.Errorf("failed to read response: %w", err)
 	}
@@ -52,16 +61,16 @@ func haRequest(cfg HAConfig, method, endpoint string, body string) ([]byte, int,
 func HAGetStates(cfg HAConfig, domain string) string {
 	data, code, err := haRequest(cfg, "GET", "/api/states", "")
 	if err != nil {
-		return fmt.Sprintf(`{"status":"error","message":"Failed to fetch states: %v"}`, err)
+		return errJSON("Failed to fetch states: %v", err)
 	}
 	if code != 200 {
-		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+		return errJSON("Home Assistant API error (HTTP %d): %s", code, string(data))
 	}
 
 	// Parse and optionally filter by domain
 	var states []map[string]interface{}
 	if err := json.Unmarshal(data, &states); err != nil {
-		return fmt.Sprintf(`{"status":"error","message":"Failed to parse states: %v"}`, err)
+		return errJSON("Failed to parse states: %v", err)
 	}
 
 	if domain != "" {
@@ -114,24 +123,24 @@ func HAGetStates(cfg HAConfig, domain string) string {
 // HAGetState retrieves the state for a single entity.
 func HAGetState(cfg HAConfig, entityID string) string {
 	if entityID == "" {
-		return `{"status":"error","message":"'entity_id' is required"}`
+		return errJSON("'entity_id' is required")
 	}
 
-	data, code, err := haRequest(cfg, "GET", "/api/states/"+entityID, "")
+	data, code, err := haRequest(cfg, "GET", haEntityStateEndpoint(entityID), "")
 	if err != nil {
-		return fmt.Sprintf(`{"status":"error","message":"Failed to fetch state: %v"}`, err)
+		return errJSON("Failed to fetch state: %v", err)
 	}
 	if code == 404 {
-		return fmt.Sprintf(`{"status":"error","message":"Entity '%s' not found"}`, entityID)
+		return errJSON("Entity '%s' not found", entityID)
 	}
 	if code != 200 {
-		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+		return errJSON("Home Assistant API error (HTTP %d): %s", code, string(data))
 	}
 
 	// Return the full entity state
 	var entity map[string]interface{}
 	if err := json.Unmarshal(data, &entity); err != nil {
-		return fmt.Sprintf(`{"status":"error","message":"Failed to parse state: %v"}`, err)
+		return errJSON("Failed to parse state: %v", err)
 	}
 
 	out, _ := json.Marshal(map[string]interface{}{
@@ -144,7 +153,7 @@ func HAGetState(cfg HAConfig, entityID string) string {
 // HACallService calls a Home Assistant service (e.g. light/turn_on).
 func HACallService(cfg HAConfig, domain, service, entityID string, serviceData map[string]interface{}) string {
 	if domain == "" || service == "" {
-		return `{"status":"error","message":"'domain' and 'service' are required (e.g. domain='light', service='turn_on')"}`
+		return errJSON("'domain' and 'service' are required (e.g. domain='light', service='turn_on')")
 	}
 
 	// Build request body
@@ -160,20 +169,21 @@ func HACallService(cfg HAConfig, domain, service, entityID string, serviceData m
 	}
 
 	body, _ := json.Marshal(payload)
-	endpoint := fmt.Sprintf("/api/services/%s/%s", domain, service)
+	endpoint := haServiceEndpoint(domain, service)
 
 	data, code, err := haRequest(cfg, "POST", endpoint, string(body))
 	if err != nil {
-		return fmt.Sprintf(`{"status":"error","message":"Service call failed: %v"}`, err)
+		return errJSON("Service call failed: %v", err)
 	}
 	if code != 200 {
-		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+		return errJSON("Home Assistant API error (HTTP %d): %s", code, string(data))
 	}
 
 	// HA returns an array of affected entity states
 	var affected []map[string]interface{}
 	if err := json.Unmarshal(data, &affected); err != nil {
-		return fmt.Sprintf(`{"status":"success","message":"Service %s.%s called successfully","raw_response":%q}`, domain, service, string(data))
+		out, _ := json.Marshal(map[string]interface{}{"status": "success", "message": fmt.Sprintf("Service %s.%s called successfully", domain, service), "raw_response": string(data)})
+		return string(out)
 	}
 
 	var entityIDs []string
@@ -196,15 +206,15 @@ func HACallService(cfg HAConfig, domain, service, entityID string, serviceData m
 func HAListServices(cfg HAConfig, domain string) string {
 	data, code, err := haRequest(cfg, "GET", "/api/services", "")
 	if err != nil {
-		return fmt.Sprintf(`{"status":"error","message":"Failed to fetch services: %v"}`, err)
+		return errJSON("Failed to fetch services: %v", err)
 	}
 	if code != 200 {
-		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+		return errJSON("Home Assistant API error (HTTP %d): %s", code, string(data))
 	}
 
 	var services []map[string]interface{}
 	if err := json.Unmarshal(data, &services); err != nil {
-		return fmt.Sprintf(`{"status":"error","message":"Failed to parse services: %v"}`, err)
+		return errJSON("Failed to parse services: %v", err)
 	}
 
 	// Filter by domain if specified

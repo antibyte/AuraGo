@@ -5,12 +5,15 @@ import (
 	"fmt"
 	"log/slog"
 	"os/exec"
+	"regexp"
 	"runtime"
 	"strings"
 	"time"
 
 	"aurago/internal/sandbox"
 )
+
+var sudoPasswordPromptPattern = regexp.MustCompile(`^\[sudo\][^:\r\n]*:\s*`)
 
 // ExecuteShell runs a command in the shell (PS on Windows, sh on Unix) and returns stdout/stderr.
 // Uses a manual timer + KillProcessTree to reliably terminate the full process subtree on timeout,
@@ -77,35 +80,11 @@ func ExecuteShellBackground(command, workspaceDir string, registry *ProcessRegis
 
 	slog.Debug("[ExecuteShellBackground]", "command", command, "dir", cmd.Dir)
 
-	info := &ProcessInfo{
-		Output:    &bytes.Buffer{},
-		StartedAt: time.Now(),
-		Alive:     true,
-	}
-
-	cmd.Stdout = info
-	cmd.Stderr = info
-
-	if err := cmd.Start(); err != nil {
+	pid, err := registerManagedBackgroundProcess(cmd, registry, nil)
+	if err != nil {
 		return 0, fmt.Errorf("failed to start background shell process: %w", err)
 	}
-
-	info.PID = cmd.Process.Pid
-	info.Process = cmd.Process
-	registry.Register(info)
-
-	go func() {
-		err := cmd.Wait()
-		info.mu.Lock()
-		info.Alive = false
-		if err != nil {
-			info.Output.WriteString(fmt.Sprintf("\n[process exited with error: %v]", err))
-		}
-		info.mu.Unlock()
-		registry.Remove(info.PID)
-	}()
-
-	return info.PID, nil
+	return pid, nil
 }
 
 // ExecuteSudo runs a command via `sudo -S` (reads password from stdin) on Unix,
@@ -117,8 +96,8 @@ func ExecuteSudo(command, workspaceDir, password string) (string, string, error)
 	}
 
 	// sudo -S reads the password from stdin; -n would fail if a password is needed.
-	// We pass the password followed by a newline.
-	cmd := exec.Command("sudo", "-S", "/bin/sh", "-c", command)
+	// We also suppress the interactive password prompt so stderr stays stable across locales.
+	cmd := exec.Command("sudo", "-S", "-p", "", "/bin/sh", "-c", command)
 	cmd.Dir = getAbsWorkspace(workspaceDir)
 	cmd.Stdin = strings.NewReader(password + "\n")
 	SetupCmd(cmd)
@@ -141,13 +120,19 @@ func ExecuteSudo(command, workspaceDir, password string) (string, string, error)
 
 	select {
 	case err := <-done:
-		// sudo writes the password prompt to stderr; strip it from the output
-		stderrStr := strings.TrimPrefix(stderr.String(), "[sudo] password for "+"\n")
-		stderrStr = strings.TrimSpace(stderrStr)
+		stderrStr := normalizeSudoStderr(stderr.String())
 		return stdout.String(), stderrStr, err
 	case <-timer.C:
 		KillProcessTree(cmd.Process.Pid)
 		<-done
 		return stdout.String(), stderr.String(), fmt.Errorf("TIMEOUT: sudo command exceeded %s limit", GetForegroundTimeout())
 	}
+}
+
+func normalizeSudoStderr(stderr string) string {
+	trimmed := strings.TrimSpace(stderr)
+	if trimmed == "" {
+		return ""
+	}
+	return strings.TrimSpace(sudoPasswordPromptPattern.ReplaceAllString(trimmed, ""))
 }

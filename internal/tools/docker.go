@@ -18,7 +18,8 @@ import (
 
 // DockerConfig holds the Docker Engine connection parameters.
 type DockerConfig struct {
-	Host string // e.g. "unix:///var/run/docker.sock" or "tcp://localhost:2375"
+	Host         string // e.g. "unix:///var/run/docker.sock" or "tcp://localhost:2375"
+	WorkspaceDir string // workspace root for validating host-side file paths used by docker cp
 }
 
 // dockerHTTPClient is a lazily-initialized shared Docker API client.
@@ -59,19 +60,7 @@ func getDockerClient(cfg DockerConfig) *http.Client {
 		MaxIdleConns:    10,
 		IdleConnTimeout: 90 * time.Second,
 		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-			switch {
-			case strings.HasPrefix(host, "unix://"):
-				return net.DialTimeout("unix", strings.TrimPrefix(host, "unix://"), 5*time.Second)
-			case strings.HasPrefix(host, "npipe://"):
-				// Windows named pipes cannot be dialed with the standard net package.
-				// Docker Desktop exposes the API via TCP on localhost:2375 by default,
-				// but TCP must be enabled in Docker Desktop settings first.
-				return nil, fmt.Errorf("windows named pipes (npipe://) require Docker Desktop settings to enable TCP (Settings > General > Expose daemon on tcp://localhost:2375), then use DOCKER_HOST=tcp://localhost:2375 instead")
-			case strings.HasPrefix(host, "tcp://"):
-				return net.DialTimeout("tcp", strings.TrimPrefix(host, "tcp://"), 5*time.Second)
-			default:
-				return net.DialTimeout("tcp", host, 5*time.Second)
-			}
+			return dockerDialContext(ctx, host)
 		},
 	}
 
@@ -102,6 +91,38 @@ func DockerPing(host string) error {
 		return fmt.Errorf("docker _ping returned status %d", resp.StatusCode)
 	}
 	return nil
+}
+
+func dockerDialContext(ctx context.Context, host string) (net.Conn, error) {
+	dialer := &net.Dialer{Timeout: 5 * time.Second}
+	switch {
+	case strings.HasPrefix(host, "unix://"):
+		return dialer.DialContext(ctx, "unix", strings.TrimPrefix(host, "unix://"))
+	case strings.HasPrefix(host, "npipe://"):
+		return dialDockerNamedPipe(ctx, host)
+	case strings.HasPrefix(host, "tcp://"):
+		return dialer.DialContext(ctx, "tcp", strings.TrimPrefix(host, "tcp://"))
+	default:
+		return dialer.DialContext(ctx, "tcp", host)
+	}
+}
+
+func normalizeDockerNamedPipeHost(host string) (string, error) {
+	if !strings.HasPrefix(host, "npipe://") {
+		return "", fmt.Errorf("invalid Docker named pipe host %q", host)
+	}
+	path := strings.TrimPrefix(host, "npipe://")
+	path = strings.ReplaceAll(path, "/", `\`)
+	switch {
+	case strings.HasPrefix(path, `\\.\pipe\`):
+		return path, nil
+	case strings.HasPrefix(path, `.\pipe\`):
+		return `\\` + path, nil
+	case strings.HasPrefix(path, `pipe\`):
+		return `\\.\` + path, nil
+	default:
+		return "", fmt.Errorf("invalid Docker named pipe path %q", host)
+	}
 }
 
 // validateDockerName checks that a container/image identifier is safe to use in API paths.
@@ -159,7 +180,7 @@ func dockerRequestWithRetry(cfg DockerConfig, method, endpoint string, body stri
 			return nil, 0, fmt.Errorf("docker request failed after %d retries: %w", maxRetries, err)
 		}
 
-		data, err := io.ReadAll(resp.Body)
+		data, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
 		resp.Body.Close() // Close immediately instead of defer to avoid FD leak in retry loop
 		if err != nil {
 			lastErr = err

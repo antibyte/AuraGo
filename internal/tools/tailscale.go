@@ -17,6 +17,7 @@ type TailscaleConfig struct {
 }
 
 var tailscaleHTTPClient = &http.Client{Timeout: 30 * time.Second}
+var tailscaleLocalHTTPClient = &http.Client{Timeout: 5 * time.Second}
 
 // tailscaleTailnet returns the tailnet identifier, defaulting to "-" (implicit tailnet).
 func tailscaleTailnet(cfg TailscaleConfig) string {
@@ -46,7 +47,7 @@ func tailscaleRequest(cfg TailscaleConfig, method, endpoint, body string) ([]byt
 		return nil, 0, fmt.Errorf("request failed: %w", err)
 	}
 	defer resp.Body.Close()
-	data, err := io.ReadAll(resp.Body)
+	data, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
 	if err != nil {
 		return nil, resp.StatusCode, fmt.Errorf("failed to read response: %w", err)
 	}
@@ -104,10 +105,10 @@ func TailscaleListDevices(cfg TailscaleConfig) string {
 	endpoint := fmt.Sprintf("/api/v2/tailnet/%s/devices", tailscaleTailnet(cfg))
 	data, code, err := tailscaleRequest(cfg, "GET", endpoint, "")
 	if err != nil {
-		return fmt.Sprintf(`{"status":"error","message":"Failed to list devices: %v"}`, err)
+		return errJSON("Failed to list devices: %v", err)
 	}
 	if code != 200 {
-		return fmt.Sprintf(`{"status":"error","http_code":%d,"body":%q}`, code, string(data))
+		return marshalToolJSON(map[string]interface{}{"status": "error", "http_code": code, "body": string(data)})
 	}
 	var result struct {
 		Devices []struct {
@@ -122,7 +123,7 @@ func TailscaleListDevices(cfg TailscaleConfig) string {
 		} `json:"devices"`
 	}
 	if err := json.Unmarshal(data, &result); err != nil {
-		return fmt.Sprintf(`{"status":"ok","raw":%s}`, string(data))
+		return marshalToolJSON(map[string]interface{}{"status": "ok", "raw": jsonRawOrString(data)})
 	}
 	type devSummary struct {
 		ID        string   `json:"id"`
@@ -158,39 +159,39 @@ func TailscaleListDevices(cfg TailscaleConfig) string {
 // TailscaleGetDevice returns full details for a device looked up by node ID, hostname, or IP.
 func TailscaleGetDevice(cfg TailscaleConfig, query string) string {
 	if query == "" {
-		return `{"status":"error","message":"device query (hostname, IP, or node ID) is required"}`
+		return errJSON("device query (hostname, IP, or node ID) is required")
 	}
 	deviceID, err := tailscaleFindDeviceID(cfg, query)
 	if err != nil {
-		return fmt.Sprintf(`{"status":"error","message":"Device lookup failed: %v"}`, err)
+		return errJSON("Device lookup failed: %v", err)
 	}
 	data, code, rerr := tailscaleRequest(cfg, "GET", fmt.Sprintf("/api/v2/device/%s", deviceID), "")
 	if rerr != nil {
-		return fmt.Sprintf(`{"status":"error","message":"Failed to get device: %v"}`, rerr)
+		return errJSON("Failed to get device: %v", rerr)
 	}
 	if code != 200 {
-		return fmt.Sprintf(`{"status":"error","http_code":%d,"body":%q}`, code, string(data))
+		return marshalToolJSON(map[string]interface{}{"status": "error", "http_code": code, "body": string(data)})
 	}
-	return fmt.Sprintf(`{"status":"ok","device":%s}`, string(data))
+	return marshalToolJSON(map[string]interface{}{"status": "ok", "device": jsonRawOrString(data)})
 }
 
 // TailscaleGetRoutes returns the subnet routes (advertised and enabled) for a device.
 func TailscaleGetRoutes(cfg TailscaleConfig, query string) string {
 	if query == "" {
-		return `{"status":"error","message":"device query (hostname, IP, or node ID) is required"}`
+		return errJSON("device query (hostname, IP, or node ID) is required")
 	}
 	deviceID, err := tailscaleFindDeviceID(cfg, query)
 	if err != nil {
-		return fmt.Sprintf(`{"status":"error","message":"Device lookup failed: %v"}`, err)
+		return errJSON("Device lookup failed: %v", err)
 	}
 	data, code, rerr := tailscaleRequest(cfg, "GET", fmt.Sprintf("/api/v2/device/%s/routes", deviceID), "")
 	if rerr != nil {
-		return fmt.Sprintf(`{"status":"error","message":"Failed to get routes: %v"}`, rerr)
+		return errJSON("Failed to get routes: %v", rerr)
 	}
 	if code != 200 {
-		return fmt.Sprintf(`{"status":"error","http_code":%d,"body":%q}`, code, string(data))
+		return marshalToolJSON(map[string]interface{}{"status": "error", "http_code": code, "body": string(data)})
 	}
-	return fmt.Sprintf(`{"status":"ok","device_id":%q,"routes":%s}`, deviceID, string(data))
+	return marshalToolJSON(map[string]interface{}{"status": "ok", "device_id": deviceID, "routes": jsonRawOrString(data)})
 }
 
 // TailscaleSetRoutes enables or disables specific subnet routes for a device.
@@ -198,24 +199,24 @@ func TailscaleGetRoutes(cfg TailscaleConfig, query string) string {
 // enable=true adds them to the approved set; enable=false removes them.
 func TailscaleSetRoutes(cfg TailscaleConfig, query string, routes []string, enable bool) string {
 	if query == "" {
-		return `{"status":"error","message":"device query is required"}`
+		return errJSON("device query is required")
 	}
 	if len(routes) == 0 {
-		return `{"status":"error","message":"at least one route (CIDR) is required"}`
+		return errJSON("at least one route (CIDR) is required")
 	}
 	deviceID, err := tailscaleFindDeviceID(cfg, query)
 	if err != nil {
-		return fmt.Sprintf(`{"status":"error","message":"Device lookup failed: %v"}`, err)
+		return errJSON("Device lookup failed: %v", err)
 	}
 	endpoint := fmt.Sprintf("/api/v2/device/%s/routes", deviceID)
 
 	// Fetch current enabled routes so we can do a delta update.
 	current, code, rerr := tailscaleRequest(cfg, "GET", endpoint, "")
 	if rerr != nil {
-		return fmt.Sprintf(`{"status":"error","message":"Failed to fetch current routes: %v"}`, rerr)
+		return errJSON("Failed to fetch current routes: %v", rerr)
 	}
 	if code != 200 {
-		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":"Failed to fetch current routes"}`, code)
+		return marshalToolJSON(map[string]interface{}{"status": "error", "http_code": code, "message": "Failed to fetch current routes"})
 	}
 	var routeData struct {
 		EnabledRoutes []string `json:"enabledRoutes"`
@@ -229,7 +230,7 @@ func TailscaleSetRoutes(cfg TailscaleConfig, query string, routes []string, enab
 			continue
 		}
 		if _, _, cidrErr := net.ParseCIDR(r); cidrErr != nil {
-			return fmt.Sprintf(`{"status":"error","message":"Invalid CIDR %q: %v"}`, r, cidrErr)
+			return errJSON("Invalid CIDR %q: %v", r, cidrErr)
 		}
 	}
 
@@ -256,17 +257,16 @@ func TailscaleSetRoutes(cfg TailscaleConfig, query string, routes []string, enab
 	body, _ := json.Marshal(map[string]interface{}{"routes": newRoutes})
 	respData, code2, rerr2 := tailscaleRequest(cfg, "POST", endpoint, string(body))
 	if rerr2 != nil {
-		return fmt.Sprintf(`{"status":"error","message":"Failed to set routes: %v"}`, rerr2)
+		return errJSON("Failed to set routes: %v", rerr2)
 	}
 	if code2 != 200 {
-		return fmt.Sprintf(`{"status":"error","http_code":%d,"body":%q}`, code2, string(respData))
+		return marshalToolJSON(map[string]interface{}{"status": "error", "http_code": code2, "body": string(respData)})
 	}
 	action := "enabled"
 	if !enable {
 		action = "disabled"
 	}
-	return fmt.Sprintf(`{"status":"ok","message":"Routes %s successfully","device_id":%q,"result":%s}`,
-		action, deviceID, string(respData))
+	return marshalToolJSON(map[string]interface{}{"status": "ok", "message": fmt.Sprintf("Routes %s successfully", action), "device_id": deviceID, "result": jsonRawOrString(respData)})
 }
 
 // TailscaleGetDNS returns the DNS nameserver configuration for the tailnet.
@@ -274,12 +274,12 @@ func TailscaleGetDNS(cfg TailscaleConfig) string {
 	endpoint := fmt.Sprintf("/api/v2/tailnet/%s/dns/nameservers", tailscaleTailnet(cfg))
 	data, code, err := tailscaleRequest(cfg, "GET", endpoint, "")
 	if err != nil {
-		return fmt.Sprintf(`{"status":"error","message":"Failed to get DNS: %v"}`, err)
+		return errJSON("Failed to get DNS: %v", err)
 	}
 	if code != 200 {
-		return fmt.Sprintf(`{"status":"error","http_code":%d,"body":%q}`, code, string(data))
+		return marshalToolJSON(map[string]interface{}{"status": "error", "http_code": code, "body": string(data)})
 	}
-	return fmt.Sprintf(`{"status":"ok","dns":%s}`, string(data))
+	return marshalToolJSON(map[string]interface{}{"status": "ok", "dns": jsonRawOrString(data)})
 }
 
 // TailscaleGetACL returns the current ACL policy document for the tailnet.
@@ -287,32 +287,34 @@ func TailscaleGetACL(cfg TailscaleConfig) string {
 	endpoint := fmt.Sprintf("/api/v2/tailnet/%s/acl", tailscaleTailnet(cfg))
 	data, code, err := tailscaleRequest(cfg, "GET", endpoint, "")
 	if err != nil {
-		return fmt.Sprintf(`{"status":"error","message":"Failed to get ACL: %v"}`, err)
+		return errJSON("Failed to get ACL: %v", err)
 	}
 	if code != 200 {
-		return fmt.Sprintf(`{"status":"error","http_code":%d,"body":%q}`, code, string(data))
+		return marshalToolJSON(map[string]interface{}{"status": "error", "http_code": code, "body": string(data)})
 	}
-	return fmt.Sprintf(`{"status":"ok","acl":%s}`, string(data))
+	return marshalToolJSON(map[string]interface{}{"status": "ok", "acl": jsonRawOrString(data)})
 }
 
 // TailscaleLocalStatus queries the Tailscale daemon running on the same host as AuraGo
 // via the local API (http://127.0.0.1:41112). Only available if Tailscale is installed locally.
 func TailscaleLocalStatus() string {
-	client := &http.Client{Timeout: 5 * time.Second}
 	req, err := http.NewRequest("GET", "http://127.0.0.1:41112/localapi/v0/status", nil)
 	if err != nil {
-		return fmt.Sprintf(`{"status":"error","message":"Failed to create request: %v"}`, err)
+		return errJSON("Failed to create request: %v", err)
 	}
 	// Tailscale local API requires a capability header.
 	req.Header.Set("Tailscale-Cap", "72")
-	resp, err := client.Do(req)
+	resp, err := tailscaleLocalHTTPClient.Do(req)
 	if err != nil {
-		return fmt.Sprintf(`{"status":"error","message":"Local Tailscale daemon not reachable (is Tailscale installed on this host?): %v"}`, err)
+		return errJSON("Local Tailscale daemon not reachable (is Tailscale installed on this host?): %v", err)
 	}
 	defer resp.Body.Close()
-	data, _ := io.ReadAll(resp.Body)
+	data, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
+	if err != nil {
+		return errJSON("Failed to read local daemon response: %v", err)
+	}
 	if resp.StatusCode != 200 {
-		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":"Local daemon query failed"}`, resp.StatusCode)
+		return marshalToolJSON(map[string]interface{}{"status": "error", "http_code": resp.StatusCode, "message": "Local daemon query failed"})
 	}
 	// Parse and present a concise summary.
 	var status struct {
@@ -336,7 +338,7 @@ func TailscaleLocalStatus() string {
 		} `json:"Peer"`
 	}
 	if err := json.Unmarshal(data, &status); err != nil {
-		return fmt.Sprintf(`{"status":"ok","raw":%s}`, string(data))
+		return marshalToolJSON(map[string]interface{}{"status": "ok", "raw": jsonRawOrString(data)})
 	}
 	type peerSummary struct {
 		Hostname string   `json:"hostname"`

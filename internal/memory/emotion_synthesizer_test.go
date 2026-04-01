@@ -531,3 +531,45 @@ func TestTimeOfDay(t *testing.T) {
 		t.Errorf("unexpected TimeOfDay result: %q", result)
 	}
 }
+
+func TestApplyExternalStatePersistsAndCaches(t *testing.T) {
+	es := newTestSynthesizer(&mockEmotionClient{})
+	stm := newTestEmotionDB(t)
+
+	state := &EmotionState{
+		Description:              "I feel steady and ready to help.",
+		PrimaryMood:              MoodFocused,
+		SecondaryMood:            "calm",
+		Valence:                  0.2,
+		Arousal:                  0.3,
+		Confidence:               0.8,
+		Cause:                    "the request is clear",
+		RecommendedResponseStyle: "calm_and_precise",
+	}
+
+	if err := es.ApplyExternalState(stm, state, "clear user request"); err != nil {
+		t.Fatalf("ApplyExternalState: %v", err)
+	}
+
+	last := es.GetLastEmotion()
+	if last == nil {
+		t.Fatal("expected cached emotion state")
+	}
+	if last.Description != state.Description {
+		t.Fatalf("cached description = %q, want %q", last.Description, state.Description)
+	}
+	if last.Timestamp.IsZero() {
+		t.Fatal("expected timestamp to be set")
+	}
+
+	entries, err := stm.GetEmotionHistory(24)
+	if err != nil {
+		t.Fatalf("GetEmotionHistory: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("expected 1 persisted entry, got %d", len(entries))
+	}
+	if entries[0].Description != state.Description {
+		t.Fatalf("persisted description = %q, want %q", entries[0].Description, state.Description)
+	}
+}

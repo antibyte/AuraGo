@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"strings"
@@ -14,9 +13,16 @@ import (
 	"aurago/internal/config"
 )
 
+var visionHTTPClient = &http.Client{Timeout: 60 * time.Second}
+
 // AnalyzeImageWithPrompt sends an image file to the configured Vision LLM for analysis.
 // The prompt parameter controls what the model should focus on.
 func AnalyzeImageWithPrompt(filePath, prompt string, cfg *config.Config) (string, error) {
+	resolvedPath, err := resolveToolInputPath(filePath, cfg)
+	if err != nil {
+		return "", fmt.Errorf("invalid image file path: %w", err)
+	}
+
 	// Resolved by config.ResolveProviders (falls back to main LLM)
 	apiKey := cfg.Vision.APIKey
 	baseURL := cfg.Vision.BaseURL
@@ -27,13 +33,13 @@ func AnalyzeImageWithPrompt(filePath, prompt string, cfg *config.Config) (string
 	}
 
 	// Read and base64-encode the image
-	imageData, err := os.ReadFile(filePath)
+	imageData, err := os.ReadFile(resolvedPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to read image file: %w", err)
 	}
 
 	mimeType := "image/jpeg"
-	lower := strings.ToLower(filePath)
+	lower := strings.ToLower(resolvedPath)
 	switch {
 	case strings.HasSuffix(lower, ".png"):
 		mimeType = "image/png"
@@ -95,15 +101,17 @@ func AnalyzeImageWithPrompt(filePath, prompt string, cfg *config.Config) (string
 	req.Header.Set("HTTP-Referer", "https://github.com/andre/aurago")
 	req.Header.Set("X-Title", "AuraGo")
 
-	client := &http.Client{Timeout: 60 * time.Second}
-	resp, err := client.Do(req)
+	resp, err := visionHTTPClient.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("vision request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
+		if err != nil {
+			return "", fmt.Errorf("vision API error (status %d) and failed to read response body: %w", resp.StatusCode, err)
+		}
 		return "", fmt.Errorf("vision API error (status %d): %s", resp.StatusCode, string(body))
 	}
 

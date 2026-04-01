@@ -120,6 +120,40 @@ func (es *EmotionSynthesizer) GetLastEmotion() *EmotionState {
 	return es.lastState
 }
 
+// ApplyExternalState validates, caches, and persists an already synthesized emotion state.
+func (es *EmotionSynthesizer) ApplyExternalState(stm *SQLiteMemory, state *EmotionState, triggerSummary string) error {
+	if es == nil {
+		return fmt.Errorf("emotion synthesizer is nil")
+	}
+	if state == nil {
+		return fmt.Errorf("emotion state is nil")
+	}
+
+	stateCopy := *state
+	if stateCopy.Timestamp.IsZero() {
+		stateCopy.Timestamp = time.Now()
+	}
+	if err := validateEmotionState(&stateCopy); err != nil {
+		return fmt.Errorf("validate external emotion state: %w", err)
+	}
+
+	es.mu.Lock()
+	es.lastCall = time.Now()
+	es.lastState = &stateCopy
+	es.mu.Unlock()
+
+	if stm != nil {
+		if len(triggerSummary) > 200 {
+			triggerSummary = triggerSummary[:200]
+		}
+		if err := stm.InsertEmotionStateHistory(stateCopy, triggerSummary); err != nil {
+			return fmt.Errorf("persist external emotion state: %w", err)
+		}
+	}
+
+	return nil
+}
+
 // sfEmotionResult is used to pass results through singleflight without using the error return channel.
 type sfEmotionResult struct {
 	state *EmotionState
@@ -191,23 +225,14 @@ func (es *EmotionSynthesizer) SynthesizeEmotion(ctx context.Context, stm *SQLite
 			es.mu.RUnlock()
 			return &sfEmotionResult{state: last, err: fmt.Errorf("emotion synthesis validation failed: %w", parseErr)}, nil
 		}
-		state.Timestamp = time.Now()
-
-		es.mu.Lock()
-		es.lastCall = time.Now()
-		es.lastState = state
-		es.mu.Unlock()
-
-		// Persist to history (best-effort).
-		if stm != nil {
-			triggerSummary := input.UserMessage
-			if len(triggerSummary) > 200 {
-				triggerSummary = triggerSummary[:200]
-			}
-			if err := stm.InsertEmotionStateHistory(*state, triggerSummary); err != nil {
-				es.logger.Warn("[EmotionSynthesizer] Failed to persist emotion history", "error", err)
-			}
+		if err := es.ApplyExternalState(stm, state, input.UserMessage); err != nil {
+			es.logger.Warn("[EmotionSynthesizer] Failed to apply emotion state", "error", err)
+			es.mu.RLock()
+			last := es.lastState
+			es.mu.RUnlock()
+			return &sfEmotionResult{state: last, err: err}, nil
 		}
+		state = es.GetLastEmotion()
 
 		es.logger.Debug("[EmotionSynthesizer] Emotion synthesized",
 			"mood", state.PrimaryMood,
@@ -435,6 +460,12 @@ func parseEmotionSynthesisResponse(raw string, fallbackMood Mood) (*EmotionState
 		return nil, err
 	}
 	return state, nil
+}
+
+// ParseStructuredEmotionState validates a structured helper emotion payload and
+// returns a normalized EmotionState that can be applied directly.
+func ParseStructuredEmotionState(raw string, fallbackMood Mood) (*EmotionState, error) {
+	return parseEmotionSynthesisResponse(raw, fallbackMood)
 }
 
 func validateEmotionState(state *EmotionState) error {

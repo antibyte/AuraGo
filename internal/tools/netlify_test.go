@@ -37,3 +37,25 @@ func TestNetlifyDeleteSiteAcceptsHTTP200And204(t *testing.T) {
 		})
 	}
 }
+
+func TestNetlifyRequestRejectsOversizedResponseBody(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(strings.Repeat("n", int(maxHTTPResponseSize)+1)))
+	}))
+	defer server.Close()
+
+	prevBaseURL := netlifyBaseURL
+	prevClient := netlifyHTTPClient
+	netlifyBaseURL = server.URL
+	netlifyHTTPClient = server.Client()
+	defer func() {
+		netlifyBaseURL = prevBaseURL
+		netlifyHTTPClient = prevClient
+	}()
+
+	_, _, err := netlifyRequest(NetlifyConfig{Token: "token"}, http.MethodGet, "/sites", nil)
+	if err == nil || !strings.Contains(err.Error(), "response body exceeds limit") {
+		t.Fatalf("expected oversized response error, got %v", err)
+	}
+}

@@ -14,6 +14,7 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/invasion"
 	"aurago/internal/inventory"
+	"aurago/internal/llm"
 	"aurago/internal/memory"
 	"aurago/internal/mqtt"
 	"aurago/internal/prompts"
@@ -921,6 +922,7 @@ func handleDashboardOverview(s *Server) http.HandlerFunc {
 			"indexing":          cfg.Indexing.Enabled,
 			"auth":              cfg.Auth.Enabled,
 			"fallback_llm":      cfg.FallbackLLM.Enabled,
+			"helper_llm":        llm.IsHelperLLMAvailable(cfg),
 			"personality_v2":    cfg.Personality.EngineV2,
 			"user_profiling":    cfg.Personality.UserProfiling,
 			"tts":               cfg.TTS.Provider != "" || cfg.TTS.Piper.Enabled,
@@ -1199,6 +1201,48 @@ func tailFile(path string, n int) ([]string, error) {
 		return allLines, nil
 	}
 	return allLines[len(allLines)-n:], nil
+}
+
+// handleDashboardHelperLLM returns Helper-LLM usage and batching metrics for the dashboard.
+func handleDashboardHelperLLM(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		s.CfgMu.RLock()
+		enabled := llm.IsHelperLLMAvailable(s.Cfg)
+		s.CfgMu.RUnlock()
+
+		snapshot := agent.SnapshotHelperLLMRuntimeStats()
+		if snapshot.Operations == nil {
+			snapshot.Operations = map[string]agent.HelperLLMOperationStats{}
+		}
+
+		totals := agent.HelperLLMOperationStats{}
+		for _, op := range snapshot.Operations {
+			totals.Requests += op.Requests
+			totals.CacheHits += op.CacheHits
+			totals.LLMCalls += op.LLMCalls
+			totals.Fallbacks += op.Fallbacks
+			totals.BatchedItems += op.BatchedItems
+			totals.SavedCalls += op.SavedCalls
+		}
+
+		response := map[string]interface{}{
+			"enabled":    enabled,
+			"updated_at": nil,
+			"totals":     totals,
+			"operations": snapshot.Operations,
+		}
+		if !snapshot.UpdatedAt.IsZero() {
+			response["updated_at"] = snapshot.UpdatedAt
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+	}
 }
 
 // handleDashboardGuardian returns LLM Guardian metrics for the dashboard card.

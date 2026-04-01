@@ -1,9 +1,12 @@
 package agent
 
 import (
-	"encoding/json"
 	"fmt"
+	"hash"
+	"hash/fnv"
 	"log/slog"
+	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/sashabaranov/go-openai"
@@ -17,6 +20,8 @@ type toolRecoveryState struct {
 	DuplicateToolCount    int
 	ToolCallFrequency     map[string]int
 }
+
+const maxTrackedToolCallSignatures = 512
 
 func newToolRecoveryState() toolRecoveryState {
 	return newToolRecoveryStateWithPolicy(defaultRecoveryPolicy())
@@ -39,39 +44,119 @@ func buildToolSignature(tc ToolCall) string {
 		dest = tc.Destination
 	}
 
-	signature := map[string]interface{}{
-		"action":            tc.Action,
-		"sub_operation":     tc.SubOperation,
-		"operation":         tc.Operation,
-		"command":           tc.Command,
-		"code":              tc.Code,
-		"path":              path,
-		"destination":       dest,
-		"pattern":           tc.Pattern,
-		"glob":              tc.Glob,
-		"query":             tc.Query,
-		"sampling_strategy": tc.SamplingStrategy,
-		"max_tokens":        tc.MaxTokens,
-		"start_line":        tc.StartLine,
-		"end_line":          tc.EndLine,
-		"line_count":        tc.LineCount,
-		"old":               tc.Old,
-		"new":               tc.New,
-		"marker":            tc.Marker,
-		"content":           tc.Content,
-		"url":               tc.URL,
-		"method":            tc.Method,
-		"params":            tc.Params,
-		"headers":           tc.Headers,
-		"skill":             tc.Skill,
-		"skill_args":        tc.SkillArgs,
-		"items":             tc.Items,
+	h := fnv.New64a()
+	writeToolSignatureField(h, "action", tc.Action)
+	writeToolSignatureField(h, "sub_operation", tc.SubOperation)
+	writeToolSignatureField(h, "operation", tc.Operation)
+	writeToolSignatureField(h, "command", tc.Command)
+	writeToolSignatureField(h, "code", tc.Code)
+	writeToolSignatureField(h, "path", path)
+	writeToolSignatureField(h, "destination", dest)
+	writeToolSignatureField(h, "pattern", tc.Pattern)
+	writeToolSignatureField(h, "glob", tc.Glob)
+	writeToolSignatureField(h, "query", tc.Query)
+	writeToolSignatureField(h, "sampling_strategy", tc.SamplingStrategy)
+	writeToolSignatureIntField(h, "max_tokens", tc.MaxTokens)
+	writeToolSignatureIntField(h, "start_line", tc.StartLine)
+	writeToolSignatureIntField(h, "end_line", tc.EndLine)
+	writeToolSignatureIntField(h, "line_count", tc.LineCount)
+	writeToolSignatureField(h, "old", tc.Old)
+	writeToolSignatureField(h, "new", tc.New)
+	writeToolSignatureField(h, "marker", tc.Marker)
+	writeToolSignatureField(h, "content", tc.Content)
+	writeToolSignatureField(h, "url", tc.URL)
+	writeToolSignatureField(h, "method", tc.Method)
+	writeToolSignatureInterfaceMap(h, "params", tc.Params)
+	writeToolSignatureStringMap(h, "headers", tc.Headers)
+	writeToolSignatureField(h, "skill", tc.Skill)
+	writeToolSignatureInterfaceMap(h, "skill_args", tc.SkillArgs)
+	writeToolSignatureItems(h, "items", tc.Items)
+	return strconv.FormatUint(h.Sum64(), 16)
+}
+
+func writeToolSignatureField(h hash.Hash64, name, value string) {
+	_, _ = h.Write([]byte(name))
+	_, _ = h.Write([]byte{0})
+	_, _ = h.Write([]byte(value))
+	_, _ = h.Write([]byte{0})
+}
+
+func writeToolSignatureIntField(h hash.Hash64, name string, value int) {
+	writeToolSignatureField(h, name, strconv.Itoa(value))
+}
+
+func writeToolSignatureStringMap(h hash.Hash64, name string, values map[string]string) {
+	if len(values) == 0 {
+		writeToolSignatureField(h, name, "")
+		return
 	}
-	raw, err := json.Marshal(signature)
-	if err != nil {
-		return tc.Action + "|" + tc.Command + "|" + tc.Code + "|" + tc.Operation + "|" + path
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
 	}
-	return string(raw)
+	sort.Strings(keys)
+	writeToolSignatureField(h, name+"#len", strconv.Itoa(len(keys)))
+	for _, key := range keys {
+		writeToolSignatureField(h, name+"."+key, values[key])
+	}
+}
+
+func writeToolSignatureInterfaceMap(h hash.Hash64, name string, values map[string]interface{}) {
+	if len(values) == 0 {
+		writeToolSignatureField(h, name, "")
+		return
+	}
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	writeToolSignatureField(h, name+"#len", strconv.Itoa(len(keys)))
+	for _, key := range keys {
+		writeToolSignatureValue(h, name+"."+key, values[key])
+	}
+}
+
+func writeToolSignatureItems(h hash.Hash64, name string, items []map[string]interface{}) {
+	writeToolSignatureField(h, name+"#len", strconv.Itoa(len(items)))
+	for index, item := range items {
+		writeToolSignatureInterfaceMap(h, name+"["+strconv.Itoa(index)+"]", item)
+	}
+}
+
+func writeToolSignatureValue(h hash.Hash64, name string, value interface{}) {
+	switch typed := value.(type) {
+	case nil:
+		writeToolSignatureField(h, name, "<nil>")
+	case string:
+		writeToolSignatureField(h, name, typed)
+	case bool:
+		writeToolSignatureField(h, name, strconv.FormatBool(typed))
+	case int:
+		writeToolSignatureField(h, name, strconv.Itoa(typed))
+	case int64:
+		writeToolSignatureField(h, name, strconv.FormatInt(typed, 10))
+	case float64:
+		writeToolSignatureField(h, name, strconv.FormatFloat(typed, 'g', -1, 64))
+	case map[string]interface{}:
+		writeToolSignatureInterfaceMap(h, name, typed)
+	case map[string]string:
+		writeToolSignatureStringMap(h, name, typed)
+	case []map[string]interface{}:
+		writeToolSignatureItems(h, name, typed)
+	case []string:
+		writeToolSignatureField(h, name+"#len", strconv.Itoa(len(typed)))
+		for index, item := range typed {
+			writeToolSignatureField(h, name+"["+strconv.Itoa(index)+"]", item)
+		}
+	case []interface{}:
+		writeToolSignatureField(h, name+"#len", strconv.Itoa(len(typed)))
+		for index, item := range typed {
+			writeToolSignatureValue(h, name+"["+strconv.Itoa(index)+"]", item)
+		}
+	default:
+		writeToolSignatureField(h, name, fmt.Sprintf("%T:%v", value, value))
+	}
 }
 
 func recoveryHintForToolFailure(tc ToolCall, resultContent string) string {
@@ -134,6 +219,9 @@ func (s *toolRecoveryState) handleDuplicateToolCall(tc ToolCall, req *openai.Cha
 	} else {
 		s.DuplicateToolCount = 0
 		s.LastToolCallSig = toolSig
+	}
+	if _, exists := s.ToolCallFrequency[toolSig]; !exists && len(s.ToolCallFrequency) >= maxTrackedToolCallSignatures {
+		s.ToolCallFrequency = make(map[string]int, maxTrackedToolCallSignatures)
 	}
 	s.ToolCallFrequency[toolSig]++
 	freqCount := s.ToolCallFrequency[toolSig]

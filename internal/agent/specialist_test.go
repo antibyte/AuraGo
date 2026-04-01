@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"os"
+	"strings"
 	"testing"
 
 	"aurago/internal/config"
@@ -107,6 +108,51 @@ func TestCheckSpecialistToolRestriction(t *testing.T) {
 			if gotBlocked != tt.blocked {
 				t.Errorf("checkSpecialistToolRestriction(%q, %q, %q) blocked=%v, want blocked=%v (msg=%q)",
 					tt.role, tt.action, tt.operation, gotBlocked, tt.blocked, result)
+			}
+		})
+	}
+}
+
+func TestDispatchInnerBlocksCoAgentSensitiveAliases(t *testing.T) {
+	tests := []struct {
+		name      string
+		tc        ToolCall
+		wantParts []string
+	}{
+		{
+			name:      "blocks secrets vault access",
+			tc:        ToolCall{Action: "secrets_vault", Operation: "get", Key: "api_key"},
+			wantParts: []string{"error", "cannot access the secrets vault"},
+		},
+		{
+			name:      "blocks remember writes",
+			tc:        ToolCall{Action: "remember", Content: "store this"},
+			wantParts: []string{"error", "cannot store new facts or memories"},
+		},
+		{
+			name:      "blocks knowledge alias mutation",
+			tc:        ToolCall{Action: "manage_knowledge", Operation: "add"},
+			wantParts: []string{"error", "cannot modify the knowledge graph"},
+		},
+		{
+			name:      "blocks notes alias mutation",
+			tc:        ToolCall{Action: "notes", Operation: "add"},
+			wantParts: []string{"error", "cannot modify notes"},
+		},
+		{
+			name:      "blocks journal alias mutation",
+			tc:        ToolCall{Action: "journal", Operation: "create"},
+			wantParts: []string{"error", "cannot modify journal entries"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := dispatchInner(context.Background(), tt.tc, &DispatchContext{SessionID: "specialist-researcher-1"})
+			for _, want := range tt.wantParts {
+				if !strings.Contains(strings.ToLower(got), strings.ToLower(want)) {
+					t.Fatalf("dispatchInner() = %q, want substring %q", got, want)
+				}
 			}
 		})
 	}
@@ -369,6 +415,31 @@ func TestBuildSpecialistDelegationHint(t *testing.T) {
 	}
 	if !contains(hint, "researcher") || !contains(hint, "writer") {
 		t.Fatalf("expected researcher and writer in hint, got %q", hint)
+	}
+}
+
+func TestBuildSpecialistDelegationHintSkipsSimpleSingleDomainPrompt(t *testing.T) {
+	cfg := specialistTestConfig()
+	cfg.CoAgents.Enabled = true
+	cfg.CoAgents.Specialists.Writer.Enabled = true
+
+	hint := buildSpecialistDelegationHint(cfg, "Write a short report about the meeting")
+	if hint != "" {
+		t.Fatalf("expected no hint for simple single-domain request, got %q", hint)
+	}
+}
+
+func TestBuildSpecialistDelegationHintSupportsExplicitSingleRoleDelegation(t *testing.T) {
+	cfg := specialistTestConfig()
+	cfg.CoAgents.Enabled = true
+	cfg.CoAgents.Specialists.Coder.Enabled = true
+
+	hint := buildSpecialistDelegationHint(cfg, "Please delegate this implementation task to a specialist coder")
+	if hint == "" {
+		t.Fatal("expected explicit delegation hint")
+	}
+	if !contains(hint, "coder") {
+		t.Fatalf("expected coder in hint, got %q", hint)
 	}
 }
 

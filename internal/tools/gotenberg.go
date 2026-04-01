@@ -80,7 +80,7 @@ func gotenbergRequest(ctx context.Context, cfg *config.GotenbergConfig, route st
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
 	if err != nil {
 		return nil, fmt.Errorf("read gotenberg response: %w", err)
 	}
@@ -245,7 +245,7 @@ func pullDockerImage(cfg DockerConfig, image string) error {
 		return fmt.Errorf("pull request failed: %w", err)
 	}
 	defer resp.Body.Close()
-	io.ReadAll(resp.Body) // consume the streaming progress output
+	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, maxHTTPResponseSize)) // consume bounded streaming progress output
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("Docker returned HTTP %d during image pull", resp.StatusCode)
 	}
@@ -283,7 +283,10 @@ func GotenbergHealth(ctx context.Context, cfg *config.GotenbergConfig) string {
 		return gotenbergErrJSON("Gotenberg unreachable: " + err.Error())
 	}
 	defer resp.Body.Close()
-	body, _ := io.ReadAll(resp.Body)
+	body, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
+	if err != nil {
+		return gotenbergErrJSON("Failed to read health response: " + err.Error())
+	}
 	if resp.StatusCode == 200 {
 		// body is already valid JSON from Gotenberg; embed it as-is under "details".
 		// If it's not valid JSON, fall back to a plain string field.

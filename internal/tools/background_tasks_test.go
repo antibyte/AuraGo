@@ -123,3 +123,36 @@ func TestBackgroundTaskManagerWaitForEventFileChanged(t *testing.T) {
 		t.Fatalf("final status = %q, want %q", completed.Status, BackgroundTaskStatusCompleted)
 	}
 }
+
+func TestBackgroundTaskManagerCheckWaitConditionReadsRegistryWithoutManagerLock(t *testing.T) {
+	mgr := NewBackgroundTaskManager(t.TempDir(), testBackgroundTaskLogger())
+	registry := NewProcessRegistry(testBackgroundTaskLogger())
+	mgr.SetProcessRegistry(registry)
+
+	mgr.mu.Lock()
+	defer mgr.mu.Unlock()
+
+	resultCh := make(chan struct {
+		met bool
+		err error
+	}, 1)
+	go func() {
+		met, _, err := mgr.checkWaitCondition(WaitForEventTaskPayload{EventType: "process_exited", PID: 1234})
+		resultCh <- struct {
+			met bool
+			err error
+		}{met: met, err: err}
+	}()
+
+	select {
+	case result := <-resultCh:
+		if result.err != nil {
+			t.Fatalf("unexpected error: %v", result.err)
+		}
+		if !result.met {
+			t.Fatal("expected missing process to be treated as exited")
+		}
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("expected checkWaitCondition to read process registry without waiting on manager mutex")
+	}
+}

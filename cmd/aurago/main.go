@@ -53,6 +53,10 @@ func main() {
 		sandbox.RunHelper(os.Args[2])
 		os.Exit(126) // only reached if RunHelper's exec fails
 	}
+	if len(os.Args) > 1 && os.Args[1] == "--sandbox-exec-bin" {
+		sandbox.RunExecHelper()
+		os.Exit(126)
+	}
 
 	var debug bool
 	var runSetup bool
@@ -227,7 +231,7 @@ func main() {
 	promptspkg.EnsurePromptsDir(cfg.Directories.PromptsDir, appLog)
 
 	// Configure execution timeouts from config
-	tools.ConfigureTimeouts(cfg.Tools.PythonTimeoutSeconds, cfg.Tools.SkillTimeoutSeconds)
+	tools.ConfigureTimeouts(cfg.Tools.PythonTimeoutSeconds, cfg.Tools.SkillTimeoutSeconds, cfg.Tools.BackgroundTimeoutSeconds)
 
 	// Maintenance lock setup (uses DataDir)
 	tools.SetBusyFilePath(filepath.Join(cfg.Directories.DataDir, "maintenance.lock"))

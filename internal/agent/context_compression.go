@@ -99,7 +99,7 @@ func CompressHistory(
 		role := m.Role
 		content := m.Content
 		if len(content) > 500 {
-			content = content[:500] + "…"
+			content = truncateUTF8ToLimit(content, 503, "...")
 		}
 		fmt.Fprintf(&transcript, "[%s]: %s\n", role, content)
 	}

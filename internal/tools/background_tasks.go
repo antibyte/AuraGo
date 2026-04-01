@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -98,7 +99,7 @@ type BackgroundTaskManager struct {
 	tasks        map[string]*BackgroundTask
 	logger       *slog.Logger
 	httpClient   *http.Client
-	registry     *ProcessRegistry
+	registry     atomic.Pointer[ProcessRegistry]
 	executor     func(prompt string, timeout time.Duration) error
 	notifier     func(title, body string)
 	ctx          context.Context
@@ -151,9 +152,7 @@ func (m *BackgroundTaskManager) SetLoopbackExecutor(fn func(prompt string, timeo
 }
 
 func (m *BackgroundTaskManager) SetProcessRegistry(registry *ProcessRegistry) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.registry = registry
+	m.registry.Store(registry)
 }
 
 func (m *BackgroundTaskManager) SetNotifier(fn func(title, body string)) {
@@ -456,13 +455,11 @@ func (m *BackgroundTaskManager) checkWaitCondition(payload WaitForEventTaskPaylo
 		if payload.PID <= 0 {
 			return false, "", fmt.Errorf("wait_for_event process_exited requires pid")
 		}
-		m.mu.Lock()
-		registry := m.registry
-		m.mu.Unlock()
+		registry := m.registry.Load()
 		if registry == nil {
 			return false, "", fmt.Errorf("process registry is unavailable")
 		}
-		if info, ok := registry.Get(payload.PID); ok && info != nil && info.Alive {
+		if info, ok := registry.Get(payload.PID); ok && info != nil && info.IsAlive() {
 			return false, fmt.Sprintf("process %d is still running", payload.PID), nil
 		}
 		return true, fmt.Sprintf("process %d exited", payload.PID), nil

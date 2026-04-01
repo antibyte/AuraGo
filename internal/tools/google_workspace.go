@@ -78,7 +78,10 @@ func (c *GWorkspaceClient) refreshIfNeeded() error {
 	}
 	defer resp.Body.Close()
 
-	body, _ := io.ReadAll(resp.Body)
+	body, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
+	if err != nil {
+		return fmt.Errorf("failed to read token response: %w", err)
+	}
 	if resp.StatusCode != 200 {
 		return fmt.Errorf("token refresh failed (HTTP %d): %s", resp.StatusCode, string(body))
 	}
@@ -137,7 +140,7 @@ func (c *GWorkspaceClient) request(method, rawURL string, body interface{}) ([]b
 	}
 	defer resp.Body.Close()
 
-	respBody, err := io.ReadAll(resp.Body)
+	respBody, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
 	if err != nil {
 		return nil, resp.StatusCode, fmt.Errorf("failed to read response: %w", err)
 	}

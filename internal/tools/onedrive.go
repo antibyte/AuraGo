@@ -88,7 +88,10 @@ func (c *OneDriveClient) refreshIfNeeded() error {
 	}
 	defer resp.Body.Close()
 
-	body, _ := io.ReadAll(resp.Body)
+	body, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
+	if err != nil {
+		return fmt.Errorf("failed to read token refresh response: %w", err)
+	}
 	if resp.StatusCode != 200 {
 		return fmt.Errorf("token refresh failed (HTTP %d): %s", resp.StatusCode, string(body))
 	}
@@ -153,7 +156,7 @@ func (c *OneDriveClient) request(method, rawURL string, body interface{}) ([]byt
 	}
 	defer resp.Body.Close()
 
-	respBody, err := io.ReadAll(resp.Body)
+	respBody, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
 	if err != nil {
 		return nil, resp.StatusCode, fmt.Errorf("failed to read response: %w", err)
 	}
@@ -367,7 +370,10 @@ func (c *OneDriveClient) readFile(path string) string {
 	}
 
 	if resp.StatusCode != 200 {
-		body, _ := io.ReadAll(resp.Body)
+		body, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
+		if err != nil {
+			return odErrJSON("Read failed (HTTP %d) and response body could not be read safely: %v", resp.StatusCode, err)
+		}
 		return odErrJSON("Read failed (HTTP %d): %s", resp.StatusCode, string(body))
 	}
 
@@ -504,7 +510,10 @@ func (c *OneDriveClient) uploadFile(path, content string) string {
 	}
 	defer resp.Body.Close()
 
-	body, _ := io.ReadAll(resp.Body)
+	body, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
+	if err != nil {
+		return odErrJSON("Upload response read failed: %v", err)
+	}
 	if resp.StatusCode != 200 && resp.StatusCode != 201 {
 		return odErrJSON("Upload failed (HTTP %d): %s", resp.StatusCode, string(body))
 	}

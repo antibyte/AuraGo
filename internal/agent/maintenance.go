@@ -120,8 +120,13 @@ func runMaintenanceTask(cfg *config.Config, logger *slog.Logger, client llm.Chat
 		}
 	}
 
+	maintenanceBatchDone := false
+	if shortTermMem != nil && kg != nil && cfg.Tools.Journal.Enabled && cfg.Journal.DailySummary && cfg.Tools.KnowledgeGraph.Enabled && cfg.Tools.KnowledgeGraph.AutoExtraction {
+		maintenanceBatchDone = runBatchedMaintenanceSummaryAndKG(cfg, logger, shortTermMem, kg)
+	}
+
 	// Journal: generate daily summary from today's journal entries
-	if cfg.Tools.Journal.Enabled && cfg.Journal.DailySummary && shortTermMem != nil {
+	if !maintenanceBatchDone && cfg.Tools.Journal.Enabled && cfg.Journal.DailySummary && shortTermMem != nil {
 		generateDailySummary(cfg, logger, client, shortTermMem)
 	}
 
@@ -144,7 +149,7 @@ func runMaintenanceTask(cfg *config.Config, logger *slog.Logger, client llm.Chat
 	}
 
 	// Knowledge Graph: nightly batch entity extraction from recent conversations
-	if cfg.Tools.KnowledgeGraph.Enabled && cfg.Tools.KnowledgeGraph.AutoExtraction && kg != nil && shortTermMem != nil {
+	if !maintenanceBatchDone && cfg.Tools.KnowledgeGraph.Enabled && cfg.Tools.KnowledgeGraph.AutoExtraction && kg != nil && shortTermMem != nil {
 		extractKGEntities(cfg, logger, client, shortTermMem, kg)
 	}
 
@@ -295,24 +300,26 @@ func generateDailySummary(cfg *config.Config, logger *slog.Logger, client llm.Ch
 		return
 	}
 
-	// Build context for LLM
-	var sb strings.Builder
-	for _, e := range entries {
-		sb.WriteString(fmt.Sprintf("- [%s] %s: %s\n", e.EntryType, e.Title, e.Content))
-	}
+	journalInput := buildDailySummaryJournalInput(entries)
 
 	prompt := fmt.Sprintf(`Summarize the following activity log from today (%s) in 2-3 concise sentences.
 Focus on: what was accomplished, key decisions, and notable events.
 Output ONLY the summary text, no JSON or formatting.
 
 Activity log:
-%s`, today, sb.String())
+%s`, today, journalInput)
+
+	summaryClient, summaryModel := resolveHelperBackedLLM(cfg, client, cfg.LLM.Model)
+	if summaryClient == nil || summaryModel == "" {
+		logger.Warn("[Journal] Daily summary skipped: no helper/main LLM available")
+		return
+	}
 
 	resp, err := llm.ExecuteWithRetry(
 		context.Background(),
-		client,
+		summaryClient,
 		openai.ChatCompletionRequest{
-			Model: cfg.LLM.Model,
+			Model: summaryModel,
 			Messages: []openai.ChatCompletionMessage{
 				{Role: openai.ChatMessageRoleSystem, Content: "You are a concise activity summarizer. Output ONLY 2-3 sentences."},
 				{Role: openai.ChatMessageRoleUser, Content: prompt},
@@ -323,17 +330,64 @@ Activity log:
 		nil,
 	)
 	if err != nil || len(resp.Choices) == 0 {
-		logger.Warn("[Journal] Failed to generate daily summary via LLM", "error", err)
+		logger.Warn("[Journal] Failed to generate daily summary via LLM", "error", err, "model", summaryModel)
+		return
+	}
+
+	storeDailySummaryText(stm, logger, today, entries, resp.Choices[0].Message.Content)
+	return
+}
+
+func uniqueTopics(in []string) []string {
+	seen := make(map[string]bool)
+	out := make([]string, 0, len(in))
+	for _, s := range in {
+		if !seen[s] {
+			seen[s] = true
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
+func buildDailySummaryJournalInput(entries []memory.JournalEntry) string {
+	var sb strings.Builder
+	for _, e := range entries {
+		sb.WriteString(fmt.Sprintf("- [%s] %s: %s\n", e.EntryType, e.Title, e.Content))
+	}
+	return strings.TrimSpace(sb.String())
+}
+
+func buildKGConversationExcerpt(messages []openai.ChatCompletionMessage) string {
+	var sb strings.Builder
+	for _, m := range messages {
+		if m.Role == "system" || strings.TrimSpace(m.Content) == "" {
+			continue
+		}
+		content := m.Content
+		if len(content) > 500 {
+			content = truncateUTF8ToLimit(content, 503, "...")
+		}
+		sb.WriteString(fmt.Sprintf("[%s]: %s\n", m.Role, content))
+		if sb.Len() > 8000 {
+			break
+		}
+	}
+	return strings.TrimSpace(sb.String())
+}
+
+func storeDailySummaryText(stm *memory.SQLiteMemory, logger *slog.Logger, today string, entries []memory.JournalEntry, summaryText string) {
+	summaryText = strings.TrimSpace(summaryText)
+	if stm == nil || summaryText == "" {
 		return
 	}
 
 	summary := memory.DailySummary{
 		Date:      today,
-		Summary:   resp.Choices[0].Message.Content,
+		Summary:   summaryText,
 		Sentiment: "neutral",
 	}
 
-	// Gather tool usage stats from journal tags
 	toolUsage := make(map[string]int)
 	var topics []string
 	for _, e := range entries {
@@ -349,31 +403,91 @@ Activity log:
 
 	if err := stm.InsertDailySummary(summary); err != nil {
 		logger.Error("[Journal] Failed to store daily summary", "error", err)
-	} else {
-		logger.Info("[Journal] Daily summary stored", "date", today)
-		anchor := summary.Summary
-		if idx := strings.Index(anchor, "."); idx > 20 {
-			anchor = strings.TrimSpace(anchor[:idx+1])
-		}
-		if len(anchor) > 220 {
-			anchor = strings.TrimSpace(anchor[:220]) + "…"
-		}
-		if err := stm.UpsertDayAnchor(today, anchor); err != nil {
-			logger.Warn("[Journal] Failed to store day anchor", "error", err)
-		}
+		return
+	}
+
+	logger.Info("[Journal] Daily summary stored", "date", today)
+	anchor := summary.Summary
+	if idx := strings.Index(anchor, "."); idx > 20 {
+		anchor = strings.TrimSpace(anchor[:idx+1])
+	}
+	if len(anchor) > 220 {
+		anchor = strings.TrimSpace(anchor[:220]) + "..."
+	}
+	if err := stm.UpsertDayAnchor(today, anchor); err != nil {
+		logger.Warn("[Journal] Failed to store day anchor", "error", err)
 	}
 }
 
-func uniqueTopics(in []string) []string {
-	seen := make(map[string]bool)
-	out := make([]string, 0, len(in))
-	for _, s := range in {
-		if !seen[s] {
-			seen[s] = true
-			out = append(out, s)
-		}
+func storeKGExtraction(logger *slog.Logger, kg *memory.KnowledgeGraph, nodes []memory.Node, edges []memory.Edge) {
+	if kg == nil {
+		return
 	}
-	return out
+	if len(nodes) == 0 && len(edges) == 0 {
+		logger.Debug("[KG] No entities extracted")
+		return
+	}
+
+	for i := range nodes {
+		if nodes[i].Properties == nil {
+			nodes[i].Properties = make(map[string]string)
+		}
+		nodes[i].Properties["source"] = "auto_extraction"
+		nodes[i].Properties["extracted_at"] = time.Now().Format("2006-01-02")
+	}
+
+	if err := kg.BulkAddEntities(nodes, edges); err != nil {
+		logger.Error("[KG] Failed to bulk-add extracted entities", "error", err)
+		return
+	}
+
+	logger.Info("[KG] Nightly entity extraction complete", "nodes", len(nodes), "edges", len(edges))
+}
+
+func runBatchedMaintenanceSummaryAndKG(cfg *config.Config, logger *slog.Logger, stm *memory.SQLiteMemory, kg *memory.KnowledgeGraph) bool {
+	helperManager := newHelperLLMManager(cfg, logger)
+	if helperManager == nil || stm == nil || kg == nil {
+		return false
+	}
+
+	today := time.Now().Format("2006-01-02")
+	if existing, _ := stm.GetDailySummary(today); existing != nil {
+		return false
+	}
+
+	entries, err := stm.GetJournalEntries(today, today, nil, 50)
+	if err != nil || len(entries) == 0 {
+		return false
+	}
+	messages, err := stm.GetRecentMessages("default", 100)
+	if err != nil || len(messages) == 0 {
+		return false
+	}
+
+	journalInput := buildDailySummaryJournalInput(entries)
+	conversationInput := buildKGConversationExcerpt(messages)
+	if journalInput == "" || len(conversationInput) < 50 {
+		return false
+	}
+
+	batchCtx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
+
+	result, err := helperManager.AnalyzeMaintenanceSummaryAndKG(batchCtx, today, journalInput, conversationInput)
+	if err != nil {
+		helperManager.ObserveFallback("maintenance_summary_kg", err.Error())
+		logger.Debug("[HelperLLM] Maintenance summary/KG batch failed, falling back", "error", err)
+		return false
+	}
+	if result.DailySummary == "" {
+		helperManager.ObserveFallback("maintenance_summary_kg", "empty daily summary")
+		logger.Debug("[HelperLLM] Maintenance batch returned empty daily summary, falling back")
+		return false
+	}
+
+	storeDailySummaryText(stm, logger, today, entries, result.DailySummary)
+	storeKGExtraction(logger, kg, result.KGExtraction.Nodes, result.KGExtraction.Edges)
+	return true
 }
 
 // extractKGEntities performs nightly batch entity extraction from the past 24h of messages.
@@ -386,24 +500,8 @@ func extractKGEntities(cfg *config.Config, logger *slog.Logger, client llm.ChatC
 		return
 	}
 
-	// Build conversation excerpt for the LLM
-	var sb strings.Builder
-	for _, m := range messages {
-		if m.Role == "system" || m.Content == "" {
-			continue
-		}
-		// Cap individual messages
-		content := m.Content
-		if len(content) > 500 {
-			content = content[:500] + "..."
-		}
-		sb.WriteString(fmt.Sprintf("[%s]: %s\n", m.Role, content))
-		if sb.Len() > 8000 {
-			break
-		}
-	}
-
-	if sb.Len() < 50 {
+	conversationExcerpt := buildKGConversationExcerpt(messages)
+	if len(conversationExcerpt) < 50 {
 		logger.Debug("[KG] Not enough conversation content for entity extraction")
 		return
 	}
@@ -423,13 +521,19 @@ Rules:
 - Maximum 15 nodes and 20 edges
 
 Conversation:
-%s`, sb.String())
+%s`, conversationExcerpt)
+
+	kgClient, kgModel := resolveHelperBackedLLM(cfg, client, cfg.LLM.Model)
+	if kgClient == nil || kgModel == "" {
+		logger.Warn("[KG] Entity extraction skipped: no helper/main LLM available")
+		return
+	}
 
 	resp, err := llm.ExecuteWithRetry(
 		context.Background(),
-		client,
+		kgClient,
 		openai.ChatCompletionRequest{
-			Model: cfg.LLM.Model,
+			Model: kgModel,
 			Messages: []openai.ChatCompletionMessage{
 				{Role: openai.ChatMessageRoleSystem, Content: "You are an entity extraction engine. Output ONLY valid JSON, no markdown fences."},
 				{Role: openai.ChatMessageRoleUser, Content: prompt},
@@ -440,20 +544,12 @@ Conversation:
 		nil,
 	)
 	if err != nil || len(resp.Choices) == 0 {
-		logger.Warn("[KG] Entity extraction LLM call failed", "error", err)
+		logger.Warn("[KG] Entity extraction LLM call failed", "error", err, "model", kgModel)
 		return
 	}
 
 	// Parse the LLM response
-	rawJSON := resp.Choices[0].Message.Content
-	// Strip markdown fences if present
-	rawJSON = strings.TrimSpace(rawJSON)
-	if strings.HasPrefix(rawJSON, "```") {
-		lines := strings.Split(rawJSON, "\n")
-		if len(lines) > 2 {
-			rawJSON = strings.Join(lines[1:len(lines)-1], "\n")
-		}
-	}
+	rawJSON := trimJSONResponse(resp.Choices[0].Message.Content)
 
 	var extracted struct {
 		Nodes []memory.Node `json:"nodes"`
@@ -464,26 +560,129 @@ Conversation:
 		return
 	}
 
-	if len(extracted.Nodes) == 0 && len(extracted.Edges) == 0 {
-		logger.Debug("[KG] No entities extracted")
-		return
+	storeKGExtraction(logger, kg, extracted.Nodes, extracted.Edges)
+}
+
+const helperConsolidationBatchSize = 2
+
+type consolidationWorkItem struct {
+	batchID      string
+	messages     []memory.ArchivedMessage
+	messageIDs   []int64
+	conversation string
+}
+
+func buildConsolidationWorkItem(index int, batch []memory.ArchivedMessage) consolidationWorkItem {
+	var sb strings.Builder
+	messageIDs := make([]int64, 0, len(batch))
+	for _, msg := range batch {
+		sb.WriteString(fmt.Sprintf("[%s] %s: %s\n", msg.Timestamp, msg.Role, msg.Content))
+		messageIDs = append(messageIDs, msg.ID)
+	}
+	return consolidationWorkItem{
+		batchID:      fmt.Sprintf("batch_%d", index+1),
+		messages:     batch,
+		messageIDs:   messageIDs,
+		conversation: strings.TrimSpace(sb.String()),
+	}
+}
+
+func extractConsolidationFactsWithLLM(logger *slog.Logger, client llm.ChatClient, model, conversation string) ([]helperConsolidationFact, error) {
+	prompt := fmt.Sprintf(`Analyze the following conversation excerpt and extract the most important knowledge.
+Return ONLY valid JSON with this exact structure:
+{
+  "facts": [
+    {"concept": "Short topic title", "content": "Detailed factual information extracted"}
+  ]
+}
+
+Rules:
+- Extract concrete facts, decisions, user preferences, technical details, and actionable knowledge
+- Each fact should be self-contained and understandable without the original conversation
+- Concept should be a brief 2-5 word topic label
+- Content should preserve specific details: names, versions, paths, commands, configurations
+- Skip generic pleasantries, acknowledgments, and obvious context
+- Maximum 10 facts per batch
+- If no meaningful facts exist, return {"facts": []}
+
+Conversation:
+%s`, conversation)
+
+	resp, err := llm.ExecuteWithRetry(
+		context.Background(),
+		client,
+		openai.ChatCompletionRequest{
+			Model: model,
+			Messages: []openai.ChatCompletionMessage{
+				{Role: openai.ChatMessageRoleSystem, Content: "You are a knowledge extraction engine. Extract factual knowledge from conversations. Output ONLY valid JSON, no markdown fences."},
+				{Role: openai.ChatMessageRoleUser, Content: prompt},
+			},
+			MaxTokens: 1000,
+		},
+		logger,
+		nil,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("llm extraction failed: %w", err)
+	}
+	if len(resp.Choices) == 0 {
+		return nil, fmt.Errorf("llm extraction returned no choices")
 	}
 
-	// Mark extracted nodes with source metadata
-	for i := range extracted.Nodes {
-		if extracted.Nodes[i].Properties == nil {
-			extracted.Nodes[i].Properties = make(map[string]string)
+	var extracted struct {
+		Facts []helperConsolidationFact `json:"facts"`
+	}
+	if err := json.Unmarshal([]byte(trimJSONResponse(resp.Choices[0].Message.Content)), &extracted); err != nil {
+		return nil, fmt.Errorf("json parse failed: %w", err)
+	}
+	return extracted.Facts, nil
+}
+
+func storeConsolidationFacts(logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, facts []helperConsolidationFact) int {
+	stored := 0
+	for _, fact := range facts {
+		if fact.Concept == "" || fact.Content == "" {
+			continue
 		}
-		extracted.Nodes[i].Properties["source"] = "auto_extraction"
-		extracted.Nodes[i].Properties["extracted_at"] = time.Now().Format("2006-01-02")
+		ids, err := ltm.StoreDocument(fact.Concept, fact.Content)
+		if err != nil {
+			logger.Warn("[Consolidation] Failed to store fact in LTM", "concept", fact.Concept, "error", err)
+			continue
+		}
+		for _, id := range ids {
+			_ = stm.UpsertMemoryMetaWithDetails(id, memory.MemoryMetaUpdate{
+				ExtractionConfidence: 0.82,
+				VerificationStatus:   "unverified",
+				SourceType:           "consolidation",
+				SourceReliability:    0.82,
+			})
+		}
+		detectMemoryConflictsForDocIDs(logger, stm, ltm, ids, fact.Content)
+		stored++
 	}
+	return stored
+}
 
-	if err := kg.BulkAddEntities(extracted.Nodes, extracted.Edges); err != nil {
-		logger.Error("[KG] Failed to bulk-add extracted entities", "error", err)
+func recordConsolidationBatchEpisode(stm *memory.SQLiteMemory, batch []memory.ArchivedMessage, factsCount, batchIndex, batchTotal int) {
+	if stm == nil || len(batch) == 0 {
 		return
 	}
-
-	logger.Info("[KG] Nightly entity extraction complete", "nodes", len(extracted.Nodes), "edges", len(extracted.Edges))
+	eventDate := time.Now().Format("2006-01-02")
+	if len(batch[0].Timestamp) >= 10 {
+		eventDate = batch[0].Timestamp[:10]
+	}
+	episodeTitle := "Consolidated conversation batch"
+	episodeSummary := fmt.Sprintf("%d messages, %d facts extracted", len(batch), factsCount)
+	episodeDetails := map[string]string{
+		"session_id": batch[0].SessionID,
+		"batch":      fmt.Sprintf("%d/%d", batchIndex, batchTotal),
+	}
+	_ = stm.InsertEpisodicMemoryWithDetails(eventDate, episodeTitle, episodeSummary, episodeDetails, 2, "consolidation", memory.EpisodicMemoryDetails{
+		SessionID:        batch[0].SessionID,
+		HierarchyLevel:   1,
+		Participants:     []string{"user", "agent"},
+		EmotionalValence: 0,
+	})
 }
 
 // consolidateSTMtoLTM extracts knowledge from archived STM messages and stores it in the VectorDB.
@@ -523,119 +722,72 @@ func consolidateSTMtoLTM(cfg *config.Config, logger *slog.Logger, client llm.Cha
 
 	totalStored := 0
 	var allConsolidatedIDs []int64
-	consolidationModel := resolveConsolidationModel(cfg)
-
+	consolidationClient, consolidationModel := resolveHelperBackedLLM(cfg, client, resolveConsolidationModel(cfg))
+	if consolidationClient == nil || consolidationModel == "" {
+		logger.Warn("[Consolidation] STM->LTM consolidation skipped: no helper/main LLM available")
+		return
+	}
+	helperManager := newHelperLLMManager(cfg, logger)
+	workItems := make([]consolidationWorkItem, 0, len(batches))
 	for i, batch := range batches {
-		// Build conversation text from batch
-		var sb strings.Builder
-		var batchIDs []int64
-		for _, msg := range batch {
-			sb.WriteString(fmt.Sprintf("[%s] %s: %s\n", msg.Timestamp, msg.Role, msg.Content))
-			batchIDs = append(batchIDs, msg.ID)
+		workItems = append(workItems, buildConsolidationWorkItem(i, batch))
+	}
+
+	processWorkItem := func(item consolidationWorkItem, batchIndex int) {
+		facts, err := extractConsolidationFactsWithLLM(logger, consolidationClient, consolidationModel, item.conversation)
+		if err != nil {
+			logger.Warn("[Consolidation] LLM extraction failed for batch", "batch", batchIndex, "error", err)
+			_ = stm.MarkConsolidationFailure(item.messageIDs, err.Error())
+			return
 		}
+		totalStored += storeConsolidationFacts(logger, stm, ltm, facts)
+		recordConsolidationBatchEpisode(stm, item.messages, len(facts), batchIndex, len(workItems))
+		allConsolidatedIDs = append(allConsolidatedIDs, item.messageIDs...)
+	}
 
-		prompt := fmt.Sprintf(`Analyze the following conversation excerpt and extract the most important knowledge.
-Return ONLY valid JSON with this exact structure:
-{
-  "facts": [
-    {"concept": "Short topic title", "content": "Detailed factual information extracted"}
-  ]
-}
-
-Rules:
-- Extract concrete facts, decisions, user preferences, technical details, and actionable knowledge
-- Each fact should be self-contained and understandable without the original conversation
-- Concept should be a brief 2-5 word topic label
-- Content should preserve specific details: names, versions, paths, commands, configurations
-- Skip generic pleasantries, acknowledgments, and obvious context
-- Maximum 10 facts per batch
-- If no meaningful facts exist, return {"facts": []}
-
-Conversation:
-%s`, sb.String())
-
-		resp, err := llm.ExecuteWithRetry(
-			context.Background(),
-			client,
-			openai.ChatCompletionRequest{
-				Model: consolidationModel,
-				Messages: []openai.ChatCompletionMessage{
-					{Role: openai.ChatMessageRoleSystem, Content: "You are a knowledge extraction engine. Extract factual knowledge from conversations. Output ONLY valid JSON, no markdown fences."},
-					{Role: openai.ChatMessageRoleUser, Content: prompt},
-				},
-				MaxTokens: 1000,
-			},
-			logger,
-			nil,
-		)
-		if err != nil || len(resp.Choices) == 0 {
-			logger.Warn("[Consolidation] LLM extraction failed for batch", "batch", i+1, "error", err)
-			_ = stm.MarkConsolidationFailure(batchIDs, fmt.Sprintf("llm extraction failed: %v", err))
+	for i := 0; i < len(workItems); {
+		if helperManager == nil {
+			processWorkItem(workItems[i], i+1)
+			i++
 			continue
 		}
 
-		// Parse LLM response
-		rawJSON := strings.TrimSpace(resp.Choices[0].Message.Content)
-		if strings.HasPrefix(rawJSON, "```") {
-			lines := strings.Split(rawJSON, "\n")
-			if len(lines) > 2 {
-				rawJSON = strings.Join(lines[1:len(lines)-1], "\n")
-			}
+		end := i + helperConsolidationBatchSize
+		if end > len(workItems) {
+			end = len(workItems)
 		}
 
-		var extracted struct {
-			Facts []struct {
-				Concept string `json:"concept"`
-				Content string `json:"content"`
-			} `json:"facts"`
+		inputs := make([]helperConsolidationBatchInput, 0, end-i)
+		group := workItems[i:end]
+		for _, item := range group {
+			inputs = append(inputs, helperConsolidationBatchInput{
+				BatchID:      item.batchID,
+				Conversation: item.conversation,
+			})
 		}
-		if err := json.Unmarshal([]byte(rawJSON), &extracted); err != nil {
-			logger.Warn("[Consolidation] Failed to parse extraction JSON", "batch", i+1, "error", err)
-			_ = stm.MarkConsolidationFailure(batchIDs, fmt.Sprintf("json parse failed: %v", err))
+
+		result, err := helperManager.AnalyzeConsolidationBatches(context.Background(), inputs)
+		if err != nil {
+			helperManager.ObserveFallback("consolidation_batches", err.Error())
+			logger.Debug("[HelperLLM] Consolidation batch failed, falling back", "start_batch", i+1, "error", err)
+			for offset, item := range group {
+				processWorkItem(item, i+offset+1)
+			}
+			i = end
 			continue
 		}
 
-		// Store extracted facts in VectorDB
-		for _, fact := range extracted.Facts {
-			if fact.Concept == "" || fact.Content == "" {
-				continue
-			}
-			ids, err := ltm.StoreDocument(fact.Concept, fact.Content)
-			if err != nil {
-				logger.Warn("[Consolidation] Failed to store fact in LTM", "concept", fact.Concept, "error", err)
-				continue
-			}
-			// Track metadata for priority-based forgetting
-			for _, id := range ids {
-				_ = stm.UpsertMemoryMetaWithDetails(id, memory.MemoryMetaUpdate{
-					ExtractionConfidence: 0.82,
-					VerificationStatus:   "unverified",
-					SourceType:           "consolidation",
-					SourceReliability:    0.82,
-				})
-			}
-			detectMemoryConflictsForDocIDs(logger, stm, ltm, ids, fact.Content)
-			totalStored++
+		byID := make(map[string][]helperConsolidationFact, len(result.Batches))
+		for _, batchResult := range result.Batches {
+			byID[batchResult.BatchID] = batchResult.Facts
 		}
-
-		eventDate := time.Now().Format("2006-01-02")
-		if len(batch) > 0 && len(batch[0].Timestamp) >= 10 {
-			eventDate = batch[0].Timestamp[:10]
+		for offset, item := range group {
+			facts := byID[item.batchID]
+			totalStored += storeConsolidationFacts(logger, stm, ltm, facts)
+			recordConsolidationBatchEpisode(stm, item.messages, len(facts), i+offset+1, len(workItems))
+			allConsolidatedIDs = append(allConsolidatedIDs, item.messageIDs...)
 		}
-		episodeTitle := "Consolidated conversation batch"
-		episodeSummary := fmt.Sprintf("%d messages, %d facts extracted", len(batch), len(extracted.Facts))
-		episodeDetails := map[string]string{
-			"session_id": batch[0].SessionID,
-			"batch":      fmt.Sprintf("%d/%d", i+1, len(batches)),
-		}
-		_ = stm.InsertEpisodicMemoryWithDetails(eventDate, episodeTitle, episodeSummary, episodeDetails, 2, "consolidation", memory.EpisodicMemoryDetails{
-			SessionID:        batch[0].SessionID,
-			HierarchyLevel:   1,
-			Participants:     []string{"user", "agent"},
-			EmotionalValence: 0,
-		})
-
-		allConsolidatedIDs = append(allConsolidatedIDs, batchIDs...)
+		i = end
 	}
 
 	// Mark all processed messages as consolidated
@@ -680,10 +832,23 @@ func resolveConsolidationModel(cfg *config.Config) string {
 	if cfg == nil {
 		return ""
 	}
+	if helperCfg := llm.ResolveHelperLLM(cfg); helperCfg.Enabled && helperCfg.Model != "" {
+		return helperCfg.Model
+	}
 	if model := strings.TrimSpace(cfg.Consolidation.Model); model != "" {
 		return model
 	}
 	return strings.TrimSpace(cfg.LLM.Model)
+}
+
+func resolveHelperBackedLLM(cfg *config.Config, fallbackClient llm.ChatClient, fallbackModel string) (llm.ChatClient, string) {
+	if helperCfg := llm.ResolveHelperLLM(cfg); helperCfg.Enabled && helperCfg.Model != "" {
+		helperClient := llm.NewClientFromProvider(helperCfg.ProviderType, helperCfg.BaseURL, helperCfg.APIKey)
+		if helperClient != nil {
+			return helperClient, helperCfg.Model
+		}
+	}
+	return fallbackClient, strings.TrimSpace(fallbackModel)
 }
 
 func consolidateEpisodicHierarchy(logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, kg *memory.KnowledgeGraph) {
@@ -884,41 +1049,123 @@ func autoOptimizeMemory(cfg *config.Config, logger *slog.Logger, client llm.Chat
 	}
 
 	// Compress medium-priority documents
+	optimizeClient, optimizeModel := resolveHelperBackedLLM(cfg, client, cfg.LLM.Model)
+	if optimizeClient == nil || optimizeModel == "" {
+		logger.Warn("[AutoOptimize] Compression skipped: no helper/main LLM available")
+		return
+	}
+	helperManager := newHelperLLMManager(cfg, logger)
+	type compressionWorkItem struct {
+		docID    string
+		content  string
+		concept  string
+		memoryID string
+	}
+	workItems := make([]compressionWorkItem, 0, len(mediumDocs))
 	for _, docID := range mediumDocs {
 		content, err := ltm.GetByID(docID)
 		if err != nil || len(content) < 300 {
 			continue
 		}
+		concept := "Compressed Memory"
+		parts := strings.SplitN(content, "\n\n", 2)
+		if len(parts) == 2 {
+			concept = parts[0]
+		}
+		workItems = append(workItems, compressionWorkItem{
+			docID:    docID,
+			content:  content,
+			concept:  concept,
+			memoryID: fmt.Sprintf("mem_%d", len(workItems)+1),
+		})
+	}
+
+	compressOne := func(item compressionWorkItem) {
 		resp, err := llm.ExecuteWithRetry(
 			context.Background(),
-			client,
+			optimizeClient,
 			openai.ChatCompletionRequest{
-				Model: cfg.LLM.Model,
+				Model: optimizeModel,
 				Messages: []openai.ChatCompletionMessage{
 					{Role: openai.ChatMessageRoleSystem, Content: "Compress this memory into a dense bullet-point list of core facts. Output ONLY the compressed text."},
-					{Role: openai.ChatMessageRoleUser, Content: content},
+					{Role: openai.ChatMessageRoleUser, Content: item.content},
 				},
 				MaxTokens: 500,
 			},
 			logger,
 			nil,
 		)
-		if err == nil && len(resp.Choices) > 0 {
-			compressed := resp.Choices[0].Message.Content
-			parts := strings.SplitN(content, "\n\n", 2)
-			concept := "Compressed Memory"
-			if len(parts) == 2 {
-				concept = parts[0]
-			}
-			newIDs, err2 := ltm.StoreDocument(concept, compressed)
-			if err2 == nil {
-				_ = ltm.DeleteDocument(docID)
-				_ = stm.DeleteMemoryMeta(docID)
-				for _, newID := range newIDs {
-					_ = stm.UpsertMemoryMeta(newID)
-				}
+		if err != nil || len(resp.Choices) == 0 {
+			return
+		}
+		compressed := strings.TrimSpace(resp.Choices[0].Message.Content)
+		if compressed == "" {
+			return
+		}
+		newIDs, err2 := ltm.StoreDocument(item.concept, compressed)
+		if err2 == nil {
+			_ = ltm.DeleteDocument(item.docID)
+			_ = stm.DeleteMemoryMeta(item.docID)
+			for _, newID := range newIDs {
+				_ = stm.UpsertMemoryMeta(newID)
 			}
 		}
+	}
+
+	const helperCompressionBatchSize = 3
+	for i := 0; i < len(workItems); {
+		if helperManager == nil {
+			compressOne(workItems[i])
+			i++
+			continue
+		}
+
+		end := i + helperCompressionBatchSize
+		if end > len(workItems) {
+			end = len(workItems)
+		}
+		group := workItems[i:end]
+		inputs := make([]helperCompressionBatchInput, 0, len(group))
+		for _, item := range group {
+			inputs = append(inputs, helperCompressionBatchInput{
+				MemoryID: item.memoryID,
+				Content:  item.content,
+			})
+		}
+
+		result, err := helperManager.CompressMemoryBatches(context.Background(), inputs)
+		if err != nil {
+			helperManager.ObserveFallback("compress_memories", err.Error())
+			logger.Debug("[HelperLLM] Memory compression batch failed, falling back", "start_memory", i+1, "error", err)
+			for _, item := range group {
+				compressOne(item)
+			}
+			i = end
+			continue
+		}
+
+		byID := make(map[string]string, len(result.Memories))
+		for _, item := range result.Memories {
+			byID[item.MemoryID] = item.Compressed
+		}
+		for _, item := range group {
+			compressed := strings.TrimSpace(byID[item.memoryID])
+			if compressed == "" {
+				compressOne(item)
+				continue
+			}
+			newIDs, err := ltm.StoreDocument(item.concept, compressed)
+			if err != nil {
+				logger.Warn("[AutoOptimize] Failed to store compressed memory", "doc_id", item.docID, "error", err)
+				continue
+			}
+			_ = ltm.DeleteDocument(item.docID)
+			_ = stm.DeleteMemoryMeta(item.docID)
+			for _, newID := range newIDs {
+				_ = stm.UpsertMemoryMeta(newID)
+			}
+		}
+		i = end
 	}
 
 	// Optimize Knowledge Graph

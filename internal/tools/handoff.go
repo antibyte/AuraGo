@@ -28,14 +28,14 @@ func InitiateLifeboatHandover(plan string, cfg *config.Config) string {
 		p = "No specific plan provided. Transitioning to maintenance mode."
 	}
 	planPath := filepath.Join(dataDir, "current_plan.md")
-	if err := os.WriteFile(planPath, []byte(p), 0644); err != nil {
+	if err := writeSensitiveMaintenanceFile(planPath, []byte(p)); err != nil {
 		return fmt.Sprintf("Tool Output: ERROR saving plan: %v", err)
 	}
 
 	// 3. Save a minimal state.json
 	statePath := filepath.Join(dataDir, "state.json")
 	stateJSON := `{"status": "updating", "reason": "user_requested_upgrade"}`
-	if err := os.WriteFile(statePath, []byte(stateJSON), 0644); err != nil {
+	if err := writeSensitiveMaintenanceFile(statePath, []byte(stateJSON)); err != nil {
 		return fmt.Sprintf("Tool Output: ERROR saving state: %v", err)
 	}
 
@@ -61,4 +61,14 @@ func InitiateLifeboatHandover(plan string, cfg *config.Config) string {
 	}()
 
 	return "Maintenance Mode activated. Use 'initiate_handover' only when ready. The Sidecar is now waiting for your signal."
+}
+
+func writeSensitiveMaintenanceFile(path string, data []byte) error {
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		return err
+	}
+	if err := os.Chmod(path, 0o600); err != nil {
+		return err
+	}
+	return nil
 }

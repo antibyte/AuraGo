@@ -2,10 +2,12 @@ package agent
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"aurago/internal/credentials"
 	"aurago/internal/inventory"
+	"aurago/internal/remote"
 	"aurago/internal/security"
 )
 
@@ -67,5 +69,26 @@ func TestResolveDeviceSSHAccessUsesCredentialReference(t *testing.T) {
 	}
 	if string(access.Secret) != "supersecret" {
 		t.Fatalf("expected credential vault secret, got %q", string(access.Secret))
+	}
+}
+
+func TestRemoteRevokeDeviceFailsWhenStatusPersistenceFails(t *testing.T) {
+	t.Parallel()
+
+	db, err := remote.InitDB(filepath.Join(t.TempDir(), "remote.db"))
+	if err != nil {
+		t.Fatalf("init remote db: %v", err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatalf("close remote db: %v", err)
+	}
+
+	hub := remote.NewRemoteHub(db, nil, nil)
+	out := remoteRevokeDevice(hub, ToolCall{DeviceID: "device-1"}, nil)
+	if !strings.Contains(out, `"status":"error"`) {
+		t.Fatalf("expected error output, got %s", out)
+	}
+	if !strings.Contains(out, "failed to persist revoked status") {
+		t.Fatalf("expected persistence error, got %s", out)
 	}
 }

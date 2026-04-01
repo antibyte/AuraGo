@@ -230,3 +230,28 @@ func TestExecuteFilesystemCreateDirBatch(t *testing.T) {
 		}
 	}
 }
+
+func TestSecureResolvePlainWorkspaceRejectsParentEscape(t *testing.T) {
+	workdir := t.TempDir()
+	_, err := secureResolve(workdir, filepath.Join("..", "outside.txt"))
+	if err == nil {
+		t.Fatal("expected escape error")
+	}
+}
+
+func TestFilesystemRootsDetectAgentWorkspaceAncestor(t *testing.T) {
+	root := t.TempDir()
+	workdir := filepath.Join(root, "nested", "agent_workspace", "workdir")
+	if err := os.MkdirAll(workdir, 0o755); err != nil {
+		t.Fatalf("mkdir workdir: %v", err)
+	}
+
+	workspaceRoot, projectRoot := filesystemRoots(workdir)
+	wantProjectRoot := filepath.Join(root, "nested")
+	if workspaceRoot != workdir {
+		t.Fatalf("workspaceRoot = %q, want %q", workspaceRoot, workdir)
+	}
+	if projectRoot != wantProjectRoot {
+		t.Fatalf("projectRoot = %q, want %q", projectRoot, wantProjectRoot)
+	}
+}

@@ -57,6 +57,11 @@ func validateSkillName(name string) (string, error) {
 	return name, nil
 }
 
+// ValidateSkillShortcutName validates a skill name coming from a native skill__ shortcut.
+func ValidateSkillShortcutName(name string) (string, error) {
+	return validateSkillName(name)
+}
+
 func validateSkillCode(code string) error {
 	if strings.TrimSpace(code) == "" {
 		return fmt.Errorf("skill code is required")

@@ -7,6 +7,22 @@ import (
 	"testing"
 )
 
+func TestNormalizeSudoStderrRemovesLocalizedPrompt(t *testing.T) {
+	stderr := "[sudo] Passwort fuer andi: permission denied"
+	got := normalizeSudoStderr(stderr)
+	if got != "permission denied" {
+		t.Fatalf("normalizeSudoStderr() = %q, want %q", got, "permission denied")
+	}
+}
+
+func TestNormalizeSudoStderrLeavesRegularErrors(t *testing.T) {
+	stderr := "permission denied"
+	got := normalizeSudoStderr(stderr)
+	if got != stderr {
+		t.Fatalf("normalizeSudoStderr() = %q, want %q", got, stderr)
+	}
+}
+
 func TestExecuteShell(t *testing.T) {
 	workspaceDir, err := os.MkdirTemp("", "shell_test")
 	if err != nil {
