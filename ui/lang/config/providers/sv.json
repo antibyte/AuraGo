@@ -90,12 +90,12 @@
   "config.providers.account_id_help": "Ditt Cloudflare Account ID (finns i instrumentpanelens URL eller API-inställningar).",
   "config.providers.account_id_empty_error": "Konto-ID krävs för Workers AI.",
   "config.providers.workers_ai_url_auto": "URL genereras automatiskt från Konto-ID.",
-  "config.providers.error": "Error",
-  "config.providers.free_badge": "Free",
-  "config.providers.cost_input_output": "Cost (input/output)",
-  "config.providers.context_label": "Context",
-  "config.providers.input_label": "Input",
-  "config.providers.output_label": "Output",
-  "config.providers.tokens_suffix": "tokens",
-  "config.providers.meshcentral_test_title": "MeshCentral connection test"
+  "config.providers.error": "Fel",
+  "config.providers.free_badge": "GRATIS",
+  "config.providers.cost_input_output": "Kostnad (inmatning/utmatning)",
+  "config.providers.context_label": "Kontext",
+  "config.providers.input_label": "Inmatning",
+  "config.providers.output_label": "Utmatning",
+  "config.providers.tokens_suffix": "token",
+  "config.providers.meshcentral_test_title": "MeshCentral-anslutningstest"
 }

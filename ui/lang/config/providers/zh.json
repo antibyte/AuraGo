@@ -90,12 +90,12 @@
   "config.providers.account_id_help": "您的 Cloudflare 账户 ID（可在仪表板 URL 或 API 设置中找到）。",
   "config.providers.account_id_empty_error": "Workers AI 需要账户 ID。",
   "config.providers.workers_ai_url_auto": "URL 由账户 ID 自动生成。",
-  "config.providers.error": "Error",
-  "config.providers.free_badge": "Free",
-  "config.providers.cost_input_output": "Cost (input/output)",
-  "config.providers.context_label": "Context",
-  "config.providers.input_label": "Input",
-  "config.providers.output_label": "Output",
-  "config.providers.tokens_suffix": "tokens",
-  "config.providers.meshcentral_test_title": "MeshCentral connection test"
+  "config.providers.error": "错误",
+  "config.providers.free_badge": "免费",
+  "config.providers.cost_input_output": "成本（输入/输出）",
+  "config.providers.context_label": "上下文",
+  "config.providers.input_label": "输入",
+  "config.providers.output_label": "输出",
+  "config.providers.tokens_suffix": "令牌",
+  "config.providers.meshcentral_test_title": "MeshCentral 连接测试"
 }

@@ -310,5 +310,5 @@
   "help.personality.emotion_synthesizer.trigger_always": "Synthese activeren na elke V2-analyse.",
   "help.webdav.auth_type": "Kies of AuraGo Basic Auth met gebruikersnaam en wachtwoord moet gebruiken, of een Bearer-token.",
   "help.webdav.token": "Bearer-token voor servers die een Authorization: Bearer …-header verwachten. Wordt veilig opgeslagen in Vault.",
-  "help.ai_gateway.token": "Optional Cloudflare AI Gateway token for authenticated gateways. Stored securely in the encrypted vault and sent as the cf-aig-authorization header."
+  "help.ai_gateway.token": "Optionele Cloudflare AI Gateway-token voor geauthenticeerde gateways. Wordt veilig opgeslagen in de versleutelde vault en verzonden als cf-aig-authorization-header."
 }

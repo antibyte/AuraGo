@@ -310,5 +310,5 @@
   "help.personality.emotion_synthesizer.trigger_always": "全V2分析後に合成をトリガー。",
   "help.webdav.auth_type": "AuraGo がユーザー名とパスワードによる Basic Auth を使うか、Bearer トークンを使うかを選択します。",
   "help.webdav.token": "Authorization: Bearer … ヘッダーを要求するサーバー向けの Bearer トークンです。Vault に安全に保存されます。",
-  "help.ai_gateway.token": "Optional Cloudflare AI Gateway token for authenticated gateways. Stored securely in the encrypted vault and sent as the cf-aig-authorization header."
+  "help.ai_gateway.token": "認証付きゲートウェイ向けの任意の Cloudflare AI Gateway トークン。暗号化された vault に安全に保存され、cf-aig-authorization ヘッダーとして送信されます。"
 }

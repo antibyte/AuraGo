@@ -8,6 +8,6 @@
   "config.ai_gateway.disabled_notice": "AI Gateway is uitgeschakeld",
   "config.ai_gateway.disabled_desc": "Schakel de optie in om LLM-verzoeken via Cloudflare AI Gateway te routeren.",
   "config.ai_gateway.info": "Routeert alle LLM API-verzoeken via Cloudflare AI Gateway. Biedt caching, snelheidslimiet, logging en failover. Lokale providers (Ollama) zijn uitgesloten.",
-  "config.ai_gateway.token": "Gateway token",
+  "config.ai_gateway.token": "Gateway-token",
   "config.ai_gateway.token_placeholder": "cf-aig-..."
 }

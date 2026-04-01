@@ -8,6 +8,6 @@
   "config.ai_gateway.disabled_notice": "Το AI Gateway είναι απενεργοποιημένο",
   "config.ai_gateway.disabled_desc": "Ενεργοποιήστε τον διακόπτη για δρομολόγηση LLM αιτημάτων μέσω Cloudflare AI Gateway.",
   "config.ai_gateway.info": "Δρομολογεί όλα τα LLM API αιτήματα μέσω Cloudflare AI Gateway. Παρέχει cache, όρια ρυθμού, καταγραφή και failover. Οι τοπικοί παρόχοι (Ollama) εξαιρούνται.",
-  "config.ai_gateway.token": "Gateway token",
+  "config.ai_gateway.token": "Token πύλης",
   "config.ai_gateway.token_placeholder": "cf-aig-..."
 }

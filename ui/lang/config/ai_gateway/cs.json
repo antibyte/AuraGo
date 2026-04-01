@@ -8,6 +8,6 @@
   "config.ai_gateway.disabled_notice": "AI Gateway je vypnutý",
   "config.ai_gateway.disabled_desc": "Zapněte přepínač pro směrování LLM požadavků přes Cloudflare AI Gateway.",
   "config.ai_gateway.info": "Směruje všechny LLM API požadavky přes Cloudflare AI Gateway. Poskytuje cache, limity, logování a failover. Lokální poskytovatelé (Ollama) jsou vyloučeni.",
-  "config.ai_gateway.token": "Gateway token",
+  "config.ai_gateway.token": "Token gatewaye",
   "config.ai_gateway.token_placeholder": "cf-aig-..."
 }

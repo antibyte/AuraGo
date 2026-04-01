@@ -8,6 +8,6 @@
   "config.ai_gateway.disabled_notice": "AI Gateway är inaktiverad",
   "config.ai_gateway.disabled_desc": "Aktivera växeln för att dirigera LLM-förfrågningar via Cloudflare AI Gateway.",
   "config.ai_gateway.info": "Dirigerar alla LLM API-förfrågningar via Cloudflare AI Gateway. Erbjuder caching, hastighetsbegränsning, loggning och failover. Lokala leverantörer (Ollama) är undantagna.",
-  "config.ai_gateway.token": "Gateway token",
+  "config.ai_gateway.token": "Gateway-token",
   "config.ai_gateway.token_placeholder": "cf-aig-..."
 }

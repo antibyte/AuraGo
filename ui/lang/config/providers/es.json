@@ -91,11 +91,11 @@
   "config.providers.account_id_empty_error": "El ID de cuenta es obligatorio para Workers AI.",
   "config.providers.workers_ai_url_auto": "La URL se genera automáticamente a partir del ID de cuenta.",
   "config.providers.error": "Error",
-  "config.providers.free_badge": "Free",
-  "config.providers.cost_input_output": "Cost (input/output)",
-  "config.providers.context_label": "Context",
-  "config.providers.input_label": "Input",
-  "config.providers.output_label": "Output",
+  "config.providers.free_badge": "GRATIS",
+  "config.providers.cost_input_output": "Costo (entrada/salida)",
+  "config.providers.context_label": "Contexto",
+  "config.providers.input_label": "Entrada",
+  "config.providers.output_label": "Salida",
   "config.providers.tokens_suffix": "tokens",
-  "config.providers.meshcentral_test_title": "MeshCentral connection test"
+  "config.providers.meshcentral_test_title": "Prueba de conexion de MeshCentral"
 }

@@ -310,5 +310,5 @@
   "help.personality.emotion_synthesizer.trigger_always": "Udløs syntese efter hver V2-stemningsanalyse.",
   "help.webdav.auth_type": "Vælg om AuraGo skal bruge Basic Auth med brugernavn og adgangskode eller en Bearer-token.",
   "help.webdav.token": "Bearer-token til servere der forventer Authorization: Bearer …. Gemmes sikkert i Vault.",
-  "help.ai_gateway.token": "Optional Cloudflare AI Gateway token for authenticated gateways. Stored securely in the encrypted vault and sent as the cf-aig-authorization header."
+  "help.ai_gateway.token": "Valgfrit Cloudflare AI Gateway-token til autentificerede gateways. Det gemmes sikkert i den krypterede vault og sendes som cf-aig-authorization-headeren."
 }

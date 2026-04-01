@@ -8,6 +8,6 @@
   "config.ai_gateway.disabled_notice": "AI Gateway er deaktivert",
   "config.ai_gateway.disabled_desc": "Aktiver bryteren for å rute LLM-forespørsler via Cloudflare AI Gateway.",
   "config.ai_gateway.info": "Ruter alle LLM API-forespørsler via Cloudflare AI Gateway. Gir caching, hastighetsbegrensning, logging og failover. Lokale leverandører (Ollama) er unntatt.",
-  "config.ai_gateway.token": "Gateway token",
+  "config.ai_gateway.token": "Gateway-token",
   "config.ai_gateway.token_placeholder": "cf-aig-..."
 }

@@ -90,12 +90,12 @@
   "config.providers.account_id_help": "Votre ID de compte Cloudflare (visible dans l'URL du tableau de bord ou les paramètres API).",
   "config.providers.account_id_empty_error": "L'ID du compte est requis pour Workers AI.",
   "config.providers.workers_ai_url_auto": "L'URL est générée automatiquement à partir de l'ID du compte.",
-  "config.providers.error": "Error",
-  "config.providers.free_badge": "Free",
-  "config.providers.cost_input_output": "Cost (input/output)",
-  "config.providers.context_label": "Context",
-  "config.providers.input_label": "Input",
-  "config.providers.output_label": "Output",
-  "config.providers.tokens_suffix": "tokens",
-  "config.providers.meshcentral_test_title": "MeshCentral connection test"
+  "config.providers.error": "Erreur",
+  "config.providers.free_badge": "GRATUIT",
+  "config.providers.cost_input_output": "Cout (entree/sortie)",
+  "config.providers.context_label": "Contexte",
+  "config.providers.input_label": "Entree",
+  "config.providers.output_label": "Sortie",
+  "config.providers.tokens_suffix": "jetons",
+  "config.providers.meshcentral_test_title": "Test de connexion MeshCentral"
 }

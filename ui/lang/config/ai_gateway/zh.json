@@ -8,6 +8,6 @@
   "config.ai_gateway.disabled_notice": "AI Gateway 已禁用",
   "config.ai_gateway.disabled_desc": "启用开关，通过 Cloudflare AI Gateway 路由 LLM 请求。",
   "config.ai_gateway.info": "将所有 LLM API 请求通过 Cloudflare AI Gateway 路由。提供缓存、速率限制、日志和故障转移。本地提供者（Ollama）除外。",
-  "config.ai_gateway.token": "Gateway token",
+  "config.ai_gateway.token": "网关令牌",
   "config.ai_gateway.token_placeholder": "cf-aig-..."
 }

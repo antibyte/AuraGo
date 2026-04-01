@@ -310,5 +310,5 @@
   "help.personality.emotion_synthesizer.trigger_always": "हर V2 विश्लेषण के बाद सिंथेसिस ट्रिगर करें।",
   "help.webdav.auth_type": "चुनें कि AuraGo को उपयोगकर्ता नाम और पासवर्ड के साथ Basic Auth उपयोग करना है या Bearer token।",
   "help.webdav.token": "उन सर्वरों के लिए Bearer token जो Authorization: Bearer … हेडर की अपेक्षा करते हैं। Vault में सुरक्षित रूप से संग्रहीत होता है।",
-  "help.ai_gateway.token": "Optional Cloudflare AI Gateway token for authenticated gateways. Stored securely in the encrypted vault and sent as the cf-aig-authorization header."
+  "help.ai_gateway.token": "प्रमाणीकृत गेटवे के लिए वैकल्पिक Cloudflare AI Gateway टोकन। यह एन्क्रिप्टेड vault में सुरक्षित रूप से संग्रहित होता है और cf-aig-authorization हेडर के रूप में भेजा जाता है।"
 }

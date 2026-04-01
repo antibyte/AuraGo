@@ -310,5 +310,5 @@
   "help.personality.emotion_synthesizer.trigger_always": "每次V2分析后触发合成。",
   "help.webdav.auth_type": "选择 AuraGo 应使用带用户名和密码的 Basic Auth，还是 Bearer Token。",
   "help.webdav.token": "用于需要 Authorization: Bearer … 头的服务器的 Bearer Token。会安全地存储在 Vault 中。",
-  "help.ai_gateway.token": "Optional Cloudflare AI Gateway token for authenticated gateways. Stored securely in the encrypted vault and sent as the cf-aig-authorization header."
+  "help.ai_gateway.token": "用于已认证网关的可选 Cloudflare AI Gateway 令牌。会安全存储在加密 vault 中，并作为 cf-aig-authorization 标头发送。"
 }

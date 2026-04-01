@@ -90,12 +90,12 @@
   "config.providers.account_id_help": "Twój identyfikator konta Cloudflare (widoczny w URL panelu lub ustawieniach API).",
   "config.providers.account_id_empty_error": "ID konta jest wymagane dla Workers AI.",
   "config.providers.workers_ai_url_auto": "URL jest generowany automatycznie z ID konta.",
-  "config.providers.error": "Error",
-  "config.providers.free_badge": "Free",
-  "config.providers.cost_input_output": "Cost (input/output)",
-  "config.providers.context_label": "Context",
-  "config.providers.input_label": "Input",
-  "config.providers.output_label": "Output",
-  "config.providers.tokens_suffix": "tokens",
-  "config.providers.meshcentral_test_title": "MeshCentral connection test"
+  "config.providers.error": "Blad",
+  "config.providers.free_badge": "DARMOWE",
+  "config.providers.cost_input_output": "Koszt (wejscie/wyjscie)",
+  "config.providers.context_label": "Kontekst",
+  "config.providers.input_label": "Wejscie",
+  "config.providers.output_label": "Wyjscie",
+  "config.providers.tokens_suffix": "tokenow",
+  "config.providers.meshcentral_test_title": "Test polaczenia MeshCentral"
 }

@@ -8,6 +8,6 @@
   "config.ai_gateway.disabled_notice": "AI Gateway est désactivé",
   "config.ai_gateway.disabled_desc": "Activez le bouton pour acheminer les requêtes LLM via Cloudflare AI Gateway pour la mise en cache, la limitation et l'analyse.",
   "config.ai_gateway.info": "Achemine toutes les requêtes API LLM via Cloudflare AI Gateway. Fournit mise en cache, limitation, journalisation et capacités de repli. Les fournisseurs locaux (Ollama) sont exclus.",
-  "config.ai_gateway.token": "Gateway token",
+  "config.ai_gateway.token": "Jeton de gateway",
   "config.ai_gateway.token_placeholder": "cf-aig-..."
 }
