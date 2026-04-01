@@ -19,7 +19,6 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/credentials"
 	"aurago/internal/inventory"
-	"aurago/internal/memory"
 	"aurago/internal/remote"
 	"aurago/internal/security"
 	"aurago/internal/tools"
@@ -493,163 +492,11 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) string 
 		if !cfg.Tools.Memory.Enabled {
 			return `Tool Output: {"status":"error","message":"Memory tools are disabled. Set tools.memory.enabled=true in config.yaml."}`
 		}
-		searchContent := tc.Content
-		if searchContent == "" {
-			searchContent = tc.Query
-		}
-		if searchContent == "" {
-			return `Tool Output: {"status": "error", "message": "'content' or 'query' (search query) is required"}`
-		}
-		perSourceLimit := tc.Limit
-		if perSourceLimit <= 0 || perSourceLimit > 20 {
-			perSourceLimit = 5
-		}
-
-		temporalRange, cleanedQuery, hasTemporalRange := memory.ParseTemporalQuery(searchContent)
-		if hasTemporalRange {
-			searchContent = cleanedQuery
-		}
-		hasSemanticQuery := strings.TrimSpace(searchContent) != ""
-
-		// Determine which sources to search
-		sourceMap := map[string]bool{"activity": true, "vector_db": true, "knowledge_graph": true, "journal": true, "episodic": true, "notes": true, "core_memory": true, "error_patterns": true}
-		if len(tc.Sources) > 0 {
-			sourceMap = map[string]bool{}
-			for _, s := range tc.Sources {
-				sourceMap[s] = true
-			}
-		}
-		logger.Info("LLM requested multi-source memory search", "query", searchContent, "sources", tc.Sources, "limit", perSourceLimit, "temporal_range", temporalRange)
-
-		var combined []memorySourceResult
-		var errors []string
-
-		if sourceMap["activity"] && shortTermMem != nil {
-			appendActivityResults(shortTermMem, searchContent, temporalRange.FromDate, temporalRange.ToDate, perSourceLimit, &combined, &errors)
-			if isActivityFocusedQuery(tc.Query) || isActivityFocusedQuery(tc.Content) || hasTemporalRange {
-				appendActivityRollupResults(shortTermMem, 7, &combined, &errors)
-			}
-		}
-
-		// ── Vector DB (long-term memory) ──
-		if sourceMap["vector_db"] && longTermMem != nil && hasSemanticQuery {
-			// query_memory should search actual long-term memories only.
-			// Tool guides and documentation are injected elsewhere in the agent loop
-			// and pollute direct user memory lookups for names/files like "Vincenzo".
-			results, _, err := longTermMem.SearchMemoriesOnly(searchContent, perSourceLimit)
-			if err != nil {
-				errors = append(errors, fmt.Sprintf("vector_db: %v", err))
-			} else if len(results) > 0 {
-				combined = append(combined, memorySourceResult{Source: "vector_db", Count: len(results), Data: results})
-			}
-		}
-
-		// ── Knowledge Graph ──
-		if sourceMap["knowledge_graph"] && kg != nil && hasSemanticQuery {
-			kgResult := kg.SearchForContext(searchContent, perSourceLimit, 2000)
-			if kgResult != "" && kgResult != "No matching entities found." {
-				combined = append(combined, memorySourceResult{Source: "knowledge_graph", Count: 1, Data: kgResult})
-			}
-		}
-
-		// ── Journal ──
-		if sourceMap["journal"] && shortTermMem != nil {
-			entries, err := shortTermMem.SearchJournalEntriesInRange(searchContent, temporalRange.FromDate, temporalRange.ToDate, perSourceLimit)
-			if err != nil {
-				errors = append(errors, fmt.Sprintf("journal: %v", err))
-			} else if len(entries) > 0 {
-				combined = append(combined, memorySourceResult{Source: "journal", Count: len(entries), Data: entries})
-			}
-		}
-
-		// ── Episodic Memories ──
-		if sourceMap["episodic"] && shortTermMem != nil {
-			entries, err := shortTermMem.SearchEpisodicMemoriesInRange(searchContent, temporalRange.FromDate, temporalRange.ToDate, perSourceLimit)
-			if err != nil {
-				errors = append(errors, fmt.Sprintf("episodic: %v", err))
-			} else if len(entries) > 0 {
-				combined = append(combined, memorySourceResult{Source: "episodic", Count: len(entries), Data: entries})
-			}
-		}
-
-		// ── Notes ──
-		if sourceMap["notes"] && shortTermMem != nil && hasSemanticQuery {
-			notes, err := shortTermMem.SearchNotes(searchContent, perSourceLimit)
-			if err != nil {
-				errors = append(errors, fmt.Sprintf("notes: %v", err))
-			} else if len(notes) > 0 {
-				combined = append(combined, memorySourceResult{Source: "notes", Count: len(notes), Data: notes})
-			}
-		}
-
-		// ── Core Memory ──
-		if sourceMap["core_memory"] && shortTermMem != nil && hasSemanticQuery {
-			facts, err := shortTermMem.GetCoreMemoryFacts()
-			if err != nil {
-				errors = append(errors, fmt.Sprintf("core_memory: %v", err))
-			} else {
-				// Filter core memory facts by query relevance (case-insensitive substring match)
-				lowerQ := strings.ToLower(searchContent)
-				var matched []memory.CoreMemoryFact
-				for _, f := range facts {
-					if strings.Contains(strings.ToLower(f.Fact), lowerQ) {
-						matched = append(matched, f)
-						if len(matched) >= perSourceLimit {
-							break
-						}
-					}
-				}
-				if len(matched) > 0 {
-					combined = append(combined, memorySourceResult{Source: "core_memory", Count: len(matched), Data: matched})
-				}
-			}
-		}
-
-		// ── Error Patterns ──
-		if sourceMap["error_patterns"] && shortTermMem != nil && hasSemanticQuery {
-			errPatterns, err := shortTermMem.GetFrequentErrors("", perSourceLimit)
-			if err != nil {
-				errors = append(errors, fmt.Sprintf("error_patterns: %v", err))
-			} else {
-				// Filter by query relevance
-				lowerQ := strings.ToLower(searchContent)
-				var matched []memory.ErrorPattern
-				for _, ep := range errPatterns {
-					if strings.Contains(strings.ToLower(ep.ToolName), lowerQ) || strings.Contains(strings.ToLower(ep.ErrorMessage), lowerQ) || strings.Contains(strings.ToLower(ep.Resolution), lowerQ) {
-						matched = append(matched, ep)
-						if len(matched) >= perSourceLimit {
-							break
-						}
-					}
-				}
-				if len(matched) > 0 {
-					combined = append(combined, memorySourceResult{Source: "error_patterns", Count: len(matched), Data: matched})
-				}
-			}
-		}
-
-		if len(combined) == 0 && len(errors) == 0 {
-			return `Tool Output: {"status": "success", "message": "No matching memories found across any source."}`
-		}
-
-		response := map[string]interface{}{
-			"status":  "success",
-			"results": combined,
-		}
-		if hasTemporalRange {
-			response["temporal_range"] = temporalRange
-			if cleanedQuery != "" && cleanedQuery != tc.Query && cleanedQuery != tc.Content {
-				response["normalized_query"] = cleanedQuery
-			}
-		}
-		if len(errors) > 0 {
-			response["errors"] = errors
-		}
-		b, err := json.Marshal(response)
+		result, err := executeQueryMemory(tc, shortTermMem, longTermMem, kg)
 		if err != nil {
-			return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Failed to serialize results: %v"}`, err)
+			return fmt.Sprintf(`Tool Output: {"status":"error","message":"query_memory failed: %v"}`, err)
 		}
-		return "Tool Output: " + string(b)
+		return result
 
 	case "context_memory":
 		if !cfg.Tools.Memory.Enabled {
@@ -662,7 +509,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) string 
 		return result
 
 	case "memory_reflect":
-		if !cfg.MemoryAnalysis.Enabled {
+		if !resolveMemoryAnalysisSettings(cfg, shortTermMem).Enabled {
 			return `Tool Output: {"status":"error","message":"Memory analysis is disabled. Enable memory_analysis.enabled in config."}`
 		}
 		scope := tc.Scope

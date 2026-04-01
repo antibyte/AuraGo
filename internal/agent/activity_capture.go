@@ -103,7 +103,8 @@ func captureActivityTurn(cfg *config.Config, logger *slog.Logger, shortTermMem *
 
 	digest := buildActivityDigest(userRequest, assistantReply, toolNames, toolSummaries, shortTermMem)
 	source := "runtime_fallback"
-	if cfg != nil && cfg.MemoryAnalysis.Enabled {
+	settings := resolveMemoryAnalysisSettings(cfg, shortTermMem)
+	if settings.Enabled && settings.RealTime {
 		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 		defer cancel()
 		if llmDigest, err := buildActivityDigestWithConfiguredClient(ctx, cfg, userRequest, assistantReply, toolNames, toolSummaries); err == nil {
@@ -157,7 +158,8 @@ func captureActivityTurn(cfg *config.Config, logger *slog.Logger, shortTermMem *
 }
 
 func buildActivityDigestWithConfiguredClient(ctx context.Context, cfg *config.Config, userRequest, assistantReply string, toolNames, toolSummaries []string) (memory.ActivityDigest, error) {
-	if cfg == nil || !cfg.MemoryAnalysis.Enabled {
+	settings := resolveMemoryAnalysisSettings(cfg, nil)
+	if !settings.Enabled || !settings.RealTime {
 		return memory.ActivityDigest{}, fmt.Errorf("memory analysis disabled")
 	}
 	client := llm.NewClientFromProvider(

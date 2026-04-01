@@ -358,6 +358,18 @@ maintenance:
     lifeboat_enabled: true
     lifeboat_port: 8091
     time: "04:00"
+consolidation:
+    enabled: true
+    auto_optimize: true
+    archive_retain_days: 30
+    max_batch_messages: 200
+    optimize_threshold: 1
+    model: ""                                             # optional override; empty = use llm.model for nightly extraction
+memory_analysis:
+    provider: ""                                          # optional provider entry ID; empty = main llm
+    model: ""                                             # optional override; empty = provider/main default
+    auto_confirm_threshold: 0.92                           # adaptive memory strategy is always active; this only tunes auto-store aggressiveness
+    reflection_day: sunday
 server:
     host: 127.0.0.1
     port: 8088

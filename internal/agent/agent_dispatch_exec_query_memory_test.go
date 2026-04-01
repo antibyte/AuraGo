@@ -229,6 +229,29 @@ func TestDispatchExecContextMemoryReturnsCombinedResults(t *testing.T) {
 	}
 }
 
+func TestDispatchExecContextMemorySupportsVectorAliasSources(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Tools.Memory.Enabled = true
+	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
+	vdb := &fakeVectorDB{}
+
+	out := dispatchExec(
+		context.Background(),
+		ToolCall{Action: "context_memory", Query: "Vincenzo", Sources: []string{"vector_db"}},
+		&DispatchContext{Cfg: cfg, Logger: logger, LongTermMem: vdb, ShortTermMem: nil},
+	)
+
+	if !vdb.searchMemoriesOnlyCalled {
+		t.Fatal("expected context_memory to use SearchMemoriesOnly via vector_db alias")
+	}
+	if !strings.Contains(out, `"source":"ltm"`) {
+		t.Fatalf("output = %q, want ltm source", out)
+	}
+	if !strings.Contains(out, "Vincenzo memory hit") {
+		t.Fatalf("output = %q, want vector memory hit", out)
+	}
+}
+
 type testWriter struct {
 	t *testing.T
 }

@@ -210,12 +210,15 @@ func handleDashboardMemory(s *Server) http.HandlerFunc {
 		errorPatternsCount, _ := s.ShortTermMem.GetErrorPatternsCount()
 		episodicStats, _ := s.ShortTermMem.GetEpisodicMemoryStats(72, 4)
 		usageStats, _ := s.ShortTermMem.GetMemoryUsageStats(14, 5)
+		pendingActions, _ := s.ShortTermMem.GetPendingEpisodicActionsForQuery("", 5)
+		memoryConflicts, _ := s.ShortTermMem.GetOpenMemoryConflicts(5)
 		memoryHealth := memory.MemoryHealthReport{
 			Usage: usageStats,
 		}
 		if metas, err := s.ShortTermMem.GetAllMemoryMeta(1000, 0); err == nil {
 			memoryHealth = memory.BuildMemoryHealthReport(metas, usageStats)
 		}
+		memoryStrategy := agent.BuildMemoryAnalysisDashboardState(s.Cfg, s.ShortTermMem)
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
@@ -227,12 +230,20 @@ func handleDashboardMemory(s *Server) http.HandlerFunc {
 				"nodes": graphNodes,
 				"edges": graphEdges,
 			},
-			"journal_entries": journalCount,
-			"notes_count":     notesCount,
-			"error_patterns":  errorPatternsCount,
-			"milestones":      milestones,
-			"episodic":        episodicStats,
-			"memory_health":   memoryHealth,
+			"journal_entries":  journalCount,
+			"notes_count":      notesCount,
+			"error_patterns":   errorPatternsCount,
+			"milestones":       milestones,
+			"episodic":         episodicStats,
+			"pending_actions":  pendingActions,
+			"memory_conflicts": memoryConflicts,
+			"memory_health": map[string]interface{}{
+				"usage":         memoryHealth.Usage,
+				"confidence":    memoryHealth.Confidence,
+				"effectiveness": memoryHealth.Effectiveness,
+				"curator":       memoryHealth.Curator,
+				"strategy":      memoryStrategy,
+			},
 		})
 	}
 }
@@ -923,7 +934,7 @@ func handleDashboardOverview(s *Server) http.HandlerFunc {
 			"s3":               cfg.S3.Enabled,
 			"mcp":              cfg.MCP.Enabled,
 			"mcp_server":       cfg.MCPServer.Enabled,
-			"memory_analysis":  cfg.MemoryAnalysis.Enabled,
+			"memory_analysis":  true,
 			"llm_guardian":     cfg.LLMGuardian.Enabled,
 			"security_proxy":   cfg.SecurityProxy.Enabled,
 			"sandbox":          cfg.Sandbox.Enabled,

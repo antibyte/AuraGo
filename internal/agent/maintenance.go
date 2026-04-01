@@ -151,6 +151,9 @@ func runMaintenanceTask(cfg *config.Config, logger *slog.Logger, client llm.Chat
 	// STM→LTM Consolidation: extract knowledge from archived messages into VectorDB
 	if cfg.Consolidation.Enabled && shortTermMem != nil && longTermMem != nil && !longTermMem.IsDisabled() {
 		consolidateSTMtoLTM(cfg, logger, client, shortTermMem, longTermMem, kg)
+		consolidateEpisodicHierarchy(logger, shortTermMem, longTermMem, kg)
+		promoteStableLongTermMemoriesToCore(logger, shortTermMem, longTermMem)
+		detectMemoryConflictsAcrossLTM(logger, shortTermMem, longTermMem)
 	}
 
 	// 1. Load Maintenance Prompt
@@ -520,6 +523,7 @@ func consolidateSTMtoLTM(cfg *config.Config, logger *slog.Logger, client llm.Cha
 
 	totalStored := 0
 	var allConsolidatedIDs []int64
+	consolidationModel := resolveConsolidationModel(cfg)
 
 	for i, batch := range batches {
 		// Build conversation text from batch
@@ -554,7 +558,7 @@ Conversation:
 			context.Background(),
 			client,
 			openai.ChatCompletionRequest{
-				Model: cfg.LLM.Model,
+				Model: consolidationModel,
 				Messages: []openai.ChatCompletionMessage{
 					{Role: openai.ChatMessageRoleSystem, Content: "You are a knowledge extraction engine. Extract factual knowledge from conversations. Output ONLY valid JSON, no markdown fences."},
 					{Role: openai.ChatMessageRoleUser, Content: prompt},
@@ -603,8 +607,14 @@ Conversation:
 			}
 			// Track metadata for priority-based forgetting
 			for _, id := range ids {
-				_ = stm.UpsertMemoryMeta(id)
+				_ = stm.UpsertMemoryMetaWithDetails(id, memory.MemoryMetaUpdate{
+					ExtractionConfidence: 0.82,
+					VerificationStatus:   "unverified",
+					SourceType:           "consolidation",
+					SourceReliability:    0.82,
+				})
 			}
+			detectMemoryConflictsForDocIDs(logger, stm, ltm, ids, fact.Content)
 			totalStored++
 		}
 
@@ -620,6 +630,7 @@ Conversation:
 		}
 		_ = stm.InsertEpisodicMemoryWithDetails(eventDate, episodeTitle, episodeSummary, episodeDetails, 2, "consolidation", memory.EpisodicMemoryDetails{
 			SessionID:        batch[0].SessionID,
+			HierarchyLevel:   1,
 			Participants:     []string{"user", "agent"},
 			EmotionalValence: 0,
 		})
@@ -665,6 +676,184 @@ Conversation:
 		"batches", len(batches))
 }
 
+func resolveConsolidationModel(cfg *config.Config) string {
+	if cfg == nil {
+		return ""
+	}
+	if model := strings.TrimSpace(cfg.Consolidation.Model); model != "" {
+		return model
+	}
+	return strings.TrimSpace(cfg.LLM.Model)
+}
+
+func consolidateEpisodicHierarchy(logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, kg *memory.KnowledgeGraph) {
+	if stm == nil || ltm == nil || ltm.IsDisabled() {
+		return
+	}
+	episodes, err := stm.GetEpisodicMemoriesByHierarchyLevel(1, 40)
+	if err != nil || len(episodes) < 2 {
+		return
+	}
+	groups := make(map[string][]memory.EpisodicMemory)
+	for _, episode := range episodes {
+		if episode.ActionStatus == "pending" {
+			continue
+		}
+		groupKey := episode.SessionID
+		if groupKey == "" {
+			groupKey = "global"
+		}
+		if len(episode.EventDate) >= 7 {
+			groupKey += "|" + episode.EventDate[:7]
+		}
+		groups[groupKey] = append(groups[groupKey], episode)
+	}
+	for groupKey, group := range groups {
+		if len(group) < 2 {
+			continue
+		}
+		summary := buildHierarchicalEpisodeSummary(group)
+		if strings.TrimSpace(summary) == "" {
+			continue
+		}
+		concept := "Hierarchical memory synthesis " + groupKey
+		ids, err := ltm.StoreDocument(concept, summary)
+		if err != nil {
+			logger.Warn("[Hierarchy] Failed to store episodic synthesis", "group", groupKey, "error", err)
+			continue
+		}
+		for _, id := range ids {
+			_ = stm.UpsertMemoryMetaWithDetails(id, memory.MemoryMetaUpdate{
+				ExtractionConfidence: 0.88,
+				VerificationStatus:   "unverified",
+				SourceType:           "hierarchical_consolidation",
+				SourceReliability:    0.9,
+			})
+		}
+		if kg != nil {
+			uniqueParticipants := uniqueHierarchyStrings(nil)
+			for _, episode := range group {
+				uniqueParticipants = uniqueHierarchyStrings(append(uniqueParticipants, episode.Participants...))
+			}
+			for _, participant := range uniqueParticipants {
+				if participant == "" {
+					continue
+				}
+				_ = kg.AddEdge(participant, concept, "appears_in_memory_synthesis", map[string]string{"group": groupKey})
+			}
+		}
+		related := make([]string, 0, len(ids))
+		related = append(related, ids...)
+		episodeIDs := make([]int64, 0, len(group))
+		for _, episode := range group {
+			episodeIDs = append(episodeIDs, episode.ID)
+			related = append(related, episode.RelatedDocIDs...)
+		}
+		_ = stm.InsertEpisodicMemoryWithDetails(group[0].EventDate, "Hierarchical memory synthesis", truncateHierarchySummary(summary, 240), map[string]string{"group": groupKey}, 3, "hierarchical_consolidation", memory.EpisodicMemoryDetails{
+			SessionID:      group[0].SessionID,
+			HierarchyLevel: 2,
+			Participants:   uniqueHierarchyParticipants(group),
+			RelatedDocIDs:  uniqueHierarchyStrings(related),
+		})
+		_ = stm.MarkEpisodicMemoriesHierarchy(episodeIDs, 2)
+	}
+}
+
+func promoteStableLongTermMemoriesToCore(logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB) {
+	if stm == nil || ltm == nil || ltm.IsDisabled() {
+		return
+	}
+	metas, err := stm.GetAllMemoryMeta(500, 0)
+	if err != nil {
+		return
+	}
+	for _, meta := range metas {
+		if meta.KeepForever || meta.Protected || meta.VerificationStatus == "contradicted" {
+			continue
+		}
+		if meta.AccessCount < 2 || meta.ExtractionConfidence < 0.85 || meta.SourceReliability < 0.8 {
+			continue
+		}
+		if meta.UsefulCount > 0 && meta.UsefulCount < meta.UselessCount {
+			continue
+		}
+		content, err := ltm.GetByID(meta.DocID)
+		if err != nil || strings.TrimSpace(content) == "" {
+			continue
+		}
+		fact := truncateHierarchySummary(strings.Join(strings.Fields(content), " "), 260)
+		if fact == "" || stm.CoreMemoryFactExists(fact) {
+			continue
+		}
+		if _, err := stm.AddCoreMemoryFact(fact); err != nil {
+			logger.Warn("[Hierarchy] Failed to promote memory to core", "doc_id", meta.DocID, "error", err)
+			continue
+		}
+		_ = stm.SetMemoryMetaProtection(meta.DocID, true, true)
+	}
+}
+
+func detectMemoryConflictsAcrossLTM(logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB) {
+	if stm == nil || ltm == nil || ltm.IsDisabled() {
+		return
+	}
+	metas, err := stm.GetAllMemoryMeta(250, 0)
+	if err != nil {
+		return
+	}
+	for _, meta := range metas {
+		detectMemoryConflictsForDocIDs(logger, stm, ltm, []string{meta.DocID}, "")
+	}
+}
+
+func buildHierarchicalEpisodeSummary(group []memory.EpisodicMemory) string {
+	if len(group) == 0 {
+		return ""
+	}
+	parts := make([]string, 0, len(group)+1)
+	parts = append(parts, fmt.Sprintf("Memory synthesis for %d related episodes:", len(group)))
+	for _, episode := range group {
+		parts = append(parts, fmt.Sprintf("- %s: %s", episode.Title, episode.Summary))
+	}
+	return strings.Join(parts, "\n")
+}
+
+func uniqueHierarchyParticipants(group []memory.EpisodicMemory) []string {
+	values := make([]string, 0, len(group)*2)
+	for _, episode := range group {
+		values = append(values, episode.Participants...)
+	}
+	return uniqueHierarchyStrings(values)
+}
+
+func uniqueHierarchyStrings(values []string) []string {
+	seen := make(map[string]struct{}, len(values))
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		out = append(out, value)
+	}
+	return out
+}
+
+func truncateHierarchySummary(value string, maxLen int) string {
+	value = strings.TrimSpace(value)
+	if maxLen <= 0 || len(value) <= maxLen {
+		return value
+	}
+	if maxLen <= 3 {
+		return value[:maxLen]
+	}
+	return value[:maxLen-3] + "..."
+}
+
 // autoOptimizeMemory runs priority-based forgetting on VectorDB and Knowledge Graph.
 func autoOptimizeMemory(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, ltm memory.VectorDB, stm *memory.SQLiteMemory, kg *memory.KnowledgeGraph) {
 	threshold := cfg.Consolidation.OptimizeThreshold
@@ -680,12 +869,7 @@ func autoOptimizeMemory(cfg *config.Config, logger *slog.Logger, client llm.Chat
 		if meta.Protected || meta.KeepForever {
 			continue
 		}
-		lastA, err := time.Parse(time.RFC3339, strings.Replace(meta.LastAccessed, " ", "T", 1)+"Z")
-		daysSince := 0
-		if err == nil {
-			daysSince = int(time.Since(lastA).Hours() / 24)
-		}
-		priority := meta.AccessCount - daysSince
+		priority := adjustedMemoryPriority(meta, time.Now())
 		if priority < threshold {
 			lowDocs = append(lowDocs, meta.DocID)
 		} else if priority < threshold+2 {

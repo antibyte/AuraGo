@@ -141,8 +141,15 @@ func Load(path string) (*Config, error) {
 	cfg.Consolidation.MaxBatchMessages = 200
 	cfg.Consolidation.OptimizeThreshold = 1
 
-	// Memory analysis defaults: disabled by default (opt-in), falls back to main LLM.
+	// Memory analysis defaults: adaptive and always active; legacy flags remain for compatibility only.
+	cfg.MemoryAnalysis.Enabled = true
+	cfg.MemoryAnalysis.Preset = "adaptive"
+	cfg.MemoryAnalysis.RealTime = true
 	cfg.MemoryAnalysis.AutoConfirm = 0.92
+	cfg.MemoryAnalysis.QueryExpansion = true
+	cfg.MemoryAnalysis.LLMReranking = true
+	cfg.MemoryAnalysis.UnifiedMemoryBlock = true
+	cfg.MemoryAnalysis.EffectivenessTracking = true
 	cfg.MemoryAnalysis.WeeklyReflection = true
 	cfg.MemoryAnalysis.ReflectionDay = "sunday"
 

@@ -3,10 +3,21 @@ package agent
 import (
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"aurago/internal/memory"
 )
+
+var memoryMetaCacheTTL = 5 * time.Minute
+var memoryMetaCacheNow = time.Now
+
+var memoryMetaCache = struct {
+	mu       sync.RWMutex
+	stm      *memory.SQLiteMemory
+	loadedAt time.Time
+	data     map[string]memory.MemoryMeta
+}{}
 
 // rankMemoryCandidates centralizes the retrieval score calculation for vector memories.
 // It combines semantic similarity, recency, confidence/provenance signals, and
@@ -42,6 +53,22 @@ func loadMemoryMetaMap(stm *memory.SQLiteMemory) map[string]memory.MemoryMeta {
 	if stm == nil {
 		return metaMap
 	}
+
+	now := memoryMetaCacheNow()
+	memoryMetaCache.mu.RLock()
+	if memoryMetaCache.stm == stm && memoryMetaCache.data != nil && now.Sub(memoryMetaCache.loadedAt) < memoryMetaCacheTTL {
+		cached := memoryMetaCache.data
+		memoryMetaCache.mu.RUnlock()
+		return cached
+	}
+	memoryMetaCache.mu.RUnlock()
+
+	memoryMetaCache.mu.Lock()
+	defer memoryMetaCache.mu.Unlock()
+	if memoryMetaCache.stm == stm && memoryMetaCache.data != nil && now.Sub(memoryMetaCache.loadedAt) < memoryMetaCacheTTL {
+		return memoryMetaCache.data
+	}
+
 	metas, err := stm.GetAllMemoryMeta(50000, 0)
 	if err != nil {
 		return metaMap
@@ -49,7 +76,18 @@ func loadMemoryMetaMap(stm *memory.SQLiteMemory) map[string]memory.MemoryMeta {
 	for _, meta := range metas {
 		metaMap[meta.DocID] = meta
 	}
+	memoryMetaCache.stm = stm
+	memoryMetaCache.loadedAt = now
+	memoryMetaCache.data = metaMap
 	return metaMap
+}
+
+func resetMemoryMetaCacheForTests() {
+	memoryMetaCache.mu.Lock()
+	defer memoryMetaCache.mu.Unlock()
+	memoryMetaCache.stm = nil
+	memoryMetaCache.loadedAt = time.Time{}
+	memoryMetaCache.data = nil
 }
 
 func calculateMemoryRankingScore(similarity float64, meta memory.MemoryMeta, reuseCount int, now time.Time) float64 {

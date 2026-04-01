@@ -356,26 +356,30 @@ type Config struct {
 		DailySummary bool `yaml:"daily_summary"` // generate daily summaries during maintenance (default true)
 	} `yaml:"journal"`
 	Consolidation struct {
-		Enabled           bool `yaml:"enabled"`             // enable nightly STM→LTM consolidation (default true)
-		AutoOptimize      bool `yaml:"auto_optimize"`       // run optimize_memory after consolidation (default true)
-		ArchiveRetainDays int  `yaml:"archive_retain_days"` // keep archived messages for N days (default 30)
-		MaxBatchMessages  int  `yaml:"max_batch_messages"`  // max messages per consolidation batch (default 200)
-		OptimizeThreshold int  `yaml:"optimize_threshold"`  // priority threshold for auto-optimize (default 1)
+		Enabled           bool   `yaml:"enabled"`             // enable nightly STM→LTM consolidation (default true)
+		AutoOptimize      bool   `yaml:"auto_optimize"`       // run optimize_memory after consolidation (default true)
+		ArchiveRetainDays int    `yaml:"archive_retain_days"` // keep archived messages for N days (default 30)
+		MaxBatchMessages  int    `yaml:"max_batch_messages"`  // max messages per consolidation batch (default 200)
+		OptimizeThreshold int    `yaml:"optimize_threshold"`  // priority threshold for auto-optimize (default 1)
+		Model             string `yaml:"model"`               // optional model override for nightly consolidation (empty = main llm model)
 	} `yaml:"consolidation"`
 	MemoryAnalysis struct {
-		Enabled          bool    `yaml:"enabled"`                // enable dedicated memory analysis provider
-		RealTime         bool    `yaml:"real_time"`              // analyze each user message for memory-worthy content
-		Provider         string  `yaml:"provider"`               // provider entry ID (falls back to main LLM)
-		Model            string  `yaml:"model"`                  // model override (optional)
-		AutoConfirm      float64 `yaml:"auto_confirm_threshold"` // confidence threshold for auto-store (default 0.92)
-		QueryExpansion   bool    `yaml:"query_expansion"`        // expand RAG queries using analysis LLM (default false)
-		LLMReranking     bool    `yaml:"llm_reranking"`          // LLM-based re-ranking of RAG candidates (default false)
-		ProviderType     string  `yaml:"-" json:"-"`             // resolved
-		BaseURL          string  `yaml:"-" json:"-"`             // resolved
-		APIKey           string  `yaml:"-" json:"-"`             // resolved
-		ResolvedModel    string  `yaml:"-" json:"-"`             // resolved
-		WeeklyReflection bool    `yaml:"weekly_reflection"`      // generate weekly reflection (default true)
-		ReflectionDay    string  `yaml:"reflection_day"`         // day for weekly reflection (default "sunday")
+		Enabled               bool    `yaml:"enabled"`                // deprecated compatibility flag; memory analysis is now adaptive and always active
+		Preset                string  `yaml:"preset"`                 // deprecated compatibility field; rollout is now adaptive
+		RealTime              bool    `yaml:"real_time"`              // deprecated compatibility field; real-time extraction is now adaptive
+		Provider              string  `yaml:"provider"`               // provider entry ID (falls back to main LLM)
+		Model                 string  `yaml:"model"`                  // model override (optional)
+		AutoConfirm           float64 `yaml:"auto_confirm_threshold"` // confidence threshold for auto-store (default 0.92)
+		QueryExpansion        bool    `yaml:"query_expansion"`        // deprecated compatibility field; retrieval tuning is now adaptive
+		LLMReranking          bool    `yaml:"llm_reranking"`          // deprecated compatibility field; retrieval tuning is now adaptive
+		UnifiedMemoryBlock    bool    `yaml:"unified_memory_block"`   // deprecated compatibility field; unified memory context is always active
+		EffectivenessTracking bool    `yaml:"effectiveness_tracking"` // deprecated compatibility field; effectiveness tracking is always active
+		ProviderType          string  `yaml:"-" json:"-"`             // resolved
+		BaseURL               string  `yaml:"-" json:"-"`             // resolved
+		APIKey                string  `yaml:"-" json:"-"`             // resolved
+		ResolvedModel         string  `yaml:"-" json:"-"`             // resolved
+		WeeklyReflection      bool    `yaml:"weekly_reflection"`      // deprecated compatibility field; weekly reflection scheduling is always active
+		ReflectionDay         string  `yaml:"reflection_day"`         // day for weekly reflection (default "sunday")
 	} `yaml:"memory_analysis"`
 	LLMGuardian struct {
 		Enabled            bool              `yaml:"enabled"`               // enable LLM-based security checks before tool execution

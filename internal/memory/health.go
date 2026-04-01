@@ -40,23 +40,36 @@ type MemoryConfidenceStats struct {
 	LowConfidence    int `json:"low_confidence"`
 }
 
+// MemoryEffectivenessStats summarizes whether injected memories tend to help or distract.
+type MemoryEffectivenessStats struct {
+	Tracked         int `json:"tracked"`
+	Untested        int `json:"untested"`
+	Helpful         int `json:"helpful"`
+	Underperforming int `json:"underperforming"`
+	TotalUseful     int `json:"total_useful"`
+	TotalUseless    int `json:"total_useless"`
+}
+
 // MemoryCuratorDryRun is a non-destructive maintenance proposal.
 type MemoryCuratorDryRun struct {
 	StaleCandidates     int      `json:"stale_candidates"`
 	VerificationBacklog int      `json:"verification_backlog"`
 	Contradictions      int      `json:"contradictions"`
 	LowConfidence       int      `json:"low_confidence"`
+	LowEffectiveness    int      `json:"low_effectiveness"`
 	OverusedMemories    int      `json:"overused_memories"`
 	TopStale            []string `json:"top_stale"`
 	TopOverused         []string `json:"top_overused"`
+	TopUnderperforming  []string `json:"top_underperforming"`
 	Suggestions         []string `json:"suggestions"`
 }
 
 // MemoryHealthReport combines retrieval, confidence, episodic, and curator signals.
 type MemoryHealthReport struct {
-	Usage      MemoryUsageStats      `json:"usage"`
-	Confidence MemoryConfidenceStats `json:"confidence"`
-	Curator    MemoryCuratorDryRun   `json:"curator"`
+	Usage         MemoryUsageStats         `json:"usage"`
+	Confidence    MemoryConfidenceStats    `json:"confidence"`
+	Effectiveness MemoryEffectivenessStats `json:"effectiveness"`
+	Curator       MemoryCuratorDryRun      `json:"curator"`
 }
 
 // GetMemoryUsageStats summarizes recent retrieval/prefetch usage from memory_usage_log.
@@ -121,9 +134,10 @@ func (s *SQLiteMemory) GetMemoryUsageStats(windowDays int, topLimit int) (Memory
 // BuildMemoryHealthReport composes a conservative health view for dashboards and dry-run curation.
 func BuildMemoryHealthReport(metas []MemoryMeta, usage MemoryUsageStats) MemoryHealthReport {
 	report := MemoryHealthReport{
-		Usage:      usage,
-		Confidence: buildMemoryConfidenceStats(metas),
-		Curator:    buildMemoryCuratorDryRun(metas, usage),
+		Usage:         usage,
+		Confidence:    buildMemoryConfidenceStats(metas),
+		Effectiveness: buildMemoryEffectivenessStats(metas),
+		Curator:       buildMemoryCuratorDryRun(metas, usage),
 	}
 	return report
 }
@@ -157,6 +171,27 @@ func buildMemoryConfidenceStats(metas []MemoryMeta) MemoryConfidenceStats {
 	return stats
 }
 
+func buildMemoryEffectivenessStats(metas []MemoryMeta) MemoryEffectivenessStats {
+	stats := MemoryEffectivenessStats{}
+	for _, meta := range metas {
+		stats.TotalUseful += meta.UsefulCount
+		stats.TotalUseless += meta.UselessCount
+
+		total := meta.UsefulCount + meta.UselessCount
+		if total == 0 {
+			stats.Untested++
+			continue
+		}
+		stats.Tracked++
+		if total >= 2 && meta.UselessCount > meta.UsefulCount {
+			stats.Underperforming++
+		} else if meta.UsefulCount > meta.UselessCount {
+			stats.Helpful++
+		}
+	}
+	return stats
+}
+
 type staleEntry struct {
 	docID string
 	score int
@@ -165,6 +200,7 @@ type staleEntry struct {
 func buildMemoryCuratorDryRun(metas []MemoryMeta, usage MemoryUsageStats) MemoryCuratorDryRun {
 	report := MemoryCuratorDryRun{}
 	stale := make([]staleEntry, 0)
+	underperforming := make([]staleEntry, 0)
 
 	for _, meta := range metas {
 		status := strings.ToLower(strings.TrimSpace(meta.VerificationStatus))
@@ -190,6 +226,16 @@ func buildMemoryCuratorDryRun(metas []MemoryMeta, usage MemoryUsageStats) Memory
 		// Count low confidence memories
 		if confidence < 0.55 {
 			report.LowConfidence++
+		}
+
+		// Count repeatedly underperforming memories so forgetting can prioritize them.
+		totalEffectiveness := meta.UsefulCount + meta.UselessCount
+		if totalEffectiveness >= 2 && meta.UselessCount > meta.UsefulCount {
+			report.LowEffectiveness++
+			underperforming = append(underperforming, staleEntry{
+				docID: meta.DocID,
+				score: meta.UselessCount - meta.UsefulCount,
+			})
 		}
 
 		// Find stale candidates (not accessed recently, low access count, not confirmed)
@@ -230,6 +276,19 @@ func buildMemoryCuratorDryRun(metas []MemoryMeta, usage MemoryUsageStats) Memory
 		report.TopStale = append(report.TopStale, item.docID)
 	}
 
+	sort.Slice(underperforming, func(i, j int) bool {
+		if underperforming[i].score == underperforming[j].score {
+			return underperforming[i].docID < underperforming[j].docID
+		}
+		return underperforming[i].score > underperforming[j].score
+	})
+	for i, item := range underperforming {
+		if i >= 5 {
+			break
+		}
+		report.TopUnderperforming = append(report.TopUnderperforming, item.docID)
+	}
+
 	// Generate suggestions
 	if report.StaleCandidates > 0 {
 		report.Suggestions = append(report.Suggestions,
@@ -246,6 +305,10 @@ func buildMemoryCuratorDryRun(metas []MemoryMeta, usage MemoryUsageStats) Memory
 	if report.OverusedMemories > 0 {
 		report.Suggestions = append(report.Suggestions,
 			fmt.Sprintf("Inspect %d repeatedly reused memories for consolidation or splitting.", report.OverusedMemories))
+	}
+	if report.LowEffectiveness > 0 {
+		report.Suggestions = append(report.Suggestions,
+			fmt.Sprintf("Review %d low-effectiveness memories first during auto-optimize or manual cleanup.", report.LowEffectiveness))
 	}
 	if len(report.Suggestions) == 0 {
 		report.Suggestions = append(report.Suggestions,

@@ -180,12 +180,10 @@ func runMemoryOrchestrator(tc ToolCall, cfg *config.Config, logger *slog.Logger,
 		}
 
 		lastA, err := time.Parse(time.RFC3339, strings.Replace(meta.LastAccessed, " ", "T", 1)+"Z")
-		daysSince := 0
-		if err == nil {
-			daysSince = int(time.Since(lastA).Hours() / 24)
-		}
+		_ = lastA
+		_ = err
 
-		priority := meta.AccessCount - daysSince
+		priority := adjustedMemoryPriority(meta, time.Now())
 
 		if priority < thresholdLow {
 			lowCount++

@@ -790,10 +790,17 @@
             const confidence = health.confidence || {};
             const usage = health.usage || {};
             const curator = health.curator || {};
+            const strategy = health.strategy || {};
             const episodic = data.episodic || {};
+            const pendingActions = Array.isArray(data.pending_actions) ? data.pending_actions : [];
+            const conflicts = Array.isArray(data.memory_conflicts) ? data.memory_conflicts : [];
 
             const summaryEl = document.getElementById('memory-health-summary');
             if (summaryEl) {
+                const modeKey = 'dashboard.memory_strategy_mode_' + String(strategy.mode || 'unavailable').toLowerCase();
+                const translatedMode = t(modeKey);
+                const modeLabel = translatedMode === modeKey ? String(strategy.mode || 'unavailable') : translatedMode;
+                const reason = strategy.reason || t('dashboard.memory_strategy_reason_empty');
                 const items = [
                     { value: Number(usage.retrieved_events || 0).toLocaleString(), label: t('dashboard.memory_health_retrieved') },
                     { value: Number(usage.predicted_events || 0).toLocaleString(), label: t('dashboard.memory_health_predicted') },
@@ -801,8 +808,21 @@
                     { value: Number(confidence.unverified || 0).toLocaleString(), label: t('dashboard.memory_health_unverified') },
                     { value: Number(curator.stale_candidates || 0).toLocaleString(), label: t('dashboard.memory_health_stale') },
                     { value: Number(episodic.recent_count || 0).toLocaleString(), label: t('dashboard.memory_health_recent_episodes') },
+                    { value: Number(pendingActions.length || 0).toLocaleString(), label: t('dashboard.memory_pending_title') },
+                    { value: Number(conflicts.length || 0).toLocaleString(), label: t('dashboard.memory_conflicts_title') },
                 ];
-                summaryEl.innerHTML = '<div class="memory-health-summary">' + items.map(item => `
+                summaryEl.innerHTML = `
+                    <div class="memory-health-strategy">
+                        <div class="memory-health-strategy-head">
+                            <span class="memory-health-strategy-label">${esc(t('dashboard.memory_strategy_mode'))}</span>
+                            <span class="memory-health-strategy-chip">${esc(modeLabel)}</span>
+                        </div>
+                        <div class="memory-health-strategy-reason-wrap">
+                            <span class="memory-health-strategy-label">${esc(t('dashboard.memory_strategy_reason'))}</span>
+                            <span class="memory-health-strategy-reason">${esc(reason)}</span>
+                        </div>
+                    </div>
+                    <div class="memory-health-summary">` + items.map(item => `
                     <div class="memory-health-item">
                         <span class="memory-health-value">${esc(item.value)}</span>
                         <span class="memory-health-label">${esc(item.label)}</span>
@@ -815,6 +835,7 @@
                 const suggestions = Array.isArray(curator.suggestions) ? curator.suggestions : [];
                 const stale = Array.isArray(curator.top_stale) ? curator.top_stale : [];
                 const overused = Array.isArray(curator.top_overused) ? curator.top_overused : [];
+                const conflictItems = conflicts.slice(0, 3);
                 const facts = [
                     t('dashboard.memory_curator_fact_verification', { count: Number(curator.verification_backlog || 0) }),
                     t('dashboard.memory_curator_fact_low_confidence', { count: Number(curator.low_confidence || 0) }),
@@ -832,16 +853,29 @@
                     '<div class="memory-curator-section"><div class="memory-curator-list">' +
                     (overused.length ? overused.slice(0, 3).map(item => `<div class="memory-curator-row mono">${esc(item)}</div>`).join('') : `<div class="memory-curator-row">${t('dashboard.memory_curator_no_overused')}</div>`) +
                     '</div></div>' +
+                    '<div class="memory-curator-section"><div class="memory-subsection-title">' + esc(t('dashboard.memory_conflicts_title')) + '</div><div class="memory-curator-list">' +
+                    (conflictItems.length ? conflictItems.map(item => `<div class="memory-curator-row"><span class="memory-conflict-pair mono">${esc(item.left_value || item.doc_id_left || '')} ↔ ${esc(item.right_value || item.doc_id_right || '')}</span><span>${esc(item.reason || '')}</span></div>`).join('') : `<div class="memory-curator-row">${t('dashboard.memory_conflicts_empty')}</div>`) +
+                    '</div></div>' +
                 '</div>';
             }
 
             const episodicEl = document.getElementById('memory-episodic-list');
             if (episodicEl) {
                 const cards = Array.isArray(episodic.recent_cards) ? episodic.recent_cards : [];
-                if (!cards.length) {
+                if (!cards.length && !pendingActions.length) {
                     episodicEl.innerHTML = `<div class="empty-state dash-empty-tight">${t('dashboard.memory_episodic_empty')}</div>`;
                 } else {
-                    episodicEl.innerHTML = '<div class="memory-episodic-list">' + cards.slice(0, 4).map(card => `
+                    const pendingHtml = '<div class="memory-episodic-subsection"><div class="memory-subsection-title">' + esc(t('dashboard.memory_pending_title')) + '</div>' + (pendingActions.length ? pendingActions.slice(0, 4).map(card => `
+                        <div class="memory-episodic-item memory-episodic-item-pending">
+                            <div class="memory-episodic-head">
+                                <span class="memory-episodic-title">${esc(card.title || '')}</span>
+                                <span class="memory-pending-chip">${esc(t('dashboard.memory_pending_title'))}</span>
+                            </div>
+                            <div class="memory-episodic-summary">${esc(card.summary || '')}</div>
+                            <div class="memory-episodic-meta"><span>${esc(card.event_date || '')}</span><span>${esc((card.trigger_query || t('dashboard.memory_pending_trigger')))}</span></div>
+                        </div>
+                    `).join('') : `<div class="empty-state dash-empty-tight">${t('dashboard.memory_pending_empty')}</div>`) + '</div>';
+                    const recentHtml = '<div class="memory-episodic-subsection"><div class="memory-subsection-title">' + esc(t('dashboard.memory_episodic_title')) + '</div>' + (cards.length ? cards.slice(0, 4).map(card => `
                         <div class="memory-episodic-item">
                             <div class="memory-episodic-head">
                                 <span class="memory-episodic-title">${esc(card.title || '')}</span>
@@ -853,7 +887,8 @@
                                 <span>${esc(Array.isArray(card.participants) && card.participants.length ? card.participants.join(', ') : t('dashboard.memory_episodic_agent_user'))}</span>
                             </div>
                         </div>
-                    `).join('') + '</div>';
+                    `).join('') : `<div class="empty-state dash-empty-tight">${t('dashboard.memory_episodic_empty')}</div>`) + '</div>';
+                    episodicEl.innerHTML = '<div class="memory-episodic-list">' + pendingHtml + recentHtml + '</div>';
                 }
             }
         }
@@ -1417,6 +1452,76 @@
             return labels[key] || key;
         }
 
+        function toolingTelemetryRetrievalLabel(key) {
+            const rawKey = String(key || '');
+            if (!rawKey) return rawKey;
+
+            const replacements = {
+                rag_auto_attempt: 'Auto-RAG searches',
+                rag_auto_hit: 'Auto-RAG hits',
+                rag_auto_miss: 'Auto-RAG misses',
+                rag_auto_filtered_out: 'Auto-RAG filtered after ranking',
+                rag_auto_error: 'Auto-RAG errors',
+                rag_predictive_attempt: 'Predictive prefetch searches',
+                rag_predictive_hit: 'Predictive prefetch hits',
+                rag_predictive_miss: 'Predictive prefetch misses',
+                rag_predictive_error: 'Predictive prefetch errors',
+            };
+            if (replacements[rawKey]) return replacements[rawKey];
+            if (rawKey.startsWith('rag_auto_source:')) {
+                return 'Auto-RAG source: ' + rawKey.split(':')[1].replaceAll('_', ' ');
+            }
+            if (rawKey.startsWith('rag_predictive_source:')) {
+                return 'Predictive source: ' + rawKey.split(':')[1].replaceAll('_', ' ');
+            }
+            if (rawKey.startsWith('rag_auto_latency:')) {
+                return 'Auto-RAG latency ' + rawKey.split(':')[1].replaceAll('_', '-');
+            }
+            if (rawKey.startsWith('rag_predictive_latency:')) {
+                return 'Predictive latency ' + rawKey.split(':')[1].replaceAll('_', '-');
+            }
+            if (rawKey.startsWith('memory_prompt_tokens:')) {
+                return 'Memory prompt tokens ' + rawKey.split(':')[1].replaceAll('_', '-');
+            }
+            if (rawKey.startsWith('memory_prompt_share:')) {
+                return 'Memory prompt share ' + rawKey.split(':')[1].replaceAll('_', '-');
+            }
+            if (rawKey.startsWith('memory_prompt_share_value:')) {
+                return 'Memory prompt share ' + rawKey.split(':')[1] + '%';
+            }
+            return rawKey;
+        }
+
+        function toolingTelemetrySummarizeRetrieval(eventMap) {
+            const entries = Object.entries(eventMap || {}).filter(([, count]) => Number(count || 0) > 0);
+            let total = 0;
+            let weightedShare = 0;
+            let weightedShareCount = 0;
+            const visibleEntries = [];
+
+            entries.forEach(([key, count]) => {
+                const numericCount = Number(count || 0);
+                total += numericCount;
+                if (String(key).startsWith('memory_prompt_share_value:')) {
+                    const share = Number(String(key).split(':')[1] || 0);
+                    if (Number.isFinite(share)) {
+                        weightedShare += share * numericCount;
+                        weightedShareCount += numericCount;
+                    }
+                    return;
+                }
+                visibleEntries.push([key, numericCount]);
+            });
+
+            visibleEntries.sort((a, b) => Number(b[1]) - Number(a[1]) || String(a[0]).localeCompare(String(b[0])));
+            return {
+                total,
+                visibleEntries,
+                avgShare: weightedShareCount > 0 ? (weightedShare / weightedShareCount) : 0,
+                primary: visibleEntries[0] || null,
+            };
+        }
+
         function renderTelemetryGroup(container, items, labelFn) {
             if (!container) return;
             if (!items.length) {
@@ -1432,20 +1537,24 @@
             `).join('') + '</div>';
         }
 
-        function renderToolingSummary(summaryEl, parseSources, recoveryEvents, policyEvents, failingTools) {
+        function renderToolingSummary(summaryEl, parseSources, recoveryEvents, policyEvents, retrievalSummary, failingTools) {
             if (!summaryEl) return;
             const totalRecoveries = recoveryEvents.reduce((sum, [, count]) => sum + Number(count || 0), 0);
             const totalPolicyEvents = policyEvents.reduce((sum, [, count]) => sum + Number(count || 0), 0);
             const primaryRecovery = recoveryEvents[0] ? toolingTelemetryRecoveryLabel(recoveryEvents[0][0]) : t('dashboard.tooling_telemetry_none');
             const primaryPolicy = policyEvents[0] ? toolingTelemetryPolicyLabel(policyEvents[0][0]) : t('dashboard.tooling_telemetry_none');
+            const primaryRetrieval = retrievalSummary.primary ? toolingTelemetryRetrievalLabel(retrievalSummary.primary[0]) : t('dashboard.tooling_telemetry_none');
             const primaryFailureTool = failingTools[0]?.tool || t('dashboard.tooling_telemetry_none');
 
             const items = [
                 { value: totalRecoveries.toLocaleString(), label: t('dashboard.tooling_telemetry_recoveries_total') },
                 { value: totalPolicyEvents.toLocaleString(), label: t('dashboard.tooling_telemetry_policy_adjustments_total') },
+                { value: retrievalSummary.total.toLocaleString(), label: t('dashboard.tooling_telemetry_retrieval_total') },
+                { value: t('dashboard.tooling_telemetry_retrieval_share_short', { pct: retrievalSummary.avgShare.toFixed(0) }), label: t('dashboard.tooling_telemetry_retrieval_avg_share') },
                 { value: failingTools.length.toLocaleString(), label: t('dashboard.tooling_telemetry_tools_with_failures') },
                 { value: primaryRecovery, label: t('dashboard.tooling_telemetry_primary_issue') },
                 { value: primaryPolicy, label: t('dashboard.tooling_telemetry_active_policy_signal') },
+                { value: primaryRetrieval, label: t('dashboard.tooling_telemetry_retrieval_primary') },
                 { value: primaryFailureTool, label: t('dashboard.tooling_telemetry_primary_failure_tool') },
             ];
 
@@ -1572,6 +1681,7 @@
                 const parseTotal = Object.values(scope.parse_sources || {}).reduce((sum, count) => sum + Number(count || 0), 0);
                 const recoveryTotal = Object.values(scope.recovery_events || {}).reduce((sum, count) => sum + Number(count || 0), 0);
                 const policyTotal = Object.values(scope.policy_events || {}).reduce((sum, count) => sum + Number(count || 0), 0);
+                const retrieval = toolingTelemetrySummarizeRetrieval(scope.retrieval_events || {});
                 const provider = scope.provider_type || t('dashboard.tooling_telemetry_none');
                 const model = scope.model || t('dashboard.tooling_telemetry_none');
                 return `
@@ -1587,6 +1697,8 @@
                             <span class="tooling-telemetry-scope-pill">${esc(t('dashboard.tooling_telemetry_parse_sources_short', { count: parseTotal }))}</span>
                             <span class="tooling-telemetry-scope-pill">${esc(t('dashboard.tooling_telemetry_recovery_events_short', { count: recoveryTotal }))}</span>
                             <span class="tooling-telemetry-scope-pill">${esc(t('dashboard.tooling_telemetry_policy_events_short', { count: policyTotal }))}</span>
+                            <span class="tooling-telemetry-scope-pill">${esc(t('dashboard.tooling_telemetry_retrieval_events_short', { count: retrieval.total }))}</span>
+                            <span class="tooling-telemetry-scope-pill">${esc(t('dashboard.tooling_telemetry_retrieval_share_short', { pct: retrieval.avgShare.toFixed(0) }))}</span>
                             <span class="tooling-telemetry-scope-pill">${esc(t('dashboard.tooling_telemetry_tool_calls_short', { count: Number(scope.tool_calls || 0) }))}</span>
                             <span class="tooling-telemetry-scope-pill">${esc(t('dashboard.tooling_telemetry_success_rate_short', { pct: ((Number(scope.success_rate || 0) * 100).toFixed(0)) }))}</span>
                             <span class="tooling-telemetry-scope-pill">${esc(t('dashboard.tooling_telemetry_failure_rate_short', { pct: ((Number(scope.failure_rate || 0) * 100).toFixed(0)) }))}</span>
@@ -1629,6 +1741,7 @@
                 const parseSources = scope.parse_sources || {};
                 const recoveryEvents = scope.recovery_events || {};
                 const policyEvents = scope.policy_events || {};
+                const retrieval = toolingTelemetrySummarizeRetrieval(scope.retrieval_events || {});
                 const parseTotal = Object.values(parseSources).reduce((sum, count) => sum + Number(count || 0), 0);
                 const nativeCount = Number(parseSources.native || 0);
                 const fallbackCount = Math.max(0, parseTotal - nativeCount);
@@ -1642,12 +1755,15 @@
                     failureRate: Number(scope.failure_rate || 0),
                     fallbackRate: parseTotal > 0 ? fallbackCount / parseTotal : 0,
                     recoveryRate: toolCalls > 0 ? recoveryTotal / toolCalls : 0,
+                    retrievalTotal: retrieval.total,
+                    retrievalAvgShare: retrieval.avgShare,
                     toolCalls,
                     policyTotal,
                     totalEvents: Number(scope.total_events || 0),
                 };
             }).sort((a, b) =>
                 (b.failureRate - a.failureRate) ||
+                (b.retrievalAvgShare - a.retrievalAvgShare) ||
                 (b.recoveryRate - a.recoveryRate) ||
                 (b.fallbackRate - a.fallbackRate) ||
                 (b.toolCalls - a.toolCalls) ||
@@ -1670,6 +1786,8 @@
                             <span class="tooling-telemetry-scope-pill">${esc(t('dashboard.tooling_telemetry_failure_rate_short', { pct: (item.failureRate * 100).toFixed(0) }))}</span>
                             <span class="tooling-telemetry-scope-pill">${esc(t('dashboard.tooling_telemetry_fallback_rate_short', { pct: (item.fallbackRate * 100).toFixed(0) }))}</span>
                             <span class="tooling-telemetry-scope-pill">${esc(t('dashboard.tooling_telemetry_recovery_rate_short', { pct: (item.recoveryRate * 100).toFixed(0) }))}</span>
+                            <span class="tooling-telemetry-scope-pill">${esc(t('dashboard.tooling_telemetry_retrieval_events_short', { count: item.retrievalTotal }))}</span>
+                            <span class="tooling-telemetry-scope-pill">${esc(t('dashboard.tooling_telemetry_retrieval_share_short', { pct: item.retrievalAvgShare.toFixed(0) }))}</span>
                             <span class="tooling-telemetry-scope-pill">${esc(t('dashboard.tooling_telemetry_policy_events_short', { count: item.policyTotal }))}</span>
                             <span class="tooling-telemetry-scope-pill">${esc(t('dashboard.tooling_telemetry_tool_calls_short', { count: item.toolCalls }))}</span>
                         </div>
@@ -1684,6 +1802,7 @@
             const parseSources = Object.entries(telemetry.parse_sources || {}).filter(([, count]) => Number(count) > 0);
             const recoveryEvents = Object.entries(telemetry.recovery_events || {}).filter(([, count]) => Number(count) > 0);
             const policyEvents = Object.entries(telemetry.policy_events || {}).filter(([, count]) => Number(count) > 0);
+            const retrievalSummary = toolingTelemetrySummarizeRetrieval(telemetry.retrieval_events || {});
             const scopes = Array.isArray(telemetry.scopes) ? telemetry.scopes.filter(scope => Number(scope?.total_events || 0) > 0) : [];
             const failingTools = Object.entries(data?.by_tool || {})
                 .map(([tool, stats]) => ({
@@ -1694,7 +1813,7 @@
                 .filter(item => item.failures > 0)
                 .sort((a, b) => (b.failures - a.failures) || (b.total - a.total) || a.tool.localeCompare(b.tool));
 
-            if (!parseSources.length && !recoveryEvents.length && !policyEvents.length && !failingTools.length && !scopes.length) {
+            if (!parseSources.length && !recoveryEvents.length && !policyEvents.length && !retrievalSummary.visibleEntries.length && !failingTools.length && !scopes.length) {
                 dashSetHidden(card, true);
                 return;
             }
@@ -1704,10 +1823,11 @@
             recoveryEvents.sort((a, b) => Number(b[1]) - Number(a[1]));
             policyEvents.sort((a, b) => Number(b[1]) - Number(a[1]));
 
-            renderToolingSummary(document.getElementById('tooling-telemetry-summary'), parseSources, recoveryEvents, policyEvents, failingTools);
+            renderToolingSummary(document.getElementById('tooling-telemetry-summary'), parseSources, recoveryEvents, policyEvents, retrievalSummary, failingTools);
             renderTelemetryGroup(document.getElementById('tooling-telemetry-parse'), parseSources, toolingTelemetryParseLabel);
             renderTelemetryGroup(document.getElementById('tooling-telemetry-recovery'), recoveryEvents, toolingTelemetryRecoveryLabel);
             renderTelemetryGroup(document.getElementById('tooling-telemetry-policy'), policyEvents, toolingTelemetryPolicyLabel);
+            renderTelemetryGroup(document.getElementById('tooling-telemetry-retrieval'), retrievalSummary.visibleEntries, toolingTelemetryRetrievalLabel);
             renderFailureTools(document.getElementById('tooling-telemetry-failures'), failingTools);
             renderToolFamilies(document.getElementById('tooling-telemetry-families'), data?.by_tool || {});
             renderTelemetryScopes(document.getElementById('tooling-telemetry-scopes'), scopes);

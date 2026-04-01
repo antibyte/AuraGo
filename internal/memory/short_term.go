@@ -106,6 +106,9 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 			verification_status TEXT DEFAULT 'unverified',
 			source_type TEXT DEFAULT 'system',
 			source_reliability REAL DEFAULT 0.70,
+			useful_count INTEGER DEFAULT 0,
+			useless_count INTEGER DEFAULT 0,
+			last_effectiveness_at DATETIME,
 			protected BOOLEAN DEFAULT 0,
 			keep_forever BOOLEAN DEFAULT 0
 		);
@@ -216,8 +219,28 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 		PRIMARY KEY (from_tool, to_tool)
 	);`
 
+	conflictSchema := `
+	CREATE TABLE IF NOT EXISTS memory_conflicts (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		doc_id_left TEXT NOT NULL,
+		doc_id_right TEXT NOT NULL,
+		conflict_key TEXT NOT NULL,
+		left_value TEXT DEFAULT '',
+		right_value TEXT DEFAULT '',
+		reason TEXT DEFAULT '',
+		status TEXT DEFAULT 'open',
+		detected_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		resolved_at DATETIME DEFAULT '',
+		UNIQUE(doc_id_left, doc_id_right, conflict_key)
+	);
+	CREATE INDEX IF NOT EXISTS idx_memory_conflicts_status ON memory_conflicts(status, detected_at DESC);
+	CREATE INDEX IF NOT EXISTS idx_memory_conflicts_docs ON memory_conflicts(doc_id_left, doc_id_right);`
+
 	if _, err := db.Exec(schema); err != nil {
 		return nil, fmt.Errorf("failed to create sqlite schema: %w", err)
+	}
+	if _, err := db.Exec(conflictSchema); err != nil {
+		return nil, fmt.Errorf("failed to create conflict schema: %w", err)
 	}
 
 	// Enable WAL mode for better concurrent read/write performance.
@@ -347,6 +370,42 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 		}
 	}
 
+	var hasUsefulCount bool
+	err = db.QueryRow("SELECT count(*) > 0 FROM pragma_table_info('memory_meta') WHERE name='useful_count'").Scan(&hasUsefulCount)
+	if err != nil {
+		logger.Warn("Failed to check for useful_count column in memory_meta", "error", err)
+	} else if !hasUsefulCount {
+		logger.Info("Migrating SQLite: adding useful_count column to memory_meta")
+		_, err = db.Exec("ALTER TABLE memory_meta ADD COLUMN useful_count INTEGER DEFAULT 0")
+		if err != nil {
+			logger.Error("Failed to add useful_count column to memory_meta", "error", err)
+		}
+	}
+
+	var hasUselessCount bool
+	err = db.QueryRow("SELECT count(*) > 0 FROM pragma_table_info('memory_meta') WHERE name='useless_count'").Scan(&hasUselessCount)
+	if err != nil {
+		logger.Warn("Failed to check for useless_count column in memory_meta", "error", err)
+	} else if !hasUselessCount {
+		logger.Info("Migrating SQLite: adding useless_count column to memory_meta")
+		_, err = db.Exec("ALTER TABLE memory_meta ADD COLUMN useless_count INTEGER DEFAULT 0")
+		if err != nil {
+			logger.Error("Failed to add useless_count column to memory_meta", "error", err)
+		}
+	}
+
+	var hasLastEffectivenessAt bool
+	err = db.QueryRow("SELECT count(*) > 0 FROM pragma_table_info('memory_meta') WHERE name='last_effectiveness_at'").Scan(&hasLastEffectivenessAt)
+	if err != nil {
+		logger.Warn("Failed to check for last_effectiveness_at column in memory_meta", "error", err)
+	} else if !hasLastEffectivenessAt {
+		logger.Info("Migrating SQLite: adding last_effectiveness_at column to memory_meta")
+		_, err = db.Exec("ALTER TABLE memory_meta ADD COLUMN last_effectiveness_at DATETIME")
+		if err != nil {
+			logger.Error("Failed to add last_effectiveness_at column to memory_meta", "error", err)
+		}
+	}
+
 	// Dynamic migration for consolidation_status in archived_messages
 	var hasConsolidationStatus bool
 	err = db.QueryRow("SELECT count(*) > 0 FROM pragma_table_info('archived_messages') WHERE name='consolidation_status'").Scan(&hasConsolidationStatus)
@@ -425,7 +484,7 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 
 	// Set user_version so backup/restore can detect schema generation.
 	// Increment this constant whenever a new column or table is added.
-	const shortTermSchemaVersion = 7
+	const shortTermSchemaVersion = 8
 	var currentVer int
 	if err := db.QueryRow("PRAGMA user_version").Scan(&currentVer); err != nil {
 		logger.Warn("Failed to read schema version", "error", err)
@@ -879,6 +938,9 @@ type MemoryMeta struct {
 	VerificationStatus   string
 	SourceType           string
 	SourceReliability    float64
+	UsefulCount          int
+	UselessCount         int
+	LastEffectivenessAt  string
 	Protected            bool
 	KeepForever          bool
 }
@@ -1014,6 +1076,31 @@ func (s *SQLiteMemory) RecordMemoryUsage(memoryID, memoryType, sessionID string,
 	return nil
 }
 
+// RecordMemoryEffectiveness updates the aggregated usefulness score for an injected memory item.
+func (s *SQLiteMemory) RecordMemoryEffectiveness(memoryID string, useful bool) error {
+	if memoryID == "" {
+		return nil
+	}
+	if err := s.UpsertMemoryMeta(memoryID); err != nil {
+		return fmt.Errorf("ensure memory meta before effectiveness update: %w", err)
+	}
+
+	column := "useless_count"
+	if useful {
+		column = "useful_count"
+	}
+
+	stmt := fmt.Sprintf(`
+	UPDATE memory_meta
+	SET %s = %s + 1,
+		last_effectiveness_at = CURRENT_TIMESTAMP
+	WHERE doc_id = ?;`, column, column)
+	if _, err := s.db.Exec(stmt, memoryID); err != nil {
+		return fmt.Errorf("record memory effectiveness: %w", err)
+	}
+	return nil
+}
+
 // GetRecentMemoryUsage returns the most recent memory usage events, optionally filtered by session.
 func (s *SQLiteMemory) GetRecentMemoryUsage(sessionID string, limit int) ([]MemoryUsageEntry, error) {
 	if limit <= 0 || limit > 200 {
@@ -1075,7 +1162,7 @@ func (s *SQLiteMemory) GetAllMemoryMeta(limit int, offset int) ([]MemoryMeta, er
 	if offset < 0 {
 		offset = 0
 	}
-	query := `SELECT doc_id, access_count, last_accessed, last_event_at, extraction_confidence, verification_status, source_type, source_reliability, protected, keep_forever FROM memory_meta LIMIT ? OFFSET ?;`
+	query := `SELECT doc_id, access_count, last_accessed, last_event_at, extraction_confidence, verification_status, source_type, source_reliability, useful_count, useless_count, COALESCE(last_effectiveness_at, ''), protected, keep_forever FROM memory_meta LIMIT ? OFFSET ?;`
 	rows, err := s.db.Query(query, limit, offset)
 	if err != nil {
 		return nil, err
@@ -1094,6 +1181,9 @@ func (s *SQLiteMemory) GetAllMemoryMeta(limit int, offset int) ([]MemoryMeta, er
 			&m.VerificationStatus,
 			&m.SourceType,
 			&m.SourceReliability,
+			&m.UsefulCount,
+			&m.UselessCount,
+			&m.LastEffectivenessAt,
 			&m.Protected,
 			&m.KeepForever,
 		); err != nil {

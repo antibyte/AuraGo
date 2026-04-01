@@ -44,6 +44,10 @@ type EpisodicMemory struct {
 	Importance       int      `json:"importance"`
 	Source           string   `json:"source"`
 	SessionID        string   `json:"session_id"`
+	HierarchyLevel   int      `json:"hierarchy_level"`
+	ActionStatus     string   `json:"action_status"`
+	TriggerQuery     string   `json:"trigger_query"`
+	ResolvedAt       string   `json:"resolved_at"`
 	Participants     []string `json:"participants,omitempty"`
 	RelatedDocIDs    []string `json:"related_doc_ids,omitempty"`
 	EmotionalValence float64  `json:"emotional_valence"`
@@ -53,6 +57,10 @@ type EpisodicMemory struct {
 // EpisodicMemoryDetails enriches episodic event cards with lightweight structured metadata.
 type EpisodicMemoryDetails struct {
 	SessionID        string
+	HierarchyLevel   int
+	ActionStatus     string
+	TriggerQuery     string
+	ResolvedAt       string
 	Participants     []string
 	RelatedDocIDs    []string
 	EmotionalValence float64
@@ -98,6 +106,10 @@ func (s *SQLiteMemory) InitJournalTables() error {
 		importance INTEGER DEFAULT 2,
 		source TEXT DEFAULT 'consolidation',
 		session_id TEXT DEFAULT '',
+		hierarchy_level INTEGER DEFAULT 1,
+		action_status TEXT DEFAULT '',
+		trigger_query TEXT DEFAULT '',
+		resolved_at DATETIME DEFAULT '',
 		participants_json TEXT DEFAULT '[]',
 		related_doc_ids TEXT DEFAULT '[]',
 		emotional_valence REAL DEFAULT 0,
@@ -118,6 +130,10 @@ func (s *SQLiteMemory) InitJournalTables() error {
 		TypeDef string
 	}{
 		{Name: "session_id", TypeDef: "TEXT DEFAULT ''"},
+		{Name: "hierarchy_level", TypeDef: "INTEGER DEFAULT 1"},
+		{Name: "action_status", TypeDef: "TEXT DEFAULT ''"},
+		{Name: "trigger_query", TypeDef: "TEXT DEFAULT ''"},
+		{Name: "resolved_at", TypeDef: "DATETIME DEFAULT ''"},
 		{Name: "participants_json", TypeDef: "TEXT DEFAULT '[]'"},
 		{Name: "related_doc_ids", TypeDef: "TEXT DEFAULT '[]'"},
 		{Name: "emotional_valence", TypeDef: "REAL DEFAULT 0"},
@@ -199,6 +215,13 @@ func (s *SQLiteMemory) InsertEpisodicMemoryWithDetails(eventDate, title, summary
 	detailsJSON, _ := json.Marshal(details)
 	participantsJSON, _ := json.Marshal(uniqueSortedStrings(meta.Participants))
 	relatedDocIDsJSON, _ := json.Marshal(uniqueSortedStrings(meta.RelatedDocIDs))
+	hierarchyLevel := meta.HierarchyLevel
+	if hierarchyLevel <= 0 {
+		hierarchyLevel = 1
+	}
+	actionStatus := strings.TrimSpace(meta.ActionStatus)
+	triggerQuery := strings.TrimSpace(meta.TriggerQuery)
+	resolvedAt := strings.TrimSpace(meta.ResolvedAt)
 	if meta.EmotionalValence > 1 {
 		meta.EmotionalValence = 1
 	}
@@ -208,14 +231,63 @@ func (s *SQLiteMemory) InsertEpisodicMemoryWithDetails(eventDate, title, summary
 	_, err := s.db.Exec(`
 		INSERT INTO episodic_memories (
 			event_date, title, summary, details_json, importance, source,
-			session_id, participants_json, related_doc_ids, emotional_valence
+			session_id, hierarchy_level, action_status, trigger_query, resolved_at,
+			participants_json, related_doc_ids, emotional_valence
 		)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, eventDate, title, summary, string(detailsJSON), importance, source, meta.SessionID, string(participantsJSON), string(relatedDocIDsJSON), meta.EmotionalValence)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, eventDate, title, summary, string(detailsJSON), importance, source, meta.SessionID, hierarchyLevel, actionStatus, triggerQuery, resolvedAt, string(participantsJSON), string(relatedDocIDsJSON), meta.EmotionalValence)
 	if err != nil {
 		return fmt.Errorf("insert episodic memory: %w", err)
 	}
 	return nil
+}
+
+// UpsertPendingEpisodicAction creates or refreshes a pending episodic follow-up item.
+func (s *SQLiteMemory) UpsertPendingEpisodicAction(eventDate, title, summary, triggerQuery, sessionID string, importance int, relatedDocIDs []string) error {
+	if title == "" || summary == "" {
+		return nil
+	}
+	if eventDate == "" {
+		eventDate = time.Now().Format("2006-01-02")
+	}
+	if importance < 2 || importance > 4 {
+		importance = 3
+	}
+	if triggerQuery == "" {
+		triggerQuery = title
+	}
+	relatedJSON, _ := json.Marshal(uniqueSortedStrings(relatedDocIDs))
+	_, err := s.db.Exec(`
+		UPDATE episodic_memories
+		SET summary = ?,
+			importance = ?,
+			event_date = ?,
+			session_id = ?,
+			trigger_query = ?,
+			related_doc_ids = ?,
+			resolved_at = '',
+			action_status = 'pending'
+		WHERE title = ? AND action_status = 'pending'
+	`, summary, importance, eventDate, sessionID, triggerQuery, string(relatedJSON), title)
+	if err != nil {
+		return fmt.Errorf("update pending episodic action: %w", err)
+	}
+
+	var count int
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM episodic_memories WHERE title = ? AND action_status = 'pending'`, title).Scan(&count); err != nil {
+		return fmt.Errorf("count pending episodic actions: %w", err)
+	}
+	if count > 0 {
+		return nil
+	}
+
+	return s.InsertEpisodicMemoryWithDetails(eventDate, title, summary, map[string]string{"kind": "pending_action"}, importance, "pending_action", EpisodicMemoryDetails{
+		SessionID:      sessionID,
+		HierarchyLevel: 1,
+		ActionStatus:   "pending",
+		TriggerQuery:   triggerQuery,
+		RelatedDocIDs:  relatedDocIDs,
+	})
 }
 
 // GetRecentEpisodicMemories returns recent event cards (default 72h) as compact prompt lines.
@@ -240,7 +312,7 @@ func (s *SQLiteMemory) GetRecentEpisodicMemoryCards(hoursWindow int, limit int) 
 		limit = 5
 	}
 	rows, err := s.db.Query(`
-		SELECT id, event_date, title, summary, details_json, importance, source, session_id, participants_json, related_doc_ids, emotional_valence, created_at
+		SELECT id, event_date, title, summary, details_json, importance, source, session_id, hierarchy_level, action_status, trigger_query, COALESCE(resolved_at, ''), participants_json, related_doc_ids, emotional_valence, created_at
 		FROM episodic_memories
 		WHERE datetime(created_at) >= datetime('now', '-' || ? || ' hours')
 		ORDER BY created_at DESC, importance DESC
@@ -255,7 +327,7 @@ func (s *SQLiteMemory) GetRecentEpisodicMemoryCards(hoursWindow int, limit int) 
 	for rows.Next() {
 		var entry EpisodicMemory
 		var participantsJSON, relatedDocIDsJSON string
-		if err := rows.Scan(&entry.ID, &entry.EventDate, &entry.Title, &entry.Summary, &entry.DetailsJSON, &entry.Importance, &entry.Source, &entry.SessionID, &participantsJSON, &relatedDocIDsJSON, &entry.EmotionalValence, &entry.CreatedAt); err != nil {
+		if err := rows.Scan(&entry.ID, &entry.EventDate, &entry.Title, &entry.Summary, &entry.DetailsJSON, &entry.Importance, &entry.Source, &entry.SessionID, &entry.HierarchyLevel, &entry.ActionStatus, &entry.TriggerQuery, &entry.ResolvedAt, &participantsJSON, &relatedDocIDsJSON, &entry.EmotionalValence, &entry.CreatedAt); err != nil {
 			return nil, fmt.Errorf("scan episodic memory: %w", err)
 		}
 		_ = json.Unmarshal([]byte(participantsJSON), &entry.Participants)
@@ -415,7 +487,7 @@ func (s *SQLiteMemory) SearchEpisodicMemoriesInRange(keyword, fromDate, toDate s
 	}
 
 	query := `
-		SELECT id, event_date, title, summary, details_json, importance, source, session_id, participants_json, related_doc_ids, emotional_valence, created_at
+		SELECT id, event_date, title, summary, details_json, importance, source, session_id, hierarchy_level, action_status, trigger_query, COALESCE(resolved_at, ''), participants_json, related_doc_ids, emotional_valence, created_at
 		FROM episodic_memories
 		WHERE 1=1`
 	args := make([]interface{}, 0, 4)
@@ -454,6 +526,10 @@ func (s *SQLiteMemory) SearchEpisodicMemoriesInRange(keyword, fromDate, toDate s
 			&entry.Importance,
 			&entry.Source,
 			&entry.SessionID,
+			&entry.HierarchyLevel,
+			&entry.ActionStatus,
+			&entry.TriggerQuery,
+			&entry.ResolvedAt,
 			&participantsJSON,
 			&relatedDocIDsJSON,
 			&entry.EmotionalValence,
@@ -466,6 +542,114 @@ func (s *SQLiteMemory) SearchEpisodicMemoriesInRange(keyword, fromDate, toDate s
 		entries = append(entries, entry)
 	}
 	return entries, rows.Err()
+}
+
+// GetPendingEpisodicActionsForQuery returns unresolved follow-up items matching the current topic.
+func (s *SQLiteMemory) GetPendingEpisodicActionsForQuery(query string, limit int) ([]EpisodicMemory, error) {
+	if limit <= 0 {
+		limit = 3
+	}
+	pattern := "%"
+	if trimmed := strings.TrimSpace(query); trimmed != "" {
+		pattern = "%" + trimmed + "%"
+	}
+	rows, err := s.db.Query(`
+		SELECT id, event_date, title, summary, details_json, importance, source, session_id, hierarchy_level, action_status, trigger_query, COALESCE(resolved_at, ''), participants_json, related_doc_ids, emotional_valence, created_at
+		FROM episodic_memories
+		WHERE action_status = 'pending'
+		  AND (trigger_query LIKE ? OR title LIKE ? OR summary LIKE ?)
+		ORDER BY importance DESC, event_date DESC, created_at DESC
+		LIMIT ?
+	`, pattern, pattern, pattern, limit)
+	if err != nil {
+		return nil, fmt.Errorf("query pending episodic actions: %w", err)
+	}
+	defer rows.Close()
+
+	entries := make([]EpisodicMemory, 0, limit)
+	for rows.Next() {
+		var entry EpisodicMemory
+		var participantsJSON, relatedDocIDsJSON string
+		if err := rows.Scan(&entry.ID, &entry.EventDate, &entry.Title, &entry.Summary, &entry.DetailsJSON, &entry.Importance, &entry.Source, &entry.SessionID, &entry.HierarchyLevel, &entry.ActionStatus, &entry.TriggerQuery, &entry.ResolvedAt, &participantsJSON, &relatedDocIDsJSON, &entry.EmotionalValence, &entry.CreatedAt); err != nil {
+			return nil, fmt.Errorf("scan pending episodic action: %w", err)
+		}
+		_ = json.Unmarshal([]byte(participantsJSON), &entry.Participants)
+		_ = json.Unmarshal([]byte(relatedDocIDsJSON), &entry.RelatedDocIDs)
+		entries = append(entries, entry)
+	}
+	return entries, rows.Err()
+}
+
+// GetEpisodicMemoriesByHierarchyLevel returns non-pending episodic memories at the requested hierarchy level.
+func (s *SQLiteMemory) GetEpisodicMemoriesByHierarchyLevel(level int, limit int) ([]EpisodicMemory, error) {
+	if level <= 0 {
+		level = 1
+	}
+	if limit <= 0 {
+		limit = 25
+	}
+	rows, err := s.db.Query(`
+		SELECT id, event_date, title, summary, details_json, importance, source, session_id, hierarchy_level, action_status, trigger_query, COALESCE(resolved_at, ''), participants_json, related_doc_ids, emotional_valence, created_at
+		FROM episodic_memories
+		WHERE hierarchy_level = ? AND action_status != 'pending'
+		ORDER BY event_date DESC, created_at DESC, importance DESC
+		LIMIT ?
+	`, level, limit)
+	if err != nil {
+		return nil, fmt.Errorf("query episodic hierarchy level: %w", err)
+	}
+	defer rows.Close()
+
+	entries := make([]EpisodicMemory, 0, limit)
+	for rows.Next() {
+		var entry EpisodicMemory
+		var participantsJSON, relatedDocIDsJSON string
+		if err := rows.Scan(&entry.ID, &entry.EventDate, &entry.Title, &entry.Summary, &entry.DetailsJSON, &entry.Importance, &entry.Source, &entry.SessionID, &entry.HierarchyLevel, &entry.ActionStatus, &entry.TriggerQuery, &entry.ResolvedAt, &participantsJSON, &relatedDocIDsJSON, &entry.EmotionalValence, &entry.CreatedAt); err != nil {
+			return nil, fmt.Errorf("scan episodic hierarchy level: %w", err)
+		}
+		_ = json.Unmarshal([]byte(participantsJSON), &entry.Participants)
+		_ = json.Unmarshal([]byte(relatedDocIDsJSON), &entry.RelatedDocIDs)
+		entries = append(entries, entry)
+	}
+	return entries, rows.Err()
+}
+
+// MarkEpisodicMemoriesHierarchy updates the hierarchy level for the given episodic IDs.
+func (s *SQLiteMemory) MarkEpisodicMemoriesHierarchy(ids []int64, newLevel int) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	if newLevel <= 0 {
+		newLevel = 1
+	}
+	placeholders := make([]string, len(ids))
+	args := make([]interface{}, 0, len(ids)+1)
+	args = append(args, newLevel)
+	for i, id := range ids {
+		placeholders[i] = "?"
+		args = append(args, id)
+	}
+	_, err := s.db.Exec(`UPDATE episodic_memories SET hierarchy_level = ? WHERE id IN (`+strings.Join(placeholders, ",")+`)`, args...)
+	if err != nil {
+		return fmt.Errorf("mark episodic hierarchy: %w", err)
+	}
+	return nil
+}
+
+// ResolvePendingEpisodicAction marks a pending follow-up as resolved.
+func (s *SQLiteMemory) ResolvePendingEpisodicAction(id int64) error {
+	if id <= 0 {
+		return nil
+	}
+	_, err := s.db.Exec(`
+		UPDATE episodic_memories
+		SET action_status = 'resolved', resolved_at = CURRENT_TIMESTAMP
+		WHERE id = ?
+	`, id)
+	if err != nil {
+		return fmt.Errorf("resolve pending episodic action: %w", err)
+	}
+	return nil
 }
 
 // GetEpisodicMemoryStats returns additive diagnostics for the episodic layer.
@@ -515,6 +699,9 @@ func (s *SQLiteMemory) GetEpisodicMemoryStats(hoursWindow int, recentLimit int) 
 			"summary":            card.Summary,
 			"source":             card.Source,
 			"session_id":         card.SessionID,
+			"hierarchy_level":    card.HierarchyLevel,
+			"action_status":      card.ActionStatus,
+			"trigger_query":      card.TriggerQuery,
 			"participants":       card.Participants,
 			"related_doc_ids":    card.RelatedDocIDs,
 			"emotional_valence":  card.EmotionalValence,
@@ -664,6 +851,9 @@ func FormatJournalEntriesJSON(entries []JournalEntry) string {
 
 func formatEpisodicCard(card EpisodicMemory) string {
 	line := fmt.Sprintf("%s | %s — %s", card.EventDate, card.Title, card.Summary)
+	if card.ActionStatus == "pending" {
+		line += " | pending follow-up"
+	}
 	if len(card.Participants) > 0 {
 		line += " | with " + strings.Join(card.Participants, ", ")
 	}

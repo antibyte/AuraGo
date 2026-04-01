@@ -23,39 +23,43 @@ type AgentTelemetryToolFamilySnapshot struct {
 }
 
 type AgentTelemetryScopeSnapshot struct {
-	ProviderType   string                                      `json:"provider_type"`
-	Model          string                                      `json:"model"`
-	ParseSources   map[string]int                              `json:"parse_sources"`
-	RecoveryEvents map[string]int                              `json:"recovery_events"`
-	PolicyEvents   map[string]int                              `json:"policy_events"`
-	ToolFamilies   map[string]AgentTelemetryToolFamilySnapshot `json:"tool_families,omitempty"`
-	ToolCalls      int                                         `json:"tool_calls"`
-	ToolFailures   int                                         `json:"tool_failures"`
-	SuccessRate    float64                                     `json:"success_rate"`
-	FailureRate    float64                                     `json:"failure_rate"`
-	TotalEvents    int                                         `json:"total_events"`
+	ProviderType    string                                      `json:"provider_type"`
+	Model           string                                      `json:"model"`
+	ParseSources    map[string]int                              `json:"parse_sources"`
+	RecoveryEvents  map[string]int                              `json:"recovery_events"`
+	PolicyEvents    map[string]int                              `json:"policy_events"`
+	RetrievalEvents map[string]int                              `json:"retrieval_events"`
+	ToolFamilies    map[string]AgentTelemetryToolFamilySnapshot `json:"tool_families,omitempty"`
+	ToolCalls       int                                         `json:"tool_calls"`
+	ToolFailures    int                                         `json:"tool_failures"`
+	SuccessRate     float64                                     `json:"success_rate"`
+	FailureRate     float64                                     `json:"failure_rate"`
+	TotalEvents     int                                         `json:"total_events"`
 }
 
 type AgentTelemetrySnapshot struct {
-	ParseSources   map[string]int                `json:"parse_sources"`
-	RecoveryEvents map[string]int                `json:"recovery_events"`
-	PolicyEvents   map[string]int                `json:"policy_events"`
-	Scopes         []AgentTelemetryScopeSnapshot `json:"scopes"`
+	ParseSources    map[string]int                `json:"parse_sources"`
+	RecoveryEvents  map[string]int                `json:"recovery_events"`
+	PolicyEvents    map[string]int                `json:"policy_events"`
+	RetrievalEvents map[string]int                `json:"retrieval_events"`
+	Scopes          []AgentTelemetryScopeSnapshot `json:"scopes"`
 }
 
 type agentTelemetryCollector struct {
-	mu             sync.RWMutex
-	parseSources   map[string]int
-	recoveryEvents map[string]int
-	policyEvents   map[string]int
-	scoped         map[string]*AgentTelemetryScopeSnapshot
+	mu              sync.RWMutex
+	parseSources    map[string]int
+	recoveryEvents  map[string]int
+	policyEvents    map[string]int
+	retrievalEvents map[string]int
+	scoped          map[string]*AgentTelemetryScopeSnapshot
 }
 
 var globalAgentTelemetry = &agentTelemetryCollector{
-	parseSources:   make(map[string]int),
-	recoveryEvents: make(map[string]int),
-	policyEvents:   make(map[string]int),
-	scoped:         make(map[string]*AgentTelemetryScopeSnapshot),
+	parseSources:    make(map[string]int),
+	recoveryEvents:  make(map[string]int),
+	policyEvents:    make(map[string]int),
+	retrievalEvents: make(map[string]int),
+	scoped:          make(map[string]*AgentTelemetryScopeSnapshot),
 }
 
 var (
@@ -112,6 +116,22 @@ func RecordToolPolicyEventForScope(scope AgentTelemetryScope, name string) {
 	persistScopedAgentTelemetry(scope, "policy_event", name)
 }
 
+func RecordRetrievalEvent(name string) {
+	RecordRetrievalEventForScope(AgentTelemetryScope{}, name)
+}
+
+func RecordRetrievalEventForScope(scope AgentTelemetryScope, name string) {
+	if name == "" {
+		return
+	}
+	globalAgentTelemetry.mu.Lock()
+	globalAgentTelemetry.retrievalEvents[name]++
+	recordScopedTelemetryLocked(scope, "retrieval_event", name)
+	globalAgentTelemetry.mu.Unlock()
+	persistAgentTelemetry("retrieval_event", name)
+	persistScopedAgentTelemetry(scope, "retrieval_event", name)
+}
+
 func RecordScopedToolResult(scope AgentTelemetryScope, success bool) {
 	if scope.ProviderType == "" && scope.Model == "" {
 		return
@@ -158,20 +178,25 @@ func GetAgentTelemetrySnapshot() AgentTelemetrySnapshot {
 	for k, v := range globalAgentTelemetry.policyEvents {
 		policyEvents[k] = v
 	}
+	retrievalEvents := make(map[string]int, len(globalAgentTelemetry.retrievalEvents))
+	for k, v := range globalAgentTelemetry.retrievalEvents {
+		retrievalEvents[k] = v
+	}
 	scopes := make([]AgentTelemetryScopeSnapshot, 0, len(globalAgentTelemetry.scoped))
 	for _, scope := range globalAgentTelemetry.scoped {
 		scopeCopy := AgentTelemetryScopeSnapshot{
-			ProviderType:   scope.ProviderType,
-			Model:          scope.Model,
-			ParseSources:   make(map[string]int, len(scope.ParseSources)),
-			RecoveryEvents: make(map[string]int, len(scope.RecoveryEvents)),
-			PolicyEvents:   make(map[string]int, len(scope.PolicyEvents)),
-			ToolFamilies:   make(map[string]AgentTelemetryToolFamilySnapshot, len(scope.ToolFamilies)),
-			ToolCalls:      scope.ToolCalls,
-			ToolFailures:   scope.ToolFailures,
-			SuccessRate:    scope.SuccessRate,
-			FailureRate:    scope.FailureRate,
-			TotalEvents:    scope.TotalEvents,
+			ProviderType:    scope.ProviderType,
+			Model:           scope.Model,
+			ParseSources:    make(map[string]int, len(scope.ParseSources)),
+			RecoveryEvents:  make(map[string]int, len(scope.RecoveryEvents)),
+			PolicyEvents:    make(map[string]int, len(scope.PolicyEvents)),
+			RetrievalEvents: make(map[string]int, len(scope.RetrievalEvents)),
+			ToolFamilies:    make(map[string]AgentTelemetryToolFamilySnapshot, len(scope.ToolFamilies)),
+			ToolCalls:       scope.ToolCalls,
+			ToolFailures:    scope.ToolFailures,
+			SuccessRate:     scope.SuccessRate,
+			FailureRate:     scope.FailureRate,
+			TotalEvents:     scope.TotalEvents,
 		}
 		for k, v := range scope.ParseSources {
 			scopeCopy.ParseSources[k] = v
@@ -181,6 +206,9 @@ func GetAgentTelemetrySnapshot() AgentTelemetrySnapshot {
 		}
 		for k, v := range scope.PolicyEvents {
 			scopeCopy.PolicyEvents[k] = v
+		}
+		for k, v := range scope.RetrievalEvents {
+			scopeCopy.RetrievalEvents[k] = v
 		}
 		for k, v := range scope.ToolFamilies {
 			scopeCopy.ToolFamilies[k] = v
@@ -198,10 +226,11 @@ func GetAgentTelemetrySnapshot() AgentTelemetrySnapshot {
 	})
 
 	return AgentTelemetrySnapshot{
-		ParseSources:   parseSources,
-		RecoveryEvents: recoveryEvents,
-		PolicyEvents:   policyEvents,
-		Scopes:         scopes,
+		ParseSources:    parseSources,
+		RecoveryEvents:  recoveryEvents,
+		PolicyEvents:    policyEvents,
+		RetrievalEvents: retrievalEvents,
+		Scopes:          scopes,
 	}
 }
 
@@ -219,17 +248,18 @@ func GetScopedAgentTelemetrySnapshot(scope AgentTelemetryScope) (AgentTelemetryS
 		return AgentTelemetryScopeSnapshot{}, false
 	}
 	scopeCopy := AgentTelemetryScopeSnapshot{
-		ProviderType:   entry.ProviderType,
-		Model:          entry.Model,
-		ParseSources:   make(map[string]int, len(entry.ParseSources)),
-		RecoveryEvents: make(map[string]int, len(entry.RecoveryEvents)),
-		PolicyEvents:   make(map[string]int, len(entry.PolicyEvents)),
-		ToolFamilies:   make(map[string]AgentTelemetryToolFamilySnapshot, len(entry.ToolFamilies)),
-		ToolCalls:      entry.ToolCalls,
-		ToolFailures:   entry.ToolFailures,
-		SuccessRate:    entry.SuccessRate,
-		FailureRate:    entry.FailureRate,
-		TotalEvents:    entry.TotalEvents,
+		ProviderType:    entry.ProviderType,
+		Model:           entry.Model,
+		ParseSources:    make(map[string]int, len(entry.ParseSources)),
+		RecoveryEvents:  make(map[string]int, len(entry.RecoveryEvents)),
+		PolicyEvents:    make(map[string]int, len(entry.PolicyEvents)),
+		RetrievalEvents: make(map[string]int, len(entry.RetrievalEvents)),
+		ToolFamilies:    make(map[string]AgentTelemetryToolFamilySnapshot, len(entry.ToolFamilies)),
+		ToolCalls:       entry.ToolCalls,
+		ToolFailures:    entry.ToolFailures,
+		SuccessRate:     entry.SuccessRate,
+		FailureRate:     entry.FailureRate,
+		TotalEvents:     entry.TotalEvents,
 	}
 	for k, v := range entry.ParseSources {
 		scopeCopy.ParseSources[k] = v
@@ -239,6 +269,9 @@ func GetScopedAgentTelemetrySnapshot(scope AgentTelemetryScope) (AgentTelemetryS
 	}
 	for k, v := range entry.PolicyEvents {
 		scopeCopy.PolicyEvents[k] = v
+	}
+	for k, v := range entry.RetrievalEvents {
+		scopeCopy.RetrievalEvents[k] = v
 	}
 	for k, v := range entry.ToolFamilies {
 		scopeCopy.ToolFamilies[k] = v
@@ -252,6 +285,7 @@ func resetAgentTelemetryForTest() {
 	globalAgentTelemetry.parseSources = make(map[string]int)
 	globalAgentTelemetry.recoveryEvents = make(map[string]int)
 	globalAgentTelemetry.policyEvents = make(map[string]int)
+	globalAgentTelemetry.retrievalEvents = make(map[string]int)
 	globalAgentTelemetry.scoped = make(map[string]*AgentTelemetryScopeSnapshot)
 	agentTelemetryStoreMu.Lock()
 	defer agentTelemetryStoreMu.Unlock()
@@ -288,6 +322,8 @@ func InitializeAgentTelemetryPersistence(stm *memory.SQLiteMemory) {
 				globalAgentTelemetry.recoveryEvents[row.EventName] = row.Count
 			case "policy_event":
 				globalAgentTelemetry.policyEvents[row.EventName] = row.Count
+			case "retrieval_event":
+				globalAgentTelemetry.retrievalEvents[row.EventName] = row.Count
 			}
 		}
 		for _, row := range scopedRows {
@@ -332,12 +368,13 @@ func recordScopedTelemetryCountLocked(scope AgentTelemetryScope, eventType, even
 	entry, ok := globalAgentTelemetry.scoped[key]
 	if !ok {
 		entry = &AgentTelemetryScopeSnapshot{
-			ProviderType:   scope.ProviderType,
-			Model:          scope.Model,
-			ParseSources:   make(map[string]int),
-			RecoveryEvents: make(map[string]int),
-			PolicyEvents:   make(map[string]int),
-			ToolFamilies:   make(map[string]AgentTelemetryToolFamilySnapshot),
+			ProviderType:    scope.ProviderType,
+			Model:           scope.Model,
+			ParseSources:    make(map[string]int),
+			RecoveryEvents:  make(map[string]int),
+			PolicyEvents:    make(map[string]int),
+			RetrievalEvents: make(map[string]int),
+			ToolFamilies:    make(map[string]AgentTelemetryToolFamilySnapshot),
 		}
 		globalAgentTelemetry.scoped[key] = entry
 	}
@@ -348,6 +385,8 @@ func recordScopedTelemetryCountLocked(scope AgentTelemetryScope, eventType, even
 		entry.RecoveryEvents[eventName] += delta
 	case "policy_event":
 		entry.PolicyEvents[eventName] += delta
+	case "retrieval_event":
+		entry.RetrievalEvents[eventName] += delta
 	case "tool_result":
 		entry.ToolCalls += delta
 		if eventName == "failure" {

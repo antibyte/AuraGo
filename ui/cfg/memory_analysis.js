@@ -4,32 +4,27 @@ let _memAnalysisSection = null;
 
 async function renderMemoryAnalysisSection(section) {
     if (section) _memAnalysisSection = section; else section = _memAnalysisSection;
+    configData.memory_analysis = configData.memory_analysis || {};
+    setNestedValue(configData, 'memory_analysis.enabled', true);
+    setNestedValue(configData, 'memory_analysis.real_time', true);
+    setNestedValue(configData, 'memory_analysis.query_expansion', true);
+    setNestedValue(configData, 'memory_analysis.llm_reranking', true);
+    setNestedValue(configData, 'memory_analysis.unified_memory_block', true);
+    setNestedValue(configData, 'memory_analysis.effectiveness_tracking', true);
+    setNestedValue(configData, 'memory_analysis.weekly_reflection', true);
     const cfg = configData.memory_analysis || {};
-    const enabled = cfg.enabled === true;
 
     let html = `<div class="cfg-section active">
         <div class="section-header">${section.icon} ${section.label}</div>
         <div class="section-desc">${section.desc}</div>`;
 
-    // ── Enabled toggle ──
-    html += `<div class="ma-toggle-row ma-toggle-row-main">
-        <span class="ma-toggle-label-main">${t('config.memory_analysis.enabled_label')}</span>
-        <div class="toggle ${enabled ? 'on' : ''}" data-path="memory_analysis.enabled" onclick="toggleBool(this);setNestedValue(configData,'memory_analysis.enabled',this.classList.contains('on'));renderMemoryAnalysisSection(null)"></div>
+    html += `<div class="wh-notice">
+        <span>🧬</span>
+        <div>
+            <strong>${t('config.memory_analysis.auto_notice')}</strong><br>
+            <small>${t('config.memory_analysis.auto_desc')}</small>
+        </div>
     </div>`;
-
-    if (!enabled) {
-        html += `<div class="wh-notice">
-            <span>🧬</span>
-            <div>
-                <strong>${t('config.memory_analysis.disabled_notice')}</strong><br>
-                <small>${t('config.memory_analysis.disabled_desc')}</small>
-            </div>
-        </div>`;
-        html += `</div>`;
-        document.getElementById('content').innerHTML = html;
-        attachChangeListeners();
-        return;
-    }
 
     // ── Provider ──
     html += `<div class="field-group">
@@ -60,15 +55,15 @@ async function renderMemoryAnalysisSection(section) {
     </label>`;
     html += `</div>`;
 
-    // ── Real-Time Analysis ──
     html += `<div class="field-group">
         <div class="field-group-title">${t('config.memory_analysis.realtime_title')}</div>
         <div class="field-group-desc">${t('config.memory_analysis.realtime_desc')}</div>`;
-
-    const realTimeOn = cfg.real_time === true;
-    html += `<div class="ma-toggle-row">
-        <span class="ma-label-text">${t('config.memory_analysis.realtime_label')}</span>
-        <div class="toggle ${realTimeOn ? 'on' : ''}" data-path="memory_analysis.real_time" onclick="toggleBool(this)"></div>
+    html += `<div class="wh-notice">
+        <span>⚙️</span>
+        <div>
+            <strong>${t('config.memory_analysis.enabled_label')}</strong><br>
+            <small>${t('config.memory_analysis.auto_desc')}</small>
+        </div>
     </div>`;
     html += `</div>`;
 
@@ -94,10 +89,9 @@ async function renderMemoryAnalysisSection(section) {
         <div class="field-group-title">${t('config.memory_analysis.reflection_title')}</div>
         <div class="field-group-desc">${t('config.memory_analysis.reflection_desc')}</div>`;
 
-    const reflectionOn = cfg.weekly_reflection !== false;
     html += `<div class="ma-toggle-row">
         <span class="ma-label-text">${t('config.memory_analysis.reflection_label')}</span>
-        <div class="toggle ${reflectionOn ? 'on' : ''}" data-path="memory_analysis.weekly_reflection" onclick="toggleBool(this)"></div>
+        <div class="toggle on disabled"></div>
     </div>`;
 
     // Reflection day

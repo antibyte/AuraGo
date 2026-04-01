@@ -257,6 +257,32 @@ func TestBudgetShedRemovesGuides(t *testing.T) {
 	}
 }
 
+func TestBuildSystemPromptUnifiedMemoryBlock(t *testing.T) {
+	promptsDir := t.TempDir()
+	flags := ContextFlags{
+		UnifiedMemoryBlock:    true,
+		Tier:                  "full",
+		RecentActivityOverview: "Recent summary",
+		RetrievedMemories:      "Memory A\n---\nMemory B",
+		PredictedMemories:      "Predicted A",
+		KnowledgeContext:       "Entity: AuraGo",
+	}
+
+	prompt := BuildSystemPrompt(promptsDir, flags, "core memory", testLogger)
+	if !strings.Contains(prompt, "# UNIFIED MEMORY CONTEXT") {
+		t.Fatal("BuildSystemPrompt() should include unified memory header when feature flag is enabled")
+	}
+	if strings.Contains(prompt, "# RETRIEVED MEMORIES") {
+		t.Fatal("BuildSystemPrompt() should not emit legacy retrieved memories header when unified memory block is enabled")
+	}
+	if strings.Contains(prompt, "# PREDICTED CONTEXT") {
+		t.Fatal("BuildSystemPrompt() should not emit legacy predicted context header when unified memory block is enabled")
+	}
+	if !strings.Contains(prompt, "## Retrieved Memories") || !strings.Contains(prompt, "## Relevant Knowledge") {
+		t.Fatal("BuildSystemPrompt() should preserve subsection detail inside unified memory block")
+	}
+}
+
 func TestReadToolGuideEmbed(t *testing.T) {
 	// "docker.md" exists in the embedded prompts/tools_manuals/ directory.
 	data, ok := readToolGuideEmbed("/any/path/tools_manuals/docker.md")

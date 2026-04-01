@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"unicode"
 
 	"aurago/internal/config"
 	"aurago/internal/memory"
@@ -29,9 +30,9 @@ func handleRemember(tc ToolCall, cfg *config.Config, logger *slog.Logger,
 	}
 
 	// Determine target from explicit type hint or auto-classify
-	target := strings.ToLower(strings.TrimSpace(tc.Category))
+	target := normalizeRememberCategory(tc.Category)
 	if target == "" {
-		target = classifyMemoryTarget(content)
+		target = classifyMemoryTarget(tc, content)
 	}
 
 	logger.Info("remember tool routing", "target", target, "content_len", len(content))
@@ -42,7 +43,7 @@ func handleRemember(tc ToolCall, cfg *config.Config, logger *slog.Logger,
 	case "event", "milestone", "journal":
 		return rememberAsJournal(content, tc, shortTermMem, sessionID, logger)
 	case "task", "todo", "note":
-		return rememberAsNote(content, shortTermMem, logger)
+		return rememberAsNoteWithTitle(content, tc.Title, shortTermMem, logger)
 	case "relationship", "entity", "graph":
 		return rememberAsGraphEdge(content, tc, kg, logger)
 	default:
@@ -51,42 +52,114 @@ func handleRemember(tc ToolCall, cfg *config.Config, logger *slog.Logger,
 	}
 }
 
-// classifyMemoryTarget uses simple heuristics to determine the best storage target.
-func classifyMemoryTarget(content string) string {
-	lower := strings.ToLower(content)
+func normalizeRememberCategory(category string) string {
+	switch strings.ToLower(strings.TrimSpace(category)) {
+	case "fact", "preference", "core", "memory", "core_memory":
+		return "fact"
+	case "event", "milestone", "journal", "journal_entry", "timeline":
+		return "event"
+	case "task", "todo", "note", "notes", "reminder":
+		return "task"
+	case "relationship", "entity", "graph", "knowledge_graph", "edge":
+		return "relationship"
+	default:
+		return ""
+	}
+}
+
+// classifyMemoryTarget uses structured hints first and conservative heuristics second.
+func classifyMemoryTarget(tc ToolCall, content string) string {
+	if tc.Source != "" && tc.Target != "" && tc.Relation != "" {
+		return "relationship"
+	}
+	if tc.EntryType != "" || tc.Tags != "" || tc.Importance > 0 {
+		return "event"
+	}
+
+	normalized := normalizeHeuristicText(content)
+
+	preferencePatterns := []string{
+		"prefer ", "preference", "preferred", "usually uses", "normally uses",
+		"spricht", "antwortet auf", "likes ", "dislikes ", "language", "timezone",
+		"setup preference", "installation preference", "debugging tip", "tip ",
+	}
+	for _, p := range preferencePatterns {
+		if strings.Contains(normalized, p) {
+			return "fact"
+		}
+	}
 
 	// Task/todo patterns
 	todoPatterns := []string{"todo", "task:", "aufgabe:", "erledigen", "reminder:", "erinnerung:",
-		"check ", "prüfe ", "don't forget", "nicht vergessen", "muss noch", "need to", "should "}
+		"check ", "prufe ", "don't forget", "remember to", "nicht vergessen", "muss noch", "need to", "should ",
+		"follow up", "investigate", "review ", "fix ", "schedule ", "send ", "call ", "email "}
 	for _, p := range todoPatterns {
-		if strings.Contains(lower, p) {
+		if strings.Contains(normalized, p) {
 			return "task"
 		}
 	}
 
 	// Event/milestone patterns
 	eventPatterns := []string{"happened", "completed", "finished", "passiert", "erledigt",
-		"abgeschlossen", "milestone", "meilenstein", "today ", "gestern ", "yesterday ",
+		"abgeschlossen", "milestone", "meilenstein", "today ", "gestern ", "yesterday ", "last night",
 		"successfully", "erfolgreich", "set up", "eingerichtet", "configured", "konfiguriert",
-		"migrated", "migriert", "installed", "installiert"}
+		"migrated", "migriert", "was installed", "installed on", "resolved", "deployed"}
 	for _, p := range eventPatterns {
-		if strings.Contains(lower, p) {
+		if strings.Contains(normalized, p) {
 			return "event"
 		}
 	}
 
 	// Relationship/entity patterns
 	relPatterns := []string{" owns ", " uses ", " manages ", " runs on ", " connected to ",
-		" gehört ", " nutzt ", " verwaltet ", " läuft auf ", " verbunden mit ",
+		" gehort ", " nutzt ", " verwaltet ", " lauft auf ", " verbunden mit ",
 		" is part of ", " depends on ", " ist teil von "}
 	for _, p := range relPatterns {
-		if strings.Contains(lower, p) {
+		if strings.Contains(normalized, p) {
 			return "relationship"
 		}
 	}
 
 	// Default to core memory fact (preferences, identity, environment)
 	return "fact"
+}
+
+func normalizeHeuristicText(value string) string {
+	value = strings.ToLower(value)
+	value = strings.Map(func(r rune) rune {
+		switch {
+		case r > unicode.MaxASCII:
+			return foldHeuristicRune(r)
+		case unicode.IsLetter(r), unicode.IsDigit(r), unicode.IsSpace(r):
+			return r
+		default:
+			return ' '
+		}
+	}, value)
+	return strings.Join(strings.Fields(value), " ") + " "
+}
+
+func foldHeuristicRune(r rune) rune {
+	switch r {
+	case 'ä', 'á', 'à', 'â', 'ã', 'å':
+		return 'a'
+	case 'ö', 'ó', 'ò', 'ô', 'õ':
+		return 'o'
+	case 'ü', 'ú', 'ù', 'û':
+		return 'u'
+	case 'ß':
+		return 's'
+	case 'é', 'è', 'ê', 'ë':
+		return 'e'
+	case 'í', 'ì', 'î', 'ï':
+		return 'i'
+	case 'ñ':
+		return 'n'
+	case 'ç':
+		return 'c'
+	default:
+		return ' '
+	}
 }
 
 func rememberAsFact(content string, stm *memory.SQLiteMemory, cfg *config.Config, logger *slog.Logger) string {
@@ -147,8 +220,18 @@ func rememberAsNote(content string, stm *memory.SQLiteMemory, logger *slog.Logge
 	if stm == nil {
 		return `Tool Output: {"status":"error","message":"Notes storage not available"}`
 	}
+	return rememberAsNoteWithTitle(content, "", stm, logger)
+}
+
+func rememberAsNoteWithTitle(content, explicitTitle string, stm *memory.SQLiteMemory, logger *slog.Logger) string {
+	if stm == nil {
+		return `Tool Output: {"status":"error","message":"Notes storage not available"}`
+	}
 	// Use content as title for notes
-	title := content
+	title := strings.TrimSpace(explicitTitle)
+	if title == "" {
+		title = content
+	}
 	if len(title) > 120 {
 		title = title[:120] + "..."
 	}

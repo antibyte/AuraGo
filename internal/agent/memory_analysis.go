@@ -17,14 +17,22 @@ import (
 
 // memoryAnalysisResult represents extracted memory-worthy content from a conversation turn.
 type memoryAnalysisResult struct {
-	Facts       []extractedFact `json:"facts,omitempty"`
-	Preferences []extractedFact `json:"preferences,omitempty"`
-	Corrections []extractedFact `json:"corrections,omitempty"`
+	Facts          []extractedFact `json:"facts,omitempty"`
+	Preferences    []extractedFact `json:"preferences,omitempty"`
+	Corrections    []extractedFact `json:"corrections,omitempty"`
+	PendingActions []pendingAction `json:"pending_actions,omitempty"`
 }
 
 type extractedFact struct {
 	Content    string  `json:"content"`
 	Category   string  `json:"category"`
+	Confidence float64 `json:"confidence"`
+}
+
+type pendingAction struct {
+	Title      string  `json:"title"`
+	Summary    string  `json:"summary"`
+	Trigger    string  `json:"trigger_query"`
 	Confidence float64 `json:"confidence"`
 }
 
@@ -34,6 +42,7 @@ Extract:
 1. **Facts**: Concrete facts about the user, their environment, preferences, or projects (e.g., "User runs Proxmox on a Dell R730", "User's name is Alex")
 2. **Preferences**: User preferences, habits, or workflows (e.g., "User prefers Go over Python", "User likes minimal logging")
 3. **Corrections**: Corrections to previously known information (e.g., "User moved from Berlin to Munich", "User switched from Docker to Podman")
+4. **Pending Actions**: Explicit open follow-ups that should be surfaced proactively later (e.g., "Help user with Nextcloud Docker setup", "Follow up on SSL renewal before Friday")
 
 For each extracted item, provide:
 - content: The factual statement to remember
@@ -46,10 +55,12 @@ Rules:
 - Do NOT extract emotions, moods, or temporary states.
 - Use category "recent_operational_details" for details likely needed in the next days (paths, versions, hostnames, ports, identifiers, deadlines).
 - NEVER extract any claim about whether a tool, integration, capability, or feature is currently available, enabled, configured, active, or missing. This is transient system state that changes with configuration and must never be stored in memory.
+- Only create pending actions when the exchange clearly indicates deferred future work, a follow-up promise, or an unfinished task likely relevant in the next days/weeks.
+- For pending actions provide: title, summary, trigger_query, confidence.
 - If there is nothing worth remembering, return empty arrays.
 
 Respond ONLY with valid JSON in this exact format:
-{"facts":[],"preferences":[],"corrections":[]}
+{"facts":[],"preferences":[],"corrections":[],"pending_actions":[]}
 
 User message:
 %s
@@ -90,6 +101,10 @@ func runMemoryAnalysis(
 	assistantResp string,
 	sessionID string,
 ) {
+	settings := resolveMemoryAnalysisSettings(cfg, stm)
+	if !settings.Enabled || !settings.RealTime {
+		return
+	}
 	if userMsg == "" || len(userMsg) < 10 {
 		return // too short to analyze
 	}
@@ -178,6 +193,7 @@ func runMemoryAnalysis(
 							})
 						}
 					}
+					detectMemoryConflictsForDocIDs(logger, stm, ltm, ids, concept)
 					stored++
 					if stm != nil && strings.EqualFold(f.Category, "recent_operational_details") {
 						_ = stm.InsertEpisodicMemoryWithDetails(
@@ -219,6 +235,7 @@ func runMemoryAnalysis(
 							})
 						}
 					}
+					detectMemoryConflictsForDocIDs(logger, stm, ltm, ids, concept)
 					stored++
 				}
 			}
@@ -242,9 +259,28 @@ func runMemoryAnalysis(
 								SourceType:           "memory_analysis",
 								SourceReliability:    0.90,
 							})
+							detectMemoryConflictsForDocIDs(logger, stm, ltm, ids, concept)
 						}
 					}
 					stored++
+				}
+
+				for _, action := range result.PendingActions {
+					if stm == nil || action.Confidence < 0.65 {
+						continue
+					}
+					title := strings.TrimSpace(action.Title)
+					summary := strings.TrimSpace(action.Summary)
+					if title == "" || summary == "" {
+						continue
+					}
+					trigger := strings.TrimSpace(action.Trigger)
+					if trigger == "" {
+						trigger = title
+					}
+					if err := stm.UpsertPendingEpisodicAction(time.Now().Format("2006-01-02"), title, summary, trigger, sessionID, 3, nil); err != nil {
+						logger.Warn("[Memory Analysis] Failed to store pending action", "title", title, "error", err)
+					}
 				}
 			}
 		}
@@ -495,8 +531,9 @@ func isAmbiguousShortCommand(msg string) bool {
 // expandQueryForRAG uses the MemoryAnalysis LLM to generate optimized search keywords
 // from the user's message for better RAG retrieval. Returns the expanded query string
 // or the original message on failure/timeout.
-func expandQueryForRAG(ctx context.Context, cfg *config.Config, logger *slog.Logger, userMsg string) string {
-	if !cfg.MemoryAnalysis.Enabled || !cfg.MemoryAnalysis.QueryExpansion || len(userMsg) <= 20 {
+func expandQueryForRAG(ctx context.Context, cfg *config.Config, logger *slog.Logger, userMsg string, stm *memory.SQLiteMemory) string {
+	settings := resolveMemoryAnalysisSettings(cfg, stm)
+	if !settings.Enabled || !settings.QueryExpansion || len(userMsg) <= 20 {
 		return userMsg
 	}
 
@@ -554,8 +591,9 @@ func expandQueryForRAG(ctx context.Context, cfg *config.Config, logger *slog.Log
 
 // rerankWithLLM uses the MemoryAnalysis LLM to score the relevance of RAG candidates
 // against the user query. Returns re-ranked results or falls back to the input order on failure.
-func rerankWithLLM(ctx context.Context, cfg *config.Config, logger *slog.Logger, candidates []rankedMemory, userQuery string) []rankedMemory {
-	if !cfg.MemoryAnalysis.Enabled || !cfg.MemoryAnalysis.LLMReranking || len(candidates) == 0 {
+func rerankWithLLM(ctx context.Context, cfg *config.Config, logger *slog.Logger, candidates []rankedMemory, userQuery string, stm *memory.SQLiteMemory) []rankedMemory {
+	settings := resolveMemoryAnalysisSettings(cfg, stm)
+	if !settings.Enabled || !settings.LLMReranking || len(candidates) == 0 {
 		return candidates
 	}
 
@@ -656,12 +694,13 @@ func rerankWithLLM(ctx context.Context, cfg *config.Config, logger *slog.Logger,
 }
 
 // weeklyReflectionDue checks if the weekly reflection should run today.
-func weeklyReflectionDue(cfg *config.Config) bool {
-	if !cfg.MemoryAnalysis.Enabled || !cfg.MemoryAnalysis.WeeklyReflection {
+func weeklyReflectionDue(cfg *config.Config, stm *memory.SQLiteMemory) bool {
+	settings := resolveMemoryAnalysisSettings(cfg, stm)
+	if !settings.Enabled || !settings.WeeklyReflection {
 		return false
 	}
 	today := strings.ToLower(time.Now().Weekday().String())
-	return today == strings.ToLower(cfg.MemoryAnalysis.ReflectionDay)
+	return today == strings.ToLower(settings.ReflectionDay)
 }
 
 const reflectionPrompt = `You are a memory analyst. Review the following memory data and produce a structured reflection.

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -19,6 +20,65 @@ import (
 
 	"github.com/sashabaranov/go-openai"
 )
+
+func retrievalLatencyBucket(elapsed time.Duration) string {
+	switch {
+	case elapsed < 50*time.Millisecond:
+		return "lt_50ms"
+	case elapsed < 150*time.Millisecond:
+		return "50_149ms"
+	case elapsed < 500*time.Millisecond:
+		return "150_499ms"
+	case elapsed < time.Second:
+		return "500_999ms"
+	default:
+		return "ge_1000ms"
+	}
+}
+
+func retrievalPromptTokenBucket(tokens int) string {
+	switch {
+	case tokens <= 0:
+		return "0"
+	case tokens <= 128:
+		return "1_128"
+	case tokens <= 384:
+		return "129_384"
+	case tokens <= 768:
+		return "385_768"
+	default:
+		return "ge_769"
+	}
+}
+
+func retrievalPromptShareBucket(tokens, budget int) string {
+	if tokens <= 0 || budget <= 0 {
+		return "0_pct"
+	}
+	share := (float64(tokens) / float64(budget)) * 100
+	switch {
+	case share <= 10:
+		return "1_10_pct"
+	case share <= 25:
+		return "11_25_pct"
+	case share <= 40:
+		return "26_40_pct"
+	default:
+		return "gt_40_pct"
+	}
+}
+
+func recordRetrievalPromptTelemetry(scope AgentTelemetryScope, retrievalTokens, tokenBudget int) {
+	RecordRetrievalEventForScope(scope, "memory_prompt_tokens:"+retrievalPromptTokenBucket(retrievalTokens))
+	RecordRetrievalEventForScope(scope, "memory_prompt_share:"+retrievalPromptShareBucket(retrievalTokens, tokenBudget))
+	if retrievalTokens > 0 {
+		share := 0
+		if tokenBudget > 0 {
+			share = int(math.Round((float64(retrievalTokens) / float64(tokenBudget)) * 100))
+		}
+		RecordRetrievalEventForScope(scope, fmt.Sprintf("memory_prompt_share_value:%d", share))
+	}
+}
 
 // ExecuteAgentLoop executes the multi-turn reasoning and tool execution loop.
 // It supports both synchronous returns and asynchronous streaming via the broker.
@@ -559,23 +619,32 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			toolingPolicy.EffectiveGuideStrategy,
 			currentLogger,
 		)
+		turnMemoryCandidates := make(map[string]string)
+		turnPendingActions := make([]memory.EpisodicMemory, 0, 2)
 
 		// Automatic RAG: retrieve relevant long-term memories for the current user message
 		// Phase A3: Over-fetch and re-rank with recency boost from memory_meta
 		flags.RetrievedMemories = ""
 		flags.PredictedMemories = ""
+		retrievalPromptTokens := 0
 		var topMemories []string
 		if !runCfg.IsMission && lastUserMsg != "" && longTermMem != nil && shouldUseRAGForMessage(lastUserMsg) {
-			// Query expansion: enrich user message with LLM-generated keywords for better RAG
-			ragQuery := expandQueryForRAG(ctx, cfg, currentLogger, lastUserMsg)
+			// Query expansion: enrich user message with adaptive search keywords for better RAG
+			ragQuery := expandQueryForRAG(ctx, cfg, currentLogger, lastUserMsg, shortTermMem)
 
 			// Over-fetch 6 candidates, then re-rank to keep best 3
-			memories, docIDs, err := longTermMem.SearchSimilar(ragQuery, 6, "tool_guides")
+			RecordRetrievalEventForScope(telemetryScope, "rag_auto_attempt")
+			autoRetrievalStart := time.Now()
+			memories, docIDs, err := longTermMem.SearchMemoriesOnly(ragQuery, 6)
+			RecordRetrievalEventForScope(telemetryScope, "rag_auto_latency:"+retrievalLatencyBucket(time.Since(autoRetrievalStart)))
+			if err != nil {
+				RecordRetrievalEventForScope(telemetryScope, "rag_auto_error")
+			}
 			if err == nil && len(memories) > 0 {
 				ranked := rankMemoryCandidates(memories, docIDs, shortTermMem, usedMemoryDocIDs, time.Now())
 
 				// LLM re-ranking: blend LLM relevance scores with policy-ranked scores
-				ranked = rerankWithLLM(ctx, cfg, currentLogger, ranked, lastUserMsg)
+				ranked = rerankWithLLM(ctx, cfg, currentLogger, ranked, lastUserMsg, shortTermMem)
 
 				// For short queries (<40 chars), apply stricter score filtering to
 				// avoid injecting semantically-similar but contextually-irrelevant
@@ -607,7 +676,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 						currentLogger.Debug("[RAG] Dropped stale transient memory", "preview", Truncate(r.text, 80))
 						continue
 					}
-					topMemories = append(topMemories, compactMemoryForPrompt(r.text, 260))
+					compactText := compactMemoryForPrompt(r.text, 260)
+					topMemories = append(topMemories, compactText)
+					turnMemoryCandidates[r.docID] = compactText
 				}
 				if wantsDeepDetails {
 					for i, r := range ranked {
@@ -616,12 +687,23 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 						}
 						full, ferr := longTermMem.GetByID(r.docID)
 						if ferr == nil && full != "" && shouldServeRAGMemory(full) {
-							topMemories = append(topMemories, "[Detailed Memory]\n"+compactMemoryForPrompt(full, 700))
+							detailed := compactMemoryForPrompt(full, 700)
+							topMemories = append(topMemories, "[Detailed Memory]\n"+detailed)
+							turnMemoryCandidates[r.docID] = detailed
 						}
 					}
 				}
 				flags.RetrievedMemories = strings.Join(topMemories, "\n---\n")
+				if flags.RetrievedMemories != "" {
+					retrievalPromptTokens += prompts.CountTokens(flags.RetrievedMemories)
+					RecordRetrievalEventForScope(telemetryScope, "rag_auto_hit")
+					RecordRetrievalEventForScope(telemetryScope, "rag_auto_source:ltm")
+				} else {
+					RecordRetrievalEventForScope(telemetryScope, "rag_auto_filtered_out")
+				}
 				currentLogger.Debug("[Sync] RAG: Retrieved memories (recency-boosted)", "count", len(ranked))
+			} else if err == nil {
+				RecordRetrievalEventForScope(telemetryScope, "rag_auto_miss")
 			}
 
 			// Phase A4: Record interaction pattern for temporal learning
@@ -650,10 +732,16 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					}
 
 					var predictedResults []string
+					RecordRetrievalEventForScope(telemetryScope, "rag_predictive_attempt")
+					predictiveStart := time.Now()
+					hadPredictiveError := false
 					for _, pred := range predictions {
 						// Use SearchMemoriesOnly: predictive pre-fetch needs only user memories,
 						// not tool_guides/documentation — avoids 2 full extra search cycles per request.
 						pMem, pIDs, pErr := longTermMem.SearchMemoriesOnly(pred, 1)
+						if pErr != nil {
+							hadPredictiveError = true
+						}
 						if pErr == nil && len(pMem) > 0 {
 							if len(pIDs) > 0 && usedMemoryDocIDs[pIDs[0]] > 0 {
 								continue
@@ -664,13 +752,23 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 								if len(pIDs) > 0 && pIDs[0] != "" {
 									usedMemoryDocIDs[pIDs[0]]++
 									_ = shortTermMem.RecordMemoryUsage(pIDs[0], "ltm_predicted", sessionID, 0, false)
+									turnMemoryCandidates[pIDs[0]] = compactMemoryForPrompt(pMem[0], 260)
 								}
 							}
 						}
 					}
+					RecordRetrievalEventForScope(telemetryScope, "rag_predictive_latency:"+retrievalLatencyBucket(time.Since(predictiveStart)))
+					if hadPredictiveError {
+						RecordRetrievalEventForScope(telemetryScope, "rag_predictive_error")
+					}
 					if len(predictedResults) > 0 {
 						flags.PredictedMemories = strings.Join(predictedResults, "\n---\n")
+						retrievalPromptTokens += prompts.CountTokens(flags.PredictedMemories)
+						RecordRetrievalEventForScope(telemetryScope, "rag_predictive_hit")
+						RecordRetrievalEventForScope(telemetryScope, "rag_predictive_source:ltm_predicted")
 						currentLogger.Debug("[Sync] Predictive RAG: Pre-fetched memories", "count", len(predictedResults), "predictions", predictions, "temporal_predictions", temporalPredictions)
+					} else {
+						RecordRetrievalEventForScope(telemetryScope, "rag_predictive_miss")
 					}
 				}
 			}
@@ -691,6 +789,24 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		// Inject lightweight recent-day anchors and episodic cards, even when
 		// long-term memory retrieval is unavailable/disabled.
 		if !runCfg.IsMission && lastUserMsg != "" && shortTermMem != nil {
+			pendingActions, pErr := shortTermMem.GetPendingEpisodicActionsForQuery(lastUserMsg, 2)
+			if pErr == nil && len(pendingActions) > 0 {
+				turnPendingActions = append(turnPendingActions, pendingActions...)
+				lines := make([]string, 0, len(pendingActions))
+				for _, action := range pendingActions {
+					line := action.EventDate + " | " + action.Title + " — " + action.Summary
+					if trigger := strings.TrimSpace(action.TriggerQuery); trigger != "" {
+						line += " | trigger: " + trigger
+					}
+					lines = append(lines, line)
+				}
+				prefix := "[Pending Follow-Ups]\n- " + strings.Join(lines, "\n- ")
+				if flags.RetrievedMemories == "" {
+					flags.RetrievedMemories = prefix
+				} else {
+					flags.RetrievedMemories += "\n---\n" + prefix
+				}
+			}
 			anchors, aErr := shortTermMem.GetRecentDayAnchors(2)
 			if aErr == nil && len(anchors) > 0 {
 				prefix := "[Recent Day Anchors]\n- " + strings.Join(anchors, "\n- ")
@@ -817,6 +933,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 		flags.AdditionalPrompt = mergeAdditionalPrompt(baseAdditionalPrompt, emotionPolicy.PromptHint)
 		flags.TokenBudget = calculateEffectivePromptTokenBudget(cfg, ToolCall{}, homepageUsedInChain, currentLogger)
+		recordRetrievalPromptTelemetry(telemetryScope, retrievalPromptTokens, flags.TokenBudget)
 
 		sysPrompt := prompts.BuildSystemPrompt(cfg.Directories.PromptsDir, flags, coreMemCache, currentLogger)
 
@@ -1901,8 +2018,30 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 		}
 
+		memAnalysis := resolveMemoryAnalysisSettings(cfg, shortTermMem)
+		if memAnalysis.EffectivenessTracking && !isEmpty && shortTermMem != nil && len(turnMemoryCandidates) > 0 {
+			usefulIDs, uselessIDs := assessMemoryEffectiveness(content, turnMemoryCandidates)
+			for _, memoryID := range usefulIDs {
+				if err := shortTermMem.RecordMemoryEffectiveness(memoryID, true); err != nil {
+					currentLogger.Debug("Failed to record useful memory effectiveness", "memory_id", memoryID, "error", err)
+					continue
+				}
+				RecordRetrievalEventForScope(telemetryScope, "memory_effectiveness_useful")
+			}
+			for _, memoryID := range uselessIDs {
+				if err := shortTermMem.RecordMemoryEffectiveness(memoryID, false); err != nil {
+					currentLogger.Debug("Failed to record useless memory effectiveness", "memory_id", memoryID, "error", err)
+					continue
+				}
+				RecordRetrievalEventForScope(telemetryScope, "memory_effectiveness_useless")
+			}
+		}
+		if !isEmpty && shortTermMem != nil && len(turnPendingActions) > 0 {
+			resolveCompletedPendingActions(shortTermMem, lastUserMsg, content, turnPendingActions)
+		}
+
 		// Real-time memory analysis: async post-response extraction of memory-worthy content
-		if cfg.MemoryAnalysis.Enabled && cfg.MemoryAnalysis.RealTime && !isEmpty && shortTermMem != nil {
+		if memAnalysis.Enabled && memAnalysis.RealTime && !isEmpty && shortTermMem != nil {
 			go func(userMsg, aResp, sid string) {
 				analysisCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 				defer cancel()
@@ -1933,7 +2072,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 		// Weekly reflection: async trigger if configured and due
 		// Guard: only run once per day by checking if a reflection entry already exists today.
-		if cfg.MemoryAnalysis.Enabled && cfg.MemoryAnalysis.WeeklyReflection && weeklyReflectionDue(cfg) && shortTermMem != nil {
+		if memAnalysis.Enabled && memAnalysis.WeeklyReflection && weeklyReflectionDue(cfg, shortTermMem) && shortTermMem != nil {
 			today := time.Now().Format("2006-01-02")
 			existing, _ := shortTermMem.GetJournalEntries(today, today, []string{"reflection"}, 1)
 			if len(existing) == 0 {

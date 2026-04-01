@@ -81,3 +81,40 @@ func TestUpsertMemoryMetaDefaultsQualityFields(t *testing.T) {
 		t.Fatalf("SourceReliability = %v, want 0.70", meta.SourceReliability)
 	}
 }
+
+func TestRecordMemoryEffectivenessPersistsCounters(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	t.Cleanup(func() { _ = stm.Close() })
+
+	if err := stm.RecordMemoryEffectiveness("doc-effectiveness", true); err != nil {
+		t.Fatalf("RecordMemoryEffectiveness useful: %v", err)
+	}
+	if err := stm.RecordMemoryEffectiveness("doc-effectiveness", true); err != nil {
+		t.Fatalf("RecordMemoryEffectiveness useful repeat: %v", err)
+	}
+	if err := stm.RecordMemoryEffectiveness("doc-effectiveness", false); err != nil {
+		t.Fatalf("RecordMemoryEffectiveness useless: %v", err)
+	}
+
+	metas, err := stm.GetAllMemoryMeta(100, 0)
+	if err != nil {
+		t.Fatalf("GetAllMemoryMeta: %v", err)
+	}
+	if len(metas) != 1 {
+		t.Fatalf("len(metas) = %d, want 1", len(metas))
+	}
+	meta := metas[0]
+	if meta.UsefulCount != 2 {
+		t.Fatalf("UsefulCount = %d, want 2", meta.UsefulCount)
+	}
+	if meta.UselessCount != 1 {
+		t.Fatalf("UselessCount = %d, want 1", meta.UselessCount)
+	}
+	if meta.LastEffectivenessAt == "" {
+		t.Fatal("LastEffectivenessAt should be populated")
+	}
+}

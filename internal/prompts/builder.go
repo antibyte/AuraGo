@@ -188,6 +188,7 @@ type ContextFlags struct {
 	MessageSource            string // origin channel: "web_chat", "telegram", "discord", "a2a", "sms", "mission"
 	ToolsDir                 string // absolute path to agent_workspace/tools/ for custom tool scripts
 	SkillsDir                string // absolute path to agent_workspace/skills/ for skill plugins
+	UnifiedMemoryBlock       bool   // experimental: merge retrieval/activity/KG context into one prompt section
 }
 
 // DetermineTierAdaptive returns a prompt tier based on both conversation length and
@@ -344,36 +345,43 @@ func BuildSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string,
 		finalPrompt.WriteString("\n\n")
 	}
 
-	// RAG: Retrieved Long-Term Memories — skip in minimal tier
-	if flags.RecentActivityOverview != "" && flags.Tier != "minimal" {
-		finalPrompt.WriteString("# LAST 7 DAYS OVERVIEW\n")
-		finalPrompt.WriteString(security.IsolateExternalData(flags.RecentActivityOverview))
-		finalPrompt.WriteString("\n\n")
-	}
+	if flags.UnifiedMemoryBlock {
+		if unifiedBlock := buildUnifiedMemoryContextBlock(flags); unifiedBlock != "" {
+			finalPrompt.WriteString(unifiedBlock)
+			finalPrompt.WriteString("\n\n")
+		}
+	} else {
+		// RAG: Retrieved Long-Term Memories — skip in minimal tier
+		if flags.RecentActivityOverview != "" && flags.Tier != "minimal" {
+			finalPrompt.WriteString("# LAST 7 DAYS OVERVIEW\n")
+			finalPrompt.WriteString(security.IsolateExternalData(flags.RecentActivityOverview))
+			finalPrompt.WriteString("\n\n")
+		}
 
-	// RAG: Retrieved Long-Term Memories — skip in minimal tier
-	if flags.RetrievedMemories != "" && flags.Tier != "minimal" {
-		finalPrompt.WriteString("# RETRIEVED MEMORIES\n")
-		finalPrompt.WriteString("**Important**: Memories reflect past observations and MAY BE OUTDATED. " +
-			"For any claim about tool availability, integration status, system configuration, " +
-			"or capability — VERIFY against current context or by using a tool BEFORE acting on it. " +
-			"Never assume a memory about system state is still accurate.\n\n")
-		finalPrompt.WriteString(security.IsolateExternalData(flags.RetrievedMemories))
-		finalPrompt.WriteString("\n\n")
-	}
+		// RAG: Retrieved Long-Term Memories — skip in minimal tier
+		if flags.RetrievedMemories != "" && flags.Tier != "minimal" {
+			finalPrompt.WriteString("# RETRIEVED MEMORIES\n")
+			finalPrompt.WriteString("**Important**: Memories reflect past observations and MAY BE OUTDATED. " +
+				"For any claim about tool availability, integration status, system configuration, " +
+				"or capability — VERIFY against current context or by using a tool BEFORE acting on it. " +
+				"Never assume a memory about system state is still accurate.\n\n")
+			finalPrompt.WriteString(security.IsolateExternalData(flags.RetrievedMemories))
+			finalPrompt.WriteString("\n\n")
+		}
 
-	// Predictive RAG — only in full tier
-	if flags.PredictedMemories != "" && flags.Tier == "full" {
-		finalPrompt.WriteString("# PREDICTED CONTEXT\n")
-		finalPrompt.WriteString(security.IsolateExternalData(flags.PredictedMemories))
-		finalPrompt.WriteString("\n\n")
-	}
+		// Predictive RAG — only in full tier
+		if flags.PredictedMemories != "" && flags.Tier == "full" {
+			finalPrompt.WriteString("# PREDICTED CONTEXT\n")
+			finalPrompt.WriteString(security.IsolateExternalData(flags.PredictedMemories))
+			finalPrompt.WriteString("\n\n")
+		}
 
-	// Knowledge Graph context — relevant entities and relationships
-	if flags.KnowledgeContext != "" && flags.Tier != "minimal" {
-		finalPrompt.WriteString("# RELEVANT KNOWLEDGE\n")
-		finalPrompt.WriteString(security.IsolateExternalData(flags.KnowledgeContext))
-		finalPrompt.WriteString("\n\n")
+		// Knowledge Graph context — relevant entities and relationships
+		if flags.KnowledgeContext != "" && flags.Tier != "minimal" {
+			finalPrompt.WriteString("# RELEVANT KNOWLEDGE\n")
+			finalPrompt.WriteString(security.IsolateExternalData(flags.KnowledgeContext))
+			finalPrompt.WriteString("\n\n")
+		}
 	}
 
 	// Error Pattern Context — inject known error patterns during error recovery
@@ -583,11 +591,18 @@ func budgetShed(prompt string, flags ContextFlags, personalityContent, coreMemor
 
 	// Strategy: remove sections in priority order, re-counting only when content was actually removed.
 	// RETRIEVED MEMORIES is handled separately with per-entry progressive trimming.
-	shedHeaders := []string{
-		"# TOOL GUIDES",
-		"# PREDICTED CONTEXT",
-		"# LAST 7 DAYS OVERVIEW",
-		"### User Profile",
+	shedHeaders := []string{"# TOOL GUIDES"}
+	if flags.UnifiedMemoryBlock {
+		shedHeaders = append(shedHeaders,
+			"### User Profile",
+			"# UNIFIED MEMORY CONTEXT",
+		)
+	} else {
+		shedHeaders = append(shedHeaders,
+			"# PREDICTED CONTEXT",
+			"# LAST 7 DAYS OVERVIEW",
+			"### User Profile",
+		)
 	}
 
 	result := prompt
@@ -606,7 +621,7 @@ func budgetShed(prompt string, flags ContextFlags, personalityContent, coreMemor
 
 	// Token-aware Retrieved Memories trim: progressively remove individual entries (lowest ranked first)
 	// instead of dropping the entire section at once.
-	if tokens > flags.TokenBudget {
+	if tokens > flags.TokenBudget && !flags.UnifiedMemoryBlock {
 		var trimmed bool
 		result, trimmed, tokens = trimRetrievedMemoriesSection(result, flags.TokenBudget, logger)
 		if trimmed {
@@ -721,6 +736,43 @@ func trimRetrievedMemoriesSection(prompt string, budget int, logger *slog.Logger
 	finalPrompt := strings.TrimRight(before, "\n ") + "\n\n" + afterSection
 	logger.Debug("[Budget] Removed all retrieved memories entries")
 	return finalPrompt, true, CountTokens(finalPrompt)
+}
+
+func buildUnifiedMemoryContextBlock(flags ContextFlags) string {
+	sections := make([]string, 0, 4)
+
+	if flags.RecentActivityOverview != "" && flags.Tier != "minimal" {
+		sections = append(sections,
+			"## Recent Activity\n"+security.IsolateExternalData(flags.RecentActivityOverview),
+		)
+	}
+
+	if flags.RetrievedMemories != "" && flags.Tier != "minimal" {
+		sections = append(sections,
+			"## Retrieved Memories\n**Important**: Memories reflect past observations and MAY BE OUTDATED. "+
+				"For any claim about tool availability, integration status, system configuration, or capability — VERIFY against current context or by using a tool BEFORE acting on it. "+
+				"Never assume a memory about system state is still accurate.\n\n"+
+				security.IsolateExternalData(flags.RetrievedMemories),
+		)
+	}
+
+	if flags.PredictedMemories != "" && flags.Tier == "full" {
+		sections = append(sections,
+			"## Predicted Context\n"+security.IsolateExternalData(flags.PredictedMemories),
+		)
+	}
+
+	if flags.KnowledgeContext != "" && flags.Tier != "minimal" {
+		sections = append(sections,
+			"## Relevant Knowledge\n"+security.IsolateExternalData(flags.KnowledgeContext),
+		)
+	}
+
+	if len(sections) == 0 {
+		return ""
+	}
+
+	return "# UNIFIED MEMORY CONTEXT\n" + strings.Join(sections, "\n\n")
 }
 
 // removeLineByPrefix removes all lines starting with the given prefix (and the following blank line).

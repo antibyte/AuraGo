@@ -112,7 +112,7 @@ func TestHandleDashboardMemoryContract(t *testing.T) {
 		t.Fatalf("failed to decode JSON: %v", err)
 	}
 
-	for _, key := range []string{"core_memory_facts", "chat_messages", "vectordb_entries", "knowledge_graph", "journal_entries", "notes_count", "error_patterns", "milestones", "episodic", "memory_health"} {
+	for _, key := range []string{"core_memory_facts", "chat_messages", "vectordb_entries", "knowledge_graph", "journal_entries", "notes_count", "error_patterns", "milestones", "episodic", "pending_actions", "memory_conflicts", "memory_health"} {
 		if _, ok := body[key]; !ok {
 			t.Fatalf("memory payload missing key %q", key)
 		}
@@ -132,10 +132,13 @@ func TestHandleDashboardMemoryContract(t *testing.T) {
 	if !ok {
 		t.Fatalf("memory_health has unexpected type %T", body["memory_health"])
 	}
-	for _, key := range []string{"usage", "confidence", "curator"} {
+	for _, key := range []string{"usage", "confidence", "curator", "strategy"} {
 		if _, ok := health[key]; !ok {
 			t.Fatalf("memory_health missing key %q", key)
 		}
+	}
+	if _, ok := health["effectiveness"]; !ok {
+		t.Fatal("memory_health missing key \"effectiveness\"")
 	}
 }
 

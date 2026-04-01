@@ -17,6 +17,7 @@ func TestAgentTelemetrySnapshotIncludesParseAndRecoveryCounts(t *testing.T) {
 	RecordToolRecoveryEvent("provider_422_recovered")
 	RecordToolRecoveryEvent("duplicate_tool_call_blocked")
 	RecordToolPolicyEvent("conservative_profile_applied")
+	RecordRetrievalEvent("rag_auto_hit")
 
 	snapshot := GetAgentTelemetrySnapshot()
 
@@ -35,6 +36,9 @@ func TestAgentTelemetrySnapshotIncludesParseAndRecoveryCounts(t *testing.T) {
 	if got := snapshot.PolicyEvents["conservative_profile_applied"]; got != 1 {
 		t.Fatalf("policy event count = %d, want 1", got)
 	}
+	if got := snapshot.RetrievalEvents["rag_auto_hit"]; got != 1 {
+		t.Fatalf("retrieval event count = %d, want 1", got)
+	}
 	if len(snapshot.Scopes) != 0 {
 		t.Fatalf("expected no scoped telemetry for unscoped records, got %d scopes", len(snapshot.Scopes))
 	}
@@ -47,6 +51,7 @@ func TestAgentTelemetrySnapshotIncludesScopedCounters(t *testing.T) {
 	RecordToolParseSourceForScope(scope, ToolCallParseSourceNative)
 	RecordToolRecoveryEventForScope(scope, "provider_422_recovered")
 	RecordToolPolicyEventForScope(scope, "conservative_profile_applied")
+	RecordRetrievalEventForScope(scope, "rag_auto_latency:50_149ms")
 	RecordScopedToolResultForTool(scope, "homepage", true)
 	RecordScopedToolResultForTool(scope, "homepage", false)
 
@@ -65,6 +70,9 @@ func TestAgentTelemetrySnapshotIncludesScopedCounters(t *testing.T) {
 	}
 	if got := snapshot.Scopes[0].PolicyEvents["conservative_profile_applied"]; got != 1 {
 		t.Fatalf("scoped policy event count = %d, want 1", got)
+	}
+	if got := snapshot.Scopes[0].RetrievalEvents["rag_auto_latency:50_149ms"]; got != 1 {
+		t.Fatalf("scoped retrieval event count = %d, want 1", got)
 	}
 	if snapshot.Scopes[0].ToolCalls != 2 || snapshot.Scopes[0].ToolFailures != 1 {
 		t.Fatalf("unexpected scoped tool stats: %+v", snapshot.Scopes[0])
@@ -97,6 +105,9 @@ func TestInitializeAgentTelemetryPersistenceLoadsPersistedCounters(t *testing.T)
 	if err := stm.UpsertAgentTelemetry("policy_event", "conservative_profile_applied"); err != nil {
 		t.Fatalf("UpsertAgentTelemetry policy_event: %v", err)
 	}
+	if err := stm.UpsertAgentTelemetry("retrieval_event", "rag_auto_hit"); err != nil {
+		t.Fatalf("UpsertAgentTelemetry retrieval_event: %v", err)
+	}
 
 	InitializeAgentTelemetryPersistence(stm)
 	snapshot := GetAgentTelemetrySnapshot()
@@ -109,6 +120,9 @@ func TestInitializeAgentTelemetryPersistenceLoadsPersistedCounters(t *testing.T)
 	}
 	if got := snapshot.PolicyEvents["conservative_profile_applied"]; got != 1 {
 		t.Fatalf("loaded policy event count = %d, want 1", got)
+	}
+	if got := snapshot.RetrievalEvents["rag_auto_hit"]; got != 1 {
+		t.Fatalf("loaded retrieval event count = %d, want 1", got)
 	}
 	if len(snapshot.Scopes) != 0 {
 		t.Fatalf("expected no scoped entries from unscoped persistence, got %d", len(snapshot.Scopes))
@@ -133,6 +147,9 @@ func TestInitializeAgentTelemetryPersistenceLoadsScopedCounters(t *testing.T) {
 	}
 	if err := stm.UpsertScopedAgentTelemetry("openrouter", "deepseek-chat", "policy_event", "conservative_profile_applied"); err != nil {
 		t.Fatalf("UpsertScopedAgentTelemetry policy_event: %v", err)
+	}
+	if err := stm.UpsertScopedAgentTelemetry("openrouter", "deepseek-chat", "retrieval_event", "rag_predictive_hit"); err != nil {
+		t.Fatalf("UpsertScopedAgentTelemetry retrieval_event: %v", err)
 	}
 	if err := stm.UpsertScopedAgentTelemetry("openrouter", "deepseek-chat", "tool_family_result", "deployment|success"); err != nil {
 		t.Fatalf("UpsertScopedAgentTelemetry tool_family_result success: %v", err)
@@ -161,6 +178,9 @@ func TestInitializeAgentTelemetryPersistenceLoadsScopedCounters(t *testing.T) {
 	}
 	if got := snapshot.Scopes[0].PolicyEvents["conservative_profile_applied"]; got != 1 {
 		t.Fatalf("loaded scoped policy event count = %d, want 1", got)
+	}
+	if got := snapshot.Scopes[0].RetrievalEvents["rag_predictive_hit"]; got != 1 {
+		t.Fatalf("loaded scoped retrieval event count = %d, want 1", got)
 	}
 	if family := snapshot.Scopes[0].ToolFamilies["deployment"]; family.ToolCalls != 2 || family.ToolFailures != 1 {
 		t.Fatalf("unexpected loaded scoped family stats: %+v", family)

@@ -30,14 +30,8 @@ func TestExpandQueryForRAG_Disabled(t *testing.T) {
 		want string
 	}{
 		{
-			name: "disabled when MemoryAnalysis not enabled",
-			cfg:  newTestConfig(false, true, false),
-			msg:  "this is a long enough user message for expansion",
-			want: "this is a long enough user message for expansion",
-		},
-		{
-			name: "disabled when QueryExpansion is false",
-			cfg:  newTestConfig(true, false, false),
+			name: "disabled when config is missing",
+			cfg:  nil,
 			msg:  "this is a long enough user message for expansion",
 			want: "this is a long enough user message for expansion",
 		},
@@ -57,7 +51,7 @@ func TestExpandQueryForRAG_Disabled(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := expandQueryForRAG(ctx, tt.cfg, logger, tt.msg)
+			got := expandQueryForRAG(ctx, tt.cfg, logger, tt.msg, nil)
 			if got != tt.want {
 				t.Errorf("expandQueryForRAG() = %q, want %q", got, tt.want)
 			}
@@ -79,18 +73,14 @@ func TestRerankWithLLM_Disabled(t *testing.T) {
 		cfg  *config.Config
 	}{
 		{
-			name: "disabled when MemoryAnalysis not enabled",
-			cfg:  newTestConfig(false, false, true),
-		},
-		{
-			name: "disabled when LLMReranking is false",
-			cfg:  newTestConfig(true, false, false),
+			name: "disabled when config is missing",
+			cfg:  nil,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := rerankWithLLM(ctx, tt.cfg, logger, candidates, "test query")
+			got := rerankWithLLM(ctx, tt.cfg, logger, candidates, "test query", nil)
 			if len(got) != len(candidates) {
 				t.Errorf("rerankWithLLM() returned %d items, want %d", len(got), len(candidates))
 			}
@@ -108,12 +98,12 @@ func TestRerankWithLLM_EmptyCandidates(t *testing.T) {
 	ctx := context.Background()
 	cfg := newTestConfig(true, false, true)
 
-	got := rerankWithLLM(ctx, cfg, logger, nil, "test query")
+	got := rerankWithLLM(ctx, cfg, logger, nil, "test query", nil)
 	if len(got) != 0 {
 		t.Errorf("rerankWithLLM() with nil candidates returned %d items, want 0", len(got))
 	}
 
-	got = rerankWithLLM(ctx, cfg, logger, []rankedMemory{}, "test query")
+	got = rerankWithLLM(ctx, cfg, logger, []rankedMemory{}, "test query", nil)
 	if len(got) != 0 {
 		t.Errorf("rerankWithLLM() with empty candidates returned %d items, want 0", len(got))
 	}
