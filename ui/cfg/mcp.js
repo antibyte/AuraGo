@@ -168,14 +168,14 @@ let mcpServersCache = null;
                     if (eq > 0) entry.env[line.substring(0, eq).trim()] = line.substring(eq + 1).trim();
                 });
                 if (!entry.name || !entry.command) {
-                    alert(t('config.mcp.name_command_required'));
+                    showToast(t('config.mcp.name_command_required'), 'warn');
                     return;
                 }
                 if (isEdit) {
                     mcpServersCache[idx] = entry;
                 } else {
                     if (mcpServersCache.some(s => s.name === entry.name)) {
-                        alert(t('config.mcp.name_exists'));
+                        showToast(t('config.mcp.name_exists'), 'warn');
                         return;
                     }
                     mcpServersCache.push(entry);
@@ -198,6 +198,6 @@ let mcpServersCache = null;
                 const reload = await fetch('/api/mcp-servers');
                 if (reload.ok) mcpServersCache = await reload.json();
             } catch (e) {
-                alert('❌ MCP save failed: ' + e.message);
+                showToast(t('config.common.error') + ': ' + e.message, 'error');
             }
         }

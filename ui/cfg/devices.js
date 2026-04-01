@@ -170,8 +170,8 @@ function devicesRenderRows(devices) {
             <td class="devices-cell devices-cell-mono devices-cell-mac">${escapeHtml(d.mac_address || '—')}</td>
             <td class="devices-cell">${tags || '—'}</td>
             <td class="devices-cell devices-cell-actions">
-                <button onclick="devicesShowModal('${d.id}')" class="devices-action-btn" title="${t('config.devices.edit_tooltip')}">✏️</button>
-                <button onclick="devicesDelete('${d.id}','${escapeHtml(d.name)}')" class="devices-action-btn devices-action-btn-delete" title="${t('config.devices.delete_tooltip')}">🗑️</button>
+                <button onclick="devicesShowModal('${escapeAttr(d.id)}')" class="devices-action-btn" title="${t('config.devices.edit_tooltip')}">✏️</button>
+                <button onclick="devicesDelete('${escapeAttr(d.id)}','${escapeAttr(d.name)}')" class="devices-action-btn devices-action-btn-delete" title="${t('config.devices.delete_tooltip')}">🗑️</button>
             </td>`;
         tbody.appendChild(tr);
     });
@@ -340,6 +340,6 @@ async function devicesDelete(id, name) {
         }
         await devicesLoad();
     } catch (e) {
-        alert('❌ ' + e.message);
+        showToast(e.message || t('config.common.error'), 'error');
     }
 }

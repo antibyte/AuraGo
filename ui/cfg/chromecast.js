@@ -162,8 +162,8 @@ function ccRenderRows(devices) {
             <td class="cc-cell">${d.port || 8009}</td>
             <td class="cc-cell cc-cell-desc">${escapeHtml(d.description || '—')}</td>
             <td class="cc-cell cc-cell-actions">
-                <button onclick="ccShowEditModal('${d.id}')" class="cc-icon-btn" title="${t('config.chromecast.edit_tooltip')}">✏️</button>
-                <button onclick="ccDeleteDevice('${d.id}','${escapeHtml(d.name)}')" class="cc-icon-btn cc-icon-btn-danger" title="${t('config.chromecast.delete_tooltip')}">🗑️</button>
+                <button onclick="ccShowEditModal('${escapeAttr(d.id)}')" class="cc-icon-btn" title="${t('config.chromecast.edit_tooltip')}">✏️</button>
+                <button onclick="ccDeleteDevice('${escapeAttr(d.id)}','${escapeAttr(d.name)}')" class="cc-icon-btn cc-icon-btn-danger" title="${t('config.chromecast.delete_tooltip')}">🗑️</button>
             </td>`;
         tbody.appendChild(tr);
     });
@@ -401,6 +401,6 @@ async function ccDeleteDevice(id, name) {
         }
         await ccLoadDevices();
     } catch (e) {
-        alert('❌ ' + e.message);
+        showToast(e.message || t('config.common.error'), 'error');
     }
 }

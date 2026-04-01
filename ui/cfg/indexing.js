@@ -78,7 +78,7 @@
                     html += `<div class="idx-dir-item">
                         <span class="idx-dir-icon">📁</span>
                         <span class="idx-dir-path" title="${attrDir}">${safeDir}</span>
-                        <button onclick="idxRemoveDir('${d.replace(/'/g, "\\'").replace(/\\/g, "\\\\")}')" class="idx-dir-remove-btn" title="${t('config.indexing.remove')}">✕</button>
+                        <button onclick="idxRemoveDir(this.dataset.dir)" data-dir="${attrDir}" class="idx-dir-remove-btn" title="${t('config.indexing.remove')}">✕</button>
                     </div>`;
                 });
             }
@@ -184,7 +184,7 @@
                 });
                 if (!resp.ok) {
                     const text = await resp.text();
-                    alert(text || t('config.common.error'));
+                    showToast(text || t('config.common.error'), 'error');
                     return;
                 }
                 input.value = '';
@@ -192,7 +192,7 @@
                 const sectionMeta = SECTIONS.flatMap(g => g.items).find(s => s.key === 'indexing');
                 await renderIndexingSection(sectionMeta);
             } catch (e) {
-                alert(t('config.common.error') + ': ' + e.message);
+                showToast(t('config.common.error') + ': ' + e.message, 'error');
             }
         }
 
@@ -206,13 +206,13 @@
                 });
                 if (!resp.ok) {
                     const text = await resp.text();
-                    alert(text || t('config.common.error'));
+                    showToast(text || t('config.common.error'), 'error');
                     return;
                 }
                 const sectionMeta = SECTIONS.flatMap(g => g.items).find(s => s.key === 'indexing');
                 await renderIndexingSection(sectionMeta);
             } catch (e) {
-                alert(t('config.common.error') + ': ' + e.message);
+                showToast(t('config.common.error') + ': ' + e.message, 'error');
             }
         }
 

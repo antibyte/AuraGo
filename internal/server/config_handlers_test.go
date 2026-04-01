@@ -83,6 +83,44 @@ func TestExtractSecretsToVaultStoresMappedClientSecret(t *testing.T) {
 	}
 }
 
+func TestExtractSecretsToVaultStoresAIGatewayToken(t *testing.T) {
+	const masterKey = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+
+	vault, err := security.NewVault(masterKey, t.TempDir()+"\\vault.bin")
+	if err != nil {
+		t.Fatalf("NewVault() error = %v", err)
+	}
+
+	patch := map[string]interface{}{
+		"ai_gateway": map[string]interface{}{
+			"enabled":    true,
+			"account_id": "cf-account",
+			"gateway_id": "main-gateway",
+			"token":      "cf-aig-secret-token",
+		},
+	}
+
+	if err := extractSecretsToVault(patch, vault, slog.Default()); err != nil {
+		t.Fatalf("extractSecretsToVault() error = %v", err)
+	}
+
+	secret, err := vault.ReadSecret("ai_gateway_token")
+	if err != nil {
+		t.Fatalf("vault.ReadSecret() error = %v", err)
+	}
+	if secret != "cf-aig-secret-token" {
+		t.Fatalf("vault secret = %q, want %q", secret, "cf-aig-secret-token")
+	}
+
+	section, ok := patch["ai_gateway"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("patch[\"ai_gateway\"] missing or wrong type: %#v", patch["ai_gateway"])
+	}
+	if _, exists := section["token"]; exists {
+		t.Fatalf("token field should have been removed from patch: %#v", section)
+	}
+}
+
 func TestHandleUpdateConfigInvalidJSONIsGeneric(t *testing.T) {
 	s := &Server{
 		Cfg: &config.Config{ConfigPath: "config.yaml"},

@@ -197,7 +197,7 @@ async function authSetPassword() {
 async function authTOTPStartSetup() {
     try {
         const resp = await fetch('/api/auth/totp/setup');
-        if (resp.status === 401) { alert(t('config.auth.login_first')); return; }
+        if (resp.status === 401) { showToast(t('config.auth.login_first'), 'warn'); return; }
         const data = await resp.json();
         _totpNewSecret = data.secret;
         document.getElementById('totp-secret-display').textContent = data.secret;
@@ -216,7 +216,7 @@ async function authTOTPStartSetup() {
             qrEl.innerHTML = '<div class="auth-totp-uri-fallback">' + esc((data.uri || '').replace(/secret=[^&]*/, 'secret=***')) + '</div>';
         }
     } catch (e) {
-        alert(t('config.common.error') + ': ' + e.message);
+        showToast(t('config.common.error') + ': ' + e.message, 'error');
     }
 }
 
@@ -249,10 +249,10 @@ async function authTOTPDisable() {
         if (resp.ok) {
             selectSection('web_config');
         } else {
-            alert(data.error || t('config.common.error'));
+            showToast(data.error || t('config.common.error'), 'error');
         }
     } catch (e) {
-        alert(t('config.common.network_error'));
+        showToast(t('config.common.network_error'), 'error');
     }
 }
 
@@ -338,11 +338,11 @@ async function securityHardenIds(ids) {
         if (resp.ok) {
             await loadSecurityAuditPanel();
         } else {
-            alert((data && data.error) || t('config.common.error'));
+            showToast((data && data.error) || t('config.common.error'), 'error');
             if (btn) { btn.disabled = false; btn.textContent = t('config.security.fix_all_auto').replace('{n}', ids.length); }
         }
     } catch (e) {
-        alert(t('config.common.network_error'));
+        showToast(t('config.common.network_error'), 'error');
         if (btn) { btn.disabled = false; }
     }
 }

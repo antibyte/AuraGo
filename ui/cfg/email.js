@@ -223,8 +223,8 @@ let emailAccountsCache = null;
                 const watch_folder = document.getElementById('ea-watch-folder').value.trim() || 'INBOX';
                 const watch_interval_seconds = parseInt(document.getElementById('ea-watch-interval').value, 10) || 120;
 
-                if (!id) { alert(t('config.email.id_empty')); return; }
-                if (!imap_host && !smtp_host) { alert(t('config.email.host_required')); return; }
+                if (!id) { showToast(t('config.email.id_empty'), 'warn'); return; }
+                if (!imap_host && !smtp_host) { showToast(t('config.email.host_required'), 'warn'); return; }
 
                 const entry = { id, name: name || id, enabled, allow_sending, imap_host, imap_port, smtp_host, smtp_port, username, password, from_address, watch_enabled, watch_folder, watch_interval_seconds };
                 onSave(entry);
@@ -244,7 +244,7 @@ let emailAccountsCache = null;
                 {},
                 async (entry) => {
                     if (emailAccountsCache.some(a => a.id === entry.id)) {
-                        alert(t('config.email.id_exists'));
+                        showToast(t('config.email.id_exists'), 'warn');
                         return;
                     }
                     emailAccountsCache.push(entry);
@@ -281,7 +281,7 @@ let emailAccountsCache = null;
                 });
                 if (!resp.ok) {
                     const txt = await resp.text();
-                    alert('Error: ' + txt);
+                    showToast(txt || t('config.common.error'), 'error');
                     return;
                 }
                 // Reload from server (passwords will be masked)
@@ -289,6 +289,6 @@ let emailAccountsCache = null;
                 if (reload.ok) emailAccountsCache = await reload.json();
                 emailAccountRenderCards();
             } catch (e) {
-                alert('Error: ' + e.message);
+                showToast(e.message || t('config.common.error'), 'error');
             }
         }

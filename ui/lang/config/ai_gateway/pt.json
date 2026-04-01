@@ -5,7 +5,9 @@
   "config.ai_gateway.account_id_placeholder": "Cloudflare Account ID",
   "config.ai_gateway.gateway_id": "ID do Gateway",
   "config.ai_gateway.gateway_id_placeholder": "my-gateway",
-  "config.ai_gateway.disabled_notice": "AI Gateway est\u00e1 desativado",
-  "config.ai_gateway.disabled_desc": "Ative o bot\u00e3o para rotear solicita\u00e7\u00f5es LLM pelo Cloudflare AI Gateway.",
-  "config.ai_gateway.info": "Roteia todas as solicita\u00e7\u00f5es API LLM pelo Cloudflare AI Gateway. Fornece cache, limita\u00e7\u00e3o, registro e failover. Provedores locais (Ollama) s\u00e3o exclu\u00eddos."
+  "config.ai_gateway.disabled_notice": "AI Gateway está desativado",
+  "config.ai_gateway.disabled_desc": "Ative o botão para rotear solicitações LLM pelo Cloudflare AI Gateway.",
+  "config.ai_gateway.info": "Roteia todas as solicitações API LLM pelo Cloudflare AI Gateway. Fornece cache, limitação, registro e failover. Provedores locais (Ollama) são excluídos.",
+  "config.ai_gateway.token": "Gateway token",
+  "config.ai_gateway.token_placeholder": "cf-aig-..."
 }

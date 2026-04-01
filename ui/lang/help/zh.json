@@ -309,5 +309,6 @@
   "help.personality.emotion_synthesizer.trigger_on_mood_change": "情绪变化时触发合成。",
   "help.personality.emotion_synthesizer.trigger_always": "每次V2分析后触发合成。",
   "help.webdav.auth_type": "选择 AuraGo 应使用带用户名和密码的 Basic Auth，还是 Bearer Token。",
-  "help.webdav.token": "用于需要 Authorization: Bearer … 头的服务器的 Bearer Token。会安全地存储在 Vault 中。"
+  "help.webdav.token": "用于需要 Authorization: Bearer … 头的服务器的 Bearer Token。会安全地存储在 Vault 中。",
+  "help.ai_gateway.token": "Optional Cloudflare AI Gateway token for authenticated gateways. Stored securely in the encrypted vault and sent as the cf-aig-authorization header."
 }

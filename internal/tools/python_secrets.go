@@ -42,6 +42,7 @@ var blockedSecretPrefixes = []string{
 // blockedSecretExact is the set of exact vault keys that are exclusively
 // managed by system integrations and must NEVER be accessible to Python tools.
 var blockedSecretExact = map[string]struct{}{
+	"ai_gateway_token":            {},
 	"telegram_bot_token":          {},
 	"discord_bot_token":           {},
 	"meshcentral_password":        {},

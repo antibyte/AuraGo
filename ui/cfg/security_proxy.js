@@ -126,7 +126,7 @@ async function renderSecurityProxySection(section) {
     html += `<label style="display:block;margin-bottom:0.6rem;">
         <span style="font-size:0.78rem;color:var(--text-secondary);">${t('config.security_proxy.ip_filter_addresses_label')} <small style="color:var(--text-tertiary);">(${t('config.security_proxy.ip_filter_addresses_hint')})</small></span>
         <textarea class="cfg-input" data-path="security_proxy.ip_filter.addresses" data-type="array-lines" rows="3"
-            style="width:100%;margin-top:0.2rem;font-family:monospace;font-size:0.8rem;">${curAddresses}</textarea>
+            style="width:100%;margin-top:0.2rem;font-family:monospace;font-size:0.8rem;">${escapeHtml(curAddresses)}</textarea>
     </label>`;
     html += `</div>`;
 
@@ -177,7 +177,7 @@ async function renderSecurityProxySection(section) {
         <div class="field-group-title">${t('config.security_proxy.docker_title')}</div>
         <label style="display:block;margin-bottom:0.6rem;">
             <span style="font-size:0.78rem;color:var(--text-secondary);">${t('config.security_proxy.docker_host_label')} <small style="color:var(--text-tertiary);">(${t('config.security_proxy.docker_host_hint')})</small></span>
-            <input type="text" class="cfg-input" data-path="security_proxy.docker_host" value="${cfg.docker_host || ''}"
+            <input type="text" class="cfg-input" data-path="security_proxy.docker_host" value="${escapeAttr(cfg.docker_host || '')}"
                 placeholder="unix:///var/run/docker.sock" style="width:100%;margin-top:0.2rem;">
         </label>
     </div>`;
@@ -200,11 +200,11 @@ async function renderSecurityProxySection(section) {
 
 function _renderRouteRow(route, index) {
     return `<div class="proxy-route-row" style="display:flex;gap:0.5rem;margin-bottom:0.5rem;align-items:center;" data-index="${index}">
-        <input type="text" class="cfg-input" placeholder="${t('config.security_proxy.route_name')}" value="${route.name || ''}"
+        <input type="text" class="cfg-input" placeholder="${t('config.security_proxy.route_name')}" value="${escapeAttr(route.name || '')}"
             onchange="_updateProxyRoute(${index},'name',this.value)" style="flex:1;">
-        <input type="text" class="cfg-input" placeholder="${t('config.security_proxy.route_domain')}" value="${route.domain || ''}"
+        <input type="text" class="cfg-input" placeholder="${t('config.security_proxy.route_domain')}" value="${escapeAttr(route.domain || '')}"
             onchange="_updateProxyRoute(${index},'domain',this.value)" style="flex:2;">
-        <input type="text" class="cfg-input" placeholder="${t('config.security_proxy.route_upstream')}" value="${route.upstream || ''}"
+        <input type="text" class="cfg-input" placeholder="${t('config.security_proxy.route_upstream')}" value="${escapeAttr(route.upstream || '')}"
             onchange="_updateProxyRoute(${index},'upstream',this.value)" style="flex:2;">
         <button class="btn btn-sm btn-danger" onclick="_removeProxyRoute(${index})" title="Remove">✕</button>
     </div>`;

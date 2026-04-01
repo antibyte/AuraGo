@@ -309,5 +309,6 @@
   "help.personality.emotion_synthesizer.trigger_on_mood_change": "Déclencher la synthèse lors d'un changement d'humeur.",
   "help.personality.emotion_synthesizer.trigger_always": "Déclencher la synthèse après chaque analyse V2.",
   "help.webdav.auth_type": "Choisissez si AuraGo doit utiliser Basic Auth avec nom d’utilisateur et mot de passe, ou un jeton Bearer.",
-  "help.webdav.token": "Jeton Bearer pour les serveurs qui attendent un en-tête Authorization: Bearer …. Stocké en toute sécurité dans le Vault."
+  "help.webdav.token": "Jeton Bearer pour les serveurs qui attendent un en-tête Authorization: Bearer …. Stocké en toute sécurité dans le Vault.",
+  "help.ai_gateway.token": "Optional Cloudflare AI Gateway token for authenticated gateways. Stored securely in the encrypted vault and sent as the cf-aig-authorization header."
 }

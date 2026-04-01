@@ -77,7 +77,7 @@ async function renderWebhooksSection(section) {
     // Outgoing webhooks — always visible, independent of incoming webhook server
     html += `<div class="wh-outgoing-wrap">
         <div class="wh-section-title">
-            ${t('config.webhooks.tab_outgoing') || '📤 Outgoing Webhooks'}
+            ${t('config.webhooks.tab_outgoing')}
         </div>`;
     html += ogRenderList();
     html += '</div>';
@@ -144,13 +144,13 @@ function whRenderWebhookList() {
                                 <span class="wh-card-slug">/${w.slug}</span>
                             </div>
                             <div class="wh-card-actions">
-                                <button class="wh-btn-icon" title="${t('config.webhooks.action_test')}" onclick="whTestWebhook('${w.id}')">🧪</button>
-                                <button class="wh-btn-icon" title="${t('config.webhooks.action_edit')}" onclick="whShowEditor('${w.id}')">✏️</button>
-                                <button class="wh-btn-icon wh-btn-danger" title="${t('config.webhooks.action_delete')}" onclick="whDeleteWebhook('${w.id}','${esc(w.name)}')">🗑️</button>
+                                <button class="wh-btn-icon" title="${t('config.webhooks.action_test')}" onclick="whTestWebhook('${escapeAttr(w.id)}')">🧪</button>
+                                <button class="wh-btn-icon" title="${t('config.webhooks.action_edit')}" onclick="whShowEditor('${escapeAttr(w.id)}')">✏️</button>
+                                <button class="wh-btn-icon wh-btn-danger" title="${t('config.webhooks.action_delete')}" onclick="whDeleteWebhook('${escapeAttr(w.id)}','${escapeAttr(w.name)}')">🗑️</button>
                             </div>
                         </div>
                         <div class="wh-card-body">
-                            <div class="wh-card-url" onclick="whCopy(this, '${esc(url)}')" title="${t('config.webhooks.click_to_copy')}">
+                            <div class="wh-card-url" onclick="whCopy(this, '${escapeAttr(url)}')" title="${t('config.webhooks.click_to_copy')}">
                                 <code>${esc(url)}</code>
                                 <span class="wh-copy-icon">📋</span>
                             </div>
@@ -265,9 +265,9 @@ function whShowEditor(id) {
                 <div class="wh-form-row">
                     <label>${t('config.webhooks.mode_label')}</label>
                     <select id="wh-f-mode" class="field-select">
-                        <option value="message" ${delivery.mode === 'message' ? 'selected' : ''}>Message (${t('config.webhooks.mode_message')})</option>
+                        <option value="message" ${delivery.mode === 'message' ? 'selected' : ''}>${t('config.webhooks.mode_message')}</option>
                         <option value="notify" ${delivery.mode === 'notify' ? 'selected' : ''}>${t('config.webhooks.mode_notify')}</option>
-                        <option value="silent" ${delivery.mode === 'silent' ? 'selected' : ''}>Silent (${t('config.webhooks.mode_silent')})</option>
+                        <option value="silent" ${delivery.mode === 'silent' ? 'selected' : ''}>${t('config.webhooks.mode_silent')}</option>
                     </select>
                 </div>
                 <div class="wh-form-row">
@@ -384,7 +384,7 @@ async function whSaveWebhook() {
         }
         const result = await resp.json();
         if (!resp.ok) {
-            whToast(result.error || 'Error', 'error');
+            whToast(result.error || t('config.webhooks.error'), 'error');
             return;
         }
         whToast(t('config.webhooks.saved'), 'success');
@@ -407,7 +407,7 @@ async function whDeleteWebhook(id, name) {
             await renderWebhooksSection(section);
         } else {
             const r = await resp.json();
-            whToast(r.error || 'Error', 'error');
+            whToast(r.error || t('config.webhooks.error'), 'error');
         }
     } catch (e) { whToast(e.message, 'error'); }
 }
@@ -417,7 +417,7 @@ async function whTestWebhook(id) {
         const resp = await fetch('/api/webhooks/' + id + '/test', { method: 'POST' });
         const r = await resp.json();
         if (resp.ok) {
-            whToast(t('config.webhooks.test_prefix') + (r.prompt || 'OK').substring(0, 100), 'success');
+            whToast(t('config.webhooks.test_prefix') + (r.prompt || t('config.webhooks.test_ok')).substring(0, 100), 'success');
         } else {
             whToast(r.error || t('config.webhooks.test_failed'), 'error');
         }
@@ -599,11 +599,11 @@ function whToast(msg, type) {
 
 function ogRenderList() {
     let html = `<div class="wh-toolbar">
-        <span class="wh-count">${ogWebhooks.length} Outgoing Webhooks</span>
-        <button class="wh-btn wh-btn-primary" onclick="ogShowModal(-1)">+ ${t('config.webhooks.og_new') || 'New Outgoing Webhook'}</button>
+        <span class="wh-count">${ogWebhooks.length} ${t('config.webhooks.tab_outgoing')}</span>
+        <button class="wh-btn wh-btn-primary" onclick="ogShowModal(-1)">+ ${t('config.webhooks.og_new')}</button>
     </div>`;
     if (!ogWebhooks || ogWebhooks.length === 0) {
-        html += `<div class="wh-empty">${t('config.webhooks.og_empty') || 'No outgoing webhooks configured yet.'}</div>`;
+        html += `<div class="wh-empty">${t('config.webhooks.og_empty')}</div>`;
     } else {
         html += '<div class="wh-list">';
         for (let i = 0; i < ogWebhooks.length; i++) {
@@ -612,18 +612,18 @@ function ogRenderList() {
             const paramCount = (w.parameters || []).length;
             html += `<div class="wh-card">
                 <div class="wh-card-header">
-                    <div class="wh-card-title">${methodBadge} <strong>${esc(w.name || 'Unnamed')}</strong></div>
+                    <div class="wh-card-title">${methodBadge} <strong>${esc(w.name || t('config.webhooks.og_unnamed'))}</strong></div>
                     <div class="wh-card-actions">
-                        <button class="wh-btn-icon" title="Edit" onclick="ogShowModal(${i})">\u270f\ufe0f</button>
-                        <button class="wh-btn-icon wh-btn-danger" title="Delete" onclick="ogDelete(${i})">\ud83d\uddd1\ufe0f</button>
+                        <button class="wh-btn-icon" title="${t('config.webhooks.action_edit')}" onclick="ogShowModal(${i})">\u270f\ufe0f</button>
+                        <button class="wh-btn-icon wh-btn-danger" title="${t('config.webhooks.action_delete')}" onclick="ogDelete(${i})">\ud83d\uddd1\ufe0f</button>
                     </div>
                 </div>
                 <div class="wh-card-body">
                     <div class="wh-card-url wh-card-url-static"><code>${esc(w.url || '')}</code></div>
                     <div class="wh-card-meta">
                         <span>${esc(w.description || '')}</span>
-                        <span>${paramCount} Param(s)</span>
-                        <span>Payload: <strong>${w.payload_type || 'json'}</strong></span>
+                        <span>${paramCount} ${t('config.webhooks.og_params')}</span>
+                        <span>${t('config.webhooks.og_payload_type')}: <strong>${w.payload_type || 'json'}</strong></span>
                     </div>
                 </div>
             </div>`;
@@ -649,22 +649,22 @@ function ogShowModal(idx) {
     overlay.innerHTML = `
     <div class="og-modal">
         <div class="og-modal-header">
-            <h3>${idx >= 0 ? 'Edit Outgoing Webhook' : 'New Outgoing Webhook'}</h3>
+            <h3>${idx >= 0 ? t('config.webhooks.og_edit') : t('config.webhooks.og_new')}</h3>
             <button class="wh-btn-icon" onclick="ogCloseModal()">\u2715</button>
         </div>
         <div class="og-modal-body">
             <div class="wh-form-row">
-                <label>Name</label>
-                <input id="og-f-name" class="field-input" value="${esc(name)}" placeholder="e.g. Send Slack Notification">
-                <small class="wh-field-hint">The agent uses this exact name to trigger the webhook.</small>
+                <label>${t('config.webhooks.og_name')}</label>
+                <input id="og-f-name" class="field-input" value="${esc(name)}" placeholder="${t('config.webhooks.og_name_placeholder')}">
+                <small class="wh-field-hint">${t('config.webhooks.og_name_hint')}</small>
             </div>
             <div class="wh-form-row">
-                <label>Description (AI Instruction)</label>
-                <input id="og-f-desc" class="field-input" value="${esc(desc)}" placeholder="Sends a notification to the #alerts Slack channel">
-                <small class="wh-field-hint">Explains to the AI when and why to use this webhook.</small>
+                <label>${t('config.webhooks.og_desc')}</label>
+                <input id="og-f-desc" class="field-input" value="${esc(desc)}" placeholder="${t('config.webhooks.og_desc_placeholder')}">
+                <small class="wh-field-hint">${t('config.webhooks.og_desc_hint')}</small>
             </div>
             <div class="wh-form-row og-form-split">
-                <div><label>Method</label>
+                <div><label>${t('config.webhooks.og_method')}</label>
                     <select id="og-f-method" class="field-select">
                         <option value="GET" ${method === 'GET' ? 'selected' : ''}>GET</option>
                         <option value="POST" ${method === 'POST' ? 'selected' : ''}>POST</option>
@@ -672,34 +672,34 @@ function ogShowModal(idx) {
                         <option value="DELETE" ${method === 'DELETE' ? 'selected' : ''}>DELETE</option>
                     </select>
                 </div>
-                <div class="og-col-url"><label>URL</label>
-                    <input id="og-f-url" class="field-input" value="${esc(url)}" placeholder="https://hooks.slack.com/services/...">
+                <div class="og-col-url"><label>${t('config.webhooks.og_url')}</label>
+                    <input id="og-f-url" class="field-input" value="${esc(url)}" placeholder="${t('config.webhooks.og_url_placeholder')}">
                 </div>
             </div>
             <div class="wh-form-row">
-                <label>Headers <small>(one per line: Key: Value)</small></label>
+                <label>${t('config.webhooks.og_headers')} <small>${t('config.webhooks.og_headers_hint')}</small></label>
                 <textarea id="og-f-headers" class="field-input wh-textarea" rows="3" placeholder="Authorization: Bearer xxx">${esc(headersStr)}</textarea>
             </div>
             <div class="wh-subsection-title wh-subsection-title-inline">
-                Parameters
-                <button class="wh-btn wh-btn-sm" onclick="ogAddParam()">+ Add</button>
+                ${t('config.webhooks.og_parameters')}
+                <button class="wh-btn wh-btn-sm" onclick="ogAddParam()">+ ${t('config.webhooks.og_add_param')}</button>
             </div>
             <div id="og-params-list">${paramsHtml}</div>
             <div class="wh-form-row og-form-split og-form-row-spaced">
-                <div><label>Payload Type</label>
+                <div><label>${t('config.webhooks.og_payload_type')}</label>
                     <select id="og-f-ptype" class="field-select" onchange="ogToggleTemplate()">
-                        <option value="json" ${payloadType === 'json' ? 'selected' : ''}>Auto JSON</option>
-                        <option value="custom" ${payloadType === 'custom' ? 'selected' : ''}>Custom Template</option>
+                        <option value="json" ${payloadType === 'json' ? 'selected' : ''}>${t('config.webhooks.og_auto_json')}</option>
+                        <option value="custom" ${payloadType === 'custom' ? 'selected' : ''}>${t('config.webhooks.og_custom_template')}</option>
                     </select>
                 </div>
-                <div class="og-col-body"><label>Body Template</label>
+                <div class="og-col-body"><label>${t('config.webhooks.og_body_template')}</label>
                     <textarea id="og-f-body" class="field-input wh-textarea" rows="3" placeholder='{"text":"{{message}}"}' ${payloadType !== 'custom' ? 'disabled' : ''}>${esc(bodyTemplate)}</textarea>
                 </div>
             </div>
         </div>
         <div class="og-modal-footer">
-            <button class="wh-btn" onclick="ogCloseModal()">Cancel</button>
-            <button class="wh-btn wh-btn-primary" onclick="ogSave()">Save</button>
+            <button class="wh-btn" onclick="ogCloseModal()">${t('config.webhooks.cancel')}</button>
+            <button class="wh-btn wh-btn-primary" onclick="ogSave()">${t('config.webhooks.save')}</button>
         </div>
     </div>`;
     overlay.style.display = 'flex';
@@ -713,16 +713,16 @@ function ogCloseModal() {
 
 function ogParamRow(idx, p) {
     return `<div class="og-param-row" data-idx="${idx}">
-        <input class="field-input og-p-name" value="${esc(p.name || '')}" placeholder="name">
+        <input class="field-input og-p-name" value="${esc(p.name || '')}" placeholder="${t('config.webhooks.og_param_name_placeholder')}">
         <select class="field-select og-p-type">
             <option value="string" ${(p.type || 'string') === 'string' ? 'selected' : ''}>string</option>
             <option value="number" ${p.type === 'number' ? 'selected' : ''}>number</option>
             <option value="boolean" ${p.type === 'boolean' ? 'selected' : ''}>boolean</option>
         </select>
-        <input class="field-input og-p-desc og-p-desc-wide" value="${esc(p.description || '')}" placeholder="description">
+        <input class="field-input og-p-desc og-p-desc-wide" value="${esc(p.description || '')}" placeholder="${t('config.webhooks.og_param_desc_placeholder')}">
         <div class="toggle-wrap og-toggle-wrap">
-            <div class="toggle ${p.required ? 'on' : ''}" onclick="this.classList.toggle('on')" title="Required"></div>
-            <span class="og-required-label">Req</span>
+            <div class="toggle ${p.required ? 'on' : ''}" onclick="this.classList.toggle('on')" title="${t('config.webhooks.og_required_title')}"></div>
+            <span class="og-required-label">${t('config.webhooks.og_required_short')}</span>
         </div>
         <button class="wh-btn-icon wh-btn-danger" onclick="this.parentElement.remove()">\u2715</button>
     </div>`;
@@ -771,26 +771,26 @@ function ogCollectModal() {
 
 async function ogSave() {
     const hook = ogCollectModal();
-    if (!hook.name) return whToast('Name is required', 'error');
-    if (!hook.url) return whToast('URL is required', 'error');
+    if (!hook.name) return whToast(t('config.webhooks.og_name_required'), 'error');
+    if (!hook.url) return whToast(t('config.webhooks.og_url_required'), 'error');
     const newList = [...ogWebhooks];
     if (ogEditingIdx >= 0) newList[ogEditingIdx] = hook; else newList.push(hook);
     try {
         const resp = await fetch('/api/outgoing-webhooks', {
             method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newList)
         });
-        if (!resp.ok) { const r = await resp.json(); whToast(r.error || 'Error', 'error'); return; }
+        if (!resp.ok) { const r = await resp.json(); whToast(r.error || t('config.webhooks.error'), 'error'); return; }
         ogWebhooks = newList;
         ogCloseModal();
-        whToast('Outgoing webhook saved!', 'success');
+        whToast(t('config.webhooks.og_saved'), 'success');
         const panel = document.getElementById('wh-panel-outgoing');
         if (panel) panel.innerHTML = ogRenderList();
     } catch (e) { whToast(e.message, 'error'); }
 }
 
 async function ogDelete(idx) {
-    const name = ogWebhooks[idx]?.name || 'this webhook';
-    if (!confirm('Delete ' + name + '?')) return;
+    const name = ogWebhooks[idx]?.name || t('config.webhooks.og_unnamed');
+    if (!confirm(t('config.webhooks.og_delete_confirm') + name + '?')) return;
     const newList = ogWebhooks.filter((_, i) => i !== idx);
     try {
         const resp = await fetch('/api/outgoing-webhooks', {
@@ -798,7 +798,7 @@ async function ogDelete(idx) {
         });
         if (resp.ok) {
             ogWebhooks = newList;
-            whToast('Deleted', 'success');
+            whToast(t('config.webhooks.og_deleted'), 'success');
             const panel = document.getElementById('wh-panel-outgoing');
             if (panel) panel.innerHTML = ogRenderList();
         }

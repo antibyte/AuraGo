@@ -89,5 +89,13 @@
   "config.providers.account_id": "खाता ID",
   "config.providers.account_id_help": "आपका Cloudflare खाता ID (डैशबोर्ड URL या API सेटिंग्स में मिलेगा)।",
   "config.providers.account_id_empty_error": "Workers AI के लिए खाता ID आवश्यक है।",
-  "config.providers.workers_ai_url_auto": "URL खाता ID से स्वचालित रूप से उत्पन्न होता है।"
+  "config.providers.workers_ai_url_auto": "URL खाता ID से स्वचालित रूप से उत्पन्न होता है।",
+  "config.providers.error": "Error",
+  "config.providers.free_badge": "Free",
+  "config.providers.cost_input_output": "Cost (input/output)",
+  "config.providers.context_label": "Context",
+  "config.providers.input_label": "Input",
+  "config.providers.output_label": "Output",
+  "config.providers.tokens_suffix": "tokens",
+  "config.providers.meshcentral_test_title": "MeshCentral connection test"
 }

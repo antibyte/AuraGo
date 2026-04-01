@@ -300,6 +300,7 @@
   "help.ai_gateway.account_id": "Ihre Cloudflare Account-ID. Im Cloudflare-Dashboard unter Workers & Pages zu finden.",
   "help.ai_gateway.enabled": "Cloudflare AI Gateway aktivieren, um alle LLM-API-Anfragen zu proxyen. Bietet Caching, Ratenbegrenzung und Analysen. Lokale Anbieter (Ollama) sind ausgenommen.",
   "help.ai_gateway.gateway_id": "Der Name oder Slug Ihrer AI Gateway-Instanz in Cloudflare.",
+  "help.ai_gateway.token": "Optionales Cloudflare-AI-Gateway-Token für authentifizierte Gateways. Wird sicher im verschlüsselten Vault gespeichert und als cf-aig-authorization-Header gesendet.",
   "help.mcp_server.allowed_tools": "Liste der über MCP verfügbaren Werkzeugnamen. Leer lassen, um alle aktivierten Werkzeuge freizugeben.",
   "help.mcp_server.enabled": "Den integrierten MCP-Server aktivieren, um AuraGo-Werkzeuge für externe KI-Agenten über Streamable HTTP bereitzustellen.",
   "help.mcp_server.require_auth": "Wenn aktiviert, müssen MCP-Clients sich mit einem Bearer-Token oder einem gültigen Session-Cookie authentifizieren.",

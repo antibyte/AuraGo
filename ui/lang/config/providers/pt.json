@@ -89,5 +89,13 @@
   "config.providers.account_id": "ID da conta",
   "config.providers.account_id_help": "Seu ID de conta Cloudflare (encontrado na URL do painel ou configurações de API).",
   "config.providers.account_id_empty_error": "O ID da conta é obrigatório para Workers AI.",
-  "config.providers.workers_ai_url_auto": "A URL é gerada automaticamente a partir do ID da conta."
+  "config.providers.workers_ai_url_auto": "A URL é gerada automaticamente a partir do ID da conta.",
+  "config.providers.error": "Error",
+  "config.providers.free_badge": "Free",
+  "config.providers.cost_input_output": "Cost (input/output)",
+  "config.providers.context_label": "Context",
+  "config.providers.input_label": "Input",
+  "config.providers.output_label": "Output",
+  "config.providers.tokens_suffix": "tokens",
+  "config.providers.meshcentral_test_title": "MeshCentral connection test"
 }

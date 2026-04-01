@@ -93,5 +93,18 @@
   "config.webhooks.og_deleted": "Odchozí webhook smazán",
   "config.webhooks.og_delete_confirm": "Smazat",
   "config.webhooks.og_name_required": "Jméno je povinné",
-  "config.webhooks.og_url_required": "Adresa URL je povinná"
+  "config.webhooks.og_url_required": "Adresa URL je povinná",
+  "config.webhooks.error": "Error",
+  "config.webhooks.test_ok": "Test successful",
+  "config.webhooks.og_unnamed": "Unnamed webhook",
+  "config.webhooks.og_name_placeholder": "Webhook name",
+  "config.webhooks.og_desc_placeholder": "Describe when the agent should use this webhook",
+  "config.webhooks.og_url_placeholder": "https://example.com/webhook",
+  "config.webhooks.og_headers_hint": "Optional JSON object, e.g. {\"Authorization\":\"Bearer ...\"}",
+  "config.webhooks.og_auto_json": "Automatic JSON body",
+  "config.webhooks.og_custom_template": "Custom body template",
+  "config.webhooks.og_param_name_placeholder": "parameter_name",
+  "config.webhooks.og_param_desc_placeholder": "What this parameter is used for",
+  "config.webhooks.og_required_title": "Required parameter",
+  "config.webhooks.og_required_short": "Required"
 }

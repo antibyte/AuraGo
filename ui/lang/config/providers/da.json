@@ -88,6 +88,14 @@
   "config.providers.hint.workers_ai": "Cloudflare API-token med Workers AI-tilladelser.",
   "config.providers.account_id": "Konto-ID",
   "config.providers.account_id_help": "Dit Cloudflare Account ID (findes i dashboard-URL'en eller API-indstillinger).",
-  "config.providers.account_id_empty_error": "Konto-ID er p\u00e5kr\u00e6vet for Workers AI.",
-  "config.providers.workers_ai_url_auto": "URL genereres automatisk fra Konto-ID."
+  "config.providers.account_id_empty_error": "Konto-ID er påkrævet for Workers AI.",
+  "config.providers.workers_ai_url_auto": "URL genereres automatisk fra Konto-ID.",
+  "config.providers.error": "Error",
+  "config.providers.free_badge": "Free",
+  "config.providers.cost_input_output": "Cost (input/output)",
+  "config.providers.context_label": "Context",
+  "config.providers.input_label": "Input",
+  "config.providers.output_label": "Output",
+  "config.providers.tokens_suffix": "tokens",
+  "config.providers.meshcentral_test_title": "MeshCentral connection test"
 }

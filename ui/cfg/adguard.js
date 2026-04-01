@@ -54,7 +54,10 @@ function renderAdGuardSection(section) {
     html += '<div class="field-label">' + t('config.adguard.password_label') + '</div>';
     if (helpPass) html += '<div class="field-help">' + helpPass + '</div>';
     html += '<div class="adg-password-row">';
-    html += '<input class="field-input adg-password-input" type="password" id="adg-password" placeholder="' + t('config.adguard.password_placeholder') + '">';
+        html += '<div class="password-wrap" style="flex:1;">';
+        html += '<input class="field-input adg-password-input" type="password" id="adg-password" placeholder="' + t('config.adguard.password_placeholder') + '">';
+        html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
+        html += '</div>';
     html += '<button class="btn-save adg-save-btn" onclick="adgSavePassword()">💾 ' + t('config.adguard.save_vault') + '</button>';
     html += '</div></div>';
 

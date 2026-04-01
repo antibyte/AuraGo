@@ -87,7 +87,15 @@
   "config.providers.type_workers_ai": "workers-ai",
   "config.providers.hint.workers_ai": "Jeton API Cloudflare avec permissions Workers AI.",
   "config.providers.account_id": "ID du compte",
-  "config.providers.account_id_help": "Votre ID de compte Cloudflare (visible dans l'URL du tableau de bord ou les param\u00e8tres API).",
+  "config.providers.account_id_help": "Votre ID de compte Cloudflare (visible dans l'URL du tableau de bord ou les paramètres API).",
   "config.providers.account_id_empty_error": "L'ID du compte est requis pour Workers AI.",
-  "config.providers.workers_ai_url_auto": "L'URL est g\u00e9n\u00e9r\u00e9e automatiquement \u00e0 partir de l'ID du compte."
+  "config.providers.workers_ai_url_auto": "L'URL est générée automatiquement à partir de l'ID du compte.",
+  "config.providers.error": "Error",
+  "config.providers.free_badge": "Free",
+  "config.providers.cost_input_output": "Cost (input/output)",
+  "config.providers.context_label": "Context",
+  "config.providers.input_label": "Input",
+  "config.providers.output_label": "Output",
+  "config.providers.tokens_suffix": "tokens",
+  "config.providers.meshcentral_test_title": "MeshCentral connection test"
 }

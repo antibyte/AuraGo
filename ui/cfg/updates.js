@@ -1,5 +1,8 @@
 // cfg/updates.js — Updates section module
 
+let _updatesReloadTimer = null;
+let _updatesReloadDeadline = 0;
+
 function renderUpdatesSection(section) {
     const content = document.getElementById('content');
     content.innerHTML = `
@@ -32,6 +35,7 @@ async function renderUpdatesBody() {
         <button class="btn-save updates-btn is-hidden" id="updates-install-btn" onclick="updatesInstall()">
             ${t('config.updates.install_button')}
         </button>
+        <button class="btn-save updates-btn is-hidden" id="updates-cancel-btn" onclick="updatesCancelReload()">✕</button>
         <span id="updates-status" class="updates-status"></span>
     </div>`;
 }
@@ -105,9 +109,11 @@ async function updatesInstall() {
 
     const installBtn = document.getElementById('updates-install-btn');
     const checkBtn = document.getElementById('updates-check-btn');
+    const cancelBtn = document.getElementById('updates-cancel-btn');
     const status = document.getElementById('updates-status');
     if (installBtn) { installBtn.disabled = true; installBtn.textContent = t('config.updates.installing'); }
     if (checkBtn) checkBtn.disabled = true;
+    if (cancelBtn) cancelBtn.classList.add('is-hidden');
     if (status) status.textContent = t('config.updates.running');
 
     try {
@@ -118,13 +124,45 @@ async function updatesInstall() {
             if (installBtn) { installBtn.disabled = false; installBtn.textContent = t('config.updates.install_button'); }
             if (checkBtn) checkBtn.disabled = false;
         } else {
-            if (status) status.textContent = t('config.updates.started');
-            // Auto-reload after 75 seconds
-            setTimeout(() => location.reload(), 75000);
+            updatesStartReloadCountdown(75);
         }
     } catch (e) {
         if (status) status.textContent = '❌ ' + e.message;
         if (installBtn) { installBtn.disabled = false; }
         if (checkBtn) checkBtn.disabled = false;
     }
+}
+
+function updatesStartReloadCountdown(seconds) {
+    const status = document.getElementById('updates-status');
+    const cancelBtn = document.getElementById('updates-cancel-btn');
+    if (_updatesReloadTimer) {
+        clearInterval(_updatesReloadTimer);
+    }
+    _updatesReloadDeadline = Date.now() + (seconds * 1000);
+    if (cancelBtn) cancelBtn.classList.remove('is-hidden');
+
+    const tick = () => {
+        const remaining = Math.max(0, Math.ceil((_updatesReloadDeadline - Date.now()) / 1000));
+        if (status) status.textContent = `${t('config.updates.started')} (${remaining}s)`;
+        if (remaining <= 0) {
+            clearInterval(_updatesReloadTimer);
+            _updatesReloadTimer = null;
+            location.reload();
+        }
+    };
+
+    tick();
+    _updatesReloadTimer = setInterval(tick, 1000);
+}
+
+function updatesCancelReload() {
+    const status = document.getElementById('updates-status');
+    const cancelBtn = document.getElementById('updates-cancel-btn');
+    if (_updatesReloadTimer) {
+        clearInterval(_updatesReloadTimer);
+        _updatesReloadTimer = null;
+    }
+    if (cancelBtn) cancelBtn.classList.add('is-hidden');
+    if (status) status.textContent = t('config.updates.running');
 }

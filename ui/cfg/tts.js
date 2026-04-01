@@ -5,6 +5,8 @@ function renderTTSSection(section) {
     const piperData = data.piper || {};
     const piperEnabled = piperData.enabled === true;
     const currentProvider = data.provider || '';
+    const elData = data.elevenlabs || {};
+    const hasElevenLabsKey = elData.api_key === '••••••••';
 
     let html = '<div class="cfg-section active">';
     html += '<div class="section-header">' + section.icon + ' ' + section.label + '</div>';
@@ -30,14 +32,19 @@ function renderTTSSection(section) {
     html += '</div>';
 
     // ── ElevenLabs fields (shown when provider=elevenlabs) ──
-    const elData = data.elevenlabs || {};
     const showEL = currentProvider === 'elevenlabs';
     html += '<div id="tts-elevenlabs-section" style="' + (showEL ? '' : 'display:none;') + '">';
     html += '<div style="font-weight:600;font-size:0.92rem;color:var(--accent);border-bottom:1px solid var(--border-subtle);padding-bottom:0.4rem;margin:1.5rem 0 0.8rem;">🎤 ElevenLabs</div>';
 
     html += '<div class="field-group">';
     html += '<div class="field-label">API Key</div>';
-    html += '<input class="field-input" type="password" data-path="tts.elevenlabs.api_key" value="' + escapeAttr(elData.api_key || '') + '" placeholder="sk-...">';
+    html += '<div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">';
+    html += '<div class="password-wrap" style="flex:1;min-width:240px;">';
+    html += '<input class="field-input" type="password" id="tts-elevenlabs-api-key" value="" placeholder="' + escapeAttr(hasElevenLabsKey ? '••••••••' : 'sk-...') + '">';
+    html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
+    html += '</div>';
+    html += '<button class="btn-save" style="padding:0.45rem 1rem;font-size:0.82rem;white-space:nowrap;" onclick="ttsSaveElevenLabsKey()">💾</button>';
+    html += '</div>';
     html += '</div>';
 
     html += '<div class="field-group">';
@@ -127,6 +134,37 @@ function renderTTSSection(section) {
 function ttsProviderChanged(val) {
     const elSection = document.getElementById('tts-elevenlabs-section');
     if (elSection) elSection.style.display = val === 'elevenlabs' ? '' : 'none';
+}
+
+function ttsSaveElevenLabsKey() {
+    const input = document.getElementById('tts-elevenlabs-api-key');
+    const value = input ? input.value.trim() : '';
+    if (!value) {
+        showToast('ElevenLabs API key is required', 'warn');
+        return;
+    }
+
+    fetch('/api/vault/secrets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'tts_elevenlabs_api_key', value })
+    })
+        .then(r => r.json())
+        .then(res => {
+            if (res.status === 'ok' || res.success) {
+                showToast('ElevenLabs API key saved', 'success');
+                if (input) {
+                    input.value = '';
+                    input.placeholder = '••••••••';
+                }
+                if (!configData.tts) configData.tts = {};
+                if (!configData.tts.elevenlabs) configData.tts.elevenlabs = {};
+                configData.tts.elevenlabs.api_key = '••••••••';
+            } else {
+                showToast(res.message || 'Failed to save ElevenLabs API key', 'error');
+            }
+        })
+        .catch(() => showToast('Failed to save ElevenLabs API key', 'error'));
 }
 
 function piperCheckStatus() {

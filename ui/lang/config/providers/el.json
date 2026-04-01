@@ -89,5 +89,13 @@
   "config.providers.account_id": "ID Λογαριασμού",
   "config.providers.account_id_help": "Το Cloudflare Account ID σας (βρίσκεται στο URL του πίνακα ελέγχου ή στις ρυθμίσεις API).",
   "config.providers.account_id_empty_error": "Το ID λογαριασμού απαιτείται για το Workers AI.",
-  "config.providers.workers_ai_url_auto": "Το URL δημιουργείται αυτόματα από το ID λογαριασμού."
+  "config.providers.workers_ai_url_auto": "Το URL δημιουργείται αυτόματα από το ID λογαριασμού.",
+  "config.providers.error": "Error",
+  "config.providers.free_badge": "Free",
+  "config.providers.cost_input_output": "Cost (input/output)",
+  "config.providers.context_label": "Context",
+  "config.providers.input_label": "Input",
+  "config.providers.output_label": "Output",
+  "config.providers.tokens_suffix": "tokens",
+  "config.providers.meshcentral_test_title": "MeshCentral connection test"
 }

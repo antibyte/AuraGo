@@ -49,7 +49,7 @@ async function renderGoogleWorkspaceSection(section) {
         <div style="display:flex;gap:0.5rem;align-items:center;">
             <div class="password-wrap" style="flex:1;">
                 <input class="field-input" type="password" id="gw-secret-input" placeholder="GOCSPX-••••••••••" autocomplete="off">
-                <button type="button" class="password-toggle" onclick="(function(){var i=document.getElementById('gw-secret-input');i.type=i.type==='password'?'text':'password';})()" title="Toggle visibility">👁</button>
+                    <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">${EYE_OPEN_SVG}</button>
             </div>
             <button class="btn-save" style="padding:0.45rem 1rem;font-size:0.82rem;white-space:nowrap;" onclick="gwSaveSecret()">💾 ${t('config.google_workspace.save_vault')}</button>
         </div>
@@ -208,7 +208,7 @@ async function gwOAuthManual(provider) {
     const pastedURL = urlInput ? urlInput.value.trim() : '';
     if (!pastedURL) {
         statusEl.style.color = 'var(--danger)';
-        statusEl.textContent = '✗ ' + t('config.google_workspace.oauth_manual_failed') + 'URL fehlt.';
+        statusEl.textContent = '✗ ' + t('config.google_workspace.oauth_manual_failed');
         return;
     }
     try {

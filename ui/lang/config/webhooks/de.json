@@ -93,5 +93,18 @@
   "config.webhooks.og_deleted": "Ausgehender Webhook gelöscht",
   "config.webhooks.og_delete_confirm": "Löschen: ",
   "config.webhooks.og_name_required": "Name ist erforderlich",
-  "config.webhooks.og_url_required": "URL ist erforderlich"
+  "config.webhooks.og_url_required": "URL ist erforderlich",
+  "config.webhooks.error": "Fehler",
+  "config.webhooks.test_ok": "OK",
+  "config.webhooks.og_unnamed": "Unbenannt",
+  "config.webhooks.og_name_placeholder": "z.B. Slack-Benachrichtigung senden",
+  "config.webhooks.og_desc_placeholder": "Sendet eine Benachrichtigung an den #alerts-Slack-Kanal",
+  "config.webhooks.og_url_placeholder": "https://hooks.slack.com/services/...",
+  "config.webhooks.og_headers_hint": "(eine Zeile pro Eintrag: Schlüssel: Wert)",
+  "config.webhooks.og_auto_json": "Automatisches JSON",
+  "config.webhooks.og_custom_template": "Benutzerdefinierte Vorlage",
+  "config.webhooks.og_param_name_placeholder": "Name",
+  "config.webhooks.og_param_desc_placeholder": "Beschreibung",
+  "config.webhooks.og_required_title": "Erforderlich",
+  "config.webhooks.og_required_short": "Pflicht"
 }

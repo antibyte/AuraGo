@@ -46,7 +46,7 @@ async function renderGitHubSection(section) {
         <div style="display:flex;gap:0.5rem;align-items:center;">
             <div class="password-wrap" style="flex:1;">
                 <input class="field-input" type="password" id="github-token-input" placeholder="ghp_••••••••••••••••••••" autocomplete="off">
-                <button type="button" class="password-toggle" onclick="(function(b){var i=document.getElementById('github-token-input');i.type=i.type==='password'?'text':'password';})(this)" title="Toggle visibility">👁</button>
+                    <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">${EYE_OPEN_SVG}</button>
             </div>
             <button class="btn-save" style="padding:0.45rem 1rem;font-size:0.82rem;white-space:nowrap;" onclick="githubSaveToken()">💾 ${t('config.github.save_vault')}</button>
         </div>

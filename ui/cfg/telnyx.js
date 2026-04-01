@@ -32,7 +32,10 @@ function renderTelnyxSection(section) {
     html += '<div class="field-label">' + t('config.telnyx.api_key_label') + '</div>';
     html += '<div class="field-help">' + t('help.telnyx.api_key') + '</div>';
     html += '<div class="telnyx-api-row">';
-    html += '<input class="field-input telnyx-api-input" type="password" id="telnyx-api-key" placeholder="' + t('config.telnyx.api_key_placeholder') + '">';
+        html += '<div class="password-wrap" style="flex:1;">';
+        html += '<input class="field-input telnyx-api-input" type="password" id="telnyx-api-key" placeholder="' + t('config.telnyx.api_key_placeholder') + '">';
+        html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
+        html += '</div>';
     html += '<button class="btn btn-sm" onclick="saveTelnyxVault(\'api_key\')">' + t('config.telnyx.save_vault') + '</button>';
     html += '</div></div>';
 
@@ -140,7 +143,7 @@ function saveTelnyxVault(field) {
         showToast(t('config.telnyx.vault_empty'), 'warn');
         return;
     }
-    fetch('/api/vault', {
+    fetch('/api/vault/secrets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key: 'telnyx_' + field, value: el.value.trim() })

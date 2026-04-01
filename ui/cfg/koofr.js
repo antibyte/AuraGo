@@ -42,7 +42,10 @@ function renderKoofrSection(section) {
     html += '<div class="field-label">' + t('config.koofr.app_password_label') + '</div>';
     html += '<div class="field-help">' + t('help.koofr.app_password') + '</div>';
     html += '<div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">';
-    html += '<input class="field-input" type="password" id="koofr-app-password" placeholder="' + escapeAttr(hasAppPassword ? '••••••••' : t('config.koofr.app_password_placeholder')) + '" style="flex:1;min-width:240px;">';
+        html += '<div class="password-wrap" style="flex:1;min-width:240px;">';
+        html += '<input class="field-input" type="password" id="koofr-app-password" placeholder="' + escapeAttr(hasAppPassword ? '••••••••' : t('config.koofr.app_password_placeholder')) + '" style="flex:1;min-width:240px;">';
+        html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
+        html += '</div>';
     html += '<button class="btn-save" style="padding:0.45rem 1rem;font-size:0.82rem;white-space:nowrap;" onclick="koofrSaveAppPassword()">💾 ' + t('config.koofr.save_vault') + '</button>';
     html += '</div></div>';
 

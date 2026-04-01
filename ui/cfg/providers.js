@@ -201,8 +201,8 @@ function providerSetHidden(el, hidden) {
                             <div class="prov-or-row-id">${escapeHtml(m.id)}</div>
                         </div>
                         <div class="prov-or-row-meta">
-                            ${free ? '<span class="prov-or-free-pill">FREE</span>' : '<span class="prov-or-meta-text" title="Input / Output">'+promptCost+' · '+completionCost+'</span>'}
-                            <span class="prov-or-meta-text" title="Context">${formatContext(m.context_length)}</span>
+                            ${free ? '<span class="prov-or-free-pill">' + t('config.providers.free_badge') + '</span>' : '<span class="prov-or-meta-text" title="' + escapeAttr(t('config.providers.cost_input_output')) + '">'+promptCost+' · '+completionCost+'</span>'}
+                            <span class="prov-or-meta-text" title="${escapeAttr(t('config.providers.context_label'))}">${formatContext(m.context_length)}</span>
                         </div>
                     </div>`;
                 }).join('');
@@ -231,11 +231,11 @@ function providerSetHidden(el, hidden) {
                     <div class="prov-or-detail-id">${escapeHtml(m.id)}</div>
                     ${m.description ? '<div class="prov-or-detail-desc">' + escapeHtml(m.description) + '</div>' : ''}
                     <div class="prov-or-detail-grid">
-                        <div><span class="prov-or-detail-label">Context:</span></div>
-                        <div class="prov-or-detail-value">${formatContext(m.context_length)} tokens</div>
-                        <div><span class="prov-or-detail-label">Input:</span></div>
+                        <div><span class="prov-or-detail-label">${t('config.providers.context_label')}:</span></div>
+                        <div class="prov-or-detail-value">${formatContext(m.context_length)} ${t('config.providers.tokens_suffix')}</div>
+                        <div><span class="prov-or-detail-label">${t('config.providers.input_label')}:</span></div>
                         <div class="prov-or-detail-value ${free ? 'is-free' : ''}">${free ? t('config.openrouter.free_cost') : '$'+promptPerM.toFixed(4)+'/M'}</div>
-                        <div><span class="prov-or-detail-label">Output:</span></div>
+                        <div><span class="prov-or-detail-label">${t('config.providers.output_label')}:</span></div>
                         <div class="prov-or-detail-value ${free ? 'is-free' : ''}">${free ? t('config.openrouter.free_cost') : '$'+completionPerM.toFixed(4)+'/M'}</div>
                     </div>
                     ${free ? '<div class="prov-or-free-banner">🆓 '+t('config.openrouter.model_is_free')+'</div>' : ''}
@@ -358,7 +358,7 @@ function providerSetHidden(el, hidden) {
             if (countEl && _provModalModels.length > 0) {
                 countEl.textContent = filterQ
                     ? `${visible.length} / ${_provModalModels.length}`
-                    : `${_provModalModels.length} model${_provModalModels.length !== 1 ? 's' : ''}`;
+                    : `${_provModalModels.length} ${t('config.providers.pricing_picker_total')}`;
                 providerSetHidden(countEl, false);
             } else if (countEl) {
                 providerSetHidden(countEl, true);
@@ -390,7 +390,7 @@ function providerSetHidden(el, hidden) {
                         <input class="field-input prov-model-input prov-model-input-num" type="number" step="0.001" min="0" value="${m.output_per_million}" onchange="providerUpdateModelRow(${i},'output_per_million',parseFloat(this.value)||0)">
                     </td>
                     <td class="prov-model-cell prov-model-cell-del">
-                        <button type="button" class="prov-model-del-btn" onclick="providerDeleteModelRow(${i})" title="Delete">✕</button>
+                        <button type="button" class="prov-model-del-btn" onclick="providerDeleteModelRow(${i})" title="${t('config.providers.card_delete_tooltip')}">✕</button>
                     </td>
                 </tr>`;
             }).join('');
@@ -490,7 +490,7 @@ function providerSetHidden(el, hidden) {
                                 ? `<div class="prov-pricing-empty">${escapeHtml(t('config.providers.no_pricing_found'))}</div>`
                                 : visible.map(m => {
                                     const ck = selected.has(m.name);
-                                    const fmt = v => v > 0 ? '$' + v.toFixed(3) : (v === 0 ? 'free' : '—');
+                                    const fmt = v => v > 0 ? '$' + v.toFixed(3) : (v === 0 ? t('config.providers.free_badge') : '—');
                                     return `<label class="prov-pricing-row">
                                         <input type="checkbox" class="prov-pricing-checkbox" data-name="${escapeAttr(m.name)}" data-in="${m.input_per_million}" data-out="${m.output_per_million}" ${ck ? 'checked' : ''}>
                                         <span class="prov-pricing-name" title="${escapeAttr(m.name)}">${escapeHtml(m.name)}</span>
@@ -619,7 +619,7 @@ function providerSetHidden(el, hidden) {
             const labelDesc = t('config.meshcentral.test_desc');
             return `
             <div id="mc-test-block" class="prov-mc-block">
-                <div class="prov-mc-title">🔌 MeshCentral Test</div>
+                <div class="prov-mc-title">🔌 ${t('config.providers.meshcentral_test_title')}</div>
                 <div class="prov-mc-desc">${labelDesc}</div>
                 <div class="prov-mc-actions">
                     <button class="btn-save prov-btn-sm" onclick="testMeshCentral()">${labelTest}</button>
@@ -742,8 +742,8 @@ function providerSetHidden(el, hidden) {
                             <span class="prov-provider-id">ID: ${escapeAttr(p.id)}</span>
                         </div>
                         <div class="prov-provider-head-actions">
-                            <button onclick="providerEdit(${idx})" class="prov-icon-btn is-edit" title="Edit">✏️</button>
-                            <button onclick="providerDelete(${idx})" class="prov-icon-btn is-delete" title="Delete">🗑️</button>
+                            <button onclick="providerEdit(${idx})" class="prov-icon-btn is-edit" title="${t('config.providers.card_edit_tooltip')}">✏️</button>
+                            <button onclick="providerDelete(${idx})" class="prov-icon-btn is-delete" title="${t('config.providers.card_delete_tooltip')}">🗑️</button>
                         </div>
                     </div>
                     <div class="prov-provider-grid">
@@ -1059,12 +1059,12 @@ function providerSetHidden(el, hidden) {
                 authBtn.onclick = async () => {
                     try {
                         const resp = await fetch('/api/oauth/start?provider=' + encodeURIComponent(data.id));
-                        if (!resp.ok) { alert(await resp.text()); return; }
+                            if (!resp.ok) { showToast(await resp.text(), 'error'); return; }
                         const result = await resp.json();
                         if (result.auth_url) {
                             window.open(result.auth_url, '_blank', 'width=600,height=700');
                         }
-                    } catch (e) { alert('Error: ' + e.message); }
+                        } catch (e) { showToast(e.message || t('config.common.error'), 'error'); }
                 };
             }
 
@@ -1077,7 +1077,7 @@ function providerSetHidden(el, hidden) {
                         await fetch('/api/oauth/revoke?provider=' + encodeURIComponent(data.id), { method: 'DELETE' });
                         const statusEl = document.getElementById('prov-oauth-status');
                         if (statusEl) statusEl.innerHTML = '<span class="prov-text-danger">❌ ' + t('config.providers.not_authorized') + '</span>';
-                    } catch (e) { alert('Error: ' + e.message); }
+                        } catch (e) { showToast(e.message || t('config.common.error'), 'error'); }
                 };
             }
 
@@ -1109,11 +1109,11 @@ function providerSetHidden(el, hidden) {
                 const auth_type = document.getElementById('prov-auth-type').value;
                 const account_id = (document.getElementById('prov-account-id') || {}).value ? document.getElementById('prov-account-id').value.trim() : '';
 
-                if (!id) { alert(t('config.providers.id_empty_error')); return; }
+                    if (!id) { showToast(t('config.providers.id_empty_error'), 'warn'); return; }
                 if (type === 'workers-ai') {
-                    if (!account_id) { alert(t('config.providers.account_id_empty_error')); return; }
+                        if (!account_id) { showToast(t('config.providers.account_id_empty_error'), 'warn'); return; }
                 } else if (!base_url) {
-                    alert(t('config.providers.url_empty_error')); return;
+                        showToast(t('config.providers.url_empty_error'), 'warn'); return;
                 }
 
                 const entry = { id, name: name || id, type, base_url, model, auth_type, account_id };
@@ -1129,7 +1129,7 @@ function providerSetHidden(el, hidden) {
                     entry.oauth_scopes = document.getElementById('prov-oauth-scopes').value.trim();
 
                     if (!entry.oauth_auth_url || !entry.oauth_token_url || !entry.oauth_client_id) {
-                        alert(t('config.providers.oauth_required_error'));
+                            showToast(t('config.providers.oauth_required_error'), 'warn');
                         return;
                     }
                 } else {
@@ -1173,7 +1173,7 @@ function providerSetHidden(el, hidden) {
                 async (entry) => {
                     // Check unique ID
                     if (providersCache.some(p => p.id === entry.id)) {
-                        alert(t('config.providers.id_exists'));
+                            showToast(t('config.providers.id_exists'), 'warn');
                         return;
                     }
                     providersCache.push(entry);
@@ -1210,7 +1210,7 @@ function providerSetHidden(el, hidden) {
                 });
                 if (!resp.ok) {
                     const txt = await resp.text();
-                    alert('Error: ' + txt);
+                        showToast(txt || t('config.common.error'), 'error');
                     return;
                 }
                 const result = await resp.json();
@@ -1225,6 +1225,6 @@ function providerSetHidden(el, hidden) {
                     if (modelEl) modelEl.textContent = result.active_llm_model;
                 }
             } catch (e) {
-                alert('Error: ' + e.message);
+                    showToast(e.message || t('config.common.error'), 'error');
             }
         }

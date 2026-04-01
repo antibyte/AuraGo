@@ -1,11 +1,13 @@
 {
   "config.ai_gateway.title": "AI Gateway",
-  "config.ai_gateway.enabled_label": "AI Gateway \u5df2\u542f\u7528",
-  "config.ai_gateway.account_id": "\u8d26\u6237 ID",
+  "config.ai_gateway.enabled_label": "AI Gateway 已启用",
+  "config.ai_gateway.account_id": "账户 ID",
   "config.ai_gateway.account_id_placeholder": "Cloudflare Account ID",
-  "config.ai_gateway.gateway_id": "\u7f51\u5173 ID",
+  "config.ai_gateway.gateway_id": "网关 ID",
   "config.ai_gateway.gateway_id_placeholder": "my-gateway",
-  "config.ai_gateway.disabled_notice": "AI Gateway \u5df2\u7981\u7528",
-  "config.ai_gateway.disabled_desc": "\u542f\u7528\u5f00\u5173\uff0c\u901a\u8fc7 Cloudflare AI Gateway \u8def\u7531 LLM \u8bf7\u6c42\u3002",
-  "config.ai_gateway.info": "\u5c06\u6240\u6709 LLM API \u8bf7\u6c42\u901a\u8fc7 Cloudflare AI Gateway \u8def\u7531\u3002\u63d0\u4f9b\u7f13\u5b58\u3001\u901f\u7387\u9650\u5236\u3001\u65e5\u5fd7\u548c\u6545\u969c\u8f6c\u79fb\u3002\u672c\u5730\u63d0\u4f9b\u8005\uff08Ollama\uff09\u9664\u5916\u3002"
+  "config.ai_gateway.disabled_notice": "AI Gateway 已禁用",
+  "config.ai_gateway.disabled_desc": "启用开关，通过 Cloudflare AI Gateway 路由 LLM 请求。",
+  "config.ai_gateway.info": "将所有 LLM API 请求通过 Cloudflare AI Gateway 路由。提供缓存、速率限制、日志和故障转移。本地提供者（Ollama）除外。",
+  "config.ai_gateway.token": "Gateway token",
+  "config.ai_gateway.token_placeholder": "cf-aig-..."
 }

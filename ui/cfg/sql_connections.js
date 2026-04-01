@@ -386,17 +386,9 @@ async function sqlConnTestExisting(id) {
         const data = await resp.json().catch(() => ({}));
         if (!resp.ok) throw new Error(data.error || 'Test failed');
 
-        const toast = document.createElement('div');
-        toast.style.cssText = 'position:fixed;top:1rem;right:1rem;z-index:9999;background:var(--surface-elevated);border:1px solid rgba(34,197,94,0.35);border-radius:10px;padding:0.75rem 1.25rem;font-size:0.85rem;color:#4ade80;box-shadow:0 8px 30px rgba(0,0,0,0.3);max-width:420px;';
-        toast.textContent = '✅ ' + (data.message || t('config.sql_connections.test_success'));
-        document.body.appendChild(toast);
-        setTimeout(() => toast.remove(), 4000);
+            showToast(data.message || t('config.sql_connections.test_success'), 'success');
     } catch (e) {
-        const toast = document.createElement('div');
-        toast.style.cssText = 'position:fixed;top:1rem;right:1rem;z-index:9999;background:var(--surface-elevated);border:1px solid rgba(239,68,68,0.35);border-radius:10px;padding:0.75rem 1.25rem;font-size:0.85rem;color:#fca5a5;box-shadow:0 8px 30px rgba(0,0,0,0.3);max-width:420px;';
-        toast.textContent = '❌ ' + e.message;
-        document.body.appendChild(toast);
-        setTimeout(() => toast.remove(), 4000);
+            showToast(e.message || t('config.common.error'), 'error');
     }
 }
 
@@ -412,6 +404,6 @@ async function sqlConnDelete(id, name) {
         }
         await sqlConnLoad();
     } catch (e) {
-        alert('❌ ' + e.message);
+            showToast(e.message || t('config.common.error'), 'error');
     }
 }

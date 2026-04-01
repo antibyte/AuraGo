@@ -669,6 +669,7 @@ func (c *Config) ApplyVaultSecrets(vault SecretReader) {
 	apply("auth_totp_secret", &c.Auth.TOTPSecret)
 
 	// ── Existing vault-only fields ──
+	apply("ai_gateway_token", &c.AIGateway.Token)
 	apply("home_assistant_access_token", &c.HomeAssistant.AccessToken)
 	apply("webdav_password", &c.WebDAV.Password)
 	apply("webdav_token", &c.WebDAV.Token)

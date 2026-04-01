@@ -173,8 +173,8 @@
             document.getElementById('secret-save-btn').onclick = () => {
                 const key = document.getElementById('secret-key').value.trim();
                 const value = document.getElementById('secret-value').value;
-                if (!key) { alert(t('config.secrets.key_empty')); return; }
-                if (!value) { alert(t('config.secrets.value_empty')); return; }
+                if (!key) { showToast(t('config.secrets.key_empty'), 'warn'); return; }
+                if (!value) { showToast(t('config.secrets.value_empty'), 'warn'); return; }
                 onSave(key, value);
                 overlay.remove();
             };
@@ -198,7 +198,7 @@
                         });
                         if (!resp.ok) {
                             const txt = await resp.text();
-                            alert('Error: ' + txt);
+                            showToast(txt || t('config.common.error'), 'error');
                             return;
                         }
                         // Reload
@@ -206,7 +206,7 @@
                         if (reload.ok) secretsCache = await reload.json();
                         secretsRenderTable();
                     } catch (e) {
-                        alert('Error: ' + e.message);
+                        showToast(e.message || t('config.common.error'), 'error');
                     }
                 }
             );
@@ -226,7 +226,7 @@
                         });
                         if (!resp.ok) {
                             const txt = await resp.text();
-                            alert('Error: ' + txt);
+                            showToast(txt || t('config.common.error'), 'error');
                             return;
                         }
                         // Reload
@@ -234,7 +234,7 @@
                         if (reload.ok) secretsCache = await reload.json();
                         secretsRenderTable();
                     } catch (e) {
-                        alert('Error: ' + e.message);
+                        showToast(e.message || t('config.common.error'), 'error');
                     }
                 }
             );
@@ -248,7 +248,7 @@
                 const resp = await fetch('/api/vault/secrets?key=' + encodeURIComponent(s.key), { method: 'DELETE' });
                 if (!resp.ok) {
                     const txt = await resp.text();
-                    alert('Error: ' + txt);
+                    showToast(txt || t('config.common.error'), 'error');
                     return;
                 }
                 // Reload
@@ -256,6 +256,6 @@
                 if (reload.ok) secretsCache = await reload.json();
                 secretsRenderTable();
             } catch (e) {
-                alert('Error: ' + e.message);
+                showToast(e.message || t('config.common.error'), 'error');
             }
         }

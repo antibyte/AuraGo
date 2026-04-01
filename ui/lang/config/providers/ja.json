@@ -85,9 +85,17 @@
   "config.providers.filter_models": "設定済みモデルを絞り込む...",
   "config.providers.no_filter_results": "\"{{q}}\" に一致するモデルはありません",
   "config.providers.type_workers_ai": "workers-ai",
-  "config.providers.hint.workers_ai": "Workers AI\u6a29\u9650\u3092\u6301\u3064Cloudflare API\u30c8\u30fc\u30af\u30f3\u3002",
-  "config.providers.account_id": "\u30a2\u30ab\u30a6\u30f3\u30c8ID",
-  "config.providers.account_id_help": "Cloudflare\u30a2\u30ab\u30a6\u30f3\u30c8ID\uff08\u30c0\u30c3\u30b7\u30e5\u30dc\u30fc\u30c9URL\u307e\u305f\u306fAPI\u8a2d\u5b9a\u306b\u8a18\u8f09\uff09\u3002",
-  "config.providers.account_id_empty_error": "Workers AI\u306b\u306f\u30a2\u30ab\u30a6\u30f3\u30c8ID\u304c\u5fc5\u8981\u3067\u3059\u3002",
-  "config.providers.workers_ai_url_auto": "URL\u306f\u30a2\u30ab\u30a6\u30f3\u30c8ID\u304b\u3089\u81ea\u52d5\u751f\u6210\u3055\u308c\u307e\u3059\u3002"
+  "config.providers.hint.workers_ai": "Workers AI権限を持つCloudflare APIトークン。",
+  "config.providers.account_id": "アカウントID",
+  "config.providers.account_id_help": "CloudflareアカウントID（ダッシュボードURLまたはAPI設定に記載）。",
+  "config.providers.account_id_empty_error": "Workers AIにはアカウントIDが必要です。",
+  "config.providers.workers_ai_url_auto": "URLはアカウントIDから自動生成されます。",
+  "config.providers.error": "Error",
+  "config.providers.free_badge": "Free",
+  "config.providers.cost_input_output": "Cost (input/output)",
+  "config.providers.context_label": "Context",
+  "config.providers.input_label": "Input",
+  "config.providers.output_label": "Output",
+  "config.providers.tokens_suffix": "tokens",
+  "config.providers.meshcentral_test_title": "MeshCentral connection test"
 }

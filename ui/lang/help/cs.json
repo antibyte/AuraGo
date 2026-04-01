@@ -309,5 +309,6 @@
   "help.personality.emotion_synthesizer.trigger_on_mood_change": "Spustit syntézu při změně nálady.",
   "help.personality.emotion_synthesizer.trigger_always": "Spustit syntézu po každé V2 analýze nálady.",
   "help.webdav.auth_type": "Vyberte, zda má AuraGo použít Basic Auth s uživatelským jménem a heslem, nebo Bearer token.",
-  "help.webdav.token": "Bearer token pro servery, které očekávají hlavičku Authorization: Bearer …. Ukládá se bezpečně do Vaultu."
+  "help.webdav.token": "Bearer token pro servery, které očekávají hlavičku Authorization: Bearer …. Ukládá se bezpečně do Vaultu.",
+  "help.ai_gateway.token": "Optional Cloudflare AI Gateway token for authenticated gateways. Stored securely in the encrypted vault and sent as the cf-aig-authorization header."
 }

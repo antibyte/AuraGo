@@ -74,7 +74,7 @@ async function renderServerSection(section) {
     const httpsEnabled = https.enabled === true;
     html += `<div class="cfg-toggle-row-highlight">
         <span class="cfg-toggle-label">${t('config.server.https_enabled_label')}</span>
-        <div class="toggle ${httpsEnabled ? 'on' : ''}" data-path="server.https.enabled" onclick="toggleBool(this);setNestedValue(configData,'server.https.enabled',this.classList.contains('on'));renderServerSection(null)"></div>
+        <div class="toggle ${httpsEnabled ? 'on' : ''}" data-path="server.https.enabled" onclick="_srvToggleHttps(this)"></div>
     </div>`;
 
     if (httpsEnabled) {
@@ -83,7 +83,7 @@ async function renderServerSection(section) {
         html += `<label style="display:block;margin-bottom:0.8rem;">
             <span style="font-size:0.78rem;color:var(--text-secondary);">${t('config.server.cert_mode_label')}</span>
             <select class="cfg-input" id="cert-mode-select" data-path="server.https.cert_mode" style="width:100%;margin-top:0.2rem;"
-                onchange="setNestedValue(configData,'server.https.cert_mode',this.value);markDirty();renderServerSection(null)">
+                onchange="_srvChangeCertMode(this)">
                 <option value="auto" ${certMode==='auto'?'selected':''}>${t('config.server.cert_mode_auto')}</option>
                 <option value="custom" ${certMode==='custom'?'selected':''}>${t('config.server.cert_mode_custom')}</option>
                 <option value="selfsigned" ${certMode==='selfsigned'?'selected':''}>${t('config.server.cert_mode_selfsigned')}</option>
@@ -218,6 +218,39 @@ async function renderServerSection(section) {
     if (httpsEnabled) {
         _srvRefreshCertStatus();
     }
+}
+
+function _srvSyncFormState() {
+    const content = document.getElementById('content');
+    if (!content) return;
+    content.querySelectorAll('[data-path]').forEach(el => {
+        const path = el.dataset.path;
+        if (!path || path.startsWith('server.https.enabled')) return;
+        let value;
+        if (el.tagName === 'SELECT') {
+            value = el.value;
+        } else if (el.type === 'number') {
+            value = el.value === '' ? '' : Number(el.value);
+        } else {
+            value = el.value;
+        }
+        setNestedValue(configData, path, value);
+    });
+}
+
+function _srvToggleHttps(toggle) {
+    _srvSyncFormState();
+    toggleBool(toggle);
+    setNestedValue(configData, 'server.https.enabled', toggle.classList.contains('on'));
+    markDirty();
+    renderServerSection(null);
+}
+
+function _srvChangeCertMode(select) {
+    _srvSyncFormState();
+    setNestedValue(configData, 'server.https.cert_mode', select.value);
+    markDirty();
+    renderServerSection(null);
 }
 
 async function _srvRefreshCertStatus() {

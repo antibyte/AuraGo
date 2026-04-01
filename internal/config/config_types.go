@@ -1089,8 +1089,9 @@ type Config struct {
 	} `yaml:"shell_sandbox"`
 	AIGateway struct {
 		Enabled   bool   `yaml:"enabled"`
-		AccountID string `yaml:"account_id"` // Cloudflare account ID
-		GatewayID string `yaml:"gateway_id"` // AI Gateway name/slug
+		AccountID string `yaml:"account_id"`               // Cloudflare account ID
+		GatewayID string `yaml:"gateway_id"`               // AI Gateway name/slug
+		Token     string `yaml:"-" vault:"token" json:"-"` // optional Cloudflare AI Gateway token (vault-only)
 	} `yaml:"ai_gateway"`
 	MCPServer struct {
 		Enabled           bool     `yaml:"enabled"`

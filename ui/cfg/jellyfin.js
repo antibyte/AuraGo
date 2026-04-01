@@ -87,7 +87,10 @@ function renderJellyfinSection(section) {
     html += '<div class="field-label">' + t('config.jellyfin.apikey_label') + '</div>';
     if (helpKey) html += '<div class="field-help">' + helpKey + '</div>';
     html += '<div class="adg-password-row">';
-    html += '<input class="field-input adg-password-input" type="password" id="jellyfin-apikey" placeholder="' + t('config.jellyfin.apikey_placeholder') + '">';
+        html += '<div class="password-wrap" style="flex:1;">';
+        html += '<input class="field-input adg-password-input" type="password" id="jellyfin-apikey" placeholder="' + t('config.jellyfin.apikey_placeholder') + '">';
+        html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
+        html += '</div>';
     html += '<button class="btn-save adg-save-btn" onclick="jellyfinSaveKey()">💾 ' + t('config.jellyfin.save_vault') + '</button>';
     html += '</div></div>';
 
@@ -167,7 +170,7 @@ function jellyfinSaveKey() {
     const key = document.getElementById('jellyfin-apikey')?.value;
     if (!key) { showToast(t('config.jellyfin.apikey_empty'), 'error'); return; }
 
-    fetch('/api/vault', {
+    fetch('/api/vault/secrets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key: 'jellyfin_api_key', value: key })

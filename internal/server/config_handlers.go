@@ -922,6 +922,7 @@ func deepMerge(dst, src map[string]interface{}, path string) {
 // vaultKeyMap maps dotted YAML paths to vault key names for static config fields.
 // Dynamic fields (providers, email accounts) are handled in their own PUT handlers.
 var vaultKeyMap = map[string]string{
+	"ai_gateway.token":                 "ai_gateway_token",
 	"telegram.bot_token":               "telegram_bot_token",
 	"discord.bot_token":                "discord_bot_token",
 	"meshcentral.password":             "meshcentral_password",

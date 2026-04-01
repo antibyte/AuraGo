@@ -57,7 +57,10 @@ function renderWebDAVSection(section) {
     html += '<div class="field-label">' + (authType === 'bearer' ? t('config.webdav.token_label') : t('config.webdav.password_label')) + '</div>';
     html += '<div class="field-help">' + (authType === 'bearer' ? t('help.webdav.token') : t('help.webdav.password')) + '</div>';
     html += '<div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">';
-    html += '<input class="field-input" type="password" id="webdav-secret" placeholder="' + escapeAttr(placeholder) + '" style="flex:1;min-width:240px;">';
+        html += '<div class="password-wrap" style="flex:1;min-width:240px;">';
+        html += '<input class="field-input" type="password" id="webdav-secret" placeholder="' + escapeAttr(placeholder) + '" style="flex:1;min-width:240px;">';
+        html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
+        html += '</div>';
     html += '<button class="btn-save" style="padding:0.45rem 1rem;font-size:0.82rem;white-space:nowrap;" onclick="webdavSaveSecret()">💾 ' + t('config.webdav.save_vault') + '</button>';
     html += '</div></div>';
 

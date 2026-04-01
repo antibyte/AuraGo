@@ -21,6 +21,7 @@ func NewClient(cfg *config.Config) *openai.Client {
 	apiKey := cfg.LLM.APIKey
 	providerType := strings.ToLower(cfg.LLM.ProviderType)
 	isOllama := providerType == "ollama"
+	aiGatewayToken := ""
 
 	// Ollama doesn't require an API key; use a dummy value so the SDK
 	// always sends a well-formed Authorization header.
@@ -69,15 +70,12 @@ func NewClient(cfg *config.Config) *openai.Client {
 				cfg.AIGateway.GatewayID,
 				segment,
 			)
+			aiGatewayToken = cfg.AIGateway.Token
 		}
 	}
 
-	// MiniMax does not support the "system" message role. Apply a transport that
-	// converts system messages by prepending them to the first user message.
-	if providerType == "minimax" {
-		clientConfig.HTTPClient = &http.Client{
-			Transport: &miniMaxTransport{base: http.DefaultTransport},
-		}
+	if httpClient := buildLLMHTTPClient(providerType, aiGatewayToken); httpClient != nil {
+		clientConfig.HTTPClient = httpClient
 	}
 
 	return openai.NewClientWithConfig(clientConfig)
@@ -89,7 +87,6 @@ func NewClient(cfg *config.Config) *openai.Client {
 func NewClientFromProvider(providerType, baseURL, apiKey string) *openai.Client {
 	pt := strings.ToLower(providerType)
 	isOllama := pt == "ollama"
-	isMiniMax := pt == "minimax"
 
 	if apiKey == "" && isOllama {
 		apiKey = "ollama"
@@ -108,13 +105,32 @@ func NewClientFromProvider(providerType, baseURL, apiKey string) *openai.Client 
 		clientConfig.BaseURL = u
 	}
 
-	if isMiniMax {
-		clientConfig.HTTPClient = &http.Client{
-			Transport: &miniMaxTransport{base: http.DefaultTransport},
-		}
+	if httpClient := buildLLMHTTPClient(pt, ""); httpClient != nil {
+		clientConfig.HTTPClient = httpClient
 	}
 
 	return openai.NewClientWithConfig(clientConfig)
+}
+
+func buildLLMHTTPClient(providerType, aiGatewayToken string) *http.Client {
+	transport := http.RoundTripper(http.DefaultTransport)
+	hasCustomTransport := false
+
+	if token := strings.TrimSpace(aiGatewayToken); token != "" {
+		transport = &aiGatewayAuthTransport{base: transport, token: token}
+		hasCustomTransport = true
+	}
+
+	if providerType == "minimax" {
+		transport = &miniMaxTransport{base: transport}
+		hasCustomTransport = true
+	}
+
+	if !hasCustomTransport {
+		return nil
+	}
+
+	return &http.Client{Transport: transport}
 }
 
 // aiGatewaySegment maps a provider type to the Cloudflare AI Gateway URL segment.
@@ -142,6 +158,23 @@ func aiGatewaySegment(providerType string) string {
 // content to the first "user" message.
 type miniMaxTransport struct {
 	base http.RoundTripper
+}
+
+type aiGatewayAuthTransport struct {
+	base  http.RoundTripper
+	token string
+}
+
+func (t *aiGatewayAuthTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	clone := req.Clone(req.Context())
+	clone.Header = req.Header.Clone()
+	clone.Header.Set("cf-aig-authorization", "Bearer "+t.token)
+
+	base := t.base
+	if base == nil {
+		base = http.DefaultTransport
+	}
+	return base.RoundTrip(clone)
 }
 
 func (t *miniMaxTransport) RoundTrip(req *http.Request) (*http.Response, error) {
