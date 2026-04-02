@@ -261,6 +261,16 @@ type remoteFileTransferArgs struct {
 	RemotePath string
 }
 
+type memoryReflectArgs struct {
+	Scope string
+}
+
+type memoryOrchestratorArgs struct {
+	Preview         bool
+	ThresholdLow    int
+	ThresholdMedium int
+}
+
 func toolArgInterfaceMap(args map[string]interface{}, keys ...string) map[string]interface{} {
 	for _, key := range keys {
 		raw, ok := args[key]
@@ -812,4 +822,22 @@ func decodeRemoteFileTransferArgs(tc ToolCall) remoteFileTransferArgs {
 		LocalPath:  firstNonEmptyToolString(tc.LocalPath, toolArgString(tc.Params, "local_path")),
 		RemotePath: firstNonEmptyToolString(tc.RemotePath, toolArgString(tc.Params, "remote_path")),
 	}
+}
+
+func decodeMemoryReflectArgs(tc ToolCall) memoryReflectArgs {
+	return memoryReflectArgs{
+		Scope: firstNonEmptyToolString(tc.Scope, toolArgString(tc.Params, "scope")),
+	}
+}
+
+func decodeMemoryOrchestratorArgs(tc ToolCall) memoryOrchestratorArgs {
+	req := memoryOrchestratorArgs{
+		Preview:         tc.Preview,
+		ThresholdLow:    firstNonEmptyInt(tc.ThresholdLow, toolArgInt(tc.Params, 0, "threshold_low")),
+		ThresholdMedium: firstNonEmptyInt(tc.ThresholdMedium, toolArgInt(tc.Params, 0, "threshold_medium")),
+	}
+	if value, ok := toolArgBool(tc.Params, "preview"); ok {
+		req.Preview = value
+	}
+	return req
 }

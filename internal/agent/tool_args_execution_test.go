@@ -504,6 +504,30 @@ func TestDecodeInventoryAndRemoteArgsUseParamsFallback(t *testing.T) {
 	}
 }
 
+func TestDecodeMemoryMaintenanceArgsUseParamsFallback(t *testing.T) {
+	reflectReq := decodeMemoryReflectArgs(ToolCall{
+		Action: "memory_reflect",
+		Params: map[string]interface{}{
+			"scope": "all",
+		},
+	})
+	if reflectReq.Scope != "all" {
+		t.Fatalf("Scope = %q, want all", reflectReq.Scope)
+	}
+
+	orchestratorReq := decodeMemoryOrchestratorArgs(ToolCall{
+		Action: "archive_memory",
+		Params: map[string]interface{}{
+			"preview":          true,
+			"threshold_low":    float64(2),
+			"threshold_medium": float64(5),
+		},
+	})
+	if !orchestratorReq.Preview || orchestratorReq.ThresholdLow != 2 || orchestratorReq.ThresholdMedium != 5 {
+		t.Fatalf("unexpected orchestrator decode: %+v", orchestratorReq)
+	}
+}
+
 func TestDecodeKnowledgeGraphArgsUsesParamsFallback(t *testing.T) {
 	req := decodeKnowledgeGraphArgs(ToolCall{
 		Action: "knowledge_graph",

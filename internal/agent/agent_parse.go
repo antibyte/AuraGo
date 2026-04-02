@@ -171,12 +171,12 @@ func getLocalIP(cfg *config.Config) string {
 }
 
 // runMemoryOrchestrator handles the Priority-Based Forgetting System across both RAG and Knowledge Graph.
-func runMemoryOrchestrator(tc ToolCall, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph) string {
-	thresholdLow := tc.ThresholdLow
+func runMemoryOrchestrator(req memoryOrchestratorArgs, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph) string {
+	thresholdLow := req.ThresholdLow
 	if thresholdLow == 0 {
 		thresholdLow = 1
 	}
-	thresholdMedium := tc.ThresholdMedium
+	thresholdMedium := req.ThresholdMedium
 	if thresholdMedium == 0 {
 		thresholdMedium = 3
 	}
@@ -215,7 +215,7 @@ func runMemoryOrchestrator(tc ToolCall, cfg *config.Config, logger *slog.Logger,
 	}
 
 	graphRemoved := 0
-	if !tc.Preview {
+	if !req.Preview {
 		// 1. Process VectorDB Low Priority
 		for _, docID := range lowDocs {
 			_ = longTermMem.DeleteDocument(docID)
@@ -276,7 +276,7 @@ func runMemoryOrchestrator(tc ToolCall, cfg *config.Config, logger *slog.Logger,
 
 	return fmt.Sprintf(
 		`{"status": "success", "preview": %v, "memory_rag": {"high_kept": %d, "medium_compressed": %d, "low_archived": %d}, "graph_nodes_archived": %d}`,
-		tc.Preview, highCount, mediumCount, lowCount, graphRemoved,
+		req.Preview, highCount, mediumCount, lowCount, graphRemoved,
 	)
 }
 

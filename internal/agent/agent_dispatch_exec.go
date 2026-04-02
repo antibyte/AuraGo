@@ -542,7 +542,8 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			if !resolveMemoryAnalysisSettings(cfg, shortTermMem).Enabled {
 				return `Tool Output: {"status":"error","message":"Memory analysis is disabled. Enable memory_analysis.enabled in config."}`
 			}
-			scope := tc.Scope
+			req := decodeMemoryReflectArgs(tc)
+			scope := req.Scope
 			if scope == "" {
 				scope = "recent"
 			}
@@ -651,14 +652,14 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				return `Tool Output: {"status":"error","message":"Memory maintenance is disabled. Set tools.memory_maintenance.enabled=true in config.yaml."}`
 			}
 			logger.Info("LLM requested memory archival", "id", tc.ID)
-			return "Tool Output: " + runMemoryOrchestrator(tc, cfg, logger, llmClient, longTermMem, shortTermMem, kg)
+			return "Tool Output: " + runMemoryOrchestrator(decodeMemoryOrchestratorArgs(tc), cfg, logger, llmClient, longTermMem, shortTermMem, kg)
 
 		case "optimize_memory":
 			if !cfg.Tools.MemoryMaintenance.Enabled {
 				return `Tool Output: {"status":"error","message":"Memory maintenance is disabled. Set tools.memory_maintenance.enabled=true in config.yaml."}`
 			}
 			logger.Info("LLM requested memory optimization")
-			return "Tool Output: " + runMemoryOrchestrator(tc, cfg, logger, llmClient, longTermMem, shortTermMem, kg)
+			return "Tool Output: " + runMemoryOrchestrator(decodeMemoryOrchestratorArgs(tc), cfg, logger, llmClient, longTermMem, shortTermMem, kg)
 
 		case "manage_knowledge", "knowledge_graph":
 			req := decodeKnowledgeGraphArgs(tc)
@@ -810,7 +811,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				return fmt.Sprintf("Tool Output: %s", res)
 
 			case "optimize":
-				res := runMemoryOrchestrator(tc, cfg, logger, llmClient, longTermMem, shortTermMem, kg)
+				res := runMemoryOrchestrator(decodeMemoryOrchestratorArgs(tc), cfg, logger, llmClient, longTermMem, shortTermMem, kg)
 				return fmt.Sprintf("Tool Output: %s", res)
 
 			default:
