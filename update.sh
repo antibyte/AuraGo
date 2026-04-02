@@ -395,7 +395,7 @@ else
 
         if [ "$AHEAD_COUNT" -gt 0 ]; then
             section "Changelog"
-            git log HEAD..origin/main --oneline --no-decorate | head -20
+            git log HEAD..origin/main --oneline --no-decorate -n 20
             echo ""
         fi
     fi
