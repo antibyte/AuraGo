@@ -762,3 +762,145 @@ func TestKGSearchForContextUsesSemanticIndex(t *testing.T) {
 		t.Fatalf("expected semantic KG search to include proxmox, got %q", ctx)
 	}
 }
+
+// TestKGCoOccurrenceThreshold verifies that co_mentioned_with edges are promoted
+// from "pending" to "activity_turn" only once the coOccurrenceThreshold is reached.
+func TestKGCoOccurrenceThreshold(t *testing.T) {
+	kg := newTestKG(t)
+
+	kg.AddNode("alice", "Alice", nil)
+	kg.AddNode("bob", "Bob", nil)
+
+	// Below threshold: edge should exist but remain pending.
+	for i := 0; i < coOccurrenceThreshold-1; i++ {
+		if err := kg.IncrementCoOccurrence("alice", "bob", "2026-01-01"); err != nil {
+			t.Fatalf("IncrementCoOccurrence (step %d): %v", i+1, err)
+		}
+	}
+	var propsJSON string
+	err := kg.db.QueryRow(
+		"SELECT properties FROM kg_edges WHERE source = ? AND target = ? AND relation = 'co_mentioned_with'",
+		"alice", "bob",
+	).Scan(&propsJSON)
+	if err != nil {
+		t.Fatalf("edge should exist after %d co-mentions: %v", coOccurrenceThreshold-1, err)
+	}
+	var props map[string]string
+	if err := json.Unmarshal([]byte(propsJSON), &props); err != nil {
+		t.Fatalf("unmarshal props: %v", err)
+	}
+	if props["source"] != "pending" {
+		t.Errorf("expected source='pending' below threshold, got %q", props["source"])
+	}
+
+	// At threshold: edge should be promoted to activity_turn.
+	if err := kg.IncrementCoOccurrence("alice", "bob", "2026-01-02"); err != nil {
+		t.Fatalf("IncrementCoOccurrence (threshold step): %v", err)
+	}
+	err = kg.db.QueryRow(
+		"SELECT properties FROM kg_edges WHERE source = ? AND target = ? AND relation = 'co_mentioned_with'",
+		"alice", "bob",
+	).Scan(&propsJSON)
+	if err != nil {
+		t.Fatalf("edge should exist at threshold: %v", err)
+	}
+	if err := json.Unmarshal([]byte(propsJSON), &props); err != nil {
+		t.Fatalf("unmarshal props: %v", err)
+	}
+	if props["source"] != "activity_turn" {
+		t.Errorf("expected source='activity_turn' at threshold, got %q", props["source"])
+	}
+	if props["weight"] != "3" {
+		t.Errorf("expected weight='3' at threshold, got %q", props["weight"])
+	}
+}
+
+// TestKGCoOccurrencePropertiesJSON verifies that the date value is properly JSON-encoded
+// and not injected via string concatenation.
+func TestKGCoOccurrencePropertiesJSON(t *testing.T) {
+	kg := newTestKG(t)
+	kg.AddNode("a", "A", nil)
+	kg.AddNode("b", "B", nil)
+
+	if err := kg.IncrementCoOccurrence("a", "b", "2026-01-01"); err != nil {
+		t.Fatalf("IncrementCoOccurrence: %v", err)
+	}
+	var propsJSON string
+	if err := kg.db.QueryRow(
+		"SELECT properties FROM kg_edges WHERE source = ? AND target = ? AND relation = 'co_mentioned_with'",
+		"a", "b",
+	).Scan(&propsJSON); err != nil {
+		t.Fatalf("query edge: %v", err)
+	}
+	var props map[string]string
+	if err := json.Unmarshal([]byte(propsJSON), &props); err != nil {
+		t.Errorf("properties should be valid JSON, got %q: %v", propsJSON, err)
+	}
+	if props["date"] != "2026-01-01" {
+		t.Errorf("expected date='2026-01-01', got %q", props["date"])
+	}
+}
+
+// TestKGGetSubgraphBFS verifies that GetSubgraph correctly performs BFS up to maxDepth
+// and returns the expected set of nodes and edges.
+func TestKGGetSubgraphBFS(t *testing.T) {
+	kg := newTestKG(t)
+
+	// Build chain: A → B → C → D
+	for _, id := range []string{"a", "b", "c", "d"} {
+		if err := kg.AddNode(id, id, nil); err != nil {
+			t.Fatal(err)
+		}
+	}
+	kg.AddEdge("a", "b", "rel", nil)
+	kg.AddEdge("b", "c", "rel", nil)
+	kg.AddEdge("c", "d", "rel", nil)
+
+	// maxDepth=2 from A: should reach B (depth 1) and C (depth 2), not D (depth 3).
+	nodes, edges := kg.GetSubgraph("a", 2)
+	nodeIDs := make(map[string]bool)
+	for _, n := range nodes {
+		nodeIDs[n.ID] = true
+	}
+	if !nodeIDs["a"] {
+		t.Error("expected center node 'a' in subgraph")
+	}
+	if !nodeIDs["b"] {
+		t.Error("expected depth-1 node 'b' in subgraph")
+	}
+	if !nodeIDs["c"] {
+		t.Error("expected depth-2 node 'c' in subgraph")
+	}
+	if nodeIDs["d"] {
+		t.Error("node 'd' at depth 3 should not be in subgraph with maxDepth=2")
+	}
+	if len(edges) < 2 {
+		t.Errorf("expected at least 2 edges, got %d", len(edges))
+	}
+}
+
+// TestKGGetSubgraphCycle verifies that GetSubgraph terminates and does not loop
+// when the graph contains cycles.
+func TestKGGetSubgraphCycle(t *testing.T) {
+	kg := newTestKG(t)
+
+	for _, id := range []string{"x", "y", "z"} {
+		kg.AddNode(id, id, nil)
+	}
+	kg.AddEdge("x", "y", "rel", nil)
+	kg.AddEdge("y", "z", "rel", nil)
+	kg.AddEdge("z", "x", "rel", nil) // cycle
+
+	// Must return without hanging.
+	done := make(chan struct{})
+	go func() {
+		kg.GetSubgraph("x", 3)
+		close(done)
+	}()
+	select {
+	case <-done:
+		// ok
+	case <-time.After(5 * time.Second):
+		t.Fatal("GetSubgraph did not terminate within 5s on cyclic graph")
+	}
+}

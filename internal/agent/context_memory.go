@@ -445,12 +445,6 @@ func executeContextMemoryQuery(tc ToolCall, shortTermMem *memory.SQLiteMemory, l
 		}
 	}
 
-	if sourceMap["kg"] && kg != nil && tc.IncludeRelated && contextDepth == "deep" {
-		kgRelated := kg.SearchForContext(query, perSourceLimit+2, 2400)
-		if kgRelated != "" && kgRelated != "No matching entities found." {
-			addResult("kg", "related_network", kgRelated, "", "Expanded related entities", "", 0.84)
-		}
-	}
 	sort.Slice(results, func(i, j int) bool {
 		if results[i].Relevance == results[j].Relevance {
 			return results[i].Rank < results[j].Rank

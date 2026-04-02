@@ -118,11 +118,21 @@ func (kg *KnowledgeGraph) reindexSemanticNodes() error {
 	}
 	rows.Close()
 
+	var indexedNodeIDs []string
 	for _, node := range nodes {
-		kg.upsertSemanticNodeIndex(node)
+		if kg.upsertSemanticNodeIndex(node) {
+			indexedNodeIDs = append(indexedNodeIDs, node.ID)
+		}
 	}
-	if len(nodes) > 0 {
-		_, _ = kg.db.Exec(`UPDATE kg_nodes SET semantic_indexed_at = ? WHERE semantic_indexed_at IS NULL OR semantic_indexed_at < updated_at`, now)
+	if len(indexedNodeIDs) > 0 {
+		placeholders := strings.Repeat("?,", len(indexedNodeIDs))
+		placeholders = placeholders[:len(placeholders)-1]
+		args := make([]interface{}, 0, len(indexedNodeIDs)+1)
+		args = append(args, now)
+		for _, id := range indexedNodeIDs {
+			args = append(args, id)
+		}
+		_, _ = kg.db.Exec(`UPDATE kg_nodes SET semantic_indexed_at = ? WHERE id IN (`+placeholders+`)`, args...)
 	}
 
 	edgeRows, err := kg.db.Query(`
@@ -158,14 +168,14 @@ func (kg *KnowledgeGraph) reindexSemanticNodes() error {
 	return nil
 }
 
-func (kg *KnowledgeGraph) upsertSemanticNodeIndex(node Node) {
+func (kg *KnowledgeGraph) upsertSemanticNodeIndex(node Node) bool {
 	if kg.semantic == nil || !shouldIndexKnowledgeGraphNode(node) {
-		return
+		return true // skip is not a failure
 	}
 
 	content := buildKnowledgeGraphSemanticContent(node)
 	if content == "" {
-		return
+		return true // nothing to index is not a failure
 	}
 
 	kg.semantic.mu.Lock()
@@ -183,9 +193,13 @@ func (kg *KnowledgeGraph) upsertSemanticNodeIndex(node Node) {
 			"label":   node.Label,
 		},
 	})
-	if err != nil && kg.semantic.logger != nil {
-		kg.semantic.logger.Warn("KG semantic node index update failed", "node_id", node.ID, "error", err)
+	if err != nil {
+		if kg.semantic.logger != nil {
+			kg.semantic.logger.Warn("KG semantic node index update failed", "node_id", node.ID, "error", err)
+		}
+		return false
 	}
+	return true
 }
 
 func (kg *KnowledgeGraph) upsertSemanticEdgeIndex(edge Edge) {

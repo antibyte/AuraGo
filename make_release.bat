@@ -216,7 +216,7 @@ for /f "skip=3 tokens=*" %%T in ('gh release list --limit 20 --json tagName --jq
 )
 
 echo.
-gh release view "!VERSION!" --json tagName,url --jq "\"  Tag: \" + .tagName + \" | \" + .url"
+for /f "tokens=*" %%U in ('gh release view "!VERSION!" --json url --jq ".url" 2^>nul') do echo   Tag: !VERSION! ^| %%U
 echo.
 echo  --- Release !VERSION! published successfully ---
 goto :eof

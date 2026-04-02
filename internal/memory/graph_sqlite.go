@@ -576,8 +576,10 @@ func (kg *KnowledgeGraph) AddEdge(source, target, relation string, properties ma
 const coOccurrenceThreshold = 3
 
 // IncrementCoOccurrence tracks how often two entities are mentioned together.
-// An edge is only created after the pair has been co-mentioned coOccurrenceThreshold times.
-// Existing edges get their weight incremented and date updated.
+// On the first co-mention a pending edge (source="pending") is inserted.
+// Once the pair reaches coOccurrenceThreshold co-mentions the edge is promoted
+// to source="activity_turn" and becomes a fully active graph edge.
+// Existing edges (pending or active) get their weight incremented and date updated.
 func (kg *KnowledgeGraph) IncrementCoOccurrence(a, b, date string) error {
 	var currentWeight int
 	var propsJSON string
@@ -586,6 +588,7 @@ func (kg *KnowledgeGraph) IncrementCoOccurrence(a, b, date string) error {
 		a, b,
 	).Scan(&propsJSON)
 	if err == nil {
+		// Edge exists (pending or active) — increment weight and potentially promote.
 		var props map[string]string
 		if json.Unmarshal([]byte(propsJSON), &props) == nil {
 			if w, e := strconv.Atoi(props["weight"]); e == nil {
@@ -595,6 +598,9 @@ func (kg *KnowledgeGraph) IncrementCoOccurrence(a, b, date string) error {
 		currentWeight++
 		props["weight"] = strconv.Itoa(currentWeight)
 		props["date"] = date
+		if currentWeight >= coOccurrenceThreshold {
+			props["source"] = "activity_turn"
+		}
 		newPropsJSON, _ := json.Marshal(props)
 		_, err = kg.db.Exec(
 			"UPDATE kg_edges SET properties = ? WHERE source = ? AND target = ? AND relation = 'co_mentioned_with'",
@@ -603,12 +609,18 @@ func (kg *KnowledgeGraph) IncrementCoOccurrence(a, b, date string) error {
 		return err
 	}
 
+	// Edge does not exist yet — insert as pending (weight=1, below threshold).
+	initProps, _ := json.Marshal(map[string]string{
+		"source": "pending",
+		"weight": "1",
+		"date":   date,
+	})
 	_, err = kg.db.Exec(`
 		INSERT INTO kg_edges (source, target, relation, properties)
 		VALUES (?, ?, 'co_mentioned_with', ?)
 		ON CONFLICT(source, target, relation) DO UPDATE SET
 			properties = excluded.properties
-	`, a, b, `{"source":"activity_turn","weight":"1","date":"`+date+`"}`)
+	`, a, b, string(initProps))
 	return err
 }
 
