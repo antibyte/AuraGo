@@ -400,7 +400,9 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) string 
 		case "git_backup_restore":
 			reqJSON, _ := json.Marshal(args)
 			var req tools.GitBackupRequest
-			json.Unmarshal(reqJSON, &req)
+			if err := json.Unmarshal(reqJSON, &req); err != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"invalid request parameters: %v"}`, err)
+			}
 			return tools.ExecuteGit(cfg.Directories.WorkspaceDir, req)
 		case "google_workspace":
 			if !cfg.GoogleWorkspace.Enabled {
@@ -652,6 +654,10 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) string 
 		// Fallback for LLMs getting creative with the manual name
 		cleanName := strings.TrimSuffix(tc.ToolName, ".md")
 		cleanName = strings.TrimSuffix(cleanName, "_tool_manual")
+		// Reject path traversal and separators in the manual name.
+		if strings.ContainsAny(cleanName, "/\\") || strings.Contains(cleanName, "..") {
+			return fmt.Sprintf("Tool Output: ERROR invalid tool name for manual lookup: '%s'", tc.ToolName)
+		}
 		manualPath := filepath.Join(cfg.Directories.PromptsDir, "tools_manuals", cleanName+".md")
 		data, err := os.ReadFile(manualPath)
 		if err != nil {

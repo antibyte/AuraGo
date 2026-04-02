@@ -236,6 +236,7 @@ func SearchUnseenUIDs(host string, port int, username, password, folder string) 
 
 var reFetchStart = regexp.MustCompile(`^\* (\d+) FETCH`)
 var reUID = regexp.MustCompile(`UID (\d+)`)
+var reExcessiveNewlines = regexp.MustCompile(`\n{3,}`)
 
 func parseIMAPFetch(lines []string, logger *slog.Logger) []EmailMessage {
 	var messages []EmailMessage
@@ -392,8 +393,7 @@ func cleanEmailBody(s string) string {
 	// Strip HTML tags if present
 	s = reTag.ReplaceAllString(s, "")
 	// Collapse excessive whitespace
-	reNewlines := regexp.MustCompile(`\n{3,}`)
-	s = reNewlines.ReplaceAllString(s, "\n\n")
+	s = reExcessiveNewlines.ReplaceAllString(s, "\n\n")
 	return strings.TrimSpace(s)
 }
 
@@ -447,11 +447,13 @@ func SendEmail(smtpHost string, smtpPort int, username, password, from, to, subj
 	}
 	defer client.Close()
 
-	// STARTTLS
+	// STARTTLS — required. Credentials must not be sent over unencrypted connections.
 	if ok, _ := client.Extension("STARTTLS"); ok {
 		if err := client.StartTLS(&tls.Config{ServerName: smtpHost}); err != nil {
 			return fmt.Errorf("STARTTLS failed: %w", err)
 		}
+	} else {
+		return fmt.Errorf("SMTP server %s does not support STARTTLS: refusing to send credentials over unencrypted connection (use port 465 with TLS instead)", smtpHost)
 	}
 
 	// Authenticate

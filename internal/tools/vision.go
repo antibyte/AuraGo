@@ -33,6 +33,14 @@ func AnalyzeImageWithPrompt(filePath, prompt string, cfg *config.Config) (string
 	}
 
 	// Read and base64-encode the image
+	visionInfo, err := os.Stat(resolvedPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to stat image file: %w", err)
+	}
+	const maxVisionBytes = 50 * 1024 * 1024 // 50 MB
+	if visionInfo.Size() > maxVisionBytes {
+		return "", fmt.Errorf("image file too large (%d bytes, max 50 MB)", visionInfo.Size())
+	}
 	imageData, err := os.ReadFile(resolvedPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to read image file: %w", err)

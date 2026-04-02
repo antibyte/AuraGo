@@ -235,7 +235,7 @@ func NativeToolCallToToolCall(native openai.ToolCall, logger *slog.Logger) ToolC
 
 	// Handle execute_skill: LLM may use "skill_name" key
 	if tc.Action == "execute_skill" && tc.Skill == "" {
-		for _, key := range []string{"skill_name", "name", "skill_name"} {
+		for _, key := range []string{"skill_name", "name"} {
 			if tc.Params != nil {
 				if v, ok := tc.Params[key].(string); ok && v != "" {
 					tc.Skill = v

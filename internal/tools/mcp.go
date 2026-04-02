@@ -376,7 +376,7 @@ func InitMCPManager(servers []MCPServerConfig, logger *slog.Logger) *MCPManager 
 			continue
 		}
 
-		conn.ready = true
+		conn.markReady()
 		mgr.conns[srv.Name] = conn
 		_ = ctx // suppress unused var
 	}

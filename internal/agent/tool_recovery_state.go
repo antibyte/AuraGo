@@ -8,11 +8,13 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/sashabaranov/go-openai"
 )
 
 type toolRecoveryState struct {
+	mu                    *sync.RWMutex // pointer avoids copylock vet warnings on struct return by value
 	Policy                RecoveryPolicy
 	LastToolError         string
 	ConsecutiveErrorCount int
@@ -29,6 +31,7 @@ func newToolRecoveryState() toolRecoveryState {
 
 func newToolRecoveryStateWithPolicy(policy RecoveryPolicy) toolRecoveryState {
 	return toolRecoveryState{
+		mu:                &sync.RWMutex{},
 		Policy:            policy,
 		ToolCallFrequency: make(map[string]int),
 	}
@@ -214,6 +217,8 @@ func isGenericToolSignature(tc ToolCall, toolSig string) bool {
 
 func (s *toolRecoveryState) handleDuplicateToolCall(tc ToolCall, req *openai.ChatCompletionRequest, logger *slog.Logger, scope AgentTelemetryScope) bool {
 	toolSig := buildToolSignature(tc)
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if toolSig == s.LastToolCallSig && !isGenericToolSignature(tc, toolSig) {
 		s.DuplicateToolCount++
 	} else {

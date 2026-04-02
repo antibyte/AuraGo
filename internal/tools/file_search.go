@@ -60,6 +60,9 @@ func fileGrep(filePath, pattern, outputMode, workspaceDir string, encode func(Fi
 		return encode(FileSearchResult{Status: "error", Message: err.Error()})
 	}
 
+	if len(pattern) > 256 {
+		return encode(FileSearchResult{Status: "error", Message: "regex pattern too long (max 256 characters)"})
+	}
 	re, err := regexp.Compile("(?i)" + pattern)
 	if err != nil {
 		return encode(FileSearchResult{Status: "error", Message: fmt.Sprintf("Invalid regex: %v", err)})
@@ -84,6 +87,9 @@ func fileGrep(filePath, pattern, outputMode, workspaceDir string, encode func(Fi
 func fileGrepRecursive(glob, pattern, outputMode, workspaceDir string, encode func(FileSearchResult) string) string {
 	patterns := normalizeSearchGlobs(glob)
 
+	if len(pattern) > 256 {
+		return encode(FileSearchResult{Status: "error", Message: "regex pattern too long (max 256 characters)"})
+	}
 	re, err := regexp.Compile("(?i)" + pattern)
 	if err != nil {
 		return encode(FileSearchResult{Status: "error", Message: fmt.Sprintf("Invalid regex: %v", err)})

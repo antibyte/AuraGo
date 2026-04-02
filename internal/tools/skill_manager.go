@@ -457,7 +457,7 @@ func (m *SkillManager) UpdateVaultKeys(id string, keys []string) error {
 		if jsonErr := json.Unmarshal(raw, &manifest); jsonErr == nil {
 			manifest["vault_keys"] = keysJSON
 			if updated, marshalErr := json.MarshalIndent(manifest, "", "  "); marshalErr == nil {
-				_ = os.WriteFile(manifestPath, updated, 0o644)
+				_ = os.WriteFile(manifestPath, updated, 0o600)
 			}
 		}
 	}
@@ -545,11 +545,8 @@ func (m *SkillManager) DeleteSkill(id string, deleteFiles bool, deletedBy string
 		pyPath := filepath.Join(m.skillsDir, s.Executable)
 		os.Remove(pyPath)
 
-		// Delete JSON manifest
-		jsonPath := filepath.Join(m.skillsDir, strings.TrimSuffix(s.Name, filepath.Ext(s.Name))+".json")
-		if jsonPath == pyPath {
-			jsonPath = filepath.Join(m.skillsDir, s.Name+".json")
-		}
+		// Delete JSON manifest - derive from Executable (same as pyPath) not Name
+		jsonPath := filepath.Join(m.skillsDir, strings.TrimSuffix(s.Executable, filepath.Ext(s.Executable))+".json")
 		os.Remove(jsonPath)
 	}
 
@@ -726,7 +723,7 @@ func (m *SkillManager) UpdateSkillMetadata(id, description, category string, tag
 			manifest["category"] = catJSON
 			manifest["tags"] = []byte(tagsJSON)
 			if updated, marshalErr := json.MarshalIndent(manifest, "", "  "); marshalErr == nil {
-				_ = os.WriteFile(manifestPath, updated, 0o644)
+				_ = os.WriteFile(manifestPath, updated, 0o600)
 			}
 		}
 	}

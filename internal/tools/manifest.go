@@ -118,12 +118,18 @@ func (m *Manifest) SaveTool(toolsDir, name, description, code string) error {
 		return fmt.Errorf("invalid tool name: must be a simple filename without path separators")
 	}
 	toolPath := filepath.Join(toolsDir, name)
-	absPath, _ := filepath.Abs(toolPath)
-	absTools, _ := filepath.Abs(toolsDir)
-	if !strings.HasPrefix(absPath, absTools) {
+	absPath, err := filepath.Abs(toolPath)
+	if err != nil {
+		return fmt.Errorf("failed to resolve tool path: %w", err)
+	}
+	absTools, err := filepath.Abs(toolsDir)
+	if err != nil {
+		return fmt.Errorf("failed to resolve tools directory: %w", err)
+	}
+	if !strings.HasPrefix(absPath, absTools+string(filepath.Separator)) {
 		return fmt.Errorf("path traversal blocked")
 	}
-	if err := os.WriteFile(toolPath, []byte(code), 0644); err != nil {
+	if err := os.WriteFile(toolPath, []byte(code), 0600); err != nil {
 		return fmt.Errorf("failed to write tool file: %w", err)
 	}
 	return m.Register(name, description)

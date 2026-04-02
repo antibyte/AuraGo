@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/shirou/gopsutil/v4/process"
@@ -230,15 +231,11 @@ func processFind(name string, limit int) string {
 	for _, p := range procs {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		pname, err := p.NameWithContext(ctx)
+		cmdline, _ := p.CmdlineWithContext(ctx)
 		cancel()
 		if err != nil {
 			continue
 		}
-
-		// Also check cmdline for broader matching
-		ctx2, cancel2 := context.WithTimeout(context.Background(), 2*time.Second)
-		cmdline, _ := p.CmdlineWithContext(ctx2)
-		cancel2()
 
 		if containsIgnoreCase(pname, name) || containsIgnoreCase(cmdline, name) {
 			info := gatherProcessInfo(p)
@@ -326,24 +323,7 @@ func containsIgnoreCase(s, substr string) bool {
 	if s == "" || substr == "" {
 		return false
 	}
-	// Simple case-insensitive contains using lowercase comparison
-	sl := make([]byte, len(s))
-	for i := range s {
-		c := s[i]
-		if c >= 'A' && c <= 'Z' {
-			c += 32
-		}
-		sl[i] = c
-	}
-	subl := make([]byte, len(substr))
-	for i := range substr {
-		c := substr[i]
-		if c >= 'A' && c <= 'Z' {
-			c += 32
-		}
-		subl[i] = c
-	}
-	return bytesContains(sl, subl)
+	return strings.Contains(strings.ToLower(s), strings.ToLower(substr))
 }
 
 func bytesContains(s, sub []byte) bool {

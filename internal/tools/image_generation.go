@@ -46,6 +46,7 @@ type ImageGenResult struct {
 	CostEstimate    float64 `json:"cost_estimate,omitempty"`
 	SourceImage     string  `json:"source_image,omitempty"`
 	GeneratedImages int     `json:"generated_images,omitempty"` // for batch requests
+	filePath        string  // full on-disk path; unexported, used for fileSize only
 }
 
 // GeneratedImageRecord represents a row in the generated_images SQLite table.
@@ -116,7 +117,7 @@ func SaveGeneratedImage(db *sql.DB, r *ImageGenResult) (int64, error) {
 		(prompt, enhanced_prompt, provider, model, size, quality, style, filename, file_size, source_image, generation_time_ms, cost_estimate)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		r.Prompt, r.EnhancedPrompt, r.Provider, r.Model, r.Size, r.Quality, r.Style,
-		r.Filename, fileSize(r.Filename), r.SourceImage, r.DurationMs, r.CostEstimate,
+		r.Filename, fileSize(r.filePath), r.SourceImage, r.DurationMs, r.CostEstimate,
 	)
 	if err != nil {
 		return 0, fmt.Errorf("failed to save generated image record: %w", err)
@@ -250,16 +251,19 @@ func GenerateImage(cfg ImageGenConfig, prompt string, opts ImageGenOptions) (*Im
 		return nil, err
 	}
 
-	filename, err := saveImageData(imgData, format, cfg.DataDir)
+	fullPath, err := saveImageData(imgData, format, cfg.DataDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to save generated image: %w", err)
 	}
 
+	// saveImageData returns the full path; derive basename for URLs and DB records.
+	filename := filepath.Base(fullPath)
 	duration := time.Since(start)
 	webPath := "/files/generated_images/" + filename
 
 	return &ImageGenResult{
 		Filename:     filename,
+		filePath:     fullPath,
 		WebPath:      webPath,
 		Markdown:     fmt.Sprintf("![Generated Image](%s)", webPath),
 		Prompt:       prompt,
@@ -294,7 +298,7 @@ func saveImageData(data []byte, format string, dataDir string) (string, error) {
 	if err := os.WriteFile(path, data, 0644); err != nil {
 		return "", fmt.Errorf("failed to write image file: %w", err)
 	}
-	return filename, nil
+	return path, nil
 }
 
 // estimateCost returns a rough cost estimate for a single image generation.

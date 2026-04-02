@@ -227,9 +227,19 @@ func extractImageFromAnyResponse(payload interface{}) ([]byte, string, error) {
 }
 
 // ResolveSourceImagePath resolves a source image path relative to workspace or data dir.
+// Absolute paths and directory traversal ("../") are rejected and return an empty string.
 func ResolveSourceImagePath(path, workspaceDir, dataDir string) string {
+	if path == "" {
+		return ""
+	}
+	// Reject absolute paths — they could point anywhere on the filesystem.
 	if filepath.IsAbs(path) {
-		return path
+		return ""
+	}
+	// Reject traversal attempts.
+	cleaned := filepath.Clean(path)
+	if strings.HasPrefix(cleaned, "..") {
+		return ""
 	}
 	// Try workspace first
 	candidate := filepath.Join(workspaceDir, path)

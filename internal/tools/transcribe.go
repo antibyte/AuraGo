@@ -102,6 +102,14 @@ func transcribeMultimodal(filePath string, cfg *config.Config) (string, error) {
 		model = "google/gemini-2.5-flash-lite-preview-09-2025"
 	}
 
+	audioInfo, err := os.Stat(filePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to stat audio file: %w", err)
+	}
+	const maxAudioBytes = 100 * 1024 * 1024 // 100 MB
+	if audioInfo.Size() > maxAudioBytes {
+		return "", fmt.Errorf("audio file too large (%d bytes, max 100 MB)", audioInfo.Size())
+	}
 	audioData, err := os.ReadFile(filePath)
 	if err != nil {
 		return "", fmt.Errorf("failed to read audio file: %w", err)

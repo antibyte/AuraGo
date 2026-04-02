@@ -39,9 +39,9 @@ func TTSSynthesize(cfg TTSConfig, text string) (string, error) {
 	if text == "" {
 		return "", fmt.Errorf("text is required")
 	}
-	// Enforce 200 character limit
-	if len(text) > 200 {
-		text = text[:200]
+	// Enforce 200 character limit (rune-safe to handle multi-byte UTF-8)
+	if len([]rune(text)) > 200 {
+		text = string([]rune(text)[:200])
 	}
 
 	// Ensure output directory exists

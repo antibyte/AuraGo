@@ -156,15 +156,31 @@ func listBackups(dir string, limit int) map[string]interface{} {
 	return map[string]interface{}{"status": "success", "commits": commits}
 }
 
+// isValidGitRef checks that a commit ref only contains hex chars, HEAD, or branch-like identifiers
+// to prevent flag injection when passed directly to git commands.
+func isValidGitRef(ref string) bool {
+	if ref == "" {
+		return false
+	}
+	// Reject anything starting with a dash (would be interpreted as a git flag).
+	if ref[0] == '-' {
+		return false
+	}
+	return true
+}
+
 func restoreGit(dir, hash, mode string) map[string]interface{} {
+	if !isValidGitRef(hash) {
+		return map[string]interface{}{"status": "error", "message": fmt.Sprintf("Invalid commit ref: %q", hash)}
+	}
 	if mode == "revert" {
-		_, stderr, rc := runGitCmd(dir, "revert", "--no-edit", hash)
+		_, stderr, rc := runGitCmd(dir, "revert", "--no-edit", "--", hash)
 		if rc != 0 {
 			return map[string]interface{}{"status": "error", "message": fmt.Sprintf("Git revert failed: %s", stderr)}
 		}
 		return map[string]interface{}{"status": "success", "message": fmt.Sprintf("Reverted commit %s", hash)}
 	} else if mode == "checkout" {
-		_, stderr, rc := runGitCmd(dir, "reset", "--hard", hash)
+		_, stderr, rc := runGitCmd(dir, "reset", "--hard", "--", hash)
 		if rc != 0 {
 			return map[string]interface{}{"status": "error", "message": fmt.Sprintf("Git reset failed: %s", stderr)}
 		}
@@ -184,6 +200,9 @@ func rollbackToPrevious(dir string) map[string]interface{} {
 func showDiff(dir, hash string) map[string]interface{} {
 	var args []string
 	if hash != "" {
+		if !isValidGitRef(hash) {
+			return map[string]interface{}{"status": "error", "message": fmt.Sprintf("Invalid commit ref: %q", hash)}
+		}
 		args = []string{"diff", hash, "HEAD"}
 	} else {
 		args = []string{"diff", "HEAD"}

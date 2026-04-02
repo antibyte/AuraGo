@@ -83,7 +83,7 @@ func (m *CronManager) save() error {
 		return err
 	}
 	tmp := m.file + ".tmp"
-	if err := os.WriteFile(tmp, data, 0644); err != nil {
+	if err := os.WriteFile(tmp, data, 0600); err != nil {
 		return fmt.Errorf("write temp cron file: %w", err)
 	}
 	if err := os.Rename(tmp, m.file); err != nil {

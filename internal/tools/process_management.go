@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"time"
 
 	"github.com/shirou/gopsutil/v4/process"
 )
@@ -37,6 +38,12 @@ func ManageProcesses(operation string, pid int32) string {
 		if err != nil {
 			return encode(ProcResult{Status: "error", Message: fmt.Sprintf("Failed to list processes: %v", err)})
 		}
+
+		// Warm-up: initialize CPU percentage baseline (first call always returns 0)
+		for _, p := range procs {
+			p.CPUPercent() //nolint:errcheck // discard first reading
+		}
+		time.Sleep(150 * time.Millisecond)
 
 		var items []ProcessBasicInfo
 		for _, p := range procs {

@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"aurago/internal/memory"
@@ -87,10 +88,11 @@ func ManageCoreMemory(operation, fact string, id int64, stm *memory.SQLiteMemory
 
 	case "list":
 		text := stm.ReadCoreMemory()
-		if text == "" {
-			return `{"status":"success","entries":[]}`, nil
+		entriesJSON, err := json.Marshal(text)
+		if err != nil {
+			return `{"status":"error","message":"failed to serialize entries"}`, nil
 		}
-		return fmt.Sprintf(`{"status":"success","entries":%q}`, text), nil
+		return fmt.Sprintf(`{"status":"success","entries":%s}`, string(entriesJSON)), nil
 
 	default:
 		return "", fmt.Errorf("unsupported operation '%s'. Supported: 'add' (or 'store'), 'update', 'delete', 'remove', 'list'", operation)

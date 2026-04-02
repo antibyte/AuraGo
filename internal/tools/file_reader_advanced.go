@@ -110,29 +110,37 @@ func readTail(resolved string, n int, encode func(FileReaderResult) string) stri
 	if n <= 0 {
 		n = 1
 	}
-	buffer := make([]string, 0, n)
+	// Ring buffer: avoids O(n) copy per line when buffer is full
+	buf := make([]string, n)
 	scanner := newLargeFileScanner(f)
 	total := 0
+	pos := 0
 	for scanner.Scan() {
+		buf[pos%n] = scanner.Text()
+		pos++
 		total++
-		if len(buffer) == n {
-			copy(buffer, buffer[1:])
-			buffer[len(buffer)-1] = scanner.Text()
-			continue
-		}
-		buffer = append(buffer, scanner.Text())
 	}
 
-	start := total - len(buffer) + 1
-	if total == 0 {
-		start = 0
+	filled := pos
+	if filled > n {
+		filled = n
 	}
-	content, truncated := clampFileReaderContent(strings.Join(buffer, "\n"))
+	lines := make([]string, filled)
+	start := pos - filled
+	for i := 0; i < filled; i++ {
+		lines[i] = buf[(start+i)%n]
+	}
+
+	startLine := total - filled + 1
+	if total == 0 {
+		startLine = 0
+	}
+	content, truncated := clampFileReaderContent(strings.Join(lines, "\n"))
 	return encode(FileReaderResult{Status: "success", Data: map[string]interface{}{
-		"start_line":  start,
+		"start_line":  startLine,
 		"end_line":    total,
 		"total_lines": total,
-		"total_read":  len(buffer),
+		"total_read":  filled,
 		"content":     content,
 		"truncated":   truncated,
 	}})
@@ -173,6 +181,9 @@ func searchContext(resolved, pattern string, contextLines int, encode func(FileR
 		contextLines = 3
 	}
 
+	if len(pattern) > 256 {
+		return encode(FileReaderResult{Status: "error", Message: "regex pattern too long (max 256 characters)"})
+	}
 	re, err := regexp.Compile("(?i)" + pattern)
 	if err != nil {
 		return encode(FileReaderResult{Status: "error", Message: fmt.Sprintf("Invalid regex: %v", err)})

@@ -27,6 +27,13 @@ const (
 
 // notifyHTTPClient is shared across notification calls with a bounded timeout.
 var notifyHTTPClient = &http.Client{Timeout: 15 * time.Second}
+var markdownV2Replacer = strings.NewReplacer(
+	"_", "\\_", "*", "\\*", "[", "\\[", "]", "\\]",
+	"(", "\\(", ")", "\\)", "~", "\\~", "`", "\\`",
+	">", "\\>", "#", "\\#", "+", "\\+", "-", "\\-",
+	"=", "\\=", "|", "\\|", "{", "\\{", "}", "\\}",
+	".", "\\.", "!", "\\!",
+)
 
 // DiscordSendFunc is injected by the agent dispatch layer to avoid an import cycle.
 // It sends a message to the given Discord channel.
@@ -268,14 +275,7 @@ func sendTelegramNotification(cfg *config.Config, title, message string) error {
 
 // escapeMarkdownV2 escapes special characters for Telegram MarkdownV2 format.
 func escapeMarkdownV2(s string) string {
-	replacer := strings.NewReplacer(
-		"_", "\\_", "*", "\\*", "[", "\\[", "]", "\\]",
-		"(", "\\(", ")", "\\)", "~", "\\~", "`", "\\`",
-		">", "\\>", "#", "\\#", "+", "\\+", "-", "\\-",
-		"=", "\\=", "|", "\\|", "{", "\\{", "}", "\\}",
-		".", "\\.", "!", "\\!",
-	)
-	return replacer.Replace(s)
+	return markdownV2Replacer.Replace(s)
 }
 
 // ── Discord (via injected function to avoid import cycles) ──────────────────

@@ -24,6 +24,7 @@ type SmartFileReadResult struct {
 }
 
 var smartFileReadSummariseFunc = SummariseContent
+var reJSONKey = regexp.MustCompile(`"([^"\\]+)"\s*:`)
 
 const (
 	smartFileReadDefaultLineCount = 20
@@ -454,18 +455,32 @@ func readTailLinesDetailed(resolved string, count int) ([]string, error) {
 		return nil, fmt.Errorf("failed to open file: %w", err)
 	}
 	defer f.Close()
+	if count <= 0 {
+		return nil, nil
+	}
+	// Use a circular buffer to avoid loading the entire file into memory.
+	buf := make([]string, count)
+	pos := 0
+	total := 0
 	scanner := newLargeFileScanner(f)
-	var allLines []string
 	for scanner.Scan() {
-		allLines = append(allLines, scanner.Text())
+		buf[pos%count] = scanner.Text()
+		pos++
+		total++
 	}
 	if err := scanner.Err(); err != nil {
 		return nil, fmt.Errorf("failed to scan file: %w", err)
 	}
-	if count <= 0 || count >= len(allLines) {
-		return allLines, nil
+	n := total
+	if n > count {
+		n = count
 	}
-	return allLines[len(allLines)-count:], nil
+	result := make([]string, n)
+	start := pos - n
+	for i := 0; i < n; i++ {
+		result[i] = buf[(start+i)%count]
+	}
+	return result, nil
 }
 
 func readLineRangeDetailed(resolved string, start, end int) ([]string, error) {
@@ -518,7 +533,7 @@ func extractJSONPreviewKeys(text string, max int) []string {
 	if !strings.HasPrefix(trimmed, "{") {
 		return nil
 	}
-	re := regexp.MustCompile(`"([^"\\]+)"\s*:`)
+	re := reJSONKey
 	matches := re.FindAllStringSubmatch(trimmed, max)
 	var keys []string
 	seen := map[string]bool{}

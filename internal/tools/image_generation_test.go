@@ -343,11 +343,19 @@ func TestEstimateCost(t *testing.T) {
 }
 
 func TestResolveSourceImagePath_Absolute(t *testing.T) {
-	// Absolute path should be returned as-is
+	// Absolute paths are rejected for security (path traversal prevention)
 	abs := filepath.Join(t.TempDir(), "test.png")
 	got := ResolveSourceImagePath(abs, "/ws", "/data")
-	if got != abs {
-		t.Errorf("expected absolute path returned as-is, got %q", got)
+	if got != "" {
+		t.Errorf("expected empty string for absolute path, got %q", got)
+	}
+}
+
+func TestResolveSourceImagePath_Traversal(t *testing.T) {
+	// Directory traversal should be rejected
+	got := ResolveSourceImagePath("../../etc/passwd", t.TempDir(), t.TempDir())
+	if got != "" {
+		t.Errorf("expected empty string for traversal path, got %q", got)
 	}
 }
 
@@ -426,20 +434,19 @@ func TestSaveImageData(t *testing.T) {
 	dataDir := t.TempDir()
 	imgData := []byte("fake image data")
 
-	filename, err := saveImageData(imgData, "png", dataDir)
+	fullPath, err := saveImageData(imgData, "png", dataDir)
 	if err != nil {
 		t.Fatalf("saveImageData failed: %v", err)
 	}
-	if filename == "" {
-		t.Fatal("expected non-empty filename")
+	if fullPath == "" {
+		t.Fatal("expected non-empty path")
 	}
-	if filepath.Ext(filename) != ".png" {
-		t.Errorf("expected .png extension, got %q", filepath.Ext(filename))
+	if filepath.Ext(fullPath) != ".png" {
+		t.Errorf("expected .png extension, got %q", filepath.Ext(fullPath))
 	}
 
-	// Verify file exists on disk
-	path := filepath.Join(dataDir, "generated_images", filename)
-	data, err := os.ReadFile(path)
+	// Verify file exists on disk (saveImageData now returns the full absolute path)
+	data, err := os.ReadFile(fullPath)
 	if err != nil {
 		t.Fatalf("failed to read saved file: %v", err)
 	}
@@ -450,12 +457,12 @@ func TestSaveImageData(t *testing.T) {
 
 func TestSaveImageData_CustomFormat(t *testing.T) {
 	dataDir := t.TempDir()
-	filename, err := saveImageData([]byte("test"), "jpeg", dataDir)
+	fullPath, err := saveImageData([]byte("test"), "jpeg", dataDir)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if filepath.Ext(filename) != ".jpeg" {
-		t.Errorf("expected .jpeg extension, got %q", filepath.Ext(filename))
+	if filepath.Ext(fullPath) != ".jpeg" {
+		t.Errorf("expected .jpeg extension, got %q", filepath.Ext(fullPath))
 	}
 }
 

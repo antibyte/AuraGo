@@ -12,6 +12,7 @@ import (
 
 	"aurago/internal/fritzbox"
 	"aurago/internal/inventory"
+	"aurago/internal/security"
 	"aurago/internal/tools"
 	"aurago/internal/webhooks"
 )
@@ -176,7 +177,7 @@ func dispatchInfra(ctx context.Context, tc ToolCall, dc *DispatchContext) string
 		if tc.AutoRegister && inventoryDB != nil {
 			scanResult = mdnsAutoRegister(scanResult, inventoryDB, tc.RegisterType, tc.RegisterTags, tc.OverwriteExisting, logger)
 		}
-		return "Tool Output: " + scanResult
+		return "Tool Output: " + security.Scrub(scanResult)
 
 	case "mac_lookup":
 		if !cfg.Tools.NetworkScan.Enabled {
@@ -1119,7 +1120,7 @@ func dispatchInfra(ctx context.Context, tc ToolCall, dc *DispatchContext) string
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "MCP call failed: %v"}`, err)
 			}
-			return "Tool Output: " + result
+			return "Tool Output: " + security.Scrub(result)
 
 		default:
 			return fmt.Sprintf(`Tool Output: {"status": "error", "message": "unknown mcp_call operation '%s'. Use list_servers, list_tools, or call_tool."}`, op)
