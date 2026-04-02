@@ -113,6 +113,16 @@ func (cv *ChromemVectorDB) IndexToolGuides(toolsDir string, force bool) error {
 		return nil
 	}
 
+	// Delete and recreate the collection to remove orphaned docs from deleted .md files.
+	if delErr := cv.db.DeleteCollection("tool_guides"); delErr != nil {
+		cv.logger.Warn("Failed to delete tool_guides collection for re-index", "error", delErr)
+	} else {
+		collection, err = cv.db.GetOrCreateCollection("tool_guides", nil, cv.embeddingFunc)
+		if err != nil {
+			return fmt.Errorf("failed to recreate tool_guides collection: %w", err)
+		}
+	}
+
 	// Use parallel AddDocuments (batch size 8 or length)
 	concurrency := 8
 	if len(docs) < 8 {
@@ -227,6 +237,12 @@ func (cv *ChromemVectorDB) IndexDirectory(dir, collectionName string, stm *SQLit
 			}
 		}
 		cv.logger.Info("File new or changed, indexing for RAG", "path", path, "collection", collectionName)
+
+		// Delete stale docs for this file before re-indexing (handles chunk count changes).
+		fileTitle := strings.TrimSuffix(file.Name(), ".md")
+		if delErr := collection.Delete(ctx, map[string]string{"source": fileTitle}, nil); delErr != nil {
+			cv.logger.Warn("Failed to delete stale docs for file", "source", fileTitle, "error", delErr)
+		}
 
 		// 4. Read and Chunk
 		data, err := os.ReadFile(path)

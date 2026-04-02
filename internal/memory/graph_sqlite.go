@@ -602,6 +602,10 @@ const coOccurrenceThreshold = 3
 // to source="activity_turn" and becomes a fully active graph edge.
 // Existing edges (pending or active) get their weight incremented and date updated.
 func (kg *KnowledgeGraph) IncrementCoOccurrence(a, b, date string) error {
+	// Enforce canonical ordering to prevent duplicate (a,b) vs (b,a) edges.
+	if a > b {
+		a, b = b, a
+	}
 	var currentWeight int
 	var propsJSON string
 	err := kg.db.QueryRow(

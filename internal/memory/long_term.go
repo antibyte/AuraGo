@@ -90,6 +90,8 @@ func (cv *ChromemVectorDB) GetEmbeddingFunc() chromem.EmbeddingFunc {
 // Returns the persisted count even when the embedding pipeline is disabled,
 // because counting does not require embeddings.
 func (cv *ChromemVectorDB) Count() int {
+	cv.mu.RLock()
+	defer cv.mu.RUnlock()
 	total := cv.collection.Count() // aurago_memories
 
 	// Include secondary collections that were indexed at startup
