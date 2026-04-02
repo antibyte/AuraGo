@@ -173,73 +173,81 @@ func (kg *KnowledgeGraph) initTables() error {
 		return fmt.Errorf("create kg tables: %w", err)
 	}
 
-	// FTS5 virtual table for full-text search on nodes
-	// Note: content_rowid references the explicit rowid column which is INTEGER PRIMARY KEY
-	fts := `CREATE VIRTUAL TABLE IF NOT EXISTS kg_nodes_fts USING fts5(
-		id, label, properties_text, content=kg_nodes, content_rowid=rowid
-	);`
-	if _, err := kg.db.Exec(fts); err != nil {
-		return fmt.Errorf("create kg FTS5 table: %w", err)
+	if err := kg.rebuildFTSIndexes(); err != nil {
+		return err
 	}
 
-	edgeFTS := `CREATE VIRTUAL TABLE IF NOT EXISTS kg_edges_fts USING fts5(
-		source, target, relation, properties_text, content=kg_edges, content_rowid=id
-	);`
-	if _, err := kg.db.Exec(edgeFTS); err != nil {
-		return fmt.Errorf("create kg edge FTS5 table: %w", err)
-	}
+	return nil
+}
 
-	// Triggers to keep FTS index in sync
-	triggers := []string{
-		`CREATE TRIGGER IF NOT EXISTS kg_nodes_ai AFTER INSERT ON kg_nodes BEGIN
-			INSERT INTO kg_nodes_fts(rowid, id, label, properties_text)
-			VALUES (new.rowid, new.id, new.label, new.properties);
-		END;`,
-		`CREATE TRIGGER IF NOT EXISTS kg_nodes_ad AFTER DELETE ON kg_nodes BEGIN
-			INSERT INTO kg_nodes_fts(kg_nodes_fts, rowid, id, label, properties_text)
-			VALUES ('delete', old.rowid, old.id, old.label, old.properties);
-		END;`,
-		`CREATE TRIGGER IF NOT EXISTS kg_nodes_au AFTER UPDATE ON kg_nodes BEGIN
-			INSERT INTO kg_nodes_fts(kg_nodes_fts, rowid, id, label, properties_text)
-			VALUES ('delete', old.rowid, old.id, old.label, old.properties);
-			INSERT INTO kg_nodes_fts(rowid, id, label, properties_text)
-			VALUES (new.rowid, new.id, new.label, new.properties);
-		END;`,
-		`CREATE TRIGGER IF NOT EXISTS kg_edges_ai AFTER INSERT ON kg_edges BEGIN
-			INSERT INTO kg_edges_fts(rowid, source, target, relation, properties_text)
-			VALUES (new.id, new.source, new.target, new.relation, new.properties);
-		END;`,
-		`CREATE TRIGGER IF NOT EXISTS kg_edges_ad AFTER DELETE ON kg_edges BEGIN
-			INSERT INTO kg_edges_fts(kg_edges_fts, rowid, source, target, relation, properties_text)
-			VALUES ('delete', old.id, old.source, old.target, old.relation, old.properties);
-		END;`,
-		`CREATE TRIGGER IF NOT EXISTS kg_edges_au AFTER UPDATE ON kg_edges BEGIN
-			INSERT INTO kg_edges_fts(kg_edges_fts, rowid, source, target, relation, properties_text)
-			VALUES ('delete', old.id, old.source, old.target, old.relation, old.properties);
-			INSERT INTO kg_edges_fts(rowid, source, target, relation, properties_text)
-			VALUES (new.id, new.source, new.target, new.relation, new.properties);
-		END;`,
+func (kg *KnowledgeGraph) rebuildFTSIndexes() error {
+	// FTS indices are derived entirely from kg_nodes/kg_edges, so rebuilding them on startup
+	// is safe and also repairs older incompatible virtual-table definitions.
+	dropStatements := []string{
+		`DROP TRIGGER IF EXISTS kg_nodes_ai;`,
+		`DROP TRIGGER IF EXISTS kg_nodes_ad;`,
+		`DROP TRIGGER IF EXISTS kg_nodes_au;`,
+		`DROP TRIGGER IF EXISTS kg_edges_ai;`,
+		`DROP TRIGGER IF EXISTS kg_edges_ad;`,
+		`DROP TRIGGER IF EXISTS kg_edges_au;`,
+		`DROP TABLE IF EXISTS kg_nodes_fts;`,
+		`DROP TABLE IF EXISTS kg_edges_fts;`,
 	}
-	for _, t := range triggers {
-		if _, err := kg.db.Exec(t); err != nil {
-			return fmt.Errorf("create kg FTS trigger: %w", err)
+	for _, stmt := range dropStatements {
+		if _, err := kg.db.Exec(stmt); err != nil {
+			return fmt.Errorf("drop kg FTS artifact: %w", err)
 		}
 	}
 
-	// Backfill rows that may predate newly created FTS tables/triggers.
-	backfills := []string{
-		`INSERT INTO kg_nodes_fts(rowid, id, label, properties_text)
-		 SELECT rowid, id, label, properties
-		 FROM kg_nodes
-		 WHERE rowid NOT IN (SELECT rowid FROM kg_nodes_fts);`,
-		`INSERT INTO kg_edges_fts(rowid, source, target, relation, properties_text)
-		 SELECT id, source, target, relation, properties
-		 FROM kg_edges
-		 WHERE id NOT IN (SELECT rowid FROM kg_edges_fts);`,
+	createStatements := []string{
+		`CREATE VIRTUAL TABLE kg_nodes_fts USING fts5(
+			id, label, properties, content=kg_nodes, content_rowid=rowid
+		);`,
+		`CREATE VIRTUAL TABLE kg_edges_fts USING fts5(
+			source, target, relation, properties, content=kg_edges, content_rowid=id
+		);`,
+		`CREATE TRIGGER kg_nodes_ai AFTER INSERT ON kg_nodes BEGIN
+			INSERT INTO kg_nodes_fts(rowid, id, label, properties)
+			VALUES (new.rowid, new.id, new.label, new.properties);
+		END;`,
+		`CREATE TRIGGER kg_nodes_ad AFTER DELETE ON kg_nodes BEGIN
+			INSERT INTO kg_nodes_fts(kg_nodes_fts, rowid, id, label, properties)
+			VALUES ('delete', old.rowid, old.id, old.label, old.properties);
+		END;`,
+		`CREATE TRIGGER kg_nodes_au AFTER UPDATE ON kg_nodes BEGIN
+			INSERT INTO kg_nodes_fts(kg_nodes_fts, rowid, id, label, properties)
+			VALUES ('delete', old.rowid, old.id, old.label, old.properties);
+			INSERT INTO kg_nodes_fts(rowid, id, label, properties)
+			VALUES (new.rowid, new.id, new.label, new.properties);
+		END;`,
+		`CREATE TRIGGER kg_edges_ai AFTER INSERT ON kg_edges BEGIN
+			INSERT INTO kg_edges_fts(rowid, source, target, relation, properties)
+			VALUES (new.id, new.source, new.target, new.relation, new.properties);
+		END;`,
+		`CREATE TRIGGER kg_edges_ad AFTER DELETE ON kg_edges BEGIN
+			INSERT INTO kg_edges_fts(kg_edges_fts, rowid, source, target, relation, properties)
+			VALUES ('delete', old.id, old.source, old.target, old.relation, old.properties);
+		END;`,
+		`CREATE TRIGGER kg_edges_au AFTER UPDATE ON kg_edges BEGIN
+			INSERT INTO kg_edges_fts(kg_edges_fts, rowid, source, target, relation, properties)
+			VALUES ('delete', old.id, old.source, old.target, old.relation, old.properties);
+			INSERT INTO kg_edges_fts(rowid, source, target, relation, properties)
+			VALUES (new.id, new.source, new.target, new.relation, new.properties);
+		END;`,
 	}
-	for _, backfillStmt := range backfills {
-		if _, err := kg.db.Exec(backfillStmt); err != nil {
-			return fmt.Errorf("backfill kg FTS index: %w", err)
+	for _, stmt := range createStatements {
+		if _, err := kg.db.Exec(stmt); err != nil {
+			return fmt.Errorf("create kg FTS artifact: %w", err)
+		}
+	}
+
+	rebuildStatements := []string{
+		`INSERT INTO kg_nodes_fts(kg_nodes_fts) VALUES ('rebuild');`,
+		`INSERT INTO kg_edges_fts(kg_edges_fts) VALUES ('rebuild');`,
+	}
+	for _, stmt := range rebuildStatements {
+		if _, err := kg.db.Exec(stmt); err != nil {
+			return fmt.Errorf("rebuild kg FTS index: %w", err)
 		}
 	}
 

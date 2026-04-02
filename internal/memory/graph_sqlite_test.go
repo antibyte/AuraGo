@@ -2,10 +2,12 @@ package memory
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -116,6 +118,70 @@ func TestKGEdgeFTS5Indexing(t *testing.T) {
 	}
 	if count == 0 {
 		t.Fatal("expected kg_edges_fts to index edge properties")
+	}
+}
+
+func TestKnowledgeGraphRebuildsLegacyFTSSchema(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "kg.db")
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("sql.Open: %v", err)
+	}
+	db.SetMaxOpenConns(1)
+	t.Cleanup(func() { _ = db.Close() })
+
+	legacyStatements := []string{
+		`CREATE TABLE IF NOT EXISTS kg_nodes (
+			rowid INTEGER PRIMARY KEY AUTOINCREMENT,
+			id TEXT NOT NULL UNIQUE,
+			label TEXT NOT NULL DEFAULT '',
+			properties TEXT NOT NULL DEFAULT '{}',
+			access_count INTEGER NOT NULL DEFAULT 0,
+			protected INTEGER NOT NULL DEFAULT 0,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		);`,
+		`CREATE TABLE IF NOT EXISTS kg_edges (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			source TEXT NOT NULL,
+			target TEXT NOT NULL,
+			relation TEXT NOT NULL,
+			properties TEXT NOT NULL DEFAULT '{}',
+			access_count INTEGER NOT NULL DEFAULT 0,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			UNIQUE(source, target, relation)
+		);`,
+		`CREATE VIRTUAL TABLE kg_nodes_fts USING fts5(
+			id, label, properties_text, content=kg_nodes, content_rowid=rowid
+		);`,
+		`CREATE VIRTUAL TABLE kg_edges_fts USING fts5(
+			source, target, relation, properties_text, content=kg_edges, content_rowid=id
+		);`,
+	}
+	for _, stmt := range legacyStatements {
+		if _, err := db.Exec(stmt); err != nil {
+			t.Fatalf("setup legacy stmt failed: %v", err)
+		}
+	}
+	if _, err := db.Exec(`INSERT INTO kg_nodes (id, label, properties) VALUES ('legacy_node', 'Legacy Node', '{"type":"service"}')`); err != nil {
+		t.Fatalf("insert legacy node: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO kg_edges (source, target, relation, properties) VALUES ('legacy_node', 'target', 'relates_to', '{"notes":"legacy edge"}')`); err != nil {
+		t.Fatalf("insert legacy edge: %v", err)
+	}
+	_ = db.Close()
+
+	kg, err := NewKnowledgeGraph(dbPath, "", logger)
+	if err != nil {
+		t.Fatalf("NewKnowledgeGraph with legacy FTS schema: %v", err)
+	}
+	defer kg.Close()
+
+	if result := kg.Search("legacy"); result == "[]" {
+		t.Fatal("expected search results after legacy FTS rebuild")
 	}
 }
 
