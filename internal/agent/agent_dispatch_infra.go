@@ -171,10 +171,11 @@ func dispatchInfra(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 			if !cfg.Tools.NetworkScan.Enabled {
 				return `Tool Output: {"status":"error","message":"mdns_scan is disabled. Enable tools.network_scan.enabled in config."}`
 			}
-			logger.Info("LLM requested mdns_scan", "service_type", tc.ServiceType, "timeout", tc.Timeout, "auto_register", tc.AutoRegister)
-			scanResult := tools.MDNSScan(logger, tc.ServiceType, tc.Timeout)
-			if tc.AutoRegister && inventoryDB != nil {
-				scanResult = mdnsAutoRegister(scanResult, inventoryDB, tc.RegisterType, tc.RegisterTags, tc.OverwriteExisting, logger)
+			req := decodeMDNSScanArgs(tc)
+			logger.Info("LLM requested mdns_scan", "service_type", req.ServiceType, "timeout", req.Timeout, "auto_register", req.AutoRegister)
+			scanResult := tools.MDNSScan(logger, req.ServiceType, req.Timeout)
+			if req.AutoRegister && inventoryDB != nil {
+				scanResult = mdnsAutoRegister(scanResult, inventoryDB, req.RegisterType, req.RegisterTags, req.OverwriteExisting, logger)
 			}
 			return "Tool Output: " + security.Scrub(scanResult)
 
@@ -182,31 +183,25 @@ func dispatchInfra(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 			if !cfg.Tools.NetworkScan.Enabled {
 				return `Tool Output: {"status":"error","message":"mac_lookup is disabled. Enable tools.network_scan.enabled in config."}`
 			}
-			ip := tc.IP
-			if ip == "" {
-				ip = tc.IPAddress
-			}
-			if ip == "" {
+			req := decodeMACLookupArgs(tc)
+			if req.IP == "" {
 				return `Tool Output: {"status":"error","message":"'ip' parameter is required"}`
 			}
-			logger.Info("LLM requested mac_lookup", "ip", ip)
-			return "Tool Output: " + tools.LookupMACAddress(ip, "")
+			logger.Info("LLM requested mac_lookup", "ip", req.IP)
+			return "Tool Output: " + tools.LookupMACAddress(req.IP, "")
 
 		case "tts":
 			if !cfg.Chromecast.Enabled && cfg.TTS.Provider == "" && !cfg.TTS.Piper.Enabled {
 				return `Tool Output: {"status": "error", "message": "TTS is not configured. Set tts.provider in config.yaml."}`
 			}
-			text := tc.Text
-			if text == "" {
-				text = tc.Content
-			}
+			req := decodeTTSArgs(tc)
 			provider := cfg.TTS.Provider
 			if provider == "" && cfg.TTS.Piper.Enabled {
 				provider = "piper"
 			}
 			ttsCfg := tools.TTSConfig{
 				Provider:            provider,
-				Language:            tc.Language,
+				Language:            req.Language,
 				DataDir:             cfg.Directories.DataDir,
 				CacheRetentionHours: cfg.TTS.CacheRetentionHours,
 				CacheMaxFiles:       cfg.TTS.CacheMaxFiles,
@@ -220,7 +215,7 @@ func dispatchInfra(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 			ttsCfg.Piper.Port = cfg.TTS.Piper.ContainerPort
 			ttsCfg.Piper.Voice = cfg.TTS.Piper.Voice
 			ttsCfg.Piper.SpeakerID = cfg.TTS.Piper.SpeakerID
-			filename, err := tools.TTSSynthesize(ttsCfg, text)
+			filename, err := tools.TTSSynthesize(ttsCfg, req.Text)
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "TTS failed: %v"}`, err)
 			}
@@ -238,7 +233,7 @@ func dispatchInfra(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 					FilePath:   filepath.Join(cfg.Directories.DataDir, "tts", filename),
 					Format:     format,
 					Provider:   provider,
-					Prompt:     text,
+					Prompt:     req.Text,
 					Language:   ttsCfg.Language,
 					VoiceID:    ttsCfg.ElevenLabs.VoiceID,
 					Tags:       []string{"auto-generated", "tts"},
@@ -257,34 +252,28 @@ func dispatchInfra(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 				return `Tool Output: {"status": "error", "message": "Chromecast is disabled. Set chromecast.enabled=true in config.yaml."}`
 			}
 			// Resolve device_name → device_addr via inventory if device_addr is empty
-			if tc.DeviceAddr == "" && tc.DeviceName != "" && inventoryDB != nil {
-				devices, err := inventory.QueryDevices(inventoryDB, "", "chromecast", tc.DeviceName)
+			req := decodeChromecastArgs(tc)
+			if req.DeviceAddr == "" && req.DeviceName != "" && inventoryDB != nil {
+				devices, err := inventory.QueryDevices(inventoryDB, "", "chromecast", req.DeviceName)
 				if err == nil && len(devices) > 0 {
-					tc.DeviceAddr = devices[0].IPAddress
-					if tc.DevicePort == 0 && devices[0].Port > 0 {
-						tc.DevicePort = devices[0].Port
+					req.DeviceAddr = devices[0].IPAddress
+					if req.DevicePort == 0 && devices[0].Port > 0 {
+						req.DevicePort = devices[0].Port
 					}
-					logger.Info("Resolved chromecast device name", "name", tc.DeviceName, "addr", tc.DeviceAddr, "port", tc.DevicePort)
+					logger.Info("Resolved chromecast device name", "name", req.DeviceName, "addr", req.DeviceAddr, "port", req.DevicePort)
 				} else {
-					return fmt.Sprintf(`Tool Output: {"status":"error","message":"Could not find chromecast device named '%s' in the device registry."}`, tc.DeviceName)
+					return fmt.Sprintf(`Tool Output: {"status":"error","message":"Could not find chromecast device named '%s' in the device registry."}`, req.DeviceName)
 				}
 			}
-			op := tc.Operation
-			switch op {
+			switch req.Operation {
 			case "discover":
 				return "Tool Output: " + tools.ChromecastDiscover(logger)
 			case "play":
-				url := tc.URL
-				ct := tc.ContentType
-				return "Tool Output: " + tools.ChromecastPlay(tc.DeviceAddr, tc.DevicePort, url, ct, logger)
+				return "Tool Output: " + tools.ChromecastPlay(req.DeviceAddr, req.DevicePort, req.URL, req.ContentType, logger)
 			case "speak":
-				text := tc.Text
-				if text == "" {
-					text = tc.Content
-				}
 				ttsCfg := tools.TTSConfig{
 					Provider:            cfg.TTS.Provider,
-					Language:            tc.Language,
+					Language:            req.Language,
 					DataDir:             cfg.Directories.DataDir,
 					CacheRetentionHours: cfg.TTS.CacheRetentionHours,
 					CacheMaxFiles:       cfg.TTS.CacheMaxFiles,
@@ -299,13 +288,13 @@ func dispatchInfra(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 					ServerHost: cfg.Server.Host,
 					ServerPort: cfg.Chromecast.TTSPort,
 				}
-				return "Tool Output: " + tools.ChromecastSpeak(tc.DeviceAddr, tc.DevicePort, text, ttsCfg, ccCfg, logger)
+				return "Tool Output: " + tools.ChromecastSpeak(req.DeviceAddr, req.DevicePort, req.Text, ttsCfg, ccCfg, logger)
 			case "stop":
-				return "Tool Output: " + tools.ChromecastStop(tc.DeviceAddr, tc.DevicePort, logger)
+				return "Tool Output: " + tools.ChromecastStop(req.DeviceAddr, req.DevicePort, logger)
 			case "volume":
-				return "Tool Output: " + tools.ChromecastVolume(tc.DeviceAddr, tc.DevicePort, tc.Volume, logger)
+				return "Tool Output: " + tools.ChromecastVolume(req.DeviceAddr, req.DevicePort, req.Volume, logger)
 			case "status":
-				return "Tool Output: " + tools.ChromecastStatus(tc.DeviceAddr, tc.DevicePort, logger)
+				return "Tool Output: " + tools.ChromecastStatus(req.DeviceAddr, req.DevicePort, logger)
 			default:
 				return `Tool Output: {"status": "error", "message": "Unknown chromecast operation. Use: discover, play, speak, stop, volume, status"}`
 			}
@@ -1235,22 +1224,23 @@ func dispatchInfra(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 			if !cfg.Jellyfin.Enabled {
 				return `Tool Output: {"status":"error","message":"Jellyfin integration is not enabled. Set jellyfin.enabled=true in config.yaml."}`
 			}
+			req := decodeJellyfinArgs(tc)
 			// Read-only check for mutating operations
 			if cfg.Jellyfin.ReadOnly {
-				switch tc.Operation {
+				switch req.Operation {
 				case "playback_control", "library_refresh":
 					return `Tool Output: {"status":"error","message":"Jellyfin is in read-only mode. Disable jellyfin.read_only to allow changes."}`
 				}
 			}
 			// Destructive operation check
 			if !cfg.Jellyfin.AllowDestructive {
-				switch tc.Operation {
+				switch req.Operation {
 				case "delete_item":
 					return `Tool Output: {"status":"error","message":"Destructive Jellyfin operations are disabled. Set jellyfin.allow_destructive=true in config.yaml."}`
 				}
 			}
-			logger.Info("LLM requested Jellyfin operation", "operation", tc.Operation)
-			return "Tool Output: " + tools.DispatchJellyfinTool(tc.Operation, toolCallParams(tc), cfg, logger)
+			logger.Info("LLM requested Jellyfin operation", "operation", req.Operation)
+			return "Tool Output: " + tools.DispatchJellyfinTool(req.Operation, req.params(), cfg, logger)
 
 		// ── Firewall ──
 		case "firewall", "firewall_rules", "iptables":

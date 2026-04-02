@@ -410,3 +410,106 @@ func TestDecodeMQTTArgsUsesPayloadFallbacks(t *testing.T) {
 		t.Fatalf("Limit = %d, want 15", req.Limit)
 	}
 }
+
+func TestDecodeMDNSScanArgsUsesParamsFallback(t *testing.T) {
+	tc := ToolCall{
+		Action: "mdns_scan",
+		Params: map[string]interface{}{
+			"service_type":       "_http._tcp",
+			"timeout":            float64(4),
+			"auto_register":      true,
+			"register_type":      "server",
+			"register_tags":      []interface{}{"lan", "discovered"},
+			"overwrite_existing": true,
+		},
+	}
+
+	req := decodeMDNSScanArgs(tc)
+	if req.ServiceType != "_http._tcp" || req.Timeout != 4 || !req.AutoRegister || req.RegisterType != "server" || !req.OverwriteExisting {
+		t.Fatalf("unexpected mdns decode: %+v", req)
+	}
+	if len(req.RegisterTags) != 2 || req.RegisterTags[0] != "lan" || req.RegisterTags[1] != "discovered" {
+		t.Fatalf("RegisterTags = %#v, want [lan discovered]", req.RegisterTags)
+	}
+}
+
+func TestDecodeMACLookupArgsUsesIPAddressFallback(t *testing.T) {
+	req := decodeMACLookupArgs(ToolCall{
+		Action: "mac_lookup",
+		Params: map[string]interface{}{
+			"ip_address": "192.168.1.10",
+		},
+	})
+
+	if req.IP != "192.168.1.10" {
+		t.Fatalf("IP = %q, want 192.168.1.10", req.IP)
+	}
+}
+
+func TestDecodeTTSArgsUsesContentFallback(t *testing.T) {
+	req := decodeTTSArgs(ToolCall{
+		Action: "tts",
+		Params: map[string]interface{}{
+			"content":  "Hello world",
+			"language": "en",
+		},
+	})
+
+	if req.Text != "Hello world" || req.Language != "en" {
+		t.Fatalf("unexpected TTS decode: %+v", req)
+	}
+}
+
+func TestDecodeChromecastArgsUsesParamsFallback(t *testing.T) {
+	req := decodeChromecastArgs(ToolCall{
+		Action: "chromecast",
+		Params: map[string]interface{}{
+			"operation":    "play",
+			"device_name":  "Living Room",
+			"device_port":  float64(8009),
+			"url":          "https://example.com/audio.mp3",
+			"content_type": "audio/mpeg",
+			"text":         "ignored for play",
+			"language":     "de",
+			"volume":       0.5,
+		},
+	})
+
+	if req.Operation != "play" || req.DeviceName != "Living Room" || req.DevicePort != 8009 || req.URL != "https://example.com/audio.mp3" || req.ContentType != "audio/mpeg" || req.Language != "de" || req.Volume != 0.5 {
+		t.Fatalf("unexpected chromecast decode: %+v", req)
+	}
+}
+
+func TestDecodeJellyfinArgsBuildsDispatchParams(t *testing.T) {
+	tc := ToolCall{
+		Action: "jellyfin",
+		Params: map[string]interface{}{
+			"operation":  "playback_control",
+			"session_id": "sess-1",
+			"command":    "pause",
+			"media_type": "movie",
+			"query":      "Matrix",
+			"item_id":    "item-7",
+			"library_id": "lib-2",
+			"limit":      float64(9),
+		},
+	}
+
+	req := decodeJellyfinArgs(tc)
+	params := req.params()
+	if req.Operation != "playback_control" {
+		t.Fatalf("Operation = %q, want playback_control", req.Operation)
+	}
+	if params["session_id"] != "sess-1" || params["command"] != "pause" {
+		t.Fatalf("unexpected session params: %#v", params)
+	}
+	if params["query"] != "Matrix" || params["media_type"] != "movie" {
+		t.Fatalf("unexpected query params: %#v", params)
+	}
+	if params["item_id"] != "item-7" || params["library_id"] != "lib-2" {
+		t.Fatalf("unexpected id params: %#v", params)
+	}
+	if params["limit"] != "9" {
+		t.Fatalf("limit = %q, want 9", params["limit"])
+	}
+}

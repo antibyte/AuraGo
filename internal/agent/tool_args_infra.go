@@ -148,6 +148,156 @@ type mqttArgs struct {
 	Limit   int
 }
 
+type mdnsScanArgs struct {
+	ServiceType       string
+	Timeout           int
+	AutoRegister      bool
+	RegisterType      string
+	RegisterTags      []string
+	OverwriteExisting bool
+}
+
+type macLookupArgs struct {
+	IP string
+}
+
+type ttsArgs struct {
+	Text     string
+	Language string
+}
+
+type chromecastArgs struct {
+	Operation   string
+	DeviceAddr  string
+	DeviceName  string
+	DevicePort  int
+	URL         string
+	ContentType string
+	Text        string
+	Language    string
+	Volume      float64
+}
+
+type jellyfinArgs struct {
+	Operation string
+	Query     string
+	MediaType string
+	ItemID    string
+	LibraryID string
+	SessionID string
+	Command   string
+	Limit     int
+}
+
+func toolArgFloat64(args map[string]interface{}, keys ...string) float64 {
+	for _, key := range keys {
+		raw, ok := args[key]
+		if !ok {
+			continue
+		}
+		switch value := raw.(type) {
+		case float64:
+			return value
+		case float32:
+			return float64(value)
+		case int:
+			return float64(value)
+		case int32:
+			return float64(value)
+		case int64:
+			return float64(value)
+		}
+	}
+	return 0
+}
+
+func decodeMDNSScanArgs(tc ToolCall) mdnsScanArgs {
+	req := mdnsScanArgs{
+		ServiceType:       firstNonEmptyToolString(tc.ServiceType, toolArgString(tc.Params, "service_type")),
+		Timeout:           firstNonEmptyInt(tc.Timeout, toolArgInt(tc.Params, 0, "timeout")),
+		AutoRegister:      tc.AutoRegister,
+		RegisterType:      firstNonEmptyToolString(tc.RegisterType, toolArgString(tc.Params, "register_type")),
+		RegisterTags:      append([]string(nil), tc.RegisterTags...),
+		OverwriteExisting: tc.OverwriteExisting,
+	}
+	if autoRegister, ok := toolArgBool(tc.Params, "auto_register"); ok {
+		req.AutoRegister = autoRegister
+	}
+	if len(req.RegisterTags) == 0 {
+		req.RegisterTags = toolArgStringSlice(tc.Params, "register_tags")
+	}
+	if overwriteExisting, ok := toolArgBool(tc.Params, "overwrite_existing"); ok {
+		req.OverwriteExisting = overwriteExisting
+	}
+	return req
+}
+
+func decodeMACLookupArgs(tc ToolCall) macLookupArgs {
+	return macLookupArgs{
+		IP: firstNonEmptyToolString(tc.IP, tc.IPAddress, toolArgString(tc.Params, "ip", "ip_address")),
+	}
+}
+
+func decodeTTSArgs(tc ToolCall) ttsArgs {
+	return ttsArgs{
+		Text:     firstNonEmptyToolString(tc.Text, tc.Content, toolArgString(tc.Params, "text", "content")),
+		Language: firstNonEmptyToolString(tc.Language, toolArgString(tc.Params, "language")),
+	}
+}
+
+func decodeChromecastArgs(tc ToolCall) chromecastArgs {
+	return chromecastArgs{
+		Operation:   firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
+		DeviceAddr:  firstNonEmptyToolString(tc.DeviceAddr, toolArgString(tc.Params, "device_addr")),
+		DeviceName:  firstNonEmptyToolString(tc.DeviceName, toolArgString(tc.Params, "device_name")),
+		DevicePort:  firstNonEmptyInt(tc.DevicePort, toolArgInt(tc.Params, 0, "device_port")),
+		URL:         firstNonEmptyToolString(tc.URL, toolArgString(tc.Params, "url")),
+		ContentType: firstNonEmptyToolString(tc.ContentType, toolArgString(tc.Params, "content_type")),
+		Text:        firstNonEmptyToolString(tc.Text, tc.Content, toolArgString(tc.Params, "text", "content")),
+		Language:    firstNonEmptyToolString(tc.Language, toolArgString(tc.Params, "language")),
+		Volume:      max(tc.Volume, toolArgFloat64(tc.Params, "volume")),
+	}
+}
+
+func decodeJellyfinArgs(tc ToolCall) jellyfinArgs {
+	return jellyfinArgs{
+		Operation: firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
+		Query:     firstNonEmptyToolString(tc.Query, toolArgString(tc.Params, "query")),
+		MediaType: firstNonEmptyToolString(tc.MediaType, toolArgString(tc.Params, "media_type")),
+		ItemID:    firstNonEmptyToolString(tc.ID, toolArgString(tc.Params, "item_id")),
+		LibraryID: firstNonEmptyToolString(toolArgString(tc.Params, "library_id")),
+		SessionID: firstNonEmptyToolString(toolArgString(tc.Params, "session_id")),
+		Command:   firstNonEmptyToolString(tc.Command, toolArgString(tc.Params, "command")),
+		Limit:     firstNonEmptyInt(tc.Limit, toolArgInt(tc.Params, 0, "limit")),
+	}
+}
+
+func (req jellyfinArgs) params() map[string]string {
+	params := map[string]string{}
+	if req.Query != "" {
+		params["query"] = req.Query
+	}
+	if req.MediaType != "" {
+		params["media_type"] = req.MediaType
+	}
+	if req.ItemID != "" {
+		params["item_id"] = req.ItemID
+	}
+	if req.LibraryID != "" {
+		params["library_id"] = req.LibraryID
+	}
+	if req.SessionID != "" {
+		params["session_id"] = req.SessionID
+	}
+	if req.Command != "" {
+		params["command"] = req.Command
+	}
+	if req.Limit > 0 {
+		params["limit"] = fmt.Sprintf("%d", req.Limit)
+	}
+	return params
+}
+
 func decodeGitHubArgs(tc ToolCall) githubArgs {
 	return githubArgs{
 		Operation:   firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
