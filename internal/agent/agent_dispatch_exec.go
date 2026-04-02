@@ -361,23 +361,24 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			if !cfg.Agent.AllowPython {
 				return "Tool Output: [PERMISSION DENIED] save_tool is disabled in Danger Zone settings (agent.allow_python: false)."
 			}
-			if tc.Name == "" || tc.Code == "" {
+			req := decodeSaveToolArgs(tc)
+			if req.Name == "" || req.Code == "" {
 				return "Tool Output: ERROR 'name' and 'code' are required for save_tool"
 			}
-			if collisionName, ok := customToolBuiltinCollisionName(tc.Name, allBuiltinToolNameSet()); ok {
-				return fmt.Sprintf("Tool Output: ERROR custom tool name %q collides with built-in tool %q. Choose a different name.", tc.Name, collisionName)
+			if collisionName, ok := customToolBuiltinCollisionName(req.Name, allBuiltinToolNameSet()); ok {
+				return fmt.Sprintf("Tool Output: ERROR custom tool name %q collides with built-in tool %q. Choose a different name.", req.Name, collisionName)
 			}
-			codeHash := sha256.Sum256([]byte(tc.Code))
+			codeHash := sha256.Sum256([]byte(req.Code))
 			logger.Info("LLM requested tool persistence",
-				"name", tc.Name,
-				"description", tc.Description,
-				"code_size", len(tc.Code),
+				"name", req.Name,
+				"description", req.Description,
+				"code_size", len(req.Code),
 				"code_sha256", hex.EncodeToString(codeHash[:]),
 			)
-			if err := manifest.SaveTool(cfg.Directories.ToolsDir, tc.Name, tc.Description, tc.Code); err != nil {
+			if err := manifest.SaveTool(cfg.Directories.ToolsDir, req.Name, req.Description, req.Code); err != nil {
 				return fmt.Sprintf("Tool Output: ERROR saving tool: %v", err)
 			}
-			return fmt.Sprintf("Tool Output: Tool '%s' saved and registered successfully.", tc.Name)
+			return fmt.Sprintf("Tool Output: Tool '%s' saved and registered successfully.", req.Name)
 
 		case "list_tools":
 			logger.Info("LLM requested to list tools")
@@ -404,26 +405,30 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			if !cfg.Agent.AllowPython {
 				return "Tool Output: [PERMISSION DENIED] run_tool is disabled in Danger Zone settings (agent.allow_python: false)."
 			}
+			req := decodeRunToolArgs(tc)
+			if req.Name == "" {
+				return "Tool Output: ERROR 'name' is required for run_tool"
+			}
 			// Intercept LLM confusing Skills for Tools
-			toolPath := filepath.Join(cfg.Directories.ToolsDir, tc.Name)
+			toolPath := filepath.Join(cfg.Directories.ToolsDir, req.Name)
 			if _, err := os.Stat(toolPath); os.IsNotExist(err) {
-				skillCheckName := tc.Name
+				skillCheckName := req.Name
 				if !strings.HasSuffix(skillCheckName, ".py") {
 					skillCheckName += ".py"
 				}
 				skillPath := filepath.Join(cfg.Directories.SkillsDir, skillCheckName)
 				if _, err2 := os.Stat(skillPath); err2 == nil {
 					skillBase := strings.TrimSuffix(skillCheckName, ".py")
-					return fmt.Sprintf("Tool Output: ERROR '%s' is a registered SKILL, not a generic tool. You MUST use {\"action\": \"execute_skill\", \"skill\": \"%s\", \"skill_args\": {\"arg1\": \"val1\"}} (JSON object) instead.", tc.Name, skillBase)
+					return fmt.Sprintf("Tool Output: ERROR '%s' is a registered SKILL, not a generic tool. You MUST use {\"action\": \"execute_skill\", \"skill\": \"%s\", \"skill_args\": {\"arg1\": \"val1\"}} (JSON object) instead.", req.Name, skillBase)
 				}
 			}
 
-			if tc.Background {
-				logger.Info("LLM requested background tool execution", "name", tc.Name)
+			if req.Background {
+				logger.Info("LLM requested background tool execution", "name", req.Name)
 				// Resolve vault secrets
-				secrets, rejInfo := resolveVaultKeys(cfg, vault, tc.VaultKeys, logger)
+				secrets, rejInfo := resolveVaultKeys(cfg, vault, req.VaultKeys, logger)
 				// Resolve credential secrets
-				creds, credRejInfo := resolveCredentials(cfg, vault, inventoryDB, tc.CredentialIDs, logger)
+				creds, credRejInfo := resolveCredentials(cfg, vault, inventoryDB, req.CredentialIDs, logger)
 				if credRejInfo != "" {
 					if rejInfo != "" {
 						rejInfo += "\n" + credRejInfo
@@ -434,9 +439,9 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				var pid int
 				var bgErr error
 				if len(secrets) > 0 || len(creds) > 0 {
-					pid, bgErr = tools.RunToolBackgroundWithSecrets(tc.Name, tc.GetArgs(), cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir, registry, secrets, creds)
+					pid, bgErr = tools.RunToolBackgroundWithSecrets(req.Name, req.Args, cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir, registry, secrets, creds)
 				} else {
-					pid, bgErr = tools.RunToolBackground(tc.Name, tc.GetArgs(), cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir, registry)
+					pid, bgErr = tools.RunToolBackground(req.Name, req.Args, cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir, registry)
 				}
 				if bgErr != nil {
 					return fmt.Sprintf("Tool Output: ERROR starting background tool: %v", bgErr)
@@ -447,11 +452,11 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				}
 				return msg
 			}
-			logger.Info("LLM requested tool execution", "name", tc.Name)
+			logger.Info("LLM requested tool execution", "name", req.Name)
 			// Resolve vault secrets
-			secrets, rejectedInfo := resolveVaultKeys(cfg, vault, tc.VaultKeys, logger)
+			secrets, rejectedInfo := resolveVaultKeys(cfg, vault, req.VaultKeys, logger)
 			// Resolve credential secrets
-			creds, credRejInfo := resolveCredentials(cfg, vault, inventoryDB, tc.CredentialIDs, logger)
+			creds, credRejInfo := resolveCredentials(cfg, vault, inventoryDB, req.CredentialIDs, logger)
 			if credRejInfo != "" {
 				if rejectedInfo != "" {
 					rejectedInfo += "\n" + credRejInfo
@@ -462,9 +467,9 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			var stdout, stderr string
 			var runErr error
 			if len(secrets) > 0 || len(creds) > 0 {
-				stdout, stderr, runErr = tools.RunToolWithSecrets(tc.Name, tc.GetArgs(), cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir, secrets, creds)
+				stdout, stderr, runErr = tools.RunToolWithSecrets(req.Name, req.Args, cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir, secrets, creds)
 			} else {
-				stdout, stderr, runErr = tools.RunTool(tc.Name, tc.GetArgs(), cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir)
+				stdout, stderr, runErr = tools.RunTool(req.Name, req.Args, cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir)
 			}
 			errStr := ""
 			if runErr != nil {

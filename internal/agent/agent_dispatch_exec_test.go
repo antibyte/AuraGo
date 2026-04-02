@@ -102,3 +102,43 @@ func TestDispatchExecSaveToolRejectsBuiltinNameCollision(t *testing.T) {
 		t.Fatalf("expected built-in collision error, got:\n%s", out)
 	}
 }
+
+func TestDispatchExecSaveToolUsesParamsFallback(t *testing.T) {
+	tmpDir := t.TempDir()
+	toolsDir := filepath.Join(tmpDir, "tools")
+	if err := os.MkdirAll(toolsDir, 0o755); err != nil {
+		t.Fatalf("mkdir tools dir: %v", err)
+	}
+
+	cfg := &config.Config{}
+	cfg.Agent.AllowPython = true
+	cfg.Directories.ToolsDir = toolsDir
+	manifest := tools.NewManifest(toolsDir)
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+
+	out, ok := dispatchExec(
+		context.Background(),
+		ToolCall{
+			Action: "save_tool",
+			Params: map[string]interface{}{
+				"name":        "demo_tool",
+				"description": "Demo via params",
+				"code":        "print('hello')",
+			},
+		},
+		&DispatchContext{
+			Cfg:      cfg,
+			Logger:   logger,
+			Manifest: manifest,
+		},
+	)
+	if !ok {
+		t.Fatal("expected dispatchExec to handle save_tool")
+	}
+	if !strings.Contains(out, "demo_tool") {
+		t.Fatalf("expected save_tool success output, got:\n%s", out)
+	}
+	if _, err := os.Stat(filepath.Join(toolsDir, "demo_tool")); err != nil {
+		t.Fatalf("expected saved tool file, got stat error: %v", err)
+	}
+}

@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"aurago/internal/config"
 	"aurago/internal/security"
 	"aurago/internal/tools"
 )
@@ -67,6 +68,31 @@ func TestBuiltinArgsFromToolCallMergesRawParams(t *testing.T) {
 	}
 	if got, _ := args["search_query"].(string); got != "find pricing" {
 		t.Fatalf("search_query = %q, want find pricing", got)
+	}
+}
+
+func TestDispatchCommCallWebhookUsesWebhookNameFromParams(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Webhooks.Enabled = true
+	cfg.Webhooks.Outgoing = []config.OutgoingWebhook{}
+
+	out, ok := dispatchComm(context.Background(), ToolCall{
+		Action: "call_webhook",
+		Params: map[string]interface{}{
+			"webhook_name": "Deploy Hook",
+			"parameters": map[string]interface{}{
+				"branch": "main",
+			},
+		},
+	}, &DispatchContext{
+		Cfg:    cfg,
+		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	})
+	if !ok {
+		t.Fatal("expected dispatchComm to handle call_webhook")
+	}
+	if !strings.Contains(out, "Webhook 'Deploy Hook' not found") {
+		t.Fatalf("expected fallback webhook name in error, got %s", out)
 	}
 }
 

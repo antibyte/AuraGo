@@ -212,30 +212,22 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			if !cfg.Webhooks.Enabled {
 				return `Tool Output: {"status":"error","message":"Webhooks are disabled in the config. Set webhooks.enabled=true."}`
 			}
-			logger.Info("LLM requested webhook execution", "webhook_name", tc.WebhookName)
+			req := decodeCallWebhookArgs(tc)
+			logger.Info("LLM requested webhook execution", "webhook_name", req.WebhookName)
 
 			// Find the webhook by name
 			var targetHook *config.OutgoingWebhook
 			for _, w := range cfg.Webhooks.Outgoing {
-				if strings.EqualFold(w.Name, tc.WebhookName) {
+				if strings.EqualFold(w.Name, req.WebhookName) {
 					targetHook = &w
 					break
 				}
 			}
 
 			if targetHook == nil {
-				return fmt.Sprintf(`Tool Output: {"status":"error","message":"Webhook '%s' not found. Check the exact name of the webhook from your System Context."}`, tc.WebhookName)
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"Webhook '%s' not found. Check the exact name of the webhook from your System Context."}`, req.WebhookName)
 			}
-
-			// Map parameters
-			paramMap := make(map[string]interface{})
-			if pm, ok := tc.Parameters.(map[string]interface{}); ok {
-				for k, v := range pm {
-					paramMap[k] = v
-				}
-			}
-
-			out, statusCode, err := tools.ExecuteOutgoingWebhook(ctx, *targetHook, paramMap)
+			out, statusCode, err := tools.ExecuteOutgoingWebhook(ctx, *targetHook, req.Parameters)
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status":"error","message":"Failed to execute webhook: %v"}`, err)
 			}
