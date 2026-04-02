@@ -181,6 +181,51 @@ func TestDecodeCloudflareTunnelArgsUsesPortFallback(t *testing.T) {
 	}
 }
 
+func TestDecodeAnsibleArgsUsesFallbacks(t *testing.T) {
+	tc := ToolCall{
+		Action: "ansible",
+		Params: map[string]interface{}{
+			"operation":  "run_module",
+			"host_limit": "webservers",
+			"inventory":  "inventories/prod.yml",
+			"package":    "shell",
+			"command":    "uptime",
+			"name":       "site.yml",
+			"tags":       "deploy,web",
+			"skip_tags":  "smoke",
+			"preview":    true,
+			"body":       "{\"serial\":1}",
+		},
+	}
+
+	req := decodeAnsibleArgs(tc)
+	if req.Operation != "run_module" {
+		t.Fatalf("Operation = %q, want run_module", req.Operation)
+	}
+	if req.hosts() != "webservers" {
+		t.Fatalf("hosts = %q, want webservers", req.hosts())
+	}
+	if req.Inventory != "inventories/prod.yml" {
+		t.Fatalf("Inventory = %q, want inventories/prod.yml", req.Inventory)
+	}
+	if req.moduleName() != "shell" {
+		t.Fatalf("moduleName = %q, want shell", req.moduleName())
+	}
+	if req.Command != "uptime" || req.Name != "site.yml" {
+		t.Fatalf("unexpected command/playbook decode: %+v", req)
+	}
+	if req.Tags != "deploy,web" || req.SkipTags != "smoke" {
+		t.Fatalf("unexpected tag decode: %+v", req)
+	}
+	if !req.Preview {
+		t.Fatal("expected Preview to be true")
+	}
+	extraVars := req.extraVars()
+	if got, _ := extraVars["serial"].(float64); got != 1 {
+		t.Fatalf("extraVars[serial] = %v, want 1", got)
+	}
+}
+
 func TestDecodeMCPCallArgsUsesParamsFallback(t *testing.T) {
 	tc := ToolCall{
 		Action: "mcp_call",

@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 )
@@ -71,6 +72,22 @@ type tailscaleArgs struct {
 type cloudflareTunnelArgs struct {
 	Operation string
 	Port      int
+}
+
+type ansibleArgs struct {
+	Operation string
+	Hostname  string
+	HostLimit string
+	Query     string
+	Inventory string
+	Body      string
+	Module    string
+	Package   string
+	Command   string
+	Name      string
+	Tags      string
+	SkipTags  string
+	Preview   bool
 }
 
 type mcpCallArgs struct {
@@ -267,6 +284,54 @@ func decodeCloudflareTunnelArgs(tc ToolCall) cloudflareTunnelArgs {
 		Operation: firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
 		Port:      firstNonEmptyInt(tc.Port, toolArgInt(tc.Params, 0, "port")),
 	}
+}
+
+func decodeAnsibleArgs(tc ToolCall) ansibleArgs {
+	req := ansibleArgs{
+		Operation: firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
+		Hostname:  firstNonEmptyToolString(tc.Hostname, toolArgString(tc.Params, "hostname")),
+		HostLimit: firstNonEmptyToolString(tc.HostLimit, toolArgString(tc.Params, "host_limit")),
+		Query:     firstNonEmptyToolString(tc.Query, toolArgString(tc.Params, "query")),
+		Inventory: firstNonEmptyToolString(tc.Inventory, toolArgString(tc.Params, "inventory")),
+		Body:      firstNonEmptyToolString(tc.Body, toolArgString(tc.Params, "body")),
+		Module:    firstNonEmptyToolString(tc.Module, toolArgString(tc.Params, "module")),
+		Package:   firstNonEmptyToolString(tc.Package, toolArgString(tc.Params, "package")),
+		Command:   firstNonEmptyToolString(tc.Command, toolArgString(tc.Params, "command")),
+		Name:      firstNonEmptyToolString(tc.Name, toolArgString(tc.Params, "name")),
+		Tags:      firstNonEmptyToolString(tc.Tags, toolArgString(tc.Params, "tags")),
+		SkipTags:  firstNonEmptyToolString(tc.SkipTags, toolArgString(tc.Params, "skip_tags")),
+		Preview:   tc.Preview,
+	}
+	if preview, ok := toolArgBool(tc.Params, "preview"); ok {
+		req.Preview = preview
+	}
+	return req
+}
+
+func (req ansibleArgs) hosts() string {
+	if req.Hostname != "" {
+		return req.Hostname
+	}
+	if req.HostLimit != "" {
+		return req.HostLimit
+	}
+	return req.Query
+}
+
+func (req ansibleArgs) moduleName() string {
+	if req.Module != "" {
+		return req.Module
+	}
+	return req.Package
+}
+
+func (req ansibleArgs) extraVars() map[string]interface{} {
+	if strings.TrimSpace(req.Body) == "" {
+		return nil
+	}
+	var extraVars map[string]interface{}
+	_ = json.Unmarshal([]byte(req.Body), &extraVars)
+	return extraVars
 }
 
 func decodeMCPCallArgs(tc ToolCall) mcpCallArgs {

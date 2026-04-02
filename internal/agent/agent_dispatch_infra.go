@@ -570,26 +570,17 @@ func dispatchInfra(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 			if !cfg.Ansible.Enabled {
 				return `Tool Output: {"status":"error","message":"Ansible integration is not enabled. Set ansible.enabled=true in config.yaml."}`
 			}
+			req := decodeAnsibleArgs(tc)
 			if cfg.Ansible.ReadOnly {
-				switch tc.Operation {
+				switch req.Operation {
 				case "adhoc", "command", "run_module", "playbook", "run", "run_playbook":
 					return `Tool Output: {"status":"error","message":"Ansible is in read-only mode. Disable ansible.read_only to allow changes."}`
 				}
 			}
 			// Resolve host pattern (hosts for ad-hoc / limit for playbooks)
-			hosts := tc.Hostname
-			if hosts == "" {
-				hosts = tc.HostLimit
-			}
-			if hosts == "" {
-				hosts = tc.Query
-			}
-			inventoryPath := tc.Inventory
-			// Parse extra_vars from tc.Body (JSON string → map)
-			var extraVars map[string]interface{}
-			if tc.Body != "" {
-				_ = json.Unmarshal([]byte(tc.Body), &extraVars)
-			}
+			hosts := req.hosts()
+			inventoryPath := req.Inventory
+			extraVars := req.extraVars()
 
 			isLocal := cfg.Ansible.Mode == "local"
 
@@ -600,7 +591,7 @@ func dispatchInfra(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 					DefaultInventory: cfg.Ansible.DefaultInventory,
 					Timeout:          cfg.Ansible.Timeout,
 				}
-				switch tc.Operation {
+				switch req.Operation {
 				case "status", "health":
 					logger.Info("LLM requested Ansible status (local)")
 					return "Tool Output: " + tools.AnsibleLocalStatus(localCfg)
@@ -614,27 +605,24 @@ func dispatchInfra(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 					logger.Info("LLM requested Ansible ping (local)", "hosts", hosts)
 					return "Tool Output: " + tools.AnsibleLocalPing(localCfg, hosts, inventoryPath)
 				case "adhoc", "command", "run_module":
-					module := tc.Module
-					if module == "" {
-						module = tc.Package
-					}
-					moduleArgs := tc.Command
+					module := req.moduleName()
+					moduleArgs := req.Command
 					logger.Info("LLM requested Ansible adhoc (local)", "hosts", hosts, "module", module)
 					return "Tool Output: " + tools.AnsibleLocalAdhoc(localCfg, hosts, module, moduleArgs, inventoryPath, extraVars)
 				case "playbook", "run", "run_playbook":
-					playbook := tc.Name
+					playbook := req.Name
 					if playbook == "" {
 						return `Tool Output: {"status":"error","message":"'name' (playbook filename) is required for operation=playbook"}`
 					}
-					logger.Info("LLM requested Ansible playbook (local)", "playbook", playbook, "limit", tc.HostLimit)
-					return "Tool Output: " + tools.AnsibleLocalRunPlaybook(localCfg, playbook, inventoryPath, tc.HostLimit, tc.Tags, tc.SkipTags, extraVars, tc.Preview, false)
+					logger.Info("LLM requested Ansible playbook (local)", "playbook", playbook, "limit", req.HostLimit)
+					return "Tool Output: " + tools.AnsibleLocalRunPlaybook(localCfg, playbook, inventoryPath, req.HostLimit, req.Tags, req.SkipTags, extraVars, req.Preview, false)
 				case "check", "dry_run":
-					playbook := tc.Name
+					playbook := req.Name
 					if playbook == "" {
 						return `Tool Output: {"status":"error","message":"'name' (playbook filename) is required for operation=check"}`
 					}
 					logger.Info("LLM requested Ansible playbook dry-run (local)", "playbook", playbook)
-					return "Tool Output: " + tools.AnsibleLocalRunPlaybook(localCfg, playbook, inventoryPath, tc.HostLimit, tc.Tags, tc.SkipTags, extraVars, true, true)
+					return "Tool Output: " + tools.AnsibleLocalRunPlaybook(localCfg, playbook, inventoryPath, req.HostLimit, req.Tags, req.SkipTags, extraVars, true, true)
 				case "facts", "gather_facts":
 					logger.Info("LLM requested Ansible gather facts (local)", "hosts", hosts)
 					return "Tool Output: " + tools.AnsibleLocalGatherFacts(localCfg, hosts, inventoryPath)
@@ -649,7 +637,7 @@ func dispatchInfra(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 				Token:   cfg.Ansible.Token,
 				Timeout: cfg.Ansible.Timeout,
 			}
-			switch tc.Operation {
+			switch req.Operation {
 			case "status", "health":
 				logger.Info("LLM requested Ansible status")
 				return "Tool Output: " + tools.AnsibleStatus(ansCfg)
@@ -663,27 +651,24 @@ func dispatchInfra(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 				logger.Info("LLM requested Ansible ping", "hosts", hosts)
 				return "Tool Output: " + tools.AnsiblePing(ansCfg, hosts, inventoryPath)
 			case "adhoc", "command", "run_module":
-				module := tc.Module
-				if module == "" {
-					module = tc.Package
-				}
-				moduleArgs := tc.Command
+				module := req.moduleName()
+				moduleArgs := req.Command
 				logger.Info("LLM requested Ansible adhoc", "hosts", hosts, "module", module)
 				return "Tool Output: " + tools.AnsibleAdhoc(ansCfg, hosts, module, moduleArgs, inventoryPath, extraVars)
 			case "playbook", "run", "run_playbook":
-				playbook := tc.Name
+				playbook := req.Name
 				if playbook == "" {
 					return `Tool Output: {"status":"error","message":"'name' (playbook filename) is required for operation=playbook"}`
 				}
-				logger.Info("LLM requested Ansible playbook", "playbook", playbook, "limit", tc.HostLimit, "check", tc.Preview)
-				return "Tool Output: " + tools.AnsibleRunPlaybook(ansCfg, playbook, inventoryPath, tc.HostLimit, tc.Tags, tc.SkipTags, extraVars, tc.Preview, false)
+				logger.Info("LLM requested Ansible playbook", "playbook", playbook, "limit", req.HostLimit, "check", req.Preview)
+				return "Tool Output: " + tools.AnsibleRunPlaybook(ansCfg, playbook, inventoryPath, req.HostLimit, req.Tags, req.SkipTags, extraVars, req.Preview, false)
 			case "check", "dry_run":
-				playbook := tc.Name
+				playbook := req.Name
 				if playbook == "" {
 					return `Tool Output: {"status":"error","message":"'name' (playbook filename) is required for operation=check"}`
 				}
 				logger.Info("LLM requested Ansible playbook dry-run", "playbook", playbook)
-				return "Tool Output: " + tools.AnsibleRunPlaybook(ansCfg, playbook, inventoryPath, tc.HostLimit, tc.Tags, tc.SkipTags, extraVars, true, true)
+				return "Tool Output: " + tools.AnsibleRunPlaybook(ansCfg, playbook, inventoryPath, req.HostLimit, req.Tags, req.SkipTags, extraVars, true, true)
 			case "facts", "gather_facts":
 				logger.Info("LLM requested Ansible gather facts", "hosts", hosts)
 				return "Tool Output: " + tools.AnsibleGatherFacts(ansCfg, hosts, inventoryPath)
