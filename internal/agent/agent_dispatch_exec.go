@@ -1103,42 +1103,30 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			return fmt.Sprintf(`Tool Output: {"status": "success", "message": "Secret '%s' stored safely."}`, req.Key)
 
 		case "archive":
-			fpath := resolveFilePath(tc)
-			if !cfg.Agent.AllowFilesystemWrite && (strings.EqualFold(tc.Operation, "create") || strings.EqualFold(tc.Operation, "extract")) {
+			req := decodeArchiveArgs(tc)
+			if !cfg.Agent.AllowFilesystemWrite && (strings.EqualFold(req.Operation, "create") || strings.EqualFold(req.Operation, "extract")) {
 				return "Tool Output: [PERMISSION DENIED] archive create/extract operations are disabled in Danger Zone settings (agent.allow_filesystem_write: false)."
 			}
-			logger.Info("LLM requested archive operation", "op", tc.Operation, "path", fpath, "target_dir", tc.Destination)
-			dest := tc.Destination
-			if dest == "" {
-				dest = tc.Dest
-			}
-			return "Tool Output: " + tools.ExecuteArchive(tc.Operation, fpath, dest, tc.SourceFiles, tc.Format)
+			logger.Info("LLM requested archive operation", "op", req.Operation, "path", req.FilePath, "target_dir", req.Destination)
+			return "Tool Output: " + tools.ExecuteArchive(req.Operation, req.FilePath, req.Destination, req.SourceFiles, req.Format)
 
 		case "pdf_operations":
-			fpath := resolveFilePath(tc)
-			op := strings.ToLower(tc.Operation)
+			req := decodePDFOperationArgs(tc)
+			op := strings.ToLower(req.Operation)
 			if !cfg.Agent.AllowFilesystemWrite && (op == "merge" || op == "split" || op == "watermark" || op == "compress" || op == "encrypt" || op == "decrypt" || op == "fill_form" || op == "export_form" || op == "reset_form" || op == "lock_form") {
 				return "Tool Output: [PERMISSION DENIED] pdf_operations write operations are disabled in Danger Zone settings (agent.allow_filesystem_write: false)."
 			}
-			output := tc.OutputFile
-			if output == "" {
-				output = tc.Destination
-			}
-			logger.Info("LLM requested PDF operation", "op", tc.Operation, "path", fpath)
-			return "Tool Output: " + tools.ExecutePDFOperations(cfg.Directories.WorkspaceDir, tc.Operation, fpath, output, tc.Pages, tc.Password, tc.WatermarkText, tc.SourceFiles)
+			logger.Info("LLM requested PDF operation", "op", req.Operation, "path", req.FilePath)
+			return "Tool Output: " + tools.ExecutePDFOperations(cfg.Directories.WorkspaceDir, req.Operation, req.FilePath, req.OutputFile, req.Pages, req.Password, req.WatermarkText, req.SourceFiles)
 
 		case "image_processing":
-			fpath := resolveFilePath(tc)
-			op := strings.ToLower(tc.Operation)
+			req := decodeImageProcessingArgs(tc)
+			op := strings.ToLower(req.Operation)
 			if !cfg.Agent.AllowFilesystemWrite && op != "info" {
 				return "Tool Output: [PERMISSION DENIED] image_processing write operations are disabled in Danger Zone settings (agent.allow_filesystem_write: false)."
 			}
-			output := tc.OutputFile
-			if output == "" {
-				output = tc.Destination
-			}
-			logger.Info("LLM requested image processing", "op", tc.Operation, "path", fpath)
-			return "Tool Output: " + tools.ExecuteImageProcessing(tc.Operation, fpath, output, tc.OutputFormat, tc.Width, tc.Height, tc.QualityPct, tc.CropX, tc.CropY, tc.CropWidth, tc.CropHeight, tc.Angle)
+			logger.Info("LLM requested image processing", "op", req.Operation, "path", req.FilePath)
+			return "Tool Output: " + tools.ExecuteImageProcessing(req.Operation, req.FilePath, req.OutputFile, req.OutputFormat, req.Width, req.Height, req.QualityPct, req.CropX, req.CropY, req.CropWidth, req.CropHeight, req.Angle)
 
 		case "filesystem", "filesystem_op":
 			// Parameter robustness: handle 'path' and 'dest' aliases frequently hallucinated by LLMs
@@ -1304,8 +1292,9 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			if !cfg.Agent.AllowNetworkRequests {
 				return "Tool Output: [PERMISSION DENIED] api_request is disabled in Danger Zone settings (agent.allow_network_requests: false)."
 			}
-			logger.Info("LLM requested generic API request", "url", tc.URL)
-			return tools.ExecuteAPIRequest(tc.Method, tc.URL, tc.Body, tc.Headers)
+			req := decodeAPIRequestArgs(tc)
+			logger.Info("LLM requested generic API request", "url", req.URL)
+			return tools.ExecuteAPIRequest(req.Method, req.URL, req.Body, req.Headers)
 
 		case "koofr", "koofr_api", "koofr_op":
 			if !cfg.Koofr.Enabled {

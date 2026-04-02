@@ -117,6 +117,46 @@ type documentCreatorArgs struct {
 	SourceFiles string
 }
 
+type archiveArgs struct {
+	Operation   string
+	FilePath    string
+	Destination string
+	SourceFiles string
+	Format      string
+}
+
+type pdfOperationArgs struct {
+	Operation     string
+	FilePath      string
+	OutputFile    string
+	Pages         string
+	Password      string
+	WatermarkText string
+	SourceFiles   string
+}
+
+type imageProcessingArgs struct {
+	Operation    string
+	FilePath     string
+	OutputFile   string
+	OutputFormat string
+	Width        int
+	Height       int
+	QualityPct   int
+	CropX        int
+	CropY        int
+	CropWidth    int
+	CropHeight   int
+	Angle        int
+}
+
+type apiRequestArgs struct {
+	Method  string
+	URL     string
+	Body    string
+	Headers map[string]string
+}
+
 func toolArgInterfaceMap(args map[string]interface{}, keys ...string) map[string]interface{} {
 	for _, key := range keys {
 		raw, ok := args[key]
@@ -399,6 +439,58 @@ func decodeDocumentCreatorArgs(tc ToolCall) documentCreatorArgs {
 	}
 	if landscape, ok := toolArgBool(tc.Params, "landscape"); ok {
 		req.Landscape = landscape
+	}
+	return req
+}
+
+func decodeArchiveArgs(tc ToolCall) archiveArgs {
+	return archiveArgs{
+		Operation:   firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
+		FilePath:    firstNonEmptyToolString(tc.FilePath, tc.Path, toolArgString(tc.Params, "file_path", "path")),
+		Destination: firstNonEmptyToolString(tc.Destination, tc.Dest, toolArgString(tc.Params, "destination", "dest")),
+		SourceFiles: firstNonEmptyToolString(tc.SourceFiles, toolArgString(tc.Params, "source_files")),
+		Format:      firstNonEmptyToolString(tc.Format, toolArgString(tc.Params, "format")),
+	}
+}
+
+func decodePDFOperationArgs(tc ToolCall) pdfOperationArgs {
+	return pdfOperationArgs{
+		Operation:     firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
+		FilePath:      firstNonEmptyToolString(tc.FilePath, tc.Path, toolArgString(tc.Params, "file_path", "path")),
+		OutputFile:    firstNonEmptyToolString(tc.OutputFile, tc.Destination, tc.Dest, toolArgString(tc.Params, "output_file", "destination", "dest")),
+		Pages:         firstNonEmptyToolString(tc.Pages, toolArgString(tc.Params, "pages")),
+		Password:      firstNonEmptyToolString(tc.Password, toolArgString(tc.Params, "password")),
+		WatermarkText: firstNonEmptyToolString(tc.WatermarkText, toolArgString(tc.Params, "watermark_text")),
+		SourceFiles:   firstNonEmptyToolString(tc.SourceFiles, toolArgString(tc.Params, "source_files")),
+	}
+}
+
+func decodeImageProcessingArgs(tc ToolCall) imageProcessingArgs {
+	return imageProcessingArgs{
+		Operation:    firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
+		FilePath:     firstNonEmptyToolString(tc.FilePath, tc.Path, toolArgString(tc.Params, "file_path", "path")),
+		OutputFile:   firstNonEmptyToolString(tc.OutputFile, tc.Destination, tc.Dest, toolArgString(tc.Params, "output_file", "destination", "dest")),
+		OutputFormat: firstNonEmptyToolString(tc.OutputFormat, toolArgString(tc.Params, "output_format")),
+		Width:        firstNonEmptyInt(tc.Width, toolArgInt(tc.Params, 0, "width")),
+		Height:       firstNonEmptyInt(tc.Height, toolArgInt(tc.Params, 0, "height")),
+		QualityPct:   firstNonEmptyInt(tc.QualityPct, toolArgInt(tc.Params, 0, "quality_pct")),
+		CropX:        firstNonEmptyInt(tc.CropX, toolArgInt(tc.Params, 0, "crop_x")),
+		CropY:        firstNonEmptyInt(tc.CropY, toolArgInt(tc.Params, 0, "crop_y")),
+		CropWidth:    firstNonEmptyInt(tc.CropWidth, toolArgInt(tc.Params, 0, "crop_width")),
+		CropHeight:   firstNonEmptyInt(tc.CropHeight, toolArgInt(tc.Params, 0, "crop_height")),
+		Angle:        firstNonEmptyInt(tc.Angle, toolArgInt(tc.Params, 0, "angle")),
+	}
+}
+
+func decodeAPIRequestArgs(tc ToolCall) apiRequestArgs {
+	req := apiRequestArgs{
+		Method:  firstNonEmptyToolString(tc.Method, toolArgString(tc.Params, "method")),
+		URL:     firstNonEmptyToolString(tc.URL, toolArgString(tc.Params, "url")),
+		Body:    firstNonEmptyToolString(tc.Body, tc.Content, toolArgString(tc.Params, "body", "content")),
+		Headers: tc.Headers,
+	}
+	if len(req.Headers) == 0 {
+		req.Headers = toolArgStringMap(tc.Params, "headers")
 	}
 	return req
 }

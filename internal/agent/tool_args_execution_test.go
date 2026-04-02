@@ -187,6 +187,97 @@ func TestDecodeUpdateManagementArgsUsesParamsFallback(t *testing.T) {
 	}
 }
 
+func TestDecodeArchiveArgsUsesParamsFallback(t *testing.T) {
+	req := decodeArchiveArgs(ToolCall{
+		Action: "archive",
+		Params: map[string]interface{}{
+			"operation":    "extract",
+			"path":         "bundle.zip",
+			"dest":         "out",
+			"source_files": "a.txt,b.txt",
+			"format":       "zip",
+		},
+	})
+
+	if req.Operation != "extract" || req.FilePath != "bundle.zip" || req.Destination != "out" {
+		t.Fatalf("unexpected archive decode: %+v", req)
+	}
+	if req.SourceFiles != "a.txt,b.txt" || req.Format != "zip" {
+		t.Fatalf("unexpected archive decode: %+v", req)
+	}
+}
+
+func TestDecodePDFOperationArgsUsesParamsFallback(t *testing.T) {
+	req := decodePDFOperationArgs(ToolCall{
+		Action: "pdf_operations",
+		Params: map[string]interface{}{
+			"operation":      "watermark",
+			"path":           "input.pdf",
+			"destination":    "output.pdf",
+			"pages":          "1-2",
+			"password":       "secret",
+			"watermark_text": "AuraGo",
+			"source_files":   "a.pdf,b.pdf",
+		},
+	})
+
+	if req.Operation != "watermark" || req.FilePath != "input.pdf" || req.OutputFile != "output.pdf" {
+		t.Fatalf("unexpected pdf decode: %+v", req)
+	}
+	if req.Pages != "1-2" || req.Password != "secret" || req.WatermarkText != "AuraGo" || req.SourceFiles != "a.pdf,b.pdf" {
+		t.Fatalf("unexpected pdf decode: %+v", req)
+	}
+}
+
+func TestDecodeImageProcessingArgsUsesParamsFallback(t *testing.T) {
+	req := decodeImageProcessingArgs(ToolCall{
+		Action: "image_processing",
+		Params: map[string]interface{}{
+			"operation":     "resize",
+			"path":          "input.png",
+			"destination":   "output.jpg",
+			"output_format": "jpeg",
+			"width":         float64(800),
+			"height":        float64(600),
+			"quality_pct":   float64(82),
+			"crop_x":        float64(10),
+			"crop_y":        float64(12),
+			"crop_width":    float64(500),
+			"crop_height":   float64(400),
+			"angle":         float64(90),
+		},
+	})
+
+	if req.Operation != "resize" || req.FilePath != "input.png" || req.OutputFile != "output.jpg" || req.OutputFormat != "jpeg" {
+		t.Fatalf("unexpected image decode: %+v", req)
+	}
+	if req.Width != 800 || req.Height != 600 || req.QualityPct != 82 || req.CropX != 10 || req.CropY != 12 || req.CropWidth != 500 || req.CropHeight != 400 || req.Angle != 90 {
+		t.Fatalf("unexpected image decode: %+v", req)
+	}
+}
+
+func TestDecodeAPIRequestArgsUsesParamsFallback(t *testing.T) {
+	req := decodeAPIRequestArgs(ToolCall{
+		Action: "api_request",
+		Params: map[string]interface{}{
+			"method": "POST",
+			"url":    "https://example.com/api",
+			"body":   "{\"ok\":true}",
+			"headers": map[string]interface{}{
+				"Authorization": "Bearer token",
+				"Content-Type":  "application/json",
+			},
+		},
+	})
+
+	if req.Method != "POST" || req.URL != "https://example.com/api" || req.Body != "{\"ok\":true}" {
+		t.Fatalf("unexpected api request decode: %+v", req)
+	}
+	if req.Headers["Authorization"] != "Bearer token" || req.Headers["Content-Type"] != "application/json" {
+		t.Fatalf("unexpected headers decode: %+v", req.Headers)
+	}
+}
+
 func TestDecodeKnowledgeGraphArgsUsesParamsFallback(t *testing.T) {
 	req := decodeKnowledgeGraphArgs(ToolCall{
 		Action: "knowledge_graph",
