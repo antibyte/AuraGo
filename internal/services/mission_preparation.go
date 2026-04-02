@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/security"
 	"aurago/internal/tools"
 
 	"github.com/sashabaranov/go-openai"
@@ -264,7 +265,12 @@ func (s *MissionPreparationService) PrepareMission(ctx context.Context, missionI
 		return nil, fmt.Errorf("LLM returned no choices")
 	}
 
-	content := strings.TrimSpace(resp.Choices[0].Message.Content)
+	// Strip thinking tags (<think>…</think>) emitted by reasoning models before JSON parsing.
+	content := strings.TrimSpace(security.StripThinkingTags(resp.Choices[0].Message.Content))
+	// Extract the JSON object in case the model added prose or markdown fences.
+	if extracted := extractMissionPrepJSON(content); extracted != "" {
+		content = extracted
+	}
 
 	// Parse JSON response
 	var analysis tools.PreparationAnalysis
@@ -412,3 +418,46 @@ func (s *MissionPreparationService) buildUserPrompt(mission *tools.MissionV2) st
 
 // defaultPrepPrompt is used when the template file cannot be loaded.
 const defaultPrepPrompt = `You are a mission preparation analyst. Analyze the mission prompt and produce a JSON preparation guide with: summary, essential_tools, step_plan, decision_points, pitfalls, preloads, estimated_steps, confidence. Respond with valid JSON only.`
+
+// extractMissionPrepJSON extracts the first valid JSON object from a string,
+// handling markdown code fences and trailing prose.
+func extractMissionPrepJSON(content string) string {
+	content = strings.TrimSpace(content)
+	if content == "" {
+		return ""
+	}
+	// Strip markdown code fences
+	if strings.HasPrefix(content, "```") {
+		lines := strings.Split(content, "\n")
+		if len(lines) >= 3 {
+			inner := strings.Join(lines[1:], "\n")
+			inner = strings.TrimPrefix(strings.TrimSpace(inner), "json")
+			inner = strings.TrimSpace(inner)
+			if idx := strings.LastIndex(inner, "```"); idx != -1 {
+				inner = strings.TrimSpace(inner[:idx])
+			}
+			content = inner
+		}
+	}
+	// Find the outermost JSON object
+	start := strings.Index(content, "{")
+	if start == -1 {
+		return ""
+	}
+	depth := 0
+	for i := start; i < len(content); i++ {
+		switch content[i] {
+		case '{':
+			depth++
+		case '}':
+			depth--
+			if depth == 0 {
+				candidate := content[start : i+1]
+				if json.Valid([]byte(candidate)) {
+					return candidate
+				}
+			}
+		}
+	}
+	return ""
+}
