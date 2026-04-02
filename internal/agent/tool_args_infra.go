@@ -1,5 +1,40 @@
 package agent
 
+import "fmt"
+
+type githubArgs struct {
+	Operation   string
+	Owner       string
+	Repo        string
+	Description string
+	Title       string
+	Body        string
+	Path        string
+	Content     string
+	Query       string
+	Value       string
+	ID          string
+	Limit       int
+	Label       string
+}
+
+type netlifyArgs struct {
+	Operation    string
+	SiteID       string
+	DeployID     string
+	EnvKey       string
+	EnvValue     string
+	EnvContext   string
+	FormID       string
+	HookID       string
+	HookType     string
+	HookEvent    string
+	URL          string
+	Value        string
+	SiteName     string
+	CustomDomain string
+}
+
 type sqlQueryArgs struct {
 	Operation      string
 	ConnectionName string
@@ -13,6 +48,67 @@ type mqttArgs struct {
 	QoS     int
 	Retain  bool
 	Limit   int
+}
+
+func decodeGitHubArgs(tc ToolCall) githubArgs {
+	return githubArgs{
+		Operation:   firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
+		Owner:       firstNonEmptyToolString(tc.Owner, toolArgString(tc.Params, "owner")),
+		Repo:        firstNonEmptyToolString(tc.Name, toolArgString(tc.Params, "name")),
+		Description: firstNonEmptyToolString(tc.Description, toolArgString(tc.Params, "description")),
+		Title:       firstNonEmptyToolString(tc.Title, toolArgString(tc.Params, "title")),
+		Body:        firstNonEmptyToolString(tc.Body, toolArgString(tc.Params, "body")),
+		Path:        firstNonEmptyToolString(tc.Path, toolArgString(tc.Params, "path")),
+		Content:     firstNonEmptyToolString(tc.Content, toolArgString(tc.Params, "content")),
+		Query:       firstNonEmptyToolString(tc.Query, toolArgString(tc.Params, "query")),
+		Value:       firstNonEmptyToolString(tc.Value, toolArgString(tc.Params, "value")),
+		ID:          firstNonEmptyToolString(tc.ID, toolArgString(tc.Params, "id")),
+		Limit:       firstNonEmptyInt(tc.Limit, toolArgInt(tc.Params, 0, "limit")),
+		Label:       firstNonEmptyToolString(tc.Label, toolArgString(tc.Params, "label")),
+	}
+}
+
+func (req githubArgs) issueNumber() int {
+	if req.ID == "" {
+		return 0
+	}
+	var issueNum int
+	_, _ = fmt.Sscanf(req.ID, "%d", &issueNum)
+	return issueNum
+}
+
+func (req githubArgs) labels() []string {
+	return splitCSV(req.Label)
+}
+
+func decodeNetlifyArgs(tc ToolCall) netlifyArgs {
+	return netlifyArgs{
+		Operation:    firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
+		SiteID:       firstNonEmptyToolString(tc.SiteID, toolArgString(tc.Params, "site_id")),
+		DeployID:     firstNonEmptyToolString(tc.DeployID, toolArgString(tc.Params, "deploy_id")),
+		EnvKey:       firstNonEmptyToolString(tc.EnvKey, toolArgString(tc.Params, "env_key")),
+		EnvValue:     firstNonEmptyToolString(tc.EnvValue, toolArgString(tc.Params, "env_value")),
+		EnvContext:   firstNonEmptyToolString(tc.EnvContext, toolArgString(tc.Params, "env_context")),
+		FormID:       firstNonEmptyToolString(tc.FormID, toolArgString(tc.Params, "form_id")),
+		HookID:       firstNonEmptyToolString(tc.HookID, toolArgString(tc.Params, "hook_id")),
+		HookType:     firstNonEmptyToolString(tc.HookType, toolArgString(tc.Params, "hook_type")),
+		HookEvent:    firstNonEmptyToolString(tc.HookEvent, toolArgString(tc.Params, "hook_event")),
+		URL:          firstNonEmptyToolString(tc.URL, toolArgString(tc.Params, "url")),
+		Value:        firstNonEmptyToolString(tc.Value, toolArgString(tc.Params, "value")),
+		SiteName:     firstNonEmptyToolString(tc.SiteName, toolArgString(tc.Params, "site_name")),
+		CustomDomain: firstNonEmptyToolString(tc.CustomDomain, toolArgString(tc.Params, "custom_domain")),
+	}
+}
+
+func (req netlifyArgs) hookData() map[string]interface{} {
+	hookData := map[string]interface{}{}
+	if req.URL != "" {
+		hookData["url"] = req.URL
+	}
+	if req.Value != "" {
+		hookData["email"] = req.Value
+	}
+	return hookData
 }
 
 func decodeSQLQueryArgs(tc ToolCall) sqlQueryArgs {

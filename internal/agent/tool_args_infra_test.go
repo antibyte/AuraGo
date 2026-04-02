@@ -2,6 +2,86 @@ package agent
 
 import "testing"
 
+func TestDecodeGitHubArgsUsesParamsFallback(t *testing.T) {
+	tc := ToolCall{
+		Action: "github",
+		Params: map[string]interface{}{
+			"operation":   "create_issue",
+			"owner":       "antibyte",
+			"name":        "AuraGo",
+			"title":       "Bug report",
+			"body":        "details",
+			"label":       "bug,urgent",
+			"id":          "42",
+			"query":       "main",
+			"limit":       float64(7),
+			"description": "tracked repo",
+		},
+	}
+
+	req := decodeGitHubArgs(tc)
+	if req.Operation != "create_issue" {
+		t.Fatalf("Operation = %q, want create_issue", req.Operation)
+	}
+	if req.Owner != "antibyte" {
+		t.Fatalf("Owner = %q, want antibyte", req.Owner)
+	}
+	if req.Repo != "AuraGo" {
+		t.Fatalf("Repo = %q, want AuraGo", req.Repo)
+	}
+	if req.Title != "Bug report" || req.Body != "details" {
+		t.Fatalf("unexpected issue payload: %#v", req)
+	}
+	if req.issueNumber() != 42 {
+		t.Fatalf("issueNumber = %d, want 42", req.issueNumber())
+	}
+	labels := req.labels()
+	if len(labels) != 2 || labels[0] != "bug" || labels[1] != "urgent" {
+		t.Fatalf("labels = %#v, want [bug urgent]", labels)
+	}
+	if req.Query != "main" {
+		t.Fatalf("Query = %q, want main", req.Query)
+	}
+	if req.Limit != 7 {
+		t.Fatalf("Limit = %d, want 7", req.Limit)
+	}
+}
+
+func TestDecodeNetlifyArgsUsesParamsFallback(t *testing.T) {
+	tc := ToolCall{
+		Action: "netlify",
+		Params: map[string]interface{}{
+			"operation":     "create_hook",
+			"site_id":       "site-123",
+			"hook_id":       "hook-123",
+			"hook_type":     "url",
+			"hook_event":    "deploy_created",
+			"url":           "https://example.com/hook",
+			"value":         "ops@example.com",
+			"site_name":     "aurago-docs",
+			"custom_domain": "docs.example.com",
+		},
+	}
+
+	req := decodeNetlifyArgs(tc)
+	if req.Operation != "create_hook" {
+		t.Fatalf("Operation = %q, want create_hook", req.Operation)
+	}
+	if req.SiteID != "site-123" || req.HookID != "hook-123" {
+		t.Fatalf("unexpected site/hook ids: %#v", req)
+	}
+	if req.SiteName != "aurago-docs" || req.CustomDomain != "docs.example.com" {
+		t.Fatalf("unexpected site metadata: %#v", req)
+	}
+	hookData := req.hookData()
+	if hookData["url"] != "https://example.com/hook" {
+		t.Fatalf("hookData[url] = %#v, want hook URL", hookData["url"])
+	}
+	if hookData["email"] != "ops@example.com" {
+		t.Fatalf("hookData[email] = %#v, want email", hookData["email"])
+	}
+}
+
 func TestDecodeSQLQueryArgsUsesParamsFallback(t *testing.T) {
 	tc := ToolCall{
 		Action: "sql_query",
