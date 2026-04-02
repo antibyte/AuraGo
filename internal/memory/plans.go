@@ -242,8 +242,19 @@ func (s *SQLiteMemory) CreatePlan(sessionID, title, description, userRequest str
 		return nil, fmt.Errorf("at least one task is required")
 	}
 
+	now := planNow()
+	planID := "plan_" + uuid.NewString()
+
+	// Begin transaction before the duplicate-plan check so the check and insert
+	// are atomic — prevents a TOCTOU race between the SELECT and the INSERT.
+	tx, err := s.db.Begin()
+	if err != nil {
+		return nil, fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback()
+
 	var existingID string
-	err := s.db.QueryRow(`SELECT id FROM plans WHERE session_id = ? AND status IN (?, ?, ?, ?) ORDER BY updated_at DESC LIMIT 1`,
+	err = tx.QueryRow(`SELECT id FROM plans WHERE session_id = ? AND status IN (?, ?, ?, ?) ORDER BY updated_at DESC LIMIT 1`,
 		sessionID, PlanStatusDraft, PlanStatusActive, PlanStatusPaused, PlanStatusBlocked).Scan(&existingID)
 	if err == nil && existingID != "" {
 		return nil, fmt.Errorf("session already has an unfinished plan")
@@ -251,15 +262,6 @@ func (s *SQLiteMemory) CreatePlan(sessionID, title, description, userRequest str
 	if err != nil && err != sql.ErrNoRows {
 		return nil, fmt.Errorf("check existing plan: %w", err)
 	}
-
-	now := planNow()
-	planID := "plan_" + uuid.NewString()
-
-	tx, err := s.db.Begin()
-	if err != nil {
-		return nil, fmt.Errorf("begin tx: %w", err)
-	}
-	defer tx.Rollback()
 
 	if _, err := tx.Exec(
 		`INSERT INTO plans (id, session_id, title, description, status, priority, user_request, created_at, updated_at)

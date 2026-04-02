@@ -14,6 +14,7 @@ import (
 	"aurago/internal/config"
 
 	chromem "github.com/philippgille/chromem-go"
+	"golang.org/x/sync/singleflight"
 )
 
 // ArchiveItem represents a single concept/content pair for batch archiving.
@@ -62,6 +63,7 @@ type ChromemVectorDB struct {
 	queryCacheTTL time.Duration
 	indexing      atomic.Int32  // Counter: >0 while async indexing is in progress
 	dedupSem      chan struct{} // semaphore to limit concurrent dedup checks
+	sfGroup       singleflight.Group // deduplicates concurrent embedding API calls for the same query
 }
 
 func (cv *ChromemVectorDB) Close() error {
@@ -562,6 +564,9 @@ func (cv *ChromemVectorDB) SearchSimilar(query string, topK int, excludeCollecti
 		return nil, nil, nil // Graceful degradation: return empty results
 	}
 
+	cv.mu.RLock()
+	defer cv.mu.RUnlock()
+
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
@@ -708,6 +713,9 @@ func (cv *ChromemVectorDB) SearchMemoriesOnly(query string, topK int) ([]string,
 		return nil, nil, nil
 	}
 
+	cv.mu.RLock()
+	defer cv.mu.RUnlock()
+
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
@@ -761,6 +769,8 @@ func (cv *ChromemVectorDB) GetByID(id string) (string, error) {
 	if cv.disabled.Load() {
 		return "", fmt.Errorf("VectorDB is disabled")
 	}
+	cv.mu.RLock()
+	defer cv.mu.RUnlock()
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	doc, err := cv.collection.GetByID(ctx, id)
@@ -819,6 +829,8 @@ func (cv *ChromemVectorDB) DeleteDocument(id string) error {
 	if cv.disabled.Load() {
 		return fmt.Errorf("VectorDB is disabled")
 	}
+	cv.mu.Lock()
+	defer cv.mu.Unlock()
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	return cv.collection.Delete(ctx, nil, nil, id)
@@ -835,10 +847,13 @@ func (cv *ChromemVectorDB) getQueryEmbedding(ctx context.Context, query string) 
 	}
 	cv.queryCacheMu.RUnlock()
 
-	embedding, err := cv.embeddingFunc(ctx, query)
+	res, err, _ := cv.sfGroup.Do(query, func() (interface{}, error) {
+		return cv.embeddingFunc(ctx, query)
+	})
 	if err != nil {
 		return nil, err
 	}
+	embedding := res.([]float32)
 
 	cv.queryCacheMu.Lock()
 	cv.queryCache[query] = queryCacheEntry{embedding: embedding, timestamp: time.Now()}

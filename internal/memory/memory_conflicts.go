@@ -33,7 +33,13 @@ func (s *SQLiteMemory) RegisterMemoryConflict(leftDocID, rightDocID, conflictKey
 	if leftDocID == rightDocID {
 		return nil
 	}
-	_, err := s.db.Exec(`
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("register memory conflict begin tx: %w", err)
+	}
+	defer tx.Rollback() //nolint:errcheck
+
+	_, err = tx.Exec(`
 		INSERT INTO memory_conflicts (doc_id_left, doc_id_right, conflict_key, left_value, right_value, reason, status, detected_at, resolved_at)
 		VALUES (?, ?, ?, ?, ?, ?, 'open', CURRENT_TIMESTAMP, '')
 		ON CONFLICT(doc_id_left, doc_id_right, conflict_key) DO UPDATE SET
@@ -47,10 +53,10 @@ func (s *SQLiteMemory) RegisterMemoryConflict(leftDocID, rightDocID, conflictKey
 	if err != nil {
 		return fmt.Errorf("register memory conflict: %w", err)
 	}
-	if _, err := s.db.Exec(`UPDATE memory_meta SET verification_status = 'contradicted', last_event_at = CURRENT_TIMESTAMP WHERE doc_id IN (?, ?)`, leftDocID, rightDocID); err != nil {
+	if _, err = tx.Exec(`UPDATE memory_meta SET verification_status = 'contradicted', last_event_at = CURRENT_TIMESTAMP WHERE doc_id IN (?, ?)`, leftDocID, rightDocID); err != nil {
 		return fmt.Errorf("mark contradicted memory meta: %w", err)
 	}
-	return nil
+	return tx.Commit()
 }
 
 func (s *SQLiteMemory) GetOpenMemoryConflicts(limit int) ([]MemoryConflict, error) {

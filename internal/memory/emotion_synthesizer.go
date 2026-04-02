@@ -148,8 +148,8 @@ func (es *EmotionSynthesizer) ApplyExternalState(stm *SQLiteMemory, state *Emoti
 	es.mu.Unlock()
 
 	if stm != nil {
-		if len(triggerSummary) > 200 {
-			triggerSummary = triggerSummary[:200]
+		if utf8.RuneCountInString(triggerSummary) > 200 {
+			triggerSummary = string([]rune(triggerSummary)[:200])
 		}
 		if err := stm.InsertEmotionStateHistory(stateCopy, triggerSummary); err != nil {
 			return fmt.Errorf("persist external emotion state: %w", err)
@@ -382,7 +382,7 @@ func validateEmotionDescription(description string) error {
 	if len(strings.TrimSpace(description)) < 10 {
 		return fmt.Errorf("emotion too short")
 	}
-	if len(description) > 220 {
+	if utf8.RuneCountInString(description) > 220 {
 		return fmt.Errorf("emotion too long")
 	}
 	lower := strings.ToLower(description)

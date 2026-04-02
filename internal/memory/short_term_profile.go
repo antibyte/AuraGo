@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"unicode/utf8"
 )
 
 const (
@@ -291,45 +292,50 @@ func (s *SQLiteMemory) UpsertProfileEntry(category, key, value, source string) e
 		return fmt.Errorf("profile value contains sensitive data")
 	}
 
-	// Enforce length limits
-	if len(key) > 50 {
-		key = key[:50]
+	// Enforce length limits (rune-safe: avoids splitting multi-byte UTF-8 sequences)
+	if utf8.RuneCountInString(key) > 50 {
+		key = string([]rune(key)[:50])
 	}
-	if len(value) > 200 {
-		value = value[:200]
+	if utf8.RuneCountInString(value) > 200 {
+		value = string([]rune(value)[:200])
 	}
-	if len(category) > 20 {
-		category = category[:20]
+	if utf8.RuneCountInString(category) > 20 {
+		category = string([]rune(category)[:20])
 	}
 	if value == "" {
 		return fmt.Errorf("profile value is empty after normalization")
 	}
 
-	// Check if entry exists with same value → increment confidence
+	// Atomically check-and-upsert within a transaction to prevent TOCTOU races.
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("upsert profile entry: %w", err)
+	}
+	defer tx.Rollback() //nolint:errcheck
+
 	var existing string
 	var conf int
-	err := s.db.QueryRow("SELECT value, confidence FROM user_profile WHERE category = ? AND key = ?", category, key).Scan(&existing, &conf)
-	if err == nil {
+	qErr := tx.QueryRow("SELECT value, confidence FROM user_profile WHERE category = ? AND key = ?", category, key).Scan(&existing, &conf)
+	if qErr == nil {
+		// Entry exists: update in-place.
 		if strings.EqualFold(normalizeProfileValue(existing), value) {
 			// Same value → increment confidence
-			_, err = s.db.Exec("UPDATE user_profile SET confidence = confidence + 1, updated_at = CURRENT_TIMESTAMP WHERE category = ? AND key = ?", category, key)
+			_, err = tx.Exec("UPDATE user_profile SET confidence = confidence + 1, updated_at = CURRENT_TIMESTAMP WHERE category = ? AND key = ?", category, key)
 		} else {
 			// Different value → overwrite + reset confidence
-			_, err = s.db.Exec("UPDATE user_profile SET value = ?, confidence = 1, source = ?, updated_at = CURRENT_TIMESTAMP WHERE category = ? AND key = ?", value, source, category, key)
+			_, err = tx.Exec("UPDATE user_profile SET value = ?, confidence = 1, source = ?, updated_at = CURRENT_TIMESTAMP WHERE category = ? AND key = ?", value, source, category, key)
 		}
 		if err != nil {
 			return err
 		}
-		if err := s.enforceProfileCategoryLimit(category, maxProfileEntriesPerCategory); err != nil {
+	} else {
+		// No existing entry — insert.
+		if _, err = tx.Exec("INSERT INTO user_profile (category, key, value, confidence, source) VALUES (?, ?, ?, 1, ?)", category, key, value, source); err != nil {
 			return err
 		}
-		return s.EnforceProfileSizeLimit(maxTotalProfileEntries)
 	}
-
-	// New entry
-	_, err = s.db.Exec("INSERT INTO user_profile (category, key, value, confidence, source) VALUES (?, ?, ?, 1, ?)", category, key, value, source)
-	if err != nil {
-		return err
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("upsert profile entry commit: %w", err)
 	}
 	if err := s.enforceProfileCategoryLimit(category, maxProfileEntriesPerCategory); err != nil {
 		return err

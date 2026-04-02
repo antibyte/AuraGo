@@ -227,7 +227,7 @@ func (s *SQLiteMemory) SearchActivityTurnsInRange(keyword, fromDate, toDate stri
 		err error
 	)
 	if trimmedKeyword != "" {
-		pattern := "%" + trimmedKeyword + "%"
+		pattern := "%" + escapeLike(trimmedKeyword) + "%"
 		rows, err = s.db.Query(`
 			SELECT id, timestamp, date, session_id, channel, is_autonomous, user_relevant, status,
 				importance, intent, user_request, user_goal,
@@ -237,8 +237,8 @@ func (s *SQLiteMemory) SearchActivityTurnsInRange(keyword, fromDate, toDate stri
 			WHERE (? = '' OR date >= ?)
 			  AND (? = '' OR date <= ?)
 			  AND (
-				intent LIKE ? OR user_request LIKE ? OR user_goal LIKE ? OR
-				outcomes_text LIKE ? OR important_points_text LIKE ? OR actions_taken_text LIKE ? OR pending_items_text LIKE ?
+				intent LIKE ? ESCAPE '\' OR user_request LIKE ? ESCAPE '\' OR user_goal LIKE ? ESCAPE '\' OR
+				outcomes_text LIKE ? ESCAPE '\' OR important_points_text LIKE ? ESCAPE '\' OR actions_taken_text LIKE ? ESCAPE '\' OR pending_items_text LIKE ? ESCAPE '\'
 			  )
 			ORDER BY date DESC, timestamp DESC
 			LIMIT ?`,

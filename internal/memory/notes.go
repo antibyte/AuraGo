@@ -127,11 +127,11 @@ func (s *SQLiteMemory) SearchNotes(query string, limit int) ([]Note, error) {
 		limit = 20
 	}
 
-	pattern := "%" + query + "%"
+	pattern := "%" + escapeLike(query) + "%"
 	rows, err := s.db.Query(
 		`SELECT id, category, title, content, priority, done, due_date, created_at, updated_at
 		 FROM notes
-		 WHERE title LIKE ? OR content LIKE ?
+		 WHERE title LIKE ? ESCAPE '\' OR content LIKE ? ESCAPE '\'
 		 ORDER BY priority DESC, created_at DESC
 		 LIMIT ?`,
 		pattern, pattern, limit,

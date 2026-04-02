@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	chromem "github.com/philippgille/chromem-go"
 	"gopkg.in/yaml.v3"
@@ -91,8 +92,8 @@ func (cv *ChromemVectorDB) IndexToolGuides(toolsDir string, force bool) error {
 		// Fallback to first 200 chars if no description
 		if description == "" {
 			contentOnly := strings.TrimSpace(body)
-			if len(contentOnly) > 200 {
-				description = contentOnly[:200]
+			if utf8.RuneCountInString(contentOnly) > 200 {
+				description = string([]rune(contentOnly)[:200])
 			} else {
 				description = contentOnly
 			}
@@ -149,6 +150,9 @@ func (cv *ChromemVectorDB) SearchToolGuides(query string, topK int) ([]string, e
 	if cv.disabled.Load() || query == "" {
 		return nil, nil
 	}
+
+	cv.mu.RLock()
+	defer cv.mu.RUnlock()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()

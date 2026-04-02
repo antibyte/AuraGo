@@ -14,6 +14,15 @@ func (s *SQLiteMemory) Close() error {
 	return s.db.Close()
 }
 
+// escapeLike escapes SQLite LIKE pattern metacharacters in user-supplied input.
+// The caller must include ESCAPE '\' in the LIKE clause of the SQL query.
+func escapeLike(s string) string {
+	s = strings.ReplaceAll(s, `\`, `\\`)
+	s = strings.ReplaceAll(s, `%`, `\%`)
+	s = strings.ReplaceAll(s, `_`, `\_`)
+	return s
+}
+
 func (s *SQLiteMemory) InsertMessage(sessionID string, role string, content string, pinned bool, isInternal bool) (int64, error) {
 	stmt := `INSERT INTO messages(session_id, role, content, is_pinned, is_internal) VALUES(?, ?, ?, ?, ?)`
 	res, err := s.db.Exec(stmt, sessionID, role, content, pinned, isInternal)

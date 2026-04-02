@@ -243,6 +243,7 @@ func (s *SQLiteMemory) InsertEpisodicMemoryWithDetails(eventDate, title, summary
 }
 
 // UpsertPendingEpisodicAction creates or refreshes a pending episodic follow-up item.
+// The entire check-then-insert is wrapped in a single transaction to prevent TOCTOU races.
 func (s *SQLiteMemory) UpsertPendingEpisodicAction(eventDate, title, summary, triggerQuery, sessionID string, importance int, relatedDocIDs []string) error {
 	if title == "" || summary == "" {
 		return nil
@@ -257,7 +258,14 @@ func (s *SQLiteMemory) UpsertPendingEpisodicAction(eventDate, title, summary, tr
 		triggerQuery = title
 	}
 	relatedJSON, _ := json.Marshal(uniqueSortedStrings(relatedDocIDs))
-	_, err := s.db.Exec(`
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("upsert pending episodic action: %w", err)
+	}
+	defer tx.Rollback() //nolint:errcheck
+
+	result, err := tx.Exec(`
 		UPDATE episodic_memories
 		SET summary = ?,
 			importance = ?,
@@ -273,21 +281,27 @@ func (s *SQLiteMemory) UpsertPendingEpisodicAction(eventDate, title, summary, tr
 		return fmt.Errorf("update pending episodic action: %w", err)
 	}
 
-	var count int
-	if err := s.db.QueryRow(`SELECT COUNT(*) FROM episodic_memories WHERE title = ? AND action_status = 'pending'`, title).Scan(&count); err != nil {
-		return fmt.Errorf("count pending episodic actions: %w", err)
-	}
-	if count > 0 {
-		return nil
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("pending episodic action rows affected: %w", err)
 	}
 
-	return s.InsertEpisodicMemoryWithDetails(eventDate, title, summary, map[string]string{"kind": "pending_action"}, importance, "pending_action", EpisodicMemoryDetails{
-		SessionID:      sessionID,
-		HierarchyLevel: 1,
-		ActionStatus:   "pending",
-		TriggerQuery:   triggerQuery,
-		RelatedDocIDs:  relatedDocIDs,
-	})
+	if affected == 0 {
+		// No existing pending entry — insert a new one within the same transaction.
+		_, err = tx.Exec(`
+			INSERT INTO episodic_memories (
+				event_date, title, summary, details_json, importance, source,
+				session_id, hierarchy_level, action_status, trigger_query, resolved_at,
+				participants_json, related_doc_ids, emotional_valence
+			)
+			VALUES (?, ?, ?, '{"kind":"pending_action"}', ?, 'pending_action', ?, 1, 'pending', ?, '', '[]', ?, 0)
+		`, eventDate, title, summary, importance, sessionID, triggerQuery, string(relatedJSON))
+		if err != nil {
+			return fmt.Errorf("insert pending episodic action: %w", err)
+		}
+	}
+
+	return tx.Commit()
 }
 
 // GetRecentEpisodicMemories returns recent event cards (default 72h) as compact prompt lines.
@@ -445,10 +459,10 @@ func (s *SQLiteMemory) SearchJournalEntriesInRange(keyword, fromDate, toDate str
 		limit = 20
 	}
 
-	pattern := "%" + keyword + "%"
+	pattern := "%" + escapeLike(keyword) + "%"
 	query := `SELECT id, entry_type, title, content, tags, importance, date, session_id, auto_generated, created_at
 	          FROM journal_entries
-	          WHERE (title LIKE ? OR content LIKE ?)`
+	          WHERE (title LIKE ? ESCAPE '\' OR content LIKE ? ESCAPE '\')`
 	args := []interface{}{pattern, pattern}
 	if fromDate != "" {
 		query += ` AND date >= ?`
@@ -492,8 +506,8 @@ func (s *SQLiteMemory) SearchEpisodicMemoriesInRange(keyword, fromDate, toDate s
 		WHERE 1=1`
 	args := make([]interface{}, 0, 4)
 	if keyword != "" {
-		pattern := "%" + keyword + "%"
-		query += ` AND (title LIKE ? OR summary LIKE ?)`
+		pattern := "%" + escapeLike(keyword) + "%"
+		query += ` AND (title LIKE ? ESCAPE '\' OR summary LIKE ? ESCAPE '\')`
 		args = append(args, pattern, pattern)
 	}
 	if fromDate != "" {
@@ -551,13 +565,13 @@ func (s *SQLiteMemory) GetPendingEpisodicActionsForQuery(query string, limit int
 	}
 	pattern := "%"
 	if trimmed := strings.TrimSpace(query); trimmed != "" {
-		pattern = "%" + trimmed + "%"
+		pattern = "%" + escapeLike(trimmed) + "%"
 	}
 	rows, err := s.db.Query(`
 		SELECT id, event_date, title, summary, details_json, importance, source, session_id, hierarchy_level, action_status, trigger_query, COALESCE(resolved_at, ''), participants_json, related_doc_ids, emotional_valence, created_at
 		FROM episodic_memories
 		WHERE action_status = 'pending'
-		  AND (trigger_query LIKE ? OR title LIKE ? OR summary LIKE ?)
+		  AND (trigger_query LIKE ? ESCAPE '\' OR title LIKE ? ESCAPE '\' OR summary LIKE ? ESCAPE '\')
 		ORDER BY importance DESC, event_date DESC, created_at DESC
 		LIMIT ?
 	`, pattern, pattern, pattern, limit)

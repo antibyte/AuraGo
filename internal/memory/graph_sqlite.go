@@ -383,15 +383,16 @@ func (kg *KnowledgeGraph) migrateFromJSON(jsonPath string) {
 
 // Stats returns the number of nodes and edges in the knowledge graph.
 func (kg *KnowledgeGraph) Stats() (nodes int, edges int, err error) {
-	if scanErr := kg.db.QueryRow("SELECT COUNT(*) FROM kg_nodes").Scan(&nodes); scanErr != nil {
-		kg.logger.Warn("KG Stats: failed to count nodes", "error", scanErr)
+	var nodeErr, edgeErr error
+	if nodeErr = kg.db.QueryRow("SELECT COUNT(*) FROM kg_nodes").Scan(&nodes); nodeErr != nil {
+		kg.logger.Warn("KG Stats: failed to count nodes", "error", nodeErr)
 		nodes = -1
 	}
-	if scanErr := kg.db.QueryRow("SELECT COUNT(*) FROM kg_edges").Scan(&edges); scanErr != nil {
-		kg.logger.Warn("KG Stats: failed to count edges", "error", scanErr)
+	if edgeErr = kg.db.QueryRow("SELECT COUNT(*) FROM kg_edges").Scan(&edges); edgeErr != nil {
+		kg.logger.Warn("KG Stats: failed to count edges", "error", edgeErr)
 		edges = -1
 	}
-	return nodes, edges, nil
+	return nodes, edges, errors.Join(nodeErr, edgeErr)
 }
 
 // QualityReport returns simple dashboard-friendly quality diagnostics for the graph.
