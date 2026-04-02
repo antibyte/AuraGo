@@ -1129,14 +1129,12 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			return "Tool Output: " + tools.ExecuteImageProcessing(req.Operation, req.FilePath, req.OutputFile, req.OutputFormat, req.Width, req.Height, req.QualityPct, req.CropX, req.CropY, req.CropWidth, req.CropHeight, req.Angle)
 
 		case "filesystem", "filesystem_op":
+			req := decodeFilesystemArgs(tc)
 			// Parameter robustness: handle 'path' and 'dest' aliases frequently hallucinated by LLMs
-			fpath := resolveFilePath(tc)
-			fdest := tc.Destination
-			if fdest == "" {
-				fdest = tc.Dest
-			}
+			fpath := req.FilePath
+			fdest := req.Destination
 
-			op := strings.TrimSpace(strings.ToLower(tc.Operation))
+			op := strings.TrimSpace(strings.ToLower(req.Operation))
 			if op == "list" || op == "ls" {
 				op = "list_dir"
 			}
@@ -1150,7 +1148,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 					return "Tool Output: [PERMISSION DENIED] Access to this file is not allowed. System configuration, database and credential files are off-limits."
 				}
 			}
-			for _, item := range tc.Items {
+			for _, item := range req.Items {
 				for _, checkPath := range []string{
 					stringValueFromMap(item, "file_path", "path"),
 					stringValueFromMap(item, "destination", "dest"),
@@ -1186,12 +1184,13 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				}
 			}
 			logger.Info("LLM requested filesystem operation", "op", op, "path", fpath, "dest", fdest)
-			return tools.ExecuteFilesystem(op, fpath, fdest, tc.Content, tc.Items, cfg.Directories.WorkspaceDir)
+			return tools.ExecuteFilesystem(op, fpath, fdest, req.Content, req.Items, cfg.Directories.WorkspaceDir)
 
 		case "file_editor":
-			fpath := resolveFilePath(tc)
+			req := decodeFileEditorArgs(tc)
+			fpath := req.FilePath
 
-			op := strings.TrimSpace(strings.ToLower(tc.Operation))
+			op := strings.TrimSpace(strings.ToLower(req.Operation))
 
 			// Block access to system-sensitive files
 			wsDir := cfg.Directories.WorkspaceDir
@@ -1205,11 +1204,12 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				return "Tool Output: [PERMISSION DENIED] file_editor operations are disabled in Danger Zone settings (agent.allow_filesystem_write: false)."
 			}
 			logger.Info("LLM requested file_editor operation", "op", op, "path", fpath)
-			return tools.ExecuteFileEditor(op, fpath, tc.Old, tc.New, tc.Marker, tc.Content, tc.StartLine, tc.EndLine, tc.LineCount, cfg.Directories.WorkspaceDir)
+			return tools.ExecuteFileEditor(op, fpath, req.Old, req.New, req.Marker, req.Content, req.StartLine, req.EndLine, req.LineCount, cfg.Directories.WorkspaceDir)
 
 		case "json_editor":
-			fpath := resolveFilePath(tc)
-			op := strings.TrimSpace(strings.ToLower(tc.Operation))
+			req := decodeJSONEditorArgs(tc)
+			fpath := req.FilePath
+			op := strings.TrimSpace(strings.ToLower(req.Operation))
 			wsDir := cfg.Directories.WorkspaceDir
 			if isProtectedSystemPath(fpath, wsDir, cfg) {
 				logger.Warn("LLM attempted json_editor access to protected system file — blocked",
@@ -1224,11 +1224,12 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				}
 			}
 			logger.Info("LLM requested json_editor operation", "op", op, "path", fpath)
-			return tools.ExecuteJsonEditor(op, fpath, tc.JsonPath, tc.SetValue, tc.Content, wsDir)
+			return tools.ExecuteJsonEditor(op, fpath, req.JsonPath, req.SetValue, req.Content, wsDir)
 
 		case "yaml_editor":
-			fpath := resolveFilePath(tc)
-			op := strings.TrimSpace(strings.ToLower(tc.Operation))
+			req := decodeYAMLEditorArgs(tc)
+			fpath := req.FilePath
+			op := strings.TrimSpace(strings.ToLower(req.Operation))
 			wsDir := cfg.Directories.WorkspaceDir
 			if isProtectedSystemPath(fpath, wsDir, cfg) {
 				logger.Warn("LLM attempted yaml_editor access to protected system file — blocked",
@@ -1242,11 +1243,12 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				}
 			}
 			logger.Info("LLM requested yaml_editor operation", "op", op, "path", fpath)
-			return tools.ExecuteYamlEditor(op, fpath, tc.JsonPath, tc.SetValue, wsDir)
+			return tools.ExecuteYamlEditor(op, fpath, req.JsonPath, req.SetValue, wsDir)
 
 		case "xml_editor":
-			fpath := resolveFilePath(tc)
-			op := strings.TrimSpace(strings.ToLower(tc.Operation))
+			req := decodeXMLEditorArgs(tc)
+			fpath := req.FilePath
+			op := strings.TrimSpace(strings.ToLower(req.Operation))
 			wsDir := cfg.Directories.WorkspaceDir
 			if isProtectedSystemPath(fpath, wsDir, cfg) {
 				logger.Warn("LLM attempted xml_editor access to protected system file — blocked",
@@ -1260,33 +1262,29 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				}
 			}
 			logger.Info("LLM requested xml_editor operation", "op", op, "path", fpath)
-			xpath := tc.Xpath
-			if xpath == "" {
-				xpath = tc.JsonPath
-			}
-			return tools.ExecuteXmlEditor(op, fpath, xpath, tc.SetValue, wsDir)
+			return tools.ExecuteXmlEditor(op, fpath, req.XPath, req.SetValue, wsDir)
 
 		case "file_search":
-			op := strings.TrimSpace(strings.ToLower(tc.Operation))
-			fpath := resolveFilePath(tc)
-			logger.Info("LLM requested file_search", "op", op, "pattern", tc.Pattern)
-			return tools.ExecuteFileSearch(op, tc.Pattern, fpath, tc.Glob, tc.OutputMode, cfg.Directories.WorkspaceDir)
+			req := decodeFileSearchArgs(tc)
+			op := strings.TrimSpace(strings.ToLower(req.Operation))
+			logger.Info("LLM requested file_search", "op", op, "pattern", req.Pattern)
+			return tools.ExecuteFileSearch(op, req.Pattern, req.FilePath, req.Glob, req.OutputMode, cfg.Directories.WorkspaceDir)
 
 		case "file_reader_advanced":
-			op := strings.TrimSpace(strings.ToLower(tc.Operation))
-			fpath := resolveFilePath(tc)
-			logger.Info("LLM requested file_reader_advanced", "op", op, "path", fpath)
-			return tools.ExecuteFileReaderAdvanced(op, fpath, tc.Pattern, tc.StartLine, tc.EndLine, tc.LineCount, cfg.Directories.WorkspaceDir)
+			req := decodeAdvancedFileReadArgs(tc)
+			op := strings.TrimSpace(strings.ToLower(req.Operation))
+			logger.Info("LLM requested file_reader_advanced", "op", op, "path", req.FilePath)
+			return tools.ExecuteFileReaderAdvanced(op, req.FilePath, req.Pattern, req.StartLine, req.EndLine, req.LineCount, cfg.Directories.WorkspaceDir)
 
 		case "smart_file_read":
-			op := strings.TrimSpace(strings.ToLower(tc.Operation))
-			fpath := resolveFilePath(tc)
-			logger.Info("LLM requested smart_file_read", "op", op, "path", fpath, "strategy", tc.SamplingStrategy)
+			req := decodeSmartFileReadArgs(tc)
+			op := strings.TrimSpace(strings.ToLower(req.Operation))
+			logger.Info("LLM requested smart_file_read", "op", op, "path", req.FilePath, "strategy", req.SamplingStrategy)
 			return tools.ExecuteSmartFileRead(ctx, tools.ResolveSummaryLLMConfig(cfg, tools.SummaryLLMConfig{
 				APIKey:  cfg.LLM.APIKey,
 				BaseURL: cfg.LLM.BaseURL,
 				Model:   cfg.LLM.Model,
-			}), logger, op, fpath, tc.Query, tc.SamplingStrategy, tc.MaxTokens, tc.LineCount, cfg.Directories.WorkspaceDir)
+			}), logger, op, req.FilePath, req.Query, req.SamplingStrategy, req.MaxTokens, req.LineCount, cfg.Directories.WorkspaceDir)
 
 		case "api_request":
 			if !cfg.Agent.AllowNetworkRequests {

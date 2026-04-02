@@ -278,6 +278,152 @@ func TestDecodeAPIRequestArgsUsesParamsFallback(t *testing.T) {
 	}
 }
 
+func TestDecodeFilesystemArgsUsesParamsFallback(t *testing.T) {
+	req := decodeFilesystemArgs(ToolCall{
+		Action: "filesystem",
+		Params: map[string]interface{}{
+			"operation": "copy_batch",
+			"path":      "source.txt",
+			"dest":      "dest.txt",
+			"content":   "payload",
+			"items": []interface{}{
+				map[string]interface{}{"path": "a.txt", "dest": "b.txt"},
+			},
+		},
+	})
+
+	if req.Operation != "copy_batch" || req.FilePath != "source.txt" || req.Destination != "dest.txt" || req.Content != "payload" {
+		t.Fatalf("unexpected filesystem decode: %+v", req)
+	}
+	if len(req.Items) != 1 || req.Items[0]["path"] != "a.txt" || req.Items[0]["dest"] != "b.txt" {
+		t.Fatalf("unexpected filesystem items: %+v", req.Items)
+	}
+}
+
+func TestDecodeFileEditorArgsUsesParamsFallback(t *testing.T) {
+	req := decodeFileEditorArgs(ToolCall{
+		Action: "file_editor",
+		Params: map[string]interface{}{
+			"operation":  "replace",
+			"path":       "notes.txt",
+			"old":        "before",
+			"new":        "after",
+			"marker":     "anchor",
+			"content":    "body",
+			"start_line": float64(2),
+			"end_line":   float64(5),
+			"line_count": float64(3),
+		},
+	})
+
+	if req.Operation != "replace" || req.FilePath != "notes.txt" || req.Old != "before" || req.New != "after" || req.Marker != "anchor" || req.Content != "body" {
+		t.Fatalf("unexpected file editor decode: %+v", req)
+	}
+	if req.StartLine != 2 || req.EndLine != 5 || req.LineCount != 3 {
+		t.Fatalf("unexpected file editor decode: %+v", req)
+	}
+}
+
+func TestDecodeStructuredEditorArgsUseParamsFallback(t *testing.T) {
+	jsonReq := decodeJSONEditorArgs(ToolCall{
+		Action: "json_editor",
+		Params: map[string]interface{}{
+			"operation": "set",
+			"path":      "config.json",
+			"json_path": "features.enabled",
+			"set_value": true,
+			"content":   "{\"features\":{}}",
+		},
+	})
+	if jsonReq.Operation != "set" || jsonReq.FilePath != "config.json" || jsonReq.JsonPath != "features.enabled" || jsonReq.Content != "{\"features\":{}}" {
+		t.Fatalf("unexpected json editor decode: %+v", jsonReq)
+	}
+	if value, ok := jsonReq.SetValue.(bool); !ok || !value {
+		t.Fatalf("unexpected json set value: %#v", jsonReq.SetValue)
+	}
+
+	yamlReq := decodeYAMLEditorArgs(ToolCall{
+		Action: "yaml_editor",
+		Params: map[string]interface{}{
+			"operation": "delete",
+			"path":      "config.yaml",
+			"json_path": "spec.replicas",
+			"set_value": "gone",
+		},
+	})
+	if yamlReq.Operation != "delete" || yamlReq.FilePath != "config.yaml" || yamlReq.JsonPath != "spec.replicas" {
+		t.Fatalf("unexpected yaml editor decode: %+v", yamlReq)
+	}
+	if yamlReq.SetValue != "gone" {
+		t.Fatalf("unexpected yaml set value: %#v", yamlReq.SetValue)
+	}
+
+	xmlReq := decodeXMLEditorArgs(ToolCall{
+		Action: "xml_editor",
+		Params: map[string]interface{}{
+			"operation": "set_text",
+			"path":      "doc.xml",
+			"xpath":     "/root/title",
+			"set_value": "AuraGo",
+		},
+	})
+	if xmlReq.Operation != "set_text" || xmlReq.FilePath != "doc.xml" || xmlReq.XPath != "/root/title" || xmlReq.SetValue != "AuraGo" {
+		t.Fatalf("unexpected xml editor decode: %+v", xmlReq)
+	}
+}
+
+func TestDecodeFileReadArgsUseParamsFallback(t *testing.T) {
+	searchReq := decodeFileSearchArgs(ToolCall{
+		Action: "file_search",
+		Params: map[string]interface{}{
+			"operation":   "search",
+			"path":        ".",
+			"pattern":     "TODO",
+			"glob":        "*.go",
+			"output_mode": "lines",
+		},
+	})
+	if searchReq.Operation != "search" || searchReq.FilePath != "." || searchReq.Pattern != "TODO" || searchReq.Glob != "*.go" || searchReq.OutputMode != "lines" {
+		t.Fatalf("unexpected file search decode: %+v", searchReq)
+	}
+
+	advancedReq := decodeAdvancedFileReadArgs(ToolCall{
+		Action: "file_reader_advanced",
+		Params: map[string]interface{}{
+			"operation":  "lines",
+			"path":       "README.md",
+			"pattern":    "install",
+			"start_line": float64(10),
+			"end_line":   float64(25),
+			"line_count": float64(15),
+		},
+	})
+	if advancedReq.Operation != "lines" || advancedReq.FilePath != "README.md" || advancedReq.Pattern != "install" {
+		t.Fatalf("unexpected advanced file read decode: %+v", advancedReq)
+	}
+	if advancedReq.StartLine != 10 || advancedReq.EndLine != 25 || advancedReq.LineCount != 15 {
+		t.Fatalf("unexpected advanced file read decode: %+v", advancedReq)
+	}
+
+	smartReq := decodeSmartFileReadArgs(ToolCall{
+		Action: "smart_file_read",
+		Params: map[string]interface{}{
+			"operation":         "semantic",
+			"path":              "manual.md",
+			"query":             "deployment",
+			"sampling_strategy": "distributed",
+			"max_tokens":        float64(1200),
+			"line_count":        float64(40),
+		},
+	})
+	if smartReq.Operation != "semantic" || smartReq.FilePath != "manual.md" || smartReq.Query != "deployment" || smartReq.SamplingStrategy != "distributed" {
+		t.Fatalf("unexpected smart file read decode: %+v", smartReq)
+	}
+	if smartReq.MaxTokens != 1200 || smartReq.LineCount != 40 {
+		t.Fatalf("unexpected smart file read decode: %+v", smartReq)
+	}
+}
+
 func TestDecodeKnowledgeGraphArgsUsesParamsFallback(t *testing.T) {
 	req := decodeKnowledgeGraphArgs(ToolCall{
 		Action: "knowledge_graph",
