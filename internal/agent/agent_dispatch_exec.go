@@ -1470,12 +1470,9 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			return "Tool Output: " + string(resultJSON)
 
 		case "query_inventory":
-			queryTag := tc.Tag
-			if queryTag == "" {
-				queryTag = tc.Tags
-			}
-			logger.Info("LLM requested inventory query", "tag", queryTag, "name", tc.Hostname)
-			devices, err := inventory.QueryDevices(inventoryDB, queryTag, tc.DeviceType, tc.Hostname)
+			req := decodeInventoryQueryArgs(tc)
+			logger.Info("LLM requested inventory query", "tag", req.Tag, "name", req.Hostname)
+			devices, err := inventory.QueryDevices(inventoryDB, req.Tag, req.DeviceType, req.Hostname)
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Failed to query inventory: %v"}`, err)
 			}
@@ -1483,17 +1480,18 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			if mErr != nil {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Failed to serialize devices: %v"}`, mErr)
 			}
-			return fmt.Sprintf(`Tool Output: {"status": "success", "tag": "%s", "device_type": "%s", "name_match": "%s", "devices": %s}`, tc.Tag, tc.DeviceType, tc.Hostname, string(b))
+			return fmt.Sprintf(`Tool Output: {"status": "success", "tag": "%s", "device_type": "%s", "name_match": "%s", "devices": %s}`, req.Tag, req.DeviceType, req.Hostname, string(b))
 
 		case "execute_remote_shell", "remote_execution":
 			if !cfg.Agent.AllowRemoteShell {
 				return "Tool Output: [PERMISSION DENIED] execute_remote_shell is disabled in Danger Zone settings (agent.allow_remote_shell: false)."
 			}
-			logger.Info("LLM requested remote shell execution", "server_id", tc.ServerID, "command", tc.Command)
-			if tc.ServerID == "" || tc.Command == "" {
+			req := decodeRemoteShellArgs(tc)
+			logger.Info("LLM requested remote shell execution", "server_id", req.ServerID, "command", req.Command)
+			if req.ServerID == "" || req.Command == "" {
 				return `Tool Output: {"status": "error", "message": "'server_id' and 'command' are required"}`
 			}
-			device, err := inventory.GetDeviceByIDOrName(inventoryDB, tc.ServerID)
+			device, err := inventory.GetDeviceByIDOrName(inventoryDB, req.ServerID)
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Device not found: %v"}`, err)
 			}
@@ -1503,7 +1501,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			}
 			rCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 			defer cancel()
-			output, err := remote.ExecuteRemoteCommand(rCtx, access.Host, access.Port, access.Username, access.Secret, tc.Command)
+			output, err := remote.ExecuteRemoteCommand(rCtx, access.Host, access.Port, access.Username, access.Secret, req.Command)
 			if err != nil {
 				safeOutput, mErr := json.Marshal(output)
 				if mErr != nil {
@@ -1521,12 +1519,13 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			if !cfg.Agent.AllowRemoteShell {
 				return "Tool Output: [PERMISSION DENIED] transfer_remote_file is disabled in Danger Zone settings (agent.allow_remote_shell: false)."
 			}
-			logger.Info("LLM requested remote file transfer", "server_id", tc.ServerID, "direction", tc.Direction)
-			if tc.ServerID == "" || tc.Direction == "" || tc.LocalPath == "" || tc.RemotePath == "" {
+			req := decodeRemoteFileTransferArgs(tc)
+			logger.Info("LLM requested remote file transfer", "server_id", req.ServerID, "direction", req.Direction)
+			if req.ServerID == "" || req.Direction == "" || req.LocalPath == "" || req.RemotePath == "" {
 				return `Tool Output: {"status": "error", "message": "'server_id', 'direction', 'local_path', and 'remote_path' are required"}`
 			}
 			// Sanitize and restrict local path
-			absLocal, err := filepath.Abs(tc.LocalPath)
+			absLocal, err := filepath.Abs(req.LocalPath)
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Invalid local path: %v"}`, err)
 			}
@@ -1535,7 +1534,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Permission denied: local_path must be within %s"}`, workspaceWorkdir)
 			}
 
-			device, err := inventory.GetDeviceByIDOrName(inventoryDB, tc.ServerID)
+			device, err := inventory.GetDeviceByIDOrName(inventoryDB, req.ServerID)
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Device not found: %v"}`, err)
 			}
@@ -1545,11 +1544,11 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			}
 			rCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
 			defer cancel()
-			err = remote.TransferFile(rCtx, access.Host, access.Port, access.Username, access.Secret, absLocal, tc.RemotePath, tc.Direction)
+			err = remote.TransferFile(rCtx, access.Host, access.Port, access.Username, access.Secret, absLocal, req.RemotePath, req.Direction)
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "File transfer failed: %v"}`, err)
 			}
-			return fmt.Sprintf(`Tool Output: {"status": "success", "message": "File %s successfully"}`, tc.Direction)
+			return fmt.Sprintf(`Tool Output: {"status": "success", "message": "File %s successfully"}`, req.Direction)
 
 		case "manage_schedule", "cron_scheduler":
 			req := decodeCronScheduleArgs(tc)

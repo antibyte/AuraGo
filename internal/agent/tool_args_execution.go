@@ -243,6 +243,24 @@ type imageGenerationArgs struct {
 	SourceImage   string
 }
 
+type inventoryQueryArgs struct {
+	Tag        string
+	DeviceType string
+	Hostname   string
+}
+
+type remoteShellArgs struct {
+	ServerID string
+	Command  string
+}
+
+type remoteFileTransferArgs struct {
+	ServerID   string
+	Direction  string
+	LocalPath  string
+	RemotePath string
+}
+
 func toolArgInterfaceMap(args map[string]interface{}, keys ...string) map[string]interface{} {
 	for _, key := range keys {
 		raw, ok := args[key]
@@ -765,4 +783,33 @@ func decodeImageGenerationArgs(tc ToolCall) imageGenerationArgs {
 		req.EnhancePrompt = toolArgBoolPtr(tc.Params, "enhance_prompt")
 	}
 	return req
+}
+
+func decodeInventoryQueryArgs(tc ToolCall) inventoryQueryArgs {
+	tag := firstNonEmptyToolString(
+		tc.Tag,
+		tc.Tags,
+		toolArgString(tc.Params, "tag", "tags"),
+	)
+	return inventoryQueryArgs{
+		Tag:        tag,
+		DeviceType: firstNonEmptyToolString(tc.DeviceType, toolArgString(tc.Params, "device_type")),
+		Hostname:   firstNonEmptyToolString(tc.Hostname, toolArgString(tc.Params, "hostname", "name")),
+	}
+}
+
+func decodeRemoteShellArgs(tc ToolCall) remoteShellArgs {
+	return remoteShellArgs{
+		ServerID: firstNonEmptyToolString(tc.ServerID, toolArgString(tc.Params, "server_id", "id", "name")),
+		Command:  firstNonEmptyToolString(tc.Command, toolArgString(tc.Params, "command")),
+	}
+}
+
+func decodeRemoteFileTransferArgs(tc ToolCall) remoteFileTransferArgs {
+	return remoteFileTransferArgs{
+		ServerID:   firstNonEmptyToolString(tc.ServerID, toolArgString(tc.Params, "server_id", "id", "name")),
+		Direction:  firstNonEmptyToolString(tc.Direction, toolArgString(tc.Params, "direction")),
+		LocalPath:  firstNonEmptyToolString(tc.LocalPath, toolArgString(tc.Params, "local_path")),
+		RemotePath: firstNonEmptyToolString(tc.RemotePath, toolArgString(tc.Params, "remote_path")),
+	}
 }

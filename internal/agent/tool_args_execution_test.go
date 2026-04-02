@@ -466,6 +466,44 @@ func TestDecodeImageGenerationArgsUsesParamsFallback(t *testing.T) {
 	}
 }
 
+func TestDecodeInventoryAndRemoteArgsUseParamsFallback(t *testing.T) {
+	inventoryReq := decodeInventoryQueryArgs(ToolCall{
+		Action: "query_inventory",
+		Params: map[string]interface{}{
+			"tags":        "lab",
+			"device_type": "server",
+			"hostname":    "nas",
+		},
+	})
+	if inventoryReq.Tag != "lab" || inventoryReq.DeviceType != "server" || inventoryReq.Hostname != "nas" {
+		t.Fatalf("unexpected inventory decode: %+v", inventoryReq)
+	}
+
+	shellReq := decodeRemoteShellArgs(ToolCall{
+		Action: "execute_remote_shell",
+		Params: map[string]interface{}{
+			"server_id": "srv-1",
+			"command":   "uptime",
+		},
+	})
+	if shellReq.ServerID != "srv-1" || shellReq.Command != "uptime" {
+		t.Fatalf("unexpected remote shell decode: %+v", shellReq)
+	}
+
+	transferReq := decodeRemoteFileTransferArgs(ToolCall{
+		Action: "transfer_remote_file",
+		Params: map[string]interface{}{
+			"server_id":   "srv-2",
+			"direction":   "upload",
+			"local_path":  "workdir/out.txt",
+			"remote_path": "/tmp/out.txt",
+		},
+	})
+	if transferReq.ServerID != "srv-2" || transferReq.Direction != "upload" || transferReq.LocalPath != "workdir/out.txt" || transferReq.RemotePath != "/tmp/out.txt" {
+		t.Fatalf("unexpected remote transfer decode: %+v", transferReq)
+	}
+}
+
 func TestDecodeKnowledgeGraphArgsUsesParamsFallback(t *testing.T) {
 	req := decodeKnowledgeGraphArgs(ToolCall{
 		Action: "knowledge_graph",
