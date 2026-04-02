@@ -558,3 +558,18 @@ func TestBuiltinToolSchemasNetlifyOmitsZipDeployOperations(t *testing.T) {
 
 	t.Fatal("netlify schema not found")
 }
+
+func TestBuiltinToolSchemasDoNotContainDuplicateNames(t *testing.T) {
+	schemas := builtinToolSchemas(allBuiltinToolFeatureFlags())
+
+	seen := make(map[string]struct{}, len(schemas))
+	for _, s := range schemas {
+		if s.Function == nil || s.Function.Name == "" {
+			continue
+		}
+		if _, ok := seen[s.Function.Name]; ok {
+			t.Fatalf("duplicate builtin tool schema name: %s", s.Function.Name)
+		}
+		seen[s.Function.Name] = struct{}{}
+	}
+}
