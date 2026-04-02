@@ -478,8 +478,9 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			return fmt.Sprintf("Tool Output: %s", res)
 
 		case "follow_up":
-			logger.Info("LLM requested follow-up", "prompt", tc.TaskPrompt)
-			if tc.TaskPrompt == "" {
+			req := decodeFollowUpArgs(tc)
+			logger.Info("LLM requested follow-up", "prompt", req.TaskPrompt)
+			if req.TaskPrompt == "" {
 				return "Tool Output: ERROR 'task_prompt' is required for follow_up"
 			}
 			if !cfg.Agent.BackgroundTasks.Enabled {
@@ -489,7 +490,7 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			// Guard: follow_up must describe work for the agent to do autonomously.
 			// It must NEVER be used to relay a question back to the user — that causes
 			// an infinite loop where each invocation re-asks the same question.
-			trimmedPrompt := strings.TrimSpace(tc.TaskPrompt)
+			trimmedPrompt := strings.TrimSpace(req.TaskPrompt)
 			if isFollowUpQuestion(trimmedPrompt) {
 				logger.Warn("[follow_up] Blocked: task_prompt looks like a question directed at the user", "prompt", trimmedPrompt)
 				return `Tool Output: [ERROR] follow_up must not be used to ask the user for information. ` +
@@ -503,21 +504,21 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				return "Tool Output: ERROR background task manager is unavailable."
 			}
 			delay := time.Duration(cfg.Agent.BackgroundTasks.FollowUpDelaySeconds) * time.Second
-			if tc.DelaySeconds > 0 {
-				delay = time.Duration(tc.DelaySeconds) * time.Second
+			if req.DelaySeconds > 0 {
+				delay = time.Duration(req.DelaySeconds) * time.Second
 			}
 			timeout := time.Duration(cfg.Agent.BackgroundTasks.HTTPTimeoutSeconds) * time.Second
-			if tc.TimeoutSecs > 0 {
-				timeout = time.Duration(tc.TimeoutSecs) * time.Second
+			if req.TimeoutSecs > 0 {
+				timeout = time.Duration(req.TimeoutSecs) * time.Second
 			}
-			task, err := bgMgr.ScheduleFollowUp(tc.TaskPrompt, tools.BackgroundTaskScheduleOptions{
+			task, err := bgMgr.ScheduleFollowUp(req.TaskPrompt, tools.BackgroundTaskScheduleOptions{
 				Source:             "follow_up",
 				Description:        "Autonomous follow-up",
 				Delay:              delay,
 				MaxRetries:         cfg.Agent.BackgroundTasks.MaxRetries,
 				RetryDelay:         time.Duration(cfg.Agent.BackgroundTasks.RetryDelaySeconds) * time.Second,
 				Timeout:            timeout,
-				NotifyOnCompletion: tc.NotifyOnCompletion,
+				NotifyOnCompletion: req.NotifyOnCompletion,
 			})
 			if err != nil {
 				logger.Error("Failed to schedule follow-up", "error", err)
@@ -527,14 +528,15 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			return fmt.Sprintf("Tool Output: Follow-up scheduled as background task %s. I will continue in the background after this message.", task.ID)
 
 		case "wait_for_event":
-			logger.Info("LLM requested wait_for_event", "event_type", tc.EventType, "task_prompt", tc.TaskPrompt)
+			req := decodeWaitForEventArgs(tc)
+			logger.Info("LLM requested wait_for_event", "event_type", req.EventType, "task_prompt", req.TaskPrompt)
 			if !cfg.Agent.BackgroundTasks.Enabled {
 				return "Tool Output: ERROR background tasks are disabled in config (agent.background_tasks.enabled=false)."
 			}
-			if tc.EventType == "" {
+			if req.EventType == "" {
 				return "Tool Output: ERROR 'event_type' is required for wait_for_event"
 			}
-			if tc.TaskPrompt == "" {
+			if req.TaskPrompt == "" {
 				return "Tool Output: ERROR 'task_prompt' is required for wait_for_event"
 			}
 			bgMgr := tools.DefaultBackgroundTaskManager()
@@ -543,32 +545,32 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				return "Tool Output: ERROR background task manager is unavailable."
 			}
 			waitTimeout := cfg.Agent.BackgroundTasks.WaitDefaultTimeoutSecs
-			if tc.TimeoutSecs > 0 {
-				waitTimeout = tc.TimeoutSecs
+			if req.TimeoutSecs > 0 {
+				waitTimeout = req.TimeoutSecs
 			}
 			pollInterval := cfg.Agent.BackgroundTasks.WaitPollIntervalSecs
-			if tc.IntervalSecs > 0 {
-				pollInterval = tc.IntervalSecs
+			if req.IntervalSecs > 0 {
+				pollInterval = req.IntervalSecs
 			}
 			payload := tools.WaitForEventTaskPayload{
-				EventType:           tc.EventType,
-				TaskPrompt:          tc.TaskPrompt,
-				URL:                 tc.URL,
-				Host:                tc.Host,
-				Port:                tc.Port,
-				FilePath:            tc.FilePath,
-				PID:                 tc.PID,
+				EventType:           req.EventType,
+				TaskPrompt:          req.TaskPrompt,
+				URL:                 req.URL,
+				Host:                req.Host,
+				Port:                req.Port,
+				FilePath:            req.FilePath,
+				PID:                 req.PID,
 				PollIntervalSeconds: pollInterval,
 				TimeoutSeconds:      waitTimeout,
 			}
-			desc := fmt.Sprintf("Wait for %s", tc.EventType)
+			desc := fmt.Sprintf("Wait for %s", req.EventType)
 			task, err := bgMgr.ScheduleWaitForEvent(payload, tools.BackgroundTaskScheduleOptions{
 				Source:             "wait_for_event",
 				Description:        desc,
 				MaxRetries:         cfg.Agent.BackgroundTasks.MaxRetries,
 				RetryDelay:         time.Duration(cfg.Agent.BackgroundTasks.RetryDelaySeconds) * time.Second,
 				Timeout:            time.Duration(cfg.Agent.BackgroundTasks.HTTPTimeoutSeconds) * time.Second,
-				NotifyOnCompletion: tc.NotifyOnCompletion,
+				NotifyOnCompletion: req.NotifyOnCompletion,
 			})
 			if err != nil {
 				logger.Error("Failed to schedule wait_for_event", "error", err)
@@ -622,24 +624,25 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			return fmt.Sprintf("Tool Output: %s", answer)
 
 		case "get_tool_manual":
-			logger.Info("LLM requested tool manual", "name", tc.ToolName)
-			if tc.ToolName == "" {
+			req := decodeToolManualArgs(tc)
+			logger.Info("LLM requested tool manual", "name", req.ToolName)
+			if req.ToolName == "" {
 				return "Tool Output: ERROR 'tool_name' is required"
 			}
 
 			// Fallback for LLMs getting creative with the manual name
-			cleanName := strings.TrimSuffix(tc.ToolName, ".md")
+			cleanName := strings.TrimSuffix(req.ToolName, ".md")
 			cleanName = strings.TrimSuffix(cleanName, "_tool_manual")
 			// Reject path traversal and separators in the manual name.
 			if strings.ContainsAny(cleanName, "/\\") || strings.Contains(cleanName, "..") {
-				return fmt.Sprintf("Tool Output: ERROR invalid tool name for manual lookup: '%s'", tc.ToolName)
+				return fmt.Sprintf("Tool Output: ERROR invalid tool name for manual lookup: '%s'", req.ToolName)
 			}
 			manualPath := filepath.Join(cfg.Directories.PromptsDir, "tools_manuals", cleanName+".md")
 			data, err := os.ReadFile(manualPath)
 			if err != nil {
-				return fmt.Sprintf("Tool Output: ERROR could not read manual for '%s': %v", tc.ToolName, err)
+				return fmt.Sprintf("Tool Output: ERROR could not read manual for '%s': %v", req.ToolName, err)
 			}
-			return fmt.Sprintf("Tool Output: [MANUAL FOR %s]\n%s", tc.ToolName, string(data))
+			return fmt.Sprintf("Tool Output: [MANUAL FOR %s]\n%s", req.ToolName, string(data))
 
 		case "execute_surgery":
 			if !isMaintenance {
@@ -672,15 +675,17 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			return "Tool Output: [LIFEBOAT_EXIT_SIGNAL] Maintenance complete. Attempting to return to main supervisor."
 
 		case "initiate_handover":
+			req := decodeLifeboatHandoverArgs(tc)
 			if isMaintenance {
 				return "Tool Output: ERROR You are already in Lifeboat mode. Maintenance is active. Use 'exit_lifeboat' to return to the supervisor or 'execute_surgery' for code changes."
 			}
-			logger.Info("LLM requested lifeboat handover", "plan_len", len(tc.TaskPrompt))
-			return tools.InitiateLifeboatHandover(tc.TaskPrompt, cfg)
+			logger.Info("LLM requested lifeboat handover", "plan_len", len(req.TaskPrompt))
+			return tools.InitiateLifeboatHandover(req.TaskPrompt, cfg)
 
 		case "get_system_metrics", "system_metrics":
-			logger.Info("LLM requested system metrics", "target", tc.Target)
-			return "Tool Output: " + tools.GetSystemMetrics(tc.Target)
+			req := decodeSystemMetricsArgs(tc)
+			logger.Info("LLM requested system metrics", "target", req.Target)
+			return "Tool Output: " + tools.GetSystemMetrics(req.Target)
 
 		case "process_analyzer":
 			req := decodeProcessAnalyzerArgs(tc)
@@ -1201,127 +1206,128 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			return handleRemember(tc, cfg, logger, shortTermMem, kg, sessionID)
 
 		case "manage_plan":
-			logger.Info("LLM requested plan management", "op", tc.Operation, "session_id", sessionID)
+			req := decodePlanManagementArgs(tc)
+			logger.Info("LLM requested plan management", "op", req.Operation, "session_id", sessionID)
 			if shortTermMem == nil {
 				return `Tool Output: {"status":"error","message":"Plan storage not available"}`
 			}
-			switch tc.Operation {
+			switch req.Operation {
 			case "create":
-				if tc.Title == "" {
+				if req.Title == "" {
 					return `Tool Output: {"status":"error","message":"'title' is required for create"}`
 				}
-				plan, err := shortTermMem.CreatePlan(sessionID, tc.Title, tc.Description, tc.Content, tc.Priority, planTaskInputsFromItems(tc.Items))
+				plan, err := shortTermMem.CreatePlan(sessionID, req.Title, req.Description, req.Content, req.Priority, planTaskInputsFromItems(req.Items))
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status":"error","message":%q}`, err.Error())
 				}
 				payload, _ := json.Marshal(plan)
 				return fmt.Sprintf(`Tool Output: {"status":"success","message":"Plan created","plan":%s}`, string(payload))
 			case "list":
-				status := tc.Status
+				status := req.Status
 				if status == "" {
 					status = "all"
 				}
-				plans, err := shortTermMem.ListPlans(sessionID, status, tc.Limit, tc.IncludeArchived)
+				plans, err := shortTermMem.ListPlans(sessionID, status, req.Limit, req.IncludeArchived)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status":"error","message":%q}`, err.Error())
 				}
 				payload, _ := json.Marshal(plans)
 				return fmt.Sprintf(`Tool Output: {"status":"success","count":%d,"plans":%s}`, len(plans), string(payload))
 			case "get":
-				if tc.ID == "" {
+				if req.ID == "" {
 					return `Tool Output: {"status":"error","message":"'id' is required for get"}`
 				}
-				plan, err := shortTermMem.GetPlan(tc.ID)
+				plan, err := shortTermMem.GetPlan(req.ID)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status":"error","message":%q}`, err.Error())
 				}
 				payload, _ := json.Marshal(plan)
 				return fmt.Sprintf(`Tool Output: {"status":"success","plan":%s}`, string(payload))
 			case "set_status":
-				if tc.ID == "" {
+				if req.ID == "" {
 					return `Tool Output: {"status":"error","message":"'id' is required for set_status"}`
 				}
-				plan, err := shortTermMem.SetPlanStatus(tc.ID, tc.Status, tc.Content)
+				plan, err := shortTermMem.SetPlanStatus(req.ID, req.Status, req.Content)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status":"error","message":%q}`, err.Error())
 				}
 				payload, _ := json.Marshal(plan)
 				return fmt.Sprintf(`Tool Output: {"status":"success","message":"Plan status updated","plan":%s}`, string(payload))
 			case "update_task":
-				if tc.ID == "" || tc.TaskID == "" {
+				if req.ID == "" || req.TaskID == "" {
 					return `Tool Output: {"status":"error","message":"'id' and 'task_id' are required for update_task"}`
 				}
-				plan, err := shortTermMem.UpdatePlanTask(tc.ID, tc.TaskID, tc.Status, tc.Result, tc.Error)
+				plan, err := shortTermMem.UpdatePlanTask(req.ID, req.TaskID, req.Status, req.Result, req.Error)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status":"error","message":%q}`, err.Error())
 				}
 				payload, _ := json.Marshal(plan)
 				return fmt.Sprintf(`Tool Output: {"status":"success","message":"Task updated","plan":%s}`, string(payload))
 			case "advance":
-				if tc.ID == "" {
+				if req.ID == "" {
 					return `Tool Output: {"status":"error","message":"'id' is required for advance"}`
 				}
-				plan, err := shortTermMem.AdvancePlan(tc.ID, tc.Result)
+				plan, err := shortTermMem.AdvancePlan(req.ID, req.Result)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status":"error","message":%q}`, err.Error())
 				}
 				payload, _ := json.Marshal(plan)
 				return fmt.Sprintf(`Tool Output: {"status":"success","message":"Plan advanced","plan":%s}`, string(payload))
 			case "set_blocker":
-				if tc.ID == "" || tc.TaskID == "" {
+				if req.ID == "" || req.TaskID == "" {
 					return `Tool Output: {"status":"error","message":"'id' and 'task_id' are required for set_blocker"}`
 				}
-				reason := strings.TrimSpace(tc.Reason)
+				reason := strings.TrimSpace(req.Reason)
 				if reason == "" {
-					reason = strings.TrimSpace(tc.Content)
+					reason = strings.TrimSpace(req.Content)
 				}
-				plan, err := shortTermMem.SetPlanTaskBlocker(tc.ID, tc.TaskID, reason)
+				plan, err := shortTermMem.SetPlanTaskBlocker(req.ID, req.TaskID, reason)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status":"error","message":%q}`, err.Error())
 				}
 				payload, _ := json.Marshal(plan)
 				return fmt.Sprintf(`Tool Output: {"status":"success","message":"Task blocker set","plan":%s}`, string(payload))
 			case "clear_blocker":
-				if tc.ID == "" || tc.TaskID == "" {
+				if req.ID == "" || req.TaskID == "" {
 					return `Tool Output: {"status":"error","message":"'id' and 'task_id' are required for clear_blocker"}`
 				}
-				note := strings.TrimSpace(tc.Content)
+				note := strings.TrimSpace(req.Content)
 				if note == "" {
-					note = strings.TrimSpace(tc.Reason)
+					note = strings.TrimSpace(req.Reason)
 				}
-				plan, err := shortTermMem.ClearPlanTaskBlocker(tc.ID, tc.TaskID, note)
+				plan, err := shortTermMem.ClearPlanTaskBlocker(req.ID, req.TaskID, note)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status":"error","message":%q}`, err.Error())
 				}
 				payload, _ := json.Marshal(plan)
 				return fmt.Sprintf(`Tool Output: {"status":"success","message":"Task blocker cleared","plan":%s}`, string(payload))
 			case "append_note":
-				if tc.ID == "" {
+				if req.ID == "" {
 					return `Tool Output: {"status":"error","message":"'id' is required for append_note"}`
 				}
-				if err := shortTermMem.AppendPlanNote(tc.ID, tc.Content); err != nil {
+				if err := shortTermMem.AppendPlanNote(req.ID, req.Content); err != nil {
 					return fmt.Sprintf(`Tool Output: {"status":"error","message":%q}`, err.Error())
 				}
-				plan, err := shortTermMem.GetPlan(tc.ID)
+				plan, err := shortTermMem.GetPlan(req.ID)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status":"error","message":%q}`, err.Error())
 				}
 				payload, _ := json.Marshal(plan)
 				return fmt.Sprintf(`Tool Output: {"status":"success","message":"Plan note appended","plan":%s}`, string(payload))
 			case "attach_artifact":
-				if tc.ID == "" || tc.TaskID == "" {
+				if req.ID == "" || req.TaskID == "" {
 					return `Tool Output: {"status":"error","message":"'id' and 'task_id' are required for attach_artifact"}`
 				}
-				value := strings.TrimSpace(tc.Content)
+				value := strings.TrimSpace(req.Content)
 				if value == "" {
-					value = strings.TrimSpace(tc.FilePath)
+					value = strings.TrimSpace(req.FilePath)
 				}
 				if value == "" {
-					value = strings.TrimSpace(tc.URL)
+					value = strings.TrimSpace(req.URL)
 				}
-				plan, err := shortTermMem.AttachPlanTaskArtifact(tc.ID, tc.TaskID, memory.PlanArtifact{
-					Type:  strings.TrimSpace(tc.ArtifactType),
-					Label: strings.TrimSpace(tc.Label),
+				plan, err := shortTermMem.AttachPlanTaskArtifact(req.ID, req.TaskID, memory.PlanArtifact{
+					Type:  strings.TrimSpace(req.ArtifactType),
+					Label: strings.TrimSpace(req.Label),
 					Value: value,
 				})
 				if err != nil {
@@ -1330,29 +1336,29 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				payload, _ := json.Marshal(plan)
 				return fmt.Sprintf(`Tool Output: {"status":"success","message":"Artifact attached","plan":%s}`, string(payload))
 			case "split_task":
-				if tc.ID == "" || tc.TaskID == "" {
+				if req.ID == "" || req.TaskID == "" {
 					return `Tool Output: {"status":"error","message":"'id' and 'task_id' are required for split_task"}`
 				}
-				plan, err := shortTermMem.SplitPlanTask(tc.ID, tc.TaskID, planTaskInputsFromItems(tc.Items))
+				plan, err := shortTermMem.SplitPlanTask(req.ID, req.TaskID, planTaskInputsFromItems(req.Items))
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status":"error","message":%q}`, err.Error())
 				}
 				payload, _ := json.Marshal(plan)
 				return fmt.Sprintf(`Tool Output: {"status":"success","message":"Task split into subtasks","plan":%s}`, string(payload))
 			case "reorder_tasks":
-				if tc.ID == "" {
+				if req.ID == "" {
 					return `Tool Output: {"status":"error","message":"'id' is required for reorder_tasks"}`
 				}
-				orderedTaskIDs := planTaskIDsFromItems(tc.Items)
-				plan, err := shortTermMem.ReorderPlanTasks(tc.ID, orderedTaskIDs)
+				orderedTaskIDs := planTaskIDsFromItems(req.Items)
+				plan, err := shortTermMem.ReorderPlanTasks(req.ID, orderedTaskIDs)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status":"error","message":%q}`, err.Error())
 				}
 				payload, _ := json.Marshal(plan)
 				return fmt.Sprintf(`Tool Output: {"status":"success","message":"Task order updated","plan":%s}`, string(payload))
 			case "archive_completed":
-				if tc.ID != "" {
-					plan, err := shortTermMem.ArchivePlan(tc.ID)
+				if req.ID != "" {
+					plan, err := shortTermMem.ArchivePlan(req.ID)
 					if err != nil {
 						return fmt.Sprintf(`Tool Output: {"status":"error","message":%q}`, err.Error())
 					}
@@ -1365,117 +1371,112 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				}
 				return fmt.Sprintf(`Tool Output: {"status":"success","message":"Archived completed plans","count":%d}`, count)
 			case "delete":
-				if tc.ID == "" {
+				if req.ID == "" {
 					return `Tool Output: {"status":"error","message":"'id' is required for delete"}`
 				}
-				if err := shortTermMem.DeletePlan(tc.ID); err != nil {
+				if err := shortTermMem.DeletePlan(req.ID); err != nil {
 					return fmt.Sprintf(`Tool Output: {"status":"error","message":%q}`, err.Error())
 				}
 				return `Tool Output: {"status":"success","message":"Plan deleted"}`
 			default:
-				return fmt.Sprintf(`Tool Output: {"status":"error","message":"Unknown plan operation: %s. Use create, list, get, update_task, advance, set_status, set_blocker, clear_blocker, append_note, attach_artifact, split_task, reorder_tasks, archive_completed, or delete"}`, tc.Operation)
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"Unknown plan operation: %s. Use create, list, get, update_task, advance, set_status, set_blocker, clear_blocker, append_note, attach_artifact, split_task, reorder_tasks, archive_completed, or delete"}`, req.Operation)
 			}
 
 		case "manage_notes", "notes", "todo":
+			req := decodeNotesManagementArgs(tc)
 			if !cfg.Tools.Notes.Enabled {
 				return `Tool Output: {"status":"error","message":"Notes are disabled. Set tools.notes.enabled=true in config.yaml."}`
 			}
 			if cfg.Tools.Notes.ReadOnly {
-				switch tc.Operation {
+				switch req.Operation {
 				case "add", "update", "toggle", "delete":
 					return `Tool Output: {"status":"error","message":"Notes are in read-only mode. Disable tools.notes.read_only to allow changes."}`
 				}
 			}
-			logger.Info("LLM requested notes/todo management", "op", tc.Operation)
+			logger.Info("LLM requested notes/todo management", "op", req.Operation)
 			if shortTermMem == nil {
 				return `Tool Output: {"status": "error", "message": "Notes storage not available"}`
 			}
-			switch tc.Operation {
+			switch req.Operation {
 			case "add":
-				if tc.Title == "" {
+				if req.Title == "" {
 					return `Tool Output: {"status": "error", "message": "'title' is required for add"}`
 				}
-				id, err := shortTermMem.AddNote(tc.Category, tc.Title, tc.Content, tc.Priority, tc.DueDate)
+				id, err := shortTermMem.AddNote(req.Category, req.Title, req.Content, req.Priority, req.DueDate)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
 				}
 				return fmt.Sprintf(`Tool Output: {"status": "success", "message": "Note created", "id": %d}`, id)
 			case "list":
-				notes, err := shortTermMem.ListNotes(tc.Category, tc.Done)
+				notes, err := shortTermMem.ListNotes(req.Category, req.Done)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
 				}
 				return fmt.Sprintf(`Tool Output: {"status": "success", "count": %d, "notes": %s}`, len(notes), memory.FormatNotesJSON(notes))
 			case "update":
-				if tc.NoteID <= 0 {
+				if req.NoteID <= 0 {
 					return `Tool Output: {"status": "error", "message": "'note_id' is required for update"}`
 				}
-				err := shortTermMem.UpdateNote(tc.NoteID, tc.Title, tc.Content, tc.Category, tc.Priority, tc.DueDate)
+				err := shortTermMem.UpdateNote(req.NoteID, req.Title, req.Content, req.Category, req.Priority, req.DueDate)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
 				}
-				return fmt.Sprintf(`Tool Output: {"status": "success", "message": "Note %d updated"}`, tc.NoteID)
+				return fmt.Sprintf(`Tool Output: {"status": "success", "message": "Note %d updated"}`, req.NoteID)
 			case "toggle":
-				if tc.NoteID <= 0 {
+				if req.NoteID <= 0 {
 					return `Tool Output: {"status": "error", "message": "'note_id' is required for toggle"}`
 				}
-				newState, err := shortTermMem.ToggleNoteDone(tc.NoteID)
+				newState, err := shortTermMem.ToggleNoteDone(req.NoteID)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
 				}
-				return fmt.Sprintf(`Tool Output: {"status": "success", "note_id": %d, "done": %t}`, tc.NoteID, newState)
+				return fmt.Sprintf(`Tool Output: {"status": "success", "note_id": %d, "done": %t}`, req.NoteID, newState)
 			case "delete":
-				if tc.NoteID <= 0 {
+				if req.NoteID <= 0 {
 					return `Tool Output: {"status": "error", "message": "'note_id' is required for delete"}`
 				}
-				err := shortTermMem.DeleteNote(tc.NoteID)
+				err := shortTermMem.DeleteNote(req.NoteID)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
 				}
-				return fmt.Sprintf(`Tool Output: {"status": "success", "message": "Note %d deleted"}`, tc.NoteID)
+				return fmt.Sprintf(`Tool Output: {"status": "success", "message": "Note %d deleted"}`, req.NoteID)
 			default:
-				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Unknown notes operation: %s. Use add, list, update, toggle, or delete"}`, tc.Operation)
+				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Unknown notes operation: %s. Use add, list, update, toggle, or delete"}`, req.Operation)
 			}
 
 		case "manage_journal", "journal":
+			req := decodeJournalManagementArgs(tc)
 			if !cfg.Tools.Journal.Enabled {
 				return `Tool Output: {"status":"error","message":"Journal is disabled. Set tools.journal.enabled=true in config.yaml."}`
 			}
 			if cfg.Tools.Journal.ReadOnly {
-				switch tc.Operation {
+				switch req.Operation {
 				case "add", "delete":
 					return `Tool Output: {"status":"error","message":"Journal is in read-only mode. Disable tools.journal.read_only to allow changes."}`
 				}
 			}
-			logger.Info("LLM requested journal management", "op", tc.Operation)
+			logger.Info("LLM requested journal management", "op", req.Operation)
 			if shortTermMem == nil {
 				return `Tool Output: {"status": "error", "message": "Journal storage not available"}`
 			}
-			switch tc.Operation {
+			switch req.Operation {
 			case "add":
-				if tc.Title == "" {
+				if req.Title == "" {
 					return `Tool Output: {"status": "error", "message": "'title' is required for add"}`
 				}
-				entryType := tc.EntryType
+				entryType := req.EntryType
 				if entryType == "" {
 					entryType = "reflection"
 				}
-				importance := tc.Importance
+				importance := req.Importance
 				if importance < 1 || importance > 4 {
 					importance = 2
 				}
-				var tags []string
-				if tc.Tags != "" {
-					for _, t := range strings.Split(tc.Tags, ",") {
-						if s := strings.TrimSpace(t); s != "" {
-							tags = append(tags, s)
-						}
-					}
-				}
+				tags := req.normalizedTags()
 				id, err := shortTermMem.InsertJournalEntry(memory.JournalEntry{
 					EntryType:     entryType,
-					Title:         tc.Title,
-					Content:       tc.Content,
+					Title:         req.Title,
+					Content:       req.Content,
 					Tags:          tags,
 					Importance:    importance,
 					SessionID:     sessionID,
@@ -1486,43 +1487,43 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				}
 				return fmt.Sprintf(`Tool Output: {"status": "success", "message": "Journal entry created", "id": %d}`, id)
 			case "list":
-				limit := tc.Limit
+				limit := req.Limit
 				if limit <= 0 {
 					limit = 20
 				}
 				var types []string
-				if tc.EntryType != "" {
-					types = []string{tc.EntryType}
+				if req.EntryType != "" {
+					types = []string{req.EntryType}
 				}
-				entries, err := shortTermMem.GetJournalEntries(tc.FromDate, tc.ToDate, types, limit)
+				entries, err := shortTermMem.GetJournalEntries(req.FromDate, req.ToDate, types, limit)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
 				}
 				return fmt.Sprintf(`Tool Output: {"status": "success", "count": %d, "entries": %s}`, len(entries), memory.FormatJournalEntriesJSON(entries))
 			case "search":
-				if tc.Query == "" {
+				if req.Query == "" {
 					return `Tool Output: {"status": "error", "message": "'query' is required for search"}`
 				}
-				limit := tc.Limit
+				limit := req.Limit
 				if limit <= 0 {
 					limit = 20
 				}
-				entries, err := shortTermMem.SearchJournalEntries(tc.Query, limit)
+				entries, err := shortTermMem.SearchJournalEntries(req.Query, limit)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
 				}
 				return fmt.Sprintf(`Tool Output: {"status": "success", "count": %d, "entries": %s}`, len(entries), memory.FormatJournalEntriesJSON(entries))
 			case "delete":
-				if tc.EntryID <= 0 {
+				if req.EntryID <= 0 {
 					return `Tool Output: {"status": "error", "message": "'entry_id' is required for delete"}`
 				}
-				err := shortTermMem.DeleteJournalEntry(tc.EntryID)
+				err := shortTermMem.DeleteJournalEntry(req.EntryID)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
 				}
-				return fmt.Sprintf(`Tool Output: {"status": "success", "message": "Journal entry %d deleted"}`, tc.EntryID)
+				return fmt.Sprintf(`Tool Output: {"status": "success", "message": "Journal entry %d deleted"}`, req.EntryID)
 			case "get_summary":
-				date := tc.FromDate
+				date := req.FromDate
 				if date == "" {
 					date = time.Now().Format("2006-01-02")
 				}
@@ -1537,10 +1538,11 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				return fmt.Sprintf(`Tool Output: {"status": "success", "date": "%s", "summary": %q, "key_topics": %s, "sentiment": %q}`,
 					summary.Date, summary.Summary, string(topicsJSON), summary.Sentiment)
 			default:
-				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Unknown journal operation: %s. Use add, list, search, delete, or get_summary"}`, tc.Operation)
+				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Unknown journal operation: %s. Use add, list, search, delete, or get_summary"}`, req.Operation)
 			}
 
 		case "telnyx_sms":
+			req := decodeTelnyxSMSArgs(tc)
 			if !cfg.Telnyx.Enabled {
 				return `Tool Output: {"status":"error","message":"Telnyx integration is disabled"}`
 			}
@@ -1550,36 +1552,35 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			if cfg.Telnyx.PhoneNumber == "" {
 				return `Tool Output: {"status":"error","message":"Telnyx phone number not configured"}`
 			}
-			msgID := tc.ID
-			if msgID == "" {
-				msgID = tc.MessageID
-			}
-			return "Tool Output: " + telnyx.DispatchSMS(ctx, tc.Operation, tc.To, tc.Message, msgID, tc.MediaURLs, cfg, logger)
+			return "Tool Output: " + telnyx.DispatchSMS(ctx, req.Operation, req.To, req.Message, req.MessageID, req.MediaURLs, cfg, logger)
 
 		case "telnyx_call":
+			req := decodeTelnyxCallArgs(tc)
 			if !cfg.Telnyx.Enabled {
 				return `Tool Output: {"status":"error","message":"Telnyx integration is disabled"}`
 			}
-			if cfg.Telnyx.ReadOnly && tc.Operation != "list_active" {
+			if cfg.Telnyx.ReadOnly && req.Operation != "list_active" {
 				return `Tool Output: {"status":"error","message":"Telnyx is in read-only mode"}`
 			}
-			return "Tool Output: " + telnyx.DispatchCall(ctx, tc.Operation, tc.To, tc.CallControlID, tc.Text, tc.AudioURL, tc.MaxDigits, tc.TimeoutSecs, cfg, logger)
+			return "Tool Output: " + telnyx.DispatchCall(ctx, req.Operation, req.To, req.CallControlID, req.Text, req.AudioURL, req.MaxDigits, req.TimeoutSecs, cfg, logger)
 
 		case "telnyx_manage":
+			req := decodeTelnyxManageArgs(tc)
 			if !cfg.Telnyx.Enabled {
 				return `Tool Output: {"status":"error","message":"Telnyx integration is disabled"}`
 			}
-			return "Tool Output: " + telnyx.DispatchManage(ctx, tc.Operation, tc.Limit, tc.Port, cfg, logger)
+			return "Tool Output: " + telnyx.DispatchManage(ctx, req.Operation, req.Limit, req.Port, cfg, logger)
 
 		case "address_book":
+			req := decodeAddressBookArgs(tc)
 			if !cfg.Tools.Contacts.Enabled {
 				return `Tool Output: {"status":"error","message":"Address book is disabled. Enable tools.contacts.enabled in config."}`
 			}
 			if contactsDB == nil {
 				return `Tool Output: {"status":"error","message":"Contacts database not available."}`
 			}
-			logger.Info("LLM requested address book operation", "op", tc.Operation)
-			switch tc.Operation {
+			logger.Info("LLM requested address book operation", "op", req.Operation)
+			switch req.Operation {
 			case "list":
 				list, err := contacts.List(contactsDB, "")
 				if err != nil {
@@ -1587,26 +1588,26 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				}
 				return "Tool Output: " + contacts.ToJSON(map[string]interface{}{"status": "success", "contacts": list, "count": len(list)})
 			case "search":
-				if tc.Query == "" {
+				if req.Query == "" {
 					return `Tool Output: {"status":"error","message":"'query' is required for search operation"}`
 				}
-				list, err := contacts.List(contactsDB, tc.Query)
+				list, err := contacts.List(contactsDB, req.Query)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
 				}
 				return "Tool Output: " + contacts.ToJSON(map[string]interface{}{"status": "success", "contacts": list, "count": len(list)})
 			case "add":
-				if tc.Name == "" {
+				if req.Name == "" {
 					return `Tool Output: {"status":"error","message":"'name' is required to add a contact"}`
 				}
 				c := contacts.Contact{
-					Name:         tc.Name,
-					Email:        tc.Email,
-					Phone:        tc.Phone,
-					Mobile:       tc.Mobile,
-					Address:      tc.ContactAddress,
-					Relationship: tc.Relationship,
-					Notes:        tc.Notes,
+					Name:         req.Name,
+					Email:        req.Email,
+					Phone:        req.Phone,
+					Mobile:       req.Mobile,
+					Address:      req.ContactAddress,
+					Relationship: req.Relationship,
+					Notes:        req.Notes,
 				}
 				id, err := contacts.Create(contactsDB, c)
 				if err != nil {
@@ -1614,46 +1615,46 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				}
 				return fmt.Sprintf(`Tool Output: {"status":"success","message":"Contact created","id":"%s"}`, id)
 			case "update":
-				if tc.ID == "" {
+				if req.ID == "" {
 					return `Tool Output: {"status":"error","message":"'id' is required for update operation"}`
 				}
-				existing, err := contacts.GetByID(contactsDB, tc.ID)
+				existing, err := contacts.GetByID(contactsDB, req.ID)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
 				}
-				if tc.Name != "" {
-					existing.Name = tc.Name
+				if req.Name != "" {
+					existing.Name = req.Name
 				}
-				if tc.Email != "" {
-					existing.Email = tc.Email
+				if req.Email != "" {
+					existing.Email = req.Email
 				}
-				if tc.Phone != "" {
-					existing.Phone = tc.Phone
+				if req.Phone != "" {
+					existing.Phone = req.Phone
 				}
-				if tc.Mobile != "" {
-					existing.Mobile = tc.Mobile
+				if req.Mobile != "" {
+					existing.Mobile = req.Mobile
 				}
-				if tc.ContactAddress != "" {
-					existing.Address = tc.ContactAddress
+				if req.ContactAddress != "" {
+					existing.Address = req.ContactAddress
 				}
-				if tc.Relationship != "" {
-					existing.Relationship = tc.Relationship
+				if req.Relationship != "" {
+					existing.Relationship = req.Relationship
 				}
-				if tc.Notes != "" {
-					existing.Notes = tc.Notes
+				if req.Notes != "" {
+					existing.Notes = req.Notes
 				}
 				if err := contacts.Update(contactsDB, *existing); err != nil {
 					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
 				}
-				return fmt.Sprintf(`Tool Output: {"status":"success","message":"Contact updated","id":"%s"}`, tc.ID)
+				return fmt.Sprintf(`Tool Output: {"status":"success","message":"Contact updated","id":"%s"}`, req.ID)
 			case "delete":
-				if tc.ID == "" {
+				if req.ID == "" {
 					return `Tool Output: {"status":"error","message":"'id' is required for delete operation"}`
 				}
-				if err := contacts.Delete(contactsDB, tc.ID); err != nil {
+				if err := contacts.Delete(contactsDB, req.ID); err != nil {
 					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
 				}
-				return fmt.Sprintf(`Tool Output: {"status":"success","message":"Contact deleted","id":"%s"}`, tc.ID)
+				return fmt.Sprintf(`Tool Output: {"status":"success","message":"Contact deleted","id":"%s"}`, req.ID)
 			default:
 				return `Tool Output: {"status":"error","message":"Unknown operation. Use: list, search, add, update, delete"}`
 			}
