@@ -2,6 +2,7 @@ package tools
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -9,6 +10,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"aurago/internal/security"
 )
 
 // GitHubConfig holds the GitHub API connection parameters.
@@ -19,7 +22,7 @@ type GitHubConfig struct {
 	DefaultPrivate bool   // true = new repos are private by default
 }
 
-var githubHTTPClient = &http.Client{Timeout: 30 * time.Second}
+var githubHTTPClient = security.NewSSRFProtectedHTTPClient(30 * time.Second)
 
 func githubRepoEndpoint(owner, repo string, extra ...string) string {
 	parts := []string{"", "repos", url.PathEscape(strings.TrimSpace(owner)), url.PathEscape(strings.TrimSpace(repo))}
@@ -75,6 +78,9 @@ func githubRequest(cfg GitHubConfig, method, endpoint string, body interface{}) 
 		req.Header.Set("Content-Type", "application/json")
 	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	req = req.WithContext(ctx)
 	resp, err := githubHTTPClient.Do(req)
 	if err != nil {
 		return nil, 0, fmt.Errorf("request failed: %w", err)

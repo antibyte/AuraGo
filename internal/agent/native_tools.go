@@ -2208,6 +2208,45 @@ func builtinToolSchemasCached(ff ToolFeatureFlags) []openai.Tool {
 	return built
 }
 
+// allBuiltinToolFeatureFlags returns a ToolFeatureFlags with every feature enabled.
+// Used in tests to enumerate all possible tool schemas.
+func allBuiltinToolFeatureFlags() ToolFeatureFlags {
+	return ToolFeatureFlags{
+		HomeAssistantEnabled: true, DockerEnabled: true, CoAgentEnabled: true, SudoEnabled: true,
+		WebhooksEnabled: true, ProxmoxEnabled: true, OllamaEnabled: true, TailscaleEnabled: true,
+		AnsibleEnabled: true, InvasionControlEnabled: true, GitHubEnabled: true, MQTTEnabled: true,
+		AdGuardEnabled: true, MCPEnabled: true, SandboxEnabled: true, MeshCentralEnabled: true,
+		HomepageEnabled: true, NetlifyEnabled: true, FirewallEnabled: true, EmailEnabled: true,
+		CloudflareTunnelEnabled: true, GoogleWorkspaceEnabled: true, OneDriveEnabled: true,
+		VirusTotalEnabled: true, ImageGenerationEnabled: true, RemoteControlEnabled: true,
+		AllowShell: true, AllowPython: true, AllowFilesystemWrite: true, AllowNetworkRequests: true,
+		AllowRemoteShell: true, AllowSelfUpdate: true, HomepageAllowLocalServer: true,
+		MemoryEnabled: true, KnowledgeGraphEnabled: true, SecretsVaultEnabled: true,
+		SchedulerEnabled: true, NotesEnabled: true, MissionsEnabled: true, StopProcessEnabled: true,
+		InventoryEnabled: true, MemoryMaintenanceEnabled: true, WOLEnabled: true,
+		MediaRegistryEnabled: true, HomepageRegistryEnabled: true, ContactsEnabled: true,
+		JournalEnabled: true, MemoryAnalysisEnabled: true, DocumentCreatorEnabled: true,
+		WebCaptureEnabled: true, NetworkPingEnabled: true, WebScraperEnabled: true,
+		S3Enabled: true, NetworkScanEnabled: true, FormAutomationEnabled: true, UPnPScanEnabled: true,
+		JellyfinEnabled: true, ChromecastEnabled: true, DiscordEnabled: true, TrueNASEnabled: true,
+		KoofrEnabled: true, FritzBoxSystemEnabled: true, FritzBoxNetworkEnabled: true,
+		FritzBoxTelephonyEnabled: true, FritzBoxSmartHomeEnabled: true, FritzBoxStorageEnabled: true,
+		FritzBoxTVEnabled: true, TelnyxSMSEnabled: true, TelnyxCallEnabled: true,
+		SQLConnectionsEnabled: true, PythonSecretInjectionEnabled: true,
+	}
+}
+
+// builtinToolNames returns the name of every tool schema produced with the given feature flags.
+func builtinToolNames(ff ToolFeatureFlags) []string {
+	var names []string
+	for _, s := range builtinToolSchemas(ff) {
+		if s.Function != nil && s.Function.Name != "" {
+			names = append(names, s.Function.Name)
+		}
+	}
+	return names
+}
+
 // NativeToolCallToToolCall converts an OpenAI native ToolCall response to AuraGo's ToolCall struct.
 // Arguments JSON is unmarshalled directly into the struct fields.
 func NativeToolCallToToolCall(native openai.ToolCall, logger *slog.Logger) ToolCall {

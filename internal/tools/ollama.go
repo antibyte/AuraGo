@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -33,6 +34,9 @@ func ollamaRequest(cfg OllamaConfig, method, endpoint string, body string) ([]by
 	}
 	req.Header.Set("Content-Type", "application/json")
 
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+	req = req.WithContext(ctx)
 	resp, err := ollamaHTTPClient.Do(req)
 	if err != nil {
 		return nil, 0, fmt.Errorf("request failed: %w", err)

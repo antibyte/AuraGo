@@ -35,6 +35,14 @@ func stringValueFromMap(m map[string]interface{}, keys ...string) string {
 	return ""
 }
 
+// resolveFilePath returns tc.FilePath if non-empty, falling back to tc.Path.
+func resolveFilePath(tc ToolCall) string {
+	if tc.FilePath != "" {
+		return tc.FilePath
+	}
+	return tc.Path
+}
+
 func buildMemoryReflectionOutput(result interface{}) (string, error) {
 	resultJSON, err := json.Marshal(result)
 	if err != nil {
@@ -1075,10 +1083,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) string 
 		return fmt.Sprintf(`Tool Output: {"status": "success", "message": "Secret '%s' stored safely."}`, tc.Key)
 
 	case "archive":
-		fpath := tc.FilePath
-		if fpath == "" {
-			fpath = tc.Path
-		}
+		fpath := resolveFilePath(tc)
 		if !cfg.Agent.AllowFilesystemWrite && (strings.EqualFold(tc.Operation, "create") || strings.EqualFold(tc.Operation, "extract")) {
 			return "Tool Output: [PERMISSION DENIED] archive create/extract operations are disabled in Danger Zone settings (agent.allow_filesystem_write: false)."
 		}
@@ -1090,10 +1095,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) string 
 		return "Tool Output: " + tools.ExecuteArchive(tc.Operation, fpath, dest, tc.SourceFiles, tc.Format)
 
 	case "pdf_operations":
-		fpath := tc.FilePath
-		if fpath == "" {
-			fpath = tc.Path
-		}
+		fpath := resolveFilePath(tc)
 		op := strings.ToLower(tc.Operation)
 		if !cfg.Agent.AllowFilesystemWrite && (op == "merge" || op == "split" || op == "watermark" || op == "compress" || op == "encrypt" || op == "decrypt" || op == "fill_form" || op == "export_form" || op == "reset_form" || op == "lock_form") {
 			return "Tool Output: [PERMISSION DENIED] pdf_operations write operations are disabled in Danger Zone settings (agent.allow_filesystem_write: false)."
@@ -1106,10 +1108,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) string 
 		return "Tool Output: " + tools.ExecutePDFOperations(tc.Operation, fpath, output, tc.Pages, tc.Password, tc.WatermarkText, tc.SourceFiles)
 
 	case "image_processing":
-		fpath := tc.FilePath
-		if fpath == "" {
-			fpath = tc.Path
-		}
+		fpath := resolveFilePath(tc)
 		op := strings.ToLower(tc.Operation)
 		if !cfg.Agent.AllowFilesystemWrite && op != "info" {
 			return "Tool Output: [PERMISSION DENIED] image_processing write operations are disabled in Danger Zone settings (agent.allow_filesystem_write: false)."
@@ -1123,10 +1122,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) string 
 
 	case "filesystem", "filesystem_op":
 		// Parameter robustness: handle 'path' and 'dest' aliases frequently hallucinated by LLMs
-		fpath := tc.FilePath
-		if fpath == "" {
-			fpath = tc.Path
-		}
+		fpath := resolveFilePath(tc)
 		fdest := tc.Destination
 		if fdest == "" {
 			fdest = tc.Dest
@@ -1185,10 +1181,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) string 
 		return tools.ExecuteFilesystem(op, fpath, fdest, tc.Content, tc.Items, cfg.Directories.WorkspaceDir)
 
 	case "file_editor":
-		fpath := tc.FilePath
-		if fpath == "" {
-			fpath = tc.Path
-		}
+		fpath := resolveFilePath(tc)
 
 		op := strings.TrimSpace(strings.ToLower(tc.Operation))
 
@@ -1207,10 +1200,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) string 
 		return tools.ExecuteFileEditor(op, fpath, tc.Old, tc.New, tc.Marker, tc.Content, tc.StartLine, tc.EndLine, tc.LineCount, cfg.Directories.WorkspaceDir)
 
 	case "json_editor":
-		fpath := tc.FilePath
-		if fpath == "" {
-			fpath = tc.Path
-		}
+		fpath := resolveFilePath(tc)
 		op := strings.TrimSpace(strings.ToLower(tc.Operation))
 		wsDir := cfg.Directories.WorkspaceDir
 		if isProtectedSystemPath(fpath, wsDir, cfg) {
@@ -1229,10 +1219,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) string 
 		return tools.ExecuteJsonEditor(op, fpath, tc.JsonPath, tc.SetValue, tc.Content, wsDir)
 
 	case "yaml_editor":
-		fpath := tc.FilePath
-		if fpath == "" {
-			fpath = tc.Path
-		}
+		fpath := resolveFilePath(tc)
 		op := strings.TrimSpace(strings.ToLower(tc.Operation))
 		wsDir := cfg.Directories.WorkspaceDir
 		if isProtectedSystemPath(fpath, wsDir, cfg) {
@@ -1250,10 +1237,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) string 
 		return tools.ExecuteYamlEditor(op, fpath, tc.JsonPath, tc.SetValue, wsDir)
 
 	case "xml_editor":
-		fpath := tc.FilePath
-		if fpath == "" {
-			fpath = tc.Path
-		}
+		fpath := resolveFilePath(tc)
 		op := strings.TrimSpace(strings.ToLower(tc.Operation))
 		wsDir := cfg.Directories.WorkspaceDir
 		if isProtectedSystemPath(fpath, wsDir, cfg) {
@@ -1276,28 +1260,19 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) string 
 
 	case "file_search":
 		op := strings.TrimSpace(strings.ToLower(tc.Operation))
-		fpath := tc.FilePath
-		if fpath == "" {
-			fpath = tc.Path
-		}
+		fpath := resolveFilePath(tc)
 		logger.Info("LLM requested file_search", "op", op, "pattern", tc.Pattern)
 		return tools.ExecuteFileSearch(op, tc.Pattern, fpath, tc.Glob, tc.OutputMode, cfg.Directories.WorkspaceDir)
 
 	case "file_reader_advanced":
 		op := strings.TrimSpace(strings.ToLower(tc.Operation))
-		fpath := tc.FilePath
-		if fpath == "" {
-			fpath = tc.Path
-		}
+		fpath := resolveFilePath(tc)
 		logger.Info("LLM requested file_reader_advanced", "op", op, "path", fpath)
 		return tools.ExecuteFileReaderAdvanced(op, fpath, tc.Pattern, tc.StartLine, tc.EndLine, tc.LineCount, cfg.Directories.WorkspaceDir)
 
 	case "smart_file_read":
 		op := strings.TrimSpace(strings.ToLower(tc.Operation))
-		fpath := tc.FilePath
-		if fpath == "" {
-			fpath = tc.Path
-		}
+		fpath := resolveFilePath(tc)
 		logger.Info("LLM requested smart_file_read", "op", op, "path", fpath, "strategy", tc.SamplingStrategy)
 		return tools.ExecuteSmartFileRead(ctx, tools.ResolveSummaryLLMConfig(cfg, tools.SummaryLLMConfig{
 			APIKey:  cfg.LLM.APIKey,
@@ -1322,10 +1297,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) string 
 				return `Tool Output: {"status":"error","message":"Koofr is in read-only mode. Disable koofr.read_only to allow changes."}`
 			}
 		}
-		fpath := tc.FilePath
-		if fpath == "" {
-			fpath = tc.Path
-		}
+		fpath := resolveFilePath(tc)
 		fdest := tc.Destination
 		if fdest == "" {
 			fdest = tc.Dest
@@ -1419,10 +1391,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) string 
 				return `Tool Output: {"status":"error","message":"OneDrive is in read-only mode. Disable onedrive.readonly to allow changes."}`
 			}
 		}
-		fpath := tc.FilePath
-		if fpath == "" {
-			fpath = tc.Path
-		}
+		fpath := resolveFilePath(tc)
 		fdest := tc.Destination
 		if fdest == "" {
 			fdest = tc.Dest

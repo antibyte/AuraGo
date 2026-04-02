@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -76,6 +77,9 @@ func proxmoxRequest(cfg ProxmoxConfig, method, endpoint string, body string) ([]
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	req = req.WithContext(ctx)
 	resp, err := getProxmoxClient(cfg).Do(req)
 	if err != nil {
 		return nil, 0, fmt.Errorf("request failed: %w", err)
