@@ -49,3 +49,30 @@ func TestDispatchInfraManageWebhooksUsesActionAlias(t *testing.T) {
 		t.Fatalf("expected webhook file to contain slug, got %s", string(data))
 	}
 }
+
+func TestDispatchInfraMQTTPublishUsesParamsFallback(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.MQTT.Enabled = true
+
+	out, ok := dispatchInfra(context.Background(), ToolCall{
+		Action: "mqtt_publish",
+		Params: map[string]interface{}{
+			"topic":   "home/test",
+			"payload": "hello",
+			"qos":     float64(1),
+			"retain":  true,
+		},
+	}, &DispatchContext{
+		Cfg:    cfg,
+		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	})
+	if !ok {
+		t.Fatal("expected dispatchInfra to handle mqtt_publish")
+	}
+	if strings.Contains(out, "'topic' is required") {
+		t.Fatalf("expected topic fallback from params, got %s", out)
+	}
+	if !strings.Contains(out, "MQTT publish failed") {
+		t.Fatalf("expected downstream MQTT bridge error, got %s", out)
+	}
+}

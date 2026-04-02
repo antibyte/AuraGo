@@ -1007,23 +1007,17 @@ func dispatchInfra(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 			if cfg.MQTT.ReadOnly {
 				return `Tool Output: {"status":"error","message":"MQTT is in read-only mode. Disable mqtt.read_only to allow changes."}`
 			}
-			topic := tc.Topic
+			req := decodeMQTTArgs(tc)
+			topic := req.Topic
 			if topic == "" {
 				return `Tool Output: {"status": "error", "message": "'topic' is required"}`
 			}
-			payload := tc.Payload
-			if payload == "" {
-				payload = tc.Message
-			}
-			if payload == "" {
-				payload = tc.Content
-			}
-			qos := tc.QoS
+			qos := req.QoS
 			if qos < 0 || qos > 2 {
 				qos = cfg.MQTT.QoS
 			}
-			logger.Info("LLM requested MQTT publish", "topic", topic, "retain", tc.Retain, "payload_len", len(payload))
-			if err := tools.MQTTPublish(topic, payload, qos, tc.Retain, logger); err != nil {
+			logger.Info("LLM requested MQTT publish", "topic", topic, "retain", req.Retain, "payload_len", len(req.Payload))
+			if err := tools.MQTTPublish(topic, req.Payload, qos, req.Retain, logger); err != nil {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "MQTT publish failed: %v"}`, err)
 			}
 			return fmt.Sprintf(`Tool Output: {"status": "success", "message": "Published to topic '%s'"}`, topic)
@@ -1032,11 +1026,12 @@ func dispatchInfra(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 			if !cfg.MQTT.Enabled {
 				return `Tool Output: {"status": "error", "message": "MQTT is not enabled. Configure the mqtt section in config.yaml."}`
 			}
-			topic := tc.Topic
+			req := decodeMQTTArgs(tc)
+			topic := req.Topic
 			if topic == "" {
 				return `Tool Output: {"status": "error", "message": "'topic' is required"}`
 			}
-			qos := tc.QoS
+			qos := req.QoS
 			if qos < 0 || qos > 2 {
 				qos = cfg.MQTT.QoS
 			}
@@ -1050,7 +1045,8 @@ func dispatchInfra(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 			if !cfg.MQTT.Enabled {
 				return `Tool Output: {"status": "error", "message": "MQTT is not enabled. Configure the mqtt section in config.yaml."}`
 			}
-			topic := tc.Topic
+			req := decodeMQTTArgs(tc)
+			topic := req.Topic
 			if topic == "" {
 				return `Tool Output: {"status": "error", "message": "'topic' is required"}`
 			}
@@ -1064,8 +1060,9 @@ func dispatchInfra(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 			if !cfg.MQTT.Enabled {
 				return `Tool Output: {"status": "error", "message": "MQTT is not enabled. Configure the mqtt section in config.yaml."}`
 			}
-			topic := tc.Topic // empty = all topics
-			limit := tc.Limit
+			req := decodeMQTTArgs(tc)
+			topic := req.Topic // empty = all topics
+			limit := req.Limit
 			if limit <= 0 {
 				limit = 20
 			}

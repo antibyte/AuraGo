@@ -757,36 +757,37 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			if sqlConnectionsDB == nil || sqlConnectionPool == nil {
 				return `Tool Output: {"status":"error","message":"SQL Connections database not available."}`
 			}
-			if tc.ConnectionName == "" {
+			req := decodeSQLQueryArgs(tc)
+			if req.ConnectionName == "" {
 				return `Tool Output: {"status":"error","message":"'connection_name' is required"}`
 			}
-			logger.Info("LLM requested sql_query", "op", tc.Operation, "connection", tc.ConnectionName)
+			logger.Info("LLM requested sql_query", "op", req.Operation, "connection", req.ConnectionName)
 			queryTimeout := time.Duration(cfg.SQLConnections.QueryTimeoutSec) * time.Second
 			maxRows := cfg.SQLConnections.MaxResultRows
 
-			switch tc.Operation {
+			switch req.Operation {
 			case "query":
-				if tc.SQLQuery == "" {
+				if req.SQLQuery == "" {
 					return `Tool Output: {"status":"error","message":"'sql_query' is required for query operation"}`
 				}
-				result, err := sqlconnections.ExecuteQuery(ctx, sqlConnectionPool, sqlConnectionsDB, tc.ConnectionName, tc.SQLQuery, maxRows, queryTimeout)
+				result, err := sqlconnections.ExecuteQuery(ctx, sqlConnectionPool, sqlConnectionsDB, req.ConnectionName, req.SQLQuery, maxRows, queryTimeout)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
 				}
 				b, _ := json.Marshal(map[string]interface{}{"status": "success", "result": result})
 				return "Tool Output: " + string(b)
 			case "describe":
-				if tc.TableName == "" {
+				if req.TableName == "" {
 					return `Tool Output: {"status":"error","message":"'table_name' is required for describe operation"}`
 				}
-				cols, err := sqlconnections.DescribeTable(ctx, sqlConnectionPool, sqlConnectionsDB, tc.ConnectionName, tc.TableName, queryTimeout)
+				cols, err := sqlconnections.DescribeTable(ctx, sqlConnectionPool, sqlConnectionsDB, req.ConnectionName, req.TableName, queryTimeout)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
 				}
-				b, _ := json.Marshal(map[string]interface{}{"status": "success", "table": tc.TableName, "columns": cols})
+				b, _ := json.Marshal(map[string]interface{}{"status": "success", "table": req.TableName, "columns": cols})
 				return "Tool Output: " + string(b)
 			case "list_tables":
-				tables, err := sqlconnections.ListTables(ctx, sqlConnectionPool, sqlConnectionsDB, tc.ConnectionName, queryTimeout)
+				tables, err := sqlconnections.ListTables(ctx, sqlConnectionPool, sqlConnectionsDB, req.ConnectionName, queryTimeout)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
 				}
