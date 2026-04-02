@@ -47,6 +47,37 @@ func TestDecodeGitHubArgsUsesParamsFallback(t *testing.T) {
 	}
 }
 
+func TestDecodeCoAgentArgsUsesFallbacks(t *testing.T) {
+	tc := ToolCall{
+		Action: "co_agent",
+		Params: map[string]interface{}{
+			"operation":     "spawn_specialist",
+			"task":          "investigate flaky tests",
+			"specialist":    "researcher",
+			"priority":      float64(2),
+			"co_agent_id":   "co-123",
+			"context_hints": []interface{}{"ci", "tests"},
+		},
+	}
+
+	req := decodeCoAgentArgs(tc)
+	if req.Operation != "spawn_specialist" {
+		t.Fatalf("Operation = %q, want spawn_specialist", req.Operation)
+	}
+	if req.Task != "investigate flaky tests" || req.Specialist != "researcher" {
+		t.Fatalf("unexpected co-agent decode: %+v", req)
+	}
+	if req.Priority != 2 {
+		t.Fatalf("Priority = %d, want 2", req.Priority)
+	}
+	if req.CoAgentID != "co-123" {
+		t.Fatalf("CoAgentID = %q, want co-123", req.CoAgentID)
+	}
+	if len(req.ContextHints) != 2 || req.ContextHints[0] != "ci" || req.ContextHints[1] != "tests" {
+		t.Fatalf("ContextHints = %#v, want [ci tests]", req.ContextHints)
+	}
+}
+
 func TestDecodeNetlifyArgsUsesParamsFallback(t *testing.T) {
 	tc := ToolCall{
 		Action: "netlify",

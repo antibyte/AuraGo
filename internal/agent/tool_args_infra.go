@@ -22,6 +22,15 @@ type githubArgs struct {
 	Label       string
 }
 
+type coAgentArgs struct {
+	Operation    string
+	Task         string
+	ContextHints []string
+	Priority     int
+	Specialist   string
+	CoAgentID    string
+}
+
 type netlifyArgs struct {
 	Operation    string
 	SiteID       string
@@ -209,6 +218,22 @@ func toolArgFloat64(args map[string]interface{}, keys ...string) float64 {
 		}
 	}
 	return 0
+}
+
+func decodeCoAgentArgs(tc ToolCall) coAgentArgs {
+	req := coAgentArgs{
+		Operation:  firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
+		Task:       firstNonEmptyToolString(tc.Task, tc.Content, toolArgString(tc.Params, "task", "content")),
+		Priority:   firstNonEmptyInt(tc.Priority, toolArgInt(tc.Params, 0, "priority")),
+		Specialist: firstNonEmptyToolString(tc.Specialist, toolArgString(tc.Params, "specialist")),
+		CoAgentID:  firstNonEmptyToolString(tc.CoAgentID, tc.ID, toolArgString(tc.Params, "co_agent_id", "id")),
+	}
+	if len(tc.ContextHints) > 0 {
+		req.ContextHints = append([]string(nil), tc.ContextHints...)
+	} else {
+		req.ContextHints = toolArgStringSlice(tc.Params, "context_hints")
+	}
+	return req
 }
 
 func decodeMDNSScanArgs(tc ToolCall) mdnsScanArgs {

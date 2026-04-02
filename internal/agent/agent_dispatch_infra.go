@@ -39,6 +39,7 @@ func dispatchInfra(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 	result := func() string {
 		switch tc.Action {
 		case "co_agent", "co_agents":
+			req := decodeCoAgentArgs(tc)
 			if budgetTracker != nil && budgetTracker.IsBlocked("coagent") {
 				return `Tool Output: {"status": "error", "message": "Co-Agent spawn blocked: daily budget exceeded. Try again tomorrow."}`
 			}
@@ -51,19 +52,16 @@ func dispatchInfra(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 			if coAgentRegistry == nil {
 				return `Tool Output: {"status": "error", "message": "Co-Agent registry not initialized."}`
 			}
-			switch tc.Operation {
+			switch req.Operation {
 			case "spawn", "start", "create":
-				task := tc.Task
-				if task == "" {
-					task = tc.Content
-				}
+				task := req.Task
 				if task == "" {
 					return `Tool Output: {"status": "error", "message": "'task' is required to spawn a co-agent."}`
 				}
 				coReq := CoAgentRequest{
 					Task:         task,
-					ContextHints: tc.ContextHints,
-					Priority:     tc.Priority,
+					ContextHints: req.ContextHints,
+					Priority:     req.Priority,
 				}
 				id, state, err := SpawnCoAgent(cfg, ctx, logger, coAgentRegistry,
 					shortTermMem, longTermMem, vault, registry, manifest, kg, inventoryDB, coReq, budgetTracker)
@@ -78,22 +76,19 @@ func dispatchInfra(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 				return fmt.Sprintf(`Tool Output: {"status": "ok", "co_agent_id": "%s", "state": "%s", "available_slots": %d, "message": "%s"}`, id, state, slots, message)
 
 			case "spawn_specialist":
-				task := tc.Task
-				if task == "" {
-					task = tc.Content
-				}
+				task := req.Task
 				if task == "" {
 					return `Tool Output: {"status": "error", "message": "'task' is required to spawn a specialist."}`
 				}
-				specialist := tc.Specialist
+				specialist := req.Specialist
 				if specialist == "" {
 					return `Tool Output: {"status": "error", "message": "'specialist' is required. Choose: researcher, coder, designer, security, writer."}`
 				}
 				coReq := CoAgentRequest{
 					Task:         task,
-					ContextHints: tc.ContextHints,
+					ContextHints: req.ContextHints,
 					Specialist:   specialist,
-					Priority:     tc.Priority,
+					Priority:     req.Priority,
 				}
 				id, state, err := SpawnCoAgent(cfg, ctx, logger, coAgentRegistry,
 					shortTermMem, longTermMem, vault, registry, manifest, kg, inventoryDB, coReq, budgetTracker)
@@ -118,10 +113,7 @@ func dispatchInfra(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 				return "Tool Output: " + string(data)
 
 			case "get_result", "result":
-				coID := tc.CoAgentID
-				if coID == "" {
-					coID = tc.ID
-				}
+				coID := req.CoAgentID
 				if coID == "" {
 					return `Tool Output: {"status": "error", "message": "'co_agent_id' is required."}`
 				}
@@ -147,10 +139,7 @@ func dispatchInfra(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 				return "Tool Output: " + string(out)
 
 			case "stop", "cancel", "kill":
-				coID := tc.CoAgentID
-				if coID == "" {
-					coID = tc.ID
-				}
+				coID := req.CoAgentID
 				if coID == "" {
 					return `Tool Output: {"status": "error", "message": "'co_agent_id' is required."}`
 				}
