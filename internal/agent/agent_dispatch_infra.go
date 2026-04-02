@@ -333,8 +333,9 @@ func dispatchInfra(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 			if !cfg.Proxmox.Enabled {
 				return `Tool Output: {"status":"error","message":"Proxmox integration is not enabled. Set proxmox.enabled=true in config.yaml."}`
 			}
+			req := decodeProxmoxArgs(tc)
 			if cfg.Proxmox.ReadOnly {
-				switch tc.Operation {
+				switch req.Operation {
 				case "start", "stop", "shutdown", "reboot", "suspend", "resume", "reset", "create_snapshot", "snapshot":
 					return `Tool Output: {"status":"error","message":"Proxmox is in read-only mode. Disable proxmox.read_only to allow changes."}`
 				}
@@ -346,16 +347,10 @@ func dispatchInfra(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 				Node:     cfg.Proxmox.Node,
 				Insecure: cfg.Proxmox.Insecure,
 			}
-			node := tc.Hostname
-			if node == "" {
-				node = tc.Name
-			}
-			vmid := tc.VMID
-			if vmid == "" {
-				vmid = tc.ID
-			}
-			vmType := tc.VMType
-			switch tc.Operation {
+			node := req.node()
+			vmid := req.vmid()
+			vmType := req.VMType
+			switch req.Operation {
 			case "overview":
 				logger.Info("LLM requested Proxmox overview", "node", node)
 				return "Tool Output: " + tools.ProxmoxOverview(pxCfg, node)
@@ -372,29 +367,26 @@ func dispatchInfra(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 				logger.Info("LLM requested Proxmox status", "vmid", vmid, "type", vmType)
 				return "Tool Output: " + tools.ProxmoxGetStatus(pxCfg, node, vmType, vmid)
 			case "start", "stop", "shutdown", "reboot", "suspend", "resume", "reset":
-				logger.Info("LLM requested Proxmox action", "action", tc.Operation, "vmid", vmid)
-				return "Tool Output: " + tools.ProxmoxVMAction(pxCfg, node, vmType, vmid, tc.Operation)
+				logger.Info("LLM requested Proxmox action", "action", req.Operation, "vmid", vmid)
+				return "Tool Output: " + tools.ProxmoxVMAction(pxCfg, node, vmType, vmid, req.Operation)
 			case "node_status":
 				logger.Info("LLM requested Proxmox node_status", "node", node)
 				return "Tool Output: " + tools.ProxmoxNodeStatus(pxCfg, node)
 			case "cluster_resources", "resources":
-				resType := tc.ResourceType
+				resType := req.ResourceType
 				logger.Info("LLM requested Proxmox cluster_resources", "type", resType)
 				return "Tool Output: " + tools.ProxmoxClusterResources(pxCfg, resType)
 			case "storage":
 				logger.Info("LLM requested Proxmox storage", "node", node)
 				return "Tool Output: " + tools.ProxmoxGetStorage(pxCfg, node)
 			case "create_snapshot", "snapshot":
-				logger.Info("LLM requested Proxmox create_snapshot", "vmid", vmid, "name", tc.Name)
-				return "Tool Output: " + tools.ProxmoxCreateSnapshot(pxCfg, node, vmType, vmid, tc.Name, tc.Description)
+				logger.Info("LLM requested Proxmox create_snapshot", "vmid", vmid, "name", req.Name)
+				return "Tool Output: " + tools.ProxmoxCreateSnapshot(pxCfg, node, vmType, vmid, req.Name, req.Description)
 			case "list_snapshots", "snapshots":
 				logger.Info("LLM requested Proxmox list_snapshots", "vmid", vmid)
 				return "Tool Output: " + tools.ProxmoxListSnapshots(pxCfg, node, vmType, vmid)
 			case "task_log":
-				upid := tc.UPID
-				if upid == "" {
-					upid = tc.ID
-				}
+				upid := req.upid()
 				logger.Info("LLM requested Proxmox task_log", "upid", upid)
 				return "Tool Output: " + tools.ProxmoxGetTaskLog(pxCfg, node, upid)
 			default:
@@ -405,18 +397,16 @@ func dispatchInfra(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 			if !cfg.Ollama.Enabled {
 				return `Tool Output: {"status":"error","message":"Ollama integration is not enabled. Set ollama.enabled=true in config.yaml."}`
 			}
+			req := decodeOllamaArgs(tc)
 			if cfg.Ollama.ReadOnly {
-				switch tc.Operation {
+				switch req.Operation {
 				case "pull", "download", "delete", "remove", "copy", "load", "unload":
 					return `Tool Output: {"status":"error","message":"Ollama is in read-only mode. Disable ollama.read_only to allow changes."}`
 				}
 			}
 			olCfg := tools.OllamaConfig{URL: cfg.Ollama.URL}
-			modelName := tc.Model
-			if modelName == "" {
-				modelName = tc.Name
-			}
-			switch tc.Operation {
+			modelName := req.modelName()
+			switch req.Operation {
 			case "list", "list_models":
 				logger.Info("LLM requested Ollama list models")
 				return "Tool Output: " + tools.OllamaListModels(olCfg)
@@ -433,11 +423,8 @@ func dispatchInfra(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 				logger.Info("LLM requested Ollama delete model", "model", modelName)
 				return "Tool Output: " + tools.OllamaDeleteModel(olCfg, modelName)
 			case "copy":
-				src := tc.Source
-				dst := tc.Destination
-				if dst == "" {
-					dst = tc.Dest
-				}
+				src := req.Source
+				dst := req.destinationName()
 				logger.Info("LLM requested Ollama copy model", "source", src, "destination", dst)
 				return "Tool Output: " + tools.OllamaCopyModel(olCfg, src, dst)
 			case "load":

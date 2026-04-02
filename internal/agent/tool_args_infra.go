@@ -38,6 +38,27 @@ type netlifyArgs struct {
 	CustomDomain string
 }
 
+type proxmoxArgs struct {
+	Operation    string
+	Hostname     string
+	Name         string
+	ID           string
+	VMID         string
+	VMType       string
+	ResourceType string
+	Description  string
+	UPID         string
+}
+
+type ollamaArgs struct {
+	Operation   string
+	Model       string
+	Name        string
+	Source      string
+	Destination string
+	Dest        string
+}
+
 type mcpCallArgs struct {
 	Operation string
 	Server    string
@@ -137,6 +158,66 @@ func (req netlifyArgs) hookData() map[string]interface{} {
 		hookData["email"] = req.Value
 	}
 	return hookData
+}
+
+func decodeProxmoxArgs(tc ToolCall) proxmoxArgs {
+	return proxmoxArgs{
+		Operation:    firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
+		Hostname:     firstNonEmptyToolString(tc.Hostname, toolArgString(tc.Params, "hostname")),
+		Name:         firstNonEmptyToolString(tc.Name, toolArgString(tc.Params, "name")),
+		ID:           firstNonEmptyToolString(tc.ID, toolArgString(tc.Params, "id")),
+		VMID:         firstNonEmptyToolString(tc.VMID, toolArgString(tc.Params, "vmid")),
+		VMType:       firstNonEmptyToolString(tc.VMType, toolArgString(tc.Params, "vm_type")),
+		ResourceType: firstNonEmptyToolString(tc.ResourceType, toolArgString(tc.Params, "resource_type")),
+		Description:  firstNonEmptyToolString(tc.Description, toolArgString(tc.Params, "description")),
+		UPID:         firstNonEmptyToolString(tc.UPID, toolArgString(tc.Params, "upid")),
+	}
+}
+
+func (req proxmoxArgs) node() string {
+	if req.Hostname != "" {
+		return req.Hostname
+	}
+	return req.Name
+}
+
+func (req proxmoxArgs) vmid() string {
+	if req.VMID != "" {
+		return req.VMID
+	}
+	return req.ID
+}
+
+func (req proxmoxArgs) upid() string {
+	if req.UPID != "" {
+		return req.UPID
+	}
+	return req.ID
+}
+
+func decodeOllamaArgs(tc ToolCall) ollamaArgs {
+	return ollamaArgs{
+		Operation:   firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
+		Model:       firstNonEmptyToolString(tc.Model, toolArgString(tc.Params, "model")),
+		Name:        firstNonEmptyToolString(tc.Name, toolArgString(tc.Params, "name")),
+		Source:      firstNonEmptyToolString(tc.Source, toolArgString(tc.Params, "source")),
+		Destination: firstNonEmptyToolString(tc.Destination, toolArgString(tc.Params, "destination")),
+		Dest:        firstNonEmptyToolString(tc.Dest, toolArgString(tc.Params, "dest")),
+	}
+}
+
+func (req ollamaArgs) modelName() string {
+	if req.Model != "" {
+		return req.Model
+	}
+	return req.Name
+}
+
+func (req ollamaArgs) destinationName() string {
+	if req.Destination != "" {
+		return req.Destination
+	}
+	return req.Dest
 }
 
 func decodeMCPCallArgs(tc ToolCall) mcpCallArgs {

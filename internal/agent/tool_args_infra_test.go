@@ -82,6 +82,64 @@ func TestDecodeNetlifyArgsUsesParamsFallback(t *testing.T) {
 	}
 }
 
+func TestDecodeProxmoxArgsUsesFallbackHelpers(t *testing.T) {
+	tc := ToolCall{
+		Action: "proxmox",
+		Params: map[string]interface{}{
+			"operation":     "task_log",
+			"name":          "pve-node-1",
+			"id":            "upid-123",
+			"vm_type":       "qemu",
+			"resource_type": "vm",
+			"description":   "nightly snapshot",
+		},
+	}
+
+	req := decodeProxmoxArgs(tc)
+	if req.Operation != "task_log" {
+		t.Fatalf("Operation = %q, want task_log", req.Operation)
+	}
+	if req.node() != "pve-node-1" {
+		t.Fatalf("node = %q, want pve-node-1", req.node())
+	}
+	if req.vmid() != "upid-123" {
+		t.Fatalf("vmid = %q, want upid-123 fallback", req.vmid())
+	}
+	if req.upid() != "upid-123" {
+		t.Fatalf("upid = %q, want upid-123", req.upid())
+	}
+	if req.VMType != "qemu" || req.ResourceType != "vm" || req.Description != "nightly snapshot" {
+		t.Fatalf("unexpected proxmox decode: %+v", req)
+	}
+}
+
+func TestDecodeOllamaArgsUsesFallbacks(t *testing.T) {
+	tc := ToolCall{
+		Action: "ollama",
+		Params: map[string]interface{}{
+			"operation":   "copy",
+			"name":        "llama3.2",
+			"source":      "llama3.2:latest",
+			"dest":        "llama3.2:backup",
+			"destination": "llama3.2:copy",
+		},
+	}
+
+	req := decodeOllamaArgs(tc)
+	if req.Operation != "copy" {
+		t.Fatalf("Operation = %q, want copy", req.Operation)
+	}
+	if req.modelName() != "llama3.2" {
+		t.Fatalf("modelName = %q, want llama3.2", req.modelName())
+	}
+	if req.Source != "llama3.2:latest" {
+		t.Fatalf("Source = %q, want llama3.2:latest", req.Source)
+	}
+	if req.destinationName() != "llama3.2:copy" {
+		t.Fatalf("destinationName = %q, want llama3.2:copy", req.destinationName())
+	}
+}
+
 func TestDecodeMCPCallArgsUsesParamsFallback(t *testing.T) {
 	tc := ToolCall{
 		Action: "mcp_call",
