@@ -12,6 +12,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"aurago/internal/security"
 )
 
 // ProxmoxConfig holds the Proxmox VE connection parameters.
@@ -50,6 +52,9 @@ func proxmoxJSONStr(s string) string {
 
 // proxmoxRequest performs a generic HTTP request against the Proxmox VE API.
 func proxmoxRequest(cfg ProxmoxConfig, method, endpoint string, body string) ([]byte, int, error) {
+	// Prevent Proxmox API credentials from leaking into logs or LLM output
+	security.RegisterSensitive(cfg.Secret)
+	security.RegisterSensitive(cfg.TokenID)
 	baseURL := strings.TrimRight(cfg.URL, "/")
 	parsedURL, err := url.Parse(baseURL)
 	if err != nil {

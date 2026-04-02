@@ -31,7 +31,21 @@ func imageJSON(r imageResult) string {
 }
 
 // ExecuteImageProcessing dispatches image processing operations.
-func ExecuteImageProcessing(operation, inputFile, outputFile, outputFormat string, width, height, quality, x, y, cropW, cropH, angle int) string {
+func ExecuteImageProcessing(workspaceDir, operation, inputFile, outputFile, outputFormat string, width, height, quality, x, y, cropW, cropH, angle int) string {
+	if workspaceDir != "" && inputFile != "" {
+		resolved, err := secureResolve(workspaceDir, inputFile)
+		if err != nil {
+			return imageJSON(imageResult{Status: "error", Message: fmt.Sprintf("invalid input path: %v", err)})
+		}
+		inputFile = resolved
+	}
+	if workspaceDir != "" && outputFile != "" {
+		resolved, err := secureResolve(workspaceDir, outputFile)
+		if err != nil {
+			return imageJSON(imageResult{Status: "error", Message: fmt.Sprintf("invalid output path: %v", err)})
+		}
+		outputFile = resolved
+	}
 	switch strings.ToLower(operation) {
 	case "resize":
 		return imageResize(inputFile, outputFile, width, height, quality)

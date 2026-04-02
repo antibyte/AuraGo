@@ -1109,7 +1109,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				return "Tool Output: [PERMISSION DENIED] archive create/extract operations are disabled in Danger Zone settings (agent.allow_filesystem_write: false)."
 			}
 			logger.Info("LLM requested archive operation", "op", req.Operation, "path", req.FilePath, "target_dir", req.Destination)
-			return "Tool Output: " + tools.ExecuteArchive(req.Operation, req.FilePath, req.Destination, req.SourceFiles, req.Format)
+			return "Tool Output: " + tools.ExecuteArchive(cfg.Directories.WorkspaceDir, req.Operation, req.FilePath, req.Destination, req.SourceFiles, req.Format)
 
 		case "pdf_operations":
 			req := decodePDFOperationArgs(tc)
@@ -1127,7 +1127,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				return "Tool Output: [PERMISSION DENIED] image_processing write operations are disabled in Danger Zone settings (agent.allow_filesystem_write: false)."
 			}
 			logger.Info("LLM requested image processing", "op", req.Operation, "path", req.FilePath)
-			return "Tool Output: " + tools.ExecuteImageProcessing(req.Operation, req.FilePath, req.OutputFile, req.OutputFormat, req.Width, req.Height, req.QualityPct, req.CropX, req.CropY, req.CropWidth, req.CropHeight, req.Angle)
+			return "Tool Output: " + tools.ExecuteImageProcessing(cfg.Directories.WorkspaceDir, req.Operation, req.FilePath, req.OutputFile, req.OutputFormat, req.Width, req.Height, req.QualityPct, req.CropX, req.CropY, req.CropWidth, req.CropHeight, req.Angle)
 
 		case "filesystem", "filesystem_op":
 			req := decodeFilesystemArgs(tc)

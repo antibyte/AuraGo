@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"aurago/internal/config"
@@ -18,6 +19,7 @@ import (
 
 // GWorkspaceClient holds auth state for Google Workspace API calls.
 type GWorkspaceClient struct {
+	mu           sync.Mutex
 	AccessToken  string
 	RefreshToken string
 	TokenExpiry  time.Time
@@ -58,6 +60,8 @@ func NewGWorkspaceClient(cfg config.Config, vault *security.Vault) (*GWorkspaceC
 
 // refreshIfNeeded refreshes the access token if it has expired.
 func (c *GWorkspaceClient) refreshIfNeeded() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if c.RefreshToken == "" {
 		return nil // Cannot refresh without refresh token
 	}
@@ -314,6 +318,9 @@ func (c *GWorkspaceClient) GmailRead(messageID string) string {
 func (c *GWorkspaceClient) GmailSend(to, subject, body string) string {
 	if to == "" {
 		return gwErrJSON("'to' is required")
+	}
+	if strings.ContainsAny(to, "\r\n") || strings.ContainsAny(subject, "\r\n") {
+		return gwErrJSON("'to' and 'subject' must not contain newline characters")
 	}
 	raw := fmt.Sprintf("From: me\r\nTo: %s\r\nSubject: %s\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n%s", to, subject, body)
 	encoded := base64.URLEncoding.EncodeToString([]byte(raw))
@@ -676,7 +683,11 @@ func (c *GWorkspaceClient) DocsCreate(title, body string) string {
 			},
 		}
 		u := fmt.Sprintf("https://docs.googleapis.com/v1/documents/%s:batchUpdate", created.DocumentID)
-		c.request("POST", u, updatePayload)
+		if _, updateStatus, updateErr := c.request("POST", u, updatePayload); updateErr != nil {
+			return gwErrJSON("Docs batchUpdate failed: %v", updateErr)
+		} else if updateStatus != 200 {
+			return gwErrJSON("Docs batchUpdate error (HTTP %d)", updateStatus)
+		}
 	}
 
 	out, _ := json.Marshal(map[string]interface{}{

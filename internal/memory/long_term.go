@@ -61,8 +61,8 @@ type ChromemVectorDB struct {
 	queryCache    map[string]queryCacheEntry
 	queryCacheMu  sync.RWMutex
 	queryCacheTTL time.Duration
-	indexing      atomic.Int32  // Counter: >0 while async indexing is in progress
-	dedupSem      chan struct{} // semaphore to limit concurrent dedup checks
+	indexing      atomic.Int32       // Counter: >0 while async indexing is in progress
+	dedupSem      chan struct{}      // semaphore to limit concurrent dedup checks
 	sfGroup       singleflight.Group // deduplicates concurrent embedding API calls for the same query
 }
 

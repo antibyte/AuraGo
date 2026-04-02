@@ -62,7 +62,12 @@ func ExecuteWikipediaSearch(query, lang string) string {
 	}
 
 	title, _ := data["title"].(string)
-	pageURL, _ := data["content_urls"].(map[string]interface{})["desktop"].(map[string]interface{})["page"].(string)
+	var pageURL string
+	if cu, ok := data["content_urls"].(map[string]interface{}); ok {
+		if desktop, ok := cu["desktop"].(map[string]interface{}); ok {
+			pageURL, _ = desktop["page"].(string)
+		}
+	}
 	summary, _ := data["extract"].(string)
 
 	result := map[string]interface{}{

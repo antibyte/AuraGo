@@ -8,9 +8,11 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"aurago/internal/security"
 )
 
-var imageGenHTTPClient = &http.Client{Timeout: 120 * time.Second}
+var imageGenHTTPClient = security.NewSSRFProtectedHTTPClient(120 * time.Second)
 
 // generateOpenRouter generates an image using OpenRouter's chat/completions endpoint.
 // Supports models like flux-2-pro, gpt-5-image that return base64 images inline.

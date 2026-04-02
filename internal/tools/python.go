@@ -210,13 +210,11 @@ func RunTool(name string, args []string, workspaceDir, toolsDir string) (string,
 		return "", "", err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), GetForegroundTimeout())
-	defer cancel()
-
 	pythonCmd := GetPythonBin(workspaceDir)
 	cmdArgs := append([]string{absToolPath}, args...)
-	cmd := exec.CommandContext(ctx, pythonCmd, cmdArgs...)
+	cmd := exec.Command(pythonCmd, cmdArgs...)
 	cmd.Dir = getAbsWorkspace(workspaceDir)
+	SetupCmd(cmd)
 
 	slog.Debug("[RunTool]", "cmd", pythonCmd, "args", cmd.Args)
 
@@ -224,11 +222,24 @@ func RunTool(name string, args []string, workspaceDir, toolsDir string) (string,
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
-	err = cmd.Run()
-	if ctx.Err() == context.DeadlineExceeded {
+	if err := cmd.Start(); err != nil {
+		return "", "", err
+	}
+
+	done := make(chan error, 1)
+	go func() { done <- cmd.Wait() }()
+
+	timer := time.NewTimer(GetForegroundTimeout())
+	defer timer.Stop()
+
+	select {
+	case err := <-done:
+		return stdout.String(), stderr.String(), err
+	case <-timer.C:
+		KillProcessTree(cmd.Process.Pid)
+		<-done
 		return stdout.String(), stderr.String(), fmt.Errorf("TIMEOUT: tool '%s' exceeded %s limit and was killed", name, GetForegroundTimeout())
 	}
-	return stdout.String(), stderr.String(), err
 }
 
 // RunToolWithSecrets is like RunTool but injects vault secrets and credential secrets
@@ -239,13 +250,11 @@ func RunToolWithSecrets(name string, args []string, workspaceDir, toolsDir strin
 		return "", "", err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), GetForegroundTimeout())
-	defer cancel()
-
 	pythonCmd := GetPythonBin(workspaceDir)
 	cmdArgs := append([]string{absToolPath}, args...)
-	cmd := exec.CommandContext(ctx, pythonCmd, cmdArgs...)
+	cmd := exec.Command(pythonCmd, cmdArgs...)
 	cmd.Dir = getAbsWorkspace(workspaceDir)
+	SetupCmd(cmd)
 	InjectSecretsEnv(cmd, secrets)
 	InjectCredentialEnv(cmd, creds)
 
@@ -253,12 +262,26 @@ func RunToolWithSecrets(name string, args []string, workspaceDir, toolsDir strin
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
-	err = cmd.Run()
-	so, se := ScrubSecretOutput(stdout.String(), stderr.String())
-	if ctx.Err() == context.DeadlineExceeded {
+	if err := cmd.Start(); err != nil {
+		return "", "", err
+	}
+
+	done := make(chan error, 1)
+	go func() { done <- cmd.Wait() }()
+
+	timer := time.NewTimer(GetForegroundTimeout())
+	defer timer.Stop()
+
+	select {
+	case err := <-done:
+		so, se := ScrubSecretOutput(stdout.String(), stderr.String())
+		return so, se, err
+	case <-timer.C:
+		KillProcessTree(cmd.Process.Pid)
+		<-done
+		so, se := ScrubSecretOutput(stdout.String(), stderr.String())
 		return so, se, fmt.Errorf("TIMEOUT: tool '%s' exceeded %s limit and was killed", name, GetForegroundTimeout())
 	}
-	return so, se, err
 }
 
 // RunToolBackground starts a saved tool in the background and registers it in the process registry.

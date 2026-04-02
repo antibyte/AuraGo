@@ -31,10 +31,27 @@ const maxExtractSize int64 = 1 << 30
 //	targetDir   – extraction target dir (extract) or source dir (create)
 //	sourceFiles – JSON-encoded array of specific file paths (create only; "" = use targetDir)
 //	format      – "zip" or "tar.gz" (create only; extract/list auto-detect from extension)
-func ExecuteArchive(operation, archivePath, targetDir, sourceFiles, format string) string {
+func ExecuteArchive(workspaceDir, operation, archivePath, targetDir, sourceFiles, format string) string {
 	encode := func(r archiveResult) string {
 		b, _ := json.Marshal(r)
 		return string(b)
+	}
+
+	if workspaceDir != "" {
+		if archivePath != "" {
+			resolved, err := secureResolve(workspaceDir, archivePath)
+			if err != nil {
+				return encode(archiveResult{Status: "error", Message: fmt.Sprintf("invalid archive path: %v", err)})
+			}
+			archivePath = resolved
+		}
+		if targetDir != "" {
+			resolved, err := secureResolve(workspaceDir, targetDir)
+			if err != nil {
+				return encode(archiveResult{Status: "error", Message: fmt.Sprintf("invalid target directory: %v", err)})
+			}
+			targetDir = resolved
+		}
 	}
 
 	operation = strings.ToLower(strings.TrimSpace(operation))

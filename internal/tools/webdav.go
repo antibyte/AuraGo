@@ -9,6 +9,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"aurago/internal/security"
 )
 
 // WebDAVConfig holds the WebDAV connection parameters.
@@ -21,7 +23,7 @@ type WebDAVConfig struct {
 }
 
 // webdavHTTPClient is a shared HTTP client for WebDAV calls.
-var webdavHTTPClient = &http.Client{Timeout: 60 * time.Second}
+var webdavHTTPClient = security.NewSSRFProtectedHTTPClient(60 * time.Second)
 
 // ── WebDAV XML types for PROPFIND parsing ────────────────────────────
 

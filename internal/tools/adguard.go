@@ -9,6 +9,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"aurago/internal/security"
 )
 
 // AdGuardConfig holds the connection parameters for an AdGuard Home instance.
@@ -22,7 +24,7 @@ type AdGuardConfig struct {
 var adguardClient *http.Client
 var adguardClientOnce sync.Once
 var adguardClientFactory = func() *http.Client {
-	return &http.Client{Timeout: 15 * time.Second}
+	return security.NewSSRFProtectedHTTPClient(15 * time.Second)
 }
 
 func getAdGuardClient() *http.Client {

@@ -414,13 +414,14 @@ func HomepageDestroy(cfg HomepageConfig, logger *slog.Logger) string {
 // ─── Dev Commands (Token-Saving Compound Operations) ──────────────────────
 
 // HomepageExec runs a command inside the dev container.
-func HomepageExec(cfg HomepageConfig, command string, logger *slog.Logger) string {
+// Pass env as nil unless additional environment variables need to be injected.
+func HomepageExec(cfg HomepageConfig, command string, env []string, logger *slog.Logger) string {
 	dockerCfg := DockerConfig{Host: cfg.DockerHost}
 	if command == "" {
 		return errJSON("command is required")
 	}
 	logger.Info("[Homepage] Exec", "cmd", command)
-	return DockerExec(dockerCfg, homepageContainerName, command, "")
+	return dockerExecInternal(dockerCfg, homepageContainerName, command, "", env)
 }
 
 // HomepageInitProject scaffolds a new web project inside the container.

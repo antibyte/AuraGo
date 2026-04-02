@@ -591,6 +591,10 @@ func AnsibleLocalRunPlaybook(cfg AnsibleLocalConfig, playbook, inventoryPath, li
 	playbookPath := playbook
 	if cfg.PlaybooksDir != "" && !filepath.IsAbs(playbook) {
 		playbookPath = filepath.Join(cfg.PlaybooksDir, playbook)
+		base := filepath.Clean(cfg.PlaybooksDir) + string(os.PathSeparator)
+		if !strings.HasPrefix(filepath.Clean(playbookPath)+string(os.PathSeparator), base) {
+			return `{"status":"error","message":"playbook path escapes the configured playbooks directory"}`
+		}
 	}
 	if _, statErr := os.Stat(playbookPath); statErr != nil {
 		return fmt.Sprintf(`{"status":"error","message":"playbook not found: %s"}`, playbookPath)

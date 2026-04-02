@@ -255,6 +255,7 @@ func (q *MissionQueue) Remove(missionID string) bool {
 // MissionManagerV2 provides enhanced mission management with triggers and queue
 type MissionManagerV2 struct {
 	mu                sync.RWMutex
+	saveMu            sync.Mutex // serialises file writes in save()
 	file              string
 	missions          map[string]*MissionV2
 	queue             *MissionQueue
@@ -407,6 +408,8 @@ func (m *MissionManagerV2) Stop() {
 }
 
 func (m *MissionManagerV2) save() error {
+	m.saveMu.Lock()
+	defer m.saveMu.Unlock()
 	// NOTE: callers should hold m.mu (Lock or RLock) when possible, but some
 	// call paths (e.g. processNext) invoke save after releasing the lock.
 	// Do NOT acquire m.mu here — to avoid double locking.

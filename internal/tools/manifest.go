@@ -68,7 +68,16 @@ func (m *Manifest) save(tools map[string]string) error {
 	if err != nil {
 		return fmt.Errorf("failed to marshal manifest: %w", err)
 	}
-	return os.WriteFile(m.filePath, data, 0600)
+	// Atomic write: temp file + rename prevents manifest corruption on crash
+	tmp := m.filePath + ".tmp"
+	if err := os.WriteFile(tmp, data, 0600); err != nil {
+		return fmt.Errorf("write temp manifest: %w", err)
+	}
+	if err := os.Rename(tmp, m.filePath); err != nil {
+		os.Remove(tmp)
+		return fmt.Errorf("rename temp manifest: %w", err)
+	}
+	return nil
 }
 
 // Register adds or updates a tool entry in the manifest.

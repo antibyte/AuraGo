@@ -388,14 +388,14 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return "Tool Output: " + tools.HomepageDestroy(homepageCfg, logger)
 			case "exec":
 				logger.Info("LLM requested homepage exec", "cmd", req.Command)
-				execCmd := req.Command
+				var execEnv []string
 				// Auto-inject Netlify auth token when the command invokes the netlify CLI
 				if vault != nil && strings.Contains(req.Command, "netlify ") {
 					if nfTok, tokErr := vault.ReadSecret("netlify_token"); tokErr == nil && nfTok != "" {
-						execCmd = "NETLIFY_AUTH_TOKEN=" + nfTok + " " + req.Command
+						execEnv = []string{"NETLIFY_AUTH_TOKEN=" + nfTok}
 					}
 				}
-				return "Tool Output: " + tools.HomepageExec(homepageCfg, execCmd, logger)
+				return "Tool Output: " + tools.HomepageExec(homepageCfg, req.Command, execEnv, logger)
 			case "init_project":
 				logger.Info("LLM requested homepage init_project", "framework", req.Framework, "name", req.Name, "template", req.Template)
 				result := tools.HomepageInitProject(homepageCfg, req.Framework, req.Name, req.Template, logger)

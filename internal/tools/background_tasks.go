@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -15,6 +16,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"aurago/internal/security"
 )
 
 const (
@@ -132,9 +135,7 @@ func NewBackgroundTaskManager(dataDir string, logger *slog.Logger) *BackgroundTa
 		file:   filepath.Join(dataDir, "background_tasks.json"),
 		tasks:  make(map[string]*BackgroundTask),
 		logger: logger,
-		httpClient: &http.Client{
-			Timeout: 5 * time.Second,
-		},
+		httpClient: security.NewSSRFProtectedHTTPClient(5 * time.Second),
 		ctx:     ctx,
 		cancel:  cancel,
 		trigger: make(chan struct{}, 1),
@@ -474,6 +475,10 @@ func (m *BackgroundTaskManager) checkWaitCondition(payload WaitForEventTaskPaylo
 		}
 		if urlStr == "" {
 			return false, "", fmt.Errorf("wait_for_event http_available requires url or host")
+		}
+		parsedEvtURL, parseErr := url.Parse(urlStr)
+		if parseErr != nil || (parsedEvtURL.Scheme != "http" && parsedEvtURL.Scheme != "https") {
+			return false, "", fmt.Errorf("wait_for_event http_available: invalid or non-HTTP URL scheme")
 		}
 		req, err := http.NewRequest(http.MethodGet, urlStr, nil)
 		if err != nil {

@@ -12,6 +12,9 @@ import (
 	"unicode/utf8"
 )
 
+// maxWriteBytes limits write_file content size to prevent agent-triggered OOM.
+const maxWriteBytes = 100 * 1024 * 1024 // 100 MB
+
 func looksLikeBinaryFile(path string, data []byte) bool {
 	if len(data) == 0 {
 		return false
@@ -549,6 +552,9 @@ func executeFilesystemResult(operation, path, destination, content string, items
 		resolved, err := secureResolve(workspaceDir, path)
 		if err != nil {
 			return filesystemResolveErrorResult(workspaceDir, path, err)
+		}
+		if len(content) > maxWriteBytes {
+			return FSResult{Status: "error", Message: fmt.Sprintf("content exceeds the %d MB write limit", maxWriteBytes/(1024*1024))}
 		}
 		// Ensure parent directories exist
 		if err := os.MkdirAll(filepath.Dir(resolved), 0755); err != nil {

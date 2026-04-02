@@ -47,7 +47,15 @@ func ExecuteOutgoingWebhook(ctx context.Context, hook config.OutgoingWebhook, pa
 		contentType = "application/json" // default assumption unless overridden in headers
 		bodyString := hook.BodyTemplate
 		for k, v := range params {
-			bodyString = strings.ReplaceAll(bodyString, "{{"+k+"}}", fmt.Sprintf("%v", v))
+			var safeVal string
+			if sv, ok := v.(string); ok {
+				b, _ := json.Marshal(sv)
+				safeVal = string(b[1 : len(b)-1]) // escape JSON string content, strip outer quotes
+			} else {
+				b, _ := json.Marshal(v)
+				safeVal = string(b)
+			}
+			bodyString = strings.ReplaceAll(bodyString, "{{"+k+"}}", safeVal)
 		}
 		reqBody = []byte(bodyString)
 	}

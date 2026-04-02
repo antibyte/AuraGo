@@ -8,6 +8,21 @@ import (
 	"strings"
 )
 
+// maxEditFileSize limits file sizes for in-memory edit operations to prevent OOM.
+const maxEditFileSize int64 = 10 * 1024 * 1024 // 10 MB
+
+// checkEditSizeLimit returns an error if the file exceeds the edit size limit.
+func checkEditSizeLimit(path string) error {
+	info, err := os.Stat(path)
+	if err != nil {
+		return nil // let os.ReadFile report the real error
+	}
+	if info.Size() > maxEditFileSize {
+		return fmt.Errorf("file exceeds the %d MB edit size limit", maxEditFileSize/(1024*1024))
+	}
+	return nil
+}
+
 // FileEditorResult is the JSON response returned for file_editor operations.
 type FileEditorResult struct {
 	Status       string `json:"status"`
@@ -58,6 +73,9 @@ func fileStrReplace(resolved, old, new_ string, replaceAll bool, encode func(Fil
 		return encode(FileEditorResult{Status: "error", Message: "'old' text is required for str_replace"})
 	}
 
+	if err := checkEditSizeLimit(resolved); err != nil {
+		return encode(FileEditorResult{Status: "error", Message: err.Error()})
+	}
 	data, err := os.ReadFile(resolved)
 	if err != nil {
 		return encode(FileEditorResult{Status: "error", Message: fmt.Sprintf("Failed to read file: %v", err)})
@@ -101,6 +119,9 @@ func fileInsertRelative(resolved, marker, content string, after bool, encode fun
 		return encode(FileEditorResult{Status: "error", Message: "'content' is required for insert_after/insert_before"})
 	}
 
+	if err := checkEditSizeLimit(resolved); err != nil {
+		return encode(FileEditorResult{Status: "error", Message: err.Error()})
+	}
 	data, err := os.ReadFile(resolved)
 	if err != nil {
 		return encode(FileEditorResult{Status: "error", Message: fmt.Sprintf("Failed to read file: %v", err)})
@@ -150,6 +171,9 @@ func fileAppendPrepend(resolved, content string, appendMode bool, encode func(Fi
 		return encode(FileEditorResult{Status: "error", Message: "'content' is required for append/prepend"})
 	}
 
+	if err := checkEditSizeLimit(resolved); err != nil {
+		return encode(FileEditorResult{Status: "error", Message: err.Error()})
+	}
 	data, err := os.ReadFile(resolved)
 	if err != nil {
 		if os.IsNotExist(err) && appendMode {
@@ -207,6 +231,9 @@ func fileDeleteLines(resolved string, startLine, endLine int, encode func(FileEd
 		return encode(FileEditorResult{Status: "error", Message: "'end_line' must be >= start_line"})
 	}
 
+	if err := checkEditSizeLimit(resolved); err != nil {
+		return encode(FileEditorResult{Status: "error", Message: err.Error()})
+	}
 	data, err := os.ReadFile(resolved)
 	if err != nil {
 		return encode(FileEditorResult{Status: "error", Message: fmt.Sprintf("Failed to read file: %v", err)})

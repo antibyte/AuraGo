@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"aurago/internal/config"
@@ -17,6 +18,7 @@ import (
 
 // OneDriveClient holds auth state for Microsoft Graph OneDrive API calls.
 type OneDriveClient struct {
+	mu           sync.Mutex
 	AccessToken  string
 	RefreshToken string
 	TokenExpiry  time.Time
@@ -64,6 +66,8 @@ func NewOneDriveClient(cfg config.Config, vault *security.Vault) (*OneDriveClien
 
 // refreshIfNeeded refreshes the access token if it has expired or is about to expire.
 func (c *OneDriveClient) refreshIfNeeded() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if c.RefreshToken == "" {
 		return nil
 	}

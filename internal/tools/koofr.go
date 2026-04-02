@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"aurago/internal/security"
 )
 
 // KoofrConfig holds the configuration needed to access Koofr API.
@@ -25,7 +27,7 @@ type mountInfo struct {
 	IsPrimary bool   `json:"isPrimary"`
 }
 
-var koofrHTTPClient = &http.Client{Timeout: 30 * time.Second}
+var koofrHTTPClient = security.NewSSRFProtectedHTTPClient(30 * time.Second)
 
 // ExecuteKoofr performs operations on the Koofr API.
 // Valid actions: list, read, write, mkdir, delete, rename, copy.

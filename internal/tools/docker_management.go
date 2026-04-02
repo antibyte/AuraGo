@@ -176,8 +176,9 @@ func DockerSystemInfo(cfg DockerConfig) string {
 	return string(out)
 }
 
-// DockerExec executes a command inside a running container using the REST API.
-func DockerExec(cfg DockerConfig, containerID, cmd, user string) string {
+// dockerExecInternal executes a command inside a running container using the REST API.
+// Pass env as nil when no additional environment variables are needed.
+func dockerExecInternal(cfg DockerConfig, containerID, cmd, user string, env []string) string {
 	if err := validateDockerName(containerID); err != nil {
 		return errJSON("%v", err)
 	}
@@ -191,6 +192,9 @@ func DockerExec(cfg DockerConfig, containerID, cmd, user string) string {
 	}
 	if user != "" {
 		payload["User"] = user
+	}
+	if len(env) > 0 {
+		payload["Env"] = env
 	}
 	body, _ := json.Marshal(payload)
 
@@ -252,6 +256,11 @@ func DockerExec(cfg DockerConfig, containerID, cmd, user string) string {
 
 	out, _ := json.Marshal(result)
 	return string(out)
+}
+
+// DockerExec executes a command inside a running container using the REST API.
+func DockerExec(cfg DockerConfig, containerID, cmd, user string) string {
+	return dockerExecInternal(cfg, containerID, cmd, user, nil)
 }
 
 // DockerStats retrieves real-time resource usage of a container.

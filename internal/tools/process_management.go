@@ -3,6 +3,7 @@ package tools
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"sort"
 	"time"
 
@@ -88,6 +89,9 @@ func ManageProcesses(operation string, pid int32) string {
 	case "kill":
 		if pid == 0 {
 			return encode(ProcResult{Status: "error", Message: "PID 0 cannot be killed"})
+		}
+		if pid == 1 || pid == int32(os.Getpid()) {
+			return encode(ProcResult{Status: "error", Message: fmt.Sprintf("PID %d is protected and cannot be killed", pid)})
 		}
 		p, err := process.NewProcess(pid)
 		if err != nil {

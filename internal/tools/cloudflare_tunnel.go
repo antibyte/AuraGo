@@ -1002,6 +1002,9 @@ func validateCustomIngress(rules []CloudflareIngress) error {
 		case "22", "23", "3389", "5900", "5901":
 			return fmt.Errorf("service URL %q targets sensitive port %s; expose such services via a reverse proxy instead", r.Service, u.Port())
 		}
+		if strings.ContainsAny(r.Hostname+r.Path+r.Service, "\r\n") {
+			return fmt.Errorf("ingress rule fields must not contain newline characters")
+		}
 	}
 	return nil
 }
@@ -1009,6 +1012,9 @@ func validateCustomIngress(rules []CloudflareIngress) error {
 func writeNamedTunnelConfig(cfg CloudflareTunnelConfig, credPath, configPath string) error {
 	if err := validateCustomIngress(cfg.CustomIngress); err != nil {
 		return fmt.Errorf("invalid ingress configuration: %w", err)
+	}
+	if strings.ContainsAny(cfg.TunnelName, "\r\n") {
+		return fmt.Errorf("tunnel name must not contain newline characters")
 	}
 	var sb strings.Builder
 	sb.WriteString("tunnel: " + cfg.TunnelName + "\n")
