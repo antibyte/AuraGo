@@ -779,16 +779,19 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			return "Tool Output: " + tools.SendNotification(cfg, logger, req.Channel, req.Title, req.Message, req.Priority, discordSend, telnyxSend)
 
 		case "send_image":
-			logger.Info("LLM requested image send", "path", tc.Path, "caption", tc.Caption)
-			return handleSendImage(tc, cfg, logger)
+			req := decodeSendMediaArgs(tc)
+			logger.Info("LLM requested image send", "path", req.Path, "caption", req.Caption)
+			return handleSendImage(req, cfg, logger)
 
 		case "send_audio":
-			logger.Info("LLM requested audio send", "path", tc.Path, "title", tc.Title)
-			return handleSendAudio(tc, cfg, logger, mediaRegistryDB)
+			req := decodeSendMediaArgs(tc)
+			logger.Info("LLM requested audio send", "path", req.Path, "title", req.Title)
+			return handleSendAudio(req, cfg, logger, mediaRegistryDB)
 
 		case "send_document":
-			logger.Info("LLM requested document send", "path", tc.Path, "title", tc.Title)
-			return handleSendDocument(tc, cfg, logger, mediaRegistryDB)
+			req := decodeSendMediaArgs(tc)
+			logger.Info("LLM requested document send", "path", req.Path, "title", req.Title)
+			return handleSendDocument(req, cfg, logger, mediaRegistryDB)
 
 		case "manage_processes", "process_management":
 			req := decodeManageProcessesArgs(tc)

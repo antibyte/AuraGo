@@ -17,13 +17,13 @@ import (
 
 // handleSendDocument resolves a document path or URL, copies/downloads it into
 // data/documents/ and returns a JSON result the agent should include in its reply.
-func handleSendDocument(tc ToolCall, cfg *config.Config, logger *slog.Logger, mediaRegistryDB *sql.DB) string {
+func handleSendDocument(req sendMediaArgs, cfg *config.Config, logger *slog.Logger, mediaRegistryDB *sql.DB) string {
 	encode := func(r map[string]interface{}) string {
 		b, _ := json.Marshal(r)
 		return "Tool Output: " + string(b)
 	}
 
-	if tc.Path == "" {
+	if req.Path == "" {
 		return encode(map[string]interface{}{"status": "error", "message": "path is required"})
 	}
 
@@ -36,23 +36,23 @@ func handleSendDocument(tc ToolCall, cfg *config.Config, logger *slog.Logger, me
 		return encode(map[string]interface{}{"status": "error", "message": "failed to create documents dir: " + err.Error()})
 	}
 
-	title := tc.Title
+	title := req.Title
 	if title == "" {
-		title = tc.Caption
+		title = req.Caption
 	}
 
 	var localPath string
 
-	if strings.HasPrefix(tc.Path, "http://") || strings.HasPrefix(tc.Path, "https://") {
-		saved, err := media.SaveURLToDir(tc.Path, docDir)
+	if strings.HasPrefix(req.Path, "http://") || strings.HasPrefix(req.Path, "https://") {
+		saved, err := media.SaveURLToDir(req.Path, docDir)
 		if err != nil {
 			return encode(map[string]interface{}{"status": "error", "message": "failed to download document: " + err.Error()})
 		}
 		localPath = saved
 	} else {
-		candidate := resolveAgentFilePath(tc.Path, cfg)
+		candidate := resolveAgentFilePath(req.Path, cfg)
 		if _, err := os.Stat(candidate); err != nil {
-			return encode(map[string]interface{}{"status": "error", "message": "document file not found: " + tc.Path})
+			return encode(map[string]interface{}{"status": "error", "message": "document file not found: " + req.Path})
 		}
 		localPath = candidate
 		// Copy into documents dir if not already there

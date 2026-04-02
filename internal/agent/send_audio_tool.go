@@ -18,13 +18,13 @@ import (
 
 // handleSendAudio resolves an audio file path or URL, copies/downloads it into
 // data/audio/ and returns a JSON result the agent should include in its reply.
-func handleSendAudio(tc ToolCall, cfg *config.Config, logger *slog.Logger, mediaRegistryDB *sql.DB) string {
+func handleSendAudio(req sendMediaArgs, cfg *config.Config, logger *slog.Logger, mediaRegistryDB *sql.DB) string {
 	encode := func(r map[string]interface{}) string {
 		b, _ := json.Marshal(r)
 		return "Tool Output: " + string(b)
 	}
 
-	if tc.Path == "" {
+	if req.Path == "" {
 		return encode(map[string]interface{}{"status": "error", "message": "path is required"})
 	}
 
@@ -37,23 +37,23 @@ func handleSendAudio(tc ToolCall, cfg *config.Config, logger *slog.Logger, media
 		return encode(map[string]interface{}{"status": "error", "message": "failed to create audio dir: " + err.Error()})
 	}
 
-	title := tc.Title
+	title := req.Title
 	if title == "" {
-		title = tc.Caption
+		title = req.Caption
 	}
 
 	var localPath string
 
-	if strings.HasPrefix(tc.Path, "http://") || strings.HasPrefix(tc.Path, "https://") {
-		saved, err := media.SaveURLToDir(tc.Path, audioDir)
+	if strings.HasPrefix(req.Path, "http://") || strings.HasPrefix(req.Path, "https://") {
+		saved, err := media.SaveURLToDir(req.Path, audioDir)
 		if err != nil {
 			return encode(map[string]interface{}{"status": "error", "message": "failed to download audio: " + err.Error()})
 		}
 		localPath = saved
 	} else {
-		candidate := resolveAgentFilePath(tc.Path, cfg)
+		candidate := resolveAgentFilePath(req.Path, cfg)
 		if _, err := os.Stat(candidate); err != nil {
-			return encode(map[string]interface{}{"status": "error", "message": "audio file not found: " + tc.Path})
+			return encode(map[string]interface{}{"status": "error", "message": "audio file not found: " + req.Path})
 		}
 		localPath = candidate
 		// Copy into audio dir if not already there

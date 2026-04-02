@@ -430,3 +430,18 @@ func TestDecodeEmailSendArgsUsesBodyFallbacks(t *testing.T) {
 		t.Fatalf("decoded email send args = %+v", req)
 	}
 }
+
+func TestDecodeSendMediaArgsUsesFilePathAndCaptionFallbacks(t *testing.T) {
+	req := decodeSendMediaArgs(ToolCall{
+		Action: "send_image",
+		Params: map[string]interface{}{
+			"file_path": "images/report.png",
+			"caption":   "Quarterly report",
+			"title":     "Q1",
+		},
+	})
+
+	if req.Path != "images/report.png" || req.Caption != "Quarterly report" || req.Title != "Q1" {
+		t.Fatalf("decoded send media args = %+v", req)
+	}
+}

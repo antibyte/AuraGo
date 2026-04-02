@@ -17,13 +17,13 @@ import (
 // handleSendImage resolves the image path or URL, copies/downloads it into the
 // workspace images directory, and returns a JSON result with the web path and
 // a ready-to-use markdown image string for the agent to include in its response.
-func handleSendImage(tc ToolCall, cfg *config.Config, logger *slog.Logger) string {
+func handleSendImage(req sendMediaArgs, cfg *config.Config, logger *slog.Logger) string {
 	encode := func(r map[string]interface{}) string {
 		b, _ := json.Marshal(r)
 		return "Tool Output: " + string(b)
 	}
 
-	if tc.Path == "" {
+	if req.Path == "" {
 		return encode(map[string]interface{}{"status": "error", "message": "path is required"})
 	}
 
@@ -37,17 +37,17 @@ func handleSendImage(tc ToolCall, cfg *config.Config, logger *slog.Logger) strin
 		return encode(map[string]interface{}{"status": "error", "message": "failed to create images dir: " + err.Error()})
 	}
 
-	caption := tc.Caption
+	caption := req.Caption
 	var localPath string
 
-	if strings.HasPrefix(tc.Path, "http://") || strings.HasPrefix(tc.Path, "https://") {
-		saved, err := media.SaveURLToDir(tc.Path, imagesDir)
+	if strings.HasPrefix(req.Path, "http://") || strings.HasPrefix(req.Path, "https://") {
+		saved, err := media.SaveURLToDir(req.Path, imagesDir)
 		if err != nil {
 			return encode(map[string]interface{}{"status": "error", "message": "failed to download image: " + err.Error()})
 		}
 		localPath = saved
 	} else {
-		candidate := tc.Path
+		candidate := req.Path
 		if !filepath.IsAbs(candidate) {
 			// The agent may pass full-ish paths like "agent_workspace/workdir/snail.jpg".
 			// Strip the workspace dir prefix (clean form) so we get just the filename/sub-path.
@@ -69,7 +69,7 @@ func handleSendImage(tc ToolCall, cfg *config.Config, logger *slog.Logger) strin
 			}
 		}
 		if _, err := os.Stat(candidate); err != nil {
-			return encode(map[string]interface{}{"status": "error", "message": "image file not found: " + tc.Path})
+			return encode(map[string]interface{}{"status": "error", "message": "image file not found: " + req.Path})
 		}
 		localPath = candidate
 		// If outside workspace dir, copy into images sub-dir so /files/ can serve it

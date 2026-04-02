@@ -203,6 +203,12 @@ type emailSendArgs struct {
 	Body    string
 }
 
+type sendMediaArgs struct {
+	Path    string
+	Title   string
+	Caption string
+}
+
 func toolArgStringSlice(args map[string]interface{}, keys ...string) []string {
 	for _, key := range keys {
 		raw, ok := args[key]
@@ -637,6 +643,14 @@ func decodeEmailSendArgs(tc ToolCall) emailSendArgs {
 		To:      firstNonEmptyToolString(tc.To, toolArgString(tc.Params, "to")),
 		Subject: firstNonEmptyToolString(tc.Subject, toolArgString(tc.Params, "subject")),
 		Body:    firstNonEmptyToolString(tc.Body, tc.Content, toolArgString(tc.Params, "body", "content")),
+	}
+}
+
+func decodeSendMediaArgs(tc ToolCall) sendMediaArgs {
+	return sendMediaArgs{
+		Path:    firstNonEmptyToolString(tc.Path, tc.FilePath, toolArgString(tc.Params, "path", "file_path")),
+		Title:   firstNonEmptyToolString(tc.Title, toolArgString(tc.Params, "title")),
+		Caption: firstNonEmptyToolString(tc.Caption, toolArgString(tc.Params, "caption")),
 	}
 }
 
