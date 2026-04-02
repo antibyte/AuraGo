@@ -47,6 +47,14 @@ type installPackageArgs struct {
 	Package string
 }
 
+type processControlArgs struct {
+	PID int
+}
+
+type updateManagementArgs struct {
+	Operation string
+}
+
 func toolArgInterfaceMap(args map[string]interface{}, keys ...string) map[string]interface{} {
 	for _, key := range keys {
 		raw, ok := args[key]
@@ -218,5 +226,17 @@ func decodeSudoExecutionArgs(tc ToolCall) sudoExecutionArgs {
 func decodeInstallPackageArgs(tc ToolCall) installPackageArgs {
 	return installPackageArgs{
 		Package: firstNonEmptyToolString(tc.Package, toolArgString(tc.Params, "package")),
+	}
+}
+
+func decodeProcessControlArgs(tc ToolCall) processControlArgs {
+	return processControlArgs{
+		PID: max(tc.PID, toolArgInt(tc.Params, 0, "pid")),
+	}
+}
+
+func decodeUpdateManagementArgs(tc ToolCall) updateManagementArgs {
+	return updateManagementArgs{
+		Operation: firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
 	}
 }

@@ -160,3 +160,29 @@ func TestDecodeInstallPackageArgsUsesParamsFallback(t *testing.T) {
 		t.Fatalf("Package = %q, want ffmpeg", req.Package)
 	}
 }
+
+func TestDecodeProcessControlArgsUsesParamsFallback(t *testing.T) {
+	req := decodeProcessControlArgs(ToolCall{
+		Action: "stop_process",
+		Params: map[string]interface{}{
+			"pid": float64(77),
+		},
+	})
+
+	if req.PID != 77 {
+		t.Fatalf("PID = %d, want 77", req.PID)
+	}
+}
+
+func TestDecodeUpdateManagementArgsUsesParamsFallback(t *testing.T) {
+	req := decodeUpdateManagementArgs(ToolCall{
+		Action: "manage_updates",
+		Params: map[string]interface{}{
+			"operation": "check",
+		},
+	})
+
+	if req.Operation != "check" {
+		t.Fatalf("Operation = %q, want check", req.Operation)
+	}
+}

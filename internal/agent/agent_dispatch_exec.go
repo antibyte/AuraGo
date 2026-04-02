@@ -502,19 +502,21 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			if !cfg.Tools.StopProcess.Enabled {
 				return `Tool Output: {"status":"error","message":"stop_process is disabled. Set tools.stop_process.enabled=true in config.yaml."}`
 			}
-			logger.Info("LLM requested process stop", "pid", tc.PID)
-			if err := registry.Terminate(tc.PID); err != nil {
-				return fmt.Sprintf("Tool Output: ERROR stopping process %d: %v", tc.PID, err)
+			req := decodeProcessControlArgs(tc)
+			logger.Info("LLM requested process stop", "pid", req.PID)
+			if err := registry.Terminate(req.PID); err != nil {
+				return fmt.Sprintf("Tool Output: ERROR stopping process %d: %v", req.PID, err)
 			}
-			return fmt.Sprintf("Tool Output: Process %d stopped.", tc.PID)
+			return fmt.Sprintf("Tool Output: Process %d stopped.", req.PID)
 
 		case "read_process_logs":
-			logger.Info("LLM requested process logs", "pid", tc.PID)
-			proc, ok := registry.Get(tc.PID)
+			req := decodeProcessControlArgs(tc)
+			logger.Info("LLM requested process logs", "pid", req.PID)
+			proc, ok := registry.Get(req.PID)
 			if !ok {
-				return fmt.Sprintf("Tool Output: ERROR process %d not found", tc.PID)
+				return fmt.Sprintf("Tool Output: ERROR process %d not found", req.PID)
 			}
-			return fmt.Sprintf("Tool Output: [LOGS for PID %d]\n%s", tc.PID, security.Scrub(proc.ReadOutput()))
+			return fmt.Sprintf("Tool Output: [LOGS for PID %d]\n%s", req.PID, security.Scrub(proc.ReadOutput()))
 
 		case "query_memory":
 			if !cfg.Tools.Memory.Enabled {
@@ -560,8 +562,9 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			if !cfg.Agent.AllowSelfUpdate {
 				return "Tool Output: [PERMISSION DENIED] manage_updates is disabled in Danger Zone settings (agent.allow_self_update: false)."
 			}
-			logger.Info("LLM requested update management", "operation", tc.Operation)
-			switch tc.Operation {
+			req := decodeUpdateManagementArgs(tc)
+			logger.Info("LLM requested update management", "operation", req.Operation)
+			switch req.Operation {
 			case "check":
 				installDir := filepath.Dir(cfg.ConfigPath)
 
