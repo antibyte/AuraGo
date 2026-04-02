@@ -2,112 +2,19 @@
 
 AuraGo connects with numerous external services to extend its capabilities. This chapter covers all available integrations and their configuration.
 
-## Table of Contents
+## Setting Up Integrations via the Web UI
 
-1. [Integration Overview](#integration-overview)
-2. [Telegram Bot Setup](#telegram-bot-setup)
-3. [Discord Bot Setup](#discord-bot-setup)
-4. [Email Configuration](#email-configuration)
-5. [Home Assistant Integration](#home-assistant-integration)
-6. [Docker Integration](#docker-integration)
-7. [Webhooks](#webhooks)
-8. [Budget Tracking](#budget-tracking)
-9. [Google Workspace](#google-workspace)
-10. [WebDAV/Koofr Setup](#webdavkoofr-setup)
-11. [Additional Integrations Coverage](#additional-integrations-coverage-beyond-core-setup)
-12. [Testing Integrations](#testing-integrations)
+The easiest and recommended way to configure integrations is through the AuraGo Web UI:
 
----
+1. Open the AuraGo Web UI in your browser.
+2. Go to **Menu → Config → Integrations**.
+3. Find the desired integration in the list.
+4. Toggle **Enabled**.
+5. Fill in the required fields (URL, Host, Username, etc.).
+6. Store credentials securely in the **Vault** (not in `config.yaml`!).
+7. Click **Save** and restart AuraGo if prompted.
 
-## Integration Overview
-
-AuraGo supports multiple communication channels and service integrations:
-
-### Communication Interfaces
-
-| Integration | Type | Features |
-|-------------|------|----------|
-| **Web UI** | Built-in | Full-featured chat interface with dashboard |
-| **Telegram** | Bot | Text, voice messages, images, inline commands |
-| **Discord** | Bot | Server integration, channel management |
-| **Email** | IMAP/SMTP | Email reading and sending |
-| **Rocket.Chat** | Bot | Enterprise chat integration |
-
-### Service Integrations
-
-| Integration | Purpose |
-|-------------|---------|
-| **Home Assistant** | Smart home control |
-| **Docker** | Container management |
-| **Proxmox** | VM and container management |
-| **Google Workspace** | Gmail, Calendar, Drive, Docs |
-| **WebDAV/Koofr** | Cloud storage access |
-| **MeshCentral** | Remote device management |
-| **Ollama** | Local LLM management |
-| **Tailscale** | VPN network management |
-| **Ansible** | Infrastructure automation |
-| **MQTT** | IoT message broker integration |
-| **FritzBox** | FRITZ!Box router integration |
-| **AdGuard** | AdGuard Home integration |
-| **Paperless-ngx** | Document management |
-| **n8n** | Workflow automation |
-| **Netlify** | Deployment platform |
-| **Cloudflare Tunnel** | Tunnel connectivity |
-| **OneDrive** | Microsoft cloud storage |
-| **S3 Storage** | Amazon S3 compatible storage |
-
-### AI & LLM Integrations
-
-| Integration | Purpose |
-|-------------|---------|
-| **LLM Guardian** | Content safety and filtering |
-| **Fallback LLM** | Failover to secondary LLM provider |
-| **MCP Client/Server** | Model Context Protocol |
-| **Image Generation** | AI image generation |
-| **Piper TTS** | Local text-to-speech |
-| **Brave Search** | Web search integration |
-| **AI Gateway** | Multi-provider AI gateway |
-
-### Memory & Knowledge
-
-| Integration | Purpose |
-|-------------|---------|
-| **Memory Analysis** | Memory system analytics |
-| **Skill Manager** | Python skill management |
-| **Personality V2** | Enhanced personality engine |
-| **User Profiling** | User behavior profiling |
-| **Indexer** | Content indexing service |
-
-### Security & Monitoring
-
-| Integration | Purpose |
-|-------------|---------|
-| **Webhooks** | Incoming HTTP events |
-| **Budget** | Cost tracking and limits |
-| **LLM Guardian** | Content safety filtering |
-| **Security Proxy** | Security proxy integration |
-| **VirusTotal** | File and URL scanning |
-| **Firewall** | Firewall management |
-| **Chromecast** | Media streaming |
-
-### Communication Channels
-
-| Integration | Purpose |
-|-------------|---------|
-| **Rocket.Chat** | Enterprise chat integration |
-| **Discord** | Server integration, channel management |
-| **Telegram** | Text, voice messages, images |
-| **Email** | IMAP/SMTP email handling |
-
-### Tooling & DevOps
-
-| Integration | Purpose |
-|-------------|---------|
-| **A2A** | Agent-to-Agent protocol |
-| **Co-Agents** | Sub-agent coordination |
-| **Remote Control** | Remote device control |
-| **Invasion** | Distributed deployment control |
-| **Sandbox** | Isolated execution environment |
+> 💡 **Tip:** Most integrations support a **Read-only** toggle. Enable it first to test safely.
 
 ---
 
@@ -116,144 +23,84 @@ AuraGo supports multiple communication channels and service integrations:
 Telegram is the recommended mobile interface for AuraGo, supporting text, voice, and images.
 
 ### Step 1: Create a Bot with BotFather
-
-1. Open Telegram and search for **@BotFather** (verified with blue checkmark)
-2. Start a chat and send `/newbot`
-3. Follow the prompts:
-   - **Name:** Your bot's display name (e.g., "AuraGo Assistant")
-   - **Username:** Unique username ending in "bot" (e.g., "aurago_assistant_bot")
-4. Copy the **HTTP API Token** provided (format: `123456789:ABCdefGHIjklMNOpqrsTUVwxyz`)
+1. Open Telegram and search for **@BotFather**.
+2. Send `/newbot` and follow the prompts.
+3. Copy the **HTTP API Token**.
 
 ### Step 2: Get Your User ID
+Search for **@userinfobot** in Telegram and start it—it will reply with your ID. Alternatively, set `telegram_user_id: 0`, start AuraGo, message your bot, and check the logs for your ID.
 
-AuraGo only responds to authorized users. Find your Telegram user ID:
+### Web UI Setup
+1. Open **Config → Integrations → Telegram**.
+2. Enable the integration.
+3. Paste the **Bot Token** and your **Telegram User ID**.
+4. Save and restart AuraGo.
+5. Send `/start` to your bot to test.
 
-**Option A: Via @userinfobot**
-1. Search for **@userinfobot** in Telegram
-2. Start the bot - it will reply with your ID
+> ⚠️ **Security Warning:** Never share your bot token.
 
-**Option B: Silent Discovery (AuraGo feature)**
-1. Set `telegram_user_id: 0` in config
-2. Start AuraGo
-3. Message your bot
-4. Check AuraGo logs for your printed ID
-5. Update config with the ID
-
-### Step 3: Configure AuraGo
-
+### YAML Reference
 ```yaml
 telegram:
     bot_token: "123456789:ABCdefGHIjklMNOpqrsTUVwxyz"
     telegram_user_id: 123456789
-    max_concurrent_workers: 5
 ```
-
-| Setting | Description |
-|---------|-------------|
-| `bot_token` | Your bot's API token from BotFather |
-| `telegram_user_id` | Your numeric Telegram user ID |
-| `max_concurrent_workers` | Parallel request handling (default: 5) |
-
-### Step 4: Test the Connection
-
-1. Restart AuraGo
-2. Send `/start` to your bot
-3. You should receive a welcome message
-
-> 💡 **Tip:** The bot supports:
-> - Text messages with full conversation context
-> - Voice messages (automatic transcription)
-> - Images (vision analysis)
-> - Inline commands (`/status`, `/memory`, `/tools`)
-
-> ⚠️ **Security Warning:** Never share your bot token. Anyone with the token can control your bot and access your AuraGo instance.
 
 ---
 
 ## Discord Bot Setup
 
-Discord integration allows AuraGo to participate in servers and respond to mentions.
+AuraGo can participate in Discord servers and respond to mentions.
 
 ### Step 1: Create a Discord Application
+1. Go to the [Discord Developer Portal](https://discord.com/developers/applications) and create a new application.
+2. Go to **Bot → Add Bot**.
+3. Enable **Message Content Intent**.
 
-1. Go to [Discord Developer Portal](https://discord.com/developers/applications)
-2. Click **New Application**
-3. Name it (e.g., "AuraGo Bot")
-4. Go to **Bot** section in the left sidebar
-5. Click **Add Bot**
-6. Under **Privileged Gateway Intents**, enable:
-   - **Message Content Intent** (required to read messages)
+### Step 2: Invite the Bot
+1. Go to **OAuth2 → URL Generator**.
+2. Select scopes `bot` and `applications.commands`.
+3. Select permissions: Send Messages, Read Messages/View Channels, Read Message History, Attach Files, Use Slash Commands.
+4. Open the generated URL and add the bot to your server.
 
-### Step 2: Get Your Bot Token
+### Step 3: Get IDs
+Enable **Developer Mode** in Discord (User Settings → Advanced), then right-click your server name to copy the **Server ID** and a channel to copy the **Channel ID**.
 
-1. In the Bot section, click **Reset Token**
-2. Copy the token (format: long string of letters and numbers)
-3. **Never share this token**
+### Web UI Setup
+1. Open **Config → Integrations → Discord**.
+2. Enable the integration.
+3. Paste the **Bot Token**, **Guild ID**, **Channel ID**, and your **User ID**.
+4. Save and restart.
 
-### Step 3: Invite Bot to Server
+> 💡 **Tip:** Enable `readonly` for a monitoring-only bot.
 
-1. Go to **OAuth2** → **URL Generator**
-2. Select scopes:
-   - `bot`
-   - `applications.commands`
-3. Select bot permissions:
-   - Send Messages
-   - Read Messages/View Channels
-   - Read Message History
-   - Attach Files
-   - Use Slash Commands
-4. Copy the generated URL and open it in a browser
-5. Select your server and authorize
-
-### Step 4: Get Required IDs
-
-**Guild ID (Server ID):**
-1. Enable Developer Mode: User Settings → Advanced → Developer Mode
-2. Right-click your server name → Copy Server ID
-
-**Channel ID:**
-1. Right-click a channel → Copy Channel ID
-
-**Your User ID:**
-1. Right-click your username → Copy User ID
-
-### Step 5: Configure AuraGo
-
+### YAML Reference
 ```yaml
 discord:
     enabled: true
-    bot_token: "YOUR_BOT_TOKEN_HERE"
+    bot_token: "YOUR_BOT_TOKEN"
     guild_id: "123456789012345678"
     allowed_user_id: "987654321098765432"
     default_channel_id: "123456789012345678"
-    readonly: false
 ```
-
-| Setting | Description |
-|---------|-------------|
-| `enabled` | Enable Discord integration |
-| `bot_token` | Bot token from Developer Portal |
-| `guild_id` | Server ID where bot operates |
-| `allowed_user_id` | Only respond to this user (security) |
-| `default_channel_id` | Default channel for notifications |
-| `readonly` | If true, only read messages, never send |
-
-### Step 6: Test
-
-1. Restart AuraGo
-2. In Discord, mention your bot: `@AuraGo Bot hello`
-3. The bot should respond in the channel
-
-> 💡 **Tip:** Use `readonly: true` to create a monitoring-only bot that observes but never responds.
 
 ---
 
 ## Email Configuration
 
-AuraGo can read emails via IMAP and send via SMTP, enabling email-based workflows.
+AuraGo can read emails via IMAP and send via SMTP.
 
-### Gmail Setup
+### Web UI Setup
+1. Open **Config → Integrations → Email**.
+2. Enable the integration.
+3. Enter your IMAP/SMTP host and port.
+4. Fill in your **Username** and store the **Password** in the Vault.
+5. Toggle **Watch Enabled** to let AuraGo poll for new emails.
+6. Save and restart.
 
+For Gmail, you must create an **App Password** (not your regular password) at [Google Account Security](https://myaccount.google.com/security) → 2-Step Verification → App passwords.
+
+### YAML Reference
 ```yaml
 email:
     enabled: true
@@ -262,311 +109,116 @@ email:
     smtp_host: smtp.gmail.com
     smtp_port: 587
     username: "your.email@gmail.com"
-    password: "your-app-password"  # Not your regular password!
     from_address: "your.email@gmail.com"
     watch_enabled: true
-    watch_interval_seconds: 120
-    watch_folder: INBOX
 ```
-
-### Creating a Gmail App Password
-
-1. Enable 2-Factor Authentication on your Google account
-2. Go to [Google Account Security](https://myaccount.google.com/security)
-3. Click **2-Step Verification**
-4. Scroll to **App passwords**
-5. Select **Mail** and your device
-6. Copy the 16-character password
-
-### Other Email Providers
-
-| Provider | IMAP Host | SMTP Host | Notes |
-|----------|-----------|-----------|-------|
-| **Outlook** | outlook.office365.com | smtp.office365.com | Use app password |
-| **Yahoo** | imap.mail.yahoo.com | smtp.mail.yahoo.com | Generate app password |
-| **ProtonMail** | 127.0.0.1 | 127.0.0.1 | Requires ProtonMail Bridge |
-| **Self-hosted** | Your server | Your server | Standard ports |
-
-### Multi-Account Support (Modern Config)
-
-```yaml
-email_accounts:
-  - id: personal
-    name: "Personal Gmail"
-    imap_host: imap.gmail.com
-    imap_port: 993
-    smtp_host: smtp.gmail.com
-    smtp_port: 587
-    username: "personal@gmail.com"
-    from_address: "personal@gmail.com"
-    watch_enabled: true
-    watch_interval_seconds: 60
-    
-  - id: work
-    name: "Work Outlook"
-    imap_host: outlook.office365.com
-    imap_port: 993
-    smtp_host: smtp.office365.com
-    smtp_port: 587
-    username: "name@company.com"
-    from_address: "name@company.com"
-    watch_enabled: false
-```
-
-### Email Watching
-
-When `watch_enabled: true`, AuraGo periodically checks for new emails and can:
-- Notify you of important messages
-- Summarize email threads
-- Trigger actions based on email content
-
-> ⚠️ **Warning:** Storing email passwords in config files is less secure. For production, use environment variables or the vault system.
 
 ---
 
 ## Home Assistant Integration
 
-Control your smart home devices through AuraGo with Home Assistant integration.
+Control your smart home devices through AuraGo.
 
-### Setup
+### Web UI Setup
+1. In Home Assistant, go to **Profile → Long-Lived Access Tokens → Create Token**. Name it "AuraGo" and copy the token.
+2. In AuraGo, open **Config → Integrations → Home Assistant**.
+3. Enable the integration.
+4. Enter your Home Assistant URL (e.g., `http://homeassistant.local:8123`).
+5. Store the **Access Token** in the Vault.
+6. Save and restart.
 
-1. In Home Assistant:
-   - Go to **Profile** (bottom left)
-   - Scroll to **Long-Lived Access Tokens**
-   - Click **Create Token**
-   - Name it "AuraGo" and copy the token
+> 💡 **Tip:** Enable `readonly` for monitoring-only access.
 
-2. Find your Home Assistant URL:
-   - Local: `http://homeassistant.local:8123` or `http://192.168.1.100:8123`
-   - Remote: Your Nabu Casa URL or reverse proxy URL
-
-3. Configure AuraGo:
-
+### YAML Reference
 ```yaml
 home_assistant:
     enabled: true
     url: http://homeassistant.local:8123
     access_token: "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
-    readonly: false
 ```
-
-### Available Actions
-
-| Action | Example Command |
-|--------|-----------------|
-| List entities | "What devices do I have?" |
-| Get state | "Is the living room light on?" |
-| Control devices | "Turn off all lights" |
-| Read sensors | "What's the temperature in the bedroom?" |
-| Call services | "Start the vacuum cleaner" |
-
-> 💡 **Tip:** Use `readonly: true` for monitoring-only access without device control.
-
-> ⚠️ **Security:** Store your access token in the vault for better security:
-> ```
-> vault set home_assistant_token "eyJ0eXAiOiJKV1Qi..."
-> ```
 
 ---
 
 ## Docker Integration
 
-AuraGo can manage Docker containers, images, and networks.
+Manage Docker containers, images, and networks.
 
-### Configuration
+### Web UI Setup
+1. Open **Config → Integrations → Docker**.
+2. Enable the integration.
+3. Set the **Docker Host** (`unix:///var/run/docker.sock` on Linux/macOS, `npipe:////./pipe/docker_engine` on Windows, or a remote `tcp://` address).
+4. Save and restart.
 
+> ⚠️ **Warning:** Docker integration grants significant system access. Use `readonly` for restricted environments.
+
+### YAML Reference
 ```yaml
 docker:
     enabled: true
-    host: unix:///var/run/docker.sock
-    readonly: false
+    host: "unix:///var/run/docker.sock"
 ```
 
-### Connection Methods
+---
 
-| Host Value | Use Case |
-|------------|----------|
-| `unix:///var/run/docker.sock` | Local Docker (Linux/macOS) |
-| `tcp://localhost:2375` | Remote Docker (insecure) |
-| `tcp://localhost:2376` | Remote Docker with TLS |
-| `npipe:////./pipe/docker_engine` | Local Docker (Windows) |
+## Proxmox Integration
 
-### Docker on Remote Hosts
+Manage VMs and LXC containers on Proxmox VE.
 
-For secure remote Docker access:
+### Web UI Setup
+1. In Proxmox, go to **Datacenter → Permissions → API Tokens** and create a token for a user (e.g., `root@pam`).
+2. In AuraGo, open **Config → Integrations → Proxmox**.
+3. Enable the integration and enter the **URL**, **Token ID**, and **Node** name.
+4. Store the token secret in the Vault.
+5. Save and restart.
 
-1. Enable TLS on Docker daemon
-2. Mount client certificates to AuraGo
-3. Configure host with TLS:
-
+### YAML Reference
 ```yaml
-docker:
+proxmox:
     enabled: true
-    host: tcp://docker-host:2376
-    readonly: false
-```
-
-### Available Operations
-
-| Operation | Description |
-|-----------|-------------|
-| List containers | Show running and stopped containers |
-| Start/Stop/Restart | Container lifecycle management |
-| View logs | Stream container logs |
-| Inspect | Detailed container information |
-| Execute commands | Run commands inside containers |
-| Image management | Pull, list, remove images |
-| Network management | Create and manage networks |
-| Volume management | List and manage volumes |
-
-> ⚠️ **Warning:** Docker integration grants significant system access. Consider `readonly: true` for restricted environments.
-
-### Docker Compose Example
-
-```yaml
-# docker-compose.yml for AuraGo with Docker access
-services:
-  aurago:
-    image: aurago:latest
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./data:/app/data
-      - ./config.yaml:/app/config.yaml
+    url: "https://proxmox.local:8006"
+    token_id: "root@pam!aurago"
+    node: "pve"
 ```
 
 ---
 
 ## Webhooks
 
-Webhooks allow external services to send events to AuraGo via HTTP POST requests.
+Receive HTTP events from external services.
 
-### Built-in Presets
+### Web UI Setup
+1. Open **Config → Integrations → Webhooks**.
+2. Enable the integration.
+3. Create a new webhook in the Web UI, choose a preset (generic, GitHub, GitLab, etc.), and copy the generated URL.
+4. Paste the URL into the external service (e.g., GitHub repository settings).
 
-AuraGo includes presets for common webhook formats:
-
-| Preset | Service | Features |
-|--------|---------|----------|
-| `generic_json` | Any service | Accepts any JSON payload |
-| `github` | GitHub | Validates HMAC signatures, extracts repo/action/user |
-| `gitlab` | GitLab | Token validation, project extraction |
-| `home_assistant` | Home Assistant | Entity state changes |
-| `uptime` | Uptime Kuma, Hetrix | Monitor alerts |
-| `plain_text` | Generic | Plain text or simple JSON |
-
-### Configuration
-
+### YAML Reference
 ```yaml
 webhooks:
     enabled: true
-    readonly: false
     max_payload_size: 65536
     rate_limit: 60
 ```
-
-### Creating a Webhook
-
-Webhooks are created dynamically via the API or Web UI:
-
-```bash
-# Create webhook via API
-curl -X POST http://localhost:8088/api/webhooks \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "GitHub Deployments",
-    "slug": "github-deploy",
-    "format": "github",
-    "delivery": {
-      "mode": "message",
-      "priority": "immediate"
-    }
-  }'
-```
-
-### Webhook URL Format
-
-```
-http://your-aurago:8088/api/webhooks/{slug}?token={token}
-```
-
-### Delivery Modes
-
-| Mode | Description |
-|------|-------------|
-| `message` | Send to agent as user message |
-| `notify` | Send SSE notification to UI only |
-| `silent` | Log only, no notification |
-
-### Example: GitHub Webhook
-
-1. In AuraGo Web UI, go to Settings → Webhooks
-2. Create new webhook:
-   - Name: "GitHub Push Events"
-   - Slug: `github-push`
-   - Preset: GitHub
-   - Delivery Mode: Message
-3. Copy the generated URL
-4. In GitHub repository:
-   - Settings → Webhooks → Add webhook
-   - Payload URL: Your AuraGo webhook URL
-   - Content type: `application/json`
-   - Secret: (optional, for HMAC validation)
-   - Events: Push
-
-Now AuraGo will receive and process GitHub push events.
-
-> 💡 **Tip:** Use the `notify` mode for high-frequency events that don't need agent processing (like CI status updates).
 
 ---
 
 ## Budget Tracking
 
-Track and control LLM API costs with the budget system.
+Track and control LLM API costs.
 
-### Configuration
+### Web UI Setup
+1. Open **Config → Integrations → Budget**.
+2. Enable the integration.
+3. Set your **Daily Limit** and **Enforcement Mode** (`warn`, `partial`, or `full`).
+4. Save and restart.
 
+### YAML Reference
 ```yaml
 budget:
     enabled: true
     daily_limit_usd: 5.00
     enforcement: warn
-    reset_hour: 0
-    warning_threshold: 0.8
-    default_cost:
-        input_per_million: 1.00
-        output_per_million: 3.00
-    models:
-      - name: gpt-4o
-        input_per_million: 2.50
-        output_per_million: 10.00
-      - name: llama-3.1-8b
-        input_per_million: 0
-        output_per_million: 0
 ```
-
-### Enforcement Modes
-
-| Mode | Behavior |
-|------|----------|
-| `warn` | Log warning when limit exceeded (default) |
-| `partial` | Block expensive models, allow cheap ones |
-| `full` | Block all LLM requests when limit exceeded |
-
-### Cost Tracking
-
-Costs are calculated based on:
-- Input tokens × input cost per million
-- Output tokens × output cost per million
-
-Set `input_per_million: 0` for free models (like Ollama local models).
-
-### Budget Commands
-
-```
-You: What's my budget status?
-AuraGo: Today's usage: $2.34 of $5.00 (47%). Remaining: $2.66.
-```
-
-> 💡 **Tip:** Set `warning_threshold: 0.8` to get notified at 80% of your daily limit.
 
 ---
 
@@ -574,43 +226,22 @@ AuraGo: Today's usage: $2.34 of $5.00 (47%). Remaining: $2.66.
 
 Connect AuraGo to Gmail, Google Calendar, and Google Drive.
 
-### Prerequisites
+### Web UI Setup
+1. Open **Config → Integrations → Google Workspace**.
+2. Enable the integration and select the services you want (Gmail, Calendar, Drive, Docs, Sheets).
+3. Enter your **OAuth Client ID**.
+4. Save and restart.
+5. Trigger a Google operation in chat; AuraGo will provide an authorization URL. Approve it in your browser and submit the redirected URL back to AuraGo.
 
-1. Enable in config:
+### YAML Reference
 ```yaml
-agent:
-    enable_google_workspace: true
+google_workspace:
+    enabled: true
+    gmail: true
+    calendar: true
+    drive: true
+    client_id: "YOUR_CLIENT_ID"
 ```
-
-2. Create OAuth credentials (see detailed guide in `documentation/google_setup.md`)
-
-### Authentication Flow
-
-1. Trigger a Google operation: "Check my email"
-2. AuraGo provides an authorization URL
-3. Open the URL in your browser and approve access
-4. Copy the redirected URL (starts with `http://localhost`)
-5. Submit to AuraGo: `google_workspace submit_auth_url "paste_url_here"`
-
-### Available Services
-
-| Service | Actions |
-|---------|---------|
-| **Gmail** | List, read, search, send, label emails |
-| **Calendar** | List events, create meetings, check availability |
-| **Drive** | List files, search, read documents |
-| **Docs** | Read document content |
-
-### Example Commands
-
-```
-"Summarize my unread emails from today"
-"Schedule a meeting with John tomorrow at 3pm"
-"Find the Q4 report in my Drive"
-"What's on my calendar for next week?"
-```
-
-> ⚠️ **Security:** OAuth tokens are stored in the encrypted vault. No `token.json` files are kept on disk.
 
 ---
 
@@ -618,384 +249,182 @@ agent:
 
 Access cloud storage through WebDAV-compatible services.
 
-### WebDAV Configuration
+### Web UI Setup
+1. Open **Config → Integrations → WebDAV** (or **Koofr**).
+2. Enable the integration.
+3. Enter the **URL**, **Username**, and store the **Password/App Password** in the Vault.
+4. Save and restart.
 
+### YAML Reference
 ```yaml
 webdav:
     enabled: true
     url: "https://cloud.example.com/remote.php/dav/files/username/"
     username: "your_username"
-    password: "your_app_password"
-    readonly: false
 ```
-
-### Nextcloud/ownCloud URL
-
-Find your WebDAV URL in the web interface:
-1. Files app → Settings (bottom left)
-2. Copy the WebDAV URL
-
-Example: `https://cloud.example.com/remote.php/dav/files/username/`
-
-### Koofr Configuration
-
-```yaml
-koofr:
-    enabled: true
-    username: "your@email.com"
-    app_password: "your-app-password"
-    base_url: https://app.koofr.net
-    readonly: false
-```
-
-### Creating a Koofr App Password
-
-1. Go to Koofr → Account → Password
-2. Click **Add password** under "App passwords"
-3. Name it "AuraGo" and copy the password
-
-### Available Operations
-
-| Operation | Description |
-|-----------|-------------|
-| List | Browse directories |
-| Read | Download and read files |
-| Write | Upload or overwrite files |
-| Mkdir | Create directories |
-| Delete | Remove files/folders |
-| Move | Rename or move items |
-| Info | Get metadata |
-
-> 💡 **Tip:** Always use app-specific passwords instead of your main account password.
-
-> ⚠️ **Security:** Ensure WebDAV URLs use `https://` for encrypted connections.
 
 ---
 
 ## TrueNAS Integration
 
-Manage ZFS storage pools, datasets, snapshots, and SMB/NFS shares on TrueNAS SCALE or CORE systems.
+Manage ZFS pools, datasets, and shares.
 
-### Configuration
+### Web UI Setup
+1. In TrueNAS, go to **System → API Keys** and create a key named "AuraGo".
+2. In AuraGo, open **Config → Integrations → TrueNAS**.
+3. Enable the integration, enter the **Host**, **Port**, and enable **HTTPS**.
+4. Store the API key in the Vault.
+5. Save and restart.
 
+### YAML Reference
 ```yaml
 truenas:
     enabled: true
-    host: "truenas.local"        # Hostname or IP address
-    port: 443                    # API port (default: 443)
-    use_https: true              # Use HTTPS (recommended)
-    insecure_ssl: false          # Skip certificate validation (test only)
-    readonly: false              # Only read operations
-    allow_destructive: false     # Allow delete/rollback operations
+    host: "truenas.local"
+    port: 443
+    use_https: true
 ```
-
-### Creating a TrueNAS API Key
-
-1. In TrueNAS Web UI, go to **System → API Keys**
-2. Click **Add**
-3. Name it "AuraGo" and copy the generated key
-4. Save the key to AuraGo vault via Web UI → Configuration → TrueNAS
-
-### Available Operations
-
-| Operation | Description | Permission Required |
-|-----------|-------------|---------------------|
-| List pools | Show storage pools with health and capacity | Read |
-| Pool scrub | Start data integrity check | Write |
-| List datasets | Show all ZFS datasets | Read |
-| Create dataset | Create new ZFS dataset | Write |
-| Delete dataset | Remove dataset (destructive) | Destructive |
-| List snapshots | Show dataset snapshots | Read |
-| Create snapshot | Create point-in-time snapshot | Write |
-| Delete snapshot | Remove snapshot (destructive) | Destructive |
-| Rollback | Restore dataset to snapshot (destructive) | Destructive |
-| SMB shares | Create and manage SMB shares | Write |
-| NFS shares | Create and manage NFS shares | Write |
-| Check space | Monitor pool/dataset capacity | Read |
-
-### Example Commands
-
-```
-"Show me all storage pools on TrueNAS"
-"Create a new dataset called tank/backups"
-"Take a snapshot of tank/media"
-"Create an SMB share for tank/media called Media"
-"How much free space is left on the tank pool?"
-```
-
-> 💡 **Tip:** Use `readonly: true` for monitoring-only access. Enable `allow_destructive` only when you need to delete datasets or rollback snapshots.
-
----
-
-## Proxmox Integration
-
-Manage VMs and LXC containers on Proxmox VE servers.
-
-### Configuration
-
-```yaml
-proxmox:
-    enabled: true
-    host: "proxmox.local"
-    port: 8006
-    username: "root@pam"
-    password: "your-password"      # Or use token_auth
-    verify_ssl: true
-    readonly: false
-```
-
-Or with API token authentication (recommended):
-
-```yaml
-proxmox:
-    enabled: true
-    host: "proxmox.local"
-    token_auth:
-        token_id: "aurago"
-        token_secret: "your-api-token"
-    verify_ssl: true
-    readonly: false
-```
-
-### Creating a Proxmox API Token
-
-1. In Proxmox Web UI, go to **Datacenter → Permissions → API Tokens**
-2. Click **Add**
-3. Select user (e.g., `root@pam`)
-4. Set Token ID (e.g., `aurago`)
-5. Uncheck "Privilege Separation" (or grant specific permissions)
-6. Copy the generated secret
-
-### Available Operations
-
-| Operation | Description |
-|-----------|-------------|
-| List VMs | Show all virtual machines |
-| List LXCs | Show all containers |
-| Start/Stop/Reboot | VM/Container lifecycle |
-| Get status | Check VM/container state and resources |
-| Create snapshot | Snapshot VMs for backup |
-| View config | Show VM/container configuration |
-
-> 💡 **Tip:** Use `readonly: true` for monitoring dashboards without modification rights.
 
 ---
 
 ## Tailscale Integration
 
-Manage your Tailscale VPN network and connected devices.
+Manage your Tailscale VPN network.
 
-### Configuration
+### Web UI Setup
+1. Go to [Tailscale Admin Console](https://login.tailscale.com/admin/settings/keys) and generate an API key.
+2. In AuraGo, open **Config → Integrations → Tailscale**.
+3. Enable the integration and enter your **Tailnet** name.
+4. Store the API key in the Vault.
+5. Save and restart.
 
+### YAML Reference
 ```yaml
 tailscale:
     enabled: true
-    api_key: "tskey-api-..."       # From Tailscale admin console
-    tailnet: "your-tailnet.ts.net" # Your Tailscale network
+    tailnet: "your-tailnet"
 ```
-
-### Getting Your API Key
-
-1. Go to [Tailscale Admin Console](https://login.tailscale.com/admin/settings/keys)
-2. Click **Generate API key**
-3. Copy the key (starts with `tskey-api-`)
-
-### Available Operations
-
-| Operation | Description |
-|-----------|-------------|
-| List devices | Show all connected devices |
-| Get device info | IP addresses, OS, online status |
-| Check ACLs | View network access rules |
-| View subnets | Show advertised subnet routes |
-
-> 💡 **Tip:** Use this to monitor your VPN network or find device IPs for SSH connections.
 
 ---
 
 ## FritzBox Integration
 
-Control AVM Fritz!Box home routers via TR-064 protocol.
+Control AVM Fritz!Box routers via TR-064.
 
-### Configuration
+### Web UI Setup
+1. Open **Config → Integrations → FritzBox**.
+2. Enable the integration.
+3. Enter the **Host**, **Port**, **Username**, and store the **Password** in the Vault.
+4. Toggle the sub-systems you want (Network, Smart Home, Telephony, etc.).
+5. Save and restart.
 
+### YAML Reference
 ```yaml
 fritzbox:
     enabled: true
     host: "fritz.box"
-    username: "admin"              # If set in FritzBox
-    password: "your-password"
-    insecure: false                # Allow self-signed certs
+    username: "admin"
 ```
-
-### Available Operations
-
-| Operation | Description |
-|-----------|-------------|
-| Device info | Get model, firmware, uptime |
-| Online status | Check internet connection |
-| Connected devices | List LAN/WiFi clients |
-| Bandwidth | Current up/down speeds |
-| Reconnect | Force new WAN connection |
-| Port forwarding | List port forwarding rules |
-| WiFi settings | Get WiFi configuration |
-
-> ⚠️ **Note:** Some features require a user with admin privileges in the FritzBox.
 
 ---
 
 ## AdGuard Home Integration
 
-Manage DNS filtering and blocking with AdGuard Home.
+Manage DNS filtering and blocking.
 
-### Configuration
+### Web UI Setup
+1. Open **Config → Integrations → AdGuard**.
+2. Enable the integration.
+3. Enter the **URL** and **Username**.
+4. Store the **Password** in the Vault.
+5. Save and restart.
 
+### YAML Reference
 ```yaml
 adguard:
     enabled: true
-    host: "adguard.local"
-    port: 3000
+    url: "http://adguard.local"
     username: "admin"
-    password: "your-password"
-    use_https: false
-    readonly: false
 ```
-
-### Available Operations
-
-| Operation | Description | Permission |
-|-----------|-------------|------------|
-| Status | Get filtering status and stats | Read |
-| Query log | View recent DNS queries | Read |
-| Top clients | Most active devices | Read |
-| Blocklists | Manage filter lists | Write |
-| Custom rules | Add DNS rewrites | Write |
-| Safe search | Toggle safe search | Write |
-| Services | Block specific services | Write |
-
-> 💡 **Tip:** Use `readonly: true` to monitor network activity without changing filter rules.
 
 ---
 
 ## n8n Integration
 
-Connect with n8n workflow automation platform.
+Connect with n8n workflow automation.
 
-### Configuration
+### Web UI Setup
+1. Open **Config → Integrations → n8n**.
+2. Enable the integration.
+3. Enter your **Webhook Base URL**.
+4. Save and restart.
 
+AuraGo also provides an official n8n community node: `@antibyte/n8n-nodes-aurago`.
+
+### YAML Reference
 ```yaml
 n8n:
     enabled: true
-    base_url: "https://n8n.yourdomain.com"
-    api_key: "n8n_api_..."
-    readonly: false
+    webhook_base_url: "https://n8n.yourdomain.com"
 ```
-
-### Available Operations
-
-| Operation | Description |
-|-----------|-------------|
-| List workflows | Show all n8n workflows |
-| Get workflow | View specific workflow details |
-| Activate/Deactivate | Toggle workflow state |
-| Execute workflow | Trigger workflow manually |
-| Get executions | View execution history |
-
-### n8n Node for AuraGo
-
-AuraGo also provides an official n8n community node:
-- Chat with AuraGo from n8n workflows
-- Trigger tools and missions
-- Access memory and knowledge
-
-Install via n8n community nodes: `@antibyte/n8n-nodes-aurago`
 
 ---
 
 ## Telnyx Integration
 
-Send/receive SMS and make voice calls via Telnyx telephony.
+Send/receive SMS and make voice calls.
 
-### Configuration
+### Web UI Setup
+1. Open **Config → Integrations → Telnyx**.
+2. Enable the integration.
+3. Enter your **Phone Number**, **Messaging Profile ID**, and **Connection ID**.
+4. Save and restart.
 
+### YAML Reference
 ```yaml
 telnyx:
     enabled: true
-    api_key: "KEY..."
-    public_key: "PUBKEY..."
     phone_number: "+1234567890"
-    messaging_enabled: true
-    voice_enabled: true
-    webhook_secret: "whsec_..."
+    messaging_profile_id: "PROFILE_ID"
 ```
-
-### Available Operations
-
-| Operation | Description |
-|-----------|-------------|
-| Send SMS | Send text messages |
-| Receive SMS | Process incoming messages |
-| Make calls | Initiate voice calls |
-| Voicemail | Manage voicemail messages |
-| Call routing | Route calls based on rules |
 
 ---
 
 ## VirusTotal Integration
 
-Scan files and URLs for malware using VirusTotal API.
+Scan files and URLs for malware.
 
-### Configuration
+### Web UI Setup
+1. Sign up at [VirusTotal](https://www.virustotal.com) and copy your API key.
+2. Open **Config → Integrations → VirusTotal**.
+3. Enable the integration and paste the API key (or store it in the Vault).
+4. Save and restart.
 
+### YAML Reference
 ```yaml
 virustotal:
     enabled: true
     api_key: "your-api-key"
 ```
 
-### Getting Your API Key
-
-1. Sign up at [VirusTotal](https://www.virustotal.com)
-2. Go to your profile → API Key
-3. Copy the key
-
-### Available Operations
-
-| Operation | Description |
-|-----------|-------------|
-| Scan URL | Check URL reputation |
-| Scan file | Upload and scan file hash |
-| Get report | Retrieve scan results |
-
-> 💡 **Tip:** The agent uses this automatically when analyzing suspicious links or files.
-
 ---
 
 ## Brave Search Integration
 
-Web search via Brave Search API.
+Enable web search via Brave Search API.
 
-### Configuration
+### Web UI Setup
+1. Sign up at [Brave Search API](https://api.search.brave.com) and generate a key.
+2. Open **Config → Integrations → Brave Search**.
+3. Enable the integration and paste the API key.
+4. Save and restart.
 
+### YAML Reference
 ```yaml
 brave_search:
     enabled: true
     api_key: "BS..."
-    default_count: 10
 ```
-
-### Getting Your API Key
-
-1. Sign up at [Brave Search API](https://api.search.brave.com)
-2. Generate an API key in the dashboard
-
-### Available Operations
-
-| Operation | Description |
-|-----------|-------------|
-| Web search | Search the web |
-| News search | Find recent news articles |
-| Image search | Search for images |
 
 ---
 
@@ -1003,107 +432,554 @@ brave_search:
 
 Connect external MCP servers or expose AuraGo as an MCP server.
 
-### MCP Client (connect to external servers)
+### Web UI Setup
+1. Open **Config → Integrations → MCP**.
+2. Enable the client and/or server.
+3. Add allowed tools and server commands as needed.
+4. Save and restart.
 
+### YAML Reference
 ```yaml
 mcp:
     enabled: true
-    allowed_tools:
-      - "fetch"
-      - "filesystem"
-    servers:
-      fetch:
-        command: "uvx"
-        args: ["mcp-server-fetch"]
-      filesystem:
-        command: "npx"
-        args: ["-y", "@modelcontextprotocol/server-filesystem", "/allowed/path"]
+    allowed_tools: ["fetch", "filesystem"]
 ```
-
-### MCP Server (expose AuraGo to other clients)
-
-```yaml
-mcp_server:
-    enabled: true
-    allowed_tools:
-      - "shell"
-      - "docker_*"
-    auth_token: "secure-token"
-```
-
-Connect from Claude Desktop, Cursor, or other MCP clients to use AuraGo's tools.
 
 ---
 
-## Additional Integrations Coverage (beyond core setup)
+## Jellyfin Integration
 
-The current platform includes additional integrations/features that should be considered in production rollouts:
+Manage your Jellyfin media server.
 
-| Integration/Feature | Typical use case | Key config blocks |
-|---|---|---|
-| Cloudflare Tunnel + AI Gateway | secure public exposure and AI traffic routing | `cloudflare_tunnel`, `ai_gateway` |
-| AdGuard / FRITZ!Box / MQTT | home network and smart-home connectivity | `adguard`, `fritzbox`, `mqtt` |
-| Paperless NGX + Media Registry + Homepage | document/media/site registry workflows | `paperless_ngx`, `media_registry`, `homepage` |
-| Netlify | static site deployment workflows | `netlify` |
-| S3 + OneDrive + WebDAV/Koofr | multi-backend cloud storage access | `s3`, `onedrive`, `webdav`, `koofr` |
-| Telnyx + Rocket.Chat | telephony and self-hosted chat channels | `telnyx`, `rocketchat` |
-| Image generation / TTS / Whisper | multimodal generation and speech pipelines | `image_generation`, `tts`, `whisper` |
-| MCP server mode | expose AuraGo capabilities to external MCP clients | `mcp_server` |
-| LLM Guardian | policy and risk controls across tool/doc workflows | `llm_guardian` |
+### Web UI Setup
+1. Open **Config → Integrations → Jellyfin**.
+2. Enable the integration.
+3. Enter the **Host**, **Port**, and enable **HTTPS** if needed.
+4. Store the API key in the Vault.
+5. Save and restart.
 
-> Keep integrations in read-only mode first (`read_only`/`readonly`) and unlock write operations incrementally after validation.
+### YAML Reference
+```yaml
+jellyfin:
+    enabled: true
+    host: "jellyfin.local"
+    port: 8096
+```
+
+---
+
+## Image Generation Integration
+
+Generate images via AI providers.
+
+### Web UI Setup
+1. Open **Config → Integrations → Image Generation**.
+2. Enable the integration.
+3. Select a **Provider** and **Model**.
+4. Save and restart.
+
+### YAML Reference
+```yaml
+image_generation:
+    enabled: true
+    provider: "openai"
+    model: "dall-e-3"
+```
+
+---
+
+## Netlify Integration
+
+Deploy static sites on Netlify.
+
+### Web UI Setup
+1. Open **Config → Integrations → Netlify**.
+2. Enable the integration.
+3. Enter your **Team Slug** and optional **Default Site ID**.
+4. Save and restart.
+
+### YAML Reference
+```yaml
+netlify:
+    enabled: true
+    team_slug: "your-team"
+```
+
+---
+
+## Paperless NGX Integration
+
+Access your document archive.
+
+### Web UI Setup
+1. Open **Config → Integrations → Paperless NGX**.
+2. Enable the integration.
+3. Enter the **URL**.
+4. Save and restart.
+
+### YAML Reference
+```yaml
+paperless_ngx:
+    enabled: true
+    url: "http://paperless.local:8000"
+```
+
+---
+
+## LLM Guardian Integration
+
+Content safety and policy enforcement.
+
+### Web UI Setup
+1. Open **Config → Integrations → LLM Guardian**.
+2. Enable the integration.
+3. Choose a **Provider**, **Model**, and **Default Level**.
+4. Save and restart.
+
+### YAML Reference
+```yaml
+llm_guardian:
+    enabled: true
+    default_level: "medium"
+```
+
+---
+
+## Remote Control Integration
+
+Receive commands from other AuraGo instances.
+
+### Web UI Setup
+1. Open **Config → Integrations → Remote Control**.
+2. Enable the integration.
+3. Set the **Discovery Port** and **Allowed Paths**.
+4. Save and restart.
+
+### YAML Reference
+```yaml
+remote_control:
+    enabled: true
+    discovery_port: 8092
+```
+
+---
+
+## Sandbox Integration
+
+Run isolated tool executions.
+
+### Web UI Setup
+1. Open **Config → Integrations → Sandbox**.
+2. Enable the integration.
+3. Choose a **Backend** (e.g., `docker`) and set the timeout.
+4. Save and restart.
+
+### YAML Reference
+```yaml
+sandbox:
+    enabled: true
+    backend: docker
+```
+
+---
+
+## Skill Manager Integration
+
+Upload and enable custom Python skills.
+
+### Web UI Setup
+1. Open **Config → Integrations → Skill Manager**.
+2. Enable the integration.
+3. Configure upload limits and scanning options.
+4. Save and restart.
+
+### YAML Reference
+```yaml
+tools:
+    skill_manager:
+        enabled: true
+        allow_uploads: true
+```
+
+---
+
+## AI Gateway Integration
+
+Route AI traffic through Cloudflare AI Gateway.
+
+### Web UI Setup
+1. Open **Config → Integrations → AI Gateway**.
+2. Enable the integration.
+3. Enter your **Account ID** and **Gateway ID**.
+4. Save and restart.
+
+### YAML Reference
+```yaml
+ai_gateway:
+    enabled: true
+    account_id: "YOUR_ACCOUNT_ID"
+    gateway_id: "YOUR_GATEWAY_ID"
+```
+
+---
+
+## Notifications Integration
+
+Send push notifications via ntfy or Pushover.
+
+### Web UI Setup
+1. Open **Config → Integrations → Notifications**.
+2. Enable ntfy and/or Pushover.
+3. Enter the URL, topic, or user key as needed.
+4. Save and restart.
+
+### YAML Reference
+```yaml
+notifications:
+    ntfy:
+        enabled: true
+        url: "https://ntfy.sh"
+        topic: "aurago"
+```
+
+---
+
+## Chromecast Integration
+
+Stream media and TTS to Chromecast devices.
+
+### Web UI Setup
+1. Open **Config → Integrations → Chromecast**.
+2. Enable the integration.
+3. Set the **TTS Port**.
+4. Save and restart.
+
+### YAML Reference
+```yaml
+chromecast:
+    enabled: true
+    tts_port: 8090
+```
+
+---
+
+## S3 Storage Integration
+
+Access Amazon S3 or compatible object storage.
+
+### Web UI Setup
+1. Open **Config → Integrations → S3**.
+2. Enable the integration.
+3. Enter the **Endpoint**, **Region**, **Bucket**, and **Access Key**.
+4. Store the **Secret Key** in the Vault.
+5. Save and restart.
+
+### YAML Reference
+```yaml
+s3:
+    enabled: true
+    endpoint: "s3.amazonaws.com"
+    region: "us-east-1"
+    bucket: "my-bucket"
+```
+
+---
+
+## SQL Connections Integration
+
+Connect to external SQL databases.
+
+### Web UI Setup
+1. Open **Config → Integrations → SQL Connections**.
+2. Enable the integration.
+3. Add a connection with **Driver**, **DSN**, and **Host**.
+4. Store credentials in the Vault.
+5. Save and restart.
+
+### YAML Reference
+```yaml
+sql_connections:
+    enabled: true
+```
+
+---
+
+## OneDrive Integration
+
+Access Microsoft OneDrive files.
+
+### Web UI Setup
+1. Open **Config → Integrations → OneDrive**.
+2. Enable the integration.
+3. Enter your Azure AD **Client ID** and **Tenant ID**.
+4. Save and restart.
+
+### YAML Reference
+```yaml
+onedrive:
+    enabled: true
+    client_id: "YOUR_CLIENT_ID"
+```
+
+---
+
+## Homepage Integration
+
+Deploy a personal start-page dashboard.
+
+### Web UI Setup
+1. Open **Config → Integrations → Homepage**.
+2. Enable the integration.
+3. Configure deployment host, path, and webserver options.
+4. Save and restart.
+
+### YAML Reference
+```yaml
+homepage:
+    enabled: true
+    allow_deploy: true
+```
+
+---
+
+## Cloudflare Tunnel Integration
+
+Expose AuraGo securely via Cloudflare Tunnel.
+
+### Web UI Setup
+1. Open **Config → Integrations → Cloudflare Tunnel**.
+2. Enable the integration.
+3. Enter your **Account ID**, **Tunnel ID**, and **Tunnel Name**.
+4. Choose which services to expose (Web UI, Homepage).
+5. Save and restart.
+
+AuraGo can manage the `cloudflared` container automatically.
+
+### YAML Reference
+```yaml
+cloudflare_tunnel:
+    enabled: true
+    account_id: "YOUR_ACCOUNT_ID"
+    tunnel_id: "YOUR_TUNNEL_ID"
+```
+
+---
+
+## Rocket.Chat Integration
+
+Send messages to Rocket.Chat channels.
+
+### Web UI Setup
+1. Open **Config → Integrations → Rocket.Chat**.
+2. Enable the integration.
+3. Enter the **URL**, **User ID**, and **Channel**.
+4. Save and restart.
+
+### YAML Reference
+```yaml
+rocketchat:
+    enabled: true
+    url: "https://chat.example.com"
+    channel: "general"
+```
+
+---
+
+## Fallback LLM Integration
+
+Failover to a secondary LLM provider.
+
+### Web UI Setup
+1. Open **Config → Integrations → Fallback LLM**.
+2. Enable the integration.
+3. Enter the **API Key**, **Base URL**, and **Model**.
+4. Save and restart.
+
+### YAML Reference
+```yaml
+fallback_llm:
+    enabled: true
+    api_key: "YOUR_API_KEY"
+    model: "llama3.1"
+```
+
+---
+
+## Co-Agents Integration
+
+Spawn specialist sub-agents.
+
+### Web UI Setup
+1. Open **Config → Integrations → Co-Agents**.
+2. Enable the integration.
+3. Choose which specialists to activate (Researcher, Coder, Designer, Security, Writer).
+4. Save and restart.
+
+### YAML Reference
+```yaml
+co_agents:
+    enabled: true
+    max_concurrent: 3
+```
+
+---
+
+## Mission Preparation Integration
+
+Pre-analyse missions before execution.
+
+### Web UI Setup
+1. Open **Config → Integrations → Mission Preparation**.
+2. Enable the integration.
+3. Set timeout and confidence thresholds.
+4. Save and restart.
+
+### YAML Reference
+```yaml
+mission_preparation:
+    enabled: true
+    timeout_seconds: 120
+```
+
+---
+
+## TTS / Whisper Integration
+
+Text-to-speech and speech-to-text.
+
+### Web UI Setup
+1. Open **Config → Integrations → TTS / Whisper**.
+2. Enable the desired providers.
+3. Enter API keys or configure local Piper options.
+4. Save and restart.
+
+### YAML Reference
+```yaml
+tts:
+    provider: google
+    language: en
+whisper:
+    provider: openai
+```
+
+---
+
+## Ollama Integration
+
+Manage local LLMs.
+
+### Web UI Setup
+1. Open **Config → Integrations → Ollama**.
+2. Enable the integration.
+3. Enter the **URL** of your Ollama instance.
+4. Optionally enable **Managed Instance** to let AuraGo run Ollama in Docker.
+5. Save and restart.
+
+### YAML Reference
+```yaml
+ollama:
+    enabled: true
+    url: "http://localhost:11434"
+```
+
+---
+
+## Media Registry Integration
+
+Register and track media assets.
+
+### Web UI Setup
+1. Open **Config → Integrations → Media Registry**.
+2. Enable the integration.
+3. Save and restart.
+
+### YAML Reference
+```yaml
+media_registry:
+    enabled: true
+```
+
+---
+
+## GitHub Integration
+
+Interact with GitHub repositories and webhooks.
+
+### Web UI Setup
+1. Open **Config → Integrations → Webhooks** to set up GitHub webhooks.
+2. For API access, store a personal access token in the Vault.
+3. Save and restart.
+
+### YAML Reference
+```yaml
+webhooks:
+    enabled: true
+```
+
+---
+
+## MeshCentral Integration
+
+Remote device management.
+
+### Web UI Setup
+1. Open **Config → Integrations → MeshCentral**.
+2. Enable the integration.
+3. Enter your **Server URL** and credentials.
+4. Save and restart.
+
+### YAML Reference
+```yaml
+meshcentral:
+    enabled: true
+    url: "https://meshcentral.local"
+```
+
+---
+
+## Ansible Integration
+
+Infrastructure automation via Ansible.
+
+### Web UI Setup
+1. Open **Config → Integrations → Ansible**.
+2. Enable the integration.
+3. Enter the **API URL** and **API Token**.
+4. Save and restart.
+
+### YAML Reference
+```yaml
+ansible:
+    enabled: true
+    api_url: "http://ansible-api:5000"
+```
 
 ---
 
 ## Testing Integrations
 
 ### Health Check Commands
-
-Test individual integrations:
-
+Test individual integrations via API:
 ```bash
-# Test Telegram
 curl http://localhost:8088/api/health/telegram
-
-# Test Discord
 curl http://localhost:8088/api/health/discord
-
-# Test Email
 curl http://localhost:8088/api/health/email
-
-# Test Home Assistant
 curl http://localhost:8088/api/health/homeassistant
-
-# Test Docker
 curl http://localhost:8088/api/health/docker
 ```
 
 ### Integration Status in Web UI
-
 The dashboard shows status indicators:
 - 🟢 Green: Connected and working
 - 🟡 Yellow: Configured but not connected
 - 🔴 Red: Error or disabled
 
 ### Debugging Integration Issues
-
-1. **Check logs:**
-   ```bash
-   tail -f log/aurago_$(date +%Y-%m-%d).log
-   ```
-
-2. **Verify configuration:**
-   ```bash
-   ./aurago -validate-config
-   ```
-
-3. **Test with verbose output:**
-   ```bash
-   ./aurago -debug
-   ```
+1. **Check logs:** `tail -f log/aurago_$(date +%Y-%m-%d).log`
+2. **Verify configuration:** `./aurago -validate-config`
+3. **Test with verbose output:** `./aurago -debug`
 
 ### Common Issues
-
 | Issue | Solution |
 |-------|----------|
 | Telegram bot not responding | Check `telegram_user_id` matches your account |
@@ -1113,25 +989,11 @@ The dashboard shows status indicators:
 | Docker permission denied | Add user to docker group or use sudo |
 | Webhook not receiving | Check firewall and URL format |
 
-### Integration Testing Checklist
-
-Before relying on any integration:
-
-- [ ] Configuration saved in `config.yaml`
-- [ ] AuraGo restarted after config change
-- [ ] Health check endpoint returns success
-- [ ] Test message/event received successfully
-- [ ] Error handling verified (wrong credentials, etc.)
-- [ ] Logs show no errors
-
 ---
 
 ## Next Steps
 
 Now that your integrations are set up:
-
 1. **[Security](14-security.md)** – Secure your AuraGo installation
 2. **[Advanced Usage](15-coagents.md)** – Workflows, co-agents, and automation
 3. **[Troubleshooting](16-troubleshooting.md)** – Solve common issues
-
-> 💡 **Pro Tip:** Start with one integration at a time. Test thoroughly before adding more. This makes debugging much easier.

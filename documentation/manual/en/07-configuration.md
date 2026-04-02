@@ -5,16 +5,17 @@ AuraGo's behavior is controlled through a central configuration file (`config.ya
 ## Table of Contents
 
 1. [Configuration Overview](#configuration-overview)
-2. [Server Settings](#server-settings)
-3. [LLM Configuration](#llm-configuration)
-4. [Embeddings Configuration](#embeddings-configuration)
+2. [Editing Configuration](#editing-configuration)
+3. [Provider System](#provider-system)
+4. [Server Settings](#server-settings)
 5. [Agent Behavior Settings](#agent-behavior-settings)
-6. [Logging Configuration](#logging-configuration)
-7. [Editing Configuration](#editing-configuration)
-8. [Configuration Validation](#configuration-validation)
-9. [Environment Variables](#environment-variables)
-10. [Common Configuration Examples](#common-configuration-examples)
-11. [Configuration Coverage Check](#configuration-coverage-check-current-codebase)
+6. [Tool Configuration, Skill Manager & Media Registry](#tool-configuration-skill-manager--media-registry)
+7. [Embeddings Configuration](#embeddings-configuration)
+8. [Personality Settings](#personality-settings)
+9. [Logging Configuration](#logging-configuration)
+10. [Environment Variables](#environment-variables)
+11. [Common Configuration Examples](#common-configuration-examples)
+12. [Compact YAML Reference](#compact-yaml-reference)
 
 ---
 
@@ -37,7 +38,9 @@ config_debug.yaml    # Debug/testing configuration (optional)
 | `llm` | Primary LLM provider and model settings |
 | `providers` | Reusable provider definitions (OpenAI, OpenRouter, Ollama, etc.) |
 | `embeddings` | Vector embedding provider for memory |
-| `agent` | Core agent behavior and personality |
+| `agent` | Core agent behavior and limits |
+| `personality` | Personality engine and user profiling |
+| `tools` | Built-in tool permissions and timeouts |
 | `telegram` | Telegram bot integration |
 | `discord` | Discord bot integration |
 | `email` | IMAP/SMTP email settings |
@@ -50,42 +53,49 @@ config_debug.yaml    # Debug/testing configuration (optional)
 
 ---
 
-## Server Settings
+## Editing Configuration
 
-The `server` section controls the web interface and API endpoints.
+### Web UI (Recommended)
 
-```yaml
-server:
-    host: 0.0.0.0           # Bind address (0.0.0.0 = all interfaces)
-    port: 8088              # HTTP port
-    bridge_address: "localhost:8089"  # Internal bridge for WebSocket
-    max_body_bytes: 10485760          # Max request body size (10MB)
-    master_key: ""          # Encryption key for sensitive data
-```
+The easiest way to configure AuraGo is through the built-in Web UI:
 
-### Server Options Explained
+1. **Open the Web UI** at `http://localhost:8088` (or the host/port you configured)
+2. **Click the radial menu** (≡) in the top-left corner
+3. **Select "Config"**
+4. **Navigate categories on the left sidebar**: Providers, Agent, Integrations, Tools, Server, etc.
+5. **Toggle switches** and **fill in fields** as needed
+6. **Click "Save"** at the bottom of the page
 
-| Option | Default | Description |
-|--------|---------|-------------|
-| `host` | `0.0.0.0` | Network interface to bind to. Use `127.0.0.1` for localhost only |
-| `port` | `8088` | HTTP port for the Web UI and API |
-| `bridge_address` | `localhost:8089` | Internal bridge address for WebSocket connections |
-| `max_body_bytes` | `10485760` (10MB) | Maximum size for uploaded files and request bodies |
-| `master_key` | `""` | Master encryption key for sensitive configuration data |
+> 💡 **Tip:** The Web UI validates configuration before saving, preventing syntax errors.
 
-> 💡 **Tip:** For production deployments, set `host` to `127.0.0.1` and use a reverse proxy (nginx, Caddy, Traefik) with HTTPS.
+#### Which Changes Require a Restart?
 
-> ⚠️ **Warning:** Never expose AuraGo directly to the internet without authentication. Enable `auth` or use a VPN.
+| Change | Restart Required? |
+|--------|-------------------|
+| Server port/host | Yes |
+| LLM provider | No (runtime switchable) |
+| Telegram bot token | Yes |
+| Discord bot token | Yes |
+| Personality settings | No |
+| Memory settings | No |
+| Tool permissions | No |
+
+### Direct YAML Editing (Fallback)
+
+For advanced use cases or headless setups, you can edit `config.yaml` directly:
+
+1. Open `config.yaml` in a text editor
+2. Make changes following YAML syntax
+3. Save the file
+4. Restart AuraGo
 
 ---
 
-## LLM Configuration
+## Provider System
 
-The `llm` section defines how AuraGo connects to Large Language Models.
+The `providers` section defines reusable LLM connections. Multiple components can reference the same provider by its `id`.
 
-### Provider-Based Configuration (Recommended)
-
-AuraGo supports reusable provider definitions that can be referenced by multiple components:
+> 🖥️ **Web UI:** Go to **Config → Providers** to add, edit, or delete providers. Use the **Test** button to verify connectivity before saving.
 
 ```yaml
 providers:
@@ -102,13 +112,6 @@ providers:
     base_url: http://localhost:11434/v1
     api_key: "dummy_key"
     model: llama3.1
-
-  - id: openai
-    name: "OpenAI"
-    type: openai
-    base_url: https://api.openai.com/v1
-    api_key: "sk-..."
-    model: gpt-4o
 
 llm:
     provider: openrouter-main    # Reference to provider ID
@@ -135,12 +138,270 @@ llm:
 | `temperature` | `0.7` | Controls randomness. Lower = more deterministic, higher = more creative |
 | `use_native_functions` | `true` | Enable native function calling (tool use) |
 | `structured_outputs` | `false` | Force structured JSON outputs (for supported models) |
+| `helper_enabled` | `false` | Enable dedicated helper LLM for internal analysis/background features |
+| `helper_provider` | `""` | Provider ID for helper LLM |
+| `helper_model` | `""` | Model override for helper LLM (smaller/cheaper recommended) |
 
 > 🔍 **Deep Dive: Temperature Settings**
 > - `0.0` - Deterministic, same input always produces same output
 > - `0.7` - Balanced creativity and consistency (recommended)
 > - `1.0+` - More creative, may hallucinate more
 > - `2.0` - Maximum randomness, often incoherent
+
+---
+
+## Server Settings
+
+The `server` section controls the web interface and API endpoints.
+
+> 🖥️ **Web UI:** Go to **Config → Server** to set the host, port, HTTPS mode, and upload limits.
+
+```yaml
+server:
+    host: 127.0.0.1         # Bind address (127.0.0.1 = localhost only)
+    port: 8088              # HTTP port
+    bridge_address: ""      # Internal bridge for WebSocket
+    max_body_bytes: 10485760          # Max request body size (10MB)
+    https:
+        enabled: false
+        cert_mode: auto                     # "auto" (Let's Encrypt), "custom" (uploaded cert), "selfsigned" (auto-generated)
+        domain: ""
+        email: ""
+        cert_file: ""                       # custom mode: path to PEM certificate file
+        key_file: ""                        # custom mode: path to PEM private key file
+        https_port: 443
+        http_port: 80
+        behind_proxy: false
+```
+
+### Server Options Explained
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `host` | `127.0.0.1` | Network interface to bind to. Use `0.0.0.0` for all interfaces (Docker) |
+| `port` | `8088` | HTTP port for the Web UI and API |
+| `bridge_address` | `""` | Internal bridge address for WebSocket connections |
+| `max_body_bytes` | `10485760` (10MB) | Maximum size for uploaded files and request bodies |
+| `https.enabled` | `false` | Enable HTTPS/Let's Encrypt |
+| `https.cert_mode` | `auto` | Certificate mode: `auto`, `custom`, or `selfsigned` |
+| `https.domain` | `""` | Domain for Let's Encrypt |
+| `https.email` | `""` | Contact email for Let's Encrypt |
+| `https.cert_file` | `""` | Path to PEM certificate (custom mode) |
+| `https.key_file` | `""` | Path to PEM private key (custom mode) |
+| `https.https_port` | `443` | HTTPS port |
+| `https.http_port` | `80` | HTTP port for ACME challenge |
+| `https.behind_proxy` | `false` | AuraGo is behind a reverse proxy |
+
+> 💡 **Tip:** For production deployments, set `host` to `127.0.0.1` and use a reverse proxy (nginx, Caddy, Traefik) with HTTPS.
+
+> ⚠️ **Warning:** Never expose AuraGo directly to the internet without authentication. Enable `auth` or use a VPN.
+
+---
+
+## Agent Behavior Settings
+
+The `agent` section controls how AuraGo thinks, remembers, and behaves.
+
+> 🖥️ **Web UI:** Go to **Config → Agent** to adjust memory limits, tool execution, and danger-zone toggles.
+
+```yaml
+agent:
+    # Core settings
+    system_language: English
+    context_window: 0           # 0 = auto-detect from provider API at startup
+
+    # Memory settings
+    memory_compression_char_limit: 60000
+    core_memory_max_entries: 200
+    core_memory_cap_mode: soft
+
+    # Tool execution
+    max_tool_calls: 15
+    step_delay_seconds: 0
+    show_tool_results: false
+    tool_output_limit: 50000    # max characters of a single tool result fed into context (0 = unlimited)
+
+    # System prompt
+    system_prompt_token_budget: 12288
+    adaptive_system_prompt_token_budget: true
+    workflow_feedback: true
+    max_tool_guides: 5          # max tool guide documents injected into prompt
+
+    # Debugging
+    debug_mode: false
+
+    # Adaptive tool filtering (reduces token usage for tool schemas)
+    adaptive_tools:
+        enabled: false
+        max_tools: 60
+        decay_half_life_days: 7
+        always_include: [filesystem, shell, manage_memory, query_memory, execute_python, docker, api_request]
+
+    # Recovery settings
+    recovery:
+        max_provider_422_recoveries: 3      # automatic retries after provider-side 422 validation errors
+        min_messages_for_empty_retry: 5     # retry empty LLM responses only when enough conversation context exists
+        duplicate_consecutive_hits: 2       # circuit breaker after repeated identical tool calls in a row
+        duplicate_frequency_hits: 3         # circuit breaker after repeated identical tool calls overall
+        identical_tool_error_hits: 3        # stop retrying when the exact same tool error repeats
+
+    # Background tasks
+    background_tasks:
+        enabled: true                       # persistent background task queue for follow_up, cron, and wait events
+        follow_up_delay_seconds: 2          # small delay so the current response can finish first
+        http_timeout_seconds: 120           # loopback timeout for background prompt execution
+        max_retries: 2                      # retry failed background prompt executions
+        retry_delay_seconds: 60             # retry delay for failed background prompt executions
+        wait_poll_interval_seconds: 5       # poll interval for wait_for_event tasks
+        wait_default_timeout_secs: 600      # default timeout for wait_for_event tasks
+```
+
+### Memory Settings
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `context_window` | `0` | Maximum tokens in conversation context (0 = auto-detect) |
+| `memory_compression_char_limit` | `60000` | Compress memory entries larger than this |
+| `core_memory_max_entries` | `200` | Maximum permanent memory entries |
+| `core_memory_cap_mode` | `soft` | `soft` = compress old entries, `hard` = delete old entries |
+
+### Tool Execution
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `max_tool_calls` | `15` | Maximum tools per agent response |
+| `step_delay_seconds` | `0` | Delay between tool calls (for rate limiting) |
+| `show_tool_results` | `false` | Include tool results in user-visible output |
+| `tool_output_limit` | `50000` | Max characters of a single tool result fed into context (0 = unlimited) |
+
+### System Prompt
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `system_prompt_token_budget` | `12288` | Maximum tokens reserved for the system prompt |
+| `adaptive_system_prompt_token_budget` | `true` | Automatically adjust system prompt token budget |
+| `max_tool_guides` | `5` | Max tool guide documents injected into prompt |
+| `workflow_feedback` | `true` | Provide workflow feedback in responses |
+
+> 🔍 **Deep Dive: Context Window**
+> The `context_window` should match your LLM model's actual limit. Common values:
+> - GPT-3.5: 16384
+> - GPT-4: 8192 or 32768
+> - Claude 3: 200000
+> - Llama 3.1: 128000
+> - Gemini: 1000000+
+
+### Danger Zone: Capability Controls
+
+```yaml
+agent:
+    # Danger Zone — disabled by default for fresh installs
+    allow_shell: false           # execute_shell tool
+    allow_python: false          # execute_python, save_tool, execute_skill
+    allow_filesystem_write: false # filesystem write operations
+    allow_network_requests: false # api_request tool
+    allow_remote_shell: false    # execute_remote_shell tool
+    allow_self_update: false     # manage_updates tool
+    # Standard API access — enabled by default
+    allow_mcp: true              # MCP server connections
+    allow_web_scraper: true      # web scraper tool
+    sudo_enabled: false          # execute_sudo tool (requires vault entry)
+```
+
+> ⚠️ **Warning:** Disabling `allow_filesystem_write` prevents the agent from modifying files, which limits functionality but increases safety.
+
+---
+
+## Tool Configuration, Skill Manager & Media Registry
+
+Built-in tools, skill uploads, and media tracking can all be configured under `Config → Tools` in the Web UI.
+
+```yaml
+tools:
+    memory:
+        enabled: true
+        readonly: false
+    knowledge_graph:
+        enabled: true
+        readonly: false
+    secrets_vault:
+        enabled: true
+        readonly: false
+    scheduler:
+        enabled: true
+        readonly: false
+    notes:
+        enabled: true
+        readonly: false
+    missions:
+        enabled: true
+        readonly: false
+    stop_process:
+        enabled: true
+    inventory:
+        enabled: true
+    memory_maintenance:
+        enabled: true
+    wol:
+        enabled: true
+    web_capture:
+        enabled: true
+    network_ping:
+        enabled: true
+    network_scan:
+        enabled: true
+    form_automation:
+        enabled: false
+    upnp_scan:
+        enabled: true
+    contacts:
+        enabled: true
+    python_secret_injection:
+        enabled: false
+    python_timeout_seconds: 30
+    skill_timeout_seconds: 120
+    background_timeout_seconds: 3600
+    web_scraper:
+        enabled: true
+        summary_mode: false
+    wikipedia:
+        summary_mode: false
+    ddg_search:
+        summary_mode: false
+    pdf_extractor:
+        enabled: true
+        summary_mode: false
+    document_creator:
+        enabled: false
+        backend: maroto
+        output_dir: data/documents
+        gotenberg:
+            url: "http://gotenberg:3000"
+            timeout: 120
+    skill_manager:
+        enabled: true
+        allow_uploads: true
+        readonly: false
+        require_scan: true
+        max_upload_size_mb: 1
+        auto_enable_clean: false
+        scan_with_guardian: false
+
+media_registry:
+    enabled: true
+```
+
+### Key Options
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `python_timeout_seconds` | `30` | Foreground Python/shell execution timeout |
+| `skill_timeout_seconds` | `120` | Skill execution timeout |
+| `background_timeout_seconds` | `3600` | Background execution timeout before forced termination |
+| `skill_manager.allow_uploads` | `true` | Allow users to upload new Python skills |
+| `skill_manager.require_scan` | `true` | Require security scan before enabling new skills |
+| `skill_manager.max_upload_size_mb` | `1` | Maximum upload file size in MB |
+| `media_registry.enabled` | `true` | Track media files in a registry |
 
 ---
 
@@ -176,92 +437,33 @@ embeddings:
 
 ---
 
-## Agent Behavior Settings
+## Personality Settings
 
-The `agent` section controls how AuraGo thinks, remembers, and behaves.
-
-```yaml
-agent:
-    # Core settings
-    system_language: English
-    core_personality: friend
-    context_window: 131000
-    
-    # Memory settings
-    memory_compression_char_limit: 50000
-    core_memory_max_entries: 200
-    core_memory_cap_mode: soft
-    
-    # Personality engine
-    personality_engine: true
-    personality_engine_v2: true
-    personality_v2_model: qwen/qwen-2.5-7b-instruct
-    
-    # Tool execution
-    max_tool_calls: 12
-    step_delay_seconds: 0
-    show_tool_results: false
-    
-    # System prompt
-    system_prompt_token_budget: 8192
-    workflow_feedback: true
-    
-    # Debugging
-    debug_mode: false
-    
-    # Integrations
-    enable_google_workspace: true
-```
-
-### Personality Settings
-
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `core_personality` | `friend` | Base personality: `friend`, `professional`, `punk`, `neutral`, `terminator` |
-| `personality_engine` | `true` | Enable V1 heuristic personality adaptation |
-| `personality_engine_v2` | `true` | Enable V2 LLM-based personality analysis |
-
-### Memory Settings
-
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `context_window` | `131000` | Maximum tokens in conversation context |
-| `memory_compression_char_limit` | `50000` | Compress memory entries larger than this |
-| `core_memory_max_entries` | `200` | Maximum permanent memory entries |
-| `core_memory_cap_mode` | `soft` | `soft` = compress old entries, `hard` = delete old entries |
-
-### Tool Execution
-
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `max_tool_calls` | `12` | Maximum tools per agent response |
-| `step_delay_seconds` | `0` | Delay between tool calls (for rate limiting) |
-| `show_tool_results` | `false` | Include tool results in user-visible output |
-
-> 🔍 **Deep Dive: Context Window**
-> The `context_window` should match your LLM model's actual limit. Common values:
-> - GPT-3.5: 16384
-> - GPT-4: 8192 or 32768
-> - Claude 3: 200000
-> - Llama 3.1: 128000
-> - Gemini: 1000000+
-
-### Danger Zone: Capability Controls
+The `personality` section controls AuraGo's personality engine, mood analysis, and user profiling.
 
 ```yaml
-agent:
-    # Tool capability gates (all default to true)
-    allow_shell: true            # execute_shell tool
-    allow_python: true           # execute_python, save_tool, execute_skill
-    allow_filesystem_write: true # filesystem write operations
-    allow_network_requests: true # api_request tool
-    allow_remote_shell: true     # execute_remote_shell tool
-    allow_self_update: true      # manage_updates tool
-    allow_mcp: true              # MCP server connections
-    sudo_enabled: false          # execute_sudo tool (requires vault entry)
+personality:
+    core_personality: friend           # active personality profile: friend, professional, punk, neutral, terminator
+    engine: true                       # enable personality engine (mood, micro-traits)
+    engine_v2: true                    # enable advanced V2 engine with async LLM mood analysis
+    user_profiling: false              # auto-detect user preferences from conversation
+    user_profiling_threshold: 2        # confirmations needed before injecting a trait into prompt
+    emotion_synthesizer:
+        enabled: false                 # enable emotion synthesis
+        max_history_entries: 100       # max emotion history entries to keep
 ```
 
-> ⚠️ **Warning:** Disabling `allow_filesystem_write` prevents the agent from modifying files, which limits functionality but increases safety.
+### Personality Options Explained
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `core_personality` | `friend` | Base personality profile: `friend`, `professional`, `punk`, `neutral`, `terminator` |
+| `engine` | `true` | Enable V1 heuristic personality adaptation |
+| `engine_v2` | `true` | Enable V2 LLM-based personality analysis |
+| `user_profiling` | `false` | Auto-detect user preferences from conversation history |
+| `user_profiling_threshold` | `2` | Confirmations needed before injecting a detected trait into the prompt |
+| `emotion_synthesizer.enabled` | `false` | Enable emotion synthesis for responses |
+| `emotion_synthesizer.max_history_entries` | `100` | Maximum emotion history entries to keep |
 
 ---
 
@@ -270,100 +472,19 @@ agent:
 ```yaml
 logging:
     enable_file_log: true
+    enable_prompt_log: false    # write full LLM requests to log/prompts.log (may contain sensitive data)
     log_dir: ./log
 ```
 
 | Setting | Default | Description |
 |---------|---------|-------------|
 | `enable_file_log` | `true` | Write logs to files |
+| `enable_prompt_log` | `false` | Write full LLM requests to `log/prompts.log` (may contain sensitive data) |
 | `log_dir` | `./log` | Directory for log files |
 
 Log files are rotated automatically and named by date:
 - `log/aurago_2026-03-08.log`
 - `log/aurago_2026-03-07.log`
-
----
-
-## Editing Configuration
-
-AuraGo provides two ways to edit configuration:
-
-### Method 1: Web UI (Recommended)
-
-1. Open the Web UI (`http://localhost:8088`)
-2. Navigate to **Settings** → **Configuration**
-3. Edit values in the form
-4. Click **Save Changes**
-5. Restart AuraGo for some changes to take effect
-
-> 💡 **Tip:** The Web UI validates configuration before saving, preventing syntax errors.
-
-### Method 2: Direct YAML Editing
-
-1. Open `config.yaml` in a text editor
-2. Make changes following YAML syntax
-3. Save the file
-4. Restart AuraGo
-
-```yaml
-# Example: Adding a new provider
-providers:
-  - id: my-custom-llm
-    name: "My Custom LLM"
-    type: custom
-    base_url: https://api.example.com/v1
-    api_key: "my-api-key"
-    model: my-model-v1
-```
-
-### What Requires a Restart?
-
-| Change | Restart Required? |
-|--------|-------------------|
-| Server port/host | Yes |
-| LLM provider | No (runtime switchable) |
-| Telegram bot token | Yes |
-| Discord bot token | Yes |
-| Personality settings | No |
-| Memory settings | No |
-| Tool permissions | No |
-
----
-
-## Configuration Validation
-
-AuraGo validates configuration on startup and will warn or fail on errors.
-
-### Validation Levels
-
-| Level | Behavior |
-|-------|----------|
-| **Warning** | Log warning but continue startup |
-| **Error** | Log error, attempt fallback, or exit |
-| **Fatal** | Exit immediately with error message |
-
-### Common Validation Errors
-
-```
-Error: invalid provider reference "my-llm" in llm.provider
-→ The provider ID doesn't exist in providers list
-
-Error: telegram.bot_token is set but telegram.enabled is false
-→ Enable telegram or remove the token
-
-Error: cannot parse retry_intervals: invalid duration "invalid"
-→ Use valid Go durations: "10s", "2m", "1h"
-```
-
-### Testing Configuration
-
-```bash
-# Start AuraGo and check for validation errors
-./aurago
-
-# Use debug configuration
-./aurago -config config_debug.yaml
-```
 
 ---
 
@@ -377,20 +498,19 @@ Environment variables use uppercase with underscores, prefixed with `AURAGO_`:
 
 ```bash
 # Server settings
-AURAGO_SERVER_HOST=0.0.0.0
+AURAGO_SERVER_HOST=127.0.0.1
 AURAGO_SERVER_PORT=8088
 
+# Security
+AURAGO_MASTER_KEY=...               # 64-character hex encryption key
+
 # LLM settings
-AURAGO_LLM_API_KEY=sk-or-v1-...
-AURAGO_LLM_PROVIDER=openrouter
-AURAGO_LLM_MODEL=arcee-ai/trinity-large-preview:free
+LLM_API_KEY=sk-or-v1-...
+OPENAI_API_KEY=sk-...
 
-# Telegram
-AURAGO_TELEGRAM_BOT_TOKEN=123456:ABC-DEF...
-AURAGO_TELEGRAM_USER_ID=123456789
-
-# Database paths
-AURAGO_SQLITE_SHORT_TERM_PATH=./data/short_term.db
+# Integrations
+TAILSCALE_API_KEY=tskey-...
+ANSIBLE_API_TOKEN=...
 ```
 
 ### Priority Order
@@ -410,9 +530,11 @@ services:
     image: aurago:latest
     environment:
       - AURAGO_SERVER_HOST=0.0.0.0
-      - AURAGO_LLM_API_KEY=${LLM_API_KEY}
-      - AURAGO_TELEGRAM_BOT_TOKEN=${TELEGRAM_TOKEN}
-      - AURAGO_TELEGRAM_USER_ID=${TELEGRAM_USER_ID}
+      - AURAGO_MASTER_KEY=${AURAGO_MASTER_KEY}
+      - LLM_API_KEY=${LLM_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - TAILSCALE_API_KEY=${TAILSCALE_API_KEY}
+      - ANSIBLE_API_TOKEN=${ANSIBLE_API_TOKEN}
     volumes:
       - ./data:/app/data
       - ./config.yaml:/app/config.yaml
@@ -423,6 +545,8 @@ services:
 ---
 
 ## Common Configuration Examples
+
+> 💡 **Tip:** These YAML examples work for headless or advanced setups, but the **Web UI is the easier way** to configure AuraGo today.
 
 ### Example 1: Local Development with Ollama
 
@@ -451,7 +575,6 @@ server:
 
 agent:
     system_language: English
-    core_personality: friend
 ```
 
 ### Example 2: Production with OpenRouter
@@ -608,25 +731,45 @@ auth:
 
 ---
 
-## Configuration Coverage Check (current codebase)
+## Compact YAML Reference
 
-To cover the current `config_template.yaml` more completely, also review these blocks that are often missed:
+The blocks below are available for advanced and headless setups. Most can be configured more easily in the **Web UI under Config → Integrations, Config → Security, and Config → Tools**.
 
-| Block | Purpose | Where to continue |
-|---|---|---|
-| `circuit_breaker`, `fallback_llm` | resilience, retries, failover | [Security](14-security.md), [Troubleshooting](16-troubleshooting.md) |
-| `co_agents`, `invasion_control`, `remote_control`, `egg_mode` | distributed/parallel agent orchestration | [Invasion](12-invasion.md), [Co-Agents](15-coagents.md) |
-| `maintenance`, `indexing` | autonomous housekeeping and knowledge indexing | [Memory](09-memory.md), [Dashboard](13-dashboard.md) |
-| `llm_guardian` | tool/document safety scanning and policy guardrails | [Security](14-security.md), [Dashboard](13-dashboard.md) |
-| `mcp_server`, `ai_gateway` | MCP interoperability and AI gateway routing | [Integrations](08-integrations.md) |
-| `sandbox`, `whisper`, `tts`, `image_generation` | isolated execution and media pipelines | [Tools](06-tools.md), [Integrations](08-integrations.md) |
-| `paperless_ngx`, `media_registry`, `homepage`, `netlify` | content/document/site management | [Integrations](08-integrations.md) |
-| `cloudflare_tunnel`, `adguard`, `fritzbox`, `mqtt` | network and edge integrations | [Integrations](08-integrations.md), [Security](14-security.md) |
-| `brave_search`, `virustotal` | web discovery and threat intelligence | [Tools](06-tools.md), [Security](14-security.md) |
-| `s3`, `onedrive` | object/cloud storage providers | [Integrations](08-integrations.md) |
-| `telnyx`, `rocketchat` | telephony and chat channels | [Integrations](08-integrations.md) |
+| Block | Purpose | YAML Snippet |
+|-------|---------|--------------|
+| `auth` | Web UI authentication. | `auth:`<br>`  enabled: true`<br>`  session_timeout_hours: 24`<br>`  totp_enabled: false`<br>`  max_login_attempts: 5` |
+| `llm_guardian` | Tool/document safety scanning. | `llm_guardian:`<br>`  enabled: false`<br>`  provider: ""`<br>`  model: ""`<br>`  default_level: medium` |
+| `guardian` | Regex-based input scanning. | `guardian:`<br>`  max_scan_bytes: 16384`<br>`  scan_edge_bytes: 6144` |
+| `ai_gateway` | Cloudflare AI Gateway. | `ai_gateway:`<br>`  enabled: false`<br>`  account_id: ""`<br>`  gateway_id: ""` |
+| `mcp_server` | Expose AuraGo as MCP server. | `mcp_server:`<br>`  enabled: false`<br>`  allowed_tools: []`<br>`  require_auth: true` |
+| `consolidation` | Nightly memory optimization. | `consolidation:`<br>`  enabled: true`<br>`  auto_optimize: true`<br>`  archive_retain_days: 30`<br>`  max_batch_messages: 200` |
+| `web_config` | Web-based config editor. | `web_config:`<br>`  enabled: true` |
+| `remote_control` | Distributed remote execution. | `remote_control:`<br>`  enabled: false`<br>`  readonly: false`<br>`  discovery_port: 8092`<br>`  max_file_size_mb: 50` |
+| `mission_preparation` | Pre-analyze missions via LLM. | `mission_preparation:`<br>`  enabled: false`<br>`  provider: ""`<br>`  timeout_seconds: 120`<br>`  max_essential_tools: 5` |
+| `s3` | S3-compatible storage. | `s3:`<br>`  enabled: false`<br>`  readonly: false`<br>`  endpoint: ""`<br>`  region: us-east-1`<br>`  bucket: ""` |
+| `sql_connections` | External DB connections. | `sql_connections:`<br>`  enabled: false`<br>`  max_pool_size: 5`<br>`  connection_timeout_sec: 30`<br>`  query_timeout_sec: 120` |
+| `homepage` | Personal dashboard deploy. | `homepage:`<br>`  enabled: false`<br>`  allow_deploy: false`<br>`  allow_container_management: true`<br>`  webserver_port: 8080` |
+| `netlify` | Netlify site management. | `netlify:`<br>`  enabled: false`<br>`  readonly: false`<br>`  allow_deploy: true`<br>`  allow_site_management: false` |
+| `cloudflare_tunnel` | cloudflared integration. | `cloudflare_tunnel:`<br>`  enabled: false`<br>`  readonly: false`<br>`  mode: auto`<br>`  auto_start: true` |
+| `tailscale` | Tailscale VPN integration. | `tailscale:`<br>`  enabled: false`<br>`  readonly: false`<br>`  tailnet: ""`<br>`  tsnet:`<br>`    enabled: false` |
+| `fritzbox` | AVM Fritz!Box TR-064. | `fritzbox:`<br>`  enabled: false`<br>`  host: fritz.box`<br>`  port: 49000`<br>`  https: false` |
+| `google_workspace` | Gmail, Calendar, Drive. | `google_workspace:`<br>`  enabled: false`<br>`  readonly: false`<br>`  gmail: false`<br>`  calendar: false`<br>`  drive: false` |
+| `telnyx` | SMS and voice integration. | `telnyx:`<br>`  enabled: false`<br>`  readonly: false`<br>`  phone_number: ""`<br>`  messaging_profile_id: ""` |
+| `adguard` | AdGuard Home integration. | `adguard:`<br>`  enabled: false`<br>`  readonly: false`<br>`  url: ""`<br>`  username: ""` |
+| `image_generation` | AI image generation. | `image_generation:`<br>`  enabled: false`<br>`  provider: ""`<br>`  model: ""`<br>`  default_size: 1024x1024` |
+| `onedrive` | Microsoft OneDrive. | `onedrive:`<br>`  enabled: false`<br>`  readonly: false`<br>`  client_id: ""`<br>`  tenant_id: common` |
+| `paperless_ngx` | Document management. | `paperless_ngx:`<br>`  enabled: false`<br>`  readonly: false`<br>`  url: ""` |
+| `proxmox` | Proxmox VE integration. | `proxmox:`<br>`  enabled: false`<br>`  readonly: false`<br>`  url: ""`<br>`  token_id: ""` |
+| `meshcentral` | Remote desktop integration. | `meshcentral:`<br>`  enabled: false`<br>`  readonly: false`<br>`  url: ""`<br>`  username: ""` |
+| `ansible` | Ansible sidecar integration. | `ansible:`<br>`  enabled: false`<br>`  readonly: false`<br>`  mode: sidecar`<br>`  url: ""`<br>`  timeout: 300` |
+| `ollama` | Local Ollama management. | `ollama:`<br>`  enabled: false`<br>`  readonly: false`<br>`  url: ""`<br>`  managed_instance:`<br>`    enabled: false` |
+| `rocketchat` | Rocket.Chat bot. | `rocketchat:`<br>`  enabled: false`<br>`  url: ""`<br>`  user_id: ""`<br>`  channel: ""` |
+| `github` | GitHub repository integration. | `github:`<br>`  enabled: false`<br>`  readonly: false`<br>`  owner: ""`<br>`  default_private: false` |
+| `tts` | Text-to-speech config. | `tts:`<br>`  provider: google`<br>`  language: en`<br>`  cache_max_files: 500` |
+| `notifications` | Push notification providers. | `notifications:`<br>`  ntfy:`<br>`    enabled: false`<br>`    url: ""`<br>`    topic: ""` |
+| `budget` | Token cost tracking. | `budget:`<br>`  enabled: false`<br>`  daily_limit_usd: 5`<br>`  enforcement: warn`<br>`  warning_threshold: 0.8` |
+| `fallback_llm` | Failover LLM. | `fallback_llm:`<br>`  enabled: false`<br>`  api_key: ""`<br>`  base_url: ""`<br>`  model: ""` |
 
-> Recommendation: treat `config_template.yaml` as the definitive key inventory and keep this chapter aligned whenever new blocks are added.
 ---
 
 ## Next Steps

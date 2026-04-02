@@ -581,3 +581,5 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 - **config_template.yaml** - Full configuration reference (~600 lines)
 - **prompts/tools_manuals/** - Tool documentation (RAG-indexed)
 - **ui/lang/** - Translation files for 15 languages
+
+COMMIT CHANGES !! Always commit your changes with clear and descriptive commit messages. This helps keep the project history organized and makes it easier for others to understand the changes you have made. Regularly committing your changes also helps prevent data loss and allows you to track your progress effectively.

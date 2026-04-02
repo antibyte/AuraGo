@@ -2,182 +2,101 @@
 
 AuraGo lässt sich nahtlos in verschiedene Dienste und Plattformen integrieren.
 
----
+## Integrationen über die Web-UI einrichten
 
-## Übersicht aller Integrationen
+Die bevorzugte Art, Integrationen zu konfigurieren, ist die Web-UI:
 
-| Integration | Typ | Zweck | Konfiguration |
-|-------------|-----|-------|---------------|
-| **Telegram** | Chat | Mobile Benachrichtigungen | `telegram:` |
-| **Discord** | Chat | Community-Integration | `discord:` |
-| **Rocket.Chat** | Chat | Self-hosted Chat | `rocketchat:` |
-| **E-Mail** | Kommunikation | IMAP/SMTP | `email:` |
-| **Home Assistant** | Smart Home | Gerätesteuerung | `home_assistant:` |
-| **MQTT** | IoT | Geräte-Kommunikation | `mqtt:` |
-| **Docker** | Infrastruktur | Container-Verwaltung | `docker:` |
-| **Proxmox** | Infrastruktur | VM-Verwaltung | `proxmox:` |
-| **FritzBox** | Infrastruktur | FRITZ!Box Router | `fritzbox:` |
-| **Webhooks** | API | Eingehende HTTP-Events | `webhooks:` |
-| **Budget Tracking** | Finanzen | Kostenkontrolle | `budget:` |
-| **Google Workspace** | Produktivität | Gmail, Kalender, Drive | `google_workspace:` |
-| **WebDAV/Koofr** | Speicher | Cloud-Dateizugriff | `webdav:`, `koofr:` |
-| **OneDrive** | Speicher | Microsoft OneDrive | `onedrive:` |
-| **S3** | Speicher | S3-kompatibler Storage | `s3:` |
-| **Tailscale** | Netzwerk | VPN-Status | `tailscale:` |
-| **Cloudflare Tunnel** | Netzwerk | Sicherer Remote-Zugriff | `cloudflare_tunnel:` |
-| **Brave Search** | Suche | Websuche API | `brave_search:` |
-| **GitHub** | Entwicklung | Repository-Verwaltung | `github:` |
-| **Ollama** | AI | Lokale Modelle | `ollama:` |
-| **MeshCentral** | Remote | Fernwartung | `meshcentral:` |
-| **Ansible** | Automation | Playbook-Ausführung | `ansible:` |
-| **Homepage** | Web | Persönliche Startseite | `homepage:` |
-| **Netlify** | Web | Static Site Deployment | `netlify:` |
-| **SQL Connections** | Datenbank | Externe DB-Verbindungen | `sql_connections:` |
-| **Chromecast** | Media | Casting zu Geräten | `chromecast:` |
-| **Notifications** | Alerts | Push-Benachrichtigungen | `notifications:` |
-| **LLM Guardian** | Sicherheit | Inhaltsfilterung | `llm_guardian:` |
-| **Fallback LLM** | AI | Failover für LLM | `fallback_llm:` |
-| **MCP Client/Server** | AI | Model Context Protocol | `mcp:` |
-| **Image Generation** | AI | Bildgenerierung | `image_generation:` |
-| **Piper TTS** | Audio | Lokale Sprachsynthese | `piper_tts:` |
-| **Paperless-ngx** | Dokumentenmanagement | Dokumentenablage | `paperless_ngx:` |
-| **AdGuard** | Sicherheit | AdGuard Home | `adguard:` |
-| **n8n** | Automation | Workflow-Automatisierung | `n8n:` |
-| **Memory Analysis** | Analyse | Gedächtnis-Analytik | `memory_analysis:` |
-| **Skill Manager** | Skills | Python-Skill-Verwaltung | `skill_manager:` |
-| **Personality V2** | Persönlichkeit | Erweiterte Persönlichkeit | `personality_v2:` |
-| **User Profiling** | Analyse | Nutzerverhaltensprofil | `user_profiling:` |
-| **Indexer** | Suche | Inhaltsindexierung | `indexing:` |
-| **AI Gateway** | AI | Multi-Provider Gateway | `ai_gateway:` |
-| **Security Proxy** | Sicherheit | Sicherheits-Proxy | `security_proxy:` |
-| **VirusTotal** | Sicherheit | Datei-/URL-Scanning | `virustotal:` |
-| **Firewall** | Sicherheit | Firewall-Verwaltung | `firewall:` |
-| **A2A** | Agent | Agent-zu-Agent Protokoll | `a2a:` |
-| **Co-Agents** | Agent | Sub-Agent-Koordination | `co_agents:` |
-| **Remote Control** | Remote | Fernsteuerung | `remote_control:` |
-| **Invasion** | Distributed | Verteilte Bereitstellung | `invasion:` |
-| **Sandbox** | Sicherheit | Isolierte Ausführung | `sandbox:` |
-| **Helper LLM** | AI | Helper-LLM für Analysen | `helper_llm:` |
+1. Öffne die AuraGo Web-UI im Browser.
+2. Navigiere zu **Menü → Config → Integrationen**.
+3. Suche die gewünschte Integration in der Liste.
+4. Aktiviere den Toggle **Enabled**.
+5. Fülle die Pflichtfelder aus (z. B. URL, Host, Username).
+6. Speichere Credentials sicher im **Vault** – niemals direkt in der `config.yaml`!
+7. Klicke auf **Speichern** und starte AuraGo bei Bedarf neu.
+
+> 💡 **Tipp:** Für fast alle Integrationen gibt es zusätzlich einen `readonly`-Modus. Aktiviere diesen zuerst, um die Verbindung zu testen, bevor du Schreibzugriffe erlaubst.
 
 ---
 
 ## Telegram Bot Setup
 
-### Schritt 1: Bot bei BotFather erstellen
+### Bot erstellen
+1. Öffne Telegram und suche nach **@BotFather**.
+2. Starte mit `/start` und erstelle einen neuen Bot mit `/newbot`.
+3. Gib einen Namen und einen Benutzernamen (muss mit "bot" enden) ein.
+4. **Speichere den Token** (z. B. `123456789:ABC...`).
 
-1. Öffne Telegram und suche nach **@BotFather**
-2. Starte den Bot mit `/start`
-3. Erstelle einen neuen Bot: `/newbot`
-4. Gib einen Namen ein (z.B. "Mein AuraGo")
-5. Gib einen Benutzernamen ein (muss mit "bot" enden)
-6. **Speichere den Token** (z.B. `123456789:ABCdefGHIjklMNOpqrsTUVwxyz`)
+### User-ID ermitteln
+1. Suche nach **@userinfobot** und starte ihn.
+2. Notiere deine numerische ID.
 
-### Schritt 2: Deine User-ID ermitteln
+### Einrichtung in der Web-UI
+1. Öffne **Config → Integrationen → Telegram**.
+2. Aktiviere die Integration.
+3. Trage die **User-ID** ein.
+4. Speichere das **Bot-Token** im Vault.
+5. Speichern und AuraGo neu starten.
+6. Sende eine Testnachricht an deinen Bot.
 
-1. Suche nach **@userinfobot**
-2. Starte den Bot
-3. Erhalte deine ID (z.B. `12345678`)
-
-### Schritt 3: AuraGo konfigurieren
-
+### YAML-Referenz
 ```yaml
 telegram:
-  bot_token: "123456789:ABC..."      # Wird im Vault gespeichert
+  bot_token: "123456789:ABC..."
   telegram_user_id: 12345678
-  max_concurrent_workers: 5
 ```
-
-> 💡 **Sicherheit:** Das Bot-Token wird automatisch im verschlüsselten Vault gespeichert, nicht in der config.yaml.
-
-### Schritt 4: Testen
-
-1. Starte AuraGo neu
-2. Sende eine Nachricht an deinen Bot
-3. Der Bot sollte antworten
-
----
 
 ## Discord Bot Setup
 
-### Schritt 1: Discord-Anwendung erstellen
+### Discord-Anwendung erstellen
+1. Besuche das [Discord Developer Portal](https://discord.com/developers/applications).
+2. Klicke auf **New Application** und gib einen Namen ein (z. B. "AuraGo").
+3. Gehe zu **Bot → Add Bot**.
 
-1. Besuche [Discord Developer Portal](https://discord.com/developers/applications)
-2. Klicke "New Application"
-3. Gib einen Namen ein (z.B. "AuraGo")
-4. Gehe zu "Bot" → "Add Bot"
+### Token und Berechtigungen
+1. Kopiere den **Bot-Token**.
+2. Aktiviere unter **Privileged Gateway Intents**:
+   - **Message Content Intent**
+   - **Server Members Intent**
 
-### Schritt 2: Token und Berechtigungen
-
-1. Kopiere den **Token**
-2. Aktiviere Intents:
-   - Message Content Intent
-   - Server Members Intent
-
-### Schritt 3: Bot zum Server einladen
-
-1. Gehe zu "OAuth2" → "URL Generator"
+### Bot zum Server einladen
+1. Gehe zu **OAuth2 → URL Generator**.
 2. Scopes: `bot`, `applications.commands`
 3. Permissions: `Send Messages`, `Read Messages`
-4. Öffne die URL und wähle deinen Server
+4. Öffne die generierte URL und wähle deinen Server.
 
-### Schritt 4: AuraGo konfigurieren
+### Einrichtung in der Web-UI
+1. Öffne **Config → Integrationen → Discord**.
+2. Aktiviere die Integration.
+3. Trage **Guild ID** und **Default Channel ID** ein.
+4. Speichere das **Bot-Token** im Vault.
+5. Optional: Eine **Allowed User ID** eintragen, um den Bot auf einen einzigen Nutzer zu beschränken.
 
+### YAML-Referenz
 ```yaml
 discord:
   enabled: true
-  bot_token: "DEIN-TOKEN"           # Wird im Vault gespeichert
+  bot_token: "DEIN-TOKEN"
   guild_id: "123456789012345678"
   default_channel_id: "123456789012345678"
-  allowed_user_id: ""               # Optional: nur dieser User
 ```
-
----
-
-## Rocket.Chat Integration
-
-Für selbst-gehostete Rocket.Chat-Instanzen.
-
-```yaml
-rocketchat:
-  enabled: true
-  url: "https://chat.example.com"
-  user_id: "..."
-  channel: "#general"
-  alias: "AuraGo"
-```
-
----
 
 ## E-Mail (IMAP/SMTP) Konfiguration
 
-### Einzelnes E-Mail-Konto
+Verbinde AuraGo mit einem E-Mail-Konto, um E-Mails zu senden und empfangen.
 
-```yaml
-email:
-  enabled: true
-  imap_host: "imap.gmail.com"
-  imap_port: 993
-  smtp_host: "smtp.gmail.com"
-  smtp_port: 587
-  username: "dein.email@gmail.com"
-  from_address: "dein.email@gmail.com"
-  watch_enabled: true
-  watch_interval_seconds: 120
-  watch_folder: "INBOX"
-```
-
-> ⚠️ **Wichtig:** Das Passwort wird **nicht** in der `config.yaml` gespeichert, sondern im verschlüsselten Vault. Konfiguriere es über die Web-UI oder den Chat-Befehl `/store_secret`.
+### Einrichtung in der Web-UI
+1. Öffne **Config → Integrationen → E-Mail**.
+2. Aktiviere die Integration.
+3. Trage IMAP-Host, IMAP-Port, SMTP-Host und SMTP-Port ein.
+4. Gib die E-Mail-Adresse als Username und From-Adresse an.
+5. Speichere das **Passwort** im Vault (nicht in der Config!).
+6. Aktiviere bei Bedarf **Watch Enabled**, um den Posteingang regelmäßig zu prüfen.
 
 ### Gmail App-Passwort verwenden
-
 Für Gmail musst du ein [App-Passwort](https://myaccount.google.com/apppasswords) erstellen:
-
-1. Google-Konto → Sicherheit → 2-Schritt-Verification aktivieren
-2. App-Passwörter → Andere (benutzerdefinierter Name)
-3. Das generierte Passwort im Vault speichern:
-   ```
-   /store_secret email_password "dein-app-passwort"
-   ```
+1. Google-Konto → Sicherheit → 2-Schritt-Verification aktivieren.
+2. App-Passwörter → Andere (benutzerdefinierter Name).
+3. Das generierte Passwort im Vault speichern.
 
 ### Provider-Einstellungen
 
@@ -188,929 +107,644 @@ Für Gmail musst du ein [App-Passwort](https://myaccount.google.com/apppasswords
 | GMX | `imap.gmx.net` | `mail.gmx.net` |
 | Web.de | `imap.web.de` | `smtp.web.de` |
 
----
+### YAML-Referenz
+```yaml
+email:
+  enabled: true
+  imap_host: "imap.gmail.com"
+  smtp_host: "smtp.gmail.com"
+  username: "dein.email@gmail.com"
+```
 
 ## Home Assistant Integration
 
 Steuere Smart-Home-Geräte über AuraGo.
 
-### Einrichtung
+### Einrichtung in der Web-UI
+1. Öffne **Config → Integrationen → Home Assistant**.
+2. Aktiviere die Integration und trage die URL ein (z. B. `http://homeassistant.local:8123`).
+3. Erstelle in Home Assistant ein **Long-Lived Access Token**:
+   - Home Assistant → Profil (unten links) → Long-Lived Access Tokens → Create Token.
+4. Speichere den Token im AuraGo-Vault.
 
+### Verwendung im Chat
+- "Schalte das Licht im Wohnzimmer an."
+- "Wie ist die Temperatur im Schlafzimmer?"
+
+### YAML-Referenz
 ```yaml
 home_assistant:
   enabled: true
   url: "http://homeassistant.local:8123"
-  access_token: ""                  # Wird im Vault gespeichert
 ```
-
-### Access Token erstellen
-
-1. Öffne Home Assistant
-2. Gehe zu deinem Profil (unten links)
-3. Scrollen zu "Long-Lived Access Tokens"
-4. Klicke "Create Token"
-5. Speichere den Token im Vault
-
-### Verwendung im Chat
-
-```
-Schalte das Licht im Wohnzimmer an.
-Wie ist die Temperatur im Schlafzimmer?
-Starte die Staubsauger-Routine.
-```
-
----
 
 ## MQTT Integration
 
 Für IoT-Geräte und Smart-Home-Automation.
 
+**Web-UI:** Config → Integrationen → MQTT → Broker-URL, Client-ID und optional Username/Passwort eingeben. Topics zur Subscription hinzufügen.
+
+### YAML-Referenz
 ```yaml
 mqtt:
   enabled: true
   broker: "mqtt.example.com"
-  client_id: "aurago"
-  username: ""                      # Optional
-  topics:                           # Zu abonnierende Topics
+  topics:
     - "home/+/sensors"
-    - "aurago/commands"
-  qos: 0                            # Quality of Service (0, 1, 2)
-  relay_to_agent: false             # MQTT-Nachrichten an Agent weiterleiten
 ```
-
----
 
 ## Docker Integration
 
 Verwalte Docker-Container über AuraGo.
 
-### Konfiguration
+**Web-UI:** Config → Integrationen → Docker → Host-URL eingeben (z. B. `unix:///var/run/docker.sock`).
 
+> ⚠️ **Sicherheit:** Der Docker-Zugriff ermöglicht volle Host-Kontrolle. Aktiviere `readonly` für mehr Sicherheit.
+
+### YAML-Referenz
 ```yaml
 docker:
   enabled: true
   host: "unix:///var/run/docker.sock"
 ```
 
-### Docker Socket mounten (Docker-Compose)
-
-```yaml
-services:
-  aurago:
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-```
-
-> ⚠️ **Sicherheit:** Der Docker-Zugriff ermöglicht volle Kontrolle über den Host. Aktiviere `readonly` für mehr Sicherheit.
-
----
-
 ## Proxmox Integration
 
 VM- und Container-Verwaltung.
 
+**Web-UI:** Config → Integrationen → Proxmox → URL, Node-Name und Token-ID eingeben. Das Token wird im Vault gespeichert.
+
+### YAML-Referenz
 ```yaml
 proxmox:
   enabled: true
   url: "https://proxmox.example.com:8006"
-  token_id: "root@pam!aurago"
   node: "pve"
-  insecure: false                   # true = unsichere TLS akzeptieren
 ```
-
-Das Token wird im Vault gespeichert.
-
----
 
 ## Webhooks
 
 Webhooks ermöglichen es externen Diensten, AuraGo zu benachrichtigen.
 
-### Konfiguration
+**Web-UI:** Config → Integrationen → Webhooks → aktivieren und Limits konfigurieren. Einzelne Webhooks werden über die API oder das Dashboard verwaltet.
 
+### YAML-Referenz
 ```yaml
 webhooks:
   enabled: true
-  readonly: false
   max_payload_size: 65536
   rate_limit: 60
 ```
-
-### Webhook erstellen (API)
-
-```bash
-curl -X POST http://localhost:8088/api/webhooks \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "GitHub Push",
-    "slug": "github-push",
-    "format": {
-      "accepted_content_types": ["application/json"],
-      "fields": [
-        {"source": "repository.name", "alias": "repo"},
-        {"source": "pusher.name", "alias": "author"}
-      ]
-    },
-    "delivery": {
-      "mode": "message",
-      "priority": "immediate"
-    }
-  }'
-```
-
----
 
 ## Budget Tracking
 
 Überwache die Kosten für LLM-API-Aufrufe.
 
+**Web-UI:** Config → Integrationen → Budget → Tageslimit, Warnschwelle und Durchsetzungsmodus einstellen.
+
+### YAML-Referenz
 ```yaml
 budget:
   enabled: true
   daily_limit_usd: 1.0
-  enforcement: "warn"               # "warn", "partial", "full"
-  warning_threshold: 0.8
-  reset_hour: 0
-  default_cost:
-    input_per_million: 1.0
-    output_per_million: 3.0
-  models:
-    - name: "gpt-4"
-      input_per_million: 30.0
-      output_per_million: 60.0
+  enforcement: "warn"
 ```
-
----
 
 ## Google Workspace
 
-Zugriff auf Gmail, Kalender und Drive.
+Zugriff auf Gmail, Kalender, Drive, Docs und Sheets.
 
+**Web-UI:** Config → Integrationen → Google Workspace → Gewünschte Dienste aktivieren und OAuth2-Client-ID eintragen. Die Authentifizierung läuft über die Web-UI, das Token wird im Vault gespeichert.
+
+### YAML-Referenz
 ```yaml
-agent:
-  enable_google_workspace: true
+google_workspace:
+  enabled: true
+  client_id: ""
 ```
-
-Die OAuth2-Authentifizierung erfolgt über die Web-UI.
-
----
 
 ## WebDAV/Koofr
 
-### WebDAV (Nextcloud, ownCloud, Synology)
+### WebDAV
+**Web-UI:** Config → Integrationen → WebDAV → URL und Username eingeben. Passwort im Vault speichern.
 
+### Koofr
+**Web-UI:** Config → Integrationen → Koofr → Username und App-Passwort eingeben.
+
+### YAML-Referenz
 ```yaml
 webdav:
   enabled: true
   url: "https://cloud.example.com/remote.php/dav/files/username/"
-  username: "username"
-  password: ""                      # Wird im Vault gespeichert
-```
 
-### Koofr
-
-```yaml
 koofr:
   enabled: true
   username: "user@example.com"
-  app_password: ""                  # App-spezifisches Passwort
-  base_url: "https://app.koofr.net"
 ```
-
----
 
 ## Tailscale
 
 VPN-Status und -Verwaltung.
 
+**Web-UI:** Config → Integrationen → Tailscale → Tailnet-Name eingeben. Für den eingebetteten tsnet-Node können Hostname, Ports und Funnel separat aktiviert werden.
+
+### YAML-Referenz
 ```yaml
 tailscale:
   enabled: true
-  readonly: false
   tailnet: "tailnet.ts.net"
 ```
-
----
 
 ## Brave Search
 
 Erweiterte Websuche über Brave Search API.
 
+**Web-UI:** Config → Integrationen → Brave Search → API-Key eingeben (wird im Vault gespeichert).
+
+### YAML-Referenz
 ```yaml
 brave_search:
   enabled: true
   api_key: "BS..."
-  country: "DE"
-  lang: "de"
 ```
-
----
 
 ## GitHub Integration
 
 Repository- und Issue-Verwaltung.
 
+**Web-UI:** Config → Integrationen → GitHub → Username und optional GitHub Enterprise Base-URL eingeben.
+
+### YAML-Referenz
 ```yaml
 github:
   enabled: true
-  readonly: false
   owner: "username"
-  default_private: false
-  base_url: ""                      # Für GitHub Enterprise
 ```
-
----
 
 ## Ollama Integration
 
 Lokale LLM-Verwaltung.
 
+**Web-UI:** Config → Integrationen → Ollama → URL eingeben (z. B. `http://localhost:11434`). Optional: Verwaltung eines lokalen Docker-Containers aktivieren.
+
+### YAML-Referenz
 ```yaml
 ollama:
   enabled: true
-  readonly: false                   # false = erlaubt pull/delete
   url: "http://localhost:11434"
 ```
-
----
 
 ## MeshCentral
 
 Remote-Desktop und -Verwaltung.
 
+**Web-UI:** Config → Integrationen → MeshCentral → URL und Username eingeben. Passwort im Vault speichern.
+
+### YAML-Referenz
 ```yaml
 meshcentral:
   enabled: true
-  readonly: false
   url: "https://mesh.example.com"
   username: "admin"
-  blocked_operations: ["shutdown"]  # Optional: Operationen blockieren
 ```
-
----
 
 ## Ansible Integration
 
 Playbook-Ausführung.
 
+**Web-UI:** Config → Integrationen → Ansible → Modus (sidecar/remote), URL, Timeout und Verzeichnisse konfigurieren.
+
+### YAML-Referenz
 ```yaml
 ansible:
   enabled: true
-  readonly: false
-  mode: sidecar                     # "sidecar" oder "remote"
-  url: "http://localhost:5000"      # Für remote mode
-  timeout: 300
-  playbooks_dir: "/path/to/playbooks"
-  default_inventory: "/path/to/inventory"
+  mode: sidecar
+  url: "http://localhost:5000"
 ```
 
----
+## TrueNAS Integration
 
-## Notifications
+Verwalte ZFS-Storage-Pools, Datasets, Snapshots und Shares.
 
-Push-Benachrichtigungen.
+**Web-UI:** Config → Integrationen → TrueNAS → Host, Port und HTTPS aktivieren. API-Key im Vault speichern.
 
-```yaml
-notifications:
-  ntfy:
-    enabled: true
-    url: "https://ntfy.sh"
-    topic: "aurago-alerts"
-  pushover:
-    enabled: true
-    # Token über Web-UI konfigurieren
-```
-
----
-
-Verwalte ZFS-Storage-Pools, Datasets, Snapshots und SMB/NFS-Shares auf TrueNAS SCALE oder CORE.
-
-### Konfiguration
-
+### YAML-Referenz
 ```yaml
 truenas:
   enabled: true
-  host: "truenas.local"        # Hostname oder IP
-  port: 443                    # API-Port (Standard: 443)
-  use_https: true              # HTTPS verwenden (empfohlen)
-  insecure_ssl: false          # Zertifikatsprüfung überspringen (nur Test)
-  readonly: false              # Nur Lesezugriff
-  allow_destructive: false     # Löschen/Rollback erlauben
+  host: "truenas.local"
+  use_https: true
 ```
-
-### API-Key erstellen
-
-1. In TrueNAS Web-UI: **System → API Keys**
-2. Auf **Add** klicken
-3. Name: "AuraGo" und Key kopieren
-4. In AuraGo Vault speichern (Web-UI → Konfiguration → TrueNAS)
-
-### Verfügbare Operationen
-
-| Operation | Beschreibung | Berechtigung |
-|-----------|--------------|--------------|
-| Pools anzeigen | Storage-Pools mit Status und Kapazität | Lesen |
-| Pool scrub | Datenintegritätsprüfung starten | Schreiben |
-| Datasets anzeigen | Alle ZFS-Datasets auflisten | Lesen |
-| Dataset erstellen | Neues ZFS-Dataset anlegen | Schreiben |
-| Dataset löschen | Dataset entfernen (destructive) | Destructive |
-| Snapshots anzeigen | Snapshots eines Datasets | Lesen |
-| Snapshot erstellen | Point-in-Time Snapshot | Schreiben |
-| Snapshot löschen | Snapshot entfernen | Destructive |
-| Rollback | Dataset zu Snapshot wiederherstellen | Destructive |
-| SMB-Shares | SMB-Freigaben verwalten | Schreiben |
-| NFS-Shares | NFS-Freigaben verwalten | Schreiben |
-| Speicherplatz | Pool/Dataset-Kapazität prüfen | Lesen |
-
-### Beispiel-Befehle
-
-```
-Zeige mir alle Storage-Pools auf TrueNAS
-Erstelle ein neues Dataset namens tank/backups
-Erstelle einen Snapshot von tank/media
-Erstelle eine SMB-Freigabe für tank/media namens Media
-Wie viel freier Speicher ist auf dem tank-Pool?
-```
-
-> 💡 **Tipp:** `readonly: true` für rein monitoring. `allow_destructive` nur aktivieren wenn nötig.
-
----
 
 ## FritzBox Integration
 
-Steuere AVM Fritz!Box-Router über TR-064-Protokoll.
+Steuere AVM Fritz!Box-Router über TR-064.
 
-### Konfiguration
+**Web-UI:** Config → Integrationen → FritzBox → Host, Username und gewünschte Module (System, Netzwerk, Smart-Home, etc.) aktivieren. Passwort im Vault speichern.
 
+### YAML-Referenz
 ```yaml
 fritzbox:
   enabled: true
   host: "fritz.box"
-  username: "admin"              # Falls in FritzBox gesetzt
-  password: ""                   # Wird im Vault gespeichert
-  insecure: false                # Selbstsignierte Zertifikate erlauben
+  username: "admin"
 ```
-
-### Verfügbare Operationen
-
-| Operation | Beschreibung |
-|-----------|--------------|
-| Geräteinfo | Modell, Firmware, Uptime |
-| Online-Status | Internet-Verbindung prüfen |
-| Verbundene Geräte | LAN/WiFi-Clients anzeigen |
-| Bandbreite | Aktuelle Up/Down-Geschwindigkeit |
-| Neu verbinden | Neue WAN-Verbindung erzwingen |
-| Portfreigaben | Port-Forwarding-Regeln anzeigen |
-
----
 
 ## AdGuard Home Integration
 
-DNS-Filterung und -Blockierung mit AdGuard Home verwalten.
+DNS-Filterung und -Blockierung verwalten.
 
-### Konfiguration
+**Web-UI:** Config → Integrationen → AdGuard → URL und Username eingeben. Passwort im Vault speichern.
 
+### YAML-Referenz
 ```yaml
 adguard:
   enabled: true
-  host: "adguard.local"
-  port: 3000
-  username: "admin"
-  password: ""                   # Wird im Vault gespeichert
-  use_https: false
-  readonly: false
+  url: "http://adguard.local:3000"
 ```
-
-### Verfügbare Operationen
-
-| Operation | Beschreibung | Berechtigung |
-|-----------|--------------|--------------|
-| Status | Filter-Status und Statistiken | Lesen |
-| Query-Log | DNS-Abfragen anzeigen | Lesen |
-| Top-Clients | Aktivste Geräte | Lesen |
-| Blocklisten | Filterlisten verwalten | Schreiben |
-| Custom Rules | DNS-Rewrites hinzufügen | Schreiben |
-| Safe Search | Safe Search umschalten | Schreiben |
-
-> 💡 **Tipp:** `readonly: true` um Netzwerkaktivität zu überwachen ohne Filter zu ändern.
-
----
-
-## TrueNAS Integration
-
-Verwalte TrueNAS/TrueNAS Scale Storage-Systeme über die API.
-
-### Konfiguration
-
-```yaml
-truenas:
-  enabled: true
-  host: "truenas.local"          # TrueNAS Hostname oder IP
-  api_key: ""                     # API Key (wird im Vault gespeichert)
-  use_https: true                 # HTTPS verwenden
-  verify_ssl: true                # SSL-Zertifikat prüfen
-  readonly: false                 # Nur-Lesen Modus
-```
-
-### API Key erstellen
-
-1. TrueNAS Web-UI öffnen
-2. Einstellungen (Zahnrad oben rechts) → API Keys
-3. "Add" klicken
-4. Name vergeben (z.B. "AuraGo")
-5. Key kopieren und in Vault speichern
-
-### Verfügbare Operationen
-
-| Kategorie | Operation | Beschreibung |
-|-----------|-----------|--------------|
-| **Pools** | List Pools | Alle ZFS-Pools anzeigen |
-| | Pool Status | Pool-Health prüfen |
-| **Datasets** | List Datasets | Datasets auflisten |
-| | Create Dataset | Neues Dataset erstellen |
-| | Delete Dataset | Dataset löschen |
-| | Set Quota | Speicherquota festlegen |
-| **Snapshots** | List Snapshots | Snapshots anzeigen |
-| | Create Snapshot | Snapshot erstellen |
-| | Delete Snapshot | Snapshot löschen |
-| | Rollback | Zu Snapshot zurücksetzen |
-| **Shares** | List Shares | SMB/NFS Shares anzeigen |
-| | Create Share | Share erstellen |
-| | Delete Share | Share löschen |
-
-### Beispiele im Chat
-
-```
-Du: Zeige mir alle ZFS-Pools auf dem TrueNAS
-Agent: 🛠️ Tool: truenas_list_pools
-       
-       📊 Pools:
-       ┌────────────┬──────────┬─────────────┬──────────┐
-       │ Name       │ Größe    │ Verfügbar   │ Status   │
-       ├────────────┼──────────┼─────────────┼──────────┤
-       │ tank       │ 12 TB    │ 8.5 TB      │ ONLINE   │
-       │ backup     │ 6 TB     │ 5.2 TB      │ ONLINE   │
-       └────────────┴──────────┴─────────────┴──────────┘
-
-Du: Erstelle einen Snapshot von tank/data
-Agent: 🛠️ Tool: truenas_create_snapshot
-       ✅ Snapshot erstellt: tank/data@auto-20260326-120000
-
-Du: Wie viel Platz ist noch im Pool tank?
-Agent: 🛠️ Tool: truenas_pool_status
-       📊 Pool "tank":
-       - Gesamt: 12 TB
-       - Verwendet: 3.5 TB (29%)
-       - Verfügbar: 8.5 TB
-       - Status: HEALTHY
-```
-
-### Read-Only Modus
-
-Für Monitoring ohne Schreibrechte:
-
-```yaml
-truenas:
-  enabled: true
-  readonly: true              # Keine Änderungen möglich
-```
-
-Im Read-Only Modus können nur List- und Get-Operationen ausgeführt werden.
-
----
 
 ## n8n Integration
 
-Verbindung mit n8n Workflow-Automatisierungsplattform.
+Verbindung mit der n8n Workflow-Automatisierungsplattform.
 
-### Konfiguration
+**Web-UI:** Config → Integrationen → n8n → Base-URL und API-Key eingeben.
 
+> 💡 AuraGo bietet einen offiziellen n8n Community Node: `@antibyte/n8n-nodes-aurago`
+
+### YAML-Referenz
 ```yaml
 n8n:
   enabled: true
   base_url: "https://n8n.deinedomain.com"
-  api_key: ""                    # Wird im Vault gespeichert
-  readonly: false
 ```
 
-### Verfügbare Operationen
+## Notifications
 
-| Operation | Beschreibung |
-|-----------|--------------|
-| Workflows anzeigen | Alle n8n-Workflows auflisten |
-| Workflow-Details | Spezifische Workflow-Details |
-| Aktivieren/Deaktivieren | Workflow-Status umschalten |
-| Workflow ausführen | Manuell auslösen |
-| Ausführungen anzeigen | Ausführungsverlauf |
+Push-Benachrichtigungen über ntfy oder Pushover.
 
-### n8n Node für AuraGo
+**Web-UI:** Config → Integrationen → Notifications → ntfy-URL/Topic oder Pushover-Credentials eingeben.
 
-AuraGo bietet einen offiziellen n8n Community Node:
-- Chatte mit AuraGo aus n8n-Workflows
-- Trigger Tools und Missions
-- Zugriff auf Memory und Knowledge
-
-Installation: `@antibyte/n8n-nodes-aurago`
-
----
+### YAML-Referenz
+```yaml
+notifications:
+  ntfy:
+    enabled: true
+    topic: "aurago-alerts"
+```
 
 ## Telnyx Integration
 
-SMS senden/empfangen und Sprachanrufe über Telnyx-Telefonie.
+SMS senden/empfangen und Sprachanrufe über Telnyx.
 
-### Konfiguration
+**Web-UI:** Config → Integrationen → Telnyx → Telefonnummer, Messaging Profile ID und Connection ID eingeben. API-Key im Vault speichern.
 
+### YAML-Referenz
 ```yaml
 telnyx:
   enabled: true
-  api_key: ""                    # Wird im Vault gespeichert
-  public_key: ""
   phone_number: "+491234567890"
-  messaging_enabled: true
-  voice_enabled: true
 ```
-
-### Verfügbare Operationen
-
-| Operation | Beschreibung |
-|-----------|--------------|
-| SMS senden | Textnachrichten versenden |
-| SMS empfangen | Eingehende Nachrichten verarbeiten |
-| Anrufe tätigen | Sprachanrufe initiieren |
-| Voicemail | Voicemail-Nachrichten verwalten |
-
----
 
 ## VirusTotal Integration
 
-Dateien und URLs auf Malware prüfen mit VirusTotal API.
+Dateien und URLs auf Malware prüfen.
 
-### Konfiguration
+**Web-UI:** Config → Integrationen → VirusTotal → API-Key eingeben.
 
+### YAML-Referenz
 ```yaml
 virustotal:
   enabled: true
-  api_key: ""                    # Wird im Vault gespeichert
 ```
-
-### API-Key erhalten
-
-1. Bei [VirusTotal](https://www.virustotal.com) registrieren
-2. Profil → API Key
-3. Key kopieren
-
-### Verfügbare Operationen
-
-| Operation | Beschreibung |
-|-----------|--------------|
-| URL scannen | URL-Reputation prüfen |
-| Datei scannen | Datei-Hash analysieren |
-| Report abrufen | Scan-Ergebnisse anzeigen |
-
-> 💡 **Tipp:** Der Agent verwendet dies automatisch bei verdächtigen Links oder Dateien.
-
----
 
 ## MCP (Model Context Protocol)
 
 Verbinde externe MCP-Server oder stelle AuraGo als MCP-Server bereit.
 
-### MCP Client (externe Server)
+**Web-UI:** Config → Integrationen → MCP → Allowed Tools auswählen und Server-Konfiguration hinzufügen.
 
+### YAML-Referenz
 ```yaml
 mcp:
   enabled: true
   allowed_tools:
     - "fetch"
-    - "filesystem"
-  servers:
-    fetch:
-      command: "uvx"
-      args: ["mcp-server-fetch"]
-    filesystem:
-      command: "npx"
-      args: ["-y", "@modelcontextprotocol/server-filesystem", "/allowed/path"]
 ```
 
-### MCP Server (AuraGo für andere Clients)
+## SQL Connections – Externe Datenbanken
 
-```yaml
-mcp_server:
-  enabled: true
-  allowed_tools:
-    - "shell"
-    - "docker_*"
-  auth_token: "secure-token"
-```
+Verbinde AuraGo mit PostgreSQL, MySQL/MariaDB oder SQLite.
 
-Verbindung von Claude Desktop, Cursor oder anderen MCP-Clients möglich.
+### Einrichtung in der Web-UI
+1. Öffne **Config → Integrationen → SQL Connections**.
+2. Aktiviere die Integration.
+3. Lege Verbindungen an: Name, Datenbank-Typ, Host, Port, Datenbank, Benutzer.
+4. Speichere Passwörter im Vault.
+5. Passe bei Bedarf `max_result_rows` und Timeouts an.
 
----
+> 💡 **Sicherheit:** Verwende nach Möglichkeit dedizierte Read-Only-Benutzer.
 
-## SQL Connections - Externe Datenbanken
-
-Verbinde AuraGo mit externen Datenbanken (PostgreSQL, MySQL/MariaDB, SQLite) für direkte SQL-Abfragen.
-
-### Konfiguration
-
+### YAML-Referenz
 ```yaml
 sql_connections:
   enabled: true
-  max_pool_size: 5                # Maximale gleichzeitige Verbindungen pro DB
-  connection_timeout_sec: 30      # Verbindungs-Timeout
-  query_timeout_sec: 120          # Abfrage-Timeout
-  max_result_rows: 1000           # Maximale Zeilen pro Abfrage
+  max_result_rows: 1000
 ```
-
-### Verbindungen im Chat hinzufügen
-
-```
-Füge eine PostgreSQL-Verbindung hinzu:
-- Name: produktion
-- Host: db.example.com
-- Port: 5432
-- Datenbank: myapp
-- Benutzer: readonly_user
-```
-
-### Verfügbare Operationen
-
-| Operation | Beschreibung |
-|-----------|--------------|
-| SQL-Abfragen | SELECT, INSERT, UPDATE, DELETE |
-| Schema-Info | Tabellen und Spalten auflisten |
-| Verbindungstest | Konnektivität prüfen |
-
-### Sicherheitshinweise
-
-- Verwende dedizierte Read-Only Benutzer wenn möglich
-- SSL/TLS wird automatisch verwendet wenn verfügbar
-- Credentials werden im Vault gespeichert
-
----
 
 ## S3-kompatible Cloud Storage
 
-Zugriff auf S3, MinIO, Wasabi, DigitalOcean Spaces und andere S3-kompatible Speicher.
+Zugriff auf S3, MinIO, Wasabi und andere S3-kompatible Speicher.
 
-### Konfiguration
+### Einrichtung in der Web-UI
+1. Öffne **Config → Integrationen → S3**.
+2. Aktiviere die Integration.
+3. Trage Endpoint, Region und optional Standard-Bucket ein.
+4. Aktiviere **Path Style** für MinIO.
+5. Speichere Access Key und Secret Key im Vault.
 
+### YAML-Referenz
 ```yaml
 s3:
   enabled: true
-  readonly: false                 # true = nur lesen
-  endpoint: "https://s3.amazonaws.com"  # oder MinIO: http://minio.local:9000
+  endpoint: "https://s3.amazonaws.com"
   region: "us-east-1"
-  bucket: "my-bucket"             # Standard-Bucket (optional)
-  use_path_style: true            # Für MinIO erforderlich
-  insecure: false                 # HTTP erlauben (nicht empfohlen)
-  # Zugangsdaten werden im Vault gespeichert
 ```
-
-### Vault-Keys
-
-- `s3_access_key` - Access Key ID
-- `s3_secret_key` - Secret Access Key
-
-### Verfügbare Operationen
-
-| Operation | Beschreibung |
-|-----------|--------------|
-| List Buckets | Alle Buckets anzeigen |
-| List Objects | Dateien in einem Bucket auflisten |
-| Upload | Dateien hochladen |
-| Download | Dateien herunterladen |
-| Delete | Dateien löschen |
-| Copy | Dateien zwischen Buckets kopieren |
-
----
 
 ## OneDrive Integration
 
 Zugriff auf Microsoft OneDrive über Microsoft Graph API.
 
-### Konfiguration
+**Web-UI:** Config → Integrationen → OneDrive → Client ID und Tenant ID eingeben. Die OAuth2-Authentifizierung läuft über die Web-UI.
 
+### YAML-Referenz
 ```yaml
 onedrive:
   enabled: true
-  readonly: false                 # true = nur lesen
-  client_id: ""                   # Azure App Registration Client ID
-  tenant_id: "common"             # "common", "consumers", "organizations" oder Tenant UUID
+  tenant_id: "common"
 ```
-
-### Einrichtung
-
-1. **Azure App Registration erstellen:**
-   - [Azure Portal](https://portal.azure.com) → App Registrations → New
-   - Name: "AuraGo"
-   - Supported account types: Accounts in any organizational directory + personal
-   - Redirect URI: Web → `http://localhost:8088/api/onedrive/callback`
-
-2. **API Permissions hinzufügen:**
-   - Microsoft Graph → Delegated permissions
-   - `Files.Read.All` (oder `Files.ReadWrite.All` für Schreibzugriff)
-   - `User.Read`
-
-3. **Client ID kopieren** und in Config einfügen
-
-4. **OAuth über Web-UI durchführen**
-
-### Verfügbare Operationen
-
-| Operation | Beschreibung |
-|-----------|--------------|
-| Dateien auflisten | Ordnerinhalte anzeigen |
-| Dateien downloaden | Inhalt herunterladen |
-| Dateien hochladen | Neue Dateien speichern |
-| Dateien löschen | In den Papierkorb verschieben |
-
----
 
 ## Homepage Integration
 
-Erstelle und deploye persönliche Startseiten/Dashboards mit Homepage.
+Erstelle und deploye persönliche Startseiten/Dashboards.
 
-### Konfiguration
+**Web-UI:** Config → Integrationen → Homepage → Deployment-Host, Benutzer und Zielpfad konfigurieren.
 
+### YAML-Referenz
 ```yaml
 homepage:
   enabled: true
-  allow_deploy: true              # Deployment erlauben
-  allow_container_management: true  # Docker-Container verwalten
-  allow_local_server: false       # Lokaler Python-Server (Security Risk!)
   deploy_host: "server.example.com"
-  deploy_port: 22
-  deploy_user: "deploy"
-  deploy_path: "/var/www/homepage"
-  deploy_method: "sftp"           # "sftp" oder "scp"
-  webserver_enabled: false        # Eingebauter Webserver
-  webserver_port: 8080
-  webserver_domain: ""
-  webserver_internal_only: false
-  circuit_breaker_max_calls: 35   # Max Tool-Calls für komplexe Workflows
-  allow_temporary_token_budget_overflow: false  # Temporäres Budget-Overflow
 ```
-
-### Verfügbare Operationen
-
-| Operation | Beschreibung |
-|-----------|--------------|
-| Seite erstellen | Neue Homepage generieren |
-| Seite deployen | Auf Server hochladen |
-| Container hinzufügen | Docker-Container zur Seite hinzufügen |
-| Service-Status | Live-Status von Services anzeigen |
-
----
 
 ## Cloudflare Tunnel
 
 Sicherer Tunnel für Remote-Zugriff ohne öffentliche IP oder Port-Forwarding.
 
-### Konfiguration
+### Einrichtung in der Web-UI
+1. Öffne **Config → Integrationen → Cloudflare Tunnel**.
+2. Wähle den Modus (`auto`, `docker`, `native`) und die Auth-Methode (`token`, `named`, `quick`).
+3. Trage **Account ID** und optional **Tunnel Name** ein.
+4. Speichere den **Connector Token** im Vault.
 
+### Connector Token erhalten
+1. [Cloudflare Zero Trust](https://one.dash.cloudflare.com) → Networks → Tunnels.
+2. "Create a tunnel" → Cloudflared → Name vergeben.
+3. Kopiere den Token und speichere ihn im Vault unter `cloudflare_tunnel_token`.
+
+### YAML-Referenz
 ```yaml
 cloudflare_tunnel:
   enabled: true
-  readonly: false
-  mode: auto                      # "auto", "docker", "native"
-  auto_start: true                # Automatisch beim Start aktivieren
-  auth_method: token              # "token", "named", "quick"
-  tunnel_name: ""                 # Named tunnel: Name aus CF Dashboard
-  account_id: ""                  # Named tunnel: Cloudflare Account ID
-  expose_web_ui: true             # AuraGo Web-UI durch Tunnel erreichbar
-  expose_homepage: true           # Homepage durch Tunnel erreichbar
-  custom_ingress: []              # Zusätzliche Ingress-Regeln
-  metrics_port: 0                 # Metrics-Endpoint (0 = deaktiviert)
-  log_level: info                 # "debug", "info", "warn", "error"
+  mode: auto
+  auth_method: token
 ```
-
-### Auth-Methoden
-
-| Methode | Beschreibung |
-|---------|--------------|
-| `token` | Connector Token (empfohlen für einfachen Einsatz) |
-| `named` | Benannter Tunnel mit credentials.json |
-| `quick` | Temporärer Tunnel ohne Account |
-
-### Connector Token erhalten
-
-1. [Cloudflare Zero Trust](https://one.dash.cloudflare.com) → Networks → Tunnels
-2. "Create a tunnel" → Cloudflared
-3. Name vergeben → Connector auswählen
-4. Token wird angezeigt (im Vault speichern unter `cloudflare_tunnel_token`)
-
----
 
 ## Cloudflare AI Gateway
 
 Routing und Monitoring für LLM-Traffic über Cloudflare AI Gateway.
 
-### Konfiguration
+**Web-UI:** Config → Integrationen → AI Gateway → Account ID und Gateway ID eingeben.
 
+### YAML-Referenz
 ```yaml
 ai_gateway:
   enabled: true
-  account_id: ""                  # Cloudflare Account ID
-  gateway_id: ""                  # Gateway ID
 ```
-
-### Vorteile
-
-- **Rate Limiting**: Kontrolliere API-Nutzung
-- **Caching**: Wiederholte Anfragen aus Cache bedienen
-- **Logging**: Vollständiges Request/Response Logging
-- **Analytics**: Nutzungsstatistiken
-
----
 
 ## Chromecast Integration
 
 Sende Text-to-Speech und Medien an Chromecast-Geräte.
 
-### Konfiguration
+**Web-UI:** Config → Integrationen → Chromecast → TTS-Port konfigurieren.
 
+> 💡 Voraussetzung: Chromecast-Gerät im gleichen Netzwerk und TTS konfiguriert.
+
+### YAML-Referenz
 ```yaml
 chromecast:
   enabled: true
-  tts_port: 8090                  # Port für TTS-Streaming
+  tts_port: 8090
 ```
-
-### Verwendung
-
-```
-Sage "Hallo Welt" auf dem Wohnzimmer-Chromecast
-Spiele die Nachrichten im Küche-Chromecast ab
-```
-
-### Anforderungen
-
-- Chromecast-Gerät im gleichen Netzwerk
-- TTS muss konfiguriert sein (Google, ElevenLabs, oder Piper)
-
----
 
 ## Media Registry
 
 Zentrale Verwaltung von Mediendateien mit Metadaten-Tracking.
 
-### Konfiguration
+**Web-UI:** Config → Integrationen → Media Registry → aktivieren.
 
+### YAML-Referenz
 ```yaml
 media_registry:
-  enabled: true                   # Ermöglicht Medienverwaltung
+  enabled: true
 ```
 
-### Funktionen
+## Netlify Integration
 
-- Bilder, Videos und Audio-Dateien katalogisieren
-- Metadaten-Extraktion (EXIF, etc.)
-- Duplikat-Erkennung
-- Kategorisierung und Tagging
-- Integration mit Paperless NGX
+Deploye statische Webseiten direkt auf Netlify.
 
----
+**Web-UI:** Config → Integrationen → Netlify → Site-ID und Team-Slug eingeben. Personal Access Token im Vault speichern.
 
-## Zusätzliche Integrationen (Vollständigkeits-Ergänzung)
+### YAML-Referenz
+```yaml
+netlify:
+  enabled: true
+```
 
-Neben den oben beschriebenen Kernintegrationen umfasst die aktuelle Plattform weitere Integrationen/Features:
+## Paperless NGX
 
-| Integration/Feature | Typischer Zweck | Wichtige Config-Blöcke |
-|---|---|---|
-| Cloudflare Tunnel + AI Gateway | sicherer Internetzugang und AI-Traffic-Routing | `cloudflare_tunnel`, `ai_gateway` |
-| AdGuard / FRITZ!Box / MQTT | Heimnetz- und Smart-Home-Anbindung | `adguard`, `fritzbox`, `mqtt` |
-| Paperless NGX + Media Registry + Homepage | Dokumenten-/Medien-/Site-Verwaltung | `paperless_ngx`, `media_registry`, `homepage` |
-| Netlify | Deployment statischer Seiten | `netlify` |
-| S3 + OneDrive + WebDAV/Koofr | Multi-Backend Cloud-Storage | `s3`, `onedrive`, `webdav`, `koofr` |
-| Telnyx + Rocket.Chat | Telefonie und Self-Hosted-Chat | `telnyx`, `rocketchat` |
-| Image Generation / TTS / Whisper | multimodale Generierung und Sprach-Pipelines | `image_generation`, `tts`, `whisper` |
-| MCP-Server-Modus | AuraGo-Funktionen für externe MCP-Clients bereitstellen | `mcp_server` |
-| LLM Guardian | Sicherheits- und Policy-Kontrollen | `llm_guardian` |
+Dokumentenmanagement und Durchsuchung.
 
-> Best Practice: Integrationen zuerst read-only (`read_only`/`readonly`) aktivieren und Schreibzugriffe erst nach erfolgreichen Tests freischalten.
+**Web-UI:** Config → Integrationen → Paperless NGX → URL eingeben. API-Key im Vault speichern.
+
+### YAML-Referenz
+```yaml
+paperless_ngx:
+  enabled: true
+  url: "https://paperless.local"
+```
+
+## LLM Guardian
+
+Sicherheits- und Policy-Engine für eingehende und ausgehende Inhalte.
+
+**Web-UI:** Config → Integrationen → LLM Guardian → Provider, Modell und Stärke-Level konfigurieren.
+
+### YAML-Referenz
+```yaml
+llm_guardian:
+  enabled: true
+  default_level: "medium"
+```
+
+## Remote Control
+
+Empfange Fernsteuerungs-Befehle von anderen AuraGo-Instanzen.
+
+**Web-UI:** Config → Integrationen → Remote Control → Discovery-Port und erlaubte Pfade konfigurieren.
+
+> ⚠️ **Sicherheit:** Aktiviere `auto_approve` nur in vertrauenswürdigen Netzwerken.
+
+### YAML-Referenz
+```yaml
+remote_control:
+  enabled: true
+  discovery_port: 8092
+```
+
+## Sandbox
+
+Isolierte Ausführung von Python-Code und externen Befehlen.
+
+**Web-UI:** Config → Integrationen → Sandbox → Backend, Timeout und Netzwerkzugriff konfigurieren.
+
+### YAML-Referenz
+```yaml
+sandbox:
+  enabled: true
+  backend: docker
+```
+
+## Skill Manager
+
+Verwalte hochgeladene Python-Skills.
+
+**Web-UI:** Config → Integrationen → Skill Manager → Uploads erlauben und Guardian-Scan aktivieren.
+
+### YAML-Referenz
+```yaml
+tools:
+  skill_manager:
+    enabled: true
+    allow_uploads: true
+```
+
+## Jellyfin Integration
+
+Media-Server-Verwaltung.
+
+**Web-UI:** Config → Integrationen → Jellyfin → URL und Username eingeben. Passwort im Vault speichern.
+
+### YAML-Referenz
+```yaml
+jellyfin:
+  enabled: true
+  url: "https://jellyfin.local:8096"
+```
+
+## Image Generation
+
+Generiere Bilder über unterstützte Provider.
+
+**Web-UI:** Config → Integrationen → Image Generation → Provider, Modell und Limits einstellen. API-Key im Vault speichern.
+
+### YAML-Referenz
+```yaml
+image_generation:
+  enabled: true
+  provider: ""
+```
+
+## Fallback LLM
+
+Failover-LLM, der automatisch aktiviert wird, wenn der Haupt-Provider ausfällt.
+
+**Web-UI:** Config → Integrationen → Fallback LLM → Modell und Schwellenwert konfigurieren.
+
+### YAML-Referenz
+```yaml
+fallback_llm:
+  enabled: true
+  model: ""
+```
+
+## Co-Agents
+
+Spezialisierte Sub-Agenten für Recherche, Coding, Design und mehr.
+
+**Web-UI:** Config → Integrationen → Co-Agents → Spezialisten einzeln aktivieren und eigene Provider zuweisen.
+
+### YAML-Referenz
+```yaml
+co_agents:
+  enabled: true
+  max_concurrent: 3
+```
+
+## Mission Preparation
+
+Analysiert Missionen vor der Ausführung.
+
+**Web-UI:** Config → Integrationen → Mission Preparation → aktivieren und Timeout/Confidence-Level einstellen.
+
+### YAML-Referenz
+```yaml
+mission_preparation:
+  enabled: true
+  timeout_seconds: 120
+```
+
+## Rocket.Chat Integration
+
+Für selbst-gehostete Rocket.Chat-Instanzen.
+
+**Web-UI:** Config → Integrationen → Rocket.Chat → URL, User-ID und Channel eingeben.
+
+### YAML-Referenz
+```yaml
+rocketchat:
+  enabled: true
+  url: "https://chat.example.com"
+  channel: "#general"
+```
+
+## TTS / Whisper
+
+Sprachsynthese (TTS) und Spracherkennung.
+
+**Web-UI:** Config → Integrationen → TTS → Provider (Piper, ElevenLabs, Google) und Voice-Einstellungen konfigurieren.
+
+### YAML-Referenz
+```yaml
+tts:
+  enabled: true
+  provider: "piper"
+```
 
 ---
 
 ## Integrationen testen
 
 ### Test über Chat
-
-```
-Zeige meine Telegram-Config.
-Sende eine Test-E-Mail an mich.
-Liste alle Docker-Container.
-Wie ist der Status meiner Home Assistant-Geräte?
-```
+- "Zeige meine Telegram-Config."
+- "Sende eine Test-E-Mail an mich."
+- "Liste alle Docker-Container."
 
 ### Test über Dashboard
-
-1. Öffne die Web-UI
-2. Klicke auf "Dashboard"
-3. Scrolle zu "Integrationen"
-4. Grüner Punkt = Verbindung OK
+1. Öffne die Web-UI und klicke auf **Dashboard**.
+2. Scrolle zu **Integrationen**.
+3. Grüner Punkt = Verbindung OK.
 
 ### Debug-Logging
-
 ```yaml
 agent:
   debug_mode: true
@@ -1121,8 +755,6 @@ Logs prüfen:
 tail -f log/supervisor.log | grep -i telegram
 ```
 
----
-
 ## Fehlerbehebung
 
 | Problem | Lösung |
@@ -1130,7 +762,7 @@ tail -f log/supervisor.log | grep -i telegram
 | "Connection refused" | URL und Port prüfen |
 | "Unauthorized" | API-Key/Token prüfen |
 | "Timeout" | Firewall/Netzwerk prüfen |
-| Integration erscheint nicht | `enabled: true` in config.yaml |
+| Integration erscheint nicht | `enabled: true` prüfen |
 
 ---
 

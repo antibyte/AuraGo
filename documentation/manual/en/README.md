@@ -134,7 +134,8 @@ A complete overview of all 100+ internal tools can be found in the [Internal Too
 | 2026-03 | **Added Cloudflare Tunnel, AI Gateway, Chromecast** |
 | 2026-03 | **Documented Network Tools, Web Capture, Form Automation** |
 | 2026-03 | **Added Skill Manager, Media Registry, Egg Mode** |
-| 2026-03 | **Added Chat Commands /sudo and /journal** |
+| 2026-04 | Full documentation update: corrected config blocks (Personality, Recovery, Adaptive Tools), added 20+ integration sections (Jellyfin, Image Generation, LLM Guardian, etc.), cleaned up chat commands, expanded internal tools |
+| 2026-03 | **Added Chat Command /sudopwd** |
 
 ---
 

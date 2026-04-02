@@ -355,6 +355,9 @@ Control smart home devices (switches, thermostats, lamps).
 ### `fritzbox_storage`
 NAS/Storage info, FTP server.
 
+### `fritzbox_tv`
+Fritz!Box TV stations and streaming info.
+
 ---
 
 ## Integrations (Cloud & APIs)
@@ -772,6 +775,14 @@ Not all tools are available by default. Availability depends on **Tool Feature F
 | `mcp_enabled` | `mcp_call` |
 | `sandbox_enabled` | `execute_sandbox` |
 | `meshcentral_enabled` | `meshcentral` |
+| `chromecast_enabled` | `chromecast`, `tts` |
+| `discord_enabled` | `discord_bridge` |
+| `notification_enabled` | `send_notification` |
+| `jellyfin_enabled` | `jellyfin` |
+| `paperless_enabled` | `paperless` |
+| `truenas_enabled` | `truenas` |
+| `koofr_enabled` | `koofr` |
+| `github_projects_enabled` | `github_projects` |
 | `homepage_enabled` | `homepage`, `homepage_registry` |
 | `firewall_enabled` | `firewall` |
 | `email_enabled` | `fetch_email`, `send_email`, `list_email_accounts` |
@@ -792,3 +803,89 @@ Not all tools are available by default. Availability depends on **Tool Feature F
 - [Chat Commands](20-chat-commands.md) – Manual commands
 - [API Reference](21-api-reference.md) – REST API
 - [Security](14-security.md) – Permissions & Danger Zone
+
+
+---
+
+## Additional Tools & Integrations
+
+### `tts`
+Text-to-Speech synthesis via configurable providers (ElevenLabs, Piper, Wyoming).
+
+### `chromecast`
+Discover and control Chromecast devices on the network (Play, TTS, Discover).
+
+### `brave_search`
+Web search via Brave Search API.
+
+### `ddg_search`
+Web search via DuckDuckGo (Instant Answers and HTML results).
+
+### `wikipedia_search`
+Search and read Wikipedia articles.
+
+### `scraper_summary`
+Automatically summarize and structure web scraping results.
+
+### `truenas`
+Manage TrueNAS SCALE storage (pools, datasets, shares, snapshots).
+
+### `jellyfin`
+Control Jellyfin Media Server (libraries, sessions, playback).
+
+### `paperless`
+Paperless-ngx document management (upload, search, tags, correspondents).
+
+### `koofr`
+Koofr cloud storage file operations (list, upload, download, links).
+
+### `ollama_managed`
+Deploy and run Ollama as a managed Docker container.
+
+### `ollama_embeddings`
+Generate local embeddings via Ollama.
+
+### `github_projects`
+Manage GitHub Projects (Kanban boards) and issues.
+
+### `pdf_extractor`
+Extract text and metadata from PDF files (including OCR support).
+
+### `missions_v2`
+Advanced Mission Control with triggers, conditions, and workflows.
+
+### `background_tasks`
+Manage background tasks (follow-ups, cron-prompts, event-waiting).
+
+### `discord_bridge`
+Send Discord messages and query channels.
+
+### `send_notification` / `notification`
+Send system notifications and push messages.
+
+### `media_seed`
+Prepare, tag, and manage media assets for projects.
+
+### `json_output`
+Format and validate structured JSON outputs.
+
+### `webdav`
+WebDAV file access (read, write, list, delete, move).
+
+### `skill_history`
+Retrieve and analyze skill execution history.
+
+### `skill_security`
+Run security checks on skills.
+
+### `skill_validation`
+Validate skills before execution.
+
+### `optimize_memory`
+Optimize memory system (deduplication, relevance scoring).
+
+### `manage_plan`
+Manage plans, schedules, and deadlines.
+
+### `handoff` / `initiate_handover` / `exit_lifeboat`
+Maintenance mode handover for Lifeboat updates and `execute_surgery`.
