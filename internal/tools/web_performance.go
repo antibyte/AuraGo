@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"aurago/internal/security"
+
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/launcher"
 	"github.com/go-rod/rod/lib/proto"
@@ -56,6 +58,9 @@ func WebPerformanceAudit(rawURL string, viewport string) string {
 	parsed, err := url.ParseRequestURI(rawURL)
 	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") {
 		return webPerfJSON(webPerfResult{Status: "error", Message: "url must be a valid http or https URL"})
+	}
+	if err := security.ValidateSSRF(rawURL); err != nil {
+		return webPerfJSON(webPerfResult{Status: "error", Message: fmt.Sprintf("SSRF validation failed: %v", err)})
 	}
 
 	// Parse viewport

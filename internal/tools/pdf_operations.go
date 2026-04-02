@@ -26,34 +26,34 @@ func pdfOpsJSON(r pdfOpsResult) string {
 }
 
 // ExecutePDFOperations dispatches PDF manipulation operations via pdfcpu.
-func ExecutePDFOperations(operation, inputFile, outputFile, pages, password, watermarkText, sourceFiles string) string {
+func ExecutePDFOperations(workspaceDir, operation, inputFile, outputFile, pages, password, watermarkText, sourceFiles string) string {
 	switch strings.ToLower(operation) {
 	case "merge":
-		return pdfMerge(sourceFiles, outputFile)
+		return pdfMerge(workspaceDir, sourceFiles, outputFile)
 	case "split":
-		return pdfSplit(inputFile, outputFile, pages)
+		return pdfSplit(workspaceDir, inputFile, outputFile, pages)
 	case "watermark":
-		return pdfWatermark(inputFile, outputFile, watermarkText, pages)
+		return pdfWatermark(workspaceDir, inputFile, outputFile, watermarkText, pages)
 	case "compress":
-		return pdfCompress(inputFile, outputFile)
+		return pdfCompress(workspaceDir, inputFile, outputFile)
 	case "encrypt":
-		return pdfEncrypt(inputFile, outputFile, password)
+		return pdfEncrypt(workspaceDir, inputFile, outputFile, password)
 	case "decrypt":
-		return pdfDecrypt(inputFile, outputFile, password)
+		return pdfDecrypt(workspaceDir, inputFile, outputFile, password)
 	case "metadata":
-		return pdfMetadata(inputFile)
+		return pdfMetadata(workspaceDir, inputFile)
 	case "page_count":
-		return pdfPageCount(inputFile)
+		return pdfPageCount(workspaceDir, inputFile)
 	case "form_fields":
-		return pdfFormFields(inputFile)
+		return pdfFormFields(workspaceDir, inputFile)
 	case "fill_form":
-		return pdfFillForm(inputFile, outputFile, sourceFiles)
+		return pdfFillForm(workspaceDir, inputFile, outputFile, sourceFiles)
 	case "export_form":
-		return pdfExportForm(inputFile, outputFile)
+		return pdfExportForm(workspaceDir, inputFile, outputFile)
 	case "reset_form":
-		return pdfResetForm(inputFile, outputFile)
+		return pdfResetForm(workspaceDir, inputFile, outputFile)
 	case "lock_form":
-		return pdfLockForm(inputFile, outputFile)
+		return pdfLockForm(workspaceDir, inputFile, outputFile)
 	default:
 		return pdfOpsJSON(pdfOpsResult{
 			Status:  "error",
@@ -62,7 +62,7 @@ func ExecutePDFOperations(operation, inputFile, outputFile, pages, password, wat
 	}
 }
 
-func pdfMerge(sourceFilesJSON, outputFile string) string {
+func pdfMerge(workspaceDir, sourceFilesJSON, outputFile string) string {
 	if sourceFilesJSON == "" {
 		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: "source_files is required (JSON array of PDF paths)"})
 	}
@@ -78,11 +78,24 @@ func pdfMerge(sourceFilesJSON, outputFile string) string {
 		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: "at least 2 PDF files required for merge"})
 	}
 
+	securedFiles := make([]string, 0, len(files))
 	for _, f := range files {
-		if _, err := os.Stat(f); err != nil {
-			return pdfOpsJSON(pdfOpsResult{Status: "error", Message: fmt.Sprintf("file not found: %s", f)})
+		sf, serr := securePDFPath(workspaceDir, f)
+		if serr != nil {
+			return pdfOpsJSON(pdfOpsResult{Status: "error", Message: fmt.Sprintf("invalid source path %q: %v", f, serr)})
 		}
+		if _, err := os.Stat(sf); err != nil {
+			return pdfOpsJSON(pdfOpsResult{Status: "error", Message: fmt.Sprintf("file not found: %s", sf)})
+		}
+		securedFiles = append(securedFiles, sf)
 	}
+	files = securedFiles
+
+	securedOutput, serr := securePDFPath(workspaceDir, outputFile)
+	if serr != nil {
+		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: fmt.Sprintf("invalid output path: %v", serr)})
+	}
+	outputFile = securedOutput
 
 	if err := os.MkdirAll(filepath.Dir(outputFile), 0o750); err != nil {
 		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: fmt.Sprintf("cannot create output directory: %v", err)})
@@ -100,12 +113,23 @@ func pdfMerge(sourceFilesJSON, outputFile string) string {
 	})
 }
 
-func pdfSplit(inputFile, outputDir, pages string) string {
+func pdfSplit(workspaceDir, inputFile, outputDir, pages string) string {
 	if inputFile == "" {
 		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: "file_path is required"})
 	}
+	securedInput, serr := securePDFPath(workspaceDir, inputFile)
+	if serr != nil {
+		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: fmt.Sprintf("invalid file path: %v", serr)})
+	}
+	inputFile = securedInput
 	if outputDir == "" {
 		outputDir = filepath.Dir(inputFile)
+	} else {
+		securedOutput, serr := securePDFPath(workspaceDir, outputDir)
+		if serr != nil {
+			return pdfOpsJSON(pdfOpsResult{Status: "error", Message: fmt.Sprintf("invalid output path: %v", serr)})
+		}
+		outputDir = securedOutput
 	}
 
 	if _, err := os.Stat(inputFile); err != nil {
@@ -141,15 +165,26 @@ func pdfSplit(inputFile, outputDir, pages string) string {
 	})
 }
 
-func pdfWatermark(inputFile, outputFile, text, pages string) string {
+func pdfWatermark(workspaceDir, inputFile, outputFile, text, pages string) string {
 	if inputFile == "" {
 		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: "file_path is required"})
 	}
 	if text == "" {
 		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: "watermark_text is required"})
 	}
+	securedInput, serr := securePDFPath(workspaceDir, inputFile)
+	if serr != nil {
+		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: fmt.Sprintf("invalid file path: %v", serr)})
+	}
+	inputFile = securedInput
 	if outputFile == "" {
 		outputFile = addSuffix(inputFile, "_watermarked")
+	} else {
+		securedOutput, serr := securePDFPath(workspaceDir, outputFile)
+		if serr != nil {
+			return pdfOpsJSON(pdfOpsResult{Status: "error", Message: fmt.Sprintf("invalid output path: %v", serr)})
+		}
+		outputFile = securedOutput
 	}
 
 	if _, err := os.Stat(inputFile); err != nil {
@@ -176,12 +211,23 @@ func pdfWatermark(inputFile, outputFile, text, pages string) string {
 	})
 }
 
-func pdfCompress(inputFile, outputFile string) string {
+func pdfCompress(workspaceDir, inputFile, outputFile string) string {
 	if inputFile == "" {
 		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: "file_path is required"})
 	}
+	securedInput, serr := securePDFPath(workspaceDir, inputFile)
+	if serr != nil {
+		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: fmt.Sprintf("invalid file path: %v", serr)})
+	}
+	inputFile = securedInput
 	if outputFile == "" {
 		outputFile = addSuffix(inputFile, "_compressed")
+	} else {
+		securedOutput, serr := securePDFPath(workspaceDir, outputFile)
+		if serr != nil {
+			return pdfOpsJSON(pdfOpsResult{Status: "error", Message: fmt.Sprintf("invalid output path: %v", serr)})
+		}
+		outputFile = securedOutput
 	}
 
 	if _, err := os.Stat(inputFile); err != nil {
@@ -216,15 +262,26 @@ func pdfCompress(inputFile, outputFile string) string {
 	})
 }
 
-func pdfEncrypt(inputFile, outputFile, password string) string {
+func pdfEncrypt(workspaceDir, inputFile, outputFile, password string) string {
 	if inputFile == "" {
 		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: "file_path is required"})
 	}
 	if password == "" {
 		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: "password is required for encryption"})
 	}
+	securedInput, serr := securePDFPath(workspaceDir, inputFile)
+	if serr != nil {
+		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: fmt.Sprintf("invalid file path: %v", serr)})
+	}
+	inputFile = securedInput
 	if outputFile == "" {
 		outputFile = addSuffix(inputFile, "_encrypted")
+	} else {
+		securedOutput, serr := securePDFPath(workspaceDir, outputFile)
+		if serr != nil {
+			return pdfOpsJSON(pdfOpsResult{Status: "error", Message: fmt.Sprintf("invalid output path: %v", serr)})
+		}
+		outputFile = securedOutput
 	}
 
 	if _, err := os.Stat(inputFile); err != nil {
@@ -252,15 +309,26 @@ func pdfEncrypt(inputFile, outputFile, password string) string {
 	})
 }
 
-func pdfDecrypt(inputFile, outputFile, password string) string {
+func pdfDecrypt(workspaceDir, inputFile, outputFile, password string) string {
 	if inputFile == "" {
 		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: "file_path is required"})
 	}
 	if password == "" {
 		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: "password is required for decryption"})
 	}
+	securedInput, serr := securePDFPath(workspaceDir, inputFile)
+	if serr != nil {
+		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: fmt.Sprintf("invalid file path: %v", serr)})
+	}
+	inputFile = securedInput
 	if outputFile == "" {
 		outputFile = addSuffix(inputFile, "_decrypted")
+	} else {
+		securedOutput, serr := securePDFPath(workspaceDir, outputFile)
+		if serr != nil {
+			return pdfOpsJSON(pdfOpsResult{Status: "error", Message: fmt.Sprintf("invalid output path: %v", serr)})
+		}
+		outputFile = securedOutput
 	}
 
 	if _, err := os.Stat(inputFile); err != nil {
@@ -293,10 +361,15 @@ type pdfMetadataInfo struct {
 	Keywords   []string          `json:"keywords,omitempty"`
 }
 
-func pdfMetadata(inputFile string) string {
+func pdfMetadata(workspaceDir, inputFile string) string {
 	if inputFile == "" {
 		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: "file_path is required"})
 	}
+	securedInput, serr := securePDFPath(workspaceDir, inputFile)
+	if serr != nil {
+		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: fmt.Sprintf("invalid file path: %v", serr)})
+	}
+	inputFile = securedInput
 
 	if _, err := os.Stat(inputFile); err != nil {
 		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: fmt.Sprintf("file not found: %s", inputFile)})
@@ -335,10 +408,15 @@ func pdfMetadata(inputFile string) string {
 	return string(b)
 }
 
-func pdfPageCount(inputFile string) string {
+func pdfPageCount(workspaceDir, inputFile string) string {
 	if inputFile == "" {
 		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: "file_path is required"})
 	}
+	securedInput, serr := securePDFPath(workspaceDir, inputFile)
+	if serr != nil {
+		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: fmt.Sprintf("invalid file path: %v", serr)})
+	}
+	inputFile = securedInput
 
 	count, err := api.PageCountFile(inputFile)
 	if err != nil {
@@ -390,10 +468,15 @@ func fieldTypeName(ft form.FieldType) string {
 	}
 }
 
-func pdfFormFields(inputFile string) string {
+func pdfFormFields(workspaceDir, inputFile string) string {
 	if inputFile == "" {
 		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: "file_path is required"})
 	}
+	securedInput, serr := securePDFPath(workspaceDir, inputFile)
+	if serr != nil {
+		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: fmt.Sprintf("invalid file path: %v", serr)})
+	}
+	inputFile = securedInput
 	f, err := os.Open(inputFile)
 	if err != nil {
 		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: fmt.Sprintf("cannot open file: %v", err)})
@@ -429,15 +512,26 @@ func pdfFormFields(inputFile string) string {
 	return string(b)
 }
 
-func pdfFillForm(inputFile, outputFile, formDataJSON string) string {
+func pdfFillForm(workspaceDir, inputFile, outputFile, formDataJSON string) string {
 	if inputFile == "" {
 		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: "file_path is required"})
 	}
 	if formDataJSON == "" {
 		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: "source_files is required (JSON object mapping field names to values)"})
 	}
+	securedInput, serr := securePDFPath(workspaceDir, inputFile)
+	if serr != nil {
+		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: fmt.Sprintf("invalid file path: %v", serr)})
+	}
+	inputFile = securedInput
 	if outputFile == "" {
 		outputFile = addSuffix(inputFile, "_filled")
+	} else {
+		securedOutput, serr := securePDFPath(workspaceDir, outputFile)
+		if serr != nil {
+			return pdfOpsJSON(pdfOpsResult{Status: "error", Message: fmt.Sprintf("invalid output path: %v", serr)})
+		}
+		outputFile = securedOutput
 	}
 
 	if _, err := os.Stat(inputFile); err != nil {
@@ -497,13 +591,24 @@ func pdfFillForm(inputFile, outputFile, formDataJSON string) string {
 	})
 }
 
-func pdfExportForm(inputFile, outputFile string) string {
+func pdfExportForm(workspaceDir, inputFile, outputFile string) string {
 	if inputFile == "" {
 		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: "file_path is required"})
 	}
+	securedInput, serr := securePDFPath(workspaceDir, inputFile)
+	if serr != nil {
+		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: fmt.Sprintf("invalid file path: %v", serr)})
+	}
+	inputFile = securedInput
 	if outputFile == "" {
 		outputFile = addSuffix(inputFile, "_formdata") + ".json"
 		outputFile = strings.TrimSuffix(outputFile, ".pdf.json") + ".json"
+	} else {
+		securedOutput, serr := securePDFPath(workspaceDir, outputFile)
+		if serr != nil {
+			return pdfOpsJSON(pdfOpsResult{Status: "error", Message: fmt.Sprintf("invalid output path: %v", serr)})
+		}
+		outputFile = securedOutput
 	}
 
 	if _, err := os.Stat(inputFile); err != nil {
@@ -526,10 +631,15 @@ func pdfExportForm(inputFile, outputFile string) string {
 	})
 }
 
-func pdfResetForm(inputFile, outputFile string) string {
+func pdfResetForm(workspaceDir, inputFile, outputFile string) string {
 	if inputFile == "" {
 		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: "file_path is required"})
 	}
+	securedInput, serr := securePDFPath(workspaceDir, inputFile)
+	if serr != nil {
+		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: fmt.Sprintf("invalid file path: %v", serr)})
+	}
+	inputFile = securedInput
 
 	if _, err := os.Stat(inputFile); err != nil {
 		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: fmt.Sprintf("file not found: %s", inputFile)})
@@ -537,6 +647,12 @@ func pdfResetForm(inputFile, outputFile string) string {
 
 	if outputFile == "" {
 		outputFile = addSuffix(inputFile, "_reset")
+	} else {
+		securedOutput, serr := securePDFPath(workspaceDir, outputFile)
+		if serr != nil {
+			return pdfOpsJSON(pdfOpsResult{Status: "error", Message: fmt.Sprintf("invalid output path: %v", serr)})
+		}
+		outputFile = securedOutput
 	}
 
 	if err := os.MkdirAll(filepath.Dir(outputFile), 0o750); err != nil {
@@ -555,10 +671,15 @@ func pdfResetForm(inputFile, outputFile string) string {
 	})
 }
 
-func pdfLockForm(inputFile, outputFile string) string {
+func pdfLockForm(workspaceDir, inputFile, outputFile string) string {
 	if inputFile == "" {
 		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: "file_path is required"})
 	}
+	securedInput, serr := securePDFPath(workspaceDir, inputFile)
+	if serr != nil {
+		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: fmt.Sprintf("invalid file path: %v", serr)})
+	}
+	inputFile = securedInput
 
 	if _, err := os.Stat(inputFile); err != nil {
 		return pdfOpsJSON(pdfOpsResult{Status: "error", Message: fmt.Sprintf("file not found: %s", inputFile)})
@@ -566,6 +687,12 @@ func pdfLockForm(inputFile, outputFile string) string {
 
 	if outputFile == "" {
 		outputFile = addSuffix(inputFile, "_locked")
+	} else {
+		securedOutput, serr := securePDFPath(workspaceDir, outputFile)
+		if serr != nil {
+			return pdfOpsJSON(pdfOpsResult{Status: "error", Message: fmt.Sprintf("invalid output path: %v", serr)})
+		}
+		outputFile = securedOutput
 	}
 
 	if err := os.MkdirAll(filepath.Dir(outputFile), 0o750); err != nil {

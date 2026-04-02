@@ -1054,7 +1054,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
 				}
-				visibleKeys := keys[:0]
+				visibleKeys := make([]string, 0, len(keys))
 				for _, k := range keys {
 					if !isSystemSecret(k) {
 						visibleKeys = append(visibleKeys, k)
@@ -1123,7 +1123,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				output = tc.Destination
 			}
 			logger.Info("LLM requested PDF operation", "op", tc.Operation, "path", fpath)
-			return "Tool Output: " + tools.ExecutePDFOperations(tc.Operation, fpath, output, tc.Pages, tc.Password, tc.WatermarkText, tc.SourceFiles)
+			return "Tool Output: " + tools.ExecutePDFOperations(cfg.Directories.WorkspaceDir, tc.Operation, fpath, output, tc.Pages, tc.Password, tc.WatermarkText, tc.SourceFiles)
 
 		case "image_processing":
 			fpath := resolveFilePath(tc)

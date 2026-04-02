@@ -9,7 +9,7 @@ import (
 )
 
 func TestPdfFormFields_MissingFile(t *testing.T) {
-	result := ExecutePDFOperations("form_fields", "", "", "", "", "", "")
+	result := ExecutePDFOperations(".", "form_fields", "", "", "", "", "", "")
 	var r pdfOpsResult
 	if err := json.Unmarshal([]byte(result), &r); err != nil {
 		t.Fatalf("invalid JSON: %v", err)
@@ -20,7 +20,7 @@ func TestPdfFormFields_MissingFile(t *testing.T) {
 }
 
 func TestPdfFormFields_NonExistentFile(t *testing.T) {
-	result := ExecutePDFOperations("form_fields", "/nonexistent/file.pdf", "", "", "", "", "")
+	result := ExecutePDFOperations(".", "form_fields", "/nonexistent/file.pdf", "", "", "", "", "")
 	var r pdfOpsResult
 	if err := json.Unmarshal([]byte(result), &r); err != nil {
 		t.Fatalf("invalid JSON: %v", err)
@@ -31,7 +31,7 @@ func TestPdfFormFields_NonExistentFile(t *testing.T) {
 }
 
 func TestPdfFillForm_MissingFile(t *testing.T) {
-	result := ExecutePDFOperations("fill_form", "", "", "", "", "", "")
+	result := ExecutePDFOperations(".", "fill_form", "", "", "", "", "", "")
 	var r pdfOpsResult
 	if err := json.Unmarshal([]byte(result), &r); err != nil {
 		t.Fatalf("invalid JSON: %v", err)
@@ -42,7 +42,7 @@ func TestPdfFillForm_MissingFile(t *testing.T) {
 }
 
 func TestPdfFillForm_MissingFormData(t *testing.T) {
-	result := ExecutePDFOperations("fill_form", "/some/file.pdf", "", "", "", "", "")
+	result := ExecutePDFOperations(".", "fill_form", "/some/file.pdf", "", "", "", "", "")
 	var r pdfOpsResult
 	if err := json.Unmarshal([]byte(result), &r); err != nil {
 		t.Fatalf("invalid JSON: %v", err)
@@ -58,7 +58,7 @@ func TestPdfFillForm_MissingFormData(t *testing.T) {
 func TestPdfFillForm_InvalidJSON(t *testing.T) {
 	// Note: file existence is checked before JSON parsing, so non-existent file
 	// returns "file not found" rather than "invalid form data"
-	result := ExecutePDFOperations("fill_form", "/some/file.pdf", "", "", "", "", "not-json")
+	result := ExecutePDFOperations(".", "fill_form", "/some/file.pdf", "", "", "", "", "not-json")
 	var r pdfOpsResult
 	if err := json.Unmarshal([]byte(result), &r); err != nil {
 		t.Fatalf("invalid JSON: %v", err)
@@ -69,7 +69,7 @@ func TestPdfFillForm_InvalidJSON(t *testing.T) {
 }
 
 func TestPdfExportForm_MissingFile(t *testing.T) {
-	result := ExecutePDFOperations("export_form", "", "", "", "", "", "")
+	result := ExecutePDFOperations(".", "export_form", "", "", "", "", "", "")
 	var r pdfOpsResult
 	if err := json.Unmarshal([]byte(result), &r); err != nil {
 		t.Fatalf("invalid JSON: %v", err)
@@ -80,7 +80,7 @@ func TestPdfExportForm_MissingFile(t *testing.T) {
 }
 
 func TestPdfResetForm_MissingFile(t *testing.T) {
-	result := ExecutePDFOperations("reset_form", "", "", "", "", "", "")
+	result := ExecutePDFOperations(".", "reset_form", "", "", "", "", "", "")
 	var r pdfOpsResult
 	if err := json.Unmarshal([]byte(result), &r); err != nil {
 		t.Fatalf("invalid JSON: %v", err)
@@ -91,7 +91,7 @@ func TestPdfResetForm_MissingFile(t *testing.T) {
 }
 
 func TestPdfLockForm_MissingFile(t *testing.T) {
-	result := ExecutePDFOperations("lock_form", "", "", "", "", "", "")
+	result := ExecutePDFOperations(".", "lock_form", "", "", "", "", "", "")
 	var r pdfOpsResult
 	if err := json.Unmarshal([]byte(result), &r); err != nil {
 		t.Fatalf("invalid JSON: %v", err)
@@ -102,7 +102,7 @@ func TestPdfLockForm_MissingFile(t *testing.T) {
 }
 
 func TestPdfOperations_NewOperationsInDefaultError(t *testing.T) {
-	result := ExecutePDFOperations("totally_unknown", "", "", "", "", "", "")
+	result := ExecutePDFOperations(".", "totally_unknown", "", "", "", "", "", "")
 	var r pdfOpsResult
 	if err := json.Unmarshal([]byte(result), &r); err != nil {
 		t.Fatalf("invalid JSON: %v", err)

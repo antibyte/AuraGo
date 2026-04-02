@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/security"
 )
 
 // gotenbergClient is the shared HTTP client for Gotenberg requests.
@@ -306,6 +307,9 @@ func GotenbergHealth(ctx context.Context, cfg *config.GotenbergConfig) string {
 
 // GotenbergURLToPDF converts a URL to PDF via Chromium.
 func GotenbergURLToPDF(ctx context.Context, cfg *config.GotenbergConfig, outputDir, url, filename, paperSize string, landscape bool) string {
+	if err := security.ValidateSSRF(url); err != nil {
+		return gotenbergErrJSON(fmt.Sprintf("SSRF validation failed: %v", err))
+	}
 	fields := paperSizeFields(paperSize)
 	fields["url"] = url
 	fields["printBackground"] = "true"
@@ -466,6 +470,9 @@ func GotenbergMergePDFs(ctx context.Context, cfg *config.GotenbergConfig, output
 
 // GotenbergScreenshotURL takes a screenshot of a URL via Chromium.
 func GotenbergScreenshotURL(ctx context.Context, cfg *config.GotenbergConfig, outputDir, url, filename string) string {
+	if err := security.ValidateSSRF(url); err != nil {
+		return gotenbergErrJSON(fmt.Sprintf("SSRF validation failed: %v", err))
+	}
 	fields := map[string]string{
 		"url":    url,
 		"format": "png",

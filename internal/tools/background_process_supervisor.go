@@ -52,7 +52,11 @@ func superviseBackgroundProcess(cmd *exec.Cmd, info *ProcessInfo, registry *Proc
 		case <-timer.C:
 			timedOut = true
 			KillProcessTree(info.PID)
-			err = <-waitDone
+			select {
+			case err = <-waitDone:
+			case <-time.After(10 * time.Second):
+				err = fmt.Errorf("process %d refused to die after kill", info.PID)
+			}
 		}
 	} else {
 		err = <-waitDone

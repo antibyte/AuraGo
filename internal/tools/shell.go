@@ -56,7 +56,10 @@ func ExecuteShell(command, workspaceDir string) (string, string, error) {
 		return stdout.String(), stderr.String(), err
 	case <-timer.C:
 		KillProcessTree(cmd.Process.Pid)
-		<-done // drain so the goroutine exits cleanly
+		select {
+		case <-done:
+		case <-time.After(10 * time.Second):
+		}
 		return stdout.String(), stderr.String(), fmt.Errorf("TIMEOUT: shell command exceeded %s limit", GetForegroundTimeout())
 	}
 }
@@ -124,7 +127,10 @@ func ExecuteSudo(command, workspaceDir, password string) (string, string, error)
 		return stdout.String(), stderrStr, err
 	case <-timer.C:
 		KillProcessTree(cmd.Process.Pid)
-		<-done
+		select {
+		case <-done:
+		case <-time.After(10 * time.Second):
+		}
 		return stdout.String(), stderr.String(), fmt.Errorf("TIMEOUT: sudo command exceeded %s limit", GetForegroundTimeout())
 	}
 }

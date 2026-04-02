@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"aurago/internal/security"
+
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/launcher"
 	"github.com/go-rod/rod/lib/proto"
@@ -51,6 +53,9 @@ func WebCapture(operation, rawURL, selector string, fullPage bool, outputDir str
 	parsed, err := url.ParseRequestURI(rawURL)
 	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") {
 		return encode(webCaptureResult{Status: "error", Message: "url must be a valid http or https URL"})
+	}
+	if err := security.ValidateSSRF(rawURL); err != nil {
+		return encode(webCaptureResult{Status: "error", Message: fmt.Sprintf("SSRF validation failed: %v", err)})
 	}
 
 	// Resolve output directory
