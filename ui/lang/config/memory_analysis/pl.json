@@ -1,12 +1,8 @@
 {
     "config.memory_analysis.enabled_label":  "Analiza pamięci włączona:",
     "config.memory_analysis.disabled_notice":  "Analiza pamięci jest wyłączona",
-    "config.memory_analysis.disabled_desc":  "Włącz, aby agent mógł używać dedykowanego LLM do analizy rozmów i wyodrębniania treści wartych zapamiętania. Bez dostawcy używany jest główny LLM.",
     "config.memory_analysis.auto_notice":  "Adaptacyjna strategia pamięci jest zawsze aktywna",
     "config.memory_analysis.auto_desc":  "AuraGo automatycznie włącza zunifikowany kontekst pamięci, śledzenie skuteczności, ekstrakcję w czasie rzeczywistym, rozszerzanie zapytań i reranking na podstawie bieżącego zdrowia pamięci oraz jakości retrievalu.",
-    "config.memory_analysis.provider_title":  "Dostawca",
-    "config.memory_analysis.provider_desc":  "Wybierz dostawcę do analizy pamięci. Zalecany jest szybki, tani model (np. Gemini Flash, GPT-4o-mini). Pusty = główny LLM.",
-    "config.memory_analysis.provider_label":  "Dostawca",
     "config.memory_analysis.select_provider":  "— Główny LLM (domyślny) —",
     "config.memory_analysis.model_label":  "Model",
     "config.memory_analysis.model_hint":  "pusty = domyślny model dostawcy",
@@ -34,5 +30,9 @@
     "config.memory_analysis.preset_hint":  "custom = keep manual flags",
     "config.memory_analysis.preset_full":  "Full: reflection + query expansion + reranking + real-time",
     "config.memory_analysis.preset_title":  "Rollout Preset",
-    "config.memory_analysis.preset_custom":  "Custom"
+    "config.memory_analysis.preset_custom":  "Custom",
+    "config.memory_analysis.provider_title":  "Helper LLM",
+    "config.memory_analysis.provider_label":  "Helper LLM",
+    "config.memory_analysis.disabled_desc":  "Enable it to let the agent analyze conversations and extract memory-worthy content. AuraGo uses the central Helper LLM for the batched helper path when it is available.",
+    "config.memory_analysis.provider_desc":  "Memory analysis uses the central Helper LLM from the LLM settings. If it is disabled, this feature cannot use the dedicated batched helper path."
 }

@@ -1,12 +1,8 @@
 {
     "config.memory_analysis.enabled_label":  "Ανάλυση μνήμης ενεργοποιημένη:",
     "config.memory_analysis.disabled_notice":  "Η ανάλυση μνήμης είναι απενεργοποιημένη",
-    "config.memory_analysis.disabled_desc":  "Ενεργοποιήστε για να επιτρέψετε στον πράκτορα να χρησιμοποιεί ένα αφιερωμένο LLM για ανάλυση συνομιλιών και εξαγωγή αξιομνημόνευτου περιεχομένου. Χωρίς πάροχο χρησιμοποιείται το κύριο LLM.",
     "config.memory_analysis.auto_notice":  "Η προσαρμοστική στρατηγική μνήμης είναι πάντα ενεργή",
     "config.memory_analysis.auto_desc":  "Το AuraGo ενεργοποιεί αυτόματα ενοποιημένο context μνήμης, παρακολούθηση αποτελεσματικότητας, εξαγωγή σε πραγματικό χρόνο, επέκταση ερωτήματος και επανακατάταξη με βάση τη ζωντανή υγεία μνήμης και την ποιότητα ανάκτησης.",
-    "config.memory_analysis.provider_title":  "Πάροχος",
-    "config.memory_analysis.provider_desc":  "Επιλέξτε πάροχο για ανάλυση μνήμης. Συνιστάται ένα γρήγορο, οικονομικό μοντέλο (π.χ. Gemini Flash, GPT-4o-mini). Κενό = κύριο LLM.",
-    "config.memory_analysis.provider_label":  "Πάροχος",
     "config.memory_analysis.select_provider":  "— Κύριο LLM (προεπιλογή) —",
     "config.memory_analysis.model_label":  "Μοντέλο",
     "config.memory_analysis.model_hint":  "κενό = προεπιλογή παρόχου",
@@ -34,5 +30,9 @@
     "config.memory_analysis.preset_hint":  "custom = keep manual flags",
     "config.memory_analysis.preset_full":  "Full: reflection + query expansion + reranking + real-time",
     "config.memory_analysis.preset_title":  "Rollout Preset",
-    "config.memory_analysis.preset_custom":  "Custom"
+    "config.memory_analysis.preset_custom":  "Custom",
+    "config.memory_analysis.provider_title":  "Helper LLM",
+    "config.memory_analysis.provider_label":  "Helper LLM",
+    "config.memory_analysis.disabled_desc":  "Enable it to let the agent analyze conversations and extract memory-worthy content. AuraGo uses the central Helper LLM for the batched helper path when it is available.",
+    "config.memory_analysis.provider_desc":  "Memory analysis uses the central Helper LLM from the LLM settings. If it is disabled, this feature cannot use the dedicated batched helper path."
 }

@@ -2,6 +2,7 @@ package memory
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"sort"
@@ -93,20 +94,67 @@ func (kg *KnowledgeGraph) reindexSemanticNodes() error {
 	if kg.semantic == nil {
 		return nil
 	}
-	nodes, err := kg.GetAllNodes(10000)
+
+	now := time.Now().Format(time.RFC3339)
+
+	rows, err := kg.db.Query(`
+		SELECT id, label, properties, protected FROM kg_nodes
+		WHERE semantic_indexed_at IS NULL OR semantic_indexed_at < updated_at
+		LIMIT 5000
+	`)
 	if err != nil {
-		return fmt.Errorf("load nodes for semantic reindex: %w", err)
+		return fmt.Errorf("load dirty nodes for semantic reindex: %w", err)
 	}
+	var nodes []Node
+	for rows.Next() {
+		var n Node
+		var propsJSON string
+		var protected int
+		if rows.Scan(&n.ID, &n.Label, &propsJSON, &protected) == nil {
+			n.Properties = decodeKnowledgeGraphNodeProperties(kg.semantic.logger, "reindex", n.ID, propsJSON, protected)
+			n.Protected = protected != 0
+			nodes = append(nodes, n)
+		}
+	}
+	rows.Close()
+
 	for _, node := range nodes {
 		kg.upsertSemanticNodeIndex(node)
 	}
-	edges, err := kg.GetAllEdges(10000)
-	if err != nil {
-		return fmt.Errorf("load edges for semantic reindex: %w", err)
+	if len(nodes) > 0 {
+		_, _ = kg.db.Exec(`UPDATE kg_nodes SET semantic_indexed_at = ? WHERE semantic_indexed_at IS NULL OR semantic_indexed_at < updated_at`, now)
 	}
-	for _, edge := range edges {
-		kg.upsertSemanticEdgeIndex(edge)
+
+	edgeRows, err := kg.db.Query(`
+		SELECT source, target, relation, properties FROM kg_edges
+		WHERE semantic_indexed_at IS NULL OR semantic_indexed_at < (
+			SELECT COALESCE(MAX(n2.updated_at), '1970-01-01') FROM kg_nodes n2
+			WHERE n2.id = kg_edges.source OR n2.id = kg_edges.target
+		)
+		LIMIT 5000
+	`)
+	if err == nil {
+		var edges []Edge
+		for edgeRows.Next() {
+			var e Edge
+			var propsJSON string
+			if edgeRows.Scan(&e.Source, &e.Target, &e.Relation, &propsJSON) == nil {
+				json.Unmarshal([]byte(propsJSON), &e.Properties)
+				if e.Properties == nil {
+					e.Properties = make(map[string]string)
+				}
+				edges = append(edges, e)
+			}
+		}
+		edgeRows.Close()
+		for _, edge := range edges {
+			kg.upsertSemanticEdgeIndex(edge)
+		}
+		if len(edges) > 0 {
+			_, _ = kg.db.Exec(`UPDATE kg_edges SET semantic_indexed_at = ? WHERE semantic_indexed_at IS NULL`, now)
+		}
 	}
+
 	return nil
 }
 

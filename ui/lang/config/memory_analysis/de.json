@@ -1,12 +1,8 @@
 {
     "config.memory_analysis.enabled_label":  "Gedächtnisanalyse aktiviert:",
     "config.memory_analysis.disabled_notice":  "Gedächtnisanalyse ist deaktiviert",
-    "config.memory_analysis.disabled_desc":  "Aktiviere dies, damit der Agent ein eigenes LLM für die Analyse von Gesprächen und die Extraktion merkwürdiger Inhalte nutzt. Ohne Provider wird das Haupt-LLM verwendet.",
     "config.memory_analysis.auto_notice":  "Adaptive Memory-Strategie ist immer aktiv",
     "config.memory_analysis.auto_desc":  "AuraGo aktiviert Unified Memory Context, Effectiveness Tracking, Echtzeit-Extraktion, Query Expansion und Reranking automatisch anhand der aktuellen Memory-Gesundheit und Retrieval-Qualität.",
-    "config.memory_analysis.provider_title":  "Anbieter",
-    "config.memory_analysis.provider_desc":  "Wähle einen Anbieter für die Gedächtnisanalyse. Ein schnelles, günstiges Modell (z.B. Gemini Flash, GPT-4o-mini) wird empfohlen. Leer = Haupt-LLM.",
-    "config.memory_analysis.provider_label":  "Anbieter",
     "config.memory_analysis.select_provider":  "— Haupt-LLM (Standard) —",
     "config.memory_analysis.model_label":  "Modell",
     "config.memory_analysis.model_hint":  "leer = Anbieter-Standard",
@@ -34,5 +30,9 @@
     "config.memory_analysis.preset_hint":  "custom = manuelle Flags beibehalten",
     "config.memory_analysis.preset_full":  "Voll: Reflexion + Query Expansion + Re-Ranking + Echtzeit",
     "config.memory_analysis.preset_title":  "Rollout-Preset",
-    "config.memory_analysis.preset_custom":  "Benutzerdefiniert"
+    "config.memory_analysis.preset_custom":  "Benutzerdefiniert",
+    "config.memory_analysis.provider_title":  "Hilfs-LLM",
+    "config.memory_analysis.provider_label":  "Hilfs-LLM",
+    "config.memory_analysis.disabled_desc":  "Aktiviere dies, damit der Agent Gespr\\u00e4che analysieren und speicherw\\u00fcrdige Inhalte extrahieren kann. AuraGo nutzt daf\\u00fcr den zentralen Helper-Pfad \\u00fcber das Hilfs-LLM, wenn er verf\\u00fcgbar ist.",
+    "config.memory_analysis.provider_desc":  "Die Ged\\u00e4chtnisanalyse nutzt das zentrale Hilfs-LLM aus den LLM-Einstellungen. Ist es deaktiviert, kann dieser Bereich den dedizierten gebatchten Helper-Pfad nicht nutzen."
 }

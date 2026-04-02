@@ -1,10 +1,10 @@
 {
-  "config.web_scraper.enabled_label": "Web Scraper activé :",
-  "config.web_scraper.disabled_notice": "Web Scraper est désactivé",
-  "config.web_scraper.disabled_desc": "Activez le toggle ci-dessus pour permettre à l'agent de récupérer des pages web externes et d'analyser leur contenu.",
-  "config.web_scraper.summary_mode": "Mode Résumé",
-  "config.web_scraper.summary_desc": "Les pages web scrapées sont envoyées à un LLM séparé qui crée un résumé. L'agent ne reçoit que le résumé au lieu du contenu complet de la page.<br><strong>Avantages :</strong> Économise des tokens dans le modèle principal et prévient l'injection de prompt depuis le contenu externe. Un modèle bon marché peut être sélectionné ici.",
-  "config.web_scraper.summary_provider": "Provider de Résumé",
-  "config.web_scraper.empty_main_llm": "vide = LLM principal",
-  "config.web_scraper.use_main_llm": "— Utiliser le LLM principal —"
+    "config.web_scraper.enabled_label":  "Web Scraper activé :",
+    "config.web_scraper.disabled_notice":  "Web Scraper est désactivé",
+    "config.web_scraper.disabled_desc":  "Activez le toggle ci-dessus pour permettre à l\u0027agent de récupérer des pages web externes et d\u0027analyser leur contenu.",
+    "config.web_scraper.summary_mode":  "Mode Résumé",
+    "config.web_scraper.empty_main_llm":  "vide = LLM principal",
+    "config.web_scraper.use_main_llm":  "— Utiliser le LLM principal —",
+    "config.web_scraper.summary_provider":  "Helper LLM",
+    "config.web_scraper.summary_desc":  "Scraped web pages are summarized through the central Helper LLM when it is enabled. The agent receives the cleaned summary instead of the full page content.\u003cbr\u003e\u003cstrong\u003eBenefits:\u003c/strong\u003e saves tokens, reduces duplicate helper calls and hardens the system against prompt injection from external content."
 }

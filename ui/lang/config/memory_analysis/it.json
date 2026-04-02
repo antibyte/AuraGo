@@ -1,12 +1,8 @@
 {
     "config.memory_analysis.enabled_label":  "Analisi memoria abilitata:",
     "config.memory_analysis.disabled_notice":  "L\u0027analisi della memoria è disabilitata",
-    "config.memory_analysis.disabled_desc":  "Abilita per permettere all\u0027agente di usare un LLM dedicato per analizzare le conversazioni ed estrarre contenuti memorabili. Senza provider viene usato il LLM principale.",
     "config.memory_analysis.auto_notice":  "La strategia adattiva della memoria è sempre attiva",
-    "config.memory_analysis.auto_desc":  "AuraGo abilita automaticamente contesto memoria unificato, tracciamento dell'efficacia, estrazione in tempo reale, query expansion e reranking in base alla salute corrente della memoria e alla qualità del retrieval.",
-    "config.memory_analysis.provider_title":  "Provider",
-    "config.memory_analysis.provider_desc":  "Seleziona un provider per l\u0027analisi della memoria. Si consiglia un modello veloce ed economico (es. Gemini Flash, GPT-4o-mini). Vuoto = LLM principale.",
-    "config.memory_analysis.provider_label":  "Provider",
+    "config.memory_analysis.auto_desc":  "AuraGo abilita automaticamente contesto memoria unificato, tracciamento dell\u0027efficacia, estrazione in tempo reale, query expansion e reranking in base alla salute corrente della memoria e alla qualità del retrieval.",
     "config.memory_analysis.select_provider":  "— LLM principale (predefinito) —",
     "config.memory_analysis.model_label":  "Modello",
     "config.memory_analysis.model_hint":  "vuoto = modello del provider",
@@ -34,5 +30,9 @@
     "config.memory_analysis.preset_hint":  "custom = keep manual flags",
     "config.memory_analysis.preset_full":  "Full: reflection + query expansion + reranking + real-time",
     "config.memory_analysis.preset_title":  "Rollout Preset",
-    "config.memory_analysis.preset_custom":  "Custom"
+    "config.memory_analysis.preset_custom":  "Custom",
+    "config.memory_analysis.provider_title":  "Helper LLM",
+    "config.memory_analysis.provider_label":  "Helper LLM",
+    "config.memory_analysis.disabled_desc":  "Enable it to let the agent analyze conversations and extract memory-worthy content. AuraGo uses the central Helper LLM for the batched helper path when it is available.",
+    "config.memory_analysis.provider_desc":  "Memory analysis uses the central Helper LLM from the LLM settings. If it is disabled, this feature cannot use the dedicated batched helper path."
 }

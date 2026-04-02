@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -174,7 +175,8 @@ func (kg *KnowledgeGraph) initTables() error {
 		access_count INTEGER NOT NULL DEFAULT 0,
 		protected INTEGER NOT NULL DEFAULT 0,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		semantic_indexed_at DATETIME
 	);
 
 	CREATE TABLE IF NOT EXISTS kg_edges (
@@ -185,6 +187,7 @@ func (kg *KnowledgeGraph) initTables() error {
 		properties TEXT NOT NULL DEFAULT '{}',
 		access_count INTEGER NOT NULL DEFAULT 0,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		semantic_indexed_at DATETIME,
 		UNIQUE(source, target, relation)
 	);
 
@@ -193,6 +196,14 @@ func (kg *KnowledgeGraph) initTables() error {
 	`
 	if _, err := kg.db.Exec(schema); err != nil {
 		return fmt.Errorf("create kg tables: %w", err)
+	}
+
+	migrations := []string{
+		`ALTER TABLE kg_nodes ADD COLUMN semantic_indexed_at DATETIME`,
+		`ALTER TABLE kg_edges ADD COLUMN semantic_indexed_at DATETIME`,
+	}
+	for _, m := range migrations {
+		kg.db.Exec(m)
 	}
 
 	if err := kg.rebuildFTSIndexes(); err != nil {
@@ -462,40 +473,61 @@ func (kg *KnowledgeGraph) QualityReport(sampleLimit int) (*KnowledgeGraphQuality
 }
 
 // AddNode adds or updates a node in the knowledge graph.
+// On conflict, properties are merged: existing keys are preserved, new keys from
+// incoming properties are added, and matching keys are overwritten with incoming values
+// (same merge behavior as BulkMergeExtractedEntities).
 func (kg *KnowledgeGraph) AddNode(id, label string, properties map[string]string) error {
 	isProtected := strings.EqualFold(strings.TrimSpace(properties["protected"]), "true")
 	properties = sanitizeKnowledgeGraphNodeProperties(properties, isProtected)
 
-	propsJSON, err := json.Marshal(properties)
+	label = strings.TrimSpace(label)
+
+	tx, err := kg.db.Begin()
+	if err != nil {
+		return fmt.Errorf("begin add node: %w", err)
+	}
+	defer tx.Rollback()
+
+	existingLabel, existingProps, existingProtected, _, err := loadKnowledgeGraphNode(tx, id)
+	if err != nil {
+		return fmt.Errorf("load existing node %s: %w", id, err)
+	}
+
+	finalLabel := mergeKnowledgeGraphLabel(existingLabel, label)
+	finalProps := mergeKnowledgeGraphPropertiesOverwrite(existingProps, properties)
+	isProtectedFinal := existingProtected
+	if finalProps["protected"] == "true" {
+		isProtectedFinal = 1
+	}
+	finalProps = sanitizeKnowledgeGraphNodeProperties(finalProps, isProtectedFinal != 0)
+
+	propsJSON, err := json.Marshal(finalProps)
 	if err != nil {
 		return fmt.Errorf("marshal node properties: %w", err)
 	}
 
-	label = strings.TrimSpace(label)
-
-	_, err = kg.db.Exec(`
+	_, err = tx.Exec(`
 		INSERT INTO kg_nodes (id, label, properties, protected, updated_at)
 		VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
 		ON CONFLICT(id) DO UPDATE SET
-			label = CASE
-			WHEN excluded.label != '' AND excluded.label != 'Unknown' AND (kg_nodes.label = '' OR kg_nodes.label = 'Unknown')
-			THEN excluded.label ELSE kg_nodes.label END,
-			properties = CASE
-				WHEN kg_nodes.properties = '{}' OR kg_nodes.properties = ''
-				THEN excluded.properties
-				ELSE kg_nodes.properties
-			END,
-			protected = CASE WHEN excluded.protected = 1 THEN 1 ELSE kg_nodes.protected END,
+			label = excluded.label,
+			properties = excluded.properties,
+			protected = excluded.protected,
 			updated_at = CURRENT_TIMESTAMP
-	`, id, label, string(propsJSON), boolToInt(isProtected))
+	`, id, finalLabel, string(propsJSON), isProtectedFinal)
 	if err != nil {
 		return fmt.Errorf("add node: %w", err)
 	}
-	kg.upsertSemanticNodeIndex(Node{ID: id, Label: label, Properties: properties})
+
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	kg.upsertSemanticNodeIndex(Node{ID: id, Label: finalLabel, Properties: finalProps})
 	return nil
 }
 
 // AddEdge adds or updates an edge. Auto-creates missing endpoint nodes.
+// On conflict, properties are merged (new keys added, existing keys overwritten).
 func (kg *KnowledgeGraph) AddEdge(source, target, relation string, properties map[string]string) error {
 	properties = normalizeKnowledgeGraphProperties(properties)
 
@@ -505,14 +537,24 @@ func (kg *KnowledgeGraph) AddEdge(source, target, relation string, properties ma
 	}
 	defer tx.Rollback()
 
-	// Ensure endpoint nodes exist
 	for _, id := range []string{source, target} {
 		if _, err := tx.Exec(`INSERT OR IGNORE INTO kg_nodes (id, label, properties) VALUES (?, 'Unknown', '{}')`, id); err != nil {
 			kg.logger.Warn("AddEdge: failed to ensure node exists", "id", id, "error", err)
 		}
 	}
 
-	propsJSON, _ := json.Marshal(properties)
+	existingProps, found, err := loadKnowledgeGraphEdge(tx, source, target, relation)
+	if err != nil {
+		return fmt.Errorf("load existing edge for add: %w", err)
+	}
+
+	var finalProps map[string]string
+	if found {
+		finalProps = mergeKnowledgeGraphPropertiesOverwrite(existingProps, properties)
+	} else {
+		finalProps = properties
+	}
+	propsJSON, _ := json.Marshal(finalProps)
 	_, err = tx.Exec(`
 		INSERT INTO kg_edges (source, target, relation, properties)
 		VALUES (?, ?, ?, ?)
@@ -531,7 +573,45 @@ func (kg *KnowledgeGraph) AddEdge(source, target, relation string, properties ma
 	return nil
 }
 
-// Search returns a JSON string of nodes and edges matching the query.
+const coOccurrenceThreshold = 3
+
+// IncrementCoOccurrence tracks how often two entities are mentioned together.
+// An edge is only created after the pair has been co-mentioned coOccurrenceThreshold times.
+// Existing edges get their weight incremented and date updated.
+func (kg *KnowledgeGraph) IncrementCoOccurrence(a, b, date string) error {
+	var currentWeight int
+	var propsJSON string
+	err := kg.db.QueryRow(
+		"SELECT properties FROM kg_edges WHERE source = ? AND target = ? AND relation = 'co_mentioned_with'",
+		a, b,
+	).Scan(&propsJSON)
+	if err == nil {
+		var props map[string]string
+		if json.Unmarshal([]byte(propsJSON), &props) == nil {
+			if w, e := strconv.Atoi(props["weight"]); e == nil {
+				currentWeight = w
+			}
+		}
+		currentWeight++
+		props["weight"] = strconv.Itoa(currentWeight)
+		props["date"] = date
+		newPropsJSON, _ := json.Marshal(props)
+		_, err = kg.db.Exec(
+			"UPDATE kg_edges SET properties = ? WHERE source = ? AND target = ? AND relation = 'co_mentioned_with'",
+			string(newPropsJSON), a, b,
+		)
+		return err
+	}
+
+	_, err = kg.db.Exec(`
+		INSERT INTO kg_edges (source, target, relation, properties)
+		VALUES (?, ?, 'co_mentioned_with', ?)
+		ON CONFLICT(source, target, relation) DO UPDATE SET
+			properties = excluded.properties
+	`, a, b, `{"source":"activity_turn","weight":"1","date":"`+date+`"}`)
+	return err
+}
+
 // Uses a single UNION query combining FTS5 and LIKE to avoid two database round-trips.
 // Access counts are updated asynchronously via a worker pool.
 func (kg *KnowledgeGraph) Search(query string) string {
@@ -675,6 +755,11 @@ func (kg *KnowledgeGraph) GetNeighbors(nodeID string, limit int) ([]Node, []Edge
 			n.Protected = protected != 0
 			nodes = append(nodes, n)
 		}
+	}
+
+	kg.enqueueAccessHit(knowledgeGraphAccessHit{nodeID: nodeID})
+	for _, e := range edges {
+		kg.enqueueAccessHit(knowledgeGraphAccessHit{source: e.Source, target: e.Target, relation: e.Relation})
 	}
 
 	return nodes, edges
@@ -833,10 +918,11 @@ func (kg *KnowledgeGraph) SearchForContext(query string, maxNodes int, maxChars 
 }
 
 func truncateUTF8Safe(s string, maxLen int) string {
-	if len(s) <= maxLen {
+	runes := []rune(s)
+	if len(runes) <= maxLen {
 		return s
 	}
-	truncated := string([]rune(s[:maxLen]))
+	truncated := string(runes[:maxLen])
 	if idx := strings.LastIndex(truncated, "\n"); idx > 0 {
 		truncated = truncated[:idx]
 	}
@@ -1409,6 +1495,16 @@ func mergeKnowledgeGraphProperties(existing, incoming map[string]string) map[str
 	return out
 }
 
+func mergeKnowledgeGraphPropertiesOverwrite(existing, incoming map[string]string) map[string]string {
+	out := normalizeKnowledgeGraphProperties(existing)
+	for key, value := range normalizeKnowledgeGraphProperties(incoming) {
+		if strings.TrimSpace(value) != "" {
+			out[key] = value
+		}
+	}
+	return out
+}
+
 func mergeKnowledgeGraphLabel(existing, incoming string) string {
 	existing = strings.TrimSpace(existing)
 	incoming = strings.TrimSpace(incoming)
@@ -1600,37 +1696,88 @@ func (kg *KnowledgeGraph) GetSubgraph(centerNodeID string, maxDepth int) ([]Node
 		maxDepth = 3
 	}
 
-	visited := make(map[string]bool)
-	allNodes := make(map[string]Node)
-	allEdges := make(map[string]Edge)
-
 	center, err := kg.GetNode(centerNodeID)
 	if err != nil || center == nil {
 		return nil, nil
 	}
+
+	visited := make(map[string]bool)
+	allNodes := make(map[string]Node)
+	allEdges := make(map[string]Edge)
 	allNodes[centerNodeID] = *center
 	visited[centerNodeID] = true
 
 	queue := []kgBFSLevel{{centerNodeID, 0}}
 	for len(queue) > 0 {
-		item := queue[0]
-		queue = queue[1:]
-		if item.depth >= maxDepth {
-			continue
-		}
-		neighbors, edges := kg.GetNeighbors(item.nodeID, 10)
-		for _, e := range edges {
-			edgeKey := knowledgeGraphEdgeKey(e.Source, e.Target, e.Relation)
-			if _, exists := allEdges[edgeKey]; exists {
+		var levelNodeIDs []string
+		maxDepthInLevel := queue[0].depth
+		for _, item := range queue {
+			if item.depth >= maxDepth {
 				continue
 			}
-			allEdges[edgeKey] = e
+			levelNodeIDs = append(levelNodeIDs, item.nodeID)
 		}
-		for _, n := range neighbors {
+		if len(levelNodeIDs) == 0 {
+			break
+		}
+
+		var discoveredEdges []Edge
+		var neighborIDs []string
+		for _, nid := range levelNodeIDs {
+			edges, err := kg.db.Query(`
+				SELECT source, target, relation, properties FROM kg_edges
+				WHERE source = ? OR target = ?
+			`, nid, nid)
+			if err != nil {
+				continue
+			}
+			for edges.Next() {
+				var e Edge
+				var propsJSON string
+				if edges.Scan(&e.Source, &e.Target, &e.Relation, &propsJSON) == nil {
+					json.Unmarshal([]byte(propsJSON), &e.Properties)
+					if e.Properties == nil {
+						e.Properties = make(map[string]string)
+					}
+					edgeKey := knowledgeGraphEdgeKey(e.Source, e.Target, e.Relation)
+					if _, exists := allEdges[edgeKey]; !exists {
+						allEdges[edgeKey] = e
+						discoveredEdges = append(discoveredEdges, e)
+					}
+					if e.Source != nid && !visited[e.Source] {
+						neighborIDs = append(neighborIDs, e.Source)
+					}
+					if e.Target != nid && !visited[e.Target] {
+						neighborIDs = append(neighborIDs, e.Target)
+					}
+				}
+			}
+			edges.Close()
+		}
+
+		if len(neighborIDs) == 0 {
+			break
+		}
+
+		uniqueNeighborIDs := make([]string, 0, len(neighborIDs))
+		seen := make(map[string]bool, len(neighborIDs))
+		for _, id := range neighborIDs {
+			if !seen[id] && !visited[id] {
+				seen[id] = true
+				uniqueNeighborIDs = append(uniqueNeighborIDs, id)
+			}
+		}
+
+		batchNodes := kg.batchGetNodes(uniqueNeighborIDs)
+		for _, n := range batchNodes {
 			allNodes[n.ID] = n
-			if !visited[n.ID] {
-				visited[n.ID] = true
-				queue = append(queue, kgBFSLevel{n.ID, item.depth + 1})
+			visited[n.ID] = true
+		}
+
+		queue = make([]kgBFSLevel, 0, len(uniqueNeighborIDs))
+		for _, id := range uniqueNeighborIDs {
+			if visited[id] {
+				queue = append(queue, kgBFSLevel{id, maxDepthInLevel + 1})
 			}
 		}
 	}
@@ -1644,4 +1791,35 @@ func (kg *KnowledgeGraph) GetSubgraph(centerNodeID string, maxDepth int) ([]Node
 		edgeList = append(edgeList, e)
 	}
 	return nodes, edgeList
+}
+
+func (kg *KnowledgeGraph) batchGetNodes(ids []string) []Node {
+	if len(ids) == 0 {
+		return nil
+	}
+	placeholders := make([]string, len(ids))
+	args := make([]interface{}, len(ids))
+	for i, id := range ids {
+		placeholders[i] = "?"
+		args[i] = id
+	}
+	query := fmt.Sprintf("SELECT id, label, properties, protected FROM kg_nodes WHERE id IN (%s)", strings.Join(placeholders, ","))
+	rows, err := kg.db.Query(query, args...)
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+
+	var nodes []Node
+	for rows.Next() {
+		var n Node
+		var propsJSON string
+		var protected int
+		if rows.Scan(&n.ID, &n.Label, &propsJSON, &protected) == nil {
+			n.Properties = decodeKnowledgeGraphNodeProperties(kg.logger, "batchGetNodes", n.ID, propsJSON, protected)
+			n.Protected = protected != 0
+			nodes = append(nodes, n)
+		}
+	}
+	return nodes
 }

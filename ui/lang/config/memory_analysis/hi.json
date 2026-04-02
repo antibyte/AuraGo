@@ -1,12 +1,8 @@
 {
     "config.memory_analysis.enabled_label":  "स्मृति विश्लेषण सक्रिय:",
     "config.memory_analysis.disabled_notice":  "स्मृति विश्लेषण निष्क्रिय है",
-    "config.memory_analysis.disabled_desc":  "एजेंट को बातचीत का विश्लेषण करने और यादगार सामग्री निकालने के लिए एक समर्पित LLM का उपयोग करने दें। बिना प्रदाता के, मुख्य LLM का उपयोग होता है।",
     "config.memory_analysis.auto_notice":  "अनुकूली मेमोरी रणनीति हमेशा सक्रिय है",
     "config.memory_analysis.auto_desc":  "AuraGo लाइव मेमोरी स्वास्थ्य और रिट्रीवल गुणवत्ता के आधार पर unified memory context, effectiveness tracking, real-time extraction, query expansion और reranking को अपने-आप सक्रिय करता है।",
-    "config.memory_analysis.provider_title":  "प्रदाता",
-    "config.memory_analysis.provider_desc":  "स्मृति विश्लेषण के लिए एक प्रदाता चुनें। एक तेज़, सस्ता मॉडल सुझाया गया है (जैसे Gemini Flash, GPT-4o-mini)। खाली = मुख्य LLM।",
-    "config.memory_analysis.provider_label":  "प्रदाता",
     "config.memory_analysis.select_provider":  "— मुख्य LLM (डिफ़ॉल्ट) —",
     "config.memory_analysis.model_label":  "मॉडल",
     "config.memory_analysis.model_hint":  "खाली = प्रदाता डिफ़ॉल्ट",
@@ -34,5 +30,9 @@
     "config.memory_analysis.preset_hint":  "custom = keep manual flags",
     "config.memory_analysis.preset_full":  "Full: reflection + query expansion + reranking + real-time",
     "config.memory_analysis.preset_title":  "Rollout Preset",
-    "config.memory_analysis.preset_custom":  "Custom"
+    "config.memory_analysis.preset_custom":  "Custom",
+    "config.memory_analysis.provider_title":  "Helper LLM",
+    "config.memory_analysis.provider_label":  "Helper LLM",
+    "config.memory_analysis.disabled_desc":  "Enable it to let the agent analyze conversations and extract memory-worthy content. AuraGo uses the central Helper LLM for the batched helper path when it is available.",
+    "config.memory_analysis.provider_desc":  "Memory analysis uses the central Helper LLM from the LLM settings. If it is disabled, this feature cannot use the dedicated batched helper path."
 }

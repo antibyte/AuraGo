@@ -1,12 +1,8 @@
 {
     "config.memory_analysis.enabled_label":  "Análisis de memoria activado:",
     "config.memory_analysis.disabled_notice":  "El análisis de memoria está desactivado",
-    "config.memory_analysis.disabled_desc":  "Actívalo para que el agente use un LLM dedicado para analizar conversaciones y extraer contenido memorable. Sin proveedor se usa el LLM principal.",
     "config.memory_analysis.auto_notice":  "La estrategia adaptativa de memoria está siempre activa",
     "config.memory_analysis.auto_desc":  "AuraGo activa automáticamente contexto de memoria unificado, seguimiento de efectividad, extracción en tiempo real, expansión de consultas y reranking según la salud actual de la memoria y la calidad del retrieval.",
-    "config.memory_analysis.provider_title":  "Proveedor",
-    "config.memory_analysis.provider_desc":  "Selecciona un proveedor para el análisis de memoria. Se recomienda un modelo rápido y económico (ej. Gemini Flash, GPT-4o-mini). Vacío = LLM principal.",
-    "config.memory_analysis.provider_label":  "Proveedor",
     "config.memory_analysis.select_provider":  "— LLM principal (por defecto) —",
     "config.memory_analysis.model_label":  "Modelo",
     "config.memory_analysis.model_hint":  "vacío = modelo del proveedor",
@@ -34,5 +30,9 @@
     "config.memory_analysis.preset_hint":  "custom = keep manual flags",
     "config.memory_analysis.preset_full":  "Full: reflection + query expansion + reranking + real-time",
     "config.memory_analysis.preset_title":  "Rollout Preset",
-    "config.memory_analysis.preset_custom":  "Custom"
+    "config.memory_analysis.preset_custom":  "Custom",
+    "config.memory_analysis.provider_title":  "Helper LLM",
+    "config.memory_analysis.provider_label":  "Helper LLM",
+    "config.memory_analysis.disabled_desc":  "Enable it to let the agent analyze conversations and extract memory-worthy content. AuraGo uses the central Helper LLM for the batched helper path when it is available.",
+    "config.memory_analysis.provider_desc":  "Memory analysis uses the central Helper LLM from the LLM settings. If it is disabled, this feature cannot use the dedicated batched helper path."
 }

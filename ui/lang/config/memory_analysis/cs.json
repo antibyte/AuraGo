@@ -1,12 +1,8 @@
 {
     "config.memory_analysis.enabled_label":  "Analýza paměti aktivována:",
     "config.memory_analysis.disabled_notice":  "Analýza paměti je deaktivována",
-    "config.memory_analysis.disabled_desc":  "Povolte, aby agent mohl používat vyhrazený LLM pro analýzu konverzací a extrakci zapamatovatelného obsahu. Bez poskytovatele se použije hlavní LLM.",
     "config.memory_analysis.auto_notice":  "Adaptivní paměťová strategie je vždy aktivní",
     "config.memory_analysis.auto_desc":  "AuraGo automaticky zapíná sjednocený paměťový kontext, sledování účinnosti, extrakci v reálném čase, rozšíření dotazu a přerovnání podle aktuálního zdraví paměti a kvality retrievalu.",
-    "config.memory_analysis.provider_title":  "Poskytovatel",
-    "config.memory_analysis.provider_desc":  "Vyberte poskytovatele pro analýzu paměti. Doporučuje se rychlý, levný model (např. Gemini Flash, GPT-4o-mini). Prázdné = hlavní LLM.",
-    "config.memory_analysis.provider_label":  "Poskytovatel",
     "config.memory_analysis.select_provider":  "— Hlavní LLM (výchozí) —",
     "config.memory_analysis.model_label":  "Model",
     "config.memory_analysis.model_hint":  "prázdné = výchozí model poskytovatele",
@@ -34,5 +30,9 @@
     "config.memory_analysis.preset_hint":  "custom = keep manual flags",
     "config.memory_analysis.preset_full":  "Full: reflection + query expansion + reranking + real-time",
     "config.memory_analysis.preset_title":  "Rollout Preset",
-    "config.memory_analysis.preset_custom":  "Custom"
+    "config.memory_analysis.preset_custom":  "Custom",
+    "config.memory_analysis.provider_title":  "Helper LLM",
+    "config.memory_analysis.provider_label":  "Helper LLM",
+    "config.memory_analysis.disabled_desc":  "Enable it to let the agent analyze conversations and extract memory-worthy content. AuraGo uses the central Helper LLM for the batched helper path when it is available.",
+    "config.memory_analysis.provider_desc":  "Memory analysis uses the central Helper LLM from the LLM settings. If it is disabled, this feature cannot use the dedicated batched helper path."
 }

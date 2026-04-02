@@ -643,12 +643,11 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) string 
 		}
 		if cfg.Tools.KnowledgeGraph.ReadOnly {
 			switch tc.Operation {
-			case "add_node", "add_edge", "delete_node", "delete_edge", "optimize":
+			case "add_node", "add_edge", "delete_node", "delete_edge", "update_node", "update_edge", "optimize":
 				return `Tool Output: {"status":"error","message":"Knowledge graph is in read-only mode. Disable tools.knowledge_graph.read_only to allow changes."}`
 			}
 		}
 		logger.Info("LLM requested knowledge graph operation", "op", tc.Operation)
-		// Phase 69: Route to actual KnowledgeGraph implementation
 		switch tc.Operation {
 		case "add_node":
 			err := kg.AddNode(tc.ID, tc.Label, tc.Properties)
@@ -656,27 +655,136 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) string 
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
 			}
 			return `Tool Output: {"status": "success", "message": "Node added to graph"}`
+
 		case "add_edge":
 			err := kg.AddEdge(tc.Source, tc.Target, tc.Relation, tc.Properties)
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
 			}
 			return `Tool Output: {"status": "success", "message": "Edge added to graph"}`
+
 		case "delete_node":
 			err := kg.DeleteNode(tc.ID)
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
 			}
 			return `Tool Output: {"status": "success", "message": "Node deleted"}`
+
 		case "delete_edge":
 			err := kg.DeleteEdge(tc.Source, tc.Target, tc.Relation)
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
 			}
 			return `Tool Output: {"status": "success", "message": "Edge deleted"}`
+
+		case "update_node":
+			if tc.ID == "" {
+				return `Tool Output: {"status": "error", "message": "Node 'id' is required for update_node"}`
+			}
+			node, err := kg.UpdateNode(tc.ID, tc.Label, tc.Properties)
+			if err != nil {
+				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
+			}
+			if node == nil {
+				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Node not found: %s"}`, tc.ID)
+			}
+			data, _ := json.Marshal(map[string]interface{}{
+				"status":     "success",
+				"message":    "Node updated",
+				"id":         node.ID,
+				"label":      node.Label,
+				"properties": node.Properties,
+				"protected":  node.Protected,
+			})
+			return "Tool Output: " + string(data)
+
+		case "update_edge":
+			if tc.Source == "" || tc.Target == "" || tc.Relation == "" {
+				return `Tool Output: {"status": "error", "message": "source, target, and relation are required for update_edge"}`
+			}
+			newRel := tc.NewRelation
+			if newRel == "" {
+				newRel = tc.Relation
+			}
+			edge, err := kg.UpdateEdge(tc.Source, tc.Target, tc.Relation, newRel, tc.Properties)
+			if err != nil {
+				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
+			}
+			if edge == nil {
+				return `Tool Output: {"status": "error", "message": "Edge not found"}`
+			}
+			data, _ := json.Marshal(map[string]interface{}{
+				"status":     "success",
+				"message":    "Edge updated",
+				"source":     edge.Source,
+				"target":     edge.Target,
+				"relation":   edge.Relation,
+				"properties": edge.Properties,
+			})
+			return "Tool Output: " + string(data)
+
+		case "get_node":
+			if tc.ID == "" {
+				return `Tool Output: {"status": "error", "message": "Node 'id' is required for get_node"}`
+			}
+			node, err := kg.GetNode(tc.ID)
+			if err != nil {
+				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
+			}
+			if node == nil {
+				return fmt.Sprintf(`Tool Output: {"status": "not_found", "message": "Node not found: %s"}`, tc.ID)
+			}
+			data, _ := json.Marshal(map[string]interface{}{
+				"id":         node.ID,
+				"label":      node.Label,
+				"properties": node.Properties,
+				"protected":  node.Protected,
+			})
+			return "Tool Output: " + string(data)
+
+		case "get_neighbors":
+			if tc.ID == "" {
+				return `Tool Output: {"status": "error", "message": "Node 'id' is required for get_neighbors"}`
+			}
+			limit := tc.Limit
+			if limit <= 0 {
+				limit = 20
+			}
+			nodes, edges := kg.GetNeighbors(tc.ID, limit)
+			if len(nodes) == 0 && len(edges) == 0 {
+				return fmt.Sprintf(`Tool Output: {"status": "not_found", "message": "No neighbors found for node: %s"}`, tc.ID)
+			}
+			data, _ := json.Marshal(map[string]interface{}{
+				"center_id": tc.ID,
+				"nodes":     nodes,
+				"edges":     edges,
+			})
+			return "Tool Output: " + string(data)
+
+		case "subgraph":
+			if tc.ID == "" {
+				return `Tool Output: {"status": "error", "message": "Node 'id' is required for subgraph"}`
+			}
+			depth := tc.Depth
+			if depth <= 0 {
+				depth = 2
+			}
+			nodes, edges := kg.GetSubgraph(tc.ID, depth)
+			if len(nodes) == 0 && len(edges) == 0 {
+				return fmt.Sprintf(`Tool Output: {"status": "not_found", "message": "No subgraph found around node: %s"}`, tc.ID)
+			}
+			data, _ := json.Marshal(map[string]interface{}{
+				"center_id": tc.ID,
+				"depth":     depth,
+				"nodes":     nodes,
+				"edges":     edges,
+			})
+			return "Tool Output: " + string(data)
+
 		case "search":
 			res := kg.Search(tc.Content)
 			return fmt.Sprintf("Tool Output: %s", res)
+
 		case "optimize":
 			res := runMemoryOrchestrator(tc, cfg, logger, llmClient, longTermMem, shortTermMem, kg)
 			return fmt.Sprintf("Tool Output: %s", res)

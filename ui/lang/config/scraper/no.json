@@ -1,10 +1,10 @@
 {
-  "config.web_scraper.enabled_label": "Web Scraper ingeschakeld:",
-  "config.web_scraper.disabled_notice": "Web Scraper is uitgeschakeld",
-  "config.web_scraper.disabled_desc": "Schakel de toggle hierboven in om de agent toe te staan externe webpaginas op te halen en te analyseren.",
-  "config.web_scraper.summary_mode": "Samenvattingsmodus",
-  "config.web_scraper.summary_desc": "Gescrapete webpaginas worden naar een aparte LLM gestuurd die een samenvatting maakt. De agent ontvangt alleen de samenvatting in plaats van de volledige paginainhoud.<br><strong>Voordelen:</strong> Bespaart tokens in het hoofdmodel en voorkomt prompt injection van externe inhoud. Een goedkoop model kan hier worden geselecteerd.",
-  "config.web_scraper.summary_provider": "Samenvattingsprovider",
-  "config.web_scraper.empty_main_llm": "leeg = hoofd LLM",
-  "config.web_scraper.use_main_llm": "— Gebruik hoofd LLM —"
+    "config.web_scraper.enabled_label":  "Web Scraper ingeschakeld:",
+    "config.web_scraper.disabled_notice":  "Web Scraper is uitgeschakeld",
+    "config.web_scraper.disabled_desc":  "Schakel de toggle hierboven in om de agent toe te staan externe webpaginas op te halen en te analyseren.",
+    "config.web_scraper.summary_mode":  "Samenvattingsmodus",
+    "config.web_scraper.empty_main_llm":  "leeg = hoofd LLM",
+    "config.web_scraper.use_main_llm":  "— Gebruik hoofd LLM —",
+    "config.web_scraper.summary_provider":  "Helper LLM",
+    "config.web_scraper.summary_desc":  "Scraped web pages are summarized through the central Helper LLM when it is enabled. The agent receives the cleaned summary instead of the full page content.\u003cbr\u003e\u003cstrong\u003eBenefits:\u003c/strong\u003e saves tokens, reduces duplicate helper calls and hardens the system against prompt injection from external content."
 }

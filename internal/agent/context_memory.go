@@ -445,16 +445,10 @@ func executeContextMemoryQuery(tc ToolCall, shortTermMem *memory.SQLiteMemory, l
 		}
 	}
 
-	if sourceMap["kg"] && kg != nil {
-		kgResult := kg.SearchForContext(query, perSourceLimit, 1600)
-		if kgResult != "" && kgResult != "No matching entities found." {
-			addResult("kg", "entity_network", kgResult, "", "Structured relationships from the knowledge graph", "", 0.92)
-		}
-		if tc.IncludeRelated && contextDepth == "deep" {
-			kgRelated := kg.SearchForContext(query, perSourceLimit+2, 2400)
-			if kgRelated != "" && kgRelated != kgResult && kgRelated != "No matching entities found." {
-				addResult("kg", "related_network", kgRelated, "", "Expanded related entities", "", 0.84)
-			}
+	if sourceMap["kg"] && kg != nil && tc.IncludeRelated && contextDepth == "deep" {
+		kgRelated := kg.SearchForContext(query, perSourceLimit+2, 2400)
+		if kgRelated != "" && kgRelated != "No matching entities found." {
+			addResult("kg", "related_network", kgRelated, "", "Expanded related entities", "", 0.84)
 		}
 	}
 	sort.Slice(results, func(i, j int) bool {

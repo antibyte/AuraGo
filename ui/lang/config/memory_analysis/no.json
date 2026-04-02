@@ -1,12 +1,8 @@
 {
     "config.memory_analysis.enabled_label":  "Minneanalyse aktivert:",
     "config.memory_analysis.disabled_notice":  "Minneanalyse er deaktivert",
-    "config.memory_analysis.disabled_desc":  "Aktiver for å la agenten bruke en dedikert LLM for å analysere samtaler og hente ut minneverdig innhold. Uten leverandør brukes hoved-LLM.",
     "config.memory_analysis.auto_notice":  "Adaptiv minnestrategi er alltid aktiv",
     "config.memory_analysis.auto_desc":  "AuraGo aktiverer automatisk samlet minnekontekst, effektmåling, sanntidsuttrekk, query expansion og reranking basert på levende minnehelse og retrieval-kvalitet.",
-    "config.memory_analysis.provider_title":  "Leverandør",
-    "config.memory_analysis.provider_desc":  "Velg en leverandør for minneanalyse. En rask, rimelig modell anbefales (f.eks. Gemini Flash, GPT-4o-mini). Tom = hoved-LLM.",
-    "config.memory_analysis.provider_label":  "Leverandør",
     "config.memory_analysis.select_provider":  "— Hoved-LLM (standard) —",
     "config.memory_analysis.model_label":  "Modell",
     "config.memory_analysis.model_hint":  "tom = leverandørens standard",
@@ -34,5 +30,9 @@
     "config.memory_analysis.preset_hint":  "custom = keep manual flags",
     "config.memory_analysis.preset_full":  "Full: reflection + query expansion + reranking + real-time",
     "config.memory_analysis.preset_title":  "Rollout Preset",
-    "config.memory_analysis.preset_custom":  "Custom"
+    "config.memory_analysis.preset_custom":  "Custom",
+    "config.memory_analysis.provider_title":  "Helper LLM",
+    "config.memory_analysis.provider_label":  "Helper LLM",
+    "config.memory_analysis.disabled_desc":  "Enable it to let the agent analyze conversations and extract memory-worthy content. AuraGo uses the central Helper LLM for the batched helper path when it is available.",
+    "config.memory_analysis.provider_desc":  "Memory analysis uses the central Helper LLM from the LLM settings. If it is disabled, this feature cannot use the dedicated batched helper path."
 }

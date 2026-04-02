@@ -279,6 +279,8 @@ type ToolCall struct {
 	Target              string                   `json:"target"`
 	Relation            string                   `json:"relation"`
 	Properties          map[string]string        `json:"properties"`
+	NewRelation         string                   `json:"new_relation"`
+	Depth               int                      `json:"depth"`
 	Preview             bool                     `json:"preview"`
 	Port                int                      `json:"port"`
 	Username            string                   `json:"username"`
@@ -657,7 +659,7 @@ func dispatchInner(ctx context.Context, tc ToolCall, dc *DispatchContext) string
 		case "remember":
 			return `Tool Output: {"status": "error", "message": "Co-Agents cannot store new facts or memories."}`
 		case "manage_knowledge", "knowledge_graph":
-			if tc.Operation != "query" && tc.Operation != "search" && tc.Operation != "get" && tc.Operation != "" {
+			if tc.Operation != "query" && tc.Operation != "search" && tc.Operation != "get" && tc.Operation != "get_node" && tc.Operation != "get_neighbors" && tc.Operation != "subgraph" && tc.Operation != "" {
 				return `Tool Output: {"status": "error", "message": "Co-Agents cannot modify the knowledge graph. Only read operations are allowed."}`
 			}
 		case "get_secret", "secrets_vault":

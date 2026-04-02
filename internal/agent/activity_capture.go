@@ -203,10 +203,7 @@ func syncActivityTurnToKnowledgeGraph(kg *memory.KnowledgeGraph, turnID int64, d
 			if a > b {
 				a, b = b, a
 			}
-			_ = kg.AddEdge(a, b, "co_mentioned_with", map[string]string{
-				"source": "activity_turn",
-				"date":   date,
-			})
+			_ = kg.IncrementCoOccurrence(a, b, date)
 		}
 	}
 }
