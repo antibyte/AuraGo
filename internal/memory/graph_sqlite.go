@@ -89,6 +89,10 @@ func NewKnowledgeGraph(dbPath string, jsonMigratePath string, logger *slog.Logge
 
 	// SQLite is single-writer; cap connections to prevent locking errors
 	db.SetMaxOpenConns(1)
+	// Retry for up to 5 s when another writer holds the lock (prevents SQLITE_BUSY).
+	if _, err := db.Exec("PRAGMA busy_timeout=5000"); err != nil {
+		logger.Warn("KG: failed to set busy_timeout", "error", err)
+	}
 
 	kg := &KnowledgeGraph{
 		db:          db,
@@ -172,6 +176,10 @@ func (kg *KnowledgeGraph) accessCountWorker() {
 	}
 }
 
+// kgFTSSchemaVersion must be bumped whenever the FTS CREATE VIRTUAL TABLE or
+// trigger definitions in rebuildFTSIndexes change, so old databases re-index.
+const kgFTSSchemaVersion = "v1"
+
 func (kg *KnowledgeGraph) initTables() error {
 	schema := `
 	CREATE TABLE IF NOT EXISTS kg_nodes (
@@ -200,6 +208,7 @@ func (kg *KnowledgeGraph) initTables() error {
 
 	CREATE INDEX IF NOT EXISTS idx_kg_edges_source ON kg_edges(source);
 	CREATE INDEX IF NOT EXISTS idx_kg_edges_target ON kg_edges(target);
+	CREATE TABLE IF NOT EXISTS kg_meta (key TEXT PRIMARY KEY, value TEXT);
 	`
 	if _, err := kg.db.Exec(schema); err != nil {
 		return fmt.Errorf("create kg tables: %w", err)
@@ -213,8 +222,13 @@ func (kg *KnowledgeGraph) initTables() error {
 		kg.db.Exec(m)
 	}
 
-	if err := kg.rebuildFTSIndexes(); err != nil {
-		return err
+	var storedFTSVersion string
+	kg.db.QueryRow(`SELECT value FROM kg_meta WHERE key = 'fts_schema_version'`).Scan(&storedFTSVersion)
+	if storedFTSVersion != kgFTSSchemaVersion {
+		if err := kg.rebuildFTSIndexes(); err != nil {
+			return err
+		}
+		kg.db.Exec(`INSERT OR REPLACE INTO kg_meta (key, value) VALUES ('fts_schema_version', ?)`, kgFTSSchemaVersion)
 	}
 
 	return nil
@@ -1742,18 +1756,25 @@ func (kg *KnowledgeGraph) GetSubgraph(centerNodeID string, maxDepth int) ([]Node
 
 		var discoveredEdges []Edge
 		var neighborIDs []string
-		for _, nid := range levelNodeIDs {
-			edges, err := kg.db.Query(`
-				SELECT source, target, relation, properties FROM kg_edges
-				WHERE source = ? OR target = ?
-			`, nid, nid)
-			if err != nil {
-				continue
-			}
-			for edges.Next() {
+		// Batch all level nodes into a single IN(...) query instead of one query per node.
+		placeholders := make([]string, len(levelNodeIDs))
+		batchArgs := make([]interface{}, len(levelNodeIDs)*2)
+		for i, nid := range levelNodeIDs {
+			placeholders[i] = "?"
+			batchArgs[i] = nid
+			batchArgs[len(levelNodeIDs)+i] = nid
+		}
+		batchEdgeQuery := fmt.Sprintf(
+			`SELECT source, target, relation, properties FROM kg_edges WHERE source IN (%s) OR target IN (%s)`,
+			strings.Join(placeholders, ","),
+			strings.Join(placeholders, ","),
+		)
+		batchRows, batchErr := kg.db.Query(batchEdgeQuery, batchArgs...)
+		if batchErr == nil {
+			for batchRows.Next() {
 				var e Edge
 				var propsJSON string
-				if edges.Scan(&e.Source, &e.Target, &e.Relation, &propsJSON) == nil {
+				if batchRows.Scan(&e.Source, &e.Target, &e.Relation, &propsJSON) == nil {
 					json.Unmarshal([]byte(propsJSON), &e.Properties)
 					if e.Properties == nil {
 						e.Properties = make(map[string]string)
@@ -1763,15 +1784,17 @@ func (kg *KnowledgeGraph) GetSubgraph(centerNodeID string, maxDepth int) ([]Node
 						allEdges[edgeKey] = e
 						discoveredEdges = append(discoveredEdges, e)
 					}
-					if e.Source != nid && !visited[e.Source] {
+					// visited already contains all levelNodeIDs, so this correctly
+					// identifies only new (not-yet-seen) neighbor nodes.
+					if !visited[e.Source] {
 						neighborIDs = append(neighborIDs, e.Source)
 					}
-					if e.Target != nid && !visited[e.Target] {
+					if !visited[e.Target] {
 						neighborIDs = append(neighborIDs, e.Target)
 					}
 				}
 			}
-			edges.Close()
+			batchRows.Close()
 		}
 
 		if len(neighborIDs) == 0 {

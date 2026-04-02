@@ -1044,6 +1044,20 @@ var relaxedKeywords = []string{
 	"avslappnad", "rolig", "ingen stress", "alt bra",
 }
 
+// Pre-compiled keyword regexes — built once at startup from the keyword slices above.
+// Using regexp instead of matchesAny eliminates ~200 strings.Contains calls per message.
+var (
+	rxPlayful     = buildKeywordRx(playfulKeywords)
+	rxPositive    = buildKeywordRx(positiveKeywords)
+	rxNegative    = buildKeywordRx(negativeKeywords)
+	rxAnalytical  = buildKeywordRx(analyticalKeywords)
+	rxCreative    = buildKeywordRx(creativeKeywords)
+	rxCurious     = buildKeywordRx(curiousKeywords)
+	rxFrustration = buildKeywordRx(frustrationKeywords)
+	rxConcerned   = buildKeywordRx(concernedKeywords)
+	rxRelaxed     = buildKeywordRx(relaxedKeywords)
+)
+
 // DetectMood analyses the user message + tool result to determine the agent's next mood.
 // Returns the detected mood and the trait adjustments to apply.
 func DetectMood(userMsg, toolResult string, meta PersonalityMeta) (Mood, map[string]float64) {
@@ -1063,16 +1077,16 @@ func DetectMood(userMsg, toolResult string, meta PersonalityMeta) (Mood, map[str
 	hasPositiveEmoji := containsAnyRuneSet(lower, positiveEmojiSet)
 	hasNegativeEmoji := containsAnyRuneSet(lower, negativeEmojiSet)
 
-	// ── Tier 2: Keyword matching ────────────────────────────────────────────
-	isPlayful := matchesAny(lower, playfulKeywords)
-	isPositive := matchesAny(lower, positiveKeywords) || hasPositiveEmoji
-	isNegative := matchesAny(lower, negativeKeywords) || hasNegativeEmoji
-	isAnalytical := matchesAny(lower, analyticalKeywords)
-	isCreative := matchesAny(lower, creativeKeywords)
-	isCurious := matchesAny(lower, curiousKeywords)
-	isFrustrated := matchesAny(lower, frustrationKeywords)
-	isConcerned := matchesAny(lower, concernedKeywords)
-	isRelaxed := matchesAny(lower, relaxedKeywords)
+	// ── Tier 2: Keyword matching (pre-compiled regex, O(log n) per category) ──
+	isPlayful := rxPlayful.MatchString(lower)
+	isPositive := rxPositive.MatchString(lower) || hasPositiveEmoji
+	isNegative := rxNegative.MatchString(lower) || hasNegativeEmoji
+	isAnalytical := rxAnalytical.MatchString(lower)
+	isCreative := rxCreative.MatchString(lower)
+	isCurious := rxCurious.MatchString(lower)
+	isFrustrated := rxFrustration.MatchString(lower)
+	isConcerned := rxConcerned.MatchString(lower)
+	isRelaxed := rxRelaxed.MatchString(lower)
 
 	// ── Tier 3: Short-message heuristic ─────────────────────────────────────
 	// Short messages (≤30 chars) without question marks are likely feedback

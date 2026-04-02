@@ -62,6 +62,21 @@ func (kg *KnowledgeGraph) EnableSemanticSearch(cfg *config.Config) error {
 	return kg.enableSemanticSearchWithCollection(db, embeddingFunc, kg.logger)
 }
 
+// EnableSemanticSearchShared reuses an already-open chromem.DB and its embedding
+// function from the long-term memory subsystem, avoiding a second database
+// handle for the same on-disk VectorDB directory.
+//
+// Use this instead of EnableSemanticSearch when longTermMem.IsDisabled() == false.
+func (kg *KnowledgeGraph) EnableSemanticSearchShared(db *chromem.DB, embeddingFunc chromem.EmbeddingFunc) error {
+	if db == nil {
+		return fmt.Errorf("shared db is required")
+	}
+	if embeddingFunc == nil {
+		return fmt.Errorf("embedding func is required")
+	}
+	return kg.enableSemanticSearchWithCollection(db, embeddingFunc, kg.logger)
+}
+
 func (kg *KnowledgeGraph) enableSemanticSearchWithCollection(db *chromem.DB, embeddingFunc chromem.EmbeddingFunc, logger *slog.Logger) error {
 	if db == nil {
 		return fmt.Errorf("semantic db is required")

@@ -175,7 +175,15 @@ func (hm *HistoryManager) save() error {
 		Messages:       make([]HistoryMessage, len(hm.Messages)),
 		CurrentSummary: hm.CurrentSummary,
 	}
-	copy(snapshot.Messages, hm.Messages)
+	// Deep-copy each message so ToolCalls slices are not shared with the live slice.
+	for i, m := range hm.Messages {
+		msg := m
+		if len(m.ToolCalls) > 0 {
+			msg.ToolCalls = make([]openai.ToolCall, len(m.ToolCalls))
+			copy(msg.ToolCalls, m.ToolCalls)
+		}
+		snapshot.Messages[i] = msg
+	}
 	hm.mu.Unlock()
 
 	data, err := json.MarshalIndent(snapshot, "", "  ")

@@ -245,6 +245,10 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 	if _, err := db.Exec("PRAGMA foreign_keys = ON"); err != nil {
 		logger.Warn("Failed to enable foreign key constraints", "error", err)
 	}
+	// Retry for up to 5 s when another writer holds the lock (prevents SQLITE_BUSY).
+	if _, err := db.Exec("PRAGMA busy_timeout=5000"); err != nil {
+		logger.Warn("Failed to set busy_timeout", "error", err)
+	}
 	db.SetMaxOpenConns(1)
 
 	if err := applySQLiteMemoryMigrations(db, logger); err != nil {

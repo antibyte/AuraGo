@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"regexp"
 	"strings"
 
 	"github.com/sashabaranov/go-openai"
@@ -127,6 +128,16 @@ func matchesAny(lower string, keywords []string) bool {
 		}
 	}
 	return false
+}
+
+// buildKeywordRx compiles a pre-compiled OR-regex from a keyword list.
+// Each keyword is QuoteMeta'd so special chars (umlauts, punctuation) are safe.
+func buildKeywordRx(keywords []string) *regexp.Regexp {
+	quoted := make([]string, len(keywords))
+	for i, kw := range keywords {
+		quoted[i] = regexp.QuoteMeta(kw)
+	}
+	return regexp.MustCompile(strings.Join(quoted, "|"))
 }
 
 // ClampTrait ensures a value stays within [0.0, 1.0].

@@ -73,6 +73,18 @@ func (cv *ChromemVectorDB) Close() error {
 	return nil
 }
 
+// GetDB returns the underlying chromem.DB so other subsystems (e.g. KnowledgeGraph
+// semantic index) can share the same open database handle instead of opening a second one.
+func (cv *ChromemVectorDB) GetDB() *chromem.DB {
+	return cv.db
+}
+
+// GetEmbeddingFunc returns the embedding function used by this VectorDB instance,
+// allowing it to be shared with the KnowledgeGraph semantic index.
+func (cv *ChromemVectorDB) GetEmbeddingFunc() chromem.EmbeddingFunc {
+	return cv.embeddingFunc
+}
+
 // Count returns the total number of documents across all collections
 // (aurago_memories, tool_guides, documentation).
 // Returns the persisted count even when the embedding pipeline is disabled,

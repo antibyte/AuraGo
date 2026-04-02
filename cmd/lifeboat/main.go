@@ -193,8 +193,12 @@ func runOperation(cfg *config.Config, statePath, planPath string, l *slog.Logger
 	if err != nil {
 		return fmt.Errorf("knowledge graph init failed: %w", err)
 	}
-	if err := kg.EnableSemanticSearch(cfg); err != nil {
-		l.Warn("Failed to enable KG semantic search", "error", err)
+	if !longTermMem.IsDisabled() {
+		if err := kg.EnableSemanticSearchShared(longTermMem.GetDB(), longTermMem.GetEmbeddingFunc()); err != nil {
+			l.Warn("Failed to enable KG semantic search", "error", err)
+		}
+	} else {
+		l.Info("KG semantic search skipped (embeddings disabled)")
 	}
 	manifest := tools.NewManifest(cfg.Directories.ToolsDir)
 

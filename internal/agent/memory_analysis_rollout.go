@@ -147,6 +147,12 @@ func resolveMemoryAnalysisSettings(cfg *config.Config, stm *memory.SQLiteMemory)
 		settings:  settings,
 		expiresAt: now.Add(30 * time.Second),
 	}
+	// Sweep expired entries on every write to prevent unbounded map growth.
+	for k, v := range memoryAnalysisSettingsCache.entries {
+		if now.After(v.expiresAt) {
+			delete(memoryAnalysisSettingsCache.entries, k)
+		}
+	}
 	memoryAnalysisSettingsCache.mu.Unlock()
 
 	return settings

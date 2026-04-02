@@ -695,8 +695,12 @@ func main() {
 		return
 	}
 	defer kg.Close()
-	if err := kg.EnableSemanticSearch(cfg); err != nil {
-		appLog.Warn("Failed to enable KG semantic search", "error", err)
+	if !longTermMem.IsDisabled() {
+		if err := kg.EnableSemanticSearchShared(longTermMem.GetDB(), longTermMem.GetEmbeddingFunc()); err != nil {
+			appLog.Warn("Failed to enable KG semantic search", "error", err)
+		}
+	} else {
+		appLog.Info("KG semantic search skipped (embeddings disabled)")
 	}
 
 	// Handle Recovery Context

@@ -93,6 +93,13 @@ func runMaintenanceTask(cfg *config.Config, logger *slog.Logger, client llm.Chat
 			logger.Info("[Maintenance] Cleaned old archive events", "deleted", deletedEvents)
 		}
 
+		deletedMoodLog, err := shortTermMem.CleanOldMoodLog(30)
+		if err != nil {
+			logger.Error("[Maintenance] Failed to clean old mood log entries", "error", err)
+		} else if deletedMoodLog > 0 {
+			logger.Info("[Maintenance] Cleaned old mood log entries", "deleted", deletedMoodLog)
+		}
+
 		cleanDays := cfg.Agent.AdaptiveTools.CleanTransitionsAfterDays
 		if cleanDays <= 0 {
 			cleanDays = 90

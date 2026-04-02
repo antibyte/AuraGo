@@ -878,6 +878,15 @@ func (s *SQLiteMemory) CleanOldArchiveEvents(olderThanDays int) (int64, error) {
 	return res.RowsAffected()
 }
 
+// CleanOldMoodLog removes mood_log entries older than the given number of days.
+func (s *SQLiteMemory) CleanOldMoodLog(olderThanDays int) (int64, error) {
+	res, err := s.db.Exec(`DELETE FROM mood_log WHERE timestamp < datetime('now', '-' || ? || ' days');`, olderThanDays)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
+}
+
 // PredictNextQuery combines tool-transition history with temporal interaction patterns
 // to predict what topics the user is likely interested in right now.
 // Returns up to `limit` predicted topic strings.
