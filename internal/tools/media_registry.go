@@ -91,8 +91,40 @@ func InitMediaRegistryDB(dbPath string) (*sql.DB, error) {
 		db.Close()
 		return nil, fmt.Errorf("failed to create media registry schema: %w", err)
 	}
+	if err := repairLegacyMediaTypes(db); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("failed to repair legacy media types: %w", err)
+	}
 
 	return db, nil
+}
+
+func repairLegacyMediaTypes(db *sql.DB) error {
+	repairs := []struct {
+		mediaType string
+		patterns  []string
+	}{
+		{mediaType: "document", patterns: []string{".pdf", ".doc", ".docx", ".txt", ".md", ".rtf", ".odt", ".csv", ".json", ".yaml", ".yml", ".xls", ".xlsx", ".ppt", ".pptx"}},
+		{mediaType: "audio", patterns: []string{".mp3", ".wav", ".ogg", ".m4a", ".aac", ".flac"}},
+	}
+
+	for _, repair := range repairs {
+		var clauses []string
+		var args []interface{}
+		for _, ext := range repair.patterns {
+			clauses = append(clauses, "LOWER(filename) LIKE ?")
+			args = append(args, "%"+ext)
+			clauses = append(clauses, "LOWER(file_path) LIKE ?")
+			args = append(args, "%"+ext)
+		}
+		query := "UPDATE media_items SET media_type = ?, updated_at = CURRENT_TIMESTAMP WHERE deleted = 0 AND media_type = 'image' AND (" + strings.Join(clauses, " OR ") + ")"
+		args = append([]interface{}{repair.mediaType}, args...)
+		if _, err := db.Exec(query, args...); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // RegisterMedia inserts a new media item. Returns the ID. Skips if hash is non-empty and already exists.

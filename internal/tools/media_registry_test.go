@@ -171,6 +171,40 @@ func TestInferMediaType(t *testing.T) {
 	}
 }
 
+func TestInitMediaRegistryDBRepairsLegacyDocumentType(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+
+	db, err := InitMediaRegistryDB(dbPath)
+	if err != nil {
+		t.Fatalf("init db: %v", err)
+	}
+	if _, _, err := RegisterMedia(db, MediaItem{
+		MediaType: "image",
+		Filename:  "legacy.pdf",
+		FilePath:  "/files/legacy.pdf",
+	}); err != nil {
+		t.Fatalf("register legacy item: %v", err)
+	}
+	db.Close()
+
+	db, err = InitMediaRegistryDB(dbPath)
+	if err != nil {
+		t.Fatalf("re-init db: %v", err)
+	}
+	defer db.Close()
+
+	results, _, err := SearchMedia(db, "", "document", nil, 10, 0)
+	if err != nil {
+		t.Fatalf("SearchMedia failed: %v", err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("expected 1 repaired document result, got %d", len(results))
+	}
+	if results[0].MediaType != "document" {
+		t.Fatalf("media_type = %q, want %q", results[0].MediaType, "document")
+	}
+}
+
 func TestTagMedia(t *testing.T) {
 	db, err := InitMediaRegistryDB(filepath.Join(t.TempDir(), "test.db"))
 	if err != nil {
