@@ -178,6 +178,14 @@ func NativeToolCallToToolCall(native openai.ToolCall, logger *slog.Logger) ToolC
 	// Unmarshal the arguments JSON into the ToolCall struct.
 	// Pre-normalize arrays in string fields (e.g. "tags") to avoid type-mismatch errors.
 	normalizedArgs := normalizeTagsInJSON(native.Function.Arguments)
+	var rawMap map[string]interface{}
+	rawMapOK := json.Unmarshal([]byte(normalizedArgs), &rawMap) == nil
+	if rawMapOK {
+		tc.Params = rawMap
+		if decoded, ok := decodeExecuteSkillNativeToolCall(tc, normalizedArgs); ok {
+			return decoded
+		}
+	}
 	if err := json.Unmarshal([]byte(normalizedArgs), &tc); err != nil {
 		tc.NativeArgsMalformed = true
 		tc.NativeArgsError = err.Error()
@@ -187,8 +195,7 @@ func NativeToolCallToToolCall(native openai.ToolCall, logger *slog.Logger) ToolC
 				"name", native.Function.Name, "error", err)
 		}
 		// Fallback 1: try to put the raw args into Params (works for valid-but-unexpected JSON)
-		var rawMap map[string]interface{}
-		if json.Unmarshal([]byte(native.Function.Arguments), &rawMap) == nil {
+		if !rawMapOK && json.Unmarshal([]byte(native.Function.Arguments), &rawMap) == nil {
 			tc.Params = rawMap
 		}
 		// Fallback 2: for truncated/malformed JSON, extract known string fields via regex.
@@ -246,6 +253,46 @@ func NativeToolCallToToolCall(native openai.ToolCall, logger *slog.Logger) ToolC
 	}
 
 	return tc
+}
+
+func decodeExecuteSkillNativeToolCall(base ToolCall, normalizedArgs string) (ToolCall, bool) {
+	if base.Action != "execute_skill" {
+		return base, false
+	}
+
+	var envelope executeSkillNativeEnvelope
+	if err := json.Unmarshal([]byte(normalizedArgs), &envelope); err != nil {
+		return base, false
+	}
+
+	skillName := strings.TrimSpace(envelope.Skill)
+	if skillName == "" {
+		skillName = strings.TrimSpace(envelope.SkillName)
+	}
+	if skillName == "" {
+		return base, false
+	}
+
+	base.Skill = skillName
+	params := decodeJSONObject(envelope.Params)
+	skillArgs := decodeJSONObject(envelope.SkillArgs)
+	if len(params) > 0 {
+		base.Params = params
+	}
+	if len(skillArgs) > 0 {
+		base.SkillArgs = skillArgs
+		if len(params) == 0 {
+			base.Params = skillArgs
+		}
+	}
+	if base.SkillArgs == nil && len(base.Params) > 0 {
+		base.SkillArgs = base.Params
+	}
+	if base.Params == nil && len(base.SkillArgs) > 0 {
+		base.Params = base.SkillArgs
+	}
+
+	return base, true
 }
 
 // BuildNativeToolSchemas returns the full tool list: built-ins + registered skills + custom tools.

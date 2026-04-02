@@ -377,6 +377,63 @@ func TestNativeToolCallToToolCallVirusTotalFields(t *testing.T) {
 	if tc.Mode != "auto" {
 		t.Fatalf("Mode = %q, want auto", tc.Mode)
 	}
+	if got, _ := tc.Params["resource"].(string); got != "example.com" {
+		t.Fatalf("Params[resource] = %q, want example.com", got)
+	}
+}
+
+func TestNativeToolCallToToolCallPreservesUnknownBuiltinArgsInParams(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+
+	native := openai.ToolCall{
+		ID:   "call_web_scraper",
+		Type: openai.ToolTypeFunction,
+		Function: openai.FunctionCall{
+			Name:      "web_scraper",
+			Arguments: `{"url":"https://example.com","search_query":"find the pricing details"}`,
+		},
+	}
+
+	tc := NativeToolCallToToolCall(native, logger)
+	if tc.Action != "web_scraper" {
+		t.Fatalf("Action = %q, want web_scraper", tc.Action)
+	}
+	if got, _ := tc.Params["url"].(string); got != "https://example.com" {
+		t.Fatalf("Params[url] = %q, want https://example.com", got)
+	}
+	if got, _ := tc.Params["search_query"].(string); got != "find the pricing details" {
+		t.Fatalf("Params[search_query] = %q, want find the pricing details", got)
+	}
+}
+
+func TestNativeToolCallToToolCallExecuteSkillUsesRawEnvelope(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+
+	native := openai.ToolCall{
+		ID:   "call_execute_skill",
+		Type: openai.ToolTypeFunction,
+		Function: openai.FunctionCall{
+			Name:      "execute_skill",
+			Arguments: `{"skill":"paperless","skill_args":{"operation":"search","name":"Invoices","limit":3}}`,
+		},
+	}
+
+	tc := NativeToolCallToToolCall(native, logger)
+	if tc.Action != "execute_skill" {
+		t.Fatalf("Action = %q, want execute_skill", tc.Action)
+	}
+	if tc.Skill != "paperless" {
+		t.Fatalf("Skill = %q, want paperless", tc.Skill)
+	}
+	if got, _ := tc.SkillArgs["name"].(string); got != "Invoices" {
+		t.Fatalf("SkillArgs[name] = %q, want Invoices", got)
+	}
+	if got, _ := tc.Params["operation"].(string); got != "search" {
+		t.Fatalf("Params[operation] = %q, want search", got)
+	}
+	if got, _ := tc.Params["limit"].(float64); got != 3 {
+		t.Fatalf("Params[limit] = %v, want 3", got)
+	}
 }
 
 func TestNativeToolCallToToolCallHomepageSubOperationPreservesToolAction(t *testing.T) {

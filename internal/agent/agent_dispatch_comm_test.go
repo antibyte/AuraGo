@@ -52,6 +52,24 @@ func TestSynthesizeExecuteSkillArgsPromotesTopLevelFields(t *testing.T) {
 	}
 }
 
+func TestBuiltinArgsFromToolCallMergesRawParams(t *testing.T) {
+	tc := ToolCall{
+		Action: "web_scraper",
+		URL:    "https://example.com",
+		Params: map[string]interface{}{
+			"search_query": "find pricing",
+		},
+	}
+
+	args := builtinArgsFromToolCall(tc)
+	if got, _ := args["url"].(string); got != "https://example.com" {
+		t.Fatalf("url = %q, want https://example.com", got)
+	}
+	if got, _ := args["search_query"].(string); got != "find pricing" {
+		t.Fatalf("search_query = %q, want find pricing", got)
+	}
+}
+
 func TestFilterExecuteSkillArgsUsesManifestParameters(t *testing.T) {
 	skillsDir := t.TempDir()
 	manifest := `{

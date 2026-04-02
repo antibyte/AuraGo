@@ -16,10 +16,10 @@ func handleBuiltinSkillAction(ctx context.Context, dc *DispatchContext, action s
 		if !cfg.Tools.WebScraper.Enabled {
 			return "Tool Output: [PERMISSION DENIED] web_scraper is disabled in settings (tools.web_scraper.enabled: false).", true
 		}
-		urlStr := skillArgString(args, "url")
-		scraped := tools.ExecuteWebScraper(urlStr)
+		req := decodeWebScraperArgs(args)
+		scraped := tools.ExecuteWebScraper(req.URL)
 		if cfg.Tools.WebScraper.SummaryMode {
-			searchQuery := skillArgString(args, "search_query")
+			searchQuery := req.SearchQuery
 			if searchQuery == "" {
 				searchQuery = "general summary of the page content"
 			}
@@ -33,13 +33,12 @@ func handleBuiltinSkillAction(ctx context.Context, dc *DispatchContext, action s
 		return scraped, true
 
 	case "wikipedia_search":
-		queryStr := skillArgString(args, "query")
-		langStr := skillArgString(args, "language")
-		result := tools.ExecuteWikipediaSearch(queryStr, langStr)
+		req := decodeWikipediaSearchArgs(args)
+		result := tools.ExecuteWikipediaSearch(req.Query, req.Language)
 		if cfg.Tools.Wikipedia.SummaryMode {
-			searchQuery := skillArgString(args, "search_query")
+			searchQuery := req.SearchQuery
 			if searchQuery == "" {
-				searchQuery = "summarise the key facts about: " + queryStr
+				searchQuery = "summarise the key facts about: " + req.Query
 			}
 			summary, err := tools.SummariseContent(ctx, tools.ResolveSummaryLLMConfig(cfg, tools.SummaryLLMConfig{
 				APIKey:  cfg.Tools.Wikipedia.SummaryAPIKey,
@@ -55,13 +54,12 @@ func handleBuiltinSkillAction(ctx context.Context, dc *DispatchContext, action s
 		return result, true
 
 	case "ddg_search":
-		queryStr := skillArgString(args, "query")
-		maxRes := skillArgInt(args, 5, "max_results")
-		result := tools.ExecuteDDGSearch(queryStr, maxRes)
+		req := decodeDDGSearchArgs(args)
+		result := tools.ExecuteDDGSearch(req.Query, req.MaxResults)
 		if cfg.Tools.DDGSearch.SummaryMode {
-			searchQuery := skillArgString(args, "search_query")
+			searchQuery := req.SearchQuery
 			if searchQuery == "" {
-				searchQuery = "synthesise the most relevant findings for: " + queryStr
+				searchQuery = "synthesise the most relevant findings for: " + req.Query
 			}
 			summary, err := tools.SummariseContent(ctx, tools.ResolveSummaryLLMConfig(cfg, tools.SummaryLLMConfig{
 				APIKey:  cfg.Tools.DDGSearch.SummaryAPIKey,
@@ -80,35 +78,35 @@ func handleBuiltinSkillAction(ctx context.Context, dc *DispatchContext, action s
 		if !cfg.VirusTotal.Enabled {
 			return `Tool Output: {"status": "error", "message": "VirusTotal integration is not enabled. Set virustotal.enabled=true in config.yaml."}`, true
 		}
+		req := decodeVirusTotalScanArgs(args)
 		return tools.ExecuteVirusTotalScanWithOptions(cfg.VirusTotal.APIKey, tools.VirusTotalOptions{
-			Resource: skillArgString(args, "resource"),
-			FilePath: skillArgString(args, "file_path", "path", "filepath"),
-			Mode:     skillArgString(args, "mode"),
+			Resource: req.Resource,
+			FilePath: req.FilePath,
+			Mode:     req.Mode,
 		}), true
 
 	case "brave_search":
 		if !cfg.BraveSearch.Enabled {
-			return `Tool Output: {"status": "error", "message": "Brave Search integration is not enabled. Enable it in Settings › Brave Search."}`, true
+			return `Tool Output: {"status": "error", "message": "Brave Search integration is not enabled. Enable it in Settings > Brave Search."}`, true
 		}
-		queryStr := skillArgString(args, "query")
-		count := skillArgInt(args, 10, "count")
-		country := skillArgString(args, "country")
+		req := decodeBraveSearchArgs(args)
+		country := req.Country
 		if country == "" {
 			country = cfg.BraveSearch.Country
 		}
-		lang := skillArgString(args, "lang")
+		lang := req.Lang
 		if lang == "" {
 			lang = cfg.BraveSearch.Lang
 		}
-		return tools.ExecuteBraveSearch(cfg.BraveSearch.APIKey, queryStr, count, country, lang), true
+		return tools.ExecuteBraveSearch(cfg.BraveSearch.APIKey, req.Query, req.Count, country, lang), true
 
 	case "paperless", "paperless_ngx":
 		if !cfg.PaperlessNGX.Enabled {
 			return `Tool Output: {"status": "error", "message": "Paperless-ngx integration is not enabled. Set paperless_ngx.enabled=true in config.yaml."}`, true
 		}
-		op := skillArgString(args, "operation")
+		req := decodePaperlessArgs(args)
 		if cfg.PaperlessNGX.ReadOnly {
-			switch op {
+			switch req.Operation {
 			case "upload", "post", "update", "patch", "delete", "rm":
 				return `Tool Output: {"status":"error","message":"Paperless-ngx is in read-only mode. Disable paperless_ngx.readonly to allow changes."}`, true
 			}
@@ -117,40 +115,29 @@ func handleBuiltinSkillAction(ctx context.Context, dc *DispatchContext, action s
 			URL:      cfg.PaperlessNGX.URL,
 			APIToken: cfg.PaperlessNGX.APIToken,
 		}
-		docID := skillArgString(args, "document_id", "id")
-		query := skillArgString(args, "query")
-		if query == "" {
-			query = skillArgString(args, "content")
-		}
-		content := skillArgString(args, "content")
-		title := skillArgString(args, "title")
-		tagsStr := skillArgString(args, "tags")
-		corrName := skillArgString(args, "name")
-		category := skillArgString(args, "category")
-		limit := skillArgInt(args, 0, "limit")
 		logSuffix := ""
 		if viaSkill {
 			logSuffix = " (via skill)"
 		}
-		switch op {
+		switch req.Operation {
 		case "search", "find", "query":
-			logger.Info("LLM requested Paperless search"+logSuffix, "query", query)
-			return "Tool Output: " + tools.PaperlessSearch(plCfg, query, tagsStr, corrName, category, limit), true
+			logger.Info("LLM requested Paperless search"+logSuffix, "query", req.Query)
+			return "Tool Output: " + tools.PaperlessSearch(plCfg, req.Query, req.Tags, req.Name, req.Category, req.Limit), true
 		case "get", "info":
-			logger.Info("LLM requested Paperless get"+logSuffix, "document_id", docID)
-			return "Tool Output: " + tools.PaperlessGet(plCfg, docID), true
+			logger.Info("LLM requested Paperless get"+logSuffix, "document_id", req.DocumentID)
+			return "Tool Output: " + tools.PaperlessGet(plCfg, req.DocumentID), true
 		case "download", "read", "content":
-			logger.Info("LLM requested Paperless download"+logSuffix, "document_id", docID)
-			return "Tool Output: " + tools.PaperlessDownload(plCfg, docID), true
+			logger.Info("LLM requested Paperless download"+logSuffix, "document_id", req.DocumentID)
+			return "Tool Output: " + tools.PaperlessDownload(plCfg, req.DocumentID), true
 		case "upload", "post":
-			logger.Info("LLM requested Paperless upload"+logSuffix, "title", title)
-			return "Tool Output: " + tools.PaperlessUpload(plCfg, title, content, tagsStr, corrName, category), true
+			logger.Info("LLM requested Paperless upload"+logSuffix, "title", req.Title)
+			return "Tool Output: " + tools.PaperlessUpload(plCfg, req.Title, req.Content, req.Tags, req.Name, req.Category), true
 		case "update", "patch":
-			logger.Info("LLM requested Paperless update"+logSuffix, "document_id", docID)
-			return "Tool Output: " + tools.PaperlessUpdate(plCfg, docID, title, tagsStr, corrName, category), true
+			logger.Info("LLM requested Paperless update"+logSuffix, "document_id", req.DocumentID)
+			return "Tool Output: " + tools.PaperlessUpdate(plCfg, req.DocumentID, req.Title, req.Tags, req.Name, req.Category), true
 		case "delete", "rm":
-			logger.Info("LLM requested Paperless delete"+logSuffix, "document_id", docID)
-			return "Tool Output: " + tools.PaperlessDelete(plCfg, docID), true
+			logger.Info("LLM requested Paperless delete"+logSuffix, "document_id", req.DocumentID)
+			return "Tool Output: " + tools.PaperlessDelete(plCfg, req.DocumentID), true
 		case "list_tags", "tags":
 			logger.Info("LLM requested Paperless list tags" + logSuffix)
 			return "Tool Output: " + tools.PaperlessListTags(plCfg), true
@@ -168,37 +155,6 @@ func handleBuiltinSkillAction(ctx context.Context, dc *DispatchContext, action s
 	return "", false
 }
 
-func skillArgString(args map[string]interface{}, keys ...string) string {
-	for _, key := range keys {
-		if raw, ok := args[key]; ok {
-			if value, ok := raw.(string); ok && value != "" {
-				return value
-			}
-		}
-	}
-	return ""
-}
-
-func skillArgInt(args map[string]interface{}, fallback int, keys ...string) int {
-	for _, key := range keys {
-		if raw, ok := args[key]; ok {
-			switch value := raw.(type) {
-			case int:
-				return value
-			case int32:
-				return int(value)
-			case int64:
-				return int(value)
-			case float64:
-				return int(value)
-			case float32:
-				return int(value)
-			}
-		}
-	}
-	return fallback
-}
-
 func synthesizeDirectBuiltinArgs(tc ToolCall) map[string]interface{} {
 	args := synthesizeExecuteSkillArgs(tc)
 	if args == nil {
@@ -208,7 +164,7 @@ func synthesizeDirectBuiltinArgs(tc ToolCall) map[string]interface{} {
 }
 
 func handleDirectBuiltinSkillAction(ctx context.Context, tc ToolCall, dc *DispatchContext) (string, bool) {
-	return handleBuiltinSkillAction(ctx, dc, tc.Action, synthesizeDirectBuiltinArgs(tc), false)
+	return handleBuiltinSkillAction(ctx, dc, tc.Action, builtinArgsFromToolCall(tc), false)
 }
 
 func handleExecuteSkillBuiltinAction(ctx context.Context, dc *DispatchContext, skillName string, args map[string]interface{}) (string, bool) {
