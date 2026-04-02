@@ -2,6 +2,7 @@ package tools
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -118,6 +119,55 @@ func TestSearchMedia(t *testing.T) {
 	results, _, _ = SearchMedia(db, "", "image", nil, 10, 0)
 	if len(results) != 2 {
 		t.Errorf("expected 2 image results, got %d", len(results))
+	}
+}
+
+func TestDispatchMediaRegistryInfersDocumentType(t *testing.T) {
+	db, err := InitMediaRegistryDB(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("init db: %v", err)
+	}
+	defer db.Close()
+
+	resp := DispatchMediaRegistry(db, "register", "", "", "News PDF", nil, "", 0, 10, 0, "ki-news-latest.pdf", "/files/ki-news-latest.pdf")
+	if !strings.Contains(resp, `"status":"success"`) {
+		t.Fatalf("register response = %s", resp)
+	}
+
+	results, _, err := SearchMedia(db, "", "document", nil, 10, 0)
+	if err != nil {
+		t.Fatalf("SearchMedia failed: %v", err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("expected 1 document result, got %d", len(results))
+	}
+	if results[0].MediaType != "document" {
+		t.Fatalf("media_type = %q, want %q", results[0].MediaType, "document")
+	}
+}
+
+func TestInferMediaType(t *testing.T) {
+	tests := []struct {
+		name     string
+		filename string
+		filePath string
+		want     string
+	}{
+		{name: "pdf document", filename: "report.pdf", want: "document"},
+		{name: "docx document", filePath: "/tmp/report.docx", want: "document"},
+		{name: "audio mp3", filename: "voice.mp3", want: "audio"},
+		{name: "image png", filename: "image.png", want: "image"},
+		{name: "unknown defaults to image", filename: "blob.bin", want: "image"},
+		{name: "empty defaults to image", want: "image"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := inferMediaType(tt.filename, tt.filePath)
+			if got != tt.want {
+				t.Fatalf("inferMediaType(%q, %q) = %q, want %q", tt.filename, tt.filePath, got, tt.want)
+			}
+		})
 	}
 }
 

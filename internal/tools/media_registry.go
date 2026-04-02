@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -138,6 +139,27 @@ func RegisterMedia(db *sql.DB, item MediaItem) (int64, bool, error) {
 	}
 	id, _ := res.LastInsertId()
 	return id, false, nil
+}
+
+func inferMediaType(filename, filePath string) string {
+	name := strings.TrimSpace(filename)
+	if name == "" {
+		name = strings.TrimSpace(filePath)
+	}
+	if name == "" {
+		return "image"
+	}
+
+	switch strings.ToLower(filepath.Ext(name)) {
+	case ".pdf", ".doc", ".docx", ".txt", ".md", ".rtf", ".odt", ".csv", ".json", ".yaml", ".yml", ".xls", ".xlsx", ".ppt", ".pptx":
+		return "document"
+	case ".mp3", ".wav", ".ogg", ".m4a", ".aac", ".flac":
+		return "audio"
+	case ".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".svg":
+		return "image"
+	default:
+		return "image"
+	}
 }
 
 // SearchMedia searches media items by query string across description, prompt, tags, and filename.
@@ -356,7 +378,7 @@ func DispatchMediaRegistry(db *sql.DB, operation, query, mediaType, description 
 			FilePath:    filePath,
 		}
 		if item.MediaType == "" {
-			item.MediaType = "image"
+			item.MediaType = inferMediaType(item.Filename, item.FilePath)
 		}
 		if len(tags) > 0 {
 			item.Tags = tags
