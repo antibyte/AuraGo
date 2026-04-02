@@ -444,6 +444,28 @@ func TestDecodeCloudStorageArgsUsesParamsFallback(t *testing.T) {
 	}
 }
 
+func TestDecodeImageGenerationArgsUsesParamsFallback(t *testing.T) {
+	req := decodeImageGenerationArgs(ToolCall{
+		Action: "generate_image",
+		Params: map[string]interface{}{
+			"prompt":         "a robot reading a book",
+			"enhance_prompt": true,
+			"model":          "demo-model",
+			"size":           "1024x1024",
+			"quality":        "hd",
+			"style":          "vivid",
+			"source_image":   "seed.png",
+		},
+	})
+
+	if req.Prompt != "a robot reading a book" || req.Model != "demo-model" || req.Size != "1024x1024" || req.Quality != "hd" || req.Style != "vivid" || req.SourceImage != "seed.png" {
+		t.Fatalf("unexpected image generation decode: %+v", req)
+	}
+	if req.EnhancePrompt == nil || !*req.EnhancePrompt {
+		t.Fatalf("EnhancePrompt = %#v, want true", req.EnhancePrompt)
+	}
+}
+
 func TestDecodeKnowledgeGraphArgsUsesParamsFallback(t *testing.T) {
 	req := decodeKnowledgeGraphArgs(ToolCall{
 		Action: "knowledge_graph",

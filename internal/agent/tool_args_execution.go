@@ -233,6 +233,16 @@ type cloudStorageArgs struct {
 	MaxResults  int
 }
 
+type imageGenerationArgs struct {
+	Prompt        string
+	EnhancePrompt *bool
+	Model         string
+	Size          string
+	Quality       string
+	Style         string
+	SourceImage   string
+}
+
 func toolArgInterfaceMap(args map[string]interface{}, keys ...string) map[string]interface{} {
 	for _, key := range keys {
 		raw, ok := args[key]
@@ -734,4 +744,25 @@ func decodeCloudStorageArgs(tc ToolCall) cloudStorageArgs {
 		Content:     firstNonEmptyToolString(tc.Content, toolArgString(tc.Params, "content")),
 		MaxResults:  firstNonEmptyInt(tc.MaxResults, toolArgInt(tc.Params, 0, "max_results")),
 	}
+}
+
+func decodeImageGenerationArgs(tc ToolCall) imageGenerationArgs {
+	req := imageGenerationArgs{
+		Prompt: firstNonEmptyToolString(
+			tc.Prompt,
+			toolArgString(tc.Params, "prompt"),
+			tc.Content,
+			toolArgString(tc.Params, "content"),
+		),
+		EnhancePrompt: tc.EnhancePrompt,
+		Model:         firstNonEmptyToolString(tc.Model, toolArgString(tc.Params, "model")),
+		Size:          firstNonEmptyToolString(tc.Size, toolArgString(tc.Params, "size")),
+		Quality:       firstNonEmptyToolString(tc.Quality, toolArgString(tc.Params, "quality")),
+		Style:         firstNonEmptyToolString(tc.Style, toolArgString(tc.Params, "style")),
+		SourceImage:   firstNonEmptyToolString(tc.SourceImage, toolArgString(tc.Params, "source_image")),
+	}
+	if req.EnhancePrompt == nil {
+		req.EnhancePrompt = toolArgBoolPtr(tc.Params, "enhance_prompt")
+	}
+	return req
 }

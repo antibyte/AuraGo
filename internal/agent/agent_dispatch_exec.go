@@ -1351,10 +1351,8 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			if cfg.ImageGeneration.APIKey == "" {
 				return `Tool Output: {"status": "error", "message": "Image generation provider not configured. Set a provider in Settings > Image Generation."}`
 			}
-			prompt := tc.Prompt
-			if prompt == "" {
-				prompt = tc.Content
-			}
+			req := decodeImageGenerationArgs(tc)
+			prompt := req.Prompt
 			if prompt == "" {
 				return `Tool Output: {"status": "error", "message": "'prompt' is required for image generation."}`
 			}
@@ -1376,8 +1374,8 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			// Prompt enhancement
 			enhancedPrompt := ""
 			doEnhance := cfg.ImageGeneration.PromptEnhancement
-			if tc.EnhancePrompt != nil {
-				doEnhance = *tc.EnhancePrompt
+			if req.EnhancePrompt != nil {
+				doEnhance = *req.EnhancePrompt
 			}
 			effectivePrompt := prompt
 			if doEnhance {
@@ -1398,14 +1396,14 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				Model:        cfg.ImageGeneration.ResolvedModel,
 				DataDir:      cfg.Directories.DataDir,
 			}
-			if tc.Model != "" {
-				genCfg.Model = tc.Model
+			if req.Model != "" {
+				genCfg.Model = req.Model
 			}
 
 			opts := tools.ImageGenOptions{
-				Size:    tc.Size,
-				Quality: tc.Quality,
-				Style:   tc.Style,
+				Size:    req.Size,
+				Quality: req.Quality,
+				Style:   req.Style,
 			}
 			if opts.Size == "" {
 				opts.Size = cfg.ImageGeneration.DefaultSize
@@ -1416,8 +1414,8 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			if opts.Style == "" {
 				opts.Style = cfg.ImageGeneration.DefaultStyle
 			}
-			if tc.SourceImage != "" {
-				opts.SourceImage = tools.ResolveSourceImagePath(tc.SourceImage, cfg.Directories.WorkspaceDir, cfg.Directories.DataDir)
+			if req.SourceImage != "" {
+				opts.SourceImage = tools.ResolveSourceImagePath(req.SourceImage, cfg.Directories.WorkspaceDir, cfg.Directories.DataDir)
 			}
 
 			result, err := tools.GenerateImage(genCfg, effectivePrompt, opts)
