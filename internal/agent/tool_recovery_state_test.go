@@ -62,11 +62,20 @@ func TestToolRecoveryStateHandleDuplicateToolCallAllowsDifferentSearchPatterns(t
 		Action:    "file_reader_advanced",
 		Operation: "search_context",
 		FilePath:  "server.log",
-		Pattern:   "error",
-		LineCount: 3,
+		Params: map[string]interface{}{
+			"pattern":    "error",
+			"line_count": float64(3),
+		},
 	}
-	second := first
-	second.Pattern = "warning"
+	second := ToolCall{
+		Action:    first.Action,
+		Operation: first.Operation,
+		FilePath:  first.FilePath,
+		Params: map[string]interface{}{
+			"pattern":    "warning",
+			"line_count": float64(3),
+		},
+	}
 
 	if state.handleDuplicateToolCall(first, &req, nil, AgentTelemetryScope{}) {
 		t.Fatal("did not expect first call to trip circuit breaker")
@@ -84,12 +93,20 @@ func TestToolRecoveryStateHandleDuplicateToolCallAllowsDifferentLineRanges(t *te
 		Action:    "file_reader_advanced",
 		Operation: "read_lines",
 		FilePath:  "main.go",
-		StartLine: 1,
-		EndLine:   50,
+		Params: map[string]interface{}{
+			"start_line": float64(1),
+			"end_line":   float64(50),
+		},
 	}
-	second := first
-	second.StartLine = 51
-	second.EndLine = 100
+	second := ToolCall{
+		Action:    first.Action,
+		Operation: first.Operation,
+		FilePath:  first.FilePath,
+		Params: map[string]interface{}{
+			"start_line": float64(51),
+			"end_line":   float64(100),
+		},
+	}
 
 	if state.handleDuplicateToolCall(first, &req, nil, AgentTelemetryScope{}) {
 		t.Fatal("did not expect first call to trip circuit breaker")

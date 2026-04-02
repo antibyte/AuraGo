@@ -362,10 +362,7 @@ func remoteEditFile(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) str
 	if !hub.IsConnected(deviceID) {
 		return fmt.Sprintf(`Tool Output: {"status":"error","message":"device %s is not connected"}`, deviceID)
 	}
-	path := tc.Path
-	if path == "" {
-		path = tc.FilePath
-	}
+	path := firstNonEmptyToolString(toolArgString(tc.Params, "path", "file_path"), tc.Path, tc.FilePath)
 	if path == "" {
 		return `Tool Output: {"status":"error","message":"'path' is required for edit_file"}`
 	}
@@ -378,23 +375,23 @@ func remoteEditFile(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) str
 		"path":      path,
 		"operation": editOp,
 	}
-	if tc.Old != "" {
-		args["old"] = tc.Old
+	if old := toolArgString(tc.Params, "old"); old != "" {
+		args["old"] = old
 	}
-	if tc.New != "" {
-		args["new"] = tc.New
+	if value := toolArgString(tc.Params, "new"); value != "" {
+		args["new"] = value
 	}
-	if tc.Marker != "" {
-		args["marker"] = tc.Marker
+	if marker := toolArgString(tc.Params, "marker"); marker != "" {
+		args["marker"] = marker
 	}
-	if tc.Content != "" {
-		args["content"] = tc.Content
+	if content := firstNonEmptyToolString(toolArgString(tc.Params, "content"), tc.Content); content != "" {
+		args["content"] = content
 	}
-	if tc.StartLine > 0 {
-		args["start_line"] = tc.StartLine
+	if startLine := toolArgInt(tc.Params, 0, "start_line"); startLine > 0 {
+		args["start_line"] = startLine
 	}
-	if tc.EndLine > 0 {
-		args["end_line"] = tc.EndLine
+	if endLine := toolArgInt(tc.Params, 0, "end_line"); endLine > 0 {
+		args["end_line"] = endLine
 	}
 
 	result, err := hub.SendCommand(deviceID, remote.CommandPayload{
@@ -423,10 +420,7 @@ func remoteJsonEdit(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) str
 	if !hub.IsConnected(deviceID) {
 		return fmt.Sprintf(`Tool Output: {"status":"error","message":"device %s is not connected"}`, deviceID)
 	}
-	path := tc.Path
-	if path == "" {
-		path = tc.FilePath
-	}
+	path := firstNonEmptyToolString(toolArgString(tc.Params, "path", "file_path"), tc.Path, tc.FilePath)
 	if path == "" {
 		return `Tool Output: {"status":"error","message":"'path' is required for json_edit"}`
 	}
@@ -439,11 +433,11 @@ func remoteJsonEdit(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) str
 		"path":      path,
 		"operation": editOp,
 	}
-	if tc.JsonPath != "" {
-		args["json_path"] = tc.JsonPath
+	if jsonPath := toolArgString(tc.Params, "json_path"); jsonPath != "" {
+		args["json_path"] = jsonPath
 	}
-	if tc.SetValue != nil {
-		args["set_value"] = tc.SetValue
+	if setValue, ok := toolArgRaw(tc.Params, "set_value"); ok && setValue != nil {
+		args["set_value"] = setValue
 	}
 
 	result, err := hub.SendCommand(deviceID, remote.CommandPayload{
@@ -472,10 +466,7 @@ func remoteYamlEdit(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) str
 	if !hub.IsConnected(deviceID) {
 		return fmt.Sprintf(`Tool Output: {"status":"error","message":"device %s is not connected"}`, deviceID)
 	}
-	path := tc.Path
-	if path == "" {
-		path = tc.FilePath
-	}
+	path := firstNonEmptyToolString(toolArgString(tc.Params, "path", "file_path"), tc.Path, tc.FilePath)
 	if path == "" {
 		return `Tool Output: {"status":"error","message":"'path' is required for yaml_edit"}`
 	}
@@ -488,11 +479,11 @@ func remoteYamlEdit(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) str
 		"path":      path,
 		"operation": editOp,
 	}
-	if tc.JsonPath != "" {
-		args["json_path"] = tc.JsonPath
+	if jsonPath := toolArgString(tc.Params, "json_path"); jsonPath != "" {
+		args["json_path"] = jsonPath
 	}
-	if tc.SetValue != nil {
-		args["set_value"] = tc.SetValue
+	if setValue, ok := toolArgRaw(tc.Params, "set_value"); ok && setValue != nil {
+		args["set_value"] = setValue
 	}
 
 	result, err := hub.SendCommand(deviceID, remote.CommandPayload{
@@ -522,10 +513,7 @@ func remoteXmlEdit(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) stri
 		return fmt.Sprintf(`Tool Output: {"status":"error","message":"device %s is not connected"}`, deviceID)
 	}
 
-	path := tc.Path
-	if path == "" {
-		path = tc.FilePath
-	}
+	path := firstNonEmptyToolString(toolArgString(tc.Params, "path", "file_path"), tc.Path, tc.FilePath)
 	if path == "" {
 		return `Tool Output: {"status":"error","message":"'path' is required for xml_edit"}`
 	}
@@ -539,15 +527,12 @@ func remoteXmlEdit(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) stri
 		"path":      path,
 		"operation": op,
 	}
-	xpath := tc.Xpath
-	if xpath == "" {
-		xpath = tc.JsonPath
-	}
+	xpath := firstNonEmptyToolString(toolArgString(tc.Params, "xpath"), toolArgString(tc.Params, "json_path"))
 	if xpath != "" {
 		args["xpath"] = xpath
 	}
-	if tc.SetValue != nil {
-		args["set_value"] = tc.SetValue
+	if setValue, ok := toolArgRaw(tc.Params, "set_value"); ok && setValue != nil {
+		args["set_value"] = setValue
 	}
 
 	result, err := hub.SendCommand(deviceID, remote.CommandPayload{
@@ -584,20 +569,17 @@ func remoteFileSearch(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) s
 
 	args := map[string]interface{}{
 		"operation": op,
-		"pattern":   tc.Pattern,
+		"pattern":   toolArgString(tc.Params, "pattern"),
 	}
-	path := tc.Path
-	if path == "" {
-		path = tc.FilePath
-	}
+	path := firstNonEmptyToolString(toolArgString(tc.Params, "path", "file_path"), tc.Path, tc.FilePath)
 	if path != "" {
 		args["path"] = path
 	}
-	if tc.Glob != "" {
-		args["glob"] = tc.Glob
+	if glob := toolArgString(tc.Params, "glob"); glob != "" {
+		args["glob"] = glob
 	}
-	if tc.OutputMode != "" {
-		args["output_mode"] = tc.OutputMode
+	if outputMode := toolArgString(tc.Params, "output_mode"); outputMode != "" {
+		args["output_mode"] = outputMode
 	}
 
 	cmdResult, err := hub.SendCommand(deviceID, remote.CommandPayload{
@@ -626,10 +608,7 @@ func remoteFileReadAdvanced(hub *remote.RemoteHub, tc ToolCall, logger *slog.Log
 	if !hub.IsConnected(deviceID) {
 		return fmt.Sprintf(`Tool Output: {"status":"error","message":"device %s is not connected"}`, deviceID)
 	}
-	path := tc.Path
-	if path == "" {
-		path = tc.FilePath
-	}
+	path := firstNonEmptyToolString(toolArgString(tc.Params, "path", "file_path"), tc.Path, tc.FilePath)
 	if path == "" {
 		return `Tool Output: {"status":"error","message":"'path' is required for file_read_advanced"}`
 	}
@@ -643,17 +622,17 @@ func remoteFileReadAdvanced(hub *remote.RemoteHub, tc ToolCall, logger *slog.Log
 		"path":      path,
 		"operation": op,
 	}
-	if tc.Pattern != "" {
-		args["pattern"] = tc.Pattern
+	if pattern := toolArgString(tc.Params, "pattern"); pattern != "" {
+		args["pattern"] = pattern
 	}
-	if tc.StartLine > 0 {
-		args["start_line"] = tc.StartLine
+	if startLine := toolArgInt(tc.Params, 0, "start_line"); startLine > 0 {
+		args["start_line"] = startLine
 	}
-	if tc.EndLine > 0 {
-		args["end_line"] = tc.EndLine
+	if endLine := toolArgInt(tc.Params, 0, "end_line"); endLine > 0 {
+		args["end_line"] = endLine
 	}
-	if tc.LineCount > 0 {
-		args["line_count"] = tc.LineCount
+	if lineCount := toolArgInt(tc.Params, 0, "line_count"); lineCount > 0 {
+		args["line_count"] = lineCount
 	}
 
 	cmdResult, err := hub.SendCommand(deviceID, remote.CommandPayload{

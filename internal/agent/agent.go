@@ -547,23 +547,6 @@ type ToolCall struct {
 	AllowChange    *bool  `json:"allow_change,omitempty"`    // permission: UPDATE
 	AllowDelete    *bool  `json:"allow_delete,omitempty"`    // permission: DELETE
 	DockerTemplate string `json:"docker_template,omitempty"` // docker template: postgres, mysql, mariadb
-	// File Editor fields
-	Old              string `json:"old,omitempty"`               // text to find/replace
-	New              string `json:"new,omitempty"`               // replacement text
-	Marker           string `json:"marker,omitempty"`            // anchor text for insert_after/insert_before
-	StartLine        int    `json:"start_line,omitempty"`        // start line number
-	EndLine          int    `json:"end_line,omitempty"`          // end line number
-	LineCount        int    `json:"line_count,omitempty"`        // number of lines for head/tail
-	MaxTokens        int    `json:"max_tokens,omitempty"`        // approximate token budget for sampled file output
-	SamplingStrategy string `json:"sampling_strategy,omitempty"` // head, tail, distributed, semantic
-	// Structured Data Editor fields
-	JsonPath string      `json:"json_path,omitempty"` // dot-path for JSON/YAML/XML editing
-	Xpath    string      `json:"xpath,omitempty"`     // XPath expression for XML editing
-	SetValue interface{} `json:"set_value,omitempty"` // value to set (any JSON type)
-	// File Search fields
-	Glob       string `json:"glob,omitempty"`        // file glob pattern
-	OutputMode string `json:"output_mode,omitempty"` // result mode: content, count, lines
-	Pattern    string `json:"pattern,omitempty"`     // search pattern (regex)
 }
 
 func (tc *ToolCall) UnmarshalJSON(data []byte) error {

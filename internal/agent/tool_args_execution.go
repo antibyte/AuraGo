@@ -676,13 +676,13 @@ func decodeFileEditorArgs(tc ToolCall) fileEditorArgs {
 	return fileEditorArgs{
 		Operation: firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
 		FilePath:  firstNonEmptyToolString(tc.FilePath, tc.Path, toolArgString(tc.Params, "file_path", "path")),
-		Old:       firstNonEmptyToolString(tc.Old, toolArgString(tc.Params, "old")),
-		New:       firstNonEmptyToolString(tc.New, toolArgString(tc.Params, "new")),
-		Marker:    firstNonEmptyToolString(tc.Marker, toolArgString(tc.Params, "marker")),
+		Old:       toolArgString(tc.Params, "old"),
+		New:       toolArgString(tc.Params, "new"),
+		Marker:    toolArgString(tc.Params, "marker"),
 		Content:   firstNonEmptyToolString(tc.Content, toolArgString(tc.Params, "content")),
-		StartLine: firstNonEmptyInt(tc.StartLine, toolArgInt(tc.Params, 0, "start_line")),
-		EndLine:   firstNonEmptyInt(tc.EndLine, toolArgInt(tc.Params, 0, "end_line")),
-		LineCount: firstNonEmptyInt(tc.LineCount, toolArgInt(tc.Params, 0, "line_count")),
+		StartLine: toolArgInt(tc.Params, 0, "start_line"),
+		EndLine:   toolArgInt(tc.Params, 0, "end_line"),
+		LineCount: toolArgInt(tc.Params, 0, "line_count"),
 	}
 }
 
@@ -690,14 +690,11 @@ func decodeJSONEditorArgs(tc ToolCall) jsonEditorArgs {
 	req := jsonEditorArgs{
 		Operation: firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
 		FilePath:  firstNonEmptyToolString(tc.FilePath, tc.Path, toolArgString(tc.Params, "file_path", "path")),
-		JsonPath:  firstNonEmptyToolString(tc.JsonPath, toolArgString(tc.Params, "json_path")),
-		SetValue:  tc.SetValue,
+		JsonPath:  toolArgString(tc.Params, "json_path"),
 		Content:   firstNonEmptyToolString(tc.Content, toolArgString(tc.Params, "content")),
 	}
-	if req.SetValue == nil {
-		if value, ok := toolArgRaw(tc.Params, "set_value"); ok {
-			req.SetValue = value
-		}
+	if value, ok := toolArgRaw(tc.Params, "set_value"); ok {
+		req.SetValue = value
 	}
 	return req
 }
@@ -706,13 +703,10 @@ func decodeYAMLEditorArgs(tc ToolCall) yamlEditorArgs {
 	req := yamlEditorArgs{
 		Operation: firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
 		FilePath:  firstNonEmptyToolString(tc.FilePath, tc.Path, toolArgString(tc.Params, "file_path", "path")),
-		JsonPath:  firstNonEmptyToolString(tc.JsonPath, toolArgString(tc.Params, "json_path")),
-		SetValue:  tc.SetValue,
+		JsonPath:  toolArgString(tc.Params, "json_path"),
 	}
-	if req.SetValue == nil {
-		if value, ok := toolArgRaw(tc.Params, "set_value"); ok {
-			req.SetValue = value
-		}
+	if value, ok := toolArgRaw(tc.Params, "set_value"); ok {
+		req.SetValue = value
 	}
 	return req
 }
@@ -721,13 +715,10 @@ func decodeXMLEditorArgs(tc ToolCall) xmlEditorArgs {
 	req := xmlEditorArgs{
 		Operation: firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
 		FilePath:  firstNonEmptyToolString(tc.FilePath, tc.Path, toolArgString(tc.Params, "file_path", "path")),
-		XPath:     firstNonEmptyToolString(tc.Xpath, tc.JsonPath, toolArgString(tc.Params, "xpath", "json_path")),
-		SetValue:  tc.SetValue,
+		XPath:     firstNonEmptyToolString(toolArgString(tc.Params, "xpath"), toolArgString(tc.Params, "json_path")),
 	}
-	if req.SetValue == nil {
-		if value, ok := toolArgRaw(tc.Params, "set_value"); ok {
-			req.SetValue = value
-		}
+	if value, ok := toolArgRaw(tc.Params, "set_value"); ok {
+		req.SetValue = value
 	}
 	return req
 }
@@ -735,10 +726,10 @@ func decodeXMLEditorArgs(tc ToolCall) xmlEditorArgs {
 func decodeFileSearchArgs(tc ToolCall) fileSearchArgs {
 	return fileSearchArgs{
 		Operation:  firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
-		Pattern:    firstNonEmptyToolString(tc.Pattern, toolArgString(tc.Params, "pattern")),
+		Pattern:    toolArgString(tc.Params, "pattern"),
 		FilePath:   firstNonEmptyToolString(tc.FilePath, tc.Path, toolArgString(tc.Params, "file_path", "path")),
-		Glob:       firstNonEmptyToolString(tc.Glob, toolArgString(tc.Params, "glob")),
-		OutputMode: firstNonEmptyToolString(tc.OutputMode, toolArgString(tc.Params, "output_mode")),
+		Glob:       toolArgString(tc.Params, "glob"),
+		OutputMode: toolArgString(tc.Params, "output_mode"),
 	}
 }
 
@@ -746,10 +737,10 @@ func decodeAdvancedFileReadArgs(tc ToolCall) advancedFileReadArgs {
 	return advancedFileReadArgs{
 		Operation: firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
 		FilePath:  firstNonEmptyToolString(tc.FilePath, tc.Path, toolArgString(tc.Params, "file_path", "path")),
-		Pattern:   firstNonEmptyToolString(tc.Pattern, toolArgString(tc.Params, "pattern")),
-		StartLine: firstNonEmptyInt(tc.StartLine, toolArgInt(tc.Params, 0, "start_line")),
-		EndLine:   firstNonEmptyInt(tc.EndLine, toolArgInt(tc.Params, 0, "end_line")),
-		LineCount: firstNonEmptyInt(tc.LineCount, toolArgInt(tc.Params, 0, "line_count")),
+		Pattern:   toolArgString(tc.Params, "pattern"),
+		StartLine: toolArgInt(tc.Params, 0, "start_line"),
+		EndLine:   toolArgInt(tc.Params, 0, "end_line"),
+		LineCount: toolArgInt(tc.Params, 0, "line_count"),
 	}
 }
 
@@ -758,9 +749,9 @@ func decodeSmartFileReadArgs(tc ToolCall) smartFileReadArgs {
 		Operation:        firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
 		FilePath:         firstNonEmptyToolString(tc.FilePath, tc.Path, toolArgString(tc.Params, "file_path", "path")),
 		Query:            firstNonEmptyToolString(tc.Query, toolArgString(tc.Params, "query")),
-		SamplingStrategy: firstNonEmptyToolString(tc.SamplingStrategy, toolArgString(tc.Params, "sampling_strategy")),
-		MaxTokens:        firstNonEmptyInt(tc.MaxTokens, toolArgInt(tc.Params, 0, "max_tokens")),
-		LineCount:        firstNonEmptyInt(tc.LineCount, toolArgInt(tc.Params, 0, "line_count")),
+		SamplingStrategy: toolArgString(tc.Params, "sampling_strategy"),
+		MaxTokens:        toolArgInt(tc.Params, 0, "max_tokens"),
+		LineCount:        toolArgInt(tc.Params, 0, "line_count"),
 	}
 }
 

@@ -38,14 +38,8 @@ func newToolRecoveryStateWithPolicy(policy RecoveryPolicy) toolRecoveryState {
 }
 
 func buildToolSignature(tc ToolCall) string {
-	path := tc.Path
-	if path == "" {
-		path = tc.FilePath
-	}
-	dest := tc.Dest
-	if dest == "" {
-		dest = tc.Destination
-	}
+	path := firstNonEmptyToolString(toolArgString(tc.Params, "path", "file_path"), tc.Path, tc.FilePath)
+	dest := firstNonEmptyToolString(toolArgString(tc.Params, "dest", "destination"), tc.Dest, tc.Destination)
 
 	h := fnv.New64a()
 	writeToolSignatureField(h, "action", tc.Action)
@@ -55,17 +49,17 @@ func buildToolSignature(tc ToolCall) string {
 	writeToolSignatureField(h, "code", tc.Code)
 	writeToolSignatureField(h, "path", path)
 	writeToolSignatureField(h, "destination", dest)
-	writeToolSignatureField(h, "pattern", tc.Pattern)
-	writeToolSignatureField(h, "glob", tc.Glob)
+	writeToolSignatureField(h, "pattern", toolArgString(tc.Params, "pattern"))
+	writeToolSignatureField(h, "glob", toolArgString(tc.Params, "glob"))
 	writeToolSignatureField(h, "query", tc.Query)
-	writeToolSignatureField(h, "sampling_strategy", tc.SamplingStrategy)
-	writeToolSignatureIntField(h, "max_tokens", tc.MaxTokens)
-	writeToolSignatureIntField(h, "start_line", tc.StartLine)
-	writeToolSignatureIntField(h, "end_line", tc.EndLine)
-	writeToolSignatureIntField(h, "line_count", tc.LineCount)
-	writeToolSignatureField(h, "old", tc.Old)
-	writeToolSignatureField(h, "new", tc.New)
-	writeToolSignatureField(h, "marker", tc.Marker)
+	writeToolSignatureField(h, "sampling_strategy", toolArgString(tc.Params, "sampling_strategy"))
+	writeToolSignatureIntField(h, "max_tokens", toolArgInt(tc.Params, 0, "max_tokens"))
+	writeToolSignatureIntField(h, "start_line", toolArgInt(tc.Params, 0, "start_line"))
+	writeToolSignatureIntField(h, "end_line", toolArgInt(tc.Params, 0, "end_line"))
+	writeToolSignatureIntField(h, "line_count", toolArgInt(tc.Params, 0, "line_count"))
+	writeToolSignatureField(h, "old", toolArgString(tc.Params, "old"))
+	writeToolSignatureField(h, "new", toolArgString(tc.Params, "new"))
+	writeToolSignatureField(h, "marker", toolArgString(tc.Params, "marker"))
 	writeToolSignatureField(h, "content", tc.Content)
 	writeToolSignatureField(h, "url", tc.URL)
 	writeToolSignatureField(h, "method", tc.Method)
@@ -185,6 +179,17 @@ func recoveryHintForToolFailure(tc ToolCall, resultContent string) string {
 }
 
 func isGenericToolSignature(tc ToolCall, toolSig string) bool {
+	pattern := toolArgString(tc.Params, "pattern")
+	glob := toolArgString(tc.Params, "glob")
+	sampling := toolArgString(tc.Params, "sampling_strategy")
+	maxTokens := toolArgInt(tc.Params, 0, "max_tokens")
+	startLine := toolArgInt(tc.Params, 0, "start_line")
+	endLine := toolArgInt(tc.Params, 0, "end_line")
+	lineCount := toolArgInt(tc.Params, 0, "line_count")
+	old := toolArgString(tc.Params, "old")
+	newValue := toolArgString(tc.Params, "new")
+	marker := toolArgString(tc.Params, "marker")
+
 	return tc.Action != "" &&
 		tc.SubOperation == "" &&
 		tc.Command == "" &&
@@ -194,17 +199,17 @@ func isGenericToolSignature(tc ToolCall, toolSig string) bool {
 		tc.FilePath == "" &&
 		tc.Destination == "" &&
 		tc.Dest == "" &&
-		tc.Pattern == "" &&
-		tc.Glob == "" &&
+		pattern == "" &&
+		glob == "" &&
 		tc.Query == "" &&
-		tc.SamplingStrategy == "" &&
-		tc.MaxTokens == 0 &&
-		tc.StartLine == 0 &&
-		tc.EndLine == 0 &&
-		tc.LineCount == 0 &&
-		tc.Old == "" &&
-		tc.New == "" &&
-		tc.Marker == "" &&
+		sampling == "" &&
+		maxTokens == 0 &&
+		startLine == 0 &&
+		endLine == 0 &&
+		lineCount == 0 &&
+		old == "" &&
+		newValue == "" &&
+		marker == "" &&
 		tc.Content == "" &&
 		tc.URL == "" &&
 		tc.Method == "" &&

@@ -338,13 +338,13 @@ func decodeHomepageArgs(tc ToolCall) homepageArgs {
 		Path:         firstNonEmptyToolString(tc.Path, toolArgString(tc.Params, "path")),
 		Content:      firstNonEmptyToolString(tc.Content, toolArgString(tc.Params, "content")),
 		SubOperation: firstNonEmptyToolString(tc.SubOperation, toolArgString(tc.Params, "sub_operation")),
-		Old:          firstNonEmptyToolString(tc.Old, toolArgString(tc.Params, "old")),
-		New:          firstNonEmptyToolString(tc.New, toolArgString(tc.Params, "new")),
-		Marker:       firstNonEmptyToolString(tc.Marker, toolArgString(tc.Params, "marker")),
-		StartLine:    firstNonEmptyInt(tc.StartLine, toolArgInt(tc.Params, 0, "start_line")),
-		EndLine:      firstNonEmptyInt(tc.EndLine, toolArgInt(tc.Params, 0, "end_line")),
-		JsonPath:     firstNonEmptyToolString(tc.JsonPath, toolArgString(tc.Params, "json_path")),
-		Xpath:        firstNonEmptyToolString(tc.Xpath, toolArgString(tc.Params, "xpath")),
+		Old:          toolArgString(tc.Params, "old"),
+		New:          toolArgString(tc.Params, "new"),
+		Marker:       toolArgString(tc.Params, "marker"),
+		StartLine:    toolArgInt(tc.Params, 0, "start_line"),
+		EndLine:      toolArgInt(tc.Params, 0, "end_line"),
+		JsonPath:     toolArgString(tc.Params, "json_path"),
+		Xpath:        toolArgString(tc.Params, "xpath"),
 		Port:         firstNonEmptyInt(tc.Port, toolArgInt(tc.Params, 0, "port")),
 		BuildDir:     firstNonEmptyToolString(tc.BuildDir, toolArgString(tc.Params, "build_dir")),
 		SiteID:       firstNonEmptyToolString(tc.SiteID, toolArgString(tc.Params, "site_id")),
@@ -365,9 +365,7 @@ func decodeHomepageArgs(tc ToolCall) homepageArgs {
 	} else {
 		req.Packages = toolArgStringSlice(tc.Params, "packages")
 	}
-	if tc.SetValue != nil {
-		req.SetValue = tc.SetValue
-	} else if tc.Params != nil {
+	if tc.Params != nil {
 		req.SetValue = tc.Params["set_value"]
 	}
 	return req
