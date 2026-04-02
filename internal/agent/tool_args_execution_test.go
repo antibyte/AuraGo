@@ -70,3 +70,93 @@ func TestDecodeRunToolArgsUsesParamsFallback(t *testing.T) {
 		t.Fatalf("CredentialIDs = %v, want [cred-1]", req.CredentialIDs)
 	}
 }
+
+func TestDecodeSandboxExecutionArgsUsesParamsFallback(t *testing.T) {
+	tc := ToolCall{
+		Action: "execute_sandbox",
+		Params: map[string]interface{}{
+			"code":           "print('ok')",
+			"sandbox_lang":   "python",
+			"libraries":      []interface{}{"requests", "pydantic"},
+			"vault_keys":     []interface{}{"API_KEY"},
+			"credential_ids": []interface{}{"cred-1"},
+		},
+	}
+
+	req := decodeSandboxExecutionArgs(tc)
+	if req.Code != "print('ok')" || req.Language != "python" {
+		t.Fatalf("unexpected sandbox decode: %+v", req)
+	}
+	if len(req.Libraries) != 2 || req.Libraries[0] != "requests" || req.Libraries[1] != "pydantic" {
+		t.Fatalf("Libraries = %v, want [requests pydantic]", req.Libraries)
+	}
+	if len(req.VaultKeys) != 1 || req.VaultKeys[0] != "API_KEY" {
+		t.Fatalf("VaultKeys = %v, want [API_KEY]", req.VaultKeys)
+	}
+	if len(req.CredentialIDs) != 1 || req.CredentialIDs[0] != "cred-1" {
+		t.Fatalf("CredentialIDs = %v, want [cred-1]", req.CredentialIDs)
+	}
+}
+
+func TestDecodePythonExecutionArgsUsesParamsFallback(t *testing.T) {
+	tc := ToolCall{
+		Action: "execute_python",
+		Params: map[string]interface{}{
+			"code":           "print('hello')",
+			"background":     true,
+			"vault_keys":     []interface{}{"SECRET"},
+			"credential_ids": []interface{}{"cred-2"},
+		},
+	}
+
+	req := decodePythonExecutionArgs(tc)
+	if req.Code != "print('hello')" || !req.Background {
+		t.Fatalf("unexpected python decode: %+v", req)
+	}
+	if len(req.VaultKeys) != 1 || req.VaultKeys[0] != "SECRET" {
+		t.Fatalf("VaultKeys = %v, want [SECRET]", req.VaultKeys)
+	}
+	if len(req.CredentialIDs) != 1 || req.CredentialIDs[0] != "cred-2" {
+		t.Fatalf("CredentialIDs = %v, want [cred-2]", req.CredentialIDs)
+	}
+}
+
+func TestDecodeShellExecutionArgsUsesParamsFallback(t *testing.T) {
+	req := decodeShellExecutionArgs(ToolCall{
+		Action: "execute_shell",
+		Params: map[string]interface{}{
+			"command":    "dir",
+			"background": true,
+		},
+	})
+
+	if req.Command != "dir" || !req.Background {
+		t.Fatalf("unexpected shell decode: %+v", req)
+	}
+}
+
+func TestDecodeSudoExecutionArgsUsesParamsFallback(t *testing.T) {
+	req := decodeSudoExecutionArgs(ToolCall{
+		Action: "execute_sudo",
+		Params: map[string]interface{}{
+			"command": "systemctl status ssh",
+		},
+	})
+
+	if req.Command != "systemctl status ssh" {
+		t.Fatalf("Command = %q, want systemctl status ssh", req.Command)
+	}
+}
+
+func TestDecodeInstallPackageArgsUsesParamsFallback(t *testing.T) {
+	req := decodeInstallPackageArgs(ToolCall{
+		Action: "install_package",
+		Params: map[string]interface{}{
+			"package": "ffmpeg",
+		},
+	})
+
+	if req.Package != "ffmpeg" {
+		t.Fatalf("Package = %q, want ffmpeg", req.Package)
+	}
+}

@@ -130,20 +130,18 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			if !cfg.Sandbox.Enabled {
 				return "Tool Output: [PERMISSION DENIED] execute_sandbox is disabled (sandbox.enabled: false)."
 			}
-			if tc.Code == "" {
+			req := decodeSandboxExecutionArgs(tc)
+			if req.Code == "" {
 				return "Tool Output: [EXECUTION ERROR] 'code' field is empty. Provide the source code to execute."
 			}
-			lang := tc.SandboxLang
-			if lang == "" {
-				lang = tc.Language
-			}
+			lang := req.Language
 			if lang == "" {
 				lang = "python"
 			}
 			// Resolve vault secrets for injection
-			secrets, rejectedInfo := resolveVaultKeys(cfg, vault, tc.VaultKeys, logger)
+			secrets, rejectedInfo := resolveVaultKeys(cfg, vault, req.VaultKeys, logger)
 			// Resolve credential secrets for injection
-			creds, credRejInfo := resolveCredentials(cfg, vault, inventoryDB, tc.CredentialIDs, logger)
+			creds, credRejInfo := resolveCredentials(cfg, vault, inventoryDB, req.CredentialIDs, logger)
 			if credRejInfo != "" {
 				if rejectedInfo != "" {
 					rejectedInfo += "\n" + credRejInfo
@@ -151,15 +149,15 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 					rejectedInfo = credRejInfo
 				}
 			}
-			codeToRun := tc.Code
+			codeToRun := req.Code
 			if len(secrets) > 0 {
 				codeToRun = tools.BuildSecretPrelude(secrets) + codeToRun
 			}
 			if len(creds) > 0 {
 				codeToRun = tools.BuildCredentialPrelude(creds) + codeToRun
 			}
-			logger.Info("LLM requested sandbox execution", "language", lang, "code_len", len(tc.Code), "libraries", len(tc.Libraries))
-			result, err := tools.SandboxExecuteCode(codeToRun, lang, tc.Libraries, cfg.Sandbox.TimeoutSeconds, logger)
+			logger.Info("LLM requested sandbox execution", "language", lang, "code_len", len(req.Code), "libraries", len(req.Libraries))
+			result, err := tools.SandboxExecuteCode(codeToRun, lang, req.Libraries, cfg.Sandbox.TimeoutSeconds, logger)
 			if err != nil {
 				// Fall back to execute_python if sandbox not ready and Python is allowed
 				if cfg.Agent.AllowPython && lang == "python" {
@@ -167,9 +165,9 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 					var stdout, stderr string
 					var pyErr error
 					if len(secrets) > 0 || len(creds) > 0 {
-						stdout, stderr, pyErr = tools.ExecutePythonWithSecrets(tc.Code, cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir, secrets, creds)
+						stdout, stderr, pyErr = tools.ExecutePythonWithSecrets(req.Code, cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir, secrets, creds)
 					} else {
-						stdout, stderr, pyErr = tools.ExecutePython(tc.Code, cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir)
+						stdout, stderr, pyErr = tools.ExecutePython(req.Code, cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir)
 					}
 					// Scrub all outputs to prevent secret leakage via error messages/tracebacks
 					stdout = security.Scrub(stdout)
@@ -202,14 +200,15 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			if !cfg.Agent.AllowPython {
 				return "Tool Output: [PERMISSION DENIED] execute_python is disabled in Danger Zone settings (agent.allow_python: false)."
 			}
-			logger.Info("LLM requested python execution", "code_len", len(tc.Code), "background", tc.Background)
-			if tc.Code == "" {
+			req := decodePythonExecutionArgs(tc)
+			logger.Info("LLM requested python execution", "code_len", len(req.Code), "background", req.Background)
+			if req.Code == "" {
 				return "Tool Output: [EXECUTION ERROR] 'code' field is empty. You MUST provide Python source code in the 'code' field. Do NOT use execute_python for SSH or remote tasks — use query_inventory / execute_remote_shell instead."
 			}
 			// Resolve vault secrets
-			secrets, rejectedInfo := resolveVaultKeys(cfg, vault, tc.VaultKeys, logger)
+			secrets, rejectedInfo := resolveVaultKeys(cfg, vault, req.VaultKeys, logger)
 			// Resolve credential secrets
-			creds, credRejInfo := resolveCredentials(cfg, vault, inventoryDB, tc.CredentialIDs, logger)
+			creds, credRejInfo := resolveCredentials(cfg, vault, inventoryDB, req.CredentialIDs, logger)
 			if credRejInfo != "" {
 				if rejectedInfo != "" {
 					rejectedInfo += "\n" + credRejInfo
@@ -218,14 +217,14 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				}
 			}
 			hasSecrets := len(secrets) > 0 || len(creds) > 0
-			if tc.Background {
-				logger.Info("LLM requested background Python execution", "code_len", len(tc.Code))
+			if req.Background {
+				logger.Info("LLM requested background Python execution", "code_len", len(req.Code))
 				var pid int
 				var bgErr error
 				if hasSecrets {
-					pid, bgErr = tools.ExecutePythonBackgroundWithSecrets(tc.Code, cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir, registry, secrets, creds)
+					pid, bgErr = tools.ExecutePythonBackgroundWithSecrets(req.Code, cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir, registry, secrets, creds)
 				} else {
-					pid, bgErr = tools.ExecutePythonBackground(tc.Code, cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir, registry)
+					pid, bgErr = tools.ExecutePythonBackground(req.Code, cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir, registry)
 				}
 				if bgErr != nil {
 					return fmt.Sprintf("Tool Output: [EXECUTION ERROR] starting background process: %v", bgErr)
@@ -236,14 +235,14 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				}
 				return msg
 			}
-			logger.Debug("Executing Python (foreground)", "code_preview", Truncate(tc.Code, 300))
-			logger.Info("LLM requested python execution", "code_len", len(tc.Code))
+			logger.Debug("Executing Python (foreground)", "code_preview", Truncate(req.Code, 300))
+			logger.Info("LLM requested python execution", "code_len", len(req.Code))
 			var stdout, stderr string
 			var pyErr error
 			if hasSecrets {
-				stdout, stderr, pyErr = tools.ExecutePythonWithSecrets(tc.Code, cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir, secrets, creds)
+				stdout, stderr, pyErr = tools.ExecutePythonWithSecrets(req.Code, cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir, secrets, creds)
 			} else {
-				stdout, stderr, pyErr = tools.ExecutePython(tc.Code, cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir)
+				stdout, stderr, pyErr = tools.ExecutePython(req.Code, cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir)
 			}
 
 			// Always scrub sensitive values from Python output, regardless of whether
@@ -272,20 +271,21 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			if !cfg.Agent.AllowShell {
 				return "Tool Output: [PERMISSION DENIED] execute_shell is disabled in Danger Zone settings (agent.allow_shell: false)."
 			}
+			req := decodeShellExecutionArgs(tc)
 			// Block commands that attempt to read AURAGO_* environment variables (contains vault master key etc.)
-			if isBlockedEnvRead(tc.Command) {
-				logger.Warn("[Security] Blocked attempt to read sensitive environment variable", "command", tc.Command)
+			if isBlockedEnvRead(req.Command) {
+				logger.Warn("[Security] Blocked attempt to read sensitive environment variable", "command", req.Command)
 				return "Tool Output: [PERMISSION DENIED] Reading AURAGO_ environment variables via shell is not permitted."
 			}
-			logger.Info("LLM requested shell execution", "command", tc.Command, "background", tc.Background)
-			if tc.Background {
-				pid, err := tools.ExecuteShellBackground(tc.Command, cfg.Directories.WorkspaceDir, registry)
+			logger.Info("LLM requested shell execution", "command", req.Command, "background", req.Background)
+			if req.Background {
+				pid, err := tools.ExecuteShellBackground(req.Command, cfg.Directories.WorkspaceDir, registry)
 				if err != nil {
 					return fmt.Sprintf("Tool Output: [EXECUTION ERROR] starting background shell process: %v", err)
 				}
 				return fmt.Sprintf("Tool Output: Shell process started in background. PID=%d. Use {\"action\": \"read_process_logs\", \"pid\": %d} to check output.", pid, pid)
 			}
-			stdout, stderr, err := tools.ExecuteShell(tc.Command, cfg.Directories.WorkspaceDir)
+			stdout, stderr, err := tools.ExecuteShell(req.Command, cfg.Directories.WorkspaceDir)
 			stdout = security.Scrub(stdout)
 			stderr = security.Scrub(stderr)
 
@@ -309,15 +309,16 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			if cfg.Runtime.NoNewPrivileges {
 				return `Tool Output: [PERMISSION DENIED] sudo is not available: the "no new privileges" flag is set on this system. Remove no-new-privileges from your container or systemd configuration to use sudo.`
 			}
-			if tc.Command == "" {
+			req := decodeSudoExecutionArgs(tc)
+			if req.Command == "" {
 				return "Tool Output: [EXECUTION ERROR] 'command' is required for execute_sudo"
 			}
 			sudoPass, vaultErr := vault.ReadSecret("sudo_password")
 			if vaultErr != nil || sudoPass == "" {
 				return "Tool Output: [PERMISSION DENIED] sudo password not found in vault. Store it first: {\"action\": \"secrets_vault\", \"operation\": \"store\", \"key\": \"sudo_password\", \"value\": \"<password>\"}"
 			}
-			logger.Info("LLM requested sudo execution", "command", tc.Command)
-			stdoutS, stderrS, errS := tools.ExecuteSudo(tc.Command, cfg.Directories.WorkspaceDir, sudoPass)
+			logger.Info("LLM requested sudo execution", "command", req.Command)
+			stdoutS, stderrS, errS := tools.ExecuteSudo(req.Command, cfg.Directories.WorkspaceDir, sudoPass)
 			stdoutS = security.Scrub(stdoutS)
 			stderrS = security.Scrub(stderrS)
 
@@ -338,11 +339,12 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			if !cfg.Agent.AllowShell {
 				return "Tool Output: [PERMISSION DENIED] install_package is disabled in Danger Zone settings (agent.allow_shell: false)."
 			}
-			logger.Info("LLM requested package installation", "package", tc.Package)
-			if tc.Package == "" {
+			req := decodeInstallPackageArgs(tc)
+			logger.Info("LLM requested package installation", "package", req.Package)
+			if req.Package == "" {
 				return "Tool Output: [EXECUTION ERROR] 'package' is required for install_package"
 			}
-			stdout, stderr, err := tools.InstallPackage(tc.Package, cfg.Directories.WorkspaceDir)
+			stdout, stderr, err := tools.InstallPackage(req.Package, cfg.Directories.WorkspaceDir)
 
 			var sb strings.Builder
 			sb.WriteString("Tool Output:\n")

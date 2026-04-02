@@ -19,6 +19,34 @@ type runToolArgs struct {
 	CredentialIDs []string
 }
 
+type sandboxExecutionArgs struct {
+	Code          string
+	Language      string
+	Libraries     []string
+	VaultKeys     []string
+	CredentialIDs []string
+}
+
+type pythonExecutionArgs struct {
+	Code          string
+	Background    bool
+	VaultKeys     []string
+	CredentialIDs []string
+}
+
+type shellExecutionArgs struct {
+	Command    string
+	Background bool
+}
+
+type sudoExecutionArgs struct {
+	Command string
+}
+
+type installPackageArgs struct {
+	Package string
+}
+
 func toolArgInterfaceMap(args map[string]interface{}, keys ...string) map[string]interface{} {
 	for _, key := range keys {
 		raw, ok := args[key]
@@ -124,4 +152,71 @@ func decodeRunToolArgs(tc ToolCall) runToolArgs {
 		req.CredentialIDs = toolArgStringSlice(tc.Params, "credential_ids")
 	}
 	return req
+}
+
+func decodeSandboxExecutionArgs(tc ToolCall) sandboxExecutionArgs {
+	req := sandboxExecutionArgs{
+		Code:     firstNonEmptyToolString(tc.Code, toolArgString(tc.Params, "code")),
+		Language: firstNonEmptyToolString(tc.SandboxLang, tc.Language, toolArgString(tc.Params, "sandbox_lang", "language")),
+	}
+	if len(tc.Libraries) > 0 {
+		req.Libraries = append([]string(nil), tc.Libraries...)
+	} else {
+		req.Libraries = toolArgStringSlice(tc.Params, "libraries")
+	}
+	if len(tc.VaultKeys) > 0 {
+		req.VaultKeys = append([]string(nil), tc.VaultKeys...)
+	} else {
+		req.VaultKeys = toolArgStringSlice(tc.Params, "vault_keys")
+	}
+	if len(tc.CredentialIDs) > 0 {
+		req.CredentialIDs = append([]string(nil), tc.CredentialIDs...)
+	} else {
+		req.CredentialIDs = toolArgStringSlice(tc.Params, "credential_ids")
+	}
+	return req
+}
+
+func decodePythonExecutionArgs(tc ToolCall) pythonExecutionArgs {
+	req := pythonExecutionArgs{
+		Code:       firstNonEmptyToolString(tc.Code, toolArgString(tc.Params, "code")),
+		Background: tc.Background,
+	}
+	if background, ok := toolArgBool(tc.Params, "background"); ok {
+		req.Background = background
+	}
+	if len(tc.VaultKeys) > 0 {
+		req.VaultKeys = append([]string(nil), tc.VaultKeys...)
+	} else {
+		req.VaultKeys = toolArgStringSlice(tc.Params, "vault_keys")
+	}
+	if len(tc.CredentialIDs) > 0 {
+		req.CredentialIDs = append([]string(nil), tc.CredentialIDs...)
+	} else {
+		req.CredentialIDs = toolArgStringSlice(tc.Params, "credential_ids")
+	}
+	return req
+}
+
+func decodeShellExecutionArgs(tc ToolCall) shellExecutionArgs {
+	req := shellExecutionArgs{
+		Command:    firstNonEmptyToolString(tc.Command, toolArgString(tc.Params, "command")),
+		Background: tc.Background,
+	}
+	if background, ok := toolArgBool(tc.Params, "background"); ok {
+		req.Background = background
+	}
+	return req
+}
+
+func decodeSudoExecutionArgs(tc ToolCall) sudoExecutionArgs {
+	return sudoExecutionArgs{
+		Command: firstNonEmptyToolString(tc.Command, toolArgString(tc.Params, "command")),
+	}
+}
+
+func decodeInstallPackageArgs(tc ToolCall) installPackageArgs {
+	return installPackageArgs{
+		Package: firstNonEmptyToolString(tc.Package, toolArgString(tc.Params, "package")),
+	}
 }
