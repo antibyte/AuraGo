@@ -95,5 +95,6 @@
   "chat.stt_done": "完了",
   "chat.more_actions_title": "Sonota no sosa",
   "chat.feedback_toggle_title": "Fiidobakku",
-  "chat.input_placeholder_mobile": "タスクを入力..."
+  "chat.input_placeholder_mobile": "タスクを入力...",
+  "chat.thinking_label": "推論"
 }

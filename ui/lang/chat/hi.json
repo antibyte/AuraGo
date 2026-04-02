@@ -95,5 +95,6 @@
   "chat.stt_done": "पूर्ण",
   "chat.more_actions_title": "Aur karvaaiyan",
   "chat.feedback_toggle_title": "Feedbak",
-  "chat.input_placeholder_mobile": "कार्य लिखें..."
+  "chat.input_placeholder_mobile": "कार्य लिखें...",
+  "chat.thinking_label": "तर्क"
 }

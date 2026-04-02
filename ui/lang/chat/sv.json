@@ -95,5 +95,6 @@
   "chat.stt_done": "Klar",
   "chat.more_actions_title": "Fler atgarder",
   "chat.feedback_toggle_title": "Feedback",
-  "chat.input_placeholder_mobile": "Skriv en uppgift..."
+  "chat.input_placeholder_mobile": "Skriv en uppgift...",
+  "chat.thinking_label": "Resonemang"
 }

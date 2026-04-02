@@ -95,5 +95,6 @@
   "chat.stt_done": "Klaar",
   "chat.more_actions_title": "Meer acties",
   "chat.feedback_toggle_title": "Feedback",
-  "chat.input_placeholder_mobile": "Voer een taak in..."
+  "chat.input_placeholder_mobile": "Voer een taak in...",
+  "chat.thinking_label": "Redenering"
 }

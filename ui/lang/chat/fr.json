@@ -95,5 +95,6 @@
   "chat.stt_done": "Terminé",
   "chat.more_actions_title": "Plus d actions",
   "chat.feedback_toggle_title": "Feedback",
-  "chat.input_placeholder_mobile": "Saisir une tache..."
+  "chat.input_placeholder_mobile": "Saisir une tache...",
+  "chat.thinking_label": "Raisonnement"
 }

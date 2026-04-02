@@ -95,5 +95,6 @@
   "chat.stt_done": "Færdig",
   "chat.more_actions_title": "Flere handlinger",
   "chat.feedback_toggle_title": "Feedback",
-  "chat.input_placeholder_mobile": "Skriv en opgave..."
+  "chat.input_placeholder_mobile": "Skriv en opgave...",
+  "chat.thinking_label": "Ræsonnement"
 }

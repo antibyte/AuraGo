@@ -95,5 +95,6 @@
   "chat.stt_done": "完成",
   "chat.more_actions_title": "Geng duo cao zuo",
   "chat.feedback_toggle_title": "Fan kui",
-  "chat.input_placeholder_mobile": "输入任务..."
+  "chat.input_placeholder_mobile": "输入任务...",
+  "chat.thinking_label": "推理"
 }
