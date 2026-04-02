@@ -698,8 +698,9 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			if !cfg.HomeAssistant.Enabled {
 				return `Tool Output: {"status": "error", "message": "Home Assistant integration is not enabled. Set home_assistant.enabled=true in config.yaml."}`
 			}
+			req := decodeHomeAssistantArgs(tc)
 			if cfg.HomeAssistant.ReadOnly {
-				switch tc.Operation {
+				switch req.Operation {
 				case "call_service", "service":
 					return `Tool Output: {"status":"error","message":"Home Assistant is in read-only mode. Disable home_assistant.read_only to allow changes."}`
 				}
@@ -708,26 +709,19 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				URL:         cfg.HomeAssistant.URL,
 				AccessToken: cfg.HomeAssistant.AccessToken,
 			}
-			// Merge service_data from Params if ServiceData is nil
-			serviceData := tc.ServiceData
-			if serviceData == nil && tc.Params != nil {
-				if sd, ok := tc.Params["service_data"].(map[string]interface{}); ok {
-					serviceData = sd
-				}
-			}
-			switch tc.Operation {
+			switch req.Operation {
 			case "get_states", "list_states", "states":
-				logger.Info("LLM requested HA get_states", "domain", tc.Domain)
-				return "Tool Output: " + tools.HAGetStates(haCfg, tc.Domain)
+				logger.Info("LLM requested HA get_states", "domain", req.Domain)
+				return "Tool Output: " + tools.HAGetStates(haCfg, req.Domain)
 			case "get_state", "state":
-				logger.Info("LLM requested HA get_state", "entity_id", tc.EntityID)
-				return "Tool Output: " + tools.HAGetState(haCfg, tc.EntityID)
+				logger.Info("LLM requested HA get_state", "entity_id", req.EntityID)
+				return "Tool Output: " + tools.HAGetState(haCfg, req.EntityID)
 			case "call_service", "service":
-				logger.Info("LLM requested HA call_service", "domain", tc.Domain, "service", tc.Service, "entity_id", tc.EntityID)
-				return "Tool Output: " + tools.HACallService(haCfg, tc.Domain, tc.Service, tc.EntityID, serviceData)
+				logger.Info("LLM requested HA call_service", "domain", req.Domain, "service", req.Service, "entity_id", req.EntityID)
+				return "Tool Output: " + tools.HACallService(haCfg, req.Domain, req.Service, req.EntityID, req.ServiceData)
 			case "list_services", "services":
-				logger.Info("LLM requested HA list_services", "domain", tc.Domain)
-				return "Tool Output: " + tools.HAListServices(haCfg, tc.Domain)
+				logger.Info("LLM requested HA list_services", "domain", req.Domain)
+				return "Tool Output: " + tools.HAListServices(haCfg, req.Domain)
 			default:
 				return `Tool Output: {"status": "error", "message": "Unknown home_assistant operation. Use: get_states, get_state, call_service, list_services"}`
 			}
@@ -736,62 +730,25 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			if mediaRegistryDB == nil {
 				return `Tool Output: {"status": "error", "message": "Media registry is not enabled or DB not initialized."}`
 			}
-			op := tc.Operation
+			req := decodeMediaRegistryArgs(tc)
+			op := req.Operation
 			if op == "" {
 				op = "list"
 			}
-			// Parse tags from array or comma-separated string
-			var tags []string
-			if arr, ok := tc.Params["tags"].([]interface{}); ok {
-				for _, v := range arr {
-					if s, ok := v.(string); ok {
-						tags = append(tags, s)
-					}
-				}
-			} else if tc.Tags != "" {
-				for _, t := range strings.Split(tc.Tags, ",") {
-					t = strings.TrimSpace(t)
-					if t != "" {
-						tags = append(tags, t)
-					}
-				}
-			}
-			var itemID int64
-			if v, ok := tc.Params["id"].(float64); ok {
-				itemID = int64(v)
-			}
-			logger.Info("LLM requested media_registry", "operation", op, "media_type", tc.MediaType)
-			return "Tool Output: " + tools.DispatchMediaRegistry(mediaRegistryDB, op, tc.Query, tc.MediaType, tc.Description, tags, tc.TagMode, itemID, tc.Limit, tc.Offset, tc.Filename, tc.FilePath)
+			logger.Info("LLM requested media_registry", "operation", op, "media_type", req.MediaType)
+			return "Tool Output: " + tools.DispatchMediaRegistry(mediaRegistryDB, op, req.Query, req.MediaType, req.Description, req.Tags, req.TagMode, req.ID, req.Limit, req.Offset, req.Filename, req.FilePath)
 
 		case "homepage_registry":
 			if homepageRegistryDB == nil {
 				return `Tool Output: {"status": "error", "message": "Homepage registry is not enabled or DB not initialized."}`
 			}
-			op := tc.Operation
+			req := decodeHomepageRegistryArgs(tc)
+			op := req.Operation
 			if op == "" {
 				op = "list"
 			}
-			var tags []string
-			if arr, ok := tc.Params["tags"].([]interface{}); ok {
-				for _, v := range arr {
-					if s, ok := v.(string); ok {
-						tags = append(tags, s)
-					}
-				}
-			} else if tc.Tags != "" {
-				for _, t := range strings.Split(tc.Tags, ",") {
-					t = strings.TrimSpace(t)
-					if t != "" {
-						tags = append(tags, t)
-					}
-				}
-			}
-			var projectID int64
-			if v, ok := tc.Params["id"].(float64); ok {
-				projectID = int64(v)
-			}
-			logger.Info("LLM requested homepage_registry", "operation", op, "name", tc.Name)
-			return "Tool Output: " + tools.DispatchHomepageRegistry(homepageRegistryDB, op, tc.Query, tc.Name, tc.Description, tc.Framework, tc.ProjectDir, tc.URL, tc.Status, tc.Reason, tc.Problem, tc.Notes, tags, projectID, "", tc.Limit, tc.Offset)
+			logger.Info("LLM requested homepage_registry", "operation", op, "name", req.Name)
+			return "Tool Output: " + tools.DispatchHomepageRegistry(homepageRegistryDB, op, req.Query, req.Name, req.Description, req.Framework, req.ProjectDir, req.URL, req.Status, req.Reason, req.Problem, req.Notes, req.Tags, req.ID, "", req.Limit, req.Offset)
 
 		case "sql_query":
 			if !cfg.SQLConnections.Enabled {

@@ -314,8 +314,9 @@ func dispatchInfra(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 			if !cfg.Webhooks.Enabled {
 				return `Tool Output: {"status":"error","message":"Webhooks are not enabled. Set webhooks.enabled: true in config."}`
 			}
+			req := decodeManageWebhooksArgs(tc)
 			if cfg.Webhooks.ReadOnly {
-				switch tc.Operation {
+				switch req.Operation {
 				case "create", "update", "delete":
 					return `Tool Output: {"status":"error","message":"Webhooks are in read-only mode. Disable webhooks.read_only to allow changes."}`
 				}
@@ -326,7 +327,7 @@ func dispatchInfra(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 			if whErr != nil {
 				return fmt.Sprintf(`Tool Output: {"status":"error","message":"Failed to load webhook manager: %s"}`, whErr)
 			}
-			return handleWebhookToolCall(tc, whMgr, logger)
+			return handleWebhookToolCall(req, whMgr, logger)
 
 		case "proxmox", "proxmox_ve":
 			if !cfg.Proxmox.Enabled {

@@ -1155,8 +1155,8 @@ func runGitCommand(dir string, args ...string) ([]byte, error) {
 }
 
 // handleWebhookToolCall processes manage_webhooks tool calls.
-func handleWebhookToolCall(tc ToolCall, mgr *webhooks.Manager, logger *slog.Logger) string {
-	switch tc.Operation {
+func handleWebhookToolCall(req manageWebhooksArgs, mgr *webhooks.Manager, logger *slog.Logger) string {
+	switch req.Operation {
 	case "list":
 		list := mgr.List()
 		type summary struct {
@@ -1174,10 +1174,10 @@ func handleWebhookToolCall(tc ToolCall, mgr *webhooks.Manager, logger *slog.Logg
 		return "Tool Output: " + string(data)
 
 	case "get":
-		if tc.ID == "" {
+		if req.ID == "" {
 			return `Tool Output: {"status":"error","message":"id is required"}`
 		}
-		w, err := mgr.Get(tc.ID)
+		w, err := mgr.Get(req.ID)
 		if err != nil {
 			return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err)
 		}
@@ -1186,12 +1186,12 @@ func handleWebhookToolCall(tc ToolCall, mgr *webhooks.Manager, logger *slog.Logg
 
 	case "create":
 		w := webhooks.Webhook{
-			Name:    tc.Name,
-			Slug:    tc.Slug,
+			Name:    req.Name,
+			Slug:    req.Slug,
 			Enabled: true,
 		}
-		if tc.TokenID != "" {
-			w.TokenID = tc.TokenID
+		if req.TokenID != "" {
+			w.TokenID = req.TokenID
 		}
 		created, err := mgr.Create(w)
 		if err != nil {
@@ -1202,14 +1202,14 @@ func handleWebhookToolCall(tc ToolCall, mgr *webhooks.Manager, logger *slog.Logg
 		return "Tool Output: " + string(data)
 
 	case "update":
-		if tc.ID == "" {
+		if req.ID == "" {
 			return `Tool Output: {"status":"error","message":"id is required"}`
 		}
-		patch := webhooks.Webhook{Name: tc.Name, Slug: tc.Slug, Enabled: tc.Enabled}
-		if tc.TokenID != "" {
-			patch.TokenID = tc.TokenID
+		patch := webhooks.Webhook{Name: req.Name, Slug: req.Slug, Enabled: req.Enabled}
+		if req.TokenID != "" {
+			patch.TokenID = req.TokenID
 		}
-		updated, err := mgr.Update(tc.ID, patch)
+		updated, err := mgr.Update(req.ID, patch)
 		if err != nil {
 			return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err)
 		}
@@ -1218,22 +1218,22 @@ func handleWebhookToolCall(tc ToolCall, mgr *webhooks.Manager, logger *slog.Logg
 		return "Tool Output: " + string(data)
 
 	case "delete":
-		if tc.ID == "" {
+		if req.ID == "" {
 			return `Tool Output: {"status":"error","message":"id is required"}`
 		}
-		err := mgr.Delete(tc.ID)
+		err := mgr.Delete(req.ID)
 		if err != nil {
 			return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err)
 		}
-		logger.Info("Webhook deleted via tool", "id", tc.ID)
+		logger.Info("Webhook deleted via tool", "id", req.ID)
 		return `Tool Output: {"status":"ok","message":"webhook deleted"}`
 
 	case "logs":
 		whLog := mgr.GetLog()
 		n := 20
 		var entries []webhooks.LogEntry
-		if tc.ID != "" {
-			entries = whLog.ForWebhook(tc.ID, n)
+		if req.ID != "" {
+			entries = whLog.ForWebhook(req.ID, n)
 		} else {
 			entries = whLog.Recent(n)
 		}
