@@ -98,6 +98,25 @@ func stripToolCallBlocks(s string) string {
 
 func trimJSONResponse(raw string) string {
 	raw = strings.TrimSpace(raw)
+
+	// Strip <think>...</think> blocks emitted by reasoning models (e.g. MiniMax-M2.7, DeepSeek-R1).
+	// Iterate in case the model emits multiple thinking blocks.
+	for {
+		lower := strings.ToLower(raw)
+		start := strings.Index(lower, "<think>")
+		if start == -1 {
+			break
+		}
+		end := strings.Index(lower[start:], "</think>")
+		if end == -1 {
+			// Unclosed tag — drop everything from <think> onward and stop.
+			raw = strings.TrimSpace(raw[:start])
+			break
+		}
+		raw = strings.TrimSpace(raw[:start] + raw[start+end+len("</think>"):])
+	}
+
+	// Strip markdown code fences (```json ... ``` or ``` ... ```).
 	if strings.HasPrefix(raw, "```") {
 		if idx := strings.Index(raw[3:], "\n"); idx >= 0 {
 			raw = raw[3+idx+1:]
@@ -107,7 +126,16 @@ func trimJSONResponse(raw string) string {
 		}
 		raw = strings.TrimSpace(raw)
 	}
-	return raw
+
+	// If the response still has leading non-JSON text, advance to the first { or [.
+	for i, ch := range raw {
+		if ch == '{' || ch == '[' {
+			raw = raw[i:]
+			break
+		}
+	}
+
+	return strings.TrimSpace(raw)
 }
 
 func parseMemoryAnalysisResult(raw string) (memoryAnalysisResult, error) {

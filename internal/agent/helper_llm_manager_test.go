@@ -359,3 +359,74 @@ func TestHelperLLMManagerObserveFallbackTracksDetail(t *testing.T) {
 		t.Fatalf("last_detail = %q, want batch failed", got.LastDetail)
 	}
 }
+
+func TestTrimJSONResponseStripsThinkBlocks(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{
+			name: "think block before JSON",
+			in:   "<think>\nsome reasoning here\n</think>\n{\"key\":\"value\"}",
+			want: `{"key":"value"}`,
+		},
+		{
+			name: "think block with trailing whitespace",
+			in:   "<Think>reasoning</Think>   {\"key\":\"value\"}",
+			want: `{"key":"value"}`,
+		},
+		{
+			name: "multiple think blocks",
+			in:   "<think>first</think><think>second</think>{\"key\":\"value\"}",
+			want: `{"key":"value"}`,
+		},
+		{
+			name: "unclosed think block drops remainder",
+			in:   "<think>unclosed reasoning",
+			want: ``,
+		},
+		{
+			name: "no think block passes through unchanged",
+			in:   `{"key":"value"}`,
+			want: `{"key":"value"}`,
+		},
+		{
+			name: "code fence still stripped after think block",
+			in:   "<think>reasoning</think>\n```json\n{\"key\":\"value\"}\n```",
+			want: `{"key":"value"}`,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := trimJSONResponse(tc.in)
+			if got != tc.want {
+				t.Errorf("trimJSONResponse(%q)\n got  %q\n want %q", tc.in, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestParseHelperRAGBatchResultStripsThinkBlock(t *testing.T) {
+	raw := "<think>\nLet me find the best query.\n</think>\n{\"search_query\":\"nas backup error\",\"search_terms\":[\"nas\"],\"candidate_scores\":[]}"
+	got, err := parseHelperRAGBatchResult(raw)
+	if err != nil {
+		t.Fatalf("parseHelperRAGBatchResult with think block: %v", err)
+	}
+	if got.SearchQuery != "nas backup error" {
+		t.Fatalf("search_query = %q", got.SearchQuery)
+	}
+}
+
+func TestParseHelperTurnBatchResultStripsThinkBlock(t *testing.T) {
+	json := `{"memory_analysis":{"facts":[],"preferences":[],"corrections":[],"pending_actions":[]},"activity_digest":{"intent":"test","user_goal":"","actions_taken":[],"outcomes":[],"important_points":[],"pending_items":[],"importance":1,"entities":[]},"personality_analysis":{"mood_analysis":{"user_sentiment":"neutral","agent_appropriate_response_mood":"calm","relationship_delta":0,"trait_deltas":{},"user_profile_updates":[]},"emotion_state":{"description":"","primary_mood":"calm","secondary_mood":"","valence":0,"arousal":0,"confidence":0,"cause":"","recommended_response_style":""}}}`
+	raw := "<think>\nAnalyzing the conversation...\n</think>\n" + json
+	got, err := parseHelperTurnBatchResult(raw)
+	if err != nil {
+		t.Fatalf("parseHelperTurnBatchResult with think block: %v", err)
+	}
+	if got.ActivityDigest.Intent != "test" {
+		t.Fatalf("intent = %q", got.ActivityDigest.Intent)
+	}
+}
