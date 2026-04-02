@@ -58,7 +58,8 @@ func TestParseToolCallCoercesNumericStringFields(t *testing.T) {
 	if !tc.IsTool {
 		t.Fatal("expected tool call to be detected")
 	}
-	if tc.WLANIndex != 2 {
-		t.Fatalf("WLANIndex = %d, want 2", tc.WLANIndex)
+	args := decodeFritzBoxArgs(tc)
+	if args.WLANIndex != 2 {
+		t.Fatalf("WLANIndex = %d, want 2", args.WLANIndex)
 	}
 }

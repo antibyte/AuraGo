@@ -259,7 +259,7 @@ func decodeMDNSScanArgs(tc ToolCall) mdnsScanArgs {
 
 func decodeMACLookupArgs(tc ToolCall) macLookupArgs {
 	return macLookupArgs{
-		IP: firstNonEmptyToolString(tc.IP, tc.IPAddress, toolArgString(tc.Params, "ip", "ip_address")),
+		IP: toolArgString(tc.Params, "ip", "ip_address"),
 	}
 }
 
@@ -587,14 +587,10 @@ func decodeFirewallArgs(tc ToolCall) firewallArgs {
 func decodeMCPCallArgs(tc ToolCall) mcpCallArgs {
 	req := mcpCallArgs{
 		Operation: firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
-		Server:    firstNonEmptyToolString(tc.Server, toolArgString(tc.Params, "server")),
-		ToolName:  firstNonEmptyToolString(tc.ToolName, toolArgString(tc.Params, "tool_name", "name")),
+		Server:    toolArgString(tc.Params, "server"),
+		ToolName:  toolArgString(tc.Params, "tool_name", "name"),
 	}
-	if tc.MCPArgs != nil {
-		req.Args = tc.MCPArgs
-	} else {
-		req.Args = toolArgInterfaceMap(tc.Params, "args", "mcp_args", "parameters")
-	}
+	req.Args = toolArgInterfaceMap(tc.Params, "args", "mcp_args", "parameters")
 	if req.Args == nil {
 		req.Args = map[string]interface{}{}
 	}
@@ -605,36 +601,28 @@ func decodeAdGuardArgs(tc ToolCall) adGuardArgs {
 	req := adGuardArgs{
 		Operation: firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
 		Query:     firstNonEmptyToolString(tc.Query, toolArgString(tc.Params, "query")),
-		Limit:     firstNonEmptyInt(tc.Limit, toolArgInt(tc.Params, 0, "limit")),
-		Offset:    firstNonEmptyInt(tc.Offset, toolArgInt(tc.Params, 0, "offset")),
-		Enabled:   tc.Enabled,
+		Limit:     toolArgInt(tc.Params, 0, "limit"),
+		Offset:    toolArgInt(tc.Params, 0, "offset"),
 		URL:       firstNonEmptyToolString(tc.URL, toolArgString(tc.Params, "url")),
 		Name:      firstNonEmptyToolString(tc.Name, toolArgString(tc.Params, "name")),
-		Domain:    firstNonEmptyToolString(tc.Domain, toolArgString(tc.Params, "domain")),
-		Answer:    firstNonEmptyToolString(tc.Answer, toolArgString(tc.Params, "answer")),
+		Domain:    toolArgString(tc.Params, "domain"),
+		Answer:    toolArgString(tc.Params, "answer"),
 		Content:   firstNonEmptyToolString(tc.Content, toolArgString(tc.Params, "content")),
-		MAC:       firstNonEmptyToolString(tc.MAC, toolArgString(tc.Params, "mac")),
-		IP:        firstNonEmptyToolString(tc.IP, toolArgString(tc.Params, "ip")),
+		MAC:       toolArgString(tc.Params, "mac"),
+		IP:        toolArgString(tc.Params, "ip"),
 		Hostname:  firstNonEmptyToolString(tc.Hostname, toolArgString(tc.Params, "hostname")),
 	}
 	if enabled, ok := toolArgBool(tc.Params, "enabled"); ok {
 		req.Enabled = enabled
 	}
-	if len(tc.Services) > 0 {
-		req.Services = append([]string(nil), tc.Services...)
-	} else {
-		req.Services = toolArgStringSlice(tc.Params, "services")
-		if len(req.Services) == 0 {
-			req.Services = splitCSV(toolArgString(tc.Params, "services"))
-		}
+	req.Services = toolArgStringSlice(tc.Params, "services")
+	if len(req.Services) == 0 {
+		req.Services = splitCSV(toolArgString(tc.Params, "services"))
 	}
-	req.Rules = tc.Rules
-	if req.Rules == "" {
-		if rules := toolArgStringSlice(tc.Params, "rules"); len(rules) > 0 {
-			req.Rules = strings.Join(rules, "\n")
-		} else {
-			req.Rules = toolArgString(tc.Params, "rules")
-		}
+	if rules := toolArgStringSlice(tc.Params, "rules"); len(rules) > 0 {
+		req.Rules = strings.Join(rules, "\n")
+	} else {
+		req.Rules = toolArgString(tc.Params, "rules")
 	}
 	return req
 }
@@ -642,14 +630,14 @@ func decodeAdGuardArgs(tc ToolCall) adGuardArgs {
 func decodeSQLQueryArgs(tc ToolCall) sqlQueryArgs {
 	return sqlQueryArgs{
 		Operation:      firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
-		ConnectionName: firstNonEmptyToolString(tc.ConnectionName, toolArgString(tc.Params, "connection_name")),
-		SQLQuery:       firstNonEmptyToolString(tc.SQLQuery, toolArgString(tc.Params, "sql_query")),
-		TableName:      firstNonEmptyToolString(tc.TableName, toolArgString(tc.Params, "table_name")),
+		ConnectionName: toolArgString(tc.Params, "connection_name"),
+		SQLQuery:       toolArgString(tc.Params, "sql_query"),
+		TableName:      toolArgString(tc.Params, "table_name"),
 	}
 }
 
 func decodeMQTTArgs(tc ToolCall) mqttArgs {
-	payload := firstNonEmptyToolString(tc.Payload, toolArgString(tc.Params, "payload"))
+	payload := toolArgString(tc.Params, "payload")
 	if payload == "" {
 		payload = firstNonEmptyToolString(tc.Message, toolArgString(tc.Params, "message"))
 	}
@@ -657,11 +645,10 @@ func decodeMQTTArgs(tc ToolCall) mqttArgs {
 		payload = firstNonEmptyToolString(tc.Content, toolArgString(tc.Params, "content"))
 	}
 	req := mqttArgs{
-		Topic:   firstNonEmptyToolString(tc.Topic, toolArgString(tc.Params, "topic")),
+		Topic:   toolArgString(tc.Params, "topic"),
 		Payload: payload,
-		QoS:     firstNonEmptyInt(tc.QoS, toolArgInt(tc.Params, 0, "qos")),
-		Retain:  tc.Retain,
-		Limit:   firstNonEmptyInt(tc.Limit, toolArgInt(tc.Params, 0, "limit")),
+		QoS:     toolArgInt(tc.Params, 0, "qos"),
+		Limit:   toolArgInt(tc.Params, 0, "limit"),
 	}
 	if retain, ok := toolArgBool(tc.Params, "retain"); ok {
 		req.Retain = retain

@@ -438,8 +438,6 @@ type ToolCall struct {
 	Retain  bool   `json:"retain"`
 	QoS     int    `json:"qos"`
 	// MCP fields
-	Server  string                 `json:"server"`
-	MCPArgs map[string]interface{} `json:"mcp_args"`
 	// Sandbox fields
 	SandboxLang string   `json:"sandbox_lang"` // language for execute_sandbox (python, javascript, go, etc.)
 	Libraries   []string `json:"libraries"`    // optional packages to install before running sandbox code
@@ -472,12 +470,7 @@ type ToolCall struct {
 	HookEvent    string `json:"hook_event"`    // hook event: deploy_created, deploy_building, deploy_failed, etc.
 	CustomDomain string `json:"custom_domain"` // custom domain for site
 	// AdGuard Home fields
-	Answer   string   `json:"answer"`   // DNS rewrite answer (IP or CNAME)
-	Rules    string   `json:"rules"`    // custom filtering rules (newline-separated)
-	Services []string `json:"services"` // blocked service IDs / upstream DNS servers
-	MAC      string   `json:"mac"`      // MAC address for DHCP leases
-	IP       string   `json:"ip"`       // IP address for DHCP leases
-	Offset   int      `json:"offset"`   // pagination offset
+	Offset int `json:"offset"` // pagination offset
 	// Cheat Sheet fields
 	Active       *bool  `json:"active,omitempty"`        // pointer so nil = not provided vs false = explicitly inactive
 	AttachmentID string `json:"attachment_id,omitempty"` // attachment ID for cheatsheet attach/detach
@@ -537,18 +530,6 @@ type ToolCall struct {
 	TimeoutSecs  int    `json:"timeout_secs,omitempty"`  // discovery timeout in seconds
 	DelaySeconds int    `json:"delay_seconds,omitempty"` // delay before a background task starts
 	IntervalSecs int    `json:"interval_seconds,omitempty"`
-	// FritzBox fields
-	AIN            string  `json:"ain,omitempty"`             // Actor Identification Number (smart home)
-	TempC          float64 `json:"temp_c,omitempty"`          // target temperature in °C
-	WLANIndex      int     `json:"wlan_index,omitempty"`      // WLAN interface index (1–4)
-	TamIndex       int     `json:"tam_index,omitempty"`       // TAM/answering machine index
-	MsgIndex       int     `json:"msg_index,omitempty"`       // TAM message index
-	PhonebookID    int     `json:"phonebook_id,omitempty"`    // phonebook index
-	Brightness     int     `json:"brightness,omitempty"`      // brightness percentage (0–100)
-	ExternalPort   string  `json:"external_port,omitempty"`   // external port for port forwarding
-	InternalPort   string  `json:"internal_port,omitempty"`   // internal port for port forwarding
-	InternalClient string  `json:"internal_client,omitempty"` // LAN IP for port forwarding
-	Protocol       string  `json:"protocol,omitempty"`        // protocol: TCP or UDP (port forwarding)
 	// Address Book fields
 	Email          string `json:"email,omitempty"`        // contact email
 	Phone          string `json:"phone,omitempty"`        // contact phone number
@@ -583,6 +564,48 @@ type ToolCall struct {
 	Glob       string `json:"glob,omitempty"`        // file glob pattern
 	OutputMode string `json:"output_mode,omitempty"` // result mode: content, count, lines
 	Pattern    string `json:"pattern,omitempty"`     // search pattern (regex)
+}
+
+func (tc *ToolCall) UnmarshalJSON(data []byte) error {
+	// Preserve existing field-based decoding but also build a robust flat args map
+	// so tool-specific decoders can read from `tc.Params` only.
+	type toolCallAlias ToolCall
+
+	// Start from the current state so absent JSON fields do not zero-out values that
+	// were set programmatically (e.g. native-tool shortcut prefill).
+	decoded := toolCallAlias(*tc)
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		return err
+	}
+	*tc = ToolCall(decoded)
+
+	var raw map[string]interface{}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		// If raw parsing fails, keep the typed decode and leave Params as-is.
+		return nil
+	}
+
+	merged := make(map[string]interface{})
+	// Start with the explicit `params` object if present.
+	if rawParams, ok := raw["params"].(map[string]interface{}); ok {
+		for k, v := range rawParams {
+			merged[k] = v
+		}
+	}
+	// Then merge in any already-decoded Params (e.g. native call path).
+	for k, v := range tc.Params {
+		merged[k] = v
+	}
+	// Finally overlay all top-level keys (excluding the params container itself).
+	for k, v := range raw {
+		if k == "params" {
+			continue
+		}
+		merged[k] = v
+	}
+
+	tc.Params = merged
+	return nil
 }
 
 // GetArgs returns Args as a string slice, handling various input types (slice of strings or interface).
