@@ -776,9 +776,10 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			if sqlConnectionsDB == nil || sqlConnectionPool == nil {
 				return `Tool Output: {"status":"error","message":"SQL Connections database not available."}`
 			}
-			logger.Info("LLM requested manage_sql_connections", "op", tc.Operation)
+			req := decodeManageSQLConnectionsArgs(tc)
+			logger.Info("LLM requested manage_sql_connections", "op", req.Operation)
 
-			switch tc.Operation {
+			switch req.Operation {
 			case "list":
 				list, err := sqlconnections.List(sqlConnectionsDB)
 				if err != nil {
@@ -813,10 +814,10 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return "Tool Output: " + string(b)
 
 			case "get":
-				if tc.ConnectionName == "" {
+				if req.ConnectionName == "" {
 					return `Tool Output: {"status":"error","message":"'connection_name' is required"}`
 				}
-				c, err := sqlconnections.GetByName(sqlConnectionsDB, tc.ConnectionName)
+				c, err := sqlconnections.GetByName(sqlConnectionsDB, req.ConnectionName)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
 				}
@@ -830,109 +831,93 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return "Tool Output: " + string(b)
 
 			case "create":
-				if tc.ConnectionName == "" || tc.Driver == "" {
+				if req.ConnectionName == "" || req.Driver == "" {
 					return `Tool Output: {"status":"error","message":"'connection_name' and 'driver' are required for create"}`
 				}
 				allowRead := true
-				if tc.AllowRead != nil {
-					allowRead = *tc.AllowRead
+				if req.AllowRead != nil {
+					allowRead = *req.AllowRead
 				}
 				allowWrite := false
-				if tc.AllowWrite != nil {
-					allowWrite = *tc.AllowWrite
+				if req.AllowWrite != nil {
+					allowWrite = *req.AllowWrite
 				}
 				allowChange := false
-				if tc.AllowChange != nil {
-					allowChange = *tc.AllowChange
+				if req.AllowChange != nil {
+					allowChange = *req.AllowChange
 				}
 				allowDelete := false
-				if tc.AllowDelete != nil {
-					allowDelete = *tc.AllowDelete
+				if req.AllowDelete != nil {
+					allowDelete = *req.AllowDelete
 				}
 
-				sslMode := tc.SSLMode
+				sslMode := req.SSLMode
 				if sslMode == "" {
 					sslMode = "disable"
 				}
 
 				// Store credentials in vault
 				vaultKey := ""
-				username := ""
-				password := ""
-				if tc.Params != nil {
-					if u, ok := tc.Params["username"].(string); ok {
-						username = u
-					}
-					if p, ok := tc.Params["password"].(string); ok {
-						password = p
-					}
-				}
+				username := req.Username
+				password := req.Password
 				if username != "" || password != "" {
 					credJSON, marshalErr := sqlconnections.MarshalCredentials(username, password)
 					if marshalErr != nil {
 						return fmt.Sprintf(`Tool Output: {"status":"error","message":"failed to marshal credentials: %s"}`, marshalErr.Error())
 					}
-					vaultKey = "sqlconn_" + tc.ConnectionName
+					vaultKey = "sqlconn_" + req.ConnectionName
 					if err := vault.WriteSecret(vaultKey, credJSON); err != nil {
 						return fmt.Sprintf(`Tool Output: {"status":"error","message":"failed to store credentials: %s"}`, err.Error())
 					}
 				}
 
 				id, err := sqlconnections.Create(sqlConnectionsDB,
-					tc.ConnectionName, tc.Driver, tc.Host, tc.Port, tc.DatabaseName, tc.Description,
+					req.ConnectionName, req.Driver, req.Host, req.Port, req.DatabaseName, req.Description,
 					allowRead, allowWrite, allowChange, allowDelete, vaultKey, sslMode)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
 				}
-				return fmt.Sprintf(`Tool Output: {"status":"success","message":"Connection created","id":"%s","name":"%s"}`, id, tc.ConnectionName)
+				return fmt.Sprintf(`Tool Output: {"status":"success","message":"Connection created","id":"%s","name":"%s"}`, id, req.ConnectionName)
 
 			case "update":
-				if tc.ConnectionName == "" {
+				if req.ConnectionName == "" {
 					return `Tool Output: {"status":"error","message":"'connection_name' is required for update"}`
 				}
-				existing, err := sqlconnections.GetByName(sqlConnectionsDB, tc.ConnectionName)
+				existing, err := sqlconnections.GetByName(sqlConnectionsDB, req.ConnectionName)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
 				}
-				if tc.Description != "" {
-					existing.Description = tc.Description
+				if req.Description != "" {
+					existing.Description = req.Description
 				}
-				if tc.Host != "" {
-					existing.Host = tc.Host
+				if req.Host != "" {
+					existing.Host = req.Host
 				}
-				if tc.Port > 0 {
-					existing.Port = tc.Port
+				if req.Port > 0 {
+					existing.Port = req.Port
 				}
-				if tc.DatabaseName != "" {
-					existing.DatabaseName = tc.DatabaseName
+				if req.DatabaseName != "" {
+					existing.DatabaseName = req.DatabaseName
 				}
-				if tc.SSLMode != "" {
-					existing.SSLMode = tc.SSLMode
+				if req.SSLMode != "" {
+					existing.SSLMode = req.SSLMode
 				}
-				if tc.AllowRead != nil {
-					existing.AllowRead = *tc.AllowRead
+				if req.AllowRead != nil {
+					existing.AllowRead = *req.AllowRead
 				}
-				if tc.AllowWrite != nil {
-					existing.AllowWrite = *tc.AllowWrite
+				if req.AllowWrite != nil {
+					existing.AllowWrite = *req.AllowWrite
 				}
-				if tc.AllowChange != nil {
-					existing.AllowChange = *tc.AllowChange
+				if req.AllowChange != nil {
+					existing.AllowChange = *req.AllowChange
 				}
-				if tc.AllowDelete != nil {
-					existing.AllowDelete = *tc.AllowDelete
+				if req.AllowDelete != nil {
+					existing.AllowDelete = *req.AllowDelete
 				}
 
 				// Update credentials if provided
-				username := ""
-				password := ""
-				if tc.Params != nil {
-					if u, ok := tc.Params["username"].(string); ok {
-						username = u
-					}
-					if p, ok := tc.Params["password"].(string); ok {
-						password = p
-					}
-				}
+				username := req.Username
+				password := req.Password
 				if username != "" || password != "" {
 					credJSON, marshalErr := sqlconnections.MarshalCredentials(username, password)
 					if marshalErr != nil {
@@ -940,7 +925,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					}
 					vaultKey := existing.VaultSecretID
 					if vaultKey == "" {
-						vaultKey = "sqlconn_" + tc.ConnectionName
+						vaultKey = "sqlconn_" + req.ConnectionName
 					}
 					if err := vault.WriteSecret(vaultKey, credJSON); err != nil {
 						return fmt.Sprintf(`Tool Output: {"status":"error","message":"failed to update credentials: %s"}`, err.Error())
@@ -958,13 +943,13 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					existing.VaultSecretID, existing.SSLMode); err != nil {
 					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
 				}
-				return fmt.Sprintf(`Tool Output: {"status":"success","message":"Connection updated","name":"%s"}`, tc.ConnectionName)
+				return fmt.Sprintf(`Tool Output: {"status":"success","message":"Connection updated","name":"%s"}`, req.ConnectionName)
 
 			case "delete":
-				if tc.ConnectionName == "" {
+				if req.ConnectionName == "" {
 					return `Tool Output: {"status":"error","message":"'connection_name' is required for delete"}`
 				}
-				existing, err := sqlconnections.GetByName(sqlConnectionsDB, tc.ConnectionName)
+				existing, err := sqlconnections.GetByName(sqlConnectionsDB, req.ConnectionName)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
 				}
@@ -976,41 +961,34 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				if existing.VaultSecretID != "" {
 					_ = vault.DeleteSecret(existing.VaultSecretID)
 				}
-				return fmt.Sprintf(`Tool Output: {"status":"success","message":"Connection deleted","name":"%s"}`, tc.ConnectionName)
+				return fmt.Sprintf(`Tool Output: {"status":"success","message":"Connection deleted","name":"%s"}`, req.ConnectionName)
 
 			case "test":
-				if tc.ConnectionName == "" {
+				if req.ConnectionName == "" {
 					return `Tool Output: {"status":"error","message":"'connection_name' is required for test"}`
 				}
-				rec, err := sqlconnections.GetByName(sqlConnectionsDB, tc.ConnectionName)
+				rec, err := sqlconnections.GetByName(sqlConnectionsDB, req.ConnectionName)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
 				}
 				if err := sqlConnectionPool.TestConnection(rec); err != nil {
 					return fmt.Sprintf(`Tool Output: {"status":"error","message":"Connection test failed: %s"}`, err.Error())
 				}
-				return fmt.Sprintf(`Tool Output: {"status":"success","message":"Connection test successful","name":"%s","driver":"%s"}`, tc.ConnectionName, rec.Driver)
+				return fmt.Sprintf(`Tool Output: {"status":"success","message":"Connection test successful","name":"%s","driver":"%s"}`, req.ConnectionName, rec.Driver)
 
 			case "docker_create":
-				if tc.ConnectionName == "" {
+				if req.ConnectionName == "" {
 					return `Tool Output: {"status":"error","message":"'connection_name' is required for docker_create"}`
 				}
-				templateName := tc.DockerTemplate
-				if templateName == "" {
-					if tc.Params != nil {
-						if t, ok := tc.Params["docker_template"].(string); ok {
-							templateName = t
-						}
-					}
-				}
+				templateName := req.DockerTemplate
 				if templateName == "" {
 					return `Tool Output: {"status":"error","message":"'docker_template' is required (postgres, mysql, mariadb)"}`
 				}
-				dbName := tc.DatabaseName
+				dbName := req.DatabaseName
 				if dbName == "" {
-					dbName = tc.ConnectionName
+					dbName = req.ConnectionName
 				}
-				dockerReq, err := sqlconnections.PrepareDockerDB(templateName, tc.ConnectionName, dbName)
+				dockerReq, err := sqlconnections.PrepareDockerDB(templateName, req.ConnectionName, dbName)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
 				}

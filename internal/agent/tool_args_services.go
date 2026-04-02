@@ -44,6 +44,24 @@ type s3Args struct {
 	DestinationKey    string
 }
 
+type manageSQLConnectionsArgs struct {
+	Operation      string
+	ConnectionName string
+	Driver         string
+	Host           string
+	Port           int
+	DatabaseName   string
+	Description    string
+	SSLMode        string
+	AllowRead      *bool
+	AllowWrite     *bool
+	AllowChange    *bool
+	AllowDelete    *bool
+	Username       string
+	Password       string
+	DockerTemplate string
+}
+
 type homeAssistantArgs struct {
 	Operation   string
 	Domain      string
@@ -197,6 +215,47 @@ func decodeS3Args(tc ToolCall) s3Args {
 		DestinationBucket: firstNonEmptyToolString(tc.DestinationBucket, toolArgString(tc.Params, "destination_bucket")),
 		DestinationKey:    firstNonEmptyToolString(tc.DestinationKey, toolArgString(tc.Params, "destination_key")),
 	}
+}
+
+func toolArgOptionalBool(args map[string]interface{}, keys ...string) *bool {
+	if value, ok := toolArgBool(args, keys...); ok {
+		result := value
+		return &result
+	}
+	return nil
+}
+
+func decodeManageSQLConnectionsArgs(tc ToolCall) manageSQLConnectionsArgs {
+	req := manageSQLConnectionsArgs{
+		Operation:      firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
+		ConnectionName: firstNonEmptyToolString(tc.ConnectionName, toolArgString(tc.Params, "connection_name")),
+		Driver:         firstNonEmptyToolString(tc.Driver, toolArgString(tc.Params, "driver")),
+		Host:           firstNonEmptyToolString(tc.Host, toolArgString(tc.Params, "host")),
+		Port:           firstNonEmptyInt(tc.Port, toolArgInt(tc.Params, 0, "port")),
+		DatabaseName:   firstNonEmptyToolString(tc.DatabaseName, toolArgString(tc.Params, "database_name")),
+		Description:    firstNonEmptyToolString(tc.Description, toolArgString(tc.Params, "description")),
+		SSLMode:        firstNonEmptyToolString(tc.SSLMode, toolArgString(tc.Params, "ssl_mode")),
+		Username:       firstNonEmptyToolString(tc.Username, toolArgString(tc.Params, "username", "user")),
+		Password:       firstNonEmptyToolString(tc.Password, toolArgString(tc.Params, "password", "pass")),
+		DockerTemplate: firstNonEmptyToolString(tc.DockerTemplate, toolArgString(tc.Params, "docker_template")),
+		AllowRead:      tc.AllowRead,
+		AllowWrite:     tc.AllowWrite,
+		AllowChange:    tc.AllowChange,
+		AllowDelete:    tc.AllowDelete,
+	}
+	if req.AllowRead == nil {
+		req.AllowRead = toolArgOptionalBool(tc.Params, "allow_read")
+	}
+	if req.AllowWrite == nil {
+		req.AllowWrite = toolArgOptionalBool(tc.Params, "allow_write")
+	}
+	if req.AllowChange == nil {
+		req.AllowChange = toolArgOptionalBool(tc.Params, "allow_change")
+	}
+	if req.AllowDelete == nil {
+		req.AllowDelete = toolArgOptionalBool(tc.Params, "allow_delete")
+	}
+	return req
 }
 
 func decodeHomeAssistantArgs(tc ToolCall) homeAssistantArgs {

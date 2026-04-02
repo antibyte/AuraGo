@@ -105,6 +105,61 @@ func TestDecodeS3ArgsUsesParamsFallback(t *testing.T) {
 	}
 }
 
+func TestDecodeManageSQLConnectionsArgsUsesParamsFallback(t *testing.T) {
+	tc := ToolCall{
+		Action: "manage_sql_connections",
+		Params: map[string]interface{}{
+			"operation":       "create",
+			"connection_name": "analytics",
+			"driver":          "postgres",
+			"host":            "db.internal",
+			"port":            float64(5432),
+			"database_name":   "events",
+			"description":     "warehouse",
+			"ssl_mode":        "require",
+			"allow_read":      true,
+			"allow_write":     false,
+			"allow_change":    true,
+			"allow_delete":    false,
+			"username":        "reporter",
+			"password":        "secret",
+			"docker_template": "postgres",
+		},
+	}
+
+	req := decodeManageSQLConnectionsArgs(tc)
+	if req.Operation != "create" {
+		t.Fatalf("Operation = %q, want create", req.Operation)
+	}
+	if req.ConnectionName != "analytics" || req.Driver != "postgres" {
+		t.Fatalf("unexpected connection metadata: %+v", req)
+	}
+	if req.Host != "db.internal" || req.Port != 5432 || req.DatabaseName != "events" {
+		t.Fatalf("unexpected endpoint decode: %+v", req)
+	}
+	if req.Description != "warehouse" || req.SSLMode != "require" {
+		t.Fatalf("unexpected description/ssl decode: %+v", req)
+	}
+	if req.AllowRead == nil || *req.AllowRead != true {
+		t.Fatalf("AllowRead = %#v, want true", req.AllowRead)
+	}
+	if req.AllowWrite == nil || *req.AllowWrite != false {
+		t.Fatalf("AllowWrite = %#v, want false", req.AllowWrite)
+	}
+	if req.AllowChange == nil || *req.AllowChange != true {
+		t.Fatalf("AllowChange = %#v, want true", req.AllowChange)
+	}
+	if req.AllowDelete == nil || *req.AllowDelete != false {
+		t.Fatalf("AllowDelete = %#v, want false", req.AllowDelete)
+	}
+	if req.Username != "reporter" || req.Password != "secret" {
+		t.Fatalf("unexpected credentials decode: %+v", req)
+	}
+	if req.DockerTemplate != "postgres" {
+		t.Fatalf("DockerTemplate = %q, want postgres", req.DockerTemplate)
+	}
+}
+
 func TestDecodeManageWebhooksArgsUsesActionAlias(t *testing.T) {
 	tc := ToolCall{
 		Action: "manage_webhooks",
